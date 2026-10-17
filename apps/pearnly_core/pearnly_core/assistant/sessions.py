@@ -23,8 +23,8 @@
 
 对话归在哪家（ADR-020，Cowork 按公司主档）：记在 `project`（空 = 「最近」）、`period`（处理月份）、`project_scope`
 （产品自定的范围，Cowork 是分店），能挂哪些由产品的 provider 判（`projects`）。`listing(grouped=True)` 第一页给全部
-加星标的 + 「最近」一页 + 每组最新几条，之后按组翻（`group`）；不带 grouped 时与以前一样。对话归在某家时，批末系统
-消息里带上这家的说明（`projects.note`，哈希记在 `project_noted`，说明变了、换月、开新一段才重带；移出时带一句
+加星标的 + 「最近」一页 + 每组最新几条 + 组里手排过的（`_ordered`），之后按组翻（`group`）；不带 grouped 时与以前一样。
+对话归在某家时，批末系统消息里带上这家的说明（`projects.note`，哈希记在 `project_noted`，说明变了、换月、开新一段才重带；移出时带一句
 「不再属于」）。
 """
 import json
@@ -32,8 +32,8 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import (config, context, contracts, engine, engines, notices, projects, relay, sidebar,
-                                    titles, toolrun, tools)
+from pearnly_core.assistant import (config, context, contracts, engine, engines, notices, prefs, projects, relay,
+                                    sidebar, titles, toolrun, tools)
 
 SESSION = context.SESSION
 LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
@@ -41,6 +41,7 @@ PAGE_SIZE = 30  # 其余的每页条数
 SAME_TIME_SLACK = 10  # 翻页时多取几条，用来跳过与上一页最后一条同一时刻、已经给过的
 GROUP_FIRST = 5  # 分组列表第一页每组给这么多条
 GROUP_SCAN = 300  # 第一页一次最多读这么多条归在组里的对话，再按组各留 GROUP_FIRST 条
+ORDERED_MAX = 300  # 第一页按组里手排的先后一并给的最多这么多条
 FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted"]
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
@@ -164,20 +165,46 @@ def _filed_counts(base) -> dict:
     return {row.project: int(row.count) for row in found}
 
 
-def _grouped_first(base) -> tuple[list, str | None, dict]:
-    """分组列表第一页：「最近」（不在任何组）一页，加上各组最新 `GROUP_FIRST` 条（一次读至多 `GROUP_SCAN` 条再按组留）。
-    `groups` 只列还有更多的组：值是这组第一页最后一条的游标，一条都没读到的给 ""（从头翻）。"""
+def _ordered(base) -> list:
+    """组里手排过的对话（当前用户个人排列 order 里 `group:<公司编号>` 的编号，`prefs`；用户 10-17 组里可拖）：分组列表第一页一并
+    给。第一页每组只有最新几条，排到组顶的旧对话原来要点「显示更多」翻到它那一页才回来，刷新、换设备后组顶就不对了（审查）。
+    只给仍在那一组、没加星标、没归档的；读不到排列就不给。"""
+    order = (prefs.read() or {}).get("order")
+    wanted = {}
+    for field, value in (order.items() if isinstance(order, dict) else ()):
+        if not field.startswith(prefs.GROUP_FIELD) or not isinstance(value, dict) or not isinstance(value.get("keys"), list):
+            continue
+        for key in value["keys"]:
+            if isinstance(key, str) and key and key not in wanted and len(wanted) < ORDERED_MAX:
+                wanted[key] = field[len(prefs.GROUP_FIELD):]
+    if not wanted:
+        return []
+    found = frappe.get_all(SESSION, filters={**base, "starred": 0, "session_id": ["in", list(wanted)]}, fields=LIST_FIELDS,
+                           order_by="modified desc, name desc", limit=ORDERED_MAX)
+    return [row for row in found if (row.project or "") == wanted.get(row.session_id)]
+
+
+def _grouped_first(base) -> tuple[list, str | None, dict, list]:
+    """分组列表第一页：「最近」（不在任何组）一页，加上各组最新 `GROUP_FIRST` 条（一次读至多 `GROUP_SCAN` 条再按组留），再加上
+    组里手排过、还没给的（`_ordered`，回第四项：它们的编号，对话页核对「本该在第一页」时不按它们算各组翻到哪儿）。
+    `groups` 只列还有更多的组：值是这组第一页最后一条（不算手排一并给的）的游标，一条都没读到的给 ""（从头翻）；之后翻到已给过的
+    由对话页去重。"""
     recent, cursor = _page({**base, "starred": 0, "project": UNFILED}, None)
     filed = frappe.get_all(SESSION, filters={**base, "starred": 0, "project": ["is", "set"]}, fields=LIST_FIELDS,
                            order_by="modified desc, name desc", limit=GROUP_SCAN)
     first = contracts.keep_per_group(filed, lambda row: row.project, GROUP_FIRST)
+    given = {row.session_id for row in recent + first}
+    extra = [row for row in _ordered(base) if row.session_id not in given]
     taken, last = {}, {}
     for row in first:
         taken[row.project] = taken.get(row.project, 0) + 1
         last[row.project] = f"{row.modified}|{row.name}"
+    for row in extra:
+        if row.project:
+            taken[row.project] = taken.get(row.project, 0) + 1
     groups = {project: last.get(project, "") for project, count in _filed_counts(base).items()
               if count > taken.get(project, 0)}
-    return recent + first, cursor, groups
+    return recent + first + extra, cursor, groups, [row.session_id for row in extra]
 
 
 def listing(archived=False, after=None, check=None, grouped=False, group=None) -> dict:
@@ -186,17 +213,18 @@ def listing(archived=False, after=None, check=None, grouped=False, group=None) -
     `check`：侧栏以为还在回复的对话编号（逗号分隔）；给了就各读一次此刻的运行状态放进 `runs`（侧栏按它改，不按漏没漏事件猜）。
     不给就不读引擎：整页逐个读太贵。
     `grouped`（侧栏按公司显示，ADR-020）：第一页 = 全部加星标的 + 「最近」一页（`nextCursor`）+ 各组最新几条（`groups`：
-    还有更多的组 → 游标）；带 `group`（"" = 「最近」，或组编号）就只翻那一组（`after` 是那一组的游标）。
+    还有更多的组 → 游标）+ 组里手排过的（`ordered`：它们的编号）；带 `group`（"" = 「最近」，或组编号）就只翻那一组
+    （`after` 是那一组的游标）。
     不带 `grouped` 时与以前一样（全部对话一起翻，不分组）。"""
     user = _user()
     base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0}
-    starred, groups = [], None
+    starred, groups, ordered = [], None, None
     if grouped and (group is not None or after):
         project = _guard(contracts.project_ref, group)
         page, cursor = _page({**base, "starred": 0, "project": project or UNFILED}, after)
     elif grouped:
         starred = _starred(base)
-        page, cursor, groups = _grouped_first(base)
+        page, cursor, groups, ordered = _grouped_first(base)
     else:
         if not after:
             starred = _starred(base)
@@ -208,6 +236,8 @@ def listing(archived=False, after=None, check=None, grouped=False, group=None) -
                                  unread=row.session_id in unread) for row in rows], "nextCursor": cursor}
     if groups is not None:
         out["groups"] = groups
+    if ordered:
+        out["ordered"] = ordered
     if runs is not None:
         out["runs"] = runs
     return out

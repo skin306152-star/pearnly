@@ -6,7 +6,7 @@
 export const OPEN_LAYERS =
   '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-menu-content][data-state="open"]';
 
-// 正在拖动（components/ui/drag.tsx 共用拖动：会话栏卡片、侧栏公司组、置顶对话、对话拖到别的公司；拖动期间根节点上的标记）：
+// 正在拖动（components/ui/drag.tsx 共用拖动：会话栏卡片、侧栏公司组、置顶对话、组里的对话排先后或拖进已置顶；拖动期间根节点上的标记）：
 // 这时的 Esc 只是取消拖动，不关浮着的会话栏、不清侧栏多选，方向键不移侧栏焦点，悬停滚动不滚。
 //
 // 取消拖动的那一下 Esc 本身也要认得出来：拖动库在 document 上收到 Esc 就当场结束拖动、去掉标记，挂在 window 上的

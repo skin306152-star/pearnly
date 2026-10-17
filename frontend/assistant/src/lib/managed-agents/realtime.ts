@@ -8,7 +8,7 @@
 // 侧栏同步（pearnly.session，pearnly_core.assistant.sidebar）也走同一个事件名、session_id 为空：同一账号在别的设备上
 // 新建、改名（含自动标题）、加星标、归档、删除对话时推来，交给 onSessionChange 的监听者（list-sync.ts）；
 // 推来的标题顺手记下（latestTitle），侧栏给新对话取标题时直接用。
-// 公司分组（pearnly.project，ADR-020）也走同一个事件名、session_id 为空：对话换组或换月份（move，推给本人）、公司改名等
+// 公司分组（pearnly.project，ADR-020）也走同一个事件名、session_id 为空：对话改月份、分店或删公司时回到最近（move，推给本人）、公司改名等
 // （upsert）、删公司（delete，推给全所录入用户），交给 onProjectChange 的监听者（list-sync.ts 并进 projects.ts）。
 // 一条事件先交给这个会话的页面（卡片、回复），再记侧栏状态与提醒；每一路单独兜住异常，哪一路出错都不挡别的。
 
@@ -138,7 +138,7 @@ export function onSessionChange(listener: (change: SessionChange) => void): () =
   };
 }
 
-/** 公司分组的变化（对话换组或换月份、公司改名、删公司）；返回取消订阅。 */
+/** 公司分组的变化（对话改月份、分店，公司改名、删公司）；返回取消订阅。 */
 export function onProjectChange(listener: (change: ProjectChange) => void): () => void {
   connect();
   projectListeners.add(listener);

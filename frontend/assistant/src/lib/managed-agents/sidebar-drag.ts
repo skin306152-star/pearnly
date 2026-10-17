@@ -8,6 +8,8 @@
 //   公司组 — 在公司组那一列里调先后
 //
 // 每组的行是一列（rowList），已置顶、各组整块另是一个落点（zoneDrag：指针进了已置顶那一块才算拖进置顶，见共用拖动的 useDropZone）。
+// 指针不在已置顶、也不在自己那一组的整块里（别的公司组、别的组头、不属于自己的「最近」、两组之间）就没有落点：松手滑回原位，
+// 什么都不改（不排到本组首尾、不置顶；共用拖动的 narrowPool）。
 
 import type { DragData } from "@/components/ui/drag";
 import { moveTo } from "./sidebar-order";

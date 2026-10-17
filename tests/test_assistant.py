@@ -2340,6 +2340,47 @@ class LayoutPrefsTests(unittest.TestCase):
         self.assertEqual(self.prefs.read()["view"], {"by": "month", "sort": "name"})
         self.assertNotIn("k2", self.prefs.read()["order"])
 
+    def test_each_group_order_is_its_own_field(self):
+        # 审查：组里的手排原来是 order 里的一项（groups），一直开着、没重取过的设备改一组就整份交上去，冲掉别的设备在其他组排好的。
+        # 改成每一组一项（group:<公司编号>）：两台设备各排各的组，两组都在；交 null 删掉这一组；收下时记服务端的时刻（saved）
+        frappe.session.user = "a@example.com"
+        with mock.patch.object(self.prefs.time, "time", lambda: 1000.0):
+            self.prefs.save({"order": {"group:co_x": {"keys": ["s1", "s2"], "at": 5}}})          # 设备 A
+        with mock.patch.object(self.prefs.time, "time", lambda: 2000.0):
+            self.prefs.save({"order": {"group:co_y": {"keys": ["s3"], "at": 6}}})               # 设备 B
+        order = self.prefs.read()["order"]
+        self.assertEqual(order["group:co_x"], {"keys": ["s1", "s2"], "at": 5, "saved": 1000000})
+        self.assertEqual(order["group:co_y"], {"keys": ["s3"], "at": 6, "saved": 2000000})
+        self.prefs.save({"order": {"group:co_x": None, "pinned": ["p1"]}})                     # 去掉一组
+        self.assertEqual(sorted(self.prefs.read()["order"]), ["group:co_y", "pinned"])
+        with self.assertRaises(frappe.ValidationError):
+            self.prefs.save({"order": {"group:co_z": ["s1"]}})                                 # 一组只能是对象或 null
+        # 旧版对话页的「恢复默认设置」只交两个空列表：组里的一并清掉
+        self.prefs.save({"order": {"companies": [], "pinned": []}})
+        self.assertEqual(self.prefs.read()["order"], {"companies": [], "pinned": []})
+        # 新版恢复默认、迁移时整份交（两个空列表 + 这次交的组）：交的组照存
+        self.prefs.save({"order": {"companies": [], "pinned": [], "group:": {"keys": ["s9"], "at": 1}}})
+        self.assertEqual(self.prefs.read()["order"]["group:"]["keys"], ["s9"])
+
+    def test_group_orders_are_trimmed_not_refused(self):
+        # 审查：超过 32 KB 时整次拒收，同一批的分组和排序、卡片也存不上，对话页每次回到前台重试都失败。组里的各组合起来按
+        # GROUPS_BYTES 截，最早存下的组先去掉；编号最长（128 字符）、各列表到上限时整份不超过 MAX_BYTES
+        frappe.session.user = "a@example.com"
+        longest = lambda tag, n: [f"{tag}{i:04d}".rjust(128, "x") for i in range(n)]
+        for i in range(8):
+            with mock.patch.object(self.prefs.time, "time", lambda i=i: 1000.0 + i):
+                self.prefs.save({"order": {f"group:co_{i}": {"keys": longest(f"g{i}", 60), "at": i}}})
+        order = self.prefs.read()["order"]
+        kept = sorted(field for field in order if field.startswith("group:"))
+        self.assertEqual(kept, ["group:co_6", "group:co_7"])                                   # 最近存下的先留
+        self.assertLessEqual(len(json.dumps({f: order[f] for f in kept}, separators=(",", ":"))), self.prefs.GROUPS_BYTES)
+        # 公司组、置顶由对话页按字节截好（LIST_BYTES 7 KB，sidebar-order.ts 的 capList）；加上分组和排序、卡片，整份照样收下
+        lists = {"companies": longest("c", 300)[:53], "pinned": longest("p", 300)[:53]}
+        self.assertLessEqual(len(json.dumps(lists["companies"], separators=(",", ":"))), 7 * 1024)
+        merged = self.prefs.save({"order": lists, "view": {"by": "company", "sort": "updated", "desc": True, "meta": True, "empty": True},
+                                  "cards": {"order": ["company"] * 9, "collapsed": ["company"] * 9}})
+        self.assertLessEqual(len(json.dumps(merged, ensure_ascii=False, separators=(",", ":")).encode()), self.prefs.MAX_BYTES)
+
     def test_guests_and_bad_values_are_refused(self):
         frappe.session.user = "Guest"
         with self.assertRaises(frappe.PermissionError):
@@ -3745,10 +3786,12 @@ class ProjectTests(unittest.TestCase):
                 ("get_hooks", lambda name: list(self.hooks.get(name) or [])),
                 ("publish_realtime", lambda event, message, user=None, after_commit=False:
                  self.pushed.append((message["event"], user, after_commit))),
-                ("log_error", lambda **kw: self.logged.append(kw.get("title")))):
+                ("log_error", lambda **kw: self.logged.append(kw.get("title"))),
+                ("defaults", types.SimpleNamespace(get_user_default=lambda key, user=None: self.layout.get((user, key))))):
             patcher = mock.patch.object(frappe, name, value, create=True)
             patcher.start()
             self.addCleanup(patcher.stop)
+        self.layout = {}  # 个人排列（prefs）：分组列表第一页读组里的手排
         _configure()
         self.sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
         self.projects = sys.modules["pearnly_core.assistant.projects"]
@@ -3809,6 +3852,37 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual([row["id"] for row in recent["sessions"]], ["sesn_rec001"])
         with self.assertRaises(frappe.ValidationError):
             self.sessions.listing(grouped=True, group="bad id!")
+
+    def test_the_grouped_first_page_brings_chats_ordered_by_hand(self):
+        # 用户 10-17 组里可拖；审查：第一页每组只有最新几条，排到组顶的旧对话刷新、换设备后要翻页才回来。第一页按个人排列里组里的
+        # 手排一并给（只给仍在那一组、没加星标、没归档的），回 ordered；这组都给齐了就不再翻
+        frappe.session.user = self.OWNER
+        m = datetime.datetime
+        self.db.rows.append(_Row({"name": "r6", "session_id": "sesn_abc003", "user": self.OWNER, "engine_code": CLAUDE,
+                                  "archived": 0, "starred": 0, "modified": m(2026, 10, 1, 7, 0), "creation": START,
+                                  "title": "abc old", "project": "co_abc1"}))
+        self.layout[(self.OWNER, "pearnly_cc_layout")] = json.dumps({"order": {
+            "group:co_abc1": {"keys": ["sesn_abc003", "sesn_abc001", "sesn_rec001", "sesn_xyz001", "sesn_bob001"], "at": 1},
+            "group:": {"keys": ["sesn_rec001"], "at": 1}, "companies": ["co_abc1"]}})
+        with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
+            out = self.sessions.listing(grouped=True)
+        # 最近一页 + co_abc1 最新一条 + 手排里还没给的 sesn_abc003（sesn_rec001 不在这组、sesn_xyz001 加星标、bob 的都不给）
+        self.assertEqual([row["id"] for row in out["sessions"]], ["sesn_xyz001", "sesn_rec001", "sesn_abc001", "sesn_abc003"])
+        self.assertEqual(out["ordered"], ["sesn_abc003"])
+        self.assertEqual(out["groups"], {"co_abc1": "2026-10-15 08:00:00|r2"})   # 还有 sesn_abc002：照旧从最新那条往后翻
+        # 手排里给齐了这组：不再翻
+        self.layout[(self.OWNER, "pearnly_cc_layout")] = json.dumps({"order": {
+            "group:co_abc1": {"keys": ["sesn_abc002", "sesn_abc003"], "at": 1}}})
+        with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
+            out = self.sessions.listing(grouped=True)
+        self.assertEqual(out["ordered"], ["sesn_abc002", "sesn_abc003"])
+        self.assertEqual(out["groups"], {})
+        # 没手排过：没有 ordered，同以前
+        self.layout.clear()
+        with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
+            out = self.sessions.listing(grouped=True)
+        self.assertNotIn("ordered", out)
+        self.assertEqual(out["groups"], {"co_abc1": "2026-10-15 08:00:00|r2"})
 
     def test_projects_lists_only_companies_i_have_conversations_in(self):
         self.provider.known.pop("co_xyz1")  # 主档已删：那些对话显示在「最近」

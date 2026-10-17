@@ -318,7 +318,7 @@ def session_change(change, session, title=None, starred=None) -> dict:
 PROJECT_ID = re.compile(r"^[A-Za-z0-9_-]{4,64}$")
 PERIOD = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 PROJECT_SCOPE = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
-# 实时事件（同 `session_change` 走 `REALTIME_EVENT`，信封 session_id 为空）：对话换组 → move；产品的一项建、改 → upsert；
+# 实时事件（同 `session_change` 走 `REALTIME_EVENT`，信封 session_id 为空）：对话改月份、分店，删公司时回到「最近」 → move；产品的一项建、改 → upsert；
 # 删 → delete（这一项的对话归回「最近」）
 PROJECT_CHANGE = "pearnly.project"
 PROJECT_OPS = frozenset({"upsert", "delete", "move"})

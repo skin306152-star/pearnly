@@ -10,8 +10,8 @@
 //
 // 组内按排序方式排：上次更新 / 创建日期 / 名称，降序或升序；公司组按同一种方式排（名称 = 公司名）。
 // 手排（用户 10-16、10-17，sidebar-order.ts）：公司组拖过以后按手排的顺序（新出现的公司排最上面）；置顶的对话拖过以后按手排的
-// 先后（新置顶的排最上面）；按公司分组时组里的对话拖过以后按手排的先后（arrangeGroup：比存下那一刻新的排最上面，更旧的接在
-// 后面）。没手排过的照排序方式排。
+// 先后（新置顶的排最上面）；按公司分组时组里的对话拖过以后按手排的先后（arrangeGroup：比存下时这组最新的那个时间还新的排最上面，
+// 不比它新的接在后面）。没手排过的照排序方式排。
 // 搜索同时匹配对话标题和公司名（公司名命中时这家的对话都算）；搜索时每组都显示全部命中的，没命中的组不显示。
 
 import { FIRST_SHOWN, OPEN_FIRST, type ProjectRow, rowActivity } from "./projects";
@@ -89,14 +89,27 @@ export function compareRows(sort: SortOptions = UPDATED_DESC): (a: SidebarRow, b
   };
 }
 
-/** 一组里的行（已按排序方式排好）按手排的先后摆（用户 10-17）：手排列表里的按列表的先后；不在列表里的，比存下那一刻新（按当前
- *  排序方式用的时间：创建日期用创建时间，其余用上次更新）的排最上面（新对话出现在顶上），更旧的（「显示更多」后才取到的）接在
- *  后面，各自保持排序方式的先后。没手排过原样返回。 */
+/** 按排序方式比新旧用的时间：创建日期用创建时间（本页新建的没有，用上次更新），其余用上次更新。 */
+const timeOf = (sort: SortOptions) => (row: SidebarRow) => (sort.by === "created" ? (row.created ?? row.time) : row.time);
+
+/** 存下手排时记的 at：这组此刻各行里最新的那个时间（按排序方式用的时间；没有时间的本页新行不算，都没有为 0）。取自服务端给的
+ *  时间，不用本机时钟（审查：本机时钟快了，存下后几分钟内新建的对话会被当成更旧、排到手排列表后面）。 */
+export function groupStamp(rows: readonly SidebarRow[], sort: SortOptions = UPDATED_DESC): number {
+  const when = timeOf(sort);
+  return rows.reduce((latest, row) => {
+    const time = when(row);
+    return Number.isFinite(time) && time < Number.MAX_SAFE_INTEGER ? Math.max(latest, time) : latest;
+  }, 0);
+}
+
+/** 一组里的行（已按排序方式排好）按手排的先后摆（用户 10-17）：手排列表里的按列表的先后；不在列表里的，比存下时这组最新的那个
+ *  时间（saved.at，groupStamp；按当前排序方式用的时间：创建日期用创建时间，其余用上次更新）还新的排最上面（新对话出现在顶上），
+ *  不比它新的（「显示更多」后才取到的）接在后面，各自保持排序方式的先后。没手排过原样返回。 */
 export function arrangeGroup(sorted: readonly SidebarRow[], saved: GroupOrder | undefined, sort: SortOptions = UPDATED_DESC): SidebarRow[] {
   if (!saved?.keys.length) return [...sorted];
   const at = new Map(saved.keys.map((key, i) => [key, i]));
   const keyOf = (row: SidebarRow) => row.key ?? String(row.index);
-  const when = (row: SidebarRow) => (sort.by === "created" ? (row.created ?? row.time) : row.time);
+  const when = timeOf(sort);
   const known = sorted.filter((row) => at.has(keyOf(row))).sort((a, b) => at.get(keyOf(a))! - at.get(keyOf(b))!);
   const fresh = sorted.filter((row) => !at.has(keyOf(row)));
   return [...fresh.filter((row) => when(row) > saved.at), ...known, ...fresh.filter((row) => !(when(row) > saved.at))];
@@ -169,7 +182,8 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   return sections;
 }
 
-/** 拖对话时（按公司分组）眼前没有「已置顶」：补一个空的放在最上面（拖进去 = 置顶；照原来临时补「最近」的做法）。 */
+/** 拖对话时（按公司分组）眼前没有「已置顶」：补一个空的放在最上面（拖进去 = 置顶；照原来临时补「最近」的做法）。只在指针拖到
+ *  侧栏顶上时才补（thread-list.tsx 的 onPointer：拿起那一刻补会把整列往下推，拿起的那一行离开指针——审查）。 */
 export function withPinned(sections: SidebarSection[]): SidebarSection[] {
   return sections.some((section) => section.type === "pinned") ? sections : [{ type: "pinned", key: "pinned", indices: [] }, ...sections];
 }

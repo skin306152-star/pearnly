@@ -1,7 +1,8 @@
 // 外壳的个人排列按人存到服务端、跨设备同步（用户 2026-10-16 选「公司可拖 + 置顶可拖」时说「按人记住」；测试窗口第 7 轮：
 // 原来只记在这台设备上）。同步的三份，各份由几项组成：
 //
-//   order — 侧栏手排的公司组、置顶与组里对话的顺序（companies / pinned / groups；lib/managed-agents/sidebar-order.ts）
+//   order — 侧栏手排的公司组、置顶与组里对话的顺序（companies / pinned / 每一组一项 group:<公司编号>；
+//           lib/managed-agents/sidebar-order.ts）
 //   view  — 侧栏「分组和排序」（by / sort / desc / meta / empty；lib/managed-agents/sidebar-view.ts）
 //   cards — 右侧会话栏卡片的顺序与开合（order / collapsed；lib/company-panel.ts）
 //
@@ -9,7 +10,9 @@
 //
 //   存在哪 — 服务端当前用户自己的一份 JSON（pearnly_core.assistant.prefs，接口 layout / save_layout，只读写自己的，32 KB 上限）。
 //   按项记 — 改了哪项只存哪项（第 7 轮审查：整份覆盖时，一直开在前台、没重取过的设备改一项就把别的设备改过的几项打回旧值）；
-//            服务端按项并进已有的那份。各项后写的为准。
+//            服务端按项并进已有的那份。各项后写的为准。本机去掉了的项（组里的某一组）交 null，服务端删掉这一项。
+//   以服务端为准的项 — 一份可以说哪些项由服务端说了算（serverOwns：组里的各组）：取回来时本机没改、服务端没有的这类项本机也去掉
+//            （别处清掉了、服务端按上限截掉了）；别的项服务端没有时留本机的（新加的项，迁移前的旧数据）。
 //   取     — 知道是谁了、回到前台或窗口拿到焦点、联网时（离上次取过 REFETCH_AFTER 以上）取；服务端的各项换进来，本机改了还没
 //            存上的那几项留本机的、随后存上去。取不到不记「取过」，下次照样取。同一时刻只取一次。
 //   存     — 改了就存（稍等一下合并连着的几次改动）；存不上（离线）记着哪几项没存上，下次取完补存，这时本机的是后写的。
@@ -23,12 +26,19 @@
 import { get, post } from "@/lib/frappe";
 
 /** 一份要同步的偏好：read 此刻的值（整份各项，默认值也给）；changed 跟默认不一样（迁移时据此决定要不要存）；apply 换成服务端的
- *  （先换到这个人，再按值改并写本机缓存；不回调 prefChanged）。 */
+ *  （先换到这个人，再按值改并写本机缓存；不回调 prefChanged）；serverOwns 哪些项以服务端为准（见文件头）。 */
 export type PrefPart = {
   read: () => Record<string, unknown>;
   changed: () => boolean;
   apply: (value: unknown, user: string) => void;
+  serverOwns?: (field: string) => boolean;
 };
+
+/** 「份.项」拆开（项名里可以有点，例如公司编号）。 */
+function splitKey(key: string): [string, string] {
+  const at = key.indexOf(".");
+  return [key.slice(0, at), key.slice(at + 1)];
+}
 
 const parts = new Map<string, PrefPart>();
 const DIRTY_KEY = (user: string) => `cc.prefs.unsaved:${user}`;
@@ -69,7 +79,7 @@ function storedDirty(who: string): string[] {
     if (!raw) return [];
     if (raw === "1") return [...parts].flatMap(([name, part]) => Object.keys(part.read()).map((field) => `${name}.${field}`));
     const list: unknown = JSON.parse(raw);
-    return Array.isArray(list) ? list.filter((key): key is string => typeof key === "string" && key.includes(".")) : [];
+    return Array.isArray(list) ? list.filter((key): key is string => typeof key === "string" && key.indexOf(".") > 0) : [];
   } catch {
     return [];
   }
@@ -97,20 +107,21 @@ export function collectPrefs(): Record<string, Record<string, unknown>> {
   return Object.fromEntries([...parts].map(([name, part]) => [name, part.read()]));
 }
 
-/** 本机改了还没存上的那几项（按份分好）。 */
+/** 本机改了还没存上的那几项（按份分好）；本机已经没有的项（去掉了的一组）交 null。 */
 function dirtyPrefs(): Record<string, Record<string, unknown>> {
   const out: Record<string, Record<string, unknown>> = {};
   for (const key of dirty.keys()) {
-    const [name, field] = key.split(".", 2);
+    const [name, field] = splitKey(key);
     const part = parts.get(name);
     if (!part) continue;
     const value = part.read();
-    if (field in value) (out[name] ??= {})[field] = value[field];
+    (out[name] ??= {})[field] = field in value ? value[field] : null;
   }
   return out;
 }
 
-/** 换成服务端的那份：各份交给各自的模块；本机改了还没存上的项留本机的；服务端没有的份、项不动。 */
+/** 换成服务端的那份：各份交给各自的模块；本机改了还没存上的项留本机的；服务端没有的份不动，没有的项留本机的（以服务端为准的
+ *  项除外：本机也去掉）。 */
 export function applyPrefs(prefs: Record<string, unknown>, who: string) {
   const local = dirtyPrefs();
   applying = true;
@@ -118,7 +129,9 @@ export function applyPrefs(prefs: Record<string, unknown>, who: string) {
     for (const [name, part] of parts) {
       if (!(name in prefs)) continue;
       const server = prefs[name] && typeof prefs[name] === "object" ? (prefs[name] as Record<string, unknown>) : {};
-      part.apply({ ...part.read(), ...server, ...local[name] }, who);
+      const mine = Object.entries(part.read()).filter(([field]) => !part.serverOwns?.(field));
+      // 本机去掉了还没存上的（null）照样盖过服务端的：各份读到 null 当没有
+      part.apply({ ...Object.fromEntries(mine), ...server, ...local[name] }, who);
     }
   } finally {
     applying = false;

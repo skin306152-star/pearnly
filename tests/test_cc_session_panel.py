@@ -616,7 +616,9 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
         # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走
         self.assertIn("createPortal(overlay, document.body)", drag)
-        self.assertIn('active.node.dataset.dragLanding = "";', drag)
+        # 落点那一项按拖动编号在此刻的页面里找（拖进另一列以后取消，拖动库给的是那一列里已经卸下的那一份）
+        self.assertIn("const node = landingNode(active.id, active.node);", drag)
+        self.assertIn('node.dataset.dragLanding = "";', drag)
         self.assertIn('return { duration: cssMs(css.getPropertyValue("--cc-dur"), 200), easing: css.getPropertyValue("--cc-ease").trim() || "ease" };', drag)
         self.assertIn('if (root.dataset.ccMotion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return null;', drag)
         # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区

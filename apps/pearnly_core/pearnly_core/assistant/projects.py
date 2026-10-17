@@ -6,8 +6,8 @@
   ADR-009；Cowork：`pearnly_cowork.companies.provider`）。共用层只调它的 `KIND / PERIOD / SCOPE / allowed / view /
   context`，不解析产品数据、不建表。没有声明的产品（ERP、DMS）`kind` 为 None：侧栏与接口都与以前一样，`project`
   一律当空。`view` / `context` 出错记日志、当作没有：不挡侧栏、不挡发话。
-- 实时事件 `pearnly.project` 经 `sidebar.project` 在提交后逐人推（`announce`）：对话换组只推会话主人；产品那一项
-  建、改、删由产品挑要推的人。
+- 实时事件 `pearnly.project` 经 `sidebar.project` 在提交后逐人推（`announce`）：对话改月份、分店（`move`，用户 10-17 起不能
+  换公司）、删公司时回到「最近」只推会话主人；产品那一项建、改、删由产品挑要推的人。
 - 依赖方向：`sessions` → `projects` → `sidebar`；本模块不导入 `sessions`、`relay`。
 """
 import importlib

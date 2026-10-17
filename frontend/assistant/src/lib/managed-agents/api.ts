@@ -10,12 +10,14 @@ export type EventsPage = { events: FeedEvent[]; full: boolean; run?: RunStatus }
  *  scope 分店号（5 位，"" = 不指定）；旧服务端、没有公司分组的产品没有这三项。 */
 export type ListedSession = SessionSummary & { project?: string; period?: string; scope?: string };
 
-/** groups：按公司分组的第一页才有，还有更多的公司 → 它的游标（"" = 这家从头翻）。 */
+/** groups：按公司分组的第一页才有，还有更多的公司 → 它的游标（"" = 这家从头翻）。ordered：同在第一页，组里手排过、按手排一并
+ *  给的对话编号（不是各组最新的那几条，list-sync.ts 核对时不按它们算各组翻到哪儿）。 */
 export type SessionPage = {
   sessions: ListedSession[];
   nextCursor: string | null;
   runs?: Record<string, RunStatus>;
   groups?: Record<string, string>;
+  ordered?: string[];
 };
 
 /** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部置顶的）。

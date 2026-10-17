@@ -7,7 +7,7 @@
 - 事件只说哪段对话、变了什么（`contracts.session_change`）；新出现的对话由侧栏重拉列表取全。
 - 请求里改的在提交后才推（`after_commit`）：别的设备收到再读列表一定读得到；后台任务自己提交过就直接推。
 - 对话归在哪家（`projects`，ADR-020）走同一个通道、同样按人推，事件 `pearnly.project`（`contracts.project_change`：
-  对话换组 move，产品那一项建 / 改 upsert、删 delete）。
+  对话改月份、分店或删公司时回到「最近」move，产品那一项建 / 改 upsert、删 delete）。
 """
 import frappe
 

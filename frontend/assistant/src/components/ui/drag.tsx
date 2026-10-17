@@ -11,14 +11,16 @@
 //   浮起   拿起的那一项换成浮层（DragOverlay，克隆原来那一项的样子，挂在 body 上）：弹层底、弹出阴影、略透明、略放大，实时跟手。
 //          原位留空（空档）。排序（一列里调先后）：其余各项拖动中就带过渡滑开让位（dnd-kit 的排序位移，过渡用动效变量）。
 //          拖进另一列（侧栏对话拖进已置顶，dnd-kit 多列排序的做法）：指针进了那一列的整块落点（useDropZone）才算进去，调用方
-//          （onOver）把这一项挪进那一列、排在指着的位置，原来那一列的空档合上；指针回到原来那一列的整块里就挪回去。两列之间整列
-//          各行、组头的位置变了都带同样的过渡滑过去（flowLayout，拖动中关掉滚动锚定）。那一列收着（放不下空档）时整块（就是组头）
-//          高亮、原位空档留着。
+//          （onOver）把这一项挪进那一列、排在指着的位置，原来那一列的空档合上；指针回到原来那一列的整块里就挪回去。有整块落点时
+//          指针不在任何一块能放的整块里（别的公司组、两组之间）就没有落点：空档回原位，放下滑回原位（审查：原来留在此刻那一列、
+//          排到本组首尾，或在已置顶里松手就置顶了）。两列之间整列各行、组头的位置变了都带同样的过渡滑过去（flowLayout，拖动中
+//          关掉滚动锚定）。那一列收着（放不下空档）时整块（就是组头）高亮、原位空档留着。
 //   放下   松手那一下只做一件事：浮层从放手处起播落位（Web Animations 只动 transform，交给合成线程；动效变量），落点在松手时
 //          就量好（空档此刻的位置，排序时加上它让位的位移）；结束拖动（拖动库与调用方的重画：整列重排、存顺序）等落位播完
 //          才做（landOverlay / ReleaseFirst；鼠标、键盘传感器包一层 landFirst）。落到收着的那一列就落到组头并收起；落点在滚动区
 //          可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点就滑回原位；取消（Esc）照旧由
-//          拖动库在结束那次提交里滑回。
+//          拖动库在结束那次提交里滑回（拖进另一列以后取消：滑回的那一项按拖动编号在此刻的页面里找，原来那一列重挂的那一项
+//          在滑回播完前不显示）。
 //          第 4 轮测试机：原来拿起的就是列表里那张卡本身，放下靠自写的 translate 过渡，要等新顺序提交、整列重测之后的下一次样式
 //          计算才开始，手机上卡在放手处停了约 0.4s。第 6 轮测试机：落位原来在结束拖动那次提交里起播、起点又回拨到松手前那一帧，
 //          侧栏松手那一下要重画一整列（无界面 Chrome 6 倍节流实测约 100ms：结束拖动的整列重画 45ms、提交 24ms、量位置前改根节点标记
@@ -32,7 +34,7 @@
 //          （useFollowFocus）；拖动中方向键只归拖动（handleOf 标成已处理，组件库行自带的方向键导航不接手），放下 / 取消后焦点留在
 //          移动后的那一行（之后按新顺序重挂一次也跟过去，只在焦点丢了时）。快按方向键每一下都动（测试窗口：间隔约 30ms 连按时
 //          被吞掉一些。原因是拖动库的键盘传感器在目标落在滚动区下半截（往上拖时上半截）时不挪浮层、改成平滑滚动滚动区，下一下
-//          按在滚动途中，从滚到一半的位置再加一格，前一下就丢了；改成立即滚动，每一下都从滚好的位置算，见 KEYBOARD_SCROLL）。
+//          按在滚动途中，从滚到一半的位置再加一格，前一下就丢了；改成不平滑地滚，每一下都从滚好的位置算，见 KEYBOARD_SCROLL）。
 //   动效   时长、缓动取 globals.css 的 --cc-dur / --cc-ease；系统或设置要求减少动态效果时不播过渡。
 //
 // 样式：globals.css 的 .cc-drag-*、[data-drag-source]、[data-drop-target]；这里只有拖动算出的位移是行内样式（整列滑动用
@@ -198,8 +200,9 @@ const KEYS = {
 };
 // 键盘拖动时目标落在滚动区下半截（往上拖时上半截），拖动库的键盘传感器不挪浮层、改成滚动滚动区让目标滚到浮层下面。默认平滑
 // 滚动：下一下按在滚动途中，从滚到一半的位置再加一格，前一下就丢了（测试窗口：间隔约 30ms 连按时一些按键没反应，0.4 秒按一下
-// 每下都动；无界面 Chrome 复现：40 行、从第 9 行起连按 4 下只挪 2 格）。立即滚动：每一下都从滚好的位置算，快按每一下都动
-export const KEYBOARD_SCROLL: ScrollBehavior = "instant";
+// 每下都动；无界面 Chrome 复现：40 行、从第 9 行起连按 4 下只挪 2 格）。auto：照滚动区的 CSS（各滚动区都没设平滑滚动），即
+// 立即滚到位，每一下都从滚好的位置算，快按每一下都动。不用 "instant"：较晚才进规范，旧的 WebView 不认这个值时 scrollTo 会报错
+export const KEYBOARD_SCROLL: ScrollBehavior = "auto";
 
 /** 放下时先交给它（先播落位，播完才真正结束拖动，见 ReleaseFirst）；没给就照常立即结束。 */
 type EndOptions = { beforeEnd?: (end: () => void) => void };
@@ -544,26 +547,37 @@ function afterLanding(animation: Animation, run: () => void) {
   void animation.finished.then(run, run);
 }
 
+/** 拖动编号 id 那一项此刻在页面上的节点（拖进另一列又回来时重挂过）；找不到用 fallback。 */
+function landingNode(id: string | number, fallback: HTMLElement): HTMLElement {
+  if (fallback.isConnected !== false || typeof document?.querySelectorAll !== "function") return fallback;
+  const key = String(id);
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-drag-id]")).find((el) => el.dataset.dragId === key) ?? fallback;
+}
+
 /** 放下时拖动库要播的落位（结束拖动那次提交里调）。松手那一下已经起播过（landOverlay）：不再另播，等那一次播完（还没播完时
  *  落点那一项先不显示）。没起播过（取消时滑回原位、减少动态效果）：同 dnd-kit 默认那一种（浮层从此刻移到落点，Web
  *  Animations），多两件：落点可以不是空档本身（into 回一个框：收着的那一列的组头、或空档在可见范围外时可见范围的边上），这时
  *  落到那里并收起（浮层带 data-dropping="into"）。transition 为 null（减少动态效果）时不播。 */
 export function dropAnimation(transition: Motion | null, into: Into): DropAnimationFunction {
   return ({ active, dragOverlay, transform }) => {
+    // 落点那一项：拖进另一列以后取消（Esc），拖动库给的还是那一列里已经卸下的节点，原来那一列重挂了一份新的（审查：滑回的
+    // 那 0.2 秒里同一段对话出现两份）。按拖动编号在此刻的页面里找
+    const node = landingNode(active.id, active.node);
+    const rect = node === active.node ? active.rect : getClientRect(node, { ignoreTransform: true });
     // 浮层的略放大、阴影同时收回（落到收着的那一列：同时淡掉）；落点那一项在动画播完前不显示（不会一份在落点、一份在路上）
     const done = () => {
-      delete active.node.dataset.dragLanding;
+      delete node.dataset.dragLanding;
     };
     const started = early.get(dragOverlay.node);
     early.delete(dragOverlay.node);
     if (started && started.playState !== "finished") {
-      active.node.dataset.dragLanding = "";
+      node.dataset.dragLanding = "";
       return new Promise<void>((resolve) => afterLanding(started, () => (done(), resolve())));
     }
     if (started || !transition) return;
-    const fold = into(active.node);
-    const frames = landingFrames(transform, dragOverlay.rect, fold ?? active.rect);
-    active.node.dataset.dragLanding = "";
+    const fold = into(node);
+    const frames = landingFrames(transform, dragOverlay.rect, fold ?? rect);
+    node.dataset.dragLanding = "";
     dragOverlay.node.dataset.dropping = fold ? "into" : "";
     if (frames[0]!.transform === frames[1]!.transform && !fold) {
       done();
@@ -641,8 +655,10 @@ type AreaProps = {
   /** 指针拖动中经过了 over（键盘拖动不调：键盘只在本列里挪）：调用方据此把拿着的那一项挪进另一列（排在 over 那里，below = 指在
    *  over 的下半截），或挪回原来那一列。 */
   onOver?: (active: DragData, over: DragData | null, below: boolean) => void;
-  /** 拿起 / 结束（放下或取消）：侧栏要在拖对话时临时显示空的「已置顶」、多选时让其余选中的行变淡。 */
+  /** 拿起 / 结束（放下或取消）：侧栏多选时让其余选中的行变淡。 */
   onActive?: (active: DragData | null) => void;
+  /** 指针拖动中指针的竖向位置（视口坐标；指针动了、滚动了都交，键盘拖动不交）：侧栏据此在指针拖到顶上时才临时显示空的「已置顶」。 */
+  onPointer?: (active: DragData, y: number) => void;
   /** 拖进另一列时整列一起滑的各项（侧栏的行、组头、「显示更多」），见 flowLayout。 */
   flow?: string;
   texts: DragTexts;
@@ -671,8 +687,9 @@ const within = (box: ClientRect | null | undefined, y: number) => !!box && y >= 
 
 /** 拿着 active 时要算的落点（碰撞、键盘、限位共用）：pool 是能放的各处（accepts，加上它自己）。键盘拖动：只认它原来那一列
  *  （不拖进另一列）。指针拖动：指针在哪一列的整块落点（zone）里，就只认那一列此刻的各项（它自己已排进去也算；那一列没有别的项、
- *  或收着时认整块）；不在任何能放的整块里，就只认它此刻所在那一列的各项（拖进另一列以后指针移出来、还没进回原来那一列时
- *  留在那一列，不来回跳）。 */
+ *  或收着时认整块）；有能放的整块而指针不在任何一块里（侧栏对话拖到别的公司组、两组之间）：没有落点（空档回原位，放下滑回
+ *  原位、不交调用方。审查：原来认它此刻所在那一列，排到本组首尾存成手排，或拖进过已置顶的在别的公司上松手也置顶了）；
+ *  没有整块落点（只在一列里排序：卡片、公司组、置顶）认它此刻所在那一列的各项。 */
 export function narrowPool(
   pool: readonly DroppableContainer[],
   activeId: string | number,
@@ -691,13 +708,14 @@ export function narrowPool(
     const items = data.shut ? [] : inList(data.list);
     return items.some((entry) => entry.id !== activeId) ? items : [...items, zone];
   }
+  if (pool.some((entry) => dataOf(entry)?.zone)) return [];
   return inList(here);
 }
 
 /** 一块共用拖动的区域：传感器、碰撞（只认能放的地方）、键盘移动、限位、浮层与放下动画、读屏播报、拖进另一列时整列滑动。 */
-export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onActive, flow, texts }) => {
-  const latest = useRef({ accepts, onDrop, onOver, onActive });
-  latest.current = { accepts, onDrop, onOver, onActive };
+export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onActive, onPointer, flow, texts }) => {
+  const latest = useRef({ accepts, onDrop, onOver, onActive, onPointer });
+  latest.current = { accepts, onDrop, onOver, onActive, onPointer };
   const transition = useMemo(motion, []);
 
   // 拖动中要用的：拿起时的位置（浮层固定在那里，位移从它算）、能放的各处与原来那一项的节点（限位用）
@@ -714,6 +732,16 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
   const activeOf = (active: WithData & { id: string | number }) =>
     active && lifted.current?.id === active.id ? lifted.current : dataOf(active);
   const letGo = useMemo(() => new ReleaseFirst(), []);
+  // 指针此刻的竖向位置（碰撞每算一次记一次；键盘拖动不记），PointerWatch 交给调用方
+  const pointerY = useRef<number | null>(null);
+  const reportPointer = useMemo(
+    () => () => {
+      const data = lifted.current;
+      const y = pointerY.current;
+      if (data && y !== null && !keyedRef.current) latest.current.onPointer?.(data, y);
+    },
+    [],
+  );
 
   const allowed = (active: DragData, entry: DroppableContainer, activeId: string | number) => {
     const target = dataOf(entry);
@@ -727,6 +755,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
       const active = activeOf(args.active);
       if (!active?.list) return [];
       const rect = args.collisionRect;
+      pointerY.current = keyedRef.current ? null : (args.pointerCoordinates?.y ?? null);
       const pool = narrowPool(
         args.droppableContainers.filter((entry) => allowed(active, entry, args.active.id)),
         args.active.id,
@@ -884,6 +913,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
                 const data = dataOf(active);
                 lifted.current = data ?? null;
                 overRef.current = null;
+                pointerY.current = null;
                 if (data) latest.current.onActive?.(data);
               }}
               onDragOver={({ active, over }) => {
@@ -908,6 +938,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
               {children}
               <Lifted stash={stash} transition={transition} into={into} />
               {flow && <Flow selector={flow} transition={transition} />}
+              {onPointer && <PointerWatch report={reportPointer} />}
             </DndContext>
           </KeyedContext.Provider>
           <MoveLive text={said} />
@@ -947,6 +978,14 @@ const Flow: FC<{ selector: string; transition: Motion | null }> = ({ selector, t
     };
     return flowLayout(root, selector, transition, remeasure);
   }, [running, selector, transition]);
+  return null;
+};
+
+/** 指针拖动中拖动库每重算一次落点（指针动了、拖动中滚动了）就交一次指针的位置（onPointer）。拖动库算落点在它自己重画时，
+ *  算完的落点随公开的拖动状态（collisions）变，这里跟着它在提交后交。 */
+const PointerWatch: FC<{ report: () => void }> = ({ report }) => {
+  const { collisions } = useDndContext();
+  useEffect(report, [collisions, report]);
   return null;
 };
 
