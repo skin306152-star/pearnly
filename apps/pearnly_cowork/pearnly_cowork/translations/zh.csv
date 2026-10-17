@@ -521,6 +521,7 @@ Credit sales,赊销
 Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
+Current year,本年
 Custom Fields,自定义字段
 Custom fields,自定义字段
 Custom fields saved,自定义字段已保存
@@ -806,6 +807,7 @@ Generation Key,凭据版本键
 Give a file path inside this folder.,请给出这个文件夹里的文件路径。
 Give the month as YYYY-MM.,月份请写成 YYYY-MM。
 Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on,此单据为商品单据。本公司的商品单据走库存还是记费用？选择后，以后的商品单据将按此处理
+Goods documents,商品单
 Gray,灰
 Green,绿
 Group,组
@@ -1045,6 +1047,7 @@ New stock count,新建盘点
 New task,新建任务
 "New, as on the invoice",新建（按票面）
 Next Attempt At,下次重试时间
+Next year,次年
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
@@ -1220,6 +1223,8 @@ Position,位置
 Position differences,仓位差异
 "Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})",疑似合计匹配，请确认：银行 {0} 的 {1} 等于总账 {2} 笔（{3} 至 {4}）的合计
 "Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})",疑似合计匹配，请确认：总账 {0} {1} 的 {2} 等于银行 {3} 笔（{4} 至 {5}）的合计
+Post as expense,记费用
+Post to stock,走库存
 Posting,入账方式
 Posting Kind,过账类型
 Preparation Evidence,准备资料证据
@@ -2221,6 +2226,11 @@ cowork.choice.task_default,此项由定时任务的默认处理决定，请在�
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
 cowork.company.branch_n,分店 {0}
+cowork.company.choice.current_year,本年
+cowork.company.choice.goods,商品单
+cowork.company.choice.next_year,次年
+cowork.company.choice.service,记费用
+cowork.company.choice.stock,走库存
 cowork.company.choice_invalid,这个值不在本月账套的主档里
 cowork.company.choice_not_editable,这里只能改付款方式和抵不抵进项
 cowork.company.choice_not_found,这条记住的选择已不在

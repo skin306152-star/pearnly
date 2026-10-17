@@ -270,6 +270,22 @@ class Storage(unittest.TestCase):
         # 转账凭条 / 预扣税凭证的门槛不受影响
         self.assertIsNone(policy.push_block({"document_type": "tax_invoice"}, {key: "stock"}))
 
+    def test_company_keys_pick_only_this_companys_posting_and_account_sets_in_use(self):
+        # 主档页「记住的选择」按公司列这两类（用户 2026-10-17）：别家、按租户记的、形状不对的都不算
+        me = f"tax:{OWN}"
+        head = policy.current_book_key(me, "", "cy", ["a", "b"])
+        branch = policy.current_book_key(me, "00012", "ny", ["c", "d"])
+        other = policy.current_book_key(me + "9", "", "cy", ["a", "b"])
+        raw = {f"goods_posting|{me}": "stock", head: "a", branch: "d", other: "a", "payment_evidence": "enter",
+               f"goods_posting|{me}9": "service", f"current_book|{me}||xy|0123456789ab": "a"}
+        self.assertEqual(policy.company_keys(raw, me), {f"goods_posting|{me}": "stock", head: "a", branch: "d"})
+        self.assertEqual((policy.current_book_parts(head, me), policy.current_book_parts(branch, me)),
+                         (("", "cy"), ("00012", "ny")))
+        for key in (other, f"goods_posting|{me}", f"current_book|{me}|1|2|cy|0123456789ab", f"current_book|{me}||cy|0"):
+            self.assertIsNone(policy.current_book_parts(key, me))
+        self.assertIsNone(policy.current_book_parts(head, ""))
+        self.assertEqual(policy.company_keys(raw, ""), {})
+
 
 class Choose(unittest.TestCase):
     """写入口：按这张票推往的账套认公司，记进工作空间同一个字段。"""
@@ -302,7 +318,8 @@ class Choose(unittest.TestCase):
                 require=lambda feature: seen.setdefault("scope", feature))),
             "pearnly_cowork.connections": types.SimpleNamespace(service=types.SimpleNamespace(read_for_push=read_for_push)),
             "pearnly_cowork.history": types.SimpleNamespace(
-                document_policy=types.SimpleNamespace(record=lambda *a: seen["recorded"].append(a)),
+                document_policy=types.SimpleNamespace(record=lambda *a: seen["recorded"].append(a),
+                                                      forget=lambda *a: seen.setdefault("forgot", []).append(a) or 1),
                 storage=types.SimpleNamespace(read=lambda name: doc))}
         with mock.patch.dict(sys.modules, modules):
             spec = importlib.util.spec_from_file_location("goods_posting_choose", APP / "push/application/goods_posting.py")
@@ -335,6 +352,23 @@ class Choose(unittest.TestCase):
         with self.assertRaises(thrown):
             module.choose("H1", "stock")  # 不知道推往哪
         self.assertEqual(seen["recorded"], [])
+
+    def test_the_company_page_sets_and_forgets_only_this_companys_keys(self):
+        # 主档页改入账方式、删入账方式或现用账套（companies 不导入 history，经这里写）
+        module, seen, thrown = self.load()
+        me = f"tax:{OWN}"
+        self.assertEqual(module.set_company("W1", me, "service"), {"goods_posting": "service"})
+        self.assertEqual((seen["recorded"], seen["scope"]), ([("W1", f"goods_posting|{me}", "service")], "intake"))
+        for workspace, identity, value in (("W1", me, "enter"), ("W1", "", "stock"), ("", me, "stock")):
+            with self.assertRaises(thrown):
+                module.set_company(workspace, identity, value)
+        book = policy.current_book_key(me, "", "cy", ["a", "b"])
+        self.assertEqual(module.forget_company("W1", me, book), 1)
+        self.assertEqual(module.forget_company("W1", me, f"goods_posting|{me}"), 1)
+        for key in ("payment_evidence", f"goods_posting|{me}9", policy.current_book_key(me + "9", "", "cy", ["a", "b"]), ""):
+            with self.assertRaises(thrown):
+                module.forget_company("W1", me, key)
+        self.assertEqual(seen["forgot"], [("W1", book), ("W1", f"goods_posting|{me}")])
 
 
 if __name__ == "__main__":

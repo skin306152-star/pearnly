@@ -521,6 +521,7 @@ Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
 Current Directory Heads,ดัชนีเวอร์ชันไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
+Current year,ปีปัจจุบัน
 Custom Fields,ฟิลด์ที่กำหนดเอง
 Custom fields,ช่องที่กำหนดเอง
 Custom fields saved,บันทึกช่องที่กำหนดเองแล้ว
@@ -806,6 +807,7 @@ Generation Key,คีย์เวอร์ชันข้อมูลรับ�
 Give a file path inside this folder.,กรุณาระบุพาธของไฟล์ภายในโฟลเดอร์นี้
 Give the month as YYYY-MM.,กรุณาระบุเดือนเป็น YYYY-MM
 Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on,เอกสารนี้เป็นเอกสารสินค้า บริษัทนี้บันทึกสินค้าเข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย เมื่อเลือกแล้ว เอกสารสินค้าต่อจากนี้จะดำเนินการตามนี้
+Goods documents,เอกสารสินค้า
 Gray,เทา
 Green,เขียว
 Group,กลุ่ม
@@ -1045,6 +1047,7 @@ New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 "New, as on the invoice",สร้างใหม่ตามเอกสาร
 Next Attempt At,เวลาลองใหม่ครั้งถัดไป
+Next year,ปีถัดไป
 No CC Desktop credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No POS sales export headers were found in this file,ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้
@@ -1220,6 +1223,8 @@ Position,ตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
 "Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})",อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: ธนาคาร {0} ยอด {1} เท่ากับผลรวม {2} รายการในบัญชีแยกประเภท ({3} ถึง {4})
 "Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})",อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: บัญชีแยกประเภท {0} {1} ยอด {2} เท่ากับผลรวม {3} รายการของธนาคาร ({4} ถึง {5})
+Post as expense,ค่าใช้จ่าย
+Post to stock,สินค้าคงเหลือ
 Posting,วิธีลงบัญชี
 Posting Kind,ประเภทการลงบัญชี
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
@@ -2221,6 +2226,11 @@ cowork.choice.task_default,รายการนี้กำหนดโดย�
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
 cowork.company.branch_n,สาขา {0}
+cowork.company.choice.current_year,ปีปัจจุบัน
+cowork.company.choice.goods,เอกสารสินค้า
+cowork.company.choice.next_year,ปีถัดไป
+cowork.company.choice.service,ค่าใช้จ่าย
+cowork.company.choice.stock,สินค้าคงเหลือ
 cowork.company.choice_invalid,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
 cowork.company.choice_not_editable,แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ
 cowork.company.choice_not_found,ไม่พบตัวเลือกที่จำไว้นี้แล้ว

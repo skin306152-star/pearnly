@@ -521,6 +521,7 @@ Credit sales,Credit sales
 Currency,Currency
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
+Current year,Current year
 Custom Fields,Custom Fields
 Custom fields,Custom fields
 Custom fields saved,Custom fields saved
@@ -806,6 +807,7 @@ Generation Key,Generation Key
 Give a file path inside this folder.,Give a file path inside this folder.
 Give the month as YYYY-MM.,Give the month as YYYY-MM.
 Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on,Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on
+Goods documents,Goods documents
 Gray,Gray
 Green,Green
 Group,Group
@@ -1045,6 +1047,7 @@ New stock count,New stock count
 New task,New task
 "New, as on the invoice","New, as on the invoice"
 Next Attempt At,Next Attempt At
+Next year,Next year
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
@@ -1220,6 +1223,8 @@ Position,Position
 Position differences,Position differences
 "Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})","Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})"
 "Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})","Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})"
+Post as expense,Post as expense
+Post to stock,Post to stock
 Posting,Posting
 Posting Kind,Posting Kind
 Preparation Evidence,Preparation Evidence
@@ -2221,6 +2226,11 @@ cowork.choice.task_default,This is set by the scheduled task's default handling.
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
 cowork.company.branch_n,Branch {0}
+cowork.company.choice.current_year,Current year
+cowork.company.choice.goods,Goods documents
+cowork.company.choice.next_year,Next year
+cowork.company.choice.service,Post as expense
+cowork.company.choice.stock,Post to stock
 cowork.company.choice_invalid,This value is not in this month's account set
 cowork.company.choice_not_editable,Only payment and VAT choices can be changed here
 cowork.company.choice_not_found,This saved choice no longer exists

@@ -1100,6 +1100,110 @@ class ChoiceTests(unittest.TestCase):
         self.assertEqual(module.drop.call_args[0][:3], (TAX, OTHER_TAX, "5300"))
 
 
+class PolicyChoiceTests(unittest.TestCase):
+    """主档页「记住的选择」加上按公司记的商品单入账方式与现用账套（用户 2026-10-17「加上，方便看和删」）：从工作空间
+    ``document_policy`` 按这家公司身份取；删、改经推送域的写入口（真模块，history 的读写也用真模块、库用内存替身）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        storage = types.SimpleNamespace(read=lambda name: None)
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.history": types.SimpleNamespace(storage=storage),
+                                           "pearnly_cowork.history.storage": storage}):
+            spec = importlib.util.spec_from_file_location("company_policy_store", APP / "history/document_policy.py")
+            store = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(store)
+        cls.patch = mock.patch.dict(sys.modules, {
+            "pearnly_cowork.history": types.SimpleNamespace(document_policy=store, storage=storage),
+            "pearnly_cowork.history.document_policy": store, "pearnly_cowork.history.storage": storage})
+        cls.patch.start()
+        sys.modules.pop("pearnly_cowork.push.application.goods_posting", None)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patch.stop()
+        sys.modules.pop("pearnly_cowork.push.application.goods_posting", None)
+
+    def setUp(self):
+        from pearnly_cowork.contracts import document_policy as policy_rules
+
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"),
+                  express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP", start="2025-01-01", end="2025-12-31")])
+        self.company = service.get(make()["id"])
+        fresh_request()
+        self.sets = service.books(self.company)
+        me = f"tax:{TAX}"
+        self.head = policy_rules.current_book_key(me, "", "cy", ["s:\\69exp\\abc", "s:\\68exp\\abc"])
+        self.branch = policy_rules.current_book_key(me, "00012", "ny", ["s:\\69exp\\b12", "s:\\70exp\\b12"])
+        frappe.db.tables["Cowork Workspace"] = {"WS1": Row(name="WS1", document_policy=json.dumps({
+            f"goods_posting|{me}": "stock", self.head: "s:\\69exp\\abc", self.branch: "s:\\70exp\\b12",
+            f"goods_posting|tax:{OTHER_TAX}": "service", "payment_evidence": "enter",
+            f"current_book|{me}||cy|short": "s:\\69exp\\abc"}))}
+
+    def policy(self):
+        return json.loads(frappe.db.tables["Cowork Workspace"]["WS1"]["document_policy"])
+
+    def rows(self):
+        return {row["kind"]: row for row in choices.listing(self.company, self.sets) if row["source"] == "policy"} | {
+            row["subject_label"]: row for row in choices.listing(self.company, self.sets) if row["kind"] == "current_book"}
+
+    def test_the_page_shows_this_companys_posting_and_account_sets_in_use(self):
+        rows = [row for row in choices.listing(self.company, self.sets) if row["source"] == "policy"]
+        shown = sorted((row["kind"], row["subject_label"], row["value"], row["value_label"], row["editable"]) for row in rows)
+        self.assertEqual(shown, [
+            ("current_book", "cowork.company.choice.current_year", "s:\\69exp\\abc", "ABC 69", False),
+            ("current_book", "cowork.company.choice.next_year · cowork.company.branch_n", "s:\\70exp\\b12",
+             "s:\\70exp\\b12", False),  # 这家目录里没有这份：原样写键
+            ("posting", "cowork.company.choice.goods", "stock", "cowork.company.choice.stock", True)])
+        self.assertTrue(all(row["set_by"] == "" and row["set_at"] == "" for row in rows))  # 口径里没记谁 / 何时
+        found = choices.find(self.company, self.sets, rows[0]["key"])
+        self.assertEqual(found["source"], "policy")
+
+    def test_posting_can_be_changed_and_either_kind_removed(self):
+        rows = self.rows()
+        self.assertEqual(choices.set_value(self.company, self.sets, rows["posting"]["key"], "service"), {"saved": True})
+        self.assertEqual(self.policy()[f"goods_posting|tax:{TAX}"], "service")
+        for bad in ("", "enter", "Stock"):
+            with self.assertRaises(frappe.ValidationError):
+                choices.set_value(self.company, self.sets, rows["posting"]["key"], bad)
+        with self.assertRaises(frappe.ValidationError):  # 现用账套卡上不改选
+            choices.set_value(self.company, self.sets, rows["cowork.company.choice.current_year"]["key"],
+                              "s:\\68exp\\abc")
+        self.assertEqual(choices.forget(self.company, self.sets, rows["cowork.company.choice.current_year"]["key"]),
+                         {"removed": 1})
+        self.assertEqual(choices.forget(self.company, self.sets, rows["posting"]["key"]), {"removed": 1})
+        left = self.policy()
+        self.assertNotIn(self.head, left)
+        self.assertNotIn(f"goods_posting|tax:{TAX}", left)
+        self.assertEqual((left[self.branch], left[f"goods_posting|tax:{OTHER_TAX}"], left["payment_evidence"]),
+                         ("s:\\70exp\\b12", "service", "enter"))  # 别的分店、别家公司、按租户记的不动
+        with self.assertRaises(frappe.DoesNotExistError):  # 已删：下一张会因此交人的单再问
+            choices.forget(self.company, self.sets, rows["posting"]["key"])
+
+    def test_another_companys_or_tenant_wide_keys_are_refused(self):
+        for key in (f"goods_posting|tax:{OTHER_TAX}", "payment_evidence", f"current_book|tax:{TAX}||cy|short",
+                    f"current_book|tax:{TAX}|x|y|cy|0123456789ab"):
+            with self.assertRaises(frappe.DoesNotExistError):
+                choices.forget(self.company, self.sets, choices.encode("policy", key))
+            with self.assertRaises(frappe.ValidationError):
+                choices.set_value(self.company, self.sets, choices.encode("policy", key), "stock")
+        self.assertEqual(len(self.policy()), 6)
+
+    def test_writing_needs_intake_and_a_usable_express_connection(self):
+        rows = self.rows()
+        connection_access.allowed = {"C2"}
+        try:
+            with self.assertRaises(frappe.PermissionError):
+                choices.forget(self.company, self.sets, rows["posting"]["key"])
+            with self.assertRaises(frappe.PermissionError):
+                choices.set_value(self.company, self.sets, rows["posting"]["key"], "service")
+        finally:
+            connection_access.allowed = {"C1", "C2"}
+        scope.features = {"ocr_history"}
+        with self.assertRaises(frappe.PermissionError):
+            choices.forget(self.company, self.sets, rows["posting"]["key"])
+        self.assertEqual(self.policy()[f"goods_posting|tax:{TAX}"], "stock")
+
+
 class ExpressChoiceStoreTests(unittest.TestCase):
     """`push/choices.py` 新加的读、删：一次 IN 查询、参数化，删的是这家公司各年度里这些归类键。"""
 

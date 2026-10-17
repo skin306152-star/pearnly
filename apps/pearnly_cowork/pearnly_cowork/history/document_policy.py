@@ -4,7 +4,8 @@ Cowork 一个租户一个工作空间、不按公司隔离（用户 2026-09-26�
 同一个字段另记按公司选一次的商品单入账方式（键 ``goods_posting|<公司身份>``，`contracts.document_policy`）：公司身份要按推往的
 账套目录现算，由推送域（`push.application.goods_posting.choose`）核过权限后经 :func:`record` 写；两份同期账套时这家公司现用的那份
 （键 ``current_book|…``）由 `assistant.pending_api`（`choose_account_set` 推成了才记、`rechoose_current_book` 改记）按
-companies 现算的候选核过后经 :func:`record` 写。
+companies 现算的候选核过后经 :func:`record` 写。主档页「记住的选择」改、删这两类按公司记的项经推送域
+（`push.application.goods_posting.set_company` / `forget_company`）调 :func:`record` / :func:`forget`。
 只经这里写：调用方要有录入权限、能读这张票；读出的值不认得的一律当作没选过。
 """
 import json
@@ -50,3 +51,13 @@ def record(workspace, key, value):
         frappe.throw(_("cowork.policy.invalid"))
     policy[key] = value
     frappe.db.set_value(DOCTYPE, workspace, FIELD, json.dumps(policy, sort_keys=True), update_modified=False)
+
+
+def forget(workspace, key) -> int:
+    """删一项（真删，下一次同样情形照旧问人）；没有这一项回 0。调用方已核过权限与归属。"""
+    policy = _parse(frappe.db.get_value(DOCTYPE, workspace, FIELD, for_update=True))
+    if key not in policy:
+        return 0
+    del policy[key]
+    frappe.db.set_value(DOCTYPE, workspace, FIELD, json.dumps(policy, sort_keys=True), update_modified=False)
+    return 1

@@ -314,6 +314,16 @@
             方式、没有科目「已定」的供应商主档页没有行可删。没补：主档页「记住的选择」现在不列 `document_policy` 一类，加一行是扩展
             界面，等用户定。回放 `posting_tier_if_history` 已补 13 位税号降档（判据成立但按名字对上记 `keyed`，同线上 `automation.tiers`）；
             **回放没有重跑**（要在测试机跑，`--tiebreak ask_once` 等参数照旧），`extra_A_wrong` 等数要等测试窗口。
+        14. 主档页列入账方式与现用账套（用户 10-17「加上」，接第 13 条）：`companies.choices.policy_rows` 按主档的公司身份从工作空间
+            `document_policy` 取这家的 `goods_posting|…` 与 `current_book|…`（`contracts.document_policy.company_keys / current_book_parts`，
+            别家、按租户记的转账凭条 / 预扣税凭证、形状不对的键不列），来源 `policy`，类别 `posting` / `current_book`，主档页与会话栏同一张卡
+            分两个小节「入账方式」「现用账套」。入账方式一行「商品单 [走库存 / 记费用]」两段下拉当场改；现用账套一行「本年 / 次年 · 分店 X
+            → 账套名」（名称按这家账套目录取，取不到原样写键），只删，改选沿用待处理 / CC 工具。口径里没记谁 / 何时，这两类不写。删、改的
+            权限同删公司规则（录入权限 + 这家任一条 Express 连接能用）；写经推送域 `push.application.goods_posting.set_company /
+            forget_company`（companies 不导入 history），删用新加的 `history.document_policy.forget`（真删，下一张同样情形再问）。
+            新词条（服务端四语）：`cowork.company.choice.goods / stock / service / current_year / next_year`；前端 en / zh / th：
+            `co.postStock / postService`、`co.kind.posting / current_book`。没有改已有文案；文案闸门本次新增 9 条、无拦截、无标黄。
+            从 Express 历史定下的供应商入账方式（`supplier_posting`）仍不单列，删科目历史行时一并不用（同第 13 条）。
 
 19. **挪到后面 / 不做 / 已知缺口**：
     - 第 4 期：从纠正中学、「要不要记住」、`rule_conflict` 提示。L0 期间人当场选的照旧记进账套记忆，这就是本期的「学习」。

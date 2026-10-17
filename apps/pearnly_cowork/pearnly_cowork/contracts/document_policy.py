@@ -117,6 +117,25 @@ def current_book(policy: Mapping[str, str], key: Any, candidates: Iterable[Any])
     return value if isinstance(value, str) and value in _book_keys(candidates) else None
 
 
+def current_book_parts(key: Any, company: Any) -> Optional[tuple]:
+    """``current_book|…`` 键是不是这家公司的：是 → ``(分店, "cy" / "ny")``（主档页「记住的选择」显示与删用）；不是回 None。"""
+    company = str(company or "").strip()
+    prefix = f"{CURRENT_BOOK}|{company}|"
+    if not company or not isinstance(key, str) or not key.startswith(prefix):
+        return None
+    parts = key[len(prefix):].split("|")
+    if len(parts) != 3 or parts[1] not in CURRENT_BOOK_PARTS or len(parts[2]) != 12:
+        return None
+    return parts[0], parts[1]
+
+
+def company_keys(policy: Mapping[str, str], company: Any) -> Dict[str, str]:
+    """这家公司在口径里按公司记的几项（商品单入账方式、两份同期时现用的账套）：``{键: 值}``，按键排序。"""
+    goods = goods_posting_key(company)
+    return {key: value for key, value in sorted((policy or {}).items())
+            if (goods and key == goods) or current_book_parts(key, company)}
+
+
 def _known(key: Any, value: Any) -> bool:
     if key in POLICY_CLASSES:
         return value in VALUES
@@ -181,6 +200,6 @@ def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
 
 
 __all__ = ["CERTIFICATE", "CURRENT_BOOK", "CURRENT_BOOK_PARTS", "ENTER", "GOODS_POSTING", "GOODS_POSTING_VALUES", "NEEDED_PREFIX",
-           "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages", "certificate_shape", "current_book",
-           "current_book_key", "document_class", "goods_posting", "goods_posting_key", "normalize", "push_block",
-           "skipped_certificates"]
+           "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages", "certificate_shape", "company_keys",
+           "current_book", "current_book_key", "current_book_parts", "document_class", "goods_posting", "goods_posting_key",
+           "normalize", "push_block", "skipped_certificates"]

@@ -490,6 +490,7 @@ const COMPANY = {
     folderOk: "Ready", folderWaiting: "Waiting for computer", folderOffline: "Computer offline", folderMissing: "Folder not found",
     folderGone: "Computer removed", followCompany: "Follows the company's account set for the year",
     payCash: "Cash", payCredit: "Credit", vatClaim: "Claim VAT", vatExpense: "Expense it",
+    postStock: "Post to stock", postService: "Post as expense",
     pending: "Pending", handToCC: "Ask CC", confirm: "Confirm", other: "Other", chooseCompany: "Choose company",
     handToCCText: (list: string) => `Handle these: ${list}`,
     handToCCOne: (doc: string) => `Handle this one: ${doc}`,
@@ -560,7 +561,7 @@ const COMPANY = {
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
-      vatCheck: "VAT reconciliation", history: "Express history",
+      vatCheck: "VAT reconciliation", history: "Express history", posting: "Posting", current_book: "Account set in use",
     } as Record<string, string>,
   },
   zh: {
@@ -573,6 +574,7 @@ const COMPANY = {
     folderOk: "正常", folderWaiting: "等待电脑", folderOffline: "电脑离线", folderMissing: "找不到文件夹",
     folderGone: "电脑已移除", followCompany: "跟随公司当年账套",
     payCash: "现购", payCredit: "赊购", vatClaim: "抵进项", vatExpense: "计费用",
+    postStock: "走库存", postService: "记费用",
     pending: "待处理", handToCC: "交给 CC", confirm: "确认", other: "其他", chooseCompany: "选择公司",
     handToCCText: (list: string) => `处理这几张：${list}`,
     handToCCOne: (doc: string) => `处理这张：${doc}`,
@@ -643,7 +645,7 @@ const COMPANY = {
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
-      vatCheck: "增值税核对", history: "Express 历史",
+      vatCheck: "增值税核对", history: "Express 历史", posting: "入账方式", current_book: "现用账套",
     } as Record<string, string>,
   },
   th: {
@@ -656,6 +658,7 @@ const COMPANY = {
     folderOk: "พร้อม", folderWaiting: "รอคอมพิวเตอร์", folderOffline: "คอมพิวเตอร์ออฟไลน์", folderMissing: "ไม่พบโฟลเดอร์",
     folderGone: "นำคอมพิวเตอร์ออกแล้ว", followCompany: "ตามชุดบัญชีของบริษัทในแต่ละปี",
     payCash: "เงินสด", payCredit: "เงินเชื่อ", vatClaim: "ขอคืนภาษีซื้อ", vatExpense: "ลงค่าใช้จ่าย",
+    postStock: "สินค้าคงเหลือ", postService: "ค่าใช้จ่าย",
     pending: "รอดำเนินการ", handToCC: "ให้ CC จัดการ", confirm: "ยืนยัน", other: "อื่น ๆ", chooseCompany: "เลือกบริษัท",
     handToCCText: (list: string) => `จัดการเอกสารเหล่านี้: ${list}`,
     handToCCOne: (doc: string) => `จัดการเอกสารนี้: ${doc}`,
@@ -726,7 +729,7 @@ const COMPANY = {
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
-      vatCheck: "กระทบยอดภาษีมูลค่าเพิ่ม", history: "ประวัติ Express",
+      vatCheck: "กระทบยอดภาษีมูลค่าเพิ่ม", history: "ประวัติ Express", posting: "วิธีลงบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่",
     } as Record<string, string>,
   },
 };

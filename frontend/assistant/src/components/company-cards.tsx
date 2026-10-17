@@ -91,14 +91,16 @@ export function folderSummary(folders: ReadonlyArray<Pick<CompanyFolder, "state"
   return folders.length ? co.card.folders(folders.length) : "";
 }
 
-/** 记住的选择分小节：Express 按类别，其余按来源（vat 预设叫「增值税核对」，免得与简易税票那一类混）。 */
+/** 记住的选择分小节：Express、公司规则与按公司记的口径（入账方式、现用账套）按类别，其余按来源（vat 预设叫「增值税核对」，
+ *  免得与简易税票那一类混）。 */
 export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
-  if (choice.source === "express" || choice.source === "rule") return choice.kind;
+  if (choice.source === "express" || choice.source === "rule" || choice.source === "policy") return choice.kind;
   if (choice.source === "vat") return "vatCheck";
   return choice.source;
 }
 
-const SECTION_ORDER = ["party", "account", "payment", "vat", "item", "department", "receipt", "pos", "income", "vatCheck", "history"];
+const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "item", "department", "receipt", "current_book", "pos", "income",
+  "vatCheck", "history"];
 
 // ---------------------------------------------------------------- 卡片外框
 /** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的共用拖动负责）、登记看得见的卡片
@@ -637,6 +639,10 @@ const EDITABLE: Record<string, Array<{ value: string; label: () => string }>> = 
     { value: "claim", label: () => co.vatClaim },
     { value: "expense", label: () => co.vatExpense },
   ],
+  posting: [
+    { value: "stock", label: () => co.postStock },
+    { value: "service", label: () => co.postService },
+  ],
 };
 
 /** 改了一条记住的选择后列表的样子：值与显示名换成刚选的（选项的显示名在 EDITABLE）。 */
@@ -708,7 +714,7 @@ export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onF
 }) => {
   const history = choice.source === "history";
   const rule = choice.source === "rule";
-  const options = (choice.source === "express" || rule) && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
+  const options = (choice.source === "express" || rule || choice.source === "policy") && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
   const subject = choice.subject_label || choice.supplier_name || "";
   const value = choice.value_label || choice.account_label || choice.value;
   const meta = history
