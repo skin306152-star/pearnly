@@ -5745,6 +5745,38 @@ assert.equal(observe, null);
 assert.equal(root.style.overflowAnchor, "");          // 还原
 """)
 
+    def test_the_column_slide_ignores_a_sort_shift_sliding_back(self):
+        # 第 12 轮审查：对话行拖进已置顶后取消，已置顶里让过位的行带过渡滑回（行内 transform 的 CSS 过渡），紧接着挪回原组整列重挂。
+        # 整列滑动记的是版面位置，不把正在滑回的让位当成版面挪了（原来再用 translate 反向滑一遍，两段叠起来先冲过头约 19px 再回来）；
+        # 版面真挪了的照常滑
+        self.run_page(r"""
+import { flowLayout } from "@/components/ui/drag";
+const g = globalThis as any;
+let observe: (() => void) | null = null;
+g.MutationObserver = class { constructor(run: () => void) { observe = run; } observe() {} disconnect() { observe = null; } };
+// 计算样式：transform 是让位此刻播到的位置（CSS 过渡中间值），translate 是整列滑动
+g.getComputedStyle = (el: any) => ({ translate: "none", transform: el.now ? `matrix(1, 0, 0, 1, 0, ${el.now})` : "none" });
+const root: any = { scrollTop: 0, style: { overflowAnchor: "" }, getBoundingClientRect: () => ({ top: 0 }), els: [] as any[], querySelectorAll: () => root.els };
+const el = (top: number, id: string) => {
+  const e: any = { top, now: 0, dataset: { dragId: id }, anims: [] as any[], matches: () => false,
+    getBoundingClientRect: () => ({ top: e.top + e.now }),
+    animate(frames: any, opts: any) { const a: any = { frames, opts, cancel() {} }; e.anims.push(a); return a; } };
+  return e;
+};
+const a1 = el(280, "pin:a1"), guest = el(314, "row:b"), head = el(348, "head:g");
+root.els = [a1, guest, head];
+a1.now = 34;                                            // 拖进置顶：a1 让到下面（版面 280，看到 314）
+const stop = flowLayout(root, "x", { duration: 200, easing: "ease" });
+// 取消：a1 的让位开始带过渡滑回（此刻还差 30px），被拖的那一行挪回原组，后面的组头上移
+a1.now = 30;
+head.top = 314;
+root.els = [a1, head];
+observe!();
+assert.equal(a1.anims.length, 0);                       // a1 的版面没变：不另起整列滑动
+assert.deepEqual(head.anims.map((x: any) => x.frames), [[{ translate: "0 34px" }, { translate: "0 0" }]]);   // 版面真挪了的照常滑
+stop();
+""")
+
     def test_dragged_chat_rows_use_the_shared_gap_and_landing(self):
         drag = read("components/ui/drag.tsx")
         # 对话行与其他排序项同一份（useSortableItem）：原位留空档（不再是淡影），拖进另一列在那里重挂的同一行按 data-drag-id 认
@@ -9172,6 +9204,7 @@ doc.removed.length = 0;
 engine.press("keyboard", "a", { ...key("Space"), target: cards.b.handle } as any);
 assert.equal(engine.stateOf("a"), 0);
 reads.count = 0;
+cards.a.handle.focus();                                         // 空格按在把手上：焦点本来就在它上面
 engine.press("keyboard", "a", { ...key("Space"), target: cards.a.handle } as any);
 assert.equal(engine.stateOf("a"), 2);                          // 键盘拿起：焦点跟着它
 assert.deepEqual(woken, { a: 1, b: 0, c: 0 });                  // 拿起只叫醒被拖的那一项
@@ -9218,7 +9251,7 @@ assert.equal(engine.stateOf("a"), 0);
 for (const id of ["a", "b", "c"]) assert.equal(cards[id]!.node.style.transform, "", id);
 assert.equal(cards.b.node.style.transition, "");
 assert.equal(overlay.parentNode, null);
-assert.equal(doc.activeElement, doc.body);
+assert.equal(doc.activeElement, cards.a.handle);                // 拖动中、放下后焦点一直在被拖那一项的把手上
 unmount();
 assert.equal(live.parentNode, null);
 assert.equal(hidden.parentNode, null);
@@ -9313,6 +9346,139 @@ assert.deepEqual(log, ["active a", "active -", "drop a>b"]);
 assert.equal(cards.b.node.style.transform, "");
 assert.equal(cards.b.node.style.transition, "");                // 结束时不带过渡、当场归位
 assert.equal(overlay.parentNode, null);
+""")
+
+    def test_cancel_after_dragging_into_another_list_slides_that_list_back_at_once(self):
+        # 审查：对话行拖进已置顶后 Esc（手机 touchcancel、转屏、切后台同一条路），已置顶里让过位的行要当场带过渡滑回原位，不等滑回播完
+        # 才无过渡地跳回
+        self.run_page(r"""
+const returns: string[] = [];
+const engine = new DragEngine({ duration: 200, easing: "ease" });
+engine.props = { accepts: () => true, onDrop: () => undefined, onReturn: (a: any) => returns.push(a.id) };
+engine.setTexts(texts);
+engine.mount();
+const zone = (id: string, list: string, top: number) => {
+  const node = doc.body.appendChild(new El("div", { top, left: 0, width: 200, height: 100 }));
+  const data = { id, kind: "zone", label: id, list, zone: true, shut: false };
+  const item = { id, data, list: undefined, disabled: false, zone: true, node: null, handle: null, entry: null };
+  engine.attach(item, node);
+  engine.register(item, data, undefined, false);
+};
+zone("zp", "pins", 0);
+zone("zg", "g", 200);
+const pins = column(engine, ["p1"], "pins", 0);
+const group = column(engine, ["a", "b"], "g", 200);
+const b = group.b!;
+engine.press("mouse", "b", { nativeEvent: { button: 0, clientX: 190, clientY: 260, target: b.handle, defaultPrevented: false }, target: b.handle, preventDefault() {} } as any);
+fire("mousemove", { clientX: 190, clientY: 264 });
+assert.equal(engine.stateOf("b"), 1);
+fire("mousemove", { clientX: 190, clientY: 10 });              // 拖到置顶那一行上
+// 调用方把它排进已置顶（排在 p1 后面），在那里重挂
+b.node.parentNode.removeChild(b.node);
+pins.p1!.node.parentNode.appendChild(b.node);
+b.node.rect = { top: 50, left: 0, width: 200, height: 40 };
+b.node.dataset.dragList = "pins";
+engine.register(b.item, b.item.data, "pins", false);
+engine.setList("pins", ["p1", "b"]);
+engine.setList("g", ["a"]);
+fire("mousemove", { clientX: 190, clientY: 12 });
+await g.sleep(30);                                              // 下一帧重量，按新位置让位
+assert.equal(pins.p1!.node.style.transform, "translate3d(0px, 50px, 0px)");   // p1 让到下面
+// Esc：已置顶里让过位的当场带过渡滑回原位
+fire("keydown", { code: "Escape", key: "Escape" });
+assert.equal(pins.p1!.node.style.transform, "");
+assert.equal(pins.p1!.node.style.transition, "transform 200ms ease");
+assert.equal(b.node.style.transform, "");
+await g.sleep(30);
+assert.deepEqual(returns, ["b"]);                              // 画完这一帧再请调用方挪回去
+assert.equal(pins.p1!.node.style.transform, "");               // 之后也不再写回让位
+// 调用方没挪回去：等满 HOME_WAIT 后照旧滑回、取消，结束时去掉留下的过渡
+await g.sleep(650);
+const overlay = dragLayer()!.children.find((e: any) => e.className === "cc-drag-overlay");
+overlay?.animations.forEach((a: any) => a.finish());
+await g.sleep(10);
+assert.equal(engine.stateOf("b"), 0);
+assert.equal(pins.p1!.node.style.transform, "");
+assert.equal(pins.p1!.node.style.transition, "");
+""")
+
+    def test_unmounting_mid_drag_leaves_no_listeners_behind(self):
+        # 审查：键盘拖动中拖动区卸下（关掉会话栏、换分组方式），页面上收键的那一份没摘，之后第一下空格、回车、Tab 被吞掉
+        self.run_page(r"""
+const drops: string[][] = [];
+let engine = new DragEngine(null);
+engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => drops.push([a.id, t.id]) };
+engine.setTexts(texts);
+let unmount = engine.mount();
+let cards = column(engine, ["a", "b", "c"]);
+engine.press("keyboard", "a", { ...key("Space"), target: cards.a.handle } as any);
+await g.sleep(5);
+fire("keydown", { code: "ArrowDown", key: "ArrowDown" });
+unmount();
+assert.equal(engine.stateOf("a"), 0);
+for (const code of ["Space", "Enter", "Tab", "Escape"]) {
+  const event = fire("keydown", { code, key: code === "Space" ? " " : code });
+  assert.equal(event.defaultPrevented, false, code);
+}
+assert.deepEqual(drops, []);
+// 拿起前就卸下（按下还没到时间）：下一个任务里也不再挂上收键
+engine = new DragEngine(null);
+engine.props = { accepts: () => true, onDrop: (a: any, t: any) => drops.push([a.id, t.id]) };
+engine.setTexts(texts);
+unmount = engine.mount();
+cards = column(engine, ["a", "b"], "k", 500);
+engine.press("keyboard", "a", { ...key("Space"), target: cards.a.handle } as any);
+unmount();
+await g.sleep(5);
+assert.equal(fire("keydown", { code: "Space", key: " " }).defaultPrevented, false);
+// 鼠标拖动中卸下：移动、松开不再回调；按键还按着，松开那一下不当点击，之后照常
+engine = new DragEngine(null);
+engine.props = { accepts: () => true, onDrop: (a: any, t: any) => drops.push([a.id, t.id]) };
+engine.setTexts(texts);
+unmount = engine.mount();
+cards = column(engine, ["a", "b"], "m", 700);
+engine.press("mouse", "a", { nativeEvent: { button: 0, clientX: 190, clientY: 710, target: cards.a.handle, defaultPrevented: false }, target: cards.a.handle, preventDefault() {} } as any);
+fire("mousemove", { clientX: 190, clientY: 720 });
+assert.equal(engine.stateOf("a"), 1);
+unmount();
+assert.equal(fire("mousemove", { clientX: 190, clientY: 760 }).defaultPrevented, false);
+fire("mouseup");
+const click = fire("click", { detail: 1 });
+assert.ok(click.defaultPrevented || (click as any).cancelBubble);
+await g.sleep(80);
+const later = fire("click", { detail: 1 });
+assert.ok(!later.defaultPrevented && !(later as any).cancelBubble);
+assert.deepEqual(drops, []);
+""")
+
+    def test_keyboard_focus_comes_back_after_the_row_is_moved_by_a_redraw(self):
+        # 审查：键盘拖动中推送重排把被拖那一行（或它所在的组）挪了位置，焦点掉到 body；列表先后一变当场接回把手，按键时也接回。
+        # 焦点被人点到别处的不抢
+        self.run_page(r"""
+const engine = new DragEngine(null);
+engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: () => undefined };
+engine.setTexts(texts);
+engine.mount();
+const cards = column(engine, ["a", "b", "c"]);
+engine.press("keyboard", "b", { ...key("Space"), target: cards.b.handle } as any);
+await g.sleep(5);
+cards.b.handle.focus();
+fire("keydown", { code: "ArrowDown", key: "ArrowDown" });
+assert.equal(doc.activeElement, cards.b.handle);
+// React 挪动节点：挪动的节点失焦
+const box = cards.b.node.parentNode;
+box.removeChild(cards.b.node);
+box.appendChild(cards.b.node);
+doc.activeElement = doc.body;
+engine.setList("cards", ["c", "a", "b"]);
+assert.equal(doc.activeElement, cards.b.handle);                // 同一次提交里接回
+doc.activeElement = doc.body;
+fire("keydown", { code: "ArrowUp", key: "ArrowUp" });
+assert.equal(doc.activeElement, cards.b.handle);                // 按键时也接回
+cards.c.handle.focus();
+engine.setList("cards", ["a", "c", "b"]);
+assert.equal(doc.activeElement, cards.c.handle);                // 不是掉了焦点：不抢
+fire("keydown", { code: "Escape", key: "Escape" });
 """)
 
 if __name__ == "__main__":

@@ -222,6 +222,9 @@ export type SensorProps<O> = {
 };
 export interface SensorInstance {
   autoScrollEnabled: boolean;
+  /** 拖动区卸下：只摘这次按下挂在页面上的监听、清计时器，不再回调拖动区（拖动区自己结束这次拖动）。键盘拖动中卸下不摘的话，
+   *  页面上收键那一份一直留着，之后第一下空格、回车、Tab、Esc 被它吞掉。 */
+  abort?(): void;
 }
 export type Sensor<O> = new (props: SensorProps<O>) => SensorInstance;
 
@@ -322,10 +325,23 @@ export class MouseSensor implements SensorInstance {
     this.props.onMove(at);
   };
 
+  private detached = false;
+
   private detach() {
+    this.detached = true;
     this.listeners.removeAll();
     this.windowListeners.removeAll();
     setTimeout(this.documentListeners.removeAll, RELEASE_CLICK_MS);
+  }
+
+  /** 拖动区卸下：全摘（已经松开 / 取消过的不动，松手后拦点击的那 50ms 照旧）。拿起后按键还按着：之后松开那一下不当点击。 */
+  abort() {
+    if (this.detached) return;
+    this.detached = true;
+    this.listeners.removeAll();
+    this.windowListeners.removeAll();
+    this.documentListeners.removeAll();
+    if (this.activated) blockReleaseClick("mouse");
   }
 
   private readonly end = () => {
@@ -398,6 +414,11 @@ export class KeyboardSensor implements SensorInstance {
     this.detached = true;
     this.listeners.removeAll();
     this.windowListeners.removeAll();
+  }
+
+  /** 拖动区卸下：摘掉页面上收键那一份（还没挂上的也不再挂）。 */
+  abort() {
+    this.detach();
   }
 }
 
@@ -490,6 +511,15 @@ export class HoldTouchSensor implements SensorInstance {
   private readonly cancel = () => this.finish(true);
   // 系统收回了这次触摸（touchcancel）：手势已经结束，后面没有松手、也没有点击
   private readonly gone = () => this.finish(true, false, true);
+
+  /** 拖动区卸下：摘掉全部监听、清计时器，不回调。拿起后手指还按着：之后松手那一下不当点击。 */
+  abort() {
+    if (this.done) return;
+    this.done = true;
+    window.clearTimeout(this.timer);
+    for (const [target, type, run, options] of this.listening.splice(0)) target.removeEventListener(type, run, options);
+    if (this.lifted) blockReleaseClick("touch");
+  }
 
   private finish(cancelled: boolean, tap = false, over = false) {
     if (this.done) return;
@@ -734,7 +764,11 @@ const STILL = "[data-drag-source], [data-drag-landing]";
 
 /** 此刻 translate 的竖向位移（动画播到哪算到哪；没有为 0）。 */
 function shiftOf(el: Element): number {
-  const value = getComputedStyle(el).translate;
+  return translateY(getComputedStyle(el).translate);
+}
+
+/** 计算样式 translate 的竖向位移。 */
+function translateY(value: string): number {
   if (!value || value === "none") return 0;
   const parts = value.trim().split(/\s+/);
   return parts.length > 1 ? Number.parseFloat(parts[1]!) || 0 : 0;
@@ -754,10 +788,15 @@ export function flowLayout(root: HTMLElement, selector: string, transition: Moti
   const origin = () => (page ? -window.scrollY : root.getBoundingClientRect().top - root.scrollTop);
   const pass = (animate: boolean) => {
     const base = origin();
-    // 先全读再全写；同一项换了位置会被卸下重挂（侧栏的行换了组），按 data-drag-id 认是同一项
+    // 先全读再全写；同一项换了位置会被卸下重挂（侧栏的行换了组），按 data-drag-id 认是同一项。记的是版面位置：去掉整列滑动的
+    // translate，也去掉排序让位此刻的 transform（它有自己的过渡在走）。不去掉的话，让位正在滑回的那一项（拖进已置顶后取消，已置顶
+    // 里让过位的行带过渡滑回，紧接着挪回原组整列重挂）会被当成版面挪了，translate 再反向滑一遍，两段叠起来先冲过头再回来（审查实测
+    // 下冲约 19px）
     const reads = Array.from(root.querySelectorAll<HTMLElement>(selector), (el) => {
-      const shift = shiftOf(el);
-      return { el, key: el.dataset.dragId || el, shift, top: el.getBoundingClientRect().top - shift - base };
+      const style = getComputedStyle(el);
+      const shift = translateY(style.translate);
+      const sorted = style.transform && style.transform !== "none" ? (shapeOf(style.transform)?.y ?? 0) : 0;
+      return { el, key: el.dataset.dragId || el, shift, top: el.getBoundingClientRect().top - shift - sorted - base };
     });
     const seen = new Set<unknown>();
     for (const { el, key, shift, top } of reads) {
@@ -1580,6 +1619,10 @@ export class DragEngine {
     return () => {
       this.alive = false;
       off();
+      // 这次按下的那一种输入挂在页面上的监听先摘干净（不回调；下面由拖动区自己结束这次拖动）
+      const sensor = this.pending;
+      this.pending = null;
+      sensor?.abort?.();
       // 卸下时还在等挪回去的取消、还在等落位的放下当场结束；还在拖的当场取消
       const entry = this.homing;
       this.homing = null;
@@ -1670,6 +1713,19 @@ export class DragEngine {
 
   setList(id: string, items: readonly string[]) {
     this.lists.set(id, items);
+    // 键盘拖动中列表先后变了（推送重排：被拖的那一项或它所在的整组被 React 挪了位置，挪动的节点失焦、焦点掉到 body）：这次提交里
+    // 当场把焦点接回被拖那一项的把手
+    this.regain();
+  }
+
+  /** 键盘拖动中（还没放下、没取消）焦点掉了（落到 body）：接回被拖那一项的把手。焦点被人点到别处的不抢。 */
+  private regain() {
+    const d = this.drag;
+    if (!d || d.kind !== "keyboard" || d.released || d.cancelling) return;
+    const at = document.activeElement;
+    if (at && at !== document.body) return;
+    const item = this.items.get(d.id);
+    if (item) this.follow(item);
   }
 
   dropList(id: string, items: readonly string[]) {
@@ -2046,6 +2102,8 @@ export class DragEngine {
   private step(event: KeyboardEvent) {
     const d = this.drag;
     if (!d || d.kind !== "keyboard" || d.cancelling || d.released) return;
+    // 保险：焦点因为节点被挪过掉了，按一下键就接回被拖那一项的把手
+    this.regain();
     const down = event.code === KeyboardCode.Down;
     if (!down && event.code !== KeyboardCode.Up) {
       if (event.code === KeyboardCode.Left || event.code === KeyboardCode.Right) event.preventDefault();
@@ -2128,6 +2186,9 @@ export class DragEngine {
     const onReturn = this.props.onReturn;
     if (!home && from.list && this.transition && onReturn) {
       d.settle = true;
+      // 拖进的那一列（已置顶）里让过位的各项当场带过渡滑回原位（d.touched 留着：结束时还要去掉留下的过渡）
+      const back = `transform ${this.transition.duration}ms ${this.transition.easing}`;
+      for (const id of d.touched) applyShift(this.items.get(id)?.node ?? null, { transform: "", transition: back });
       // 这一下只起播浮层滑回（拿起时的位置减去之后滚过的；只动 transform，下一帧主线程再忙也照样走），停住自动滚动
       const scrolled = d.scroller ? scrollTopOf(d.scroller) - d.liftScroll : 0;
       const slide = slideOverlay(d.overlay, homeBox(d.start, scrolled, node), this.transition);
