@@ -126,6 +126,7 @@ For example: local sample / production,For example: local sample / production
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.","For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email."
 Forgot password ?,Forgot password ?
 Get your work done in conversation,Get your work done in conversation
+Google or Claude. A change applies from the next document.,Google or Claude. A change applies from the next document.
 Grant feature roles,Grant feature roles
 Granted DocTypes,Granted DocTypes
 Idempotency Key,Idempotency Key
@@ -240,6 +241,8 @@ Realm,Realm
 Reason (the tenant will see it; required),Reason (the tenant will see it; required)
 Received Amount,Received Amount
 Received amount (as actually credited by the bank),Received amount (as actually credited by the bank)
+Recognition Engine,Recognition Engine
+Recognition engine must be Google or Claude,Recognition engine must be Google or Claude
 Reject,Reject
 Reject top-up,Reject top-up
 Rejected,Rejected
@@ -314,6 +317,7 @@ The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.","The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up","The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up"
 The received amount must be greater than 0,The received amount must be greater than 0
+The recognition settings are being applied. Try again shortly.,The recognition settings are being applied. Try again shortly.
 The requested amount must be greater than 0,The requested amount must be greater than 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,The same key submitted twice yields only one set of resources. Defaults to the issue number.
 The sign-in service is not available. Try again later.,The sign-in service is not available. Try again later.

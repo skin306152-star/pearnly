@@ -31,6 +31,12 @@ x-runtime: &runtime
     SOCKETIO_PORT: '9000'
     GUNICORN_WORKERS: '2'
     GUNICORN_THREADS: '4'
+    # Claude 识别路线（ADR-022，pearnly_core.claude_ocr.client）：甲骨文 claude-ocr 服务的地址、令牌、证书指纹，
+    # 与连不上时生产本机直调 Anthropic 用的密钥；都在 runtime.env，没配时选了 Claude 的租户识别会排队重试。
+    PEARNLY_CLAUDE_OCR_URL: ${PEARNLY_CLAUDE_OCR_URL:-}
+    PEARNLY_CLAUDE_OCR_TOKEN: ${PEARNLY_CLAUDE_OCR_TOKEN:-}
+    PEARNLY_CLAUDE_OCR_CERT_SHA256: ${PEARNLY_CLAUDE_OCR_CERT_SHA256:-}
+    PEARNLY_ANTHROPIC_API_KEY: ${PEARNLY_ANTHROPIC_API_KEY:-}
 
 x-web: &web
   <<: *runtime
