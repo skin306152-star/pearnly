@@ -689,8 +689,12 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   reload,
 }) => {
   // 页面上显示的：改 / 删成功时先按刚做的改这里（两段式不弹回旧值），整页重取到了以服务端为准
+  // 两段式改了还没回来的（键 → 刚选的值）：期间整页重取到的旧值不把它盖回去（第 11 轮审查）
+  const changing = useRef(new Map<string, string>());
+  const withChanging = (rows: readonly Choice[]) =>
+    [...changing.current].reduce<Choice[]>((acc, [key, value]) => setChoiceShown(acc, key, value), [...rows]);
   const [list, setList] = useState(choices ?? []);
-  useEffect(() => setList(choices ?? []), [choices]);
+  useEffect(() => setList(withChanging(choices ?? [])), [choices]);
   const [error, setError] = useState("");
   // 展开的那一条（键）；一张卡一次只开一条
   const [open, setOpen] = useState("");
@@ -741,15 +745,19 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
       end(key);
     }
   };
-  // 两段式改现 / 赊：点下立即显示新选择（第 10 轮 D28：以前等接口回来约 200ms 才变）；没成功这一条退回原样，卡内报错
+  // 两段式改现 / 赊：点下立即显示新选择（第 10 轮 D28：以前等接口回来约 200ms 才变）；没成功只把这一条的值退回原样
+  // （不整条换回点下那一刻的，期间重取到的别的字段留着），卡内报错
   const change = async (c: Choice, v: string) => {
     if (!start(c.key)) return;
+    changing.current.set(c.key, v);
     setList((rows) => setChoiceShown(rows, c.key, v));
     try {
       await setChoice(company, c.key, v, period);
-      void reload();
+      // 自己这次重取回来之前一直按刚选的显示（之前发出的重取可能还带着旧值）
+      void reload().finally(() => changing.current.get(c.key) === v && changing.current.delete(c.key));
     } catch (e) {
-      setList((rows) => rows.map((row) => (row.key === c.key ? c : row)));
+      changing.current.delete(c.key);
+      setList((rows) => setChoiceShown(rows, c.key, c.value));
       setError(shownError(e));
     } finally {
       end(c.key);

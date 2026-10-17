@@ -865,11 +865,12 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                 const state = rule ? null : describe(a.adapter, snapshot, tr);
                 const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
                 const picked = target === a.adapter;
+                // 卡片的内边距在选择按钮里：整张卡都能点，手机点按区至少 44（同对话里的文件卡，按钮排查 H11；第 11 轮复量附录 #83）
                 return (
-                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-2 px-3 py-2.5" data-selected={picked || undefined}>
+                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 flex-col items-start text-start disabled:cursor-default"
+                      className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"
                       style={!picked && (rule || !ok) ? { opacity: 0.5 } : undefined}
                       disabled={Boolean(rule) || !ok}
                       onClick={() => {
@@ -881,7 +882,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                       {state && <span className="text-xs" style={{ color: state.tone === "ok" ? "var(--cc-success)" : state.tone === "bad" ? "var(--cc-danger)" : "var(--cc-ink-3)" }}>{state.text}</span>}
                     </button>
                     {!rule && !ok && (
-                      <button type="button" className="cc-btn" onClick={() => setConnectOpen(a.adapter)}>
+                      <button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>
                         {tr("Connect")}
                       </button>
                     )}

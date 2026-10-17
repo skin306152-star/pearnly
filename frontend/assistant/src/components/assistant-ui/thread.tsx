@@ -223,19 +223,22 @@ function useSettleOnOpen() {
   const opened = useAuiState((s) => (s.thread.messages.length > 0 ? s.threadListItem.id : ""));
   const openedNow = useRef(opened);
   openedNow.current = opened;
+  // 本页刚发出（发送中的气泡还在）：新对话第一条落进来不算打开，位置交给组件库的「这一轮顶到上面」，不贴底
+  const sending = useRef(false);
+  sending.current = usePendingSend() !== null;
   const settler = useRef<OpenSettler | null>(null);
   useEffect(() => {
     if (!viewport || !content) return;
     const created = new OpenSettler(viewport, content);
     settler.current = created;
-    if (openedNow.current) created.settle();
+    if (openedNow.current && !sending.current) created.settle();
     return () => {
       created.dispose();
       if (settler.current === created) settler.current = null;
     };
   }, [viewport, content]);
   useEffect(() => {
-    if (opened) settler.current?.settle();
+    if (opened && !sending.current) settler.current?.settle();
   }, [opened]);
   return { viewport: setViewport, content: setContent };
 }

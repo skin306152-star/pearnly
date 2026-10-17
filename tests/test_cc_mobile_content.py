@@ -94,8 +94,10 @@ class OpenAtBottomSourceTests(unittest.TestCase):
     def test_thread_settles_when_a_conversation_is_opened(self):
         thread = read("components/assistant-ui/thread.tsx")
         self.assertIn("s.thread.messages.length > 0 ? s.threadListItem.id : \"\"", thread)
-        self.assertIn("if (opened) settler.current?.settle();", thread)
-        self.assertIn("if (openedNow.current) created.settle();", thread)
+        self.assertIn("if (opened && !sending.current) settler.current?.settle();", thread)
+        self.assertIn("if (openedNow.current && !sending.current) created.settle();", thread)
+        # 第 11 轮审查：本页刚发出（发送中的气泡还在）时新对话第一条落进来不算打开，不贴底
+        self.assertIn("sending.current = usePendingSend() !== null;", thread)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -198,13 +200,13 @@ import { OpenSettler, SETTLE_MAX_MS, SETTLE_QUIET_MS } from "@/lib/follow-scroll
 const g = globalThis as any;
 let clock = 1000;
 const listeners: Record<string, Array<(e: any) => void>> = {};
-let reserve = 0;
+let reserve: number | null = null;  // 组件库的占位：只在有在跑的一轮时挂着
 const vp: any = {
   scrollTop: 0, scrollHeight: 6000, clientHeight: 800,
   addEventListener(type: string, fn: any) { (listeners[type] ??= []).push(fn); },
   removeEventListener(type: string, fn: any) { listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn); },
   scrollTo({ top }: any) { this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); },
-  querySelector() { return { offsetHeight: reserve }; },
+  querySelector() { return reserve === null ? null : { offsetHeight: reserve }; },
 };
 const fire = (type: string, e: any = {}) => (listeners[type] ?? []).forEach((fn) => fn(e));
 let grow: () => void = () => {};
@@ -249,7 +251,18 @@ top = vp.scrollTop; more(500, 100); assert.equal(vp.scrollTop, top);
 // 组件库在把在跑的这一轮推到顶上（占位有高度）时不插手
 reserve = 300; vp.scrollTop = 100; f.settle();
 assert.equal(vp.scrollTop, 100);
-reserve = 0;
+// 第 11 轮审查：有在跑的一轮就交还——回复超出一屏、占位缩成 0 之后内容再长，也不跟到底
+reserve = 0; more(900); assert.equal(vp.scrollTop, 100);
+more(900); assert.equal(vp.scrollTop, 100);
+// 新对话：贴底时还没有占位，随后这一轮开跑（占位先有高度、再缩成 0），回复接着长：不滚
+reserve = null; vp.scrollHeight = 800; vp.scrollTop = 0; f.settle();
+reserve = 400; more(0);
+reserve = 0; more(1500); more(1500);
+assert.equal(vp.scrollTop, 0);
+// 打开一段正在回复的对话（占位已在、高度 0）：不贴底，停在组件库给的这一轮开头
+vp.scrollTop = 500; f.settle();
+more(800); assert.equal(vp.scrollTop, 500);
+reserve = null;
 f.dispose();
 assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
 g.done();

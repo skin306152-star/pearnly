@@ -55,6 +55,7 @@ import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { isImeEnter } from "@/lib/ime";
+import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { ACCEPT } from "@/lib/managed-agents/attachments";
 
 // 卡片与各节的内容搬到了 company-cards.tsx（会话栏用）；原来从本文件导入的照样能用
@@ -315,6 +316,16 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
     setText("");
     start(filing(), value, false, picked);
   };
+  // 安卓返回键收起键盘时输入框仍聚焦：键盘收起、输入框是空的就失焦，收回一行胶囊（同对话页的输入框，第 11 轮审查）
+  const emptyNow = useRef(true);
+  emptyNow.current = !text;
+  useEffect(() => {
+    const closed = () => {
+      if (emptyNow.current && document.activeElement === box.current) box.current?.blur();
+    };
+    window.addEventListener(KEYBOARD_CLOSED, closed);
+    return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
+  }, []);
   // 随内容长高：先收回再按内容量（上限由 max-h-72 管，超出在框里滚动）
   useLayoutEffect(() => {
     const el = box.current;

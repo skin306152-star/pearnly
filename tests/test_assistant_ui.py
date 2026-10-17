@@ -3843,7 +3843,12 @@ assert.equal(choiceAfter(["a"], "a"), "");
         change = section[section.index("const change = async (c: Choice, v: string) => {"):]
         self.assertLess(change.index("setList((rows) => setChoiceShown(rows, c.key, v));"),
                         change.index("await setChoice(company, c.key, v, period);"))
-        self.assertIn("setList((rows) => rows.map((row) => (row.key === c.key ? c : row)));", change)
+        # 第 11 轮审查：没成功只退回这一条的值（不整条换回点下那一刻的）；请求期间整页重取到的旧值不把刚选的盖回去
+        self.assertIn("setList((rows) => setChoiceShown(rows, c.key, c.value));", change)
+        self.assertNotIn("row.key === c.key ? c : row", change)
+        self.assertIn("useEffect(() => setList(withChanging(choices ?? [])), [choices]);", section)
+        self.assertLess(change.index("changing.current.set(c.key, v);"), change.index("await setChoice(company, c.key, v, period);"))
+        self.assertIn("void reload().finally(() => changing.current.get(c.key) === v && changing.current.delete(c.key));", change)
         self.assertIn("onSet={(v) => void change(c, v)}", section)
         self.assertIn("if (gone) setFocusKey(choiceAfter(", section)
         self.assertIn('row?.querySelector<HTMLElement>(".cc-choice-row")?.focus();', section)
@@ -6750,6 +6755,15 @@ answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmati
 answered = applyEvent(answered, ev("i1", "user.interrupt", 6) as any);
 assert.equal(part(answered).approval.approved, true);
 assert.equal(part(answered).cancelled, undefined);
+// 第 11 轮审查：点了「允许」、工具执行中才停止，随后交回成功的结果：本页与重开都是「允许」（重开时历史里没有点击记录，
+// 停止那一刻照样标了 cancelled，不能因此写成「已取消」——写入已经发生了）
+const done = [ev("i1", "user.interrupt", 6), result(false, JSON.stringify({ status: "saved" })),
+  ev("p2", "session.status_idle", 8, { stop_reason: { type: "end_turn" } })];
+const liveRan = project(done as any, answered);
+assert.deepEqual(approvalCard(part(liveRan), gates), { phase: "answered", approved: true, failed: false });
+const reopenedRan = project([...head, ...done] as any);
+assert.equal(part(reopenedRan).cancelled, true);
+assert.deepEqual(approvalCard(part(reopenedRan), gates), { phase: "answered", approved: true, failed: false });
 // 不要「允许」的工具被停止：照常是步骤组里的一行，不是卡片
 const plain = project([ev("tp", "agent.custom_tool_use", 3, { name: "pearnly_read", input: {} }),
   ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }), ev("i1", "user.interrupt", 5)] as any);
@@ -6874,7 +6888,11 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn('<Marquee className="cc-mtitle-name">{title || t("untitled")}</Marquee>', title)
         self.assertIn('{kind && project && company && <Marquee className="cc-mtitle-sub">{company}</Marquee>}', title)
         self.assertNotIn("onClick", title)
-        self.assertIn("grid-template-columns: 1fr auto 1fr;", block(self.css, "  .cc-mtopbar {"))
+        # 第 11 轮审查：两侧同宽（取右上胶囊宽），标题长了也在屏幕正中（原来 1fr auto 1fr 时长标题偏左约 20）
+        self.assertIn("grid-template-columns: var(--cc-mpill-w) minmax(0, 1fr) var(--cc-mpill-w);", block(self.css, "  .cc-mtopbar {"))
+        self.assertNotIn("grid-template-columns: 1fr auto 1fr", block(self.css, "  .cc-mtopbar {"))
+        self.assertIn("--cc-mpill-w: calc(2 * var(--cc-mpill-btn) + 0.5rem + 2 * var(--cc-hairline));", self.css)
+        self.assertIn("width: var(--cc-mpill-btn); height: 100%;", self.css)
         self.assertIn("--cc-mtitle-font: var(--code-text-prose);", self.css)
         self.assertIn("pointer-events: none;", block(self.css, "  .cc-mtitle {"))
 
@@ -6884,12 +6902,16 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn("--cc-attach-tile: 8rem;", css)
         self.assertIn("--cc-attach-tile-phone: 4.5rem;", css)
         self.assertIn("width: var(--cc-attach-tile); height: var(--cc-attach-tile);", block(css, "  .cc-compose-tile {"))
-        self.assertIn(".cc-compose-tile > img { width: 100%; height: 100%; object-fit: contain; }", css)
-        self.assertIn(':root[data-cc-variant="phone"] .cc-compose-x::after { content: ""; position: absolute; inset: -0.75rem; }', css)
+        # 图片四周留约 5 的边（7.webp），整张放进去不裁
+        self.assertIn(".cc-compose-tile > img { width: 100%; height: 100%; padding: var(--cc-compose-img-inset); object-fit: contain; }", css)
+        self.assertIn("--cc-compose-img-inset: 0.3125rem;", css)
         tile = read("components/assistant-ui/attachment.tsx")
         self.assertIn('className="aui-attachment-tile cc-compose-tile"', tile)
         self.assertIn("cc-compose-x", tile)
         self.assertIn("size-5 rounded-full p-0", tile)
+        # 位置写在 globals.css（手机要挪到外角，工具类盖不住）：组件上不再写 end-1.5 top-1.5
+        self.assertNotIn("end-1.5 top-1.5", tile)
+        self.assertIn(".cc-compose-x { top: 0.375rem; inset-inline-end: 0.375rem; }", css)
         self.assertNotIn("size-14", tile)
         # 图片预览的关闭是自己的圆钮（电脑 32、手机 44）
         self.assertIn("showCloseButton={false}", tile)
@@ -6897,7 +6919,9 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
 
     def test_keyboard_composer_and_company_composer_on_phone(self):
         # M9：键盘弹出、输入框展开时离屏边 8
-        self.assertIn(':root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) { width: calc(100% + 1rem); margin-inline: -0.5rem; }', self.css)
+        # 第 11 轮复量只借 8 时是 9（页面卡片的细线）：连这条细线一起借
+        self.assertIn("width: calc(100% + 1rem + 2 * var(--cc-hairline)); margin-inline: calc(-0.5rem - var(--cc-hairline));",
+                      block(self.css, ':root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) {'))
         # M10：公司页输入框同对话页，没在输入、也没有字时收成一行胶囊
         page = read("components/company-page.tsx")
         self.assertIn('data-collapsed={!typing && !text ? "" : undefined}', page)
@@ -6923,6 +6947,59 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
         self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 3)
+
+
+class Round11ReviewTests(unittest.TestCase):
+    """第 11 轮三段合起来的审查意见（按钮段复量 + 行为审查）里成立、已修的几条。"""
+
+    css = read("globals.css")
+
+    def test_phone_attachment_remove_sits_on_the_outer_corner_and_leaves_the_middle_to_preview(self):
+        # 审查（复量 blocker）：手机 72 方块上 × 的点按区往四周扩 12，盖住了方块中心（点中间删掉了附件）；而且附件一行没有上内边距，
+        # 点按区被滚动容器裁成 38×44。现在 × 挪到方块右上外角（伸出 6），点按区只往外 6、往左下 18：44×44，覆盖方块的
+        # x 40–72、y 0–32，中心 (36, 36) 不在里面；附件一行上、右各留 12，正好装下伸出去的部分
+        css = self.css
+        for scope in (':root[data-cc-variant="phone"]', '  :root:not([data-cc-variant="desktop"])'):
+            self.assertIn(scope.strip() + " .cc-compose-x { top: -0.375rem; inset-inline-end: -0.375rem; }", css)
+        after = block(css, ':root[data-cc-variant="phone"] .cc-compose-x::after {')
+        self.assertIn("inset-block: -0.375rem -1.125rem; inset-inline: -1.125rem -0.375rem;", after)
+        self.assertNotIn("inset: -0.75rem", css.split(".cc-compose-x {", 1)[1].split("/* 列表页", 1)[0])
+        # 点按区几何：× 20、外角伸出 6；往上 6、往右 6、往下 18、往左 18
+        tile, x, out = 72, 20, 6
+        left, right = tile + out - x - 18, tile + out + 6
+        top, bottom = -out - 6, -out + x + 18
+        self.assertEqual((right - left, bottom - top), (44, 44))
+        self.assertFalse(left <= tile / 2 <= right and top <= tile / 2 <= bottom)   # 方块中心不归 ×
+        self.assertEqual((-top, right - tile), (12, 12))                            # 伸出去的正好是留出的 12
+        for rule in (':root[data-cc-variant="phone"] .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }',
+                     '  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }'):
+            self.assertIn(rule, css)
+        # 触屏这一条要排在电脑附件一行的内边距之后（同样的优先级，后写的生效）
+        self.assertLess(css.index(':root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-attachments {'),
+                        css.index('  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments {'))
+
+    def test_welcome_chips_are_spaced_8_on_phones(self):
+        # 审查：G8 写了问候下胶囊间距 4 → 8（手机胶囊 36 带底色后 4 显挤），漏了
+        self.assertIn(':root[data-cc-variant="phone"] .cc-welcome-filing { gap: 0.5rem; }', self.css)
+        self.assertIn('@media (pointer: coarse) { :root:not([data-cc-variant="desktop"]) .cc-welcome-filing { gap: 0.5rem; } }', self.css)
+
+    def test_company_composer_folds_on_android_back(self):
+        # 审查：公司页输入框加了收成胶囊，却没接安卓返回键收键盘（KEYBOARD_CLOSED），返回后仍是展开的
+        page = read("components/company-page.tsx")
+        composer = page[page.index("const CompanyComposer: FC"):]
+        self.assertIn('import { KEYBOARD_CLOSED } from "@/lib/viewport";', page)
+        self.assertIn("emptyNow.current = !text;", composer)
+        self.assertIn("if (emptyNow.current && document.activeElement === box.current) box.current?.blur();", composer)
+        self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", composer)
+        self.assertIn("return () => window.removeEventListener(KEYBOARD_CLOSED, closed);", composer)
+
+    def test_scheduled_task_target_cards_are_tappable_edge_to_edge(self):
+        # 审查（复量附录 #83）：写入目标卡（MR.ERP / Express）的内边距在卡片上，按钮只有 21–38 高；挪进按钮，手机至少 44
+        tasks = read("components/scheduled-tasks.tsx")
+        self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>', tasks)
+        self.assertIn('className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"', tasks)
+        self.assertIn('<button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>', tasks)
+        self.assertNotIn("cc-card flex items-center justify-between gap-2 px-3 py-2.5", tasks)
 
 
 if __name__ == "__main__":

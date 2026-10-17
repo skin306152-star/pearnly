@@ -8,6 +8,8 @@
 // content-visibility 先按估计高度排、滚到哪儿才量出真实高度，正文排版、文件卡片、缩略图随后才到——于是停在中间
 // （2026-10-15 三星 A14 实测 F11f）。打开后内容一变高就贴回最底下，直到内容静下来 SETTLE_QUIET_MS（最多 SETTLE_MAX_MS），
 // 或用户一碰（滚轮、按下手指 / 鼠标、按键）就交还，之后不再替他滚。
+// 有在跑的一轮（组件库挂着这一轮的占位 data-aui-top-anchor-reserve，跑完才撤）就不贴底、立刻交还：位置归组件库，
+// 停在这一轮开头，回复再长也不跟（第 11 轮审查：新对话发第一句、或打开一段正在回复的对话，都曾跟到底最多 10 秒）。
 // 只看本页的滚动与尺寸，不发请求、不开定时。
 
 export const SETTLE_QUIET_MS = 1500;
@@ -74,9 +76,11 @@ export class OpenSettler {
   }
 
   private toBottom() {
-    // 组件库正把这一轮推到顶上（占位还有高度）：位置归它管
-    const reserve = this.viewport.querySelector<HTMLElement>("[data-aui-top-anchor-reserve]");
-    if ((reserve?.offsetHeight ?? 0) > 0) return;
+    // 有在跑的一轮（占位在，不论高度）：位置归组件库，不再贴底
+    if (this.viewport.querySelector("[data-aui-top-anchor-reserve]")) {
+      this.unsettle();
+      return;
+    }
     const v = this.viewport;
     if (v.scrollHeight - v.scrollTop - v.clientHeight <= 1) return;
     v.scrollTo({ top: v.scrollHeight, behavior: "instant" });

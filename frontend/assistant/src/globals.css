@@ -688,6 +688,7 @@
   /* 手机上的 PDF 预览：一页图取到之前按 A4 比例占位（取到后用图本身的比例） */
   --cc-pdf-page-ratio: 210 / 297;
   --cc-attach-pad: var(--code-pad-2);
+  --cc-compose-img-inset: 0.3125rem;   /* 输入框附件方块里图片四周留的边（7.webp 量约 5） */
   /* 右侧会话栏（设计系统，设计文档 3.13）：宽 280、卡片间距 10、卡片透明底 + 1px 内环（线色）、圆角 10、上下内边距 8；
      卡头 26（12px 中粗标题、12px 淡色摘要）；卡内行 26、13/19；行尾小按钮 20 */
   --cc-panel-w: var(--code-panel-w);
@@ -725,6 +726,8 @@
   --cc-mcard-line: transparent;   /* 抽屉打开时页面卡片：浅色无边线、向抽屉投一道柔和阴影（外壳实测） */
   --cc-mcard-shadow: 0.14;
   --cc-mbtn-size: var(--cc-tap);
+  --cc-mpill-btn: 2.75rem;        /* 手机右上胶囊里每颗按钮的宽 */
+  --cc-mpill-w: calc(2 * var(--cc-mpill-btn) + 0.5rem + 2 * var(--cc-hairline));   /* 整个胶囊宽（两颗 + 左右内边距 + 细线） */
   /* 卡片按钮（.cc-card-btn，照 Claude 的问题卡片，用户 10-17）：电脑 24 高（设计系统 xs 档；6.webp「跳过 / 提交」约 24）、13px；
      手机大号胶囊 44（8.webp「提交」约 42–43，取点按区下限 44）、16px；手机上等回答的卡片浮在输入框上方：圆角 24（8.webp 边缘拟合约 23.5）、
      问话约 20（Claude 手机端截图） */
@@ -1477,8 +1480,10 @@
     line-height: var(--cc-text-caption-lh);
   }
   /* 输入框里的附件方块（照 Claude 桌面版 7.webp，按钮排查 M7）：128 见方、圆角 8、1px 线色边、叠色底；图片整张放进方块（不裁，
-     同 Claude）；其他文件左上文件名（最多 3 行）、左下类型图标 + 类型；右上 20 的圆形移除（手机点按区 44）；上传中转圈、失败标红。
-     手机 72 见方（390 宽一行放得下 4 个），文件名最多 2 行 */
+     四周留约 5 的边，同 Claude）；其他文件左上文件名（最多 3 行）、左下类型图标 + 类型；右上 20 的圆形移除；上传中转圈、失败标红。
+     手机 72 见方（390 宽一行放得下 4 个），文件名最多 2 行。手机与触屏的移除挪到方块右上外角，点按区 44 只往外、往左下各扩一段，
+     盖不到方块中间（点方块中间照旧看大图，第 11 轮审查：原来往四周扩 12，盖住了 72 方块的中心），附件那一行上、右留出这一段，
+     不被滚动容器裁掉 */
   .cc-compose-tile {
     position: relative; display: flex; flex-shrink: 0; width: var(--cc-attach-tile); height: var(--cc-attach-tile); overflow: hidden;
     border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-md); background: var(--cc-bg-subtle); cursor: pointer; outline: none;
@@ -1488,7 +1493,8 @@
   .cc-compose-tile:hover { opacity: 0.85; }
   .cc-compose-tile:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-compose-tile[data-error] { border-color: var(--cc-danger-line); }
-  .cc-compose-tile > img { width: 100%; height: 100%; object-fit: contain; }
+  .cc-compose-tile > img { width: 100%; height: 100%; padding: var(--cc-compose-img-inset); object-fit: contain; }
+  .cc-compose-x { top: 0.375rem; inset-inline-end: 0.375rem; }
   .cc-compose-file {
     display: flex; width: 100%; min-width: 0; flex-direction: column; justify-content: space-between; gap: 0.25rem; padding: var(--cc-attach-pad);
     color: var(--cc-ink-2); text-align: start;
@@ -1502,8 +1508,16 @@
   }
   .cc-compose-type svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
   :root[data-cc-variant="phone"] .cc-compose-tile { width: var(--cc-attach-tile-phone); height: var(--cc-attach-tile-phone); --cc-compose-name-lines: 2; }
-  :root[data-cc-variant="phone"] .cc-compose-x::after { content: ""; position: absolute; inset: -0.75rem; }
-  @media (pointer: coarse) { :root:not([data-cc-variant="desktop"]) .cc-compose-x::after { content: ""; position: absolute; inset: -0.75rem; } }
+  :root[data-cc-variant="phone"] .cc-compose-x { top: -0.375rem; inset-inline-end: -0.375rem; }
+  :root[data-cc-variant="phone"] .cc-compose-x::after {
+    content: ""; position: absolute; inset-block: -0.375rem -1.125rem; inset-inline: -1.125rem -0.375rem;
+  }
+  @media (pointer: coarse) {
+    :root:not([data-cc-variant="desktop"]) .cc-compose-x { top: -0.375rem; inset-inline-end: -0.375rem; }
+    :root:not([data-cc-variant="desktop"]) .cc-compose-x::after {
+      content: ""; position: absolute; inset-block: -0.375rem -1.125rem; inset-inline: -1.125rem -0.375rem;
+    }
+  }
 
   /* 列表页（公司、待处理、定时任务；设计文档 3.14 / 4.5）：内容宽 960 居中；标题 24/31 字重 500；右上排序与主按钮；
      搜索框 36、圆角 7（白 50% / 白 5% 底，同侧栏搜索框）；行同侧栏行（圆角 8、悬停实色、悬停不改字色） */
@@ -1579,7 +1593,9 @@
 
   /* 手机顶栏（同 Claude 手机端）：盖在内容上的半透明一条，内容从下面滚过去 */
   .cc-mtopbar {
-    position: absolute; inset: 0 0 auto 0; z-index: 20; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.75rem;
+    position: absolute; inset: 0 0 auto 0; z-index: 20; display: grid; align-items: center; gap: 0.75rem;
+    /* 两侧同宽（取右边胶囊宽）：标题长了也在屏幕正中（第 11 轮审查：1fr auto 1fr 在标题长时两侧退到各自按钮宽，标题偏左约 20） */
+    grid-template-columns: var(--cc-mpill-w) minmax(0, 1fr) var(--cc-mpill-w);
     padding: max(0px, calc(env(safe-area-inset-top) - 0.25rem)) 1rem 1.25rem;
     /* 同 Claude 手机端对话页：按钮后面是和页面同色的实底，按钮下沿往下很快淡出，没有细线和毛玻璃（镜像实测） */
     background: linear-gradient(to bottom, var(--cc-bg-app) 0%, var(--cc-bg-app) 70%, transparent 100%);
@@ -1607,7 +1623,7 @@
     display: inline-flex; align-items: center; height: var(--cc-mbtn-size); padding-inline: 0.25rem; border-radius: var(--cc-radius-full);
     background: var(--cc-mbtn-bg); border: var(--cc-hairline) solid var(--cc-line-strong); box-shadow: var(--cc-shadow-hairline); color: var(--cc-ink-2);
   }
-  .cc-mpill button { display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 100%; outline: none; }
+  .cc-mpill button { display: inline-flex; align-items: center; justify-content: center; width: var(--cc-mpill-btn); height: 100%; outline: none; }
   .cc-mpill button:active { transform: scale(0.92); }
   .cc-mpill svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.5; }
   .cc-mtopbar-slot { width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); }
@@ -2106,6 +2122,11 @@
 :root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-attachments {
   grid-area: files; padding: calc(var(--cc-composer-pad) / 2) var(--cc-composer-pad) 1rem;
 }
+/* 手机与触屏：移除挪到方块外角、点按区往外扩（.cc-compose-x），附件那一行上、右各留 12，不被滚动容器裁掉 */
+:root[data-cc-variant="phone"] .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }
+@media (pointer: coarse) {
+  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }
+}
 :root:not([data-cc-variant="phone"]) .cc-composer-inline > textarea {
   grid-area: input; align-self: center; padding: calc((var(--cc-composer-btn) - var(--cc-body-lh)) / 2) var(--cc-composer-pad);
 }
@@ -2131,6 +2152,9 @@
 .cc-mshell .cc-composer[data-collapsed] .aui-composer-send { display: none; }
 /* 手机新对话问候下面的公司、月份、分店（projects.tsx 的 WelcomeFiling，同线上旧版的公司条）：居中一行，放不下换行 */
 .cc-welcome-filing { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.25rem; max-width: 100%; }
+/* 手机与触屏的胶囊是 36 高带底色（.cc-chin-btn），间距放到 8（按钮排查 G8） */
+:root[data-cc-variant="phone"] .cc-welcome-filing { gap: 0.5rem; }
+@media (pointer: coarse) { :root:not([data-cc-variant="desktop"]) .cc-welcome-filing { gap: 0.5rem; } }
 .cc-welcome-filing:empty { display: none; }
 .cc-mshell .cc-greeting { font-size: 1.25rem; color: var(--cc-ink-2); }
 .cc-mshell .pearnly-mascot-host { height: 4.5rem; }
@@ -2248,8 +2272,11 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 .cc-mmain .aui-thread-viewport-footer { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 /* 键盘弹出时（lib/viewport.ts 的 data-cc-keyboard）指示条被键盘盖住：输入框贴着键盘，只留一小截（同 Claude 手机端） */
 :root[data-cc-keyboard] .cc-mmain .aui-thread-viewport-footer { padding-bottom: 0.625rem; }
-/* 键盘弹出、输入框展开时离屏边 8（照 Claude 手机 1.webp；内容区左右是 16，向外各借 8）；收成一行胶囊时仍是 16（按钮排查 M9） */
-:root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) { width: calc(100% + 1rem); margin-inline: -0.5rem; }
+/* 键盘弹出、输入框展开时离屏边 8（照 Claude 手机 1.webp；内容区离屏边是 16 加页面卡片的细线，向外各借 8 加这条细线）；
+   收成一行胶囊时仍是 16（按钮排查 M9；第 11 轮复量只借 8 时是 9） */
+:root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) {
+  width: calc(100% + 1rem + 2 * var(--cc-hairline)); margin-inline: calc(-0.5rem - var(--cc-hairline));
+}
 
 /* 手机上长按对话行弹菜单：不出系统的选字 / 放大镜 */
 @media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }
