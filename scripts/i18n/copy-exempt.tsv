@@ -30,3 +30,11 @@ pearnly_erp_portal:For the best reading, photograph the document upright and str
 术语:识别字段@pearnly_cowork	R-DEV	识别字段	识别结果的栏位名，业务术语（Cowork 识别设置的标签）
 术语:识别字段@pearnly_core	R-DEV	识别字段	识别结果的栏位名，业务术语（录入记录的标签）
 术语:自定义字段@pearnly_cowork	R-DEV	自定义字段	任务表的自定义栏位，业务术语（Cowork 任务的标签）
+# ── hidden 字段（Desk 表单不显示的机制字段）：10-18 闸门把 hidden 字段的标签 / 说明按管理后台判（不在术语表只标黄）之前，现有命中逐条登记
+pearnly_cowork:Refresh Lease Owner	R-DEV	刷新租约持有者	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Generation	R-DEV	刷新租约版本	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Handle	R-DEV	刷新租约标识	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Expires At (UTC)	R-DEV	刷新租约到期时间（UTC）	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Request Aliases	R-DEV	刷新请求幂等索引	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_pos_layout/cowork_pos_layout.json	R-HARD	Layout Key	hidden 字段的标签，Desk 表单不显示，不进术语表
+代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.json	R-HARD	Run warnings and the anchor snapshot/overrides the workbook shows; keys are the deployed ones	hidden 字段的说明，Desk 表单不显示，不进术语表
