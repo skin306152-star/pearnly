@@ -61,11 +61,18 @@ def css_block(css, selector):
 
 
 def cc_block(css, selector):
-    """--cc-* 那一块（第二个同名块）。"""
+    """--cc-* 的定义：主块（含 --cc-brand）连同刻度层、用途层、运行时层几块同名块合在一起（标准化记录 1.1 分层）。"""
     blocks = [m.group(1) for m in re.finditer(r"^" + re.escape(selector) + r" \{\n(.*?)\n\}", css, re.M | re.S)]
-    body = next(b for b in blocks if "--cc-brand:" in b)
-    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
-    return dict(re.findall(r"(--[\w-]+):\s*([^;]+);", body))
+    assert any("--cc-brand:" in b for b in blocks), selector
+    out = {}
+    for body in blocks:
+        body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
+        defs = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", body))
+        if any(name.startswith("--cc-") for name in defs):
+            for name in defs:
+                assert name not in out, f"{name} 在 {selector} 里定义了两次"
+            out.update(defs)
+    return out
 
 
 def code_block(css, selector):
@@ -299,6 +306,8 @@ class OfficialValuesTests(unittest.TestCase):
         })
         # 手机：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（第 11 轮按钮排查 G1 / G9）；触屏平板（粗指针，非桌面窗口）同样
         self.assertEqual(variant_block(self.css, "phone"), {
+            # 手机问候、形象（外壳实测；用途层登记，标准化记录 2.2）
+            "--cc-greeting-font": "20px", "--cc-mascot-h": "var(--cc-mascot-h-sm)",
             "--cc-row-h": "var(--code-row-phone)", "--cc-group-h": "var(--code-group-band-phone)", "--cc-reveal-rest": "1",
             "--cc-body-size": "var(--code-text-prose)", "--cc-body-lh": "var(--code-text-prose-lh)",
             "--cc-menu-item-h": "var(--cc-tap)", "--cc-search-h": "var(--cc-tap)",
@@ -532,6 +541,88 @@ g.done();
                      "--radius-md: var(--cc-radius-md);", "--text-sm: var(--ccs-text-sm-size);",
                      "--text-sm--line-height: var(--ccs-text-sm-line-height);", "--color-warning: var(--cc-warning);"):
             self.assertIn(line, theme)
+
+
+def theme_block(css):
+    return css.split("@theme inline {", 1)[1].split("\n}", 1)[0]
+
+
+class StandardLayerTests(unittest.TestCase):
+    """标准层（标准化记录第 2 节，B1）：刻度层、@theme 接的字阶与字重、cn() 认识这些名字。"""
+
+    def setUp(self):
+        self.css = (SRC / "globals.css").read_text(encoding="utf-8")
+
+    def test_type_scale_and_weights_are_wired_into_the_theme(self):
+        theme = theme_block(self.css)
+        for name, (size, lh) in {
+            "caption": ("--cc-text-caption", "--cc-text-caption-lh"), "footnote": ("--cc-text-footnote", "--cc-text-footnote-lh"),
+            "group": ("--cc-group-font", "--cc-group-lh"), "panel": ("--cc-panel-font", "--cc-panel-lh"),
+            "body": ("--cc-row-font", "--cc-row-lh"), "subhead": ("--cc-text-subhead", "--cc-text-subhead-lh"),
+            "prose": ("--cc-text-prose", "--cc-text-prose-lh"), "title": ("--cc-text-title", "--cc-text-title-lh"),
+            "page": ("--cc-text-page", "--cc-text-page-lh"),
+        }.items():
+            self.assertIn(f"  --text-{name}: var({size});\n  --text-{name}--line-height: var({lh});", theme, name)
+        self.assertIn("--text-page--font-weight: var(--cc-text-page-weight);", theme)
+        cc = cc_block(self.css, ":root")
+        # 全部引用 Claude 设计系统实测的字阶（设计文档 2.2）
+        for name, target in {"--cc-text-subhead": "--code-text-heading", "--cc-text-prose": "--code-text-prose",
+                             "--cc-text-title": "--code-text-title", "--cc-text-caption": "--code-text-caption",
+                             "--cc-text-footnote": "--code-text-footnote"}.items():
+            self.assertEqual(cc[name], f"var({target})", name)
+        for name, weight in {"normal": "regular", "medium": "medium", "semibold": "semibold", "bold": "bold"}.items():
+            self.assertIn(f"  --font-weight-{name}: var(--cc-weight-{weight});", theme)
+            self.assertEqual(cc[f"--cc-weight-{weight}"], f"var(--ccs-font-weight-{name})")
+        self.assertIn("--breakpoint-md: 768px;", theme)
+
+    def test_cn_knows_the_theme_names(self):
+        # 2.5：tailwind-merge 要登记 @theme 接过的字阶与字重名，与 globals.css 两边一致
+        theme = theme_block(self.css)
+        sizes = sorted(set(re.findall(r"^  --text-([a-z]+):", theme, re.M)) - {"xs", "sm", "base", "lg", "xl"} - {"2xl", "3xl", "4xl"})
+        weights = sorted(re.findall(r"^  --font-weight-([a-z]+):", theme, re.M))
+        utils = (SRC / "lib/utils.ts").read_text(encoding="utf-8")
+        listed = lambda name: sorted(re.findall(r'"([a-z]+)"', utils.split(f"export const {name} = [", 1)[1].split("]", 1)[0]))
+        self.assertEqual(listed("TEXT_SIZES"), sizes)
+        self.assertEqual(listed("FONT_WEIGHTS"), weights)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_cn_merges_type_scale_names_as_sizes_not_colors(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { cn } from "@/lib/utils";
+// 字号与字色各留一个（原来 text-caption 被当成颜色，text-ink-3 就丢了）
+assert.equal(cn("text-ink-3", "text-caption"), "text-ink-3 text-caption");
+assert.equal(cn("text-caption", "text-ink-3"), "text-caption text-ink-3");
+// 同是字号：后一个赢
+assert.equal(cn("text-sm", "text-caption"), "text-caption");
+assert.equal(cn("text-body", "text-page"), "text-page");
+assert.equal(cn("text-prose text-ink", "text-(length:--cc-body-size)"), "text-ink text-(length:--cc-body-size)");
+// 字重
+assert.equal(cn("font-medium", "font-semibold"), "font-semibold");
+assert.equal(cn("font-medium text-caption", "text-ink-2"), "font-medium text-caption text-ink-2");
+(globalThis as any).done();
+""")
+
+    def test_the_scale_layer_has_one_definition_per_value(self):
+        # 2.4 第 1 / 6 条：刻度只有一份，刻度层这一块里不出现两个定义完全相同的变量
+        block = self.css.split("/* ── 刻度层", 1)[1].split("\n}", 1)[0]
+        defs = re.findall(r"^  (--cc-[\w-]+):\s*([^;]+);", block, re.M)
+        self.assertGreater(len(defs), 60)
+        seen = {}
+        for name, value in defs:
+            self.assertNotIn(value.strip(), seen, f"{name} 与 {seen.get(value.strip())} 定义相同")
+            seen[value.strip()] = name
+        names = [n for n, _ in defs]
+        for prefix in ("--cc-space-", "--cc-control", "--cc-icon", "--cc-z-", "--cc-dur", "--cc-weight-", "--cc-radius-"):
+            self.assertTrue(any(n.startswith(prefix) for n in names), prefix)
+        # 间距刻度按像素命名，值就是名字（设计文档 2.3 的 --code-gap / pad）
+        spacing = {n: v for n, v in defs if n.startswith("--cc-space-")}
+        self.assertEqual(list(spacing), [f"--cc-space-{n}" for n in (2, 4, 6, 8, 12, 16, 24, 28, 40)])
+        code = code_block(self.css, ":root")
+        for name, value in spacing.items():
+            target = re.fullmatch(r"var\((--code-[\w-]+)\)", value).group(1)
+            self.assertEqual(code[target], name.rsplit("-", 1)[1] + "px", name)
 
 
 class TokenGateTests(unittest.TestCase):

@@ -112,6 +112,36 @@
   --text-3xl--line-height: var(--ccs-heading-3xl-line-height);
   --text-4xl: var(--ccs-heading-3xl-size);
   --text-4xl--line-height: var(--ccs-heading-3xl-line-height);
+  /* Claude 设计系统实测字阶（设计文档 2.2）：组件写 text-caption … text-page（字号、行高成对）；按变体切换的写 text-(length:--cc-*)。
+     官方 text-lg / xl / 2xl / 3xl 留给文章与文档里的标题；text-xs / sm / base 迁完后退出组件（V1）。lib/utils.ts 的 cn() 同步登记这些名字
+     （tailwind-merge 不认识就当成颜色，会把 text-ink-3 吞掉，tests/test_cc_ccs.py 核对两边一致） */
+  --text-caption: var(--cc-text-caption);
+  --text-caption--line-height: var(--cc-text-caption-lh);
+  --text-footnote: var(--cc-text-footnote);
+  --text-footnote--line-height: var(--cc-text-footnote-lh);
+  --text-group: var(--cc-group-font);
+  --text-group--line-height: var(--cc-group-lh);
+  --text-panel: var(--cc-panel-font);
+  --text-panel--line-height: var(--cc-panel-lh);
+  --text-body: var(--cc-row-font);
+  --text-body--line-height: var(--cc-row-lh);
+  --text-subhead: var(--cc-text-subhead);
+  --text-subhead--line-height: var(--cc-text-subhead-lh);
+  --text-prose: var(--cc-text-prose);
+  --text-prose--line-height: var(--cc-text-prose-lh);
+  --text-title: var(--cc-text-title);
+  --text-title--line-height: var(--cc-text-title-lh);
+  --text-page: var(--cc-text-page);
+  --text-page--line-height: var(--cc-text-page-lh);
+  --text-page--font-weight: var(--cc-text-page-weight);
+  /* 字重：组件里的 font-normal / medium / semibold / bold 接到刻度层（官方 400 / 500 / 600 / 700）；没接的字重名闸门拦（R15） */
+  --font-weight-normal: var(--cc-weight-regular);
+  --font-weight-medium: var(--cc-weight-medium);
+  --font-weight-semibold: var(--cc-weight-semibold);
+  --font-weight-bold: var(--cc-weight-bold);
+  /* 断点只有一条：md = 768（与 hooks/use-mobile.ts 的 MOBILE_QUERY 同一段文本，max-md 生成 (width < 768px)）。写 px 不写 48rem：
+     媒体查询里的 rem 按浏览器默认字号算，用户改了默认字号会与 768 不一致 */
+  --breakpoint-md: 768px;
   --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both;
 
   @keyframes collapsible-down {
@@ -546,12 +576,6 @@
   --cc-shadow-composer-mobile: 0 1px 3px rgb(0 0 0 / 0.04);     /* 手机输入框：外壳实测 */
   --cc-shadow-pill: 0 6px 18px -4px rgb(20 20 19 / 0.22);      /* 手机抽屉「新建」胶囊：外壳 */
 
-  --cc-radius-xs: var(--ccs-radius-xs);     /* 4 */
-  --cc-radius-sm: var(--ccs-radius-sm);     /* 6 */
-  --cc-radius-md: var(--ccs-radius-md);     /* 8：按钮、输入框、侧栏行、对话里的卡片 */
-  --cc-radius-lg: var(--ccs-radius-lg);     /* 10 */
-  --cc-radius-xl: var(--ccs-radius-xl);     /* 12：菜单、浮层卡片 */
-  --cc-radius-full: var(--ccs-radius-full);
   --cc-radius-composer: var(--code-radius-input);   /* 输入框 14（设计文档 3.12） */
   --cc-radius-composer-mobile: 1.5rem;   /* 手机输入框：外壳实测 */
   --cc-radius-bubble: var(--code-radius-10);   /* 用户气泡（设计文档 3.10） */
@@ -562,13 +586,6 @@
   --cc-radius-dialog: 16px;       /* 设置等整窗弹窗：外壳实测，官方表未覆盖 */
   --cc-radius-mrow: 16px;         /* 手机抽屉里的对话行：外壳实测 */
 
-  --cc-text-xs: var(--ccs-text-xs-size);        /* 步骤详情里的命令输出 */
-  --cc-text-sm: var(--ccs-text-sm-size);        /* 表格、代码块、源码预览、批准说明 */
-  --cc-text-heading: var(--ccs-heading-md-size);   /* 设置里的小标题 */
-  --cc-text-caption: var(--code-text-caption);     /* 快捷键提示、卡片标题 */
-  --cc-text-caption-lh: var(--code-text-caption-lh);
-  --cc-text-footnote: var(--code-text-footnote);   /* 菜单里的当前值 */
-  --cc-text-footnote-lh: var(--code-text-footnote-lh);
   /* 对话正文：电脑（网页、桌面窗口）14/20，手机 16/24（变体切）；字体仍按设置「对话字体」 */
   --cc-body-size: var(--code-text-body);
   --cc-body-lh: var(--code-text-body-lh);
@@ -602,9 +619,6 @@
   --cc-radius-chin: var(--code-radius-5);
 
   /* 密度（设计系统舒适档；网页默认，桌面窗口 / 手机在「变体」一段覆盖） */
-  --cc-control: var(--code-control);        /* 按钮、输入框高 */
-  --cc-icon: var(--code-icon);
-  --cc-icon-sm: var(--code-icon-sm);
   --cc-row-h: var(--code-row);              /* 导航行、会话行 */
   --cc-row-gap: var(--code-row-gap);
   --cc-row-pad: var(--code-row-pad);
@@ -645,7 +659,6 @@
   --cc-font-serif: "Source Serif 4 Variable", ui-serif, Georgia, "Noto Serif Thai", "Songti SC", "Noto Serif SC", serif;
   --cc-font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
 
-  --cc-tap: 2.75rem;              /* 手机点按区下限 44pt（官方卡片规矩） */
   /* 整屏高：先写 vh，认 dvh / svh 的浏览器在下面的 @supports 里换掉（Chrome / 安卓 WebView 108、Safari 15.4 以前不认，
      2026-10-15 三星 A14 的 Chrome 106 上弹窗限高整条失效、超出屏幕）。组件只引用这几个变量，不直接写 dvh / svh
      （闸门 scripts/check-frontend-viewport-units.py） */
@@ -731,7 +744,6 @@
   /* 卡片按钮（.cc-card-btn，照 Claude 的问题卡片，用户 10-17）：电脑 24 高（设计系统 xs 档；6.webp「跳过 / 提交」约 24）、13px；
      手机大号胶囊 44（8.webp「提交」约 42–43，取点按区下限 44）、16px；手机上等回答的卡片浮在输入框上方：圆角 24（8.webp 边缘拟合约 23.5）、
      问话约 20（Claude 手机端截图） */
-  --cc-control-sm: var(--code-control-sm);
   --cc-card-btn-h: var(--code-control-xs);
   --cc-card-btn-h-phone: var(--cc-tap);
   --cc-card-btn-font-phone: var(--code-text-prose);
@@ -748,11 +760,6 @@
   --cc-ease-fast: var(--code-ease-fast);
   --cc-ease-out: var(--code-ease-out);
   --cc-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-  --cc-dur-instant: var(--code-dur-1);
-  --cc-dur-fast: var(--code-dur-2);
-  --cc-dur: var(--code-dur-3);
-  --cc-dur-slow: var(--code-dur-4);
-  --cc-dur-pop: var(--code-dur-5);
   --cc-reveal: var(--cc-dur-fast);          /* 悬停揭示（组标题变色、箭头淡入） */
 
   --radius: var(--cc-radius-md);
@@ -774,6 +781,209 @@
   --cc-shadow-pill: 0 6px 18px -4px rgb(0 0 0 / 0.5);
 }
 
+/* ── 刻度层（docs/work/2026-10-17-cc-frontend-standards.md 2.1）：组件可用的全部档位。只引用上面两层（--code-* / --ccs-*）或注明出处，
+   出处只有四种：实测（引用 --code-*）、外壳实测（截图量的）、系统值、现有值·CC 自定（没有 Claude 参照，照现值登记，等有参照再改）。
+   间距按像素命名（迁移时机械替换、审查时一眼看懂）。不在刻度上的值（10、14、20、30、36、56、112 …）不进这里，经下面的用途层进入组件，
+   也不为凑整挪到相近的刻度。同一个定义在这一块里只出现一次（tests/test_cc_ccs.py 核对）。 */
+:root {
+  /* 间距 */
+  --cc-space-2: var(--code-row-gap);
+  --cc-space-4: var(--code-menu-pad);
+  --cc-space-6: var(--code-pad-1);
+  --cc-space-8: var(--code-gap-1);
+  --cc-space-12: var(--code-gap-2);
+  --cc-space-16: var(--code-gap-3);
+  --cc-space-24: var(--code-pad-5);
+  --cc-space-28: var(--code-gap-4);
+  --cc-space-40: var(--code-gap-5);
+  /* 控件高 */
+  --cc-control-2xs: var(--code-panel-btn);          /* 20 */
+  --cc-control-nested: var(--code-control-nested);  /* 22 */
+  --cc-control-xs: var(--code-control-xs);          /* 24 */
+  --cc-control-sm: var(--code-control-sm);          /* 28 */
+  --cc-control: var(--code-control);                /* 32：按钮、输入框高 */
+  --cc-control-md: var(--code-list-search-h);       /* 36 */
+  --cc-control-lg: var(--code-control-lg);          /* 40 */
+  --cc-tap: 2.75rem;              /* 系统值：手机点按区下限 44pt（官方卡片规矩） */
+  /* 图标 */
+  --cc-icon-2xs: var(--code-group-chevron);         /* 12 */
+  --cc-icon-xs: 14px;             /* 现有值·CC 自定：行尾小按钮、筛选 ×、胶囊里的小图标 */
+  --cc-icon-sm: var(--code-icon-sm);                /* 16 */
+  --cc-icon-md: 18px;             /* 现有值·CC 自定：输入框「＋」与发送、手机胶囊、文件卡 */
+  --cc-icon: var(--code-icon);                      /* 20 */
+  --cc-icon-xl: 32px;             /* 现有值·CC 自定：空状态、拖文件提示 */
+  --cc-icon-2xl: var(--cc-control-lg);              /* 40：文件预览 */
+  --cc-icon-stroke: 1.5;          /* 现有值·CC 自定：抽屉与手机胶囊里的细线图标 */
+  /* 圆角（官方表） */
+  --cc-radius-xs: var(--ccs-radius-xs);     /* 4 */
+  --cc-radius-sm: var(--ccs-radius-sm);     /* 6 */
+  --cc-radius-md: var(--ccs-radius-md);     /* 8：按钮、输入框、侧栏行、对话里的卡片 */
+  --cc-radius-lg: var(--ccs-radius-lg);     /* 10 */
+  --cc-radius-xl: var(--ccs-radius-xl);     /* 12：菜单、浮层卡片 */
+  --cc-radius-full: var(--ccs-radius-full);
+  /* 字号与行高：实测字阶在 @theme 接成 text-caption … text-page；--cc-text-heading 是官方 heading-md 16（设置里的小标题），
+     别与 text-subhead（实测 15/20）混 */
+  --cc-text-xs: var(--ccs-text-xs-size);        /* 12：步骤详情里的命令输出 */
+  --cc-text-sm: var(--ccs-text-sm-size);        /* 14：表格、代码块、源码预览、批准说明 */
+  --cc-text-heading: var(--ccs-heading-md-size);   /* 16：设置里的小标题 */
+  --cc-text-caption: var(--code-text-caption);     /* 12/17：快捷键提示、卡片标题 */
+  --cc-text-caption-lh: var(--code-text-caption-lh);
+  --cc-text-footnote: var(--code-text-footnote);   /* 13/17：菜单里的当前值 */
+  --cc-text-footnote-lh: var(--code-text-footnote-lh);
+  --cc-text-subhead: var(--code-text-heading);     /* 15/20 */
+  --cc-text-subhead-lh: var(--code-text-heading-lh);
+  --cc-text-prose: var(--code-text-prose);         /* 16/24 */
+  --cc-text-prose-lh: var(--code-text-prose-lh);
+  --cc-text-title: var(--code-text-title);         /* 22/28：弹窗标题（V14） */
+  --cc-text-title-lh: var(--code-text-title-lh);
+  /* 字重（官方表；页面标题、卡片按钮 500 是实测，600 / 700 是弹窗与 Markdown 的现有值） */
+  --cc-weight-regular: var(--ccs-font-weight-normal);
+  --cc-weight-medium: var(--ccs-font-weight-medium);
+  --cc-weight-semibold: var(--ccs-font-weight-semibold);
+  --cc-weight-bold: var(--ccs-font-weight-bold);
+  /* 层级：按现值定档，替换后画面不变；提示框那一档新增（现在 50，被菜单 60 盖住，V7） */
+  --cc-z-raise: 1;          /* 现有值·CC 自定：预览关闭钮 */
+  --cc-z-float: 10;         /* 现有值·CC 自定：滚到底按钮、侧栏容器 */
+  --cc-z-bar: 20;           /* 现有值·CC 自定：分隔条、手机顶栏 */
+  --cc-z-scrim: 30;         /* 现有值·CC 自定：浮动会话栏、抽屉遮罩 */
+  --cc-z-sheet: 50;         /* 现有值·CC 自定：手机会话栏、手机结果面板、普通弹窗和遮罩 */
+  --cc-z-drag: 55;          /* 现有值·CC 自定：拖动浮层（components/ui/drag.tsx 的 OVERLAY_Z）；挡板在它下面一层 */
+  --cc-z-menu: 60;          /* 现有值·CC 自定：菜单、拖文件提示 */
+  --cc-z-modal: 70;         /* 现有值·CC 自定：设置遮罩、toast */
+  --cc-z-modal-top: 71;     /* 现有值·CC 自定：设置弹窗、安装引导 */
+  --cc-z-confirm: 80;       /* 现有值·CC 自定：删除确认、设置里的菜单 */
+  --cc-z-tooltip: 90;       /* 现有值·CC 自定：提示框要盖过菜单（V7） */
+  /* 时长（设计系统 60 / 120 / 200 / 300 / 450ms）与不在阶上、照现值登记的几种 */
+  --cc-dur-instant: var(--code-dur-1);
+  --cc-dur-fast: var(--code-dur-2);
+  --cc-dur: var(--code-dur-3);
+  --cc-dur-slow: var(--code-dur-4);
+  --cc-dur-pop: var(--code-dur-5);
+  --cc-spin-dur: 1s;              /* 现有值·CC 自定：按钮、行内转圈（.cc-spinner） */
+  --cc-skeleton-dur: 2s;          /* 现有值·CC 自定：骨架脉动（V5 改成 --cc-pulse） */
+  --cc-bob-dur: 1.4s;             /* 现有值·CC 自定：加载页形象上下浮 */
+  --cc-dots-dur: 1.2s;            /* 现有值·CC 自定：等待回复的四点转圈 */
+  --cc-dots-step: 0.3s;           /* 现有值·CC 自定：四点依次错开 */
+  --cc-tooltip-delay: 0ms;        /* 现有值·CC 自定：提示框延时（Claude 未测） */
+  /* 透明度 */
+  --cc-disabled-opacity: 0.4;     /* 实测：菜单不可用项 40%（ccs.md 菜单一条） */
+}
+
+/* ── 用途层（标准化记录 2.2）：有业务含义、可能按变体切换的值。优先引用刻度层；不在刻度上的值注明出处（多数是「现有值·CC 自定」：
+   没有 Claude 参照，照现值登记）。下面先登记各批组件迁移要用的；globals.css 自己的共用类用到的在各类旁边就近登记。
+   还没有组件或共用类引用的，在 tests/test_cc_ccs.py 的「待接上」表里写明由哪一批接上，接上后从表里删掉（B8 时表必须为空）。 */
+:root {
+  /* 外壳 */
+  --cc-sidebar-pad: var(--cc-space-8);           /* 侧栏左右内边距 */
+  --cc-sidebar-head-pt: var(--cc-space-8);       /* 侧栏头上下 8 / 4 */
+  --cc-sidebar-head-pb: var(--cc-space-4);
+  --cc-titlebar-gap: var(--cc-space-2);          /* 桌面窗口标题栏里控件之间 */
+  --cc-topbar-gap: var(--cc-space-4);            /* 电脑对话顶栏里控件之间 */
+  --cc-nav-pad: var(--cc-space-6);               /* 导航行左右内边距（新建、待处理、定时任务、公司） */
+  --cc-mascot-h: 96px;            /* 现有值·CC 自定：欢迎页形象（电脑；手机见「变体」） */
+  --cc-mascot-h-wide: 112px;      /* 现有值·CC 自定：宽屏欢迎页形象（V36 起按 768 分界） */
+  --cc-mascot-h-sm: 72px;         /* 外壳实测：手机问候、加载页的形象 */
+  --cc-greeting-font: var(--ccs-heading-3xl-size);   /* 欢迎页问候 36（手机 20，见「变体」） */
+  --cc-welcome-gap: 20px;         /* 现有值·CC 自定：欢迎页形象、问候、公司条之间 */
+  --cc-avatar-sm: var(--cc-control-xs);          /* 24：托盘、菜单里的小头像 */
+  --cc-logo: var(--cc-control-xs);               /* 24：侧栏头的 logo */
+  --cc-mavatar: 48px;             /* 外壳实测：手机抽屉左下头像 */
+  --cc-winbtn-w: 46px;            /* 系统值：Windows 窗口按钮宽 */
+  --cc-win-titlebar-h: 40px;      /* 外壳实测：CC 桌面版自画标题栏高（同 Claude 桌面端；别与对话顶栏 --cc-topbar-h 32 混） */
+  --cc-mdrawer-px: var(--cc-space-16);           /* 手机抽屉：标题、搜索左右（外壳实测） */
+  --cc-mdrawer-list-px: var(--cc-space-12);      /* 手机抽屉：列表左右（外壳实测） */
+  --cc-mdrawer-tray-px: 20px;     /* 外壳实测：手机抽屉托盘左右 */
+  --cc-mdrawer-tray-pt: var(--cc-space-24);      /* 手机抽屉托盘上方渐隐带（外壳实测） */
+  --cc-mdrawer-bottom: 20px;      /* 外壳实测：手机抽屉托盘离底（另加安全区） */
+  /* 列表末尾给托盘让出的高：托盘渐隐带 + 头像 + 离底，再留一个离底的空（原来写死 pb-28 = 112） */
+  --cc-mdrawer-tail: calc(var(--cc-mdrawer-tray-pt) + var(--cc-mavatar) + var(--cc-mdrawer-bottom) * 2);
+  --cc-keyboard-edge: var(--cc-space-8);         /* 外壳实测：键盘弹出时输入框向页面边各借 8（离屏边 8，设计文档 G15） */
+  --cc-keyboard-gap: 10px;        /* 外壳实测：键盘弹出时输入框下只留一小截 */
+
+  /* 菜单（components/ui/menu.tsx 用时从这里读，见记录 2.6；统一取值见 V8） */
+  --cc-menu-offset: var(--cc-space-4);           /* 现有值·CC 自定：主菜单离触发器 */
+  --cc-menu-sub-offset: var(--cc-space-6);       /* 现有值·CC 自定：子菜单离父菜单 */
+  --cc-menu-edge: var(--cc-space-8);             /* 菜单离屏幕边（2026-10-15 三星 A14 实测后定） */
+  --cc-menu-w-sm: 160px;          /* 现有值·CC 自定：菜单最小宽三档 */
+  --cc-menu-w-md: 176px;          /* 现有值·CC 自定 */
+  --cc-menu-w-lg: 208px;          /* 现有值·CC 自定 */
+  --cc-menu-w-max: 288px;         /* 现有值·CC 自定：菜单最宽 */
+
+  /* 弹窗 */
+  --cc-dialog-w-sm: 448px;        /* 现有值·CC 自定：弹窗宽三档 */
+  --cc-dialog-w-md: 512px;        /* 现有值·CC 自定 */
+  --cc-dialog-w-lg: 672px;        /* 现有值·CC 自定 */
+  --cc-dialog-gutter: var(--cc-space-16);        /* 弹窗离屏幕边 */
+  --cc-dialog-px: 20px;           /* 现有值·CC 自定：弹窗左右内边距 */
+  --cc-dialog-head-pt: var(--cc-space-16);       /* 弹窗头部上 */
+  --cc-dialog-foot-py: var(--cc-space-12);       /* 弹窗脚部上下 */
+  --cc-settings-w: 980px;         /* 现有值·CC 自定：设置弹窗宽 */
+  --cc-settings-w-max: 95vw;      /* 现有值·CC 自定：设置弹窗最多占屏宽 */
+  --cc-settings-h: 680px;         /* 现有值·CC 自定：设置弹窗高 */
+  --cc-settings-share: 0.92;      /* 现有值·CC 自定：设置弹窗最多占可见高 */
+  --cc-settings-nav-w: 224px;     /* 现有值·CC 自定：设置左栏宽 */
+  --cc-settings-px: 20px;         /* 现有值·CC 自定：设置内容区（窄屏）左右 */
+  --cc-settings-py: var(--cc-space-24);
+  --cc-settings-px-wide: 36px;    /* 现有值·CC 自定：设置内容区（宽屏）左右 */
+  --cc-settings-py-wide: 32px;    /* 现有值·CC 自定：设置内容区（宽屏）上下 */
+  --cc-settings-close: var(--cc-icon-xs);        /* 设置里的关闭、勾选小图标 14 */
+  --cc-settings-section-pt: 32px; /* 现有值·CC 自定：设置分节上 */
+  --cc-settings-section-pb: var(--cc-space-4);
+  --cc-settings-value-max: 22rem; /* 现有值·CC 自定：设置值列最宽 */
+  --cc-preview-w: 48rem;          /* 现有值·CC 自定：图片预览最宽 */
+  --cc-preview-share: 0.8;        /* 现有值·CC 自定：图片预览最多占可见高 */
+
+  /* 对话 */
+  --cc-thread-gutter: var(--cc-space-16);        /* 对话内容区左右（栏宽 = --cc-thread-w + 两侧各一份） */
+  --cc-turn-gap: var(--cc-space-24);             /* 一轮与一轮之间 */
+  --cc-thread-tail: 56px;         /* 现有值·CC 自定：对话末尾给输入框让出的空 */
+  --cc-run-gap: var(--cc-space-16);              /* 工作状态行离上面的消息（发出后、回复还没来） */
+  --cc-run-gap-reply: var(--cc-space-8);         /* 工作状态行跟在回复后面 */
+  --cc-reply-actions-h: 30px;     /* 现有值·CC 自定：回复下操作行的高（消息底部用负外边距让出） */
+  --cc-composer-input-max: 288px; /* 现有值·CC 自定：输入框最高（再长在框里滚动） */
+  --cc-card-max-w: 28rem;         /* 现有值·CC 自定：对话里卡片最宽 */
+  --cc-file-icon: var(--cc-control-md);          /* 36：文件卡、提醒卡左边的图标格 */
+  --cc-msg-intrinsic: 200px;      /* 现有值·CC 自定：消息离屏时的占位高（content-visibility 的性能提示，不是外观） */
+  --cc-bubble-min: 20%;           /* 现有值·CC 自定：用户气泡那一列最窄（grid-cols-[minmax(…,1fr)_auto]） */
+
+  /* Markdown 与代码（回复正文） */
+  --cc-md-h1: 1.25em;             /* 现有值·CC 自定 */
+  --cc-md-h2: 1.125em;            /* 现有值·CC 自定 */
+  --cc-md-heading-lh: 1.375;      /* 现有值·CC 自定 */
+  --cc-md-heading-scroll: 80px;   /* 现有值·CC 自定：标题的 scroll-margin（组件库模板带的） */
+  --cc-code-inline-size: 0.9em;   /* 实测：行内代码比正文小一档（设计文档 3.10） */
+  --cc-md-li-gap: var(--cc-space-4);             /* 列表项之间 */
+  --cc-md-quote-w: 2px;           /* 现有值·CC 自定：引用左边的竖线 */
+  --cc-link-offset: 2px;          /* 现有值·CC 自定：链接下划线离字 */
+  --cc-code-pad: 14px;            /* 现有值·CC 自定：代码块内边距 */
+  --cc-code-lh: var(--code-text-body-lh);        /* 代码块行高 20（实测正文 14/20，V33） */
+  --cc-radius-code-block: var(--code-radius-10); /* 代码块圆角，同对话里的块级卡片（V33） */
+
+  /* 表格、页签、面板 */
+  --cc-cell-px: var(--cc-space-12);              /* 单元格左右（设计文档 3.10） */
+  --cc-cell-py: var(--cc-space-6);               /* 单元格上下 */
+  --cc-cell-min-w: 96px;          /* 现有值·CC 自定：单元格最窄 */
+  --cc-cell-max-w: none;          /* 对话里的表格不限宽 */
+  --cc-cell-max-w-sheet: 288px;   /* 现有值·CC 自定：结果面板的表格单元格最宽 */
+  --cc-cell-max-w-doc: 320px;     /* 现有值·CC 自定：文档预览的表格单元格最宽 */
+  --cc-results-head-h: 48px;      /* 现有值·CC 自定：结果面板头高（V25） */
+
+  /* 其他 */
+  --cc-skeleton-h: 14px;          /* 现有值·CC 自定：骨架条高 */
+  --cc-observe-margin: 200px;     /* 现有值·CC 自定：列表滚到离底这么远就预先取下一页（IntersectionObserver 的 rootMargin，JS 用时读，见 2.6） */
+}
+
+/* ── 运行时层：由脚本或组件在运行时写入的变量，这里登记默认值（闸门把登记过的算作已定义）。默认值与原来写在 var() 里的回退值相同 */
+:root {
+  --cc-vvh: var(--cc-vh);         /* 运行时写入：lib/viewport.ts 按 visualViewport 写（键盘弹出时变矮），没写时取整屏高 */
+  --cc-vvtop: 0px;                /* 运行时写入：lib/viewport.ts，可见区域顶在页面里的位置 */
+  --cc-marquee-x: 0px;            /* 运行时写入：lib/hover-scroll.ts，悬停滚动要平移到的位置 */
+  --cc-marquee-dur: 0ms;          /* 运行时写入：lib/hover-scroll.ts，悬停滚动用时 */
+  --cc-modal-share: 0.88;         /* 运行时写入：居中弹窗最多占可见高，add-company.tsx、settings.tsx 用任意属性覆盖 */
+  --cc-menu-max: var(--cc-menu-max-none);   /* 运行时写入：页面写 [--cc-menu-max:…] 给长列表菜单限高；默认不另限 */
+  --cc-menu-max-none: 100vh;      /* 现有值·CC 自定：菜单默认的限高（整屏高，实际由可用高度决定） */
+}
+
 /* ── 变体（设计文档 4.1）：lib/variant.ts 在 <html data-cc-variant> 写 web / desktop / phone。网页是上面的默认值
    （侧栏贴边、行 32、组上间距 16）；桌面窗口里侧栏浮成卡片（离窗口边 8px，白卡 / 深色 #262626，卡片阴影）、行 30、组上间距 14；
    手机抽屉行与组标题带 44、组箭头与组操作常显、对话正文 16/24。 */
@@ -788,6 +998,8 @@
    网页布局的触屏平板（粗指针，第 11 轮 D26）电脑对话顶栏高 44 也在下一条：变量要写在不分层的这里——写在 @layer components 里
    敌不过上面不分层的 :root 定义（第 11 轮合并审查：顶栏仍 32、按钮已 44）；顶栏里按钮的尺寸规则留在 components 层 */
 :root[data-cc-variant="phone"] {
+  --cc-greeting-font: 20px;       /* 外壳实测：手机问候约 20 号（2026-10-12 与 Claude 手机 app 同屏量） */
+  --cc-mascot-h: var(--cc-mascot-h-sm);
   --cc-row-h: var(--code-row-phone);
   --cc-group-h: var(--code-group-band-phone);
   --cc-reveal-rest: 1;
