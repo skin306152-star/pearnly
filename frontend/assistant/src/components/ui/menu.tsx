@@ -15,10 +15,12 @@
 //     只管整个菜单（Content）：宽屏旁边展开的子菜单开着时点回父菜单的另一项，那一下要照常选中，不吞。
 //     手机长按开的菜单不按模态开（hooks/use-long-press.ts 的 useLongPressMenu：省掉出菜单那一帧的整页样式重算），整页照常接指针，
 //     点菜单外那一下的 click 同样由这里吞掉。
-// 其余部件（Root、Trigger、Item、Separator、Portal …）与组件库同一个。
+//   · 弹层（Portal）直接给 container（document.body，同组件库的默认位置）：菜单内容在打开的那一遍就渲染出来。组件库不给 container
+//     时第一遍先渲染空、等布局副作用 setMounted 再同步重画一遍（第 13 轮 A14 trace：长按出菜单多一遍渲染与提交）。服务端渲染照旧。
+// 其余部件（Root、Trigger、Item、Separator …）与组件库同一个。
 
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { DropdownMenu as Radix } from "radix-ui";
+import { DropdownMenu as RadixMenu } from "radix-ui";
 import {
   createContext,
   useCallback,
@@ -28,12 +30,24 @@ import {
   useLayoutEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ComponentProps,
   type ReactNode,
   type Ref,
 } from "react";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+const unsubscribed = () => () => undefined;
+
+/** 菜单的弹层：挂到 body，第一遍就渲染内容（见文件头）。服务端渲染（测试）不给 container，同组件库。 */
+function Portal({ container, ...props }: ComponentProps<typeof RadixMenu.Portal>) {
+  const client = useSyncExternalStore(unsubscribed, () => true, () => false);
+  return <RadixMenu.Portal container={container ?? (client ? document.body : undefined)} {...props} />;
+}
+
+// 组件库的下拉菜单，弹层换成上面那个（本文件里的子菜单同样用它）
+const Radix = { ...RadixMenu, Portal };
 
 /** 菜单离屏幕边的最小距离（px）。 */
 export const MENU_EDGE = 8;

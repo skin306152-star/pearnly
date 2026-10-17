@@ -9389,6 +9389,7 @@ class El extends EventTarget {
   getClientRects() { return [1]; }
   closest() { return null; }
   focus() { doc.activeElement = this; }
+  blur() { if (doc.activeElement === this) doc.activeElement = doc.body; }
   scrollIntoView() {}
   animate(frames: any, opts: any) {
     let done: () => void = () => undefined;
@@ -9597,15 +9598,21 @@ assert.equal(live.textContent, "dropped a 2/3");
 """)
 
     def test_release_lands_first_then_hands_over_in_one_go(self):
-        # 有动效时：松手只起播落位，交调用方、去掉让位、卸下浮层都等落位播完，并且在同一下里做完
+        # 有动效时：松手只起播落位，交调用方、去掉让位都等落位播完，并且在同一下里做完。第 13 轮（改法 2）：落位播完那一下画面已经是
+        # 最终的样子，先只卸浮层、亮出空档、念放下；交调用方与去掉让位放到这一帧画完以后，仍在同一下
         self.run_page(r"""
+import { isDragging } from "@/lib/layers";
 const log: string[] = [];
 const engine = new DragEngine({ duration: 200, easing: "ease" });
 engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => log.push(`drop ${a.id}>${t.id}`), onActive: (a: any) => log.push(`active ${a?.id ?? "-"}`) };
 engine.setTexts(texts);
 engine.mount();
+const live = doc.body.children.find((e: any) => e.attrs.get("aria-live") === "assertive");
 const cards = column(engine, ["a", "b", "c"]);
+let woken = 0;
+engine.subscribe("a", () => (woken += 1));
 engine.press("keyboard", "a", { ...key("Space"), target: cards.a.handle } as any);
+cards.a.node.setAttribute("data-drag-source", "gap");           // React 把它重画成空档（假页面里没有 React，照样标上）
 const overlay = dragLayer()!.children.find((e: any) => e.className === "cc-drag-overlay");
 assert.equal(overlay.style.transition, "transform 200ms ease");   // 键盘一格一格挪带过渡
 await g.sleep(5);
@@ -9618,12 +9625,30 @@ assert.equal(overlay.dataset.dropping, "");
 assert.equal(landing.opts.fill, "forwards");
 assert.equal(landing.frames[1].transform, "translate3d(0px, 50px, 0) scaleX(1) scaleY(1)");   // 落到 b 的位置
 assert.equal(cards.b.node.style.transform, "translate3d(0px, -50px, 0px)");
+assert.equal(cards.a.node.style.transform, "translate3d(0px, 50px, 0px)");   // 空档已由让位摆在落点上（浮层落的就是这里）
+woken = 0;
 landing.finish();
-await g.sleep(0);
+await Promise.resolve();
+// 第一拍（落位播完那一下）：浮层卸下、空档亮出、念放下；调用方还没收到，让位还在，画面就是最终的样子
+assert.equal(overlay.parentNode, null);
+assert.equal(cards.a.node.getAttribute("data-drag-source"), null);
+assert.equal(live.textContent, "dropped a 2/3");
+assert.deepEqual(log, ["active a"]);
+assert.equal(woken, 0);
+assert.equal(isDragging(), false);                              // 「正在拖」同原来在落位播完这一刻撤
+assert.equal(engine.stateOf("a"), 2);                           // 被拖那一项随提交才重画
+assert.equal(cards.a.node.style.transform, "translate3d(0px, 50px, 0px)");
+assert.equal(cards.b.node.style.transform, "translate3d(0px, -50px, 0px)");
+// 第二拍（这一帧画完以后）：交调用方、各项去掉让位（不带过渡、当场归位）、onActive(null)、结束拖动同一下做完
+await g.sleep(10);
 assert.deepEqual(log, ["active a", "active -", "drop a>b"]);
+assert.equal(woken, 1);
+assert.equal(isDragging(), false);
+assert.equal(engine.stateOf("a"), 0);
 assert.equal(cards.b.node.style.transform, "");
 assert.equal(cards.b.node.style.transition, "");                // 结束时不带过渡、当场归位
-assert.equal(overlay.parentNode, null);
+assert.equal(cards.a.node.style.transform, "");
+assert.equal(live.textContent, "dropped a 2/3");                // 念一次，不重念
 """)
 
     def test_cancel_after_dragging_into_another_list_slides_that_list_back_at_once(self):
@@ -10009,6 +10034,463 @@ assert.equal(k.k2!.node.style.transition, "");
 assert.equal(overlays().length, 0);
 assert.deepEqual(drops, []);
 """)
+
+
+# 第 13 轮：在假页面上跑真的 React（react-dom/client），看落定那次提交里 React 自己做了什么。在 ENGINE_DOM 上补 React 渲染、提交、
+# 还原焦点要用的那一点：文本节点、insertBefore、节点名、祖先的滚动位置、按类名找（closest / querySelector 的 ".x"）。挪动 / 卸下
+# 装着焦点的节点时同 Chrome 同步失焦（记成 lost），focus / blur 也都记进 focusLog；动效变量按 200ms / ease 给
+REACT_DOM = r"""
+g.HTMLIFrameElement = class {};
+doc.defaultView = g;
+class Txt { nodeType = 3; parentNode: any = null; children: any[] = []; nodeValue: string; constructor(v: string) { this.nodeValue = v; } get ownerDocument() { return doc; } }
+doc.createTextNode = (v: string) => new Txt(v);
+doc.createElementNS = (_ns: string, tag: string) => new El(tag);
+const P: any = El.prototype;
+Object.defineProperty(P, "nodeName", { get() { return this.tag.toUpperCase(); } });
+Object.defineProperty(P, "tagName", { get() { return this.tag.toUpperCase(); } });
+Object.defineProperty(P, "firstChild", { get() { return this.children[0] ?? null; } });
+Object.defineProperty(P, "lastChild", { get() { return this.children.at(-1) ?? null; } });
+P.scrollTop = 0;
+P.scrollLeft = 0;
+const focusLog: any[] = [];
+const idOf = (el: any) => el?.getAttribute?.("id") ?? el?.tag;
+const dropFocus = (node: any) => {
+  const at = doc.activeElement;
+  if (at && at !== doc.body && node.contains?.(at)) {
+    focusLog.push(["lost", idOf(at)]);
+    doc.activeElement = doc.body;
+  }
+};
+P.insertBefore = function (child: any, before: any) {
+  if (child.parentNode) {
+    dropFocus(child);
+    child.parentNode.children = child.parentNode.children.filter((c: any) => c !== child);
+  }
+  child.parentNode = this;
+  const at = before ? this.children.indexOf(before) : -1;
+  if (at < 0) this.children.push(child);
+  else this.children.splice(at, 0, child);
+  return child;
+};
+const appendRaw = P.appendChild;
+P.appendChild = function (child: any) {
+  if (child.parentNode) dropFocus(child);
+  return appendRaw.call(this, child);
+};
+const removeRaw = P.removeChild;
+P.removeChild = function (child: any) {
+  dropFocus(child);
+  return removeRaw.call(this, child);
+};
+P.focus = function (options?: any) {
+  focusLog.push(["focus", idOf(this), options ?? null]);
+  doc.activeElement = this;
+};
+P.blur = function () {
+  focusLog.push(["blur", idOf(this)]);
+  if (doc.activeElement === this) doc.activeElement = doc.body;
+};
+const hasClass = (el: any, name: string) => String(el.getAttribute?.("class") ?? "").split(/\s+/).includes(name);
+P.closest = function (selector: string) {
+  if (!selector.startsWith(".")) return null;
+  for (let n: any = this; n instanceof El; n = n.parentNode) if (hasClass(n, selector.slice(1))) return n;
+  return null;
+};
+P.querySelector = function (selector: string) {
+  if (!selector.startsWith(".")) return null;
+  const walk = (e: any): any => {
+    for (const kid of e.children) {
+      if (!(kid instanceof El)) continue;
+      if (hasClass(kid, selector.slice(1))) return kid;
+      const found = walk(kid);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(this);
+};
+const computedRaw = g.getComputedStyle;
+g.getComputedStyle = (el: any) => ({
+  ...computedRaw(el),
+  getPropertyValue: (name: string) => (name === "--cc-dur" ? "200ms" : name === "--cc-ease" ? "ease" : ""),
+});
+const find = (root: any, id: string): any => {
+  if (idOf(root) === id) return root;
+  for (const kid of root.children ?? []) {
+    const found = find(kid, id);
+    if (found) return found;
+  }
+  return null;
+};
+"""
+
+# 一列三张卡（a / b / c，各自的把手、「···」、输入框），用共用拖动排序；落点交给调用方后按 React 的写法换顺序。量的框：卡片顶 0 / 50 / 100，
+# 高 40
+REACT_COLUMN = r"""
+import { createElement as h, memo, useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { DragArea, DragList, useSortableItem } from "@/components/ui/drag";
+import { isDragging } from "@/lib/layers";
+const drops: string[][] = [];
+const renders: Record<string, number> = {};
+const handles: Record<string, any> = {};
+let bump: () => void = () => undefined;
+let reorder: (ids: string[]) => void = () => undefined;
+const Head = memo(function Head({ id, handle }: { id: string; handle: any }) {
+  renders[id] = (renders[id] ?? 0) + 1;
+  return h("button", { ...handle, id: `head-${id}` }, id);
+});
+function Card({ id, ownFocus }: { id: string; ownFocus: boolean }) {
+  const drag = useSortableItem({ id, kind: "card", label: id, list: "cards" }, { ownFocus });
+  handles[id] = drag.handle;
+  return h("section", { ...drag.node, id }, h(Head, { id, handle: drag.handle }), h("button", { id: `more-${id}` }, "…"), h("input", { id: `in-${id}` }));
+}
+function Column({ ownFocus }: { ownFocus: boolean }) {
+  const [order, setOrder] = useState(["a", "b", "c"]);
+  const [, setTick] = useState(0);
+  bump = () => setTick((n) => n + 1);
+  reorder = setOrder;
+  const onDrop = (active: any, target: any) => {
+    drops.push([active.id, target.id]);
+    focusLog.push(["drop", isDragging()]);
+    const next = order.filter((id) => id !== active.id);
+    next.splice(order.indexOf(target.id), 0, active.id);
+    setOrder(next);
+  };
+  return h(DragArea, { accepts: (a: any, t: any) => a.list === t.list, onDrop, texts } as any,
+    h(DragList, { id: "cards", items: order }, order.map((id) => h(Card, { key: id, id, ownFocus }))));
+}
+const host = doc.body.appendChild(new El("div"));
+const root = createRoot(host);
+const sectionsNow = () => host.children.filter((e: any) => e.tag === "section");
+const order = () => sectionsNow().map((e: any) => idOf(e));
+// 框按此刻的先后摆（假页面的框不随 React 挪节点走）：卡片顶 0 / 50 / 100…，高 40
+function layout() {
+  sectionsNow().forEach((section: any, i: number) => {
+    section.rect = { top: i * 50, left: 0, width: 200, height: 40 };
+    for (const kid of section.children) kid.rect = { top: i * 50, left: 0, width: 200, height: 40 };
+  });
+}
+function mountColumn(ownFocus = true) {
+  flushSync(() => root.render(h(Column, { ownFocus })));
+  layout();
+}
+const overlayNow = () => dragLayer()!.children.find((e: any) => e.className === "cc-drag-overlay") ?? null;
+const liveNow = () => doc.body.children.find((e: any) => String(e.id).startsWith("DndLiveRegion-"));
+// 鼠标在 id 的把手上按下，挪到 y = to 再松手（release = false：不松手）
+async function mouseDrag(id: string, to: number, release = true) {
+  layout();
+  const target = find(host, `head-${id}`);
+  const y = order().indexOf(id) * 50 + 10;
+  handles[id].onMouseDown({ nativeEvent: { button: 0, clientX: 100, clientY: y, target, defaultPrevented: false }, target, preventDefault() {} });
+  fire("mousemove", { clientX: 100, clientY: y + 5 });
+  await g.sleep(0);
+  fire("mousemove", { clientX: 100, clientY: to });
+  await g.sleep(0);
+  if (release) fire("mouseup");
+}
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round13DropTests(unittest.TestCase):
+    """第 13 轮（docs/work/2026-10-17-drag-engine.md「第 13 轮」）：落定那次提交前把焦点拿出来、提交后原样放回（改法 1）；落定分两拍，
+    画面先落定、下一帧再提交（改法 2）；落定不再多读一次浮层样式（3a）；侧栏把手不随在不在拖换一份（3b）；长按菜单打开那一遍就渲染
+    内容、组头偏移在打开那一刻量（4）。行为、播报、焦点终点、滚动终点都不变。"""
+
+    def run_page(self, body, stubs=None, react=True):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + ENGINE_DOM + REACT_DOM
+               + (REACT_COLUMN if react else "") + body + "\n(globalThis as any).done();\n", stubs=stubs)
+
+    def test_focus_leaves_before_the_drop_commit_and_comes_back_without_react_restoring_it(self):
+        # A14 trace：长按出菜单后再拖，焦点被组件库还到「···」（就在被拖那一项里）；往后挪时 React 提交要把这一项的节点挪个位置，
+        # 挪的那一下浏览器同步失焦、现算样式，React 提交后再读祖先滚动、focus()（不带 preventScroll，滚动抽屉）再写回滚动。现在提交前
+        # 先失焦、提交后 focus({ preventScroll: true }) 放回：事件仍是先失焦、后获焦（失焦在结束拖动、交调用方以后），焦点终点同一个
+        self.run_page(r"""
+doc.documentElement.dataset.ccMotion = "reduce";                 // 没有落位：松手当场一拍提交
+mountColumn();
+find(host, "more-a").focus();
+focusLog.length = 0;
+await mouseDrag("a", 70);                                    // a 往后挪到 b 的位置
+assert.deepEqual(drops, [["a", "b"]]);
+assert.deepEqual(order(), ["b", "a", "c"]);                      // React 挪的正是 a 那一节
+assert.deepEqual(focusLog, [["drop", false], ["blur", "more-a"], ["focus", "more-a", { preventScroll: true }]]);
+assert.equal(doc.activeElement, find(host, "more-a"));
+assert.equal(isDragging(), false);
+// 往前挪：React 挪的是被越过的那几项，被拖那一项不动，焦点也不动——一个失焦、获焦都没有（同原来）
+find(host, "more-c").focus();
+focusLog.length = 0;
+await mouseDrag("c", 0);                                    // c（此刻排第三）挪到最前
+assert.deepEqual(order(), ["c", "b", "a"]);
+assert.deepEqual(focusLog, [["drop", false]]);
+assert.equal(doc.activeElement, find(host, "more-c"));
+// 焦点在输入框里：照旧交给 React（它还要还原选区），React 自己失焦再还原
+find(host, "in-c").focus();
+focusLog.length = 0;
+await mouseDrag("c", 110);                                   // c（此刻排第一）挪到最后
+assert.deepEqual(order(), ["b", "a", "c"]);
+assert.deepEqual(focusLog, [["drop", false], ["lost", "in-c"], ["focus", "in-c", null]]);
+// 焦点不在被拖那一项里：不动
+const outside = doc.body.appendChild(new El("button"));
+outside.setAttribute("id", "outside");
+outside.focus();
+focusLog.length = 0;
+await mouseDrag("b", 70);
+assert.deepEqual(order(), ["a", "b", "c"]);
+assert.deepEqual(focusLog, [["drop", false]]);
+assert.equal(doc.activeElement, outside);
+// 取消（Esc）不交调用方、不挪节点：不动焦点
+find(host, "more-a").focus();
+focusLog.length = 0;
+await mouseDrag("a", 70, false);
+fire("keydown", { code: "Escape", key: "Escape" });
+fire("mouseup");
+await g.sleep(0);
+assert.deepEqual(focusLog, []);
+assert.deepEqual(order(), ["a", "b", "c"]);
+assert.equal(doc.activeElement, find(host, "more-a"));
+""")
+
+    def test_the_drop_paints_first_and_commits_on_the_next_frame(self):
+        # 落位播完那一下只卸浮层、亮出空档（去掉 data-drag-source）、念放下：它此刻已由让位位移摆在落点上，画面就是最终的样子；调用方
+        # 存顺序、整列重排、去掉让位等这一帧画完以后同一次提交，画面不变。期间 React 因别的原因重画，空档不再藏回去；期间又按下就当场提交
+        self.run_page(r"""
+mountColumn();
+const live = liveNow();
+const a = find(host, "a");
+find(host, "more-a").focus();
+focusLog.length = 0;
+await mouseDrag("a", 70);
+const overlay = overlayNow();
+assert.equal(a.getAttribute("data-drag-source"), "gap");
+assert.equal(a.style.transform, "translate3d(0px, 50px, 0px)");  // 空档由让位摆到 b 的位置
+const landing = overlay.animations.at(-1);
+assert.equal(landing.frames[1].transform, "translate3d(0px, 50px, 0) scaleX(1) scaleY(1)");   // 浮层落的就是这里
+assert.deepEqual(drops, []);
+landing.finish();
+await Promise.resolve();
+// 第一拍
+assert.equal(overlay.parentNode, null);
+assert.equal(a.getAttribute("data-drag-source"), null);
+assert.equal(a.style.transform, "translate3d(0px, 50px, 0px)");
+assert.equal(find(host, "b").style.transform, "translate3d(0px, -50px, 0px)");
+assert.equal(live.textContent, "dropped a 2/3");
+assert.deepEqual(drops, []);
+assert.deepEqual(order(), ["a", "b", "c"]);
+assert.equal(isDragging(), false);                               // 「正在拖」同原来在落位播完这一刻撤
+flushSync(() => bump());                                         // 这时 React 因别的原因重画：属性没变，不再写回空档
+assert.equal(a.getAttribute("data-drag-source"), null);
+assert.deepEqual(focusLog, []);
+const played = overlay.animations.length;
+// 第二拍：这一帧画完以后
+await g.sleep(10);
+assert.equal(overlay.animations.length, played);                 // 浮层第一拍已经卸了，提交时不再另播一段落位
+assert.deepEqual(drops, [["a", "b"]]);
+assert.deepEqual(order(), ["b", "a", "c"]);
+assert.equal(a.style.transform, "");
+assert.equal(a.style.transition, "");
+assert.equal(find(host, "b").style.transform, "");
+assert.equal(a.getAttribute("data-drag-source"), null);
+assert.equal(isDragging(), false);
+assert.deepEqual(focusLog, [["drop", false], ["blur", "more-a"], ["focus", "more-a", { preventScroll: true }]]);
+assert.equal(live.textContent, "dropped a 2/3");
+// 两拍之间又按下（下一次拖动、点按）：当场提交，再交给这一下
+await mouseDrag("b", 70);
+overlayNow().animations.at(-1).finish();
+await Promise.resolve();
+assert.deepEqual(order(), ["b", "a", "c"]);
+page.dispatchEvent(new Event("pointerdown"));
+assert.deepEqual(order(), ["a", "b", "c"]);
+assert.equal(isDragging(), false);
+// 落位途中就按下（浮层还在路上）：照旧一拍，提交时浮层接着播完再卸
+await mouseDrag("a", 70);
+const early = overlayNow();
+page.dispatchEvent(new Event("pointerdown"));
+assert.deepEqual(order(), ["b", "a", "c"]);
+assert.equal(early.parentNode !== null, true);
+early.animations.at(-1).finish();
+await g.sleep(0);
+assert.equal(early.parentNode, null);
+""")
+
+    def test_drops_that_change_more_than_the_gap_stay_in_one_go(self):
+        # 只在第一拍画面等于最终画面时分拍：拖动中版面变过（推送多了一项、临时补出的已置顶、拖进另一列又回来：提交时调用方可能还要改
+        # 版面）、整批多选、落进收着的整块、落位没播完，照旧落位播完那一下就提交
+        self.run_page(r"""
+mountColumn();
+await mouseDrag("a", 70, false);
+flushSync(() => reorder(["a", "b", "c", "d"]));                  // 拖动中这一列多了一项：版面变过，下一帧重量
+layout();
+fire("mousemove", { clientX: 100, clientY: 72 });
+await g.sleep(5);
+fire("mouseup");
+const overlay = overlayNow();
+overlay.animations.at(-1).finish();
+await Promise.resolve();
+assert.deepEqual(drops, [["a", "b"]]);                           // 落位播完那一下就交调用方（一拍）
+assert.deepEqual(order(), ["b", "a", "c", "d"]);
+assert.equal(overlay.parentNode, null);
+assert.equal(isDragging(), false);
+""")
+        drag = read("components/ui/drag.tsx")
+        settled = drag.split("  private settled(d: Session): boolean {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("d.relaid || (d.data.count ?? 0) > 1", settled)        # 版面变过、整批多选
+        self.assertIn('landing.playState !== "finished" || d.overlay.dataset.dropping === "into"', settled)   # 落位没播完、落进收着的
+        self.assertIn("item!.list === d.data.list", settled)                 # 拖进另一列的那一行提交时换一种行重挂
+        self.assertIn("!this.holdsOthers(d.id, node)", settled)              # 装着别的拖动项的一整块（侧栏公司组）
+        self.assertIn("if (!this.transition || !this.alive || this.committing", settled)   # 减少动态效果、卸下、React 提交里
+        again = drag.split("  private remeasureSoon() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertLess(again.index("d.relaid = true;"), again.index("afterPaint(() => {"))
+
+    def test_dragging_a_whole_block_stays_in_one_go(self):
+        # 被拖的那一项本身装着别的拖动项（侧栏公司组：它也是组里那一列的整块落点）：先后一变调用方提交时可能连带改版面（前 5 家默认
+        # 展开，拖过第 5 家时一家收起、一家展开；复刻页实测跳 138px），落位播完那一下就提交；同样的拖法换成普通的一项，分两拍
+        self.run_page(r"""
+for (const whole of [true, false]) {
+  const drops: string[][] = [];
+  const engine = new DragEngine({ duration: 200, easing: "ease" });
+  engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => drops.push([a.id, t.id]) };
+  engine.setTexts(texts);
+  const unmount = engine.mount();
+  const top = whole ? 0 : 300;
+  const cards = column(engine, ["a", "b", "c"], whole ? "blocks" : "plain", top);
+  if (whole) {
+    const data = { id: "zone:a", kind: "group", label: "a", list: "rows:a", zone: true, shut: false };
+    const zone: any = { id: data.id, data, list: undefined, disabled: false, zone: true, node: null, handle: null, entry: null };
+    engine.attach(zone, cards.a.node);                           // 同一个节点也是这一组的整块落点
+    engine.register(zone, data, undefined, false);
+  }
+  engine.press("mouse", "a", { nativeEvent: { button: 0, clientX: 190, clientY: top + 10, target: cards.a.handle, defaultPrevented: false }, target: cards.a.handle, preventDefault() {} } as any);
+  fire("mousemove", { clientX: 190, clientY: top + 15 });
+  fire("mousemove", { clientX: 190, clientY: top + 65 });
+  fire("mouseup");
+  const overlay = dragLayer()!.children.find((e: any) => e.className === "cc-drag-overlay");
+  overlay.animations.at(-1).finish();
+  await Promise.resolve();
+  assert.equal(overlay.parentNode, null);
+  assert.deepEqual(drops, whole ? [["a", "b"]] : [], String(whole));
+  await g.sleep(10);
+  assert.deepEqual(drops, [["a", "b"]], String(whole));
+  unmount();
+}
+""", react=False)
+
+    def test_own_focus_handles_stay_the_same_while_the_drag_starts_and_ends(self):
+        # 侧栏的把手（ownFocus：行、组头开关）不随「在不在拖」改任何属性，拿起、落定时被拖那一组的组头（memo）不跟着重画；
+        # 卡片把手（不带 ownFocus）被拖时多一个 aria-pressed，照旧换一份
+        self.run_page(r"""
+doc.documentElement.dataset.ccMotion = "reduce";
+mountColumn(true);
+assert.deepEqual(renders, { a: 1, b: 1, c: 1 });
+const before = handles.a;
+await mouseDrag("a", 70, false);
+assert.equal(find(host, "a").getAttribute("data-drag-source"), "gap");   // 被拖那一项照常重画成空档
+assert.equal(handles.a, before);
+assert.equal(renders.a, 1);
+fire("mouseup");
+await g.sleep(0);
+assert.deepEqual(order(), ["b", "a", "c"]);
+assert.equal(handles.a, before);
+assert.deepEqual(renders, { a: 1, b: 1, c: 1 });
+assert.equal(find(host, "head-a").getAttribute("aria-pressed"), null);
+flushSync(() => root.render(h("div")));
+for (const id of Object.keys(renders)) delete renders[id];
+mountColumn(false);
+const card = handles.a;
+await mouseDrag("a", 70, false);
+assert.notEqual(handles.a, card);
+assert.equal(find(host, "head-a").getAttribute("aria-pressed"), "true");
+assert.equal(renders.a, 2);
+fire("mouseup");
+await g.sleep(0);
+assert.equal(find(host, "head-a").getAttribute("aria-pressed"), null);
+assert.equal(renders.a, 3);
+""")
+
+    def test_the_landing_does_not_read_the_overlay_again_once_it_has_played(self):
+        # 3a：结束拖动时松手那一下已经起播过的落位（正常放下都是），不再读浮层此刻的样子（读计算样式 = 现算一次样式）
+        self.run_page(r"""
+import { dropAnimation, landOverlay } from "@/components/ui/drag";
+const motion = { duration: 200, easing: "ease" };
+const node = doc.body.appendChild(new El("section", { top: 100, left: 0, width: 200, height: 40 }));
+const overlay = dragLayer()!.appendChild(new El("div"));
+Object.assign(overlay.style, { top: "0px", left: "0px", width: "200px", height: "40px", transform: "translate3d(0px, 60px, 0) scaleX(1) scaleY(1)" });
+const played = landOverlay(overlay, node, motion, () => null)!;
+assert.ok(played);
+let transformReads = 0;
+const args = (o: any) => ({ active: { id: "a", node, rect: { top: 100, left: 0, width: 200, height: 40, right: 200, bottom: 140 } },
+  dragOverlay: { node: o, rect: { top: 60, left: 0, width: 200, height: 40 } },
+  get transform() { transformReads += 1; return { x: 0, y: 60, scaleX: 1, scaleY: 1 }; } });
+played.finish();
+assert.equal(dropAnimation(motion, () => null)(args(overlay) as any), undefined);   // 已经播完：当场卸
+assert.equal(transformReads, 0);
+const fresh = dragLayer()!.appendChild(new El("div"));
+assert.ok(dropAnimation(motion, () => null)(args(fresh) as any));                  // 没起播过：从此刻落到那一项，这才读
+assert.equal(transformReads, 1);
+""", react=False)
+
+    def test_long_press_menus_render_their_content_in_the_opening_pass(self):
+        # 4：菜单的弹层直接挂到 body（同组件库默认，第一遍就渲染内容，不再「先空、布局副作用 setMounted、再同步重画」）；手机公司组头
+        # 菜单贴组头开关左边的偏移在打开那一遍渲染里量（版面还没被这次提交改过），不再提交后量完 setOffset 让整份菜单再渲染一遍
+        fake = r"""
+import { createElement } from "react";
+const g = globalThis as any;
+g.seen = [] as Array<{ part: string; props: any }>;
+const part = (name: string) => (props: any) => {
+  g.seen.push({ part: name, props });
+  return createElement("div", { "data-part": name }, props.children);
+};
+export const DropdownMenu: any = Object.fromEntries(
+  ["Root", "Trigger", "Portal", "Content", "Item", "Separator", "Sub", "SubTrigger", "SubContent", "RadioGroup", "RadioItem", "CheckboxItem",
+   "ItemIndicator"].map((n) => [n, part(n)]),
+);
+export const Slot: any = { Root: part("Slot") };
+"""
+        stubs = {
+            "radix-ui": fake,
+            "@/components/ui/sidebar": "export const useSidebar = () => ({ isMobile: true, setOpenMobile() {} });",
+            "@/hooks/use-mobile": "export const useIsMobile = () => false;\nexport const MOBILE_BREAKPOINT = 768;\nexport const MOBILE_QUERY = '(max-width: 767px)';",
+            "@/components/ui/marquee": 'import { createElement } from "react";\nexport const Marquee = ({ className, children }: any) => createElement("span", { className }, children);',
+        }
+        self.run_page(r"""
+import { createElement as h, useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { GroupSortMenu } from "@/components/assistant-ui/sidebar-group";
+import { DropdownMenu } from "@/components/ui/menu";
+const host = doc.body.appendChild(new El("div"));
+const root = createRoot(host);
+let setOpen: (open: boolean) => void = () => undefined;
+function Row() {
+  const [open, set] = useState(false);
+  setOpen = set;
+  return h("div", { className: "cc-group-row" }, h("button", { className: "cc-group-toggle", id: "toggle" }), h(GroupSortMenu, { open, onOpenChange: set, alignHead: true }));
+}
+flushSync(() => root.render(h(Row)));
+const trigger = host.querySelector(".cc-group-more");
+host.querySelector(".cc-group-toggle").rect = { top: 0, left: 16, width: 200, height: 32 };
+trigger.rect = { top: 4, left: 240, width: 24, height: 24 };
+g.seen.length = 0;
+flushSync(() => setOpen(true));
+const contents = g.seen.filter((s: any) => s.part === "Content");
+assert.equal(contents.length, 1);                                // 打开那一遍就是最终的样子，菜单内容只渲染一遍
+assert.equal(contents[0].props.align, "start");
+assert.equal(contents[0].props.alignOffset, -224);
+const portals = g.seen.filter((s: any) => s.part === "Portal");
+assert.ok(portals.length >= 1);
+for (const portal of portals) assert.equal(portal.props.container, doc.body);   // 弹层直接挂到 body
+// 收起：偏移留着（收起那一下位置不变），同原来
+g.seen.length = 0;
+flushSync(() => setOpen(false));
+assert.equal(g.seen.filter((s: any) => s.part === "Content").at(-1).props.alignOffset, -224);
+// 服务端渲染（测试）照旧不给 container，同组件库
+g.seen.length = 0;
+renderToStaticMarkup(h(DropdownMenu.Portal, null, "x"));
+assert.equal(g.seen.find((s: any) => s.part === "Portal").props.container, undefined);
+""", stubs=stubs, react=False)
+
 
 if __name__ == "__main__":
     unittest.main()

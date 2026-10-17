@@ -18,7 +18,7 @@
 // 颜色、尺寸只用 globals.css 的变量（.cc-group-*、.cc-row-btn）。组名放不下时悬停滚动（components/ui/marquee.tsx）。
 
 import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
-import { type FC, type HTMLAttributes, type KeyboardEvent, memo, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type FC, type HTMLAttributes, type KeyboardEvent, memo, type ReactNode, useRef, useState } from "react";
 import { altMove, chain, type DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { isDragging } from "@/lib/layers";
@@ -181,13 +181,18 @@ export const GroupSortMenu = memo(function GroupSortMenu({
   const manual = useSidebarOrder(hasManualOrder);
   const trigger = useRef<HTMLButtonElement>(null);
   const [offset, setOffset] = useState<number | null>(null);
-  // 打开时量（菜单定位在同一次提交里随后重算，看不到挪动）
-  useLayoutEffect(() => {
-    if (!alignHead || !open) return;
-    const button = trigger.current;
-    const head = button?.closest(".cc-group-row")?.querySelector(".cc-group-toggle");
-    setOffset(headOffset(button?.getBoundingClientRect(), head?.getBoundingClientRect()));
-  }, [alignHead, open]);
+  // 打开的那一刻量（这一遍渲染还没提交，版面是上一帧画好的，读框不用现算），量到的这一遍就用上，菜单内容只渲染一遍。第 13 轮 4b：
+  // 原来在提交后的布局副作用里量，这次提交改过的版面要现算一次（A14 约 4.8ms），量完 setOffset 又让整份菜单重画一遍。
+  // 收起时 offset 留着（收起的那一下位置不变），同原来
+  const [seen, setSeen] = useState({ open: false, alignHead: false });
+  if (seen.open !== !!open || seen.alignHead !== !!alignHead) {
+    setSeen({ open: !!open, alignHead: !!alignHead });
+    if (alignHead && open) {
+      const button = trigger.current;
+      const head = button?.closest(".cc-group-row")?.querySelector(".cc-group-toggle");
+      setOffset(headOffset(button?.getBoundingClientRect(), head?.getBoundingClientRect()));
+    }
+  }
   const head = alignHead && offset !== null;
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>

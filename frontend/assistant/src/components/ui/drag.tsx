@@ -23,6 +23,9 @@
 //          关掉滚动锚定），版面变了的下一帧重量一次。那一列收着（放不下空档）时整块（就是组头）高亮、原位空档留着。
 //   放下   松手那一下只做一件事：浮层从放手处起播落位（Web Animations 只动 transform；动效变量），落点在松手时量好（空档此刻的位置，
 //          加上它让位的位移）；结束拖动（调用方存顺序、整列重排，与各项去掉让位、浮层卸下同一次提交）等落位播完才做（ReleaseFirst）。
+//          落位播完时画面已经是最终的样子（只拖一项、落到空档本身、拖的不是装着别的拖动项的一整块）就分两拍：先卸浮层、亮出空档、
+//          念放下，这一帧画完再提交（画面不变）。
+//          提交时 React 要挪动装着焦点的那一项（往后挪），焦点先拿出来、提交后原样放回（不让浏览器失焦现算、React 读滚动再 focus）。
 //          落到收着的那一列就落到组头并收起；落点在滚动区可见范围外（拖着时又滚走了）就落到可见范围的边上并收起；没落点就滑回原位；
 //          浮层被限位停在落点上（拖过首尾）也播这一段；真的没挪过（拿起后原地放下、长按出菜单后松手）当场结束。
 //          取消（Esc；手机的 touchcancel、转屏、切到后台）同放下一样先滑回（settleBack），取消等滑回播完。拖进了另一列以后取消：Esc
@@ -1005,7 +1008,10 @@ export type DropArgs = {
   transform: Shape;
 };
 export function dropAnimation(transition: Motion | null, into: Into): (args: DropArgs) => Promise<void> | undefined {
-  return ({ active, dragOverlay, transform }) => {
+  return (args) => {
+    // 浮层此刻的样子（transform）只在要从此刻起播的那一支才读：调用方给的是现量的（读计算样式），松手时已经起播过的不用它（第 13 轮
+    // 3a：原来参数一解构就读，落定那一下多一次现算样式）
+    const { active, dragOverlay } = args;
     // 落点那一项：拖进另一列以后取消（Esc），原来那一列重挂了一份新的（审查：滑回的那 0.2 秒里同一段对话出现两份）。按拖动编号在
     // 此刻的页面里找
     const node = landingNode(active.id, active.node);
@@ -1022,7 +1028,7 @@ export function dropAnimation(transition: Motion | null, into: Into): (args: Dro
     }
     if (started || !transition) return;
     const fold = into(node);
-    const frames = landingFrames(transform, dragOverlay.rect, fold ?? rect);
+    const frames = landingFrames(args.transform, dragOverlay.rect, fold ?? rect);
     node.dataset.dragLanding = "";
     dragOverlay.node.dataset.dropping = fold ? "into" : "";
     if (frames[0]!.transform === frames[1]!.transform && !fold) {
@@ -1052,6 +1058,20 @@ export class ReleaseFirst {
     // 按下 Esc 照样当场结束拖动（press），不吞这个事件
     releaseDrag();
     const unfreeze = freeze?.();
+    this.park(end, wait, (run) => afterLanding(animation, run), unfreeze);
+  }
+
+  /** 落定的第二拍（第 13 轮改法 2）：画面已经落定（浮层卸下、空档亮出），这一帧画完以后再调 end（调用方存顺序、整列重排、去掉
+   *  让位，画面不变）。期间又按下了（鼠标、手指、键盘）、过 wait 毫秒（页面在后台）照样当场调，同 hold。
+   *  第一拍在落位播完的那一下里做：落位的 finished 在浏览器画这一帧的同一个任务里兑现，所以这里排一个任务就是这一帧画完以后
+   *  （不用 afterPaint：它的 requestAnimationFrame 已赶不上这一帧，要再晚一帧；复刻页实测）。不在画帧里调的（不会发生）照样
+   *  先后执行，最多与第一拍画在同一帧，同原来一拍。 */
+  next(end: () => void, wait: number) {
+    this.flush();
+    this.park(end, wait, (run) => setTimeout(run, 0));
+  }
+
+  private park(end: () => void, wait: number, until: (run: () => void) => void, unfreeze?: () => void) {
     const press = () => this.flush();
     const PRESS = ["pointerdown", "touchstart", "keydown"];
     for (const type of PRESS) window.addEventListener(type, press, true);
@@ -1064,7 +1084,7 @@ export class ReleaseFirst {
       },
     };
     this.pending = entry;
-    afterLanding(animation, () => this.pending === entry && this.flush());
+    until(() => this.pending === entry && this.flush());
   }
 
   get waiting(): boolean {
@@ -1436,6 +1456,24 @@ export function keepFocusOn(id: string | number, activatorEvent: Event | null) {
   refocusFrame = window.requestAnimationFrame(watch);
 }
 
+/** 放下那次提交前（第 13 轮改法 1，见 DragEngine.finish）：焦点在被拖那一项的节点（node）里就先失焦，回失焦的那个元素。输入框、
+ *  文本框、可编辑区照旧交给 React（它还要还原里面的选区）。 */
+function letFocusGo(node: HTMLElement | null): HTMLElement | null {
+  if (!node || typeof document === "undefined") return null;
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || el === document.body || el === document.documentElement || !node.contains(el)) return null;
+  const tag = el.tagName;
+  if (el.isContentEditable === true || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return null;
+  el.blur();
+  return el;
+}
+
+/** 提交以后把焦点放回去：它还在页面上、焦点还空着（期间没有别处拿走）才放；不滚动（React 是滚了再把各层滚动写回，终点一样）。 */
+function takeFocusBack(el: HTMLElement) {
+  const at = document.activeElement;
+  if (el.isConnected && (!at || at === document.body || at === document.documentElement)) el.focus({ preventScroll: true });
+}
+
 // ---------------------------------------------------------------- 拖动区
 type AreaProps = {
   children: ReactNode;
@@ -1520,6 +1558,13 @@ type Session = {
   /** 取消后滑回原位的途中：不写让位位移。 */
   settle: boolean;
   queued: boolean;
+  /** 拖动中版面变过、重量过（整列滑动看到了增删：临时补出的已置顶、拖进另一列又回来；卡片变高；登记的各项变了）：结束拖动那次提交里
+   *  调用方可能还要改版面（收起临时补的已置顶），落定照旧一拍（见 settled）。 */
+  relaid: boolean;
+  /** 是放下（dropped）结束的，不是取消。 */
+  dropped: boolean;
+  /** 落定的第一拍已经做了：浮层卸下、空档亮出（第二拍只提交，见 dropped）。 */
+  landed: boolean;
   stops: Array<() => void>;
 };
 
@@ -1928,6 +1973,9 @@ export class DragEngine {
       cancelling: false,
       settle: false,
       queued: false,
+      relaid: false,
+      dropped: false,
+      landed: false,
       stops: [],
     };
     this.drag = d;
@@ -2029,6 +2077,7 @@ export class DragEngine {
   private remeasureSoon() {
     const d = this.drag;
     if (!d || d.cancelling || d.queued) return;
+    d.relaid = true;
     d.queued = true;
     afterPaint(() => {
       d.queued = false;
@@ -2336,7 +2385,9 @@ export class DragEngine {
     this.letGo.hold(entry.cancel, animation, this.landWait, () => entry.unfreeze);
   }
 
-  /** 放下（落位播完）：按落点交给调用方，与结束拖动同一次提交。 */
+  /** 放下（落位播完）：按落点交给调用方，与结束拖动同一次提交。画面此刻已经是最终的样子时（settled）分两拍：这一下只卸浮层、亮出
+   *  空档、撤「正在拖」、念放下，提交（调用方存顺序、整列重排、各项去掉让位、onActive(null)）等这一帧画完再做，画面不变
+   *  （第 13 轮改法 2：A14 trace 上落定那一帧要扛整列重画与提交，32–37ms）。 */
   private dropped() {
     const d = this.drag;
     if (!d) {
@@ -2348,23 +2399,84 @@ export class DragEngine {
     const from = d.data;
     const overId = d.overId;
     const to = d.over;
+    d.dropped = true;
     // 键盘放下：焦点留在移动后的那一行（键盘不拖进另一列，不会落进收着的整块）
     keepFocusOn(d.id, d.event);
     const text = this.say.onDragEnd({ active: this.view(d.id), over: overId ? this.view(overId) : null });
-    this.finish(d, () => {
-      if (!to || !overId) return;
-      if (overId === d.id) {
-        // 停在自己的位置上：还在原来那一列 = 没动；已排进另一列 = 落在那一列的这个位置（交那一列的整块，调用方按自己排好的算）
-        const into = this.items.get(d.id)?.list;
-        const zone = into && into !== from.list ? this.zoneOf(into) : undefined;
-        if (zone) this.props.onDrop(from, zone);
-        return;
-      }
-      // 落点那一项已经不在了（拖着时被删、它那一组卸下）：同没有落点，不交（播报同样按没有落点念取消）
-      if (!this.items.has(overId) || !this.props.accepts(from, to)) return;
-      this.props.onDrop(from, to);
-    });
+    const end = () =>
+      this.finish(d, () => {
+        if (!to || !overId) return;
+        if (overId === d.id) {
+          // 停在自己的位置上：还在原来那一列 = 没动；已排进另一列 = 落在那一列的这个位置（交那一列的整块，调用方按自己排好的算）
+          const into = this.items.get(d.id)?.list;
+          const zone = into && into !== from.list ? this.zoneOf(into) : undefined;
+          if (zone) this.props.onDrop(from, zone);
+          return;
+        }
+        // 落点那一项已经不在了（拖着时被删、它那一组卸下）：同没有落点，不交（播报同样按没有落点念取消）
+        if (!this.items.has(overId) || !this.props.accepts(from, to)) return;
+        this.props.onDrop(from, to);
+      });
+    if (this.settled(d)) {
+      this.reveal(d);
+      this.announce(text);
+      this.letGo.next(end, this.landWait);
+      return;
+    }
+    end();
     this.announce(text);
+  }
+
+  /** 落定能不能分两拍：画面此刻就是最终的样子。要落位已经播完（不是中途又按下、等太久当场结束的：那时浮层还在路上）、落到的是空档
+   *  本身（不是收着的整块、可见范围的边上：into），只拖一项（多选整批：其余选中的行提交时才排到一起），还在拿起时那一列（拖进另一列
+   *  的那一行：提交时换成那一列的行重挂），拖动中版面没变过（relaid：调用方提交时可能还要改版面），拖的不是装着别的拖动项的一整块
+   *  （holdsOthers）。减少动态效果、没挪过（当场结束）没有落位，照旧一拍。 */
+  private settled(d: Session): boolean {
+    if (!this.transition || !this.alive || this.committing || d.relaid || (d.data.count ?? 0) > 1) return false;
+    const landing = early.get(d.overlay);
+    if (!landing || landing.playState !== "finished" || d.overlay.dataset.dropping === "into") return false;
+    const item = this.items.get(d.id);
+    const node = item?.node;
+    return !!node?.isConnected && item!.list === d.data.list && !this.holdsOthers(d.id, node);
+  }
+
+  /** 被拖的那一项本身装着别的拖动项（侧栏公司组：它也是组里那一列的整块落点，展开时组里的行也在里面）：这种一整块的先后变了，
+   *  调用方提交时可能连带改版面（侧栏前 5 家默认展开：拖过第 5 家，提交时一家收起、一家展开，复刻页实测跳 138px），第一拍的画面
+   *  不一定是最终的样子，照旧一拍。行、置顶、卡片里没有别的拖动项，提交只是换先后。 */
+  private holdsOthers(id: string, node: HTMLElement): boolean {
+    for (const other of this.items.values()) if (other.id !== id && other.node && node.contains(other.node)) return true;
+    return false;
+  }
+
+  /** 落定的第一拍：浮层卸下，空档在节点上直接亮出来（去掉 data-drag-source、data-drag-landing）。它此刻正由让位位移摆在落点上（浮层
+   *  落的就是这个位置），画面与提交以后一样；让位位移等第二拍随新顺序一起去掉。React 这时还当它是空档：期间因推送重画也是属性没变、
+   *  不再写。 */
+  private reveal(d: Session) {
+    d.landed = true;
+    // 「正在拖」（lib/layers.ts 的 isDragging）同原来在落位播完这一刻撤：两拍之间的按下、按键本来就先把第二拍做完，悬停滚动这类
+    // 按计时器问它的也与原来同一时刻看到拖动结束（第二拍提交时再撤一次，不变）
+    setDragging(false);
+    early.delete(d.overlay);
+    d.overlay.remove();
+    const node = this.items.get(d.id)?.node;
+    if (!node) return;
+    node.removeAttribute("data-drag-source");
+    delete node.dataset.dragLanding;
+  }
+
+  /** 放下那次提交里 React 会不会把被拖那一项的节点挪个位置：同一列里往后挪（React 按 key 重排：往后挪时挪的是它自己；往前挪时挪的
+   *  是被越过的那几项，它不动）。只拖一项、落点是同一列里的另一项、调用方会收到 onDrop 时才算（整批、拖进另一列照旧交给 React）。 */
+  private reinserts(d: Session): boolean {
+    const overId = d.overId;
+    const to = d.over;
+    if (!overId || !to || overId === d.id || (d.data.count ?? 0) > 1) return false;
+    const item = this.items.get(d.id);
+    const over = this.items.get(overId);
+    const list = item?.list;
+    if (list === undefined || list !== d.data.list || !over || over.zone || over.list !== list || !this.props.accepts(d.data, to)) return false;
+    const order = this.lists.get(list) ?? [];
+    const from = order.indexOf(d.id);
+    return from >= 0 && order.indexOf(overId) > from;
   }
 
   /** 取消（滑回播完）。 */
@@ -2381,24 +2493,34 @@ export class DragEngine {
   }
 
   /** 结束拖动：调用方的重画（新顺序、整列重排）与被拖的那一项去掉空档在同一次同步提交里；提交后各项去掉让位位移（不带过渡，新顺序
-   *  已排好）、浮层卸下（落位还没播完就等它播完，落点那一项先不显示）。 */
+   *  已排好）、浮层卸下（落位还没播完就等它播完，落点那一项先不显示；分两拍的落定第一拍已经卸了）。
+   *
+   *  放下时焦点在被拖那一项里、这次提交 React 又要把它的节点挪个位置（reinserts）：提交前先把焦点拿出来、提交后原样放回（第 13 轮
+   *  改法 1）。不拿的话，挪节点那一下浏览器同步失焦、现算样式，React 提交后再逐层读祖先的滚动位置（现算布局）、focus()（滚动抽屉）、
+   *  把滚动写回（A14 trace 约 13ms）。事件先后照旧（失焦、再获焦），焦点终点是同一个元素，滚动终点一样（React 滚了再写回，这里不滚）。 */
   private finish(d: Session, work: () => void) {
     if (this.drag !== d) return;
     for (const stop of d.stops.splice(0)) stop();
     this.stopScroll();
+    const sync = this.alive && !this.committing;
+    const moving = sync && d.dropped && this.reinserts(d);
     this.drag = null;
     this.pending = null;
     const shut = this.shutOver;
     this.shutOver = null;
+    const focus: { kept: HTMLElement | null } = { kept: null };
     const run = () => {
       setDragging(false);
       this.props.onActive?.(null);
       work();
       this.notify(d.id);
       this.notify(shut);
+      // 调用方的改动都排好了、React 还没动页面：这时失焦（同原来挪节点时失焦一样，在结束拖动之后）
+      if (moving) focus.kept = letFocusGo(this.items.get(d.id)?.node ?? null);
     };
-    if (this.alive && !this.committing) flushSync(run);
+    if (sync) flushSync(run);
     else run();
+    if (focus.kept) takeFocusBack(focus.kept);
     for (const id of d.touched) {
       const node = this.items.get(id)?.node;
       if (node) applyShift(node, NO_SHIFT);
@@ -2408,6 +2530,7 @@ export class DragEngine {
 
   /** 浮层卸下：松手时起播的落位还没播完（又按下了、等太久）就等它播完；没起播过的（量不到等）从此刻落到那一项再卸。 */
   private release(d: Session) {
+    if (d.landed) return; // 落定第一拍已经卸了（reveal）
     const overlay = d.overlay;
     const remove = () => overlay.remove();
     const node = this.items.get(d.id)?.node ?? null;
@@ -2611,8 +2734,14 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
     }),
     [ref, drag.id, where, isDragging],
   );
+  // ownFocus 的把手（侧栏的行、组头开关）不随「在不在拖」变（aria-pressed 只给不带 ownFocus 的）：用不按它记住的这一份，拿起、
+  // 落定时被拖那一组的组头（memo）不因为把手换了一份而重画（第 13 轮 3b）。它的依赖都在下面那一份的依赖里
+  const still = useMemo(
+    () => (ownFocus ? handleOf(engine, drag.id, handleRef, { disabled, ownFocus, skip }, false) : null),
+    [engine, drag.id, handleRef, disabled, ownFocus, skip],
+  );
   const handle = useMemo(
-    () => handleOf(engine, drag.id, handleRef, { disabled, ownFocus, skip }, isDragging),
+    () => still ?? handleOf(engine, drag.id, handleRef, { disabled, ownFocus, skip }, isDragging),
     [engine, drag.id, handleRef, disabled, ownFocus, skip, isDragging],
   );
   const label = drag.label;
