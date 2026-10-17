@@ -331,7 +331,10 @@ export class SessionController {
       if (this.source === source) this.touch();
     };
     source.onwake = () => {
-      if (this.source === source) this.touch();
+      if (this.source !== source) return;
+      this.touch();
+      // 在后台时欠着的工具提醒（answerPendingCustomTools 不在后台发）：回到前台当场补上，不等这一刻的补拉回来
+      if (!this.replaying) this.queueAnswers();
     };
     // 接上尾巴（打开、切回对话）从此刻计时；看门时的重开不算，要等到真收到消息
     if (restart) this.touch();
@@ -631,7 +634,12 @@ export class SessionController {
    *  the signed-in user (pearnly_core.assistant.tools); we only nudge it the
    *  moment the reducer flags one pending. A
    *  failed answer must be retried: the session emits nothing while it waits
-   *  on us, so no later fold would ever bring us back here. */
+   *  on us, so no later fold would ever bring us back here.
+   *
+   *  何时提醒：任何一次并入（推来的、补拉的、缺口放出的压着的推送、读回的状态）之后只要出现欠着的调用，就在这批并完后当场
+   *  提醒一次（fold → queueAnswers），推送来的不等补拉；同一次调用在途时不再发、答过的不再发、失败按退避重试。页面在后台时
+   *  不发（服务端推送线程自己会执行，卡片内容回到前台再取，onwake）。第 11 轮重测 A6：手机出卡慢 7–21 秒，是服务端
+   *  「停下来等工具」那条没推出来（推送线程撞 1020 收线，见 relay.py 文件头），只能等补拉带回。 */
   private answering = new Set<string>();
   private answerAttempts = new Map<string, number>();
   // Earliest wall-clock time each id may be tried again. This is what makes
@@ -641,6 +649,7 @@ export class SessionController {
   private retryAfter = new Map<string, number>();
   private answerRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private answerPendingCustomTools() {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
     const now = Date.now();
     for (const id of this.state.pendingCustomTools) {
       if (this.answering.has(id) || this.state.answeredCustomTools.has(id)) continue;

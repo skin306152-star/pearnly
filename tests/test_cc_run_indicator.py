@@ -1340,6 +1340,134 @@ await g.sleep(0);
 assert.deepEqual([f.state.text, f.state.attachments.length], ["", 0]);
 """)
 
+    def test_a6_a_pushed_tool_wait_fetches_the_card_at_once(self):
+        # 第 11 轮重测 A6（手机 A14 的 CC 应用）：别的设备上发起的一轮，推来 agent.custom_tool_use 与「停下来等工具」后，卡片的问句与
+        # 改动（run_tool）当场取，不等低频补拉；同一次调用只提醒一次（重复推来、读回状态、补拉带回都不再发）
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_a6";
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+site.toolReply = async (id: string) => {
+  site.runs[id] = "awaiting_approval";
+  return { status: "awaiting_approval", ask: "Disable this task?", preview: [] };
+};
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const polls = eventsCalls(S).length;
+push(S, ev("u1", "user.message", 3, { content: text("disable it") }));
+push(S, ev("r1", "session.status_running", 4));
+push(S, ev("t1", "agent.custom_tool_use", 5, { name: "cowork_set_folder_task_enabled", input: {} }));
+await g.sleep(5);
+assert.equal(toolCalls().length, 0);                                        // 还没停下来等
+push(S, ev("p1", "session.status_idle", 6, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+await g.sleep(10);
+assert.deepEqual(toolCalls().map((x: any) => x.body.tool_use_id), ["t1"]);  // 当场一次
+assert.equal(eventsCalls(S).length, polls);                                  // 补拉不是前提
+assert.equal(toolPart(c.getSnapshot(), "t1").approval.ask, "Disable this task?");
+assert.deepEqual(c.getSnapshot().pendingApprovals, ["t1"]);
+// 同一条又推来一次、回到前台读回状态（停在 t1、本站等「允许」）、补拉带回同一页：都不再提醒
+push(S, ev("p1", "session.status_idle", 6, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+g.document.fire("visibilitychange");
+await g.sleep(40);
+assert.ok(eventsCalls(S).length > polls);
+assert.equal(toolCalls().length, 1);
+assert.deepEqual(c.getSnapshot().pendingApprovals, ["t1"]);
+""")
+
+    def test_a6_a_tool_wait_held_in_the_push_gap_fetches_the_card_when_released(self):
+        # 缺口压着推送时（实时通道重连、收口的补拉还在路上）：推来的「停下来等工具」先压着，补拉回来放出时当场提醒一次，压着的那条
+        # 交出时不再重复
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_a6gap";
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+let release: () => void = () => {};
+let hold = false;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && hold) await new Promise<void>((resolve) => { release = resolve; });
+  return respond(method, args, body);
+};
+g.socket.drop();
+await g.sleep(30);                                                           // 断开时的那次补拉照常回来
+hold = true;
+g.socket.back();                                                             // 重连：开缺口，收口的补拉压在路上
+await g.sleep(5);
+push(S, ev("t1", "agent.custom_tool_use", 3, { name: "cowork_set_folder_task_enabled", input: {} }));
+site.engine = "idle";
+push(S, ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+await g.sleep(10);
+assert.equal(toolCalls().length, 0);                                         // 压着，还没并入
+hold = false;
+release();
+await g.sleep(30);
+assert.deepEqual(toolCalls().map((x: any) => x.body.tool_use_id), ["t1"]);   // 放出时当场一次
+await g.sleep(30);
+assert.equal(toolCalls().length, 1);
+g.respond = respond;
+""")
+
+    def test_a6_no_tool_reminder_from_a_hidden_page_until_it_comes_back(self):
+        # 页面在后台（锁屏、切到别的应用）：不发提醒（服务端推送线程自己执行，卡片内容回来再取）；回到前台当场补上一次
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_a6bg";
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+site.toolReply = async (id: string) => {
+  site.runs[id] = "awaiting_approval";
+  return { status: "awaiting_approval", ask: "Disable this task?", preview: [] };
+};
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+g.document.visibilityState = "hidden";
+push(S, ev("t1", "agent.custom_tool_use", 3, { name: "cowork_set_folder_task_enabled", input: {} }));
+site.engine = "idle";
+push(S, ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+await g.sleep(20);
+assert.equal(toolCalls().length, 0);
+assert.deepEqual(c.getSnapshot().pendingCustomTools, ["t1"]);
+g.document.visibilityState = "visible";
+g.document.fire("visibilitychange");
+await g.sleep(40);
+assert.deepEqual(toolCalls().map((x: any) => x.body.tool_use_id), ["t1"]);
+assert.equal(toolPart(c.getSnapshot(), "t1").approval.ask, "Disable this task?");
+""")
+
+    def test_a6b_a_turn_started_elsewhere_brings_the_next_backfill_forward(self):
+        # 第 11 轮重测 A6b：手机空闲时排下的补拉在 30 秒后（PUSHED_IDLE_MS）；别的设备上发起的一轮推来「开跑」后，已排的那次提前到
+        # 在跑的间隔（PUSHED_RUNNING_MS），推送漏了「停下来等工具」时 8 秒内也有一次补拉兜底
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_a6b";
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+const delays: number[] = [];
+const realSetTimeout = g.setTimeout;
+g.setTimeout = (fn: any, ms?: number, ...rest: any[]) => { delays.push(ms ?? 0); return realSetTimeout(fn, ms, ...rest); };
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.ok(delays.includes(30000), String(delays));                          // 空闲：下一次补拉在 30 秒后
+delays.length = 0;
+push(S, ev("u1", "user.message", 3, { content: text("disable it") }));
+push(S, ev("r1", "session.status_running", 4));
+assert.ok(delays.includes(8000), String(delays));                           // 开跑：提前到 8 秒
+delays.length = 0;
+push(S, ev("t1", "agent.custom_tool_use", 5, { name: "cowork_set_folder_task_enabled", input: {} }));
+assert.ok(!delays.includes(8000), String(delays));                          // 已在跑：不再重排
+g.setTimeout = realSetTimeout;
+""")
+
     def test_send_failure_wiring(self):
         # onNew 经 attemptSend（不抛出）；原因写在输入框上方，同对话里出错那一行的样子；放回的图片按会话位置取本页预览
         provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")

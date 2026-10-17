@@ -552,3 +552,41 @@
 - 尾巴建起来时通道还没连上（首次打开页面时 socket.io 正在握手）也按重连处理：第一次连上开缺口并马上补拉一次，这次补拉回来之前推来的先压着（多一次请求、首屏回复可能晚一个补拉来回）。
 - 手指滑动以挪动超过 10px 判定，不区分方向（横向滑动同样交还）。
 - 都只在本机打包脚本（esbuild + node，浏览器接口是桩）里验证；真机（A14、iPad）与测试机复测、推送、合并都还没做。
+
+## 10-17 第 11 轮重测 A 段
+
+测试窗口在 lab `84da6f81`（真引擎；电脑内置浏览器 + 手机 A14 的 CC 应用）重测 A 段，卡片状态全部通过，新报两个问题。证据在 `~/pearnly-devtools/test-window/round11b/`（`a4b`、`a4c`、`a5`、`a6`、`a6b`、`a6c`）。
+
+### 1. 点「允许」后立刻点停止，停止报 500
+
+- 现象：4/4 复现 `interrupt` 返回 500 `{"exc_type":"QueryDeadlockError"}`，停止比确认早约 240ms 发出（确认攒 250ms 一批）。第一次输入框上方出现「出了点问题，请重试。」、停止钮消失；事件里照样有 `agent.tool_result`（interrupted）→ `user.interrupt` → `end_turn`，这一轮其实停了。不与确认同时发的停止都是 200。
+- 根因：不是两把锁互等，是 MariaDB 11.8 的快照隔离（REPEATABLE READ + `innodb_snapshot_isolation`，Frappe 把 1020 也抛成 `QueryDeadlockError`）。停止的请求一开头 `owned()` 读会话行就有了读快照；交引擎 `user.interrupt` 要几百毫秒，这期间点「允许」的请求在 `decide` 里把那条执行记录抢成 running 并提交；`cancel_waiting` 再按旧快照查出它「还在等」、去 `UPDATE` 它 → 改一条快照之后被别处提交改过的行 → 1020。反过来（先停止作废、确认请求按旧快照抢占）同样会撞。
+- 锁的核对：`decide` 的抢占只锁这一条执行记录并马上提交；`_finish` 以前在同一个事务里先拿工具自己写的表的锁、再写执行记录；`cancel_waiting` 每条只锁一条；推送线程记会话行（`context.active(wait=False)`）是 SKIP LOCKED、记输入量是按会话编号改一行。没有交叉等待的环，但每处都可能按旧快照撞 1020。
+- 改法（`toolrun.py` 文件头「锁与快照」）：
+  - `cancel_waiting`：先结束调用方的读快照，读出候选后马上再结束；每条一个短事务，第一句 `SELECT … FOR UPDATE SKIP LOCKED` 当前读——正被点「允许 / 拒绝」抢占、锁着的跳过（归那边），已不在等的不算，个别仍撞 1020 / 死锁的回滚跳过；不等锁。
+  - `sessions.interrupt`：`user.interrupt` 交给引擎之后，作废出错回滚、`log_error`，不回 500（推送线程收尾时还会再作废一次）。
+  - `decide`：抢占前先结束快照再读；改的那一句撞上 `QueryDeadlockError` 回滚、算没抢到（`confirm` 回此刻的状态），不报 500。
+  - `_finish`：工具自己写的先提交，执行记录另起短事务写，执行记录的行锁不与工具的锁同时持有。
+  - `execute`：登记前先结束快照；推送线程与页面兜底同时登记撞上 1020 按重复处理（同 `DuplicateEntryError`）。
+
+### 2. A6 手机出卡慢 7–21 秒
+
+- 现象：手机收到推来的 `agent.custom_tool_use` 后不立刻调 `run_tool`，要等下一次 `events?after=` 补拉回来后 0.08 秒内才发；推送连着时补拉间隔 21–31 秒；A6b 那次 21 秒里既没补拉也没 `run_tool`，卡片一直没出。
+- 根因（服务端，按推送记录推断：没 SSH 看 web 进程输出）：三次的推送记录里都没有「停下来等工具」那条 `session.status_idle`（requires_action）——推送帧全量记着（都含 `pearnly`），`end_turn` 的 idle 都推到了。推送线程一开头 `set_user` / 读会话行就有了读快照，随后发消息的请求 `context.active` 改了同一行并提交；智能体一上来就调工具（前面没有回复正文，`_active` 那步不会先回滚换快照）时，线程第一次写库是 `span.model_request_end` 的记输入量 `context.note`，按旧快照改这一行撞 1020，没有兜住，异常打断事件流；引擎此刻已停下等工具（状态不是 running）就收线。于是 requires_action 推不出去、工具也不在服务端执行。之后点「允许」（`confirm`）或页面兜底 `run_tool` 里的 `relay.ensure` 才起了新线程，推送续上——与 a6 / a6b / a6c 里推送恢复的时刻对得上。前端本身在任何一次并入后都会当场提醒（`fold → queueAnswers`），推来 requires_action 时不等补拉；只是这条一直没推来，只能等补拉带回。
+- A6b 为什么 21 秒里没补拉：手机空闲时排下的补拉在 30 秒后（`PUSHED_IDLE_MS`）；推来的 `session.status_running` 只改「在跑」标记、不重排已排好的那次，别的设备上发起的一轮（本页没有 `nudge`）第一次补拉照旧等到 30 秒到期。
+- 改法：
+  - 服务端 `relay.py`：写库前先结束线程的旧快照（`_fresh`）；记输入量（`_note`）、记最后活动时间（`_active`）、执行工具（`_execute`）都是附带的，出错回滚、只记类型，事件流照常转发；流出错重接前也回滚。
+  - 前端 `poll-source.ts`：推来或补拉到 `session.status_running`（在跑从无到有）时，已排的补拉比在跑的间隔（8 秒）晚就提前到 8 秒（`hasten`，按 `dueAt`）。
+  - 前端 `session-controller.ts`：`answerPendingCustomTools` 页面在后台时不发（服务端推送线程自己执行）；回到前台（`onwake`）当场补上一次。推来、补拉、缺口放出的压着的推送、读回的状态，并入后只要出现欠着的调用都当场提醒，同一次调用在途、答过的不再发（原有去重与退避不变）。
+
+### 测试
+
+- `test_assistant` 新增 `StopRaceTests`（8 条）：按 MariaDB 11.8 行为写的假库（读快照、改快照后被提交过的行报 1020、别的事务锁着的行 SKIP LOCKED 跳过、要等锁直接判失败）——假库本身对旧写法报 1020；确认先提交后作废不报错、那张卡归确认；被锁的卡跳过不等锁、别的照常作废；一条撞死锁回滚、其余照常；作废后的旧快照确认答「不在等」、读后改前被改同样不报错；作废抛错时停止照样返回（先交了 `user.interrupt`、回滚、记日志）；源码断言锁顺序（作废先回滚再读、每条 SKIP LOCKED；抢占先回滚、改的那句在 try 里；`_finish` 先提交再写执行记录；推送线程写库前 `_fresh`、主循环不再直接 `context.note`）；推送线程在旧快照下照样推出 requires_action、照样执行工具，记输入量与执行工具抛错时照样推完。旧作废测试的三个假库补了 `rollback` 与逐条锁定读。
+- `test_cc_run_indicator` 新增 4 条：推来 custom_tool_use + requires_action 当场一次 `run_tool`、补拉不是前提、重复推来 / 回前台读状态 / 补拉都不再发；缺口压着时不发、补拉放出时一次；页面在后台不发、回到前台一次；空闲时的 30 秒补拉在推来开跑后重排为 8 秒、已在跑不再重排。
+- `tsc`、`check-architecture`、`i18n-build --check`，`test_assistant`、`test_assistant_ui`、`test_cc_run_indicator`、`test_cc_mobile_content`、`test_cc_session_panel`（437 条）通过；另跑 `test_assistant_entry`、`test_cowork_assistant_tools` 通过。
+
+### 还缺
+
+- 问题 2 的服务端根因是按推送记录推断的，没看 web 进程输出（`assistant relay …: QueryDeadlockError` 那行）；要测试窗口在 lab 换上本提交后复测 A4 / A6：停止应 200、手机推来 requires_action 后 1 秒内出卡、推送里应能看到 requires_action 的 idle。
+- `sessions.send` 里 `api.post` 之后的 `context.active` 同样按请求开头的快照改会话行，期间别的请求（补拉记输入量、推送线程）提交过这一行时理论上也会 1020（消息已发出却回 500）；这次没有现象，没动。
+- 真机（A14）与测试机复测、推送、合并都还没做。

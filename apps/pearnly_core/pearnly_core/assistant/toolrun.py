@@ -5,6 +5,17 @@
 工具里要等别处结论的（例如推送后等写账结果）只在推送线程里等（`may_wait`），别的执行处立刻返回。
 工具一律以会话主人的身份执行（权限、租户、套账与数据范围沿用各产品自己的校验）；意外出错也要回一个错误结果，
 不能让会话一直停在等待里。
+
+锁与快照（第 11 轮重测 A 段：点「允许」后立刻点停止，停止必报 500 QueryDeadlockError）：站点库是 MariaDB 11.8，
+REPEATABLE READ 加快照隔离——一个事务改（或锁定读）一条在它的读快照之后被别处提交改过的行，报 1020（Frappe 抛
+QueryDeadlockError），不是等锁。停止的请求一开头读会话行就有了快照，交引擎「打断」要几百毫秒，这期间点「允许」的请求
+把那条执行记录抢成 running 并提交；停止再按旧快照找到它「还在等」、去改它，就撞 1020。所以这里改执行记录的几处都先结束
+调用方的读快照（调用方此前只读、或每步都已提交），并且：
+- 作废（`cancel_waiting`）每条一个短事务，第一句就是 `FOR UPDATE SKIP LOCKED` 的当前读：正被点「允许 / 拒绝」抢占、
+  锁着的跳过，不等锁；改过的照当前状态不再算在等；个别仍撞 1020 / 死锁的回滚跳过（推送线程收尾时还会再作废一次）。
+- 抢占（`decide`）先结束快照再读、再改；仍撞上就算没抢到（回此刻状态），不报 500。
+- 执行（`_finish`）工具自己写的表先提交，再单独一个短事务写执行记录：执行记录的行锁不和工具的锁同时拿着。
+各处每次只锁一条执行记录、拿到就提交，推送线程记会话行（`relay`）也是一次一行、锁不到就跳过，彼此没有交叉等待。
 """
 import json
 from datetime import datetime, timezone
@@ -59,6 +70,9 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     """执行 `call`（一条 `agent.custom_tool_use` 事件）并把结果交回引擎。返回 done / error / running（别处已在执行）
     / awaiting_approval（要用户在对话里点「允许」，`decide`）。"""
     use_id = contracts.event_id(call.get("id"))
+    # 先结束调用方的读快照（推送线程、页面兜底、引擎回调此前都只读或已提交）：推送线程与页面兜底同时登记同一次调用时，
+    # 旧快照里插入撞上对方刚提交的那条会报 1020 而不是重复（同下面按重复处理）
+    frappe.db.rollback()
     gated = tools.needs_approval(call.get("name"), call.get("input"))
     refused = _refused_before_card(conversation, call) if gated else None
     gated = gated and not refused
@@ -69,7 +83,7 @@ def execute(conversation: str, remote: str, call: dict) -> str:
                               "tool_input": json.dumps(call.get("input") or {}, ensure_ascii=False)})
         run.insert(ignore_permissions=True)
         frappe.db.commit()
-    except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
+    except (frappe.DuplicateEntryError, frappe.UniqueValidationError, frappe.QueryDeadlockError):
         # 推送线程与页面兜底同时到：唯一字段冲突在 Frappe 里以 UniqueValidationError 抛出并顺手 msgprint，
         # 那条提示要清掉，否则会跟着页面的请求弹到对话页顶上（2026-10-10 测试：「Tool Use ID必须是唯一的」）。
         frappe.db.rollback()
@@ -103,16 +117,25 @@ def _refused_before_card(conversation: str, call: dict) -> str | None:
 def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     """用户在对话里对一次要授权的工具调用点了「允许 / 拒绝」：允许就以本人身份执行，拒绝就告诉智能体没得到同意。
     只认本对话、本人、还在等的那一次；授权只管这一次调用，不延续到下一次。"""
+    # 先结束请求开头的读快照（`sessions.confirm` 此前只读）：同一刻点了停止、刚被作废的这一条，按旧快照还「在等」，
+    # 一改就撞 1020（见文件头）
+    frappe.db.rollback()
     name = frappe.db.get_value(TOOL_RUN, {"tool_use_id": use_id, "session_id": conversation,
                                           "user": frappe.session.user, "status": "awaiting_approval"}, "name")
     if not name:
         return "not_waiting"
-    # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走
+    # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走。只锁这一条、改完马上提交（作废那边锁着时
+    # 它是一条一个短事务，等不了多久；它见到这条被锁就跳过，不会反过来等这里）
     # 同时改 modified：增量补拉按「锚点之后改过的」带回执行记录（`sessions._run_rows`）
-    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s, modified=%s WHERE name=%s AND status='awaiting_approval'",
-                  ("running" if allow else "denied", frappe.utils.now(), name))
-    claimed = frappe.db._cursor.rowcount == 1
-    frappe.db.commit()
+    try:
+        frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s, modified=%s WHERE name=%s AND status='awaiting_approval'",
+                      ("running" if allow else "denied", frappe.utils.now(), name))
+        claimed = frappe.db._cursor.rowcount == 1
+        frappe.db.commit()
+    except frappe.QueryDeadlockError:
+        # 读到之后、改之前别处刚改过它（作废、别的页面点了）：算没抢到，调用方回此刻的状态
+        frappe.db.rollback()
+        return "not_waiting"
     if not claimed:
         return "not_waiting"
     _announce(conversation, use_id, allow)
@@ -133,19 +156,32 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
 def cancel_waiting(conversation: str) -> int:
     """这一轮已经结束（点了停止、出错收尾、会话终止）：本对话还在等「允许」的调用都标成 cancelled。引擎不再等这些结果，
     别的设备上没刷新的旧卡片事后点「允许」也不会执行（`decide` 只认 awaiting_approval）。返回改了几条。
-    逐条抢占（同 `decide`：只改还在等的那一条，同一刻被点了「允许 / 拒绝」的不算作废），改成了的推执行记录（`_publish_run`），
-    别的设备上还挂着的卡片当场写「已取消」。"""
+    改成了的推执行记录（`_publish_run`），别的设备上还挂着的卡片当场写「已取消」。
+
+    只处理此刻真在等的（见文件头「锁与快照」）：先结束调用方的读快照（`sessions.interrupt` 此前只读、推送线程每步都已
+    提交），读出候选后每条一个短事务——第一句 `FOR UPDATE SKIP LOCKED` 当前读：同一刻正被点「允许 / 拒绝」抢占、锁着的
+    跳过（归那边），已不在等的不算；个别仍撞 1020 / 死锁的回滚跳过。不等锁，也不会让调用方报错。"""
+    frappe.db.rollback()
     runs = frappe.db.sql(f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s "
                          "AND status='awaiting_approval'", (conversation,), as_dict=True)
+    frappe.db.rollback()  # 候选读完就结束这份快照：下面每条从当前读开始
     changed = []
     now = frappe.utils.now() if runs else None
     for run in runs:
-        frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled', modified=%s "
-                      "WHERE name=%s AND status='awaiting_approval'", (now, run.name))
-        if frappe.db._cursor.rowcount == 1:
+        try:
+            free = frappe.db.sql(f"SELECT name FROM `tab{TOOL_RUN}` WHERE name=%s AND status='awaiting_approval' "
+                                 "FOR UPDATE SKIP LOCKED", (run.name,))
+            hit = False
+            if free:
+                frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled', modified=%s "
+                              "WHERE name=%s AND status='awaiting_approval'", (now, run.name))
+                hit = frappe.db._cursor.rowcount == 1
+            frappe.db.commit()
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()
+            continue
+        if hit:
             changed.append(run)
-    if runs:
-        frappe.db.commit()
     for run in changed:
         _publish_run(conversation, run.tool_use_id, "cancelled", run.user)
     return len(changed)
@@ -220,6 +256,8 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
     finally:
         frappe.local.pearnly_assistant = None
     status = "error" if is_error else "done"
+    # 工具自己写的先提交，执行记录另起一个短事务写：这一条的行锁不和工具拿着的锁同时持有（见文件头「锁与快照」）
+    frappe.db.commit()
     # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）。先落库、推给对话页，
     # 再交回引擎：执行过就以本站记录为准，交回失败（这一轮已被停止）也不丢（第 11 轮 A2：工具已执行，记录却一直停在 running）
     frappe.db.set_value(TOOL_RUN, run_name, {"status": status, "result": text[:60000]})
