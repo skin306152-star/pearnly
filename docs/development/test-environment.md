@@ -181,7 +181,16 @@ bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈�
   只在需要不接统一身份的空白站点时用；它现在与导入的账本共用一个账本站，`lab-init` 会往里登记 `T-TESTCOWORK`。
 - 与线上不同 / 边界：OCR 读的是测试机 `/run/secrets/ocr.json`（线上真凭据，识别是**真实付费调用**，只在人工验收时用）；
   账本是导入时的副本，扣费不回写线上；Cowork 独立账号池 `pearnly-cowork` 还没在线上建，`testcowork` 目前仍签到业务账号池。
-- **Cowork 识别的 Cloud Run 地址（2026-10-02 发现）**：测试机这份 `testcowork` 的 `pearnly_cowork_ocr_remote.url` 仍是
+- **测 Claude 路线 / 统一原件层（2026-10-18 原件层实测的做法）**：
+  1. 甲骨文 8443 已对办公室 IP 放行。办公室 IP 变了，要在甲骨文安全列表（用户点）和那台的 iptables 里同时改。
+  2. `lab-start` 会重写 `/opt/pearnly-testenv/env`，所以要在它之后把甲骨文那 6 个变量（本机
+     `~/.config/pearnly-claude-ocr/runtime.env`）追加进这个文件，再跑一次 `live <app>`，让容器带上变量重建。
+  3. 用 `bench --site <测试租户> set-config pearnly_ocr_engine claude` 切到 Claude，再 `clear-cache`。
+     `bench --site … execute pearnly_core.originals.store.where` 回 `oracle` 就对了。
+  4. 测完先 `set-config pearnly_ocr_engine None` 删掉这个键（测试租户原来都没有），从 env 删掉那 6 个变量，再 `lab-stop`。
+  - 这样测时原件真的存在甲骨文（生产同一台），Claude 调用真的付费，所以只用小样本、测完删数据。
+    删单 / 删登记会连甲骨文原件一起删。
+- **Cowork 识别的 Cloud Run 地址（2026-10-02 发现；10-18 再看已指向生产 `cowork-ocr`）**：测试机这份 `testcowork` 的 `pearnly_cowork_ocr_remote.url` 仍是
   `https://cowork-ocr-test-…a.run.app`，这个 Cloud Run 服务已经不存在（404），所以上传在转发 Cloud Run 那一步就失败
   （`RemoteError: remote_http_404`）。要在测试机上真实上传 / 识别，先补一个测试用 Cloud Run 服务，或临时把 url 指向生产
   `cowork-ocr` 服务并**同时**设 `pearnly_ocr_paused=1`（只验界面、服务端受理即拒、不调谷歌），验完改回、关暂停。

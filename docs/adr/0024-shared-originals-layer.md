@@ -26,8 +26,10 @@
 3. **存放按租户路线选**：选了 Claude（`pearnly_ocr_engine = claude`）→ 甲骨文（ADR-023 那一套，经 `originals.pearnly.com`
    隧道）；谷歌租户 → 谷歌存储（ADR-016 那一套，核对 / 预览由 Cloud Run 做；ERP 站点也配同一个 Cloud Run 地址，Cloud Run 认
    `ERO-`）。哪种都没配的站点照旧存本机（只是没配置时的样子）。甲骨文连不上：页面 `retry`、识别排队重试，不退回生产存。
-4. **纯计算的检查与渲染并进共用层**：`pearnly_core.originals.checks`（原 `pearnly_cowork.ocr.originals`，保留薄兼容入口），
-   生产、Cloud Run、甲骨文同一份。甲骨文服务改成通用（`pearnly_core.originals.server`），不再只认 Cowork。
+4. **纯计算的检查与渲染并进共用层**：`pearnly_core.originals.checks`（原 `pearnly_cowork.ocr.originals`），
+   生产、Cloud Run、甲骨文同一份。原来 Cowork 里的 `ocr/inputs`、`ocr/originals`、`files/edge*`、`files/cloud` 整体搬进
+   `pearnly_core.originals`（rules / checks / oracle / links / server / gcs / cloud_run），所有调用方一并改，没有留旧路径；
+   排队任务的点路径（`pearnly_cowork.files.service.purge_objects` / `purge_edge`）不变（`tests/test_queue_targets.py` 守着）。甲骨文服务改成通用（`pearnly_core.originals.server`），不再只认 Cowork。
 5. **入口迁移**（每步过单元测试 + 生产代码闸门）：Cowork 录入台（PDF / 图片 / 表格）、Cowork LINE、CC 工具建原件、POS 导入、
    Cowork 对账中心（仍按任务结束即删）、ERP 采购 / 销售网页上传（拦下 Frappe 上传改直传）、ERP LINE。
    对账中心：页面照旧一次提交，生产收到后交原件层存，本机只留不到 1KB 的登记（`recon_center.storage`）；扫描件、照片按引用读
@@ -47,3 +49,20 @@
 
 - 搬老文件（已存在服务器 / 谷歌桶的照旧能看、能下、能识别）。
 - 生产上的兜底存放（连不上就重试，不落本机）。
+
+## 部署
+
+本层改动分在三个独立部署的地方，各自的发版时机不同：
+
+1. **产品镜像**（生产三产品 + 控制面）：照常 `build-production` → stage → 激活。登记文件、下载转向（`before_request`）、
+   File 删除扩展都在 `pearnly_core`，随镜像生效。
+2. **甲骨文 claude-ocr 服务**（`scripts/claude-ocr/deploy.sh`）：读法在 `pearnly_core.claude_ocr.server` / `pages`。
+   改了这两个文件或 `originals` 的 rules / checks / links / server 就要重新部署。新接口都向下兼容，可以先于镜像部署。
+   2026-10-18 已部署对账逐页读（`original.page`）和多附件读（`originals` + `orient`）。
+3. **Cloud Run `cowork-ocr`**（`scripts/cloud-run/deploy-cowork-ocr.sh`，按修订版名切流量）：约定在
+   `pearnly_cowork.ocr.remote.contract` / `pearnly_core.originals.cloud_run`。这次新增两项：对账文档请求可以只带原件引用；
+   原件名认 `ERO-`。谷歌租户的对账、ERP 走原件层之前必须先发这一版。
+
+站点配置（谷歌租户）：ERP 站点要走谷歌存储，需与 Cowork 一样配 `pearnly_cowork_ocr_remote`（Cloud Run 地址）和
+`pearnly_cowork_originals_bucket`（原件桶）；没配就照旧存本机。Claude 租户只看 `pearnly_ocr_engine = claude` 与
+runtime.env 里甲骨文那 6 个变量。

@@ -3,8 +3,8 @@
 # 原件目录 /opt/pearnly-originals（容器里 /originals）；浏览器那一路是本机 127.0.0.1:8444，经 Cloudflare 隧道（scripts/claude-ocr/tunnel.sh）。
 # 第一次（或带 --secrets）生成：自签证书（生产钉死指纹）、服务令牌；Anthropic 密钥取那台评测目录里用户给的那把。
 # 都只在那台的 /opt/pearnly-claude-ocr/secrets（600）；生产 runtime.env 要加的四行写到本机
-# ~/.config/pearnly-claude-ocr/runtime.env（600），由 scripts/claude-ocr/production-env.sh 推上去（动生产前先约时间）。
-# 入站：甲骨文安全列表 + iptables 只放行生产 107.155.65.74 的 TCP 8443。
+# ~/.config/pearnly-claude-ocr/runtime.env（600）；要手工并进生产 /opt/pearnly/secrets/runtime.env（先备份、先约时间，见 docs/development/production-capacity.md）。
+# 入站：甲骨文安全列表 + iptables 只放行生产 107.155.65.74 与办公室 124.120.107.105（测试机测 Claude 路线）的 TCP 8443。
 # 用法：bash scripts/claude-ocr/deploy.sh [--secrets]
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
