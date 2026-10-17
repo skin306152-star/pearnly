@@ -231,6 +231,9 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         tenant = _find_or_create_tenant(doc.tenant_name)
         # 开户单上填的智能体设置落到租户上（之后在租户表单改 / 换，ADR-019）；开户计划生成时读租户的这一份。
         settings = assistant.read(doc)
+        # 开户单选的识别引擎落到租户上（ADR-022）；开户计划的 set_ocr 读租户这一份。
+        if (doc.get("ocr_engine") or "Google") != (frappe.db.get_value(TENANT, tenant, "ocr_engine") or "Google"):
+            frappe.db.set_value(TENANT, tenant, "ocr_engine", doc.get("ocr_engine") or "Google")
         if settings["engine"]:
             tenant_doc = frappe.get_doc(TENANT, tenant)
             tenant_doc.update({"assistant_engine": settings["engine"], "assistant_model": settings["model"],

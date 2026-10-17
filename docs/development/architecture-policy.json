@@ -394,6 +394,7 @@
     "pearnly_target_runtime": "控制面：目标运行环境",
     "pearnly_tenant": "租户标识",
     "pearnly_welcome_email_account": "控制面：欢迎邮件发件账户",
-    "pearnly_workspace": "租户工作空间"
+    "pearnly_workspace": "租户工作空间",
+    "pearnly_ocr_engine": "识别引擎（ADR-022）：google（默认）或 claude，三个产品共用；由控制面租户表单 / 开户单选择，经开通执行器的 set_ocr 写入；选 claude 时识别只调 Anthropic（pearnly_core.claude_ocr），不调谷歌"
   }
 }

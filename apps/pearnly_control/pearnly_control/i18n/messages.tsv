@@ -341,3 +341,7 @@ Log in	登录	เข้าสู่ระบบ	ログイン
 Remember me	记住登录	จดจำการเข้าสู่ระบบ	ログイン状態を保持
 The sign-in service is not available. Try again later.	登录服务暂时不可用，请稍后再试。	บริการเข้าสู่ระบบไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งภายหลัง	ログインサービスは現在利用できません。しばらくしてからもう一度お試しください。
 Sign-in failed. Try again.	登录失败，请重试。	เข้าสู่ระบบไม่สำเร็จ โปรดลองอีกครั้ง	ログインに失敗しました。もう一度お試しください。
+Recognition Engine	识别引擎	เอนจินอ่านเอกสาร	認識エンジン
+Google or Claude. A change applies from the next document.	谷歌或 Claude，改了从下一份单据起生效。	Google หรือ Claude เปลี่ยนแล้วมีผลตั้งแต่เอกสารถัดไป	Google または Claude。変更は次の書類から反映されます。
+Recognition engine must be Google or Claude	识别引擎只能是谷歌或 Claude	เอนจินอ่านเอกสารต้องเป็น Google หรือ Claude	認識エンジンは Google または Claude のみです
+The recognition settings are being applied. Try again shortly.	正在应用识别设置，请稍后再保存。	กำลังใช้การตั้งค่าการอ่านเอกสาร โปรดลองอีกครั้งในอีกสักครู่	認識設定を適用中です。しばらくしてからもう一度お試しください。

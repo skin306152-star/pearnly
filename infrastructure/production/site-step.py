@@ -366,8 +366,11 @@ def main():
                pearnly_billing_host_header=p["host_header"], pearnly_billing_token=p["token"])
     elif action == "set_ocr":
         assert Path("/run/secrets/ocr.json").is_file()
+        # 识别引擎（ADR-022）：google（默认）/ claude；载荷里没有（老开户单）就是谷歌。
+        engine = str(p.get("engine") or "google").strip().lower()
+        assert engine in ("google", "claude"), engine
         config(pearnly_ocr_backend="vertex", pearnly_ocr_credentials="/run/secrets/ocr.json",
-               pearnly_ocr_project="pearnly", pearnly_ocr_location="asia-southeast1")
+               pearnly_ocr_project="pearnly", pearnly_ocr_location="asia-southeast1", pearnly_ocr_engine=engine)
     elif action == "set_line":
         if p.get("clear_credentials"):
             config(pearnly_line_channel_id="", pearnly_line_channel_secret="",
