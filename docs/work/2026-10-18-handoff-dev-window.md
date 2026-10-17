@@ -16,7 +16,7 @@
 
 ## 1. 现状一览（10-18 00:45 核对）
 
-- **main / 生产**：`origin/main` = 本地 main = `2574ef94`（ec90fdfc 外壳第 10、11 轮 + Claude 识别三批 + 发布记录）。生产 10-18 00:01（泰国时间）已部署 `ec90fdfc`，
+- **main / 生产**：10-18 交接时 `origin/main` 先后到 `55b559f6`（交接文档）、`669427ca`（统一原件层，未部署，见 G7）；最初核对时是 `2574ef94`（ec90fdfc 外壳第 10、11 轮 + Claude 识别三批 + 发布记录）。生产 10-18 00:01（泰国时间）已部署 `ec90fdfc`，
   镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:ebba5a407bdc8e8d1a878bad05755e1b3443e7e57b05c7ef12090384f744d448`（以下简称 ebba5a40），回读干净。
   发布记录 `docs/work/2026-10-18-release-ec90fdfc.md`。**lab 底座以后用 ebba5a40**（10-16 交接里的 b9da6b58 作废）。
 - **测试机 lab**：cowork lab 开着，testcowork 指向测试机（Cloudflare 104.21.28.241），挂的是 `.claude/worktrees/cc-shell-rebuild` 工作树的实时源码（ec90fdfc，包 `index.Dtpvp6Oq.js`）。
@@ -259,6 +259,15 @@ multi-desktop-own-computer-rule、copy-changes-need-approval、login-pages-froze
 - G5：生产 `/opt/pearnly/state/deploy-ec90fdfc.*`、`mem-ec90fdfc.log` 和「消息含义理解」窗口的 `runtime.env.bak-*` 是部署 / 回退证据，不归本线清理。
 - G6 已完成（10-18 更正）：零成本扩容基础 1–3 项 10-02 已做并上线（`b4b02d54`：`infrastructure/production/sizing.py` 按机器核数与内存算参数、`docs/development/production-capacity.md` 配置对照表与可拆分自检清单，记录 `docs/work/2026-10-02-scaling-base.md`）；备份由异地备份与 10-17 恢复演练覆盖；扩容后 100 / 300 人压测按规则只在真扩容时跑。只剩记录里有意留到真扩容时才做的四项（sites 共享文件系统、多机部署工具、Redis 认证、数据库跨机访问）。旧窗口当天一度误报为「没人做」，已向用户和「消息含义理解」窗口更正。
 
+- G7 待部署（随下一批）：**统一原件层（ADR-024）已由「消息含义理解」窗口合入 main `669427ca`**（远端已回读），要求随下一批部署；部署时间先找它约。随批要做（详见 `docs/development/production-capacity.md`「识别与原件：三处分开部署」和 ADR-024「部署」）：
+  1. 产品镜像照常从 main 构建、激活三产品。这次改了 pearnly_core 的 hooks（before_request 加 `originals.registered.redirect_download`；extend_doctype_class 给 File 加 `RegisteredFile`），**激活后各产品都要 migrate 和 clear-cache**；合入前的候选离线检查照常（改了 pearnly_core）。
+  2. **Cloud Run `cowork-ocr` 同批发新版**（`scripts/cloud-run/deploy-cowork-ocr.sh`，按修订版名切流量，别用 `--to-latest`，记忆 cloud-run-traffic-by-revision）：对账文档请求可只带原件引用、原件名认 ERO-。**先发 Cloud Run 再激活镜像**，或两边在同一个维护窗口内做。
+  3. ERP 站点配置：谷歌租户的 ERP 站点补 `pearnly_cowork_ocr_remote`（与 Cowork 同一个 Cloud Run 地址）和 `pearnly_cowork_originals_bucket`（`pearnly-cowork-originals-sg`）；补之前确认 Cloud Run 服务账号接受 ERP 站点的身份令牌（与 Cowork 同一把 ocr.json 就没问题）。没补照旧存本机，不出错。新站点配置要登记（记忆 no-per-tenant-feature-switches）。
+  4. 甲骨文 claude-ocr 已部署（向下兼容），这批不动；runtime.env 那 6 项 10-17 已在生产。
+  5. 部署后回读：Cowork 新上传原件 `storage_url` 应是 `gs://`；对账临时文件是 `CWS-…bin` 登记（不到 1KB）；ERP 补了配置的话新附件是 `ERO-…bin` 登记；`/private/files/<登记>.bin` 打开应跳转到签名地址。
+  保留：甲骨文 8443 对办公室 IP 124.120.107.105 的放行（见第 1 节）。它的工作树 / 分支它自己清。
+  **对其它线的影响**：main 已前进到 669427ca，A–E 各分支落后数都 +1 批；originals-layer 和 D、E 的 3 个共同文件已随它进 main，D1 / E12 并 main 时注意。
+
 ### H. CC 零碎（旧记录里登记、上面 A–G 没列的；10-18 逐条对代码核实过）
 
 来源：`docs/work/2026-10-12-cc-closed-loop.md`、`2026-10-13-tutorial-issues.md`、`2026-10-15-handoff-cc.md`、`2026-10-15-cc-night-batch.md`、`2026-10-15-acceptance-2bc4aad1.md`、`2026-10-16-cc-shell-rebuild.md`、
@@ -305,7 +314,7 @@ multi-desktop-own-computer-rule、copy-changes-need-approval、login-pages-froze
 5. **B 线后续**：B4（B1 标准层，B0 合入后即可，和 A 并行）→ B5 → B6（先看 D、E 合了没有）→ B7（A 合入后）→ B8 → B9（和 A7 串行）。
 6. **F、H 线**：H1、H2 是真缺陷，可在任何一批顺手修（H1 改 pearnly_core 要跑候选检查）；H5、F2 随下一版桌面版；H16–H18 用户已定算通过、不补测；F5 和「消息含义理解」窗口约好后随最近一批部署；F3（T4）找用户要测试 API 后随时跑；F1（T2）在 D、E 合入后；F4 不急。
 7. **测试机 lab 依次占用**：第 12 轮（lab 已开，只换源码）→ 标准化各批验收 → D 第 7 批 → E 第 3 期试点；中间「消息含义理解」窗口要切 Claude 实测测试租户、要合 originals-layer 时事先约。用完 lab-stop，恢复线上 testcowork 定时任务。
-8. **部署**：攒批。第一批建议 = A（第 12 轮）+ C3 三个真缺陷 + F5，过闸后一次构建激活；之后按 D、E 各自的发布要求单独成批（它们都要紧跟发桌面版）。生产部署都先和「消息含义理解」窗口约时间。
+8. **部署**：攒批。第一批建议 = **G7 统一原件层（已在 main，要先发 Cloud Run、激活后 migrate + clear-cache、补 ERP 站点配置）** + A（第 12 轮）+ C3 三个真缺陷 + F5，过闸后一次构建激活；之后按 D、E 各自的发布要求单独成批（它们都要紧跟发桌面版）。生产部署都先和「消息含义理解」窗口约时间。
 9. **T1 期限**：D 线到 12 月初还合不进 main，就把 T1 单独拆出来先上（2027-01 第一次跨年月结前必须在生产）。
 10. **清理依赖链接的顺序**：cc-shell-rebuild 要等 A、B 两个工作树合入或换成自己的 node_modules、且 lab 换了源；f19-push-summary 要等 C1；multi-desktop 要等 da-phase3 处理完它的两个链接。
 
