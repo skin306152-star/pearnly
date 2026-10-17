@@ -708,9 +708,9 @@ import assert from "node:assert/strict";
 import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
 import { steps, t } from "@/i18n";
 const done = { cowork_company_choice_save: "记下了公司选择" };
-const asks = { cowork_company_choice_save: "把这个选择记到公司？" };
+const asks = { cowork_company_choice_save: "保存为公司选择？" };
 const denial = { word: "已拒绝", asks, failed: steps.failed };
-assert.equal(askStem("把这个选择记到公司？"), "把这个选择记到公司");
+assert.equal(askStem("保存为公司选择？"), "保存为公司选择");
 assert.equal(askStem("Save this choice for the company? "), "Save this choice for the company");
 // 本页点了拒绝；重开后按结果认；允许了、还在等的不算
 assert.equal(stepDenied({ approval: { approved: false } }), true);
@@ -722,8 +722,8 @@ assert.equal(stepDenied({ result: { text: "plain", isError: false } }), false);
 assert.equal(stepDenied({ result: { text: "The user did not allow this change. Do not try it again unless the user asks.", isError: false } }), true);
 // 摘要：拒绝的写问话 + 已拒绝，存上的照旧写做完的说法；几次时 ×n
 const parts = [{ toolName: "cowork_company_choice_save", failed: false, denied: true }];
-assert.equal(summaryText(summarize(parts, done), steps.summary, done, denial), "把这个选择记到公司 · 已拒绝");
-assert.equal(summaryText(summarize([...parts, ...parts], done), steps.summary, done, denial), "把这个选择记到公司 ×2 · 已拒绝");
+assert.equal(summaryText(summarize(parts, done), steps.summary, done, denial), "保存为公司选择 · 已拒绝");
+assert.equal(summaryText(summarize([...parts, ...parts], done), steps.summary, done, denial), "保存为公司选择 ×2 · 已拒绝");
 assert.equal(summaryText(summarize([{ toolName: "cowork_company_choice_save", failed: false }], done), steps.summary, done, denial), "记下了公司选择");
 // 没给问话（不是要允许的工具）：用做完的说法
 assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: false, denied: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了 · 已拒绝");
@@ -737,10 +737,10 @@ const notSaved = { text: JSON.stringify({ status: "not_saved", reason: "x" }), i
 assert.equal(stepUndone({ result: notSaved }), true);
 assert.equal(stepUndone({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
 const undone = { toolName: "cowork_company_choice_save", failed: true, undone: true };
-assert.equal(summaryText(summarize([undone], done), steps.summary, done, denial), "把这个选择记到公司 · 失败");
-assert.equal(summaryText(summarize([undone, undone], done), steps.summary, done, denial), "把这个选择记到公司 ×2 · 失败");
+assert.equal(summaryText(summarize([undone], done), steps.summary, done, denial), "保存为公司选择 · 失败");
+assert.equal(summaryText(summarize([undone, undone], done), steps.summary, done, denial), "保存为公司选择 ×2 · 失败");
 assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: true, undone: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了（1 个失败）");
-assert.equal(summaryText(summarize([undone, ...parts], done), steps.summary, done, denial), "把这个选择记到公司 · 失败, 把这个选择记到公司 · 已拒绝");
+assert.equal(summaryText(summarize([undone, ...parts], done), steps.summary, done, denial), "保存为公司选择 · 失败, 保存为公司选择 · 已拒绝");
 // 问话去掉疑问的写法：中文「要…吗」，泰文句末 ไหม / หรือไม่，日文句末「か」（第 8 轮审查：只去问号时读着仍在问）
 assert.equal(askStem("要删除这些定时任务吗？"), "删除这些定时任务");
 assert.equal(askStem("บันทึกตัวเลือกนี้ให้บริษัทไหม"), "บันทึกตัวเลือกนี้ให้บริษัท");

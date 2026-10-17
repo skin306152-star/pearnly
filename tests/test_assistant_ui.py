@@ -1387,7 +1387,7 @@ export const LABELS = {
   done: { cowork_company_choice_save: "记下了公司选择", cowork_stock_group: "Checked the stock account group",
           cowork_company_note_save: "Saved a company note" },
   running: {},
-  ask: { cowork_company_choice_save: "把这个选择记到公司？", cowork_stock_group: "Change the inventory account group?",
+  ask: { cowork_company_choice_save: "保存为公司选择？", cowork_stock_group: "Change the inventory account group?",
          cowork_company_note_save: "Save this to the company's notes?" },
   ask_when: { cowork_company_note_save: { note: "Update this company note?" } },
   gate: { cowork_stock_group: ["acccod"] },
@@ -1535,7 +1535,7 @@ const failedRun = { text: "The tool failed. Try again later.", isError: true };
 const step = (extra: any) => renderToStaticMarkup(createElement(StepRow as any, {
   type: "tool-call", toolCallId: "t1", toolName: "cowork_company_choice_save", args: { choice: "A" }, argsText: "{}",
   status: { type: "complete" }, respondToApproval: () => {}, ...extra }));
-const ask = "把这个选择记到公司？";
+const ask = "保存为公司选择？";
 // 当场 == 重开：允许、拒绝、允许了却没存上
 for (const [live, reopened, want] of [
   [{ approval: { id: "t1", ask, approved: true }, result: saved }, { result: saved }, "允许"],
@@ -1557,7 +1557,7 @@ assert.match(step({ result: failedRun }), /允许 · <span class="cc-step-failed
 // 出卡片前就核出要拒绝的：不是卡片，照常是步骤组里的一行；写问话（去掉疑问）+ 行尾「失败」，不写做完的说法（第 8 轮审查，
 // 第 10 轮审查：重开对话时又写回了「记下了公司选择」）
 assert.equal(approvalCard({ toolName: "cowork_company_choice_save", args: {}, result: notAsked, status: { type: "complete" } }, LABELS), null);
-assert.equal(undoneText("cowork_company_choice_save", {}, notAsked, LABELS), "把这个选择记到公司");
+assert.equal(undoneText("cowork_company_choice_save", {}, notAsked, LABELS), "保存为公司选择");
 assert.equal(undoneText("cowork_company_choice_save", {}, saved, LABELS), undefined);
 assert.equal(undoneText("bash", {}, notSaved, LABELS), undefined);          // 不要允许的工具照常写步骤名
 let html = "";
@@ -1571,7 +1571,7 @@ assert.match(step({ approval: { id: "t1", ask, approved: true, sending: true } }
 for (const ended of [{ type: "complete" }, { type: "incomplete", reason: "cancelled" }]) {
   html = step({ status: ended });
   assert.match(html, /data-phase="cancelled"/);
-  assert.match(html, /<p class="cc-ask-q">把这个选择记到公司？<\/p><div data-slot="cc-ask-answer" class="cc-ask-answer">已取消<\/div>/);
+  assert.match(html, /<p class="cc-ask-q">保存为公司选择？<\/p><div data-slot="cc-ask-answer" class="cc-ask-answer">已取消<\/div>/);
   assert.doesNotMatch(html, /记下了公司选择|<button/);
 }
 // 等回答：问话正文色，下面两个按钮；电脑上在卡片里
@@ -1646,7 +1646,7 @@ g.answers = [];
 const tool = (id: string, extra: any = {}) => ({ type: "tool-call", toolCallId: id, toolName: "cowork_company_choice_save", args: {}, ...extra });
 g.snapshot = { sessionId: "sesn_1", messages: [
   { role: "assistant", content: [tool("t0", { approval: { id: "t0", approved: true } }),
-    tool("t1", { approval: { id: "t1", ask: "把这个选择记到公司？", preview: [{ field: "公司", before: "", after: "A" }], failure: "网络不通" } })] },
+    tool("t1", { approval: { id: "t1", ask: "保存为公司选择？", preview: [{ field: "公司", before: "", after: "A" }], failure: "网络不通" } })] },
   { role: "assistant", content: [tool("t2", { approval: { id: "t2", ask: "第二张？" } })] },
 ] };
 // 组件里的钩子在测试里都是普通函数（站点状态、控制器、手机判断换成了桩）：直接调用，拿到画出来的元素树
@@ -1661,7 +1661,7 @@ g.phone = true;
 const tree = ApprovalSheet() as any;
 assert.equal(tree.props["data-slot"], "cc-ask-sheet");
 assert.equal(tree.props.className, "cc-ask-sheet");
-assert.equal(tree.props["aria-label"], "把这个选择记到公司？");   // 最早一张还在等的
+assert.equal(tree.props["aria-label"], "保存为公司选择？");   // 最早一张还在等的
 const nodes = walk(tree);
 const btns = nodes.filter((n) => n.type === "button");
 assert.equal(btns.length, 2);
@@ -1670,7 +1670,7 @@ assert.equal(cross.props["aria-label"], "拒绝");
 assert.equal(cross.props["data-icon"], "");
 assert.equal(allow.props["data-primary"], "");
 assert.equal(allow.props.children, "允许");
-assert.ok(nodes.some((n) => n.props.className === "cc-ask-sheet-q" && n.props.children === "把这个选择记到公司？"));
+assert.ok(nodes.some((n) => n.props.className === "cc-ask-sheet-q" && n.props.children === "保存为公司选择？"));
 assert.ok(nodes.some((n) => n.props.preview?.[0]?.field === "公司"));   // 改动照常列
 assert.ok(nodes.some((n) => n.props.message === "网络不通"));            // 没送到的原因在按钮上方
 cross.props.onClick();

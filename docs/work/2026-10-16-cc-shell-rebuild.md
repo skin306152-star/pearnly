@@ -382,3 +382,8 @@
   - 组里手排：存在个人排列 order 里，每一组一项 `group:<公司编号>`（最近 `group:`），各组后写的为准；存对话编号的先后与存下时这组最新的那个时间（服务端给的时间）；新对话排最上面，分页后才取到的旧对话接在后面；选排序方式清掉；服务端分组列表第一页一并给手排列表里的对话（`sessions._ordered`，回 `ordered`），组里各组合起来按 16 KB 截（最早存下的先去掉）。
   - 提交：`f11cdf5d`（实现）；审查后的修正见下一次提交（拿起时不再临时插已置顶把整列推下去、没有落点时松手滑回原位、按组同步、第一页带回手排的对话、`at` 不用本机时钟、落点不因条数上限丢、键盘拖动滚动改 `auto`）。
   - 还缺：真实侧栏没在浏览器或测试机上点过（只有复刻页的无界面 Chrome 实测与源码、纯函数、服务端桩测试）；手机长按拖进置顶、多选整批拖动没有浏览器实测；服务端只跑了 frappe 桩测试。两处行为待用户定：手排过的组里收到提醒的对话不浮到组顶；取消置顶的旧对话回到手排列表后面（组里手排超过 5 条时要点「显示更多」才看得到）。
+- 10-17 第 10 轮文案（用户 10-17 同意：卡片「照 Claude」时同意点完后不再写「已允许 / 已拒绝」、改写所选那一项；文案闸门拦下的外壳新文案「照你的建议改」）。
+  - 卡片：删除 `allowed`「已允许」、`denied`「已拒绝」，点完那一行改写所选那一项（复用 `allow`「允许」/ `deny`「拒绝」），没做成时「允许 · 失败」；新增 `needsInput`「需要您的输入」（en Needs your input / th ต้องการข้อมูลจากคุณ）、手机点完的卡片标签 `question`「问题」。
+  - 公司页与月结台账（`frontend/assistant/src/i18n.ts`）：`chatWaiting`「等你处理」→「需要您的输入」（en Waiting for you → Needs your input，th รอคุณดำเนินการ → ต้องการข้อมูลจากคุณ）；`noChats`「还没有对话。」→「暂无对话」（en No chats yet. → No chats，th ยังไม่มีแชท → ไม่มีแชท）；`choice_needed`「要人选」→「待选择」；`not_pushed`「还没推送」→「未推送」（en Not pushed yet → Not pushed）；`readback_needed`「还没回读」→「未回读」；`partial`「单据较多，只统计了一部分」→「仅统计部分单据」（en Only some documents counted，th นับเพียงบางส่วน）；`severity.info` 英文 FYI → Info。
+  - Cowork 术语表（`apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv`，只改中文）：「把这个选择记到公司？」→「保存为公司选择？」（步骤行随之写「保存为公司选择」）；「删除这条公司选择？」→「删除公司选择？」；「这个值不在本月账套的主档里」→「该值不在本月账套主档中」；「这家公司（或这个分店）没有覆盖本月的账套」→「该公司或分店没有覆盖本月的账套」；「无法保存这条选择」→「无法保存此选择」。
+  - `Cowork Company Choice` 的说明收短为 "Push choices set for a client company or one of its branches"，与字段名 "Conversation" 一起进术语表（按客户公司或分店设的推送选择 / 对话）。

@@ -109,13 +109,13 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn('showPanel: "显示右侧栏",', i18n)
         self.assertIn('hidePanel: "隐藏右侧栏",', i18n)
         self.assertIn('reorder: "调整顺序",', i18n)
-        self.assertIn('noChats: "还没有对话。"', i18n)
+        self.assertIn('noChats: "暂无对话"', i18n)
         for words in ('notes: (n: number) => `${n} 条`', 'tasks: (n: number) => `${n} 个任务`', 'choices: (n: number) => `${n} 项`',
                       'docs: (n: number) => `${n} 张`', 'drafts: (n: number) => `${n} 份`', 'files: (n: number) => `${n} 个文件`',
                       'sets: (n: number) => `${n} 本`', 'toDo: (n: number) => `需处理 ${n}`',
                       'notes: (n: number) => (n === 1 ? "1 note" : `${n} notes`)'):
             self.assertIn(words, i18n)
-        self.assertIn('chatWaiting: "等你处理"', i18n)
+        self.assertIn('chatWaiting: "需要您的输入"', i18n)
 
 
 class PanelStylesSourceTests(unittest.TestCase):

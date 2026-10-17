@@ -191,7 +191,7 @@ const S = "sesn_gate_fail";
 site.echo = false;
 site.runs = { tz: "awaiting_approval" };
 const changes = [{ field: "公司", before: "", after: "A" }];
-site.toolReply = async () => ({ status: "awaiting_approval", ask: "把这个选择记到公司？", preview: changes });
+site.toolReply = async () => ({ status: "awaiting_approval", ask: "保存为公司选择？", preview: changes });
 let confirmFails = true;
 const base = g.respond;
 g.respond = async (method: string, args: any, body: any) => {
@@ -207,7 +207,7 @@ push(S, ev("tz", "agent.custom_tool_use", 3, { name: "cowork_company_choice_save
 push(S, ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } }));
 await g.sleep(20);
 const tz = () => c.getSnapshot().messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === "tz");
-assert.equal(tz().approval.ask, "把这个选择记到公司？");
+assert.equal(tz().approval.ask, "保存为公司选择？");
 c.respondToApproval("tz", true);
 assert.equal(tz().approval.approved, true);      // 点下去先按允许画（乐观）
 assert.equal(tz().approval.sending, true);       // 确认还没送到：点完那一行先淡一档
@@ -220,7 +220,7 @@ assert.equal(part.approval.approved, undefined);  // 没送到：不写成功，
 assert.equal(part.approval.sending, undefined);
 // 只写卡片上的原因：确认没送到不设连接出错，顶上不再同时出现「正在重新连接…」（第 10 轮审查）
 assert.equal(c.getSnapshot().transportError, null);
-assert.equal(part.approval.ask, "把这个选择记到公司？");
+assert.equal(part.approval.ask, "保存为公司选择？");
 assert.deepEqual(part.approval.preview, changes);
 assert.equal(part.approval.failure, t("somethingWrong"));
 assert.deepEqual(approvalCard(part, { ask: {} }), { phase: "ask" });
@@ -235,7 +235,7 @@ part = tz();
 assert.equal(part.approval.approved, true);
 assert.equal(part.approval.failure, undefined);
 assert.equal(part.approval.sending, undefined);   // 送到了：不再淡着
-assert.equal(part.approval.ask, "把这个选择记到公司？");
+assert.equal(part.approval.ask, "保存为公司选择？");
 """)
 
     def test_a_card_answered_elsewhere_settles_here_at_once(self):

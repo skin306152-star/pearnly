@@ -497,7 +497,7 @@ const COMPANY = {
     draftNotesText: "Draft a few notes for this company from its push records, saved choices and Express history",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
-    chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done", noChats: "No chats yet.",
+    chatRunning: "In progress", chatWaiting: "Needs your input", chatDone: "Done", noChats: "No chats",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
       sets: (n: number) => (n === 1 ? "1 account set" : `${n} account sets`),
@@ -521,11 +521,11 @@ const COMPANY = {
       title: "Month-end",
       stage: { intake: "Intake", entry: "Entry", verify: "Verify", tax: "Tax" } as Record<string, string>,
       state: { empty: "Nothing yet", open: "In progress", attention: "Needs attention", clear: "Done" } as Record<string, string>,
-      severity: { action: "To do", warn: "Check", info: "FYI" } as Record<string, string>,
+      severity: { action: "To do", warn: "Check", info: "Info" } as Record<string, string>,
       code: {
         choice_needed: "Needs a choice", result_unknown: "Result unknown", account_tax_mismatch: "Tax ID mismatch",
         account_period_mismatch: "Period mismatch", account_branch_mismatch: "Branch mismatch", push_manual: "Stopped",
-        push_failed: "Push failed", not_pushed: "Not pushed yet", duplicate_number: "Duplicate number",
+        push_failed: "Push failed", not_pushed: "Not pushed", duplicate_number: "Duplicate number",
         task_folder_missing: "Folder not found", intake_file_failed: "File failed", pos_layout_needed: "POS layout needed",
         not_invoice: "Not an invoice", express_changed: "Changed in Express", express_deleted: "Deleted in Express",
         express_voided: "Voided in Express", express_missing: "Not found in Express", express_direct: "Entered directly in Express",
@@ -541,7 +541,7 @@ const COMPANY = {
       reading: "Reading…",
       due: (day: string) => `Due ${day}`,
       openTask: "Open task",
-      partial: "Only part of this month's documents was counted",
+      partial: "Only some documents counted",
       moreItems: (n: number) => `${n} more not listed`,
       readbackText: (label: string, period: string) => `Check the Express readback for ${label}, ${period}`,
       duplicateText: (list: string) => `Check these documents with the same number: ${list}`,
@@ -573,7 +573,7 @@ const COMPANY = {
     draftNotesText: "按这家的推送记录、记住的选择和 Express 历史起草几条知识库",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
-    chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成", noChats: "还没有对话。",
+    chatRunning: "进行中", chatWaiting: "需要您的输入", chatDone: "已完成", noChats: "暂无对话",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
       sets: (n: number) => `${n} 本`,
@@ -599,13 +599,13 @@ const COMPANY = {
       state: { empty: "暂无", open: "进行中", attention: "有待办", clear: "已完成" } as Record<string, string>,
       severity: { action: "需处理", warn: "需留意", info: "知悉" } as Record<string, string>,
       code: {
-        choice_needed: "要人选", result_unknown: "结果不明", account_tax_mismatch: "税号不符",
+        choice_needed: "待选择", result_unknown: "结果不明", account_tax_mismatch: "税号不符",
         account_period_mismatch: "期间不符", account_branch_mismatch: "分店不符", push_manual: "已停下",
-        push_failed: "推送失败", not_pushed: "还没推送", duplicate_number: "单号重复",
+        push_failed: "推送失败", not_pushed: "未推送", duplicate_number: "单号重复",
         task_folder_missing: "找不到文件夹", intake_file_failed: "文件读取失败", pos_layout_needed: "需定 POS 版式",
         not_invoice: "不是发票", express_changed: "Express 已修改", express_deleted: "Express 已删除",
         express_voided: "Express 已作废", express_missing: "Express 中找不到", express_direct: "Express 直接录入",
-        readback_needed: "还没回读", tax_issue: "草稿有问题", tax_draft_stale: "草稿已过期",
+        readback_needed: "未回读", tax_issue: "草稿有问题", tax_draft_stale: "草稿已过期",
       } as Record<string, string>,
       docs: (n: number) => `${n} 张`,
       issues: (n: number) => `${n} 项`,
@@ -617,7 +617,7 @@ const COMPANY = {
       reading: "回读中…",
       due: (day: string) => `${day} 截止`,
       openTask: "打开任务",
-      partial: "单据较多，只统计了一部分",
+      partial: "仅统计部分单据",
       moreItems: (n: number) => `另有 ${n} 条未列出`,
       readbackText: (label: string, period: string) => `核对 ${label} ${period} 的 Express 回读`,
       duplicateText: (list: string) => `核对这几张同号单据：${list}`,
@@ -649,7 +649,7 @@ const COMPANY = {
     draftNotesText: "ร่างบันทึกของบริษัทนี้สักสองสามข้อจากประวัติการส่ง ตัวเลือกที่จำไว้ และประวัติ Express",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
-    chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว", noChats: "ยังไม่มีแชท",
+    chatRunning: "กำลังดำเนินการ", chatWaiting: "ต้องการข้อมูลจากคุณ", chatDone: "เสร็จแล้ว", noChats: "ไม่มีแชท",
     // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
     card: {
       sets: (n: number) => `${n} ชุด`,
@@ -693,7 +693,7 @@ const COMPANY = {
       reading: "กำลังอ่านกลับ…",
       due: (day: string) => `ครบกำหนด ${day}`,
       openTask: "เปิดงาน",
-      partial: "เอกสารมาก นับได้เพียงบางส่วน",
+      partial: "นับเพียงบางส่วน",
       moreItems: (n: number) => `อีก ${n} รายการที่ไม่ได้แสดง`,
       readbackText: (label: string, period: string) => `ตรวจผลอ่านกลับจาก Express ของ ${label} งวด ${period}`,
       duplicateText: (list: string) => `ตรวจเอกสารเลขที่ซ้ำเหล่านี้: ${list}`,

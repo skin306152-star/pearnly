@@ -2338,7 +2338,7 @@ class CompanyRuleTests(unittest.TestCase):
             choices.promote(self.company, self.sets, rows[0]["key"], "", "2026-09")  # 最新那条不能用：整条拒绝
 
     def test_malformed_choices_are_not_reported_as_values_outside_the_masters(self):
-        # 复审 5：形状不对（类别不认、归类键为空）不报「这个值不在本月账套的主档里」
+        # 复审 5：形状不对（类别不认、归类键为空）不报「该值不在本月账套主档中」
         for kind, subject in (("bogus", SUPPLIER), ("payment", "")):
             with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_unsupported"):
                 choices.save_rule(self.company, self.sets, kind, subject, "cash", "", "2026-09")

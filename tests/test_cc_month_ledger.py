@@ -62,7 +62,7 @@ class LedgerSourceTests(unittest.TestCase):
         # 同一张单在相邻的「待处理」卡里叫什么，这里就叫什么（服务端已有词条 cowork.company.pending.not_pushed）
         tsv = (COWORK / "i18n/messages.tsv").read_text(encoding="utf-8")
         self.assertIn("Not pushed yet\t还没推送\tยังไม่ได้ส่ง\t", tsv)
-        for words in ('not_pushed: "Not pushed yet"', 'not_pushed: "还没推送"', 'not_pushed: "ยังไม่ได้ส่ง"'):
+        for words in ('not_pushed: "Not pushed"', 'not_pushed: "未推送"', 'not_pushed: "ยังไม่ได้ส่ง"'):
             self.assertIn(words, i18n)
         # 泰文的「在 Express 里改了 / 删了 / 作废了」是被动（不是叫人去删）
         for words in ('express_changed: "ถูกแก้ไขใน Express"', 'express_deleted: "ถูกลบใน Express"', 'express_voided: "ถูกยกเลิกใน Express"'):
@@ -253,7 +253,7 @@ assert.equal(attentionCount(cut), 9);
 assert.equal(unlisted(cut), 10);
 assert.ok(text(html(cut)).join("|").includes("To do|7"));
 assert.deepEqual([...html(cut).matchAll(/data-slot="cc-month-note">([\s\S]*?)<\/div>/g)].map((m) => text(m[1]).join("")),
-  ["10 more not listed", "Only part of this month's documents was counted"]);
+  ["10 more not listed", "Only some documents counted"]);
 assert.equal(unlisted(month), 0);
 assert.ok(!page.includes("cc-month-note"));
 // 组标题是语义标题
@@ -382,7 +382,7 @@ assert.equal(zh[3], "已录 2/7 · 仅识别 2");
 assert.equal(zh[5], `Bee ${dayTime("2026-10-02T03:01:00Z")} 回读`);
 assert.ok(zh.includes("INV-7 · 2 张"));
 assert.ok(zh.includes("需处理") && zh.includes("需留意") && zh.includes("知悉"));
-assert.ok(zh.includes("要人选") && zh.includes("Express 中找不到"));
+assert.ok(zh.includes("待选择") && zh.includes("Express 中找不到"));
 """, lang="zh")
         self.run_page(r"""
 const th = text(html(month));
