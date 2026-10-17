@@ -4,13 +4,15 @@ A deployment is a live site. Delete the tenant so its site and database go away 
 A rejection needs a reason; the tenant will see it,拒绝时必须填写原因（租户可见）
 "A single top-up is capped at ฿500,000","单笔充值上限 ฿500,000"
 A wallet must belong to a tenant,钱包必须关联租户
+Account created in the Cowork account pool,Cowork 账号池中创建的账号
 Account information,账户信息
 Account opening is available only for configured cloud targets,仅可为已配置的云端目标开户
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.",账号 {0} 已存在于目标环境「{1}」，请邀请现有账号，不要重复发号
 Action,动作
-Action name the runner understands; see pearnly_control/provisioning.py,执行器支持的动作名称。
+Action name supported by the runner,执行器支持的动作名称。
 Admin Client ID,管理客户端 ID
 Admin Client Secret,管理客户端密钥
+Admin client secret is missing,缺少管理客户端密钥
 Amount (THB),金额（泰铢）
 Amount must be greater than 0,金额必须大于 0
 An adjustment cannot be 0,调账金额不能为 0
@@ -18,7 +20,6 @@ An adjustment must have a reason,调账必须填写原因
 An employee identity is used by another tenant; review it before deleting this tenant,有员工身份被其他租户使用，请先核对后再删除本租户
 Approve and credit,批准并入账
 Approve top-up,批准充值
-At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,开通时在租户站点创建并授予该角色。留空表示该功能无需权限控制（例如首页）。
 Back,返回
 Balance (THB),余额（泰铢）
 Balance After,变动后余额
@@ -38,14 +39,15 @@ CC Model,CC 模型
 "Cannot read the provisioning target, so the identity service URL is unknown",无法读取开户目标，身份服务地址未知
 Channel Access Token,频道访问令牌
 Channel ID,频道 ID
+Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.,仅填写 Channel ID 和 Channel secret（LINE Developers → Basic settings）；留空表示暂不配置。
 Channel Secret,频道密钥
 Choose a workspace,选择要进入的公司
 Client ID for Invitation Links,邀请链接用的客户端 ID
 "Client with only the password grant, used to verify the current password. Shared by all three products.",仅启用密码授权，用于校验当前密码。三个产品共用。
 Close,关闭
-Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,来自发号单。
-Comma separated. The role gets read/write on these DocTypes.,以逗号分隔。该角色将获得这些 DocType 的读写权限。
+Comma separated. The role gets read/write on these DocTypes.,以逗号分隔。该角色获得所列 DocType 的读写权限。
 Company Name,公司名称
+Company and Account,公司与账号
 Company name is required,公司名称必填
 Confirm credit,确认到账
 Confirm rejection,确认拒绝
@@ -71,20 +73,22 @@ Cowork Identity Subject,Cowork 账号标识
 Cowork Password-check Client ID,Cowork 改密校验客户端 ID
 Cowork Password-check Client Secret,Cowork 改密校验客户端密钥
 Cowork Realm,Cowork Realm
+Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot be issued on this target.,Cowork 站点使用该 realm 的账号登录。留空则此目标不能开通 Cowork。
 Create Request Hash,创建请求哈希
 Create the site,创建站点
 Create the tenant account,创建租户账号
 Created and kept correct by provisioning on the shared LINE Login channel.,由开通流程在共用 LINE Login 频道下自动创建并维护。
+Created on the tenant site and granted at provisioning. Leave empty for no permission control.,开通时在租户站点创建并授予该角色。留空表示不控制权限。
 Creating a channel requires both secret and access token,新建渠道必须同时给 secret 与 access token
 Creating a channel requires the channel secret and the Channel ID,新建频道须同时填写 Channel ID 与 Channel secret
 Credential Delivery,凭据交付方式
 Credentials,凭据
-"Credentials (stored only here, pushed to the tenant site at provisioning)",凭据（仅存于此处，开通时同步至租户站点）
 Credited ฿{0}; {1} now has ฿{2},已入账 ฿{0}，{1} 当前余额 ฿{2}
 Crediting…,入账中…
 Cycle End,本周期结束
 Cycle Start,本周期开始
 DMS is the one already proven; ERP and Cowork use the same API surface.,存量已跑通的是 DMS；ERP 与 Cowork 走同一套接口
+Date the page count was last reconciled with the ledger (Bangkok time),页数最后一次与流水核对的日期（曼谷时间）
 "Dear customer,",尊敬的用户，您好！
 Default On,常规开通
 Default Target,默认目标
@@ -117,14 +121,18 @@ Feature Code,功能代码
 Feature Name,功能名称
 Features,功能
 Fill in only if a LIFF app exists; otherwise leave empty.,仅在已有 LIFF 应用时填写。
-"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.",仅填写 Channel ID 和 Channel secret（LINE Developers → Basic settings）。访问令牌与 LIFF 应用由开通流程自动创建。留空可稍后配置。
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,填了就在本次开通里把这个租户自己的 LINE 渠道一起下发；留空则之后再配。
 Finalize the site,完成站点配置
 Finished At,结束时间
+For example acme,例如 acme
 For example http://keycloak.localhost:8105,例如 http://keycloak.localhost:8105
+For example pearnly-cowork,例如 pearnly-cowork
+"For example: Bangkok Hardware Co., Ltd.",例如：曼谷五金有限公司
 For example: local sample / production,例如：本地样板 / 生产
+For example: somchai,例如：somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。
 Forgot password ?,忘记密码 ?
+From the issue.,来自发号单。
 Get your work done in conversation,让工作在对话中完成
 Google or Claude. A change applies from the next document.,谷歌或 Claude，改了从下一份单据起生效。
 Grant feature roles,授予功能权限
@@ -174,6 +182,7 @@ LINE Setup Guide,LINE 开通手册
 LINE channel (optional),LINE 渠道（可选）
 LINE configuration is being applied. Try again shortly.,LINE 配置正在应用，请稍后再试。
 LINE credentials are required before activation.,启用前请先填写 LINE 凭据。
+Language,语言
 Last Updated,最近变动
 Leave empty to use the company name,留空则使用公司名称
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,无需填写。仅 2026-10-05 前开通的频道在此保存长期令牌。
@@ -183,6 +192,7 @@ Log in,登录
 Manual adjustment · {0},人工调账 · {0}
 Mark provisioning done,标记开通完成
 Matches the feature key in the product's own feature catalog (features.json).,须与产品功能目录（features.json）中的功能键一致。
+"Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)",按量计费页数所属月份（曼谷时间，YYYY-MM）
 Monthly Fee,月费
 No provisioning request yet; click “Run provisioning” to start,暂无开通请求。请点击「执行开通」。
 No such deployment: {0},部署不存在：{0}
@@ -197,12 +207,15 @@ Notes,备注
 OIDC Client ID,OIDC 客户端 ID
 OIDC Client Secret,OIDC 客户端密钥
 One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,每个部署（公司 × 产品）对应一个 LINE 频道，验签与消息发送均使用该频道的凭据。
-"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",每个部署使用独立的客户端。
+One client per deployment.,每个部署使用独立的客户端。
 Only a platform admin can handle top-ups and balances,仅平台管理员可处理充值与余额
 Open the LINE channel,打开 LINE 渠道
 Operations,运维
 Output,执行输出
 Over-rate (per page),超额单价（每张）
+Owner Email,所有者邮箱
+Owner Subject,所有者身份标识
+Owner Username,所有者用户名
 Pages,张数
 Pages Used This Month,本月已用张数
 Partly done {0}/{1},部分完成 {0}/{1}
@@ -210,6 +223,7 @@ Password,密码
 Password Delivered At,初始密码交付时间
 Password-check Client ID,改密校验客户端 ID
 Password-check Client Secret,改密校验客户端密钥
+Password-check client secret is missing,缺少密码校验客户端密钥
 Payload,参数
 Pearnly Credit Transaction,余额流水
 Pearnly Customer Support,Pearnly 客户服务团队
@@ -224,9 +238,12 @@ Please change your initial password promptly,请尽快修改初始密码
 "Prefix only, e.g. aerp",仅填写前缀，例如 aerp
 Privacy Policy,隐私政策
 Product App,产品 App
+Product app installed on this site,该站点安装的产品 App
 Product {0} is selected twice,产品 {0} 重复选择
 Products & Domains,产品与域名
+Products and Domains,产品与域名
 Proof,凭证
+Provisioned Items,开通清单
 Provisioning Credentials (stored only here),开户凭据（仅存于此处）
 Provisioning Progress,开通进度
 Provisioning Target,开户目标
@@ -240,7 +257,7 @@ Queueing the deletion…,正在排队删除…
 Quota,额度
 Quota per Cycle (pages),每周期额度（张）
 Realm,Realm
-Reason (the tenant will see it; required),原因（租户可见，必填）
+"Reason (visible to tenant, required)",原因（租户可见，必填）
 Received Amount,实收金额
 Received amount (as actually credited by the bank),实收金额（以银行到账为准）
 Recognition Engine,识别引擎
@@ -268,6 +285,7 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,第 {0}
 Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：LINE 渠道要同时填 channel secret 与 access token
 Run provisioning,执行开通
 Running,进行中
+Same as the deployment domain.,与部署域名相同。
 Select the CC engine.,请选择 CC 引擎。
 Service URL is required,服务地址必填
 Set up CC,配置 CC
@@ -285,7 +303,7 @@ Site Provisioning API,建站接口
 Site URL,站点地址
 Site name {0} is already taken by deployment {1},站点名 {0} 已被部署 {1} 占用
 Sites and databases,站点与数据库
-Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,同一产品的站点共用一个 Bench 进程。
+Sites of the same product share one Bench process.,同一产品的站点共用一个 Bench 进程。
 Skipped,已跳过
 Source,来源
 Started At,开始时间
@@ -309,14 +327,10 @@ The CC settings are being applied. Try again shortly.,CC 设置正在下发，�
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging API 频道的基本 ID（@xxx），用于识别与排查
 "The URL to paste into the LINE console, derived from the deployment domain.",填写到 LINE 后台的地址，根据部署域名生成。
 The address this tenant is reached at.,这个租户的访问地址
-The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),缺少管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）
 The balance could not be read; this is not 'insufficient balance',无法读取余额
 The billing reference was already used for another request,该计费参考号已被其他请求使用
-"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",与部署域名相同。
-The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,身份服务使用该客户端生成邀请邮件中的链接。
+The identity service builds the invitation email link from this client.,身份服务使用该客户端生成邀请邮件中的链接。
 The last issue attempt failed; set it back to draft before issuing again,上次发号失败，请先将状态改回 draft 后再发号
-The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),缺少密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
-The product app installed on this site; pearnly_core is shared by every product.,该站点安装的产品 App，另有所有产品共用的 pearnly_core
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。留空则仅发号，不建站。
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",开户目标 {0} 未配置 LINE Login 频道，无法创建 LIFF 应用
 The received amount must be greater than 0,实收金额必须大于 0
@@ -334,7 +348,7 @@ This removes everything about this tenant. It cannot be undone.,将删除该租�
 This request has already been handled (currently: {0}),该申请已处理（当前状态：{0}）
 This tenant no longer exists.,该租户不存在。
 This top-up request was already reviewed; it cannot be handled twice,该充值申请已审核，不能重复处理
-Ticked means this feature is on by default; unticked ones are add-ons (for example CC Desktop).,勾选表示默认开通；未勾选表示需单独购买（如 CC 桌面版）。
+Ticked: on by default. Unticked: add-on.,勾选表示默认开通，未勾选表示单独购买
 Top-up Review,充值审核
 Top-up approved · request {0},充值审核通过 · 申请 {0}
 Transfer Slip,转账凭证
@@ -346,9 +360,8 @@ Usage Checked,用量核对日期
 Usage Month,用量月份
 Used This Cycle (pages),本周期已用（张）
 Used to send messages (long-lived).,用于发送消息（长期令牌）。
-"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",用于 Webhook 验签。**每个租户独立配置**。
 Username,用户名
-Username and initial password are both required: they are the credentials for the user's first sign-in,用户名和初始密码为必填项
+Username and initial password are required,用户名和初始密码为必填项
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30
 Username or email,用户名或邮箱
 View progress,查看进度
@@ -363,7 +376,12 @@ Welcome to,欢迎使用
 Welcome to {0} — your account is ready,欢迎使用 {0}，您的账户已开通
 Your access domain,您的访问域名
 Your account is ready,已成功开通
-grant only handles money in (topup / adjustment); use charge() for deductions,grant 仅处理入账（topup / adjustment）；扣费请使用 charge()
+issue.placeholder.company,例如：曼谷五金有限公司
+issue.placeholder.prefix,例如 acme
+issue.placeholder.username,例如：somchai
+issue.section.account,公司与账号
+issue.section.products,产品与域名
+issue.section.result,开通清单
 "{0} in-plan scan ({1} pages, within quota)",{0} 套餐内扫描（{1} 张，额度内）
 {0} out-of-plan scan ({1} over quota),{0} 套餐外扫描（超额 {1} 张）
 {0} — {1} features,{0} — {1} 项

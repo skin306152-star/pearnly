@@ -89,7 +89,7 @@ function reject(frm) {
 			{
 				fieldtype: "Small Text",
 				fieldname: "note",
-				label: __("Reason (the tenant will see it; required)"),
+				label: __("Reason (visible to tenant, required)"),
 				reqd: 1,
 			},
 		],

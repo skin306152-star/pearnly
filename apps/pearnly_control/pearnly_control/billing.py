@@ -173,7 +173,8 @@ def grant(tenant: str, amount_thb, *, txn_type: str = "topup", description: str 
     直接 UPDATE 余额而不落台账，钱账就对不上（老产品铁律：钱写入必须同时落两处）。
     """
     if txn_type not in ("topup", "adjustment"):
-        frappe.throw(_("grant only handles money in (topup / adjustment); use charge() for deductions"))
+        # 调用方用错函数才会走到这里：程序内部断言，不是界面文案
+        raise ValueError("grant only handles money in (topup / adjustment); use charge() for deductions")
     amt = _money(amount_thb)
     if amt <= 0:
         frappe.throw(_("Amount must be greater than 0"))

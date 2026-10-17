@@ -107,7 +107,7 @@ def issue(
     account_username = (account_username or "").strip()
     account_password = (account_password or "").strip()
     if not account_username or not account_password:
-        frappe.throw(_("Username and initial password are both required: they are the credentials for the user's first sign-in"))
+        frappe.throw(_("Username and initial password are required"))
     # 开通的功能 = 所选产品的全集。控制面自己算，调用方无从勾选。
     selected_products = [row.get("app") for row in apps if row.get("app")]
     for product in selected_products:

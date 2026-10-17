@@ -248,7 +248,7 @@ PAGE_HTML = """<!doctype html>
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+    <nav class="langs" aria-label="{{ _("Language") }}">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
   </header>
   <section class="hero">
     {% if mode == "pick" %}

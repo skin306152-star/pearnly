@@ -99,7 +99,7 @@
    "fieldname": "section_cowork_pool",
    "fieldtype": "Section Break",
    "label": "Cowork Account Pool",
-   "description": "Cowork sites sign in with their own accounts in this realm, separate from ERP and DMS. Leave empty and Cowork cannot be issued on this target."
+   "description": "Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot be issued on this target."
   },
   {
    "fieldname": "cowork_realm",
@@ -169,7 +169,7 @@
    "fieldname": "invite_client_id",
    "fieldtype": "Data",
    "label": "Client ID for Invitation Links",
-   "description": "The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client."
+   "description": "The identity service builds the invitation email link from this client."
   },
   {
    "fieldname": "notes",
@@ -179,7 +179,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-26 18:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Target",

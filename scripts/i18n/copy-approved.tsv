@@ -56,3 +56,10 @@ pearnly_core:Used to connect, check duplicates, create and rewrite customer reco
 pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.	zh	DMS 建单默认值（JSON）：车型、颜色、分店、团队、交车天数、指定顾问 advisor_id；指定顾问优先于自动匹配。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_core:Site is missing setting: {0}	zh	站点缺少配置项：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_core:Could not acquire the lock: {0}	zh	获取锁失败：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Comma separated. The role gets read/write on these DocTypes.	zh	以逗号分隔。该角色获得所列 DocType 的读写权限。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Product app installed on this site	zh	该站点安装的产品 App	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Ticked: on by default. Unticked: add-on.	zh	勾选表示默认开通，未勾选表示单独购买	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Created on the tenant site and granted at provisioning. Leave empty for no permission control.	zh	开通时在租户站点创建并授予该角色。留空表示不控制权限。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Admin client secret is missing	zh	缺少管理客户端密钥	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Password-check client secret is missing	zh	缺少密码校验客户端密钥	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.	zh	仅填写 Channel ID 和 Channel secret（LINE Developers → Basic settings）；留空表示暂不配置。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
