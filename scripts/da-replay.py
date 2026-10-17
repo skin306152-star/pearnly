@@ -15,7 +15,11 @@
   时间线并排。
 - ``gate`` 识别闸层：只用有真识别结果的件（金标 215 份，当前生产读法 3.8），过第 2 条识别侧与原文核对之后，字段仍错的比例，按票种
   （文字层 PDF / 图片）分开；对照的是独立金标（原件上印的）。
-- ``report``：合并两层出 ``报表.md`` 与 ``明细.tsv``（明细带单据级信息，只放测试机，不进仓库）。
+- ``report``：合并两层出 ``报表.md`` 与 ``明细.tsv``（明细带单据级信息，只放测试机，不进仓库）。``明细.tsv`` 的列见
+  ``DETAIL_COLUMNS``：旧的 15 列（层、公司、账套、单号、方向、期间、录入日、类别、原因、要选、计分、全对、估上传日、来源、
+  类别（估上传日））顺序不变，10-18 起在后面追加 ``memory_cap_lost``（证据窗口两道上限挤掉的记忆项）、``book_pick``（按日期选账套
+  的情形）、``book_candidates``（多份同期的候选）、``book_choice``（多份同期时各挑法选了哪份，JSON）、``posting_history`` /
+  ``posting_history_manual``（入账方式凭供应商 Express 存货历史的档与记法，上 / 下界），取值见 `detail_extra`。
 
 用法（测试机 WSL）::
 
@@ -1651,14 +1655,16 @@ def _last_before(days: Sequence[dt.date], day: dt.date) -> Optional[dt.date]:
 
 
 def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, Any]],
-             strategies: Sequence[str] = TIEBREAKS, reask: str = "written") -> Dict[str, Dict[str, int]]:
+             strategies: Sequence[str] = TIEBREAKS, reask: str = "written",
+             picks: Optional[Dict[int, Dict[str, Any]]] = None) -> Dict[str, Dict[str, int]]:
     """一家公司的判定行（`judge_company` 的顺序，即录入日顺序）里按日期选出多份账套（``book_pick == many``）的单，各口径会挑
     哪份。只拿只在一份账套里有的单（``unique``）与答案账套（这张单所在的那份）比：``right`` 选对、``wrong`` 选错、``stopped``
     仍停（ask_once 问人那张也算停，``asked`` 另计；问到几份都有的单不记选择、下一张再问）；``shared`` 几份都有、答案账套
     不唯一的不计分；``freed`` 选对且 C 类原因只剩 ``book_many`` 的（挑对就不再是 C）。recent_push 各挑法各记各的「最近推进去的
     那份」：挑法选了哪份就记哪份（选错了之后也跟着错），停下由人推的记答案账套（审查处理 10-17：原先一律记答案账套，等于每张都
     自动纠正，偏乐观）。ask_once 按 ``reask``（`REASKS`）重问：记住的回答因未被选中的那份有了更晚的录入作废、这张停下再问的另记
-    ``reasked``（也算进 ``asked``）。"""
+    ``reasked``（也算进 ``asked``）。给了 ``picks`` 时逐张记下各挑法选了哪份（``{行号: {挑法: 规范账套键，停下为空串}}``，ask_once
+    重问的另带 ``reasked: True``），`明细.tsv` 的 ``book_choice`` 列。"""
     if reask not in REASKS:
         raise ValueError(f"unknown reask {reask}")
     policy = m["document_policy"]
@@ -1705,6 +1711,8 @@ def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, 
                             and policy.current_book_newer(seen_at[combo], marks(candidates, entered), choice)):
                         choice = None  # 回答之后没被选中的那份有了更晚的录入：当没选过，这张停下再问
                         out[name]["reasked"] += 1
+                        if picks is not None:
+                            picks.setdefault(index, {})["reasked"] = True
                     if choice is None:
                         out[name]["asked"] += 1
                         if own in candidates and row.get("unique"):
@@ -1712,6 +1720,8 @@ def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, 
                             # 下一张再问
                             asked[combo] = own
                             seen_at[combo] = marks(candidates, entered)
+                if picks is not None:
+                    picks.setdefault(index, {})[name] = choice or ""
                 counter = out[name]
                 if not row.get("unique"):
                     counter["shared"] += 1
@@ -2206,10 +2216,15 @@ def cmd_judge(args) -> int:
         base = m["automation_rules"].THRESHOLDS
         tiers = {name: timeline(m, judged, value or base) for name, value in THRESHOLD_SETS.items()}
         tiers["A_task"] = timeline(m, judged, base, trigger="task")
+        # 两份同期时各挑法逐张选了哪份（`明细.tsv` 的 book_choice，10-18）
+        picks: Dict[int, Dict[str, Any]] = {}
+        ties = tiebreak(m, judged, books, strategies, reask=args.reask, picks=picks)
+        for index, found in picks.items():
+            judged[index]["book_choice"] = found
         # 一家一个文件（可以分两三路并行跑），`report` 合并；期间口径与选账套模拟一并记下
         _write_json(out / "judge" / f"{company.replace('/', '_')}.json",
                     {"rows": judged, "skipped": {company: dict(why)}, "tiers": {company: tiers},
-                     "tiebreak": {company: tiebreak(m, judged, books, strategies, reask=args.reask)},
+                     "tiebreak": {company: ties},
                      # ask_once 的重问信号（用户 10-18，`REASKS`；默认 written 同线上）
                      "reask": args.reask,
                      "origins": {company: dict(collections.Counter(book["period_origin"] for book in books))},
@@ -2389,8 +2404,10 @@ def goods_summary(rows: Sequence[Mapping[str, Any]], choices: Mapping[str, Mappi
       着落）/ named（定成记费用却有库存行或与库存品同名）/ keyed（判据成立但对方没有 13 位税号、历史按名字对上，线上封顶 B）/
       B（没定下）/ conflict（相反，线上交人）各几张（no_lines、items、named、keyed 线上不给 A）；A 里入账方式
       计分错的（``A_wrong``，按 ``scored["posting"]``，同报表计分口径）；现在只因入账方式是 B、会升 A 的（``extra_A``，其中整张推错
-      ``extra_A_wrong``、入账方式本身判错 ``extra_A_posting_wrong``）；相反会多出的 C（``conflict_C``，其中真拦住了入账方式错的
-      ``conflict_caught``）。``history_manual`` 同上，只是把之前判成 A / B 的单当 CC 推的剔掉（不含 CC 推的下界；``history`` 是
+      ``extra_A_wrong``、入账方式本身判错 ``extra_A_posting_wrong``）；相反的单里公司选的入账方式确实错（能计分、历史是对的那种）的
+      ``conflict_caught``——对**全部**相反的单计数，不论原本是 A / B 还是已经是 C，不是 ``conflict_C`` 的子集；相反改交人会多出的 C
+      ``conflict_C``（原本 A / B 的），其中公司选的确实错的 ``conflict_C_caught``（10-18 补，真拦住的才是它）。``history_manual``
+      同上，只是把之前判成 A / B 的单当 CC 推的剔掉（不含 CC 推的下界；``history`` 是
       上界）。``--lines none`` 那两遍票面没有明细，定成走库存的都落 no_lines，只看 answer 两遍的 ``extra_A``（审查处理 10-17）。
       按家另列一份。"""
     chosen = [row for row in rows if row.get("posting_from") == "company_choice"]
@@ -2413,6 +2430,7 @@ def goods_summary(rows: Sequence[Mapping[str, Any]], choices: Mapping[str, Mappi
             elif tier == "conflict":
                 found["conflict_C"] += int(row["class"] in ("A", "B"))
                 found["conflict_caught"] += int(wrong)
+                found["conflict_C_caught"] += int(wrong and row["class"] in ("A", "B"))
         return dict(found)
 
     companies = {}
@@ -2685,8 +2703,9 @@ def _render_goods(s: Mapping[str, Any]) -> List[str]:
              f"{history.get('no_lines', 0)}（不造明细的那两遍都落这里）、存货没着落 {history.get('items', 0)}、定成记费用却有库存行"
              f"或与库存品同名 {history.get('named', 0)}（这三种线上不给 A）、没定下 {history.get('B', 0)}、相反 "
              f"{history.get('conflict', 0)}；现在只因入账方式是 B、会升 A 的 {history.get('extra_A', 0)} 张（整张推错 "
-             f"{history.get('extra_A_wrong', 0)}、入账方式本身判错 {history.get('extra_A_posting_wrong', 0)}）；相反改交人会多出 C "
-             f"{history.get('conflict_C', 0)} 张（其中真拦住入账方式错的 {history.get('conflict_caught', 0)}）。这是上界：回放里"
+             f"{history.get('extra_A_wrong', 0)}、入账方式本身判错 {history.get('extra_A_posting_wrong', 0)}）；相反的单里公司选的"
+             f"入账方式确实错、历史是对的 {history.get('conflict_caught', 0)} 张（全部相反的单里数，不论原本是哪类）；相反改交人会多出 C "
+             f"{history.get('conflict_C', 0)} 张（原本 A / B 的，其中真拦住入账方式错的 {history.get('conflict_C_caught', 0)}）。这是上界：回放里"
              "能被自动推的单线上会是 CC 写的、不进历史；把之前判成 A / B 的单都当 CC 推的剔掉（下界）时会升 A 的 "
              f"{manual.get('extra_A', 0)} 张（整张推错 {manual.get('extra_A_wrong', 0)}）、相反 {manual.get('conflict', 0)}。", "",
              "| 公司 | 选的 | 凭 | 此前多数 | 全期多数 | 张数 | 答案走库存 | 只有非库存明细 | 与选的不同 | 与全期多数不同 | 历史 A / 错 | "
@@ -2864,6 +2883,39 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
     return "\n".join(lines) + "\n"
 
 
+# `明细.tsv` 的列（旧列顺序不变；10-18 起在后面追加 `DETAIL_EXTRA`，按列名读的分析脚本不受影响；识别闸的行这几列为空）
+DETAIL_COLUMNS = ["层", "公司", "账套", "单号", "方向", "期间", "录入日", "类别", "原因", "要选", "计分", "全对",
+                  "估上传日", "来源", "类别（估上传日）"]
+DETAIL_EXTRA = ["memory_cap_lost", "book_pick", "book_candidates", "book_choice", "posting_history", "posting_history_manual"]
+DETAIL_COLUMNS += DETAIL_EXTRA
+
+
+def _posting_cell(tier: Any, kind: Any) -> str:
+    """``posting_history`` 列：档（`history_tier`）加「:」和存货历史定下的记法（有的话）；不是按公司选入账方式的单为空。"""
+    return f"{tier}:{kind}" if tier and kind else str(tier or "")
+
+
+def detail_extra(row: Mapping[str, Any]) -> List[str]:
+    """判定行在 `DETAIL_EXTRA` 几列的取值（10-18，回放记录第五轮「还差在哪」第 5 条）：
+
+    - ``memory_cap_lost``：账套记忆定的哪几类只因证据窗口往回看的两道上限（`--recent-max` 张推送、`--recent-periods` 个税期）
+      没到 A（都不设上限会到），``account`` / ``payment`` / ``party`` 逗号隔开，没有为空；
+    - ``book_pick``：按日期选账套的情形（`book_pick`：``self`` 正好是这份 / ``many`` 多份同期 / ``none`` 选不出 / ``other`` 另一份）；
+    - ``book_candidates``：``many`` 时的候选（规范账套键，``|`` 隔开），否则为空；
+    - ``book_choice``：``many`` 时各挑法选了哪份（JSON：``{挑法: 规范账套键，停下为空串}``，ask_once 因未被选中的那份有了更晚的
+      录入作废、停下再问的另带 ``"reasked": true``，`tiebreak`），否则为空；
+    - ``posting_history`` / ``posting_history_manual``：按公司选入账方式的单加上供应商 Express 存货历史这一层的档
+      （`history_tier`：A 一致 / conflict 相反 / no_lines / items / named / keyed / B 没定下），后接「:」和历史定下的记法
+      （``stock`` / ``service``，没定下就只有档）；前者是上界（历史里不剔 CC 推的），后者把之前判成 A / B 的单当 CC 推的剔掉（下界）；
+      不是按公司选的单为空。"""
+    choice = row.get("book_choice")
+    return [",".join(row.get("memory_cap_lost") or ()), str(row.get("book_pick") or ""),
+            "|".join(row.get("many_keys") or ()) if row.get("book_pick") == "many" else "",
+            json.dumps(choice, ensure_ascii=False, sort_keys=True) if choice else "",
+            _posting_cell(row.get("posting_tier_if_history"), row.get("posting_history")),
+            _posting_cell(row.get("posting_tier_if_history_manual"), row.get("posting_history_manual"))]
+
+
 def cmd_report(args) -> int:
     out = refuse_lan(args.out)
     judge = load_judge(out)
@@ -2876,18 +2928,18 @@ def cmd_report(args) -> int:
     if judge:
         with open(out / "明细.tsv", "w", encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle, delimiter="\t")
-            writer.writerow(["层", "公司", "账套", "单号", "方向", "期间", "录入日", "类别", "原因", "要选", "计分", "全对",
-                             "估上传日", "来源", "类别（估上传日）"])
+            writer.writerow(DETAIL_COLUMNS)
             for row in judge["rows"]:
                 writer.writerow(["判定", row["company"], row["book"], row["docnum"], row["direction"], row["period"],
                                  row["entered"], row["class"], ",".join(row["reasons"]), ",".join(row["needed"]),
                                  json.dumps(row["scored"], ensure_ascii=False), int(row["correct"]),
                                  row.get("uploaded_alt") or "", row.get("uploaded_src") or "",
-                                 row.get("class_alt") or ""])
+                                 row.get("class_alt") or "", *detail_extra(row)])
             for row in (gate or {}).get("rows") or []:
                 writer.writerow(["识别闸", row["company"], row["form"], row["id"], row["direction"], "", "",
                                  "过闸" if row["passed"] else "拦下", ",".join(row["reasons"]), "",
-                                 json.dumps(row["result"], ensure_ascii=False), int(not row["wrong"]), "", "", ""])
+                                 json.dumps(row["result"], ensure_ascii=False), int(not row["wrong"]), "", "", "",
+                                 *[""] * len(DETAIL_EXTRA)])
     print((out / "报表.md").read_text(encoding="utf-8"))
     return 0
 

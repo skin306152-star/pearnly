@@ -313,7 +313,7 @@ estimated、d4compat 的 ask_once 是 5,370 / 5,986 / 244（46.29%），问 110,
 - **历史与公司选的相反**（线上改交人）15,575 张，几乎都在选走库存的公司（ASIA SPORT 6,077、BakeLab 3,670、SINCERE 2,563、GIZE 1,576、SPP 890、NEWLINK 468）。
   多数本来就 C：answer-stkdes 多出的 C 只有 295 张（下界 `history_manual` 553），能计分且公司选的确实错、历史对的 7,727 张；answer-opaque 是 186 / 7,729
   （两遍 `judge.goods.history.conflict_C`、`conflict_caught`）。两遍 `报表.md` 第 150 行写成「多出 C 295 张（其中真拦住入账方式错的 7727）」（opaque 是 186 / 7729）不对：
-  源码 `conflict_caught` 是对全部相反行计数，不是多出 C 那几百张的子集，别照抄。
+  源码 `conflict_caught` 是对全部相反行计数，不是多出 C 那几百张的子集，别照抄（10-18 报表说法已改正、另加子集 `conflict_C_caught`，见「回放工具修正（10-18）」）。
 - 历史与公司选一致、入账方式仍判错 902 张（answer-stkdes），其中 BPSIAM 741（它的 history A 1,049）；基本是 C，只有 5 张会升 A。原因（供应商改了记法，还是走库存口径不同）未查证。
 - **造明细后**（answer 两遍）B 减少、C 增加：存货第一次见要人选，`needed` 比 strict 多 22,989（stkdes）/ 43,963（opaque）。载荷明细过对账闸：stkdes ok 341,771、
   empty 3,683、mismatch 156、incomplete 10；opaque ok 327,882、empty 3,683、mismatch 163。A / B 里存货计分错（stkdes，`judge.item_errors`）：进项 9,386 张错 3,748，销项 32,123 张错 6,879。
@@ -390,6 +390,7 @@ estimated、d4compat 的 ask_once 是 5,370 / 5,986 / 244（46.29%），问 110,
 3. **商品单凭历史升 A 用 HEAD（`d517a111`）的 `da-replay.py` 重跑 answer 两遍**，拿扣掉 items / named / keyed 之后的线上口径数，替换本轮的 4,158 / 3,748 与合并估计 88.7% / 88.6%。
 4. **录入晚按「录入日与 ภ.พ.30 截止日取早」的口径单独复核**：152,190 张里 93% 落在成批录入的日子，估法只剩 5,682 张（成批录入是导入或重建、现口径偏悲观，都是推断）。
 5. 回放工具：answer-stkdes / answer-opaque `报表.md` 第 150 行 `conflict_caught` 的说法改正；`明细.tsv` 补逐张的 `memory_cap_lost`、`book_pick`、`posting_history`（及两份同期的候选账套），下一轮才能逐张拆。
+   **10-18 已施工**，见下「回放工具修正（10-18）」；本节以上的数没重跑，不变。
 
 要用户定：
 
@@ -400,6 +401,25 @@ estimated、d4compat 的 ask_once 是 5,370 / 5,986 / 244（46.29%），问 110,
   里录进另一份的看不到。回放 `--reask written`（默认，同线上）/ `entered`（对照：Express 录入日，量桌面版若报录入标记能多选对多少）/ `off`（原 ask_once）。
   推断：BakeLab 这种两份都覆盖同一年、单子全是「两份同期」的，written 下另一份不会有经 Pearnly 的新录入，结果应与 off 相同，entered 才会动；
   要甲骨文重跑 strict 三遍（written / entered / off）才有数，没跑。
+
+### 回放工具修正（10-18）
+
+- **`conflict_caught` 的说法**：源码对**全部**历史与公司选相反的单数「公司选的入账方式确实错（能计分、历史是对的）」，不论原本是 A / B
+  还是已经是 C，不是「相反改交人多出的 C」的子集。报表改成「相反的单里公司选的入账方式确实错、历史是对的 N 张（全部相反的单里数，不论原本是哪类）；
+  相反改交人会多出 C M 张（原本 A / B 的，其中真拦住入账方式错的 K）」，`judge.goods.history` 另加 `conflict_C_caught`（K，多出 C 的子集）。
+  第五轮 answer 两遍 `报表.md` 第 150 行的「其中真拦住入账方式错的 7727 / 7729」是旧说法，那两个数是 `conflict_caught`，要拿 K 得重跑。
+- **`明细.tsv` 追加的列**（旧的 15 列顺序不变，追加在后面，按列名读的分析脚本不受影响；识别闸的行这几列为空；取值见 `da-replay.py` 的 `detail_extra`）：
+
+  | 列 | 取值 |
+  |---|---|
+  | `memory_cap_lost` | 账套记忆定的哪几类只因证据窗口两道上限（`--recent-max` 张推送、`--recent-periods` 个税期）没到 A：`account` / `payment` / `party` 逗号隔开，没有为空 |
+  | `book_pick` | 按日期选账套的情形：`self` 正好是这份 / `many` 多份同期 / `none` 选不出 / `other` 另一份 |
+  | `book_candidates` | `many` 时的候选（规范账套键，`\|` 隔开），否则为空 |
+  | `book_choice` | `many` 时各挑法选了哪份：JSON `{挑法: 规范账套键，停下为空串}`（none / recent_entry / recent_push / ask_once；ask_once 因未被选中的那份有了更晚的录入停下再问的另带 `"reasked": true`），否则为空 |
+  | `posting_history` | 按公司选入账方式的单加上供应商 Express 存货历史这一层的档（A 一致 / conflict 相反 / no_lines / items / named / keyed / B 没定下），后接 `:stock` / `:service`（历史定下的记法，没定下只有档）；上界（历史里不剔 CC 推的）；不是按公司选的单为空 |
+  | `posting_history_manual` | 同上，下界（把之前判成 A / B 的单当 CC 推的剔掉） |
+
+- 测试：`test_da_replay` 跑一个两份同年的小合成样本（judge + report），核新列在、旧列顺序不变、多份同期的行有候选与各挑法的选择；`conflict` 各计数的含义与报表说法。
 
 ### 改取法（10-17）
 

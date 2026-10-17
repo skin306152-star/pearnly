@@ -15,6 +15,7 @@
 纯标准库，不连库、不依赖 Frappe。
 """
 import contextlib
+import csv
 import datetime as dt
 import importlib.util
 import io
@@ -629,6 +630,22 @@ class GoodsAndUpload(unittest.TestCase):
             replay.summarize_judge({"rows": list(answer.values()), "skipped": {}, "tiers": {}, "goods_posting": choices,
                                     "lines": ["answer:opaque"]}))))
 
+    def test_conflict_counts_say_what_they_count(self):
+        """回放工具 10-18（第五轮「商品单与入账方式」）：``conflict_caught`` 对全部相反的单数「公司选的确实错」，不是多出 C 的子集；
+        多出的 C（原本 A / B）里真拦住的另记 ``conflict_C_caught``，报表照这个说。"""
+        def row(cls, posting):
+            return {"company": "G", "posting_from": "company_choice", "posting_tier_if_history": "conflict", "class": cls,
+                    "reasons": [], "scored": {"posting": posting}}
+
+        rows = [row("A", "wrong"), row("B", "ok"), row("C", "wrong"), row("C", "wrong"), row("C", "n/a")]
+        history = replay.goods_summary(rows, {})["history"]
+        self.assertEqual((history["conflict"], history["conflict_caught"], history["conflict_C"], history["conflict_C_caught"]),
+                         (5, 3, 2, 1))
+        text = "\n".join(replay._render_goods({"goods": replay.goods_summary(rows, {}), "lines": ["answer:stkdes"]}))
+        self.assertIn("公司选的入账方式确实错、历史是对的 3 张（全部相反的单里数，不论原本是哪类）", text)
+        self.assertIn("会多出 C 2 张（原本 A / B 的，其中真拦住入账方式错的 1）", text)
+        self.assertNotIn("多出 C 2 张（其中真拦住入账方式错的 3）", text)
+
     def test_company_posting_follows_the_majority_entered_before(self):
         """替公司选入账方式（10-17 主口径）：第一次交人那一刻之前、会因入账方式交人的单里的多数，不看以后；不到 `PRIOR_MIN` 张
         退到全期多数（审查处理 10-17）；全期多数另作对照。X1（别家）、G01 是服务，G02 起都走库存：此前多数是服务、全期多数是库存。"""
@@ -715,7 +732,7 @@ class GoodsAndUpload(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             replay.main(["report", "--out", str(out)])
         header = (out / "明细.tsv").read_text(encoding="utf-8").splitlines()[0].split("\t")
-        self.assertEqual(header[-3:], ["估上传日", "来源", "类别（估上传日）"])
+        self.assertEqual(header[12:15], ["估上传日", "来源", "类别（估上传日）"])  # 10-18 起后面另有追加的列
         self.assertIn("录入晚 60 天", (out / "报表.md").read_text(encoding="utf-8"))
         self.assertIn("商品单（按公司选入账方式的单）", (out / "报表.md").read_text(encoding="utf-8"))
 
@@ -1041,6 +1058,55 @@ class Periods(unittest.TestCase):
         text = "\n".join(replay._render_books(summary))
         self.assertIn("| ask_once | 1 | 1 | 2 | 2 | 25.00% | 1 | 1 |", text)
         self.assertIn("期间口径 strict", text)
+
+    def test_detail_rows_carry_the_new_per_document_columns(self):
+        """回放工具 10-18（第五轮「还差在哪」第 5 条）：小合成样本（SINCERE 那种两份同年）跑 judge + report，`明细.tsv` 旧的
+        15 列顺序不变，后面追加 memory_cap_lost / book_pick / book_candidates / book_choice / posting_history /
+        posting_history_manual；两份同期的行有候选与各挑法的选择，其余行这几列为空或是情形；summary 记下 reask 开关。"""
+        m = replay._modules()
+        corpus = self.root / "corpus"
+        answers = corpus / "有答案" / f"ACME_{OWN}" / "答案"
+        answers.mkdir(parents=True)
+        old, new = self.books(m)
+        for name in ("68ACME", "69ACME"):
+            (self.root / name).rename(answers / name)
+        out = self.root / "out"
+        with contextlib.redirect_stdout(io.StringIO()):
+            replay.main(["judge", "--corpus", str(corpus), "--out", str(out)])
+            replay.main(["report", "--out", str(out)])
+        with open(out / "明细.tsv", encoding="utf-8", newline="") as handle:
+            reader = csv.reader(handle, delimiter="\t")
+            header = next(reader)
+            rows = [dict(zip(header, line)) for line in reader]
+        self.assertEqual(header[:15], ["层", "公司", "账套", "单号", "方向", "期间", "录入日", "类别", "原因", "要选", "计分",
+                                       "全对", "估上传日", "来源", "类别（估上传日）"])
+        self.assertEqual(header[15:], ["memory_cap_lost", "book_pick", "book_candidates", "book_choice", "posting_history",
+                                       "posting_history_manual"])
+        self.assertTrue(rows and all(len(row) == len(header) for row in rows))
+        many = [row for row in rows if row["book_pick"] == "many"]
+        self.assertTrue(many)
+        keys = {"68acme", "69acme"}
+        for row in many:
+            self.assertEqual({key.rsplit("\\", 1)[-1] for key in row["book_candidates"].split("|")}, keys)
+            choice = json.loads(row["book_choice"])
+            self.assertEqual(set(choice) - {"reasked"}, set(replay.TIEBREAKS))
+            self.assertTrue(all(value == "" or value.rsplit("\\", 1)[-1] in keys
+                                for name, value in choice.items() if name != "reasked"))
+            self.assertEqual(choice["none"], "")
+        self.assertTrue(any(json.loads(row["book_choice"])["ask_once"] for row in many))  # 问过一次之后照选
+        for row in rows:
+            if row["book_pick"] != "many":
+                self.assertEqual((row["book_candidates"], row["book_choice"]), ("", ""))
+            self.assertTrue(set(filter(None, row["memory_cap_lost"].split(","))) <= {"account", "payment", "party"})
+            self.assertRegex(row["posting_history"], r"^((A|B|conflict|no_lines|items|named|keyed)(:(stock|service))?)?$")
+        summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))["judge"]
+        self.assertEqual(summary["reask"], ["written"])
+        # 单行的取值：上限挤掉的记忆项、按公司选入账方式的档加历史定下的记法
+        extra = replay.detail_extra({"memory_cap_lost": ["account", "party"], "book_pick": "self",
+                                     "posting_tier_if_history": "conflict", "posting_history": "stock",
+                                     "posting_tier_if_history_manual": "B", "posting_history_manual": ""})
+        self.assertEqual(extra, ["account,party", "self", "", "", "conflict:stock", "B"])
+        self.assertEqual(replay.detail_extra({}), [""] * len(replay.DETAIL_EXTRA))
 
     def test_ask_once_asks_again_after_a_newer_entry_in_the_book_not_chosen(self):
         """用户 10-18 加重问（线上 `companies.current_book`，判据同 `document_policy.current_book_newer`）：回答时记下各候选的
