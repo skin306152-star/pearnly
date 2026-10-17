@@ -362,12 +362,17 @@ const Composer: FC = () => {
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
   const placeholder = hasMessages ? t("reply") : t("placeholder");
+  // 没在输入、也没有字和附件时标 data-collapsed：手机上收成一行胶囊（「＋」、占位字，同 Claude 手机端），点进去展开成
+  // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
+  const [typing, setTyping] = useState(false);
+  const empty = useAuiState((s) => s.composer.isEmpty);
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
           className="cc-composer cc-composer-inline"
+          data-collapsed={!typing && empty ? "" : undefined}
         >
           <ComposerAttachments />
           <DraftWatcher />
@@ -378,6 +383,8 @@ const Composer: FC = () => {
             autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
             enterKeyHint="send"
             onKeyDown={holdImeEnter /* Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts */}
+            onFocus={() => setTyping(true)}
+            onBlur={() => setTyping(false)}
             aria-label={placeholder}
           />
           <ComposerAction />

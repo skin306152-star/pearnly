@@ -1815,6 +1815,22 @@
 :root:not([data-cc-variant="phone"]) .cc-composer-inline :is(.cc-attach, .cc-send) svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
 .cc-mshell .cc-composer-chin { min-height: var(--cc-chin-h-phone); }
 .cc-mshell .cc-attach { width: 2.125rem; height: 2.125rem; border-color: transparent; background: var(--cc-bg-subtle); }
+/* 手机发送钮同「＋」一样是圆的（同 Claude 手机端输入框里的按钮） */
+.cc-mshell .cc-send { width: 2.125rem; height: 2.125rem; border-radius: var(--cc-radius-full); }
+/* 手机输入框没在输入、也没有字和附件时（thread.tsx 的 data-collapsed）收成一行胶囊：「＋」、占位字（同 Claude 手机端）；
+   发送钮藏起来，回复进行中的停止钮照样在；点进去展开成上面的两行 */
+.cc-mshell .cc-composer[data-collapsed] {
+  flex-direction: row; align-items: center; gap: 0.25rem; min-height: 0; padding: 0.4375rem; border-radius: var(--cc-radius-full);
+}
+.cc-mshell .cc-composer[data-collapsed] > .aui-composer-attachments { display: none; }
+.cc-mshell .cc-composer[data-collapsed] > textarea { order: 2; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
+.cc-mshell .cc-composer[data-collapsed] > .aui-composer-action-wrapper { display: contents; }
+.cc-mshell .cc-composer[data-collapsed] .aui-composer-add-attachment { order: 1; }
+.cc-mshell .cc-composer[data-collapsed] .aui-composer-send-slot { order: 3; }
+.cc-mshell .cc-composer[data-collapsed] .aui-composer-send { display: none; }
+/* 手机新对话问候下面的公司、月份、分店（projects.tsx 的 WelcomeFiling，同线上旧版的公司条）：居中一行，放不下换行 */
+.cc-welcome-filing { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.25rem; max-width: 100%; }
+.cc-welcome-filing:empty { display: none; }
 .cc-mshell .cc-greeting { font-size: 1.25rem; color: var(--cc-ink-2); }
 .cc-mshell .pearnly-mascot-host { height: 4.5rem; }
 .cc-drawer .cc-nav-item svg { width: var(--cc-icon); height: var(--cc-icon); }
@@ -1929,6 +1945,8 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 @media (hover: none) and (pointer: coarse) { input, textarea, select { font-size: max(16px, 1em) !important; } }
 /* 手机上输入框给底部的主屏幕指示条留位置（同 Claude 手机端，镜像对比时我们的低约 15pt） */
 .cc-mmain .aui-thread-viewport-footer { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+/* 键盘弹出时（lib/viewport.ts 的 data-cc-keyboard）指示条被键盘盖住：输入框贴着键盘，只留一小截（同 Claude 手机端） */
+:root[data-cc-keyboard] .cc-mmain .aui-thread-viewport-footer { padding-bottom: 0.625rem; }
 
 /* 手机上长按对话行弹菜单：不出系统的选字 / 放大镜 */
 @media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }

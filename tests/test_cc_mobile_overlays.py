@@ -155,11 +155,34 @@ class DialogFitTests(unittest.TestCase):
         settings = read("components/settings.tsx")
         self.assertIn('<main className="min-h-0 min-w-0 flex-1 overflow-y-auto', settings)
 
+    def test_phone_composer_folds_to_one_line_like_claude(self):
+        # 用户 10-17（对照 Claude 手机端截图）：没在输入、也没有字和附件时输入框收成一行胶囊（「＋」、占位字），
+        # 点进去展开成两行；回复进行中的停止钮照样在；发送钮同「＋」是圆的；电脑不受影响（只在手机外壳里）
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn("const empty = useAuiState((s) => s.composer.isEmpty);", thread)
+        self.assertIn('data-collapsed={!typing && empty ? "" : undefined}', thread)
+        self.assertIn("onFocus={() => setTyping(true)}", thread)
+        self.assertIn("onBlur={() => setTyping(false)}", thread)
+        css = read("globals.css")
+        fold = css[css.index(".cc-mshell .cc-composer[data-collapsed] {"):]
+        fold = fold[:fold.index("/* 手机新对话问候下面")]
+        self.assertIn("flex-direction: row;", fold)
+        self.assertIn("border-radius: var(--cc-radius-full);", fold)
+        self.assertIn(".cc-mshell .cc-composer[data-collapsed] .aui-composer-send { display: none; }", fold)
+        self.assertNotIn("aui-composer-cancel", fold)  # 停止钮不藏
+        self.assertNotIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer[data-collapsed]", css)
+        self.assertIn(".cc-mshell .cc-send { width: 2.125rem; height: 2.125rem; border-radius: var(--cc-radius-full); }", css)
+        self.assertIn(".cc-welcome-filing:empty { display: none; }", css)
+
     def test_viewport_tracking_moves_to_the_root_for_portaled_dialogs(self):
         viewport = read("lib/viewport.ts")
         self.assertIn('root.style.setProperty("--cc-vvh", `${viewport.height}px`);', viewport)
         self.assertIn('root.style.setProperty("--cc-vvtop", `${viewport.offsetTop}px`);', viewport)
+        self.assertIn('root.toggleAttribute("data-cc-keyboard", window.innerHeight - viewport.height * viewport.scale > KEYBOARD_MIN);', viewport)
         self.assertNotIn("scrollTo(", viewport)
+        # 键盘弹出时输入框贴着键盘（不留指示条那一截）
+        css = read("globals.css")
+        self.assertIn(":root[data-cc-keyboard] .cc-mmain .aui-thread-viewport-footer { padding-bottom: 0.625rem; }", css)
         main = read("main.tsx")
         self.assertIn("trackViewport();", main)
         shell = read("components/mobile-shell.tsx")
@@ -179,20 +202,41 @@ import { trackViewport } from "@/lib/viewport";
 
 const g = globalThis as any;
 const handlers: Record<string, () => void> = {};
-g.visualViewport = { height: 786, offsetTop: 0, addEventListener: (t: string, f: () => void) => (handlers[t] = f), removeEventListener: (t: string) => delete handlers[t] };
+g.innerHeight = 786;
+g.visualViewport = { height: 786, offsetTop: 0, scale: 1, addEventListener: (t: string, f: () => void) => (handlers[t] = f), removeEventListener: (t: string) => delete handlers[t] };
 const props: Record<string, string> = {};
-const root: any = { style: { setProperty: (k: string, v: string) => (props[k] = v) } };
+const attrs = new Set<string>();
+const root: any = {
+  style: { setProperty: (k: string, v: string) => (props[k] = v) },
+  toggleAttribute: (k: string, on: boolean) => (on ? attrs.add(k) : attrs.delete(k)),
+  removeAttribute: (k: string) => attrs.delete(k),
+};
 const stop = trackViewport(root);
 assert.deepEqual(props, { "--cc-vvh": "786px", "--cc-vvtop": "0px" });
-// 键盘弹出：可见区域只剩 475
+assert.equal(attrs.has("data-cc-keyboard"), false);
+// 键盘弹出：可见区域只剩 475（iOS 整屏高不变）→ 带 data-cc-keyboard，输入框底下不再留指示条那一截
 g.visualViewport.height = 475;
 handlers.resize!();
 assert.equal(props["--cc-vvh"], "475px");
+assert.equal(attrs.has("data-cc-keyboard"), true);
 g.visualViewport.offsetTop = 120;
 handlers.scroll!();
 assert.equal(props["--cc-vvtop"], "120px");
+// 双指放大两倍：可见区域按 CSS 像素只剩一半，乘上 scale 还是整屏，不算键盘
+g.visualViewport.height = 393;
+g.visualViewport.scale = 2;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+// 地址栏伸缩只差几十像素：不算键盘
+g.visualViewport.height = 730;
+g.visualViewport.scale = 1;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+g.visualViewport.height = 475;
+handlers.resize!();
 stop();
 assert.deepEqual(Object.keys(handlers), []);
+assert.equal(attrs.has("data-cc-keyboard"), false);
 // 没有 visualViewport：不写，CSS 退回 --cc-vh
 delete g.visualViewport;
 const none: Record<string, string> = {};

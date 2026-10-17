@@ -54,6 +54,7 @@ import {
   MobileCompanyItem,
   MobileFilingItems,
   MoveToMenu,
+  WelcomeFiling,
 } from "@/components/assistant-ui/projects";
 import { AddCompanyDialog } from "@/components/add-company";
 import { Companies } from "@/components/companies";
@@ -128,6 +129,8 @@ function Welcome() {
           {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
         </h1>
       </div>
+      {/* 手机：公司、月份、分店在问候下面（同线上旧版的公司条）；电脑在输入框下巴里 */}
+      <WelcomeFiling />
     </div>
   );
 }

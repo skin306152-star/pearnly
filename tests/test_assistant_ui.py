@@ -2281,14 +2281,21 @@ class CompanyMasterSourceTests(unittest.TestCase):
         projects = read("components/assistant-ui/projects.tsx")
         self.assertNotIn("ComposerCompany", projects)
         chin = block(projects, "export const ComposerChin: FC = () => {")
-        self.assertIn("if (!kind) return null;", chin)
+        # 手机没有下巴（用户 10-17：基础信息放上面，同线上旧版）
+        self.assertIn("const { isMobile } = useSidebar();", chin)
+        self.assertIn("if (!kind || isMobile) return null;", chin)
         self.assertIn("return fresh ? <DraftChin /> : <SessionChin />;", chin)
-        # 新对话：「公司 ▾」选公司（至少有一家公司才出现），菜单向上开；月份、分店是草稿
-        draft = block(projects, "const DraftChin: FC = () => {")
+        # 新对话：「公司 ▾」选公司（至少有一家公司才出现），下巴里菜单向上开；月份、分店是草稿
+        draft = projects.split('const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {', 1)[1].split("\n};", 1)[0]
         self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
-        self.assertIn('<DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
-        self.assertIn('<PeriodChip look="cc-chin-btn" side="top" value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
+        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
+        self.assertIn('<PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
+        # 手机新对话：同一行放在问候下面（WelcomeFiling），菜单向下开；只在手机、Cowork、新对话
+        welcome = block(projects, "export const WelcomeFiling: FC = () => {")
+        self.assertIn("if (!kind || !fresh || !isMobile) return null;", welcome)
+        self.assertIn('<div className="cc-welcome-filing" data-slot="cc-welcome-filing">\n      <DraftChin side="bottom" />', welcome)
+        self.assertIn("<WelcomeFiling />", block(page, "function Welcome()"))
         # 已有对话：公司名打开右侧会话栏并展开公司卡（与顶栏「公司名 ›」同一个 openCompanyCard），月份、分店改了就 move；
         # 月份、分店只在下巴：标题栏不再有 ConversationFiling
         session = block(projects, "const SessionChin: FC = () => {")
@@ -2301,10 +2308,19 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertNotIn("ConversationFiling", page)
         self.assertIn("const change = (next: Partial<Filing>) => void fileSession(remoteId, { ...filing, ...next }).catch(report);",
                       projects.split("const FilingChips: FC<", 1)[1].split("\n};", 1)[0])
-        # 手机胶囊菜单只留「移到…」：月份在下巴里
+        # 手机已有对话：「…」里的「处理月份」「分店」子菜单（挂在公司下才有；分店只在不止一个分店时），各项与胶囊共用
         mobile = block(projects, "export const MobileFilingItems: FC = () => {")
-        self.assertIn("return <MoveToMenu sessionId={remoteId} localId={localId} />;", mobile)
-        self.assertNotIn("co.period", mobile)
+        self.assertIn("if (!kind || !remoteId || !filing.project) return null;", mobile)
+        self.assertIn('<SubMenu icon={<CalendarIcon />} label={co.period}', mobile)
+        self.assertIn("<PeriodChoices value={filing.period} onChange={(period) => change({ period })} />", mobile)
+        self.assertIn("{withScope && branches.length > 1 && (", mobile)
+        self.assertIn("<BranchChoices branches={branches} value={filing.scope} onChange={(scope) => change({ scope })} />", mobile)
+        self.assertNotIn("MoveToMenu", mobile)
+        chips = read("components/period-chip.tsx")
+        self.assertIn("<PeriodChoices value={value} onChange={onChange} allowNone={allowNone} />",
+                      chips.split("export const PeriodChip: FC<", 1)[1].split("\n};", 1)[0])
+        self.assertIn("<BranchChoices branches={branches} value={value} onChange={onChange} />",
+                      chips.split("export const BranchChip: FC<", 1)[1].split("\n};", 1)[0])
         css = read("globals.css")
         self.assertIn("  .cc-composer-chin:empty { display: none; }", css)
         self.assertIn(".cc-mshell .cc-composer-chin { min-height: var(--cc-chin-h-phone); }", css)

@@ -1,4 +1,5 @@
-// 处理月份与分店的胶囊（主档页输入框、对话输入框的下巴共用；下巴里是幽灵按钮 .cc-chin-btn、菜单向上开）：
+// 处理月份与分店的胶囊（主档页输入框、对话输入框的下巴共用；下巴里是幽灵按钮 .cc-chin-btn、菜单向上开；
+// 手机新对话放在问候下面、菜单向下开，手机已有对话在「…」的子菜单里，各项用同一份 PeriodChoices / BranchChoices）：
 //
 //   月份 — 本月往前 12 个月 + 「不指定」；新对话默认上个月（页面按这台设备的日期定，服务端只核对形状）
 //   分店 — 只在这家公司有不止一个分店时出现；默认「不指定」（CC 按票面的买方分店选账套，看不出时问一次）
@@ -31,9 +32,6 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
   look = "cc-chip-btn",
   side,
 }) => {
-  const months = recentMonths();
-  // 对话原来处理的月份不在最近 12 个月里：照样列出来（不改它）
-  if (value && !months.includes(value)) months.push(value);
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild disabled={disabled}>
@@ -45,22 +43,38 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
-          {months.map((month) => (
-            <Choice key={month} chosen={month === value} onSelect={() => month !== value && onChange(month)}>
-              {monthLabel(month)}
-            </Choice>
-          ))}
-          {allowNone && (
-            <>
-              <DropdownMenu.Separator className="cc-menu-sep" />
-              <Choice chosen={!value} onSelect={() => value && onChange("")}>
-                {co.noPeriod}
-              </Choice>
-            </>
-          )}
+          <PeriodChoices value={value} onChange={onChange} allowNone={allowNone} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+  );
+};
+
+/** 月份的各项（胶囊的菜单、手机对话页「…」里的「处理月份」子菜单共用）。 */
+export const PeriodChoices: FC<{ value: string; onChange: (period: string) => void; allowNone?: boolean }> = ({
+  value,
+  onChange,
+  allowNone = true,
+}) => {
+  const months = recentMonths();
+  // 对话原来处理的月份不在最近 12 个月里：照样列出来（不改它）
+  if (value && !months.includes(value)) months.push(value);
+  return (
+    <>
+      {months.map((month) => (
+        <Choice key={month} chosen={month === value} onSelect={() => month !== value && onChange(month)}>
+          {monthLabel(month)}
+        </Choice>
+      ))}
+      {allowNone && (
+        <>
+          <DropdownMenu.Separator className="cc-menu-sep" />
+          <Choice chosen={!value} onSelect={() => value && onChange("")}>
+            {co.noPeriod}
+          </Choice>
+        </>
+      )}
+    </>
   );
 };
 
@@ -84,17 +98,28 @@ export const BranchChip: FC<
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
-          {branches.map((b) => (
-            <Choice key={b.branch} chosen={b.branch === value} onSelect={() => b.branch !== value && onChange(b.branch)}>
-              {branchName(b)}
-            </Choice>
-          ))}
-          <DropdownMenu.Separator className="cc-menu-sep" />
-          <Choice chosen={!value} onSelect={() => value && onChange("")}>
-            {co.noBranch}
-          </Choice>
+          <BranchChoices branches={branches} value={value} onChange={onChange} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
   );
 };
+
+/** 分店的各项（胶囊的菜单、手机对话页「…」里的「分店」子菜单共用）。 */
+export const BranchChoices: FC<{ branches: readonly Branch[]; value: string; onChange: (scope: string) => void }> = ({
+  branches,
+  value,
+  onChange,
+}) => (
+  <>
+    {branches.map((b) => (
+      <Choice key={b.branch} chosen={b.branch === value} onSelect={() => b.branch !== value && onChange(b.branch)}>
+        {branchName(b)}
+      </Choice>
+    ))}
+    <DropdownMenu.Separator className="cc-menu-sep" />
+    <Choice chosen={!value} onSelect={() => value && onChange("")}>
+      {co.noBranch}
+    </Choice>
+  </>
+);

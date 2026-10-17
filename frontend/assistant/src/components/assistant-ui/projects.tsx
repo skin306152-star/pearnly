@@ -16,11 +16,11 @@
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, XIcon } from "lucide-react";
+import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { type FC, type ReactNode, useEffect, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
-import { BranchChip, PeriodChip } from "@/components/period-chip";
+import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import type { DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
@@ -308,16 +308,33 @@ function useCompanyTitle(id: string): string {
   return fromSidebar ?? title;
 }
 
-/** 输入框下巴：ERP / DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。 */
+/** 输入框下巴：ERP / DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。
+ *  手机没有下巴（用户 10-17：基础信息放上面，同线上旧版）：新对话放在问候下面（WelcomeFiling），已有对话在右上「…」里
+ *  （公司名、移到、处理月份、分店）。 */
 export const ComposerChin: FC = () => {
   const kind = useProjects((s) => s.kind);
   const fresh = useAuiState((s) => s.threadListItem.status === "new");
-  if (!kind) return null;
+  const { isMobile } = useSidebar();
+  if (!kind || isMobile) return null;
   return fresh ? <DraftChin /> : <SessionChin />;
 };
 
-/** 新的空白对话（还没建会话）：「公司 ▾」，选了公司后接月份与分店；至少有一家公司才显示。 */
-const DraftChin: FC = () => {
+/** 手机新对话：问候下面一行「公司 ▾」+ 月份 + 分店（同线上旧版的公司条），菜单向下开；电脑在下巴里。 */
+export const WelcomeFiling: FC = () => {
+  const kind = useProjects((s) => s.kind);
+  const fresh = useAuiState((s) => s.threadListItem.status === "new");
+  const { isMobile } = useSidebar();
+  if (!kind || !fresh || !isMobile) return null;
+  return (
+    <div className="cc-welcome-filing" data-slot="cc-welcome-filing">
+      <DraftChin side="bottom" />
+    </div>
+  );
+};
+
+/** 新的空白对话（还没建会话）：「公司 ▾」，选了公司后接月份与分店；至少有一家公司才显示。菜单默认向上开（下巴），
+ *  手机问候下面那一行向下开。 */
+const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
   const kind = useProjects((s) => s.kind);
   const withPeriod = useProjects((s) => s.period);
   const withScope = useProjects((s) => s.scope);
@@ -343,16 +360,16 @@ const DraftChin: FC = () => {
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
+          <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
             <CompanyChoices current={draft.project} onPick={pick} />
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
       {draft.project && withPeriod && (
-        <PeriodChip look="cc-chin-btn" side="top" value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />
+        <PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />
       )}
       {draft.project && withScope && (
-        <BranchChip look="cc-chin-btn" side="top" branches={branches} value={draft.scope} onChange={(scope) => setDraft({ ...draft, scope })} />
+        <BranchChip look="cc-chin-btn" side={side} branches={branches} value={draft.scope} onChange={(scope) => setDraft({ ...draft, scope })} />
       )}
     </>
   );
@@ -465,11 +482,31 @@ const FilingChips: FC<{ look?: "cc-chip-btn" | "cc-chin-btn"; side?: "top" | "bo
   );
 };
 
-/** 手机胶囊菜单里的「移到…」（处理月份、分店在输入框下巴里）。 */
+/** 手机对话页「…」里的「处理月份」「分店」（手机没有输入框下巴，用户 10-17：基础信息放上面，同线上旧版；挂在公司下才有，
+ *  分店只在这家有不止一个分店时出现）：改了就 move（公司不变），不改最后活动时间。 */
 export const MobileFilingItems: FC = () => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   const kind = useProjects((s) => s.kind);
-  if (!kind || !remoteId) return null;
-  return <MoveToMenu sessionId={remoteId} localId={localId} />;
+  const withPeriod = useProjects((s) => s.period);
+  const withScope = useProjects((s) => s.scope);
+  useProjects((s) => s.filings);
+  const filing = filingOf(remoteId, localId);
+  const branches = useBranches(kind && withScope && remoteId ? filing.project : "");
+  if (!kind || !remoteId || !filing.project) return null;
+  const change = (next: Partial<Filing>) => void fileSession(remoteId, { ...filing, ...next }).catch(report);
+  return (
+    <>
+      {withPeriod && (
+        <SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+          <PeriodChoices value={filing.period} onChange={(period) => change({ period })} />
+        </SubMenu>
+      )}
+      {withScope && branches.length > 1 && (
+        <SubMenu icon={<StoreIcon />} label={co.branch} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+          <BranchChoices branches={branches} value={filing.scope} onChange={(scope) => change({ scope })} />
+        </SubMenu>
+      )}
+    </>
+  );
 };
