@@ -23,9 +23,13 @@
   没有 lab-stop。testerp、testdms 在线上（107.155.65.74）。测试数据状态见测试交接第 1 节。
   lab 开着意味着：线上 testcowork 的定时任务处于暂停（lab-stop 才恢复）；测试机要保持唤醒；「消息含义理解」窗口要在测试租户切 Claude 实测时，打到的是 lab 副本——
   所以 lab 由新开发窗口统一调度：第 12 轮直接换源码用（A2），用完或长时间不用就 lab-stop，别人要用 testcowork 前先说清现在指向哪里。
-  **10-18 约 01:10 起 lab 借给「消息含义理解」窗口做统一原件层三产品实测（约 2 小时）**：它会把 cowork lab 换挂 originals-layer 工作树、testcowork 切 Claude 路线，再起 ERP lab（testerp）。
-  约定：不动 testcowork 的测试数据（侧栏排列、卡片、记住的选择、定时任务、留着的测试对话）；测完两个测试租户的识别路线和 6 个变量恢复原样，**两个都 lab-stop**（testcowork 切回线上）；
-  最终状态它会发给新开发窗口。所以新开发窗口开第 12 轮时，**先确认它测完了**，再用 cc-drag-engine 工作树 `lab-start cowork`（不是 `live`）。
+  **10-18 约 01:10 起 lab 借给「消息含义理解」窗口做统一原件层实测，已做完交回**（它的回报）：
+  - cowork、erp 两个 lab 都已 lab-stop，WSL 里没有 testenv 容器；testcowork、testerp 都解析回线上 107.155.65.74，testcowork 的线上定时任务已恢复。**所以第 12 轮要用 `lab-start cowork`（不是 `live`）。**
+  - 两个测试租户的识别路线恢复原样（`pearnly_ocr_engine` 键已删，原来就没有）；测试机 `/opt/pearnly-testenv/env` 里甲骨文的 6 个变量已删。
+  - 更正：借用前 lab 实际跑的底座是 b9da6b58，不是上面写的 ebba5a40；它借用时换成了 ebba5a40，测试机上已拉好 ebba5a40 镜像，下次 lab-start 会按传入的镜像重写 env 文件。
+  - 实测数据已全删（testcowork 测试发票 IV2610-0042、对账任务「原件层实测（可删）」、testerp 两条附件登记；甲骨文上两个测试租户的原件目录为空）；第 12 轮要用的侧栏、卡片、记住的选择、定时任务、测试对话都没动。
+  - 保留：甲骨文 8443 对办公室 IP 124.120.107.105 放行（云端安全列表由用户点的 + 本机 iptables 已保存），以后测试机测 Claude 路线还要用；办公室 IP 一变就失效，不想留就删这两条规则。
+  - 实测结果：Cowork 录入台、对账中心、ERP 采购 / 销售上传直传甲骨文、识别按引用读，预览下载走签名地址，删单后甲骨文原件跟着删；LINE 收单和 CC 工具没实机测（只有单元测试）。
 - **生产服务器**：10-18 已删掉开户代理留下的 `pearnly-maintenance-cowork`（10-12 起、旧镜像 227ed4b2、只跑 sleep），删后读回没有任何非生产容器。修法见 F5。
 - **交接时还在跑的**（旧窗口的后台工作流，旧窗口一关就停）：
   - 第 12 轮拖动 `wf_c007d6cb-649`：**已跑完**。替换引擎 `92733899`，四路审查确认 4 个问题、补修 `47d51d37`（见 A1）。
@@ -89,7 +93,7 @@ multi-desktop-own-computer-rule、copy-changes-need-approval、login-pages-froze
   拖进已置顶后取消（Esc / touchcancel / 转屏 / 切后台）置顶里让位的行当场滑回（顺带修掉修前就有的约 19px 下冲）；拖动区在拖动中卸下时摘掉传感器的页面监听（之前会吞下一次空格 / 回车 / Tab / Esc）；
   键盘拖动中推送重排挪了节点时焦点接回把手。补 4 条用例（改前失败、改后通过），310 条用例全过，记录追加「审查后修正」一节。复刻页 6 倍节流：手机拿起 58→17ms、鼠标拿起 57→40ms、落定 46→35ms。
   **「性能」那一路审查代理没返回结果**（空返回），性能结论以 A3 的 A14 真机帧测为准；新窗口觉得不够可以单独补一轮性能审查。
-- A2 没开始（下一步就做这个）：变基到最新 origin/main（只读预演无冲突，两边都改的只有 tests/test_assistant_ui.py 且区段不重叠）→ 重跑测试 → vite build → 同步 lab（lab 开着用 `live cowork`；被「消息含义理解」窗口 lab-stop 过就用 `lab-start cowork`，都带 LOCAL_SPA 和 ebba5a40）→ 外网读回包名。**不变基就同步会让 lab 丢掉已上生产的焦点补修。**
+- A2 没开始（下一步就做这个；lab 已还且已 lab-stop，用 `lab-start cowork`）：变基到最新 origin/main（只读预演无冲突，两边都改的只有 tests/test_assistant_ui.py 且区段不重叠）→ 重跑测试 → vite build → 同步 lab（lab 开着用 `live cowork`；被「消息含义理解」窗口 lab-stop 过就用 `lab-start cowork`，都带 LOCAL_SPA 和 ebba5a40）→ 外网读回包名。**不变基就同步会让 lab 丢掉已上生产的焦点补修。**
 - A3 没开始：写第 12 轮清单交测试窗口（放 `~/pearnly-devtools/test-window/第12轮清单-<日期>.md`）。要含：
   - A14 帧测四个时刻（拿起、出菜单、收菜单、落定），对比第 11 轮复核 58–60 / 72 / 35 / 35–39ms；两种口径（不开 trace 的帧间隔 `round11b/b14p.py`、trace 的 `round11b/trace.py`）分开比。目标拿起 30–45、落定 15–25ms。
   - 鼠标 / 键盘 / 手机长按 × 侧栏对话行、公司组头、置顶行、右侧栏卡片；组内排序、拖进置顶、Esc 后原处松开不误开、拖开再拖回、切走再回来、读屏播报、第一张卡键盘拖动。
@@ -322,12 +326,12 @@ multi-desktop-own-computer-rule、copy-changes-need-approval、login-pages-froze
 | `copy-gate` / `pearnly/copy-gate`（远端 5b429fd0） | `cc0ec1f7` | C 线 | C1 合入后删本地与远端 |
 | `multi-desktop` / `pearnly/multi-desktop`（远端 f87a0585 已过时） | `58d654f4` | D 线；node_modules 是真实目录，da-phase3 链到这里 | D15 合入后；删前先处理 da-phase3 的链接 |
 | `da-phase3` / `pearnly/da-phase3` | `a93447de`，没推送 | E 线 | E12 合入并部署后 |
-| `cc-shell-rebuild` / `pearnly/cc-shell-rebuild`（远端已删） | `ec90fdfc`，已在 main，干净 | 10-18 01:10 前测试机 lab 挂着它的实时源码（借给原件层实测后会 lab-stop，不再挂它）；cc-drag-engine、cc-standards 的 node_modules 链到这里 | A、B 两个工作树换成自己的 node_modules 或合入后（并确认 lab 已不挂它） |
+| `cc-shell-rebuild` / `pearnly/cc-shell-rebuild`（远端已删） | `ec90fdfc`，已在 main，干净 | 10-18 01:10 前测试机 lab 挂着它的实时源码（现已 lab-stop，不再挂它）；cc-drag-engine、cc-standards 的 node_modules 链到这里 | A、B 两个工作树换成自己的 node_modules 或合入后（并确认 lab 已不挂它） |
 | `f19-push-summary` / `pearnly/f19-push-summary`（远端已删） | `13bb3e69`，已在 main，干净 | copy-gate 的 `frontend/assistant/node_modules` 链到这里（锁文件不同，不能直接改指） | C1 合入或 copy-gate 换成自己的 node_modules 后 |
 | `handoff-2026-10-18` / `pearnly/handoff-2026-10-18` | 交接文档进 main 用 | 本交接 | 快进 main 后旧窗口当场删 |
 | `originals-layer` | 「消息含义理解」窗口的 | 不归本线 | 不动 |
 | `pensive-blackwell-751d70`（游离 7c9bb445，无分支） | 10-15 建、内容已在 main、干净；两份 node_modules 10-18 经用户同意已删（腾出约 0.5G），只剩约 71M | 测试窗口 10-18 确认不用、同意删；**但手机调试的 adb 服务（10-18 时 pid 72399）当前目录在这里**，测试窗口连 A14 的端口转发靠它 | adb 服务重启后（`adb kill-server` 或重启电脑）用 `git worktree remove` 删，不用强制 |
-| 测试机 cowork / erp lab 与数据卷 | 10-18 01:10 起借给「消息含义理解」窗口实测原件层，测完它会恢复配置并两个都 lab-stop | 第 12 轮、标准化、多电脑第 7 批继续用 | 不删；不用时 lab-stop |
+| 测试机 cowork / erp lab 与数据卷 | 10-18 借给原件层实测后已还：两个都 lab-stop、配置恢复、testcowork 指向线上 | 第 12 轮、标准化、多电脑第 7 批继续用 | 不删；不用时 lab-stop |
 | 甲骨文 `/opt/pearnly-replay`（9.4G） | 回放数据 | E 线还要重跑 | 第 3 期上线后（E16） |
 | 测试机 `PearnlyExpressRO` 共享、两台桌面映射文件 | 未核实是否还在 | D 线第 7 批 | 第 7 批用完（共享由用户删） |
 
