@@ -577,6 +577,9 @@ class StandardLayerTests(unittest.TestCase):
             self.assertIn(f"  --font-weight-{name}: var(--cc-weight-{weight});", theme)
             self.assertEqual(cc[f"--cc-weight-{weight}"], f"var(--ccs-font-weight-{name})")
         self.assertIn("--breakpoint-md: 768px;", theme)
+        # V2：Tailwind 默认过渡接到设计系统的快档与主缓动
+        self.assertIn("--default-transition-duration: var(--cc-dur-fast);", theme)
+        self.assertIn("--default-transition-timing-function: var(--cc-ease);", theme)
 
     def test_cn_knows_the_theme_names(self):
         # 2.5：tailwind-merge 要登记 @theme 接过的字阶与字重名，与 globals.css 两边一致

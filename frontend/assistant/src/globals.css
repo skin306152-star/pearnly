@@ -93,6 +93,9 @@
   --ease-cc: var(--cc-ease);
   --ease-cc-fast: var(--cc-ease-fast);
   --ease-cc-out: var(--cc-ease-out);
+  /* 组件里裸写的 transition / transition-colors …（没写时长和缓动）也是设计系统的快档 120ms + 主缓动（V2；Tailwind 默认 150ms、(.4,0,.2,1)） */
+  --default-transition-duration: var(--cc-dur-fast);
+  --default-transition-timing-function: var(--cc-ease);
   /* 同运行中的脉冲点（明暗呼吸 1.2s）：骨架加载用 animate-cc-pulse（V5） */
   --animate-cc-pulse: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;
   --default-border-width: var(--cc-hairline);
