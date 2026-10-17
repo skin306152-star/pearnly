@@ -1,0 +1,59 @@
+name: Companion test build
+
+# 只构建、不发布：给还没进 main 的 CC 桌面版分支打一个测试安装包，装到测试机 / 录制笔记本上做真机验证
+# （ADR-021：多电脑等改动要真机通过后才合入 main，而 Companion release 只发 main 上的提交）。
+# 构建步骤与 Companion release 的 build 相同（先跑全量测试再打包）；没有发布凭据、不连服务器、不改 latest.json，
+# 安装包只作为本次运行的产物留 1 天（账号的 Actions 存储只有 0.5 GB）。用法：gh workflow run companion-build.yml --ref <分支>，
+# 再 gh run download <运行编号> 取 CC-Setup.exe。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Read the version
+        id: identity
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_SHA) { throw 'checkout SHA mismatch' }
+          $ver = (python -c "from src.companion.version import VERSION; print(VERSION)").Trim()
+          "version=$ver" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Install the pinned build and test dependencies
+        run: python -m pip install --quiet --no-deps -r packaging/requirements-build.txt
+      - name: Run the helper tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q -p no:cacheprovider tests
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build the installer (no publication credentials in this job)
+        shell: pwsh
+        env:
+          RELEASE_PY: python
+          RELEASE_ISCC: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: companion-test-installer-${{ steps.identity.outputs.version }}-${{ github.sha }}
+          path: |
+            companion/dist/CC-Setup.exe
+            companion/dist/release.json
+          if-no-files-found: error
+          retention-days: 1
