@@ -300,7 +300,6 @@ Removed {0},已移除 {0}
 Requested Query,请求的查询
 Resumed {0},已启用 {0}
 Retry,重试
-Retry booking,重新建立订车单
 Road,路
 Room,房号
 Sales advisor,销售顾问
@@ -487,7 +486,6 @@ dms.card.BTN_KEEP,使用原资料
 dms.card.BTN_NEW_CUSTOMER,新客户
 dms.card.BTN_RESTART,重新开始
 dms.card.BTN_RETRY,重试
-dms.card.BTN_RETRY_BOOKING,重新建立订车单
 dms.card.BTN_SAVE_NEW,保存新客户
 dms.card.BTN_SCAN_CARD,扫描身份证
 dms.card.BTN_SHOW_RESULT,查看结果

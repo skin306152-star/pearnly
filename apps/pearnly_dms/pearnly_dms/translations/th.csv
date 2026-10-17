@@ -294,13 +294,12 @@ Registered under — choose below,จดทะเบียนในนาม —
 Reject,ปฏิเสธ
 Reload List,โหลดรายการใหม่
 Remove,ลบ
-"Remove slip, go on",ลบสลิปแล้วดำเนินการต่อ
+"Remove slip, go on",ลบสลิปแล้วทำต่อ
 Remove the account and add it again to change its name,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 Removed {0},ลบ {0} แล้ว
 Requested Query,เงื่อนไขการสอบถามที่ขอ
 Resumed {0},ใช้งาน {0} แล้ว
 Retry,ลองใหม่
-Retry booking,ลองสร้างใบจองอีกครั้ง
 Road,ถนน
 Room,ห้อง
 Sales advisor,ที่ปรึกษาการขาย
@@ -487,7 +486,6 @@ dms.card.BTN_KEEP,ใช้ข้อมูลเดิม
 dms.card.BTN_NEW_CUSTOMER,ลูกค้าใหม่
 dms.card.BTN_RESTART,เริ่มใหม่
 dms.card.BTN_RETRY,ลองใหม่
-dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
 dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
 dms.card.BTN_SCAN_CARD,สแกนบัตรประชาชน
 dms.card.BTN_SHOW_RESULT,ดูผล
@@ -623,7 +621,7 @@ dms.card.qa.BTN_PAGE_NEXT,หน้าถัดไป
 dms.card.qa.BTN_PAGE_PREV,หน้าก่อนหน้า
 dms.card.qa.BTN_PICK_DATE,เลือกวันที่
 dms.card.qa.BTN_REGIS_NAME_CARD,ใช้ชื่อตามบัตร
-dms.card.qa.BTN_REMOVE_SLIP,ลบสลิปแล้วดำเนินการต่อ
+dms.card.qa.BTN_REMOVE_SLIP,ลบสลิปแล้วทำต่อ
 dms.card.qa.LBL_ADVISOR,ที่ปรึกษาการขาย
 dms.card.qa.LBL_ATTACH_CARD,สำเนาบัตรประชาชน
 dms.card.qa.LBL_ATTACH_SLIP,สลิปโอนเงินจอง

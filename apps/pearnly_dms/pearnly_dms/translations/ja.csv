@@ -300,7 +300,6 @@ Removed {0},{0} を削除しました
 Requested Query,要求された照会
 Resumed {0},{0} を再開しました
 Retry,再試行
-Retry booking,予約を再作成
 Road,通り
 Room,部屋番号
 Sales advisor,営業担当
@@ -487,7 +486,6 @@ dms.card.BTN_KEEP,既存データを使う
 dms.card.BTN_NEW_CUSTOMER,新規顧客
 dms.card.BTN_RESTART,やり直し
 dms.card.BTN_RETRY,再試行
-dms.card.BTN_RETRY_BOOKING,予約を再作成
 dms.card.BTN_SAVE_NEW,新規顧客を保存
 dms.card.BTN_SCAN_CARD,身分証をスキャン
 dms.card.BTN_SHOW_RESULT,結果を見る

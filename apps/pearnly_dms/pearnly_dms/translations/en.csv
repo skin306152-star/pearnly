@@ -300,7 +300,6 @@ Removed {0},Removed {0}
 Requested Query,Requested Query
 Resumed {0},Resumed {0}
 Retry,Retry
-Retry booking,Retry booking
 Road,Road
 Room,Room
 Sales advisor,Sales advisor
@@ -487,7 +486,6 @@ dms.card.BTN_KEEP,Keep existing data
 dms.card.BTN_NEW_CUSTOMER,New customer
 dms.card.BTN_RESTART,Start over
 dms.card.BTN_RETRY,Retry
-dms.card.BTN_RETRY_BOOKING,Retry booking
 dms.card.BTN_SAVE_NEW,Save new customer
 dms.card.BTN_SCAN_CARD,Scan ID card
 dms.card.BTN_SHOW_RESULT,View result

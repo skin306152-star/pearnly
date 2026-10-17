@@ -116,7 +116,6 @@ Keep existing data	使用原资料	ใช้ข้อมูลเดิม	既�
 New customer	新客户	ลูกค้าใหม่	新規顧客	dms.card.BTN_NEW_CUSTOMER
 Start over	重新开始	เริ่มใหม่	やり直し	dms.card.BTN_RESTART
 Retry	重试	ลองใหม่	再試行	dms.card.BTN_RETRY
-Retry booking	重新建立订车单	ลองสร้างใบจองอีกครั้ง	予約を再作成	dms.card.BTN_RETRY_BOOKING
 Save new customer	保存新客户	บันทึกลูกค้าใหม่	新規顧客を保存	dms.card.BTN_SAVE_NEW
 Update data	更新资料	อัปเดตข้อมูล	データを更新	dms.card.BTN_UPDATE
 New customer created	已新建客户	สร้างลูกค้าใหม่แล้ว	新規顧客を作成	dms.card.TXT_ACTION_CREATE
@@ -231,7 +230,7 @@ Next	下一页	หน้าถัดไป	次へ	dms.card.qa.BTN_PAGE_NEXT
 Previous	上一页	หน้าก่อนหน้า	前へ	dms.card.qa.BTN_PAGE_PREV
 Pick a date	选择日期	เลือกวันที่	日付を選ぶ	dms.card.qa.BTN_PICK_DATE
 Use name on card	使用证件上的姓名	ใช้ชื่อตามบัตร	カードの氏名を使う	dms.card.qa.BTN_REGIS_NAME_CARD
-Remove slip, go on	删除凭证后继续	ลบสลิปแล้วดำเนินการต่อ	明細を削除して続ける	dms.card.qa.BTN_REMOVE_SLIP
+Remove slip, go on	删除凭证后继续	ลบสลิปแล้วทำต่อ	明細を削除して続ける	dms.card.qa.BTN_REMOVE_SLIP
 Sales advisor	销售顾问	ที่ปรึกษาการขาย	営業担当	dms.card.qa.LBL_ADVISOR
 ID card copy	身份证复印件	สำเนาบัตรประชาชน	身分証明書のコピー	dms.card.qa.LBL_ATTACH_CARD
 Deposit transfer slip	订金转账凭证	สลิปโอนเงินจอง	予約金の振込明細	dms.card.qa.LBL_ATTACH_SLIP
