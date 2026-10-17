@@ -309,6 +309,7 @@ The push channel must be companion or cloud	推送渠道只能是 companion 或 
 Push status must be one of {0}	推送状态只能是 {0}	สถานะการส่งต้องเป็นหนึ่งใน {0}	送信ステータスは {0} のいずれかです
 The new password cannot be the same as the current one	新密码不能与当前密码相同	รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน	新しいパスワードは現在のものと同じにできません
 The new password is required	新密码不能为空	ต้องระบุรหัสผ่านใหม่	新しいパスワードは必須です
+Current Password	当前密码	รหัสผ่านปัจจุบัน	現在のパスワード
 A new record can only start as draft or recognized	新记录只能从 draft 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก draft หรือ recognized เท่านั้น	新規レコードは draft または recognized からしか開始できません
 A new record can only start as uploaded or recognized	新记录只能从 uploaded 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก uploaded หรือ recognized เท่านั้น	新規レコードは uploaded または recognized からしか開始できません
 Direction must be inbound or outbound	方向只能是进项或销项	ทิศทางเอกสารต้องเป็นซื้อหรือขายเท่านั้น	方向は仕入または売上のみです
