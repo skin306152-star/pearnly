@@ -162,8 +162,11 @@ def ensure_maintenance(group, *, check=True):
     容器仍然是**同一个受限容器**：同一个已验证镜像 digest、同一份只读密钥、
     同一个 sites 卷、uid 0、内存 1 GiB 上限、只在内部网络里，没有额外权限，
     只跑 `sleep`，每一步仍是独立的 `site-step.py` 进程（逐步回执、逐步失败恢复不变）。
-    寿命由三件事限住：镜像 digest 变了就重建、超过 MAINTENANCE_MAX_AGE_HOURS 就重建、
-    `verify_site`/`drop_site` 收尾时删除。
+    寿命由几件事限住：镜像 digest 变了就重建、超过 MAINTENANCE_MAX_AGE_HOURS 就重建、
+    `verify_site`/`drop_site` 收尾时删除、带 `restart` 的改已有站点工单做完就删、
+    `activate-product.sh` 激活本产品时删。后两条是因为前两条只在**下一张工单进来时**才生效：
+    改已有站点的工单不以 verify_site 收尾，之后没工单就一直留着（2026-10-18 生产上
+    10-12 起的 pearnly-maintenance-cowork，旧镜像、只跑 sleep）。
     """
     name = maintenance_name(group)
     digest = image(group)
@@ -344,6 +347,8 @@ def main():
             # 否则每开一个租户都要把该产品组的其他租户一起重启一遍。
             if p.get("restart"):
                 restart_group(p["group"])
+                # 改已有站点是单独一张工单，不像开通那样以 verify_site 收尾：做完就收掉维护容器
+                remove_maintenance(p["group"])
         return {"status": "done"}
 
 

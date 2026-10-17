@@ -100,6 +100,40 @@ class MaintenanceContainer(unittest.TestCase):
             agent.site_step({**job_payload(), "action": "verify_site"})
         self.assertEqual(commands[-1], ["docker", "rm", "-f", self.NAME])
 
+    def edit_existing_site(self, restart):
+        """跑一张改已有站点的工单（set_ocr）：维护容器照常建、步骤在里面执行；返回记下的 docker 命令。"""
+        commands, patches = self.harness()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            payload = {**job_payload()["payload"], "restart": restart}
+            (root / (payload["site"] + ".json")).write_text(json.dumps(
+                {key: payload[key] for key in ("site", "group", "tenant", "deployment")}))
+            original_open = Path.open
+
+            def local_lock(path, *args, **kwargs):
+                if str(path) == "/opt/pearnly/state/provision.lock":
+                    path = root / "provision.lock"
+                return original_open(path, *args, **kwargs)
+
+            job = {"action": "set_ocr", "payload": payload}
+            with patches[0], patches[1], patches[2], patches[3], patches[4], \
+                 patch.object(agent, "STATE", root), patch.object(Path, "open", local_lock), \
+                 patch.object(agent, "restart_group") as restart_group, \
+                 patch.object(sys, "stdin", io.StringIO(json.dumps(job))), \
+                 patch.dict(os.environ, SSH_ORIGINAL_COMMAND="provision"):
+                self.assertEqual(agent.main(), {"status": "done"})
+            self.assertEqual(restart_group.call_count, 1 if restart else 0)
+        return commands
+
+    def test_editing_an_existing_site_removes_the_container_when_done(self):
+        # 改已有站点（运维人员改渠道，控制面带 restart）是单独一张工单，不以 verify_site 收尾：
+        # 做完不收的话，之后没工单进来就一直留着（2026-10-18 生产 10-12 起的 pearnly-maintenance-cowork）
+        commands = self.edit_existing_site(restart=True)
+        self.assertIn(["docker", "exec", "-i", self.NAME, agent.BENCH_PYTHON, "/run/site-step.py"], commands)
+        self.assertEqual(commands[-1], ["docker", "rm", "-f", self.NAME])
+        # 开通一轮里的步骤不带 restart：容器留给同一轮后面的步骤复用，由 verify_site 收
+        self.assertNotIn(["docker", "rm", "-f", self.NAME], self.edit_existing_site(restart=False))
+
     def test_teardown_is_not_blocked_by_capacity_admission(self):
         commands, patches = self.harness()
         with patches[0], patches[1], patches[2] as capacity, patches[3], patches[4]:

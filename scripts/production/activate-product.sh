@@ -17,6 +17,10 @@ python3 /opt/pearnly/deploy/scripts/production/check-deploy-image.py "$image" /o
 python3 /opt/pearnly/deploy/infrastructure/production/sizing.py --write /opt/pearnly/state/sizing.env >/dev/null \
   || { echo "sizing skipped; using runtime.env only" >&2; : > /opt/pearnly/state/sizing.env; }
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
+# 开户代理的维护容器（provision-agent.py `ensure_maintenance`，只跑 sleep、最多占 1 GiB）还是本产品的旧镜像：激活时收掉，
+# 下一张开户工单按新镜像重建。持着 provision.lock，此刻没有开户步骤在用它；放在容量等待之前，腾出的内存算进余量
+# （2026-10-18 生产上 10-12 起的 pearnly-maintenance-cowork 一直留着：改已有站点的工单不收，之后没再来工单）。
+docker rm -f "pearnly-maintenance-$product" >/dev/null 2>&1 || true
 # 超配的内存上限要有 swap 兜着（capacity.py 核「上限之和 ≤ 物理内存 + swap」）；幂等，已有就不改。
 bash /opt/pearnly/deploy/scripts/production/ensure-swap.sh >/dev/null
 # 余量不够时最多等 10 分钟：上一个产品刚激活，迁移后的后台任务还在涨内存，等它回落再叠下一个，而不是马上叠上去或直接失败。
