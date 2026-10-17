@@ -30,7 +30,8 @@
 //          画完以后才请调用方把它挪回原来那一列（onReturn，同指针拖回去；整列跟着滑），重挂出来那次提交里核对落点、对不上从此刻
 //          改滑，取消照样等滑回播完（homing）。已经取消、等滑回的这段时间碰撞不再算、不重量落点（cancelling）。测试窗口第 10 轮
 //          B 段：原来由拖动库在 Esc 那一下同步取消、整列重画，Esc 那一帧 148 / 149ms。手机点按（拿起后没动就松手）也当场取消、
-//          补点击。
+//          补点击。拿起过、按键 / 手指还没松开就取消了（Esc 等）：这次手势松开那一下不当点击（blockReleaseClick；第 11 轮重测 B 段：
+//          Esc 后回到原行上松开打开了对话）。
 //          第 9 轮测试机：手机拖公司组头到首尾松手卡 102 / 122ms（浮层被限位停在落点、原来不播就当场结束）；键盘公司组头 Esc
 //          帧间隔约 1 秒，原因未查清（推断与证据见 docs/work/2026-10-16-cc-shell-rebuild.md 第 10 轮）。Esc、松手这一帧本身要
 //          重画整列（6 倍节流约 70–90ms）是查实的，现在都挪到落定以后（那时浮层已停）。
@@ -43,6 +44,8 @@
 //          加到那张卡上，卡被推出列表、撑大了可滚范围，会话栏一路滚进空白）。
 //          浮层停在只能高亮组头的落点上（那一列收着）时变半透明（data-peek），透出组头的高亮，离开就恢复。
 //   键盘   空格拿起、方向键移动（只在本列里，不拖进另一列）、空格（或回车）放下、Esc 取消，三种语言读屏播报（文案由调用方给）。
+//          ↑ ↓ 按这一列的先后一格一格换瞄准的那一项，落点就是它，不按几何远近算（keyboardAim / keyboardCollision；第 11 轮重测 B 段：
+//          第一张卡很高、下一张很矮时 ↓ 一格算回它自己，放下念「已取消移动」）。
 //          Esc 只取消拖动：不关浮着的会话栏、不清侧栏多选（lib/layers.ts 的 isDragEscape）。焦点一直在被拖的那一项的把手上
 //          （useFollowFocus）；拖动中方向键只归拖动（handleOf 标成已处理，组件库行自带的方向键导航不接手），放下 / 取消后焦点留在
 //          移动后的那一行（之后按新顺序重挂一次也跟过去，只在焦点丢了时）。快按方向键每一下都动（测试窗口：间隔约 30ms 连按时
@@ -84,7 +87,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 import {
@@ -270,7 +273,7 @@ export class HoldTouchSensor implements SensorInstance {
     const target = event.target ?? document;
     this.listen(target, "touchmove", this.move, { passive: false });
     this.listen(target, "touchend", this.end);
-    this.listen(target, "touchcancel", this.cancel);
+    this.listen(target, "touchcancel", this.gone);
     this.listen(window, "resize", this.cancel);
     this.listen(document, "visibilitychange", this.cancel);
     this.listen(window, "contextmenu", prevent);
@@ -324,8 +327,10 @@ export class HoldTouchSensor implements SensorInstance {
     this.finish(false);
   };
   private readonly cancel = () => this.finish(true);
+  // 系统收回了这次触摸（touchcancel）：手势已经结束，后面没有松手、也没有点击
+  private readonly gone = () => this.finish(true, false, true);
 
-  private finish(cancelled: boolean, tap = false) {
+  private finish(cancelled: boolean, tap = false, over = false) {
     if (this.done) return;
     this.done = true;
     window.clearTimeout(this.timer);
@@ -335,6 +340,8 @@ export class HoldTouchSensor implements SensorInstance {
     // 松手后紧跟着的 click 还要拦下：稍后再摘（同 dnd-kit）。点按不拦（上面已经摘了），下面补一个
     if (!tap) window.setTimeout(() => clicks.forEach(off), 50);
     if (!this.lifted) this.props.onAbort(this.props.active);
+    // 拿起后手指还按着就取消了（Esc、转屏、切到后台）：之后松手那一下不当点击（见 blockReleaseClick）
+    if (cancelled && this.lifted && !tap && !over) blockReleaseClick("touch");
     // 拿起后取消（Esc、touchcancel、转屏、切到后台）：先滑回再取消（beforeCancel）。点按当场取消（下面补点击，不等滑回）
     if (cancelled && this.lifted && !tap && this.props.options.beforeCancel) this.props.options.beforeCancel(this.props.onCancel);
     else if (cancelled) this.props.onCancel();
@@ -353,24 +360,70 @@ function clickOn(target: EventTarget | null, at: { x: number; y: number }) {
   el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, view: window, detail: 1, clientX: at.x, clientY: at.y }));
 }
 
+// 松开以后接着拦点击的时长（同拖动库松手后拦点击的那 50ms：系统的 click 紧跟在 mouseup / touchend 后面）
+const RELEASE_CLICK_MS = 50;
+
+/** 拿起过的指针拖动，按键 / 手指还没松开就结束了（Esc 取消；转屏、切到后台）：这次按下到松开整个手势里拿起过，松开那一下
+ *  不当点击——不打开对话、不折叠组；剩下这一段按着移动也同拖动中一样不选中文字、不起系统拖放（拖动库取消时把这两道一起摘了，
+ *  按着往回移会选中经过的行字，下次按在选中的字上一动就成了系统拖文字）。一直拦到松开（mouseup / pointerup；手机 touchend /
+ *  touchcancel）后 RELEASE_CLICK_MS；又按下了（下一次手势）当场不拦。测试窗口第 11 轮重测 B 段：鼠标拿起对话行拖开 25px、Esc 取消、回到原行上松开，就打开了这段对话。拖动库
+ *  只把点击拦到取消后 50ms；第 11 轮 B14 起浮层不接指针、挡板在起播滑回那一帧画完就撤（releaseDrag），之后松开落在原来那一行
+ *  上，按下与松开在同一行，系统照常补一次点击（在别的行上松开时点击落在两行共同的上层，不打开）。 */
+export function blockReleaseClick(kind: "mouse" | "touch") {
+  if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+  const doc = document;
+  const capture = { capture: true };
+  // 自己的一份处理函数：同一个函数、同样的捕获再挂一次，浏览器只认一份。手机长按传感器拿起时也挂了 stopClick / clearSelection，
+  // 它取消后 50ms 摘掉自己那份，用同一个函数的话这里的也一起没了
+  const block = (event: Event) => stopClick(event);
+  const unselect = () => clearSelection();
+  const noDrag = (event: Event) => prevent(event);
+  const release = kind === "mouse" ? ["mouseup", "pointerup"] : ["touchend", "touchcancel"];
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const off = () => {
+    if (timer) clearTimeout(timer);
+    doc.removeEventListener("click", block, capture);
+    doc.removeEventListener("selectionchange", unselect);
+    doc.removeEventListener("dragstart", noDrag, capture);
+    doc.removeEventListener("pointerdown", off, capture);
+    for (const type of release) doc.removeEventListener(type, released, capture);
+  };
+  const released = () => {
+    timer ??= setTimeout(off, RELEASE_CLICK_MS);
+  };
+  doc.addEventListener("click", block, capture);
+  doc.addEventListener("selectionchange", unselect);
+  doc.addEventListener("dragstart", noDrag, capture);
+  doc.addEventListener("pointerdown", off, capture);
+  for (const type of release) doc.addEventListener(type, released, capture);
+}
+
 /** 拖动库自带的鼠标、键盘传感器加一道：放下时先交给 options.beforeEnd（先播落位，播完才真正结束拖动）；给了
- *  options.beforeCancel 时取消也先交给它（Esc、转屏、切到后台：先滑回）。拿起的条件、移动都不变；静态的 activators / setup
- *  照样继承。 */
-function landFirst<O extends object>(Base: Sensor<O>): Sensor<O & EndOptions> {
+ *  options.beforeCancel 时取消也先交给它（Esc、转屏、切到后台：先滑回）。release（鼠标）：拿起后按键还没松开就取消了，松开那一下
+ *  不当点击（blockReleaseClick）。拿起的条件、移动都不变；静态的 activators / setup 照样继承。 */
+function landFirst<O extends object>(Base: Sensor<O>, release?: "mouse"): Sensor<O & EndOptions> {
   const Landed = class extends (Base as unknown as new (props: SensorProps<O>) => SensorInstance) {
     constructor(props: SensorProps<O & EndOptions>) {
       const { beforeEnd, beforeCancel } = props.options;
+      // 拖动库的指针传感器拿起后记 activated（没拿起时按下就取消——拿起前按 Esc——照常是点击）
+      let self: { activated?: boolean } | null = null;
+      const cancel = () => {
+        if (release && self?.activated) blockReleaseClick(release);
+        if (beforeCancel) beforeCancel(props.onCancel);
+        else props.onCancel();
+      };
       super({
         ...props,
         ...(beforeEnd ? { onEnd: () => beforeEnd(props.onEnd) } : {}),
-        ...(beforeCancel ? { onCancel: () => beforeCancel(props.onCancel) } : {}),
+        ...(beforeCancel || release ? { onCancel: cancel } : {}),
       });
+      self = this as unknown as { activated?: boolean };
     }
   };
   return Landed as unknown as Sensor<O & EndOptions>;
 }
 
-export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);
+export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor, "mouse");
 export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);
 
 // ---------------------------------------------------------------- 范围
@@ -822,6 +875,45 @@ export function narrowPool(
   return inList(here);
 }
 
+/** 键盘拖动按一下方向键瞄准的下一项：order 是这一列（看得见、能放的）各项的先后，aim 是此刻瞄着的那一项（拿起时是它自己），
+ *  down = ↓。到头了（或这一列里找不到它）回 null（不动）。 */
+export function keyboardAim(
+  order: readonly (string | number)[],
+  activeId: string | number,
+  aim: string | number | null,
+  down: boolean,
+): string | number | null {
+  const from = order.indexOf(aim ?? activeId);
+  const at = from >= 0 ? from : order.indexOf(activeId);
+  if (at < 0) return null;
+  const next = at + (down ? 1 : -1);
+  return next >= 0 && next < order.length ? order[next]! : null;
+}
+
+/** 键盘拖动把拿着的那一项挪到 target 的位置时浮层的上边（同排序让位以后它落在那里的位置）：往后挪是它的底边对齐 target 的底边，
+ *  往前挪是它的顶边对齐 target 的顶边，回到原位是它自己的版面位置。height 是浮层的高。 */
+export function keyboardSlot(
+  order: readonly (string | number)[],
+  activeId: string | number,
+  target: string | number,
+  rectOf: (id: string | number) => ClientRect | null | undefined,
+  height: number,
+): number | null {
+  const rect = rectOf(target);
+  if (!rect) return null;
+  const from = order.indexOf(activeId);
+  const to = order.indexOf(target);
+  return to > from ? rect.top + rect.height - height : rect.top;
+}
+
+/** 键盘拖动的落点就是方向键瞄着的那一项（不在能放的各处里就是它自己）：不按几何远近算。测试窗口第 11 轮重测 B 段：会话栏第一张
+ *  卡「公司」展开着很高，下一张收着很矮，空格拿起按 ↓，浮层按拖动库的算法挪到「底边对齐下一张」，它的中心离原位（自己）比离
+ *  下一张还近（高差的一半大于下一张高加间距），最近中心算出来还是它自己，放下念「已取消移动」、顺序不变。 */
+export function keyboardCollision(pool: readonly DroppableContainer[], activeId: string | number, aim: string | number | null) {
+  const hit = pool.find((entry) => entry.id === (aim ?? activeId)) ?? pool.find((entry) => entry.id === activeId);
+  return hit ? [{ id: hit.id, data: { droppableContainer: hit, value: 0 } }] : [];
+}
+
 // 量能放的各处按版面位置（layoutRect：整列滑动途中重量也不量到滑动起点）
 const MEASURING = { droppable: { measure: layoutRect } };
 
@@ -859,6 +951,8 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
 
   const [keyed, setKeyed] = useState<string | number | null>(null);
   const keyedRef = useRef(false);
+  // 键盘拖动此刻瞄着的那一项（拿起时是它自己，方向键一格一格换；落点就是它）
+  const keyAim = useRef<string | number | null>(null);
   // 此刻指着的落点（落位要看它是不是收着的那一列整块）；指着的收着的整块（高亮组头）
   const overRef = useRef<DragData | null>(null);
   const [shutOver, setShutOver] = useState<string | null>(null);
@@ -900,22 +994,44 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
         active,
         { keyboard: keyedRef.current, y: args.pointerCoordinates?.y ?? rect.top + rect.height / 2, rects: args.droppableRects },
       );
+      // 键盘：方向键瞄着哪一项就是哪一项（各项高矮不一时按远近会算回它自己，见 keyboardCollision）
+      if (keyedRef.current) return keyboardCollision(pool, args.active.id, keyAim.current);
       return closestCenter({ ...args, droppableContainers: pool });
     },
     [],
   );
 
-  // 键盘：方向键在本列里挪（不拖进另一列）
+  // 键盘：↑ ↓ 在本列里一格一格挪（不拖进另一列）。瞄准按这一列的先后（keyboardAim），浮层挪到挪过去以后它在的位置
+  // （keyboardSlot，同拖动库 sortableKeyboardCoordinates 的对齐法），落点就是瞄着的那一项（上面 collisions）。原来瞄准与落点都按
+  // 几何远近算，第一张卡很高、下一张很矮时 ↓ 一格算回它自己（测试窗口第 11 轮重测 B 段，见 keyboardCollision）
   const coordinates = useMemo<KeyboardCoordinateGetter>(
     () => (event, args) => {
       const { context } = args;
       const active = context.active ? activeOf(context.active) : undefined;
       if (!active?.list || !context.active) return undefined;
+      const down = event.code === KeyboardCode.Down;
+      if (!down && event.code !== KeyboardCode.Up) {
+        if (event.code === KeyboardCode.Left || event.code === KeyboardCode.Right) event.preventDefault();
+        return undefined;
+      }
+      event.preventDefault();
       const activeId = context.active.id;
-      const enabled = () =>
-        context.droppableContainers.getEnabled().filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list);
-      const view = { getEnabled: enabled, get: (id: string | number) => context.droppableContainers.get(id) } as unknown as DroppableContainers;
-      return sortableKeyboardCoordinates(event, { ...args, context: { ...context, droppableContainers: view } });
+      const rect = context.collisionRect;
+      if (!rect) return undefined;
+      const enabled = new Set(
+        context.droppableContainers
+          .getEnabled()
+          .filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list)
+          .map((entry) => entry.id),
+      );
+      const own = context.droppableContainers.get(activeId)?.data.current?.sortable as { items?: (string | number)[] } | undefined;
+      const order = (own?.items ?? []).filter((id) => id === activeId || enabled.has(id));
+      const target = keyboardAim(order, activeId, keyAim.current, down);
+      if (target === null) return undefined;
+      const y = keyboardSlot(order, activeId, target, (id) => context.droppableRects.get(id), rect.height);
+      if (y === null) return undefined;
+      keyAim.current = target;
+      return { x: rect.left, y };
     },
     [],
   );
@@ -1101,6 +1217,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
     cancelling.current = false;
     setKeyed(null);
     keyedRef.current = false;
+    keyAim.current = null;
     overRef.current = null;
     setShutOver(null);
     setDragging(false);
@@ -1145,6 +1262,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
                   keepFocusOn(active.id, null);
                   const keyboard = byKeyboard(activatorEvent);
                   keyedRef.current = keyboard;
+                  keyAim.current = active.id;
                   setKeyed(keyboard ? active.id : null);
                   setDragging(true, byMouse(activatorEvent));
                   const data = dataOf(active);
