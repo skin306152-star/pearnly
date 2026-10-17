@@ -35,3 +35,7 @@ pearnly_core:No connection to test	zh	缺少要测试的连接	2026-10-18	docs/w
 pearnly_core:System URL is required	zh	系统地址为必填项	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_core:Connection {0} is disabled	zh	连接 {0} 已停用	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_core:Connection {0} has no password	zh	连接 {0} 未设置密码	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:Check the opening stock row	zh	请检查此期初明细	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:stock.count.voidConfirm	zh	确定要撤销 {0} 的盘点记录吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:stock.workbench.finishConfirm	zh	确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:Year, year-month or ALL, per the reset policy	zh	年、年月或 ALL，按重置策略	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）

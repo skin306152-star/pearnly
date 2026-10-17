@@ -127,7 +127,7 @@
    "fieldtype": "Check",
    "label": "Enable POS cashier",
    "default": "1",
-   "description": "Unticked, this company gets no cashier pages, no cashier job role and no cashier permissions."
+   "description": "Unticked: no cashier pages, role or permissions for this company"
   },
   {
    "fieldname": "payment_methods",
@@ -148,7 +148,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,
