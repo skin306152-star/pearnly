@@ -36,6 +36,7 @@ import {
 } from "./session-controller";
 import { initialProjection, isBusy, withNotices } from "./reducer";
 import { loadToolLabels } from "@/lib/tool-labels";
+import { runningTurn, type OpenState } from "@/lib/follow-scroll";
 
 // ------------------------------------------------------------- state hookup
 const EMPTY: ControllerSnapshot = {
@@ -44,6 +45,7 @@ const EMPTY: ControllerSnapshot = {
   isTailing: false,
   transportError: null,
   stalled: false,
+  isSynced: true,
 };
 const subscribeNothing = () => () => {};
 const getEmpty = () => EMPTY;
@@ -215,4 +217,17 @@ export function useActiveSessionSnapshot(): ControllerSnapshot & { sessionId: st
   const controller = sessionId ? getSessionController(sessionId) : null;
   const snapshot = useControllerSnapshot(controller);
   return { ...snapshot, sessionId };
+}
+
+/** 打开对话停在哪儿要用的（thread.tsx 的 useSettleOnOpen、lib/follow-scroll.ts）：这一轮在跑时它的提问的消息编号，状态核对过没有。
+ *  两项从会话控制器的同一份快照读（组件库的 thread.isRunning 要等下一次提交才跟上，会和「核对过」错开一拍）；只取这两个值，
+ *  回复每来一段不会让整个对话区重画。 */
+export function useOpenState(): OpenState {
+  const sessionId = useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId) ?? null;
+  const controller = sessionId ? getSessionController(sessionId) : null;
+  const subscribe = controller ? controller.subscribe : subscribeNothing;
+  const read = () => (controller ? controller.getSnapshot() : EMPTY);
+  const turn = useSyncExternalStore(subscribe, () => runningTurn(isBusy(read()), read().messages) ?? "", () => "");
+  const synced = useSyncExternalStore(subscribe, () => read().isSynced, () => true);
+  return { turn: turn || null, synced };
 }

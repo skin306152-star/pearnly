@@ -46,6 +46,10 @@ export type ControllerSnapshot = Projection & {
   transportError: string | null;
   /** 这一轮在跑，却超过 STALL_MS 收不到服务端任何消息（见文件头）。 */
   stalled: boolean;
+  /** 接上（attach）以后整段重放成功过一次：此刻的消息与在不在跑是按服务端核对过的。离开这段对话（detach）时置否——
+   *  回来到核对完之前，显示的是离开时的旧状态（例如离开期间这一轮已结束，这里还是「在跑」）。打开对话停在哪儿要分清这两种
+   *  （lib/follow-scroll.ts）。 */
+  isSynced: boolean;
 };
 
 /** 在跑时多久收不到服务端任何消息算断了。依据：实时通道连着时，在跑的会话每 8 秒补拉一次（poll-source 的
@@ -118,7 +122,7 @@ export class SessionController {
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
-    this.state = { ...initialProjection(), isLoaded: false, isTailing: false, transportError: null, stalled: false };
+    this.state = { ...initialProjection(), isLoaded: false, isTailing: false, transportError: null, stalled: false, isSynced: false };
   }
 
   // ------------------------------------------------------------ subscription
@@ -272,7 +276,7 @@ export class SessionController {
     // the persisted log — the reattach backfill refetches it.
     this.backfilling = false;
     this.pendingTail = [];
-    this.set({ isTailing: false });
+    this.set({ isTailing: false, isSynced: false });
     this.watchStall();
   }
 
@@ -414,7 +418,8 @@ export class SessionController {
         this.pendingTail = [];
         for (const event of buffered) this.fold(event);
       }
-      this.set({ isLoaded: true, transportError: null });
+      // 运行状态（applyRun）已在上面并进去，核对完的标记最后才置：读到「核对过」时在不在跑一定是核对后的
+      this.set({ isLoaded: true, transportError: null, isSynced: this.source !== null });
     } catch (err) {
       if (stale()) return;
       this.set({ isLoaded: true, transportError: describe(err) });
