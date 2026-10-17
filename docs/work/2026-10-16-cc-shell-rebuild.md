@@ -666,3 +666,4 @@
   - 侧栏 / 抽屉看得到但删完一行不剩时焦点掉到 body（手机抽屉开着搜索只剩一条、iPad 侧栏展开删最后一条可见行、电脑在定时任务 / 公司 / 待处理页删最后一条可见行）：落点只剩顶栏导航钮，而它此时不在或在 inert 里。给侧栏 / 抽屉里一直在、不弹键盘的那一颗统一标 `data-cc-nav-fallback`（网页侧栏标题区收起钮、桌面端侧栏标题栏里的侧栏开关、手机抽屉顶部的圆形搜索钮；网页收起钮的 `data-slot="cc-sidebar-toggle"` 不改，globals.css 按它定尺寸），`delete-chats.tsx` 的 land() 在顶栏导航钮之前先试它；看不到的那份在 inert 里聚焦不上，自然落到顶栏导航钮。不为了放焦点去关抽屉或切页面。展开时拿回焦点的兜底也用同一个标记。
   - 测试：`test_expanding_the_sidebar_gives_focus_back`、`test_deleting_the_last_visible_row_lands_on_the_sidebar_fallback`（修前失败、修后通过），`test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar` 随新结构改断言。`tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-frontend-i18n`、`check-architecture`，`test_assistant_ui`、`test_cc_mobile_overlays`、`test_cc_session_panel`、`test_cc_ccs`（合计 289）通过。
   - 已知限制：只在本机测试脚本（桩出来的焦点与 inert）里验证，没在真浏览器 / 测试机 lab 上按 ⌘B、读屏实测；没推送、没合并。
+- 10-18 已部署生产：main `ec90fdfc`，镜像 `sha256:ebba5a40…`，见 [2026-10-18-release-ec90fdfc.md](2026-10-18-release-ec90fdfc.md)。
