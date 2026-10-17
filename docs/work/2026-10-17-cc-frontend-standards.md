@@ -10,9 +10,9 @@
 
 | 项 | 值 |
 | :- | :- |
-| 基线 | `pearnly/cc-shell-rebuild` 803c483b（CC 的集成分支） |
+| 基线 | 写方案时是 `pearnly/cc-shell-rebuild` 803c483b；cc-shell-rebuild 10-18 已全部并入 main 且删了远端分支，B0 变基到 main 669427ca 后合入 main |
 | B0 分支与工作树 | `pearnly/cc-standards`，`.claude/worktrees/cc-standards`；`frontend/assistant/node_modules` 是指向 cc-shell-rebuild 工作树的符号链接 |
-| B1 起 | 每批从 cc-shell-rebuild 最新提交开 `pearnly/cc-std-bN` 分支和工作树，合回 cc-shell-rebuild；合入 main 跟随 cc-shell-rebuild 现有节奏 |
+| B1 起 | 每批从最新 `origin/main` 开 `pearnly/cc-std-bN` 分支和工作树，按「主线集成」直接合入 main（变基 → 全闸门 → 推分支等 CI → 快进 main）；各批用自己的 `node_modules`，不再链到别的工作树 |
 | 并行分支 | `cc-drag-perf`、`cc-scroll-fix`、`cc-ef-fixes` 正在改 `frontend/assistant/src`。10-17 写本记录时，已提交的改动是：drag-perf 改 `thread-list.tsx`、`drag.tsx`、`globals.css`、`lib/layers.ts`；scroll-fix 改 `thread.tsx`、`lib/follow-scroll.ts`；ef-fixes 还没有已提交的 src 改动。每批开工前重新核对 |
 | 方案底稿 | 只读审计四片（外壳与侧栏、对话区、业务组件、组件库与 globals.css）+ 汇总 + 漏项审查 18 条，已全部并入本文 |
 | 范围 | `frontend/assistant/src`。登录页（Keycloak 主题，用户 10-17 定不动）、`apps/pearnly_core/pearnly_core/www/assistant.html` 启动页、CC 桌面版的 Qt 原生部分不在范围内 |
@@ -21,10 +21,10 @@
 
 | 批 | 状态 |
 | :- | :- |
-| B0 闸门与比对工具骨架 | 本地完成（`pearnly/cc-standards`，提交见下，含审查补修与 10-18 补修复核）；未推送、未合入 main（cc-shell-rebuild 已全部并入 main，B0 直接合 main）；不碰 `src`，无画面变化 |
+| B0 闸门与比对工具骨架 | 10-18 变基到 main（669427ca，之后只多了交接文档的 249f5928），本地全闸门 87 步全过，推分支等 Development checks 通过后快进合入 main；不碰 `src`，无画面变化，不部署 |
 | B1–B8 | 待开工 |
 
-每批完成后在这里补一行：分支、提交、合入 cc-shell-rebuild 的 SHA、比对报告位置、测试窗口验收状态。
+每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
 ### B0 做了什么（10-17）
 
@@ -501,7 +501,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 
 ### 4.1 规则
 
-- **分支**：B0 在 `pearnly/cc-standards`；B1 起每批从 `pearnly/cc-shell-rebuild` 最新提交开一个 `pearnly/cc-std-bN` 分支和工作树，合回 cc-shell-rebuild。同一工作树只有一个写者。
+- **分支**：B0 在 `pearnly/cc-standards`；B1 起每批从最新 `origin/main` 开一个 `pearnly/cc-std-bN` 分支和工作树，直接合入 main（cc-shell-rebuild 10-18 已并入 main、远端分支已删）。同一工作树只有一个写者。
 - **同一个源码文件只在一批**。登记过的例外：
   - **`globals.css`** 在 B1 补标准，在 B8 只删已经没人引用的旧名（含 reduce-motion 里的 `.animate-spin`、`tw-animate-css` 的 import）。B8 是纯删除，不改画面；它必须等所有组件改完名才能删。
   - **`split-handle.tsx:75`** 这一行（`cssVar` 改成 `--cc-sidebar-w`）随 B2 的 sidebar.tsx 一起改，文件其余部分归 B3。
@@ -718,7 +718,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 2. **组件里的覆盖类一删，cc-* 类的值就生效了**。原因是 utilities 层优先于 components 层。看起来是「纯替换」，画面可能会变；由逐像素比对兜住，发现了就移到画面变化提交。
 3. **断点写法不一致、`data-cc-touch` 需要运行时切换**。变体判定本身是「窄屏优先成 phone」，与 `max-md` 是同一条分界；差别只在查询文本不同导致的小数宽度。对策：B1 统一成同一段查询文本并由测试核对（2.1），比对加 767.5 宽场景；`variant.ts` 监听媒体查询（外接鼠标、平板）。
 4. **phone 和 coarse 成对规则本身可能不一致**（第 11 轮 D26 就只补了一边）。合并时以完整的一边为准，作为 A 类画面变化单列（V4）。
-5. **并行冲突**：范围文件、共享测试、任务记录会被多批改到。对策：批次合入 cc-shell-rebuild 时串行、变基。B6 和 B7 必须等对应分支合入后，从新的基点开工。
+5. **并行冲突**：范围文件、共享测试、任务记录会被多批改到。对策：批次合入 main 时串行、变基。B6 和 B7 必须等对应分支合入后，从新的基点开工。
 6. **比对工具不稳定**（字体、时间、随机宽度骨架）。对策：B0 先自检连跑两遍 0 差；sidebar 的随机宽度骨架在 B2 删掉。
 7. **假服务端覆盖不到的分支**：CC 桌面版专属的「此电脑 · 连接」、安装提示的平台分支。由覆盖报告列出，人工点。
 8. **B1 工作量集中**（globals.css 2295 行）。对策：按「刻度 → 用途 → 新类 → 内部替换 → touch 合并 → 删变量」拆提交，每个提交都跑一遍比对。
