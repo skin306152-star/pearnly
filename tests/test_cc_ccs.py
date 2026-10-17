@@ -613,6 +613,56 @@ assert.equal(cn("font-medium text-caption", "text-ink-2"), "font-medium text-cap
 (globalThis as any).done();
 """)
 
+    def test_one_breakpoint_text_in_three_places(self):
+        # 2.1「断点」：hooks/use-mobile.ts 的 MOBILE_QUERY、Tailwind 的 max-md / md 生成的查询、globals.css 的 @media 同一段文本
+        mobile = (SRC / "hooks/use-mobile.ts").read_text(encoding="utf-8")
+        self.assertIn("export const MOBILE_BREAKPOINT = 768;", mobile)
+        self.assertIn("export const MOBILE_QUERY = `(width < ${MOBILE_BREAKPOINT}px)`;", mobile)
+        query = "(width < 768px)"
+        self.assertIn("--breakpoint-md: 768px;", theme_block(self.css))
+        widths = re.findall(r"@media[^{]*?(\([^()]*\bwidth\b[^()]*\))", re.sub(r"/\*.*?\*/", "", self.css, flags=re.S))
+        self.assertTrue(widths)
+        self.assertEqual(set(widths) - {query, "(width >= 768px)"}, set(), widths)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_tailwind_generates_the_same_breakpoint_text(self):
+        # 用前端依赖里的 Tailwind 现编 globals.css：max-md: / md: 生成的查询与 MOBILE_QUERY 一字不差（V37：原来是 (max-width: 767px)，
+        # 767.5 宽时 max-md: 的类生效、变体却判成 web）
+        script = r"""
+const path = require("path");
+const fs = require("fs");
+const front = process.argv[2];
+(async () => {
+  const { compile } = await import(path.join(front, "node_modules/tailwindcss/dist/lib.mjs"));
+  const css = fs.readFileSync(path.join(front, "src/globals.css"), "utf8");
+  // 样式包按 package.json 的 style / exports["."].style / main 找入口（同构建时的解析），相对路径照常
+  const resolve = (id, base) => {
+    if (id.startsWith(".")) return path.resolve(base, id);
+    const name = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
+    const dir = path.join(front, "node_modules", name);
+    const sub = id.slice(name.length + 1);
+    if (sub) return path.join(dir, sub.endsWith(".css") ? sub : `${sub}.css`);
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+    const entry = pkg.style ?? pkg.exports?.["."]?.style ?? pkg.main;
+    return path.join(dir, entry);
+  };
+  const loadStylesheet = async (id, base) => { const file = resolve(id, base); return { path: file, base: path.dirname(file), content: fs.readFileSync(file, "utf8") }; };
+  const compiler = await compile(css, { base: path.join(front, "src"), loadStylesheet });
+  process.stdout.write(compiler.build(["max-md:hidden", "md:flex"]));
+})().catch((e) => { console.error(e); process.exit(1); });
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = pathlib.Path(tmp) / "tw.cjs"
+            runner.write_text(script, encoding="utf-8")
+            out = subprocess.run([NODE, str(runner), str(SRC.parent)], capture_output=True, text=True, timeout=120)
+        self.assertEqual(out.returncode, 0, out.stderr[-2000:])
+        built = out.stdout
+        self.assertTrue("@media (width < 768px) {\n    .max-md\\:hidden" in built, "max-md: 没有生成 (width < 768px)")
+        self.assertTrue("@media (width >= 768px) {\n    .md\\:flex" in built, "md: 没有生成 (width >= 768px)")
+        # 生成的 CSS 里只有这一条宽度断点（没有 48rem 的写法，也没有 max-width: 767px 一类）
+        widths = set(re.findall(r"@media[^{]*?(\([^()]*\bwidth\b[^()]*\))", built))
+        self.assertEqual(widths, {"(width < 768px)", "(width >= 768px)"}, sorted(widths))
+
     def test_the_scale_layer_has_one_definition_per_value(self):
         # 2.4 第 1 / 6 条：刻度只有一份，刻度层这一块里不出现两个定义完全相同的变量
         block = self.css.split("/* ── 刻度层", 1)[1].split("\n}", 1)[0]
