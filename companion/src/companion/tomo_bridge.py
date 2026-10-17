@@ -13,6 +13,9 @@
 打开都带它调 ``companion.api.register``（对话页一侧在第 6 批）；成员带 ``device_state``（``superseded`` / ``claimed_elsewhere``：
 这把密钥不再用，对话页重新登记，前者带 ``rekey``）。设备密钥只交给本站自己的对话页（``allowed``），不进任何地址栏参数。
 
+窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
+``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
+
 协议（网页侧见 frontend/assistant/src/lib/desktop.ts）：
 - state() → 当前设置的 JSON；本机状态变了发 changed()，网页再取一次。
 - call(method, args_json) → 结果 JSON；慢的操作（配对、换 Express 文件夹、找 Express）先回 {"job": id}，
@@ -22,7 +25,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Callable
+from typing import Callable, Optional
 from urllib.parse import urlsplit
 
 from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
@@ -49,13 +52,16 @@ class TomoBridge(QObject):
     open_settings = Signal(str)   # 托盘「连接与设置」：让网页打开设置的某一栏
 
     def __init__(self, settings: DesktopSettings, *, allowed: Callable[[], bool], window: Callable[[], object],
-                 set_lang: Callable[[str], None], page_url: Callable[[], str] = lambda: "") -> None:
+                 set_lang: Callable[[str], None], page_url: Callable[[], str] = lambda: "",
+                 pick: Optional[Callable[[str, str], str]] = None) -> None:
         super().__init__()
         self._settings = settings
         self._allowed = allowed
         self._page_url = page_url   # 对话页当前地址：pick_folder 核对它的站点就是这台电脑连着的那家公司
         self._window = window
         self._set_lang = set_lang
+        # pick(标题, 从哪打开) → 选好的文件夹（没选是空串）：默认在本进程弹（以窗口为父）；托盘里经窗口进程弹（WindowHost.pick）
+        self._pick = pick or (lambda title, start: QFileDialog.getExistingDirectory(self._window(), title, start))
         self._probes = Probes()
 
     @Slot(result=str)
@@ -100,8 +106,7 @@ class TomoBridge(QObject):
         if method == "detect":
             return self._job(lambda: {"ok": True, "roots": s.detect()})
         if method == "pick_roots":
-            picked = QFileDialog.getExistingDirectory(self._window(), t("browse_title", normalize(lang)),
-                                                      self._start(s.snapshot().get("express_roots") or []))
+            picked = self._pick(t("browse_title", normalize(lang)), self._start(s.snapshot().get("express_roots") or []))
             if not picked:
                 return {"ok": False, "cancelled": True}
             return self._job(lambda: s.change_roots(picked, lang))
@@ -118,8 +123,7 @@ class TomoBridge(QObject):
             if failed is not None:
                 return failed
             current = [path for row in s.snapshot().get("members") or [] for path in row.get("folders") or []]
-            picked = QFileDialog.getExistingDirectory(self._window(), t("folders_pick", normalize(lang)),
-                                                      self._start(current))
+            picked = self._pick(t("folders_pick", normalize(lang)), self._start(current))
             if not picked:
                 return {"ok": False, "cancelled": True}
             host = self._page_host()   # 选择框开着时页面可能换了：后台再核一次
@@ -127,8 +131,7 @@ class TomoBridge(QObject):
         if method == "add_folder":
             # 旧设置页（回退、旧服务端）的「添加文件夹…」：保留，判定口径同公司选文件夹（不许整块盘、系统位置、程序文件夹）
             current = self._folders(member)
-            picked = QFileDialog.getExistingDirectory(self._window(), t("folders_pick", normalize(lang)),
-                                                      self._start(current))
+            picked = self._pick(t("folders_pick", normalize(lang)), self._start(current))
             if not picked:
                 return {"ok": False, "cancelled": True}
             program = program_folder()

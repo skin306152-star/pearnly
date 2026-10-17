@@ -238,12 +238,13 @@ def test_connections_and_settings_opens_tomo_at_the_connections_section(monkeypa
     gui_tray = _gui_tray_with_fake_qt(monkeypatch)
     app = gui_tray.TrayApp.__new__(gui_tray.TrayApp)
     opened = []
-    app._tomo = SimpleNamespace(open_settings=opened.append)
+    # 2026-10-18：窗口在窗口进程里（window_link.WindowHost）：托盘交过去「打开设置的连接一栏」
+    app._window = SimpleNamespace(open=opened.append)
     app.open_tomo = lambda text=None: None
 
     app._repair()
 
-    assert opened == ["connections"]
+    assert opened == [{"op": "open_settings", "section": "connections"}]
 
 
 def test_stopping_for_an_update_waits_for_both_threads_and_never_respawns(monkeypatch):

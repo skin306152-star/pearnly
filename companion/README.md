@@ -51,6 +51,10 @@
     找不到这份账套 → 按「等账套」回报 `[ERR_ACCOUNT_UID_MISMATCH]`（单子交给别的电脑），并整套重扫一次账套；
   - 没有 Express 的电脑也能加入事务所的 Express 池（当只读文件夹的成员，永远领不到写账），之后找到 Express 用原密钥按 Express
     重新配对。
+  - 轻量化（10-18，用户：老办公机也要能正常用）：托盘进程**不加载网页内核**；CC 窗口在自己的进程里（`companion.exe --window`，
+    `window_main.py`），打开窗口时由托盘拉起、关窗口就退出（正在回复时等回复完再退），窗口没开时没有 QtWebEngineProcess。
+    两边经本用户的本地管道说话（`window_link.py`：一次性口令、一行一条 JSON），对话页的桥照旧在托盘应答（`tomo_bridge.py`）；
+    日志：窗口进程写 `logs/window.log`。
   - 只有真机能验的：真的 DPAPI、`GetFileInformationByHandle` / `WNetGetConnectionW` / 共享表 / 网卡表在 NAS 与服务器共享上的结果、
     两台电脑同一份账套的分派与写前核对，见 `docs/work/2026-10-15-multi-desktop-build.md` 第 7 批。
 

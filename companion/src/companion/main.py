@@ -13,6 +13,7 @@ CLI:
   python -m src.companion.main --headless   # 无托盘 console 直写循环(测试/服务器)
   python -m src.companion.main --background # 开机自启:后台常驻,不弹 Tomo 窗口
   python -m src.companion.main --debug      # 调试日志
+  python -m src.companion.main --window     # CC 窗口进程(只由托盘拉起,window_main.py;不占单实例锁)
 """
 
 from __future__ import annotations
@@ -185,7 +186,13 @@ def main() -> int:
         action="store_true",
         help="无托盘 GUI 的 console 直写循环(测试/服务器)",
     )
+    parser.add_argument("--window", action="store_true", help=argparse.SUPPRESS)  # CC 窗口进程(托盘拉起)
     args = parser.parse_args()
+    if args.window:
+        # CC 窗口进程(2026-10-18 轻量化):网页内核只在这里;不占单实例锁、不跑取任务,关窗口就退出
+        from .window_main import run as run_window
+
+        return run_window()
 
     _register_app_user_model_id()  # 必须早于任何 QApplication,否则托盘通知不弹
 
