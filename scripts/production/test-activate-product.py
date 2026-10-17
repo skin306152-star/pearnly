@@ -159,6 +159,20 @@ elif 'ps' in args:
         self.assertLess(find('enable-scheduler'), find('up -d'))
         self.assertLess(find('up -d'), find('set-maintenance-mode off'))
 
+    def test_activation_removes_the_products_maintenance_container_first(self):
+        # 开户代理的维护容器跑的是旧镜像：激活时收掉（持着开户锁），放在容量等待和停机之前
+        for product in ('dms', 'erp', 'cowork'):
+            result, trace = self.run_activation(product=product)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = [row['args'] for row in trace]
+            self.assertIn(['rm', '-f', f'pearnly-maintenance-{product}'], calls)
+            removal = calls.index(['rm', '-f', f'pearnly-maintenance-{product}'])
+            self.assertLess(removal, next(i for i, call in enumerate(calls) if 'set-maintenance-mode' in call))
+            self.assertFalse([call for call in calls if call[:2] == ['rm', '-f'] and call != calls[removal]])
+        # 没有这个容器（docker rm 失败）也不能挡住激活
+        result, _ = self.run_activation('pearnly-maintenance-dms')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_warmup_runs_after_reopening_and_cannot_fail_activation(self):
         result, trace = self.run_activation(product='cowork')
         self.assertEqual(result.returncode, 0, result.stderr)

@@ -44,7 +44,7 @@
   - LINE 收单、CC 工具的实机测试：要真手机，只有单元测试覆盖。
   - Cloud Run 新版：要认 `ERO-`、对账文档只交引用。
   - ERP 站点配置 `pearnly_cowork_ocr_remote` 和 `pearnly_cowork_originals_bucket`：谷歌租户 ERP 没配之前照旧存本机。
-  - 合入 main、生产部署。
+  - 生产部署（2026-10-18 已合入 main 669427ca，随下一批部署）。
 
 ## 下一步
 
@@ -52,3 +52,14 @@
    - Cloud Run 按修订版名切流量。
    - ERP 站点补两项配置。
 2. 部署后回读：新上传原件落在甲骨文 / 谷歌存储，生产本机只有登记。
+
+## 文案改动（用户确认）
+
+用户 2026-10-18 夜：「涉及到文案的今晚特批，但是不用有口语」。
+
+| 位置 | 英文键 | 中文 原 → 新 |
+| --- | --- | --- |
+| `pearnly_erp_portal/i18n/messages.tsv` | The file could not be saved. Please try again shortly. | 文件暂时保存不了，请稍后再试 → 文件保存失败，请稍后重试 |
+
+泰文、日文本来就是书面说法，不改。
+

@@ -71,6 +71,10 @@ QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests
    `gh workflow run companion-release.yml --ref main -f target=staging`（只写 `staging/`，用户看不到）。
 3. 正式发布：推标签 `companion-v<VERSION>`（或手动运行选 `prod`）。
 
+没进 main 的分支要先装到真机上验（ADR-021），用只构建、不发布的 `.github/workflows/companion-build.yml`：
+`gh workflow run companion-build.yml --ref <分支>`，跑完 `gh run download <运行编号>` 取 `CC-Setup.exe`。它和发布同一套测试与打包，
+不连服务器、不改 `latest.json`，产物只留 1 天；装上去的版本号就是那个分支 `version.py` 里的。
+
 流水线：Windows 上跑全量测试 → PyInstaller + Inno Setup 打包（`packaging/release.ps1 -BuildOnly`）→
 Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/production/receive-companion.py` → 从公网下载回来比对 sha256。
 
