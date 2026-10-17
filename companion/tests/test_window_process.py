@@ -87,8 +87,9 @@ class _Host:
         self.notes = []
         self.links = []
         self.handled = []
+        self.foreground = []
         self.host = window_link.WindowHost(on_request=self._request, on_notify=self.notes.append,
-                                           lang=lambda: "th", spawn=self._spawn,
+                                           lang=lambda: "th", spawn=self._spawn, foreground=self.foreground.append,
                                            name=f"PearnlyCCWindowTest-{time.monotonic_ns()}")
 
     def _request(self, message):
@@ -98,6 +99,7 @@ class _Host:
     def _spawn(self, command, cwd, env):
         self.spawned.append((command, env[window_link.ENV_LANG]))
         self.env = env
+        return 4000 + len(self.spawned)
 
     def connect(self, token=None):
         link = window_link.TrayLink(self.env[window_link.ENV_PIPE], token or self.env[window_link.ENV_TOKEN])
@@ -122,6 +124,10 @@ def test_opening_the_window_starts_the_window_process_once_and_hands_over_queued
     host.open({"op": "open_settings", "section": "connections"})   # 连着：直接交过去
     assert _until(lambda: len(t.handled) == 3) and t.handled[2]["section"] == "connections"
     assert len(t.spawned) == 1
+    # 拿到最前面的权利交给窗口进程：拉起时给新进程，之后每次打开给它报来的进程号
+    import os
+
+    assert t.foreground == [4001, os.getpid()]
 
 
 def test_a_connection_with_the_wrong_token_is_dropped():

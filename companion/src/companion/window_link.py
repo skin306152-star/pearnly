@@ -204,9 +204,22 @@ class _Channel(QObject):
             log.exception("本地管道断开处理失败")
 
 
-def _spawn(command: list, cwd: str, env: dict) -> None:
-    subprocess.Popen(command, cwd=cwd, env=env, close_fds=True, stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def _spawn(command: list, cwd: str, env: dict) -> int:
+    return subprocess.Popen(command, cwd=cwd, env=env, close_fds=True, stdin=subprocess.DEVNULL,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).pid
+
+
+def allow_foreground(pid) -> None:
+    """让窗口进程能把 CC 窗口拿到最前面（Windows 只许前台进程抢前台：托盘刚被点、快捷键刚按下时托盘有这个权利，
+    交给窗口进程）。原来窗口在托盘进程里，不需要这一步。"""
+    if sys.platform != "win32" or not isinstance(pid, int) or pid <= 0:
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.user32.AllowSetForegroundWindow(pid)
+    except Exception:
+        pass
 
 
 class WindowHost(QObject):
@@ -215,14 +228,17 @@ class WindowHost(QObject):
     gone = Signal()
 
     def __init__(self, *, on_request: Callable[[dict], object], on_notify: Callable[[dict], None],
-                 lang: Callable[[], str] = lambda: "", spawn: Callable[[list, str, dict], None] = _spawn,
-                 name: Optional[str] = None, clock: Callable[[], float] = time.monotonic) -> None:
+                 lang: Callable[[], str] = lambda: "", spawn: Callable[[list, str, dict], object] = _spawn,
+                 name: Optional[str] = None, clock: Callable[[], float] = time.monotonic,
+                 foreground: Callable[[object], None] = allow_foreground) -> None:
         super().__init__()
         self._on_request = on_request
         self._on_notify = on_notify
         self._lang = lang
         self._spawn_process = spawn
         self._clock = clock
+        self._foreground = foreground
+        self._pid = None   # 窗口进程（hello 里报的）
         self.name = name or pipe_name()
         self._token = secrets.token_urlsafe(24)
         self._channel: Optional[_Channel] = None
@@ -246,6 +262,7 @@ class WindowHost(QObject):
         """要窗口做一件事（show / ask / open_conversation / open_settings）：连着就交过去，没连着就排着并拉起窗口进程。"""
         if self.connected:
             assert self._channel is not None
+            self._foreground(self._pid)
             self._channel.send(**command)
             return
         self._pending = (self._pending + [dict(command)])[-MAX_PENDING:]
@@ -276,8 +293,9 @@ class WindowHost(QObject):
         env = dict(os.environ)
         env.update({ENV_PIPE: self.name, ENV_TOKEN: self._token, ENV_LANG: str(self._lang() or "")})
         try:
-            self._spawn_process(window_command(frozen=frozen, executable=sys.executable),
-                                window_cwd(frozen=frozen, executable=sys.executable), env)
+            pid = self._spawn_process(window_command(frozen=frozen, executable=sys.executable),
+                                      window_cwd(frozen=frozen, executable=sys.executable), env)
+            self._foreground(pid)
             log.info("打开 CC 窗口（窗口进程）")
         except Exception:
             self._spawned_at = None
@@ -299,16 +317,17 @@ class WindowHost(QObject):
                     socket.disconnectFromServer()
                     return None
                 holder["ok"] = True
-                self._adopt(holder["channel"])
+                self._adopt(holder["channel"], message.get("pid"))
                 return None
 
             holder["channel"] = _Channel(socket, first, lambda holder=holder: self._lost(holder.get("channel")))
 
-    def _adopt(self, channel: _Channel) -> None:
+    def _adopt(self, channel: _Channel, pid=None) -> None:
         if self.connected and self._channel is not channel:
             channel.send("quit")   # 已经有一个窗口进程（两次快速点开）：后来的退出
             return
         self._channel = channel
+        self._pid = pid if isinstance(pid, int) else None
         self._spawned_at = None
         pending, self._pending = self._pending, []
         for command in pending or [{"op": "show"}]:
@@ -318,6 +337,7 @@ class WindowHost(QObject):
         if channel is not self._channel:
             return
         self._channel = None
+        self._pid = None
         self.visible = self.active = False
         self.url = ""
         self.gone.emit()

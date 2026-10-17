@@ -50,8 +50,23 @@ def listen(on_show) -> QLocalServer | None:
     return server
 
 
+def _allow_any_foreground() -> None:
+    """再点一次桌面图标的这个进程是前台进程：把「拿到最前面」的权利放出去，托盘再交给 CC 窗口进程（window_link）。"""
+    import sys
+
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.user32.AllowSetForegroundWindow(-1)   # ASFW_ANY
+    except Exception:
+        pass
+
+
 def ask_running_to_show() -> bool:
     """告诉正在跑的那个显示 Tomo；成功返回 True（本进程随即退出），连不上返回 False。"""
+    _allow_any_foreground()
     sock = QLocalSocket()
     sock.connectToServer(_name())
     if not sock.waitForConnected(1500):
