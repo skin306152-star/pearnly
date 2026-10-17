@@ -117,7 +117,27 @@ class Client(unittest.TestCase):
         # 自签证书只认钉死的指纹：默认的 CA 校验会把甲骨文的证书拒掉（10-18 闸门实测），必须关掉、只留指纹
         self.assertFalse(post.call_args.args[0].verify)
         self.assertEqual((first["where"], second["where"]), ("oracle", "checkpoint"))
-        self.assertTrue(post.call_args.kwargs["headers"]["Authorization"].startswith("Bearer "))
+        self.assertTrue(post.call_args.args[0].headers["Authorization"].startswith("Bearer "))
+
+    def test_stored_original_is_read_on_oracle_only(self):
+        """原件存在甲骨文（ADR-023）：只交对象名与 sha256；连不上就排队重试，不在生产上读（原件不在这台）。"""
+        import requests
+        env = {"PEARNLY_CLAUDE_OCR_URL": "https://203.0.113.1:8443", "PEARNLY_CLAUDE_OCR_TOKEN": "t",
+               "PEARNLY_CLAUDE_OCR_CERT_SHA256": "ab" * 32, "PEARNLY_ANTHROPIC_API_KEY": "k"}
+        answer = types.SimpleNamespace(status_code=200, json=lambda: outcome(voucher(doc())))
+        with patch.dict("os.environ", env), patch("requests.Session.post", autospec=True, return_value=answer) as post:
+            got = client.read_original("voucher", "s/originals/CWS-x.jpg", "f" * 64)
+            again = client.read_original("voucher", "s/originals/CWS-x.jpg", "f" * 64)
+        self.assertEqual((got["where"], again["where"], post.call_count), ("oracle", "checkpoint", 1))
+        self.assertEqual(post.call_args.kwargs["json"]["original"], {"object": "s/originals/CWS-x.jpg", "sha256": "f" * 64})
+        self.assertNotIn("images", post.call_args.kwargs["json"])
+        CHECKPOINTS.clear()
+        with patch.dict("os.environ", env), patch("requests.Session.post", side_effect=requests.ConnectionError("down")), \
+                patch.object(client.claude_engine, "run") as run, self.assertRaises(Deferred):
+            client.read_original("voucher", "s/originals/CWS-x.jpg", "f" * 64)
+        run.assert_not_called()
+        with patch.dict("os.environ", {}, clear=True), self.assertRaises(Deferred):
+            client.internal("/v1/originals/inspect", {})
 
     def test_unreachable_oracle_reads_locally(self):
         import requests
