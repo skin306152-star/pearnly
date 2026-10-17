@@ -45,6 +45,7 @@ from PySide6.QtWidgets import (
 from . import tomo_links
 from .config import APPDATA_DIR
 from .gui_quick import Reveal
+from .session_watch import SessionWatch
 from .i18n import t
 from .logger import get_logger
 
@@ -260,6 +261,8 @@ class TomoWindow(QMainWindow):
 
         if not self.restoreGeometry(self._settings.value("geometry", b"")):
             self.resize(1180, 800)
+        # 锁屏、屏幕关了：页面当作看不见（动画、重画停下），解锁 / 亮屏再看得见（session_watch.py）
+        self._session = SessionWatch(self)
         self.page.setUrl(QUrl(tomo_links.resume_url(str(self._settings.value("last_url", "") or ""))))
 
     def _shortcuts(self) -> None:
@@ -308,7 +311,18 @@ class TomoWindow(QMainWindow):
         if event.type() in (QEvent.Type.WindowStateChange, QEvent.Type.ThemeChange, QEvent.Type.PaletteChange) \
                 and hasattr(self, "chrome"):
             self._fit_frame()
+        session = getattr(self, "_session", None)
+        if event.type() == QEvent.Type.ActivationChange and session is not None and self.isActiveWindow():
+            # 有人在用这个窗口：一定没锁屏、屏幕亮着（万一漏了解锁 / 亮屏通知，也不会把正在看的页面当成看不见）
+            session.locked = session.display_off = False
+            session.apply()
         super().changeEvent(event)
+
+    def nativeEvent(self, event_type, message):
+        session = getattr(self, "_session", None)
+        if session is not None:
+            session.native_event(event_type, message)
+        return super().nativeEvent(event_type, message)
 
     def _zoom(self, step: float) -> None:
         factor = 1.0 if not step else min(2.0, max(0.5, round(self.view.zoomFactor() + step, 2)))
@@ -398,6 +412,7 @@ class TomoWindow(QMainWindow):
 
     def shutdown(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
+        self._session.close()
         self.view.setPage(None)
         self.page.deleteLater()
 

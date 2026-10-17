@@ -298,6 +298,9 @@ class _Link(QObject):
         self.requests.append((op, payload))
         return json.dumps({"ok": True, "op": op})
 
+    def close(self):
+        self.sent.append(("closed", {}))
+
 
 def _controller(monkeypatch=None):
     from src.companion import window_main
@@ -319,7 +322,7 @@ def test_closing_the_window_ends_the_window_process_unless_a_reply_is_running(mo
     link.handler({"op": "show"})
     window.close_like_the_user()
     assert _until(lambda: quits)
-    assert window.closed_down and ("bye", {}) in link.sent
+    assert window.closed_down and link.sent[-2:] == [("bye", {}), ("closed", {})]
     assert window.page.scripts == [window_main.BUSY_SCRIPT]
 
     controller, link, quits = _controller()
@@ -415,3 +418,44 @@ def test_the_chat_page_tells_the_desktop_whether_a_reply_is_running():
     from src.companion import window_main
 
     assert "window.tomo.busy()" in window_main.BUSY_SCRIPT
+
+
+_REAL_WINDOW = r"""
+import sys, tempfile, time
+from pathlib import Path
+sys.path.insert(0, ".")
+tmp = Path(tempfile.mkdtemp())
+from src.companion.gui_font import qt_app
+app = qt_app()
+from PySide6.QtCore import QSettings
+from PySide6.QtGui import QIcon
+from src.companion import gui_tomo
+gui_tomo.APPDATA_DIR = tmp
+gui_tomo.QSettings = lambda *args: QSettings(str(tmp / "tomo.ini"), QSettings.Format.IniFormat)
+gui_tomo.tomo_links.resume_url = lambda saved, env=None: "about:blank"
+notes, closed = [], []
+window = gui_tomo.TomoWindow(lang="zh", icon=QIcon(), notify=lambda *a, **k: notes.append(a), bridge=None,
+                             on_close=lambda: closed.append(window.isVisible()))
+def pump(seconds):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        app.processEvents(); time.sleep(0.01)
+window.show(); pump(0.5)
+window.close(); pump(0.2)
+window.show(); pump(0.2)
+window.close(); pump(0.2)
+window.shutdown()
+print("RESULT", closed, len(notes), window.isVisible())
+"""
+
+
+def test_closing_the_real_cc_window_hides_it_and_hands_over_once_per_close():
+    pytest.importorskip("PySide6.QtWebEngineWidgets")
+    import os
+
+    out = subprocess.run([sys.executable, "-c", _REAL_WINDOW], cwd=COMPANION, capture_output=True, text=True,
+                         timeout=120, env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
+    result = [line for line in out.stdout.splitlines() if line.startswith("RESULT")]
+    assert result, out.stderr[-2000:]
+    # 每次关窗口：先藏起来（交出去时已经看不见）再交给窗口进程；「CC 仍在后台运行」只提示第一次
+    assert result[0] == "RESULT [False, False] 1 False"

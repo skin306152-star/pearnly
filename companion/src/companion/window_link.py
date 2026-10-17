@@ -376,3 +376,9 @@ class TrayLink(QObject):
         if self._channel is None:
             return None
         return self._channel.request(op, **payload)
+
+    def close(self) -> None:
+        """窗口进程要退出了：发完的话发出去再断开，不再当作「托盘断了」处理。"""
+        if self._channel is not None:
+            self._channel.alive = False
+        self._socket.disconnectFromServer()

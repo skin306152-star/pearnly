@@ -221,6 +221,7 @@ class WindowController(QObject):
         except Exception:
             log.exception("关闭 CC 窗口失败")
         self._link.send("bye")
+        self._link.close()
         self._quit_app()
 
 
