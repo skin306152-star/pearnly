@@ -1,7 +1,7 @@
 // CC 画面比对：对一个构建产物，按环境 × 深浅色 × 场景各取「计算样式快照」与截图（docs/work/2026-10-17-cc-frontend-standards.md 5.2）。
 //
 //   node scripts/cc-visual/shoot.mjs --dist <产物目录> --out <输出目录>
-//        [--env web,phone,…] [--scheme light,dark] [--scene welcome,…] [--jobs 4] [--port 18950] [--chrome <路径>]
+//        [--env web,phone,…] [--scheme light,dark] [--scene welcome,…] [--jobs 4] [--chrome <路径>]
 //
 // · 本机 Google Chrome 无界面运行，直接走 CDP（Node 22 自带 WebSocket / fetch），不引入新依赖；
 //   参数 --force-color-profile=srgb --hide-scrollbars，时区固定 Asia/Bangkok，页面 Date 固定到假服务端的 NOW，Math.random 定种子。
@@ -10,11 +10,17 @@
 //   两次不一样（触屏点按后补发的鼠标事件、菜单延时打开）就整组重来，最多 3 次。
 //   过渡与动画在页面里一直归零（时序决定它们跑没跑、元素留不留在合成层，图层光栅会差），只在采快照那一刻放开并停住
 //   （有限的结束、无限的停在 0），记下真实声明；减少动效场景不归零，记下截图前还在跑的动画（转圈要照常转）。
-// · 输出：<out>/<环境>-<深浅>/<场景>.json（快照）与 .png（截图），<out>/run.json（环境、动作没做完的、没模拟的接口）。
+// · 环境设好后每个场景都从页面里读回宽度（matchMedia 精确到小数）、像素比、触屏与 UA，与环境表不一致整组失败（CDP 调用出错同样失败，
+//   不再悄悄退回默认的 756×469）。小数宽度（web-767.5）CDP 不接受：外层整数视口里放一个 CSS zoom 的同源 iframe，里面的布局宽度正好是小数。
+// · 每个场景可带「期望状态」（scenes.mjs 的 expect）：动作做完后要看得见的元素，没有就记进「动作没做完」；
+//   点按 / 悬停的目标要看得见（透明度、visibility、pointer-events）且落点就是它，盖住或不接指针的同样记下。
+// · Chrome 用 --remote-debugging-port=0，从本次新建的 profile 里的 DevToolsActivePort 读端口（连上的一定是自己起的那个）；
+//   跑道出错、进程被 Ctrl+C / kill 时关掉所有已起的 Chrome；CDP 调用超时 60 秒。
+// · 输出：<out>/<环境>-<深浅>/<场景>.json（快照）与 .png（截图），<out>/run.json（环境、每组的场景清单、动作没做完的、没模拟的接口）。
 // · 构建产物：在 frontend/assistant 里 `./node_modules/.bin/vite build --outDir <目录> --emptyOutDir`（不写进仓库）。
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NOW, start } from "./server.mjs";
@@ -23,29 +29,59 @@ import { ENVS, EXTRA_ENVS, SCHEMES, scenesFor } from "./scenes.mjs";
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-/** 起一个无界面 Chrome，返回 { send, ev, shot, on, close }。 */
-export async function launch(port, profile, chrome = process.env.CC_VISUAL_CHROME ?? CHROME) {
+// 本进程起的所有 Chrome：出错退出、Ctrl+C、kill 时一并关掉，不留孤儿
+const LIVE = new Set();
+const killAll = () => {
+  for (const proc of LIVE) try { proc.kill("SIGKILL"); } catch {}
+  LIVE.clear();
+};
+process.on("exit", killAll);
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { killAll(); process.exit(130); });
+process.on("uncaughtException", (error) => { killAll(); console.error(error); process.exit(1); });
+process.on("unhandledRejection", (error) => { killAll(); console.error(error); process.exit(1); });
+
+const CDP_TIMEOUT = 60000;
+
+/** 起一个无界面 Chrome（profile 目录先清空），返回 { send, ev, shot, on, close }。send 遇到 CDP 报错或超时就 reject。 */
+export async function launch(profile, chrome = process.env.CC_VISUAL_CHROME ?? CHROME) {
+  rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   mkdirSync(profile, { recursive: true });
   const proc = spawn(chrome, [
-    "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run",
+    "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run",
     "--no-default-browser-check", "--disable-extensions", "--hide-scrollbars", "--force-color-profile=srgb",
     "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows",
     "--font-render-hinting=none", "--disable-gpu", "about:blank",
   ], { stdio: "ignore" });
+  LIVE.add(proc);
+  const exited = new Promise((r) => proc.once("exit", r));
+  // 杀掉并等主进程退出（再删 profile：子进程退出前还会往里写，立刻删会 ENOTEMPTY）
+  const kill = async () => {
+    try { proc.kill("SIGKILL"); } catch {}
+    LIVE.delete(proc);
+    if (proc.exitCode === null && proc.signalCode === null) await Promise.race([exited, sleep(5000)]);
+  };
   let ws;
-  for (let i = 0; i < 100 && !ws; i++) {
-    try {
-      const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-      const page = list.find((x) => x.type === "page");
-      if (page) ws = new WebSocket(page.webSocketDebuggerUrl);
-    } catch {}
-    if (!ws) await sleep(200);
+  try {
+    // 端口由系统分配，Chrome 写进本 profile 的 DevToolsActivePort：profile 是刚清空的，读到的端口只能是这个进程的
+    const portFile = join(profile, "DevToolsActivePort");
+    for (let i = 0; i < 150 && !ws; i++) {
+      if (proc.exitCode !== null) break;
+      try {
+        if (existsSync(portFile)) {
+          const port = Number(readFileSync(portFile, "utf8").split("\n")[0]);
+          const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+          const page = list.find((x) => x.type === "page");
+          if (page) ws = new WebSocket(page.webSocketDebuggerUrl);
+        }
+      } catch {}
+      if (!ws) await sleep(200);
+    }
+    if (!ws) throw new Error("Chrome 没起来：" + chrome);
+    await new Promise((ok, fail) => { ws.onopen = ok; ws.onerror = () => fail(new Error("连不上 Chrome 的调试端口")); });
+  } catch (error) {
+    await kill();
+    throw error;
   }
-  if (!ws) {
-    proc.kill("SIGKILL");
-    throw new Error("Chrome 没起来：" + chrome);
-  }
-  await new Promise((r) => (ws.onopen = r));
   let id = 0;
   const waits = new Map();
   const listeners = [];
@@ -56,13 +92,25 @@ export async function launch(port, profile, chrome = process.env.CC_VISUAL_CHROM
       waits.delete(d.id);
     } else if (d.method) for (const l of listeners) l(d);
   };
-  const send = (method, params = {}) => new Promise((r) => {
+  ws.onclose = () => {
+    for (const [, done] of waits) done({ error: { message: "Chrome 的调试连接断了" } });
+    waits.clear();
+  };
+  const send = (method, params = {}) => new Promise((ok, fail) => {
     const i = ++id;
-    waits.set(i, r);
+    const timer = setTimeout(() => {
+      waits.delete(i);
+      fail(new Error(`CDP ${method} 超时（${CDP_TIMEOUT / 1000} 秒）`));
+    }, CDP_TIMEOUT);
+    waits.set(i, (d) => {
+      clearTimeout(timer);
+      if (d.error) fail(new Error(`CDP ${method}：${d.error.message}${d.error.data ? `（${d.error.data}）` : ""}`));
+      else ok(d);
+    });
     ws.send(JSON.stringify({ id: i, method, params }));
   });
-  const ev = async (expression) => {
-    const out = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+  const ev = async (expression, contextId) => {
+    const out = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, ...(contextId ? { contextId } : {}) });
     if (out.result?.exceptionDetails) throw new Error(JSON.stringify(out.result.exceptionDetails).slice(0, 600));
     return out.result?.result?.value;
   };
@@ -80,9 +128,9 @@ export async function launch(port, profile, chrome = process.env.CC_VISUAL_CHROM
   };
   return {
     send, ev, shot, on: (f) => listeners.push(f),
-    close: () => {
+    close: async () => {
       try { ws.close(); } catch {}
-      proc.kill("SIGKILL");
+      await kill();
     },
   };
 }
@@ -189,26 +237,44 @@ window.tomoDesktop = {
 
 const MODIFIERS = { alt: 1, ctrl: 2, meta: 4, shift: 8 };
 
-/** 一条跑道：一个环境 × 一种深浅色，自己一个 Chrome。 */
-async function lane({ envName, scheme, dist, out, port, profile, only, chrome }) {
+/** 一条跑道：一个环境 × 一种深浅色，自己一个假服务端、一个 Chrome；不论成败都关掉。 */
+async function lane(job) {
+  // 每条跑道自己一个假服务端（端口由系统分配）：挂起接口（加载骨架）、没模拟的接口互不干扰
+  const server = await start({ dist: job.dist, port: 0 });
+  let b = null;
+  try {
+    b = await launch(job.profile, job.chrome);
+    return await runLane(job, server, b);
+  } finally {
+    await b?.close();
+    await server.close();
+  }
+}
+
+async function runLane({ envName, scheme, out, only }, server, b) {
   const env = ENVS[envName] ?? EXTRA_ENVS[envName];
-  // 每条跑道自己一个假服务端：挂起接口（加载骨架）、没模拟的接口互不干扰
-  const server = await start({ dist, port });
   const base = `http://127.0.0.1:${server.port}`;
-  const b = await launch(port + 1, profile, chrome);
+  // 小数宽度：外层整数视口 × zoom，页面放进同源 iframe（CSS zoom），iframe 里的布局宽度正好是 env.width
+  const zoom = env.frame ?? 1;
   const notes = [];
   const logs = [];
   let inflight = 0;
   let lastNet = Date.now();
+  const contexts = new Map(); // frameId → 默认执行上下文
   b.on((d) => {
     if (d.method === "Network.requestWillBeSent") { inflight++; lastNet = Date.now(); }
     if (d.method === "Network.loadingFinished" || d.method === "Network.loadingFailed") { inflight = Math.max(0, inflight - 1); lastNet = Date.now(); }
     if (d.method === "Runtime.exceptionThrown") logs.push("EXC " + JSON.stringify(d.params.exceptionDetails).slice(0, 300));
+    if (d.method === "Runtime.executionContextCreated" && d.params.context.auxData?.isDefault) contexts.set(d.params.context.auxData.frameId, d.params.context.id);
+    if (d.method === "Runtime.executionContextDestroyed") for (const [k, v] of contexts) if (v === d.params.executionContextId) contexts.delete(k);
+    if (d.method === "Runtime.executionContextsCleared") contexts.clear();
   });
   await b.send("Runtime.enable");
   await b.send("Page.enable");
   await b.send("Network.enable");
-  await b.send("Emulation.setDeviceMetricsOverride", { width: env.width, height: env.height, deviceScaleFactor: env.dpr, mobile: !!env.mobile });
+  await b.send("Emulation.setDeviceMetricsOverride", {
+    width: Math.ceil(env.width * zoom), height: Math.ceil(env.height * zoom), deviceScaleFactor: env.dpr / zoom, mobile: !!env.mobile,
+  });
   if (env.touch) await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
   if (env.ua) await b.send("Emulation.setUserAgentOverride", { userAgent: env.ua, platform: env.ua.includes("iPad") ? "iPad" : "iPhone" });
   await b.send("Emulation.setTimezoneOverride", { timezoneId: "Asia/Bangkok" });
@@ -216,6 +282,17 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
   await b.send("Page.addScriptToEvaluateOnNewDocument", { source: INIT(NOW) + "\n" + SNAPSHOT });
   if (env.qt) await b.send("Page.addScriptToEvaluateOnNewDocument", { source: QT_STUB });
 
+  // 页面里求值：iframe 环境进 iframe 的执行上下文
+  const frameContext = async () => {
+    for (let i = 0; i < 100; i++) {
+      const tree = (await b.send("Page.getFrameTree")).result.frameTree;
+      const child = tree.childFrames?.[0]?.frame.id;
+      if (child && contexts.has(child)) return contexts.get(child);
+      await sleep(100);
+    }
+    throw new Error("iframe 的执行上下文没出来");
+  };
+  const ev = async (expression) => (zoom === 1 ? b.ev(expression) : b.ev(expression, await frameContext()));
   const settle = async (min = 600, max = 8000) => {
     const begin = Date.now();
     await sleep(min);
@@ -223,15 +300,40 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
       if (inflight === 0 && Date.now() - lastNet > 600) break;
       await sleep(100);
     }
-    await b.ev("document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))").catch(() => {});
+    await ev("document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))").catch(() => {});
   };
-  const find = (sel, n) => b.ev(`(() => {
+  // 读回环境：宽度按 matchMedia 精确到小数，像素比、触屏、UA 都要对上，否则整组失败（不能悄悄退回默认视口）
+  const checkEnv = async () => {
+    const got = await ev(`({ width: matchMedia("(width: ${env.width}px)").matches, w: document.documentElement.getBoundingClientRect().width,
+      h: innerHeight, dpr: devicePixelRatio, coarse: matchMedia("(pointer: coarse)").matches, ua: navigator.userAgent })`);
+    const bad = [];
+    if (!got.width) bad.push(`宽 ${got.w}（要 ${env.width}）`);
+    if (got.h !== Math.floor(env.height)) bad.push(`高 ${got.h}（要 ${env.height}）`);
+    if (got.dpr !== env.dpr) bad.push(`像素比 ${got.dpr}（要 ${env.dpr}）`);
+    if (got.coarse !== !!env.touch) bad.push(`pointer: coarse ${got.coarse}（要 ${!!env.touch}）`);
+    if (env.ua && got.ua !== env.ua) bad.push("UA 没换上");
+    if (bad.length) throw new Error(`${envName}-${scheme} 环境没生效：${bad.join("，")}`);
+  };
+  // 点按 / 悬停的目标（第几个 = 外框非零的里面按文档顺序数）：还要看得见（visibility、整条祖先链的透明度）、接指针，
+  // 而且中心点的落点就是它（或它里面）；否则记「点不到」——原来只按外框挑，触屏宽屏上透明不接指针的「···」也照点，点到的是行本身
+  const find = (sel, n) => ev(`(() => {
     const els = [...document.querySelectorAll(${JSON.stringify(sel)})].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
     const el = ${n} < 0 ? els[els.length + ${n}] : els[${n}];
     if (!el) return null;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden") return { blocked: "它自己 visibility: hidden" };
+    if (cs.pointerEvents === "none") return { blocked: "它自己 pointer-events: none" };
+    for (let a = el; a; a = a.parentElement) if (Number(getComputedStyle(a).opacity) === 0) return { blocked: "透明度 0" };
     el.scrollIntoView({ block: "nearest", inline: "nearest" });
     const r = el.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    if (!hit || !(hit === el || el.contains(hit))) {
+      const name = hit ? hit.tagName.toLowerCase() + (typeof hit.className === "string" && hit.className ? "." + hit.className.trim().split(/\\s+/).slice(0, 2).join(".") : "") : "空白";
+      return { blocked: name };
+    }
+    return { x, y };
   })()`);
   const mouse = (type, x, y, modifiers = 0, buttons = 0) => b.send("Input.dispatchMouseEvent", {
     type, x, y, modifiers, button: type === "mouseMoved" ? (buttons ? "left" : "none") : "left", buttons, clickCount: type === "mouseMoved" ? 0 : 1, pointerType: "mouse",
@@ -251,15 +353,18 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
     const preset = Object.entries(scene.storage ?? {}).map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`).join("");
     // 减少动效场景不做归零：转圈要照常转，报告里记下截图前还在跑的动画
     const live = scene.motion === "reduce" ? "document.documentElement.setAttribute('data-ccv-live', '');" : "";
-    const presetId = preset || live
-      ? (await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `try { if (location.origin === ${JSON.stringify(base)}) { ${preset} ${live} } } catch {}` })).result.identifier
+    const presetId = preset || live || scene.init
+      ? (await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `try { if (location.origin === ${JSON.stringify(base)}) { ${preset} ${live} ${scene.init ?? ""} } } catch {}` })).result.identifier
       : null;
+    // 先清再设（每个场景都从无覆盖开始；现在 CDP 出错会让整组失败）
+    await b.send("Emulation.setLocaleOverride", {});
     await b.send("Emulation.setLocaleOverride", { locale: scene.lang === "th" ? "th-TH" : "zh-CN" });
     for (const [, method, ms] of scene.before ?? []) await fetch(`${base}/__hold?m=${encodeURIComponent(method)}&ms=${ms}`);
     const join_ = scene.path.includes("?") ? "&" : "?";
     const url = `${base}${scene.path}${join_}__lang=${scene.lang ?? "zh"}${scene.boot === "page" ? "&__boot=page" : ""}`;
-    await b.send("Page.navigate", { url });
+    await b.send("Page.navigate", { url: zoom === 1 ? url : `${base}/__frame?w=${env.width}&h=${env.height}&z=${zoom}&src=${encodeURIComponent(url)}` });
     await settle(1500);
+    await checkEnv();
     const missed = [];
     for (const action of scene.actions) {
       const [kind] = action;
@@ -273,30 +378,46 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
           continue;
         }
         if (kind === "attr") {
-          await b.ev(`(() => { const r = document.documentElement; ${action[2] === null ? `r.removeAttribute(${JSON.stringify(action[1])})` : `r.setAttribute(${JSON.stringify(action[1])}, ${JSON.stringify(action[2])})`}; })()`);
+          await ev(`(() => { const r = document.documentElement; ${action[2] === null ? `r.removeAttribute(${JSON.stringify(action[1])})` : `r.setAttribute(${JSON.stringify(action[1])}, ${JSON.stringify(action[2])})`}; })()`);
           await sleep(300);
           continue;
         }
         if (kind === "hold") { await fetch(`${base}/__hold?m=${encodeURIComponent(action[1])}&ms=${action[2]}`); continue; }
         if (kind === "scroll") {
-          const ok = await b.ev(`(() => { const el = document.querySelector(${JSON.stringify(action[1])}); if (!el) return false;
+          const ok = await ev(`(() => { const el = document.querySelector(${JSON.stringify(action[1])}); if (!el) return false;
             el.scrollTop = ${action[2]} < 0 ? el.scrollHeight : ${action[2]}; el.dispatchEvent(new Event("scroll")); return true; })()`);
           if (!ok) missed.push(action.join(" "));
           await sleep(800);
           // 再滚一次：内容晚到时页面会自己跟到底，第二次之后位置才稳定
-          await b.ev(`(() => { const el = document.querySelector(${JSON.stringify(action[1])}); if (el) el.scrollTop = ${action[2]} < 0 ? el.scrollHeight : ${action[2]}; })()`);
+          await ev(`(() => { const el = document.querySelector(${JSON.stringify(action[1])}); if (el) el.scrollTop = ${action[2]} < 0 ? el.scrollHeight : ${action[2]}; })()`);
           await sleep(800);
           continue;
         }
         if (kind === "type") {
-          const ok = await b.ev(`(() => { const el = document.querySelector(${JSON.stringify(action[1])}); if (!el) return false; el.focus(); return true; })()`);
+          const ok = await ev(`(() => { const el = document.querySelector(${JSON.stringify(action[1])}); if (!el) return false; el.focus(); return true; })()`);
           if (!ok) { missed.push(action.join(" ")); continue; }
           await b.send("Input.insertText", { text: action[2] });
           await sleep(400);
           continue;
         }
-        const c = await find(action[1], action[2] ?? 0);
-        if (!c) { missed.push(`${kind} ${action[1]} [${action[2] ?? 0}]`); break; }
+        if (kind === "paste") {
+          // 往输入框粘贴一张图（输入框粘贴即加附件）：640×400 的两色块 PNG，在页面里用 canvas 画（纯色块，两次运行字节一样）
+          const ok = await ev(`(async () => { const el = document.querySelector(${JSON.stringify(action[1])}); if (!el) return false; el.focus();
+            const canvas = document.createElement("canvas"); canvas.width = 640; canvas.height = 400;
+            const g = canvas.getContext("2d"); g.fillStyle = "rgb(200,200,200)"; g.fillRect(0, 0, 640, 400); g.fillStyle = "rgb(90,120,160)"; g.fillRect(80, 80, 320, 200);
+            const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+            const data = new DataTransfer(); data.items.add(new File([blob], ${JSON.stringify(action[2])}, { type: "image/png", lastModified: ${NOW} }));
+            el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true })); return true; })()`);
+          if (!ok) { missed.push(action.join(" ")); break; }
+          await settle(800, 3000);
+          continue;
+        }
+        const found = await find(action[1], action[2] ?? 0);
+        if (!found || found.blocked) {
+          missed.push(`${kind} ${action[1]} [${action[2] ?? 0}]${found ? `：点不到（落在 ${found.blocked}）` : ""}`);
+          break;
+        }
+        const c = { x: found.x * zoom, y: found.y * zoom };
         await sleep(120);
         if (kind === "hover") {
           await mouse("mouseMoved", c.x, c.y);
@@ -323,28 +444,34 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
           await mouse("mouseMoved", c.x, c.y);
           await mouse("mousePressed", c.x, c.y, 0, 1);
           for (let i = 1; i <= 10; i++) {
-            await mouse("mouseMoved", c.x + (dx * i) / 10, c.y + (dy * i) / 10, 0, 1);
+            await mouse("mouseMoved", c.x + (dx * zoom * i) / 10, c.y + (dy * zoom * i) / 10, 0, 1);
             await sleep(30);
           }
-          if (kind === "drag") await mouse("mouseReleased", c.x + dx, c.y + dy);
+          if (kind === "drag") await mouse("mouseReleased", c.x + dx * zoom, c.y + dy * zoom);
           await sleep(500);
         }
       } catch (error) {
         missed.push(`${action.join(" ")}：${String(error).slice(0, 120)}`);
       }
     }
+    // 期望状态：动作「成功」不等于做到了（触屏宽屏点到行本身、菜单没开），看结果
+    for (const sel of [scene.expect ?? []].flat()) {
+      const ok = await ev(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return false;
+        const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden"; })()`).catch(() => false);
+      if (!ok) missed.push(`期望状态没出现：${sel}`);
+    }
     // 停住时钟，再等一拍（按秒刷新的计时文字用停住的时刻重画），然后采快照、截图
-    await b.ev("window.__ccvFreezeClock && window.__ccvFreezeClock()");
+    await ev("window.__ccvFreezeClock && window.__ccvFreezeClock()");
     await sleep(1100);
-    await b.ev("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+    await ev("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     // 过渡与动画平时归零（跑没跑、停没停在合成层上取决于机器忙不忙，图层光栅会差）；采快照这一刻放开，记下真实的时长与曲线，
     // 放开后先把动画停住（有限的结束、无限的停在 0），快照里的透明度、变换才不随时刻变
     const capture = async () => {
-      await b.ev("document.documentElement.setAttribute('data-ccv-live', '')");
-      const running = await b.ev("window.__ccvFreezeMotion()");
-      await b.ev("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-      const snap = await b.ev("window.__ccvSnapshot()");
-      if (scene.motion !== "reduce") await b.ev("document.documentElement.removeAttribute('data-ccv-live')");
+      await ev("document.documentElement.setAttribute('data-ccv-live', '')");
+      const running = await ev("window.__ccvFreezeMotion()");
+      await ev("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+      const snap = await ev("window.__ccvSnapshot()");
+      if (scene.motion !== "reduce") await ev("document.documentElement.removeAttribute('data-ccv-live')");
       if (scene.motion === "reduce") snap.running = running;
       return snap;
     };
@@ -353,9 +480,9 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
     let snapshot = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       snapshot = await capture();
-      await b.ev("window.__ccvFreezeMotion()");
+      await ev("window.__ccvFreezeMotion()");
       await sleep(300);
-      await b.ev("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+      await ev("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
       await b.shot(join(dir, `${scene.name}.png`));
       const again = await capture();
       if (JSON.stringify(again.nodes) === JSON.stringify(snapshot.nodes)) break;
@@ -363,43 +490,48 @@ async function lane({ envName, scheme, dist, out, port, profile, only, chrome })
       await sleep(800);
     }
     snapshot.scene = scene.name;
-    snapshot.env = await b.ev("window.__ccvEnv()");
+    snapshot.env = await ev("window.__ccvEnv()");
     snapshot.missed = missed;
     writeFileSync(join(dir, `${scene.name}.json`), JSON.stringify(snapshot));
     if (presetId) await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: presetId });
     if (missed.length) notes.push({ lane: `${envName}-${scheme}`, scene: scene.name, missed });
     done.push(scene.name);
   }
-  b.close();
-  await server.close();
   return { lane: `${envName}-${scheme}`, scenes: done, notes, logs: logs.slice(0, 20), unmocked: [...server.unmocked] };
 }
 
-export async function shoot({ dist, out, envs, schemes, only, jobs = 4, port = 18950, chrome }) {
+/** 跑一遍：任一条跑道出错就不再开新跑道，等已开的收尾（各自关掉 Chrome 与假服务端）后报错，不写 run.json。 */
+export async function shoot({ dist, out, envs, schemes, only, jobs = 4, chrome, quiet = false }) {
   out = resolve(out);
-  rmSync(out, { recursive: true, force: true });
+  rmSync(out, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   mkdirSync(out, { recursive: true });
   const lanes = [];
   for (const envName of envs) for (const scheme of schemes) lanes.push({ envName, scheme });
   const results = [];
+  const errors = [];
   let next = 0;
   const profiles = join(out, ".profiles");
   const worker = async (slot) => {
-    while (next < lanes.length) {
+    while (next < lanes.length && !errors.length) {
       const job = lanes[next++];
       const begin = Date.now();
-      const result = await lane({ ...job, dist, out, port: port + 2 * slot, profile: join(profiles, String(slot)), only, chrome });
-      console.log(`${result.lane}: ${result.scenes.length} 个场景，${((Date.now() - begin) / 1000).toFixed(0)} 秒${result.notes.length ? `，${result.notes.length} 个场景动作没做完` : ""}`);
-      results.push(result);
+      try {
+        const result = await lane({ ...job, dist, out, profile: join(profiles, String(slot)), only, chrome });
+        if (!quiet) console.log(`${result.lane}: ${result.scenes.length} 个场景，${((Date.now() - begin) / 1000).toFixed(0)} 秒${result.notes.length ? `，${result.notes.length} 个场景动作没做完` : ""}`);
+        results.push(result);
+      } catch (error) {
+        errors.push(`${job.envName}-${job.scheme}：${error?.message ?? error}`);
+      }
     }
   };
   try {
     await Promise.all(Array.from({ length: Math.min(jobs, lanes.length) }, (_, i) => worker(i)));
   } finally {
-    rmSync(profiles, { recursive: true, force: true });
+    rmSync(profiles, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
+  if (errors.length) throw new Error(`有跑道失败，这一遍作废（没写 run.json）：\n${errors.join("\n")}`);
   const run = {
-    dist: resolve(dist), at: new Date().toISOString(), envs, schemes,
+    dist: resolve(dist), at: new Date().toISOString(), envs, schemes, only,
     lanes: results.sort((a, b) => a.lane.localeCompare(b.lane)),
     unmocked: [...new Set(results.flatMap((r) => r.unmocked))].sort(),
   };
@@ -415,7 +547,7 @@ function args(argv) {
   const list = (name, fallback) => (get(name) ? get(name).split(",").filter(Boolean) : fallback);
   return {
     dist: get("--dist"), out: get("--out"), envs: list("--env", Object.keys(ENVS)), schemes: list("--scheme", SCHEMES),
-    only: get("--scene") ? list("--scene") : null, jobs: Number(get("--jobs", 4)), port: Number(get("--port", 18950)), chrome: get("--chrome"),
+    only: get("--scene") ? list("--scene") : null, jobs: Number(get("--jobs", 4)), chrome: get("--chrome"),
   };
 }
 
@@ -426,8 +558,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exit(2);
   }
   const begin = Date.now();
-  const run = await shoot(a);
-  const shots = run.lanes.reduce((n, l) => n + l.scenes.length, 0);
-  console.log(`完成：${run.lanes.length} 组 × 场景共 ${shots} 张，${((Date.now() - begin) / 1000).toFixed(0)} 秒；没模拟的接口 ${run.unmocked.length} 个：${run.unmocked.join(", ")}`);
-  process.exit(0);
+  try {
+    const run = await shoot(a);
+    const shots = run.lanes.reduce((n, l) => n + l.scenes.length, 0);
+    console.log(`完成：${run.lanes.length} 组 × 场景共 ${shots} 张，${((Date.now() - begin) / 1000).toFixed(0)} 秒；没模拟的接口 ${run.unmocked.length} 个：${run.unmocked.join(", ")}`);
+    process.exit(0);
+  } catch (error) {
+    console.error(String(error?.message ?? error));
+    process.exit(1);
+  }
 }

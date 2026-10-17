@@ -21,7 +21,7 @@
 
 | 批 | 状态 |
 | :- | :- |
-| B0 闸门与比对工具骨架 | 本地完成（`pearnly/cc-standards`，提交见下）；未推送、未合入 cc-shell-rebuild；不碰 `src`，无画面变化 |
+| B0 闸门与比对工具骨架 | 本地完成（`pearnly/cc-standards`，提交见下，含审查补修）；未推送、未合入 cc-shell-rebuild；不碰 `src`，无画面变化 |
 | B1–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 cc-shell-rebuild 的 SHA、比对报告位置、测试窗口验收状态。
@@ -75,6 +75,46 @@
   - 减少动效场景：截图前在跑的动画记为 4 个 `cc-spin-dot`（四点转圈照常转）。
 - **没做 / 留给后面**：3.3 的「断点三处文本一致」测试要等 B1 改 `MOBILE_QUERY` 与 `@theme` 后才能成立，B1 加；覆盖检查（`--git-range`）已实现，B0 没有 src 改动可测；
   现有 `TokenGateTests` 留在 `test_cc_ccs.py` 没有搬（B0 不改它）。
+
+### B0 补修（10-17 晚，审查确认项）
+
+**闸门**（`scripts/check-frontend-tokens.py`，原 `scan()` 与 R1–R3 仍一字未改；用例补进 `tests/test_cc_frontend_gate.py`，20 项 → 26 项）：
+
+1. 变量写法只认 `--cc-*`：`-(--x)` / `-(length:--x)`、方括号里的 `var(--x)`、内联 style 里的 `var(--x)` 引用别的名字，按所在族记规则（1.2 补充第一条）；名字不对又写了数的另记 R10。
+2. 收紧清单核对：条目对不上任何受检文件（`./`、`//`、`..`、大小写不同、扩展名不受管、文件不存在）闸门直接失败；测试另核对规范写法与扩展名。
+3. 简写里的长度：globals.css 的 `transform` 平移参数（按间距）、`flex` 的 basis（按尺寸）、`font` 简写（字重 / 字号 / 行高）；内联 style 的 `transform` 同一判法（`scale()`、`rotate()` 与 `${x}px` 运行时插值放行，`-50%` 放行）。顺带补上内联 style 里的负长度（`marginTop: "-4px"` 原来漏过，变量名先剥掉再判）。
+4. 任意值里的缓动：`animate-[…_ease-out]`、`[transition:…_linear]`、`[animation-timing-function:ease-in]` 记 R8（任意属性的时间与缓动同 R13 判法；关键帧名里带 linear / ease 不算）。
+5. 容器查询变体 `@md:`、`@max-md:`、`@[480px]:`、`@lg/main:` 记 R11（工具类 `@container` 不算）。
+6. 整串长度字符串：值为 0 的放行；`rootMargin` 这类非样式 JS 长度照拦，合规写法写进 2.6，口径写进 1.2 补充第二条。
+7. 同一处只记一次：style 块里的值归 STYLE_PAIR、`.style.x =` / `setProperty` / svg 宽高归各自模式，它们的字面字符串不再另记「整串是长度」；style 块里的 `zIndex` 只记一条 R7，块外的 `const s = { zIndex: 50 }` 照记。
+
+**新报数**（同一份 src，`--report`）：共 **1337** 处 / 40 个文件（原 1324，+13）——R4 尺寸 190（+10：`ui/sidebar.tsx` 的 `w-(--sidebar-width)` 等 9 处、`thread.tsx:137` 的 `--thread-max-width`）、
+R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sidebar-width)*-1)]`）、R13 globals.css 424（+1：1229 行 `transform: translateX(1rem)`），其余各条不变
+（R6 4、R7 22、R8 103、R9 27、R10 58、R11 13、R12 25、R14 21、R15 38）。去重这一条对真实 src 没有减数（原来没有重复命中的写法）。范围内 0；默认模式 PASS。
+
+**比对工具**（`scripts/cc-visual/`，7 条审查发现逐条先复现再改，都成立）：
+
+1. 「后」缺组 / 缺场景仍判 0 差——成立（按原代码，「只在前跑过」只写备注）。改：只在一边跑过的场景算差异；两份 `run.json` 要都在（缺 = 那一遍没跑完），环境、深浅色、场景筛选和每组场景清单要一致，否则退出码 1。实测用 4 组 × 8 场景对 2 组 × 1 场景：报出 6 条不可比、29 个只在一边跑过。
+2. 767.5 宽没生效——成立（实测 CDP 回 `int32 value expected`，原 `send()` 不看报错）。改：`send()` 遇到 CDP 报错或 60 秒超时就失败；每个场景读回宽度（`matchMedia` 精确到小数）、高、像素比、`pointer: coarse`、UA，对不上整组失败。
+   小数宽度改用「外层 1535 宽、像素比 1 的页面 + `zoom: 2`、宽 767.5px 的同源 iframe」，实测 iframe 里 `(width: 767.5px)` 成立、像素比 2（直接放 767.5px 的 iframe 会被取整成 768，不行）。
+   **跑出来的结果**：767.5 宽时 `(width < 768px)` 成立而 `MOBILE_QUERY`（`max-width: 767px`）不成立，变体判成 web、侧栏按 `max-md` 收起、却没有手机顶栏，设置等入口点不到（场景 settings 记「动作没做完」）——就是风险 3，B1 统一查询文本时修，B0 不改 src。
+3. 泰文欢迎页偶发字形光栅差——成立（同一构建两遍之间偶有只差像素的场景）。不调容差，改成：样式 0 差、只差像素的场景，按两份 `run.json` 里的产物目录前、后各复拍一次，复拍后仍差才算差异，一致的单列「光栅抖动」。
+   本次两次同构建比对各有 6、7 个这类场景，都在窄屏长对话（`sesn_rich`）输入框那一条带（输入框盖在滚动内容上方），复拍后全部一致；th-welcome 这次没出现。
+4. 触屏宽屏的行菜单没打开却没记下——成立（原 `find()` 只看外框，透明且不接指针的「···」也照点，点到的是行）。改：点按 / 悬停目标要看得见、接指针、中心落点就是它，否则记「点不到」；场景加「期望状态」（菜单、弹窗、PDF 页、编辑框……），动作做完看不见就记进「动作没做完」；
+   触屏宽屏（web-coarse / desktop-coarse）的 sidebar-row-menu、delete-confirm、boot-page-menu 改走真实入口长按行。顺带发现原 attach-menu 场景的「＋」是直接调起系统选文件、没有菜单，场景名照旧、不设菜单期望。
+5. 跑道异常留下孤儿 Chrome——成立（读代码：`lane()` 没有 try/finally，端口写死会接管旧 Chrome）。改：每条跑道 try/finally 关 Chrome 与假服务端；Chrome 用 `--remote-debugging-port=0`、从新清空的 profile 里读 `DevToolsActivePort`；假服务端端口由系统分配；
+   一条跑道出错就不开新跑道、等其余收尾后整遍报错且不写 `run.json`；Ctrl+C / kill / 未捕获异常时关掉所有已起的 Chrome；关 Chrome 等主进程退出再删 profile（删目录带重试，复拍时曾 ENOTEMPTY）。比对也不再写死 19890 端口。
+   实测：环境名写错的那条跑道失败、退出码 1、不留 Chrome；跑到一半 Ctrl+C，退出码 130，Chrome 0 个。
+6. 场景没覆盖 5.2 的几类界面——成立。补 5 个场景：`results-pdf`（假数据加一个输出 PDF；浏览器自带的 PDF 查看器不是我们的样式且无界面下出图不稳，这个场景关掉它走页图）、`tasks-confirm`（假数据加一条定时任务，行菜单 → 删除 → 确认框）、
+   `sidebar-search-empty`（宽屏侧栏 / 窄屏抽屉里搜一个查不到的词）、`notes-edit`（公司页知识库卡「+」出编辑框，窄屏先开公司栏）、`image-preview`（往输入框粘贴一张 canvas 画的 640×400 图，点附件出预览）。场景 62 → 67 个。
+7. 覆盖检查把删掉的类报成没覆盖——成立。改：diff 里 `-` 行的类按「前」的快照核对、`+` 行按「后」，报告注明是删 / 加 / 改、哪一遍没渲染到。
+
+**自检**（产物 = 本分支 src 用 `vite build --outDir` 构建到临时目录；全矩阵 = 7 种环境 × 深浅 + 767.5 宽浅深 = 16 组、757 张，7 条跑道并行，每遍约 12.5–14.5 分钟）：
+
+- 同一构建连跑：第一遍 A 与第二遍 B（同一版工具）、A 与修完收尾后的第四遍 D（之间只改了关 Chrome 等进程退出、删目录重试、attach-menu 去掉期望，均不影响画面）都是 **0 个有差异**——样式差异 0 条、像素差 0、不可比 0；其中只差像素的 6 个 / 7 个场景经复拍判为光栅抖动（见上第 3 条）。不复拍时这几个场景会报差。
+- 故意改 1px（复制产物，只把 `.cc-composer` 的 `padding-top` 改成 `calc(.875rem + 1px)`）：报出 **18 个场景**有差异——窄屏三环境 × 深浅 ×「输入了文字」「键盘弹出」「图片预览」（新场景，输入框里有附件）；每个都有 `div.cc-composer` 的 `padding-top 14px → 15px`，没有误报；另外 7 个只差像素的场景复拍后判为抖动。
+- 动作没做完（覆盖缺口，与 B0 时一致，B1 前补选择器或人工点）：桌面版 `session-panel` 顶栏没有 `.cc-topbar .cc-row-btn`（4 组）、窄屏 `chin-month` 只有一个输入框下按钮（6 组）、767.5 宽 `settings`（2 组，见上第 2 条）。原来漏记的触屏宽屏行菜单 / 删除确认现在能打开。
+- 假服务端没模拟的接口仍是 `service_worker`、`companies.api.candidates`（返回空，不影响渲染）。定时任务页的 Cowork 词条（`cowork.folder.*`）假服务端没给，显示词条键名，前后一致，不影响比对。
 
 ## 0. 结论
 
@@ -133,16 +173,24 @@
 | 透明度、描边、模糊、边线宽、下划线偏移、变换、环与分隔 | `opacity-0 / 100`；其余只用变量 | `opacity-50`、`stroke-[1.5px]`、`backdrop-blur-[1px]`、`border-t-2`、`underline-offset-2`、`scale-90`、`active:scale-90`、`-scale-x-100`、`rotate-45`、`ring-1 / 2`、`outline-2`、`divide-y-2`、`line-clamp-2` |
 | 任意值 `[…]` | 只能由这些组成：`var(--…)`、`calc / min / max / clamp / minmax`、`env(safe-area-inset-*)`、`0`、`100%`、不带单位的整数（如 `*2`、`*-1`）、`fr` 单位（如 `1fr`）；任意属性 `[--cc-x:var(--cc-y)]` | 带单位的数（px / rem / em / % / vw / ms，`100%` 除外）、小数（`0.8`、`0.92`）、`2rem`、`minmax(20%,1fr)` 里的 `20%`（改用变量） |
 | `!` 强制 | — | 尺寸、间距、字号、层级、动效类上的 `!`，前置（`!px-0`）和 Tailwind v4 后置（`p-0!`）都拦（说明缺档位，应先补档） |
-| 断点与输入设备变体 | `md:`、`max-md:`（= 768，与 `hooks/use-mobile.ts` 同一条查询文本）；触屏用 `in-data-[cc-touch]:` 或 CSS 类 | `sm:`、`lg:`、`xl:`、`2xl:`；`pointer-fine / pointer-coarse / any-pointer-*`、`hover-none` 这类变体；能用 `data-cc-variant` 的优先写在 CSS 里 |
+| 断点与输入设备变体 | `md:`、`max-md:`（= 768，与 `hooks/use-mobile.ts` 同一条查询文本）；触屏用 `in-data-[cc-touch]:` 或 CSS 类 | `sm:`、`lg:`、`xl:`、`2xl:`；`pointer-fine / pointer-coarse / any-pointer-*`、`hover-none` 这类变体；容器查询变体（`@md:`、`@max-md:`、`@[480px]:`、`@lg/main:`，`@md` 是 28rem 的容器档、不是 768；工具类 `@container` 本身不算）；能用 `data-cc-variant` 的优先写在 CSS 里 |
 | JSX 属性 | 从 `ui/menu.tsx`、`ui/tooltip.tsx`、`ui/drag.tsx` 导出的值（使用时从 CSS 变量读，见 2.6） | `sideOffset / alignOffset / collisionPadding / delayDuration` 写非 0 的数；svg 的 `width / height / strokeWidth` 写数；`size={16}`；`zIndex` 写数 |
 | 内联 style | `var(--…)`；运行时量出来或来自数据的值（`${w}px`、文档图片宽高、拖动宽度） | 字面数值的长度、透明度、层级、时长（`opacity: 0.5`、`${level * 1.5}em` 里的 1.5em） |
 
-补充两条：
+补充三条：
 
 - 变量写法只能引用 `--cc-*`，而且这个名字必须在 `globals.css` 里定义过（运行时层登记的默认值算定义）。组件里不直接用 `--code-*` 和 `--ccs-*`。
+  「变量写法」包括 `-(--x)` / `-(length:--x)`、方括号任意值里的 `var(--x)`、内联 style 里的 `var(--x)`：引用别的名字（`w-(--sidebar-width)`、
+  `max-w-[var(--thread-max-width)]`、`style={{ width: "var(--sidebar-width)" }}`）按所在的族记（尺寸 R4、间距 R5、字号行高 R6、层级 R7、动效 R8、
+  其他数值类 R9、字重 R15，内联 style R12）；同时写了数（`calc(var(--thread-max-width)+2rem)`）的另记 R10。目前组件里没有受管工具类引用 `--radix-*`，
+  不设具名例外；以后确需放行 Radix 这类运行时变量，先在这里写明再在脚本里列具名前缀，不整体放开。
+- **整串是一个长度的字符串**（`"3rem"`、`"200px"`、`"300ms"`、`"calc(… 2rem …)"`）按 R12 拦，不论用在哪里；值为 0 的（`"0px"`、`"0ms"`）放行，与内联 style 的 0 同一口径。
+  `IntersectionObserver` 的 `rootMargin` 这类**不是样式的 JS 长度也照拦**，合规写法见 2.6。同一个字面值已经按内联 style（`style={{…}}`、`.style.x =`、
+  `setProperty`）或 svg 宽高记过的，不再重复记。
 - **`globals.css` 本身也要守规矩**：
   - `--*` 变量的定义可以写数，但 `--cc-*` 直接写数时，同一行要有出处注释；
   - 普通声明里，下列属性只能写 `var()` 或关键字（`0 / auto / none / inherit / 100% / 50%`）：尺寸、间距、字号、行高、字重、层级，以及 `calc()` 里的长度；
+    简写同样管：`transform` 里 `translate / translateX / translateY / translateZ / translate3d` 的参数按间距判（`scale()`、`rotate()` 不判），`flex` 带单位的那一项（flex-basis）按尺寸判，`font` 里的字重、字号、`/行高` 都按各自的规则判；
   - 动效：`transition`、`animation` 的简写和长写（`*-duration`、`*-delay`、`*-timing-function`）里的时间只能写 `var()`，缓动只能写 `var()`，不许 `ease-in-out`、`linear` 这类关键字；
   - `@media` 的宽度条件只许 `(width < 768px)` / `(width >= 768px)` 这一条（见 2.1「断点」）；
   - `@apply` 的内容按组件规则（R4–R12、R15）判；
@@ -372,6 +420,8 @@
 
 菜单偏移与离边（`menu.tsx`）、提示框延时（`tooltip.tsx`）、拖动浮层层级（`drag.tsx` 的 `OVERLAY_Z`）只在 globals.css 定值，JS 在**使用时**惰性读：打开菜单时、拿起拖动时、提示框打开时读 `getComputedStyle`。每处都有回退常量，与 globals.css 同值，由测试核对两边一致。
 
+不是样式、但也是长度的 JS 值同样这样做：`IntersectionObserver` 的 `rootMargin`（`companies.tsx`、`thread-list.tsx` 现在写 `"200px"`）在 globals.css 登记带出处注释的 `--cc-*` 变量（例如「现有值·CC 自定」），建观察器时读、留回退常量，由测试核对两边一致；B4 / B6 迁这两个文件时照此处理。闸门只能机械地拦字面长度：用 `` `${常量}px` `` 把一个写死的数字常量拼成长度能绕过它，审查时按同一条规则看（常量也要来自 globals.css 的变量或测试核对过的回退值）。
+
 原因：生产页 `apps/pearnly_core/pearnly_core/www/assistant.html` 用脚本动态插入 `<link>` 和 module `<script>`，脚本不等样式表生效；在导入或首次渲染时读，会拿到空串（`main.tsx` 的 `themeColor` 注释记录过这一点），Radix 的 `sideOffset / collisionPadding / delayDuration` 和 dnd-kit 的 `zIndex` 会收到 NaN。`drag.tsx` 现在读 `--cc-dur` 就是使用时读，照这个做法。比对工具加一种按 assistant.html 方式注入资源的启动方式（5.2）。
 
 ## 3. 闸门
@@ -387,12 +437,12 @@
 | R5 | 间距 | 1.2 表「间距」一行 |
 | R6 | 字号与行高 | `text-<名>` 只许 `@theme --text-*` 里接过的名字，颜色名和文字排版关键字（对齐、换行、溢出）另外放行；`leading-*` 只许变量写法和 `none` |
 | R7 | 层级 | `z-*`；JSX 的 `zIndex={数}`、style 里 `zIndex` 写数 |
-| R8 | 动效 | `duration / delay / ease / animate / transition-all`；tw-animate 类名；`transition-[…]` 方括号里只许属性名 |
+| R8 | 动效 | `duration / delay / ease / animate / transition-all`；tw-animate 类名；`transition-[…]` 方括号里只许属性名；`animate-[…]` 里的缓动关键字，任意属性 `[transition:…]` / `[animation:…]` / `[*-timing-function:…]` 里的时间与缓动（同 R13 的判法） |
 | R9 | 其他数值类 | `opacity / stroke / blur / border-<n> / underline-offset / scale / rotate / ring-<n> / outline-<n> / divide-<n> / line-clamp` |
 | R10 | 任意值与 `!` | 任意值内部按 1.2 表拆词判断（`fr`、由变量组成的 `minmax` 放行）；被管的工具类带 `!` 一律拦，前置后置都拦 |
-| R11 | 断点与输入设备变体 | `sm: lg: xl: 2xl:`；`pointer-* / any-pointer-* / hover-none` 这类变体 |
+| R11 | 断点与输入设备变体 | `sm: lg: xl: 2xl:`；`pointer-* / any-pointer-* / hover-none` 这类变体；容器查询变体 `@…:` 一律拦 |
 | R12 | JSX 与内联 | 数值的 `sideOffset / alignOffset / collisionPadding / delayDuration / size / width / height / strokeWidth`；style 里字面长度（模板字符串里有「数字 + 单位」也算），运行时插值放行 |
-| R13 | globals.css 自身 | 普通声明里的受管属性只能写 `var()` 或关键字；`transition / animation` 简写与长写里的时间、延时、缓动只能写 `var()`；`@media` 宽度只许那一条断点；`@apply` 的内容按 R4–R12、R15 判；`--cc-*` 写数的必须带出处注释；跳过 `@keyframes` 和 `@font-face` |
+| R13 | globals.css 自身 | 普通声明里的受管属性只能写 `var()` 或关键字（含 `transform` 的平移、`flex` 的 basis、`font` 简写）；`transition / animation` 简写与长写里的时间、延时、缓动只能写 `var()`；`@media` 宽度只许那一条断点；`@apply` 的内容按 R4–R12、R15 判；`--cc-*` 写数的必须带出处注释；跳过 `@keyframes` 和 `@font-face` |
 | R14 | 变量存在性 | `-(--cc-x)` / `var(--cc-x)` 引用的名字必须在 globals.css 里定义过（运行时层登记的默认值算；模板拼接按前缀算）；组件里不许直接写 `--code-*` / `--ccs-*` |
 | R15 | 字重 | `font-<字重>` 只许 `@theme` 接过的 `--font-weight-*` 名字或变量写法；`font-[数]` 拦 |
 
@@ -410,7 +460,7 @@
   - 范围外的文件，按文件和规则汇总报数，退出码不受影响，进度看得见；
   - R1–R3 照旧全仓失败。
 - 每批在自己的提交里，把本批文件加进清单（按字母序，只增不减）。
-- `tests/test_cc_frontend_gate.py` 核对三件事：清单里的路径都存在、已排序、没有重复。审查时只看两点：本批有没有删行，有没有加了别批的文件。
+- `tests/test_cc_frontend_gate.py` 核对：清单里的路径都存在、是规范写法（不带 `./`、没有 `//` 或 `..`）、扩展名受管、已排序、没有重复。闸门本身也核对：清单条目对不上任何受检文件就失败（否则这个文件会被悄悄跳过）。审查时只看两点：本批有没有删行，有没有加了别批的文件。
 - 不支持行内的禁用注释，也不按目录或文件跳过规则。
 - **B8 删掉清单文件，新规则全仓失败**，并把测试改成「清单文件不存在」。
 - 本地提交钩子和 CI（`.github/workflows/development.yml` 第 138 行已经在跑这个脚本）用同一条命令。CI 加跑新的测试文件。
@@ -594,7 +644,7 @@
 | tablet-portrait | 744×1133，触屏 | 平板竖屏（iPad mini），落在 640–767 段，验证 `sm:` 改 `md:`（V36） |
 | desktop-narrow | 700×800，加 qt 桩 | CC 桌面版窗口拉窄，同上 |
 
-另加一个 767.5 宽的场景，核对小数宽度下变体与 `max-md` 一致。
+另加一个 767.5 宽的环境（`web-767.5`），核对小数宽度下变体与 `max-md` 一致。CDP 的视口宽度只收整数，做法是外层 1535 宽、像素比 1 的页面里放一个 `zoom: 2`、宽 `767.5px` 的同源 iframe：iframe 里布局宽度正好 767.5、像素比 2，每个场景读回 `matchMedia("(width: 767.5px)")` 核对。
 
 **场景**（约 40 个，每个含必要的交互状态）：
 

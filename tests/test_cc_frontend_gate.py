@@ -8,6 +8,7 @@
 """
 import importlib.util
 import pathlib
+import posixpath
 import subprocess
 import sys
 import tempfile
@@ -253,6 +254,86 @@ class RuleTests(StrictCase):
         })
         self.assertPasses(['<i className="font-medium font-sans font-(--cc-weight-medium)" />'])
 
+    def test_variable_forms_only_reference_cc_names(self):
+        # 1.2：变量写法、方括号里的 var()、内联 style 的 var() 只能引用 --cc-*；别的名字记到对应族的规则
+        self.assertBlocked({
+            '<i className="w-(--sidebar-width)" />': "R4",
+            '<i className="max-w-[var(--thread-max-width)]" />': "R4",
+            '<i className="max-w-[calc(var(--thread-max-width)+var(--cc-thread-gutter)*2)]" />': "R4",
+            '<i className="p-(--foo)" />': "R5",
+            '<i className="-mt-(--foo)" />': "R5",
+            '<i className="text-(length:--foo)" />': "R6",
+            '<i className="leading-(--foo)" />': "R6",
+            '<i className="z-(--foo)" />': "R7",
+            '<i className="duration-(--foo)" />': "R8",
+            '<i className="opacity-(--foo)" />': "R9",
+            '<i className="font-(--foo)" />': "R15",
+            '<i style={{ width: "var(--sidebar-width)" }} />': "R12",
+            'el.style.width = "calc(var(--sidebar-width) * 2)";': "R12",
+        })
+        # 名字不对和任意值里写数是两处问题，各记一条
+        self.assertEqual(sorted(self.rules('<i className="max-w-[calc(var(--thread-max-width)+2rem)]" />')), ["R10", "R4"])
+        self.assertPasses([
+            '<i className="w-(--cc-icon-sm) p-(--cc-space-12) text-(length:--cc-row-font) leading-(--cc-row-lh)" />',
+            '<i className="max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] z-(--cc-z-menu)" />',
+            '<i style={{ width: "var(--cc-icon-sm)", height: `calc(var(--cc-space-8) * ${n})` }} />',
+        ])
+
+    def test_container_query_variants(self):
+        self.assertBlocked({
+            '<i className="@lg:flex" />': "R11",
+            '<i className="@md:flex" />': "R11",
+            '<i className="@max-md:hidden" />': "R11",
+            '<i className="@[480px]:grid-cols-2" />': "R11",
+            '<i className="@min-[480px]:grid-cols-2" />': "R11",
+            '<i className="@lg/main:flex" />': "R11",
+        })
+        self.assertPasses(['<i className="@container md:flex max-md:hidden" />'])
+
+    def test_easing_keywords_inside_arbitrary_values(self):
+        self.assertBlocked({
+            '<i className="animate-[x_var(--cc-dur)_ease-out]" />': "R8",
+            '<i className="animate-[cc-pop_var(--cc-dur)_ease-in-out_both]" />': "R8",
+            '<i className="[transition:opacity_var(--cc-dur)_linear]" />': "R8",
+            '<i className="[transition:opacity_200ms_var(--cc-ease)]" />': "R8",
+            '<i className="[animation-timing-function:ease-in]" />': "R8",
+            '<i className="[animation:x_var(--cc-dur)_steps(4)]" />': "R8",
+        })
+        self.assertPasses([
+            '<i className="animate-[x_var(--cc-dur)_var(--cc-ease)] [transition:opacity_var(--cc-dur)_var(--cc-ease)]" />',
+            # 关键帧名里带 linear / ease 不算缓动词
+            '<i className="animate-[cc-linear-x_var(--cc-dur)] animate-[cc-ease-pop_var(--cc-dur)_var(--cc-ease)]" />',
+        ])
+
+    def test_transform_in_inline_style(self):
+        self.assertBlocked({
+            '<i style={{ transform: "translateY(4px)" }} />': "R12",
+            'el.style.transform = "translateX(-0.5rem)";': "R12",
+            '<i style={{ marginTop: "-4px" }} />': "R12",
+        })
+        self.assertPasses([
+            '<i style={{ transform: `translateX(${x}px)` }} />',
+            '<i style={{ transform: "translateY(-50%) scale(0.9) rotate(90deg)" }} />',
+            'el.style.transform = "translate3d(0, 0, 0)";',
+        ])
+
+    def test_zero_length_strings_pass(self):
+        self.assertPasses(['<i style={{ marginTop: "0px" }} />', 'const D = "0ms"; const E = "0.0s";'])
+        self.assertBlocked({'const W = "3rem";': "R12", 'new IntersectionObserver(f, { rootMargin: "200px" });': "R12"})
+
+    def test_one_violation_is_counted_once(self):
+        # style 块里的值归 STYLE_PAIR，.style.x = / setProperty / svg 宽高归各自的模式，字面字符串不再另记「整串是长度」
+        once = {
+            "<i style={{ zIndex: 50 }} />": "R7",
+            "const s = { zIndex: 50 };": "R7",
+            '<i style={{ width: "24px" }} />': "R12",
+            'el.style.width = "24px";': "R12",
+            'el.style.setProperty("--cc-icon-sm", "12px");': "R12",
+            '<svg width="22px" />': "R12",
+        }
+        for source, rule in once.items():
+            self.assertEqual(self.rules(source), [rule], source)
+
     def test_class_strings_in_every_form(self):
         multi = 'const x = cn(\n  "flex items-center",\n  open && "p-3",\n  `gap-2 ${big ? "h-8" : "h-(--cc-icon-sm)"}`,\n);'
         self.assertEqual(sorted(self.scan(multi)), [("R4", "h-8"), ("R5", "gap-2"), ("R5", "p-3")])
@@ -279,6 +360,11 @@ class GlobalsTests(StrictCase):
             ".a { width: calc(var(--cc-thread-w) + 2rem); }": "width",
             "@media (min-width: 768px) { .a { display: none; } }": "@media",
             ":root { --cc-new: 14px; }": "--cc-new",
+            ".a { transform: translateX(1rem); }": "transform",
+            ".a { transform: rotate(45deg) translate(-50%, 4px); }": "transform",
+            ".a { flex: 0 0 240px; }": "flex",
+            ".a { font: 500 14px/20px x; }": "font",
+            ".a { font: var(--cc-weight-medium) 13px/1.4 x; }": "font",
         }
         for body, snippet in cases.items():
             hits = self.css(body)
@@ -297,6 +383,9 @@ class GlobalsTests(StrictCase):
             "@font-face { font-family: x; font-weight: 400; }",
             ":root { --cc-tap: 44px; /* 外壳实测：G2 */ --cc-row-h: var(--cc-space-8); --tw-x: 3px; }",
             ".a { @apply border-ink text-ink; }",
+            ".a { transform: translateX(var(--cc-space-8)); } .b { transform: translateY(-50%); } .c { transform: rotate(90deg) scale(0.94); }",
+            ".a { transform: translate(calc(var(--cc-space-8) * -1), 0); flex: 1 1 0%; } .b { flex: 1; flex: none; flex: 0 0 var(--cc-icon-sm); }",
+            ".a { font: inherit; } .b { font: var(--cc-weight-medium) var(--cc-row-font) / var(--cc-row-lh) var(--cc-font-sans); }",
         ])
         self.assertEqual(self.css(body), [])
 
@@ -327,6 +416,13 @@ class ScopeTests(StrictCase):
             self.assertIn("components/todo.tsx:1: [R7] z-50", bad.stdout)
             report = run("--report")
             self.assertIn("R5         1      0", report.stdout)
+            # 写法不规范、扩展名不受管、文件不存在的条目对不上任何受检文件：直接失败，不能悄悄跳过
+            for entry in ("./components/todo.tsx", "components//todo.tsx", "components/../components/todo.tsx",
+                          "components/Todo.tsx", "components/todo.md", "components/gone.tsx"):
+                listing.write_text(f"components/done.tsx\n{entry}\n", encoding="utf-8")
+                odd = run()
+                self.assertEqual(odd.returncode, 1, (entry, odd.stdout))
+                self.assertIn(f"收紧清单条目对不上任何受检文件：{entry}", odd.stdout)
             # 清单文件删掉（B8）= 全仓收紧
             listing.unlink()
             self.assertIsNone(gate.strict_list(str(listing)))
@@ -337,8 +433,13 @@ class ScopeTests(StrictCase):
         entries = gate.strict_list(str(STRICT))
         self.assertEqual(entries, sorted(entries))
         self.assertEqual(len(entries), len(set(entries)))
+        checked = {rel for rel, _ in gate.checked_files(str(SRC))}
         for entry in entries:
             self.assertTrue((SRC / entry).is_file(), entry)
+            self.assertEqual(entry, posixpath.normpath(entry), entry)
+            self.assertTrue(entry.endswith(gate.EXTENSIONS), entry)
+            self.assertIn(entry, checked)
+        self.assertEqual(gate.unmatched_entries(str(SRC), entries), [])
         text = STRICT.read_text(encoding="utf-8")
         self.assertIn("已完成清单，不是豁免清单", text)
         self.assertIn("B8 删掉本文件", text)

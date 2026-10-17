@@ -246,12 +246,17 @@ CSS_MOTION_PROPS = re.compile(r"^(?:transition|animation)(?:-(?:duration|delay|t
 STYLE_LENGTH_PROPS = (
     "width|height|minWidth|minHeight|maxWidth|maxHeight|inlineSize|blockSize|flexBasis|"
     "padding\\w*|margin\\w*|gap|rowGap|columnGap|inset\\w*|top|right|bottom|left|translate|"
-    "fontSize|lineHeight|fontWeight|letterSpacing|opacity|zIndex|transition\\w*|animation\\w*")
+    "fontSize|lineHeight|fontWeight|letterSpacing|opacity|zIndex|transition\\w*|animation\\w*|transform")
 STYLE_PAIR = re.compile(r"(?<![\w$.])[\"']?(?P<prop>" + STYLE_LENGTH_PROPS + r"|--[\w-]+)[\"']?\s*:\s*(?P<value>"
                         r"`(?:[^`\\]|\\.)*`|\"[^\"]*\"|'[^']*'|-?\d+(?:\.\d+)?(?![\w.]))")
 STYLE_ASSIGN = re.compile(r"\.style\.(?P<prop>\w+)\s*=\s*(?P<value>`(?:[^`\\]|\\.)*`|\"[^\"]*\"|'[^']*'|-?\d+(?:\.\d+)?)")
 STYLE_SETPROP = re.compile(r"\.setProperty\(\s*[\"'`](?P<prop>[\w-]+)[\"'`]\s*,\s*(?P<value>`(?:[^`\\]|\\.)*`|\"[^\"]*\"|'[^']*'|-?\d+(?:\.\d+)?)")
-UNIT_LITERAL = re.compile(r"(?<![\w.\-$])(\d*\.?\d+)(px|rem|em|%|vh|vw|dvh|svh|lvh|ch|ms|s)(?![\w-])")
+# 内联 style 值里的字面长度（变量名先去掉，所以负号也算：marginTop: "-4px"）
+STYLE_UNIT = re.compile(r"(?<![\w.$])-?(\d*\.?\d+)(px|rem|em|%|vh|vw|dvh|svh|lvh|ch|ms|s)(?![\w-])")
+# 整串是一个值为 0 的长度（"0px"、"0ms"）不算写死，与 style 里 0 放行同一口径
+ZERO_LENGTH = re.compile(r"^\s*-?(?:0*\.)?0+(?:px|rem|em|vh|vw|ms|s)\s*$")
+# transform 里的平移：translate / translateX / translateY / translateZ / translate3d 的参数按间距判（scale、rotate 不判）
+TRANSLATE_ARGS = re.compile(r"\btranslate(?:X|Y|Z|3d)?\(([^()]*(?:\([^()]*\)[^()]*)*)\)")
 LENGTH_STRING = re.compile(r"^\s*(?:-?\d*\.?\d+(?:px|rem|em|vh|vw|ms|s)|(?:calc|min|max|clamp)\(.*\d(?:px|rem|em|vh|vw|%).*\))\s*$")
 JSX_OFFSET = re.compile(r"\b(?P<prop>sideOffset|alignOffset|collisionPadding|delayDuration)\b\s*(?:=\s*\{?\s*|:\s*)"
                         r"(?P<value>-?\d+(?:\.\d+)?)\}?")
@@ -473,6 +478,22 @@ def has_var(content: str) -> bool:
     return "var(--" in content or content.startswith("--")
 
 
+def foreign_var(value: str) -> str:
+    """变量写法 / 任意值里引用的非 --cc-* 名字（1.2：变量写法只能引用 --cc-*）；没有返回空串。
+    `(--x)` / `(length:--x)` 取括号里的名字，`[…var(--x)…]` 取所有 var() 里的名字。"""
+    m = VAR_FORM.match(value)
+    if m:
+        name = TYPE_HINT.sub("", value[1:-1])
+        return "" if name.startswith("--cc-") else name
+    inner = arbitrary(value)
+    if inner is None:
+        return ""
+    for name in re.findall(r"var\(\s*(--[\w-]+)", inner):
+        if not name.startswith("--cc-"):
+            return name
+    return ""
+
+
 def check_class(token: str, std: Standard, alone: bool = False) -> list:
     """一个 class 片段 → [(规则, 说明)]。不认识的词（普通文字、布局类）不管。"""
     found = []
@@ -481,7 +502,8 @@ def check_class(token: str, std: Standard, alone: bool = False) -> list:
     for v in variants:
         if v in BREAKPOINT_OK:
             continue
-        if BREAKPOINT_BAD.match(v) or POINTER_BAD.match(v):
+        # 容器查询（@md: / @max-md: / @[480px]: / @lg/main:）一律拦：@md 是 28rem 的容器档，不是 768 那条断点
+        if v.startswith("@") or BREAKPOINT_BAD.match(v) or POINTER_BAD.match(v):
             found.append(("R11", v + ":"))
     if not util:
         return found
@@ -499,6 +521,12 @@ def check_class(token: str, std: Standard, alone: bool = False) -> list:
         inner = util[1:-1]
         if ":" in inner and not inner.startswith("&") and not inner.startswith("@"):
             prop, value = inner.split(":", 1)
+            if CSS_MOTION_PROPS.match(prop):
+                # [transition:…] / [animation:…] / [*-timing-function:…]：时间与缓动按 globals.css 的 R13 同一判法
+                bad = css_value_problem(prop, value.replace("_", " "))
+                if bad:
+                    found.append(("R8", f"[{prop}:…{bad}…]"))
+                return found
             bad = value_problem(value)
             if bad and re.match(r"^-?[\w-]+$", prop):
                 found.append(("R10", f"[{prop}:…{bad}…]"))
@@ -525,7 +553,11 @@ def arbitrary(value: str):
 def classify(util: str, std: Standard, found: list) -> bool:
     """按工具类族判；返回它是否属于受管的族（决定 ! 要不要拦）。"""
     def var_or_arbitrary(value: str, rule: str, need_var: bool = False) -> bool:
-        """变量写法放行；方括号按 R10 判（need_var：方括号里必须有变量，否则记 rule）。"""
+        """变量写法放行；方括号按 R10 判（need_var：方括号里必须有变量，否则记 rule）。
+        变量写法与方括号里的 var() 只能引用 --cc-*，别的名字（--sidebar-width、--radix-*）记 rule。"""
+        foreign = foreign_var(value)
+        if foreign:
+            found.append((rule, util))
         if VAR_FORM.match(value):
             return True
         inner = arbitrary(value)
@@ -533,7 +565,7 @@ def classify(util: str, std: Standard, found: list) -> bool:
             bad = value_problem(inner)
             if bad:
                 found.append(("R10", util))
-            elif need_var and not has_var(inner):
+            elif need_var and not has_var(inner) and not foreign:
                 found.append((rule, util))
             return True
         return False
@@ -564,6 +596,8 @@ def classify(util: str, std: Standard, found: list) -> bool:
             return True
         if v in std.colors or v in TEXT_KEYWORDS:
             return False
+        if foreign_var(v):
+            found.append(("R6", util))
         if VAR_FORM.match(v):
             return True
         inner = arbitrary(v)
@@ -611,6 +645,10 @@ def classify(util: str, std: Standard, found: list) -> bool:
         return True
     if util.startswith("animate-"):
         v = util[8:]
+        inner = arbitrary(v)
+        if inner is not None and EASE_WORD.search(QUOTED.sub(" ", TYPE_HINT.sub("", inner).replace("_", " "))):
+            found.append(("R8", util))  # animate-[x_var(--cc-dur)_ease-out]：缓动只能写 var()
+            return True
         if v == "none" or v in std.animate or var_or_arbitrary(v, "R8", need_var=True):
             return True
         found.append(("R8", util))
@@ -619,6 +657,9 @@ def classify(util: str, std: Standard, found: list) -> bool:
         v = util[5:]
         if v in std.fonts:
             return False
+        if foreign_var(v):
+            found.append(("R15", util))
+            return True
         if v in std.weights or VAR_FORM.match(v):
             return True
         inner = arbitrary(v)
@@ -713,9 +754,19 @@ def balanced(code: str, i: int) -> int:
 
 
 def style_value_problem(prop: str, value: str) -> str:
-    """内联 style 的一个值：字面长度、透明度、层级、时长拦；var(--…) 与运行时插值放行。"""
+    """内联 style 的一个值：字面长度、透明度、层级、时长拦；var(--cc-…) 与运行时插值放行。
+    var() 只能引用 --cc-*（1.2），var(--sidebar-width) 这类别的名字拦；transform 只判 translate*() 里的长度（50% 放行，同 R13）。"""
     if value[:1] in "\"'`":
         body = value[1:-1]
+        for name in re.findall(r"var\(\s*(--[\w-]+)", body):
+            if not name.startswith("--cc-"):
+                return name
+        if prop == "transform":
+            for args in TRANSLATE_ARGS.findall(re.sub(r"\$\{[^}]*\}", " ", body)):
+                bad = number_problem(CSS_NAME.sub(" ", args), unitless=False)
+                if bad:
+                    return bad
+            return ""
         if body.startswith("var(--") and value_problem(body.replace(" ", "_")) == "":
             return ""
         if value[0] == "`":
@@ -724,7 +775,8 @@ def style_value_problem(prop: str, value: str) -> str:
                 if re.search(r"(?<![\w.$])\d*\.?\d+(?![\w])", m.group(1)) and not re.fullmatch(r"\s*0\s*", m.group(1)):
                     return m.group(0)
             body = re.sub(r"\$\{[^}]*\}", " ", body)
-        m = UNIT_LITERAL.search(body)
+        body = CSS_NAME.sub(" ", body)
+        m = STYLE_UNIT.search(body)
         if m and not (float(m.group(1)) == 0 or m.group(0) == "100%"):
             return m.group(0)
         if prop in ("opacity", "zIndex", "fontWeight", "lineHeight") and re.fullmatch(r"\s*-?\d*\.?\d+\s*", body) \
@@ -738,41 +790,59 @@ def style_value_problem(prop: str, value: str) -> str:
 
 
 def check_source_strict(text: str, std: Standard) -> list:
-    """组件与 lib 源码 → [(行号, 规则, 片段)]。"""
+    """组件与 lib 源码 → [(行号, 规则, 片段)]。
+
+    同一处只记一次：style={{…}} 里的值归 STYLE_PAIR，.style.x = / setProperty / svg 宽高的值归各自的模式，
+    这些值的字面字符串不再另按「整串是长度」记 R12；style 块里的 zIndex 只按 STYLE_PAIR 记一条 R7。"""
     found = []
     code = strip_comments(text)
     starts = [0] + [m.end() for m in re.finditer(r"\n", code)]
+    covered = []  # 已由具体模式记过的值的绝对区间
+    blocks = []
+    for m in re.finditer(r"\bstyle=\{", code):
+        end = balanced(code, m.end() - 1)
+        blocks.append((m.end() - 1, end))
+        block = code[m.end() - 1:end]
+        for pair in STYLE_PAIR.finditer(block):
+            prop, value = pair.group("prop"), pair.group("value")
+            covered.append((m.end() - 1 + pair.start(), m.end() - 1 + pair.end()))
+            bad = style_value_problem(prop, value)
+            if bad:
+                rule = "R7" if prop == "zIndex" else "R12"
+                found.append((line_of(starts, m.end() - 1 + pair.start()), rule, pair.group(0).strip()))
+
+    def in_block(pos: int) -> bool:
+        return any(a <= pos < b for a, b in blocks)
+
+    for lineno, line in enumerate(code.splitlines(), 1):
+        base = starts[lineno - 1]
+        for m in JSX_OFFSET.finditer(line):
+            if float(m.group("value")) != 0:
+                found.append((lineno, "R12", m.group(0)))
+        for m in JSX_DIMENSION.finditer(line):
+            covered.append((base + m.start(), base + m.end()))
+            found.append((lineno, "R12", m.group(0).strip()))
+        for m in JSX_ZINDEX.finditer(line):
+            if in_block(base + m.start()):
+                continue  # style 块里的 zIndex 由 STYLE_PAIR 记
+            if int(m.group("value")) != 0:
+                found.append((lineno, "R7", m.group(0)))
+        for pattern in (STYLE_ASSIGN, STYLE_SETPROP):
+            for m in pattern.finditer(line):
+                covered.append((base + m.start(), base + m.end()))
+                bad = style_value_problem(m.group("prop"), m.group("value"))
+                if bad:
+                    found.append((lineno, "R12", m.group(0)))
     for start, content in literals(code):
         tokens = list(class_tokens(content))
         for offset, token in tokens:
             for rule, snippet in check_class(token, std, alone=len(tokens) == 1):
                 found.append((line_of(starts, start + offset), rule, token if snippet == "! 强制" else snippet))
-        if LENGTH_STRING.match(content) and "\x00" not in content:
+        if LENGTH_STRING.match(content) and "\x00" not in content and not ZERO_LENGTH.match(content) \
+                and not any(a <= start < b for a, b in covered):
             found.append((line_of(starts, start), "R12", f'"{content}"'))
-    for lineno, line in enumerate(code.splitlines(), 1):
-        for m in JSX_OFFSET.finditer(line):
-            if float(m.group("value")) != 0:
-                found.append((lineno, "R12", m.group(0)))
-        for m in JSX_DIMENSION.finditer(line):
-            found.append((lineno, "R12", m.group(0).strip()))
-        for m in JSX_ZINDEX.finditer(line):
-            if int(m.group("value")) != 0:
-                found.append((lineno, "R7", m.group(0)))
-        for pattern in (STYLE_ASSIGN, STYLE_SETPROP):
-            for m in pattern.finditer(line):
-                bad = style_value_problem(m.group("prop"), m.group("value"))
-                if bad:
-                    found.append((lineno, "R12", m.group(0)))
-    for m in re.finditer(r"\bstyle=\{", code):
-        end = balanced(code, m.end() - 1)
-        block = code[m.end() - 1:end]
-        for pair in STYLE_PAIR.finditer(block):
-            prop, value = pair.group("prop"), pair.group("value")
-            bad = style_value_problem(prop, value)
-            if bad:
-                rule = "R7" if prop == "zIndex" else "R12"
-                found.append((line_of(starts, m.end() - 1 + pair.start()), rule, pair.group(0).strip()))
     found.extend(check_refs(code, std, starts))
+    found.sort(key=lambda h: h[0])
     return found
 
 
@@ -848,9 +918,31 @@ def css_value_problem(prop: str, value: str) -> str:
         if m:
             return m.group(0)
         return ""
+    if prop == "transform":
+        # 只判平移的长度（按间距）；scale()、rotate() 等不在间距范畴
+        for args in TRANSLATE_ARGS.findall(text):
+            bad = number_problem(args, unitless=False)
+            if bad:
+                return bad
+        return ""
+    if prop == "flex":
+        # flex 简写：伸缩系数不带单位（放行）；带单位的是 flex-basis，按尺寸判
+        for m in NUMBER_IN_VALUE.finditer(text):
+            number, unit = m.group(2), m.group(3)
+            if unit and float(number) != 0 and not (unit == "%" and number in ("100", "50")):
+                return m.group(0)
+        return ""
+    if prop == "font":
+        # font 简写：字重（纯数）、字号、/行高 里的数都只能走 var()
+        return number_problem(text, unitless=True)
     unitless = prop in CSS_UNITLESS_PROPS
     if not (unitless or CSS_SIZE_PROPS.match(prop) or CSS_SPACE_PROPS.match(prop) or prop == "font-size"):
         return ""
+    return number_problem(text, unitless)
+
+
+def number_problem(text: str, unitless: bool) -> str:
+    """受管属性值里的数：0、100%、50% 放行；calc 里不带单位的整数倍数放行（unitless 属性除外）；其余拦。"""
     for m in NUMBER_IN_VALUE.finditer(text):
         number, unit = m.group(2), m.group(3)
         if float(number) == 0:
@@ -905,6 +997,27 @@ def check_globals_strict(css: str, std: Standard) -> list:
     return found
 
 
+def checked_files(src: str):
+    """受检文件：[(相对 src 的 / 分隔路径, 绝对路径)]，与 scan_strict 遍历的完全一致。"""
+    out = []
+    for base, dirs, files in os.walk(src):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        for name in sorted(files):
+            if name.endswith(EXTENSIONS):
+                path = os.path.join(base, name)
+                out.append((os.path.relpath(path, src).replace(os.sep, "/"), path))
+    return out
+
+
+def unmatched_entries(src: str, strict) -> list:
+    """收紧清单里对不上任何受检文件的条目（./ 开头、// 或 .. 没规范化、大小写不同、扩展名不受管、在 node_modules 下、文件不存在）。
+    这种条目会被悄悄跳过，所以闸门直接失败。"""
+    if strict is None:
+        return []
+    seen = {rel for rel, _ in checked_files(src)}
+    return sorted(set(strict) - seen)
+
+
 def scan_strict(src: str, strict=None) -> list:
     """R4–R15：返回 [(相对路径, 行号, 规则, 片段, 是否在收紧范围)]。strict=None 表示全仓收紧（清单文件已删）。"""
     css_path = os.path.join(src, SOURCE)
@@ -912,19 +1025,12 @@ def scan_strict(src: str, strict=None) -> list:
     std = Standard(css)
     scope = None if strict is None else set(strict)
     out = []
-    for base, dirs, files in os.walk(src):
-        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
-        for name in sorted(files):
-            if not name.endswith(EXTENSIONS):
-                continue
-            path = os.path.join(base, name)
-            rel = os.path.relpath(path, src).replace(os.sep, "/")
-            text = read(path)
-            hits = check_globals_strict(text, std) if rel == SOURCE else (
-                check_globals_strict(text, std) if name.endswith(".css") else check_source_strict(text, std))
-            inside = scope is None or rel in scope
-            for lineno, rule, snippet in hits:
-                out.append((rel, lineno, rule, snippet, inside))
+    for rel, path in checked_files(src):
+        text = read(path)
+        hits = check_globals_strict(text, std) if rel.endswith(".css") else check_source_strict(text, std)
+        inside = scope is None or rel in scope
+        for lineno, rule, snippet in hits:
+            out.append((rel, lineno, rule, snippet, inside))
     return out
 
 
@@ -968,6 +1074,9 @@ def main(argv=None) -> int:
     for rel, lineno, rule, snippet in problems:
         print(f"{rel}:{lineno}: [{rule}] {snippet}")
     strict = strict_list(args.strict_list)
+    unmatched = unmatched_entries(args.root, strict)
+    for entry in unmatched:
+        print(f"收紧清单条目对不上任何受检文件：{entry}（须是相对 src 的规范写法，不带 ./，扩展名在 {' '.join(EXTENSIONS)} 内）")
     strict_hits = scan_strict(args.root, strict)
     inside = [h for h in strict_hits if h[4]]
     for rel, lineno, rule, snippet, _ in inside:
@@ -979,6 +1088,9 @@ def main(argv=None) -> int:
         files = len({h[0] for h in outside})
         print(f"范围外 R4–R15：{len(outside)} 处 / {files} 个文件（只报数不失败；--report 看明细）")
     failed = False
+    if unmatched:
+        print(f"FAIL: 收紧清单有 {len(unmatched)} 条对不上任何受检文件；这些文件不会被按新判据检查")
+        failed = True
     if problems:
         print(f"FAIL: {len(problems)} 处写死的颜色 / 圆角 / 阴影；改成 globals.css 的变量（见 docs/development/ccs.md）")
         failed = True

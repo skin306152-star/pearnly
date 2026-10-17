@@ -8,6 +8,8 @@
 //   /assistant?...&__boot=page   照生产页 apps/pearnly_core/pearnly_core/www/assistant.html：页面脚本同步取产物 index.html，
 //                                再逐个 createElement 插入 <link> 与 module <script>（脚本不等样式表生效）
 // 另：&__lang=th|zh|en 决定 <html lang>（界面主语言是泰文）。
+//   /__frame?w=767.5&h=800&z=2&src=<地址>   小数宽度环境：外层页面放一个 CSS zoom 的同源 iframe，iframe 里的布局宽度正好是 w
+//                                         （CDP 的视口宽度只收整数）；shoot.mjs 读回 matchMedia("(width: 767.5px)") 核对。
 //
 // 单独起：node scripts/cc-visual/server.mjs --dist <产物目录> [--port 18950]；shoot.mjs 会自己在进程里起。
 
@@ -135,6 +137,7 @@ const FILES = {
     { id: "file_x", filename: "กระทบยอด-2026-09.xlsx", size_bytes: 12345, mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", downloadable: true, created_at: iso(3), kind: "output" },
     { id: "file_d", filename: "九月对账说明.docx", size_bytes: 23456, mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", downloadable: true, created_at: iso(3), kind: "output" },
     { id: "file_h", filename: "summary.html", size_bytes: 3456, mime_type: "text/html", downloadable: true, created_at: iso(3), kind: "output" },
+    { id: "file_q", filename: "九月对账表.pdf", size_bytes: 45678, mime_type: "application/pdf", downloadable: true, created_at: iso(3), kind: "output", pages: 2 },
     { id: "file_p", filename: "a.pdf", size_bytes: 54321, mime_type: "application/pdf", downloadable: true, created_at: iso(9), kind: "upload", pages: 2 },
   ],
   sesn_a1: [
@@ -159,6 +162,7 @@ const PREVIEWS = {
   ] },
   file_h: { type: "none" },
   file_p: { type: "pdf", pages: 2 },
+  file_q: { type: "pdf", pages: 2 },
 };
 
 const HTML_FILE = "<!doctype html><meta charset=utf-8><title>summary</title><h1>九月对账</h1><p>共 42 张。</p>";
@@ -201,6 +205,13 @@ const MONTH = (company, period) => ({
   },
 });
 
+const RULE = {
+  name: "T1", title: "每天读文件夹", connection: "CONN-1", connection_label: "Express", enabled: 1, adapter: "express",
+  reader: "R1", account_set_key: "SET1", account_label: "2569", direction: "purchase", posting_kind: "invoice", payment: "credit",
+  root_id: "ROOT1", root_label: "D:\\Docs", folder: "D:\\Docs\\Siam", run_day: 0, run_time: "08:00", defaults: {},
+  results: { entered: 12, attention: 1 }, include_existing: 0, remind: 0, waiting: 3,
+};
+
 const OVERVIEW = { companies: { "C-0001": { count: 1 } }, tasks: { T1: "C-0001" }, titles: {} };
 
 function method(name, q, unmocked) {
@@ -218,6 +229,7 @@ function method(name, q, unmocked) {
       case "session_files": return FILES[q.get("session_id")] ?? [];
       case "preview": return PREVIEWS[q.get("file_id")] ?? { type: "none" };
       case "push_key": return { key: "" };
+      case "upload": return { fileId: "file_img", filename: "photo.png", mountPath: "/mnt/session/uploads/photo.png", size_bytes: 123 };
       case "save_layout": case "notices_seen": case "confirm": case "send": case "interrupt": return {};
       default: break;
     }
@@ -239,7 +251,8 @@ function method(name, q, unmocked) {
   if (name.startsWith(F)) {
     const m = name.slice(F.length);
     switch (m) {
-      case "listing": return { rules: [] };
+      // 一条定时任务：任务页的列表、行菜单与删除确认框（场景 tasks-confirm）有东西可点
+      case "listing": return { rules: [RULE] };
       case "terms": return {};
       case "computers": return [];
       default: break;
@@ -315,6 +328,16 @@ export function start({ dist, port = 18950 }) {
           return res.end(readFileSync(file));
         }
       }
+      if (url.pathname === "/__frame") {
+        const w = Number(url.searchParams.get("w"));
+        const h = Number(url.searchParams.get("h"));
+        const z = Number(url.searchParams.get("z"));
+        const src = url.searchParams.get("src") ?? "";
+        res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+        return res.end(`<!doctype html><meta charset=utf-8><style>html,body{margin:0;overflow:hidden;background:#808080}`
+          + `iframe{display:block;border:0;zoom:${z};width:${w}px;height:${h}px}</style>`
+          + `<iframe src="${src.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></iframe>`);
+      }
       if (url.pathname === "/assistant" || url.pathname === "/") {
         const lang = url.searchParams.get("__lang") ?? "zh";
         const html = url.searchParams.get("__boot") === "page" ? productionPage(lang) : distPage(root, lang);
@@ -327,7 +350,11 @@ export function start({ dist, port = 18950 }) {
   });
   return new Promise((ok, fail) => {
     server.once("error", fail);
-    server.listen(port, "127.0.0.1", () => ok({ port, unmocked, close: () => new Promise((r) => server.close(r)) }));
+    // port 0：由系统分配空闲端口（shoot.mjs 每条跑道这样起，不会撞到别的进程）
+    server.listen(port, "127.0.0.1", () => ok({ port: server.address().port, unmocked, close: () => new Promise((r) => {
+      server.closeAllConnections?.();
+      server.close(r);
+    }) }));
   });
 }
 
