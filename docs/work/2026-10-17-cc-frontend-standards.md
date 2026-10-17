@@ -21,7 +21,7 @@
 
 | 批 | 状态 |
 | :- | :- |
-| B0 闸门与比对工具骨架 | 本地完成（`pearnly/cc-standards`，提交见下，含审查补修）；未推送、未合入 cc-shell-rebuild；不碰 `src`，无画面变化 |
+| B0 闸门与比对工具骨架 | 本地完成（`pearnly/cc-standards`，提交见下，含审查补修与 10-18 补修复核）；未推送、未合入 main（cc-shell-rebuild 已全部并入 main，B0 直接合 main）；不碰 `src`，无画面变化 |
 | B1–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 cc-shell-rebuild 的 SHA、比对报告位置、测试窗口验收状态。
@@ -115,6 +115,13 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 - 故意改 1px（复制产物，只把 `.cc-composer` 的 `padding-top` 改成 `calc(.875rem + 1px)`）：报出 **18 个场景**有差异——窄屏三环境 × 深浅 ×「输入了文字」「键盘弹出」「图片预览」（新场景，输入框里有附件）；每个都有 `div.cc-composer` 的 `padding-top 14px → 15px`，没有误报；另外 7 个只差像素的场景复拍后判为抖动。
 - 动作没做完（覆盖缺口，与 B0 时一致，B1 前补选择器或人工点）：桌面版 `session-panel` 顶栏没有 `.cc-topbar .cc-row-btn`（4 组）、窄屏 `chin-month` 只有一个输入框下按钮（6 组）、767.5 宽 `settings`（2 组，见上第 2 条）。原来漏记的触屏宽屏行菜单 / 删除确认现在能打开。
 - 假服务端没模拟的接口仍是 `service_worker`、`companies.api.candidates`（返回空，不影响渲染）。定时任务页的 Cowork 词条（`cowork.folder.*`）假服务端没给，显示词条键名，前后一致，不影响比对。
+
+**补修复核**（10-18，另一名复核者按审查的 14 条逐条复跑、读代码，结论记在这里；代码没再改）：14 条全部成立已修（闸门 7 条、比对工具 7 条）。
+复跑包括：把「后」那遍删掉一组 / 删掉 `run.json` / 改环境清单，三种都报不可比、退出码 1；web-767.5 读回 `(width: 767.5px)` 成立、像素比 2，settings 场景照预期记「动作没做完」；
+新旧脚本对同一份 src 的命中逐条比对，`--report` 与上文报数一致（1337 处，R4 190、R5 412、R13 424）。两条不阻塞的建议留到 B1 前处理：
+① 任意属性写法 `[width:var(--sidebar-width)]`、`[transition-duration:var(--foo)]`、`[--cc-x:var(--foo)]` 引用外来变量仍放行（src 现在没有这种写法），建议在 `check_class` 任意属性分支对不以 `--cc-` 开头的 `var(--…)` 记 R10，补 `[max-width:var(--thread-max-width)]`、`[--cc-x:var(--foo)]` 两条拦截用例；
+② `shoot()` 开头校验环境名都在 ENVS / EXTRA_ENVS 里，SIGINT 处理时顺带删掉 `out/.profiles`。
+另：第四遍 D 用的是收尾时又改过三处（关 Chrome 等进程退出、删目录重试、attach-menu 去掉菜单期望）的工具，修完后没有再从头连跑两遍新的全矩阵，以 A 对 D 的 0 差为准。
 
 ## 0. 结论
 
