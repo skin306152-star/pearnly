@@ -6081,7 +6081,7 @@ assert.equal(spotIn(null, "b"), null);          // 到头了没挪：不念
 assert.equal(spotIn(["a"], "x"), null);
 """)
         drag = read("components/ui/drag.tsx")
-        self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="sr-only" data-slot="cc-move-live">', drag)
+        self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="cc-move-live sr-only">', drag)
         self.assertIn("const text = texts.movedTo(name, spot.at, spot.total);", drag)
         self.assertIn("if (spot) say?.(label, spot);", drag)
         rows = read("components/assistant-ui/thread-list.tsx")
@@ -7451,7 +7451,7 @@ g.document.createElement = () => {
 const layer = dragLayer();
 assert.equal(dragLayer(), layer);
 assert.equal(appended.length, 1);
-assert.equal((layer as any).dataset.slot, "cc-drag-layer");
+assert.equal((layer as any).className, "cc-drag-layer");
 // 鼠标拖动的挡板与浮层同在这一层里，平时藏着
 assert.equal((layer as any).children[0].dataset.slot, "cc-drag-shield");
 assert.equal((layer as any).children[0].hidden, true);
@@ -8097,6 +8097,15 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn(':root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn(':root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn('data-slot="cc-sidebar-toggle"', read("assistant.tsx"))
+        # 第 11 轮重测失效追踪 trace：按属性名做键的通配兄弟选择器（[data-slot=…] ~ *）让 body 下任何增删（菜单 portal 挂上卸下）整页
+        # 样式失效，A14 收菜单那一帧约 40ms；改成按类名的紧挨兄弟，body 下的常驻节点（拖动层、拖动播报区）也不用 data-slot 标识
+        self.assertNotRegex(re.sub(r"/\*.*?\*/", "", css, flags=re.S), r"\[data-slot=[^\]]+\]\s*~\s*\*")
+        self.assertIn('.cc-mmain .cc-status + .cc-thread-slot [data-slot="aui_thread-viewport"] { padding-top: 0; }', css)
+        self.assertIn('<div data-slot="cc-status" className="cc-status ', read("assistant.tsx"))
+        self.assertIn('<div className="cc-thread-slot min-h-0 flex-1">', read("assistant.tsx"))
+        drag = read("components/ui/drag.tsx")
+        self.assertNotIn('data-slot="cc-move-live"', drag)
+        self.assertNotIn('layer.dataset.slot', drag)
 
 
 class Round11ReviewTests(unittest.TestCase):

@@ -1343,7 +1343,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
 /** Alt+↑/↓ 挪一格的播报区（挂在 body 上，同拖动库自己的播报区；看不见、不占位）。 */
 const MoveLive: FC<{ text: string }> = ({ text }) => {
   const region = (
-    <div role="status" aria-live="assertive" aria-atomic="true" className="sr-only" data-slot="cc-move-live">
+    <div role="status" aria-live="assertive" aria-atomic="true" className="cc-move-live sr-only">
       {text}
     </div>
   );
@@ -1531,7 +1531,8 @@ export function dragLayer(): HTMLElement | null {
   if (typeof document === "undefined" || !document.body) return null;
   if (!layer?.isConnected) {
     layer = document.createElement("div");
-    layer.dataset.slot = "cc-drag-layer";
+    // 挂在 body 下的常驻节点不用 data-slot 标识（按 data-slot 做键的兄弟选择器会让 body 下增删节点时整页样式失效，第 11 轮重测 trace）
+    layer.className = "cc-drag-layer";
     layer.appendChild(dragShield());
     document.body.appendChild(layer);
   }

@@ -2285,7 +2285,10 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 .cc-mmain [data-slot="aui_thread-viewport"],
 .cc-mmain [data-slot="cc-scroll"],
 .cc-mmain [data-slot="cc-status"] { padding-top: calc(var(--cc-mtopbar-h) + env(safe-area-inset-top)); }
-.cc-mmain [data-slot="cc-status"] ~ * [data-slot="aui_thread-viewport"] { padding-top: 0; }
+/* 有连接提示时它下面的对话滚动区不再重复留顶栏的位置。按类名、只看紧挨着的那一个兄弟：原来写成 [data-slot="cc-status"] ~ *，
+   按属性名做键、兄弟部分是通配，body 下任何带 data-slot 的兄弟前后增删节点（菜单、弹窗的 portal 挂上卸下）浏览器都把整页样式判为失效，
+   A14 上手机长按菜单收起那一帧整页约 570–750 个元素重算、约 40ms（第 11 轮重测失效追踪 trace） */
+.cc-mmain .cc-status + .cc-thread-slot [data-slot="aui_thread-viewport"] { padding-top: 0; }
 
 /* 触屏上输入框至少 16 号字：小于 16 时 iOS 一点进去就把整页放大 */
 @media (hover: none) and (pointer: coarse) { input, textarea, select { font-size: max(16px, 1em) !important; } }

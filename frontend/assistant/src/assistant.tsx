@@ -156,7 +156,7 @@ function SessionStatusBar() {
   }, [detail]);
   if (!snapshot.sessionId || !showsReconnecting(snapshot)) return null;
   return (
-    <div data-slot="cc-status" className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
+    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
       {t("reconnecting")}
     </div>
   );
@@ -964,7 +964,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
         ) : (
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
-            <div className="min-h-0 flex-1">
+            <div className="cc-thread-slot min-h-0 flex-1">
               <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />
             </div>
           </div>
