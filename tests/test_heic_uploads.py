@@ -85,9 +85,14 @@ class Heic(unittest.TestCase):
         service = (ROOT / "apps/pearnly_cowork/pearnly_cowork/files/service.py").read_text()
         self.assertIn("filename, content = _heic_as_jpeg(filename, content)", service)
         self.assertIn('return {"direct": 0}', service.split("def begin_direct", 1)[1].split("_direct_target", 1)[0])
+        # ERP 识别前的转 JPEG 在采购 / 销售共用的取原件那一步（统一原件层，ADR-024）；附件新上传时先转好再交原件层
+        reading = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/originals.py").read_text()
+        self.assertIn("heic.to_jpeg(content)", reading.split("def contents", 1)[1])
         for product in ("sales", "purchasing"):
             source = (ROOT / f"apps/pearnly_erp_portal/pearnly_erp_portal/{product}/recognition.py").read_text()
-            self.assertIn("heic.to_jpeg(content)", source)
+            self.assertIn("originals.contents(chosen)", source)
+        registration = (ROOT / "apps/pearnly_core/pearnly_core/originals/registered.py").read_text()
+        self.assertIn("heic.to_jpeg(content)", registration.split("def put", 1)[1].split("def create", 1)[0])
 
 
 if __name__ == "__main__":
