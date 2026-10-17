@@ -31,7 +31,7 @@
       "code": "customer_match",
       "label": "Customer Match",
       "default_on": true,
-      "description": "Same ID number means the same customer; avoids duplicate records",
+      "description": "Same ID number means the same customer",
       "role": "DMS Customer Match",
       "doctypes": [
         "DMS Customer Link"

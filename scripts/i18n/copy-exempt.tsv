@@ -40,3 +40,5 @@ pearnly_cowork:Refresh Request Aliases	R-DEV	刷新请求幂等索引	cowork_erp
 代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.json	R-HARD	Run warnings and the anchor snapshot/overrides the workbook shows; keys are the deployed ones	hidden 字段的说明，Desk 表单不显示，不进术语表
 # ── LINE 消息逐行拼接（存量清单第 8 / 15 节，10-18）：每行是一句完整文案，按行发给 LINE
 代码:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	R-CONCAT	… + '\n' + _(Please upload a PDF or image) + '\n' + _(For the best reading, phot	LINE 上传前提示逐行拼接，每行是一句完整文案
+# ── 可编辑 JSON 字段的说明（存量清单第 12 节，10-18）：键名与可填项是管理员填写依据
+pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.	R-LEN,R-DEV	DMS 建单默认值（JSON）：车型、颜色、分店、团队、交车天数、指定顾问 advisor_id；指定顾问优先于自动匹配。	可编辑 JSON 字段，键名与可填项是管理员填写依据
