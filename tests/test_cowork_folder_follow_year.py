@@ -13,7 +13,7 @@ import pathlib
 import sys
 import types
 import unittest
-from datetime import date
+from datetime import date, datetime
 from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -38,16 +38,25 @@ def _key(path):
     return path.lower()
 
 
-def remember(part, chosen, *candidates, workspace="WS1"):
+def remember(part, chosen, *candidates, workspace="WS1", seen=None):
     """这家公司（`TAX` 总公司）对这一组同期候选选过现用的 ``chosen``（存进工作空间的 ``document_policy``，键规则同
-    `contracts.document_policy.current_book_key`）。"""
+    `contracts.document_policy.current_book_key`）。``seen``（``{账套路径: 最新录入}``）给了就同时记回答时各候选的最新录入
+    （用户 10-18 加重问）；不给是旧存储的样子。"""
     key = policy_rules.current_book_key(f"tax:{TAX}", "00000", part, [_key(path) for path in candidates])
     table = frappe.db.tables.setdefault("Cowork Workspace", {})
     found = table.setdefault(workspace, env.Row(name=workspace, document_policy="{}"))
     stored = json.loads(found["document_policy"])
     stored[key] = _key(chosen)
+    if seen is not None:
+        stored[policy_rules.current_book_seen_key(key)] = policy_rules.book_marks(
+            {_key(path): mark for path, mark in seen.items()})
     found["document_policy"] = json.dumps(stored)
     return key
+
+
+def wrote(path, at, connection="C1"):
+    """池登记上这份账套最近一次经 CC 桌面版写成的时刻（`connections.service.account_sets_written` 的替身）。"""
+    connections.written[(connection, _key(path))] = at
 
 
 def row(path, label, start, end, **extra):
@@ -489,6 +498,47 @@ class CurrentBookTests(Base):
         self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["reason"],
                          folder_contracts.ACCOUNT_SET_AMBIGUOUS)
 
+    def test_a_newer_entry_in_the_book_not_chosen_asks_again(self):
+        """用户 10-18 加重问：记住回答时同时记下各候选的最新录入（池登记上最近一次经 CC 桌面版写成的时刻）。之后没有新录入照用；
+        选中的那份自己有新录入照用；没被选中的那份有了更晚的录入就当没选过、停下再问（仍不自动挑它）；再答一次照新的用。"""
+        wrote(T8, datetime(2026, 10, 1, 8, 0))
+        wrote(T9, datetime(2026, 10, 2, 9, 0))
+        remember("cy", T9, T8, T9, seen={T8: "2026-10-01T08:00:00", T9: "2026-10-02T09:00:00"})
+        self.assertEqual(self.send(self.rule(), self.ticket("H1", date(2025, 6, 30)))["account_set"], _key(T9))
+        wrote(T9, datetime(2026, 10, 5, 9, 0))
+        self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["account_set"], _key(T9))
+        wrote(T8, datetime(2026, 10, 5, 10, 0))
+        result = self.send(self.rule(), self.ticket("H3", date(2025, 6, 30)))
+        self.assertEqual(result, {"status": "held", "reason": folder_contracts.ACCOUNT_SET_AMBIGUOUS})
+        # 只在这一组有记住的回答、回答时记了标记时才查池登记：两份一次查询
+        self.assertIn(("C1", (_key(T8), _key(T9))), connections.written_asked)
+        # 再答一次（`pending.current_book_choice` 记下当时的最新录入）：照新的回答用；之后旧的那份再写也照样重问
+        remember("cy", T8, T8, T9, seen={T8: "2026-10-05T10:00:00", T9: "2026-10-05T09:00:00"})
+        self.assertEqual(self.send(self.rule(), self.ticket("H4", date(2025, 6, 30)))["account_set"], _key(T8))
+        wrote(T9, datetime(2026, 10, 6, 9, 0))
+        self.assertEqual(self.send(self.rule(), self.ticket("H5", date(2025, 6, 30)))["reason"],
+                         folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+
+    def test_a_book_without_entries_at_the_answer_asks_again_once_it_has_one(self):
+        remember("cy", T9, T8, T9, seen={T8: "", T9: ""})
+        self.assertEqual(self.send(self.rule(), self.ticket("H1", date(2025, 6, 30)))["account_set"], _key(T9))
+        wrote(T8, datetime(2026, 10, 5, 10, 0))
+        self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["reason"],
+                         folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+
+    def test_an_answer_stored_without_marks_is_still_used(self):
+        """向后兼容：10-18 之前记的回答没有标记，另一份有了录入照旧用、不重问，也不查池登记；标记认不得、记的不是这一组
+        候选（坏数据）同样当没有。"""
+        key = remember("cy", T9, T8, T9)
+        wrote(T8, datetime(2026, 10, 5, 10, 0))
+        self.assertEqual(self.send(self.rule(), self.ticket("H1", date(2025, 6, 30)))["account_set"], _key(T9))
+        self.assertEqual(connections.written_asked, [])
+        table = frappe.db.tables["Cowork Workspace"]["WS1"]
+        for bad in (policy_rules.book_marks({_key(T8): "", "s:\\70exp\\other": ""}), "not marks"):
+            table["document_policy"] = json.dumps({key: _key(T9), policy_rules.current_book_seen_key(key): bad})
+            self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["account_set"], _key(T9))
+        self.assertEqual(connections.written_asked, [])
+
     def test_choosing_on_the_stopped_ticket_writes_the_key_the_task_reads(self):
         # 出这张票的任务（`folder_intake.push.source_rules` 要整套推送模块，这里直接给任务记的公司与分店）
         patcher = mock.patch.object(pending, "_task_company", lambda row: (self.company, "00000"))
@@ -496,8 +546,10 @@ class CurrentBookTests(Base):
         self.addCleanup(patcher.stop)
         history = env.Row(name="H1", invoice_date="2025-06-30", push_connection="C1", push_account_set=T8,
                           last_push_reason=folder_contracts.ACCOUNT_SET_AMBIGUOUS, last_push_status="")
+        wrote(T8, datetime(2026, 10, 1, 8, 0))
         found = pending.current_book_choice(history, T9)
-        self.assertEqual(found, {"workspace": "WS1", "key": remember("cy", T9, T8, T9), "value": _key(T9)})
+        self.assertEqual(found, {"workspace": "WS1", "key": remember("cy", T9, T8, T9), "value": _key(T9),
+                                 "seen": policy_rules.book_marks({_key(T8): "2026-10-01T08:00:00", _key(T9): ""})})
         self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["account_set"], _key(T9))
         # 列可换的账套时列全这一组（选了另一份就是改选），不按记住的筛；CC 详情给的「现用账套」候选同这一组
         self.assertEqual(sorted(item["key"] for item in pending.account_sets_for(history)), [_key(T8), _key(T9)])

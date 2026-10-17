@@ -1042,6 +1042,55 @@ class Periods(unittest.TestCase):
         self.assertIn("| ask_once | 1 | 1 | 2 | 2 | 25.00% | 1 | 1 |", text)
         self.assertIn("期间口径 strict", text)
 
+    def test_ask_once_asks_again_after_a_newer_entry_in_the_book_not_chosen(self):
+        """用户 10-18 加重问（线上 `companies.current_book`，判据同 `document_policy.current_book_newer`）：回答时记下各候选的
+        最新录入，之后未被选中的那份更晚就停下再问（模拟的人按答案再选一次），选中的那份自己更晚不算。``written``（默认，同线上）
+        按 ask_once 模拟里最近一次推进去的那张；``entered`` 按 Express 录入日（对照）；``off`` 不重问。"""
+        m = replay._modules()
+
+        def book(name, entries):
+            return {"key": f"C:\\X\\{name}", "folder": name, "own_tax": OWN, "branch": "00000",
+                    "period": (dt.date(2025, 1, 1), dt.date(2025, 12, 31)), "next_end": None,
+                    "entry_days": sorted(entries)}
+
+        one = book("68A", [dt.date(2025, 1, 9), dt.date(2025, 1, 15)])
+        two = book("69A", [dt.date(2025, 1, 10), dt.date(2025, 1, 12)])
+        both = sorted(replay.book_key(m, item) for item in (one, two))
+
+        def many(owner, entered):
+            return {"book": owner["key"], "book_pick": "many", "many_keys": both, "many_part": "current",
+                    "entered": entered, "unique": True, "class": "C", "reasons": ["book_many", "needed"]}
+
+        def single(owner, entered):
+            return {"book": owner["key"], "book_pick": "self", "entered": entered, "class": "A", "reasons": []}
+
+        # 第一张问人、记下 68A；第二张 69A 的单照选错；第三张只进 69A（推进去了）；第四张 69A 在回答之后有了录入 → 重问、
+        # 改记 69A；第五张对；第六张只进 68A；第七张 68A（这时没被选中）更晚 → 再问
+        rows = [many(one, "2025-01-10"), many(two, "2025-01-11"), single(two, "2025-01-12"), many(two, "2025-01-13"),
+                many(two, "2025-01-14"), single(one, "2025-01-15"), many(two, "2025-01-16")]
+        written = replay.tiebreak(m, rows, [one, two], ["ask_once"])["ask_once"]
+        self.assertEqual(written, {"asked": 3, "reasked": 2, "stopped": 3, "wrong": 1, "right": 1})
+        self.assertEqual(written, replay.tiebreak(m, rows, [one, two], ["ask_once"], reask="written")["ask_once"])
+        # Express 录入日：69A 01-10 有录入（第二张录入之前）就重问，第二张起就选对
+        entered = replay.tiebreak(m, rows, [one, two], ["ask_once"], reask="entered")["ask_once"]
+        self.assertEqual(entered, {"asked": 3, "reasked": 2, "stopped": 3, "right": 2})
+        off = replay.tiebreak(m, rows, [one, two], ["ask_once"], reask="off")["ask_once"]
+        self.assertEqual(off, {"asked": 1, "stopped": 1, "wrong": 4})
+        # 别的挑法不受影响
+        self.assertEqual(replay.tiebreak(m, rows, [one, two], ["recent_push"], reask="off"),
+                         replay.tiebreak(m, rows, [one, two], ["recent_push"]))
+        with self.assertRaises(ValueError):
+            replay.tiebreak(m, rows, [one, two], ["ask_once"], reask="always")
+        # 存档与汇总记下开关（旧存档没有这一项按 off），报表写出重问次数
+        out = self.root / "reask"
+        (out / "judge").mkdir(parents=True)
+        for name, part in (("A", {"reask": "written", "tiebreak": {"A": {"ask_once": written}}}), ("B", {})):
+            (out / "judge" / f"{name}.json").write_text(json.dumps(
+                {"rows": [], "skipped": {name: {}}, "tiers": {}, **part}), encoding="utf-8")
+        summary = replay.summarize_judge(replay.load_judge(out))
+        self.assertEqual(summary["reask"], ["off", "written"])
+        self.assertIn("停下再问 2 次", "\n".join(replay._render_books(summary)))
+
 
 class Scoring(unittest.TestCase):
     def test_score_items(self):

@@ -281,6 +281,31 @@
         `current_book_options`。复核页要读票上的 `auto_class / auto_reasons`：`history.storage.project` 多这两列。
         **有意变化**：T1 两份同期原先一律停下（`test_cowork_folder_follow_year` 两条用例锁住），改为「没选过停下、选过照选」；自动推同一组
         选过之后不再记 `book_many`。已经停下的单不会自动重推，要人在待处理 / 复核页点一次。多电脑记录 T1 一节第 6 条同步登记。
+      - **②加重问（用户 10-18 同意）**：另一份候选账套在上次回答之后有了更新录入就再问一次，仍不自动挑最近有录入的那份。
+        - 判据：记住回答时同一次写下这一组候选当时各自的「最新录入」（`companies.current_book.seen_of`，键 `current_book_seen|…` =
+          同一组的 `current_book|…` 换前缀，值 `<候选键 sha1 前 8 位>=<ISO 时刻，没有为空>` 逗号隔开，`contracts.document_policy.book_marks`；
+          `history.document_policy.record` 给了就存、没给或认不得就删掉旧的，`forget` 一起删）；`current_book.remembered` 读到记住的回答后，
+          **未被选中**的某份此刻的最新录入晚于记下的（`document_policy.current_book_newer`，回答时没有录入的按最早算）就当没选过、原样回
+          （T1 停在 `account_set_ambiguous`、自动推判 `book_many` → C，待处理 / 复核页 / CC 工具照现有问法选一份即再记，没有新文案）；
+          选中的那份自己有新录入不算。
+        - 「最新录入」用池登记 `Cowork Express Account Set.last_written_at`（CC 桌面版回执成功时服务端记，`pool.note_written`；
+          `connections.service.account_sets_written` 按连接一次主键查询，只在这一组有记住的回答、且回答时记了标记时才查，判档的轻路径
+          不加载连接服务）。为什么选它：每份登记了的物理账套都有、随每次写入更新、服务端写的 UTC 时刻能稳定比较；Express 那一端现有代码
+          里没有对**未被选中**那份持续更新的录入标记——账套目录（心跳）不报录入，Express 历史（`account_history`）只在那份是推送目标、
+          要人选科目时才请电脑读，回读要人按账套按月发起，未被选中的那份基本不会被读到。**已知缺口**：会计直接在 Express 里录进另一份、
+          不经 Pearnly 的，此刻看不到；要看到得 CC 桌面版在账套目录里另报录入标记（如 GLJNL.DBF 表头的记录数 / 更新日期），要发桌面版，
+          没做。**已知偏差**：改选时旧那份还在排队、回答之后才写成的单，也算回答之后的新录入，会多问一次（电脑在线时队列几分钟内清空，
+          人在待处理页作答通常更晚，少见）。
+        - 向后兼容：10-18 之前记的回答没有标记（或标记认不得、记的不是这一组候选），照旧用、不重问、不查池登记；主档页不列标记键，
+          删现用账套一起删；main 上的旧代码读到标记键当作认不得、写的时候丢掉，回答照用（不重问）。
+        - 回放：`--reask written`（默认，同线上：候选里 ask_once 模拟最近一次推进去的那张，推单当时就有）/ `entered`（对照，线上没有：
+          Express 录入日 GLJNL.CREDAT，同 recent_entry 用的那份，量桌面版若报录入标记能多选对多少）/ `off`（10-17 的 ask_once）；
+          判据调同一个 `current_book_newer`；`judge.tiebreak.ask_once.reasked` 记重问次数，存档与 `summary.json` 记 `reask`（旧存档按 off）。
+          **没有重跑**（甲骨文满核 2–3 小时，由开发窗口另约），只用单元测试验证。
+        - 测试：`test_cowork_goods_posting`（标记写法、认得 / 认不得、未选的更晚才重问）、`test_cowork_folder_follow_year`（T1：无新录入照用、
+          选中的有新录入照用、未选的有新录入停下、再答照新的；回答时没录入的之后有录入也重问；旧存储与坏标记照用、不查池登记）、
+          `test_cowork_da_tiers`（自动推 `day_books` 同一判据）、`test_cowork_companies`（待处理换账套记下标记；主档页不列、删一起删、
+          不给就删旧的）、`test_da_replay`（三种开关的计数与存档）。
       - **②、①第五轮后审查（10-17，审查意见 18 条逐条处理）**：
         1. 跨分店（成立，已修）：`current_book.key_of` 候选报了两个以上不同的分店号时回空串，不问不记、照旧停下（定时任务没记分店、
            两个分店各有现用账套时，不然没印分店的收据会推进另一个分店的账套）；这一张照样能在待处理 / 复核页换账套，只是不记。

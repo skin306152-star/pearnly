@@ -286,6 +286,40 @@ class Storage(unittest.TestCase):
         self.assertIsNone(policy.current_book_parts(head, ""))
         self.assertEqual(policy.company_keys(raw, ""), {})
 
+    def test_marks_of_an_answer_decide_when_to_ask_again(self):
+        """用户 10-18 加重问：回答时记下各候选的最新录入（``current_book_seen|…``，同一组换前缀）；之后未被选中的那份更晚才重问，
+        选中的那份自己更晚不算；旧存储没有、认不得、记的不是这一组候选都当没有（照旧用回答）。"""
+        me = f"tax:{OWN}"
+        head = policy.current_book_key(me, "", "cy", ["a", "b"])
+        seen_key = policy.current_book_seen_key(head)
+        self.assertEqual(seen_key, "current_book_seen" + head[len("current_book"):])
+        self.assertEqual((policy.current_book_seen_key("goods_posting|x"), policy.current_book_seen_key(None)), ("", ""))
+        long_key = "current_book|" + "x" * 224  # 本身 237 字放得下，换了前缀 242 字超长：不记标记（回答照记）
+        self.assertEqual((len(long_key) <= policy.GOODS_POSTING_KEY_MAX, policy.current_book_seen_key(long_key)), (True, ""))
+        # 写法：ISO 时刻到微秒，日期按零点，空、认不出为空串
+        self.assertEqual(policy.book_mark(dt.datetime(2026, 10, 1, 8, 0, 5)), "2026-10-01T08:00:05.000000")
+        self.assertEqual(policy.book_mark(dt.date(2026, 10, 1)), "2026-10-01T00:00:00.000000")
+        self.assertEqual(policy.book_mark("2026-10-01 08:00:05.5"), "2026-10-01T08:00:05.500000")
+        self.assertEqual([policy.book_mark(value) for value in (None, "", "yesterday")], ["", "", ""])
+        value = policy.book_marks({"b": "2026-10-02T09:00:00", "a": dt.datetime(2026, 10, 1, 8, 0)})
+        self.assertRegex(value, r"^[0-9a-f]{8}=2026-10-0\dT0\d:00:00\.000000,[0-9a-f]{8}=2026-10-0\dT0\d:00:00\.000000$")
+        self.assertEqual(policy.book_marks({}), "")
+        stored = policy.normalize({head: "a", seen_key: value, policy.current_book_seen_key(head) + "x": "bad",
+                                   "current_book_seen|y": "zz=1"})
+        self.assertEqual(stored, {head: "a", seen_key: value})
+        seen = policy.current_book_seen(stored, head, ["a", "b"])
+        self.assertEqual(seen, {"a": "2026-10-01T08:00:00.000000", "b": "2026-10-02T09:00:00.000000"})
+        # 记的不是这一组候选、旧存储没有：None（调用方照旧用回答）
+        self.assertIsNone(policy.current_book_seen(stored, head, ["a", "c"]))
+        self.assertIsNone(policy.current_book_seen({head: "a"}, head, ["a", "b"]))
+        self.assertIsNone(policy.current_book_seen({head: "a", seen_key: "nonsense"}, head, ["a", "b"]))
+        # 选了 a：b 更晚才重问；a 自己更晚不算；此刻没有标记不算；回答时没有录入的按最早算
+        self.assertFalse(policy.current_book_newer(seen, {"a": "2026-10-09T00:00:00", "b": "2026-10-02T09:00:00"}, "a"))
+        self.assertTrue(policy.current_book_newer(seen, {"a": "", "b": "2026-10-02T09:00:01"}, "a"))
+        self.assertFalse(policy.current_book_newer(seen, {"b": ""}, "a"))
+        self.assertTrue(policy.current_book_newer({"a": "", "b": ""}, {"b": "2020-01-01T00:00:00"}, "a"))
+        self.assertFalse(policy.current_book_newer({"a": "", "b": ""}, {"c": "2030-01-01T00:00:00"}, "a"))
+
 
 class Choose(unittest.TestCase):
     """写入口：按这张票推往的账套认公司，记进工作空间同一个字段。"""

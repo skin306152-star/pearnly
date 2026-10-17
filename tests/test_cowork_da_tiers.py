@@ -689,6 +689,22 @@ class CompanyTier(unittest.TestCase):
         key = policy.current_book_key(f"tax:{OWN}", "00000", "cy", keys)
         store.others[("Cowork Workspace", "W1")] = Row(document_policy=json.dumps({key: twin.lower()}))
         self.assertEqual(nobody.day_books("C1", catalog[0], "2026-10-20", catalog), [twin.lower()])
+        # 用户 10-18 加重问：回答时记了各候选的最新录入；选中的那份有新录入照选，未被选中的那份有了更晚的录入就照旧回多份
+        # （判档记 ``book_many``、停下再问，不自动挑它）
+        seen = policy.book_marks({keys[0]: "2026-10-01T08:00:00", keys[1]: "2026-10-01T09:00:00"})
+        store.others[("Cowork Workspace", "W1")] = Row(document_policy=json.dumps(
+            {key: twin.lower(), policy.current_book_seen_key(key): seen}))
+        written, asked = {}, []
+        pool = ns(account_sets_written=lambda connection, account_keys: asked.append((connection, list(account_keys)))
+                  or {item: written[item] for item in account_keys if item in written})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.connections": ns(service=pool),
+                                           "pearnly_cowork.connections.service": pool}):
+            written.update({keys[0]: dt.datetime(2026, 10, 1, 8, 0), keys[1]: dt.datetime(2026, 10, 3, 9, 0)})
+            self.assertEqual(nobody.day_books("C1", catalog[0], "2026-10-20", catalog), [twin.lower()])
+            written[keys[0]] = dt.datetime(2026, 10, 4, 9, 0)
+            self.assertEqual(nobody.day_books("C1", catalog[0], "2026-10-20", catalog), keys)
+        self.assertEqual(asked, [("C1", keys)] * 2)
+        store.others[("Cowork Workspace", "W1")] = Row(document_policy=json.dumps({key: twin.lower()}))
         # 主档上的身份与工作空间（主档建档时的身份，目录行同税号）
         store.companies["CO1"] = Row(name="CO1", workspace="W1", identity=f"tax:{OWN}")
         module = _companies(store)

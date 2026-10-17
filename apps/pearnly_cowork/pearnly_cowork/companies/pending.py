@@ -214,8 +214,9 @@ def account_sets_for(row) -> list:
 
 def current_book_choice(row, key) -> dict | None:
     """会计员在停在「待选账套」的单上选了 ``key``：这组候选是多份同期（用户 2026-10-17「按公司问一次哪份是现用的」）→
-    ``{"workspace", "key": 口径键, "value": 规范账套键}``，调用方经 `history.document_policy.record` 记下；只有一份、选的不在
-    候选里、认不出公司回 None（只换这一张，不记）。"""
+    ``{"workspace", "key": 口径键, "value": 规范账套键, "seen": 这组候选此刻的最新录入}``，调用方经
+    `history.document_policy.record` 记下（``seen`` 给之后判「另一份有了更新录入就重问」，`current_book.seen_of`，用户 10-18）；
+    只有一份、选的不在候选里、认不出公司回 None（只换这一张，不记）。"""
     from pearnly_cowork.companies import current_book
 
     if not account_set_stop(row):
@@ -228,7 +229,7 @@ def current_book_choice(row, key) -> dict | None:
     policy_key = current_book.key_of(found.get("identity"), str(row.get("invoice_date") or "")[:10], books)
     if not policy_key or not found.get("workspace"):
         return None
-    return {"workspace": found["workspace"], "key": policy_key, "value": wanted}
+    return {"workspace": found["workspace"], "key": policy_key, "value": wanted, "seen": current_book.seen_of(books)}
 
 
 def current_book_options(row) -> list:
@@ -248,8 +249,8 @@ def current_book_options(row) -> list:
 
 def current_book_rechoice(row, key) -> dict | None:
     """已经记住、不再停下的单改选现用账套（CC 工具）：推送去向那份账套这一天的候选（:func:`_target_scope`，同自动推判档）是
-    多份同期、``key`` 在其中 → ``{"workspace", "key": 口径键, "value": 规范账套键}``；否则 None。停在「待选账套」的单不走这里
-    （要换这一张并推，走 :func:`current_book_choice`）。"""
+    多份同期、``key`` 在其中 → ``{"workspace", "key": 口径键, "value": 规范账套键, "seen"}``（同 :func:`current_book_choice`）；
+    否则 None。停在「待选账套」的单不走这里（要换这一张并推，走 :func:`current_book_choice`）。"""
     from pearnly_cowork.companies import current_book
 
     day = str(row.get("invoice_date") or "")[:10]
@@ -263,7 +264,7 @@ def current_book_rechoice(row, key) -> dict | None:
     policy_key = current_book.key_of(found.get("identity"), day, books)
     if not policy_key or not found.get("workspace"):
         return None
-    return {"workspace": found["workspace"], "key": policy_key, "value": wanted}
+    return {"workspace": found["workspace"], "key": policy_key, "value": wanted, "seen": current_book.seen_of(books)}
 
 
 def account_set_pick(row, key) -> dict | None:

@@ -159,7 +159,7 @@ def choose_account_set(document, account_set_key):
 def _remember(found) -> None:
     from pearnly_cowork.history import document_policy
 
-    document_policy.record(found["workspace"], found["key"], found["value"])
+    document_policy.record(found["workspace"], found["key"], found["value"], seen=found.get("seen") or "")
 
 
 def rechoose_current_book(doc, account_set_key) -> dict | None:

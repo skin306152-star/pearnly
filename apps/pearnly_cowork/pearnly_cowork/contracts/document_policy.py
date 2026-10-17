@@ -20,10 +20,18 @@
 （`targets.account_match.for_day`）选出多份时，这家公司、这组分店、本年或次年段、这一组候选问一次，键
 ``current_book|<公司身份>|<分店>|<cy 或 ny>|<候选账套键排序后的 sha1 前 12 位>``，值是选中的规范账套键。候选组合在键里：
 新建了账套、组合变了就是另一个键，重新问，旧选择不会把新一年的单推进旧账套。没选过的照旧停下；怎么用见 `companies.current_book`。
+
+记住回答时另记一项「当时各候选的最新录入」（用户 2026-10-18 同意加重问：另一份候选账套在上次回答之后有了更新录入就再问一次，
+仍不自动挑最近有录入的那份）：键 ``current_book_seen|…``（同一组的 ``current_book|…`` 换前缀），值 ``<候选键 sha1 前 8 位>=<标记>``
+按位排序、逗号隔开（标记是 ISO 时刻，没有为空，:func:`book_marks`）。之后**未被选中**的某份此刻的标记晚于记下的
+（:func:`current_book_newer`）就当没选过、照旧停下再问；选中的那份自己有新录入不算。旧存储没有这一项（或认不得）的回答照旧可用、
+不会因此重问。标记取什么见 `companies.current_book.marks`。
 """
 from __future__ import annotations
 
 import hashlib
+import re
+from datetime import date, datetime
 from typing import Any, Dict, Iterable, Mapping, Optional
 
 from pearnly_core.tax_documents.amounts import digits, money, repaired_tax_id, valid_tax_id
@@ -43,6 +51,10 @@ GOODS_POSTING_KEY_MAX = 240
 CURRENT_BOOK = "current_book"
 CURRENT_BOOK_PARTS = ("cy", "ny")
 BOOK_KEY_MAX = 500  # 同 `targets.identity.normalize_express_account_key` 的上限
+# 记回答时各候选的最新录入标记（见文件头）：键 ``current_book_seen|…``，值 ``<8 位>=<ISO 时刻或空>,…``
+CURRENT_BOOK_SEEN = "current_book_seen"
+SEEN_ID = 8
+_SEEN_VALUE = re.compile(r"[0-9a-f]{8}=[0-9T:.\-]{0,32}(?:,[0-9a-f]{8}=[0-9T:.\-]{0,32})*")
 
 
 def _not_invoice(fields: Mapping[str, Any]) -> bool:
@@ -117,6 +129,72 @@ def current_book(policy: Mapping[str, str], key: Any, candidates: Iterable[Any])
     return value if isinstance(value, str) and value in _book_keys(candidates) else None
 
 
+def current_book_seen_key(key: Any) -> str:
+    """一组候选的 ``current_book|…`` 键 → 记回答时各候选最新录入标记的键（换前缀）；不是这种键、换了太长回空串（不记标记）。"""
+    if not isinstance(key, str) or not key.startswith(CURRENT_BOOK + "|"):
+        return ""
+    seen = CURRENT_BOOK_SEEN + key[len(CURRENT_BOOK):]
+    return seen if len(seen) <= GOODS_POSTING_KEY_MAX else ""
+
+
+def book_mark(value: Any) -> str:
+    """一份账套的「最新录入」标记 → 存的写法（ISO 时刻到微秒；日期按当天零点）；空、认不出回空串（当作没有录入）。"""
+    if isinstance(value, datetime):
+        found = value.replace(tzinfo=None)
+    elif isinstance(value, date):
+        found = datetime(value.year, value.month, value.day)
+    else:
+        text = str(value or "").strip()
+        try:
+            found = datetime.fromisoformat(text).replace(tzinfo=None) if text else None
+        except ValueError:
+            found = None
+    return found.isoformat(timespec="microseconds") if found else ""
+
+
+def _seen_id(book_key: str) -> str:
+    return hashlib.sha1(book_key.encode("utf-8"), usedforsecurity=False).hexdigest()[:SEEN_ID]
+
+
+def book_marks(marks: Mapping[str, Any]) -> str:
+    """回答时各候选（``{规范账套键: 最新录入}``）→ 存的值（`book_mark` 写法，按位排序）；没有候选、位撞了、太长回空串（不记标记，
+    这一组的回答照旧可用、不因新录入重问）。"""
+    pairs = {}
+    for key in _book_keys(marks or {}):
+        ident = _seen_id(key)
+        if ident in pairs:
+            return ""
+        pairs[ident] = book_mark((marks or {}).get(key))
+    value = ",".join(f"{ident}={pairs[ident]}" for ident in sorted(pairs))
+    return value if value and len(value) <= BOOK_KEY_MAX and _SEEN_VALUE.fullmatch(value) else ""
+
+
+def current_book_seen(policy: Mapping[str, str], key: Any, candidates: Iterable[Any]) -> Optional[Dict[str, str]]:
+    """这一组回答时记下的各候选最新录入（``{规范账套键: 标记}``，没有录入为空串）；旧存储没有这一项、认不得、记的不是这一组
+    候选回 None（照旧用记住的回答、不重问）。"""
+    seen_key = current_book_seen_key(key)
+    raw = (policy or {}).get(seen_key) if seen_key else None
+    if not isinstance(raw, str) or not _SEEN_VALUE.fullmatch(raw):
+        return None
+    stored = dict(item.split("=", 1) for item in raw.split(","))
+    keys = {_seen_id(book): book for book in _book_keys(candidates)}
+    if set(stored) != set(keys):
+        return None
+    return {keys[ident]: book_mark(mark) for ident, mark in stored.items()}
+
+
+def current_book_newer(seen: Mapping[str, Any], now: Mapping[str, Any], chosen: Any) -> bool:
+    """记住的回答还算不算数（用户 2026-10-18）：**未被选中**的候选里有一份此刻的最新录入（``now``）晚于回答时记下的（``seen``，
+    当时没有录入的按最早算）→ True，要重问；选中的那份自己有新录入不算，此刻没有标记的不算。"""
+    for key, mark in (now or {}).items():
+        if key == chosen or key not in (seen or {}):
+            continue
+        current, before = book_mark(mark), book_mark(seen[key])
+        if current and (not before or datetime.fromisoformat(current) > datetime.fromisoformat(before)):
+            return True
+    return False
+
+
 def current_book_parts(key: Any, company: Any) -> Optional[tuple]:
     """``current_book|…`` 键是不是这家公司的：是 → ``(分店, "cy" / "ny")``（主档页「记住的选择」显示与删用）；不是回 None。"""
     company = str(company or "").strip()
@@ -143,12 +221,14 @@ def _known(key: Any, value: Any) -> bool:
         return False
     if key.startswith(GOODS_POSTING + "|"):
         return value in GOODS_POSTING_VALUES
+    if key.startswith(CURRENT_BOOK_SEEN + "|"):
+        return isinstance(value, str) and len(value) <= BOOK_KEY_MAX and bool(_SEEN_VALUE.fullmatch(value))
     return (key.startswith(CURRENT_BOOK + "|") and isinstance(value, str)
             and 0 < len(value) <= BOOK_KEY_MAX and value == value.strip())
 
 
 def normalize(raw: Any) -> Dict[str, str]:
-    """存着的口径 → 只留认得的类别与取值（含按公司记的商品单入账方式、两份同期时现用的账套）。"""
+    """存着的口径 → 只留认得的类别与取值（含按公司记的商品单入账方式、两份同期时现用的账套与回答时各候选的最新录入）。"""
     return {key: value for key, value in (raw if isinstance(raw, Mapping) else {}).items() if _known(key, value)}
 
 
@@ -199,7 +279,8 @@ def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
     return found
 
 
-__all__ = ["CERTIFICATE", "CURRENT_BOOK", "CURRENT_BOOK_PARTS", "ENTER", "GOODS_POSTING", "GOODS_POSTING_VALUES", "NEEDED_PREFIX",
-           "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages", "certificate_shape", "company_keys",
-           "current_book", "current_book_key", "current_book_parts", "document_class", "goods_posting", "goods_posting_key",
-           "normalize", "push_block", "skipped_certificates"]
+__all__ = ["CERTIFICATE", "CURRENT_BOOK", "CURRENT_BOOK_PARTS", "CURRENT_BOOK_SEEN", "ENTER", "GOODS_POSTING",
+           "GOODS_POSTING_VALUES", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages",
+           "book_mark", "book_marks", "certificate_shape", "company_keys", "current_book", "current_book_key",
+           "current_book_newer", "current_book_parts", "current_book_seen", "current_book_seen_key", "document_class",
+           "goods_posting", "goods_posting_key", "normalize", "push_block", "skipped_certificates"]

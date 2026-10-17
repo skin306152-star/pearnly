@@ -396,6 +396,10 @@ estimated、d4compat 的 ask_once 是 5,370 / 5,986 / 244（46.29%），问 110,
 - **ask_once 要不要加「候选里另一份账套之后有了更新录入就重新问」这类信号。** ask_once 是已定口径（设计第 18 条「第五轮前的审查处理」②与「②接线上（用户 10-17 批准）」，写明不自动挑最近有录入的那份）。
   模拟里选错集中在 BakeLab（strict `judge.tiebreak_companies`：ask_once 对 9 / 错 4,087 / 停 1），结论依赖「模拟的人按第一张独有单选」；BakeLab 两份账套 2026 年同时有录入
   （`67BAKEL` 到 04-27、`68BAKEL` 从 02-14 起），这类信号会反复触发，有没有用没有数据。
+  **用户 10-18 已同意，已施工**（设计第 18 条「②加重问」）：线上「最新录入」只看得到经 Pearnly 写成的（池登记 `last_written_at`），会计直接在 Express
+  里录进另一份的看不到。回放 `--reask written`（默认，同线上）/ `entered`（对照：Express 录入日，量桌面版若报录入标记能多选对多少）/ `off`（原 ask_once）。
+  推断：BakeLab 这种两份都覆盖同一年、单子全是「两份同期」的，written 下另一份不会有经 Pearnly 的新录入，结果应与 off 相同，entered 才会动；
+  要甲骨文重跑 strict 三遍（written / entered / off）才有数，没跑。
 
 ### 改取法（10-17）
 

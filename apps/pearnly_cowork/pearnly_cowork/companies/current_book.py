@@ -11,7 +11,8 @@
 - 写：选择只经 `history.document_policy.record` 写（companies 不导入 history）。复核页 / 待处理当场换账套、CC 工具都走
   `assistant.pending_api.choose_account_set`：这里的 :func:`key_of` 按同一组候选现算键，`companies.pending.current_book_choice`
   核过这张单确实停在多份同期、选的在候选里，这张推成了才记（推不成不记，下一张照旧停下再问）。已经记住的要改选：CC 工具对
-  推送去向那份账套这一天有多份同期的单只改记（`companies.pending.current_book_rechoice`，同自动推判档的候选）。
+  推送去向那份账套这一天有多份同期的单只改记（`companies.pending.current_book_rechoice`，同自动推判档的候选）。两处都同时
+  记下这一组候选当时的最新录入（:func:`seen_of`，见下「重问」）。
 
 公司身份同 `identity.company_identity` 的 ``key``（建了主档的用主档上的身份）；分店取候选账套报的分店号，本年 / 次年按
 `targets.account_match.fiscal_part`。候选跨了分店（报了两个以上不同的分店号，如定时任务没记分店、两个分店各有自己的现用账套）
@@ -20,6 +21,16 @@
 
 主档页「记住的选择」只列还起作用的键（:func:`live_keys`）：新建 / 删了账套、组合变了的旧键不会再被问到，不列（也不清）；
 同一分店、同是本年（或次年）在不同年度各有一组时各列一行，行上写选中那份的年度（`choices.policy_rows`）。
+
+重问（用户 2026-10-18 同意）：记住回答时同时记下当时各候选的「最新录入」（:func:`seen_of`，存在同一组的 ``current_book_seen|…``，
+`contracts.document_policy.book_marks`）；之后**未被选中**的某份此刻的最新录入晚于记下的，:func:`remembered` 当作没选过、原样回
+（照旧停下再问，仍不自动挑最近有录入的那份）。选中的那份自己有新录入不算；旧存储没有这一项的回答照旧用、不重问。
+
+「最新录入」取池登记上这份账套最近一次经 CC 桌面版写成的时刻（`connections.service.account_sets_written`：回执成功时由服务端
+记，每份登记了的物理账套都有、随每次写入更新，按连接一次主键查询，只在这一组有记住的回答、且回答时记了标记时才查）。现有代码里
+Express 那一端没有对未被选中的那份持续更新的录入标记（账套目录不报录入，Express 历史只在它是推送目标时才读，回读要人按月发起），
+所以会计直接在 Express 里录进另一份、不经 Pearnly 的，此刻看不到；要看到得 CC 桌面版在账套目录里另报录入标记（未做）。
+已知偏差：改选时旧那份还在排队、回答之后才写成的单，也算「回答之后的新录入」，会多问一次。
 """
 from __future__ import annotations
 
@@ -97,15 +108,41 @@ def policy(workspace) -> dict:
         return {}
 
 
+def marks(books) -> dict:
+    """各候选此刻的「最新录入」：``{规范账套键: 池登记上最近一次经 CC 桌面版写成的时刻（`book_mark` 写法），没有为空串}``。
+    每条连接一次主键查询。"""
+    from pearnly_cowork.connections import service as connections  # 只在这一组记了标记时才用：判档的轻路径不加载连接服务
+
+    by_connection = {}
+    for item in books or ():
+        by_connection.setdefault(item.get("connection") or "", []).append(_key(item))
+    out = {}
+    for connection, keys in by_connection.items():
+        found = connections.account_sets_written(connection, keys) if connection else {}
+        found = {normalize_express_account_key(key) or key: value for key, value in (found or {}).items()}
+        out.update({key: policy_rules.book_mark(found.get(key)) for key in keys})
+    return out
+
+
+def seen_of(books) -> str:
+    """记住回答时一起存的各候选最新录入（``current_book_seen|…`` 的值，`contracts.document_policy.book_marks`）；记不下回空串。"""
+    return policy_rules.book_marks(marks(books))
+
+
 def remembered(workspace, company_identity, day, books) -> list:
-    """按日期选出多份同期时，这家公司对这一组选过的那份 → 只留它；没选过、选的已不在候选里、不到两份原样回。"""
+    """按日期选出多份同期时，这家公司对这一组选过的那份 → 只留它；没选过、选的已不在候选里、不到两份原样回。回答时记了
+    各候选的最新录入、而此刻**未被选中**的某份有了更晚的录入：当作没选过，原样回（调用方照旧停下再问，用户 2026-10-18）。"""
     books = list(books or ())
     key = key_of(company_identity, day, books)
     if not key:
         return books
-    chosen = policy_rules.current_book(policy(workspace), key, [_key(item) for item in books])
+    stored, candidates = policy(workspace), [_key(item) for item in books]
+    chosen = policy_rules.current_book(stored, key, candidates)
+    seen = policy_rules.current_book_seen(stored, key, candidates) if chosen else None
+    if seen is not None and policy_rules.current_book_newer(seen, marks(books), chosen):
+        chosen = None
     picked = [item for item in books if _key(item) == chosen] if chosen else []
     return picked[:1] or books
 
 
-__all__ = ["key_of", "live_keys", "policy", "remembered"]
+__all__ = ["key_of", "live_keys", "marks", "policy", "remembered", "seen_of"]

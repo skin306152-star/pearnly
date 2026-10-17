@@ -267,11 +267,17 @@ scope = Scope()
 
 
 class Connections(types.ModuleType):
-    """连接目录替身：`catalogs[连接] = [目录行]`；`users[连接]` 是能用它的人。"""
+    """连接目录替身：`catalogs[连接] = [目录行]`；`users[连接]` 是能用它的人；`written[(连接, 规范键)]` 是池登记上那份账套最近一次
+    经 CC 桌面版写成的时刻（`account_sets_written`）。"""
 
     def __init__(self):
         super().__init__("pearnly_cowork.connections.service")
-        self.catalogs, self.adapters, self.users, self.reads = {}, {}, {}, []
+        self.catalogs, self.adapters, self.users, self.reads, self.written = {}, {}, {}, [], {}
+        self.written_asked = []
+
+    def account_sets_written(self, connection, account_keys):
+        self.written_asked.append((connection, tuple(account_keys)))
+        return {key: self.written[(connection, key)] for key in account_keys if (connection, key) in self.written}
 
     def records(self, workspace, client=None, start=0, limit=50):
         user = frappe.session.user
@@ -470,6 +476,7 @@ def reset(**catalogs):
     frappe.session.user = "a@example.com"
     scope.features = {"intake", "ocr_history"}
     connections.catalogs, connections.adapters, connections.users, connections.reads = {}, {}, {}, []
+    connections.written, connections.written_asked = {}, []
     for name, rows in catalogs.items():
         connections.catalogs[name] = rows
         connections.adapters[name] = "mrerp" if name.startswith("M") else "express"
@@ -1216,6 +1223,32 @@ class PolicyChoiceTests(unittest.TestCase):
         with self.assertRaises(frappe.DoesNotExistError):  # 已删：下一张会因此交人的单再问
             choices.forget(self.company, self.sets, rows["posting"]["key"])
 
+    def test_the_marks_kept_with_an_answer_are_not_listed_and_go_with_it(self):
+        """重问的标记（``current_book_seen|…``，用户 10-18 加重问）：主档页不列；记新回答时给了就换、没给或认不得就删掉旧的
+        （旧标记属于上一次回答）；删现用账套一起删；标记键本身不能当一行删。"""
+        from pearnly_cowork.contracts import document_policy as policy_rules
+
+        store = sys.modules["pearnly_cowork.history.document_policy"]
+        seen_key = policy_rules.current_book_seen_key(self.head)
+        marks = policy_rules.book_marks({self.HQ[0]: "2026-10-01T08:00:00", self.HQ[1]: ""})
+        before = sorted(row["key"] for row in self.listed())
+        self.store({**self.policy(), seen_key: marks})
+        self.assertEqual(sorted(row["key"] for row in self.listed()), before)
+        store.record("WS1", self.head, self.HQ[0])
+        self.assertNotIn(seen_key, self.policy())
+        store.record("WS1", self.head, self.HQ[1], seen=marks)
+        self.assertEqual((self.policy()[self.head], self.policy()[seen_key]), (self.HQ[1], marks))
+        store.record("WS1", self.head, self.HQ[1], seen="02fed953=yesterday")
+        self.assertNotIn(seen_key, self.policy())
+        store.record("WS1", self.head, self.HQ[1], seen=marks)
+        store.record("WS1", f"goods_posting|{self.ME}", "service", seen=marks)  # 别的口径不带标记
+        self.assertEqual([key for key in self.policy() if key.startswith("current_book_seen|")], [seen_key])
+        with self.assertRaises(frappe.DoesNotExistError):
+            choices.forget(self.company, self.sets, choices.encode("policy", seen_key))
+        head = "cowork.company.choice.current_year · cowork.company.head_office"
+        self.assertEqual(choices.forget(self.company, self.sets, self.rows()[head]["key"]), {"removed": 1})
+        self.assertFalse({self.head, seen_key} & set(self.policy()))
+
     def test_another_companys_or_tenant_wide_keys_are_refused(self):
         for key in (f"goods_posting|tax:{OTHER_TAX}", "payment_evidence", f"current_book|{self.ME}||cy|short",
                     f"current_book|{self.ME}|x|y|cy|0123456789ab"):
@@ -1535,9 +1568,11 @@ class PendingAnswerTests(unittest.TestCase):
                                                 ("reader", name, connection)) or reader)
         application_api = types.SimpleNamespace(
             save_choices=lambda *args: calls.append(("save",) + args) or {"saved": 1})
-        # 两份同期时选的那份记成这家公司现用的（`history.document_policy.record`）：记下，键只核前缀（摘要由候选现算）
-        document_policy = types.SimpleNamespace(record=lambda workspace, key, value: calls.append(
-            ("remember", workspace, key.rsplit("|", 1)[0], value)))
+        # 两份同期时选的那份记成这家公司现用的（`history.document_policy.record`）：记下，键只核前缀（摘要由候选现算）；
+        # 同时记的各候选最新录入（``seen``，用户 10-18 加重问）另放在 ``self.seen``
+        self.seen = []
+        document_policy = types.SimpleNamespace(record=lambda workspace, key, value, seen="": (
+            self.seen.append(seen), calls.append(("remember", workspace, key.rsplit("|", 1)[0], value))))
 
         def push_one(*args, route_device=""):
             calls.append(("push",) + args + ((("route_device", route_device),) if route_device else ()))
@@ -1626,6 +1661,7 @@ class PendingAnswerTests(unittest.TestCase):
         reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy"),
                   express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP", start="2025-01-01", end="2025-12-31")])
         make()
+        connections.written[("C1", "s:\\69exp\\abc")] = datetime(2026, 9, 30, 8, 0)
         doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous")
         module, calls = self._answer(doc, {"status": "sent"})
         fresh_request()
@@ -1640,6 +1676,11 @@ class PendingAnswerTests(unittest.TestCase):
         self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("retarget", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("remember", "WS1", f"current_book|tax:{TAX}|00000|cy", "s:\\69exp\\abc2")])
+        # 同一次记下这一组候选当时的最新录入（池登记上最近一次写成的时刻，没写过为空；用户 10-18 加重问）
+        from pearnly_cowork.contracts import document_policy as policy_rules
+        self.assertEqual(self.seen, [policy_rules.book_marks({"s:\\69exp\\abc": "2026-09-30T08:00:00",
+                                                               "s:\\69exp\\abc2": ""})])
+        self.assertIn(("C1", ("s:\\69exp\\abc", "s:\\69exp\\abc2")), connections.written_asked)
         # 不在可换之列（别的年度）、不是待选账套停下的单：回 stale（页面重取可换的），不推、不弹「去新建录入」的错
         calls.clear()
         for key in ("S:\\68EXP\\ABC", "", "S:\\NOPE"):

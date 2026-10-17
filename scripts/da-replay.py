@@ -22,7 +22,7 @@
     python3 da-replay.py inventory --corpus /mnt/c/PearnlyStress/语料/06-录入推送 --gold /mnt/c/PearnlyStress/语料/金标-2026-10 --out OUT \
         [--express 70EXP] [--isprd ISPRD导出] [--registry SCCOMP导出]
     python3 da-replay.py judge --corpus ... --out OUT [--company 名称] [--express 70EXP] [--isprd ...] [--registry ...] \
-        [--periods strict|estimated] [--tiebreak none,recent_entry,recent_push,ask_once] \
+        [--periods strict|estimated] [--tiebreak none,recent_entry,recent_push,ask_once] [--reask written|entered|off] \
         [--lines none|answer] [--line-names stkdes|opaque] [--company-choice prior|full]
     PYTHONPATH=<含 pypdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
         --manifest /mnt/c/PearnlyStress/语料/06-录入推送/清单.tsv --out OUT
@@ -31,6 +31,8 @@
 会计期间（10-17）：与 CC 桌面版同口径读 ISPRD（`isprd_window`），来源依次是答案自带、``--isprd`` 只读导出、70EXP 测试账套；
 都没有时 judge 默认 ``--periods strict``（同线上读不到 ISPRD：不报期间），``estimated`` 按单据日期估作对照。每张单记下按日期选账套
 的情形（`book_pick`），C 类主因按它拆开真两份同期与估算重叠；两份同期时各挑法的选对率见 `tiebreak`（模拟，不改判档）。
+ask_once 回答之后未被选中的那份有了更晚的录入就重问（10-18，同线上 `companies.current_book`）：``--reask written``（默认，同线上：
+最新录入 = 最近一次推进去的那张）、``entered``（对照：Express 录入日，线上看不到）、``off``（不重问，10-17 的口径），存档记 ``reask``。
 
 商品单与上传日（10-17 第三段，只在回放里量，线上判档不变）：答案的「走库存」只认库存品（STMAS.STKTYP=0）或有库存影响的明细行
 （STCRD 按单号分组、按 SEQNUM 排、PEOPLE 防撞号，进销同号再按明细日期分），另记有没有明细；``--lines answer`` 把答案明细造进票面
@@ -652,6 +654,7 @@ def upload_proxy(m, doc: Mapping[str, Any]) -> Tuple[dt.date, str]:
 def _modules():
     from pearnly_cowork.companies import automation_rules
     from pearnly_cowork.companies import identity
+    from pearnly_cowork.contracts import document_policy
     from pearnly_cowork.push.automation import rules as tier_rules
     from pearnly_cowork.push.express import automation, decide, goods_posting
     from pearnly_cowork.push.express import choices as choice_rules
@@ -662,7 +665,8 @@ def _modules():
 
     return {"automation": automation, "decide": decide, "choices": choice_rules, "ExpressContext": ExpressContext,
             "prepare_express": prepare_express, "history_rules": history_rules, "automation_rules": automation_rules,
-            "tier_rules": tier_rules, "tax_periods": tax_periods, "identity": identity, "goods_posting": goods_posting}
+            "tier_rules": tier_rules, "tax_periods": tax_periods, "identity": identity, "goods_posting": goods_posting,
+            "document_policy": document_policy}
 
 
 LINE_MODES = ("none", "answer")
@@ -1633,6 +1637,12 @@ def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Ma
 # （GLJNL.CREDAT）的那份；recent_push 认之前模拟推进去的那份；ask_once 用户已定的口径：同一家、同一分店、本年或次年段、
 # 同一组候选第一次停下时问人一次（模拟的人按答案选），之后同组照选，候选组合变了重新问
 TIEBREAKS = ("none", "recent_entry", "recent_push", "ask_once")
+# ask_once 的重问信号（用户 10-18 同意，线上 `companies.current_book`）：回答时记下各候选的「最新录入」，之后未被选中的那份
+# 更晚就再问（判据同线上 `contracts.document_policy.current_book_newer`）。``written``（默认，同线上）：线上取池登记上 CC 桌面版
+# 最近一次写成那份账套的时刻，回放里每张单都按录入日顺序推进某份账套，取这一挑法模拟里最近一次推进去的那张（推单当时就有）；
+# ``entered``（对照，线上没有）：取 Express 里这张单录入之前最近的录入日（GLJNL.CREDAT，同 recent_entry），量「CC 桌面版若在账套
+# 目录里另报录入标记、看得到会计直接在 Express 里录的」能多选对多少；``off``：不重问（10-17 的 ask_once）
+REASKS = ("written", "entered", "off")
 
 
 def _last_before(days: Sequence[dt.date], day: dt.date) -> Optional[dt.date]:
@@ -1641,18 +1651,35 @@ def _last_before(days: Sequence[dt.date], day: dt.date) -> Optional[dt.date]:
 
 
 def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, Any]],
-             strategies: Sequence[str] = TIEBREAKS) -> Dict[str, Dict[str, int]]:
+             strategies: Sequence[str] = TIEBREAKS, reask: str = "written") -> Dict[str, Dict[str, int]]:
     """一家公司的判定行（`judge_company` 的顺序，即录入日顺序）里按日期选出多份账套（``book_pick == many``）的单，各口径会挑
     哪份。只拿只在一份账套里有的单（``unique``）与答案账套（这张单所在的那份）比：``right`` 选对、``wrong`` 选错、``stopped``
     仍停（ask_once 问人那张也算停，``asked`` 另计；问到几份都有的单不记选择、下一张再问）；``shared`` 几份都有、答案账套
     不唯一的不计分；``freed`` 选对且 C 类原因只剩 ``book_many`` 的（挑对就不再是 C）。recent_push 各挑法各记各的「最近推进去的
     那份」：挑法选了哪份就记哪份（选错了之后也跟着错），停下由人推的记答案账套（审查处理 10-17：原先一律记答案账套，等于每张都
-    自动纠正，偏乐观）。"""
+    自动纠正，偏乐观）。ask_once 按 ``reask``（`REASKS`）重问：记住的回答因未被选中的那份有了更晚的录入作废、这张停下再问的另记
+    ``reasked``（也算进 ``asked``）。"""
+    if reask not in REASKS:
+        raise ValueError(f"unknown reask {reask}")
+    policy = m["document_policy"]
     by_raw = {book["key"]: book for book in books}
     by_norm = {book_key(m, book): book for book in books}
     out = {name: collections.Counter() for name in strategies}
     asked: Dict[Tuple, str] = {}
+    seen_at: Dict[Tuple, Dict[str, str]] = {}  # ask_once 回答时各候选的最新录入（`current_book_seen` 的样子）
     last_push: Dict[str, Dict[str, int]] = {name: {} for name in strategies}
+
+    def marks(candidates: Sequence[str], entered: dt.date) -> Dict[str, str]:
+        """此刻（这张单推之前）各候选的最新录入，`policy.book_mark` 写法：written 按 ask_once 模拟里最近一次推进去的那张
+        （录入日 + 第几张的微秒，同一天里按推的先后），entered 按 Express 里这张单录入之前最近的录入日。"""
+        if reask == "entered":
+            return {key: policy.book_mark(_last_before((by_norm.get(key) or {}).get("entry_days") or [], entered))
+                    for key in candidates}
+        pushed = last_push.get("ask_once") or {}
+        return {key: policy.book_mark(dt.datetime.fromisoformat(rows[pushed[key]]["entered"])
+                                      + dt.timedelta(microseconds=pushed[key])) if key in pushed else ""
+                for key in candidates}
+
     for index, row in enumerate(rows):
         book = by_raw[row["book"]]
         own = book_key(m, book)
@@ -1674,11 +1701,17 @@ def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, 
                 elif name == "ask_once":
                     combo = (book["branch"], tuple(row.get("many_parts") or [row.get("many_part")]), tuple(candidates))
                     choice = asked.get(combo)
+                    if (choice is not None and reask != "off"
+                            and policy.current_book_newer(seen_at[combo], marks(candidates, entered), choice)):
+                        choice = None  # 回答之后没被选中的那份有了更晚的录入：当没选过，这张停下再问
+                        out[name]["reasked"] += 1
                     if choice is None:
                         out[name]["asked"] += 1
                         if own in candidates and row.get("unique"):
-                            # 模拟的人按答案选这份，记下这组候选；几份都有的单答案账套说不准，不记、下一张再问
+                            # 模拟的人按答案选这份，记下这组候选与此刻各候选的最新录入；几份都有的单答案账套说不准，不记、
+                            # 下一张再问
                             asked[combo] = own
+                            seen_at[combo] = marks(candidates, entered)
                 counter = out[name]
                 if not row.get("unique"):
                     counter["shared"] += 1
@@ -2176,7 +2209,9 @@ def cmd_judge(args) -> int:
         # 一家一个文件（可以分两三路并行跑），`report` 合并；期间口径与选账套模拟一并记下
         _write_json(out / "judge" / f"{company.replace('/', '_')}.json",
                     {"rows": judged, "skipped": {company: dict(why)}, "tiers": {company: tiers},
-                     "tiebreak": {company: tiebreak(m, judged, books, strategies)},
+                     "tiebreak": {company: tiebreak(m, judged, books, strategies, reask=args.reask)},
+                     # ask_once 的重问信号（用户 10-18，`REASKS`；默认 written 同线上）
+                     "reask": args.reask,
                      "origins": {company: dict(collections.Counter(book["period_origin"] for book in books))},
                      "periods": args.periods, "registry": bool(registered is not None),
                      # 商品单（10-17）：票面明细口径、替公司选入账方式的口径与这家选了什么
@@ -2196,7 +2231,7 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
         return None
     merged: Dict[str, Any] = {"rows": [], "skipped": {}, "tiers": {}, "tiebreak": {}, "origins": {}, "periods": set(),
                               "lines": set(), "company_choice": set(), "goods_posting": {}, "recent_max": set(),
-                              "readback_scope": set(), "evidence_window": set(), "recent_periods": set()}
+                              "readback_scope": set(), "evidence_window": set(), "recent_periods": set(), "reask": set()}
     for path in files:
         part = json.loads(path.read_text(encoding="utf-8"))
         merged["rows"].extend(part["rows"])
@@ -2212,8 +2247,9 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
         merged["readback_scope"].add(part.get("readback_scope") or "record")
         merged["evidence_window"].add(part.get("evidence_window") or "newest")  # 第五轮及以前：截最新几张再跳过
         merged["recent_periods"].add(str(part.get("recent_periods", 0)))  # 10-17 审查前不按税期截
+        merged["reask"].add(part.get("reask") or "off")  # 10-18 之前的 ask_once 不重问
     for key in ("periods", "lines", "company_choice", "recent_max", "readback_scope", "evidence_window",
-                "recent_periods"):
+                "recent_periods", "reask"):
         merged[key] = sorted(merged[key])
     return merged
 
@@ -2492,7 +2528,7 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             "lines": list(data.get("lines") or []), "company_choice": list(data.get("company_choice") or []),
             "recent_max": list(data.get("recent_max") or []), "readback_scope": list(data.get("readback_scope") or []),
             "evidence_window": list(data.get("evidence_window") or []),
-            "recent_periods": list(data.get("recent_periods") or []),
+            "recent_periods": list(data.get("recent_periods") or []), "reask": list(data.get("reask") or []),
             "goods": goods_summary(rows, data.get("goods_posting") or {}), "upload_alt": upload_summary(rows),
             "tiebreak": {name: dict(counter) for name, counter in tiebreaks.items()},
             "tiebreak_companies": {company: found for company, found in sorted((data.get("tiebreak") or {}).items())
@@ -2593,6 +2629,10 @@ def _render_books(s: Mapping[str, Any]) -> List[str]:
                   *[f"| {name} | {value.get('right', 0)} | {value.get('wrong', 0)} | {value.get('stopped', 0)} | "
                     f"{value.get('asked', 0)} | {_rate(value)} | {value.get('freed', 0)} | {value.get('shared', 0)} |"
                     for name, value in found.items()], ""]
+        if "ask_once" in found:
+            lines += [f"ask_once 重问信号 {'/'.join(s.get('reask') or []) or '—'}（written 同线上：候选里最近一次推进去的；"
+                      "entered 是对照：Express 里最近的录入日，线上看不到；off 不重问）：记住的回答因未被选中的那份有了更晚的录入作废、"
+                      f"停下再问 {found['ask_once'].get('reasked', 0)} 次（算在「其中问人」里）。", ""]
         per = s.get("tiebreak_companies") or {}
         names = list(found)
         if per:
@@ -2873,6 +2913,9 @@ def main(argv=None) -> int:
                        help="没有 ISPRD 的账套：strict 不报期间（同线上），estimated 按单据日期估（对照）")
     judge.add_argument("--tiebreak", default=",".join(TIEBREAKS),
                        help="选出多份同期账套时模拟的挑法，逗号隔开：" + " / ".join(TIEBREAKS))
+    judge.add_argument("--reask", choices=REASKS, default="written",
+                       help="ask_once 回答之后未被选中的那份有了更晚的录入就重问（用户 10-18）：written 按最近一次推进去的（默认，"
+                            "同线上）、entered 按 Express 录入日（对照，线上看不到）、off 不重问（10-17 的 ask_once）")
     judge.add_argument("--lines", choices=LINE_MODES, default="none",
                        help="票面明细：none 不造（默认，同第四轮；入账方式按声明值计分）、answer 按答案的存货明细造")
     judge.add_argument("--line-names", choices=LINE_NAMES, default="stkdes",

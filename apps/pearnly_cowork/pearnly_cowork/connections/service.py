@@ -262,6 +262,14 @@ def account_set_facts(name):
     return result
 
 
+def account_sets_written(connection, account_keys):
+    """这条连接上这几份 Express 账套各自最近一次经 CC 桌面版写成的时刻（池登记上回执成功时由服务端记，`pool.note_written`）：
+    ``{规范键: UTC 时刻}``，没登记、没写过的不在里面。一次主键查询；只读、不核权限（只给 `companies.current_book` 判两份同期时
+    记住的回答还算不算数用，候选来自调用方已按连接授权读到的目录）。"""
+    return {row.account_key: row.last_written_at for row in pool.registrations_of(connection, account_keys).values()
+            if row.last_written_at}
+
+
 MAIN_ADAPTERS = ("express", "mrerp")
 
 
