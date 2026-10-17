@@ -4793,6 +4793,33 @@ assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: null } as any)
         for gone in ("dropped.current", "settleMove", "placedRef", "class Landing", "isMover", "placeOf("):
             self.assertNotIn(gone, drag)
 
+    def test_announcements_name_the_lifted_item_even_after_it_is_gone(self):
+        # 测试窗口第 12 轮 D15：键盘拿起公司组头后用鼠标换分组方式（按月份），被拖那一组卸下、此刻查不到它的说明，之后念「已取消
+        # 移动「」。」「已置顶「」。」——名字是空的、放下还念成置顶。名字一律用拿起时记下的；落点那一项也没了按没有落点念（取消）
+        self.run_page(r"""
+import { dragAnnouncements } from "@/components/ui/drag";
+const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: (n: string, a: number, t: number) => `moved ${n} ${a}/${t}`,
+  droppedAt: (n: string, a: number, t: number) => `dropped ${n} ${a}/${t}`,
+  cancelled: (n: string) => `cancel ${n}`, over: (n: string, g: string) => `over ${n} ${g}`, droppedIn: (n: string, g: string) => `in ${n} ${g}` };
+const lifted = { id: "company:1010", kind: "company", label: "1010 Co", list: "companies", group: "1010" };
+const say = dragAnnouncements(texts, { lifted: () => lifted });
+// 此刻页面上没有这一项了（卸下、注销）：说明查不到
+const gone = (id: string) => ({ id, data: { current: { drag: undefined } } });
+assert.equal(say.onDragStart!({ active: gone("company:1010") } as any), "up 1010 Co");
+assert.equal(say.onDragEnd!({ active: gone("company:1010"), over: gone("company:1010") } as any), "cancel 1010 Co");
+assert.equal(say.onDragCancel!({ active: gone("company:1010") } as any), "cancel 1010 Co");
+// 瞄着的那一组也没了：拖动中不念（留着上一句），放下按没有落点念取消，不念「已置顶」
+assert.equal(say.onDragOver!({ active: gone("company:1010"), over: gone("company:2020") } as any), undefined);
+assert.equal(say.onDragEnd!({ active: gone("company:1010"), over: gone("company:2020") } as any), "cancel 1010 Co");
+// 拖动中改了名（推送）：念的照样是拿起时的名字
+const items = ["company:1010", "company:2020"];
+const renamed = { id: "company:1010", data: { current: { drag: { ...lifted, label: "1010 New" }, sortable: { containerId: "companies", index: 0, items } } } };
+const other = { id: "company:2020", data: { current: { drag: { id: "company:2020", kind: "company", label: "2020 Co", list: "companies" }, sortable: { containerId: "companies", index: 1, items } } } };
+say.onDragStart!({ active: renamed } as any);
+assert.equal(say.onDragOver!({ active: renamed, over: other } as any), "moved 1010 Co 2/2");
+assert.equal(say.onDragEnd!({ active: renamed, over: other } as any), "dropped 1010 Co 2/2");
+""")
+
     def test_the_float_turns_see_through_over_a_folded_group_head(self):
         # 第 7 轮第 3 项：手机上浮层停在收着的组头上，盖住了组头的高亮。停在只能高亮组头的落点上时浮层半透明，离开就恢复（共用拖动）
         drag = read("components/ui/drag.tsx")
@@ -5813,7 +5840,8 @@ stop();
         self.assertNotIn("startNow", drag)
         self.assertIn("fromNow(animation);", drag)
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
-        self.assertIn("keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, beforeEnd, beforeCancel },", drag)
+        # 键盘另带 owns（第 12 轮 D15：只认按在把手上的键），放下、取消同样先交 beforeEnd / beforeCancel
+        self.assertIn("keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, owns, beforeEnd, beforeCancel },", drag)
         self.assertIn("this.letGo.hold(end, animation, this.landWait, () => freezeScroll(d.scrollers));", drag)
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("const FLOW = '[data-slot=\"aui_thread-list-item\"], .cc-group-row, .cc-show-more';", rows)
@@ -9479,6 +9507,257 @@ cards.c.handle.focus();
 engine.setList("cards", ["a", "c", "b"]);
 assert.equal(doc.activeElement, cards.c.handle);                // 不是掉了焦点：不抢
 fire("keydown", { code: "Escape", key: "Escape" });
+""")
+
+    def test_the_lifted_item_leaving_every_list_cancels_at_once(self):
+        # 测试窗口第 12 轮 D15（2/2）：键盘拿起公司组头「1010」、鼠标打开「分组和排序」点「月份」。拖动区没卸（侧栏还是同一个），
+        # 是被拖那一组和它那一列的各组卸下了：原来没人结束这次拖动——浮层还浮在月份列表上、收键的监听还挂着，下一下 Tab 被吞、念
+        # 「已取消移动「」。」。现在这一轮同步的事做完（React 这次提交）一核对，被拖那一项不在任何一列里就当场取消
+        self.run_page(r"""
+import { isDragging } from "@/lib/layers";
+const drops: string[][] = [];
+const actives: Array<string | null> = [];
+const engine = new DragEngine({ duration: 200, easing: "ease" });
+engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => drops.push([a.id, t.id]), onActive: (a: any) => actives.push(a?.id ?? null) };
+engine.setTexts(texts);
+engine.mount();
+const live = doc.body.children.find((e: any) => e.attrs.get("aria-live") === "assertive");
+const overlays = () => dragLayer()!.children.filter((e: any) => e.className === "cc-drag-overlay");
+// React 卸下一项：注销、摘节点（把手、整项的 ref 回 null）
+const unmount = (entry: { node: any; item: any }) => {
+  engine.attach(entry.item, null);
+  engine.attachHandle(entry.item, null);
+  engine.unregister(entry.item);
+  entry.node.remove();
+};
+const press = (cards: any, id: string) => {
+  cards[id].handle.focus();
+  engine.press("keyboard", id, { ...key("Space"), target: cards[id].handle } as any);
+};
+const down = () => fire("keydown", { code: "ArrowDown", key: "ArrowDown" });
+
+// ① 换分组方式：公司组那一列整个换掉（各组卸下，列还挂着、先后变空），焦点所在的组头卸下、掉到 body
+const ids = ["company:1010", "company:2020", "company:3030"];
+const groups = column(engine, ids, "companies");
+press(groups, "company:1010");
+await g.sleep(5);
+down();
+assert.equal(live.textContent, "moved company:1010 2/3");
+for (const id of ids) unmount(groups[id]!);
+doc.activeElement = doc.body;
+engine.dropList("companies", ids);
+engine.setList("companies", []);
+await Promise.resolve();                                         // 这次提交做完：当场核对，不等下一帧
+assert.equal(engine.stateOf("company:1010"), 0);
+assert.equal(isDragging(), false);
+assert.equal(overlays().length, 0);                              // 浮层当场卸下（没有原位可滑回）
+assert.equal(live.textContent, "cancel company:1010");          // 名字用拿起时的
+assert.deepEqual(actives, ["company:1010", null]);
+assert.deepEqual(drops, []);
+for (const code of ["Tab", "Escape", "Space", "ArrowDown", "Enter"]) {
+  assert.equal(fire("keydown", { code, key: code === "Space" ? " " : code }).defaultPrevented, false, code);   // 之后的按键不被吞
+}
+assert.equal(live.textContent, "cancel company:1010");
+
+// ② 只有被拖那一项没了（别的设备删了这段对话）：别的项留着，让位与过渡当场清掉
+const rows = column(engine, ["r1", "r2", "r3"], "rows:A", 300);
+press(rows, "r2");
+await g.sleep(5);
+down();
+assert.equal(rows.r3!.node.style.transform, "translate3d(0px, -50px, 0px)");
+assert.equal(rows.r3!.node.style.transition, "transform 200ms ease");
+unmount(rows.r2!);
+doc.activeElement = doc.body;
+engine.setList("rows:A", ["r1", "r3"]);
+await Promise.resolve();
+assert.equal(engine.stateOf("r2"), 0);
+assert.equal(live.textContent, "cancel r2");
+for (const id of ["r1", "r3"]) {
+  assert.equal(rows[id]!.node.style.transform, "", id);
+  assert.equal(rows[id]!.node.style.transition, "", id);
+}
+assert.equal(overlays().length, 0);
+
+// ③ 同一次提交里先卸后挂（拖进另一列重挂、挪回原列、推送重挂）：不算消失，接着拖
+const pair = column(engine, ["x", "y"], "m", 600);
+press(pair, "x");
+await g.sleep(5);
+const again = { id: "x", data: pair.x!.item.data, list: undefined, disabled: false, zone: false, node: null, handle: null, entry: null };
+engine.attach(pair.x!.item, null);
+engine.attachHandle(pair.x!.item, null);
+engine.unregister(pair.x!.item);
+engine.attach(again, pair.x!.node);
+engine.attachHandle(again, pair.x!.handle);
+engine.register(again, again.data, "m", false);
+await g.sleep(0);
+assert.equal(engine.stateOf("x"), 2);
+down();
+assert.equal(live.textContent, "moved x 2/2");
+fire("keydown", { code: "Escape", key: "Escape" });
+overlays().forEach((overlay: any) => overlay.animations.forEach((a: any) => a.finish()));
+await g.sleep(5);
+assert.equal(engine.stateOf("x"), 0);
+assert.equal(live.textContent, "cancel x");
+
+// ④ 瞄着的那一项没了：瞄准退回它自己（K-04），让位按此刻重算，放下不交调用方、念取消
+const q = column(engine, ["q1", "q2", "q3"], "q", 100);
+press(q, "q1");
+await g.sleep(5);
+down();
+assert.equal(q.q1!.node.style.transform, "translate3d(0px, 50px, 0px)");
+unmount(q.q2!);
+engine.setList("q", ["q1", "q3"]);
+await Promise.resolve();
+assert.equal(engine.stateOf("q1"), 2);                           // 拿着的那一项还在：接着拖
+assert.equal(q.q1!.node.style.transform, "");
+assert.equal(overlays()[0]!.style.transform, "translate3d(0px, 0px, 0) scaleX(1) scaleY(1)");   // 浮层回到它自己的位置
+assert.equal(live.textContent, "moved q1 1/2");
+fire("keydown", { code: "Space", key: " " });
+await g.sleep(5);
+assert.equal(engine.stateOf("q1"), 0);
+assert.deepEqual(drops, []);
+assert.equal(live.textContent, "cancel q1");
+
+// ⑤ 鼠标拖动中那一项没了（这次只有它卸下、列的先后还没跟着变）：同样当场取消；之后移动不再交拖动，按键还按着，松开那一下
+//    不当点击
+const m = column(engine, ["m1", "m2"], "n", 700);
+engine.press("mouse", "m1", { nativeEvent: { button: 0, clientX: 190, clientY: 710, target: m.m1!.handle, defaultPrevented: false }, target: m.m1!.handle, preventDefault() {} } as any);
+fire("mousemove", { clientX: 190, clientY: 720 });
+assert.equal(engine.stateOf("m1"), 1);
+unmount(m.m1!);
+await Promise.resolve();
+assert.equal(engine.stateOf("m1"), 0);
+assert.equal(live.textContent, "cancel m1");
+assert.equal(overlays().length, 0);
+assert.equal(fire("mousemove", { clientX: 190, clientY: 760 }).defaultPrevented, false);
+fire("mouseup");
+const click = fire("click", { detail: 1 });
+assert.ok(click.defaultPrevented || (click as any).cancelBubble);
+await g.sleep(80);
+const later = fire("click", { detail: 1 });
+assert.ok(!later.defaultPrevented && !(later as any).cancelBubble);
+assert.deepEqual(drops, []);
+
+// ⑥ 松手后落位途中，落点那一项没了：落位播完不交调用方，念取消（不念「放在第 2 位」）
+const w = column(engine, ["w1", "w2"], "w", 200);
+engine.press("mouse", "w1", { nativeEvent: { button: 0, clientX: 190, clientY: 210, target: w.w1!.handle, defaultPrevented: false }, target: w.w1!.handle, preventDefault() {} } as any);
+fire("mousemove", { clientX: 190, clientY: 215 });
+fire("mousemove", { clientX: 190, clientY: 265 });
+assert.equal(live.textContent, "moved w1 2/2");
+fire("mouseup");
+assert.equal(engine.stateOf("w1"), 1);                          // 还在落位
+unmount(w.w2!);
+engine.setList("w", ["w1"]);
+await Promise.resolve();
+overlays().forEach((overlay: any) => overlay.animations.forEach((a: any) => a.finish()));
+await g.sleep(5);
+assert.equal(engine.stateOf("w1"), 0);
+assert.deepEqual(drops, []);
+assert.equal(live.textContent, "cancel w1");
+
+// ⑦ 松手后落位途中，被拖那一项自己没了：不等落位播完，当场按取消收尾（不交调用方），浮层当场卸下、让位清掉
+const v = column(engine, ["v1", "v2"], "v", 200);
+engine.press("mouse", "v1", { nativeEvent: { button: 0, clientX: 190, clientY: 210, target: v.v1!.handle, defaultPrevented: false }, target: v.v1!.handle, preventDefault() {} } as any);
+fire("mousemove", { clientX: 190, clientY: 215 });
+fire("mousemove", { clientX: 190, clientY: 265 });
+assert.equal(live.textContent, "moved v1 2/2");
+fire("mouseup");
+assert.equal(engine.stateOf("v1"), 1);
+unmount(v.v1!);
+engine.setList("v", ["v2"]);
+await Promise.resolve();
+assert.equal(engine.stateOf("v1"), 0);
+assert.equal(overlays().length, 0);
+assert.deepEqual(drops, []);
+assert.equal(live.textContent, "cancel v1");
+assert.equal(v.v2!.node.style.transform, "");
+assert.equal(v.v2!.node.style.transition, "");
+""")
+
+    def test_a_keyboard_drag_only_takes_keys_on_its_handle(self):
+        # 测试窗口第 12 轮 D15（2/2）：组头键盘拿起后，鼠标打开「分组和排序」、在菜单里按键：↓ 推着被拖的组头走（「移到第 3 位」），
+        # 回车选「月份」时拖动也被放下（「已置顶「」。」）。键盘拖动在 document 上收键，按在别处也算。现在只认把手上的按键：焦点被人
+        # 移到把手以外能聚焦的地方，当作取消（同 Esc），之后的按键归新焦点；焦点只是掉到 body（React 挪节点）照旧接回把手（K-03）
+        self.run_page(r"""
+const drops: string[][] = [];
+const make = (motion: any) => {
+  const engine = new DragEngine(motion);
+  engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => drops.push([a.id, t.id]) };
+  engine.setTexts(texts);
+  engine.mount();
+  return engine;
+};
+const lives = () => doc.body.children.filter((e: any) => e.attrs.get("aria-live") === "assertive");
+const overlays = () => dragLayer()!.children.filter((e: any) => e.className === "cc-drag-overlay");
+const keyDown = (code: string) => fire("keydown", { code, key: code === "Space" ? " " : code });
+const engine = make(null);
+const live = lives().at(-1);
+const cards = column(engine, ["a", "b", "c"]);
+// 列表外能聚焦的按钮（鼠标点开的菜单、输入框）
+const menu = doc.body.appendChild(new El("button", { top: 400, left: 0, width: 100, height: 30 }));
+
+// ① 焦点被人移到列表外（focusin）：当场取消，之后 ↓、回车、空格、Tab、Esc 都归它
+cards.a!.handle.focus();
+engine.press("keyboard", "a", { ...key("Space"), target: cards.a!.handle } as any);
+await g.sleep(5);
+keyDown("ArrowDown");
+assert.equal(live.textContent, "moved a 2/3");
+menu.focus();
+fire("focusin");
+await Promise.resolve();
+assert.equal(engine.stateOf("a"), 0);
+assert.equal(live.textContent, "cancel a");
+assert.equal(overlays().length, 0);
+for (const id of ["a", "b", "c"]) assert.equal(cards[id]!.node.style.transform, "", id);
+for (const code of ["ArrowDown", "Enter", "Space", "Tab", "Escape"]) assert.equal(keyDown(code).defaultPrevented, false, code);
+assert.deepEqual(drops, []);
+assert.equal(live.textContent, "cancel a");
+await g.sleep(30);
+assert.equal(doc.activeElement, menu);                          // 焦点是人自己挪的：不抢回来
+
+// ② 焦点掉到 body 不算取消，按键时接回把手；焦点在别处时按 ↓、回车（还没等到 focusin）：不挪、不放下，当场取消
+cards.b!.handle.focus();
+engine.press("keyboard", "b", { ...key("Space"), target: cards.b!.handle } as any);
+await g.sleep(5);
+doc.activeElement = doc.body;
+keyDown("ArrowDown");
+assert.equal(doc.activeElement, cards.b!.handle);
+assert.equal(engine.stateOf("b"), 2);
+assert.equal(live.textContent, "moved b 3/3");
+menu.focus();
+assert.equal(keyDown("ArrowDown").defaultPrevented, false);
+assert.equal(engine.stateOf("b"), 0);
+assert.equal(live.textContent, "cancel b");
+assert.equal(cards.c!.node.style.transform, "");
+assert.equal(keyDown("Enter").defaultPrevented, false);
+assert.deepEqual(drops, []);
+assert.equal(doc.activeElement, menu);
+
+// ③ 有动效时同 Esc：先滑回（让位带过渡清掉、浮层起播滑回），滑回播完才取消；滑回途中的按键也归新焦点
+const smooth = make({ duration: 200, easing: "ease" });
+const live2 = lives().at(-1);
+const k = column(smooth, ["k1", "k2"], "k", 500);
+k.k1!.handle.focus();
+smooth.press("keyboard", "k1", { ...key("Space"), target: k.k1!.handle } as any);
+await g.sleep(5);
+keyDown("ArrowDown");
+assert.equal(k.k2!.node.style.transform, "translate3d(0px, -50px, 0px)");
+menu.focus();
+fire("focusin");
+await Promise.resolve();
+assert.equal(k.k2!.node.style.transform, "");
+assert.equal(k.k2!.node.style.transition, "transform 200ms ease");
+const overlay = overlays().at(-1);
+assert.equal(overlay.dataset.dropping, "");
+assert.equal(keyDown("ArrowUp").defaultPrevented, false);
+assert.equal(keyDown("Space").defaultPrevented, false);
+overlay.animations.forEach((a: any) => a.finish());
+await g.sleep(5);
+assert.equal(smooth.stateOf("k1"), 0);
+assert.equal(live2.textContent, "cancel k1");
+assert.equal(k.k2!.node.style.transition, "");
+assert.equal(overlays().length, 0);
+assert.deepEqual(drops, []);
 """)
 
 if __name__ == "__main__":

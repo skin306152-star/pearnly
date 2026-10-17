@@ -639,3 +639,63 @@
 
 - 测试机（实时源码）与 A14 真机复测；读屏实听。
 - 上一节「还缺什么」里的其余各项不变（落定 35ms 没到 A14 目标、挡板悬停重算、删 `@dnd-kit/*` 依赖、Z-01）。
+
+## 第 12 轮测试机复测修正（10-18）
+
+状态：实现、本地检查、前端构建已做（`index.Ce3uxhzz.js`，原 `index.CfOCaTaq.js`）；**测试机复测、复刻页实测没做**（本轮不同步测试环境，开发窗口同步 lab 后交测试窗口）。基线 `22df383e`，分支 `pearnly/cc-drag-engine`，未推送、未合并。只改 `drag.tsx` 与两份测试，调用方零改动。
+
+### 现象（测试窗口第 12 轮 D15，2/2，内置浏览器 1180×820 真按键）
+
+1. 组头键盘拖动中换分组：Tab 到公司组头「1010」、空格拿起，鼠标打开「分组和排序」点「分组依据 → 月份」。侧栏换成按月份后，拿起的 1010 整组还浮在月份列表上（y≈369）；焦点落在 body；下一下 Tab 被吞、焦点不动，同时念「已取消移动「」。」（名字空），念完残留才消失。第一次复现按的是 Esc，同样念空名字。
+2. 组头键盘拿起后，鼠标打开同一个菜单、在菜单里用键盘：→ 开子菜单正常；↓ 时被拖的组头跟着动、念「…移到第 3 位，共 4 项。」；回车选「月份」时拖动也被放下，念「已置顶「」。」，焦点到 body。服务端只收到 `view.by=month`，置顶与组顺序没写。
+
+### 根因（按源码逐步对上两份播报）
+
+- **换分组不卸拖动区**：Cowork 侧栏不论按什么分组都渲染同一个 `CompanyGroups`（`thread-list.tsx` 的 `ThreadListItemGroups` 只看 `kind`），里面一个 `DragArea`；`view.by` 一变只换 `sections`：`DragList id="companies"` 还挂着、items 变空，各 `CompanyGroup` 卸下（各项 `unregister`）。引擎对「被拖那一项没了」没有任何处理：`this.drag` 留着，`KeyboardSensor` 挂在 document 上收键的监听留着，浮层留在 body 下的拖动层里。审查第 2 条只处理了拖动区卸下（`mount()` 的卸下函数），这条路没走到。
+- **之后那一下 Tab / Esc**：传感器照常收到 → `beforeEnd`：被拖那一项已注销、量不到节点，不播落位、当场 `dropped()` → `view(id)` 查不到说明，`dragAnnouncements` 的名字取的是「此刻登记的说明」→ 空；落点是它自己 → 念「已取消移动「」。」；随后 `release()` 卸下浮层（「念完残留才消失」）。测试窗口记的「没有 `.cc-drag-overlay`」：浮层在 `body > .cc-drag-layer` 下、不在侧栏里，复测时请在那里看。
+- **菜单里的按键推着拖动走**：键盘拖动收键在 document 上（dnd-kit 时代同样如此），按在别处也算。菜单项的 ↓ 先由组件库菜单处理（React 根节点上的监听），再冒泡到 document 由拖动 `step` 挪一格 → 「移到第 3 位」。回车：组件库菜单项选中走 `dispatchDiscreteCustomEvent` → `ReactDOM.flushSync`（`@radix-ui/react-primitive`），按月份的重画在这一下按键里同步提交完，被拖那一组和瞄着的那一组都已注销；冒泡到 document 时拖动当它是「放下」→ `view(overId)` 也查不到说明，`say()` 落到最后一行念 `droppedIn` → 「已置顶「」。」；`onDrop` 按此刻（按月份）的 `companyIds = []` 算，`moveTo` 回 null，什么也没存——与「服务端只收到 view.by=month」一致。
+
+### 改法（`components/ui/drag.tsx`）
+
+- **拖动中各项、各列、焦点一变就核对（`verifySoon` → `verify`）**：`unregister`、`attach(null)`、`setList`、`dropList`，以及键盘拖动中的 `focusin`，都排一次核对，放在这一轮同步的事（React 这次提交）做完以后的微任务里，几处变动合成一次。同一次提交里先卸后挂的（拖进已置顶重挂、挪回原组、推送重挂）到那时已经挂好，不算消失。
+  1. **被拖那一项不在任何一列里了**（`present`：登记着、节点挂着、它那一列的先后里有它）：当场取消（`vanished`）——先 `abort()` 摘掉传感器挂在页面上的监听（同拖动区卸下：鼠标、手指按着时补 `blockReleaseClick`，松开那一下不当点击），再走 `cancelled()`：`keepFocusOn`（焦点掉了才接回、别人拿到的不抢）、`finish`（`onActive(null)`、其余各项的让位与过渡清掉）、浮层当场卸下（没有原位可滑回）、念「已取消移动「名字」。」。已经放手 / 取消、在等落位或滑回的不再等（`letGo.flush()`；挪回原组那一段除外，等它重挂，`HOME_WAIT` 兜底）；`dropped()` 开头再核一次，那一项没了就按取消收尾、不交调用方。
+  2. **键盘拖动只认把手上的按键**：焦点被人移到把手以外能聚焦的地方（`strayed`：不是被拖那一项此刻的把手、不是 body、节点还挂着）就当作取消，同 Esc 先滑回再取消（`stray`：`abort()` 后 `beforeCancel`），之后的按键归新焦点。两道：`focusin` 当场核对（鼠标点开菜单时组件库把焦点放进菜单内容，`@radix-ui/react-menu` 的 `onMountAutoFocus` → `contentRef.current.focus()`；侧栏各菜单都没拦这一下）；`KeyboardSensor` 收键时再问一次 `owns()`，不归拖动的这一下不 `preventDefault`、不挪、不放下，拖动取消。焦点只是掉到 body（React 挪节点）照旧按 K-03 接回把手，不算取消。鼠标、手指拖动不挂 `focusin`、不看焦点。
+  3. **瞄着的、经过的那一项没了**：键盘瞄准退回它自己（K-04），浮层回到它自己的位置，当场重算落点与让位；放下时落点那一项已不在（落位途中被删）同没有落点，不交调用方。
+- **播报的名字一律用拿起时记下的**（`dragAnnouncements` 的 `name` 先取 `lookup.lifted`）：拿起、经过、放下、置顶、取消各句都是；落点那一项查不到说明时同没有落点（拖动中不念、放下念取消），不再落到「已置顶」那一行。
+
+### 有意变化
+
+1. **键盘拖动中焦点被人移走就取消**（对照 K-03、K-08、K-09、E-02）：原来（dnd-kit 时代同样）键盘拖动在 document 上收所有按键，焦点在菜单、输入框里按的 ↑↓ 也挪拖动，空格 / 回车 / Tab 也放下，Esc 也只取消拖动。现在焦点移到把手以外能聚焦的地方那一刻就取消（同 Esc 先滑回、播报同 S-12），之后的键归新焦点（菜单里 Esc 关菜单、输入框里打字）。理由：这些键是人对新焦点按的，交给拖动会出现 D15 那种「选菜单项把拖动放下」。焦点在把手上（含掉到 body 后接回）时 K-03 至 K-12 不变。
+2. **被拖那一项在拖动中消失就当场取消**：原来没有处理（浮层、监听留着，下一键才结束且念空名字）。没有原位可滑回，所以不播滑回、浮层当场卸下，与 Esc 取消（S-12 先滑回）的时机不同。
+3. **瞄着的那一项消失时当场退回它自己**（K-04 原来在下一次按方向键时才从它自己接着算）：落点、让位、浮层当场回原位，念它此刻的位置（「移到第 1 位，共 N 项」）；放下不交给已经不在的落点。
+4. **播报名字取拿起时的**：拖动中改了名（推送）念的是拿起时的名字；正常拖动里两者相同，各句文案与时机不变。
+5. 源码断言两处随写法改：`SidebarDragTests.test_dragged_chat_rows_use_the_shared_gap_and_landing`、`panel:SortableSourceTests.test_shared_drag_rules` 锁的键盘选项那一行多了 `owns`，意图（放下、取消先交 `beforeEnd` / `beforeCancel`）不变。R-01 的行为用例期望值都没改。
+
+### 测试
+
+- `DragEngineTests.test_the_lifted_item_leaving_every_list_cancels_at_once`（直接驱动引擎，7 段）：① 键盘拿起公司组、↓ 一格后整列换掉（各组注销、节点卸下、列还在、先后变空，焦点掉到 body）→ 下一个微任务就取消：不在拖、`isDragging()` 为 false、浮层没了、念「cancel company:1010」、`onActive(null)`、不交调用方，之后 Tab / Esc / 空格 / ↓ / 回车都不被 `preventDefault`；② 只有被拖那一行没了 → 其余各行的让位与过渡当场清掉；③ 同一轮里先卸后挂 → 不算消失、接着拖；④ 瞄着的那一项没了 → 瞄准退回自己、让位清掉、浮层回原位、念「moved q1 1/2」，放下不交、念取消；⑤ 鼠标拖动中那一项没了（列的先后没跟着变）→ 当场取消，之后移动不拦、松开那一下不当点击、80ms 后照常；⑥ 松手落位途中落点没了 → 不交、念取消；⑦ 松手落位途中被拖那一项没了 → 不等落位播完当场收尾。
+- `DragEngineTests.test_a_keyboard_drag_only_takes_keys_on_its_handle`：① 焦点移到列表外的按钮（`focusin`）→ 当场取消、让位清掉、浮层没了、念「cancel a」，之后 ↓ / 回车 / 空格 / Tab / Esc 都不被吞、不放下，焦点留在按钮上不抢；② 焦点掉到 body 不算取消、按键时接回把手（K-03），焦点在别处时按 ↓（没等到 `focusin`）→ 不吞、不挪、当场取消，再按回车不放下；③ 有动效时同 Esc：让位带过渡清掉、浮层起播滑回，滑回途中的按键也归新焦点，滑回播完才取消、过渡清掉。
+- `SidebarDragTests.test_announcements_name_the_lifted_item_even_after_it_is_gone`：被拖那一项查不到说明时拿起 / 放下 / 取消都念拿起时的名字；落点也查不到时拖动中不念、放下念取消（不念「已置顶」）；拖动中改了名念拿起时的名字。
+- 改前（`22df383e` 的 `drag.tsx`）3 条都失败：前两条在第一段就停在「还在拖」（`stateOf` 为 2，期望 0），第三条念「up 」（期望「up 1010 Co」）；改后 3 条都过。另逐项回退新逻辑各跑一次（变异检查），去掉 `owns` 守卫、`focusin` 监听、消失取消、瞄准退回、名字取拿起时的、落点查不到同没有落点、落点没了不交、`unregister` / `attach(null)` 的核对、`dropped()` 开头的核对，每一项都有用例失败。
+- K-03 原用例 `DragEngineTests.test_keyboard_focus_comes_back_after_the_row_is_moved_by_a_redraw` 原样通过（最后一段焦点被人点到别处后按的 Esc 现在不再被吞、拖动按取消收尾，原用例没有断言这一下）。
+
+### 本地检查
+
+- `tsc --noEmit` 通过；`check-frontend-tokens`、`check-frontend-i18n`、`check-frontend-viewport-units` 通过；`check-architecture` 0 violations。
+- `tests/test_assistant_ui.py` 225 条、`test_cc_session_panel.py` 25 条、`test_cc_ccs.py` 23 条、`test_cc_mobile_overlays.py` 26 条、`test_cc_mobile_content.py` 16 条全过。
+- `npm --prefix frontend/assistant run build` 通过，产物 `apps/pearnly_core/pearnly_core/public/assistant/assets/index.Ce3uxhzz.js`（不进仓库，开发窗口同步 lab 用）。
+
+### 对照清单
+
+- P、I、A、B、V、X、Z：调用方零改动，接口只多了可选的 `KeyboardSensorOptions.owns`；ARIA、浮层、多选、动效、卸下（X-02，`mount()` 卸下函数原样）都不变。新增的核对只在拖动中、各项或各列真变了时排一次微任务，拖动中每一下指针移动不多做事。
+- S：S-01 至 S-18 文案与时机不变，名字改取拿起时的（正常拖动里与原来同一个值）；新增「落点查不到同没有落点」。
+- M、T：鼠标、手机不看焦点，M-29、T-05（长按菜单出来时焦点进菜单，拖动照旧）不受影响；只多了「被拖那一项消失就当场取消」，按着时补拦松开那一下的点击（同 M-24、T-10）。
+- K：K-01、K-02、K-04 至 K-07、K-10 至 K-14 不变；K-03 焦点掉到 body 照旧接回；K-08、K-09 在焦点还在把手上时不变，焦点被人移走见有意变化 1；K-04 瞄准消失见有意变化 3。「第一张卡键盘拖动」（K-04 高矮差很大的卡）落点照旧按瞄准、不按几何；Alt+↑/↓（K-14、S-16）不在拖动中，不受影响。
+- E：E-01 至 E-04 不变；焦点移走后的取消走 `ReleaseFirst.hold`（`releaseDrag()`），之后的 Esc 同 E-03 是普通 Esc（关菜单、关浮着的会话栏、清多选）。
+- 拖动中切走再回来：切到后台（`visibilitychange`）照旧取消；只是窗口失焦再回来时焦点回到把手，`focusin` 的目标就是把手，不算移走。
+
+### 还缺什么
+
+- 测试机复测（开发窗口同步 lab 后）：D15 两条原样复现步骤；Tab 到组头空格拿起后鼠标打开「分组和排序」——打开那一下就应念「已取消移动「1010-…」。」、浮层滑回、之后菜单里 ↓ / 回车只管菜单；换成按月份后没有残留浮层（`body > .cc-drag-layer` 下没有 `.cc-drag-overlay`）、Tab 照常走焦点。另请顺手过一遍：键盘拿起对话行后点输入框（取消、打字正常）、键盘拖动中推送重排（焦点接回、接着拖）、鼠标拖进已置顶再拖回本组、拖进已置顶后 Esc、会话栏第一张卡键盘拖动、Alt+↑/↓、读屏实听。
+- 复刻页实测没做（上一轮的复刻页脚本不在本机临时目录里了）。
+- 上一节「还缺什么」里的其余各项不变（A14 真机复测、落定 35ms 没到 A14 目标、挡板悬停重算、Z-01）。

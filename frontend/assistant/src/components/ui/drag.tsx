@@ -35,7 +35,10 @@
 //          ↑ ↓ 按这一列的先后一格一格换瞄准的那一项，落点就是它（keyboardAim / keyboardCollision），浮层挪到挪过去以后它在的位置；
 //          目标落在滚动区下半截（往上时上半截）就改为立即滚动滚动区（KEYBOARD_SCROLL），快按每一下都动。
 //          Esc 只取消拖动：不关浮着的会话栏、不清侧栏多选（lib/layers.ts 的 isDragEscape）。焦点一直在被拖的那一项的把手上；拖动中
-//          方向键只归拖动（handleOf 标成已处理），放下 / 取消后焦点留在移动后的那一行（keepFocusOn）。
+//          方向键只归拖动（handleOf 标成已处理），放下 / 取消后焦点留在移动后的那一行（keepFocusOn）。只认按在把手上的键：焦点被人
+//          移到把手以外（鼠标点开了菜单、点了输入框）就当作取消（同 Esc），之后的按键归新焦点；只是掉到 body（React 挪节点）就接回。
+//   消失   拖动中被拖的那一项从列表里没了（换了分组方式、它那一组收起或卸下、被删了）：当场取消——摘掉监听、浮层卸下、让位清掉，
+//          念「已取消移动」（各句的名字都用拿起时记下的）。
 //   读屏   每个拖动区一份说明（aria-describedby）、一份 assertive 播报区（拿起、经过、放下、取消），Alt+↑/↓ 另一份播报区。
 //   动效   时长、缓动取 globals.css 的 --cc-dur / --cc-ease；系统或设置要求减少动态效果时不播过渡。
 //
@@ -127,17 +130,20 @@ function position(over: WithData): { at: number; total: number } | null {
  *  原位（经过的是它自己、还在原来那一列）或没有落点念取消，同放下的处理里动没动。
  *
  *  拿起的那一刻紧跟着算一次落点，经过的就是拿起的这一项自己（它在原位、离自己最近）：这一次不念，留着「已拿起」（测试窗口第 5 轮：
- *  公司组头空格拿起念成「移到第 3 位，共 4 项」，卡片、置顶同样）。挪开过以后再回到原位照常念。 */
+ *  公司组头空格拿起念成「移到第 3 位，共 4 项」，卡片、置顶同样）。挪开过以后再回到原位照常念。
+ *
+ *  名字一律用拿起时记下的（lookup.lifted）：拖动中那一项卸下了（换了分组方式、被删了）、改了名，念的照样是拿起的那一项（测试窗口
+ *  第 12 轮 D15：换分组以后念「已取消移动「」。」「已置顶「」。」）。落点那一项已经不在了（查不到它的说明）同没有落点。 */
 export function dragAnnouncements(
   texts: DragTexts,
   lookup?: { lifted?: (active: Seen) => DragData | undefined; zoneLabel?: (list: string) => string | undefined },
 ): Announcements {
-  const name = (entry: WithData) => dataOf(entry)?.label ?? "";
+  const name = (active: Seen) => (lookup?.lifted?.(active) ?? dataOf(active))?.label ?? "";
   let moved = false; // 这一次拖动挪开过原位没有（拿起时清零）
   const say = (active: Seen, over: Seen | null, end: boolean) => {
     const from = lookup?.lifted?.(active) ?? dataOf(active);
     const to = dataOf(over);
-    if (!over) return end ? texts.cancelled(name(active)) : undefined;
+    if (!over || !to) return end ? texts.cancelled(name(active)) : undefined;
     // 进了另一列：拿着的那一项已排进那一列（经过的是它自己或那一列的某一项），或指着那一列收着的整块
     const into = to?.zone ? to.list : listOf(over);
     if (from?.list && into && into !== from.list) {
@@ -222,8 +228,8 @@ export type SensorProps<O> = {
 };
 export interface SensorInstance {
   autoScrollEnabled: boolean;
-  /** 拖动区卸下：只摘这次按下挂在页面上的监听、清计时器，不再回调拖动区（拖动区自己结束这次拖动）。键盘拖动中卸下不摘的话，
-   *  页面上收键那一份一直留着，之后第一下空格、回车、Tab、Esc 被它吞掉。 */
+  /** 拖动区卸下、被拖的那一项从列表里消失、键盘拖动中焦点被人移走：只摘这次按下挂在页面上的监听、清计时器，不再回调拖动区（拖动区
+   *  自己结束这次拖动）。键盘拖动中不摘的话，页面上收键那一份一直留着，之后第一下空格、回车、Tab、Esc 被它吞掉。 */
   abort?(): void;
 }
 export type Sensor<O> = new (props: SensorProps<O>) => SensorInstance;
@@ -366,10 +372,13 @@ export type KeyboardSensorOptions = {
   scrollBehavior?: ScrollBehavior;
   /** 拖动中按了放下、取消以外的键（方向键等）：拖动区挪一格。 */
   step?: (event: KeyboardEvent) => void;
+  /** 这一下按键归不归拖动（焦点在把手上，或掉到了 body）；回 false = 焦点被人移到了别处：拖动取消（同 Esc），这一下归新焦点。 */
+  owns?: () => boolean;
 };
 
 /** 键盘：按下就拿起；之后的键在页面上收（下一个任务里才开始收，拿起的那一下空格不算）：放下的键放下、取消的键取消，其余交给 step；
- *  窗口 resize、切到后台取消。 */
+ *  窗口 resize、切到后台取消。只认按在把手上的键（owns）：焦点被人移到了别处（鼠标点开了菜单、点了输入框），这一下不吞、不挪、
+ *  不放下，拖动当作取消。 */
 export class KeyboardSensor implements SensorInstance {
   autoScrollEnabled = false;
   private readonly props: SensorProps<KeyboardSensorOptions>;
@@ -390,6 +399,12 @@ export class KeyboardSensor implements SensorInstance {
   private readonly keydown = (event: Event) => {
     const key = event as KeyboardEvent;
     if (typeof key.code !== "string") return;
+    // 测试窗口第 12 轮 D15：组头键盘拿起后鼠标打开「分组和排序」，菜单里按 ↓ 推着组头走、回车把拖动放下（收键在 document 上）
+    if (this.props.options.owns?.() === false) {
+      this.detach();
+      this.props.onCancel();
+      return;
+    }
     const codes = this.props.options.keyboardCodes ?? KEYS;
     if (codes.end.includes(key.code)) {
       key.preventDefault();
@@ -1552,6 +1567,8 @@ export class DragEngine {
   private live: HTMLElement | null = null;
   private said = "";
   private flowStopped = 0;
+  /** 已经排了一次核对（verifySoon）。 */
+  private verifying = false;
 
   readonly options: {
     mouse: MouseSensorOptions & EndOptions;
@@ -1569,10 +1586,12 @@ export class DragEngine {
     // 取消（Esc；手机还有 touchcancel、转屏、切到后台）：先滑回原位，滑回播完才取消（settleBack）。三种输入同一道
     const beforeCancel = (cancel: () => void) => this.beforeCancel(cancel);
     const step = (event: KeyboardEvent) => this.step(event);
+    // 键盘拖动只认把手上的按键（焦点被人移到别处就当作取消，见 strayed）
+    const owns = () => !this.drag || !this.strayed(this.drag);
     this.options = {
       mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },
       touch: { ...TOUCH_START, beforeEnd, beforeCancel },
-      keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, beforeEnd, beforeCancel },
+      keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, owns, beforeEnd, beforeCancel },
     };
   }
 
@@ -1693,10 +1712,12 @@ export class DragEngine {
     if (this.items.get(item.id) !== item) return;
     this.items.delete(item.id);
     this.version += 1;
+    this.verifySoon();
   }
 
   attach(item: Item, node: HTMLElement | null) {
     item.node = node;
+    if (!node) this.verifySoon();
   }
 
   /** 把手挂上了：键盘拖动中被拖的那一项重挂过，焦点跟到新的把手上。 */
@@ -1716,9 +1737,10 @@ export class DragEngine {
     // 键盘拖动中列表先后变了（推送重排：被拖的那一项或它所在的整组被 React 挪了位置，挪动的节点失焦、焦点掉到 body）：这次提交里
     // 当场把焦点接回被拖那一项的把手
     this.regain();
+    this.verifySoon();
   }
 
-  /** 键盘拖动中（还没放下、没取消）焦点掉了（落到 body）：接回被拖那一项的把手。焦点被人点到别处的不抢。 */
+  /** 键盘拖动中（还没放下、没取消）焦点掉了（落到 body）：接回被拖那一项的把手。焦点被人点到别处的不抢（见 strayed：那是取消）。 */
   private regain() {
     const d = this.drag;
     if (!d || d.kind !== "keyboard" || d.released || d.cancelling) return;
@@ -1730,6 +1752,79 @@ export class DragEngine {
 
   dropList(id: string, items: readonly string[]) {
     if (this.lists.get(id) === items) this.lists.delete(id);
+    this.verifySoon();
+  }
+
+  // ---- 拖动中各项、各列、焦点变了以后核对
+  /** 拖动中登记的各项、各列或焦点变了：这一轮同步的事（React 这次提交）做完以后核对一次（verify）。同一次提交里先卸后挂的（拖进
+   *  另一列重挂、挪回原列、推送重挂）到那时已经挂好，不算消失；几处变动合成一次。 */
+  private verifySoon() {
+    if (!this.drag || this.verifying) return;
+    this.verifying = true;
+    const run = () => {
+      this.verifying = false;
+      this.verify();
+    };
+    if (typeof queueMicrotask === "function") queueMicrotask(run);
+    else void Promise.resolve().then(run);
+  }
+
+  /** 测试窗口第 12 轮 D15：键盘拿起公司组头后鼠标换了分组方式（按月份），拖动区还挂着，被拖那一组和它那一列的各组却卸下了——
+   *  原来没人结束这次拖动：浮层浮在月份列表上，收键的监听留着，下一下 Tab 被吞、念「已取消移动「」。」。所以：
+   *  ① 被拖的那一项不在任何一列里了（它那一列卸下、换了分组方式、它被删了）：当场取消（vanished）；已经放手 / 取消、在等落位或
+   *     滑回的不再等（挪回原列的那一段除外：等它重挂，HOME_WAIT 兜底）。
+   *  ② 键盘拖动中焦点被人移到了把手以外能聚焦的地方（鼠标点开了菜单、点了输入框）：同 Esc 取消（stray），之后的按键归新焦点。
+   *  ③ 瞄着的、经过的那一项没了：键盘瞄准退回它自己（K-04），浮层回到它自己的位置，按此刻重算落点与让位。
+   *  焦点只是掉到 body（React 挪了节点）照旧接回把手（K-03）。 */
+  private verify() {
+    const d = this.drag;
+    if (!d) return;
+    const waiting = d.released || d.cancelling;
+    if (!this.present(d.id)) {
+      if (!waiting) this.vanished(d);
+      else if (!this.homing) this.letGo.flush();
+      return;
+    }
+    if (waiting) return;
+    if (d.kind === "keyboard" && this.strayed(d)) return this.stray();
+    const aimGone = d.kind === "keyboard" && d.aim !== null && d.aim !== d.id && !this.items.has(d.aim);
+    if (aimGone) {
+      d.aim = d.id;
+      const own = this.rectNow(d, d.id);
+      d.rawY = own ? own.top - d.start.top : 0;
+      this.position();
+    }
+    if (aimGone || (d.overId !== null && !this.items.has(d.overId))) this.collide();
+    this.regain();
+  }
+
+  /** 这一项此刻还在页面上的某一列里：登记着、节点挂着、它那一列的先后里有它（不在哪一列里的只看节点）。 */
+  private present(id: string): boolean {
+    const item = this.items.get(id);
+    if (!item?.node?.isConnected) return false;
+    return item.list === undefined || !!this.lists.get(item.list)?.includes(id);
+  }
+
+  /** 键盘拖动中焦点被人移到了把手以外能聚焦的地方。焦点掉到 body（或停在已卸下的节点上）不算：那是 React 挪了节点，接回把手。 */
+  private strayed(d: Session): boolean {
+    if (d.kind !== "keyboard" || typeof document === "undefined") return false;
+    const at = document.activeElement as HTMLElement | null;
+    if (!at || at === document.body || at === document.documentElement || at.isConnected === false) return false;
+    return at !== this.items.get(d.id)?.handle && at !== handles.get(d.id);
+  }
+
+  /** 被拖的那一项从列表里消失了：摘掉这次按下挂在页面上的监听（同拖动区卸下），当场取消。没有原位可滑回：浮层当场卸下，其余各项的
+   *  让位与过渡清掉；焦点照放下 / 取消后的规矩（keepFocusOn：掉了才接回，别人拿到的不抢）；念「已取消移动」，名字用拿起时的。 */
+  private vanished(d: Session) {
+    if (this.drag !== d) return;
+    this.pending?.abort?.();
+    this.cancelled();
+  }
+
+  /** 键盘拖动中焦点被人移走了：摘掉收键的监听（之后的按键归新焦点），同 Esc 取消（先滑回，滑回播完才取消）。 */
+  private stray() {
+    this.pending?.abort?.();
+    this.beforeCancel(() => this.cancelled());
   }
 
   private zoneOf(list: string): DragData | undefined {
@@ -1852,6 +1947,12 @@ export class DragEngine {
       const target: EventTarget = isPage(scroller) ? window : scroller;
       target.addEventListener("scroll", this.onScroll, { passive: true });
       d.stops.push(() => target.removeEventListener("scroll", this.onScroll));
+    }
+    // 键盘拖动只认把手上的按键：焦点一挪就核对（被人移到了别处 = 取消；掉到 body = 接回把手）。鼠标、手指拖动不管焦点
+    if (kind === "keyboard") {
+      const check = () => this.verifySoon();
+      document.addEventListener("focusin", check);
+      d.stops.push(() => document.removeEventListener("focusin", check));
     }
     // 拿起的那一刻紧跟着算一次落点（就是它自己，不念、不交调用方）
     this.collide();
@@ -2242,6 +2343,8 @@ export class DragEngine {
       this.pending = null;
       return;
     }
+    // 落位期间那一项没了（换了分组方式、被删了）：同取消，不交调用方
+    if (!this.present(d.id)) return this.cancelled();
     const from = d.data;
     const overId = d.overId;
     const to = d.over;
@@ -2257,7 +2360,8 @@ export class DragEngine {
         if (zone) this.props.onDrop(from, zone);
         return;
       }
-      if (!this.props.accepts(from, to)) return;
+      // 落点那一项已经不在了（拖着时被删、它那一组卸下）：同没有落点，不交（播报同样按没有落点念取消）
+      if (!this.items.has(overId) || !this.props.accepts(from, to)) return;
       this.props.onDrop(from, to);
     });
     this.announce(text);

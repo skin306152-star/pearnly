@@ -607,7 +607,8 @@ class SortableSourceTests(unittest.TestCase):
         # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
         self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
-        self.assertIn("keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, beforeEnd, beforeCancel },", drag)
+        # 键盘另带 owns：只认按在把手上的键（第 12 轮 D15），放下、取消同样先交 beforeEnd / beforeCancel
+        self.assertIn("keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, owns, beforeEnd, beforeCancel },", drag)
         self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor, \"mouse\");", drag)
         self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
