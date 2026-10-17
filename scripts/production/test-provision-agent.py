@@ -44,6 +44,11 @@ class MaintenanceContainer(unittest.TestCase):
             commands.append(list(args))
             return subprocess.CompletedProcess(args, 0, "", "")
 
+        empty = tempfile.TemporaryDirectory()
+        self.addCleanup(empty.cleanup)
+        nginx_dir = patch.object(agent, "NGINX_CONF_DIR", Path(empty.name))
+        nginx_dir.start()
+        self.addCleanup(nginx_dir.stop)
         return commands, [
             patch.object(agent, "image", return_value=self.DIGEST),
             patch.object(agent, "_inspect", side_effect=inspect),
@@ -100,12 +105,18 @@ class MaintenanceContainer(unittest.TestCase):
             agent.site_step({**job_payload(), "action": "verify_site"})
         self.assertEqual(commands[-1], ["docker", "rm", "-f", self.NAME])
 
-    def edit_existing_site(self, restart):
-        """跑一张改已有站点的工单（set_ocr）：维护容器照常建、步骤在里面执行；返回记下的 docker 命令。"""
+    def run_job(self, action, *, live, restart=False, fail=False):
+        """跑一张工单（经 `main`）：站点是否已对外由临时 nginx 目录里有没有它的配置决定；返回记下的 docker 命令。"""
         commands, patches = self.harness()
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            payload = {**job_payload()["payload"], "restart": restart}
+            conf = root / "nginx"
+            conf.mkdir()
+            # install_app 要带装哪个 App；set_line 没配渠道时代理直接跳过（skipped），这里给配好的
+            extra = {"install_app": {"app": "pearnly_dms"}, "set_line": {"configured": True}}.get(action, {})
+            payload = {**job_payload()["payload"], "restart": restart, **extra}
+            if live:
+                (conf / f"pearnly-tenant-{payload['site']}.conf").write_text("server {}\n")
             (root / (payload["site"] + ".json")).write_text(json.dumps(
                 {key: payload[key] for key in ("site", "group", "tenant", "deployment")}))
             original_open = Path.open
@@ -115,24 +126,45 @@ class MaintenanceContainer(unittest.TestCase):
                     path = root / "provision.lock"
                 return original_open(path, *args, **kwargs)
 
-            job = {"action": "set_ocr", "payload": payload}
-            with patches[0], patches[1], patches[2], patches[3], patches[4], \
+            def step(args, **kwargs):
+                commands.append(list(args))
+                if fail and args[:2] == ["docker", "exec"]:
+                    raise RuntimeError("Server operation failed; inspect the restricted server log")
+                return "SITE_STEP_OK"
+
+            job = {"action": action, "payload": payload}
+            with patches[0], patches[1], patches[2], patches[4], \
+                 patch.object(agent, "run", side_effect=step), patch.object(agent, "NGINX_CONF_DIR", conf), \
                  patch.object(agent, "STATE", root), patch.object(Path, "open", local_lock), \
-                 patch.object(agent, "restart_group") as restart_group, \
+                 patch.object(agent, "restart_group") as restart_group, patch.object(agent, "publish") as publish, \
                  patch.object(sys, "stdin", io.StringIO(json.dumps(job))), \
                  patch.dict(os.environ, SSH_ORIGINAL_COMMAND="provision"):
-                self.assertEqual(agent.main(), {"status": "done"})
-            self.assertEqual(restart_group.call_count, 1 if restart else 0)
+                if fail:
+                    with self.assertRaises(RuntimeError):
+                        agent.main()
+                else:
+                    self.assertEqual(agent.main(), {"status": "done"})
+            self.assertEqual(restart_group.call_count, 1 if restart and not fail else 0)
+            self.assertEqual(publish.call_count, 1 if action == "publish_site" else 0)
         return commands
 
-    def test_editing_an_existing_site_removes_the_container_when_done(self):
-        # 改已有站点（运维人员改渠道，控制面带 restart）是单独一张工单，不以 verify_site 收尾：
-        # 做完不收的话，之后没工单进来就一直留着（2026-10-18 生产 10-12 起的 pearnly-maintenance-cowork）
-        commands = self.edit_existing_site(restart=True)
-        self.assertIn(["docker", "exec", "-i", self.NAME, agent.BENCH_PYTHON, "/run/site-step.py"], commands)
-        self.assertEqual(commands[-1], ["docker", "rm", "-f", self.NAME])
-        # 开通一轮里的步骤不带 restart：容器留给同一轮后面的步骤复用，由 verify_site 收
-        self.assertNotIn(["docker", "rm", "-f", self.NAME], self.edit_existing_site(restart=False))
+    def test_a_lone_edit_to_a_live_site_removes_the_container_when_done(self):
+        # 站点已对外后的单独改站点工单（改识别引擎重排的 set_ocr、全平台下发的 set_assistant、运维改渠道带 restart），
+        # 带不带 restart 做完都收（用户 2026-10-18：10-12 起的 pearnly-maintenance-cowork、当晚又留下 -erp、-dms）
+        for action, restart in (("set_ocr", False), ("set_assistant", False), ("set_line", True)):
+            commands = self.run_job(action, live=True, restart=restart)
+            self.assertIn(["docker", "exec", "-i", self.NAME, agent.BENCH_PYTHON, "/run/site-step.py"], commands, action)
+            self.assertEqual(commands[-1], ["docker", "rm", "-f", self.NAME], action)
+        # 已对外的站点改动失败也收，不为一次失败留容器
+        self.assertEqual(self.run_job("set_ocr", live=True, fail=True)[-1], ["docker", "rm", "-f", self.NAME])
+
+    def test_steps_before_publishing_share_the_container_and_publishing_removes_it(self):
+        # 开通流程中途（站点还没对外）：容器留给同一轮后面的步骤复用，失败的也留着等重试
+        for action in ("install_app", "set_ocr", "set_assistant", "finalize_site"):
+            self.assertNotIn(["docker", "rm", "-f", self.NAME], self.run_job(action, live=False), action)
+        self.assertNotIn(["docker", "rm", "-f", self.NAME], self.run_job("set_ocr", live=False, fail=True))
+        # 现在的开通流程没有 verify_site：最后一个远端步骤 publish_site 做完就收
+        self.assertEqual(self.run_job("publish_site", live=False)[-1], ["docker", "rm", "-f", self.NAME])
 
     def test_teardown_is_not_blocked_by_capacity_admission(self):
         commands, patches = self.harness()

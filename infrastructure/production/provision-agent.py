@@ -26,6 +26,12 @@ MAINTENANCE_MAX_AGE_HOURS = 12
 STEP_HINT = "PEARNLY_STEP_HINT "  # 与 site-step.py 一致
 BENCH_PYTHON = "/home/frappe/frappe-bench/env/bin/python"
 POD_NETWORK = "pearnly-production_runtime"
+NGINX_CONF_DIR = Path("/etc/nginx/conf.d")
+
+
+def tenant_conf(site):
+    """租户站点的宿主 nginx 配置（`publish_site` 写、`drop_site` 删）：它在，站点就已经对外。"""
+    return NGINX_CONF_DIR / f"pearnly-tenant-{site}.conf"
 
 
 def validate(job):
@@ -120,13 +126,18 @@ def restart_group(group):
 
 
 def site_step(job):
-    group = job["payload"]["group"]
+    group, site = job["payload"]["group"], job["payload"]["site"]
     # 拆除时不再做容量准入（旧行为一致：拆除是释放内存的那一步，不该被容量检查挡住）。
     name = ensure_maintenance(group, check=job["action"] != "drop_site")
-    output = run(["docker", "exec", "-i", name, BENCH_PYTHON, "/run/site-step.py"], data=json.dumps(job))
-    if job["action"] in ("verify_site", "drop_site"):
-        remove_maintenance(group)
-    return output
+    try:
+        return run(["docker", "exec", "-i", name, BENCH_PYTHON, "/run/site-step.py"], data=json.dumps(job))
+    finally:
+        # 维护容器只留给**开通流程中途**的下一步复用：站点还没对外（`publish_site` 之前）时，同一轮后面还有步骤。
+        # 站点已经对外，这一步就是单独一张改站点的工单（改识别引擎重排的 set_ocr、全平台下发的 set_assistant、
+        # 改 LINE / 计费，带不带 restart 都一样），做完马上收；拆除、校验收尾同样收（用户 2026-10-18：激活这种都要收掉）。
+        # 失败也收：开通中途失败的留着等重试，已对外的站点不为一次失败的改动留容器。
+        if job["action"] in ("verify_site", "drop_site") or tenant_conf(site).exists():
+            remove_maintenance(group)
 
 
 def maintenance_name(group):
@@ -162,11 +173,12 @@ def ensure_maintenance(group, *, check=True):
     容器仍然是**同一个受限容器**：同一个已验证镜像 digest、同一份只读密钥、
     同一个 sites 卷、uid 0、内存 1 GiB 上限、只在内部网络里，没有额外权限，
     只跑 `sleep`，每一步仍是独立的 `site-step.py` 进程（逐步回执、逐步失败恢复不变）。
-    寿命由几件事限住：镜像 digest 变了就重建、超过 MAINTENANCE_MAX_AGE_HOURS 就重建、
-    `verify_site`/`drop_site` 收尾时删除、带 `restart` 的改已有站点工单做完就删、
-    `activate-product.sh` 激活本产品时删。后两条是因为前两条只在**下一张工单进来时**才生效：
-    改已有站点的工单不以 verify_site 收尾，之后没工单就一直留着（2026-10-18 生产上
-    10-12 起的 pearnly-maintenance-cowork，旧镜像、只跑 sleep）。
+    寿命由几件事限住：镜像 digest 变了就重建、超过 MAINTENANCE_MAX_AGE_HOURS 就重建；
+    开通流程以 `publish_site` 收尾时删、`verify_site`/`drop_site` 时删；站点已对外后的每一步（单独改站点的工单）
+    做完就删（`site_step`）；`activate-product.sh` 激活本产品时也删。前两条只在**下一张工单进来时**才生效，
+    所以收尾要按步骤做：现在的开通流程里没有 verify_site（最后一个远端步骤是 publish_site），改已有站点的
+    工单也不以它收尾，之前做完就一直留着（2026-10-18 生产上 10-12 起的 pearnly-maintenance-cowork，旧镜像、只跑 sleep；
+    当晚改识别引擎、下发 CC 设置又各留下一个）。
     """
     name = maintenance_name(group)
     digest = image(group)
@@ -247,7 +259,7 @@ def publish(p):
     address = str(ipaddress.IPv4Address(target["public_ipv4"]))
     if address not in {x[4][0] for x in socket.getaddrinfo(site, 443, socket.AF_INET)}:
         raise ValueError("Tenant DNS does not point to this server")
-    path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{site}.conf")
+    path = tenant_conf(site)
     cert = Path(f"/etc/letsencrypt/live/{site}/fullchain.pem")
     Path("/var/www/letsencrypt").mkdir(parents=True, exist_ok=True, mode=0o755)
     ensure_timing_format()
@@ -317,7 +329,7 @@ def main():
             compose(p["group"], "up", "-d", "--no-deps", *services(p["group"],
                     ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")))
         elif action == "drop_site":
-            path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{p['site']}.conf")
+            path = tenant_conf(p["site"])
             path.unlink(missing_ok=True)
             run(["nginx", "-t"])
             run(["systemctl", "reload", "nginx"])
@@ -333,6 +345,8 @@ def main():
             manifest.write_text(json.dumps({**owner, "deleted": True}))
         elif action == "publish_site":
             publish(p)
+            # 开通流程最后一个远端步骤：站点已对外，同一轮不再有要用维护容器的步骤
+            remove_maintenance(p["group"])
         elif action == "set_line" and not p.get("configured") and not p.get("clear_credentials"):
             return {"status": "skipped"}
         else:
@@ -347,8 +361,6 @@ def main():
             # 否则每开一个租户都要把该产品组的其他租户一起重启一遍。
             if p.get("restart"):
                 restart_group(p["group"])
-                # 改已有站点是单独一张工单，不像开通那样以 verify_site 收尾：做完就收掉维护容器
-                remove_maintenance(p["group"])
         return {"status": "done"}
 
 
