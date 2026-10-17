@@ -1,0 +1,73 @@
+# 界面文案闸门的词表（scripts/check-copy.py 读）。改这张表会出现在清单的「规则改动」一节；
+# tests/test_check_copy.py 收录了已知坏例，放宽规则漏掉坏例时测试变红 —— 想过闸只能改文案或逐条登记豁免。
+#
+# 格式（制表符分隔）：规则 <TAB> 语言 <TAB> 级别 <TAB> 正则 <TAB> 说明
+#   语言：zh / en / th / ja / any（四种都查）/ key（对键名查）
+#   级别：block 拦 / warn 只标黄 / soft 只在纯终端界面拦（R-DEV-TERM）/ allow 白名单（R-MIX-OK、R-PAREN-OK、R-EMPTY 开头）/ keypat 键名模式（R-LINE20-KEY）
+#   正则按 Python re 写；占位符 {0} / {name} / ${…} / %s 在判之前已换成 ◇，HTML 标签已去掉。
+#
+# ── R-WHY 原因解释（邮件除外，命中即拦）
+R-WHY	zh	block	因为|由于|所以|因此|以便|为了|免得|以免|否则|这样(就|才)|所致|多为|如果.{1,12}就|也就是|换句话说	解释原因，界面只写事实
+R-WHY	en	block	(?i)\b(because|so that|in order to|otherwise|which means|this means)\b|, so\b	解释原因
+R-WHY	th	block	เพราะ|เนื่องจาก|เพื่อให้|ดังนั้น|มิฉะนั้น	解释原因
+# ── R-TALK 口语（所有角色，命中即拦）
+R-TALK	zh	block	这(个|张|条|台|份|几|次|里|边|家)|那(个|条|张|台|里)|上面|下面	指代口语，用「此 / 该」
+R-TALK	zh	block	[删改读连推录登查找对看拿用做搞]不(掉|到|上|了|出|过)|没法|一下|搞|弄|就行|就好|的话|其实|放心|别担心	可能补语与口头语，用「无法 / 未」
+R-TALK	zh	block	还没|已经.{0,8}了|了[。！？]?$	进度口语，用「未 / 已」
+R-TALK	zh	block	(.)不\1	A不A 问句，用「是否」
+R-TALK	zh	block	[吧呢哦啦呀嘛][。！？]?$|您可以|你可以|～	语气词
+R-TALK	zh	block	你(?!们)	第二人称口语，用「您」或省略
+R-TALK	zh	block	^要(?!求|素|点|件)|只[\u4e00-\u9fff]{1,4}了	口语叙述（「要人选」「只统计了一部分」），用「需选择」「仅统计部分」
+R-TALK	en	block	(?i)\b(just|simply|really|actually|feel free|let's|oops|don't worry|go ahead|you can also)\b	口语
+R-TALK	th	block	(ครับ|ค่ะ|คะ|จ้า|จ้ะ|เถอะ|หรอก|นะคะ|นะครับ|อันนี้|ตรงนี้)(?![ก-ฮเ-ไ])	语气词与指代口语；后面紧跟辅音/前置元音的是别的词（คะแนน、ค่าจ้าง）
+# ── R-WE 第一人称（邮件除外）
+R-WE	zh	block	我们|咱们|(?<!自)我(?![的方])	第一人称；「我的 / 我方」是导航名词
+R-WE	en	block	(?i:\bwe\b|\bour\b)|(?<![Cc]ontact )\bus\b	第一人称；Contact us 除外
+R-WE	th	block	(?<![ก-๙])(เรา|พวกเรา|ผม|ฉัน)(?![ก-๙])	第一人称
+# ── R-HINT 提示语头
+R-HINT	zh	block	请注意|注意[：:]|提示[：:]|说明[：:]|温馨|小贴士|友情提示	提示语头
+R-HINT	en	block	(?i)(please note|\bnote:|\btip:|heads up)	提示语头
+R-HINT	th	block	โปรดทราบ|หมายเหตุ\s*[：:]|ข้อควรระวัง	提示语头（单独的 หมายเหตุ 是「备注」栏名，不拦）
+# ── R-NARR 交代系统行为（单句标黄，≥2 句拦）
+R-NARR	zh	warn	会自动|将自动|系统会|系统将|接下来|稍后会|将会|目前|暂时(?!无)	交代系统行为
+R-NARR	en	warn	(?i)(will automatically|the system will|for now)	交代系统行为
+R-NARR	th	warn	ระบบจะ|โดยอัตโนมัติ	交代系统行为
+# ── R-DEV 开发痕迹：硬痕迹任何角色都拦；强术语在产品界面拦、管理后台标黄；弱术语只在纯终端界面拦
+R-DEV-HARD	any	block	(?<![{\w])[a-z]+_[a-z0-9_]+(?![\w}])	snake_case 标识符
+R-DEV-HARD	any	block	\w+\(\)	函数调用
+R-DEV-HARD	any	block	\b[A-Z][A-Z0-9]*_[A-Z0-9_]{3,}\b	环境变量 / 错误码常量
+R-DEV-HARD	any	block	docs/|\.py\b|\.md\b	开发文档与源码路径
+R-DEV-HARD	any	block	\*\*|`	Markdown 记号
+R-DEV-HARD	any	block	(?m)^#{1,6}\s	Markdown 标题
+R-DEV-HARD	en	block	(?i)\b(legacy|old product|new platform|not implemented|ported|TODO|source of truth|hard-?coded)\b	迁移笔记
+R-DEV-HARD	zh	block	旧产品|老产品|旧系统|新平台|未实现|未移植|唯一来源|写死	迁移笔记
+R-DEV-TERM	zh	block	接口|后端|前端|回退|兜底|缓存|载荷|幂等|租约|死锁|回显|适配器|端点|执行器|站点配置|环境变量	开发术语（强）：产品界面拦，管理后台标黄
+R-DEV-TERM	zh	soft	字段|令牌|队列|调用|参数	开发术语（弱）：CC 网页 / CC 桌面版 / LINE 卡片 / 登录页拦，Desk 标黄（Frappe 官方中文也用「字段」）
+R-DEV-TERM	en	block	(?i)\b(API|backend|frontend|payload|cache[ds]?|fallback|JSON|nonce|idempot\w*|lease|endpoint|adapter|schema|msgid|doctype|fieldname|debug|realm|Redis|synchroni[sz]er)\b	开发术语（强）
+R-DEV-TERM	en	soft	(?i)\b(token|webhook|queue[ds]?|worker)\b	开发术语（弱）
+R-DEV-TERM	en	warn	\bID\b	ID 只标黄
+R-DEV-TERM	th	block	แคช|แบ็กเอนด์|เอพีไอ	开发术语（强）
+R-DEV-TERM	th	soft	ฟิลด์|โทเคน	开发术语（弱）
+# ── R-HELLO 欢迎语、寒暄、表情、感叹号（邮件除外）
+R-HELLO	zh	block	欢迎使用|欢迎来到|你好|您好|感谢|尊敬|今天我能为您	寒暄
+R-HELLO	en	block	(?i)\bwelcome\b(?!\s+(e-?mail|message|mail))|\b(hello|hi there|thank you)\b	寒暄；「欢迎邮件」这类功能名除外
+R-HELLO	th	block	ยินดีต้อนรับ|สวัสดี|ขอบคุณ	寒暄
+R-HELLO	any	block	[\U0001F000-\U0001FAFF\u2600-\u26FF\u2764\u2728]	表情
+R-HELLO	any	block	[!！]	感叹号
+# ── R-EG 举例（只允许在占位、出错、字段说明、LINE 问答里）
+R-EG	any	block	例如|比如|如：|(?i:e\.g\.|for example)|เช่น	举例
+# ── R-PAREN 括号补充：括号里带解释词就拦，其他长括号标黄
+R-PAREN-WHY	zh	block	可能|如|即|或|仅|也|会|例如|括号内	括号里的解释词
+R-PAREN-WHY	en	block	(?i)(e\.g\.|i\.e\.|\b(for example|such as|may|will|only|also)\b)	括号里的解释词
+R-PAREN-WHY	th	block	เช่น|อาจ|เท่านั้น	括号里的解释词
+R-PAREN-OK	any	allow	^(ภ\.[งพ]\.\S+|[\d\s,.%\-/:◇]+|◇|[A-Z0-9 .\-/]+|\.\w+(\s*[,/、]\s*\.\w+)*)$	表单名、数字、占位、全大写代码、扩展名
+# ── R-EMPTY 空态只写事实
+R-EMPTY	zh	allow	^(暂无|无|尚无|未)|没有|为空	空态写法：暂无… / 没有… / …为空
+R-EMPTY	en	allow	(?i)^no\b|\bno\b|\bempty\b|\bnothing\b	空态写法：No … / … is empty
+R-EMPTY	th	allow	ไม่มี|ว่าง	空态写法
+R-EMPTY-GUIDE	any	block	请点击|请点|点击右上|(?i:\b(use|tap|click)\b)|กรุณากด	空态后接操作引导
+# ── R-LINE20 LINE 快捷按钮键（四语都 ≤ 20 字符，LINE 平台硬限制）
+R-LINE20-KEY	key	keypat	^dms\.card\.(.+\.)?BTN_	DMS LINE 卡片按钮
+R-LINE20-KEY	key	keypat	(?i)quick_?reply|\.qr\.|\bQR_	LINE quick reply
+# ── R-MIX 中 / 泰文里夹的英文：白名单里的品牌与业务词不标；其余标黄（命中 R-DEV 术语的由 R-DEV 拦）
+R-MIX-OK	any	allow	^(CC|Pearnly|Express|MR|ERP|DMS|LINE|Excel|PDF|CSV|POS|VAT|OCR|PEAK|Xero|Cowork|LIFF|URL|Windows|Mac|iPhone|iPad|Android|Safari|Chrome|Google|Gmail|Drive|Cloud|Storage|Email|App|Desk|Frappe|Keycloak|Bench|Channel|Secret|Access|Token|Messaging|Login|Rich|Menu|Flex|QR|SMS|OTP|Wi|Fi|JPG|JPEG|PNG|HEIC|XLSX|XLS|DBF|Zip|ZIP|Word|Sheet|Sheets|Dock|Share|Home|Screen|Key|Webhook|Document|AI|Tax|Invoice|Bot|Notify|PromptPay|SCB|KBank|KBANK|BBL|KTB|BAY|TTB|GSB|UOB|CIMB|Bangkok|Krungsri|Kasikorn|Krungthai|Toyota|Honda|Isuzu|Mitsubishi|Nissan|Mazda|Ford|Microsoft|Office|Outlook|Apple|PIN|Pro|Plus|Max|Mini|Lite|New|Beta|GB|MB|KB|THB|USD|CNY|JPY|UTC|ISO|HTTPS|HTTP|WWW|COM|Visa|Mastercard|Stripe)$	品牌与业务词

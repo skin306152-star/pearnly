@@ -43,6 +43,7 @@ git diff --cached --check
 python3 scripts/i18n-build.py --check
 python3 scripts/check-i18n.py --strict
 python3 scripts/check-frontend-i18n.py --strict
+python3 scripts/check-copy.py
 
 # 改动 CC 对话页（frontend/assistant）的界面时：颜色、圆角、阴影只引用 globals.css 的变量
 python3 scripts/check-frontend-tokens.py

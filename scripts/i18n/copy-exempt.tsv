@@ -1,0 +1,31 @@
+# 界面文案闸门的逐条豁免（scripts/check-copy.py 读）。
+#
+# 只给已经定稿、确需例外的几条：豁免绑定当时的文案，文案一变就失效、闸门变红；不许整文件、不许通配。
+# 想过闸先改文案；改规则（copy-words.tsv）会出现在清单的「规则改动」一节，且 tests/test_check_copy.py 的坏例必须仍被拦。
+#
+# 格式（制表符分隔）：范围 <TAB> 规则 <TAB> 文案 <TAB> 原因
+#   范围   <来源>:<键>          某一条词条（来源:键 的写法同 copy-approved.tsv）
+#          术语:<词>[@<来源>]   业务专名，只对 R-DEV / R-MIX 生效；@ 后写适用的来源（如 @pearnly_cowork）
+#          代码:<路径>          某个文件里的一处代码引用（R-HARD），文案列写引用原文
+#   规则   逗号分隔的规则 ID（R-LEN、R-SENT、R-WHY、R-TALK、R-WE、R-HINT、R-NARR、R-DEV、R-MIX、R-PAREN、R-EG、
+#          R-HELLO、R-EMPTY、R-NAME、R-ALIGN、R-LINE20、R-HARD），不许 *
+#   文案   登记时的完整当前文案（有中文写中文，没有写英文；换行写 \n）；术语行写词本身
+#   原因   具体理由，≥ 6 个字，不能只写「历史遗留 / 需要 / 暂时 / 同上」
+#
+# ── 已定稿的例外（2026-10-17 建闸门时登记）
+pearnly_dms:dms.card.TXT_MENU_GREETING	R-HELLO,R-TALK	你好 🙏\n欢迎使用 Pearnly DMS\n请选择下方菜单开始使用	LINE 加好友欢迎语，只在加好友时出现一次，已定稿上线
+assistant:MESSAGES.placeholder	R-HELLO,R-WE	今天我能为您做些什么？	对照 Claude 网页版输入框占位的官方说法（CC 前端照 Claude 做，已定稿）
+assistant:MESSAGES.morning	R-HELLO	早上好	对照 Claude 网页版首页按时段的问候语（CC 前端照 Claude 做，已定稿）
+assistant:MESSAGES.afternoon	R-HELLO	下午好	同 MESSAGES.morning：Claude 网页版首页问候语，按时段
+assistant:MESSAGES.evening	R-HELLO	晚上好	同 MESSAGES.morning：Claude 网页版首页问候语，按时段
+pearnly_cowork:For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	R-HINT,R-WHY	拍摄提示：请将单据摆正、文字朝上，完整拍入画面。	拍照录入的拍摄要领，ERP 与 Cowork 共用的定稿说法（「拍摄提示：」是该说明的标题）
+pearnly_erp_portal:For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	R-ALIGN,R-HINT	拍摄提示：请将单据摆正，文字朝上，完整入镜。	拍照录入的拍摄要领，ERP 与 Cowork 共用的定稿说法（「拍摄提示：」是该说明的标题）
+# ── 后台专名：照第三方控制台或业务原名
+术语:API Key@pearnly_control	R-DEV	API Key	LINE / 识别服务后台的凭据栏名，照第三方控制台原名
+术语:Webhook URL@pearnly_control	R-DEV	Webhook URL	LINE Developers 控制台里的栏名，管理员照着填
+术语:Channel Access Token@pearnly_control	R-DEV	Channel Access Token	LINE Developers 控制台里的栏名，管理员照着填
+术语:Channel ID@pearnly_control	R-DEV	Channel ID	LINE Developers 控制台里的栏名，管理员照着填
+术语:LIFF ID@pearnly_control	R-DEV	LIFF ID	LINE Developers 控制台里的栏名，管理员照着填
+术语:识别字段@pearnly_cowork	R-DEV	识别字段	识别结果的栏位名，业务术语（Cowork 识别设置的标签）
+术语:识别字段@pearnly_core	R-DEV	识别字段	识别结果的栏位名，业务术语（录入记录的标签）
+术语:自定义字段@pearnly_cowork	R-DEV	自定义字段	任务表的自定义栏位，业务术语（Cowork 任务的标签）

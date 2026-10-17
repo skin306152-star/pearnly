@@ -6,14 +6,34 @@ if [ "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)" = main ]; th
     echo 'pre-commit: do not commit on main; commit on a pearnly/<topic> branch and fast-forward main after CI passes.' >&2
     exit 1
 fi
-if ! git diff --cached --name-only --diff-filter=ACDMR | grep -Eq '^(apps/|AGENTS\.md$|\.githooks/|scripts/check-architecture\.py$|docs/development/(architecture-policy|dms-module-map)\.json$)'; then
+changed=$(git diff --cached --name-only --diff-filter=ACDMR)
+architecture=no
+copy=no
+if printf '%s\n' "$changed" | grep -Eq '^(apps/|AGENTS\.md$|\.githooks/|scripts/check-architecture\.py$|docs/development/(architecture-policy|dms-module-map)\.json$)'; then
+    architecture=yes
+fi
+# Interface copy: dictionaries, product code, CC web, CC Desktop, sign-in theme and the gate itself.
+if printf '%s\n' "$changed" | grep -Eq '^(apps/|frontend/assistant/src/|companion/src/|infrastructure/keycloak/themes/|scripts/i18n/|scripts/check-copy\.py$|scripts/copygate/)'; then
+    copy=yes
+fi
+if [ "$architecture" = no ] && [ "$copy" = no ]; then
     exit 0
 fi
 staged=$(mktemp -d "${TMPDIR:-/tmp}/pearnly-architecture-index.XXXXXX")
 trap 'rm -rf "$staged"' EXIT HUP INT TERM
 git checkout-index --all --prefix="$staged/"
-if [ ! -f "$staged/scripts/check-architecture.py" ]; then
-    echo 'Architecture check unavailable in the staged branch; synchronize the repository development rules before committing.' >&2
-    exit 1
+if [ "$architecture" = yes ]; then
+    if [ ! -f "$staged/scripts/check-architecture.py" ]; then
+        echo 'Architecture check unavailable in the staged branch; synchronize the repository development rules before committing.' >&2
+        exit 1
+    fi
+    python3 "$staged/scripts/check-architecture.py"
 fi
-python3 "$staged/scripts/check-architecture.py"
+if [ "$copy" = yes ]; then
+    # Branches not yet rebased onto a main that has the gate skip it here; branch CI and the pre-push check run it after the rebase.
+    if [ -f "$staged/scripts/check-copy.py" ]; then
+        python3 "$staged/scripts/check-copy.py" --strict --tree "$staged"
+    else
+        echo 'pre-commit: the interface copy gate is not in this branch yet; rebase onto origin/main to pick it up.' >&2
+    fi
+fi
