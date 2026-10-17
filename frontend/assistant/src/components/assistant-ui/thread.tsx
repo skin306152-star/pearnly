@@ -48,6 +48,7 @@ import { StreamFollower } from "@/lib/follow-scroll";
 import { holdImeEnter } from "@/lib/ime";
 import { useToolLabels } from "@/lib/tool-labels";
 import { approvalCard, type CardPart } from "@/lib/approval-card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createContext,
   useContext,
@@ -479,9 +480,24 @@ function useGroupByWithVisibleGates(): typeof groupByBase {
   );
 }
 
+/** 这条回复要不要等工具名字（lib/tool-labels.ts）取回再画：有本站工具已有结果、本页没有点击记录的那一步（重开对话时），是不是
+ *  点完的卡片要靠它认；没取回前先画会先进折叠的步骤组、取回后再跳出来（第 10 轮审查）。取失败也算取回（按普通步骤画）。 */
+function useWaitForLabels(): boolean {
+  const ready = useToolLabels().ready === true;
+  return useAuiState(
+    (s) =>
+      !ready &&
+      s.message.parts.some((p) => {
+        const part = p as { type: string; result?: unknown; approval?: unknown; toolKind?: string };
+        return part.type === "tool-call" && part.toolKind === "custom" && part.result !== undefined && !part.approval;
+      }),
+  );
+}
+
 const AssistantMessage: FC = () => {
   const { ToolFallback: ToolFallbackComponent = StepRow } = useContext(ThreadComponentsContext);
   const groupByWithVisibleGates = useGroupByWithVisibleGates();
+  const waitForLabels = useWaitForLabels();
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -498,31 +514,33 @@ const AssistantMessage: FC = () => {
         className="cc-reply px-2 wrap-break-word"
       >
         {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
-        <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
-          {({ part, children }) => {
-            switch (part.type) {
-              case "group-chainOfThought":
-                return <StepsGroup group={part}>{children}</StepsGroup>;
-              case "text":
-                return <MarkdownText />;
-              case "reasoning":
-                return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
-              case "tool-call":
-                // 不进组的只有允许 / 拒绝卡：同组里的步骤一样放进带环的卡片（只一层框），不单独浮在正文里
-                return (
-                  part.toolUI ?? (
-                    <LoneStep>
-                      <ToolFallbackComponent {...part} />
-                    </LoneStep>
-                  )
-                );
-              case "data":
-                return part.dataRendererUI;
-              default:
-                return null;
-            }
-          }}
-        </MessagePrimitive.GroupedParts>
+        {!waitForLabels && (
+          <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
+            {({ part, children }) => {
+              switch (part.type) {
+                case "group-chainOfThought":
+                  return <StepsGroup group={part}>{children}</StepsGroup>;
+                case "text":
+                  return <MarkdownText />;
+                case "reasoning":
+                  return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
+                case "tool-call":
+                  // 不进组的只有允许 / 拒绝卡：同组里的步骤一样放进带环的卡片（只一层框），不单独浮在正文里；手机上还在等回答的不画
+                  return (
+                    part.toolUI ?? (
+                      <LoneStep part={part as unknown as CardPart}>
+                        <ToolFallbackComponent {...part} />
+                      </LoneStep>
+                    )
+                  );
+                case "data":
+                  return part.dataRendererUI;
+                default:
+                  return null;
+              }
+            }}
+          </MessagePrimitive.GroupedParts>
+        )}
         <MessageError />
         <MessageFiles />
       </div>
@@ -556,12 +574,14 @@ const LastReplyRunIndicator: FC = () => {
 const thinking = new ThinkingClock();
 
 /** 工作状态行（同 Claude，lib/managed-agents/turn.ts）：发出即出现在用户消息下面，橘色小点在动，旁边「计时 · 在做什么」，
- *  一直在，直到这一轮真正结束；等用户点「允许」时换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方），点完换回来。计时从按下发送那一刻起本地每秒走；
+ *  一直在，直到这一轮真正结束；电脑上等用户点「允许」时换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方），点完换回来；
+ *  手机上等回答时由输入框上方的浮层代替（approval-sheet.tsx），这一行不显示。计时从按下发送那一刻起本地每秒走；
  *  想完开始出正文时说「思考了 M秒」；很久收不到服务端消息时改说「连接中断，正在重连」。 */
 const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   const pending = usePendingSend();
   const snapshot = useActiveSessionSnapshot();
   const labels = useToolLabels();
+  const phone = useIsMobile();
   const sending = !!pending; // 临时气泡还在（正式气泡还没画出来）：这一轮刚开始
   const activity = turnActivity(snapshot, sending);
   const waiting = activity.kind === "input";
@@ -571,6 +591,7 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   // 等用户回答时同以前收起状态行一样记（不计进「思考了几秒」）
   const thought = thinking.note(waiting ? "hidden" : activity.kind, start, Date.now());
   if (waiting) {
+    if (phone) return null;
     return (
       <div data-slot="cc-run-indicator" data-kind="input" className={cn("flex min-w-0 items-center font-sans", className)}>
         <span className="cc-needs-input-dot" aria-hidden="true" />

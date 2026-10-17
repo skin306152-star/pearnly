@@ -4,7 +4,9 @@
 // 能展开的行尾一个 12px 箭头；再点某一步才看到命令 / 内容与输出（等宽；本站工具只显示给人看的字段，lib/step-detail.ts）。
 // 在做什么、用了多久由对话底部的工作状态行说（thread.tsx 的 RunIndicator），摘要行不再另放一个在动的点。
 // 所有工具共用 StepRow。要用户点「允许 / 拒绝」的那一步是一张卡（lib/approval-card.ts）：不收进组（thread.tsx 的 groupBy），
-// 问话正文色、底部靠右两个按钮；点完卡片留在原处，按钮行换成所选那一项（当场、切回、重开对话同一个样子，照 Claude）。
+// 问话正文色（不是按钮、没有箭头，同 Claude 的问题卡片）、底部靠右两个按钮；点完卡片留在原处，问话加粗、按钮行换成所选那一项
+// （当场、切回、重开对话同一个样子，照 Claude）；手机上等回答时这一步不在对话流里（浮在输入框上方，approval-sheet.tsx），
+// 点完的卡片问话上方多一行小号淡色「问题」（照 Claude 手机端）。
 // 卡片规矩（docs/development/ccs.md）：点开的内容框不在对话里再套一层滚动——长内容先显示前 CLIP_LINES 行，
 // 点「… N 行」整段展开；手机（粗指针）上能点的行点按区不小于 44pt；颜色、尺寸只用 globals.css 的变量（.cc-steps*）。
 
@@ -12,13 +14,13 @@ import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/re
 import { ChevronRightIcon } from "lucide-react";
 import { createContext, useContext, useMemo, useState, type ComponentProps, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
-import { approvalCard, type CardState } from "@/lib/approval-card";
-import { stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
+import { approvalCard, declaredAsk, type CardPart, type CardState } from "@/lib/approval-card";
+import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
 import { detailArgs, detailOutput } from "@/lib/step-detail";
 import { knownEntries, parseResult, stepSubject } from "@/lib/step-subject";
 import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
-import { steps } from "@/i18n";
+import { steps, t } from "@/i18n";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApprovalBar } from "./approval-bar";
 import { TypingDots } from "@/components/typing-dots";
@@ -176,6 +178,14 @@ export const StepRow: ToolCallMessagePartComponent = (props) => {
 
 type StepProps = ComponentProps<ToolCallMessagePartComponent> & { labels: ToolLabels };
 
+/** 要「允许」的工具结果写明没做成（出卡片前就核出要拒绝的，那一步没出过卡片）：步骤行写卡片上那句问话（去掉疑问），行尾「失败」，
+ *  不写做完的说法「记下了公司选择」（第 8 轮审查；第 10 轮审查：重开对话时又写回做完的说法）。同组摘要（step-summary 的 undone）。
+ *  别的情况回 undefined（照常写步骤名）。 */
+export function undoneText(toolName: string, args: Args, result: unknown, labels: ToolLabels): string | undefined {
+  const ask = stepUndone({ result }) ? declaredAsk(toolName, args, labels) : undefined;
+  return ask ? askStem(ask) : undefined;
+}
+
 /** 普通的一步：步骤组卡片里的一行。 */
 const PlainStep: FC<StepProps> = ({ toolName, args, result, status, isError, labels }) => {
   const [open, setOpen] = useState(false);
@@ -184,6 +194,7 @@ const PlainStep: FC<StepProps> = ({ toolName, args, result, status, isError, lab
   const { step, output, shownOutput, expandable } = useStepDetail(toolName, args as Args, result, running ? 0 : 1, labels);
   const known = useKnownRecords();
   const subject = step.own ? stepSubject(args as Args, output?.text, known) : "";
+  const undone = undoneText(toolName, args as Args, result, labels);
 
   return (
     <div className="aui-step">
@@ -195,7 +206,7 @@ const PlainStep: FC<StepProps> = ({ toolName, args, result, status, isError, lab
         className="cc-step-row cc-tap"
       >
         <Marquee className="min-w-0 flex-1 truncate">
-          {step.verb}
+          {undone ?? step.verb}
           {step.target && <span className="cc-step-target">{` ${step.target}`}</span>}
           {subject && <span className="cc-step-target">{` · ${subject}`}</span>}
         </Marquee>
@@ -208,42 +219,27 @@ const PlainStep: FC<StepProps> = ({ toolName, args, result, status, isError, lab
   );
 };
 
-/** 卡片上的问话：等「允许」时服务端带来的（随这次改的内容走），没有就用工具声明的问法；内置工具用「运行命令 …」这类说法。 */
+/** 卡片上的问话：等「允许」时服务端带来的（随这次改的内容走），没有就照工具声明的问法按参数选（ask_when，同服务端 approval_view：
+ *  重开对话与当场一样）；内置工具用「运行命令 …」这类说法。 */
 export function askText(toolName: string, args: Args, ask: string | undefined, labels: ToolLabels): string {
-  const declared = ask ?? (Object.hasOwn(labels.ask, toolName) ? labels.ask[toolName] : undefined);
+  const declared = ask ?? declaredAsk(toolName, args, labels);
   if (declared) return declared;
   const step = describe(toolName, args, 2, labels);
   return step.target ? `${step.verb} ${step.target}` : step.verb;
 }
 
-/** 允许 / 拒绝卡（照 Claude 的问题卡片）：问话（正文色）+ 改动 + 底部靠右「拒绝」「允许」；点完只剩问话与所选那一项。
- *  手机上等回答时按钮在输入框上方的浮层里（approval-sheet.tsx），这里只列问话与改动。 */
-const AskStep: FC<StepProps & { card: CardState }> = ({ toolName, args, result, isError, approval, respondToApproval, card, labels }) => {
-  const [open, setOpen] = useState(false);
+/** 允许 / 拒绝卡（照 Claude 的问题卡片）：问话（正文色、常规字重，不是按钮）+ 改动 + 底部靠右「拒绝」「允许」；点完只剩问话（加粗）
+ *  与所选那一项，没答就没了的写「已取消」。手机上等回答时这一步不画（浮在输入框上方，approval-sheet.tsx），点完的问话上方加「问题」。 */
+const AskStep: FC<StepProps & { card: CardState }> = ({ toolName, args, approval, respondToApproval, card, labels }) => {
   const phone = useIsMobile();
-  const errored = card.phase === "answered" && card.failed;
-  const { shownOutput, step, expandable } = useStepDetail(toolName, args as Args, result, 1, labels);
+  if (phone && card.phase === "ask") return null;
   const question = askText(toolName, args as Args, (approval as ToolApproval | undefined)?.ask, labels);
 
   return (
     <div className="aui-step cc-ask" data-phase={card.phase}>
-      <button
-        type="button"
-        disabled={!expandable}
-        aria-expanded={expandable ? open : undefined}
-        onClick={() => setOpen((o) => !o)}
-        className="cc-step-row cc-ask-q cc-tap"
-      >
-        <span className="min-w-0 flex-1 wrap-break-word">{question}</span>
-        {expandable && <ChevronRightIcon aria-hidden />}
-      </button>
-      {open && expandable && <StepDetail input={step.input} output={shownOutput} errored={errored || !!isError} />}
-      <ApprovalBar
-        approval={approval as ToolApproval | undefined}
-        card={card}
-        respondToApproval={respondToApproval}
-        buttons={!phone}
-      />
+      {phone && <div className="cc-ask-label">{t("question")}</div>}
+      <p className="cc-ask-q">{question}</p>
+      <ApprovalBar approval={approval as ToolApproval | undefined} card={card} respondToApproval={respondToApproval} />
     </div>
   );
 };
@@ -262,9 +258,16 @@ export const groupLive = (status: { type: string }) => status.type === "running"
 /** 在步骤组的卡片里：组里的每一步只是卡片里的一行，不再各自包一层卡片（测试窗口 S2：外卡套内卡）。 */
 const InStepsGroup = createContext(false);
 
-/** 不进组的那一步（允许 / 拒绝卡）单独放进同样的带环卡片（卡里只这一层框）；在组里时原样渲染（组已经给了卡片）。 */
-export const LoneStep: FC<PropsWithChildren> = ({ children }) =>
-  useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;
+/** 不进组的那一步（允许 / 拒绝卡）单独放进同样的带环卡片（卡里只这一层框）；在组里时原样渲染（组已经给了卡片）。
+ *  手机上还在等回答的那张整张不画（连同外框）：浮在输入框上方（approval-sheet.tsx），答完才在对话流里出现（照 Claude 手机端）。 */
+export const LoneStep: FC<PropsWithChildren<{ part?: CardPart }>> = ({ part, children }) => {
+  const inGroup = useContext(InStepsGroup);
+  const phone = useIsMobile();
+  const labels = useToolLabels();
+  if (inGroup) return <>{children}</>;
+  if (phone && part && approvalCard(part, labels)?.phase === "ask") return null;
+  return <div className="cc-steps-card">{children}</div>;
+};
 
 /** 一段连续的思考与工具调用：一行摘要（进行中「正在运行」，做完按类计数、带失败数），点开是一张一步一行的卡片。
  *  只有思考、没有工具的不显示（没有可看的内容；在想由状态行说）。 */

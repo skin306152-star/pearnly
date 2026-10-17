@@ -10,7 +10,8 @@
 // 再多就列前几行 + 一行「还有 N 项」（卡内不套滚动；全部参数在步骤行点开可看）；颜色、圆角只用 globals.css 的变量。
 // 按钮与点完的样子照 Claude 的问题卡片（用户 10-17）：底部靠右，「拒绝」在左（次要：浅灰实心）、「允许」在右（主要：反色实心），
 // 都不带图标，统一用 .cc-card-btn（电脑 28 高、小一号字；手机大号胶囊，不低于 44pt）；改动清单不另套框，一条细线隔开。
-// 点完按钮行换成一行淡色字：所选那一项（「允许」「拒绝」），这一步没做成时加危险色「失败」；没有绿勾红叉。
+// 点完按钮行换成一行淡色字：所选那一项（「允许」「拒绝」），这一步没做成时加危险色「失败」；没有绿勾红叉。确认还没送到时
+// 那一行再淡一档（data-unconfirmed）；没答就没了（中断、回合结束）写「已取消」（沿用步骤的 cancelled 词条）。
 // 确认请求没送到（restoreGates 带回 failure）：按钮还在，上方一行原因，再点重试。
 
 import { cn } from "@/lib/utils";
@@ -71,10 +72,10 @@ export function ApprovalFailure({ message }: { message?: string | undefined }) {
   );
 }
 
-/** 点完那一行：所选那一项，没做成时加「失败」。 */
-export function ApprovalAnswer({ approved, failed }: { approved: boolean; failed: boolean }) {
+/** 点完那一行：所选那一项，没做成时加「失败」；确认还没送到时淡一档（sending）。 */
+export function ApprovalAnswer({ approved, failed, sending = false }: { approved: boolean; failed: boolean; sending?: boolean | undefined }) {
   return (
-    <div data-slot="cc-ask-answer" className="cc-ask-answer">
+    <div data-slot="cc-ask-answer" className="cc-ask-answer" data-unconfirmed={sending ? "" : undefined}>
       {approved ? t("allow") : t("deny")}
       {failed && (
         <>
@@ -105,7 +106,14 @@ export function ApprovalBar({
   const state: CardState | null =
     card ?? (approval ? (approval.approved === undefined ? { phase: "ask" } : { phase: "answered", approved: approval.approved, failed: false }) : null);
   if (!state) return null;
-  if (state.phase === "answered") return <ApprovalAnswer approved={state.approved} failed={state.failed} />;
+  if (state.phase === "answered") return <ApprovalAnswer approved={state.approved} failed={state.failed} sending={state.sending} />;
+  if (state.phase === "cancelled") {
+    return (
+      <div data-slot="cc-ask-answer" className="cc-ask-answer">
+        {steps.cancelled}
+      </div>
+    );
+  }
   // No way to answer on this call.
   if (!respondToApproval) return null;
 

@@ -35,6 +35,7 @@ import {
   type SessionController,
 } from "./session-controller";
 import { initialProjection, isBusy, withNotices } from "./reducer";
+import { loadToolLabels } from "@/lib/tool-labels";
 
 // ------------------------------------------------------------- state hookup
 const EMPTY: ControllerSnapshot = {
@@ -198,6 +199,8 @@ export function ManagedAgentsRuntimeProvider({ children }: { children: React.Rea
   // 侧栏多设备同步（list-sync.ts）：别处的新建、改名、星标、归档、删除随推随并；回到前台、恢复、联网、重连时核对一次
   // 第一页，顺带核对侧栏标着在跑的其他对话（开着的那个由它的会话控制器核对）
   useEffect(() => watchList(() => runtime.threads), [runtime]);
+  // 工具名字一开页就取（lib/tool-labels.ts）：重开对话时认卡片要用，打开对话前多半已取回，回复不用等它
+  useEffect(() => void loadToolLabels(), []);
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 

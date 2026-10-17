@@ -1181,16 +1181,16 @@
   @media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }
 
   /* 卡片按钮（照 Claude 的问题卡片，用户 10-17）：允许卡、提醒卡、安装提示共用。底部靠右（.cc-card-actions，间距 8），次要在左
-     （浅灰实心、无边框）、主要在右（data-primary：反色实心，浅色深底浅字、深色自动翻）；不带图标（只有图标的 × 是圆钮，data-icon）。
-     电脑 28 高、13px、字重 500；手机（粗指针 / 手机外壳）大号全圆角胶囊，不低于 44pt */
+     （浅灰实心、无边框：叠色 2，悬停叠色 3，浅色模式下也看得出填充和悬停）、主要在右（data-primary：反色实心，浅色深底浅字、深色自动翻）；
+     不带图标（只有图标的 × 是圆钮，data-icon）。电脑 28 高、13px、字重 500；手机（粗指针 / 手机外壳）大号全圆角胶囊，不低于 44pt */
   .cc-card-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem; }
   .cc-card-btn {
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--cc-control-sm); padding: 0 0.625rem;
-    border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); color: var(--cc-ink); font-size: var(--cc-text-footnote);
+    border-radius: var(--cc-radius-sm); background: var(--cc-alpha-2); color: var(--cc-ink); font-size: var(--cc-text-footnote);
     line-height: var(--cc-text-footnote-lh); font-weight: 500; white-space: nowrap; outline: none;
     transition: background-color var(--cc-dur-fast) var(--cc-ease), opacity var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
   }
-  .cc-card-btn:hover { background: var(--cc-bg-hover); }
+  .cc-card-btn:hover { background: var(--cc-alpha-3); }
   .cc-card-btn:active { transform: scale(0.97); }
   .cc-card-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-card-btn:disabled { opacity: 0.4; pointer-events: none; }
@@ -1210,10 +1210,17 @@
   :root[data-cc-variant="phone"] .cc-card-btn svg { width: 1.375rem; height: 1.375rem; }
 
   /* 允许 / 拒绝卡（components/tool-uis/approval-bar.tsx、steps.tsx 的 AskStep）：卡里只一层框（.cc-steps-card），问话正文色、
-     字重 500；改动清单不另套框，上面一条细线；底部按钮靠右，没送到的原因在按钮上方一行。点完只剩问话 + 下一行淡色的所选那一项 */
-  .cc-ask-q.cc-step-row { align-items: flex-start; padding: 0.625rem 0.75rem 0.5rem; color: var(--cc-ink); font-weight: 500; }
-  .cc-ask-q.cc-step-row > svg { margin-top: 0.25rem; }
-  .cc-ask[data-phase="answered"] .cc-ask-q.cc-step-row { padding-bottom: 0.125rem; }
+     常规字重（不是按钮：没有悬停底、没有箭头，照 Claude）；改动清单不另套框，上面一条细线；底部按钮靠右，没送到的原因在按钮上方一行。
+     点完（含没答就没了的「已取消」）只剩问话（加粗）+ 下一行淡色的所选那一项，确认还没送到时那一行再淡一档（data-unconfirmed）。
+     手机上点完的照 Claude 手机端：问话上方小号淡色「问题」，问话次要色、常规字重，所选那一项正文色 */
+  .cc-ask-q {
+    padding: 0.625rem 0.75rem 0.5rem; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+    font-weight: 400; overflow-wrap: anywhere;
+  }
+  .cc-ask:not([data-phase="ask"]) .cc-ask-q { padding-bottom: 0.125rem; font-weight: 600; }
+  .cc-ask-label { padding: 0.625rem 0.75rem 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  .cc-ask .cc-ask-label + .cc-ask-q { padding-top: 0.25rem; color: var(--cc-ink-2); font-weight: 400; }
+  .cc-ask-label ~ .cc-ask-answer { color: var(--cc-ink); }
   .cc-ask-changes {
     padding: 0.5rem 0.75rem; border-top: var(--cc-ring-w) solid var(--cc-line); color: var(--cc-ink-2);
     font-size: var(--cc-text-sm); line-height: 1.5rem;
@@ -1221,21 +1228,22 @@
   .cc-ask-foot { display: flex; flex-direction: column; gap: 0.5rem; }
   .cc-ask .cc-ask-foot { padding: 0.25rem 0.75rem 0.75rem; }
   .cc-ask-answer { padding: 0 0.75rem 0.625rem; color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  .cc-ask-answer[data-unconfirmed] { opacity: 0.5; }
   /* 手机上等回答时浮在输入框上方的那张（approval-sheet.tsx）：大圆角、弹层底，问话大号字，右上圆形 × ＝拒绝，右下大号胶囊「允许」 */
   .cc-ask-sheet {
     display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1rem 1rem 1.5rem; border-radius: var(--cc-radius-sheet);
     border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-popover); color: var(--cc-ink); box-shadow: var(--cc-shadow-pop);
   }
-  .cc-ask-sheet-q { flex: 1; min-width: 0; padding-top: 0.5rem; font-size: var(--cc-ask-sheet-font); line-height: 1.4; font-weight: 500; overflow-wrap: anywhere; }
+  .cc-ask-sheet-q { flex: 1; min-width: 0; padding-top: 0.5rem; font-size: var(--cc-ask-sheet-font); line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
   .cc-ask-sheet .cc-ask-changes { padding: 0; border-top: 0; font-size: var(--cc-body-size); line-height: var(--cc-body-lh); }
-  /* 「需要您的输入」（工作状态行在等用户回答时，照 Claude）：橙色小圆点 + 浅橙底橙字的小胶囊，在卡片下方 */
+  /* 「需要您的输入」（电脑上工作状态行在等用户回答时，照 Claude）：橙色小圆点 + 浅橙底橙字的小胶囊（字与圆点同一个品牌橙），在卡片下方 */
   .cc-needs-input-dot {
     flex-shrink: 0; width: 0.625rem; height: 0.625rem; border-radius: var(--cc-radius-full); background: var(--cc-brand);
     box-shadow: 0 0 0 0.1875rem var(--cc-brand-soft);
   }
   .cc-needs-input {
-    margin-inline-start: 0.625rem; padding: 0 0.375rem; border-radius: var(--cc-radius-xs); background: var(--cc-warning-soft);
-    color: var(--cc-warning); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+    margin-inline-start: 0.625rem; padding: 0 0.375rem; border-radius: var(--cc-radius-xs); background: var(--cc-brand-soft);
+    color: var(--cc-brand); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
 
   /* 桌面端自画标题栏（同 Claude 桌面端：左边菜单 / 侧栏 / 后退 / 前进，右边最小化 / 最大化 / 关闭） */
@@ -1668,7 +1676,7 @@
     flex-shrink: 0; max-width: 60%; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
-  /* 卡里沿用的主档行（对话、账套、任务、草稿、知识库、文件夹、记住的选择）：按会话栏的行高与字号 */
+  /* 卡里沿用的主档行（对话、账套、任务、草稿、知识库、文件夹）：按会话栏的行高与字号（记住的选择由下面的 .cc-choice-row 自己定行高） */
   .cc-panel-card-body .cc-list-row, .cc-panel-card-body .cc-note, .cc-panel-card-body .cc-folder-line {
     min-height: var(--cc-panel-row); padding: 0.1875rem 0.25rem; border-radius: var(--cc-radius-row-ctl); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh);
   }
@@ -1750,9 +1758,10 @@
   .cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-link-btn:disabled { opacity: 0.4; pointer-events: none; }
   /* 记住的选择（components/company-cards.tsx 的 ChoiceRow；用户 10-17 看样子图定）：收起时一条一行 = 对方名（13 正文色，放不下
-     渐隐、悬停滚动）+ 右侧 12px 淡色的值（科目码 / 现购 / 赊购，不换行），不常驻按钮；整行是开合按钮，电脑约 28、手机 44。
-     点开的那一条整块填悬停底，下面 12px 淡色说明，再下面靠右卡片按钮（.cc-card-btn）：现 / 赊两段式（选中段高亮）、
-     「设为全公司」、「删除」（幽灵、危险色字） */
+     渐隐、悬停滚动）+ 右侧 12px 淡色的值（代码 / 现购 / 赊购，不换行，最多占四成五，放不下同样渐隐），不常驻按钮；整行是开合按钮，
+     电脑约 28（看样子图定的行高，比别的卡内行 26 高一档：整行是按钮，同卡片按钮的小号控件）、手机 44。
+     点开的那一条整块填悬停底（行自己不再叠一层悬停），对方名整段换行，下面 12px 淡色说明（代码类再一行「对方 → 代码 名称」，
+     换行不截断），再下面靠右卡片按钮（.cc-card-btn）：现 / 赊两段式（选中段高亮）、「设为全公司」、「删除」（幽灵、危险色字） */
   .cc-choice { display: flex; flex-direction: column; border-radius: var(--cc-radius-row-ctl); }
   .cc-choice[data-open] { background: var(--cc-bg-hover); }
   .cc-choice-row {
@@ -1760,9 +1769,12 @@
     border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink); text-align: start; outline: none; transition: background-color var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-choice-row:hover { background: var(--cc-bg-hover); }
+  .cc-choice[data-open] .cc-choice-row { align-items: flex-start; }
+  .cc-choice[data-open] .cc-choice-row:hover { background: transparent; }
+  .cc-choice-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-choice-value {
-    flex-shrink: 0; max-width: 60%; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
+    flex-shrink: 0; max-width: 45%; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-variant-numeric: tabular-nums;
   }
   .cc-choice-detail {
@@ -1770,6 +1782,7 @@
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
   .cc-choice-detail > .cc-card-actions { padding-top: 0.375rem; }
+  .cc-choice-full { overflow-wrap: anywhere; }
   .cc-choice-seg { display: inline-flex; overflow: hidden; border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); }
   .cc-choice-seg > .cc-card-btn { background: transparent; color: var(--cc-ink-3); }
   .cc-choice-seg > .cc-card-btn:hover { color: var(--cc-ink); }

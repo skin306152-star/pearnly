@@ -554,9 +554,13 @@ class RelayTests(unittest.TestCase):
             self.assertEqual(toolrun.execute("conv", "sesn", {"id": "sevt_2", "name": "save_rule", "input": {}}),
                              "awaiting_approval")  # 对得上：照常等「允许」
         self.assertEqual(ran, [])  # 拒绝的不执行工具
-        self.assertEqual(posted, [contracts.tool_result("sevt_1", '{"status": "not_saved", "reason": "not this party"}', True)])
-        self.assertEqual((runs["run1"]["status"], runs["run1"]["result"]),
-                         ("error", '{"status": "not_saved", "reason": "not this party"}'))
+        # 交回的结果带上没问过用户的标记：对话页重开时画成步骤组里没做成的一步，不当成点了「允许」的卡片（第 10 轮审查）
+        marked = '{"status": "not_saved", "reason": "not this party", "approval": "not_asked"}'
+        self.assertEqual(posted, [contracts.tool_result("sevt_1", marked, True)])
+        self.assertEqual((runs["run1"]["status"], runs["run1"]["result"]), ("error", marked))
+        # 不是 JSON 的拒绝原文：包成失败 + 原因，同样带标记
+        self.assertEqual(json.loads(tools.not_asked("no such company")),
+                         {"status": "failed", "reason": "no such company", "approval": "not_asked"})
         self.assertEqual(runs["run2"]["status"], "awaiting_approval")
         self.assertEqual(seen, [{"session_id": "conv"}, {"session_id": "conv"}])  # 按这段对话现算
         self.assertIsNone(local.pearnly_assistant)  # 算完还原
@@ -1176,7 +1180,12 @@ class ToolAndDefinitionTests(unittest.TestCase):
                          {"name": "p_write", "label": "Saved it", "description": "d", "input_schema": {"type": "object"},
                           "handler": "fake_steps.go", "approval": True, "ask": "Save it?"},
                          {"name": "p_gate", "label": "Changed it", "description": "d", "input_schema": {"type": "object"},
-                          "handler": "fake_steps.go", "approval": ["x"]}]
+                          "handler": "fake_steps.go", "approval": ["x"]},
+                         {"name": "p_when", "label": "Set it", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_steps.go", "approval": True, "ask": "Set it?",
+                          "ask_when": {"on": "Turn it on or off?", "note": "Update it?"}},
+                         {"name": "p_unasked", "label": "Read more", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_steps.go", "ask_when": {"x": "Never asked"}}]
         product.STEP_NAMES = {"p_read": "Reading it", "p_gone": "Not a declared tool", "p_plain": ""}
         sys.modules["fake_steps"] = product
         hooks = {"pearnly_assistant_tools": ["fake_steps.TOOLS"], "pearnly_assistant_step_names": ["fake_steps.STEP_NAMES"]}
@@ -1186,9 +1195,12 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "pearnly_tax_id_lookup": "Looking up a tax ID", "p_read": "Reading it"})
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
-        self.assertEqual(steps["ask"], {"p_write": "Save it?", "p_gate": "Changed it"})
+        self.assertEqual(steps["ask"], {"p_write": "Save it?", "p_gate": "Changed it", "p_when": "Set it?"})
         # 带了哪些参数才要「允许」：重开对话时页面据此认出出过卡片的那一步（同 needs_approval）
         self.assertEqual(steps["gate"], {"p_gate": ["x"]})
+        # 问法随参数变的（ask_when，按声明顺序）：重开对话时问话与当场一样（第 10 轮审查）；不要「允许」的工具不给
+        self.assertEqual(steps["ask_when"], {"p_when": {"on": "Turn it on or off?", "note": "Update it?"}})
+        self.assertEqual(list(steps["ask_when"]["p_when"]), ["on", "note"])
         api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
         self.assertIn("def tool_steps():\n    return tools.steps()", api)
 

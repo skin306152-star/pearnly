@@ -32,6 +32,7 @@ import {
   isBusy,
   markResuming,
   restoreGates,
+  clearSending,
   gateCustomTool,
   type Projection,
 } from "./reducer";
@@ -553,15 +554,18 @@ export class SessionController {
     try {
       await confirmTools(this.sessionId, confirmations);
       this.localChangeAt = Date.now(); // 同 sendMessage：服务端收下答复之前要的状态不算
+      // 送到了：点完那一行不再淡着（以后到的结果若与本页点的不同，reducer 照结果改）
+      this.mergeProjection(clearSending(this.state, confirmations.map((c) => c.tool_use_id)));
       this.source?.nudge();
     } catch (err) {
       // The server never took our answer, so the session is still parked.
       // Undo the optimistic settle by putting those gates back (a replay
       // can't: the parked status_idle is already in `seen` and dedupes out).
       // 卡片照原样回来，按钮上方写一行原因（同对话里发不出去那一行：服务端原文，没有就用通用的一句），再点重试
+      // 只写卡片上的原因，不设 transportError：确认没送到不等于连接断了，顶上不再同时出现「正在重新连接…」（第 10 轮审查）；
+      // 真断了由推送 / 补拉自己报。服务端早已不在等的门放不回来，也不再标「发送中」
       const ids = confirmations.map((c) => c.tool_use_id);
-      const next = restoreGates(this.state, ids, shownError(err));
-      this.mergeProjection({ ...next, transportError: describe(err) });
+      this.mergeProjection(clearSending(restoreGates(this.state, ids, shownError(err)), ids));
     } finally {
       this.unacked -= confirmations.length;
     }

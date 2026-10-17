@@ -210,11 +210,16 @@ const tz = () => c.getSnapshot().messages.flatMap((m: any) => m.content).find((p
 assert.equal(tz().approval.ask, "把这个选择记到公司？");
 c.respondToApproval("tz", true);
 assert.equal(tz().approval.approved, true);      // 点下去先按允许画（乐观）
+assert.equal(tz().approval.sending, true);       // 确认还没送到：点完那一行先淡一档
+assert.deepEqual(approvalCard(tz(), { ask: {} }), { phase: "answered", approved: true, failed: false, sending: true });
 await g.sleep(320);
 const confirms = () => g.calls.filter((call: any) => call.method === "confirm").length;
 assert.equal(confirms(), 1);
 let part = tz();
 assert.equal(part.approval.approved, undefined);  // 没送到：不写成功，按钮回来
+assert.equal(part.approval.sending, undefined);
+// 只写卡片上的原因：确认没送到不设连接出错，顶上不再同时出现「正在重新连接…」（第 10 轮审查）
+assert.equal(c.getSnapshot().transportError, null);
 assert.equal(part.approval.ask, "把这个选择记到公司？");
 assert.deepEqual(part.approval.preview, changes);
 assert.equal(part.approval.failure, t("somethingWrong"));
@@ -229,6 +234,7 @@ assert.equal(confirms(), 2);
 part = tz();
 assert.equal(part.approval.approved, true);
 assert.equal(part.approval.failure, undefined);
+assert.equal(part.approval.sending, undefined);   // 送到了：不再淡着
 assert.equal(part.approval.ask, "把这个选择记到公司？");
 """)
 
@@ -264,6 +270,26 @@ assert.deepEqual(approvalCard(find("td"), { ask: {} }), { phase: "answered", app
 assert.deepEqual(approvalCard(find("tb"), { ask: {} }), { phase: "answered", approved: true, failed: false });
 assert.equal(find("ta").approval.ask, "记到公司？");   // 点完的卡片照写问话
 assert.deepEqual(c.getSnapshot().pendingApprovals, []);
+// 两台设备同时点（第 10 轮审查）：本页点了「允许」，别处先点了「拒绝」，服务端结果写明拒绝——卡片以结果为准写「拒绝」，
+// 不一直写本页点的那一项；反过来本页点「拒绝」、结果是做过了的，写「允许」
+site.runs = { ...site.runs, tx: "awaiting_approval", ty: "awaiting_approval" };
+push(S, ev("tx", "agent.custom_tool_use", 10, { name: "cowork_company_choice_save", input: {} }));
+push(S, ev("ty", "agent.custom_tool_use", 11, { name: "cowork_company_choice_save", input: {} }));
+push(S, ev("p2", "session.status_idle", 12, { stop_reason: { type: "requires_action", event_ids: ["tx", "ty"] } }));
+await g.sleep(20);
+c.respondToApproval("tx", true);
+c.respondToApproval("ty", false);
+assert.equal(find("tx").approval.approved, true);
+push(S, ev("rx", "user.custom_tool_result", 13, { custom_tool_use_id: "tx", content: text(JSON.stringify({ status: "denied", message: "x" })) }));
+push(S, ev("ry", "user.custom_tool_result", 14, { custom_tool_use_id: "ty", content: text(JSON.stringify({ status: "saved" })) }));
+assert.equal(find("tx").approval.approved, false);
+assert.deepEqual(approvalCard(find("tx"), { ask: {} }), { phase: "answered", approved: false, failed: false });
+assert.equal(find("ty").approval.approved, true);
+assert.deepEqual(approvalCard(find("ty"), { ask: {} }), { phase: "answered", approved: true, failed: false });
+// 结果先到、本页那次点击的回声后到：不再改回本页点的
+push(S, ev("cx", "user.tool_confirmation", 15, { tool_use_id: "tx", result: "allow" }));
+assert.equal(find("tx").approval.approved, false);
+await g.sleep(320);
 """)
 
     def test_silence_while_running_reads_as_reconnecting_and_recovers(self):
@@ -835,6 +861,18 @@ assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
 clearStopFailure("thread-stop");
 assert.equal(sendFailureOf("thread-stop"), "");
 sendFailed("thread-stop", new TypeError("Failed to fetch"));
+clearStopFailure("thread-stop");
+assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
+// ④ 原因按对话分开记（第 10 轮审查）：别的对话停止没成功不盖掉这段的发送失败；本段点停止也不先清掉发送失败的原因
+sendFailed("thread-b", new TypeError("Failed to fetch"));
+clearStopFailure("thread-stop");
+await attemptStop("thread-other", () => c.interrupt());
+assert.equal(sendFailureOf("thread-b"), "出了点问题，请重试。");
+assert.equal(sendFailureOf("thread-other"), "出了点问题，请重试。");
+clearStopFailure("thread-other");
+assert.equal(sendFailureOf("thread-other"), "");
+assert.equal(sendFailureOf("thread-b"), "出了点问题，请重试。");
+await attemptStop("thread-stop", () => c.interrupt());   // 停止又没成功、随后这一轮结束：发送失败的原因还在
 clearStopFailure("thread-stop");
 assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
 offline = false;

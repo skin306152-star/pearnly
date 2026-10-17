@@ -556,7 +556,8 @@ class CardRuleTests(unittest.TestCase):
         # 卡内不套滚动：步骤详情自动撑高，长了收起
         self.assertNotRegex(steps, r"max-h-|overflow-(?:y-)?auto|overflow-scroll")
         self.assertIn("{input && <Clipped text={input} />}", steps)
-        self.assertEqual(steps.count("cc-tap"), 4)
+        # 能点的：内容展开「… N 行」、步骤行、步骤组摘要（允许卡的问话照 Claude 不是按钮，第 10 轮起不再算点按区）
+        self.assertEqual(steps.count("cc-tap"), 3)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         pending = thread.split("const PendingSendBubble: FC = () => {", 1)[1].split("\n};", 1)[0]
         self.assertNotIn("animate-spin", pending)
@@ -588,11 +589,12 @@ class CardRuleTests(unittest.TestCase):
                       group)
         # 一张卡片、一步一行：组给卡片，组里的每一步不再各包一层（测试窗口 S2：外卡套内卡）
         self.assertIn('<div className="cc-steps-card">\n          <InStepsGroup.Provider value={true}>{children}</InStepsGroup.Provider>', group)
-        self.assertIn('useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;', steps)
+        self.assertIn('if (inGroup) return <>{children}</>;', steps)
+        self.assertIn('return <div className="cc-steps-card">{children}</div>;', steps)
         # 允许 / 拒绝卡不进组（等回答的要看得见，点完的照 Claude 留在原处），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
-        self.assertIn('<LoneStep>\n                      <ToolFallbackComponent {...part} />', thread)
+        self.assertIn('<LoneStep part={part as unknown as CardPart}>\n                        <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)
         row = steps[steps.index("const PlainStep"):steps.index("/** 卡片上的问话")]
@@ -606,7 +608,8 @@ class CardRuleTests(unittest.TestCase):
         # 允许 / 拒绝卡（拒绝了、允许了却没存上的也是）不在这里：卡片写问话、点完一行所选那一项（用户 10-17），步骤行不再写「已拒绝」
         self.assertIn("return card ? <AskStep {...props} card={card} labels={labels} /> : <PlainStep {...props} labels={labels} />;", steps)
         self.assertNotIn("cc-step-denied", steps)
-        self.assertIn("{step.verb}\n          {step.target", row)
+        # 出卡片前就核出要拒绝的那一步（没做成）写问话，其余写步骤名（第 10 轮审查，undoneText）
+        self.assertIn("{undone ?? step.verb}\n          {step.target", row)
         # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；
         # 只在展开的行里用，摘要行（按类计数）与工作状态行不用
         self.assertIn("const subject = step.own ? stepSubject(args as Args, output?.text, known) : \"\";", row)

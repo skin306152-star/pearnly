@@ -79,7 +79,9 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     if gated:
         return "awaiting_approval"
     if refused:
-        # 出卡片前就核出要拒绝：不执行工具，把拒绝结果交回模型（按出错），同样留记录
+        # 出卡片前就核出要拒绝：不执行工具，把拒绝结果交回模型（按出错），同样留记录。结果带上没问过用户的标记（`tools.not_asked`），
+        # 对话页重开时才分得清它和点了「允许」后没做成的
+        refused = tools.not_asked(refused)
         engine.adapter().post(remote, [contracts.tool_result(use_id, refused, True)])
         frappe.db.set_value(TOOL_RUN, run.name, {"status": "error", "result": refused[:60000]})
         frappe.db.commit()

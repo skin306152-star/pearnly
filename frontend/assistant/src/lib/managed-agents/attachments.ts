@@ -53,11 +53,12 @@ export function attachedFilesOf(attachments: readonly CompleteAttachment[] | und
  *  字和附件放回输入框（send-failure.ts）。不静默丢附件（2026-10-17 第 9 轮第 15 条：带红色感叹号的附件点发送，消息不带它
  *  就发出去了，CC 答的是上一张旧图）。 */
 export function filesToSend(attachments: readonly CompleteAttachment[] | undefined) {
-  for (const a of attachments ?? []) {
-    if (uploaded.has(a.id)) continue;
-    const error = unsent.get(a.id);
-    unsent.delete(a.id);
-    throw error ?? new Error(`attachment not uploaded: ${a.name}`);
+  const missing = (attachments ?? []).find((a) => !uploaded.has(a.id));
+  if (missing) {
+    const error = unsent.get(missing.id);
+    // 这条消息的附件都放回输入框重新传：记下的错误一并清掉，不留旧编号
+    for (const a of attachments ?? []) unsent.delete(a.id);
+    throw error ?? new Error(`attachment not uploaded: ${missing.name}`);
   }
   return attachedFilesOf(attachments);
 }

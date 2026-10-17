@@ -67,16 +67,24 @@ function resultText(result: unknown): string {
   return typeof text === "string" ? text.trim() : "";
 }
 
-/** 本站工具结果里的 status（结果是 JSON 对象时）；没有回空串。 */
-function resultStatus(result: unknown): string {
+/** 本站工具结果（JSON 对象时）里的一个文字字段；没有回空串。 */
+function resultField(result: unknown, field: "status" | "approval"): string {
   const body = resultText(result);
-  if (!body.startsWith("{") || !body.includes('"status"')) return "";
+  if (!body.startsWith("{") || !body.includes(`"${field}"`)) return "";
   try {
-    const status = (JSON.parse(body) as { status?: unknown }).status;
-    return typeof status === "string" ? status : "";
+    const value = (JSON.parse(body) as Record<string, unknown>)[field];
+    return typeof value === "string" ? value : "";
   } catch {
     return "";
   }
+}
+
+/** 本站工具结果里的 status；没有回空串。 */
+const resultStatus = (result: unknown) => resultField(result, "status");
+
+/** 出卡片前就核出要拒绝、没问过用户（结果带 approval: not_asked，pearnly_core tools.not_asked）：那一步没出过卡片。 */
+export function stepNotAsked(part: { result?: unknown }): boolean {
+  return resultField(part.result, "approval") === "not_asked";
 }
 
 // 改成带 status: denied 之前（第 8 轮以前）点「拒绝」交回的结果原文（服务端不翻译这一句）：旧对话重开时照它认
