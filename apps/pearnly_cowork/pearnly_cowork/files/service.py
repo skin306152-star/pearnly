@@ -12,7 +12,7 @@ from frappe import _
 from frappe.utils import cint
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.files import access, cloud, guard
+from pearnly_cowork.files import access, cloud, edge, edge_links, guard
 from pearnly_cowork.ocr import originals
 from pearnly_cowork.ocr.inputs import IMAGE_EXTENSIONS, MAX_FILE_BYTES as MAX_BYTES, OcrInputError
 
@@ -160,8 +160,17 @@ def begin_direct(workspace, filename, byte_size, request_key, client=None):
     if str(filename or "").lower().endswith(heic.EXTENSIONS):
         return {"direct": 0}
     name, _key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
+    if suffix not in DIRECT_KINDS:
+        return {"direct": 0}
+    if _claude_site():
+        # 选了 Claude 识别：原件直传甲骨文（ADR-023），不用谷歌存储；没配甲骨文原件存储才照旧经服务器上传。
+        if not edge.enabled():
+            return {"direct": 0}
+        if frappe.db.exists(access.SOURCE, name):
+            return {"direct": 1, "done": project(_existing(name, None, filename=filename, byte_size=byte_size))}
+        return {"direct": 1, **edge.upload_target(edge_links.object_name(frappe.local.site, name, suffix), int(byte_size))}
     bucket_name = cloud.bucket()
-    if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
+    if not bucket_name or not _remote_ready():
         return {"direct": 0}
     if frappe.db.exists(access.SOURCE, name):
         return {"direct": 1, "done": project(_existing(name, None, filename=filename, byte_size=byte_size))}
@@ -183,6 +192,8 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
     from pearnly_cowork.ocr.remote import forward
 
     name, key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
+    if _claude_site():
+        return _finish_edge(name, key, workspace, client, filename, suffix, byte_size)
     bucket_name = cloud.bucket()
     if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
         frappe.throw(_("Direct upload is not available. Please upload again."))
@@ -217,6 +228,56 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
     return project(doc)
 
 
+def _finish_edge(name, key, workspace, client, filename, suffix, byte_size):
+    """直传甲骨文的第二步（ADR-023）：请甲骨文读一遍（类型、页数、sha256，同 :func:`inspect_content`），通过就登记。
+    甲骨文一时连不上 / 忙：页面过几秒再来确认（页面本来就认 ``retry``），不退回生产存。"""
+    from pearnly_core.execution.errors import Deferred
+
+    if not edge.enabled() or suffix not in DIRECT_KINDS:
+        frappe.throw(_("Direct upload is not available. Please upload again."))
+    if frappe.db.exists(access.SOURCE, name):
+        return project(_existing(name, None, filename=filename, byte_size=byte_size))
+    object_name = edge_links.object_name(frappe.local.site, name, suffix)
+    if not INSPECT_SLOTS.acquire(blocking=False):
+        return {"retry": 2}
+    try:
+        result = edge.inspect(object_name, filename)
+    except Deferred as error:
+        return {"retry": max(1, int(error.delay or 5))}
+    finally:
+        INSPECT_SLOTS.release()
+    if result.get("status") != "ok":
+        if result.get("code") == "original_missing":
+            _not_received(name, "original_missing")
+        reject(result.get("code"))
+    meta = result["meta"]
+    expected = {"filename": filename, "suffix": suffix, "byte_size": int(byte_size)}
+    differing = sorted(field for field, value in expected.items() if meta.get(field) != value)
+    if meta.get("kind") not in ("pdf", "image"):
+        differing.append("kind")
+    if differing:
+        _not_received(name, "meta_mismatch:" + ",".join(differing))
+    fingerprint = _fingerprint(client, meta)
+    if frappe.db.exists(access.SOURCE, name):
+        return project(_existing(name, fingerprint))
+    doc = _new_source(name, key, workspace, client, fingerprint, meta,
+                      storage_url=edge_links.url_of(object_name, meta["sha256"]), native_content_hash=result["md5"])
+    return project(doc)
+
+
+def _claude_site():
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    return claude_ocr.uses_claude()
+
+
+def edge_original(source):
+    """原件存在甲骨文（ADR-023）返回 ``(对象名, sha256)``，否则 ``None``。"""
+    if getattr(source, "stored_file", None):
+        return None
+    return edge_links.parse_url(getattr(source, "storage_url", None))
+
+
 def _not_received(name, reason):
     """两种"没收到"（Cloud Run 读不到对象 / 读到的和声明的对不上）对用户是同一句话，日志里分开记原因与
     对不上的字段名（不记文件内容、文件名），压测里约 1% 的这类失败才查得出是哪一种（2026-10-01）。"""
@@ -240,7 +301,7 @@ def stored_original(source):
 def verify_stored(source):
     """登记识别结果前核对原件还是那一份。原件桶里的按版本号存（同一版本内容不会变，登记时已由 Cloud Run 核对过
     sha256），不再整份下载；服务器上的照旧读一遍核对。"""
-    if stored_original(source):
+    if stored_original(source) or edge_original(source):
         return
     read_bytes(source)
 
@@ -335,6 +396,13 @@ def read_bytes(source):
         if hashlib.sha256(data).hexdigest() != source.sha256:
             frappe.throw(_("The original file checksum does not match."))
         return data
+    on_edge = edge_original(source)
+    if on_edge:
+        # 存在甲骨文（ADR-023）：只有导出打包等少数地方要整份字节；预览、下载、识别都不经过这里。
+        data = edge.read(on_edge)
+        if hashlib.sha256(data).hexdigest() != source.sha256:
+            frappe.throw(_("The original file checksum does not match."))
+        return data
     file_doc = frappe.get_doc("File", source.stored_file)
     if (not file_doc.is_private or file_doc.file_url != source.storage_url
             or file_doc.attached_to_doctype != access.SOURCE or file_doc.attached_to_name != source.name):
@@ -361,6 +429,9 @@ def original(name):
 def original_link(name):
     """原件在原件桶里：``(文件名, 短时签名下载地址)``；在服务器上返回 ``None``（照旧由接口回字节）。"""
     source = get_source(name)
+    on_edge = edge_original(source)
+    if on_edge:
+        return source.filename, edge.download_url(on_edge, source.filename)
     stored = stored_original(source)
     return (source.filename, cloud.download_url(stored, source.filename)) if stored else None
 
@@ -419,6 +490,9 @@ def preview_link(source, number):
     调用方先做完 :func:`page_source` 的权限判定。"""
     from pearnly_cowork.ocr.remote import contract
 
+    on_edge = edge_original(source)
+    if on_edge and source.kind in PREVIEW_KINDS:
+        return edge.preview_url(on_edge, source.kind, int(number))  # 甲骨文现画并存下（ADR-023），生产不画
     if not previews_on():
         return None
     try:
@@ -452,6 +526,8 @@ def render_page(source, number):
 
 
 def _render_page(source, number):
+    if edge_original(source):
+        frappe.throw(_("The preview is temporarily unavailable. Please try again."))  # 甲骨文的预览走签名地址
     stored = stored_original(source)
     if stored:
         # 原件在原件桶里：在 Cloud Run 上生成这一页的预览，只把生成好的图传回来（不把整份原件下载到服务器，ADR-016）。
@@ -484,7 +560,7 @@ def purge(source_names):
     调用方（`history/removal.py`）已核过权限并删掉了引用它的票；这里再核一次：还有票在用、或还有识别没结束的原件不删。
     数据库行当场删；磁盘文件与桶里的对象等事务提交后再删（回滚时不丢文件），桶里的放后台任务，不拖慢删除请求。
     返回删掉的原件数。"""
-    paths, prefixes, removed = [], [], 0
+    paths, prefixes, edge_objects, removed = [], [], [], 0
     bucket_name = cloud.bucket()
     for name in dict.fromkeys(source_names or []):
         source = frappe.db.get_value(access.SOURCE, name, ["name", "stored_file", "storage_url"], as_dict=True,
@@ -513,6 +589,9 @@ def purge(source_names):
         frappe.db.delete("Cowork OCR Batch", {"source_file": name})
         frappe.db.delete(access.SOURCE, {"name": name})
         removed += 1
+        on_edge = edge_links.parse_url(source.storage_url) if source.storage_url else None
+        if on_edge:
+            edge_objects.append(on_edge[0])
         stored = cloud.parse_url(source.storage_url) if source.storage_url else None
         if stored:
             prefixes.append((stored[0], stored[1]))
@@ -522,6 +601,9 @@ def purge(source_names):
         frappe.db.after_commit.add(lambda: _remove_paths(paths))
     if prefixes:
         frappe.enqueue("pearnly_cowork.files.service.purge_objects", queue="short", prefixes=prefixes,
+                       enqueue_after_commit=True)
+    if edge_objects:
+        frappe.enqueue("pearnly_cowork.files.service.purge_edge", queue="short", names=edge_objects,
                        enqueue_after_commit=True)
     return removed
 
@@ -545,3 +627,11 @@ def purge_objects(prefixes):
             cloud.delete_prefix(bucket_name, prefix)
         except Exception:
             frappe.log_error(title="Cowork original objects not deleted", message=frappe.get_traceback()[-1500:])
+
+
+def purge_edge(names):
+    """后台：删甲骨文上这些原件与预览（ADR-023；失败记一条错误日志，不重试，留着只占那台的磁盘）。"""
+    try:
+        edge.delete(names)
+    except Exception:
+        frappe.log_error(title="Cowork Oracle originals not deleted", message=frappe.get_traceback()[-1500:])

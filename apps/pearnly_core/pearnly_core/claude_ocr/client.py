@@ -5,12 +5,11 @@
 PEARNLY_ANTHROPIC_API_KEY。站点配置：pearnly_ocr_engine（google | claude，控制面租户设置写入）。
 """
 import base64
-import io
 import os
 
 import frappe
 
-from pearnly_core.claude_ocr import engine as claude_engine
+from pearnly_core.claude_ocr import engine as claude_engine, pages as page_prep
 
 ENGINES = ("google", "claude")
 SEND_TIMEOUT = (5, 240)
@@ -29,44 +28,9 @@ def uses_claude():
     return engine() == "claude"
 
 
-def _upright(data, media_type):
-    """识别前转正（与谷歌路线同一个 ``ocr_models.orient``：EXIF + 本地方向模型，免费、约 15 毫秒）：侧拍、倒拍的照片和
-    扫描 PDF 页先转正再交 Claude。转不了就原样送，绝不挡识别。"""
-    from pearnly_core.ocr_models import orient as orienting
-
-    return orienting.orient(data, media_type,
-                            skipped=lambda: frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True))
-
-
-def _jpeg(data, media_type):
-    """每页转正、缩到长边 2000、JPEG（评测同一口径）；PDF 每页按 170 DPI 渲染。"""
-    from PIL import Image, ImageOps
-    out = []
-    if media_type == "application/pdf":
-        import pymupdf
-        with pymupdf.open(stream=data, filetype="pdf") as document:
-            for page in list(document)[:claude_engine.MAX_PAGES]:
-                png, mime = _upright(page.get_pixmap(dpi=170).tobytes("png"), "image/png")
-                out.append(_save(Image.open(io.BytesIO(png)).convert("RGB")))
-        return out
-    data, media_type = _upright(data, media_type)
-    img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
-    return [_save(img)]
-
-
-def _save(img):
-    img.thumbnail((2000, 2000))
-    buffer = io.BytesIO()
-    img.save(buffer, "JPEG", quality=85)
-    return ("image/jpeg", buffer.getvalue())
-
-
 def prepare(files):
-    """files：[(bytes, media_type), ...]（产品原有的「字节 + 类型」次序）→ 按页的 JPEG。"""
-    pages = []
-    for data, media_type in files:
-        pages.extend(_jpeg(data, media_type))
-    return pages[:claude_engine.MAX_PAGES]
+    """files：[(bytes, media_type), ...] → 按页的 JPEG（每页转正、缩图，见 ``claude_ocr.pages``）。"""
+    return page_prep.prepare(files, skipped=lambda: frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True))
 
 
 class GoogleRefused(RuntimeError):
@@ -80,7 +44,8 @@ def refuse_google(label):
         raise GoogleRefused(f"this site reads with Claude (pearnly_ocr_engine = claude); refusing a Google call ({label})")
 
 
-def _remote(kind, pages, own_tax, text=None):
+def _session():
+    """到甲骨文服务的会话（只认钉死的证书指纹、带令牌）；没配返回 ``None``。"""
     import requests
     from requests.adapters import HTTPAdapter
 
@@ -100,13 +65,43 @@ def _remote(kind, pages, own_tax, text=None):
     # 自签证书只认钉死的指纹：requests 默认的 CA 校验会盖掉上面的 CERT_NONE，把甲骨文的自签证书拒掉（10-18 闸门实测：
     # 每次都退回本机直调）。关掉 CA 校验后指纹照样逐次核对，指纹不对照样拒绝连接。
     session.verify = False
+    session.headers["Authorization"] = f"Bearer {token}"
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    return session, url.rstrip("/")
+
+
+def internal(path, body, timeout=(5, 60)):
+    """调甲骨文服务的内部接口（只放行生产 IP）：回 JSON。没配、连不上、对方出错都抛 ``Deferred``（调用方让页面 / 队列稍后再来）。"""
+    import requests
+    from pearnly_core.execution.errors import Deferred
+
+    found = _session()
+    if found is None:
+        raise Deferred("oracle_not_configured", 30)
+    session, base = found
+    try:
+        response = session.post(base + path, json=body, timeout=timeout)
+    except requests.RequestException as error:
+        frappe.logger("pearnly.ocr").warning("oracle edge unreachable (%s) %s", type(error).__name__, path)
+        raise Deferred("oracle_unreachable", 10) from error
+    if response.status_code != 200:
+        frappe.logger("pearnly.ocr").warning("oracle edge answered HTTP %s %s", response.status_code, path)
+        raise Deferred("oracle_error", 10)
+    return response.json()
+
+
+def _remote(kind, pages, own_tax, text=None):
+    import requests
+
+    found = _session()
+    if found is None:
+        return None
+    session, base = found
     body = {"kind": kind, "own_tax": own_tax, "text": text,
             "images": [{"media_type": m, "data": base64.standard_b64encode(d).decode()} for m, d in pages]}
     try:
-        response = session.post(url.rstrip("/") + "/v1/read", json=body, timeout=SEND_TIMEOUT,
-                                headers={"Authorization": f"Bearer {token}"})
+        response = session.post(base + "/v1/read", json=body, timeout=SEND_TIMEOUT)
     except requests.RequestException as error:
         frappe.logger("pearnly.ocr").warning("claude-ocr unreachable (%s); reading on this server", type(error).__name__)
         return None
@@ -158,6 +153,24 @@ def read(kind, files, own_tax=None, text=None):
     if done and done.get("state") == "done" and done.get("body"):
         return dict(done["body"], where="checkpoint")
     result = _remote(kind, pages, own_tax, text) or _local(kind, pages, own_tax, text)
+    if result.get("read") is not None:
+        work.checkpoint(key, "done", result)
+    return result
+
+
+def read_original(kind, object_name, sha256, own_tax=None):
+    """读一份存在甲骨文上的原件（Cowork 直传，见 ``pearnly_cowork.files.edge``）：只交对象名与 sha256，甲骨文自己读文件、
+    转正、渲染、交 Claude —— 原件字节不经过生产。只走甲骨文：连不上抛 ``Deferred``，工作单稍后重试（原件本来就在那台上）。
+    检查点同 :func:`read`，同一份重跑不重复付费。"""
+    from pearnly_core.execution import work
+
+    key = f"claude:{kind}:original:{sha256}:{own_tax or ''}"
+    done = work.checkpoint(key)
+    if done and done.get("state") == "done" and done.get("body"):
+        return dict(done["body"], where="checkpoint")
+    result = internal("/v1/read", {"kind": kind, "own_tax": own_tax, "original": {"object": object_name, "sha256": sha256}},
+                      timeout=SEND_TIMEOUT)
+    result["where"] = "oracle"
     if result.get("read") is not None:
         work.checkpoint(key, "done", result)
     return result
