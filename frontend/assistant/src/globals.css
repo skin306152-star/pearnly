@@ -840,7 +840,7 @@
   --cc-dots-step: 0.3s;           /* 现有值·CC 自定：四点依次错开 */
   --cc-tooltip-delay: 0ms;        /* 现有值·CC 自定：提示框延时（Claude 未测） */
   /* 透明度 */
-  --cc-disabled-opacity: 0.4;     /* 实测：菜单不可用项 40%（ccs.md 菜单一条） */
+  --cc-disabled-opacity: 0.4;     /* 实测：菜单不可用项 40%（ccs.md 菜单一条）；所有不可用的控件同一档（V6，原来 0.35 / 0.4 / 0.5 三档） */
 }
 
 /* ── 用途层（标准化记录 2.2）：有业务含义、可能按变体切换的值。优先引用刻度层；不在刻度上的值注明出处（多数是「现有值·CC 自定」：
@@ -1138,7 +1138,7 @@
   .cc-icon-btn:hover, .cc-icon-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-icon-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-icon-btn:active { transform: scale(0.94); }
-  .cc-icon-btn:disabled { opacity: 0.35; pointer-events: none; }
+  .cc-icon-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-icon-btn svg { width: var(--cc-icon); height: var(--cc-icon); }
   /* 图片预览右上角的关闭（attachment.tsx）：浮在图上的圆钮，弹层底、轻投影；电脑 32、手机 44（按钮排查 H29） */
   .cc-preview-close {
@@ -1294,7 +1294,7 @@
   .cc-chin-btn[data-chosen] { color: var(--cc-ink); }
   .cc-chin-btn:hover, .cc-chin-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-chin-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-chin-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-chin-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-chin-btn svg { width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0; color: var(--cc-ink-3); }
   /* 手机问候下、公司页下巴的胶囊（按钮排查 G8，照 Claude 手机模型胶囊 1.webp）：高 36、左右 12、全圆、叠色底、14/20、图标 16，
      点按区上下各补 4 到 44；会话栏卡头的月份胶囊跟卡头走 44（见「会话栏手机档」）。电脑 24 不变 */
@@ -1317,7 +1317,7 @@
   }
   .cc-send:hover { background: var(--cc-brand-hover); }
   .cc-send:active { transform: scale(0.9); }
-  .cc-send:disabled { opacity: 0.35; pointer-events: none; }
+  .cc-send:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-send svg { width: var(--cc-icon-md); height: var(--cc-icon-md); }
 
   .cc-attach {
@@ -1447,7 +1447,7 @@
   }
   .cc-menu-item svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
   .cc-menu-item[data-danger] { color: var(--cc-danger); }
-  .cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }
+  .cc-menu-item[data-disabled] { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   /* 父项右侧的当前值（13px 淡色） */
   .cc-menu-value { margin-inline-start: auto; padding-inline-start: var(--cc-space-12); color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
   .cc-menu-sep { height: 0; margin: var(--cc-menu-sep-gap) var(--cc-menu-sep-inset); border-top: var(--cc-menu-sep) solid var(--cc-line); }
@@ -1531,7 +1531,7 @@
   .cc-btn:hover { background: var(--cc-bg-hover); }
   .cc-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-btn:active { transform: scale(0.97); }
-  .cc-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); border-color: transparent; }
   .cc-btn[data-primary]:hover { opacity: 0.88; }
   .cc-btn[data-danger] { color: var(--cc-danger); }
@@ -1567,7 +1567,7 @@
   .cc-card-btn:hover { background: var(--cc-alpha-3); }
   .cc-card-btn:active { transform: scale(0.97); }
   .cc-card-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-card-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-card-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-card-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }
   .cc-card-btn[data-primary]:hover { opacity: 0.88; }
   .cc-card-btn[data-icon] { width: var(--cc-card-btn-h); padding: 0; border-radius: var(--cc-radius-full); color: var(--cc-ink-2); }
@@ -2107,7 +2107,7 @@
   }
   button.cc-list-row:hover, button.cc-list-row:focus-visible { background: var(--cc-bg-hover); }
   button.cc-list-row:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-list-row:disabled { opacity: 0.5; }
+  .cc-list-row:disabled { opacity: var(--cc-disabled-opacity); }
   .cc-list-row[data-covering] { background: var(--cc-bg-selected); }
   /* 添加公司的候选行：同侧栏行（行高按变体、圆角 8、14/20；按钮排查 L5） */
   [data-slot="cc-candidates"] .cc-list-row { min-height: var(--cc-row-h); border-radius: var(--cc-radius-row); line-height: var(--cc-row-lh); }
@@ -2337,7 +2337,7 @@
   }
   .cc-link-btn:hover, .cc-link-btn:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-link-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-link-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   /* 记住的选择（components/company-cards.tsx 的 ChoiceRow；用户 10-17 看样子图定）：收起时一条一行 = 对方名（13 正文色，放不下
      渐隐、悬停滚动）+ 右侧 12px 淡色的值（代码 / 现购 / 赊购，不换行，最多占四成五，放不下同样渐隐），不常驻按钮；整行是开合按钮，
      电脑约 28（看样子图定的行高，比别的卡内行 26 高一档：整行是按钮，设计系统小号控件 28）、手机 44。

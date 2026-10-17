@@ -429,7 +429,10 @@ g.done();
         for part in ("min-height: var(--cc-menu-item-h);", "padding: var(--cc-menu-item-py) var(--cc-menu-item-px);",
                      "border-radius: var(--cc-radius-row);", "font-size: var(--cc-row-font); line-height: var(--cc-row-lh);"):
             self.assertIn(part, item)
-        self.assertIn(".cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }", css)
+        self.assertIn(".cc-menu-item[data-disabled] { opacity: var(--cc-disabled-opacity); pointer-events: none; }", css)
+        # 不可用统一一档 40%（实测菜单不可用项，V6）：共用类里不再写别的不可用透明度
+        self.assertRegex(css, r"--cc-disabled-opacity: 0\.4;")
+        self.assertEqual(re.findall(r":disabled \{ opacity: (?!var\(--cc-disabled-opacity\))[^;]+;", css), [])
         self.assertIn("font-size: var(--cc-text-footnote);", rule(".cc-menu-value"))
         self.assertIn(".cc-menu-sep { height: 0; margin: var(--cc-menu-sep-gap) var(--cc-menu-sep-inset); "
                       "border-top: var(--cc-menu-sep) solid var(--cc-line); }", css)
