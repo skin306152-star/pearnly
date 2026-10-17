@@ -813,6 +813,7 @@ Green,เขียว
 Group,กลุ่ม
 Handle these the same way every time,จัดการแบบนี้ทุกครั้ง
 Has GL Match,มีรายการ GL ที่ตรงกัน
+Head office,สำนักงานใหญ่
 Head office / branch,สถานประกอบการ
 Hide details,ซ่อนรายละเอียด
 Hire of work,ค่าจ้างทำของ
@@ -1223,8 +1224,8 @@ Position,ตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
 "Possible combined match, please confirm: bank {0} {1} equals the total of {2} ledger lines ({3} to {4})",อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: ธนาคาร {0} ยอด {1} เท่ากับผลรวม {2} รายการในบัญชีแยกประเภท ({3} ถึง {4})
 "Possible combined match, please confirm: ledger {0} {1} of {2} equals the total of {3} bank lines ({4} to {5})",อาจตรงกันเป็นยอดรวม กรุณาตรวจสอบ: บัญชีแยกประเภท {0} {1} ยอด {2} เท่ากับผลรวม {3} รายการของธนาคาร ({4} ถึง {5})
-Post as expense,ค่าใช้จ่าย
-Post to stock,สินค้าคงเหลือ
+Post as expense,ลงค่าใช้จ่าย
+Post to stock,ลงสินค้าคงเหลือ
 Posting,วิธีลงบัญชี
 Posting Kind,ประเภทการลงบัญชี
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
@@ -2229,14 +2230,15 @@ cowork.company.branch_n,สาขา {0}
 cowork.company.choice.current_year,ปีปัจจุบัน
 cowork.company.choice.goods,เอกสารสินค้า
 cowork.company.choice.next_year,ปีถัดไป
-cowork.company.choice.service,ค่าใช้จ่าย
-cowork.company.choice.stock,สินค้าคงเหลือ
+cowork.company.choice.service,ลงค่าใช้จ่าย
+cowork.company.choice.stock,ลงสินค้าคงเหลือ
 cowork.company.choice_invalid,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
 cowork.company.choice_not_editable,แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ
 cowork.company.choice_not_found,ไม่พบตัวเลือกที่จำไว้นี้แล้ว
 cowork.company.choice_scope_invalid,บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้
 cowork.company.choice_unsupported,บันทึกตัวเลือกนี้ไม่ได้
 cowork.company.choices_full,ตัวเลือกของบริษัทเต็มแล้ว
+cowork.company.head_office,สำนักงานใหญ่
 cowork.company.not_found,ไม่พบบริษัท
 cowork.company.not_in_catalog,ไม่พบชุดบัญชีนี้ในรายการ
 cowork.company.note_invalid,บันทึกว่างหรือยาวเกินไป

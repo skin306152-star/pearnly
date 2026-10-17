@@ -813,6 +813,7 @@ Green,绿
 Group,组
 Handle these the same way every time,这一类以后都这样处理
 Has GL Match,有总账匹配
+Head office,总公司
 Head office / branch,总部 / 分支
 Hide details,隐藏详情
 Hire of work,承揽费
@@ -2237,6 +2238,7 @@ cowork.company.choice_not_found,这条记住的选择已不在
 cowork.company.choice_scope_invalid,这家公司（或这个分店）没有覆盖本月的账套
 cowork.company.choice_unsupported,无法保存这条选择
 cowork.company.choices_full,公司选择已满
+cowork.company.head_office,总公司
 cowork.company.not_found,找不到这家公司
 cowork.company.not_in_catalog,账套目录里没有这份账套
 cowork.company.note_invalid,说明为空或过长

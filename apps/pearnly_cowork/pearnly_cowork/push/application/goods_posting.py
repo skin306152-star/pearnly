@@ -5,7 +5,8 @@
 推往的账套（复核页提交的那份，没给按票上记的去向）在连接目录里那一行认；要有录入权限、能读这张票、能用这条连接推送。
 
 主档页「记住的选择」按公司改入账方式、删入账方式或现用账套（键 ``current_book|…``）也经这里写（companies 不导入 history）：
-:func:`set_company` / :func:`forget_company` 只认这家公司身份下按公司记的键，归属与连接授权由 `companies.choices` 先核。
+:func:`set_company` / :func:`forget_company` 只认这家公司各身份（`companies.identity.identities`）下按公司记的键，归属与连接授权
+由 `companies.choices` 先核。
 """
 from __future__ import annotations
 
@@ -50,25 +51,43 @@ def choose(history, value, connection=None, account_set_key=None) -> dict:
     return {"goods_posting": value}
 
 
-def set_company(workspace, company_identity, value) -> dict:
-    """主档页把这家公司的商品单入账方式直接改成 ``stock`` / ``service``；回 ``{"goods_posting": 值}``。"""
+def _identities(company_identities) -> list:
+    if isinstance(company_identities, str):
+        company_identities = [company_identities]
+    return [str(item) for item in company_identities or () if str(item or "").strip()]
+
+
+def _owned(key, identities) -> bool:
+    return any(key == policy_rules.goods_posting_key(item) or policy_rules.current_book_parts(key, item)
+               for item in identities)
+
+
+def set_company(workspace, company_identities, value) -> dict:
+    """主档页把这家公司的商品单入账方式直接改成 ``stock`` / ``service``：记在主档身份下，这家别的身份（按名称建档时的
+    ``name:express:…``，旧年度没报税号的账套推送时按它认）已经记过的一起改；回 ``{"goods_posting": 值}``。"""
     scope.require("intake")
     value = str(value or "").strip()
-    key = policy_rules.goods_posting_key(company_identity)
+    identities = _identities(company_identities)
+    key = policy_rules.goods_posting_key(identities[0]) if identities else ""
     if not workspace or not key or value not in policy_rules.GOODS_POSTING_VALUES:
         frappe.throw(_("cowork.policy.invalid"))
-    document_policy.record(workspace, key, value)
+    stored = document_policy.read(workspace)
+    for item in identities:
+        found = policy_rules.goods_posting_key(item)
+        if found == key or found in stored:
+            document_policy.record(workspace, found, value)
     return {"goods_posting": value}
 
 
-def forget_company(workspace, company_identity, key) -> int:
-    """删这家公司按公司记的一项（入账方式、现用账套）；别家的、按租户记的（转账凭条 / 预扣税凭证）不认。回删了几项。"""
+def forget_company(workspace, company_identities, keys) -> int:
+    """删这家公司按公司记的几项（入账方式、现用账套）：每个键都须是这家某个身份下的；别家的、按租户记的（转账凭条 /
+    预扣税凭证）不认。回删了几项。"""
     scope.require("intake")
-    key = str(key or "")
-    goods = policy_rules.goods_posting_key(company_identity)
-    if not workspace or not ((goods and key == goods) or policy_rules.current_book_parts(key, company_identity)):
+    identities = _identities(company_identities)
+    keys = [str(key or "") for key in ([keys] if isinstance(keys, str) else keys or ())]
+    if not workspace or not keys or not all(_owned(key, identities) for key in keys):
         frappe.throw(_("cowork.policy.invalid"))
-    return document_policy.forget(workspace, key)
+    return sum(int(document_policy.forget(workspace, key) or 0) for key in dict.fromkeys(keys))
 
 
 __all__ = ["choose", "forget_company", "set_company"]

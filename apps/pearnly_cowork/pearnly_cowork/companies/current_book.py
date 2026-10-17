@@ -17,13 +17,18 @@
 `targets.account_match.fiscal_part`。候选跨了分店（报了两个以上不同的分店号，如定时任务没记分店、两个分店各有自己的现用账套）
 不问不记、照旧停下（第五轮后审查）：不然没印分店的单会被推进另一个分店的账套。同一个分店（含没报分店号的旧年度）两边算出的
 候选一样（定时任务按任务记的分店、自动推按推送去向那一行的分店，`identity.for_branch`），键也一样。只读。
+
+主档页「记住的选择」只列还起作用的键（:func:`live_keys`）：新建 / 删了账套、组合变了的旧键不会再被问到，不列（也不清）；
+同一分店、同是本年（或次年）在不同年度各有一组时各列一行，行上写选中那份的年度（`choices.policy_rows`）。
 """
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 
 import frappe
 
+from pearnly_cowork.companies import identity
 from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_cowork.targets import account_match
 from pearnly_cowork.targets.identity import normalize_express_account_key
@@ -52,6 +57,37 @@ def key_of(company_identity, day, books) -> str:
     return policy_rules.current_book_key(company_identity, "".join(branches), part, [_key(item) for item in books])
 
 
+def _starts(books) -> set:
+    """按日期选出的账套只在这些日子变：各份本年起、本年止后一天、次年止后一天（`identity.for_day` 的分段）。"""
+    days = set()
+    for item in books:
+        for value, shift in ((item.get("period_start"), 0), (item.get("period_end"), 1), (item.get("next_end"), 1)):
+            try:
+                days.add((date.fromisoformat(str(value or "")[:10]) + timedelta(days=shift)).isoformat())
+            except ValueError:
+                continue
+    return days
+
+
+def live_keys(company_identity, books) -> set:
+    """这家公司现在的账套（``books``：`identity.book` 的样子、不截断）里，按日期选账套会选出多份同期的各组候选算出的键：
+    各连接分开，分店同定时任务 / 自动推（不指定、各分店，`identity.for_branch`），日子取各段的起点（段内选出的一样）。
+    主档页只列这些（组合已不成立的旧键不会再被问到）。"""
+    out = set()
+    by_connection = {}
+    for item in books or ():
+        by_connection.setdefault(item.get("connection"), []).append(item)
+    for group in by_connection.values():
+        days = sorted(_starts(group))
+        for number in [""] + sorted({item.get("branch") for item in group if item.get("branch")}):
+            mine = identity.for_branch(group, number)
+            for day in days:
+                key = key_of(company_identity, day, identity.for_day(mine, day))
+                if key:
+                    out.add(key)
+    return out
+
+
 def policy(workspace) -> dict:
     """这个工作空间存着的口径（认不得的丢掉，同 `history.document_policy.read`）。"""
     raw = frappe.db.get_value(WORKSPACE, workspace, FIELD) if workspace else None
@@ -72,4 +108,4 @@ def remembered(workspace, company_identity, day, books) -> list:
     return picked[:1] or books
 
 
-__all__ = ["key_of", "policy", "remembered"]
+__all__ = ["key_of", "live_keys", "policy", "remembered"]

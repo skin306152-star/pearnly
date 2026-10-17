@@ -6,7 +6,8 @@ Cowork 一个租户一个工作空间、不按公司隔离（用户 2026-09-26�
 （键 ``current_book|…``）由 `assistant.pending_api`（`choose_account_set` 推成了才记、`rechoose_current_book` 改记）按
 companies 现算的候选核过后经 :func:`record` 写。主档页「记住的选择」改、删这两类按公司记的项经推送域
 （`push.application.goods_posting.set_company` / `forget_company`）调 :func:`record` / :func:`forget`。
-只经这里写：调用方要有录入权限、能读这张票；读出的值不认得的一律当作没选过。
+只经这里写：调用方要有录入权限、能读这张票；读出的值不认得的一律当作没选过。每次写、删记一行日志（谁、哪个工作空间、
+哪个键、旧值 → 新值）：口径本身不存谁 / 何时，出了问题按日志查。
 """
 import json
 
@@ -44,11 +45,17 @@ def choose(history, value):
     return {"document_class": kind, "value": value}
 
 
+def _audit(workspace, key, old, new):
+    frappe.logger("pearnly.cowork.document_policy").info(
+        "document_policy %s %s: %s -> %s by %s", workspace, key, old, new, frappe.session.user)
+
+
 def record(workspace, key, value):
     """记一项（同键覆盖）；认不出的键与值不记（`rules.normalize`）。调用方已核过权限。"""
     policy = _parse(frappe.db.get_value(DOCTYPE, workspace, FIELD, for_update=True))
     if rules.normalize({key: value}) != {key: value}:
         frappe.throw(_("cowork.policy.invalid"))
+    _audit(workspace, key, policy.get(key), value)
     policy[key] = value
     frappe.db.set_value(DOCTYPE, workspace, FIELD, json.dumps(policy, sort_keys=True), update_modified=False)
 
@@ -58,6 +65,6 @@ def forget(workspace, key) -> int:
     policy = _parse(frappe.db.get_value(DOCTYPE, workspace, FIELD, for_update=True))
     if key not in policy:
         return 0
-    del policy[key]
+    _audit(workspace, key, policy.pop(key), None)
     frappe.db.set_value(DOCTYPE, workspace, FIELD, json.dumps(policy, sort_keys=True), update_modified=False)
     return 1

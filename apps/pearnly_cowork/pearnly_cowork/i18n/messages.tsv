@@ -1568,6 +1568,12 @@ This document does not need this choice	此单据无需选择是否录入	เอ
 Stock or expense for this company's documents like this?	本公司这类单据走库存还是记费用？	บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย	この会社のこの種類の伝票は在庫と費用のどちらに計上しますか	intake.error.posting_needs_review
 Stock (this kind from now on)	走库存（同类单据均走库存）	สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)	在庫に計上（以後も同様）	cowork.policy.stock
 Expense (this kind from now on)	记费用（同类单据均记费用）	ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)	費用に計上（以後も同様）	cowork.policy.service
+Goods documents	商品单	เอกสารสินค้า	商品の伝票	cowork.company.choice.goods
+Post to stock	走库存	ลงสินค้าคงเหลือ	在庫に計上	cowork.company.choice.stock
+Post as expense	记费用	ลงค่าใช้จ่าย	費用に計上	cowork.company.choice.service
+Current year	本年	ปีปัจจุบัน	当年度	cowork.company.choice.current_year
+Next year	次年	ปีถัดไป	翌年度	cowork.company.choice.next_year
+Head office	总公司	สำนักงานใหญ่	本店	cowork.company.head_office
 The chosen Express stock item no longer exists. Choose again	所选的 Express 存货已不存在，请重新选择	สินค้าคงเหลือที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่	選んだ Express の在庫品目はもうありません。選び直してください	intake.error.STOCK_ITEM_NOT_FOUND
 Checked in the ERP	已在 ERP 核对	ตรวจใน ERP แล้ว	ERP で確認済み	cowork.unknown.check
 Result in the ERP	ERP 里的结果	ผลใน ERP	ERP での結果	cowork.unknown.outcome
@@ -2280,11 +2286,6 @@ Value Label	值名称	ชื่อค่า	値の名称
 Evidence	依据	หลักฐาน	根拠
 Whole company	全公司	ทั้งบริษัท	会社全体	cowork.company.whole_company
 Branch {0}	分店 {0}	สาขา {0}	支店 {0}	cowork.company.branch_n
-Goods documents	商品单	เอกสารสินค้า	商品の伝票	cowork.company.choice.goods
-Post to stock	走库存	สินค้าคงเหลือ	在庫に計上	cowork.company.choice.stock
-Post as expense	记费用	ค่าใช้จ่าย	費用に計上	cowork.company.choice.service
-Current year	本年	ปีปัจจุบัน	当年度	cowork.company.choice.current_year
-Next year	次年	ปีถัดไป	翌年度	cowork.company.choice.next_year
 This value is not in this month's account set	这个值不在本月账套的主档里	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の帳簿のマスタにありません	cowork.company.choice_invalid
 Company choices are full	公司选择已满	ตัวเลือกของบริษัทเต็มแล้ว	会社の選択が上限です	cowork.company.choices_full
 No account set of this company covers this month	这家公司（或这个分店）没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の帳簿がありません	cowork.company.choice_scope_invalid

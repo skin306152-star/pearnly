@@ -194,7 +194,8 @@ def posting_settled(posting: Any, today: dt.date, read_at: Any = None) -> Dict[s
 
 
 def suppliers_of(data: Any) -> Dict[str, Dict[str, Any]]:
-    """一份历史里按供应商键（`supplier_key`）合并的科目：``{键: {name, accounts: [{code, docs, last}]}}``。"""
+    """一份历史里按供应商键（`supplier_key`）合并的科目与商品单入账方式：``{键: {name, accounts: [{code, docs, last}],
+    posting}}``（``posting`` 同 `supplier_posting` 的形状，各分店相加；这份历史没有的回空 dict，`posting_settled` 判不出）。"""
     out: Dict[str, Dict[str, Any]] = {}
     for row in (data or {}).get("suppliers") or [] if isinstance(data, dict) else []:
         if not isinstance(row, dict):
@@ -202,11 +203,17 @@ def suppliers_of(data: Any) -> Dict[str, Dict[str, Any]]:
         key = supplier_key(row.get("tax_id"), row.get("name"))
         if not key:
             continue
-        found = out.setdefault(key, {"name": str(row.get("name") or ""), "accounts": {}})
+        found = out.setdefault(key, {"name": str(row.get("name") or ""), "accounts": {}, "posting": {}})
         for account in row.get("accounts") or []:
             current = found["accounts"].setdefault(account["code"], {"code": account["code"], "docs": 0, "last": ""})
             current["docs"] += int(account.get("docs") or 0)
             current["last"] = max(current["last"], str(account.get("last") or ""))
+        posting = row.get("posting") if isinstance(row.get("posting"), dict) else None
+        for kind in POSTING_KINDS if posting else ():
+            part = posting.get(kind) if isinstance(posting.get(kind), dict) else {}
+            current = found["posting"].setdefault(kind, {"docs": 0, "last": ""})
+            current["docs"] += int(part.get("docs") or 0)
+            current["last"] = max(current["last"], str(part.get("last") or ""))
     for found in out.values():
         found["accounts"] = sorted(found["accounts"].values(), key=lambda item: (-item["docs"], item["code"]))
     return out

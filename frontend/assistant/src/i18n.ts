@@ -562,6 +562,7 @@ const COMPANY = {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
       vatCheck: "VAT reconciliation", history: "Express history", posting: "Posting", current_book: "Account set in use",
+      posting_history: "Posting history",
     } as Record<string, string>,
   },
   zh: {
@@ -645,7 +646,7 @@ const COMPANY = {
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
-      vatCheck: "增值税核对", history: "Express 历史", posting: "入账方式", current_book: "现用账套",
+      vatCheck: "增值税核对", history: "Express 历史", posting: "入账方式", current_book: "现用账套", posting_history: "入账方式历史",
     } as Record<string, string>,
   },
   th: {
@@ -658,7 +659,7 @@ const COMPANY = {
     folderOk: "พร้อม", folderWaiting: "รอคอมพิวเตอร์", folderOffline: "คอมพิวเตอร์ออฟไลน์", folderMissing: "ไม่พบโฟลเดอร์",
     folderGone: "นำคอมพิวเตอร์ออกแล้ว", followCompany: "ตามชุดบัญชีของบริษัทในแต่ละปี",
     payCash: "เงินสด", payCredit: "เงินเชื่อ", vatClaim: "ขอคืนภาษีซื้อ", vatExpense: "ลงค่าใช้จ่าย",
-    postStock: "สินค้าคงเหลือ", postService: "ค่าใช้จ่าย",
+    postStock: "ลงสินค้าคงเหลือ", postService: "ลงค่าใช้จ่าย",
     pending: "รอดำเนินการ", handToCC: "ให้ CC จัดการ", confirm: "ยืนยัน", other: "อื่น ๆ", chooseCompany: "เลือกบริษัท",
     handToCCText: (list: string) => `จัดการเอกสารเหล่านี้: ${list}`,
     handToCCOne: (doc: string) => `จัดการเอกสารนี้: ${doc}`,
@@ -730,6 +731,7 @@ const COMPANY = {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
       vatCheck: "กระทบยอดภาษีมูลค่าเพิ่ม", history: "ประวัติ Express", posting: "วิธีลงบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่",
+      posting_history: "ประวัติวิธีลงบัญชี",
     } as Record<string, string>,
   },
 };

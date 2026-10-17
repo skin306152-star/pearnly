@@ -92,15 +92,16 @@ export function folderSummary(folders: ReadonlyArray<Pick<CompanyFolder, "state"
 }
 
 /** 记住的选择分小节：Express、公司规则与按公司记的口径（入账方式、现用账套）按类别，其余按来源（vat 预设叫「增值税核对」，
- *  免得与简易税票那一类混）。 */
+ *  免得与简易税票那一类混；Express 历史定下的入账方式单列「入账方式历史」）。 */
 export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
   if (choice.source === "express" || choice.source === "rule" || choice.source === "policy") return choice.kind;
   if (choice.source === "vat") return "vatCheck";
+  if (choice.source === "history" && choice.kind === "posting") return "posting_history";
   return choice.source;
 }
 
 const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "item", "department", "receipt", "current_book", "pos", "income",
-  "vatCheck", "history"];
+  "vatCheck", "history", "posting_history"];
 
 // ---------------------------------------------------------------- 卡片外框
 /** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的共用拖动负责）、登记看得见的卡片

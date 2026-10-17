@@ -813,6 +813,7 @@ Green,緑
 Group,グループ
 Handle these the same way every time,毎回この方法で処理
 Has GL Match,元帳一致あり
+Head office,本店
 Head office / branch,本店 / 支店
 Hide details,詳細を隠す
 Hire of work,請負料
@@ -2237,6 +2238,7 @@ cowork.company.choice_not_found,この保存した選択はもうありません
 cowork.company.choice_scope_invalid,この会社（または支店）には今月の帳簿がありません
 cowork.company.choice_unsupported,この選択は保存できません
 cowork.company.choices_full,会社の選択が上限です
+cowork.company.head_office,本店
 cowork.company.not_found,会社が見つかりません
 cowork.company.not_in_catalog,この帳簿は一覧にありません
 cowork.company.note_invalid,ノートが空か長すぎます

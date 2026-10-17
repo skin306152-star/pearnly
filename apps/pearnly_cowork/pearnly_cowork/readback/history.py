@@ -13,11 +13,12 @@
   准备推送（``refresh`` 假）只读存着的，不建请求、不写库。
 - 商品单入账方式（v3，用户 2026-10-17）：同一供应商近 12 个月会计亲手录的（不含 CC 推的）≥3 张、全部走库存或全部没有库存明细
   （`history_rules.posting_settled`）→ 回 ``posting``；推送判档拿它和这家公司选的入账方式比（一致 A、相反交人、没有照旧 B，
-  `push.express.automation.posting_by_history`），值仍取公司选的。主档页删过的供应商同样不按历史用。
+  `push.express.automation.posting_by_history`），值仍取公司选的。主档页「入账方式历史」列出、可删（用户 10-17「加上，方便看和删」）。
 - 很一致的直接用（用户 2026-10-15）：同一供应商近 12 个月 ≥3 张、全记同一个科目（`history_rules.settled`）→ 回
   ``settled``，推送准备当作已记住的选择用（会计员手选过的优先）。公司主档页经钩子 ``cowork_company_history_choices``
   列出这些、``cowork_company_history_forget`` 删：删了记在 ``<摘要>.forgotten.json``（与汇总分开存，重读不会冲掉），
-  这家供应商在这份账套里不再按历史用（不自动用、也不按历史建议）。
+  这家供应商在这份账套里不再按历史用。科目行与入账方式行各删各的（``account|<供应商键>`` 不再按历史定科目、也不按历史建议；
+  ``posting|<供应商键>`` 不再按历史定入账方式）；旧记录只有供应商键的两样都不用。
 - 不调模型、不扣费、不写 Express。
 """
 import gzip
@@ -48,6 +49,8 @@ _STAMP = "%Y-%m-%dT%H:%M:%SZ"
 FORGOTTEN_MAX = 5000
 # 公司主档页每家最多列这么多家供应商
 COMPANY_ROWS_MAX = 200
+# 主档页删的是哪一样（记在 forgotten 里的前缀）；只有供应商键的旧记录两样都不用
+ACCOUNT_MARK, POSTING_MARK = "account|", "posting|"
 
 
 def _now():
@@ -120,6 +123,12 @@ def _forget(slot, keys) -> bool:
     return True
 
 
+def _dropped(forgotten, key) -> tuple:
+    """这家供应商在这份账套里删过什么：``(科目, 入账方式)``。"""
+    whole = bool(key) and key in forgotten
+    return whole or ACCOUNT_MARK + key in forgotten, whole or POSTING_MARK + key in forgotten
+
+
 def _gunzip(content):
     try:
         reader = zlib.decompressobj(16 + zlib.MAX_WBITS)
@@ -166,13 +175,15 @@ def for_push(connection, account_set, seller=None, refresh=False) -> dict:
         if out["state"] == NONE and stored.get("suppliers") is not None:
             out["state"] = READY
         seller = seller or {}
-        if rules.supplier_key(seller.get("tax"), seller.get("name")) in _forgotten(slot):
-            return out  # 主档页删过：这家在这份账套里不再按历史用
-        out["accounts"] = rules.supplier_accounts(stored, seller.get("tax"), seller.get("name"))
-        out["settled"] = rules.stamp(rules.settled(out["accounts"], now.date(), stored.get("taken_at")), stored)
-        out["posting"] = rules.stamp(rules.posting_settled(
-            rules.supplier_posting(stored, seller.get("tax"), seller.get("name")), now.date(), stored.get("taken_at")),
-            stored)
+        # 主档页删过的：这家在这份账套里那一样不再按历史用
+        no_accounts, no_posting = _dropped(_forgotten(slot), rules.supplier_key(seller.get("tax"), seller.get("name")))
+        if not no_accounts:
+            out["accounts"] = rules.supplier_accounts(stored, seller.get("tax"), seller.get("name"))
+            out["settled"] = rules.stamp(rules.settled(out["accounts"], now.date(), stored.get("taken_at")), stored)
+        if not no_posting:
+            out["posting"] = rules.stamp(rules.posting_settled(
+                rules.supplier_posting(stored, seller.get("tax"), seller.get("name")), now.date(), stored.get("taken_at")),
+                stored)
     except Exception:  # noqa: BLE001 — 建议是锦上添花：任何意外都不挡推送
         frappe.log_error(title="Cowork account history failed", message=frappe.get_traceback()[-1500:])
         frappe.clear_messages()
@@ -192,39 +203,45 @@ def _express_slots(sets):
 
 def company_choices(company_tax, sets) -> list:
     """公司主档页「记住的选择」里来自 Express 历史的那几行（钩子 ``cowork_company_history_choices``）：这家公司各份
-    Express 账套里历史很一致、推送时会直接用的「供应商 → 科目」，按供应商合并各年度：
-    ``[{supplier_tax, supplier_name, account, account_label, count, last_date}]``（``supplier_tax`` 是供应商键：税号或
-    ``name:…``）。只看存着的，不请电脑；调用方已核过录入权限，账套只来自本人能用的连接。"""
+    Express 账套里历史很一致、推送时会直接用的「供应商 → 科目」与「供应商 → 商品单入账方式」，按供应商合并各年度：
+    ``[{supplier_tax, supplier_name, account, account_label, posting, count, last_date}]``（``supplier_tax`` 是供应商键：税号或
+    ``name:…``；科目行 ``posting`` 为空，入账方式行 ``account`` 为空、``posting`` 是 ``stock`` / ``service``）。只看存着的，
+    不请电脑；调用方已核过录入权限，账套只来自本人能用的连接。"""
     del company_tax  # 归属已由账套定（同一法人各分店、各年度）
     today, merged, names = _now().date(), {}, {}
     for slot in dict.fromkeys(_express_slots(sets)):
         stored, forgotten = _load(slot), _forgotten(slot)
         for key, found in rules.suppliers_of(stored).items():
-            if key in forgotten:
-                continue
-            item = rules.settled(found["accounts"], today, stored.get("taken_at"))
-            if not item:
-                continue
-            names.setdefault(key, found["name"])
-            merged.setdefault((key, item["code"]), []).append(item)
+            no_accounts, no_posting = _dropped(forgotten, key)
+            account = None if no_accounts else rules.settled(found["accounts"], today, stored.get("taken_at"))
+            posting = None if no_posting else rules.posting_settled(found["posting"], today, stored.get("taken_at"))
+            if account:
+                merged.setdefault((key, account["code"], ""), []).append(account)
+            if posting:
+                merged.setdefault((key, "", posting["kind"]), []).append(posting)
+            if account or posting:
+                names.setdefault(key, found["name"])
     out = []
-    for (key, code), items in merged.items():
-        # 各年度各自判；不同年度一致到不同科目时各列一行（推送按那一年的账套用）
+    for (key, code, kind), items in merged.items():
+        # 各年度各自判；不同年度一致到不同科目（或不同入账方式）时各列一行（推送按那一年的账套用）
         out.append({"supplier_tax": key, "supplier_name": names.get(key) or "", "account": code,
-                    "account_label": "", "count": sum(item["docs"] for item in items),
+                    "account_label": "", "posting": kind, "count": sum(item["docs"] for item in items),
                     "last_date": max(item["last"] for item in items)})
     out.sort(key=lambda row: (-row["count"], row["supplier_name"]))
-    return out[:COMPANY_ROWS_MAX]
+    # 科目行在前；两样各最多列 `COMPANY_ROWS_MAX` 家
+    return ([row for row in out if not row["posting"]][:COMPANY_ROWS_MAX]
+            + [row for row in out if row["posting"]][:COMPANY_ROWS_MAX])
 
 
-def company_forget(company_tax, supplier, account, sets) -> int:
-    """主档页删一条历史学到的（钩子 ``cowork_company_history_forget``）：这家公司各份 Express 账套里这家供应商不再按
-    历史用（幂等，重读历史也不会冲掉）。回记下的账套份数。"""
+def company_forget(company_tax, supplier, account, sets, part="") -> int:
+    """主档页删一条历史学到的（钩子 ``cowork_company_history_forget``）：这家公司各份 Express 账套里这家供应商那一样
+    （``part`` 为 ``posting`` 是入账方式，否则是科目）不再按历史用（幂等，重读历史也不会冲掉）。回记下的账套份数。"""
     del company_tax, account
     supplier = str(supplier or "").strip()
     if not supplier or len(supplier) > 400:
         return 0
-    return sum(int(_forget(slot, [supplier])) for slot in dict.fromkeys(_express_slots(sets)))
+    mark = (POSTING_MARK if part == "posting" else ACCOUNT_MARK) + supplier
+    return sum(int(_forget(slot, [mark])) for slot in dict.fromkeys(_express_slots(sets)))
 
 
 def _refresh(connection, key, slot, stored, now):

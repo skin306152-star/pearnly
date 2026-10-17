@@ -415,7 +415,7 @@ def set_combined_vat(company, combined) -> dict:
 
 def delete(company) -> dict:
     """删主档（不确认，入口在 ⋯ 菜单里）：知识库、公司规则、自动推送档位 → 文件夹绑定 → 对话归回「最近」→ 主档；
-    账套记忆、任务、草稿都不动。"""
+    账套记忆、任务、草稿、工作空间里按公司记的口径（入账方式、现用账套，重建主档后照样显示）都不动。"""
     require_write()
     row = _company_row(company, for_update=True)
     frappe.db.delete(NOTE, {"company": row.name})

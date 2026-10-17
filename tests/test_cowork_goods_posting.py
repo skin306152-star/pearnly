@@ -319,6 +319,7 @@ class Choose(unittest.TestCase):
             "pearnly_cowork.connections": types.SimpleNamespace(service=types.SimpleNamespace(read_for_push=read_for_push)),
             "pearnly_cowork.history": types.SimpleNamespace(
                 document_policy=types.SimpleNamespace(record=lambda *a: seen["recorded"].append(a),
+                                                      read=lambda workspace: seen.get("stored", {}),
                                                       forget=lambda *a: seen.setdefault("forgot", []).append(a) or 1),
                 storage=types.SimpleNamespace(read=lambda name: doc))}
         with mock.patch.dict(sys.modules, modules):
@@ -354,21 +355,30 @@ class Choose(unittest.TestCase):
         self.assertEqual(seen["recorded"], [])
 
     def test_the_company_page_sets_and_forgets_only_this_companys_keys(self):
-        # 主档页改入账方式、删入账方式或现用账套（companies 不导入 history，经这里写）
+        # 主档页改入账方式、删入账方式或现用账套（companies 不导入 history，经这里写）；这家的身份可以有两个（主档身份、
+        # 按名称建档时的名称身份），主档身份在前
         module, seen, thrown = self.load()
-        me = f"tax:{OWN}"
-        self.assertEqual(module.set_company("W1", me, "service"), {"goods_posting": "service"})
+        me, alias = f"tax:{OWN}", "name:express:EXP1:acme"
+        self.assertEqual(module.set_company("W1", [me, alias], "service"), {"goods_posting": "service"})
         self.assertEqual((seen["recorded"], seen["scope"]), ([("W1", f"goods_posting|{me}", "service")], "intake"))
-        for workspace, identity, value in (("W1", me, "enter"), ("W1", "", "stock"), ("", me, "stock")):
+        seen["stored"] = {f"goods_posting|{alias}": "stock"}  # 旧年度按名称身份记过的一起改
+        module.set_company("W1", [me, alias], "stock")
+        self.assertEqual(seen["recorded"][1:], [("W1", f"goods_posting|{me}", "stock"), ("W1", f"goods_posting|{alias}", "stock")])
+        module.set_company("W1", me, "service")  # 只给一个身份
+        self.assertEqual(seen["recorded"][3:], [("W1", f"goods_posting|{me}", "service")])
+        for workspace, identities, value in (("W1", [me], "enter"), ("W1", [], "stock"), ("W1", [""], "stock"),
+                                             ("", [me], "stock")):
             with self.assertRaises(thrown):
-                module.set_company(workspace, identity, value)
+                module.set_company(workspace, identities, value)
         book = policy.current_book_key(me, "", "cy", ["a", "b"])
-        self.assertEqual(module.forget_company("W1", me, book), 1)
-        self.assertEqual(module.forget_company("W1", me, f"goods_posting|{me}"), 1)
+        self.assertEqual(module.forget_company("W1", [me, alias], [book]), 1)
+        self.assertEqual(module.forget_company("W1", [me, alias], [f"goods_posting|{me}", f"goods_posting|{alias}"]), 2)
         for key in ("payment_evidence", f"goods_posting|{me}9", policy.current_book_key(me + "9", "", "cy", ["a", "b"]), ""):
-            with self.assertRaises(thrown):
-                module.forget_company("W1", me, key)
-        self.assertEqual(seen["forgot"], [("W1", book), ("W1", f"goods_posting|{me}")])
+            with self.assertRaises(thrown):  # 有一个不是这家的就整个不删
+                module.forget_company("W1", [me, alias], [f"goods_posting|{me}", key])
+        with self.assertRaises(thrown):
+            module.forget_company("W1", [me], [])
+        self.assertEqual(seen["forgot"], [("W1", book), ("W1", f"goods_posting|{me}"), ("W1", f"goods_posting|{alias}")])
 
 
 if __name__ == "__main__":

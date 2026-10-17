@@ -5,9 +5,9 @@
 | `express`（对方档、存货、费用科目、付款、抵进项、部门、收款科目） | 账套在这家公司的账套里 | `push.choices.of_sets` | `forget`（这家公司各年度一起删），付款 / 抵进项可改（`record`） |
 | `pos`（POS 版式） | 账套的公司键（`pos_import.service.company_key`） | `layouts.of_companies` | `layouts.forget` |
 | `income`（收入对账预设） | 本公司税号（`presets.income_prefix`） | `preset_store.under` | `preset_store.forget` |
-| `history`（从 Express 历史学到的「供应商 → 科目」，补充 丙） | 科目建议那一包产出 | hooks `cowork_company_history_choices` | hooks `cowork_company_history_forget` |
+| `history`（从 Express 历史学到的「供应商 → 科目」，补充 丙；「供应商 → 商品单入账方式」，数字会计员第 3 期） | 科目建议那一包产出 | hooks `cowork_company_history_choices` | hooks `cowork_company_history_forget` |
 | `rule`（公司规则，第 2 期统一客户规则） | 主档 | `rules.listing` | `rules.delete`，付款 / 抵进项可改 |
-| `policy`（商品单入账方式 `posting`、两份同期时现用的账套 `current_book`，数字会计员第 3 期） | 工作空间 ``document_policy`` 里按公司身份记的键 | `current_book.policy` + `contracts.document_policy.company_keys` | `push.application.goods_posting.forget_company`，入账方式可改（`set_company`） |
+| `policy`（商品单入账方式 `posting`、两份同期时现用的账套 `current_book`，数字会计员第 3 期） | 工作空间 ``document_policy`` 里按公司身份记的键 | `current_book.policy` + `current_book.live_keys` | `push.application.goods_posting.forget_company`，入账方式可改（`set_company`） |
 
 公司规则（第 2 期，docs/work/2026-10-16-customer-rules-phase2.md）：
 - 账套行（`express`，各类别）与历史行可「设为全公司」（`promote`），CC 也可按单据存（`save_rule`）；存、改、提升都在同一事务里
@@ -22,9 +22,14 @@
 - 对象只记了税号（记的时候票面没有名称，或旧记录）的行补上名称（第 5 轮测试 6：付款规则只显示 0105565099871）：
   先找同一税号别的行记的名称（只在对方档、付款、抵进项、费用科目之间借：存货行的标签是品名），再找覆盖这个月那份账套的
   供应商 / 客户主档；都没有照旧显示税号（`_name_parties`）。
-- 入账方式、现用账套（用户 2026-10-17「加上，方便看和删」）：按主档的公司身份取，口径里没记谁 / 何时，不写；现用账套显示
-  「本年 / 次年 · 分店 → 账套名」（账套名按这家的账套目录取，取不到原样写键），只能删（删了同一组候选再停下时重新问），
-  改选走待处理 / CC 工具；入账方式可删可改。删、改的权限同删公司规则（录入权限 + 这家任一条 Express 连接的授权）。
+- 入账方式、现用账套（用户 2026-10-17「加上，方便看和删」）：工作空间取主档上记的。口径里没记谁 / 何时，不写（写、删另记日志，
+  `history.document_policy`）。入账方式按这家各身份取（`identity.identities`：按名称建档、后来补了税号的，旧年度没报税号的账套
+  推送时按名称身份记），合成一行，改写主档身份与已记过的别的身份、删一起删。现用账套只列还起作用的组合（`current_book.live_keys`），
+  显示「本年 / 次年 · 总公司 / 分店 X → 账套名」、选中那份的年度（账套名按这家账套全集取），只能删（删了同一组候选再停下时重新问），
+  改选走待处理 / CC 工具。改入账方式的权限同改公司规则（录入权限 + 覆盖这个月那份账套所在连接的授权），删同删公司规则（录入
+  权限 + 这家任一条 Express 连接的授权）：入账方式与公司规则一样是全公司、跨连接生效的。
+- Express 历史定下的「供应商 → 商品单入账方式」（数字会计员第 3 期，`readback.history`）与「供应商 → 科目」各列各删，
+  类别 `posting`，只删。
 - 每类最多显示 `SHOWN` 条，每张表一次 IN 查询、最多读 `READ_MAX` 条。预扣税记忆（按收款方、全所通用）、供应商默认、
   单据录不录、银行预设（键里没有公司）不显示。
 """
@@ -50,9 +55,11 @@ SHOWN = 30
 EDITABLE = {"payment": PAYMENT_VALUES, "vat": VAT_VALUES}
 VALUE_LABELS = {("payment", "cash"): "Cash", ("payment", "credit"): "Credit", ("vat", "claim"): "Claim VAT",
                 ("vat", "expense"): "Expense it"}
+# 商品单入账方式（按公司选的、Express 历史定下的）显示的值
+POLICY_LABELS = {"stock": "cowork.company.choice.stock", "service": "cowork.company.choice.service"}
 HISTORY_HOOK = "cowork_company_history_choices"
 HISTORY_FORGET_HOOK = "cowork_company_history_forget"
-HISTORY_FIELDS = ("supplier_tax", "supplier_name", "account", "account_label", "count", "last_date")
+HISTORY_FIELDS = ("supplier_tax", "supplier_name", "account", "account_label", "posting", "count", "last_date")
 
 
 def encode(*parts) -> str:
@@ -185,19 +192,36 @@ def _hooked(name):
     return [frappe.get_attr(path) for path in paths]
 
 
+def _history_posting(item) -> dict:
+    """历史定下的「供应商 → 商品单入账方式」一行（只删，删了这家供应商不再按历史定入账方式，科目照旧）。"""
+    return {"key": encode("history", str(item["supplier_tax"]), "", "posting"), "source": "history", "kind": "posting",
+            "subject_label": str(item.get("supplier_name") or item["supplier_tax"]), "value": item["posting"],
+            "value_label": _(POLICY_LABELS[item["posting"]]), "editable": False, "year_label": "", "set_by": "",
+            "set_at": str(item.get("last_date") or ""), "count": int(item.get("count") or 0), "merged": 1,
+            "promotable": False}
+
+
 def history_rows(company, sets) -> list:
-    """从 Express 历史学到的「供应商 → 科目」（科目建议那一包产出；没装就空）：只读，字段 `HISTORY_FIELDS`。"""
-    out = []
+    """从 Express 历史学到的「供应商 → 科目」与「供应商 → 商品单入账方式」（科目建议那一包产出；没装就空）：只读，字段
+    `HISTORY_FIELDS`；两样各最多读 `READ_MAX` 条。"""
+    out, counts = [], {}
     for read in _hooked(HISTORY_HOOK):
         try:
             rows = read(company.get("tax_id") or "", [dict(item) for item in sets]) or []
         except Exception:
             frappe.log_error(title="Cowork company history choices failed")
             continue
-        for row in rows[:READ_MAX]:
-            if not isinstance(row, dict) or not row.get("supplier_tax") or not row.get("account"):
+        for row in rows:
+            if not isinstance(row, dict) or not row.get("supplier_tax"):
                 continue
+            kind = "posting" if row.get("posting") in POLICY_LABELS and not row.get("account") else "account"
+            if (kind == "account" and not row.get("account")) or counts.get(kind, 0) >= READ_MAX:
+                continue
+            counts[kind] = counts.get(kind, 0) + 1
             item = {field: row.get(field) for field in HISTORY_FIELDS}
+            if kind == "posting":
+                out.append(_history_posting(item))
+                continue
             out.append({"key": encode("history", str(item["supplier_tax"]), str(item["account"])), "source": "history",
                         "_tax": tax_in("purchase|" + str(item["supplier_tax"])),
                         "kind": "account", "subject_label": str(item.get("supplier_name") or item["supplier_tax"]),
@@ -224,13 +248,37 @@ def rule_rows(company) -> list:
     return out
 
 
-POLICY_LABELS = {"stock": "cowork.company.choice.stock", "service": "cowork.company.choice.service"}
 PART_LABELS = {"cy": "cowork.company.choice.current_year", "ny": "cowork.company.choice.next_year"}
 
 
 def _policy_scope(company) -> tuple:
-    """按公司记的口径在哪个工作空间、这家的公司身份。"""
-    return company.get("workspace") or scope.default_workspace(), str(company.get("identity") or "")
+    """按公司记的口径在哪个工作空间（主档上记的，同定时任务 `tasks.books_of`；没有用默认的）、这家的各身份
+    （`identity.identities`：主档身份在前）。"""
+    from pearnly_cowork.companies import identity
+
+    workspace = frappe.db.get_value("Cowork Company", company.get("name"), "workspace") if company.get("name") else None
+    return workspace or scope.default_workspace(), identity.identities(company)
+
+
+def _full_sets(company, sets) -> list:
+    """主档页给的账套截到 `identity.BOOKS_MAX` 份：可能截了时另取全集（账套名、还起作用的现用账套都要按全集算）。"""
+    from pearnly_cowork.companies import identity, service
+
+    sets = list(sets)
+    return sets if len(sets) < identity.BOOKS_MAX else service.books(company, None)
+
+
+def _branch_label(branch) -> str:
+    if not branch:
+        return ""
+    return _("cowork.company.head_office") if branch == "00000" else _("cowork.company.branch_n").format(branch)
+
+
+def _posting_keys(policy, identities) -> list:
+    """这家各身份下记过的商品单入账方式键（主档身份在前）。"""
+    from pearnly_cowork.contracts import document_policy as policy_rules
+
+    return [key for key in (policy_rules.goods_posting_key(item) for item in identities) if key and key in policy]
 
 
 def policy_rows(company, sets) -> list:
@@ -239,39 +287,49 @@ def policy_rows(company, sets) -> list:
     from pearnly_cowork.contracts import document_policy as policy_rules
     from pearnly_cowork.targets.identity import normalize_express_account_key
 
-    workspace, company_identity = _policy_scope(company)
-    if not company_identity:
+    workspace, identities = _policy_scope(company)
+    if not identities:
         return []
-    labels = {}
-    for item in sets:
-        labels.setdefault(normalize_express_account_key(item.get("key")) or item.get("key"), item.get("label") or "")
+    policy = current_book.policy(workspace)
+    base = {"source": "policy", "set_by": "", "set_at": "", "merged": 1}
     out = []
-    for key, value in policy_rules.company_keys(current_book.policy(workspace), company_identity).items():
-        base = {"key": encode("policy", key), "source": "policy", "value": value, "year_label": "", "set_by": "",
-                "set_at": "", "merged": 1}
-        found = policy_rules.current_book_parts(key, company_identity)
-        if found is None:
-            out.append({**base, "kind": "posting", "subject_label": _("cowork.company.choice.goods"),
-                        "value_label": _(POLICY_LABELS[value]), "editable": True})
-            continue
+    posting = _posting_keys(policy, identities)
+    if posting:
+        value = policy[posting[0]]
+        out.append({**base, "key": encode("policy", posting[0]), "kind": "posting", "value": value,
+                    "subject_label": _("cowork.company.choice.goods"), "value_label": _(POLICY_LABELS[value]),
+                    "year_label": "", "editable": True})
+    full = _full_sets(company, sets)
+    known = {normalize_express_account_key(item.get("key")) or item.get("key"): item for item in full}
+    live = current_book.live_keys(identities[0], full)
+    for key, value in policy_rules.company_keys(policy, identities[0]).items():
+        found = policy_rules.current_book_parts(key, identities[0])
+        if found is None or key not in live:
+            continue  # 入账方式上面已列；组合已不成立的旧键不会再被问到
         branch, part = found
-        subject = " · ".join(item for item in (_(PART_LABELS[part]),
-                                               _("cowork.company.branch_n").format(branch) if branch else "") if item)
-        out.append({**base, "kind": "current_book", "subject_label": subject, "value_label": labels.get(value) or value,
-                    "editable": False})
+        chosen = known.get(value) or {}
+        subject = " · ".join(item for item in (_(PART_LABELS[part]), _branch_label(branch)) if item)
+        out.append({**base, "key": encode("policy", key), "kind": "current_book", "value": value,
+                    "subject_label": subject, "value_label": chosen.get("label") or value,
+                    "year_label": chosen.get("year_label") or "", "editable": False})
     return out
 
 
-def _policy_key(company, parts) -> str:
-    """页面给的 ``policy`` 行键 → 口径键（须是这家公司的）；不是回空串。"""
+def _policy_keys(company, parts) -> tuple:
+    """页面给的 ``policy`` 行键 → ``(类别, 要删的口径键)``：入账方式是这家各身份下记过的全部（旧年度按名称记的一起），现用账套
+    是那一个键（须是这家的）；都不是回 ``("", [])``。"""
+    from pearnly_cowork.companies import current_book
     from pearnly_cowork.contracts import document_policy as policy_rules
 
     if len(parts) != 2 or parts[0] != "policy":
-        return ""
-    _workspace, company_identity = _policy_scope(company)
+        return "", []
+    workspace, identities = _policy_scope(company)
     key = parts[1]
-    goods = policy_rules.goods_posting_key(company_identity)
-    return key if (goods and key == goods) or policy_rules.current_book_parts(key, company_identity) else ""
+    if any(key == policy_rules.goods_posting_key(item) for item in identities):
+        return "posting", _posting_keys(current_book.policy(workspace), identities)
+    if identities and policy_rules.current_book_parts(key, identities[0]):
+        return "current_book", [key]
+    return "", []
 
 
 def _all(company, sets) -> list:
@@ -416,18 +474,20 @@ def forget(company, sets, key) -> dict:
     if source == "policy" and len(parts) == 2:
         from pearnly_cowork.push.application import goods_posting
 
-        policy_key = _policy_key(company, parts)
-        if not policy_key:
+        _kind, policy_keys = _policy_keys(company, parts)
+        if not policy_keys:
             frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
         _require_any_connection(sets)
-        removed = goods_posting.forget_company(*_policy_scope(company), policy_key)
+        removed = goods_posting.forget_company(*_policy_scope(company), policy_keys)
         if not removed:
             frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
         return {"removed": removed}
-    if source == "history" and len(parts) == 3:
+    if source == "history" and (len(parts) == 3 or (len(parts) == 4 and parts[3] == "posting")):
         removed = 0
+        extra = {"part": "posting"} if len(parts) == 4 else {}
         for drop in _hooked(HISTORY_FORGET_HOOK):
-            removed += int(drop(company.get("tax_id") or "", parts[1], parts[2], [dict(item) for item in sets]) or 0)
+            removed += int(drop(company.get("tax_id") or "", parts[1], parts[2], [dict(item) for item in sets], **extra)
+                           or 0)
         return {"removed": removed}
     frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
 
@@ -450,14 +510,11 @@ def set_value(company, sets, key, value, period="") -> dict:
         from pearnly_cowork.contracts import document_policy as policy_rules
         from pearnly_cowork.push.application import goods_posting
 
-        policy_key = _policy_key(company, parts)
-        workspace, company_identity = _policy_scope(company)
-        if not policy_key or policy_key != policy_rules.goods_posting_key(company_identity):
+        kind, _keys = _policy_keys(company, parts)
+        if kind != "posting" or str(value or "").strip() not in policy_rules.GOODS_POSTING_VALUES:
             frappe.throw(_("cowork.company.choice_not_editable"))
-        if str(value or "").strip() not in policy_rules.GOODS_POSTING_VALUES:
-            frappe.throw(_("cowork.company.choice_not_editable"))
-        _require_any_connection(sets)
-        goods_posting.set_company(workspace, company_identity, str(value).strip())
+        target_set(sets, "", period)  # 同改公司规则：本人能用覆盖这个月那份账套所在的连接
+        goods_posting.set_company(*_policy_scope(company), str(value).strip())
         return {"saved": True}
     if len(parts) != 4 or parts[0] != "express" or parts[2] not in EDITABLE:
         frappe.throw(_("cowork.company.choice_not_editable"))

@@ -312,18 +312,42 @@
         12. 按名字对上、历史相反（定口径）：保留 C（保守：同名的别家最多多交一张给人；一致时才封顶 B），已加测试。
         13. 入账方式历史在主档页删不掉（部分成立）：供应商有科目行时删那一行（`company_forget`）同时让入账方式也不按历史用；只有入账
             方式、没有科目「已定」的供应商主档页没有行可删。没补：主档页「记住的选择」现在不列 `document_policy` 一类，加一行是扩展
-            界面，等用户定。回放 `posting_tier_if_history` 已补 13 位税号降档（判据成立但按名字对上记 `keyed`，同线上 `automation.tiers`）；
+            界面，等用户定（用户 10-17「加上」，已由第 14 条补上）。回放 `posting_tier_if_history` 已补 13 位税号降档（判据成立但按名字对上记 `keyed`，同线上 `automation.tiers`）；
             **回放没有重跑**（要在测试机跑，`--tiebreak ask_once` 等参数照旧），`extra_A_wrong` 等数要等测试窗口。
-        14. 主档页列入账方式与现用账套（用户 10-17「加上」，接第 13 条）：`companies.choices.policy_rows` 按主档的公司身份从工作空间
-            `document_policy` 取这家的 `goods_posting|…` 与 `current_book|…`（`contracts.document_policy.company_keys / current_book_parts`，
-            别家、按租户记的转账凭条 / 预扣税凭证、形状不对的键不列），来源 `policy`，类别 `posting` / `current_book`，主档页与会话栏同一张卡
-            分两个小节「入账方式」「现用账套」。入账方式一行「商品单 [走库存 / 记费用]」两段下拉当场改；现用账套一行「本年 / 次年 · 分店 X
-            → 账套名」（名称按这家账套目录取，取不到原样写键），只删，改选沿用待处理 / CC 工具。口径里没记谁 / 何时，这两类不写。删、改的
-            权限同删公司规则（录入权限 + 这家任一条 Express 连接能用）；写经推送域 `push.application.goods_posting.set_company /
-            forget_company`（companies 不导入 history），删用新加的 `history.document_policy.forget`（真删，下一张同样情形再问）。
-            新词条（服务端四语）：`cowork.company.choice.goods / stock / service / current_year / next_year`；前端 en / zh / th：
-            `co.postStock / postService`、`co.kind.posting / current_book`。没有改已有文案；文案闸门本次新增 9 条、无拦截、无标黄。
-            从 Express 历史定下的供应商入账方式（`supplier_posting`）仍不单列，删科目历史行时一并不用（同第 13 条）。
+        14. 主档页列入账方式与现用账套（用户 10-17「加上」，接第 13 条）：`companies.choices.policy_rows` 从主档所在工作空间
+            （`Cowork Company.workspace`，同定时任务）的 `document_policy` 取这家的 `goods_posting|…` 与 `current_book|…`，来源 `policy`，
+            类别 `posting` / `current_book`；主档页与会话栏同一张卡，小节「入账方式」「现用账套」。
+            - 入账方式一行「商品单 [走库存 / 记费用]」当场改、可删。按这家各身份取（`companies.identity.identities`：主档身份，再加按
+              名称建档时建档连接上的 `name:express:…` 身份 —— 旧年度没报税号的账套推送时按推往那一行现算身份，记在名称身份下），合成
+              一行；改写主档身份与已记过的名称身份，删一起删（删了下一张会因此交人的单再问）。
+            - 现用账套一行「本年 / 次年 · 总公司 / 分店 X → 账套名」，第二行写选中那份的年度；只删，改选沿用待处理 / CC 工具。只列还起
+              作用的组合（`companies.current_book.live_keys`：按这家现在的账套全集，各连接、各分店、各日期段算出会问的键）：新建 / 删了
+              账套、组合已不成立的旧键不会再被问到，不列也不清；同一分店本年在两个年度各有一组时两组都还起作用（旧年度的单仍按旧组合选），
+              各列一行、年度不同。账套名与还起作用的组合按全集算（主档页的账套截到 20 份不影响）。
+            - Express 历史定下的「供应商 → 商品单入账方式」（`readback.history.company_choices`，v3 起）单列小节「入账方式历史」，一行
+              「供应商 → 走库存 / 记费用 · 张数 · 最后一张日期」，只删、不能提升成公司规则。与「供应商 → 科目」各删各的：删了记
+              `posting|<供应商键>` / `account|<供应商键>`（只有供应商键的旧记录两样都不用）。**改了第 13 条的口径**：原先删科目行同时
+              停用历史入账方式（那时入账方式没有自己的行），现在科目行只停科目；从历史提升成公司规则同样只停科目。
+            - 权限：改入账方式同改公司规则（录入权限 + 覆盖这个月那份账套所在连接的授权，`choices.target_set`；没有覆盖这个月的账套
+              拒绝），删同删公司规则（录入权限 + 这家任一条 Express 连接的授权）。入账方式与公司规则一样是全公司、跨连接生效的，按
+              同一口径（有意的取舍：只在一条连接上有授权的人能改对另一条连接也生效的设置，公司规则本来就这样）。复核页 `choose`
+              另按那张票推往的连接核。
+            - 留痕：口径里不存谁 / 何时，卡上这两类不写；`history.document_policy.record / forget` 每次写、删记一行日志
+              （`pearnly.cowork.document_policy`：工作空间、键、旧值 → 新值、操作人），所有写入口都经这里。
+            - 删主档不清这两类（同「账套记忆、任务、草稿都不动」）：推送照样按它们执行，重建主档后卡上会再显示。有意保留，不另做询问。
+            - 写经推送域 `push.application.goods_posting.set_company / forget_company`（companies 不导入 history，按身份列表核归属），
+              删用 `history.document_policy.forget`（真删）。
+            - 新词条（服务端四语）：`cowork.company.choice.goods / stock / service / current_year / next_year`、`cowork.company.head_office`
+              （Head office / 总公司 / สำนักงานใหญ่ / 本店，同前端 `co.headOffice`）；前端 en / zh / th：`co.postStock / postService`、
+              `co.kind.posting / current_book / posting_history`（入账方式历史 / Posting history / ประวัติวิธีลงบัญชี）。泰文值用
+              「ลงสินค้าคงเหลือ / ลงค่าใช้จ่าย」（同 `vatExpense` 的「ลง…」写法，也与存货小节标题区分）。中文「记费用」同推送提问
+              （`cowork.policy.service`）；已有的 `co.vatExpense`「计费用」用字不同，**是已有文案，待用户定**：改成「记费用」（旧「计费用」
+              → 新「记费用」），没改。
+            - 合并外壳分支（`pearnly/cc-shell-rebuild`）时：行样式以外壳为准（展开才出按钮，按钮 `cc-card-btn`），合并后核对 `policy`
+              来源仍出两段按钮、`current_book` 没有分段，并在展开的行上补断言；本分支前端测试只断言数据与分组。`messages.tsv` 新词条
+              放在 `cowork.policy.service` 后，不挨着外壳改过的 `choice_invalid`。合并前本分支的行样式在手机上点按区偏小（下拉 32px、
+              删除用会话栏小按钮），不在本分支单独做手机验收。
+            - CC 工具 `company_forget` 仍只删公司规则，不删这三类。
 
 19. **挪到后面 / 不做 / 已知缺口**：
     - 第 4 期：从纠正中学、「要不要记住」、`rule_conflict` 提示。L0 期间人当场选的照旧记进账套记忆，这就是本期的「学习」。

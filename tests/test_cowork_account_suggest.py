@@ -514,13 +514,36 @@ class SettledHistory(unittest.TestCase):
         self.assertEqual(self.history.for_push("C1", self.BOOK, SELLER)["posting"],
                          {"kind": "stock", "docs": 4, "last": "2026-10-02", "version": 3, "read": "2026-10-15"})
         self.assertIsNone(self.history.for_push("C1", self.BOOK, {"tax": "0994000165510", "name": ""})["posting"])
+        # 主档页「入账方式历史」一行（用户 10-17「加上，方便看和删」）：科目行、入账方式行各列一行
+        rows = self.history.company_choices("0105536082808", self.SETS)
+        self.assertEqual([(row["account"], row["posting"], row["count"]) for row in rows],
+                         [("5320-01", "", 4), ("", "stock", 4)])
+        # 科目行与入账方式行各删各的
         self.history.company_forget("0105536082808", "0105556012345", "5320-01", self.SETS)
+        found = self.history.for_push("C1", self.BOOK, SELLER)
+        self.assertEqual((found["settled"], found["accounts"], found["posting"]["kind"]), (None, [], "stock"))
+        self.assertEqual([(row["account"], row["posting"]) for row in self.history.company_choices("", self.SETS)],
+                         [("", "stock")])
+        self.assertEqual(self.history.company_forget("0105536082808", "0105556012345", "", self.SETS, part="posting"), 2)
         self.assertIsNone(self.history.for_push("C1", self.BOOK, SELLER)["posting"])
+        self.assertEqual(self.history.company_choices("", self.SETS), [])
+        # 只记了供应商键的旧记录：两样都不用
+        other = {"tax": "0994000165510", "name": ""}
+        self.h.now += timedelta(days=2)
+        self.read(self.BOOK, history_raw(version=3, suppliers=[
+            {"code": "S002", "name": "การไฟฟ้า", "tax_id": "0994000165510", "branch": "00000",
+             "accounts": [{"code": "5310-01", "docs": 3, "last": "2026-10-01"}], "posting": {"service": {"docs": 3, "last": "2026-10-01"}}}]))
+        self.assertEqual(self.history.for_push("C1", self.BOOK, other)["posting"]["kind"], "service")
+        slot = self.history._slot("C1", self.history.normalize_express_account_key(self.BOOK))
+        self.history._forget(slot, ["0994000165510"])
+        found = self.history.for_push("C1", self.BOOK, other)
+        self.assertEqual((found["settled"], found["accounts"], found["posting"]), (None, [], None))
 
     def test_the_company_page_lists_settled_suppliers_and_forgetting_stops_their_use(self):
         rows = self.history.company_choices("0105536082808", self.SETS)
         self.assertEqual(rows, [{"supplier_tax": "0105556012345", "supplier_name": "ศรีกรุง เครื่องเขียน",
-                                 "account": "5320-01", "account_label": "", "count": 4, "last_date": "2026-10-02"}])
+                                 "account": "5320-01", "account_label": "", "posting": "", "count": 4,
+                                 "last_date": "2026-10-02"}])
         self.assertEqual(self.history.company_forget("0105536082808", "0105556012345", "5320-01", self.SETS), 2)
         self.assertEqual(self.history.company_forget("0105536082808", "0105556012345", "5320-01", self.SETS), 0)  # 幂等
         self.assertEqual(self.history.company_choices("0105536082808", self.SETS), [])

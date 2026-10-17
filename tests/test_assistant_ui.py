@@ -3754,19 +3754,24 @@ const learned = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "
   onSet() {}, onForget() {} }));
 assert.ok(!learned.includes("<select"));
 assert.deepEqual(text(learned), ["ACME", "→ 5320 Utilities", "From Express history · 9 · Sep 30, 2026"]);
-// 按公司记的入账方式（可改、可删）与现用账套（只删，改选走待处理 / CC）：用户 2026-10-17「加上，方便看和删」
+// 按公司记的入账方式（可改、可删）、现用账套（只删，改选走待处理 / CC）与 Express 历史定下的入账方式（只删）：用户 2026-10-17
+// 「加上，方便看和删」。只断言数据与分组（行样式以外壳分支为准，合并后在展开的行上断言两段按钮）
 import { choiceSection, setChoiceShown } from "@/components/company-page";
+import { co } from "@/i18n";
 const posting = { key: "p1", source: "policy", kind: "posting", subject_label: "Goods documents", value: "stock", editable: true };
-const postingRow = renderToStaticMarkup(createElement(ChoiceRow, { choice: posting, onSet() {}, onForget() {} }));
-assert.ok(postingRow.includes("<select"));
-assert.deepEqual(text(postingRow), ["Goods documents", "Post to stock", "Post as expense"]);
-const book = { key: "p2", source: "policy", kind: "current_book", subject_label: "Current year · Branch 00012", value: "s:\\69exp\\abc",
-  value_label: "ABC 69", editable: false };
-const bookRow = renderToStaticMarkup(createElement(ChoiceRow, { choice: book, onSet() {}, onForget() {} }));
-assert.ok(!bookRow.includes("<select"));
-assert.deepEqual(text(bookRow), ["Current year · Branch 00012", "→ ABC 69"]);
-assert.deepEqual([choiceSection(posting), choiceSection(book)], ["posting", "current_book"]);
+const book = { key: "p2", source: "policy", kind: "current_book", subject_label: "Current year · Head office", value: "s:\\69exp\\abc",
+  value_label: "ABC 69", year_label: "69EXP", editable: false };
+const learnedPosting = { key: "p3", source: "history", kind: "posting", subject_label: "ACME", value: "service",
+  value_label: "Post as expense", editable: false, count: 4 };
+assert.deepEqual([choiceSection(posting), choiceSection(book), choiceSection(learnedPosting),
+  choiceSection({ source: "history", kind: "account" })],
+  ["posting", "current_book", "posting_history", "history"]);
+assert.deepEqual([co.kind.posting, co.kind.current_book, co.kind.posting_history],
+  ["Posting", "Account set in use", "Posting history"]);
+// 入账方式两段可改（选项在 EDITABLE）：改后显示名换成刚选的；现用账套不在 EDITABLE，显示名不动
 assert.equal(setChoiceShown([posting], "p1", "service")[0].value_label, "Post as expense");
+assert.equal(setChoiceShown([posting], "p1", "stock")[0].value_label, "Post to stock");
+assert.equal(setChoiceShown([book], "p2", "s:\\68exp\\abc")[0].value_label, "ABC 69");
 // 服务端给带时区的 UTC：按这台设备的时区显示；不带时区的不猜、原样（原先补 Z，晚 7 小时）
 assert.equal(formatWhen("2026-10-15T02:00:00Z"),
   new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Date.UTC(2026, 9, 15, 2))));

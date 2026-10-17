@@ -813,6 +813,7 @@ Green,Green
 Group,Group
 Handle these the same way every time,Handle these the same way every time
 Has GL Match,Has GL Match
+Head office,Head office
 Head office / branch,Head office / branch
 Hide details,Hide details
 Hire of work,Hire of work
@@ -2237,6 +2238,7 @@ cowork.company.choice_not_found,This saved choice no longer exists
 cowork.company.choice_scope_invalid,No account set of this company covers this month
 cowork.company.choice_unsupported,This choice cannot be saved
 cowork.company.choices_full,Company choices are full
+cowork.company.head_office,Head office
 cowork.company.not_found,Company not found
 cowork.company.not_in_catalog,This account set is not in the catalog
 cowork.company.note_invalid,Note is empty or too long

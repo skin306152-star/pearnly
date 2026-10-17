@@ -52,6 +52,22 @@ def _text(value: object) -> str:
     return " ".join(str(value or "").split())
 
 
+def name_identity(connection: object, name_key: object) -> str:
+    """Express 没有有效税号的账套按名称认的公司身份 ``name:express:{连接}:{名称键}``（同 `push.express.goods_posting.company_key`）。"""
+    return f"name:express:{_text(connection)}:{name_key}"[:IDENTITY_MAX]
+
+
+def identities(company: Mapping[str, Any]) -> list:
+    """这家主档在按公司记的口径（工作空间 ``document_policy``）里可能用到的身份：主档身份在前；按名称建档、后来补了税号的，
+    再加建档连接上的名称身份（旧年度没报税号的账套也算这家，`belongs`；推送按推往那一行现算身份，记在这个键下）。"""
+    out = [str(company.get("identity") or "")] if company.get("identity") else []
+    if company.get("adapter") == "express" and company.get("seed_connection") and company.get("name_key"):
+        alias = name_identity(company["seed_connection"], company["name_key"])
+        if alias not in out:
+            out.append(alias)
+    return out
+
+
 def company_identity(adapter: object, connection: object, row: Any) -> dict | None:
     """目录一行 → `{key, tax_id, branch, name, name_key, code}`；认不出是 None。`branch` 是这份账套的分店号（Express 有
     税号时才有意义）；`name` 是目录里的公司法定名（THINAM / MR.ERP 的 company_name）。"""
@@ -68,8 +84,8 @@ def company_identity(adapter: object, connection: object, row: Any) -> dict | No
             return {"key": f"tax:{tax}", "tax_id": tax, "branch": branch(attributes.get("branch")), "name": name,
                     "name_key": name_key, "code": ""}
         if name_key:
-            key = f"name:express:{connection}:{name_key}"[:IDENTITY_MAX]
-            return {"key": key, "tax_id": "", "branch": "", "name": name, "name_key": name_key, "code": ""}
+            return {"key": name_identity(connection, name_key), "tax_id": "", "branch": "", "name": name,
+                    "name_key": name_key, "code": ""}
         return None
     if kind == "mrerp":
         code = _text(attributes.get("company"))
@@ -242,5 +258,5 @@ def scope_value(value: object) -> str:
 
 
 __all__ = ["BOOKS_MAX", "HEAD_OFFICE", "autofill", "belongs", "book", "branch", "branches", "company_identity",
-           "covering", "digits", "for_branch", "for_day", "newest_first", "route_branch", "scope_value", "scoped",
-           "tax_id", "usable"]
+           "covering", "digits", "for_branch", "for_day", "identities", "name_identity", "newest_first", "route_branch",
+           "scope_value", "scoped", "tax_id", "usable"]
