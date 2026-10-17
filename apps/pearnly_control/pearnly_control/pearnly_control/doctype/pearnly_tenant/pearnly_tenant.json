@@ -14,18 +14,70 @@
   "assistant_engine",
   "assistant_model",
   "assistant_api_key",
+  "ocr_engine",
   "notes"
  ],
  "fields": [
-  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "Company Name", "reqd": 1, "unique": 1},
-  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "active\nsuspended\ndeleting", "reqd": 1},
-  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "contact_name", "fieldtype": "Data", "label": "Contact Name"},
-  {"fieldname": "contact_phone", "fieldtype": "Data", "label": "Contact Phone"},
-  {"fieldname": "assistant_engine", "fieldtype": "Select", "label": "CC Engine"},
-  {"fieldname": "assistant_model", "fieldtype": "Select", "label": "CC Model"},
-  {"fieldname": "assistant_api_key", "fieldtype": "Password", "label": "CC API Key", "length": 255},
-  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+  {
+   "fieldname": "tenant_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Company Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "active\nsuspended\ndeleting",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_name",
+   "fieldtype": "Data",
+   "label": "Contact Name"
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone"
+  },
+  {
+   "fieldname": "assistant_engine",
+   "fieldtype": "Select",
+   "label": "CC Engine"
+  },
+  {
+   "fieldname": "assistant_model",
+   "fieldtype": "Select",
+   "label": "CC Model"
+  },
+  {
+   "fieldname": "assistant_api_key",
+   "fieldtype": "Password",
+   "label": "CC API Key",
+   "length": 255
+  },
+  {
+   "fieldname": "ocr_engine",
+   "fieldtype": "Select",
+   "label": "Recognition Engine",
+   "options": "Google\nClaude",
+   "default": "Google",
+   "description": "Google or Claude. A change applies from the next document."
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
@@ -35,7 +87,18 @@
  "name": "Pearnly Tenant",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

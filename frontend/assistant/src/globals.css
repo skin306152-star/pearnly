@@ -784,7 +784,9 @@
   --cc-sidebar-float: var(--code-sidebar-float);
   --cc-search-h: var(--code-search-h-desktop);
 }
-/* 手机变体：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（按钮排查 G1 / G9，10-17）；触屏平板（粗指针）同样，见下一条 */
+/* 手机变体：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（按钮排查 G1 / G9，10-17）；触屏平板（粗指针）同样，见下一条。
+   网页布局的触屏平板（粗指针，第 11 轮 D26）电脑对话顶栏高 44 也在下一条：变量要写在不分层的这里——写在 @layer components 里
+   敌不过上面不分层的 :root 定义（第 11 轮合并审查：顶栏仍 32、按钮已 44）；顶栏里按钮的尺寸规则留在 components 层 */
 :root[data-cc-variant="phone"] {
   --cc-row-h: var(--code-row-phone);
   --cc-group-h: var(--code-group-band-phone);
@@ -796,6 +798,7 @@
 }
 @media (pointer: coarse) {
   :root:not([data-cc-variant="desktop"]) { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }
+  :root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
 }
 :root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); border-inline-width: 0; }
 :root[data-cc-variant="desktop"] [data-slot="sidebar-inner"] { border-radius: var(--cc-radius-menu); box-shadow: var(--cc-shadow-card); }
@@ -1269,6 +1272,12 @@
     :root:not([data-cc-variant="desktop"]) :is(.cc-btn, .cc-input) { height: var(--cc-tap); }
     :root:not([data-cc-variant="desktop"]) .cc-btn { padding-inline: 1rem; }
     :root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }
+    /* 触屏平板（网页布局 + 粗指针，iPad 横屏；第 11 轮 D26）：电脑对话顶栏抬到 44，顶栏里的图标钮（展开侧栏、对话选项「···」、
+       文件、右侧栏开关）与对话名、公司名按钮点按区 44，侧栏标题区的收起钮 44（标题区本来就 44 高）；图标大小不变。
+       鼠标（电脑）与 CC 桌面版（desktop 变体）不跟。顶栏高（--cc-topbar-h）写在文件前面不分层的粗指针变量块里 */
+    :root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }
+    :root[data-cc-variant="web"] .cc-topbar :is(.cc-bar-btn, .cc-title-btn, .cc-title-company) { min-width: var(--cc-tap); height: var(--cc-tap); }
+    :root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }
   }
 
   /* 卡片按钮（照 Claude 的问题卡片，用户 10-17）：允许卡、提醒卡、安装提示共用。底部靠右（.cc-card-actions，间距 8），次要在左
@@ -1989,6 +1998,9 @@
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
   .cc-choice-detail > .cc-card-actions { padding-top: 0.375rem; }
+  /* 没成功的原因（第 11 轮 F40）：点开时在按钮下面，收着时在行下面 */
+  .cc-choice-detail > .cc-choice-error { padding-top: 0.375rem; }
+  .cc-choice > .cc-choice-error { padding: 0 0.25rem 0.375rem; }
   .cc-choice-full { overflow-wrap: anywhere; }
   .cc-choice-seg { display: inline-flex; overflow: hidden; border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); }
   .cc-choice-seg > .cc-card-btn { background: transparent; color: var(--cc-ink-3); }
@@ -2036,7 +2048,9 @@
    播完前落点那一项先不显示（data-drag-landing）。已置顶收着（放不下空档）时对话拖进去整块（组头）用悬停色高亮，浮层同时让开
    （data-peek：里面的字、条数隐去，只剩很淡的一层底，被它盖住的组头文字与高亮清楚可读；第 8 轮测试机：半透明时浮层的字和
    组头的字叠在一起）。拖动中整页 grabbing */
-.cc-drag-overlay { cursor: grabbing; }
+/* 浮层不接指针（同里面那一层 inert）：悬停留在侧栏里，拿起、落定时不因为浮层出现 / 消失让整个侧栏换悬停、整块重算样式（第 11 轮
+   B14：每次约 680 个元素；侧栏里有「悬停 + 任意后代」的规则，组件库 group-hover 生成的）。光标与压住悬停由挡板给（.cc-drag-shield） */
+.cc-drag-overlay { pointer-events: none; }
 .cc-drag-float, .cc-drag-lift { height: 100%; }
 .cc-drag-lift {
   position: relative; overflow: hidden; border-radius: var(--cc-radius-row); background: var(--cc-bg-popover); box-shadow: var(--cc-shadow-pop);
@@ -2061,7 +2075,10 @@
 :root[data-cc-drag-bulk] [data-slot="aui_thread-list-item"][data-selected]:not([data-drag-source], [data-drag-landing]) { opacity: var(--cc-drag-ghost); }
 [data-drag-landing] { opacity: 0; }
 [data-drop-target] { background: var(--cc-row-hover); }
-:root[data-cc-drag] * { cursor: grabbing; }
+/* 鼠标拖动中盖住整页的透明挡板（components/ui/drag.tsx 的 dragShield，lib/layers.ts 拿起那一帧画完盖上、松手那一帧画完撤掉）：整页
+   grabbing 光标，指针下面的行、组头、卡片不出悬停（浮层不接指针，第 11 轮 B14 审查：原来露出悬停底、「···」、深色字与折叠箭头、
+   卡片把手）；落点只按 [data-drop-target] 高亮，碰撞与自动滚动看的是指针坐标、不靠命中。在浮层下面（浮层同在拖动层里） */
+.cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }
 @keyframes cc-drag-lift { from { scale: 1; opacity: 1; box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { .cc-drag-lift, .cc-drag-lift > * { animation: none; transition: none; } }
 /* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */

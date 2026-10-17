@@ -146,7 +146,7 @@ def for_web(call):
         frappe.throw(_("The recognition service did not answer in time. Please try again."))
 
 
-def read_all(prompt, images, *, structured, review, label, fields, finish=None, progress=None):
+def read_all(prompt, images, *, structured, review, label, fields, finish=None, progress=None, own_tax=None):
     """一个文件里的**全部**单据：[(结果, 检查代码, 模型), …]，第一张在前。
 
     照旧线上（`direct_read.py` 按页直读、`layer2_prompts.py` 第 9 条 `additional_invoices`、
@@ -158,6 +158,14 @@ def read_all(prompt, images, *, structured, review, label, fields, finish=None, 
     续页上没有合计是正常的，所以逐页读时「合计缺失」不触发升级；归组后整张再检查一次。
     ``progress(已读页数, 总页数)``：网页等候时按页显示进度（见 `recognition.progress`），每读完一个单元回报一次。
     """
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    if claude_ocr.uses_claude():
+        # 本租户选了 Claude 识别（ADR-022）：整份交 Claude，不调谷歌。
+        from pearnly_erp_portal.recognition import claude
+
+        return claude.read_all(images, structured=structured, review=review, label=label, finish=finish,
+                               progress=progress, own_tax=own_tax)
     from pearnly_erp_portal.recognition import inputs
 
     pages = inputs.pdf_pages(images[0][0]) if len(images) == 1 and images[0][1] == "application/pdf" else []

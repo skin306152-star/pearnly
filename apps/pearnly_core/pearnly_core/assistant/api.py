@@ -89,7 +89,7 @@ def send(session_id, text):
 
 @frappe.whitelist(methods=["POST"])
 def confirm(session_id, confirmations):
-    return {"confirmed": sessions.confirm(session_id, frappe.parse_json(confirmations))}
+    return sessions.confirm(session_id, frappe.parse_json(confirmations))
 
 
 @frappe.whitelist(methods=["POST"])

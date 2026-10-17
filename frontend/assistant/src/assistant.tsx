@@ -493,7 +493,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               {APP_NAME}
             </span>
-            <button type="button" className="cc-row-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+            <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
           </div>

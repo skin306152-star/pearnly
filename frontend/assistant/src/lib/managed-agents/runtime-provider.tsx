@@ -27,7 +27,8 @@ import { createAttachmentAdapter, filesToSend } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
-import { attemptSend, attemptStop, clearStopFailure, type ComposerLike } from "./send-failure";
+import { attemptSend, attemptStop, clearStopFailure, type ComposerLike, sendLanded } from "./send-failure";
+import { registerStop } from "./stop-run";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
@@ -36,6 +37,7 @@ import {
 } from "./session-controller";
 import { initialProjection, isBusy, withNotices } from "./reducer";
 import { loadToolLabels } from "@/lib/tool-labels";
+import { runningTurn, type OpenState } from "@/lib/follow-scroll";
 
 // ------------------------------------------------------------- state hookup
 const EMPTY: ControllerSnapshot = {
@@ -44,6 +46,7 @@ const EMPTY: ControllerSnapshot = {
   isTailing: false,
   transportError: null,
   stalled: false,
+  isSynced: true,
 };
 const subscribeNothing = () => () => {};
 const getEmpty = () => EMPTY;
@@ -175,12 +178,7 @@ function useSessionThreadRuntime() {
       if (isFirst) void aui.threadListItem().generateTitle();
     },
 
-    // Stop button: a real interrupt, not just dropping the response.
-    // 打断没成功（断网等）：组件库不接这个错，attemptStop 接住，原因写在输入框上方，停止键还在、再点再试（send-failure.ts）
-    onCancel: async () => {
-      if (newChat.cancel()) return; // 会话还在建：发出后再打断
-      if (controller) await attemptStop(threadId, () => controller.interrupt());
-    },
+    // 不给组件库 onCancel：停止键与 Esc 走 stopRun（stop-run.ts），组件库自己的 cancelRun 会删掉最后那条用户消息、字放回输入框
 
     // The Allow/Deny click on a gated tool. approvalId is the tool_use
     // event id straight out of session.status_idle{requires_action}.
@@ -189,6 +187,17 @@ function useSessionThreadRuntime() {
     },
   });
   composer.current = runtime.thread.composer;
+
+  // 停止键、输入框里的 Esc（stop-run.ts）：一个真正的打断，不撤消息、不放回输入框。会话还在建：发出后再打断（new-chat-send.ts）。
+  // 打断没成功（断网等）：attemptStop 接住，原因写在输入框上方，停止键还在、再点再试（send-failure.ts）
+  const stop = useRef<() => Promise<void>>(async () => {});
+  stop.current = async () => {
+    if (newChat.cancel()) return;
+    if (controller) await attemptStop(threadId, () => controller.interrupt());
+  };
+  useEffect(() => registerStop(threadId, () => stop.current()), [threadId]);
+  // 发送请求没回来（断网）、字已放回输入框的那一条，服务端其实收下了（回声晚到）：放回的字与附件撤掉、原因清掉，不再发第二遍
+  useEffect(() => controller?.onDelivered((text) => sendLanded(threadId, text)), [controller, threadId]);
   return runtime;
 }
 
@@ -215,4 +224,17 @@ export function useActiveSessionSnapshot(): ControllerSnapshot & { sessionId: st
   const controller = sessionId ? getSessionController(sessionId) : null;
   const snapshot = useControllerSnapshot(controller);
   return { ...snapshot, sessionId };
+}
+
+/** 打开对话停在哪儿要用的（thread.tsx 的 useSettleOnOpen、lib/follow-scroll.ts）：这一轮在跑时它的提问的消息编号，状态核对过没有。
+ *  两项从会话控制器的同一份快照读（组件库的 thread.isRunning 要等下一次提交才跟上，会和「核对过」错开一拍）；只取这两个值，
+ *  回复每来一段不会让整个对话区重画。 */
+export function useOpenState(): OpenState {
+  const sessionId = useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId) ?? null;
+  const controller = sessionId ? getSessionController(sessionId) : null;
+  const subscribe = controller ? controller.subscribe : subscribeNothing;
+  const read = () => (controller ? controller.getSnapshot() : EMPTY);
+  const turn = useSyncExternalStore(subscribe, () => runningTurn(isBusy(read()), read().messages) ?? "", () => "");
+  const synced = useSyncExternalStore(subscribe, () => read().isSynced, () => true);
+  return { turn: turn || null, synced };
 }

@@ -10,10 +10,20 @@
 //   event_start / event_delta           → the same text, streamed early (token previews)
 //   agent.thinking                      → an empty reasoning part (progress signal only)
 //   agent.tool_use / mcp / custom       → a tool-call part; toolCallId is the *event* id
-//   agent.tool_result / mcp / custom    → that part's result
+//   agent.tool_result / mcp（自带、MCP） → that part's result（结果到了就是放行过）
+//   agent.tool_result（自定义工具）       → 平台代发的中断结果：自定义工具的结果正常由本站以 user.custom_tool_result 交回，
+//                                          这一种只在点了停止时由引擎代发（第 11 轮 A 段实测：比 user.interrupt 早几十毫秒到）。
+//                                          记成 interrupted 的结果，不算点了「允许」：还没答的门撤掉、标 cancelled（「已取消」）；
+//                                          已点「允许」的照旧「允许」，等本站执行记录
+//   user.custom_tool_result             → 本站交回的结果（我们的回答）
 //   user.tool_confirmation              → that part's approval, settled
 //   pearnly.answer                      → the same, pushed by this site the moment a held Pearnly tool's
 //                                          answer is stored (另一台设备上的卡片立即点完，不等工具结果)
+//   pearnly.tool_run                    → 本站执行记录的状态（part.run，按 RUN_RANK 只往前走）：本站拦下的卡片最后的样子以它为准
+//                                          （lib/approval-card.ts）。done →「允许」、error →「允许 · 失败」、denied →「拒绝」、
+//                                          cancelled →「已取消」、running →「允许」（淡）、awaiting_approval → 还在问。推来、读事件时
+//                                          并在这页最后（整段：这段出现过的调用；增量：这页出现过的加锚点之后改过的，引擎收尾后才定下
+//                                          的也补得到）、点「允许 / 拒绝」时 confirm 回的状态都折成这一种；先于调用本身到的记在 toolRuns
 //   user.interrupt                      → 还没答的门撤掉、标 cancelled（之后补来的出错结果不算点了「允许」）
 //   session.status_idle{requires_action} → approval:{id} on each blocked tool part
 //   session.status_running / idle       → whether the turn is live
@@ -28,7 +38,7 @@
 // 还没重新开跑的那段空档，同服务端读回的状态一样算在跑（2026-10-13 iPhone：两段工具之间约 10 秒显示成已结束、出现复制按钮、
 // 发送键变回空闲）。
 
-import type { FeedEvent, NoticeEvent, RunStatus, ToolUseEvent } from "./events";
+import type { FeedEvent, NoticeEvent, RunStatus, ToolRunStatus, ToolUseEvent } from "./events";
 import { isPersisted, splitAttachmentNote } from "./events";
 import { stepDenied } from "@/lib/step-summary";
 
@@ -74,9 +84,13 @@ export type ToolPart = {
   result?: ToolResultPayload;
   isError?: boolean;
   approval?: ToolApproval;
-  /** 卡片没答就点了停止（user.interrupt 时门还开着、也没有结果）：之后补来的结果（中断时引擎交回的出错结果）不当成点了
-   *  「允许」却失败，卡片写「已取消」（第 10 轮 C20，lib/approval-card.ts）。本页与重开对话都按事件记录里的这一条认。 */
+  /** 卡片没答就点了停止（user.interrupt 时门还开着、也没有结果；或平台代发的中断结果先到）：卡片写「已取消」
+   *  （第 10 轮 C20、第 11 轮 A1，lib/approval-card.ts）。本页与重开对话都按事件记录认；本站执行记录（run）到了以它为准。 */
   cancelled?: boolean;
+  /** result 是平台代发的中断结果（自定义工具的 agent.tool_result），不是本站交回的：卡片不按它定「允许 · 失败」。 */
+  interrupted?: boolean;
+  /** 本站执行记录的状态（pearnly.tool_run）：本站拦下的卡片最后的样子以它为准。 */
+  run?: ToolRunStatus;
 };
 export type ContentPart = TextPart | ReasoningPart | ToolPart;
 
@@ -170,6 +184,8 @@ export type Projection = {
   notices: readonly NoticeItem[];
   /** 已采用的运行状态有多新（服务端时间，毫秒）：比它旧的状态事件只记已见、不再改运行状态。本页合成的不算。 */
   statusAt: number;
+  /** 本站执行记录的状态，按调用编号（pearnly.tool_run 先于调用本身到时，建这一步时补上）。 */
+  toolRuns: ReadonlyMap<string, ToolRunStatus>;
 };
 
 export const initialProjection = (): Projection => ({
@@ -189,6 +205,7 @@ export const initialProjection = (): Projection => ({
   lastError: null,
   notices: [],
   statusAt: 0,
+  toolRuns: new Map(),
 });
 
 // ---------------------------------------------------------------------------
@@ -498,25 +515,24 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       // bubble; the real echoed event replaces its content but KEEPS the id.
       // assistant-ui keys messages by id: a new id at the same slot reads as
       // a second branch of an edited message (a phantom "2 / 2" picker).
-      const last = messages[messages.length - 1];
       let echoedOptimistic = state.echoedOptimistic;
-      // Reconcile against the trailing optimistic bubble only when this is its
-      // echo: it sits at the end and opens with the same text (the server and
-      // client build the text with the same messageText(), so a genuine echo
-      // matches exactly). No clock comparison, since client and server
-      // clocks disagree; the controller guarantees stored history is fully
-      // folded before any optimistic bubble exists, so a historic message
-      // can't land here after the bubble.
-      const isEcho =
-        !!last &&
-        last.role === "user" &&
-        last.id.startsWith("optimistic-") &&
-        (sameOpening(last.content, bubble.content) || sameAttachments(last, bubble));
-      if (isEcho) {
-        messages[messages.length - 1] = { ...bubble, id: last.id };
+      // 回声认本页还没对上回声的那个乐观气泡（最早的、同样的字或同样的附件），不论它后面已经并进了什么：回声与回复谁先到
+      // 取决于推送与补拉的先后（第 11 轮 F39：断网期间回声没推到，联网后回复先推来、回声随补拉晚到，以前只认「最后一条」，
+      // 对话末尾多出一条同样的用户气泡）。服务端与页面用同一个 messageText() 拼字，真回声逐字相同。不比时钟（两边时钟不一致）；
+      // 会话控制器保证乐观气泡出现前历史已经并完，没见过的用户消息只会是这之后的。
+      const echo = event.id.startsWith("optimistic-") ? -1 : messages.findIndex(
+        (m) =>
+          m.role === "user" &&
+          m.id.startsWith("optimistic-") &&
+          !state.echoedOptimistic.has(m.id) &&
+          (sameOpening(m.content, bubble.content) || sameAttachments(m, bubble)),
+      );
+      if (echo >= 0) {
+        const mine = messages[echo]!;
+        messages[echo] = { ...bubble, id: mine.id };
         // The echo landed: this bubble is delivered, so a late send-failure
         // rollback must never evict it.
-        echoedOptimistic = new Set(state.echoedOptimistic).add(last.id);
+        echoedOptimistic = new Set(state.echoedOptimistic).add(mine.id);
       } else {
         messages.push(bubble);
       }
@@ -759,6 +775,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         ...(event.type === "agent.mcp_tool_use" ? { mcpServer: event.mcp_server_name } : {}),
         args,
         argsText: JSON.stringify(args, null, 2),
+        ...(state.toolRuns.has(event.id) ? { run: state.toolRuns.get(event.id)! } : {}),
       };
       messages[mi] = withContent(msg, [...msg.content, part]);
       const toolUses = new Map(state.toolUses).set(event.id, event);
@@ -770,8 +787,12 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       const toolCallId = event.type === "agent.tool_result" ? event.tool_use_id : event.mcp_tool_use_id;
       const found = findToolPart(state.messages, toolCallId);
       if (!found) return state;
-      const messages = draft(state.messages);
       const result = toToolResult(event.content, !!event.is_error);
+      const target = state.messages[found.mi]!.content[found.pi]!;
+      if (event.type === "agent.tool_result" && target.type === "tool-call" && target.toolKind === "custom") {
+        return interruptedCustomTool(state, toolCallId, result);
+      }
+      const messages = draft(state.messages);
       updatePart(messages, found.mi, found.pi, updateTool((p) => ({
         result,
         isError: result.isError,
@@ -797,7 +818,9 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         // 本页已点过的也以结果为准（approvalFromResult）
         updatePart(next, found.mi, found.pi, updateTool((p) => ({
           result,
-          ...(p.approval ? { approval: approvalFromResult(p.approval, result) } : {}),
+          // 本站的结果取代平台代发的中断结果
+          ...(p.interrupted ? { isError: result.isError, interrupted: false } : {}),
+          ...(p.approval && !runSettled(p.run) ? { approval: approvalFromResult(p.approval, result) } : {}),
         })));
         messages = next;
       }
@@ -824,6 +847,9 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
     case "pearnly.answer":
       // 本站拦下的调用，回答已落库（toolrun.decide 推来）：同一条已送到的确认，别的设备上点的也立即定下
       return settleConfirmation(state, event.tool_use_id, event.result === "allow", undefined, false);
+
+    case "pearnly.tool_run":
+      return applyToolRun(state, event.tool_use_id, event.status);
 
     case "user.interrupt":
       return cancelOpenGates(state);
@@ -853,7 +879,9 @@ function answered(state: Projection, id: string): boolean {
   if (state.answeredCustomTools.has(id) || state.confirmedIds.has(id)) return true;
   const found = findToolPart(state.messages, id);
   const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
-  return part?.type === "tool-call" && (part.result !== undefined || part.approval?.approved !== undefined);
+  // 本站已在执行 / 已定下的（执行记录先于引擎事件到）也算答过：不再提醒服务端执行一次
+  return part?.type === "tool-call" &&
+    (part.result !== undefined || part.approval?.approved !== undefined || (part.run !== undefined && RUN_RANK[part.run] > 0));
 }
 
 /** 一张卡有了回答（确认的回声或重放、本站推来的回答、本页乐观点下的）：定下所选那一项，不再等这边点。 */
@@ -864,8 +892,9 @@ function settleConfirmation(state: Projection, id: string, allow: boolean, denyM
   if (found) {
     const next = draft(messages);
     // 已有结果的（结果先到）以结果为准，回声不再改它；本页乐观点下的先标「发送中」
+    // 本站执行记录已定下的（执行完、拒绝、作废）也不再改
     updatePart(next, found.mi, found.pi, updateTool((p) => ({
-      approval: p.result !== undefined && p.approval?.approved !== undefined
+      approval: (p.result !== undefined && p.approval?.approved !== undefined) || runSettled(p.run)
         ? p.approval
         : settleApproval(p.approval, allow, id, denyMessage, optimistic && p.result === undefined),
     })));
@@ -894,6 +923,7 @@ function cancelOpenGates(state: Projection): Projection {
     let msgChanged = false;
     const content = msg.content.map((part) => {
       if (part.type !== "tool-call" || part.result !== undefined || part.approval?.approved !== undefined) return part;
+      if (part.run && RUN_RANK[part.run] > 0) return part; // 本站已在执行 / 已定下：照执行记录
       if (!part.approval && !parked.has(part.toolCallId)) return part;
       msgChanged = changed = true;
       cancelled.add(part.toolCallId);
@@ -911,6 +941,80 @@ function cancelOpenGates(state: Projection): Projection {
     // 服务端不再停在这几步：随后补来的结果不算「答完接着跑」（resumes），确认没送到也不放回（restoreGates）
     parkedIds: state.parkedIds.filter((id) => !cancelled.has(id)),
   };
+}
+
+/** 本站执行记录各状态的先后：只往前走（推来的新状态之后，晚到的、读得早的旧状态不再把它改回去）。 */
+const RUN_RANK: Readonly<Record<ToolRunStatus, number>> = {
+  awaiting_approval: 0, running: 1, done: 2, error: 2, denied: 2, cancelled: 2,
+};
+
+/** 本站已定下这次调用（执行完、出错、拒绝、作废）。 */
+const runSettled = (run: ToolRunStatus | undefined): boolean => run !== undefined && RUN_RANK[run] === 2;
+
+/** 一张卡（本站工具）换成别的样子时不再算等这边点、也不再欠结果。 */
+function dropPending(state: Projection, id: string): Pick<Projection, "pendingApprovals" | "pendingCustomTools"> {
+  return {
+    pendingApprovals: state.pendingApprovals.filter((x) => x !== id),
+    pendingCustomTools: state.pendingCustomTools.filter((x) => x !== id),
+  };
+}
+
+/** 本站执行记录到了（pearnly.tool_run，或点「允许 / 拒绝」时 confirm 回的状态）：卡片照它定下。允许过（running / done / error）
+ *  定成「允许」，拒绝定成「拒绝」，作废撤掉门、标 cancelled；还在等的只记下。状态只往前走（RUN_RANK）。还没有这一步时先记在 toolRuns，
+ *  建这一步时补上。 */
+function applyToolRun(state: Projection, id: string, status: ToolRunStatus): Projection {
+  const known = state.toolRuns.get(id);
+  if (known && RUN_RANK[known] > RUN_RANK[status]) return state;
+  const toolRuns = new Map(state.toolRuns).set(id, status);
+  const found = findToolPart(state.messages, id);
+  const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
+  if (!found || part?.type !== "tool-call") return { ...state, toolRuns };
+  if (part.run && RUN_RANK[part.run] > RUN_RANK[status]) return { ...state, toolRuns };
+  const messages = draft(state.messages);
+  updatePart(messages, found.mi, found.pi, () => {
+    const next: ToolPart = { ...part, run: status };
+    if (status === "cancelled") {
+      delete next.approval;
+      next.cancelled = true;
+    } else if (status === "denied") {
+      if (part.approval) next.approval = settleApproval(part.approval, false, id, part.approval.reason);
+    } else if (status !== "awaiting_approval" && part.approval &&
+               (part.approval.approved !== true || part.approval.sending)) {
+      next.approval = settleApproval(part.approval, true);
+    }
+    return next;
+  });
+  if (status === "awaiting_approval") return { ...state, messages, toolRuns };
+  const pending = dropPending(state, id);
+  if (status === "cancelled") {
+    // 引擎不再停在这一步（这一轮已被停止）：随后补来的结果不算「答完接着跑」，确认没送到也不放回
+    return { ...state, messages, toolRuns, ...pending, parkedIds: state.parkedIds.filter((x) => x !== id) };
+  }
+  // 允许 / 拒绝过：本站交回结果后引擎接着跑（只在服务端还停在这一步、其余也都答完时，同 user.custom_tool_result）
+  return {
+    ...state, messages, toolRuns, ...pending,
+    isRunning: state.isRunning || resumes(state, id, pending.pendingApprovals, pending.pendingCustomTools),
+  };
+}
+
+/** 自定义工具收到 agent.tool_result：只能是点了停止时引擎代发的中断结果（本站的结果走 user.custom_tool_result）。结果留着给
+ *  步骤行看（标 interrupted），但不算点了「允许」：还没答的门撤掉、标 cancelled（「已取消」）；已点过的、本站已在执行 / 已定下的
+ *  照旧，卡片等执行记录。本站的结果已先到的不覆盖。引擎不再停在这一步。 */
+function interruptedCustomTool(state: Projection, id: string, result: ToolResultPayload): Projection {
+  const found = findToolPart(state.messages, id)!;
+  const part = state.messages[found.mi]!.content[found.pi] as ToolPart;
+  if (part.result !== undefined && !part.interrupted) return state;
+  const messages = draft(state.messages);
+  updatePart(messages, found.mi, found.pi, () => {
+    const next: ToolPart = { ...part, result, isError: result.isError, interrupted: true };
+    const answered = part.approval?.approved !== undefined || (part.run !== undefined && RUN_RANK[part.run] > 0);
+    if (!answered) {
+      delete next.approval;
+      next.cancelled = true;
+    }
+    return next;
+  });
+  return { ...state, messages, ...dropPending(state, id), parkedIds: state.parkedIds.filter((x) => x !== id) };
 }
 
 /** 答完 `id` 之后引擎会接着跑：服务端此刻正停在它上面，而停着等的其余调用也都答完了（没有还要用户点的门、还欠着的结果）。
@@ -1056,8 +1160,8 @@ export function restoreGates(state: Projection, ids: readonly string[], failure?
     const found = findToolPart(messages, id);
     if (!found) continue;
     const part = messages[found.mi]!.content[found.pi]!;
-    // Likewise if the tool already ran (result present).
-    if (part.type !== "tool-call" || part.result !== undefined) continue;
+    // Likewise if the tool already ran (result present), or this site's record moved past waiting / the gate was cancelled.
+    if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && RUN_RANK[part.run] > 0)) continue;
     updatePart(messages, found.mi, found.pi, updateTool((p) => {
       const { approved: _approved, reason: _reason, failure: _failure, sending: _sending, ...kept } = p.approval ?? { id };
       return { approval: { ...kept, id, ...(failure ? { failure } : {}) } };
@@ -1100,7 +1204,7 @@ export function gateCustomTool(
   if (!found) return state;
   const part = state.messages[found.mi]!.content[found.pi]!;
   // 已点了停止（cancelOpenGates）：晚到的问句不再把按钮放回来
-  if (part.type !== "tool-call" || part.result !== undefined || part.cancelled) return state;
+  if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && RUN_RANK[part.run] > 0)) return state;
   if (part.approval && part.approval.approved !== undefined) return state;
   const messages = draft(state.messages);
   updatePart(messages, found.mi, found.pi, updateTool({ approval: { id, ask: view.ask, preview: view.preview } }));

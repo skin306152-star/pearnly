@@ -16,6 +16,7 @@
   new_site      {site, group, admin_password}
   install_app   {site, group, app}
   set_config    {site, group, key, value}
+  set_ocr       {site, group, engine}   识别底座（谷歌凭据）+ 本租户的识别引擎 google / claude（ADR-022），租户改引擎时单独重排
   set_assistant {site, group, configured, engine, model, api_key, webhook_secret}   智能体设置（ADR-019），租户改设置时单独重排
   restart_web   {group}
   bind_user     {site, group, email, full_name, subject, issuer}
@@ -550,6 +551,42 @@ def _assistant_payload(dep) -> dict:
             "configured": bool(settings["engine"]), "webhook_secret": secret, **settings}
 
 
+def _ocr_payload(dep, site, group) -> dict:
+    """识别底座 + 本租户选的识别引擎（ADR-022：google / claude，租户表单与开户单可选）。"""
+    engine = (frappe.db.get_value("Pearnly Tenant", dep.tenant, "ocr_engine") if dep.tenant else None) or "Google"
+    return {"site": site, "group": group, "engine": engine.lower()}
+
+
+def queue_ocr_engine(tenant: str) -> int:
+    """租户改了识别引擎：把它的每个云端部署重排 ``set_ocr``（写同一组识别配置 + 新引擎），站点按配置缓存最多一分钟后生效。
+    与 ``queue_assistant_config`` 同一做法：正在执行的那一步不打断，提示稍后再存。"""
+    if frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting":
+        return 0
+    count = 0
+    for name in frappe.get_all(DEPLOYMENT, filters={"tenant": tenant}, pluck="name"):
+        dep = frappe.get_doc(DEPLOYMENT, name)
+        if not dep.issue or not infra.is_cloud(frappe.db.get_value(ISSUE, dep.issue, "target")):
+            continue
+        parent = frappe.db.get_value(REQUEST, {"idempotency_key": dep.issue}, "name")
+        if not parent:
+            continue  # 开户计划还没生成：生成时会带上租户当下的引擎
+        req = frappe.get_doc(REQUEST, parent, for_update=True)
+        step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_ocr"), None)
+        if step and step.status == "running":
+            frappe.throw(_("The recognition settings are being applied. Try again shortly."))
+        payload = json.dumps(_ocr_payload(dep, dep.site_name, dep.bench_group), ensure_ascii=False)
+        if step:
+            step.payload = payload
+            step.status, step.output, step.finished_at = "pending", "", None
+        else:
+            req.append("steps", {"step_key": f"{dep.name}:set_ocr", "deployment": dep.name,
+                                 "action": "set_ocr", "status": "pending", "payload": payload})
+        req.status, req.error, req.finished_at = "pending", "", None
+        req.save(ignore_permissions=True)
+        count += 1
+    return count
+
+
 def queue_assistant_config(tenant: str) -> int:
     """租户的智能体设置填了 / 改了 / 清了：把它的每个云端部署重排 `set_assistant`。
 
@@ -694,7 +731,7 @@ def _steps_for(issue, dep, row) -> list[dict]:
         # "站点开出来好好的，就是识别不了"（老样板站是手工补的）。
         {"step_key": f"{dep.name}:set_ocr", "deployment": dep.name,
          "action": "set_ocr", "status": "pending",
-         "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},
+         "payload": json.dumps(_ocr_payload(dep, site, group), ensure_ascii=False)},
         {"step_key": f"{dep.name}:finalize_site", "deployment": dep.name,
          "action": "finalize_site", "status": "pending",
          "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},

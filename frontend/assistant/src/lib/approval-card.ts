@@ -6,12 +6,16 @@
 //     没答就点了停止的（reducer 标 cancelled）之后补来结果（中断时引擎交回的出错结果）也照旧「已取消」，不当成「允许 · 失败」
 //     （第 10 轮 C20）；只有结果写明拒绝的写「拒绝」。标了 cancelled 却补来没出错的结果，是点了「允许」、执行中才停止（重开
 //     对话时历史里没有点击记录，停止那一刻照样标了 cancelled）：工具已做完，照「允许」（第 11 轮审查）。
+// 本站执行记录（reducer 的 part.run，pearnly.tool_run，第 11 轮 A 段）到了就以它为准，不再看结果猜：done →「允许」；error →
+// 「允许 · 失败」；denied →「拒绝」；cancelled →「已取消」；running →「允许」（执行中，淡一档同发送中）；awaiting_approval 照下面的
+// 判断（有门就还在问）。点了停止时引擎代发的中断结果（reducer 标 interrupted）不是本站的结果：不当成点了「允许」，也不写「失败」。
 // 当场点的、切到别的对话再切回、重开对话、别的设备上答过，都是同一个判断。答案以服务端结果为准：结果写明被拒绝（lib/step-summary.ts
 // 的 stepDenied）就是「拒绝」，有结果、没写拒绝、也不是出错交回的就是「允许」（两台设备同时点、确认超时后改点，本页点的那一项
 // 可能不是服务端定下的）；还没结果才按本页点的。重开对话时历史里没有点击记录：要「允许」的本站工具有结果就是出过卡片，
 // 除非结果带着「没问过用户」的标记（出卡片前就核出要拒绝的，pearnly_core toolrun.execute，那一步照常是步骤组里的一行）。
 // 纯函数：不碰 React。
 
+import type { ToolRunStatus } from "./managed-agents/events";
 import { stepDenied, stepFailed, stepNotAsked } from "./step-summary";
 
 type Approval = { id: string; approved?: boolean; sending?: boolean };
@@ -24,8 +28,12 @@ export type CardPart = {
   isError?: boolean | undefined;
   status?: { type: string } | undefined;
   approval?: Approval | undefined;
-  /** 没答就点了停止（reducer 的 cancelOpenGates）。 */
+  /** 没答就点了停止（reducer 的 cancelOpenGates、平台代发的中断结果）。 */
   cancelled?: boolean | undefined;
+  /** result 是平台代发的中断结果，不是本站交回的（reducer）。 */
+  interrupted?: boolean | undefined;
+  /** 本站执行记录的状态（reducer 的 pearnly.tool_run）。 */
+  run?: ToolRunStatus | undefined;
 };
 
 /** 要「允许」的本站工具（lib/tool-labels.ts）：ask 里有的都要；gate 里列了参数的，给了其中一个才要（同服务端 needs_approval）；
@@ -70,9 +78,34 @@ const resultError = (result: unknown) =>
 /** 这一轮已不在跑、也不在等（工具调用没有结果时部件状态同消息状态）：没答的门已撤掉。 */
 const over = (status: CardPart["status"]) => status?.type === "complete" || status?.type === "incomplete";
 
+/** 本站执行记录定下的样子；还在等（或没有记录）回 undefined，照结果与点击判断。出卡片前就核出要拒绝的（结果带没问过用户的标记）
+ *  不是卡（null）。 */
+function fromRun(run: CardPart["run"], result: unknown): CardState | null | undefined {
+  switch (run) {
+    case "done":
+      return { phase: "answered", approved: true, failed: false };
+    case "error":
+      return result !== undefined && stepNotAsked({ result }) ? null : { phase: "answered", approved: true, failed: true };
+    case "denied":
+      return { phase: "answered", approved: false, failed: false };
+    case "cancelled":
+      return { phase: "cancelled" };
+    case "running":
+      return { phase: "answered", approved: true, failed: false, sending: true };
+    default:
+      return undefined;
+  }
+}
+
 /** 这一步是不是允许 / 拒绝卡，此刻什么样子；不是卡回 null（照常是步骤组里的一行）。 */
-export function approvalCard(part: CardPart, gates: Gates): CardState | null {
+export function approvalCard(source: CardPart, gates: Gates): CardState | null {
+  // 平台代发的中断结果不是本站的结果：照没有结果判断（卡片等本站执行记录）
+  const part: CardPart = source.interrupted ? { ...source, result: undefined, isError: undefined } : source;
   const { approval, result } = part;
+  if (part.run !== undefined && (approval || gatedCall(part.toolName, part.args, gates))) {
+    const card = fromRun(part.run, result);
+    if (card !== undefined) return card;
+  }
   if (approval && approval.approved === undefined) return { phase: "ask" };
   const hasResult = result !== undefined;
   if (approval) {

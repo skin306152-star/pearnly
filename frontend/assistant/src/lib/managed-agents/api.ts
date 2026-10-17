@@ -1,10 +1,11 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
 import { get, post, upload } from "@/lib/frappe";
-import type { FeedEvent, RunStatus, SessionSummary } from "./events";
+import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
 
 /** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。要了状态（status）才带 run（读不到也没有）。 */
-export type EventsPage = { events: FeedEvent[]; full: boolean; run?: RunStatus };
+/** partial：服务端这次没读到引擎（增量补拉时「列出事件」出错，sessions.events），这页只有本站提醒——不是「没有新事件」。 */
+export type EventsPage = { events: FeedEvent[]; full: boolean; partial?: boolean; run?: RunStatus };
 
 /** 侧栏一行。产品有公司分组（Cowork，ADR-020）时多三项：project 所属公司（"" = 最近）、period 处理月份（YYYY-MM，"" = 不指定）、
  *  scope 分店号（5 位，"" = 不指定）；旧服务端、没有公司分组的产品没有这三项。 */
@@ -91,11 +92,15 @@ export async function sendMessage(id: string, text: string): Promise<void> {
   await post("send", { session_id: id, text });
 }
 
-export async function confirmTools(
+/** 点「允许 / 拒绝」的回应：runs 是其中本站拦下的调用此刻在本站的状态（服务端 sessions.confirm；已作废、已执行的不再转给引擎，
+ *  照这里的状态定下卡片）。旧服务端没有 runs。 */
+export type ConfirmReply = { confirmed?: number; runs?: Record<string, ToolRunStatus> } | null;
+
+export function confirmTools(
   id: string,
   confirmations: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string }>,
-): Promise<void> {
-  await post("confirm", { session_id: id, confirmations: JSON.stringify(confirmations) });
+): Promise<ConfirmReply> {
+  return post<ConfirmReply>("confirm", { session_id: id, confirmations: JSON.stringify(confirmations) });
 }
 
 export async function interruptSession(id: string): Promise<void> {

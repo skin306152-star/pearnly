@@ -303,7 +303,9 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-body-size": "var(--code-text-prose)", "--cc-body-lh": "var(--code-text-prose-lh)",
             "--cc-menu-item-h": "var(--cc-tap)", "--cc-search-h": "var(--cc-tap)",
         })
-        self.assertIn('@media (pointer: coarse) {\n  :root:not([data-cc-variant="desktop"]) { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n}', self.css)
+        # 触屏平板（网页布局 + 粗指针，第 11 轮 D26）的对话顶栏高也在这个不分层的变量块里（写在 components 层敌不过 :root，合并审查）
+        self.assertIn('@media (pointer: coarse) {\n  :root:not([data-cc-variant="desktop"]) { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n'
+                      '  :root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }\n}', self.css)
         # 桌面窗口：侧栏浮成卡片（离窗口边 8px、卡片阴影）
         self.assertIn(':root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); '
                       "border-inline-width: 0; }", self.css)

@@ -62,8 +62,10 @@ class FeedTests(unittest.TestCase):
         self.assertIn('type: "pearnly.notice";', events)
         self.assertIn('return String(event.type).startsWith("pearnly.");', events)
         # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent;", events)
+        # 执行记录（pearnly.tool_run，第 11 轮 A 段）也是：推来、并在读事件那页最后，都不当锚点
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent;", events)
         self.assertIn('type: "pearnly.answer";', events)
+        self.assertIn('type: "pearnly.tool_run";', events)
         poll = read("lib/managed-agents/poll-source.ts")
         self.assertIn("if (anchor && !isLocalEvent(event)) this.lastId = id;", poll)
         self.assertNotIn("if (anchor) this.lastId = id;", poll)
@@ -2019,7 +2021,8 @@ g.respond = async (method: string, args: any, body: any) => {
     return ok(page);
   }
   if (method === "send") {
-    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(body.text) }));
+    // 服务端存的正文去掉首尾空白（contracts.message_text），回声同样
+    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(String(body.text).trim()) }));
     return ok();
   }
   if (method === "run_tool") return ok(await site.toolReply(body.tool_use_id));
@@ -2608,8 +2611,10 @@ class CompanyMasterSourceTests(unittest.TestCase):
         for name in COMPANY_SOURCES:
             self.assertIsNone(colour.search(read(name)), name)
         drag = read("components/ui/drag.tsx")
-        self.assertIn("style: { transform, transition: sortable.transition } as CSSProperties,", drag)
-        self.assertIn("const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);", drag)
+        # 第 11 轮 B14：位移、过渡不再放进 node 的 style，由共用拖动在提交时直接写到那一项的节点上（applyShift），仍只此一处
+        self.assertIn("const shift = shiftStyle(sortable.transform, sortable.transition, settling);", drag)   # 滑回途中（settling）不写位移
+        self.assertIn('return { transform: settling || (!x && !y) ? "" : `translate3d(${x}px, ${y}px, 0px)`, transition: transition ?? "" };', drag)
+        self.assertIn("useLayoutEffect(() => applyShift(el.current, shift));", drag)
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", drag))
         css = read("globals.css")
         start = css.index("/* ── 公司主档（ADR-020")
@@ -3401,7 +3406,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("<DeleteChatsHost />", app)
         self.assertEqual(app.count("deleteChat(aui.threadListItem())"), 2)  # 电脑标题栏「···」、手机右上「…」
         self.assertIn("const remove = () => deleteChat(aui.threadListItem());", rows)  # 行「···」与手机长按菜单
-        self.assertIn("askDelete(ids.length, () => void runInOrder(ids,", rows)  # 多选「删除 N」
+        self.assertIn("askDelete(ids, () => runInOrder(ids,", rows)  # 多选「删除 N」
         for source in (app, rows):
             self.assertNotIn("onSelect={() => void aui.threadListItem().delete()}", source)
         self.assertNotIn("const deleteAll = () => void runInOrder(", rows)
@@ -3410,7 +3415,9 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('n > 1 ? `ลบ ${n} แชท?` : "ลบแชท?"', i18n)
         self.assertIn('{t("cancel")}', host)
         self.assertIn('{t("delete")}', host)
-        self.assertIn('className="sr-only"', host)  # 不加看得见的说明
+        # 不加说明（第 11 轮 E37：原来挂一个和标题一样的隐藏说明，读屏念两遍）
+        self.assertNotIn("Description", host)
+        self.assertIn("aria-describedby={undefined}", host)
         self.assertIn("requestAnimationFrame(", host)  # 等菜单收起再开
 
     def test_multi_select_has_no_bulk_bar_and_runs_one_by_one(self):
@@ -4088,6 +4095,32 @@ assert.equal(choiceAfter(["a"], "a"), "");
         self.assertIn(".cc-choice[data-open] .cc-choice-row:hover { background: transparent; }", css)
         self.assertIn("max-width: 45%;", block(css, ".cc-choice-value {"))
         self.assertNotIn(".cc-panel-card-body .cc-choice-row", css)
+
+    def test_a_saved_choice_says_why_on_its_own_row(self):
+        # 第 11 轮 F40：断网时改「现购 | 赊购」值退回原值，原因「出了点问题，请重试。」写在整张卡最底下（Express 历史下面，右侧栏没滚动
+        # 时在视区外，y=1047 > 768），只看到值跳回去。现在原因写在出错的那一条里：点开着时紧挨按钮下面，收着时在行下面；
+        # 「删除」「设为全公司」没成功同样
+        self.run_page(r"""
+const pay = { key: "k1", source: "express", kind: "payment", subject_label: "ACME", value: "cash", editable: true, year_label: "69", promotable: true };
+const props = (open: boolean, error = "") => ({ choice: pay, open, error, onToggle() {}, onSet() {}, onForget() {}, onPromote() {} });
+const opened = renderToStaticMarkup(createElement(ChoiceRow, props(true, "Something went wrong. Try again.")));
+const alert = '<p role="alert" class="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">Something went wrong. Try again.</p>';
+assert.ok(opened.includes('</button></div>' + alert + '</div></div>'), opened);       // 按钮行（cc-card-actions）紧接着就是原因，在这一条里
+assert.ok(opened.indexOf('data-slot="cc-choice-forget"') < opened.indexOf(alert));
+const closed = renderToStaticMarkup(createElement(ChoiceRow, props(false, "Something went wrong. Try again.")));
+assert.ok(closed.endsWith('</button>' + alert + '</div>'), closed);                    // 收着：行下面
+assert.ok(!renderToStaticMarkup(createElement(ChoiceRow, props(true))).includes('role="alert"'));
+""")
+        cards = read("components/company-cards.tsx")
+        section = cards[cards.index("export const ChoicesSection"):cards.index("export const ruleScope")]
+        # 原因按条记，只交给出错的那一条；卡片底下不再有一行原因
+        self.assertIn('const [error, setError] = useState<{ key: string; message: string } | null>(null);', section)
+        self.assertIn('error={error?.key === c.key ? error.message : ""}', section)
+        self.assertIn("setError({ key, message: shownError(e) });", section)            # 删除、设为全公司
+        self.assertIn("setError({ key: c.key, message: shownError(e) });", section)     # 现 / 赊
+        self.assertNotIn('{error && <p role="alert"', section)
+        css = read("globals.css")
+        self.assertIn(".cc-choice-detail > .cc-choice-error { padding-top: 0.375rem; }", css)
 
     def test_browsers_and_phones_only_read_the_folder(self):
         self.run_page(r"""
@@ -5916,7 +5949,9 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
         self.assertEqual(drag.count("holdStill(stash.current.node, landWait);"), 2)   # 松手、取消
         # 整列一起滑：拖动中（拿起到结束那一次提交，布局阶段停）；版面变了就重量各落点（碰撞按新位置）
         self.assertIn("{flow && <Flow selector={flow} transition={transition} paused={cancelling} />}", drag)
-        self.assertIn("return flowLayout(root, selector, transition, remeasure);", drag)
+        # 拿起那一帧画完以后才开始盯（第 11 轮 B14：拿起那次提交里先量整列要当场算整页样式、布局）
+        self.assertIn("stop = flowLayout(root, selector, transition, remeasure);", drag)
+        self.assertIn("    afterPaint(() => {\n      const from = node.current;", drag)
         self.assertIn("measure(all.getEnabled().map((entry) => entry.id));", drag)
         flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
         self.assertIn("const running = !!active;", flow)
@@ -6704,7 +6739,8 @@ class Round10DragTests(unittest.TestCase):
         # 只在那一项还在拿起时那一列里时先滑回（指针拖进了另一列：照旧由拖动库滑回）；滑回途中排序项不写让位位移
         self.assertIn("const home = !!node?.isConnected && !!from?.list && listOf(active) === from.list;", drag)
         self.assertIn("const animation = home && box ? settleBack(box, node!, transition, homeInto) : null;", drag)
-        self.assertIn("const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);", drag)
+        self.assertIn("const shift = shiftStyle(sortable.transform, sortable.transition, settling);", drag)   # 滑回途中（settling）不写位移
+        self.assertIn('return { transform: settling || (!x && !y) ? "" : `translate3d(${x}px, ${y}px, 0px)`, transition: transition ?? "" };', drag)
         # 文件头不再把约 1 秒的空帧定性成「那里出帧的问题」（审查：没坐实）
         self.assertNotIn("是那里出帧的问题", drag)
         self.run_page(r"""
@@ -7111,29 +7147,35 @@ assert.equal(click(), true);
                 self.assertIn('from "@/components/ui/menu"', source, name)
 
     def test_the_drag_cursor_waits_for_the_lift_frame_to_paint(self):
-        # 拿起那一刻：根节点的拖动标记（整页 grabbing）一加，整页每个元素都要重算样式；挪到这一帧画完以后。拖动中各处判断问
-        # isDragging()，不看根节点标记
+        # 拿起那一刻：整页 grabbing（第 11 轮 B14 起是鼠标拖动的挡板，原来是根节点标记）一盖，要重算样式；挪到这一帧画完以后。
+        # 拖动中各处判断问 isDragging()，不看挡板
         self.run_page(r"""
-import { isDragging, setDragging } from "@/lib/layers";
+import { dragShieldShown, isDragging, setDragShield, setDragging } from "@/lib/layers";
 const g = globalThis as any;
 const page = new EventTarget();
 g.addEventListener = page.addEventListener.bind(page);
 g.removeEventListener = page.removeEventListener.bind(page);
-const root = g.document.documentElement;
+const shield = { hidden: false } as any;
+setDragShield(shield);
+assert.equal(shield.hidden, true);                      // 平时藏着
 setDragging(true);
 assert.equal(isDragging(), true);
-assert.equal("ccDrag" in root.dataset, false);          // 拿起这一帧不加
+assert.equal(shield.hidden, true);                      // 拿起这一帧不盖
 await g.sleep(10);
-assert.equal("ccDrag" in root.dataset, true);
+assert.equal(shield.hidden, false);
+assert.equal(dragShieldShown(), true);
 setDragging(false);
 assert.equal(isDragging(), false);
-assert.equal("ccDrag" in root.dataset, false);
+assert.equal(shield.hidden, true);
 setDragging(true);
-setDragging(false);                                     // 加之前就结束了：不再加
+setDragging(false);                                     // 盖之前就结束了：不再盖
 await g.sleep(10);
-assert.equal("ccDrag" in root.dataset, false);
+assert.equal(shield.hidden, true);
+setDragShield(null);
 """)
-        self.assertIn(":root[data-cc-drag] * { cursor: grabbing; }", read("globals.css"))   # 整页 grabbing 不变
+        css = read("globals.css")
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)   # 整页 grabbing 不变
+        self.assertNotIn(":root[data-cc-drag]", css)
 
     def test_escape_after_dragging_into_pins_slides_back_before_the_redraw(self):
         # 对话拖进已置顶后按 Esc：原来由拖动库在 Esc 那一下同步取消、整列重画（Esc 那一帧 148 / 149ms）。现在 Esc 那一下只起播浮层
@@ -7142,15 +7184,19 @@ assert.equal("ccDrag" in root.dataset, false);
         drag = read("components/ui/drag.tsx")
         cancel = drag.split("  const beforeCancel = useMemo(", 1)[1].split("\n  const sensors = useSensors(", 1)[0]
         cross = cancel.split("if (!home && from?.list && active && box && transition && latest.current.onReturn) {", 1)[1].split("\n      }\n", 1)[0]
-        self.assertIn("releaseDrag();", cross)
         self.assertIn("const slide = start ? slideOverlay(box, homeBox(start, scrolled, node), transition) : null;", cross)
+        # 已经取消：之后的 Esc 照常（当场放手）；挡板先不撤（"keep"），Esc 那一帧与下一帧挪回原组的整列重画里都不再叠一次侧栏的悬停
+        # 重算，起播滑回时再撤（第 11 轮 B14 审查）
+        self.assertIn('releaseDrag("keep");', cross)
+        self.assertLess(cross.index("slideOverlay("), cross.index('releaseDrag("keep");'))
         self.assertIn("afterPaint(() => homing.current === entry && latest.current.onReturn?.(from));", cross)
         self.assertIn("unfreeze: node ? freezeScroll(node) : () => undefined,", cross)
         self.assertNotIn("letGo.hold(", cross)                 # 这一下不取消
         self.assertIn("cancelling.current = true;", cancel)
         self.assertIn("if (!active?.list || cancelling.current) return [];", drag)          # 碰撞不再算
         self.assertIn("if (cancelling.current) return; // 已经取消、在等滑回：不再经过哪里", drag)
-        self.assertIn("if (paused.current) return;", drag)                                   # 不重量落点
+        self.assertIn("if (paused.current || queued) return;", drag)                         # 不重量落点
+        self.assertIn("if (!live || paused.current) return;", drag)                          # 排到下一帧的那次也不量
         self.assertIn("const node = nodeIn(entry.id, entry.list);\n    if (node) homeLanded(entry, node);", drag)
         self.assertIn("letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);", drag)
         # 「这一项此刻在哪一列」按它真的排在的那一列（拖进置顶重挂的那一行是置顶那一列）
@@ -7402,6 +7448,319 @@ g.done();
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11DragFramesTests(unittest.TestCase):
+    """第 11 轮 B14（10-17，A14 真 Chrome）：拿起、出 / 收长按菜单、拖进置顶、Esc 下一帧、落定的长帧。共用拖动一处改，所有拖动处
+    一起受益：让位的位移与过渡不经 React 传给各行、播报区与浮层不挂在会盯着的地方、拖动库拿起时不再多量多观察、整页光标只给鼠标
+    且松手就去、整列滑动拿起后一帧才开始；侧栏整列重画时没变的组与组头不重画；Esc 后不再留下空的「已置顶」。"""
+
+    def run_page(self, body, stubs=None):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body
+               + "\n(globalThis as any).done();\n", stubs=stubs)
+
+    def test_rows_keep_the_same_props_when_sorting_starts(self):
+        # 原来位移、过渡放在 node 的 style 里：拖动库一开始排序每一项的过渡从无变成字符串，node 变了，整列行与组头全部重画。
+        # 现在 node 只有 ref 与标记（按内容记住），位移、过渡在提交时直接写到节点上，没在让位的项一次也不写
+        drag = read("components/ui/drag.tsx")
+        item = drag.split("export function useSortableItem(", 1)[1].split("\n}\n", 1)[0]
+        node = item.split("const node = useMemo(", 1)[1].split(");", 1)[0]
+        self.assertNotIn("style", node)
+        self.assertIn("[ref, data.id, list, isDragging]", node)
+        self.assertIn("useLayoutEffect(() => applyShift(el.current, shift));", item)
+        self.assertIn("const shift = shiftStyle(sortable.transform, sortable.transition, settling);", item)
+        # 尺寸观察只在有整列滑动的区里关（见 test_only_flow_areas_skip_size_watching）
+        self.assertIn("resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined", item)
+        self.assertIn("resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined", drag.split("export function useDropZone(", 1)[1].split("\n}\n", 1)[0])
+        self.run_page(r"""
+import { applyShift } from "@/components/ui/drag";
+const writes: string[] = [];
+const fake = () => {
+  const values: Record<string, string> = { transform: "", transition: "" };
+  const style: any = {};
+  for (const name of ["transform", "transition"]) {
+    Object.defineProperty(style, name, { get: () => values[name], set: (v: string) => { writes.push(`${name}=${v}`); values[name] = v; } });
+  }
+  return { style } as any;
+};
+const T = "transform 200ms ease";
+const row = fake();
+applyShift(row, { transform: "", transition: T });                     // 拿起：开始排序、这一项不让位，一次也不写
+assert.deepEqual(writes, []);
+applyShift(row, { transform: "translate3d(0px, 34px, 0)", transition: T });   // 让位：先过渡、再位移
+assert.deepEqual(writes, [`transition=${T}`, "transform=translate3d(0px, 34px, 0)"]);
+writes.length = 0;
+applyShift(row, { transform: "translate3d(0px, 34px, 0)", transition: T });   // 没变：不写
+assert.deepEqual(writes, []);
+applyShift(row, { transform: "", transition: T });                     // 回原位：带着过渡滑回
+assert.deepEqual(writes, ["transform="]);
+writes.length = 0;
+applyShift(row, { transform: "", transition: "" });                    // 结束：留着的过渡清掉
+assert.deepEqual(writes, ["transition="]);
+writes.length = 0;
+const moved = fake();
+applyShift(moved, { transform: "translate3d(0px, -34px, 0)", transition: T });
+writes.length = 0;
+applyShift(moved, { transform: "", transition: "" });                  // 结束那次提交（新顺序同时排好）：不带过渡、当场归位
+assert.deepEqual(writes, ["transition=", "transform="]);
+applyShift(null, { transform: "x", transition: T });                   // 还没挂上：不动
+""")
+
+    def test_items_that_do_not_move_are_never_written(self):
+        # 第 11 轮 B14 审查：拿起时拖动库给每一项 {x:0, y:0}，原来换算成 "translate3d(0px, 0px, 0)" 照样写到每一项上（键盘拿起组头、
+        # 鼠标拿起行时不让位的各项也重算样式）；浏览器读回会把 0 写成 0px、过渡补成完整写法，拿读回的比永远不等，每次提交都重写
+        self.run_page(r"""
+import { applyShift, shiftStyle } from "@/components/ui/drag";
+const writes: string[] = [];
+// 假样式：写进去的值按浏览器的写法读回（位移第三个参数 0 → 0px；过渡 200ms → 0.2s）
+const normal = (name: string, v: string) =>
+  name === "transform" ? v.replace(/, 0\)$/, ", 0px)") : v.replace(/(\d+)ms/g, (_, n) => `${Number(n) / 1000}s`);
+const fake = () => {
+  const values: Record<string, string> = { transform: "", transition: "" };
+  const style: any = {};
+  for (const name of ["transform", "transition"]) {
+    Object.defineProperty(style, name, { get: () => values[name], set: (v: string) => { writes.push(`${name}=${v}`); values[name] = normal(name, v); } });
+  }
+  return { style } as any;
+};
+const T = "transform 200ms ease";
+const zero = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
+assert.deepEqual(shiftStyle(zero, T), { transform: "", transition: T });
+assert.deepEqual(shiftStyle({ x: 0.3, y: -0.4, scaleX: 1, scaleY: 1 }, T), { transform: "", transition: T });   // 取整后是零
+assert.deepEqual(shiftStyle(null, null), { transform: "", transition: "" });
+assert.deepEqual(shiftStyle({ x: 0, y: 34, scaleX: 1, scaleY: 1 }, T, true), { transform: "", transition: T });  // 滑回途中
+const still = fake();
+applyShift(still, shiftStyle(zero, T));                     // 拿起：开始排序、这一项不让位，一次也不写
+applyShift(still, shiftStyle(zero, T));
+assert.deepEqual(writes, []);
+const row = fake();
+const moved = shiftStyle({ x: 0, y: 34, scaleX: 1, scaleY: 1 }, T);
+assert.equal(moved.transform, "translate3d(0px, 34px, 0px)");
+applyShift(row, moved);                                     // 让位：先过渡、再位移
+assert.deepEqual(writes, [`transition=${T}`, "transform=translate3d(0px, 34px, 0px)"]);
+writes.length = 0;
+applyShift(row, shiftStyle({ x: 0, y: 34, scaleX: 1, scaleY: 1 }, T));   // 读回的写法变了，值没变：不再写
+assert.deepEqual(writes, []);
+const legacy = fake();                                      // 位移串与读回的写法不同（第三个参数 0）：同样只写一次
+applyShift(legacy, { transform: "translate3d(0px, 34px, 0)", transition: T });
+writes.length = 0;
+applyShift(legacy, { transform: "translate3d(0px, 34px, 0)", transition: T });
+assert.deepEqual(writes, []);
+row.style.transform = "";                                   // 别处直接清掉了位移（取消滑回时 settleBack）
+writes.length = 0;
+applyShift(row, moved);                                     // 再要这段位移：照读回的比，补写
+assert.deepEqual(writes, ["transform=translate3d(0px, 34px, 0px)"]);
+writes.length = 0;
+applyShift(row, shiftStyle(zero, ""));                      // 结束：不带过渡、当场归位
+assert.deepEqual(writes, ["transition=", "transform="]);
+""")
+
+    def test_drag_cursor_only_for_the_mouse_and_gone_at_release(self):
+        # 整页 grabbing 与不出悬停靠鼠标拖动的挡板（第 11 轮 B14 审查起；原来是根节点标记，加、去各要整页约 800 个元素重算样式）：手机、
+        # 键盘拖动不盖；拿起那一帧画完才盖，松手开始落位那一帧画完就撤，不留到落定那次整列重画里；Esc 后要挪回原组的那一下先不撤
+        # （"keep"：Esc 那一帧与下一帧整列重挂都不叠一次悬停重算），起播滑回时那一帧画完再撤
+        self.run_page(r"""
+import { dragShieldShown, isDragEscape, isDragging, releaseDrag, setDragShield, setDragging } from "@/lib/layers";
+const g = globalThis as any;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+const shield = { hidden: true } as any;
+setDragShield(shield);
+setDragging(true, false);                                // 手机 / 键盘
+await g.sleep(10);
+assert.equal(isDragging(), true);
+assert.equal(shield.hidden, true);
+setDragging(false);
+setDragging(true);                                       // 鼠标：这一帧画完以后盖
+await g.sleep(10);
+assert.equal(shield.hidden, false);
+releaseDrag();                                           // 松手：这一帧画完以后撤
+assert.equal(shield.hidden, false);
+await g.sleep(10);
+assert.equal(shield.hidden, true);
+assert.equal(dragShieldShown(), false);
+assert.equal(isDragging(), true);                        // 还在等落位：逻辑上仍在拖
+setDragging(false);
+setDragging(true);
+await g.sleep(10);
+releaseDrag("keep");                                     // Esc 挪回原组：当场放手（之后的 Esc 照常），挡板先不撤
+const esc = new Event("keydown");
+assert.equal(isDragEscape(esc), false);
+await g.sleep(10);
+assert.equal(shield.hidden, false);
+releaseDrag();                                           // 起播滑回（ReleaseFirst.hold）：这一帧画完撤
+await g.sleep(10);
+assert.equal(shield.hidden, true);
+setDragging(false);
+setDragging(true);
+await g.sleep(10);
+releaseDrag("keep");
+setDragging(false);                                      // 没有滑回、当场结束：结束时撤
+assert.equal(shield.hidden, true);
+setDragging(true);
+releaseDrag();                                           // 还没盖上就松手了：不再盖
+await g.sleep(10);
+assert.equal(shield.hidden, true);
+setDragging(true);
+releaseDrag("keep");                                     // 还没盖上就 Esc：同样不再盖
+await g.sleep(10);
+assert.equal(shield.hidden, true);
+setDragging(false);
+setDragShield(null);
+""")
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("setDragging(true, byMouse(activatorEvent));", drag)
+        self.assertIn('const byMouse = (event: Event | null | undefined) => !!event && !("key" in event) && !("touches" in event);', drag)
+        # 起播滑回那一下（homeLanded → letGo.hold → ReleaseFirst.hold）再放一次手，挡板在那一帧画完后撤
+        hold = drag.split("export class ReleaseFirst {", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("    releaseDrag();\n", hold)
+        landed = drag.split("  const homeLanded = (", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);", landed)
+        css = read("globals.css")
+        # 浮层不接指针：拿起、落定时整个侧栏不换悬停、不整块重算样式；悬停与光标归挡板
+        self.assertIn(".cc-drag-overlay { pointer-events: none; }", css)
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)
+        self.assertNotIn(":root[data-cc-drag]", css)
+
+    def test_the_mouse_drag_shield_blocks_hover_and_passes_the_wheel_on(self):
+        # 第 11 轮 B14 审查：浮层不接指针以后，鼠标拖动中指针下面的行、收着的「已置顶」组头会露出悬停底、「···」、深色字与折叠箭头；
+        # 现在拖动层里一块透明挡板（在浮层下面）接住指针：光标 grabbing、下面什么都不悬停；落点照旧只按 data-drop-target 高亮。
+        # 挡着时滚轮交给指针下面最近的滚动区（侧栏、会话栏拖着时照样能滚）
+        drag = read("components/ui/drag.tsx")
+        layer = drag.split("export function dragLayer(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("layer.appendChild(dragShield());", layer)
+        shield = drag.split("function dragShield(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('el.className = "cc-drag-shield";', shield)
+        self.assertIn('el.addEventListener("wheel", (event) => wheelUnder(el, event), { passive: true });', shield)
+        self.assertIn("setDragShield(el);", shield)
+        self.assertIn("export const OVERLAY_Z = 55;", drag)        # 挡板 54 在浮层下面
+        self.run_page(r"""
+import { wheelUnder } from "@/components/ui/drag";
+const g = globalThis as any;
+g.HTMLElement ??= class {};
+const scrolled: any[] = [];
+const box = (h: number, ch: number, overflowY: string, parent: any = null) => {
+  const el = Object.create(g.HTMLElement.prototype);
+  Object.defineProperty(el, "scrollHeight", { value: h });
+  Object.defineProperty(el, "clientHeight", { value: ch });
+  Object.defineProperty(el, "parentElement", { value: parent });
+  el.overflowY = overflowY;
+  el.scrollBy = (o: any) => scrolled.push([el, o]);
+  return el;
+};
+g.getComputedStyle = (el: any) => ({ overflowY: el.overflowY });
+g.window.innerHeight = 800;
+const list = box(2000, 600, "auto");
+const group = box(300, 300, "visible", list);
+const row = box(32, 32, "visible", group);
+const shield = {};
+g.document.elementsFromPoint = () => [shield, row, group, list];
+wheelUnder(shield as any, { deltaMode: 0, deltaX: 0, deltaY: 120, clientX: 10, clientY: 10 } as any);
+assert.equal(scrolled.length, 1);
+assert.equal(scrolled[0][0], list);
+assert.deepEqual(scrolled[0][1], { top: 120, left: 0 });
+wheelUnder(shield as any, { deltaMode: 1, deltaX: 0, deltaY: 3, clientX: 10, clientY: 10 } as any);   // 按行滚
+assert.deepEqual(scrolled[1][1], { top: 48, left: 0 });
+const plain = box(10, 10, "visible", null);
+g.document.elementsFromPoint = () => [shield, plain];
+wheelUnder(shield as any, { deltaMode: 0, deltaX: 0, deltaY: 50, clientX: 10, clientY: 10 } as any);   // 下面没有能滚的：不动
+assert.equal(scrolled.length, 2);
+""")
+
+    def test_only_flow_areas_skip_size_watching(self):
+        # 第 11 轮 B14 审查：原来所有拖动区都关了各项、各落点的尺寸观察器；会话栏（没有整列滑动）的卡片拖动中会变高（本月卡定时刷新、
+        # 公司页转圈换成内容、输出卡跟着对话变长），不观察就按旧尺寸算碰撞与让位。现在只有给了 flow 的区（侧栏：行高固定，增删、挪列
+        # 由整列滑动重量）才关
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("const FlowAreaContext = createContext(false);", drag)
+        self.assertIn("<FlowAreaContext.Provider value={!!flow}>{children}</FlowAreaContext.Provider>", drag)
+        for name in ("export function useSortableItem(", "export function useDropZone("):
+            body = drag.split(name, 1)[1].split("\n}\n", 1)[0]
+            self.assertIn("const flowArea = useContext(FlowAreaContext);", body)
+            self.assertIn("resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined", body)
+        self.assertEqual(drag.count("flowArea ? NO_RESIZE_WATCH : undefined"), 2)   # 只这两处按 flowArea 关
+        panel = read("components/session-panel.tsx")
+        self.assertIn("<DragArea accepts={sameColumn} onDrop={onDrop} texts={texts}>", panel)   # 会话栏：没有 flow，照拖动库默认观察
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("flow={FLOW} texts={texts}>", rows)               # 侧栏：有 flow，关掉
+
+    def test_measuring_reads_the_layout_position_and_the_overlay_sits_in_its_own_layer(self):
+        # 量落点按版面位置：去掉排序让位的 transform，也去掉整列滑动（flowLayout）正在播的 translate
+        self.run_page(r"""
+import { dragLayer, layoutRect } from "@/components/ui/drag";
+const g = globalThis as any;
+g.getComputedStyle = (el: any) => ({ transform: el.transform ?? "none", transformOrigin: "0px 0px", translate: el.translate ?? "none" });
+const node = (top: number, extra: any = {}) => ({ getBoundingClientRect: () => ({ top, left: 10, width: 200, height: 34, right: 210, bottom: top + 34 }), ...extra });
+assert.equal(layoutRect(node(100) as any).top, 100);
+assert.equal(layoutRect(node(130, { translate: "0px 30px" }) as any).top, 100);          // 正在滑：滑动起点的位移去掉
+assert.equal(layoutRect(node(130, { translate: "0px 30px" }) as any).bottom, 134);
+assert.equal(layoutRect(node(164, { transform: "matrix(1, 0, 0, 1, 0, 34)", translate: "0px 30px" }) as any).top, 100);
+// 浮层那一层：body 下面一个，建一次；被移走了再建
+const appended: any[] = [];
+g.document.body = { appendChild: (el: any) => { el.isConnected = true; appended.push(el); } };
+g.document.createElement = () => {
+  const el: any = { dataset: {} as Record<string, string>, isConnected: false, children: [] as any[], attrs: {} as Record<string, string> };
+  el.appendChild = (child: any) => el.children.push(child);
+  el.setAttribute = (name: string, value: string) => { el.attrs[name] = value; };
+  el.addEventListener = () => {};
+  return el;
+};
+const layer = dragLayer();
+assert.equal(dragLayer(), layer);
+assert.equal(appended.length, 1);
+assert.equal((layer as any).dataset.slot, "cc-drag-layer");
+// 鼠标拖动的挡板与浮层同在这一层里，平时藏着
+assert.equal((layer as any).children[0].dataset.slot, "cc-drag-shield");
+assert.equal((layer as any).children[0].hidden, true);
+(layer as any).isConnected = false;
+assert.notEqual(dragLayer(), layer);
+assert.equal(appended.length, 2);
+""")
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("const MEASURING = { droppable: { measure: layoutRect } };", drag)
+        self.assertIn("                measuring={MEASURING}", drag)
+        self.assertIn("const AUTO_SCROLL = { layoutShiftCompensation: false } as const;", drag)
+        self.assertIn("                autoScroll={AUTO_SCROLL}", drag)
+        # 拖动库的播报区挂到 body 上（原来就地挂在侧栏、会话栏的滚动区里，每念一句都是一次增删）
+        self.assertIn("container: typeof document !== \"undefined\" && document.body ? document.body : undefined,", drag)
+        for name in ("layoutRect(node)", "layoutRect(fold ? zone! : node)"):
+            self.assertIn(name, drag)
+        self.assertNotIn("getClientRect(node, { ignoreTransform: true })", drag.replace(
+            "  const rect = getClientRect(node, { ignoreTransform: true });\n  const slid", ""))
+
+    def test_whole_list_redraws_skip_unchanged_groups(self):
+        # 拖进已置顶、Esc 挪回原组、落定存顺序时侧栏整列重画：没变的组的行、组头不跟着重画；一列的各项按内容记住
+        drag = read("components/ui/drag.tsx")
+        lst = drag.split("export const DragList:", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('const key = items.join("\\u0000");', lst)
+        self.assertIn("const same = useMemo(() => items, [key]);", lst)
+        self.assertIn("items={same}", lst)
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("const Items = memo(function Items(", rows)
+        self.assertIn("components={ITEM_COMPONENTS}", rows.split("const Items = memo(function Items(", 1)[1].split("\n});", 1)[0])
+        self.assertIn("const ITEM_COMPONENTS = { ThreadListItem };", rows)
+        group = rows.split("const CompanyGroup: FC<", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn("const toggle = useCallback(() => latestToggle.current(), []);", group)
+        self.assertIn("const shownSessions = useMemo(() => sessions, [sessionsKey]);", group)
+        self.assertIn("onToggle={toggle} sessions={shownSessions}", group)
+        # 整列滑动在拿起那一帧画完以后才开始盯
+        flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
+        self.assertLess(flow.index("afterPaint(() => {"), flow.index("stop = flowLayout(root, selector, transition, remeasure);"))
+
+    def test_pointer_is_not_reported_after_the_drag_ends(self):
+        # 拖进已置顶后按 Esc：结束拖动那次提交里拖动库清掉落点，PointerWatch 随后还会跑一次；原来照样把停着的位置交给侧栏，侧栏又
+        # 临时出一个空的「已置顶」留着。现在只在拿起到结束之间交
+        drag = read("components/ui/drag.tsx")
+        report = drag.split("const reportPointer = useMemo(", 1)[1].split("\n  );", 1)[0]
+        self.assertIn("if (live.current && data && y !== null && !keyedRef.current && !cancelling.current)", report)
+        finish = drag.split("  const finish = () => {", 1)[1].split("\n  };", 1)[0]
+        self.assertIn("live.current = false;\n    pointerY.current = null;", finish)
+        self.assertIn("onDragStart={({ active, activatorEvent }) => {\n                  live.current = true;", drag)
+        # 侧栏收起临时的已置顶仍在挪回原组那一下（onReturn），随滑回一起
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("const onReturn = () => {\n    placeGuest(null);\n    setReveal(false);\n  };", rows)
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class Round11CardTests(unittest.TestCase):
     """测试窗口第 10 轮实测（lab 97553dd2）：C20 卡片没答就停止写成「允许 · 失败」；C22 另一台设备 6–17 秒才变成点完；
     E30 断网点停止后已发出的那句被放回输入框。"""
@@ -7413,8 +7772,10 @@ class Round11CardTests(unittest.TestCase):
                + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
 
     def test_a_card_left_unanswered_by_stop_reads_cancelled_live_and_reopened(self):
-        # 卡片出来后没答、直接点停止：引擎补来一条出错的结果，以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
-        # 现在 user.interrupt 时还开着的门标 cancelled：本页与重开都是问话 + 淡色「已取消」；晚到的问句不再把按钮放回来
+        # 卡片出来后没答、直接点停止：以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
+        # 第 11 轮 A 段改成真实先后（lab 9798f54e 抓的事件）：点停止时引擎先代发一条出错的中断结果（agent.tool_result，不是本站的
+        # user.custom_tool_result），几十毫秒后才是 user.interrupt。中断结果不算点了「允许」：本页与重开都是问话 + 淡色「已取消」；
+        # 晚到的问句不再把按钮放回来；本站执行记录（pearnly.tool_run）到了以它为准
         self.run_page(r"""
 import { applyEvent, gateCustomTool, project } from "@/lib/managed-agents/reducer";
 import { approvalCard } from "@/lib/approval-card";
@@ -7424,9 +7785,13 @@ const part = (state: any) => state.messages.flatMap((m: any) => m.content).find(
 const head = [ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
   ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
   ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } })];
-const result = (isError: boolean, body: string) =>
-  ev("res", "user.custom_tool_result", 6, { custom_tool_use_id: "tz", content: text(body), is_error: isError });
-const stop = [ev("i1", "user.interrupt", 5), result(true, "interrupted"), ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })];
+const result = (isError: boolean, body: string, s = 6) =>
+  ev("res", "user.custom_tool_result", s, { custom_tool_use_id: "tz", content: text(body), is_error: isError });
+const record = (status: string, s: number) => ev(`ptoolrun_tz_${status}`, "pearnly.tool_run", s, { tool_use_id: "tz", status });
+// 真实先后：平台的中断结果 → user.interrupt → 回合结束
+const stop = [ev("int", "agent.tool_result", 5, { tool_use_id: "tz", is_error: true,
+  content: text("Tool execution was interrupted before completion. Please retry.") }),
+  ev("i1", "user.interrupt", 5.05), ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })];
 // 本页：卡片等回答（问句向服务端要来的），点停止
 let live = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
 assert.deepEqual(approvalCard(part(live), gates), { phase: "ask" });
@@ -7434,35 +7799,42 @@ live = project(stop as any, live);
 assert.deepEqual(approvalCard(part(live), gates), { phase: "cancelled" });
 assert.equal(part(live).approval, undefined);
 assert.deepEqual([live.pendingApprovals, live.pendingCustomTools, live.parkedIds, live.isRunning], [[], [], [], false]);
-// 重开对话：历史里没有点击记录，那一步也还没有门（问句要向服务端要），按停着等的那一步认
-const reopened = project([...head, ...stop] as any);
+live = applyEvent(live, record("cancelled", 8) as any);                              // 本站作废的记录随后到：照旧
+assert.deepEqual(approvalCard(part(live), gates), { phase: "cancelled" });
+// 重开对话：历史里没有点击记录，那一步也还没有门（问句要向服务端要）；执行记录接在这页最后
+const reopened = project([...head, ...stop, record("cancelled", 8)] as any);
 assert.deepEqual(approvalCard(part(reopened), gates), { phase: "cancelled" });
 assert.equal(gateCustomTool(reopened, "tz", { ask: "Turn it on?" }), reopened);   // 晚到的问句不放回按钮
+assert.deepEqual(approvalCard(part(project([...head, ...stop] as any)), gates), { phase: "cancelled" });  // 记录还没到也一样
 // 对照：没停止、点了「允许」执行出错的，照旧「允许 · 失败」；结果写明拒绝的照旧「拒绝」
 const ran = project([...head, result(true, "The tool failed. Try again later."),
-  ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })] as any);
+  ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } }), record("error", 8)] as any);
 assert.deepEqual(approvalCard(part(ran), gates), { phase: "answered", approved: true, failed: true });
-const denied = project([...head, ev("i1", "user.interrupt", 5),
-  result(false, JSON.stringify({ status: "denied", message: "The user did not allow this change." }))] as any);
+const denied = project([...head, result(false, JSON.stringify({ status: "denied", message: "The user did not allow this change." }), 4.5),
+  ev("i1", "user.interrupt", 5), record("denied", 6)] as any);
 assert.deepEqual(approvalCard(part(denied), gates), { phase: "answered", approved: false, failed: false });
-// 已答的（本页点了「允许」、还没结果）不因停止改成「已取消」
+// 已答的（本页点了「允许」、还没结果）不因停止改成「已取消」，也不因平台的中断结果写成「失败」
 let answered = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
-answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmation", 5, { tool_use_id: "tz", result: "allow" }) as any);
-answered = applyEvent(answered, ev("i1", "user.interrupt", 6) as any);
-assert.equal(part(answered).approval.approved, true);
-assert.equal(part(answered).cancelled, undefined);
-// 第 11 轮审查：点了「允许」、工具执行中才停止，随后交回成功的结果：本页与重开都是「允许」（重开时历史里没有点击记录，
-// 停止那一刻照样标了 cancelled，不能因此写成「已取消」——写入已经发生了）
-const done = [ev("i1", "user.interrupt", 6), result(false, JSON.stringify({ status: "saved" })),
-  ev("p2", "session.status_idle", 8, { stop_reason: { type: "end_turn" } })];
-const liveRan = project(done as any, answered);
+answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmation", 4.5, { tool_use_id: "tz", result: "allow" }) as any);
+const stopped = project(stop as any, answered);
+assert.equal(part(stopped).approval.approved, true);
+assert.equal(part(stopped).cancelled, undefined);
+assert.equal(part(stopped).interrupted, true);
+assert.equal(approvalCard(part(stopped), gates)?.phase, "answered");
+assert.equal((approvalCard(part(stopped), gates) as any).approved, true);
+assert.equal((approvalCard(part(stopped), gates) as any).failed, false);
+// 第 11 轮审查 / A2：点了「允许」、本站执行成功（引擎收到的却是平台的中断结果）：本页与重开都是「允许」（重开时历史里没有点击
+// 记录，中断结果那一刻照样标了 cancelled，不能因此写成「已取消」——写入已经发生了，以本站记录为准）
+const liveRan = applyEvent(stopped, record("done", 8) as any);
 assert.deepEqual(approvalCard(part(liveRan), gates), { phase: "answered", approved: true, failed: false });
-const reopenedRan = project([...head, ...done] as any);
+const reopenedRan = project([...head, ...stop, record("done", 8)] as any);
 assert.equal(part(reopenedRan).cancelled, true);
 assert.deepEqual(approvalCard(part(reopenedRan), gates), { phase: "answered", approved: true, failed: false });
 // 不要「允许」的工具被停止：照常是步骤组里的一行，不是卡片
 const plain = project([ev("tp", "agent.custom_tool_use", 3, { name: "pearnly_read", input: {} }),
-  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }), ev("i1", "user.interrupt", 5)] as any);
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }),
+  ev("int2", "agent.tool_result", 5, { tool_use_id: "tp", is_error: true, content: text("interrupted") }),
+  ev("i1", "user.interrupt", 5.05)] as any);
 assert.equal(approvalCard(plain.messages[0]!.content[0] as any, gates), null);
 """)
 
@@ -7539,6 +7911,328 @@ assert.deepEqual(users(), ["earlier", "hello"]);
                       "            await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
+
+# 测试窗口第 11 轮 A 段在 lab（9798f54e，真引擎）抓的原始事件（会话 sesn_01X2K4vJBNvR361Cvjxap2Nw；A1、A2、A4 的序列完全一样），
+# 编号与时间照抄。点停止时引擎先代发一条出错的中断结果（agent.tool_result，不是本站的 user.custom_tool_result），比 user.interrupt
+# 早 47 毫秒。前面的用户消息、开跑两条是补的上下文。
+REAL_A = r"""
+const TOOL = "sevt_01UDVUzpwDom3EXfH9XEWYJm";
+const NAME = "cowork_set_folder_task_enabled";
+const GATES = { ask: { [NAME]: "Turn this folder task on or off?" } };
+const ASK = { ask: "Turn this folder task on or off?", preview: [{ field: "Enabled", before: "Yes", after: "No" }] };
+const HEAD = [
+  { id: "sevt_u1", type: "user.message", processed_at: "2026-10-17T10:57:40.000000Z", content: [{ type: "text", text: "停用 fleigbs7p9" }] },
+  { id: "sevt_r1", type: "session.status_running", processed_at: "2026-10-17T10:57:40.100000Z" },
+  { id: TOOL, type: "agent.custom_tool_use", name: NAME, input: { enabled: false, task: "fleigbs7p9" },
+    processed_at: "2026-10-17T10:57:45.204327Z" },
+  { id: "sevt_thread_idle_1", type: "session.thread_status_idle", processed_at: "2026-10-17T10:57:45.308Z",
+    stop_reason: { type: "requires_action", event_ids: [TOOL] } },
+  { id: "sevt_idle_1", type: "session.status_idle", processed_at: "2026-10-17T10:57:45.308Z",
+    stop_reason: { type: "requires_action", event_ids: [TOOL] } },
+];
+const STOP = [
+  { id: "sevt_01VZ5u2hu3mRxat5JEvW9wcf", type: "agent.tool_result", tool_use_id: TOOL, is_error: true,
+    content: [{ type: "text", text: "Tool execution was interrupted before completion. Please retry." }],
+    processed_at: "2026-10-17T10:57:53.063300Z" },
+  { id: "sevt_interrupt_1", type: "user.interrupt", processed_at: "2026-10-17T10:57:53.110517Z" },
+  { id: "sevt_thread_idle_2", type: "session.thread_status_idle", processed_at: "2026-10-17T10:57:53.213Z",
+    stop_reason: { type: "end_turn" } },
+  { id: "sevt_idle_2", type: "session.status_idle", processed_at: "2026-10-17T10:57:53.213Z", stop_reason: { type: "end_turn" } },
+];
+const RECORD = (status: string, at = "2026-10-17T10:57:54Z") =>
+  ({ type: "pearnly.tool_run", id: `ptoolrun_${TOOL}_${status}`, tool_use_id: TOOL, status, processed_at: at });
+const card = (state: any) => approvalCard(state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === TOOL), GATES);
+const tool = (state: any) => state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === TOOL);
+const ALLOWED = { phase: "answered", approved: true, failed: false };
+const FAILED = { phase: "answered", approved: true, failed: true };
+const DENIED = { phase: "answered", approved: false, failed: false };
+const CANCELLED = { phase: "cancelled" };
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11ACardTests(unittest.TestCase):
+    """第 11 轮 A 段：本站拦下的卡片最后的样子以本站执行记录为准（pearnly.tool_run）。A1 没答就停止写成「允许 · 失败」；
+    A2 点「允许」后马上停止，本站执行成功，卡片却写「允许 · 失败」；A4 别的设备已停止，断网的手机联网后点「允许」，两端写
+    「允许 · 失败」、服务端回 500。夹具用测试窗口抓的真实事件（REAL_A）。"""
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB}
+
+    def run_pure(self, body):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n'
+               'import { applyEvent, gateCustomTool, project, restoreGates } from "@/lib/managed-agents/reducer";\n'
+               'import { approvalCard } from "@/lib/approval-card";\n'
+               + REAL_A + body + "\n(globalThis as any).done();\n")
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n'
+               + body.split("\n---\n", 1)[0] + "\nconst g = globalThis as any;\n" + FAKE_SITE + REAL_A
+               + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_a1_unanswered_then_stop_reads_cancelled_live_reopened_and_after_the_record(self):
+        self.run_pure(r"""
+// 本页：卡片出来（问句向服务端要来），没答，按停止：事件一条条到
+let live = gateCustomTool(project(HEAD as any), TOOL, ASK);
+assert.deepEqual(card(live), { phase: "ask" });
+assert.deepEqual(live.pendingApprovals, [TOOL]);
+live = applyEvent(live, STOP[0] as any);                 // 平台的中断结果先到：不是点了「允许」
+assert.deepEqual(card(live), CANCELLED);
+assert.equal(tool(live).approval, undefined);
+assert.deepEqual([live.pendingApprovals, live.pendingCustomTools, live.parkedIds], [[], [], []]);
+for (const event of STOP.slice(1)) live = applyEvent(live, event as any);
+assert.deepEqual(card(live), CANCELLED);
+assert.equal(live.isRunning, false);
+live = applyEvent(live, RECORD("cancelled") as any);     // 本站作废的记录（cancel_waiting 推来）
+assert.deepEqual(card(live), CANCELLED);
+assert.equal(gateCustomTool(live, TOOL, ASK), live);      // 晚到的问句不放回按钮
+assert.equal(restoreGates(live, [TOOL], "x"), live);      // 确认没送到也不放回
+// 重开对话：执行记录随历史接在这页最后；记录没到时也一样
+assert.deepEqual(card(project([...HEAD, ...STOP, RECORD("cancelled")] as any)), CANCELLED);
+assert.deepEqual(card(project([...HEAD, ...STOP] as any)), CANCELLED);
+// 重开时那一步还在等问句（页面要去要）：中断结果之后不再欠
+assert.deepEqual(project([...HEAD, STOP[0]] as any).pendingCustomTools, []);
+""")
+
+    def test_a2_allowed_then_stop_reads_allowed_whenever_the_record_lands(self):
+        self.run_pure(r"""
+const clicked = () => {
+  let state = gateCustomTool(project(HEAD as any), TOOL, ASK);
+  state = applyEvent(state, { type: "user.tool_confirmation", id: "optimistic-confirm-1", tool_use_id: TOOL, result: "allow",
+    processed_at: "2026-10-17T10:57:52.900Z" } as any);
+  return applyEvent(state, { type: "pearnly.answer", id: `panswer_${TOOL}`, tool_use_id: TOOL, result: "allow",
+    processed_at: "2026-10-17T10:57:52.950Z" } as any);
+};
+// 记录在中断结果之后到：等记录时照「允许」，不写「失败」
+let after = clicked();
+for (const event of STOP) after = applyEvent(after, event as any);
+assert.equal(card(after)?.phase, "answered");
+assert.equal((card(after) as any).approved, true);
+assert.equal((card(after) as any).failed, false);
+after = applyEvent(after, RECORD("done") as any);
+assert.deepEqual(card(after), ALLOWED);
+assert.equal(tool(after).approval.ask, ASK.ask);          // 点完的卡片照写问话
+// 记录在中断结果之前到
+let before = applyEvent(clicked(), RECORD("done", "2026-10-17T10:57:53.000Z") as any);
+assert.deepEqual(card(before), ALLOWED);
+for (const event of STOP) before = applyEvent(before, event as any);
+assert.deepEqual(card(before), ALLOWED);
+assert.equal(tool(before).run, "done");
+// 重开（另一台设备、刷新）：历史里没有点击记录，执行记录随历史到
+assert.deepEqual(card(project([...HEAD, ...STOP, RECORD("done")] as any)), ALLOWED);
+// 执行出错的才写「允许 · 失败」（本页、重开都一样）
+let failed = clicked();
+for (const event of [...STOP, RECORD("error")]) failed = applyEvent(failed, event as any);
+assert.deepEqual(card(failed), FAILED);
+assert.deepEqual(card(project([...HEAD, ...STOP, RECORD("error")] as any)), FAILED);
+// 执行中（记录 running）：「允许」，淡一档；晚到、读得早的旧状态不把已定下的改回去
+assert.deepEqual(card(applyEvent(clicked(), RECORD("running") as any)), { ...ALLOWED, sending: true });
+assert.deepEqual(card(applyEvent(after, RECORD("running") as any)), ALLOWED);
+assert.deepEqual(card(applyEvent(after, RECORD("awaiting_approval") as any)), ALLOWED);
+// 记录先于调用本身到（推送比历史先折进来）：建这一步时补上
+assert.deepEqual(card(project([RECORD("done"), ...HEAD, ...STOP] as any)), ALLOWED);
+""")
+
+    def test_another_device_polling_gets_the_record_that_settles_after_the_turn_ended(self):
+        """审查（第 11 轮 A 段）：另一台设备 B 没点卡片、推送漏收，只靠补拉。B 读到的页里是中断结果和执行记录 running（工具还在
+        本站执行），随后 user.interrupt、end_turn；记录在引擎收尾之后才改成 done / error，由下一次补拉（服务端按锚点之后改过的记录
+        带回，`sessions._run_rows` 的 since）送来。卡片从淡色「允许」定成「允许」或「允许 · 失败」，不停在淡色。"""
+        self.run_pure(r"""
+const later = (status: string) => RECORD(status, "2026-10-17T10:57:58Z");
+const polled = () => {
+  let b = gateCustomTool(project(HEAD as any), TOOL, ASK);     // B 上卡片还在问（没点）
+  assert.deepEqual(card(b), { phase: "ask" });
+  b = applyEvent(b, STOP[0] as any);                            // 补拉第 1 页：平台代发的中断结果
+  b = applyEvent(b, RECORD("running", "2026-10-17T10:57:52Z") as any);  // 同一页末尾：本站执行记录 running
+  assert.deepEqual(card(b), { ...ALLOWED, sending: true });     // 别处点了「允许」、正在执行：淡色「允许」
+  for (const event of STOP.slice(1)) b = applyEvent(b, event as any);  // user.interrupt、end_turn
+  assert.deepEqual(card(b), { ...ALLOWED, sending: true });
+  assert.equal(b.isRunning, false);
+  assert.deepEqual([b.pendingApprovals, b.pendingCustomTools], [[], []]);
+  return b;
+};
+// 补拉第 2 页（锚点 end_turn，引擎没有新事件）：只带回 done 的记录
+let done = applyEvent(polled(), later("done") as any);
+assert.deepEqual(card(done), ALLOWED);
+assert.equal(tool(done).run, "done");
+// 同一条记录重复带回（锚点前推的余量）：没有副作用
+assert.equal(applyEvent(done, later("done") as any).messages, done.messages);
+// 执行出错：「允许 · 失败」
+assert.deepEqual(card(applyEvent(polled(), later("error") as any)), FAILED);
+// 重开时一样
+assert.deepEqual(card(project([...HEAD, STOP[0], RECORD("running", "2026-10-17T10:57:52Z"), ...STOP.slice(1), later("error")] as any)),
+                 FAILED);
+""")
+
+    def test_denied_and_a_stale_card_settled_by_the_record(self):
+        self.run_pure(r"""
+// 拒绝：本站交回的拒绝结果 + 执行记录 denied →「拒绝」（本页、重开）
+const denyResult = { type: "user.custom_tool_result", id: "sevt_deny_res", custom_tool_use_id: TOOL, is_error: false,
+  content: [{ type: "text", text: JSON.stringify({ status: "denied", message: "The user did not allow this change." }) }],
+  processed_at: "2026-10-17T10:57:50Z" };
+let denied = gateCustomTool(project(HEAD as any), TOOL, ASK);
+denied = applyEvent(denied, { type: "user.tool_confirmation", id: "optimistic-confirm-2", tool_use_id: TOOL, result: "deny",
+  processed_at: "2026-10-17T10:57:49Z" } as any);
+denied = applyEvent(denied, RECORD("denied") as any);
+assert.deepEqual(card(denied), DENIED);
+assert.deepEqual(card(project([...HEAD, denyResult, RECORD("denied")] as any)), DENIED);
+// A4：断网的手机上卡片还在问（别的设备已停止，事件全错过）；收到作废记录 → 「已取消」、没有按钮、不再等这边点
+let stale = gateCustomTool(project(HEAD as any), TOOL, ASK);
+stale = applyEvent(stale, RECORD("cancelled") as any);
+assert.deepEqual(card(stale), CANCELLED);
+assert.equal(tool(stale).approval, undefined);
+assert.deepEqual([stale.pendingApprovals, stale.parkedIds], [[], []]);
+// 手机先乐观点了「允许」，confirm 回 cancelled（页面照它折一条记录）：同样「已取消」
+let clicked = gateCustomTool(project(HEAD as any), TOOL, ASK);
+clicked = applyEvent(clicked, { type: "user.tool_confirmation", id: "optimistic-confirm-3", tool_use_id: TOOL, result: "allow",
+  processed_at: "2026-10-17T10:58:30Z" } as any);
+clicked = applyEvent(clicked, RECORD("cancelled", null as any) as any);
+assert.deepEqual(card(clicked), CANCELLED);
+assert.equal(restoreGates(clicked, [TOOL], "x"), clicked);
+// 之后补齐的事件（中断结果、停止）不改它
+for (const event of STOP) clicked = applyEvent(clicked, event as any);
+assert.deepEqual(card(clicked), CANCELLED);
+// 出卡片前就核出要拒绝的（结果带没问过用户的标记）：执行记录是 error，照旧不是卡片
+const notAsked = project([...HEAD, { type: "user.custom_tool_result", id: "sevt_na", custom_tool_use_id: TOOL, is_error: true,
+  content: [{ type: "text", text: JSON.stringify({ status: "not_saved", approval: "not_asked" }) }],
+  processed_at: "2026-10-17T10:57:46Z" }, RECORD("error")] as any);
+assert.equal(card(notAsked), null);
+""")
+
+    def test_tools_that_are_not_this_sites_cards_keep_their_old_behaviour(self):
+        self.run_pure(r"""
+const parts = (state: any) => state.messages.flatMap((m: any) => m.content).filter((p: any) => p.type === "tool-call");
+const at = (s: number) => `2026-10-17T11:00:${String(s).padStart(2, "0")}.000000Z`;
+// 内置工具：要确认的，结果到了就是放行过（确认的回声晚到也一样）；不进执行记录
+const builtin = project([
+  { id: "b1", type: "agent.tool_use", name: "bash", input: { command: "ls" }, processed_at: at(1) },
+  { id: "bi", type: "session.status_idle", processed_at: at(2), stop_reason: { type: "requires_action", event_ids: ["b1"] } },
+  { id: "br", type: "agent.tool_result", tool_use_id: "b1", is_error: false, content: [{ type: "text", text: "a.txt" }], processed_at: at(3) },
+] as any);
+assert.equal(parts(builtin)[0].approval.approved, true);
+assert.equal(parts(builtin)[0].interrupted, undefined);
+assert.equal(parts(builtin)[0].result.text, "a.txt");
+// MCP：同上
+const mcp = project([
+  { id: "m1", type: "agent.mcp_tool_use", name: "search", mcp_server_name: "docs", input: {}, processed_at: at(1) },
+  { id: "mi", type: "session.status_idle", processed_at: at(2), stop_reason: { type: "requires_action", event_ids: ["m1"] } },
+  { id: "mr", type: "agent.mcp_tool_result", mcp_tool_use_id: "m1", is_error: false, content: [{ type: "text", text: "ok" }], processed_at: at(3) },
+] as any);
+assert.equal(parts(mcp)[0].approval.approved, true);
+// 内置工具出错的结果照旧是它的结果（不是中断标记）
+const builtinErr = project([
+  { id: "b2", type: "agent.tool_use", name: "bash", input: {}, processed_at: at(1) },
+  { id: "br2", type: "agent.tool_result", tool_use_id: "b2", is_error: true, content: [{ type: "text", text: "exit 1" }], processed_at: at(2) },
+] as any);
+assert.equal(parts(builtinErr)[0].isError, true);
+assert.equal(parts(builtinErr)[0].interrupted, undefined);
+// 不要「允许」的自定义工具：本站结果照常；被停止时那条中断结果留给步骤行看（出错），不是卡片
+const plain = project([
+  { id: "c1", type: "agent.custom_tool_use", name: "cowork_list_documents", input: {}, processed_at: at(1) },
+  { id: "ci", type: "session.status_idle", processed_at: at(2), stop_reason: { type: "requires_action", event_ids: ["c1"] } },
+  { id: "cr", type: "agent.tool_result", tool_use_id: "c1", is_error: true,
+    content: [{ type: "text", text: "Tool execution was interrupted before completion. Please retry." }], processed_at: at(3) },
+  { id: "cx", type: "user.interrupt", processed_at: at(4) },
+  { type: "pearnly.tool_run", id: "ptoolrun_c1_done", tool_use_id: "c1", status: "done", processed_at: at(5) },
+] as any);
+assert.equal(approvalCard(parts(plain)[0], GATES), null);
+assert.equal(parts(plain)[0].isError, true);
+const plainDone = project([
+  { id: "c2", type: "agent.custom_tool_use", name: "cowork_list_documents", input: {}, processed_at: at(1) },
+  { id: "cr2", type: "user.custom_tool_result", custom_tool_use_id: "c2", is_error: false, content: [{ type: "text", text: "[]" }], processed_at: at(2) },
+] as any);
+assert.equal(approvalCard(parts(plainDone)[0], GATES), null);
+assert.equal(parts(plainDone)[0].result.text, "[]");
+""")
+
+    def test_a4_a_stale_allow_gets_the_servers_state_not_an_error(self):
+        # 断网的手机联网后点了「允许」：服务端不转给引擎，回此刻的状态（cancelled）。卡片当场写「已取消」、没有按钮、不出错误行；
+        # 执行完的回 done 写「允许」；真正的错误（网络）照旧放回按钮、写原因
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { approvalCard } from "@/lib/approval-card";
+---
+const respond = g.respond;
+let confirmReply: any = { confirmed: 1, runs: { [TOOL]: "cancelled" } };
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "confirm") {
+    if (confirmReply instanceof Error) throw confirmReply;
+    return ok(confirmReply);
+  }
+  return respond(method, args, body);
+};
+const open = async (sid: string) => {
+  site.log.length = 0;
+  site.log.push(...HEAD);
+  site.runs = { [TOOL]: "awaiting_approval" };
+  site.toolReply = async () => ({ status: "awaiting_approval", ...ASK });
+  const c = getSessionController(sid);
+  c.attach();
+  await g.sleep(30);
+  assert.deepEqual(card(c.getSnapshot()), { phase: "ask" });
+  return c;
+};
+const phone = await open("sesn_a4_phone");
+phone.respondToApproval(TOOL, true);
+await g.sleep(300);
+let snap: any = phone.getSnapshot();
+assert.deepEqual(card(snap), CANCELLED);
+assert.equal(tool(snap).approval, undefined);
+assert.deepEqual(snap.pendingApprovals, []);
+assert.equal(snap.transportError, null);
+const confirmCall = g.calls.filter((c: any) => c.method === "confirm").at(-1);
+assert.deepEqual(JSON.parse(confirmCall.body.confirmations), [{ tool_use_id: TOOL, result: "allow" }]);
+// 服务端回 done：「允许」
+confirmReply = { confirmed: 1, runs: { [TOOL]: "done" } };
+const other = await open("sesn_a4_other");
+other.respondToApproval(TOOL, true);
+await g.sleep(300);
+assert.deepEqual(card(other.getSnapshot()), ALLOWED);
+// 旧服务端（没有 runs）：照旧
+confirmReply = { confirmed: 1 };
+const old = await open("sesn_a4_old");
+old.respondToApproval(TOOL, true);
+await g.sleep(300);
+assert.equal(tool(old.getSnapshot()).approval.approved, true);
+// 真正的错误（网络）：按钮放回，按钮上方写原因
+confirmReply = new TypeError("Failed to fetch");
+const offline = await open("sesn_a4_offline");
+offline.respondToApproval(TOOL, true);
+await g.sleep(300);
+snap = offline.getSnapshot();
+assert.deepEqual(card(snap), { phase: "ask" });
+assert.ok(tool(snap).approval.failure);
+""")
+
+    def test_the_pushed_record_settles_the_card_on_every_open_device(self):
+        # 本站执行记录推来（toolrun._finish / decide 拒绝 / cancel_waiting）：开着这段对话的设备当场定下，不等补拉
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { dispatch } from "@/lib/managed-agents/realtime";
+import { approvalCard } from "@/lib/approval-card";
+---
+const S = "sesn_01X2K4vJBNvR361Cvjxap2Nw";
+site.log.push(...HEAD);
+site.runs = { [TOOL]: "awaiting_approval" };
+site.toolReply = async () => ({ status: "awaiting_approval", ...ASK });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.deepEqual(card(c.getSnapshot()), { phase: "ask" });
+const reads = eventsCalls(S).length;
+// 别的设备上点停止：平台的中断结果、停止、作废记录依次推来
+for (const event of STOP) dispatch({ session_id: S, event: event as any });
+dispatch({ session_id: S, event: RECORD("cancelled") as any });
+await g.sleep(0);
+assert.equal(eventsCalls(S).length, reads);              // 没靠补拉
+assert.deepEqual(card(c.getSnapshot()), CANCELLED);
+assert.deepEqual(c.getSnapshot().pendingApprovals, []);
+// 重开（整段重放，执行记录接在这页最后，同服务端 sessions.events）
+site.log.push(...STOP, RECORD("done"));
+const again = getSessionController("sesn_reopen_a2");
+again.attach();
+await g.sleep(30);
+assert.deepEqual(card(again.getSnapshot()), ALLOWED);
+""")
+
 
 class Round11ButtonsLikeClaudeTests(unittest.TestCase):
     """第 11 轮：按钮三端照 Claude（排查报告 G1–G15，用户 10-17）。电脑端已和 Claude 一致的值不动，手机档另加两条
@@ -7642,10 +8336,25 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn('className="cc-chip-x"', read("components/pending.tsx"))
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
-        # 当场选三颗 + 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
-        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 5)
+        # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 6)
         # 设置「电脑」列表每台电脑行尾「···」：电脑 28，手机点按区 44（.cc-tap）
         self.assertIn('className="cc-tap flex size-7 items-center justify-center rounded-md', read("components/settings.tsx"))
+        self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))
+        # D26：触屏平板（网页布局 + 粗指针）对话顶栏 44、顶栏图标钮与侧栏收起钮点按区 44，鼠标与桌面版不跟
+        coarse = css.split("触屏平板（网页布局 + 粗指针", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("@media (pointer: coarse) {", css.split("触屏平板（网页布局 + 粗指针", 1)[0][-1200:])
+        # 第 11 轮合并审查：顶栏高的变量写在 @layer components 里敌不过不分层的 :root 定义（顶栏仍 32、按钮已 44）——挪到不分层的
+        # 粗指针变量块里，components 层不再给 --cc-topbar-h 赋值
+        unlayered = css.split("\n@layer base {", 1)[0]
+        tokens = unlayered.split("\n@media (pointer: coarse) {\n", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn(':root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', tokens)
+        self.assertNotIn("--cc-topbar-h:", coarse)
+        layered = css.split("\n@layer components {", 1)[1]
+        self.assertNotRegex(layered, r"--cc-topbar-h\s*:")
+        self.assertIn(':root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
+        self.assertIn(':root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
+        self.assertIn('data-slot="cc-sidebar-toggle"', read("assistant.tsx"))
 
 
 class Round11ReviewTests(unittest.TestCase):
@@ -7700,6 +8409,198 @@ class Round11ReviewTests(unittest.TestCase):
         self.assertIn('<button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>', tasks)
         self.assertNotIn("cc-card flex items-center justify-between gap-2 px-3 py-2.5", tasks)
 
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11EFTests(unittest.TestCase):
+    """测试窗口第 11 轮 E / F 段（lab 9798f54e）：E37 删除确认读屏念两遍标题、打开时焦点在 ×、关掉后焦点掉到页面最外层；
+    F40「记住的选择」出错的原因写在整张卡最底下（右侧栏没滚动时在视区外）。"""
+    STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\n' + COMPANY_RENDER + body + "\n(globalThis as any).done();\n",
+               stubs={**self.STUBS, "cc-ma-setup": MA_SETUP})
+
+    def test_delete_confirm_says_its_title_once_and_gives_focus_back(self):
+        self.run_page(r"""
+import { backTarget, rowAfterDelete } from "@/components/delete-chats";
+// 极简的元素：closest / querySelector 按选择器认几个固定的 data-slot 与 role
+const el = (attrs: Record<string, string>, parent: any = null, children: any[] = []): any => {
+  const node: any = { attrs, parent, children, dataset: {} as Record<string, string>, isConnected: true,
+    getAttribute: (k: string) => attrs[k] ?? null,
+    matches: (sel: string) => sel.split(",").some((one) => {
+      const m = one.trim().match(/^\[([a-z-]+)(?:="([^"]*)")?\]$/);
+      return !!m && (m[2] === undefined ? m[1] in attrs : attrs[m[1]] === m[2]);
+    }),
+    closest: (sel: string) => { for (let n = node; n; n = n.parent) if (n.matches(sel)) return n; return null; },
+    querySelector: (sel: string) => { for (const c of node.children) { if (c.matches(sel)) return c; const d = c.querySelector(sel); if (d) return d; } return null; },
+  };
+  if (attrs["data-row-id"]) node.dataset.rowId = attrs["data-row-id"];
+  children.forEach((c) => { c.parent = node; });
+  return node;
+};
+const byId: Record<string, any> = {};
+g.document.getElementById = (id: string) => byId[id] ?? null;
+g.document.body = el({});
+// 侧栏行的菜单：触发钮是行尾「···」，回到行本身（行的开关按钮，键盘停的地方）
+const rowTrigger = el({ "data-slot": "aui_thread-list-item-trigger" });
+const more = el({ "data-slot": "aui_thread-list-item-more", id: "radix-1" });
+const row = el({ "data-slot": "aui_thread-list-item", "data-row-id": "t2" }, null, [rowTrigger, more]);
+byId["radix-1"] = more;
+const item = el({ role: "menuitem" }, el({ role: "menu", "aria-labelledby": "radix-1" }));
+assert.deepEqual(backTarget(item), { el: rowTrigger, row: "t2" });
+assert.equal(row.querySelector('[data-slot="aui_thread-list-item-trigger"]'), rowTrigger);
+// 标题栏「···」、手机「…」：回到那个按钮
+const titleMore = el({ id: "radix-9", "aria-haspopup": "menu" });
+byId["radix-9"] = titleMore;
+assert.deepEqual(backTarget(el({ role: "menuitem" }, el({ role: "menu", "aria-labelledby": "radix-9" }))), { el: titleMore, row: "" });
+// 不在菜单里（直接在行上按键）：就是当时的焦点；焦点在页面最外层：没有可回的
+assert.deepEqual(backTarget(rowTrigger), { el: rowTrigger, row: "t2" });
+assert.deepEqual(backTarget(g.document.body), { el: null, row: "" });
+// 删了以后：侧栏里删掉的之后第一条，没有就之前最近一条；侧栏里看不到它们回 ""
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["b"]), "c");
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["b", "c"]), "d");
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["c", "d"]), "b");
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["d", "b"]), "c");
+assert.equal(rowAfterDelete(["a"], ["a"]), "");
+assert.equal(rowAfterDelete([], ["a"]), "");
+""")
+        host = read("components/delete-chats.tsx")
+        # 打开时焦点在「取消」；关掉（取消 / Esc / × / 遮罩）回到打开它的地方；删了去下一条（当前对话被删进输入框）
+        self.assertIn("onOpenAutoFocus={(event) => {\n            event.preventDefault();\n            cancel.current?.focus();", host)
+        self.assertIn('<button ref={cancel} type="button" className="cc-btn" data-slot="cc-delete-chats-no">{t("cancel")}</button>', host)
+        close = host.split("onCloseAutoFocus={(event) => {", 1)[1].split("}}", 1)[0]
+        self.assertIn("event.preventDefault();", close)
+        self.assertIn("else focusBack(asked.current?.back);", close)
+        ask = host.split("export function askDelete(", 1)[1].split("\n}\n", 1)[0]
+        self.assertLess(ask.index("const back = backTarget();"), ask.index("requestAnimationFrame("))   # 菜单关之前记下
+        confirm = host.split("const confirm = () => {", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("after.current = focusAfterDelete(current.ids, current.back, () => aui.threads().getState().mainThreadId);", confirm)
+        self.assertLess(confirm.index("focusAfterDelete("), confirm.index("current.run();"))   # 删之前算好下一条
+        self.assertLess(confirm.index("close();"), confirm.index("current.run();"))
+        self.assertIn("askDelete([item.getState().id], () => item.delete());", host)
+
+    def test_focus_after_a_delete_lands_on_a_row_or_the_composer(self):
+        # 审查（第 11 轮 E37 修复）：在定时任务 / 公司 / 主档 / 待处理页删掉正开着的对话，这些页没有输入框，焦点掉到页面最外层；
+        # 触屏上删了正开着的对话程序聚焦输入框会弹键盘（手机打开不弹键盘）。现在：对话页（有输入框）、非触屏删了正开着的才进输入框，
+        # 其余去侧栏下一条（没有就上一条），侧栏里看不到就回打开它的地方
+        self.run_page(r"""
+import { focusAfterDelete } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = false;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+const node = (name: string) => ({ name, isConnected: true, focus() { g.document.activeElement = this; } });
+let rows: string[] = [];
+let sidebarShown = true;
+let composer: any = null;
+const triggers: Record<string, any> = {};
+const sidebar = { closest: () => null, querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })) };
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebarShown ? sidebar : null;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && sidebarShown && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`)) : null;
+};
+// 组件库删正开着的：先切到新对话（main 变了），再从侧栏移走
+let main = "";
+const run = async (ids: string[], back: any, opts: { switchTo?: string; composerAfter?: any } = {}) => {
+  g.document.activeElement = g.document.body;
+  const go = focusAfterDelete(ids, back, () => main);
+  go();
+  await g.sleep(3);
+  if (opts.switchTo !== undefined) main = opts.switchTo;
+  if ("composerAfter" in opts) composer = opts.composerAfter;
+  rows = rows.filter((id) => !ids.includes(id));
+  await g.sleep(30);
+  return g.document.activeElement?.name ?? "body";
+};
+const more = node("title-more");
+const input = node("composer");
+
+// ① 电脑、定时任务页（没有输入框）删正开着的 b：去侧栏下一条 c，不掉到 body
+rows = ["a", "b", "c"]; main = "b"; composer = null;
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new" }), "row:c");
+// ② 电脑、对话页删正开着的 b：切到新对话后进输入框
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "composer");
+// ③ 电脑、对话页删正开着的，切过去时视图被切走（没有输入框了）：去侧栏下一条
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: null }), "row:c");
+// ④ 删的不是正开着的（最后一条）：去上一条
+rows = ["a", "b", "c"]; main = "a"; composer = input;
+assert.equal(await run(["c"], { el: more, row: "c" }), "row:b");
+// ⑤ 侧栏里看不到（收起）：回打开它的地方；那里也没了才进输入框
+rows = ["a", "b"]; main = "a"; sidebarShown = false; composer = input;
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
+// ⑥ 触屏：删正开着的不进输入框（不弹键盘）——抽屉开着去下一条，抽屉关着回右上「…」，都没有就不放
+touch = true; sidebarShown = true;
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "row:c");
+sidebarShown = false; rows = ["a", "b"]; main = "b";
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "title-more");
+assert.equal(await run(["a"], { el: { isConnected: false, focus() {} }, row: "" }), "body");
+""")
+
+    def test_focus_after_a_delete_skips_a_sidebar_that_cannot_be_seen(self):
+        # 第 11 轮合并交叉审查 5：删除后焦点去「侧栏下一条」以前不看侧栏看不看得到——手机抽屉关着（inert）时聚焦不上、焦点掉到
+        # 页面最外层；iPad 侧栏收起时落进屏幕外的侧栏。现在：侧栏在 inert 里或所在侧栏收起时不去侧栏；聚焦后核对真的到了，
+        # 没到就接着回打开它的地方或输入框
+        self.run_page(r"""
+import { focusAfterDelete, sidebarVisible } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+g.matchMedia = () => ({ matches: false });
+let inert = false;
+let collapsed = false;
+const node = (name: string, inertNode = false): any => ({ name, isConnected: true,
+  focus() { if (!(inertNode && inert)) g.document.activeElement = this; } });
+let rows: string[] = [];
+const triggers: Record<string, any> = {};
+const frame = { getAttribute: (k: string) => (k === "data-state" ? (collapsed ? "collapsed" : "expanded") : null) };
+const sidebar = {
+  closest: (sel: string) => (sel === "[inert]" ? (inert ? {} : null) : sel === '[data-slot="sidebar"]' ? frame : null),
+  querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })),
+};
+let composer: any = null;
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`, true)) : null;
+};
+const run = async (ids: string[], back: any) => {
+  g.document.activeElement = g.document.body;
+  focusAfterDelete(ids, back, () => "a")();
+  rows = rows.filter((id) => !ids.includes(id));
+  await g.sleep(20);
+  return g.document.activeElement?.name ?? "body";
+};
+const more = node("title-more");
+// 看得到：照旧去下一条
+rows = ["a", "b", "c"];
+assert.equal(sidebarVisible(sidebar), true);
+assert.equal(await run(["b"], { el: more, row: "" }), "row:c");
+// ① 手机抽屉关着（侧栏在 inert 里）：不去侧栏，回右上「…」
+inert = true; rows = ["a", "b", "c"];
+assert.equal(sidebarVisible(sidebar), false);
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+inert = false;
+// ② iPad / 电脑侧栏收起（在屏幕外）：不落进侧栏，回标题栏「···」；那里也没了进输入框
+collapsed = true; rows = ["a", "b", "c"];
+assert.equal(sidebarVisible(sidebar), false);
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+composer = node("composer"); rows = ["a", "b", "c"];
+assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
+collapsed = false;
+// ③ 侧栏看得到但那一行聚焦不上（例如正在收起）：核对没到，接着回打开它的地方
+rows = ["a", "b", "c"];
+triggers.c.focus = () => {};
+assert.equal(await run(["b"], { el: node("title-more-2"), row: "" }), "title-more-2");
+// 没有侧栏：不可见
+assert.equal(sidebarVisible(null), false);
+""")
 
 if __name__ == "__main__":
     unittest.main()

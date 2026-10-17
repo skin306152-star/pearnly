@@ -326,6 +326,44 @@ def answer_event(tool_use_id, allow, processed_at) -> dict:
             "result": "allow" if allow else "deny", "processed_at": processed_at}
 
 
+# 本站执行记录（`toolrun`，`Pearnly Assistant Tool Run`）的状态：本站拦下等「允许」的那张卡最后什么样子以它为准
+# （第 11 轮 A 段：点了停止时引擎代发一条出错的中断结果，类型是 agent.tool_result，对话页曾当成「允许 · 失败」；点「允许」后
+# 马上停止的，本站其实已执行成功）。状态变了（执行完 / 出错、拒绝、作废）推给会话主人自己的房间；读事件时按这页事件里出现的
+# 调用编号并进来（放在这页最后）。编号带上状态（一次调用每种状态最多一次），对话页按编号去重。只在站点与对话页之间，不进引擎。
+TOOL_RUN_EVENT = "pearnly.tool_run"
+TOOL_RUN_PREFIX = "ptoolrun_"
+TOOL_RUN_STATES = ("awaiting_approval", "running", "done", "error", "denied", "cancelled")
+
+
+def tool_run_event(tool_use_id, status, processed_at) -> dict:
+    """一次调用在本站的执行状态（同执行记录的 status）。"""
+    use_id = event_id(tool_use_id)
+    if status not in TOOL_RUN_STATES:
+        raise ContractError("unknown tool run status")
+    return {"type": TOOL_RUN_EVENT, "id": f"{TOOL_RUN_PREFIX}{use_id}_{status}", "tool_use_id": use_id,
+            "status": status, "processed_at": processed_at}
+
+
+def tool_use_ids(events) -> list[str]:
+    """这页事件里出现过的工具调用编号：调用本身、它的结果、停着等的（去重保序）。读事件时据此一次查出本站执行记录。"""
+    found = []
+    for event in events or ():
+        kind = event.get("type")
+        if kind in ("agent.custom_tool_use", "agent.tool_use", "agent.mcp_tool_use"):
+            ids = [event.get("id")]
+        elif kind == "agent.tool_result":
+            ids = [event.get("tool_use_id")]
+        elif kind == "user.custom_tool_result":
+            ids = [event.get("custom_tool_use_id")]
+        else:
+            ids = parked_ids(event)
+        for value in ids:
+            text = str(value or "")
+            if OPAQUE_ID.match(text) and text not in found:
+                found.append(text)
+    return found
+
+
 # ---- 对话归在哪家（`projects`，ADR-020：Cowork 按公司主档）----
 # 共用层只记对话挂在哪一项（`project`，产品给的不透明编号；空 = 「最近」）、处理哪个月（`period`，`YYYY-MM`，空 = 不指定）、
 # 产品自定的范围（`project_scope`，Cowork 存分店号；空 = 不指定）。哪些编号有效、说明写什么由产品的 provider 决定。

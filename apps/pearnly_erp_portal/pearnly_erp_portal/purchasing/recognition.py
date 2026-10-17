@@ -153,11 +153,15 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
     # 照旧线上：先便宜模型、最低思考读，过不了确定性检查才升级重读（见 `recognition.policy`）。
     units = billing.pages(images)
     billing.gate(units)
+    own_tax = re.sub(r"\D", "", str(frappe.db.get_value("ERP Company", company, "tax_id") or "")) if company else ""
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="purchase",
-                                fields=HEADER_FIELDS, finish=_finish, progress=progress)
+                                fields=HEADER_FIELDS, finish=_finish, progress=progress, own_tax=own_tax or None)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
-    documents = _anchor_with_ocr(documents, images, company)
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    if not claude_ocr.uses_claude():  # Claude 路线不调谷歌 Vision 取原文核对（ADR-022）
+        documents = _anchor_with_ocr(documents, images, company)
     result, issues, model = documents[0]
     if result.get("not_document"):
         frappe.throw(_("This is not a purchase or sales document"), policy.UnsupportedDocument)

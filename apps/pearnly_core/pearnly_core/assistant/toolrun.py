@@ -108,8 +108,9 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     if not name:
         return "not_waiting"
     # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走
-    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s WHERE name=%s AND status='awaiting_approval'",
-                  ("running" if allow else "denied", name))
+    # 同时改 modified：增量补拉按「锚点之后改过的」带回执行记录（`sessions._run_rows`）
+    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s, modified=%s WHERE name=%s AND status='awaiting_approval'",
+                  ("running" if allow else "denied", frappe.utils.now(), name))
     claimed = frappe.db._cursor.rowcount == 1
     frappe.db.commit()
     if not claimed:
@@ -120,9 +121,10 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
         text = json.dumps({"status": "denied",
                            "message": _("The user did not allow this change. Do not try it again unless the user asks.")},
                           ensure_ascii=False)
-        engine.adapter().post(remote, [contracts.tool_result(use_id, text, False)])
         frappe.db.set_value(TOOL_RUN, name, "result", text)
         frappe.db.commit()
+        _publish_run(conversation, use_id, "denied")
+        _hand_back(conversation, remote, use_id, text, False)
         return "denied"
     run = frappe.db.get_value(TOOL_RUN, name, ["tool", "tool_input"], as_dict=True)
     return _finish(conversation, remote, name, use_id, run.tool, json.loads(run.tool_input or "{}"))
@@ -130,12 +132,23 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
 
 def cancel_waiting(conversation: str) -> int:
     """这一轮已经结束（点了停止、出错收尾、会话终止）：本对话还在等「允许」的调用都标成 cancelled。引擎不再等这些结果，
-    别的设备上没刷新的旧卡片事后点「允许」也不会执行（`decide` 只认 awaiting_approval）。返回改了几条。"""
-    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled' WHERE session_id=%s AND status='awaiting_approval'",
-                  (conversation,))
-    changed = frappe.db._cursor.rowcount
-    frappe.db.commit()
-    return changed
+    别的设备上没刷新的旧卡片事后点「允许」也不会执行（`decide` 只认 awaiting_approval）。返回改了几条。
+    逐条抢占（同 `decide`：只改还在等的那一条，同一刻被点了「允许 / 拒绝」的不算作废），改成了的推执行记录（`_publish_run`），
+    别的设备上还挂着的卡片当场写「已取消」。"""
+    runs = frappe.db.sql(f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s "
+                         "AND status='awaiting_approval'", (conversation,), as_dict=True)
+    changed = []
+    now = frappe.utils.now() if runs else None
+    for run in runs:
+        frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled', modified=%s "
+                      "WHERE name=%s AND status='awaiting_approval'", (now, run.name))
+        if frappe.db._cursor.rowcount == 1:
+            changed.append(run)
+    if runs:
+        frappe.db.commit()
+    for run in changed:
+        _publish_run(conversation, run.tool_use_id, "cancelled", run.user)
+    return len(changed)
 
 
 def _announce(conversation: str, use_id: str, allow: bool) -> None:
@@ -147,6 +160,26 @@ def _announce(conversation: str, use_id: str, allow: bool) -> None:
                                 user=frappe.session.user)
     except Exception as err:
         print(f"assistant answer {conversation}: {type(err).__name__}", flush=True)
+
+
+def _publish_run(conversation: str, use_id: str, status: str, user: str | None = None) -> None:
+    """执行记录的状态变了（执行完 / 出错、拒绝、作废，`contracts.tool_run_event`）：推给会话主人自己的房间，开着这段对话的
+    设备当场按本站记录定下那张卡（第 11 轮 A 段）。推不出去不影响主流程：那边重开、补拉时随事件并进来（`sessions.events`）。"""
+    try:
+        event = contracts.tool_run_event(use_id, status, datetime.now(timezone.utc).isoformat())
+        frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
+                                user=user or frappe.session.user)
+    except Exception as err:
+        print(f"assistant tool run {conversation}: {type(err).__name__}", flush=True)
+
+
+def _hand_back(conversation: str, remote: str, use_id: str, text: str, is_error: bool) -> None:
+    """把这次调用的结果交回引擎。执行记录已经先落库：交不回去（多半是这一轮已被停止，引擎已代发中断结果、不再收这次的结果）
+    不再抛给调用方——工具确实执行过，点「允许」的请求不报 500、卡片照本站记录写（第 11 轮 A2）。只记类型，内容不进日志。"""
+    try:
+        engine.adapter().post(remote, [contracts.tool_result(use_id, text, is_error)])
+    except Exception as err:
+        print(f"assistant tool result {conversation}: {type(err).__name__}", flush=True)
 
 
 def _input(text) -> dict:
@@ -186,9 +219,11 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
         text, is_error = _("The tool failed. Try again later."), True
     finally:
         frappe.local.pearnly_assistant = None
-    engine.adapter().post(remote, [contracts.tool_result(use_id, text, is_error)])
     status = "error" if is_error else "done"
-    # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）
+    # 留记录：谁（user）、何时（modified）、调了什么（tool / tool_input）、结果（result，含改后的状态）。先落库、推给对话页，
+    # 再交回引擎：执行过就以本站记录为准，交回失败（这一轮已被停止）也不丢（第 11 轮 A2：工具已执行，记录却一直停在 running）
     frappe.db.set_value(TOOL_RUN, run_name, {"status": status, "result": text[:60000]})
     frappe.db.commit()
+    _publish_run(conversation, use_id, status)
+    _hand_back(conversation, remote, use_id, text, is_error)
     return status

@@ -9,6 +9,19 @@
 // 回到前台、从后台缓存恢复（pageshow）、重新联网、实时通道断开后重连，这几个时刻马上补拉一次并顺带要一份服务端读回的
 // 运行状态（onstatus）：在后台时漏掉的「这一轮结束」不靠补齐事件来猜（2026-10-13 iPhone：主屏幕图标打开、锁屏收到推送，
 // 回来后一直显示在回复、发不了新消息）。一个时刻只读一次状态；不另开定时，取不到就跟着原有的补拉节奏再要。
+//
+// 推送与补拉之间的缺口（第 11 轮 F39）：实时通道断开又连上（断网时通道迟早断开），或补拉失败而通道当时也不在线，这段时间产生的
+// 事件只在事件记录里，而通道一恢复新事件就推来了。先交推来的，顺序就永久错了（断网时发出的那句的回声随补拉晚到，排在已推来的回复
+// 后面）。所以缺口一开始，推来的先压着（held）；等一次在缺口开始之后发出的补拉成功、这页事件交完，再按到达先后交压着的（已在这页
+// 里的按编号去重）。不多发请求：缺口由原有的那次补拉（失败后的下一次、联网 / 重连时的那次）收口。
+// 通道在线时补拉失败（网关 502、列事件接口一时出错）不开缺口：推来的走同一条活着的连接，不会漏推，照常当场交——推送是主路，
+// 回复不能被补拉卡住（第 11 轮审查：以前补拉失败一次，推来的回复要压到下一次补拉成功，接口一直坏就一直不出）。通道其实已断、
+// 只是还没报断开的，报断开后再连上照样开缺口。
+// 服务端这次没读到引擎（列出事件超时，回 200 但标 partial、只带本站提醒）不算补齐：照常交提醒、算有回应，但不动锚点、不收口、
+// 不交压着的，同补拉失败一样缺口开着时 SLOW_MS 后再取（第 11 轮合并审查：以前这种空页把缺口收了，压着的推送先于缺口里的引擎
+// 事件交出，顺序永久错乱）。缺口开着而引擎一直读不到，回复就一直压着：宁可晚、不可乱。
+// 尾巴建起来时实时通道不在线（还没连上、或看门重开 / 切回对话时恰好断网），之后第一次连上同样算重连、开缺口：这之前推不到的
+// 事件只在事件记录里。
 
 import { listEvents } from "./api";
 import { type FeedEvent, isLocalEvent, type RelayEnvelope, type RunStatus } from "./events";
@@ -48,8 +61,12 @@ export class PollingSource {
   private queued: number | null = null;
   // 下一次补拉顺带要运行状态（某个时刻要求的，取到为止）
   private wantStatus = false;
-  // 实时通道断过：再连上算重连（第一次连上不算）
+  // 实时通道断过（或尾巴建起来时就不在线，见构造）：再连上算重连
   private realtimeLost = false;
+  // 缺口（见文件头）：开着时推来的先压着；gapSeq 每开一次加一，补拉发出时记下，回来时没再开过新的缺口才收口
+  private gap = false;
+  private gapSeq = 0;
+  private held: FeedEvent[] = [];
   private readonly unsubscribe: () => void;
   private readonly offHeartbeat: () => void;
   private readonly onVisible = () => {
@@ -64,6 +81,8 @@ export class PollingSource {
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
+    // 建起来时通道不在线：这之前推不到的只在事件记录里，第一次连上也按重连开缺口（见文件头）。在 subscribe（会建连接）之前看
+    this.realtimeLost = !isConnected();
     this.unsubscribe = subscribe(
       sessionId,
       (event) => this.pushed(event),
@@ -74,6 +93,11 @@ export class PollingSource {
           this.reschedule(0);
         } else if (this.realtimeLost) {
           this.realtimeLost = false;
+          this.openGap();
+          this.refresh();
+        } else if (this.gap) {
+          // 缺口已开着（补拉失败时还没连上）又连上：重开一次（在途那次补拉发出时推送还不通，它回来不算补齐），马上补拉收口
+          this.openGap();
           this.refresh();
         }
       },
@@ -90,6 +114,7 @@ export class PollingSource {
 
   close() {
     this.readyState = PollingSource.CLOSED;
+    this.held = [];
     this.unsubscribe();
     this.offHeartbeat();
     document.removeEventListener("visibilitychange", this.onVisible);
@@ -120,10 +145,19 @@ export class PollingSource {
     this.schedule(delay);
   }
 
-  /** 推送来的事件：照常交给会话，但不拿它当补拉的锚点（补拉锚点只用从事件记录里读到的编号）。 */
+  /** 缺口开始（实时通道重连；补拉失败且通道不在线）：之后推来的先压着，等下一次补拉补齐。通道在线时推来的不压。 */
+  private openGap() {
+    this.gap = true;
+    this.gapSeq++;
+  }
+
+  /** 推送来的事件：照常交给会话，但不拿它当补拉的锚点（补拉锚点只用从事件记录里读到的编号）。缺口里推来的先压着（见文件头）。 */
   private pushed(event: FeedEvent) {
     if (this.readyState === PollingSource.CLOSED) return;
-    this.emit(event, false);
+    if (this.gap) {
+      this.held.push(event);
+      this.onalive?.(); // 推来了就算还连着（压着不交，不是没收到）
+    } else this.emit(event, false);
     const kind = event.type as string;
     const stop = (event as { stop_reason?: { type?: string } }).stop_reason?.type;
     if ((kind === "session.status_idle" && stop !== "requires_action") || kind === "session.status_terminated") {
@@ -142,6 +176,7 @@ export class PollingSource {
     const withStatus = this.wantStatus;
     this.wantStatus = false;
     const askedAt = Date.now();
+    const gapSeq = this.gapSeq;
     this.inFlight = true;
     let next: number;
     let failed = false;
@@ -153,16 +188,28 @@ export class PollingSource {
         this.readyState = PollingSource.OPEN;
         this.onopen?.();
       }
-      for (const event of page.events) this.emit(event, true);
+      // 服务端这次没读到引擎（partial）：这页只有本站提醒（不当锚点），不算补齐（见文件头）
+      const partial = page.partial === true;
+      for (const event of page.events) this.emit(event, !partial);
+      // 缺口开始之后发出的这一页已补齐：按到达先后交压着的推送（这页里已有的按编号去掉），收口
+      if (this.gap && gapSeq === this.gapSeq && !partial) {
+        this.gap = false;
+        const held = this.held;
+        this.held = [];
+        for (const event of held) this.emit(event, false);
+      }
       // 先并完这页事件，再按状态校正（状态是服务端读完这页事件之后读的）。要了没取到（引擎一时读不到）就下一次再要。
       if (page.run) {
         this.running = page.run.status === "running" || page.run.status === "requires_action";
         this.onstatus?.(page.run, askedAt);
       } else if (withStatus) this.wantStatus = true;
-      next = this.interval();
+      // 缺口没收口（没读到引擎）：同补拉失败，SLOW_MS 后再取，不等在线时的 8 / 30 秒
+      next = partial && this.gap ? Math.min(SLOW_MS, this.interval()) : this.interval();
     } catch {
       if (this.readyState === PollingSource.CLOSED) return;
       if (withStatus) this.wantStatus = true;
+      // 通道在线：推来的走活着的连接、不会漏，不压（见文件头）
+      if (!isConnected()) this.openGap();
       // 同 EventSource 自动重连：先回到「连接中」，下一次取到就再报一次 onopen（会话据此补拉、收起「正在重新连接…」）。
       // 以前停在「已连上」，恢复后不再报 onopen，提示一直挂着、错过的文件卡片也不补（2026-10-10 测试）。
       this.readyState = PollingSource.CONNECTING;
