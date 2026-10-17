@@ -67,6 +67,14 @@ export function sendFailed(
   }
 }
 
+/** 本站还开不了 CC 对话（没配 CC 等；外壳启动数据 shell.describe 的 assistant_unavailable，服务端已翻译的原文）：新对话一打开就
+ *  把原因写在输入框上方，同发了第一条被拒时那一行，不用等发了才知道。再发送时照常清掉、按这次的回应重写；这段对话已有原因不盖掉。 */
+export function noteUnavailable(thread: string, message: string) {
+  if (!message || failures.has(thread)) return;
+  note(thread, "send", message);
+  emit();
+}
+
 /** 发出一条（run 里建会话、发出；真发出去了调 sent()）。没成功：记原因、没发出去的字和附件放回输入框，回 false。
  *  从不抛出：组件库调发送不等也不接错（ExternalStoreThreadRuntimeCore.append 由输入框的 handleSend 直接调用），抛了就是未捕获的错误。
  *  已发出、只是之后的打断没成功：消息已在对话里，只说原因、不放回。 */

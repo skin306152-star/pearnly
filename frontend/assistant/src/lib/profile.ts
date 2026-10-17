@@ -7,7 +7,14 @@ import { siteFetch } from "@/lib/frappe";
 /** 产品名（原 Tomo，用户 2026-10 定名 CC）：侧栏左上角、手机抽屉标题、标签页标题、桌面通知共用这一处。 */
 export const APP_NAME = "CC";
 
-export type Profile = { product: string; product_label: string; full_name: string; user: string };
+export type Profile = {
+  product: string;
+  product_label: string;
+  full_name: string;
+  user: string;
+  /** 本站此刻开不了 CC 对话的原因（服务端已翻译，同建会话被拒时那一句）；能开是空串 */
+  assistant_unavailable?: string;
+};
 
 let cached: Promise<Profile> | null = null;
 

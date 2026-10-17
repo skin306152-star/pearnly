@@ -5142,5 +5142,34 @@ class StopRaceTests(unittest.TestCase):
         self.assertEqual(pushed, stream)
 
 
+class SetupSignalTests(unittest.TestCase):
+    """H8（2026-10-16 测试窗口，lab testerp 没配 CC）：打开新对话页时就说本站还不能用 CC，不用等发了第一条被拒。
+    外壳启动数据（`shell.describe`）带上原因：同建会话被拒时那一句（已有词条，按当前语言翻译）；能用是空串。"""
+
+    def _describe(self):
+        shell = _load("pearnly_core.shell", CORE / "shell.py")
+        fake = types.SimpleNamespace(get_csrf_token=lambda: "csrf")
+        with mock.patch.object(frappe, "sessions", fake, create=True), \
+                mock.patch.object(frappe, "throw", mock.Mock(side_effect=AssertionError("must not throw"))), \
+                mock.patch.object(frappe, "msgprint", mock.Mock(side_effect=AssertionError("no message")), create=True), \
+                mock.patch.object(config, "_", lambda text: "th:" + text):
+            return shell.describe()
+
+    def test_describe_says_why_cc_cannot_start_here(self):
+        _configure()
+        self.assertEqual(self._describe()["assistant_unavailable"], "")
+        for setup in ({"engine_code": ""}, {"key": ""}, {"engine_code": "gone-vendor"}, {"key": "sk-other"}):
+            _configure(**setup)
+            self.assertEqual(self._describe()["assistant_unavailable"], "th:CC is not set up for this site yet.")
+        # 不是业务站点（没开通产品）：同建会话时的拒收原因
+        _configure()
+        frappe.conf.pop("pearnly_product")
+        self.assertEqual(self._describe()["assistant_unavailable"], "th:CC is only available on product sites.")
+        # 说的就是建会话被拒时那两句（同一个词条，不另写）
+        source = (CORE / "assistant/config.py").read_text(encoding="utf-8")
+        for msgid in ("CC is not set up for this site yet.", "CC is only available on product sites."):
+            self.assertEqual(source.count(f'_("{msgid}")'), 2, msgid)
+
+
 if __name__ == "__main__":
     unittest.main()
