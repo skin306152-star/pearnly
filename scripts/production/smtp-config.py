@@ -5,6 +5,7 @@ Prefer --control: the configured native Email Account is the current source.
 An explicit env file is retained for first-time setup. Output contains a secret.
 """
 import json
+import os
 from pathlib import Path
 import shlex
 import subprocess
@@ -31,8 +32,10 @@ try:
 finally:
     frappe.destroy()
 """
+    # 本机控制面的容器名随样板版本变（2026-10-17 只有 control-web / worker / scheduler，没有 bench）：可用 PEARNLY_CONTROL_CONTAINER 指定。
+    container = os.environ.get("PEARNLY_CONTROL_CONTAINER", "pearnly-sample-control-bench-1")
     result = subprocess.run(["docker", "--context", "colima-pearnly", "exec", "-i",
-        "pearnly-sample-control-bench-1", "/home/frappe/frappe-bench/env/bin/python"],
+        container, "/home/frappe/frappe-bench/env/bin/python"],
         input=reader, capture_output=True, text=True, check=False)
     if result.returncode:
         raise SystemExit("Cannot read the current official Email Account; credentials suppressed")

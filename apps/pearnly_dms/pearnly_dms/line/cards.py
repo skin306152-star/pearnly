@@ -76,6 +76,9 @@ ACT_CANCEL_BOOKING = "cancel_booking"
 ACT_RETRY_BOOKING = "retry_booking"
 # 连不上对方 DMS 时那颗「重试」（同一件事重跑一次，每次把超时拉长）。
 ACT_RETRY = "retry"
+# 开单回执差异卡：按确认时的值改回 DMS / 以 DMS 为准（`booking.conversation.review_fix`）。
+ACT_REVIEW_UPDATE = "review_update"
+ACT_REVIEW_KEEP = "review_keep"
 
 # 差异卡上的字段名 —— 只列会出现在 diff 里的那些；标签从语言包取
 # 与 `intake/customer_diff._DIFF_FIELDS` 一一对应（楼/层/房/村 2026-09 补进比对后一直没标签，
@@ -392,3 +395,70 @@ def booking_receipt_text(
         delivery_date_be=delivery_date_be or "—",
     )
     return f"{text}\n{_t('TXT_RECEIPT_ADVISOR', name=advisor_name)}" if advisor_name else text
+
+
+def label(key: str) -> str:
+    """汇总卡 / 差异卡上一项的标签（键形如 `sum.phone`、`qa.LBL_PLACE`、`diff.soi`）。"""
+    return _t(key)
+
+
+def booking_receipt_message(
+    booking_no: str, car: str, delivery_date_be: str, advisor_name: str,
+    *, review: Dict[str, Any] | None = None, attach_ok: bool = True,
+    record: str = "", nonce: str = "",
+) -> Dict[str, Any]:
+    """订车成功回执（一条消息）：按开单后的逐项复核（`booking.booking_review`）定形状。
+
+    · 没有复核结果（拿不到回读表单）→ 原回执文字，不加任何一行。
+    · 全部一致且附件齐 → 原回执文字 + 「ผลการตรวจสอบกับ DMS: ถูกต้อง」一行。
+      附件没挂齐时不加这一行（附件交给 `delivery` 后台补，补不上另有提示），不说"全部一致"。
+    · 有不一致 → 换成差异卡（`booking_review_card`）。
+    """
+    text = booking_receipt_text(booking_no, car, delivery_date_be, advisor_name)
+    diffs = (review or {}).get("diffs") or []
+    if review is None or (not diffs and not attach_ok):
+        return {"type": "text", "text": text}
+    if not diffs:
+        return {"type": "text", "text": f"{text}\n{_t('TXT_REVIEW_OK')}"}
+    return booking_review_card(booking_no, diffs, record=record, nonce=nonce)
+
+
+def booking_review_card(booking_no: str, diffs: List[Dict[str, Any]], *, record: str = "",
+                        nonce: str = "") -> Dict[str, Any]:
+    """差异卡：单号 + 逐条「确认时的值 → DMS 里的值」，按钮 [อัปเดตข้อมูล][ใช้ข้อมูลเดิม][แก้ไข]
+    （与客户档差异卡同一组按钮，用户 2026-10-16）。没有卡片登记（`record`/`nonce`）时不出按钮，
+    改成一句「请在 DMS 中修改」。
+    """
+    head = _t("TXT_REVIEW_DIFF_HEAD")
+    rows: List[Dict[str, Any]] = [
+        {"type": "text", "text": _t("TXT_REVIEW_BOOKING_NO", booking_no=booking_no or "—"),
+         "size": "sm", "wrap": True},
+        {"type": "separator", "margin": "sm"},
+        {"type": "text", "text": _t("TXT_DIFF_HEADER"), "size": "xs", "color": "#8a8a8a"},
+        *diff_rows([{"label": label(d.get("item") or ""), "old": d.get("sent"), "new": d.get("dms")}
+                    for d in diffs]),
+    ]
+    if not (record and nonce):
+        rows += [{"type": "separator", "margin": "sm"},
+                 {"type": "text", "text": _t("TXT_REVIEW_FIX"), "size": "sm", "wrap": True}]
+        return {"type": "flex", "altText": head, "contents": {"type": "bubble", "body": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [{"type": "text", "text": head, "weight": "bold", "size": "md", "wrap": True},
+                         {"type": "separator", "margin": "sm"}, *rows]}}}
+    from pearnly_dms.editor import edit_link as dms_edit_link
+
+    footer = [
+        _btn(_t("BTN_UPDATE"), _data(ACT_REVIEW_UPDATE, r=record, n=nonce), "primary"),
+        _btn(_t("BTN_KEEP"), _data(ACT_REVIEW_KEEP, r=record, n=nonce), "secondary"),
+    ]
+    uri = dms_edit_link.url(f"{record}.{nonce}", review=True)
+    if uri:
+        footer.append({"type": "button", "style": "secondary", "height": "sm",
+                       "action": {"type": "uri", "label": _t("BTN_EDIT"), "uri": uri}})
+    return _bubble(head, rows, footer, head)
+
+
+def review_updated_text(booking_no: str) -> str:
+    """改单成功、逐项核对一致：已更新 + 单号 + 核对结果那一行。"""
+    return "\n".join([_t("TXT_REVIEW_UPDATED"), _t("TXT_REVIEW_BOOKING_NO", booking_no=booking_no or "—"),
+                      _t("TXT_REVIEW_OK")])

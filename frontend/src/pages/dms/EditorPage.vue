@@ -14,6 +14,7 @@
 // 界面：外壳与控件用官方 Frappe UI，配色取 Pearnly 令牌（ADR-007）；
 // 文案全部来自服务端语言包（`dms.edit.*`），代码里只出现文案编号。
 import LineLayout from "../../components/LineLayout.vue";
+import ReviewPage from "./ReviewPage.vue";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Button, FormControl, Spinner, ErrorMessage } from "frappe-ui";
@@ -46,6 +47,9 @@ import {
 } from "../../lib/i18n";
 
 const route = useRoute();
+// 开单回执差异卡的「แก้ไข」（`editor=review`）走同一个页面地址，内容换成只列差异项的修改表
+// （`ReviewPage.vue`）；路由表不加新页面（ADR-005：LINE 一次性票据页只有这几个入口）。
+const isReview = String(route.query.editor || "") === "review";
 const mode = computed<EditorMode>(() =>
   String(route.query.editor || "") === "customer" ? "customer" : "booking",
 );
@@ -432,6 +436,7 @@ async function save(): Promise<void> {
 }
 
 onMounted(async () => {
+  if (isReview) return;
   // 从 LINE 打开：入口页把"他手机上 LINE 的语言"放在会话里（与聊天卡片同一个来源），
   // 编辑页跟着它，免得聊天是中文、点开编辑页却是泰文（用户 2026-09-27）。
   try {
@@ -480,7 +485,8 @@ function changeLocale(value: Locale): void {
 </script>
 
 <template>
-  <LineLayout :locale="locale" :disabled="busy" @update:locale="changeLocale">
+  <ReviewPage v-if="isReview" />
+  <LineLayout v-else :locale="locale" :disabled="busy" @update:locale="changeLocale">
       <section v-if="stage === 'loading'" class="pn-editor-state">
         <Spinner class="h-6 w-6" />
         <p>{{ t("dms.edit.loading") }}</p>

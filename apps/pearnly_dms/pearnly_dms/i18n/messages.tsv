@@ -175,6 +175,20 @@ Not enough credit. Please ask your company admin to top up or subscribe at pearn
 The DMS connection is not set up yet. Please contact the admin.	尚未设置 DMS 连接，请联系管理员。	ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแลระบบ	DMS 接続がまだ設定されていません。管理者に連絡してください。	dms.card.TXT_NO_ENDPOINT
 Please choose from the card above, or type restart to begin a new item	请从上方卡片中选择，或输入「重新开始」办理新业务	กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่	上のカードから選ぶか、やり直し と入力して新しく始めてください	dms.card.TXT_PICK_ABOVE
 Advisor: {name}	销售顾问：{name}	ที่ปรึกษาการขาย: {name}	担当：{name}	dms.card.TXT_RECEIPT_ADVISOR
+DMS check: Matched	DMS 核对结果：一致	ผลการตรวจสอบกับ DMS: ถูกต้อง	DMS 照合結果：一致	dms.card.TXT_REVIEW_OK
+Booking created, but some data in DMS differs from what was confirmed	订车单已建立，但 DMS 中部分资料与确认时不一致	เปิดใบจองสำเร็จ แต่ข้อมูลใน DMS บางรายการไม่ตรงกับที่ยืนยัน	予約を作成しましたが、DMS の一部のデータが確認内容と一致しません	dms.card.TXT_REVIEW_DIFF_HEAD
+Booking number: {booking_no}	订车单号：{booking_no}	เลขที่ใบจอง: {booking_no}	予約番号：{booking_no}	dms.card.TXT_REVIEW_BOOKING_NO
+Please correct it in DMS.	请在 DMS 中修改。	กรุณาแก้ไขใน DMS	DMS で修正してください。	dms.card.TXT_REVIEW_FIX
+Kept the data in DMS.	已沿用 DMS 中的资料。	ใช้ข้อมูลใน DMS แล้ว	DMS のデータを使用しました。	dms.card.TXT_REVIEW_KEPT
+Booking updated in DMS	已更新 DMS 中的订车单	อัปเดตใบจองใน DMS แล้ว	DMS の予約を更新しました	dms.card.TXT_REVIEW_UPDATED
+This booking can no longer be changed here. Please correct it in DMS.	这张订车单已不能在此修改，请在 DMS 中修改。	ใบจองนี้แก้ไขผ่านระบบไม่ได้แล้ว กรุณาแก้ไขใน DMS	この予約はここでは変更できません。DMS で修正してください。	dms.card.TXT_REVIEW_LOCKED
+The booking could not be updated in DMS. Please correct it in DMS.	DMS 中的订车单未能更新，请在 DMS 中修改。	อัปเดตใบจองใน DMS ไม่สำเร็จ กรุณาแก้ไขใน DMS	DMS の予約を更新できませんでした。DMS で修正してください。	dms.card.TXT_REVIEW_FAILED
+The change was sent, but its result could not be confirmed. Please check it in DMS.	修改已提交，但结果尚未确认，请在 DMS 中核实。	ส่งการแก้ไขแล้ว แต่ยังยืนยันผลไม่ได้ กรุณาตรวจสอบใน DMS	変更を送信しましたが、結果を確認できません。DMS で確認してください。	dms.card.TXT_REVIEW_UNVERIFIED
+Correct the booking	修改订车单	แก้ไขใบจอง	予約を修正	dms.edit.reviewTitle
+As confirmed	确认时的值	ตามที่ยืนยัน	確認時の値	dms.edit.reviewConfirmed
+As in DMS	DMS 中的值	ตามข้อมูลใน DMS	DMS の値	dms.edit.reviewInDms
+Saved. The result will be sent to LINE.	已保存，结果会发到 LINE。	บันทึกแล้ว ระบบจะส่งผลไปที่ LINE	保存しました。結果は LINE に送信されます。	dms.edit.reviewSaved
+This card has expired. Use the latest card in LINE.	此卡片已失效，请使用 LINE 中最新的卡片。	การ์ดนี้หมดอายุแล้ว กรุณาใช้การ์ดล่าสุดใน LINE	このカードは期限切れです。LINE の最新のカードを使ってください。	dms.edit.reviewExpired
 Booking created\nBooking no.: {booking_no}\nModel: {car}\nDelivery date: {delivery_date_be}	订车单已建立\n订车单号：{booking_no}\n车型：{car}\n交车日期：{delivery_date_be}	เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}	予約を作成しました\n予約番号：{booking_no}\n車種：{car}\n納車日：{delivery_date_be}	dms.card.TXT_RECEIPT_BOOKING
 Saved · {action}\nCustomer ID: {customer_code}\nName: {name}	保存成功 · {action}\n客户编号：{customer_code}\n姓名：{name}	บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_code}\nชื่อ: {name}	保存しました · {action}\n顧客番号：{customer_code}\n氏名：{name}	dms.card.TXT_RECEIPT_SAVE
 Started over. Take a photo of the ID card to start a customer record.	已重新开始，拍摄身份证即可登记客户。	เริ่มใหม่แล้ว กรุณาถ่ายรูปบัตรประชาชนเพื่อลงทะเบียนลูกค้า	やり直しました。身分証明書を撮影して顧客登録を始めてください。	dms.card.TXT_RESET

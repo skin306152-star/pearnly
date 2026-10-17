@@ -8,12 +8,16 @@ products. No tenant contents, environment variables or credentials are printed.
   不是常驻用量 —— 压测时 30 GiB 上限的整机实际只用约 7.4 GiB，按 1 倍算会把进程数卡在远低于机器能力的地方。
 - 现在的余量：执行时整机 MemAvailable 至少 max(8 GiB, 物理内存 25%)，再加上这一步临时要的内存；
   超配靠这一条兜底 —— 真实用量涨上来时，开户 / 激活在启动前就被拒，而不是启动后被内核杀进程。
+- 超配要有 swap 兜着（2026-10-17 加）：上限之和还不能超过物理内存 + swap。10-16 部署时上限合计 38.5 GiB、
+  整机 32 GiB、没有 swap，激活间后台任务一起涨内存，整机挤满、生产约 10 分钟无响应（docs/work/2026-10-16-release-372dd6c4.md）。
+  swap 由 scripts/production/ensure-swap.sh 建（激活前幂等执行）；没有 swap 的机器只能按 1 倍放行。
 """
 import argparse
 import json
 import os
 from pathlib import Path
 import subprocess
+import time
 
 MIB = 1024 * 1024
 ROOT = Path(__file__).resolve().parent
@@ -169,7 +173,8 @@ def max_connections(services):
     return _flag(command, 'max-connections', 151)
 
 
-def calculate(services, containers, product, total_bytes, available_bytes, transient_bytes=0):
+def calculate(services, containers, product, total_bytes, available_bytes, transient_bytes=0, swap_bytes=None):
+    """swap_bytes：宿主 swap 总量；None 表示不核 swap（只用于离线检查里与 swap 无关的用例），生产 check() 总是传实际值。"""
     wanted = {name for name, row in services.items()
               if not row.get('profiles') or product in row['profiles']}
     other_bytes = 0
@@ -185,10 +190,14 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
     check_processes(services, wanted)
     reserved = sum(int(services[name]['mem_limit']) for name in wanted) + other_bytes
     host_reserve = max(1536 * MIB, total_bytes // 10)
+    budget_limit = int(total_bytes * OVERCOMMIT)
+    if swap_bytes is not None:
+        budget_limit = min(budget_limit, total_bytes + swap_bytes)
     report = {'product': product, 'services': sorted(wanted),
               'host_mib': total_bytes // MIB, 'container_budget_mib': reserved // MIB,
               'host_reserve_mib': host_reserve // MIB,
-              'budget_limit_mib': int(total_bytes * OVERCOMMIT) // MIB,
+              'budget_limit_mib': budget_limit // MIB,
+              'swap_mib': None if swap_bytes is None else swap_bytes // MIB,
               'available_mib': available_bytes // MIB,
               'available_floor_mib': available_floor(total_bytes) // MIB,
               'transient_mib': transient_bytes // MIB}
@@ -209,7 +218,7 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
     if report['db_connections'] > report['db_max_connections'] * CONNECTION_SHARE:
         raise ValueError('Database connections would exceed %d%% of max_connections: %s'
                          % (CONNECTION_SHARE * 100, json.dumps(report)))
-    if reserved + host_reserve > total_bytes * OVERCOMMIT:
+    if reserved + host_reserve > budget_limit:
         raise ValueError('Product memory budgets exceed this host: ' + json.dumps(report))
     if available_bytes < available_floor(total_bytes) + transient_bytes:
         raise ValueError('Insufficient current memory headroom: ' + json.dumps(report))
@@ -232,14 +241,33 @@ def check(product, transient_mib=0):
             memory, project, service = (json.loads(value) for value in line.split('\t'))
             containers.append({'memory': memory, 'project': project or '', 'service': service or ''})
     mem = {line.split(':')[0]: int(line.split()[1]) * 1024
-           for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith(('MemTotal:', 'MemAvailable:'))}
+           for line in Path('/proc/meminfo').read_text().splitlines()
+           if line.startswith(('MemTotal:', 'MemAvailable:', 'SwapTotal:'))}
     return calculate(config['services'], containers, product, mem['MemTotal'],
-                     mem['MemAvailable'], transient_mib * MIB)
+                     mem['MemAvailable'], transient_mib * MIB, mem['SwapTotal'])
+
+
+HEADROOM_ERROR = 'Insufficient current memory headroom'
+
+
+def check_waiting(product, transient_mib=0, wait_seconds=0, interval=15, clock=time.monotonic, sleep=time.sleep):
+    """只有「现在的余量不够」时才等（上一个产品刚激活、迁移后的后台任务还在涨内存），最多等 wait_seconds 秒，
+    每 interval 秒重查一次；上限之和、连接数这类配置问题等也没用，立刻报错。"""
+    deadline = clock() + wait_seconds
+    while True:
+        try:
+            return check(product, transient_mib)
+        except ValueError as error:
+            if not str(error).startswith(HEADROOM_ERROR) or clock() >= deadline:
+                raise
+        sleep(interval)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--product', choices=('dms', 'erp', 'cowork'), required=True)
     parser.add_argument('--transient-mib', type=int, default=0)
+    parser.add_argument('--wait-seconds', type=int, default=0,
+                        help='余量不够时最多等这么久（秒）再放弃；激活脚本用它让产品之间等内存回落')
     args = parser.parse_args()
-    print(json.dumps(check(args.product, args.transient_mib)))
+    print(json.dumps(check_waiting(args.product, args.transient_mib, args.wait_seconds)))

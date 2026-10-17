@@ -17,7 +17,10 @@ python3 /opt/pearnly/deploy/scripts/production/check-deploy-image.py "$image" /o
 python3 /opt/pearnly/deploy/infrastructure/production/sizing.py --write /opt/pearnly/state/sizing.env >/dev/null \
   || { echo "sizing skipped; using runtime.env only" >&2; : > /opt/pearnly/state/sizing.env; }
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
-python3 /opt/pearnly/deploy/infrastructure/production/capacity.py --product "$product"
+# 超配的内存上限要有 swap 兜着（capacity.py 核「上限之和 ≤ 物理内存 + swap」）；幂等，已有就不改。
+bash /opt/pearnly/deploy/scripts/production/ensure-swap.sh >/dev/null
+# 余量不够时最多等 10 分钟：上一个产品刚激活，迁移后的后台任务还在涨内存，等它回落再叠下一个，而不是马上叠上去或直接失败。
+python3 /opt/pearnly/deploy/infrastructure/production/capacity.py --product "$product" --wait-seconds 600
 previous_container=$("${compose[@]}" ps --quiet "$product-web")
 previous_image=$(docker inspect "$previous_container" --format '{{.Image}}')
 # Close admission before draining. Use the still-running version to back up its

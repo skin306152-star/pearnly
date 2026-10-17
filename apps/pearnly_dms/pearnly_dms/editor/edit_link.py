@@ -39,14 +39,14 @@ import urllib.parse
 import frappe
 
 
-def url(nonce: str, *, customer: bool = False) -> str:
+def url(nonce: str, *, customer: bool = False, review: bool = False) -> str:
     """深链；取不到 LIFF 就用本站点地址。**两者都取不到才返回空串。**
 
     `customer=True` → 客户档编辑器（老产品点 `[แก้ไข]` 走的就是这个）。
+    `review=True` → 开单回执差异卡的修改页（`draft` 是"投递记录.卡片确认号"，见 `review_fix`）。
     """
-    query = urllib.parse.urlencode(
-        {"draft": str(nonce or ""), **({"editor": "customer"} if customer else {})}
-    )
+    editor = "review" if review else ("customer" if customer else "")
+    query = urllib.parse.urlencode({"draft": str(nonce or ""), **({"editor": editor} if editor else {})})
     from pearnly_core import line
 
     liff = line.liff_id()

@@ -27,6 +27,8 @@ An admin account must be set up in Pearnly before updating.,更新するには�
 Any other payment channel?,ほかの支払方法はありますか？
 Apply,実行
 Approve,承認
+As confirmed,確認時の値
+As in DMS,DMS の値
 Attached,添付済み
 Awaiting manager,営業マネージャー待ち
 Back to chat,チャットに戻る
@@ -41,6 +43,7 @@ Delivery date: {delivery_date_be}","予約を作成しました
 予約番号：{booking_no}
 車種：{car}
 納車日：{delivery_date_be}"
+"Booking created, but some data in DMS differs from what was confirmed",予約を作成しましたが、DMS の一部のデータが確認内容と一致しません
 Booking date,予約日
 Booking failed · Retry,予約作成に失敗 · 再試行
 Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,予約は未送信です。DMS の顧客情報に必須項目が不足しています。管理者に DMS で入力してもらってください。
@@ -48,7 +51,9 @@ Booking has not been submitted: required customer details are missing in DMS. As
 Booking location,予約受付場所
 Booking location — choose below,予約受付場所 — 下から選択
 Booking no.: {booking_no},予約番号: {booking_no}
+Booking number: {booking_no},予約番号：{booking_no}
 Booking summary — check before confirming,予約の概要 — 確定前に確認してください
+Booking updated in DMS,DMS の予約を更新しました
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
 Brand,メーカー
@@ -92,6 +97,7 @@ Continue booking,予約を続ける
 Contract not opened,契約未締結
 Contract opened,契約締結済み
 Contract status,契約状況
+Correct the booking,予約を修正
 Could not check the customer data. Please try again.,顧客データを確認できませんでした。もう一度お試しください。
 Could not read data from DMS. Please try again.,DMS からデータを読み取れませんでした。もう一度お試しください。
 Could not send the photo. Please try again.,写真を送れませんでした。もう一度お試しください。
@@ -115,6 +121,7 @@ Customer records,顧客情報
 DMS,DMS
 DMS System Account,DMS システムアカウント
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
+DMS check: Matched,DMS 照合結果：一致
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。
@@ -177,6 +184,7 @@ ID number,身分証番号
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","金額が正しくありません。数字で入力してください（例：5000 または 5,000.50）"
 Invalid format. Please fill in both fields {hint},形式が正しくありません。2 つとも入力してください {hint}
 Keep existing data,既存データを使う
+Kept the data in DMS.,DMS のデータを使用しました。
 Last Check,最終チェック
 Last Checked At,最終チェック日時
 Last Error,前回のエラー
@@ -239,6 +247,7 @@ Please choose a menu,メニューを選んでください
 Please choose a menu below to get started,下のメニューから始めてください
 "Please choose from the card above, or type restart to begin a new item",上のカードから選ぶか、やり直し と入力して新しく始めてください
 Please choose the type of data to search,検索するデータの種類を選んでください
+Please correct it in DMS.,DMS で修正してください。
 Please send a photo of the customer's ID card,お客様の身分証明書の写真を送ってください
 Please send the customer's ID card photo and phone number,お客様の身分証明書の写真と電話番号を送ってください
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes",ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください
@@ -310,6 +319,7 @@ Customer ID: {customer_code}
 Name: {name}","保存しました · {action}
 顧客番号：{customer_code}
 氏名：{name}"
+Saved. The result will be sent to LINE.,保存しました。結果は LINE に送信されます。
 Scan ID card,身分証をスキャン
 Search data,データ検索
 Select at least one data group.,データを1種類以上選択してください。
@@ -358,7 +368,9 @@ The booking cannot be opened yet · The DMS account in use is «{username}»,ま
 The booking cannot be opened yet · The DMS account of this user cannot be read,まだ予約を作成できません · このユーザーの DMS アカウントを読み取れません
 The booking could not be created,予約を作成できませんでした
 The booking could not be created. Please try again.,予約を作成できませんでした。もう一度お試しください。
+The booking could not be updated in DMS. Please correct it in DMS.,DMS の予約を更新できませんでした。DMS で修正してください。
 The card could not be read clearly. Please take the photo again.,カードがはっきり読み取れませんでした。もう一度撮影してください。
+"The change was sent, but its result could not be confirmed. Please check it in DMS.",変更を送信しましたが、結果を確認できません。DMS で確認してください。
 The check could not start. Please try again.,確認を開始できませんでした。もう一度お試しください。
 The check failed. Please try again.,確認に失敗しました。もう一度お試しください。
 The check stopped before it finished. Please try again.,確認が途中で止まりました。もう一度お試しください。
@@ -383,6 +395,8 @@ This account cannot search data in LINE yet. Ask the owner to enable it on the O
 This account is already in use by the connection or another system account,このアカウントは接続または他のシステムアカウントで使用中です
 This account is already the connection's own account,このアカウントはすでに接続自身のアカウントです
 This account is already used by an operator or another system account,このアカウントはオペレーターまたは他のシステムアカウントで使用中です
+This booking can no longer be changed here. Please correct it in DMS.,この予約はここでは変更できません。DMS で修正してください。
+This card has expired. Use the latest card in LINE.,このカードは期限切れです。LINE の最新のカードを使ってください。
 This customer already exists and the data matches,この顧客はすでに登録済みで、データも一致しています
 This item has expired. Please start again.,有効期限が切れました。もう一度やり直してください。
 This item has expired. Type menu to search again,有効期限が切れました。メニュー と入力して検索し直してください
@@ -559,7 +573,16 @@ dms.card.TXT_RECEIPT_SAVE,"保存しました · {action}
 氏名：{name}"
 dms.card.TXT_RESET,やり直しました。身分証明書を撮影して顧客登録を始めてください。
 dms.card.TXT_RETAKE,身分証明書をもう一度撮影してください
+dms.card.TXT_REVIEW_BOOKING_NO,予約番号：{booking_no}
+dms.card.TXT_REVIEW_DIFF_HEAD,予約を作成しましたが、DMS の一部のデータが確認内容と一致しません
+dms.card.TXT_REVIEW_FAILED,DMS の予約を更新できませんでした。DMS で修正してください。
+dms.card.TXT_REVIEW_FIX,DMS で修正してください。
+dms.card.TXT_REVIEW_KEPT,DMS のデータを使用しました。
+dms.card.TXT_REVIEW_LOCKED,この予約はここでは変更できません。DMS で修正してください。
 dms.card.TXT_REVIEW_MISSING,{text}（{fields}）
+dms.card.TXT_REVIEW_OK,DMS 照合結果：一致
+dms.card.TXT_REVIEW_UNVERIFIED,変更を送信しましたが、結果を確認できません。DMS で確認してください。
+dms.card.TXT_REVIEW_UPDATED,DMS の予約を更新しました
 dms.card.TXT_SAME,この顧客はすでに登録済みで、データも一致しています
 dms.card.TXT_SAME_ALT,顧客データが一致しています
 dms.card.TXT_SAVE_FAIL,保存できませんでした。もう一度お試しください。
@@ -915,6 +938,11 @@ dms.edit.province,県
 dms.edit.regis,登録名義
 dms.edit.regisName,登録者名
 dms.edit.remove,削除
+dms.edit.reviewConfirmed,確認時の値
+dms.edit.reviewExpired,このカードは期限切れです。LINE の最新のカードを使ってください。
+dms.edit.reviewInDms,DMS の値
+dms.edit.reviewSaved,保存しました。結果は LINE に送信されます。
+dms.edit.reviewTitle,予約を修正
 dms.edit.road,道路
 dms.edit.room,部屋
 dms.edit.save,保存

@@ -1,0 +1,10 @@
+[Unit]
+Description=Pearnly restore drill on the 1st of every month
+
+[Timer]
+# 每月 1 日曼谷 10:00（= 03:00 UTC）：当天 02:00 的每日备份已传完，演练报告在白天到邮箱。
+OnCalendar=*-*-01 03:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
