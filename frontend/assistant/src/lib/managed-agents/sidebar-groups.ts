@@ -104,7 +104,8 @@ export function groupStamp(rows: readonly SidebarRow[], sort: SortOptions = UPDA
 
 /** 一组里的行（已按排序方式排好）按手排的先后摆（用户 10-17）：手排列表里的按列表的先后；不在列表里的，比存下时这组最新的那个
  *  时间（saved.at，groupStamp；按当前排序方式用的时间：创建日期用创建时间，其余用上次更新）还新的排最上面（新对话出现在顶上），
- *  不比它新的（「显示更多」后才取到的）接在后面，各自保持排序方式的先后。没手排过原样返回。 */
+ *  不比它新的（「显示更多」后才取到的）接在后面，各自保持排序方式的先后。取消置顶回到组顶的那一段（saved.top：手排列表的前 n 条）
+ *  排在比 at 新的那些之上，只有比 top.at（放上去那一刻）还新的排在它们上面。没手排过原样返回。 */
 export function arrangeGroup(sorted: readonly SidebarRow[], saved: GroupOrder | undefined, sort: SortOptions = UPDATED_DESC): SidebarRow[] {
   if (!saved?.keys.length) return [...sorted];
   const at = new Map(saved.keys.map((key, i) => [key, i]));
@@ -112,7 +113,15 @@ export function arrangeGroup(sorted: readonly SidebarRow[], saved: GroupOrder | 
   const when = timeOf(sort);
   const known = sorted.filter((row) => at.has(keyOf(row))).sort((a, b) => at.get(keyOf(a))! - at.get(keyOf(b))!);
   const fresh = sorted.filter((row) => !at.has(keyOf(row)));
-  return [...fresh.filter((row) => when(row) > saved.at), ...known, ...fresh.filter((row) => !(when(row) > saved.at))];
+  const top = saved.top ? known.filter((row) => at.get(keyOf(row))! < saved.top!.n) : [];
+  const above = saved.top ? Math.max(saved.top.at, saved.at) : saved.at;
+  return [
+    ...fresh.filter((row) => when(row) > above),
+    ...top,
+    ...fresh.filter((row) => when(row) > saved.at && !(when(row) > above)),
+    ...known.slice(top.length),
+    ...fresh.filter((row) => !(when(row) > saved.at)),
+  ];
 }
 
 function searcher(projects: readonly ProjectRow[], query: string) {

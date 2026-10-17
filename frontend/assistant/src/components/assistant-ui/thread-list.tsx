@@ -67,13 +67,15 @@ import {
   forgetGroups,
   forgetInGroups,
   forgetPinned,
-  liftInGroup,
+  applyLifts,
+  type LiftSpot,
   moveBy,
   moveTo,
   setCompanyOrder,
   setGroupOrder,
   setPinnedOrder,
-  takeUnpinnedElsewhere,
+  starChat,
+  useLifts,
   useSidebarOrder,
 } from "@/lib/managed-agents/sidebar-order";
 import {
@@ -338,8 +340,12 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const latestGroups = useRef<{
     rowIdsOf: (group: string) => string[];
     saveGroup: (group: string, next: string[] | null, moved?: readonly string[]) => string[] | null;
-    liftUnpinned: (key: string, tidy: boolean) => void;
-  }>({ rowIdsOf: () => [], saveGroup: (_group, next) => next, liftUnpinned: () => undefined });
+  }>({ rowIdsOf: () => [], saveGroup: (_group, next) => next });
+  // 取消置顶的对话回到它那一组的最上面（用户 10-17；记号由取消置顶这件事本身记下，sidebar-order.ts 的 noteUnpinned）：眼前有这一行
+  // 时照数据挪（它在哪一组、这组此刻最新的时间，各种分组方式、搜索中都一样）。放在下面「置顶了的从组里手排的先后里去掉」之前：
+  // 请求失败、组件库撤回置顶时先撤回这次挪动，再按置顶收拾
+  const liftTick = useLifts((s) => s.tick);
+  const spotRef = useRef<(key: string) => LiftSpot>(() => null);
   // 「分组和排序」、折叠、手排的顺序按用户记：知道是谁了就换成这个人的
   const user = useProfile()?.user;
   useEffect(() => {
@@ -348,6 +354,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     bindFoldUser(user);
     bindOrderUser(user);
   }, [user]);
+  useEffect(() => applyLifts(spotRef.current), [liftTick, threadIds, itemsById, order.groups, pinning]);
   // 取消置顶了（单条、批量、别的设备上）：从手排的置顶顺序里去掉，以后再置顶算新的、排最上面；置顶了的从组里手排的先后里去掉。
   // 只看已加载的行（没加载的不知道），正在置顶的不算
   useEffect(() => {
@@ -366,25 +373,6 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     const left = pinnedNow.filter((key) => listed.has(key));
     if (left.length) forgetInGroups(left, true);
   }, [threadIds, itemsById, order.pinned, order.groups, pinning]);
-  // 取消置顶了（行菜单、P 键、手机长按菜单、多选、标题栏菜单，或别的设备上）：这段对话回到它那一组的最上面（用户 10-17；原来
-  // 手排过的组里它不在手排列表里、又比存下时旧，排到手排的后面，组里超过 5 条时被「显示更多」挡住）。按上一次看到的置顶状态比，
-  // 由置顶变成没置顶的才算（刚加载出来的不算）；正在置顶的不算
-  const starredBefore = useRef<Map<string, boolean> | null>(null);
-  useEffect(() => {
-    const before = starredBefore.current;
-    const now = new Map<string, boolean>();
-    const unpinned: string[] = [];
-    for (const id of threadIds) {
-      const item = itemsById.get(id);
-      if (!item) continue;
-      const key = item.remoteId ?? id;
-      const starred = !!item.custom?.starred;
-      now.set(key, starred);
-      if (before?.get(key) === true && !starred && !pinning.has(key)) unpinned.push(key);
-    }
-    starredBefore.current = now;
-    for (const key of unpinned) latestGroups.current.liftUnpinned(key, takeUnpinnedElsewhere(key));
-  }, [threadIds, itemsById, pinning]);
   // 侧栏里没有这家公司了（删了、我在这家没有对话了）：这一组手排的先后整组去掉（公司列表读到了才算；最近 "" 不算）
   useEffect(() => {
     if (!kind) return;
@@ -426,6 +414,16 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   }, [threadIds, itemsById, dates, unsent, pinning, projects, filings, shown, serverMore, query, view, order]);
   const searching = !!query;
   const byCompany = view.by === "company";
+  spotRef.current = (key) => {
+    const row = rows.find((entry) => entry.key === key);
+    if (!row) return null;
+    if (row.starred) return "starred";
+    const known = new Set(projects.map((project) => project.id));
+    const groupOf = (entry: SidebarRow) => (known.has(entry.group) ? entry.group : "");
+    const group = groupOf(row);
+    const peers = rows.filter((entry) => !entry.starred && groupOf(entry) === group);
+    return { group, stamp: groupStamp(peers, { by: view.sort, desc: view.desc }) };
+  };
 
   // 眼前的摆法：拖对话时指针到了顶上、没有「已置顶」就补一个空的（拖进去 = 置顶）；拖进已置顶、还没放下的那一行排在置顶里
   const shownSections = useMemo(() => {
@@ -471,21 +469,8 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     if (next) setGroupOrder(group, next.map(keyOfDrag), stampOf(group), moved.map(keyOfDrag));
     return next;
   };
-  // 取消置顶的那一条回到它那一组的最上面：那一组手排过才动（没手排过照排序方式，本来就按时间排）。按公司分组、那一组显示着：
-  // 同把它拖到组顶（眼前这组的先后整份记下、at 取此刻这组最新的时间，比存下时新的对话也留在它下面）；否则（别的分组方式、
-  // 搜索中只显示命中的、那一组没显示）插到手排列表最前面。
-  // tidy：别的设备上取消的（那一台已经存过）
-  const liftUnpinned = (key: string, tidy: boolean) => {
-    const row = rows.find((entry) => entry.key === key);
-    if (!row) return;
-    const group = projects.some((project) => project.id === row.group) ? row.group : "";
-    if (!useSidebarOrder.getState().groups[group]) return;
-    if (!byCompany || searching || !groupSection(group)) return liftInGroup(group, key, tidy);
-    const shown = rowIdsOf(group).map(keyOfDrag).filter((id) => id !== key);
-    setGroupOrder(group, [key, ...shown], stampOf(group), [key], tidy);
-  };
   // 各组行的拖动范围：同一组、同一搜索状态时是同一份（行不跟着整列每次重画），Alt+↑/↓ 按此刻眼前的行算
-  latestGroups.current = { rowIdsOf, saveGroup, liftUnpinned };
+  latestGroups.current = { rowIdsOf, saveGroup };
   const scopeOf = (group: string): GroupScope => {
     const cache = scopes.current;
     if (cache.searching !== searching) cache.map = new Map();
@@ -1170,8 +1155,8 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   const companies = !!useProjects((s) => s.kind);
   const bulk = companies && selection.length > 1 && selection.includes(localId);
   const close = () => onOpenChange(false);
-  // 展开写法：组件库整份替换 custom，以后加的键不能被冲掉
-  const pin = () => void aui.threadListItem().updateCustom({ ...custom, starred: !starred });
+  // 取消置顶回到它那一组的最上面（starChat）
+  const pin = () => void starChat(aui.threadListItem(), !starred);
   const remove = () => void aui.threadListItem().delete();
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
@@ -1232,12 +1217,19 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
     return { ids: rows.map((row) => row.id), allPinned: rows.every((row) => !!row.custom?.starred) };
   }, [selected, threadItems]);
   const report = (error: unknown) => setError(shownError(error));
-  const pinAll = () =>
-    void runInOrder(ids, async (id) => {
+  const pinAll = () => {
+    // 一起取消置顶的按侧栏里眼前的先后回到组顶：逐条做，后一条排在同批已经回来的那几条后面（starChat 的 after）
+    const shown = allPinned ? rowOrder(document.querySelector('[data-slot="aui_thread-list-root"]')) : [];
+    const ordered = allPinned ? [...ids].sort((a, b) => shown.indexOf(a) - shown.indexOf(b)) : ids;
+    const back: string[] = [];
+    void runInOrder(ordered, async (id) => {
       const item = aui.threads().item({ id });
-      const { custom } = item.getState();
-      if (!!custom?.starred !== !allPinned) await item.updateCustom({ ...custom, starred: !allPinned });
+      const { custom, remoteId } = item.getState();
+      if (!!custom?.starred === !allPinned) return;
+      await starChat(item, !allPinned, [...back]);
+      back.push(remoteId ?? id);
     }, report).then(clearSelection);
+  };
   const deleteAll = () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection);
   return (
     <DropdownMenu.Content

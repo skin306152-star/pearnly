@@ -93,6 +93,7 @@ import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
+import { starChat } from "@/lib/managed-agents/sidebar-order";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { syncPrefs } from "@/lib/prefs-sync";
@@ -679,8 +680,8 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
           <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
             {/* 挂在公司下时最上面是公司名：点了全屏打开右侧会话栏 */}
             <MobileCompanyItem />
-            {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
+            {/* 取消置顶回到它那一组的最上面（starChat） */}
+            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void starChat(aui.threadListItem(), !starred)}>
               {starred ? <PinOffIcon /> : <PinIcon />}
               {starred ? t("unstar") : t("star")}
             </DropdownMenu.Item>
@@ -737,8 +738,8 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
-          {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
+          {/* 取消置顶回到它那一组的最上面（starChat） */}
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void starChat(aui.threadListItem(), !starred)}>
             {starred ? <PinOffIcon /> : <PinIcon />}
             {starred ? t("unstar") : t("star")}
           </DropdownMenu.Item>

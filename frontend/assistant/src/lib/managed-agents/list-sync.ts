@@ -21,7 +21,7 @@ import { noticeReloader } from "./notice-reload";
 import { applyProjectChange, groupOf, refreshProjects, useProjects } from "./projects";
 import { onConnectionChange, onProjectChange, onSessionChange, type SessionChange } from "./realtime";
 import { absorb, firstPage, quietly, touchedSince } from "./session-list-adapter";
-import { noteUnpinnedElsewhere } from "./sidebar-order";
+import { noteUnpinned } from "./sidebar-order";
 import { useSidebarView } from "./sidebar-view";
 
 // 推来的几条合成一次重拉
@@ -71,8 +71,8 @@ function retitle(threads: ListThreads, rows: ItemData[], title: string) {
 function restar(threads: ListThreads, rows: ItemData[], starred: boolean) {
   for (const row of rows) {
     if (!!row.custom?.starred !== starred) {
-      // 别的设备上取消置顶：侧栏把它挪到组顶时按数据收拾（那一台已经存过，sidebar-order.ts）
-      if (!starred && row.remoteId) noteUnpinnedElsewhere(row.remoteId);
+      // 别的设备上取消置顶：回到它那一组的最上面，按数据收拾（那一台存过，sidebar-order.ts 的 noteUnpinned）。归档的不在侧栏，不记
+      if (!starred && row.remoteId && row.status === "regular") noteUnpinned(row.remoteId, false);
       void quietly("custom", row.remoteId!, () => threads.getItemById(row.id).updateCustom({ ...row.custom, starred }));
     }
   }

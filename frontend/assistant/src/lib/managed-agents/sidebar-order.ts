@@ -11,7 +11,8 @@
 //            刷新、换设备后服务端第一页把手排列表里的对话一并给（pearnly_core.assistant.sessions 的 _ordered），组顶照手排显示。
 //   置顶   — 已置顶的对话可拖着排先后（三种分组方式都一样）；新置顶的排最上面（取消置顶就从记下的顺序里去掉，再置顶算新的）。
 //            对话拖进「已置顶」= 置顶它，按落点排进这份顺序。取消置顶的对话回到它那一组的最上面（用户 10-17）：那一组手排过
-//            就插到手排列表最前面、照常存与同步（同把它拖到组顶）；没手排过照排序方式（thread-list.tsx 的 liftUnpinned）。
+//            就插到手排列表最前面，记成组顶的一段（top：这几条排在存下以后才有动静的对话之上，取消置顶这一刻以后才有动静的
+//            对话照常排在它们上面），照常存、同步，别的行不写进手排；没手排过照排序方式（noteUnpinned / applyLifts）。
 //   恢复默认设置（「分组和排序」菜单）清掉这三份手排的顺序。在「分组和排序」里选排序方式（含点当前已选的那一项）只清组里的
 //   （clearGroupOrders，回到按排序方式排）；手排过的公司组、置顶仍按手排的先后。
 //
@@ -25,8 +26,10 @@
 import { create } from "zustand";
 import { prefChanged, registerPref } from "@/lib/prefs-sync";
 
-/** 一组里手排的先后：对话编号（keys），存下时这组最新的那个时间（at，毫秒；比它新的不在列表里的对话排最上面）。 */
-export type GroupOrder = { keys: string[]; at: number };
+/** 一组里手排的先后：对话编号（keys），存下时这组最新的那个时间（at，毫秒；比它新的不在列表里的对话排最上面）。
+ *  top：取消置顶回到组顶的那一段（keys 的前 n 条，at 是放上去那一刻这组最新的时间）：排在比 at 新、不比 top.at 新的对话之上，
+ *  比 top.at 新的照常排最上面（sidebar-groups.ts 的 arrangeGroup）；之后在这一组拖过就不再有（拖完眼前的先后整份记下）。 */
+export type GroupOrder = { keys: string[]; at: number; top?: { n: number; at: number } };
 export type SidebarOrder = { companies: string[]; pinned: string[]; groups: Record<string, GroupOrder> };
 
 const EMPTY: SidebarOrder = { companies: [], pinned: [], groups: {} };
@@ -52,7 +55,10 @@ function groupsOf(value: unknown): Record<string, GroupOrder> {
     const saved = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
     const keys = ids(saved.keys);
     const at = typeof saved.at === "number" && Number.isFinite(saved.at) ? saved.at : 0;
-    if (keys.length) out[group] = { keys, at };
+    const top = (saved.top && typeof saved.top === "object" ? saved.top : {}) as Record<string, unknown>;
+    const n = typeof top.n === "number" && Number.isInteger(top.n) ? Math.min(top.n, keys.length) : 0;
+    const lift = n > 0 && typeof top.at === "number" && Number.isFinite(top.at) ? { top: { n, at: top.at } } : {};
+    if (keys.length) out[group] = { keys, at, ...lift };
   }
   return out;
 }
@@ -156,13 +162,14 @@ export function capList(list: readonly string[], limit = SYNC_LIMIT, budget = LI
 registerPref("order", {
   read: () => {
     const { companies, pinned, groups } = useSidebarOrder.getState();
-    const each = Object.entries(groups).map(([group, order]) => [groupField(group), { keys: order.keys, at: order.at }]);
+    const each = Object.entries(groups).map(([group, order]) => [groupField(group), { keys: order.keys, at: order.at, ...(order.top ? { top: order.top } : {}) }]);
     return { companies: capList(companies), pinned: capList(pinned), ...Object.fromEntries(each) };
   },
   changed: () => hasManualOrder(useSidebarOrder.getState()),
   apply: (value, user) => {
     bindOrderUser(user);
     keep(parseOrder(JSON.stringify(value ?? null)));
+    confirmLifts();
   },
   // 组里的各项以服务端为准：本机没改、服务端没有的组去掉（别处清掉了、服务端按上限截掉了）
   serverOwns: (field) => field.startsWith(GROUP_FIELD),
@@ -181,35 +188,162 @@ export function setPinnedOrder(shown: readonly string[]) {
 /** 手排后一组里的先后（group：公司编号，最近 ""；shown：拖完眼前这组的先后，之前记下、这次没显示的接在后面）。
  *  at：此刻这组最新的那个时间（调用方按排序方式从这组的行里取，sidebar-groups.ts 的 groupStamp），之后才有动静（新建、新消息）
  *  的对话排在这组最上面。moved：这次挪动的（拖的那一条、多选的整块）：拖到 GROUP_LIMIT 以后时记到它们为止，落点不丢。
- *  tidy：按数据收拾的（别的设备上取消置顶，见 liftUnpinned），不是这台上人改的（lib/prefs-sync.ts）。 */
-export function setGroupOrder(group: string, shown: readonly string[], at: number, moved: readonly string[] = [], tidy = false) {
+ *  这次记下的对话里还等着回组顶的（别的设备上取消置顶、等服务端那份确认的）不再挪：人排好的为准。 */
+export function setGroupOrder(group: string, shown: readonly string[], at: number, moved: readonly string[] = []) {
   const { groups } = useSidebarOrder.getState();
   const merged = mergeOrder(shown, groups[group]?.keys ?? []);
   const upTo = Math.max(GROUP_LIMIT, ...moved.map((key) => merged.indexOf(key) + 1));
-  save({ groups: { ...groups, [group]: { keys: merged.slice(0, upTo), at } } }, [groupField(group)], tidy);
+  for (const key of merged) lifts.delete(key);
+  save({ groups: { ...groups, [group]: { keys: merged.slice(0, upTo), at } } }, [groupField(group)]);
 }
 
-/** 取消置顶的对话（key）放到它那一组手排列表的最前面（眼前的各行不知道时用：不在按公司分组、那一组没显示出来）。
- *  那一组没手排过不动（照排序方式排）；at 不变。tidy 同 setGroupOrder。 */
-export function liftInGroup(group: string, key: string, tidy = false) {
-  const { groups } = useSidebarOrder.getState();
-  const saved = groups[group];
-  if (!saved?.keys.length || saved.keys[0] === key) return;
-  const keys = [key, ...saved.keys.filter((id) => id !== key)].slice(0, Math.max(GROUP_LIMIT, saved.keys.length));
-  save({ groups: { ...groups, [group]: { keys, at: saved.at } } }, [groupField(group)], tidy);
+// ---------------------------------------------------------------- 取消置顶回组顶
+// 取消置顶的对话回到它那一组的最上面（用户 10-17）。由取消置顶这件事本身记下（noteUnpinned），侧栏（thread-list.tsx）眼前有
+// 这一行时照数据挪（applyLifts：它在哪一组、这组此刻最新的时间由侧栏给），不靠「上一次渲染还是置顶、这次不是」去猜（审查：
+// 置顶失败、组件库撤回乐观更新也是由置顶变成没置顶，会被当成取消置顶留下手排记录）：
+//   本机   — 行菜单、P 键、手机长按菜单、标题栏菜单、多选「取消置顶 N」（unpinChat）：请求发出就先挪（只改本机，不晚一拍），
+//            服务端确认后才存、同步；失败（组件库撤回置顶）撤回这次挪动。
+//   别处   — 别的设备上取消、经侧栏同步推来的（list-sync.ts 的 restar）：按数据收拾（tidy，那一台存过）。服务端那份换进来时还没有
+//            它（那一台还没存上）就再挪一次；服务端那份里那一组已经有它了才算收拾完（confirmLifts）。
+//   多选   — 一起取消的按侧栏里原来的先后回到组顶（逐条做，后一条排在同批已经回来的那几条后面）。
+// 记号有时效（LIFT_TTL）：这一行一直没出现在侧栏（别的产品、归档的、没加载的）也不会一直留着。
+export const LIFT_TTL = 30_000;
+type Lift = {
+  mine: boolean;
+  /** 服务端已确认（本机的）。 */
+  ok: boolean;
+  until: number;
+  /** 同批排在它前面的（回组顶后照旧在它前面）。 */
+  after: readonly string[];
+  /** 已经挪了、还等服务端确认（本机的）：那一组挪前 / 挪后的两份，失败时比对后撤回。 */
+  moved?: { group: string; before: GroupOrder; after: GroupOrder };
+};
+const lifts = new Map<string, Lift>();
+const clock = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+/** 等着回组顶的有变化（侧栏据此再挪一遍）。 */
+export const useLifts = create<{ tick: number }>(() => ({ tick: 0 }));
+const poke = () => useLifts.setState((state) => ({ tick: state.tick + 1 }));
+
+/** 记下这一条取消置顶了；mine：本机人点的（服务端确认前只改本机），否则是别的设备上的。after：同批排在它前面的。 */
+export function noteUnpinned(key: string, mine: boolean, after: readonly string[] = []) {
+  lifts.set(key, { mine, ok: !mine, until: clock() + LIFT_TTL, after });
+  poke();
 }
 
-// 别的设备上取消置顶、经侧栏同步并进本页的对话（list-sync.ts 的 restar 记下，侧栏把它挪到组顶时取走）：那一台已经存过一份
-// 手排的先后，这里按数据收拾（tidy）；本页自己取消的（行菜单、P 键、长按菜单、多选、标题栏菜单）照常存、同步
-const unpinnedElsewhere = new Set<string>();
-
-export function noteUnpinnedElsewhere(key: string) {
-  unpinnedElsewhere.add(key);
+/** 本机这一条取消置顶的请求有结果了：成功就把挪好的存上、同步（侧栏还没挪的，挪的时候直接存）；失败撤回这次挪动。 */
+export function unpinSettled(key: string, ok: boolean) {
+  const lift = lifts.get(key);
+  if (!lift?.mine) return;
+  const moved = lift.moved;
+  const groups = useSidebarOrder.getState().groups;
+  const intact = !!moved && groups[moved.group] === moved.after;
+  if (!ok) {
+    lifts.delete(key);
+    if (intact) keep({ ...useSidebarOrder.getState(), groups: { ...groups, [moved!.group]: moved!.before } });
+    return;
+  }
+  if (intact) {
+    lifts.delete(key);
+    prefChanged("order", [groupField(moved!.group)]);
+    return;
+  }
+  // 挪过以后那一组又被换过（服务端那份换进来了）或者还没挪：侧栏照新的那份再挪、直接存
+  lift.ok = true;
+  lift.moved = undefined;
+  poke();
 }
 
-/** 这一条是别的设备上取消置顶的（取走记号）。 */
-export function takeUnpinnedElsewhere(key: string): boolean {
-  return unpinnedElsewhere.delete(key);
+/** 本机取消置顶一条（各入口同一道）：先记下回组顶，发请求（组件库乐观地先显示成没置顶），按结果存或撤回。after：多选时同批排在
+ *  它前面的。置顶不经这里（照旧直接 updateCustom）。 */
+export async function unpinChat(key: string, run: () => Promise<void>, after: readonly string[] = []): Promise<void> {
+  noteUnpinned(key, true, after);
+  try {
+    await run();
+  } catch (error) {
+    unpinSettled(key, false);
+    throw error;
+  }
+  unpinSettled(key, true);
+}
+
+/** 组件库的一段对话（置顶用到的那几样）。updateCustom 运行时回 Promise（组件库的乐观更新，失败时撤回并抛出），类型上写的是 void。 */
+export type StarItem = {
+  getState(): { readonly id: string; readonly remoteId?: string | undefined; readonly custom?: Record<string, unknown> | undefined };
+  updateCustom(custom: Record<string, unknown>): unknown;
+};
+
+/** 置顶 / 取消置顶一段对话（行菜单、P 键、手机长按菜单、标题栏菜单、多选同一道）。展开写法：组件库整份替换 custom，以后加的键
+ *  不能被冲掉。取消置顶经 unpinChat 回到它那一组的最上面；after 同 unpinChat。 */
+export function starChat(item: StarItem, starred: boolean, after: readonly string[] = []): Promise<void> {
+  const { id, remoteId, custom } = item.getState();
+  const run = async () => void (await item.updateCustom({ ...custom, starred }));
+  return starred ? run() : unpinChat(remoteId ?? id, run, after);
+}
+
+/** 这一条此刻在侧栏里的样子（applyLifts 问侧栏）：group 它那一组，stamp 这组此刻最新的那个时间（groupStamp，按排序方式）；
+ *  "starred" 仍是置顶；null 眼前没有这一行（没加载、不在侧栏）。 */
+export type LiftSpot = { group: string; stamp: number } | "starred" | null;
+
+/** 把等着回组顶的挪上去（侧栏每次行、手排顺序或记号变了时调）。那一组没手排过的不动（照排序方式）。 */
+export function applyLifts(spotOf: (key: string) => LiftSpot) {
+  const now = clock();
+  for (const [key, lift] of [...lifts]) {
+    if (lift.until < now) {
+      lifts.delete(key);
+      continue;
+    }
+    const spot = spotOf(key);
+    if (!spot) continue;
+    if (spot === "starred") {
+      // 还没换成没置顶（本机刚点、组件库还没改；推来的还没并进去）：等着。本机挪过又变回置顶（请求失败、组件库撤回乐观更新，
+      // 或又置顶了）：撤回这次挪动
+      if (lift.moved) unpinSettled(key, false);
+      continue;
+    }
+    if (lift.moved) continue; // 等服务端确认
+    const groups = useSidebarOrder.getState().groups;
+    const saved = groups[spot.group];
+    // 别的设备上的：那一组已经有它（那一台存上了，或这里已经挪过）就不再挪，等服务端那份确认
+    if (!saved?.keys.length || (!lift.mine && saved.keys.includes(key))) {
+      if (lift.mine || !saved?.keys.length) lifts.delete(key);
+      continue;
+    }
+    const next = liftedOrder(saved, key, spot.stamp, lift.after);
+    if (sameOrder(next, saved)) {
+      lifts.delete(key);
+      continue;
+    }
+    keep({ ...useSidebarOrder.getState(), groups: { ...groups, [spot.group]: next } });
+    if (!lift.mine) prefChanged("order", [groupField(spot.group)], true);
+    else if (lift.ok) {
+      lifts.delete(key);
+      prefChanged("order", [groupField(spot.group)]);
+    } else lift.moved = { group: spot.group, before: saved, after: next };
+  }
+}
+
+/** 服务端那份换进来了：别的设备上取消置顶的，那一组里已经有它（那一台存上了）就收拾完了。 */
+function confirmLifts() {
+  const groups = Object.values(useSidebarOrder.getState().groups);
+  for (const [key, lift] of [...lifts]) if (!lift.mine && groups.some((order) => order.keys.includes(key))) lifts.delete(key);
+}
+
+const sameOrder = (a: GroupOrder, b: GroupOrder) =>
+  a.at === b.at && a.top?.n === b.top?.n && a.top?.at === b.top?.at && a.keys.length === b.keys.length && a.keys.every((key, i) => key === b.keys[i]);
+
+/** key 回到这一组的组顶：放在手排列表最前面（after 里的——同批先回来的——排在它前面），组顶那一段（top）多它一条；top.at 取此刻
+ *  这组最新的时间（stamp；不早于存下时的 at），之后才有动静的对话照常排在它上面。at 不变，别的行不写进手排。条数不超过原来的
+ *  （至少 GROUP_LIMIT）。 */
+export function liftedOrder(saved: GroupOrder, key: string, stamp: number, after: readonly string[] = []): GroupOrder {
+  const index = saved.keys.indexOf(key);
+  const had = saved.top?.n ?? 0;
+  const rest = saved.keys.filter((id) => id !== key);
+  let lead = 0;
+  while (lead < rest.length && after.includes(rest[lead]!)) lead++;
+  const keys = [...rest.slice(0, lead), key, ...rest.slice(lead)].slice(0, Math.max(GROUP_LIMIT, saved.keys.length));
+  const n = Math.min(Math.max(had - (index >= 0 && index < had ? 1 : 0), lead) + 1, keys.length);
+  return { keys, at: saved.at, top: { n, at: Math.max(stamp, saved.at, saved.top?.at ?? 0) } };
 }
 
 /** 在「分组和排序」里选了排序方式（含点当前已选的那一项）：各组里手排的先后都不要了，回到按排序方式排。 */
@@ -225,8 +359,14 @@ export function forgetInGroups(keys: readonly string[], tidy = false) {
   const next: Record<string, GroupOrder> = {};
   for (const [group, order] of Object.entries(groups)) {
     const kept = order.keys.filter((key) => !keys.includes(key));
-    if (kept.length !== order.keys.length) changed.push(group);
-    if (kept.length) next[group] = { keys: kept, at: order.at };
+    if (kept.length === order.keys.length) {
+      next[group] = order;
+      continue;
+    }
+    changed.push(group);
+    // 组顶那一段（top）里去掉了几条就少几条，一条不剩就不再有
+    const n = order.top ? order.top.n - order.keys.slice(0, order.top.n).filter((key) => keys.includes(key)).length : 0;
+    if (kept.length) next[group] = { keys: kept, at: order.at, ...(n > 0 ? { top: { n, at: order.top!.at } } : {}) };
   }
   if (changed.length) save({ groups: next }, groupFields(changed), tidy);
 }
