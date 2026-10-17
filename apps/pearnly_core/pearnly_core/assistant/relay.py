@@ -10,7 +10,8 @@
   对话页仍会低频补拉事件记录，事件按编号去重。
 - 只推给会话主人自己的房间，内容与「列出事件」相同，另加回复的逐字预览。推送带的是浏览器认的对话编号
   （分段接续后远端会话换了，对话编号不变，见 `sessions`）。
-- 顺手记下每次模型请求的输入量（`context.note`），供计价分档的接续判断。
+- 顺手记下每次模型请求的输入量（`context.note`），供计价分档的接续判断；CC 每回一段话（`agent.message`）把对话的最后活动
+  时间记成现在（`context.active`，侧栏「上次更新」按它排）。
 - 智能体停下来等 Pearnly 工具结果时，直接在服务端以会话主人的身份执行（`toolrun`），不靠页面开着。
 - 一轮结束时告诉 `titles`：还挂着临时标题的对话这时排概括（同 Claude 在第一轮之后起标题）。
 """
@@ -62,11 +63,30 @@ def pending_tools(event: dict) -> list[str]:
 
 
 def _turn_ended(conversation):
-    """排侧栏标题的概括只是附带的：出错不影响收线。"""
+    """这一轮结束：没答的「允许」卡片作废（停止、出错收尾时引擎不再等它，`toolrun.cancel_waiting`）；再排侧栏标题的概括。
+    两件都是附带的：出错不影响收线。"""
+    try:
+        toolrun.cancel_waiting(conversation)
+    except Exception as err:
+        frappe.db.rollback()
+        print(f"assistant relay {conversation}: cancel {type(err).__name__}", flush=True)
     try:
         titles.turn_ended(conversation)
     except Exception as err:
         print(f"assistant relay {conversation}: title {type(err).__name__}", flush=True)
+
+
+def _active(conversation, name):
+    """记最后活动时间只是附带的：这一行正被别的事务锁着（例如后台任务挂提醒时写同一行）就这次不记、不等锁
+    （`context.active(wait=False)`，等锁会让事件流和逐字预览停住），出错也不打断转发。按记录名写（只清这一条的缓存）。"""
+    if not name:
+        return
+    try:
+        if context.active(name, wait=False):
+            frappe.db.commit()
+    except Exception as err:
+        frappe.db.rollback()
+        print(f"assistant relay {conversation}: activity {type(err).__name__}", flush=True)
 
 
 def _run(site, sites_path, conversation, remote, user, key, token, ready):
@@ -75,6 +95,7 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
         frappe.connect()
         frappe.set_user(user)  # 工具以会话主人的身份执行
         api = engine.adapter()
+        name = frappe.db.get_value(context.SESSION, {"session_id": conversation}, "name")  # 记最后活动时间用
         deadline = time.monotonic() + MAX_SECONDS
         calls = {}
         for _attempt in range(RECONNECTS + 1):
@@ -84,6 +105,8 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
                     frappe.cache.expire(key, LOCK_TTL)
                     if event.get("type") == "span.model_request_end" and context.note(conversation, [event]):
                         frappe.db.commit()
+                    if event.get("type") == "agent.message":
+                        _active(conversation, name)
                     if event.get("type") == "agent.custom_tool_use":
                         calls[event.get("id")] = event
                     for use_id in pending_tools(event):

@@ -158,7 +158,7 @@ CODE_SHARED = {
     "radius-input": "14px",
     "gap-1": "8px", "gap-2": "12px", "gap-3": "16px", "gap-4": "28px", "gap-5": "40px",
     "pad-1": "6px", "pad-2": "8px", "pad-3": "12px", "pad-4": "16px", "pad-5": "24px", "icon": "20px", "icon-sm": "16px",
-    "sidebar-w": "288px", "sidebar-head": "44px", "search-h": "32px", "row": "32px", "row-desktop": "30px", "row-phone": "44px",
+    "sidebar-w": "288px", "sidebar-head": "44px", "search-h": "32px", "search-h-desktop": "28px", "row": "32px", "row-desktop": "30px", "row-phone": "44px",
     "row-gap": "2px", "row-radius": "8px", "row-pad": "10px", "row-ctl": "24px", "row-lead": "28px",
     "group-band": "32px", "group-band-phone": "44px", "group-top": "16px", "group-top-desktop": "14px", "group-chevron": "12px", "row-pulse": "6px",
     "tray": "48px", "tray-btn": "32px", "sidebar-float": "8px",
@@ -294,11 +294,16 @@ class OfficialValuesTests(unittest.TestCase):
         self.assertEqual(variant_block(self.css, "desktop"), {
             "--cc-bg-sidebar": "var(--code-sidebar-desktop)", "--cc-row-h": "var(--code-row-desktop)",
             "--cc-group-top": "var(--code-group-top-desktop)", "--cc-sidebar-float": "var(--code-sidebar-float)",
+            # 桌面窗口的侧栏搜索框 28（Claude 桌面版截图约 27.4；第 11 轮按钮排查 G9）
+            "--cc-search-h": "var(--code-search-h-desktop)",
         })
+        # 手机：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（第 11 轮按钮排查 G1 / G9）；触屏平板（粗指针，非桌面窗口）同样
         self.assertEqual(variant_block(self.css, "phone"), {
             "--cc-row-h": "var(--code-row-phone)", "--cc-group-h": "var(--code-group-band-phone)", "--cc-reveal-rest": "1",
             "--cc-body-size": "var(--code-text-prose)", "--cc-body-lh": "var(--code-text-prose-lh)",
+            "--cc-menu-item-h": "var(--cc-tap)", "--cc-search-h": "var(--cc-tap)",
         })
+        self.assertIn('@media (pointer: coarse) {\n  :root:not([data-cc-variant="desktop"]) { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n}', self.css)
         # 桌面窗口：侧栏浮成卡片（离窗口边 8px、卡片阴影）
         self.assertIn(':root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); '
                       "border-inline-width: 0; }", self.css)
@@ -345,13 +350,14 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn(".cc-nav-item svg { width: var(--cc-icon); height: var(--cc-icon); flex-shrink: 0; }", css)
         self.assertIn("width: var(--cc-row-lead); height: var(--cc-row-lead);", rule(".cc-nav-icon"))
         label = css.split(".cc-section-label {", 1)[1].split("}", 1)[0]
-        for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-group-font);", "line-height: var(--cc-group-lh);",
-                     "transition: color var(--cc-reveal) var(--cc-ease);"):
+        for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-group-font);", "line-height: var(--cc-group-lh);"):
             self.assertIn(part, label)
-        # 鼠标在组标题上才变次要色（设计文档 3.4）；鼠标进侧栏只淡入箭头，不改组标题字色
-        self.assertIn(".cc-section-toggle:hover, .cc-section-toggle:focus-visible { color: var(--cc-ink-2); }", css)
+        # 可折叠的组标题都是 .cc-group-*（ERP / DMS 的日期组第 11 轮起也用 GroupHeader）：.cc-section-label 只是标题，不再有开关样式；
+        # 鼠标在组标题上才变次要色（设计文档 3.4），鼠标进侧栏只淡入箭头
+        self.assertNotIn(".cc-section-toggle", css)
         self.assertNotIn('[data-slot="sidebar-inner"]:hover .cc-section-label', css)
-        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-section-chevron', css)
+        self.assertIn(".cc-group-row:hover .cc-group-toggle, .cc-group-toggle:focus-visible { color: var(--cc-ink-2); }", css)
+        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-group-caret', css)
         search = rule(".cc-search")
         for part in ("height: var(--cc-search-h);", "border-radius: var(--cc-radius-row);", "background: var(--cc-search-bg);",
                      "box-shadow: inset 0 0 0 var(--cc-hairline) var(--cc-line), var(--cc-shadow-search);"):
@@ -391,9 +397,12 @@ assert.equal(pickVariant(false, false), "web");
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        for rel in ("components/ui/button.tsx", "components/ui/input.tsx", "components/ui/dialog.tsx", "components/ui/sheet.tsx",
+        for rel in ("components/ui/button.tsx", "components/ui/input.tsx", "components/ui/sheet.tsx",
                     "components/ui/sidebar.tsx"):
             self.assertIn("focus-visible:shadow-focus", read(rel), rel)
+        # 弹窗默认的 × 第 11 轮起是图标按钮（.cc-icon-btn 的聚焦就是 --cc-shadow-focus）
+        self.assertIn('className="cc-icon-btn cc-tap absolute end-3 top-3"', read("components/ui/dialog.tsx"))
+        self.assertIn(".cc-icon-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }", self.css)
         # 聚焦不带光晕（用户 10-16）：整个 CC 前端不再有 ring 光晕写法（ring-[3px]、半透明 ring、ring-offset、focus 时的 ring-2）
         halo = re.compile(r"ring-\[\d|ring-ring|ring-offset|(?:focus|focus-visible|aria-invalid):ring-|ring-[a-z-]+/\d|outline-ring/\d")
         for path in sorted(SRC.rglob("*.ts*")) + [SRC / "globals.css"]:
@@ -426,7 +435,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn("--cc-md-li-indent: 7px;", self.css)
         self.assertNotIn("--cc-md-list-top", self.css)
         # 回复里的块（正文、步骤、文件卡）之间同样只用上外边距；回复下的操作行悬停淡入、没有悬停的设备常显
-        self.assertIn("  .cc-reply > * + * { margin-top: var(--cc-md-block); }", self.css)
+        self.assertIn("  .cc-reply > :where(:not(:first-child)) { margin-top: var(--cc-md-block); }", self.css)
         self.assertIn("  .cc-reply-actions { opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }",
                       self.css)
         self.assertIn('  [data-role="assistant"]:hover .cc-reply-actions, .cc-reply-actions:focus-within { opacity: 1; }', self.css)
@@ -466,7 +475,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn('user_preferences: { color_scheme_dark: { background_color: "#151515", theme_color: "#151515" } },', vite)
         main = (SRC / "main.tsx").read_text(encoding="utf-8")
         apply = main.split("const applyScheme = () => {", 1)[1].split("\n};", 1)[0]
-        self.assertIn("colorScheme(theme);\n  themeColor();", apply)
+        self.assertIn("colorScheme(theme);\n  themeColor(true);", apply)
         self.assertIn("const value = colorSchemeOf(theme);", main)
         self.assertIn('window.addEventListener("cc-theme", applyScheme);', main)
         appearance = (SRC / "lib/appearance.ts").read_text(encoding="utf-8")
@@ -636,7 +645,7 @@ class CardRuleTests(unittest.TestCase):
             self.assertIn(part, summary)
         self.assertIn('  .cc-steps-summary:hover, .cc-steps-summary[aria-expanded="true"] { color: var(--cc-ink-2); }', css)
         self.assertIn("border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);", rule(".cc-steps-card"))
-        self.assertIn("  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
+        self.assertIn("  .cc-steps-card > :where(:not(:first-child)) { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
         self.assertIn("padding: var(--cc-step-row-py) var(--cc-step-row-px);", rule(".cc-step-row"))
         self.assertIn("color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);", rule(".cc-step-row"))
         self.assertIn("width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0;", rule(".cc-step-row > svg"))

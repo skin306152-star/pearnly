@@ -97,6 +97,9 @@ def booking_log_response_body(result: Dict[str, Any]) -> Dict[str, Any]:
         body["attach_ok"] = result.get("attach_ok")
         body["attached"] = result.get("attached", 0)
         body["attach_failed"] = result.get("attach_failed") or []
+    if result.get("review") is not None:
+        # 回执复核只留**项目名**（不留值）：日后能查"开单后 DMS 和确认卡对不上"发生过几次、是哪几项。
+        body["review_diff_items"] = [d.get("item") for d in result["review"].get("diffs") or []]
     if not ok:
         body["raw_error"] = (result.get("response_body") or {}).get("raw_error", "")
     return body
@@ -160,4 +163,31 @@ def log_booking(
         return doc.name
     except Exception:
         logger.warning("[dms] 订车台账写入失败（不影响业务结果）", exc_info=True)
+        return None
+
+
+def log_amend(*, endpoint: Any, booking_no: str, booking_id: str, items: list, fields: list,
+              outcome: str, actor: Optional[str] = None) -> Optional[str]:
+    """改已开订车单（开单回执差异卡）落一行台账：只记项目名与字段名、不记值；写失败不影响业务结果。"""
+    try:
+        import frappe
+
+        doc = frappe.new_doc(LOG)
+        doc.status = "success" if outcome == "updated" else "failed"
+        doc.endpoint = endpoint_name(endpoint) or None
+        doc.trigger = "line"
+        doc.attempt = 1
+        doc.business_key = booking_no
+        doc.http_status = 200 if outcome == "updated" else 0
+        doc.request_body = json.dumps({"operation": "booking_amend", "items": list(items),
+                                       "fields": sorted(fields)}, ensure_ascii=False)
+        doc.response_body = json.dumps({"result": outcome, "booking_id": booking_id}, ensure_ascii=False)
+        doc.error_msg = "" if outcome == "updated" else str(outcome)[:2000]
+        if actor:
+            doc.actor = actor
+        doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+        return doc.name
+    except Exception:
+        logger.warning("[dms] 改单台账写入失败（不影响业务结果）", exc_info=True)
         return None

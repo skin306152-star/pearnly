@@ -1,5 +1,5 @@
 // 手机上长按弹菜单（侧栏对话行、公司组头共用）。
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { isDragMoving } from "@/lib/layers";
 
 /** 长按出菜单的时长。共用拖动（components/ui/drag.tsx）按住 250ms 就拿起，拿起后手指不动、按到这个时间才出菜单。 */
@@ -62,4 +62,27 @@ export function useLongPress(onLongPress: () => void, onDrag?: () => void) {
       if (e.timeStamp - touchedAt.current < CONTEXT_MENU_WINDOW_MS) e.preventDefault();
     },
   };
+}
+
+/** 长按出的菜单（侧栏对话行、公司组头共用）：open / setOpen 给菜单（Radix 的 open / onOpenChange），press 给行（同 useLongPress），
+ *  modal 给菜单的 Root。
+ *
+ *  长按（触屏）开的菜单不按模态开（modal=false）：模态菜单打开时组件库给整页挂上禁止滚动的样式表、body 设 pointer-events: none、
+ *  其余节点都标 aria-hidden，各引起一次整页样式重算，正叠在拿起后的那一帧上（审查：手机按住不动到 500ms 出菜单那一帧，6 倍节流
+ *  98–130ms，其中这几样约 20–45ms）。点菜单外照样只关菜单、不落到下面（components/ui/menu.tsx 吞掉紧跟着的那一次 click），
+ *  电脑上（「···」、右键、键盘）照旧是模态（点菜单外由整页不接指针挡住，同 Claude）。modal 只在打开时定，关的那一下不变
+ *  （变了组件库会把正在收起的菜单换成另一种重挂一遍）。 */
+export function useLongPressMenu(): {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  modal: boolean;
+  press: ReturnType<typeof useLongPress>;
+} {
+  const [menu, setMenu] = useState({ open: false, modal: true });
+  const setOpen = useCallback((open: boolean) => setMenu((now) => (open ? { open: true, modal: true } : { ...now, open: false })), []);
+  const press = useLongPress(
+    () => setMenu({ open: true, modal: false }),
+    () => setMenu((now) => ({ ...now, open: false })),
+  );
+  return { open: menu.open, setOpen, modal: menu.modal, press };
 }

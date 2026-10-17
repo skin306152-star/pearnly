@@ -37,7 +37,9 @@ client() { docker run --rm -i --network "$NET" --memory 512m -e MYSQL_PWD="$PW" 
 # 1) 数据库：逐库导出、压缩
 dbs=$(client mariadb -N -B -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('information_schema','performance_schema','sys')") || fail list_databases
 for db in $dbs; do
-  client mariadb-dump --single-transaction --quick --routines --events --triggers --hex-blob --databases "$db" | gzip -6 > $work/db-$db.sql.gz
+  # --master-data=2：在导出文件头注释里记下这一刻的改动记录位置，恢复时从这里接着回放（binlog-ship.sh 每 5 分钟传的那些）；
+  # MariaDB 配 --single-transaction 时用一致性快照取位置，不加全局读锁。
+  client mariadb-dump --single-transaction --master-data=2 --quick --routines --events --triggers --hex-blob --databases "$db" | gzip -6 > $work/db-$db.sql.gz
   [[ ${PIPESTATUS[0]} == 0 && ${PIPESTATUS[1]} == 0 ]] || fail "dump $db"
 done
 

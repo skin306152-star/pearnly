@@ -2241,7 +2241,7 @@ This saved choice no longer exists	这条记住的选择已不在	ไม่พ�
 Only payment and VAT choices can be changed here	这里只能改付款方式和抵不抵进项	แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ	ここで変更できるのは支払方法と仕入税額控除だけです	cowork.company.choice_not_editable
 Notes	知识库	บันทึก	ノート	cowork.company.notes
 Claim VAT	抵进项	ขอคืนภาษีซื้อ	仕入税額控除
-Expense it	计费用	ลงค่าใช้จ่าย	費用計上
+Expense it	记费用	ลงค่าใช้จ่าย	費用計上
 Listed companies	列出了公司	แสดงรายชื่อบริษัท	会社一覧を表示
 Read company details	读取了公司资料	อ่านข้อมูลบริษัท	会社情報を確認
 Saved a company note	记下了公司说明	บันทึกข้อมูลบริษัท	会社メモを保存

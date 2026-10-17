@@ -36,7 +36,7 @@ function setup() {
   const t = key => table[key]?.[locale.value] || key;
   const module = evaluate(compileScript(parse(source).descriptor, { id: 'snapshot-offline' }).content, {
     vue: { ...vue, onMounted() {} }, 'vue-router': { useRoute: () => ({ query: { draft: 'synthetic', editor: 'customer' } }) },
-    'frappe-ui': {}, '../../components/LineLayout.vue': {}, '../../lib/api': { ApiError },
+    'frappe-ui': {}, '../../components/LineLayout.vue': {}, './ReviewPage.vue': {}, '../../lib/api': { ApiError },
     '../../lib/dms-editor': helpers,
     '../../lib/i18n': { createTexts(keys, prefix) {
       assert.equal(prefix, 'dms.'); assert.equal(keys.length, 0);

@@ -28,6 +28,7 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 systemctl enable --now docker nginx
+bash "$(dirname "$0")/ensure-swap.sh"
 docker version --format '{{.Server.Version}}'
 docker compose version
 ufw status

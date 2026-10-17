@@ -55,6 +55,7 @@ import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { isImeEnter } from "@/lib/ime";
+import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { ACCEPT } from "@/lib/managed-agents/attachments";
 
 // 卡片与各节的内容搬到了 company-cards.tsx（会话栏用）；原来从本文件导入的照样能用
@@ -288,6 +289,7 @@ const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone
 
 // ---------------------------------------------------------------- 输入框
 /** 同新对话的输入框与下巴（设计文档 3.12）：下巴里公司固定（不可换），月份、分店胶囊；发出 = 在这家开对话并发出。
+ *  手机上同对话页：没在输入、也没有字时收成一行胶囊（data-collapsed，「＋」、占位字），点进去展开（按钮排查 M10）。
  *  随内容长高（最高同新对话）；回车发送，输入法选字的回车不算（Safari 的 keyCode 229，lib/ime.ts）；「＋」选文件 = 在这家开
  *  新对话，打了的字与选的文件放进那边的输入框（上传进度、出错、发出都在那边，同拖文件进输入框）。 */
 const CompanyComposer: FC<{ company: string; title: string; period: string; branches: Branch[] }> = ({ company, title, period, branches }) => {
@@ -296,6 +298,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
   const withScope = useProjects((s) => s.scope);
   const [scope, setScope] = useState("");
   const [text, setText] = useState("");
+  const [typing, setTyping] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const filing = () => ({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" });
@@ -313,6 +316,16 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
     setText("");
     start(filing(), value, false, picked);
   };
+  // 安卓返回键收起键盘时输入框仍聚焦：键盘收起、输入框是空的就失焦，收回一行胶囊（同对话页的输入框，第 11 轮审查）
+  const emptyNow = useRef(true);
+  emptyNow.current = !text;
+  useEffect(() => {
+    const closed = () => {
+      if (emptyNow.current && document.activeElement === box.current) box.current?.blur();
+    };
+    window.addEventListener(KEYBOARD_CLOSED, closed);
+    return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
+  }, []);
   // 随内容长高：先收回再按内容量（上限由 max-h-72 管，超出在框里滚动）
   useLayoutEffect(() => {
     const el = box.current;
@@ -322,7 +335,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
   }, [text]);
   return (
     <div className="flex w-full flex-col" data-slot="cc-company-composer">
-      <div className="cc-composer cc-composer-inline">
+      <div className="cc-composer cc-composer-inline" data-collapsed={!typing && !text ? "" : undefined}>
         <textarea
           ref={box}
           rows={1}
@@ -331,6 +344,8 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
           placeholder={t("placeholder")}
           enterKeyHint="send"
           onChange={(e) => setText(e.target.value)}
+          onFocus={() => setTyping(true)}
+          onBlur={() => setTyping(false)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !isImeEnter(e)) {
               e.preventDefault();
@@ -345,7 +360,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
           </button>
           <input ref={picker} type="file" multiple accept={ACCEPT} hidden onChange={(e) => attach(e.target.files)} />
           <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
-            <button type="button" className="cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
+            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
               <ArrowUpIcon />
             </button>
           </div>

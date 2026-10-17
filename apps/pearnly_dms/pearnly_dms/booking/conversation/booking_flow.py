@@ -109,7 +109,7 @@ def handle_postback(
     if action == cards.ACT_RETRY_BOOKING:
         payload = store.consume_nonce(line_user_id, "booking_review", pb.get("nonce"))
         if payload is None:
-            _reply(reply_token, cards.TXT_EXPIRED)
+            _reply_unclaimed(line_user_id, reply_token, pb.get("nonce"))
             return
         _queue_claimed(binding, line_user_id, payload, reply_token)
         return
@@ -118,9 +118,23 @@ def handle_postback(
     # 不符 / 过期 → 过期话术、**绝不建单**。清掉之后同一 nonce 的二次点击此后必 mismatch。
     payload = store.consume_nonce(line_user_id, "booking_review", pb.get("nonce"))
     if payload is None:
-        _reply(reply_token, cards.TXT_EXPIRED)
+        _reply_unclaimed(line_user_id, reply_token, pb.get("nonce"))
         return
     _queue_claimed(binding, line_user_id, payload, reply_token)
+
+
+def _reply_unclaimed(line_user_id: str, reply_token: str, nonce: str) -> None:
+    """确认 / 重试没认领到时回什么。
+
+    同一张卡**正在提交**（这次点击的 nonce 就是会话里认领着的那个，或者它刚在并发里输给了
+    同一张卡的另一次点击）→ **什么都不回**：结果由认领成功的那次点击回（2026-10-12 生产：
+    连点两次，第二次先回了「已过期」，十几秒后第一次才回开单成功）。
+    其余（卡已用完、换过、会话过期）才是真过期 → 照旧回「已过期」。不改任何认领与建单判定。
+    """
+    payload = ((store.get_session(line_user_id) or {}).get("payload") or {})
+    if nonce and nonce in (payload.get("booking_claim"), payload.get("nonce")):
+        return
+    _reply(reply_token, cards.TXT_EXPIRED)
 
 
 def _queue_claimed(binding, line_user_id, payload, reply_token=""):

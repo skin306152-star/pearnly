@@ -1,0 +1,9 @@
+[Unit]
+Description=Pearnly external watch: sites and backups, mail on failure
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker run --rm --network host -v /opt/pearnly-watch:/opt/pearnly-watch:ro -v /var/lib/pearnly-watch:/var/lib/pearnly-watch pearnly-watch probe
+TimeoutStartSec=5min

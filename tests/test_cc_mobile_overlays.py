@@ -163,6 +163,11 @@ class DialogFitTests(unittest.TestCase):
         self.assertIn('data-collapsed={!typing && empty ? "" : undefined}', thread)
         self.assertIn("onFocus={() => setTyping(true)}", thread)
         self.assertIn("onBlur={() => setTyping(false)}", thread)
+        # 安卓返回键收起键盘后输入框仍聚焦：空的就失焦、收回一行（第 10 轮 A14）
+        self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", thread)
+        self.assertIn('if (emptyNow.current && el instanceof HTMLTextAreaElement && el.closest(\'[data-slot="aui_composer-shell"]\')) el.blur();', thread)
+        # 新对话没有建议时那个空容器不占 gap（第 10 轮 A14：输入框下多出 16px）
+        self.assertIn('className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4 empty:hidden"', thread)
         css = read("globals.css")
         fold = css[css.index(".cc-mshell .cc-composer[data-collapsed] {"):]
         fold = fold[:fold.index("/* 手机新对话问候下面")]
@@ -178,7 +183,9 @@ class DialogFitTests(unittest.TestCase):
         viewport = read("lib/viewport.ts")
         self.assertIn('root.style.setProperty("--cc-vvh", `${viewport.height}px`);', viewport)
         self.assertIn('root.style.setProperty("--cc-vvtop", `${viewport.offsetTop}px`);', viewport)
-        self.assertIn('root.toggleAttribute("data-cc-keyboard", window.innerHeight - viewport.height * viewport.scale > KEYBOARD_MIN);', viewport)
+        self.assertIn('tallest = Math.max(tallest, window.innerHeight, shown);', viewport)
+        self.assertIn('root.toggleAttribute("data-cc-keyboard", next);', viewport)
+        self.assertIn('if (open && !next) window.dispatchEvent(new Event(KEYBOARD_CLOSED));', viewport)
         self.assertNotIn("scrollTo(", viewport)
         # 键盘弹出时输入框贴着键盘（不留指示条那一截）
         css = read("globals.css")
@@ -202,7 +209,10 @@ import { trackViewport } from "@/lib/viewport";
 
 const g = globalThis as any;
 const handlers: Record<string, () => void> = {};
+const fired: string[] = [];
 g.innerHeight = 786;
+g.innerWidth = 390;
+g.dispatchEvent = (e: Event) => fired.push(e.type);
 g.visualViewport = { height: 786, offsetTop: 0, scale: 1, addEventListener: (t: string, f: () => void) => (handlers[t] = f), removeEventListener: (t: string) => delete handlers[t] };
 const props: Record<string, string> = {};
 const attrs = new Set<string>();
@@ -230,6 +240,24 @@ assert.equal(attrs.has("data-cc-keyboard"), false);
 // 地址栏伸缩只差几十像素：不算键盘
 g.visualViewport.height = 730;
 g.visualViewport.scale = 1;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+// 放大与地址栏那两下键盘都是收起的：只有真从弹出变收起才发 KEYBOARD_CLOSED（上面 475 → 放大那一下发过一次）
+assert.deepEqual(fired, ["cc:keyboard-closed"]);
+// 安卓 resizes-content：键盘弹出时整屏高也跟着变矮（第 10 轮 A14），按这个宽度下见过的最高判，照样认得出
+g.innerHeight = 475;
+g.visualViewport.height = 475;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), true);
+g.innerHeight = 786;
+g.visualViewport.height = 786;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+assert.deepEqual(fired, ["cc:keyboard-closed", "cc:keyboard-closed"]);
+// 转屏（宽度变了）重新记最高：横屏矮了不算键盘
+g.innerWidth = 844;
+g.innerHeight = 390;
+g.visualViewport.height = 390;
 handlers.resize!();
 assert.equal(attrs.has("data-cc-keyboard"), false);
 g.visualViewport.height = 475;
@@ -578,7 +606,7 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
-        more = rows.split("const ThreadListItemMore: FC", 1)[1]
+        more = rows.split("const ThreadListItemMore = memo(function ThreadListItemMore(", 1)[1]
         self.assertEqual(more.count('side="bottom"\n            align="end"'), 1)
         self.assertEqual(more.count('side="bottom"\n      align="end"'), 1)  # 多选时的批量项
         self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)

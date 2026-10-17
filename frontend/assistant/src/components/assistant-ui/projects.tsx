@@ -10,6 +10,7 @@
 //                         会话栏的公司卡（同顶栏，lib/company-panel 的 openCompanyCard），月份、分店改了就 move。已有对话不能换公司
 //                         （用户 10-17：「移到」已删，没挂公司的已有对话下巴里也不再有「公司 ▾」）
 //   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开右侧会话栏的公司卡）；手机在胶囊菜单最上面（MobileCompanyItem）
+//   MobileChatTitle     — 手机对话页顶栏中间的两行标题：对话名、公司名（挂在公司下时；照 Claude 手机端 8.webp，不可点）
 //
 // 公司组里不再有「⏱ 定时任务 N」一行（用户 2026-10-15 夜同意设计文档 4.2：改由右侧栏「定时任务」卡与公司页「定时任务」标签承担）。
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
@@ -17,14 +18,14 @@
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
-import { type FC, type ReactNode, useEffect, useState } from "react";
+import { type FC, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import type { DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useLongPress } from "@/hooks/use-long-press";
+import { useLongPressMenu } from "@/hooks/use-long-press";
 import { co, t } from "@/i18n";
 import {
   branchShort,
@@ -112,7 +113,15 @@ export function useOpenCompany() {
 }
 
 // ---------------------------------------------------------------- 组头
-export const ProjectHeader: FC<{
+// 记住（memo）：公司组头是拖动项，拖动库每次拿起、经过、放下都重画所有组头；把手（useSortableItem 记住的）、开关、挪一格没变就不重画
+export const ProjectHeader = memo(function ProjectHeader({
+  project,
+  open,
+  onToggle,
+  sessions,
+  handle,
+  onMove,
+}: {
   project: ProjectRow;
   open: boolean;
   onToggle: () => void;
@@ -120,13 +129,17 @@ export const ProjectHeader: FC<{
   /** 组头开关同时是拖动把手（公司组排序）；Alt+↑/↓ 挪一格。 */
   handle?: DragHandle;
   onMove?: (delta: -1 | 1) => void;
-}> = ({ project, open, onToggle, sessions, handle, onMove }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
+}) {
+  // 长按（手机）开的菜单不按模态开（useLongPressMenu：出菜单那一帧不再整页重算样式）
+  const { open: menuOpen, setOpen: setMenuOpen, modal: menuModal, press } = useLongPressMenu();
   const { isMobile } = useSidebar();
-  const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   const activity = useGroupActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
+  // 「新建」给一个稳定的回调：组头随拖动重画时它不跟着重画（GroupNew 是 memo）
+  const newChat = useRef(newChatIn);
+  newChat.current = newChatIn;
+  const onNew = useCallback(() => newChat.current(project.id), [project.id]);
   const { setView } = useView();
   const go = useCloseDrawer();
   const openPending = (company: string) => {
@@ -171,11 +184,11 @@ export const ProjectHeader: FC<{
           {pending}
         </button>
       )}
-      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />
-      <GroupNew onClick={() => newChatIn(project.id)} />
+      <GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />
+      <GroupNew onClick={onNew} />
     </GroupHeader>
   );
-};
+});
 
 /** 侧栏公司下的一行出错提示（服务端给的原文），可关掉。 */
 export const SidebarError: FC = () => {
@@ -184,7 +197,7 @@ export const SidebarError: FC = () => {
   return (
     <div role="alert" className="cc-sidebar-error">
       <span className="min-w-0 flex-1">{error}</span>
-      <button type="button" className="cc-group-btn" aria-label={t("close")} onClick={() => setError("")}>
+      <button type="button" className="cc-row-btn cc-tap" aria-label={t("close")} onClick={() => setError("")}>
         <XIcon />
       </button>
     </div>
@@ -234,7 +247,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
     <>
       <div className="px-1 pb-1">
         <input
-          className="cc-input h-8 w-full"
+          className="cc-input w-full"
           value={search}
           aria-label={t("search")}
           placeholder={t("search")}
@@ -398,6 +411,24 @@ export const MobileCompanyItem: FC = () => {
       </DropdownMenu.Item>
       <DropdownMenu.Separator className="cc-menu-sep" />
     </>
+  );
+};
+
+/** 手机对话页顶栏中间的标题（照 Claude 手机端 8.webp）：上行对话名，下行公司名（产品有公司分组、对话挂在公司下时才有）。
+ *  只是标题，不可点（置顶、改名、公司卡都在右上「…」里）。 */
+export const MobileChatTitle: FC = () => {
+  const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const kind = useProjects((s) => s.kind);
+  useProjects((s) => s.filings);
+  const project = filingOf(remoteId, localId).project;
+  const company = useCompanyTitle(kind ? project : "");
+  return (
+    <div className="cc-mtitle" data-slot="cc-mobile-title">
+      <Marquee className="cc-mtitle-name">{title || t("untitled")}</Marquee>
+      {kind && project && company && <Marquee className="cc-mtitle-sub">{company}</Marquee>}
+    </div>
   );
 };
 

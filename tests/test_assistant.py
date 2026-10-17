@@ -3,6 +3,7 @@
 
 不连库、不连厂商：Frappe 与 SDK 用最小替身。
 """
+import ast
 import contextlib
 import datetime
 import importlib.util
@@ -378,6 +379,56 @@ class RelayTests(unittest.TestCase):
         self.assertIn("DuplicateEntryError", run)  # 推送线程与页面兜底谁先到谁执行，只执行一遍
         self.assertIn("except Exception", run)  # 意外出错也回结果，不让会话卡住
 
+    def test_a_card_left_unanswered_when_the_turn_ends_never_runs(self):
+        """点了停止、这一轮出错收尾或会话终止：还在等「允许」的调用标成 cancelled，别的设备上没刷新的旧卡片事后点「允许」
+        也不执行（第 11 轮）。停止当场标（推送线程可能已到时限不在了），推送线程看到这一轮结束再标一次。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        rows = {"r1": {"session_id": "conv", "status": "awaiting_approval", "tool": "always", "tool_input": "{}"},
+                "r2": {"session_id": "conv", "status": "done", "tool": "always", "tool_input": "{}"},
+                "r3": {"session_id": "other", "status": "awaiting_approval", "tool": "always", "tool_input": "{}"}}
+        ran = []
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def sql(self, query, values):
+                if "session_id=%s" in query:
+                    hits = [n for n, r in rows.items() if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+                    for n in hits:
+                        rows[n]["status"] = "cancelled"
+                else:
+                    status, name = values
+                    hits = [name] if rows[name]["status"] == "awaiting_approval" else []
+                    for n in hits:
+                        rows[n]["status"] = status
+                self._cursor = types.SimpleNamespace(rowcount=len(hits))
+
+            def get_value(self, doctype, filters, field, as_dict=False):
+                return next((n for n, r in rows.items() if r["session_id"] == filters["session_id"]
+                             and r["status"] == filters["status"]), None)
+
+            def commit(self):
+                pass
+
+        with mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append(name) or ("saved", False)):
+            self.assertEqual(toolrun.cancel_waiting("conv"), 1)
+            self.assertEqual([r["status"] for r in rows.values()], ["cancelled", "done", "awaiting_approval"])
+            self.assertEqual(toolrun.cancel_waiting("conv"), 0)
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")
+        self.assertEqual(ran, [])
+        options = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_tool_run/pearnly_assistant_tool_run.json")
+                             .read_text(encoding="utf-8"))
+        status = next(f for f in options["fields"] if f["fieldname"] == "status")
+        self.assertIn("cancelled", status["options"].split("\n"))
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        body = source.split("def interrupt(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(body.index('"user.interrupt"'), body.index("toolrun.cancel_waiting(row.session_id)"))
+        relay = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
+        ended = relay.split("def _turn_ended(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("toolrun.cancel_waiting(conversation)", ended)
+
     def test_only_the_relay_thread_may_wait_inside_a_tool(self):
         """推送后等写账结果（用户 2026-10-13 第 9 条）只在推送线程里等：网页请求线程（页面兜底、点「允许」）与 long 队列进程
         （引擎回调）是全站共用的名额，在那里执行的工具要立刻返回。工具从对话信息里读到，执行完清掉。"""
@@ -450,17 +501,29 @@ class RelayTests(unittest.TestCase):
             rollback = commit
 
         adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        published = []
         with mock.patch.object(toolrun, "_use_lang", lambda conversation: None), \
                 mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
                 mock.patch.object(toolrun.frappe, "local", types.SimpleNamespace(cache={}), create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(toolrun.frappe, "publish_realtime", lambda event, message, user=None, after_commit=False:
+                                  published.append((event, message, user, after_commit)), create=True), \
                 mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
-                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data)) or ("saved", False)):
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data) + (len(published),)) or ("saved", False)):
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")  # 重复点击不再执行
             # 拒绝：不执行；交回模型的结果带 status: denied（不随语言变，对话页重开时据此把这一步写成没做，第 8 轮）
             rows["r2"] = {"status": "awaiting_approval", "tool": "always", "tool_input": "{}"}
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_2", False), "denied")
-        self.assertEqual(ran, [("always", {"task": "T1"})])
+        self.assertEqual(ran, [("always", {"task": "T1"}, 1)])  # 回答先推出去，再执行工具
+        # 回答落库就推给会话主人自己的房间（第 11 轮 C22）：别的设备上的卡片不等工具执行完；重复点击（没抢到）不推
+        self.assertEqual([(m["session_id"], m["event"]["type"], m["event"]["id"], m["event"]["tool_use_id"], m["event"]["result"])
+                          for _e, m, _u, _a in published],
+                         [("conv", "pearnly.answer", "panswer_sevt_1", "sevt_1", "allow"),
+                          ("conv", "pearnly.answer", "panswer_sevt_2", "sevt_2", "deny")])
+        self.assertEqual({(e, u, a) for e, _m, u, a in published}, {(contracts.REALTIME_EVENT, "owner@x.test", False)})
+        with self.assertRaises(contracts.ContractError):
+            contracts.answer_event("not an id!", True, "2026-10-17T08:00:00+00:00")
         self.assertEqual((rows["r1"]["status"], rows["r1"]["result"]), ("done", "saved"))
         self.assertEqual(len(posted), 2)
         denied = json.loads(rows["r2"]["result"])
@@ -1833,7 +1896,8 @@ class NoticeTests(unittest.TestCase):
 
     def test_events_bring_this_conversations_notices(self):
         sessions = self._sessions()
-        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0,
+                   modified=datetime.datetime(2026, 10, 14))
         history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-12T01:00:00Z"},
                    {"id": "sevt_0002", "type": "agent.message", "processed_at": "2026-10-12T01:10:00Z"},
                    {"id": "sevt_0003", "type": "session.status_idle", "processed_at": "2026-10-12T01:11:00Z"}]
@@ -1968,7 +2032,8 @@ class RunStatusTests(unittest.TestCase):
 
     def test_events_carry_the_state_when_asked_and_read_the_engine_once(self):
         sessions = self._sessions()
-        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0,
+                   modified=datetime.datetime(2026, 10, 14))
         history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-13T08:10:00Z"},
                    {"id": "sevt_0002", "type": "session.status_running", "processed_at": "2026-10-13T08:10:01Z"},
                    {"id": "sevt_0003", "type": "agent.message", "processed_at": "2026-10-13T08:23:59Z"}, self.IDLE]
@@ -2015,7 +2080,8 @@ class RunStatusTests(unittest.TestCase):
 
     def test_parked_calls_are_split_by_the_sites_tool_runs(self):
         sessions = self._sessions()
-        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0,
+                   modified=datetime.datetime(2026, 10, 14))
         history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-13T08:10:00Z"},
                    {"id": "sevt_tool1", "type": "agent.custom_tool_use", "processed_at": "2026-10-13T08:19:00Z"},
                    self.PARKED, {"id": "sevt_0009", "type": "span.model_request_end", "processed_at": "2026-10-13T08:20:01Z"}]
@@ -2497,6 +2563,33 @@ class InterfaceLanguageTests(unittest.TestCase):
             native.request.headers = {"X-Pearnly-Lang": header}
             prefs.use_page_language()
             self.assertEqual(native.local.lang, want, header)
+
+    def test_assistant_errors_carry_no_traceback(self):
+        """测试窗口第 10 轮 B 段：换公司被拒（frappe.throw）的 417 回复里 exc 带着整段 Python 堆栈。锁定的 Frappe 在系统设置
+        「显示完整错误」（默认开）且请求人是系统用户时就带（utils/response.py 的 is_traceback_allowed），不只是开发模式；
+        对话页的接口在请求开头关掉（disable_traceback），别的接口不动。"""
+        source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        keep = [node for node in tree.body if (isinstance(node, ast.FunctionDef) and node.name == "no_traceback")
+                or (isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "METHODS" for t in node.targets))]
+        self.assertEqual(len(keep), 2)
+        fake = types.SimpleNamespace(flags=types.SimpleNamespace(), request=None)
+        scope = {"frappe": fake}
+        exec(compile(ast.Module(body=keep, type_ignores=[]), "api.py", "exec"), scope)
+        for path, expected in (("/api/method/pearnly_core.assistant.api.move", True),
+                               ("/api/method/pearnly_core.assistant.webhook.receive", True),
+                               ("/api/method/frappe.client.get", False), ("/assistant", False)):
+            fake.flags = types.SimpleNamespace()
+            fake.request = types.SimpleNamespace(path=path)
+            scope["no_traceback"]()
+            self.assertEqual(getattr(fake.flags, "disable_traceback", False), expected, path)
+        fake.request = None
+        scope["no_traceback"]()  # 后台任务、命令行没有请求：不出错
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"pearnly_core.assistant.api.no_traceback"', hooks.split("\nbefore_request = [", 1)[1].split("]", 1)[0])
+        # 拒收照旧用 frappe 原生的 throw（只回原文；堆栈由上面关掉）
+        self.assertIn('frappe.throw(_("A conversation cannot be moved to another company."))',
+                      (CORE / "assistant/sessions.py").read_text(encoding="utf-8"))
 
     def test_wiring(self):
         hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
@@ -3334,11 +3427,27 @@ class _SessionDb:
 
     def set_value(self, doctype, name, field, value=None, update_modified=True):
         row = self._find(name)
+        values = field if isinstance(field, dict) else {field: value}
+        self.writes.append((row and row.get("name"), values, update_modified))
         if row is not None:
-            row.update(field if isinstance(field, dict) else {field: value})
+            row.update(values)
+
+    @property
+    def writes(self):
+        """各次写入（记录名、写的字段、update_modified），核对最后活动时间用。"""
+        return self.__dict__.setdefault("_writes", [])
 
     def commit(self):
         self.commits += 1
+
+    def rollback(self):
+        self.rollbacks = getattr(self, "rollbacks", 0) + 1
+
+    def sql(self, query, *values):
+        """只认 `context.active(wait=False)` 的「锁得到才写」：`busy` 里的记录名当作正被别的事务锁着（SKIP LOCKED 回空）。"""
+        self.queries = getattr(self, "queries", []) + [(query, values)]
+        busy = getattr(self, "busy", set())
+        return [] if values and values[0] in busy else [(values[0] if values else None,)]
 
 
 class SidebarSyncTests(unittest.TestCase):
@@ -3625,6 +3734,109 @@ class SidebarSyncTests(unittest.TestCase):
         self.assertNotRegex(source, r"room=|doctype=|docname=")
         with self.assertRaises(contracts.ContractError):
             contracts.session_change("renamed", "sesn_first1")
+
+    def test_only_messages_move_the_last_activity_time(self):
+        """侧栏「上次更新」按会话表的 modified 排（测试窗口第 10 轮 B 段：原来只在新建后几秒写一次，实际按建立时间排）：用户发出消息、
+        CC 回复（推送线程收到 agent.message）记成现在；改名、置顶、改月份不动它（Frappe 的 set_value 默认会改 modified）。"""
+        row = self.db.rows["row1"]
+        row.update(title="已有标题", title_source="summary", remote_ids="", pending_carry="", project="", period="",
+                   project_scope="")
+        api = types.SimpleNamespace(post=lambda remote, batch: None, rename=lambda remote, title: None)
+        sessions = self._sessions(row, api)
+        now = datetime.datetime(2026, 10, 13, 20, 0)
+
+        def touched():
+            return [w for w in self.db.writes if "modified" in w[1]]
+
+        sessions.rename("sesn_first1", "新名字")
+        sessions.star("sesn_first1", True)
+        with mock.patch.object(sessions.projects, "placement", lambda *a: ("", None, None)), \
+                mock.patch.object(sessions.sidebar, "project", lambda *a, **k: None):
+            sessions.move("sesn_first1", "", "2026-09")
+        self.assertEqual(touched(), [])
+        self.assertTrue(all(w[2] is False for w in self.db.writes), self.db.writes)  # 都不顺带改 modified
+        with mock.patch.object(sessions.projects, "note", lambda row, user: ("", None)):
+            sessions.send("sesn_first1", "ขอบคุณ")
+            self.assertEqual(touched(), [("row1", {"modified": now}, False)])
+            # 发不出去（引擎拒收）不算活动
+            self.db.writes.clear()
+            failing = types.SimpleNamespace(post=mock.Mock(side_effect=RuntimeError("engine")))
+            with mock.patch.object(sessions.engine, "adapter", return_value=failing), self.assertRaises(RuntimeError):
+                sessions.send("sesn_first1", "อีกครั้ง")
+        self.assertEqual(touched(), [])
+        # CC 回复：推送线程每收到一段 agent.message 记一次并提交；写不进不打断转发
+        relay = sys.modules["pearnly_core.assistant.relay"]
+        stream = [{"type": "session.status_running"}, {"type": "agent.message", "content": []},
+                  {"type": "session.status_idle", "stop_reason": {"type": "end_turn"}}]
+        api = types.SimpleNamespace(stream=lambda remote, opened: (opened(), iter(stream))[1], status=lambda remote: "idle")
+        cache = types.SimpleNamespace(expire=lambda *a: None, get=lambda key: b"tok", delete=lambda key: None)
+        commits = self.db.commits
+        with mock.patch.object(relay.frappe, "init", lambda **kw: None, create=True), \
+                mock.patch.object(relay.frappe, "connect", lambda: None, create=True), \
+                mock.patch.object(relay.frappe, "set_user", lambda user: None, create=True), \
+                mock.patch.object(relay.frappe, "destroy", lambda: None, create=True), \
+                mock.patch.object(relay.frappe, "cache", cache, create=True), \
+                mock.patch.object(relay.engine, "adapter", return_value=api), \
+                mock.patch.object(relay.titles, "turn_ended", lambda sid: None):
+            relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
+                       __import__("threading").Event())
+            self.assertEqual(touched(), [("row1", {"modified": now}, False)])
+            self.assertEqual(self.db.commits, commits + 1)
+            pushed = len(self.pushed)
+            with mock.patch.object(relay.context, "active", mock.Mock(side_effect=RuntimeError("lock"))), \
+                    mock.patch.object(self.db, "rollback", lambda: None, create=True):
+                relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
+                           __import__("threading").Event())
+            self.assertEqual(len(self.pushed) - pushed, len(stream))  # 照样推到这一轮结束
+            # 审查：那一行正被别的事务锁着（后台任务挂提醒时写同一行）不等锁（SKIP LOCKED），这次不记，照样推完
+            self.db.writes.clear()
+            self.db.busy = {"row1"}
+            commits, pushed = self.db.commits, len(self.pushed)
+            relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
+                       __import__("threading").Event())
+            self.assertEqual((touched(), self.db.commits), ([], commits))
+            self.assertEqual(len(self.pushed) - pushed, len(stream))
+            # 这一轮结束时还有一条作废没答的卡片（`toolrun.cancel_waiting`），锁的那条查询不一定是最后一条
+            locks = [q for q in self.db.queries if "for update skip locked" in q[0]]
+            self.assertTrue(locks)
+            self.assertEqual(locks[-1][1], ("row1",))  # 按记录名锁、按记录名写
+        source = (CORE / "assistant/context.py").read_text(encoding="utf-8")
+        # 按记录名写：只清这一条的缓存（按 {session_id: …} 条件写会清整个文档类型的缓存、跑 Redis KEYS）
+        self.assertIn('frappe.db.set_value(SESSION, name, "modified", at or frappe.utils.now_datetime(), '
+                      'update_modified=False)', source)
+        self.assertIn("context.active(row.name)", (CORE / "assistant/sessions.py").read_text(encoding="utf-8"))
+
+    def test_reading_events_catches_up_a_reply_the_relay_missed(self):
+        """审查：转发线程不在时（过了 15 分钟时限、进程重启、页面关着由引擎回调执行工具后接着回的话）CC 的回复不算活动。
+        读事件时（打开对话、回前台、补拉）顺带补记：最新一条用户消息 / CC 回复比记下的晚，就记成那一刻（不多读引擎）。"""
+        context = sys.modules.get("pearnly_core.assistant.context") or _load(
+            "pearnly_core.assistant.context", CORE / "assistant/context.py")
+        row = self.db.rows["row1"]
+        row.update(modified=datetime.datetime(2026, 10, 13, 15, 0), archived=0)  # 站点时区 = 08:00Z
+        events = [{"type": "user.message", "processed_at": "2026-10-13T08:30:00Z"},
+                  {"type": "agent.message", "processed_at": "2026-10-13T08:40:00.250000Z"},
+                  {"type": "session.status_idle", "processed_at": "2026-10-13T08:41:00Z"}]
+        self.assertTrue(context.caught_up(row, events))
+        self.assertEqual(self.db.writes[-1], ("row1", {"modified": datetime.datetime(2026, 10, 13, 15, 40, 0, 250000)},
+                                              False))
+        # 已记得比事件晚（发消息、推送线程记过）：不写
+        self.db.writes.clear()
+        self.assertFalse(context.caught_up(row, events))
+        self.assertFalse(context.caught_up(row, [{"type": "session.status_idle", "processed_at": "2026-10-14T00:00:00Z"}]))
+        # 已归档：modified 是归档时间（列表的 archived_at），不动；那一行锁着：不等，这次不记
+        row.update(modified=datetime.datetime(2026, 10, 13, 15, 0))
+        row.update(archived=1)
+        self.assertFalse(context.caught_up(row, events))
+        row.update(archived=0)
+        self.db.busy = {"row1"}
+        self.assertFalse(context.caught_up(row, events))
+        self.assertEqual(self.db.writes, [])
+        # 读事件的两条路（整段、增量）都经它，写了才提交
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        remember = source.split("def _remember_context(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("context.caught_up(row, events_of_current)", remember)
+        self.assertIn("if noted or caught:", remember)
+        self.assertEqual(source.split("def events(", 1)[1].split("\ndef ", 1)[0].count("_remember_context("), 2)
 
     def test_a_new_conversation_is_announced_after_it_is_stored(self):
         api = types.SimpleNamespace(open=lambda handle, metadata: ("sesn_new001", "idle"))

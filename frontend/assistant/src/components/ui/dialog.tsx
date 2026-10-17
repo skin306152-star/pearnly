@@ -67,10 +67,8 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute end-4 top-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 outline-none focus-visible:shadow-focus disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
+          // 默认关闭钮同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44）
+          <DialogPrimitive.Close data-slot="dialog-close" className="cc-icon-btn cc-tap absolute end-3 top-3">
             <XIcon />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>

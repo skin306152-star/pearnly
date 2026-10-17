@@ -149,6 +149,13 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         booking_flow.handle_postback(binding, line_user_id, reply_token, action, pb)
         return
 
+    # 开单回执差异卡的「更新资料 / 使用原资料」（「修改」是编辑页链接，不经这里）。
+    from pearnly_dms.booking.conversation import review_fix
+
+    if action in review_fix.ACTIONS:
+        review_fix.handle_postback(binding, line_user_id, reply_token, action, pb)
+        return
+
     sess = store.get_session(line_user_id)
     payload = (sess or {}).get("payload") or {}
 

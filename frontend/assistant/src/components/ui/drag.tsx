@@ -18,13 +18,18 @@
 //   放下   松手那一下只做一件事：浮层从放手处起播落位（Web Animations 只动 transform，交给合成线程；动效变量），落点在松手时
 //          就量好（空档此刻的位置，排序时加上它让位的位移）；结束拖动（拖动库与调用方的重画：整列重排、存顺序）等落位播完
 //          才做（landOverlay / ReleaseFirst；鼠标、键盘传感器包一层 landFirst）。落到收着的那一列就落到组头并收起；落点在滚动区
-//          可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点就滑回原位；浮层已在落点
-//          （拖到首尾被限位停在落点上）也播这一段（略放大、阴影收回），同样等落定再结束。键盘取消（Esc）同放下一样先滑回
-//          （settleBack：各项去掉让位位移、浮层滑回原位，取消那次提交等滑回播完）；鼠标、手机的取消照旧由拖动库在取消那次
-//          提交里滑回（拖进另一列以后取消：滑回的那一项按拖动编号在此刻的页面里找，原来那一列重挂的那一项在滑回播完前不显示）。
-//          第 9 轮测试机：手机拖公司组头到首尾松手卡 102 / 122ms（浮层已在落点、原来不播就当场结束）；键盘公司组头 Esc
-//          帧间隔约 1 秒（Claude 桌面版内置浏览器里复现，长动画帧记录主线程空闲、对话行同样出现，是那里出帧的问题；Esc 这一帧
-//          本身要重画整列，6 倍节流约 80ms，现在不在 Esc 这一帧做）。
+//          可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点就滑回原位；浮层被限位停在落点上
+//          （拖过首尾）也播这一段（略放大、阴影收回），同样等落定再结束；真的没挪过（拿起后原地放下、长按出菜单后松手）当场结束。
+//          取消（Esc；手机的 touchcancel、转屏、切到后台）同放下一样先滑回（settleBack：这一列各项去掉让位位移、浮层滑回原位，
+//          取消那次提交等滑回播完；滑回途中排序项不再写让位位移）。鼠标、手机拖进了另一列（侧栏对话拖进已置顶）以后取消：那一项
+//          在那一列里重挂过，原位要等原来那一列重挂回来才量得到——Esc 那一下只按拿起时的位置起播浮层滑回（合成线程上走），这一帧
+//          画完以后才请调用方把它挪回原来那一列（onReturn，同指针拖回去；整列跟着滑），重挂出来那次提交里核对落点、对不上从此刻
+//          改滑，取消照样等滑回播完（homing）。已经取消、等滑回的这段时间碰撞不再算、不重量落点（cancelling）。测试窗口第 10 轮
+//          B 段：原来由拖动库在 Esc 那一下同步取消、整列重画，Esc 那一帧 148 / 149ms。手机点按（拿起后没动就松手）也当场取消、
+//          补点击。
+//          第 9 轮测试机：手机拖公司组头到首尾松手卡 102 / 122ms（浮层被限位停在落点、原来不播就当场结束）；键盘公司组头 Esc
+//          帧间隔约 1 秒，原因未查清（推断与证据见 docs/work/2026-10-16-cc-shell-rebuild.md 第 10 轮）。Esc、松手这一帧本身要
+//          重画整列（6 倍节流约 70–90ms）是查实的，现在都挪到落定以后（那时浮层已停）。
 //          第 4 轮测试机：原来拿起的就是列表里那张卡本身，放下靠自写的 translate 过渡，要等新顺序提交、整列重测之后的下一次样式
 //          计算才开始，手机上卡在放手处停了约 0.4s。第 6 轮测试机：落位原来在结束拖动那次提交里起播、起点又回拨到松手前那一帧，
 //          侧栏松手那一下要重画一整列（无界面 Chrome 6 倍节流实测约 100ms：结束拖动的整列重画 45ms、提交 24ms、量位置前改根节点标记
@@ -209,7 +214,7 @@ const KEYS = {
 export const KEYBOARD_SCROLL: ScrollBehavior = "auto";
 
 /** 放下时先交给 beforeEnd（先播落位，播完才真正结束拖动，见 ReleaseFirst）；没给就照常立即结束。beforeCancel 同理管取消
- *  （只给键盘：Esc 先滑回、再取消，见 settleBack）。 */
+ *  （先滑回、再取消，见 settleBack）。 */
 type EndOptions = { beforeEnd?: (end: () => void) => void; beforeCancel?: (cancel: () => void) => void };
 type HoldOptions = { delay: number; tolerance: number } & EndOptions;
 type Listen = [EventTarget, string, EventListener, AddEventListenerOptions | undefined];
@@ -327,7 +332,9 @@ export class HoldTouchSensor implements SensorInstance {
     // 松手后紧跟着的 click 还要拦下：稍后再摘（同 dnd-kit）。点按不拦（上面已经摘了），下面补一个
     if (!tap) window.setTimeout(() => clicks.forEach(off), 50);
     if (!this.lifted) this.props.onAbort(this.props.active);
-    if (cancelled) this.props.onCancel();
+    // 拿起后取消（Esc、touchcancel、转屏、切到后台）：先滑回再取消（beforeCancel）。点按当场取消（下面补点击，不等滑回）
+    if (cancelled && this.lifted && !tap && this.props.options.beforeCancel) this.props.options.beforeCancel(this.props.onCancel);
+    else if (cancelled) this.props.onCancel();
     else if (this.lifted && this.props.options.beforeEnd) this.props.options.beforeEnd(this.props.onEnd);
     else this.props.onEnd();
     if (tap) clickOn(this.props.event.target, this.origin);
@@ -344,7 +351,8 @@ function clickOn(target: EventTarget | null, at: { x: number; y: number }) {
 }
 
 /** 拖动库自带的鼠标、键盘传感器加一道：放下时先交给 options.beforeEnd（先播落位，播完才真正结束拖动）；给了
- *  options.beforeCancel 时取消也先交给它（键盘 Esc）。拿起的条件、移动都不变；静态的 activators / setup 照样继承。 */
+ *  options.beforeCancel 时取消也先交给它（Esc、转屏、切到后台：先滑回）。拿起的条件、移动都不变；静态的 activators / setup
+ *  照样继承。 */
 function landFirst<O extends object>(Base: Sensor<O>): Sensor<O & EndOptions> {
   const Landed = class extends (Base as unknown as new (props: SensorProps<O>) => SensorInstance) {
     constructor(props: SensorProps<O & EndOptions>) {
@@ -526,10 +534,12 @@ const early = new WeakMap<HTMLElement, Animation>();
 
 /** 松手那一下起播落位：浮层（overlay，拖动库 DragOverlay 的外层）从此刻的样子落到 node 的落点（见 Into）。只量、只起播
  *  Web Animations（只动 transform，合成线程播；略放大、阴影由 data-dropping 收回），不改版面、不提交 React；从松手这一刻起算
- *  （fromNow）。浮层已在落点也照样播（位移为 0，略放大、阴影照样在这段时间里收回）：测试窗口第 9 轮，手机把公司组头拖到列表
- *  首尾，浮层被限位停在的正是落点，原来就不播、当场结束拖动，松手那一帧要重画整列（6 倍节流复现约 90ms，手机实测 102 / 122ms），
- *  播了就同其他放下一样等落定后再结束。回 null = 没播（量不到、减少动态效果），调用方立即结束拖动。 */
-export function landOverlay(overlay: HTMLElement, node: HTMLElement, transition: Motion | null, into: Into): Animation | null {
+ *  （fromNow）。浮层被限位停在落点上也照样播（位移为 0，略放大、阴影照样在这段时间里收回）：测试窗口第 9 轮，手机把公司组头
+ *  拖过列表首尾，浮层被限位停在的正是落点，原来就不播、当场结束拖动，松手那一帧要重画整列（6 倍节流复现约 90ms，手机实测
+ *  102 / 122ms），播了就同其他放下一样等落定后再结束。真的没挪过（浮层位移为 0：拿起后原地放下、长按出菜单后松手）不播，
+ *  当场结束（审查：结束拖动——焦点、播报、侧栏多选变淡、手机外壳认不认边缘手势——不为它晚 0.2 秒）；always（取消先滑回）
+ *  照样播。回 null = 没播（没挪过、量不到、减少动态效果），调用方立即结束拖动。 */
+export function landOverlay(overlay: HTMLElement, node: HTMLElement, transition: Motion | null, into: Into, always = false): Animation | null {
   if (!transition || !overlay.isConnected || !node.isConnected) return null;
   const transform = shapeOf(getComputedStyle(overlay).transform);
   if (!transform) return null;
@@ -539,6 +549,7 @@ export function landOverlay(overlay: HTMLElement, node: HTMLElement, transition:
   const fold = into(node, shift);
   const own = getClientRect(node, { ignoreTransform: true });
   const frames = landingFrames(transform, getClientRect(measurable), fold ?? { top: own.top + shift, left: own.left });
+  if (!always && !fold && !transform.x && !transform.y && frames[0]!.transform === frames[1]!.transform) return null;
   overlay.dataset.dropping = fold ? "into" : "";
   const animation = overlay.animate(frames, { duration: transition.duration, easing: transition.easing, fill: STAY });
   fromNow(animation);
@@ -546,10 +557,30 @@ export function landOverlay(overlay: HTMLElement, node: HTMLElement, transition:
   return animation;
 }
 
-/** 键盘取消（Esc）同放下一样先落位：Esc 那一下只把这一列各项让位的位移去掉（各项行内带着过渡，照旧滑回原位）、浮层从此刻
- *  滑回那一项的原位（landOverlay）；取消（拖动库与调用方的重画）等滑回播完才做。原来由拖动库在取消那次提交里滑回：那次提交
- *  要重画整列（各排序项、侧栏整列；6 倍节流约 80ms），Esc 那一帧不出、浮层停在原处（测试窗口第 9 轮报的公司组头 Esc，
- *  对话行同一条路）。只给键盘：键盘只在本列里挪，那一项没有换列重挂，原位就是它此刻的版面位置。 */
+/** 浮层从此刻的样子滑到 box（视口坐标）：拖进另一列以后取消，原位还没重挂出来时按拿起时的位置先滑（见 DragArea 的 homing）。
+ *  同 landOverlay：只起播 Web Animations、从这一刻起算；回 null = 没播（减少动态效果、量不到）。 */
+export function slideOverlay(overlay: HTMLElement, box: Box, transition: Motion | null): Animation | null {
+  if (!transition || !overlay.isConnected) return null;
+  const transform = shapeOf(getComputedStyle(overlay).transform);
+  if (!transform) return null;
+  const measurable = (overlay.children.length === 1 ? (overlay.firstElementChild as HTMLElement | null) : null) ?? overlay;
+  overlay.dataset.dropping = "";
+  const animation = overlay.animate(landingFrames(transform, getClientRect(measurable), box), {
+    duration: transition.duration,
+    easing: transition.easing,
+    fill: STAY,
+  });
+  fromNow(animation);
+  early.set(overlay, animation);
+  aims.set(animation, box.top);
+  return animation;
+}
+
+/** 取消（Esc 等）同放下一样先落位：这一下只把这一列各项让位的位移去掉（各项行内带着过渡，照旧滑回原位）、浮层从此刻滑回那一项
+ *  的原位（landOverlay，没挪过也播：略放大、阴影收回）；取消（拖动库与调用方的重画）等滑回播完才做。原来由拖动库在取消那次提交
+ *  里滑回：那次提交要重画整列（各排序项、侧栏整列；6 倍节流约 70–90ms），Esc 那一帧不出、浮层停在原处。调用方只在那一项还在
+ *  拿起时那一列里时用它（没有换列重挂，原位就是它此刻的版面位置），并在滑回途中让排序项不再写让位位移（SettleContext）。
+ *  into 只管原位在可见范围外时落到边上并收起（不落进收着的组）。 */
 export function settleBack(overlay: HTMLElement, node: HTMLElement, transition: Motion | null, into: Into): Animation | null {
   const list = node.dataset.dragList;
   if (list && typeof document?.querySelectorAll === "function") {
@@ -557,8 +588,15 @@ export function settleBack(overlay: HTMLElement, node: HTMLElement, transition: 
       if (el.dataset.dragList === list && el.style.transform) el.style.transform = "";
     }
   }
-  return landOverlay(overlay, node, transition, into);
+  return landOverlay(overlay, node, transition, into, true);
 }
+
+/** 原位的落点（取消滑回用）：在可见范围里落到它自己（null），拖着时滚走了就落到可见范围的边上并收起。 */
+export const homeInto: Into = (node) => {
+  const rect = getClientRect(node, { ignoreTransform: true });
+  const shown = clampIntoView(rect, viewOf(node));
+  return shown !== rect ? shown : null;
+};
 
 /** 落位从松手的这一刻起算：不回拨到上一帧（主线程在松手前忙过多久就会少播多久），也不等合成线程回报开始（那样头两帧原地
  *  不动，无界面 Chrome 实测）。松手这一下很轻，下一帧照实走了多少就画多少。时间与 document.timeline 同一个起点。 */
@@ -569,6 +607,36 @@ function fromNow(animation: Animation) {
 /** 播完（或被取消）时调 run，只调一次。 */
 function afterLanding(animation: Animation, run: () => void) {
   void animation.finished.then(run, run);
+}
+
+/** 拖进另一列以后取消，等那一项挪回原来那一列重挂出来最多等这么久（调用方没挪、页面在后台）；到时照旧当场取消。 */
+const HOME_WAIT = 600;
+
+/** 拿起时的位置（start，视口坐标）减去之后滚过的（scrolled）：取消时原位的框，在可见范围外就落到边上（同 homeInto）。 */
+function homeBox(start: ClientRect, scrolled: number, node: HTMLElement | null): Box & { height: number } {
+  const rect = { top: start.top - scrolled, left: start.left, height: start.height };
+  return node?.isConnected ? clampIntoView(rect, viewOf(node)) : rect;
+}
+
+// 起播的滑回要落到的竖向位置（视口坐标，slideOverlay 记下）：原位重挂出来后核对对不对得上
+const aims = new WeakMap<Animation, number>();
+const landingTarget = (animation: Animation) => aims.get(animation) ?? null;
+
+/** 这一帧画出来以后再做（requestAnimationFrame 在画之前回调，里面再排一个任务）：Esc 那一帧只记下，重活放到下一帧。 */
+function afterPaint(run: () => void) {
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(run, 0));
+  else setTimeout(run, 0);
+}
+
+/** 拖动编号 id 那一项此刻在 list 那一列里的节点（挪回原来那一列、重挂出来了）；还没有回 null。 */
+function nodeIn(id: string | number, list: string): HTMLElement | null {
+  if (typeof document?.querySelectorAll !== "function") return null;
+  const key = String(id);
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>("[data-drag-id]")).find(
+      (el) => el.dataset.dragId === key && el.dataset.dragList === list && el.isConnected,
+    ) ?? null
+  );
 }
 
 /** 拖动编号 id 那一项此刻在页面上的节点（拖进另一列又回来时重挂过）；找不到用 fallback。 */
@@ -681,6 +749,9 @@ type AreaProps = {
   onOver?: (active: DragData, over: DragData | null, below: boolean) => void;
   /** 拿起 / 结束（放下或取消）：侧栏多选时让其余选中的行变淡。 */
   onActive?: (active: DragData | null) => void;
+  /** 取消（Esc 等）时拿着的那一项已排进另一列：把它挪回原来那一列（同指针拖回去；还原为拿起时的摆法）。给了才先滑回再取消，
+   *  没给照旧由拖动库在取消那次提交里滑回。 */
+  onReturn?: (active: DragData) => void;
   /** 指针拖动中指针的竖向位置（视口坐标；指针动了、滚动了都交，键盘拖动不交）：侧栏据此在指针拖到顶上时才临时显示空的「已置顶」。 */
   onPointer?: (active: DragData, y: number) => void;
   /** 拖进另一列时整列一起滑的各项（侧栏的行、组头、「显示更多」），见 flowLayout。 */
@@ -690,6 +761,9 @@ type AreaProps = {
 
 /** 指针此刻指着的那一列整块落点、而它收着（组头高亮、浮层半透明、落到组头并收起）：那一块的拖动编号；别的时候 null。 */
 const ShutOverContext = createContext<string | null>(null);
+
+/** 取消后正在滑回原位（见 DragArea 的 settle）：排序项这段时间不写让位位移。 */
+const SettleContext = createContext<{ readonly current: boolean }>({ current: false });
 
 /** 键盘拿起的那一项的拖动编号（鼠标、手机拿起或没在拖时 null）：焦点跟着它（useFollowFocus）。 */
 const KeyedContext = createContext<string | number | null>(null);
@@ -737,14 +811,32 @@ export function narrowPool(
 }
 
 /** 一块共用拖动的区域：传感器、碰撞（只认能放的地方）、键盘移动、限位、浮层与放下动画、读屏播报、拖进另一列时整列滑动。 */
-export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onActive, onPointer, flow, texts }) => {
-  const latest = useRef({ accepts, onDrop, onOver, onActive, onPointer });
-  latest.current = { accepts, onDrop, onOver, onActive, onPointer };
+export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onActive, onReturn, onPointer, flow, texts }) => {
+  const latest = useRef({ accepts, onDrop, onOver, onActive, onReturn, onPointer });
+  latest.current = { accepts, onDrop, onOver, onActive, onReturn, onPointer };
   const transition = useMemo(motion, []);
 
   // 拖动中要用的：拿起时的位置（浮层固定在那里，位移从它算）、能放的各处与原来那一项的节点（限位用）
   const first = useRef<ClientRect | null>(null);
-  const stash = useRef<Stash>({ containers: null, node: null, overlay: null });
+  // 拿起时那一项所在滚动区的滚动位置（拖进另一列以后取消：原位 = 拿起时的位置减去这之后滚过的）
+  const liftScroll = useRef<{ el: HTMLElement | null; top: number } | null>(null);
+  const stash = useRef<Stash>({ containers: null, node: null, overlay: null, active: null });
+  // 取消后滑回原位的那 0.2 秒：排序项不再写让位位移（settleBack 已在页面上去掉了，这段时间里别的原因重画一次——实时推送、
+  // 列表同步增删了行——也不写回去，React 与页面一致）。不是状态（滑回那一下不重画整列），重画时读它
+  const settle = useRef(false);
+  // 已经取消、在等滑回（拖动库这时还在拖）：碰撞不再算（不经过、不写让位、不再把那一项排进别的列），指针的位置不再交，不重量落点
+  const cancelling = useRef(false);
+  // 拖进另一列以后取消、等那一项挪回原来那一列重挂出来（见文件头「取消」）：要等的那一项、它原来那一列、真正的取消；等不到
+  // （调用方没挪、页面在后台）到时照旧当场取消
+  const homing = useRef<{
+    id: string | number;
+    list: string;
+    cancel: () => void;
+    timer: ReturnType<typeof setTimeout>;
+    /** Esc 那一下按拿起时的位置先起播的滑回（原位重挂出来后对得上就接着用，对不上从此刻改滑到真正的原位）。 */
+    slide: Animation | null;
+    unfreeze: () => void;
+  } | null>(null);
 
   const [keyed, setKeyed] = useState<string | number | null>(null);
   const keyedRef = useRef(false);
@@ -762,7 +854,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
     () => () => {
       const data = lifted.current;
       const y = pointerY.current;
-      if (data && y !== null && !keyedRef.current) latest.current.onPointer?.(data, y);
+      if (data && y !== null && !keyedRef.current && !cancelling.current) latest.current.onPointer?.(data, y);
     },
     [],
   );
@@ -777,7 +869,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
   const collisions = useMemo<CollisionDetection>(
     () => (args) => {
       const active = activeOf(args.active);
-      if (!active?.list) return [];
+      if (!active?.list || cancelling.current) return [];
       const rect = args.collisionRect;
       pointerY.current = keyedRef.current ? null : (args.pointerCoordinates?.y ?? null);
       const pool = narrowPool(
@@ -858,21 +950,84 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
     },
     [],
   );
-  // 键盘取消（Esc）：先滑回原位，滑回播完才取消（settleBack）。鼠标、手机的取消照旧由拖动库在取消那次提交里滑回（指针拖动能
-  // 拖进另一列，那一项在那里重挂过，原位要等原来那一列重挂回来才量得到）
+  // 取消（Esc；手机还有 touchcancel、转屏、切到后台）：先滑回原位，滑回播完才取消（settleBack）。三种传感器同一道。那一项已不在
+  // 拿起时那一列里（指针把侧栏对话拖进了已置顶，它在那里重挂过）：原位要等原来那一列重挂回来才量得到——这一下只记下，画完这一帧
+  // 再请调用方挪回去（onReturn），重挂出来时（下面的 useLayoutEffect）再滑回；调用方不管挪回去的，照旧由拖动库在取消那次提交里滑回
   const beforeCancel = useMemo(
     () => (cancel: () => void) => {
-      const { node, overlay } = stash.current;
+      const { node, overlay, active } = stash.current;
       const box = overlay?.current;
-      const animation = node && box ? settleBack(box, node, transition, into) : null;
+      const from = lifted.current;
+      const home = !!node?.isConnected && !!from?.list && listOf(active) === from.list;
+      cancelling.current = true;
+      if (!home && from?.list && active && box && transition && latest.current.onReturn) {
+        releaseDrag(); // 已经取消了：之后的 Esc 照常关浮着的会话栏、清多选（同放下后等落位）
+        settle.current = true;
+        // 这一下只起播浮层滑回（拿起时的位置减去之后滚过的；只动 transform，下一帧主线程再忙也照样走），停住自动滚动
+        const start = first.current;
+        const scroll = liftScroll.current;
+        const scrolled = scroll?.el ? scroll.el.scrollTop - scroll.top : 0;
+        const slide = start ? slideOverlay(box, homeBox(start, scrolled, node), transition) : null;
+        const entry = {
+          id: active.id,
+          list: from.list,
+          cancel,
+          timer: setTimeout(() => homeLanded(entry, null), HOME_WAIT),
+          slide,
+          unfreeze: node ? freezeScroll(node) : () => undefined,
+        };
+        homing.current = entry;
+        afterPaint(() => homing.current === entry && latest.current.onReturn?.(from));
+        return;
+      }
+      settle.current = home;
+      const animation = home && box ? settleBack(box, node!, transition, homeInto) : null;
+      if (!animation) settle.current = false;
       letGo.hold(cancel, animation, landWait, node ? () => freezeScroll(node) : undefined);
     },
     [],
   );
+  // 挪回原来那一列的那一项重挂出来了（或等不到）：从此刻滑回原位，滑回播完才取消（没挪回来就当场取消，同原来）
+  const homeLanded = (entry: NonNullable<typeof homing.current>, node: HTMLElement | null) => {
+    if (homing.current !== entry) return;
+    homing.current = null;
+    clearTimeout(entry.timer);
+    const box = stash.current.overlay?.current;
+    let animation = entry.slide;
+    if (node && box) {
+      // 原位与 Esc 时按拿起位置算的对不上（拖着时列表增减了行）：从此刻（滑到一半的样子）改滑到真正的原位
+      const target = homeInto(node) ?? getClientRect(node, { ignoreTransform: true });
+      const aimed = entry.slide ? landingTarget(entry.slide) : null;
+      if (!aimed || Math.abs(aimed - target.top) > 1) {
+        const next = settleBack(box, node, transition, homeInto);
+        entry.slide?.cancel();
+        animation = next;
+      }
+    }
+    if (!animation) settle.current = false;
+    letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);
+  };
+  // 每次重画后看一眼：等着挪回去的那一项已经在原来那一列里重挂出来了，就在这次提交里起播滑回（量的是挪回去以后的版面）
+  useLayoutEffect(() => {
+    const entry = homing.current;
+    if (!entry) return;
+    const node = nodeIn(entry.id, entry.list);
+    if (node) homeLanded(entry, node);
+  });
+  // 传感器的选项记住：拖动库按 [传感器, 选项] 记 useSensor，行内对象字面量每次重画都是新的一份，传感器、把手的事件处理跟着换，
+  // 所有把手（行、组头）的记住都失效（审查：键盘拿起、拖进置顶、挪回原组时 DragArea 重画，整列行与组头跟着重画）
+  const sensorOptions = useMemo(
+    () => ({
+      mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },
+      touch: { ...TOUCH_START, beforeEnd, beforeCancel },
+      keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },
+    }),
+    [],
+  );
   const sensors = useSensors(
-    useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),
-    useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),
-    useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel }),
+    useSensor(LandingMouseSensor, sensorOptions.mouse),
+    useSensor(HoldTouchSensor, sensorOptions.touch),
+    useSensor(LandingKeyboardSensor, sensorOptions.keyboard),
   );
   // Alt+↑/↓ 挪一格的播报（第 5 轮：公司组头挪动时读屏什么也没念）：同拖动库的播报区一样是 assertive、整段念；
   // 同一句连着两次（极少）末尾补一个不占位的空格，读屏才会再念
@@ -897,12 +1052,21 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
 
   useEffect(
     () => () => {
+      const entry = homing.current;
+      homing.current = null;
+      if (entry) {
+        clearTimeout(entry.timer);
+        entry.unfreeze();
+        entry.cancel(); // 卸下时还在等挪回去的取消当场结束
+      }
       letGo.flush(); // 卸下时还在等落位的放下当场结束
       setDragging(false);
     },
     [letGo],
   );
   const finish = () => {
+    settle.current = false;
+    cancelling.current = false;
     setKeyed(null);
     keyedRef.current = false;
     overRef.current = null;
@@ -931,54 +1095,62 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
   };
   return (
     <MotionContext.Provider value={transition}>
-      <SayMoveContext.Provider value={sayMove}>
-        <ShutOverContext.Provider value={shutOver}>
-          <KeyedContext.Provider value={keyed}>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={collisions}
-              modifiers={modifiers}
-              accessibility={accessibility}
-              onDragStart={({ active, activatorEvent }) => {
-                keepFocusOn(active.id, null);
-                const keyboard = byKeyboard(activatorEvent);
-                keyedRef.current = keyboard;
-                setKeyed(keyboard ? active.id : null);
-                setDragging(true);
-                const data = dataOf(active);
-                lifted.current = data ?? null;
-                overRef.current = null;
-                pointerY.current = null;
-                if (data) latest.current.onActive?.(data);
-              }}
-              onDragOver={({ active, over }) => {
-                const from = activeOf(active);
-                const to = dataOf(over) ?? null;
-                overRef.current = to;
-                setShutOver(to?.zone && to.shut && over ? String(over.id) : null);
-                // 经过的是它自己（拿起时、排进另一列重挂以后）不交：它自己的说明还是原来那一列的，交了调用方会当成回到原来那一列
-                if (!from || keyedRef.current || over?.id === active.id) return;
-                // 指在 over 的下半截（拖进另一列时排在它后面）：按浮层此刻的框算
-                const box = active.rect.current.translated;
-                const below = !!box && !!over && box.top + box.height / 2 > over.rect.top + over.rect.height / 2;
-                latest.current.onOver?.(from, to, below);
-              }}
-              onDragCancel={({ active, activatorEvent }) => {
-                keepFocusOn(active.id, activatorEvent);
-                holdStill(stash.current.node, landWait);
-                finish();
-              }}
-              onDragEnd={onDragEnd}
-            >
-              {children}
-              <Lifted stash={stash} transition={transition} into={into} />
-              {flow && <Flow selector={flow} transition={transition} />}
-              {onPointer && <PointerWatch report={reportPointer} />}
-            </DndContext>
-          </KeyedContext.Provider>
-          <MoveLive text={said} />
-        </ShutOverContext.Provider>
-      </SayMoveContext.Provider>
+      <SettleContext.Provider value={settle}>
+        <SayMoveContext.Provider value={sayMove}>
+          <ShutOverContext.Provider value={shutOver}>
+            <KeyedContext.Provider value={keyed}>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={collisions}
+                modifiers={modifiers}
+                accessibility={accessibility}
+                onDragStart={({ active, activatorEvent }) => {
+                  settle.current = false;
+                  cancelling.current = false;
+                  keepFocusOn(active.id, null);
+                  const keyboard = byKeyboard(activatorEvent);
+                  keyedRef.current = keyboard;
+                  setKeyed(keyboard ? active.id : null);
+                  setDragging(true);
+                  const data = dataOf(active);
+                  lifted.current = data ?? null;
+                  const own = data?.list ? nodeIn(active.id, data.list) : null;
+                  const scroller = own ? (getScrollableAncestors(own, 1)[0] as HTMLElement | undefined) : undefined;
+                  liftScroll.current = { el: scroller ?? null, top: scroller?.scrollTop ?? 0 };
+                  overRef.current = null;
+                  pointerY.current = null;
+                  if (data) latest.current.onActive?.(data);
+                }}
+                onDragOver={({ active, over }) => {
+                  if (cancelling.current) return; // 已经取消、在等滑回：不再经过哪里
+                  const from = activeOf(active);
+                  const to = dataOf(over) ?? null;
+                  overRef.current = to;
+                  setShutOver(to?.zone && to.shut && over ? String(over.id) : null);
+                  // 经过的是它自己（拿起时、排进另一列重挂以后）不交：它自己的说明还是原来那一列的，交了调用方会当成回到原来那一列
+                  if (!from || keyedRef.current || over?.id === active.id) return;
+                  // 指在 over 的下半截（拖进另一列时排在它后面）：按浮层此刻的框算
+                  const box = active.rect.current.translated;
+                  const below = !!box && !!over && box.top + box.height / 2 > over.rect.top + over.rect.height / 2;
+                  latest.current.onOver?.(from, to, below);
+                }}
+                onDragCancel={({ active, activatorEvent }) => {
+                  keepFocusOn(active.id, activatorEvent);
+                  holdStill(stash.current.node, landWait);
+                  finish();
+                }}
+                onDragEnd={onDragEnd}
+              >
+                {children}
+                <Lifted stash={stash} transition={transition} into={into} />
+                {flow && <Flow selector={flow} transition={transition} paused={cancelling} />}
+                {onPointer && <PointerWatch report={reportPointer} />}
+              </DndContext>
+            </KeyedContext.Provider>
+            <MoveLive text={said} />
+          </ShutOverContext.Provider>
+        </SayMoveContext.Provider>
+      </SettleContext.Provider>
     </MotionContext.Provider>
   );
 };
@@ -996,7 +1168,7 @@ const MoveLive: FC<{ text: string }> = ({ text }) => {
 /** 拖动中（拿起到结束那一次提交）：版面一变（拖进另一列、挪回原来那一列）整列跟着动（flowLayout），并重量能放的各处（碰撞按新
  *  位置算；拖动库只重量变了的那几列，中间各组的位置也变了）。结束拖动那一次提交里停（同步停在布局阶段：放下后的整列重排是排序
  *  让位已经摆好的位置，不能再滑一遍）。 */
-const Flow: FC<{ selector: string; transition: Motion | null }> = ({ selector, transition }) => {
+const Flow: FC<{ selector: string; transition: Motion | null; paused: { readonly current: boolean } }> = ({ selector, transition, paused }) => {
   const { active, activeNode, droppableContainers, measureDroppableContainers } = useDndContext();
   const node = useRef<HTMLElement | null>(null);
   if (activeNode) node.current = activeNode;
@@ -1008,6 +1180,8 @@ const Flow: FC<{ selector: string; transition: Motion | null }> = ({ selector, t
     if (!running || !from?.isConnected) return;
     const root = (getScrollableAncestors(from, 1)[0] as HTMLElement | undefined) ?? (document.scrollingElement as HTMLElement | null) ?? document.body;
     const remeasure = () => {
+      // 已经取消、在等滑回：不再找落点，不重量（重量一次拖动库要把所有能拖的项再重画一遍）
+      if (paused.current) return;
       const { droppableContainers: all, measureDroppableContainers: measure } = latest.current;
       measure(all.getEnabled().map((entry) => entry.id));
     };
@@ -1097,11 +1271,17 @@ const Copy: FC<{ id: string | number; node: HTMLElement | null }> = ({ id, node 
 // 长按菜单（行、公司组头）落在拿起的那一项范围里时被浮层盖住、字叠在一起（审查）
 export const OVERLAY_Z = 55;
 
-type Stash = { containers: DroppableContainers | null; node: HTMLElement | null; overlay: { current: HTMLElement | null } | null };
+type Stash = {
+  containers: DroppableContainers | null;
+  node: HTMLElement | null;
+  overlay: { current: HTMLElement | null } | null;
+  /** 拖着的那一项（它此刻在哪一列：listOf）。 */
+  active: Active | null;
+};
 
 const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; into: Into }> = ({ stash, transition, into }) => {
   const { active, activeNode, droppableContainers, dragOverlay } = useDndContext();
-  stash.current = { containers: droppableContainers, node: activeNode, overlay: dragOverlay.nodeRef };
+  stash.current = { containers: droppableContainers, node: activeNode, overlay: dragOverlay.nodeRef, active };
   const data = dataOf(active);
   // 浮层停在只能高亮组头的落点上（那一列收着、放不下空档：组头带 data-drop-target）：浮层变半透明，透出组头的高亮，离开就恢复
   // （测试窗口第 7 轮：手机上浮层正好盖住收着的组头，看不到高亮）。高亮与指着它同一次提交，提交后看一眼
@@ -1254,28 +1434,44 @@ function handleOf(drag: Draggable, { disabled, ownFocus, skip }: HandleOptions):
 }
 
 /** 排序列表里的一项：node 给整项（位移、原位留空），handle 给把手（拿起的地方）。data-drag-id 让拖进另一列、在那里重挂的同一项
- *  接着滑（flowLayout）。 */
+ *  接着滑（flowLayout）。
+ *
+ *  拖动库每次拿起、经过、放下、重量位置都重画所有能拖的项（它们都读拖动的上下文）。回的几样按内容记住：这一项的位移、把手都没变
+ *  时还是同一份，用它的组件（侧栏的行、组头，memo）就不跟着整列重画（测试窗口第 10 轮 B 段：拿起那一刻 150–200ms 的长帧）。 */
 export function useSortableItem(data: DragData, options: HandleOptions = {}) {
   const transition = useContext(MotionContext);
   const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
   const sortable = useSortable({ id: data.id, data: drag, disabled: options.disabled, transition });
   const handleRef = useFollowFocus(data.id, sortable);
   const say = useContext(SayMoveContext);
-  return {
-    /** Alt+↑/↓ 挪完：念新位置（没挪动——到头了——不念）。 */
-    moved: (spot: MoveSpot | null | void) => {
-      if (spot) say?.(data.label, spot);
-    },
-    node: {
-      ref: sortable.setNodeRef,
-      style: { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition } as CSSProperties,
+  // 取消后滑回原位的途中（settleBack 已去掉让位位移）：重画也不写回去
+  const settling = useContext(SettleContext).current;
+  const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);
+  const { setNodeRef, isDragging, attributes, listeners } = sortable;
+  // 此刻排在哪一列（拖进另一列、在那里重挂的那一项是那一列，不是它说明里原来那一列）：取消时认它挪回了原来那一列、滑回时只清
+  // 这一列的让位位移，都按它
+  const list = (sortable.data as { sortable?: { containerId?: string | number } }).sortable?.containerId ?? data.list;
+  const node = useMemo(
+    () => ({
+      ref: setNodeRef,
+      style: { transform, transition: sortable.transition } as CSSProperties,
       "data-drag-id": data.id,
-      "data-drag-list": data.list,
-      "data-drag-source": sortable.isDragging ? "gap" : undefined,
-    },
-    handle: handleOf({ ...sortable, setActivatorNodeRef: handleRef }, options),
-    dragging: sortable.isDragging,
-  };
+      "data-drag-list": list === undefined ? undefined : String(list),
+      "data-drag-source": isDragging ? ("gap" as const) : undefined,
+    }),
+    [setNodeRef, transform, sortable.transition, data.id, list, isDragging],
+  );
+  const { disabled, ownFocus, skip } = options;
+  const handle = useMemo(
+    () => handleOf({ attributes, listeners, setActivatorNodeRef: handleRef }, { disabled, ownFocus, skip }),
+    [attributes, listeners, handleRef, disabled, ownFocus, skip],
+  );
+  const label = data.label;
+  /** Alt+↑/↓ 挪完：念新位置（没挪动——到头了——不念）。 */
+  const moved = useCallback((spot: MoveSpot | null | void) => {
+    if (spot) say?.(label, spot);
+  }, [say, label]);
+  return useMemo(() => ({ moved, node, handle, dragging: isDragging }), [moved, node, handle, isDragging]);
 }
 
 /** 一列整块的落点（侧栏的已置顶、各组）：data.list 是它代表的那一列，shut = 此刻收着（放不下空档）——指着它时整块（就是组头）

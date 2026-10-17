@@ -605,9 +605,9 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("export const MOUSE_START = { distance: 3 };", drag)
         self.assertIn("export const TOUCH_START = { delay: 250, tolerance: 5 };", drag)
         # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
-        self.assertIn("useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),", drag)
-        self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),", drag)
-        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel }),", drag)
+        self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
+        self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
+        self.assertIn("keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },", drag)
         self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);", drag)
         self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
@@ -684,7 +684,10 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         self.assertNotIn('from "radix-ui"', page)
         # 输入框同对话：输入框 + 下巴（公司固定，月份胶囊 = 本页的月份，分店胶囊）
         composer = page.split("const CompanyComposer: FC", 1)[1].split("\n};", 1)[0]
-        self.assertIn('<div className="cc-composer cc-composer-inline">', composer)
+        # 手机上同对话页：没在输入、也没有字时收成一行胶囊（第 11 轮按钮排查 M10）；发送钮带 aui-composer-send，收起时藏起来
+        self.assertIn('<div className="cc-composer cc-composer-inline" data-collapsed={!typing && !text ? "" : undefined}>', composer)
+        self.assertIn("onFocus={() => setTyping(true)}\n          onBlur={() => setTyping(false)}", composer)
+        self.assertIn('className="aui-composer-send cc-send"', composer)
         self.assertIn('<div className="cc-composer-chin" data-slot="cc-composer-chin">', composer)
         self.assertIn('<span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">', composer)
         self.assertIn('{withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}', composer)

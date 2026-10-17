@@ -1,6 +1,13 @@
-"""对话的上下文用量（ADR-019）：记下最近一次模型请求的输入量，供计价分档的接续判断（`sessions.segment_for_turn`）。
+"""对话的上下文用量与最后活动时间（ADR-019），转发线程（`relay`）与会话读写（`sessions`）都要记，单独成模块，免得两者互相导入。
+调用方负责提交。
 
-转发线程（`relay`）与会话读写（`sessions`）都要记，单独成模块，免得两者互相导入。调用方负责提交。
+- 上下文用量：最近一次模型请求的输入量，供计价分档的接续判断（`sessions.segment_for_turn`）。
+- 最后活动时间：侧栏按它排（「上次更新」，`sessions.listing` 按会话表的 `modified` 从新到旧），也是列表里的 `updated_at`。
+  只有对话里真的有动静才算：用户发出消息（`sessions.send`）、CC 回复（`relay` 收到 `agent.message`；转发线程不在时
+  由读事件顺带补记，`caught_up`）、挂上提醒（`notices`）。改月份 / 分店、置顶、改名、记上下文用量、概括标题都不算
+  （那些写法带 `update_modified=False`）。
+  测试窗口第 10 轮 B 段：原来消息只写在引擎那边，会话表的 `modified` 只在新建后几秒（首条消息的临时标题）写一次，
+  「上次更新」实际按建立时间排。历史数据不批量回填：旧对话下一次有消息、或被打开读事件时才更新。
 """
 import frappe
 
@@ -16,3 +23,32 @@ def note(conversation: str, events) -> bool:
         return False
     frappe.db.set_value(SESSION, {"session_id": conversation}, "context_tokens", size, update_modified=False)
     return True
+
+
+def active(name: str, at=None, wait: bool = True) -> bool:
+    """这段对话此刻有动静（用户发消息、CC 回复）：最后活动时间记成 `at`（站点时区的裸时间，默认现在）。只写这一列
+    （不改别的字段，也不经文档保存）；按记录名写，只清这一条的缓存（按条件写会清掉整个文档类型的缓存）。
+    `wait=False`（转发线程、读事件时顺带补记）：这一行正被别的事务锁着（例如后台任务挂提醒时写同一行）就这次不记、
+    不等锁（等锁会让事件流和逐字预览停住），下一条再记。返回是否记了。"""
+    if not wait and not frappe.db.sql(f"select name from `tab{SESSION}` where name = %s for update skip locked", name):
+        return False
+    frappe.db.set_value(SESSION, name, "modified", at or frappe.utils.now_datetime(), update_modified=False)
+    return True
+
+
+def caught_up(row, events) -> bool:
+    """读事件时顺带补记：这几条里最新的用户消息 / CC 回复比记下的最后活动时间晚，就记成那一刻（不多读引擎）。
+    补的是转发线程不在时的 CC 回复：过了时限（`relay.MAX_SECONDS`）、进程重启、页面关着由引擎回调执行工具
+    （`webhook.run_pending`）后智能体接着回的话。旧对话在打开时也就此记成真实的最后一条消息时间（不另外回填）。"""
+    latest = None
+    for event in events or []:
+        if event.get("type") in ("user.message", "agent.message"):
+            moment = contracts.instant(event.get("processed_at"))
+            if moment and (latest is None or moment > latest):
+                latest = moment
+    if latest is None or row.get("archived"):  # 已归档的 modified 是归档时间（列表的 archived_at），不动
+        return False
+    at = contracts.local_time(latest, frappe.utils.get_system_timezone())
+    if row.get("modified") and at <= contracts.site_time(row.get("modified")):
+        return False
+    return active(row.name, at, wait=False)

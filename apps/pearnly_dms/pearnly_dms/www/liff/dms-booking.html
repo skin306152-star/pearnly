@@ -251,7 +251,7 @@
 
         async function main() {
           var draft = param("draft");
-          var editor = ["customer", "scan", "page_sent"].includes(param("editor")) ? param("editor") : "booking";
+          var editor = ["customer", "scan", "page_sent", "review"].includes(param("editor")) ? param("editor") : "booking";
           var accountAction = ["portal", "credentials"].includes(param("action")) ? param("action") : "";
           await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable", "dms.edit.scanSent"]);
           msg.textContent = text("dms.edit.loading");

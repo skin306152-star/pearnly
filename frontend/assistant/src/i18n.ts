@@ -569,7 +569,7 @@ const COMPANY = {
     changeFolder: "更换…", removeFolder: "移除", updateDesktop: "请更新 CC 桌面版",
     folderOk: "正常", folderWaiting: "等待电脑", folderOffline: "电脑离线", folderMissing: "找不到文件夹",
     folderGone: "电脑已移除", followCompany: "跟随公司当年账套",
-    payCash: "现购", payCredit: "赊购", vatClaim: "抵进项", vatExpense: "计费用",
+    payCash: "现购", payCredit: "赊购", vatClaim: "抵进项", vatExpense: "记费用",
     pending: "待处理", handToCC: "交给 CC", confirm: "确认", other: "其他", chooseCompany: "选择公司",
     handToCCText: (list: string) => `处理这几张：${list}`,
     handToCCOne: (doc: string) => `处理这张：${doc}`,
@@ -726,6 +726,7 @@ const SIDEBAR = {
     emptyGroups: "Empty groups", resetDefaults: "Restore defaults", noMonth: "No month",
     pinN: (n: number) => `Pin ${n}`, unpinN: (n: number) => `Unpin ${n}`,
     deleteN: (n: number) => `Delete ${n}`,
+    deleteAsk: (n: number) => (n > 1 ? `Delete ${n} chats?` : "Delete chat?"),
     // 侧栏拖动的读屏播报（共用拖动 components/ui/drag.tsx：公司组、置顶、组里的对话排序，对话拖进已置顶 = over / droppedIn）
     drag: {
       instructions: "To pick up an item, press Space. Use the up and down arrow keys to move it, press Space again to drop it, or press Escape to cancel.",
@@ -744,6 +745,7 @@ const SIDEBAR = {
     emptyGroups: "空分组", resetDefaults: "恢复默认设置", noMonth: "未指定月份",
     pinN: (n: number) => `置顶 ${n}`, unpinN: (n: number) => `取消置顶 ${n}`,
     deleteN: (n: number) => `删除 ${n}`,
+    deleteAsk: (n: number) => (n > 1 ? `删除 ${n} 个对话？` : "删除对话？"),
     drag: {
       instructions: "按空格键拿起，用上下方向键移动，再按空格键放下，按 Escape 键取消。",
       pickedUp: (name: string) => `已拿起「${name}」。`,
@@ -761,6 +763,7 @@ const SIDEBAR = {
     emptyGroups: "กลุ่มที่ว่าง", resetDefaults: "คืนค่าเริ่มต้น", noMonth: "ไม่ระบุเดือน",
     pinN: (n: number) => `ปักหมุด ${n}`, unpinN: (n: number) => `เลิกปักหมุด ${n}`,
     deleteN: (n: number) => `ลบ ${n}`,
+    deleteAsk: (n: number) => (n > 1 ? `ลบ ${n} แชท?` : "ลบแชท?"),
     drag: {
       instructions: "กด Space เพื่อหยิบ ใช้ปุ่มลูกศรขึ้นลงเพื่อย้าย กด Space อีกครั้งเพื่อวาง หรือกด Escape เพื่อยกเลิก",
       pickedUp: (name: string) => `หยิบ ${name} แล้ว`,

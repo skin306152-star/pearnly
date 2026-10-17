@@ -18,6 +18,9 @@
 没挂对话的、别的对话里近一天的）随批末的系统消息告诉智能体，发出成功后才把带上的那几条标成带过。
 同一条系统消息每次都带上用户当地的日期时间（智能体才知道「今天」）。
 
+最后活动时间（会话表的 `modified`，列表的 `updated_at`，侧栏「上次更新」按它排）只在用户发出消息（这里）、CC 回复（`relay`；
+转发线程不在时由读事件顺带补记）、挂上提醒（`notices`）时更新，见 `context.active`；改名、置顶、改月份 / 分店不改它。
+
 侧栏标题见 `titles`（首条消息先当临时标题，第一轮结束后概括）；新建、改名、加星标、归档、删除都经 `sidebar`
 推给会话主人，同一账号别的设备的侧栏马上并入。
 
@@ -285,7 +288,8 @@ def rename(session_id, title) -> None:
     """手动改名：记成用户起的名字，之后的自动标题不再覆盖（`titles`）。"""
     row = owned(session_id)
     title = contracts.title_from(title)
-    frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": titles.BY_USER})
+    # 改名不算活动：不改最后活动时间（侧栏「上次更新」按它排，`context.active`）
+    frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": titles.BY_USER}, update_modified=False)
     engine.adapter().rename(current(row), title)
     sidebar.changed(_user(), "titled", row.session_id, title=title)
 
@@ -429,17 +433,20 @@ def _follow(row, run) -> None:
 
 
 def _remember_context(row, events_of_current) -> None:
-    """记下输入量（接续判断用）。只是附带的：写不进（例如推送线程正在写同一行）不影响取事件。"""
+    """记下输入量（接续判断用），并补记转发线程没记上的最后活动时间（`context.caught_up`）。只是附带的：写不进
+    （例如推送线程正在写同一行）不影响取事件。"""
     size = contracts.context_size(events_of_current)
-    if size is not None and size != int(row.get("context_tokens") or 0):
-        try:
-            context.note(row.session_id, events_of_current)
+    try:
+        noted = size is not None and size != int(row.get("context_tokens") or 0) \
+            and context.note(row.session_id, events_of_current)
+        caught = context.caught_up(row, events_of_current)
+        if noted or caught:
             frappe.db.commit()  # GET 请求不自动提交
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()  # 推送线程正在写同一行（常见、无害）：这次不记，下一轮再记
-        except Exception:
-            frappe.db.rollback()
-            frappe.log_error(title="Assistant context note failed")
+    except frappe.QueryDeadlockError:
+        frappe.db.rollback()  # 推送线程正在写同一行（常见、无害）：这次不记，下一轮再记
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="Assistant context note failed")
 
 
 def send(session_id, text) -> None:
@@ -459,6 +466,8 @@ def send(session_id, text) -> None:
     if note:
         batch.append(note)
     api.post(remote, batch)
+    # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）
+    context.active(row.name)
     if row.get("pending_carry"):
         frappe.db.set_value(SESSION, row.name, "pending_carry", "")
     if noted is not None:
@@ -509,6 +518,8 @@ def confirm(session_id, confirmations) -> int:
 def interrupt(session_id) -> None:
     row = owned(session_id)
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])
+    # 停在等「允许」时点了停止：这一轮结束，那张卡片作废（推送线程可能已到时限不在了，这里当场标，`toolrun.cancel_waiting`）
+    toolrun.cancel_waiting(row.session_id)
 
 
 def run_tool(session_id, tool_use_id) -> dict:

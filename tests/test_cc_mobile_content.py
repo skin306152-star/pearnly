@@ -2,7 +2,7 @@
 
 - 主档页知识库：新增、修改都有「取消」「保存」；存好的那一条直接用服务端回的放进列表，不等之后整页重取；失败照 shownError 报；
   同页改名、记住的选择、移除文件夹同样先按服务端的回应显示。
-- 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），不破坏「往上翻不拉回」。
+- 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），用户一碰就交还、不拉回。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
 """
@@ -25,7 +25,9 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn('{t("cancel")}', editor)
         self.assertIn('{t("save")}', editor)
         self.assertIn('data-primary=""', editor)
-        self.assertIn("cc-tap", editor)  # 手机点按区不小于 44pt（ccs）
+        # 同一栏其他卡片按钮：.cc-card-btn（电脑 24、手机 44 胶囊，第 11 轮按钮排查 L10；手机点按区不小于 44pt 由它保证）
+        self.assertIn('<div className="cc-card-actions">', editor)
+        self.assertEqual(editor.count('className="cc-card-btn"'), 2)
         self.assertNotIn("onBlur", editor)  # 点「取消」先失焦：离开就保存会把取消变成保存
         self.assertIn("setError(shownError(e));", editor)
         self.assertIn("noteKey(e, touchOnly())", editor)
@@ -94,8 +96,10 @@ class OpenAtBottomSourceTests(unittest.TestCase):
     def test_thread_settles_when_a_conversation_is_opened(self):
         thread = read("components/assistant-ui/thread.tsx")
         self.assertIn("s.thread.messages.length > 0 ? s.threadListItem.id : \"\"", thread)
-        self.assertIn("if (opened) follower.current?.settle();", thread)
-        self.assertIn("if (openedNow.current) created.settle();", thread)
+        self.assertIn("if (opened && !sending.current) settler.current?.settle();", thread)
+        self.assertIn("if (openedNow.current && !sending.current) created.settle();", thread)
+        # 第 11 轮审查：本页刚发出（发送中的气泡还在）时新对话第一条落进来不算打开，不贴底
+        self.assertIn("sending.current = usePendingSend() !== null;", thread)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -136,9 +140,9 @@ const g = globalThis as any;
 const html = (initial: string) => renderToStaticMarkup(createElement(NoteEditor, { initial, onSave: async () => {}, onCancel: () => {} }));
 const empty = html("");
 assert.match(empty, /<textarea[^>]*maxLength="500"/);
-assert.match(empty, /<button type="button" class="cc-btn cc-tap">取消<\/button>/);
+assert.match(empty, /<button type="button" class="cc-card-btn">取消<\/button>/);
 // 没有字（或没改）时「保存」不可点
-assert.match(empty, /<button type="button" class="cc-btn cc-tap" data-primary="" disabled="">保存<\/button>/);
+assert.match(empty, /<button type="button" class="cc-card-btn" data-primary="" disabled="">保存<\/button>/);
 assert.match(html("test"), /data-primary="" disabled="">保存</);
 g.done();
 """, stubs=PAGE_STUBS, lang="zh")
@@ -193,23 +197,22 @@ g.done();
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { SETTLE_MAX_MS, SETTLE_QUIET_MS, StreamFollower } from "@/lib/follow-scroll";
+import { OpenSettler, SETTLE_MAX_MS, SETTLE_QUIET_MS } from "@/lib/follow-scroll";
 
 const g = globalThis as any;
 let clock = 1000;
 const listeners: Record<string, Array<(e: any) => void>> = {};
-let reserve = 0;
+let reserve: number | null = null;  // 组件库的占位：只在有在跑的一轮时挂着
 const vp: any = {
   scrollTop: 0, scrollHeight: 6000, clientHeight: 800,
   addEventListener(type: string, fn: any) { (listeners[type] ??= []).push(fn); },
   removeEventListener(type: string, fn: any) { listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn); },
   scrollTo({ top }: any) { this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); },
-  querySelector() { return { offsetHeight: reserve }; },
+  querySelector() { return reserve === null ? null : { offsetHeight: reserve }; },
 };
 const fire = (type: string, e: any = {}) => (listeners[type] ?? []).forEach((fn) => fn(e));
 let grow: () => void = () => {};
-const live = false;  // 打开的是一段已经结束的对话
-const f = new StreamFollower(vp, {}, () => live, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
+const f = new OpenSettler(vp, {}, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
 const bottom = () => vp.scrollHeight - vp.clientHeight;
 const more = (px: number, ms = 100) => {
   clock += ms; vp.scrollHeight += px; vp.scrollTop = Math.min(vp.scrollTop, bottom());  // 变矮时浏览器自己把位置收回
@@ -223,7 +226,7 @@ assert.equal(vp.scrollTop, bottom());
 more(1300); assert.equal(vp.scrollTop, bottom());
 more(400, 1200); assert.equal(vp.scrollTop, bottom());
 more(-150); assert.equal(vp.scrollTop, bottom());
-// 静下来 SETTLE_QUIET_MS 之后不再管（对话没在跑，内容再变也不动）
+// 静下来 SETTLE_QUIET_MS 之后不再管（内容再变也不动）
 clock += SETTLE_QUIET_MS;
 let top = vp.scrollTop; more(500); assert.equal(vp.scrollTop, top);
 
@@ -250,7 +253,18 @@ top = vp.scrollTop; more(500, 100); assert.equal(vp.scrollTop, top);
 // 组件库在把在跑的这一轮推到顶上（占位有高度）时不插手
 reserve = 300; vp.scrollTop = 100; f.settle();
 assert.equal(vp.scrollTop, 100);
-reserve = 0;
+// 第 11 轮审查：有在跑的一轮就交还——回复超出一屏、占位缩成 0 之后内容再长，也不跟到底
+reserve = 0; more(900); assert.equal(vp.scrollTop, 100);
+more(900); assert.equal(vp.scrollTop, 100);
+// 新对话：贴底时还没有占位，随后这一轮开跑（占位先有高度、再缩成 0），回复接着长：不滚
+reserve = null; vp.scrollHeight = 800; vp.scrollTop = 0; f.settle();
+reserve = 400; more(0);
+reserve = 0; more(1500); more(1500);
+assert.equal(vp.scrollTop, 0);
+// 打开一段正在回复的对话（占位已在、高度 0）：不贴底，停在组件库给的这一轮开头
+vp.scrollTop = 500; f.settle();
+more(800); assert.equal(vp.scrollTop, 500);
+reserve = null;
 f.dispose();
 assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
 g.done();

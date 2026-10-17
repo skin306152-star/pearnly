@@ -6,7 +6,11 @@
 //   - 新建、或推来的是本页还没加载的对话：重拉一次列表（组件库没有只插一行的接口）——几条合成一次，列表在加载、
 //     新对话正在建时先不拉，到时已在列表里就不拉（notice-reload.ts）。
 // 回到前台、从后台缓存恢复、重新联网、实时通道断开后重连，这几个时刻补一次核对（watchList）：读一次第一页（顺带核对
-// 侧栏在转圈的对话，absorb），新出现的重拉、标题星标不一样的就地改、本该在这一页里却没有的（在别处删了、归档了）去掉。
+// 侧栏在转圈的对话，absorb），新出现的重拉、标题星标不一样的就地改、最后活动时间比本页记的新的照它浮（activity.ts 的
+// seenActivity：断开期间漏掉的新消息推送不会补发）、本该在这一页里却没有的（在别处删了、归档了）去掉。
+// 推来的新消息（user.message / agent.message）属于本页还没加载的对话：同新建一样重拉一次（每段对话本页只为它拉一次：拉完仍不在
+// 列表里的——别的产品的、已归档的——不再为它反复拉）。服务端的列表按最后活动时间翻页，有了新消息的旧对话挪到了已翻过的游标
+// 之前，「显示更多」翻不到它，只能重拉。
 // 本页自己刚改过的对话（这次请求发出之后改的）不按这一页改。不另开定时。
 // 一段对话在本页可能有两行数据（本页新建的那行 + 重拉列表后服务端给的那行：组件库按编号各存一份），都改。
 //
@@ -16,12 +20,12 @@
 // 按公司分组的第一页里，每一组各按它自己翻到哪儿判断「不在这一页」是不是在别处删了。
 
 import type { SessionPage } from "./api";
-import { runningSessions } from "./activity";
+import { onMessage, runningSessions, seenActivity } from "./activity";
 import { noticeReloader } from "./notice-reload";
 import { applyProjectChange, groupOf, refreshProjects, useProjects } from "./projects";
 import { onConnectionChange, onProjectChange, onSessionChange, type SessionChange } from "./realtime";
 import { absorb, firstPage, quietly, touchedSince } from "./session-list-adapter";
-import { noteUnpinnedElsewhere } from "./sidebar-order";
+import { noteUnpinned } from "./sidebar-order";
 import { useSidebarView } from "./sidebar-view";
 
 // 推来的几条合成一次重拉
@@ -71,8 +75,8 @@ function retitle(threads: ListThreads, rows: ItemData[], title: string) {
 function restar(threads: ListThreads, rows: ItemData[], starred: boolean) {
   for (const row of rows) {
     if (!!row.custom?.starred !== starred) {
-      // 别的设备上取消置顶：侧栏把它挪到组顶时按数据收拾（那一台已经存过，sidebar-order.ts）
-      if (!starred && row.remoteId) noteUnpinnedElsewhere(row.remoteId);
+      // 别的设备上取消置顶：回到它那一组的最上面，只改本机显示（以那一台存的为准，sidebar-order.ts 的 noteUnpinned）。归档的不在侧栏，不记
+      if (!starred && row.remoteId && row.status === "regular") noteUnpinned(row.remoteId, false);
       void quietly("custom", row.remoteId!, () => threads.getItemById(row.id).updateCustom({ ...row.custom, starred }));
     }
   }
@@ -111,6 +115,9 @@ export function reconcile(threads: ListThreads, page: SessionPage, asked: number
     }
     if (s.title) retitle(threads, rows, s.title);
     restar(threads, rows, !!s.starred);
+    // 最后活动时间比本页记的新（别的设备上发的消息、漏收的 CC 回复）：照服务端的浮
+    const listed = Math.max(...rows.map((row) => time(row.lastMessageAt)).filter(Number.isFinite), Number.NEGATIVE_INFINITY);
+    if (time(s.updated_at) > listed) seenActivity(s.id, s.updated_at);
   }
   // 第一页 = 全部置顶的 + 其余最近的一页。没有下一页就是全部；有下一页时，比这一页里最早的还新的也一定在这一页里。
   // 按公司分组时第一页 = 全部置顶 + 最近一页 + 每家公司最新几条：每一组各按自己的（groups 里有这家 = 这家还有更多）。
@@ -145,6 +152,13 @@ export function watchList(threads: () => ListThreads): () => void {
   const reloader = noticeReloader(() => view, RELOAD_MS);
   const offChange = onSessionChange((change) => applyChange(threads(), change, reloader));
   // 公司改名、删公司、对话改月份分店（删公司时回到最近）：随推随并；本页还没有这段对话就重拉
+  // 推来的新消息属于本页还没加载的对话：重拉一次（每段对话只为它拉一次）
+  const pulled = new Set<string>();
+  const offMessage = onMessage((session) => {
+    if (pulled.has(session) || rowsOf(threads(), session).length) return;
+    pulled.add(session);
+    reloader.note(session);
+  });
   const offProject = onProjectChange((change) => {
     const moved = applyProjectChange(change);
     if (moved && !rowsOf(threads(), moved).length) reloader.note(moved);
@@ -199,6 +213,7 @@ export function watchList(threads: () => ListThreads): () => void {
   window.addEventListener("online", onOnline);
   return () => {
     offChange();
+    offMessage();
     offProject();
     offKind();
     offView();

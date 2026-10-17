@@ -10,7 +10,7 @@
 
 import { call, setCsrfToken } from "./api";
 
-export type EditorMode = "booking" | "customer";
+export type EditorMode = "booking" | "customer" | "review";
 
 export interface Option {
   id: string;
@@ -254,3 +254,25 @@ export const CHANNEL_FIELDS: Record<string, string[]> = {
 };
 
 export const MAX_PAYMENTS = 6;
+
+/** 开单回执差异卡的修改页：一项 = 确认时 / DMS 现值 + 可手改的文字栏（标签是文案键）。 */
+export interface ReviewItem {
+  key: string;
+  label: string;
+  sent: string;
+  dms: string;
+  inputs: { field: string; label: string; value: string }[];
+}
+
+export interface ReviewChoice {
+  use: "sent" | "dms";
+  inputs: Record<string, string>;
+}
+
+export function loadReview(ticket: string, draft: string): Promise<{ booking_no: string; items: ReviewItem[] }> {
+  return call(`${API}browser_review`, { ticket, draft });
+}
+
+export function saveReview(ticket: string, draft: string, choices: Record<string, ReviewChoice>): Promise<{ queued: boolean }> {
+  return call(`${API}browser_review_save`, { ticket, draft, choices: JSON.stringify(choices) }, { method: "POST" });
+}
