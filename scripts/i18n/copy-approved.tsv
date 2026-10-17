@@ -15,3 +15,4 @@
 #   新文案    与当前值完全一致（换行写 \n）
 #   同意日期  YYYY-MM-DD
 #   出处      可追查的位置：主对话日期 + 窗口、docs/work 记录路径或提交说明
+pearnly_core:intake.agent.state.missing	zh	未连接电脑	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md

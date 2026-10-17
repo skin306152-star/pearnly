@@ -399,6 +399,7 @@ No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定で
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
 No camera was found on this device. Enter the code instead.,このデバイスにカメラが見つかりません。コードを入力してください。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
+No computer connected,コンピューター未接続
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
 No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
@@ -988,7 +989,7 @@ intake.agent.key,ペアリングコード
 intake.agent.loginHint,インストール後、このアカウントでログインすると接続されます。
 intake.agent.reset,再生成
 intake.agent.resetConfirm,古いキーはすぐに使えなくなります。
-intake.agent.state.missing,CC デスクトップ未接続
+intake.agent.state.missing,コンピューター未接続
 intake.card.purchaseTotal,仕入合計（確認済み以上）
 intake.card.readyToPush,確認済み・送信可能
 intake.card.salesTotal,売上合計（確認済み以上）

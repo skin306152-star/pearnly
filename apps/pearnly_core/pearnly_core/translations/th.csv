@@ -399,6 +399,7 @@ No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",ยังไม่ได้ตั้งค่าบัญชี การเชื่อมต่อนี้จึงใช้งานไม่ได้ กรุณาตั้งค่าข้อมูลรับรองแล้วทดสอบการเชื่อมต่อ
 No camera was found on this device. Enter the code instead.,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงไม่สามารถส่งอีเมลเชิญได้
+No computer connected,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่ตรงกันและไม่ได้ระบุรหัสอ้างอิงลูกค้า DMS กรุณายืนยันด้วยตนเองก่อน
 No operators yet — add one above,ยังไม่มีพนักงาน กรุณาเพิ่มที่ด้านบน
 No provisioning target is available; configure one under “Provisioning Target” first,"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"
@@ -988,7 +989,7 @@ intake.agent.key,รหัสจับคู่
 intake.agent.loginHint,ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
 intake.agent.reset,สร้างใหม่
 intake.agent.resetConfirm,รหัสจับคู่เดิมจะใช้ไม่ได้ทันที
-intake.agent.state.missing,CC เดสก์ท็อปยังไม่เชื่อมต่อ
+intake.agent.state.missing,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
 intake.card.purchaseTotal,ยอดรวมซื้อ (สถานะยืนยันแล้วขึ้นไป)
 intake.card.readyToPush,ยืนยันแล้ว · พร้อมส่ง
 intake.card.salesTotal,ยอดรวมขาย (สถานะยืนยันแล้วขึ้นไป)

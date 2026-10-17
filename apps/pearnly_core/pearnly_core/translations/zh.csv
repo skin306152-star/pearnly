@@ -399,6 +399,7 @@ No OCR key configured (site config pearnly_ocr_api_key),未配置 OCR 密钥（�
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",未配置账号，此连接不可用。请配置凭据后测试连接。
 No camera was found on this device. Enter the code instead.,此设备上没有找到相机。请手动输入编码。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",未配置「邀请链接客户端 ID」，无法发送邀请邮件
+No computer connected,未连接电脑
 No existing customer matched and no DMS customer reference was given: confirm manually first,未匹配到已有客户，且未提供 DMS 客户引用，请先人工确认
 No operators yet — add one above,暂无操作员，请在上方新增
 No provisioning target is available; configure one under “Provisioning Target” first,没有可用的开户目标，请先在「开户目标」中配置
@@ -988,7 +989,7 @@ intake.agent.key,配对码
 intake.agent.loginHint,安装后用本账号登录即可连接。
 intake.agent.reset,重新生成
 intake.agent.resetConfirm,原配对码将立即失效。
-intake.agent.state.missing,CC 桌面版未连接
+intake.agent.state.missing,未连接电脑
 intake.card.purchaseTotal,进项合计（已确认及以上）
 intake.card.readyToPush,已确认 · 可推送
 intake.card.salesTotal,销项合计（已确认及以上）

@@ -795,7 +795,7 @@ Nothing to show	没有可显示的内容	ไม่มีข้อมูลให
 Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรียงตาม {0}	{0} で並べ替え
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Target ERP	目标 ERP	ERP ปลายทาง	連携先 ERP	intake.target.title
-CC Desktop not connected	CC 桌面版未连接	CC เดสก์ท็อปยังไม่เชื่อมต่อ	CC デスクトップ未接続	intake.agent.state.missing
+No computer connected	未连接电脑	ยังไม่ได้เชื่อมต่อคอมพิวเตอร์	コンピューター未接続	intake.agent.state.missing
 Download CC Desktop	下载 CC 桌面版	ดาวน์โหลด CC เดสก์ท็อป	CC デスクトップをダウンロード	intake.target.download
 Install it, then sign in with this account to connect.	安装后用本账号登录即可连接。	ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ	インストール後、このアカウントでログインすると接続されます。	intake.agent.loginHint
 This site has no CC Desktop installer address yet.	本站点未配置 CC 桌面版安装包地址。	ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้ง CC เดสก์ท็อป	このサイトには CC デスクトップのインストーラーのアドレスがまだありません。	intake.installerMissing

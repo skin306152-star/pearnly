@@ -1212,7 +1212,7 @@ OPTIONS_SHOWN = 30
 MRERP_READ_WAIT_SECONDS = 60
 
 
-# 不能选的 Express 状态给模型的说明（不是界面文案）：分清「没有能写的电脑」与「CC 桌面版未连接」（ADR-021 第 53 条，10-16 审查）
+# 不能选的 Express 状态给模型的说明（不是界面文案）：分清「没有能写的电脑」与「未连接电脑」（ADR-021 第 53 条，10-16 审查）
 TARGET_NOTES = {
     "no_writer": "None of the user's own computers with CC Desktop can open this program's account sets (documents "
                  "are written only by the user's own computers, never a colleague's). Tell the user and ask them to "

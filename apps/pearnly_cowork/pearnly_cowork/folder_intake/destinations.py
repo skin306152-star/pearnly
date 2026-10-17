@@ -37,7 +37,7 @@ class ExpressTarget:
     def writer_state(connection, device=""):
         """替这张单干活的电脑（:func:`selectable` 同一口径）：有能写的 → ``READY``；读文件夹的那台（``device``）够不到能写的
         账套（不在这个池里、只读成员、已移除），或负责人有电脑却都够不到 → ``UNREACHABLE``（不是暂时的）；负责人一台电脑都没有
-        → ``MISSING``（「CC 桌面版未连接」）。"""
+        → ``MISSING``（「未连接电脑」）。"""
         found = pool.for_user(connection, device=device)
         if found.get("writers_known"):
             return READY
@@ -84,7 +84,7 @@ def writer_state(adapter, connection, *, device=""):
     - ``UNREACHABLE``：那台够不到能写的账套（只读成员、账套只在别人电脑上、已移除），或负责人有电脑却都够不到——不是暂时的，
       不再每十分钟重试、6 小时后才记失败：照常准备、确认，由确认按现有原因（``push.no_writer``；跟随公司账套时
       ``cowork.folder.account_set_unreachable``）直接记下；
-    - ``MISSING``：负责人一台电脑都没有（「CC 桌面版未连接」）：过一会儿再推，最后一次照现有规则记失败。
+    - ``MISSING``：负责人一台电脑都没有（「未连接电脑」）：过一会儿再推，最后一次照现有规则记失败。
 
     MR.ERP 服务端直连，总是 ``READY``。读不出也当 ``READY``，照常走现有提交（确认那一步会按真判据拒）。"""
     target = ADAPTERS[adapter]
@@ -100,7 +100,7 @@ def writer_state(adapter, connection, *, device=""):
 def intake_state(adapter, connection):
     """录入入口（CC 工具）能不能选这种 ERP、为什么不能（与 LINE `flow._state` 同一口径）：Express 按当前用户自己的电脑——
     有能写的（关着也算，D4）``READY``；有电脑却都够不到能写的账套 ``UNREACHABLE``（「没有能写的电脑」，如账套只在别人电脑的
-    C 盘上）；一台电脑都没有 ``MISSING``（「CC 桌面版未连接」，ADR-021 第 53 条）。MR.ERP 服务端直连，总能选。读不出当
+    C 盘上）；一台电脑都没有 ``MISSING``（「未连接电脑」，ADR-021 第 53 条）。MR.ERP 服务端直连，总能选。读不出当
     ``MISSING``（与 LINE 一样，不让人选一个确认不了的去向）。"""
     target = ADAPTERS[adapter]
     try:

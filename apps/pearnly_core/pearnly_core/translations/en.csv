@@ -398,6 +398,7 @@ No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (s
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
 No camera was found on this device. Enter the code instead.,No camera was found on this device. Enter the code instead.
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
+No computer connected,No computer connected
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
 No operators yet — add one above,No operators yet — add one above
 No provisioning target is available; configure one under “Provisioning Target” first,No provisioning target is available; configure one under “Provisioning Target” first
@@ -986,7 +987,7 @@ intake.agent.key,Pairing code
 intake.agent.loginHint,"Install it, then sign in with this account to connect."
 intake.agent.reset,Regenerate
 intake.agent.resetConfirm,The old key stops working right away.
-intake.agent.state.missing,CC Desktop not connected
+intake.agent.state.missing,No computer connected
 intake.card.purchaseTotal,Purchases (confirmed and above)
 intake.card.readyToPush,Confirmed · ready to push
 intake.card.salesTotal,Sales (confirmed and above)
