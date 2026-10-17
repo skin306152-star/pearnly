@@ -11,7 +11,9 @@
   新增       基线里没有这个键
   改动       键还在，权威语言（有中文看中文，否则看英文）变了；无键的术语表行 msgid 一改会变成"删一条加一条"，
              同一 diff 段里一减一加且文字相近的、或中文相同且英文相似度 ≥ 0.6 的，配对成改动 / 译文改动
-  移动       换了键、四种语言文字都没变：不算改动（防止靠换键名绕开登记，换键 + 改字仍按新增 + 删除算）
+  移动       换了键、四种语言文字都没变：不算改动
+             换键同时改字：同一来源里删一条加一条，权威语言相似度 ≥ 0.5 或其他任一语言一字不差的，配对成改动 / 译文改动
+             （所有来源都配，不只术语表）—— 防止靠换键名绕开「改已有文案要登记」
   删除       只列出，不拦
   译文改动   权威语言没变、其他语言变了：不需要登记，但变了的那门语言照样过内容判据
 """
@@ -20,11 +22,13 @@ from __future__ import annotations
 
 import difflib
 import os
+import re
 from dataclasses import dataclass, field
 
 from . import repo, sources
 
 ZERO = "0" * 40
+re_placeholder = re.compile(r"\$\{[^}]*\}|\{[^{}\s]*\}|%\([A-Za-z_]+\)[sdf]|%[sdf]")
 
 
 class BaseError(RuntimeError):
@@ -47,7 +51,13 @@ def resolve_base(root: str, base: str, head: str = "HEAD") -> str:
             return repo.git(root, "merge-base", candidate, head).strip()
         except repo.GitError as exc:
             tried.append("%s（%s）" % (candidate, str(exc).splitlines()[0] if str(exc) else "无"))
-    raise BaseError("取不到基线：" + "；".join(tried))
+    hint = ""
+    try:
+        if repo.git(root, "rev-parse", "--is-shallow-repository").strip() == "true":
+            hint = "。这是浅克隆：CI 的 actions/checkout 要写 fetch-depth: 0，本地执行 git fetch --unshallow"
+    except repo.GitError:
+        pass
+    raise BaseError("取不到基线：" + "；".join(tried) + hint)
 
 
 @dataclass
@@ -79,6 +89,16 @@ def _similar(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
     return difflib.SequenceMatcher(None, a, b).ratio()
+
+
+def _bare(text: str) -> str:
+    """比相似度前去掉占位符、标点与空白：「{x} 个步骤」和「{x} 项」不能靠 {x} 凑出相似。"""
+    text = re_placeholder.sub("", text or "")
+    return "".join(ch for ch in text if sources.LETTERS.match(ch) or ch.isdigit())
+
+
+def _group(key: str) -> str:
+    return key.split(".", 1)[0] if "." in key else ""
 
 
 def _pair(old, new) -> Change:
@@ -116,7 +136,9 @@ def classify(base, cur) -> list:
             changes.append(Change("moved", entry, removed.pop(old_id), set()))
             del added[ident]
 
-    # 术语表：同一 diff 段里一减一加、文字相近的配对（msgid 改写、换键改字都在这里接住）
+    # 字典文件：同一 diff 段里一减一加、文字相近的配对（msgid 改写、换键改字都在这里接住）。
+    # 术语表以外（i18n.ts、CC 桌面版、Keycloak、四语表）一行换一行的小段直接按位置配对：同一位置换了键又换了字，
+    # 就是在改那条已有文案（「出了点问题，请重试。」→「处理失败，请重试。」同时把 somethingWrong 改名 genericFailure）
     for path, cur_lines in cur.glossary_lines.items():
         base_lines = base.glossary_lines.get(path)
         if base_lines is None:
@@ -133,8 +155,10 @@ def classify(base, cur) -> list:
                 if old_id not in removed or new_id not in added:
                     continue
                 old, new = removed[old_id], added[new_id]
-                if max(_similar(old.texts.get("en", ""), new.texts.get("en", "")),
-                       _similar(old.texts.get("zh", ""), new.texts.get("zh", ""))) < 0.5:
+                positional = (not sources.GLOSSARY.match(path) and old.source == new.source
+                              and i2 - i1 == j2 - j1 and i2 - i1 <= 3)
+                if not positional and max(_similar(old.texts.get("en", ""), new.texts.get("en", "")),
+                                          _similar(old.texts.get("zh", ""), new.texts.get("zh", ""))) < 0.5:
                     continue
                 changes.append(_pair(old, new))
                 del removed[old_id], added[new_id]
@@ -151,6 +175,29 @@ def classify(base, cur) -> list:
             ratio = _similar(old.texts.get("en", ""), new.texts.get("en", ""))
             if ratio >= score:
                 best, score = old_id, ratio
+        if best:
+            changes.append(_pair(removed.pop(best), new))
+            del added[new_id]
+
+    # 其余来源（i18n.ts、CC 桌面版、Keycloak、四语表、术语表跨段）：换键同时改字也要配上
+    for new_id in sorted(added):
+        new = added[new_id]
+        best, score = None, 0.0
+        for old_id, old in removed.items():
+            if old.source != new.source:
+                continue
+            lang = _authority(old, new)
+            ratio = _similar(_bare(old.texts.get(lang, "")), _bare(new.texts.get(lang, "")))
+            same_other = any(
+                old.texts.get(other) and old.texts.get(other) == new.texts.get(other)
+                and len(sources.LETTERS.findall(old.texts[other])) >= 2
+                for other in sources.LANGS if other != lang
+            )
+            value = max(ratio, 1.0 if same_other else 0.0)
+            # 换了对象（STEPS.steps → COMPANY.card.choices）要更像才算同一条
+            need = 0.6 if _group(old.key) == _group(new.key) else 0.8
+            if value >= need and value > score:
+                best, score = old_id, value
         if best:
             changes.append(_pair(removed.pop(best), new))
             del added[new_id]

@@ -18,15 +18,24 @@
 
 代码（只扫本次改动的文件；全量审计时扫全部）：
 
-  6. Python：_()/_lt()/N_() 的第一个常量参数；frappe.throw / msgprint 的裸字符串；
-     assistant/ 下工具声明里 label / ask / ask_when 的值；*STEP_NAMES 的值
-  7. Desk JS（public/、doctype/、page/）：__("…") 与 t("key")
-  8. CC 网页 TSX / TS：JSX 文本、title / aria-label / placeholder / alt / label 属性、tr("…")
-  9. www/*.html、templates/emails/*.html：{{ _("…") }} 与写死的中文 / 泰文
+  6. Python：_()/_lt()/N_() 的第一个常量参数（f-string / + / format 拼出来的 msgid 直接拦）；frappe.throw / msgprint
+     （位置参数与 msg= / title=，含 f-string）、publish_realtime("msgprint", …)、frappe.*Error(…) 的写死文案；
+     _() 与字符串或另一个 _() 用 + 拼接；assistant/ 下工具声明里 label / ask / ask_when 的值；*STEP_NAMES 的值
+  7. Desk JS（public/、doctype/、page/）：__("…") 与 t("key")；frappe.msgprint / throw / confirm / show_alert / prompt、
+     set_intro / set_headline 的写死首参（含 {message: "…"}）；__() 与字面量或另一个 __() 用 + 拼接
+  8. CC 网页 TSX / TS：JSX 文本与 {"…"} 子节点、title / aria-label / placeholder / alt / label / content / description /
+     message / tooltip / helperText 属性（含 {`…`} 与 {cond ? "a" : "b"}）、toast.*() / alert() / confirm() 的字面量、
+     tr("…")、t("…")；相邻 {t(…)}{t(…)} 与模板串里 ≥ 2 个 t( / tr( 插值（R-CONCAT）
+  9. www/*.html、templates/emails/*.html：{{ _("…") }}、写死的中文 / 泰文、标签外 ≥ 2 个英文词的文本与 title / placeholder
  10. 翻译包 translations/*.csv 里新增的手工行（msgid 在术语表里找不到）
+ 11. CC 桌面版 companion/src/companion/*.py（i18n.py 除外）：Qt 控件与通知（QLabel / setText / setWindowTitle /
+     setToolTip / addAction / showMessage / _notify …）、{"message": "…"} 的写死文案；t("键") 的键不在 _M 里
+ 12. DocType / Workspace / Report JSON：新写的 label / description 必须在术语表或 Frappe 自带词里（内容由术语表那一行判）
 
 不扫（模型读的、写进外部系统的、日志与测试）：见 NOT_SCANNED。
-DocType / Workspace / Report 的 JSON 只用来给同 msgid 的术语表行定角色（label → 标签，description → 字段说明）。
+DocType JSON 同时给同 msgid 的术语表行定角色（label → 标签，description → 字段说明，Select 选项 → 选项），
+只有 System Manager 能读的 DocType 的标签与说明算管理后台。调用点（frappe.throw(_())、placeholder=、subject=、
+aria-* …）也给词条定角色（callsite_roles），优先于按键名猜。
 """
 
 from __future__ import annotations
@@ -50,6 +59,10 @@ PYTHON = re.compile(r"^apps/.*\.py$")
 DESK_JS = re.compile(r"^apps/[^/]+/[^/]+/(public/.*|.*/(doctype|page)/[^/]+/[^/]+)\.js$")
 FRONTEND = re.compile(r"^frontend/assistant/src/.*\.(tsx|ts)$")
 HTML = re.compile(r"^apps/[^/]+/[^/]+/(www/.*|templates/emails/[^/]+)\.html$")
+COMPANION_CODE = re.compile(r"^companion/src/companion/(?!i18n\.py$)[^/]+\.py$")
+# 调用点角色：这些文件里看 frappe.throw(_())、placeholder=、subject=、aria-* … 怎么用一条词条
+CALLSITE_FILES = re.compile(r"^(apps/.*\.(py|js)|frontend/(src|assistant/src)/.*\.(vue|ts|tsx|js))$")
+ADMIN_ROLES = {"System Manager", "Administrator"}
 
 # keep-cjk.tsv 里整文件豁免（`*`）、但内容本身是给用户看的四语表：按 AST 取模块里以语言为键的 dict。
 # 以后 keep-cjk 再加"规格："整文件豁免，必须登记在这里或 NOT_COPY_SPEC（tests/test_check_copy.py 守着）。
@@ -553,32 +566,69 @@ def table_entries(path: str, text: str) -> list:
     return out
 
 
-# ── DocType JSON：给术语表行定角色 ──────────────────────────────────────────
+# ── DocType JSON：给术语表行定角色；新写的 label / description / 选项要在字典里 ──────
 
 
-def doctype_roles(text: str) -> dict:
-    try:
-        data = json.loads(text)
-    except ValueError:
-        return {}
-    roles = {}
+def _doctype_values(data):
+    """[(文字, 角色)]：label → 标签，description → 字段说明，Select 的 options 逐行 → 选项。"""
+    out = []
 
-    def visit(node, depth=0):
+    def visit(node):
         if isinstance(node, dict):
+            select = node.get("fieldtype") == "Select"
             for key, value in node.items():
                 if isinstance(value, str) and value.strip():
                     if key == "description":
-                        roles.setdefault(value.strip(), "field_desc")
+                        out.append((value.strip(), "field_desc"))
                     elif key == "label":
-                        roles.setdefault(value.strip(), "label")
-                else:
-                    visit(value, depth + 1)
+                        out.append((value.strip(), "label"))
+                    elif key == "options" and select:
+                        for option in value.split("\n"):
+                            if option.strip() and LETTERS.search(option):
+                                out.append((option.strip(), "option"))
+                elif not isinstance(value, str):
+                    visit(value)
         elif isinstance(node, list):
             for item in node:
-                visit(item, depth + 1)
+                visit(item)
 
     visit(data)
-    return roles
+    return out
+
+
+def doctype_info(text: str):
+    """(角色表 {文字: 角色}, 是否只有 System Manager / Administrator 能读)。"""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return {}, False
+    roles = {}
+    for value, role in _doctype_values(data):
+        roles.setdefault(value, role)
+    perms = {p.get("role") for p in data.get("permissions", []) if isinstance(p, dict)} if isinstance(data, dict) else set()
+    admin = bool(perms) and perms <= ADMIN_ROLES
+    return roles, admin
+
+
+def doctype_roles(text: str) -> dict:
+    return doctype_info(text)[0]
+
+
+def doctype_refs(path: str, text: str) -> list:
+    """DocType JSON 里的 label / description / Select 选项：差异模式只看新写的，要求在术语表或 Frappe 自带词里。"""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return []
+    out, seen = [], set()
+    for value, role in _doctype_values(data):
+        # Select 选项多是取值码（cowork / erp / zh），Desk 有译文才显示译文：只要求 label 与 description 进字典
+        if role == "option" or value in seen or not LETTERS.search(value):
+            continue
+        seen.add(value)
+        pos = text.find(json.dumps(value, ensure_ascii=False)[1:-1])
+        out.append(CodeRef("doctype-text", value, path, _line_of(text, pos) if pos >= 0 else 0))
+    return out
 
 
 # ── 6. Python ────────────────────────────────────────────────────────────────
@@ -593,6 +643,49 @@ def _call_name(node) -> str:
     return ""
 
 
+def _joined_text(node) -> str:
+    """f-string 的文字部分，{…} 记作 {x}。"""
+    parts = []
+    for value in node.values:
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            parts.append(value.value)
+        else:
+            parts.append("{x}")
+    return "".join(parts)
+
+
+def _literal_text(node):
+    """字符串常量或 f-string 的文字；别的返回 None。"""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        return _joined_text(node)
+    return None
+
+
+def _is_frappe_attr(node, names) -> bool:
+    func = node.func
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr in names
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "frappe"
+    )
+
+
+def _is_translate(node) -> bool:
+    return isinstance(node, ast.Call) and _call_name(node) in TRANSLATE_CALLS and isinstance(node.func, ast.Name)
+
+
+def _add_leaves(node, leaves, inner):
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        inner.add(id(node))
+        _add_leaves(node.left, leaves, inner)
+        _add_leaves(node.right, leaves, inner)
+    else:
+        leaves.append(node)
+
+
 def python_refs(path: str, text: str) -> list:
     try:
         tree = ast.parse(text)
@@ -600,22 +693,61 @@ def python_refs(path: str, text: str) -> list:
         return []
     tool_file = "/assistant/" in path
     out = []
+    seen_binops: set = set()
+
+    def bare(node, value, line):
+        if value is not None and LETTERS.search(value) and not KEY_LIKE.match(value.strip()):
+            out.append(CodeRef("py-bare", value, path, line))
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             name = _call_name(node)
             first = node.args[0] if node.args else None
             literal = isinstance(first, ast.Constant) and isinstance(first.value, str)
-            if name in TRANSLATE_CALLS and literal:
-                out.append(CodeRef("py-msgid", first.value, path, node.lineno))
+            if name in TRANSLATE_CALLS and isinstance(node.func, ast.Name):
+                if literal:
+                    out.append(CodeRef("py-msgid", first.value, path, node.lineno))
+                elif isinstance(first, (ast.JoinedStr, ast.BinOp)) or (
+                    isinstance(first, ast.Call) and isinstance(first.func, ast.Attribute) and first.func.attr == "format"
+                ):
+                    shown = _literal_text(first) or ast.unparse(first)
+                    if not KEY_PREFIX.match(shown):
+                        out.append(CodeRef("py-dynamic", shown[:80], path, node.lineno))
+            elif _is_frappe_attr(node, ("throw", "msgprint")):
+                bare(node, _literal_text(first) if first is not None else None, node.lineno)
+                for keyword in node.keywords:
+                    if keyword.arg in ("msg", "title"):
+                        bare(node, _literal_text(keyword.value), node.lineno)
+            elif _is_frappe_attr(node, ("publish_realtime",)):
+                if literal and first.value == "msgprint" and len(node.args) > 1:
+                    bare(node, _literal_text(node.args[1]), node.lineno)
+                for keyword in node.keywords:
+                    if keyword.arg == "message" and literal and first.value == "msgprint":
+                        bare(node, _literal_text(keyword.value), node.lineno)
             elif (
-                name in ("throw", "msgprint")
-                and isinstance(node.func, ast.Attribute)
+                isinstance(node.func, ast.Attribute)
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id == "frappe"
-                and literal
-                and " " in first.value.strip()
+                and node.func.attr.endswith("Error")
+                and first is not None
             ):
-                out.append(CodeRef("py-bare", first.value, path, node.lineno))
+                bare(node, _literal_text(first), node.lineno)
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add) and id(node) not in seen_binops:
+            leaves: list = []
+            _add_leaves(node, leaves, seen_binops)
+            translated = [leaf for leaf in leaves if _is_translate(leaf)]
+            literals = [leaf for leaf in leaves
+                        if isinstance(leaf, ast.Constant) and isinstance(leaf.value, str) and LETTERS.search(leaf.value)]
+            if len(translated) >= 2 or (translated and literals):
+                parts = []
+                for leaf in leaves:
+                    if _is_translate(leaf) and leaf.args and isinstance(leaf.args[0], ast.Constant):
+                        parts.append("_(%s)" % leaf.args[0].value)
+                    elif isinstance(leaf, ast.Constant) and isinstance(leaf.value, str):
+                        parts.append(repr(leaf.value))
+                    else:
+                        parts.append("…")
+                out.append(CodeRef("py-concat", " + ".join(parts)[:80], path, node.lineno))
         elif isinstance(node, ast.Dict) and tool_file:
             for k, v in zip(node.keys, node.values):
                 if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
@@ -626,7 +758,7 @@ def python_refs(path: str, text: str) -> list:
                     for sub in v.values:
                         if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
                             out.append(CodeRef("tool-label", sub.value, path, sub.lineno))
-        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
             if any(isinstance(t, ast.Name) and t.id.endswith("STEP_NAMES") for t in node.targets):
                 for sub in node.value.values:
                     if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
@@ -634,26 +766,131 @@ def python_refs(path: str, text: str) -> list:
     return out
 
 
+# ── CC 桌面版程序（i18n.py 以外）─────────────────────────────────────────────
+
+# Qt 控件与通知：这些调用的字符串参数是界面文案，要走 i18n.py 的 t("键")
+COMPANION_UI_CALLS = {
+    "QLabel", "QPushButton", "QToolButton", "QAction", "QCheckBox", "QRadioButton", "QGroupBox", "QMenu",
+    "setText", "setWindowTitle", "setToolTip", "setPlaceholderText", "setInformativeText", "setStatusTip",
+    "setDetailedText", "addAction", "addMenu", "showMessage", "_notify", "notify", "show_toast",
+    "showinfo", "showerror", "showwarning", "askyesno", "askokcancel",
+}
+# QMessageBox.information / warning / critical / question：只认 QMessageBox 的静态调用（logger.warning 是日志）
+COMPANION_BOX_CALLS = {"information", "warning", "critical", "question", "about"}
+COMPANION_UI_KEYWORDS = {"text", "title", "message", "body", "tooltip"}
+COMPANION_BRANDS = re.compile(r"^(CC|CC Desktop|Pearnly|Express|MR\.ERP|DMS|LINE)$")
+
+
+def companion_refs(path: str, text: str) -> list:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    out = []
+
+    def hard(value, line):
+        if value is None or not LETTERS.search(value) or COMPANION_BRANDS.match(value.strip()):
+            return
+        if not re.search(r"[A-Za-z]{2,}.*\s|" + CJK_THAI.pattern, value):
+            return  # 单个英文词多半是对象名 / 样式名
+        out.append(CodeRef("cc-desktop-hard", value[:80], path, line))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = _call_name(node)
+            if name == "t" and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                out.append(CodeRef("cc-desktop-key", node.args[0].value, path, node.lineno))
+            elif name in COMPANION_UI_CALLS or (
+                name in COMPANION_BOX_CALLS and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name) and node.func.value.id == "QMessageBox"
+            ):
+                for arg in node.args:
+                    hard(_literal_text(arg), node.lineno)
+                for keyword in node.keywords:
+                    if keyword.arg in COMPANION_UI_KEYWORDS:
+                        hard(_literal_text(keyword.value), node.lineno)
+        elif isinstance(node, ast.Dict):
+            for k, v in zip(node.keys, node.values):
+                if isinstance(k, ast.Constant) and k.value == "message":
+                    hard(_literal_text(v), v.lineno)
+    return out
+
+
 # ── 7. Desk JS ───────────────────────────────────────────────────────────────
 
 KEY_LIKE = re.compile(r"^[A-Za-z][\w-]*(\.[\w-]+)+$")
+# 按键族取词条（`_(f"cowork.work.status.{status}")`、`'erp.detail.' + code`）：拼的是语义键，不是句子，放行
+KEY_PREFIX = re.compile(r"^['\"]?[a-z][\w-]*(\.[\w-]+)*\.['\"]?(\{x\}|\s*\+\s*\w+)$")
+
+
+DESK_BARE_CALLS = {"msgprint", "throw", "confirm", "show_alert", "prompt", "set_intro", "set_headline",
+                   "set_headline_alert", "show_progress"}
+DESK_BARE_KEYS = {"message", "title", "msg", "primary_action_label", "secondary_action_label"}
+_WORDS2 = re.compile(r"[A-Za-z]{2,}\W+[A-Za-z]{2,}")
+_HTML_TAG = re.compile(r"<[^<>]*>?|&\w+;")
+_NOT_PROSE = re.compile(r"\S+@\S+|https?://\S+|\b(Pearnly|DMS|ERP|MR\.ERP|CC|LINE|Cowork|Express)\b")
+
+
+def _first_object_strings(toks, i):
+    """toks[i] 是 {：对象第一层 message / title … 键的字面量值。"""
+    depth, out = 0, []
+    j = i
+    while j < len(toks):
+        tok = toks[j]
+        if tok.kind == "p" and tok.value in "{[(":
+            depth += 1
+        elif tok.kind == "p" and tok.value in "}])":
+            depth -= 1
+            if depth == 0:
+                break
+        elif (depth == 1 and tok.kind == "id" and tok.value in DESK_BARE_KEYS and j + 2 < len(toks)
+              and _is(toks[j + 1], ":") and toks[j + 2].kind in ("str", "tpl")):
+            out.append(toks[j + 2])
+        j += 1
+    return out
 
 
 def desk_js_refs(path: str, text: str) -> list:
     toks = js_tokens(text)
     out = []
-    for i in range(len(toks) - 2):
+    n = len(toks)
+    for i in range(n - 2):
         tok, paren, arg = toks[i], toks[i + 1], toks[i + 2]
-        if tok.kind != "id" or not _is(paren, "(") or arg.kind not in ("str", "tpl"):
+        if tok.kind != "id" or not _is(paren, "("):
             continue
-        if i > 0 and _is(toks[i - 1], "."):
+        dotted = i > 0 and _is(toks[i - 1], ".")
+        if tok.value in DESK_BARE_CALLS and (dotted or tok.value == "msgprint"):
+            if arg.kind in ("str", "tpl") and LETTERS.search(arg.value.replace("{x}", " ")):
+                out.append(CodeRef("desk-bare", arg.value, path, arg.line))
+            elif _is(arg, "{"):
+                for value in _first_object_strings(toks, i + 2):
+                    if LETTERS.search(value.value.replace("{x}", " ")):
+                        out.append(CodeRef("desk-bare", value.value, path, value.line))
             continue
-        if "{x}" in arg.value and arg.kind == "tpl":
+        if dotted or arg.kind not in ("str", "tpl"):
             continue
         if tok.value == "__":
-            out.append(CodeRef("desk-msgid", arg.value, path, arg.line))
+            if "{x}" in arg.value and arg.kind == "tpl":
+                if not KEY_PREFIX.match(arg.value):
+                    out.append(CodeRef("desk-dynamic", arg.value, path, arg.line))
+            else:
+                out.append(CodeRef("desk-msgid", arg.value, path, arg.line))
         elif tok.value == "t" and KEY_LIKE.match(arg.value):
             out.append(CodeRef("desk-key", arg.value, path, arg.line))
+    # 拼接：__() 与字面量或另一个 __() 用 + 连成一句
+    for i, tok in enumerate(toks):
+        if not _is(tok, "+"):
+            continue
+        neighbours = [toks[j] for j in (i - 1, i + 1) if 0 <= j < n]
+        literal = next((x for x in neighbours if x.kind == "str" and _WORDS2.search(_HTML_TAG.sub(" ", x.value))), None)
+        window = toks[max(0, i - 12):i + 13]
+        translated = sum(1 for k, x in enumerate(window) if x.kind == "id" and x.value == "__"
+                         and k + 1 < len(window) and _is(window[k + 1], "("))
+        if (literal is not None and translated) or (translated >= 2 and (_is(toks[i - 1], ")") and i + 1 < n and (
+                (toks[i + 1].kind == "id" and toks[i + 1].value == "__")
+                or (toks[i + 1].kind == "str" and i + 3 < n and _is(toks[i + 2], "+")
+                    and toks[i + 3].kind == "id" and toks[i + 3].value == "__")))):
+            out.append(CodeRef("desk-concat", (literal.value if literal else "__() + __()")[:80], path, tok.line))
     return out
 
 
@@ -661,21 +898,88 @@ def desk_js_refs(path: str, text: str) -> list:
 
 _TSX_BLOCK_COMMENT = re.compile(r"\{\s*/\*.*?\*/\s*\}|/\*.*?\*/", re.S)
 _TSX_LINE_COMMENT = re.compile(r"(?<![:\"'\w/])//[^\n]*")
-_TSX_ATTR = re.compile(
-    r"(?<![\w-])(title|aria-label|placeholder|alt|label)=(?:\"([^\"]*)\"|'([^']*)'|\{\s*\"([^\"]*)\"\s*\})"
-)
+TSX_TEXT_ATTRS = ("title", "aria-label", "aria-description", "placeholder", "alt", "label", "content", "description",
+                  "message", "tooltip", "helperText", "emptyText", "confirmText", "cancelText")
+_TSX_ATTR = re.compile(r"(?<![\w-])(%s)=" % "|".join(re.escape(a) for a in TSX_TEXT_ATTRS))
 _TSX_TEXT = re.compile(r"(?<=[^\s=\-])>([^<>{}]+)<")
+_TSX_CHILD_LITERAL = re.compile(r"(?<![=\w$])\{\s*(\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'|`[^`]*`)\s*\}")
+# JSX 文本里像代码的片段（泛型、比较、箭头函数、三元）不算文案；英文问句、括号说明、& 照样算文案
 _TSX_CODEISH = re.compile(
-    r"[;=()&|?\[\]]|\b(const|return|let|if|else|null|undefined|true|false)\b|=>|^[\s:,]|\w:\s*$"
+    r"[;={}\[\]]|=>|&&|\|\||\b(const|return|let|if|else|null|undefined|true|false|typeof|void)\b"
+    r"|^[\s:,?&|]|\w:\s*$|\?\s*[\w.]+\s*:|\w\(|^\s*\)|^\s*\((\.\.\.)?\w+\??:"
 )
 _TSX_TR = re.compile(r"\btr\(\s*(?:\"([^\"]+)\"|'([^']+)')\s*[,)]")
 _TSX_T = re.compile(r"(?<![\w.])t\(\s*\"([A-Za-z][\w.]*)\"\s*\)")
+_TSX_CONCAT = re.compile(
+    r"\{\s*(?:t|tr)\([^{}]*\)\s*\}\s*(?:\{\s*[\"'][^\"'A-Za-z\u4e00-\u9fff]*[\"']\s*\}\s*)?\{\s*(?:t|tr)\("
+    r"|`[^`]*\$\{\s*(?:t|tr)\([^`]*\$\{\s*(?:t|tr)\([^`]*`"
+)
+_TOAST_CALLS = {"alert", "confirm", "prompt"}
 LETTERS = re.compile(r"[A-Za-zก-๛一-鿿]")
 SHORTCUT = re.compile(r"^(Ctrl|⌘|Shift|Alt)[ +].{1,3}$")
+_TRANSLATORS = {"t", "tr", "__", "_", "cn", "clsx", "twMerge"}
 
 
 def _line_of(text: str, pos: int) -> int:
     return text.count("\n", 0, pos) + 1
+
+
+def _brace_end(src: str, i: int) -> int:
+    """src[i] 是 {：返回配对的 } 之后的位置（跳过字符串与模板串）。"""
+    depth, j, n = 0, i, len(src)
+    while j < n:
+        c = src[j]
+        if c in "\"'":
+            _, j = _string(src, j)
+            continue
+        if c == "`":
+            _, j, _lines = _template(src, j)
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return j + 1
+        j += 1
+    return n
+
+
+def _shown(value: str) -> bool:
+    """去掉占位 {x} 与分隔符后还有字母，且不是快捷键、点分键名。"""
+    rest = value.replace("{x}", " ")
+    return bool(LETTERS.search(rest)) and not SHORTCUT.match(value.strip()) and not KEY_LIKE.match(value.strip())
+
+
+def _display_literals(expr: str) -> list:
+    """属性表达式里会显示出来的字面量：不在 t() / tr() / cn() 调用里（含 t(a ? "x" : "y")），不是比较对象、
+    对象键、下标，也不是表达式里嵌套 JSX 的属性值（className="…"）。"""
+    toks = js_tokens(expr)
+    out = []
+    calls: list = []  # 每层括号是谁的调用
+    for k, tok in enumerate(toks):
+        prev = toks[k - 1] if k else None
+        if _is(tok, "("):
+            calls.append(prev.value if prev is not None and prev.kind == "id" else None)
+            continue
+        if _is(tok, ")"):
+            if calls:
+                calls.pop()
+            continue
+        if tok.kind not in ("str", "tpl") or not _shown(tok.value):
+            continue
+        if any(name in _TRANSLATORS for name in calls):
+            continue
+        nxt = toks[k + 1] if k + 1 < len(toks) else None
+        if (prev is not None and prev.kind == "p" and prev.value in ("===", "!==", "==", "!=", "=")) or (
+                nxt is not None and nxt.kind == "p" and nxt.value in ("===", "!==", "==", "!=")):
+            continue
+        if _is(nxt, ":") and (prev is None or (prev.kind == "p" and prev.value in "{,")):
+            continue  # 对象键（三元的 a ? "x" : "y" 不算）
+        if _is(prev, "[") or _is(nxt, "]"):
+            continue
+        out.append(tok.value)
+    return out
 
 
 def frontend_refs(path: str, text: str) -> list:
@@ -686,12 +990,37 @@ def frontend_refs(path: str, text: str) -> list:
         out.append(CodeRef("tsx-tr", match.group(1) or match.group(2), path, _line_of(src, match.start())))
     for match in _TSX_T.finditer(src):
         out.append(CodeRef("tsx-t", match.group(1), path, _line_of(src, match.start())))
+    for match in _TSX_CONCAT.finditer(src):
+        out.append(CodeRef("tsx-concat", " ".join(match.group(0).split())[:80], path, _line_of(src, match.start())))
+    # toast.*() / alert() / confirm()：首参写死
+    toks = js_tokens(src)
+    for k in range(len(toks) - 2):
+        tok, paren, arg = toks[k], toks[k + 1], toks[k + 2]
+        if tok.kind != "id" or not _is(paren, "(") or arg.kind not in ("str", "tpl") or not _shown(arg.value):
+            continue
+        dotted = k > 0 and _is(toks[k - 1], ".")
+        owner = toks[k - 2] if dotted and k > 1 else None
+        if (dotted and owner is not None and owner.kind == "id" and owner.value == "toast") or (
+                tok.value in _TOAST_CALLS and (not dotted or (owner is not None and owner.value == "window"))):
+            name = "toast.%s" % tok.value if dotted and owner is not None and owner.value == "toast" else tok.value
+            out.append(CodeRef("tsx-attr", "%s=%s" % (name, arg.value), path, arg.line))
     if not path.endswith(".tsx"):
         return out
     for match in _TSX_ATTR.finditer(src):
-        value = next(g for g in match.groups()[1:] if g is not None)
-        if LETTERS.search(value) and not SHORTCUT.match(value.strip()):
-            out.append(CodeRef("tsx-attr", "%s=%s" % (match.group(1), value), path, _line_of(src, match.start())))
+        start = match.end()
+        name = match.group(1)
+        if start >= len(src):
+            continue
+        if src[start] in "\"'":
+            value, _ = _string(src, start)
+            values = [value]
+        elif src[start] == "{":
+            values = _display_literals(src[start + 1:_brace_end(src, start) - 1])
+        else:
+            continue
+        for value in values:
+            if _shown(value):
+                out.append(CodeRef("tsx-attr", "%s=%s" % (name, value), path, _line_of(src, match.start())))
     for match in _TSX_TEXT.finditer(src):
         value = " ".join(match.group(1).split())
         if not value or not LETTERS.search(value) or _TSX_CODEISH.search(value):
@@ -699,6 +1028,12 @@ def frontend_refs(path: str, text: str) -> list:
         if SHORTCUT.match(value):
             continue
         out.append(CodeRef("tsx-text", value, path, _line_of(src, match.start())))
+    for match in _TSX_CHILD_LITERAL.finditer(src):
+        raw = match.group(1)
+        value = _template(raw, 0)[0] if raw[0] == "`" else _string(raw, 0)[0]
+        value = " ".join(value.split())
+        if value and _shown(value):
+            out.append(CodeRef("tsx-text", value, path, _line_of(src, match.start())))
     return out
 
 
@@ -707,6 +1042,8 @@ def frontend_refs(path: str, text: str) -> list:
 _HTML_DROP = re.compile(r"<!--.*?-->|\{#.*?#\}|<script\b.*?</script>|<style\b.*?</style>", re.S | re.I)
 _JINJA = re.compile(r"\{\{.*?\}\}|\{%.*?%\}", re.S)
 _JINJA_MSGID = re.compile(r"(?<![\w.])(?:_|t)\(\s*(?:\"([^\"]+)\"|'([^']+)')")
+_HTML_TEXT = re.compile(r">([^<>]+)<")
+_HTML_ATTR = re.compile(r"(?<![\w-])(title|placeholder|alt|aria-label)=\"([^\"{}]*)\"")
 _CJK_RUN = re.compile(r"[一-鿿ก-๛　-〿！-｠][^<>\n{}]*")
 
 
@@ -721,6 +1058,15 @@ def html_refs(path: str, text: str) -> list:
         value = match.group(0).strip()
         if CJK_THAI.search(value):
             out.append(CodeRef("html-cjk", value[:80], path, _line_of(plain, match.start())))
+    # 写死的英文：标签外 ≥ 2 个英文词的文本，与 title / placeholder / alt / aria-label 属性
+    for match in _HTML_TEXT.finditer(plain):
+        value = " ".join(match.group(1).split())
+        if value and _WORDS2.search(_NOT_PROSE.sub(" ", value)) and not CJK_THAI.search(value):
+            out.append(CodeRef("html-hard", value[:80], path, _line_of(plain, match.start())))
+    for match in _HTML_ATTR.finditer(plain):
+        value = " ".join(match.group(2).split())
+        if value and re.search(r"[A-Za-z]{2,}", _NOT_PROSE.sub(" ", value)) and not CJK_THAI.search(value):
+            out.append(CodeRef("html-hard", "%s=%s" % (match.group(1), value[:70]), path, _line_of(plain, match.start())))
     return out
 
 
@@ -735,11 +1081,16 @@ def code_refs(path: str, text: str) -> list:
         return [] if path == ASSISTANT_I18N or path.endswith((".test.ts", ".test.tsx")) else frontend_refs(path, text)
     if HTML.match(path):
         return html_refs(path, text)
+    if COMPANION_CODE.match(path):
+        return [] if excluded(path) else companion_refs(path, text)
+    if DOCTYPE_JSON.match(path):
+        return doctype_refs(path, text)
     return []
 
 
 def is_code(path: str) -> bool:
-    return bool(PYTHON.match(path) or DESK_JS.match(path) or FRONTEND.match(path) or HTML.match(path))
+    return bool(PYTHON.match(path) or DESK_JS.match(path) or FRONTEND.match(path) or HTML.match(path)
+                or COMPANION_CODE.match(path) or DOCTYPE_JSON.match(path))
 
 
 # ── 汇总：一棵树里的全部字典 ────────────────────────────────────────────────
@@ -753,8 +1104,11 @@ class Snapshot:
     translations: dict  # 路径 -> msgid 集合
     assistant_keys: set  # i18n.ts 的 MESSAGES 键（TSX 里 t("…") 用）
     roles: dict  # en 文案 -> 角色（DocType JSON）
-    glossary_lines: dict  # 术语表路径 -> 行列表（配对 msgid 改写用）
-    glossary_line_ids: dict  # 术语表路径 -> {行号: 词条 id}
+    glossary_lines: dict  # 字典文件路径 -> 行列表（配对 msgid 改写、换键改字用；术语表以外的字典文件也在里面）
+    glossary_line_ids: dict  # 字典文件路径 -> {行号: 词条 id}
+    companion_keys: set = field(default_factory=set)  # CC 桌面版 i18n.py 的 _M 键
+    admin_values: set = field(default_factory=set)  # 只出现在 System Manager 专用 DocType 里的 label / description / 选项
+    email_msgids: set = field(default_factory=set)  # 邮件模板用到的 msgid
 
 
 def snapshot(tree) -> Snapshot:
@@ -770,10 +1124,12 @@ def snapshot(tree) -> Snapshot:
     glossary_msgids: dict = {}
     translations: dict = {}
     roles: dict = {}
+    admin_seen: dict = {}  # 文字 -> 是否每次都出现在管理员专用 DocType 里
     keycloak_files: dict = {}
     glossary_lines: dict = {}
     glossary_line_ids: dict = {}
     assistant_keys: set = set()
+    companion_keys: set = set()
 
     def add(items):
         for item in items:
@@ -801,24 +1157,96 @@ def snapshot(tree) -> Snapshot:
         elif KEYCLOAK.match(path):
             keycloak_files[path] = text
         elif DOCTYPE_JSON.match(path):
-            for value, role in doctype_roles(text).items():
+            found, admin = doctype_info(text)
+            for value, role in found.items():
                 roles.setdefault(value, role)
+                admin_seen[value] = admin_seen.get(value, True) and admin
         elif path == ASSISTANT_I18N:
             items = assistant_entries(path, text)
             add(items)
             assistant_keys = {item.key.split(".", 1)[1] for item in items if item.key.startswith("MESSAGES.")}
         elif path == COMPANION_I18N:
-            add(companion_entries(path, text))
+            items = companion_entries(path, text)
+            add(items)
+            companion_keys = {item.key for item in items}
         elif path in TABLE_MODULES:
             add(table_entries(path, text))
     add(keycloak_entries(keycloak_files))
-    # 邮件模板里 t("…") / _("…") 用到的词条按「邮件」角色判（正文可以长、可以有致谢与问候）
+    # 其他字典文件（i18n.ts、CC 桌面版、Keycloak、四语表）也记下每行对应的词条：换键同时改字按位置配对
+    for entry in entries.values():
+        path, _, line = entry.loc.rpartition(":")
+        if not path or path in glossary_line_ids or not line.isdigit():
+            continue
+        if path not in glossary_lines:
+            text = tree.read(path)
+            if text is None:
+                continue
+            glossary_lines[path] = text.split("\n")
+        glossary_line_ids.setdefault("~" + path, {})[int(line)] = entry.id
+    for key in [k for k in glossary_line_ids if k.startswith("~")]:
+        glossary_line_ids[key[1:]] = glossary_line_ids.pop(key)
+    admin_values = {value for value, admin in admin_seen.items() if admin}
+    for entry in entries.values():
+        if entry.source.startswith("pearnly_") and entry.texts.get("en") in admin_values:
+            entry.extra["doctype_admin"] = True
+    # 邮件模板里 t("…") / _("…") 用到的词条：只被邮件模板引用时按「邮件」角色判（见 callsite_roles 的 elsewhere）
     email_paths = [p for p in paths if HTML.match(p) and "/templates/emails/" in p]
     tree.prefetch(email_paths)
     in_email = {ref.text for p in email_paths for ref in html_refs(p, tree.read(p) or "") if ref.kind == "html-msgid"}
     for entry in entries.values():
         if entry.source.startswith("pearnly_") and (entry.texts.get("en") in in_email or entry.key in in_email):
-            entry.hint_role = "email"
+            entry.extra["in_email"] = True
     msgids.discard("")
     return Snapshot(entries, msgids, glossary_msgids, translations, assistant_keys, roles,
-                    glossary_lines, glossary_line_ids)
+                    glossary_lines, glossary_line_ids, companion_keys, admin_values, in_email)
+
+
+# ── 调用点角色 ───────────────────────────────────────────────────────────────
+
+_Q = r"(?:\"((?:[^\"\\\n]|\\.)*)\"|'((?:[^'\\\n]|\\.)*)')"
+_TR = r"(?:_|__|_lt|t|tr|\$t)\(\s*" + _Q
+CALLSITE_PATTERNS = (
+    (re.compile(r"frappe\.(?:throw|msgprint)\(\s*(?:msg\s*=\s*)?" + _TR), "error"),
+    (re.compile(r"(?<![\w.])msgprint\(\s*" + _TR), "error"),
+    (re.compile(r"frappe\.confirm\(\s*" + _TR), "confirm"),
+    (re.compile(r"show_alert\(\s*(?:\{\s*message\s*:\s*)?" + _TR), "hint"),
+    (re.compile(r"\bsubject\s*[=:]\s*(?:[\w.$]+\(\s*)?" + _Q), "email"),
+    (re.compile(r"(?<![\w-])(?::placeholder|placeholder)\s*[=:]\s*[\"{]?\s*" + _TR), "placeholder"),
+    (re.compile(r"[\"']?\bdescription[\"']?\s*:\s*" + _TR), "field_desc"),
+    (re.compile(r"(?<![\w-])aria-[\w-]+\s*=\s*[\"{]?\s*" + _TR), "sr"),
+)
+_ANY_TR = re.compile(r"(?<![\w.$])" + _TR)
+_SR_PROPS = re.compile(r"(?:screenReaderInstructions|announcements|aria-[\w-]+)\s*[:=]\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}")
+# 出错优先：同一条词条既在 throw 里又在别处，按最宽的角色判（防止误拦）
+_ROLE_RANK = {"email": 0, "confirm": 6, "error": 5, "field_desc": 4, "hint": 3, "placeholder": 2, "sr": 1}
+
+
+def _unquote(match) -> str:
+    raw = match.group(1) if match.group(1) is not None else match.group(2)
+    return re.sub(r"\\(.)", lambda m: {"n": "\n", "t": "\t"}.get(m.group(1), m.group(1)), raw)
+
+
+def callsite_roles(tree) -> dict:
+    """{msgid 或键: 角色}；另有 "prop:sr"（交给读屏的对象属性名）、"elsewhere"（邮件模板以外也用到的 msgid）。"""
+    paths = [p for p in tree.paths() if CALLSITE_FILES.match(p) and not excluded(p)]
+    tree.prefetch(paths)
+    roles: dict = {}
+    sr_props: set = set()
+    elsewhere: set = set()
+    for path in paths:
+        text = tree.read(path)
+        if not text:
+            continue
+        for pattern, role in CALLSITE_PATTERNS:
+            for match in pattern.finditer(text):
+                value = _unquote(match)
+                current = roles.get(value)
+                if current is None or _ROLE_RANK.get(role, 0) > _ROLE_RANK.get(current, 0):
+                    roles[value] = role
+        for match in _ANY_TR.finditer(text):
+            elsewhere.add(_unquote(match))
+        for match in _SR_PROPS.finditer(text):
+            sr_props |= set(re.findall(r"\.(\w+)", match.group(1)))
+    roles["prop:sr"] = sr_props
+    roles["elsewhere"] = elsewhere
+    return roles

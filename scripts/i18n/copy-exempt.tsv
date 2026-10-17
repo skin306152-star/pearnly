@@ -5,15 +5,16 @@
 #
 # 格式（制表符分隔）：范围 <TAB> 规则 <TAB> 文案 <TAB> 原因
 #   范围   <来源>:<键>          某一条词条（来源:键 的写法同 copy-approved.tsv）
-#          术语:<词>[@<来源>]   业务专名，只对 R-DEV / R-MIX 生效；@ 后写适用的来源（如 @pearnly_cowork）
+#          术语:<词>@<来源>     业务专名，只对 R-DEV / R-MIX 生效；必须写 @ 适用的来源（如 @pearnly_cowork），
+#                               术语不能正好是开发术语词表里的一个词（「术语:接口」不行，「术语:Channel Access Token」可以）
 #          代码:<路径>          某个文件里的一处代码引用（R-HARD），文案列写引用原文
-#   规则   逗号分隔的规则 ID（R-LEN、R-SENT、R-WHY、R-TALK、R-WE、R-HINT、R-NARR、R-DEV、R-MIX、R-PAREN、R-EG、
-#          R-HELLO、R-EMPTY、R-NAME、R-ALIGN、R-LINE20、R-HARD），不许 *
+#   规则   逗号分隔的规则 ID（R-LEN、R-SENT、R-WHY、R-HEDGE、R-TALK、R-WE、R-HINT、R-NARR、R-DEV、R-MIX、R-PAREN、R-EG、
+#          R-HELLO、R-EMOJI、R-EMPTY、R-NAME、R-ALIGN、R-LINE20、R-HARD、R-CONCAT），不许 *；R-CHG、R-EXEMPT、R-RULES 不能豁免
 #   文案   登记时的完整当前文案（有中文写中文，没有写英文；换行写 \n）；术语行写词本身
 #   原因   具体理由，≥ 6 个字，不能只写「历史遗留 / 需要 / 暂时 / 同上」
 #
 # ── 已定稿的例外（2026-10-17 建闸门时登记）
-pearnly_dms:dms.card.TXT_MENU_GREETING	R-HELLO,R-TALK	你好 🙏\n欢迎使用 Pearnly DMS\n请选择下方菜单开始使用	LINE 加好友欢迎语，只在加好友时出现一次，已定稿上线
+pearnly_dms:dms.card.TXT_MENU_GREETING	R-HELLO,R-EMOJI,R-TALK	你好 🙏\n欢迎使用 Pearnly DMS\n请选择下方菜单开始使用	LINE 加好友欢迎语，只在加好友时出现一次，已定稿上线
 assistant:MESSAGES.placeholder	R-HELLO,R-WE	今天我能为您做些什么？	对照 Claude 网页版输入框占位的官方说法（CC 前端照 Claude 做，已定稿）
 assistant:MESSAGES.morning	R-HELLO	早上好	对照 Claude 网页版首页按时段的问候语（CC 前端照 Claude 做，已定稿）
 assistant:MESSAGES.afternoon	R-HELLO	下午好	同 MESSAGES.morning：Claude 网页版首页问候语，按时段

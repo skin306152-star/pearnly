@@ -66,8 +66,9 @@ def render_report(ctx) -> str:
         lines += ["| 来源·键 | 角色 | 中文 旧 → 新 | English | ไทย | 日本語 | 标记 | 登记 |", "|---|---|---|---|---|---|---|---|"]
         for change in changed:
             new, old = change.entry, change.old
+            # 新文案不截断：用户确认后，这一节原样贴进 docs/work 记录，登记的出处要逐字找得到新文案
             pair = lambda lang: (  # noqa: E731
-                "%s → %s" % (cell(old.texts.get(lang), 30), cell(new.texts.get(lang), 30))
+                "%s → %s" % (cell(old.texts.get(lang), 30), cell(new.texts.get(lang), 0))
                 if lang in change.langs else cell(new.texts.get(lang))
             )
             lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
@@ -162,7 +163,8 @@ def render_console(ctx) -> str:
                 finding.rule, finding.entry_id or "—", finding.lang or "", finding.snippet, finding.message, finding.loc))
         out.append("")
         if any(f.rule == "R-CHG" for f in blocks):
-            out.append("改已有文案要先给用户看：把 --report 清单第 1 节给用户确认后，按确认登记到 scripts/i18n/copy-approved.tsv。")
+            out.append("改已有文案要先给用户看：把 --report 清单第 1 节贴进 docs/work 记录给用户确认，确认后登记到 "
+                       "scripts/i18n/copy-approved.tsv（出处写那份记录的路径）。")
         out.append("口径：官方、简短、陈述事实；不写原因、过程、提示、欢迎语和开发说明，不用口语。")
         out.append("改文案过闸；确属例外的逐条登记 scripts/i18n/copy-exempt.tsv（绑定文案、写原因）。细则见 docs/development/interface-copy.md。")
     elif warns:

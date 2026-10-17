@@ -3,35 +3,51 @@
 #
 # 格式（制表符分隔）：规则 <TAB> 语言 <TAB> 级别 <TAB> 正则 <TAB> 说明
 #   语言：zh / en / th / ja / any（四种都查）/ key（对键名查）
-#   级别：block 拦 / warn 只标黄 / soft 只在纯终端界面拦（R-DEV-TERM）/ allow 白名单（R-MIX-OK、R-PAREN-OK、R-EMPTY 开头）/ keypat 键名模式（R-LINE20-KEY）
+#   级别：block 拦 / warn 只标黄 / soft 只在纯终端界面拦、其他标黄（R-DEV-TERM）/ escalate 命中基础词后判是否升为拦截（R-NARR）/
+#         allow 白名单（R-MIX-OK、R-PAREN-OK、R-EMPTY、R-WE-OK、R-NAME-OK、R-EMOJI-STATUS）/
+#         keypat 键名模式（R-LINE20-KEY、R-PROMPT-KEY、R-GUIDE-KEY）
 #   正则按 Python re 写；占位符 {0} / {name} / ${…} / %s 在判之前已换成 ◇，HTML 标签已去掉。
 #
-# ── R-WHY 原因解释（邮件除外，命中即拦）
-R-WHY	zh	block	因为|由于|所以|因此|以便|为了|免得|以免|否则|这样(就|才)|所致|多为|如果.{1,12}就|也就是|换句话说	解释原因，界面只写事实
-R-WHY	en	block	(?i)\b(because|so that|in order to|otherwise|which means|this means)\b|, so\b	解释原因
+# ── R-WHY 原因解释（邮件除外，命中即拦）。英文 / 泰文命中、同一词条的中文不命中时降为标黄（中文是权威语言：
+#    「资料未确认，无法推送」的英文写成 ", so it cannot be pushed" 是同一个事实加后果）。泰文 เนื่องจาก / เพราะ 在出错角色只标黄
+#    （Frappe th.po 42 处、ERPNext th.po 112 处用 เนื่องจาก 写报错）。
+R-WHY	zh	block	因为|由于|所以|因此|以便|为了|免得|以免|否则|这样(就|才)|所致|多为|如果.{1,12}就|也就是|换句话说|为避免|(?<![可难])避免|防止|为防|取决于|视.{1,6}而定	解释原因，界面只写事实
+R-WHY	en	block	(?i)\b(because|so that|in order to|which means|this means|due to|to avoid|to prevent|depending on|as a result)\b|(^|[,;]\s*)since\b(?!\s+(last|the last|yesterday|today|◇|\d))|,\s*so\b|(^|[.;,]\s*)otherwise\b(?!\s*(specified|stated|noted))	解释原因（"unless otherwise specified" / "say otherwise" 是固定用法；"Active since" 是时间）
 R-WHY	th	block	เพราะ|เนื่องจาก|เพื่อให้|ดังนั้น|มิฉะนั้น	解释原因
-# ── R-TALK 口语（所有角色，命中即拦）
-R-TALK	zh	block	这(个|张|条|台|份|几|次|里|边|家)|那(个|条|张|台|里)|上面|下面	指代口语，用「此 / 该」
-R-TALK	zh	block	[删改读连推录登查找对看拿用做搞]不(掉|到|上|了|出|过)|没法|一下|搞|弄|就行|就好|的话|其实|放心|别担心	可能补语与口头语，用「无法 / 未」
-R-TALK	zh	block	还没|已经.{0,8}了|了[。！？]?$	进度口语，用「未 / 已」
+# ── R-HEDGE 推测原因（同 R-WHY：英文 / 泰文以中文为准降级）
+R-HEDGE	zh	block	可能(是|因为|会|需要|已|要)|或许|也许|大概|估计是	推测，界面只写确定的事实
+R-HEDGE	en	block	\b(may|might|probably|likely|perhaps)\b	推测（只认小写：月份 May 不算）
+R-HEDGE	th	block	อาจจะ|น่าจะ	推测
+# ── R-TALK 口语（所有角色，命中即拦；「替用户发给 CC 的话」除外，见 R-PROMPT-KEY）
+R-TALK	zh	block	这(些|一|个|张|条|台|份|几|次|里|边|家)|那(些|一|个|条|张|台|里)	指代口语，用「此 / 该 / 以下」
+R-TALK	zh	block	[删改读连推录登查对看拿用做搞]不(掉|到|上|了|出|过)|没法|一下(?![载发拉单])|搞|弄|就行|就好|的话|其实|放心|别担心|就是|清掉|一.都没有|再试一次|试试|好的|马上|稍等|片刻	可能补语与口头语，用「无法 / 未」（「找不到」是 Frappe 官方出错写法，见下一行）
+R-TALK	zh	warn	找不到	Frappe 官方出错也写「找不到{0}」，建议写「未找到」
+R-TALK	zh	block	还没|已经.{0,8}了|了$|了[。！？，,；]	进度口语，用「未 / 已」
 R-TALK	zh	block	(.)不\1	A不A 问句，用「是否」
-R-TALK	zh	block	[吧呢哦啦呀嘛][。！？]?$|您可以|你可以|～	语气词
+R-TALK	zh	block	[吧呢哦啦呀嘛][。！？]?$|您可以|你可以|(?<!\d)～|～(?!\s*\d)	语气词（数值范围 1～50 不算）
+R-TALK	zh	warn	^(上面|下面)|(上面|下面)的?(会|将|是)	方位指代，用「上方 / 下方」
 R-TALK	zh	block	你(?!们)	第二人称口语，用「您」或省略
-R-TALK	zh	block	^要(?!求|素|点|件)|只[\u4e00-\u9fff]{1,4}了	口语叙述（「要人选」「只统计了一部分」），用「需选择」「仅统计部分」
-R-TALK	en	block	(?i)\b(just|simply|really|actually|feel free|let's|oops|don't worry|go ahead|you can also)\b	口语
+R-TALK	zh	block	^要(?!求|素|点|件|货|约|闻)[\u4e00-\u9fff]{1,3}$|只[\u4e00-\u9fff]{1,4}了	口语叙述（「要人选」「只统计了一部分」），用「需选择」「仅统计部分」；「要…吗？」确认句、「要跟踪的单据类型」这类定语、要货 / 要约不算
+R-TALK	en	block	(?i)\b(just(?!\s+now)|simply|really|feel free|let's|oops|don't worry|go ahead|you can also|looks like|get started|click here|learn more about|you'll need)\b|(^|[,;]\s*)actually\b	口语（"just now" 是 Frappe 官方相对时间；"as actually credited" 是语义不是口头语）
 R-TALK	th	block	(ครับ|ค่ะ|คะ|จ้า|จ้ะ|เถอะ|หรอก|นะคะ|นะครับ|อันนี้|ตรงนี้)(?![ก-ฮเ-ไ])	语气词与指代口语；后面紧跟辅音/前置元音的是别的词（คะแนน、ค่าจ้าง）
-# ── R-WE 第一人称（邮件除外）
-R-WE	zh	block	我们|咱们|(?<!自)我(?![的方])	第一人称；「我的 / 我方」是导航名词
-R-WE	en	block	(?i:\bwe\b|\bour\b)|(?<![Cc]ontact )\bus\b	第一人称；Contact us 除外
-R-WE	th	block	(?<![ก-๙])(เรา|พวกเรา|ผม|ฉัน)(?![ก-๙])	第一人称
+R-TALK	th	block	คุณสามารถ|ของคุณเลย|เลย$|แป๊บ|(?<!คำ)นึง	口语（you can、แป๊บนึง）；句末单独的 นะ 不判（สถานะ、ข้อเสนอแนะ、ยานพาหนะ 都以 นะ 结尾）
+# ── R-WE 第一人称与服务腔（邮件除外）
+R-WE	zh	block	我们|咱们|(?<!自)我(?![的方])|为您|帮您	第一人称与服务腔；「我的 / 我方」是导航名词
+R-WE-OK	zh	allow	关于我们|联系我们	Frappe 官方「About Us」「Contact Us」的中文
+R-WE	en	block	(?i:\bwe\b|\bour\b)|(?<![Cc]ontact )(?<![Aa]bout )\bus\b	第一人称；Contact us / About us 除外
+R-WE	th	block	^(เรา(?!เตอร์)|พวกเรา|ผม|ฉัน)|(ให้|(?<!เกี่ยว)กับ|ของ)เรา(?!เตอร์)|ติดต่อเรา.+|เรา(จะ|ไม่|กำลัง|ได้)	第一人称（泰文词间不留空格，按搭配认；ติดต่อเรา 单独是 Contact us，เกี่ยวกับเรา 是 About us）
 # ── R-HINT 提示语头
-R-HINT	zh	block	请注意|注意[：:]|提示[：:]|说明[：:]|温馨|小贴士|友情提示	提示语头
-R-HINT	en	block	(?i)(please note|\bnote:|\btip:|heads up)	提示语头
+R-HINT	zh	block	请注意|注意[：:]|提示[：:]|说明[：:]|温馨|小贴士|小提示|友情提示|^注[：:]|^备注[：:]|^建议(先|您|你|在|将|使用|不要|尽快|及时)	提示语头（「建议零售价」「建议索引」这类名词不算）
+R-HINT	en	block	(?i)(please note|note that|\bnote:|\btip:|heads[- ]up|\bFYI\b)	提示语头
 R-HINT	th	block	โปรดทราบ|หมายเหตุ\s*[：:]|ข้อควรระวัง	提示语头（单独的 หมายเหตุ 是「备注」栏名，不拦）
-# ── R-NARR 交代系统行为（单句标黄，≥2 句拦）
-R-NARR	zh	warn	会自动|将自动|系统会|系统将|接下来|稍后会|将会|目前|暂时(?!无)	交代系统行为
-R-NARR	en	warn	(?i)(will automatically|the system will|for now)	交代系统行为
-R-NARR	th	warn	ระบบจะ|โดยอัตโนมัติ	交代系统行为
+# ── R-NARR 交代系统行为：命中基础词单句标黄；≥ 2 句，或 ≥ 2 个分句且带 escalate 词时拦（英文 / 泰文以中文为准降级；
+#    出错角色里「系统会 / 将 + 读取 / 重试 / 继续」只标黄，权限引导只标黄）
+R-NARR	zh	warn	会自动|将自动|系统会|系统将|接下来|稍后会|将会|目前|暂时(?!无)|会先|再同步|在后台|后台(运行|读取|同步|处理)|完成后自动|自动(刷新|同步|通知|重试|推送)	交代系统行为
+R-NARR	zh	escalate	(?<![机社])会(?![计员话议])|再(?!次|试)|完成后自动	分句里还在讲"之后会怎样"
+R-NARR	en	warn	(?i)(will automatically|the system will|for now|in the background|\bautomatically\b)	交代系统行为
+R-NARR	en	escalate	(?i)\b(will|then)\b	分句里还在讲"之后会怎样"
+R-NARR	th	warn	ระบบจะ|อัตโนมัติ|เบื้องหลัง	交代系统行为
+R-NARR	th	escalate	จะ	分句里还在讲"之后会怎样"
 # ── R-DEV 开发痕迹：硬痕迹任何角色都拦；强术语在产品界面拦、管理后台标黄；弱术语只在纯终端界面拦
 R-DEV-HARD	any	block	(?<![{\w])[a-z]+_[a-z0-9_]+(?![\w}])	snake_case 标识符
 R-DEV-HARD	any	block	\w+\(\)	函数调用
@@ -39,35 +55,42 @@ R-DEV-HARD	any	block	\b[A-Z][A-Z0-9]*_[A-Z0-9_]{3,}\b	环境变量 / 错误码�
 R-DEV-HARD	any	block	docs/|\.py\b|\.md\b	开发文档与源码路径
 R-DEV-HARD	any	block	\*\*|`	Markdown 记号
 R-DEV-HARD	any	block	(?m)^#{1,6}\s	Markdown 标题
-R-DEV-HARD	en	block	(?i)\b(legacy|old product|new platform|not implemented|ported|TODO|source of truth|hard-?coded)\b	迁移笔记
-R-DEV-HARD	zh	block	旧产品|老产品|旧系统|新平台|未实现|未移植|唯一来源|写死	迁移笔记
-R-DEV-TERM	zh	block	接口|后端|前端|回退|兜底|缓存|载荷|幂等|租约|死锁|回显|适配器|端点|执行器|站点配置|环境变量	开发术语（强）：产品界面拦，管理后台标黄
-R-DEV-TERM	zh	soft	字段|令牌|队列|调用|参数	开发术语（弱）：CC 网页 / CC 桌面版 / LINE 卡片 / 登录页拦，Desk 标黄（Frappe 官方中文也用「字段」）
-R-DEV-TERM	en	block	(?i)\b(API|backend|frontend|payload|cache[ds]?|fallback|JSON|nonce|idempot\w*|lease|endpoint|adapter|schema|msgid|doctype|fieldname|debug|realm|Redis|synchroni[sz]er)\b	开发术语（强）
-R-DEV-TERM	en	soft	(?i)\b(token|webhook|queue[ds]?|worker)\b	开发术语（弱）
-R-DEV-TERM	en	warn	\bID\b	ID 只标黄
-R-DEV-TERM	th	block	แคช|แบ็กเอนด์|เอพีไอ	开发术语（强）
-R-DEV-TERM	th	soft	ฟิลด์|โทเคน	开发术语（弱）
-# ── R-HELLO 欢迎语、寒暄、表情、感叹号（邮件除外）
-R-HELLO	zh	block	欢迎使用|欢迎来到|你好|您好|感谢|尊敬|今天我能为您	寒暄
-R-HELLO	en	block	(?i)\bwelcome\b(?!\s+(e-?mail|message|mail))|\b(hello|hi there|thank you)\b	寒暄；「欢迎邮件」这类功能名除外
-R-HELLO	th	block	ยินดีต้อนรับ|สวัสดี|ขอบคุณ	寒暄
-R-HELLO	any	block	[\U0001F000-\U0001FAFF\u2600-\u26FF\u2764\u2728]	表情
+R-DEV-HARD	en	block	(?i)\b(legacy|old product|new platform|not implemented|ported|TODO|source of truth|hard-?coded|under development|coming soon)\b	迁移笔记与开发中
+R-DEV-HARD	zh	block	旧产品|老产品|旧系统|新平台|未实现(?!(汇兑)?损益|收益|利润)|未移植|唯一来源|写死|开发中|正在开发	迁移笔记与开发中（「未实现汇兑损益」是会计术语）
+R-DEV-TERM	zh	block	接口|后端|前端|(?<!不能)(?<!不可)(?<!无法)回退(?!到上一)|兜底|缓存|载荷|幂等|租约|死锁|回显|适配器|端点|执行器|站点配置|环境变量|降级|本地副本	开发术语（强）：产品界面拦，管理后台标黄（「状态不能回退」是业务说法）
+R-DEV-TERM	zh	soft	字段|令牌|队列|参数|拉取	开发术语（弱）：CC 网页 / CC 桌面版 / LINE 卡片 / 登录页拦，Desk 标黄（Frappe 官方中文也用「字段」）
+R-DEV-TERM	zh	warn	调用	「调用」在 CC 网页也可能是正常说法，只标黄
+R-DEV-TERM	en	block	(?i)\b(API|backend|frontend|payload|cache[ds]?|fallback|nonce|idempot\w*|endpoint|adapter|schema|msgid|doctype|fieldname|debug|realm|Redis|synchroni[sz]er)\b|\blease\s+(expir\w*|owner|holder|token|until)\b|\b(acquir\w*|renew\w*|releas\w*)\s+(the\s+)?lease\b	开发术语（强）；lease 只在锁与租约语境（DMS 的 Lease 是车贷付款方式）
+R-DEV-TERM	en	soft	(?i)\b(token|webhook|queues?|worker|sync(ed|ing)?)\b	开发术语（弱）；Queued 是 Frappe 官方状态，不算
+R-DEV-TERM	en	warn	\bID\b|\bJSON\b	ID、JSON 只标黄（JSON 是 Frappe 官方字段类型与导出格式）
+R-DEV-TERM	th	block	แคช(?!เชียร์)|แบ็กเอนด์|เอพีไอ	开发术语（强）（แคชเชียร์ 是收银员 / 银行本票）
+R-DEV-TERM	th	soft	ฟิลด์|โทเคน|โทเค็น|ซิงค์	开发术语（弱）
+# ── R-HELLO 欢迎语、寒暄、道歉、感叹号（邮件除外）
+R-HELLO	zh	block	欢迎使用|欢迎来到|你好|您好|感谢|尊敬|今天我能为您|抱歉|不好意思|敬请期待	寒暄与道歉
+R-HELLO	en	block	(?i)\bwelcome\b(?!\s+(e-?mail|message|mail))|\b(hello|hi there|thank you|sorry)\b	寒暄与道歉；「欢迎邮件」这类功能名除外
+R-HELLO	th	block	ยินดีต้อนรับ|สวัสดี|ขอบคุณ|ขออภัย	寒暄与道歉
 R-HELLO	any	block	[!！]	感叹号
+# ── R-EMOJI 表情（邮件除外）：装饰性表情拦；导出表 / 状态 / 标签里打头的状态符号（⚠ ✓ ❗ 🟡 🔍 …，配图例）只标黄
+R-EMOJI	any	block	[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B50\u2B55]	表情
+R-EMOJI-STATUS	any	allow	[⚠✓✔✗✘❗❌◌○●◆★☆☐☑☒✎🟡🟢🔴🟠🔍]	状态符号（导出表里任何位置；状态 / 标签 / 选项里要打头）
 # ── R-EG 举例（只允许在占位、出错、字段说明、LINE 问答里）
 R-EG	any	block	例如|比如|如：|(?i:e\.g\.|for example)|เช่น	举例
 # ── R-PAREN 括号补充：括号里带解释词就拦，其他长括号标黄
-R-PAREN-WHY	zh	block	可能|如|即|或|仅|也|会|例如|括号内	括号里的解释词
-R-PAREN-WHY	en	block	(?i)(e\.g\.|i\.e\.|\b(for example|such as|may|will|only|also)\b)	括号里的解释词
-R-PAREN-WHY	th	block	เช่น|อาจ|เท่านั้น	括号里的解释词
+R-PAREN-WHY	zh	block	可能|例如|比如|如有需要|即可|也可以|也会|将会|会自动|括号内|拿它|用它|它|他们|用户(会|要|可|拿|用)|会(先|在|把)|要(先|把)|将(会|自动|把)|被	括号里的解释词与动词从句（单字「或 / 会 / 即 / 如 / 仅 / 也」不判：枚举、会计、立即都会误中）
+R-PAREN-WHY	en	block	(?i:e\.g\.|i\.e\.|\b(for example|such as|will|also)\b)|\bmay\b	括号里的解释词（may 只认小写，月份 May 不算；only 同中文「仅」不判：「(a cover or summary page only)」是陈述）
+R-PAREN-WHY	th	block	เช่น|อาจจะ|เท่านั้น	括号里的解释词
 R-PAREN-OK	any	allow	^(ภ\.[งพ]\.\S+|[\d\s,.%\-/:◇]+|◇|[A-Z0-9 .\-/]+|\.\w+(\s*[,/、]\s*\.\w+)*)$	表单名、数字、占位、全大写代码、扩展名
 # ── R-EMPTY 空态只写事实
-R-EMPTY	zh	allow	^(暂无|无|尚无|未)|没有|为空	空态写法：暂无… / 没有… / …为空
-R-EMPTY	en	allow	(?i)^no\b|\bno\b|\bempty\b|\bnothing\b	空态写法：No … / … is empty
-R-EMPTY	th	allow	ไม่มี|ว่าง	空态写法
-R-EMPTY-GUIDE	any	block	请点击|请点|点击右上|(?i:\b(use|tap|click)\b)|กรุณากด	空态后接操作引导
-# ── R-LINE20 LINE 快捷按钮键（四语都 ≤ 20 字符，LINE 平台硬限制）
-R-LINE20-KEY	key	keypat	^dms\.card\.(.+\.)?BTN_	DMS LINE 卡片按钮
+R-EMPTY	zh	allow	暂无|尚无|^无|^未|没有|为空|缺少|无$	空态写法：暂无… / 没有… / …为空 / 缺少…
+R-EMPTY	en	allow	(?i)^no\b|\bno\b|\bempty\b|\bnothing\b|\bmissing\b|\bnone\b	空态写法：No … / … is empty / … missing
+R-EMPTY	th	allow	ไม่มี|ว่าง|ไม่พบ	空态写法（ไม่พบ 是 Frappe / ERPNext 官方空态写法）
+R-EMPTY-GUIDE	any	block	请点击|请点|点击右上|(?i:\b(tap|click)\b)|\bUse\s+[“"「]|กรุณากด	空态后接操作引导（"No devices in use" 的 use 是名词，不算）
+# ── R-NAME 旧称：词表复用 tests/test_cc_desktop_name.py（含它的 ALLOWED）；这里只补岗位名一类业务短语（先去掉再判）
+R-NAME-OK	any	allow	销售助手|(?i:sales assistant|assistant manager)|ผู้ช่วยผู้จัดการ\S*|ผู้ช่วยฝ่าย\S*|ผู้ช่วยพนักงาน\S*	岗位名，不是 CC 或 CC 桌面版
+# ── 键名模式
+R-LINE20-KEY	key	keypat	^dms\.card\.(.+\.)?BTN_	DMS LINE 卡片按钮（四语都 ≤ 20 字符，LINE 平台硬限制）
 R-LINE20-KEY	key	keypat	(?i)quick_?reply|\.qr\.|\bQR_	LINE quick reply
-# ── R-MIX 中 / 泰文里夹的英文：白名单里的品牌与业务词不标；其余标黄（命中 R-DEV 术语的由 R-DEV 拦）
+R-PROMPT-KEY	key	keypat	^COMPANY\.(.+\.)?\w*Text$|^COMPANY\.(.+\.)?handToCC\w*$	CC 网页里预填进输入框、由用户自己发给 CC 的话（useStartIn / composer.setText）：只判长度、开发痕迹、旧称
+R-GUIDE-KEY	key	keypat	^common\.scan\.	相机等权限引导（「相机权限三步」）：最多 3 句，长度按提示放宽，交代系统行为只标黄
+# ── R-MIX 中 / 泰文里夹的英文：白名单里的品牌与业务词不标；其余标黄（命中 R-DEV 英文术语的由 R-DEV 判）
 R-MIX-OK	any	allow	^(CC|Pearnly|Express|MR|ERP|DMS|LINE|Excel|PDF|CSV|POS|VAT|OCR|PEAK|Xero|Cowork|LIFF|URL|Windows|Mac|iPhone|iPad|Android|Safari|Chrome|Google|Gmail|Drive|Cloud|Storage|Email|App|Desk|Frappe|Keycloak|Bench|Channel|Secret|Access|Token|Messaging|Login|Rich|Menu|Flex|QR|SMS|OTP|Wi|Fi|JPG|JPEG|PNG|HEIC|XLSX|XLS|DBF|Zip|ZIP|Word|Sheet|Sheets|Dock|Share|Home|Screen|Key|Webhook|Document|AI|Tax|Invoice|Bot|Notify|PromptPay|SCB|KBank|KBANK|BBL|KTB|BAY|TTB|GSB|UOB|CIMB|Bangkok|Krungsri|Kasikorn|Krungthai|Toyota|Honda|Isuzu|Mitsubishi|Nissan|Mazda|Ford|Microsoft|Office|Outlook|Apple|PIN|Pro|Plus|Max|Mini|Lite|New|Beta|GB|MB|KB|THB|USD|CNY|JPY|UTC|ISO|HTTPS|HTTP|WWW|COM|Visa|Mastercard|Stripe)$	品牌与业务词

@@ -204,8 +204,9 @@ jobs:
         run: python3 tests/test_check_copy.py
       - name: Keep new and changed interface copy short and official (changed copy needs the user's go-ahead)
         env:
-          COPY_GATE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
-        run: python3 scripts/check-copy.py --strict --report --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          # PR：合并提交的第一个父提交就是 GitHub 实际合并到的 base（payload 里的 base.sha 可能已过时）；推 main：event.before
+          COPY_GATE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
+        run: python3 scripts/check-copy.py --report --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
       - name: Check frontend translation keys
         run: python3 scripts/check-frontend-i18n.py --strict
       - name: Check whitespace

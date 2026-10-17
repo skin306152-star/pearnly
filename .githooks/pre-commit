@@ -30,9 +30,10 @@ if [ "$architecture" = yes ]; then
     python3 "$staged/scripts/check-architecture.py"
 fi
 if [ "$copy" = yes ]; then
-    # Branches not yet rebased onto a main that has the gate skip it here; branch CI and the pre-push check run it after the rebase.
+    # Only problems this commit introduces (HEAD -> staged snapshot) block here; the whole branch is checked by branch CI.
+    # Branches not yet rebased onto a main that has the gate skip it here; branch CI runs it after the rebase.
     if [ -f "$staged/scripts/check-copy.py" ]; then
-        python3 "$staged/scripts/check-copy.py" --strict --tree "$staged"
+        python3 "$staged/scripts/check-copy.py" --staged --tree "$staged"
     else
         echo 'pre-commit: the interface copy gate is not in this branch yet; rebase onto origin/main to pick it up.' >&2
     fi

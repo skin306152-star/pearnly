@@ -9,7 +9,11 @@
          原因 = 具体理由，≥ 6 个字，不能只写「历史遗留 / 需要 / 暂时 / 同上」
 
 登记   来源:键 <TAB> 语言 <TAB> 新文案 <TAB> 同意日期 <TAB> 出处
-         新文案必须和当前值完全一致；之后再改要新登记一行。出处指向可追查的位置（主对话日期 + 窗口、docs/work 记录、提交说明）。
+         新文案必须和当前值完全一致；之后再改要新登记一行。出处必须写本仓 docs/work/*.md 里的一份记录，且那份记录逐字
+         包含新文案（把 --report 清单第 1 节贴进去给用户确认）—— 开发代理不能凭一句"主对话确认过"就自己放行。
+
+术语行必须写 @来源，且术语本身不能正好是 R-DEV-TERM 词表里的一个词（只能比它长，例如「Channel Access Token」），
+否则「术语:接口」一行就能让全仓的「接口」过闸。
 """
 
 from __future__ import annotations
@@ -20,12 +24,13 @@ from dataclasses import dataclass
 from . import rules, sources
 
 EXEMPTABLE = {
-    "R-LEN", "R-SENT", "R-WHY", "R-TALK", "R-WE", "R-HINT", "R-NARR", "R-DEV", "R-MIX", "R-PAREN",
-    "R-EG", "R-HELLO", "R-EMPTY", "R-NAME", "R-ALIGN", "R-LINE20", "R-HARD",
+    "R-LEN", "R-SENT", "R-WHY", "R-HEDGE", "R-TALK", "R-WE", "R-HINT", "R-NARR", "R-DEV", "R-MIX", "R-PAREN",
+    "R-EG", "R-HELLO", "R-EMOJI", "R-EMPTY", "R-NAME", "R-ALIGN", "R-LINE20", "R-HARD", "R-CONCAT",
 }
 TERM_RULES = {"R-DEV", "R-MIX"}
 VAGUE = {"历史遗留", "需要", "暂时", "同上", "无", "-", "—", "略"}
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+WORK_DOC = re.compile(r"docs/work/[^\s；;，,、）)]+\.md")
 
 
 @dataclass
@@ -59,8 +64,24 @@ def _problem(message: str, where: str, snippet: str = "") -> rules.Finding:
     return rules.Finding("R-EXEMPT", "block", "", snippet[:80], message, "", where)
 
 
+def _stale(message: str, where: str, scope: str) -> rules.Finding:
+    finding = _problem(message, where, scope)
+    finding.stale_scope = scope
+    return finding
+
+
+def report_cell(text: str) -> str:
+    """--report 清单里文案的写法（| 转义、换行 ⏎）：登记的出处记录里贴的是清单，两种写法都认。"""
+    return text.replace("\n", "⏎").replace("|", "\\|")
+
+
+def doc_has(doc: str, text: str) -> bool:
+    return text in doc or report_cell(text) in doc
+
+
 class Policy:
-    def __init__(self, exempt_rows: list, approved_rows: list, exempt_name: str, approved_name: str):
+    def __init__(self, exempt_rows: list, approved_rows: list, exempt_name: str, approved_name: str,
+                 dev_patterns: list = ()):
         self.problems = []
         self.exemptions = []
         self.approvals = []
@@ -84,6 +105,15 @@ class Policy:
             if scope.startswith("术语:") and not ids <= TERM_RULES:
                 self.problems.append(_problem("术语行只能豁免 R-DEV / R-MIX", where, scope))
                 continue
+            if scope.startswith("术语:"):
+                word, _, origin = scope[3:].partition("@")
+                if not origin.strip():
+                    self.problems.append(_problem("术语行要写 @来源（只对那个来源生效）", where, scope))
+                    continue
+                if any(p.fullmatch(word.strip()) for p in dev_patterns):
+                    self.problems.append(_problem("术语不能正好是开发术语词表里的词（要写完整专名，如 Channel Access Token）",
+                                                  where, scope))
+                    continue
             if not text:
                 self.problems.append(_problem("豁免要绑定文案（术语行写词本身）", where, scope))
                 continue
@@ -98,6 +128,25 @@ class Policy:
                 self.problems.append(_problem("登记行格式不对（语言 zh/en/th/ja，日期 YYYY-MM-DD，出处要可追查）", where, ident))
                 continue
             self.approvals.append(Approval(ident, lang, text.replace("\\n", "\n"), date, src, line))
+        self._approved = {(a.ident, a.lang, a.text) for a in self.approvals}
+
+    def verify_sources(self, read, approved_name: str) -> None:
+        """出处必须是本仓 docs/work/*.md 里的一份记录，且逐字包含新文案；不满足的登记不算数、报 R-EXEMPT。
+
+        read(路径) 读登记表所在那棵树（本工作树 / 暂存快照）里的文件。"""
+        kept = []
+        for item in self.approvals:
+            where = "%s:%d" % (approved_name, item.line)
+            docs = WORK_DOC.findall(item.where)
+            if not docs:
+                self.problems.append(_problem("登记的出处要写 docs/work/*.md 记录路径（记录里贴着给用户确认的清单）", where, item.ident))
+                continue
+            texts = [read(path) for path in docs]
+            if not any(doc is not None and doc_has(doc, item.text) for doc in texts):
+                self.problems.append(_problem("出处记录里找不到这条新文案（%s）" % "、".join(docs), where, item.text))
+                continue
+            kept.append(item)
+        self.approvals = kept
         self._approved = {(a.ident, a.lang, a.text) for a in self.approvals}
 
     @property
@@ -126,8 +175,10 @@ class Policy:
     def approved(self, ident: str, lang: str, text: str) -> bool:
         return (ident, lang, text) in self._approved
 
-    def validate(self, snap, tree, exempt_name: str) -> list:
-        """失效的豁免：键已不存在、文案已变、代码引用已不在文件里。"""
+    def validate(self, snap, tree, exempt_name: str, touched: set = None) -> list:
+        """失效的豁免：键已不存在、文案已变、代码引用已不在文件里。
+
+        touched：提交钩子只看本次提交时传本次动过的词条 id —— 别的提交留下的失效豁免只标黄（分支 CI 会拦）。"""
         out = list(self.problems)
         for item in self.exemptions:
             where = "%s:%d" % (exempt_name, item.line)
@@ -137,11 +188,15 @@ class Policy:
                 path = item.scope[3:]
                 text = tree.read(path)
                 if text is None or item.text not in text:
-                    out.append(_problem("豁免已失效（文件或引用已不在），请重新确认", where, item.scope))
+                    out.append(_stale("豁免已失效（文件或引用已不在），请重新确认", where, item.scope))
                 continue
             entry = snap.entries.get(item.scope)
             if entry is None:
-                out.append(_problem("豁免已失效（键已不存在），请重新确认", where, item.scope))
+                out.append(_stale("豁免已失效（键已不存在），请重新确认", where, item.scope))
             elif item.text.replace("\\n", "\n") != entry.primary:
-                out.append(_problem("豁免已失效（文案已变：现为「%s」），请重新确认" % entry.primary[:40], where, item.scope))
+                out.append(_stale("豁免已失效（文案已变：现为「%s」），请重新确认" % entry.primary[:40], where, item.scope))
+        if touched is not None:
+            for finding in out:
+                if getattr(finding, "stale_scope", None) and finding.stale_scope not in touched:
+                    finding.level = "warn"
         return out

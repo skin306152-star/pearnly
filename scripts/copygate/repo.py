@@ -16,6 +16,7 @@ import subprocess
 ROOTS = (
     "apps/",
     "frontend/assistant/src/",
+    "frontend/src/",
     "companion/src/",
     "infrastructure/keycloak/themes/",
     "scripts/i18n/",
@@ -121,8 +122,23 @@ class WorkTree:
         self._paths = None
         self._cache: dict = {}
 
+    def _git_paths(self):
+        """是 git 工作树就用 ls-files（已跟踪 + 未跟踪未忽略）：构建产物（.gitignore 里的打包 JS）不扫，
+        和 CI、提交钩子（暂存快照不含忽略文件）看到的范围一致。暂存快照目录不是 git 仓库，走遍历。"""
+        if not os.path.exists(os.path.join(self.root, ".git")):
+            return None
+        try:
+            out = git(self.root, "ls-files", "-co", "--exclude-standard", "-z", "--", *ROOTS)
+        except GitError:
+            return None
+        return sorted({p for p in out.split("\0") if p and _wanted(p) and os.path.isfile(os.path.join(self.root, p))})
+
     def paths(self) -> list:
         if self._paths is None:
+            listed = self._git_paths()
+            if listed is not None:
+                self._paths = listed
+                return self._paths
             found = []
             for top in ROOTS:
                 base = os.path.join(self.root, top)

@@ -22,12 +22,12 @@
     python3 scripts/check-copy.py --report [--out F]    # 同时输出 Markdown 清单（四语并排：新增 / 改动 / 删除 / 豁免）
     python3 scripts/check-copy.py --base <rev> --head <rev>   # 比较两个提交
     python3 scripts/check-copy.py --repo <工作树> --base origin/main   # 只读地看另一个工作树
-    python3 scripts/check-copy.py --tree <暂存快照目录>  # 提交钩子用
+    python3 scripts/check-copy.py --staged --tree <暂存快照目录>  # 提交钩子用：只比 HEAD → 暂存快照（本次提交新增的问题）
     python3 scripts/check-copy.py --audit [--strict]    # 全量审计（--all 同义）；默认退出码 0
     python3 scripts/check-copy.py --unused-keys         # 术语表里代码没引用的键（参考，不拦）
     python3 scripts/check-copy.py --approve --source "<出处>"   # 用户确认清单第 1 节后，把未登记的改动一次写进登记表
 
-退出码：差异模式有拦截 = 1；取不到基线 = 2；--strict 只影响 --audit。
+退出码：差异模式有拦截 = 1；取不到基线 = 2。--strict 只影响 --audit（差异模式本来就拦）。
 """
 
 from __future__ import annotations
@@ -51,6 +51,7 @@ APPROVED_FILE = os.path.join(HERE, "i18n", "copy-approved.tsv")
 REL_WORDS = "scripts/i18n/copy-words.tsv"
 REL_EXEMPT = "scripts/i18n/copy-exempt.tsv"
 REL_APPROVED = "scripts/i18n/copy-approved.tsv"
+UPSTREAM_FILE = os.path.join(HERE, "i18n", "upstream-msgids.txt")
 
 
 def _toplevel() -> str:
@@ -60,16 +61,29 @@ def _toplevel() -> str:
         return ROOT
 
 
-def _assign_roles(snap) -> None:
+def _assign_roles(snap, words=None, callsites=None) -> None:
+    elsewhere = (callsites or {}).get("elsewhere")
     for entry in snap.entries.values():
-        entry.role = rules.role_of(entry, snap.roles)
+        if entry.extra.get("in_email"):
+            # 邮件模板以外也用到的词条按它在界面上的角色判，只被邮件模板引用的才按邮件
+            only_email = elsewhere is None or not (entry.key in elsewhere or entry.texts.get("en") in elsewhere)
+            entry.hint_role = "email" if only_email else ""
+        entry.role = rules.role_of(entry, snap.roles, words, callsites)
         entry.surface = rules.surface_of(entry, entry.role)
 
 
-def _load_policy() -> policy.Policy:
-    return policy.Policy(
-        rules.read_tsv_rows(EXEMPT_FILE), rules.read_tsv_rows(APPROVED_FILE), REL_EXEMPT, REL_APPROVED
+def _dev_patterns(words) -> list:
+    return [p.regex for (rule, _lang), items in words.items() if rule == "R-DEV-TERM" for p in items]
+
+
+def _load_policy(words) -> policy.Policy:
+    pol = policy.Policy(
+        rules.read_tsv_rows(EXEMPT_FILE), rules.read_tsv_rows(APPROVED_FILE), REL_EXEMPT, REL_APPROVED,
+        _dev_patterns(words),
     )
+    own = repo.WorkTree(ROOT, "闸门所在树")
+    pol.verify_sources(own.read, REL_APPROVED)
+    return pol
 
 
 def _rows_from(tree, rel: str) -> set:
@@ -106,35 +120,37 @@ def check_changes(changes, checker, pol) -> list:
     return findings
 
 
-def check_refs(refs, snap, pol, known=None) -> list:
+def check_refs(refs, snap, pol, known=None, upstream=frozenset()) -> list:
     findings = []
     for ref in refs:
         exempt = pol.exempt_ref(ref)
-        findings += [f for f in rules.check_ref(ref, snap, known) if f.rule not in exempt]
+        findings += [f for f in rules.check_ref(ref, snap, known, upstream) if f.rule not in exempt]
     return findings
 
 
-def run_diff(args, root, cur_tree, cur, checker, pol) -> int:
+def run_diff(args, root, cur_tree, cur, checker, pol, upstream) -> int:
     head = args.head or "HEAD"
+    base_arg = "HEAD" if args.staged and args.base == "auto" else args.base
     try:
-        base_rev = diff.resolve_base(root, args.base, head)
+        base_rev = diff.resolve_base(root, base_arg, head)
     except diff.BaseError as exc:
         print("界面文案闸门：%s。要么设 COPY_GATE_BASE，要么先 git fetch origin main。" % exc, file=sys.stderr)
         return 2
     base_tree = repo.GitTree(root, base_rev)
     base = sources.snapshot(base_tree)
-    _assign_roles(base)
+    _assign_roles(base, checker.words)
     changes = diff.classify(base, cur)
     paths = diff.changed_code_paths(base_tree, cur_tree)
     refs = diff.new_code_refs(base_tree, cur_tree, paths) + diff.manual_translation_rows(base, cur)
 
     findings = check_changes(changes, checker, pol)
     known = set().union(*cur.glossary_msgids.values(), *base.translations.values()) if cur.glossary_msgids else set()
-    findings += check_refs(refs, cur, pol, known)
+    findings += check_refs(refs, cur, pol, known, upstream)
     # 豁免是否失效、本次新增的登记与豁免、规则改动：只在目标仓库自己带着这几张表时才比
     # （--repo 看一个还没变基到闸门的分支时，豁免表是本工作树的，和那个分支的文案对不上）
     own_config = cur_tree.read(REL_EXEMPT) is not None
-    stale = pol.validate(cur, cur_tree, REL_EXEMPT) if own_config else list(pol.problems)
+    touched = {c.ident for c in changes} if args.staged else None
+    stale = pol.validate(cur, cur_tree, REL_EXEMPT, touched) if own_config else list(pol.problems)
     findings += stale
 
     if args.approve:
@@ -150,6 +166,13 @@ def run_diff(args, root, cur_tree, cur, checker, pol) -> int:
             cur_words = cur_tree.read(REL_WORDS) or ""
             rule_diff = [line for line in difflib.unified_diff(
                 base_words.splitlines(), cur_words.splitlines(), lineterm="", n=0) if not line.startswith(("---", "+++", "@@"))]
+    # 词表删了行或改了行（放宽规则）、同一差异里又有文案新增 / 改动：拦 —— 词表改动单独提交、单独过 CI
+    loosened = [line for line in rule_diff if line.startswith("-") and line[1:].strip() and not line[1:].lstrip().startswith("#")]
+    copy_changes = [c for c in changes if c.kind in ("new", "changed", "translation")] or refs
+    if loosened and copy_changes:
+        findings.append(rules.Finding(
+            "R-RULES", "block", "", loosened[0][1:60], "词表（copy-words.tsv）删改了规则，同时又有文案新增 / 改动：词表改动单独提交、单独过 CI",
+            "", REL_WORDS))
 
     head_label = cur_tree.label
     if isinstance(cur_tree, repo.WorkTree) and not args.tree:
@@ -184,15 +207,24 @@ def run_diff(args, root, cur_tree, cur, checker, pol) -> int:
 
 
 def approve(args, root, changes, pol) -> int:
-    """用户确认清单之后：把当前全部未登记的改动写进登记表。只在用户确认之后执行（AGENTS.md）。"""
-    if not (args.source or "").strip():
-        print("--approve 要写 --source \"<出处>\"（主对话日期 + 窗口、docs/work 记录路径）", file=sys.stderr)
+    """用户确认清单之后：把当前全部未登记的改动写进登记表。只在用户确认之后执行（AGENTS.md）。
+
+    出处必须是本工作树 docs/work/*.md 里的一份记录，且记录里逐字有每条新文案（把 --report 清单第 1 节贴进去）。"""
+    source = (args.source or "").strip()
+    docs = policy.WORK_DOC.findall(source)
+    if not docs:
+        print("--approve 要写 --source \"<docs/work/….md 记录路径> …\"：记录里贴着给用户确认的清单第 1 节", file=sys.stderr)
         return 2
     if os.path.realpath(root) != os.path.realpath(ROOT):
         print("--approve 只写本工作树的登记表；请在目标工作树里运行。", file=sys.stderr)
         return 2
+    own = repo.WorkTree(ROOT)
+    texts = [own.read(path) for path in docs]
+    if not any(texts):
+        print("出处记录不存在：%s" % "、".join(docs), file=sys.stderr)
+        return 2
     today = datetime.date.today().isoformat()
-    rows = []
+    rows, missing = [], []
     for change in changes:
         if change.kind != "changed":
             continue
@@ -201,7 +233,15 @@ def approve(args, root, changes, pol) -> int:
         text = entry.texts.get(lang, "")
         if pol.approved(entry.id, lang, text):
             continue
-        rows.append("\t".join((entry.id, lang, text.replace("\n", "\\n"), today, args.source.strip())))
+        if not any(doc and policy.doc_has(doc, text) for doc in texts):
+            missing.append("%s「%s」" % (entry.id, text))
+            continue
+        rows.append("\t".join((entry.id, lang, text.replace("\n", "\\n"), today, source)))
+    if missing:
+        print("出处记录里没有这些新文案（先把清单第 1 节贴进记录、给用户确认）：", file=sys.stderr)
+        for item in missing:
+            print("  " + item, file=sys.stderr)
+        return 2
     if not rows:
         print("没有未登记的改动。")
         return 0
@@ -214,12 +254,12 @@ def approve(args, root, changes, pol) -> int:
     return 0
 
 
-def run_audit(args, cur_tree, cur, checker, pol) -> int:
+def run_audit(args, cur_tree, cur, checker, pol, upstream) -> int:
     findings = []
     for entry in cur.entries.values():
         findings += checker.check_entry(entry, set(sources.LANGS), pol.exempt_for(entry))
     refs = diff.all_code_refs(cur_tree) + diff.manual_translation_rows(None, cur)
-    findings += check_refs(refs, cur, pol)
+    findings += check_refs(refs, cur, pol, None, upstream)
     findings += pol.validate(cur, cur_tree, REL_EXEMPT)
     counts = {}
     for entry in cur.entries.values():
@@ -259,6 +299,8 @@ def main(argv=None) -> int:
     parser.add_argument("--base", default="auto", help="基线（默认 auto：COPY_GATE_BASE 或 origin/main 的 merge-base）")
     parser.add_argument("--head", help="当前版本取这个提交（默认读工作树，含未提交改动）")
     parser.add_argument("--tree", help="当前版本取这个目录（提交钩子的暂存快照）")
+    parser.add_argument("--staged", action="store_true",
+                        help="提交钩子：基线取 HEAD，只判本次提交新增的问题（分支累计的交给分支 CI）")
     parser.add_argument("--report", action="store_true", help="输出 Markdown 清单")
     parser.add_argument("--out", help="清单 / 审计写到这个文件（GITHUB_STEP_SUMMARY 追加）")
     parser.add_argument("--strict", action="store_true", help="差异模式本来就拦；--audit 时有拦截级命中退出码 1")
@@ -276,16 +318,18 @@ def main(argv=None) -> int:
         cur_tree = repo.GitTree(root, args.head)
     else:
         cur_tree = repo.WorkTree(root)
+    words = rules.load_words(WORDS_FILE)
+    upstream = rules.load_upstream(UPSTREAM_FILE)
     cur = sources.snapshot(cur_tree)
-    _assign_roles(cur)
-    pol = _load_policy()
-    checker = rules.Checker(rules.load_words(WORDS_FILE), ROOT, pol.terms)
+    _assign_roles(cur, words, sources.callsite_roles(cur_tree))
+    pol = _load_policy(words)
+    checker = rules.Checker(words, ROOT, pol.terms)
 
     if args.unused_keys:
         return run_unused(cur_tree, cur)
     if args.audit:
-        return run_audit(args, cur_tree, cur, checker, pol)
-    return run_diff(args, root, cur_tree, cur, checker, pol)
+        return run_audit(args, cur_tree, cur, checker, pol, upstream)
+    return run_diff(args, root, cur_tree, cur, checker, pol, upstream)
 
 
 if __name__ == "__main__":
