@@ -158,6 +158,24 @@ def read(kind, files, own_tax=None, text=None):
     return result
 
 
+def read_originals(kind, originals, own_tax=None):
+    """一张单据的几份原件都存在甲骨文（ERP 一次识别带几个附件）：交 ``[(对象名, sha256), …]``，甲骨文按次序读、每份先转正
+    （同 ERP 在生产上先 ``ocr.orient`` 再交 :func:`read`）、再渲染，原件字节不经过生产。检查点同 :func:`read`。"""
+    from pearnly_core.execution import work
+
+    key = f"claude:{kind}:originals:{','.join(sha for _name, sha in originals)}:{own_tax or ''}"
+    done = work.checkpoint(key)
+    if done and done.get("state") == "done" and done.get("body"):
+        return dict(done["body"], where="checkpoint")
+    result = internal("/v1/read", {"kind": kind, "own_tax": own_tax, "orient": True,
+                                   "originals": [{"object": name, "sha256": sha} for name, sha in originals]},
+                      timeout=SEND_TIMEOUT)
+    result["where"] = "oracle"
+    if result.get("read") is not None:
+        work.checkpoint(key, "done", result)
+    return result
+
+
 def read_original(kind, object_name, sha256, own_tax=None, page=None):
     """读一份存在甲骨文上的原件（原件层 ``pearnly_core.originals``）：只交对象名与 sha256，甲骨文自己读文件、
     转正、渲染、交 Claude —— 原件字节不经过生产。只走甲骨文：连不上抛 ``Deferred``，工作单稍后重试（原件本来就在那台上）。

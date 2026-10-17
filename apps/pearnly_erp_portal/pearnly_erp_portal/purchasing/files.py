@@ -3,6 +3,7 @@ import hashlib
 
 import frappe
 from frappe import _
+from pearnly_core.originals import registered
 
 from pearnly_erp_portal.purchasing import access
 
@@ -36,7 +37,7 @@ def bind(doc, attachments):
             continue
         file.db_set({"attached_to_doctype": doc.doctype, "attached_to_name": doc.name}, update_modified=False)
         doc.append("attachments", {"file": file.name, "file_url": file.file_url,
-                   "file_name": file.file_name, "kind": kind})
+                   "file_name": registered.filename(file), "kind": kind})
 
 
 def add(name, attachments):
@@ -74,12 +75,10 @@ def copy_evidence(source, target):
             continue
         file = frappe.get_doc("File", row.file)
         file.check_permission("read")
-        copied = frappe.get_doc({"doctype": "File", "file_name": file.file_name,
-            "content": file.get_content(), "is_private": 1,
-            "attached_to_doctype": target.doctype, "attached_to_name": target.name})
-        copied.insert(ignore_permissions=True)
+        # 原件在原件层的复制登记（同一份原件，不再存一次）；本机的复制字节
+        copied = registered.copy(file, attached_to_doctype=target.doctype, attached_to_name=target.name)
         target.append("attachments", {"file": copied.name, "file_url": copied.file_url,
-                      "file_name": copied.file_name, "kind": row.kind})
+                      "file_name": registered.filename(copied), "kind": row.kind})
 
 
 def combined_hash(hashes):
@@ -91,8 +90,5 @@ def evidence_hash(doc):
     for row in doc.attachments:
         if row.kind != "bill":
             continue
-        content = upload({"file": row.file}, doc).get_content()
-        if isinstance(content, str):
-            content = content.encode("utf-8")
-        hashes.append(hashlib.sha256(content).hexdigest())
+        hashes.append(registered.sha256(upload({"file": row.file}, doc)))  # 原件在原件层的取登记里的 sha256
     return combined_hash(hashes) if hashes else None

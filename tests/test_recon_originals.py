@@ -19,6 +19,7 @@ import frappe  # noqa: E402
 
 from pearnly_core.claude_ocr import client, pages, server  # noqa: E402
 from pearnly_core.ocr_models import orient  # noqa: E402
+from pearnly_core.originals import registered  # noqa: E402
 from pearnly_cowork.ocr.engine.errors import ContentError  # noqa: E402
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource  # noqa: E402
 from pearnly_cowork.recon_center import document_ocr, storage  # noqa: E402
@@ -55,7 +56,7 @@ class Files:
             values, doc = args[0], mock.Mock()
 
             def insert(**_kwargs):
-                doc.name = f"F{len(self.rows) + 1}"
+                doc.name, doc.file_name = f"F{len(self.rows) + 1}", values["file_name"]
                 self.rows[doc.name] = values
                 return doc
             doc.insert = insert
@@ -83,8 +84,8 @@ class Storage(unittest.TestCase):
 
     def put(self, ref):
         return mock.patch.object(storage.store, "put", return_value={
-            "status": "ok", "ref": ref, "md5": "m",
-            "meta": {"sha256": self.sha, "page_count": 2, "kind": "pdf", "suffix": ".pdf", "filename": "Bank.pdf"}})
+            "status": "ok", "ref": ref, "md5": "m", "meta": {"sha256": self.sha, "page_count": 2, "kind": "pdf",
+                                                            "suffix": ".pdf", "filename": "Bank.pdf", "byte_size": 9}})
 
     def test_an_upload_goes_to_the_originals_layer_and_only_a_registration_stays(self):
         ref = f"oracle://{OBJECT}#{self.sha}"
@@ -92,8 +93,9 @@ class Storage(unittest.TestCase):
             name = storage.save(self.content, "Bank.pdf")
         put.assert_called_once()
         self.assertEqual(put.call_args.args[1:], (".pdf", "Bank.pdf", self.content))
+        self.assertRegex(put.call_args.args[0], r"^CWS-[0-9a-f]{48}$")
         row = self.files.rows[name]
-        self.assertEqual(row["file_name"], storage.REF_NAME)
+        self.assertTrue(registered.NAME.fullmatch(row["file_name"]))
         self.assertLess(len(row["content"]), 1024)
         self.assertNotIn(self.content, row["content"])  # 原件一个字节也不留在这台
         with mock.patch.object(storage.store, "read", return_value=self.content) as read:
@@ -101,23 +103,13 @@ class Storage(unittest.TestCase):
         read.assert_called_once_with(ref)
         self.assertEqual(storage.stored(name), (OBJECT, self.sha))
         self.assertEqual(storage.content_hash(name), self.sha)
-        with mock.patch.object(storage.store, "delete") as delete:
-            storage.delete(name)
-        delete.assert_called_once_with([ref])
+        storage.delete(name)  # 存放处那份由 File 的扩展在删除时排任务删（RegisteredFile）
         self.assertNotIn(name, self.files.rows)
 
     def test_google_storage_gives_bucket_generation_and_sha(self):
-        name_in_bucket = OBJECT
-        with self.put(f"gs://bucket/{name_in_bucket}#7"):
+        with self.put(f"gs://bucket/{OBJECT}#7"):
             name = storage.save(self.content, "Bank.pdf")
-        self.assertEqual(storage.stored(name), ("bucket", name_in_bucket, 7, self.sha))
-
-    def test_a_failed_remote_delete_keeps_the_registration(self):
-        with self.put(f"oracle://{OBJECT}#{self.sha}"):
-            name = storage.save(self.content, "Bank.pdf")
-        with mock.patch.object(storage.store, "delete", side_effect=RuntimeError("down")), self.assertRaises(RuntimeError):
-            storage.delete(name)
-        self.assertIn(name, self.files.rows)  # 登记还在：按日志处理，不留下没人知道的原件
+        self.assertEqual(storage.stored(name), ("bucket", OBJECT, 7, self.sha))
 
     def test_without_an_originals_layer_or_when_it_refuses_the_file_stays_here(self):
         for result in (None, {"status": "rejected", "code": "pdf_pages"}):

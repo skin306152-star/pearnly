@@ -1,5 +1,4 @@
 """Explicit user-triggered OCR. No posting or external calls during read/preview."""
-import hashlib
 import json
 import mimetypes
 import re
@@ -10,7 +9,8 @@ from frappe import _
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import files
-from pearnly_erp_portal.recognition import billing, checks, dates, policy
+from pearnly_erp_portal.recognition import billing, checks, dates, originals, policy
+from pearnly_core.originals import registered
 from pearnly_core.tax_documents import amounts as doc_amounts, codes as tax_codes, rules as tax_rules
 
 PROMPT = '''Read this purchase document. Return only a JSON object containing fields actually printed:
@@ -129,33 +129,33 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
         from pearnly_erp_portal.purchasing import access
 
         context = access.get_document(document_name, write=True)
-    images, hashes = [], []
+    chosen = []
     for attachment in attachments or []:
         if attachment.get("kind", "bill") != "bill":
             continue
         file = files.upload(attachment, context)
-        mime = mimetypes.guess_type(file.file_name or "")[0]
+        mime = mimetypes.guess_type(registered.filename(file))[0]
         if mime not in ALLOWED_TYPES:
             frappe.throw(_("Only an image or a PDF can be recognised"))
-        content = file.get_content()
-        if isinstance(content, str):
-            content = content.encode("utf-8")
-        from pearnly_core.desk import heic
-
-        if heic.is_heic(content):  # 钩子上线前存下的 iPhone 照片：读之前转成 JPEG（`pearnly_core.desk.heic`）
-            content, mime = heic.to_jpeg(content), "image/jpeg"
-        images.append((content, mime))
-        hashes.append(hashlib.sha256(content).hexdigest())
-    if not images:
+        chosen.append((file, mime))
+    if not chosen:
         frappe.throw(_("File not found"))
-    # 本地转正：EXIF + 方向分类模型（免费，见 `ocr.orient`；侧着读会编商品名、读错单号）。
-    images = [ocr.orient(content, mime) for content, mime in images]
+    # 选了 Claude、附件都在甲骨文（原件层，ADR-024）：只交引用，甲骨文自己转正、渲染，原件不经过这台。
+    refs = originals.claude_originals([file for file, _mime in chosen])
+    if refs:
+        images, hashes = None, [sha for _name, sha in refs]
+        units = sum(registered.pages(file) for file, _mime in chosen)
+    else:
+        images, hashes = originals.contents(chosen)
+        # 本地转正：EXIF + 方向分类模型（免费，见 `ocr.orient`；侧着读会编商品名、读错单号）。
+        images = [ocr.orient(content, mime) for content, mime in images]
+        units = billing.pages(images)
     # 照旧线上：先便宜模型、最低思考读，过不了确定性检查才升级重读（见 `recognition.policy`）。
-    units = billing.pages(images)
     billing.gate(units)
     own_tax = re.sub(r"\D", "", str(frappe.db.get_value("ERP Company", company, "tax_id") or "")) if company else ""
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="purchase",
-                                fields=HEADER_FIELDS, finish=_finish, progress=progress, own_tax=own_tax or None)
+                                fields=HEADER_FIELDS, finish=_finish, progress=progress, own_tax=own_tax or None,
+                                originals=refs)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
     from pearnly_core.claude_ocr import client as claude_ocr

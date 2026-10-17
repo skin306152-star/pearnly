@@ -65,8 +65,9 @@ class Handler(BaseHTTPRequestHandler):
     def read(self, body):
         try:
             text = body.get("text") or None
-            if body.get("original"):
-                images = stored_pages(body["original"])
+            if body.get("original") or body.get("originals"):
+                images = (stored_pages(body["original"]) if body.get("original")
+                          else stored_set(body["originals"], orient=bool(body.get("orient"))))
                 if images is None:
                     return self._send(404, {"error": "original_missing"})
             else:
@@ -92,9 +93,8 @@ def original_path(name):
     return os.path.join(root, name)
 
 
-def stored_pages(original):
-    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；不在了回 ``None``，内容不对抛 ``ValueError``。
-    带 ``page``（对账文档逐页读）时只出这一页，做法同生产逐页渲染（``pages.frame``）。"""
+def _stored(original):
+    """原件地址 → ``(字节, 类型)``；不在了回 ``None``，内容不对抛 ``ValueError``。"""
     path = original_path(original.get("object"))
     try:
         with open(path, "rb") as handle:
@@ -106,9 +106,32 @@ def stored_pages(original):
     media_type = pages.media_type_of(path)
     if not media_type:
         raise ValueError("unsupported original")
+    return data, media_type
+
+
+def stored_set(originals, orient=False):
+    """一张单据的几份原件（ERP 一次带几个附件）按次序读；``orient``：每份先转正再出页（同 ERP 在生产上先转正再交识别）。
+    有一份不在了回 ``None``。"""
+    if not isinstance(originals, list) or not 1 <= len(originals) <= 20:
+        raise ValueError("bad originals")
+    files = []
+    for original in originals:
+        found = _stored(original)
+        if found is None:
+            return None
+        files.append(pages.upright(*found) if orient else found)
+    return pages.prepare(files)
+
+
+def stored_pages(original):
+    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；不在了回 ``None``，内容不对抛 ``ValueError``。
+    带 ``page``（对账文档逐页读）时只出这一页，做法同生产逐页渲染（``pages.frame``）。"""
+    found = _stored(original)
+    if found is None:
+        return None
     if "page" in original:
-        return pages.prepare([pages.frame(data, media_type, original["page"])])
-    return pages.prepare([(data, media_type)])
+        return pages.prepare([pages.frame(*found, original["page"])])
+    return pages.prepare([found])
 
 
 def main(handler=Handler):

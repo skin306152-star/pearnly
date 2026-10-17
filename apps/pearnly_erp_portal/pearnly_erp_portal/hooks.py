@@ -280,6 +280,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/entry-choice.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
+    versioned_asset("pearnly_erp_portal", "desk/erp-originals.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-viewer.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-form.js"),

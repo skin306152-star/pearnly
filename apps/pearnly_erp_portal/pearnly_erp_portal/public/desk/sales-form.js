@@ -114,7 +114,7 @@
 				show_preview(state.attachments.find(row => row.file_url === event.currentTarget.getAttribute("href")));
 			});
 			show_preview(state.attachments.find(row => row.file === state.preview_file) || state.attachments[0]);
-			gallery.$wrapper.toggle(state.attachments.length > 1 || state.attachments.some(row => !frappe.utils.is_image_file(row.file_url)));
+			gallery.$wrapper.toggle(state.attachments.length > 1 || state.attachments.some(row => !frappe.utils.is_image_file(row.file_name || row.file_url)));
 			attachment_list?.destroy();
 			if (!state.attachments.length) {form.fields_dict.attachment_list.$wrapper.empty(); return;}
 			attachment_list = p.list({page, container: form.fields_dict.attachment_list.$wrapper, compact_columns: true,

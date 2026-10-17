@@ -60,11 +60,13 @@ def to_raw(read, doc, label):
     return {k: v for k, v in raw.items() if v is not None}
 
 
-def read_all(images, *, structured, review, label, finish=None, progress=None, own_tax=None):
-    """与 ``policy.read_all`` 同样的返回：[(结果, 检查代码, 模型), …]，第一张在前；读不出返回 []。"""
+def read_all(images, *, structured, review, label, finish=None, progress=None, own_tax=None, originals=None):
+    """与 ``policy.read_all`` 同样的返回：[(结果, 检查代码, 模型), …]，第一张在前；读不出返回 []。
+    ``originals``：附件都在甲骨文（原件层，ADR-024）时只交引用，甲骨文按同样做法转正、渲染，原件不经过生产。"""
     if progress:
         progress(0, 1)
-    outcome = client.read("voucher", images, own_tax)
+    outcome = (client.read_originals("voucher", originals, own_tax) if originals
+               else client.read("voucher", images, own_tax))
     if progress:
         progress(1, 1)
     read = outcome.get("read")

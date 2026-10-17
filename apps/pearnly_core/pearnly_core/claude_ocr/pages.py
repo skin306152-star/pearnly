@@ -11,10 +11,12 @@ LONG_EDGE = 2000
 PDF_DPI = 170
 
 
-def _upright(data, media_type, skipped=None):
+def upright(data, media_type, skipped=None):
+    """转正（EXIF + 方向模型，同 ``pearnly_core.ocr.orient``）→ ``(字节, 类型)``。"""
     from pearnly_core.ocr_models import orient
 
     return orient.orient(data, media_type, skipped=skipped)
+
 
 
 def _save(img):
@@ -34,10 +36,10 @@ def jpeg(data, media_type, skipped=None):
 
         with pymupdf.open(stream=data, filetype="pdf") as document:
             for page in list(document)[:engine.MAX_PAGES]:
-                png, _mime = _upright(page.get_pixmap(dpi=PDF_DPI).tobytes("png"), "image/png", skipped)
+                png, _mime = upright(page.get_pixmap(dpi=PDF_DPI).tobytes("png"), "image/png", skipped)
                 out.append(_save(Image.open(io.BytesIO(png)).convert("RGB")))
         return out
-    data, media_type = _upright(data, media_type, skipped)
+    data, media_type = upright(data, media_type, skipped)
     return [_save(ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB"))]
 
 
@@ -79,7 +81,7 @@ def frame(data, media_type, number, skipped=None):
             raise ValueError("bad page")
         with Image.open(io.BytesIO(data)) as image:
             media_type = "image/" + (image.format or "png").lower()
-    return _upright(data, media_type, skipped)
+    return upright(data, media_type, skipped)
 
 
 def media_type_of(name):

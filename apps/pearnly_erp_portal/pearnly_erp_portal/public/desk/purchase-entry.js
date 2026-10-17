@@ -74,21 +74,21 @@
 				}
 			} finally {state.uploading = false; if (!state.disposed) state.sync_entry();}
 		};
+		const on_success = file => {
+			if (!file || state.disposed) return;
+			pending.push((async () => {
+				const row = {file: file.name, file_url: file.file_url, file_name: file.file_name, kind};
+				if (state.doc.name && !state.amended_from) await u.call("api_purchase_attachments", {name: state.doc.name, attachments: [row]}, true);
+				if (!state.disposed && !state.attachments.some(old => old.file === row.file)) state.attachments.push(row);
+			})());
+		};
 		const uploader = new frappe.ui.FileUploader({allow_multiple: true, allow_web_link: false, allow_google_drive: false,
 			disable_file_browser: true, allow_take_photo: true, allow_toggle_private: false,
-			make_attachments_public: false, allow_toggle_optimize: true,
-			restrictions: {allowed_file_types: ["image/*", ".pdf"], max_file_size: 20 * 1024 * 1024},
-			on_success: file => {
-				if (!file || state.disposed) return;
-				pending.push((async () => {
-					const row = {file: file.name, file_url: file.file_url, file_name: file.file_name, kind};
-					if (state.doc.name && !state.amended_from) await u.call("api_purchase_attachments", {name: state.doc.name, attachments: [row]}, true);
-					if (!state.disposed && !state.attachments.some(old => old.file === row.file)) state.attachments.push(row);
-				})());
-			},
+			make_attachments_public: false, allow_toggle_optimize: false,
+			restrictions: {allowed_file_types: ["image/*", ".pdf"], max_file_size: 20 * 1024 * 1024}, on_success,
 		});
-		const upload = uploader.upload_files.bind(uploader);
-		uploader.upload_files = async () => {
+		// 原件按租户路线存原件层（ADR-024，`erp-originals.js`），不走原生 upload_file 存本机。
+		p.erp_upload_with(uploader, "purchase", on_success, async () => {
 			started = true;
 			// 站点开关打开时照片先在浏览器里缩到识别用得上的大小（`p.shrink_photo`，默认原样）。
 			for (const item of uploader.uploader.files) {
@@ -97,8 +97,7 @@
 				if (smaller !== item.file_obj) Object.assign(item, {file_obj: smaller, name: smaller.name});
 				item.shrunk = true;
 			}
-			return upload();
-		};
+		});
 		const check = () => {
 			const files = uploader.uploader.files;
 			if (started && files.length && files.every(file => file.request_succeeded || file.failed)) {

@@ -1325,3 +1325,4 @@ Already recorded:	已记录：	บันทึกไว้แล้ว:	記録�
 Book	账面	บัญชี	帳簿	stock.count.bookShort
 Counted	实盘	นับได้	実地	stock.count.countedShort
 Diff	差异	ผลต่าง	差異	stock.count.diffShort
+The file could not be saved. Please try again shortly.	文件暂时保存不了，请稍后再试	บันทึกไฟล์ไม่สำเร็จ กรุณาลองใหม่ภายหลัง	ファイルを保存できませんでした。しばらくしてからもう一度お試しください

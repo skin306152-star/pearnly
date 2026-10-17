@@ -86,6 +86,15 @@ def _store(content, filename):
         frappe.throw(_("This document has no content"))
     if len(content) > MAX_BYTES:
         frappe.throw(_("This document is too large"))
+    # 统一原件层（ADR-024）：站点配了就交原件层存（选了 Claude → 甲骨文、谷歌租户 → 谷歌存储），本机只留登记；存放处一时
+    # 连不上抛 Deferred（识别任务按队列重试，不落本机）。原件层不收的（坏图、超页数）与没配的站点照旧存本机。
+    import uuid
+
+    from pearnly_core.originals import registered
+
+    stored = registered.put("ERO-" + (uuid.uuid4().hex + uuid.uuid4().hex)[:48], filename, content)
+    if stored is not None and not isinstance(stored, dict):
+        return stored
     return frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
                            "content": content}).insert(ignore_permissions=True)
 
@@ -93,9 +102,14 @@ def _store(content, filename):
 def _fetch(doc, filename):
     """识别任务里从 LINE 取这张图 / PDF，存成本人的私有文件，先提交 —— 识别若被限流推迟重跑，
     不会再下载一次。取不到（过期、网络、过大）就落为失败，告诉本人重发。"""
+    from pearnly_core.execution.errors import Deferred
+
     try:
         content = line.download_message_content(doc.line_message_id or "")
         file = _store(content, filename or f"line-{doc.line_message_id or 'document'}.jpg")
+    except Deferred:
+        frappe.db.rollback()
+        raise  # 原件层一时连不上：识别任务按队列稍后再来（LINE 的内容还能再取），不算失败
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="ERP LINE document download failed", message=frappe.get_traceback()[-1500:])
@@ -110,9 +124,9 @@ def _fetch(doc, filename):
 def _sibling(doc, result):
     """同一文件里的另一张单（多页 / 一张图几张票）：同样的选择，自己一份源文件（内容相同；入账时
     各挂各的，不抢同一个 File），自己一张卡、自己入账。"""
-    content = frappe.get_doc("File", _file_name(doc)).get_content()
-    file = _store(content if isinstance(content, bytes) else content.encode(), frappe.db.get_value(
-        "File", _file_name(doc), "file_name") or "document")
+    from pearnly_core.originals import registered
+
+    file = registered.copy(_file_name(doc))  # 原件在原件层的复制登记（同一份原件，不再存一次）
     fields = ("direction", "sent_by", "line_user_id", "language", "media_type", "line_message_id", "file_hash",
               "company", "party", "is_paid", "payment_method", "item_kind", "warehouse")
     return frappe.get_doc({"doctype": DOCTYPE, "status": READY, "owner": doc.sent_by, "received_at": doc.get("received_at"),
@@ -338,6 +352,10 @@ def open_for_edit(name) -> dict:
         company.set_active_company(doc.company)
     form = build_payload(doc)
     file = frappe.db.get_value("File", _file_name(doc), ["name", "file_name", "file_url"], as_dict=True)
+    from pearnly_core.originals import registered
+
+    if file and registered.NAME.fullmatch(file.file_name or ""):
+        file.file_name = registered.filename(file.name)  # 原件在原件层：给页面原文件名
     form["attachments"] = [{"file": file.name, "file_name": file.file_name, "file_url": file.file_url,
                             "kind": "bill", "intake": True}] if file else []
     if doc.direction == "purchase" and form.get("supplier"):
