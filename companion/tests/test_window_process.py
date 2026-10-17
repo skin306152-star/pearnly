@@ -188,6 +188,65 @@ def test_a_second_window_process_is_told_to_quit_and_a_leaving_one_is_replaced_o
     assert len(t.spawned) == 2
 
 
+def test_a_window_process_that_died_before_connecting_is_started_again_without_replaying_old_commands():
+    t = _Host()
+    process = SimpleNamespace(pid=4001, code=None)
+    process.poll = lambda: process.code
+    t.host._spawn_process = lambda command, cwd, env: (t.spawned.append(command), setattr(t, "env", env), process)[2]
+    t.host.open({"op": "ask", "text": "old question"})
+    t.host.open({"op": "show"})          # 还在启动：不重拉
+    assert len(t.spawned) == 1
+    process.code = 1                     # 没连上就退了（崩溃、连不上托盘）
+    t.host.open({"op": "show"})          # 不等 30 秒，马上重拉；早先的快捷提问不再重放
+    assert len(t.spawned) == 2 and t.host._pending == [{"op": "show"}]
+
+
+def test_a_late_hello_while_cc_is_quitting_is_told_to_quit():
+    t = _Host()
+    sent = []
+    t.host.quit()
+    t.host._adopt(SimpleNamespace(send=lambda op, **kw: sent.append(op), alive=True))
+    assert sent == ["quit"] and not t.host.connected
+    t.host.open({"op": "show"})          # 正在退出：不再拉起
+    assert t.spawned == []
+
+
+def test_the_packaged_tray_starts_the_window_as_a_fresh_instance(monkeypatch):
+    t = _Host()
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    t.host.open({"op": "show"})
+    assert t.env["PYINSTALLER_RESET_ENVIRONMENT"] == "1" and t.spawned[0][0][-1] == "--window"
+
+
+def test_closed_connections_are_released_in_the_tray():
+    from PySide6.QtNetwork import QLocalSocket
+
+    t = _Host()
+    t.host.open({"op": "show"})
+    link = t.connect()
+    assert _until(lambda: t.host.connected)
+    assert any(isinstance(c, QLocalSocket) for c in t.host._server.children())
+    link._socket.disconnectFromServer()
+    assert _until(lambda: not any(isinstance(c, QLocalSocket) for c in t.host._server.children()))
+
+
+def test_a_second_window_process_quits_before_building_its_web_engine(monkeypatch):
+    import os
+
+    from src.companion import logger, window_main
+
+    t = _Host()
+    t.host.open({"op": "show"})
+    t.connect()                                          # 已有一个窗口进程连着
+    assert _until(lambda: t.host.connected)
+    monkeypatch.setattr(logger, "setup_window_logging", lambda: None)
+    monkeypatch.setattr(window_main, "WindowController", lambda *a, **k: pytest.fail("不该建窗口"))
+    monkeypatch.setenv(window_link.ENV_PIPE, t.env[window_link.ENV_PIPE])
+    monkeypatch.setenv(window_link.ENV_TOKEN, t.env[window_link.ENV_TOKEN])
+    assert window_main.run() == 0                        # 托盘叫它退：不建网页内核
+    assert window_link.ENV_TOKEN not in os.environ
+
+
 def test_quitting_the_tray_tells_the_window_to_quit():
     t = _Host()
     t.host.open({"op": "show"})
@@ -331,6 +390,7 @@ def test_closing_the_window_ends_the_window_process_unless_a_reply_is_running(mo
     assert window.closed_down and link.sent[-2:] == [("bye", {}), ("closed", {})]
     assert window.page.scripts == [window_main.BUSY_SCRIPT]
 
+    monkeypatch.setattr(window_main, "LINGER_GRACE_MS", 300)
     controller, link, quits = _controller()
     controller._linger.setInterval(20)
     window = controller.window
@@ -343,7 +403,10 @@ def test_closing_the_window_ends_the_window_process_unless_a_reply_is_running(mo
     assert not controller._lingering and window.isVisible()
     window.close_like_the_user()
     _until(lambda: controller._lingering)
-    window.page.busy = False                       # 回复完了：退出
+    window.page.busy = False                       # 回复完了：再留一会儿让「回复完成」通知先到托盘，然后退出
+    assert _until(lambda: not controller._lingering)
+    window.notify("CC", "reply", lambda: None, tag="tomo-reply")
+    assert quits == [] and link.sent[-1][0] == "notify"
     assert _until(lambda: quits)
 
 
@@ -410,7 +473,13 @@ def test_the_bridge_in_the_window_forwards_to_the_tray_only_on_the_chat_page():
     assert json.loads(bridge.state()) == {"ok": True, "op": "state"}
     assert json.loads(bridge.call("pause", '{"id":"m1"}')) == {"ok": True, "op": "call"}
     assert link.requests[-1] == ("call", {"method": "pause", "args": '{"id":"m1"}',
-                                          "url": "https://acme.pearnly.com/assistant"})
+                                          "url": "https://acme.pearnly.com/assistant",
+                                          "timeout_ms": window_link.REQUEST_TIMEOUT_MS})
+    # 会弹选择文件夹框的不设上限：人选得慢，页面也等到真结果（审查 10-18 第 1 条）
+    for method in ("pick_roots", "pick_folder", "add_folder"):
+        bridge.call(method, "{}")
+        assert link.requests[-1][1]["method"] == method and link.requests[-1][1]["timeout_ms"] is None
+    del link.requests[2:]
     assert json.loads(bridge.call("window", '{"action":"maximize"}')) == {"ok": True, "maximized": False}
     assert controller.window.calls[-1] == ("window", "maximize") and len(link.requests) == 2   # 窗口按钮不绕托盘
     controller.window.page._url = "https://fatcc.com/"
@@ -465,3 +534,19 @@ def test_closing_the_real_cc_window_hides_it_and_hands_over_once_per_close():
     assert result, out.stderr[-2000:]
     # 每次关窗口：先藏起来（交出去时已经看不见）再交给窗口进程；「CC 仍在后台运行」只提示第一次
     assert result[0] == "RESULT [False, False] 1 False"
+
+
+def test_the_window_process_needs_the_tray_and_keeps_the_token_out_of_its_children(monkeypatch):
+    from src.companion import logger, window_main
+
+    _app()
+    monkeypatch.setattr(logger, "setup_window_logging", lambda: None)
+    monkeypatch.delenv(window_link.ENV_PIPE, raising=False)
+    monkeypatch.delenv(window_link.ENV_TOKEN, raising=False)
+    assert window_main.run() == 2   # 不是托盘拉起的
+    monkeypatch.setenv(window_link.ENV_PIPE, f"PearnlyCCWindowNobody-{time.monotonic_ns()}")
+    monkeypatch.setenv(window_link.ENV_TOKEN, "t0ken")
+    assert window_main.run() == 1   # 托盘不在：连不上就退
+    import os
+
+    assert window_link.ENV_TOKEN not in os.environ and window_link.ENV_PIPE not in os.environ

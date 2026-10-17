@@ -20,9 +20,9 @@ import sys
 from collections import OrderedDict
 from typing import Callable, Optional
 
-from PySide6.QtCore import QEvent, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QEventLoop, QObject, QTimer, Signal, Slot
 
-from . import tomo_links
+from . import tomo_links, window_link
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -33,6 +33,10 @@ BUSY_SCRIPT = "!!(window.tomo&&typeof window.tomo.busy==='function'&&window.tomo
 BUSY_POLL_MS = 3000          # 关窗口时正在回复：多久再问一次回复完了没有
 BUSY_ANSWER_MS = 3000        # 页面这么久没回答「在不在回复」（加载中、卡住）：当没在回复
 LINGER_LIMIT_MS = 30 * 60 * 1000   # 关窗口后等回复最多等这么久
+LINGER_GRACE_MS = 1500       # 回复刚完：再留这么久，让页面发的「回复完成」通知先到托盘再退
+FIRST_COMMAND_MS = 5000      # 连上托盘后等第一条命令最多这么久（托盘收下就马上交过来）
+# 这几个会在托盘那边请窗口弹选择文件夹框，人选多久就等多久（不设上限，否则选得慢页面报失败、设置却已改了）
+PICKER_METHODS = frozenset({"pick_roots", "pick_folder", "add_folder"})
 ACTION_MEMORY = 50           # 转给托盘的通知，点了要做的事记最近几条
 
 
@@ -72,7 +76,9 @@ class RemoteBridge(QObject):
             window = self._window()
             result = window.window_action(str(args.get("action") or ""), args) if window is not None else {"ok": False}
             return json.dumps(result, ensure_ascii=False)
-        result = self._link.request("call", method=str(method), args=str(args_json or ""), url=self._page_url())
+        timeout = None if method in PICKER_METHODS else window_link.REQUEST_TIMEOUT_MS
+        result = self._link.request("call", method=str(method), args=str(args_json or ""), url=self._page_url(),
+                                    timeout_ms=timeout)
         return result if isinstance(result, str) else FAILED
 
 
@@ -86,6 +92,7 @@ class WindowController(QObject):
         self._actions: OrderedDict = OrderedDict()
         self._last_status: Optional[tuple] = None
         self._lingering = False
+        self._leaving = False
         self._finished = False
         self._linger = QTimer(self)
         self._linger.setInterval(BUSY_POLL_MS)
@@ -200,10 +207,22 @@ class WindowController(QObject):
                     self._linger_deadline.start(LINGER_LIMIT_MS)
                     log.info("关窗口时正在回复：等回复完再退出窗口进程")
                 return
+            if self._lingering:
+                # 等着的回复刚完：页面这时才发「回复完成」通知（经网页内核另一条通道过来），再留一会儿让它先到托盘
+                self._stop_linger()
+                if not self._leaving:
+                    self._leaving = True
+                    QTimer.singleShot(LINGER_GRACE_MS, self._leave)
+                return
             self.finish()
 
         QTimer.singleShot(BUSY_ANSWER_MS, lambda: answer(None))
         self.window.page.runJavaScript(BUSY_SCRIPT, 0, answer)
+
+    def _leave(self) -> None:
+        self._leaving = False
+        if not self._finished and not self.window.isVisible():
+            self.finish()
 
     def _stop_linger(self) -> None:
         self._lingering = False
@@ -240,10 +259,10 @@ def _register_app_user_model_id() -> None:
 
 def run() -> int:
     """``companion.exe --window`` 的入口：连上托盘（拉起时给的管道名与口令），建窗口，跑到窗口退出。"""
-    from . import window_link
     from .logger import setup_window_logging
 
-    name, token = os.environ.get(window_link.ENV_PIPE, ""), os.environ.get(window_link.ENV_TOKEN, "")
+    # 读完就从环境里拿掉：网页内核的子进程（QtWebEngineProcess）会继承环境变量，口令不留给它们
+    name, token = os.environ.pop(window_link.ENV_PIPE, ""), os.environ.pop(window_link.ENV_TOKEN, "")
     if not name or not token:
         return 2   # 不是托盘拉起的：CC 窗口只由托盘打开（再点一次桌面图标走单实例那条路）
     setup_window_logging()
@@ -255,13 +274,33 @@ def run() -> int:
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(pearnly_icon())
     link = window_link.TrayLink(name, token)
+    # 先等托盘交来的第一条命令再建窗口：托盘若叫退（已经有一个窗口进程、或 CC 正在退出），不建网页内核直接退，
+    # 免得两个进程同时打开同一份网页存储
+    early: list = []
+    waiting = QEventLoop()
+
+    def keep(message: dict) -> None:
+        early.append(message)
+        waiting.quit()
+
+    link.set_handler(keep)
+    link.lost.connect(waiting.quit)
     if not link.connect_to_tray():
         log.warning("CC 窗口进程连不上托盘，退出")
         return 1
+    QTimer.singleShot(FIRST_COMMAND_MS, waiting.quit)
+    if not early and link.alive:
+        waiting.exec()
+    if not link.alive or any(message.get("op") == "quit" for message in early):
+        log.info("托盘叫 CC 窗口进程退出（已有窗口或正在退出），不建窗口")
+        link.close()
+        return 0
     from .i18n import default_lang, normalize
 
     controller = WindowController(link, lang=normalize(os.environ.get(window_link.ENV_LANG, "") or default_lang()),
                                   quit_app=app.quit)
+    for message in early or [{"op": "show"}]:
+        controller.handle(message)
     log.info("CC 窗口进程已启动 · pid=%s", os.getpid())
     code = app.exec()
     del controller

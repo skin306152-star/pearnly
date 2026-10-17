@@ -202,11 +202,21 @@ class _Channel(QObject):
             self._on_gone()
         except Exception:
             log.exception("本地管道断开处理失败")
+        self._socket.deleteLater()   # 每开一次窗口一条连接：断了就放掉，托盘里不越攒越多
 
 
-def _spawn(command: list, cwd: str, env: dict) -> int:
+def _spawn(command: list, cwd: str, env: dict):
     return subprocess.Popen(command, cwd=cwd, env=env, close_fds=True, stdin=subprocess.DEVNULL,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).pid
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _exited(process) -> bool:
+    """拉起的窗口进程已经退出（还没连上就退了：崩溃、连不上托盘）。测试里换成假的、没有 poll 的当作还活着。"""
+    poll = getattr(process, "poll", None)
+    try:
+        return callable(poll) and poll() is not None
+    except Exception:
+        return False
 
 
 def allow_foreground(pid) -> None:
@@ -239,6 +249,8 @@ class WindowHost(QObject):
         self._clock = clock
         self._foreground = foreground
         self._pid = None   # 窗口进程（hello 里报的）
+        self._process = None   # 刚拉起、还没连上的窗口进程
+        self._quitting = False
         self.name = name or pipe_name()
         self._token = secrets.token_urlsafe(24)
         self._channel: Optional[_Channel] = None
@@ -265,9 +277,16 @@ class WindowHost(QObject):
             self._foreground(self._pid)
             self._channel.send(**command)
             return
+        if self._quitting:
+            return
+        died = self._spawned_at is not None and _exited(self._process)
+        if died:
+            # 上次拉起的没连上就退了：排着的旧命令（例如早先的快捷提问）不再重放，只做这一次点的
+            log.warning("CC 窗口进程没连上就退出了，重新拉起")
+            self._pending = []
         self._pending = (self._pending + [dict(command)])[-MAX_PENDING:]
         now = self._clock()
-        if self._spawned_at is None or now - self._spawned_at > SPAWN_GRACE:
+        if died or self._spawned_at is None or now - self._spawned_at > SPAWN_GRACE:
             self._spawned_at = now
             self._start()
 
@@ -283,7 +302,8 @@ class WindowHost(QObject):
         return result if isinstance(result, str) else ""
 
     def quit(self) -> None:
-        """退出 CC：让窗口进程也退出，不再接新连接。"""
+        """退出 CC：让窗口进程也退出，不再接新连接（已经接上、还没打招呼的那个也叫它退出）。"""
+        self._quitting = True
         self._pending = []
         self.send("quit")
         self._server.close()
@@ -292,10 +312,12 @@ class WindowHost(QObject):
         frozen = bool(getattr(sys, "frozen", False))
         env = dict(os.environ)
         env.update({ENV_PIPE: self.name, ENV_TOKEN: self._token, ENV_LANG: str(self._lang() or "")})
+        if frozen:
+            env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"   # 打包程序拉起自己：当作独立的新实例，不沿用本进程的解包环境
         try:
-            pid = self._spawn_process(window_command(frozen=frozen, executable=sys.executable),
-                                      window_cwd(frozen=frozen, executable=sys.executable), env)
-            self._foreground(pid)
+            self._process = self._spawn_process(window_command(frozen=frozen, executable=sys.executable),
+                                                window_cwd(frozen=frozen, executable=sys.executable), env)
+            self._foreground(getattr(self._process, "pid", self._process))
             log.info("打开 CC 窗口（窗口进程）")
         except Exception:
             self._spawned_at = None
@@ -323,12 +345,14 @@ class WindowHost(QObject):
             holder["channel"] = _Channel(socket, first, lambda holder=holder: self._lost(holder.get("channel")))
 
     def _adopt(self, channel: _Channel, pid=None) -> None:
-        if self.connected and self._channel is not channel:
-            channel.send("quit")   # 已经有一个窗口进程（两次快速点开）：后来的退出
+        if self._quitting or (self.connected and self._channel is not channel):
+            # 已经有一个窗口进程（两次快速点开）、或 CC 正在退出：后来的这个退出（它还没建窗口，见 window_main.run）
+            channel.send("quit")
             return
         self._channel = channel
         self._pid = pid if isinstance(pid, int) else None
         self._spawned_at = None
+        self._process = None
         pending, self._pending = self._pending, []
         for command in pending or [{"op": "show"}]:
             channel.send(**command)
