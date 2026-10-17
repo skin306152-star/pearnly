@@ -46,6 +46,7 @@ import { useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider"
 import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
 import { StreamFollower } from "@/lib/follow-scroll";
 import { holdImeEnter } from "@/lib/ime";
+import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { useToolLabels } from "@/lib/tool-labels";
 import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -346,7 +347,7 @@ const ThreadWelcome: FC = () => {
 
 const ThreadSuggestions: FC = () => {
   return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4">
+    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4 empty:hidden">
       <ThreadPrimitive.Suggestions>
         {() => <ThreadSuggestionItem />}
       </ThreadPrimitive.Suggestions>
@@ -379,6 +380,17 @@ const Composer: FC = () => {
   // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
   const [typing, setTyping] = useState(false);
   const empty = useAuiState((s) => s.composer.isEmpty);
+  // 安卓返回键收起键盘时输入框仍聚焦：键盘收起、输入框是空的就让它失焦，收回一行（同点了空白处）
+  const emptyNow = useRef(empty);
+  emptyNow.current = empty;
+  useEffect(() => {
+    const closed = () => {
+      const el = document.activeElement;
+      if (emptyNow.current && el instanceof HTMLTextAreaElement && el.closest('[data-slot="aui_composer-shell"]')) el.blur();
+    };
+    window.addEventListener(KEYBOARD_CLOSED, closed);
+    return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
+  }, []);
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
