@@ -1111,6 +1111,32 @@ class DirectOriginals(unittest.TestCase):
         self.assertEqual(reading(events[-1]["pipeline"]), reading(inline["pipeline"]))
         self.assertEqual(events[-1]["evidence"], inline["evidence"])
 
+    def test_a_recon_document_in_the_bucket_reads_exactly_like_sending_the_bytes(self):
+        """对账文件存在原件层（ADR-024）：文档请求只带引用，Cloud Run 按版本号读、核对 sha256，读出的与带字节发来一字不差。"""
+        import hashlib
+
+        content = png()
+        common = dict(site=SITE, work=WORK, filename="report.png", page_count=1, document_type="vat_report",
+                      environment=dict(ENVIRONMENT), yield_seconds=90)
+        inline, there = [], []
+        runner.recognize(contract.document_request(content=content, **common), Bucket(), lambda: "token", inline.append,
+                         orient=orient, page_source=PageSource, http=Google())
+        request = contract.document_request(original=contract.original(
+            object=OBJECT, generation=7, sha256=hashlib.sha256(content).hexdigest()), **common)
+        self.assertNotIn("content", request)
+        runner.recognize(request, Bucket(), lambda: "token", there.append, orient=orient, page_source=PageSource,
+                         http=Google(), originals=Originals(**{OBJECT: content}))
+        self.assertEqual(there[-1]["status"], "done", there[-1])
+        self.assertEqual(reading(json.dumps(there[-1]["legacy"])), reading(json.dumps(inline[-1]["legacy"])))
+        changed = contract.document_request(original=contract.original(object=OBJECT, generation=7, sha256="0" * 64),
+                                            **common)
+        events = []
+        runner.recognize(changed, Bucket(), lambda: "token", events.append, orient=orient, page_source=PageSource,
+                         http=Google(), originals=Originals(**{OBJECT: content}))
+        self.assertEqual((events[-1]["status"], events[-1].get("code")), ("error", "original_mismatch"))
+        with self.assertRaises(ValueError):  # 引用与字节只能给一样
+            contract.parse_request(dict(request, content="eA=="))
+
     def test_a_preview_on_cloud_run_is_the_same_picture_the_server_draws(self):
         import hashlib
         from pearnly_core.originals import checks as checks

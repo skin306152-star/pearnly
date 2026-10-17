@@ -147,7 +147,9 @@ def _digest(kind, files):
 
     sides = []
     for side in ("left", "right"):
-        hashes = [frappe.db.get_value("File", name, "content_hash") for name in (files or {}).get(side) or []]
+        from pearnly_cowork.recon_center import storage
+
+        hashes = [storage.content_hash(name) for name in (files or {}).get(side) or []]
         if not hashes or not all(hashes):
             return None
         sides.append(",".join(sorted(hashes)))
@@ -602,8 +604,9 @@ def _cleanup(recon_job, files, keep_files):
     # 是本人私有、不挂单据，按日志里的文件名处理。
     for name in [] if keep_files else files["left"] + files["right"]:
         try:
-            if frappe.db.exists("File", name):
-                frappe.delete_doc("File", name, ignore_permissions=True, force=True)
+            from pearnly_cowork.recon_center import storage
+
+            storage.delete(name)  # 原件在原件层（ADR-024）连那边一起删
             frappe.db.commit()
         except Exception:
             frappe.db.rollback()

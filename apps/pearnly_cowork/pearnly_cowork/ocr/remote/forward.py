@@ -76,15 +76,15 @@ def send(*, work_name, batch, filename, content=None, page_count, anchor_date, f
     return final["pipeline"], final["evidence"]
 
 
-def send_document(*, work_name, filename, content, page_count, document_type, frozen, regions=None,
+def send_document(*, work_name, filename, content=None, page_count, document_type, frozen, regions=None,
                   yield_seconds=contract.YIELD_SECONDS, on_read=None, on_extracted=None, on_unread=None,
-                  post=None, id_token=None):
+                  post=None, id_token=None, original=None):
     """对账三类文档交给 Cloud Run 读：返回旧线上管线结果（``legacy``）；读的过程中按事件回调看板进度
-    （读完几页 / 一页抽完 / 一页读不出，与本机执行同一时机）。"""
+    （读完几页 / 一页抽完 / 一页读不出，与本机执行同一时机）。原件在原件桶里时只交 ``original``（``contract.original``）。"""
     config = _config()
     body = contract.document_request(site=frappe.local.site, work=work_name, filename=filename, content=content,
         page_count=page_count, document_type=document_type, environment=frozen["environment"], regions=regions,
-        yield_seconds=yield_seconds)
+        yield_seconds=yield_seconds, original=original)
 
     def on_event(event):
         kind = event["event"]

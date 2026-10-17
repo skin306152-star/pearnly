@@ -138,12 +138,16 @@ def request(*, site, work, batch, filename, content=None, page_count, anchor_dat
 DOCUMENT_TYPES = ("bank_statement", "general_ledger", "vat_report")
 
 
-def document_request(*, site, work, filename, content, page_count, document_type, environment, regions=None,
-                     yield_seconds=YIELD_SECONDS):
+def document_request(*, site, work, filename, content=None, page_count, document_type, environment, regions=None,
+                     yield_seconds=YIELD_SECONDS, original=None):
+    """``original``：对账文件存在原件桶里（原件层，ADR-024）时只给对象、版本号、sha256，Cloud Run 自己读。"""
     body = {"version": VERSION, "kind": "cowork.document", "site": site, "work": work, "filename": filename,
-            "content": base64.b64encode(content).decode("ascii"), "page_count": page_count,
-            "document_type": document_type, "environment": environment, "regions": regions,
+            "page_count": page_count, "document_type": document_type, "environment": environment, "regions": regions,
             "yield_seconds": yield_seconds}
+    if original is not None:
+        body["original"] = original
+    else:
+        body["content"] = base64.b64encode(content).decode("ascii")
     parse_request(body)
     return body
 
@@ -212,6 +216,11 @@ def _parse_document(body):
     if regions is not None and (not isinstance(regions, list) or not all(isinstance(r, dict) for r in regions)):
         raise ValueError("invalid regions")
     _yield_seconds(body)
+    if "original" in body:
+        if "content" in body:
+            raise ValueError("invalid content")
+        _original(body)
+        return None  # 原件在原件桶里：Cloud Run 读出后再核对（runner.original_bytes）
     try:
         content = base64.b64decode(body.get("content") or "", validate=True)
     except (ValueError, TypeError) as exc:

@@ -158,18 +158,18 @@ def read(kind, files, own_tax=None, text=None):
     return result
 
 
-def read_original(kind, object_name, sha256, own_tax=None):
+def read_original(kind, object_name, sha256, own_tax=None, page=None):
     """读一份存在甲骨文上的原件（原件层 ``pearnly_core.originals``）：只交对象名与 sha256，甲骨文自己读文件、
     转正、渲染、交 Claude —— 原件字节不经过生产。只走甲骨文：连不上抛 ``Deferred``，工作单稍后重试（原件本来就在那台上）。
-    检查点同 :func:`read`，同一份重跑不重复付费。"""
+    ``page``：对账文档一次读一页（同 :func:`read` 逐页交）。检查点同 :func:`read`，同一份重跑不重复付费。"""
     from pearnly_core.execution import work
 
-    key = f"claude:{kind}:original:{sha256}:{own_tax or ''}"
+    key = f"claude:{kind}:original:{sha256}:{own_tax or ''}" + (f":p{int(page)}" if page is not None else "")
     done = work.checkpoint(key)
     if done and done.get("state") == "done" and done.get("body"):
         return dict(done["body"], where="checkpoint")
-    result = internal("/v1/read", {"kind": kind, "own_tax": own_tax, "original": {"object": object_name, "sha256": sha256}},
-                      timeout=SEND_TIMEOUT)
+    original = {"object": object_name, "sha256": sha256} | ({"page": int(page)} if page is not None else {})
+    result = internal("/v1/read", {"kind": kind, "own_tax": own_tax, "original": original}, timeout=SEND_TIMEOUT)
     result["where"] = "oracle"
     if result.get("read") is not None:
         work.checkpoint(key, "done", result)

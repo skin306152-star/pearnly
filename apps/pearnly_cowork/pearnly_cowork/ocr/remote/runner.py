@@ -930,6 +930,10 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
         content = contract.parse_request(request)
     except ValueError:
         return {"status": "skipped", "reason": "task_request_invalid"}
+    if content is None:  # 原件在原件桶里（ADR-024）：同整份那一遍一样按版本号读、核对
+        content, failure = original_bytes(request, originals)
+        if failure:
+            return {"status": "skipped", "reason": failure}
     store = Store(backend, request["site"], request["work"])
     environment = dict(request["environment"])
     is_pdf = request["filename"].lower().endswith(".pdf")

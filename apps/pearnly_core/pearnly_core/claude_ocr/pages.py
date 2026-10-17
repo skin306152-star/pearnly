@@ -49,6 +49,39 @@ def prepare(files, skipped=None):
     return pages[:engine.MAX_PAGES]
 
 
+# 对账文档逐页（与 Cowork ``ocr.inputs_runtime.PageSource.frame`` 同一做法，那边是生产逐页渲染、闸门用的那一份）
+FRAME_DPI = 200
+MAX_FRAME_PIXELS = 40_000_000
+
+
+def frame(data, media_type, number, skipped=None):
+    """对账文档的一页 → ``(bytes, media_type)``：PDF 这一页按 200 DPI 渲染成 PNG、照片原样，再转正；之后同样经 :func:`prepare`。
+    甲骨文按原件地址逐页读对账文档时用，出的图与 ``PageSource.frame`` 逐字节相同（tests/test_claude_ocr_pages.py）。
+    页号不对、页面太大抛 ``ValueError``。"""
+    import math
+
+    from PIL import Image
+
+    if media_type == "application/pdf":
+        import pymupdf
+
+        with pymupdf.open(stream=data, filetype="pdf") as document:
+            if type(number) is not int or not 1 <= number <= len(document):
+                raise ValueError("bad page")
+            page = document.load_page(number - 1)
+            scale = FRAME_DPI / 72.0
+            if math.ceil(page.rect.width * scale) * math.ceil(page.rect.height * scale) > MAX_FRAME_PIXELS:
+                raise ValueError("page too large")
+            data = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
+        media_type = "image/png"
+    else:
+        if number != 1:
+            raise ValueError("bad page")
+        with Image.open(io.BytesIO(data)) as image:
+            media_type = "image/" + (image.format or "png").lower()
+    return _upright(data, media_type, skipped)
+
+
 def media_type_of(name):
     """原件文件名 → 类型（甲骨文按原件地址读时用；只认 Cowork 直传收的 PDF 与图片）。"""
     suffix = str(name or "").lower().rsplit(".", 1)[-1]

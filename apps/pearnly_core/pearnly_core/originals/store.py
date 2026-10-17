@@ -72,7 +72,10 @@ def finish_upload(original_id, suffix, filename):
 def put(original_id, suffix, filename, content):
     """生产手上已有字节的原件（LINE 收单、CC 对话交来的文件）：直接交存放处存、核对。这个站点没配存放处返回 ``None``
     （调用方照旧存本机）。同一原件 id 再交一次（重试）算存过。"""
-    place, name = where(), object_name(original_id, suffix)
+    place = where()
+    if place == LOCAL:
+        return None
+    name = object_name(original_id, suffix)
     if place == ORACLE:
         return _accepted(oracle.put(name, filename, content), place, name)
     if place == GCS:

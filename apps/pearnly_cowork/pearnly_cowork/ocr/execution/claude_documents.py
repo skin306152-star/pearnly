@@ -27,6 +27,18 @@ def _serial(render):
     return invoke
 
 
+class Numbered:
+    """原件在甲骨文、按页交它读（原件层，ADR-024）：这里只有页数，页不在这台渲染 —— ``read_page`` 收到的图与类型为空，
+    按页号让甲骨文自己出这一页（``pearnly_core.claude_ocr.pages.frame``，与 ``PageSource.frame`` 同一做法）。"""
+    _blank = type("Blank", (), {"image_bytes": None, "mime_type": None})()
+
+    def __init__(self, page_count):
+        self.page_count = int(page_count)
+
+    def frame(self, _number):
+        return self._blank
+
+
 def _money(value):
     try:
         return Decimal(str(value).replace(",", "")) if str(value or "").strip() else None

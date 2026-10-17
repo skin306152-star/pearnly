@@ -30,6 +30,10 @@
    生产、Cloud Run、甲骨文同一份。甲骨文服务改成通用（`pearnly_core.originals.server`），不再只认 Cowork。
 5. **入口迁移**（每步过单元测试 + 生产代码闸门）：Cowork 录入台（PDF / 图片 / 表格）、Cowork LINE、CC 工具建原件、POS 导入、
    Cowork 对账中心（仍按任务结束即删）、ERP 采购 / 销售网页上传（拦下 Frappe 上传改直传）、ERP LINE。
+   对账中心：页面照旧一次提交，生产收到后交原件层存，本机只留不到 1KB 的登记（`recon_center.storage`）；扫描件、照片按引用读
+   ——Claude 租户由甲骨文逐页渲染（`claude_ocr.pages.frame`，与生产逐页渲染 `PageSource.frame` 逐字节相同）、谷歌租户由 Cloud Run
+   按版本号读；表格和电子 PDF 仍在生产解析（取回字节、不存）。原件层的检查不收的文件（超 50 页的电子总账、加密 PDF、坏图片）
+   照旧存本机，它们本来就在生产解析或报读不出、不交识别。
 6. **例外**：DMS 身份证不留存（2026-09 隐私口径不变），识别时直接交字节。不算原件、不在本层：ERP 盘点 Excel、生成的单据 PDF、
    充值转账凭证、CC 智能体自己的工作文件。
 

@@ -93,7 +93,8 @@ def original_path(name):
 
 
 def stored_pages(original):
-    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；不在了回 ``None``，内容不对抛 ``ValueError``。"""
+    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；不在了回 ``None``，内容不对抛 ``ValueError``。
+    带 ``page``（对账文档逐页读）时只出这一页，做法同生产逐页渲染（``pages.frame``）。"""
     path = original_path(original.get("object"))
     try:
         with open(path, "rb") as handle:
@@ -105,6 +106,8 @@ def stored_pages(original):
     media_type = pages.media_type_of(path)
     if not media_type:
         raise ValueError("unsupported original")
+    if "page" in original:
+        return pages.prepare([pages.frame(data, media_type, original["page"])])
     return pages.prepare([(data, media_type)])
 
 
