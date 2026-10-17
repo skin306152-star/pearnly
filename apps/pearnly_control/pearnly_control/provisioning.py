@@ -538,12 +538,10 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
 
 
 def _assistant_payload(dep) -> dict:
-    """该部署的智能体设置：取租户上的（开户单填的会在发号时带到租户）。"""
+    """该部署的智能体设置：全平台一份（``onboarding.assistant``，2026-10-18 起不再按租户填）。"""
     from pearnly_control.onboarding import assistant
 
-    settings = {"engine": "", "model": "", "api_key": ""}
-    if dep.tenant and frappe.db.exists("Pearnly Tenant", dep.tenant):
-        settings = assistant.read(frappe.get_doc("Pearnly Tenant", dep.tenant))
+    settings = assistant.read()
     # 引擎回调的签名密钥（全平台一个，生产回调地址只登记入口 fatcc.com，由它转给各站点；见 assistant_entry.webhook）：
     # 开通了智能体的站点都带上，站点用它验证入口转来的回调。没配就不带（页面开着照常执行）。
     secret = (frappe.conf.get("pearnly_assistant_webhook_secret") or "") if settings["engine"] else ""
@@ -588,9 +586,9 @@ def queue_ocr_engine(tenant: str) -> int:
 
 
 def queue_assistant_config(tenant: str) -> int:
-    """租户的智能体设置填了 / 改了 / 清了：把它的每个云端部署重排 `set_assistant`。
+    """把这个租户的每个云端部署重排 `set_assistant`（全平台设置改了时由 ``onboarding.assistant.apply_to_all`` 逐个租户调用）。
 
-    同 LINE 渠道：开户后才配、之后可改可换都走这里。开户单里还没有这一步的老部署补上一步；
+    同 LINE 渠道：开户单里还没有这一步的老部署补上一步；
     正在执行的那一步不打断，提示稍后再存。只写站点配置、不重启：站点按配置缓存最多一分钟后生效，
     不为换一组设置把同产品的其他租户一起踢下线。
     """
@@ -603,7 +601,7 @@ def queue_assistant_config(tenant: str) -> int:
             continue
         parent = frappe.db.get_value(REQUEST, {"idempotency_key": dep.issue}, "name")
         if not parent:
-            continue  # 开户计划还没生成：生成时会带上租户当下的密钥
+            continue  # 开户计划还没生成：生成时会带上全平台当下的设置
         req = frappe.get_doc(REQUEST, parent, for_update=True)
         step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_assistant"), None)
         if step and step.status == "running":

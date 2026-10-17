@@ -324,9 +324,9 @@
   "site_config_keys": {
     "_rule": "站点配置只放运行配置（通道、凭据、地址、并发参数）与售卖目录；产品功能对所有租户直接生效，不加按租户的启用开关（用户 2026-10-07）。新键须在此登记用途。",
     "pearnly_assistant_webhook_secret": "智能体（ADR-019，清单第 16 项）：引擎回调的签名密钥（Standard Webhooks，whsec_ 开头），引擎控制台登记回调地址时生成；只存站点配置、不进仓库，页面关着时由回调叫醒服务端执行工具",
-    "pearnly_assistant_api_key": "智能体（ADR-019）：本租户所选引擎的密钥；只由租户管理后台在开户时写入、之后可改可换，经开通执行器推到站点，用户不接触",
-    "pearnly_assistant_engine": "智能体（ADR-019）：本租户用哪家引擎，取值见 pearnly_core.assistant.engines.ENGINES；由租户管理后台写入",
-    "pearnly_assistant_model": "智能体（ADR-019）：模型，留空用所选引擎的默认模型；由租户管理后台写入",
+    "pearnly_assistant_api_key": "智能体（ADR-019）：引擎密钥，全平台一份（2026-10-18 起存本机控制面站点配置，不按租户填），经开通执行器推到每个站点，用户不接触",
+    "pearnly_assistant_engine": "智能体（ADR-019）：用哪家引擎，取值见 pearnly_core.assistant.engines.ENGINES；全平台一份，由控制面推到每个站点",
+    "pearnly_assistant_model": "智能体（ADR-019）：模型，留空用所选引擎的默认模型；全平台一份，由控制面推到每个站点",
     "pearnly_assistant_entry": "智能体入口站点 ai.pearnly.com（ADR-019）：只在入口站点上为真，入口页与登录接口只在它上面可用",
     "pearnly_assistant_entry_url": "智能体入口的公开地址（默认 https://fatcc.com）：入口站点按它拼登录回调；租户站点的对话页未登录时送去它、退出时回到它（测试环境配 testai）",
     "pearnly_assistant_entry_billing_url": "智能体入口站点查询计费服务的内网地址（http://billing-web:8000）",

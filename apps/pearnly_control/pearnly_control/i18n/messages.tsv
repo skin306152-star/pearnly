@@ -317,11 +317,6 @@ Identity Realm	身份 Realm	Realm ยืนยันตัวตน	認証レル
 Usage Checked	用量核对日期	วันที่ตรวจสอบยอดใช้งาน	利用量確認日	
 Usage Month	用量月份	เดือนของยอดใช้งาน	利用月	
 Set up CC	配置 CC	ตั้งค่า CC	CC を設定
-CC Engine	CC 引擎	เอนจิน CC	CC エンジン
-CC Model	CC 模型	โมเดล CC	CC モデル
-CC API Key	CC API 密钥	คีย์ API ของ CC	CC API キー
-Select the CC engine.	请选择 CC 引擎。	โปรดเลือกเอนจิน CC	CC エンジンを選択してください。
-Enter the CC API key.	请填写 CC API 密钥。	โปรดกรอกคีย์ API ของ CC	CC API キーを入力してください。
 The CC engine, model or API key is not valid.	CC 引擎、模型或 API 密钥无效。	เอนจิน โมเดล หรือคีย์ API ของ CC ไม่ถูกต้อง	CC のエンジン、モデル、または API キーが無効です。
 The CC settings are being applied. Try again shortly.	CC 设置正在下发，请稍后再保存。	กำลังส่งการตั้งค่า CC โปรดลองอีกครั้งในอีกสักครู่	CC の設定を反映中です。しばらくしてからもう一度お試しください。
 Choose a workspace	选择要进入的公司	เลือกบริษัทที่จะเข้าใช้งาน	利用する会社を選択

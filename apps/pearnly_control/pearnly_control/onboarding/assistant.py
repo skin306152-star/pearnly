@@ -1,53 +1,43 @@
-"""租户的智能体设置：引擎、模型、密钥（ADR-019）。开户单与租户表单共用这一份校验与读取。
+"""CC（智能体）设置：全平台一份（ADR-019；用户 2026-10-18：「所有租户默认，不在开户和自由切换……未来开户和现在租户全部
+默认走这个值」）。
 
-可选的引擎与模型、各家密钥格式都来自 `pearnly_core.assistant.engines`（全平台唯一登记处），
-这里不写死任何厂商。三项全空表示不开通；填了就必须是一组能用的设置。
+引擎、模型、密钥存在本机控制面的站点配置里：`pearnly_assistant_engine` / `pearnly_assistant_model` /
+`pearnly_assistant_api_key`，与全平台一把的引擎回调签名密钥 `pearnly_assistant_webhook_secret` 放在一起，不进仓库。
+开户单与租户表单不再有这三项：开户计划的 `set_assistant` 一律带这一份；改了就跑 :func:`apply_to_all` 推到每个租户。
+可选的引擎与模型、各家密钥格式来自 `pearnly_core.assistant.engines`（全平台唯一登记处），这里不写死任何厂商。
+三项都没配表示全平台不开通。
 """
 import frappe
 from frappe import _
 
 from pearnly_core.assistant import engines
 
-FIELDS = ("assistant_engine", "assistant_model", "assistant_api_key")
+CONF = ("pearnly_assistant_engine", "pearnly_assistant_model", "pearnly_assistant_api_key")
+EMPTY = {"engine": "", "model": "", "api_key": ""}
 
 
-def _api_key(doc) -> str:
-    raw = (doc.assistant_api_key or "").strip()
-    # 已保存的密码字段在表单里是一串星号：没改就读库里的那一份。
-    if raw and set(raw) == {"*"} and not doc.is_new():
-        return doc.get_password("assistant_api_key", raise_exception=False) or ""
-    return raw
-
-
-def validate(doc) -> None:
-    """保存前校验；顺带记下这次是否改了设置（密码字段存库的是等长星号，换一把同长度的密钥看不出变化）。"""
-    raw = (doc.assistant_api_key or "").strip()
-    doc.flags.assistant_changed = bool(raw and set(raw) != {"*"}) or any(
-        doc.has_value_changed(f) for f in FIELDS if f != "assistant_api_key")
-    doc.assistant_engine = (doc.assistant_engine or "").strip()
-    doc.assistant_model = (doc.assistant_model or "").strip()
-    key = _api_key(doc)
-    if not (doc.assistant_engine or doc.assistant_model or key):
-        return
-    if not doc.assistant_engine:
-        frappe.throw(_("Select the CC engine."))
-    if not key:
-        frappe.throw(_("Enter the CC API key."))
+def read() -> dict:
+    """推到站点的设置；全平台没配时三项为空。配了却不是一组能用的设置：报错，不下发半套。"""
+    engine, model, key = (str((frappe.conf or {}).get(name) or "").strip() for name in CONF)
+    if not (engine or model or key):
+        return dict(EMPTY)
     try:
-        engines.check(doc.assistant_engine, key, doc.assistant_model)
+        engine, key, model = engines.check(engine, key, model)
     except engines.EngineError:
         frappe.throw(_("The CC engine, model or API key is not valid."))
+    return {"engine": engine, "model": model, "api_key": key}
 
 
-def read(doc) -> dict:
-    """推到站点的设置；没开通时三项为空。"""
-    key = _api_key(doc)
-    if not (doc.get("assistant_engine") and key):
-        return {"engine": "", "model": "", "api_key": ""}
-    return {"engine": doc.assistant_engine, "model": doc.assistant_model or "", "api_key": key}
+def apply_to_all() -> int:
+    """全平台设置定了 / 改了：把每个租户的每个云端部署重排 ``set_assistant``，返回排了几个部署。
 
+    会写生产站点配置（开户代理执行），跑之前先和开发线约时间：``bench --site <控制面> execute
+    pearnly_control.onboarding.assistant.apply_to_all``。"""
+    from pearnly_control import provisioning
 
-@frappe.whitelist()
-def engine_options() -> list[dict]:
-    frappe.only_for("System Manager")
-    return engines.options()
+    read()  # 先校验：配错了一个都不排
+    count = 0
+    for tenant in frappe.get_all("Pearnly Tenant", filters={"status": ["!=", "deleting"]}, pluck="name"):
+        count += provisioning.queue_assistant_config(tenant)
+    frappe.db.commit()
+    return count

@@ -63,8 +63,6 @@ after_request = ["pearnly_control.account.member_api.after_request"]
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-# 智能体设置（ADR-019）：开户单与租户表单共用。
-doctype_js = {"Pearnly Tenant": "public/js/assistant_settings.js", "Pearnly Issue": "public/js/assistant_settings.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}

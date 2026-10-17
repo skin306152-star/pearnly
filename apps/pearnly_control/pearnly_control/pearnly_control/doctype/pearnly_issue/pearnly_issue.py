@@ -30,7 +30,6 @@ from frappe.model.document import Document
 
 from pearnly_control import features as features_mod
 from pearnly_control.domains import base_domain
-from pearnly_control.onboarding import assistant
 from pearnly_control.onboarding.line_ids import clean_credential, incomplete, normalize_liff_id
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -63,7 +62,6 @@ class PearnlyIssue(Document):
 
             self.target = require_cloud_target(self.target)
         self._validate_account()
-        assistant.validate(self)
         self._validate_apps()
         self._summarize_features()
 

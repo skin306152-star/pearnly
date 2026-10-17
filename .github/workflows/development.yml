@@ -15,6 +15,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+          # 界面文案闸门要读基线（merge-base origin/main）那一版的文案
+          fetch-depth: 0
       - name: Test the architecture guard
         run: python3 tests/test_architecture_guard.py
       - name: Verify native Desk contracts
@@ -210,5 +212,14 @@ jobs:
         run: python3 scripts/i18n-build.py --check
       - name: Block hard-coded Chinese or Thai interface text
         run: python3 scripts/check-i18n.py --strict
+      - name: Verify the interface copy gate catches known explanatory copy and passes official copy
+        run: python3 tests/test_check_copy.py
+      - name: Keep new and changed interface copy short and official (changed copy needs the user's go-ahead)
+        env:
+          # PR：合并提交的第一个父提交就是 GitHub 实际合并到的 base（payload 里的 base.sha 可能已过时）；推 main：event.before
+          COPY_GATE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
+        run: python3 scripts/check-copy.py --report --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+      - name: Check frontend translation keys
+        run: python3 scripts/check-frontend-i18n.py --strict
       - name: Check whitespace
         run: git diff --check
