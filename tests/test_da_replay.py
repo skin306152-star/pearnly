@@ -1101,21 +1101,35 @@ class Scoring(unittest.TestCase):
         multi = replay.pushed_record({**answer, "account": "*multi"}, None, {}, ["account"])
         self.assertFalse(multi["ok"])
 
-    def test_evidence_takes_only_the_newest_pushes_like_online(self):
-        """同线上 `assess._recent`（审查处理 10-17）：只看这家最新 `RECENT_MAX` 张（先截、再按分店筛），0 不设上限（对照）。"""
+    def test_evidence_window_skips_unchecked_memory_pushes_like_online(self):
+        """同线上 `assess._recent`（10-17 改取法，同一个 `automation.memory_window`）：先跳过凭记忆推出去、还没回读核过的，再在
+        能当证据的里取最近的；往回最多看 `RECENT_MAX` 张推送（同线上 `automation.RECENT_SCAN_MAX`，先截、再按分店筛），0 不设上限。"""
         m = replay._modules()
-        old = {"period": "2025-01", "entered": dt.date(2025, 1, 20), "account": "52-01", "source": "chosen",
-               "payment": "RR", "payment_source": "manual", "party": "S001", "party_source": "", "branch": "00000",
+        old = {"period": "2025-01", "entered": dt.date(2025, 1, 20), "account": "52-01", "source": "remembered",
+               "payment": "RR", "payment_source": "remembered", "party": "S001", "party_source": "", "branch": "00000",
                "ok": True}
-        fresh = dict(old, period="2025-03", entered=dt.date(2025, 3, 20), source="remembered",
-                     payment_source="remembered", branch="00001")
+        fresh = dict(old, period="2025-03", entered=dt.date(2025, 3, 20), branch="00001")
         log = [old] * 3 + [fresh] * 30
-        self.assertEqual(replay.RECENT_MAX, 30)
-        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25)), [])  # 最新 30 张都还没回读核过
+        self.assertEqual((replay.RECENT_MAX, m["automation"].RECENT_SCAN_MAX), (1000, 1000))
+        # 最新 30 张都还没回读核过（三月期的回读要到四月申报截止后）：跳过，更早一月期核过的三张接上
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25)), ["52-01"] * 3)
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), "payment"), ["RR"] * 3)
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), "party", "00000"), ["S001"] * 3)
         self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), limit=0), ["52-01"] * 3)
-        # 先截 30 张、再按分店筛：总店那 3 张落在 30 张之外
-        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), "party", "00000"), [])
-        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), "party", "00000", limit=0), ["S001"] * 3)
+        # 往回看的上限照样生效（先截、再筛）：只看 30 张时那三张落在外面（第五轮的旧取法就是这个结果）
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), limit=30), [])
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 25), "party", "00000", limit=30), [])
+        # 没有任何回读核过（一月期的回读也还没做）：仍是零张
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 2, 1)), [])
+        # 推的时候由人定的照常算证据、回读里被改的照常断开
+        chosen = dict(fresh, account="52-02", source="chosen")
+        self.assertEqual(replay.pushed_evidence(m, log + [chosen], dt.date(2025, 3, 25)), ["52-02"] + ["52-01"] * 3)
+        wrong = [old, dict(old, ok=False), old] + [fresh] * 30
+        self.assertEqual(replay.pushed_evidence(m, wrong, dt.date(2025, 3, 25)), ["52-01", "", "52-01"])
+        # 与线上同一个函数：回放造的条目直接交 `memory_window` 得到同样的序列
+        entries = [{"account": "52-01", "source": "remembered", "readback": ""}] * 30 + \
+            [{"account": "52-01", "source": "remembered", "readback": "confirmed"}] * 3
+        self.assertEqual(m["automation"].memory_window(entries), ["52-01"] * 3)
         # 判定层：上限小到凑不够 3 张时，记忆定的项是 B，记下因上限丢掉的类
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)

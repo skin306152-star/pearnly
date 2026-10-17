@@ -34,10 +34,21 @@ BANGKOK = ZoneInfo("Asia/Bangkok")
 PRIOR_MAX = 50
 # 重复分流算进去的推送记录状态：除作废（cancelled）以外都算（manual 是结果不明或推送失败待人看，宁严）
 PRIOR_STATUSES = ("prepared", "pending", "leased", "manual", "success")
-# 取这家供应商最近推成功的单最多这么多张（只要 `automation.MEMORY_STREAK` 张有证据的；载荷对不上、凭记忆推出去还没回读核过的跳过；
-# 对方档再按分店筛，连锁供应商同一分店可能凑不够，只会少算 A）。两次合格回读之间推了 30 张以上的高频供应商，最新 30 张都还没
-# 回读核过，记忆定的项一直 B；回放照这个上限取（`scripts/da-replay.py` ``--recent-max``），并量出因此丢掉的 A，再定线上要不要改取法
-RECENT_MAX = 30
+# 账套记忆的证据窗口（`automation.memory_window`，10-17 改取法）：先跳过凭记忆推出去、还没合格回读核过的推送，再在剩下能当证据的
+# 推送里取最近的。按上传先后分批往前取这家供应商推成功的单：第一批 `RECENT_FIRST` 张（多数供应商一批就凑够），之后每批
+# `RECENT_PAGE` 张，记忆定的每一类都凑够 `automation.MEMORY_STREAK` 张证据、或取完、或合计到 `automation.RECENT_SCAN_MAX` 张就停。
+# 最坏一张单：查询 1 + ceil((1000 − 30) / 200) = 6 次、读 1,000 行、解析 2,000 段 JSON（载荷与回执各一）、回读标记调 6 次（每期的回读
+# 在同一请求里只取一次）。原先只取最新 30 张再跳过，高频供应商两次回读之间推了 30 张以上就攒不出证据（第五轮回放）
+RECENT_FIRST = 30
+RECENT_PAGE = 200
+_RECENT_SQL = """SELECT h.name AS history_name, h.creation AS uploaded, r.name, r.payload_json, r.response_json,
+        r.completed_at, h.invoice_date
+    FROM `tabCowork OCR History` h INNER JOIN `tabCowork Push Record` r ON r.name = h.last_push_record
+    WHERE h.workspace=%s AND h.seller_tax IN %s AND h.name != %s AND h.last_push_status='success'
+      AND r.connection=%s AND r.account_key=%s AND r.status='success'{after}
+    ORDER BY h.creation DESC, h.name DESC LIMIT %s"""
+# 往前接着取：比上一批最后一张更早上传的（同一时刻按票名，不重不漏）
+_RECENT_AFTER = " AND (h.creation < %s OR (h.creation = %s AND h.name < %s))"
 # 账套记忆定了哪一类才取它的连续张数：科目（载荷 ``account_source``）、现 / 赊（``doctype_src``）、对方档（``decided_by``）
 RECENT_KINDS = ("account", "payment", "party")
 
@@ -186,20 +197,24 @@ def _prior(connection, account_set, doc, direction):
 
 
 def _recent(connection, account_set, doc, direction, fields, payload, decision):
-    """这家供应商在这份账套里最近几张推成功的单（新的在前）里有证据的科目、现 / 赊、对方档（`automation.memory_evidence`）→
+    """这家供应商在这份账套里推成功的单（新的在前）里有证据的科目、现 / 赊、对方档（`automation.memory_window`）→
     ``{"account", "payment", "party"}``，每项是序列或 None（没取）。账套记忆定的这几类都要最近连续 `automation.MEMORY_STREAK`
     张有证据的同值才算规则定（`automation.memory_settled`）；只取这张单真由账套记忆定的类（科目看载荷 ``account_source``、
     现 / 赊看 ``doctype_src``、对方档看 ``decided_by``），都不是、或没出载荷（本来就是 C）就不查库。
 
     证据：推的时候由人或规则定（科目：这张单上传后有人选的、任务默认、公司规则、Express 历史已定；现 / 赊：本票人工裁决、任务默认、
-    公司规则；对方档只认回读），或被合格回读覆盖、整张没被改（经钩子 ``cowork_push_readback_marks``，一次取完三类共用）；凭记忆
+    公司规则；对方档只认回读），或被合格回读覆盖、整张没被改（经钩子 ``cowork_push_readback_marks``，三类共用）；凭记忆
     推出去还没回读核过的不算，回读里被改的三类一起断开（审查处理 10-16：CC 自己推出去的单不能攒成「连续 3 张」；10-17 推广到现 / 赊
     与对方档）。审查处理 10-17：票面写明 / 票种口径定现 / 赊的单不算现 / 赊的证据（`automation.PAYMENT_OTHER_CLASS`）；对方档取
     CC 桌面版实际写入的码（回执 ``meta.party_code``，回读比的也是它），载荷写定了码、桌面版却写了别的按断开算；真写了库存行的单
     （回执 ``line_modes``）回读不比分录，科目一类只认推的时候的来源。对方档只数同一 13 位税号 + 同一分店的（同记忆键
     `choices.party_subject` 的分店口径）。只看进项、只认 13 位税号（按名字作键的来源本来最高算 B）；销项不查（买方税号没有索引），
-    记忆定的按 0 张算。取票按「本工作区 + 卖方税号」的索引（`workspace_seller_tax_index`），按上传先后取最新 `RECENT_MAX` 张、
-    推送记录取它冻结的载荷与回执，一次查询。"""
+    记忆定的按 0 张算。
+
+    窗口（10-17 改取法）：先跳过凭记忆推出去、还没合格回读核过的，再在剩下能当证据的里取最近的——取票按「本工作区 + 卖方税号」的
+    索引（`workspace_seller_tax_index`）按上传先后分批往前取（`RECENT_FIRST`、之后每批 `RECENT_PAGE`），推送记录取它冻结的载荷与
+    回执，每批标完回读，记忆定的每一类都凑够 `MEMORY_STREAK` 张证据就停；取完或合计到 `automation.RECENT_SCAN_MAX` 张也停（硬上限，
+    证据真不够的照样 B）。"""
     payload = payload if isinstance(payload, dict) else {}
     decided = (decision or {}).get("decided_by") or {}
     wanted = {"account": payload.get("account_source") == "remembered",
@@ -212,45 +227,63 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
     tax = clean_tax_id(raw)
     if len(tax) != 13:
         return {kind: [] if wanted[kind] else None for kind in RECENT_KINDS}
-    rows = frappe.db.sql("""SELECT r.name, r.payload_json, r.response_json, r.completed_at, h.invoice_date
-        FROM `tabCowork OCR History` h INNER JOIN `tabCowork Push Record` r ON r.name = h.last_push_record
-        WHERE h.workspace=%s AND h.seller_tax IN %s AND h.name != %s AND h.last_push_status='success'
-          AND r.connection=%s AND r.account_key=%s AND r.status='success'
-        ORDER BY h.creation DESC LIMIT %s""",
-                         (doc.workspace, tuple({raw, tax}), doc.name, connection, account_set, RECENT_MAX), as_dict=True)
-    entries = []
-    for row in rows:
-        pushed = service._loads(row.payload_json)
-        if not isinstance(pushed, dict) or pushed.get("direction") != "purchase":
-            continue
-        supplier = pushed.get("supplier") if isinstance(pushed.get("supplier"), dict) else {}
-        if clean_tax_id(supplier.get("tax_id")) not in ("", tax):
-            continue
-        response = getattr(row, "response_json", None)
-        response = service._loads(response) if response else {}
-        response = response if isinstance(response, dict) else {}
-        meta = response.get("meta") if isinstance(response.get("meta"), dict) else {}
-        planned = str(supplier.get("code") or "").strip()
-        written = str(meta.get("party_code") or "").strip() or planned
-        modes = response.get("line_modes") if isinstance(response.get("line_modes"), list) else []
-        entries.append({"record": row.name, "account": str(pushed.get("items_account") or "").strip(),
-                        "source": str(pushed.get("account_source") or ""),
-                        "payment": str(pushed.get("doctype") or "").strip().upper(),
-                        "payment_source": str(pushed.get("doctype_src") or ""),
-                        "party": written, "party_changed": bool(planned and written != planned),
-                        "stock": any(isinstance(mode, dict) and str(mode.get("mode") or "").startswith("stock")
-                                     for mode in modes),
-                        "branch": choice_rules.branch5(supplier.get("branch")),
-                        "invoice_date": str(row.invoice_date or "")[:10], "completed_at": row.completed_at})
-    marks = automation_service.readback_marks(connection, account_set, [
-        {key: entry[key] for key in ("record", "invoice_date", "completed_at")} for entry in entries])
-    for entry in entries:
-        entry["readback"] = marks.get(entry["record"], "")
     branch = choice_rules.branch5(fields.get("seller_branch"))
-    found = {"account": automation.memory_evidence(entries),
-             "payment": automation.memory_evidence(entries, "payment"),
-             "party": automation.memory_evidence([entry for entry in entries if entry["branch"] == branch], "party")}
-    return {kind: found[kind] if wanted[kind] else None for kind in RECENT_KINDS}
+    taxes, entries, found = tuple({raw, tax}), [], {}
+    after, scanned, size = None, 0, RECENT_FIRST
+    while True:
+        size = min(size, automation.RECENT_SCAN_MAX - scanned)
+        if size <= 0:
+            break
+        rows = _recent_rows(doc, taxes, connection, account_set, after, size)
+        scanned += len(rows)
+        batch = [entry for entry in (_recent_entry(row, tax) for row in rows) if entry]
+        if batch:
+            marks = automation_service.readback_marks(connection, account_set, [
+                {key: entry[key] for key in ("record", "invoice_date", "completed_at")} for entry in batch])
+            for entry in batch:
+                entry["readback"] = marks.get(entry["record"], "")
+            entries.extend(batch)
+        found = {"account": automation.memory_window(entries), "payment": automation.memory_window(entries, "payment"),
+                 "party": automation.memory_window(entries, "party", branch=branch)}
+        if len(rows) < size or all(len(found[kind]) >= automation.MEMORY_STREAK
+                                   for kind in RECENT_KINDS if wanted[kind]):
+            break
+        after, size = rows[-1], RECENT_PAGE
+    return {kind: found.get(kind, []) if wanted[kind] else None for kind in RECENT_KINDS}
+
+
+def _recent_rows(doc, taxes, connection, account_set, after, size):
+    """`_recent` 的一批：比 ``after``（上一批最后一行，None 从最新的起）更早上传的推成功的单，最多 ``size`` 张。"""
+    values = [doc.workspace, taxes, doc.name, connection, account_set]
+    if after is not None:
+        values += [after.uploaded, after.uploaded, after.history_name]
+    return frappe.db.sql(_RECENT_SQL.format(after=_RECENT_AFTER if after is not None else ""),
+                         (*values, size), as_dict=True)
+
+
+def _recent_entry(row, tax):
+    """一张推成功的单 → `automation.memory_evidence` 的一条（不是进项、载荷里别家的税号回 None）。"""
+    pushed = service._loads(row.payload_json)
+    if not isinstance(pushed, dict) or pushed.get("direction") != "purchase":
+        return None
+    supplier = pushed.get("supplier") if isinstance(pushed.get("supplier"), dict) else {}
+    if clean_tax_id(supplier.get("tax_id")) not in ("", tax):
+        return None
+    response = getattr(row, "response_json", None)
+    response = service._loads(response) if response else {}
+    response = response if isinstance(response, dict) else {}
+    meta = response.get("meta") if isinstance(response.get("meta"), dict) else {}
+    planned = str(supplier.get("code") or "").strip()
+    written = str(meta.get("party_code") or "").strip() or planned
+    modes = response.get("line_modes") if isinstance(response.get("line_modes"), list) else []
+    return {"record": row.name, "account": str(pushed.get("items_account") or "").strip(),
+            "source": str(pushed.get("account_source") or ""),
+            "payment": str(pushed.get("doctype") or "").strip().upper(),
+            "payment_source": str(pushed.get("doctype_src") or ""),
+            "party": written, "party_changed": bool(planned and written != planned),
+            "stock": any(isinstance(mode, dict) and str(mode.get("mode") or "").startswith("stock") for mode in modes),
+            "branch": choice_rules.branch5(supplier.get("branch")),
+            "invoice_date": str(row.invoice_date or "")[:10], "completed_at": row.completed_at}
 
 
 __all__ = ["run"]

@@ -941,6 +941,30 @@ class UploadSweep(unittest.TestCase):
 # ── 第 5 条：自动推前的判定（边界） ────────────────────────────────────────────
 
 
+def _paged(pushes):
+    """按上传先后（新的在前）排好的推成功的单 → 像库一样按 ``LIMIT`` 与「比上一批最后一张更早」取的 SQL 替身（`assess._recent`
+    分批往前取）；记下每批的参数与取回的行数。"""
+    start = dt.datetime(2026, 10, 20, 12, 0)
+    rows = [ns(name=f"R{index}", history_name=f"H{100000 - index}", uploaded=start - dt.timedelta(minutes=index),
+               payload_json=json.dumps(item), completed_at=dt.datetime(2026, 9, 5), invoice_date=dt.date(2026, 9, 1))
+            for index, item in enumerate(pushes)]
+    calls = []
+
+    def run_sql(query, values=(), as_dict=False):
+        if "INNER JOIN" not in query:
+            return []
+        limit = values[-1]
+        found = rows
+        if "h.creation < %s" in query:
+            uploaded, _same, history = values[5:8]
+            found = [row for row in rows if (row.uploaded, row.history_name) < (uploaded, history)]
+        found = found[:limit]
+        calls.append({"query": query, "values": values, "limit": limit, "rows": len(found)})
+        return found
+
+    return run_sql, calls
+
+
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
             prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
             suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history=""):
@@ -1160,6 +1184,56 @@ class Judging(unittest.TestCase):
         # 一致、载荷正好按它写（记费用、没有库存行）：入账方式一项 A，整张 A
         found, _seen = _assess(posting=("service", "company_choice"), posting_history="service")
         self.assertEqual((found["class"], found["items"]["posting"]), ("A", "A"))
+
+    def test_the_evidence_window_skips_unchecked_memory_pushes_first(self):
+        """证据窗口（10-17 改取法，`automation.memory_window`）：先跳过凭记忆推出去、还没合格回读核过的，再在能当证据的里取最近的。
+        高频供应商最新几百张都是没核过的记忆推送、更早有合格回读核过的三张同值：分批往前取到它们就停，规则定（A）；没有任何回读的
+        照样 B；回读里被改的照样断开；往回最多看 `automation.RECENT_SCAN_MAX` 张（6 次查询、1,000 行），证据在更早的也是 B。"""
+        memory = {"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
+                  "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
+                  "doctype_src": "remembered"}
+        checked = {f"R{index}": "confirmed" for index in range(600, 603)}
+        sql, calls = _paged([memory] * 603)
+        found, seen = _assess(sql=sql, marks=checked)
+        self.assertEqual((found["class"], found["items"]["account"]), ("A", "A"))
+        # 30 + 200 + 200 + 200 张取到第 603 张就停；每批标一次回读；往前接着取按上一批最后一张
+        self.assertEqual([call["limit"] for call in calls], [30, 200, 200, 200])
+        self.assertEqual(seen["marks_calls"], 4)
+        self.assertNotIn("h.creation < %s", calls[0]["query"])
+        self.assertIn("ORDER BY h.creation DESC, h.name DESC", calls[0]["query"])
+        self.assertEqual(calls[1]["values"][5:8], (dt.datetime(2026, 10, 20, 11, 31),) * 2 + ("H99971",))
+        # 记忆定的现 / 赊、对方档同一个窗口
+        memory_all = dict(decided={"account": "remembered", "vat": "remembered", "party": "remembered"},
+                          payload_over={"doctype_src": "remembered"})
+        sql, calls = _paged([memory] * 603)
+        found, _seen = _assess(sql=sql, marks=checked, **memory_all)
+        self.assertEqual((found["class"], found["items"]["payment"], found["items"]["party"]), ("A", "A", "A"))
+        # 没有任何回读核过：取到底（不足上限）还是 0 张，B
+        sql, calls = _paged([memory] * 603)
+        found, _seen = _assess(sql=sql, marks={})
+        self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:account"]))
+        self.assertEqual(sum(call["rows"] for call in calls), 603)
+        # 回读里被改的照样断开
+        sql, _calls = _paged([memory] * 603)
+        broken = {"R600": "confirmed", "R601": "changed", "R602": "confirmed"}
+        self.assertEqual(_assess(sql=sql, marks=broken)[0]["class"], "B")
+        # 推的时候由人选的照常算证据（不用等回读）
+        chosen = {**memory, "account_source": "chosen"}
+        sql, calls = _paged([memory] * 100 + [chosen] * 3)
+        self.assertEqual(_assess(sql=sql, marks={})[0]["class"], "A")
+        self.assertEqual(len(calls), 2)
+        # 上界：往回最多 1,000 张、6 次查询，核过的三张在第 1,001 张以后够不着：B
+        far = {f"R{index}": "confirmed" for index in range(1000, 1003)}
+        sql, calls = _paged([memory] * 1003)
+        found, seen = _assess(sql=sql, marks=far)
+        self.assertEqual(found["class"], "B")
+        self.assertEqual([call["limit"] for call in calls], [30, 200, 200, 200, 200, 170])
+        self.assertEqual((sum(call["rows"] for call in calls), seen["marks_calls"]), (auto.RECENT_SCAN_MAX, 6))
+        self.assertEqual(auto.RECENT_SCAN_MAX, 1000)
+        # 正好落在上限里（第 998–1,000 张）：A
+        near = {f"R{index}": "confirmed" for index in range(997, 1000)}
+        sql, calls = _paged([memory] * 1003)
+        self.assertEqual(_assess(sql=sql, marks=near)[0]["class"], "A")
 
     def test_boundaries_turn_a_push_into_a_proposal(self):
         found, _seen = _assess(site_ok=False)

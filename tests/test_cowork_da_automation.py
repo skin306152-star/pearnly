@@ -160,6 +160,32 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual(evidence([entry(account="")]), [])
         self.assertEqual(evidence([entry(account="", source="chosen")]), [""])  # 科目照旧：没记科目也断开
 
+    def test_the_evidence_window_is_counted_among_pushes_with_evidence(self):
+        """证据窗口（`memory_window`，10-17 改取法）：凭记忆推出去还没回读核过的先跳过，再在能当证据的里取最近的——最新几百张
+        没核过、更早三张核过的照样定下；往回最多看 ``scan`` 张（先截、再按分店筛，0 不设上限）；值为 None 的跳过；证据判定
+        与 `memory_evidence` 一字不差。"""
+        def entry(source="remembered", readback="", account="5310-01", branch="00000"):
+            return {"account": account, "source": source, "readback": readback, "party": "S1", "branch": branch}
+        unchecked = [entry()] * 600
+        checked = [entry(readback="confirmed")] * 3
+        self.assertEqual(auto.memory_window(unchecked + checked), ["5310-01"] * 3)
+        self.assertTrue(auto.memory_settled(auto.memory_window(unchecked + checked), "5310-01"))
+        self.assertEqual(auto.memory_window(unchecked), [])  # 没有任何回读：仍是零张
+        self.assertEqual(auto.memory_window(unchecked + checked, scan=30), [])  # 旧取法（截最新 30 张再跳过）
+        self.assertEqual(auto.memory_window(unchecked + checked, scan=0), ["5310-01"] * 3)
+        self.assertEqual(auto.RECENT_SCAN_MAX, 1000)
+        self.assertEqual(auto.memory_window([entry()] * 1000 + checked), [])  # 上限之外的够不着
+        self.assertEqual(auto.memory_window([entry()] * 997 + checked), ["5310-01"] * 3)
+        broken = unchecked + [checked[0], entry(readback="changed"), checked[0]]
+        self.assertEqual(auto.memory_window(broken), ["5310-01", "", "5310-01"])
+        mixed = [entry(readback="confirmed", branch="00001")] * 3 + checked
+        self.assertEqual(auto.memory_window(mixed, "party", branch="00000"), ["S1"] * 3)
+        self.assertEqual(auto.memory_window(mixed, "party", branch="00000", scan=3), [])  # 先截、再筛
+        self.assertEqual(auto.memory_window([{**checked[0], "account": None}] + checked), ["5310-01"] * 3)
+        for kind in ("account", "payment", "party"):
+            rows = [{**entry(readback=readback), "payment": "RR"} for readback in ("", "confirmed", "changed", "")]
+            self.assertEqual(auto.memory_window(rows, kind), auto.memory_evidence(rows, kind))
+
     def test_payment_and_party_evidence(self):
         """现 / 赊、对方档的证据口径（10-17）：现 / 赊推的时候由本票人工裁决、任务默认、公司规则定的照记，凭记忆（含人在待处理页
         选的，推出去也是 remembered）、票面写明、票种口径要回读核过；对方档只认回读；被改的断开；值为空的跳过。"""

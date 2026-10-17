@@ -67,6 +67,11 @@ PAYMENT_OTHER_CLASS = frozenset({"explicit", "doc_type"})
 PARTY_EVIDENCE_SOURCES: frozenset = frozenset()
 EVIDENCE_BY_KIND = {"account": EVIDENCE_SOURCES, "payment": PAYMENT_EVIDENCE_SOURCES, "party": PARTY_EVIDENCE_SOURCES}
 CONFIRMED, CHANGED = "confirmed", "changed"
+# 证据窗口（`memory_window`，10-17 改取法）：先跳过凭记忆推出去、还没合格回读核过的推送，再在剩下能当证据的推送里取最近的。
+# 原先按上传先后截这家最新 30 张推送再跳过：两次合格回读之间推了 30 张以上的高频供应商，最新 30 张全是没核过的，证据为零、记忆定的项
+# 永远 B（第五轮回放挤掉 7,290 张 A、7,281 张推对，7,264 张是 Paisarn 888）。往回最多看这么多张推成功的单（硬上限，按条数）：这期的
+# 推送要等次月申报截止后的回读才核得到，一个回读周期约一个半月，Paisarn 888 单月最多 407 张、约 610 张没核过的，留余量
+RECENT_SCAN_MAX = 1000
 # 录入时由识别后处理推出、不是读出来的金额：简式税票按 7/107 拆的（`ocr.pages.INCLUDED_VAT_AUDIT`）、补出的折扣
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
@@ -712,6 +717,26 @@ def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account")
     return out
 
 
+def memory_window(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
+                  scan: int = RECENT_SCAN_MAX) -> List[str]:
+    """证据窗口：这家供应商在这份账套里推成功的单（新的在前）往回最多看 ``scan`` 张（0 不设上限，回放对照用；先截、再筛），
+    ``branch`` 不是 None 时只留同一分店的（对方档），这一类的值是 None 的跳过（回放推不出这一类的近似，线上不会出现），其余交
+    `memory_evidence`——凭记忆推出去、还没合格回读核过的在那里跳过，剩下能当证据的按新到旧排，`memory_settled` 看它最前面
+    `MEMORY_STREAK` 张。所以「最近」是在能当证据的推送里数的，不是先截最新几张推送再跳过（10-17 改取法，见 `RECENT_SCAN_MAX`）。
+    只决定取哪些推送当候选，证据判定与连续计数照 `memory_evidence` / `memory_streak`。线上 `push.application.assess._recent`
+    分批往前取、每批之后调这里，凑够 `MEMORY_STREAK` 张或到上限就停（结果的前几张与一次取完相同）；回放 `pushed_evidence` 一次调。"""
+    rows: List[Mapping[str, Any]] = []
+    for index, entry in enumerate(entries or ()):
+        if scan and scan > 0 and index >= scan:
+            break
+        if not isinstance(entry, Mapping) or entry.get(kind) is None:
+            continue
+        if branch is not None and entry.get("branch") != branch:
+            continue
+        rows.append(entry)
+    return memory_evidence(rows, kind)
+
+
 def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
     """最近几张单（新的在前）连续记成 ``value`` 的张数；遇到别的值（含一单多科目、没记科目、回读里被改的空串）就断。"""
     value = str(value or "").strip()
@@ -898,6 +923,7 @@ __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim
            "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_BY_KIND", "EVIDENCE_SOURCES", "Facts",
            "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
+           "memory_window", "RECENT_SCAN_MAX",
            "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "posting_by_history", "prior_entry",
            "reason_codes", "REASONS_FIRST",
            "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",
