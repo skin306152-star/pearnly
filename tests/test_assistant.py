@@ -2228,9 +2228,15 @@ class PageTests(unittest.TestCase):
         in_config = re.findall(r"\[(\d+), (\d+), (\d)\]", config.split("const SPLASH", 1)[1].split("];", 1)[0])
         self.assertTrue(listed)
         self.assertEqual(listed, in_config)
+        # 底色同脚本的 THEMES（2026-10-16 外壳重构换了页面底色，图片要按新底色重新生成；只改脚本、图片不变时这里拦下）
+        themes = {theme: tuple(int(v) for v in rgb.split(", ")) for theme, rgb in
+                  re.findall(r'"(light|dark)": \((\d+, \d+, \d+)\)', script.split("THEMES = {", 1)[1].split("}", 1)[0])}
+        self.assertEqual(set(themes), {"light", "dark"})
         for w, h, r in listed:
             for theme in ("light", "dark"):
-                self.assertTrue((ROOT / f"frontend/assistant/public/splash/splash-{w}x{h}@{r}x-{theme}.png").is_file())
+                image = ROOT / f"frontend/assistant/public/splash/splash-{w}x{h}@{r}x-{theme}.png"
+                self.assertTrue(image.is_file())
+                self.assertEqual(_png_corner(image), ((int(w) * int(r), int(h) * int(r)), themes[theme]), image.name)
 
     def test_icons_are_fingerprinted_not_fixed_addresses(self):
         # /assets 缓存一年（Cloudflare 照存）：图标与 manifest 的地址由构建带内容指纹，页面不写死。
@@ -2393,6 +2399,31 @@ class _AccountFrappe(types.ModuleType):
     @staticmethod
     def _(text):
         return text
+
+
+def _png_corner(path):
+    """PNG 的 (宽, 高) 与左上角那一点的 RGB（只读第一行；不依赖 Pillow，CI 没装）。第一行左上角那一点不管哪种过滤方式都存原值
+    （左边、上边都按 0 算）。只认 8 位 RGB / RGBA、不隔行。"""
+    import struct
+    import zlib
+
+    data = pathlib.Path(path).read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    at, size, color, idat = 8, None, None, b""
+    while at < len(data):
+        length, kind = struct.unpack(">I4s", data[at:at + 8])
+        body = data[at + 8:at + 8 + length]
+        if kind == b"IHDR":
+            width, height, depth, color, _, _, interlace = struct.unpack(">IIBBBBB", body)
+            assert depth == 8 and color in (2, 6) and interlace == 0
+            size = (width, height)
+        elif kind == b"IDAT":
+            idat += body
+        elif kind == b"IEND":
+            break
+        at += 12 + length
+    row = zlib.decompressobj().decompress(idat, 1 + 4)
+    return size, tuple(row[1:4])
 
 
 def _preferences(native, synced=True):
