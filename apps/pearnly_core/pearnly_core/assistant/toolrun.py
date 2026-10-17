@@ -7,6 +7,7 @@
 不能让会话一直停在等待里。
 """
 import json
+from datetime import datetime, timezone
 
 import frappe
 from frappe import _
@@ -113,6 +114,7 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     frappe.db.commit()
     if not claimed:
         return "not_waiting"
+    _announce(conversation, use_id, allow)
     if not allow:
         # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）
         text = json.dumps({"status": "denied",
@@ -124,6 +126,17 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
         return "denied"
     run = frappe.db.get_value(TOOL_RUN, name, ["tool", "tool_input"], as_dict=True)
     return _finish(conversation, remote, name, use_id, run.tool, json.loads(run.tool_input or "{}"))
+
+
+def _announce(conversation: str, use_id: str, allow: bool) -> None:
+    """回答落库后马上推给会话主人自己的房间（`contracts.answer_event`），不等工具执行完：别的设备上开着同一段对话的卡片
+    1–2 秒内换成点完的样子（第 10 轮 C22）。推不出去不影响这次回答，那边照旧等结果或补拉。"""
+    try:
+        event = contracts.answer_event(use_id, allow, datetime.now(timezone.utc).isoformat())
+        frappe.publish_realtime(contracts.REALTIME_EVENT, {"session_id": conversation, "event": event},
+                                user=frappe.session.user)
+    except Exception as err:
+        print(f"assistant answer {conversation}: {type(err).__name__}", flush=True)
 
 
 def _input(text) -> dict:

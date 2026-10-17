@@ -450,17 +450,29 @@ class RelayTests(unittest.TestCase):
             rollback = commit
 
         adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        published = []
         with mock.patch.object(toolrun, "_use_lang", lambda conversation: None), \
                 mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
                 mock.patch.object(toolrun.frappe, "local", types.SimpleNamespace(cache={}), create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(toolrun.frappe, "publish_realtime", lambda event, message, user=None, after_commit=False:
+                                  published.append((event, message, user, after_commit)), create=True), \
                 mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
-                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data)) or ("saved", False)):
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data) + (len(published),)) or ("saved", False)):
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")  # 重复点击不再执行
             # 拒绝：不执行；交回模型的结果带 status: denied（不随语言变，对话页重开时据此把这一步写成没做，第 8 轮）
             rows["r2"] = {"status": "awaiting_approval", "tool": "always", "tool_input": "{}"}
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_2", False), "denied")
-        self.assertEqual(ran, [("always", {"task": "T1"})])
+        self.assertEqual(ran, [("always", {"task": "T1"}, 1)])  # 回答先推出去，再执行工具
+        # 回答落库就推给会话主人自己的房间（第 11 轮 C22）：别的设备上的卡片不等工具执行完；重复点击（没抢到）不推
+        self.assertEqual([(m["session_id"], m["event"]["type"], m["event"]["id"], m["event"]["tool_use_id"], m["event"]["result"])
+                          for _e, m, _u, _a in published],
+                         [("conv", "pearnly.answer", "panswer_sevt_1", "sevt_1", "allow"),
+                          ("conv", "pearnly.answer", "panswer_sevt_2", "sevt_2", "deny")])
+        self.assertEqual({(e, u, a) for e, _m, u, a in published}, {(contracts.REALTIME_EVENT, "owner@x.test", False)})
+        with self.assertRaises(contracts.ContractError):
+            contracts.answer_event("not an id!", True, "2026-10-17T08:00:00+00:00")
         self.assertEqual((rows["r1"]["status"], rows["r1"]["result"]), ("done", "saved"))
         self.assertEqual(len(posted), 2)
         denied = json.loads(rows["r2"]["result"])

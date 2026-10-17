@@ -492,10 +492,14 @@ export class SessionController {
     try {
       await postMessage(this.sessionId, messageText(text, files));
     } catch (err) {
-      // Nothing was sent: pull the bubble back out of the transcript so it
-      // never reads as delivered. (Replay can't do this; it only adds.)
-      this.rollbackSend(optimisticId);
-      throw err;
+      // 回声已经到了：服务端早已收下（回复可能都在出了），没回来的只是这次请求的回应（中途断网）。这条算发出了：
+      // 不撤气泡、不报发送失败，输入框也不放回（第 10 轮 E30：断网点停止约 2.4 秒后那句话被放回输入框，再按发送就重复一条）
+      if (!this.state.echoedOptimistic.has(optimisticId)) {
+        // Nothing was sent: pull the bubble back out of the transcript so it
+        // never reads as delivered. (Replay can't do this; it only adds.)
+        this.rollbackSend(optimisticId);
+        throw err;
+      }
     } finally {
       this.unacked--;
     }

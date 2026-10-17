@@ -3,6 +3,8 @@
 //   - 点完：卡片留在对话流原处（不并进折叠的步骤组），按钮行换成淡色的所选那一项；这一步工具没做成时加危险色「失败」；
 //     刚点、确认还没送到时那一行先淡一档（sending）；
 //   - 没答就没了（中断、回合结束、终止，reducer 的 stripUnresolvedApprovals）：问话 + 淡色「已取消」，不写成做完的说法。
+//     没答就点了停止的（reducer 标 cancelled）之后补来结果（中断时引擎交回的出错结果）也照旧「已取消」，不当成「允许 · 失败」
+//     （第 10 轮 C20）；只有结果写明拒绝的写「拒绝」。
 // 当场点的、切到别的对话再切回、重开对话、别的设备上答过，都是同一个判断。答案以服务端结果为准：结果写明被拒绝（lib/step-summary.ts
 // 的 stepDenied）就是「拒绝」，有结果、没写拒绝、也不是出错交回的就是「允许」（两台设备同时点、确认超时后改点，本页点的那一项
 // 可能不是服务端定下的）；还没结果才按本页点的。重开对话时历史里没有点击记录：要「允许」的本站工具有结果就是出过卡片，
@@ -21,6 +23,8 @@ export type CardPart = {
   isError?: boolean | undefined;
   status?: { type: string } | undefined;
   approval?: Approval | undefined;
+  /** 没答就点了停止（reducer 的 cancelOpenGates）。 */
+  cancelled?: boolean | undefined;
 };
 
 /** 要「允许」的本站工具（lib/tool-labels.ts）：ask 里有的都要；gate 里列了参数的，给了其中一个才要（同服务端 needs_approval）；
@@ -78,6 +82,7 @@ export function approvalCard(part: CardPart, gates: Gates): CardState | null {
   }
   if (hasResult && stepDenied({ result })) return { phase: "answered", approved: false, failed: false };
   if (!gatedCall(part.toolName, part.args, gates)) return null;
+  if (part.cancelled) return { phase: "cancelled" };
   // 重开对话：要「允许」的本站工具已有结果就是点过「允许」（做没做成看结果）；出卡片前就核出要拒绝的不是卡
   if (hasResult) return stepNotAsked({ result }) ? null : { phase: "answered", approved: true, failed: stepFailed(part) };
   // 没有结果、也没有门：这一轮已结束（中断、终止、回合结束时撤掉的门；重开对话时同样）

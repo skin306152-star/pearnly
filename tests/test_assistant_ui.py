@@ -61,7 +61,9 @@ class FeedTests(unittest.TestCase):
         events = read("lib/managed-agents/events.ts")
         self.assertIn('type: "pearnly.notice";', events)
         self.assertIn('return String(event.type).startsWith("pearnly.");', events)
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent;", events)
+        # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent;", events)
+        self.assertIn('type: "pearnly.answer";', events)
         poll = read("lib/managed-agents/poll-source.ts")
         self.assertIn("if (anchor && !isLocalEvent(event)) this.lastId = id;", poll)
         self.assertNotIn("if (anchor) this.lastId = id;", poll)
@@ -3804,9 +3806,15 @@ assert.equal(accountFull({ value: "5300", value_label: "5300" }), "5300");
 assert.equal(toggleChoice("", "k1"), "k1");
 assert.equal(toggleChoice("k1", "k1"), "");
 assert.equal(toggleChoice("k1", "k2"), "k2");
-// 请求没回来时：点开那一条的按钮都不能点（连点「删除」不会发两次）
-assert.ok(walk((ChoiceRow as any)({ ...props(pay, true), busy: true })).slice(1).every((b) => b.props.disabled === true));
-assert.ok(walk((ChoiceRow as any)(props(pay, true))).slice(1).every((b) => !b.props.disabled));
+// 请求没回来时：点开那一条的按钮再点不理（连点「删除」不会发两次）；不设 disabled（第 11 轮 D28：设了刚按的那一格失焦，
+// 键盘焦点掉到页面别处），按钮行标 aria-busy
+calls.length = 0;
+const busyRow = walk((ChoiceRow as any)({ ...props(pay, true), busy: true })).slice(1);
+assert.ok(busyRow.every((b) => !b.props.disabled));
+busyRow.forEach((b) => b.props.onClick());
+assert.deepEqual(calls, []);
+assert.match(renderToStaticMarkup(createElement(ChoiceRow, { ...props(pay, true), busy: true })), /<div class="cc-card-actions" aria-busy="true">/);
+assert.doesNotMatch(renderToStaticMarkup(createElement(ChoiceRow, props(pay, true))), /aria-busy|disabled/);
 // 点开后对方名整段换行显示（手机上没有悬停滚动，收起时看不全）
 assert.match(renderToStaticMarkup(createElement(ChoiceRow, props(pay, true))), /<span class="cc-choice-name">ACME<\/span>/);
 // 删掉 / 提升走了一条后焦点放到下一条，没有下一条放上一条，一条不剩回 ""
@@ -3821,6 +3829,12 @@ assert.equal(choiceAfter(["a"], "a"), "");
         self.assertIn("onToggle={() => setOpen((o) => toggleChoice(o, c.key))}", section)
         self.assertIn("if (gone) setOpen((o) => (o === gone ? \"\" : o));", section)
         self.assertIn("busy={busy === c.key}", section)
+        # 两段式点下立即显示新选择，没成功这一条退回原样、卡内报错（第 11 轮 D28）
+        change = section[section.index("const change = async (c: Choice, v: string) => {"):]
+        self.assertLess(change.index("setList((rows) => setChoiceShown(rows, c.key, v));"),
+                        change.index("await setChoice(company, c.key, v, period);"))
+        self.assertIn("setList((rows) => rows.map((row) => (row.key === c.key ? c : row)));", change)
+        self.assertIn("onSet={(v) => void change(c, v)}", section)
         self.assertIn("if (gone) setFocusKey(choiceAfter(", section)
         self.assertIn('row?.querySelector<HTMLElement>(".cc-choice-row")?.focus();', section)
         self.assertEqual(section.count("(rows) => rows.filter((row) => row.key !== c.key), c.key)"), 2)
@@ -6671,6 +6685,136 @@ assert.deepEqual(g.prefParts.get("order").read()["group:CO-2"].keys.length > 0, 
         sync = read("lib/managed-agents/list-sync.ts")
         self.assertIn('if (!starred && row.remoteId && row.status === "regular") noteUnpinned(row.remoteId, false);', sync)
 
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11CardTests(unittest.TestCase):
+    """测试窗口第 10 轮实测（lab 97553dd2）：C20 卡片没答就停止写成「允许 · 失败」；C22 另一台设备 6–17 秒才变成点完；
+    E30 断网点停止后已发出的那句被放回输入框。"""
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB}
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n'
+               + body.split("\n---\n", 1)[0] + "\nconst g = globalThis as any;\n" + FAKE_SITE
+               + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_a_card_left_unanswered_by_stop_reads_cancelled_live_and_reopened(self):
+        # 卡片出来后没答、直接点停止：引擎补来一条出错的结果，以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
+        # 现在 user.interrupt 时还开着的门标 cancelled：本页与重开都是问话 + 淡色「已取消」；晚到的问句不再把按钮放回来
+        self.run_page(r"""
+import { applyEvent, gateCustomTool, project } from "@/lib/managed-agents/reducer";
+import { approvalCard } from "@/lib/approval-card";
+---
+const gates = { ask: { pearnly_task_switch: "Turn it on?" } };
+const part = (state: any) => state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === "tz");
+const head = [ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
+  ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } })];
+const result = (isError: boolean, body: string) =>
+  ev("res", "user.custom_tool_result", 6, { custom_tool_use_id: "tz", content: text(body), is_error: isError });
+const stop = [ev("i1", "user.interrupt", 5), result(true, "interrupted"), ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })];
+// 本页：卡片等回答（问句向服务端要来的），点停止
+let live = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
+assert.deepEqual(approvalCard(part(live), gates), { phase: "ask" });
+live = project(stop as any, live);
+assert.deepEqual(approvalCard(part(live), gates), { phase: "cancelled" });
+assert.equal(part(live).approval, undefined);
+assert.deepEqual([live.pendingApprovals, live.pendingCustomTools, live.parkedIds, live.isRunning], [[], [], [], false]);
+// 重开对话：历史里没有点击记录，那一步也还没有门（问句要向服务端要），按停着等的那一步认
+const reopened = project([...head, ...stop] as any);
+assert.deepEqual(approvalCard(part(reopened), gates), { phase: "cancelled" });
+assert.equal(gateCustomTool(reopened, "tz", { ask: "Turn it on?" }), reopened);   // 晚到的问句不放回按钮
+// 对照：没停止、点了「允许」执行出错的，照旧「允许 · 失败」；结果写明拒绝的照旧「拒绝」
+const ran = project([...head, result(true, "The tool failed. Try again later."),
+  ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })] as any);
+assert.deepEqual(approvalCard(part(ran), gates), { phase: "answered", approved: true, failed: true });
+const denied = project([...head, ev("i1", "user.interrupt", 5),
+  result(false, JSON.stringify({ status: "denied", message: "The user did not allow this change." }))] as any);
+assert.deepEqual(approvalCard(part(denied), gates), { phase: "answered", approved: false, failed: false });
+// 已答的（本页点了「允许」、还没结果）不因停止改成「已取消」
+let answered = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
+answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmation", 5, { tool_use_id: "tz", result: "allow" }) as any);
+answered = applyEvent(answered, ev("i1", "user.interrupt", 6) as any);
+assert.equal(part(answered).approval.approved, true);
+assert.equal(part(answered).cancelled, undefined);
+// 不要「允许」的工具被停止：照常是步骤组里的一行，不是卡片
+const plain = project([ev("tp", "agent.custom_tool_use", 3, { name: "pearnly_read", input: {} }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }), ev("i1", "user.interrupt", 5)] as any);
+assert.equal(approvalCard(plain.messages[0]!.content[0] as any, gates), null);
+""")
+
+    def test_an_answer_on_another_device_settles_the_card_from_the_push(self):
+        # 另一台设备点了「允许」：服务端回答落库就推 pearnly.answer（toolrun.decide），这边不等工具执行完、不等补拉，
+        # 收到推送当场定下（按钮没了、卡片是点完的样子），也不再算等这边点
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { dispatch } from "@/lib/managed-agents/realtime";
+import { approvalCard } from "@/lib/approval-card";
+---
+const S = "sesn_c22";
+site.log.push(ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
+  ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } }));
+site.runs = { tz: "awaiting_approval" };
+site.toolReply = async () => ({ status: "awaiting_approval", ask: "Turn it on?", preview: [] });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.deepEqual(c.getSnapshot().pendingApprovals, ["tz"]);
+const reads = eventsCalls(S).length;
+dispatch({ session_id: S, event: { type: "pearnly.answer", id: "panswer_tz", tool_use_id: "tz", result: "allow", processed_at: at(5) } as any });
+await g.sleep(0);
+const snap: any = c.getSnapshot();
+assert.equal(eventsCalls(S).length, reads);            // 没靠补拉
+assert.deepEqual(snap.pendingApprovals, []);
+assert.equal(toolPart(snap, "tz").approval.approved, true);
+assert.equal(toolPart(snap, "tz").approval.sending, undefined);
+assert.equal(toolPart(snap, "tz").approval.ask, "Turn it on?");
+assert.deepEqual(approvalCard(toolPart(snap, "tz"), { ask: { pearnly_task_switch: "Turn it on?" } }),
+  { phase: "answered", approved: true, failed: false });
+assert.equal(snap.isRunning, true);                    // 答完接着跑
+// 别的对话的推送不碰这一段
+dispatch({ session_id: "sesn_other", event: { type: "pearnly.answer", id: "panswer_x", tool_use_id: "tz", result: "deny", processed_at: at(6) } as any });
+await g.sleep(0);
+assert.equal(toolPart(c.getSnapshot(), "tz").approval.approved, true);
+""")
+
+    def test_a_message_the_server_already_has_is_not_rolled_back(self):
+        # 回复进行中断网：发出请求的回应没回来，但回声早已到了（服务端收下了）。以前照样当没发出、字放回输入框，再按发送重复一条；
+        # 现在算发出了（不抛、气泡留着）；回声没到的照旧撤回、抛出（发送没成功、字放回）
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_e30";
+site.log.push(ev("u0", "user.message", 1, { content: text("earlier") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+const users = () => c.getSnapshot().messages.filter((m: any) => m.role === "user").map((m: any) => m.content[0]?.text);
+g.respond = async (method: string, args: any, body: any) => {
+  if (method !== "send") return respond(method, args, body);
+  site.log.push(ev("echo1", "user.message", 3, { content: text(body.text) }), ev("r1", "session.status_running", 4));
+  c.refreshStatus();
+  await g.sleep(30);
+  throw new TypeError("Failed to fetch");
+};
+await c.sendMessage("hello", []);
+assert.deepEqual(users(), ["earlier", "hello"]);
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") throw new TypeError("Failed to fetch");
+  return respond(method, args, body);
+};
+await assert.rejects(c.sendMessage("again", []), /Failed to fetch/);
+assert.deepEqual(users(), ["earlier", "hello"]);
+""")
+
+    def test_the_new_chat_stop_failure_only_says_why(self):
+        # 新对话发出后补的打断没成功：同停止键，只写停止的原因，不当发送失败、不放回输入框
+        provider = read("lib/managed-agents/runtime-provider.tsx")
+        self.assertIn("else await newChat.run(ensureSession, send, async (id) => {\n"
+                      "            await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
+        controller = read("lib/managed-agents/session-controller.ts")
+        self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
 
 if __name__ == "__main__":
     unittest.main()

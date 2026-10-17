@@ -312,6 +312,20 @@ def session_change(change, session, title=None, starred=None) -> dict:
     return event
 
 
+# 卡片的回答（`toolrun.decide`）：本站拦下等「允许」的调用被点了「允许 / 拒绝」、抢占落库后，推给会话主人自己的房间，
+# 同一段对话开在别的设备上的卡片立即换成点完的样子（第 10 轮 C22：以前要等工具执行完交回结果、或下一次补拉，6–17 秒）。
+# 只走实时通道、不进引擎的事件记录：重开对话时照工具结果认（对话页 lib/approval-card.ts）。
+ANSWER_EVENT = "pearnly.answer"
+ANSWER_PREFIX = "panswer_"  # 事件编号，与引擎编号、提醒编号不会撞
+
+
+def answer_event(tool_use_id, allow, processed_at) -> dict:
+    """一张卡的回答：哪次调用、允许还是拒绝（同引擎 user.tool_confirmation 的 result）。"""
+    use_id = event_id(tool_use_id)
+    return {"type": ANSWER_EVENT, "id": ANSWER_PREFIX + use_id, "tool_use_id": use_id,
+            "result": "allow" if allow else "deny", "processed_at": processed_at}
+
+
 # ---- 对话归在哪家（`projects`，ADR-020：Cowork 按公司主档）----
 # 共用层只记对话挂在哪一项（`project`，产品给的不透明编号；空 = 「最近」）、处理哪个月（`period`，`YYYY-MM`，空 = 不指定）、
 # 产品自定的范围（`project_scope`，Cowork 存分店号；空 = 不指定）。哪些编号有效、说明写什么由产品的 provider 决定。

@@ -159,9 +159,12 @@ function useSessionThreadRuntime() {
             await getSessionController(id).sendMessage(text, files, pendingShownAs);
             sent();
           };
-          // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）
+          // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）。打断没成功
+          // 同停止键：只写原因（attemptStop），消息已发出，不当发送失败、不放回输入框（第 10 轮 E30）
           if (controller) await send(await ensureSession());
-          else await newChat.run(ensureSession, send, (id) => getSessionController(id).interrupt());
+          else await newChat.run(ensureSession, send, async (id) => {
+            await attemptStop(threadId, () => getSessionController(id).interrupt());
+          });
         });
       } finally {
         clearPending();
