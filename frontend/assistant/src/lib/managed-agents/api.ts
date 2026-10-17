@@ -1,7 +1,7 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
 import { get, post, upload } from "@/lib/frappe";
-import type { FeedEvent, RunStatus, SessionSummary } from "./events";
+import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
 
 /** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。要了状态（status）才带 run（读不到也没有）。 */
 export type EventsPage = { events: FeedEvent[]; full: boolean; run?: RunStatus };
@@ -91,11 +91,15 @@ export async function sendMessage(id: string, text: string): Promise<void> {
   await post("send", { session_id: id, text });
 }
 
-export async function confirmTools(
+/** 点「允许 / 拒绝」的回应：runs 是其中本站拦下的调用此刻在本站的状态（服务端 sessions.confirm；已作废、已执行的不再转给引擎，
+ *  照这里的状态定下卡片）。旧服务端没有 runs。 */
+export type ConfirmReply = { confirmed?: number; runs?: Record<string, ToolRunStatus> } | null;
+
+export function confirmTools(
   id: string,
   confirmations: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string }>,
-): Promise<void> {
-  await post("confirm", { session_id: id, confirmations: JSON.stringify(confirmations) });
+): Promise<ConfirmReply> {
+  return post<ConfirmReply>("confirm", { session_id: id, confirmations: JSON.stringify(confirmations) });
 }
 
 export async function interruptSession(id: string): Promise<void> {

@@ -22,7 +22,7 @@
 import { shownError } from "@/lib/frappe";
 import { noteRun } from "./activity";
 import { confirmTools, interruptSession, listEvents, runTool, sendMessage as postMessage } from "./api";
-import { type FeedEvent, messageText, type RelayEnvelope, type RunStatus, type StreamEvent } from "./events";
+import { type FeedEvent, messageText, type RelayEnvelope, type RunStatus, type StreamEvent, toolRunEvent } from "./events";
 import { PollingSource } from "./poll-source";
 import {
   applyEvent,
@@ -556,10 +556,15 @@ export class SessionController {
     this.confirmTimer = null;
     if (confirmations.length === 0) return;
     try {
-      await confirmTools(this.sessionId, confirmations);
+      const reply = await confirmTools(this.sessionId, confirmations);
       this.localChangeAt = Date.now(); // 同 sendMessage：服务端收下答复之前要的状态不算
       // 送到了：点完那一行不再淡着（以后到的结果若与本页点的不同，reducer 照结果改）
       this.mergeProjection(clearSending(this.state, confirmations.map((c) => c.tool_use_id)));
+      // 本站拦下的调用此刻在本站的状态（服务端不再等的不转给引擎，第 11 轮 A4）：照它当场定下卡片——别的设备上已停止的旧卡片
+      // 写「已取消」、不放回按钮；执行完的写「允许」。同推来的执行记录（同一个编号，先到后到都只折一次）
+      for (const [id, status] of Object.entries(reply?.runs ?? {})) {
+        if (status !== "awaiting_approval") this.fold(toolRunEvent(id, status));
+      }
       this.source?.nudge();
     } catch (err) {
       // The server never took our answer, so the session is still parked.

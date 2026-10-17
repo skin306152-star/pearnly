@@ -102,11 +102,28 @@ def _summary(row, status=None, unread=False) -> dict:
 
 def _tool_runs(row, ids) -> dict:
     """停着等的这几次调用在本站的执行状态 `{调用编号: awaiting_approval / running / …}`（本站库，不调引擎）。"""
+    return {run.tool_use_id: run.status for run in _run_rows(row, ids)}
+
+
+def _run_rows(row, ids) -> list:
+    """这几次调用在本站的执行记录（编号、状态、最后改动时间），一次查询；没有编号不查。"""
     if not ids:
-        return {}
-    return {run.tool_use_id: run.status for run in frappe.get_all(toolrun.TOOL_RUN, filters={
+        return []
+    return frappe.get_all(toolrun.TOOL_RUN, filters={
         "session_id": row.session_id, "user": _user(), "tool_use_id": ["in", list(ids)]},
-        fields=["tool_use_id", "status"])}
+        fields=["tool_use_id", "status", "modified"])
+
+
+def _with_tool_runs(events, row) -> list:
+    """这页事件里出现过的调用在本站的执行记录，作为本站事件（`contracts.tool_run_event`）接在这页最后：对话页重开、补拉时
+    按本站记录定下卡片（执行完、出错、拒绝、作废），不靠引擎那边的结果猜（第 11 轮 A 段）。读不出来就不带，不挡取事件。"""
+    try:
+        runs = _run_rows(row, contracts.tool_use_ids(events))
+        return events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None)
+                         for run in runs if run.status in contracts.TOOL_RUN_STATES]
+    except Exception:
+        frappe.log_error(title="Assistant tool runs read failed")
+        return events
 
 
 def run_state(row, api, latest, as_of=None):
@@ -397,7 +414,8 @@ def events(session_id, after=None, status=False) -> dict:
             newer = found[1:]
             _remember_context(row, newer)
             since = contracts.instant(found[0].get("processed_at"))
-            page = {"events": newer + notices.feed(row.session_id, user, since=since, recent=since is None),
+            page = {"events": _with_tool_runs(newer, row) + notices.feed(row.session_id, user, since=since,
+                                                                          recent=since is None),
                     "full": False}
             return _with_run(page, row, api, tap.latest, found[-1].get("processed_at")) if status else page
     history = []
@@ -405,7 +423,7 @@ def events(session_id, after=None, status=False) -> dict:
         part = list(api.events(remote))
         history += part
     _remember_context(row, part)
-    history = contracts.merge_by_time(history, notices.feed(row.session_id, user))
+    history = _with_tool_runs(contracts.merge_by_time(history, notices.feed(row.session_id, user)), row)
     page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
                                                          "archived_at": _when(row.modified) if row.archived else None}}
     if not status:
@@ -496,23 +514,27 @@ def retitle(name, conversation=None, source=None, title=None, user=None) -> None
     titles.summarize(name, legacy_title=title)
 
 
-def confirm(session_id, confirmations) -> int:
-    """对话里点的「允许 / 拒绝」。我们自己拦下的工具调用（要授权的 Pearnly 工具，`toolrun.decide`）在本站处理；
-    其余照旧交给引擎。"""
+def confirm(session_id, confirmations) -> dict:
+    """对话里点的「允许 / 拒绝」。本站拦下的工具调用（执行记录里有这次调用的，不论状态）在本站处理、一律不转给引擎：
+    还在等的交 `toolrun.decide`；已执行、已拒绝、已作废的（例如别的设备上点了停止，断网的手机联网后才点「允许」）不再执行，
+    把此刻的状态回给页面，页面照它当场定下卡片（第 11 轮 A4：以前转给引擎被拒，报 500）。其余照旧交给引擎。
+    返回 `{"confirmed": 条数, "runs": {调用编号: 本站状态}}`。"""
     row = owned(session_id)
     batch = _guard(contracts.confirmations, confirmations)
     remote = current(row)
     relay.ensure(row.session_id, remote, frappe.session.user)
-    ours = set(frappe.get_all(toolrun.TOOL_RUN, filters={
-        "session_id": row.session_id, "user": frappe.session.user, "status": "awaiting_approval",
-        "tool_use_id": ["in", [item["tool_use_id"] for item in batch]]}, pluck="tool_use_id"))
-    rest = [item for item in batch if item["tool_use_id"] not in ours]
+    runs = _tool_runs(row, [item["tool_use_id"] for item in batch])
+    rest = [item for item in batch if item["tool_use_id"] not in runs]
     if rest:
         engine.adapter().post(remote, rest)
     for item in batch:
-        if item["tool_use_id"] in ours:
-            toolrun.decide(row.session_id, remote, item["tool_use_id"], item["result"] == "allow")
-    return len(batch)
+        use_id = item["tool_use_id"]
+        if runs.get(use_id) != "awaiting_approval":
+            continue
+        status = toolrun.decide(row.session_id, remote, use_id, item["result"] == "allow")
+        # 没抢到（同一刻别处点了、或刚被作废）：回此刻的状态
+        runs[use_id] = status if status != "not_waiting" else _tool_runs(row, [use_id]).get(use_id, runs[use_id])
+    return {"confirmed": len(batch), "runs": runs}
 
 
 def interrupt(session_id) -> None:

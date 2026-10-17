@@ -383,17 +383,23 @@ class RelayTests(unittest.TestCase):
         """点了停止、这一轮出错收尾或会话终止：还在等「允许」的调用标成 cancelled，别的设备上没刷新的旧卡片事后点「允许」
         也不执行（第 11 轮）。停止当场标（推送线程可能已到时限不在了），推送线程看到这一轮结束再标一次。"""
         toolrun = sys.modules["pearnly_core.assistant.toolrun"]
-        rows = {"r1": {"session_id": "conv", "status": "awaiting_approval", "tool": "always", "tool_input": "{}"},
+        rows = {"r1": {"session_id": "conv", "status": "awaiting_approval", "tool": "always", "tool_input": "{}",
+                       "tool_use_id": "sevt_1", "user": "owner@x.test"},
                 "r2": {"session_id": "conv", "status": "done", "tool": "always", "tool_input": "{}"},
                 "r3": {"session_id": "other", "status": "awaiting_approval", "tool": "always", "tool_input": "{}"}}
-        ran = []
+        ran, published, queries = [], [], []
 
         class Db:
             _cursor = types.SimpleNamespace(rowcount=0)
 
-            def sql(self, query, values):
-                if "session_id=%s" in query:
-                    hits = [n for n, r in rows.items() if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+            def sql(self, query, values, as_dict=False):
+                queries.append(query)
+                if query.startswith("SELECT"):
+                    return [_Row(name=n, tool_use_id=r.get("tool_use_id"), user=r.get("user")) for n, r in rows.items()
+                            if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+                if "SET status='cancelled'" in query:
+                    # 逐条抢占：只改还在等的那一条
+                    hits = [values[0]] if rows[values[0]]["status"] == "awaiting_approval" else []
                     for n in hits:
                         rows[n]["status"] = "cancelled"
                 else:
@@ -410,14 +416,23 @@ class RelayTests(unittest.TestCase):
             def commit(self):
                 pass
 
+        def publish(event, message, user=None, after_commit=False):
+            published.append((event, message, user))
+            raise RuntimeError("socket down")  # 推不出去不影响作废
+
         with mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
-                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="someone@x.test"), create=True), \
+                mock.patch.object(toolrun.frappe, "publish_realtime", publish, create=True), \
                 mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append(name) or ("saved", False)):
             self.assertEqual(toolrun.cancel_waiting("conv"), 1)
             self.assertEqual([r["status"] for r in rows.values()], ["cancelled", "done", "awaiting_approval"])
             self.assertEqual(toolrun.cancel_waiting("conv"), 0)
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")
         self.assertEqual(ran, [])
+        # 作废的那一条推一次执行记录（第 11 轮 A 段）：给这条记录的主人，别的设备上还挂着的卡片当场写「已取消」；没有作废的不推
+        self.assertEqual(published, [(contracts.REALTIME_EVENT, {"session_id": "conv", "event": {
+            "type": "pearnly.tool_run", "id": "ptoolrun_sevt_1_cancelled", "tool_use_id": "sevt_1", "status": "cancelled",
+            "processed_at": published[0][1]["event"]["processed_at"]}}, "owner@x.test")])
         options = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_tool_run/pearnly_assistant_tool_run.json")
                              .read_text(encoding="utf-8"))
         status = next(f for f in options["fields"] if f["fieldname"] == "status")
@@ -517,10 +532,13 @@ class RelayTests(unittest.TestCase):
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_2", False), "denied")
         self.assertEqual(ran, [("always", {"task": "T1"}, 1)])  # 回答先推出去，再执行工具
         # 回答落库就推给会话主人自己的房间（第 11 轮 C22）：别的设备上的卡片不等工具执行完；重复点击（没抢到）不推
-        self.assertEqual([(m["session_id"], m["event"]["type"], m["event"]["id"], m["event"]["tool_use_id"], m["event"]["result"])
-                          for _e, m, _u, _a in published],
+        # 执行完、拒绝后再推一次本站执行记录（pearnly.tool_run，第 11 轮 A 段）：卡片最后的样子以它为准
+        self.assertEqual([(m["session_id"], m["event"]["type"], m["event"]["id"], m["event"]["tool_use_id"],
+                           m["event"].get("result") or m["event"].get("status")) for _e, m, _u, _a in published],
                          [("conv", "pearnly.answer", "panswer_sevt_1", "sevt_1", "allow"),
-                          ("conv", "pearnly.answer", "panswer_sevt_2", "sevt_2", "deny")])
+                          ("conv", "pearnly.tool_run", "ptoolrun_sevt_1_done", "sevt_1", "done"),
+                          ("conv", "pearnly.answer", "panswer_sevt_2", "sevt_2", "deny"),
+                          ("conv", "pearnly.tool_run", "ptoolrun_sevt_2_denied", "sevt_2", "denied")])
         self.assertEqual({(e, u, a) for e, _m, u, a in published}, {(contracts.REALTIME_EVENT, "owner@x.test", False)})
         with self.assertRaises(contracts.ContractError):
             contracts.answer_event("not an id!", True, "2026-10-17T08:00:00+00:00")
@@ -3443,9 +3461,12 @@ class _SessionDb:
     def rollback(self):
         self.rollbacks = getattr(self, "rollbacks", 0) + 1
 
-    def sql(self, query, *values):
-        """只认 `context.active(wait=False)` 的「锁得到才写」：`busy` 里的记录名当作正被别的事务锁着（SKIP LOCKED 回空）。"""
+    def sql(self, query, *values, **kwargs):
+        """只认 `context.active(wait=False)` 的「锁得到才写」：`busy` 里的记录名当作正被别的事务锁着（SKIP LOCKED 回空）。
+        作废没答的卡片（`toolrun.cancel_waiting`）查执行记录：这里没有等「允许」的。"""
         self.queries = getattr(self, "queries", []) + [(query, values)]
+        if "Tool Run" in query:
+            return []
         busy = getattr(self, "busy", set())
         return [] if values and values[0] in busy else [(values[0] if values else None,)]
 
@@ -4304,6 +4325,269 @@ class ProjectTests(unittest.TestCase):
         imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",
                                       (CORE / "assistant/projects.py").read_text(encoding="utf-8")))
         self.assertNotRegex(imports, r"\b(sessions|relay)\b")
+
+
+class ToolRunRecordTests(unittest.TestCase):
+    """第 11 轮 A 段（lab 9798f54e，真引擎）：本站拦下的卡片最后的样子以本站执行记录为准。点了停止时引擎代发一条出错的中断结果
+    （agent.tool_result，比 user.interrupt 早 47 毫秒），对话页曾当成「允许 · 失败」；点「允许」后马上停止的，工具其实已执行成功、
+    记录却停在 running；别的设备已停止后断网的手机才点「允许」，confirm 转给引擎被拒、报 500。"""
+
+    ROW = None
+
+    def _sessions(self):
+        sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("files"))
+        return _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+
+    def _row(self):
+        return _Row(name="row1", session_id="sesn_01X2K4vJBNvR361Cvjxap2Nw", title="t", archived=0, remote_ids="",
+                    context_tokens=0, modified=datetime.datetime(2026, 10, 17, 18, 0))
+
+    def test_confirm_never_forwards_this_sites_calls_and_answers_their_state(self):
+        sessions = self._sessions()
+        row = self._row()
+        runs = {"sevt_wait": "awaiting_approval", "sevt_gone": "cancelled", "sevt_done": "done", "sevt_deny": "denied",
+                "sevt_race": "awaiting_approval"}
+        posted, decided, asked = [], [], []
+
+        def get_all(doctype, filters=None, fields=None, **kw):
+            asked.append(filters["tool_use_id"][1])
+            return [_Row(tool_use_id=i, status=runs[i]) for i in filters["tool_use_id"][1] if i in runs]
+
+        def decide(conversation, remote, use_id, allow):
+            decided.append((use_id, allow))
+            if use_id == "sevt_race":  # 同一刻别处点了停止：没抢到
+                runs[use_id] = "cancelled"
+                return "not_waiting"
+            runs[use_id] = "done"
+            return "done"
+
+        batch = [{"tool_use_id": i, "result": "allow"} for i in ("sevt_wait", "sevt_gone", "sevt_done", "sevt_deny",
+                                                                  "sevt_race", "sevt_bash")]
+        with mock.patch.object(sessions, "owned", return_value=row), \
+                mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
+                mock.patch.object(sessions.engine, "adapter",
+                                  return_value=types.SimpleNamespace(post=lambda remote, events: posted.append(events))), \
+                mock.patch.object(sessions.frappe, "get_all", get_all, create=True), \
+                mock.patch.object(sessions.toolrun, "decide", decide):
+            reply = sessions.confirm(row.session_id, batch)
+        # 执行记录里有的（不论状态）一律不转给引擎；只有还在等的才 decide；其余回此刻的状态，不抛错
+        self.assertEqual(posted, [[{"type": "user.tool_confirmation", "tool_use_id": "sevt_bash", "result": "allow"}]])
+        self.assertEqual(decided, [("sevt_wait", True), ("sevt_race", True)])
+        self.assertEqual(reply, {"confirmed": 6, "runs": {"sevt_wait": "done", "sevt_gone": "cancelled",
+                                                          "sevt_done": "done", "sevt_deny": "denied",
+                                                          "sevt_race": "cancelled"}})
+        self.assertEqual(asked[0], [item["tool_use_id"] for item in batch])  # 一次查出这一批
+        api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        self.assertIn("return sessions.confirm(session_id, frappe.parse_json(confirmations))", api_source)
+
+    def test_events_carry_this_sites_tool_runs_after_the_page(self):
+        sessions = self._sessions()
+        row = self._row()
+        # 测试窗口抓的真实事件（A1；A2、A4 的序列与此相同），时间照抄
+        history = [
+            {"id": "sevt_01UDVUzpwDom3EXfH9XEWYJm", "type": "agent.custom_tool_use", "name": "cowork_set_folder_task_enabled",
+             "input": {"enabled": False, "task": "fleigbs7p9"}, "processed_at": "2026-10-17T10:57:45.204327Z"},
+            {"id": "sevt_idle_park", "type": "session.status_idle", "processed_at": "2026-10-17T10:57:45.308Z",
+             "stop_reason": {"type": "requires_action", "event_ids": ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]}},
+            {"id": "sevt_01VZ5u2hu3mRxat5JEvW9wcf", "type": "agent.tool_result",
+             "tool_use_id": "sevt_01UDVUzpwDom3EXfH9XEWYJm", "is_error": True,
+             "content": [{"type": "text", "text": "Tool execution was interrupted before completion. Please retry."}],
+             "processed_at": "2026-10-17T10:57:53.063300Z"},
+            {"id": "sevt_interrupt", "type": "user.interrupt", "processed_at": "2026-10-17T10:57:53.110517Z"},
+            {"id": "sevt_idle_end", "type": "session.status_idle", "processed_at": "2026-10-17T10:57:53.213Z",
+             "stop_reason": {"type": "end_turn"}}]
+        api = types.SimpleNamespace(events=lambda remote, newest_first=False:
+                                    iter(list(reversed(history)) if newest_first else list(history)))
+        asked = []
+        record = {"tool_use_id": "sevt_01UDVUzpwDom3EXfH9XEWYJm", "status": "done",
+                  "modified": datetime.datetime(2026, 10, 17, 17, 57, 54)}
+
+        def get_all(doctype, filters=None, fields=None, **kw):
+            asked.append((doctype, filters, fields))
+            return [_Row(record)] if record["tool_use_id"] in filters["tool_use_id"][1] else []
+
+        with mock.patch.object(sessions, "owned", return_value=row), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.notices, "feed", lambda *a, **k: []), \
+                mock.patch.object(sessions.frappe, "get_all", get_all, create=True), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True), \
+                mock.patch.object(sessions, "_remember_context", lambda row, events: None):
+            full = sessions.events(row.session_id)
+            # 整段重放：引擎事件原样、先后不动，执行记录接在这页最后（对话页那时已有这一步）；一次查询
+            self.assertEqual(full["events"][:5], history)
+            self.assertEqual(full["events"][5], {"type": "pearnly.tool_run", "id": "ptoolrun_sevt_01UDVUzpwDom3EXfH9XEWYJm_done",
+                                                 "tool_use_id": "sevt_01UDVUzpwDom3EXfH9XEWYJm", "status": "done",
+                                                 "processed_at": "2026-10-17T10:57:54Z"})
+            self.assertEqual(len(full["events"]), 6)
+            self.assertEqual(asked, [(sessions.toolrun.TOOL_RUN, {"session_id": row.session_id, "user": "a@example.com",
+                                      "tool_use_id": ["in", ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]]},
+                                      ["tool_use_id", "status", "modified"])])
+            # 增量：只带这页事件里出现过的调用（这里是那条中断结果引用的调用）
+            page = sessions.events(row.session_id, after="sevt_idle_park")
+            self.assertEqual([e["id"] for e in page["events"]], ["sevt_01VZ5u2hu3mRxat5JEvW9wcf", "sevt_interrupt",
+                                                                  "sevt_idle_end",
+                                                                  "ptoolrun_sevt_01UDVUzpwDom3EXfH9XEWYJm_done"])
+            # 这页没有调用：不查执行记录
+            asked.clear()
+            self.assertEqual(sessions.events(row.session_id, after="sevt_interrupt")["events"], [history[-1]])
+            self.assertEqual(asked, [])
+            # 读不出执行记录：事件照给，不报错
+            with mock.patch.object(sessions.frappe, "get_all", mock.Mock(side_effect=RuntimeError("db")), create=True):
+                self.assertEqual(sessions.events(row.session_id)["events"], history)
+        self.assertEqual(contracts.tool_use_ids(history), ["sevt_01UDVUzpwDom3EXfH9XEWYJm"])
+        with self.assertRaises(contracts.ContractError):
+            contracts.tool_run_event("sevt_1", "lost", None)
+
+    def _toolrun_env(self, rows, published, posted, post=None, publish=None):
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        order = []
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def get_value(self, doctype, filters, field, as_dict=False):
+                if isinstance(filters, dict):
+                    return next((n for n, r in rows.items() if r["status"] == filters.get("status", r["status"])), None)
+                row = rows[filters]
+                return types.SimpleNamespace(**row) if as_dict else row[field]
+
+            def sql(self, query, values):
+                status, name = values
+                hit = rows[name]["status"] == "awaiting_approval"
+                if hit:
+                    rows[name]["status"] = status
+                self._cursor = types.SimpleNamespace(rowcount=int(hit))
+
+            def set_value(self, doctype, name, field, value=None):
+                rows[name].update(field if isinstance(field, dict) else {field: value})
+                order.append(("record", dict(rows[name])))
+
+            def commit(self):
+                pass
+
+            rollback = commit
+
+        def default_publish(event, message, user=None, after_commit=False):
+            published.append(message["event"])
+            order.append(("publish", message["event"]["type"]))
+
+        def default_post(remote, events):
+            posted.append(events[0])
+            order.append(("post", events[0]["type"]))
+
+        adapter = types.SimpleNamespace(post=post or default_post)
+        patches = [mock.patch.object(toolrun, "_use_lang", lambda conversation: None),
+                   mock.patch.object(toolrun.frappe, "db", Db(), create=True),
+                   mock.patch.object(toolrun.frappe, "local", types.SimpleNamespace(cache={}), create=True),
+                   mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True),
+                   mock.patch.object(toolrun.frappe, "publish_realtime", publish or default_publish, create=True),
+                   mock.patch.object(toolrun.engine, "adapter", return_value=adapter)]
+        return toolrun, order, patches
+
+    def test_the_record_is_kept_and_pushed_before_the_engine_gets_the_result(self):
+        """A2：点「允许」后马上停止。工具执行成功，交回引擎时这一轮已被停止（引擎拒收）：以前抛出去，记录一直停在 running、
+        点「允许」的请求报错。现在先落库、推一次执行记录，再交回引擎；交不回去只记一笔、照常返回 done。"""
+        rows = {"r1": {"status": "awaiting_approval", "tool": "cowork_set_folder_task_enabled",
+                       "tool_input": '{"enabled": false, "task": "fleigbs7p9"}'}}
+        published, posted, ran = [], [], []
+
+        def refused(remote, events):
+            raise RuntimeError("BadRequestError")
+
+        toolrun, order, patches = self._toolrun_env(rows, published, posted, post=refused)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append(data) or
+                                                  ('{"status": "saved"}', False)))
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_01UDVUzpwDom3EXfH9XEWYJm", True), "done")
+        self.assertEqual(ran, [{"enabled": False, "task": "fleigbs7p9"}])
+        self.assertEqual(rows["r1"]["status"], "done")  # 工具确实执行过：以本站记录为准
+        self.assertEqual([e["type"] for e in published], ["pearnly.answer", "pearnly.tool_run"])
+        self.assertEqual((published[1]["status"], published[1]["id"]), ("done", "ptoolrun_sevt_01UDVUzpwDom3EXfH9XEWYJm_done"))
+        self.assertEqual([step for step, _ in order], ["publish", "record", "publish"])  # 回答、落库、推执行记录（之后才交回）
+
+    def test_each_state_change_pushes_once_and_a_failed_push_changes_nothing(self):
+        rows = {"r1": {"status": "awaiting_approval", "tool": "always", "tool_input": "{}"}}
+        published, posted = [], []
+        toolrun, order, patches = self._toolrun_env(rows, published, posted)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(toolrun.tools, "run", lambda name, data: ("boom", True)))
+            # 执行出错：推一次 error，结果照常交回
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "error")
+            self.assertEqual([(e["type"], e.get("status")) for e in published],
+                             [("pearnly.answer", None), ("pearnly.tool_run", "error")])
+            self.assertEqual([p["custom_tool_use_id"] for p in posted], ["sevt_1"])
+            self.assertEqual([step for step, _ in order], ["publish", "record", "publish", "post"])
+            # 拒绝：推一次 denied，记录与交回照常
+            rows["r2"] = {"status": "awaiting_approval", "tool": "always", "tool_input": "{}"}
+            published.clear()
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_2", False), "denied")
+            self.assertEqual([(e["type"], e.get("status")) for e in published],
+                             [("pearnly.answer", None), ("pearnly.tool_run", "denied")])
+            self.assertEqual(rows["r2"]["status"], "denied")
+        # 推送全都失败：执行、记录、交回都不受影响
+        rows = {"r1": {"status": "awaiting_approval", "tool": "always", "tool_input": "{}"}}
+        published, posted = [], []
+
+        def down(event, message, user=None, after_commit=False):
+            raise ConnectionError("redis")
+
+        toolrun, order, patches = self._toolrun_env(rows, published, posted, publish=down)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(toolrun.tools, "run", lambda name, data: ("saved", False)))
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
+        self.assertEqual((rows["r1"]["status"], [p["custom_tool_use_id"] for p in posted]), ("done", ["sevt_1"]))
+
+    def test_a_card_answered_while_being_cancelled_is_not_reported_cancelled(self):
+        """作废与点「允许」同一刻：作废逐条抢占，没抢到的（已被 decide 改成 running）不算作废、不推「已取消」。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        rows = {"r1": {"status": "awaiting_approval", "tool_use_id": "sevt_1", "user": "owner@x.test"}}
+        published = []
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def sql(self, query, values, as_dict=False):
+                if query.startswith("SELECT"):
+                    found = [_Row(name=n, **{k: r[k] for k in ("tool_use_id", "user")}) for n, r in rows.items()
+                             if r["status"] == "awaiting_approval"]
+                    rows["r1"]["status"] = "running"  # 读完、改之前被点了「允许」
+                    return found
+                self.assertIn("WHERE name=%s AND status='awaiting_approval'", query)
+                hit = rows[values[0]]["status"] == "awaiting_approval"
+                self._cursor = types.SimpleNamespace(rowcount=int(hit))
+
+            def commit(self):
+                pass
+
+        db = Db()
+        db.assertIn = self.assertIn
+        with mock.patch.object(toolrun.frappe, "db", db, create=True), \
+                mock.patch.object(toolrun.frappe, "publish_realtime",
+                                  lambda event, message, user=None, after_commit=False: published.append(message),
+                                  create=True):
+            self.assertEqual(toolrun.cancel_waiting("conv"), 0)
+        self.assertEqual((rows["r1"]["status"], published), ("running", []))
+
+    def test_the_work_list_follows_the_sites_record_not_the_engines_interruption(self):
+        """A2 之后的接续：引擎那边是平台代发的中断结果，本站记录是 done。工作清单照本站记录写（不带「failed」等说明），
+        模型不会以为没做而重做；作废的照旧写明没执行。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        runs = [{"tool": "cowork_set_folder_task_enabled", "tool_input": '{"enabled": false, "task": "fleigbs7p9"}',
+                 "status": "done"},
+                {"tool": "cowork_set_folder_task_enabled", "tool_input": '{"enabled": true, "task": "abc12345"}',
+                 "status": "cancelled"}]
+        with mock.patch.object(toolrun.frappe, "get_all", lambda *a, **k: runs, create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True):
+            work = toolrun.work_list("conv")
+        self.assertEqual(work.split("\n"), [
+            "- cowork_set_folder_task_enabled: enabled=false, task=fleigbs7p9",
+            "- cowork_set_folder_task_enabled: enabled=true, task=abc12345 (not run, stopped before the user answered)"])
 
 
 if __name__ == "__main__":

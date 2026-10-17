@@ -62,8 +62,10 @@ class FeedTests(unittest.TestCase):
         self.assertIn('type: "pearnly.notice";', events)
         self.assertIn('return String(event.type).startsWith("pearnly.");', events)
         # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent;", events)
+        # 执行记录（pearnly.tool_run，第 11 轮 A 段）也是：推来、并在读事件那页最后，都不当锚点
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent;", events)
         self.assertIn('type: "pearnly.answer";', events)
+        self.assertIn('type: "pearnly.tool_run";', events)
         poll = read("lib/managed-agents/poll-source.ts")
         self.assertIn("if (anchor && !isLocalEvent(event)) this.lastId = id;", poll)
         self.assertNotIn("if (anchor) this.lastId = id;", poll)
@@ -7156,8 +7158,10 @@ class Round11CardTests(unittest.TestCase):
                + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
 
     def test_a_card_left_unanswered_by_stop_reads_cancelled_live_and_reopened(self):
-        # 卡片出来后没答、直接点停止：引擎补来一条出错的结果，以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
-        # 现在 user.interrupt 时还开着的门标 cancelled：本页与重开都是问话 + 淡色「已取消」；晚到的问句不再把按钮放回来
+        # 卡片出来后没答、直接点停止：以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
+        # 第 11 轮 A 段改成真实先后（lab 9798f54e 抓的事件）：点停止时引擎先代发一条出错的中断结果（agent.tool_result，不是本站的
+        # user.custom_tool_result），几十毫秒后才是 user.interrupt。中断结果不算点了「允许」：本页与重开都是问话 + 淡色「已取消」；
+        # 晚到的问句不再把按钮放回来；本站执行记录（pearnly.tool_run）到了以它为准
         self.run_page(r"""
 import { applyEvent, gateCustomTool, project } from "@/lib/managed-agents/reducer";
 import { approvalCard } from "@/lib/approval-card";
@@ -7167,9 +7171,13 @@ const part = (state: any) => state.messages.flatMap((m: any) => m.content).find(
 const head = [ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
   ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
   ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } })];
-const result = (isError: boolean, body: string) =>
-  ev("res", "user.custom_tool_result", 6, { custom_tool_use_id: "tz", content: text(body), is_error: isError });
-const stop = [ev("i1", "user.interrupt", 5), result(true, "interrupted"), ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })];
+const result = (isError: boolean, body: string, s = 6) =>
+  ev("res", "user.custom_tool_result", s, { custom_tool_use_id: "tz", content: text(body), is_error: isError });
+const record = (status: string, s: number) => ev(`ptoolrun_tz_${status}`, "pearnly.tool_run", s, { tool_use_id: "tz", status });
+// 真实先后：平台的中断结果 → user.interrupt → 回合结束
+const stop = [ev("int", "agent.tool_result", 5, { tool_use_id: "tz", is_error: true,
+  content: text("Tool execution was interrupted before completion. Please retry.") }),
+  ev("i1", "user.interrupt", 5.05), ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })];
 // 本页：卡片等回答（问句向服务端要来的），点停止
 let live = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
 assert.deepEqual(approvalCard(part(live), gates), { phase: "ask" });
@@ -7177,35 +7185,42 @@ live = project(stop as any, live);
 assert.deepEqual(approvalCard(part(live), gates), { phase: "cancelled" });
 assert.equal(part(live).approval, undefined);
 assert.deepEqual([live.pendingApprovals, live.pendingCustomTools, live.parkedIds, live.isRunning], [[], [], [], false]);
-// 重开对话：历史里没有点击记录，那一步也还没有门（问句要向服务端要），按停着等的那一步认
-const reopened = project([...head, ...stop] as any);
+live = applyEvent(live, record("cancelled", 8) as any);                              // 本站作废的记录随后到：照旧
+assert.deepEqual(approvalCard(part(live), gates), { phase: "cancelled" });
+// 重开对话：历史里没有点击记录，那一步也还没有门（问句要向服务端要）；执行记录接在这页最后
+const reopened = project([...head, ...stop, record("cancelled", 8)] as any);
 assert.deepEqual(approvalCard(part(reopened), gates), { phase: "cancelled" });
 assert.equal(gateCustomTool(reopened, "tz", { ask: "Turn it on?" }), reopened);   // 晚到的问句不放回按钮
+assert.deepEqual(approvalCard(part(project([...head, ...stop] as any)), gates), { phase: "cancelled" });  // 记录还没到也一样
 // 对照：没停止、点了「允许」执行出错的，照旧「允许 · 失败」；结果写明拒绝的照旧「拒绝」
 const ran = project([...head, result(true, "The tool failed. Try again later."),
-  ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })] as any);
+  ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } }), record("error", 8)] as any);
 assert.deepEqual(approvalCard(part(ran), gates), { phase: "answered", approved: true, failed: true });
-const denied = project([...head, ev("i1", "user.interrupt", 5),
-  result(false, JSON.stringify({ status: "denied", message: "The user did not allow this change." }))] as any);
+const denied = project([...head, result(false, JSON.stringify({ status: "denied", message: "The user did not allow this change." }), 4.5),
+  ev("i1", "user.interrupt", 5), record("denied", 6)] as any);
 assert.deepEqual(approvalCard(part(denied), gates), { phase: "answered", approved: false, failed: false });
-// 已答的（本页点了「允许」、还没结果）不因停止改成「已取消」
+// 已答的（本页点了「允许」、还没结果）不因停止改成「已取消」，也不因平台的中断结果写成「失败」
 let answered = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
-answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmation", 5, { tool_use_id: "tz", result: "allow" }) as any);
-answered = applyEvent(answered, ev("i1", "user.interrupt", 6) as any);
-assert.equal(part(answered).approval.approved, true);
-assert.equal(part(answered).cancelled, undefined);
-// 第 11 轮审查：点了「允许」、工具执行中才停止，随后交回成功的结果：本页与重开都是「允许」（重开时历史里没有点击记录，
-// 停止那一刻照样标了 cancelled，不能因此写成「已取消」——写入已经发生了）
-const done = [ev("i1", "user.interrupt", 6), result(false, JSON.stringify({ status: "saved" })),
-  ev("p2", "session.status_idle", 8, { stop_reason: { type: "end_turn" } })];
-const liveRan = project(done as any, answered);
+answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmation", 4.5, { tool_use_id: "tz", result: "allow" }) as any);
+const stopped = project(stop as any, answered);
+assert.equal(part(stopped).approval.approved, true);
+assert.equal(part(stopped).cancelled, undefined);
+assert.equal(part(stopped).interrupted, true);
+assert.equal(approvalCard(part(stopped), gates)?.phase, "answered");
+assert.equal((approvalCard(part(stopped), gates) as any).approved, true);
+assert.equal((approvalCard(part(stopped), gates) as any).failed, false);
+// 第 11 轮审查 / A2：点了「允许」、本站执行成功（引擎收到的却是平台的中断结果）：本页与重开都是「允许」（重开时历史里没有点击
+// 记录，中断结果那一刻照样标了 cancelled，不能因此写成「已取消」——写入已经发生了，以本站记录为准）
+const liveRan = applyEvent(stopped, record("done", 8) as any);
 assert.deepEqual(approvalCard(part(liveRan), gates), { phase: "answered", approved: true, failed: false });
-const reopenedRan = project([...head, ...done] as any);
+const reopenedRan = project([...head, ...stop, record("done", 8)] as any);
 assert.equal(part(reopenedRan).cancelled, true);
 assert.deepEqual(approvalCard(part(reopenedRan), gates), { phase: "answered", approved: true, failed: false });
 // 不要「允许」的工具被停止：照常是步骤组里的一行，不是卡片
 const plain = project([ev("tp", "agent.custom_tool_use", 3, { name: "pearnly_read", input: {} }),
-  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }), ev("i1", "user.interrupt", 5)] as any);
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }),
+  ev("int2", "agent.tool_result", 5, { tool_use_id: "tp", is_error: true, content: text("interrupted") }),
+  ev("i1", "user.interrupt", 5.05)] as any);
 assert.equal(approvalCard(plain.messages[0]!.content[0] as any, gates), null);
 """)
 
@@ -7282,6 +7297,297 @@ assert.deepEqual(users(), ["earlier", "hello"]);
                       "            await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
+
+# 测试窗口第 11 轮 A 段在 lab（9798f54e，真引擎）抓的原始事件（会话 sesn_01X2K4vJBNvR361Cvjxap2Nw；A1、A2、A4 的序列完全一样），
+# 编号与时间照抄。点停止时引擎先代发一条出错的中断结果（agent.tool_result，不是本站的 user.custom_tool_result），比 user.interrupt
+# 早 47 毫秒。前面的用户消息、开跑两条是补的上下文。
+REAL_A = r"""
+const TOOL = "sevt_01UDVUzpwDom3EXfH9XEWYJm";
+const NAME = "cowork_set_folder_task_enabled";
+const GATES = { ask: { [NAME]: "Turn this folder task on or off?" } };
+const ASK = { ask: "Turn this folder task on or off?", preview: [{ field: "Enabled", before: "Yes", after: "No" }] };
+const HEAD = [
+  { id: "sevt_u1", type: "user.message", processed_at: "2026-10-17T10:57:40.000000Z", content: [{ type: "text", text: "停用 fleigbs7p9" }] },
+  { id: "sevt_r1", type: "session.status_running", processed_at: "2026-10-17T10:57:40.100000Z" },
+  { id: TOOL, type: "agent.custom_tool_use", name: NAME, input: { enabled: false, task: "fleigbs7p9" },
+    processed_at: "2026-10-17T10:57:45.204327Z" },
+  { id: "sevt_thread_idle_1", type: "session.thread_status_idle", processed_at: "2026-10-17T10:57:45.308Z",
+    stop_reason: { type: "requires_action", event_ids: [TOOL] } },
+  { id: "sevt_idle_1", type: "session.status_idle", processed_at: "2026-10-17T10:57:45.308Z",
+    stop_reason: { type: "requires_action", event_ids: [TOOL] } },
+];
+const STOP = [
+  { id: "sevt_01VZ5u2hu3mRxat5JEvW9wcf", type: "agent.tool_result", tool_use_id: TOOL, is_error: true,
+    content: [{ type: "text", text: "Tool execution was interrupted before completion. Please retry." }],
+    processed_at: "2026-10-17T10:57:53.063300Z" },
+  { id: "sevt_interrupt_1", type: "user.interrupt", processed_at: "2026-10-17T10:57:53.110517Z" },
+  { id: "sevt_thread_idle_2", type: "session.thread_status_idle", processed_at: "2026-10-17T10:57:53.213Z",
+    stop_reason: { type: "end_turn" } },
+  { id: "sevt_idle_2", type: "session.status_idle", processed_at: "2026-10-17T10:57:53.213Z", stop_reason: { type: "end_turn" } },
+];
+const RECORD = (status: string, at = "2026-10-17T10:57:54Z") =>
+  ({ type: "pearnly.tool_run", id: `ptoolrun_${TOOL}_${status}`, tool_use_id: TOOL, status, processed_at: at });
+const card = (state: any) => approvalCard(state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === TOOL), GATES);
+const tool = (state: any) => state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === TOOL);
+const ALLOWED = { phase: "answered", approved: true, failed: false };
+const FAILED = { phase: "answered", approved: true, failed: true };
+const DENIED = { phase: "answered", approved: false, failed: false };
+const CANCELLED = { phase: "cancelled" };
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11ACardTests(unittest.TestCase):
+    """第 11 轮 A 段：本站拦下的卡片最后的样子以本站执行记录为准（pearnly.tool_run）。A1 没答就停止写成「允许 · 失败」；
+    A2 点「允许」后马上停止，本站执行成功，卡片却写「允许 · 失败」；A4 别的设备已停止，断网的手机联网后点「允许」，两端写
+    「允许 · 失败」、服务端回 500。夹具用测试窗口抓的真实事件（REAL_A）。"""
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB}
+
+    def run_pure(self, body):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n'
+               'import { applyEvent, gateCustomTool, project, restoreGates } from "@/lib/managed-agents/reducer";\n'
+               'import { approvalCard } from "@/lib/approval-card";\n'
+               + REAL_A + body + "\n(globalThis as any).done();\n")
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n'
+               + body.split("\n---\n", 1)[0] + "\nconst g = globalThis as any;\n" + FAKE_SITE + REAL_A
+               + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_a1_unanswered_then_stop_reads_cancelled_live_reopened_and_after_the_record(self):
+        self.run_pure(r"""
+// 本页：卡片出来（问句向服务端要来），没答，按停止：事件一条条到
+let live = gateCustomTool(project(HEAD as any), TOOL, ASK);
+assert.deepEqual(card(live), { phase: "ask" });
+assert.deepEqual(live.pendingApprovals, [TOOL]);
+live = applyEvent(live, STOP[0] as any);                 // 平台的中断结果先到：不是点了「允许」
+assert.deepEqual(card(live), CANCELLED);
+assert.equal(tool(live).approval, undefined);
+assert.deepEqual([live.pendingApprovals, live.pendingCustomTools, live.parkedIds], [[], [], []]);
+for (const event of STOP.slice(1)) live = applyEvent(live, event as any);
+assert.deepEqual(card(live), CANCELLED);
+assert.equal(live.isRunning, false);
+live = applyEvent(live, RECORD("cancelled") as any);     // 本站作废的记录（cancel_waiting 推来）
+assert.deepEqual(card(live), CANCELLED);
+assert.equal(gateCustomTool(live, TOOL, ASK), live);      // 晚到的问句不放回按钮
+assert.equal(restoreGates(live, [TOOL], "x"), live);      // 确认没送到也不放回
+// 重开对话：执行记录随历史接在这页最后；记录没到时也一样
+assert.deepEqual(card(project([...HEAD, ...STOP, RECORD("cancelled")] as any)), CANCELLED);
+assert.deepEqual(card(project([...HEAD, ...STOP] as any)), CANCELLED);
+// 重开时那一步还在等问句（页面要去要）：中断结果之后不再欠
+assert.deepEqual(project([...HEAD, STOP[0]] as any).pendingCustomTools, []);
+""")
+
+    def test_a2_allowed_then_stop_reads_allowed_whenever_the_record_lands(self):
+        self.run_pure(r"""
+const clicked = () => {
+  let state = gateCustomTool(project(HEAD as any), TOOL, ASK);
+  state = applyEvent(state, { type: "user.tool_confirmation", id: "optimistic-confirm-1", tool_use_id: TOOL, result: "allow",
+    processed_at: "2026-10-17T10:57:52.900Z" } as any);
+  return applyEvent(state, { type: "pearnly.answer", id: `panswer_${TOOL}`, tool_use_id: TOOL, result: "allow",
+    processed_at: "2026-10-17T10:57:52.950Z" } as any);
+};
+// 记录在中断结果之后到：等记录时照「允许」，不写「失败」
+let after = clicked();
+for (const event of STOP) after = applyEvent(after, event as any);
+assert.equal(card(after)?.phase, "answered");
+assert.equal((card(after) as any).approved, true);
+assert.equal((card(after) as any).failed, false);
+after = applyEvent(after, RECORD("done") as any);
+assert.deepEqual(card(after), ALLOWED);
+assert.equal(tool(after).approval.ask, ASK.ask);          // 点完的卡片照写问话
+// 记录在中断结果之前到
+let before = applyEvent(clicked(), RECORD("done", "2026-10-17T10:57:53.000Z") as any);
+assert.deepEqual(card(before), ALLOWED);
+for (const event of STOP) before = applyEvent(before, event as any);
+assert.deepEqual(card(before), ALLOWED);
+assert.equal(tool(before).run, "done");
+// 重开（另一台设备、刷新）：历史里没有点击记录，执行记录随历史到
+assert.deepEqual(card(project([...HEAD, ...STOP, RECORD("done")] as any)), ALLOWED);
+// 执行出错的才写「允许 · 失败」（本页、重开都一样）
+let failed = clicked();
+for (const event of [...STOP, RECORD("error")]) failed = applyEvent(failed, event as any);
+assert.deepEqual(card(failed), FAILED);
+assert.deepEqual(card(project([...HEAD, ...STOP, RECORD("error")] as any)), FAILED);
+// 执行中（记录 running）：「允许」，淡一档；晚到、读得早的旧状态不把已定下的改回去
+assert.deepEqual(card(applyEvent(clicked(), RECORD("running") as any)), { ...ALLOWED, sending: true });
+assert.deepEqual(card(applyEvent(after, RECORD("running") as any)), ALLOWED);
+assert.deepEqual(card(applyEvent(after, RECORD("awaiting_approval") as any)), ALLOWED);
+// 记录先于调用本身到（推送比历史先折进来）：建这一步时补上
+assert.deepEqual(card(project([RECORD("done"), ...HEAD, ...STOP] as any)), ALLOWED);
+""")
+
+    def test_denied_and_a_stale_card_settled_by_the_record(self):
+        self.run_pure(r"""
+// 拒绝：本站交回的拒绝结果 + 执行记录 denied →「拒绝」（本页、重开）
+const denyResult = { type: "user.custom_tool_result", id: "sevt_deny_res", custom_tool_use_id: TOOL, is_error: false,
+  content: [{ type: "text", text: JSON.stringify({ status: "denied", message: "The user did not allow this change." }) }],
+  processed_at: "2026-10-17T10:57:50Z" };
+let denied = gateCustomTool(project(HEAD as any), TOOL, ASK);
+denied = applyEvent(denied, { type: "user.tool_confirmation", id: "optimistic-confirm-2", tool_use_id: TOOL, result: "deny",
+  processed_at: "2026-10-17T10:57:49Z" } as any);
+denied = applyEvent(denied, RECORD("denied") as any);
+assert.deepEqual(card(denied), DENIED);
+assert.deepEqual(card(project([...HEAD, denyResult, RECORD("denied")] as any)), DENIED);
+// A4：断网的手机上卡片还在问（别的设备已停止，事件全错过）；收到作废记录 → 「已取消」、没有按钮、不再等这边点
+let stale = gateCustomTool(project(HEAD as any), TOOL, ASK);
+stale = applyEvent(stale, RECORD("cancelled") as any);
+assert.deepEqual(card(stale), CANCELLED);
+assert.equal(tool(stale).approval, undefined);
+assert.deepEqual([stale.pendingApprovals, stale.parkedIds], [[], []]);
+// 手机先乐观点了「允许」，confirm 回 cancelled（页面照它折一条记录）：同样「已取消」
+let clicked = gateCustomTool(project(HEAD as any), TOOL, ASK);
+clicked = applyEvent(clicked, { type: "user.tool_confirmation", id: "optimistic-confirm-3", tool_use_id: TOOL, result: "allow",
+  processed_at: "2026-10-17T10:58:30Z" } as any);
+clicked = applyEvent(clicked, RECORD("cancelled", null as any) as any);
+assert.deepEqual(card(clicked), CANCELLED);
+assert.equal(restoreGates(clicked, [TOOL], "x"), clicked);
+// 之后补齐的事件（中断结果、停止）不改它
+for (const event of STOP) clicked = applyEvent(clicked, event as any);
+assert.deepEqual(card(clicked), CANCELLED);
+// 出卡片前就核出要拒绝的（结果带没问过用户的标记）：执行记录是 error，照旧不是卡片
+const notAsked = project([...HEAD, { type: "user.custom_tool_result", id: "sevt_na", custom_tool_use_id: TOOL, is_error: true,
+  content: [{ type: "text", text: JSON.stringify({ status: "not_saved", approval: "not_asked" }) }],
+  processed_at: "2026-10-17T10:57:46Z" }, RECORD("error")] as any);
+assert.equal(card(notAsked), null);
+""")
+
+    def test_tools_that_are_not_this_sites_cards_keep_their_old_behaviour(self):
+        self.run_pure(r"""
+const parts = (state: any) => state.messages.flatMap((m: any) => m.content).filter((p: any) => p.type === "tool-call");
+const at = (s: number) => `2026-10-17T11:00:${String(s).padStart(2, "0")}.000000Z`;
+// 内置工具：要确认的，结果到了就是放行过（确认的回声晚到也一样）；不进执行记录
+const builtin = project([
+  { id: "b1", type: "agent.tool_use", name: "bash", input: { command: "ls" }, processed_at: at(1) },
+  { id: "bi", type: "session.status_idle", processed_at: at(2), stop_reason: { type: "requires_action", event_ids: ["b1"] } },
+  { id: "br", type: "agent.tool_result", tool_use_id: "b1", is_error: false, content: [{ type: "text", text: "a.txt" }], processed_at: at(3) },
+] as any);
+assert.equal(parts(builtin)[0].approval.approved, true);
+assert.equal(parts(builtin)[0].interrupted, undefined);
+assert.equal(parts(builtin)[0].result.text, "a.txt");
+// MCP：同上
+const mcp = project([
+  { id: "m1", type: "agent.mcp_tool_use", name: "search", mcp_server_name: "docs", input: {}, processed_at: at(1) },
+  { id: "mi", type: "session.status_idle", processed_at: at(2), stop_reason: { type: "requires_action", event_ids: ["m1"] } },
+  { id: "mr", type: "agent.mcp_tool_result", mcp_tool_use_id: "m1", is_error: false, content: [{ type: "text", text: "ok" }], processed_at: at(3) },
+] as any);
+assert.equal(parts(mcp)[0].approval.approved, true);
+// 内置工具出错的结果照旧是它的结果（不是中断标记）
+const builtinErr = project([
+  { id: "b2", type: "agent.tool_use", name: "bash", input: {}, processed_at: at(1) },
+  { id: "br2", type: "agent.tool_result", tool_use_id: "b2", is_error: true, content: [{ type: "text", text: "exit 1" }], processed_at: at(2) },
+] as any);
+assert.equal(parts(builtinErr)[0].isError, true);
+assert.equal(parts(builtinErr)[0].interrupted, undefined);
+// 不要「允许」的自定义工具：本站结果照常；被停止时那条中断结果留给步骤行看（出错），不是卡片
+const plain = project([
+  { id: "c1", type: "agent.custom_tool_use", name: "cowork_list_documents", input: {}, processed_at: at(1) },
+  { id: "ci", type: "session.status_idle", processed_at: at(2), stop_reason: { type: "requires_action", event_ids: ["c1"] } },
+  { id: "cr", type: "agent.tool_result", tool_use_id: "c1", is_error: true,
+    content: [{ type: "text", text: "Tool execution was interrupted before completion. Please retry." }], processed_at: at(3) },
+  { id: "cx", type: "user.interrupt", processed_at: at(4) },
+  { type: "pearnly.tool_run", id: "ptoolrun_c1_done", tool_use_id: "c1", status: "done", processed_at: at(5) },
+] as any);
+assert.equal(approvalCard(parts(plain)[0], GATES), null);
+assert.equal(parts(plain)[0].isError, true);
+const plainDone = project([
+  { id: "c2", type: "agent.custom_tool_use", name: "cowork_list_documents", input: {}, processed_at: at(1) },
+  { id: "cr2", type: "user.custom_tool_result", custom_tool_use_id: "c2", is_error: false, content: [{ type: "text", text: "[]" }], processed_at: at(2) },
+] as any);
+assert.equal(approvalCard(parts(plainDone)[0], GATES), null);
+assert.equal(parts(plainDone)[0].result.text, "[]");
+""")
+
+    def test_a4_a_stale_allow_gets_the_servers_state_not_an_error(self):
+        # 断网的手机联网后点了「允许」：服务端不转给引擎，回此刻的状态（cancelled）。卡片当场写「已取消」、没有按钮、不出错误行；
+        # 执行完的回 done 写「允许」；真正的错误（网络）照旧放回按钮、写原因
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { approvalCard } from "@/lib/approval-card";
+---
+const respond = g.respond;
+let confirmReply: any = { confirmed: 1, runs: { [TOOL]: "cancelled" } };
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "confirm") {
+    if (confirmReply instanceof Error) throw confirmReply;
+    return ok(confirmReply);
+  }
+  return respond(method, args, body);
+};
+const open = async (sid: string) => {
+  site.log.length = 0;
+  site.log.push(...HEAD);
+  site.runs = { [TOOL]: "awaiting_approval" };
+  site.toolReply = async () => ({ status: "awaiting_approval", ...ASK });
+  const c = getSessionController(sid);
+  c.attach();
+  await g.sleep(30);
+  assert.deepEqual(card(c.getSnapshot()), { phase: "ask" });
+  return c;
+};
+const phone = await open("sesn_a4_phone");
+phone.respondToApproval(TOOL, true);
+await g.sleep(300);
+let snap: any = phone.getSnapshot();
+assert.deepEqual(card(snap), CANCELLED);
+assert.equal(tool(snap).approval, undefined);
+assert.deepEqual(snap.pendingApprovals, []);
+assert.equal(snap.transportError, null);
+const confirmCall = g.calls.filter((c: any) => c.method === "confirm").at(-1);
+assert.deepEqual(JSON.parse(confirmCall.body.confirmations), [{ tool_use_id: TOOL, result: "allow" }]);
+// 服务端回 done：「允许」
+confirmReply = { confirmed: 1, runs: { [TOOL]: "done" } };
+const other = await open("sesn_a4_other");
+other.respondToApproval(TOOL, true);
+await g.sleep(300);
+assert.deepEqual(card(other.getSnapshot()), ALLOWED);
+// 旧服务端（没有 runs）：照旧
+confirmReply = { confirmed: 1 };
+const old = await open("sesn_a4_old");
+old.respondToApproval(TOOL, true);
+await g.sleep(300);
+assert.equal(tool(old.getSnapshot()).approval.approved, true);
+// 真正的错误（网络）：按钮放回，按钮上方写原因
+confirmReply = new TypeError("Failed to fetch");
+const offline = await open("sesn_a4_offline");
+offline.respondToApproval(TOOL, true);
+await g.sleep(300);
+snap = offline.getSnapshot();
+assert.deepEqual(card(snap), { phase: "ask" });
+assert.ok(tool(snap).approval.failure);
+""")
+
+    def test_the_pushed_record_settles_the_card_on_every_open_device(self):
+        # 本站执行记录推来（toolrun._finish / decide 拒绝 / cancel_waiting）：开着这段对话的设备当场定下，不等补拉
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { dispatch } from "@/lib/managed-agents/realtime";
+import { approvalCard } from "@/lib/approval-card";
+---
+const S = "sesn_01X2K4vJBNvR361Cvjxap2Nw";
+site.log.push(...HEAD);
+site.runs = { [TOOL]: "awaiting_approval" };
+site.toolReply = async () => ({ status: "awaiting_approval", ...ASK });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.deepEqual(card(c.getSnapshot()), { phase: "ask" });
+const reads = eventsCalls(S).length;
+// 别的设备上点停止：平台的中断结果、停止、作废记录依次推来
+for (const event of STOP) dispatch({ session_id: S, event: event as any });
+dispatch({ session_id: S, event: RECORD("cancelled") as any });
+await g.sleep(0);
+assert.equal(eventsCalls(S).length, reads);              // 没靠补拉
+assert.deepEqual(card(c.getSnapshot()), CANCELLED);
+assert.deepEqual(c.getSnapshot().pendingApprovals, []);
+// 重开（整段重放，执行记录接在这页最后，同服务端 sessions.events）
+site.log.push(...STOP, RECORD("done"));
+const again = getSessionController("sesn_reopen_a2");
+again.attach();
+await g.sleep(30);
+assert.deepEqual(card(again.getSnapshot()), ALLOWED);
+""")
+
 
 class Round11ButtonsLikeClaudeTests(unittest.TestCase):
     """第 11 轮：按钮三端照 Claude（排查报告 G1–G15，用户 10-17）。电脑端已和 Claude 一致的值不动，手机档另加两条
