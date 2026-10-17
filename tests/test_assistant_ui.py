@@ -2452,7 +2452,7 @@ g.done();
         thread_list = read("components/assistant-ui/thread-list.tsx")
         self.assertNotIn("MessageCircleIcon", thread_list)
         self.assertNotIn("cc-row-icon", thread_list + read("globals.css"))
-        item = thread_list.split("\nconst Row: FC", 1)[1].split("\n};\n", 1)[0]   # 置顶行、组里可拖的行、不能拖的行都是这一份（ThreadListItem 按所在的组选）
+        item = thread_list.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]   # 置顶行、组里可拖的行、不能拖的行都是这一份（ThreadListItem 按所在的组选）
         self.assertIn("<ThreadListItemPrimitive.Title", item)
         self.assertIn("<ThreadActivity />", item)  # 行尾在跑、未读圆点照旧
         # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体
@@ -2496,9 +2496,10 @@ class CompanyMasterSourceTests(unittest.TestCase):
     def test_pin_wording_and_the_three_custom_writes_keep_other_keys(self):
         app, thread_list = read("assistant.tsx"), read("components/assistant-ui/thread-list.tsx")
         both = app + thread_list
-        # 三处单条置顶（行菜单、手机胶囊菜单、标题栏菜单）都经 starChat（第 10 轮审查：取消置顶回组顶由这一道记下），
-        # starChat 用展开写法写 custom，别的键不冲掉
-        self.assertEqual(both.count("starChat(aui.threadListItem(), !starred)"), 3)
+        # 三处单条置顶（行菜单、手机胶囊菜单、标题栏菜单）都经 toggleStar → starChat（第 10 轮审查：取消置顶回组顶由这一道记下；
+        # 第 10 轮 B 段：失败写进侧栏出错行），starChat 用展开写法写 custom，别的键不冲掉
+        self.assertEqual(both.count("toggleStar(aui.threadListItem(), !starred)"), 3)
+        self.assertIn("void starChat(item, starred).catch((error: unknown) => setError(shownError(error)));", thread_list)
         self.assertNotIn("updateCustom({ starred", both)
         self.assertIn("const run = async () => void (await item.updateCustom({ ...custom, starred }));", read("lib/managed-agents/sidebar-order.ts"))
         self.assertNotIn("StarIcon", both)
@@ -2549,7 +2550,8 @@ class CompanyMasterSourceTests(unittest.TestCase):
         for name in COMPANY_SOURCES:
             self.assertIsNone(colour.search(read(name)), name)
         drag = read("components/ui/drag.tsx")
-        self.assertIn("style: { transform: settling ? undefined : CSS.Translate.toString(sortable.transform), transition: sortable.transition } as CSSProperties,", drag)
+        self.assertIn("style: { transform, transition: sortable.transition } as CSSProperties,", drag)
+        self.assertIn("const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);", drag)
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", drag))
         css = read("globals.css")
         start = css.index("/* ── 公司主档（ADR-020")
@@ -3189,7 +3191,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<ChevronRightIcon className="cc-group-caret" aria-hidden />', header)  # 名字后的 12px 箭头
         self.assertLess(header.index("cc-group-name"), header.index("cc-group-caret"))
         projects = read("components/assistant-ui/projects.tsx")
-        head = projects.split("export const ProjectHeader: FC", 1)[1].split("\n};\n", 1)[0]
+        head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0]
         self.assertIn("onClick={() => go(() => openPending(project.id))}", head)   # 待处理数：只看这家
         # 右侧：待处理数、···（分组和排序）、新建（新建在最右，悬停才出）
         order = [head.index(x) for x in ('className="cc-group-count"', "<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
@@ -3212,7 +3214,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         projects = read("components/assistant-ui/projects.tsx")
         rows = read("components/assistant-ui/thread-list.tsx")
         css = read("globals.css")
-        head = projects.split("export const ProjectHeader: FC", 1)[1].split("\n};\n", 1)[0]
+        head = projects.split("export const ProjectHeader = memo(function ProjectHeader(", 1)[1].split("\n});\n", 1)[0]
         header = group.split("export const GroupHeader: FC", 1)[1].split("\n);\n", 1)[0]
         # A：公司组头最左是公司图标（同原来「打开公司」那个 Building2Icon），然后公司名；名字同会话行标题的字号字色，
         #    这家的对话行缩进到公司名起点；已置顶 / 最近 / 月份不带图标、不缩进
@@ -3243,7 +3245,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         # 长按出菜单；拿起后手指动了（真的在拖）就收起菜单（第 6 轮第 2 项）
         self.assertIn("const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));", head)
         self.assertIn("onMenuKey={() => setMenuOpen(true)}", head)
-        menu = group.split("export const GroupSortMenu: FC", 1)[1]
+        menu = group.split("export const GroupSortMenu = memo(function GroupSortMenu(", 1)[1]
         self.assertIn('className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}', menu)
         self.assertIn("<MoreHorizontalIcon />", menu)
         order = [menu.index(x) for x in ("sb.groupBy", "sb.sortBy", "sb.show", "{sb.resetDefaults}")]
@@ -3251,7 +3253,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         # 恢复默认设置：跟默认一样、也没手排过公司组 / 置顶（第 5 轮）才不可点
         self.assertIn("disabled={isDefaultView(view) && !manual}", menu)
         # D：「＋」照旧：在这家开新对话（月份 = 上个月）
-        self.assertIn("<GroupNew onClick={() => newChatIn(project.id)} />", head)
+        self.assertIn("<GroupNew onClick={onNew} />", head)
+        self.assertIn("const onNew = useCallback(() => newChat.current(project.id), [project.id]);", head)
         self.assertIn('start(project ? { project, period: period ? lastMonth() : "" } : NO_FILING);', projects)
         # E：漏斗按钮（分组和排序）从所有组标题上去掉；已置顶 / 最近 / 月份组标题右侧是同一个「···」，「最近」的「＋」保留
         for source in (group, projects, rows):
@@ -3304,7 +3307,7 @@ class SidebarShellSourceTests(unittest.TestCase):
 
     def test_rows_fade_pulse_and_take_a_metadata_line(self):
         rows = read("components/assistant-ui/thread-list.tsx")
-        item = rows.split("\nconst Row: FC", 1)[1].split("\n};\n", 1)[0]
+        item = rows.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]
         self.assertIn("data-row-id={localId}", item)
         self.assertIn('data-selected={selected ? "" : undefined}', item)
         self.assertIn('data-roving=""', item)
@@ -5179,7 +5182,7 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
         # 一个拖动区（手机按住 250ms 拿起，同会话栏卡片；长按菜单另见 use-long-press）；置顶一列、公司组一列、每组的行各一列；
         # 已置顶、各组整块是落点；对话拖进已置顶时整列一起滑。用户 10-17：没有跨公司、移到别的公司的逻辑
-        self.assertIn("<DragArea accepts={accepts} onDrop={onDrop} onOver={onOver} onActive={onActive} onPointer={onPointer} flow={FLOW} texts={texts}>", groups)
+        self.assertIn("<DragArea accepts={accepts} onDrop={onDrop} onOver={onOver} onActive={onActive} onReturn={onReturn} onPointer={onPointer} flow={FLOW} texts={texts}>", groups)
         self.assertIn("const accepts = (active: DragData, target: DragData) => sidebarAccepts(active, target, wholeBatch.current);", groups)
         self.assertNotIn('touch="move"', rows)
         self.assertIn("<DragList id={PINS} items={pinIds}>", groups)
@@ -5196,12 +5199,16 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.assertIn('{ id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },', groups)
         self.assertIn("{ disabled: locked, ownFocus: true },", groups)
         # Alt+↑/↓ 挪完念新位置（第 5 轮第 2 项：同键盘拖动的播报）
-        self.assertIn("handle={drag.handle} onMove={locked ? undefined : (delta) => drag.moved(onMove(delta))}", groups)
+        self.assertIn("handle={drag.handle} onMove={locked ? undefined : move}", groups)
+        self.assertIn("const move = useCallback((delta: -1 | 1) => drag.moved(latestMove.current(delta)), [drag]);", groups)
         self.assertIn("onMove={(delta) => spotIn(saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta)), companyDrag(section.project.id))}", groups)
         # 拖对话、没有「已置顶」时，指针拖到侧栏顶上才临时出一个空的（开着、点了不收）：拿起那一刻不出（审查：插在最上面把整列往下推，
         # 拿起的那一行离开指针），键盘拖动不出（DragArea 只在指针拖动时交 onPointer）；指针往下走远了（没排进去时）再收起。
         # 拖进去还没放下的那一行排在置顶里；多选里拖一条，其余选中的也变淡
-        self.assertIn('return reveal && lifting?.kind === "row" ? withPinned(sections) : sections;', groups)
+        self.assertIn("return reveal ? withPinned(sections) : sections; // 只在拖对话时出（onPointer）", groups)
+        self.assertIn('if (active.kind !== "row" || !byCompany || !tempPins) return;', groups)   # reveal 只由拖对话打开
+        # 拿起、放下不重画整列（第 10 轮 B 段）：拖的是什么不记成状态
+        self.assertNotIn("setLifting", groups)
         point = groups.split("const onPointer = (", 1)[1].split("\n  };\n", 1)[0]
         self.assertIn('if (active.kind !== "row" || !byCompany || !tempPins) return;', point)
         self.assertIn("const top = first.current?.nextElementSibling;", point)
@@ -5217,7 +5224,7 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         # 指针进了已置顶（指着置顶的某一行或整块）就排进去，回到自己那一组就挪回去；收着的已置顶只高亮组头
         over = groups.split("const onOver = (", 1)[1].split("\n  };\n", 1)[0]
         self.assertIn("if (now || over.shut) return;", over)
-        self.assertIn("placeGuest({ local, index, at: pinSpot(pinIds, over, below) });", over)
+        self.assertIn("placeGuest({ local, index, at: pinSpot(pinIds, over, below), group: active.group });", over)
         self.assertIn("} else if (now && over.list === active.list) placeGuest(null);", over)
         # 没有落点（别的公司组、两组之间）：拖进置顶的那一行挪回去，松手不置顶（审查：原来留在置顶，在别的公司上松手也置顶了）
         self.assertIn("if (!over) {\n      if (now) placeGuest(null);\n      return;\n    }", over)
@@ -5246,7 +5253,7 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.assertIn("const locked = scope.locked || !remoteId;", rows)
         self.assertIn("{ id, kind: \"row\", label: count ? sb.drag.items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },", rows)
         self.assertIn("if (scope?.mode === \"pin\") return scope.guest?.local === localId ? <GroupRow scope={scope.guest.scope} /> : <PinnedRow scope={scope} />;", rows)
-        row = rows.split("\nconst Row: FC", 1)[1].split("\n};\n", 1)[0]
+        row = rows.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]
         self.assertIn("if (onMove && altMove(e, onMove)) return;", row)
         self.assertIn("onTouchStart={chain(press.onTouchStart, renaming ? undefined : dragTouch)}", row)
         self.assertIn("ref={handleRef}", row)
@@ -5638,7 +5645,7 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
         drag = read("components/ui/drag.tsx")
         # 对话行与其他排序项同一份（useSortableItem）：原位留空档（不再是淡影），拖进另一列在那里重挂的同一行按 data-drag-id 认
         self.assertIn('"data-drag-id": data.id,', drag)
-        self.assertIn('"data-drag-source": sortable.isDragging ? "gap" : undefined,', drag)
+        self.assertIn('"data-drag-source": isDragging ? ("gap" as const) : undefined,', drag)
         self.assertNotIn('"ghost"', drag)
         # 用户 10-17：组之间移动（空档按排序方式去别的组、落位后发移动请求）整套去掉
         for gone in ("useDragItem", "useDropTarget", "settleMove", "class Landing", "PlacedContext", "revealGap", "onPlace", "running={busy > 0}"):
@@ -5654,7 +5661,7 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
         self.assertIn("return fold || shown !== rect ? shown : null;", drag)
         self.assertEqual(drag.count("holdStill(stash.current.node, landWait);"), 2)   # 松手、取消
         # 整列一起滑：拖动中（拿起到结束那一次提交，布局阶段停）；版面变了就重量各落点（碰撞按新位置）
-        self.assertIn("{flow && <Flow selector={flow} transition={transition} />}", drag)
+        self.assertIn("{flow && <Flow selector={flow} transition={transition} paused={cancelling} />}", drag)
         self.assertIn("return flowLayout(root, selector, transition, remeasure);", drag)
         self.assertIn("measure(all.getEnabled().map((entry) => entry.id));", drag)
         flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
@@ -5985,10 +5992,13 @@ assert.equal(spotIn(["a"], "x"), null);
         drag = read("components/ui/drag.tsx")
         self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="sr-only" data-slot="cc-move-live">', drag)
         self.assertIn("const text = texts.movedTo(name, spot.at, spot.total);", drag)
-        self.assertIn("if (spot) say?.(data.label, spot);", drag)
+        self.assertIn("if (spot) say?.(label, spot);", drag)
         rows = read("components/assistant-ui/thread-list.tsx")
-        self.assertIn("onMove={scope.locked ? undefined : (delta) => drag.moved(scope.move(id, delta))}", rows)
-        self.assertIn('move: (id, delta) => spotIn(savePins(moveBy(pinIds, id, delta)), id)', rows)
+        # 同一份回调（第 10 轮 B 段：行记住，拖动库重画时不跟着重画）
+        self.assertEqual(rows.count("const onMove = useCallback((delta: -1 | 1) => drag.moved(scope.move(id, delta)), [drag, scope, id]);"), 2)
+        self.assertIn("<Row drag={drag} onMove={scope.locked ? undefined : onMove} />", rows)
+        self.assertIn('move: (id, delta) => spotIn(pinsNow.current.save(moveBy(pinsNow.current.ids, id, delta)), id)', rows)
+        self.assertIn("pinsNow.current = { ids: pinIds, save: savePins };", rows)
         cards = read("components/company-cards.tsx")
         # 先挪再念：没有 sortable（不播报）时也照样挪，不能被可选链连同挪动一起短路
         self.assertIn("const spot = control.move(id, delta);\n      sortable?.moved(spot);", cards)
@@ -6172,7 +6182,7 @@ assert.equal(giveFocusBack(el("gone", { isConnected: false }), back), trigger);
         rows = read("components/assistant-ui/thread-list.tsx")
         groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
         self.assertIn('scope = { mode: "row", group, locked: searching, move };', groups)
-        self.assertIn("              locked: searching,\n", groups)        # 置顶
+        self.assertIn("      locked: searching,\n", groups)        # 置顶（pinScope）
         self.assertIn("              locked={searching}\n", groups)        # 公司组
         self.assertIn("const locked = scope.locked || !remoteId;", rows)
         for gone in ("shutOutside", "leavesResults", "matchesAfterMove", "fold={"):
@@ -6379,9 +6389,9 @@ class Round10DragTests(unittest.TestCase):
         self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd, beforeCancel }),", drag)
         self.assertEqual(drag.count("beforeEnd, beforeCancel }),"), 3)
         # 只在那一项还在拿起时那一列里时先滑回（指针拖进了另一列：照旧由拖动库滑回）；滑回途中排序项不写让位位移
-        self.assertIn("const home = !!node?.isConnected && !!lifted.current?.list && listOf(active) === lifted.current.list;", drag)
+        self.assertIn("const home = !!node?.isConnected && !!from?.list && listOf(active) === from.list;", drag)
         self.assertIn("const animation = home && box ? settleBack(box, node!, transition, homeInto) : null;", drag)
-        self.assertIn("transform: settling ? undefined : CSS.Translate.toString(sortable.transform)", drag)
+        self.assertIn("const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);", drag)
         # 文件头不再把约 1 秒的空帧定性成「那里出帧的问题」（审查：没坐实）
         self.assertNotIn("是那里出帧的问题", drag)
         self.run_page(r"""
@@ -6661,15 +6671,227 @@ assert.deepEqual(g.prefParts.get("order").read()["group:CO-2"].keys.length > 0, 
         self.assertNotIn("starredBefore", groups)
         self.assertIn("return { group, stamp: groupStamp(peers, { by: view.sort, desc: view.desc }) };", groups)
         # 各入口同一道（starChat）：行菜单与 P 键、多选「取消置顶 N」（按侧栏眼前的先后）、手机胶囊菜单与标题栏菜单
-        self.assertIn("const pin = () => void starChat(aui.threadListItem(), !starred);", rows)
+        self.assertIn("const pin = () => toggleStar(aui.threadListItem(), !starred);", rows)
         self.assertIn("await starChat(item, !allPinned, [...back]);", rows)
         self.assertNotIn("updateCustom({ ...custom, starred: !", rows)
         shell = read("assistant.tsx")
-        self.assertEqual(shell.count("onSelect={() => void starChat(aui.threadListItem(), !starred)}>"), 2)
+        self.assertEqual(shell.count("onSelect={() => toggleStar(aui.threadListItem(), !starred)}>"), 2)
         self.assertNotIn("starred: !starred", shell)
         # 别的设备上取消的（侧栏同步推来）：只记在侧栏里的（归档的不记）
         sync = read("lib/managed-agents/list-sync.ts")
         self.assertIn('if (!starred && row.remoteId && row.status === "regular") noteUnpinned(row.remoteId, false);', sync)
+
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round10BTests(unittest.TestCase):
+    """测试窗口第 10 轮 B 段：「上次更新」按真的最后活动排、离线取消置顶不跳位、拖进已置顶后 Esc 与拿起那一刻的长帧、手机长按菜单
+    点穿。"""
+
+    def run_page(self, body, stubs=None):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body
+               + "\n(globalThis as any).done();\n", stubs=stubs)
+
+    def test_a_failed_pin_or_unpin_leaves_the_manual_order_alone(self):
+        # 手机断网取消置顶第 2 位：原来乐观更新那一下就把它从置顶顺序里去掉并同步，失败撤回后成了「新置顶的」排第 1；现在请求没回
+        # 之前不收拾（starPending），确认了才收拾；明知断网不先挪走再撤回
+        self.run_page(STORAGE_STUB + r"""
+import { bindOrderUser, setGroupOrder, setPinnedOrder, starChat, starPending, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+const g = globalThis as any;
+Object.defineProperty(g, "performance", { value: { now: () => 1000 }, configurable: true });
+bindOrderUser("u@x");
+setPinnedOrder(["s1", "s2", "s3"]);
+g.prefChanges.length = 0;
+let answer: (ok: boolean) => void = () => undefined;
+const item = (starred: boolean) => ({
+  getState: () => ({ id: "l2", remoteId: "s2", custom: { starred, keep: 1 } }),
+  updateCustom: (custom: any) => new Promise<void>((resolve, reject) => {
+    g.sent = custom;
+    answer = (ok) => (ok ? resolve() : reject(new TypeError("Failed to fetch")));
+  }),
+});
+let pending = starChat(item(true), false);
+assert.equal(starPending("s2"), true);                       // 侧栏这段时间不收拾它
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1", "s2", "s3"]);
+answer(false);
+await assert.rejects(pending);
+assert.equal(starPending("s2"), false);
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1", "s2", "s3"]);   // 失败：原样在第 2 位
+assert.deepEqual(g.prefChanges.filter((c: any) => c.fields.includes("pinned")), []);   // 也没同步出去
+pending = starChat(item(true), false);
+answer(true);
+await pending;
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1", "s3"]);         // 确认了才去掉（按数据收拾）
+assert.ok(g.prefChanges.some((c: any) => c.fields.includes("pinned") && c.tidy));
+assert.deepEqual(g.sent, { starred: false, keep: 1 });
+// 置顶：确认了才从组里手排的先后里去掉；失败不动
+setGroupOrder("CO", ["s2", "s4"], 900, ["s2"]);
+pending = starChat(item(false), true);
+assert.deepEqual(useSidebarOrder.getState().groups.CO!.keys, ["s2", "s4"]);
+answer(false);
+await assert.rejects(pending);
+assert.deepEqual(useSidebarOrder.getState().groups.CO!.keys, ["s2", "s4"]);
+pending = starChat(item(false), true);
+answer(true);
+await pending;
+assert.deepEqual(useSidebarOrder.getState().groups.CO!.keys, ["s4"]);
+// 明知断网：不发请求（组件库不会先乐观地挪走再撤回），当场失败
+let sent = false;
+const offline = { getState: () => ({ id: "l3", remoteId: "s3", custom: { starred: true } }), updateCustom: async () => void (sent = true) };
+Object.defineProperty(g, "navigator", { value: { onLine: false }, configurable: true });
+await assert.rejects(starChat(offline, false), TypeError);
+assert.equal(sent, false);
+assert.equal(starPending("s3"), false);
+""", stubs={"@/lib/prefs-sync": PREFS_STUB})
+        rows = read("components/assistant-ui/thread-list.tsx")
+        groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
+        tidy = groups.split("const unpinned: string[] = [];", 1)[1].split("}, [threadIds", 1)[0]
+        self.assertIn("if (starPending(key)) continue;", tidy)
+        self.assertLess(tidy.index("if (starPending(key)) continue;"), tidy.index("if (item.custom?.starred) pinnedNow.push(key);"))
+        # 失败写进侧栏出错行（通用句：shownError 只把本站拒收的原文给人看）
+        self.assertIn("void starChat(item, starred).catch((error: unknown) => setError(shownError(error)));", rows)
+
+    def test_a_touch_outside_an_open_menu_only_closes_it(self):
+        # 手机长按出菜单后点在菜单外的另一条对话上：原来菜单关了、那条对话也打开了（组件库按下就关菜单、撤掉整页的
+        # pointer-events: none，手机随后补发的 click 落到下面那一行）。现在非鼠标按下关菜单时吞掉紧跟着的那一次 click
+        self.run_page(r"""
+import { closeWithoutClickThrough, swallowNextClick } from "@/components/ui/menu";
+const g = globalThis as any;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+const click = () => {
+  const event = new Event("click", { cancelable: true });
+  page.dispatchEvent(event);
+  return event.defaultPrevented;
+};
+swallowNextClick(page as any, 800);
+assert.equal(click(), true);                            // 关菜单的这一下不落到下面
+assert.equal(click(), false);                           // 只吞这一次
+swallowNextClick(page as any, 800);
+page.dispatchEvent(new Event("pointerdown"));           // 没等到 click（滑成了滚动）就又按下：是新的一下
+assert.equal(click(), false);
+swallowNextClick(page as any, 20);
+await g.sleep(40);                                      // 到时摘掉
+assert.equal(click(), false);
+const outside = (pointerType: string, prevented = false) =>
+  ({ defaultPrevented: prevented, detail: { originalEvent: { pointerType } } }) as any;
+closeWithoutClickThrough(outside("mouse"));            // 鼠标：照组件库默认（按下、松开不在同一个元素上，本来就没有 click）
+assert.equal(click(), false);
+closeWithoutClickThrough(outside("touch", true));       // 调用方拦下、菜单不关：不吞
+assert.equal(click(), false);
+closeWithoutClickThrough(outside("touch"));
+assert.equal(click(), true);
+closeWithoutClickThrough(outside("pen"));
+assert.equal(click(), true);
+""")
+        menu = read("components/ui/menu.tsx")
+        content = menu.split("\nfunction Content(", 1)[1].split("\nfunction SubContent(", 1)[0]
+        self.assertIn("onPointerDownOutside?.(event);\n        closeWithoutClickThrough(event);", content)
+        # 各处菜单都从这里取（侧栏行、组头、右侧栏卡片、标题栏）；子菜单不吞（点回父菜单的另一项要照常选中）
+        self.assertNotIn("closeWithoutClickThrough", menu.split("\nfunction SubContent(", 1)[1].split("\n}\n", 1)[0])
+        for name in ("components/assistant-ui/thread-list.tsx", "components/assistant-ui/projects.tsx",
+                     "components/assistant-ui/sidebar-group.tsx", "components/company-cards.tsx"):
+            source = read(name)
+            if "DropdownMenu" in source:
+                self.assertIn('from "@/components/ui/menu"', source, name)
+
+    def test_the_drag_cursor_waits_for_the_lift_frame_to_paint(self):
+        # 拿起那一刻：根节点的拖动标记（整页 grabbing）一加，整页每个元素都要重算样式；挪到这一帧画完以后。拖动中各处判断问
+        # isDragging()，不看根节点标记
+        self.run_page(r"""
+import { isDragging, setDragging } from "@/lib/layers";
+const g = globalThis as any;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+const root = g.document.documentElement;
+setDragging(true);
+assert.equal(isDragging(), true);
+assert.equal("ccDrag" in root.dataset, false);          // 拿起这一帧不加
+await g.sleep(10);
+assert.equal("ccDrag" in root.dataset, true);
+setDragging(false);
+assert.equal(isDragging(), false);
+assert.equal("ccDrag" in root.dataset, false);
+setDragging(true);
+setDragging(false);                                     // 加之前就结束了：不再加
+await g.sleep(10);
+assert.equal("ccDrag" in root.dataset, false);
+""")
+        self.assertIn(":root[data-cc-drag] * { cursor: grabbing; }", read("globals.css"))   # 整页 grabbing 不变
+
+    def test_escape_after_dragging_into_pins_slides_back_before_the_redraw(self):
+        # 对话拖进已置顶后按 Esc：原来由拖动库在 Esc 那一下同步取消、整列重画（Esc 那一帧 148 / 149ms）。现在 Esc 那一下只起播浮层
+        # 滑回（按拿起时的位置）、停住碰撞与自动滚动；画完这一帧再请侧栏把它挪回原来那一组（onReturn），重挂出来那次提交里核对落点、
+        # 对不上就从此刻改滑；取消等滑回播完
+        drag = read("components/ui/drag.tsx")
+        cancel = drag.split("  const beforeCancel = useMemo(", 1)[1].split("\n  const sensors = useSensors(", 1)[0]
+        cross = cancel.split("if (!home && from?.list && active && box && transition && latest.current.onReturn) {", 1)[1].split("\n      }\n", 1)[0]
+        self.assertIn("releaseDrag();", cross)
+        self.assertIn("const slide = start ? slideOverlay(box, homeBox(start, scrolled, node), transition) : null;", cross)
+        self.assertIn("afterPaint(() => homing.current === entry && latest.current.onReturn?.(from));", cross)
+        self.assertIn("unfreeze: node ? freezeScroll(node) : () => undefined,", cross)
+        self.assertNotIn("letGo.hold(", cross)                 # 这一下不取消
+        self.assertIn("cancelling.current = true;", cancel)
+        self.assertIn("if (!active?.list || cancelling.current) return [];", drag)          # 碰撞不再算
+        self.assertIn("if (cancelling.current) return; // 已经取消、在等滑回：不再经过哪里", drag)
+        self.assertIn("if (paused.current) return;", drag)                                   # 不重量落点
+        self.assertIn("const node = nodeIn(entry.id, entry.list);\n    if (node) homeLanded(entry, node);", drag)
+        self.assertIn("letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);", drag)
+        # 「这一项此刻在哪一列」按它真的排在的那一列（拖进置顶重挂的那一行是置顶那一列）
+        self.assertIn('"data-drag-list": list === undefined ? undefined : String(list),', drag)
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("const onReturn = () => {\n    placeGuest(null);\n    setReveal(false);\n  };", rows)
+        self.run_page(r"""
+import { slideOverlay } from "@/components/ui/drag";
+const g = globalThis as any;
+g.getComputedStyle = (el: any) => ({ transform: el.computed ?? "none", transformOrigin: "0px 0px" });
+Object.defineProperty(g, "performance", { value: { now: () => 5000 }, configurable: true });
+const made: any[] = [];
+const overlay: any = { dataset: {}, isConnected: true, computed: "matrix(1.02, 0, 0, 1.02, 0, -180)", children: [],
+  getBoundingClientRect: () => ({ top: 120, left: 10, width: 200, height: 32, right: 210, bottom: 152 }),
+  animate: (frames: any, opts: any) => { const a: any = { frames, opts, startTime: null }; made.push(a); return a; } };
+const anim = slideOverlay(overlay, { top: 300, left: 10 }, { duration: 200, easing: "ease" });
+assert.ok(anim);
+assert.equal(made.length, 1);
+assert.equal(anim.startTime, 5000);                     // 从 Esc 这一刻起算
+assert.equal(overlay.dataset.dropping, "");             // 略放大、阴影同时收回
+assert.match(made[0].frames[1].transform, /translate3d\(0px, 0px, 0\) scaleX\(1\) scaleY\(1\)/);   // 落到 300（此刻 120 处、位移 -180）
+assert.equal(slideOverlay(overlay, { top: 300, left: 10 }, null), null);   // 减少动态效果：不播
+""")
+
+    def test_lifting_does_not_redraw_the_whole_list(self):
+        # 拿起那一刻（测试窗口 160–186ms）：拖动库重画所有能拖的行与组头。行里的字、行菜单、组头、「···」「新建」记住；拖动的
+        # 位移与把手按内容记住（没变就是同一份）；侧栏不把「拖的是什么」记成状态；主题色观察器不在每次增删时读计算样式
+        drag = read("components/ui/drag.tsx")
+        item = drag.split("export function useSortableItem(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("const node = useMemo(", item)
+        self.assertIn("const handle = useMemo(", item)
+        self.assertIn("return useMemo(() => ({ moved, node, handle, dragging: isDragging }), [moved, node, handle, isDragging]);", item)
+        rows = read("components/assistant-ui/thread-list.tsx")
+        for memo in ("const Row = memo(function Row(", "const RowLabel = memo(function RowLabel()",
+                     "const ThreadListItemMore = memo(function ThreadListItemMore("):
+            self.assertIn(memo, rows)
+        self.assertIn("<RowLabel />", rows)
+        self.assertIn("onRename={startRename}", rows)
+        self.assertIn("<RowScopeContext.Provider value={pinScope}>", rows)
+        self.assertIn("export const ProjectHeader = memo(function ProjectHeader(", read("components/assistant-ui/projects.tsx"))
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        self.assertIn("export const GroupNew = memo(function GroupNew(", group)
+        self.assertIn("export const GroupSortMenu = memo(function GroupSortMenu(", group)
+        self.assertIn("export const Marquee = memo(function Marquee(", read("components/ui/marquee.tsx"))
+        main = read("main.tsx")
+        self.assertIn("if (!force && key === painted) return;", main)
+        self.assertIn("new MutationObserver(() => themeColor()).observe(document.body", main)
+
+    def test_messages_float_a_chat_like_its_last_update(self):
+        # 「上次更新」：服务端在用户发出消息、CC 回复时记最后活动时间（列表 updated_at）；本页推来的新消息当场浮顶，不等重拉
+        activity = read("lib/managed-agents/activity.ts")
+        self.assertIn('const MESSAGES = new Set(["user.message", "agent.message"]);', activity)
+        self.assertIn("if (type && MESSAGES.has(type)) bump(sessionId, (event as { processed_at?: string | null }).processed_at);", activity)
+        self.assertIn("bump(sessionId, notice.processed_at);", activity)
+        self.assertIn("「上次更新」按它排", read("components/assistant-ui/thread-list.tsx"))
 
 
 if __name__ == "__main__":

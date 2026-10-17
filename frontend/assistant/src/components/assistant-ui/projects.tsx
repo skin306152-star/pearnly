@@ -17,7 +17,7 @@
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
-import { type FC, type ReactNode, useEffect, useState } from "react";
+import { type FC, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
@@ -112,7 +112,15 @@ export function useOpenCompany() {
 }
 
 // ---------------------------------------------------------------- 组头
-export const ProjectHeader: FC<{
+// 记住（memo）：公司组头是拖动项，拖动库每次拿起、经过、放下都重画所有组头；把手（useSortableItem 记住的）、开关、挪一格没变就不重画
+export const ProjectHeader = memo(function ProjectHeader({
+  project,
+  open,
+  onToggle,
+  sessions,
+  handle,
+  onMove,
+}: {
   project: ProjectRow;
   open: boolean;
   onToggle: () => void;
@@ -120,13 +128,17 @@ export const ProjectHeader: FC<{
   /** 组头开关同时是拖动把手（公司组排序）；Alt+↑/↓ 挪一格。 */
   handle?: DragHandle;
   onMove?: (delta: -1 | 1) => void;
-}> = ({ project, open, onToggle, sessions, handle, onMove }) => {
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isMobile } = useSidebar();
   const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   const activity = useGroupActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
+  // 「新建」给一个稳定的回调：组头随拖动重画时它不跟着重画（GroupNew 是 memo）
+  const newChat = useRef(newChatIn);
+  newChat.current = newChatIn;
+  const onNew = useCallback(() => newChat.current(project.id), [project.id]);
   const { setView } = useView();
   const go = useCloseDrawer();
   const openPending = (company: string) => {
@@ -172,10 +184,10 @@ export const ProjectHeader: FC<{
         </button>
       )}
       <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />
-      <GroupNew onClick={() => newChatIn(project.id)} />
+      <GroupNew onClick={onNew} />
     </GroupHeader>
   );
-};
+});
 
 /** 侧栏公司下的一行出错提示（服务端给的原文），可关掉。 */
 export const SidebarError: FC = () => {

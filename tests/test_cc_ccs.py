@@ -466,7 +466,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn('user_preferences: { color_scheme_dark: { background_color: "#151515", theme_color: "#151515" } },', vite)
         main = (SRC / "main.tsx").read_text(encoding="utf-8")
         apply = main.split("const applyScheme = () => {", 1)[1].split("\n};", 1)[0]
-        self.assertIn("colorScheme(theme);\n  themeColor();", apply)
+        self.assertIn("colorScheme(theme);\n  themeColor(true);", apply)
         self.assertIn("const value = colorSchemeOf(theme);", main)
         self.assertIn('window.addEventListener("cc-theme", applyScheme);', main)
         appearance = (SRC / "lib/appearance.ts").read_text(encoding="utf-8")

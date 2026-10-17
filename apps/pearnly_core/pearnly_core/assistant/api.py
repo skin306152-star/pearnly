@@ -9,6 +9,17 @@ from frappe import _
 from pearnly_core.assistant import files, sessions, tools
 from pearnly_core.assistant import projects as filed  # 接口名 `projects` 留给下面的方法
 
+METHODS = "/api/method/pearnly_core.assistant."
+
+
+def no_traceback():
+    """before_request：对话页这些接口出错时不回 Python 堆栈。Frappe 在系统设置「显示完整错误」（默认开）且请求人是系统用户时，
+    把整段堆栈放进回复的 `exc`（`frappe.throw` 的拒收也一样，不只是开发模式；测试窗口第 10 轮 B 段：换公司被拒的 417 带着堆栈）。
+    这里关掉（`disable_traceback`，同 pearnly_control 的成员接口）：拒收照旧只回 `_server_messages` 里的原文，堆栈仍记进错误日志。"""
+    request = getattr(frappe, "request", None)
+    if request and (request.path or "").startswith(METHODS):
+        frappe.flags.disable_traceback = True
+
 
 @frappe.whitelist(methods=["GET"])
 def listing(archived=0, after=None, check=None, grouped=0, group=None):

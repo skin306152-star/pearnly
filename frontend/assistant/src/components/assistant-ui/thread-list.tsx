@@ -75,6 +75,7 @@ import {
   setGroupOrder,
   setPinnedOrder,
   starChat,
+  starPending,
   useLifts,
   useSidebarOrder,
 } from "@/lib/managed-agents/sidebar-order";
@@ -128,6 +129,7 @@ import {
   createContext,
   forwardRef,
   Fragment,
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -138,6 +140,12 @@ import {
   type FC,
   type ReactNode,
 } from "react";
+
+/** 菜单里的「置顶 / 取消置顶」（行菜单、P 键、手机长按菜单、标题栏菜单同一道，sidebar-order.ts 的 starChat）：失败时组件库撤回、
+ *  这一条原样留在原位，侧栏出错行写一句通用的原因（断网等；测试窗口第 10 轮 B 段：原来什么都不说）。 */
+export function toggleStar(item: Parameters<typeof starChat>[0], starred: boolean) {
+  void starChat(item, starred).catch((error: unknown) => setError(shownError(error)));
+}
 
 // 侧栏 / 手机抽屉里的对话列表：搜索框、「新建」「定时任务」「公司」「待处理」由外面统一排版（assistant.tsx），这里只排对话。
 // 产品有公司分组（Cowork，lib/managed-agents/projects.ts）时按「已置顶 → 各公司 → 最近」排（CompanyGroups）；
@@ -268,7 +276,8 @@ function useUnsent(): ReadonlySet<string> {
   return useMemo(() => unsentDrafts(threadItems, mainId), [threadItems, mainId]);
 }
 
-/** 侧栏每行的最后活动时间：列表给的与本页收到提醒的时间里较晚的一个（提醒到的对话浮到最上面）。 */
+/** 侧栏每行的最后活动时间（「上次更新」按它排）：列表给的（服务端在发消息、CC 回复、挂提醒时记）与本页收到提醒、新消息的时间里
+ *  较晚的一个（有动静的对话不等重拉列表就浮到最上面，activity.ts 的 useBumps）。 */
 function useDates() {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
@@ -305,8 +314,8 @@ type RowScope =
   | GroupScope;
 const RowScopeContext = createContext<RowScope | null>(null);
 
-/** 拖进已置顶、还没放下的那一行（本页编号、它在组件库 threadIds 里的位置、排在置顶的第几位）。 */
-type Guest = { local: string; index: number; at: number };
+/** 拖进已置顶、还没放下的那一行（本页编号、它在组件库 threadIds 里的位置、排在置顶的第几位、它原来那一组）。 */
+type Guest = { local: string; index: number; at: number; group?: string };
 
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
@@ -321,7 +330,8 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const newChatIn = useNewChatIn();
   const { collapsed, toggleSection } = useCollapsedGroups();
   const query = searchQuery.trim();
-  const [lifting, setLifting] = useState<DragData | null>(null);
+  // 拿起、放下不重画整列（测试窗口第 10 轮 B 段：拿起那一刻 150–200ms 的长帧里有一份是这里整列重算）：拖的是什么不记成状态，
+  // 摆法只看下面两样（指针到了顶上、拖进已置顶的那一行），它们变了才重画
   // 拖对话、没有已置顶时，指针拖到了侧栏顶上：临时出一个空的已置顶（onPointer）；first：它前面的标记（下一个就是第一组）
   const [reveal, setReveal] = useState(false);
   const first = useRef<HTMLSpanElement>(null);
@@ -356,7 +366,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   }, [user]);
   useEffect(() => applyLifts(spotRef.current), [liftTick, threadIds, itemsById, order.groups, pinning]);
   // 取消置顶了（单条、批量、别的设备上）：从手排的置顶顺序里去掉，以后再置顶算新的、排最上面；置顶了的从组里手排的先后里去掉。
-  // 只看已加载的行（没加载的不知道），正在置顶的不算
+  // 只看已加载的行（没加载的不知道），正在置顶的、本机请求还没回的不算（失败撤回时置顶顺序原样，不跳位；本机的确认后由 starChat 收拾）
   useEffect(() => {
     const unpinned: string[] = [];
     const pinnedNow: string[] = [];
@@ -364,6 +374,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
       const item = itemsById.get(id);
       if (!item) continue;
       const key = item.remoteId ?? id;
+      if (starPending(key)) continue; // 本机刚点、服务端还没回：组件库是乐观地先这样显示，确认了才收拾（sidebar-order.ts）
       if (item.custom?.starred) pinnedNow.push(key);
       else if (!pinning.has(key)) unpinned.push(key);
     }
@@ -383,6 +394,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   // 拖动中侧栏被卸下（换产品、退出）：多选整批变淡的标记一并去掉
   useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
 
+  const searching = !!query;
   const { rows, sections } = useMemo(() => {
     // 选了文件还没发的空对话不列（当前打开的那条照列）；index 仍是组件库 threadIds 里的位置
     const rows = threadIds.flatMap((id, index) => {
@@ -412,7 +424,6 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
       }),
     };
   }, [threadIds, itemsById, dates, unsent, pinning, projects, filings, shown, serverMore, query, view, order]);
-  const searching = !!query;
   const byCompany = view.by === "company";
   spotRef.current = (key) => {
     const row = rows.find((entry) => entry.key === key);
@@ -429,8 +440,37 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const shownSections = useMemo(() => {
     if (!sections || !byCompany) return sections;
     if (guest) return pinGuest(sections, guest.index, guest.at);
-    return reveal && lifting?.kind === "row" ? withPinned(sections) : sections;
-  }, [sections, byCompany, guest, lifting, reveal]);
+    return reveal ? withPinned(sections) : sections; // 只在拖对话时出（onPointer）
+  }, [sections, byCompany, guest, reveal]);
+
+  // 各组行的拖动范围：同一组、同一搜索状态时是同一份（行不跟着整列每次重画），Alt+↑/↓ 按此刻眼前的行算
+  const scopeOf = (group: string): GroupScope => {
+    const cache = scopes.current;
+    if (cache.searching !== searching) cache.map = new Map();
+    cache.searching = searching;
+    let scope = cache.map.get(group);
+    if (!scope) {
+      const move = (id: string, delta: -1 | 1) => {
+        const { rowIdsOf: idsOf, saveGroup: save } = latestGroups.current;
+        return spotIn(save(group, moveBy(idsOf(group), id, delta), [id]), id);
+      };
+      scope = { mode: "row", group, locked: searching, move };
+      cache.map.set(group, scope);
+    }
+    return scope;
+  };
+  // 置顶那一列的拖动范围：搜索状态、拖进来的那一行变了才换一份（置顶的行不跟着整列每次重画）；Alt+↑/↓ 按此刻眼前的置顶算
+  const pinsNow = useRef<{ ids: string[]; save: (next: string[] | null) => string[] | null }>({ ids: [], save: (next) => next });
+  const pinScope = useMemo<RowScope>(
+    () => ({
+      mode: "pin",
+      locked: searching,
+      move: (id, delta) => spotIn(pinsNow.current.save(moveBy(pinsNow.current.ids, id, delta)), id),
+      guest: guest && guest.group !== undefined ? { local: guest.local, scope: scopeOf(guest.group) } : undefined,
+    }),
+    // scopeOf 只读 ref 与 searching
+    [searching, guest],
+  );
 
   if (!sections || !shownSections) return <NoResults />;
   const local = (index: number) => threadIds[index]!;
@@ -449,6 +489,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     if (next) setPinnedOrder(next.map(keyOfDrag));
     return next;
   };
+  pinsNow.current = { ids: pinIds, save: savePins };
   const companies = shownSections.filter((section) => section.type === "project");
   const companyIds = companies.map((section) => companyDrag(section.project.id));
   const saveCompanies = (next: string[] | null) => {
@@ -469,23 +510,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     if (next) setGroupOrder(group, next.map(keyOfDrag), stampOf(group), moved.map(keyOfDrag));
     return next;
   };
-  // 各组行的拖动范围：同一组、同一搜索状态时是同一份（行不跟着整列每次重画），Alt+↑/↓ 按此刻眼前的行算
   latestGroups.current = { rowIdsOf, saveGroup };
-  const scopeOf = (group: string): GroupScope => {
-    const cache = scopes.current;
-    if (cache.searching !== searching) cache.map = new Map();
-    cache.searching = searching;
-    let scope = cache.map.get(group);
-    if (!scope) {
-      const move = (id: string, delta: -1 | 1) => {
-        const { rowIdsOf: idsOf, saveGroup: save } = latestGroups.current;
-        return spotIn(save(group, moveBy(idsOf(group), id, delta), [id]), id);
-      };
-      scope = { mode: "row", group, locked: searching, move };
-      cache.map.set(group, scope);
-    }
-    return scope;
-  };
   // 侧栏里眼前的先后（多选整批按它排）
   const shownOrder = shownSections.flatMap((section) => section.indices.map(local));
   const batchOf = (active: DragData) => {
@@ -553,7 +578,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
       if (now || over.shut) return;
       const local = fromDrag(active.id);
       const index = threadIds.indexOf(local);
-      if (index >= 0) placeGuest({ local, index, at: pinSpot(pinIds, over, below) });
+      if (index >= 0) placeGuest({ local, index, at: pinSpot(pinIds, over, below), group: active.group });
     } else if (now && over.list === active.list) placeGuest(null);
   };
   // 指针拖着对话、没有已置顶：到了第一组的组头上半截以上就临时出空的已置顶；出来以后指针离开它往下走远了（没排进去时）再收起。
@@ -570,7 +595,6 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     } else if (!guestRef.current && y > box.bottom + box.height) setReveal(false);
   };
   const onActive = (active: DragData | null) => {
-    setLifting(active);
     setReveal(false);
     if (!active) placeGuest(null);
     // 多选里拖其中一条：其余选中的行也变淡（整批一起走）；选中的不全在这一组时本组不是落点
@@ -580,22 +604,21 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     if (bulk) document.documentElement.dataset.ccDragBulk = "";
     else delete document.documentElement.dataset.ccDragBulk;
   };
+  // 拖进已置顶以后取消（Esc、手机 touchcancel 等）：挪回原来那一组、收起临时补的已置顶（还原拿起时的摆法），共用拖动随后从此刻
+  // 滑回原位、滑回播完才取消（Esc 那一帧只记下，这一下在下一帧，drag.tsx 的 homing）
+  const onReturn = () => {
+    placeGuest(null);
+    setReveal(false);
+  };
   const texts: DragTexts = sb.drag;
   const pinsOpen = tempPins || groupOpen({ key: "pinned" }, collapsed, searching);
   return (
-    <DragArea accepts={accepts} onDrop={onDrop} onOver={onOver} onActive={onActive} onPointer={onPointer} flow={FLOW} texts={texts}>
+    <DragArea accepts={accepts} onDrop={onDrop} onOver={onOver} onActive={onActive} onReturn={onReturn} onPointer={onPointer} flow={FLOW} texts={texts}>
       <SidebarError />
       <span ref={first} hidden />
       {pinned && (
         <PinnedGroup open={pinsOpen} onToggle={tempPins ? () => undefined : () => toggleSection({ key: "pinned" })}>
-          <RowScopeContext.Provider
-            value={{
-              mode: "pin",
-              locked: searching,
-              move: (id, delta) => spotIn(savePins(moveBy(pinIds, id, delta)), id),
-              guest: guest && lifting?.group !== undefined ? { local: guest.local, scope: scopeOf(lifting.group) } : undefined,
-            }}
-          >
+          <RowScopeContext.Provider value={pinScope}>
             <DragList id={PINS} items={pinIds}>
               <Items indices={pinned.indices} threadIds={threadIds} />
             </DragList>
@@ -717,6 +740,10 @@ const CompanyGroup: FC<{
   );
   const zone = useDropZone({ id: zoneDrag(rowList(project.id)), kind: "group", label: project.title, list: rowList(project.id) }, !open);
   const { ref: dragRef, ...node } = drag.node;
+  // 组头记住（memo）：拖动库重画这一组时，把手、开关、挪一格都还是同一份就不重画组头
+  const latestMove = useRef(onMove);
+  latestMove.current = onMove;
+  const move = useCallback((delta: -1 | 1) => drag.moved(latestMove.current(delta)), [drag]);
   const ref = useCallback(
     (el: HTMLElement | null) => {
       dragRef(el);
@@ -726,7 +753,7 @@ const CompanyGroup: FC<{
   );
   return (
     <div {...node} ref={ref} className="cc-group-section" data-slot="cc-group-section">
-      <ProjectHeader project={project} open={open} onToggle={onToggle} sessions={sessions} handle={drag.handle} onMove={locked ? undefined : (delta) => drag.moved(onMove(delta))} />
+      <ProjectHeader project={project} open={open} onToggle={onToggle} sessions={sessions} handle={drag.handle} onMove={locked ? undefined : move} />
       {open && (
         <div data-slot="cc-project-items" className="cc-group-items">
           {children}
@@ -755,7 +782,7 @@ const DayGroups: FC<{ searchQuery?: string }> = ({
 
   const { filteredIndices, groups } = useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    // 最后活动时间取列表给的与本页收到提醒的时间里较晚的一个：提醒到的对话浮到最上面
+    // 最后活动时间取列表给的与本页收到提醒、新消息的时间里较晚的一个：有动静的对话浮到最上面
     const dates = threadIds.map((id) => {
       const item = itemsById.get(id);
       const bumped = item?.remoteId ? bumps.get(item.remoteId) : undefined;
@@ -951,8 +978,9 @@ const PinnedRow: FC<{ scope: Extract<RowScope, { mode: "pin" }> }> = ({ scope })
   const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
   const id = pinDrag(localId);
   const drag = useSortableItem({ id, kind: "pin", label: title, list: PINS }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });
-  // Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）
-  return <Row drag={drag} onMove={scope.locked ? undefined : (delta) => drag.moved(scope.move(id, delta))} />;
+  // Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）；同一份回调，行不跟着拖动库每次重画
+  const onMove = useCallback((delta: -1 | 1) => drag.moved(scope.move(id, delta)), [drag, scope, id]);
+  return <Row drag={drag} onMove={scope.locked ? undefined : onMove} />;
 };
 
 /** 公司组 / 最近里的一行：在本组里排先后，或拖进已置顶（拖进去还没放下时照旧是这一项，挂在置顶里）。 */
@@ -968,14 +996,17 @@ const GroupRow: FC<{ scope: GroupScope }> = ({ scope }) => {
     { id, kind: "row", label: count ? sb.drag.items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },
     { disabled: locked, ownFocus: true, skip: ROW_SKIP },
   );
-  return <Row drag={drag} onMove={locked ? undefined : (delta) => drag.moved(scope.move(id, delta))} />;
+  const onMove = useCallback((delta: -1 | 1) => drag.moved(scope.move(id, delta)), [drag, scope, id]);
+  return <Row drag={drag} onMove={locked ? undefined : onMove} />;
 };
 
 type RowDrag = { node: { ref: (el: HTMLElement | null) => void } & Record<string, unknown>; handle: DragHandle };
 
-const Row: FC<{ drag?: RowDrag; onMove?: (delta: -1 | 1) => void }> = ({ drag, onMove }) => {
+// 记住（memo）：拖动库每次拿起、经过、放下都重画所有能拖的行，这一行的位移与把手没变（useSortableItem 回同一份）就不重画
+const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delta: -1 | 1) => void }) {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const startRename = useCallback(() => setRenaming(true), []);
   const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态。
   // 点的是同一段对话的另一行数据：也不切换（切过去会另起一份，输入框里没发的字就没了）
@@ -1046,22 +1077,32 @@ const Row: FC<{ drag?: RowDrag; onMove?: (delta: -1 | 1) => void }> = ({ drag, o
             onClick={reenter}
             className="cc-row-trigger focus-visible:shadow-focus flex min-h-(--cc-row-h) min-w-0 flex-1 items-center self-stretch rounded-md text-start outline-none"
           >
-            <span className="cc-row-text">
-              <Marquee data-slot="aui_thread-list-item-title" className="cc-row-title">
-                <ThreadListItemPrimitive.Title fallback={t("untitled")} />
-              </Marquee>
-              <RowMeta />
-            </span>
-            <span className="cc-row-end">
-              <ThreadActivity />
-            </span>
+            <RowLabel />
           </ThreadListItemPrimitive.Trigger>
-          <ThreadListItemMore open={menuOpen} onOpenChange={setMenuOpen} onRename={() => setRenaming(true)} />
+          <ThreadListItemMore open={menuOpen} onOpenChange={setMenuOpen} onRename={startRename} />
         </>
       )}
     </ThreadListItemPrimitive.Root>
   );
-};
+});
+
+/** 行里的字（标题、第二行、行尾状态）：不随拖动变（拖动库每次拿起、经过、放下都重画所有能拖的行，只有行的位移与把手的属性变），
+ *  单独记住，不跟着整行重画（测试窗口第 10 轮 B 段：拿起那一刻整列重画 150–200ms）。里面各自按组件库的状态更新。 */
+const RowLabel = memo(function RowLabel() {
+  return (
+    <>
+      <span className="cc-row-text">
+        <Marquee data-slot="aui_thread-list-item-title" className="cc-row-title">
+          <ThreadListItemPrimitive.Title fallback={t("untitled")} />
+        </Marquee>
+        <RowMeta />
+      </span>
+      <span className="cc-row-end">
+        <ThreadActivity />
+      </span>
+    </>
+  );
+});
 
 /** 行的第二行（「显示 → 元数据」开着、挂在公司下且有可写的才有）：按公司分组时「9 月 · 分店 00012」；按月份时「公司 · 分店」；
  *  不分组时「公司 · 月份 · 分店」。 */
@@ -1142,11 +1183,16 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
 
 // 对话菜单（同 Claude Code）：置顶 P / 重命名 R / 删除 D，向下开、右对齐（用户 10-17：对话不能换公司，「移到 ▸」已删）。这一行在
 // 多选里、选了两条以上时换成批量项（BulkItems）。
-const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => void; onRename: () => void }> = ({
+// 记住：拖动时整行重画不连带菜单（开关、改名都是稳定的回调）
+const ThreadListItemMore = memo(function ThreadListItemMore({
   open,
   onOpenChange,
   onRename,
-}) => {
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRename: () => void;
+}) {
   const aui = useAui();
   const custom = useAuiState((s) => s.threadListItem.custom);
   const localId = useAuiState((s) => s.threadListItem.id);
@@ -1155,8 +1201,8 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   const companies = !!useProjects((s) => s.kind);
   const bulk = companies && selection.length > 1 && selection.includes(localId);
   const close = () => onOpenChange(false);
-  // 取消置顶回到它那一组的最上面（starChat）
-  const pin = () => void starChat(aui.threadListItem(), !starred);
+  // 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行
+  const pin = () => toggleStar(aui.threadListItem(), !starred);
   const remove = () => void aui.threadListItem().delete();
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
@@ -1204,7 +1250,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
   );
-};
+});
 
 /** 多选时的行菜单（同 Claude Code，没有批量栏）：「置顶 N」（都已置顶时「取消置顶 N」）、「删除 N」。
  *  用组件库各行自己的操作一条一条做（不并发，lib/sidebar-keys.ts 的 runInOrder），做完清空多选；出错显示在侧栏那一行。

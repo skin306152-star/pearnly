@@ -5,7 +5,8 @@
 // 本站提醒（pearnly.notice）另记一个圆点：服务端记着有没有看过（列表带回 unread，刷新后仍在；别处看过了列表带回
 // unread 为假，圆点去掉）。正看着的对话里显示出了新的提醒（推送、补拉、整段回放带回来的都算，runtime-provider 报
 // noticesShown），就告诉服务端看过了（notices_seen）。「正看着」= 当前对话、对话页（不是定时任务页）、页面在前台。
-// 提醒到的对话浮到侧栏最上面（useBumps）。
+// 提醒到的、有新消息的（推来的 user.message / agent.message：本页或别的设备上发的消息、CC 的回复）对话浮到侧栏最上面（useBumps），
+// 不等重拉列表；服务端同一时刻把会话的最后活动时间记成现在（pearnly_core.assistant.context.active），刷新后照样按它排。
 // 所有推来的提醒（包括没挂在对话上的）都交给 onNotice 的监听者：桌面窗口弹系统通知、侧栏没加载到的对话重新拉列表。
 // 每个监听者单独兜住异常，一个出错不挡别的。
 // 「在跑」也按服务端读回的运行状态校正（noteRun）：开着的对话由它的会话控制器报；别的对话在回到前台、恢复、联网、重连时
@@ -23,7 +24,7 @@ const noticed = new Map<string, number>();
 // 对话里显示出来的最新一条提醒、已告诉服务端看过的最新一条：同一条只报一次
 const latestNotice = new Map<string, string>();
 const reported = new Map<string, string>();
-// 提醒把对话浮到最上面：对话编号 → 提醒时间（毫秒）；侧栏按它与最后活动时间里较晚的一个排序
+// 提醒、新消息把对话浮到最上面：对话编号 → 那一刻（毫秒）；侧栏按它与列表给的最后活动时间里较晚的一个排序
 let bumps: ReadonlyMap<string, number> = new Map();
 const listeners = new Set<() => void>();
 const noticeListeners = new Set<(notice: NoticeEvent) => void>();
@@ -67,15 +68,22 @@ export function noticesShown(sessionId: string, lastNoticeId: string) {
   flush(sessionId);
 }
 
+/** 这段对话此刻有了动静（提醒、新消息）：浮到侧栏最上面。at：事件的时间（没有、认不出用此刻）。 */
+function bump(sessionId: string, at: string | null | undefined) {
+  const time = (at ? Date.parse(at) : Number.NaN) || Date.now();
+  if ((bumps.get(sessionId) ?? 0) >= time) return;
+  bumps = new Map(bumps).set(sessionId, time);
+  changed();
+}
+
+/** 算「有了新消息」的事件：用户发出的消息、CC 的回复（同服务端记最后活动时间的那两处）。 */
+const MESSAGES = new Set(["user.message", "agent.message"]);
+
 function noteNotice(sessionId: string, notice: NoticeEvent) {
   if (sessionId) {
     if (viewing(sessionId)) flush(sessionId);
     else mark(sessionId);
-    const at = Date.parse(notice.processed_at) || Date.now();
-    if ((bumps.get(sessionId) ?? 0) < at) {
-      bumps = new Map(bumps).set(sessionId, at);
-      changed();
-    }
+    bump(sessionId, notice.processed_at);
   }
   noticeListeners.forEach((listener) => {
     try {
@@ -92,6 +100,7 @@ export function noteEvent(sessionId: string, event: FeedEvent) {
   if (isNotice(event)) return noteNotice(sessionId, event);
   if (!sessionId) return;
   const type = (event as { type?: string }).type;
+  if (type && MESSAGES.has(type)) bump(sessionId, (event as { processed_at?: string | null }).processed_at);
   if (type === "session.status_running") set(sessionId, "running");
   else if (type === "session.status_idle") {
     const reason = (event as { stop_reason?: { type?: string } }).stop_reason?.type;
@@ -194,7 +203,7 @@ export function useActivities(sessionIds: readonly string[]): Record<string, Act
   return Object.fromEntries(sessionIds.map((id, i) => [id, (states[i] || undefined) as Activity | undefined]));
 }
 
-/** 提醒浮顶的时间（对话编号 → 毫秒）。 */
+/** 提醒、新消息浮顶的时间（对话编号 → 毫秒）。 */
 export function useBumps(): ReadonlyMap<string, number> {
   return useSyncExternalStore(
     (listener) => {

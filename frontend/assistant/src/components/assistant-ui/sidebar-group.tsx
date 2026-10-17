@@ -13,10 +13,12 @@
 //                   按排序方式排（用户 10-17）。公司组头受控：手机长按组头、键盘菜单键打开的也是它
 //   GroupNew      — 组标题右侧的「新建」：在这一组（公司 / 最近）开新对话
 //
+// 「···」与「新建」记住（memo）：公司组头是拖动项，拖动库每次拿起、经过、放下都重画所有组头，菜单不跟着重画（测试窗口第 10 轮 B 段）。
+//
 // 颜色、尺寸只用 globals.css 的变量（.cc-group-*、.cc-row-btn）。组名放不下时悬停滚动（components/ui/marquee.tsx）。
 
 import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
-import { type FC, type HTMLAttributes, type KeyboardEvent, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type FC, type HTMLAttributes, type KeyboardEvent, memo, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { altMove, chain, type DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { isDragging } from "@/lib/layers";
@@ -101,8 +103,8 @@ export function useCloseDrawer() {
   };
 }
 
-/** 组标题右侧的「新建」（悬停组标题才出现；手机、触屏常显）。 */
-export const GroupNew: FC<{ onClick: () => void }> = ({ onClick }) => {
+/** 组标题右侧的「新建」（悬停组标题才出现；手机、触屏常显）。记住：公司组头随拖动重画时不连带（onClick 由调用方给稳定的）。 */
+export const GroupNew = memo(function GroupNew({ onClick }: { onClick: () => void }) {
   const go = useCloseDrawer();
   return (
     <button
@@ -117,7 +119,7 @@ export const GroupNew: FC<{ onClick: () => void }> = ({ onClick }) => {
       <PlusIcon />
     </button>
   );
-};
+});
 
 // ---------------------------------------------------------------- 分组和排序
 const GROUP_LABEL: Record<GroupBy, () => string> = { company: () => co.companies, month: () => sb.month, none: () => sb.none };
@@ -162,7 +164,15 @@ export function headOffset(trigger: { left: number } | null | undefined, head: {
 /** 组标题右侧的「···」：打开「分组和排序」。open / onOpenChange 只有公司组头传（长按组头、菜单键也打开它）。
  *  alignHead（手机上的公司组头）：菜单左边贴着组头开关的左边、盖住组里各行的起点（测试窗口第 7 轮：长按组头出的菜单按「···」
  *  右对齐，左边缘正好落在组里各行文字起点右边几像素，各行首字从菜单左边露出一点）。菜单盖在列表上照常，只是不再切在字头上。 */
-export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) => void; alignHead?: boolean }> = ({ open, onOpenChange, alignHead }) => {
+export const GroupSortMenu = memo(function GroupSortMenu({
+  open,
+  onOpenChange,
+  alignHead,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  alignHead?: boolean;
+}) {
   const view = useSidebarView();
   // 「恢复默认设置」也清手排的公司组、置顶与组里的顺序：都跟默认一样才不可点
   const manual = useSidebarOrder(hasManualOrder);
@@ -224,4 +234,4 @@ export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) 
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
   );
-};
+});

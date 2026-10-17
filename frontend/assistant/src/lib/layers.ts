@@ -6,10 +6,10 @@
 export const OPEN_LAYERS =
   '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-menu-content][data-state="open"]';
 
-// 正在拖动（components/ui/drag.tsx 共用拖动：会话栏卡片、侧栏公司组、置顶对话、组里的对话排先后或拖进已置顶；拖动期间根节点上的标记）：
+// 正在拖动（components/ui/drag.tsx 共用拖动：会话栏卡片、侧栏公司组、置顶对话、组里的对话排先后或拖进已置顶；isDragging）：
 // 这时的 Esc 只是取消拖动，不关浮着的会话栏、不清侧栏多选，方向键不移侧栏焦点，悬停滚动不滚。
 //
-// 取消拖动的那一下 Esc 本身也要认得出来：拖动库在 document 上收到 Esc 就当场结束拖动、去掉标记，挂在 window 上的
+// 取消拖动的那一下 Esc 本身也要认得出来：拖动库在 document 上收到 Esc 就当场结束拖动，挂在 window 上的
 // （侧栏多选的 Esc）随后才收到同一个事件，只看标记会以为没在拖（测试窗口第 4 轮第 9 项：多选被清空）。所以拖动期间在
 // window 的捕获阶段（最先收到）先记下这次 Esc（isDragEscape），各处的 Esc 都先问它。
 const DRAG = "ccDrag";
@@ -35,12 +35,35 @@ export function isDragMoving(): boolean {
   return moved && isDragging();
 }
 
+// 正在拖（逻辑上：拿起到结束拖动那一次提交）。根节点上的标记（data-cc-drag）只管样式——拖动中整页 grabbing 光标
+// （globals.css 的 :root[data-cc-drag] *）——拿起那一帧不加，等这一帧画出来以后再加（markRoot）：加的那一下整页每个元素都要
+// 重新算样式（无界面 Chrome 6 倍节流 15–30ms），原来与拿起那一帧拖动库整列重画叠在一起（测试窗口第 10 轮 B 段：拿起那一刻
+// 长帧 160–186ms）。拖动中各处判断都问 isDragging()，不看根节点标记。
+let dragging = false;
+let marking: object | null = null;
+
+/** 下一帧画出来以后给根节点加上拖动标记（这期间结束了拖动就不加）。 */
+function markRoot() {
+  const token = {};
+  marking = token;
+  const apply = () => {
+    if (marking !== token) return;
+    marking = null;
+    if (dragging) document.documentElement.dataset[DRAG] = "";
+  };
+  // requestAnimationFrame 在这一帧画之前回调，里面再排一个任务：等画完
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(apply, 0));
+  else setTimeout(apply, 0);
+}
+
 export function setDragging(on: boolean): void {
+  dragging = on;
+  marking = null;
   if (typeof document === "undefined") return;
   moved = false;
   released = false;
   if (on) {
-    document.documentElement.dataset[DRAG] = "";
+    markRoot();
     window.addEventListener("keydown", markEscape, true);
   } else {
     delete document.documentElement.dataset[DRAG];
@@ -56,7 +79,7 @@ export function releaseDrag(): void {
 }
 
 export function isDragging(): boolean {
-  return typeof document !== "undefined" && DRAG in document.documentElement.dataset;
+  return dragging;
 }
 
 /** 这个 Esc 是不是用来取消拖动的（拖动中按下的；拖动库处理完已经结束拖动也算）。 */

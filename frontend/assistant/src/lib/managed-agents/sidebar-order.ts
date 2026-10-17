@@ -255,7 +255,7 @@ export function unpinSettled(key: string, ok: boolean) {
 }
 
 /** 本机取消置顶一条（各入口同一道）：先记下回组顶，发请求（组件库乐观地先显示成没置顶），按结果存或撤回。after：多选时同批排在
- *  它前面的。置顶不经这里（照旧直接 updateCustom）。 */
+ *  它前面的。置顶不经这里（照旧直接 updateCustom）。服务端确认了才从手排的置顶顺序里去掉（forgetPinned）。 */
 export async function unpinChat(key: string, run: () => Promise<void>, after: readonly string[] = []): Promise<void> {
   noteUnpinned(key, true, after);
   try {
@@ -264,8 +264,18 @@ export async function unpinChat(key: string, run: () => Promise<void>, after: re
     unpinSettled(key, false);
     throw error;
   }
+  forgetPinned([key]);
   unpinSettled(key, true);
 }
+
+// 本机发出、服务端还没回的置顶 / 取消置顶（对话编号）。组件库乐观地先显示成新的样子，失败再撤回：这段时间侧栏不按眼前的样子收拾
+// 手排的顺序（置顶的从组里去掉、取消置顶的从置顶顺序里去掉），确认了才收拾。测试窗口第 10 轮 B 段：手机断网取消置顶第 2 位的
+// 对话，乐观更新那一下就把它从置顶顺序里去掉并同步出去，失败撤回后它成了「新置顶的」排到第 1 位，联网后服务端那份换进来才回到
+// 第 2 位；同一时刻别的设备排好的置顶顺序也会被这次收拾盖掉。
+const starring = new Set<string>();
+
+/** 这一条的置顶 / 取消置顶请求还没回（侧栏收拾手排顺序时跳过它）。 */
+export const starPending = (key: string) => starring.has(key);
 
 /** 组件库的一段对话（置顶用到的那几样）。updateCustom 运行时回 Promise（组件库的乐观更新，失败时撤回并抛出），类型上写的是 void。 */
 export type StarItem = {
@@ -274,11 +284,22 @@ export type StarItem = {
 };
 
 /** 置顶 / 取消置顶一段对话（行菜单、P 键、手机长按菜单、标题栏菜单、多选同一道）。展开写法：组件库整份替换 custom，以后加的键
- *  不能被冲掉。取消置顶经 unpinChat 回到它那一组的最上面；after 同 unpinChat。 */
-export function starChat(item: StarItem, starred: boolean, after: readonly string[] = []): Promise<void> {
+ *  不能被冲掉。取消置顶经 unpinChat 回到它那一组的最上面；after 同 unpinChat。请求没回之前侧栏不收拾它的手排顺序（starPending），
+ *  失败时组件库撤回、它原样留在原位；出错由调用方写进侧栏出错行（projects.ts 的 setError，通用句）。 */
+export async function starChat(item: StarItem, starred: boolean, after: readonly string[] = []): Promise<void> {
   const { id, remoteId, custom } = item.getState();
+  const key = remoteId ?? id;
+  // 明知断网：不先乐观地挪走再撤回（那一下会闪一帧），当场按请求失败处理（调用方写出错行）
+  if (typeof navigator !== "undefined" && navigator.onLine === false) throw new TypeError("offline");
   const run = async () => void (await item.updateCustom({ ...custom, starred }));
-  return starred ? run() : unpinChat(remoteId ?? id, run, after);
+  starring.add(key);
+  try {
+    if (!starred) return await unpinChat(key, run, after);
+    await run();
+    forgetInGroups([key], true); // 置顶了：从组里手排的先后里去掉（服务端确认后）
+  } finally {
+    starring.delete(key);
+  }
 }
 
 /** 这一条此刻在侧栏里的样子（applyLifts 问侧栏）：group 它那一组，stamp 这组此刻最新的那个时间（groupStamp，按排序方式）；

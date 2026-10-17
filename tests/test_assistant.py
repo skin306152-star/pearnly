@@ -3,6 +3,7 @@
 
 不连库、不连厂商：Frappe 与 SDK 用最小替身。
 """
+import ast
 import contextlib
 import datetime
 import importlib.util
@@ -2498,6 +2499,33 @@ class InterfaceLanguageTests(unittest.TestCase):
             prefs.use_page_language()
             self.assertEqual(native.local.lang, want, header)
 
+    def test_assistant_errors_carry_no_traceback(self):
+        """测试窗口第 10 轮 B 段：换公司被拒（frappe.throw）的 417 回复里 exc 带着整段 Python 堆栈。锁定的 Frappe 在系统设置
+        「显示完整错误」（默认开）且请求人是系统用户时就带（utils/response.py 的 is_traceback_allowed），不只是开发模式；
+        对话页的接口在请求开头关掉（disable_traceback），别的接口不动。"""
+        source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        keep = [node for node in tree.body if (isinstance(node, ast.FunctionDef) and node.name == "no_traceback")
+                or (isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "METHODS" for t in node.targets))]
+        self.assertEqual(len(keep), 2)
+        fake = types.SimpleNamespace(flags=types.SimpleNamespace(), request=None)
+        scope = {"frappe": fake}
+        exec(compile(ast.Module(body=keep, type_ignores=[]), "api.py", "exec"), scope)
+        for path, expected in (("/api/method/pearnly_core.assistant.api.move", True),
+                               ("/api/method/pearnly_core.assistant.webhook.receive", True),
+                               ("/api/method/frappe.client.get", False), ("/assistant", False)):
+            fake.flags = types.SimpleNamespace()
+            fake.request = types.SimpleNamespace(path=path)
+            scope["no_traceback"]()
+            self.assertEqual(getattr(fake.flags, "disable_traceback", False), expected, path)
+        fake.request = None
+        scope["no_traceback"]()  # 后台任务、命令行没有请求：不出错
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"pearnly_core.assistant.api.no_traceback"', hooks.split("\nbefore_request = [", 1)[1].split("]", 1)[0])
+        # 拒收照旧用 frappe 原生的 throw（只回原文；堆栈由上面关掉）
+        self.assertIn('frappe.throw(_("A conversation cannot be moved to another company."))',
+                      (CORE / "assistant/sessions.py").read_text(encoding="utf-8"))
+
     def test_wiring(self):
         hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
         before = hooks.split("\nbefore_request = [", 1)[1].split("]", 1)[0]
@@ -3334,8 +3362,15 @@ class _SessionDb:
 
     def set_value(self, doctype, name, field, value=None, update_modified=True):
         row = self._find(name)
+        values = field if isinstance(field, dict) else {field: value}
+        self.writes.append((row and row.get("name"), values, update_modified))
         if row is not None:
-            row.update(field if isinstance(field, dict) else {field: value})
+            row.update(values)
+
+    @property
+    def writes(self):
+        """各次写入（记录名、写的字段、update_modified），核对最后活动时间用。"""
+        return self.__dict__.setdefault("_writes", [])
 
     def commit(self):
         self.commits += 1
@@ -3625,6 +3660,60 @@ class SidebarSyncTests(unittest.TestCase):
         self.assertNotRegex(source, r"room=|doctype=|docname=")
         with self.assertRaises(contracts.ContractError):
             contracts.session_change("renamed", "sesn_first1")
+
+    def test_only_messages_move_the_last_activity_time(self):
+        """侧栏「上次更新」按会话表的 modified 排（测试窗口第 10 轮 B 段：原来只在新建后几秒写一次，实际按建立时间排）：用户发出消息、
+        CC 回复（推送线程收到 agent.message）记成现在；改名、置顶、改月份不动它（Frappe 的 set_value 默认会改 modified）。"""
+        row = self.db.rows["row1"]
+        row.update(title="已有标题", title_source="summary", remote_ids="", pending_carry="", project="", period="",
+                   project_scope="")
+        api = types.SimpleNamespace(post=lambda remote, batch: None, rename=lambda remote, title: None)
+        sessions = self._sessions(row, api)
+        now = datetime.datetime(2026, 10, 13, 20, 0)
+
+        def touched():
+            return [w for w in self.db.writes if "modified" in w[1]]
+
+        sessions.rename("sesn_first1", "新名字")
+        sessions.star("sesn_first1", True)
+        with mock.patch.object(sessions.projects, "placement", lambda *a: ("", None, None)), \
+                mock.patch.object(sessions.sidebar, "project", lambda *a, **k: None):
+            sessions.move("sesn_first1", "", "2026-09")
+        self.assertEqual(touched(), [])
+        self.assertTrue(all(w[2] is False for w in self.db.writes), self.db.writes)  # 都不顺带改 modified
+        with mock.patch.object(sessions.projects, "note", lambda row, user: ("", None)):
+            sessions.send("sesn_first1", "ขอบคุณ")
+            self.assertEqual(touched(), [("row1", {"modified": now}, False)])
+            # 发不出去（引擎拒收）不算活动
+            self.db.writes.clear()
+            failing = types.SimpleNamespace(post=mock.Mock(side_effect=RuntimeError("engine")))
+            with mock.patch.object(sessions.engine, "adapter", return_value=failing), self.assertRaises(RuntimeError):
+                sessions.send("sesn_first1", "อีกครั้ง")
+        self.assertEqual(touched(), [])
+        # CC 回复：推送线程每收到一段 agent.message 记一次并提交；写不进不打断转发
+        relay = sys.modules["pearnly_core.assistant.relay"]
+        stream = [{"type": "session.status_running"}, {"type": "agent.message", "content": []},
+                  {"type": "session.status_idle", "stop_reason": {"type": "end_turn"}}]
+        api = types.SimpleNamespace(stream=lambda remote, opened: (opened(), iter(stream))[1], status=lambda remote: "idle")
+        cache = types.SimpleNamespace(expire=lambda *a: None, get=lambda key: b"tok", delete=lambda key: None)
+        commits = self.db.commits
+        with mock.patch.object(relay.frappe, "init", lambda **kw: None, create=True), \
+                mock.patch.object(relay.frappe, "connect", lambda: None, create=True), \
+                mock.patch.object(relay.frappe, "set_user", lambda user: None, create=True), \
+                mock.patch.object(relay.frappe, "destroy", lambda: None, create=True), \
+                mock.patch.object(relay.frappe, "cache", cache, create=True), \
+                mock.patch.object(relay.engine, "adapter", return_value=api), \
+                mock.patch.object(relay.titles, "turn_ended", lambda sid: None):
+            relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
+                       __import__("threading").Event())
+            self.assertEqual(touched(), [("row1", {"modified": now}, False)])
+            self.assertEqual(self.db.commits, commits + 1)
+            pushed = len(self.pushed)
+            with mock.patch.object(relay.context, "active", mock.Mock(side_effect=RuntimeError("lock"))), \
+                    mock.patch.object(self.db, "rollback", lambda: None, create=True):
+                relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
+                           __import__("threading").Event())
+            self.assertEqual(len(self.pushed) - pushed, len(stream))  # 照样推到这一轮结束
 
     def test_a_new_conversation_is_announced_after_it_is_stored(self):
         api = types.SimpleNamespace(open=lambda handle, metadata: ("sesn_new001", "idle"))

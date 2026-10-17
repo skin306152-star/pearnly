@@ -606,7 +606,7 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
-        more = rows.split("const ThreadListItemMore: FC", 1)[1]
+        more = rows.split("const ThreadListItemMore = memo(function ThreadListItemMore(", 1)[1]
         self.assertEqual(more.count('side="bottom"\n            align="end"'), 1)
         self.assertEqual(more.count('side="bottom"\n      align="end"'), 1)  # 多选时的批量项
         self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)

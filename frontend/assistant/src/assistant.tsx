@@ -47,7 +47,7 @@ import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
+import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
 import {
   ComposerChin,
   ConversationCompany,
@@ -93,7 +93,6 @@ import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
-import { starChat } from "@/lib/managed-agents/sidebar-order";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { syncPrefs } from "@/lib/prefs-sync";
@@ -680,8 +679,8 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
           <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
             {/* 挂在公司下时最上面是公司名：点了全屏打开右侧会话栏 */}
             <MobileCompanyItem />
-            {/* 取消置顶回到它那一组的最上面（starChat） */}
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void starChat(aui.threadListItem(), !starred)}>
+            {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}
+            <DropdownMenu.Item className="cc-menu-item" onSelect={() => toggleStar(aui.threadListItem(), !starred)}>
               {starred ? <PinOffIcon /> : <PinIcon />}
               {starred ? t("unstar") : t("star")}
             </DropdownMenu.Item>
@@ -738,8 +737,8 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
-          {/* 取消置顶回到它那一组的最上面（starChat） */}
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void starChat(aui.threadListItem(), !starred)}>
+          {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => toggleStar(aui.threadListItem(), !starred)}>
             {starred ? <PinOffIcon /> : <PinIcon />}
             {starred ? t("unstar") : t("star")}
           </DropdownMenu.Item>
