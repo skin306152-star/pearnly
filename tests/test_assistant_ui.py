@@ -2556,8 +2556,9 @@ class CompanyMasterSourceTests(unittest.TestCase):
         for name in COMPANY_SOURCES:
             self.assertIsNone(colour.search(read(name)), name)
         drag = read("components/ui/drag.tsx")
-        self.assertIn("style: { transform, transition: sortable.transition } as CSSProperties,", drag)
-        self.assertIn("const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);", drag)
+        # 第 11 轮 B14：位移、过渡不再放进 node 的 style，由共用拖动在提交时直接写到那一项的节点上（applyShift），仍只此一处
+        self.assertIn('const shift = { transform: settling ? "" : (CSS.Translate.toString(sortable.transform) ?? ""), transition: sortable.transition ?? "" };', drag)
+        self.assertIn("useLayoutEffect(() => applyShift(el.current, shift));", drag)
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", drag))
         css = read("globals.css")
         start = css.index("/* ── 公司主档（ADR-020")
@@ -5714,7 +5715,9 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
         self.assertEqual(drag.count("holdStill(stash.current.node, landWait);"), 2)   # 松手、取消
         # 整列一起滑：拖动中（拿起到结束那一次提交，布局阶段停）；版面变了就重量各落点（碰撞按新位置）
         self.assertIn("{flow && <Flow selector={flow} transition={transition} paused={cancelling} />}", drag)
-        self.assertIn("return flowLayout(root, selector, transition, remeasure);", drag)
+        # 拿起那一帧画完以后才开始盯（第 11 轮 B14：拿起那次提交里先量整列要当场算整页样式、布局）
+        self.assertIn("stop = flowLayout(root, selector, transition, remeasure);", drag)
+        self.assertIn("    afterPaint(() => {\n      const from = node.current;", drag)
         self.assertIn("measure(all.getEnabled().map((entry) => entry.id));", drag)
         flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
         self.assertIn("const running = !!active;", flow)
@@ -6447,7 +6450,7 @@ class Round10DragTests(unittest.TestCase):
         # 只在那一项还在拿起时那一列里时先滑回（指针拖进了另一列：照旧由拖动库滑回）；滑回途中排序项不写让位位移
         self.assertIn("const home = !!node?.isConnected && !!from?.list && listOf(active) === from.list;", drag)
         self.assertIn("const animation = home && box ? settleBack(box, node!, transition, homeInto) : null;", drag)
-        self.assertIn("const transform = settling ? undefined : CSS.Translate.toString(sortable.transform);", drag)
+        self.assertIn('const shift = { transform: settling ? "" : (CSS.Translate.toString(sortable.transform) ?? ""), transition: sortable.transition ?? "" };', drag)
         # 文件头不再把约 1 秒的空帧定性成「那里出帧的问题」（审查：没坐实）
         self.assertNotIn("是那里出帧的问题", drag)
         self.run_page(r"""
@@ -6885,15 +6888,18 @@ assert.equal("ccDrag" in root.dataset, false);
         drag = read("components/ui/drag.tsx")
         cancel = drag.split("  const beforeCancel = useMemo(", 1)[1].split("\n  const sensors = useSensors(", 1)[0]
         cross = cancel.split("if (!home && from?.list && active && box && transition && latest.current.onReturn) {", 1)[1].split("\n      }\n", 1)[0]
-        self.assertIn("releaseDrag();", cross)
         self.assertIn("const slide = start ? slideOverlay(box, homeBox(start, scrolled, node), transition) : null;", cross)
+        # 已经取消：之后的 Esc 照常；整页 grabbing 光标在 Esc 这一帧去掉（量完浮层再去），不叠进下一帧挪回原组的整列重画（第 11 轮 B14）
+        self.assertIn("releaseDrag(true);", cross)
+        self.assertLess(cross.index("slideOverlay("), cross.index("releaseDrag(true);"))
         self.assertIn("afterPaint(() => homing.current === entry && latest.current.onReturn?.(from));", cross)
         self.assertIn("unfreeze: node ? freezeScroll(node) : () => undefined,", cross)
         self.assertNotIn("letGo.hold(", cross)                 # 这一下不取消
         self.assertIn("cancelling.current = true;", cancel)
         self.assertIn("if (!active?.list || cancelling.current) return [];", drag)          # 碰撞不再算
         self.assertIn("if (cancelling.current) return; // 已经取消、在等滑回：不再经过哪里", drag)
-        self.assertIn("if (paused.current) return;", drag)                                   # 不重量落点
+        self.assertIn("if (paused.current || queued) return;", drag)                         # 不重量落点
+        self.assertIn("if (!live || paused.current) return;", drag)                          # 排到下一帧的那次也不量
         self.assertIn("const node = nodeIn(entry.id, entry.list);\n    if (node) homeLanded(entry, node);", drag)
         self.assertIn("letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);", drag)
         # 「这一项此刻在哪一列」按它真的排在的那一列（拖进置顶重挂的那一行是置顶那一列）
@@ -7142,6 +7148,172 @@ g.done();
         # 浮顶只用服务端时间
         activity = read("lib/managed-agents/activity.ts")
         self.assertNotIn("Date.now()", activity.split("function bump(", 1)[1].split("\n}\n", 1)[0])
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11DragFramesTests(unittest.TestCase):
+    """第 11 轮 B14（10-17，A14 真 Chrome）：拿起、出 / 收长按菜单、拖进置顶、Esc 下一帧、落定的长帧。共用拖动一处改，所有拖动处
+    一起受益：让位的位移与过渡不经 React 传给各行、播报区与浮层不挂在会盯着的地方、拖动库拿起时不再多量多观察、整页光标只给鼠标
+    且松手就去、整列滑动拿起后一帧才开始；侧栏整列重画时没变的组与组头不重画；Esc 后不再留下空的「已置顶」。"""
+
+    def run_page(self, body, stubs=None):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body
+               + "\n(globalThis as any).done();\n", stubs=stubs)
+
+    def test_rows_keep_the_same_props_when_sorting_starts(self):
+        # 原来位移、过渡放在 node 的 style 里：拖动库一开始排序每一项的过渡从无变成字符串，node 变了，整列行与组头全部重画。
+        # 现在 node 只有 ref 与标记（按内容记住），位移、过渡在提交时直接写到节点上，没在让位的项一次也不写
+        drag = read("components/ui/drag.tsx")
+        item = drag.split("export function useSortableItem(", 1)[1].split("\n}\n", 1)[0]
+        node = item.split("const node = useMemo(", 1)[1].split(");", 1)[0]
+        self.assertNotIn("style", node)
+        self.assertIn("[ref, data.id, list, isDragging]", node)
+        self.assertIn("useLayoutEffect(() => applyShift(el.current, shift));", item)
+        self.assertIn("resizeObserverConfig: NO_RESIZE_WATCH", item)
+        self.assertIn("resizeObserverConfig: NO_RESIZE_WATCH", drag.split("export function useDropZone(", 1)[1].split("\n}\n", 1)[0])
+        self.run_page(r"""
+import { applyShift } from "@/components/ui/drag";
+const writes: string[] = [];
+const fake = () => {
+  const values: Record<string, string> = { transform: "", transition: "" };
+  const style: any = {};
+  for (const name of ["transform", "transition"]) {
+    Object.defineProperty(style, name, { get: () => values[name], set: (v: string) => { writes.push(`${name}=${v}`); values[name] = v; } });
+  }
+  return { style } as any;
+};
+const T = "transform 200ms ease";
+const row = fake();
+applyShift(row, { transform: "", transition: T });                     // 拿起：开始排序、这一项不让位，一次也不写
+assert.deepEqual(writes, []);
+applyShift(row, { transform: "translate3d(0px, 34px, 0)", transition: T });   // 让位：先过渡、再位移
+assert.deepEqual(writes, [`transition=${T}`, "transform=translate3d(0px, 34px, 0)"]);
+writes.length = 0;
+applyShift(row, { transform: "translate3d(0px, 34px, 0)", transition: T });   // 没变：不写
+assert.deepEqual(writes, []);
+applyShift(row, { transform: "", transition: T });                     // 回原位：带着过渡滑回
+assert.deepEqual(writes, ["transform="]);
+writes.length = 0;
+applyShift(row, { transform: "", transition: "" });                    // 结束：留着的过渡清掉
+assert.deepEqual(writes, ["transition="]);
+writes.length = 0;
+const moved = fake();
+applyShift(moved, { transform: "translate3d(0px, -34px, 0)", transition: T });
+writes.length = 0;
+applyShift(moved, { transform: "", transition: "" });                  // 结束那次提交（新顺序同时排好）：不带过渡、当场归位
+assert.deepEqual(writes, ["transition=", "transform="]);
+applyShift(null, { transform: "x", transition: T });                   // 还没挂上：不动
+""")
+
+    def test_drag_cursor_only_for_the_mouse_and_gone_at_release(self):
+        # 整页 grabbing（根节点标记）加、去各要整页重算一次样式：手机、键盘拖动不加；松手开始落位那一帧画完就去掉，不留到落定那次
+        # 整列重画里；Esc 后要挪回原组的那一下当场去掉，不叠进下一帧
+        self.run_page(r"""
+import { isDragging, releaseDrag, setDragging } from "@/lib/layers";
+const g = globalThis as any;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+const root = g.document.documentElement;
+setDragging(true, false);                                // 手机 / 键盘
+await g.sleep(10);
+assert.equal(isDragging(), true);
+assert.equal("ccDrag" in root.dataset, false);
+setDragging(false);
+setDragging(true);                                       // 鼠标：这一帧画完以后加
+await g.sleep(10);
+assert.equal("ccDrag" in root.dataset, true);
+releaseDrag();                                           // 松手：这一帧画完以后去
+assert.equal("ccDrag" in root.dataset, true);
+await g.sleep(10);
+assert.equal("ccDrag" in root.dataset, false);
+assert.equal(isDragging(), true);                        // 还在等落位：逻辑上仍在拖
+setDragging(false);
+setDragging(true);
+await g.sleep(10);
+releaseDrag(true);                                       // Esc 挪回原组：当场去
+assert.equal("ccDrag" in root.dataset, false);
+setDragging(false);
+setDragging(true);
+releaseDrag();                                           // 还没加上就松手了：不再加
+await g.sleep(10);
+assert.equal("ccDrag" in root.dataset, false);
+setDragging(false);
+""")
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("setDragging(true, byMouse(activatorEvent));", drag)
+        self.assertIn('const byMouse = (event: Event | null | undefined) => !!event && !("key" in event) && !("touches" in event);', drag)
+        css = read("globals.css")
+        self.assertIn(":root[data-cc-drag] * { cursor: grabbing; }", css)
+        # 浮层不接指针：悬停留在侧栏里，拿起、落定时整个侧栏不换悬停、不整块重算样式
+        self.assertIn(".cc-drag-overlay { pointer-events: none; }", css)
+
+    def test_measuring_reads_the_layout_position_and_the_overlay_sits_in_its_own_layer(self):
+        # 量落点按版面位置：去掉排序让位的 transform，也去掉整列滑动（flowLayout）正在播的 translate
+        self.run_page(r"""
+import { dragLayer, layoutRect } from "@/components/ui/drag";
+const g = globalThis as any;
+g.getComputedStyle = (el: any) => ({ transform: el.transform ?? "none", transformOrigin: "0px 0px", translate: el.translate ?? "none" });
+const node = (top: number, extra: any = {}) => ({ getBoundingClientRect: () => ({ top, left: 10, width: 200, height: 34, right: 210, bottom: top + 34 }), ...extra });
+assert.equal(layoutRect(node(100) as any).top, 100);
+assert.equal(layoutRect(node(130, { translate: "0px 30px" }) as any).top, 100);          // 正在滑：滑动起点的位移去掉
+assert.equal(layoutRect(node(130, { translate: "0px 30px" }) as any).bottom, 134);
+assert.equal(layoutRect(node(164, { transform: "matrix(1, 0, 0, 1, 0, 34)", translate: "0px 30px" }) as any).top, 100);
+// 浮层那一层：body 下面一个，建一次；被移走了再建
+const appended: any[] = [];
+g.document.body = { appendChild: (el: any) => { el.isConnected = true; appended.push(el); } };
+g.document.createElement = () => ({ dataset: {} as Record<string, string>, isConnected: false });
+const layer = dragLayer();
+assert.equal(dragLayer(), layer);
+assert.equal(appended.length, 1);
+assert.equal((layer as any).dataset.slot, "cc-drag-layer");
+(layer as any).isConnected = false;
+assert.notEqual(dragLayer(), layer);
+assert.equal(appended.length, 2);
+""")
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("const MEASURING = { droppable: { measure: layoutRect } };", drag)
+        self.assertIn("                measuring={MEASURING}", drag)
+        self.assertIn("const AUTO_SCROLL = { layoutShiftCompensation: false } as const;", drag)
+        self.assertIn("                autoScroll={AUTO_SCROLL}", drag)
+        # 拖动库的播报区挂到 body 上（原来就地挂在侧栏、会话栏的滚动区里，每念一句都是一次增删）
+        self.assertIn("container: typeof document !== \"undefined\" && document.body ? document.body : undefined,", drag)
+        for name in ("layoutRect(node)", "layoutRect(fold ? zone! : node)"):
+            self.assertIn(name, drag)
+        self.assertNotIn("getClientRect(node, { ignoreTransform: true })", drag.replace(
+            "  const rect = getClientRect(node, { ignoreTransform: true });\n  const slid", ""))
+
+    def test_whole_list_redraws_skip_unchanged_groups(self):
+        # 拖进已置顶、Esc 挪回原组、落定存顺序时侧栏整列重画：没变的组的行、组头不跟着重画；一列的各项按内容记住
+        drag = read("components/ui/drag.tsx")
+        lst = drag.split("export const DragList:", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('const key = items.join("\\u0000");', lst)
+        self.assertIn("const same = useMemo(() => items, [key]);", lst)
+        self.assertIn("items={same}", lst)
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("const Items = memo(function Items(", rows)
+        self.assertIn("components={ITEM_COMPONENTS}", rows.split("const Items = memo(function Items(", 1)[1].split("\n});", 1)[0])
+        self.assertIn("const ITEM_COMPONENTS = { ThreadListItem };", rows)
+        group = rows.split("const CompanyGroup: FC<", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn("const toggle = useCallback(() => latestToggle.current(), []);", group)
+        self.assertIn("const shownSessions = useMemo(() => sessions, [sessionsKey]);", group)
+        self.assertIn("onToggle={toggle} sessions={shownSessions}", group)
+        # 整列滑动在拿起那一帧画完以后才开始盯
+        flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
+        self.assertLess(flow.index("afterPaint(() => {"), flow.index("stop = flowLayout(root, selector, transition, remeasure);"))
+
+    def test_pointer_is_not_reported_after_the_drag_ends(self):
+        # 拖进已置顶后按 Esc：结束拖动那次提交里拖动库清掉落点，PointerWatch 随后还会跑一次；原来照样把停着的位置交给侧栏，侧栏又
+        # 临时出一个空的「已置顶」留着。现在只在拿起到结束之间交
+        drag = read("components/ui/drag.tsx")
+        report = drag.split("const reportPointer = useMemo(", 1)[1].split("\n  );", 1)[0]
+        self.assertIn("if (live.current && data && y !== null && !keyedRef.current && !cancelling.current)", report)
+        finish = drag.split("  const finish = () => {", 1)[1].split("\n  };", 1)[0]
+        self.assertIn("live.current = false;\n    pointerY.current = null;", finish)
+        self.assertIn("onDragStart={({ active, activatorEvent }) => {\n                  live.current = true;", drag)
+        # 侧栏收起临时的已置顶仍在挪回原组那一下（onReturn），随滑回一起
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("const onReturn = () => {\n    placeGuest(null);\n    setReveal(false);\n  };", rows)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")

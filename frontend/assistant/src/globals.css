@@ -2036,7 +2036,9 @@
    播完前落点那一项先不显示（data-drag-landing）。已置顶收着（放不下空档）时对话拖进去整块（组头）用悬停色高亮，浮层同时让开
    （data-peek：里面的字、条数隐去，只剩很淡的一层底，被它盖住的组头文字与高亮清楚可读；第 8 轮测试机：半透明时浮层的字和
    组头的字叠在一起）。拖动中整页 grabbing */
-.cc-drag-overlay { cursor: grabbing; }
+/* 浮层不接指针（同里面那一层 inert）：悬停留在侧栏里，拿起、落定时不因为浮层出现 / 消失让整个侧栏换悬停、整块重算样式（第 11 轮
+   B14：每次约 680 个元素；侧栏里有「悬停 + 任意后代」的规则，组件库 group-hover 生成的）。光标由根节点的拖动标记给 */
+.cc-drag-overlay { pointer-events: none; }
 .cc-drag-float, .cc-drag-lift { height: 100%; }
 .cc-drag-lift {
   position: relative; overflow: hidden; border-radius: var(--cc-radius-row); background: var(--cc-bg-popover); box-shadow: var(--cc-shadow-pop);

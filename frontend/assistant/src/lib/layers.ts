@@ -36,46 +36,55 @@ export function isDragMoving(): boolean {
 }
 
 // 正在拖（逻辑上：拿起到结束拖动那一次提交）。根节点上的标记（data-cc-drag）只管样式——拖动中整页 grabbing 光标
-// （globals.css 的 :root[data-cc-drag] *）——拿起那一帧不加，等这一帧画出来以后再加（markRoot）：加的那一下整页每个元素都要
-// 重新算样式（无界面 Chrome 6 倍节流 15–30ms），原来与拿起那一帧拖动库整列重画叠在一起（测试窗口第 10 轮 B 段：拿起那一刻
-// 长帧 160–186ms）。拖动中各处判断都问 isDragging()，不看根节点标记。
+// （globals.css 的 :root[data-cc-drag] *）——加、去的那一下整页每个元素都要重新算样式（无界面 Chrome 6 倍节流 15–25ms），所以：
+// 只在鼠标拖动时加（手机、键盘拖动没有指针光标）；拿起那一帧不加，等这一帧画出来以后再加（markRoot；测试窗口第 10 轮 B 段：
+// 原来与拿起那一帧拖动库整列重画叠在一起，长帧 160–186ms）；松手（releaseDrag：开始播落位）那一帧画完就去掉，不留到落定那一次
+// 整列重画里（第 11 轮 B14：落定那一帧里有一份是它）。拖动中各处判断都问 isDragging()，不看根节点标记。
 let dragging = false;
 let marking: object | null = null;
 
-/** 下一帧画出来以后给根节点加上拖动标记（这期间结束了拖动就不加）。 */
-function markRoot() {
+/** 下一帧画出来以后给根节点加上（on）/ 去掉拖动标记（这期间又改了主意就不做）。 */
+function markRoot(on: boolean) {
   const token = {};
   marking = token;
   const apply = () => {
     if (marking !== token) return;
     marking = null;
-    if (dragging) document.documentElement.dataset[DRAG] = "";
+    if (on && dragging && !released) document.documentElement.dataset[DRAG] = "";
+    else if (!on) delete document.documentElement.dataset[DRAG];
   };
   // requestAnimationFrame 在这一帧画之前回调，里面再排一个任务：等画完
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(apply, 0));
   else setTimeout(apply, 0);
 }
 
-export function setDragging(on: boolean): void {
+/** 开始 / 结束拖动。cursor：要不要整页 grabbing 光标（鼠标拖动才要）。 */
+export function setDragging(on: boolean, cursor = true): void {
   dragging = on;
   marking = null;
   if (typeof document === "undefined") return;
   moved = false;
   released = false;
   if (on) {
-    markRoot();
+    if (cursor) markRoot(true);
     window.addEventListener("keydown", markEscape, true);
   } else {
-    delete document.documentElement.dataset[DRAG];
+    if (DRAG in document.documentElement.dataset) delete document.documentElement.dataset[DRAG];
     // 这次 Esc 在捕获阶段已经记下了，现在摘掉监听不影响后面的处理
     window.removeEventListener("keydown", markEscape, true);
   }
 }
 
-/** 已经放手了，只等落位播完：之后的 Esc 不再记成取消拖动的（拖动中按下、已经记下的照旧算）。 */
-export function releaseDrag(): void {
+/** 已经放手了，只等落位播完：之后的 Esc 不再记成取消拖动的（拖动中按下、已经记下的照旧算）；整页 grabbing 光标在这一帧画完后
+ *  去掉（now：这一帧就去掉——下一帧另有重活时），还没加上的不再加。 */
+export function releaseDrag(now = false): void {
   released = true;
-  if (typeof window !== "undefined") window.removeEventListener("keydown", markEscape, true);
+  if (typeof window === "undefined") return;
+  window.removeEventListener("keydown", markEscape, true);
+  const root = typeof document !== "undefined" ? document.documentElement : null;
+  if (root && DRAG in root.dataset && !now) return markRoot(false);
+  marking = null;
+  if (root && DRAG in root.dataset) delete root.dataset[DRAG];
 }
 
 export function isDragging(): boolean {
