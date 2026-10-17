@@ -7,7 +7,7 @@ import hashlib
 import io
 from pathlib import PurePath
 
-from pearnly_cowork.ocr.inputs import (IMAGE_EXTENSIONS, MAX_FILE_BYTES, MAX_PDF_PAGES, TABLE_EXTENSIONS,
+from pearnly_core.originals.rules import (IMAGE_EXTENSIONS, MAX_FILE_BYTES, MAX_PDF_PAGES, TABLE_EXTENSIONS,
     OcrInputError, validate_input_metadata)
 
 # 错误代码 → 服务器上的提示文字（``files.service.MESSAGES``）；``OcrInputError`` 的代码原样带出。

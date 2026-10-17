@@ -395,6 +395,8 @@ class RelayTests(unittest.TestCase):
 
             def sql(self, query, values, as_dict=False):
                 queries.append(query)
+                if "FOR UPDATE SKIP LOCKED" in query:  # 逐条的当前读：只认此刻还在等的
+                    return [(values[0],)] if rows[values[0]]["status"] == "awaiting_approval" else []
                 if query.startswith("SELECT"):
                     return [_Row(name=n, tool_use_id=r.get("tool_use_id"), user=r.get("user")) for n, r in rows.items()
                             if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
@@ -416,6 +418,9 @@ class RelayTests(unittest.TestCase):
                              and r["status"] == filters["status"]), None)
 
             def commit(self):
+                pass
+
+            def rollback(self):
                 pass
 
         def publish(event, message, user=None, after_commit=False):
@@ -4553,6 +4558,8 @@ class ToolRunRecordTests(unittest.TestCase):
             _cursor = types.SimpleNamespace(rowcount=0)
 
             def sql(self, query, values, as_dict=False):
+                if "FOR UPDATE SKIP LOCKED" in query:
+                    return [(r["name"],) for r in records if r["name"] == values[0] and r["status"] == "awaiting_approval"]
                 if query.startswith("SELECT"):
                     return [_Row(name=r["name"], tool_use_id=r["tool_use_id"], user=r["user"]) for r in records
                             if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
@@ -4564,6 +4571,9 @@ class ToolRunRecordTests(unittest.TestCase):
                 self._cursor = types.SimpleNamespace(rowcount=len(hit))
 
             def commit(self):
+                pass
+
+            def rollback(self):
                 pass
 
         with contextlib.ExitStack() as stack:
@@ -4703,6 +4713,8 @@ class ToolRunRecordTests(unittest.TestCase):
             _cursor = types.SimpleNamespace(rowcount=0)
 
             def sql(self, query, values, as_dict=False):
+                if "FOR UPDATE SKIP LOCKED" in query:  # 当前读：已被改成 running，不再算在等
+                    return [(values[0],)] if rows[values[0]]["status"] == "awaiting_approval" else []
                 if query.startswith("SELECT"):
                     found = [_Row(name=n, **{k: r[k] for k in ("tool_use_id", "user")}) for n, r in rows.items()
                              if r["status"] == "awaiting_approval"]
@@ -4714,6 +4726,9 @@ class ToolRunRecordTests(unittest.TestCase):
                 self._cursor = types.SimpleNamespace(rowcount=int(hit))
 
             def commit(self):
+                pass
+
+            def rollback(self):
                 pass
 
         db = Db()
@@ -4739,6 +4754,277 @@ class ToolRunRecordTests(unittest.TestCase):
         self.assertEqual(work.split("\n"), [
             "- cowork_set_folder_task_enabled: enabled=false, task=fleigbs7p9",
             "- cowork_set_folder_task_enabled: enabled=true, task=abc12345 (not run, stopped before the user answered)"])
+
+
+
+class _Deadlock(Exception):
+    """Frappe 的 QueryDeadlockError：MariaDB 的死锁 1213 与快照隔离的 1020 都抛它。"""
+
+
+class _SnapshotDb:
+    """够作废（`cancel_waiting`）与抢占（`decide`）用的 MariaDB 11.8 行为（REPEATABLE READ + innodb_snapshot_isolation）：
+    事务里第一次普通读时取读快照；改 / 锁定读一条在快照之后被别处提交改过的行报 1020（_Deadlock），不是等锁；别的事务锁着的
+    行（`locked`）SKIP LOCKED 跳过，要等它的写直接判失败（证明没等锁）；`boom` 里的行锁定读时报死锁。提交、回滚结束快照。"""
+
+    def __init__(self, rows):
+        self.rows = rows  # 已提交的：name -> {session_id, tool_use_id, user, status, version}
+        self.view = None
+        self.locked, self.boom = set(), set()
+        self.queries, self.rollbacks = [], 0
+        self._cursor = types.SimpleNamespace(rowcount=0)
+
+    def snapshot(self):
+        if self.view is None:
+            self.view = {n: dict(r) for n, r in self.rows.items()}
+        return self.view
+
+    def commit_elsewhere(self, name, status):
+        """别的请求改了这一条并已提交（例如点「允许」的抢占）。"""
+        self.rows[name].update(status=status, version=self.rows[name]["version"] + 1)
+
+    def _current(self, name):
+        if name in self.boom:
+            raise _Deadlock("1213 deadlock")
+        if self.view is not None and self.view[name]["version"] != self.rows[name]["version"]:
+            raise _Deadlock("1020 Record has changed since last read")
+        return self.rows[name]
+
+    def sql(self, query, values=(), as_dict=False):
+        self.queries.append(query)
+        if "FOR UPDATE SKIP LOCKED" in query:
+            name = values[0]
+            if name in self.locked:
+                return []
+            return [(name,)] if self._current(name)["status"] == "awaiting_approval" else []
+        if query.startswith("SELECT"):
+            return [_Row(name=n, tool_use_id=r["tool_use_id"], user=r["user"]) for n, r in self.snapshot().items()
+                    if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+        assert query.startswith("UPDATE") and "WHERE name=%s AND status='awaiting_approval'" in query, query
+        name = values[-1]
+        assert name not in self.locked, f"waited for the lock on {name}"
+        row = self._current(name)
+        hit = row["status"] == "awaiting_approval"
+        if hit:
+            row.update(status="cancelled" if "'cancelled'" in query else values[0], version=row["version"] + 1)
+            if self.view is not None:
+                self.view[name] = dict(row)  # 自己改的在自己的快照里看得见
+        self._cursor = types.SimpleNamespace(rowcount=int(hit))
+
+    def get_value(self, doctype, filters, field, as_dict=False):
+        return next((n for n, r in self.snapshot().items() if r["tool_use_id"] == filters["tool_use_id"]
+                     and r["session_id"] == filters["session_id"] and r["status"] == filters["status"]), None)
+
+    def commit(self):
+        self.view = None
+
+    def rollback(self):
+        self.rollbacks += 1
+        self.view = None
+
+
+class StopRaceTests(unittest.TestCase):
+    """第 11 轮重测 A 段（lab 84da6f81，真引擎）：点「允许」后立刻点停止，停止 4/4 返回 500 QueryDeadlockError（停止比确认早约
+    240 毫秒发出：确认要攒 250 毫秒一批）。停止的请求一开头读会话行就有了读快照，交引擎「打断」的几百毫秒里点「允许」的请求把那条
+    执行记录抢成 running 并提交；作废再按旧快照找到它「还在等」、去改它 → MariaDB 11.8 快照隔离报 1020。这一轮其实已停，报错是误报。"""
+
+    @staticmethod
+    def _rows():
+        return {"r1": {"session_id": "conv", "tool_use_id": "sevt_1", "user": "owner@x.test",
+                       "status": "awaiting_approval", "version": 1},
+                "r2": {"session_id": "conv", "tool_use_id": "sevt_2", "user": "owner@x.test",
+                       "status": "awaiting_approval", "version": 1}}
+
+    def _patches(self, db, published):
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        return toolrun, (mock.patch.object(toolrun.frappe, "db", db, create=True),
+                         mock.patch.object(toolrun.frappe, "QueryDeadlockError", _Deadlock, create=True),
+                         mock.patch.object(toolrun.frappe, "publish_realtime",
+                                           lambda event, message, user=None, after_commit=False:
+                                           published.append(message["event"]), create=True))
+
+    def test_the_fake_rejects_a_write_on_a_stale_snapshot_like_mariadb(self):
+        """假库本身：旧快照里还「在等」、已被别处提交改过的行，一改就是 1020（修前作废的写法就撞在这里）。"""
+        db = _SnapshotDb(self._rows())
+        waiting = db.sql("SELECT name, tool_use_id, user FROM `tabPearnly Assistant Tool Run` WHERE session_id=%s "
+                         "AND status='awaiting_approval'", ("conv",))
+        db.commit_elsewhere("r1", "running")
+        self.assertEqual([r.name for r in waiting], ["r1", "r2"])
+        with self.assertRaises(_Deadlock):
+            db.sql("UPDATE `tabPearnly Assistant Tool Run` SET status='cancelled', modified=%s "
+                   "WHERE name=%s AND status='awaiting_approval'", ("now", "r1"))
+
+    def test_cancel_after_a_concurrent_allow_skips_that_card_without_error(self):
+        db, published = _SnapshotDb(self._rows()), []
+        toolrun, patches = self._patches(db, published)
+        db.snapshot()  # 停止的请求读会话行（owned），快照从这里开始
+        db.commit_elsewhere("r1", "running")  # 交引擎「打断」期间，点「允许」的请求抢占 r1 并提交
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            self.assertEqual(toolrun.cancel_waiting("conv"), 1)  # 不报 1020；r1 归点了「允许」的那边
+        self.assertEqual((db.rows["r1"]["status"], db.rows["r2"]["status"]), ("running", "cancelled"))
+        self.assertEqual([(e["tool_use_id"], e["status"]) for e in published], [("sevt_2", "cancelled")])
+
+    def test_cancel_skips_a_card_locked_by_a_click_and_never_waits(self):
+        """同一刻正被点「允许 / 拒绝」抢占（行锁着、还没提交）：SKIP LOCKED 跳过、不等锁，那张卡归点的那边；别的照常作废。"""
+        db, published = _SnapshotDb(self._rows()), []
+        db.locked = {"r1"}
+        toolrun, patches = self._patches(db, published)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            self.assertEqual(toolrun.cancel_waiting("conv"), 1)
+        self.assertEqual((db.rows["r1"]["status"], db.rows["r2"]["status"]), ("awaiting_approval", "cancelled"))
+        self.assertEqual([e["tool_use_id"] for e in published], ["sevt_2"])
+        # 每条一个短事务：第一句就是锁定读（候选读完先结束快照）
+        locking = [i for i, q in enumerate(db.queries) if "FOR UPDATE SKIP LOCKED" in q]
+        self.assertEqual(len(locking), 2)
+        self.assertTrue(db.queries[0].startswith("SELECT name, tool_use_id, user"))
+
+    def test_a_deadlock_on_one_card_rolls_back_and_the_rest_still_cancel(self):
+        db, published = _SnapshotDb(self._rows()), []
+        db.boom = {"r1"}
+        toolrun, patches = self._patches(db, published)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            self.assertEqual(toolrun.cancel_waiting("conv"), 1)
+        self.assertEqual((db.rows["r1"]["status"], db.rows["r2"]["status"]), ("awaiting_approval", "cancelled"))
+        self.assertGreaterEqual(db.rollbacks, 3)  # 开头、候选读完、撞上的那条
+
+    def test_allow_after_a_stop_on_a_stale_snapshot_is_not_waiting_not_500(self):
+        """反过来：点「允许」的请求开头有了快照，停止 / 推送线程收尾先把这条作废并提交。抢占先结束快照再读，答「不在等」，不撞 1020；
+        读到之后、改之前才被改的，同样算没抢到。"""
+        db, published = _SnapshotDb(self._rows()), []
+        toolrun, patches = self._patches(db, published)
+        ran = []
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"),
+                                                  create=True))
+            stack.enter_context(mock.patch.object(toolrun, "_finish", lambda *a: ran.append(a) or "done"))
+            db.snapshot()
+            db.commit_elsewhere("r1", "cancelled")
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")
+            real_get_value = db.get_value
+
+            def raced(*args, **kwargs):
+                name = real_get_value(*args, **kwargs)
+                db.commit_elsewhere("r2", "cancelled")  # 读到之后、改之前
+                return name
+
+            db.get_value = raced
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_2", True), "not_waiting")
+        self.assertEqual(ran, [])
+        self.assertEqual(published, [])  # 没抢到不推「已允许」
+
+    def test_stop_returns_after_the_interrupt_even_if_cancelling_fails(self):
+        sessions = sys.modules.get("pearnly_core.assistant.sessions") or ToolRunRecordTests()._sessions()
+        row = _Row(name="row1", session_id="sesn_01X2K4vJBNvR361Cvjxap2Nw", remote_ids="")
+        posted, logged, rolled = [], [], []
+        api = types.SimpleNamespace(post=lambda remote, batch: posted.append((remote, batch)))
+        db = types.SimpleNamespace(rollback=lambda: rolled.append(1))
+        with mock.patch.object(sessions, "owned", lambda sid: row), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.toolrun, "cancel_waiting", mock.Mock(side_effect=_Deadlock("1020"))), \
+                mock.patch.object(sessions.frappe, "db", db, create=True), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: logged.append(kw), create=True):
+            self.assertIsNone(sessions.interrupt(row.session_id))
+        self.assertEqual(posted, [(row.session_id, [{"type": "user.interrupt"}])])
+        self.assertEqual((rolled, [kw.get("title") for kw in logged]), ([1], ["Assistant cancel waiting failed"]))
+
+    def test_lock_order_one_tool_run_row_at_a_time(self):
+        """源码：改执行记录的几处都先结束调用方的快照；作废每条一个短事务、SKIP LOCKED 不等锁；抢占撞上算没抢到；执行时工具的写
+        先提交，执行记录另起短事务（不与工具的锁同时持有）；推送线程写库前先结束旧快照，附带步骤出错不打断转发。"""
+        run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
+        cancel = run.split("def cancel_waiting(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(cancel.index("frappe.db.rollback()"), cancel.index("SELECT name, tool_use_id, user"))
+        self.assertIn("FOR UPDATE SKIP LOCKED", cancel)
+        self.assertLess(cancel.index("FOR UPDATE SKIP LOCKED"), cancel.index("SET status='cancelled'"))
+        self.assertIn("except frappe.QueryDeadlockError:", cancel)
+        self.assertNotIn("FOR UPDATE\"", cancel)  # 没有会等锁的锁定读
+        decide = run.split("def decide(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(decide.index("frappe.db.rollback()"), decide.index("frappe.db.get_value(TOOL_RUN"))
+        self.assertLess(decide.index("try:"), decide.index("UPDATE `tab{TOOL_RUN}`"))
+        self.assertIn("except frappe.QueryDeadlockError:", decide)
+        finish = run.split("def _finish(", 1)[1]
+        self.assertLess(finish.index("frappe.db.commit()"), finish.index("frappe.db.set_value(TOOL_RUN"))
+        execute = run.split("def execute(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(execute.index("frappe.db.rollback()"), execute.index("run.insert("))
+        self.assertIn("frappe.QueryDeadlockError)", execute)  # 同时登记撞上 1020 按重复处理
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        stop = source.split("def interrupt(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(stop.index('"user.interrupt"'), stop.index("try:"))
+        self.assertLess(stop.index("try:"), stop.index("toolrun.cancel_waiting(row.session_id)"))
+        relay = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
+        loop = relay.split("def _run(", 1)[1]
+        self.assertIn("_note(conversation, event)", loop)
+        self.assertIn("_execute(conversation, remote, calls.pop(use_id))", loop)
+        self.assertNotIn("context.note(", loop)
+        for name in ("_note", "_active"):
+            body = relay.split(f"def {name}(", 1)[1].split("\ndef ", 1)[0]
+            self.assertLess(body.index("_fresh()"), body.index("if context."), name)
+
+    def test_relay_survives_a_stale_snapshot_and_pushes_the_tool_wait(self):
+        """A6 出卡延迟的根因：推送线程一开头就有读快照，发消息的请求随后改了会话行并提交；智能体一上来就调工具时第一次写库是记输入量，
+        按旧快照撞 1020，事件流断开、引擎此刻停着就收线——「停下来等工具」那条推不出去，工具也不在服务端执行。现在写库前先结束旧快照，
+        附带步骤出错也照样推完、照样执行。"""
+        relay = sys.modules["pearnly_core.assistant.relay"]
+        call = {"type": "agent.custom_tool_use", "id": "sevt_t1", "name": "cowork_set_folder_task_enabled", "input": {}}
+        idle = {"type": "session.status_idle", "stop_reason": {"type": "requires_action", "event_ids": ["sevt_t1"]}}
+        stream = [{"type": "session.status_running"}, call, {"type": "span.model_request_end", "id": "sevt_s1"}, idle]
+        api = types.SimpleNamespace(stream=lambda remote, opened: (opened(), iter(stream))[1],
+                                    status=lambda remote: "idle")
+        cache = types.SimpleNamespace(expire=lambda *a: None, get=lambda key: b"tok", delete=lambda key: None)
+        state = {"stale": True, "notes": 0}  # 会话行在线程的快照之后被发消息的请求改过并提交
+
+        class Db:
+            def get_value(self, *a, **k):
+                return "row1"
+
+            def rollback(self):
+                state["stale"] = False
+
+            def commit(self):
+                pass
+
+        def note(conversation, events):
+            if state["stale"]:
+                raise _Deadlock("1020")
+            state["notes"] += 1
+            return True
+
+        pushed, executed = [], []
+        common = (mock.patch.object(relay.frappe, "init", lambda **kw: None, create=True),
+                  mock.patch.object(relay.frappe, "connect", lambda: None, create=True),
+                  mock.patch.object(relay.frappe, "set_user", lambda user: None, create=True),
+                  mock.patch.object(relay.frappe, "destroy", lambda: None, create=True),
+                  mock.patch.object(relay.frappe, "cache", cache, create=True),
+                  mock.patch.object(relay.frappe, "db", Db(), create=True),
+                  mock.patch.object(relay.frappe, "QueryDeadlockError", _Deadlock, create=True),
+                  mock.patch.object(relay.frappe, "publish_realtime",
+                                    lambda event, message, user=None: pushed.append(message["event"]), create=True),
+                  mock.patch.object(relay.engine, "adapter", return_value=api),
+                  mock.patch.object(relay.context, "note", note))
+        with contextlib.ExitStack() as stack:
+            for patch in common:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(relay.toolrun, "execute",
+                                                  lambda conversation, remote, c: executed.append(c["id"]) or "awaiting_approval"))
+            relay._run("t1.example", "/sites", "conv", "sesn_r", "owner@x.test", "k", "tok", __import__("threading").Event())
+        self.assertEqual(pushed, stream)  # 「停下来等工具」照样推出去
+        self.assertEqual((executed, state["notes"]), (["sevt_t1"], 1))
+        # 记输入量、执行工具本身出错：只记类型，照样推完
+        pushed.clear()
+        state["stale"] = True
+        with contextlib.ExitStack() as stack:
+            for patch in common:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(relay.context, "note", mock.Mock(side_effect=RuntimeError("db"))))
+            stack.enter_context(mock.patch.object(relay.toolrun, "execute", mock.Mock(side_effect=RuntimeError("tool"))))
+            relay._run("t1.example", "/sites", "conv", "sesn_r", "owner@x.test", "k", "tok", __import__("threading").Event())
+        self.assertEqual(pushed, stream)
 
 
 if __name__ == "__main__":

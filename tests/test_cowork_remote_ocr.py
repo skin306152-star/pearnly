@@ -285,7 +285,7 @@ class StoredPreviews(unittest.TestCase):
     """识别时顺手把各页预览图存进原件桶：与服务器现画同一份 render_page（字节一致），识别结果与计费一字不差。"""
 
     def test_every_page_is_stored_with_the_same_bytes_the_server_would_draw(self):
-        from pearnly_cowork.ocr import originals as original_files
+        from pearnly_core.originals import checks as original_files
 
         content = pdf(3)
         store = PreviewBucket()
@@ -1067,7 +1067,7 @@ class DirectOriginals(unittest.TestCase):
 
     def test_inspect_gives_the_same_facts_as_the_server_check(self):
         import hashlib
-        from pearnly_cowork.ocr import originals as checks
+        from pearnly_core.originals import checks as checks
 
         content = pdf(3)
         name = OBJECT.replace(".png", ".pdf")
@@ -1111,9 +1111,35 @@ class DirectOriginals(unittest.TestCase):
         self.assertEqual(reading(events[-1]["pipeline"]), reading(inline["pipeline"]))
         self.assertEqual(events[-1]["evidence"], inline["evidence"])
 
+    def test_a_recon_document_in_the_bucket_reads_exactly_like_sending_the_bytes(self):
+        """对账文件存在原件层（ADR-024）：文档请求只带引用，Cloud Run 按版本号读、核对 sha256，读出的与带字节发来一字不差。"""
+        import hashlib
+
+        content = png()
+        common = dict(site=SITE, work=WORK, filename="report.png", page_count=1, document_type="vat_report",
+                      environment=dict(ENVIRONMENT), yield_seconds=90)
+        inline, there = [], []
+        runner.recognize(contract.document_request(content=content, **common), Bucket(), lambda: "token", inline.append,
+                         orient=orient, page_source=PageSource, http=Google())
+        request = contract.document_request(original=contract.original(
+            object=OBJECT, generation=7, sha256=hashlib.sha256(content).hexdigest()), **common)
+        self.assertNotIn("content", request)
+        runner.recognize(request, Bucket(), lambda: "token", there.append, orient=orient, page_source=PageSource,
+                         http=Google(), originals=Originals(**{OBJECT: content}))
+        self.assertEqual(there[-1]["status"], "done", there[-1])
+        self.assertEqual(reading(json.dumps(there[-1]["legacy"])), reading(json.dumps(inline[-1]["legacy"])))
+        changed = contract.document_request(original=contract.original(object=OBJECT, generation=7, sha256="0" * 64),
+                                            **common)
+        events = []
+        runner.recognize(changed, Bucket(), lambda: "token", events.append, orient=orient, page_source=PageSource,
+                         http=Google(), originals=Originals(**{OBJECT: content}))
+        self.assertEqual((events[-1]["status"], events[-1].get("code")), ("error", "original_mismatch"))
+        with self.assertRaises(ValueError):  # 引用与字节只能给一样
+            contract.parse_request(dict(request, content="eA=="))
+
     def test_a_preview_on_cloud_run_is_the_same_picture_the_server_draws(self):
         import hashlib
-        from pearnly_cowork.ocr import originals as checks
+        from pearnly_core.originals import checks as checks
 
         content = pdf(2)
         name = OBJECT.replace(".png", ".pdf")
@@ -1131,7 +1157,7 @@ class DirectOriginals(unittest.TestCase):
 
     def test_a_large_photo_preview_is_sent_as_jpeg_and_text_pages_stay_png(self):
         import os
-        from pearnly_cowork.ocr import originals as checks
+        from pearnly_core.originals import checks as checks
 
         noisy = Image.frombytes("RGB", (1600, 1200), os.urandom(1600 * 1200 * 3))
         out = io.BytesIO()

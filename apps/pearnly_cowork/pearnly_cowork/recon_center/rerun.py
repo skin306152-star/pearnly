@@ -90,9 +90,10 @@ def expire():
 
 
 def _delete_files(files):
+    from pearnly_cowork.recon_center import storage
+
     for name in [name for side in ("left", "right") for name in files.get(side) or []]:
-        if frappe.db.exists("File", name):
-            frappe.delete_doc("File", name, ignore_permissions=True, force=True)
+        storage.delete(name)  # 原件在原件层（ADR-024）连那边一起删
 
 
 def _persist(doc):

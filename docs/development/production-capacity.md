@@ -63,6 +63,29 @@
 本机变大后识别线程会超过 160：多出的线程只是原地等名额，不会多花钱。要真正提高识别吞吐，需同时调高
 识别名额、Cloud Run 实例上限与 Cloud Tasks 并发，并先确认谷歌模型配额——这是**成本相关改动，先告知用户**。
 
+### 甲骨文 free-arm（Claude 识别与 Claude 租户原件，2026-10-18）
+
+| 项 | 值 | 说明 |
+| --- | --- | --- |
+| 机器 | 甲骨文新加坡 ARM 4 核 24G，200G 启动盘（免费额度已用满），`213.35.126.34` | 档案 `~/.claude/oracle-free-arm.md`；按「可能失联」设计：连不上时识别排队重试，原件不退回生产存 |
+| 容器 `pearnly-claude-ocr` | `--memory 4g`。`8443` 是 TLS 内部接口（生产钉死证书指纹 + Bearer 令牌），提供 `/v1/read`（识别）和 `/v1/originals/{inspect,put,fetch,delete}`；`127.0.0.1:8444` 是原件公共接口（签名 PUT / GET / 预览） | 8443 只放行生产 `107.155.65.74` 和办公室 `124.120.107.105`（测试机测 Claude 路线用），安全列表和 iptables 两层都要改 |
+| 隧道 `pearnly-originals-tunnel` | `originals.pearnly.com` → `127.0.0.1:8444`，泰国用户走曼谷节点 | Cloudflare 会挡非浏览器 UA（1010），脚本测试要带浏览器 UA |
+| 原件目录 | `/opt/pearnly-originals/<站点>/originals/`、`previews/` | 卷备份用甲骨文免费额度（最多 5 份），不要手动建备份，手动的不会过期 |
+| 生产侧配置 | runtime.env 的 `PEARNLY_CLAUDE_OCR_URL/_TOKEN/_CERT_SHA256`、`PEARNLY_ANTHROPIC_API_KEY`、`PEARNLY_ORIGINALS_PUBLIC_URL/_SIGNING_KEY` | 源头是本机 `~/.config/pearnly-claude-ocr/runtime.env`（600，`deploy.sh` 写出）。改了要手工并进生产 `/opt/pearnly/secrets/runtime.env`：先备份成 `runtime.env.bak-*`、先约时间，再重建容器才生效。2026-10-17 已加六项 |
+
+### 识别与原件：三处分开部署
+
+| 部署单元 | 怎么发 | 什么时候要重发 |
+| --- | --- | --- |
+| 产品镜像（三产品 + 控制面） | `build-production` → stage → 各产品激活 | 照常；原件层的登记文件、下载转向（`before_request`）、File 删除扩展都在 `pearnly_core`，随镜像生效 |
+| 甲骨文 `claude-ocr` | `bash scripts/claude-ocr/deploy.sh`（幂等，几秒重启） | 改了 `pearnly_core.claude_ocr` 或 `pearnly_core.originals` 的 rules / checks / links / server；新接口要向下兼容，才能先于镜像发 |
+| Cloud Run `cowork-ocr` | `scripts/cloud-run/deploy-cowork-ocr.sh`，按修订版名切流量（别用 `--to-latest`） | 改了 `pearnly_cowork.ocr.remote.*`、`pearnly_core.originals.cloud_run` / `checks`、识别引擎；**原件层这批要发一版**：对账文档只交引用、认 `ERO-` |
+
+按租户的站点配置：
+
+- `pearnly_ocr_engine`：`claude` 或不设（谷歌），由控制面写。
+- 谷歌租户走原件层要两项：`pearnly_cowork_ocr_remote`（Cloud Run 地址）和 `pearnly_cowork_originals_bucket`。Cowork 已配；**ERP 站点要补**，没配之前 ERP 照旧存本机。
+
 ### 整机把关（`capacity.py`）
 
 - 所有容器内存上限之和 ≤ 物理内存 × 1.3；

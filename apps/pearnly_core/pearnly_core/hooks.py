@@ -35,6 +35,8 @@ before_request = [
     "pearnly_core.account.preferences.use_page_language",
     # 对话页（CC）的接口出错时不回 Python 堆栈（系统设置「显示完整错误」默认开时，系统用户的拒收也带整段堆栈）
     "pearnly_core.assistant.api.no_traceback",
+    # 原件层的登记文件（ADR-024）：打开它的私有文件地址时，核对能看后转到存放处的签名下载地址
+    "pearnly_core.originals.registered.redirect_download",
 ]
 
 # Apps
@@ -194,6 +196,8 @@ doc_events = {
         "before_insert": "pearnly_core.desk.heic.convert_file",
     },
 }
+# 原件层的登记文件（ADR-024，``originals.registered``）：删掉最后一条时连存放处那份一起删。
+extend_doctype_class = {"File": ["pearnly_core.originals.registered.RegisteredFile"]}
 
 # Scheduled Tasks
 # ---------------

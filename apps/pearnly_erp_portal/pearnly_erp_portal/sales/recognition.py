@@ -3,10 +3,11 @@ import mimetypes
 
 import frappe
 from frappe import _
+from pearnly_core.originals import registered
 from pearnly_core.tax_documents.amounts import repaired_tax_id
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.recognition import billing, checks, dates, policy
+from pearnly_erp_portal.recognition import billing, checks, dates, originals, policy
 from pearnly_erp_portal.sales import access, contracts, files
 
 # 只要票面上真有的字段；**不要模型替我们算金额**（算错看不出来）。
@@ -40,32 +41,31 @@ def recognise(attachments, document_name=None, billing_reference=None, progress=
     context = None
     if document_name:
         context = access.get_document(document_name, write=True)
-    images, hashes = [], []
+    chosen = []
     for attachment in attachments or []:
         if attachment.get("kind", "bill") != "bill":
             continue
         file = files.upload(attachment, context)
-        mime = mimetypes.guess_type(file.file_name or "")[0]
+        mime = mimetypes.guess_type(registered.filename(file))[0]
         if mime not in ALLOWED_TYPES:
             frappe.throw(_("Only an image or a PDF can be recognised"))
-        content = file.get_content()
-        if isinstance(content, str):
-            content = content.encode("utf-8")
-        from pearnly_core.desk import heic
-
-        if heic.is_heic(content):  # 钩子上线前存下的 iPhone 照片：读之前转成 JPEG（`pearnly_core.desk.heic`）
-            content, mime = heic.to_jpeg(content), "image/jpeg"
-        images.append((content, mime))
-        hashes.append(files.content_hash(file))
-    if not images:
+        chosen.append((file, mime))
+    if not chosen:
         frappe.throw(_("File not found"))
-    # 本地转正：EXIF + 方向分类模型（免费，见 `ocr.orient`；侧着读会编商品名、读错单号）。
-    images = [ocr.orient(content, mime) for content, mime in images]
+    hashes = [files.content_hash(file) for file, _mime in chosen]
+    # 选了 Claude、附件都在甲骨文（原件层，ADR-024）：只交引用，甲骨文自己转正、渲染，原件不经过这台。
+    refs = originals.claude_originals([file for file, _mime in chosen])
+    if refs:
+        images, units = None, sum(registered.pages(file) for file, _mime in chosen)
+    else:
+        images, _hashes = originals.contents(chosen)
+        # 本地转正：EXIF + 方向分类模型（免费，见 `ocr.orient`；侧着读会编商品名、读错单号）。
+        images = [ocr.orient(content, mime) for content, mime in images]
+        units = billing.pages(images)
     # 照旧线上：先便宜模型、最低思考读，过不了确定性检查才升级重读（见 `recognition.policy`）。
-    units = billing.pages(images)
     billing.gate(units)
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="sales",
-                                fields=_HEAD, finish=_finish, progress=progress)
+                                fields=_HEAD, finish=_finish, progress=progress, originals=refs)
     if not documents:
         frappe.throw(_("Recognition returned nothing"))
     result, issues, model = documents[0]

@@ -608,7 +608,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
         self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
         self.assertIn("keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },", drag)
-        self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);", drag)
+        self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor, \"mouse\");", drag)
         self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用

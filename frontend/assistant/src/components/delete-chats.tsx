@@ -14,6 +14,15 @@
 // 也去侧栏下一条或打开它的地方。
 // 第 11 轮合并审查：侧栏在页面上但看不到（手机抽屉关着是 inert、iPad 侧栏收起在屏幕外）不算「侧栏里」，不去下一条；聚焦后核对
 // 焦点真的到了（inert 里的元素聚焦不上），没到就接着回打开它的地方或输入框，不让焦点掉到页面最外层或落进屏幕外的侧栏。
+// 第 11 轮重测 E 段：
+// - 下一条 / 上一条按侧栏里眼前的行算（搜索结果、展开着的组；不占位置的不算），近的先试，一条聚焦不上就试下一条；落到一行后几帧内
+//   那一行被重画换掉（焦点掉到页面最外层）按行号找回（侧栏搜索「删测」删掉结果里最后一条，焦点掉到 body）。
+// - 删的是正开着的对话：先等组件库切到新对话再放（打开它的标题栏「···」、手机「…」随之卸下）。都放不上时（触屏、侧栏看不到、打开处
+//   已不在）落在顶栏的导航钮：手机的菜单钮、侧栏收起时的展开钮（cc-nav-toggle）——看得见、不弹键盘。
+// 第 11 轮 E 段补审：侧栏 / 抽屉看得到、但删完一行不剩（手机抽屉开着搜索只剩一条、iPad 侧栏展开删最后一条可见行、电脑在定时任务 /
+// 公司 / 待处理页删最后一条可见行）时，顶栏导航钮不在（侧栏展开时只有收起钮）或在 inert 里（抽屉开着时的对话区）。现在先试侧栏 /
+// 抽屉里一直在的那一颗（NAV_FALLBACK：侧栏收起钮、桌面端标题栏的侧栏开关、抽屉的圆形搜索钮），再试顶栏导航钮；看不到的那一份在
+// inert 里聚焦不上，自然跳过。不为了放焦点去关抽屉或切页面。
 import { useRef, type FC } from "react";
 import { useAui } from "@assistant-ui/react";
 import { XIcon } from "lucide-react";
@@ -22,6 +31,7 @@ import { create } from "zustand";
 
 import { COMPOSER_INPUT } from "@/components/assistant-ui/projects";
 import { sb, t } from "@/i18n";
+import { NAV_FALLBACK, NAV_TOGGLE } from "@/lib/sidebar-focus";
 import { rowOrder } from "@/lib/sidebar-keys";
 import { touchOnly } from "@/lib/touch";
 
@@ -29,6 +39,10 @@ const ROW = '[data-slot="aui_thread-list-item"]';
 const ROW_TRIGGER = '[data-slot="aui_thread-list-item-trigger"]';
 const SIDEBAR = '[data-slot="aui_thread-list-root"]';
 const SIDEBAR_FRAME = '[data-slot="sidebar"]';
+/** 删完别处都放不上时的落点：侧栏 / 抽屉里一直在的那一颗（NAV_FALLBACK），再是顶栏的导航钮（NAV_TOGGLE，lib/sidebar-focus.ts）。 */
+export { NAV_FALLBACK, NAV_TOGGLE };
+// 落到一行后看着它这么多帧：期间那一行被重画换掉（焦点掉到页面最外层）就按行号找回
+const HOLD_FRAMES = 30;
 
 /** 关掉后焦点回到哪：那个元素；侧栏行再记行号（行重画换了元素时按行号找回）。 */
 export type Back = { el: HTMLElement | null; row: string };
@@ -60,12 +74,30 @@ export function deleteChat(item: { delete: () => unknown; getState: () => { id: 
   askDelete([item.getState().id], () => item.delete());
 }
 
-/** 删完焦点放哪一行：侧栏里删掉的那几条之后的第一条，没有就之前最近的一条；侧栏里看不到它们（收起、手机抽屉关着）回 ""。 */
-export function rowAfterDelete(order: readonly string[], ids: readonly string[]): string {
+/** 删完焦点按先后试哪几行：侧栏里删掉的那几条之后的各条（近的先），再是之前的各条（近的先）；侧栏里没有它们回 []。 */
+export function rowsAfterDelete(order: readonly string[], ids: readonly string[]): string[] {
   const gone = new Set(ids);
   const first = order.findIndex((id) => gone.has(id));
-  if (first < 0) return "";
-  return order.slice(first).find((id) => !gone.has(id)) ?? [...order.slice(0, first)].reverse().find((id) => !gone.has(id)) ?? "";
+  if (first < 0) return [];
+  const after = order.slice(first).filter((id) => !gone.has(id));
+  const before = order.slice(0, first).filter((id) => !gone.has(id)).reverse();
+  return [...after, ...before];
+}
+
+/** 删完焦点放哪一行：侧栏里删掉的那几条之后的第一条，没有就之前最近的一条；侧栏里看不到它们（收起、手机抽屉关着）回 ""。 */
+export function rowAfterDelete(order: readonly string[], ids: readonly string[]): string {
+  return rowsAfterDelete(order, ids)[0] ?? "";
+}
+
+/** 侧栏里眼前的行（本页编号，按页面上的先后）：不占位置的（隐藏着的）不算。 */
+function shownRows(root: Element): string[] {
+  const rows = rowOrder(root);
+  const shown = new Set(
+    [...root.querySelectorAll<HTMLElement>(`${ROW}[data-row-id]`)]
+      .filter((row) => typeof row.getClientRects !== "function" || row.getClientRects().length > 0)
+      .map((row) => row.dataset.rowId),
+  );
+  return rows.filter((id) => shown.has(id));
 }
 
 /** 聚焦一个元素并核对真的到了（inert 里的、看不到的聚焦不上）。 */
@@ -90,32 +122,56 @@ function focusBack(back: Back | undefined) {
   if (!focused(back.el)) focusRow(back.row);
 }
 
+/** 落到这一行以后看它几帧：那一行被重画换掉、焦点掉到页面最外层就按行号找回；焦点被挪到别处（用户自己）就不再管。 */
+function holdRow(row: string) {
+  let landed = document.activeElement;
+  let frames = HOLD_FRAMES;
+  const check = () => {
+    const now = document.activeElement;
+    if (now && now !== document.body) {
+      if (now !== landed) return;
+    } else if (focusRow(row)) landed = document.activeElement;
+    if (--frames > 0) requestAnimationFrame(check);
+  };
+  requestAnimationFrame(check);
+}
+
 /** 删了以后焦点放哪（点「删除」那一刻、删之前调；返回弹窗关掉时执行的那一步）。mainThread 读此刻正开着的对话（本页编号）。
- *  侧栏下一条（没有就上一条）→ 打开它的地方（在删掉的行里的已跟着移走）→ 输入框（触屏不进，有才进）；在对话页删的是正开着的
- *  对话：等组件库切到新对话，焦点进新输入框（那时没有输入框就照前面去侧栏）。 */
+ *  侧栏眼前的下一条（没有就上一条，聚焦不上就再往外试）→ 打开它的地方（在删掉的行里的已跟着移走）→ 输入框（触屏不进，有才进）→
+ *  侧栏 / 抽屉里的落点 → 顶栏的导航钮。删的是正开着的对话：等组件库切到新对话再放（打开它的「···」「…」随之卸下）；在对话页、不是触屏就进新输入框。 */
 export function focusAfterDelete(ids: readonly string[], back: Back, mainThread: () => string): () => void {
   const main = mainThread();
-  // 删掉的那几条这一帧还在侧栏里：先算好下一条，下一帧（已移走）再放。侧栏看不到时不去侧栏
+  // 删掉的那几条这一帧还在侧栏里：先按眼前的先后排好，下一帧（已移走）再放。侧栏看不到时不去侧栏
   const sidebar = document.querySelector(SIDEBAR);
-  const next = sidebarVisible(sidebar) ? rowAfterDelete(rowOrder(sidebar), ids) : "";
+  const rows = sidebar && sidebarVisible(sidebar) ? rowsAfterDelete(shownRows(sidebar), ids) : [];
   const typing = !touchOnly();
   const composer = () => document.querySelector<HTMLTextAreaElement>(COMPOSER_INPUT);
-  const land = () => {
-    if (focusRow(next) || focused(back.el)) return;
-    if (typing) composer()?.focus({ preventScroll: true });
+  const toComposer = () => {
+    const input = composer();
+    if (!input) return false;
+    input.focus({ preventScroll: true });
+    return document.activeElement === input;
   };
-  if (!(typing && ids.includes(main) && composer())) return () => requestAnimationFrame(land);
-  // 组件库先切到新对话再删；切过去以后（新输入框换上来的下两帧，同 focusComposer）进输入框
+  const land = () => {
+    for (const row of rows) {
+      if (focusRow(row)) return holdRow(row);
+    }
+    if (focused(back.el)) return;
+    if (typing && toComposer()) return;
+    // 侧栏 / 抽屉看得到但一行不剩：侧栏里的落点；看不到（在 inert 里）聚焦不上，接着试顶栏导航钮
+    if (focused(document.querySelector<HTMLElement>(NAV_FALLBACK))) return;
+    focused(document.querySelector<HTMLElement>(NAV_TOGGLE));
+  };
+  if (!ids.includes(main)) return () => requestAnimationFrame(land);
+  // 组件库先切到新对话再删；切过去以后（新输入框换上来的下两帧，同 focusComposer）再放：对话页、非触屏进输入框，其余照上面
   return () => {
     let frames = 0;
-    const toComposer = () => {
-      const input = composer();
-      if (input) input.focus({ preventScroll: true });
-      else land();
+    const settle = () => {
+      if (!(typing && toComposer())) land();
     };
     const wait = () => {
       if (mainThread() === main && ++frames <= 120) requestAnimationFrame(wait);
-      else requestAnimationFrame(() => requestAnimationFrame(toComposer));
+      else requestAnimationFrame(() => requestAnimationFrame(settle));
     };
     requestAnimationFrame(wait);
   };

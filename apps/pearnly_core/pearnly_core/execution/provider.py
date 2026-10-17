@@ -98,6 +98,9 @@ def post(url, headers, payload, timeout_s, model, bucket, *, rpm=None, wait=True
     自家额度的等待照旧原地等）。``shared_quota``：共享额度（Gemini DSQ），零星拒绝不让整个模型停下（``budget.feedback``）。
     ``label``：限流计数的标签（``budget.note``）。"""
     replay.refuse_paid(model)  # 测试租户开着回放压测时不发任何付费调用
+    from pearnly_core.claude_ocr import client as claude_route
+
+    claude_route.refuse_google(model)  # 选了 Claude 识别的站点不调谷歌（ADR-022）：漏接的入口当场报错
     waited = 0.0
     while True:
         try:

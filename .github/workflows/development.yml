@@ -150,6 +150,8 @@ jobs:
         run: python3 tests/test_cc_mobile_content.py
       - name: Keep CC colors, radii and shadows in globals.css only (ccs, official Claude style variables)
         run: python3 scripts/check-frontend-tokens.py
+      - name: Verify the CC frontend standards gate (sizes, spacing, type, layers, motion fail inside the completed-files list)
+        run: python3 tests/test_cc_frontend_gate.py
       - name: Keep dvh / svh / lvh behind a vh fallback (Chrome and Android WebView before 108 drop the whole declaration)
         run: python3 scripts/check-frontend-viewport-units.py
       - name: Verify CC phone overlays (dialogs fit and scroll, the back key closes the top layer, long-press rows, menus inside the screen)

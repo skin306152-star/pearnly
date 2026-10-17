@@ -16,6 +16,7 @@ Google Document AI 读字（每页约 0.05 泰铢），银行与总账先按版�
 import functools
 import hashlib
 import json
+import threading
 import time
 from contextlib import nullcontext
 
@@ -30,7 +31,7 @@ from pearnly_core.execution import state as pearnly_state
 from pearnly_cowork.files.service import inspect_content
 from pearnly_cowork.recon_center import progress, waiting
 from pearnly_cowork.ocr import recon_reading
-from pearnly_cowork.ocr.remote import forward
+from pearnly_cowork.ocr.remote import contract, forward
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise import pipeline as enterprise
 from pearnly_cowork.ocr.execution import service as intake, settings as ocr_settings, work_guard
@@ -201,14 +202,18 @@ def _rows_found(legacy):
     return any((page.get("document") or {}).get("entries") for page in (legacy or {}).get("pages") or [])
 
 
-def _read_remote(content, filename, pages, frozen, document_type, recon_job, file):
+def _read_remote(content, filename, pages, frozen, document_type, recon_job, file, stored=None):
     """在 Cloud Run 上读（ADR-015）：同一份读法（ocr.recon_reading）；看板进度由事件回调，时机与本机执行相同。
-    发出前、收到后各看一次对账是否已结束（云上读的过程中不能打断，读完不扣费）。"""
+    发出前、收到后各看一次对账是否已结束（云上读的过程中不能打断，读完不扣费）。原件在原件桶里（``stored`` =
+    (桶, 对象名, 版本号, sha256)）只交引用，Cloud Run 按版本号读、核对 sha256。"""
     if recon_job and _recon_closed(recon_job, file):
         raise ReconClosed()
     _progress(file, state="reading")
     on_read, on_extracted, on_unread = _board(recon_job, file, filename, {"read": 0, "done": 0})
+    original = (contract.original(object=stored[1], generation=stored[2], sha256=stored[3])
+                if stored else None)
     legacy = forward.send_document(work_name=frappe.flags.get("pearnly_ocr_work"), filename=filename, content=content,
+        original=original,
         page_count=int(pages), document_type=document_type, frozen=frozen,
         regions=frappe.conf.get("pearnly_document_ai_regions"), yield_seconds=YIELD_SECONDS, on_read=on_read,
         on_extracted=on_extracted, on_unread=on_unread)
@@ -283,13 +288,58 @@ def reading_slot():
     交给 Cloud Run 的不占这个名额（ADR-015，与录入发票同一口径）：原来对账文档与销项税核查的发票连发往 Cloud Run 的也占着它，
     生产 4 个识别进程 × 每个 1 个名额 = 全平台同时只能有 4 份对账文件在云上读，三租户压测时对账识别卡在每分钟约 10 份，
     Cloud Run 空着 160 个并发（2026-10-01）。"""
-    return nullcontext() if forward.settings() else core_pool.local_slot()
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    return nullcontext() if forward.settings() and not claude_ocr.uses_claude() else core_pool.local_slot()
 
 
-def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None):
+def _read_claude(content, filename, pages, frozen, document_type, recon_job=None, file=None, stored=None):
+    """本租户选了 Claude 识别（ADR-022）：逐页交 Claude，不调 Document AI / Gemini、不交 Cloud Run。原件存在甲骨文
+    （``stored`` = (对象名, sha256)，原件层 ADR-024）就按页号交甲骨文自己读、渲染，原件字节不经过这台；否则在本机逐页渲染。
+    每页调用前同样看对账是否已结束、到时限让出；每页结果存检查点，续跑不重复付费。"""
+    from pearnly_core.claude_ocr import client as claude_ocr
+    from pearnly_cowork.ocr.execution import claude_documents
+
+    started = time.monotonic()
+    counted, lock = {"done": 0}, threading.Lock()
+    _progress(file, state="reading")
+
+    def read_page(kind, image, mime, number):
+        frappe.db.commit()
+        if recon_job and _recon_closed(recon_job, file):
+            raise ReconClosed()
+        if time.monotonic() - started > YIELD_SECONDS:
+            raise Deferred("progress_yield", 1)
+        outcome = (claude_ocr.read_original(kind, *stored, page=number) if stored
+                   else claude_ocr.read(kind, [(image, mime)]))
+        with lock:
+            counted["done"] += 1
+            done = counted["done"]
+        _progress(file, read=done, done=done, state="reading")
+        progress.latest(recon_job, progress.page_summary(outcome.get("read"), filename, number, amounts=False))
+        return outcome
+
+    map_pages = core_pages.mapper() if int(pages) > 1 else None
+    if stored:
+        return claude_documents.read_document(claude_documents.Numbered(pages), document_type, read_page,
+                                              map_pages=map_pages)
+    environment = frozen["environment"]
+    with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=False,
+                    image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
+                    orient=ocr.orient) as source:
+        return claude_documents.read_document(source, document_type, read_page, map_pages=map_pages)
+
+
+def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None, stored=None):
+    """``stored``：原件在原件层时的引用（``storage.stored``）——甲骨文 (对象名, sha256) 或谷歌存储 (桶, 对象名, 版本号, sha256)，
+    这时 ``content`` 为 None，由存放那边自己读。"""
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    if claude_ocr.uses_claude():
+        return _read_claude(content, filename, pages, frozen, document_type, recon_job, file, stored=stored)
     environment = frozen["environment"]
     if forward.settings():
-        return _read_remote(content, filename, pages, frozen, document_type, recon_job, file)
+        return _read_remote(content, filename, pages, frozen, document_type, recon_job, file, stored=stored)
     client = build_client(environment, core_identity={key: frozen["target"][key] for key in IDENTITY})
     started = time.monotonic()
 
@@ -353,6 +403,18 @@ def _read(content, filename, pages, frozen, document_type, recon_job=None, file=
 page_failure = recon_reading.document_page_failure
 
 
+def _source(file):
+    """``(引用, 字节)``：原件在原件层、这条识别路线能按引用读（选了 Claude 的读甲骨文上的、交 Cloud Run 的读谷歌存储里的）
+    就只给引用（字节为 None，不经过这台）；否则取回字节。"""
+    from pearnly_core.claude_ocr import client as claude_ocr
+    from pearnly_cowork.recon_center import storage
+
+    stored, claude = storage.stored(file), claude_ocr.uses_claude()
+    if stored and (len(stored) == 2 if claude else len(stored) == 4 and forward.settings()):
+        return stored, None
+    return None, storage.read(file)[1]
+
+
 def _charge(work_name, pages, frozen):
     try:
         result = billing_client.charge("cowork", "pdf", int(pages), tier=frozen["billing_tier"],
@@ -376,16 +438,14 @@ def run(recon_job, file, filename, pages, sha256, document_type, settings):
         if not saved:
             if _recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
-            from pearnly_cowork.recon_center import storage
-
-            _stored_name, content = storage.read(file)
-            if hashlib.sha256(content).hexdigest() != sha256:
+            stored, content = _source(file)
+            if (stored[-1] if stored else hashlib.sha256(content).hexdigest()) != sha256:
                 return {"failed": "source_changed"}
             ocr_settings.revalidate(frozen)
             intake.balance(int(pages), frozen["billing_tier"])
             try:
-                with reading_slot():
-                    legacy = _read(content, filename, pages, frozen, document_type, recon_job, file)
+                with nullcontext() if stored else reading_slot():  # 按引用读的不在这台渲染，不占本机名额
+                    legacy = _read(content, filename, pages, frozen, document_type, recon_job, file, stored=stored)
             except ReconClosed:
                 return {"cancelled": "recon_job_closed"}
             except ContentError as error:

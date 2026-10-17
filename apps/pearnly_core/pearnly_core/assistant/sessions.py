@@ -553,8 +553,15 @@ def confirm(session_id, confirmations) -> dict:
 def interrupt(session_id) -> None:
     row = owned(session_id)
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])
-    # 停在等「允许」时点了停止：这一轮结束，那张卡片作废（推送线程可能已到时限不在了，这里当场标，`toolrun.cancel_waiting`）
-    toolrun.cancel_waiting(row.session_id)
+    # 停在等「允许」时点了停止：这一轮结束，那张卡片作废（推送线程可能已到时限不在了，这里当场标，`toolrun.cancel_waiting`）。
+    # 打断已经交给引擎，这一轮就是停了：作废只是附带的，出错回滚、只记日志，不回 500（第 11 轮重测 A 段：点「允许」后立刻
+    # 停止，作废撞上同一刻的抢占报 QueryDeadlockError，页面报「出了点问题」、停止钮消失，其实已停）。推送线程看到这一轮
+    # 结束时还会再作废一次。
+    try:
+        toolrun.cancel_waiting(row.session_id)
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="Assistant cancel waiting failed")
 
 
 def run_tool(session_id, tool_use_id) -> dict:

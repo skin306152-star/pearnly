@@ -21,7 +21,8 @@ for app in ("pearnly_core", "pearnly_cowork"):
 
 import frappe  # noqa: E402
 
-from pearnly_cowork.files import cloud, service  # noqa: E402
+from pearnly_core.originals import gcs as cloud  # noqa: E402
+from pearnly_cowork.files import service  # noqa: E402
 
 SITE, BUCKET = "acme.pearnly.com", "pearnly-cowork-originals-sg"
 
@@ -105,7 +106,7 @@ class Direct(unittest.TestCase):
             mock.patch.object(service.frappe, "db", types.SimpleNamespace(
                 exists=lambda doctype, name: name in self.existing)),
             mock.patch.object(service.frappe, "session", types.SimpleNamespace(user="a@acme.test")),
-            mock.patch.object(service, "_remote_ready", return_value=True),
+            mock.patch.object(service.store.cloud_run, "settings", return_value={"url": "https://ocr.run.app"}),
             mock.patch.object(service.cloud, "bucket", return_value=BUCKET),
             mock.patch.object(service.cloud, "upload_target",
                               side_effect=lambda bucket, name, size: {"url": f"https://signed/{name}?{size}", "headers": {}}),
@@ -123,14 +124,16 @@ class Direct(unittest.TestCase):
         self.created.append(doc)
         return doc
 
-    def test_begin_signs_a_per_user_object_for_pdf_and_images_only(self):
+    def test_begin_signs_a_per_user_object_for_every_direct_kind(self):
         result = service.begin_direct("WS1", "scan.PDF", 1234, "k1")
         name = "CWS-" + hashlib.sha256(b'["WS1", "a@acme.test", "k1"]').hexdigest()[:48]
         self.assertEqual(result, {"direct": 1, "url": f"https://signed/{SITE}/originals/{name}.pdf?1234", "headers": {}})
-        self.assertEqual(service.begin_direct("WS1", "sheet.xlsx", 10, "k2"), {"direct": 0})
+        # 表格 / Word 也直传（ADR-024）：识别时再读回解析
+        self.assertEqual(service.begin_direct("WS1", "sheet.xlsx", 10, "k2")["direct"], 1)
+        self.assertEqual(service.begin_direct("WS1", "photo.HEIC", 10, "k5"), {"direct": 0})
         with mock.patch.object(service.cloud, "bucket", return_value=None):
             self.assertEqual(service.begin_direct("WS1", "scan.pdf", 10, "k3"), {"direct": 0})
-        with mock.patch.object(service, "_remote_ready", return_value=False):
+        with mock.patch.object(service.store.cloud_run, "settings", return_value=None):
             self.assertEqual(service.begin_direct("WS1", "scan.pdf", 10, "k4"), {"direct": 0})
 
     def test_begin_refuses_bad_names_sizes_and_keys_with_the_old_messages(self):
@@ -165,7 +168,7 @@ class Direct(unittest.TestCase):
     def finish(self, result, filename="scan.pdf", size=1234):
         from pearnly_cowork.ocr.remote import forward
 
-        with mock.patch.object(forward, "inspect_original", return_value=result) as inspect:
+        with mock.patch.object(service.store.cloud_run, "inspect", return_value=result) as inspect:
             return service.finish_direct("WS1", filename, size, "k1"), inspect
 
     def test_finish_registers_only_what_cloud_run_read(self):
@@ -207,7 +210,7 @@ class Direct(unittest.TestCase):
         for _slot in range(4):
             service.INSPECT_SLOTS.acquire()
         try:
-            with mock.patch.object(forward, "inspect_original") as inspect:
+            with mock.patch.object(service.store.cloud_run, "inspect") as inspect:
                 self.assertEqual(service.finish_direct("WS1", "scan.pdf", 1234, "k1"), {"retry": 2})
             inspect.assert_not_called()
         finally:
@@ -220,7 +223,7 @@ class Direct(unittest.TestCase):
         from pearnly_core.execution.errors import Deferred
         from pearnly_cowork.ocr.remote import forward
 
-        with mock.patch.object(forward, "inspect_original", side_effect=Deferred("remote_http_503", 5)):
+        with mock.patch.object(service.store.cloud_run, "inspect", side_effect=Deferred("remote_http_503", 5)):
             self.assertEqual(service.finish_direct("WS1", "scan.pdf", 1234, "k1"), {"retry": 5})
         self.assertEqual(self.created, [])
 
@@ -252,14 +255,14 @@ class StoredInBucket(unittest.TestCase):
                 mock.patch.object(service, "_", side_effect=lambda text: text), \
                 mock.patch.object(service.frappe, "throw", side_effect=lambda message, *a, **k: (_ for _ in ()).throw(Thrown(message))), \
                 mock.patch.object(service.cloud, "read") as read:
-            with mock.patch.object(forward, "preview", return_value={"png": b"PNG"}) as preview:
+            with mock.patch.object(service.store.cloud_run, "preview", return_value={"png": b"PNG"}) as preview:
                 self.assertEqual(service.page("H1", 2), b"PNG")
             preview.assert_called_once_with(SITE + "/originals/CWS-x.pdf", 77, source.sha256, "pdf", 2)
-            with mock.patch.object(forward, "preview", return_value={"code": "preview_too_large"}), \
+            with mock.patch.object(service.store.cloud_run, "preview", return_value={"code": "preview_too_large"}), \
                     self.assertRaises(Thrown) as caught:
                 service.page("H1", 2)
             self.assertEqual(str(caught.exception), "This page is too large to preview safely.")
-            with mock.patch.object(forward, "preview", side_effect=Deferred("remote_http_503", 5)), \
+            with mock.patch.object(service.store.cloud_run, "preview", side_effect=Deferred("remote_http_503", 5)), \
                     self.assertRaises(Thrown) as caught:
                 service.page("H1", 1)
             self.assertEqual(str(caught.exception), "The preview is temporarily unavailable. Please try again.")

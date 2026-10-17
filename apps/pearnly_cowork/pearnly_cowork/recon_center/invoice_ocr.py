@@ -10,6 +10,7 @@
 
 结果存在 Work 自己的检查点里（`cowork.vat_check:result`），对账后台任务等全部 Work 结束后取回。
 """
+from contextlib import nullcontext
 import hashlib
 import time
 from datetime import date
@@ -36,7 +37,7 @@ from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
 from pearnly_cowork.recon_center import admission, waiting
 from pearnly_cowork.ocr import recon_reading
-from pearnly_cowork.ocr.remote import forward
+from pearnly_cowork.ocr.remote import contract, forward
 from pearnly_cowork.ocr.schema import PipelineResult
 
 KIND = "cowork.vat_check"
@@ -214,17 +215,33 @@ def wait(works, on_stage=None):
 # ── Work 里跑：识别 → 存结果 → 扣费 ─────────────────────────────────────────
 
 
-def _recognize(content, filename, pages, frozen, recon_job=None, file=None):
+def _recognize(content, filename, pages, frozen, recon_job=None, file=None, stored=None):
+    """``stored``：原件在原件层时的引用（``document_ocr._source``），这时 ``content`` 为 None：甲骨文 / Cloud Run 按引用自己读。"""
     from pearnly_cowork.recon_center import document_ocr
 
     environment = frozen["environment"]
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    if claude_ocr.uses_claude():
+        # 本租户选了 Claude 识别（ADR-022）：整份交 Claude（与录入同一个转换），不调谷歌、不交 Cloud Run。
+        from pearnly_cowork.ocr.execution import claude
+
+        if recon_job and document_ocr._recon_closed(recon_job, file):
+            raise document_ocr.ReconClosed()
+        anchor = date.fromisoformat(frozen["anchor_date"])
+        pipeline, _evidence = (claude.recognize_original(stored, filename, int(pages), anchor.year) if stored
+                               else claude.recognize(content, filename, int(pages), anchor.year))
+        if recon_job and document_ocr._recon_closed(recon_job, file):
+            raise document_ocr.ReconClosed()
+        return records(PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor.year}).pages, filename)
     if forward.settings():
         # 在 Cloud Run 上读（ADR-015）：同一个引擎、同一份核查包装（recon_center.reading）；发出前、收到后各看一次核查是否已结束。
         if recon_job and document_ocr._recon_closed(recon_job, file):
             raise document_ocr.ReconClosed()
         work_name = frappe.flags.get("pearnly_ocr_work")
+        original = contract.original(object=stored[1], generation=stored[2], sha256=stored[3]) if stored else None
         pipeline, _evidence = forward.send(work_name=work_name, batch=work_name, filename=filename, content=content,
-            page_count=int(pages), anchor_date=frozen["anchor_date"], frozen=frozen, variant="vat_check",
+            original=original, page_count=int(pages), anchor_date=frozen["anchor_date"], frozen=frozen, variant="vat_check",
             yield_seconds=YIELD_SECONDS)
         if recon_job and document_ocr._recon_closed(recon_job, file):
             raise document_ocr.ReconClosed()
@@ -285,10 +302,8 @@ def run(recon_job, file, filename, pages, sha256, settings):
 
             if document_ocr._recon_closed(recon_job, file):
                 return {"cancelled": "recon_job_closed"}
-            from pearnly_cowork.recon_center import storage
-
-            _stored_name, content = storage.read(file)
-            if hashlib.sha256(content).hexdigest() != sha256:
+            stored, content = document_ocr._source(file)
+            if (stored[-1] if stored else hashlib.sha256(content).hexdigest()) != sha256:
                 return {"failed": "source_changed"}
             # 识别连接在发起后变了（换了服务商 / 项目）就不跑，与录入同一个判据。
             ocr_settings.revalidate(frozen)
@@ -296,8 +311,8 @@ def run(recon_job, file, filename, pages, sha256, settings):
             # 用上传时的原文件名（核查表“原文件”一栏显示它；存成临时 File 时名字可能被加了后缀）。
             try:
                 # 本机读才占本进程的识别名额，交给 Cloud Run 的不占（document_ocr.reading_slot）。
-                with document_ocr.reading_slot():
-                    invoices = _recognize(content, filename, pages, frozen, recon_job, file)
+                with nullcontext() if stored else document_ocr.reading_slot():
+                    invoices = _recognize(content, filename, pages, frozen, recon_job, file, stored=stored)
             except document_ocr.ReconClosed:
                 return {"cancelled": "recon_job_closed"}
             except (EngineError, ProviderFailure) as error:

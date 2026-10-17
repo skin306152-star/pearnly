@@ -156,7 +156,7 @@ function SessionStatusBar() {
   }, [detail]);
   if (!snapshot.sessionId || !showsReconnecting(snapshot)) return null;
   return (
-    <div data-slot="cc-status" className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
+    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
       {t("reconnecting")}
     </div>
   );
@@ -338,12 +338,14 @@ function useMaximized(enabled: boolean) {
 }
 
 // 标题栏左半：菜单 / 侧栏开关 / 后退 / 前进（侧栏开着时在侧栏顶上，收起时在对话区左上角）
-function TitleBarLeft({ nav }: { nav: Nav }) {
+// navToggle：放在对话区顶栏（侧栏收起时）的那一份，侧栏开关标成顶栏导航钮；侧栏标题栏里那一份标成侧栏的落点（删完对话一行不剩、
+// 侧栏展开时焦点掉了的落点，lib/sidebar-focus.ts）
+function TitleBarLeft({ nav, navToggle = false }: { nav: Nav; navToggle?: boolean }) {
   const { toggleSidebar } = useSidebar();
   return (
     <div className="flex items-center gap-0.5">
       <AppMenu />
-      <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+      <button type="button" className="cc-icon-btn" data-slot={navToggle ? "cc-nav-toggle" : undefined} data-cc-nav-fallback={navToggle ? undefined : ""} onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
         <PanelLeftIcon />
       </button>
       <button type="button" className="cc-icon-btn" onClick={nav.back} disabled={!nav.canBack} aria-label={t("back")} title={t("back")}>
@@ -493,7 +495,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               {APP_NAME}
             </span>
-            <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+            <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" data-cc-nav-fallback="" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
           </div>
@@ -532,7 +534,7 @@ function MobileDrawer() {
     >
       <div className="flex items-center justify-between px-4 pt-1 pb-3">
         <span className="cc-drawer-title">{APP_NAME}</span>
-        <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
+        <button type="button" className="cc-round-btn" data-cc-nav-fallback="" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>
       </div>
@@ -621,7 +623,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
     // （随页面推开、被压淡）
     return (
       <div className="cc-mtopbar">
-        <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
+        <button type="button" className="cc-round-btn" data-slot="cc-nav-toggle" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <DrawerIcon />
         </button>
         {inChat ? <MobileChatTitle /> : <span />}
@@ -633,7 +635,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
     return (
       <div className="cc-titlebar shrink-0 justify-between pe-0" {...dragHandlers(win.toggle)}>
         <div className="flex min-w-0 items-center gap-1">
-          {!open && <TitleBarLeft nav={nav} />}
+          {!open && <TitleBarLeft nav={nav} navToggle />}
           {inChat && <ConversationTitle />}
         </div>
         <div className="flex items-center gap-1">
@@ -647,7 +649,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   return (
     <div className="cc-topbar">
       {!open && (
-        <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+        <button type="button" className="cc-icon-btn" data-slot="cc-nav-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
           <PanelLeftIcon />
         </button>
       )}
@@ -963,7 +965,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
         ) : (
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
-            <div className="min-h-0 flex-1">
+            <div className="cc-thread-slot min-h-0 flex-1">
               <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />
             </div>
           </div>

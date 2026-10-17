@@ -22,6 +22,9 @@
 // 事件交出，顺序永久错乱）。缺口开着而引擎一直读不到，回复就一直压着：宁可晚、不可乱。
 // 尾巴建起来时实时通道不在线（还没连上、或看门重开 / 切回对话时恰好断网），之后第一次连上同样算重连、开缺口：这之前推不到的
 // 事件只在事件记录里。
+// 这一轮开跑（推来或补拉到 session.status_running）时，空闲时排下的那次补拉（PUSHED_IDLE_MS，30 秒后）提前到在跑的间隔：
+// 以前「在跑」只影响下一次排的间隔，已排好的 30 秒照旧，别的设备上发起的一轮（本页没有 nudge）第一次补拉要等 21–31 秒
+// （第 11 轮重测 A6b：推送没带来「停下来等工具」时，21 秒里一次补拉都没有、卡片一直不出）。
 
 import { listEvents } from "./api";
 import { type FeedEvent, isLocalEvent, type RelayEnvelope, type RunStatus } from "./events";
@@ -56,6 +59,8 @@ export class PollingSource {
   private seen = new Set<string>();
   private running = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  // 已排的那次补拉什么时候到（本页时钟），开跑时据此提前（hasten）
+  private dueAt = 0;
   // 一次补拉进行中：期间要求的下一次（推送收尾、时刻）记下最早的那个，取完再排，不并行开第二条补拉
   private inFlight = false;
   private queued: number | null = null;
@@ -167,7 +172,14 @@ export class PollingSource {
 
   private schedule(delay: number) {
     if (this.readyState === PollingSource.CLOSED) return;
+    this.dueAt = Date.now() + delay;
     this.timer = setTimeout(() => void this.tick(), delay);
+  }
+
+  /** 这一轮开跑：已排的补拉比在跑的间隔晚就提前到在跑的间隔（见文件头）。补拉在途时不用管：回来排下一次时按在跑算。 */
+  private hasten() {
+    const delay = this.interval();
+    if (this.timer && !this.inFlight && this.dueAt - Date.now() > delay) this.reschedule(delay);
   }
 
   private async tick() {
@@ -237,7 +249,10 @@ export class PollingSource {
     this.seen.add(id);
     // 锚点只用引擎事件：本站编号服务端在事件记录里找不到，每轮都会退回整段重放
     if (anchor && !isLocalEvent(event)) this.lastId = id;
-    if (event.type === "session.status_running") this.running = true;
+    if (event.type === "session.status_running" && !this.running) {
+      this.running = true;
+      this.hasten();
+    }
     if (event.type === "session.status_idle" || event.type === "session.status_terminated") this.running = false;
     const envelope: RelayEnvelope = { kind: "event", event };
     this.onmessage?.({ data: JSON.stringify(envelope) });

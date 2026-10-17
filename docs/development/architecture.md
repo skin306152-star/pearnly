@@ -97,7 +97,26 @@ ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：
 Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
 改模型、提示词或规则先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较，并过 [识别改动上线闸门](verification.md#识别改动上线闸门)（`scripts/eval-invoices.py`）。
 
-**Claude 识别路线**（[ADR-022](../adr/0022-claude-ocr-route.md)）：站点配置 `pearnly_ocr_engine` = `claude` 的租户，三个产品的图片 / PDF 识别改走共用层 `pearnly_core.claude_ocr`（Haiku→Opus，硬性自检升级），只调 Anthropic、不调谷歌；运行在甲骨文 `claude-ocr` 服务，连不上时生产本机直调。引擎由控制面租户表单 / 开户单选择（`set_ocr` 写入）。改它的提示词、规则先过金标闸门（评测工具与结果见 [任务记录](../work/2026-10-17-claude-ocr-route.md)）。
+**Claude 识别路线**（[ADR-022](../adr/0022-claude-ocr-route.md)）：站点配置 `pearnly_ocr_engine` = `claude` 的租户，三个产品的全部识别入口（Cowork 录入 / 表格文件 / 销项税核查发票 / 对账三类文档、ERP 采购销售、DMS 身份证）改走共用层 `pearnly_core.claude_ocr`（Haiku→Opus，硬性自检升级），只调 Anthropic、不调谷歌；共用层 `provider.post` 与 Cowork 交 Cloud Run 的 `forward` 对这类站点拒绝任何谷歌调用，新加识别入口必须先看路线（源码守卫在 `tests/test_claude_ocr_rules.py`）；运行在甲骨文 `claude-ocr` 服务，连不上时生产本机直调。引擎由控制面租户表单 / 开户单选择（`set_ocr` 写入）。改它的提示词、规则先过闸门：`scripts/claude-ocr/run-gate.sh` 让语料原件走产品正式代码（结果见 [任务记录](../work/2026-10-17-claude-ocr-route.md)）。这类租户的原件存甲骨文，见下面「统一原件层」。
+
+**统一原件层**（[ADR-024](../adr/0024-shared-originals-layer.md)，2026-10-18）：三个产品所有识别入口收原件、读原件、删原件都走共用层 `pearnly_core.originals`，不再各自落文件。
+
+- **存放按租户路线**（`store.where`）：选了 Claude → 甲骨文（`oracle`，经 Cloudflare 隧道 `originals.pearnly.com`）；谷歌租户 → 谷歌存储（`gcs`，核对 / 预览由 Cloud Run 做）；两样都没配的站点照旧存本机。存放处连不上就抛 `Deferred`：页面过几秒再来，队列重试，不退回生产存。
+- **原件引用**：`oracle://<站点>/originals/<id><扩展名>#<sha256>`、`gs://<桶>/<站点>/originals/<id><扩展名>#<版本号>`；`<id>` 为 Cowork `CWS-` / ERP `ERO-` 加 48 位十六进制。
+- **两种接法**：
+  - 有自己记录表的（Cowork 录入台的 `Cowork Source File`）把引用存进 `storage_url`。
+  - 要一条 Frappe File 的（ERP 附件、ERP LINE 收单、Cowork 对账临时文件）用**登记文件** `originals.registered`：File 名 `<id>.bin`，内容只有不到 1KB 的登记，读内容 / 原文件名 / sha256 一律经 `registered.*`。
+    - 打开它的 `file_url` 时，`before_request` 钩子先按 Frappe 私有文件规则核权限，再跳转到签名下载地址。
+    - File 扩展 `RegisteredFile` 在最后一条登记删掉时排任务删原件；复制附件只复制登记。
+- **入口**：
+  - 浏览器直传：`begin_upload` → PUT → `finish_upload`，用于 Cowork 录入台、ERP 采购 / 销售上传框（`erp-originals.js`）。
+  - 生产手上已有的字节：`store.put` / `registered.put`，用于 LINE、CC 工具、POS、对账提交、iPhone 照片转 JPEG 后。
+- **识别按引用读，生产不经手字节**：
+  - Claude 路线：发票整份读 `client.read_original`；对账文档逐页读 `read_original(page=n)`，甲骨文用 `pages.frame` 出页，与生产 `PageSource.frame` 逐字节相同；ERP 多附件读 `read_originals`，甲骨文先转正再出页，与 ERP 在生产上先 `ocr.orient` 的做法相同。
+  - 谷歌路线：发票、对账文档请求只带 `contract.original`，Cloud Run 按版本号读、核对 sha256。
+  - 表格、电子 PDF 仍在生产解析：用 `read` 取回，不存。
+- **预览**：甲骨文的由甲骨文画（签名地址）；谷歌存储的由 Cloud Run 画（`store.render`）。
+- **例外**：DMS 身份证不留存，识别时直接交字节。
 
 ## 本地控制面与云端开户
 

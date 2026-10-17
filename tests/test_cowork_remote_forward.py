@@ -8,6 +8,7 @@
 """
 from contextlib import contextmanager
 import io
+import importlib.util
 import json
 from pathlib import Path
 import sys
@@ -69,6 +70,23 @@ def load():
     provider.http_post = lambda url, **kwargs: provider.posted.append(url) or provider.reply()
     replay = types.ModuleType("pearnly_core.execution.replay")
     replay.refuse_paid = lambda label: None  # 回放压测没开（开着时拒绝付费调用，见 pearnly_core/execution/test_replay.py）
+    route = types.ModuleType("pearnly_core.claude_ocr.client")
+    route.claude, route.refused = False, []
+
+    def refuse_google(label):  # 站点选了 Claude 识别时拒绝交 Cloud Run（ADR-022）
+        if route.claude:
+            route.refused.append(label)
+            raise RuntimeError("GoogleRefused " + label)
+    route.refuse_google = refuse_google
+    claude_ocr = types.ModuleType("pearnly_core.claude_ocr")
+    claude_ocr.client = route
+    # 原件层的 Cloud Run 约定（ADR-024，纯计算 + 惰性导入）：用真文件
+    spec = importlib.util.spec_from_file_location("pearnly_core.originals.cloud_run",
+                                                  ROOT / "apps/pearnly_core/pearnly_core/originals/cloud_run.py")
+    cloud_run = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cloud_run)
+    layer = types.ModuleType("pearnly_core.originals")
+    layer.cloud_run = cloud_run
     ocr = types.ModuleType("pearnly_core.ocr")
     ocr.credentials_path = lambda: "/run/secrets/ocr.json"
     core = types.ModuleType("pearnly_core")
@@ -100,14 +118,20 @@ def load():
                "pearnly_core.execution.errors": errors, "pearnly_core.execution.budget": budget,
                "pearnly_core.execution.work": work, "pearnly_core.execution.pool": pool,
                "pearnly_core.execution.provider": provider, "pearnly_core.execution.replay": replay,
+               "pearnly_core.claude_ocr": claude_ocr, "pearnly_core.claude_ocr.client": route,
+               "pearnly_core.originals": layer, "pearnly_core.originals.cloud_run": cloud_run,
                "pearnly_cowork.ocr.providers.client": client, "pearnly_cowork.ocr.engine": engine,
                "pearnly_cowork.ocr.engine.errors": errors_module}
     sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
+    # 调用时（``tasks.active`` 里）才导入的真 forward 要用候选树的共用层（含 claude_ocr），不用镜像里装的旧版
+    sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
     with patch.dict(sys.modules, modules):
         from pearnly_cowork.ocr.remote import contract
         namespace = {"__name__": "forward"}
         source = ROOT / "apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py"
         exec(compile(source.read_text(), str(source), "exec"), namespace)
+    namespace["_route"] = route
+    namespace["_modules"], namespace["_cloud_run"] = modules, cloud_run
     namespace["_pool"] = pool
     namespace["_provider"] = provider
     namespace["_errors"] = errors_module
@@ -143,6 +167,14 @@ class Forward(unittest.TestCase):
         return self.ns["recognize"](DOC, FROZEN, None, b"%PDF-1.7 synthetic", "a.pdf", self.pages.append,
                                     post=post, id_token=token or (lambda audience: "ID_TOKEN"))
 
+    def test_a_claude_site_never_reaches_cloud_run(self):
+        route = self.ns["_route"]
+        route.claude = True
+        with self.assertRaises(RuntimeError):
+            self.call({"event": "result", "status": "done", "pipeline": "{}", "evidence": []})
+        self.assertEqual(self.sent, [])  # 拒绝在发出之前
+        self.assertEqual(route.refused, ["cloudrun/v1/cowork/invoice"])
+
     def test_the_default_transport_is_the_shared_tls_post(self):
         # 不传 post 时走共用层的 http_post（共用 TLS 上下文），不是 requests.post
         provider = self.ns["_provider"]
@@ -170,8 +202,8 @@ class Forward(unittest.TestCase):
             if isinstance(step, Exception):
                 raise step
             return step
-        return self.ns["inspect_original"]("acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf", "scan.pdf",
-                                           post=post, id_token=lambda audience: "ID_TOKEN")
+        return self.remote("inspect", "acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf", "scan.pdf",
+                           post=post, id_token=lambda audience: "ID_TOKEN")
 
     def test_inspect_asks_cloud_run_without_a_permit_and_without_holding_the_database(self):
         ok = {"status": "ok", "meta": {"page_count": 2}, "generation": 9, "md5": "m"}
@@ -202,8 +234,13 @@ class Forward(unittest.TestCase):
             if isinstance(reply, Exception):
                 raise reply
             return reply
-        return self.ns["preview"]("acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf", 9, "d" * 64, "pdf", 2,
-                                  post=post, id_token=lambda audience: "ID_TOKEN")
+        return self.remote("preview", "acme.pearnly.com/originals/CWS-" + "c" * 48 + ".pdf", 9, "d" * 64, "pdf", 2,
+                           post=post, id_token=lambda audience: "ID_TOKEN")
+
+    def remote(self, name, *args, **kwargs):
+        """原件核对 / 预览在共用层（ADR-024，``originals.cloud_run``）：调用时才导入依赖，所以调用期间套上同一份假环境。"""
+        with patch.dict(sys.modules, self.ns["_modules"]):
+            return getattr(self.ns["_cloud_run"], name)(*args, **kwargs)
 
     def image(self, status=200, body=b"PNG", content_type="image/png"):
         result = requests.Response()

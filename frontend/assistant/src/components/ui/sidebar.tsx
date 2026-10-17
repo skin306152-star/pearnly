@@ -5,6 +5,7 @@ import { PanelLeftIcon } from "lucide-react";
 import { Slot } from "radix-ui";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { handOffSidebarFocus, takeBackSidebarFocus, type Handed } from "@/lib/sidebar-focus";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,6 +163,27 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  // 收起（offcanvas，移到屏幕外）时整块 inert：不进 Tab 顺序、读屏读不到、程序也聚焦不上；展开恢复（第 11 轮重测 E 段：收起后行还能
+  // 聚焦，Tab 会走进看不见的侧栏）。展开钮在对话区顶栏（不在侧栏里），⌘B 挂在 window 上，都不受影响
+  const offscreen = !isMobile && collapsible === "offcanvas" && state === "collapsed";
+  const container = React.useRef<HTMLDivElement>(null);
+  // 收起时交出焦点的那一处（侧栏是移到屏幕外，不卸载）与上一次是不是收起着（只在收起 / 展开那一刻交接，首次挂上不动焦点）
+  const handed = React.useRef<Handed>(null);
+  const wasOffscreen = React.useRef(offscreen);
+  React.useLayoutEffect(() => {
+    if (wasOffscreen.current === offscreen) return;
+    wasOffscreen.current = offscreen;
+    // 收起那一刻焦点在侧栏里（点了侧栏里的收起钮、焦点在行上按 ⌘B）：交给顶栏的展开钮（cc-nav-toggle，同一次提交里出现），
+    // 不随 inert 掉到页面最外层；记下原来那一处
+    if (offscreen) {
+      handed.current = handOffSidebarFocus(container.current);
+      return;
+    }
+    // 展开（第 11 轮 E 段补审）：展开钮只在收起时才有，同一次提交里卸下，焦点掉到页面最外层（⌘B 收起再 ⌘B 展开、在展开钮上按
+    // Enter / 空格）。这时（inert 已去掉）还给收起前那一行，没有就落在侧栏的收起钮；焦点在别处（用户自己放的）不动
+    takeBackSidebarFocus(container.current, handed.current);
+    handed.current = null;
+  }, [offscreen]);
 
   if (collapsible === "none") {
     return (
@@ -225,7 +247,9 @@ function Sidebar({
         )}
       />
       <div
+        ref={container}
         data-slot="sidebar-container"
+        inert={offscreen || undefined}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-(--cc-svh) w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"

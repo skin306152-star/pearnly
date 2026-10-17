@@ -12,7 +12,7 @@ from PIL import Image
 import pymupdf
 
 from pearnly_cowork.ocr.engine.contracts import Frame
-from pearnly_cowork.ocr.inputs import IMAGE_EXTENSIONS, file_extension, validate_input_metadata
+from pearnly_core.originals.rules import IMAGE_EXTENSIONS, file_extension, validate_input_metadata
 from pearnly_cowork.ocr.schema.evidence import Page
 
 DPI = 200

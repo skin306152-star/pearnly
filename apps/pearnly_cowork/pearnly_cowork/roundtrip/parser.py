@@ -8,7 +8,7 @@ import io
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-from pearnly_cowork.ocr.inputs import OcrInputError, validate_input_metadata
+from pearnly_core.originals.rules import OcrInputError, validate_input_metadata
 from pearnly_cowork.ocr.table_inputs.archive import check_archive
 from pearnly_cowork.ocr.table_inputs.model import DecodeBudget, MAX_ROWS, TableInputError
 from . import money, spec as rt

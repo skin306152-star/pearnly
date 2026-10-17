@@ -1548,7 +1548,7 @@ def document_original(tool_input) -> str:
 
     from pearnly_cowork.files import access as file_access
     from pearnly_cowork.files import service as file_service
-    from pearnly_cowork.ocr import originals
+    from pearnly_core.originals import checks as originals
 
     name = str(tool_input.get("document") or "")
     try:

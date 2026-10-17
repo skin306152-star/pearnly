@@ -6,6 +6,10 @@ import re
 from pearnly_core.claude_ocr import client
 
 
+# 不是采购 / 销售单据的种类（ERP 提示词口径「is_document：根本不是采购 / 销售单据时为 false」）：报价单、订单、送货单仍算单据。
+NOT_DOCUMENTS = {"statement", "vat_report_or_list", "other_non_invoice", "transfer_slip", "withholding_certificate"}
+
+
 def _num(value):
     return None if value in (None, "") else str(value)
 
@@ -56,11 +60,13 @@ def to_raw(read, doc, label):
     return {k: v for k, v in raw.items() if v is not None}
 
 
-def read_all(images, *, structured, review, label, finish=None, progress=None, own_tax=None):
-    """与 ``policy.read_all`` 同样的返回：[(结果, 检查代码, 模型), …]，第一张在前；读不出返回 []。"""
+def read_all(images, *, structured, review, label, finish=None, progress=None, own_tax=None, originals=None):
+    """与 ``policy.read_all`` 同样的返回：[(结果, 检查代码, 模型), …]，第一张在前；读不出返回 []。
+    ``originals``：附件都在甲骨文（原件层，ADR-024）时只交引用，甲骨文按同样做法转正、渲染，原件不经过生产。"""
     if progress:
         progress(0, 1)
-    outcome = client.read("voucher", images, own_tax)
+    outcome = (client.read_originals("voucher", originals, own_tax) if originals
+               else client.read("voucher", images, own_tax))
     if progress:
         progress(1, 1)
     read = outcome.get("read")
@@ -68,7 +74,7 @@ def read_all(images, *, structured, review, label, finish=None, progress=None, o
         return []
     model = outcome["stages"][-1]["model"] if outcome.get("stages") else "claude"
     docs = read.get("documents") or []
-    if not docs:
+    if not docs or read.get("doc_kind") in NOT_DOCUMENTS:
         return [({"not_document": True, "lines": []}, [], model)]
     found = []
     for doc in docs:

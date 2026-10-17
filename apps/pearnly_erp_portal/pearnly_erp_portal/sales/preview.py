@@ -3,6 +3,7 @@ import base64
 
 import frappe
 from frappe import _
+from pearnly_core.originals import registered
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.sales import access, files
@@ -24,6 +25,15 @@ def page_image(file, page=1):
         if context.direction != "sales" or context.source_file != attached.file_url:
             frappe.throw(_("Not permitted"), frappe.PermissionError)
     attached = files.upload({"file": file}, context)
+    found = registered.entry(attached)
+    if found:
+        # 原件在原件层（ADR-024）：甲骨文那边画（回签名地址）、谷歌存储的由 Cloud Run 画，这台不读原件、不渲染
+        if found["kind"] != "pdf":
+            frappe.throw(_("Invalid file"))
+        try:
+            return {"page": int(page), "pages": found["pages"], "image": registered.page_image(attached, int(page))}
+        except (ValueError, TypeError):
+            frappe.throw(_("Invalid value"))
     content = attached.get_content()
     if isinstance(content, str):
         content = content.encode("utf-8")

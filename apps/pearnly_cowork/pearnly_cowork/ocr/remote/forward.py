@@ -10,17 +10,18 @@
 开关：站点配置 ``pearnly_cowork_ocr_remote`` = {"enabled": 1, "url": "https://…run.app"}；不开或关掉就照旧在本机识别。
 """
 from contextlib import ExitStack
-import threading
 import time
 
 import frappe
 import requests
 
-from pearnly_core import ocr
+from pearnly_core.claude_ocr import client as claude_route
 from pearnly_core.execution import budget, pool, provider, replay, work
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine import errors as engine_errors
 from pearnly_cowork.ocr.providers.client import ProviderError
+from pearnly_core.originals import cloud_run
+from pearnly_core.originals.cloud_run import RemoteError
 from pearnly_cowork.ocr.remote import contract, tasks
 
 CONFIG = "pearnly_cowork_ocr_remote"
@@ -33,11 +34,6 @@ READ_IDLE_SECONDS = 240
 WAIT_STEP_LIMIT = 20
 WAIT_TOTAL = 60
 LABEL = "cloudrun"
-_tokens, _lock = {}, threading.Lock()
-
-
-class RemoteError(RuntimeError):
-    """Cloud Run 报的程序错误（不是引擎的内容错误）：照本机执行的程序错误处理（workflow_error），不重放付费调用。"""
 
 
 def settings():
@@ -49,22 +45,6 @@ def settings():
     if not url.startswith("https://") or not url.endswith(".run.app"):
         return None
     return {"url": url, "rpm": int(value.get("rpm") or 0) or None}
-
-
-def _id_token(audience):
-    """用识别服务账号（``ocr.credentials_path``）签身份令牌，Cloud Run IAM 只认这个身份。快过期才重签。"""
-    from google.auth.transport.requests import Request
-    from google.oauth2 import service_account
-
-    with _lock:
-        credentials = _tokens.get(audience)
-        if credentials is None:
-            credentials = service_account.IDTokenCredentials.from_service_account_file(
-                ocr.credentials_path(), target_audience=audience)
-            _tokens[audience] = credentials
-        if not credentials.valid:
-            credentials.refresh(Request())
-        return credentials.token
 
 
 def recognize(doc, frozen, examples, content, filename, progress, *, original=None, previews=None, on_previews=None,
@@ -96,15 +76,15 @@ def send(*, work_name, batch, filename, content=None, page_count, anchor_date, f
     return final["pipeline"], final["evidence"]
 
 
-def send_document(*, work_name, filename, content, page_count, document_type, frozen, regions=None,
+def send_document(*, work_name, filename, content=None, page_count, document_type, frozen, regions=None,
                   yield_seconds=contract.YIELD_SECONDS, on_read=None, on_extracted=None, on_unread=None,
-                  post=None, id_token=None):
+                  post=None, id_token=None, original=None):
     """对账三类文档交给 Cloud Run 读：返回旧线上管线结果（``legacy``）；读的过程中按事件回调看板进度
-    （读完几页 / 一页抽完 / 一页读不出，与本机执行同一时机）。"""
+    （读完几页 / 一页抽完 / 一页读不出，与本机执行同一时机）。原件在原件桶里时只交 ``original``（``contract.original``）。"""
     config = _config()
     body = contract.document_request(site=frappe.local.site, work=work_name, filename=filename, content=content,
         page_count=page_count, document_type=document_type, environment=frozen["environment"], regions=regions,
-        yield_seconds=yield_seconds)
+        yield_seconds=yield_seconds, original=original)
 
     def on_event(event):
         kind = event["event"]
@@ -116,79 +96,6 @@ def send_document(*, work_name, filename, content, page_count, document_type, fr
             on_unread(int(event.get("page") or 0))
 
     return _call(config, PATHS["document"], body, on_event, frozen, post=post, id_token=id_token)["legacy"]
-
-
-def inspect_original(object_name, filename, *, post=None, id_token=None):
-    """浏览器直传到原件桶的原件交给 Cloud Run 读一遍（ADR-016）：返回 Cloud Run 的结论
-    （``{"status": "ok", "meta": …, "generation": …, "md5": …}`` 或 ``{"status": "rejected", "code": …}``）。
-
-    不是付费调用，不拿识别名额；等回复时不占数据库连接。连不上 / 对方忙抛 ``Deferred``（调用方让用户重试）。"""
-    config = _config()
-    body = contract.inspect_request(site=frappe.local.site, object=object_name, filename=filename)
-    pool.release_db()
-    try:
-        token = (id_token or _id_token)(config["url"])
-        response = (post or provider.http_post)(config["url"] + PATHS["inspect"], json=body, timeout=(10, 60),
-                                                 headers={"Authorization": "Bearer " + token})
-    except (requests.ConnectionError, requests.Timeout) as exc:
-        raise Deferred("remote_unreachable", 5) from exc
-    except Exception as exc:  # 令牌签不出来：稍后重试
-        raise Deferred("remote_token_unavailable", 5) from exc
-    try:
-        if response.status_code in (429, 500, 502, 503, 504):
-            raise Deferred("remote_http_" + str(response.status_code), 5)
-        if response.status_code != 200:
-            raise RemoteError("remote_http_" + str(response.status_code))
-        try:
-            result = response.json()
-        except ValueError as exc:
-            raise RemoteError("remote_bad_reply") from exc
-    finally:
-        response.close()
-    if not isinstance(result, dict) or result.get("status") not in ("ok", "rejected", "error") or (
-            result["status"] == "ok" and (type(result.get("generation")) is not int or not isinstance(result.get("meta"), dict))):
-        raise RemoteError("remote_bad_reply")
-    if result["status"] == "error":
-        if result.get("code") == "original_unavailable":
-            raise Deferred("remote_original_unavailable", 5)
-        raise RemoteError(str(result.get("code") or "remote_error"))
-    return result
-
-
-def preview(object_name, generation, sha256, kind, page, *, post=None, id_token=None):
-    """原件桶里一份原件的一页预览（ADR-016）：``{"png": 字节}`` 或 ``{"code": 原件检查的错误代码}``。
-
-    在 Cloud Run 上生成，只传回生成好的图（不把整份原件下载到服务器）。连不上 / 忙抛 ``Deferred``。"""
-    config = _config()
-    body = contract.preview_request(site=frappe.local.site, object=object_name, generation=generation, sha256=sha256,
-                                    kind=kind, page=page)
-    pool.release_db()
-    try:
-        token = (id_token or _id_token)(config["url"])
-        response = (post or provider.http_post)(config["url"] + PATHS["preview"], json=body, timeout=(30, 60),
-                                                 headers={"Authorization": "Bearer " + token})
-    except (requests.ConnectionError, requests.Timeout) as exc:
-        raise Deferred("remote_unreachable", 5) from exc
-    except Exception as exc:
-        raise Deferred("remote_token_unavailable", 5) from exc
-    try:
-        if response.status_code in (429, 500, 502, 503, 504):
-            raise Deferred("remote_http_" + str(response.status_code), 5)
-        if response.status_code == 422:
-            try:
-                code = response.json().get("code")
-            except (ValueError, AttributeError) as exc:
-                raise RemoteError("remote_bad_reply") from exc
-            if code == "original_unavailable":
-                raise Deferred("remote_original_unavailable", 5)
-            if code in ("preview_too_large", "preview_unsupported"):
-                return {"code": code}
-            raise RemoteError(str(code or "remote_error"))
-        if response.status_code != 200 or response.headers.get("Content-Type") not in ("image/png", "image/jpeg"):
-            raise RemoteError("remote_http_" + str(response.status_code))
-        return {"png": response.content}
-    finally:
-        response.close()
 
 
 def _config():
@@ -222,6 +129,7 @@ def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sle
     开了任务派发（``tasks``，站点配置 ``pearnly_cowork_ocr_tasks``）时改为交给 Cloud Tasks 就返回（抛 ``Deferred``，不占线程
     等），结果回调到了再进来取回；拿到的结果行与这里按行读到的同一形状，之后的处理完全相同。"""
     replay.refuse_paid("cloudrun" + path)  # 测试租户开着回放压测：交给 Cloud Run 也会付费，一律拒绝
+    claude_route.refuse_google("cloudrun" + path)  # 选了 Claude 识别的站点不交 Cloud Run（ADR-022）
     if tasks.active():
         bucket = budget.scope("cloudrun", frozen["environment"].get("GCP_PROJECT", ""), "cowork", path.rsplit("/", 1)[-1])
         try:
@@ -238,7 +146,7 @@ def _stream(config, path, body, on_event, frozen, *, post=None, id_token=None, s
         # 等 Cloud Run 回复的十几秒里不占数据库连接（几十份同时在等时连接数不涨）；回来后第一条查询自动重连。
         pool.release_db()
         try:
-            token = (id_token or _id_token)(config["url"])
+            token = (id_token or cloud_run.identity_token)(config["url"])
         except Exception as exc:  # 还没发出任何付费调用：稍后重试
             raise Deferred("remote_token_unavailable", 15) from exc
         try:

@@ -5699,7 +5699,7 @@ assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(), home] as any, "
         drag = read("components/ui/drag.tsx")
         # 拖动区：碰撞按 narrowPool 收窄后取最近的中心；键盘方向键只在本列（排序项的那一列）；指针拖动经过时交给调用方（onOver）
         self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
-        self.assertIn("context.droppableContainers.getEnabled().filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list);", drag)
+        self.assertIn(".filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list)", drag)
         # 经过的是它自己不交（无界面 Chrome 复刻侧栏实测：排进置顶重挂以后经过自己，它的说明还是原来那一组，交了就被当成回到
         # 原组，一进一出来回跳、最后放下排到置顶最上面）
         self.assertIn("if (!from || keyedRef.current || over?.id === active.id) return;", drag)
@@ -6338,7 +6338,7 @@ assert.equal(spotIn(null, "b"), null);          // 到头了没挪：不念
 assert.equal(spotIn(["a"], "x"), null);
 """)
         drag = read("components/ui/drag.tsx")
-        self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="sr-only" data-slot="cc-move-live">', drag)
+        self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="cc-move-live sr-only">', drag)
         self.assertIn("const text = texts.movedTo(name, spot.at, spot.total);", drag)
         self.assertIn("if (spot) say?.(label, spot);", drag)
         rows = read("components/assistant-ui/thread-list.tsx")
@@ -6732,7 +6732,8 @@ class Round10DragTests(unittest.TestCase):
         land = drag.split("export function landOverlay(", 1)[1].split("\n}\n", 1)[0]
         self.assertIn("if (!always && !fold && !transform.x && !transform.y && frames[0]!.transform === frames[1]!.transform) return null;", land)
         self.assertIn("return landOverlay(overlay, node, transition, into, true);", drag)
-        self.assertIn("...(beforeCancel ? { onCancel: () => beforeCancel(props.onCancel) } : {}),", drag)
+        self.assertIn("...(beforeCancel || release ? { onCancel: cancel } : {}),", drag)
+        self.assertIn("if (beforeCancel) beforeCancel(props.onCancel);\n        else props.onCancel();", drag)
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
         self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
         self.assertEqual(drag.count("beforeEnd, beforeCancel },"), 3)
@@ -7707,7 +7708,7 @@ g.document.createElement = () => {
 const layer = dragLayer();
 assert.equal(dragLayer(), layer);
 assert.equal(appended.length, 1);
-assert.equal((layer as any).dataset.slot, "cc-drag-layer");
+assert.equal((layer as any).className, "cc-drag-layer");
 // 鼠标拖动的挡板与浮层同在这一层里，平时藏着
 assert.equal((layer as any).children[0].dataset.slot, "cc-drag-shield");
 assert.equal((layer as any).children[0].hidden, true);
@@ -8355,6 +8356,15 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn(':root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn(':root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn('data-slot="cc-sidebar-toggle"', read("assistant.tsx"))
+        # 第 11 轮重测失效追踪 trace：按属性名做键的通配兄弟选择器（[data-slot=…] ~ *）让 body 下任何增删（菜单 portal 挂上卸下）整页
+        # 样式失效，A14 收菜单那一帧约 40ms；改成按类名的紧挨兄弟，body 下的常驻节点（拖动层、拖动播报区）也不用 data-slot 标识
+        self.assertNotRegex(re.sub(r"/\*.*?\*/", "", css, flags=re.S), r"\[data-slot=[^\]]+\]\s*~\s*\*")
+        self.assertIn('.cc-mmain .cc-status + .cc-thread-slot [data-slot="aui_thread-viewport"] { padding-top: 0; }', css)
+        self.assertIn('<div data-slot="cc-status" className="cc-status ', read("assistant.tsx"))
+        self.assertIn('<div className="cc-thread-slot min-h-0 flex-1">', read("assistant.tsx"))
+        drag = read("components/ui/drag.tsx")
+        self.assertNotIn('data-slot="cc-move-live"', drag)
+        self.assertNotIn('layer.dataset.slot', drag)
 
 
 class Round11ReviewTests(unittest.TestCase):
@@ -8594,13 +8604,620 @@ assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
 composer = node("composer"); rows = ["a", "b", "c"];
 assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
 collapsed = false;
-// ③ 侧栏看得到但那一行聚焦不上（例如正在收起）：核对没到，接着回打开它的地方
+// ③ 侧栏看得到但那一行聚焦不上（例如正在收起）：核对没到，接着试上一条；都聚焦不上才回打开它的地方（第 11 轮重测 E 段：
+// 近的先试，一条聚焦不上就试下一条）
 rows = ["a", "b", "c"];
 triggers.c.focus = () => {};
-assert.equal(await run(["b"], { el: node("title-more-2"), row: "" }), "title-more-2");
+assert.equal(await run(["b"], { el: node("title-more-2"), row: "" }), "row:a");
+rows = ["a", "b", "c"];
+triggers.a.focus = () => {};
+assert.equal(await run(["b"], { el: node("title-more-3"), row: "" }), "title-more-3");
 // 没有侧栏：不可见
 assert.equal(sidebarVisible(null), false);
 """)
+
+    def test_focus_after_a_delete_follows_the_rows_in_view_and_survives_a_redraw(self):
+        # 第 11 轮重测 E 段：侧栏搜索「删测」后删掉结果里最后一条（Z1），焦点落到 body、没到上一条（Y1）。现在：下一条 / 上一条按侧栏
+        # 里眼前的行算（不占位置的不算），近的先试、聚焦不上就试下一条；落到一行后几帧内那一行被重画换掉（焦点掉到 body）按行号找回
+        self.run_page(r"""
+import { focusAfterDelete, rowsAfterDelete } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" });   // 测试窗口：触屏（手机 CDP 模拟电脑布局）
+g.document.body = { name: "body" };
+type R = { id: string; shown: boolean };
+let rows: R[] = [];
+const triggers: Record<string, any> = {};
+const makeTrigger = (id: string) => (triggers[id] = { name: `row:${id}`, isConnected: true,
+  focus() { if (rows.some((r) => r.id === id && r.shown)) g.document.activeElement = this; } });
+const sidebar = { closest: () => null,
+  querySelectorAll: () => rows.map((r) => ({ dataset: { rowId: r.id }, getClientRects: () => (r.shown ? [{}] : []) })) };
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.some((r) => r.id === m[1]) ? (triggers[m[1]] ?? makeTrigger(m[1])) : null;
+};
+const gone = { isConnected: false, focus() {} };
+const start = (ids: string[]) => {
+  g.document.activeElement = g.document.body;
+  focusAfterDelete(ids, { el: gone, row: "" }, () => "elsewhere")();
+  rows = rows.filter((r) => !ids.includes(r.id));
+};
+const shown = (...ids: string[]) => ids.map((id) => ({ id, shown: true }));
+const at = () => g.document.activeElement?.name ?? "body";
+
+// 先后：之后的各条（近的先），再是之前的各条（近的先）
+assert.deepEqual(rowsAfterDelete(["a", "b", "c", "d"], ["b"]), ["c", "d", "a"]);
+assert.deepEqual(rowsAfterDelete(["a", "b", "c", "d"], ["c", "d"]), ["b", "a"]);
+assert.deepEqual(rowsAfterDelete(["a", "b"], ["x"]), []);
+// ① 搜索结果里最后一条 Z1，后面还挂着眼前看不到的行：到上一条 Y1（以前去了看不到的那一行，聚焦不上，焦点掉到 body）
+rows = [...shown("Y2", "Y1", "Z1"), { id: "N", shown: false }];
+start(["Z1"]);
+await g.sleep(20);
+assert.equal(at(), "row:Y1");
+// ② 近的那一条聚焦不上：接着试下一条
+rows = shown("a", "b", "c", "d");
+makeTrigger("c").focus = () => {};
+start(["b"]);
+await g.sleep(20);
+assert.equal(at(), "row:d");
+// ③ 落到那一行后列表重画换掉了它（焦点掉到 body）：按行号找回到新换上的那一行
+rows = shown("a", "b", "c");
+delete triggers.c;
+start(["b"]);
+await g.sleep(8);
+assert.equal(at(), "row:c");
+const old = triggers.c;
+old.isConnected = false;
+makeTrigger("c");
+g.document.activeElement = g.document.body;
+await g.sleep(10);
+assert.equal(g.document.activeElement, triggers.c);
+assert.notEqual(g.document.activeElement, old);
+// ④ 用户自己把焦点挪到别处：不再拉回
+g.document.activeElement = { name: "search" };
+await g.sleep(10);
+assert.equal(at(), "search");
+""")
+
+    def test_deleting_the_open_chat_on_touch_lands_on_the_top_bar_toggle(self):
+        # 第 11 轮重测 E 段：手机抽屉关着从右上「…」删当前对话、iPad 侧栏收起时从顶栏「对话选项 ···」删当前对话：回到新对话页，
+        # 打开它的按钮跟着卸下、侧栏看不到、触屏不进输入框（不弹键盘），焦点掉到 body。现在：先等组件库切到新对话，放不上时落在顶栏的
+        # 导航钮（手机的菜单钮、侧栏收起时的展开钮，cc-nav-toggle）
+        self.run_page(r"""
+import { focusAfterDelete, NAV_TOGGLE } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = true;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+g.document.body = { name: "body" };
+let inert = false;
+let collapsed = false;
+const frame = { getAttribute: (k: string) => (k === "data-state" ? (collapsed ? "collapsed" : "expanded") : null) };
+let rows: string[] = ["a", "b", "c"];
+const node = (name: string, inertNode = false): any => ({ name, isConnected: true,
+  focus() { if (this.isConnected && !(inertNode && (inert || collapsed))) g.document.activeElement = this; } });
+const triggers: Record<string, any> = {};
+const sidebar = {
+  closest: (sel: string) => (sel === "[inert]" ? (inert ? {} : null) : sel === '[data-slot="sidebar"]' ? frame : null),
+  querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })),
+};
+let toggle: any = null;
+let composer: any = null;
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  if (sel === NAV_TOGGLE) return toggle;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`, true)) : null;
+};
+assert.equal(NAV_TOGGLE, '[data-slot="cc-nav-toggle"]');
+// 组件库删正开着的：先切到新对话（打开它的按钮随之卸下，焦点在它上面就掉到 body），再从侧栏移走
+let main = "b";
+const run = async (opener: any) => {
+  g.document.activeElement = g.document.body;
+  focusAfterDelete(["b"], { el: opener, row: "" }, () => main)();
+  await g.sleep(3);
+  main = "new";
+  opener.isConnected = false;
+  if (g.document.activeElement === opener) g.document.activeElement = g.document.body;
+  rows = rows.filter((id) => id !== "b");
+  await g.sleep(30);
+  return g.document.activeElement?.name ?? "body";
+};
+
+// ① 手机、抽屉关着（侧栏 inert）：从右上「…」删当前对话 → 顶栏菜单钮，不进输入框
+inert = true; main = "b"; rows = ["a", "b", "c"]; toggle = node("menu"); composer = node("composer");
+assert.equal(await run(node("pill-more")), "menu");
+inert = false;
+// ② iPad 侧栏收起：从顶栏「对话选项 ···」删当前对话 → 展开侧栏钮，不进收起的侧栏、不进输入框
+collapsed = true; main = "b"; rows = ["a", "b", "c"]; toggle = node("expand");
+assert.equal(await run(node("title-more")), "expand");
+// ③ 电脑（非触屏）同样收起：对话页照旧进新输入框
+touch = false; main = "b"; rows = ["a", "b", "c"];
+assert.equal(await run(node("title-more")), "composer");
+// ④ 侧栏看得到：照旧去侧栏下一条
+touch = true; collapsed = false; main = "b"; rows = ["a", "b", "c"];
+assert.equal(await run(node("pill-more")), "row:c");
+""")
+
+    def test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar(self):
+        # 第 11 轮重测 E 段：电脑上收起侧栏后，行在屏幕外（left=-274）却没有 inert / aria-hidden，还能 focus()，Tab 会走进看不见的侧栏。
+        # 现在：收起（offcanvas）时整块 inert，展开恢复；收起那一刻焦点在侧栏里就交给顶栏的展开钮。手机抽屉照旧 inert
+        sidebar = read("components/ui/sidebar.tsx")
+        self.assertIn('const offscreen = !isMobile && collapsible === "offcanvas" && state === "collapsed";', sidebar)
+        container = sidebar.split('data-slot="sidebar-container"', 1)
+        self.assertIn("ref={container}", container[0][-200:])
+        self.assertIn("inert={offscreen || undefined}", container[1][:200])
+        effect = sidebar.split("React.useLayoutEffect(() => {", 1)[1].split("}, [offscreen]);", 1)[0]
+        self.assertIn("handed.current = handOffSidebarFocus(container.current);", effect)
+        self.assertIn("const NAV_TOGGLE = '[data-slot=\"cc-nav-toggle\"]';", read("lib/sidebar-focus.ts"))
+        self.assertIn("document.querySelector<HTMLElement>(NAV_TOGGLE)?.focus();", read("lib/sidebar-focus.ts"))
+        # 展开钮与 ⌘B 不在侧栏里：顶栏展开钮、桌面端标题栏（侧栏收起时那一份）、手机菜单钮都标成顶栏导航钮
+        page = read("assistant.tsx")
+        bar = page[page.index("function MainTopBar"):page.index("function MobileChatPill")]
+        self.assertIn('<button type="button" className="cc-round-btn" data-slot="cc-nav-toggle" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>', bar)
+        self.assertIn('<button type="button" className="cc-icon-btn" data-slot="cc-nav-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>', bar)
+        self.assertIn("{!open && <TitleBarLeft nav={nav} navToggle />}", bar)
+        self.assertIn('data-slot={navToggle ? "cc-nav-toggle" : undefined}', page)
+        self.assertIn("event.key === SIDEBAR_KEYBOARD_SHORTCUT &&", sidebar)
+        self.assertIn('window.addEventListener("keydown", handleKeyDown)', sidebar)
+        # 手机抽屉照旧
+        self.assertIn('<aside className="cc-mdrawer" aria-hidden={!open} inert={!open || undefined}>', read("components/mobile-shell.tsx"))
+
+    def test_expanding_the_sidebar_gives_focus_back(self):
+        # 第 11 轮 E 段补审：收起时焦点交给顶栏展开钮，但展开钮只在收起时才有，展开当次就卸下，焦点掉到 body（⌘B 收起再 ⌘B 展开、
+        # 在展开钮上按 Enter / 空格展开）。现在：展开那一刻焦点丢了才拿回来——回到收起前那一行（行重画按行号找回），没有就落在侧栏的
+        # 收起钮（NAV_FALLBACK），再没有就是侧栏里第一个能聚焦的；用户展开期间自己放到别处的焦点不动
+        self.run_page(r"""
+import { handOffSidebarFocus, takeBackSidebarFocus, NAV_FALLBACK, NAV_TOGGLE } from "@/lib/sidebar-focus";
+g.CSS = { escape: (s: string) => s };
+g.document.body = { name: "body", isConnected: true };
+g.document.documentElement = { ...g.document.documentElement, isConnected: true };
+let inert = false;   // 收起时侧栏容器 inert
+const inBox = new Set<any>();
+const node = (name: string, opts: { inside?: boolean; row?: string } = {}): any => {
+  const n: any = { name, isConnected: true,
+    focus() { if (this.isConnected && !(opts.inside && inert)) g.document.activeElement = this; },
+    closest: (sel: string) => (sel === '[data-slot="aui_thread-list-item"]' && opts.row ? { dataset: { rowId: opts.row } } : null) };
+  if (opts.inside) inBox.add(n);
+  return n;
+};
+const triggers: Record<string, any> = {};
+let fallback: any = null;
+let first: any = null;
+const box = {
+  contains: (el: any) => inBox.has(el),
+  querySelector: (sel: string) => {
+    const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+    if (m) return triggers[m[1]] ?? null;
+    if (sel === NAV_FALLBACK) return fallback;
+    if (sel.startsWith("button")) return first;
+    return null;
+  },
+};
+let toggle: any = null;
+g.document.querySelector = (sel: string) => (sel === NAV_TOGGLE ? toggle : null);
+// 收起：顶栏展开钮挂上、侧栏 inert（同一次提交），再交接；展开：展开钮卸下（焦点在它上面就掉到 body）、inert 去掉，再拿回
+const collapse = () => { toggle = node("expand"); inert = true; return handOffSidebarFocus(box); };
+const expand = (handed: any) => {
+  inert = false;
+  toggle.isConnected = false;
+  if (g.document.activeElement === toggle) g.document.activeElement = g.document.body;
+  toggle = null;
+  takeBackSidebarFocus(box, handed);
+  return g.document.activeElement?.name ?? "body";
+};
+fallback = node("sidebar-toggle", { inside: true });
+first = node("app-menu", { inside: true });
+
+// ① 焦点在侧栏行上 ⌘B 收起：交给展开钮；再 ⌘B 展开：回到原来那一行（以前掉到 body）
+triggers.b = node("row:b", { inside: true, row: "b" });
+triggers.b.focus();
+let handed = collapse();
+assert.equal(g.document.activeElement.name, "expand");
+assert.equal(expand(handed), "row:b");
+// ② 收起期间那一行被重画换掉：按行号找回新的那一行
+triggers.b.focus();
+handed = collapse();
+triggers.b.isConnected = false;
+inBox.delete(triggers.b);
+triggers.b = node("row:b-new", { inside: true, row: "b" });
+assert.equal(expand(handed), "row:b-new");
+// ③ 收起时焦点不在侧栏（在输入框）：不交接；Tab 到展开钮上按 Enter 展开：落在侧栏收起钮，不在 body
+const composer = node("composer");
+composer.focus();
+handed = collapse();
+assert.equal(handed, null);
+assert.equal(g.document.activeElement.name, "composer");
+toggle.focus();
+assert.equal(expand(handed), "sidebar-toggle");
+// ④ 侧栏里没有标出的落点（例如桌面端标题栏没标）：侧栏里第一个能聚焦的
+fallback = null;
+toggle = null;
+triggers.b.focus();
+handed = collapse();
+triggers.b.isConnected = false;
+delete triggers.b;
+assert.equal(expand(handed), "app-menu");
+fallback = node("sidebar-toggle", { inside: true });
+// ⑤ 收起期间用户自己把焦点放到输入框：展开不抢
+triggers.c = node("row:c", { inside: true, row: "c" });
+triggers.c.focus();
+handed = collapse();
+composer.focus();
+assert.equal(expand(handed), "composer");
+""")
+        sidebar = read("components/ui/sidebar.tsx")
+        effect = sidebar.split("React.useLayoutEffect(() => {", 1)[1].split("}, [offscreen]);", 1)[0]
+        # 只在收起 / 展开那一刻交接（首次挂上不动焦点）；展开时拿回，用完清空
+        self.assertIn("if (wasOffscreen.current === offscreen) return;", effect)
+        self.assertLess(effect.index("wasOffscreen.current = offscreen;"), effect.index("handOffSidebarFocus("))
+        self.assertIn("takeBackSidebarFocus(container.current, handed.current);\n    handed.current = null;", effect)
+        # 三个落点：网页侧栏收起钮（不改 data-slot，globals.css 按它定尺寸）、桌面端侧栏标题栏的侧栏开关、手机抽屉的圆形搜索钮
+        page = read("assistant.tsx")
+        self.assertIn('data-slot="cc-sidebar-toggle" data-cc-nav-fallback="" onClick={toggleSidebar}', page)
+        self.assertIn('data-slot={navToggle ? "cc-nav-toggle" : undefined} data-cc-nav-fallback={navToggle ? undefined : ""}', page)
+        drawer = page[page.index("function MobileDrawer"):page.index("function isTextField")]
+        self.assertIn('className="cc-round-btn" data-cc-nav-fallback="" onClick={() => setSearching((v) => !v)} aria-label={t("search")}', drawer)
+        self.assertIn('[data-slot="cc-sidebar-toggle"]', read("globals.css"))
+
+    def test_deleting_the_last_visible_row_lands_on_the_sidebar_fallback(self):
+        # 第 11 轮 E 段补审：侧栏 / 抽屉看得到、但删完一行不剩（手机抽屉开着搜索只剩一条、iPad 侧栏展开删最后一条可见行、电脑在定时任务
+        # 页删最后一条可见行）时，落点只剩顶栏导航钮，而它此时不在（侧栏展开）或在 inert 里（抽屉开着时的对话区），焦点掉到 body。
+        # 现在先试侧栏 / 抽屉里一直在的那一颗（NAV_FALLBACK），看不到的那份在 inert 里聚焦不上，再试顶栏导航钮
+        self.run_page(r"""
+import { focusAfterDelete, NAV_FALLBACK, NAV_TOGGLE } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = true;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+g.document.body = { name: "body" };
+let drawerOpen = true;     // 手机：抽屉开着时对话区 inert，关着时抽屉 inert
+let collapsed = false;     // 电脑 / iPad：侧栏收起时侧栏 inert
+let mobile = true;
+const sidebarInert = () => (mobile ? !drawerOpen : collapsed);
+const mainInert = () => mobile && drawerOpen;
+const node = (name: string, where: "sidebar" | "main"): any => ({ name, isConnected: true,
+  focus() { if (this.isConnected && !(where === "sidebar" ? sidebarInert() : mainInert())) g.document.activeElement = this; } });
+const frame = { getAttribute: (k: string) => (k === "data-state" ? (collapsed ? "collapsed" : "expanded") : null) };
+let rows: string[] = [];
+const triggers: Record<string, any> = {};
+const sidebar = {
+  closest: (sel: string) => (sel === "[inert]" ? (sidebarInert() ? {} : null) : sel === '[data-slot="sidebar"]' && !mobile ? frame : null),
+  querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })),
+};
+let fallback: any = null;
+let toggle: any = null;
+let composer: any = null;
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  if (sel === NAV_FALLBACK) return fallback;
+  if (sel === NAV_TOGGLE) return toggle;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`, "sidebar")) : null;
+};
+assert.equal(NAV_FALLBACK, "[data-cc-nav-fallback]");
+// 删的是行里「···」打开的：那一行跟着移走，打开处也没了
+const run = async (id: string, main = "elsewhere") => {
+  const opener = node("row-more", "sidebar");
+  g.document.activeElement = g.document.body;
+  focusAfterDelete([id], { el: opener, row: id }, () => main)();
+  opener.isConnected = false;
+  rows = rows.filter((r) => r !== id);
+  await g.sleep(20);
+  return g.document.activeElement?.name ?? "body";
+};
+
+// ① 手机、抽屉开着、搜索只剩一条：删掉落在抽屉的圆形搜索钮（顶栏菜单钮在 inert 的对话区里，以前掉到 body）
+mobile = true; drawerOpen = true; rows = ["a"];
+fallback = node("drawer-search", "sidebar"); toggle = node("menu", "main"); composer = node("composer", "main");
+assert.equal(await run("a"), "drawer-search");
+// ② iPad（触屏）侧栏展开，删掉最后一条可见行：页面上没有展开钮，落在侧栏收起钮
+mobile = false; drawerOpen = false; collapsed = false; rows = ["a"];
+fallback = node("sidebar-toggle", "sidebar"); toggle = null; composer = node("composer", "main");
+assert.equal(await run("a"), "sidebar-toggle");
+// ③ 电脑在定时任务页（没有输入框）删掉侧栏最后一条可见行：落在侧栏收起钮
+touch = false; rows = ["a"]; composer = null;
+assert.equal(await run("a"), "sidebar-toggle");
+// ④ 侧栏看不到（收起，侧栏落点在 inert 里）：照旧落在顶栏展开钮
+collapsed = true; rows = ["a"]; toggle = node("expand", "main");
+assert.equal(await run("a"), "expand");
+// ⑤ 手机抽屉关着（抽屉落点在 inert 里）删当前对话：照旧落在顶栏菜单钮
+touch = true; mobile = true; drawerOpen = false; collapsed = false; rows = ["a"];
+fallback = node("drawer-search", "sidebar"); toggle = node("menu", "main");
+assert.equal(await run("a"), "menu");
+""")
+        host = read("components/delete-chats.tsx")
+        land = host.split("const land = () => {", 1)[1].split("\n  };\n", 1)[0]
+        self.assertLess(land.index("focused(document.querySelector<HTMLElement>(NAV_FALLBACK))"),
+                        land.index("focused(document.querySelector<HTMLElement>(NAV_TOGGLE))"))
+        self.assertLess(land.index("toComposer()"), land.index("NAV_FALLBACK"))
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11RetestBDragTests(unittest.TestCase):
+    """测试窗口第 11 轮重测 B 段（lab 84da6f81，CDP 1024×768 真鼠标、真键盘）：拿起过的拖动按 Esc 取消后在原行上松开打开了对话；
+    会话栏第一张卡「公司」（展开着）空格拿起 ↓ 再空格放下念「已取消移动」、顺序不变。都在共用拖动（drag.tsx）里修，所有拖动处一起好。"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body
+               + "\n(globalThis as any).done();\n")
+
+    def test_a_lifted_gesture_never_ends_in_a_click(self):
+        # 真跑拖动库的鼠标传感器（包了 landFirst）与手机长按传感器：拿起后按 Esc（手机还有转屏、切到后台）取消，按键 / 手指还按着；
+        # 原来拖动库只把点击拦到取消后 50ms，第 11 轮 B14 起挡板又在滑回时撤掉，之后在原来那一行上松开，系统补的点击打开了对话 /
+        # 折叠了组。现在一直拦到松开以后；没拿起就取消、普通点击、下一次按下照常
+        self.run_page(r"""
+import { HoldTouchSensor, LandingMouseSensor } from "@/components/ui/drag";
+const g = globalThis as any;
+const doc: any = new EventTarget();
+doc.visibilityState = "visible";
+doc.documentElement = { dataset: {} };
+doc.getSelection = () => ({ removeAllRanges() {} });
+g.document = doc;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+g.getSelection = () => ({ removeAllRanges() {} });
+const fire = (type: string, extra: any = {}) => {
+  const event = Object.assign(new Event(type, { cancelable: true }), extra);
+  doc.dispatchEvent(event);
+  return event;
+};
+// 系统的 click：在 document 的捕获阶段被拦（拖动库只停传播，这里拦了还取消默认动作），就不会到行、组头上
+const clicked = () => {
+  const event = fire("click");
+  return !(event.defaultPrevented || event.cancelBubble);
+};
+const log: string[] = [];
+const mouse = (beforeCancel: any) =>
+  new (LandingMouseSensor as any)({
+    active: "row:t1", activeNode: { node: { current: null } }, event: { target: new EventTarget(), clientX: 100, clientY: 100 },
+    context: { current: {} }, options: { activationConstraint: { distance: 3 }, beforeEnd: (end: () => void) => end(), beforeCancel },
+    onStart: () => log.push("start"), onMove: () => log.push("move"), onEnd: () => log.push("end"), onCancel: () => log.push("cancel"),
+    onAbort: () => log.push("abort"), onPending: () => {},
+  });
+const escape = () => fire("keydown", { code: "Escape", key: "Escape" });
+
+// 鼠标拿起、拖开 25px、Esc：先滑回再取消；按键还按着
+let back: (() => void) | null = null;
+mouse((cancel: () => void) => { log.push("slide back"); back = cancel; });
+fire("mousemove", { clientX: 100, clientY: 125 });
+assert.deepEqual(log, ["start"]);                     // 动够 3px 拿起
+escape();
+assert.deepEqual(log, ["start", "slide back"]);
+back!();
+await g.sleep(120);                                   // 滑回播完以后很久才松开
+assert.equal(clicked(), false);                       // 松开前（按着往回移）也不算
+fire("pointerup");
+fire("mouseup");
+assert.equal(clicked(), false);                       // 松开紧跟着的那次点击：不打开对话、不折叠组
+await g.sleep(80);
+assert.equal(clicked(), true);                        // 之后的点击照常
+// 没拿起（没动够 3px）就按 Esc：之后松开照常是点击
+log.length = 0;
+mouse(undefined);
+escape();
+assert.deepEqual(log, ["abort", "cancel"]);
+await g.sleep(80);
+fire("mouseup");
+assert.equal(clicked(), true);
+// 拿起后取消、又按下了（下一次手势）：不再拦
+mouse(undefined);
+fire("mousemove", { clientX: 100, clientY: 125 });
+escape();
+await g.sleep(80);
+assert.equal(clicked(), false);
+fire("pointerdown");
+assert.equal(clicked(), true);
+// 拿起后照常放下：拖动库自己把松手后的点击拦掉，过后照常
+mouse(undefined);
+fire("mousemove", { clientX: 100, clientY: 125 });
+fire("mouseup");
+assert.equal(clicked(), false);
+await g.sleep(80);
+assert.equal(clicked(), true);
+
+// 手机：按住拿起后 Esc（外接键盘）/ 转屏 / 切到后台取消，手指还按着：松开那一下同样不当点击
+const touch = (options: any = {}) => {
+  const target = new EventTarget();
+  new HoldTouchSensor({
+    active: "row:t1", event: { target, touches: [{ clientX: 100, clientY: 100 }] }, options: { delay: 10, tolerance: 5, ...options },
+    onStart: () => log.push("start"), onMove: () => log.push("move"), onEnd: () => log.push("end"), onCancel: () => log.push("cancel"),
+    onAbort: () => log.push("abort"), onPending: () => {},
+  } as any);
+  return target;
+};
+log.length = 0;
+let held: (() => void) | null = null;
+touch({ beforeCancel: (cancel: () => void) => { held = cancel; } });
+await g.sleep(30);
+escape();
+held!();
+assert.deepEqual(log, ["start", "cancel"]);
+await g.sleep(120);
+assert.equal(clicked(), false);
+fire("touchend");
+assert.equal(clicked(), false);
+await g.sleep(80);
+assert.equal(clicked(), true);
+// 系统收回了这次触摸（touchcancel）：手势已经结束，不再拦
+const gone = touch();
+await g.sleep(30);
+gone.dispatchEvent(new Event("touchcancel"));
+await g.sleep(80);
+assert.equal(clicked(), true);
+""")
+        drag = read("components/ui/drag.tsx")
+        self.assertIn('export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor, "mouse");', drag)
+        self.assertIn("if (release && self?.activated) blockReleaseClick(release);", drag)
+        self.assertIn('if (cancelled && this.lifted && !tap && !over) blockReleaseClick("touch");', drag)
+
+    def test_release_block_never_outlives_a_release_the_page_cannot_see(self):
+        # 第 11 轮重测 B 段交叉审查：按着鼠标 / 手指切到后台（切标签页、窗口被挡住），拖动库按 visibilitychange 取消，原来照样挂上
+        # 「松开前不当点击」；松开发生在别的页面里，本页收不到 mouseup / touchend，拦截一直不撤——切回来键盘回车 / 空格点按钮被吞、
+        # 输入框打字时光标被清。现在：已在后台就不挂；挂着时切到后台当场撤；鼠标再动时左键已松开就当松开了；键盘激活的点击和
+        # 输入框里的选区一直不管
+        self.run_page(r"""
+import { HoldTouchSensor, LandingMouseSensor } from "@/components/ui/drag";
+const g = globalThis as any;
+const doc: any = new EventTarget();
+doc.visibilityState = "visible";
+doc.documentElement = { dataset: {} };
+doc.activeElement = null;
+let cleared = 0;
+const selection = () => ({ removeAllRanges() { cleared += 1; } });
+doc.getSelection = selection;
+g.document = doc;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+g.getSelection = selection;
+const fire = (type: string, extra: any = {}) => {
+  const event = Object.assign(new Event(type, { cancelable: true }), extra);
+  doc.dispatchEvent(event);
+  return event;
+};
+const clicked = (extra: any = { detail: 1 }) => {
+  const event = fire("click", extra);
+  return !(event.defaultPrevented || event.cancelBubble);
+};
+// 拖动库的鼠标传感器在 window 上听 visibilitychange，本仓的拦截在 document 上听：两边都发
+const hide = () => { doc.visibilityState = "hidden"; fire("visibilitychange"); page.dispatchEvent(new Event("visibilitychange")); };
+const show = () => { doc.visibilityState = "visible"; fire("visibilitychange"); page.dispatchEvent(new Event("visibilitychange")); };
+const log: string[] = [];
+const mouse = () =>
+  new (LandingMouseSensor as any)({
+    active: "row:t1", activeNode: { node: { current: null } }, event: { target: new EventTarget(), clientX: 100, clientY: 100 },
+    context: { current: {} }, options: { activationConstraint: { distance: 3 }, beforeEnd: (end: () => void) => end(),
+      beforeCancel: (cancel: () => void) => { log.push("slide back"); cancel(); } },
+    onStart: () => log.push("start"), onMove: () => log.push("move"), onEnd: () => log.push("end"), onCancel: () => log.push("cancel"),
+    onAbort: () => log.push("abort"), onPending: () => {},
+  });
+const lift = () => {
+  mouse();
+  fire("mousemove", { clientX: 100, clientY: 125, buttons: 1 });
+};
+const escape = () => fire("keydown", { code: "Escape", key: "Escape" });
+
+// 鼠标拿起后一直按着切到后台：拖动库取消（先滑回），松开在别处，切回来以后点击照常（拖动库自己那 50ms 过后）
+lift();
+hide();
+assert.deepEqual(log, ["start", "slide back", "cancel"]);
+show();
+await g.sleep(80);
+assert.equal(clicked(), true);
+assert.equal(clicked({ detail: 0 }), true);
+// 先 Esc 取消、按着再切到后台：拦截当场撤
+log.length = 0;
+lift();
+escape();
+await g.sleep(80);
+assert.equal(clicked(), false);                       // 还按着：照旧拦
+hide();
+show();
+assert.equal(clicked(), true);
+// 松开那一下没传回本页：鼠标再动时左键已松开，就当松开了（松开后 50ms 撤）；按着动照旧拦
+lift();
+escape();
+await g.sleep(80);
+fire("mousemove", { clientX: 90, clientY: 100, buttons: 1 });
+fire("pointermove", { clientX: 90, clientY: 100, buttons: 1 });
+await g.sleep(80);
+assert.equal(clicked(), false);
+fire("mousemove", { clientX: 90, clientY: 100, buttons: 0 });
+assert.equal(clicked(), false);                       // 紧跟着的点击还拦
+await g.sleep(80);
+assert.equal(clicked(), true);
+// 拦着的时候：键盘激活的点击（detail 为 0）照常；焦点在输入框里不清选区，在别处照旧清
+lift();
+escape();
+await g.sleep(80);
+assert.equal(clicked(), false);
+assert.equal(clicked({ detail: 0 }), true);
+cleared = 0;
+doc.activeElement = { tagName: "TEXTAREA", isContentEditable: false };
+fire("selectionchange");
+assert.equal(cleared, 0);
+doc.activeElement = { tagName: "DIV", isContentEditable: true };
+fire("selectionchange");
+assert.equal(cleared, 0);
+doc.activeElement = { tagName: "BUTTON", isContentEditable: false };
+fire("selectionchange");
+assert.equal(cleared, 1);
+fire("mouseup");
+await g.sleep(80);
+assert.equal(clicked(), true);
+doc.activeElement = null;
+
+// 手机：按住拿起后切到后台（visibilitychange 取消）：手指在别处松开，切回来以后点击照常
+const target = new EventTarget();
+log.length = 0;
+new HoldTouchSensor({
+  active: "row:t1", event: { target, touches: [{ clientX: 100, clientY: 100 }] }, options: { delay: 10, tolerance: 5 },
+  onStart: () => log.push("start"), onMove: () => log.push("move"), onEnd: () => log.push("end"), onCancel: () => log.push("cancel"),
+  onAbort: () => log.push("abort"), onPending: () => {},
+} as any);
+await g.sleep(30);
+hide();
+assert.deepEqual(log, ["start", "cancel"]);
+show();
+await g.sleep(80);
+assert.equal(clicked(), true);
+""")
+
+    def test_keyboard_moves_follow_the_list_order_whatever_the_heights(self):
+        # 会话栏：「公司」展开着 300 高，下一张「本月」收着 44 高。拖动库按「底边对齐下一张」挪浮层，再按最近中心找落点：浮层中心
+        # 离原位（它自己）比离「本月」还近，算回它自己，放下念「已取消移动」。现在 ↑ ↓ 按这一列的先后换瞄准的那一项，落点就是它
+        self.run_page(r"""
+import { closestCenter } from "@dnd-kit/core";
+import { keyboardAim, keyboardCollision, keyboardSlot } from "@/components/ui/drag";
+const order = ["company", "month", "notes", "folders"];
+const H: Record<string, number> = { company: 300, month: 44, notes: 44, folders: 44 };
+const rects = new Map<string, any>();
+let top = 0;
+for (const id of order) {
+  rects.set(id, { top, left: 0, width: 240, height: H[id], right: 240, bottom: top + H[id] });
+  top += H[id]! + 8;
+}
+const pool = order.map((id) => ({ id, key: id, data: { current: {} }, disabled: false, node: { current: null }, rect: { current: null } })) as any;
+const box = (y: number, h: number) => ({ top: y, left: 0, width: 240, height: h, right: 240, bottom: y + h });
+
+// 「公司」空格拿起、↓：瞄「本月」，浮层底边对齐「本月」的底边
+const aim = keyboardAim(order, "company", "company", true);
+assert.equal(aim, "month");
+const y = keyboardSlot(order, "company", aim!, (id) => rects.get(String(id)), 300);
+assert.equal(y, 308 + 44 - 300);
+// 原来按最近中心算：还是它自己（这就是测试窗口看到的「已取消移动」）
+const near = closestCenter({ active: { id: "company" } as any, collisionRect: box(y!, 300), droppableRects: rects as any,
+                             droppableContainers: pool, pointerCoordinates: null });
+assert.equal(near[0]!.id, "company");
+// 现在落点就是瞄着的那一项：放下放在第 2 位
+assert.equal(keyboardCollision(pool, "company", aim)[0]!.id, "month");
+// 再 ↓ 一格、↑ 回来、回到原位、到头不动
+assert.equal(keyboardAim(order, "company", "month", true), "notes");
+assert.equal(keyboardSlot(order, "company", "notes", (id) => rects.get(String(id)), 300), 360 + 44 - 300);
+assert.equal(keyboardAim(order, "company", "month", false), "company");
+assert.equal(keyboardSlot(order, "company", "company", (id) => rects.get(String(id)), 300), 0);
+assert.equal(keyboardAim(order, "company", "company", false), null);
+assert.equal(keyboardAim(order, "folders", "folders", true), null);
+// 往前挪：顶边对齐那一项的顶边（「知识库」↑ 到第 2 位）
+assert.equal(keyboardAim(order, "notes", "notes", false), "month");
+assert.equal(keyboardSlot(order, "notes", "month", (id) => rects.get(String(id)), 44), 308);
+// 瞄着的那一项不在了（拖着时列表变了）：从它自己接着算；落点退回它自己
+assert.equal(keyboardAim(order, "notes", "gone", true), "folders");
+assert.equal(keyboardCollision(pool, "notes", "gone")[0]!.id, "notes");
+assert.deepEqual(keyboardCollision([], "notes", "month"), []);
+""")
+        drag = read("components/ui/drag.tsx")
+        area = drag.split("export const DragArea: FC<AreaProps> = (", 1)[1]
+        self.assertIn("if (keyedRef.current) return keyboardCollision(pool, args.active.id, keyAim.current);", area)
+        self.assertIn("const target = keyboardAim(order, activeId, keyAim.current, down);", area)
+        self.assertIn("keyAim.current = active.id;", area)
+        self.assertIn("keyAim.current = null;", area.split("  const finish = () => {", 1)[1].split("\n  };", 1)[0])
+        self.assertNotIn("sortableKeyboardCoordinates,", drag)   # 不再用拖动库的按几何找下一项
 
 if __name__ == "__main__":
     unittest.main()

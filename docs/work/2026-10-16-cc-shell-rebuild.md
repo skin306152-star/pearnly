@@ -552,3 +552,118 @@
 - 尾巴建起来时通道还没连上（首次打开页面时 socket.io 正在握手）也按重连处理：第一次连上开缺口并马上补拉一次，这次补拉回来之前推来的先压着（多一次请求、首屏回复可能晚一个补拉来回）。
 - 手指滑动以挪动超过 10px 判定，不区分方向（横向滑动同样交还）。
 - 都只在本机打包脚本（esbuild + node，浏览器接口是桩）里验证；真机（A14、iPad）与测试机复测、推送、合并都还没做。
+
+## 10-17 第 11 轮重测 A 段
+
+测试窗口在 lab `84da6f81`（真引擎；电脑内置浏览器 + 手机 A14 的 CC 应用）重测 A 段，卡片状态全部通过，新报两个问题。证据在 `~/pearnly-devtools/test-window/round11b/`（`a4b`、`a4c`、`a5`、`a6`、`a6b`、`a6c`）。
+
+### 1. 点「允许」后立刻点停止，停止报 500
+
+- 现象：4/4 复现 `interrupt` 返回 500 `{"exc_type":"QueryDeadlockError"}`，停止比确认早约 240ms 发出（确认攒 250ms 一批）。第一次输入框上方出现「出了点问题，请重试。」、停止钮消失；事件里照样有 `agent.tool_result`（interrupted）→ `user.interrupt` → `end_turn`，这一轮其实停了。不与确认同时发的停止都是 200。
+- 根因：不是两把锁互等，是 MariaDB 11.8 的快照隔离（REPEATABLE READ + `innodb_snapshot_isolation`，Frappe 把 1020 也抛成 `QueryDeadlockError`）。停止的请求一开头 `owned()` 读会话行就有了读快照；交引擎 `user.interrupt` 要几百毫秒，这期间点「允许」的请求在 `decide` 里把那条执行记录抢成 running 并提交；`cancel_waiting` 再按旧快照查出它「还在等」、去 `UPDATE` 它 → 改一条快照之后被别处提交改过的行 → 1020。反过来（先停止作废、确认请求按旧快照抢占）同样会撞。
+- 锁的核对：`decide` 的抢占只锁这一条执行记录并马上提交；`_finish` 以前在同一个事务里先拿工具自己写的表的锁、再写执行记录；`cancel_waiting` 每条只锁一条；推送线程记会话行（`context.active(wait=False)`）是 SKIP LOCKED、记输入量是按会话编号改一行。没有交叉等待的环，但每处都可能按旧快照撞 1020。
+- 改法（`toolrun.py` 文件头「锁与快照」）：
+  - `cancel_waiting`：先结束调用方的读快照，读出候选后马上再结束；每条一个短事务，第一句 `SELECT … FOR UPDATE SKIP LOCKED` 当前读——正被点「允许 / 拒绝」抢占、锁着的跳过（归那边），已不在等的不算，个别仍撞 1020 / 死锁的回滚跳过；不等锁。
+  - `sessions.interrupt`：`user.interrupt` 交给引擎之后，作废出错回滚、`log_error`，不回 500（推送线程收尾时还会再作废一次）。
+  - `decide`：抢占前先结束快照再读；改的那一句撞上 `QueryDeadlockError` 回滚、算没抢到（`confirm` 回此刻的状态），不报 500。
+  - `_finish`：工具自己写的先提交，执行记录另起短事务写，执行记录的行锁不与工具的锁同时持有。
+  - `execute`：登记前先结束快照；推送线程与页面兜底同时登记撞上 1020 按重复处理（同 `DuplicateEntryError`）。
+
+### 2. A6 手机出卡慢 7–21 秒
+
+- 现象：手机收到推来的 `agent.custom_tool_use` 后不立刻调 `run_tool`，要等下一次 `events?after=` 补拉回来后 0.08 秒内才发；推送连着时补拉间隔 21–31 秒；A6b 那次 21 秒里既没补拉也没 `run_tool`，卡片一直没出。
+- 根因（服务端，按推送记录推断：没 SSH 看 web 进程输出）：三次的推送记录里都没有「停下来等工具」那条 `session.status_idle`（requires_action）——推送帧全量记着（都含 `pearnly`），`end_turn` 的 idle 都推到了。推送线程一开头 `set_user` / 读会话行就有了读快照，随后发消息的请求 `context.active` 改了同一行并提交；智能体一上来就调工具（前面没有回复正文，`_active` 那步不会先回滚换快照）时，线程第一次写库是 `span.model_request_end` 的记输入量 `context.note`，按旧快照改这一行撞 1020，没有兜住，异常打断事件流；引擎此刻已停下等工具（状态不是 running）就收线。于是 requires_action 推不出去、工具也不在服务端执行。之后点「允许」（`confirm`）或页面兜底 `run_tool` 里的 `relay.ensure` 才起了新线程，推送续上——与 a6 / a6b / a6c 里推送恢复的时刻对得上。前端本身在任何一次并入后都会当场提醒（`fold → queueAnswers`），推来 requires_action 时不等补拉；只是这条一直没推来，只能等补拉带回。
+- A6b 为什么 21 秒里没补拉：手机空闲时排下的补拉在 30 秒后（`PUSHED_IDLE_MS`）；推来的 `session.status_running` 只改「在跑」标记、不重排已排好的那次，别的设备上发起的一轮（本页没有 `nudge`）第一次补拉照旧等到 30 秒到期。
+- 改法：
+  - 服务端 `relay.py`：写库前先结束线程的旧快照（`_fresh`）；记输入量（`_note`）、记最后活动时间（`_active`）、执行工具（`_execute`）都是附带的，出错回滚、只记类型，事件流照常转发；流出错重接前也回滚。
+  - 前端 `poll-source.ts`：推来或补拉到 `session.status_running`（在跑从无到有）时，已排的补拉比在跑的间隔（8 秒）晚就提前到 8 秒（`hasten`，按 `dueAt`）。
+  - 前端 `session-controller.ts`：`answerPendingCustomTools` 页面在后台时不发（服务端推送线程自己执行）；回到前台（`onwake`）当场补上一次。推来、补拉、缺口放出的压着的推送、读回的状态，并入后只要出现欠着的调用都当场提醒，同一次调用在途、答过的不再发（原有去重与退避不变）。
+
+### 测试
+
+- `test_assistant` 新增 `StopRaceTests`（8 条）：按 MariaDB 11.8 行为写的假库（读快照、改快照后被提交过的行报 1020、别的事务锁着的行 SKIP LOCKED 跳过、要等锁直接判失败）——假库本身对旧写法报 1020；确认先提交后作废不报错、那张卡归确认；被锁的卡跳过不等锁、别的照常作废；一条撞死锁回滚、其余照常；作废后的旧快照确认答「不在等」、读后改前被改同样不报错；作废抛错时停止照样返回（先交了 `user.interrupt`、回滚、记日志）；源码断言锁顺序（作废先回滚再读、每条 SKIP LOCKED；抢占先回滚、改的那句在 try 里；`_finish` 先提交再写执行记录；推送线程写库前 `_fresh`、主循环不再直接 `context.note`）；推送线程在旧快照下照样推出 requires_action、照样执行工具，记输入量与执行工具抛错时照样推完。旧作废测试的三个假库补了 `rollback` 与逐条锁定读。
+- `test_cc_run_indicator` 新增 4 条：推来 custom_tool_use + requires_action 当场一次 `run_tool`、补拉不是前提、重复推来 / 回前台读状态 / 补拉都不再发；缺口压着时不发、补拉放出时一次；页面在后台不发、回到前台一次；空闲时的 30 秒补拉在推来开跑后重排为 8 秒、已在跑不再重排。
+- `tsc`、`check-architecture`、`i18n-build --check`，`test_assistant`、`test_assistant_ui`、`test_cc_run_indicator`、`test_cc_mobile_content`、`test_cc_session_panel`（437 条）通过；另跑 `test_assistant_entry`、`test_cowork_assistant_tools` 通过。
+
+### 还缺
+
+- 问题 2 的服务端根因是按推送记录推断的，没看 web 进程输出（`assistant relay …: QueryDeadlockError` 那行）；要测试窗口在 lab 换上本提交后复测 A4 / A6：停止应 200、手机推来 requires_action 后 1 秒内出卡、推送里应能看到 requires_action 的 idle。
+- `sessions.send` 里 `api.post` 之后的 `context.active` 同样按请求开头的快照改会话行，期间别的请求（补拉记输入量、推送线程）提交过这一行时理论上也会 1020（消息已发出却回 500）；这次没有现象，没动。
+- 真机（A14）与测试机复测、推送、合并都还没做。
+
+## 10-17 第 11 轮重测 E 段
+
+测试窗口在 lab `84da6f81`（手机 A14；电脑布局用手机 CDP 模拟；真电脑键盘焦点在电脑浏览器测）重测 E 段，停止相关全部通过，新报 6 处。证据在 `~/pearnly-devtools/test-window/round11b/`（`e24`–`e30`、`g33`、`g34`、`g37`）。本地另用 esbuild 把真实运行时、对话组件与整页（`Assistant`，站点接口与实时通道打桩）打成页面，在内置浏览器里复现核对（临时文件，已删）。
+
+### 1. 只带附件的消息发送断在路上：读数里缩略图没放回（e26c）
+
+- 现象：1.3 秒出原因、`tiles=0`；1.6 秒回声到、原因消失。纯文字、文字加图正常。
+- 核对：数据上没有放回失败。用组件库自己的输入框 + 本站附件适配器（node 与真浏览器各一遍，手机视口）走同一流程：失败时附件按原编号放回（`complete`），回声到了与原因一起撤。差别在渲染：原因行（`useSyncExternalStore`）在第一次提交就画出，输入框附件块要组件库附件列表多一轮渲染才出来（实测原因出现那一刻 0 块、下一个任务 1 块）；e26c 失败后紧接着读的那一次正好落在两次渲染之间，约 0.3 秒后回声到达按设计撤掉。纯文字的字随第一次提交画出，所以「放回、回声撤」都读得到。
+- 处理：代码不改；`test_cc_run_indicator` 加一条用真实输入框与附件适配器的守护测试（放回同一编号、原因写出、回声到后一起撤、不发第二遍）。这条改前也通过——不是复现。复测时请在失败后多读几次（或用 MutationObserver 记缩略图出现的时刻），并让回声晚到（例如服务端收下前加延迟）再看。
+
+### 2. 侧栏搜索后删掉结果里最后一条，焦点落到 body
+
+- 本地真实整页（公司分组、搜索、分页加载、触屏、删当前与非当前）都落到上一条，没能复现；从代码看，「下一条」只取一条、聚焦不上就直接回打开它的地方（行已删）→ 触屏不进输入框 → body，任何让那一条聚焦不上或随后被重画换掉的情况都会掉到 body。
+- 改法（`delete-chats.tsx`）：`rowsAfterDelete` 给出先后（删掉的之后各条近的先，再之前各条近的先），只取侧栏里眼前的行（不占位置的不算），一条聚焦不上就试下一条；落到一行后看 30 帧，那一行被重画换掉、焦点掉到 body 就按行号找回，焦点被挪到别处就不管。
+- 测试：`test_assistant_ui` 新增 `test_focus_after_a_delete_follows_the_rows_in_view_and_survives_a_redraw`（搜索结果后挂着看不到的行时到上一条、近的聚焦不上试下一条、重画后找回、用户挪走不拉回），改前失败；`test_focus_after_a_delete_skips_a_sidebar_that_cannot_be_seen` 的 ③ 改为「下一条聚焦不上先试上一条，都不行才回打开处」（有意的行为变化）。
+
+### 3、4. 触屏删当前对话、打开处已不在：焦点在 body
+
+- 手机抽屉关着从右上「…」删、iPad（1180×820 触屏）侧栏收起时从顶栏「对话选项 ···」删：回到新对话页，打开它的按钮随之卸下，侧栏看不到，触屏不进输入框，原来就掉到 body。触屏删当前对话原来不等组件库切到新对话，先落在「…」上随即被卸下。
+- 改法：删的是正开着的对话一律等切到新对话再放（不只电脑）；都放不上时落在顶栏导航钮 `cc-nav-toggle`（手机顶栏菜单钮、侧栏收起时对话区顶栏的展开钮、桌面端标题栏收起时的那一份侧栏开关），看得见、不弹键盘。电脑（非触屏）在对话页照旧进输入框。
+- 本地整页核对：iPad 情形（触屏、侧栏收起、标题栏「对话选项」删当前）落在展开钮；侧栏展开时到下一条。手机情形同一路径，复现页没装手机外壳变体，只在单测里核对。
+- 测试：`test_deleting_the_open_chat_on_touch_lands_on_the_top_bar_toggle`（手机→菜单钮、iPad→展开钮、电脑→输入框、侧栏看得到→下一条），改前失败。
+
+### 5. 电脑上收起侧栏后，行还能聚焦、Tab 走进看不见的侧栏
+
+- 改法（`components/ui/sidebar.tsx`）：收起（offcanvas）时 `sidebar-container` 整块 `inert`，展开恢复；收起那一刻焦点在侧栏里（点侧栏里的收起钮、行上按 ⌘B）交给顶栏展开钮，不随 inert 掉到 body。展开钮在对话区顶栏、⌘B 挂在 window 上，都不受影响；手机抽屉照旧 inert。
+- 本地整页核对：⌘B 收起后 `inert=true`、行 `focus()` 不上、焦点在展开钮；点展开钮后恢复可聚焦。
+- 测试：`test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar`（源码断言），改前失败。
+
+### 6. 断网超过 30 秒，顶部「正在重新连接…」第 30 秒起自己消失（g34）
+
+- 根因：不是看门 `reconnect()` 清掉了出错状态（它不动 `transportError` / `isTailing`，新尾巴第一次补拉失败照旧报错）。是 `turn.ts` 的 `showsReconnecting` 在这一轮卡住（`stalled`）时按 F5 的设计不说，把位置让给状态行的「连接中断，正在重连…」；g34 的 `len` 在第 30 秒少 2 个字正是状态行换成了这句。测试窗口的读数只认「正在重新连接」。
+- 改法：顶部这一行只看连接本身（补拉出错、尾巴没连上、引擎在重试），卡住时照旧说，联网、补拉成功才收起。断网超过 30 秒时顶部与状态行会同时说（「正在重新连接…」「连接中断，正在重连…」），不新增文案；卡住而连接看着是好的（引擎慢）时仍只有状态行说。
+- 测试：`test_cc_run_indicator` 新增 `test_the_top_line_stays_while_the_network_is_down_past_the_stall`（断网、推送断开、补拉失败，看门重开后顶部一直在、状态行是「连接中断」，联网后两处收起），改前读数 `1 1 1 1 1 1 0s 0s …`；`test_the_top_line_only_says_reconnecting_in_the_page_language` 里「卡住时顶部不说」改成「照旧说」。
+
+### 检查
+
+- `tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-architecture`、`i18n-build --check`，`test_assistant`、`test_assistant_ui`、`test_cc_run_indicator`、`test_cc_mobile_content`、`test_cc_mobile_overlays`、`test_cc_session_panel`、`test_cc_ccs` 通过。
+
+### 还缺
+
+- 第 1 条判断为读数时机，没有真机证据；第 2 条没在本地复现出 body，改法是加固，需要测试窗口在 lab 换上本提交后按原步骤复测。
+- 第 3 条手机路径只在单测里核对。真机（A14、iPad）、电脑键盘 Tab 走查、推送、合并都还没做。
+## 10-17 第 11 轮重测 B 段
+
+测试窗口在 lab `84da6f81` 上重测 B 段（CDP 模拟 1024×768，真鼠标、真键盘；证据 `~/pearnly-devtools/test-window/round11b/b13*.log`、`b12*.log`）报的两处，都在共用拖动 `frontend/assistant/src/components/ui/drag.tsx` 里修，所有拖动处（侧栏对话行、置顶行、公司组头、会话栏卡片；鼠标、手机）一起好。分支 `pearnly/cc-drag-b11b`（从 `pearnly/cc-shell-rebuild` `84da6f81` 开出），本地提交、未推送、未合并。
+
+1. **拿起后 Esc 取消、回原行松开打开了对话**
+   - 现象：鼠标拿起侧栏「ใบ SD-6909-1011」拖开 25px，按 Esc，再在原行上松开，就打开了这段对话（在别的行上松开不开）。
+   - 根因：拖动库的指针传感器拿起后把 click 拦在 document 捕获阶段，Esc 取消时连同 mousemove / mouseup 监听一起摘掉，click 只再拦 50ms；第 11 轮 B14 起浮层不接指针，挡板 `.cc-drag-shield` 在起播滑回那一帧画完就撤（不在原组时 `releaseDrag("keep")` 推迟到挪回原组、起播滑回时再撤，结果一样），之后松开落在原来那一行上，按下与松开同一行，浏览器照常补一次 click（在别的行上松开时 click 落在两行共同的上层，所以不开）。挡板撤得早晚只决定松开落在谁身上，根子是取消以后这次手势剩下的部分没人管。手机长按传感器同样：拿起后 Esc（外接键盘）、转屏、切到后台取消时手指还按着，松手那一下照样补点击。
+   - 改法：新增 `blockReleaseClick(kind)`：拿起过、按键 / 手指还没松开就取消了，一直拦到松开（`mouseup` / `pointerup`；手机 `touchend` / `touchcancel`）后 50ms（同拖动库松手后拦点击的时长），又按下（`pointerdown`，下一次手势）当场不拦；这段时间同拖动中一样不选中文字、不起系统拖放（复刻页里取消后按着往回移会选中经过的行字）。鼠标在 `landFirst(MouseSensor, "mouse")` 的取消里调（只在拖动库记了 `activated`，没拿起就按 Esc 照常是点击）；手机在 `HoldTouchSensor.finish` 里调（`touchcancel` 单独走 `gone`：手势已经结束，不拦）。拦截用自己的一份处理函数：长按传感器拿起时也挂了同一个 `stopClick`，同函数同捕获浏览器只认一份，它取消后 50ms 摘自己那份会把这里的一起摘掉（测试里查出来的）。挡板的撤法不动（撤早是 B14 为长帧定的）。普通点击、拿起后原地放下、手机点按（拿起后没动、没到菜单时间就松手，照旧补点击）都不变。
+2. **会话栏第一张卡「公司」空格拿起 ↓ 再空格放下念「已取消移动」**
+   - 现象：「公司」（展开着）空格拿起、↓、空格，念「已取消移动「公司」。」、顺序不变，连续两次都这样；Alt+↓ / ↑ 正常，别的卡空格拖正常。
+   - 根因：键盘坐标与落点都按几何远近算。拖动库的 `sortableKeyboardCoordinates` 往下挪时把浮层的底边对齐下一张的底边，落点再按最近中心（`closestCenter`）找；「公司」展开着很高（复刻页 300），下一张「本月」收着（44），挪过去以后浮层中心离原位（它自己）52、离「本月」108，算回它自己，放下就是「没动」。高差的一半大于下一张高加间距就会这样，所以只有展开着的高卡往矮卡方向拖出事；和是不是第一张、尺寸观察器、`FlowAreaContext` / settle 无关（会话栏没有整列滑动，尺寸观察照常开着，量到的高度是对的）。Alt+↑/↓ 不经过拖动库，不受影响。旧算法还会让矮卡往高卡方向挪时跳格（复刻页「知识库」排在首位、下面是高卡，按 ↓ 第一下就跳过高卡念「第 3 位」，新版依次 2、3、4）。
+   - 改法：键盘拖动不再按几何找。`keyboardAim` 按这一列的先后（排序项的 `items`，只取看得见、能放的）一格一格换「瞄着的那一项」（拿起时是它自己，到头不动）；`keyboardSlot` 把浮层挪到挪过去以后它在的位置（往后底边对齐、往前顶边对齐、回原位是它自己的版面位置，同拖动库的对齐法）；碰撞在键盘拖动时直接回瞄着的那一项（`keyboardCollision`，不在能放的各处里退回它自己）。拿起、结束时清掉。侧栏组里的行、置顶行、公司组头、会话栏卡片的键盘拖动都走这一份；左右方向键照旧不动（只吞掉默认动作）。
+
+测试（改前都失败：把 `drag.tsx` 换回 `84da6f81` 跑过）：
+- `test_assistant_ui.Round11RetestBDragTests.test_a_lifted_gesture_never_ends_in_a_click`：真跑拖动库的鼠标传感器（包 `landFirst`）与手机长按传感器——拿起后 Esc、滑回播完很久才松开，松开前后的 click 都被拦、松开 50ms 后照常；没拿起就 Esc 照常是点击；取消后又按下不再拦；照常放下由拖动库拦；手机 Esc 后同样，`touchcancel` 不拦。改前在「松开紧跟着的那次点击」处失败。
+- `test_assistant_ui.Round11RetestBDragTests.test_keyboard_moves_follow_the_list_order_whatever_the_heights`：300 / 44 / 44 / 44 的四张卡，↓ 瞄「本月」、浮层位置、拖动库 `closestCenter` 在那个位置算回它自己（记下根因）、新碰撞回「本月」；再 ↓、↑ 回原位、到头不动、往前顶边对齐、瞄着的项不在了的退路。
+- 改写 3 条源码断言（`landFirst` 的取消接线、键盘候选的写法、`LandingMouseSensor` 带 `"mouse"`）。
+- 复刻页（esbuild 打包真 React + 本仓 `drag.tsx`，无界面 Chrome、CDP 真鼠标与真键盘，`84da6f81` 与本次同一脚本对照）：旧版 Esc 后原行松开打开 r2（停 0.5 秒、30ms 都开），新版不开；原行外松开两版都不开；拖动后原地放下、普通点击两版一致（不开 / 开）。高卡空格 ↓ 空格：旧版「cancelled」顺序不变，新版「moved 2/4」「dropped 2/4」移到第 2 位；↑ 回原位、矮卡 ↑ 两格、连按 ↓ 到底、对话行空格 ↓ 都对。复刻页在同一个无界面 Chrome 里连做几次鼠标 Esc 拖动后，下一次按下移动会卡住不出帧（两版一样，换新浏览器即正常），判为无界面模式的毛病，没在真机上见过，没查下去。
+- `tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-architecture`，`test_assistant_ui`（209）、`test_cc_session_panel`（25）、`test_cc_ccs`（23）通过。
+
+已知限制：只在本机测试脚本与复刻页里验证；测试机 lab 复测（真侧栏、真会话栏，鼠标 / 键盘 / 手机）、推送、合并都还没做。
+  - 审查后补修（交叉审查 1 条，开发窗口接手完成）：拖动中切到后台被取消时，松开发生在别的页面、本页收不到 mouseup / touchend，「松开前不当点击」的拦截原来一直不撤，切回来键盘回车 / 空格点按钮被吞、输入框打字时光标被清。改为：已在后台就不挂；挂着时切到后台当场撤；鼠标再动时左键已松开就当松开了；键盘激活的点击（detail 为 0）与输入框里的选区一直不管。测试 `test_release_block_never_outlives_a_release_the_page_cannot_see`（修前失败、修后通过）。
+- 10-17 第 11 轮重测：拖动收菜单那一帧的整页样式失效（A14 失效追踪 trace，测试窗口抓、开发窗口分析）：
+  - 根因：globals.css 手机连接提示那条规则写成 `[data-slot="cc-status"]` 后接「任意兄弟」再找对话滚动区。浏览器按属性名给兄弟关系建失效集合，兄弟部分是通配，于是 body 下带 data-slot 的常驻节点（拖动层、拖动播报区）前后只要有节点增删——长按菜单、弹窗的 portal 挂上卸下——整棵 body 子树都判为失效。A14 收菜单那一帧一次重算 570–752 个元素、约 40ms，又被拖动库 useRect 的 body 观察器同步算掉。之前怀疑的 `:has(:focus-visible)` 等规则只让单行子树失效，不是元凶。
+  - 改法：规则改成按类名的紧挨兄弟 `.cc-mmain .cc-status + .cc-thread-slot [data-slot="aui_thread-viewport"]`（连接提示与对话外层各加一个类名）；body 下的拖动层改用类名 `cc-drag-layer`、拖动播报区改用类名 `cc-move-live`，都不再带 data-slot（兜底）。视觉不变：有连接提示时对话滚动区不重复留顶栏位置，没有时照常。测试锁住样式表里不再有「data-slot 做键 + 通配兄弟」的写法。
+  - 分析在合成页上对照过（同版本 CSS、867 个元素）：原写法删一个 body 下的 portal 重算 860 个元素，改后 0–2 个。A14 真机复测还没做（下一次同步 lab 后测试窗口量收菜单那一帧）。侧栏收起那条同类写法（`[data-slot="sidebar"][data-state="collapsed"] ~ …`）只带出 2 个元素，没改。
+  - 拖动的另外两项（拖动中菜单先藏后卸、组头菜单位置预算）放到第 12 轮与自写拖动一起做：前者省的主要是拖动库 body 观察器的同步量框，换掉拖动库后不再存在。
+- 10-17 第 11 轮 E 段补审（b43d5e30 的独立审查，两名核实者都同意的两处，分支 `pearnly/cc-focus-fixes`，从 cc-shell-rebuild d70f7f00 开出）：
+  - 侧栏展开后焦点掉到 body（b43d5e30 引入的回归）：收起时焦点交给顶栏展开钮，但展开钮只在收起时才有，展开当次就卸下（⌘B 收起再 ⌘B 展开、在展开钮上按 Enter / 空格）。改为收起时记下交出焦点的那一处（侧栏行再记行号），展开那一刻只在焦点已掉到 body / 已卸下的元素上时才拿回：回到原来那一行（收起期间行被重画按行号找回），找不到落在侧栏的收起钮，再没有就是侧栏里第一个能聚焦的；用户展开期间自己放到别处的焦点不动；只在收起 / 展开那一刻交接，首次挂上不动焦点。交接逻辑放到新文件 `lib/sidebar-focus.ts`，`components/ui/sidebar.tsx` 的那段 layoutEffect 调它。
+  - 侧栏 / 抽屉看得到但删完一行不剩时焦点掉到 body（手机抽屉开着搜索只剩一条、iPad 侧栏展开删最后一条可见行、电脑在定时任务 / 公司 / 待处理页删最后一条可见行）：落点只剩顶栏导航钮，而它此时不在或在 inert 里。给侧栏 / 抽屉里一直在、不弹键盘的那一颗统一标 `data-cc-nav-fallback`（网页侧栏标题区收起钮、桌面端侧栏标题栏里的侧栏开关、手机抽屉顶部的圆形搜索钮；网页收起钮的 `data-slot="cc-sidebar-toggle"` 不改，globals.css 按它定尺寸），`delete-chats.tsx` 的 land() 在顶栏导航钮之前先试它；看不到的那份在 inert 里聚焦不上，自然落到顶栏导航钮。不为了放焦点去关抽屉或切页面。展开时拿回焦点的兜底也用同一个标记。
+  - 测试：`test_expanding_the_sidebar_gives_focus_back`、`test_deleting_the_last_visible_row_lands_on_the_sidebar_fallback`（修前失败、修后通过），`test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar` 随新结构改断言。`tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-frontend-i18n`、`check-architecture`，`test_assistant_ui`、`test_cc_mobile_overlays`、`test_cc_session_panel`、`test_cc_ccs`（合计 289）通过。
+  - 已知限制：只在本机测试脚本（桩出来的焦点与 inert）里验证，没在真浏览器 / 测试机 lab 上按 ⌘B、读屏实测；没推送、没合并。
+- 10-18 已部署生产：main `ec90fdfc`，镜像 `sha256:ebba5a40…`，见 [2026-10-18-release-ec90fdfc.md](2026-10-18-release-ec90fdfc.md)。

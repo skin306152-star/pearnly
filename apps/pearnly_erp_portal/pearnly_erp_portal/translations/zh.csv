@@ -988,6 +988,7 @@ The company used for new documents and for the company profile page,新建单据
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The discount exceeds the line amount,折扣超过该行金额
 The discount exceeds the total,折扣超过合计
+The file could not be saved. Please try again shortly.,文件暂时保存不了，请稍后再试
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
 The opening stock amount is too large,期初库存金额过大
