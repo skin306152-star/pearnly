@@ -15,10 +15,16 @@
 商品单（没声明入账类型时推送交人，`push.express.posting_profile`）这家公司选「走库存 / 记费用」，键 ``goods_posting|<公司身份>``
 （公司身份同 `companies.identity.company_identity` 的 ``key``），值 ``stock`` / ``service``。没选过的照旧交人；怎么用见
 `push.express.goods_posting`。
+
+同一份存储还记**真有两份同期账套时哪份是现用的**（数字会计员第 3 期，用户 2026-10-17「按公司问一次」）：按日期选账套
+（`targets.account_match.for_day`）选出多份时，这家公司、这组分店、本年或次年段、这一组候选问一次，键
+``current_book|<公司身份>|<分店>|<cy 或 ny>|<候选账套键排序后的 sha1 前 12 位>``，值是选中的规范账套键。候选组合在键里：
+新建了账套、组合变了就是另一个键，重新问，旧选择不会把新一年的单推进旧账套。没选过的照旧停下；怎么用见 `companies.current_book`。
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional
+import hashlib
+from typing import Any, Dict, Iterable, Mapping, Optional
 
 from pearnly_core.tax_documents.amounts import digits, money, repaired_tax_id, valid_tax_id
 
@@ -33,6 +39,10 @@ WARNING_PREFIX = "document_policy:"
 GOODS_POSTING = "goods_posting"
 GOODS_POSTING_VALUES = ("stock", "service")
 GOODS_POSTING_KEY_MAX = 240
+# 两份同期时现用的那份（见文件头）：键 ``current_book|<公司身份>|<分店>|<cy / ny>|<候选摘要>``，值是规范账套键
+CURRENT_BOOK = "current_book"
+CURRENT_BOOK_PARTS = ("cy", "ny")
+BOOK_KEY_MAX = 500  # 同 `targets.identity.normalize_express_account_key` 的上限
 
 
 def _not_invoice(fields: Mapping[str, Any]) -> bool:
@@ -86,15 +96,40 @@ def goods_posting(policy: Mapping[str, str], company: Any) -> Optional[str]:
     return value if value in GOODS_POSTING_VALUES else None
 
 
+def _book_keys(candidates: Iterable[Any]) -> list:
+    return sorted({str(item or "").strip() for item in candidates or () if str(item or "").strip()})
+
+
+def current_book_key(company: Any, branch: Any, part: Any, candidates: Iterable[Any]) -> str:
+    """一组同期候选账套（调用方给规范账套键）问「哪份是现用的」的键；公司身份为空、候选不到两份、段不是本年 / 次年、
+    键太长回空串（不记，照旧停下）。"""
+    company, branch, keys = str(company or "").strip(), str(branch or "").strip(), _book_keys(candidates)
+    if not company or part not in CURRENT_BOOK_PARTS or len(keys) < 2 or "|" in branch:
+        return ""
+    digest = hashlib.sha1("\n".join(keys).encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
+    key = f"{CURRENT_BOOK}|{company}|{branch}|{part}|{digest}"
+    return key if len(key) <= GOODS_POSTING_KEY_MAX else ""
+
+
+def current_book(policy: Mapping[str, str], key: Any, candidates: Iterable[Any]) -> Optional[str]:
+    """这一组候选里选过的现用账套（规范账套键）；没选过、或选的已不在候选里回 None。"""
+    value = (policy or {}).get(key) if key else None
+    return value if isinstance(value, str) and value in _book_keys(candidates) else None
+
+
 def _known(key: Any, value: Any) -> bool:
     if key in POLICY_CLASSES:
         return value in VALUES
-    return (isinstance(key, str) and key.startswith(GOODS_POSTING + "|") and len(key) <= GOODS_POSTING_KEY_MAX
-            and value in GOODS_POSTING_VALUES)
+    if not isinstance(key, str) or len(key) > GOODS_POSTING_KEY_MAX:
+        return False
+    if key.startswith(GOODS_POSTING + "|"):
+        return value in GOODS_POSTING_VALUES
+    return (key.startswith(CURRENT_BOOK + "|") and isinstance(value, str)
+            and 0 < len(value) <= BOOK_KEY_MAX and value == value.strip())
 
 
 def normalize(raw: Any) -> Dict[str, str]:
-    """存着的口径 → 只留认得的类别与取值（含按公司记的商品单入账方式）。"""
+    """存着的口径 → 只留认得的类别与取值（含按公司记的商品单入账方式、两份同期时现用的账套）。"""
     return {key: value for key, value in (raw if isinstance(raw, Mapping) else {}).items() if _known(key, value)}
 
 
@@ -145,5 +180,7 @@ def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
     return found
 
 
-__all__ = ["CERTIFICATE", "ENTER", "GOODS_POSTING", "GOODS_POSTING_VALUES", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES",
-           "apply_to_pages", "certificate_shape", "document_class", "goods_posting", "goods_posting_key", "normalize", "push_block", "skipped_certificates"]
+__all__ = ["CERTIFICATE", "CURRENT_BOOK", "CURRENT_BOOK_PARTS", "ENTER", "GOODS_POSTING", "GOODS_POSTING_VALUES", "NEEDED_PREFIX",
+           "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages", "certificate_shape", "current_book",
+           "current_book_key", "document_class", "goods_posting", "goods_posting_key", "normalize", "push_block",
+           "skipped_certificates"]

@@ -481,7 +481,8 @@ def checks(facts: Facts) -> List[str]:
         elif not start <= day <= end:
             found.append("period")
         # 按日期选账套的结果分开记（都还是 C，只为从 ``auto_reasons`` 数得出真实的两份同期量，10-17）：选出多份同期
-        # ``book_many``、一份都选不出 ``book_none``（没给、空表、新年度账套核不了）、选出的是另一份 ``book``
+        # ``book_many``（这家公司对这一组选过现用的那份时钩子只回那一份，`companies.current_book`；没选过的待处理 / 复核页
+        # 列候选账套当场选）、一份都选不出 ``book_none``（没给、空表、新年度账套核不了）、选出的是另一份 ``book``
         books = None if facts.day_books is None else {normalize_express_account_key(key) for key in facts.day_books}
         if not books:
             found.append("book_none")

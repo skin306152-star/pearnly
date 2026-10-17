@@ -12,7 +12,9 @@
   `account_sets` 列这张单归的公司在推送去向那条连接上覆盖单据日期的账套（与定时任务选账套同一判据
   `companies.tasks.books_of`，按出这张单的任务的公司与分店），`choose_account_set` 只收其中一份：按同一条路重推，推成了才抄到
   票上（`push_state.retarget`），推不成就放回「待选账套」能再选；推送照旧过 `account_match` 的期间、税号、分店硬闸与定时任务的
-  默认处理（`push.fixed_for`）。
+  默认处理（`push.fixed_for`）。自动推前判出多份同期账套的 C 类（``auto_reasons`` 有 ``book_many``）同样列在「待选账套」。
+  候选是多份同期时，选的那份同时记成这家公司这一组的现用账套（`remember_current_book`，用户 2026-10-17「按公司问一次」，
+  无确认步骤），之后同一组的单 T1 与自动推都照选；复核页与 CC 工具 `cowork_choose_document_policy` 记的是同一项。
 - CC 准备好的提议（数字会计员第 3 期）：一张张点「推送」走 `answer`（交空的选择）；「全部推送」走 `push_proposals`
   （这家这个月的提议，一次最多 `PROPOSALS_MAX` 张）。都算人发起，照常重判；放在这里而不在 `companies.api`：推送要用
   `tools._push_one`，companies 不导入 assistant（assistant 依赖 companies）。
@@ -126,6 +128,7 @@ def choose_account_set(document, account_set_key):
     picked = pending.account_set_pick(_row(doc), account_set_key)
     if not picked:
         return {"document": name, "status": "stale"}
+    remember_current_book(doc, picked["key"])
     stop = {"reason": doc.last_push_reason, "connection": doc.push_connection, "account_set": doc.push_account_set,
             "record": doc.last_push_record}
     from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
@@ -144,3 +147,17 @@ def choose_account_set(document, account_set_key):
     if result.get("reason"):
         out["reason"] = str(result["reason"])[:300]
     return out
+
+
+def remember_current_book(doc, account_set_key) -> dict | None:
+    """这张停在「待选账套」的单的候选是多份同期时，把 ``account_set_key`` 记成这家公司这一组现用的账套（键与候选由
+    `companies.pending.current_book_choice` 现算，经 `history.document_policy.record` 写）；回 ``{"current_book": 规范账套键}``，
+    不是多份同期、不在候选里回 None（只换这一张）。调用方已核录入权限、读到这张单；候选只取本人能用的连接上的账套。"""
+    from pearnly_cowork.companies import pending
+    from pearnly_cowork.history import document_policy
+
+    found = pending.current_book_choice(_row(doc), account_set_key)
+    if not found:
+        return None
+    document_policy.record(found["workspace"], found["key"], found["value"])
+    return {"current_book": found["value"]}

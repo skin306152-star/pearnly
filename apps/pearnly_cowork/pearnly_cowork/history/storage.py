@@ -246,12 +246,13 @@ def read(name, *, for_update=False):
 
 
 def project(doc):
+    # auto_class / auto_reasons：自动推前判的类别与原因码，复核页对「选出多份同期账套」（``book_many``）列候选账套
     result = {key: doc.get(key) for key in (
         "name", "workspace", "client", "source", "staged", "record_version", *PUSH_FIELDS,
         "confidence", "quality_status", "posting_kind", *SUMMARY_FIELDS,
         "edit_count", "fields_edited_at", "confirmed_by", "confirmed_at",
         "source_file", "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count",
-        "push_connection", "push_account_set", "intake_target")}
+        "push_connection", "push_account_set", "intake_target", "auto_class", "auto_reasons")}
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
     result["review_reasons"] = parse(doc.get("review_reasons") or "[]")

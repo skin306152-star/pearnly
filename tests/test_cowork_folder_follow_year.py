@@ -22,6 +22,8 @@ import test_cowork_companies as env  # noqa: E402  内存里的 Frappe 与连接
 ROOT, APP = env.ROOT, env.APP
 frappe, connections, service, identity = env.frappe, env.connections, env.service, env.identity
 tasks = importlib.import_module("pearnly_cowork.companies.tasks")
+current_book = importlib.import_module("pearnly_cowork.companies.current_book")
+policy_rules = importlib.import_module("pearnly_cowork.contracts.document_policy")
 folder_contracts = importlib.import_module("pearnly_cowork.folder_intake.contracts")
 pending = env.pending
 HISTORY, RULE, FILE = "Cowork OCR History", "Cowork Folder Intake Rule", "Cowork Folder Intake File"
@@ -34,6 +36,18 @@ T7, T8, T9, Y26 = "S:\\70EXP\\T7SINCER", "S:\\70EXP\\T8SINCER", "S:\\70EXP\\T9SI
 
 def _key(path):
     return path.lower()
+
+
+def remember(part, chosen, *candidates, workspace="WS1"):
+    """这家公司（`TAX` 总公司）对这一组同期候选选过现用的 ``chosen``（存进工作空间的 ``document_policy``，键规则同
+    `contracts.document_policy.current_book_key`）。"""
+    key = policy_rules.current_book_key(f"tax:{TAX}", "00000", part, [_key(path) for path in candidates])
+    table = frappe.db.tables.setdefault("Cowork Workspace", {})
+    found = table.setdefault(workspace, env.Row(name=workspace, document_policy="{}"))
+    stored = json.loads(found["document_policy"])
+    stored[key] = _key(chosen)
+    found["document_policy"] = json.dumps(stored)
+    return key
 
 
 def row(path, label, start, end, **extra):
@@ -283,8 +297,9 @@ class CrossYearPushTests(Base):
         self.assertEqual(self.fake.failures, [("H3", folder_contracts.ACCOUNT_SET_NONE, {})])
         self.assertEqual((self.fake.submitted, self.fake.retargeted), ([], []))
 
-    def test_two_account_sets_for_the_same_period_stop(self):
-        """Express 测试数据：T8 与 T9 都是 2025 年。不按名称、不按新旧去猜。"""
+    def test_two_account_sets_for_the_same_period_stop_until_the_company_picks_one(self):
+        """Express 测试数据：T8 与 T9 都是 2025 年。不按名称、不按新旧、不按最近有录入去猜：没选过停下；这家公司选过这一组
+        现用的那份就推往它（有意变化，用户 2026-10-17「按公司问一次」；原先一律停下）。"""
         env.reset(C1=[dict(item) for item in self.CATALOG] + [row(T9, "SINCER 2568 (2)", "2025-01-01", "2025-12-31")])
         frappe.hooks = dict(HOOKS)
         frappe.db.tables["Cowork ERP Connection"]["C1"].update(adapter="express", record_revision=1)
@@ -295,6 +310,10 @@ class CrossYearPushTests(Base):
         # 2026 年的票照样推往唯一的那份
         self.assertEqual(self.send(self.rule(company=company), self.ticket("H5", date(2026, 6, 30)))["account_set"],
                          _key(Y26))
+        remember("cy", T9, T8, T9)
+        result = self.send(self.rule(company=company), self.ticket("H6", date(2025, 6, 30)))
+        self.assertEqual((result["status"], result["account_set"]), ("sent", _key(T9)))
+        self.assertEqual(self.fake.retargeted[-1], ("H6", "C1", _key(T9)))
 
     def test_next_year_ticket_without_a_new_book_goes_into_the_old_books_next_year(self):
         """有意变化（用户 2026-10-16）：原先「没有覆盖这一天的账套就停下」；现在新年度账套还没建时推往旧账套的次年段。"""
@@ -316,7 +335,8 @@ class CrossYearPushTests(Base):
         result = self.send(self.rule(company=company), self.ticket("H3", date(2026, 2, 1)))
         self.assertEqual((result["status"], result["account_set"]), ("sent", _key(Y26)))
 
-    def test_two_old_books_with_the_same_next_year_stop(self):
+    def test_two_old_books_with_the_same_next_year_stop_until_the_company_picks_one(self):
+        """本年与次年段分开问（SINCERE：2025 用一份、2026 可能用另一份）：本年选过的不带到次年段的单。"""
         catalog = [row(T8, "SINCER 2568", "2025-01-01", "2025-12-31", next_end="2026-12-31"),
                    row(T9, "SINCER 2568 (2)", "2025-01-01", "2025-12-31", next_end="2026-12-31")]
         env.reset(C1=catalog)
@@ -326,6 +346,14 @@ class CrossYearPushTests(Base):
         result = self.send(self.rule(company=company), self.ticket("H3", date(2026, 2, 1)))
         self.assertEqual(result, {"status": "held", "reason": folder_contracts.ACCOUNT_SET_AMBIGUOUS})
         self.assertEqual(self.fake.submitted, [])
+        remember("cy", T8, T8, T9)
+        result = self.send(self.rule(company=company), self.ticket("H4", date(2026, 2, 1)))
+        self.assertEqual(result["reason"], folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+        self.assertEqual(self.send(self.rule(company=company), self.ticket("H5", date(2025, 2, 1)))["account_set"],
+                         _key(T8))
+        remember("ny", T9, T8, T9)
+        result = self.send(self.rule(company=company), self.ticket("H6", date(2026, 2, 1)))
+        self.assertEqual((result["status"], result["account_set"]), ("sent", _key(T9)))
 
     def test_a_ticket_without_a_date_stops(self):
         result = self.send(self.rule(), self.ticket("H6", None))
@@ -414,6 +442,82 @@ class OldTaskTests(Base):
         result = self.send(self.rule(company="gone"), self.ticket("H2", date(2025, 5, 1)))
         self.assertEqual([item[1] for item in self.fake.submitted], [T8])
         self.assertNotIn("account_set", result)
+
+
+class CurrentBookTests(Base):
+    """两份同期账套按公司按年度问一次哪份是现用的（数字会计员第 3 期，用户 2026-10-17）：键里含候选组合，新建了账套、组合
+    变了重新问；选的已不在候选里不用；待处理当场选（`pending.current_book_choice`）算出的键正是 T1 读的那个。"""
+    CATALOG = (row(T8, "SINCER 2568", "2025-01-01", "2025-12-31"),
+               row(T9, "SINCER 2568 (2)", "2025-01-01", "2025-12-31"),
+               row(Y26, "SINCER 2569", "2026-01-01", "2026-12-31"))
+
+    def test_a_new_book_in_the_same_period_asks_again(self):
+        remember("cy", T9, T8, T9)
+        self.assertEqual(self.send(self.rule(), self.ticket("H1", date(2025, 6, 30)))["account_set"], _key(T9))
+        T10 = "S:\\70EXP\\T10SINCER"
+        env.reset(C1=[dict(item) for item in self.CATALOG] + [row(T10, "SINCER 2568 (3)", "2025-01-01", "2025-12-31")])
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["C1"].update(adapter="express", record_revision=1)
+        company = env.make("C1", T8)["id"]
+        remember("cy", T9, T8, T9)
+        self.pool.writers.add(("C1", _key(T10)))
+        result = self.send(self.rule(company=company), self.ticket("H2", date(2025, 6, 30)))
+        self.assertEqual(result, {"status": "held", "reason": folder_contracts.ACCOUNT_SET_AMBIGUOUS})
+
+    def test_a_choice_outside_the_candidates_is_not_used(self):
+        key = remember("cy", T9, T8, T9)
+        frappe.db.tables["Cowork Workspace"]["WS1"]["document_policy"] = json.dumps({key: _key(Y26)})
+        result = self.send(self.rule(), self.ticket("H1", date(2025, 6, 30)))
+        self.assertEqual(result["reason"], folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+        # 别的工作空间存的不算
+        frappe.db.tables["Cowork Workspace"] = {"WS2": env.Row(name="WS2", document_policy=json.dumps({key: _key(T9)}))}
+        self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["reason"],
+                         folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+
+    def test_choosing_on_the_stopped_ticket_writes_the_key_the_task_reads(self):
+        # 出这张票的任务（`folder_intake.push.source_rules` 要整套推送模块，这里直接给任务记的公司与分店）
+        patcher = mock.patch.object(pending, "_task_company", lambda row: (self.company, "00000"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        history = env.Row(name="H1", invoice_date="2025-06-30", push_connection="C1", push_account_set=T8,
+                          last_push_reason=folder_contracts.ACCOUNT_SET_AMBIGUOUS, last_push_status="")
+        found = pending.current_book_choice(history, T9)
+        self.assertEqual(found, {"workspace": "WS1", "key": remember("cy", T9, T8, T9), "value": _key(T9)})
+        self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["account_set"], _key(T9))
+        # 列可换的账套时列全这一组（选了另一份就是改选），不按记住的筛
+        self.assertEqual(sorted(item["key"] for item in pending.account_sets_for(history)), [_key(T8), _key(T9)])
+        # 只有一份、选的不在候选里、不是停在待选账套的单：不记
+        self.assertIsNone(pending.current_book_choice(history, Y26))
+        self.assertIsNone(pending.current_book_choice(env.Row(history, invoice_date="2026-03-01"), Y26))
+        self.assertIsNone(pending.current_book_choice(env.Row(history, last_push_reason="push.failed"), T9))
+
+    def test_the_key_is_one_per_company_branch_part_and_set_of_candidates(self):
+        key = policy_rules.current_book_key("tax:1", "00000", "cy", ["b", "a"])
+        self.assertEqual(key, policy_rules.current_book_key("tax:1", "00000", "cy", ["a", "b", "a"]))
+        self.assertTrue(key.startswith("current_book|tax:1|00000|cy|") and len(key.rsplit("|", 1)[1]) == 12)
+        for other in (policy_rules.current_book_key("tax:2", "00000", "cy", ["a", "b"]),
+                      policy_rules.current_book_key("tax:1", "00001", "cy", ["a", "b"]),
+                      policy_rules.current_book_key("tax:1", "00000", "ny", ["a", "b"]),
+                      policy_rules.current_book_key("tax:1", "00000", "cy", ["a", "b", "c"])):
+            self.assertNotIn(other, ("", key))
+        for empty in (policy_rules.current_book_key("", "00000", "cy", ["a", "b"]),
+                      policy_rules.current_book_key("tax:1", "00000", "cy", ["a", "a"]),
+                      policy_rules.current_book_key("tax:1", "00000", "later", ["a", "b"]),
+                      policy_rules.current_book_key("x" * 240, "00000", "cy", ["a", "b"])):
+            self.assertEqual(empty, "")
+        self.assertEqual(policy_rules.current_book({key: "b"}, key, ["a", "b"]), "b")
+        self.assertIsNone(policy_rules.current_book({key: "c"}, key, ["a", "b"]))
+        self.assertIsNone(policy_rules.current_book({}, key, ["a", "b"]))
+        # 存储只留认得的：键前缀、键长、值是非空的账套键（同字段里的商品单入账方式照旧）
+        kept = policy_rules.normalize({key: "b", "current_book|x": "", "current_book|y": 5, "goods_posting|tax:1": "stock",
+                                       "current_book|" + "z" * 240: "b", "payment_evidence": "skip"})
+        self.assertEqual(kept, {key: "b", "goods_posting|tax:1": "stock", "payment_evidence": "skip"})
+        # 段按日期落在候选的本年还是次年段：各份不在同一段不问
+        books = [{"key": "a", "period_start": "2025-01-01", "period_end": "2025-12-31", "next_end": "2026-12-31",
+                  "branch": "00000"},
+                 {"key": "b", "period_start": "2026-01-01", "period_end": "2026-12-31", "branch": "00000"}]
+        self.assertEqual(current_book.key_of("tax:1", "2026-03-01", books), "")
+        self.assertEqual(current_book.key_of("tax:1", "2025-03-01", books[:1] * 2), "")
 
 
 class DefaultsTests(Base):

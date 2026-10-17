@@ -1421,6 +1421,11 @@ def _detail(doc) -> dict:
         out["handling_choice_needed"] = reason[len("document_policy_needed_"):]
     elif reason.startswith("posting_needs_review"):
         out["handling_choice_needed"] = "goods_posting"  # 这家公司的商品单走库存还是记费用，选一次（`push.express.goods_posting`）
+    books = _current_book_options(doc)
+    if books:
+        # 两份同期账套：这家公司这一组哪份是现用的，选一次（`assistant.pending_api.remember_current_book`）
+        out["handling_choice_needed"] = "current_book"
+        out["current_book_options"] = books
     # 用户问「这张是不是现金」时 CC 最常查的就是详情：入账的票带上怎么写进去的（验收 F19 复审 M1），记录名不给
     written = _written_of(doc.get("last_push_status"), doc.get("last_push_record"))
     if written:
@@ -1429,6 +1434,21 @@ def _detail(doc) -> dict:
     if automation:
         out["automation"] = automation
     return _filled(out)
+
+
+def _current_book_options(doc):
+    """停在「待选账套」、候选是多份同期的单（T1 多于一份、自动推前判出 ``book_many``）：可选的账套 ``[{key, label}]``；
+    不是这种单回空表（先按原因码粗看，大多数单不读账套目录）。"""
+    reason = str(doc.get("last_push_reason") or "")
+    if not doc.get("push_connection") or not (reason.startswith("cowork.folder.account_set_")
+                                               or "book_many" in str(doc.get("auto_reasons") or "").split(",")):
+        return []
+    from pearnly_cowork.companies import pending
+
+    if not pending.account_set_stop(doc):
+        return []
+    books = pending.account_sets_for(doc)
+    return books if len(books) > 1 else []
 
 
 def _automation_of(name):
@@ -1550,6 +1570,7 @@ def document_original(tool_input) -> str:
 
 
 def choose_document_policy(tool_input) -> str:
+    from pearnly_cowork.assistant import pending_api
     from pearnly_cowork.history import document_policy
     from pearnly_cowork.push.application import goods_posting
 
@@ -1557,7 +1578,12 @@ def choose_document_policy(tool_input) -> str:
     name = str(tool_input.get("document") or "")
     value = tool_input.get("value")
     try:
-        if value in GOODS_POSTING_VALUES:
+        if value == CURRENT_BOOK:
+            # 两份同期账套哪份是现用的，按公司按这一组选（待处理 / 复核页当场换账套同一项）
+            result = pending_api.remember_current_book(storage.read(name), str(tool_input.get("account_set_key") or ""))
+            if not result:
+                frappe.throw(_("cowork.policy.invalid"))
+        elif value in GOODS_POSTING_VALUES:
             # 商品单入账方式按公司选（复核页「走库存 / 记费用」同一条路）
             result = goods_posting.choose(name, value)
         else:
@@ -2978,6 +3004,7 @@ POLICY_CLASS_LABELS = {"payment_evidence": "Transfer slips", "withholding_certif
 POLICY_VALUE_LABELS = {"enter": "cowork.policy.enter", "skip": "cowork.policy.skip",
                       "stock": "cowork.policy.stock", "service": "cowork.policy.service"}
 GOODS_POSTING_VALUES = ("stock", "service")
+CURRENT_BOOK = "current_book"
 
 
 def _shown(value) -> str:
@@ -3255,6 +3282,11 @@ def preview_choose_document_policy(tool_input) -> list:
     if tool_input.get("value") in GOODS_POSTING_VALUES:
         # 商品单入账方式：「之前」不另查公司（没选过才会停在这一步），只写这次选的
         return [_change("Posting Kind", "", label(tool_input.get("value")))]
+    if tool_input.get("value") == CURRENT_BOOK:
+        # 两份同期时现用的账套：写选的那份的名称（交的就是 current_book_options 里的键；认不出的原样写键）
+        wanted = str(tool_input.get("account_set_key") or "")
+        names = {item["key"]: item["label"] for item in _current_book_options(storage.project(doc))}
+        return [_change("Account Set", "", names.get(wanted) or wanted)]
     kind = policy_rules.document_class(primary_page_fields(json.loads(doc.pages or "[]")))
     now = document_policy.read(doc.workspace).get(kind)
     return [_change(POLICY_CLASS_LABELS.get(kind, kind or "Document"), label(now), label(tool_input.get("value")))]
@@ -3482,11 +3514,16 @@ TOOLS = [
                     "records documents of this kind, skip leaves them out. It applies to every document of this kind "
                     "for the whole company from now on (the user allows it in the chat). For handling_choice_needed "
                     "goods_posting (a goods document of a company that keeps stock in Express): stock enters this "
-                    "company's goods documents to stock, service enters them as expense, from now on. Then push the "
-                    "document again.",
+                    "company's goods documents to stock, service enters them as expense, from now on. For "
+                    "handling_choice_needed current_book (two account sets of the company cover the same dates): "
+                    "current_book with account_set_key from current_book_options remembers the one in use for this "
+                    "company and these account sets. Then push the document again (to that account set for "
+                    "current_book).",
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
                                                         "value": {"type": "string",
-                                                                  "enum": ["enter", "skip", "stock", "service"]}},
+                                                                  "enum": ["enter", "skip", "stock", "service",
+                                                                           "current_book"]},
+                                                        "account_set_key": {"type": "string"}},
                       "required": ["document", "value"]},
      "approval": True,
      "ask": "Change how this kind of document is handled?",

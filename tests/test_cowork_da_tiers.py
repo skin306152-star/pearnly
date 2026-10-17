@@ -465,11 +465,14 @@ class Store:
     def __init__(self):
         self.rows, self.companies, self.records, self.changes = {}, {"CO1": Row(name="CO1", workspace="W1")}, {}, []
         self.read_allowed, self.intake = True, True
+        self.others = {}  # (doctype, 名称) → 行：连接、工作空间
 
     def get_value(self, doctype, filters, fields="name", as_dict=False, for_update=False):
-        if doctype == "Cowork Company":
-            row = self.companies.get(filters)
-            return row and row.get(fields)
+        if doctype in ("Cowork Company", "Cowork ERP Connection", "Cowork Workspace"):
+            row = self.companies.get(filters) if doctype == "Cowork Company" else self.others.get((doctype, filters))
+            if row is None:
+                return None
+            return row.get(fields) if isinstance(fields, str) else Row({field: row.get(field) for field in fields})
         row = next((row for row in self.rows.values() if row["company"] == filters.get("company")), None)
         if row is None:
             return None
@@ -514,13 +517,18 @@ def _companies(store, *, company="CO1", books=None):
          "period_start": "2026-01-01", "period_end": "2026-12-31", "branch": "00000"}]
     service = ns(books=lambda row, limit=None: list(books), get=lambda name: Row(name=name),
                  facts=lambda connection: {"account_sets": [{"source_id": BOOK, "attributes": {"tax_id": OWN}}]})
-    tasks = ns(books_of=lambda name, connection, day, branch="": [{"key": BOOK.lower()}])
+    tasks = ns(books_of=lambda name, connection, day, branch="", remembered=True: [{"key": BOOK.lower()}])
     rules_module = ns(account_company=lambda connection, row: (company, "00000") if row else (None, ""))
+    # 「现用的那份」按这次的替身 frappe 读工作空间：每次重载（包上留着的上一次的模块会被 `from … import` 先拿到）
+    package = sys.modules.get("pearnly_cowork.companies")
+    if package is not None:
+        vars(package).pop("current_book", None)
+    current = _load("da_tiers_current_book", APP / "companies/current_book.py", {"frappe": frappe})
     module = _load("da_tiers_companies_automation", APP / "companies/automation.py", {
         "frappe": frappe, "frappe.utils": utils, "pearnly_cowork.access": ns(scope=scope),
         "pearnly_cowork.access.scope": scope, "pearnly_cowork.companies.access": access,
         "pearnly_cowork.companies.service": service, "pearnly_cowork.companies.tasks": tasks,
-        "pearnly_cowork.companies.rules": rules_module})
+        "pearnly_cowork.companies.rules": rules_module, "pearnly_cowork.companies.current_book": current})
     return module
 
 
@@ -665,6 +673,32 @@ class CompanyTier(unittest.TestCase):
         self.assertEqual(nobody.day_books("C1", catalog[0], "2026-10-20", catalog), [BOOK.lower()])
         self.assertEqual(nobody.day_books("C1", catalog[0], "2025-03-01", catalog), [r"c:\pearnlyexpress\68acme"])
         self.assertIsNone(nobody.day_books("C1", {}, "2026-10-20", catalog))
+
+    def test_day_books_follow_the_company_choice_when_two_books_cover_the_day(self):
+        """用户 10-17：选出多份同期时，这家公司对这一组选过现用的那份就只回它（同 T1，`companies.current_book`）；没选过
+        照旧回多份（判档记 ``book_many``）。建了主档的身份取主档上的，没建的按目录行。"""
+        policy = importlib.import_module("pearnly_cowork.contracts.document_policy")
+        twin = r"C:\PearnlyExpress\69ACME2"
+        attributes = {"tax_id": OWN, "branch": "00000", "period_start": "2026-01-01", "period_end": "2026-12-31"}
+        catalog = [{"source_id": BOOK, "attributes": dict(attributes)}, {"source_id": twin, "attributes": dict(attributes)}]
+        keys = [BOOK.lower(), twin.lower()]
+        store = Store()
+        nobody = _companies(store, company=None)
+        self.assertEqual(nobody.day_books("C1", catalog[0], "2026-10-20", catalog), keys)
+        store.others[("Cowork ERP Connection", "C1")] = Row(workspace="W1")
+        key = policy.current_book_key(f"tax:{OWN}", "00000", "cy", keys)
+        store.others[("Cowork Workspace", "W1")] = Row(document_policy=json.dumps({key: twin.lower()}))
+        self.assertEqual(nobody.day_books("C1", catalog[0], "2026-10-20", catalog), [twin.lower()])
+        # 主档上的身份与工作空间（主档建档时的身份，目录行同税号）
+        store.companies["CO1"] = Row(name="CO1", workspace="W1", identity=f"tax:{OWN}")
+        module = _companies(store)
+        both = [{"key": item, "period_start": "2026-01-01", "period_end": "2026-12-31", "branch": "00000"}
+                for item in keys]
+        module.tasks = ns(books_of=lambda name, connection, day, branch="", remembered=True: list(both))
+        self.assertEqual(module.day_books("C1", catalog[0], "2026-10-20", catalog), [twin.lower()])
+        self.assertEqual(module.day_scope("C1", catalog[0], "2026-10-20", catalog)["books"], both)
+        store.others[("Cowork Workspace", "W1")] = Row(document_policy="{}")
+        self.assertEqual(module.day_books("C1", catalog[0], "2026-10-20", catalog), keys)
 
 
 # ── 第 4 条：定时任务 ──────────────────────────────────────────────────────────

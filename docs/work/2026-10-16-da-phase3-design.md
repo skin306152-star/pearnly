@@ -240,12 +240,12 @@
         前不改）；存货码（走库存的单入账方式多来自公司选的、整张最高 B，回放 answer 两遍量存货一项）；部门（用户 10-08 定记过的照用、不再问）。
       - 原因码：按日期选账套不符原来只有 `book`，拆成 `book_none`（一份都选不出）/ `book_many`（选出多份同期）/ `book`（选出另一份，
         含新年度账套已建），仍都是 C，只为从 `auto_reasons` 数出线上真实的两份同期量（`8465b480`；CC 照实说明原因码，词条不变）。
-      - 用户 10-17 新定的两条，起初只在回放里量；用户 10-17 批准后 ①已接线上（见下一条），②另做：①商品单可凭这家供应商在 Express 的历史升到 A
+      - 用户 10-17 新定的两条，起初只在回放里量；用户 10-17 批准后都已接线上（见下两条）：①商品单可凭这家供应商在 Express 的历史升到 A
         （近 12 个月会计亲手录、不含 CC 推的、至少 3 张、全部走库存或全部无库存明细、与公司选的一致；相反交人 C；没历史仍 B）——纯函数
         `readback.history_rules.posting_settled` 与常量 `POSTING_KINDS` 已加、没有调用方（`VERSIONS` 不变），线上要 CC 桌面版
         `account_history` v3 读 STCRD 并排除 Pearnly 写入的单、服务端收 v3、`automation` 的入账方式判档按「一致 A / 相反 C / 没定下 B」
         且走库存时载荷真有库存行才 A；②两份同期账套按公司按年度问一次哪份是现用的、记住复用、组合变了再问——回放 `--tiebreak ask_once`
-        模拟，线上 T1 与自动推遇到两份同期仍一律停下。
+        模拟（线上原先 T1 与自动推遇到两份同期一律停下）。
       - **①接线上（用户 10-17 批准）**：CC 桌面版 1.9.0 `account_history` 结果版本 3，每家供应商另交 `posting`（同一批单里走库存 / 记费用
         各几张：STCRD 按 DOCNUM 挂单、PEOPLE 有值须是这家，有一行库存品 STKTYP=0 或有库存影响记走库存；STCRD / STMAS 读不到或 300 秒扫
         不完整份不交，不猜；STCRD 要从头扫到尾，大账套看 `diagnostics.stcrd_seconds`）。服务端 `history_rules` 收 v1–v3（`posting` 只收 v3、
@@ -256,6 +256,24 @@
         公司选的。回放 `posting_tier_if_history` 改调同一个函数（回放主判定不带这一层，上下界照旧分两列）。
         **发版顺序**：先部署服务端（收 v3；旧桌面版交 v2 时没有 `posting`，入账方式照旧 B），再发 CC 桌面版 1.9.0；反过来时旧服务端把 v3
         当不合规记失败、一小时后再请，期间没有历史建议与「已定」科目。
+      - **②接线上（用户 10-17 批准）**：真有两份同期账套时（如 SINCERE 68SINCER / 69SINCER 的 ISPRD 本年都是 2025）按公司问一次哪份是
+        现用的。存储复用工作空间 `document_policy`（同 `goods_posting`，不新建 DocType）：键 `current_book|<公司身份>|<分店>|<cy / ny>|<候选
+        规范账套键排序后的 sha1 前 12 位>`，值是选中的规范账套键（`contracts.document_policy.current_book_key / current_book`，`_known`
+        认这一前缀，键长上限同 `GOODS_POSTING_KEY_MAX`）。候选组合与本年 / 次年段都在键里：新建账套、组合变了、跨到次年段就是另一个键，
+        再问；不自动挑最近有录入的那份。读：`companies.current_book.remembered` 接在 `tasks.books_of`（T1）与 `automation.day_books`
+        （自动推判档，拆出 `day_scope`）两处，选出多份时这一组选过、且选的仍在候选里才只留那份，否则照旧停（T1 `account_set_ambiguous`，
+        自动推 `book_many` → C）；`identity.covering`（月结台账、主档页、档位统计按月取单）不接——它列单、不选推往哪份，两份都取才不漏
+        人推进另一份的单。写：只经 `history.document_policy.record`，由 `assistant.pending_api.remember_current_book` 调（companies 不导入
+        history、push 不导入 companies）：`companies.pending.current_book_choice` 按这张单停下时同一判据现算候选（T1 停下的按任务记的公司
+        与分店；自动推停下的同判档时 `automation.day_scope`，按推送去向账套在目录里那一行认公司与分店），选的在候选里、候选多于一份才记；
+        候选只取本人能用的连接，接口要录入权限、能读这张单。入口（无确认步骤，不加说明文案，没有新词条：原因沿用「这家公司有多份账套
+        覆盖单据日期」，按钮就是账套名）：①复核页（Desk）停在 `account_set_ambiguous`、或自动推判出 `book_many` 的 C 类没人推过的单，原因旁
+        列候选账套按钮，点了即记住并照常重推这张（`pending_api.choose_account_set`，同待处理页）；②待处理 / 月结台账：自动推判出 `book_many`
+        的 C 类同 T1 停下的单一样给 `action = account_set`（原因同一句），沿用现有当场换账套组件，选一份即记住；③CC 工具
+        `cowork_choose_document_policy` 多值 `current_book`（带 `account_set_key`），单据详情 `handling_choice_needed = current_book` 与
+        `current_book_options`。复核页要读票上的 `auto_class / auto_reasons`：`history.storage.project` 多这两列。
+        **有意变化**：T1 两份同期原先一律停下（`test_cowork_folder_follow_year` 两条用例锁住），改为「没选过停下、选过照选」；自动推同一组
+        选过之后不再记 `book_many`。已经停下的单不会自动重推，要人在待处理 / 复核页点一次。多电脑记录 T1 一节第 6 条同步登记。
 
 19. **挪到后面 / 不做 / 已知缺口**：
     - 第 4 期：从纠正中学、「要不要记住」、`rule_conflict` 提示。L0 期间人当场选的照旧记进账套记忆，这就是本期的「学习」。

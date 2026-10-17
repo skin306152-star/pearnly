@@ -21,7 +21,7 @@ import frappe
 from frappe.utils import get_datetime, now_datetime
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.companies import automation_rules, identity, service, tasks
+from pearnly_cowork.companies import automation_rules, current_book, identity, service, tasks
 from pearnly_cowork.companies.access import AUTOMATION, read, write
 from pearnly_cowork.companies.rules import account_company
 from pearnly_cowork.push.automation import rules as tier_rules
@@ -94,21 +94,38 @@ def tier_for_push(connection, account_set, account_row) -> dict | None:
             "baseline": automation_rules.baseline(found["tier"], since, found["periods"], found["reason"])}
 
 
-def day_books(connection, account_row, day, catalog=None) -> list | None:
-    """推送的钩子（``cowork_push_day_books``）：按这张单的日期，这家公司（这个分店）在这条连接上该推往哪份账套 —— 与定时任务
-    跟随公司当年账套（T1，`tasks.books_of`）同一判据 → 规范账套键列表（正好一份才算选得出）。没建主档的按目录里同一身份的行
-    现算（``catalog`` 是这条连接的账套目录）；认不出公司回 None。只读。"""
+def day_scope(connection, account_row, day, catalog=None) -> dict | None:
+    """按这张单的日期，这家公司（这个分店）在这条连接上覆盖那天的账套，还没按「现用的那份」筛：``{"workspace", "identity",
+    "books"}``（``books`` 是 `identity.book` 的样子）。建了主档的同定时任务（`tasks.books_of`），身份取主档上的；没建主档的按
+    目录里同一身份的行现算（``catalog`` 是这条连接的账套目录）。工作空间与身份只在选出多份时才查（只有那时要问「现用的那份」），
+    否则为空。认不出公司回 None。只读。"""
     name, branch = account_company(connection, account_row)
     if name:
-        found = tasks.books_of(name, connection, day, branch)
-        return None if found is None else [item["key"] for item in found]
+        found = tasks.books_of(name, connection, day, branch, remembered=False)
+        if found is None:
+            return None
+        company = (frappe.db.get_value("Cowork Company", name, ["identity", "workspace"], as_dict=True)
+                   if len(found) > 1 else None) or {}
+        return {"workspace": company.get("workspace"), "identity": company.get("identity"), "books": found}
     mine = identity.company_identity("express", connection, account_row)
     if not mine:
         return None
     books = [identity.book("express", connection, row) for row in catalog or ()
              if isinstance(row, dict) and row.get("active", True) is not False
              and (identity.company_identity("express", connection, row) or {}).get("key") == mine["key"]]
-    return [item["key"] for item in identity.for_day(identity.for_branch(books, mine["branch"]), day)]
+    books = identity.for_day(identity.for_branch(books, mine["branch"]), day)
+    workspace = frappe.db.get_value("Cowork ERP Connection", connection, "workspace") if len(books) > 1 else None
+    return {"workspace": workspace, "identity": mine["key"], "books": books}
+
+
+def day_books(connection, account_row, day, catalog=None) -> list | None:
+    """推送的钩子（``cowork_push_day_books``）：按这张单的日期，这家公司（这个分店）在这条连接上该推往哪份账套 —— 与定时任务
+    跟随公司当年账套（T1，`tasks.books_of`）同一判据 → 规范账套键列表（正好一份才算选得出）。选出多份同期时按这家公司选过的
+    现用账套只留那份（`current_book.remembered`，用户 2026-10-17）。认不出公司回 None。只读。"""
+    found = day_scope(connection, account_row, day, catalog)
+    if found is None:
+        return None
+    return [item["key"] for item in current_book.remembered(found["workspace"], found["identity"], day, found["books"])]
 
 
 # ---------------- 写 ----------------
@@ -307,5 +324,5 @@ def on_mismatch(connection, account_set, account_row) -> dict | None:
     return {"company": company, "tier": tier_rules.L0, "changed": before != tier_rules.L0}
 
 
-__all__ = ["THRESHOLDS", "day_books", "documents", "on_mismatch", "on_readback", "readback_marks", "state",
+__all__ = ["THRESHOLDS", "day_books", "day_scope", "documents", "on_mismatch", "on_readback", "readback_marks", "state",
            "tier_for_push", "view"]

@@ -175,7 +175,7 @@ def _document_item(row, code, group, company_tax) -> dict:
     fields = {"group": group, "document": row.name, "invoice_no": row.get("invoice_no") or "",
               "counterparty": pending.counterparty(row, company_tax), "amount": pending.amount(row.get("total_amount")),
               "date": str(row.get("invoice_date") or ""), "filename": row.get("filename") or "",
-              "reason_label": pending._reason_label(group, row.get("last_push_reason")),
+              "reason_label": pending._reason_label(group, row.get("last_push_reason"), row),
               "detail": export_facts.reason_code(row.get("last_push_reason"))
               if code in ("push_manual", "push_failed") else ""}
     if code == "cc_proposal":
@@ -189,7 +189,7 @@ def _document_item(row, code, group, company_tax) -> dict:
         else:
             fields["action"] = "open"
     elif pending.account_set_stop(row):
-        # 定时任务跟随公司当年账套停在「待选账套」（T1）：同待处理页，当场换账套重推（第 6 批）
+        # 定时任务跟随公司当年账套停在「待选账套」（T1）、自动推前判出多份同期账套：同待处理页，当场换账套重推（第 6 批）
         fields["action"] = "account_set"
         fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                             "kinds": []}

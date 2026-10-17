@@ -4,7 +4,8 @@ folder_intake 不导入本域（companies 依赖 folder_intake，反过来会成
 - `company_of`（``cowork_task_company``）：保存任务时，所选 Express 账套属于唯一一家主档 → 记下主档编号与这份账套的分店；
   对不上或多于一家回 None（任务照旧用固定账套）。补丁 `v0_0_23_folder_task_company` 给旧任务回填也用它。
 - `books_of`（``cowork_task_books``）：这家公司在这条连接上的账套，给了日期只留覆盖那天的、给了分店按分店筛
-  （纯规则 `identity.for_day` / `identity.for_branch`）。主档已删回 None（任务照旧用固定账套）。
+  （纯规则 `identity.for_day` / `identity.for_branch`）；覆盖那天的有多份同期时，这家公司对这一组选过现用的那份就只留它
+  （`current_book.remembered`，用户 2026-10-17「按公司问一次」）。主档已删回 None（任务照旧用固定账套）。
 
 都按当前用户能用的连接上的目录现算（同 `service.books`），只读；选哪份、要不要停下由调用方定。后台推进在同一个任务里
 换着负责人推（`folder_intake.pump._as` 不清本域的请求内缓存），所以每次先清掉缓存，不拿上一个人能用的连接来算。
@@ -13,7 +14,7 @@ from __future__ import annotations
 
 import frappe
 
-from pearnly_cowork.companies import identity, service
+from pearnly_cowork.companies import current_book, identity, service
 from pearnly_cowork.companies.access import COMPANY
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -51,15 +52,23 @@ def company_of(connection, account_set_key) -> dict | None:
     return {"company": names.pop(), "branch": identity.book("express", connection, row)["branch"]}
 
 
-def books_of(company, connection, day=None, branch="") -> list | None:
+def books_of(company, connection, day=None, branch="", *, remembered=True) -> list | None:
     """这家公司在这条连接上的账套（`identity.book` 的样子，新年度在前）；``day``（`YYYY-MM-DD`）给了只留覆盖那天的，
-    ``branch`` 给了按分店筛。主档不在回 None。"""
+    ``branch`` 给了按分店筛。覆盖那天的有多份同期时按这家公司选过的现用账套只留那份（``remembered``；列「可换的账套」时
+    给 False，列全这一组）。主档不在回 None。"""
     if not service.exists(company):
         return None
     service.forget_cache()
-    sets = [item for item in service.books(service.get(company), None) if item["connection"] == connection]
+    row = service.get(company)
+    sets = [item for item in service.books(row, None) if item["connection"] == connection]
     sets = identity.for_branch(sets, branch)
-    return sets if day is None else identity.for_day(sets, day)
+    if day is None:
+        return sets
+    found = identity.for_day(sets, day)
+    if not remembered or len(found) < 2:
+        return found
+    workspace = frappe.db.get_value(COMPANY, company, "workspace")
+    return current_book.remembered(workspace, row.get("identity"), day, found)
 
 
 __all__ = ["books_of", "company_of"]

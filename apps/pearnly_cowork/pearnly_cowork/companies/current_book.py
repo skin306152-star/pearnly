@@ -1,0 +1,70 @@
+"""真有两份同期账套时按公司问一次哪份是现用的（数字会计员第 3 期，用户 2026-10-17 批）。
+
+按单据日期选账套（`identity.for_day`，T1 定时任务、自动推的「推往的须是按日期选出的那份」共用）选出多份同期时（如 SINCERE
+68SINCER / 69SINCER 的 ISPRD 本年都是 2025）：这家公司、这组分店、本年或次年段、这一组候选问一次，记住复用；新建了账套、组合
+变了是另一个键，再问。不自动挑最近有录入的那份。键与取值的规则在 `contracts.document_policy`（``current_book|…``），存在工作空间
+同一个 ``document_policy`` 字段里（同商品单入账方式 ``goods_posting``，不新建 DocType）。
+
+- 读（这里）：:func:`remembered` 在选出多份时查这一组的选择，选的那份还在候选里才只留它；否则原样（调用方照旧停下）。接在
+  `tasks.books_of`（T1）与 `automation.day_books`（自动推判档）两处；`identity.covering`（月结台账、主档页、档位统计按月取单）
+  不接：它是列单、不是选推往哪份，两份都取才不漏人推进另一份的单。
+- 写：选择只经 `history.document_policy.record` 写（companies 不导入 history）。复核页 / 待处理当场换账套、CC 工具都走
+  `assistant.pending_api`：这里的 :func:`key_of` 按同一组候选现算键，`companies.pending.current_book_choice` 核过这张单确实停在
+  多份同期、选的在候选里。
+
+公司身份同 `identity.company_identity` 的 ``key``（建了主档的用主档上的身份）；分店取候选账套报的分店号（多个用逗号连），
+本年 / 次年按 `targets.account_match.fiscal_part`。只读。
+"""
+from __future__ import annotations
+
+import json
+
+import frappe
+
+from pearnly_cowork.contracts import document_policy as policy_rules
+from pearnly_cowork.targets import account_match
+from pearnly_cowork.targets.identity import normalize_express_account_key
+
+WORKSPACE = "Cowork Workspace"
+FIELD = "document_policy"
+PARTS = {account_match.CURRENT: "cy", account_match.NEXT: "ny"}
+
+
+def _key(item) -> str:
+    return normalize_express_account_key(item.get("key")) or str(item.get("key") or "")
+
+
+def key_of(company_identity, day, books) -> str:
+    """这组同期候选（`identity.book` 的样子，`identity.for_day` 的结果）问「哪份是现用的」的键；不到两份、日期在各份里
+    不同段（本年 / 次年）、认不出公司回空串。"""
+    books = list(books or ())
+    if len(books) < 2:
+        return ""
+    parts = {account_match.fiscal_part(item.get("period_start"), item.get("period_end"), item.get("next_end"), day)
+             for item in books}
+    part = PARTS.get(parts.pop()) if len(parts) == 1 else None
+    branch = ",".join(sorted({str(item.get("branch") or "") for item in books} - {""}))
+    return policy_rules.current_book_key(company_identity, branch, part, [_key(item) for item in books])
+
+
+def policy(workspace) -> dict:
+    """这个工作空间存着的口径（认不得的丢掉，同 `history.document_policy.read`）。"""
+    raw = frappe.db.get_value(WORKSPACE, workspace, FIELD) if workspace else None
+    try:
+        return policy_rules.normalize(json.loads(raw or "{}"))
+    except (TypeError, ValueError):
+        return {}
+
+
+def remembered(workspace, company_identity, day, books) -> list:
+    """按日期选出多份同期时，这家公司对这一组选过的那份 → 只留它；没选过、选的已不在候选里、不到两份原样回。"""
+    books = list(books or ())
+    key = key_of(company_identity, day, books)
+    if not key:
+        return books
+    chosen = policy_rules.current_book(policy(workspace), key, [_key(item) for item in books])
+    picked = [item for item in books if _key(item) == chosen] if chosen else []
+    return picked[:1] or books
+
+
+__all__ = ["key_of", "policy", "remembered"]

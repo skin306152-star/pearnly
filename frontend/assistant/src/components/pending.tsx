@@ -5,8 +5,9 @@
 //   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
 //   （push.application.api.choices，同复核页、CC 的判定；列表不逐行读账套主档）。建议项排第一、预选，要点「确认」才作答：
 //   assistant.pending_api.answer 记下选择并按 CC 推送同一条路重推（只记不推不会进账）。可选值没读到的那张就地「交给 CC」。
-//   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1）：点开取
-//   可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推（choose_account_set）；没有可换的就地「交给 CC」。
+//   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1；自动推前判出
+//   多份同期账套，数字会计员第 3 期）：点开取可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推
+//   （choose_account_set；多份同期时服务端同时记成这家公司现用的）；没有可换的就地「交给 CC」。
 //   CC 准备好的提议（action push，数字会计员第 3 期：自动推前判成 A / B、这家的档位还只出提议）：行尾一个「推送」，点了就按
 //   当场选同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
 //   其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），输入框预填「处理这几张：…」并带上单据编号，不自动发送。

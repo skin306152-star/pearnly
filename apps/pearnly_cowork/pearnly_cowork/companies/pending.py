@@ -31,7 +31,7 @@ PUSH_RECORD = "Cowork Push Record"
 FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
           "total_amount", "intake_target", "push_connection", "push_account_set", "last_push_status",
           "last_push_reason", "last_push_record", "last_pushed_at", "filename", "owner", "creation", "modified",
-          "edit_count", "auto_class"]
+          "edit_count", "auto_class", "auto_reasons"]
 TARGETS = ("express", "mrerp")
 SETTLED = ("pending", "success")
 SETTLE_MINUTES = 15
@@ -40,6 +40,7 @@ LIMIT_MAX = 200
 REASONS = ("choice_needed", "result_unknown", "manual", "failed", "cc_proposal", "not_pushed")
 NOT_PUSHED_LABEL = "cowork.company.pending.not_pushed"
 PROPOSAL_LABEL = "cowork.company.pending.cc_proposal"
+BOOK_MANY = "book_many"
 # 自动推前判过、冻结了提议的类（数字会计员第 3 期）：A / B 在 L0 / L1 只出提议；C 类照旧落「没推」
 PROPOSED = ("A", "B")
 # 早上汇总
@@ -128,12 +129,19 @@ def month_of(row) -> str:
     return str(when or "")[:7]
 
 
+def book_many(row) -> bool:
+    """自动推前判成 C、原因里有「按日期选出多份同期账套」（`push.express.automation` 的 ``book_many``），还没人推过、没别的原因。"""
+    return (str(row.get("auto_class") or "") == "C" and not row.get("last_push_status")
+            and not row.get("last_push_reason") and BOOK_MANY in str(row.get("auto_reasons") or "").split(","))
+
+
 def account_set_stop(row) -> bool:
-    """停在「待选账套」：定时任务跟随公司当年账套时没有 / 多于一份 / 够不到单据日期的账套（T1 的三个原因码），且有推送去向。"""
+    """停在「待选账套」：定时任务跟随公司当年账套时没有 / 多于一份 / 够不到单据日期的账套（T1 的三个原因码），或自动推前
+    判出多份同期账套（:func:`book_many`，数字会计员第 3 期），且有推送去向。"""
     from pearnly_cowork.folder_intake.contracts import ACCOUNT_SET_STOPS
 
-    return bool(row.get("push_connection")) and str(row.get("last_push_reason") or "") in ACCOUNT_SET_STOPS \
-        and str(row.get("last_push_status") or "") not in SETTLED
+    return bool(row.get("push_connection")) and str(row.get("last_push_status") or "") not in SETTLED \
+        and (str(row.get("last_push_reason") or "") in ACCOUNT_SET_STOPS or book_many(row))
 
 
 def company_for(row) -> str:
@@ -153,23 +161,63 @@ def _task_company(row) -> tuple[str, str] | None:
     return None
 
 
-def account_sets_for(row) -> list:
-    """停在「待选账套」的单可换的账套：``[{"key", "label"}]`` = 出这张单的定时任务所跟的公司（与分店）在推送去向那条连接上
-    覆盖单据日期的账套——与定时任务选账套同一判据（`tasks.books_of`，带分店），选了推送时任务默认处理照样套用
-    （`follow.member`）；找不到任务（已删）才退回按这张单现算归属的公司（推送去向账套 → 买方 → 卖方税号）。
-    不是这种单、没有单据日期、归不上公司回空表（第 6 批，待处理页当场换账套；分店筛选见第 6 批审查第 4 条）。"""
-    from pearnly_cowork.companies import tasks
+def _stop_scope(row) -> dict | None:
+    """停在「待选账套」的单的候选：``{"workspace", "identity", "books"}``（`identity.book` 的样子，覆盖单据日期、还没按「现用的
+    那份」筛）。定时任务停下的：出这张单的任务所跟的公司（与分店）在推送去向那条连接上的（同 `tasks.books_of`），找不到任务
+    （已删）才退回按这张单现算归属的公司（推送去向账套 → 买方 → 卖方税号，不分店）。自动推判出多份同期的：同判档时
+    （`automation.day_scope`，按推送去向账套在目录里那一行认公司与分店）。没有单据日期、归不上公司回 None。"""
+    from pearnly_cowork.companies import automation, service, tasks
+    from pearnly_cowork.companies.access import COMPANY
 
-    if not account_set_stop(row):
-        return []
     day = str(row.get("invoice_date") or "")[:10]
-    if not day:
-        return []
+    connection = row.get("push_connection")
+    if not day or not connection:
+        return None
+    if book_many(row):
+        if not any(item["name"] == connection for item in service.usable_connections()):
+            return None
+        catalog = service.facts(connection).get("account_sets") or []
+        wanted = normalize_express_account_key(row.get("push_account_set"))
+        account_row = next((item for item in catalog if isinstance(item, dict) and wanted
+                            and normalize_express_account_key(item.get("source_id")) == wanted), None)
+        return automation.day_scope(connection, account_row, day, catalog) if account_row else None
     company, branch = _task_company(row) or (company_for(row), "")
     if not company:
+        return None
+    books = tasks.books_of(company, connection, day, branch, remembered=False)
+    if books is None:
+        return None
+    found = frappe.db.get_value(COMPANY, company, ["identity", "workspace"], as_dict=True) or {}
+    return {"workspace": found.get("workspace"), "identity": found.get("identity"), "books": books}
+
+
+def account_sets_for(row) -> list:
+    """停在「待选账套」的单可换的账套：``[{"key", "label"}]``（:func:`_stop_scope`）。定时任务停下的与定时任务选账套同一判据
+    （`tasks.books_of`，带分店），选了推送时任务默认处理照样套用（`follow.member`）。列全这一组（不按记住的现用账套筛，
+    选另一份就是改选）。不是这种单、没有单据日期、归不上公司回空表（第 6 批，待处理页当场换账套；分店筛选见第 6 批审查第 4 条）。"""
+    if not account_set_stop(row):
         return []
-    return [{"key": item["key"], "label": item.get("label") or item["key"]}
-            for item in tasks.books_of(company, row["push_connection"], day, branch) or []]
+    found = _stop_scope(row) or {}
+    return [{"key": item["key"], "label": item.get("label") or item["key"]} for item in found.get("books") or []]
+
+
+def current_book_choice(row, key) -> dict | None:
+    """会计员在停在「待选账套」的单上选了 ``key``：这组候选是多份同期（用户 2026-10-17「按公司问一次哪份是现用的」）→
+    ``{"workspace", "key": 口径键, "value": 规范账套键}``，调用方经 `history.document_policy.record` 记下；只有一份、选的不在
+    候选里、认不出公司回 None（只换这一张，不记）。"""
+    from pearnly_cowork.companies import current_book
+
+    if not account_set_stop(row):
+        return None
+    found = _stop_scope(row) or {}
+    wanted = normalize_express_account_key(key)
+    books = found.get("books") or []
+    if not wanted or not any(normalize_express_account_key(item["key"]) == wanted for item in books):
+        return None
+    policy_key = current_book.key_of(found.get("identity"), str(row.get("invoice_date") or "")[:10], books)
+    if not policy_key or not found.get("workspace"):
+        return None
+    return {"workspace": found["workspace"], "key": policy_key, "value": wanted}
 
 
 def account_set_pick(row, key) -> dict | None:
@@ -248,9 +296,14 @@ def _unknown(rows) -> frozenset:
                                     limit_page_length=0))
 
 
-def _reason_label(code, reason):
+def _reason_label(code, reason, row=None):
     from pearnly_cowork.push import export_facts
 
+    if row is not None and book_many(row):
+        # 自动推前判出多份同期账套：与定时任务「多于一份」同一句（`folder_intake.contracts.ACCOUNT_SET_AMBIGUOUS`）
+        from pearnly_cowork.folder_intake.contracts import ACCOUNT_SET_AMBIGUOUS
+
+        return _(ACCOUNT_SET_AMBIGUOUS)
     if code == "not_pushed":
         return _(NOT_PUSHED_LABEL)
     if code == "cc_proposal":
@@ -271,7 +324,7 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
         company = company_of(row, by_set, by_tax)
         # reason_code 是原有的粗分（`REASONS`，页面与早上汇总照旧用）；code 是统一异常清单的稳定码（`exceptions.CODES`）
         item = {"document": row.name, "company": company or None, "reason_code": code, "code": stable,
-                "reason_label": _reason_label(code, row.get("last_push_reason")),
+                "reason_label": _reason_label(code, row.get("last_push_reason"), row),
                 "invoice_no": row.get("invoice_no") or "", "counterparty": counterparty(row, tax_ids.get(company, "")),
                 "amount": amount(row.get("total_amount")), "date": str(row.get("invoice_date") or ""),
                 "filename": row.get("filename") or "", "month": month_of(row),
@@ -285,8 +338,9 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                               "kinds": []}
         elif account_set_stop(row):
-            # 定时任务跟随公司当年账套停在「待选账套」（T1）：页面当场换一份账套重推（`assistant.pending_api.choose_account_set`，
-            # 可换的由 `account_sets` 按这张单的公司与单据日期现算），不用交给 CC
+            # 定时任务跟随公司当年账套停在「待选账套」（T1）、自动推前判出多份同期账套（第 3 期）：页面当场换一份账套重推
+            # （`assistant.pending_api.choose_account_set`，可换的由 `account_sets` 按这张单的公司与单据日期现算；多份同期时
+            # 选的那份记成这家公司现用的），不用交给 CC
             item["action"] = "account_set"
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                               "kinds": []}
@@ -431,5 +485,5 @@ def _titles(names) -> dict:
                                                                 fields=["name", "title"], limit_page_length=0)}
 
 
-__all__ = ["classify", "company_of", "counts", "digest_text", "is_new", "month_of", "morning", "morning_due", "pending",
-           "pending_counts", "proposal"]
+__all__ = ["account_set_stop", "account_sets_for", "book_many", "classify", "company_of", "counts", "current_book_choice",
+           "digest_text", "is_new", "month_of", "morning", "morning_due", "pending", "pending_counts", "proposal"]

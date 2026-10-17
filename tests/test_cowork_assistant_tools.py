@@ -2402,7 +2402,44 @@ class ListAndRunsTests(unittest.TestCase):
                                 "push_connection": "EXP1", "pages": []})
         self.assertEqual(detail["handling_choice_needed"], "goods_posting")
         schema = next(tool for tool in tools.TOOLS if tool["name"] == "cowork_choose_document_policy")["input_schema"]
-        self.assertEqual(schema["properties"]["value"]["enum"], ["enter", "skip", "stock", "service"])
+        self.assertEqual(schema["properties"]["value"]["enum"], ["enter", "skip", "stock", "service", "current_book"])
+
+    def test_two_account_sets_for_the_same_dates_ask_once_which_one_is_in_use(self):
+        """用户 10-17：真有两份同期账套时按公司按这一组问一次哪份是现用的（同一个工具，值 current_book 带候选里的账套键，
+        记法同待处理当场换账套 `pending_api.remember_current_book`）；只有一份可选、不是这种停下的单不问。"""
+        books = [{"key": "s:\\68exp\\a", "label": "A 2568"}, {"key": "s:\\69exp\\a", "label": "A 2569"}]
+        shown, remembered = {"books": books}, []
+        pending = types.SimpleNamespace(account_set_stop=lambda doc: True,
+                                        account_sets_for=lambda doc: list(shown["books"]))
+        pending_api = types.SimpleNamespace(remember_current_book=lambda doc, key: remembered.append((doc, key)) or (
+            {"current_book": key} if key in {item["key"] for item in books} else None))
+        modules = {"pearnly_cowork.companies": types.SimpleNamespace(pending=pending),
+                   "pearnly_cowork.companies.pending": pending,
+                   "pearnly_cowork.assistant": types.SimpleNamespace(pending_api=pending_api),
+                   "pearnly_cowork.assistant.pending_api": pending_api,
+                   "pearnly_cowork.history.document_policy": types.SimpleNamespace(),
+                   "pearnly_cowork.push.application.goods_posting": types.SimpleNamespace()}
+        with mock.patch.dict(sys.modules, modules), mock.patch.object(tools.storage, "read", lambda name: "doc:" + name):
+            detail = tools._detail({"name": "D1", "last_push_reason": "cowork.folder.account_set_ambiguous",
+                                    "push_connection": "EXP1", "pages": []})
+            self.assertEqual((detail["handling_choice_needed"], detail["current_book_options"]), ("current_book", books))
+            # 自动推前判出多份同期（C 类，``book_many``）同样问
+            detail = tools._detail({"name": "D1", "auto_class": "C", "auto_reasons": "book_many,amount_math",
+                                    "push_connection": "EXP1", "pages": []})
+            self.assertEqual(detail["handling_choice_needed"], "current_book")
+            shown["books"] = books[:1]
+            self.assertNotIn("handling_choice_needed", tools._detail({
+                "name": "D1", "last_push_reason": "cowork.folder.account_set_ambiguous", "push_connection": "EXP1",
+                "pages": []}))
+            out = json.loads(tools.choose_document_policy({"document": "D1", "value": "current_book",
+                                                           "account_set_key": "s:\\69exp\\a"}))
+            self.assertEqual(out, {"status": "saved", "current_book": "s:\\69exp\\a"})
+            self.assertEqual(remembered, [("doc:D1", "s:\\69exp\\a")])
+            out = json.loads(tools.choose_document_policy({"document": "D1", "value": "current_book",
+                                                           "account_set_key": "s:\\nope"}))
+            self.assertEqual(out["status"], "not_saved")
+        # 别的单不读账套目录（不导入 companies）
+        self.assertNotIn("current_book_options", tools._detail({"name": "D1", "push_connection": "EXP1", "pages": []}))
 
     def test_entered_rows_say_how_they_were_written_without_the_record_name(self):
         # cowork_push_results（push_state success）：每张入账的票带 written，推送记录名只用来查、不给模型（验收 F19）

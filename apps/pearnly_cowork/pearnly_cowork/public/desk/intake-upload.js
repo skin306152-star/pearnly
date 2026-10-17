@@ -19,6 +19,7 @@
 	const OCR = "pearnly_cowork.ocr.api.";
 	const HISTORY = "pearnly_cowork.history.api.";
 	const PUSH = "pearnly_cowork.push.application.api.";
+	const PENDING = "pearnly_cowork.assistant.pending_api.";
 	// Express 的准备要再经小助手确认入口「确认发送」；MR.ERP 在服务端「提交」里一并确认。
 	const EXPRESS_CONFIRM = "pearnly_cowork.companion.submission.confirm";
 	const CONNECTIONS = "pearnly_cowork.connections.api.";
@@ -139,6 +140,11 @@
 	const POLICY_SKIPPED = /^document_policy_skip_/;
 	/** 永续 / 混合库存账套的商品单没声明入账类型：这家公司选一次「走库存 / 记费用」（`push/express/goods_posting.py`）。 */
 	const GOODS_POSTING_NEEDED = /^posting_needs_review/;
+	/** 这家公司有多份账套覆盖单据日期：定时任务停下（T1），或自动推前判出多份同期账套（``book_many``）。列出候选账套，点了换到
+	 * 那份重推，并记成这家公司这一组现用的（`assistant.pending_api.choose_account_set`，同待处理页）。 */
+	const ACCOUNT_SET_AMBIGUOUS = "cowork.folder.account_set_ambiguous";
+	const book_many = record => record?.auto_class === "C" && !record.last_push_status && !record.last_push_reason
+		&& String(record.auto_reasons || "").split(",").includes("book_many");
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
 	const code_text = code => {
 		if (!code) return "";
@@ -538,10 +544,11 @@
 		const show_notice = record => {
 			const wrapper = form.fields_dict.notice.$wrapper.empty();
 			const pushed = record?.last_push_status;
-			if (record?.last_push_reason && (pushed === "manual" || !pushed)) {
-				const reason = String(record.last_push_reason);
+			const many = book_many(record);
+			if ((record?.last_push_reason && (pushed === "manual" || !pushed)) || many) {
+				const reason = String(record.last_push_reason || ACCOUNT_SET_AMBIGUOUS);
 				const row = $(`<div class='form-message ${POLICY_SKIPPED.test(reason) ? "blue" : "red"}'>`).appendTo(wrapper);
-				$("<span>").text(p.intake_push_reason(record.last_push_reason)).appendTo(row);
+				$("<span>").text(p.intake_push_reason(reason)).appendTo(row);
 				if (RESULT_UNKNOWN.test(String(record.last_push_reason)) && record.last_push_record) {
 					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.unknown.check"))
 						.on("click", () => void resolve_unknown(record)).appendTo(row);
@@ -567,6 +574,7 @@
 							.on("click", () => void choose_goods_posting(record, value)).appendTo(row);
 					}
 				}
+				if (reason === ACCOUNT_SET_AMBIGUOUS && !recognize_only) void show_account_sets(record, row);
 			}
 		};
 		// 推到 ERP 的两张目标卡片（用户 2026-09-27：账套上传前由用户选定，编辑页不再选）。
@@ -781,6 +789,25 @@
 		const choose_goods_posting = async (record, value) => {
 			await p.call(PUSH + "choose_goods_posting", {history: record.name, value}, "POST");
 			await submit({names: [record.name]});
+		};
+
+		/** 多份账套覆盖单据日期：原因旁列出候选账套（按钮就是账套名）。 */
+		const show_account_sets = async (record, row) => {
+			const found = await p.call(PENDING + "account_sets", {document: record.name});
+			if (current?.name !== record.name || !$.contains(document.body, row[0])) return;
+			for (const item of found?.account_sets || []) {
+				$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(item.label || item.key)
+					.on("click", () => void choose_account_set(record, item.key)).appendTo(row);
+			}
+		};
+
+		/** 选一份：换到它重推这一张，多份同期时记成这家公司现用的；推不成的原因提示一下，单子回到可再选。 */
+		const choose_account_set = async (record, key) => {
+			const result = await p.call(PENDING + "choose_account_set", {document: record.name, account_set_key: key}, "POST");
+			current = await detail(record.name);
+			fill(current);
+			sync_save();
+			if (result?.reason) frappe.show_alert({message: p.escape(p.intake_push_reason(result.reason)), indicator: "red"});
 		};
 
 		const resolve_unknown = record => new Promise(resolve => {
