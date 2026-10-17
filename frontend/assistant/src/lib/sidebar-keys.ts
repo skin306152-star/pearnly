@@ -81,7 +81,7 @@ type Letter = "KeyP" | "KeyR" | "KeyD";
 type LetterEvent = { code: string; target: EventTarget | null; currentTarget: EventTarget | null; metaKey: boolean; ctrlKey: boolean; altKey: boolean; preventDefault(): void };
 
 /** 这个键是不是按在这一层菜单本身：子菜单（宽屏旁边展开的 SubContent、窄屏原菜单里换上的那一页）里的键沿组件树冒上来时
- *  不算——组件库在子菜单里按字母跳转不拦冒泡，否则在「移到 ▸」里按 D 想跳到某家公司会删掉对话。 */
+ *  不算——组件库在子菜单里按字母跳转不拦冒泡，否则在子菜单里按 D 想跳到某一项会删掉对话（原来行菜单里的「移到 ▸」，10-17 已删）。 */
 export function ownMenuKey(target: EventTarget | null, menu: EventTarget | null): boolean {
   const el = target as Element | null;
   if (!el || typeof el.closest !== "function") return false;

@@ -572,8 +572,9 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<GlobeIcon />} label={t("language")} sideOffset={8}>', page)
         self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>', page)
         projects = read("components/assistant-ui/projects.tsx")
-        self.assertIn('<SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">', projects)
-        # 手机胶囊菜单里的「处理月份」移到了输入框下巴（设计文档 4.3），菜单里只留「移到…」
+        # 用户 10-17：对话不能换公司，「移到 ›」子菜单删了；手机对话页「…」里的处理月份、分店子菜单照用包装组件
+        self.assertNotIn("co.moveTo", projects)
+        self.assertIn('<SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
         self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）

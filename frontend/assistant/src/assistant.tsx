@@ -53,7 +53,6 @@ import {
   ConversationCompany,
   MobileCompanyItem,
   MobileFilingItems,
-  MoveToMenu,
   WelcomeFiling,
 } from "@/components/assistant-ui/projects";
 import { AddCompanyDialog } from "@/components/add-company";
@@ -606,7 +605,7 @@ function DrawerIcon() {
 
 // 对话区顶部。
 // - 手机（同 Claude 手机端对话页）：左边菜单，右边胶囊（新建对话、「…」对话选项），都浮在内容上。
-// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、移到、删除）；
+// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、删除）；
 //   右上 26 的按钮：本对话的文件 N（有文件才出现）、右侧会话栏开关（挂了公司的 Cowork 对话才有）。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
 function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; tools: ReactNode }) {
@@ -655,7 +654,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   );
 }
 
-// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、移到…、处理月份、删除）
+// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、处理月份、分店、删除）
 function MobileChatPill({ onNew }: { onNew: () => void }) {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
@@ -726,12 +725,10 @@ function ConversationName() {
   );
 }
 
-// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、移到 ▸、删除
+// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、删除（对话不能换公司，用户 10-17 删了「移到 ▸」）
 function ConversationMenu({ onRename }: { onRename: () => void }) {
   const aui = useAui();
   const custom = useAuiState((s) => s.threadListItem.custom);
-  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
-  const localId = useAuiState((s) => s.threadListItem.id);
   const starred = !!custom?.starred;
   return (
     <DropdownMenu.Root>
@@ -749,7 +746,6 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
-          <MoveToMenu sessionId={remoteId} localId={localId} />
           <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
             <TrashIcon />
             {t("delete")}

@@ -5,6 +5,7 @@
 A DMS customer reference is required before confirming or pushing,A DMS customer reference is required before confirming or pushing
 A DMS customer reference is required; otherwise this link means nothing,A DMS customer reference is required; otherwise this link means nothing
 A board instance is created only when this is on,A board instance is created only when this is on
+A conversation cannot be moved to another company.,A conversation cannot be moved to another company.
 A disabled operator cannot issue a bind code; enable them first,A disabled operator cannot issue a bind code; enable them first
 "A human-readable name, e.g. MR.ERP DMS","A human-readable name, e.g. MR.ERP DMS"
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.","A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back."

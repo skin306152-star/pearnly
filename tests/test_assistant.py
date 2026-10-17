@@ -3864,20 +3864,47 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(doc.project, "")
 
     def test_moving_keeps_the_activity_time_and_star_and_is_pushed(self):
-        row = self.db.rows[3]  # r4，已置顶
+        # 只改月份、范围（公司不变）：不改最后活动时间、不动置顶，推给本人
+        row = self.db.rows[3]  # r4，已置顶，挂在 co_xyz1
         with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: row):
-            out = self.sessions.move("sesn_xyz001", "co_abc1", period="2026-08", scope="00012")
-            self.assertEqual(out, {"id": "sesn_xyz001", "project": "co_abc1", "period": "2026-08", "scope": "00012"})
-            self.assertEqual(self.db.writes[-1], ("r4", {"project": "co_abc1", "period": "2026-08",
+            out = self.sessions.move("sesn_xyz001", "co_xyz1", period="2026-08", scope="00012")
+            self.assertEqual(out, {"id": "sesn_xyz001", "project": "co_xyz1", "period": "2026-08", "scope": "00012"})
+            self.assertEqual(self.db.writes[-1], ("r4", {"project": "co_xyz1", "period": "2026-08",
                                                           "project_scope": "00012"}, False))
             self.assertEqual((row.starred, str(row.modified)), (1, "2026-10-15 06:00:00"))
             self.assertEqual(self.pushed[-1], ({"type": "pearnly.project", "op": "move", "session_id": "sesn_xyz001",
-                                                "project": "co_abc1", "period": "2026-08", "scope": "00012"},
+                                                "project": "co_xyz1", "period": "2026-08", "scope": "00012"},
                                                self.OWNER, True))
-            self.sessions.move("sesn_xyz001", "", period="2026-08")
-            self.assertEqual(self.db.writes[-1][1], {"project": "", "period": "", "project_scope": ""})
+
+    def test_a_conversation_never_moves_to_another_company(self):
+        # 用户 10-17：对话不能换公司——换到别家、移回「最近」、从「最近」挂进公司一律拒绝，什么都不写、不推
+        filed, recent = self.db.rows[1], self.db.rows[0]  # r2 挂在 co_abc1；r1 在「最近」
+        writes, pushed = len(self.db.writes), len(self.pushed)
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: filed):
+            for project in ("co_xyz1", "", "co_gone1"):
+                with self.assertRaises(frappe.ValidationError):
+                    self.sessions.move("sesn_abc001", project, period="2026-08")
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: recent):
+            with self.assertRaises(frappe.ValidationError):
+                self.sessions.move("sesn_rec001", "co_abc1", period="2026-08")
+        self.assertEqual((len(self.db.writes), len(self.pushed)), (writes, pushed))
+        self.assertEqual((filed.project, recent.project), ("co_abc1", ""))
+        # 公司没变：照常改月份、范围；「最近」里的对话没有月份、范围
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: filed):
+            self.assertEqual(self.sessions.move("sesn_abc001", "co_abc1", period="2026-07")["period"], "2026-07")
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: recent):
+            self.sessions.move("sesn_rec001", "", period="2026-08")
+            self.assertEqual(self.db.writes[-1], ("r1", {"project": "", "period": "", "project_scope": ""}, False))
+        # 挂着的公司产品已不认（不能再用）：照旧拒绝
+        self.provider.known.pop("co_abc1")
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: filed):
             with self.assertRaises(frappe.PermissionError):
-                self.sessions.move("sesn_xyz001", "co_gone1")
+                self.sessions.move("sesn_abc001", "co_abc1", period="2026-07")
+        # 拒绝说明走翻译：英文 msgid 四种语言都有
+        tsv = (ROOT / "apps/pearnly_core/pearnly_core/i18n/messages.tsv").read_text(encoding="utf-8")
+        line = next(row for row in tsv.splitlines() if row.startswith("A conversation cannot be moved to another company.\t"))
+        self.assertEqual(len([cell for cell in line.split("\t")[:4] if cell]), 4)
+        self.assertIn('_("A conversation cannot be moved to another company.")', (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8"))
 
     def test_release_files_everyones_conversations_back_under_recent(self):
         users = self.projects.release("co_abc1")

@@ -9,12 +9,13 @@
 //   不分组（flatSections）：已置顶 → 其余全部（标题「最近」）
 //
 // 组内按排序方式排：上次更新 / 创建日期 / 名称，降序或升序；公司组按同一种方式排（名称 = 公司名）。
-// 手排（用户 10-16，sidebar-order.ts）：公司组拖过以后按手排的顺序（新出现的公司排最上面）；置顶的对话拖过以后按手排的先后
-// （新置顶的排最上面）。组里其余对话照排序方式排。
+// 手排（用户 10-16、10-17，sidebar-order.ts）：公司组拖过以后按手排的顺序（新出现的公司排最上面）；置顶的对话拖过以后按手排的
+// 先后（新置顶的排最上面）；按公司分组时组里的对话拖过以后按手排的先后（arrangeGroup：比存下那一刻新的排最上面，更旧的接在
+// 后面）。没手排过的照排序方式排。
 // 搜索同时匹配对话标题和公司名（公司名命中时这家的对话都算）；搜索时每组都显示全部命中的，没命中的组不显示。
 
 import { FIRST_SHOWN, OPEN_FIRST, type ProjectRow, rowActivity } from "./projects";
-import { arrange } from "./sidebar-order";
+import { arrange, type GroupOrder } from "./sidebar-order";
 import type { SortBy } from "./sidebar-view";
 
 /** 侧栏的一行对话：index 是组件库 threadIds 里的位置；created 创建时间（列表带回的，本页新建的没有）、period 处理月份；
@@ -50,8 +51,8 @@ export type SectionOptions = {
   companyOrder?: readonly string[];
   /** 手排的置顶顺序（行的 key；空 = 按排序方式）。 */
   pinnedOrder?: readonly string[];
-  /** 要留在眼前的行（key）：在公司组「显示更多」之外时接在已显示的最后（刚拖进这一组的对话，落在哪就留在哪）。 */
-  keep?: readonly string[];
+  /** 按公司分组时各组里手排的先后（键 = 公司编号，最近 ""）。 */
+  groupOrders?: Readonly<Record<string, GroupOrder>>;
 };
 
 const UPDATED_DESC: SortOptions = { by: "updated", desc: true };
@@ -88,6 +89,19 @@ export function compareRows(sort: SortOptions = UPDATED_DESC): (a: SidebarRow, b
   };
 }
 
+/** 一组里的行（已按排序方式排好）按手排的先后摆（用户 10-17）：手排列表里的按列表的先后；不在列表里的，比存下那一刻新（按当前
+ *  排序方式用的时间：创建日期用创建时间，其余用上次更新）的排最上面（新对话出现在顶上），更旧的（「显示更多」后才取到的）接在
+ *  后面，各自保持排序方式的先后。没手排过原样返回。 */
+export function arrangeGroup(sorted: readonly SidebarRow[], saved: GroupOrder | undefined, sort: SortOptions = UPDATED_DESC): SidebarRow[] {
+  if (!saved?.keys.length) return [...sorted];
+  const at = new Map(saved.keys.map((key, i) => [key, i]));
+  const keyOf = (row: SidebarRow) => row.key ?? String(row.index);
+  const when = (row: SidebarRow) => (sort.by === "created" ? (row.created ?? row.time) : row.time);
+  const known = sorted.filter((row) => at.has(keyOf(row))).sort((a, b) => at.get(keyOf(a))! - at.get(keyOf(b))!);
+  const fresh = sorted.filter((row) => !at.has(keyOf(row)));
+  return [...fresh.filter((row) => when(row) > saved.at), ...known, ...fresh.filter((row) => !(when(row) > saved.at))];
+}
+
 function searcher(projects: readonly ProjectRow[], query: string) {
   const q = query.trim().toLowerCase();
   const known = new Set(projects.map((p) => p.id));
@@ -103,8 +117,6 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   const sort = options.sort ?? UPDATED_DESC;
   const sorted = [...rows].sort(compareRows(sort));
   const recentFirst = [...rows].sort(compareRows(UPDATED_DESC));
-  const keys = new Map(rows.map((row) => [row.index, row.key ?? String(row.index)]));
-  const keyOf = (index: number) => keys.get(index) ?? String(index);
 
   const sections: SidebarSection[] = [];
   const pinned = pinnedIndices(sorted, matches, options.pinnedOrder);
@@ -135,111 +147,46 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   const anyChats = rows.some((row) => !!groupOf(row)) || Object.keys(options.serverMore ?? {}).length > 0;
   let rank = 0;
   let empties = 0;
+  const inGroup = (group: string) =>
+    arrangeGroup(sorted.filter((row) => !row.starred && groupOf(row) === group && matches(row)), options.groupOrders?.[group], sort).map(
+      (row) => row.index,
+    );
   for (const project of ordered) {
-    const all = sorted.filter((row) => !row.starred && groupOf(row) === project.id && matches(row)).map((row) => row.index);
+    const all = inGroup(project.id);
     if (query && !all.length && !project.title.toLowerCase().includes(query)) continue;
     if (!query && !all.length && options.empty === false) continue;
-    const first = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
-    const kept = options.keep?.length ? all.slice(first.length).filter((index) => options.keep!.includes(keyOf(index))) : [];
-    const indices = kept.length ? [...first, ...kept] : first;
+    const indices = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
     const serverHas = project.id in (options.serverMore ?? {});
     const more = !query && (all.length > indices.length || serverHas);
     const order = !anyChats || all.length || serverHas ? rank++ : OPEN_FIRST + empties++;
     sections.push({ type: "project", key: `project:${project.id}`, project, rank: order, indices, all, more });
   }
 
-  const recents = sorted.filter((row) => !row.starred && !groupOf(row) && matches(row)).map((row) => row.index);
+  const recents = inGroup("");
   if (recents.length) sections.push({ type: "recents", key: "recents", indices: recents });
 
   if (query && !sections.length) return null;
   return sections;
 }
 
-/** 拖对话时眼前没有「最近」组：补一个空的（好拖出公司；同 companySections 的排法，在最后）。 */
-export function withRecents(sections: SidebarSection[]): SidebarSection[] {
-  return sections.some((section) => section.type === "recents") ? sections : [...sections, { type: "recents", key: "recents", indices: [] }];
+/** 拖对话时（按公司分组）眼前没有「已置顶」：补一个空的放在最上面（拖进去 = 置顶；照原来临时补「最近」的做法）。 */
+export function withPinned(sections: SidebarSection[]): SidebarSection[] {
+  return sections.some((section) => section.type === "pinned") ? sections : [{ type: "pinned", key: "pinned", indices: [] }, ...sections];
 }
 
-/** 拖动中对话的空档去了别的组（按公司分组，共用拖动的 onPlace）：把这一行从原来那组拿掉，按排序方式排进 to（公司编号，"" = 最近）
- *  那一组——就是它移过去以后的位置；那组「显示更多」之外的放在已显示的最后。各组的名次、展开、「显示更多」不变（只是摆法）；
- *  去最近而眼前没有最近组时补一个。找不到那一组（不在眼前）回原样。 */
-export function liftRow(
-  sections: SidebarSection[],
-  rows: readonly SidebarRow[],
-  index: number,
-  to: string,
-  sort: SortOptions = UPDATED_DESC,
-): SidebarSection[] {
-  const lifted = rows.find((row) => row.index === index);
-  const base = to ? sections : withRecents(sections);
-  const target = base.find((section) => (to ? section.type === "project" && section.project.id === to : section.type === "recents"));
-  if (!lifted || !target) return sections;
-  const byIndex = new Map(rows.map((row) => [row.index, row]));
-  const compare = compareRows(sort);
-  const order = (a: number, b: number) => {
-    const x = byIndex.get(a);
-    const y = byIndex.get(b);
-    return x && y ? compare(x, y) : a - b;
-  };
-  const without = (list: readonly number[]) => list.filter((at) => at !== index);
-  return base.map((section) => {
-    if (section.type === "pinned" || section.type === "month") return section;
-    const indices = without(section.indices);
-    if (section !== target) {
-      return section.type === "project" ? { ...section, indices, all: without(section.all) } : { ...section, indices };
+/** 拖动中对话进了「已置顶」（还没放下，共用拖动的 onOver）：把这一行从它那一组拿掉，排进已置顶的第 at 位（眼前的摆法；
+ *  各组的名次、展开、「显示更多」不变）。没有已置顶时先补一个空的。 */
+export function pinGuest(sections: SidebarSection[], index: number, at: number): SidebarSection[] {
+  const without = (list: readonly number[]) => list.filter((i) => i !== index);
+  return withPinned(sections).map((section) => {
+    if (section.type === "pinned") {
+      const indices = without(section.indices);
+      const spot = Math.max(0, Math.min(at, indices.length));
+      return { ...section, indices: [...indices.slice(0, spot), index, ...indices.slice(spot)] };
     }
-    const rest = without(section.type === "project" ? section.all : section.indices);
-    const all = [...rest, index].sort(order);
-    const at = all.indexOf(index);
-    // 已显示的前面那一段里按位置插；之外的放进接在后面留着的那一段（companySections 的 keep），在那一段里同样按排序方式排
-    // ——放下后 companySections 也这样排，落位后不再和留着的行换位
-    let shown = 0;
-    while (shown < indices.length && indices[shown] === rest[shown]) shown++;
-    const tail = [...indices.slice(shown), index].sort(order);
-    const placed = at < shown ? [...indices.slice(0, at), index, ...indices.slice(at)] : [...indices.slice(0, shown), ...tail];
-    return section.type === "project" ? { ...section, indices: placed, all } : { ...section, indices: placed };
+    if (section.type === "project") return { ...section, indices: without(section.indices), all: without(section.all) };
+    return { ...section, indices: without(section.indices) };
   });
-}
-
-/** 放下后要移进 section（已按 liftRow 摆好的那一组，拖的那一行 dragged 已排在里面）的各行（moving：拖的这一条和多选整批的其余
- *  各条）怎么留在眼前：那组眼前原有的行一条都不被挤进「显示更多」，移进来的也不落位后当场消失。排在眼前最后一条之前的每一条
- *  都让那组多显示一条（bump，projects.ts 的 showOneMore，同「显示更多」的计数）；排在「显示更多」之外的单独留着（keep，
- *  companySections 的 keep，接在已显示的最后、按排序方式排）。shown 是这组此刻显示几条（shownOf）。搜索时（全显示）、最近（不限
- *  条数）、去的组收着（拖的那一行没排进去）都不用。 */
-export function keepInView(
-  section: SidebarSection | undefined,
-  dragged: number,
-  moving: readonly number[],
-  rows: readonly SidebarRow[],
-  shown: number,
-  searching: boolean,
-  sort: SortOptions = UPDATED_DESC,
-): { bump: number[]; keep: number[] } {
-  const none = { bump: [], keep: [] };
-  if (searching || section?.type !== "project" || !section.indices.includes(dragged)) return none;
-  const byIndex = new Map(rows.map((row) => [row.index, row]));
-  const compare = compareRows(sort);
-  const order = (a: number, b: number) => {
-    const x = byIndex.get(a);
-    const y = byIndex.get(b);
-    return x && y ? compare(x, y) : a - b;
-  };
-  const incoming = new Set(moving);
-  const old = section.all.filter((index) => !incoming.has(index));
-  const all = [...old, ...incoming].sort(order);
-  // 眼前原有的最后一条前面每插进一条，它就往后挪一位；挪出已显示的那一段几位，就多显示几条（原来那组没满时先占空位）
-  const seen = old.slice(0, shown);
-  const last = seen.at(-1);
-  const before = last === undefined ? [] : [...incoming].filter((index) => all.indexOf(index) < all.indexOf(last)).sort(order);
-  const bump = before.slice(0, Math.max(0, seen.length + before.length - shown));
-  const visible = shown + bump.length;
-  return { bump, keep: [...incoming].filter((index) => all.indexOf(index) >= visible) };
-}
-
-/** 搜索时这一行移到 to（公司编号，"" = 最近）以后还在不在结果里（标题或那家公司名命中）；不搜索时都在。拖动时不在的不给它在
- *  那一组排空档（落位后会从结果里消失），按收着的组处理：组头高亮、落到组头并收起。 */
-export function matchesAfterMove(row: SidebarRow, to: string, projects: readonly ProjectRow[], query: string): boolean {
-  return searcher(projects, query).matches({ ...row, group: to });
 }
 
 /** 按处理月份：已置顶 → 各月（降序新的在前，升序旧的在前）→ 未指定月份（键 month:）。 */

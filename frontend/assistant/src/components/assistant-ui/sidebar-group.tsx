@@ -9,7 +9,8 @@
 //   GroupSortMenu — 组标题右侧的「···」，打开「分组和排序」（用户 2026-10-15 夜：原来的漏斗按钮去掉，公司组「···」里的
 //                   打开公司、在这家新建对话换成这份菜单）：分组依据（公司 / 月份 / 无）、排序方式（上次更新 / 创建日期 /
 //                   名称 + 降序 / 升序）、显示（元数据 / 空分组）、恢复默认设置（改过才可点）；父项右侧写当前值，选中的打 ✓
-//                   （lib/managed-agents/sidebar-view.ts）。公司组头受控：手机长按组头、键盘菜单键打开的也是它
+//                   （lib/managed-agents/sidebar-view.ts）。排序方式里点任一项（含已选的那一项）= 组里手排的先后都不要了，回到
+//                   按排序方式排（用户 10-17）。公司组头受控：手机长按组头、键盘菜单键打开的也是它
 //   GroupNew      — 组标题右侧的「新建」：在这一组（公司 / 最近）开新对话
 //
 // 颜色、尺寸只用 globals.css 的变量（.cc-group-*、.cc-row-btn）。组名放不下时悬停滚动（components/ui/marquee.tsx）。
@@ -30,7 +31,7 @@ import {
   type SortBy,
   useSidebarView,
 } from "@/lib/managed-agents/sidebar-view";
-import { hasManualOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { clearGroupOrders, hasManualOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { cn } from "@/lib/utils";
 
 /** 组标题的菜单键（键盘上的菜单键、Shift + F10）：打开这一组的「···」。 */
@@ -131,9 +132,10 @@ const Parent: FC<{ label: string; value?: string }> = ({ label, value }) => (
 );
 
 /** 单选项（分组依据、排序方式、升降序）：读屏念成单选菜单项并带选中状态（menuitemradio + aria-checked，测试窗口第 7 轮：原来是
- *  普通菜单项，听不出选的是哪个）；选中的打 ✓，样子不变。放在 RadioGroup 里，value 是它的值。 */
-const Choice: FC<{ label: string; value: string }> = ({ label, value }) => (
-  <DropdownMenu.RadioItem className="cc-menu-item" value={value}>
+ *  普通菜单项，听不出选的是哪个）；选中的打 ✓，样子不变。放在 RadioGroup 里，value 是它的值；onSelect 点了就调（点已选的那一项
+ *  也调，RadioGroup 的 onValueChange 不调）。 */
+const Choice: FC<{ label: string; value: string; onSelect?: () => void }> = ({ label, value, onSelect }) => (
+  <DropdownMenu.RadioItem className="cc-menu-item" value={value} onSelect={onSelect}>
     <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
     <DropdownMenu.ItemIndicator asChild>
       <CheckIcon />
@@ -162,7 +164,7 @@ export function headOffset(trigger: { left: number } | null | undefined, head: {
  *  右对齐，左边缘正好落在组里各行文字起点右边几像素，各行首字从菜单左边露出一点）。菜单盖在列表上照常，只是不再切在字头上。 */
 export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) => void; alignHead?: boolean }> = ({ open, onOpenChange, alignHead }) => {
   const view = useSidebarView();
-  // 「恢复默认设置」也清手排的公司组、置顶顺序：两样都跟默认一样才不可点
+  // 「恢复默认设置」也清手排的公司组、置顶与组里的顺序：都跟默认一样才不可点
   const manual = useSidebarOrder(hasManualOrder);
   const trigger = useRef<HTMLButtonElement>(null);
   const [offset, setOffset] = useState<number | null>(null);
@@ -201,13 +203,13 @@ export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) 
           <SubMenu label={<Parent label={sb.sortBy} value={SORT_LABEL[view.sort]()} />} className="cc-menu !min-w-40">
             <DropdownMenu.RadioGroup value={view.sort} onValueChange={(sort) => setSidebarView({ sort: sort as SortBy })}>
               {(["updated", "created", "name"] as const).map((sort) => (
-                <Choice key={sort} label={SORT_LABEL[sort]()} value={sort} />
+                <Choice key={sort} label={SORT_LABEL[sort]()} value={sort} onSelect={clearGroupOrders} />
               ))}
             </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator className="cc-menu-sep" />
             <DropdownMenu.RadioGroup value={view.desc ? "desc" : "asc"} onValueChange={(dir) => setSidebarView({ desc: dir === "desc" })}>
-              <Choice label={sb.descending} value="desc" />
-              <Choice label={sb.ascending} value="asc" />
+              <Choice label={sb.descending} value="desc" onSelect={clearGroupOrders} />
+              <Choice label={sb.ascending} value="asc" onSelect={clearGroupOrders} />
             </DropdownMenu.RadioGroup>
           </SubMenu>
           <SubMenu label={<Parent label={sb.show} />} className="cc-menu !min-w-40">

@@ -1,6 +1,6 @@
 // 共用拖动（用户 10-15 晚：拖动要「全部参考视频，非常丝滑」；10-16：「所有拖拽的地方要改统一规则和效果」、「对话的拖动效果怎么没和
 // 其它拖动效果统一呢」。参考 Claude 桌面版右侧栏拖卡片的录屏 IMG_5192）。会话栏卡片（session-panel.tsx）、侧栏公司组排序、置顶对话
-// 排序、对话拖到别的公司（thread-list.tsx）都走这一份；修一处就在这里修。基于 dnd-kit（MIT，版本锁在 package.json）。
+// 排序、组里的对话排序与拖进已置顶（thread-list.tsx）都走这一份；修一处就在这里修。基于 dnd-kit（MIT，版本锁在 package.json）。
 //
 //   拿起   鼠标按住动 3px（点一下照样是点）；手机按住 250ms 且没挪出 5px 就拿起（没到时间就动 = 在滚动）；键盘 空格。能拖的把手带
 //          data-drag-handle，悬停出抓手光标（globals.css 同一条），拖动中整页 grabbing。侧栏的行与组头长按另有菜单：拿起后手指
@@ -10,32 +10,32 @@
 //          浮层在抽屉、手机会话栏（50）之上、菜单（60）之下：按住不动出来的长按菜单不被拿起的那一项盖住。
 //   浮起   拿起的那一项换成浮层（DragOverlay，克隆原来那一项的样子，挂在 body 上）：弹层底、弹出阴影、略透明、略放大，实时跟手。
 //          原位留空（空档）。排序（一列里调先后）：其余各项拖动中就带过渡滑开让位（dnd-kit 的排序位移，过渡用动效变量）。
-//          在组之间移动（侧栏对话拖到别的公司：组里的先后由排序方式定、不能手调）：空档跟着去那一组，出现在调用方按排序方式算出的
-//          位置（onPlace），原来那组的空档合上——两组之间整列各行、组头的位置变了都带同样的过渡滑过去（flowLayout，这段时间关掉
-//          滚动锚定）；空档的位置不跟指针，落在滚动区可见范围外时平滑滚进来（revealGap）；在原组里动空档不动；去的组收着（放不下
-//          空档）时组头高亮、原位空档留着。dnd-kit 多列排序的做法，只是空档的位置由排序方式定。
+//          拖进另一列（侧栏对话拖进已置顶，dnd-kit 多列排序的做法）：指针进了那一列的整块落点（useDropZone）才算进去，调用方
+//          （onOver）把这一项挪进那一列、排在指着的位置，原来那一列的空档合上；指针回到原来那一列的整块里就挪回去。两列之间整列
+//          各行、组头的位置变了都带同样的过渡滑过去（flowLayout，拖动中关掉滚动锚定）。那一列收着（放不下空档）时整块（就是组头）
+//          高亮、原位空档留着。
 //   放下   松手那一下只做一件事：浮层从放手处起播落位（Web Animations 只动 transform，交给合成线程；动效变量），落点在松手时
-//          就量好（空档此刻的位置，排序时加上它让位的位移）；结束拖动（拖动库与调用方的重画：整列重排、换组、发请求）等落位播完
-//          才做（landOverlay / ReleaseFirst；鼠标、键盘传感器包一层 landFirst）。落到收着的组就落到组头并收起；落点在滚动区
+//          就量好（空档此刻的位置，排序时加上它让位的位移）；结束拖动（拖动库与调用方的重画：整列重排、存顺序）等落位播完
+//          才做（landOverlay / ReleaseFirst；鼠标、键盘传感器包一层 landFirst）。落到收着的那一列就落到组头并收起；落点在滚动区
 //          可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点就滑回原位；取消（Esc）照旧由
-//          拖动库在结束那次提交里滑回。在组之间移动的，落位播完才交给调用方（onDrop，如发移动请求，settleMove），请求失败调用方
-//          退回原组时同样带过渡滑回去。
+//          拖动库在结束那次提交里滑回。
 //          第 4 轮测试机：原来拿起的就是列表里那张卡本身，放下靠自写的 translate 过渡，要等新顺序提交、整列重测之后的下一次样式
 //          计算才开始，手机上卡在放手处停了约 0.4s。第 6 轮测试机：落位原来在结束拖动那次提交里起播、起点又回拨到松手前那一帧，
 //          侧栏松手那一下要重画一整列（无界面 Chrome 6 倍节流实测约 100ms：结束拖动的整列重画 45ms、提交 24ms、量位置前改根节点标记
 //          引起的整页样式与布局 25ms），一帧不出，帧一出来落位已走了九成，看着像瞬移。
-//   范围   只在本列竖着拖：浮层上下边不出这一列（排序：这一列第一项顶边到最后一项底边；组之间：能放的各组加原来那组）。
+//   范围   只在本列竖着拖：浮层上下边不出能放的范围（这一列第一项顶边到最后一项底边；能拖进的另一列的整块也算）。
 //          浮层是 fixed、不撑大滚动区，拖到边上自动滚动只到列表首尾（第 4 轮：原来限位只限住指针位移，拖动库随后又把滚动差
 //          加到那张卡上，卡被推出列表、撑大了可滚范围，会话栏一路滚进空白）。
-//          浮层停在只能高亮组头的落点上（去的组收着）时变半透明（data-peek），透出组头的高亮，离开就恢复。
-//   键盘   空格拿起、方向键移动（组之间：一组一组跳，含原来那组）、空格（或回车）放下、Esc 取消，三种语言读屏播报（文案由调用方给）。
+//          浮层停在只能高亮组头的落点上（那一列收着）时变半透明（data-peek），透出组头的高亮，离开就恢复。
+//   键盘   空格拿起、方向键移动（只在本列里，不拖进另一列）、空格（或回车）放下、Esc 取消，三种语言读屏播报（文案由调用方给）。
 //          Esc 只取消拖动：不关浮着的会话栏、不清侧栏多选（lib/layers.ts 的 isDragEscape）。焦点一直在被拖的那一项的把手上
-//          （换组重挂了也跟过去，useFollowFocus）；拖动中方向键只归拖动（handleOf 标成已处理，组件库行自带的方向键导航不接手），
-//          放下 / 取消后焦点留在移动后的那一行（之后请求做完又重挂一次也跟过去，只在焦点丢了时）。第 8 轮测试机：对话行跨组后
-//          原来那行卸下，组件库行的 ↑ ↓ 把焦点挪到邻行，之后方向键只移焦点、拖动卡住或一次只能跨一组。
+//          （useFollowFocus）；拖动中方向键只归拖动（handleOf 标成已处理，组件库行自带的方向键导航不接手），放下 / 取消后焦点留在
+//          移动后的那一行（之后按新顺序重挂一次也跟过去，只在焦点丢了时）。快按方向键每一下都动（测试窗口：间隔约 30ms 连按时
+//          被吞掉一些。原因是拖动库的键盘传感器在目标落在滚动区下半截（往上拖时上半截）时不挪浮层、改成平滑滚动滚动区，下一下
+//          按在滚动途中，从滚到一半的位置再加一格，前一下就丢了；改成立即滚动，每一下都从滚好的位置算，见 KEYBOARD_SCROLL）。
 //   动效   时长、缓动取 globals.css 的 --cc-dur / --cc-ease；系统或设置要求减少动态效果时不播过渡。
 //
-// 样式：globals.css 的 .cc-drag-*、[data-drag-source]、[data-drop-target]；这里只有拖动算出的位移是行内样式（组之间滑动用
+// 样式：globals.css 的 .cc-drag-*、[data-drag-source]、[data-drop-target]；这里只有拖动算出的位移是行内样式（整列滑动用
 // Web Animations，不写行内样式）。
 
 import {
@@ -60,7 +60,6 @@ import {
   MouseSensor,
   type MouseSensorOptions,
   type Over,
-  pointerWithin,
   type Sensor,
   type SensorInstance,
   type SensorProps,
@@ -95,8 +94,9 @@ import { LONG_PRESS_MS, LONG_PRESS_SLOP } from "@/hooks/use-long-press";
 import { isDragging, markDragMoved, releaseDrag, setDragging } from "@/lib/layers";
 
 // ---------------------------------------------------------------- 拖的是什么
-/** 一项拖动的说明（放在 dnd-kit 的 data.drag 里）：kind 是哪一种（card / company / pin / row / recents），label 是读屏念的名字，
- *  list 是排序的那一列（排序时才有），group 是侧栏所在的公司（"" = 最近），count 一起拖的条数（多选），session 对话编号。 */
+/** 一项拖动的说明（放在 dnd-kit 的 data.drag 里）：kind 是哪一种（card / company / pin / row / pins），label 是读屏念的名字，
+ *  list 是排序的那一列（一列整块的落点 zone 是它代表的那一列），group 是侧栏所在的公司（"" = 最近），count 一起拖的条数（多选），
+ *  session 对话编号；zone 是一列整块的落点（useDropZone），shut 是它此刻收着（放不下空档）。 */
 export type DragData = {
   id: string;
   kind: string;
@@ -105,6 +105,8 @@ export type DragData = {
   group?: string;
   count?: number;
   session?: string;
+  zone?: boolean;
+  shut?: boolean;
 };
 
 type WithData = { data: { current?: Record<string, unknown> | null } } | null | undefined;
@@ -113,25 +115,13 @@ export function dataOf(entry: WithData): DragData | undefined {
   return (entry?.data.current?.drag as DragData | undefined) ?? undefined;
 }
 
-/** 在组之间移动的一项（侧栏对话）：不在排序的一列里（没有 list），有所在的组（group，"" 也算）。组里的先后由调用方的排序方式定。 */
-export function isMover(data: DragData | null | undefined): data is DragData {
-  return !!data && !data.list && data.group !== undefined;
+/** 这一项此刻排在哪一列（排序项的 SortableContext 编号；拖进另一列的那一项重挂在那一列里）；不是排序项回它说明里的 list。 */
+export function listOf(entry: WithData): string | undefined {
+  const sortable = entry?.data.current?.sortable as { containerId?: string | number } | undefined;
+  return sortable?.containerId !== undefined ? String(sortable.containerId) : dataOf(entry)?.list;
 }
 
-/** target 是不是拿着的那一项原来所在的那一组（拖回去 = 空档回原位、不动）。 */
-export function isHome(active: DragData, target: DragData): boolean {
-  return isMover(active) && target.id !== active.id && target.group === active.group;
-}
-
-/** 在组之间移动时指针（键盘拖时是浮层中心）落到了哪：能放的别的组 → 那一组；原来那组 → null（空档回原位）；
- *  哪组都不在（组与组之间、列外）或不能放 → undefined（空档留在上一次的地方，不来回跳）。 */
-export function placeOf(active: DragData, over: DragData | null | undefined, accepts: AreaProps["accepts"]): DragData | null | undefined {
-  if (!over) return undefined;
-  if (isHome(active, over)) return null;
-  return accepts(active, over) ? over : undefined;
-}
-
-/** 读屏播报的文案（三种语言由调用方给）：排序时念位置，拖到别的组时念组名。 */
+/** 读屏播报的文案（三种语言由调用方给）：排序时念位置，拖进另一列时念那一列的名字（over / droppedIn）。 */
 export type DragTexts = {
   instructions: string;
   pickedUp: (name: string) => string;
@@ -147,48 +137,33 @@ function position(over: Over | Active | null | undefined): { at: number; total: 
   return sortable ? { at: sortable.index + 1, total: sortable.items.length } : null;
 }
 
-/** dnd-kit 的读屏播报：名字用 label；排序时位置按这一列（看得见的）算，在组之间移动时念组名（去过别的组再回到原来那组念
- *  「将移到「原组」」）。placed 是此刻空档所在的组（null = 原组）。
+/** dnd-kit 的读屏播报：名字用 label；排序时位置按这一列（看得见的）算；拖进另一列（拿着的那一项此刻排在别的列里，或指着那一列
+ *  收着的整块）念那一列的名字（zoneLabel：一列的编号 → 它整块落点的名字）。放下按实际结果念：落在别的列里念 droppedIn；排序的
+ *  念放到第几位；落回原位（经过的是它自己、还在原来那一列）或没有落点念取消，同放下的处理里动没动（onDragEnd）。
  *
- *  放下按实际结果念（测试窗口第 7 轮：对话真的移过去了、发了移动请求，最后却念「已取消移动」，5 次复现）：在组之间移动的念
- *  dropped（放下那一刻定下的去处：交给调用方移过去的那一组，null = 没移、回原组）——不能再看 placed：拖动库先调放下的处理、
- *  后发播报，落位已经播完时放下的处理当场把这一项交给调用方并把空档清回 null，播报读到的就成了「原组」。排序的念放到第几位，
- *  落回原位（经过的是它自己）或没有落点念取消，同放下的处理里动没动（onDragEnd）。
- *
- *  拿起的那一刻拖动库紧跟着报一次「经过」，经过的就是拿起的这一项自己（排序时它在原位、离自己最近）或它所在的那一组（在组之间
- *  移动）：这一次不念，留着「已拿起」（测试窗口第 5 轮：公司组头空格拿起念成「移到第 3 位，共 4 项」，卡片、置顶同样）。挪开过
- *  以后再回到原位照常念（第 6 轮：对话拖回原组念的是「已拿起」，该念「将移到「原组」」）。 */
+ *  拿起的那一刻拖动库紧跟着报一次「经过」，经过的就是拿起的这一项自己（它在原位、离自己最近）：这一次不念，留着「已拿起」
+ *  （测试窗口第 5 轮：公司组头空格拿起念成「移到第 3 位，共 4 项」，卡片、置顶同样）。挪开过以后再回到原位照常念。 */
 export function dragAnnouncements(
   texts: DragTexts,
-  mover?: {
-    accepts: AreaProps["accepts"];
-    placed: () => DragData | null;
-    lifted?: (active: Active) => DragData | undefined;
-    /** 放下那一刻定下的去处（null = 没移；undefined = 没记，按 placed）。 */
-    dropped?: () => DragData | null | undefined;
-  },
+  lookup?: { lifted?: (active: Active) => DragData | undefined; zoneLabel?: (list: string) => string | undefined },
 ): Announcements {
   const name = (entry: WithData) => dataOf(entry)?.label ?? "";
   let moved = false; // 这一次拖动挪开过原位没有（拿起时清零）
   const say = (active: Active, over: Over | null, end: boolean) => {
-    const from = mover?.lifted?.(active) ?? dataOf(active);
+    const from = lookup?.lifted?.(active) ?? dataOf(active);
     const to = dataOf(over);
-    if (mover && isMover(from)) {
-      if (end) {
-        const dropped = mover.dropped?.();
-        const target = dropped !== undefined ? dropped : mover.placed();
-        return target ? texts.droppedIn?.(name(active), target.label) : texts.cancelled(name(active));
-      }
-      const target = to && placeOf(from, to, mover.accepts);
-      if (target === undefined) return undefined;
-      if (target) moved = true;
-      else if (!moved) return undefined; // 拿起时那一次「经过」原来那组：留着「已拿起」
-      return texts.over?.(name(active), (target ?? to)!.label);
-    }
-    if (!end && over && over.id === active.id && !moved) return undefined;
-    if (over && over.id !== active.id) moved = true;
     if (!over) return end ? texts.cancelled(name(active)) : undefined;
-    if (end && over.id === active.id) return texts.cancelled(name(active)); // 落回原位：没动
+    // 进了另一列：拿着的那一项已排进那一列（经过的是它自己或那一列的某一项），或指着那一列收着的整块
+    const into = to?.zone ? to.list : listOf(over);
+    if (from?.list && into && into !== from.list) {
+      moved = true;
+      const label = lookup?.zoneLabel?.(into) ?? to?.label ?? "";
+      return (end ? texts.droppedIn : texts.over)?.(name(active), label);
+    }
+    if (!end && over.id === active.id && !moved) return undefined;
+    if (over.id !== active.id) moved = true;
+    // 落回原位、落在原来那一列的整块上（不是哪一项）：没动
+    if (end && (over.id === active.id || to?.zone)) return texts.cancelled(name(active));
     if (from?.list && to?.list === from.list) {
       const at = position(over);
       if (!at) return undefined;
@@ -221,6 +196,10 @@ const KEYS = {
   cancel: ["Escape" as KeyboardCode],
   end: [KeyboardCode.Space, KeyboardCode.Enter, KeyboardCode.Tab],
 };
+// 键盘拖动时目标落在滚动区下半截（往上拖时上半截），拖动库的键盘传感器不挪浮层、改成滚动滚动区让目标滚到浮层下面。默认平滑
+// 滚动：下一下按在滚动途中，从滚到一半的位置再加一格，前一下就丢了（测试窗口：间隔约 30ms 连按时一些按键没反应，0.4 秒按一下
+// 每下都动；无界面 Chrome 复现：40 行、从第 9 行起连按 4 下只挪 2 格）。立即滚动：每一下都从滚好的位置算，快按每一下都动
+export const KEYBOARD_SCROLL: ScrollBehavior = "instant";
 
 /** 放下时先交给它（先播落位，播完才真正结束拖动，见 ReleaseFirst）；没给就照常立即结束。 */
 type EndOptions = { beforeEnd?: (end: () => void) => void };
@@ -407,7 +386,7 @@ function motion(): Motion | null {
 
 const MotionContext = createContext<Motion | null>(null);
 
-// 在组之间移动时整列跟着动（对话的空档换了组：原来那组合上、去的那组让开，两组之间的各行、组头整体上下移）：版面一变，凡是位置
+// 拖进另一列时整列跟着动（对话拖进已置顶：原来那组合上、已置顶让开，两组之间的各行、组头整体上下移）：版面一变，凡是位置
 // 变了的（selector 选中的各项：侧栏的行、组头、「显示更多」）都从原来的位置带过渡滑到新位置（先记位置、变了再从差值滑回 0，
 // 即 FLIP）。用 Web Animations 播 translate：不碰行内样式（排序项的 transform / transition 归 dnd-kit 与 React 管），
 // 也不影响拖动库量版面（它量的是去掉 transform 的位置，与 translate 无关的各组整块）。位置按滚动区内容算，滚动不算移动；
@@ -422,11 +401,12 @@ function shiftOf(el: Element): number {
   return parts.length > 1 ? Number.parseFloat(parts[1]!) || 0 : 0;
 }
 
-/** 盯着 root 里 selector 选中的各项，版面一变就让挪了位置的滑过去；返回停止（已在滑的照常滑完）。
+/** 盯着 root 里 selector 选中的各项，版面一变就让挪了位置的滑过去（changed：版面变过一次，拖动区据此重量各落点）；返回停止
+ *  （已在滑的照常滑完）。
  *  盯着的这段时间关掉 root 的滚动锚定（overflow-anchor）：变动在可见区上方时（空档进了上面的组、多选其余各行从上面移走、
  *  失败退回上面的原组），浏览器会自动改 scrollTop 让眼前的行不动，这里却按内容坐标算，没动的行会先跳一下再滑回、下面的行
  *  直接跳（审查实测）。关掉后眼前的行照内容真实挪动、带过渡滑过去，同其他组。停止时还原。 */
-export function flowLayout(root: HTMLElement, selector: string, transition: Motion): () => void {
+export function flowLayout(root: HTMLElement, selector: string, transition: Motion | null, changed?: () => void): () => void {
   const records = new Map<unknown, { top: number; el: Element }>();
   const sliding = new Map<Element, Animation>();
   const page = root === document.scrollingElement || root === document.documentElement || root === document.body;
@@ -445,7 +425,7 @@ export function flowLayout(root: HTMLElement, selector: string, transition: Moti
       seen.add(key);
       const before = records.get(key);
       records.set(key, { top, el });
-      if (!animate || !before || Math.abs(before.top - top) < 0.5) continue;
+      if (!animate || !transition || !before || Math.abs(before.top - top) < 0.5) continue;
       sliding.get(el)?.cancel();
       sliding.delete(el);
       if (el.matches(STILL)) continue;
@@ -460,7 +440,10 @@ export function flowLayout(root: HTMLElement, selector: string, transition: Moti
     for (const key of [...records.keys()]) if (!seen.has(key)) records.delete(key);
   };
   pass(false);
-  const observer = new MutationObserver(() => pass(true));
+  const observer = new MutationObserver(() => {
+    pass(true);
+    changed?.();
+  });
   observer.observe(root, { childList: true, subtree: true });
   return () => {
     observer.disconnect();
@@ -488,72 +471,12 @@ export function clampIntoView<R extends { top: number; height: number }>(rect: R
   return top === rect.top ? rect : { ...rect, top, bottom: top + rect.height };
 }
 
-/** 空档要能看见：在滚动区可见范围之外时平滑滚动滚动区，正好让它进来（只滚差的那一段，滚动到不越过首尾由浏览器管）。
- *  在组之间移动时空档的位置由排序方式定、不跟指针，可能落在可见范围外（审查：拖到展开很长的组，空档在组顶、组顶在上面）。 */
-export function revealGap(node: HTMLElement, smooth: boolean) {
-  const view = viewOf(node);
-  const rect = node.getBoundingClientRect();
-  if (inView(rect, view)) return;
-  const by = rect.top < view.top ? rect.top - view.top : rect.top + rect.height - view.bottom;
-  const scroller: { scrollBy: (options: ScrollToOptions) => void } = view.root ?? window;
-  scroller.scrollBy({ top: by, behavior: smooth ? "smooth" : "auto" });
-}
-
 /** 放下时空档在可见范围外（拖着时又滚走了）：拖动库在落位前会对它 scrollIntoView（只看窗口，滚动区会瞬间跳一下）。
  *  这一次不让它滚（落位改为落到可见范围的边上并收起，见 Lifted）；过 wait 毫秒还原。 */
 function holdStill(node: HTMLElement | null | undefined, wait: number) {
   if (!node?.isConnected || inView(node.getBoundingClientRect(), viewOf(node))) return;
   node.scrollIntoView = () => undefined;
   setTimeout(() => delete (node as Partial<HTMLElement>).scrollIntoView, wait);
-}
-
-/** 在组之间移动的放下：落位动画播完才交给调用方（发移动请求）。land 由落位动画播完时调；动画没播（被打断、量不到）时
- *  过 wait 毫秒自己调。新拿起一项、拖动区卸下时先把没交的交掉。 */
-export class Landing {
-  private run: (() => void) | null = null;
-  private timer: ReturnType<typeof setTimeout> | null = null;
-
-  queue(run: () => void, wait: number) {
-    this.land();
-    this.run = run;
-    this.timer = setTimeout(() => this.land(), wait);
-  }
-
-  get pending(): boolean {
-    return !!this.run;
-  }
-
-  land() {
-    const run = this.run;
-    this.run = null;
-    if (this.timer !== null) clearTimeout(this.timer);
-    this.timer = null;
-    run?.();
-  }
-}
-
-/** 在组之间移动的那一项放下了（松手；取消时 target 为 null）。空档在别的能放的组：落位播完（landing）才交给调用方（drop，
- *  如发移动请求），交过之后 clear（空档回 null，调用方那时已按移过去的样子排好），drop 回的 Promise 做完才 done（整列停止
- *  跟着动）；没播落位时过 wait 毫秒自己交。空档在原组 / 没有 / 不能放：clear、done，不交。回 true = 排上了要交。 */
-export function settleMove(
-  from: DragData,
-  target: DragData | null,
-  accepts: (active: DragData, target: DragData) => boolean,
-  hooks: { landing: Landing; wait: number; drop: (target: DragData) => unknown; clear: () => void; done?: (() => void) | null },
-): boolean {
-  if (!target || !accepts(from, target)) {
-    hooks.clear();
-    hooks.done?.();
-    return false;
-  }
-  hooks.landing.queue(() => {
-    const work = hooks.drop(target);
-    hooks.clear();
-    void Promise.resolve(work)
-      .catch(() => undefined)
-      .finally(() => hooks.done?.());
-  }, hooks.wait);
-  return true;
 }
 
 // 落位播完停在落点（同 dnd-kit 默认），浮层随后才卸下
@@ -579,7 +502,7 @@ function shapeOf(value: string): Shape | null {
   return flat ? { x: n[12]!, y: n[13]!, scaleX: n[0]!, scaleY: n[5]! } : { x: n[4]!, y: n[5]!, scaleX: n[0]!, scaleY: n[3]! };
 }
 
-/** 排序时那一项让位的竖向位移（拖动库写在行内的 translate3d；在组之间移动的项没有，为 0）：松手时新顺序还没提交，那一项
+/** 排序时那一项让位的竖向位移（拖动库写在行内的 translate3d；没有为 0）：松手时新顺序还没提交，那一项
  *  正由这段位移挪在新位置上，提交后它的版面位置就是这里。 */
 export function sortShift(node: HTMLElement): number {
   const match = /translate(?:3d)?\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(node.style?.transform || "");
@@ -623,13 +546,12 @@ function afterLanding(animation: Animation, run: () => void) {
 
 /** 放下时拖动库要播的落位（结束拖动那次提交里调）。松手那一下已经起播过（landOverlay）：不再另播，等那一次播完（还没播完时
  *  落点那一项先不显示）。没起播过（取消时滑回原位、减少动态效果）：同 dnd-kit 默认那一种（浮层从此刻移到落点，Web
- *  Animations），多两件：落点可以不是空档本身（into 回一个框：收着的组的组头、或空档在可见范围外时可见范围的边上），这时落到
- *  那里并收起（浮层带 data-dropping="into"）；播完（或不播）调 landed。transition 为 null（减少动态效果）时不播。 */
-export function dropAnimation(transition: Motion | null, landed: () => void, into: Into): DropAnimationFunction {
+ *  Animations），多两件：落点可以不是空档本身（into 回一个框：收着的那一列的组头、或空档在可见范围外时可见范围的边上），这时
+ *  落到那里并收起（浮层带 data-dropping="into"）。transition 为 null（减少动态效果）时不播。 */
+export function dropAnimation(transition: Motion | null, into: Into): DropAnimationFunction {
   return ({ active, dragOverlay, transform }) => {
-    // 浮层的略放大、阴影同时收回（落到收着的组：同时淡掉）；落点那一项在动画播完前不显示（不会一份在落点、一份在路上）
+    // 浮层的略放大、阴影同时收回（落到收着的那一列：同时淡掉）；落点那一项在动画播完前不显示（不会一份在落点、一份在路上）
     const done = () => {
-      landed();
       delete active.node.dataset.dragLanding;
     };
     const started = early.get(dragOverlay.node);
@@ -638,10 +560,7 @@ export function dropAnimation(transition: Motion | null, landed: () => void, int
       active.node.dataset.dragLanding = "";
       return new Promise<void>((resolve) => afterLanding(started, () => (done(), resolve())));
     }
-    if (started || !transition) {
-      landed();
-      return;
-    }
+    if (started || !transition) return;
     const fold = into(active.node);
     const frames = landingFrames(transform, dragOverlay.rect, fold ?? active.rect);
     active.node.dataset.dragLanding = "";
@@ -660,52 +579,46 @@ export function dropAnimation(transition: Motion | null, landed: () => void, int
   };
 }
 
-/** 先落位、再结束拖动（松手那一下只起播落位，结束拖动——拖动库与调用方的重画：整列重排、换组、量位置、发请求——等落位播完才做，
+/** 先落位、再结束拖动（松手那一下只起播落位，结束拖动——拖动库与调用方的重画：整列重排、量位置、存顺序——等落位播完才做，
  *  主线程忙多久都不卡落位）。hold(end, animation)：animation 播完才调 end；没有 animation 立即调；过 wait 毫秒（动画没在走：
  *  页面在后台）或又按下了（鼠标、手指、键盘：要开始下一次）就当场调。等着的时候 freeze 回的还原函数在调 end 前执行（拖动库的
- *  自动滚动这段时间不滚，落点不跑）。landed：这一次 end 是不是落位播完才调的（在组之间移动的放下据此当场交给调用方）。 */
+ *  自动滚动这段时间不滚，落点不跑）。 */
 export class ReleaseFirst {
   private pending: { end: () => void; timer: ReturnType<typeof setTimeout>; off: () => void } | null = null;
-  landed = false;
 
   hold(end: () => void, animation: Animation | null, wait: number, freeze?: () => () => void) {
-    this.flush(false);
+    this.flush();
     if (!animation) return end();
     // 已经放手了：这段时间的 Esc 不再算取消拖动的 Esc（审查：落位那 0.2 秒按 Esc，浮着的会话栏不关、多选不清，要再按一次）。
     // 按下 Esc 照样当场结束拖动（press），不吞这个事件
     releaseDrag();
     const unfreeze = freeze?.();
-    const press = () => this.flush(false);
+    const press = () => this.flush();
     const PRESS = ["pointerdown", "touchstart", "keydown"];
     for (const type of PRESS) window.addEventListener(type, press, true);
     const entry = {
       end,
-      timer: setTimeout(() => this.pending === entry && this.flush(false), wait),
+      timer: setTimeout(() => this.pending === entry && this.flush(), wait),
       off: () => {
         for (const type of PRESS) window.removeEventListener(type, press, true);
         unfreeze?.();
       },
     };
     this.pending = entry;
-    afterLanding(animation, () => this.pending === entry && this.flush(animation.playState === "finished"));
+    afterLanding(animation, () => this.pending === entry && this.flush());
   }
 
   get waiting(): boolean {
     return !!this.pending;
   }
 
-  flush(landed: boolean) {
+  flush() {
     const entry = this.pending;
     if (!entry) return;
     this.pending = null;
     clearTimeout(entry.timer);
     entry.off();
-    this.landed = landed;
-    try {
-      entry.end();
-    } finally {
-      this.landed = false;
-    }
+    entry.end();
   }
 }
 
@@ -720,23 +633,23 @@ function freezeScroll(node: HTMLElement): () => void {
 // ---------------------------------------------------------------- 拖动区
 type AreaProps = {
   children: ReactNode;
-  /** 拿着 active 能不能放到 target 上（排序：同一列；侧栏对话：别的公司组 / 最近）。 */
+  /** 拿着 active 能不能放到 target 上（排序：同一列；侧栏对话：自己那一组的行或整块、已置顶的行或整块）。 */
   accepts: (active: DragData, target: DragData) => boolean;
-  /** 放下了（落在能放的地方、且不是原位）。排序：放下当时调（新顺序与落位动画同一次提交）；在组之间移动：落位动画播完才调，
-   *  回的 Promise（移动请求）做完前整列仍跟着动（请求失败、调用方退回原组时也带过渡）。 */
+  /** 放下了，落位播完才调（新顺序与结束拖动同一次提交）：target 是落点（排序：落在哪一项上；拖进了另一列、停在那一列里它自己
+   *  的位置上：那一列整块的落点，调用方按自己排好的位置算；落在收着的那一列整块上：那一块）。落回原位、没有落点不调。 */
   onDrop: (active: DragData, target: DragData) => unknown;
-  /** 在组之间移动：空档该在哪一组（null = 原来那组）。调用方据此把这一项按排序方式排进那一组（收着的组不排，只高亮组头）；
-   *  放下后到落位播完、onDrop 调过之后才回 null。 */
-  onPlace?: (active: DragData, target: DragData | null) => void;
-  /** 拿起 / 结束（放下或取消）：侧栏要在拖对话时临时显示空的「最近」、多选时让其余选中的行变淡。 */
+  /** 指针拖动中经过了 over（键盘拖动不调：键盘只在本列里挪）：调用方据此把拿着的那一项挪进另一列（排在 over 那里，below = 指在
+   *  over 的下半截），或挪回原来那一列。 */
+  onOver?: (active: DragData, over: DragData | null, below: boolean) => void;
+  /** 拿起 / 结束（放下或取消）：侧栏要在拖对话时临时显示空的「已置顶」、多选时让其余选中的行变淡。 */
   onActive?: (active: DragData | null) => void;
-  /** 在组之间移动时整列一起滑的各项（侧栏的行、组头、「显示更多」），见 flowLayout。 */
+  /** 拖进另一列时整列一起滑的各项（侧栏的行、组头、「显示更多」），见 flowLayout。 */
   flow?: string;
   texts: DragTexts;
 };
 
-/** 空档此刻在哪一组（组的拖动编号；null = 没在组之间移动或在原组）：收着的组据此高亮组头。 */
-const PlacedContext = createContext<string | null>(null);
+/** 指针此刻指着的那一列整块落点、而它收着（组头高亮、浮层半透明、落到组头并收起）：那一块的拖动编号；别的时候 null。 */
+const ShutOverContext = createContext<string | null>(null);
 
 /** 键盘拿起的那一项的拖动编号（鼠标、手机拿起或没在拖时 null）：焦点跟着它（useFollowFocus）。 */
 const KeyedContext = createContext<string | number | null>(null);
@@ -753,102 +666,94 @@ export function spotIn(list: readonly string[] | null | undefined, id: string): 
 /** 区域里的播报（Alt+↑/↓ 挪一格不经过拖动库，播报走这里）：念「名字 移到第几位，共几项」，文案同键盘拖动的 movedTo。 */
 const SayMoveContext = createContext<((name: string, spot: MoveSpot) => void) | null>(null);
 
-/** 一块共用拖动的区域：传感器、碰撞（只认能放的地方）、键盘移动、限位、浮层与放下动画、读屏播报、组之间移动的空档与整列滑动。 */
-export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, onActive, flow, texts }) => {
-  const latest = useRef({ accepts, onDrop, onPlace, onActive });
-  latest.current = { accepts, onDrop, onPlace, onActive };
+/** 点 y 在不在框的上下边之间。 */
+const within = (box: ClientRect | null | undefined, y: number) => !!box && y >= box.top && y <= box.top + box.height;
+
+/** 拿着 active 时要算的落点（碰撞、键盘、限位共用）：pool 是能放的各处（accepts，加上它自己）。键盘拖动：只认它原来那一列
+ *  （不拖进另一列）。指针拖动：指针在哪一列的整块落点（zone）里，就只认那一列此刻的各项（它自己已排进去也算；那一列没有别的项、
+ *  或收着时认整块）；不在任何能放的整块里，就只认它此刻所在那一列的各项（拖进另一列以后指针移出来、还没进回原来那一列时
+ *  留在那一列，不来回跳）。 */
+export function narrowPool(
+  pool: readonly DroppableContainer[],
+  activeId: string | number,
+  active: DragData,
+  pointer: { keyboard: boolean; y: number | null; rects: { get: (id: string | number) => ClientRect | undefined } },
+): DroppableContainer[] {
+  const item = (entry: DroppableContainer) => !dataOf(entry)?.zone;
+  const self = pool.find((entry) => entry.id === activeId);
+  const here = (self && listOf(self)) ?? active.list;
+  const inList = (list: string | undefined) => pool.filter((entry) => item(entry) && listOf(entry) === list);
+  if (pointer.keyboard) return pool.filter((entry) => item(entry) && (entry.id === activeId || listOf(entry) === active.list));
+  const y = pointer.y;
+  const zone = y === null ? undefined : pool.find((entry) => dataOf(entry)?.zone && within(pointer.rects.get(entry.id), y));
+  if (zone) {
+    const data = dataOf(zone)!;
+    const items = data.shut ? [] : inList(data.list);
+    return items.some((entry) => entry.id !== activeId) ? items : [...items, zone];
+  }
+  return inList(here);
+}
+
+/** 一块共用拖动的区域：传感器、碰撞（只认能放的地方）、键盘移动、限位、浮层与放下动画、读屏播报、拖进另一列时整列滑动。 */
+export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onActive, flow, texts }) => {
+  const latest = useRef({ accepts, onDrop, onOver, onActive });
+  latest.current = { accepts, onDrop, onOver, onActive };
   const transition = useMemo(motion, []);
 
   // 拖动中要用的：拿起时的位置（浮层固定在那里，位移从它算）、能放的各处与原来那一项的节点（限位用）
   const first = useRef<ClientRect | null>(null);
   const stash = useRef<Stash>({ containers: null, node: null, overlay: null });
 
-  // 在组之间移动：空档所在的组（null = 原组）、落位后才交的放下、整列跟着动的时段（拿起到请求做完）
-  const placedRef = useRef<DragData | null>(null);
-  const [placed, setPlaced] = useState<DragData | null>(null);
   const [keyed, setKeyed] = useState<string | number | null>(null);
-  // 拿起时的那份说明：在组之间移动的那一项会换组重挂（侧栏的行按所在的组给 group），拖动中一直按拿起时的认（原来那组不变）
+  const keyedRef = useRef(false);
+  // 此刻指着的落点（落位要看它是不是收着的那一列整块）；指着的收着的整块（高亮组头）
+  const overRef = useRef<DragData | null>(null);
+  const [shutOver, setShutOver] = useState<string | null>(null);
+  // 拿起时的那份说明：拖进另一列的那一项会在那一列里重挂，拖动中一直按拿起时的认（原来那一列不变）
   const lifted = useRef<DragData | null>(null);
-  // 在组之间移动：放下那一刻定下的去处（读屏按它念，见 dragAnnouncements；undefined = 还没放下）
-  const dropped = useRef<DragData | null | undefined>(undefined);
   const activeOf = (active: WithData & { id: string | number }) =>
     active && lifted.current?.id === active.id ? lifted.current : dataOf(active);
-  const landing = useMemo(() => new Landing(), []);
   const letGo = useMemo(() => new ReleaseFirst(), []);
-  const [busy, setBusy] = useState(0);
-  const settleAfter = (transition?.duration ?? 0) + 50;
-  const hold = () => {
-    let held = true;
-    setBusy((n) => n + 1);
-    return () => {
-      if (held) setTimeout(() => setBusy((n) => n - 1), settleAfter);
-      held = false;
-    };
-  };
-  const release = useRef<(() => void) | null>(null);
-  const place = (active: DragData, target: DragData | null) => {
-    if ((placedRef.current?.id ?? null) === (target?.id ?? null)) return;
-    placedRef.current = target;
-    setPlaced(target);
-    latest.current.onPlace?.(active, target);
-  };
 
   const allowed = (active: DragData, entry: DroppableContainer, activeId: string | number) => {
     const target = dataOf(entry);
     if (!target) return false;
     if (entry.id === activeId) return !!active.list;
-    return latest.current.accepts(active, target) || isHome(active, target);
+    return latest.current.accepts(active, target);
   };
 
   const collisions = useMemo<CollisionDetection>(
     () => (args) => {
       const active = activeOf(args.active);
-      if (!active) return [];
-      const droppableContainers = args.droppableContainers.filter((entry) => allowed(active, entry, args.active.id));
-      if (active.list) return closestCenter({ ...args, droppableContainers });
-      // 在组之间移动：指针高度（键盘拖时是浮层中心）落在哪一组；横向按浮层（只在本列，指针偏出列外照样认）
+      if (!active?.list) return [];
       const rect = args.collisionRect;
-      const pointerCoordinates = { x: rect.left + rect.width / 2, y: args.pointerCoordinates?.y ?? rect.top + rect.height / 2 };
-      return pointerWithin({ ...args, droppableContainers, pointerCoordinates });
+      const pool = narrowPool(
+        args.droppableContainers.filter((entry) => allowed(active, entry, args.active.id)),
+        args.active.id,
+        active,
+        { keyboard: keyedRef.current, y: args.pointerCoordinates?.y ?? rect.top + rect.height / 2, rects: args.droppableRects },
+      );
+      return closestCenter({ ...args, droppableContainers: pool });
     },
     [],
   );
 
+  // 键盘：方向键在本列里挪（不拖进另一列）
   const coordinates = useMemo<KeyboardCoordinateGetter>(
     () => (event, args) => {
       const { context } = args;
       const active = context.active ? activeOf(context.active) : undefined;
-      if (!active || !context.active) return undefined;
+      if (!active?.list || !context.active) return undefined;
       const activeId = context.active.id;
-      const enabled = () => context.droppableContainers.getEnabled().filter((entry) => allowed(active, entry, activeId));
-      if (active.list) {
-        const view = { getEnabled: enabled, get: (id: string | number) => context.droppableContainers.get(id) } as unknown as DroppableContainers;
-        return sortableKeyboardCoordinates(event, { ...args, context: { ...context, droppableContainers: view } });
-      }
-      // 在组之间移动：↑ ↓ 跳到上一个 / 下一个组（含原来那组；浮层中心落进那一组的顶部）
-      const codes: string[] = [KeyboardCode.Up, KeyboardCode.Down, KeyboardCode.Left, KeyboardCode.Right];
-      if (!codes.includes(event.code)) return undefined;
-      event.preventDefault();
-      const rect = context.collisionRect;
-      if (!rect || (event.code !== KeyboardCode.Up && event.code !== KeyboardCode.Down)) return undefined;
-      const mid = rect.top + rect.height / 2;
-      const targets = enabled()
-        .map((entry) => ({ entry, box: context.droppableRects.get(entry.id) }))
-        .filter((t): t is { entry: DroppableContainer; box: ClientRect } => !!t.box)
-        .sort((a, b) => a.box.top - b.box.top);
-      const here = targets.findIndex((t) => t.box.top <= mid && mid < t.box.top + t.box.height);
-      const next =
-        event.code === KeyboardCode.Down
-          ? here >= 0 ? targets[here + 1] : targets.find((t) => t.box.top > mid)
-          : here >= 0 ? targets[here - 1] : [...targets].reverse().find((t) => t.box.top + t.box.height <= mid);
-      if (!next) return undefined;
-      const to = next.box.top + Math.min(next.box.height, rect.height) / 2;
-      return { x: args.currentCoordinates.x, y: args.currentCoordinates.y + (to - mid) };
+      const enabled = () =>
+        context.droppableContainers.getEnabled().filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list);
+      const view = { getEnabled: enabled, get: (id: string | number) => context.droppableContainers.get(id) } as unknown as DroppableContainers;
+      return sortableKeyboardCoordinates(event, { ...args, context: { ...context, droppableContainers: view } });
     },
     [],
   );
 
-  // 只能竖着拖，浮层上下边不出这一列（排序：这一列各项；组之间：能放的各组 + 原来那组）
+  // 只能竖着拖，浮层上下边不出能放的范围（这一列各项；能拖进的另一列的整块也算；键盘只在这一列）
   const keep = useMemo<Modifier>(
     () => ({ transform, active, activeNodeRect }) => {
       if (!active) {
@@ -862,9 +767,9 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
       if (!start || !data || !containers) return { ...transform, x: 0 };
       const nodes = containers
         .getEnabled()
-        .filter((entry) => allowed(data, entry, active.id))
+        .filter((entry) => allowed(data, entry, active.id) && (!keyedRef.current || (!dataOf(entry)?.zone && listOf(entry) === data.list)))
         .map((entry) => entry.node.current);
-      // 原位也算在范围里（拖到别的组时原来那一组不是落点，但浮层从那里出发）；节点还没拿到的第一帧用拿起时的位置
+      // 原位也算在范围里（拖进另一列时原来那一列也是浮层出发的地方）；节点还没拿到的第一帧用拿起时的位置
       const span = spanOf([...nodes, node]);
       const own = node?.isConnected ? null : { top: start.top, bottom: start.top + start.height };
       if (!span && !own) return { ...transform, x: 0 };
@@ -875,14 +780,14 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   );
   const modifiers = useMemo(() => [keep], [keep]);
 
-  // 落点（放下时量）：空档要去的组收着（空档不在那一组里）就落到那一组（组头）并收起；落点在滚动区可见范围外（拖着时又滚走了）
-  // 就落到可见范围的边上并收起，不飞出列表。shift：排序时那一项让位的位移（松手时新顺序还没提交）
+  // 落点（放下时量）：指着的是收着的那一列整块（拿着的那一项不在里面）就落到那一块（组头）并收起；落点在滚动区可见范围外
+  // （拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表。shift：排序时那一项让位的位移（松手时新顺序还没提交）
   const into = useMemo<Into>(
     () => (node, shift = 0) => {
-      const target = placedRef.current;
-      const group = target ? stash.current.containers?.get(target.id)?.node.current : null;
-      const fold = !!group && !group.contains(node);
-      const base = getClientRect(fold ? group! : node, { ignoreTransform: true });
+      const target = overRef.current;
+      const zone = target?.zone && target.shut ? stash.current.containers?.get(target.id)?.node.current : null;
+      const fold = !!zone && !zone.contains(node);
+      const base = getClientRect(fold ? zone! : node, { ignoreTransform: true });
       const rect = fold || !shift ? base : { ...base, top: base.top + shift, bottom: base.bottom + shift };
       const shown = clampIntoView(rect, viewOf(node));
       return fold || shown !== rect ? shown : null;
@@ -903,7 +808,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   const sensors = useSensors(
     useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),
     useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),
-    useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, beforeEnd }),
+    useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd }),
   );
   // Alt+↑/↓ 挪一格的播报（第 5 轮：公司组头挪动时读屏什么也没念）：同拖动库的播报区一样是 assertive、整段念；
   // 同一句连着两次（极少）末尾补一个不占位的空格，读屏才会再念
@@ -911,18 +816,16 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   const sayMove = useMemo(
     () => (name: string, spot: MoveSpot) => {
       const text = texts.movedTo(name, spot.at, spot.total);
-      setSaid((before) => (before === text ? `${text}\u00a0` : text));
+      setSaid((before) => (before === text ? `${text} ` : text));
     },
     [texts],
   );
+  // 一列的编号 → 它整块落点的名字（读屏念「将放进已置顶」）
+  const zoneOf = (list: string) =>
+    stash.current.containers?.getEnabled().map((entry) => dataOf(entry)).find((data) => !!data?.zone && data.list === list);
   const accessibility = useMemo(
     () => ({
-      announcements: dragAnnouncements(texts, {
-        accepts: (a, b) => latest.current.accepts(a, b),
-        placed: () => placedRef.current,
-        lifted: (active) => activeOf(active),
-        dropped: () => dropped.current,
-      }),
+      announcements: dragAnnouncements(texts, { lifted: (active) => activeOf(active), zoneLabel: (list) => zoneOf(list)?.label }),
       screenReaderInstructions: { draggable: texts.instructions },
     }),
     [texts],
@@ -930,55 +833,42 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
 
   useEffect(
     () => () => {
-      letGo.flush(false); // 卸下时还在等落位的放下当场结束
+      letGo.flush(); // 卸下时还在等落位的放下当场结束
       setDragging(false);
-      landing.land(); // 卸下时还没交的放下照样交（移动请求照发）
     },
-    [landing, letGo],
+    [letGo],
   );
   const finish = () => {
     setKeyed(null);
+    keyedRef.current = false;
+    overRef.current = null;
+    setShutOver(null);
     setDragging(false);
     latest.current.onActive?.(null);
   };
   const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {
     const from = activeOf(active);
-    // 键盘放下：焦点留在移动后的那一行（落进收着的组就给组头）
-    const going = placedRef.current;
-    const groupNode = going && isMover(from) && latest.current.accepts(from, going) ? stash.current.containers?.get(going.id)?.node.current : null;
-    keepFocusOn(active.id, groupNode ?? null, activatorEvent);
-    // 落位是不是已经播完了（松手时起播的）：在组之间移动的当场交给调用方，与结束拖动同一次提交
-    const landed = letGo.landed;
+    // 键盘放下：焦点留在移动后的那一行（键盘不拖进另一列，不会落进收着的整块）
+    keepFocusOn(active.id, activatorEvent);
     // 先量再改根节点的拖动标记（反过来量的时候整页样式、布局要重算一遍：第 6 轮 6 倍节流实测 25ms）
     holdStill(stash.current.node, landWait);
     finish();
-    if (isMover(from)) {
-      const done = release.current;
-      release.current = null;
-      // 先记下去处再交：落位已播完时下面当场交给调用方、空档清回 null，拖动库随后才发放下的播报
-      const target = placedRef.current;
-      dropped.current = target && latest.current.accepts(from, target) ? target : null;
-      // 空档已在去的那一组：落位播完再交给调用方（发请求），请求做完前整列仍跟着动；交过之后空档才回 null（调用方那时已按
-      // 移过去的样子排好，同一处）。回到原组：落回原位，不交
-      const queued = settleMove(from, placedRef.current, latest.current.accepts, {
-        landing,
-        wait: landWait,
-        drop: (target) => latest.current.onDrop(from, target),
-        clear: () => place(from, null),
-        done,
-      });
-      if (queued && landed) landing.land();
+    const to = dataOf(over);
+    if (!from || !to || !over) return;
+    if (over.id === active.id) {
+      // 停在自己的位置上：还在原来那一列 = 没动；已排进另一列 = 落在那一列的这个位置（交那一列的整块，调用方按自己排好的算）
+      const into = listOf(over);
+      const zone = into && into !== from.list ? zoneOf(into) : undefined;
+      if (zone) latest.current.onDrop(from, zone);
       return;
     }
-    const to = dataOf(over);
-    if (!from || !to || !over || over.id === active.id) return;
     if (!latest.current.accepts(from, to)) return;
     latest.current.onDrop(from, to);
   };
   return (
     <MotionContext.Provider value={transition}>
       <SayMoveContext.Provider value={sayMove}>
-        <PlacedContext.Provider value={placed?.id ?? null}>
+        <ShutOverContext.Provider value={shutOver}>
           <KeyedContext.Provider value={keyed}>
             <DndContext
               sensors={sensors}
@@ -986,47 +876,42 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
               modifiers={modifiers}
               accessibility={accessibility}
               onDragStart={({ active, activatorEvent }) => {
-                keepFocusOn(active.id, null, null);
-                setKeyed(byKeyboard(activatorEvent) ? active.id : null);
-                landing.land(); // 上一次的落位还没播完就又拿起：先交掉
+                keepFocusOn(active.id, null);
+                const keyboard = byKeyboard(activatorEvent);
+                keyedRef.current = keyboard;
+                setKeyed(keyboard ? active.id : null);
                 setDragging(true);
                 const data = dataOf(active);
                 lifted.current = data ?? null;
-                dropped.current = undefined;
-                if (isMover(data)) {
-                  placedRef.current = null;
-                  setPlaced(null);
-                  release.current?.();
-                  release.current = hold();
-                }
+                overRef.current = null;
                 if (data) latest.current.onActive?.(data);
               }}
               onDragOver={({ active, over }) => {
                 const from = activeOf(active);
-                if (!isMover(from)) return;
-                const target = placeOf(from, dataOf(over), latest.current.accepts);
-                if (target !== undefined) place(from, target);
+                const to = dataOf(over) ?? null;
+                overRef.current = to;
+                setShutOver(to?.zone && to.shut && over ? String(over.id) : null);
+                // 经过的是它自己（拿起时、排进另一列重挂以后）不交：它自己的说明还是原来那一列的，交了调用方会当成回到原来那一列
+                if (!from || keyedRef.current || over?.id === active.id) return;
+                // 指在 over 的下半截（拖进另一列时排在它后面）：按浮层此刻的框算
+                const box = active.rect.current.translated;
+                const below = !!box && !!over && box.top + box.height / 2 > over.rect.top + over.rect.height / 2;
+                latest.current.onOver?.(from, to, below);
               }}
               onDragCancel={({ active, activatorEvent }) => {
-                keepFocusOn(active.id, null, activatorEvent);
+                keepFocusOn(active.id, activatorEvent);
                 holdStill(stash.current.node, landWait);
                 finish();
-                dropped.current = null;
-                const from = activeOf(active);
-                if (!isMover(from)) return;
-                place(from, null); // 取消：空档回原位，浮层滑回去
-                release.current?.();
-                release.current = null;
               }}
               onDragEnd={onDragEnd}
             >
               {children}
-              <Lifted stash={stash} transition={transition} landing={landing} into={into} />
-              {flow && <Flow selector={flow} running={busy > 0} transition={transition} placed={placed?.id ?? null} />}
+              <Lifted stash={stash} transition={transition} into={into} />
+              {flow && <Flow selector={flow} transition={transition} />}
             </DndContext>
           </KeyedContext.Provider>
           <MoveLive text={said} />
-        </PlacedContext.Provider>
+        </ShutOverContext.Provider>
       </SayMoveContext.Provider>
     </MotionContext.Provider>
   );
@@ -1042,29 +927,25 @@ const MoveLive: FC<{ text: string }> = ({ text }) => {
   return typeof document !== "undefined" && document.body ? createPortal(region, document.body) : region;
 };
 
-/** 在组之间移动的那段时间（拿起到请求做完）：整列跟着动（flowLayout）；空档换了组，各组的位置变了，重量能放的各处（碰撞按新位置算），
- *  空档在可见范围外就平滑滚进来（revealGap）。 */
-const Flow: FC<{ selector: string; running: boolean; transition: Motion | null; placed: string | null }> = ({ selector, running, transition, placed }) => {
-  const { active, activeNode, draggableNodes, droppableContainers, measureDroppableContainers } = useDndContext();
+/** 拖动中（拿起到结束那一次提交）：版面一变（拖进另一列、挪回原来那一列）整列跟着动（flowLayout），并重量能放的各处（碰撞按新
+ *  位置算；拖动库只重量变了的那几列，中间各组的位置也变了）。结束拖动那一次提交里停（同步停在布局阶段：放下后的整列重排是排序
+ *  让位已经摆好的位置，不能再滑一遍）。 */
+const Flow: FC<{ selector: string; transition: Motion | null }> = ({ selector, transition }) => {
+  const { active, activeNode, droppableContainers, measureDroppableContainers } = useDndContext();
   const node = useRef<HTMLElement | null>(null);
   if (activeNode) node.current = activeNode;
-  const containers = useRef(droppableContainers);
-  containers.current = droppableContainers;
-  const lifted = useRef({ active, draggableNodes });
-  lifted.current = { active, draggableNodes };
+  const latest = useRef({ droppableContainers, measureDroppableContainers });
+  latest.current = { droppableContainers, measureDroppableContainers };
+  const running = !!active;
   useLayoutEffect(() => {
-    if (!running) return;
-    measureDroppableContainers(containers.current.getEnabled().map((entry) => entry.id));
-    // 换组重挂后的空档（这次提交里刚挂上，引用已更新）
-    const { active: now, draggableNodes: nodes } = lifted.current;
-    const gap = now ? nodes.get(now.id)?.node.current : null;
-    if (gap?.isConnected) revealGap(gap, !!transition);
-  }, [placed, running, measureDroppableContainers, transition]);
-  useEffect(() => {
     const from = node.current;
-    if (!running || !transition || !from?.isConnected) return;
+    if (!running || !from?.isConnected) return;
     const root = (getScrollableAncestors(from, 1)[0] as HTMLElement | undefined) ?? (document.scrollingElement as HTMLElement | null) ?? document.body;
-    return flowLayout(root, selector, transition);
+    const remeasure = () => {
+      const { droppableContainers: all, measureDroppableContainers: measure } = latest.current;
+      measure(all.getEnabled().map((entry) => entry.id));
+    };
+    return flowLayout(root, selector, transition, remeasure);
   }, [running, selector, transition]);
   return null;
 };
@@ -1083,6 +964,7 @@ const STRIP = [
   "id",
   "data-card",
   "data-row-id",
+  "data-drag-id",
   "data-roving",
   "data-drag-list",
   "data-drag-handle",
@@ -1124,7 +1006,7 @@ export function cloneOf(node: HTMLElement): HTMLElement {
   return shell;
 }
 
-// 浮层里的样子在拿起时克隆一次（在组之间移动时那一项会换组重挂，不再重克隆）
+// 浮层里的样子在拿起时克隆一次（拖进另一列时那一项会在那里重挂，不再重克隆）
 const Copy: FC<{ id: string | number; node: HTMLElement | null }> = ({ id, node }) => {
   const box = useRef<HTMLDivElement>(null);
   const cloned = useRef<string | number | null>(null);
@@ -1143,19 +1025,19 @@ export const OVERLAY_Z = 55;
 
 type Stash = { containers: DroppableContainers | null; node: HTMLElement | null; overlay: { current: HTMLElement | null } | null };
 
-const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; landing: Landing; into: Into }> = ({ stash, transition, landing, into }) => {
+const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; into: Into }> = ({ stash, transition, into }) => {
   const { active, activeNode, droppableContainers, dragOverlay } = useDndContext();
   stash.current = { containers: droppableContainers, node: activeNode, overlay: dragOverlay.nodeRef };
   const data = dataOf(active);
-  // 浮层停在只能高亮组头的落点上（去的组收着、放不下空档：组头带 data-drop-target）：浮层变半透明，透出组头的高亮，离开就恢复
-  // （测试窗口第 7 轮：手机上浮层正好盖住收着的组头，看不到高亮）。高亮与空档换组同一次提交，提交后看一眼
-  const placed = useContext(PlacedContext);
+  // 浮层停在只能高亮组头的落点上（那一列收着、放不下空档：组头带 data-drop-target）：浮层变半透明，透出组头的高亮，离开就恢复
+  // （测试窗口第 7 轮：手机上浮层正好盖住收着的组头，看不到高亮）。高亮与指着它同一次提交，提交后看一眼
+  const shutOver = useContext(ShutOverContext);
   const [peek, setPeek] = useState(false);
   useLayoutEffect(() => {
-    setPeek(!!active && !!placed && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));
-  }, [active, placed]);
+    setPeek(!!active && !!shutOver && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));
+  }, [active, shutOver]);
   // 结束拖动那次提交里拖动库要播的落位（见 dropAnimation）：松手时已经起播（landOverlay）的接着等它播完；取消时从此刻滑回原位
-  const drop = useMemo(() => dropAnimation(transition, () => landing.land(), into), [transition, landing, into]);
+  const drop = useMemo(() => dropAnimation(transition, into), [transition, into]);
   // 键盘拖动时浮层一格一格挪，也用动效变量过渡
   const keyboardMove = (event: Event | null) =>
     transition && event && "key" in event ? `transform ${transition.duration}ms ${transition.easing}` : undefined;
@@ -1182,9 +1064,9 @@ const DRAG_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "H
 const byKeyboard = (event: Event | null | undefined) => !!event && "key" in event;
 // 各项眼前的把手（拖动编号 → 节点），键盘放下后找回焦点用
 const handles = new Map<string | number, HTMLElement>();
-// 键盘拖动放下 / 取消之后的几秒里（落位后交给调用方、请求做完按新数据重排，这一项可能又重挂、或落进收着的组看不见了）：焦点丢了
-// （落到 body）就接回这一项的把手；它不在眼前（落进收着的组）就给那一组的第一个按钮（组头开关）。焦点在别处（人自己挪了）不抢
-let refocus: { id: string | number; group: HTMLElement | null; until: number } | null = null;
+// 键盘拖动放下 / 取消之后的几秒里（落位后交给调用方、按新顺序重排，这一项可能又重挂）：焦点丢了（落到 body）就接回这一项的
+// 把手。焦点在别处（人自己挪了）不抢
+let refocus: { id: string | number; until: number } | null = null;
 let refocusFrame = 0;
 const REFOCUS_MS = 5000;
 
@@ -1201,13 +1083,12 @@ export function rememberHandle(id: string | number, node: HTMLElement | null, be
   else if (handles.get(id) === before) handles.delete(id);
 }
 
-/** 拖动结束（放下 / 取消）后接下来几秒：键盘拿起的（activatorEvent 带 key）焦点丢了就接回这一项的把手，它不在眼前就给 group
- *  （落进收着的组时那一组的节点）里的第一个按钮；别的拿起方式不管。 */
-export function keepFocusOn(id: string | number, group: HTMLElement | null, activatorEvent: Event | null) {
+/** 拖动结束（放下 / 取消）后接下来几秒：键盘拿起的（activatorEvent 带 key）焦点丢了就接回这一项的把手；别的拿起方式不管。 */
+export function keepFocusOn(id: string | number, activatorEvent: Event | null) {
   if (typeof window === "undefined") return;
   if (refocusFrame) window.cancelAnimationFrame(refocusFrame);
   refocusFrame = 0;
-  refocus = byKeyboard(activatorEvent) ? { id, group, until: performance.now() + REFOCUS_MS } : null;
+  refocus = byKeyboard(activatorEvent) ? { id, until: performance.now() + REFOCUS_MS } : null;
   const watch = () => {
     refocusFrame = 0;
     if (!refocus || performance.now() > refocus.until) {
@@ -1216,8 +1097,7 @@ export function keepFocusOn(id: string | number, group: HTMLElement | null, acti
     }
     if (focusLost()) {
       const own = handles.get(refocus.id);
-      const to = shown(own) ? own : (refocus.group?.querySelector<HTMLElement>("button") ?? undefined);
-      if (shown(to)) to.focus({ preventScroll: true });
+      if (shown(own)) own.focus({ preventScroll: true });
     }
     refocusFrame = window.requestAnimationFrame(watch);
   };
@@ -1256,8 +1136,6 @@ type HandleOptions = {
   ownFocus?: boolean;
   /** 从这些地方按下不拿起（行尾「···」、改名输入框）。 */
   skip?: string;
-  /** 这一项是能放进去的一组、此刻收着（放不下空档）：空档要去这组时整块（就是组头）高亮，放下落到组头并收起。 */
-  shut?: boolean;
 };
 
 type Draggable = Pick<ReturnType<typeof useDraggable>, "attributes" | "listeners" | "setActivatorNodeRef">;
@@ -1301,13 +1179,13 @@ function handleOf(drag: Draggable, { disabled, ownFocus, skip }: HandleOptions):
   };
 }
 
-/** 排序列表里的一项：node 给整项（位移、原位留空），handle 给把手（拿起的地方）。 */
+/** 排序列表里的一项：node 给整项（位移、原位留空），handle 给把手（拿起的地方）。data-drag-id 让拖进另一列、在那里重挂的同一项
+ *  接着滑（flowLayout）。 */
 export function useSortableItem(data: DragData, options: HandleOptions = {}) {
   const transition = useContext(MotionContext);
   const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
   const sortable = useSortable({ id: data.id, data: drag, disabled: options.disabled, transition });
   const handleRef = useFollowFocus(data.id, sortable);
-  const crossing = useContext(PlacedContext) === data.id && !!options.shut;
   const say = useContext(SayMoveContext);
   return {
     /** Alt+↑/↓ 挪完：念新位置（没挪动——到头了——不念）。 */
@@ -1317,34 +1195,22 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
     node: {
       ref: sortable.setNodeRef,
       style: { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition } as CSSProperties,
+      "data-drag-id": data.id,
       "data-drag-list": data.list,
       "data-drag-source": sortable.isDragging ? "gap" : undefined,
-      "data-drop-target": crossing ? "" : undefined,
     },
     handle: handleOf({ ...sortable, setActivatorNodeRef: handleRef }, options),
     dragging: sortable.isDragging,
   };
 }
 
-/** 在组之间移动的一项（侧栏对话拖到别的公司；data.group 是所在的组）：同排序项一样原位留空档、浮层跟手；空档去哪一组由
- *  DragArea 的 onPlace 交给调用方排（组里的先后由排序方式定）。data-drag-id 让换组重挂的同一项接着滑（flowLayout）。 */
-export function useDragItem(data: DragData, options: HandleOptions = {}) {
-  const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
-  const draggable = useDraggable({ id: data.id, data: drag, disabled: options.disabled });
-  const handleRef = useFollowFocus(data.id, draggable);
-  return {
-    node: { ref: draggable.setNodeRef, "data-drag-id": data.id, "data-drag-source": draggable.isDragging ? "gap" : undefined },
-    handle: handleOf({ ...draggable, setActivatorNodeRef: handleRef }, options),
-    dragging: draggable.isDragging,
-  };
-}
-
-/** 只能放不能拖的一组（侧栏的「最近」）：shut = 此刻收着，空档要去这组时整块（就是组头）高亮。 */
-export function useDropTarget(data: DragData, shut = false) {
-  const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.group]);
+/** 一列整块的落点（侧栏的已置顶、各组）：data.list 是它代表的那一列，shut = 此刻收着（放不下空档）——指着它时整块（就是组头）
+ *  高亮，放下落到组头并收起。ref 给整块（组头 + 这一列的各项）。 */
+export function useDropZone(data: DragData, shut = false) {
+  const drag = useMemo(() => ({ drag: { ...data, zone: true, shut } }), [data.id, data.kind, data.label, data.list, shut]);
   const droppable = useDroppable({ id: data.id, data: drag });
-  const placed = useContext(PlacedContext) === data.id;
-  return { ref: droppable.setNodeRef, "data-drop-target": placed && shut ? "" : undefined };
+  const over = useContext(ShutOverContext) === data.id;
+  return { ref: droppable.setNodeRef, "data-drop-target": over && shut ? "" : undefined };
 }
 
 /** Alt+↑ / Alt+↓ 挪一格（会话栏卡片、侧栏公司组头、置顶对话）；挪完焦点留在原来的按钮上。是这两个键回 true。

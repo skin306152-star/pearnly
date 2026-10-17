@@ -119,7 +119,7 @@ registerPref("view", {
   },
 });
 
-/** 「恢复默认设置」：分组和排序回默认，手排的公司组、置顶顺序也清掉（回到按排序方式排）。 */
+/** 「恢复默认设置」：分组和排序回默认，手排的公司组、置顶与组里的顺序也清掉（回到按排序方式排）。 */
 export function resetSidebarView() {
   setSidebarView(DEFAULT_VIEW);
   clearSidebarOrder();

@@ -268,11 +268,15 @@ def star(session_id, starred) -> None:
 
 
 def move(session_id, project, period=None, scope=None) -> dict:
-    """对话换组（"" = 「最近」，月份、范围一并清空）或改处理月份 / 范围：只动本人的会话，产品不认这家时拒绝。
-    只是整理，不改最后活动时间、不动置顶。"""
+    """改处理月份 / 范围：只动本人的会话。对话不能换公司（用户 10-17：侧栏拖动只在本组排先后，「移到」已删）——请求里的公司
+    要与这段对话现在的一致（"" = 「最近」），不一致（含从「最近」挂进公司、移回「最近」）一律拒绝；产品不认这家时同样拒绝。
+    挂在「最近」的对话没有月份、范围（一并清空）。新对话开在哪家走 `create`，删公司时对话回「最近」走 `projects.release`，
+    都不经这里。只是整理，不改最后活动时间、不动置顶。"""
     row = owned(session_id)
     user = _user()
     wanted = str(project or "").strip()
+    if wanted != (row.get("project") or ""):
+        frappe.throw(_("A conversation cannot be moved to another company."))
     target, period, scope = _guard(projects.placement, wanted, period, scope, user)
     if wanted and not target:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)

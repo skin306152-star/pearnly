@@ -22,6 +22,7 @@ def create(project=None, period=None, scope=None):
     return sessions.create(project=project or None, period=period or None, scope=scope or None)
 
 
+# 改对话的处理月份、分店；project 是它现在的公司（不能换公司，见 `sessions.move`）
 @frappe.whitelist(methods=["POST"])
 def move(session_id, project="", period=None, scope=None):
     return sessions.move(session_id, project or "", period=period or None, scope=scope or None)

@@ -49,7 +49,7 @@ export function createSession(filing?: Partial<Filing>): Promise<ListedSession> 
   });
 }
 
-/** 对话换公司或换月份、分店（project 为 "" = 移回最近，月份分店一并清空）。不改置顶、不改最后活动时间。 */
+/** 改对话的处理月份、分店（project 是它现在的公司，服务端核对：不同即拒绝——对话不能换公司）。不改置顶、不改最后活动时间。 */
 export function moveSession(sessionId: string, filing: Filing): Promise<ListedSession & { project?: string }> {
   return post("move", { session_id: sessionId, project: filing.project, period: filing.period, scope: filing.scope });
 }

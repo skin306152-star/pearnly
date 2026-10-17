@@ -1,7 +1,7 @@
 // 外壳的个人排列按人存到服务端、跨设备同步（用户 2026-10-16 选「公司可拖 + 置顶可拖」时说「按人记住」；测试窗口第 7 轮：
 // 原来只记在这台设备上）。同步的三份，各份由几项组成：
 //
-//   order — 侧栏手排的公司组与置顶顺序（companies / pinned；lib/managed-agents/sidebar-order.ts）
+//   order — 侧栏手排的公司组、置顶与组里对话的顺序（companies / pinned / groups；lib/managed-agents/sidebar-order.ts）
 //   view  — 侧栏「分组和排序」（by / sort / desc / meta / empty；lib/managed-agents/sidebar-view.ts）
 //   cards — 右侧会话栏卡片的顺序与开合（order / collapsed；lib/company-panel.ts）
 //

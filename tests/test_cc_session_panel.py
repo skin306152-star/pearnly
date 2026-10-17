@@ -37,7 +37,7 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn("<ConversationMenu onRename={() => setRenaming(true)} />", name)
         menu = app.split("function ConversationMenu(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('<DropdownMenu.Trigger className="cc-row-btn" aria-label={t("conversationMenu")}', menu)
-        self.assertIn("<MoveToMenu sessionId={remoteId} localId={localId} />", menu)
+        self.assertNotIn("MoveToMenu", app)   # 用户 10-17：对话不能换公司，「移到」已删
         self.assertIn('onSelect={onRename}', menu)
         # 「公司名 ›」打开会话栏的公司卡，不再进公司页
         projects = read("components/assistant-ui/projects.tsx")
@@ -456,7 +456,7 @@ const panel = inPanel(card());
 assert.match(panel, /aria-expanded="false"/);
 assert.ok(!panel.includes(">body<"));
 assert.match(panel, /<span class="cc-panel-card-grip" data-slot="cc-card-grip"><button type="button"[^>]*role="button"[^>]*tabindex="0"[^>]*aria-roledescription="sortable"[^>]*class="cc-panel-btn cc-panel-grip" aria-label="Reorder" title="Reorder">/);
-assert.match(panel, /<section data-drag-list="cards" class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移、不留空
+assert.match(panel, /<section data-drag-id="notes" data-drag-list="cards" class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移、不留空
 assert.ok(!panel.includes("data-drag-source") && !panel.includes("style="));
 // 正在里面新增 / 编辑（forceOpen）：折叠了也展开
 assert.ok(inPanel(card({ forceOpen: true })).includes(">body<"));
@@ -607,7 +607,7 @@ class SortableSourceTests(unittest.TestCase):
         # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
         self.assertIn("useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),", drag)
         self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),", drag)
-        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, beforeEnd }),", drag)
+        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd }),", drag)
         self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);", drag)
         self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
@@ -622,15 +622,15 @@ class SortableSourceTests(unittest.TestCase):
         # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区
         self.assertIn("return { ...transform, x: 0, y: clampToList(transform.y, { top: start.top, height: start.height }, list) };", drag)
         self.assertIn("const rect = getClientRect(node, { ignoreTransform: true });", drag)
-        # 碰撞只认能放的地方：排序最近的中心，拖到别的组看指针（键盘拖时是浮层中心）落在哪一组
-        self.assertIn("if (active.list) return closestCenter({ ...args, droppableContainers });", drag)
-        self.assertIn("return pointerWithin({ ...args, droppableContainers, pointerCoordinates });", drag)
+        # 碰撞只认能放的地方：按 narrowPool 收窄（键盘只在本列；指针进了哪一列的整块就认那一列）后取最近的中心
+        self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
+        self.assertNotIn("pointerWithin", drag)
         # 拖动标记：Esc 只取消拖动
         self.assertIn("setDragging(true);", drag)
-        self.assertIn("letGo.flush(false); // 卸下时还在等落位的放下当场结束\n      setDragging(false);\n      landing.land(); // 卸下时还没交的放下照样交（移动请求照发）", drag)
+        self.assertIn("letGo.flush(); // 卸下时还在等落位的放下当场结束\n      setDragging(false);", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
         self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} data-peek={peek ? "" : undefined} inert aria-hidden>', drag)
-        for name in ('"data-card"', '"data-row-id"', '"data-roving"', '"data-selected"'):
+        for name in ('"data-card"', '"data-row-id"', '"data-drag-id"', '"data-roving"', '"data-selected"'):
             self.assertIn(name, drag.split("const STRIP = [", 1)[1].split("];", 1)[0])
         layers = read("lib/layers.ts")
         self.assertIn('window.addEventListener("keydown", markEscape, true);', layers)

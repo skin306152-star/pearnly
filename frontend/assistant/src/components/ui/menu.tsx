@@ -136,7 +136,7 @@ function SubContent({ collisionPadding = MENU_EDGE, ...props }: ComponentProps<t
   return <Radix.SubContent collisionPadding={collisionPadding} {...props} />;
 }
 
-/** 子菜单（「移到 ›」「语言 ›」…）。className、sideOffset：宽屏旁边展开的那一块。 */
+/** 子菜单（「处理月份 ›」「语言 ›」…）。className、sideOffset：宽屏旁边展开的那一块。 */
 export function SubMenu({
   icon,
   label,

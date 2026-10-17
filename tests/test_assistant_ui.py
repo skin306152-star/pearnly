@@ -311,13 +311,14 @@ class TextTests(unittest.TestCase):
             sets[lang] = keys(words) | keys(block(words, "kind: {"))
             self.assertTrue({"companies", "addCompany", "added", "refreshSets", "notes", "docFolder", "monthFolder", "accountSets",
                              "taxDrafts", "remembered", "noPeriod", "period", "branch", "noBranch", "headOffice", "branchShort",
-                             "combinedVat", "moveTo", "showMore", "deleteCompany", "chooseOnComputer", "changeFolder",
+                             "combinedVat", "showMore", "deleteCompany", "chooseOnComputer", "changeFolder",
                              "removeFolder", "updateDesktop", "folderOk", "folderWaiting", "folderOffline", "folderMissing",
                              "payCash", "payCredit", "vatClaim", "vatExpense", "pending", "handToCC", "handToCCText", "handToCCOne",
                              "fromHistory", "history", "vatCheck"} <= sets[lang], lang)
             self.assertIn("earlierFolders:", block(settings, f"  {lang}: {{"), lang)
         self.assertEqual(sets["en"], sets["zh"])
         self.assertEqual(sets["en"], sets["th"])
+        self.assertNotIn("moveTo", sets["en"])   # 用户 10-17：「移到」已删，词条一并去掉
         # 工具步骤（含跑完的按类摘要）：三种语言的词条一样多
         steps = block(i18n, "const STEPS = {")
         step_sets = {lang: keys(block(steps, f"  {lang}: {{")) | keys(block(block(steps, f"  {lang}: {{"), "summary: {"))
@@ -333,8 +334,9 @@ class TextTests(unittest.TestCase):
         sidebar = block(i18n, "const SIDEBAR = {")
         words = {lang: keys(block(sidebar, f"  {lang}: {{")) for lang in ("en", "zh", "th")}
         self.assertTrue({"groupAndSort", "groupBy", "none", "sortBy", "lastUpdated", "dateCreated", "name", "descending", "ascending",
-                         "show", "metadata", "emptyGroups", "resetDefaults", "noMonth", "pinN", "unpinN", "moveToN",
+                         "show", "metadata", "emptyGroups", "resetDefaults", "noMonth", "pinN", "unpinN",
                          "deleteN"} <= words["en"])
+        self.assertNotIn("moveToN", words["en"])   # 用户 10-17：多选的「移到… (N)」删了
         self.assertEqual(words["en"], words["zh"])
         self.assertEqual(words["en"], words["th"])
         self.assertNotIn("newChatHere", i18n)   # 公司组「···」里的「在这家新建对话」去掉了（用户 2026-10-15 夜），词条一并删
@@ -2306,8 +2308,11 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertNotIn("cc:open-company-card", projects)
         self.assertNotIn("ConversationFiling", projects)
         self.assertNotIn("ConversationFiling", page)
-        self.assertIn("const change = (next: Partial<Filing>) => void fileSession(remoteId, { ...filing, ...next }).catch(report);",
+        self.assertIn('const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(report);',
                       projects.split("const FilingChips: FC<", 1)[1].split("\n};", 1)[0])
+        # 用户 10-17：没挂公司的已有对话不能再归到公司——下巴空着（新对话开之前在下巴 / 手机问候下面选公司照旧）
+        self.assertIn("if (!project) return null;", session)
+        self.assertNotIn("UnfiledChin", projects)
         # 手机已有对话：「…」里的「处理月份」「分店」子菜单（挂在公司下才有；分店只在不止一个分店时），各项与胶囊共用
         mobile = block(projects, "export const MobileFilingItems: FC = () => {")
         self.assertIn("if (!kind || !remoteId || !filing.project) return null;", mobile)
@@ -2729,36 +2734,6 @@ assert.equal(groupOf(local), "");
 assert.ok(!useProjects.getState().projects.some((p) => p.id === "comp_nipa"));
 """)
 
-    def test_moving_into_a_company_not_in_the_sidebar_keeps_the_group_until_the_server_answers(self):
-        # 同一个毛病的另一条路：「移到 ▸」一家侧栏还没有的公司，移动请求回来之前重取的回复也不拆先搭的组
-        self.run_page(r"""
-site.projects = [];
-site.sessions = [row("sesn_bbb001", "Loose", 2)];
-const base = g.respond;
-let release: () => void = () => {};
-g.respond = async (method: string, args: any, body: any) => {
-  if (method !== "move") return base(method, args, body);
-  await new Promise<void>((resolve) => { release = resolve; });
-  site.projects = [{ id: "comp_nipa", title: "นิภา เอ็กเช้นจ์ จำกัด", last_active: at(0), count: 1 }];
-  return base(method, args, body);
-};
-const { core, threads } = sidebar();
-core.__internal_load();
-await core.getLoadThreadsPromise();
-watchList(() => threads);
-hintTitle("comp_nipa", "นิภา เอ็กเช้นจ์");             // 选公司的菜单里点了这家
-const moving = fileSession("sesn_bbb001", { project: "comp_nipa", period: "", scope: "" });
-assert.equal(groupOf("sesn_bbb001"), "comp_nipa");
-g.document.fire("visibilitychange");
-await g.sleep(30);
-assert.equal(groupOf("sesn_bbb001"), "comp_nipa");
-release();
-await moving;
-await g.sleep(30);
-assert.equal(useProjects.getState().projects.find((p) => p.id === "comp_nipa")?.title, "นิภา เอ็กเช้นจ์ จำกัด");
-assert.equal(groupOf("sesn_bbb001"), "comp_nipa");
-""")
-
     def test_moves_renames_and_deletes_merge_at_once(self):
         self.run_page(r"""
 site.sessions = [row("sesn_aaa001", "Input VAT", 1, { project: "comp_abc", period: "2026-09" }), row("sesn_bbb001", "Loose", 2)];
@@ -2789,17 +2764,18 @@ await g.sleep(20);
 assert.equal(groupOf("sesn_bbb001"), "");
 assert.deepEqual(filingOf("sesn_bbb001"), NO_FILING);
 assert.ok(!useProjects.getState().projects.some((p) => p.id === "comp_abc"));
-// 本页移到 ▸ / 改月份：发 move（不改置顶）；服务端拒了就回到原来的
-await fileSession("sesn_aaa001", { project: "comp_new", period: "2026-07", scope: "00002" });
+// 本页改月份、分店：发 move，带它现在的公司（对话不能换公司，用户 10-17；不改置顶）；服务端拒了就回到原来的
+await fileSession("sesn_aaa001", { period: "2026-07", scope: "00002" });
 assert.deepEqual(calls("move").at(-1).body, { session_id: "sesn_aaa001", project: "comp_new", period: "2026-07", scope: "00002" });
 assert.deepEqual(filingOf("sesn_aaa001"), { project: "comp_new", period: "2026-07", scope: "00002" });
 site.moveFails = true;
-await assert.rejects(fileSession("sesn_aaa001", { project: "", period: "2026-07", scope: "" }));
+await assert.rejects(fileSession("sesn_aaa001", { period: "2026-06" }));
 assert.deepEqual(filingOf("sesn_aaa001"), { project: "comp_new", period: "2026-07", scope: "00002" });
-// 移回最近：月份分店一并清空
 site.moveFails = false;
-await fileSession("sesn_aaa001", { project: "", period: "2026-07", scope: "00002" });
-assert.deepEqual(calls("move").at(-1).body, { session_id: "sesn_aaa001", project: "", period: "", scope: "" });
+// 在「最近」的对话没有月份、分店：不发
+const moved = calls("move").length;
+await fileSession("sesn_bbb001", { period: "2026-07" });
+assert.equal(calls("move").length, moved);
 assert.equal(calls("star").length, 0);
 """)
 
@@ -3041,13 +3017,13 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("sb.pinN(ids.length)", bulk)
         self.assertIn("sb.unpinN(ids.length)", bulk)
         self.assertIn("sb.deleteN(ids.length)", bulk)
-        self.assertIn("<BulkMoveMenu sessions={sessions} onDone={clearSelection} />", bulk)
         self.assertEqual(bulk.count("runInOrder("), 2)
         self.assertIn("await item.updateCustom({ ...custom, starred: !allPinned });", bulk)   # 保留 custom 里别的键
+        # 用户 10-17：多选菜单的「移到… (N)」删了（对话不能换公司）
+        self.assertNotIn("BulkMoveMenu", rows)
         projects = read("components/assistant-ui/projects.tsx")
-        self.assertIn('<SubMenu icon={<Building2Icon />} label={sb.moveToN(sessions.length)} className="cc-menu !min-w-52 max-w-72">', projects)
-        # 已经在那家的不动（第 5 轮审查，同拖动整批）
-        self.assertIn('runInOrder(notIn(sessions, project), (id) => fileSession(id, { project, period: "", scope: "" }), report)', projects)
+        for gone in ("BulkMoveMenu", "MoveToMenu", "moveToN", "notIn("):
+            self.assertNotIn(gone, projects)
         # 单字母快捷键：按物理键认（泰文键盘下也一样），批量时只有 P、D
         self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}", rows)
         self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}", rows)
@@ -3945,8 +3921,11 @@ assert.deepEqual(mergeOrder(["c", "a"], ["a", "b", "c", "d"]), ["c", "a", "b", "
 const items = [{ id: "new1" }, { id: "b" }, { id: "a" }, { id: "new2" }];
 assert.deepEqual(arrange(items, (x) => x.id, ["a", "b"]).map((x) => x.id), ["new1", "new2", "a", "b"]);
 assert.deepEqual(arrange(items, (x) => x.id, []).map((x) => x.id), ["new1", "b", "a", "new2"]);   // 没手排过：原样
-assert.deepEqual(parseOrder('{"companies":["a",1,"a"],"pinned":"x"}'), { companies: ["a"], pinned: [] });
-assert.deepEqual(parseOrder("not json"), { companies: [], pinned: [] });
+assert.deepEqual(parseOrder('{"companies":["a",1,"a"],"pinned":"x"}'), { companies: ["a"], pinned: [], groups: {} });
+assert.deepEqual(parseOrder("not json"), { companies: [], pinned: [], groups: {} });
+// 组里手排的先后：形状不对、空的组不要
+assert.deepEqual(parseOrder('{"groups":{"comp_A":{"keys":["s1",2,"s1"],"at":5},"":{"keys":["s9"]},"bad":1,"empty":{"keys":[],"at":1}}}').groups,
+                 { comp_A: { keys: ["s1"], at: 5 }, "": { keys: ["s9"], at: 0 } });
 
 // 分组：手排过的公司按手排的顺序，新出现的公司排最上面；组里的对话照排序方式排
 const at = (m: number) => Date.UTC(2026, 9, 16, 12, 0) - m * 60000;
@@ -3978,10 +3957,10 @@ setCompanyOrder(["comp_C", "comp_A"]);
 assert.deepEqual(useSidebarOrder.getState().companies, ["comp_C", "comp_A"]);
 assert.equal(storage.size, 0);
 bindOrderUser("skin3@x");
-assert.deepEqual(useSidebarOrder.getState(), { companies: [], pinned: [] });   // 换成这个人记下的（还没有）
+assert.deepEqual(useSidebarOrder.getState(), { companies: [], pinned: [], groups: {} });   // 换成这个人记下的（还没有）
 setCompanyOrder(["comp_B", "comp_A"]);
 setPinnedOrder(["s4"]);
-assert.deepEqual(JSON.parse(storage.get(orderKey("skin3@x"))!), { companies: ["comp_B", "comp_A"], pinned: ["s4"] });
+assert.deepEqual(JSON.parse(storage.get(orderKey("skin3@x"))!), { companies: ["comp_B", "comp_A"], pinned: ["s4"], groups: {} });
 setCompanyOrder(["comp_A", "comp_B"]);
 assert.deepEqual(useSidebarOrder.getState().companies, ["comp_A", "comp_B"]);
 storage.set(orderKey("other@x"), JSON.stringify({ companies: ["comp_C"], pinned: [] }));
@@ -3992,7 +3971,7 @@ assert.deepEqual(useSidebarOrder.getState().companies, ["comp_C"]);
     def test_unpinned_chats_leave_the_manual_order_and_reset_clears_it(self):
         # 第 5 轮审查：取消置顶不从手排顺序里去掉，再置顶时回到旧位置（不在最上面）；「恢复默认设置」也不清手排顺序
         self.run_page(STORAGE_STUB + r"""
-import { bindOrderUser, clearSidebarOrder, forgetPinned, hasManualOrder, orderKey, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindOrderUser, clearSidebarOrder, forgetPinned, hasManualOrder, orderKey, setCompanyOrder, setGroupOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { companySections } from "@/lib/managed-agents/sidebar-groups";
 import { DEFAULT_VIEW, resetSidebarView, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 bindOrderUser("skin3@x");
@@ -4006,13 +3985,14 @@ assert.deepEqual(useSidebarOrder.getState().pinned, ["sB", "sC"]);
 assert.deepEqual(JSON.parse(storage.get(orderKey("skin3@x"))!).pinned, ["sB", "sC"]);
 // 再置顶 D 和 A：两条都是新置顶的，排最上面（它们之间照排序方式）
 assert.deepEqual(pinnedOf([row(0, "sA", true), row(1, "sB", true), row(2, "sC", true), row(3, "sD", true)]), [0, 3, 1, 2]);
-// 恢复默认设置：分组和排序回默认，手排的公司组、置顶顺序一起清掉，本机记下的也删掉
+// 恢复默认设置：分组和排序回默认，手排的公司组、置顶与组里的顺序一起清掉，本机记下的也删掉
 setCompanyOrder(["comp_B", "comp_A"]);
+setGroupOrder("comp_A", ["sA"]);
 setSidebarView({ sort: "name" });
 assert.equal(hasManualOrder(useSidebarOrder.getState()), true);
 resetSidebarView();
 assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
-assert.deepEqual(useSidebarOrder.getState(), { companies: [], pinned: [] });
+assert.deepEqual(useSidebarOrder.getState(), { companies: [], pinned: [], groups: {} });
 assert.equal(hasManualOrder(useSidebarOrder.getState()), false);
 assert.equal(storage.has(orderKey("skin3@x")), false);
 clearSidebarOrder();                                   // 本来就空：不再写
@@ -4020,9 +4000,11 @@ assert.equal(storage.has(orderKey("skin3@x")), false);
 """)
         rows = read("components/assistant-ui/thread-list.tsx")
         groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
-        # 侧栏按已加载的行收拾：不再置顶的（单条、批量、别的设备）从手排顺序里去掉
-        self.assertIn("return item && !item.custom?.starred ? [item.remoteId ?? id] : [];", groups)
+        # 侧栏按已加载的行收拾：不再置顶的（单条、批量、别的设备）从手排顺序里去掉，正在置顶（拖进已置顶、服务端还没回）的不算；
+        # 置顶了的从组里手排的先后里去掉
+        self.assertIn("else if (!pinning.has(key)) unpinned.push(key);", groups)
         self.assertIn("if (gone.length) forgetPinned(gone);", groups)
+        self.assertIn("if (left.length) forgetInGroups(left, true);", groups)
         # 「恢复默认设置」：分组和排序跟默认一样、也没手排过才不可点
         self.assertIn("disabled={isDefaultView(view) && !manual} onSelect={resetSidebarView}", read("components/assistant-ui/sidebar-group.tsx"))
 
@@ -4031,7 +4013,7 @@ assert.equal(storage.has(orderKey("skin3@x")), false);
         # 打开时取、改了就存、后写的为准；本机缓存照样先顶着、离线照样能用；折叠仍按设备；服务端没有时把本机原有的迁上去。
         # 第 7 轮审查：只存改了的项（服务端按项合并），本机改了还没存上的项不被服务端的盖掉，别的项照样换成服务端的
         self.run_page(STORAGE_STUB + r"""
-import { bindOrderUser, forgetPinned, orderKey, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindOrderUser, forgetPinned, orderKey, setCompanyOrder, setGroupOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { bindSidebarViewUser, DEFAULT_VIEW, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { toggleFold } from "@/lib/managed-agents/sidebar-fold";
 import { loadPanelPrefs, panelKey, setCardOrder, setPanelOpen, toggleCard, usePanel } from "@/lib/company-panel";
@@ -4057,7 +4039,7 @@ const sent = () => saves().map((c: any) => JSON.parse(JSON.stringify(c.body.pref
 
 // 这台设备上原来记下的（旧版本只记本机）：第一次登录、服务端还没有 → 整份迁上去
 storage.set("cc.sidebar.user", "skin3@x");
-storage.set(orderKey("skin3@x"), JSON.stringify({ companies: ["comp_B", "comp_A"], pinned: ["s4"] }));
+storage.set(orderKey("skin3@x"), JSON.stringify({ companies: ["comp_B", "comp_A"], pinned: ["s4"] }));   // 旧版本记的没有组里的
 storage.set("cc.sidebar.view:skin3@x", JSON.stringify({ ...DEFAULT_VIEW, sort: "name" }));
 bindOrderUser("skin3@x");
 bindSidebarViewUser("skin3@x");
@@ -4065,7 +4047,7 @@ loadPanelPrefs("skin3@x");
 await syncPrefs("skin3@x");
 assert.deepEqual(g.calls.map((c: any) => c.method), ["layout", "save_layout"]);
 assert.deepEqual(Object.keys(server).sort(), ["cards", "order", "view"]);   // 折叠不同步
-assert.deepEqual(server.order, { companies: ["comp_B", "comp_A"], pinned: ["s4"] });
+assert.deepEqual(server.order, { companies: ["comp_B", "comp_A"], pinned: ["s4"], groups: {} });
 assert.equal(server.view.sort, "name");
 assert.deepEqual(server.cards.collapsed, []);
 assert.equal("open" in server.cards, false);                                   // 停靠时开着没有按设备记
@@ -4119,6 +4101,15 @@ await syncPrefs("skin3@x");
 assert.deepEqual(g.calls.map((c: any) => c.method), ["layout", "save_layout"]);   // 先取：别的项换成服务端的，再补存没存上的那项
 assert.deepEqual(sent(), [{ order: { pinned: ["s9"] } }]);
 assert.deepEqual(server.order, { companies: ["comp_C"], pinned: ["s9"] });
+// 组里手排的先后同样只交这一项（后写的为准），别的设备收到后照它摆
+setGroupOrder("comp_C", ["s7", "s5"], 1234);
+await g.sleep(SAVE_DELAY + 50);
+assert.deepEqual(sent().at(-1), { order: { groups: { comp_C: { keys: ["s7", "s5"], at: 1234 } } } });
+assert.deepEqual(server.order.groups, { comp_C: { keys: ["s7", "s5"], at: 1234 } });
+assert.deepEqual(server.order.pinned, ["s9"]);
+server = { ...server, order: { ...server.order, groups: { "": { keys: ["s3"], at: 99 } } } };
+await syncPrefs("skin3@x");
+assert.deepEqual(useSidebarOrder.getState().groups, { "": { keys: ["s3"], at: 99 } });   // 服务端以后的回复没有这一项：本机的不动
 assert.equal(useSidebarView.getState().sort, "created");
 assert.deepEqual(useSidebarOrder.getState().pinned, ["s9"]);
 assert.equal(storage.has("cc.prefs.unsaved:skin3@x"), false);
@@ -4143,7 +4134,7 @@ g.calls.length = 0;
 const tidy = syncPrefs("skin3@x");
 forgetPinned(["s1"]);
 await tidy;
-assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_Z"], pinned: ["s2", "s1"] });
+assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_Z"], pinned: ["s2", "s1"], groups: { "": { keys: ["s3"], at: 99 } } });
 assert.deepEqual(g.calls.map((c: any) => c.method), ["layout"]);
 
 // 第 7 轮审查第 1 条：一直开着、很久没取过的设备上，别的设备取消置顶推过来（按数据收拾）。不拿本机过时的公司组顺序盖服务端：
@@ -4158,7 +4149,7 @@ forgetPinned(["s1"]);
 assert.deepEqual(useSidebarOrder.getState().pinned, ["s2"]);                       // 本机马上去掉
 await g.sleep(SAVE_DELAY + 100);
 assert.deepEqual(g.calls.map((c: any) => c.method), ["layout"]);                  // 先取，不存
-assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_new"], pinned: ["s2", "s1"] });
+assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_new"], pinned: ["s2", "s1"], groups: { "": { keys: ["s3"], at: 99 } } });
 forgetPinned(["s1"]);                                                             // 侧栏照新的那份再收拾（刚取过）
 await g.sleep(SAVE_DELAY + 100);
 assert.deepEqual(sent(), [{ order: { pinned: ["s2"] } }]);
@@ -4203,7 +4194,7 @@ const first = syncPrefs("skin3@x");
 assert.equal(syncPrefs("skin3@x"), first);             // 同时叫两次只取一次
 await first;
 assert.deepEqual(methods(), ["layout"]);               // 不存本机旧的
-assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_A2"], pinned: ["s1"] });
+assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_A2"], pinned: ["s1"], groups: {} });
 assert.equal(useSidebarView.getState().by, "month");
 assert.equal(storage.has("cc.prefs.unsaved:skin3@x"), false);
 
@@ -4223,46 +4214,48 @@ assert.deepEqual(methods(), ["layout", "layout"]);
 """)
 
     def test_drop_is_announced_by_what_really_happened(self):
-        # 测试窗口第 7 轮第 1 项：真的移过去了（发了移动请求、对话已在新组），最后却念「已取消移动」（电脑拖到组头、手机拖到行上、
-        # 自动滚动后落到别组、键盘 ↑ + 空格，共 5 次）。根因：拖动库先调放下的处理、后发播报；落位已播完时放下的处理当场把这一项
-        # 交给调用方并把空档清回 null，播报读到的成了「原组」。改为按放下那一刻定下的去处念
+        # 测试窗口第 7 轮第 1 项：真的放下了却念「已取消移动」。放下按实际结果念：对话拖进已置顶（此刻排在置顶那一列里、经过的是
+        # 它自己）念已置顶；排序的念放到第几位；落回原位、落在原来那一组的整块上念取消（用户 10-17：对话只在本组排、或拖进置顶）
         self.run_page(r"""
 import { dragAnnouncements } from "@/components/ui/drag";
-import { sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
-const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: () => "moved", droppedAt: () => "dropped",
+const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: (n: string, a: number, t: number) => `moved ${n} ${a}/${t}`,
+  droppedAt: (n: string, a: number, t: number) => `dropped ${n} ${a}/${t}`,
   cancelled: (n: string) => `cancel ${n}`, over: (n: string, g: string) => `over ${n} ${g}`, droppedIn: (n: string, g: string) => `in ${n} ${g}` };
-const row = { id: "row:t1", kind: "row", label: "lelo", group: "A" };
-const company = (id: string) => ({ id: `company:${id}`, kind: "company", label: id, list: "companies", group: id });
-const entry = (d: any) => ({ id: d.id, data: { current: { drag: d } } });
-let placed: any = company("B");
-let dropped: any = undefined;
-const say = dragAnnouncements(texts, { accepts: sidebarAccepts, placed: () => placed, lifted: () => row, dropped: () => dropped });
-say.onDragStart!({ active: entry(row) } as any);
-assert.equal(say.onDragOver!({ active: entry(row), over: entry(company("B")) } as any), "over lelo B");
-// 放下：先交给调用方（空档清回 null），播报在后——按放下那一刻定下的去处念
-dropped = company("B");
-placed = null;
-assert.equal(say.onDragEnd!({ active: entry({ ...row, group: "B" }), over: entry(company("B")) } as any), "in lelo B");
-// 拖回原组放下：没移，念取消
-dropped = null;
-placed = company("B");
-assert.equal(say.onDragEnd!({ active: entry(row), over: entry(company("A")) } as any), "cancel lelo");
-// 没记（旧的调用方）：照旧按此刻的空档
-dropped = undefined;
-assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in lelo B");
+const row = { id: "row:t1", kind: "row", label: "lelo", list: "rows:A", group: "A" };
+// 排序项：data 里有 sortable（containerId 是此刻所在的那一列）
+const entry = (d: any, container?: string, index = 0, items: string[] = []) =>
+  ({ id: d.id, data: { current: { drag: d, ...(container ? { sortable: { containerId: container, index, items } } : {}) } } });
+const pin = { id: "pin:p1", kind: "pin", label: "p1", list: "pins" };
+const zone = (list: string, label: string, shut = false) => ({ id: `zone:${list}`, kind: "group", label, list, zone: true, shut });
+const say = dragAnnouncements(texts, { lifted: () => row, zoneLabel: (list: string) => (list === "pins" ? "Pinned" : undefined) });
+say.onDragStart!({ active: entry(row, "rows:A") } as any);
+assert.equal(say.onDragOver!({ active: entry(row, "rows:A"), over: entry(row, "rows:A", 0, ["row:t1", "row:t2"]) } as any), undefined);  // 拿起时那一次经过自己
+assert.equal(say.onDragOver!({ active: entry(row, "rows:A"), over: entry(pin, "pins", 0, ["pin:p1"]) } as any), "over lelo Pinned");
+// 已排进置顶、停在自己的位置上放下：念已置顶
+assert.equal(say.onDragEnd!({ active: entry(row, "pins"), over: entry(row, "pins", 1, ["pin:p1", "row:t1"]) } as any), "in lelo Pinned");
+// 已置顶收着：指着整块（组头高亮），放下同样念已置顶
+assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: entry(zone("pins", "Pinned", true)) } as any), "in lelo Pinned");
+// 在本组排：念位置；落回原位、落在本组的整块上：取消
+say.onDragStart!({ active: entry(row, "rows:A") } as any);
+assert.equal(say.onDragOver!({ active: entry(row, "rows:A"), over: entry({ ...row, id: "row:t2" }, "rows:A", 1, ["row:t1", "row:t2"]) } as any), "moved lelo 2/2");
+assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: entry({ ...row, id: "row:t2" }, "rows:A", 1, ["row:t1", "row:t2"]) } as any), "dropped lelo 2/2");
+assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: entry(row, "rows:A", 0, ["row:t1", "row:t2"]) } as any), "cancel lelo");
+assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: entry(zone("rows:A", "A Co")) } as any), "cancel lelo");
+assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: null } as any), "cancel lelo");
 """)
         drag = read("components/ui/drag.tsx")
         end = drag.split("const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
-        # 先记去处、再交（settleMove 落位已播完时当场交、清空档）
-        self.assertLess(end.index("dropped.current = target && latest.current.accepts(from, target) ? target : null;"),
-                        end.index("const queued = settleMove("))
-        self.assertIn("dropped: () => dropped.current,", drag)
-        self.assertIn("if (end && over.id === active.id) return texts.cancelled(name(active)); // 落回原位：没动", drag)
+        # 停在自己的位置上：还在原来那一列 = 没动；已排进另一列 = 交那一列的整块（调用方按排好的位置算）
+        self.assertIn("const zone = into && into !== from.list ? zoneOf(into) : undefined;", end)
+        self.assertIn("if (zone) latest.current.onDrop(from, zone);", end)
+        self.assertIn("if (end && (over.id === active.id || to?.zone)) return texts.cancelled(name(active));", drag)
+        for gone in ("dropped.current", "settleMove", "placedRef", "class Landing", "isMover", "placeOf("):
+            self.assertNotIn(gone, drag)
 
     def test_the_float_turns_see_through_over_a_folded_group_head(self):
         # 第 7 轮第 3 项：手机上浮层停在收着的组头上，盖住了组头的高亮。停在只能高亮组头的落点上时浮层半透明，离开就恢复（共用拖动）
         drag = read("components/ui/drag.tsx")
-        self.assertIn('setPeek(!!active && !!placed && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));', drag)
+        self.assertIn('setPeek(!!active && !!shutOver && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));', drag)
         self.assertIn('data-peek={peek ? "" : undefined}', drag)
         css = read("globals.css")
         self.assertIn("--cc-drag-peek: 0.15;", css)   # 第 8 轮：再淡、字隐去（Round8Tests）
@@ -4278,7 +4271,10 @@ assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in lelo
         group = read("components/assistant-ui/sidebar-group.tsx")
         menu = group.split("export const GroupSortMenu", 1)[1]
         self.assertEqual(menu.count("<DropdownMenu.RadioGroup"), 3)
-        self.assertIn("<DropdownMenu.RadioItem className=\"cc-menu-item\" value={value}>", group)
+        self.assertIn("<DropdownMenu.RadioItem className=\"cc-menu-item\" value={value} onSelect={onSelect}>", group)
+        # 用户 10-17：排序方式里点任一项（含已选的那一项，RadioGroup 的 onValueChange 这时不调）= 组里手排的先后都不要了
+        sort = menu.split("label={sb.sortBy}", 1)[1].split("</SubMenu>", 1)[0]
+        self.assertEqual(sort.count("onSelect={clearGroupOrders}"), 3)
         self.assertIn("<DropdownMenu.CheckboxItem className=\"cc-menu-item\" checked={on} onCheckedChange={onChange} onSelect={(event) => event.preventDefault()}>", group)
         self.assertEqual(group.count("<DropdownMenu.ItemIndicator asChild>\n      <CheckIcon />"), 2)
         self.assertNotIn("onPick", group)
@@ -4311,78 +4307,89 @@ assert.equal(headOffset({ left: 240 }, undefined), null);
         self.assertIn('const head = button?.closest(".cc-group-row")?.querySelector(".cc-group-toggle");', group)
 
     def test_what_can_be_dropped_where(self):
+        # 用户 10-17：对话行只能落在自己那一组（行；整块只是回到这一组）或已置顶（置顶的行、整块），不能落到别的公司组、别的组头；
+        # 多选而选中的不全在这一组时本组的行不是落点（只能置顶）
         self.run_page(r"""
-import { sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
-const row = (group: string) => ({ id: "row:t1", kind: "row", label: "Chat", group });
+import { pinDrop, pinSpot, placeBlock, sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
+const row = (group: string, id = "row:t1") => ({ id, kind: "row", label: "Chat", list: `rows:${group}`, group });
 const company = (id: string) => ({ id: `company:${id}`, kind: "company", label: id, list: "companies", group: id });
-const recents = { id: "group:recents", kind: "recents", label: "Recents", group: "" };
+const zone = (list: string) => ({ id: `zone:${list}`, kind: "group", label: list, list, zone: true });
 const pin = (id: string) => ({ id: `pin:${id}`, kind: "pin", label: id, list: "pins" });
-// 对话行：别的公司组、最近；原来那一组不算（拖回原组不动），置顶不是落点
-assert.equal(sidebarAccepts(row("comp_A"), company("comp_B")), true);
-assert.equal(sidebarAccepts(row("comp_A"), recents), true);
+assert.equal(sidebarAccepts(row("comp_A"), row("comp_A", "row:t2")), true);
+assert.equal(sidebarAccepts(row("comp_A"), row("comp_B", "row:t2")), false);    // 别的公司的行
+assert.equal(sidebarAccepts(row("comp_A"), row("", "row:t2")), false);          // 「最近」的行
+assert.equal(sidebarAccepts(row(""), row("", "row:t2")), true);                  // 本来就在最近：在最近里排
+assert.equal(sidebarAccepts(row("comp_A"), company("comp_B")), false);           // 公司组头不是落点
 assert.equal(sidebarAccepts(row("comp_A"), company("comp_A")), false);
-assert.equal(sidebarAccepts(row(""), recents), false);
-assert.equal(sidebarAccepts(row(""), company("comp_A")), true);
-assert.equal(sidebarAccepts(row("comp_A"), pin("t2")), false);
-// 置顶、公司组只在自己那一列里调序
+assert.equal(sidebarAccepts(row("comp_A"), zone("rows:comp_B")), false);
+assert.equal(sidebarAccepts(row("comp_A"), zone("rows:")), false);
+assert.equal(sidebarAccepts(row("comp_A"), zone("rows:comp_A")), true);         // 回到自己那一组
+assert.equal(sidebarAccepts(row("comp_A"), pin("t2")), true);                   // 拖进已置顶
+assert.equal(sidebarAccepts(row("comp_A"), zone("pins")), true);
+// 多选、选中的不全在这一组：本组的行不是落点，只能置顶（整块照样能回来）
+assert.equal(sidebarAccepts(row("comp_A"), row("comp_A", "row:t2"), false), false);
+assert.equal(sidebarAccepts(row("comp_A"), pin("t2"), false), true);
+assert.equal(sidebarAccepts(row("comp_A"), zone("rows:comp_A"), false), true);
+// 置顶、公司组只在自己那一列里调序（不认整块）
 assert.equal(sidebarAccepts(pin("t1"), pin("t2")), true);
+assert.equal(sidebarAccepts(pin("t1"), zone("pins")), false);
+assert.equal(sidebarAccepts(pin("t1"), row("comp_A")), false);
 assert.equal(sidebarAccepts(pin("t1"), company("comp_A")), false);
 assert.equal(sidebarAccepts(company("comp_A"), company("comp_B")), true);
-assert.equal(sidebarAccepts(company("comp_A"), recents), false);
+assert.equal(sidebarAccepts(company("comp_A"), zone("rows:comp_B")), false);
 assert.equal(sidebarAccepts(company("comp_A"), pin("t1")), false);
+
+// 拖进已置顶还没放下时排第几位：指在置顶某一行上 = 它的位置（下半截 = 它后面）；指在整块上 = 上半截最前、下半截最后
+const pins = ["pin:a", "pin:b", "pin:c"];
+assert.equal(pinSpot(pins, pin("b"), false), 1);
+assert.equal(pinSpot(pins, pin("b"), true), 2);
+assert.equal(pinSpot(pins, zone("pins"), false), 0);
+assert.equal(pinSpot(pins, zone("pins"), true), 3);
+assert.equal(pinSpot([], zone("pins"), true), 0);
+// 放下时置顶的新先后：已排进来的留在排好的位置，落在置顶的另一行上挪到那里；没排进来（已置顶收着）放最上面
+assert.deepEqual(pinDrop(["pin:a", "row:t1", "pin:b"], "row:t1", zone("pins")), ["pin:a", "row:t1", "pin:b"]);
+assert.deepEqual(pinDrop(["pin:a", "row:t1", "pin:b"], "row:t1", { ...row("comp_A"), id: "row:t1" }), ["pin:a", "row:t1", "pin:b"]);
+assert.deepEqual(pinDrop(["pin:a", "row:t1", "pin:b"], "row:t1", pin("b")), ["pin:a", "pin:b", "row:t1"]);
+assert.deepEqual(pinDrop(["pin:a", "pin:b"], "row:t1", { ...zone("pins"), shut: true }), ["row:t1", "pin:a", "pin:b"]);
+// 多选整批作为一块排到拖的那一条放下的位置（按侧栏里的先后），其余各条从原处拿掉
+assert.deepEqual(placeBlock(["a", "x", "b", "y", "c"], "x", ["x", "y"]), ["a", "x", "y", "b", "c"]);
+assert.deepEqual(placeBlock(["a", "b", "x", "c"], "x", ["y", "x", "z"]), ["a", "b", "y", "x", "z", "c"]);   // 原来不在这一列的（置顶时组里的）也排进来
+assert.deepEqual(placeBlock(["a", "x"], "x", ["x"]), ["a", "x"]);
+assert.deepEqual(placeBlock(["a", "b"], "x", ["x", "y"]), ["a", "b"]);
 """)
 
-    def test_dropping_into_a_company_moves_one_by_one_and_shows_the_server_text(self):
+    def test_month_and_branch_change_keeps_the_company(self):
+        # 用户 10-17：对话不能换公司。下巴、手机「…」里改月份、分店照常 move，请求带它现在的公司（服务端核对，不同即拒绝）；
+        # 没挂公司的不发请求；服务端拒绝时退回原来的、侧栏出错行写原文
         self.run_page(r"""
 const g = globalThis as any;
-import { moveDragged } from "@/lib/managed-agents/sidebar-drag";
-import { filingOf, noteFilings, useProjects } from "@/lib/managed-agents/projects";
-import { useSidebarSelection } from "@/lib/sidebar-keys";
+import { fileSession, filingOf, noteFilings, useProjects } from "@/lib/managed-agents/projects";
 const ok = (body: any) => ({ ok: true, status: 200, json: async () => ({ message: body }) });
-let inFlight = 0;
-let most = 0;
-const refused = JSON.stringify([JSON.stringify({ message: "ไม่มีสิทธิ์ในบริษัทนี้" })]);
+const refused = JSON.stringify([JSON.stringify({ message: "A conversation cannot be moved to another company." })]);
 g.respond = async (method: string, body: any) => {
   if (method !== "move") return ok(null);
-  inFlight++;
-  most = Math.max(most, inFlight);
-  await g.sleep(5);
-  inFlight--;
-  if (body.session_id === "sesn_b") return { ok: false, status: 417, json: async () => ({ _server_messages: refused }) };
+  if (body.session_id === "sesn_bad") return { ok: false, status: 417, json: async () => ({ _server_messages: refused }) };
   return ok({ id: body.session_id, project: body.project, period: body.period, scope: body.scope });
 };
 useProjects.setState({ kind: "company", period: true, scope: true } as any);
-// 一条：同「移到 ▸」，月份、分店留空
-await moveDragged(["sesn_a"], "comp_B", false);
 const moves = () => g.calls.filter((c: any) => c.method === "move").map((c: any) => c.body);
-assert.deepEqual(moves()[0], { session_id: "sesn_a", project: "comp_B", period: "", scope: "" });
-assert.equal(filingOf("sesn_a").project, "comp_B");
-// 多选整批：一条做完再下一条（不并发）；中间一条被拒（权限）不挡后面的，侧栏出错行写服务端原文，做完清空多选
-useSidebarSelection.setState({ ids: ["t1", "t2", "t3"], anchor: "t1" });
-noteFilings({ sesn_b: { project: "comp_A", period: "2026-09", scope: "" }, sesn_c: { project: "comp_A", period: "", scope: "00012" } });
-await moveDragged(["sesn_a", "sesn_b", "sesn_c"], "", true);
-assert.equal(most, 1);
-assert.deepEqual(moves().slice(1).map((m: any) => [m.session_id, m.project]), [["sesn_a", ""], ["sesn_b", ""], ["sesn_c", ""]]);
-assert.equal(useProjects.getState().error, "ไม่มีสิทธิ์ในบริษัทนี้");
-assert.equal(filingOf("sesn_b").project, "comp_A");              // 被拒的那条退回原来的公司
-assert.equal(filingOf("sesn_c").project, "");
-assert.deepEqual(useSidebarSelection.getState().ids, []);
-// 第 5 轮审查：整批里已经在目标公司的不动（不发请求、月份分店不清空；同拖回原组不动），其余照样逐条移
-noteFilings({ sesn_x: { project: "comp_A", period: "", scope: "" },
-              sesn_y: { project: "comp_B", period: "2026-09", scope: "" }, sesn_z: { project: "comp_B", period: "2026-09", scope: "00012" } });
+noteFilings({ sesn_a: { project: "comp_A", period: "2026-09", scope: "" }, sesn_r: { project: "", period: "", scope: "" },
+              sesn_bad: { project: "comp_B", period: "", scope: "" } });
+await fileSession("sesn_a", { period: "2026-08" });
+assert.deepEqual(moves().at(-1), { session_id: "sesn_a", project: "comp_A", period: "2026-08", scope: "" });
+await fileSession("sesn_a", { scope: "00012" });
+assert.deepEqual(filingOf("sesn_a"), { project: "comp_A", period: "2026-08", scope: "00012" });
 const before = moves().length;
-await moveDragged(["sesn_x", "sesn_y", "sesn_z"], "comp_B", true);
-assert.deepEqual(moves().slice(before).map((m: any) => m.session_id), ["sesn_x"]);
-assert.deepEqual(filingOf("sesn_y"), { project: "comp_B", period: "2026-09", scope: "" });
-assert.deepEqual(filingOf("sesn_z"), { project: "comp_B", period: "2026-09", scope: "00012" });
-// 移出公司：本来就在「最近」的不动
-const before2 = moves().length;
-await moveDragged(["sesn_a", "sesn_x"], "", true);
-assert.deepEqual(moves().slice(before2).map((m: any) => [m.session_id, m.project]), [["sesn_x", ""]]);
+await fileSession("sesn_r", { period: "2026-08" });                 // 没挂公司：没有月份、分店，不发请求
+await fileSession("sesn_a", { period: "2026-08" });                 // 没变：不发
+assert.equal(moves().length, before);
+await assert.rejects(fileSession("sesn_bad", { period: "2026-07" }));
+assert.deepEqual(filingOf("sesn_bad"), { project: "comp_B", period: "", scope: "" });
 """)
-        # 行菜单「将 N 项移到…」同一个过滤
-        self.assertIn("void runInOrder(notIn(sessions, project), (id) => fileSession(id, { project, period: \"\", scope: \"\" }), report).then(onDone);",
-                      read("components/assistant-ui/projects.tsx"))
+        projects = read("lib/managed-agents/projects.ts")
+        self.assertIn('export async function fileSession(sessionId: string, change: Partial<Pick<Filing, "period" | "scope">>): Promise<void> {', projects)
+        self.assertNotIn("export function notIn(", projects)
+        self.assertNotIn("showOneMore", projects)
 
     def test_escape_while_dragging_only_cancels_the_drag(self):
         # 第 4 轮测试机第 9 项：键盘拿起卡片按 Esc，拖动库在 document 上收到就结束了拖动，挂在 window 上的侧栏 Esc 随后才收到同一个
@@ -4719,29 +4726,56 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
     def test_sidebar_drag_wiring(self):
         rows = read("components/assistant-ui/thread-list.tsx")
         groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
-        self.assertIn("return moveDragged(sessions, group, bulk, (id) => {", groups)
-        # 一个拖动区（手机按住 250ms 拿起，同会话栏卡片；长按菜单另见 use-long-press）；置顶一列、公司组一列；最近是落点；
-        # 对话的空档换组时整列一起滑
-        self.assertIn('<DragArea accepts={sidebarAccepts} onDrop={onDrop} onPlace={onPlace} onActive={onActive} flow={FLOW} texts={texts}>', groups)
+        # 一个拖动区（手机按住 250ms 拿起，同会话栏卡片；长按菜单另见 use-long-press）；置顶一列、公司组一列、每组的行各一列；
+        # 已置顶、各组整块是落点；对话拖进已置顶时整列一起滑。用户 10-17：没有跨公司、移到别的公司的逻辑
+        self.assertIn("<DragArea accepts={accepts} onDrop={onDrop} onOver={onOver} onActive={onActive} flow={FLOW} texts={texts}>", groups)
+        self.assertIn("const accepts = (active: DragData, target: DragData) => sidebarAccepts(active, target, wholeBatch.current);", groups)
         self.assertNotIn('touch="move"', rows)
-        self.assertIn('<DragList id="pins" items={pinIds}>', groups)
+        self.assertIn("<DragList id={PINS} items={pinIds}>", groups)
         self.assertIn('<DragList id="companies" items={companyIds}>', groups)
-        self.assertIn('const target = useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open || !!fold || !!shut);', groups)
+        self.assertIn("<DragList id={rowList(section.project.id)} items={rowIdsOf(section.project.id)}>", groups)
+        self.assertIn('<DragList id={rowList("")} items={rowIdsOf("")}>', groups)
+        self.assertIn('const zone = useDropZone({ id: zoneDrag(PINS), kind: "pins", label: t("starred"), list: PINS }, !open);', groups)
+        self.assertIn('const zone = useDropZone({ id: zoneDrag(rowList("")), kind: "group", label: t("recents"), list: rowList("") }, !open);', groups)
+        self.assertIn('const zone = useDropZone({ id: zoneDrag(rowList(project.id)), kind: "group", label: project.title, list: rowList(project.id) }, !open);', groups)
+        for gone in ("moveDragged", "fileSession", "keepInView", "showOneMore", "liftRow", "withRecents", "matchesAfterMove", "leavesResults",
+                     "shutOutside", "setKept", "onPlace", "RECENTS_TARGET", "useDropTarget", "useDragItem", "MoveToMenu", "BulkMoveMenu"):
+            self.assertNotIn(gone, rows)
         # 公司组整块拖（组头开关是把手），搜索时不能调序；Alt+↑/↓ 挪一格
         self.assertIn('{ id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },', groups)
-        self.assertIn("{ disabled: locked, ownFocus: true, shut: !open || !!fold || !!shut },", groups)
+        self.assertIn("{ disabled: locked, ownFocus: true },", groups)
         # Alt+↑/↓ 挪完念新位置（第 5 轮第 2 项：同键盘拖动的播报）
         self.assertIn("handle={drag.handle} onMove={locked ? undefined : (delta) => drag.moved(onMove(delta))}", groups)
         self.assertIn("onMove={(delta) => spotIn(saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta)), companyDrag(section.project.id))}", groups)
-        # 拖对话时没有「最近」组就临时出一个（同一处渲染：空档进了它也不换组件）；多选里拖一条，其余选中的也变淡
-        self.assertIn("const out = noRecents && (lifted || place?.group === \"\") ? withRecents(sections) : sections;", groups)
-        self.assertIn("open={temp || open}\n              fold={leavesResults(\"\")}\n              shut={!!shutOutside?.has(section.key)}\n              onToggle={temp ? () => undefined : toggle}", groups)
-        self.assertNotIn("recentsTarget", groups)
+        # 拖对话时没有「已置顶」就临时出一个空的（开着、点了不收）；拖进去还没放下的那一行排在置顶里；多选里拖一条，其余选中的也变淡
+        self.assertIn('return lifting?.kind === "row" ? withPinned(sections) : sections;', groups)
+        self.assertIn("if (guest) return pinGuest(sections, guest.index, guest.at);", groups)
+        self.assertIn("<PinnedGroup open={pinsOpen} onToggle={tempPins ? () => undefined : () => toggleSection({ key: \"pinned\" })}>", groups)
         self.assertIn('document.documentElement.dataset.ccDragBulk = "";', groups)
-        # 行：置顶可排、公司里 / 最近的可拖到别的公司（没存到服务端的不能拖）；从「···」、输入框按下不拿起
+        # 指针进了已置顶（指着置顶的某一行或整块）就排进去，回到自己那一组就挪回去；收着的已置顶只高亮组头
+        over = groups.split("const onOver = (", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("if (now || over.shut) return;", over)
+        self.assertIn("placeGuest({ local, index, at: pinSpot(pinIds, over, below) });", over)
+        self.assertIn("} else if (now && over.list === active.list) placeGuest(null);", over)
+        # 放下：落在已置顶 = 置顶（整批按侧栏里的先后排进落点，先存顺序、从组里去掉，再逐条置顶）；落在本组的行 = 组里排先后
+        drop = groups.split("const onDrop = (", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("if (target.list === PINS) pinDropped(active, target);", drop)
+        self.assertIn('else if (target.kind === "row" && target.list === active.list) groupDropped(active, target);', drop)
+        pin = groups.split("const pinDropped = (", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("const keys = placeBlock(pinDrop(pinIds, active.id, target).map(keyOfDrag), anchor, block);", pin)
+        self.assertLess(pin.index("setPinnedOrder(keys);"), pin.index("void runInOrder("))
+        self.assertIn("forgetInGroups(block);", pin)
+        self.assertIn("if (!custom?.starred) await item.updateCustom({ ...custom, starred: true });", pin)
+        group = groups.split("const groupDropped = (", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("setGroupOrder(group, placeBlock(next.map(keyOfDrag), keyOfDrag(active.id), locals.map((id) => itemsById.get(id)?.remoteId ?? id)));", group)
+        # 选中的不全在拖的这一条那一组：本组不是落点
+        self.assertIn("wholeBatch.current = !bulk || locals.every((id) => groupOfLocal.get(id) === groupOfLocal.get(fromDrag(active!.id)));", groups)
+        # 行：置顶可排、公司里 / 最近的在本组排或拖进置顶（没存到服务端的、搜索时不能拖）；从「···」、输入框按下不拿起
         self.assertIn("const ROW_SKIP = '[data-slot=\"aui_thread-list-item-more\"], [role=\"menu\"], input';", rows)
-        self.assertIn('useSortableItem({ id, kind: "pin", label: title, list: "pins" }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });', rows)
-        self.assertIn("{ disabled: !remoteId, ownFocus: true, skip: ROW_SKIP },", rows)
+        self.assertIn('useSortableItem({ id, kind: "pin", label: title, list: PINS }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });', rows)
+        self.assertIn("const locked = scope.locked || !remoteId;", rows)
+        self.assertIn("{ id, kind: \"row\", label: count ? sb.drag.items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },", rows)
+        self.assertIn("if (scope?.mode === \"pin\") return scope.guest?.local === localId ? <GroupRow scope={scope.guest.scope} /> : <PinnedRow scope={scope} />;", rows)
         row = rows.split("\nconst Row: FC", 1)[1].split("\n};\n", 1)[0]
         self.assertIn("if (onMove && altMove(e, onMove)) return;", row)
         self.assertIn("onTouchStart={chain(press.onTouchStart, renaming ? undefined : dragTouch)}", row)
@@ -4753,127 +4787,126 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         header = read("components/assistant-ui/sidebar-group.tsx").split("export const GroupHeader: FC", 1)[1].split("\n);\n", 1)[0]
         self.assertIn("{...handle}", header)
         self.assertIn("if (onMove && altMove(e, onMove)) return;\n        handle?.onKeyDown?.(e);", header)
-        # 三种语言的读屏播报
+        # 三种语言的读屏播报（拖进已置顶念「将置顶」「已置顶」，不再念移到别的公司）
         i18n = read("i18n.ts")
         sidebar = block(i18n, "const SIDEBAR = {")
         for lang in ("en", "zh", "th"):
             words = keys(block(block(sidebar, f"  {lang}: {{"), "drag: {"))
             self.assertEqual(words, {"instructions", "pickedUp", "movedTo", "droppedAt", "cancelled", "over", "droppedIn", "items"}, lang)
+        self.assertIn("over: (name: string, _group: string) => `「${name}」将置顶。`,", i18n)
+        self.assertIn("droppedIn: (name: string, _group: string) => `已置顶「${name}」。`,", i18n)
+        for gone in ("moveToN", "moveTo:", "将移到", "已把「"):
+            self.assertNotIn(gone, i18n)
 
-    # ---- 用户 10-16「对话的拖动效果怎么没和其它拖动效果统一呢」：对话行与其他拖动同一套效果（拿起留空档、空档跟去别的组、
-    # 那组让开原组合上、松手滑进空档、落位后才发请求、失败带过渡退回）。headless Chrome 实测帧数据见任务记录。
+    # ---- 用户 10-17「侧栏对话行改为仅可以在当前公司环境拖拽排序，不可以跨公司……只可以在当前公司自由排序或者拖到置顶」
 
-    def test_dragged_chat_gap_follows_the_sort_order(self):
-        # 空档去别的组：按它移过去以后按排序方式排的位置（那组「显示更多」之外的放在已显示的最后），原组拿掉；名次、展开、
-        # 「显示更多」不变；没有「最近」组时补一个；放下后那一组眼前的各行留在眼前（keep），不把最后一条挤进「显示更多」
-        self.run_page(r"""
-import { companySections, liftRow, withRecents } from "@/lib/managed-agents/sidebar-groups";
+    def test_manual_order_inside_a_group(self):
+        # 组里手排的显示：手排列表里的按列表；不在列表里的，比存下那一刻新的排最上面（新对话出现在顶上），更旧的（「显示更多」后才取
+        # 到的）接在后面，各自按排序方式；没手排过的组照旧；在「分组和排序」里选排序方式 = 清掉各组的手排
+        self.run_page(STORAGE_STUB + r"""
+import { arrangeGroup, companySections, pinGuest, withPinned } from "@/lib/managed-agents/sidebar-groups";
+import { bindOrderUser, capGroups, clearGroupOrders, forgetInGroups, GROUP_LIMIT, GROUPS_LIMIT, setGroupOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 const at = (m: number) => Date.UTC(2026, 9, 16, 12, 0) - m * 60000;
 const projects = [{ id: "A", title: "Alpha" }, { id: "B", title: "Beta" }];
-const rows = [
-  { index: 0, title: "a1", starred: false, time: at(1), group: "A", key: "s_a1" },
-  { index: 1, title: "a2", starred: false, time: at(10), group: "A", key: "s_a2" },
-  { index: 2, title: "a3", starred: false, time: at(20), group: "A", key: "s_a3" },
-  ...[9, 16, 23, 30, 37, 44, 51].map((m, i) => ({ index: 3 + i, title: `b${i + 1}`, starred: false, time: at(m), group: "B", key: `s_b${i + 1}` })),
-  { index: 10, title: "r1", starred: false, time: at(5), group: "", key: "s_r1" },
-  { index: 11, title: "r2", starred: false, time: at(60), group: "", key: "s_r2" },
-];
-const base = companySections(rows, projects)!;
-const of = (s: any[], key: string) => s.find((x) => x.key === key);
-assert.deepEqual(of(base, "project:B").indices, [3, 4, 5, 6, 7]);            // 先显示 5 条
-// a2（10 分钟前）拖到 B：排在 b1（9）与 b2（16）之间；A 拿掉它；B 的名次、「显示更多」不变
-let s = liftRow(base, rows, 1, "B");
-assert.deepEqual(of(s, "project:A").indices, [0, 2]);
-assert.deepEqual(of(s, "project:A").all, [0, 2]);
-assert.deepEqual(of(s, "project:B").indices, [3, 1, 4, 5, 6, 7]);
-assert.equal(of(s, "project:B").rank, of(base, "project:B").rank);
-assert.equal(of(s, "project:B").more, true);
-assert.deepEqual(of(base, "project:A").indices, [0, 1, 2]);                   // 原来的不改
-// 按名称升序：位置按名称算
-s = liftRow(companySections(rows, projects, { sort: { by: "name", desc: false } })!, rows, 1, "B", { by: "name", desc: false });
-assert.deepEqual(of(s, "project:B").indices, [1, 3, 4, 5, 6, 7]);             // 「a2」排在「b1」前
-// r2（60 分钟前）排在 B 的「显示更多」之外：放在已显示的最后
-s = liftRow(base, rows, 11, "B");
-assert.deepEqual(of(s, "project:B").indices, [3, 4, 5, 6, 7, 11]);
-assert.deepEqual(of(s, "recents").indices, [10]);
-// 拖到「最近」：按排序方式插进最近（r1 5 分钟、a2 10 分钟、r2 60 分钟）
-assert.deepEqual(of(liftRow(base, rows, 1, ""), "recents").indices, [10, 1, 11]);
-// 眼前没有「最近」组：补一个（在最后）再排进去；只是拿着时补一个空的
-const noRecents = companySections(rows.filter((r) => r.group), projects)!;
-assert.equal(of(noRecents, "recents"), undefined);
-assert.deepEqual(withRecents(noRecents).at(-1), { type: "recents", key: "recents", indices: [] });
-assert.equal(withRecents(base), base);
-assert.deepEqual(of(liftRow(noRecents, rows, 1, ""), "recents").indices, [1]);
-// 回到原组 = 原样；去的组不在眼前（没有这家）= 原样
-assert.deepEqual(of(liftRow(base, rows, 1, "A"), "project:A").indices, [0, 1, 2]);
-assert.equal(liftRow(base, rows, 1, "Z"), base);
-// 放下后那一组眼前的各行留在眼前：多了一条也不把 b5 挤进「显示更多」
-const kept = companySections(rows.map((r) => (r.index === 1 ? { ...r, group: "B" } : r)), projects, { keep: ["s_b1", "s_a2", "s_b2", "s_b3", "s_b4", "s_b5"] })!;
-assert.deepEqual(of(kept, "project:B").indices, [3, 1, 4, 5, 6, 7]);
-assert.equal(of(kept, "project:B").more, true);
-// 刚拖进来、排在「显示更多」之外的那一条：接在已显示的最后（落在哪留在哪）
-const keptFar = companySections(rows.map((r) => (r.index === 11 ? { ...r, group: "B" } : r)), projects, { keep: ["s_r2"] })!;
-assert.deepEqual(of(keptFar, "project:B").indices, [3, 4, 5, 6, 7, 11]);
-// 在已显示的前面那一段里才按位置插：接在后面留着的（kept）不算
-assert.deepEqual(of(liftRow(keptFar, rows, 1, "B"), "project:B").indices, [3, 1, 4, 5, 6, 7, 11]);
+const row = (index: number, key: string, group: string, m: number, extra: any = {}) =>
+  ({ index, title: key, starred: false, time: at(m), group, key, ...extra });
+const rows = [row(0, "a1", "A", 10), row(1, "a2", "A", 20), row(2, "a3", "A", 30), row(3, "b1", "B", 5), row(4, "r1", "", 7), row(5, "r2", "", 9)];
+const of = (s: any[] | null, key: string) => s!.find((x) => x.key === key);
+// 手排过：a3、a1（存下的时刻在 15 分钟前）；a2（20 分钟前，比存下时旧）接在后面
+const saved = { keys: ["a3", "a1"], at: at(15) };
+assert.deepEqual(arrangeGroup(rows.slice(0, 3), saved).map((r) => r.key), ["a3", "a1", "a2"]);
+// 新对话（比存下时新）排最上面，各自按排序方式（新的在前）
+const fresh = [row(6, "n1", "A", 1), row(7, "n2", "A", 2), ...rows.slice(0, 3)];
+assert.deepEqual(arrangeGroup(fresh, saved).map((r) => r.key), ["n1", "n2", "a3", "a1", "a2"]);
+// 「显示更多」后才取到的更旧的：接在手排的后面（升序时同样按排序方式排在它们之间）
+const older = [...rows.slice(0, 3), row(8, "o1", "A", 90), row(9, "o2", "A", 80)];
+assert.deepEqual(arrangeGroup(older, saved).map((r) => r.key), ["a3", "a1", "a2", "o1", "o2"]);
+// 按创建日期排：用创建时间比存下的时刻
+const made = [row(10, "c1", "A", 1, { created: at(40) }), ...rows.slice(0, 3)];
+assert.deepEqual(arrangeGroup(made, saved, { by: "created", desc: true }).map((r) => r.key), ["a3", "a1", "c1", "a2"]);
+assert.deepEqual(arrangeGroup(made, saved, { by: "updated", desc: true }).map((r) => r.key), ["c1", "a3", "a1", "a2"]);
+// 没手排过：原样
+assert.deepEqual(arrangeGroup(rows.slice(0, 3), undefined).map((r) => r.key), ["a1", "a2", "a3"]);
+// 分组里：A、最近按各自手排，B 没排过照排序方式；「显示更多」按摆好的先后取前几条
+const s = companySections(rows, projects, { groupOrders: { A: saved, "": { keys: ["r2", "r1"], at: at(6) } }, shown: { A: 2 } });
+assert.deepEqual(of(s, "project:A").all, [2, 0, 1]);
+assert.deepEqual(of(s, "project:A").indices, [2, 0]);
+assert.equal(of(s, "project:A").more, true);
+assert.deepEqual(of(s, "recents").indices, [5, 4]);
+assert.deepEqual(of(s, "project:B").indices, [3]);
+// 拖对话时补一个空的已置顶（最上面）；拖进去还没放下的那一行从它那一组拿掉、排在置顶的第 at 位
+const noPins = companySections(rows, projects)!;
+assert.deepEqual(withPinned(noPins)[0], { type: "pinned", key: "pinned", indices: [] });
+const guest = pinGuest(noPins, 1, 0);
+assert.deepEqual(of(guest, "pinned").indices, [1]);
+assert.deepEqual(of(guest, "project:A").indices, [0, 2]);
+assert.deepEqual(of(guest, "project:A").all, [0, 2]);
+const pinned = companySections([...rows, row(11, "p1", "B", 3, { starred: true }), row(12, "p2", "", 4, { starred: true })], projects)!;
+assert.deepEqual(of(pinGuest(pinned, 4, 1), "pinned").indices, [11, 4, 12]);
+assert.deepEqual(of(pinGuest(pinned, 4, 9), "pinned").indices, [11, 12, 4]);
+assert.deepEqual(of(pinGuest(pinned, 4, 1), "recents").indices, [5]);
+
+// 存：按组记、带存下的时刻，这次没显示的接在后面；置顶、删除的去掉；选排序方式清掉；上限内同步
+bindOrderUser("skin3@x");
+setGroupOrder("A", ["a3", "a1"], 100);
+setGroupOrder("A", ["a1", "a3"], 200);
+setGroupOrder("", ["r2"], 150);
+assert.deepEqual(useSidebarOrder.getState().groups, { A: { keys: ["a1", "a3"], at: 200 }, "": { keys: ["r2"], at: 150 } });
+setGroupOrder("A", ["a2"], 300);
+assert.deepEqual(useSidebarOrder.getState().groups.A, { keys: ["a2", "a1", "a3"], at: 300 });
+forgetInGroups(["a1", "r2"]);
+assert.deepEqual(useSidebarOrder.getState().groups, { A: { keys: ["a2", "a3"], at: 300 } });   // 空了的组整组不要
+clearGroupOrders();
+assert.deepEqual(useSidebarOrder.getState().groups, {});
+const many = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`g${i}`, { keys: Array.from({ length: 80 }, (_, k) => `s${i}_${k}`), at: i }]));
+const capped = capGroups(many);
+assert.equal(Object.values(capped).every((g: any) => g.keys.length <= GROUP_LIMIT), true);
+assert.equal(Object.values(capped).reduce((n: number, g: any) => n + g.keys.length, 0), GROUPS_LIMIT);
+assert.deepEqual(Object.keys(capped), ["g5", "g4", "g3", "g2"]);                                // 最近存下的组先留
 """)
 
-    def test_where_the_gap_goes_and_what_is_announced(self):
-        # 在组之间移动：指针落在别的能放的组 → 空档去那里；原来那组 → 回原位；哪组都不在（组与组之间、列外）→ 留在上一次的地方
+    def test_drag_pool_keeps_rows_in_their_group_or_the_pinned_section(self):
+        # 共用拖动认哪些落点（碰撞、限位共用）：键盘只在原来那一列；指针进了哪一列的整块就只认那一列此刻的各项（没有别的项或收着时
+        # 认整块）；不在任何能放的整块里就留在此刻所在的那一列（拖进置顶后指针移出来不来回跳）
         self.run_page(r"""
-import { dragAnnouncements, isHome, isMover, placeOf } from "@/components/ui/drag";
-import { sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
-const row = { id: "row:t1", kind: "row", label: "Chat", group: "A" };
-const company = (id: string) => ({ id: `company:${id}`, kind: "company", label: id, list: "companies", group: id });
-const recents = { id: "group:recents", kind: "recents", label: "Recents", group: "" };
-assert.equal(isMover(row), true);
-assert.equal(isMover({ id: "pin:t1", kind: "pin", label: "x", list: "pins" }), false);   // 排序项不是
-assert.equal(isMover({ id: "card", kind: "card", label: "x", list: "cards" }), false);
-assert.equal(isHome(row, company("A")), true);
-assert.equal(isHome(row, company("B")), false);
-assert.deepEqual(placeOf(row, company("B"), sidebarAccepts), company("B"));
-assert.deepEqual(placeOf(row, recents, sidebarAccepts), recents);
-assert.equal(placeOf(row, company("A"), sidebarAccepts), null);
-assert.equal(placeOf(row, null, sidebarAccepts), undefined);
-assert.equal(placeOf(row, { id: "pin:t2", kind: "pin", label: "p", list: "pins" }, sidebarAccepts), undefined);
-// 读屏：去别的组念「将移到」，去过别的组再回到原组念「将移到「原组」」（第 6 轮：原来念「已拿起」），拿起时那一次「经过」
-// 原组不念（留着「已拿起」）；放下按空档所在：别的组念「已移到」，原组念取消
-const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: () => "moved", droppedAt: () => "dropped",
-  cancelled: (n: string) => `cancel ${n}`, over: (n: string, g: string) => `over ${n} ${g}`, droppedIn: (n: string, g: string) => `in ${n} ${g}` };
-let placed: any = null;
-const say = dragAnnouncements(texts, { accepts: sidebarAccepts, placed: () => placed, lifted: () => row });
-const entry = (d: any) => ({ id: d.id, data: { current: { drag: d } } });
-assert.equal(say.onDragStart!({ active: entry(row) } as any), "up Chat");
-assert.equal(say.onDragOver!({ active: entry(row), over: entry(company("A")) } as any), undefined);   // 拿起时经过原组：不念
-assert.equal(say.onDragOver!({ active: entry({ ...row, group: "B" }), over: entry(company("B")) } as any), "over Chat B");   // 按拿起时的认
-assert.equal(say.onDragOver!({ active: entry(row), over: entry(company("A")) } as any), "over Chat A");   // 拖回原组
-assert.equal(say.onDragStart!({ active: entry(row) } as any), "up Chat");                            // 新的一次拿起：重新算
-assert.equal(say.onDragOver!({ active: entry(row), over: entry(company("A")) } as any), undefined);
-assert.equal(say.onDragOver!({ active: entry(row), over: null } as any), undefined);
-placed = company("B");
-assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in Chat B");
-placed = null;
-assert.equal(say.onDragEnd!({ active: entry(row), over: entry(company("B")) } as any), "cancel Chat");
+import { narrowPool } from "@/components/ui/drag";
+const entry = (id: string, drag: any, container?: string) =>
+  ({ id, data: { current: { drag: { id, ...drag }, ...(container ? { sortable: { containerId: container, index: 0, items: [] } } : {}) } } });
+const row = { kind: "row", label: "t1", list: "rows:A", group: "A" };
+const self = (container: string) => entry("row:t1", row, container);
+const a2 = entry("row:t2", { kind: "row", list: "rows:A" }, "rows:A");
+const p1 = entry("pin:p1", { kind: "pin", list: "pins" }, "pins");
+const pins = (shut = false) => entry("zone:pins", { kind: "pins", list: "pins", zone: true, shut });
+const home = entry("zone:rows:A", { kind: "group", list: "rows:A", zone: true });
+const rects = new Map<any, any>([["zone:pins", { top: 0, height: 100 }], ["zone:rows:A", { top: 200, height: 100 }]]);
+const ids = (pool: any[]) => pool.map((e) => e.id).sort();
+const at = (y: number | null, keyboard = false) => ({ keyboard, y, rects });
+assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(), home] as any, "row:t1", row as any, at(50))), ["pin:p1"]);   // 指针在已置顶里
+assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(), home] as any, "row:t1", row as any, at(250))), ["row:t1", "row:t2"]);
+assert.deepEqual(ids(narrowPool([self("pins"), a2, p1, pins(), home] as any, "row:t1", row as any, at(50))), ["pin:p1", "row:t1"]);
+assert.deepEqual(ids(narrowPool([self("pins"), a2, p1, pins(), home] as any, "row:t1", row as any, at(150))), ["pin:p1", "row:t1"]);   // 两块之间：留在置顶
+assert.deepEqual(ids(narrowPool([self("pins"), p1, pins(), home] as any, "row:t1", row as any, at(250))), ["zone:rows:A"]);       // 组里没别的：认整块（回来）
+assert.deepEqual(ids(narrowPool([self("rows:A"), a2, pins(), home] as any, "row:t1", row as any, at(50))), ["zone:pins"]);       // 已置顶是空的
+assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(true), home] as any, "row:t1", row as any, at(50))), ["zone:pins"]);  // 收着
+// 键盘：只在原来那一列（不拖进置顶）
+assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(), home] as any, "row:t1", row as any, at(50, true))), ["row:t1", "row:t2"]);
 """)
+        drag = read("components/ui/drag.tsx")
+        # 拖动区：碰撞按 narrowPool 收窄后取最近的中心；键盘方向键只在本列（排序项的那一列）；指针拖动经过时交给调用方（onOver）
+        self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
+        self.assertIn("context.droppableContainers.getEnabled().filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list);", drag)
+        # 经过的是它自己不交（无界面 Chrome 复刻侧栏实测：排进置顶重挂以后经过自己，它的说明还是原来那一组，交了就被当成回到
+        # 原组，一进一出来回跳、最后放下排到置顶最上面）
+        self.assertIn("if (!from || keyedRef.current || over?.id === active.id) return;", drag)
+        self.assertIn("latest.current.onOver?.(from, to, below);", drag)
+        self.assertNotIn("pointerWithin", drag)
 
     def test_drop_lands_first_then_hands_over(self):
-        # 放下：浮层落到空档（或收着的组的组头并收起），播完才交给调用方（发移动请求）；没播（被打断）时过一会儿自己交；
-        # 减少动态效果时立即交；新拿起时先把没交的交掉
+        # 放下：浮层落到空档（或收着的那一列的组头并收起）；减少动态效果时不播
         self.run_page(r"""
-import { dropAnimation, Landing } from "@/components/ui/drag";
+import { dropAnimation } from "@/components/ui/drag";
 const g = globalThis as any;
 g.getComputedStyle = () => ({ transform: "none", transformOrigin: "0px 0px" });
-const log: string[] = [];
-const landing = new Landing();
-landing.queue(() => log.push("first"), 30);
-assert.equal(landing.pending, true);
-landing.queue(() => log.push("second"), 30);                 // 新的一次：先把上一次交掉
-assert.deepEqual(log, ["first"]);
-await g.sleep(50);                                           // 没播落位：过一会儿自己交
-assert.deepEqual(log, ["first", "second"]);
-landing.land();                                              // 交过的不再交
-assert.deepEqual(log, ["first", "second"]);
-
 const node = (rect: any) => ({ dataset: {} as Record<string, string>, getBoundingClientRect: () => ({ ...rect, width: 200, right: rect.left + 200, bottom: rect.top + rect.height }), ownerDocument: null });
 const animations: any[] = [];
 const overlay = { ...node({ top: 466, left: 10, height: 32 }), animate(frames: any, opts: any) { const a: any = { frames, opts, startTime: null }; animations.push(a); return a; } };
@@ -4881,33 +4914,28 @@ const motion = { duration: 200, easing: "cubic-bezier(.32, .72, 0, 1)" };
 g.document.timeline = { currentTime: 1000 };
 const args = (active: any) => ({ active: { id: "row:t1", node: active, rect: { top: 398, left: 10, width: 200, height: 32 } },
   dragOverlay: { node: overlay, rect: { top: 466, left: 10, width: 200, height: 32 } }, transform: { x: 0, y: 186, scaleX: 1, scaleY: 1 } });
-// 落到空档：同 dnd-kit 默认（浮层从放手处滑到落点，动效变量），落点那一项播完前不显示；播完先交、再显示
-let landed = 0;
+// 落到空档：同 dnd-kit 默认（浮层从放手处滑到落点，动效变量），落点那一项播完前不显示
 const gap = node({ top: 398, left: 10, height: 32 });
-const done = dropAnimation(motion, () => { landed++; assert.equal("dragLanding" in gap.dataset, true); }, () => null)(args(gap) as any) as Promise<void>;
+const done = dropAnimation(motion, () => null)(args(gap) as any) as Promise<void>;
 assert.equal(gap.dataset.dragLanding, "");
 assert.equal(overlay.dataset.dropping, "");
 assert.deepEqual(animations[0].opts, { duration: 200, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
 assert.equal(animations[0].frames[1].transform, "translate3d(0px, 118px, 0) scaleX(1) scaleY(1)");   // 186 - (466 - 398)
 assert.equal(animations[0].startTime, null);                  // 结束拖动那次提交里才播的（取消）：从画出来的那一帧起算，不回拨
-assert.equal(landed, 0);
 animations[0].onfinish();
 await done;
-assert.equal(landed, 1);
 assert.equal("dragLanding" in gap.dataset, false);
-// 落点不是空档本身（去的组收着 → 组头；空档在可见范围外 → 可见范围的边上，见 clampIntoView）：落到那里并收起
+// 落点不是空档本身（已置顶收着 → 组头；空档在可见范围外 → 可见范围的边上，见 clampIntoView）：落到那里并收起
 // （data-dropping="into"），位置按 into 给的框
-dropAnimation(motion, () => landed++, () => ({ top: 614, left: 10 }))(args(node({ top: 280, left: 10, height: 32 })) as any);
+dropAnimation(motion, () => ({ top: 614, left: 10 }))(args(node({ top: 280, left: 10, height: 32 })) as any);
 assert.equal(overlay.dataset.dropping, "into");
 assert.equal(animations[1].frames[1].transform, "translate3d(0px, 334px, 0) scaleX(1) scaleY(1)");   // 186 + (614 - 466)
-// 已经在落点：不播，立即交
+// 已经在落点：不播
 const here = { ...args(node({ top: 466, left: 10, height: 32 })) };
 here.active.rect = { top: 466, left: 10, width: 200, height: 32 };
-assert.equal(dropAnimation(motion, () => landed++, () => null)({ ...here, transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 } } as any), undefined);
-assert.equal(landed, 2);
-// 减少动态效果：不播，立即交
-assert.equal(dropAnimation(null, () => landed++, () => null)(args(node({ top: 398, left: 10, height: 32 })) as any), undefined);
-assert.equal(landed, 3);
+assert.equal(dropAnimation(motion, () => null)({ ...here, transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 } } as any), undefined);
+// 减少动态效果：不播
+assert.equal(dropAnimation(null, () => null)(args(node({ top: 398, left: 10, height: 32 })) as any), undefined);
 assert.equal(animations.length, 2);
 """)
 
@@ -4958,24 +4986,20 @@ assert.equal(landOverlay(overlay as any, { ...card, isConnected: false } as any,
 assert.equal(animations.length, count);
 
 // 拖动库随后结束拖动、要播它那一次：不再另播，接着等松手时起播的那一次；落点那一项在播完前不显示
-let landed = 0;
 const c = landOverlay(overlay as any, card as any, motion, () => null)!;
 const before = animations.length;
-const wait = dropAnimation(motion, () => landed++, () => null)({ active: { id: "card", node: card, rect: { top: 334, left: 10, width: 200, height: 32 } },
+const wait = dropAnimation(motion, () => null)({ active: { id: "card", node: card, rect: { top: 334, left: 10, width: 200, height: 32 } },
   dragOverlay: { node: overlay, rect: { top: 466, left: 10, width: 200, height: 32 } }, transform: { x: 0, y: 120, scaleX: 1, scaleY: 1 } } as any) as Promise<void>;
 assert.equal(animations.length, before);
 assert.equal(card.dataset.dragLanding, "");
-assert.equal(landed, 0);
 c.finish();
 await wait;
-assert.equal(landed, 1);
 assert.equal("dragLanding" in card.dataset, false);
-// 已经播完：立即交，不再播
+// 已经播完：不再播
 const d = landOverlay(overlay as any, card as any, motion, () => null)!;
 d.finish();
-assert.equal(dropAnimation(motion, () => landed++, () => null)({ active: { id: "card", node: card, rect: { top: 334, left: 10, width: 200, height: 32 } },
+assert.equal(dropAnimation(motion, () => null)({ active: { id: "card", node: card, rect: { top: 334, left: 10, width: 200, height: 32 } },
   dragOverlay: { node: overlay, rect: { top: 466, left: 10, width: 200, height: 32 } }, transform: { x: 0, y: 54, scaleX: 1, scaleY: 1 } } as any), undefined);
-assert.equal(landed, 2);
 assert.equal(animations.length, before + 1);
 
 // 先落位、再结束拖动
@@ -4984,44 +5008,44 @@ g.addEventListener = (type: string, run: () => void) => listeners.set(type, run)
 g.removeEventListener = (type: string) => listeners.delete(type);
 const letGo = new ReleaseFirst();
 const log: any[] = [];
-letGo.hold(() => log.push(["end", letGo.landed]), null, 1000);           // 没播落位：立即结束
-assert.deepEqual(log, [["end", false]]);
+letGo.hold(() => log.push(["end"]), null, 1000);           // 没播落位：立即结束
+assert.deepEqual(log, [["end"]]);
 let frozen = 0;
 const e = animate([], {});
-letGo.hold(() => log.push(["end", letGo.landed]), e, 1000, () => (frozen++, () => frozen--));
+letGo.hold(() => log.push(["end"]), e, 1000, () => (frozen++, () => frozen--));
 assert.equal(letGo.waiting, true);
 assert.equal(frozen, 1);                                         // 等着的时候自动滚动不滚
 assert.deepEqual([...listeners.keys()].sort(), ["keydown", "pointerdown", "touchstart"]);
 assert.equal(log.length, 1);                                     // 落位没播完：还没结束拖动
 e.finish();
 await g.sleep(0);
-assert.deepEqual(log.at(-1), ["end", true]);                     // 播完才结束；这一次 landed（组之间移动的当场交给调用方）
-assert.deepEqual([frozen, listeners.size, letGo.waiting, letGo.landed], [0, 0, false, false]);
-// 落位中又按下了（要开始下一次）：当场结束，不算已落完；之后播完不再结束一次
+assert.equal(log.length, 2);                                     // 播完才结束
+assert.deepEqual([frozen, listeners.size, letGo.waiting], [0, 0, false]);
+// 落位中又按下了（要开始下一次）：当场结束；之后播完不再结束一次
 const f = animate([], {});
-letGo.hold(() => log.push(["again", letGo.landed]), f, 1000);
+letGo.hold(() => log.push(["again"]), f, 1000);
 listeners.get("pointerdown")!();
-assert.deepEqual(log.at(-1), ["again", false]);
+assert.deepEqual(log.at(-1), ["again"]);
 f.finish();
 await g.sleep(0);
 assert.equal(log.filter((x) => x[0] === "again").length, 1);
 // 动画没在走（页面在后台）：过 wait 毫秒自己结束
-letGo.hold(() => log.push(["late", letGo.landed]), animate([], {}), 20);
+letGo.hold(() => log.push(["late"]), animate([], {}), 20);
 await g.sleep(40);
-assert.deepEqual(log.at(-1), ["late", false]);
+assert.deepEqual(log.at(-1), ["late"]);
 // 新的一次放下：上一次还在等的先结束
-letGo.hold(() => log.push(["first", letGo.landed]), animate([], {}), 1000);
-letGo.hold(() => log.push(["second", letGo.landed]), null, 1000);
-assert.deepEqual(log.slice(-2), [["first", false], ["second", false]]);
+letGo.hold(() => log.push(["first"]), animate([], {}), 1000);
+letGo.hold(() => log.push(["second"]), null, 1000);
+assert.deepEqual(log.slice(-2), [["first"], ["second"]]);
 """)
         drag = read("components/ui/drag.tsx")
         # 落点在松手时量：排序时加上让位的位移；收着的组 / 可见范围外照旧（into 收 shift）
         self.assertIn("const rect = fold || !shift ? base : { ...base, top: base.top + shift, bottom: base.bottom + shift };", drag)
         # 卸下时还在等落位的放下当场结束
-        self.assertIn("letGo.flush(false); // 卸下时还在等落位的放下当场结束", drag)
+        self.assertIn("letGo.flush(); // 卸下时还在等落位的放下当场结束", drag)
 
     def test_the_column_slides_when_the_gap_changes_group(self):
-        # 空档换了组：位置变了的行、组头从原来的位置带过渡滑到新位置（FLIP，Web Animations 播 translate，不碰行内样式）；
+        # 空档换了组（对话拖进已置顶 / 挪回自己那一组）：位置变了的行、组头从原来的位置带过渡滑到新位置（FLIP，Web Animations 播 translate，不碰行内样式）；
         # 换组重挂的同一行按 data-drag-id 接着滑；空档、正在落位的不滑；滚动不算移动；正在滑的再变就从此刻的位置接着滑。
         # 审查：盯着的时候关掉滚动锚定（不然变动在可见区上方时浏览器改 scrollTop，没动的行先跳再滑回、下面的行直接跳），停止时还原；
         # 让位的起点不回拨到上一帧（同排序项的 CSS 过渡，主线程忙时不吃掉前段）
@@ -5043,7 +5067,8 @@ const el = (top: number, id = "", still = false) => {
 const a3 = el(68, "row:a3"), headB = el(118), b1 = el(152, "row:b1"), b2 = el(186, "row:b2"), gap = el(34, "row:a2", true);
 root.els = [gap, a3, headB, b1, b2];
 const motion = { duration: 200, easing: "ease" };
-const stop = flowLayout(root, "x", motion);
+let changed = 0;
+const stop = flowLayout(root, "x", motion, () => changed++);
 assert.equal(root.style.overflowAnchor, "none");
 // 空档从 A 去了 B（a2 换组重挂成新的一项）：A 合上（a3、B 组头、b1 上移 34），B 让开（b2 不动）
 a3.top = 34; headB.top = 84; b1.top = 118;
@@ -5057,6 +5082,7 @@ assert.equal(headB.anims.length, 1);
 assert.equal(b1.anims.length, 1);
 assert.equal(b2.anims.length, 0);                     // 没动的不滑
 assert.equal(moved.anims.length, 0);                   // 空档看不见，不滑
+assert.equal(changed, 1);                              // 版面变过一次：拖动区据此重量各落点
 // 滚动不算移动
 root.scrollTop = 50;
 observe!();
@@ -5080,255 +5106,62 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
 
     def test_dragged_chat_rows_use_the_shared_gap_and_landing(self):
         drag = read("components/ui/drag.tsx")
-        # 对话行：同排序项一样原位留空档（不再是淡影），换组重挂的同一行按 data-drag-id 认
-        self.assertIn('node: { ref: draggable.setNodeRef, "data-drag-id": data.id, "data-drag-source": draggable.isDragging ? "gap" : undefined },', drag)
+        # 对话行与其他排序项同一份（useSortableItem）：原位留空档（不再是淡影），拖进另一列在那里重挂的同一行按 data-drag-id 认
+        self.assertIn('"data-drag-id": data.id,', drag)
+        self.assertIn('"data-drag-source": sortable.isDragging ? "gap" : undefined,', drag)
         self.assertNotIn('"ghost"', drag)
-        # 在组之间移动：空档的组随指针（onDragOver → placeOf），放下按空档所在；落位播完才交（Landing），请求做完前整列仍跟着动
-        self.assertIn("const target = placeOf(from, dataOf(over), latest.current.accepts);", drag)
-        self.assertIn("settleMove(from, placedRef.current, latest.current.accepts, {", drag)   # 行为见 test_a_dropped_chat_is_handed_over_only_after_it_lands
-        self.assertIn("place(from, null); // 取消：空档回原位，浮层滑回去", drag)
-        # 拿起时的那份说明一直用到底（换组重挂的行 group 变了，原组仍按拿起时的）
+        # 用户 10-17：组之间移动（空档按排序方式去别的组、落位后发移动请求）整套去掉
+        for gone in ("useDragItem", "useDropTarget", "settleMove", "class Landing", "PlacedContext", "revealGap", "onPlace", "running={busy > 0}"):
+            self.assertNotIn(gone, drag)
+        # 拿起时的那份说明一直用到底（拖进置顶重挂的行仍按原来那一列认）
         self.assertIn("lifted.current = data ?? null;", drag)
-        # 收着的组：空档要去时整块高亮，落位落到组头
-        self.assertIn("const crossing = useContext(PlacedContext) === data.id && !!options.shut;", drag)
-        self.assertIn('return { ref: droppable.setNodeRef, "data-drop-target": placed && shut ? "" : undefined };', drag)
-        self.assertIn("const fold = !!group && !group.contains(node);", drag)
+        # 收着的那一列整块：指着它时整块高亮、浮层半透明，落位落到组头并收起
+        self.assertIn('return { ref: droppable.setNodeRef, "data-drop-target": over && shut ? "" : undefined };', drag)
+        self.assertIn("setShutOver(to?.zone && to.shut && over ? String(over.id) : null);", drag)
+        self.assertIn("const fold = !!zone && !zone.contains(node);", drag)
         # 审查：落点在滚动区可见范围外时落到可见范围的边上并收起，不飞出列表；拖动库那一次的 scrollIntoView 不让滚
         self.assertIn("const shown = clampIntoView(rect, viewOf(node));", drag)
         self.assertIn("return fold || shown !== rect ? shown : null;", drag)
         self.assertEqual(drag.count("holdStill(stash.current.node, landWait);"), 2)   # 松手、取消
-        # 审查：空档换组后在可见范围外就平滑滚进来
-        self.assertIn("if (gap?.isConnected) revealGap(gap, !!transition);", drag)
-        # 整列一起滑只在组之间移动的那段时间；空档换组后重量各组（碰撞按新位置）
-        self.assertIn("{flow && <Flow selector={flow} running={busy > 0} transition={transition} placed={placed?.id ?? null} />}", drag)
-        self.assertIn("measureDroppableContainers(containers.current.getEnabled().map((entry) => entry.id));", drag)
+        # 整列一起滑：拖动中（拿起到结束那一次提交，布局阶段停）；版面变了就重量各落点（碰撞按新位置）
+        self.assertIn("{flow && <Flow selector={flow} transition={transition} />}", drag)
+        self.assertIn("return flowLayout(root, selector, transition, remeasure);", drag)
+        self.assertIn("measure(all.getEnabled().map((entry) => entry.id));", drag)
+        flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn("const running = !!active;", flow)
+        self.assertIn("useLayoutEffect(() => {", flow)
         # 第 6 轮：落位在松手那一下起播（landOverlay，从松手这一刻起算），结束拖动等落位播完（ReleaseFirst）；不再回拨到上一帧
-        # （startNow：结束拖动那次提交卡多久，帧一出来落位就走了多少）。整列让位同样不回拨（同排序项的 CSS 过渡）
         self.assertNotIn("startNow", drag)
         self.assertIn("fromNow(animation);", drag)
         self.assertIn("useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),", drag)
-        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, beforeEnd }),", drag)
+        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd }),", drag)
         self.assertIn("letGo.hold(end, animation, landWait, node ? () => freezeScroll(node) : undefined);", drag)
-        # 先量再改根节点的拖动标记（反过来量时整页样式、布局重算：6 倍节流 25ms）；落位已播完的在组之间移动当场交给调用方
+        # 先量再改根节点的拖动标记（反过来量时整页样式、布局重算：6 倍节流 25ms）
         end = drag.split("const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
         self.assertLess(end.index("holdStill(stash.current.node, landWait);"), end.index("finish();"))
-        self.assertIn("if (queued && landed) landing.land();", end)
         cancel = drag.split("onDragCancel={({ active, activatorEvent }) => {", 1)[1].split("}}", 1)[0]
         self.assertLess(cancel.index("holdStill(stash.current.node, landWait);"), cancel.index("finish();"))
         rows = read("components/assistant-ui/thread-list.tsx")
-        groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
         self.assertIn("const FLOW = '[data-slot=\"aui_thread-list-item\"], .cc-group-row, .cc-show-more';", rows)
-        # 空档只在去的组开着时排进去（收着的只高亮组头、原位空档留着）；按当前排序方式
-        self.assertIn("return index >= 0 && open && stays ? liftRow(out, rows, index, place.group, { by: view.sort, desc: view.desc }) : out;", groups)
-        # 搜索时移过去就不在结果里的：不排空档，同收着的组
-        self.assertIn("const stays = !searching || (!!row && matchesAfterMove(row, place.group, projects, query));", groups)
-        self.assertIn("fold={leavesResults(section.project.id)}", groups)
-        self.assertIn('setPlace(active.kind === "row" && target ? { row: fromDrag(active.id), group: target.group ?? "" } : null);', groups)
-        # 多选整批：拖的这一条先移（它已在空档里），其余逐条跟过去；放下后刚拖进去的这一行留在眼前（keepInView：那组多显示一条
-        # 或单独留这一条），被拒就撤掉；换搜索、排序、分组或点「显示更多」清掉留着的
-        self.assertIn("const { sessions, bulk } = draggedSessions(active, useSidebarSelection.getState().ids, (id) => itemsById.get(id)?.remoteId);", groups)
-        self.assertIn("const moving = notIn(sessions, group).flatMap((id) => (indexOf.has(id) ? [indexOf.get(id)!] : []));", groups)
-        self.assertIn("const { bump, keep } = keepInView(into, threadIds.indexOf(fromDrag(active.id)), moving, rows, shownOf(group), searching, sort);", groups)
-        self.assertIn('const undo = new Map(bump.map((index) => [keyOf.get(index) ?? "", showOneMore(group)]));', groups)
-        self.assertIn("undo.get(id)?.();", groups)
-        self.assertIn("useEffect(() => setKept((list) => (list.length ? [] : list)), [query, view.by, view.sort, view.desc]);", groups)
-        self.assertIn("setKept((list) => list.filter((entry) => entry.group !== section.project.id));", groups)
-        self.assertNotIn("into?.indices ?? []", groups)
         css = read("globals.css")
-        # 多选里一起拖的其余各行淡影；拖的那一条自己是空档（不被淡影规则盖住）；落到收着的组收起
+        # 多选里一起拖的其余各行淡影；拖的那一条自己是空档（不被淡影规则盖住）；落到收着的那一列收起
         self.assertIn(':root[data-cc-drag-bulk] [data-slot="aui_thread-list-item"][data-selected]:not([data-drag-source], [data-drag-landing]) { opacity: var(--cc-drag-ghost); }', css)
         self.assertIn('.cc-drag-overlay[data-dropping="into"] .cc-drag-lift { scale: var(--cc-drag-fold); opacity: 0; }', css)
         self.assertNotIn('[data-drag-source="ghost"]', css)
 
-    # ---- 审查（对话拖动统一之后）：落位后才交、拖回原组不交、失败退回；放下后刚拖进去的那一行留在眼前（不整组留、会清掉）；
-    # 留着的那一段按排序方式排；搜索时移过去就不在结果里的同收着的组；落点不出可见范围
-
-    def test_a_dropped_chat_is_handed_over_only_after_it_lands(self):
-        # 共用拖动在组之间移动的放下（settleMove）：落位动画（dropAnimation）播完之前不交给调用方（不发移动请求）；拖回原组 /
-        # 取消不交；交过才把空档清回 null；请求失败照样收尾（整列停止跟着动）；没播落位时过一会儿自己交
-        self.run_page(r"""
-import { dropAnimation, Landing, settleMove } from "@/components/ui/drag";
-import { sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
-const g = globalThis as any;
-g.getComputedStyle = () => ({ transform: "none", transformOrigin: "0px 0px" });
-const row = { id: "row:t1", kind: "row", label: "x", group: "comp_A", session: "sesn_1" };
-const company = (id: string) => ({ id: `company:${id}`, kind: "company", label: id, list: "companies", group: id });
-let log: any[] = [];
-const landing = new Landing();
-const hooks = (work?: () => unknown, wait = 1000) => ({ landing, wait, drop: (target: any) => { log.push(["drop", target.group]); return work?.(); },
-  clear: () => log.push(["clear"]), done: () => log.push(["done"]) });
-// 空档在原组（null）：不交，空档回原位、收尾
-assert.equal(settleMove(row, null, sidebarAccepts, hooks()), false);
-assert.deepEqual(log, [["clear"], ["done"]]);
-// 不能放的（原来那一组）：同样不交
-log = [];
-assert.equal(settleMove(row, company("comp_A"), sidebarAccepts, hooks()), false);
-assert.deepEqual(log, [["clear"], ["done"]]);
-// 别的组：排上，落位播完之前不交；落位动画的 onfinish 一到才交（发请求），交过才清空档；请求做完才收尾
-log = [];
-let finish: () => void = () => undefined;
-const request = new Promise<void>((resolve) => (finish = resolve));
-assert.equal(settleMove(row, company("comp_B"), sidebarAccepts, hooks(() => request)), true);
-const animations: any[] = [];
-const box = (top: number) => ({ dataset: {} as Record<string, string>, getBoundingClientRect: () => ({ top, left: 10, width: 200, height: 32, right: 210, bottom: top + 32 }) });
-const overlay = { ...box(466), animate(frames: any, opts: any) { const a: any = { frames, opts, startTime: null }; animations.push(a); return a; } };
-const motion = { duration: 200, easing: "ease" };
-dropAnimation(motion, () => landing.land(), () => null)({ active: { id: "row:t1", node: box(398), rect: { top: 398, left: 10, width: 200, height: 32 } },
-  dragOverlay: { node: overlay, rect: { top: 466, left: 10, width: 200, height: 32 } }, transform: { x: 0, y: 186, scaleX: 1, scaleY: 1 } } as any);
-assert.deepEqual(log, []);                                    // 还在落：没有请求
-assert.equal(landing.pending, true);
-animations[0].onfinish();
-assert.deepEqual(log, [["drop", "comp_B"], ["clear"]]);       // 落完：发请求，空档清回（调用方已按移过去的样子排好）
-await g.sleep(0);
-assert.deepEqual(log.at(-1), ["clear"]);                      // 请求没回：整列仍跟着动
-finish();
-await g.sleep(0);
-assert.deepEqual(log.at(-1), ["done"]);
-// 请求失败：照样收尾，不往外抛
-log = [];
-settleMove(row, company("comp_C"), sidebarAccepts, hooks(() => Promise.reject(new Error("no"))));
-landing.land();
-await g.sleep(0);
-assert.deepEqual(log, [["drop", "comp_C"], ["clear"], ["done"]]);
-// 落位没播（被打断、量不到）：过 wait 自己交
-log = [];
-settleMove(row, company("comp_B"), sidebarAccepts, hooks(undefined, 20));
-assert.deepEqual(log, []);
-await g.sleep(40);
-assert.deepEqual(log, [["drop", "comp_B"], ["clear"], ["done"]]);
-""")
-
-    def test_dragged_chat_moves_first_and_a_refused_move_goes_back(self):
-        # 放下后要移的：拖的这一条在前，多选整批其余随后（还没存到服务端的跳过）；逐条、不并发，已在目标公司的不发；
-        # 被拒的那条退回原组（filingOf），侧栏出错行写服务端原文，并告诉侧栏是哪一条（撤掉为它多显示的一条）
-        self.run_page(r"""
-const g = globalThis as any;
-import { draggedSessions, moveDragged } from "@/lib/managed-agents/sidebar-drag";
-import { filingOf, noteFilings, useProjects } from "@/lib/managed-agents/projects";
-const remote: Record<string, string> = { t1: "sesn_1", t2: "sesn_2", t3: "sesn_3" };
-const row = (count?: number) => ({ id: "row:t2", kind: "row", label: "x", group: "comp_A", session: "sesn_2", count });
-// 一条：只有它
-assert.deepEqual(draggedSessions(row(), ["t1", "t3"], (id) => remote[id]), { sessions: ["sesn_2"], bulk: false });
-// 多选里拖其中一条：拖的这条在前，其余按选中的先后；本页新建还没存的（t4）跳过
-assert.deepEqual(draggedSessions(row(3), ["t1", "t2", "t3", "t4"], (id) => remote[id]), { sessions: ["sesn_2", "sesn_1", "sesn_3"], bulk: true });
-// 拖的这条不在多选里：只移它
-assert.deepEqual(draggedSessions(row(2), ["t1", "t3"], (id) => remote[id]), { sessions: ["sesn_2"], bulk: false });
-
-const ok = (body: any) => ({ ok: true, status: 200, json: async () => ({ message: body }) });
-const refused = JSON.stringify([JSON.stringify({ message: "ไม่มีสิทธิ์ในบริษัทนี้" })]);
-let inFlight = 0;
-let most = 0;
-g.respond = async (method: string, body: any) => {
-  if (method !== "move") return ok(null);
-  inFlight++;
-  most = Math.max(most, inFlight);
-  await g.sleep(3);
-  inFlight--;
-  if (body.session_id === "sesn_2") return { ok: false, status: 417, json: async () => ({ _server_messages: refused }) };
-  return ok({ id: body.session_id, project: body.project, period: body.period, scope: body.scope });
-};
-useProjects.setState({ kind: "company", period: true, scope: true } as any);
-noteFilings({ sesn_1: { project: "comp_A", period: "", scope: "" }, sesn_2: { project: "comp_A", period: "2026-09", scope: "" },
-              sesn_3: { project: "comp_B", period: "2026-09", scope: "00012" } });
-const failed: string[] = [];
-const moving = moveDragged(["sesn_2", "sesn_1", "sesn_3"], "comp_B", true, (id) => failed.push(id));
-assert.equal(filingOf("sesn_2").project, "comp_B");          // 本页先挪过去（落位时已在空档里）
-await moving;
-const moves = g.calls.filter((c: any) => c.method === "move").map((c: any) => c.body.session_id);
-assert.deepEqual(moves, ["sesn_2", "sesn_1"]);               // 拖的那条第一个；已在目标公司的 sesn_3 不发
-assert.equal(most, 1);                                        // 不并发
-assert.deepEqual(failed, ["sesn_2"]);
-assert.deepEqual(filingOf("sesn_2"), { project: "comp_A", period: "2026-09", scope: "" });   // 退回原组
-assert.equal(filingOf("sesn_1").project, "comp_B");
-assert.deepEqual(filingOf("sesn_3"), { project: "comp_B", period: "2026-09", scope: "00012" });
-assert.equal(useProjects.getState().error, "ไม่มีสิทธิ์ในบริษัทนี้");
-""")
-
-    def test_a_dropped_chat_stays_in_view_without_growing_the_group(self):
-        # 放下后移进去的各行（拖的这一条、多选整批的其余各条）：排在眼前最后一条之前的每一条让那组多显示一条（同「显示更多」的计数，
-        # 被拒可撤），眼前原有的一条都不被挤进「显示更多」；排在「显示更多」之外的单独留着（keep），不再把整组眼前的行都留下；
-        # 搜索时、最近、收着没排进去、那组放得下的都不用。留着的那一段按排序方式排，拖动中的摆法（liftRow）与放下后
-        # （companySections）一致，连着两次拖进同一组也不换位
-        self.run_page(r"""
-import { companySections, keepInView, liftRow, matchesAfterMove } from "@/lib/managed-agents/sidebar-groups";
-import { shownOf, showMore, showOneMore, useProjects } from "@/lib/managed-agents/projects";
-const at = (m: number) => Date.UTC(2026, 9, 16, 12, 0) - m * 60000;
-const projects = [{ id: "A", title: "Alpha" }, { id: "B", title: "Beta" }];
-const base = [
-  { index: 0, title: "a1", starred: false, time: at(1), group: "A", key: "s_a1" },
-  { index: 1, title: "a2", starred: false, time: at(10), group: "A", key: "s_a2" },
-  { index: 2, title: "x", starred: false, time: at(47), group: "A", key: "s_x" },
-  ...[9, 16, 23, 30, 37, 44, 51].map((m, i) => ({ index: 3 + i, title: `b${i + 1}`, starred: false, time: at(m), group: "B", key: `s_b${i + 1}` })),
-  { index: 10, title: "r2", starred: false, time: at(60), group: "", key: "s_r2" },
-  { index: 11, title: "a3", starred: false, time: at(20), group: "A", key: "s_a3" },
-];
-const of = (s: any[], key: string) => s.find((x) => x.key === key);
-const moved = (rows: any[], indices: number[], group: string) => rows.map((r) => (indices.includes(r.index) ? { ...r, group } : r));
-const keepOf = (s: any[], dragged: number, moving: number[], shown = 5, searching = false) => keepInView(of(s, "project:B"), dragged, moving, base, shown, searching);
-
-// a2（10 分钟前）拖进 B：排在眼前最后一条（b5）之前 → 多显示一条
-let s = liftRow(companySections(base, projects)!, base, 1, "B");
-assert.deepEqual(keepOf(s, 1, [1]), { bump: [1], keep: [] });
-assert.equal(shownOf("B"), 5);
-const undo = showOneMore("B");
-assert.equal(shownOf("B"), 6);
-let after = companySections(moved(base, [1], "B"), projects, { shown: useProjects.getState().shown })!;
-assert.deepEqual(of(after, "project:B").indices, of(s, "project:B").indices);   // 落位后同拖动中的摆法：b5 没被挤走
-assert.deepEqual(of(after, "project:B").indices, [3, 1, 4, 5, 6, 7]);
-undo();                                                       // 被拒、退回原组：撤掉
-assert.equal(shownOf("B"), 5);
-undo();                                                       // 撤过的不再撤
-assert.equal(shownOf("B"), 5);
-const again = showOneMore("B");
-void showMore("B", 7, async () => undefined);                 // 这期间点了「显示更多」：那是人自己要的，不撤
-again();
-assert.equal(shownOf("B"), 16);
-useProjects.setState({ shown: {} } as any);
-
-// 多选整批 a2、a3（20 分钟前）拖进 B：两条都排在 b5 之前 → 多显示两条，落位、跟过去以后 b5 仍在眼前
-assert.deepEqual(keepOf(s, 1, [1, 11]), { bump: [1, 11], keep: [] });
-after = companySections(moved(base, [1, 11], "B"), projects, { shown: { B: 7 } })!;
-assert.deepEqual(of(after, "project:B").indices, [3, 1, 4, 11, 5, 6, 7]);
-// 整批里 a2 在前、x（47 分钟前）排在「显示更多」之外：a2 多显示一条，x 单独留着
-assert.deepEqual(keepOf(s, 1, [1, 2]), { bump: [1], keep: [2] });
-
-// r2（60 分钟前）拖进 B：排在「显示更多」之外 → 单独留这一条（只这一条，不是整组）
-s = liftRow(companySections(base, projects)!, base, 10, "B");
-assert.deepEqual(keepOf(s, 10, [10]), { bump: [], keep: [10] });
-assert.deepEqual(of(s, "project:B").indices, [3, 4, 5, 6, 7, 10]);
-let rows = moved(base, [10], "B");
-after = companySections(rows, projects, { keep: ["s_r2"] })!;
-assert.deepEqual(of(after, "project:B").indices, [3, 4, 5, 6, 7, 10]);
-assert.equal(of(after, "project:B").more, true);
-// 接着把 x（47 分钟前）也拖进 B：留着的那一段按排序方式排（x 在 r2 前），拖动中与落位后一样，不换位
-s = liftRow(after, rows, 2, "B");
-assert.deepEqual(of(s, "project:B").indices, [3, 4, 5, 6, 7, 2, 10]);
-assert.deepEqual(keepInView(of(s, "project:B"), 2, [2], rows, 5, false), { bump: [], keep: [2] });
-after = companySections(moved(rows, [2], "B"), projects, { keep: ["s_r2", "s_x"] })!;
-assert.deepEqual(of(after, "project:B").indices, [3, 4, 5, 6, 7, 2, 10]);
-// 没有留着的：换排序方式（调用方清掉 keep）后只显示前 5 条，不多显示
-assert.equal(of(companySections(moved(rows, [2], "B"), projects, { sort: { by: "name", desc: false } })!, "project:B").indices.length, 5);
-
-// 不用的：搜索时（全显示）、最近（不限条数）、去的组收着（没排进去）、那组放得下
-s = liftRow(companySections(base, projects)!, base, 1, "B");
-assert.deepEqual(keepOf(s, 1, [1], 5, true), { bump: [], keep: [] });
-assert.deepEqual(keepInView(of(liftRow(companySections(base, projects)!, base, 1, ""), "recents"), 1, [1], base, 5, false), { bump: [], keep: [] });
-assert.deepEqual(keepOf(companySections(base, projects)!, 1, [1]), { bump: [], keep: [] });
-const small = liftRow(companySections(base, projects)!, base, 3, "A");
-assert.deepEqual(keepInView(of(small, "project:A"), 3, [3], base, 5, false), { bump: [], keep: [] });   // A 连它 5 条，放得下
-// 原来那组没满：先占空位，满了才多显示（A 有 4 条，拖进两条都排在前面 → 多显示一条）
-const two = companySections(base.map((r) => (r.index === 11 ? { ...r, group: "A" } : r)), projects)!;
-assert.deepEqual(keepInView(of(liftRow(two, base, 3, "A"), "project:A"), 3, [3, 4], base, 5, false), { bump: [3], keep: [] });
-
-// 搜索时移过去还在不在结果里：标题或那家公司名命中
-const hit = { index: 2, title: "x", starred: false, time: at(47), group: "A", key: "s_x" };
-assert.equal(matchesAfterMove(hit, "B", projects, "alp"), false);   // 靠公司名 Alpha 命中的，移到 Beta 就不在了
-assert.equal(matchesAfterMove(hit, "A", projects, "alp"), true);
-assert.equal(matchesAfterMove(hit, "B", projects, "bet"), true);
-assert.equal(matchesAfterMove({ ...hit, title: "alpine" }, "", projects, "alp"), true);
-assert.equal(matchesAfterMove(hit, "", projects, "alp"), false);
-assert.equal(matchesAfterMove(hit, "B", projects, ""), true);       // 不搜索都在
-""")
+    def test_fast_arrow_keys_each_move_one_step(self):
+        # 测试窗口：键盘拖动时连按（间隔约 30ms）的方向键被吞掉一些，0.4–0.6 秒按一下每下都动。原因：拖动库的键盘传感器在目标
+        # 落在滚动区下半截（往上拖时上半截）时不挪浮层、改成平滑滚动滚动区，下一下按在滚动途中，从滚到一半的位置再加一格。
+        # 无界面 Chrome 复现（40 行、500px 滚动区、从第 9 行起连按 4 下）：平滑滚动只挪 2 格，立即滚动 4 格都挪
+        drag = read("components/ui/drag.tsx")
+        self.assertIn('export const KEYBOARD_SCROLL: ScrollBehavior = "instant";', drag)
+        self.assertIn("scrollBehavior: KEYBOARD_SCROLL", drag)
+        # 拖动库每次按键现读这一项（选项里没给就是平滑滚动）；没装前端依赖时跳过这一段
+        core = FRONTEND / "node_modules/@dnd-kit/core/dist/core.esm.js"
+        if core.exists():
+            handle = core.read_text(encoding="utf-8").split("  handleKeyDown(event) {", 1)[1].split("\n  }\n", 1)[0]
+            self.assertIn("scrollBehavior = 'smooth'", handle)
+            self.assertIn("behavior: scrollBehavior", handle)
 
     def test_the_landing_stays_inside_the_list(self):
         # 落点在滚动区可见范围外：落到可见范围的边上（上下边贴边），在里面的不动
@@ -5591,7 +5424,7 @@ const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: (
   droppedAt: (n: string, a: number, t: number) => `${n} at ${a}/${t}`, cancelled: (n: string) => `cancel ${n}` };
 const items = ["company:a", "company:b", "company:c", "company:d"];
 const entry = (id: string, index: number) => ({ id, data: { current: { drag: { id, kind: "company", label: id.slice(8), list: "companies", group: id.slice(8) }, sortable: { index, items } } } });
-for (const say of [dragAnnouncements(texts), dragAnnouncements(texts, { accepts: (a, b) => a.list === b.list, placed: () => null })]) {
+for (const say of [dragAnnouncements(texts), dragAnnouncements(texts, { zoneLabel: () => "Pinned" })]) {
   const c = entry("company:c", 2);
   assert.equal(say.onDragStart!({ active: c } as any), "up c");
   assert.equal(say.onDragOver!({ active: c, over: c } as any), undefined);             // 拿起当下经过自己：不念，留着「已拿起」
@@ -5607,7 +5440,7 @@ for (const say of [dragAnnouncements(texts), dragAnnouncements(texts, { accepts:
 """)
         # 卡片、置顶同一份（共用拖动）
         drag = read("components/ui/drag.tsx")
-        self.assertIn("if (!end && over && over.id === active.id && !moved) return undefined;", drag)
+        self.assertIn("if (!end && over.id === active.id && !moved) return undefined;", drag)
 
     def test_alt_arrow_moves_are_announced_like_dragging(self):
         # 第 5 轮第 2 项：公司组头 Alt+↑/↓ 挪一格时读屏什么也没念。挪完念新位置，文案同键盘拖动的 movedTo（三语）；置顶、卡片同样
@@ -5801,20 +5634,17 @@ assert.equal(giveFocusBack(el("gone", { isConnected: false }), back), trigger);
         for slot in ('data-slot="cc-settings-button"', 'data-slot="cc-user-menu"', 'data-slot="cc-panel-toggle"'):
             self.assertIn(slot, app)
 
-    def test_search_highlights_target_groups_that_are_collapsed_outside_search(self):
-        # 第 6 轮第 5 项：搜索时各组都展开显示，把对话拖向收着的「最近」组头不亮（不搜索时亮）。现在不搜索时收着的组（用户收起的、
-        # 排在前几家之后默认收着的）在搜索时组头照样高亮；空档照旧排进展开的组里、落进空档（搜索时看得见）。公司组同一条
+    def test_search_locks_every_sidebar_drag(self):
+        # 第 6 轮第 5 项原是搜索时把对话拖向收着的组头要高亮。用户 10-17 起对话只在本组排、拖进置顶，搜索时对话行与置顶、公司组
+        # 一样锁住不能拖（搜索结果里的先后不是组里的先后），那一套搜索时的高亮、移过去就不在结果里的处理一并去掉
         rows = read("components/assistant-ui/thread-list.tsx")
         groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
-        self.assertIn("if (!searching || !byCompany) return null;", groups)
-        self.assertIn("const plain = companySections(rows, projects, { shown, serverMore, sort, empty: view.empty, companyOrder: order.companies, pinnedOrder: order.pinned }) ?? [];", groups)
-        self.assertIn('return new Set(plain.flatMap((section) => (section.type !== "pinned" && !groupOpen(section, collapsed, false) ? [section.key] : [])));', groups)
-        self.assertIn("shut={!!shutOutside?.has(section.key)}", groups)
-        self.assertEqual(groups.count("shut={!!shutOutside?.has(section.key)}"), 2)   # 公司组、最近
-        self.assertIn("{ disabled: locked, ownFocus: true, shut: !open || !!fold || !!shut },", groups)
-        self.assertIn('useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open || !!fold || !!shut);', groups)
-        # 空档排不排进去仍只看展开与搜索结果（不因为高亮改落点）
-        self.assertIn("return index >= 0 && open && stays ? liftRow(out, rows, index, place.group, { by: view.sort, desc: view.desc }) : out;", groups)
+        self.assertIn('scope = { mode: "row", group, locked: searching, move };', groups)
+        self.assertIn("              locked: searching,\n", groups)        # 置顶
+        self.assertIn("              locked={searching}\n", groups)        # 公司组
+        self.assertIn("const locked = scope.locked || !remoteId;", rows)
+        for gone in ("shutOutside", "leavesResults", "matchesAfterMove", "fold={"):
+            self.assertNotIn(gone, groups)
 
 
 class Round8Tests(unittest.TestCase):
@@ -5827,17 +5657,16 @@ class Round8Tests(unittest.TestCase):
     def test_keyboard_drag_keeps_focus_on_the_dragged_item(self):
         # 第 1 项：从「最近」空格拿起一行，↑ 进别的公司组后焦点落到邻行（组件库对话行自带的 ↑ ↓ 导航挪的；原来那一行换组重挂、
         # 节点卸下），之后方向键只移焦点、拖动卡住。现在：拖动中按在把手上的方向键只归拖动（标成已处理，组件库的导航不接手）；
-        # 键盘拿起的那一项换组重挂后焦点跟到新节点；放下 / 取消后焦点留在移动后的那一行（落进收着的组就给组头）
+        # 键盘拿起的那一项重挂后焦点跟到新节点；放下 / 取消后焦点留在移动后的那一行（用户 10-17 起键盘只在本组里挪，不会落进收着的组）
         drag = read("components/ui/drag.tsx")
         self.assertIn('const DRAG_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);', drag)
         self.assertIn("      if (isDragging() && DRAG_KEYS.has(event.key)) event.preventDefault();\n"
                       "      else listeners?.onKeyDown?.(event);", drag)
-        self.assertIn("setKeyed(byKeyboard(activatorEvent) ? active.id : null);", drag)
+        self.assertIn("setKeyed(keyboard ? active.id : null);", drag)
         self.assertIn("const keyed = useContext(KeyedContext) === id && drag.isDragging;", drag)
         self.assertIn("if (keyed && node?.isConnected && document.activeElement !== node) node.focus({ preventScroll: true });", drag)
-        self.assertEqual(drag.count("const handleRef = useFollowFocus(data.id, "), 2)   # 排序项、在组之间移动的项
-        self.assertIn("keepFocusOn(active.id, groupNode ?? null, activatorEvent);", drag)
-        self.assertIn("keepFocusOn(active.id, null, activatorEvent);", drag)            # 取消
+        self.assertEqual(drag.count("const handleRef = useFollowFocus(data.id, "), 1)   # 排序项（对话行也是，用户 10-17）
+        self.assertEqual(drag.count("keepFocusOn(active.id, activatorEvent);"), 2)   # 放下（键盘不拖进另一列，不会落进收着的整块）、取消
         self.assertIn("  if (isDragging() || !event.altKey", drag)                     # Alt+方向键在拖动中也归拖动
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("        if (renaming) return;\n"
@@ -5871,27 +5700,27 @@ rememberHandle("row:a", before);
 rememberHandle("row:a", after);
 rememberHandle("row:a", null, before);
 g.document.activeElement = body;
-keepFocusOn("row:a", null, { key: " " } as any);
+keepFocusOn("row:a", { key: " " } as any);
 tick();
 assert.deepEqual(focused, ["new"]);
 // 人自己把焦点挪去了别处：不抢
 g.document.activeElement = el("composer");
 tick();
 assert.deepEqual(focused, ["new"]);
-// 落进收着的组：这一行不在眼前 → 给那一组的第一个按钮（组头开关）
+// 这一行不在眼前（看不见）：不抢，焦点留在原处
 rememberHandle("row:b", el("hidden", { getClientRects: () => [] }));
-keepFocusOn("row:b", { querySelector: (sel: string) => (sel === "button" ? el("head") : null) } as any, { key: "Enter" } as any);
+keepFocusOn("row:b", { key: "Enter" } as any);
 g.document.activeElement = body;
 tick();
-assert.equal(focused.at(-1), "head");
+assert.deepEqual(focused, ["new"]);
 // 鼠标、手指拿起的不管
 focused.length = 0;
-keepFocusOn("row:a", null, { clientX: 1 } as any);
+keepFocusOn("row:a", { clientX: 1 } as any);
 g.document.activeElement = body;
 tick();
 assert.deepEqual(focused, []);
 // 点了别处（pointerdown）以后不再接回
-keepFocusOn("row:a", null, { key: " " } as any);
+keepFocusOn("row:a", { key: " " } as any);
 presses.at(-1)!();
 tick();
 assert.deepEqual(focused, []);

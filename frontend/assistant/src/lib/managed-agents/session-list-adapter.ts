@@ -61,6 +61,7 @@ import {
 } from "./projects";
 import { latestTitle, listen } from "./realtime";
 import { dropSessionController } from "./session-controller";
+import { forgetInGroups } from "./sidebar-order";
 import { byCompany, noteCreated } from "./sidebar-view";
 
 const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
@@ -232,10 +233,13 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
   },
 
   async delete(remoteId) {
-    if (!takeQuiet("delete", remoteId)) {
+    const synced = takeQuiet("delete", remoteId);
+    if (!synced) {
       touch(remoteId);
       await deleteSession(remoteId);
     }
+    // 删了：从组里手排的先后里去掉（别的设备删的是按数据收拾，不是人改的）
+    forgetInGroups([remoteId], synced);
     dropSessionController(remoteId);
   },
 
