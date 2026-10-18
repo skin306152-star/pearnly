@@ -2521,13 +2521,15 @@ g.done();
         item = thread_list.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]   # 置顶行、组里可拖的行、不能拖的行都是这一份（ThreadListItem 按所在的组选）
         self.assertIn("<ThreadListItemPrimitive.Title", item)
         self.assertIn("<ThreadActivity />", item)  # 行尾在跑、未读圆点照旧
-        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体
-        self.assertIn("hover:bg-row-hover", item)
-        self.assertIn("data-active:bg-row-hover", item)
-        self.assertIn("data-active:text-ink", item)
+        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体：写在共用类 .cc-thread-row（标准化 B6）
+        self.assertIn('className="cc-thread-row group/item"', item)
+        row_css = read("globals.css").split("  .cc-thread-row {", 1)[1].split("\n  /*", 1)[0]
+        self.assertIn("min-height: var(--cc-row-h);", row_css)
+        self.assertIn(".cc-thread-row:is(:hover, :focus-visible, [data-active], :has(:focus-visible), :has([data-state=\"open\"])) { background: var(--cc-row-hover); }", row_css)
+        self.assertIn(".cc-thread-row:is([data-active], :has(:focus-visible)) { color: var(--cc-ink); }", row_css)
+        self.assertNotIn(":hover) { color", row_css)
         self.assertIn('<MoreHorizontalIcon className="size-(--cc-icon-sm)" />', thread_list)  # 行尾「···」图标 16，同 .cc-row-btn
-        self.assertIn("has-focus-visible:text-ink", item)  # 键盘焦点同选中一样主色字（设计文档 3.5），悬停不改字色
-        self.assertNotIn("hover:text-", item)
+        self.assertNotIn("hover:text-", item)  # 键盘焦点同选中一样主色字（设计文档 3.5，见上面 .cc-thread-row），悬停不改字色
         self.assertIn("h-(--cc-row-h)", item)
         # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪
         self.assertIn("s.threads.isLoading && !s.threads.threadIds.length", thread_list)

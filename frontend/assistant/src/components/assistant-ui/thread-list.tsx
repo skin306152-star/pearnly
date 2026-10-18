@@ -1083,7 +1083,7 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
         if (onMove && altMove(e, onMove)) return;
         dragKey?.(e);
       }}
-      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink has-focus-visible:text-ink relative flex min-h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
+      className="cc-thread-row group/item"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
