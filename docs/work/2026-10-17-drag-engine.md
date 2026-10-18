@@ -865,3 +865,78 @@
 - 出长按菜单那一帧在复刻页上看不出变化（结构上少一遍提交），以 A14 的 M3 为准；仍高的话剩下的就是 5a（会改时序，要拍板）。
 - 5a、5b 没做（会改行为）。
 - 第 12 轮「还缺什么」其余各项不变（鼠标拿起后挡板悬停重算、Z-01）。
+
+## 第 13 轮测试机：按住 0.35 秒拖动偶发出菜单（10-18）
+
+状态：根因已定、修好、本地检查与复刻页对照已做；**A14 复测没做**（交测试窗口，口径见本节末）。分支 `pearnly/cc-longpress-race`，从 `pearnly/cc-std-b1` `f1978271`（lab 上那条叠线的顶端）开出，未推送、未合并、未部署。修复提交 `49e9f522`。
+
+### 现象
+
+测试窗口 10-18 在三星 A14 上量第 13 轮（lab 包 `index.BGIXqnLZ.js` = `f1978271`）：`round13/fr13.py` 按下 → 停 0.35 秒 → 每步 6px、步间 30ms（每步等 CDP 回执）拖动，8 次里有 3 次（`row-back-h0.35-1`、`-2`，`pin-h0.35-0`）长按菜单仍在约 0.57 秒弹出、挂约 0.22 秒才收起。按住 0.9 秒（菜单先出、手指再动收菜单）是设计行为，不在本题。
+
+### 根因（证据）
+
+**到点的计时器先于「到点前就已经动出去」的那一下 touchmove 跑。** Chrome 把 touchmove 攒到下一帧开头才发给页面（帧开头先发排着的输入、再调动画帧回调），手指离开它自己的触摸防抖范围以前的几下干脆不发；长按的 500ms 计时器是另外的任务，到点就跑。到点时问 `isDragMoving()`，那一下还排在浏览器里，问到的是「没动」，菜单出来；紧跟着这一下发进来，共用拖动记成在拖，`onTouchMove` 里 `fired && isDragMoving()` 又把菜单收起——真机上就是「弹出、挂一会儿（菜单退场动画）、收起」。
+
+1. **复刻页实测**（本机无界面 Chrome，同一份 `index.BGIXqnLZ.js`，A14 视口 412×915、触屏、安卓 UA；脚本同 `fr13.py`：按住 350ms、每步 6px、步间 30ms 等回执）。页面里记了触摸事件（含事件自带的产生时刻 `timeStamp`）、长按 500ms / 拿起 250ms 计时器的设 / 清 / 到点、菜单节点出现的时刻（`~/pearnly-devtools/cc-longpress-race/`，原始记录在 `results/`）。不节流 12 次，**3 次出了菜单，3 次都是同一个样子**：
+
+   | 次 | 过 10px 那一下产生（timeStamp，按下起算） | 发给页面 | 计时器到点 | 菜单节点出现 |
+   |---|---|---|---|---|
+   | k=2 | 488.2ms | 516.7ms | 500.6ms | 511.5ms |
+   | k=6 | 485.4ms | 515.9ms | 501.1ms | 511.2ms |
+   | k=9 | 492.5ms | 532.3ms | 500.6ms | 511.5ms |
+
+   - 6px、12px 两步页面根本没收到（第一下收到的就是 18px）：Chrome 的防抖范围以内不发。
+   - 没出菜单的 9 次，这一下在 481–500ms 发进来，`onTouchMove` 当场清了计时器（记录里 `t500-clear` 紧跟在这一下后面）。
+2. **测试窗口的原始数据对得上**（`round13/fr-raw.jsonl`，以按下标记为 0）：拿起那一帧 280–292ms，所以 touchstart 约在 +30–40ms 发出；开始挪的标记在 +390–410ms，按 `fr13.py` 的节奏第一步（6px，在 10px 里）约在按下后 375–410ms，第二步（12px，过 10px）再晚一个回执加 30ms，约 440–510ms，正落在 500ms 前后。出了菜单的 3 次，菜单出现那一帧在 566 / 595 / 570ms（到点 + 出菜单那一帧 42–75ms），即计时器准时到点、当时还不知道已经动了。
+3. **排除的两种猜法**：
+   - 「引擎在 rAF 或下一个任务里才置位」：不是。`HoldTouchSensor.move` 收到 touchmove 当场 `markDragMoved()`（同一个事件里，挂在按下的节点上，比冒泡到 React 那一份早）。
+   - 「拿起后 React 那一层的 `onTouchMove` 收不到」：对话行不是。复刻页没出菜单的 9 次，计时器正是被 React 那一份 `onTouchMove`（离按下处超过 10px）清掉的。但按下的节点被挪走以后它确实收不到（触摸事件照样发给节点本身、共用拖动照样收到），原来「出菜单后再动收菜单」只靠它，也一并改掉（见改法 2）。
+
+**生产第 12 轮（`afc615bb`）同样受影响**：`hooks/use-long-press.ts`、`lib/layers.ts` 两版逐字相同；`components/ui/drag.tsx` 第 13 轮只改了落定与菜单渲染，`HoldTouchSensor` 收 touchmove、`markDragMoved` 一行没动（`git diff afc615bb f1978271`）。第 12 轮没量过 0.35 秒这一档；第 13 轮复刻页脚本 `drive.mjs` 里已经写着「6 倍节流下 350ms 再慢慢挪，长按菜单的计时器会先到，菜单照样出来」，当时为量帧绕开了（拿起后马上挪出 12px）。
+
+### 改法（`hooks/use-long-press.ts`、`lib/layers.ts`）
+
+1. **到点只排到下一帧开头再定**（`nextFrame`，`requestAnimationFrame`）：那时浏览器已经先把排着的 touchmove 发进来，动过的当场作废了长按，这一帧里没人作废才出菜单。按住不动的菜单最多晚一帧（见「有意变化」）。到点后、这一帧之前松手或系统收回触摸（`touchend` / `touchcancel`）：照原来到点就出菜单处理（触摸事件按先后发，松手之前的移动都已经发进来了），松手不算点击；共用拖动这时按「到了菜单时间」原地结束，不当点按，与原来一致。
+2. **「拿起后动了」由共用拖动当场告诉长按**，不在到点时回头问：`markDragMoved()` 调长按按下时挂上的 `watchDragMoved(owner, run)`——还没出菜单就作废计时器和等着的那一帧，已经出来就 `onDrag` 收起、接着拖。长按不再引 `isDragMoving()`，收菜单也不再靠 React 那一份 `onTouchMove`。松手、系统收回触摸时摘掉，之后别处的拖动（例如会话栏卡片）记下的移动不算到这一次头上；一次只有一根手指在按，只留一个。
+3. 不变：拿起 250ms、菜单 500ms、10px（在滚列表 / 在拖）三个数；手指动出 10px 作废长按照旧由 `onTouchMove` 判断（不能拖的行也一样）；点按、按住不动出菜单、出菜单后再动收菜单接着拖、到菜单时间后原地松手（T-01 至 T-07）；菜单不按模态开。调用方（`thread-list.tsx`、`projects.tsx`）一个字没动。
+
+### 有意变化
+
+**按住不动的长按菜单晚约一帧出来。** 复刻页按住 0.9 秒各 12 次，菜单画出来的时刻（中位数，按下起算）：不节流 518.2 → 533.4ms，4 倍节流 521.0 → 538.5ms（+15–18ms，一帧左右）；出菜单 12/12、再动收起 12/12 两版一样。也量了「下一帧里 `flushSync` 同步渲染」的变体：527.4 / 533.3ms，只省约 5ms，要改菜单的渲染方式（同步提交、被动副作用提前到这一帧里），没采用。
+
+### 测试
+
+- 新增 `Round13LongPressRaceTests`（`tests/test_assistant_ui.py`）：真的 `useLongPress` + 真的 `HoldTouchSensor`，按浏览器的先后手动发事件、走帧（帧开头先发排着的 touchmove，再调动画帧回调）。
+  - `test_a_move_made_before_the_menu_time_cancels_it_even_when_it_reaches_the_page_after_the_timer`：拿起后 6px 一步，到点前动出 12px 的那一下排着、500ms 计时器先跑、下一帧才发进来——菜单不出也不用收（`[0, 0]`）；不能拖的行到点前已经在滚，同样不出。**改前失败**：`[1, 1]`（出菜单又收起，就是真机现象）。
+  - `test_holding_still_still_opens_the_menu_and_moving_afterwards_still_closes_it`：按住不动（只抖 4px）到点后的下一帧出菜单、再动收起（只收一次）、接着拖、照常放下；React 那一份 `onTouchMove` / `onTouchEnd` 收不到时同样收起；到点后、下一帧之前松手照旧出菜单、松手不算点击、拖动原地结束，那一帧不再出第二次；松手后别处拖动记下的移动不收留着的菜单；没到点松手是点按。**改前失败**：React 收不到时菜单不收（`closed` 为 0）。
+- 改了一处锁写法的断言：`SidebarDragTests.test_sidebar_drag_wiring` 原来锁 `if (isDragMoving()) return;`，换成锁新的两处（`watchDragMoved(owner, () => {`、`frame.current = nextFrame(open);`、长按里不再有 `isDragMoving`、`markDragMoved` 里调 `watcher?.run()`），意图同一条（拿起后动了就不出、已经出来的收起）。其余现有用例一字没改，`test_long_press_menu_opens_only_while_the_lifted_row_stays_still`、`test_touch_hold_lifts_at_250ms_and_moving_wins_over_the_long_press_menu`、`LongPressTests.test_long_press_blocks_the_system_menu_only_for_fingers` 照旧通过。
+
+### 复刻页对照（改前 `f1978271` / 改后 `49e9f522`，同一驱动，各 12 次）
+
+| 场景 | 改前 | 改后 |
+|---|---|---|
+| 不节流，按住 0.35 秒每步 6px | 出菜单 3 次（3 次都是过 10px 那一下到点前产生、到点后才发进来） | 0 次（碰上 1 次同样的情况：496.9ms 产生、514.5ms 发进来、计时器 501ms 到点，没出） |
+| 4 倍节流，同上 | 0 次（这一组没碰上到点前产生、到点后发进来的） | 0 次（碰上 1 次：488.2ms 产生、515.3ms 发进来，没出） |
+| 按住 0.9 秒再拖（各 5 次 × 2 种节流，另 12 次量画出来的时刻） | 都出菜单、再动都收起 | 同左（晚约一帧，见上） |
+
+### 本地检查
+
+- `tsc --noEmit` 通过；`check-frontend-tokens` 通过（收紧范围内 0 违例）；`check-architecture` 0 violations；`check-copy` 新增 / 改动 / 删除都是 0（只改了注释）。
+- `tests/test_assistant_ui.py` 239 条（含新增 2 条）、`test_cc_session_panel.py` 25 条、`test_cc_mobile_overlays.py` 26 条、`test_cc_mobile_content.py` 16 条全过。
+- 全闸门 `SKIP_NPM_CI=1 gate.sh`（照 `development.yml` 逐步跑）92 步全过。
+- 构建产物留在工作树：`apps/pearnly_core/pearnly_core/public/assistant/assets/index.CPFrZKVu.js`（sha256 前缀 `2f0a905b`，原 `index.BGIXqnLZ.js`；不进仓库，开发窗口同步 lab 用）。复刻页「改后」量的就是这一份（逐字节相同）。
+
+### 给测试窗口（A14）的复测口径
+
+lab 同步本分支的包以后（包名见「本地检查」）：
+
+- `round13/fr13.py` 原样，`hold=0.35`，对话行往后 `384 440` / 往前 `430 374` 各 5 次（共 10 次）：**菜单 0 次出现**（逐帧记录里 `menu` 一直是 0）。能多跑的话 `hold=0.4`、`0.45` 各 3 次，同样 0 次。
+- `hold=0.9` 对话行往后、往前各 3 次：照旧出菜单（约 0.55–0.6 秒，比第 13 轮晚一帧左右属预期），手指动起来收菜单、接着拖、照常放下。
+- 手动：按住不动约 0.6 秒松手——菜单出来、留着，对话不打开；按住不到 0.5 秒松手——当点按打开对话；按住 0.35 秒开始拖进已置顶——菜单不出。
+- 不能代替：真手指的起手速度各人不同，量的是脚本节奏；读屏不涉及。
+
+### 还缺什么
+
+- A14 复测（上面的口径）；通过后随这条线一起按主线集成合入。
+- 本节只修这一处时序；第 13 轮「还缺什么」其余各项不变。
