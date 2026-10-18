@@ -13,14 +13,14 @@
 //                           单据写单号 · 对方 · 金额 · 日期，不写内部记录名）。同号的几张服务端合成一条，行写「单号 · N 张」
 //          知悉的整行淡色（不催）。
 //   空态   会话栏：没取到、取不到月份、整个月什么都没有时整张卡不显示；出错时显示原因；卡头是当月写「本月」，否则写月份。
-//          公司页：一直显示，月份胶囊与「在这家新建对话」的同一个（页面选「不指定」时台账看上个月），取的时候转圈。
+//          公司页：一直显示，月份胶囊与「在这家新建对话」的同一个（页面选「不指定」时台账看上个月），取的时候是骨架。
 //
 // 文案走 i18n.ts 的 co.ledger（服务端只给码）；样式只用 globals.css 的 .cc-panel* / .cc-month-* 与变量。
 
-import { ChevronRightIcon, LoaderIcon, SparklesIcon } from "lucide-react";
+import { ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
-import { PanelCard } from "@/components/company-cards";
+import { PanelCard, PanelSkeleton } from "@/components/company-cards";
 import { AccountSetRow, ChooseRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
@@ -284,7 +284,7 @@ export const MonthCard: FC<{ company: string; period: string }> = ({ company, pe
   const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);
   return (
     <PanelCard id="month" title={title} summary={month ? monthSummary(month) : undefined} slot="cc-panel-month">
-      {error && <p role="alert" className="px-1 text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="px-(--cc-space-4) text-danger">{error}</p>}
       {month && <LedgerBody month={month} company={company} {...handlers} />}
     </PanelCard>
   );
@@ -292,7 +292,7 @@ export const MonthCard: FC<{ company: string; period: string }> = ({ company, pe
 
 // ---------------------------------------------------------------- 公司页概览第一节
 /** 公司页的月结台账（在公司页的会话栏里）：卡头月份胶囊（最近 12 个月，不列「不指定」）与「在这家新建对话」共用页面的
- *  月份（lib/company-panel 的 usePagePeriod），页面是「不指定」时看上个月；一直显示，取的时候转圈。 */
+ *  月份（lib/company-panel 的 usePagePeriod），页面是「不指定」时看上个月；一直显示，取的时候是骨架。 */
 export const MonthSection: FC<{ company: string; period: string; onPeriod: (p: string) => void }> = ({ company, period: chosen, onPeriod }) => {
   const period = isPeriod(chosen) ? chosen : lastMonth();
   const { month, error, loading, reload, drop } = useMonth(company, period);
@@ -305,12 +305,8 @@ export const MonthSection: FC<{ company: string; period: string; onPeriod: (p: s
       slot="cc-company-month"
       extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}
     >
-      {loading && (
-        <div className="flex justify-center py-2 text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
-        </div>
-      )}
-      {error && <p role="alert" className="px-1 text-danger text-sm">{error}</p>}
+      {loading && <PanelSkeleton />}
+      {error && <p role="alert" className="px-(--cc-space-4) text-danger">{error}</p>}
       {month && <LedgerBody month={month} company={company} {...handlers} />}
     </PanelCard>
   );

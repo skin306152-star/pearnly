@@ -365,12 +365,12 @@ const render = (type: any, props: any) => renderToStaticMarkup(createElement(Sid
 // 会话栏：还没取到不占位；对话没定月份不取
 assert.ok(!render(MonthCard, { company: "COMPANY", period: "2026-09" }).includes("cc-panel-month"));
 assert.ok(!render(MonthCard, { company: "COMPANY", period: "" }).includes("cc-panel-month"));
-// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候转圈
+// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候是骨架（V27）
 const section = render(MonthSection, { company: "COMPANY", period: "", onPeriod: () => {} });
 assert.match(section, /data-slot="cc-company-month"/);
 assert.ok(text(section).slice(0, 2).join("|") === `Month-end|${monthLabel(lastMonth())}`);
 assert.match(section, /class="cc-chin-btn" data-slot="cc-period-chip"/);
-assert.match(section, /animate-spin/);
+assert.match(section, /data-slot="cc-panel-skeleton"/);
 """)
 
     def test_thai_and_chinese_words(self):

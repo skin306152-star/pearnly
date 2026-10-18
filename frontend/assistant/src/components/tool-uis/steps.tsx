@@ -52,9 +52,9 @@ const Clipped: FC<{ text: string; className?: string }> = ({ text, className }) 
   const shown = clipText(text, full);
   return (
     <div className={className}>
-      <pre className="whitespace-pre-wrap break-all px-3 py-(--cc-space-8)">{shown.text}</pre>
+      <pre className="whitespace-pre-wrap break-all px-(--cc-space-8) py-(--cc-space-8)">{shown.text}</pre>
       {shown.hidden > 0 && (
-        <button type="button" onClick={() => setFull(true)} className="cc-tap block w-full px-3 pb-(--cc-space-8) text-start text-ink-3 hover:text-ink">
+        <button type="button" onClick={() => setFull(true)} className="cc-tap block w-full px-(--cc-space-8) pb-(--cc-space-8) text-start text-ink-3 hover:text-ink">
           … {steps.lines(shown.hidden)}
         </button>
       )}
@@ -166,7 +166,7 @@ function useStepDetail(toolName: string, args: Args, result: unknown, form: Form
 const StepDetail: FC<{ input?: string | undefined; output: string; errored: boolean }> = ({ input, output, errored }) => (
   <div className="cc-step-detail">
     {input && <Clipped text={input} />}
-    {output && <Clipped text={output} className={cn(input && "border-line border-t", errored && "text-danger")} />}
+    {output && <Clipped text={output} className={cn(input && "border-line border-t-(length:--cc-ring-w)", errored && "text-danger")} />}
   </div>
 );
 

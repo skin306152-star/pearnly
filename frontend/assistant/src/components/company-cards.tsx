@@ -64,6 +64,7 @@ import { shownError } from "@/lib/frappe";
 import { touchOnly } from "@/lib/touch";
 import { altMove, type MoveSpot, useSortableItem } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
@@ -211,6 +212,14 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
   );
 };
 
+/** 会话栏里还没取到时的占位（会话栏整栏、公司页「月结」卡）：加载用骨架、不用转圈（ccs.md 卡片规矩，V27），两条字高的条。 */
+export const PanelSkeleton: FC = () => (
+  <div aria-hidden className="flex flex-col gap-(--cc-space-8) py-(--cc-space-8)" data-slot="cc-panel-skeleton">
+    <Skeleton />
+    <Skeleton className="w-2/3" />
+  </div>
+);
+
 // ---------------------------------------------------------------- 待处理
 /** 这家的待处理（当场选、交给 CC 都在 PendingList 里，F18 规则不变）；计数为 0 不显示。
  *  会话栏给 period：只列对话月份以外的（开发窗口 10-16 定，对话那个月的只在「本月」卡），一张不剩时同别的空卡一样不显示；
@@ -336,7 +345,7 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
             {co.draftNotes}
           </button>
         )}
-        {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+        {error && <p role="alert" className="text-danger">{error}</p>}
       </div>
     </PanelCard>
   );
@@ -392,7 +401,7 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
         }}
         className="cc-input h-auto w-full py-(--cc-space-6)"
       />
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="text-danger">{error}</p>}
       {/* 同一栏其他卡片按钮（记住的选择、允许卡）：.cc-card-btn，电脑 24、手机 44 胶囊 */}
       <div className="cc-card-actions">
         <button type="button" className="cc-card-btn" disabled={busy} onClick={onCancel}>
@@ -498,8 +507,8 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
             {co.updateDesktop}
           </button>
         )}
-        {!app && !folders.length && <p className="text-ink-3 text-sm">{co.chooseOnComputer}</p>}
-        {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+        {!app && !folders.length && <p className="text-ink-3">{co.chooseOnComputer}</p>}
+        {error && <p role="alert" className="text-danger">{error}</p>}
       </div>
     </PanelCard>
   );
@@ -839,7 +848,7 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
       : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
   const value = choiceValue(choice);
   const full = choiceFullLine(choice, subject);
-  const alert = error ? <p role="alert" className="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">{error}</p> : null;
+  const alert = error ? <p role="alert" className="cc-choice-error text-danger" data-slot="cc-choice-error">{error}</p> : null;
   return (
     <div className="cc-choice" data-slot="cc-choice" data-source={choice.source} data-choice-key={choice.key} data-open={open ? "" : undefined}>
       <button type="button" className="cc-choice-row" data-slot="cc-choice-row" aria-expanded={open} onClick={onToggle}>

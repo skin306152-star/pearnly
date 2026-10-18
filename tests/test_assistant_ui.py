@@ -4115,7 +4115,7 @@ assert.equal(choiceAfter(["a"], "a"), "");
 const pay = { key: "k1", source: "express", kind: "payment", subject_label: "ACME", value: "cash", editable: true, year_label: "69", promotable: true };
 const props = (open: boolean, error = "") => ({ choice: pay, open, error, onToggle() {}, onSet() {}, onForget() {}, onPromote() {} });
 const opened = renderToStaticMarkup(createElement(ChoiceRow, props(true, "Something went wrong. Try again.")));
-const alert = '<p role="alert" class="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">Something went wrong. Try again.</p>';
+const alert = '<p role="alert" class="cc-choice-error text-danger" data-slot="cc-choice-error">Something went wrong. Try again.</p>';
 assert.ok(opened.includes('</button></div>' + alert + '</div></div>'), opened);       // 按钮行（cc-card-actions）紧接着就是原因，在这一条里
 assert.ok(opened.indexOf('data-slot="cc-choice-forget"') < opened.indexOf(alert));
 const closed = renderToStaticMarkup(createElement(ChoiceRow, props(false, "Something went wrong. Try again.")));
