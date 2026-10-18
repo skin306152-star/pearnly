@@ -257,7 +257,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
         />
       </div>
       {rows.map((p) => choice(p.id, p.title))}
-      {found !== null && !found.length && <div className="px-2.5 py-1.5 text-ink-3 text-sm">{t("noResults")}</div>}
+      {found !== null && !found.length && <div className="cc-menu-label">{t("noResults")}</div>}
       <DropdownMenu.Separator className="cc-menu-sep" />
       <DropdownMenu.Item className="cc-menu-item" onSelect={() => openAddCompany(onPick)}>
         <PlusIcon />

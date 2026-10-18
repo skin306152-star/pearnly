@@ -302,7 +302,7 @@ function useDates() {
 }
 
 const NoResults: FC = () => (
-  <div data-slot="aui_thread-list-empty" className="text-ink-3 px-2.5 py-4 text-sm">
+  <div data-slot="aui_thread-list-empty" className="cc-empty-line">
     {t("noResults")}
   </div>
 );
@@ -857,10 +857,7 @@ const DayRows: FC<{ searchQuery?: string }> = ({
 
   if (query && filteredIndices.length === 0) {
     return (
-      <div
-        data-slot="aui_thread-list-empty"
-        className="text-ink-3 px-2.5 py-4 text-sm"
-      >
+      <div data-slot="aui_thread-list-empty" className="cc-empty-line">
         {t("noResults")}
       </div>
     );
