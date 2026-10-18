@@ -6560,7 +6560,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
                            ("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}')):
             self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
         for rel in ("components/add-company.tsx", "components/scheduled-tasks.tsx"):
-            self.assertIn('<DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
+            self.assertIn('<DialogPrimitive.Title className="cc-dialog-title">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
         self.assertIn('<Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body"', read("components/settings.tsx"))

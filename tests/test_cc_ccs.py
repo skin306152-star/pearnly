@@ -1413,6 +1413,22 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertEqual(len(re.findall(r'className="cc-alert[ "]', source)), n, rel)
             self.assertNotIn("bg-danger-soft", source, rel)
 
+    def test_confirm_dialogs_share_one_shell(self):
+        # V14（B4）：定时任务、添加公司、删除确认三份手抄的外壳统一 .cc-dialog：圆角 16（不再带 cc-card 的 8）、标题实测 title 档 22/28
+        # （衬线照旧）、脚部上下 12 带上边线；层级普通弹窗 --cc-z-sheet、删除确认 --cc-z-confirm（要盖过设置里的菜单）
+        for rel, size, layer in (("components/scheduled-tasks.tsx", '{wide ? "lg" : "sm"}', "--cc-z-sheet"),
+                                 ("components/add-company.tsx", '"md"', "--cc-z-sheet"),
+                                 ("components/delete-chats.tsx", '"sm"', "--cc-z-confirm")):
+            source = self.read(rel)
+            self.assertIn(f"data-size={size}", source, rel)
+            self.assertIn(f'className="cc-dialog cc-enter cc-modal fixed left-1/2 z-({layer}) flex', source, rel)
+            self.assertIn('<div className="cc-dialog-head">', source, rel)
+            self.assertIn('className="cc-dialog-title"', source, rel)
+            self.assertNotIn("cc-card cc-enter", source, rel)
+            self.assertNotIn("cc-greeting", source, rel)
+        self.assertIn('<div className="cc-dialog-foot">', self.read("components/delete-chats.tsx"))
+        self.assertEqual(token_value(self.defs, "--cc-radius-dialog"), "16px")
+
 
 if __name__ == "__main__":
     unittest.main()

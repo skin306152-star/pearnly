@@ -46,10 +46,10 @@ export const AddCompanyDialog: FC = () => {
         <DialogPrimitive.Content
           data-slot="cc-add-company"
           data-size="md"
-          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:var(--cc-add-company-share)]"
+          className="cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:var(--cc-add-company-share)]"
         >
           <div className="cc-dialog-head">
-            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
+            <DialogPrimitive.Title className="cc-dialog-title">
               <Marquee className="block truncate">{title}</Marquee>
             </DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>

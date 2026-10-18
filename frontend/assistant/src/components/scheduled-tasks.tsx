@@ -204,10 +204,10 @@ function Modal({ open, onClose, title, children, footer, wide }: {
         <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-sheet) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           data-size={wide ? "lg" : "sm"}
-          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col"
+          className="cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col"
         >
           <div className="cc-dialog-head">
-            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
+            <DialogPrimitive.Title className="cc-dialog-title">
               <Marquee className="block truncate">{title}</Marquee>
             </DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>

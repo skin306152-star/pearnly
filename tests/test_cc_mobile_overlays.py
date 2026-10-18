@@ -134,8 +134,8 @@ class DialogFitTests(unittest.TestCase):
         self.assertNotIn("top: 50%", guide)
         # 每个居中弹窗都用 cc-modal，不再自己写 top-1/2（工具类会盖过 cc-modal 的位置）
         for path, needle in [
-            ("components/scheduled-tasks.tsx", "cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
-            ("components/add-company.tsx", "cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
+            ("components/scheduled-tasks.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
+            ("components/add-company.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
             ("components/settings.tsx", "cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))]"),
             ("components/ui/dialog.tsx", "cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto"),
         ]:

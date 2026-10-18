@@ -201,7 +201,7 @@ export const DeleteChatsHost: FC = () => {
           data-slot="cc-delete-chats"
           aria-describedby={undefined}
           data-size="sm"
-          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-confirm) flex -translate-x-1/2 -translate-y-1/2 flex-col"
+          className="cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-confirm) flex -translate-x-1/2 -translate-y-1/2 flex-col"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             cancel.current?.focus();
@@ -215,12 +215,12 @@ export const DeleteChatsHost: FC = () => {
           }}
         >
           <div className="cc-dialog-head">
-            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">{ask ? sb.deleteAsk(ask.ids.length) : ""}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-dialog-title">{ask ? sb.deleteAsk(ask.ids.length) : ""}</DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-5 pt-2 pb-4">
+          <div className="cc-dialog-foot">
             <DialogPrimitive.Close asChild>
               <button ref={cancel} type="button" className="cc-btn" data-slot="cc-delete-chats-no">{t("cancel")}</button>
             </DialogPrimitive.Close>
