@@ -23,10 +23,22 @@ function markEscape(event: KeyboardEvent) {
 
 // 手机按住拿起后，手指是不是真的动了（动出共用拖动的 TOUCH_DRAG_SLOP）：没动 = 还可能是长按菜单（按住不动到菜单时间照旧出
 // 菜单），动了 = 在拖，菜单不出、已经出来的收起（hooks/use-long-press.ts）。拿起、结束时清掉。
+//
+// 动了的那一刻当场告诉正在等的长按（watchDragMoved），不由长按到点时回头来问（第 13 轮测试机：按住 0.35 秒就开始拖，菜单偶发
+// 照样出来；到点的那一刻，手指到点前就已经动出去的那一下 touchmove 可能还没发给页面，问到的是旧状态）。
 let moved = false;
+let watcher: { owner: object; run: () => void } | null = null;
 
 export function markDragMoved(): void {
   moved = true;
+  watcher?.run();
+}
+
+/** 长按（hooks/use-long-press.ts）手指按下时挂上 run：这次按住拿起后手指真的动了（markDragMoved）就在收到那一下 touchmove 时
+ *  当场调。一次只有一根手指在按，只留一个；run 为 null 摘掉 owner 自己挂的那个（别人挂的不动）。 */
+export function watchDragMoved(owner: object, run: (() => void) | null): void {
+  if (run) watcher = { owner, run };
+  else if (watcher?.owner === owner) watcher = null;
 }
 
 /** 正在拖、且按住拿起后手指已经挪动了（只有手机按住拿起时记；鼠标、键盘拖动没有长按菜单）。 */

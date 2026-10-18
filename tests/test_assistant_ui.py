@@ -5635,8 +5635,13 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.assertIn("if (onMove && altMove(e, onMove)) return;", row)
         self.assertIn("onTouchStart={chain(press.onTouchStart, renaming ? undefined : dragTouch)}", row)
         self.assertIn("ref={handleRef}", row)
-        # 长按菜单：拿起后手指动了（真的在拖）就不出、已经出来的收起；抽屉横滑不跟拖动抢
-        self.assertIn("if (isDragMoving()) return;", read("hooks/use-long-press.ts"))
+        # 长按菜单：拿起后手指动了（真的在拖）就不出、已经出来的收起——共用拖动收到那一下就当场告诉长按（第 13 轮测试机起，不在到点
+        # 时回头问；到点后等下一帧开头再出，见 Round13LongPressRaceTests）；抽屉横滑不跟拖动抢
+        hook = read("hooks/use-long-press.ts")
+        self.assertIn("watchDragMoved(owner, () => {", hook)
+        self.assertIn("frame.current = nextFrame(open);", hook)
+        self.assertNotIn("isDragMoving", hook)
+        self.assertIn("  moved = true;\n  watcher?.run();", read("lib/layers.ts"))
         self.assertIn("if (isDragging() && !g.locked) {", read("components/mobile-shell.tsx"))
         # 组头：开关是把手，菜单键优先，Alt+↑/↓ 其次，其余交给拖动
         header = read("components/assistant-ui/sidebar-group.tsx").split("export const GroupHeader: FC", 1)[1].split("\n);\n", 1)[0]
@@ -10502,6 +10507,156 @@ g.seen.length = 0;
 renderToStaticMarkup(h(DropdownMenu.Portal, null, "x"));
 assert.equal(g.seen.find((s: any) => s.part === "Portal").props.container, undefined);
 """, stubs=stubs, react=False)
+
+
+# 浏览器发触摸事件的先后（Chrome）：touchmove 攒到下一帧开头才发给页面（帧开头先发排着的输入、再调动画帧回调），手指离开它自己的
+# 防抖范围之前的几下干脆不发；计时器是另外的任务，到点就跑。真页面上量到的见 docs/work/2026-10-17-drag-engine.md
+# 「第 13 轮测试机：按住 0.35 秒拖动偶发出菜单」。这里用真的长按（use-long-press）与真的手机按住拿起（HoldTouchSensor），按这个先后
+# 手动发事件、走帧。
+LONG_PRESS_PAGE = r"""
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { HoldTouchSensor } from "@/components/ui/drag";
+import { useLongPress } from "@/hooks/use-long-press";
+import { isDragMoving, markDragMoved, setDragging } from "@/lib/layers";
+const g = globalThis as any;
+g.addEventListener = () => {};
+g.removeEventListener = () => {};
+g.document.addEventListener = () => {};
+g.document.removeEventListener = () => {};
+g.document.querySelector = () => null;
+g.getSelection = () => ({ removeAllRanges() {} });
+g.MouseEvent = class { type: string; init: any; constructor(type: string, init: any) { this.type = type; this.init = init; } };
+let frameId = 0;
+const rafs = new Map<number, () => void>();
+g.requestAnimationFrame = (run: () => void) => (rafs.set(++frameId, run), frameId);
+g.cancelAnimationFrame = (id: number) => void rafs.delete(id);
+let opened = 0;
+let closed = 0;
+let press: any;
+renderToStaticMarkup(createElement(() => ((press = useLongPress(() => opened++, () => closed++)), null)));
+/** 手指在 (100, 100) 按下一条行。drag：能拖（共用拖动按住 250ms 拿起）；react：React 那一份 onTouchMove / onTouchEnd 收不收得到
+ *  （按下的节点被挪走以后收不到，触摸事件照样发给它本身）。 */
+function finger({ drag = true, react = true } = {}) {
+  const on: Record<string, (e: any) => void> = {};
+  const target = { isConnected: true, addEventListener: (t: string, f: any) => (on[t] = f), removeEventListener: (t: string) => delete on[t], dispatchEvent: () => true };
+  const start = { target, touches: [{ clientX: 100, clientY: 100 }], timeStamp: 0, preventDefault() {} };
+  const log: string[] = [];
+  press.onTouchStart(start);                                       // 行上先长按、再交给共用拖动（chain(press.onTouchStart, dragTouch)）
+  if (drag)
+    new HoldTouchSensor({
+      active: "row:t1", event: start, options: { delay: 250, tolerance: 5 },
+      onStart: () => { log.push("start"); setDragging(true); }, onMove: () => log.push("move"),
+      onEnd: () => { log.push("end"); setDragging(false); }, onCancel: () => { log.push("cancel"); setDragging(false); },
+      onAbort: () => log.push("abort"),
+    } as any);
+  const queued: number[] = [];
+  return {
+    log,
+    /** 手指动到 y：这一下 touchmove 先排在浏览器里。 */
+    to: (y: number) => queued.push(y),
+    /** 一帧开头：排着的 touchmove 依次发给页面（按下的那个节点上的监听先收到，再冒泡到 React），然后才是动画帧回调。 */
+    frame() {
+      for (const y of queued.splice(0)) {
+        const e = { touches: [{ clientX: 100, clientY: y }], cancelable: true, preventDefault() {} };
+        on.touchmove?.(e);
+        if (react) press.onTouchMove(e);
+      }
+      const due = [...rafs.values()];
+      rafs.clear();
+      for (const run of due) run();
+    },
+    up() {
+      const e = { cancelable: true, prevented: false, preventDefault() { e.prevented = true; } };
+      on.touchend?.(e);
+      if (react) press.onTouchEnd(e);
+      return e;
+    },
+  };
+}
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round13LongPressRaceTests(unittest.TestCase):
+    """第 13 轮测试机（10-18，三星 A14）：手机按住约 0.35 秒就开始拖，8 次有 3 次长按菜单仍在约 0.57 秒弹出、挂约 0.22 秒才收起。"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + LONG_PRESS_PAGE + body + "\n(globalThis as any).done();\n",
+               stubs={"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }"})
+
+    def test_a_move_made_before_the_menu_time_cancels_it_even_when_it_reaches_the_page_after_the_timer(self):
+        # 原来：到点（500ms）的计时器先跑，问「拿起后动了没有」，到点前手指已经动出 12px 的那一下 touchmove 还排在浏览器里，问到的
+        # 是没动，菜单出来；下一帧这一下发进来，记成在拖，又把菜单收起（[1, 1]：真机上就是弹出、挂 0.2 秒、收起）。现在到点只排到
+        # 下一帧开头，这一下先发进来、当场作废长按，菜单不出
+        self.run_page(r"""
+let f = finger();
+await g.sleep(300);                                             // 250ms 拿起
+f.to(106); f.frame();                                           // 约 0.39 秒：第一步 6px，还在 10px 里（不算在拖）
+assert.deepEqual(f.log, ["start", "move"]);
+assert.equal(isDragMoving(), false);
+f.to(112);                                                      // 到点前手指已经动出 12px，这一下还排着
+await g.sleep(230);                                             // 500ms 的计时器先跑
+f.frame();                                                      // 下一帧开头：这一下发进来
+assert.equal(isDragMoving(), true);
+assert.deepEqual([opened, closed], [0, 0]);                     // 菜单不出、也就不用收
+f.to(160); f.frame();
+assert.equal(f.up().prevented, false);                          // 照常放下（不是点按、不是长按松手）
+assert.deepEqual(f.log, ["start", "move", "move", "move", "end"]);
+assert.deepEqual([opened, closed], [0, 0]);
+// 不能拖的行（搜索中、没存到服务端的）：到点前已经在滚，同样不出菜单（原来出了就一直开着，滚着列表菜单还在）
+f = finger({ drag: false });
+await g.sleep(300);
+f.to(130);
+await g.sleep(230);
+f.frame();
+assert.deepEqual([opened, closed], [0, 0]);
+f.up();
+""")
+
+    def test_holding_still_still_opens_the_menu_and_moving_afterwards_still_closes_it(self):
+        # 不变的两条：按住不动到 500ms 菜单照旧出来（到点后的下一帧开头）；出菜单后手指再动（真的拖起来了）收起菜单，接着拖。
+        # 「动了」由共用拖动在收到那一下时当场告诉长按（lib/layers.ts 的 watchDragMoved），不靠 React 那一份 onTouchMove——
+        # 按下的节点被挪走以后 React 收不到，原来菜单就一直开着
+        self.run_page(r"""
+for (const react of [true, false]) {
+  opened = closed = 0;
+  const f = finger({ react });
+  await g.sleep(530);
+  f.to(104); f.frame();                                         // 到点后的下一帧：手指只抖了 4px，照旧出菜单
+  assert.deepEqual([opened, closed], [1, 0], String(react));
+  f.to(130); f.frame();                                         // 真的拖起来了：收起菜单（只收一次）
+  f.to(150); f.frame();
+  assert.deepEqual([opened, closed], [1, 1], String(react));
+  assert.equal(isDragMoving(), true);
+  f.up();
+  assert.deepEqual(f.log, ["start", "move", "move", "move", "end"], String(react));
+}
+// 到点了、下一帧还没来就松手（或系统收回触摸）：同原来到点就出——菜单出来、松手不算点击、拖动原地结束（不是点按）
+opened = closed = 0;
+let f = finger();
+await g.sleep(530);
+const up = f.up();
+assert.deepEqual([opened, closed], [1, 0]);
+assert.equal(up.prevented, true);
+assert.deepEqual(f.log, ["start", "end"]);
+f.frame();
+assert.equal(opened, 1);                                        // 那一帧不再出一次
+// 松手以后别处的拖动（例如会话栏卡片）记下的移动不算到这一次头上：留着的菜单不收
+setDragging(true);
+markDragMoved();
+setDragging(false);
+assert.equal(closed, 0);
+// 没到点就松手：点按，不出菜单
+opened = closed = 0;
+f = finger();
+await g.sleep(300);
+f.up();
+await g.sleep(260);
+f.frame();
+assert.deepEqual([opened, closed], [0, 0]);
+assert.deepEqual(f.log, ["start", "cancel"]);
+""")
 
 
 if __name__ == "__main__":

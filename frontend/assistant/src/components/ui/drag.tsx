@@ -441,8 +441,8 @@ export class KeyboardSensor implements SensorInstance {
 }
 
 /** 手机长按拿起：按住 delay 且没挪出 tolerance 就拿起（没到时间就动 = 在滚动，交还给页面）。拿起后手指离按下处动出 TOUCH_DRAG_SLOP
- *  才算在拖：记到 lib/layers.ts（markDragMoved），长按菜单据此不出、已经出来的收起（hooks/use-long-press.ts）；按住不动到菜单时间，
- *  菜单照旧出来，拿起的那一项留着，手指再动就接着拖。拿起后滑动不再滚页面；松手先交给 beforeEnd（先播落位）。
+ *  才算在拖：记到 lib/layers.ts（markDragMoved），并当场告诉正在等的长按：还没出菜单就作废、已经出来的收起（hooks/use-long-press.ts）；
+ *  按住不动到菜单时间，菜单照旧出来，拿起的那一项留着，手指再动就接着拖。拿起后滑动不再滚页面；松手先交给 beforeEnd（先播落位）。
  *  拿起后一直没动、没到菜单时间就松手：是点按（审查：动作慢的人点按常超过 250ms，原来这一下被吞掉，对话打不开、组不折叠）。
  *  取消拖动（浮层落回原位），这一下照样当点击：系统自己的 click 不要（拿起后的 touchmove 都拦了，各平台据此吞不吞 click 不一），
  *  在按下的那个元素上补一个。移动、松开挂在按下的那个元素上（它从页面上卸下了，触摸事件照样发给它）。 */
