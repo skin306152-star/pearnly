@@ -20,7 +20,6 @@ import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugI
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   COMPANY_FOLDERS,
   connectComputer,
@@ -474,9 +473,9 @@ function Connections({ api }: { api: Desktop }) {
       </div>
       {main && linkState.kind === "other_site" && state.site !== location.host && (
         <div className="flex items-center justify-end border-b py-(--cc-space-12)">
-          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
+          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
             {st.switchTo(location.host)}
-          </Button>
+          </button>
         </div>
       )}
 
@@ -485,12 +484,12 @@ function Connections({ api }: { api: Desktop }) {
           <Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
           </Marquee>
-          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
+          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
             {st.findAgain}
-          </Button>
-          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void pickRoots()}>
+          </button>
+          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => void pickRoots()}>
             {st.change}
-          </Button>
+          </button>
         </Row>
       )}
 
@@ -524,9 +523,9 @@ function Connections({ api }: { api: Desktop }) {
         <>
           <div className="mt-(--cc-settings-section-pt) flex items-center justify-between">
             <Heading>{st.folders}</Heading>
-            <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("folder", "add_folder", { id: main.id })}>
+            <button type="button" className="cc-btn" disabled={!!busy} onClick={() => void run("folder", "add_folder", { id: main.id })}>
               {st.addFolder}
-            </Button>
+            </button>
           </div>
           {!main.folders.length && <p className="py-(--cc-space-12) text-muted-foreground text-body">{st.noFolders}</p>}
           {main.folders.map((path) => (
@@ -571,9 +570,9 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
     return (
       <>
         {note(st.needsUpdate, "text-danger")}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={onDownload}>
+        <button type="button" className="cc-btn" disabled={disabled} onClick={onDownload}>
           {st.downloadNew}
-        </Button>
+        </button>
       </>
     );
   // 这台电脑被「电脑」列表移除过：人点「连接」才作为新电脑回来（rejoin）
@@ -581,18 +580,18 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
     return (
       <>
         {note(co.folderGone, "text-danger")}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect({ rejoin: true })}>
+        <button type="button" className="cc-btn" disabled={disabled} onClick={() => onConnect({ rejoin: true })}>
           {st.connect}
-        </Button>
+        </button>
       </>
     );
   if (link.kind === "in_use")
     return (
       <>
         {note(st.inUse)}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect({ replace: link.generation })}>
+        <button type="button" className="cc-btn" disabled={disabled} onClick={() => onConnect({ replace: link.generation })}>
           {st.useHere}
-        </Button>
+        </button>
       </>
     );
   return (
@@ -600,9 +599,9 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
       {link.kind === "failed"
         ? note(link.message || st.linkFailed, "text-danger")
         : note(deviceState === "claimed_elsewhere" ? st.inUse : st.notConnected)}
-      <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect()}>
+      <button type="button" className="cc-btn" disabled={disabled} onClick={() => onConnect()}>
         {link.kind === "failed" || deviceState ? st.retry : st.connect}
-      </Button>
+      </button>
     </>
   );
 }
@@ -687,9 +686,9 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
       )}
       {!rows.length ? (
         <Row label={<span className="text-muted-foreground">{st.noComputer}</span>}>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
+            className="cc-btn"
             onClick={() =>
               void getJson<{ url?: string }>("pearnly_cowork.companion.api.installer").then(
                 (info) => info?.url && window.open(info.url, "_blank", "noopener,noreferrer"),
@@ -697,7 +696,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
             }
           >
             {st.download}
-          </Button>
+          </button>
         </Row>
       ) : (
         rows.map((row, i) => (
@@ -862,9 +861,9 @@ function System({ api }: { api: Desktop }) {
         onDownload={() => void run("download", "download_update")}
       />
       <Row label={st.logs}>
-        <Button variant="outline" size="icon-sm" aria-label={st.logs} onClick={() => void run("logs", "logs")}>
-          <FolderIcon className="size-4" />
-        </Button>
+        <button type="button" className="cc-icon-btn" aria-label={st.logs} onClick={() => void run("logs", "logs")}>
+          <FolderIcon />
+        </button>
       </Row>
       {error && <p className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
     </>
@@ -936,14 +935,14 @@ export function VersionRow({
         </span>
       )}
       {blocked ? (
-        <Button variant="outline" size="sm" onClick={onDownload}>
+        <button type="button" className="cc-btn" onClick={onDownload}>
           {st.downloadNew}
-        </Button>
+        </button>
       ) : (
         !working && (
-          <Button variant="outline" size="sm" onClick={onUpdate}>
+          <button type="button" className="cc-btn" onClick={onUpdate}>
             {waiting ? st.updateNow : st.checkUpdate}
-          </Button>
+          </button>
         )
       )}
     </Row>

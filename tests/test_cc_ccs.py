@@ -1396,6 +1396,15 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertNotRegex(source, r"opacity-\d|opacity:\s*0", rel)
         self.assertIn('!picked && (rule || !ok) && "opacity-(--cc-disabled-opacity)"', self.read("components/scheduled-tasks.tsx"))
 
+    def test_settings_buttons_are_cc_buttons(self):
+        # V10（B4）：设置页的 shadcn Button 换成 .cc-btn（日志那颗只有图标，换成 .cc-icon-btn）；手机 44 由 H27 的选择器保住
+        settings = self.read("components/settings.tsx")
+        self.assertNotIn("<Button", settings)
+        self.assertNotIn("@/components/ui/button", settings)
+        self.assertEqual(settings.count('className="cc-btn"'), 11)
+        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"], .cc-btn) { min-height: var(--cc-tap); }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"][data-size^="icon"], .cc-icon-btn) { min-width: var(--cc-tap); }', self.css)
+
 
 if __name__ == "__main__":
     unittest.main()
