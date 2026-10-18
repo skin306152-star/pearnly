@@ -1,6 +1,7 @@
 
 // 正文的块照 Claude Code（设计文档 3.10）：块之间只用上外边距——段落、列表、表格、代码、引用 --cc-md-block（0.75em），
-// 标题前 --cc-md-heading（1.25em），第一块 0；表格细线、外圈 1px 环加圆角。
+// 标题前 --cc-md-heading（1.25em），第一块 0；表格细线、外圈 1px 环加圆角。代码块是共用的 .cc-code-block-head + .cc-code-block（V33：
+// 圆角同对话里的块级卡片 10、代码 14/20）。
 // 不用组件库的圆点光标（styles/dot.css）：同 Claude，回复在出时由对话底部的工作状态行表示（thread.tsx 的 RunIndicator）。
 // 那个光标挂在「这一段还在出」上，正文刚开头还没字时只剩一个黑点、正文出完还要等结束才消失（教程第 8 条 b、c）。
 import {
@@ -38,8 +39,8 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="aui-code-header-root border-border/50 bg-muted/50 mt-(--cc-md-block) first:mt-0 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-caption">
-      <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
+    <div className="aui-code-header-root cc-code-block-head mt-(--cc-md-block) first:mt-0">
+      <span className="aui-code-header-language font-medium lowercase">
         {language}
       </span>
       <TooltipIconButton tooltip={t("copy")} onClick={onCopy} className="aui-button-icon cc-row-btn cc-tap active:scale-(--cc-press-scale)">
@@ -239,7 +240,7 @@ const defaultComponents = memoizeMarkdownComponents({
   pre: ({ className, ...props }) => (
     <pre
       className={cn(
-        "aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-(length:--cc-text-sm) leading-relaxed",
+        "aui-md-pre cc-code-block",
         className,
       )}
       {...props}
