@@ -100,6 +100,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   );
 };
 
+/** 点方块看大图。方块的悬停只有 .cc-compose-tile 那一层（变淡），不再叠组件库的底色（V35）。 */
 const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   const src = useAttachmentSrc();
 
@@ -108,7 +109,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   return (
     <Dialog>
       <DialogTrigger
-        className="aui-attachment-preview-trigger hover:bg-accent/50 cursor-pointer transition-colors"
+        className="aui-attachment-preview-trigger"
         asChild
       >
         {children}
@@ -186,9 +187,9 @@ const ComposerAttachment: FC = () => {
               {isUploading && (
                 <div
                   aria-hidden="true"
-                  className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center backdrop-blur-[1px]"
+                  className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center"
                 >
-                  <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
+                  <Loader2Icon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
                 </div>
               )}
               {isError && (
