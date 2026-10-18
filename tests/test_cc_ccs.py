@@ -861,6 +861,10 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertEqual(exports("components/ui/sidebar.tsx"),
                          ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
         self.assertEqual(exports("components/ui/dialog.tsx"), ["Dialog", "DialogClose", "DialogContent", "DialogTitle", "DialogTrigger"])
+        # V9：图片预览（唯一用组件库弹窗的地方）同整窗弹窗圆角 16（--cc-radius-dialog，外壳实测），原来 10
+        dialog = self.read("components/ui/dialog.tsx")
+        self.assertIn(" rounded-dialog border ", dialog)
+        self.assertNotIn("rounded-lg", dialog)
         button = self.read("components/ui/button.tsx")
         variants = button.split("variant: {", 1)[1].split("},", 1)[0]
         sizes = button.split("size: {", 1)[1].split("},", 1)[0]
