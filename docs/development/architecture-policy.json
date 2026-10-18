@@ -350,6 +350,8 @@
     "pearnly_cowork_agent_version": "小助手版本提示",
     "pearnly_cowork_erp_push_enabled": "ERP 推送总闸（历史保留；开户 finalize_site 一律写 1）",
     "pearnly_cowork_ocr_environment": "Cowork 识别引擎与模型（开户按所选引擎写）",
+    "pearnly_cowork_ocr_remote": "识别与原件的 Cloud Run 服务（ADR-015 / ADR-016 / ADR-024）：{enabled, url, rpm}；Cowork 交识别与原件核对 / 预览用，ERP 站点 2026-10-18 起也配同一个地址（谷歌租户原件走原件层时由 Cloud Run 核对、画预览）；开户后手工设置",
+    "pearnly_cowork_originals_bucket": "原件桶（ADR-016 / ADR-024）：谷歌租户的原件存这里（pearnly-cowork-originals-sg）；Cowork 与 ERP 站点都用，没配就照旧存本机；删租户时按站点前缀清桶；开户后手工设置",
     "pearnly_cowork_ocr_policy": "Cowork 识别策略参数",
     "pearnly_default_language": "开户默认语言",
     "pearnly_default_timezone": "开户默认时区",

@@ -40,12 +40,16 @@ class TestMemberClient(unittest.TestCase):
         self.assertEqual(self.post.call_args.kwargs["json"]["username"], "Username1")
         self.assertEqual(self.post.call_args.kwargs["headers"]["X-Pearnly-Billing-Product"], "erp")
         self.assertNotIn("admin", str(self.post.call_args))
+        # 控制面按本站实际签到的账号池建号（testcowork 是 Cowork 产品却签到业务池，2026-10-18）。
+        self.assertEqual(self.post.call_args.kwargs["json"]["issuer"], "https://identity.invalid/realms/lab")
 
     def test_timeout_retry_has_stable_id(self):
         self.post.side_effect = [requests.Timeout(), self.response({"ok": True, "email": "member@example.test"})]
         member_client.reset_password("member@example.test", "fixture")
         self.assertEqual(self.post.call_args_list[0].kwargs["json"]["request_id"],
                          self.post.call_args_list[1].kwargs["json"]["request_id"])
+        self.assertEqual({call.kwargs["json"]["issuer"] for call in self.post.call_args_list},
+                         {"https://identity.invalid/realms/lab"})
 
     def test_other_product_and_bad_response_denied(self):
         self.native.conf["pearnly_product"] = "dms"

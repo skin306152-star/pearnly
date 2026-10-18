@@ -4,14 +4,15 @@
 //        [--noise N]                    排查用：各通道相差 ≤ N 不算差异（默认 0）
 //        [--git-range <基点>..<分支>]   覆盖检查：这段 diff 里 frontend/assistant/src 改到的 cc-* 类与 data-slot，有没有场景渲染到
 //        [--no-reshoot]                 只有像素差的场景不复拍（排查用）
+//        [--expect-root 名,…]            这几个 <html> 属性的变化是本次提交预期的 DOM 标记（例：data-cc-touch），单列、不算样式差异
 //
 // · 快照：按元素路径对齐，比外框（0.01px）和每个受管属性；节点只在一边也算差异。
 // · 截图：字节相同直接算 0 差；不同就在无界面 Chrome 里用 canvas getImageData 逐像素比（不装 PIL / pixelmatch），
 //   默认 0 容差（--noise N 只供排查），差异像素在「后」的图上标红，写成 <报告目录>/<组>/<场景>.diff.png。
 // · 两遍要可比：两份 run.json 都在（缺 = 那一遍没跑完），环境、深浅色、场景筛选和每组的场景清单一致；场景只在一边跑过也算差异。
 //   不一致或缺场景时退出码 1，不能拿一个不完整的「后」当通过。
-// · 只有像素差、样式 0 差的场景：按 run.json 里的产物目录把前、后各复拍一次（同一套 shoot），复拍后仍差才算差异；
-//   复拍一致的记成「光栅抖动」单列（泰文字形抗锯齿偶发不同），不调容差。产物目录不在了就照原样算差异。
+// · 只有像素差、样式 0 差的场景：按 run.json 里的产物目录把前、后各复拍（同一套 shoot），前、后出过的图里有一模一样的一对就记成
+//   「光栅抖动」单列（泰文字形、窄屏长对话输入框那一条渐变在机器忙时偶发不同），最多 3 轮仍没有才算差异；不调容差。产物目录不在了就照原样算差异。
 // · 覆盖检查：diff 里删掉的行（-）上的类按「前」的快照核对，新加的行（+）按「后」的快照核对。
 // · 报告：<报告目录>/report.md（中文）与 report.json；有任何差异退出码 1，全部 0 差退出码 0。
 
@@ -22,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import { launch, shoot } from "./shoot.mjs";
 
 const LIMIT = 30; // 每个场景报告里最多列多少条样式差异
+const RESHOOTS = 3; // 只有像素差的场景前、后最多各复拍几轮
 // 逐像素比的容差，默认 0（纯替换必须 0 像素差）。--noise N：各通道相差 ≤ N 记为光栅噪声单独报数、不算差异——
 // 只在排查时用；shoot.mjs 已让过渡与动画平时归零，同一构建连跑两遍是 0 差、0 噪声。颜色、尺寸、位置的变化由样式快照逐值精确比。
 const NOISE_DEFAULT = 0;
@@ -140,7 +142,7 @@ const seenIn = (snap, into) => {
   }
 };
 
-export async function compare({ before, after, report, range, noise = NOISE_DEFAULT, reshoot = true }) {
+export async function compare({ before, after, report, range, noise = NOISE_DEFAULT, reshoot = true, expectRoot = [] }) {
   before = resolve(before);
   after = resolve(after);
   report = resolve(report);
@@ -151,14 +153,14 @@ export async function compare({ before, after, report, range, noise = NOISE_DEFA
   const rows = [];
   const b = await launch(join(report, ".profile"));
   try {
-    return await compareWith(b, { before, after, report, range, noise, reshoot, runs, mismatch, groups, rows });
+    return await compareWith(b, { before, after, report, range, noise, reshoot, runs, mismatch, groups, rows, expectRoot });
   } finally {
     await b.close();
     rmSync(join(report, ".profile"), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }
 
-async function compareWith(b, { before, after, report, range, noise, reshoot, runs, mismatch, groups, rows }) {
+async function compareWith(b, { before, after, report, range, noise, reshoot, runs, mismatch, groups, rows, expectRoot }) {
   await b.send("Runtime.enable");
   await b.send("Page.navigate", { url: "about:blank" });
   await b.ev(PIXEL_PAGE);
@@ -186,7 +188,11 @@ async function compareWith(b, { before, after, report, range, noise, reshoot, ru
       const sb = load(jb);
       seenIn(sa, seenBefore);
       seenIn(sb, seenAfter);
-      const diffs = diffSnapshots(sa, sb);
+      const all = diffSnapshots(sa, sb);
+      // 预期的根节点标记（--expect-root）单列：只是 <html> 上多 / 少一个属性，不是样式差异
+      const expected = all.filter((d) => d.kind === "根节点" && expectRoot.includes(d.label));
+      if (expected.length) row.notes.push("预期的根节点变化：" + expected.map((d) => `${d.label} ${d.before ?? "（无）"} → ${d.after ?? "（无）"}`).join("；"));
+      const diffs = all.filter((d) => !expected.includes(d));
       row.styles = diffs.length;
       row.styleDiffs = diffs.slice(0, LIMIT);
       if (sa.missed?.length || sb.missed?.length) row.notes.push("动作没做完：" + [...new Set([...(sa.missed ?? []), ...(sb.missed ?? [])])].join("；"));
@@ -211,7 +217,8 @@ async function compareWith(b, { before, after, report, range, noise, reshoot, ru
       rows.push(row);
     }
   }
-  // 只有像素差（样式 0 差）的场景：前、后各复拍一次，复拍后仍差才算差异
+  // 只有像素差（样式 0 差）的场景：前、后各复拍，直到前、后各出过的图里有一模一样的一对（同一份画面在机器忙时偶尔光栅成另一个样子，
+  // 实测窄屏长对话输入框那一条带），最多 RESHOOTS 轮；一直没有一样的一对才算差异
   const pixelOnly = rows.filter((r) => !r.styles && r.pixels > 0 && !r.missing);
   if (reshoot && pixelOnly.length) {
     const dists = runs.map((r) => r?.dist);
@@ -219,21 +226,28 @@ async function compareWith(b, { before, after, report, range, noise, reshoot, ru
       for (const row of pixelOnly) {
         const scheme = row.group.slice(row.group.lastIndexOf("-") + 1);
         const env = row.group.slice(0, row.group.lastIndexOf("-"));
-        const shots = [];
-        for (const [i, dist] of dists.entries()) {
-          const out = join(report, ".reshoot", String(i));
-          await shoot({ dist, out, envs: [env], schemes: [scheme], only: [row.scene], jobs: 1, quiet: true });
-          shots.push(readFileSync(join(out, row.group, row.scene + ".png")));
+        const seen = [[readFileSync(join(before, row.group, row.scene + ".png"))], [readFileSync(join(after, row.group, row.scene + ".png"))]];
+        let rounds = 0;
+        let matched = false;
+        let last = null;
+        while (!matched && rounds < RESHOOTS) {
+          rounds++;
+          for (const [i, dist] of dists.entries()) {
+            const out = join(report, ".reshoot", String(i));
+            await shoot({ dist, out, envs: [env], schemes: [scheme], only: [row.scene], jobs: 1, quiet: true });
+            seen[i].push(readFileSync(join(out, row.group, row.scene + ".png")));
+          }
+          rmSync(join(report, ".reshoot"), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+          matched = seen[0].some((a) => seen[1].some((b) => a.equals(b)));
+          if (!matched) last = await pixels(seen[0].at(-1), seen[1].at(-1));
         }
-        rmSync(join(report, ".reshoot"), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
-        const again = shots[0].equals(shots[1]) ? { diff: 0 } : await pixels(shots[0], shots[1]);
-        if (again.diff === 0) {
+        if (matched) {
           row.jitter = row.pixels;
-          row.notes.push(`只有像素差 ${row.pixels}，前后各复拍一次后一致：光栅抖动，不计差异`);
+          row.notes.push(`只有像素差 ${row.pixels}，前后各复拍 ${rounds} 次后出现一模一样的一对：光栅抖动，不计差异`);
           row.pixels = 0;
           delete row.overlay;
         } else {
-          row.notes.push(`只有像素差，复拍后仍差 ${again.diff === -1 ? "（尺寸不同）" : again.diff}：算差异`);
+          row.notes.push(`只有像素差，前后各复拍 ${rounds} 次仍没有一样的一对（最后一次差 ${last.diff === -1 ? "尺寸不同" : last.diff}）：算差异`);
         }
       }
     } else {
@@ -297,7 +311,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.error("用法：node scripts/cc-visual/compare.mjs --before <前的输出> --after <后的输出> --report <报告目录> [--git-range A..B]");
     process.exit(2);
   }
-  const r = await compare({ before, after, report, range: get("--git-range"), noise: Number(get("--noise") ?? NOISE_DEFAULT), reshoot: !argv.includes("--no-reshoot") });
+  const r = await compare({ before, after, report, range: get("--git-range"), noise: Number(get("--noise") ?? NOISE_DEFAULT), reshoot: !argv.includes("--no-reshoot"),
+    expectRoot: (get("--expect-root") ?? "").split(",").filter(Boolean) });
   const styles = r.rows.reduce((n, x) => n + x.styles, 0);
   const pixels = r.rows.reduce((n, x) => n + Math.max(0, x.pixels), 0);
   const missing = r.rows.filter((x) => x.missing).length;

@@ -23,7 +23,7 @@ python3 tests/test_check_copy.py              # 闸门自己的测试（改词�
 接入点：
 
 - CI（`.github/workflows/development.yml`，清单写进 Step Summary）。分支 CI 看整个分支相对 merge-base 的累计改动。
-- 共享提交钩子：`--staged --tree <暂存快照>`，基线取 HEAD，只拦**本次提交**新加的问题 —— 在途分支早先提交留下的问题不会卡住与文案无关的提交（那些由分支 CI 拦）；别的提交留下的失效豁免在钩子里只标黄。分支还没变基到含闸门的 main 时提示后跳过。
+- 共享提交钩子：`--staged --tree <暂存快照>`，基线取 HEAD，只拦**本次提交**新加的问题 —— 在途分支早先提交留下的问题不会卡住与文案无关的提交（那些由分支 CI 拦）；别的提交留下的失效豁免在钩子里只标黄。分支还没变基到含闸门的 main 时提示后跳过。合并提交（把 main 并进任务分支、解决冲突后提交，`MERGE_HEAD` 在）只判合并结果里有、而第一父提交与合并进来的父提交里都没有的行（main 已有的行不当成本分支新增；解决冲突时手工新写的照拦）；词表里 main 自己删的行也不算这次放宽。
 - `~/pearnly-devtools/gate.sh`（按 workflow 的 run 行执行，不用改）。
 
 扫描范围按 `git ls-files -co --exclude-standard` 取文件：`.gitignore` 里的构建产物（CC 网页打包后的 JS）不扫，CI、本地、钩子看到的范围一致。
@@ -37,15 +37,15 @@ python3 tests/test_check_copy.py              # 闸门自己的测试（改词�
 | CC 桌面版 `companion/src/companion/i18n.py` 的 `_M` | `companion:<key>`（中文为准） | 内容判据 |
 | Keycloak 主题 `messages_*.properties` | `keycloak:<主题>.<key>` | 内容判据 |
 | keep-cjk 整文件豁免的四语表（`sources.TABLE_MODULES`） | `table:<模块>#<路径>` | 内容判据 |
-| Python（改动文件）：`_()`；`frappe.throw / msgprint`（位置参数与 `msg=` / `title=`，含 f-string）、`publish_realtime("msgprint", …)`、`frappe.*Error(…)` 的写死文案；`_()` 与字符串或另一个 `_()` 用 `+` 拼接；f-string / `+` / `.format` 拼出来的 msgid；assistant 工具声明的 label / ask / ask_when、`*STEP_NAMES` | — | R-HARD / R-CONCAT |
+| Python（改动文件）：`_()`；`frappe.throw / msgprint`（位置参数与 `msg=` / `title=`，含 f-string）、`publish_realtime("msgprint", …)`、`frappe.*Error(…)` 的写死文案（只作重试信号、不到界面的 `QueryDeadlockError` / `QueryTimeoutError` 不判）；`_()` 与字符串或另一个 `_()` 用 `+` 拼接；f-string / `+` / `.format` 拼出来的 msgid；assistant 工具声明的 label / ask / ask_when、`*STEP_NAMES` | — | R-HARD / R-CONCAT |
 | Desk JS（改动文件）：`__("…")`、`t("键")`；`frappe.msgprint / throw / confirm / show_alert / prompt`、`set_intro / set_headline` 的写死首参（含 `{message: "…"}`）；`__()` 与字面量或另一个 `__()` 拼接；模板串拼出来的 msgid | — | R-HARD / R-CONCAT |
 | CC 网页 TSX / TS（改动文件）：JSX 文本与 `{"…"}` 子节点；title / aria-label / placeholder / alt / label / content / description / message / tooltip / helperText 属性（含 `` {`…`} `` 与 `{cond ? "a" : "b"}`）；`toast.*()` / `alert()` / `confirm()` 的字面量；`tr()`、`t()`；相邻 `{t(…)}{t(…)}`、模板串里 ≥ 2 个 `t(` / `tr(` 插值 | — | R-HARD / R-CONCAT |
 | CC 桌面版程序 `companion/src/companion/*.py`（`i18n.py` 除外，改动文件）：Qt 控件与通知（`QLabel` / `setText` / `setWindowTitle` / `setToolTip` / `addAction` / `showMessage` / `_notify` / `QMessageBox.*` …）、`{"message": "…"}` 的写死文案；`t("键")` 的键不在 `_M` 里 | — | R-HARD |
-| DocType / Workspace / Report JSON（改动文件）：新写的 label / description 必须在术语表或 Frappe 自带词里（内容由术语表那一行判）；Select 选项是取值码，不要求 | — | R-HARD |
-| `www/*.html`、`templates/emails/*.html`（改动文件）：写死中文 / 泰文；标签外 ≥ 2 个英文词的文本与 title / placeholder / alt / aria-label | — | R-HARD；只被邮件模板引用的词条按「邮件」角色判 |
+| DocType / Workspace / Report JSON（改动文件）：新写的 label / description 必须在术语表或 Frappe 自带词里（内容由术语表那一行判）；Select 选项是取值码，不要求；只在 hidden 字段上的（Desk 表单不显示）不在字典里只标黄 | — | R-HARD |
+| `www/*.html`、`templates/emails/*.html`（改动文件）：写死中文 / 泰文；标签外 ≥ 2 个英文词的文本与 title / placeholder / alt / aria-label；页内 `<script>`（不带 src）的字符串字面量：中文 / 泰文一律算，英文句子写进 `textContent` / `innerHTML` / `innerText` 或交给 `msgprint` / `alert` / `confirm` 时算（`{{ _("…") \| tojson }}`、取词函数的键不算） | — | R-HARD；只被邮件模板引用的词条按「邮件」角色判 |
 | 翻译包 `translations/*.csv` 新增行（术语表里没有的 msgid） | — | 标黄（手工行或改写残留）；新代码不能拿它兜底 |
 
-"在不在字典里"认：当前术语表 + 基线翻译包 + 锁定镜像里 Frappe / ERPNext 自带的 msgid（`scripts/i18n/upstream-msgids.txt`，从 `infrastructure/images/frappe.Dockerfile` 的 `FRAPPE_BASE` 镜像导出的 `main.pot`，升级底座时一起重新导出）。Frappe 自带词只给 `_()` / `__()` / 页面 / DocType 用；`tr()` / `t("键")` / 工具声明走本仓术语表，不认它。按键族取词（`_(f"cowork.work.status.{status}")`、`'erp.detail.' + code`）拼的是语义键，不算动态 msgid。
+"在不在字典里"认：当前术语表 + 基线翻译包 + 锁定镜像里 Frappe / ERPNext 自带的 msgid（`scripts/i18n/upstream-msgids.txt`，从 `infrastructure/images/frappe.Dockerfile` 的 `FRAPPE_BASE` 镜像导出的 `main.pot`，升级底座时一起重新导出）。Frappe 自带词只给 `_()` / `__()` / 页面 / DocType 用；`t("键")` / 工具声明走本仓术语表，不认它；CC 网页的 `tr()` 只认 `folder_intake/api.py` 的 `TERM_WORDS` 里直接列出的 Frappe 自带 msgid（`terms()` 按当前语言用 Frappe 官方译文给出），没列进去的照拦。术语表里无键行的英文就是 Frappe / ERPNext 自带 msgid 的，英文不归本仓、不判（中 / 泰 / 日译文照判）。按键族取词（`_(f"cowork.work.status.{status}")`、`'erp.detail.' + code`）拼的是语义键，不算动态 msgid。
 
 不扫：给模型的提示词与工具说明（`assistant/definition.py`、OCR 与对账的 prompts / fewshot / schema）、写进 Express / MR.ERP / DMS 的业务数据、日志与断言、`tests/`、`website/`。清单在 `scripts/copygate/sources.py` 的 `NOT_SCANNED`，每项写原因。keep-cjk 再加"规格："整文件豁免时，要在 `TABLE_MODULES`（给用户看的四语表）或 `NOT_COPY_SPEC`（不是界面文案）登记，`tests/test_check_copy.py` 守着。
 
@@ -106,7 +106,7 @@ python3 tests/test_check_copy.py              # 闸门自己的测试（改词�
 
 - 纯终端界面（CC 网页、CC 桌面版、登录页、LINE 卡片、导出给客户的四语表）：强弱开发术语都拦。
 - 产品 Desk（租户站点的语义键、msgid 文案、租户能读的 DocType 的标签 / 说明 / 选项）：强术语拦，弱术语标黄。
-- 管理后台（控制面 `pearnly_control`，以及权限只有 System Manager / Administrator 的 DocType 的标签 / 说明 / 选项）：术语只标黄。
+- 管理后台（控制面 `pearnly_control`；权限只有 System Manager / Administrator 的 DocType、以及 hidden 字段的标签 / 说明 / 选项；只被控制面代码调用的共用层 msgid，代码清单在 `sources.ADMIN_CODE`，登记的共用层模块由测试守着只被控制面引用）：术语只标黄。
 
 中文提醒线 / 拦截线（字；英文词、泰文字符另算；英文词、数字、中文里夹的泰文表单名各记 2 字，占位符记 2 字）：
 
@@ -128,7 +128,7 @@ CC 网页的按钮、菜单、状态硬上限 10 字。
 
 `scripts/i18n/copy-exempt.tsv`：`范围 <TAB> 规则 <TAB> 文案 <TAB> 原因`。
 
-- 范围：`<来源>:<键>`（某一条词条）、`术语:<词>@<来源>`（业务专名，只对 R-DEV / R-MIX 生效；**必须写 @来源**，术语不能正好是开发术语词表里的一个词，要写完整专名，例如「Channel Access Token」）、`代码:<路径>`（某处代码引用，R-HARD / R-CONCAT）。
+- 范围：`<来源>:<键>`（某一条词条）、`术语:<词>@<来源>`（业务专名，只对 R-DEV / R-MIX 生效；**必须写 @来源**，术语不能正好是开发术语词表里的一个词，要写完整专名，例如「Channel Access Token」）、`代码:<路径>`（某处代码引用，R-HARD / R-CONCAT；文案列写清单里的引用原文，拼接写闸门拼出的那一串，如 `… + _(…) + '\n' + _(…)`，按那个文件现在的引用认是否失效）。
 - 规则：逗号分隔的规则 ID，不许 `*`；R-CHG、R-EXEMPT、R-RULES 不能豁免。
 - 文案：登记时的完整当前文案（有中文写中文，换行写 `\n`）；文案一变豁免就失效，闸门报「豁免已失效，请重新确认」。
 - 原因：具体理由，≥ 6 字，不能只写「历史遗留 / 需要 / 暂时 / 同上」。

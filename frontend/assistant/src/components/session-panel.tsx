@@ -75,7 +75,7 @@ export function dropOrder(order: readonly CardId[], items: readonly string[], ac
 
 const sameColumn = (active: DragData, target: DragData) => active.list === "cards" && target.list === "cards";
 
-/** 会话栏里可拖动排序的那一列卡片（对话与公司页同一套）：登记看得见的卡片、dnd-kit 排序列表、折叠与 Alt+↑/↓。
+/** 会话栏里可拖动排序的那一列卡片（对话与公司页同一套）：登记看得见的卡片、共用拖动的排序列表（ui/drag）、折叠与 Alt+↑/↓。
  *  不画外框（卡片直接是会话栏的子节点，「不出会话栏」按父节点算）。cards 里给 null 的卡不显示、也不占位。 */
 export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scope: string }> = ({ cards, scope }) => {
   const order = usePanel((s) => s.order);

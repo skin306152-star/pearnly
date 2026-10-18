@@ -4,13 +4,15 @@ A deployment is a live site. Delete the tenant so its site and database go away 
 A rejection needs a reason; the tenant will see it,A rejection needs a reason; the tenant will see it
 "A single top-up is capped at ฿500,000","A single top-up is capped at ฿500,000"
 A wallet must belong to a tenant,A wallet must belong to a tenant
+Account created in the Cowork account pool,Account created in the Cowork account pool
 Account information,Account information
 Account opening is available only for configured cloud targets,Account opening is available only for configured cloud targets
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.","Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."
 Action,Action
-Action name the runner understands; see pearnly_control/provisioning.py,Action name the runner understands; see pearnly_control/provisioning.py
+Action name supported by the runner,Action name supported by the runner
 Admin Client ID,Admin Client ID
 Admin Client Secret,Admin Client Secret
+Admin client secret is missing,Admin client secret is missing
 Amount (THB),Amount (THB)
 Amount must be greater than 0,Amount must be greater than 0
 An adjustment cannot be 0,An adjustment cannot be 0
@@ -18,7 +20,6 @@ An adjustment must have a reason,An adjustment must have a reason
 An employee identity is used by another tenant; review it before deleting this tenant,An employee identity is used by another tenant; review it before deleting this tenant
 Approve and credit,Approve and credit
 Approve top-up,Approve top-up
-At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).
 Back,Back
 Balance (THB),Balance (THB)
 Balance After,Balance After
@@ -38,14 +39,15 @@ CC Model,CC Model
 "Cannot read the provisioning target, so the identity service URL is unknown","Cannot read the provisioning target, so the identity service URL is unknown"
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
+Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.,Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.
 Channel Secret,Channel Secret
 Choose a workspace,Choose a workspace
 Client ID for Invitation Links,Client ID for Invitation Links
 "Client with only the password grant, used to verify the current password. Shared by all three products.","Client with only the password grant, used to verify the current password. Shared by all three products."
 Close,Close
-Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).
 Comma separated. The role gets read/write on these DocTypes.,Comma separated. The role gets read/write on these DocTypes.
 Company Name,Company Name
+Company and Account,Company and Account
 Company name is required,Company name is required
 Confirm credit,Confirm credit
 Confirm rejection,Confirm rejection
@@ -71,20 +73,22 @@ Cowork Identity Subject,Cowork Identity Subject
 Cowork Password-check Client ID,Cowork Password-check Client ID
 Cowork Password-check Client Secret,Cowork Password-check Client Secret
 Cowork Realm,Cowork Realm
+Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot be issued on this target.,Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot be issued on this target.
 Create Request Hash,Create Request Hash
 Create the site,Create the site
 Create the tenant account,Create the tenant account
 Created and kept correct by provisioning on the shared LINE Login channel.,Created and kept correct by provisioning on the shared LINE Login channel.
+Created on the tenant site and granted at provisioning. Leave empty for no permission control.,Created on the tenant site and granted at provisioning. Leave empty for no permission control.
 Creating a channel requires both secret and access token,Creating a channel requires both secret and access token
 Creating a channel requires the channel secret and the Channel ID,Creating a channel requires the channel secret and the Channel ID
 Credential Delivery,Credential Delivery
 Credentials,Credentials
-"Credentials (stored only here, pushed to the tenant site at provisioning)","Credentials (stored only here, pushed to the tenant site at provisioning)"
 Credited ฿{0}; {1} now has ฿{2},Credited ฿{0}; {1} now has ฿{2}
 Crediting…,Crediting…
 Cycle End,Cycle End
 Cycle Start,Cycle Start
 DMS is the one already proven; ERP and Cowork use the same API surface.,DMS is the one already proven; ERP and Cowork use the same API surface.
+Date the page count was last reconciled with the ledger (Bangkok time),Date the page count was last reconciled with the ledger (Bangkok time)
 "Dear customer,","Dear customer,"
 Default On,Default On
 Default Target,Default Target
@@ -117,14 +121,18 @@ Feature Code,Feature Code
 Feature Name,Feature Name
 Features,Features
 Fill in only if a LIFF app exists; otherwise leave empty.,Fill in only if a LIFF app exists; otherwise leave empty.
-"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.","Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later."
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
 Finalize the site,Finalize the site
 Finished At,Finished At
+For example acme,For example acme
 For example http://keycloak.localhost:8105,For example http://keycloak.localhost:8105
+For example pearnly-cowork,For example pearnly-cowork
+"For example: Bangkok Hardware Co., Ltd.","For example: Bangkok Hardware Co., Ltd."
 For example: local sample / production,For example: local sample / production
+For example: somchai,For example: somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.","For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email."
 Forgot password ?,Forgot password ?
+From the issue.,From the issue.
 Get your work done in conversation,Get your work done in conversation
 Google or Claude. A change applies from the next document.,Google or Claude. A change applies from the next document.
 Grant feature roles,Grant feature roles
@@ -174,6 +182,7 @@ LINE Setup Guide,LINE Setup Guide
 LINE channel (optional),LINE channel (optional)
 LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
 LINE credentials are required before activation.,LINE credentials are required before activation.
+Language,Language
 Last Updated,Last Updated
 Leave empty to use the company name,Leave empty to use the company name
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.
@@ -183,6 +192,7 @@ Log in,Log in
 Manual adjustment · {0},Manual adjustment · {0}
 Mark provisioning done,Mark provisioning done
 Matches the feature key in the product's own feature catalog (features.json).,Matches the feature key in the product's own feature catalog (features.json).
+"Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)","Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)"
 Monthly Fee,Monthly Fee
 No provisioning request yet; click “Run provisioning” to start,No provisioning request yet; click “Run provisioning” to start
 No such deployment: {0},No such deployment: {0}
@@ -196,12 +206,15 @@ Notes,Notes
 OIDC Client ID,OIDC Client ID
 OIDC Client Secret,OIDC Client Secret
 One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.
-"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.","One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out."
+One client per deployment.,One client per deployment.
 Only a platform admin can handle top-ups and balances,Only a platform admin can handle top-ups and balances
 Open the LINE channel,Open the LINE channel
 Operations,Operations
 Output,Output
 Over-rate (per page),Over-rate (per page)
+Owner Email,Owner Email
+Owner Subject,Owner Subject
+Owner Username,Owner Username
 Pages,Pages
 Pages Used This Month,Pages Used This Month
 Partly done {0}/{1},Partly done {0}/{1}
@@ -209,6 +222,7 @@ Password,Password
 Password Delivered At,Password Delivered At
 Password-check Client ID,Password-check Client ID
 Password-check Client Secret,Password-check Client Secret
+Password-check client secret is missing,Password-check client secret is missing
 Payload,Payload
 Pearnly Credit Transaction,Pearnly Credit Transaction
 Pearnly Customer Support,Pearnly Customer Support
@@ -223,9 +237,12 @@ Please change your initial password promptly,Please change your initial password
 "Prefix only, e.g. aerp","Prefix only, e.g. aerp"
 Privacy Policy,Privacy Policy
 Product App,Product App
+Product app installed on this site,Product app installed on this site
 Product {0} is selected twice,Product {0} is selected twice
 Products & Domains,Products & Domains
+Products and Domains,Products and Domains
 Proof,Proof
+Provisioned Items,Provisioned Items
 Provisioning Credentials (stored only here),Provisioning Credentials (stored only here)
 Provisioning Progress,Provisioning Progress
 Provisioning Target,Provisioning Target
@@ -238,7 +255,7 @@ Queueing the deletion…,Queueing the deletion…
 Quota,Quota
 Quota per Cycle (pages),Quota per Cycle (pages)
 Realm,Realm
-Reason (the tenant will see it; required),Reason (the tenant will see it; required)
+"Reason (visible to tenant, required)","Reason (visible to tenant, required)"
 Received Amount,Received Amount
 Received amount (as actually credited by the bank),Received amount (as actually credited by the bank)
 Recognition Engine,Recognition Engine
@@ -265,6 +282,7 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,Row {0}
 Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Run provisioning,Run provisioning
 Running,Running
+Same as the deployment domain.,Same as the deployment domain.
 Select the CC engine.,Select the CC engine.
 Service URL is required,Service URL is required
 Set up CC,Set up CC
@@ -282,7 +300,7 @@ Site Provisioning API,Site Provisioning API
 Site URL,Site URL
 Site name {0} is already taken by deployment {1},Site name {0} is already taken by deployment {1}
 Sites and databases,Sites and databases
-Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.
+Sites of the same product share one Bench process.,Sites of the same product share one Bench process.
 Skipped,Skipped
 Source,Source
 Started At,Started At
@@ -306,14 +324,10 @@ The CC settings are being applied. Try again shortly.,The CC settings are being 
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.","The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting."
 "The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
 The address this tenant is reached at.,The address this tenant is reached at.
-The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)
 The balance could not be read; this is not 'insufficient balance',The balance could not be read; this is not 'insufficient balance'
 The billing reference was already used for another request,The billing reference was already used for another request
-"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.","The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value."
-The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.
+The identity service builds the invitation email link from this client.,The identity service builds the invitation email link from this client.
 The last issue attempt failed; set it back to draft before issuing again,The last issue attempt failed; set it back to draft before issuing again
-The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)
-The product app installed on this site; pearnly_core is shared by every product.,The product app installed on this site; pearnly_core is shared by every product.
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.","The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up","The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up"
 The received amount must be greater than 0,The received amount must be greater than 0
@@ -331,7 +345,7 @@ This removes everything about this tenant. It cannot be undone.,This removes eve
 This request has already been handled (currently: {0}),This request has already been handled (currently: {0})
 This tenant no longer exists.,This tenant no longer exists.
 This top-up request was already reviewed; it cannot be handled twice,This top-up request was already reviewed; it cannot be handled twice
-Ticked means this feature is on by default; unticked ones are add-ons (for example CC Desktop).,Ticked means this feature is on by default; unticked ones are add-ons (for example CC Desktop).
+Ticked: on by default. Unticked: add-on.,Ticked: on by default. Unticked: add-on.
 Top-up Review,Top-up Review
 Top-up approved · request {0},Top-up approved · request {0}
 Transfer Slip,Transfer Slip
@@ -343,9 +357,8 @@ Usage Checked,Usage Checked
 Usage Month,Usage Month
 Used This Cycle (pages),Used This Cycle (pages)
 Used to send messages (long-lived).,Used to send messages (long-lived).
-"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.","Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass."
 Username,Username
-Username and initial password are both required: they are the credentials for the user's first sign-in,Username and initial password are both required: they are the credentials for the user's first sign-in
+Username and initial password are required,Username and initial password are required
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30","Username may only contain letters, digits, dot, underscore and hyphen, length 3–30"
 Username or email,Username or email
 View progress,View progress
@@ -360,7 +373,12 @@ Welcome to,Welcome to
 Welcome to {0} — your account is ready,Welcome to {0} — your account is ready
 Your access domain,Your access domain
 Your account is ready,Your account is ready
-grant only handles money in (topup / adjustment); use charge() for deductions,grant only handles money in (topup / adjustment); use charge() for deductions
+issue.placeholder.company,"For example: Bangkok Hardware Co., Ltd."
+issue.placeholder.prefix,For example acme
+issue.placeholder.username,For example: somchai
+issue.section.account,Company and Account
+issue.section.products,Products and Domains
+issue.section.result,Provisioned Items
 "{0} in-plan scan ({1} pages, within quota)","{0} in-plan scan ({1} pages, within quota)"
 {0} out-of-plan scan ({1} over quota),{0} out-of-plan scan ({1} over quota)
 {0} — {1} features,{0} — {1} features

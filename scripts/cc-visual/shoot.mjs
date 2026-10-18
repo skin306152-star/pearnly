@@ -29,16 +29,23 @@ import { ENVS, EXTRA_ENVS, SCHEMES, scenesFor } from "./scenes.mjs";
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-// 本进程起的所有 Chrome：出错退出、Ctrl+C、kill 时一并关掉，不留孤儿
+// 本进程起的所有 Chrome：出错退出、Ctrl+C、kill 时一并关掉，不留孤儿；被打断时顺带删掉还在用的 profile 目录
+// （<out>/.profiles、比对的 <report>/.profile），不留几百 MB 的残留（B0 补修复核建议 ②）
 const LIVE = new Set();
+const PROFILES = new Set();
 const killAll = () => {
   for (const proc of LIVE) try { proc.kill("SIGKILL"); } catch {}
   LIVE.clear();
 };
+const cleanUp = () => {
+  killAll();
+  for (const dir of PROFILES) try { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch {}
+  PROFILES.clear();
+};
 process.on("exit", killAll);
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { killAll(); process.exit(130); });
-process.on("uncaughtException", (error) => { killAll(); console.error(error); process.exit(1); });
-process.on("unhandledRejection", (error) => { killAll(); console.error(error); process.exit(1); });
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { cleanUp(); process.exit(130); });
+process.on("uncaughtException", (error) => { cleanUp(); console.error(error); process.exit(1); });
+process.on("unhandledRejection", (error) => { cleanUp(); console.error(error); process.exit(1); });
 
 const CDP_TIMEOUT = 60000;
 
@@ -46,6 +53,7 @@ const CDP_TIMEOUT = 60000;
 export async function launch(profile, chrome = process.env.CC_VISUAL_CHROME ?? CHROME) {
   rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   mkdirSync(profile, { recursive: true });
+  PROFILES.add(profile);
   const proc = spawn(chrome, [
     "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run",
     "--no-default-browser-check", "--disable-extensions", "--hide-scrollbars", "--force-color-profile=srgb",
@@ -131,6 +139,7 @@ export async function launch(profile, chrome = process.env.CC_VISUAL_CHROME ?? C
     close: async () => {
       try { ws.close(); } catch {}
       await kill();
+      PROFILES.delete(profile);
     },
   };
 }
@@ -502,6 +511,11 @@ async function runLane({ envName, scheme, out, only }, server, b) {
 
 /** 跑一遍：任一条跑道出错就不再开新跑道，等已开的收尾（各自关掉 Chrome 与假服务端）后报错，不写 run.json。 */
 export async function shoot({ dist, out, envs, schemes, only, jobs = 4, chrome, quiet = false }) {
+  // 环境名、深浅色先核对（B0 补修复核建议 ②）：写错的不等跑到那条跑道才失败，也不先清掉输出目录
+  const unknown = [...envs.filter((e) => !ENVS[e] && !EXTRA_ENVS[e]), ...schemes.filter((s) => !SCHEMES.includes(s))];
+  if (unknown.length) {
+    throw new Error(`没有这些环境 / 深浅色：${unknown.join(", ")}（环境：${[...Object.keys(ENVS), ...Object.keys(EXTRA_ENVS)].join(", ")}；深浅色：${SCHEMES.join(", ")}）`);
+  }
   out = resolve(out);
   rmSync(out, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   mkdirSync(out, { recursive: true });
@@ -511,6 +525,7 @@ export async function shoot({ dist, out, envs, schemes, only, jobs = 4, chrome, 
   const errors = [];
   let next = 0;
   const profiles = join(out, ".profiles");
+  PROFILES.add(profiles);
   const worker = async (slot) => {
     while (next < lanes.length && !errors.length) {
       const job = lanes[next++];
@@ -528,6 +543,7 @@ export async function shoot({ dist, out, envs, schemes, only, jobs = 4, chrome, 
     await Promise.all(Array.from({ length: Math.min(jobs, lanes.length) }, (_, i) => worker(i)));
   } finally {
     rmSync(profiles, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    PROFILES.delete(profiles);
   }
   if (errors.length) throw new Error(`有跑道失败，这一遍作废（没写 run.json）：\n${errors.join("\n")}`);
   const run = {

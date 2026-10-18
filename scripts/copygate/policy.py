@@ -187,7 +187,9 @@ class Policy:
             if item.scope.startswith("代码:"):
                 path = item.scope[3:]
                 text = tree.read(path)
-                if text is None or item.text not in text:
+                # 拼接（R-CONCAT）的引用原文是闸门拼出来的写法（「_(…) + '…'」），不在文件里逐字出现：按这个文件现在的引用认
+                if text is None or (item.text not in text
+                                    and not any(ref.text == item.text for ref in sources.code_refs(path, text))):
                     out.append(_stale("豁免已失效（文件或引用已不在），请重新确认", where, item.scope))
                 continue
             entry = snap.entries.get(item.scope)

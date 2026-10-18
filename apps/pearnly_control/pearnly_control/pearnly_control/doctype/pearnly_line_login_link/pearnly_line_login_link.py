@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 from pearnly_control.account.member_service import _CAPABILITY
@@ -9,4 +10,4 @@ class PearnlyLINELoginLink(Document):
 
     def validate(self):
         if self.flags.member_identity_capability is not _CAPABILITY:
-            frappe.throw("Not permitted", frappe.PermissionError)
+            frappe.throw(_("Not permitted"), frappe.PermissionError)

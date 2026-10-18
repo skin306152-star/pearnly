@@ -170,7 +170,8 @@ def access_token() -> str:
     """
     path = credentials_path()
     if not path:
-        raise OcrError(_("No service account configured (site config pearnly_ocr_credentials)"))
+        frappe.logger("pearnly.ocr").warning("recognition not configured: site config pearnly_ocr_credentials is empty")
+        raise OcrError(_("Recognition service is not configured"))
 
     cached = _token_cache.get(path)
     from datetime import datetime, timezone
@@ -304,7 +305,8 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
     else:
         key = api_key()
         if not key:
-            raise OcrError(_("No OCR key configured (site config pearnly_ocr_api_key)"))
+            frappe.logger("pearnly.ocr").warning("recognition not configured: site config pearnly_ocr_api_key is empty")
+            raise OcrError(_("Recognition service is not configured"))
         url = endpoint().format(model=model)
         headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
 
@@ -548,7 +550,8 @@ def api_selftest():
     if backend() == "vertex":
         if not is_configured():
             return {"ok": False, "reason": "no_credentials", "backend": "vertex",
-                    "hint": _("Site config pearnly_ocr_credentials must point at an existing service-account JSON")}
+                    # 站点配置 pearnly_ocr_credentials 要指向已存在的服务账号 JSON 文件（原因码 no_credentials）
+                    "hint": _("Recognition service configuration is invalid")}
         try:
             token = access_token()
         except OcrError as exc:

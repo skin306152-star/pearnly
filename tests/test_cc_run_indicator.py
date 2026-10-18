@@ -1628,6 +1628,40 @@ g.setTimeout = realSetTimeout;
         attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")
         self.assertIn("(placed ? localPreview(placed) : undefined)", attachment)
 
+    def test_a_new_chat_says_at_once_when_cc_is_not_set_up_here(self):
+        # H8（2026-10-16 测试窗口，lab testerp 没配 CC）：打开新对话页不先说，要发了第一条被拒才在输入框上方出现原因。
+        # 现在外壳启动数据带上原因（shell.describe 的 assistant_unavailable，服务端已翻译的同一句）：新对话一打开就写在同一个位置，
+        # 不另写文案；再发送时照常清掉、按这次的回应重写；已有的原因不盖掉；能用（空串）什么都不显示。
+        self.run_page(r"""
+import { attemptSend, noteUnavailable, sendFailureOf } from "@/lib/managed-agents/send-failure";
+---
+// profile.ts 用 Vite 的 import.meta.glob（这里打不进来）：取启动数据那一步按源码核对（见下），这里从拿到的原因开始
+const NOT_SET = "本站点尚未设置 CC。";
+noteUnavailable("thread-new", NOT_SET);
+assert.equal(sendFailureOf("thread-new"), NOT_SET);               // 一打开就在输入框上方
+assert.equal(sendFailureOf("thread-other"), "");                  // 只在这段新对话
+noteUnavailable("thread-ok", "");                                 // 能用：不显示
+assert.equal(sendFailureOf("thread-ok"), "");
+// 已有原因（上次发送没成功）不盖掉
+const box = { text: "", setText(v: string) { box.text = v; }, getState: () => ({ text: box.text }), addAttachment: async () => {} };
+await attemptSend("thread-failed", { composer: box, text: "x" }, async () => { throw new TypeError("Failed to fetch"); });
+noteUnavailable("thread-failed", NOT_SET);
+assert.equal(sendFailureOf("thread-failed"), "出了点问题，请重试。");
+// 再发送：照常先清掉；这次发出去了就不再显示
+const sent = await attemptSend("thread-new", { composer: box, text: "hi" }, async (done) => { assert.equal(sendFailureOf("thread-new"), ""); done(); });
+assert.equal(sent, true);
+assert.equal(sendFailureOf("thread-new"), "");
+""")
+        provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
+        effect = provider.split("// 本站还开不了 CC 对话", 1)[1].split("\n  }, [controller, threadId]);", 1)[0]
+        self.assertIn("if (controller) return;", effect)  # 只在还没有会话的新对话
+        self.assertIn("if (live && profile.assistant_unavailable) noteUnavailable(threadId, profile.assistant_unavailable);",
+                      effect)
+        self.assertIn("void loadProfile().then(", effect)
+        profile = (SRC / "lib/profile.ts").read_text(encoding="utf-8")
+        self.assertIn("assistant_unavailable?: string", profile)
+        self.assertIn('siteFetch("/api/method/pearnly_core.shell.describe", { cache: "no-store" })', profile)
+
     def test_new_chat_wiring_is_per_conversation(self):
         # 组件库每段对话一个 useSessionThreadRuntime 实例（后台挂着的对话也在）：「正在建会话」是这一段自己的，不读模块级的
         # 发送中气泡（pending-send.ts 是整页一个）

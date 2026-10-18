@@ -1,5 +1,7 @@
 """Zero-IO account boundary tests. HTTP and Frappe persistence are replaced."""
 import unittest
+import uuid
+from collections import defaultdict
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +16,7 @@ class TestMembers(unittest.TestCase):
             "pearnly_billing_only": True, "pearnly_billing_scoped_tokens": True,
             "pearnly_billing_token": "unit-test-root-only",
             "pearnly_member_identity_ownership_key": "x" * 48,
+            "pearnly_member_identity_issuer": "http://keycloak:8080/realms/pearnly-business",
         }
         self.headers = {"X-Pearnly-Billing-Product": "erp",
             "X-Pearnly-Billing-Token": tenant_token("unit-test-root-only", "tenant-a", "erp")}
@@ -27,6 +30,7 @@ class TestMembers(unittest.TestCase):
         self.provider = p.start().return_value
         self.addCleanup(p.stop)
         self.provider.create.return_value = "member-subject"
+        self.provider.realm = "pearnly-business"  # 建号记在登记上的池名
         self.ledger = {}
 
     def install_db(self, member=None):
@@ -62,8 +66,10 @@ class TestMembers(unittest.TestCase):
         self.addCleanup(p.stop)
 
     def member_row(self):
+        # realm 为空：改动前写入的老登记（按产品默认的池）。
         return SimpleNamespace(tenant="tenant-a", product="erp", email="employee@example.test",
-            username="Employee42", subject="member-subject", create_request_hash="wrong-test-fingerprint")
+            username="Employee42", subject="member-subject", create_request_hash="wrong-test-fingerprint",
+            realm=None)
 
     def test_scoped_active_erp_auth(self):
         self.assertEqual(service.authorize("tenant-a"), ("tenant-a", "erp"))
@@ -384,8 +390,13 @@ class FakeKeycloak:
         uid = parts[1]
         if uid not in self.users:
             return reply(404)
+        if len(parts) == 2 and method == "GET":
+            return reply(200, self.users[uid])
         if len(parts) == 2 and method == "DELETE":
             del self.users[uid], self.links[uid]
+            return reply(204)
+        if parts[2:] == ["reset-password"] and method == "PUT":
+            self.users[uid]["credentials"] = [json]
             return reply(204)
         if parts[2:] == ["federated-identity"] and method == "GET":
             return reply(200, [{"identityProvider": a, "userId": l} for a, l in self.links[uid].items()])
@@ -397,6 +408,221 @@ class FakeKeycloak:
             return reply(204)
         if method == "DELETE":
             return reply(204 if self.links[uid].pop(alias, None) else 404)
+
+
+COWORK = "https://auth.example.test/realms/pearnly-cowork"
+
+
+class FakeDb:
+    """够用的内存表：成员登记、操作台账、租户状态（字段按 Frappe 的 get_value / get_all 取）。"""
+
+    def __init__(self):
+        self.tables = defaultdict(dict)
+        self.tenants = {"tenant-a": "active", "tenant-b": "active"}
+
+    @staticmethod
+    def _matches(row, filters):
+        return all(row.get(key) == value for key, value in (filters or {}).items())
+
+    @staticmethod
+    def _pick(row, fields):
+        return SimpleNamespace(**{field: row.get(field) for field in fields})
+
+    def insert(self, values):
+        self.tables[values["doctype"]][values["name"]] = dict(values)
+
+    def get_value(self, doctype, name, fields=None, as_dict=False, for_update=False):
+        if doctype == "Pearnly Tenant":
+            return self.tenants.get(name)
+        table = self.tables[doctype]
+        row = table.get(name) if isinstance(name, str) else next(
+            (row for row in table.values() if self._matches(row, name)), None)
+        if row is None:
+            return None
+        return row.get(fields) if isinstance(fields, str) else self._pick(row, fields)
+
+    def set_value(self, doctype, name, field, value=None, **kwargs):
+        values = field if isinstance(field, dict) else {field: value}
+        if doctype == "Pearnly Tenant":
+            self.tenants[name] = values["status"]
+            return
+        self.tables[doctype][name].update(values)
+
+    def get_all(self, doctype, filters=None, fields=None, pluck=None, order_by=None, **kwargs):
+        rows = [row for _name, row in sorted(self.tables[doctype].items()) if self._matches(row, filters)]
+        return [row[pluck] for row in rows] if pluck else [self._pick(row, fields) for row in rows]
+
+    def delete(self, doctype, filters=None):
+        table = self.tables[doctype]
+        for name in [name for name, row in table.items() if self._matches(row, filters)]:
+            del table[name]
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
+class TestMemberPools(unittest.TestCase):
+    """建号按站点实际签到的账号池（2026-10-18：testcowork 是 Cowork 产品却签到业务池），池记在登记上，
+    改密码 / 清理按记下的池；老登记（没记池）按产品默认的池。真实 MemberProvider，两个内存账号池。"""
+
+    def setUp(self):
+        self.native = MagicMock()
+        self.native.conf = {
+            "pearnly_billing_only": True, "pearnly_billing_scoped_tokens": True,
+            "pearnly_billing_token": "unit-test-root-only",
+            "pearnly_member_identity_ownership_key": "p" * 48,
+            # 控制面配内部地址，站点发来公开地址：只比账号池名。
+            "pearnly_member_identity_issuer": "http://keycloak:8080/realms/pearnly-business",
+            "pearnly_member_identity_admin_client_id": "control-business",
+            "pearnly_member_identity_admin_client_secret": "unit-test-only",
+            "pearnly_member_identity_cowork_issuer": "http://keycloak:8080/realms/pearnly-cowork",
+            "pearnly_member_identity_cowork_admin_client_id": "control-cowork",
+            "pearnly_member_identity_cowork_admin_client_secret": "unit-test-only",
+        }
+        self.headers = {}
+        self.native.get_request_header.side_effect = lambda name: self.headers.get(name)
+        self.db = FakeDb()
+        for name in ("get_value", "set_value", "delete", "commit", "rollback"):
+            setattr(self.native.db, name, getattr(self.db, name))
+        self.native.get_all.side_effect = self.db.get_all
+        for module in (service, member_api, member_provider):
+            p = patch.object(module, "frappe", self.native)
+            p.start()
+            self.addCleanup(p.stop)
+        p = patch.object(service, "_insert", side_effect=self.db.insert)
+        p.start()
+        self.addCleanup(p.stop)
+        self.pools = {"pearnly-business": FakeKeycloak(), "pearnly-cowork": FakeKeycloak()}
+        p = patch.object(member_provider.MemberProvider, "_request",
+                         lambda provider, method, path, **kwargs: self.pools[provider.realm](method, path, **kwargs))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def call(self, action, product, issuer, email="employee@example.test", username="Employee42",
+             password="secret-a", tenant="tenant-a"):
+        self.headers.update({"X-Pearnly-Billing-Product": product,
+                             "X-Pearnly-Billing-Token": tenant_token("unit-test-root-only", tenant, product)})
+        return service.execute(tenant, action, email, password, username, uuid.uuid4().hex, issuer=issuer)
+
+    def users(self, realm):
+        return {user["username"]: user for user in self.pools[realm].users.values()}
+
+    def row(self, tenant, email, product):
+        return self.db.tables[service.IDENTITY].get(service._member_key(tenant, email, product))
+
+    def seed(self, product, realm, pool, tenant="tenant-a", email="employee@example.test",
+             username="Employee42", subject=True):
+        """一条已有登记：号建在 pool，登记记着 realm（None = 改动前的老登记）。"""
+        uid = None
+        if subject:
+            uid = "kc-seed-%d" % (len(self.pools[pool].users) + 1)
+            self.pools[pool].users[uid] = {"id": uid, "email": email, "username": username,
+                "attributes": {member_provider.OWNER_ATTRIBUTE: [
+                    service._digest("member-owner-v1", tenant, product, email, username.lower())]},
+                "credentials": [{"type": "password", "value": "secret-a"}]}
+            self.pools[pool].links[uid] = {}
+        key = service._member_key(tenant, email, product)
+        self.db.insert({"doctype": service.IDENTITY, "name": key, "tenant": tenant, "product": product,
+            "email": email, "username": username, "subject": uid, "realm": realm,
+            "create_request_hash": service._digest("member-create-v1", key, username.lower(), "secret-a")})
+        return uid
+
+    def password(self, realm, username="Employee42"):
+        return self.users(realm)[username]["credentials"][0]["value"]
+
+    def test_cowork_site_on_the_business_pool_creates_there_and_records_it(self):
+        created = self.call("create", "cowork", BUSINESS + "/")
+        self.assertEqual(list(self.users("pearnly-business")), ["Employee42"])
+        self.assertEqual(self.users("pearnly-cowork"), {})
+        self.assertEqual(created["subject"], self.users("pearnly-business")["Employee42"]["id"])
+        row = self.row("tenant-a", "employee@example.test", "cowork")
+        self.assertEqual((row["product"], row["realm"], row["subject"]),
+                         ("cowork", "pearnly-business", created["subject"]))
+        # 同一请求重试照旧续上：不再建第二个号。
+        self.assertEqual(self.call("create", "cowork", BUSINESS), created)
+        self.assertEqual(len(self.pools["pearnly-business"].users), 1)
+
+    def test_cowork_site_on_the_cowork_pool_creates_there(self):
+        created = self.call("create", "cowork", COWORK)
+        self.assertEqual(list(self.users("pearnly-cowork")), ["Employee42"])
+        self.assertEqual(self.users("pearnly-business"), {})
+        self.assertEqual(self.row("tenant-a", "employee@example.test", "cowork")["realm"], "pearnly-cowork")
+        self.assertEqual(created["subject"], self.users("pearnly-cowork")["Employee42"]["id"])
+
+    def test_site_without_issuer_uses_the_product_pool(self):
+        # 老站点 / 旧客户端不带签发方：与改动前一样按产品选池，也把池记下。
+        self.call("create", "cowork", "")
+        self.call("create", "erp", "", email="clerk@example.test", username="Clerk7")
+        self.assertEqual(list(self.users("pearnly-cowork")), ["Employee42"])
+        self.assertEqual(list(self.users("pearnly-business")), ["Clerk7"])
+        self.assertEqual(self.row("tenant-a", "employee@example.test", "cowork")["realm"], "pearnly-cowork")
+        self.assertEqual(self.row("tenant-a", "clerk@example.test", "erp")["realm"], "pearnly-business")
+
+    def test_reset_and_purge_follow_the_recorded_pool(self):
+        subject = self.seed("cowork", "pearnly-business", "pearnly-business")
+        self.assertEqual(self.call("reset-password", "cowork", BUSINESS, password="secret-b"),
+                         {"email": "employee@example.test"})
+        self.assertEqual(self.password("pearnly-business"), "secret-b")
+        # 旧客户端不带签发方：照登记上的池改。
+        self.call("reset-password", "cowork", "", password="secret-c")
+        self.assertEqual(self.password("pearnly-business"), "secret-c")
+        self.assertEqual(service.prepare_purge("tenant-a"), {"members": 1, "subjects": [subject]})
+        self.assertEqual(service.purge_members("tenant-a"), {"members": 1})
+        self.assertEqual(self.pools["pearnly-business"].users, {})
+        self.assertIsNone(self.row("tenant-a", "employee@example.test", "cowork"))
+
+    def test_old_record_without_pool_uses_the_product_pool(self):
+        erp = self.seed("erp", None, "pearnly-business")
+        cowork = self.seed("cowork", None, "pearnly-cowork", tenant="tenant-b",
+                           email="staff@example.test", username="Staff9")
+        self.call("reset-password", "erp", "", password="secret-b")
+        self.call("reset-password", "erp", BUSINESS, password="secret-c")
+        self.assertEqual(self.password("pearnly-business"), "secret-c")
+        self.call("reset-password", "cowork", "", tenant="tenant-b", email="staff@example.test",
+                  username="Staff9", password="secret-d")
+        self.assertEqual(self.password("pearnly-cowork", "Staff9"), "secret-d")
+        self.assertEqual(service.prepare_purge("tenant-a")["subjects"], [erp])
+        service.purge_members("tenant-a")
+        self.assertEqual(self.pools["pearnly-business"].users, {})
+        self.assertEqual(list(self.pools["pearnly-cowork"].users), [cowork])
+
+    def test_unknown_pool_is_refused_before_any_write(self):
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.call("create", "cowork", "https://auth.example.test/realms/master")
+        self.assertEqual(raised.exception.code, "not_permitted")
+        self.assertFalse(any(self.db.tables.values()))
+        self.assertEqual((self.pools["pearnly-business"].users, self.pools["pearnly-cowork"].users), ({}, {}))
+
+    def test_reset_from_a_site_on_another_pool_is_refused(self):
+        self.seed("cowork", "pearnly-business", "pearnly-business")
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.call("reset-password", "cowork", COWORK, password="secret-b")
+        self.assertEqual(raised.exception.code, "not_permitted")
+        self.assertEqual(self.password("pearnly-business"), "secret-a")
+        self.assertEqual(self.db.tables[service.OPERATION], {})
+
+    def test_retry_from_another_pool_conflicts(self):
+        # 建号请求已登记（号还没建出来），换了池的同一请求不能在另一个池里建号。
+        self.seed("cowork", "pearnly-business", "pearnly-business", subject=False)
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.call("create", "cowork", COWORK)
+        self.assertEqual(raised.exception.code, "conflict")
+        self.assertEqual((self.pools["pearnly-business"].users, self.pools["pearnly-cowork"].users), ({}, {}))
+        self.assertEqual(self.call("create", "cowork", BUSINESS)["subject"],
+                         self.users("pearnly-business")["Employee42"]["id"])
+
+    def test_recorded_pool_that_is_not_configured_fails_closed(self):
+        self.seed("erp", "pearnly-retired", "pearnly-business")
+        with self.assertRaises(member_provider.MemberError) as raised:
+            self.call("reset-password", "erp", "", password="secret-b")
+        self.assertEqual(raised.exception.code, "unavailable")
+        with self.assertRaises(member_provider.MemberError):
+            service.prepare_purge("tenant-a")
+        self.assertEqual(self.password("pearnly-business"), "secret-a")
+        self.assertEqual(self.db.tenants["tenant-a"], "active")
 
 
 class TestProviderLinePerson(unittest.TestCase):

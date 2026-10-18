@@ -192,10 +192,10 @@ def _refused(text: str) -> bool:
 def run(name: str, tool_input) -> tuple[str, bool]:
     tool = next((t for t in declared() if t["name"] == str(name or "")), None)
     if not tool:
-        return _("This tool is not available on this site."), True
+        return _("assistant.tool.unavailable"), True
     try:
         text = str(frappe.get_attr(tool["handler"])(tool_input if isinstance(tool_input, dict) else {}))
         return text, _refused(text)
     except (frappe.ValidationError, frappe.PermissionError) as err:
         frappe.db.rollback()
-        return str(err) or _("The request was refused."), True
+        return str(err) or _("assistant.tool.refused"), True

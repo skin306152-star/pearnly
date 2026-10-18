@@ -1,4 +1,3 @@
-"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",0 は価格を一度も設定していない（実際の ฿0 ではない）ことを表します。Frappe の Currency 列は NULL を保存できないため、「未設定」と「0」の区別はこのフラグで持ち、POS のゼロ価格ガードがこれを参照します。
 1 = January,1 = 1月
 1-12; Thai companies commonly start in January,1〜12。タイ企業は1月開始が一般的です
 13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
@@ -187,7 +186,6 @@ Closed At,終了時刻
 Closed at,終了日時
 Closed by,終了者
 Closing Quantity,期末数量
-Closing locks every entry. Rows never counted stay empty. Continue?,終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？
 Code,コード
 Code expired,コードの有効期限が切れました
 Code or barcode,コード・バーコード
@@ -394,7 +392,7 @@ Filters,フィルタ
 Find,検索
 Find product,商品を検索
 Finish,完了
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
+Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
 First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
 Fiscal Year Starts In,会計年度の開始月
 Fiscal year start month,会計年度の開始月
@@ -406,7 +404,6 @@ Following fields have missing values:,次の項目が未入力です:
 Foreigner,外国人
 Found,検出
 Found: {0},取得: {0}
-"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",Frappe の Currency 列は NULL を保持できないため、0 は実コストと「未設定」の両方を意味します。レジはこの2つを区別する必要があります（price_set と同じ理由）。
 "Free note kept with the collection record (who took the money, reference).",入金記録に残す自由記入（受け取った人、参照番号）。
 From Date,開始日
 From the document,書類から読み取る
@@ -498,6 +495,7 @@ Line Amount,行金額
 Line Discount,行値引
 Line No,行番号
 Line Total,明細小計
+Line prices include VAT,明細単価は税込
 Lines,明細行
 Lines in this shift,このシフトのレシート
 List Price,表示価格
@@ -689,7 +687,6 @@ Posted by,転記者
 Posted to Stock,在庫計上済み
 Posted {0} differences,差異 {0} 件を転記しました
 Posting Date,転記日
-Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
 Prefix for this company's document numbers,この会社の伝票番号の接頭辞
 Preview,プレビュー
 Preview opening stock,プレビューして確認
@@ -728,7 +725,7 @@ Purchase document not found,購買伝票が見つかりません
 Purchasing,購買
 Purpose,用途
 QR Payload,QR内容
-QR payload,QR 内容
+QR content,QR 内容
 Qty,数量
 "Qty (base unit, signed)",数量（基準単位・符号付き）
 Qty (entered unit),数量（入力単位）
@@ -860,6 +857,7 @@ Selling price,販売価格
 Selling warehouse,販売する倉庫
 Send,送信
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
+Sender's LINE language when the document arrived,書類受信時の送信者の LINE 言語
 Sending the same file twice must not create two drafts,同じファイルを2回送っても下書きを2件作らない
 Sent By,送信者
 Serial No: {0} has already been transacted into another POS Invoice.,シリアル番号 {0} は他のレジ伝票で使用済みです
@@ -1096,6 +1094,9 @@ Unit Price,単価
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
 Unpaid,未払
+Unticked: cost not set.,チェックなし：原価未設定。
+"Unticked: no cashier pages, role or permissions for this company",チェックなし：この会社ではレジ画面・ロール・権限を使用しません
+Unticked: price not set (not ฿0).,チェックなし：価格未設定（฿0 ではありません）。
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
 Update Additional Information,追加情報を更新
 Update Stock,在庫更新
@@ -1156,7 +1157,7 @@ Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
-"Year, year-month or ALL, depending on the reset policy",年・年月・ALL のいずれか（リセット方針による）
+"Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
 Yes,はい
 You can redeem upto {0}.,最大 {0} まで利用できます
 You cannot redeem more than {0}.,{0} を超えて利用できません
@@ -1453,7 +1454,6 @@ stock.count.chart,グラフ
 stock.count.chartEmpty,まだ棚卸記録がありません
 stock.count.chartTotals,帳簿 {0} · 実地 {1} · 差異 {2}
 stock.count.close,棚卸を終了
-stock.count.closeConfirm,終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？
 stock.count.closed,棚卸を終了しました
 stock.count.counted,実地数量
 stock.count.countedAt,日時
@@ -1509,7 +1509,6 @@ stock.count.over,過剰
 stock.count.photoInfo,商品・位置・担当者・日時
 stock.count.photos,写真
 stock.count.post,差異を転記
-stock.count.postConfirm,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
 stock.count.posted,差異 {0} 件を転記しました
 stock.count.problemCode,そのコードの商品が見つかりません
 stock.count.problemIdentifier,この行に商品コードもバーコードもありません
@@ -1596,7 +1595,7 @@ stock.workbench.editEntry,記録を修正
 stock.workbench.elsewhere,この商品は他の場所にも在庫があります:
 stock.workbench.entryQty,今回の実地数量
 stock.workbench.find,商品を検索
-stock.workbench.finishConfirm,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
+stock.workbench.finishConfirm,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
 stock.workbench.locationDiff,棚番の差異
 stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
 stock.workbench.needsRecount,在庫変動・再棚卸
@@ -1654,9 +1653,6 @@ supplier.new,仕入先を追加
 supplier.notice.toggled,仕入先 {0}件を更新しました
 supplier.save,保存
 supplier.title,仕入先
-tax_invoice,税務請求書
-tax_invoice_receipt,税務請求書兼領収書
-tax_invoice_simple,簡易税務請求書
 team.action.bulkDisable,{0}件を無効化
 team.action.bulkEnable,{0}件を有効化
 team.active,正常

@@ -1,4 +1,3 @@
-"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งราคา (ไม่ใช่ราคา ฿0)
 1 = January,1 = มกราคม
 1-12; Thai companies commonly start in January,1–12 โดยทั่วไปบริษัทในประเทศไทยเริ่มต้นเดือนมกราคม
 13 digits; a branch adds its 5-digit branch number,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
@@ -187,7 +186,6 @@ Closed At,เวลาปิดกะ
 Closed at,เวลาปิด
 Closed by,ผู้ปิด
 Closing Quantity,จำนวนคงเหลือ
-Closing locks every entry. Rows never counted stay empty. Continue?,เมื่อปิดแล้ว ทุกรายการจะถูกล็อก แถวที่ยังไม่นับจะเว้นว่างไว้ ต้องการดำเนินการต่อใช่หรือไม่
 Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
 Code or barcode,รหัสหรือบาร์โค้ด
@@ -394,7 +392,7 @@ Filters,ตัวกรอง
 Find,ค้นหา
 Find product,ค้นหาสินค้า
 Finish,เสร็จสิ้น
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ ตรวจนับแล้ว {0} รายการ ส่วน {1} รายการที่ยังไม่ได้ตรวจนับจะไม่เปลี่ยนแปลง หลังสิ้นสุดแล้วจะดูและส่งออกงานนี้ได้เท่านั้น
+Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
 First warehouse of this company (more on the Warehouses page),คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 Fiscal Year Starts In,เดือนที่เริ่มปีบัญชี
 Fiscal year start month,เดือนเริ่มปีบัญชี
@@ -406,7 +404,6 @@ Following fields have missing values:,ฟิลด์ต่อไปนี้ย
 Foreigner,ชาวต่างชาติ
 Found,พบ
 Found: {0},พบข้อมูล: {0}
-"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน
 "Free note kept with the collection record (who took the money, reference).",หมายเหตุของรายการรับเงิน (ผู้รับเงิน เลขที่อ้างอิง)
 From Date,จากวันที่
 From the document,อ่านจากเอกสาร
@@ -498,6 +495,7 @@ Line Amount,จำนวนเงินรายบรรทัด
 Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
 Line Total,ยอดรวมบรรทัด
+Line prices include VAT,ราคาต่อรายการรวมภาษีมูลค่าเพิ่มแล้ว
 Lines,รายการ
 Lines in this shift,ใบเสร็จในกะนี้
 List Price,ราคาตั้ง
@@ -689,7 +687,6 @@ Posted by,ผู้ลงบัญชี
 Posted to Stock,บันทึกสต็อกแล้ว
 Posted {0} differences,ลงบัญชีผลต่าง {0} รายการแล้ว
 Posting Date,วันที่ลงบัญชี
-Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหวสต็อก แถวที่ยังไม่นับจะไม่ได้รับผลกระทบ ต้องการดำเนินการต่อใช่หรือไม่
 Prefix for this company's document numbers,คำนำหน้าเลขเอกสารของบริษัทนี้
 Preview,ตัวอย่าง
 Preview opening stock,ตรวจสอบก่อนบันทึก
@@ -728,7 +725,7 @@ Purchase document not found,ไม่พบเอกสารจัดซื้�
 Purchasing,จัดซื้อ
 Purpose,วัตถุประสงค์
 QR Payload,ข้อมูล QR
-QR payload,ข้อมูล QR
+QR content,ข้อมูล QR
 Qty,จำนวน
 "Qty (base unit, signed)",จำนวน (หน่วยฐาน มีเครื่องหมาย)
 Qty (entered unit),จำนวน (หน่วยที่กรอก)
@@ -860,6 +857,7 @@ Selling price,ราคาขาย
 Selling warehouse,คลังที่ขาย
 Send,ส่ง
 Send the code from the ERP page to bind,กรุณาส่งรหัสผูกบัญชีจากหน้า ERP
+Sender's LINE language when the document arrived,ภาษา LINE ของผู้ส่งเมื่อได้รับเอกสาร
 Sending the same file twice must not create two drafts,การส่งไฟล์เดิมซ้ำจะไม่สร้างฉบับร่างซ้ำ
 Sent By,ผู้ส่ง
 Serial No: {0} has already been transacted into another POS Invoice.,หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว
@@ -1096,6 +1094,9 @@ Unit Price,ราคาต่อหน่วย
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ไม่ทราบทิศทางของเอกสาร
 Unpaid,ยังไม่ได้ชำระ
+Unticked: cost not set.,หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน
+"Unticked: no cashier pages, role or permissions for this company",หากไม่เลือก บริษัทนี้จะไม่มีหน้าแคชเชียร์ บทบาท และสิทธิ์
+Unticked: price not set (not ฿0).,หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งราคา (ไม่ใช่ราคา ฿0)
 Up to 5 photos per entry; take a photo or choose from the gallery.,บันทึกได้ไม่เกิน 5 รูปต่อรายการ โดยถ่ายรูปหรือเลือกจากอัลบั้ม
 Update Additional Information,อัปเดตข้อมูลเพิ่มเติม
 Update Stock,อัปเดตสต็อก
@@ -1156,7 +1157,7 @@ Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
-"Year, year-month or ALL, depending on the reset policy",ปี ปี-เดือน หรือ ALL ขึ้นอยู่กับนโยบายการเริ่มเลขใหม่
+"Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
 Yes,ใช่
 You can redeem upto {0}.,ใช้คะแนนสะสมได้สูงสุด {0}
 You cannot redeem more than {0}.,ใช้คะแนนสะสมได้ไม่เกิน {0}
@@ -1453,7 +1454,6 @@ stock.count.chart,แผนภูมิ
 stock.count.chartEmpty,ยังไม่มีการนับ
 stock.count.chartTotals,ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}
 stock.count.close,ปิดการตรวจนับ
-stock.count.closeConfirm,เมื่อปิดแล้ว ทุกรายการจะถูกล็อก แถวที่ยังไม่นับจะเว้นว่างไว้ ต้องการดำเนินการต่อใช่หรือไม่
 stock.count.closed,ปิดการตรวจนับแล้ว
 stock.count.counted,จำนวนที่นับได้
 stock.count.countedAt,เวลาที่นับ
@@ -1509,7 +1509,6 @@ stock.count.over,เกิน
 stock.count.photoInfo,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 stock.count.photos,รูปภาพ
 stock.count.post,ลงบัญชีผลต่าง
-stock.count.postConfirm,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหวสต็อก แถวที่ยังไม่นับจะไม่ได้รับผลกระทบ ต้องการดำเนินการต่อใช่หรือไม่
 stock.count.posted,ลงบัญชีผลต่าง {0} รายการแล้ว
 stock.count.problemCode,ไม่พบสินค้าที่ตรงกับรหัสนี้
 stock.count.problemIdentifier,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
@@ -1596,7 +1595,7 @@ stock.workbench.editEntry,แก้ไขรายการ
 stock.workbench.elsewhere,สินค้านี้มีอยู่ที่อื่นด้วย:
 stock.workbench.entryQty,จำนวนที่นับครั้งนี้
 stock.workbench.find,ค้นหาสินค้า
-stock.workbench.finishConfirm,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ ตรวจนับแล้ว {0} รายการ ส่วน {1} รายการที่ยังไม่ได้ตรวจนับจะไม่เปลี่ยนแปลง หลังสิ้นสุดแล้วจะดูและส่งออกงานนี้ได้เท่านั้น
+stock.workbench.finishConfirm,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
 stock.workbench.locationDiff,ผลต่างตำแหน่ง
 stock.workbench.lookupFailed,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
 stock.workbench.needsRecount,สต็อกเปลี่ยนแปลงแล้ว ต้องตรวจนับใหม่
@@ -1654,9 +1653,6 @@ supplier.new,เพิ่มผู้จำหน่าย
 supplier.notice.toggled,อัปเดตผู้จำหน่าย {0} รายแล้ว
 supplier.save,บันทึก
 supplier.title,ผู้จำหน่าย
-tax_invoice,ใบกำกับภาษีเต็มรูปแบบ
-tax_invoice_receipt,ใบกำกับภาษีและใบเสร็จ
-tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
 team.action.bulkDisable,ปิดใช้งาน {0}
 team.action.bulkEnable,เปิดใช้งาน {0}
 team.active,ปกติ

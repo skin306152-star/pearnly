@@ -344,8 +344,6 @@ Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
-Choosing how a kind of document is handled,この種類の書類の扱いを設定しています
-Chose how a kind of document is handled,この種類の書類の扱いを設定しました
 Chosen At,選択日時
 Chosen By,選択者
 Claim VAT,仕入税額控除
@@ -601,6 +599,7 @@ Dividends,配当
 Document Key,伝票重複防止キー
 Document No.,伝票番号
 Document Policy,書類の取扱ルール
+Document handling set,書類の処理方法を設定済み
 Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
@@ -1513,6 +1512,7 @@ Set At,設定日時
 Set By,設定者
 Set a local folder once; documents are read and entered every month,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
 Set by {0} on {1},{0}（{1}）が設定
+Set document handling,書類の処理方法を設定
 Set due date,期日を N 日後に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
 Set reminder,リマインダー

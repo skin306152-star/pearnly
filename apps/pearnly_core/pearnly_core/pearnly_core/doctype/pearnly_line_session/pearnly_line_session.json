@@ -19,11 +19,11 @@
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
   {"fieldname": "expires_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Expires At", "columns": 3},
   {"fieldname": "section_payload", "fieldtype": "Section Break", "label": "Session Payload"},
-  {"description": "The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.\n\n**One row per session** (a LINE user runs only one flow at a time inside one tenant).", "fieldname": "payload", "fieldtype": "JSON", "label": "Payload"}
+  {"description": "In-progress state of a multi-turn conversation. One row per session.", "fieldname": "payload", "fieldtype": "JSON", "label": "Data"}
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-18 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly LINE Session",

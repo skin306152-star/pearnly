@@ -279,6 +279,37 @@ class RuleTests(StrictCase):
             '<i style={{ width: "var(--cc-icon-sm)", height: `calc(var(--cc-space-8) * ${n})` }} />',
         ])
 
+    def test_arbitrary_properties_and_compound_variants_do_not_slip_through(self):
+        # B0 补修复核建议 ① 与 B1 开工前核对的几种理论漏拦写法（docs/work/2026-10-17-cc-frontend-standards.md「B1 开工前」）
+        self.assertBlocked({
+            # 任意属性引用外来变量
+            '<i className="[max-width:var(--thread-max-width)]" />': "R10",
+            '<i className="[width:var(--sidebar-width)]" />': "R10",
+            '<i className="[transition-duration:var(--foo)]" />': "R10",
+            '<i className="[--cc-thread-w:var(--foo)]" />': "R10",
+            # 任意属性写不带单位的层级、行高、字重
+            '<i className="[z-index:50]" />': "R7",
+            '<i className="[line-height:2]" />': "R6",
+            '<i className="[font-weight:600]" />': "R15",
+            # 组合变体里的断点、输入设备、容器查询（not-sm: 生成 @media not (width >= 40rem)）
+            '<i className="not-sm:flex" />': "R11",
+            '<i className="not-pointer-coarse:flex" />': "R11",
+            '<i className="not-@md:flex" />': "R11",
+            '<i className="group-@md:flex" />': "R11",
+            # 模板里拼数字字面量成长度
+            'const m = `${4}px`;': "R12",
+            'new IntersectionObserver(f, { rootMargin: `${2 * 100}px` });': "R12",
+        })
+        self.assertEqual(self.rules('<i className="[--cc-thread-w:var(--foo)]" />'), ["R10"])
+        self.assertPasses([
+            '<i className="[--cc-thread-w:var(--cc-thread-gutter)] [z-index:var(--cc-z-menu)] [z-index:calc(var(--cc-z-menu)+1)]" />',
+            '<i className="[transition-duration:var(--cc-dur)] [line-height:var(--cc-row-lh)] [z-index:0]" />',
+            '<i className="not-max-md:flex not-md:hidden not-first:mt-0 group-hover:flex in-data-[cc-touch]:flex not-data-[x]:flex" />',
+            'const a = `${w}px`; const b = `${0}px`; const c = `translate(${x}px, 0)`; const d = `p-${4}`;',
+        ])
+        # 同一处只记一次：style 块里的 `${4}px` 归 STYLE_PAIR
+        self.assertEqual(self.rules("<i style={{ width: `${4}px` }} />"), ["R12"])
+
     def test_container_query_variants(self):
         self.assertBlocked({
             '<i className="@lg:flex" />': "R11",

@@ -82,13 +82,13 @@ class LedgerSourceTests(unittest.TestCase):
         # 段行右侧的状态完整显示，左边段名让位、放不下时由它滚；同一行不会两处一起滚（用户 10-16 截图）
         self.assertEqual(ledger.count('className="cc-panel-extra cc-month-status"'), 1)
         css = read("globals.css")
-        self.assertIn('[data-slot="cc-month-stage"] > .cc-panel-extra.cc-month-status { max-width: calc(100% - 4rem); }', css)
+        self.assertIn('[data-slot="cc-month-stage"] > .cc-panel-extra.cc-month-status { max-width: calc(100% - var(--cc-month-name-min)); }', css)
         # 账套行两行（第 8 轮：1024 宽、右侧栏 280 时状态要 178px 只给了 156px、账套名压到 60px）：账套名一行、状态一行（12px 淡色），
         # 各自全宽、各自是一行悬停滚动的范围
         self.assertIn('<div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent cc-month-set" data-slot="cc-month-set">\n'
                       '            <Marquee className="cc-month-set-name" data-marquee-host="">{set.label || set.key}</Marquee>\n'
                       '            <Marquee className="cc-month-set-status" data-marquee-host="">{setSummary(set)}</Marquee>', ledger)
-        self.assertIn(".cc-panel-row.cc-month-set { flex-direction: column; align-items: stretch; gap: 0; padding-block: 0.1875rem; }", css)
+        self.assertIn(".cc-panel-row.cc-month-set { flex-direction: column; align-items: stretch; gap: 0; padding-block: var(--cc-panel-row-py); }", css)
         status = css.split("  .cc-month-set-status {", 1)[1].split("}", 1)[0]
         for part in ("min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);",
                      "font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);"):

@@ -3,7 +3,6 @@
  "allow_rename": 0,
  "autoname": "hash",
  "creation": "2026-09-27 00:00:00.000000",
- "description": "DMS accounts reserved for the system: one read account for daytime background reads, and write accounts for customer writes and admin reads so operators do not queue on one account.",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -72,7 +71,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-27 12:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly DMS",
  "name": "DMS System Account",

@@ -1,5 +1,5 @@
 {% extends "templates/web.html" %}
-{% block title %}发号{% endblock %}
+{% block title %}{{ _("Issue") }}{% endblock %}
 {% block page_content %}
 <style>
   .pi-wrap{max-width:760px;margin:2rem auto;font-size:14px;color:#111827}
@@ -28,69 +28,69 @@
 </style>
 
 <div class="pi-wrap">
-  <h3>发号</h3>
-  <p class="pi-sub">给一家公司开一批产品。<span id="pi-operator"></span></p>
+  <h3>{{ _("Issue") }}</h3>
+  <p class="pi-sub"><span id="pi-operator"></span></p>
 
   <div class="pi-card" id="pi-form-card">
-    <h5>公司与账号</h5>
+    <h5>{{ _("issue.section.account") }}</h5>
     <div class="pi-field">
-      <label>开户目标</label>
+      <label>{{ _("Provisioning Target") }}</label>
       <select id="pi-target" style="width:100%;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;font-size:14px"></select>
     </div>
     <div class="pi-row">
       <div class="pi-field">
-        <label>公司名称</label>
-        <input type="text" id="pi-tenant" placeholder="例如：曼谷五金有限公司">
+        <label>{{ _("Company Name") }}</label>
+        <input type="text" id="pi-tenant" placeholder="{{ _("issue.placeholder.company") }}">
       </div>
       <div class="pi-field">
-        <label>邮箱</label>
+        <label>{{ _("Email") }}</label>
         <input type="text" id="pi-email" placeholder="owner@company.com">
       </div>
     </div>
     <div class="pi-row">
       <div class="pi-field">
-        <label>用户名</label>
-        <input type="text" id="pi-username" placeholder="例如：somchai">
+        <label>{{ _("Username") }}</label>
+        <input type="text" id="pi-username" placeholder="{{ _("issue.placeholder.username") }}">
       </div>
       <div class="pi-field">
-        <label>初始密码</label>
-        <input type="text" id="pi-password" placeholder="用户拿它直接登录">
+        <label>{{ _("Initial Password") }}</label>
+        <input type="text" id="pi-password">
       </div>
     </div>
   </div>
 
   <div class="pi-card">
-    <h5>产品与域名（勾选即开通该产品全部功能）</h5>
+    <h5>{{ _("issue.section.products") }}</h5>
     <div class="pi-app">
       <input type="checkbox" id="pi-app-cowork" data-app="cowork">
       <span class="name">Cowork</span>
-      <input type="text" id="pi-dom-cowork" placeholder="只填前缀，如 acme" disabled>
+      <input type="text" id="pi-dom-cowork" placeholder="{{ _("issue.placeholder.prefix") }}" disabled>
     </div>
     <div class="pi-app">
       <input type="checkbox" id="pi-app-erp" data-app="erp">
       <span class="name">ERP</span>
-      <input type="text" id="pi-dom-erp" placeholder="只填前缀，如 acme" disabled>
+      <input type="text" id="pi-dom-erp" placeholder="{{ _("issue.placeholder.prefix") }}" disabled>
     </div>
     <div class="pi-app">
       <input type="checkbox" id="pi-app-dms" data-app="dms">
       <span class="name">DMS</span>
-      <input type="text" id="pi-dom-dms" placeholder="只填前缀，如 acme" disabled>
+      <input type="text" id="pi-dom-dms" placeholder="{{ _("issue.placeholder.prefix") }}" disabled>
     </div>
   </div>
 
   <div class="pi-card">
     <div class="pi-field">
-      <label>备注（可选）</label>
+      <label>{{ _("Remarks") }}</label>
       <textarea id="pi-notes" rows="2"></textarea>
     </div>
     <div class="pi-actions">
-      <button id="pi-submit">发号</button>
+      <button id="pi-submit">{{ _("Create") }}</button>
       <span class="pi-msg" id="pi-msg"></span>
     </div>
   </div>
 
   <div class="pi-card pi-result" id="pi-result">
-    <h5>开通清单</h5>
+    <h5>{{ _("issue.section.result") }}</h5>
     <div id="pi-result-body"></div>
   </div>
 </div>
@@ -168,7 +168,7 @@
   }
 
   document.getElementById("pi-submit").addEventListener("click", function () {
-    var btn = this, msg = document.getElementById("pi-msg");
+    var btn = this, msg = document.getElementById("pi-msg"), label = btn.dataset.label || (btn.dataset.label = btn.textContent);
     msg.textContent = "";
     var body = collect();
     if (!body.tenant_name) { msg.textContent = "请填公司名称"; return; }
@@ -188,12 +188,12 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        btn.disabled = false; btn.textContent = "发号";
+        btn.disabled = false; btn.textContent = label;
         if (!j || !j.message || !j.message.issue) { msg.textContent = errText(j); return; }
         render(j.message);
       })
       .catch(function (e) {
-        btn.disabled = false; btn.textContent = "发号";
+        btn.disabled = false; btn.textContent = label;
         msg.textContent = "失败：" + e;
       });
   });

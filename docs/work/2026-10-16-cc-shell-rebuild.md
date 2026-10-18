@@ -667,3 +667,4 @@
   - 测试：`test_expanding_the_sidebar_gives_focus_back`、`test_deleting_the_last_visible_row_lands_on_the_sidebar_fallback`（修前失败、修后通过），`test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar` 随新结构改断言。`tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-frontend-i18n`、`check-architecture`，`test_assistant_ui`、`test_cc_mobile_overlays`、`test_cc_session_panel`、`test_cc_ccs`（合计 289）通过。
   - 已知限制：只在本机测试脚本（桩出来的焦点与 inert）里验证，没在真浏览器 / 测试机 lab 上按 ⌘B、读屏实测；没推送、没合并。
 - 10-18 已部署生产：main `ec90fdfc`，镜像 `sha256:ebba5a40…`，见 [2026-10-18-release-ec90fdfc.md](2026-10-18-release-ec90fdfc.md)。
+- 10-18 测试窗口实测：别的设备排好的置顶顺序被一直开着的电脑按旧对话列表收拾掉（服务端剩 1 条），见 [2026-10-18-cc-pin-order-race.md](2026-10-18-cc-pin-order-race.md)。

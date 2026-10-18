@@ -113,9 +113,13 @@ def _parties(doc, result):
 
 
 def _party_rows(role, party):
-    """对方那一组：名称、税号、分店、地址（标签沿用旧卡片的「ชื่อผู้ขาย / ชื่อผู้ซื้อ」等）。"""
-    return [_kv(_(role), party.get("name")), _kv(_(role + " tax ID"), party.get("tax_id")),
-            _kv(_(role + " branch"), party.get("branch")), _kv(_(role + " address"), party.get("address"))]
+    """对方那一组：名称、税号、分店、地址（标签沿用旧卡片的「ชื่อผู้ขาย / ชื่อผู้ซื้อ」等）。每个标签是一条完整的词条，不拼接。"""
+    if role == "Seller":
+        labels = (_("Seller"), _("Seller tax ID"), _("Seller branch"), _("Seller address"))
+    else:
+        labels = (_("Buyer"), _("Buyer tax ID"), _("Buyer branch"), _("Buyer address"))
+    values = (party.get("name"), party.get("tax_id"), party.get("branch"), party.get("address"))
+    return [_kv(label, value) for label, value in zip(labels, values)]
 
 
 def _payment(doc):

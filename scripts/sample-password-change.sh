@@ -44,7 +44,7 @@ if [ -z "$CSRF" ]; then
   printf '%s' "$PAGE_HTML" | head -c 300
   exit 1
 fi
-printf '%s' "$PAGE_HTML" | grep -q "密码更改" && echo "    页面渲染正常，表单字段齐全"
+printf '%s' "$PAGE_HTML" | grep -q 'id="pw-submit"' && echo "    页面渲染正常，表单字段齐全"
 
 call_change() {
   curl -sS -b "$JAR" -H "Host: $SITE_HOST" \

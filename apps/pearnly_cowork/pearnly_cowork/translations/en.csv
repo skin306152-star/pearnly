@@ -344,8 +344,6 @@ Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
-Choosing how a kind of document is handled,Choosing how a kind of document is handled
-Chose how a kind of document is handled,Chose how a kind of document is handled
 Chosen At,Chosen At
 Chosen By,Chosen By
 Claim VAT,Claim VAT
@@ -601,6 +599,7 @@ Dividends,Dividends
 Document Key,Document Key
 Document No.,Document No.
 Document Policy,Document Policy
+Document handling set,Document handling set
 Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
@@ -1513,6 +1512,7 @@ Set At,Set At
 Set By,Set By
 Set a local folder once; documents are read and entered every month,Set a local folder once; documents are read and entered every month
 Set by {0} on {1},Set by {0} on {1}
+Set document handling,Set document handling
 Set due date,Set due date
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder

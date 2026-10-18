@@ -208,7 +208,7 @@ def extract(image_bytes: bytes) -> dict:
         data = ocr.json_from_images(_ID_CARD_PROMPT, [(img, mime)], model=ID_CARD_MODEL)
     if not isinstance(data, dict):
         raise IdCardExtractError(
-            _("Neither tier produced a result (network, key or model name could all be the cause)")
+            _("Recognition returned no result")
         )
     return normalize(data)
 

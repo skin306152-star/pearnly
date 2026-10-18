@@ -121,6 +121,10 @@ jobs:
         run: python3 tests/test_account_session_length.py
       - name: Verify every DocType sharing the Cowork connection guard passes before_validate (with or without a client field)
         run: python3 tests/test_cowork_connection_controller.py
+      - name: Verify product sites do not send Python tracebacks to the page (System Settings allow_error_traceback off)
+        run: python3 tests/test_desk_error_detail.py
+      - name: Verify the member identity record accepts every product the member service serves (Cowork team members)
+        run: python3 tests/test_member_identity_products.py
       - name: Verify the fatcc.com entry (lookup, private billing, Keycloak client, generated sign-in pages)
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
@@ -156,6 +160,8 @@ jobs:
         run: python3 scripts/check-frontend-tokens.py
       - name: Verify the CC frontend standards gate (sizes, spacing, type, layers, motion fail inside the completed-files list)
         run: python3 tests/test_cc_frontend_gate.py
+      - name: Keep CC idle when nothing happens (decorative animations stop after a few rounds, infinite ones only while working)
+        run: python3 tests/test_cc_idle_motion.py
       - name: Keep dvh / svh / lvh behind a vh fallback (Chrome and Android WebView before 108 drop the whole declaration)
         run: python3 scripts/check-frontend-viewport-units.py
       - name: Verify CC phone overlays (dialogs fit and scroll, the back key closes the top layer, long-press rows, menus inside the screen)

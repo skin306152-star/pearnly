@@ -104,11 +104,13 @@ class ViewportUnitGateTests(unittest.TestCase):
 
     def test_globals_define_the_viewport_tokens_with_a_vh_fallback(self):
         css = read("globals.css")
-        self.assertIn("  --cc-vh: 100vh;\n", css)
-        self.assertIn("  --cc-svh: 100vh;\n", css)
-        self.assertIn("  --cc-viewport-h: var(--cc-vvh, var(--cc-vh));\n", css)
-        self.assertIn("@supports (height: 100dvh) { :root { --cc-vh: 100dvh; } }", css)
-        self.assertIn("@supports (height: 100svh) { :root { --cc-svh: 100svh; } }", css)
+        self.assertRegex(css, r"\n  --cc-vh: 100vh; +/\* 系统值")
+        self.assertRegex(css, r"\n  --cc-svh: 100vh; +/\* 系统值")
+        # 可见区域高：lib/viewport.ts 写 --cc-vvh，运行时层登记的默认值是整屏高（原来写在 var() 的回退里）
+        self.assertIn("  --cc-viewport-h: var(--cc-vvh);\n", css)
+        self.assertIn("  --cc-vvh: var(--cc-vh);", css)
+        self.assertIn("@supports (height: 100dvh) { :root { --cc-vh: 100dvh; /* 系统值 */ } }", css)
+        self.assertIn("@supports (height: 100svh) { :root { --cc-svh: 100svh; /* 系统值 */ } }", css)
         # 手机外壳、整页外框、侧栏都只引用变量
         self.assertIn("height: var(--cc-viewport-h);", css.split(".cc-mshell {", 1)[1].split("}", 1)[0])
         self.assertIn('<div className="flex h-(--cc-vh) w-full bg-app">', read("assistant.tsx"))
@@ -122,10 +124,13 @@ class DialogFitTests(unittest.TestCase):
     def test_modals_are_centred_in_the_visible_area_and_capped_to_it(self):
         css = read("globals.css")
         modal = css.split("  .cc-modal {", 1)[1].split("}", 1)[0]
-        self.assertIn("top: calc(var(--cc-vvtop, 0px) + var(--cc-viewport-h) / 2);", modal)
-        self.assertIn("max-height: calc(var(--cc-viewport-h) * var(--cc-modal-share, 0.88));", modal)
+        # --cc-vvtop、--cc-modal-share 在运行时层登记了默认值（0px、0.88，原来写在 var() 的回退里）
+        self.assertIn("top: calc(var(--cc-vvtop) + var(--cc-viewport-h) / 2);", modal)
+        self.assertIn("max-height: calc(var(--cc-viewport-h) * var(--cc-modal-share));", modal)
+        self.assertIn("  --cc-vvtop: 0px;", css)
+        self.assertIn("  --cc-modal-share: 0.88;", css)
         guide = css.split("  .cc-install-guide {", 1)[1].split("}", 1)[0]
-        self.assertIn("max-height: calc(var(--cc-viewport-h) - 2rem); overflow-y: auto;", guide)
+        self.assertIn("max-height: calc(var(--cc-viewport-h) - var(--cc-dialog-gutter) * 2); overflow-y: auto;", guide)
         self.assertNotIn("top: 50%", guide)
         # 每个居中弹窗都用 cc-modal，不再自己写 top-1/2（工具类会盖过 cc-modal 的位置）
         for path, needle in [
@@ -176,7 +181,8 @@ class DialogFitTests(unittest.TestCase):
         self.assertIn(".cc-mshell .cc-composer[data-collapsed] .aui-composer-send { display: none; }", fold)
         self.assertNotIn("aui-composer-cancel", fold)  # 停止钮不藏
         self.assertNotIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer[data-collapsed]", css)
-        self.assertIn(".cc-mshell .cc-send { width: 2.125rem; height: 2.125rem; border-radius: var(--cc-radius-full); }", css)
+        self.assertIn(".cc-mshell .cc-send { width: var(--cc-mcomposer-btn); height: var(--cc-mcomposer-btn); border-radius: var(--cc-radius-full); }", css)
+        self.assertIn("--cc-mcomposer-btn: 34px;", css)
         self.assertIn(".cc-welcome-filing:empty { display: none; }", css)
 
     def test_viewport_tracking_moves_to_the_root_for_portaled_dialogs(self):
@@ -189,7 +195,7 @@ class DialogFitTests(unittest.TestCase):
         self.assertNotIn("scrollTo(", viewport)
         # 键盘弹出时输入框贴着键盘（不留指示条那一截）
         css = read("globals.css")
-        self.assertIn(":root[data-cc-keyboard] .cc-mmain .aui-thread-viewport-footer { padding-bottom: 0.625rem; }", css)
+        self.assertIn(":root[data-cc-keyboard] .cc-mmain .aui-thread-viewport-footer { padding-bottom: var(--cc-keyboard-gap); }", css)
         main = read("main.tsx")
         self.assertIn("trackViewport();", main)
         shell = read("components/mobile-shell.tsx")
@@ -572,8 +578,8 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn("export const DropdownMenu = { ...Radix, Content, SubContent };", menu)
         css = read("globals.css").split("  .cc-menu {", 1)[1].split("}", 1)[0]
         # 限高：页面写的 --cc-menu-max（没写不封顶）与组件库量的可用高度取小；方向由包装按完整高度选（F11d）
-        self.assertIn("max-width: var(--radix-dropdown-menu-content-available-width); max-height: min(var(--cc-menu-max, 100vh), "
-                      "var(--radix-dropdown-menu-content-available-height, 100vh)); overflow-y: auto;", css)
+        self.assertIn("max-width: var(--radix-dropdown-menu-content-available-width); max-height: min(var(--cc-menu-max), "
+                      "var(--radix-dropdown-menu-content-available-height, var(--cc-menu-max-none))); overflow-y: auto;", css)
         for rel in ("components/period-chip.tsx", "components/assistant-ui/projects.tsx"):
             self.assertNotIn("max-h-80", read(rel), rel)
         self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]"'), 2)

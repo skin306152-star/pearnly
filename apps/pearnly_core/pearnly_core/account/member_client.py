@@ -18,7 +18,7 @@ TIMEOUT = 45
 def _post(payload, products):
     config = {key: str(frappe.conf.get("pearnly_" + key) or "") for key in (
         "tenant", "product", "billing_api", "billing_host_header", "billing_token")}
-    # 各产品各自一个账号池（ERP / Cowork 分池，用户 2026-09-26）；控制面按令牌里的产品选池。
+    # 各产品各自一个账号池（ERP / Cowork 分池，用户 2026-09-26）；控制面按本站签发方选池，没带时按令牌里的产品。
     if config["product"] not in products or not all(config.values()):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     payload = {"tenant": config["tenant"], **payload}
@@ -48,17 +48,17 @@ def _post(payload, products):
     return result
 
 
+def _issuer():
+    # 控制面按本站实际签到的账号池建号、改密码、写关联（老租户可能与产品默认的池不同）。
+    return str(frappe.conf.get("pearnly_oidc_issuer") or "").rstrip("/")
+
+
 def _call(action, *, email, password, username=""):
     result = _post({"action": action, "email": email, "password": password, "username": username,
-                    "request_id": uuid.uuid4().hex}, ("erp", "cowork"))
+                    "request_id": uuid.uuid4().hex, "issuer": _issuer()}, ("erp", "cowork"))
     if result.get("email") != email or (action == "create" and not result.get("subject")):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return result
-
-
-def _issuer():
-    # 控制面按本站实际签到的账号池写关联（老租户可能与产品默认的池不同）。
-    return str(frappe.conf.get("pearnly_oidc_issuer") or "").rstrip("/")
 
 
 def link_line(subject, line_user_id, login_channel):

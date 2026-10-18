@@ -27,7 +27,7 @@ import { createAttachmentAdapter, filesToSend } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
-import { attemptSend, attemptStop, clearStopFailure, type ComposerLike, sendLanded } from "./send-failure";
+import { attemptSend, attemptStop, clearStopFailure, type ComposerLike, noteUnavailable, sendLanded } from "./send-failure";
 import { registerStop } from "./stop-run";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
@@ -36,6 +36,7 @@ import {
   type SessionController,
 } from "./session-controller";
 import { initialProjection, isBusy, withNotices } from "./reducer";
+import { loadProfile } from "@/lib/profile";
 import { loadToolLabels } from "@/lib/tool-labels";
 import { runningTurn, type OpenState } from "@/lib/follow-scroll";
 
@@ -123,6 +124,21 @@ function useSessionThreadRuntime() {
   // 发送没成功时原因记在这段对话上，字和附件放回这段对话的输入框（send-failure.ts）
   const threadId = useAuiState((s) => s.threadListItem.id);
   const composer = useRef<ComposerLike | null>(null);
+  // 本站还开不了 CC 对话（没配 CC 等，外壳启动数据 assistant_unavailable）：还没有会话的新对话一打开就把原因写在输入框上方，
+  // 同发了第一条被拒时那一行（send-failure.ts）
+  useEffect(() => {
+    if (controller) return;
+    let live = true;
+    void loadProfile().then(
+      (profile) => {
+        if (live && profile.assistant_unavailable) noteUnavailable(threadId, profile.assistant_unavailable);
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [controller, threadId]);
   // 停止没成功之后这一轮自己结束了（联网后回复给完、别处停了）：那行原因不再留着
   const running = isBusy(snapshot) || creating;
   useEffect(() => {

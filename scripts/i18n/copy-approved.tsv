@@ -21,3 +21,54 @@ pearnly_cowork:intake.error.document_policy_skip_payment_evidence	zh	转账凭�
 pearnly_cowork:intake.error.document_policy_skip_withholding_certificate	zh	预扣税凭证（50 ทวิ）不录入，此单据不推送	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
 pearnly_cowork:intake.error.document_policy_needed_payment_evidence	zh	此单据为转账凭条。选择是否录入，所有同类单据将按此处理	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
 pearnly_cowork:intake.error.document_policy_needed_withholding_certificate	zh	此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
+pearnly_dms:Multiple DMS connections exist for this operator	zh	该操作员有多条 DMS 连接	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:The recognition result needs checking. Please do not resend this image yet.	zh	识别结果待核实，请暂勿重复发送此图片。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_MENU_D5	zh	按权限查看 DMS 最新销售资料	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_MENU_SUBTITLE	zh	请选择菜单	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_MENU_TITLE	zh	Pearnly DMS	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_REVIEW_LOCKED	zh	此订车单已无法在此修改，请在 DMS 中修改。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.query.MANUAL_AS_OF	zh	读取于 {time} 的已保存结果	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.connect.cache.state.waiting	zh	账号繁忙，稍后继续	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.connect.cache.unconfirmed	zh	无法确认读取结果，请刷新页面查看。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.connect.read.scope	zh	读档账号只能看到 {seen} 位客户（{reference} 可看到 {total} 位），请改用可查看全部客户的账号。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_CUSTOMER_CHANGED	zh	客户资料在编辑后已被更改，请重新核对差异后再确认。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE	zh	DMS 未返回完整资料，未发布不完整结果。请在每晚读取完成后再试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_SNAPSHOT_PENDING	zh	DMS 资料读取中，请稍后再试。长时间未就绪时，请管理员在 DMS 连接页确认已添加读档账号。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED	zh	DMS 连接或账号已变更，旧资料不再可用。新账号的资料读取完成后，请重新打开此页面。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.	zh	本站点为该操作员创建的账号。仅用于 LINE，不用于网页登录，无需密码。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:No connection to test	zh	缺少要测试的连接	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:System URL is required	zh	系统地址为必填项	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Connection {0} is disabled	zh	连接 {0} 已停用	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Connection {0} has no password	zh	连接 {0} 未设置密码	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:Check the opening stock row	zh	请检查此期初明细	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:stock.count.voidConfirm	zh	确定要撤销 {0} 的盘点记录吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:stock.workbench.finishConfirm	zh	确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:Year, year-month or ALL, per the reset policy	zh	年、年月或 ALL，按重置策略	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Filters must be four-value rows with string doctypes, fields, and operators.	zh	筛选条件必须为四个值的行，且文档类型、字段和运算符为字符串	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.	zh	字段 {0} 的筛选无效：每个筛选须为含文档类型、字段名、运算符和值的列表	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:This attachment is not in this conversation.	zh	该附件不在本对话中。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:common.scan.denied	zh	相机权限已关闭。请点击地址栏左侧的图标，将相机设为「允许」，然后重试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:common.scan.denied_android	zh	相机权限已关闭。请点击地址栏左侧的图标 → 权限 → 相机 → 允许，仍无法打开时，请前往手机「设置 → 应用程序 → 浏览器 → 权限 → 相机」选择「允许」。返回本页后将自动重试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:common.scan.denied_ios	zh	相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:common.scan.in_line_android	zh	LINE 的相机权限已关闭。请前往手机「设置 → 应用程序 → LINE → 权限 → 相机」选择「允许」，返回 LINE 后将自动重试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:common.scan.in_line_ios	zh	LINE 的相机权限已关闭。请前往 iPhone「设置 → LINE」开启「相机」，返回 LINE 后将自动重试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:intake.empty	zh	暂无记录	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:purchase.empty	zh	暂无采购单	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Same ID number means the same customer	zh	证件号相同视为同一客户	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Account that owns this connection. Leave empty for a site-wide shared connection.	zh	连接所属账号。留空为本站点共享连接。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:One default connection per account and system type.	zh	每个账号同一系统类型只能有一条默认连接	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Used to connect, check duplicates, create and rewrite customer records. Business writes use these credentials, not the operator's own.	zh	用于连接、查重、建档和改写客户档案；业务写入使用该组凭据，而非操作员个人凭据。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.	zh	DMS 建单默认值（JSON）：车型、颜色、分店、团队、交车天数、指定顾问 advisor_id；指定顾问优先于自动匹配。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Site is missing setting: {0}	zh	站点缺少配置项：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Could not acquire the lock: {0}	zh	获取锁失败：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Comma separated. The role gets read/write on these DocTypes.	zh	以逗号分隔。该角色获得所列 DocType 的读写权限。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Product app installed on this site	zh	该站点安装的产品 App	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Ticked: on by default. Unticked: add-on.	zh	勾选表示默认开通，未勾选表示单独购买	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Created on the tenant site and granted at provisioning. Leave empty for no permission control.	zh	开通时在租户站点创建并授予该角色。留空表示不控制权限。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Admin client secret is missing	zh	缺少管理客户端密钥	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Password-check client secret is missing	zh	缺少密码校验客户端密钥	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_control:Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.	zh	仅填写 Channel ID 和 Channel secret（LINE Developers → Basic settings）；留空表示暂不配置。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+companion:busy_body	zh	账套正被 Express 占用。关闭正在使用该账套的 Express 后点击「重试」，或点击「终止推送」。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+companion:pair_err_drive_missing	zh	本机没有「{drive}」盘。请在录入此账套的电脑上安装 CC 桌面版，或将该盘映射到相同的网络位置。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Set document handling	zh	设置单据处理方式	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 按建议同意 E10）
+pearnly_cowork:Document handling set	zh	已设置单据处理方式	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 按建议同意 E10，做完的说法一并统一）

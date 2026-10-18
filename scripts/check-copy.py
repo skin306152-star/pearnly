@@ -61,9 +61,18 @@ def _toplevel() -> str:
         return ROOT
 
 
-def _assign_roles(snap, words=None, callsites=None) -> None:
+def _assign_roles(snap, words=None, callsites=None, upstream=frozenset()) -> None:
     elsewhere = (callsites or {}).get("elsewhere")
+    admin_only = (callsites or {}).get("admin_only") or set()
     for entry in snap.entries.values():
+        own = entry.source.startswith("pearnly_")
+        en = entry.texts.get("en")
+        # 无键行的英文就是 msgid：Frappe / ERPNext 自带的 msgid 英文不归本仓（rules.Checker.check_entry 不判英文）
+        if own and not entry.extra.get("keyed", True) and en in upstream:
+            entry.extra["upstream_en"] = True
+        # 只被控制面代码调用的共用层 msgid：按管理后台判（rules.surface_of）
+        if own and (entry.key in admin_only or (en and en in admin_only)):
+            entry.extra["code_admin"] = True
         if entry.extra.get("in_email"):
             # 邮件模板以外也用到的词条按它在界面上的角色判，只被邮件模板引用的才按邮件
             only_email = elsewhere is None or not (entry.key in elsewhere or entry.texts.get("en") in elsewhere)
@@ -98,6 +107,43 @@ def _same_exempt(cols: tuple, row: tuple) -> bool:
     rules_a = {r.strip() for r in cols[1].split(",") if r.strip()}
     rules_b = {r.strip() for r in row[1].split(",") if r.strip()}
     return cols[0] == row[0] and rules_a == rules_b and cols[2] == row[2] and "\t".join(cols[3:]).strip() == row[3]
+
+
+def _merge_parents(root: str) -> list:
+    """正在提交的是合并（解决冲突后 git commit，MERGE_HEAD 在）：合并进来的那些父提交。"""
+    try:
+        path = repo.git(root, "rev-parse", "--git-path", "MERGE_HEAD").strip()
+    except repo.GitError:
+        return []
+    path = path if os.path.isabs(path) else os.path.join(root, path)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return []
+
+
+def _came_with_merge(change, merged) -> bool:
+    """合并结果里这一条和某个合并进来的父提交一字不差（main 自己已有的行），或那边也删了：不是这次合并新加的。"""
+    if change.entry is None:
+        return all(change.old.id not in snap.entries for snap in merged)
+    for snap in merged:
+        old = snap.entries.get(change.entry.id)
+        if old is not None and old.texts == change.entry.texts:
+            return True
+    return False
+
+
+def _ref_came_with_merge(ref, trees, snaps, cache) -> bool:
+    if ref.kind == "csv-manual":
+        return any(ref.text in snap.translations.get(ref.path, set()) for snap in snaps)
+    for index, tree in enumerate(trees):
+        key = (index, ref.path)
+        if key not in cache:
+            cache[key] = {item.ident for item in sources.code_refs(ref.path, tree.read(ref.path))}
+        if ref.ident in cache[key]:
+            return True
+    return False
 
 
 def check_changes(changes, checker, pol) -> list:
@@ -142,6 +188,14 @@ def run_diff(args, root, cur_tree, cur, checker, pol, upstream) -> int:
     changes = diff.classify(base, cur)
     paths = diff.changed_code_paths(base_tree, cur_tree)
     refs = diff.new_code_refs(base_tree, cur_tree, paths) + diff.manual_translation_rows(base, cur)
+    # 提交钩子遇到合并提交（把 main 并进任务分支、解决冲突后提交）：基线是第一父提交，main 带进来的行在它那里都算「新增」。
+    # 只判合并结果里有、而第一父提交与合并进来的父提交里都没有的（解决冲突时手工新写的）；变基与普通提交不变
+    merged_trees = [repo.GitTree(root, sha) for sha in _merge_parents(root)] if args.staged else []
+    merged = [sources.snapshot(tree) for tree in merged_trees]
+    if merged:
+        changes = [c for c in changes if not _came_with_merge(c, merged)]
+        cache: dict = {}
+        refs = [r for r in refs if not _ref_came_with_merge(r, merged_trees, merged, cache)]
 
     findings = check_changes(changes, checker, pol)
     known = set().union(*cur.glossary_msgids.values(), *base.translations.values()) if cur.glossary_msgids else set()
@@ -168,6 +222,10 @@ def run_diff(args, root, cur_tree, cur, checker, pol, upstream) -> int:
                 base_words.splitlines(), cur_words.splitlines(), lineterm="", n=0) if not line.startswith(("---", "+++", "@@"))]
     # 词表删了行或改了行（放宽规则）、同一差异里又有文案新增 / 改动：拦 —— 词表改动单独提交、单独过 CI
     loosened = [line for line in rule_diff if line.startswith("-") and line[1:].strip() and not line[1:].lstrip().startswith("#")]
+    if merged_trees:
+        # 合并进来的父提交里也没有这一行：是 main 自己改的词表（它在 main 上单独过过 CI），不算这次合并放宽
+        merged_words = [set((tree.read(REL_WORDS) or "").splitlines()) for tree in merged_trees]
+        loosened = [line for line in loosened if all(line[1:] in words for words in merged_words)]
     copy_changes = [c for c in changes if c.kind in ("new", "changed", "translation")] or refs
     if loosened and copy_changes:
         findings.append(rules.Finding(
@@ -321,7 +379,7 @@ def main(argv=None) -> int:
     words = rules.load_words(WORDS_FILE)
     upstream = rules.load_upstream(UPSTREAM_FILE)
     cur = sources.snapshot(cur_tree)
-    _assign_roles(cur, words, sources.callsite_roles(cur_tree))
+    _assign_roles(cur, words, sources.callsite_roles(cur_tree), upstream)
     pol = _load_policy(words)
     checker = rules.Checker(words, ROOT, pol.terms)
 

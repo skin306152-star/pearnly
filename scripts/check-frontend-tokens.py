@@ -242,6 +242,10 @@ CSS_SPACE_PROPS = re.compile(r"^(?:padding|margin|scroll-margin|scroll-padding|i
                              r"^(?:gap|row-gap|column-gap|top|right|bottom|left|translate)$")
 CSS_UNITLESS_PROPS = {"line-height", "font-weight", "z-index"}
 CSS_MOTION_PROPS = re.compile(r"^(?:transition|animation)(?:-(?:duration|delay|timing-function))?$")
+# 动画轮数（animation 简写里不带单位的数、animation-iteration-count）同时长一样只能写 var()：装饰动画播几轮登记在 globals.css
+# （--cc-mascot-*-runs，docs/work/2026-10-18-cc-idle-animations.md）；infinite 是关键字不在这里判（「装饰动画不许无限循环」由
+# tests/test_cc_idle_motion.py 按白名单查）
+CSS_RUNS_PROPS = re.compile(r"^animation(?:-iteration-count)?$")
 
 STYLE_LENGTH_PROPS = (
     "width|height|minWidth|minHeight|maxWidth|maxHeight|inlineSize|blockSize|flexBasis|"
@@ -265,6 +269,12 @@ JSX_DIMENSION = re.compile(r"\s(?P<prop>size|width|height|strokeWidth)=(?:\{\s*(
 JSX_ZINDEX = re.compile(r"\bzIndex\b\s*(?:=\s*\{\s*|:\s*)(?P<value>-?\d+)")
 CC_REF = re.compile(r"(?<![\w-])--(?P<ns>cc|code|ccs)-(?P<name>[\w-]*)(?P<tpl>\$\{)?")
 
+
+# 任意属性里不带单位的那几种：写数就是写死的层级 / 行高 / 字重
+ARBITRARY_UNITLESS = {"z-index": "R7", "line-height": "R6", "font-weight": "R15"}
+# 模板里只拼一个数字字面量再接单位（`${4}px`、`${2 * 8}px`）：与直接写 "4px" 是一回事。拼的是常量名（`${GAP}px`）机械上判不出，
+# 审查时按同一条规则看（2.6；登记为已知限制）
+TEMPLATE_NUMBER = re.compile(r"\$\{(?P<expr>[\s\d.+\-*/()]+)\}(?P<unit>px|rem|em|vh|vw|ms|s|%)(?![\w-])")
 
 # 这些族的任意值不按 R10 判：颜色 / 圆角 / 阴影归 R1–R3，content / url / 光标 / will-change 不是数值
 UNCHECKED_ARBITRARY = ("content-", "bg-[url", "bg-[image", "cursor-", "will-change-", "rounded", "shadow", "drop-shadow",
@@ -500,10 +510,18 @@ def check_class(token: str, std: Standard, alone: bool = False) -> list:
     parts = split_top(token)
     variants, util = parts[:-1], parts[-1]
     for v in variants:
-        if v in BREAKPOINT_OK:
+        # 组合变体先剥掉前缀再判：not-sm: 生成 @media not (width >= 40rem)、not-pointer-coarse: 生成 @media not (pointer: coarse)、
+        # not-@md: 生成 @container not (…)，都是漏网的断点 / 输入设备 / 容器查询；group- / peer- / in- / has- 同样剥（group-@md: 之类）
+        base = v
+        while True:
+            stripped = re.sub(r"^(?:not|group|peer|in|has)-(?=[@\w\[])", "", base)
+            if stripped == base:
+                break
+            base = stripped
+        if base in BREAKPOINT_OK:
             continue
         # 容器查询（@md: / @max-md: / @[480px]: / @lg/main:）一律拦：@md 是 28rem 的容器档，不是 768 那条断点
-        if v.startswith("@") or BREAKPOINT_BAD.match(v) or POINTER_BAD.match(v):
+        if base.startswith("@") or BREAKPOINT_BAD.match(base) or POINTER_BAD.match(base):
             found.append(("R11", v + ":"))
     if not util:
         return found
@@ -521,8 +539,14 @@ def check_class(token: str, std: Standard, alone: bool = False) -> list:
         inner = util[1:-1]
         if ":" in inner and not inner.startswith("&") and not inner.startswith("@"):
             prop, value = inner.split(":", 1)
-            if CSS_MOTION_PROPS.match(prop):
-                # [transition:…] / [animation:…] / [*-timing-function:…]：时间与缓动按 globals.css 的 R13 同一判法
+            # 引用的不是 --cc-*（[width:var(--sidebar-width)]、[transition-duration:var(--foo)]、[--cc-x:var(--foo)]）记 R10：
+            # 变量写法只能引用 --cc-*（1.2 补充第一条；B0 补修复核建议 ①）
+            for name in re.findall(r"var\(\s*(--[\w-]+)", value):
+                if not name.startswith("--cc-"):
+                    found.append(("R10", f"[{prop}:…var({name})…]"))
+                    break
+            if CSS_MOTION_PROPS.match(prop) or CSS_RUNS_PROPS.match(prop):
+                # [transition:…] / [animation:…] / [*-timing-function:…] / [animation-iteration-count:…]：时间、缓动与轮数按 globals.css 的 R13 同一判法
                 bad = css_value_problem(prop, value.replace("_", " "))
                 if bad:
                     found.append(("R8", f"[{prop}:…{bad}…]"))
@@ -530,6 +554,10 @@ def check_class(token: str, std: Standard, alone: bool = False) -> list:
             bad = value_problem(value)
             if bad and re.match(r"^-?[\w-]+$", prop):
                 found.append(("R10", f"[{prop}:…{bad}…]"))
+            elif prop in ARBITRARY_UNITLESS and not has_var(value) and value not in ("0", "auto", "inherit", "normal", "none"):
+                # 不带单位的数在任意值里本来放行（*2、*-1），但 [z-index:50] / [line-height:2] / [font-weight:600] 就是写死的层级、
+                # 行高、字重：同 z-[…] / leading-[…] 方括号里必须有变量，按所在族记
+                found.append((ARBITRARY_UNITLESS[prop], f"[{prop}:{value}]"))
         return found
     if alone and util == "blur":
         return found  # 单独一个 "blur" 是事件名（addEventListener("blur")），不是类
@@ -782,6 +810,11 @@ def style_value_problem(prop: str, value: str) -> str:
         if prop in ("opacity", "zIndex", "fontWeight", "lineHeight") and re.fullmatch(r"\s*-?\d*\.?\d+\s*", body) \
                 and float(body) not in (0, 1):
             return body
+        if prop in ("animation", "animationIterationCount"):
+            # 轮数同 globals.css：animation 简写里不带单位的数、animationIterationCount 只能走 var(--cc-…)
+            for m in NUMBER_IN_VALUE.finditer(body):
+                if m.group(3) == "" and float(m.group(2)) != 0:
+                    return m.group(0)
         return ""
     number = float(value)
     if number == 0 or (prop == "opacity" and number == 1):
@@ -833,6 +866,12 @@ def check_source_strict(text: str, std: Standard) -> list:
                 bad = style_value_problem(m.group("prop"), m.group("value"))
                 if bad:
                     found.append((lineno, "R12", m.group(0)))
+    # 模板里拼数字字面量成长度（`${4}px`）：style 块、.style.x =、setProperty 里的已由各自模式记过，不重复
+    for m in TEMPLATE_NUMBER.finditer(code):
+        if any(a <= m.start() < b for a, b in covered):
+            continue
+        if re.search(r"[1-9]", m.group("expr")):
+            found.append((line_of(starts, m.start()), "R12", m.group(0)))
     for start, content in literals(code):
         tokens = list(class_tokens(content))
         for offset, token in tokens:
@@ -910,13 +949,17 @@ def css_value_problem(prop: str, value: str) -> str:
     text = QUOTED.sub(" ", value)
     text = CSS_NAME.sub(" ", text)
     text = re.sub(r"!important", " ", text)
-    if CSS_MOTION_PROPS.match(prop):
+    if CSS_MOTION_PROPS.match(prop) or CSS_RUNS_PROPS.match(prop):
         for m in TIME_LITERAL.finditer(text):
             if float(m.group(1)) != 0:
                 return m.group(0)
         m = EASE_WORD.search(text)
         if m:
             return m.group(0)
+        if CSS_RUNS_PROPS.match(prop):
+            for m in NUMBER_IN_VALUE.finditer(text):
+                if m.group(3) == "" and float(m.group(2)) != 0:
+                    return m.group(0)
         return ""
     if prop == "transform":
         # 只判平移的长度（按间距）；scale()、rotate() 等不在间距范畴

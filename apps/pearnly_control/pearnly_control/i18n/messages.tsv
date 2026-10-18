@@ -30,36 +30,37 @@ Details	明细	รายละเอียด	明細
 Billing Units	计费单位	หน่วยคิดค่าบริการ	課金単位
 Pages	张数	จำนวนหน้า	ページ数
 Site Name	站点名	ชื่อเว็บไซต์	サイト名
-The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.	与部署域名相同。	ใช้ค่าเดียวกับโดเมนของการติดตั้ง	このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
+Same as the deployment domain.	与部署域名相同。	ใช้ค่าเดียวกับโดเมนของการติดตั้ง	デプロイのドメインと同じです。
 Bench Group	运行组	กลุ่มประมวลผล	実行グループ
-Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.	同一产品的站点共用一个 Bench 进程。	เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้โปรเซส Bench ร่วมกัน	同一製品の複数サイトは1つのBenchプロセスを共有します。障害範囲を絞るために記録します。
+Sites of the same product share one Bench process.	同一产品的站点共用一个 Bench 进程。	เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้โปรเซส Bench ร่วมกัน	同一製品のサイトは1つのBenchプロセスを共有します。
 Site	站点	เว็บไซต์	サイト
 Product App	产品 App	แอปผลิตภัณฑ์	製品アプリ
-The product app installed on this site; pearnly_core is shared by every product.	该站点安装的产品 App，另有所有产品共用的 pearnly_core	แอปผลิตภัณฑ์ที่ติดตั้งบนเว็บไซต์นี้ ส่วน pearnly_core ใช้ร่วมกันทุกผลิตภัณฑ์	このサイトに入れる製品アプリ。pearnly_core は全製品で共用します。
+Product app installed on this site	该站点安装的产品 App	แอปผลิตภัณฑ์ที่ติดตั้งบนเว็บไซต์นี้	このサイトにインストールする製品アプリ
 Local Port	本机端口	พอร์ตในเครื่อง	ローカルポート
 OIDC Client ID	OIDC 客户端 ID	OIDC Client ID	OIDCクライアントID
-One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.	每个部署使用独立的客户端。	แต่ละการติดตั้งใช้ไคลเอนต์แยกกัน	デプロイごとに1つ。コールバックURLはサイトのドメイン基準なので、共用すると2社目がログインできません。
+One client per deployment.	每个部署使用独立的客户端。	แต่ละการติดตั้งใช้ไคลเอนต์แยกกัน	デプロイごとに1つのクライアントを使用します。
 OIDC Client Secret	OIDC 客户端密钥	OIDC Client Secret	OIDCクライアントシークレット
 Local URL	本机访问地址	ที่อยู่ในเครื่อง	ローカルURL
 Enabled Features	已开通功能	ฟีเจอร์ที่เปิดใช้	有効な機能
-Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).	来自发号单。	มาจากใบเปิดใช้งาน	発行伝票から取得。機能単位の強制は未実装です（docs/p4/06-provisioning.md 参照）。
+From the issue.	来自发号单。	มาจากใบเปิดใช้งาน	発行伝票から取得。
 Source	来源	ที่มา	ソース
 Issue	发号单	ใบเปิดใช้งาน	発行伝票
 Feature Code	功能代码	รหัสฟีเจอร์	機能コード
 Matches the feature key in the product's own feature catalog (features.json).	须与产品功能目录（features.json）中的功能键一致。	ต้องตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกฟีเจอร์ของผลิตภัณฑ์ (features.json)	製品自身の機能カタログ (features.json) の機能キーと一致します。
 Feature Name	功能名称	ชื่อฟีเจอร์	機能名
 Default On	常规开通	เปิดใช้โดยค่าเริ่มต้น	既定で有効
-Ticked means this feature is on by default; unticked ones are add-ons (for example CC Desktop).	勾选表示默认开通；未勾选表示需单独购买（如 CC 桌面版）。	เลือกไว้หมายถึงเปิดใช้โดยค่าเริ่มต้น ไม่ได้เลือกหมายถึงต้องซื้อแยก (เช่น CC เดสก์ท็อป)	チェックは既定で有効、外したものは追加購入（CC デスクトップなど）。
+Ticked: on by default. Unticked: add-on.	勾选表示默认开通，未勾选表示单独购买	เลือก = เปิดใช้โดยค่าเริ่มต้น ไม่เลือก = ซื้อแยก	チェックあり：既定で有効。なし：追加購入。
 Enforcement	权限控制	การควบคุมสิทธิ์	権限の適用
 Role	对应角色	บทบาท	対応ロール
-At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).	开通时在租户站点创建并授予该角色。留空表示该功能无需权限控制（例如首页）。	เมื่อเปิดใช้งาน ระบบจะสร้างบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานและมอบสิทธิ์ให้ เว้นว่างหมายถึงฟีเจอร์นี้ไม่ต้องควบคุมสิทธิ์ (เช่น หน้าหลัก)	開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
+Created on the tenant site and granted at provisioning. Leave empty for no permission control.	开通时在租户站点创建并授予该角色。留空表示不控制权限。	สร้างและมอบบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานเมื่อเปิดใช้งาน เว้นว่างหมายถึงไม่ควบคุมสิทธิ์	開通時にテナントサイトで作成・付与します。空欄は権限制御なし。
 Granted DocTypes	授予的 DocType	DocType ที่อนุญาต	付与するDocType
-Comma separated. The role gets read/write on these DocTypes.	以逗号分隔。该角色将获得这些 DocType 的读写权限。	คั่นด้วยจุลภาค บทบาทนี้จะได้สิทธิ์อ่าน/เขียนบน DocType เหล่านี้	カンマ区切り。このロールがこれらのDocTypeの読み書き権限を得ます。
+Comma separated. The role gets read/write on these DocTypes.	以逗号分隔。该角色获得所列 DocType 的读写权限。	คั่นด้วยจุลภาค บทบาทนี้จะได้สิทธิ์อ่าน/เขียนบน DocType เหล่านี้	カンマ区切り。このロールがこれらのDocTypeの読み書き権限を得ます。
 Provisioning Target	开户目标	เป้าหมายการเปิดใช้	開通ターゲット
 Basic Info	基础信息	ข้อมูลพื้นฐาน	基本情報
 Company Name	公司名称	ชื่อบริษัท	会社名
 Email	邮箱	อีเมล	メールアドレス
 Username	用户名	ชื่อผู้ใช้	ユーザー名
+Language	语言	ภาษา	言語
 Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード
 Products & Domains	产品与域名	ผลิตภัณฑ์และโดเมน	製品とドメイン
 Credential Delivery	凭据交付方式	วิธีส่งมอบข้อมูลรับรอง	資格情報の受け渡し方法
@@ -76,8 +77,6 @@ Leave empty to use the company name	留空则使用公司名称	เว้นว�
 One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.	每个部署（公司 × 产品）对应一个 LINE 频道，验签与消息发送均使用该频道的凭据。	การติดตั้งแต่ละรายการ (บริษัท × ผลิตภัณฑ์) ใช้ช่องทาง LINE หนึ่งช่องทาง การตรวจลายเซ็นและการส่งข้อความใช้ข้อมูลรับรองของช่องทางนี้	デプロイ（会社×製品）ごとに1つのLINEチャネル。これが分離境界で、署名検証も送信もこのチャネル自身の資格情報を使います。
 The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.	Messaging API 频道的基本 ID（@xxx），用于识别与排查	Basic ID ของช่องทาง Messaging API (@xxx) ใช้ระบุและตรวจสอบปัญหา	Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
 Fill in only if a LIFF app exists; otherwise leave empty.	仅在已有 LIFF 应用时填写。	กรอกเฉพาะเมื่อมีแอป LIFF แล้ว	LIFFアプリがある場合のみ入力。なければ空欄。
-Credentials (stored only here, pushed to the tenant site at provisioning)	凭据（仅存于此处，开通时同步至租户站点）	ข้อมูลรับรอง (เก็บไว้ที่นี่เท่านั้น และซิงก์ไปยังเว็บไซต์ของพื้นที่ทำงานเมื่อเปิดใช้งาน)	資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）
-Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.	用于 Webhook 验签。**每个租户独立配置**。	ใช้ตรวจลายเซ็น Webhook **กำหนดแยกสำหรับแต่ละพื้นที่ทำงาน**	Webhookの署名検証用。**テナントごとに1つ**。テナントサイトは自分のものだけを使うため、他社の署名は通りません。
 Used to send messages (long-lived).	用于发送消息（长期令牌）。	ใช้ส่งข้อความ (โทเคนระยะยาว)	メッセージ送信用（long-lived）。
 The URL to paste into the LINE console, derived from the deployment domain.	填写到 LINE 后台的地址，根据部署域名生成。	ที่อยู่สำหรับกรอกในหน้าจัดการ LINE สร้างจากโดเมนของการติดตั้ง	LINE管理画面に貼るURL。デプロイのドメインから算出します。
 Operations	运维	ปฏิบัติการ	運用
@@ -88,7 +87,7 @@ Step	步骤	ขั้นตอน	ステップ
 Started At	开始时间	เริ่มเมื่อ	開始日時
 Finished At	结束时间	สิ้นสุดเมื่อ	終了日時
 Action	动作	การกระทำ	アクション
-Action name the runner understands; see pearnly_control/provisioning.py	执行器支持的动作名称。	ชื่อการกระทำที่ตัวดำเนินการรองรับ	実行ホストが解釈するアクション名。pearnly_control/provisioning.py 参照。
+Action name supported by the runner	执行器支持的动作名称。	ชื่อการกระทำที่ตัวดำเนินการรองรับ	実行ホストが対応するアクション名
 Payload	参数	พารามิเตอร์	パラメータ
 Output	执行输出	ผลลัพธ์การทำงาน	実行出力
 Plan	套餐	แพ็กเกจ	プラン
@@ -115,7 +114,7 @@ Control API URL	控制接口地址	ที่อยู่ Control API	制御API�
 The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.	服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。留空则仅发号，不建站。	API เปิดใช้งานบนเซิร์ฟเวอร์ เช่น https://api.pearnly.com/v1/deployments ถ้าเว้นว่างจะออกใบเปิดใช้งานเท่านั้นโดยไม่สร้างเว็บไซต์	サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。
 Invitation Email	邀请邮件	อีเมลเชิญ	招待メール
 Client ID for Invitation Links	邀请链接用的客户端 ID	Client ID สำหรับลิงก์เชิญ	招待リンク用クライアントID
-The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.	身份服务使用该客户端生成邀请邮件中的链接。	บริการตัวตนใช้ไคลเอนต์นี้สร้างลิงก์ในอีเมลเชิญ	招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。
+The identity service builds the invitation email link from this client.	身份服务使用该客户端生成邀请邮件中的链接。	บริการตัวตนใช้ไคลเอนต์นี้สร้างลิงก์ในอีเมลเชิญ	招待メール内のリンクはこのクライアントで生成します。
 Contact Name	联系人	ชื่อผู้ติดต่อ	担当者名
 Contact Phone	联系电话	เบอร์ติดต่อ	連絡先電話
 Requested Amount	申请金额	จำนวนเงินที่ขอ	申請額
@@ -134,7 +133,6 @@ Last Updated	最近变动	แก้ไขล่าสุด	最終更新
 External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号
 Step Details	步骤详情	รายละเอียดขั้นตอน	ステップ詳細
 Unknown billing unit: {0}	未知的计费单位：{0}	หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}	不明な課金単位: {0}
-grant only handles money in (topup / adjustment); use charge() for deductions	grant 仅处理入账（topup / adjustment）；扣费请使用 charge()	grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()	grant は入金（topup / adjustment）専用。控除は charge() を使います。
 Amount must be greater than 0	金额必须大于 0	จำนวนเงินต้องมากกว่า 0	金額は0より大きい必要があります
 An adjustment must have a reason	调账必须填写原因	การปรับยอดต้องระบุเหตุผล	調整には理由が必要です
 An adjustment cannot be 0	调账金额不能为 0	ยอดปรับต้องไม่เป็น 0	調整額は0にできません
@@ -147,10 +145,10 @@ The top-up amount must be between ฿0.01 and ฿500,000	充值金额须介于 �
 This request has already been handled (currently: {0})	该申请已处理（当前状态：{0}）	คำขอนี้ได้รับการดำเนินการแล้ว (สถานะปัจจุบัน: {0})	この申請はすでに処理済みです（現在: {0}）
 The received amount must be greater than 0	实收金额必须大于 0	จำนวนเงินที่ได้รับจริงต้องมากกว่า 0	受領額は0より大きい必要があります
 A rejection needs a reason; the tenant will see it	拒绝时必须填写原因（租户可见）	การปฏิเสธต้องระบุเหตุผล (พื้นที่ทำงานมองเห็นได้)	却下には理由が必要です。テナント側に表示されます。
-The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)	缺少管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）	ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)	管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
-The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)	缺少密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）	ต้องระบุ Client Secret สำหรับตรวจรหัสผ่าน (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_PASSWORD_CHECK_SECRET)	パスワード確認用クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
+Admin client secret is missing	缺少管理客户端密钥	ไม่ได้ตั้งค่า Admin Client Secret	管理クライアントシークレットが未設定です
+Password-check client secret is missing	缺少密码校验客户端密钥	ไม่ได้ตั้งค่า Client Secret สำหรับตรวจรหัสผ่าน	パスワード確認用クライアントシークレットが未設定です
 Pick at least one product	请至少选择一个产品	กรุณาเลือกอย่างน้อยหนึ่งผลิตภัณฑ์	製品を1つ以上選んでください
-Username and initial password are both required: they are the credentials for the user's first sign-in	用户名和初始密码为必填项	ต้องกรอกชื่อผู้ใช้และรหัสผ่านเริ่มต้น	ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。
+Username and initial password are required	用户名和初始密码为必填项	ต้องกรอกชื่อผู้ใช้และรหัสผ่านเริ่มต้น	ユーザー名と初期パスワードは必須です
 Unknown product: {0}	未知产品：{0}	ไม่รู้จักผลิตภัณฑ์: {0}	不明な製品: {0}
 The last issue attempt failed; set it back to draft before issuing again	上次发号失败，请先将状态改回 draft 后再发号	การออกใบครั้งก่อนไม่สำเร็จ กรุณาเปลี่ยนสถานะกลับเป็น draft ก่อนออกใบอีกครั้ง	前回の発行に失敗しました。draft に戻してから再発行してください。
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."	账号 {0} 已存在于目标环境「{1}」，请邀请现有账号，不要重复发号	บัญชี {0} มีอยู่แล้วในเป้าหมาย “{1}” กรุณาเชิญบัญชีที่มีอยู่แทนการออกใบซ้ำ	アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。
@@ -160,7 +158,7 @@ Creating a channel requires the channel secret and the Channel ID	新建频道�
 Company name is required	公司名称必填	ต้องระบุชื่อบริษัท	会社名は必須です
 Crediting…	入账中…	กำลังบันทึกเข้าบัญชี…	入金処理中…
 Could not credit	入账失败	ไม่สามารถบันทึกเข้าบัญชีได้	入金に失敗しました
-Reason (the tenant will see it; required)	原因（租户可见，必填）	เหตุผล (พื้นที่ทำงานมองเห็นได้ จำเป็นต้องกรอก)	理由（テナント側に表示されます。必須）
+Reason (visible to tenant, required)	原因（租户可见，必填）	เหตุผล (พื้นที่ทำงานมองเห็นได้ จำเป็นต้องกรอก)	理由（テナント側に表示されます。必須）
 Approve top-up	批准充值	อนุมัติการเติมเงิน	チャージを承認
 Approve and credit	批准并入账	อนุมัติและบันทึกเข้าบัญชี	承認して入金
 Received amount (as actually credited by the bank)	实收金额（以银行到账为准）	จำนวนเงินที่ได้รับจริง (ตามยอดที่เข้าบัญชีธนาคาร)	受領額（銀行の実際の入金額）
@@ -245,7 +243,7 @@ Retry provisioning	重试开通	ลองเปิดใช้งานอีก
 Welcome to	欢迎使用	ยินดีต้อนรับสู่	ようこそ
 Your account is ready	已成功开通	เปิดใช้งานสำเร็จ	アカウント開設完了
 Dear customer,	尊敬的用户，您好！	เรียน ผู้ใช้งาน	お客様各位
-Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.	感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。	ขอบคุณที่เลือก Pearnly บัญชีของคุณเปิดใช้งานแล้ว คุณสามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที	Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。
+Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.	感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。	ขอบคุณที่เลือกใช้ Pearnly บัญชีของคุณเปิดใช้งานแล้ว เข้าสู่ระบบเพื่อเริ่มใช้งานได้ทันที	Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。
 Account information	账户信息	ข้อมูลบัญชี	アカウント情報
 Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
 Sign-in account	登录账号	บัญชีผู้ใช้	ログインアカウント
@@ -303,7 +301,7 @@ The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused
 Could not set up the LIFF app for {0}: {1}	无法为 {0} 创建 LIFF 应用：{1}	ไม่สามารถสร้างแอป LIFF สำหรับ {0} ได้: {1}	{0} の LIFF を設定できませんでした: {1}
 Created and kept correct by provisioning on the shared LINE Login channel.	由开通流程在共用 LINE Login 频道下自动创建并维护。	สร้างและดูแลโดยอัตโนมัติผ่านขั้นตอนการเปิดบัญชีบนช่องทาง LINE Login ที่ใช้ร่วมกัน	開通処理が共用の LINE Login チャネルに自動作成し、正しい設定に保ちます。
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.	无需填写。仅 2026-10-05 前开通的频道在此保存长期令牌。	ไม่ต้องกรอก เฉพาะช่องทางที่เปิดก่อน 2026-10-05 เท่านั้นที่เก็บโทเคนระยะยาวไว้ที่นี่	空欄で構いません。サイトが Channel ID とシークレットから短期トークンを発行します。2026-10-05 より前に開設したチャネルだけが長期トークンを保持しています。
-Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.	仅填写 Channel ID 和 Channel secret（LINE Developers → Basic settings）。访问令牌与 LIFF 应用由开通流程自动创建。留空可稍后配置。	กรอกเฉพาะ Channel ID และ Channel secret (LINE Developers → Basic settings) ขั้นตอนการเปิดบัญชีจะสร้างโทเคนการเข้าถึงและแอป LIFF โดยอัตโนมัติ เว้นว่างไว้เพื่อตั้งค่าภายหลังได้	Channel ID と Channel secret だけを入力します（LINE Developers → Basic settings）。トークンと LIFF は開通処理が自動で用意します。後で設定する場合は空欄のままにします。
+Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.	仅填写 Channel ID 和 Channel secret（LINE Developers → Basic settings）；留空表示暂不配置。	กรอกเฉพาะ Channel ID และ Channel secret (LINE Developers → Basic settings) เว้นว่างเพื่อตั้งค่าภายหลัง	Channel ID と Channel secret のみ入力（LINE Developers → Basic settings）。後で設定する場合は空欄。
 Cowork Account Pool	Cowork 账号池	กลุ่มบัญชีผู้ใช้ Cowork	Cowork アカウントプール	
 Cowork Admin Client ID	Cowork 管理客户端 ID	Admin Client ID ของ Cowork	Cowork 管理クライアント ID	
 Cowork Admin Client Secret	Cowork 管理客户端密钥	Admin Client Secret ของ Cowork	Cowork 管理クライアントシークレット	
@@ -340,3 +338,17 @@ Recognition Engine	识别引擎	เอนจินอ่านเอกสาร
 Google or Claude. A change applies from the next document.	谷歌或 Claude，改了从下一份单据起生效。	Google หรือ Claude เปลี่ยนแล้วมีผลตั้งแต่เอกสารถัดไป	Google または Claude。変更は次の書類から反映されます。
 Recognition engine must be Google or Claude	识别引擎只能是谷歌或 Claude	เอนจินอ่านเอกสารต้องเป็น Google หรือ Claude	認識エンジンは Google または Claude のみです
 The recognition settings are being applied. Try again shortly.	正在应用识别设置，请稍后再保存。	กำลังใช้การตั้งค่าการอ่านเอกสาร โปรดลองอีกครั้งในอีกสักครู่	認識設定を適用中です。しばらくしてからもう一度お試しください。
+Company and Account	公司与账号	บริษัทและบัญชี	会社とアカウント	issue.section.account
+For example: Bangkok Hardware Co., Ltd.	例如：曼谷五金有限公司	เช่น บริษัท กรุงเทพฮาร์ดแวร์ จำกัด	例：バンコク金物株式会社	issue.placeholder.company
+For example: somchai	例如：somchai	เช่น somchai	例：somchai	issue.placeholder.username
+Products and Domains	产品与域名	ผลิตภัณฑ์และโดเมน	製品とドメイン	issue.section.products
+For example acme	例如 acme	เช่น acme	例：acme	issue.placeholder.prefix
+Provisioned Items	开通清单	รายการที่เปิดใช้งาน	開通一覧	issue.section.result
+Owner Username	所有者用户名	ชื่อผู้ใช้เจ้าของ	オーナーのユーザー名
+Owner Email	所有者邮箱	อีเมลเจ้าของ	オーナーのメール
+Owner Subject	所有者身份标识	รหัสตัวตนเจ้าของ	オーナーの識別子
+Account created in the Cowork account pool	Cowork 账号池中创建的账号	บัญชีที่สร้างในกลุ่มบัญชี Cowork	Cowork アカウントプールで作成したアカウント
+Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot be issued on this target.	Cowork 站点使用该 realm 的账号登录。留空则此目标不能开通 Cowork。	เว็บไซต์ Cowork ใช้บัญชีใน realm นี้ เว้นว่างจะเปิดใช้ Cowork บนเป้าหมายนี้ไม่ได้	Cowork サイトはこの realm のアカウントでログインします。空欄の場合、このターゲットで Cowork を発行できません。
+For example pearnly-cowork	例如 pearnly-cowork	เช่น pearnly-cowork	例：pearnly-cowork
+Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)	按量计费页数所属月份（曼谷时间，YYYY-MM）	เดือนของจำนวนหน้าแบบจ่ายตามใช้ (เวลากรุงเทพฯ, YYYY-MM)	従量課金ページ数の対象月（バンコク時間、YYYY-MM）
+Date the page count was last reconciled with the ledger (Bangkok time)	页数最后一次与流水核对的日期（曼谷时间）	วันที่กระทบยอดจำนวนหน้ากับบัญชีรายการครั้งล่าสุด (เวลากรุงเทพฯ)	ページ数を台帳と最後に照合した日（バンコク時間）

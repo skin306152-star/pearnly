@@ -2098,7 +2098,7 @@ Checked the stock account group	查看了存货科目组	ตรวจสอบ�
 Checked MR.ERP import settings	查看了 MR.ERP 导入设置	ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว	MR.ERP の取り込み設定を確認しました
 Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました
 Edited a document	修改了单据	แก้ไขเอกสารแล้ว	書類を修正しました
-Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました
+Document handling set	已设置单据处理方式	ตั้งค่าวิธีจัดการเอกสารแล้ว	書類の処理方法を設定済み
 Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
 Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
 Listed stock counts	查看了盘点列表	ดูรายการตรวจนับสต็อกแล้ว	棚卸の一覧を確認しました
@@ -2172,7 +2172,7 @@ Checking the stock account group	正在查看存货科目组	กำลังต�
 Checking MR.ERP import settings	正在查看 MR.ERP 导入设置	กำลังตรวจสอบการตั้งค่านำเข้า MR.ERP	MR.ERP の取り込み設定を確認しています
 Viewing a document	正在查看单据详情	กำลังดูเอกสาร	書類を確認しています
 Editing a document	正在修改单据	กำลังแก้ไขเอกสาร	書類を修正しています
-Choosing how a kind of document is handled	正在设定这类单据的处理方式	กำลังกำหนดวิธีจัดการเอกสารประเภทนี้	この種類の書類の扱いを設定しています
+Set document handling	设置单据处理方式	ตั้งค่าวิธีจัดการเอกสาร	書類の処理方法を設定
 Opening the original	正在打开原件	กำลังเปิดต้นฉบับ	原本を開いています
 Checking recognition results	正在查看识别结果	กำลังตรวจสอบผลการอ่านเอกสาร	読み取り結果を確認しています
 Importing POS sales	正在导入 POS 销售	กำลังนำเข้ายอดขาย POS	POS の売上を取り込んでいます

@@ -30,3 +30,18 @@ pearnly_erp_portal:For the best reading, photograph the document upright and str
 术语:识别字段@pearnly_cowork	R-DEV	识别字段	识别结果的栏位名，业务术语（Cowork 识别设置的标签）
 术语:识别字段@pearnly_core	R-DEV	识别字段	识别结果的栏位名，业务术语（录入记录的标签）
 术语:自定义字段@pearnly_cowork	R-DEV	自定义字段	任务表的自定义栏位，业务术语（Cowork 任务的标签）
+# ── hidden 字段（Desk 表单不显示的机制字段）：10-18 闸门把 hidden 字段的标签 / 说明按管理后台判（不在术语表只标黄）之前，现有命中逐条登记
+pearnly_cowork:Refresh Lease Owner	R-DEV	刷新租约持有者	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Generation	R-DEV	刷新租约版本	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Handle	R-DEV	刷新租约标识	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Expires At (UTC)	R-DEV	刷新租约到期时间（UTC）	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Request Aliases	R-DEV	刷新请求幂等索引	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_pos_layout/cowork_pos_layout.json	R-HARD	Layout Key	hidden 字段的标签，Desk 表单不显示，不进术语表
+代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.json	R-HARD	Run warnings and the anchor snapshot/overrides the workbook shows; keys are the deployed ones	hidden 字段的说明，Desk 表单不显示，不进术语表
+# ── LINE 消息逐行拼接（存量清单第 8 / 15 节，10-18）：每行是一句完整文案，按行发给 LINE
+代码:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	R-CONCAT	… + '\n' + _(Please upload a PDF or image) + '\n' + _(For the best reading, phot	LINE 上传前提示逐行拼接，每行是一句完整文案
+# ── 可编辑 JSON 字段的说明（存量清单第 12 节，10-18）：键名与可填项是管理员填写依据
+pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.	R-LEN,R-DEV	DMS 建单默认值（JSON）：车型、颜色、分店、团队、交车天数、指定顾问 advisor_id；指定顾问优先于自动匹配。	可编辑 JSON 字段，键名与可填项是管理员填写依据
+# ── 开户邮件的品牌口号（存量清单第 10 节，10-18）：品牌名与口号不翻译
+代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	alt=Pearnly — Smart Work, Happy Life	品牌名与品牌口号，四种语言的邮件都不翻译
+代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	© Pearnly · Smart Work, Happy Life	品牌版权行，品牌口号不翻译

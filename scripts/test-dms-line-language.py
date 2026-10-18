@@ -117,7 +117,16 @@ class ImportTimeFreeze(unittest.TestCase):
                 en = menu_cards.menu_card()
         self.assertEqual(zh["altText"], i18n.t("dms.card.TXT_MENU_TITLE", lang="zh"))
         self.assertEqual(en["altText"], i18n.t("dms.card.TXT_MENU_TITLE", lang="en"))
-        self.assertNotEqual(zh["altText"], en["altText"])
+        # 标题是品牌名「Pearnly DMS」，各语言相同（10-18 存量文案整改第 7 节）：跟随收件人语言看正文里的提示语
+        def texts(node):
+            if isinstance(node, dict):
+                return ([node["text"]] if isinstance(node.get("text"), str) else []) + [
+                    t for value in node.values() for t in texts(value)]
+            return [t for value in node for t in texts(value)] if isinstance(node, list) else []
+        hint_zh, hint_en = (i18n.t("dms.card.TXT_MENU_HINT", lang=lang) for lang in ("zh", "en"))
+        self.assertNotEqual(hint_zh, hint_en)
+        self.assertIn(hint_zh, texts(zh["contents"]))
+        self.assertIn(hint_en, texts(en["contents"]))
 
 
 class EditorAndDiffLabels(unittest.TestCase):

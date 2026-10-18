@@ -28,6 +28,11 @@ from pearnly_core.assistant import contracts, engine, tools
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
 WORK_RUNS = 200  # 接续时回看最近这么多次调用，凑工作清单
+# 点了「拒绝」交回模型的指令：只给模型读（tool_result 的 instruction），不是界面文案，不经 _()
+DENIED_INSTRUCTION = "Do not try it again unless the user asks."
+# 会话主人已停用时交回模型的结果（`owner_disabled`）：只给模型读，不经 _()（主人已登录不了，对话页也不会再打开）
+OWNER_DISABLED = json.dumps({"status": "failed", "reason": "user_disabled",
+                             "instruction": "The account that owns this conversation is disabled. Do not call tools again."})
 
 
 def _lang_key(conversation: str) -> str:
@@ -66,15 +71,22 @@ def fresh():
         cache.clear()
 
 
+def owner_disabled() -> bool:
+    """会话主人已停用（User.enabled 为 0）。工具一律以会话主人的身份执行：推送线程（`relay`）与引擎回调（`webhook`）在后台
+    `frappe.set_user(主人)` 后执行，不经网页登录那道关，主人被停用后照样会替他执行 —— 每次执行前现读一次（不走缓存）。"""
+    return not frappe.db.get_value("User", frappe.session.user, "enabled")
+
+
 def execute(conversation: str, remote: str, call: dict) -> str:
     """执行 `call`（一条 `agent.custom_tool_use` 事件）并把结果交回引擎。返回 done / error / running（别处已在执行）
-    / awaiting_approval（要用户在对话里点「允许」，`decide`）。"""
+    / awaiting_approval（要用户在对话里点「允许」，`decide`）。会话主人已停用：不执行、不出卡片，按出错交回（`owner_disabled`）。"""
     use_id = contracts.event_id(call.get("id"))
     # 先结束调用方的读快照（推送线程、页面兜底、引擎回调此前都只读或已提交）：推送线程与页面兜底同时登记同一次调用时，
     # 旧快照里插入撞上对方刚提交的那条会报 1020 而不是重复（同下面按重复处理）
     frappe.db.rollback()
     gated = tools.needs_approval(call.get("name"), call.get("input"))
-    refused = _refused_before_card(conversation, call) if gated else None
+    asked = gated  # 要「允许」的工具（被拒时结果带「没问过用户」的标记）
+    refused = OWNER_DISABLED if owner_disabled() else (_refused_before_card(conversation, call) if gated else None)
     gated = gated and not refused
     try:
         run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": conversation,
@@ -94,9 +106,10 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     if gated:
         return "awaiting_approval"
     if refused:
-        # 出卡片前就核出要拒绝：不执行工具，把拒绝结果交回模型（按出错），同样留记录。结果带上没问过用户的标记（`tools.not_asked`），
-        # 对话页重开时才分得清它和点了「允许」后没做成的
-        refused = tools.not_asked(refused)
+        # 出卡片前就核出要拒绝（或会话主人已停用）：不执行工具，把拒绝结果交回模型（按出错），同样留记录。要「允许」的工具结果带上
+        # 没问过用户的标记（`tools.not_asked`），对话页重开时才分得清它和点了「允许」后没做成的
+        if asked:
+            refused = tools.not_asked(refused)
         engine.adapter().post(remote, [contracts.tool_result(use_id, refused, True)])
         frappe.db.set_value(TOOL_RUN, run.name, {"status": "error", "result": refused[:60000]})
         frappe.db.commit()
@@ -140,10 +153,10 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
         return "not_waiting"
     _announce(conversation, use_id, allow)
     if not allow:
-        # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）
-        text = json.dumps({"status": "denied",
-                           "message": _("The user did not allow this change. Do not try it again unless the user asks.")},
-                          ensure_ascii=False)
+        # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）。
+        # message 是步骤详情里给用户看的（术语表，按用户语言）；给模型的指令另放 instruction，不经 _()，对话页不显示（step-detail）
+        text = json.dumps({"status": "denied", "message": _("assistant.tool.declined"),
+                           "instruction": DENIED_INSTRUCTION}, ensure_ascii=False)
         frappe.db.set_value(TOOL_RUN, name, "result", text)
         frappe.db.commit()
         _publish_run(conversation, use_id, "denied")
@@ -248,7 +261,8 @@ def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
     fresh()
     _use_lang(conversation)
     try:
-        text, is_error = tools.run(tool, tool_input)
+        # 点「允许」之后、执行之前主人被停用了（或推送线程、引擎回调替已停用的主人执行）：不执行，按出错交回
+        text, is_error = (OWNER_DISABLED, True) if owner_disabled() else tools.run(tool, tool_input)
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant tool failed")

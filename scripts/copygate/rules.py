@@ -171,13 +171,16 @@ def surface_of(entry, role: str) -> str:
 
     end      纯终端用户界面：CC 网页、CC 桌面版、登录页、DMS 的 LINE 卡片、导出给客户的四语表 —— 强弱术语都拦
     product  产品 Desk（租户站点的语义键、msgid 文案、租户看得到的 DocType 标签与说明）—— 强术语拦，弱术语标黄
-    admin    控制面，以及只有 System Manager 能读的 DocType 的标签 / 说明 / 选项 —— 术语只标黄
+    admin    控制面，只有 System Manager 能读的 DocType 与 hidden 字段的标签 / 说明 / 选项，以及只被控制面代码调用的
+             共用层 msgid（sources.ADMIN_CODE）—— 术语只标黄
     """
     if not entry.source.startswith("pearnly_"):
         return "end"
     if entry.key.startswith("dms.card."):
         return "end"
     if entry.source == "pearnly_control":
+        return "admin"
+    if entry.extra.get("code_admin") and role not in ("label", "field_desc", "option"):
         return "admin"
     if role in ("label", "field_desc", "option") and entry.extra.get("doctype_admin"):
         return "admin"
@@ -375,8 +378,11 @@ class Checker:
         return text
 
     def check_entry(self, entry, langs, exempt: set = frozenset(), changed_from=None) -> list:
-        """对一条词条的指定语言跑全部判据。exempt：这条词条已登记豁免的规则 ID。"""
+        """对一条词条的指定语言跑全部判据。exempt：这条词条已登记豁免的规则 ID。
+        msgid 是 Frappe / ERPNext 自带的（entry.extra["upstream_en"]）：英文不归本仓，不判英文；中 / 泰 / 日译文照判。"""
         out = []
+        if entry.extra.get("upstream_en"):
+            langs = set(langs) - {"en"}
         role = entry.role or "unknown"
         authority = self._authority_levels(entry, role)
         for lang in langs:
@@ -600,6 +606,8 @@ class Checker:
     def _check_cross(self, entry, role, langs, changed_from) -> list:
         out = []
         zh, en, ja = entry.texts.get("zh", ""), entry.texts.get("en", ""), entry.texts.get("ja", "")
+        if entry.extra.get("upstream_en"):
+            en = ""  # Frappe 自带的英文 msgid：中英对不齐不归本仓
         if zh and en and ("zh" in langs or "en" in langs):
             zl, ew = zh_len(zh), en_words(en)
             if zl >= 4 and ew >= 12 and ew / zl > 1.0:
@@ -639,6 +647,7 @@ REF_NAMES = {
     "cc-desktop-hard": "CC 桌面版界面写死文案（走 i18n.py 的 t(\"键\")）",
     "cc-desktop-key": "CC 桌面版 t(\"键\") 的键不在 i18n.py 的 _M 里",
     "doctype-text": "DocType / Workspace / Report 新写的 label / description / 选项不在术语表 / Frappe 自带词里",
+    "doctype-hidden": "hidden 字段新写的 label / description 不在术语表 / Frappe 自带词里（Desk 表单不显示，只标黄）",
     "csv-manual": "翻译包新增了术语表里没有的行（手工行或改写后的残留；术语表才是唯一来源）",
     "py-concat": "_() 与字符串或另一个 _() 用 + 拼成一句（改成一条带占位符的词条）",
     "desk-concat": "__() 与字符串或另一个 __() 用 + 拼成一句（改成一条带占位符的词条）",
@@ -661,7 +670,14 @@ def check_ref(ref, snap, known: set = None, upstream: set = frozenset()) -> list
     if kind in ("py-msgid", "desk-msgid", "html-msgid", "doctype-text"):
         if text not in known and text not in upstream:
             level = "block"
-    elif kind in ("tool-label", "desk-key", "tsx-tr"):
+    elif kind == "doctype-hidden":
+        if text not in known and text not in upstream:
+            level = "warn"
+    elif kind == "tsx-tr":
+        # tr() 的词由 terms() 按当前语言给出：TERM_WORDS 里直接列出的 Frappe 自带 msgid 是 Frappe 官方译文
+        if text not in known and not (text in upstream and text in getattr(snap, "term_words", ())):
+            level = "block"
+    elif kind in ("tool-label", "desk-key"):
         if text not in known:
             level = "block"
     elif kind == "tsx-t":

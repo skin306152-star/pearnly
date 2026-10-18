@@ -346,15 +346,8 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const ThreadWelcome: FC = () => {
-  return (
-    <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
-        How can I help you today?
-      </h1>
-    </div>
-  );
-};
+// 组件库默认的欢迎区：CC 一律传入自己的 Welcome（assistant.tsx），这里不放任何文案
+const ThreadWelcome: FC = () => null;
 
 const ThreadSuggestions: FC = () => {
   return (

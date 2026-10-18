@@ -47,10 +47,10 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Adapter",
+   "label": "System Type",
    "options": "mrerp_dms\nmrerp\nwebhook\nexpress",
    "reqd": 1,
-   "description": "Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently."
+   "description": "Type of the connected system"
   },
   {
    "fieldname": "column_break_main",
@@ -63,7 +63,7 @@
    "in_standard_filter": 1,
    "label": "Owner Account",
    "options": "User",
-   "description": "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
+   "description": "Account that owns this connection. Leave empty for a site-wide shared connection."
   },
   {
    "default": "1",
@@ -71,14 +71,14 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Enabled",
-   "description": "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place)."
+   "description": "Disabled connections are not used for pushes."
   },
   {
    "default": "0",
    "fieldname": "is_default",
    "fieldtype": "Check",
    "label": "Default Connection",
-   "description": "Only one default per account + adapter (the legacy product's unique index)."
+   "description": "One default connection per account and system type."
   },
   {
    "fieldname": "section_target",
@@ -89,7 +89,7 @@
    "fieldname": "system_url",
    "fieldtype": "Data",
    "label": "System URL",
-   "description": "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change."
+   "description": "Sign-in URL, for example the MR.ERP DMS sign-in URL."
   },
   {
    "fieldname": "section_credentials",
@@ -105,13 +105,13 @@
    "fieldname": "password",
    "fieldtype": "Password",
    "label": "Password",
-   "description": "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back."
+   "description": "Stored encrypted; never shown"
   },
   {
    "fieldname": "section_admin_credentials",
    "fieldtype": "Section Break",
    "label": "Account With Write Access",
-   "description": "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials."
+   "description": "Used to connect, check duplicates, create and rewrite customer records. Business writes use these credentials, not the operator's own."
   },
   {
    "fieldname": "admin_username",
@@ -139,7 +139,7 @@
    "fieldname": "auto_push",
    "fieldtype": "Check",
    "label": "Auto Push",
-   "description": "The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog)."
+   "description": "Automatic push is not supported for this connection; confirm manually."
   },
   {
    "fieldname": "last_used_at",
@@ -177,7 +177,7 @@
    "label": "Booking Defaults"
   },
   {
-   "description": "DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.\n\nThe advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.",
+   "description": "DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.",
    "fieldname": "booking_defaults",
    "fieldtype": "JSON",
    "label": "Booking Defaults"
@@ -194,7 +194,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-18 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly ERP Endpoint",

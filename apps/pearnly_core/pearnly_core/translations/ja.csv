@@ -8,7 +8,6 @@ A board instance is created only when this is on,有効にした時だけボー�
 A conversation cannot be moved to another company.,会話を別の会社に移すことはできません。
 A disabled operator cannot issue a bind code; enable them first,無効化中のオペレーターは連携コードを発行できません。先に有効化してください
 "A human-readable name, e.g. MR.ERP DMS",人が読むための名前（例: MR.ERP DMS）
-"A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。
 A new record can only start as draft or recognized,新規レコードは draft または recognized からしか開始できません
 A new record can only start as uploaded or recognized,新規レコードは uploaded または recognized からしか開始できません
 A one-time short code. The user sends it to this tenant's LINE official account to bind.,1回限りの短いコード。テナントのLINE公式アカウントに送ると連携が完了します。
@@ -17,9 +16,12 @@ Account,アカウント
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first",同一アカウントで「{0}」に既定の接続が既にあります（{1}）。先にそちらの既定を解除してください
 Account With Write Access,書き込み権限のあるアカウント
 Account balance,口座残高
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作成したアカウント。LINE専用で、Webログインには使わず、パスワード不要です。
 Account name,口座名義
 Account number,口座番号
+Account that owns this connection. Leave empty for a site-wide shared connection.,この接続の所有アカウント。空欄はサイト共有の接続です。
 Account with admin rights,権限アカウント
+Action not found,操作が見つかりません
 Actions,操作
 Adapter,アダプタ
 Add official account,公式アカウントを友だち追加
@@ -46,8 +48,10 @@ Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
 Attempt,試行回数
 Attempts,試行回数
+Authoritative push status.,送信ステータスの正本です。
 Auto Push,自動送信
 Automatic (by DMS account),自動照合（DMSアカウント基準）
+Automatic push is not supported for this connection; confirm manually.,この接続は自動送信に対応していません。手動で確認してください。
 Back to home,ホームに戻る
 Balance,残高
 Balance after,変動後の残高
@@ -81,8 +85,8 @@ CC is not set up for this site yet.,このサイトではまだ CC が設定さ�
 CC is only available on product sites.,CC は製品サイトでのみ利用できます。
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
-Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.,カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選んでください（アドレスバーの Web サイト設定 → カメラ でも可）。戻ると自動で再試行します。
-"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself.",カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」。それでも開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
+"Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。
+"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」、開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
@@ -91,7 +95,9 @@ Cannot reach the billing service: {0},課金基盤に接続できません: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}
 Cannot read the remaining time,残り時間を取得できません
 Car models {0},車種 {0}
+Carried,引き継ぎ済み
 Change account,アカウントを変更
+Change declined,この変更は拒否されました
 Change password,パスワード変更
 Change your password and sign out other devices on the account page of the identity service,パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
@@ -112,7 +118,7 @@ Company List,会社一覧
 Company Master,会社マスタ
 Company Profile,会社情報
 Company Tax ID,自社の税番号
-"Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません
+Configuration is complete. The connection was not tested.,設定は揃っています。接続はテストしていません。
 Confirm,確認
 Confirm new password,新しいパスワード（確認）
 Confirmed,確認済み
@@ -133,9 +139,15 @@ Connection,接続
 "Connection ""{0}"" is disabled and cannot be used",接続「{0}」は無効化されており使えません
 Connection OK · {0},接続正常 · {0}
 Connection failed,接続に失敗しました
+Connection {0} has no password,接続 {0} にパスワードが設定されていません
+Connection {0} is disabled,接続 {0} は無効です
+Connection {0} is not an MR.ERP DMS connection,接続 {0} は MR.ERP DMS の接続ではありません
 Console,コンソール
 Contact support with the record ID,記録番号を添えてサポートへご連絡ください
+Context Tokens,コンテキスト使用量
+Conversation not found,会話が見つかりません
 Copy,コピー
+Could not acquire the lock: {0},ロックを取得できません：{0}
 Could not call the model: {0},モデルを呼び出せません: {0}
 Could not create the OIDC client: {0} {1},OIDCクライアントの作成に失敗: {0} {1}
 Could not create the account in the target environment: {0} {1},対象環境でのアカウント作成に失敗: {0} {1}
@@ -151,7 +163,6 @@ Could not read the account profile: {0},アカウント情報の読み取りに�
 Could not read the client secret: {0} {1},クライアントシークレットの取得に失敗: {0} {1}
 Could not send the invitation email: {0} {1},招待メールの送信に失敗: {0} {1}
 Could not set the password: {0} {1},パスワードの設定に失敗: {0} {1}
-Could not take the lock (Redis down?): {0},ロックを取得できません（Redis不通？）: {0}
 Could not update the OIDC client: {0} {1},OIDCクライアントの更新に失敗: {0} {1}
 Could not update the account language.,アカウントの言語を更新できませんでした。
 Could not update your account. Please reload and try again.,アカウントを更新できませんでした。再読み込みしてお試しください。
@@ -165,6 +176,7 @@ Created At,作成日時
 Created: {0},登録しました：{0}
 Credited,入金済み
 Currency,通貨
+Current Password,現在のパスワード
 Current State,現在の状態
 Current account,現在のアカウント
 Current billing: pay as you go.,現在は従量課金です。
@@ -188,24 +200,21 @@ DMS Operator,DMS オペレーター
 DMS Password,DMSパスワード
 DMS Username,DMSユーザー名
 DMS admin credentials failed to sign in: {0},DMS管理者の資格情報でログインできません: {0}
-"DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
-
-The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMSの起票既定値（JSON）：車種/色/店舗/チーム/納車日数、および**固定したアドバイザー**。
-
-アドバイザー欄は販売手数料の帰属先です。DMSのアドバイザー名簿に一致すれば自動帰属し、一致しない場合（オーナーの貸与アカウント、入力代行）だけここの advisor_id で固定します。固定はあらゆる照合より優先されます。"
+"DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.",DMS 起票の既定値（JSON）：車種・色・店舗・チーム・納車日数・固定アドバイザー advisor_id。固定アドバイザーは自動照合より優先します。
 DMS login account,DMSログインアカウント
 DMS login password,DMSログインパスワード
 DMS password,DMSパスワード
 DMS refused the sign-in: {0},DMSがログインを拒否しました: {0}
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）
 DMS usage and balance,DMS側の利用量と残高
 DMS username,DMSユーザー名
+Data,データ
 Date,日付
 Date as printed,伝票の日付
+Dedup Key,重複防止キー
 Dedupe Key,重複防止キー
 Default Connection,既定の接続
 Delete,削除
-Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,選択した{0}名の操作員を削除しますか。LINE連携とDMS接続を解除し、送信ログは保持します。
+Delete {0} selected operators? Their LINE bindings and DMS connections are removed; push records are kept.,選択した{0}名の操作員を削除しますか。LINE連携とDMS接続を解除し、送信ログは保持します。
 Delete {0} selected push records from this list? Sent business documents will not be affected.,選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。
 Delete {0} selected records?,選択した {0} 件を削除しますか？
@@ -220,13 +229,17 @@ Deleting the OIDC client failed: {0} {1},OIDCクライアントの削除に失�
 Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
 Deployment,デプロイ
 Description,説明
+Device Key,端末キー
+Device Secret,端末シークレット
 Direction,方向
 Direction must be inbound or outbound,方向は仕入または売上のみです
 Disable,無効化
 "Disable ""{0}""? Its DMS pushes stop and the LINE link is released.",「{0}」を無効化しますか。DMS送信が止まり、LINE連携も解除されます。
-Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.,{0} のLINE連携を解除しますか？未使用コードも無効になります。担当者とDMS認証情報は保持されます。
+Disabled connections are not used for pushes.,無効にすると送信に使用しません。
+Disconnect LINE for {0}? Unused bind codes expire; the operator and DMS credentials are kept.,{0} のLINE連携を解除しますか？未使用コードも無効になります。担当者とDMS認証情報は保持されます。
 Display Name,表示名
 Display name,表示名
+Display only; the push log is authoritative,表示用。送信ログが正本です
 Doc Date,伝票日付
 Doc No,伝票番号
 Document Type,伝票種別
@@ -246,15 +259,12 @@ Edit operator,オペレーターを編集
 Elapsed (ms),所要時間(ms)
 Email,メール
 Email is required,メールアドレスは必須です
-Empty = matched automatically from the DMS account (the legacy product's default).,空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
 Enable,有効化
 "Enable ""{0}""? A new bind code is needed to link LINE again.",「{0}」を有効化しますか。LINE連携には新しい連携コードが必要です。
 Enabled,有効
 Enabled features,有効な機能
 Endpoint,接続先
-Endpoint {0} has no password configured,端点 {0} にパスワードが設定されていません
-Endpoint {0} is disabled,端点 {0} は無効です
-"Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} のアダプタは {1} で、mrerp_dms ではありません
+"Enter the display name, DMS account and password. Issue bind codes after saving.",表示名と DMS アカウント・パスワードを入力し、保存後に連携コードを発行します
 Entering,入力中
 Error Message,エラーメッセージ
 Event ID,イベントID
@@ -280,10 +290,10 @@ Failure reason,失敗理由
 Failures,失敗回数
 File,ファイル
 File Key,ファイルキー
-Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
+Filed Note Digest,保存メモの要約
+Filed Under,保存先
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
-"Filters must be four-value rows with string doctypes, fields, and operators.",フィルタは doctype・フィールド・演算子の4値行である必要があります
-Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
+"Filters must be four-value rows with string doctypes, fields, and operators.",フィルタはドキュメントタイプ・フィールド・演算子の4値行である必要があります
 Fiscal year,年度
 Flow Status,進行ステータス
 For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
@@ -312,12 +322,13 @@ ID number is required,身分証番号は必須です
 IP,IP
 Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
+In-progress state of a multi-turn conversation. One row per session.,多段対話の途中状態。1セッション1行。
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 "Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC デスクトップのインストール・ペアリング・更新・アンインストールガイド
 Intake Workbench,取り込みワークベンチ
 Integrations,連携
-"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",フィールド {0} のフィルタが無効です。フィルタはリストで、各項目は doctype・フィールド名・演算子・値の4値である必要があります
+"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",フィールド {0} のフィルタが無効です。各フィルタはドキュメントタイプ・フィールド名・演算子・値の4値のリストである必要があります
 Invalid push channel,送信チャネルが不正です
 Invited By,招待者
 Invoice No. / Count,請求書
@@ -330,6 +341,7 @@ Item / description,品名・摘要
 "Kept as evidence, not a business field",証跡用で業務フィールドではありません
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
 Key,キー
+"Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.",接続先が重複判定に使うキー。例：DMS 顧客番号、請求書番号。
 Kind,種類
 LINE Display Name,LINE表示名
 LINE Login,LINEログイン
@@ -344,6 +356,7 @@ LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn 
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。
 Language,言語
 Last Code,前回のコード
+Last Delivered,最終配信日時
 Last Login At,最終ログイン
 Last Result,最新の結果
 Last Seen At,最終アクセス
@@ -355,6 +368,7 @@ Lease Owner,リース保有者
 Lease Until,確保期限
 Leave blank to keep the current password.,空欄の場合、現在のパスワードを保持します。
 Leave blank to keep unchanged,空欄なら変更しません
+Leave empty to match from the DMS account automatically.,空欄の場合は DMS アカウントから自動照合します。
 Line Amount,行金額
 Line Discount,行値引
 Line No,行番号
@@ -366,6 +380,7 @@ Loading…,読み込み中…
 Local Account,ローカルアカウント
 Local Session,ローカルセッション
 "Local sample site: not sent to LINE, the raw text is only recorded",ローカル見本サイト：LINEへは送信せず、原文のみ記録
+Locked; released in {0}s,ロック中です。{0} 秒後に解除されます
 Looked up a tax ID,税番号を照会しました
 Looking up a tax ID,税番号を照会しています
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
@@ -379,7 +394,6 @@ Missing code or state,code または state がありません
 My Profile,個人プロフィール
 Name,名称
 Namespace is not allowed: {0},名前空間は許可されていません: {0}
-"Neither tier produced a result (network, key or model name could all be the cause)",どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 Net Amount,税抜金額
 Net Payable,支払純額
 Net amount,税抜金額
@@ -395,19 +409,18 @@ Next Run,次回実行
 No,いいえ
 No DMS connection has been configured yet,DMS接続はまだ設定されていません
 No Data,データがありません
-No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
 No camera was found on this device. Enter the code instead.,このデバイスにカメラが見つかりません。コードを入力してください。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
 No computer connected,コンピューター未接続
+No connection to test,テストする接続が指定されていません
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
+No file was received.,ファイルを受信していません。
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
 No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
-No purchase orders yet. Use “New purchase order” in the top right to add the first one.,まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。
+No purchase orders,仕入伝票がありません
 No recognition result — please re-upload,読取結果がありません。再アップロードしてください
 No records,記録はありません
-No records yet. Use “New entry” in the top right to add the first one.,まだ記録がありません。右上の「新規入力」から最初の1件を登録してください。
-No service account configured (site config pearnly_ocr_credentials),サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）
 No sign-in credentials configured,ログイン資格情報が未設定です
 No such local account: {0},ローカルアカウントがありません: {0}
 No.,番号
@@ -424,17 +437,17 @@ Notes,備考
 Nothing to save,保存する変更はありません
 Nothing to show,表示する項目がありません
 OK,OK
-"Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",無効にすると送信に関与しません（旧製品では「同じバッチを誤送しない」ためのゲートでした）。
 Once disabled its DMS pushes stop and the LINE binding is released,無効にするとDMSへの送信が止まり、LINE連携も解除されます
+One default connection per account and system type.,アカウントごと・システム種別ごとに既定の接続は1件のみ
 One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code,1行につき営業または管理者1名。各自のDMS資格情報を持ち、LINE連携コードも個別に発行します
 Only a company admin can top up or change the subscription,チャージとプラン変更は会社管理者のみ
 Only a company admin can view top-up records,チャージ記録は会社管理者のみ閲覧可
 Only an admin can configure DMS connections,DMS接続を設定できるのは管理者だけです
 Only an admin can manage the operator roster,オペレーター名簿を管理できるのは管理者だけです
 Only confirmed documents can be queued for push,確定済みの伝票だけが送信キューに入れられます
-Only one default per account + adapter (the legacy product's unique index).,同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
-Only the config was checked; a real connectivity test waits for the adapter,設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
+Only the configuration was checked; the connection was not tested,設定のみ確認しました。接続はテストしていません
 Only the owner can manage it,責任者のみ管理可能
+Open View,開く画面
 Open in browser,ブラウザで開く
 "Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
@@ -462,13 +475,13 @@ Password updated. Use the new password next time you sign in.,パスワードを
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。
 Payer,支払者
 Payer name on the bank transfer,銀行振込の振込人名
-Payload,ペイロード
 Payment Status,支払状況
 Pearnly,Pearnly
 Pearnly Cowork,Pearnly Cowork
 Pearnly Dark,Pearnly ダーク
 Pearnly Light,Pearnly ライト
 Pending,処理待ち
+Pending Carry-over,引き継ぎ待ちの内容
 Pending review,審査待ち
 Personal data: not shown in lists and never written to logs,個人情報のため一覧に表示せず、ログにも書きません
 Plan,プラン
@@ -479,6 +492,7 @@ Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
 Please try again later,しばらくしてから再試行してください
 Preparing the file,ファイルを準備しています
+Private Key,秘密鍵
 Processing…,処理中…
 Product,製品
 Product Ref,商品の外部参照
@@ -487,6 +501,7 @@ Product master data,商品マスタ
 Products,商品
 Products & Stock,商品と在庫
 Provide at least one line item,明細を1行以上入力してください
+Public Key,公開鍵
 Purchase,仕入
 Purchase (bills received),仕入（受領した請求書）
 Purchase / Sale,仕入 / 売上
@@ -501,9 +516,10 @@ Push Log,プッシュログ
 Push Log Reference,送信ログ参照
 Push Records,プッシュ記録
 Push Status,送信ステータス
+Push TTL,通知の有効期間
 Push failed,送信失敗
 Push status must be one of {0},送信ステータスは {0} のいずれかです
-Push to the external ERP; the push log is the only source of status,外部ERPへ連携。状態は連携ログのみが根拠
+Push to an external ERP,外部ERPへ連携
 Pushed,送信済み
 Qty,数量
 Query access,照会権限
@@ -518,6 +534,9 @@ Recognition Records,認識記録
 Recognition failed. Please try again.,読み取りに失敗しました。もう一度お試しください。
 Recognition records,認識記録
 Recognition result,読み取り結果
+Recognition returned no result,認識結果が返されませんでした
+Recognition service configuration is invalid,認識サービスの設定が無効です
+Recognition service is not configured,認識サービスが未設定です
 Recognition took too long. Please try again later.,読み取りに時間がかかりすぎました。後でもう一度お試しください。
 Recognition waited too long in the queue. Please upload again.,読み取り待ちが長すぎました。再アップロードしてください。
 Recognize and export,読み取り後にエクスポート
@@ -535,6 +554,7 @@ Regenerate,再生成
 Rejected,却下済み
 Reload advisors,担当者一覧を再読み込み
 Remote Address,接続先アドレス
+Remote Sessions,リモートセッション
 Removed At,削除日時
 Removed By,削除者
 Removed from Product History At,製品履歴から削除した日時
@@ -543,6 +563,7 @@ Reorder sidebar,サイドバーの並べ替え
 Request & Response,リクエストと応答
 Request Body,リクエスト内容
 Request failed (HTTP {0}),リクエスト失敗（HTTP {0}）
+Request refused,リクエストが拒否されました
 Requested,申請額
 Requested By,申請者
 Response Body,レスポンス内容
@@ -561,15 +582,15 @@ Rounding,端数調整
 Row {0}: quantity must be greater than 0,{0} 行目: 数量は0より大きい必要があります
 Row {0}: unit price cannot be negative,{0} 行目: 単価はマイナスにできません
 Sale,売上
-Sale (bills we issue),売上（自社発行の請求書）
 Sales,販売
 Sales (confirmed and above),売上合計（確認済み以上）
+Sales (issued invoices),売上（発行した請求書）
 Sales Commission Owner,販売手数料の帰属
 Sales Records,販売記録
 Sales commission owner,販売手数料の帰属
 Sales documents and customer dealings,販売伝票と顧客取引
 Salesperson,営業
-Same ID number means the same customer; avoids duplicate records,同一の身分証番号は同一顧客とみなし、重複登録を防ぐ
+Same ID number means the same customer,同一の身分証番号は同一顧客とみなす
 Save,保存
 Save purchase order,仕入伝票を保存
 Saved,保存しました
@@ -577,19 +598,22 @@ Saved as a draft; confirm it before it can be pushed,保存すると下書きに
 "Scan to add this account, then send the bind code in LINE.",スキャンして友だち追加し、LINEでこの連携コードを送信してください。
 Seller,売り手
 Seller Tax ID,売り手税番号
+Session,セッション
+Session ID,セッションID
 Session Payload,セッションのペイロード
 Sign in again before changing your username.,ユーザー名を変更する前に再ログインしてください。
 Sign out,ログアウト
 Sign out and sign in again,ログアウトして再ログイン
 Sign-in Credentials,ログイン資格情報
+"Sign-in URL, for example the MR.ERP DMS sign-in URL.",ログインURL。例：MR.ERP DMS のログインURL。
+Sign-in verification failed. Sign in again.,ログインの検証に失敗しました。もう一度ログインしてください。
 Signed In Via,ログイン方法
-Site config is missing {0},サイト設定に {0} がありません
-Site config is missing {0}_admin_client_id / _secret,サイト設定に {0}_admin_client_id / _secret がありません
-Site config is missing {0}_issuer,サイト設定に {0}_issuer がありません
-Site config pearnly_ocr_credentials must point at an existing service-account JSON,サイト設定 pearnly_ocr_credentials は実在するサービスアカウントJSONを指す必要があります
+Site finalization failed,サイトの仕上げに失敗しました
+Site is missing setting: {0},サイトに設定項目がありません：{0}
 Size And Permission Check,サイズと権限の確認
 Source,ソース
 Source Attachment,元の添付ファイル
+Starred,スター付き
 State,状態
 Status,ステータス
 Status cannot go backwards: {0} → {1},ステータスを戻すことはできません: {0} → {1}
@@ -601,12 +625,14 @@ Stock In,入庫
 Stock In / Out,在庫（入出庫）
 Stock Out,出庫
 "Stock in/out summary (kept item, see the ERP manifest)",受払在庫の集計（維持項目。ERPマニフェスト参照）
+Stored encrypted; never shown,暗号化して保存し、表示しません
 Subject,サブジェクト
 Submit request,申請する
 Submitting…,送信中…
 Subscribe to this plan,このプランに登録
 Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。
 Subscribing…,登録中…
+Subscription Key,購読キー
 Subscription and top-up,プランとチャージ
 Subtotal,小計
 Succeeded,成功
@@ -618,8 +644,10 @@ Supplier / customer,仕入先 / 顧客
 Supplier Tax ID,仕入先の税番号
 Supplier name,仕入先名
 Suppliers,仕入先
+System Type,システム種別
 System URL,システムURL
 System URL is not filled in,システムURLが未入力です
+System URL is required,システムURLは必須です
 Target ERP,連携先 ERP
 Tax Return Drafts,税務申告の下書き
 Team,チーム
@@ -633,13 +661,10 @@ The DMS advisor list is empty.,DMS担当者一覧は空です。
 The ERP timed out or the network failed. Please try again later.,ERP への接続がタイムアウトしたか、ネットワークに問題があります。後でもう一度お試しください。
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
-The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
 The LINE channel is not configured for this account,このアカウントには LINE チャンネルが設定されていません
 The OCR service returned HTTP {0}: {1},OCRサービスが HTTP {0} を返しました: {1}
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
 The account is disabled,アカウントは無効化されています
 The account was created but no id came back,アカウントは作成されましたがIDが返りませんでした
-The admin session must be requested inside a `with` block,adminセッションは `with` ブロック内で要求する必要があります
 The balance could not be read,残高を読み取れません
 The balance grows once the platform confirms the transfer.,プラットフォームが着金を確認すると残高に反映されます。
 The barcode reader could not load. Refresh the page and try again.,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
@@ -654,20 +679,9 @@ The current password is wrong,現在のパスワードが正しくありませ�
 The document number the supplier issued; it must be kept as-is,仕入先が発行した伝票番号。そのまま保持する必要があります
 The export could not be created.,エクスポートファイルを作成できませんでした。
 The file is ready,ファイルの準備ができました
-The identity service did not return an id_token,アイデンティティサービスが id_token を返しませんでした
 The identity service refused the password change: {0} {1},アイデンティティサービスがパスワード変更を拒否しました: {0} {1}
 The identity service returned an error: {0},アイデンティティサービスがエラーを返しました: {0}
-"The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
-
-**One row per session** (a LINE user runs only one flow at a time inside one tenant).","多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。
-
-**1セッション1行**（1人のLINEユーザーは1テナント内で同時に1つのフローだけ進みます）。"
-"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。
-The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,旧製品ではこの接続では常にオフ（全手動：ウィザード＋確認ダイアログ）。
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
-"The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。
 The legacy system's product identifier; it becomes a link once product master data lands,旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
-"The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",ロックは残り {0} 秒（プロセスが強制終了された際のデッドロックと思われます。誰も実行していなければこのkeyを削除できます）
 The name is resolved server-side when pinning; the client's value is not trusted,名前は固定時にサーバー側で解決します。クライアントの値は信用しません
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
 The new password cannot be the same as the current one,新しいパスワードは現在のものと同じにできません
@@ -681,23 +695,20 @@ The recognition queue is full. Please try again later.,読み取り待ちがい�
 The recognition result is not confirmed yet. Refresh later to check.,読み取り結果はまだ確定していません。後で更新して確認してください。
 The result of each push,各連携の結果
 The service account could not exchange its token: {0},サービスアカウントのトークン交換に失敗: {0}
-"The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。
 The subscription could not be activated,プランを有効化できませんでした
 "The target environment is incomplete: URL, realm, client ID and secret are all required",対象環境の設定が不完全です。URL、realm、クライアントID、シークレットのすべてが必要です
 The test for a duplicate upload of the same document,同じ伝票を二重アップロードしたときの判定基準
 The tool failed. Try again later.,ツールの実行に失敗しました。しばらくしてからもう一度お試しください。
 The total is calculated automatically.,合計金額は自動計算されます。
-"The truth is in erp_push_logs, trigger=id_card",真値は erp_push_logs、trigger=id_card
-The truth is in erp_push_logs; this is only a display reference,真値は erp_push_logs。ここは表示用の参照のみ
 The two new passwords do not match,新しいパスワードが2回で一致しません
 The two passwords do not match,パスワードが一致しません
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
 "There is no DMS customer reference, so it cannot be pushed",DMS顧客参照がないため送信できません
 This ERP account has no company or year to choose.,この ERP アカウントには選択できる会社・年度がありません。
 This LINE account is not bound to this account on this site. Sign in with your password.,このLINEはこのサイトのこのアカウントに連携されていません。パスワードでログインしてください。
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 "This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
+This action is not supported on this site,このサイトではこの操作に対応していません
 This advisor is no longer in the current DMS list. Please select again.,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
 "This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 This attachment is not in this conversation.,この添付ファイルはこの会話にありません。
@@ -725,10 +736,14 @@ This system address is not allowed; only public addresses can be used.,このシ
 This username is already in use.,このユーザー名は使用されています。
 This year,今年
 Time,日時
+Title Source,タイトルの由来
 Titles {0},敬称 {0}
 To confirm,確認待ち
 To verify,要確認
 Today,今日
+Tool,ツール
+Tool Input,ツール入力
+Tool Use ID,ツール呼び出しID
 Top up,チャージ
 Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.,チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。
 Top-ups,チャージ
@@ -739,6 +754,7 @@ Transport Result,転送結果
 Trigger,トリガー
 Try again,もう一度
 Type,種別
+Type of the connected system,接続先システムの種類
 UI language,表示言語
 Unable to load this page. Please reload.,このページを読み込めません。再読み込みしてください。
 Unable to read the current advisor list. Retry before changing the assignment.,現在の担当者一覧を取得できません。再試行してから帰属を変更してください。
@@ -760,6 +776,7 @@ Usage,利用状況
 "Use a JPG, PNG or PDF transfer slip",振込明細は JPG・PNG・PDF を使用してください
 Used,使用済み
 Used At,使用日時
+"Used to connect, check duplicates, create and rewrite customer records. Business writes use these credentials, not the operator's own.",接続・重複確認・顧客情報の作成と書き換えに使います。業務の書き込みはオペレーター個人ではなくこの資格情報を使います。
 Used {0} pages this month · pay-as-you-go,今月 {0} 枚使用 · 未登録の従量課金
 "Used {0} pages this month · plan {1}, {2} left this cycle",今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
 User,ユーザー
@@ -780,17 +797,16 @@ What Was Pushed,何を送ったか
 What Was Recognised,認識の記録
 Whether this LINE can sign in to this account; kept in step with the identity service.,このLINEでこのアカウントにログインできるか。ID サービスと自動で同期します。
 Which connection it went to. Empty = it failed before a connection was chosen.,どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
-Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。
-"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
-"Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Withholding Tax,源泉税
 Work,読み取りジョブ
+Work Month,作業月
+Work Scope,作業範囲
 Work together,コラボレーション
+Worker currently processing this row.,現在この行を処理している実行者。
 Workspace,ワークスペース
 Wrong ERP username or password. Check it under Connect and try again.,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。
 Yes,はい
-You need to sign in to the site before opening this page. Enter through the site domain and sign in.,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
 You're offline,オフラインです
 Your access domain,アクセスドメイン
 Your account was updated elsewhere. Sign in again to load the current username.,別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。
@@ -819,6 +835,9 @@ account.themeDark,Pearnly ダーク
 account.themeLight,Pearnly ライト
 account.usernameFormat,ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。
 account.usernameTaken,このユーザー名は使用されています。
+assistant.tool.declined,この変更は拒否されました
+assistant.tool.refused,リクエストが拒否されました
+assistant.tool.unavailable,このサイトではこの操作に対応していません
 common.backHome,ホームに戻る
 common.cancel,キャンセル
 common.col.date,日付
@@ -842,8 +861,8 @@ common.scan.allow_title,LINE にカメラを許可
 common.scan.busy,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
 common.scan.decoder,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
 common.scan.denied,カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
-common.scan.denied_android,カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」。それでも開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
-common.scan.denied_ios,カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選んでください（アドレスバーの Web サイト設定 → カメラ でも可）。戻ると自動で再試行します。
+common.scan.denied_android,カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」、開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
+common.scan.denied_ios,カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。
 common.scan.failed,カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 common.scan.in_app,アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 common.scan.in_line,LINE にカメラの使用が許可されていません。
@@ -903,7 +922,6 @@ connect.state.notConnected,未接続
 connect.title,DMSに接続
 connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
-endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
 home.balance.title,口座残高
 home.balance.used,今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
@@ -1017,8 +1035,8 @@ intake.delete.partial,{0} 件を削除しました。送信中の {1} 件は削�
 intake.dir.purchase,仕入
 intake.dir.purchaseFull,仕入（受領した請求書）
 intake.dir.sales,売上
-intake.dir.salesFull,売上（自社発行の請求書）
-intake.empty,まだ記録がありません。右上の「新規入力」から最初の1件を登録してください。
+intake.dir.salesFull,売上（発行した請求書）
+intake.empty,記録がありません
 intake.error.http,リクエスト失敗（HTTP {0}）
 intake.error.poll_unreachable,ネットワークエラー
 intake.error.provider_outcome_unknown,読み取り結果はまだ確定していません。後で更新して確認してください。
@@ -1123,7 +1141,6 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.warehouses,倉庫
 nav.work,コラボレーション
-nonce mismatch,nonce が一致しません
 purchase.action.addLine,明細を追加
 purchase.action.new,仕入伝票を作成
 purchase.action.removeLine,削除
@@ -1136,7 +1153,7 @@ purchase.col.grandTotal,税込合計
 purchase.col.name,番号
 purchase.col.status,ステータス
 purchase.collapse,閉じる
-purchase.empty,まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。
+purchase.empty,仕入伝票がありません
 purchase.error.http,リクエスト失敗（HTTP {0}）
 purchase.field.docDate,伝票日付
 purchase.field.docNo,外部伝票番号
@@ -1157,7 +1174,7 @@ purchase.saving,保存中…
 purchase.subtitle,仕入伝票と支払明細を管理します。
 purchase.title,仕入記録
 roster.add,オペレーターを追加
-roster.addHint,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
+roster.addHint,表示名と DMS アカウント・パスワードを入力し、保存後に連携コードを発行します
 roster.advisor.auto,自動照合（DMSアカウント基準）
 roster.advisor.empty,DMS担当者一覧は空です。
 roster.advisor.invalid,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
@@ -1234,7 +1251,7 @@ roster.subtitle,1行につき営業または管理者1名。各自のDMS資格�
 roster.title,オペレーター
 roster.unbindLine,LINE連携を解除
 roster.unbound,未連携
-"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+"sales = salesperson, admin = administrator",sales＝営業、admin＝管理者
 shell.backHome,ホームに戻る
 shell.boot.failed,起動に失敗しました（HTTP {0}）：{1}
 shell.boot.failedPlain,起動に失敗しました：{0}
@@ -1244,14 +1261,12 @@ shell.bootCard.language,表示言語
 shell.bootCard.none,（なし）
 shell.bootCard.product,製品
 shell.bootCard.title,このサイトの起動データ
-shell.needLogin,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
 shell.notBuilt,このページは利用できません
 shell.notBuilt.body,ホームに戻って操作を続けてください。
 shell.notBuilt.title,このページは利用できません
 shell.wait.elapsed,経過 {0} 秒
 shell.wait.pages,{0}/{1} ページ読み取り済み · {2}%
 state is invalid or has expired,state が無効か期限切れです
-system_url is required,system_url は必須です
 username / password are required,username / password は必須です
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ

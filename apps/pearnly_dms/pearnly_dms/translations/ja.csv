@@ -3,7 +3,7 @@
 Account & password,アカウントとパスワード
 Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
 Account busy — click Update data later to continue,アカウントが使用中です。後で「データを更新」を押して続行してください
-Account busy — the read will continue shortly,アカウントが使用中です。まもなく自動的に続行します
+Account busy; resuming shortly,アカウント使用中、まもなく続行
 Action,操作
 Add,追加
 Add a channel,支払方法を追加
@@ -58,7 +58,6 @@ Booking updated in DMS,DMS の予約を更新しました
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
 Brand,メーカー
 Building,建物
-Cached result captured at {time},保存済み結果の取得時刻：{time}
 Cancel,キャンセル
 Cannot open the camera. Please send the ID card photo in the chat instead.,カメラを開けません。チャットで身分証の写真を送ってください。
 Car,車両
@@ -78,14 +77,15 @@ Cheque,小切手
 Choose a bank,銀行を選択
 Choose a car model ({n} found),車種を選択（{n} 件）
 Choose a colour for {car},{car} の色を選択
+Choose a menu,メニューを選択してください
 Choose a period and number of items (all branches/teams this account can see),期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
 Choose a status,ステータスを選択
 Choose a topic to play its video,トピックを選ぶと動画を再生します
 Choose an item to continue,項目を選んで続けます
+Choose one main condition; the search runs right away.,主な条件を 1 つ選択してください。すぐに検索します。
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
 Choose the matching customer,該当する顧客を選択
 Colour,色
-Coming soon,近日公開
 Company information,会社情報
 Complete Snapshot,完全スナップショット
 Confirm,確定
@@ -123,12 +123,12 @@ DMS System Account,DMS システムアカウント
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
 DMS check: Matched,DMS 照合結果：一致
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。
+"DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.",DMS データを読み取り中です。しばらくしてからお試しください。準備できない場合は、管理者に DMS 接続画面の読み取りアカウントを確認してもらってください。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
-"DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。
-"DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.",DMS のデータが不完全なため公開していません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
-"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.",DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。
+"DMS has no customer branch 00000 (head office). Ask the admin to add it in DMS, then try again.",DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.",DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
+"DMS returned incomplete data, so nothing was published. Try again after the nightly read.",DMS のデータが不完全なため公開していません。毎晩の読み取り完了後にもう一度お試しください。
+DMS sign-in did not finish. Try again later.,DMS へのログインが完了しませんでした。しばらくしてからもう一度お試しください。
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
 Data as of {time},データ取得時刻：{time}
 Data captured at,データ取得時刻
@@ -198,7 +198,7 @@ Latest sales from DMS,DMS の最新販売
 Manage system accounts,システムアカウントを管理
 Manual,マニュアル
 Manual Read Request,手動読み取り要求
-"Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
+"Many people are using DMS, so the request timed out in the queue and nothing was submitted. Try again shortly.",現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。
 Master data and all vehicle colors,マスターデータと全車種の色
 Menu,メニュー
 Model year,年式
@@ -239,12 +239,11 @@ Open DMS,DMS を開く
 Open Pearnly DMS without typing your password again,パスワードを再入力せずに Pearnly DMS を開く
 Other,その他
 Page,ページ
+Pearnly DMS,Pearnly DMS
 Phone,電話番号
 Phone number received. Please take a photo of the customer's ID card.,電話番号を受け取りました。お客様の身分証明書を撮影してください。
 Pick a date,日付を選ぶ
-Pick just one main condition and the search runs right away. No need to answer everything.,主な条件を 1 つ選ぶだけですぐに検索します。全部に答える必要はありません。
 Please choose a menu,メニューを選んでください
-Please choose a menu below to get started,下のメニューから始めてください
 "Please choose from the card above, or type restart to begin a new item",上のカードから選ぶか、やり直し と入力して新しく始めてください
 Please choose the type of data to search,検索するデータの種類を選んでください
 Please correct it in DMS.,DMS で修正してください。
@@ -300,7 +299,6 @@ Removed {0},{0} を削除しました
 Requested Query,要求された照会
 Resumed {0},{0} を再開しました
 Retry,再試行
-Retry booking,予約を再作成
 Road,通り
 Room,部屋番号
 Sales advisor,営業担当
@@ -313,7 +311,7 @@ Save failed. Please try again.,保存できませんでした。もう一度お�
 Save new customer,新規顧客を保存
 Saved,保存しました
 Saved DMS data,読み取り済み DMS データ
-"Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
+Saved result read at {time},保存済み結果の取得時刻：{time}
 "Saved · {action}
 Customer ID: {customer_code}
 Name: {name}","保存しました · {action}
@@ -361,7 +359,7 @@ The DMS account is busy. The read retries automatically; please wait.,DMS アカ
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
 The DMS connection is not set up yet. Please contact the admin.,DMS 接続がまだ設定されていません。管理者に連絡してください。
-"The DMS connection or account changed, so the previous data cannot be used. The system reads the new account's data automatically; reopen this page after it finishes.",DMS の接続またはアカウントが変更されたため、以前のデータは使用できません。新しいアカウントのデータをシステムが自動で読み取りますので、完了後にこの画面を開き直してください。
+"The DMS connection or account changed, so the previous data cannot be used. Reopen this page after the new account's data is read.",DMS の接続またはアカウントが変更されたため、以前のデータは使用できません。新しいアカウントのデータの読み取り完了後に、この画面を開き直してください。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
 The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
 The booking cannot be opened yet · The DMS account in use is «{username}»,まだ予約を作成できません · 使用中の DMS アカウントは「{username}」です
@@ -406,7 +404,7 @@ This month Top 20,今月 Top 20
 This month Top 30,今月 Top 30
 This month Top 5,今月 Top 5
 This query is queued.,この検索は待機中です。
-"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account.",この読み取りアカウントで見える顧客は {seen} 件ですが、{reference} では {total} 件見えます。DMS はアカウントの権限で顧客一覧を制限しています。すべての顧客が見えるアカウントを読み取りアカウントにしてください。
+This read account sees only {seen} customers ({reference} sees {total}). Use an account that can see every customer.,この読み取りアカウントで見える顧客は {seen} 件です（{reference} は {total} 件）。すべての顧客が見えるアカウントを使用してください。
 This read failed. Click Read to retry.,今回の読み取りは失敗しました。読み取りを押して再試行できます。
 This read failed. Please try again later.,今回の読み取りは失敗しました。しばらくしてからお試しください。
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。
@@ -426,6 +424,7 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,販売ランキング
 Top sales from DMS,DMS の販売ランキング
 Total deposit,予約金合計
+Trigger type. The business line is on Reference DocType.,トリガー種別。業務ラインは参照DocTypeに記録します。
 Try again,もう一度
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",期間と件数を入力してください（例：01/08/2569-31/08/2569 15、仏暦）
 "Type bank name | card type, e.g. KBank | VISA",銀行名 | カードの種類 を入力（例：KBank | VISA）
@@ -442,7 +441,7 @@ Type the engine number,エンジン番号を入力してください
 Type the sales advisor's name,営業担当の名前を入力してください
 Type the sales document number,販売伝票番号を入力してください
 Type what you want to search for,検索したい語を入力してください
-Unable to confirm the read result. Refresh the page to check; the background read may still be running.,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
+Unable to confirm the read result. Refresh the page to check.,読み取り結果を確認できません。ページを更新して確認してください。
 Update data,データを更新
 Update failed — click Update data to retry,更新に失敗しました。「データを更新」を押して再試行してください
 Update failed. Please ask the admin to check the admin password in Pearnly.,更新できませんでした。Pearnly の管理者パスワードを管理者に確認してもらってください。
@@ -463,7 +462,6 @@ View result / status,結果／状態を見る
 View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
 Village,村
 Watch step-by-step video guides,手順ごとの動画ガイドを見る
-Welcome to Pearnly DMS,Pearnly DMS へようこそ
 Write accounts,書き込みアカウント
 cars,台
 customer details,顧客情報
@@ -487,7 +485,6 @@ dms.card.BTN_KEEP,既存データを使う
 dms.card.BTN_NEW_CUSTOMER,新規顧客
 dms.card.BTN_RESTART,やり直し
 dms.card.BTN_RETRY,再試行
-dms.card.BTN_RETRY_BOOKING,予約を再作成
 dms.card.BTN_SAVE_NEW,新規顧客を保存
 dms.card.BTN_SCAN_CARD,身分証をスキャン
 dms.card.BTN_SHOW_RESULT,結果を見る
@@ -553,8 +550,8 @@ dms.card.TXT_MENU_ITEM6,マニュアル
 dms.card.TXT_MENU_PICK,メニューを選んでください
 dms.card.TXT_MENU_PICK_SUB,項目を選んで続けます
 dms.card.TXT_MENU_SEND_CARD,お客様の身分証明書の写真を送ってください
-dms.card.TXT_MENU_SUBTITLE,下のメニューから始めてください
-dms.card.TXT_MENU_TITLE,Pearnly DMS へようこそ
+dms.card.TXT_MENU_SUBTITLE,メニューを選択してください
+dms.card.TXT_MENU_TITLE,Pearnly DMS
 dms.card.TXT_MORE_RESULTS,続きがあります。「結果を見る」を押してください。
 dms.card.TXT_NEED_BOTH,お客様の身分証明書の写真と電話番号を送ってください
 dms.card.TXT_NEW_CARD_ALT,新規顧客の保存を確認
@@ -696,7 +693,6 @@ dms.card.query.ASK_TOP_GROUP,何で販売ランキングを出しますか？
 dms.card.query.ASK_TOP_METRIC,台数と金額のどちらでランキングしますか？
 dms.card.query.ASK_TOP_PERIOD,期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
 dms.card.query.ASK_VEHICLE,車種を入力してください
-dms.card.query.CARD_NOTE,読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
 dms.card.query.CARD_TITLE,DMS の販売記録
 dms.card.query.DIM_ADVISOR,営業担当
 dms.card.query.DIM_ALLOCATION,車両の割当
@@ -768,7 +764,7 @@ dms.card.query.TXT_DENIED,このアカウントはまだ LINE でデータを検
 dms.card.query.TXT_EXPIRED,有効期限が切れました。メニュー と入力して検索し直してください
 dms.card.query.TXT_LOADING,DMS から最新データを読み取っています
 dms.card.query.TXT_NO_ENDPOINT,有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。
-dms.card.query.TXT_PICK_SALES,主な条件を 1 つ選ぶだけですぐに検索します。全部に答える必要はありません。
+dms.card.query.TXT_PICK_SALES,主な条件を 1 つ選択してください。すぐに検索します。
 dms.card.query.TXT_PICK_TYPE,検索するデータの種類を選んでください
 dms.card.query.TXT_QUERY_FAILED,DMS からデータを読み取れませんでした。もう一度お試しください。
 dms.card.query.TYPE_SALES,1 販売記録
@@ -786,7 +782,6 @@ dms.card.rich.portal.sub,管理画面を使う
 dms.card.rich.portal.title,DMS を開く
 dms.card.rich.query.sub,DMS の最新販売
 dms.card.rich.query.title,データ検索
-dms.card.rich.soon,近日公開
 dms.card.sum.address,住所
 dms.card.sum.birthday_be,生年月日
 dms.card.sum.name,氏名
@@ -840,9 +835,9 @@ dms.connect.cache.state.idle,未読み取り
 dms.connect.cache.state.queued,待機中
 dms.connect.cache.state.running,読み取り中
 dms.connect.cache.state.succeeded,データ更新完了
-dms.connect.cache.state.waiting,アカウントが使用中です。まもなく自動的に続行します
+dms.connect.cache.state.waiting,アカウント使用中、まもなく続行
 dms.connect.cache.title,読み取り済み DMS データ
-dms.connect.cache.unconfirmed,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
+dms.connect.cache.unconfirmed,読み取り結果を確認できません。ページを更新して確認してください。
 dms.connect.pool.action,操作
 dms.connect.pool.add,システムアカウントを追加
 dms.connect.pool.added,{0} を追加しました
@@ -862,7 +857,7 @@ dms.connect.pool.removed,{0} を削除しました
 dms.connect.pool.summary,登録 {0} 件、利用可能 {1} 件
 dms.connect.pool.testAndAdd,テストして追加
 dms.connect.pool.toggle,停止 / 再開
-dms.connect.read.scope,この読み取りアカウントで見える顧客は {seen} 件ですが、{reference} では {total} 件見えます。DMS はアカウントの権限で顧客一覧を制限しています。すべての顧客が見えるアカウントを読み取りアカウントにしてください。
+dms.connect.read.scope,この読み取りアカウントで見える顧客は {seen} 件です（{reference} は {total} 件）。すべての顧客が見えるアカウントを使用してください。
 dms.doctype.system_account,DMS システムアカウント
 dms.doctype.system_account.description,システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。
 dms.doctype.system_account.last_checked_at,最終チェック日時
@@ -1005,13 +1000,13 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデー
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
 dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
 dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
-dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。毎晩の読み取り完了後にもう一度お試しください。
 dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,今回の読み取りは中断されました。以前の成功データは保持されています。システムが読み直しますので、しばらくしてからお試しください。
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。
-dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データを読み取り中です。読み取りが終わると使えますので、しばらくしてからお試しください。準備できない状態が続く場合は、管理者に DMS 接続画面で読み取りアカウントが追加されているか確認してもらってください。
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データを読み取り中です。しばらくしてからお試しください。準備できない場合は、管理者に DMS 接続画面の読み取りアカウントを確認してもらってください。
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
 dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
-dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されたため、以前のデータは使用できません。新しいアカウントのデータをシステムが自動で読み取りますので、完了後にこの画面を開き直してください。
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されたため、以前のデータは使用できません。新しいアカウントのデータの読み取り完了後に、この画面を開き直してください。
 dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。システムが毎晩自動で読み直しますので、完了後にもう一度お試しください。
 dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,データ量が読み取り上限を超えています。管理者にご連絡ください。
 dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください

@@ -4,13 +4,15 @@ A deployment is a live site. Delete the tenant so its site and database go away 
 A rejection needs a reason; the tenant will see it,却下には理由が必要です。テナント側に表示されます。
 "A single top-up is capped at ฿500,000","1回のチャージ上限は ฿500,000 です"
 A wallet must belong to a tenant,ウォレットはテナントに紐づける必要があります
+Account created in the Cowork account pool,Cowork アカウントプールで作成したアカウント
 Account information,アカウント情報
 Account opening is available only for configured cloud targets,設定済みのクラウド環境でのみアカウントを開設できます
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.",アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。
 Action,アクション
-Action name the runner understands; see pearnly_control/provisioning.py,実行ホストが解釈するアクション名。pearnly_control/provisioning.py 参照。
+Action name supported by the runner,実行ホストが対応するアクション名
 Admin Client ID,管理者クライアントID
 Admin Client Secret,管理者クライアントシークレット
+Admin client secret is missing,管理クライアントシークレットが未設定です
 Amount (THB),金額（バーツ）
 Amount must be greater than 0,金額は0より大きい必要があります
 An adjustment cannot be 0,調整額は0にできません
@@ -18,7 +20,6 @@ An adjustment must have a reason,調整には理由が必要です
 An employee identity is used by another tenant; review it before deleting this tenant,従業員アカウントが他のテナントで使用されています。このテナントを削除する前に確認してください
 Approve and credit,承認して入金
 Approve top-up,チャージを承認
-At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
 Back,戻る
 Balance (THB),残高（バーツ）
 Balance After,変動後の残高
@@ -38,14 +39,15 @@ CC Model,CC モデル
 "Cannot read the provisioning target, so the identity service URL is unknown",開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません
 Channel Access Token,チャネルアクセストークン
 Channel ID,チャネルID
+Channel ID and Channel secret only (LINE Developers → Basic settings). Leave empty to set up later.,Channel ID と Channel secret のみ入力（LINE Developers → Basic settings）。後で設定する場合は空欄。
 Channel Secret,チャネルシークレット
 Choose a workspace,利用する会社を選択
 Client ID for Invitation Links,招待リンク用クライアントID
 "Client with only the password grant, used to verify the current password. Shared by all three products.",パスワードグラントのみ有効なクライアント。現在のパスワード確認に使い、3製品で共用します。
 Close,閉じる
-Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,発行伝票から取得。機能単位の強制は未実装です（docs/p4/06-provisioning.md 参照）。
 Comma separated. The role gets read/write on these DocTypes.,カンマ区切り。このロールがこれらのDocTypeの読み書き権限を得ます。
 Company Name,会社名
+Company and Account,会社とアカウント
 Company name is required,会社名は必須です
 Confirm credit,入金を確定
 Confirm rejection,却下を確定
@@ -71,20 +73,22 @@ Cowork Identity Subject,Cowork アカウント識別子
 Cowork Password-check Client ID,Cowork パスワード確認用クライアント ID
 Cowork Password-check Client Secret,Cowork パスワード確認用クライアントシークレット
 Cowork Realm,Cowork レルム
+Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot be issued on this target.,Cowork サイトはこの realm のアカウントでログインします。空欄の場合、このターゲットで Cowork を発行できません。
 Create Request Hash,作成リクエストハッシュ
 Create the site,サイトを作成
 Create the tenant account,テナントアカウントを作成
 Created and kept correct by provisioning on the shared LINE Login channel.,開通処理が共用の LINE Login チャネルに自動作成し、正しい設定に保ちます。
+Created on the tenant site and granted at provisioning. Leave empty for no permission control.,開通時にテナントサイトで作成・付与します。空欄は権限制御なし。
 Creating a channel requires both secret and access token,チャネル作成には secret と access token の両方が必要です
 Creating a channel requires the channel secret and the Channel ID,チャネル作成には Channel secret と Channel ID の両方が必要です
 Credential Delivery,資格情報の受け渡し方法
 Credentials,資格情報
-"Credentials (stored only here, pushed to the tenant site at provisioning)",資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）
 Credited ฿{0}; {1} now has ฿{2},฿{0} を入金しました。{1} の残高は ฿{2} です
 Crediting…,入金処理中…
 Cycle End,今サイクル終了
 Cycle Start,今サイクル開始
 DMS is the one already proven; ERP and Cowork use the same API surface.,DMSが実績あり。ERPとCoworkも同じAPIを使います。
+Date the page count was last reconciled with the ledger (Bangkok time),ページ数を台帳と最後に照合した日（バンコク時間）
 "Dear customer,",お客様各位
 Default On,既定で有効
 Default Target,既定のターゲット
@@ -117,14 +121,18 @@ Feature Code,機能コード
 Feature Name,機能名
 Features,機能
 Fill in only if a LIFF app exists; otherwise leave empty.,LIFFアプリがある場合のみ入力。なければ空欄。
-"Fill only the Channel ID and Channel secret (LINE Developers, Basic settings). Provisioning issues access tokens and creates the LIFF app itself. Leave empty to assign a channel later.",Channel ID と Channel secret だけを入力します（LINE Developers → Basic settings）。トークンと LIFF は開通処理が自動で用意します。後で設定する場合は空欄のままにします。
 Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,入力すると開通時にこのテナント専用のLINEチャネルを配信します。空欄なら後から設定できます。
 Finalize the site,サイトを仕上げ
 Finished At,終了日時
+For example acme,例：acme
 For example http://keycloak.localhost:8105,例: http://keycloak.localhost:8105
+For example pearnly-cowork,例：pearnly-cowork
+"For example: Bangkok Hardware Co., Ltd.",例：バンコク金物株式会社
 For example: local sample / production,例：ローカル見本 / 本番
+For example: somchai,例：somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
 Forgot password ?,パスワードをお忘れですか？
+From the issue.,発行伝票から取得。
 Get your work done in conversation,会話で仕事を完了
 Google or Claude. A change applies from the next document.,Google または Claude。変更は次の書類から反映されます。
 Grant feature roles,機能ロールを付与
@@ -174,6 +182,7 @@ LINE Setup Guide,LINE 開通ガイド
 LINE channel (optional),LINEチャネル（任意）
 LINE configuration is being applied. Try again shortly.,LINE 設定を適用中です。しばらくしてから再試行してください。
 LINE credentials are required before activation.,有効化の前に LINE の認証情報が必要です。
+Language,言語
 Last Updated,最終更新
 Leave empty to use the company name,空欄なら会社名を使います
 Leave empty: the site issues short-lived tokens from the Channel ID and secret. Only channels opened before 2026-10-05 keep a long-lived token here.,空欄で構いません。サイトが Channel ID とシークレットから短期トークンを発行します。2026-10-05 より前に開設したチャネルだけが長期トークンを保持しています。
@@ -183,6 +192,7 @@ Log in,ログイン
 Manual adjustment · {0},手動調整 · {0}
 Mark provisioning done,開通完了にする
 Matches the feature key in the product's own feature catalog (features.json).,製品自身の機能カタログ (features.json) の機能キーと一致します。
+"Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)",従量課金ページ数の対象月（バンコク時間、YYYY-MM）
 Monthly Fee,月額
 No provisioning request yet; click “Run provisioning” to start,開通リクエストはまだありません。「開通を実行」を押してください。
 No such deployment: {0},そのデプロイはありません: {0}
@@ -197,12 +207,15 @@ Notes,備考
 OIDC Client ID,OIDCクライアントID
 OIDC Client Secret,OIDCクライアントシークレット
 One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,デプロイ（会社×製品）ごとに1つのLINEチャネル。これが分離境界で、署名検証も送信もこのチャネル自身の資格情報を使います。
-"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",デプロイごとに1つ。コールバックURLはサイトのドメイン基準なので、共用すると2社目がログインできません。
+One client per deployment.,デプロイごとに1つのクライアントを使用します。
 Only a platform admin can handle top-ups and balances,チャージと残高を扱えるのはプラットフォーム管理者のみです
 Open the LINE channel,LINEチャネルを開く
 Operations,運用
 Output,実行出力
 Over-rate (per page),超過単価（1枚あたり）
+Owner Email,オーナーのメール
+Owner Subject,オーナーの識別子
+Owner Username,オーナーのユーザー名
 Pages,ページ数
 Pages Used This Month,今月の使用ページ数
 Partly done {0}/{1},一部完了 {0}/{1}
@@ -210,6 +223,7 @@ Password,パスワード
 Password Delivered At,初期パスワード交付日時
 Password-check Client ID,パスワード確認用クライアントID
 Password-check Client Secret,パスワード確認用クライアントシークレット
+Password-check client secret is missing,パスワード確認用クライアントシークレットが未設定です
 Payload,パラメータ
 Pearnly Credit Transaction,残高の履歴
 Pearnly Customer Support,Pearnly カスタマーサポート
@@ -224,9 +238,12 @@ Please change your initial password promptly,初期パスワードを速やか�
 "Prefix only, e.g. aerp",接頭辞のみ（例: aerp）
 Privacy Policy,プライバシーポリシー
 Product App,製品アプリ
+Product app installed on this site,このサイトにインストールする製品アプリ
 Product {0} is selected twice,製品 {0} が二重に選ばれています
 Products & Domains,製品とドメイン
+Products and Domains,製品とドメイン
 Proof,証憑
+Provisioned Items,開通一覧
 Provisioning Credentials (stored only here),開通の資格情報（ここにだけ保存）
 Provisioning Progress,開通の進捗
 Provisioning Target,開通ターゲット
@@ -240,7 +257,7 @@ Queueing the deletion…,削除をキューに追加しています…
 Quota,枠
 Quota per Cycle (pages),1サイクルの枠（枚）
 Realm,レルム
-Reason (the tenant will see it; required),理由（テナント側に表示されます。必須）
+"Reason (visible to tenant, required)",理由（テナント側に表示されます。必須）
 Received Amount,受領額
 Received amount (as actually credited by the bank),受領額（銀行の実際の入金額）
 Recognition Engine,認識エンジン
@@ -268,6 +285,7 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,{0} 行
 Row {0}: a LINE channel needs both the channel secret and the access token,{0} 行目: LINE チャネルにはチャネルシークレットとアクセストークンの両方が必要です
 Run provisioning,開通を実行
 Running,実行中
+Same as the deployment domain.,デプロイのドメインと同じです。
 Select the CC engine.,CC エンジンを選択してください。
 Service URL is required,サービスURLは必須です
 Set up CC,CC を設定
@@ -285,7 +303,7 @@ Site Provisioning API,サイト構築API
 Site URL,サイトのURL
 Site name {0} is already taken by deployment {1},サイト名 {0} はデプロイ {1} が使用中です
 Sites and databases,サイトとデータベース
-Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,同一製品の複数サイトは1つのBenchプロセスを共有します。障害範囲を絞るために記録します。
+Sites of the same product share one Bench process.,同一製品のサイトは1つのBenchプロセスを共有します。
 Skipped,不要
 Source,ソース
 Started At,開始日時
@@ -309,14 +327,10 @@ The CC settings are being applied. Try again shortly.,CC の設定を反映中�
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
 "The URL to paste into the LINE console, derived from the deployment domain.",LINE管理画面に貼るURL。デプロイのドメインから算出します。
 The address this tenant is reached at.,このテナントのアクセス先アドレス
-The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
 The balance could not be read; this is not 'insufficient balance',残高を読み取れません。残高不足ではありません
 The billing reference was already used for another request,この課金参照番号は別のリクエストで使用済みです
-"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
-The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。
+The identity service builds the invitation email link from this client.,招待メール内のリンクはこのクライアントで生成します。
 The last issue attempt failed; set it back to draft before issuing again,前回の発行に失敗しました。draft に戻してから再発行してください。
-The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),パスワード確認用クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
-The product app installed on this site; pearnly_core is shared by every product.,このサイトに入れる製品アプリ。pearnly_core は全製品で共用します。
 "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。
 "The provisioning target {0} has no LINE Login channel, so the LIFF app cannot be set up",開設先 {0} に LINE Login チャネルが未設定のため LIFF を作成できません
 The received amount must be greater than 0,受領額は0より大きい必要があります
@@ -334,7 +348,7 @@ This removes everything about this tenant. It cannot be undone.,このテナン�
 This request has already been handled (currently: {0}),この申請はすでに処理済みです（現在: {0}）
 This tenant no longer exists.,このテナントは既に存在しません。
 This top-up request was already reviewed; it cannot be handled twice,この入金申請は審査済みです。二重処理はできません。
-Ticked means this feature is on by default; unticked ones are add-ons (for example CC Desktop).,チェックは既定で有効、外したものは追加購入（CC デスクトップなど）。
+Ticked: on by default. Unticked: add-on.,チェックあり：既定で有効。なし：追加購入。
 Top-up Review,チャージ承認
 Top-up approved · request {0},チャージ承認 · 申請 {0}
 Transfer Slip,振込明細
@@ -346,9 +360,8 @@ Usage Checked,利用量確認日
 Usage Month,利用月
 Used This Cycle (pages),今サイクル使用量（枚）
 Used to send messages (long-lived).,メッセージ送信用（long-lived）。
-"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",Webhookの署名検証用。**テナントごとに1つ**。テナントサイトは自分のものだけを使うため、他社の署名は通りません。
 Username,ユーザー名
-Username and initial password are both required: they are the credentials for the user's first sign-in,ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。
+Username and initial password are required,ユーザー名と初期パスワードは必須です
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ユーザー名は英数字・ドット・アンダースコア・ハイフンのみ、長さ3〜30
 Username or email,ユーザー名またはメールアドレス
 View progress,進捗を見る
@@ -363,7 +376,12 @@ Welcome to,ようこそ
 Welcome to {0} — your account is ready,{0}へようこそ — アカウント開設完了
 Your access domain,アクセスドメイン
 Your account is ready,アカウント開設完了
-grant only handles money in (topup / adjustment); use charge() for deductions,grant は入金（topup / adjustment）専用。控除は charge() を使います。
+issue.placeholder.company,例：バンコク金物株式会社
+issue.placeholder.prefix,例：acme
+issue.placeholder.username,例：somchai
+issue.section.account,会社とアカウント
+issue.section.products,製品とドメイン
+issue.section.result,開通一覧
 "{0} in-plan scan ({1} pages, within quota)",{0} プラン内スキャン（{1} 枚、枠内）
 {0} out-of-plan scan ({1} over quota),{0} プラン外スキャン（枠超過 {1} 枚）
 {0} — {1} features,{0} — {1} 件

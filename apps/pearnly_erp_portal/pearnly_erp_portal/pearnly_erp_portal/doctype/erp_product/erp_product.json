@@ -93,7 +93,7 @@
   },
   {
    "default": "0",
-   "description": "0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",
+   "description": "Unticked: price not set (not ฿0).",
    "fieldname": "price_set",
    "fieldtype": "Check",
    "label": "Price Is Set"
@@ -103,7 +103,7 @@
    "fieldtype": "Check",
    "label": "Cost Is Set",
    "default": "0",
-   "description": "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and \"never set\". The counter needs to tell them apart (same reason as price_set).",
+   "description": "Unticked: cost not set.",
    "permlevel": 1
   },
   {
@@ -173,7 +173,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",

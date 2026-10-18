@@ -168,11 +168,9 @@ def finalize_site() -> dict:
     home_page = frappe.db.get_default("desktop:home_page")
     done = frappe.is_setup_complete()
     if home_page != "desktop" or not done:
-        frappe.throw(
-            _("Finalize failed: desktop:home_page={0} is_setup_complete={1}").format(
-                home_page, done
-            )
-        )
+        frappe.logger("pearnly.provisioning").error(
+            "site finalization failed: desktop:home_page=%s is_setup_complete=%s" % (home_page, done))
+        frappe.throw(_("Site finalization failed"))
     return {
         "home_page": home_page,
         "is_setup_complete": done,
