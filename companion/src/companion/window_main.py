@@ -10,6 +10,8 @@
   点了托盘再转回来执行（窗口进程已退出时托盘直接打开窗口；下载完成的「在文件夹中显示」托盘自己做）。
 - 关窗口：正在回复（页面 ``window.tomo.busy()``）就先藏起来等回复完、通知弹出后再退；否则马上退。旧版页面没有
   ``busy`` 就当没在回复。托盘退出、管道断了也退出。
+- 窗口开着却没人看得见（锁屏、屏幕关了、被别的窗口完全挡住；最小化由 Qt 自己处理）时对话页停画（visibility_watch.py），
+  原因随 ``status`` 报给托盘。
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from PySide6.QtCore import QEvent, QEventLoop, QObject, QTimer, Signal, Slot
 
 from . import tomo_links, window_link
 from .logger import get_logger
+from .visibility_watch import VisibilityWatch
 
 log = get_logger(__name__)
 
@@ -85,7 +88,7 @@ class RemoteBridge(QObject):
 class WindowController(QObject):
     """建 CC 窗口、接托盘的命令、报窗口状态、关窗口时决定什么时候退。"""
 
-    def __init__(self, link, *, lang: str, quit_app: Callable[[], None], make_window=None) -> None:
+    def __init__(self, link, *, lang: str, quit_app: Callable[[], None], make_window=None, system=None) -> None:
         super().__init__()
         self._link = link
         self._quit_app = quit_app
@@ -108,6 +111,9 @@ class WindowController(QObject):
             def make_window(**kwargs):
                 return TomoWindow(icon=pearnly_icon(), **kwargs)
         self.window = make_window(lang=lang, notify=self._notify, bridge=self.bridge, on_close=self._closed)
+        # 状态变了回到事件循环再报（构造时第一次算出的「窗口关着」也是这样，不抢在窗口显示前发）
+        self.visibility = VisibilityWatch(self.window, system=system,
+                                          on_change=lambda _reason: QTimer.singleShot(0, self._report))
         self.window.installEventFilter(self)
         self.window.page.urlChanged.connect(lambda _url: self._report())
         link.set_handler(self.handle)
@@ -123,6 +129,9 @@ class WindowController(QObject):
         window = self.window
         if op in ("show", "ask", "open_conversation", "open_settings"):
             self._stop_linger()
+        if op in ("show", "ask", "open_conversation", "open_settings", "click"):
+            # 有人要看：先当看得见（被挡住、停着画时，快捷提问等页面脚本里要等下一帧的事不卡到下一次重算）
+            self.visibility.present()
         if op == "show":
             window.show_front()
         elif op == "ask":
@@ -170,11 +179,14 @@ class WindowController(QObject):
                         click=click, reveal=path)
 
     def _report(self) -> None:
+        if self._finished:
+            return   # 页面已经删了，排着的报告不再发
         window = self.window
-        status = (bool(window.isVisible() and not window.isMinimized()), bool(window.isActiveWindow()), self._page_url())
+        status = (bool(window.isVisible() and not window.isMinimized()), bool(window.isActiveWindow()), self._page_url(),
+                  str(self.visibility.reason or ""))
         if status != self._last_status:
             self._last_status = status
-            self._link.send("status", visible=status[0], active=status[1], url=status[2])
+            self._link.send("status", visible=status[0], active=status[1], url=status[2], paused=status[3])
 
     def eventFilter(self, watched, event) -> bool:
         if watched is self.window and event.type() in (QEvent.Type.Show, QEvent.Type.Hide,
@@ -235,6 +247,7 @@ class WindowController(QObject):
             return
         self._finished = True
         self._stop_linger()
+        self.visibility.close()
         try:
             self.window.shutdown()
         except Exception:

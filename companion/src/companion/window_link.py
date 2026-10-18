@@ -10,7 +10,8 @@ CC 窗口（网页内核、对话页，gui_tomo.py）在另一个进程里：打
 ``hello`` 带不对口令的连接直接断开），一行一条 JSON：
 
 - 窗口 → 托盘：``hello``；``state`` / ``call``（对话页经桥调本机设置，tomo_bridge.py 在托盘这边照旧应答，带 ``id``
-  的等 ``reply``）；``status``（窗口看得见没、在不在最前面、当前地址）；``notify``（窗口里要弹的系统通知，托盘弹）；``bye``。
+  的等 ``reply``）；``status``（窗口看得见没、在不在最前面、当前地址、对话页为什么停画）；``notify``（窗口里要弹的系统通知，
+  托盘弹）；``bye``。
 - 托盘 → 窗口：``show`` / ``ask`` / ``open_conversation`` / ``open_settings``（打开窗口做什么）；``changed`` / ``done``
   （桥的两个信号）；``pick``（弹选择文件夹框，带 ``id`` 等 ``reply``）；``click``（点了窗口转来的通知）；``lang``；``quit``。
 
@@ -46,6 +47,10 @@ MAX_LINE = 32 * 1024 * 1024        # 一行最长（桥的状态 JSON 远小于�
 SPAWN_GRACE = 30.0                  # 拉起窗口进程后这么久还没连上，再点打开就重新拉起
 MAX_PENDING = 8                     # 窗口进程连上前排着的打开命令最多留几条（只留最新的）
 REQUEST_TIMEOUT_MS = 120_000        # 等对方回复的上限（弹选择文件夹框的不限时）
+# ``status`` 里的 ``paused``：对话页为什么停画（空串 = 在画；visibility_watch.py）。托盘按它在 companion.log 记一行
+PAUSE_HIDDEN, PAUSE_MINIMIZED = "hidden", "minimized"
+PAUSE_LABELS = {PAUSE_HIDDEN: "窗口关着", PAUSE_MINIMIZED: "最小化", "locked": "锁屏", "display_off": "屏幕关了",
+                "occluded": "被别的窗口完全挡住"}
 
 
 def pipe_name(prefix: str = "PearnlyCCWindow-") -> str:
@@ -258,6 +263,7 @@ class WindowHost(QObject):
         self._spawned_at: Optional[float] = None
         self.visible = self.active = False
         self.url = ""
+        self.paused = PAUSE_HIDDEN
         self._server = QLocalServer(self)
         self._server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)
         if not self._server.listen(self.name):
@@ -364,7 +370,18 @@ class WindowHost(QObject):
         self._pid = None
         self.visible = self.active = False
         self.url = ""
+        self.paused = PAUSE_HIDDEN
         self.gone.emit()
+
+    def _paused(self, paused: str) -> None:
+        """对话页停画 / 恢复记一行（窗口开着时锁屏、关屏、最小化、被挡住；开 / 关窗口另有日志）。"""
+        previous, self.paused = self.paused, paused
+        if paused == previous or PAUSE_HIDDEN in (paused, previous):
+            return
+        if paused:
+            log.info("CC 窗口看不见（%s）：页面已暂停", PAUSE_LABELS.get(paused, paused))
+        else:
+            log.info("CC 窗口看得见：页面已恢复")
 
     def _handle(self, message: dict):
         op = message["op"]
@@ -373,6 +390,7 @@ class WindowHost(QObject):
         if op == "status":
             self.visible = bool(message.get("visible"))
             self.active = bool(message.get("active"))
+            self._paused(str(message.get("paused") or ""))
             return None
         if op == "notify":
             self._on_notify(message)

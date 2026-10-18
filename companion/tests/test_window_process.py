@@ -290,12 +290,22 @@ def test_the_tray_answers_window_requests_and_routes_notification_clicks():
 
 class _Page(QObject):
     urlChanged = Signal(object)
+    visibleChanged = Signal(bool)
 
     def __init__(self, url="https://acme.pearnly.com/assistant"):
         super().__init__()
         self._url = url
         self.busy = False
         self.scripts = []
+        self.visible = False
+
+    def isVisible(self):
+        return self.visible
+
+    def setVisible(self, value):
+        if bool(value) != self.visible:
+            self.visible = bool(value)
+            self.visibleChanged.emit(self.visible)
 
     def url(self):
         return QUrl(self._url)
@@ -374,7 +384,7 @@ def _controller(monkeypatch=None):
     link = _Link()
     quits = []
     controller = window_main.WindowController(link, lang="zh", quit_app=lambda: quits.append(True),
-                                              make_window=lambda **kwargs: _Window(**kwargs))
+                                              make_window=lambda **kwargs: _Window(**kwargs), system=False)
     return controller, link, quits
 
 
@@ -463,6 +473,48 @@ def test_the_window_reports_whether_it_is_visible_and_in_front():
     assert len([1 for op, _ in link.sent if op == "status"]) == count
     window.hide()
     assert _until(lambda: [kw for op, kw in link.sent if op == "status"][-1]["visible"] is False)
+
+
+def test_the_window_reports_why_the_page_is_paused_and_opening_it_resumes_at_once():
+    import ctypes
+
+    from src.companion import visibility_watch as vw
+
+    controller, link, quits = _controller()
+    window = controller.window
+    link.handler({"op": "show"})
+    assert _until(lambda: [kw for op, kw in link.sent if op == "status"][-1:] and
+                  [kw for op, kw in link.sent if op == "status"][-1]["paused"] == "")
+    lock = vw._MSG()
+    lock.message, lock.wParam = vw.WM_WTSSESSION_CHANGE, vw.WTS_SESSION_LOCK
+    controller.visibility.native_event(b"windows_generic_MSG", ctypes.addressof(lock))
+    assert window.page.visible is False
+    assert _until(lambda: [kw for op, kw in link.sent if op == "status"][-1]["paused"] == "locked")
+    link.handler({"op": "ask", "text": "x"})   # 快捷提问 / 托盘打开 / 点通知：有人要看，马上照画
+    assert window.page.visible is True and controller.visibility.reason == ""
+    assert _until(lambda: [kw for op, kw in link.sent if op == "status"][-1]["paused"] == "")
+    window.close_like_the_user()
+    assert _until(lambda: quits)
+    assert controller.visibility._closed
+
+
+def test_the_tray_logs_when_the_open_window_stops_and_starts_painting(caplog):
+    import logging
+
+    t = _Host()
+    t.host.open({"op": "show"})
+    link = t.connect()
+    assert _until(lambda: t.host.connected)
+    url = "https://acme.pearnly.com/assistant"
+    with caplog.at_level(logging.INFO):
+        for paused in ("", "locked", "", "minimized", "occluded", "", "hidden"):
+            link.send("status", visible=paused != "hidden", active=False, url=url, paused=paused)
+            assert _until(lambda paused=paused: t.host.paused == paused)
+    lines = [r.getMessage() for r in caplog.records if r.name.endswith("window_link")]
+    assert lines == ["CC 窗口看不见（锁屏）：页面已暂停", "CC 窗口看得见：页面已恢复", "CC 窗口看不见（最小化）：页面已暂停",
+                     "CC 窗口看不见（被别的窗口完全挡住）：页面已暂停", "CC 窗口看得见：页面已恢复"]
+    link.send("status", visible=True, active=True, url=url)   # 旧的窗口进程不报 paused：当在画
+    assert _until(lambda: t.host.paused == "")
 
 
 def test_the_bridge_in_the_window_forwards_to_the_tray_only_on_the_chat_page():

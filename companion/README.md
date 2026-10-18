@@ -54,7 +54,8 @@
   - 轻量化（10-18，用户：老办公机也要能正常用）：托盘进程**不加载网页内核**；CC 窗口在自己的进程里（`companion.exe --window`，
     `window_main.py`），打开窗口时由托盘拉起、关窗口就退出（正在回复时等回复完再退），窗口没开时没有 QtWebEngineProcess。
     两边经本用户的本地管道说话（`window_link.py`：一次性口令、一行一条 JSON），对话页的桥照旧在托盘应答（`tomo_bridge.py`）；
-    日志：窗口进程写 `logs/window.log`。
+    日志：窗口进程写 `logs/window.log`。窗口开着却没人看得见（锁屏、屏幕关了、被别的窗口完全挡住 3 秒；最小化 Qt 自己处理）时
+    对话页停画（`visibility_watch.py`），window.log 与 companion.log 各记一行「页面已暂停 / 已恢复」。
   - 只有真机能验的：真的 DPAPI、`GetFileInformationByHandle` / `WNetGetConnectionW` / 共享表 / 网卡表在 NAS 与服务器共享上的结果、
     两台电脑同一份账套的分派与写前核对，见 `docs/work/2026-10-15-multi-desktop-build.md` 第 7 批。
 
