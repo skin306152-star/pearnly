@@ -114,7 +114,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       >
         {children}
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-(--cc-space-8) sm:max-w-(--cc-preview-w)">
+      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-(--cc-space-8) md:max-w-(--cc-preview-w)">
         <DialogTitle className="aui-sr-only sr-only">{t("imagePreview")}</DialogTitle>
         <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
