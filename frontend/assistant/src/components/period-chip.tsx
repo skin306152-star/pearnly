@@ -7,7 +7,7 @@
 // 用原生下拉菜单（radix），样式只用 globals.css 的 .cc-chip-btn / .cc-chin-btn / .cc-menu 与变量。
 
 import { CalendarIcon, CheckIcon, ChevronDownIcon, StoreIcon } from "lucide-react";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import type { FC, ReactNode } from "react";
 import { co } from "@/i18n";
 import { type Branch, branchShort, monthLabel, recentMonths } from "@/lib/companies";
@@ -42,7 +42,7 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
+        <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <PeriodChoices value={value} onChange={onChange} allowNone={allowNone} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -97,7 +97,7 @@ export const BranchChip: FC<
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
+        <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <BranchChoices branches={branches} value={value} onChange={onChange} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

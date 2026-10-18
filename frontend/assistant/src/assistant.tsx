@@ -198,14 +198,14 @@ function UserMenu({ children }: { children: ReactNode }) {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu">
+        <DropdownMenu.Content side="top" align="start" sideOffset={menuOffset()} className="cc-menu">
           <Marquee as="div" className="cc-menu-label truncate">{profile.user}</Marquee>
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
             <Shortcut keys="Ctrl ," />
           </DropdownMenu.Item>
-          <SubMenu icon={<GlobeIcon />} label={t("language")} sideOffset={8}>
+          <SubMenu icon={<GlobeIcon />} label={t("language")}>
             {LANGUAGES.map((l) => (
               <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void chooseLanguage(l.code)}>
                 <span className="flex-1">{l.label}</span>
@@ -220,7 +220,7 @@ function UserMenu({ children }: { children: ReactNode }) {
               <ExternalLinkIcon className="text-ink-3" />
             </a>
           </DropdownMenu.Item>
-          <SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>
+          <SubMenu icon={<InfoIcon />} label={t("learnMore")}>
             <MenuLink href={siteUrl("/about/")}>{t("about")}</MenuLink>
             <DropdownMenu.Separator className="cc-menu-sep" />
             <MenuLink href={siteUrl("/privacy/")}>{t("privacy")}</MenuLink>
@@ -682,7 +682,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-sm)">
+          <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm)">
             {/* 挂在公司下时最上面是公司名：点了全屏打开右侧会话栏 */}
             <MobileCompanyItem />
             {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}

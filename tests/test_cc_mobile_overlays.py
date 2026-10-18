@@ -603,8 +603,9 @@ class MenuEdgeTests(unittest.TestCase):
 
     def test_submenus_use_the_wrapper_and_the_drawer_row_menu_opens_downwards(self):
         page = read("assistant.tsx")
-        self.assertIn('<SubMenu icon={<GlobeIcon />} label={t("language")} sideOffset={8}>', page)
-        self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>', page)
+        # 离父菜单用包装的默认值（--cc-menu-sub-offset，V8），不另写
+        self.assertIn('<SubMenu icon={<GlobeIcon />} label={t("language")}>', page)
+        self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")}>', page)
         projects = read("components/assistant-ui/projects.tsx")
         # 用户 10-17：对话不能换公司，「移到 ›」子菜单删了；手机对话页「…」里的处理月份、分店子菜单照用包装组件
         self.assertNotIn("co.moveTo", projects)
