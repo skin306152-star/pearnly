@@ -1,5 +1,6 @@
 // 组件库的提示框（shadcn）。延时只在 globals.css（--cc-tooltip-delay），提示框用到时读（标准化记录 2.6）；每个 Tooltip 自带一层 Provider，
-// 外面不用再包（main.tsx、侧栏原来各包了一层，延时由离它最近的这一层决定，外面那几层从来不起作用）。层级 --cc-z-tooltip：盖过菜单（V7）。
+// 外面不用再包（main.tsx、侧栏原来各包了一层，延时由离它最近的这一层决定，外面那几层从来不起作用）。层级 --cc-z-tooltip：盖过菜单（V7）；
+// 字号实测 caption 12/17、进出场同菜单与弹层（.cc-pop：快档 120ms、主缓动，V18；原来是 tw-animate 默认的 150ms 淡入放大加滑入）。
 import type * as React from "react";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
 
@@ -53,7 +54,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 animate-in bg-tooltip text-tooltip-ink data-[state=closed]:animate-out z-(--cc-z-tooltip) w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-(--cc-space-12) py-(--cc-space-6) text-xs text-balance",
+          "cc-pop bg-tooltip text-tooltip-ink z-(--cc-z-tooltip) w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-(--cc-space-12) py-(--cc-space-6) text-caption text-balance",
           className,
         )}
         {...props}

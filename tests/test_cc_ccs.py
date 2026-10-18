@@ -468,6 +468,10 @@ g.done();
             self.assertIsNone(halo.search(path.read_text(encoding="utf-8")), path)
         self.assertIn("shadow-pop", read("components/ui/dialog.tsx"))
         self.assertIn("bg-tooltip text-tooltip-ink", read("components/ui/tooltip.tsx"))
+        # V18：提示框字号实测 caption 12/17、进出场 .cc-pop（快档、主缓动），不用 tw-animate
+        self.assertIn('"cc-pop bg-tooltip text-tooltip-ink z-(--cc-z-tooltip) w-fit', read("components/ui/tooltip.tsx"))
+        self.assertIn(" text-caption text-balance", read("components/ui/tooltip.tsx"))
+        self.assertNotRegex(read("components/ui/tooltip.tsx"), r"animate-(?:in|out)\b|\b(?:fade|zoom|slide)-(?:in|out)|text-xs")
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertIn('className="cc-reply px-2 wrap-break-word"', thread)
         md = read("components/assistant-ui/markdown-text.tsx")
