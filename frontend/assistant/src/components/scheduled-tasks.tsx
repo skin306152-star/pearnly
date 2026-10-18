@@ -436,7 +436,7 @@ export function ScheduledTasks() {
             </span>
           </div>
         )}
-        {error && <div className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
+        {error && <div className="cc-alert mb-(--cc-space-16)">{error}</div>}
         {rules === null || shown === null ? (
           <div className="flex flex-col gap-(--cc-space-8)">
             {[0, 1, 2].map((i) => <div key={i} className="cc-card h-(--cc-task-skeleton-h) animate-cc-pulse" />)}

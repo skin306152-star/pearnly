@@ -1405,6 +1405,14 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"], .cc-btn) { min-height: var(--cc-tap); }', self.css)
         self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"][data-size^="icon"], .cc-icon-btn) { min-width: var(--cc-tap); }', self.css)
 
+    def test_error_boxes_are_cc_alert(self):
+        # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份
+        for rel, n in (("components/companies.tsx", 1), ("components/company-page.tsx", 1), ("components/pending.tsx", 1),
+                       ("components/scheduled-tasks.tsx", 1)):
+            source = self.read(rel)
+            self.assertEqual(len(re.findall(r'className="cc-alert[ "]', source)), n, rel)
+            self.assertNotIn("bg-danger-soft", source, rel)
+
 
 if __name__ == "__main__":
     unittest.main()

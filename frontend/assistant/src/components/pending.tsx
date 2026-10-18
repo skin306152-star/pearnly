@@ -223,7 +223,7 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
   if (embedded && (!items || !items.length) && !error) return null;
   return (
     <div className="flex flex-col gap-(--cc-space-16)" data-slot="cc-pending">
-      {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
+      {error && <div role="alert" className="cc-alert">{error}</div>}
       {items === null ? (
         <div className="flex justify-center py-(--cc-space-24) text-ink-3">
           <LoaderIcon className="cc-spinner" />

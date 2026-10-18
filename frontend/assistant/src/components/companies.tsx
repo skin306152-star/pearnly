@@ -147,7 +147,7 @@ export const Companies: FC = () => {
             />
           </label>
         )}
-        {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
+        {error && <div role="alert" className="cc-alert mb-(--cc-space-16)">{error}</div>}
         {shown === null ? (
           <div className="cc-card-grid">
             {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-cc-pulse" />)}
