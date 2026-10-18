@@ -2,6 +2,7 @@
 import {
   ComposerAddAttachment,
   ComposerAttachments,
+  PendingAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -10,7 +11,6 @@ import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/to
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
 import { touchOnly } from "@/lib/touch";
@@ -174,7 +174,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
   );
 };
 
-/** 按下发送到真正的气泡画出来之前，先显示用户气泡（附件名旁一块骨架在闪，不用转圈：ccs 卡片规矩；lib/managed-agents/pending-send.ts）。
+/** 按下发送到真正的气泡画出来之前，先显示用户气泡（附件同发出后的卡片、缩略图位置是骨架，不用转圈：ccs 卡片规矩；
+ *  落地换成真卡片时不跳，V31；lib/managed-agents/pending-send.ts）。
  *  对话里画出了接替它的那一条才撤（同一次提交里换过去），中间不会两个都不在。 */
 const PendingSendBubble: FC = () => {
   const pending = useShownPending();
@@ -184,14 +185,7 @@ const PendingSendBubble: FC = () => {
   return (
     <div>
       <div data-role="user" className="cc-user-row">
-        <div className="flex flex-wrap justify-end gap-2">
-          {pending.files.map((name, i) => (
-            <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-body">
-              <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
-              {name}
-            </span>
-          ))}
-        </div>
+        <PendingAttachments names={pending.files} />
         {pending.text && <div className="cc-bubble-user" data-enter="">{pending.text}</div>}
       </div>
       <RunIndicator className="px-(--cc-space-8) pt-(--cc-run-gap)" />

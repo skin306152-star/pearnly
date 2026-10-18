@@ -38,6 +38,7 @@ import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/atta
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 import { Marquee } from "@/components/ui/marquee";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -299,19 +300,20 @@ const MessageAttachment: FC = () => {
   return <AttachmentCard name={name} {...card} onOpen={open ? () => results.openUpload(open) : undefined} />;
 };
 
-/** 附件卡片本身（不读状态）：能打开时是按钮，否则只是一张卡片。 */
-export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; page?: boolean; onOpen?: () => void }> = ({
+/** 附件卡片本身（不读状态）：能打开时是按钮，否则只是一张卡片；loading（「发送中」临时气泡里）缩略图位置是骨架。 */
+export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; page?: boolean; loading?: boolean; onOpen?: () => void }> = ({
   name,
   label,
   typeLine,
   image,
   page,
+  loading,
   onOpen,
 }) => {
   const body = (
     <>
       <span className="cc-attach-thumb" aria-hidden data-page={page || undefined}>
-        <AttachmentThumbnail src={image} filename={name} />
+        {loading ? <Skeleton className="size-full rounded-none" /> : <AttachmentThumbnail src={image} filename={name} />}
       </span>
       <span className="cc-attach-meta" aria-hidden>
         <Marquee className="cc-attach-name">{name}</Marquee>
@@ -354,6 +356,17 @@ export const UserMessageAttachments: FC = () => {
       <MessagePrimitive.Attachments>
         {() => <MessageAttachment />}
       </MessagePrimitive.Attachments>
+    </div>
+  );
+};
+
+/** 「发送中」临时气泡里的附件（thread.tsx 的 PendingSendBubble）：与发出后的那一排同一个位置、同一种卡片，缩略图位置是骨架。 */
+export const PendingAttachments: FC<{ names: readonly string[] }> = ({ names }) => {
+  return (
+    <div className="aui-user-message-attachments-end cc-attach-list col-span-full col-start-1 row-start-1">
+      {names.map((name, i) => (
+        <AttachmentCard key={i} name={name} label={t("attachment").replace("{0}", name)} typeLine={attachmentTypeLine(name)} loading />
+      ))}
     </div>
   );
 };
