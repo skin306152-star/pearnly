@@ -1437,6 +1437,15 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertIn(f'<DialogPrimitive.Overlay className="cc-overlay z-({layer})" />', source, rel)
             self.assertNotRegex(source, r"animate-in|fade-in", rel)
 
+    def test_settings_nav_is_the_sidebar_nav(self):
+        # V17（B4）：设置左栏同侧栏导航行与组标题：图标 20 放在 28 的前导槽、间距 6、行间 2、选中色同侧栏、组标题 13/16
+        settings = self.read("components/settings.tsx")
+        self.assertIn('data-active={active || undefined} className="cc-nav-item w-auto shrink-0 whitespace-nowrap"', settings)
+        self.assertIn('<span className="cc-nav-icon">{icon}</span>', settings)
+        self.assertEqual(settings.count('className="cc-section-label hidden md:block"'), 2)
+        self.assertIn('<nav className="flex shrink-0 gap-(--cc-space-2) overflow-x-auto', settings)
+        self.assertNotIn("bg-(--cc-bg-selected)", settings)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,4 @@
-// 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
+// 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏（同侧栏导航行 .cc-nav-item 与组标题 .cc-section-label），右边内容：
 //
 //   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）、通知（浏览器 / 手机推送）
 //   连接      — 只在浏览器里（Cowork 站点）出现：池里的电脑（一台一行）、在不在线；连接、文件夹只在电脑上的 CC 里改。
@@ -111,8 +111,8 @@ export function Settings() {
           }}
           className="cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))] w-[min(var(--cc-settings-w),var(--cc-settings-w-max))] [--cc-modal-share:var(--cc-settings-share)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
-          <nav className="flex shrink-0 gap-(--cc-space-4) overflow-x-auto border-b bg-app p-(--cc-space-12) md:w-(--cc-settings-nav-w) md:flex-col md:border-r md:border-b-0">
-            <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-caption md:block">
+          <nav className="flex shrink-0 gap-(--cc-space-2) overflow-x-auto border-b bg-app p-(--cc-space-12) md:w-(--cc-settings-nav-w) md:flex-col md:border-r md:border-b-0">
+            <DialogPrimitive.Title className="cc-section-label hidden md:block">
               {st.settings}
             </DialogPrimitive.Title>
             <NavItem active={current === "general"} onClick={() => setSection("general")} icon={<Settings2Icon />}>
@@ -125,7 +125,7 @@ export function Settings() {
             )}
             {api && (
               <>
-                <div className="hidden px-2.5 pt-4 pb-2 text-muted-foreground text-caption md:block">{st.thisComputer}</div>
+                <div className="cc-section-label hidden md:block">{st.thisComputer}</div>
                 <NavItem active={current === "connections"} onClick={() => setSection("connections")} icon={<PlugIcon />}>
                   {st.connections}
                 </NavItem>
@@ -154,16 +154,10 @@ export function Settings() {
 
 function NavItem({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: ReactNode; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        // 同侧栏导航行：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8
-        "flex h-(--cc-row-h) shrink-0 items-center gap-2.5 whitespace-nowrap rounded-(--cc-radius-row) px-2.5 text-start text-body [&_svg]:size-4",
-        active ? "bg-(--cc-bg-selected) font-medium" : "hover:bg-hover",
-      )}
-    >
-      {icon}
+    // 同侧栏导航行（.cc-nav-item）：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8、20 的图标放在 28 的前导槽；
+    // 窄屏左栏横排，宽度随内容（w-auto）
+    <button type="button" onClick={onClick} data-active={active || undefined} className="cc-nav-item w-auto shrink-0 whitespace-nowrap">
+      <span className="cc-nav-icon">{icon}</span>
       {children}
     </button>
   );
