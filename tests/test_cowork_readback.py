@@ -1116,9 +1116,24 @@ class Service(unittest.TestCase):
         self.assertEqual((found[0]["readback"], found[0]["changes"], found[0]["truncated"]),
                          (made["readback"], {"CWP-1": "changed", "CWP-2": "deleted"}, False))
         self.assertEqual(found[0]["requested_at"], row.requested_at)
+        # 改了科目 / 现 / 赊 / 对方档里的哪几类（R2 的回读改动比例，10-18）：字段换算，只改金额的不算；被删的三类都算
+        self.assertEqual(found[0]["kinds"], {"CWP-1": ["party"], "CWP-2": ["account", "payment", "party"]})
         row.summary_json = json.dumps({"pushed": {"pushed": 500, "changed": 300}})
         self.assertTrue(self.service.month_changes(sets, "2026-05")[0]["truncated"])
         self.assertEqual(self.service.month_changes(sets, "bad"), [])
+
+    def test_changed_kinds_map_difference_fields_to_the_three_automation_kinds(self):
+        """`diff.changed_kinds`（R2，10-18）：分录 = 科目、单别 = 现 / 赊、对方 = 对方档；日期、单号、金额、税务记录不算这三类；
+        被删 / 作废 / 找不到的整张三类都算；没有推送记录号、认不出的变化不列。"""
+        found = diff.changed_kinds([
+            {"record": "R1", "change": "changed", "field": "entries"}, {"record": "R1", "change": "changed", "field": "kind"},
+            {"record": "R1", "change": "changed", "field": "entries"}, {"record": "R2", "change": "changed", "field": "date"},
+            {"record": "R3", "change": "voided", "field": ""}, {"record": "R4", "change": "missing"},
+            {"record": "", "change": "deleted"}, {"record": "R5", "change": "odd", "field": "party"}])
+        self.assertEqual(found, {"R1": ["account", "payment"], "R2": [], "R3": ["account", "payment", "party"],
+                                 "R4": ["account", "payment", "party"]})
+        self.assertEqual(diff.FIELD_KINDS, {"entries": "account", "kind": "payment", "party": "party"})
+        self.assertTrue(set(diff.FIELD_KINDS) <= set(diff.FIELDS))
 
     def test_month_status_takes_the_readback_that_finished_last(self):
         # A 早发起、晚完成；B 晚发起、早完成：税务草稿取的是完成时间最晚的 A，台账认的也得是 A（否则误报草稿过期）

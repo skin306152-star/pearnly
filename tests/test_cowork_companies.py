@@ -357,14 +357,17 @@ class ExpressChoices(types.ModuleType):
 
     def __init__(self):
         super().__init__("pearnly_cowork.push.choices")
-        self.rows, self.recorded = [], []
+        self.rows, self.recorded, self.replaced = [], [], []
 
     def of_sets(self, connection, account_sets, limit=200):
         keys = {key.casefold() for key in account_sets}
         found = [row for row in self.rows if row["connection"] == connection and row["account_set"].casefold() in keys]
         return [Row(row) for row in sorted(found, key=lambda row: row["chosen_at"], reverse=True)][:limit]
 
-    def forget(self, connection, account_sets, kind, subjects):
+    def forget(self, connection, account_sets, kind, subjects, replaced_by=None):
+        # ``replaced_by``：存公司规则顶掉同键记忆时规则的值（真实现另记改值，R1）
+        if replaced_by is not None:
+            self.replaced.append((connection, kind, tuple(subjects), replaced_by))
         keys = {key.casefold() for key in account_sets}
         before = len(self.rows)
         self.rows = [row for row in self.rows if not (row["connection"] == connection and row["kind"] == kind and
@@ -483,7 +486,7 @@ def reset(**catalogs):
     projects.announced[:], projects.released[:] = [], []
     projects.mine_stats, projects.sessions = {}, {}
     folders.bound, folders.forgotten = {}, []
-    express_choices.rows, express_choices.recorded = [], []
+    express_choices.rows, express_choices.recorded, express_choices.replaced = [], [], []
     preparation.reported, preparation.asked = None, []
 
 
@@ -2693,6 +2696,8 @@ class CompanyRuleTests(unittest.TestCase):
         self.assertEqual(json.loads(rule["evidence_json"])["from"], "account_set")
         self.assertEqual(out["rule"]["removed_memories"], 2)  # 总公司与分店 12 的都删了，规则立刻生效
         self.assertEqual([row["kind"] for row in express_choices.rows], ["account"])  # 别的类别不动
+        # 顶掉的记忆按规则的值记改值（`push.choices.forget(replaced_by=…)`，自动推判档 R1，10-18）
+        self.assertEqual(express_choices.replaced, [("C1", "payment", (SUPPLIER,), "credit")])
         shown = self.row("rule", "payment")
         self.assertEqual((shown["branch"], shown["editable"], shown["value_label"], shown["subject_label"]),
                          ("", True, "Credit", "Makro"))

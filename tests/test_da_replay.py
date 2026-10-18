@@ -185,7 +185,17 @@ class JudgementLayer(unittest.TestCase):
 
     def test_first_document_is_chosen_by_people_then_memory_decides(self):
         m = replay._modules()
-        rows, skipped = replay.judge_company(m, [self.book])
+        # 科目要最近连续 5 张有证据才 A（R3，10-18）：一月要有 5 张（第一张人选、其余凭记忆、一月期回读核过），从 1-03 起每周一张
+        folder = pathlib.Path(self.folder.name, "68FIVE")
+        days = [dt.date(2025, 1, 3) + dt.timedelta(days=7 * index) for index in range(7)]
+        docs = [(f"RR6801{index:02d}-001", day, "S001", "52-01", "1000.00", "70.00", "3")
+                for index, day in enumerate(days)]
+        docs.append(("RR680301-009", dt.date(2025, 3, 1), "S001", "52-02", "500.00", "35.00", "3"))  # 换了科目
+        docs.append(("HP680302-001", dt.date(2025, 3, 2), "S002", "52-01", "200.00", "14.00", "1"))
+        make_book(folder, docs)
+        book = replay.load_book(folder, company="ACME", own_tax=OWN, key="C:\\PearnlyExpress\\T8FIVE",
+                                periods="estimated")
+        rows, skipped = replay.judge_company(m, [book])
         self.assertEqual(dict(skipped), {})
         by_number = {row["docnum"]: row for row in rows}
         first = by_number["RR680100-001"]
@@ -203,9 +213,9 @@ class JudgementLayer(unittest.TestCase):
                                             "posting": "n/a", "item": "n/a"})
         # 连续张数只数有证据的推送（审查处理 10-16）：第一张人选的（chosen）算；之后凭记忆推的要等这期的合格回读（一月期
         # 2-24 前后）核过才算，所以一、二月里都还是 B
-        for number in ("RR680102-001", "RR680103-001", "RR680104-001", "RR680105-001"):
+        for number in ("RR680102-001", "RR680103-001", "RR680104-001", "RR680105-001", "RR680106-001"):
             self.assertEqual(by_number[number]["class"], "B", number)
-        changed = by_number["RR680301-009"]  # 三月：一月那几张回读核过、都是 52-01 → 科目 A，但这张会计记成 52-02
+        changed = by_number["RR680301-009"]  # 三月：一月那五张回读核过、都是 52-01 → 科目 A，但这张会计记成 52-02
         self.assertEqual(changed["items"]["account"], "A")
         self.assertEqual(changed["items"]["payment"], "A")  # 一月那几张赊购整张回读核过：现 / 赊也攒够了
         self.assertFalse(changed["correct"])
@@ -229,7 +239,8 @@ class JudgementLayer(unittest.TestCase):
             if doc["party_code"] == "S001" and doc["date"] >= dt.date(2025, 4, 1):
                 doc["party_code"] = "S003"  # 会计四月起换用另一个档
         m = replay._modules()
-        rows, _ = replay.judge_company(m, [book])
+        # 只看证据口径：不模拟人复核时改值（第六轮口径；模拟改值见 `test_people_correcting_memory_values_feed_r1`）
+        rows, _ = replay.judge_company(m, [book], review=replay.Review(()))
         readback = {period: replay.readback_day(m, period) for period in {row["period"] for row in rows}}
         cash_first = [row for row in rows if row["docnum"].startswith("HP")]
         self.assertEqual((cash_first[0]["class"], sorted(cash_first[0]["needed"])), ("C", ["account", "payment"]))
@@ -261,6 +272,102 @@ class JudgementLayer(unittest.TestCase):
         self.assertEqual(memory["payment"]["SWITCH"].get("A_wrong", 0), 0)
         self.assertIn("purchase|party|remembered", summary["item_errors"])
         self.assertEqual(summary["pushed_from"].get("replanned"), 2)
+
+    def test_people_correcting_memory_values_feed_r1(self):
+        """模拟的人复核时改值（10-18 E1，`Review`，线上口径）：ASIA-FA 那种整份账套一起从现购换赊购——另一家供应商（S002）的
+        B 提议上记忆填的现购被人改成赊购（记进账套记忆、记一条改值），这家（S001）凭换法之前攒的证据还判 A 的现购：R1 降 B。
+        ``lag`` 1（默认）只认前一天及更早的改值：同一天先处理的那张挡不住当天的、挡得住之后的；0 同一天先处理的也算；不模拟时一直 A、
+        推错。被改的那张按改后的值推（现 / 赊记 manual，推的时候就算证据）。"""
+        folder = pathlib.Path(self.folder.name, "68FA")
+        cash = [dt.date(2025, 1, 3) + dt.timedelta(days=7 * index) for index in range(13)]  # 一月到三月底每周一张现购
+        docs = [(f"B1-{day:%m%d}", day, "S001", "52-01", "1000.00", "70.00", "1") for day in cash]
+        docs += [(f"B1-{day:%m%d}", day, "S001", "52-01", "1000.00", "70.00", "3")
+                 for day in (dt.date(2025, 4, 5), dt.date(2025, 4, 12))]                   # 四月起会计记赊购
+        docs += [("A2-0105", dt.date(2025, 1, 5), "S002", "52-01", "200.00", "14.00", "1"),
+                 ("A2-0405", dt.date(2025, 4, 5), "S002", "52-01", "200.00", "14.00", "3")]
+        make_book(folder, docs)
+        book = replay.load_book(folder, company="FA", own_tax=OWN, key="C:\\PearnlyExpress\\T8FA", periods="estimated")
+        m = replay._modules()
+
+        def run(review):
+            rows, _ = replay.judge_company(m, [book], review=review)
+            return {row["docnum"]: row for row in rows}
+        review = replay.Review()
+        rows = run(review)
+        self.assertEqual((review.classes, review.lag), (frozenset({"B", "Cn", "Cr"}), 1))
+        corrected = rows["A2-0405"]  # S002：记忆现购、证据只有一张 → B；会计记赊购 → 人改
+        self.assertEqual((corrected["class"], corrected["review_class"], corrected["corrected"]), ("B", "B", ["payment"]))
+        same_day, next_week = rows["B1-0405"], rows["B1-0412"]
+        # 同一天录入的：前一天及更早才算，挡不住（A、推错）；下一周的：R1 降 B，成了 B 提议又被人改（第二条改值）
+        self.assertEqual((same_day["class"], same_day["scored"]["payment"]), ("A", "wrong:cash"))
+        self.assertEqual((next_week["class"], next_week["items"]["payment"]), ("B", "B"))
+        self.assertEqual((next_week["memory_holds"]["payment"], next_week["corrected"]), (["overruled"], ["payment"]))
+        self.assertEqual((review.summary()["events"], review.summary()["corrections"]), (2, {"B|payment": 2}))
+        # 同一天先处理的也算：当天那张也挡住
+        rows = run(replay.Review(lag=0))
+        self.assertEqual((rows["B1-0405"]["class"], rows["B1-0405"]["memory_holds"]), ("B", {"payment": ["overruled"]}))
+        # 不模拟（第六轮口径）：一直 A、推错，没有改值
+        rows = run(replay.Review(()))
+        self.assertEqual([rows[number]["class"] for number in ("B1-0405", "B1-0412")], ["A", "A"])
+        self.assertEqual(rows["B1-0412"]["scored"]["payment"], "wrong:cash")
+        self.assertEqual(rows["A2-0405"]["corrected"], [])
+        # 被改的那张按改后的值记推送：现 / 赊 manual、整张对
+        record = replay.pushed_record({"party": "S002", "account": "52-01", "payment": "credit"},
+                                      {"supplier": {"code": "S002"}, "items_account": "52-01",
+                                       "account_source": "remembered", "doctype": "HP", "doctype_src": "remembered"},
+                                      {"party": "S002", "account": "52-01", "payment": "cash"}, [],
+                                      corrected=["payment"])
+        self.assertEqual((record["payment"], record["payment_source"], record["ok"], record["changed_kinds"]),
+                         ("RR", "manual", True, []))
+        wrong = replay.pushed_record({"party": "S002", "account": "*multi", "payment": "credit"},
+                                     {"items_account": "52-01", "doctype": "HP"},
+                                     {"party": "S003", "account": "52-01", "payment": "cash"}, [])
+        self.assertEqual(wrong["changed_kinds"], ["account", "payment", "party"])
+        self.assertEqual(replay.pushed_record({"account": "52-02", "payment": "credit"}, {"doctype": "HP"},
+                                              {"account": "52-01", "payment": "cash"}, [], "account")["changed_kinds"],
+                         ["account"])
+
+    def test_review_visibility_and_arguments(self):
+        """`Review.visible`：这份账套、这几类各自的记忆值、近 60 天，按 ``lag`` 截；``--review-classes`` 认 B / Cn / Cr 与 none；
+        回放的 R1 窗口与线上同一个常量。"""
+        review = replay.Review(lag=1)
+        day = dt.date(2025, 4, 7)
+        review.note("BK", "payment", "cash", "credit", day, "purchase|S", "B")
+        review.note("BK", "party", "S1", "S2", day, "purchase|S|00000", "Cr")  # 对方档不进改值记录
+        review.note("BK", "account", "52-01", "52-02", dt.date(2025, 2, 1), "purchase|S", "Cn")
+        self.assertEqual(review.visible("BK", day, {"payment": "cash"}), [])
+        self.assertEqual(len(review.visible("BK", day + dt.timedelta(days=1), {"payment": "cash"})), 1)
+        self.assertEqual(review.visible("BK", day + dt.timedelta(days=1), {"payment": "credit"}), [])
+        self.assertEqual(review.visible("OTHER", day + dt.timedelta(days=1), {"payment": "cash"}), [])
+        self.assertEqual(len(review.visible("BK", dt.date(2025, 4, 2), {"account": "52-01"})), 1)   # 60 天内
+        self.assertEqual(review.visible("BK", dt.date(2025, 4, 3), {"account": "52-01"}), [])       # 61 天
+        self.assertEqual(len(replay.Review(lag=0).visible("BK", day, {"payment": "cash"})), 0)
+        same = replay.Review(lag=0)
+        same.note("BK", "payment", "cash", "credit", day, "purchase|S", "B")
+        self.assertEqual(len(same.visible("BK", day, {"payment": "cash"})), 1)
+        self.assertEqual(review.summary(), {"classes": ["B", "Cn", "Cr"], "lag": 1, "events": 2,
+                                            "corrections": {"B|payment": 1, "Cn|account": 1, "Cr|party": 1}})
+        self.assertEqual(replay.review_classes("B,Cr"), ("B", "Cr"))
+        self.assertEqual(replay.review_classes("none"), ())
+        self.assertEqual(replay.review_classes(""), ())
+        with self.assertRaises(SystemExit):
+            replay.review_classes("A")
+        m = replay._modules()
+        self.assertEqual((replay.OVERRIDE_DAYS, replay.OVERRIDE_KINDS),
+                         (m["automation"].OVERRIDE_DAYS, m["automation"].OVERRIDE_KINDS))
+        # 三条收严挡下的单：只因新三条才是 B 的、推错的
+        rows = [{"class": "B", "reasons": ["judged:payment"], "memory_holds": {"payment": ["overruled"]}, "correct_eval": False},
+                {"class": "B", "reasons": ["judged:account"], "memory_holds": {"account": ["streak_long", "changed_share"]},
+                 "correct_eval": True},
+                {"class": "B", "reasons": ["judged:account", "judged:vat"], "memory_holds": {"account": ["overruled"]},
+                 "correct_eval": True},
+                {"class": "B", "reasons": ["judged:account"], "memory_holds": {"account": ["streak"]}, "correct_eval": True},
+                {"class": "A", "reasons": [], "memory_holds": {}, "correct_eval": True}]
+        found = replay.tightening_summary(rows)
+        self.assertEqual(found["tightened"], {"docs": 2, "wrong": 1, "by_code": {
+            "changed_share": {"docs": 1, "wrong": 0}, "overruled": {"docs": 1, "wrong": 1},
+            "streak_long": {"docs": 1, "wrong": 0}}})
+        self.assertEqual(found["holds"]["account:overruled"], 1)
 
     def test_goods_posting_is_chosen_once_per_company_then_followed(self):
         """永续库存账套的商品单（第一轮回放后定，10-16）：第一张因没声明入账类型交人，模拟的人按答案替这家公司选一次，
@@ -1101,6 +1208,10 @@ class Periods(unittest.TestCase):
             self.assertRegex(row["posting_history"], r"^((A|B|conflict|no_lines|items|named|keyed)(:(stock|service))?)?$")
         summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))["judge"]
         self.assertEqual(summary["reask"], ["written"])
+        # 模拟的人复核时改值与三条收严（10-18 E1）：默认同推荐方案，存档记参数
+        self.assertEqual((summary["review"]["classes"], summary["review"]["lag"], summary["rules"]),
+                         ([["B", "Cn", "Cr"]], [1], [replay.MEMORY_RULES]))
+        self.assertEqual(set(summary["tightening"]), {"holds", "tightened"})
         # 单行的取值：上限挤掉的记忆项、按公司选入账方式的档加历史定下的记法
         extra = replay.detail_extra({"memory_cap_lost": ["account", "party"], "book_pick": "self",
                                      "posting_tier_if_history": "conflict", "posting_history": "stock",
@@ -1262,7 +1373,8 @@ class Scoring(unittest.TestCase):
         # 判定层：上限小到凑不够 3 张时，记忆定的项是 B，记下因上限丢掉的类
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
-        days = [dt.date(2025, 1, 10) + dt.timedelta(days=7 * index) for index in range(10)]
+        # 一月要有 5 张（科目连续 5 张，R3，10-18）：从 1-03 起每周一张
+        days = [dt.date(2025, 1, 3) + dt.timedelta(days=7 * index) for index in range(10)]
         make_book(pathlib.Path(folder.name, "CAP"), [(f"RR{index:02d}", day, "S001", "52-01", "1000.00", "70.00", "3")
                                                      for index, day in enumerate(days)])
         book = replay.load_book(pathlib.Path(folder.name, "CAP"), company="CAP", own_tax=OWN, key="CAP",

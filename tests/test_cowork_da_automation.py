@@ -66,7 +66,8 @@ def _facts(**over):
                 pages=[{"_layer_chain": ["text", "L2"], "fields": fields, "_needs_manual_review": False}],
                 review_reasons=[], text=TEXT, account=ACCOUNT, catalog=[ACCOUNT], day_books=[BOOK],
                 uploaded=dt.date(2026, 10, 22), source_total=1, prior_pushes=[],
-                account_recent=["5310-01", "5310-01", "5310-01"])
+                # 账套记忆定的科目要最近连续 5 张有证据的同科目（R3，10-18；现 / 赊、对方档仍 3 张）
+                account_recent=["5310-01"] * 5)
     base.update(over)
     return auto.Facts(**base)
 
@@ -117,16 +118,18 @@ class ItemTiers(unittest.TestCase):
                              ("category_map", "B"), ("config_default", "B"), ("choice", "C"), ("", "C")):
             self.assertEqual(self.tier("account", payload=_payload(account_source=source)), tier, source)
 
-    def test_a_remembered_account_needs_three_in_a_row(self):
-        """账套记忆按供应商记一个科目：这家在这份账套里最近连续至少 3 张同科目才算 A，否则 B（第一轮回放后定，10-16）。"""
+    def test_a_remembered_account_needs_five_in_a_row(self):
+        """账套记忆按供应商记一个科目：这家在这份账套里最近连续至少 5 张同科目才算 A，否则 B（第一轮回放后定 3 张，10-16；
+        10-18 E1 的 R3 科目改 5 张：第六轮科目错 117 项里「混着记」「一单多科目」的窗口里刚好凑到 3 张同科目）。现 / 赊、对方档仍 3 张。"""
         def tier(recent):
             return self.tier("account", payload=_payload(account_source="remembered"), account_recent=recent)
-        self.assertEqual(tier(["5310-01"] * 3), "A")
-        self.assertEqual(tier(["5310-01"] * 3 + ["5320-01"]), "A")      # 更早的不同不影响
-        self.assertEqual(tier(["5310-01", "5310-01"]), "B")             # 还不够 3 张
-        self.assertEqual(tier(["5310-01", "5320-01", "5310-01", "5310-01"]), "B")  # 中间断了
-        self.assertEqual(tier(["5320-01"] * 3), "B")                     # 最近都记别的科目
-        self.assertEqual(tier(["*multi", "5310-01", "5310-01", "5310-01"]), "B")   # 一单多科目也断开
+        self.assertEqual(tier(["5310-01"] * 5), "A")
+        self.assertEqual(tier(["5310-01"] * 5 + ["5320-01"]), "A")      # 更早的不同不影响
+        self.assertEqual(tier(["5310-01"] * 4), "B")                     # 还不够 5 张
+        self.assertEqual(tier(["5310-01"] * 3), "B")                     # 原先 3 张就 A（R3 之前）
+        self.assertEqual(tier(["5310-01", "5320-01"] + ["5310-01"] * 4), "B")  # 中间断了
+        self.assertEqual(tier(["5320-01"] * 5), "B")                     # 最近都记别的科目
+        self.assertEqual(tier(["*multi"] + ["5310-01"] * 5), "B")       # 一单多科目也断开
         self.assertEqual(tier([]), "B")
         self.assertEqual(tier(None), "B")                                # 没取（旧调用方）按 0 张
         # 只管账套记忆：任务默认、本票选的、公司规则不看连续张数
@@ -134,9 +137,20 @@ class ItemTiers(unittest.TestCase):
             self.assertEqual(self.tier("account", payload=_payload(account_source=source), account_recent=[]), "A",
                              source)
         self.assertEqual(auto.MEMORY_STREAK, 3)
+        self.assertEqual(auto.MEMORY_STREAKS, {"account": 5, "payment": 3, "party": 3})
+        self.assertEqual((auto.streak_for("account"), auto.streak_for("payment"), auto.streak_for("party"),
+                          auto.streak_for(None)), (5, 3, 3, 3))
         self.assertEqual(auto.memory_streak(["a", "a", "b", "a"], "a"), 2)
         self.assertEqual(auto.memory_streak(["a"], ""), 0)
-        self.assertTrue(auto.memory_settled(["a", "a", "a"], "a"))
+        self.assertTrue(auto.memory_settled(["a", "a", "a"], "a"))       # 不给类按 3 张
+        self.assertTrue(auto.memory_settled(["a", "a", "a"], "a", "payment"))
+        self.assertFalse(auto.memory_settled(["a", "a", "a"], "a", "account"))
+        self.assertTrue(auto.memory_settled(["a"] * 5, "a", "account"))
+        # 账套记忆定的科目为什么不是 A（回放按码统计）：不到 3 张 streak、到 3 张不到 5 张 streak_long
+        facts = _facts(payload=_payload(account_source="remembered"), account_recent=["5310-01"] * 3)
+        self.assertEqual(auto.memory_holds(facts, "account"), ("streak_long",))
+        self.assertEqual(auto.memory_holds(dataclasses.replace(facts, account_recent=["5310-01"]), "account"), ("streak",))
+        self.assertEqual(auto.memory_holds(dataclasses.replace(facts, account_recent=["5310-01"] * 5), "account"), ())
 
     def test_the_streak_counts_only_pushes_with_evidence(self):
         """连续张数只数有证据的单（`memory_evidence`，审查处理 10-16）：推的时候科目由人或规则定的照记；凭账套记忆推出去的
@@ -475,6 +489,114 @@ class ItemTiers(unittest.TestCase):
     def test_a_c_item_makes_the_document_c(self):
         verdict = auto.classify(_facts(config={}))
         self.assertEqual((verdict.cls, verdict.reasons), ("C", ("item:party",)))
+
+
+class MemoryTightening(unittest.TestCase):
+    """10-18 E1 的三条（第六轮 strict A 类错 176 张全是账套记忆定的项）：R1 同账套记忆值被人改、R2 回读改动比例（科目）、R3 科目
+    连续 5 张（见 `test_a_remembered_account_needs_five_in_a_row`）。改前（只看连续 3 张）这些单都是 A。"""
+
+    SINCE = dt.datetime(2026, 10, 1, 9, 0)
+
+    def payment(self, **over):
+        base = dict(payload=_payload(doctype="HP", doctype_src="remembered"), payment_recent=["HP"] * 3,
+                    memory_since={"payment": self.SINCE})
+        base.update(over)
+        return auto.tiers(_facts(**base))["payment"]
+
+    def account(self, **over):
+        base = dict(payload=_payload(account_source="remembered"), account_recent=["5310-01"] * 5,
+                    memory_since={"account": self.SINCE})
+        base.update(over)
+        return auto.tiers(_facts(**base))["account"]
+
+    def test_r1_a_memory_value_people_changed_in_the_same_account_set_is_b(self):
+        """R1：这份账套近 60 天有人把账套记忆填的 v 改成别的（别家供应商也算），而这家记忆也是 v、最近 3 张证据里有早于那次改动的
+        → 降 B。ASIA-FA 那种整份账套一起从现购换赊购：前几张停下的单被人改了，同期别家还凭旧证据判 A。"""
+        changed = {"kind": "payment", "old": "cash", "new": "credit", "at": dt.datetime(2026, 10, 5, 10, 0),
+                   "subject": "purchase|0105556012341"}
+        self.assertEqual(self.payment(), "A")
+        self.assertEqual(self.payment(overrides=[changed]), "B")
+        verdict = auto.classify(_facts(payload=_payload(doctype="HP", doctype_src="remembered"), payment_recent=["HP"] * 3,
+                                       memory_since={"payment": self.SINCE}, overrides=[changed]))
+        self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:payment",)))
+        # 改的是别的值、别的类、改成的就是 v：不算
+        self.assertEqual(self.payment(overrides=[{**changed, "old": "credit", "new": "cash"}]), "A")
+        self.assertEqual(self.payment(overrides=[{**changed, "kind": "account", "old": "cash"}]), "A")
+        self.assertEqual(self.payment(overrides=[{**changed, "new": "cash"}]), "A")
+        # 改在这家最近 3 张证据之前（证据是改法之后攒的）、超过 60 天、在今天之后：不算
+        self.assertEqual(self.payment(overrides=[{**changed, "at": dt.datetime(2026, 9, 30, 18, 0)}]), "A")
+        self.assertEqual(self.payment(overrides=[{**changed, "at": self.SINCE}]), "A")
+        self.assertEqual(self.payment(today=dt.date(2026, 12, 5), overrides=[changed]), "A")       # 61 天
+        self.assertEqual(self.payment(today=dt.date(2026, 12, 4), overrides=[changed]), "B")       # 60 天
+        self.assertEqual(self.payment(today=dt.date(2026, 10, 4), overrides=[changed]), "A")
+        # 没给证据时刻（取不到）：不判；票面写明 / 人工裁决的现 / 赊不看
+        self.assertEqual(self.payment(memory_since={}, overrides=[changed]), "A")
+        self.assertEqual(self.payment(payload=_payload(doctype="HP", doctype_src="manual"), overrides=[changed]), "A")
+        # 科目同一条：记忆的科目被人改掉
+        moved = {"kind": "account", "old": "5310-01", "new": "5320-01", "at": dt.datetime(2026, 10, 3, 8, 0)}
+        self.assertEqual(self.account(), "A")
+        self.assertEqual(self.account(overrides=[moved]), "B")
+        self.assertEqual(self.account(overrides=[{**moved, "old": "5399"}]), "A")
+        self.assertEqual(auto.memory_holds(_facts(payload=_payload(account_source="remembered"),
+                                                  account_recent=["5310-01"] * 5, memory_since={"account": self.SINCE},
+                                                  overrides=[moved]), "account"), ("overruled",))
+        # 回放用日子：同一天不算晚于（只认改在证据之后的那天及以后）；日子与时刻混着时按日子比
+        day = dt.date(2026, 10, 1)
+        self.assertFalse(auto.overruled("account", "5310-01", day, [{**moved, "at": day}], dt.date(2026, 10, 25)))
+        self.assertTrue(auto.overruled("account", "5310-01", day, [{**moved, "at": dt.date(2026, 10, 2)}],
+                                       dt.date(2026, 10, 25)))
+        self.assertTrue(auto.overruled("account", "5310-01", "2026-10-01T09:00:00", [moved], dt.date(2026, 10, 25)))
+        self.assertFalse(auto.overruled("party", "S1", day, [{**moved, "kind": "party", "old": "S1"}],
+                                        dt.date(2026, 10, 25)))  # 对方档不上 R1
+        self.assertEqual((auto.OVERRIDE_KINDS, auto.OVERRIDE_DAYS, auto.OVERRIDE_EVIDENCE), (("account", "payment"), 60, 3))
+        self.assertEqual(auto.memory_value("payment", {"doctype": "rr"}), "credit")
+        self.assertEqual(auto.memory_value("account", {"items_account": " 5310-01 "}), "5310-01")
+
+    def test_r2_an_account_changed_in_more_than_a_fifth_of_the_readbacks_is_b(self):
+        """R2（只管科目）：证据窗口里有合格回读结果的推送中，科目被会计改的超过 20% → 科目降 B（「混着记」「一单多科目」：NEWLINK
+        一单多科目与单科目交替，窗口里刚好凑到 5 张同科目也不算定下）。正好 20% 不降；没有结果的不算。"""
+        self.assertEqual(self.account(account_share=(1, 5)), "A")
+        self.assertEqual(self.account(account_share=(2, 9)), "B")
+        self.assertEqual(self.account(account_share=(0, 0)), "A")
+        self.assertEqual(self.account(account_share=None), "A")
+        self.assertEqual(auto.memory_holds(_facts(payload=_payload(account_source="remembered"),
+                                                  account_recent=["5310-01"] * 5, account_share=(3, 4)), "account"),
+                         ("changed_share",))
+        # 现 / 赊不看这一条
+        self.assertEqual(self.payment(account_share=(9, 9)), "A")
+        self.assertEqual(auto.ACCOUNT_CHANGE_PERCENT, 20)
+        self.assertFalse(auto.share_exceeded((1, 5)))
+        self.assertTrue(auto.share_exceeded((1, 4)))
+
+        def entry(readback, kinds=(), **over):
+            return {"account": "5310-01", "source": "remembered", "readback": readback, "changed_kinds": kinds,
+                    "payment": "RR", "payment_source": "remembered", **over}
+        rows = [entry("confirmed"), entry("changed", ["account"]), entry("changed", ["payment"]), entry(""),
+                entry("changed", None), entry("confirmed", stock=True), entry("changed", ["account"], stock=True)]
+        # 只改了现 / 赊的不算科目被改；整张被改（不知道改了哪几类）算；还没回读的、写了库存行的不算有结果
+        self.assertEqual(auto.change_share(rows), (2, 4))
+        self.assertEqual(auto.change_share(rows, "payment"), (2, 6))  # 库存行不影响现 / 赊
+        self.assertEqual(auto.change_share([entry("changed", ["payment"], payment_source="explicit")], "payment"), (0, 0))
+        # 同一个窗口（往回 1,000 张、6 个税期，先截）
+        many = [entry("")] * 1000 + [entry("changed", ["account"])]
+        self.assertEqual(auto.change_share(many), (0, 0))
+        self.assertEqual(auto.change_share(many, scan=0), (1, 1))
+
+    def test_memory_since_is_the_oldest_of_the_newest_three_pieces_of_evidence(self):
+        """R1 比的「这家最近 3 张证据」：证据窗口里最前面 3 张证据（跳过没核过的记忆推送）的最早时刻；不够 3 张、有断开的、缺时刻
+        的回 None。"""
+        def entry(day, readback="confirmed", source="remembered"):
+            return {"account": "5310-01", "source": source, "readback": readback, "at": dt.datetime(2026, 9, day, 10)}
+        rows = [entry(20, ""), entry(19), entry(18, source="chosen", readback=""), entry(15), entry(2)]
+        self.assertEqual(auto.memory_since(rows), dt.datetime(2026, 9, 15, 10))
+        self.assertIsNone(auto.memory_since(rows[:3]))
+        self.assertIsNone(auto.memory_since([entry(19), entry(18, "changed"), entry(15)]))
+        self.assertIsNone(auto.memory_since([entry(19), {**entry(18), "at": None}, entry(15)]))
+        self.assertEqual(auto.memory_since([{**entry(19), "at": dt.date(2026, 9, 19)}, entry(18), entry(15)]),
+                         dt.date(2026, 9, 15))  # 日子与时刻混着按日子
+        pay = [{"payment": "HP", "payment_source": "manual", "readback": "", "at": dt.date(2026, 9, day)}
+               for day in (9, 8, 7)]
+        self.assertEqual(auto.memory_since(pay, "payment"), dt.date(2026, 9, 7))
 
 
 class Conflicts(unittest.TestCase):

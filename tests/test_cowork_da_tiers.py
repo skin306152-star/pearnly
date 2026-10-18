@@ -174,10 +174,13 @@ class Proposals(unittest.TestCase):
     def test_a_person_choosing_otherwise_is_a_change_but_a_rule_change_is_only_stale(self):
         proposed = rules.proposal("A", rules.L0, rules.UPLOAD, PAYLOAD, {}, at="2026-10-21T01:00:00")
         same = rules.compare(proposed, PAYLOAD)
-        self.assertEqual(same, {"class": "A", "edited": False, "changed": [], "stale": []})
+        self.assertEqual(same, {"class": "A", "edited": False, "changed": [], "stale": [], "values": {}})
         other = {**PAYLOAD, "items_account": "5320-01", "doctype": "HP"}
+        # 不同的项带上提议的值与推出去的值（10-18：统计人在复核时把提议的哪个值改成了什么，R1 的前提）
         self.assertEqual(rules.compare(proposed, other, chosen={"account"}),
-                         {"class": "A", "edited": False, "changed": ["account"], "stale": ["payment"]})
+                         {"class": "A", "edited": False, "changed": ["account"], "stale": ["payment"],
+                          "values": {"account": {"from": "5310-01", "to": "5320-01"},
+                                     "payment": {"from": "RR", "to": "HP"}}})
         self.assertTrue(rules.compare(proposed, PAYLOAD, edited=True)["edited"])
         self.assertIsNone(rules.compare(None, PAYLOAD))
         self.assertIsNone(rules.compare({"class": "C"}, PAYLOAD))
@@ -306,7 +309,7 @@ def _frappe(hooks=None, attrs=None, site="cowork.pearnly.com"):
 
 
 def _automation_service(hooks=None, attrs=None, site="cowork.pearnly.com", peers=None, writers=None, remembered=None,
-                        chosen=None):
+                        chosen=None, overrides=None):
     frappe, utils = _frappe(hooks, attrs, site)
     pool = ns(presence=lambda connection: dict(peers or {}),
               owned=lambda found, actor, device="": ({device: found[device]} if device in found else {}) if device
@@ -314,7 +317,8 @@ def _automation_service(hooks=None, attrs=None, site="cowork.pearnly.com", peers
               writers=lambda doc, key, peers=None: [name for name in sorted(peers or {}) if name in (writers or ())])
     frappe.get_doc = lambda doctype, name: ns(name=name)
     store = ns(remembered=lambda connection, account_set: dict(remembered or {}),
-               chosen_at=lambda connection, account_set, kind, subject: (chosen or {}).get(kind))
+               chosen_at=lambda connection, account_set, kind, subject: (chosen or {}).get(kind),
+               overrides=overrides or (lambda *a, **k: []))
     module = _load("da_tiers_automation_service", APP / "push/automation/service.py", {
         "frappe": frappe, "frappe.utils": utils, "pearnly_cowork.connections": ns(pool=pool),
         "pearnly_cowork.connections.pool": pool, "pearnly_cowork.push.choices": store})
@@ -364,6 +368,45 @@ class PushSideLookups(unittest.TestCase):
                                                       {"x.marks": lambda *a: {"R1": "confirmed"}})
         self.assertEqual(service.readback_marks("C1", BOOK, records), {"R1": "confirmed"})
         self.assertEqual(service.readback_marks("C1", BOOK, []), {})
+
+    def test_r1_is_judged_again_from_the_frozen_memory_values_when_a_computer_leases(self):
+        """领单重核（R1，10-18）：自动推判 A 时冻结的账套记忆值与证据时刻（``overrule``）再查一次这份账套的改值记录，判完之后有人把
+        同一个记忆值改掉的类进指纹（`rules.automation_hash`），指纹变了就不写旧判定；没有 ``overrule`` 不查库、指纹同以前。"""
+        asked = []
+        found = []
+
+        def overrides(connection, account_set, values, since=None):
+            asked.append((connection, account_set, dict(values)))
+            return list(found)
+        service, frappe = _automation_service(overrides=overrides)
+        frozen = {"account": {"value": "5310-01", "since": "2026-10-20T09:00:00"},
+                  "payment": {"value": "credit", "since": "2026-10-20T09:00:00"}}
+        today = dt.date(2026, 10, 25)
+        self.assertEqual(service.overruled_kinds("C1", BOOK, frozen, today), [])
+        self.assertEqual(asked, [("C1", BOOK, {"account": "5310-01", "payment": "credit"})])
+        found[:] = [{"kind": "payment", "old": "credit", "new": "cash", "at": dt.datetime(2026, 10, 21, 8, 0)},
+                    {"kind": "account", "old": "5310-01", "new": "5320-01", "at": dt.datetime(2026, 10, 19, 8, 0)}]
+        self.assertEqual(service.overruled_kinds("C1", BOOK, frozen, today), ["payment"])  # 科目那次改在证据之前
+        asked.clear()
+        self.assertEqual(service.overruled_kinds("C1", BOOK, None), [])
+        self.assertEqual(service.overruled_kinds("C1", BOOK, {"party": {"value": "S1", "since": "x"}}), [])
+        self.assertEqual(asked, [])
+        # 指纹：没被挡的同以前；被挡了就变
+        frappe.utils.nowdate = lambda: "2026-10-25"
+        frappe.utils.getdate = lambda value: dt.date.fromisoformat(str(value)[:10])
+        before = service.current_hash(3, "C1", BOOK, {}, None)
+        found[:] = []
+        self.assertEqual(service.current_hash(3, "C1", BOOK, {}, None, frozen), before)
+        found[:] = [{"kind": "payment", "old": "credit", "new": "cash", "at": dt.datetime(2026, 10, 21, 8, 0)}]
+        self.assertNotEqual(service.current_hash(3, "C1", BOOK, {}, None, frozen), before)
+        self.assertEqual(rules.automation_hash(3, "L0", "m"), rules.automation_hash(3, "L0", "m", ()))
+        self.assertNotEqual(rules.automation_hash(3, "L0", "m"), rules.automation_hash(3, "L0", "m", ["payment"]))
+        # 冻结进目标：只存值与时刻
+        stored = rules.frozen("A", "L1", "upload", (), "H", {"party": ["x"]}, {"payment": {"value": "credit",
+                                                                                        "since": "2026-10-20T09:00:00",
+                                                                                        "extra": 1}})
+        self.assertEqual(stored["overrule"], {"payment": {"value": "credit", "since": "2026-10-20T09:00:00"}})
+        self.assertNotIn("overrule", rules.frozen("A", "L1", "upload", (), "H"))
 
     def test_the_lab_path_guard_only_applies_on_test_sites(self):
         for site, key, ok in (("testcowork.pearnly.com", "s:\\70exp\\t9sincer", False),
@@ -621,6 +664,32 @@ class CompanyTier(unittest.TestCase):
         store.changes = []
         self.assertEqual(marks(records), {})
         self.assertEqual(module.readback_marks("", BOOK, records), {})
+
+    def test_readback_marks_say_which_kinds_were_changed(self):
+        """``detail``（R2，10-18）：每张覆盖到的单带上改了科目 / 现 / 赊 / 对方档里的哪几类（`readback.service.month_changes` 的
+        ``kinds``）；confirmed 为空表；差异表截断时只知道整张被改（None）；不带 ``detail`` 照旧只给整张结果。"""
+        store = Store()
+        module = _companies(store)
+        records = [{"record": "R1", "invoice_date": "2026-10-03", "completed_at": dt.datetime(2026, 10, 20, 5, 0)},
+                   {"record": "R2", "invoice_date": "2026-10-09", "completed_at": dt.datetime(2026, 10, 21, 5, 0)},
+                   {"record": "R5", "invoice_date": "2026-10-11", "completed_at": dt.datetime(2026, 10, 21, 6, 0)}]
+
+        def marks(rows, **kwargs):
+            module.frappe.local.cowork_readback_month_cache = {}
+            return module.readback_marks("C1", BOOK, rows, **kwargs)
+        store.changes = [{**self._readback(dt.datetime(2026, 11, 24, 3, 0), changes={"R2": "changed", "R5": "deleted"}),
+                          "kinds": {"R2": ["payment"], "R5": ["account", "payment", "party"]}}]
+        self.assertEqual(marks(records, detail=True), {
+            "R1": {"readback": "confirmed", "changed": []}, "R2": {"readback": "changed", "changed": ["payment"]},
+            "R5": {"readback": "changed", "changed": ["account", "payment", "party"]}})
+        self.assertEqual(marks(records), {"R1": "confirmed", "R2": "changed", "R5": "changed"})
+        store.changes = [{**self._readback(dt.datetime(2026, 11, 24, 3, 0), changes={"R2": "changed"}, truncated=True),
+                          "kinds": {"R2": ["payment"]}}]
+        self.assertEqual(marks(records[:2], detail=True), {"R1": {"readback": "changed", "changed": None},
+                                                           "R2": {"readback": "changed", "changed": None}})
+        # 旧的回读提供者没有 ``kinds``：被改的按不知道
+        store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), changes={"R2": "changed"})]
+        self.assertEqual(marks(records[1:2], detail=True), {"R2": {"readback": "changed", "changed": None}})
 
     def test_a_write_mismatch_drops_to_l0_at_once(self):
         store = Store()
@@ -988,7 +1057,8 @@ def _paged(pushes, per_period=None):
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
             prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
-            suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history="", marks_hook=None):
+            suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history="", marks_hook=None,
+            overrides=None, stamped=False):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -1003,11 +1073,12 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
     seen = {"rollback": 0, "marks_calls": 0}
     frappe = types.ModuleType("frappe")
     frappe.session = ns(user="u@example.com")
-    # 这家供应商在这份账套里最近推成功的单（账套记忆定的科目、现 / 赊、对方档要连续 3 张有证据的同值，`assess._recent`）：
-    # 默认 3 张凭记忆推的同科目、同记法、同一档的单，合格回读都核过（``marks``，钩子 `cowork_push_readback_marks`）
+    # 这家供应商在这份账套里最近推成功的单（账套记忆定的科目要连续 5 张、现 / 赊与对方档 3 张有证据的同值，`assess._recent`）：
+    # 默认 5 张凭记忆推的同科目、同记法、同一档的单，合格回读都核过（``marks``，钩子 `cowork_push_readback_marks`）。
+    # ``stamped``：推送记录带上传时刻（R1 比改值的先后要它，10-18）；``overrides``：这份账套的改值记录（`push.choices.overrides`）
     recent = [{"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
                "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
-               "doctype_src": "remembered"}] * 3 if recent is None else recent
+               "doctype_src": "remembered"}] * 5 if recent is None else recent
     marks = {f"R{index}": "confirmed" for index in range(len(recent))} if marks is None else marks
 
     def run_sql(query, values=(), as_dict=False):
@@ -1016,6 +1087,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
             # 回执（``response_json``）：CC 桌面版实际写的对方档码、各行写入模式；没给的按旧记录（没有这一列）
             return [ns(name=f"R{index}", payload_json=json.dumps(item), completed_at=dt.datetime(2026, 9, 5),
                        invoice_date=dt.date(2026, 9, 1),
+                       **({"uploaded": dt.datetime(2026, 9, 3, 9, 0) - dt.timedelta(minutes=index)} if stamped else {}),
                        **({"response_json": json.dumps(responses[index])} if responses and responses[index] else {}))
                     for index, item in enumerate(recent)]
         seen.setdefault("sql", []).append((query, values))
@@ -1031,10 +1103,15 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
               "reported_accounts": [{"code": "5310-01"}]}
     pages = [{"_layer_chain": ["text", "L2"] if text else ["direct"], "fields": fields, "_needs_manual_review": False}]
 
-    def marked(connection, key, records):
+    def marked(connection, key, records, detail=False):
         seen["marks_calls"] += 1
         seen.setdefault("marks", (connection, key, records))
-        return marks_hook(connection, key, records) if marks_hook else marks
+        seen["marks_detail"] = detail
+        return marks_hook(connection, key, records, detail=detail) if marks_hook else marks
+
+    def changes(connection, key, values, since=None):
+        seen.setdefault("overrides", []).append((connection, key, dict(values)))
+        return list(overrides or ())
     service = ns(
         _express_context=lambda doc, loaded, key: {
             "target": ns(account_set=BOOK), "flat": {}, "fields": fields, "direction": direction,
@@ -1062,7 +1139,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         "frappe": frappe, "pearnly_cowork.access": ns(scope=ns(require=lambda feature: None)),
         "pearnly_cowork.connections": ns(service=ns(read_for_push=lambda *a, **k: loaded)),
         "pearnly_cowork.history": ns(storage=ns(read=lambda name: doc), text_layer=text_layer),
-        "pearnly_cowork.push": ns(choices=ns(remembered=lambda *a: {})),
+        "pearnly_cowork.push": ns(choices=ns(remembered=lambda *a: {}, overrides=changes)),
         "pearnly_cowork.push.application": ns(service=service),
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda doc: doc.name),
         "pearnly_cowork.push.automation": ns(rules=rules, service=automation_service),
@@ -1079,8 +1156,8 @@ class Judging(unittest.TestCase):
         self.assertEqual(found["proposal"]["values"]["account"], "5310-01")
         self.assertEqual(seen["rollback"], 1)  # 只看不记：结束整笔回滚
 
-    def test_a_remembered_account_needs_three_recent_pushes_with_it(self):
-        """账套记忆的科目：这家供应商在这份账套里最近 3 张有证据的推送都记这个科目才算 A（`_recent`，10-16）。"""
+    def test_a_remembered_account_needs_five_recent_pushes_with_it(self):
+        """账套记忆的科目：这家供应商在这份账套里最近 5 张有证据的推送都记这个科目才算 A（`_recent`，10-16 定 3 张，10-18 R3 改 5 张）。"""
         found, seen = _assess()
         self.assertEqual(found["class"], "A")
         query, values = seen["recent_sql"][0]
@@ -1099,7 +1176,9 @@ class Judging(unittest.TestCase):
         # 别家（载荷里的供应商税号不同）、销项的不算，跳过后再数
         mixed = [{"direction": "sales", "items_account": "5310-01"},
                  {"direction": "purchase", "supplier": {"tax_id": "0105556012341"}, "items_account": "5310-01"}] + two * 2
-        self.assertEqual(_assess(recent=mixed, marks={f"R{i}": "confirmed" for i in range(6)})[0]["class"], "A")
+        self.assertEqual(_assess(recent=mixed, marks={f"R{i}": "confirmed" for i in range(6)})[0]["class"], "B")  # 4 张
+        self.assertEqual(_assess(recent=mixed + [mine], marks={f"R{i}": "confirmed" for i in range(7)})[0]["class"], "A")
+        self.assertEqual(_assess(recent=[mine] * 3)[0]["reasons"], ["judged:account"])  # 3 张：R3 之前是 A
 
     def test_pushes_by_memory_count_only_after_a_qualified_readback(self):
         """凭账套记忆推出去的单要合格回读覆盖、没被改才算证据（审查处理 10-16：CC 自己推的单不能攒成「连续 3 张」）；
@@ -1107,7 +1186,7 @@ class Judging(unittest.TestCase):
         self.assertEqual(_assess(marks={})[0]["class"], "B")                       # 都还没回读核过
         self.assertEqual(_assess(marks={"R0": "confirmed", "R1": "changed", "R2": "confirmed"})[0]["class"], "B")
         chosen = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
-                   "account_source": "chosen"}] * 3
+                   "account_source": "chosen"}] * 5
         self.assertEqual(_assess(recent=chosen, marks={})[0]["class"], "A")
 
     def test_remembered_payment_and_party_need_three_pushes_with_evidence(self):
@@ -1123,7 +1202,7 @@ class Judging(unittest.TestCase):
         # 现 / 赊只有 2 张核过（科目这几张是人选的、照算）：现 / 赊 B
         chosen = [{"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
                    "items_account": "5310-01", "account_source": "chosen", "doctype": "RR",
-                   "doctype_src": "remembered"}] * 3
+                   "doctype_src": "remembered"}] * 5
         found, _seen = _assess(recent=chosen, marks={"R0": "confirmed", "R1": "confirmed"}, **memory)
         self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:party", "judged:payment"]))
         # 记的现 / 赊与最近几张不同：B
@@ -1174,7 +1253,7 @@ class Judging(unittest.TestCase):
         swapped = [{"meta": {"party_code": "S002"}}, {"meta": {"party_code": "S001"}}, {"meta": {"party_code": "S002"}}]
         self.assertEqual(_assess(recent=planned, responses=swapped, **memory)[0]["items"]["party"], "B")
         # 真写了库存行的单：科目只认推的时候的来源，回读 confirmed 不算
-        stock = [{"line_modes": [{"seq": 1, "mode": "stock_item"}]}] * 3
+        stock = [{"line_modes": [{"seq": 1, "mode": "stock_item"}]}] * 5
         found, _seen = _assess(responses=stock)
         self.assertEqual((found["class"], found["items"]["account"]), ("B", "B"))
         # 票面写明的现 / 赊回读核过也不是现 / 赊的证据
@@ -1213,11 +1292,11 @@ class Judging(unittest.TestCase):
         memory = {"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
                   "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
                   "doctype_src": "remembered"}
-        checked = {f"R{index}": "confirmed" for index in range(600, 603)}
-        sql, calls = _paged([memory] * 603)
+        checked = {f"R{index}": "confirmed" for index in range(600, 605)}
+        sql, calls = _paged([memory] * 605)
         found, seen = _assess(sql=sql, marks=checked)
         self.assertEqual((found["class"], found["items"]["account"]), ("A", "A"))
-        # 30 + 200 + 200 + 200 张取到第 603 张就停；每批标一次回读；往前接着取按上一批最后一张
+        # 30 + 200 + 200 + 200 张取到第 605 张就停；每批标一次回读；往前接着取按上一批最后一张
         self.assertEqual([call["limit"] for call in calls], [30, 200, 200, 200])
         self.assertEqual(seen["marks_calls"], 4)
         self.assertNotIn("h.creation < %s", calls[0]["query"])
@@ -1226,34 +1305,34 @@ class Judging(unittest.TestCase):
         # 记忆定的现 / 赊、对方档同一个窗口
         memory_all = dict(decided={"account": "remembered", "vat": "remembered", "party": "remembered"},
                           payload_over={"doctype_src": "remembered"})
-        sql, calls = _paged([memory] * 603)
+        sql, calls = _paged([memory] * 605)
         found, _seen = _assess(sql=sql, marks=checked, **memory_all)
         self.assertEqual((found["class"], found["items"]["payment"], found["items"]["party"]), ("A", "A", "A"))
         # 没有任何回读核过：取到底（不足上限）还是 0 张，B
-        sql, calls = _paged([memory] * 603)
+        sql, calls = _paged([memory] * 605)
         found, _seen = _assess(sql=sql, marks={})
         self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:account"]))
-        self.assertEqual(sum(call["rows"] for call in calls), 603)
+        self.assertEqual(sum(call["rows"] for call in calls), 605)
         # 回读里被改的照样断开
-        sql, _calls = _paged([memory] * 603)
-        broken = {"R600": "confirmed", "R601": "changed", "R602": "confirmed"}
+        sql, _calls = _paged([memory] * 605)
+        broken = {"R600": "confirmed", "R601": "changed", "R602": "confirmed", "R603": "confirmed", "R604": "confirmed"}
         self.assertEqual(_assess(sql=sql, marks=broken)[0]["class"], "B")
         # 推的时候由人选的照常算证据（不用等回读）
         chosen = {**memory, "account_source": "chosen"}
-        sql, calls = _paged([memory] * 100 + [chosen] * 3)
+        sql, calls = _paged([memory] * 100 + [chosen] * 5)
         self.assertEqual(_assess(sql=sql, marks={})[0]["class"], "A")
         self.assertEqual(len(calls), 2)
-        # 上界：往回最多 1,000 张、6 次查询，核过的三张在第 1,001 张以后够不着：B
-        far = {f"R{index}": "confirmed" for index in range(1000, 1003)}
-        sql, calls = _paged([memory] * 1003)
+        # 上界：往回最多 1,000 张、6 次查询，核过的五张在第 1,001 张以后够不着：B
+        far = {f"R{index}": "confirmed" for index in range(1000, 1005)}
+        sql, calls = _paged([memory] * 1005)
         found, seen = _assess(sql=sql, marks=far)
         self.assertEqual(found["class"], "B")
         self.assertEqual([call["limit"] for call in calls], [30, 200, 200, 200, 200, 170])
         self.assertEqual((sum(call["rows"] for call in calls), seen["marks_calls"]), (auto.RECENT_SCAN_MAX, 6))
         self.assertEqual(auto.RECENT_SCAN_MAX, 1000)
-        # 正好落在上限里（第 998–1,000 张）：A
-        near = {f"R{index}": "confirmed" for index in range(997, 1000)}
-        sql, calls = _paged([memory] * 1003)
+        # 正好落在上限里（第 996–1,000 张）：A
+        near = {f"R{index}": "confirmed" for index in range(995, 1000)}
+        sql, calls = _paged([memory] * 1005)
         self.assertEqual(_assess(sql=sql, marks=near)[0]["class"], "A")
 
     def test_the_evidence_window_bounds_readback_queries_by_tax_period(self):
@@ -1304,6 +1383,82 @@ class Judging(unittest.TestCase):
         self.assertEqual(found["class"], "B")
         self.assertEqual(len(asked), auto.RECENT_PERIOD_MAX)
         self.assertEqual(sum(call["rows"] for call in calls), 230)
+
+    def test_r1_people_changing_the_same_memory_value_in_the_account_set_makes_it_b(self):
+        """R1（10-18 E1）：账套记忆定的科目 / 现 / 赊连续张数够了，才取这份账套近 60 天的改值记录（`push.choices.overrides`，一次查询）；
+        有人把同一个记忆值改掉、且晚于这家最近 3 张证据里最早那张（推送记录的上传时刻）→ 这一项降 B；判成 A 的那几类冻结记忆值与
+        证据时刻（``automation.overrule``），领单时再判一次。"""
+        memory = dict(decided={"account": "remembered", "vat": "remembered"}, payload_over={"doctype_src": "remembered"})
+        found, seen = _assess(stamped=True, **memory)
+        self.assertEqual(found["class"], "A")
+        self.assertEqual(seen["overrides"], [("C1", BOOK, {"account": "5310-01", "payment": "credit"})])
+        since = "2026-09-03T08:58:00"  # 最近 3 张证据（R0–R2）里最早那张
+        self.assertEqual(found["automation"]["overrule"], {"account": {"value": "5310-01", "since": since},
+                                                           "payment": {"value": "credit", "since": since}})
+        later = {"kind": "payment", "old": "credit", "new": "cash", "at": dt.datetime(2026, 9, 20, 10, 0)}
+        found, seen = _assess(stamped=True, overrides=[later], **memory)
+        self.assertEqual((found["class"], found["reasons"], found["items"]["account"]), ("B", ["judged:payment"], "A"))
+        self.assertEqual(set(found["automation"]["overrule"]), {"account"})
+        moved = {"kind": "account", "old": "5310-01", "new": "5320-01", "at": dt.datetime(2026, 10, 1, 8, 0)}
+        self.assertEqual(_assess(stamped=True, overrides=[moved], **memory)[0]["reasons"], ["judged:account"])
+        # 改在这家证据之前：证据是改法之后攒的，照 A
+        earlier = {**later, "at": dt.datetime(2026, 9, 3, 8, 0)}
+        self.assertEqual(_assess(stamped=True, overrides=[earlier], **memory)[0]["class"], "A")
+        # 连续张数不够（本来就是 B）、推送记录没有上传时刻：不查库、不冻结
+        two = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
+                "account_source": "remembered"}] * 2
+        found, seen = _assess(stamped=True, recent=two)
+        self.assertNotIn("overrides", seen)
+        self.assertNotIn("overrule", found["automation"])
+        found, seen = _assess(overrides=[later], **memory)
+        self.assertEqual(found["class"], "A")
+        self.assertNotIn("overrides", seen)
+        # 都不是账套记忆定的：不查
+        found, seen = _assess(stamped=True, payload_over={"account_source": "chosen"})
+        self.assertNotIn("overrides", seen)
+
+    def test_r2_the_share_of_readback_account_changes_counts_the_whole_window(self):
+        """R2（10-18 E1，只管科目）：证据窗口里有合格回读结果的推送中科目被改超过 20% → 科目降 B。回读标记带上改了哪几类
+        （``detail``）；科目连续张数够了时取满整个窗口才算比例（凑够张数就停只对不够的、和现 / 赊、对方档），上界不变。"""
+        memory = {"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
+                  "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
+                  "doctype_src": "remembered"}
+
+        def hook(changed, kinds):
+            def marks(connection, key, records, detail=False):
+                out = {}
+                for item in records:
+                    index = int(item["record"][1:])
+                    mark = "changed" if index in changed else "confirmed"
+                    out[item["record"]] = {"readback": mark, "changed": list(kinds) if mark == "changed" else []} \
+                        if detail else mark
+                return out
+            return marks
+        sql, calls = _paged([memory] * 300)
+        found, seen = _assess(sql=sql, marks_hook=hook(set(), ()))
+        self.assertEqual(found["class"], "A")
+        self.assertTrue(seen["marks_detail"])
+        self.assertEqual([call["limit"] for call in calls], [30, 200, 200])  # 连续 5 张够了：取满窗口算比例
+        sixty = set(range(240, 300))  # 300 张里 60 张科目被改：正好 20%，不降
+        sql, _calls = _paged([memory] * 300)
+        self.assertEqual(_assess(sql=sql, marks_hook=hook(sixty, ("account",)))[0]["class"], "A")
+        sql, _calls = _paged([memory] * 300)
+        found, _seen = _assess(sql=sql, marks_hook=hook(sixty | {239}, ("account",)))
+        self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:account"]))
+        # 只改了别的类的不算科目被改；只知道整张被改（老的提供者只给整张结果）的算
+        sql, _calls = _paged([memory] * 300)
+        self.assertEqual(_assess(sql=sql, marks_hook=hook(sixty | {239}, ("payment",)))[0]["class"], "A")
+        sql, _calls = _paged([memory] * 300)
+        plain = {f"R{index}": "changed" if index in sixty | {239} else "confirmed" for index in range(300)}
+        self.assertEqual(_assess(sql=sql, marks=plain)[0]["class"], "B")
+        # 科目连续张数不够：不再往前取（本来就是 B）；科目不是账套记忆定的：凑够现 / 赊就停
+        sql, calls = _paged([memory] * 300)
+        self.assertEqual(_assess(sql=sql, marks_hook=hook({0}, ("account",)))[0]["class"], "B")
+        self.assertEqual([call["limit"] for call in calls], [30])
+        sql, calls = _paged([{**memory, "account_source": "chosen"}] * 300)
+        found, _seen = _assess(sql=sql, marks_hook=hook(set(), ()), payload_over={"account_source": "chosen",
+                                                                                   "doctype_src": "remembered"})
+        self.assertEqual((found["class"], [call["limit"] for call in calls]), ("A", [30]))
 
     def test_boundaries_turn_a_push_into_a_proposal(self):
         found, _seen = _assess(site_ok=False)
@@ -1362,7 +1517,8 @@ class LeaseRecheck(unittest.TestCase):
                      "push.native.completion", "targets", "targets.freeze", "targets.contracts", "targets.identity"):
             modules["pearnly_cowork." + name] = stub()
         modules["pearnly_cowork.push.automation"] = ns(rules=rules, service=ns(
-            current_hash=lambda version, connection, key, account, scope=None: current(version, account, scope)))
+            current_hash=lambda version, connection, key, account, scope=None, overrule=None: (
+                current(version, account, scope) if overrule is None else current(version, account, scope, overrule))))
         modules["pearnly_cowork.push.native.documents"].TYPES = ("Cowork Push Record", "Cowork Push Attempt", "Lock")
         modules["pearnly_cowork.targets.identity"].normalize_express_account_key = lambda value: str(value).lower()
         push_state = ns(withdraw_automation=lambda row, reason, proposal=None: withdrawn.append((row.name, reason,
@@ -1404,6 +1560,23 @@ class LeaseRecheck(unittest.TestCase):
         lease = source.split("def lease(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("if _automation_stale(target, context, loaded):", lease)
 
+    def test_the_frozen_memory_values_go_into_the_lease_recheck(self):
+        """R1（10-18）：冻结的 ``overrule`` 交给 `current_hash`（领单时再判同账套有没有人刚改掉同一个记忆值）；没有的照旧。"""
+        overrule = {"payment": {"value": "credit", "since": "2026-10-20T09:00:00"}}
+        frozen = {"automation": {"class": "A", "tier": "L1", "trigger": "upload", "hash": "H-OLD",
+                                 "scope": {"party": ["x"]}, "overrule": overrule}}
+        context = ns(history_version=3, connection="C1", account=BOOK.lower())
+        loaded = ns(evidence=ns(snapshot={"account_sets": [{"source_id": BOOK}]}))
+        module, _saved, _withdrawn = self._ledger(lambda version, account, scope, overrule=None: (
+            "H-OLD" if overrule is None else "H-NEW"))
+        self.assertTrue(module._automation_stale(frozen, context, loaded))
+        plain = {"automation": {**frozen["automation"]}}
+        plain["automation"].pop("overrule")
+        self.assertFalse(module._automation_stale(plain, context, loaded))
+        source = (APP / "push/application/service.py").read_text(encoding="utf-8")
+        self.assertIn('overrule = automation.get("overrule") or None', source)
+        self.assertIn("account_row, subjects, overrule), subjects, overrule)", source)
+
     def test_an_automatic_push_leased_by_an_older_cc_desktop_becomes_a_proposal(self):
         # 审查处理 10-16：判定时写的电脑都够新，之后上线 / 配对的旧版也可能来领；领单时按来领的这台再核
         module, saved, withdrawn = self._ledger(lambda version, account, scope: "H")
@@ -1431,6 +1604,144 @@ class LeaseRecheck(unittest.TestCase):
         self.assertFalse(route_contracts.attended(job._replace(route_device="PC-READ"), peer))
         transport = (APP / "companion/transport.py").read_text(encoding="utf-8")
         self.assertIn("attended = route_contracts.attended(job._replace(automated=automated)", transport)
+
+
+# ── R1 的改值记录（`push/choices.py`，10-18） ──────────────────────────────────
+
+
+def _choice_store(existing=None, found=()):
+    """`push/choices.py` 配内存替身的 Frappe：``existing`` 是已记过的选择 {name: 行}，``found`` 是改值查询 / 删记忆查询回的行。"""
+    rows, inserted, queries, deleted = dict(existing or {}), [], [], []
+    frappe = types.ModuleType("frappe")
+    frappe._ = lambda text: text
+    frappe.PermissionError = Denied
+    frappe.session = ns(user="acc@example.com")
+
+    def throw(message, error=Invalid):
+        raise error(message)
+    frappe.throw = throw
+
+    class Doc(Row):
+        def save(self, ignore_permissions=False):
+            rows[self.name] = self
+
+        def insert(self, ignore_permissions=False):
+            inserted.append(dict(self))
+            if self.get("input_key"):
+                self.name = self.input_key
+                rows[self.name] = self
+
+    def get_doc(value, name=None, for_update=False):
+        if isinstance(value, dict):
+            doc = Doc(value)
+        else:
+            doc = rows[name] = Doc(rows[name])
+        doc.flags = ns()
+        return doc
+    frappe.get_doc = get_doc
+
+    def sql(query, values=(), as_dict=False, pluck=False):
+        queries.append((query, values))
+        return [Row(row) for row in found] if query.lstrip().startswith("SELECT") else []
+    frappe.db = ns(exists=lambda doctype, name: name in rows, sql=sql,
+                   delete=lambda doctype, filters: deleted.append((doctype, filters)))
+    utils = types.ModuleType("frappe.utils")
+    now = dt.datetime(2026, 10, 25, 9, 30)
+    utils.now_datetime = lambda: now
+    frappe.utils = utils
+    module = _load("da_tiers_push_choices", APP / "push/choices.py", {"frappe": frappe, "frappe.utils": utils})
+    return module, ns(rows=rows, inserted=inserted, queries=queries, deleted=deleted, now=now, Doc=Doc)
+
+
+class ChoiceChanges(unittest.TestCase):
+    SUBJECT = "purchase|" + SELLER
+
+    def _existing(self, module, kind, value):
+        name = module._key("C1", BOOK.lower(), kind, self.SUBJECT)
+        return {name: Row(name=name, input_key=name, connection="C1", account_set=BOOK.lower(), kind=kind,
+                          subject=self.SUBJECT, value=value, record_revision=1)}
+
+    def test_a_remembered_account_or_payment_changed_to_another_value_is_logged(self):
+        """`record`：记过的科目 / 现 / 赊被人改成别的值，另记一行「账套、类、归类键、旧值 → 新值、谁、何时」（来源 choice），顺手删
+        这份账套 90 天前的；第一次记、同值、对方档 / 存货等别的类不记。"""
+        probe, _state = _choice_store()
+        module, state = _choice_store(self._existing(probe, "payment", "cash"))
+        self.assertTrue(module.record("C1", BOOK, "payment", self.SUBJECT, "credit", "Makro"))
+        change = [row for row in state.inserted if row["doctype"] == module.OVERRIDE_DOCTYPE]
+        self.assertEqual(len(change), 1)
+        self.assertEqual({key: change[0][key] for key in ("connection", "account_set", "kind", "subject", "old_value",
+                                                           "new_value", "changed_by", "changed_at", "source")},
+                         {"connection": "C1", "account_set": BOOK.lower(), "kind": "payment", "subject": self.SUBJECT,
+                          "old_value": "cash", "new_value": "credit", "changed_by": "acc@example.com",
+                          "changed_at": state.now, "source": "choice"})
+        prune = [(query, values) for query, values in state.queries if query.startswith("DELETE")]
+        self.assertEqual(len(prune), 1)
+        self.assertIn("WHERE connection=%s AND account_set=%s AND changed_at < %s", prune[0][0])
+        self.assertEqual(prune[0][1], ("C1", BOOK.lower(), state.now - dt.timedelta(days=module.OVERRIDE_KEEP_DAYS)))
+        self.assertEqual(module.OVERRIDE_KEEP_DAYS, 90)
+        # 同值不改、不记；第一次记不记
+        module, state = _choice_store(self._existing(probe, "payment", "cash"))
+        self.assertFalse(module.record("C1", BOOK, "payment", self.SUBJECT, "cash"))
+        self.assertTrue(module.record("C1", BOOK, "account", self.SUBJECT, "5310-01"))
+        self.assertEqual([row for row in state.inserted if row["doctype"] == module.OVERRIDE_DOCTYPE], [])
+        # 别的类（对方档）改了也不记（R1 只管科目与现 / 赊）
+        module, state = _choice_store(self._existing(probe, "party", "S1"))
+        self.assertTrue(module.record("C1", BOOK, "party", self.SUBJECT, "S2"))
+        self.assertEqual([row for row in state.inserted if row["doctype"] == module.OVERRIDE_DOCTYPE], [])
+
+    def test_a_company_rule_replacing_a_memory_logs_the_change_and_a_plain_delete_does_not(self):
+        found = [{"name": "N1", "account_set": BOOK.lower(), "subject": self.SUBJECT, "value": "5310-01"},
+                 {"name": "N2", "account_set": "c:\\pearnlyexpress\\68acme", "subject": self.SUBJECT, "value": "5320-01"}]
+        module, state = _choice_store(found=found)
+        self.assertEqual(module.forget("C1", [BOOK], "account", [self.SUBJECT], replaced_by="5320-01"), 2)
+        change = [row for row in state.inserted if row["doctype"] == module.OVERRIDE_DOCTYPE]
+        self.assertEqual([(row["account_set"], row["old_value"], row["new_value"], row["source"]) for row in change],
+                         [(BOOK.lower(), "5310-01", "5320-01", "rule")])  # 记的就是规则的值：不算改
+        self.assertEqual(state.deleted, [(module.DOCTYPE, {"name": ["in", ["N1", "N2"]]})])
+        module, state = _choice_store(found=found)
+        self.assertEqual(module.forget("C1", [BOOK], "account", [self.SUBJECT]), 2)
+        self.assertEqual(state.inserted, [])
+
+    def test_the_changes_are_read_with_one_bounded_query(self):
+        rows = [{"kind": "payment", "old_value": "cash", "new_value": "credit", "changed_at": dt.datetime(2026, 10, 20)}]
+        module, state = _choice_store(found=rows)
+        found = module.overrides("C1", BOOK, {"account": "5310-01", "payment": "cash", "party": "S1"})
+        self.assertEqual(found, [{"kind": "payment", "old": "cash", "new": "credit", "at": dt.datetime(2026, 10, 20)}])
+        [(query, values)] = state.queries
+        self.assertIn("WHERE connection=%s AND kind IN %s AND changed_at >= %s AND account_set=%s AND old_value IN %s",
+                      query)
+        self.assertIn("ORDER BY changed_at DESC LIMIT %s", query)
+        self.assertNotRegex(query, r"\{connection\}|\{kind\}|\{values?\}")
+        self.assertEqual(values, ("C1", ("account", "payment"), state.now - dt.timedelta(days=auto.OVERRIDE_DAYS),
+                                  BOOK.lower(), ("5310-01", "cash"), module.OVERRIDE_SCAN_MAX))
+        self.assertEqual(module.OVERRIDE_SCAN_MAX, 200)
+        module, state = _choice_store()
+        self.assertEqual(module.overrides("C1", BOOK, {"party": "S1"}), [])
+        self.assertEqual(module.overrides("", BOOK, {"account": "5310-01"}), [])
+        self.assertEqual(state.queries, [])
+
+    def test_the_change_table_is_guarded_and_indexed(self):
+        folder = APP / "pearnly_cowork/doctype/cowork_express_choice_change"
+        meta = json.loads((folder / "cowork_express_choice_change.json").read_text(encoding="utf-8"))
+        fields = {field["fieldname"]: field for field in meta["fields"]}
+        self.assertEqual(meta["name"], "Cowork Express Choice Change")
+        self.assertTrue(all(field.get("read_only") for field in meta["fields"]))
+        self.assertEqual(fields["kind"]["options"].split("\n"), list(auto.OVERRIDE_KINDS))
+        self.assertEqual((fields["old_value"]["length"], fields["new_value"]["length"]), (60, 60))
+        self.assertEqual(meta.get("modified"), "2026-10-18 12:00:00.000000")
+        controller = (folder / "cowork_express_choice_change.py").read_text(encoding="utf-8")
+        for hook in ("check_permission", "before_validate", "on_trash", "before_rename", "on_doctype_update"):
+            self.assertIn(f"def {hook}", controller)
+        self.assertIn('"connection_kind_changed_index": ["connection", "kind", "changed_at"]', controller)
+        hooks = (APP / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"Cowork Express Choice Change": "pearnly_cowork.push.choices.deny_query"', hooks)
+        self.assertIn('"Cowork Express Choice Change": "pearnly_cowork.push.choices.deny"', hooks)
+        module, _state = _choice_store()
+        with self.assertRaises(Denied):
+            module.reject_share(ns(share_doctype="Cowork Express Choice Change"))
+        with self.assertRaises(Denied):
+            module.guard(ns(flags=ns(cowork_choice_write=None)))
+        self.assertEqual(module.deny_query(), "1=0")
 
 
 # ── 依赖方向 ──────────────────────────────────────────────────────────────────

@@ -30,6 +30,27 @@ FIELDS = ("date", "kind", "party", "ref_no", "before_vat", "vat", "total", "vat_
           "vat_amount", "entries")
 CHANGES = ("changed", "deleted", "missing", "voided")
 SHOWN = 300
+# 差异的字段 → 自动推档位看的那一类（数字会计员第 3 期 R2，10-18）：分录 = 科目、单别 = 现 / 赊、对方 = 对方档；其余字段（日期、单号、
+# 金额、税务记录）不算这三类。被删、作废、找不到的单不比字段，整张当三类都改（`ALL_KINDS`）
+FIELD_KINDS = {"entries": "account", "kind": "payment", "party": "party"}
+ALL_KINDS = ("account", "payment", "party")
+
+
+def changed_kinds(items) -> Dict[str, List[str]]:
+    """差异表（`compare` 的 ``changes``，或存下的那几行）→ ``{推送记录: [改了的类]}``：``changed`` 按字段换算（`FIELD_KINDS`，
+    只改了日期 / 金额的为空表），``deleted`` / ``voided`` / ``missing`` 三类都算。没有推送记录号的行不列。"""
+    out: Dict[str, List[str]] = {}
+    for item in items or ():
+        record = str((item or {}).get("record") or "")
+        change = str((item or {}).get("change") or "")
+        if not record or change not in CHANGES:
+            continue
+        kinds = out.setdefault(record, [])
+        found = ALL_KINDS if change != "changed" else (FIELD_KINDS.get(str(item.get("field") or "")),)
+        for kind in found:
+            if kind and kind not in kinds:
+                kinds.append(kind)
+    return out
 
 
 def kind(document: Dict[str, Any]) -> str:

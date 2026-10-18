@@ -233,9 +233,11 @@ def _covered(found, record_completed, deadline):
     return good, "changed" if found.get("record_change") or found.get("truncated") else "confirmed"
 
 
-def readback_marks(connection, account_set, records) -> dict:
+def readback_marks(connection, account_set, records, detail=False) -> dict:
     """推送的钩子（``cowork_push_readback_marks``）：这份账套里几张推成功的单在合格回读里的结果 ``{推送记录: confirmed|changed}``
-    （没被合格回读覆盖的不列）。``records``：``[{record, invoice_date, completed_at}]``。账套记忆定的科目、现 / 赊、对方档都要
+    （没被合格回读覆盖的不列）。``detail``：结果换成 ``{推送记录: {"readback": confirmed|changed, "changed": [改了的类] | None}}``
+    （科目 / 现 / 赊 / 对方档改了哪几类，`readback.diff.changed_kinds`；confirmed 为空表，只知道整张被改（差异表截断）为 None），
+    自动推判档 R2 的回读改动比例用（10-18）。``records``：``[{record, invoice_date, completed_at}]``。账套记忆定的科目、现 / 赊、对方档都要
     最近连续 3 张有证据的同值才算 A（`push.express.automation.memory_evidence`）：凭记忆推出去的单要被合格回读覆盖、没被改才算
     证据。按整张记录：差异比对（`readback.diff`）比日期、现 / 赊（单据类型）、对方、单号、金额、VAT，没写库存行的单再比分录科目
     （真写了库存行的单不比分录，调用方对这种单的科目不认 confirmed），任一被改就是 changed，三类一起断开。每期的回读在同一个
@@ -257,11 +259,18 @@ def readback_marks(connection, account_set, records) -> dict:
             continue
         deadline = _deadline(period)
         changes = found.get("changes") if isinstance(found.get("changes"), dict) else {}
+        kinds = found.get("kinds") if isinstance(found.get("kinds"), dict) else {}
         for item in items:
             _good, mark = _covered({**found, "record_change": changes.get(item["record"])}, item.get("completed_at"),
                                    deadline)
-            if mark:
+            if not mark:
+                continue
+            if not detail:
                 out[item["record"]] = mark
+                continue
+            known = changes.get(item["record"]) and not found.get("truncated") and item["record"] in kinds
+            out[item["record"]] = {"readback": mark, "changed": [] if mark == "confirmed" else
+                                   list(kinds[item["record"]]) if known else None}
     return out
 
 

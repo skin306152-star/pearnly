@@ -641,7 +641,8 @@ AUTOMATION_CHANGED = 'push.automation_changed'
 
 def _automation_stale(target, context, loaded):
     """自动推的单（冻结了 ``automation``）领单时再核一次（数字会计员第 3 期第 5 条）：票的版本（`_dispatch_context` 已核）、
-    这家当前档位、这张单用得着的账套记忆与公司规则，任一变了就不写旧判定。人发起的单没有这一项，不核。"""
+    这家当前档位、这张单用得着的账套记忆与公司规则、账套记忆定的科目 / 现 / 赊有没有被同账套的人刚改掉同一个值（R1，
+    ``overrule``），任一变了就不写旧判定。人发起的单没有这一项，不核。"""
     automation = target.get('automation')
     if not isinstance(automation, dict):
         return False
@@ -653,7 +654,7 @@ def _automation_stale(target, context, loaded):
     account = next((row for row in rows if isinstance(row, dict)
                     and normalize_express_account_key(row.get('source_id')) == context.account), None)
     current = automation_service.current_hash(context.history_version, context.connection, context.account, account,
-                                              automation.get('scope'))
+                                              automation.get('scope'), automation.get('overrule'))
     return current != automation.get('hash')
 
 

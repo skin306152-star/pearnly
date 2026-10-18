@@ -164,16 +164,31 @@ def fingerprint(remembered: Mapping[str, Mapping[str, str]], rules: Iterable[Map
     return digest({"remembered": {kind: items for kind, items in memory.items() if items}, "rules": picked})
 
 
-def automation_hash(record_version: Any, tier: str, memory: str) -> str:
-    """领单重核的那一项（并进 ``basis_hash`` 之外）：票的版本、这家当前档位、账套记忆与公司规则的指纹。"""
-    return digest({"record_version": int(record_version or 0), "tier": tier_of(tier), "memory": str(memory or "")})
+def automation_hash(record_version: Any, tier: str, memory: str, overruled: Iterable[str] = ()) -> str:
+    """领单重核的那一项（并进 ``basis_hash`` 之外）：票的版本、这家当前档位、账套记忆与公司规则的指纹；``overruled``：这张单账套
+    记忆定的科目 / 现 / 赊里，此刻已被同账套的人改值挡下的类（R1，`push.express.automation.overruled`，10-18）——准备时判成 A 的
+    这几类本来为空，判完到电脑来领之间有人改掉同一个记忆值就变（同批里先被人改的值也挡得住还没写的 A）。空的不进指纹（与之前的
+    指纹相同）。"""
+    value = {"record_version": int(record_version or 0), "tier": tier_of(tier), "memory": str(memory or "")}
+    overruled = sorted({str(kind) for kind in overruled or () if kind})
+    if overruled:
+        value["overruled"] = overruled
+    return digest(value)
 
 
 def frozen(cls: str, tier: str, trigger: str, reasons: Sequence[str], hash_value: str,
-           scope: Optional[Mapping[str, Sequence[str]]] = None) -> Dict[str, Any]:
-    """冻结目标里的 ``automation``（第 5 条）：类别、判时档位、谁触发、B 类 CC 判断的项，与领单重核用的指纹及其范围。"""
-    return {"class": cls, "tier": tier_of(tier), "trigger": trigger, "reasons": list(reasons or ())[:20],
-            "hash": hash_value, "scope": {kind: list(items) for kind, items in (scope or {}).items()}}
+           scope: Optional[Mapping[str, Sequence[str]]] = None,
+           overrule: Optional[Mapping[str, Mapping[str, Any]]] = None) -> Dict[str, Any]:
+    """冻结目标里的 ``automation``（第 5 条）：类别、判时档位、谁触发、B 类 CC 判断的项，与领单重核用的指纹及其范围。
+    ``overrule``：账套记忆定、判成 A 的科目 / 现 / 赊 ``{类: {"value": 记忆的值, "since": 最近 3 张证据里最早那张的时刻}}``，领单时
+    按它重判 R1（`push.automation.service.overruled_kinds`）；没有不存。"""
+    out = {"class": cls, "tier": tier_of(tier), "trigger": trigger, "reasons": list(reasons or ())[:20],
+           "hash": hash_value, "scope": {kind: list(items) for kind, items in (scope or {}).items()}}
+    if overrule:
+        out["overrule"] = {str(kind): {"value": str((item or {}).get("value") or ""),
+                                       "since": str((item or {}).get("since") or "")}
+                           for kind, item in overrule.items()}
+    return out
 
 
 # ── 提议（第 7 条） ─────────────────────────────────────────────────────────────
@@ -242,8 +257,10 @@ def proposal(cls: str, tier: str, trigger: str, payload: Optional[Mapping[str, A
 def compare(proposed: Optional[Mapping[str, Any]], payload: Optional[Mapping[str, Any]], *,
             chosen: Iterable[str] = (), edited: bool = False) -> Optional[Dict[str, Any]]:
     """人推一张有提议的单时，推出去的与提议比（第 7 条）：``{"class", "edited", "changed": [人另选的项], "stale": [因规则 /
-    记忆变化而不同的项]}``；没有提议回 None。``chosen``：这次人当场选过的类别（来源是人）；``edited``：推前改过票面。
-    「过时」的单不进样本（`companies.automation_rules.tally`）。"""
+    记忆变化而不同的项], "values": {项: {"from": 提议的值, "to": 推出去的值}}}``；没有提议回 None。``chosen``：这次人当场选过的
+    类别（来源是人）；``edited``：推前改过票面。「过时」的单不进样本（`companies.automation_rules.tally`）。``values`` 只列不同的
+    那几项（changed 与 stale 都列，值的写法同 `values`），统计人在复核时把提议的哪个值改成了什么（10-18 E1：线上真实的复核行为是
+    R1 的前提；改账套记忆的值另经 `push.choices.record` 记改值）。"""
     if not isinstance(proposed, Mapping) or proposed.get("class") not in ("A", "B"):
         return None
     before = proposed.get("values") if isinstance(proposed.get("values"), Mapping) else {}
@@ -252,7 +269,8 @@ def compare(proposed: Optional[Mapping[str, Any]], payload: Optional[Mapping[str
     differ = [kind for kind in PROPOSAL_KINDS if (before.get(kind) or "") != (after.get(kind) or "")]
     return {"class": proposed["class"], "edited": bool(edited),
             "changed": [kind for kind in differ if kind in chosen],
-            "stale": [kind for kind in differ if kind not in chosen]}
+            "stale": [kind for kind in differ if kind not in chosen],
+            "values": {kind: {"from": str(before.get(kind) or ""), "to": str(after.get(kind) or "")} for kind in differ}}
 
 
 __all__ = ["BASELINE_NEW", "BASELINE_OK", "B_AT_L2", "L0", "L1", "L2", "LINE", "PROPOSAL_KINDS", "PROPOSE", "PUSH", "READBACK_LAG_MONTHS", "STOP",

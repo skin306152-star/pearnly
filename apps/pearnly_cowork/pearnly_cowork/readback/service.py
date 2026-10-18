@@ -582,9 +582,10 @@ def month_status(sets, period):
 def month_changes(sets, period) -> list:
     """自动推送档位的证据（钩子 ``cowork_company_month_changes``，`companies.automation.documents`）：给的 Express 账套
     （``[{connection, key}]``）这个月完成时间最晚的那份回读（谁发起的都算，同月结台账「核对」一段）→ ``[{"connection", "key",
-    "readback", "requested_at", "changes": {推送记录: changed|deleted|voided|missing}, "truncated"}]``；没有完成的回读的账套不列。
-    ``truncated``：差异表只存前 `CHANGES_KEPT` 行，存下的单比摘要里的变化张数少（调用方把覆盖的单都当被改）。只给评估用，不核权限、
-    不出给页面；只读。"""
+    "readback", "requested_at", "changes": {推送记录: changed|deleted|voided|missing}, "kinds": {推送记录: [改了的类]},
+    "truncated"}]``；没有完成的回读的账套不列。``kinds``：改了科目 / 现 / 赊 / 对方档里的哪几类（`diff.changed_kinds`，R2 的回读改动
+    比例用，10-18）。``truncated``：差异表只存前 `CHANGES_KEPT` 行，存下的单比摘要里的变化张数少（调用方把覆盖的单都当被改、改了哪几
+    类按不知道）。只给评估用，不核权限、不出给页面；只读。"""
     try:
         when = contracts.period(period)
     except contracts.ContractError:
@@ -609,14 +610,16 @@ def month_changes(sets, period) -> list:
             continue
         seen.add(found)
         changes = {}
-        for item in _json(row.changes_json, {}).get("changes") or []:
+        items = [item for item in _json(row.changes_json, {}).get("changes") or [] if isinstance(item, dict)]
+        for item in items:
             record, change = str(item.get("record") or ""), str(item.get("change") or "")
             if record and change in diff.CHANGES:
                 changes.setdefault(record, change)
         counted = _json(row.summary_json, {}).get("pushed") or {}
         expected = sum(int(counted.get(name) or 0) for name in diff.CHANGES)
         out.append({"connection": row.connection, "key": wanted[found][1], "readback": row.name,
-                    "requested_at": row.requested_at, "changes": changes, "truncated": len(changes) < expected})
+                    "requested_at": row.requested_at, "changes": changes, "kinds": diff.changed_kinds(items),
+                    "truncated": len(changes) < expected})
     return out
 
 

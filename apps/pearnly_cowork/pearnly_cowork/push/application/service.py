@@ -223,10 +223,12 @@ def prepare(history, connection, request_key, expected_history_version, expected
     if automation:
         subjects = automation_rules.subjects(direction, fields, pos=isinstance(payload.get("pos"), dict))
         account_row = _account_row(loaded, target)
+        # 账套记忆定、判成 A 的科目 / 现 / 赊（R1，10-18）：领单时再看一次同账套有没有人刚把同一个记忆值改掉
+        overrule = automation.get("overrule") or None
         frozen["automation"] = automation_rules.frozen(
             automation.get("class"), automation.get("tier"), automation.get("trigger"), automation.get("reasons") or (),
             automation_service.current_hash(doc.record_version, loaded.doc.name, target.account_set,
-                                            account_row, subjects), subjects)
+                                            account_row, subjects, overrule), subjects, overrule)
         # 写入核不上时按这一行认公司、立刻降到 L0（回执里不再读连接目录）
         frozen["automation"]["account_row"] = account_row
     else:
@@ -242,7 +244,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
 
 
 def _proposal_outcome(doc, connection, account_set, fields, direction, payload, account_row=None):
-    """人推一张有提议（``auto_proposal``）的票：推出去的与提议比（`push.automation.rules.compare`）；没有提议回 None。"""
+    """人推一张有提议（``auto_proposal``）的票：推出去的与提议比（`push.automation.rules.compare`，带上不同的项提议的值与推出去的
+    值，统计复核行为用）；没有提议回 None。人在复核时改的账套记忆值另经 `push.choices.record` 记改值（R1）。"""
     raw = getattr(doc, "auto_proposal", None)
     try:
         proposed = json.loads(raw) if raw else None
@@ -417,6 +420,7 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         applied["account_from"] = _account_from(decision, connection, account_set, fields, direction, since, sources)
     remember = applied.pop("remember_payment", None)
     if remember:
+        # 票上人改的付款方式按对方记下；与记过的不同时 `record` 另记改值（R1）。复核页「要选的项」、自动推判定都整笔回滚，不落
         name, tax = ((fields.get("seller_name"), fields.get("seller_tax")) if direction == "purchase"
                      else (fields.get("buyer_name"), fields.get("buyer_tax")))
         choice_store.record(connection, account_set, "payment",
@@ -597,7 +601,8 @@ def masters_wait(masters, needed):
 
 
 def save_choices(history, connection, account_set_key, items):
-    """记下会计在复核页选的（每项 `{kind, subject, value, label}`）；值须在这份账套的主档里（或「新建」）。"""
+    """记下会计在复核页选的（每项 `{kind, subject, value, label}`）；值须在这份账套的主档里（或「新建」）。账套记忆里记过的科目 /
+    现 / 赊被改成别的值时 `push.choices.record` 另记一条改值（自动推判档 R1，10-18）。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)

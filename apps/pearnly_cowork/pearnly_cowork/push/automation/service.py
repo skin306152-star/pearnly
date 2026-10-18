@@ -62,14 +62,15 @@ def day_books(connection, account_row, day, catalog):
     return None
 
 
-def readback_marks(connection, account_set, records) -> dict:
-    """几张推成功的单在合格回读里的结果 ``{推送记录: confirmed|changed}``（`companies.automation.readback_marks`）；取不到、出错
-    回 {}（凭记忆推的单都不算证据，只会少算 A）。"""
+def readback_marks(connection, account_set, records, *, detail=False) -> dict:
+    """几张推成功的单在合格回读里的结果 ``{推送记录: confirmed|changed}``（`companies.automation.readback_marks`）；``detail`` 时
+    ``{推送记录: {"readback", "changed": [类] | None}}``（R2 的回读改动比例要知道改了哪几类）。取不到、出错回 {}（凭记忆推的单都不算
+    证据，只会少算 A）。"""
     if not records:
         return {}
     for path in frappe.get_hooks(MARKS_HOOK) or []:
         try:
-            found = frappe.get_attr(path)(connection, account_set, records)
+            found = frappe.get_attr(path)(connection, account_set, records, **({"detail": True} if detail else {}))
         except Exception:  # noqa: BLE001 — 取不到就当没核过
             _log("Cowork push readback marks failed")
             return {}
@@ -97,10 +98,28 @@ def memory(connection, account_set, account_row, scope=None) -> str:
     return rules.fingerprint(choice_store.remembered(connection, account_set), found, scope)
 
 
-def current_hash(record_version, connection, account_set, account_row, scope=None) -> str:
-    """此刻的 ``automation_hash``：票的版本、这家当前档位、这张单用得着的账套记忆与公司规则的指纹（准备时与领单时同一个函数）。"""
+def current_hash(record_version, connection, account_set, account_row, scope=None, overrule=None) -> str:
+    """此刻的 ``automation_hash``：票的版本、这家当前档位、这张单用得着的账套记忆与公司规则的指纹，加上账套记忆定的科目 / 现 / 赊
+    此刻被同账套的人改值挡下的类（``overrule``，`overruled_kinds`；准备时与领单时同一个函数）。"""
     return rules.automation_hash(record_version, tier(connection, account_set, account_row)["tier"],
-                                 memory(connection, account_set, account_row, scope))
+                                 memory(connection, account_set, account_row, scope),
+                                 overruled_kinds(connection, account_set, overrule))
+
+
+def overruled_kinds(connection, account_set, overrule, today=None) -> list:
+    """R1（10-18）：``overrule`` ``{类: {"value", "since"}}``（自动推判 A 时冻结的账套记忆值与证据时刻，`rules.frozen`）里，此刻
+    这份账套近 `automation.OVERRIDE_DAYS` 天有人把同一个记忆值改掉、且晚于 ``since`` 的类（`automation.overruled`）。一次查询
+    （`push.choices.overrides`）；没有 ``overrule`` 不查库。"""
+    from pearnly_cowork.push.express import automation as judging  # 只有带 overrule 的自动推才用得着
+
+    wanted = {kind: item for kind, item in (overrule or {}).items()
+              if kind in judging.OVERRIDE_KINDS and isinstance(item, dict) and item.get("value")}
+    if not wanted:
+        return []
+    found = choice_store.overrides(connection, account_set, {kind: item["value"] for kind, item in wanted.items()})
+    today = today or frappe.utils.getdate(frappe.utils.nowdate())
+    return sorted(kind for kind, item in wanted.items()
+                  if judging.overruled(kind, item["value"], item.get("since"), found, today))
 
 
 def verify_capable(connection, account_key, *, actor, route_device="") -> bool:
@@ -183,5 +202,6 @@ def chosen_kinds(connection, account_set, fields, direction, payload, since, acc
     return found
 
 
-__all__ = ["chosen_kinds", "company_rules", "current_hash", "day_books", "memory", "mismatch", "test_site_ok", "tier",
+__all__ = ["chosen_kinds", "company_rules", "current_hash", "day_books", "memory", "mismatch", "overruled_kinds",
+           "test_site_ok", "tier",
            "verify_capable"]

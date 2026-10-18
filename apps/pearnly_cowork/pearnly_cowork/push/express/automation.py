@@ -3,7 +3,8 @@
 纯函数，不连库、不依赖框架：推送服务（`push.application.service.assess`，后续阶段）与离线回放（`scripts/da-replay.py`）共用。
 取数由调用方做好放进 `Facts`；这里只判：
 
-- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目、现 / 赊、对方档都要最近连续 3 张有证据的同值）、公司规则、任务默认、
+- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目要最近连续 5 张、现 / 赊与对方档 3 张有证据的同值；科目与现 / 赊
+  另要这份账套近期没人把同一个记忆值改掉，科目还要证据窗口里回读改动不超过 20%，`memory_holds`）、公司规则、任务默认、
   v2 历史已定、按方向推断抵进项（原文核得到票种）、公司选的商品单入账方式与这家供应商的 Express 历史一致……），且第 2 条核对全过；
 - **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的账套记忆、
   按公司选、供应商历史没定下的商品单入账方式……）；
@@ -53,6 +54,22 @@ TEXT_CHARS_PER_PAGE = 200
 # 账套记忆定的科目（按供应商记一个）：这家供应商在这份账套里最近连续至少这么多张同科目才算规则定（A），否则 CC 判断（B）。
 # 第 15 条第一轮回放：记忆定的科目 7.6% 与会计记的不同（一家供应商不止一个科目），开发窗口按数据定（10-16）
 MEMORY_STREAK = 3
+# 按类的连续张数（R3，10-18 E1）：科目要最近连续 5 张有证据的同科目，现 / 赊、对方档仍 3 张。第六轮 strict A 类错 176 张全是账套记忆定的项，
+# 科目 117 项里「混着记」「一单多科目」的供应商窗口里刚好凑到 3 张同科目（NEWLINK 一单多科目与单科目约四成交替）；科目单用 5 张挡错 43、
+# 误挡 268，现 / 赊加到 5 张误挡多、挡错少（换法都是整份账套一起换，连续张数挡不住，靠 R1）
+MEMORY_STREAKS = {"account": 5, "payment": MEMORY_STREAK, "party": MEMORY_STREAK}
+# R1「同账套记忆值被人改」（10-18 E1）：这份账套近 `OVERRIDE_DAYS` 天里有人把账套记忆填的值 v 改成了别的（复核页 / 待处理页选的、
+# 复核页改的付款方式、主档页改的、存公司规则顶掉的，`push.choices.record` / `forget` 记下），而这家供应商的记忆也是 v、最近
+# `OVERRIDE_EVIDENCE` 张证据里有早于那次改动的 → 这一项降 B。第六轮记法中途变了 102 项里 92 项是同一份账套几家供应商同期一起换
+# （ASIA-FA 现购 → 赊购 55 张、ASIA-HA 科目 35 张），只靠回读发现不了（98 项录入时回读还没出），人在复核 B / C 单时先改了别家的同一个值
+OVERRIDE_KINDS = ("account", "payment")
+OVERRIDE_DAYS = 60
+OVERRIDE_EVIDENCE = MEMORY_STREAK
+# R2「回读改动比例」（只管科目，10-18 E1）：证据窗口里有合格回读结果的推送中，科目被会计改的超过这个百分比 → 科目降 B（挡「混着记」
+# 「一单多科目」：第六轮挡错 23、误挡 34）。被删、作废、找不到、差异表截断的单整张当被改（三类都算改）
+ACCOUNT_CHANGE_PERCENT = 20
+# 载荷的单据类型 → 账套记忆里现 / 赊的记法（`choices.PAYMENT_VALUES`）：R1 按记忆的值比
+PAYMENT_MEMORY = {"HP": "cash", "HS": "cash", "RR": "credit", "IV": "credit"}
 # 连续张数只数有证据的单（`memory_evidence`）：推的时候科目由人或规则定的（这张单上传后有人选的、任务默认、公司规则、Express
 # 历史已定）；凭账套记忆推出去的单要被合格回读覆盖、没被改才算（CC 自己推的单不能攒成「连续 3 张」，审查处理 10-16）
 EVIDENCE_SOURCES = frozenset({"chosen", "task_default", "company_rule", "express_history"})
@@ -128,7 +145,12 @@ class Facts:
     ``party_recent``：同一 13 位税号 + 同一分店最近几张单有证据的对方档码（都是 `memory_evidence` 的结果，没给按 0 张算）；
     ``posting_kind``：这次用的入账类型（``stock`` / ``service``，`goods_posting.resolve` 的值）；``posting_history``：这家供应商在这份
     账套里 Express 历史定下的入账方式（`readback.history_rules.posting_settled` 的 ``kind``，v3 起才有；空 = 没有 / 不够），
-    按公司选入账方式的单拿它定档（`posting_by_history`，用户 10-17）。"""
+    按公司选入账方式的单拿它定档（`posting_by_history`，用户 10-17）。
+
+    10-18 E1 三条（账套记忆定的科目 / 现 / 赊才用）：``overrides``：这份账套近 `OVERRIDE_DAYS` 天里人把账套记忆的值改掉的记录
+    ``[{kind, old, new, at}]``（`push.choices.overrides`，R1）；``memory_since``：``{类: 最近 `OVERRIDE_EVIDENCE` 张证据里最早那张的
+    时刻}``（`memory_since`，与 ``at`` 同一种时间：线上上传时刻、回放录入日）；``account_share``：证据窗口里有合格回读结果的推送中
+    科目被改的 ``(张数, 有结果的张数)``（`change_share`，R2；None 按没取）。"""
 
     direction: str
     fields: Mapping[str, Any]
@@ -156,6 +178,9 @@ class Facts:
     party_recent: Optional[Sequence[str]] = None
     posting_kind: str = ""
     posting_history: str = ""
+    overrides: Sequence[Mapping[str, Any]] = ()
+    memory_since: Mapping[str, Any] = field(default_factory=dict)
+    account_share: Optional[Tuple[int, int]] = None
 
 
 @dataclass(frozen=True)
@@ -576,7 +601,7 @@ def _party_tier(facts: Facts, source: Optional[str]) -> str:
         tier, master = _master(facts)
         if code and not _branch_printed(facts) and _same_tax_rows(facts) != 1:
             return B
-        return A if code and ((tier == A and code == master) or memory_settled(facts.party_recent, code)) else B
+        return A if code and ((tier == A and code == master) or memory_settled(facts.party_recent, code, "party")) else B
     if source in RULE_SOURCES:
         return A
     return _master(facts)[0]
@@ -584,9 +609,10 @@ def _party_tier(facts: Facts, source: Optional[str]) -> str:
 
 def _payment_tier(facts: Facts, source: str, payload: Mapping[str, Any]) -> str:
     """现 / 赊的档：票种口径只有判成现购 / 现销（收据即已付）算 A，判成赊（完整税票多为赊）是推断，算 B；账套记忆定的要这家
-    最近连续 3 张有证据的同一记法才算 A（10-17 推广，第四轮 ASIA-FA 推现购、会计记赊购 260 张）。"""
+    最近连续 3 张有证据的同一记法、且这份账套近期没人把同一个记忆值改掉（R1）才算 A（`memory_holds`；10-17 推广，第四轮 ASIA-FA
+    推现购、会计记赊购 260 张）。"""
     if source == "remembered":
-        return A if memory_settled(facts.payment_recent, str(payload.get("doctype") or "").strip().upper()) else B
+        return B if memory_holds(facts, "payment") else A
     if source == "doc_type":
         return A if str(payload.get("doctype") or "").upper() in CASH_DOCTYPES else B
     return PAYMENT_TIERS.get(source, C)
@@ -686,6 +712,28 @@ def _no_claim_printed(facts: Facts) -> bool:
     return no_claim_in_text(facts.fields, facts.text)
 
 
+def _evidence_pairs(entries: Iterable[Mapping[str, Any]], kind: str) -> List[Tuple[str, Mapping[str, Any]]]:
+    """`memory_evidence` 的序列，每个值带上它来自的那条推送（`memory_since` 要它的时刻）。"""
+    sources = EVIDENCE_BY_KIND[kind]
+    origin = "source" if kind == "account" else f"{kind}_source"
+    out: List[Tuple[str, Mapping[str, Any]]] = []
+    for entry in entries or ():
+        if not isinstance(entry, Mapping):
+            continue
+        source = str(entry.get(origin) or "")
+        if kind == "payment" and source in PAYMENT_OTHER_CLASS:
+            continue
+        value = str(entry.get(kind) or "").strip()
+        confirmed = entry.get("readback") == CONFIRMED and not (kind == "account" and entry.get("stock"))
+        if entry.get("readback") == CHANGED or entry.get(f"{kind}_changed"):
+            out.append(("", entry))
+        elif not value and kind != "account":
+            continue
+        elif source in sources or confirmed:
+            out.append((value, entry))
+    return out
+
+
 def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account") -> List[str]:
     """这家供应商在这份账套里最近推成功的单（新的在前）→ `memory_streak` 用的序列。``kind`` 是哪一类：
 
@@ -702,24 +750,7 @@ def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account")
     另两个键：``stock`` 真写了库存行的单（回执 ``line_modes``）回读不比分录（`readback.diff`），科目一类的 confirmed 不算证据（只认
     推的时候由人或规则定的）；``{kind}_changed`` 这一类在写入时就与推的值不同（对方档：载荷写定 X、桌面版写了 Z），按被改断开。
     推送服务（`push.application.assess._recent`）与回放共用。"""
-    sources = EVIDENCE_BY_KIND[kind]
-    origin = "source" if kind == "account" else f"{kind}_source"
-    out: List[str] = []
-    for entry in entries or ():
-        if not isinstance(entry, Mapping):
-            continue
-        source = str(entry.get(origin) or "")
-        if kind == "payment" and source in PAYMENT_OTHER_CLASS:
-            continue
-        value = str(entry.get(kind) or "").strip()
-        confirmed = entry.get("readback") == CONFIRMED and not (kind == "account" and entry.get("stock"))
-        if entry.get("readback") == CHANGED or entry.get(f"{kind}_changed"):
-            out.append("")
-        elif not value and kind != "account":
-            continue
-        elif source in sources or confirmed:
-            out.append(value)
-    return out
+    return [value for value, _entry in _evidence_pairs(entries, kind)]
 
 
 def window_take(entries: Sequence[Any], seen: set, *, periods: int = RECENT_PERIOD_MAX) -> int:
@@ -736,22 +767,119 @@ def window_take(entries: Sequence[Any], seen: set, *, periods: int = RECENT_PERI
     return len(entries)
 
 
-def memory_window(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
-                  scan: int = RECENT_SCAN_MAX, periods: int = RECENT_PERIOD_MAX) -> List[str]:
-    """证据窗口：这家供应商在这份账套里推成功的单（新的在前）往回最多看 ``scan`` 张、跨 ``periods`` 个不同的税期（`window_take`；
-    两个 0 都是不设上限，回放对照用；先截、再筛），``branch`` 不是 None 时只留同一分店的（对方档），这一类的值是 None 的跳过（回放
-    推不出这一类的近似，线上不会出现），其余交 `memory_evidence`——凭记忆推出去、还没合格回读核过的在那里跳过，剩下能当证据的按新到
-    旧排，`memory_settled` 看它最前面 `MEMORY_STREAK` 张。所以「最近」是在能当证据的推送里数的，不是先截最新几张推送再跳过（10-17
-    改取法，见 `RECENT_SCAN_MAX`）。只决定取哪些推送当候选，证据判定与连续计数照 `memory_evidence` / `memory_streak`。线上
-    `push.application.assess._recent` 分批往前取、每批按 `window_take` 截了再标回读、之后调这里，凑够 `MEMORY_STREAK` 张或到上限
-    就停（结果的前几张与一次取完相同）；回放 `pushed_evidence` 一次调。"""
+def window_rows(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
+                scan: int = RECENT_SCAN_MAX, periods: int = RECENT_PERIOD_MAX) -> List[Mapping[str, Any]]:
+    """证据窗口的候选推送：这家供应商在这份账套里推成功的单（新的在前）往回最多看 ``scan`` 张、跨 ``periods`` 个不同的税期
+    （`window_take`；两个 0 都是不设上限，回放对照用；先截、再筛），``branch`` 不是 None 时只留同一分店的（对方档），这一类的值是
+    None 的跳过（回放推不出这一类的近似，线上不会出现）。`memory_window`、`memory_since`（R1）、`change_share`（R2）共用。"""
     listed = list(entries or ())
     if scan and scan > 0:
         listed = listed[:scan]
     listed = listed[:window_take(listed, set(), periods=periods)]
-    rows = [entry for entry in listed if isinstance(entry, Mapping) and entry.get(kind) is not None
+    return [entry for entry in listed if isinstance(entry, Mapping) and entry.get(kind) is not None
             and (branch is None or entry.get("branch") == branch)]
-    return memory_evidence(rows, kind)
+
+
+def memory_window(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
+                  scan: int = RECENT_SCAN_MAX, periods: int = RECENT_PERIOD_MAX) -> List[str]:
+    """证据窗口（`window_rows` 的候选）交 `memory_evidence`——凭记忆推出去、还没合格回读核过的在那里跳过，剩下能当证据的按新到
+    旧排，`memory_settled` 看它最前面 `streak_for` 张。所以「最近」是在能当证据的推送里数的，不是先截最新几张推送再跳过（10-17
+    改取法，见 `RECENT_SCAN_MAX`）。只决定取哪些推送当候选，证据判定与连续计数照 `memory_evidence` / `memory_streak`。线上
+    `push.application.assess._recent` 分批往前取、每批按 `window_take` 截了再标回读、之后调这里，凑够张数或到上限就停（结果的前几张
+    与一次取完相同；科目要算 R2 的比例时取满窗口）；回放 `pushed_evidence` 一次调。"""
+    return memory_evidence(window_rows(entries, kind, branch=branch, scan=scan, periods=periods), kind)
+
+
+def memory_since(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
+                 scan: int = RECENT_SCAN_MAX, periods: int = RECENT_PERIOD_MAX, count: int = OVERRIDE_EVIDENCE) -> Any:
+    """R1：证据窗口里最近 ``count`` 张证据（`memory_window` 的前 ``count`` 张）中最早那张推送的时刻（条目的 ``at``：线上上传
+    时刻，回放录入日）；不够 ``count`` 张、其中有断开的（回读里被改）或缺时刻回 None（这时连续张数本来就不够，R1 用不上）。"""
+    found = _evidence_pairs(window_rows(entries, kind, branch=branch, scan=scan, periods=periods), kind)[:count]
+    if len(found) < count or any(not value or entry.get("at") is None for value, entry in found):
+        return None
+    times = [_instant(entry.get("at")) for _value, entry in found]
+    if any(at is None for at in times):
+        return None
+    if len({isinstance(at, dt.datetime) for at in times}) > 1:
+        times = [_as_date(at) for at in times]
+    return min(times)
+
+
+def change_share(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
+                 scan: int = RECENT_SCAN_MAX, periods: int = RECENT_PERIOD_MAX) -> Tuple[int, int]:
+    """R2：证据窗口（`window_rows`）里有合格回读结果的推送中，这一类被会计改了的 ``(张数, 有结果的张数)``。条目的
+    ``readback`` 是 `CONFIRMED` / `CHANGED`（同 `memory_evidence`），``changed_kinds`` 是回读差异里改了的类（`readback.diff.FIELD_KINDS`
+    换算；None = 只知道整张被改：删、作废、找不到、差异表截断，按三类都改算）。真写了库存行的单回读不比分录，科目一类不算有结果；
+    票面写明 / 票种口径定现 / 赊的单不算现 / 赊（同 `memory_evidence`）。推送服务与回放共用。"""
+    origin = "source" if kind == "account" else f"{kind}_source"
+    changed = known = 0
+    for entry in window_rows(entries, kind, branch=branch, scan=scan, periods=periods):
+        mark = entry.get("readback")
+        if mark not in (CONFIRMED, CHANGED):
+            continue
+        if kind == "account" and entry.get("stock"):
+            continue
+        if kind == "payment" and str(entry.get(origin) or "") in PAYMENT_OTHER_CLASS:
+            continue
+        known += 1
+        kinds = entry.get("changed_kinds")
+        if mark == CHANGED and (kinds is None or kind in kinds):
+            changed += 1
+    return changed, known
+
+
+def share_exceeded(share: Optional[Tuple[int, int]]) -> bool:
+    """R2：被改的超过有结果的 `ACCOUNT_CHANGE_PERCENT`%（整数比，没有结果的不算超）。"""
+    if not share:
+        return False
+    changed, known = share
+    return int(changed or 0) * 100 > ACCOUNT_CHANGE_PERCENT * int(known or 0)
+
+
+def _instant(value: Any) -> Any:
+    """时刻：datetime / date 原样（去掉时区：线上两边都是站点时区的裸时间），ISO 字符串解析；认不出回 None。"""
+    if isinstance(value, dt.datetime):
+        return value.replace(tzinfo=None)
+    if isinstance(value, dt.date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return dt.datetime.fromisoformat(text).replace(tzinfo=None) if len(text) > 10 else dt.date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def _as_date(value: Any) -> Optional[dt.date]:
+    value = _instant(value)
+    return value.date() if isinstance(value, dt.datetime) else value
+
+
+def overruled(kind: str, value: Any, since: Any, overrides: Iterable[Mapping[str, Any]], today: dt.date, *,
+              days: int = OVERRIDE_DAYS) -> bool:
+    """R1：这份账套近 ``days`` 天（按 ``today`` 往回数，含当天）有人把账套记忆的 ``value`` 改成了别的（``overrides`` 的
+    ``{kind, old, new, at}``，`push.choices.overrides`），而那次改动晚于 ``since``（这家最近 `OVERRIDE_EVIDENCE` 张证据里最早那张，
+    `memory_since`）——这家的证据是改法之前攒的。``value`` 是账套记忆的记法（科目码；现 / 赊 cash / credit，`PAYMENT_MEMORY`）。
+    同一种时间才比先后（线上都是裸时间，回放都是日子；混着时按日子比）。只管 `OVERRIDE_KINDS`；``since`` 为 None 不判。"""
+    value = str(value or "").strip()
+    since = _instant(since)
+    if kind not in OVERRIDE_KINDS or not value or since is None:
+        return False
+    for item in overrides or ():
+        if not isinstance(item, Mapping) or item.get("kind") != kind or str(item.get("old") or "").strip() != value:
+            continue
+        if str(item.get("new") or "").strip() == value:
+            continue
+        at = _instant(item.get("at"))
+        day = _as_date(at)
+        if at is None or day is None or not 0 <= (today - day).days <= days:
+            continue
+        mine, theirs = (at, since) if isinstance(at, dt.datetime) == isinstance(since, dt.datetime) \
+            else (day, _as_date(since))
+        if mine > theirs:
+            return True
+    return False
 
 
 def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
@@ -765,16 +893,61 @@ def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
     return count
 
 
-def memory_settled(recent: Optional[Sequence[Any]], value: Any) -> bool:
-    """账套记忆定的科目 / 现 / 赊 / 对方档算规则定：这家供应商在这份账套里最近连续至少 `MEMORY_STREAK` 张有证据的都记这个值
-    （推送服务与回放共用）。"""
-    return memory_streak(recent, value) >= MEMORY_STREAK
+def streak_for(kind: Optional[str]) -> int:
+    """这一类要的连续张数（`MEMORY_STREAKS`，R3：科目 5、现 / 赊与对方档 3）；不给类按 `MEMORY_STREAK`。"""
+    return MEMORY_STREAKS.get(kind, MEMORY_STREAK) if kind else MEMORY_STREAK
+
+
+def memory_settled(recent: Optional[Sequence[Any]], value: Any, kind: Optional[str] = None) -> bool:
+    """账套记忆定的科目 / 现 / 赊 / 对方档的连续张数够了：这家供应商在这份账套里最近连续至少 `streak_for` 张有证据的都记这个值
+    （``kind`` 给哪一类：科目 5 张、现 / 赊与对方档 3 张；不给按 `MEMORY_STREAK`。推送服务与回放共用）。"""
+    return memory_streak(recent, value) >= streak_for(kind)
+
+
+def memory_value(kind: str, payload: Optional[Mapping[str, Any]]) -> str:
+    """载荷里这一类按账套记忆的记法：科目码；现 / 赊按单据类型换成 cash / credit（`PAYMENT_MEMORY`），R1 拿它比改值记录。"""
+    payload = payload if isinstance(payload, Mapping) else {}
+    if kind == "account":
+        return str(payload.get("items_account") or "").strip()
+    if kind == "payment":
+        return PAYMENT_MEMORY.get(str(payload.get("doctype") or "").strip().upper(), "")
+    return ""
+
+
+def memory_holds(facts: Facts, kind: str) -> Tuple[str, ...]:
+    """账套记忆定的这一类为什么还不算规则定（空 = A；推送服务与回放共用，回放按码统计）：
+
+    - ``streak``：最近连续有证据的同值不到 `MEMORY_STREAK`（3）张；``streak_long``：到了 3 张、不到这一类的 `streak_for`（R3，科目 5 张）；
+    - ``overruled``：R1（`overruled`，科目与现 / 赊）；
+    - ``changed_share``：R2（`share_exceeded`，只管科目）。
+
+    对方档只看连续张数（主档唯一对上、分店没印另在 `_party_tier` 判）。"""
+    payload = _payload(facts)
+    if kind == "account":
+        recent, value = facts.account_recent, str(payload.get("items_account") or "").strip()
+    elif kind == "payment":
+        recent, value = facts.payment_recent, str(payload.get("doctype") or "").strip().upper()
+    else:
+        recent, value = facts.party_recent, _party_code(facts)
+    holds: List[str] = []
+    streak = memory_streak(recent, value)
+    if streak < MEMORY_STREAK:
+        holds.append("streak")
+    elif streak < streak_for(kind):
+        holds.append("streak_long")
+    if kind in OVERRIDE_KINDS and overruled(kind, memory_value(kind, payload), (facts.memory_since or {}).get(kind),
+                                            facts.overrides, facts.today):
+        holds.append("overruled")
+    if kind == "account" and share_exceeded(facts.account_share):
+        holds.append("changed_share")
+    return tuple(holds)
 
 
 def _account_tier(facts: Facts, source: str) -> str:
     if source == "remembered":
-        # 账套记忆按供应商只记一个科目：最近连续 3 张同科目才算 A，否则 B（第一轮回放后定）
-        return A if memory_settled(facts.account_recent, _payload(facts).get("items_account")) else B
+        # 账套记忆按供应商只记一个科目：最近连续 5 张同科目（R3）、近期没人把同一个记忆值改掉（R1）、窗口里回读改动不超过 20%（R2）
+        # 才算 A，否则 B（第一轮回放后定连续张数，10-18 E1 加三条）
+        return B if memory_holds(facts, "account") else A
     if source == "express_history":
         version = (facts.decision.get("history") or {}).get("version")
         return A if isinstance(version, int) and version >= HISTORY_VERSION else B
@@ -941,6 +1114,9 @@ __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim
            "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
            "memory_window", "RECENT_PERIOD_MAX", "RECENT_SCAN_MAX", "window_take",
+           "ACCOUNT_CHANGE_PERCENT", "change_share", "memory_holds", "memory_since", "memory_value", "MEMORY_STREAKS",
+           "OVERRIDE_DAYS", "OVERRIDE_EVIDENCE", "OVERRIDE_KINDS", "overruled", "PAYMENT_MEMORY", "share_exceeded",
+           "streak_for", "window_rows",
            "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "posting_by_history", "prior_entry",
            "reason_codes", "REASONS_FIRST",
            "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",

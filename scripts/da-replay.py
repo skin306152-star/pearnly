@@ -27,7 +27,8 @@
         [--express 70EXP] [--isprd ISPRD导出] [--registry SCCOMP导出]
     python3 da-replay.py judge --corpus ... --out OUT [--company 名称] [--express 70EXP] [--isprd ...] [--registry ...] \
         [--periods strict|estimated] [--tiebreak none,recent_entry,recent_push,ask_once] [--reask written|entered|off] \
-        [--lines none|answer] [--line-names stkdes|opaque] [--company-choice prior|full]
+        [--lines none|answer] [--line-names stkdes|opaque] [--company-choice prior|full] \
+        [--review-classes B,Cn,Cr|none] [--review-lag 1]
     PYTHONPATH=<含 pypdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
         --manifest /mnt/c/PearnlyStress/语料/06-录入推送/清单.tsv --out OUT
     python3 da-replay.py report --out OUT
@@ -53,6 +54,14 @@ ask_once 回答之后未被选中的那份有了更晚的录入就重问（10-18
 作对照）、跨 ``--recent-periods`` 个不同的税期（同线上 `automation.RECENT_PERIOD_MAX` 6，线上每个税期另查一次回读；不给时跟
 ``--recent-max``：非 0 取 6，0 也不设上限）。第五轮及以前的 ``--recent-max 30`` 是旧取法（截最新 30 张再跳过），存档按
 ``evidence_window`` 区分。
+
+账套记忆的三条收严（10-18 E1，与线上同一组纯函数 `automation.memory_holds`）：R1 同一份账套近 60 天有人把记忆填的值改成别的、
+这家记忆也是它、最近 3 张证据里有早于那次改动的 → 现 / 赊、科目降 B；R2 证据窗口里有回读结果的推送中科目被改超过 20% → 科目降 B；
+R3 科目要连续 5 张（现 / 赊、对方档仍 3 张）。R1 要「人改值」：``--review-classes``（默认 ``B,Cn,Cr``，同推荐方案：B 提议、C 类
+待处理页当场选、C 类复核页处理）的单上，凭账套记忆推出去、与会计记的不同的科目 / 现 / 赊 / 对方档由模拟的人改成会计的记法
+（`Review`，同线上 `push.choices.record`：改的值记进账套记忆、科目与现 / 赊另记改值，这张按改后的值推）；``--review-lag``（默认 1）
+R1 只认几天前的改值（回放上传日是录入日，同一天先后不明，1 是保守的一头；0 同一天先处理的也算）；``none`` 不模拟（第六轮口径）。
+存档与 ``summary.json`` 记 ``review``（参数与改的次数）与 ``rules``，汇总多 ``tightening``（三条各挡了多少，`tightening_summary`）。
 
 与第四轮不能直接比：judge 默认 ``--periods strict``、答案的走库存口径、替公司选入账方式的口径、证据的上限与整张记录回读都变了。
 第四轮口径的对照组合是 ``--periods estimated --company-choice full --recent-max 0 --readback-scope account``（`--lines none`），
@@ -1066,6 +1075,76 @@ class Memory:
                 self.kinds[kind][subject] = value
 
 
+# 模拟的人复核时改值（10-18 E1，线上口径）：B 提议、C 类待处理页当场选（有要选的项，Cn）、C 类复核页处理（没有要选的项，Cr）。
+# 默认同推荐方案（三种都改、改值只认前一天及更早）；``--review-classes none`` 不模拟（第六轮口径）
+REVIEW_CLASSES = ("B", "Cn", "Cr")
+REVIEW_LAG = 1
+# 模拟的人会改的账套记忆项（推出去时凭记忆、与会计的记法不同的）；进改值记录的只有 `automation.OVERRIDE_KINDS`（同线上
+# `push.choices.record`）
+REVIEW_KINDS = ("account", "payment", "party")
+
+
+class Review:
+    """模拟的人在处理 B 提议与 C 类单时，把账套记忆填错的科目、现 / 赊、对方档改成会计的记法（线上口径，10-18 E1 的 R1 前提）：
+    改的值按对方记进账套记忆（同线上 `push.choices.record`：复核页选的科目、改的付款方式推出去时记下的、对方档选的），科目与现 / 赊
+    另记一条改值（`note`，同线上 `Cowork Express Choice Change`），这张单按改后的值推出去（科目来源记 ``chosen``、现 / 赊记
+    ``manual``，同线上人当场选 / 票上改，推的时候就算证据）。只改凭账套记忆推出去的项（这张单要人选的项照 `Memory.learn`），
+    分类映射、默认科目等别的来源推错的不模拟（回放的账套记忆仍只从人选的项学）。
+
+    ``lag``：R1 判档时只看几天前的改值（`visible`；0 = 这张之前处理过的都算，含同一天先处理的；1 = 只认前一天及更早——回放的上传
+    日是录入日，同一天谁先谁后不知道，线上按秒取得到，回放取保守的一头）。记忆与推送记录按处理先后当场生效（同一家这张改了，下一张
+    就用新值，连续张数从头攒，不会因此多出 A）。"""
+
+    def __init__(self, classes: Iterable[str] = REVIEW_CLASSES, lag: int = REVIEW_LAG):
+        self.classes = frozenset(classes or ())
+        self.lag = max(int(lag or 0), 0)
+        # (账套, 类, 旧值) → 改的日子（不减）与改值记录，`visible` 按日子二分
+        self.index: Dict[Tuple[str, str, str], Tuple[List[dt.date], List[Dict[str, Any]]]] = {}
+        self.counts: collections.Counter = collections.Counter()
+
+    def visible(self, book: str, entered: dt.date, values: Mapping[str, str],
+                days: Optional[int] = None) -> List[Dict[str, Any]]:
+        """判这张单（录入日 ``entered``）时看得到的改值记录：这份账套、这几类各自的记忆值（``values`` ``{类: 值}``）、近 ``days``
+        天（默认 `automation.OVERRIDE_DAYS`），按 ``lag`` 截。"""
+        days = days if days is not None else OVERRIDE_DAYS
+        out: List[Dict[str, Any]] = []
+        for kind, value in (values or {}).items():
+            found = self.index.get((book, kind, str(value or "")))
+            if not found:
+                continue
+            stamps, events = found
+            low = bisect.bisect_left(stamps, entered - dt.timedelta(days=days))
+            high = len(stamps) if not self.lag else bisect.bisect_right(stamps, entered - dt.timedelta(days=self.lag))
+            out.extend(events[low:high])
+        return out
+
+    def note(self, book: str, kind: str, old: str, new: str, at: dt.date, subject: str, cls: str) -> None:
+        """记一次改值（只记 `automation.OVERRIDE_KINDS`；改的次数按 类别|项 计）。"""
+        self.counts[f"{cls}|{kind}"] += 1
+        if kind not in OVERRIDE_KINDS:
+            return
+        stamps, events = self.index.setdefault((book, kind, old), ([], []))
+        stamps.append(at)
+        events.append({"kind": kind, "old": old, "new": new, "at": at, "subject": subject})
+        self.counts["events"] += 1
+
+    def summary(self) -> Dict[str, Any]:
+        return {"classes": sorted(self.classes), "lag": self.lag,
+                "corrections": {key: value for key, value in sorted(self.counts.items()) if key != "events"},
+                "events": self.counts.get("events", 0)}
+
+
+def review_classes(text: Any) -> Tuple[str, ...]:
+    """``--review-classes``：逗号隔开的 B / Cn / Cr，``none`` 或空 = 不模拟。"""
+    found = tuple(dict.fromkeys(item.strip() for item in str(text or "").split(",") if item.strip()))
+    if found in ((), ("none",)):
+        return ()
+    unknown = sorted(set(found) - set(REVIEW_CLASSES))
+    if unknown:
+        raise SystemExit(f"unknown --review-classes {','.join(unknown)} (choose from {','.join(REVIEW_CLASSES)} or none)")
+    return found
+
+
 COMPANY_CHOICE_MODES = ("prior", "full")
 # 替公司选入账方式时「此前已录单的多数」至少要这么多张会交人的单，不够退到全期多数（审查处理 10-17：一两张就定，第四轮初跑
 # NEWLINK 那种第一张恰好是服务的会整家选反）
@@ -1128,6 +1207,9 @@ class CompanyChoice:
 
 
 _READBACK_DAYS: Dict[str, dt.date] = {}
+# R1 的窗口（同线上 `automation.OVERRIDE_DAYS`，测试锁住两边相同；回放不在模块头导入 automation）
+OVERRIDE_DAYS = 60
+OVERRIDE_KINDS = ("account", "payment")
 # 证据窗口往回最多看这家这么多张推送（同线上 `automation.RECENT_SCAN_MAX`；回放不导入 assess：它连 Frappe，常量与窗口函数都在
 # 纯函数的 automation 里，测试锁住两边相同）。``--recent-max 0`` 不设上限（对照）
 RECENT_MAX = 1000
@@ -1136,6 +1218,8 @@ RECENT_MAX = 1000
 RECENT_PERIODS = 6
 # 证据窗口的取法（存档用）：先跳过没回读核过的凭记忆推送、再取最近的（10-17）；没有这一项的存档是旧取法 newest（截最新几张再跳过）
 EVIDENCE_WINDOW = "evidence_first"
+# 账套记忆的三条收严（10-18 E1，存档用）：R1 同账套记忆值被人改、R2 科目回读改动比例、R3 科目连续 5 张；没有这一项的存档是第六轮及以前
+MEMORY_RULES = "e1:r1,r2,r3"
 READBACK_SCOPES = ("record", "account")
 
 
@@ -1150,6 +1234,15 @@ def window_periods(limit: int, periods: Optional[int] = None) -> int:
 def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind: str = "account",
                     branch: Optional[str] = None, limit: int = RECENT_MAX,
                     periods: Optional[int] = None) -> List[str]:
+    """证据序列（`pushed_window` 的条目交线上同一个 `automation.memory_window`），见 `pushed_window`。"""
+    periods = window_periods(limit, periods)
+    return m["automation"].memory_window(pushed_window(m, log, entered, kind, branch, limit, periods), kind,
+                                         branch=branch, scan=limit, periods=periods)
+
+
+def pushed_window(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind: str = "account",
+                  branch: Optional[str] = None, limit: int = RECENT_MAX,
+                  periods: Optional[int] = None) -> List[Dict[str, Any]]:
     """回放里这家供应商在这份账套里之前推出去的单（``log`` 按推的先后，``{account, source, payment, payment_source, party,
     party_source, branch, stock, ok, period, entered}``）→ 证据序列（新的在前），与线上 `assess._recent` 同一个窗口函数
     `automation.memory_window`（10-17 改取法：先跳过凭记忆推出去、还没回读核过的，再在能当证据的里取最近的；往回最多看 ``limit``
@@ -1158,7 +1251,10 @@ def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind:
     出去的，要这期的合格回读（截止日后一天）在这张单录入之前、而且在那张推出去之后，整张记录与会计最终记的都相同才算（``ok``，
     见 `pushed_record`；任一不同就是回读里被改，三类一起断开，同线上 `readback_marks` 按整张记录，10-17）；还没回读核过的不算证据。
     ``branch``：对方档只数同一分店的。值为 None 的是回放推不出这一类（C 类重出载荷也没出，`judge_document` 的近似），跳过。回放
-    假定每一期都在申报截止日后一天按时做了合格回读，线上要有人真发起回读才有证据。"""
+    假定每一期都在申报截止日后一天按时做了合格回读，线上要有人真发起回读才有证据。
+
+    回 `automation.memory_window` / `memory_since` / `change_share` 的条目（10-18 E1）：多带 ``at``（录入日，R1 比改值的先后）与
+    ``changed_kinds``（回读里被改的那几类，`pushed_record`，R2）。"""
     periods = window_periods(limit, periods)
     recent = list(reversed(log or ()))
     if limit and limit > 0:
@@ -1177,15 +1273,16 @@ def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind:
                         "payment": record.get("payment"), "payment_source": record.get("payment_source") or "",
                         "party": record.get("party"), "party_source": record.get("party_source") or "",
                         "branch": record.get("branch"), "stock": bool(record.get("stock")), "readback": mark,
-                        "period": record.get("period")})
-    return m["automation"].memory_window(entries, kind, branch=branch, scan=limit, periods=periods)
+                        "period": record.get("period"), "at": record.get("entered"),
+                        "changed_kinds": list(record.get("changed_kinds") or ()) if mark else []})
+    return entries
 
 
 PUSHED_KINDS = ("party", "account", "payment", "vat", "posting", "item")
 
 
 def pushed_record(answer: Mapping[str, Any], payload: Optional[Mapping[str, Any]], values: Mapping[str, Any],
-                  needed: Iterable[str], scope: str = "record") -> Dict[str, Any]:
+                  needed: Iterable[str], scope: str = "record", corrected: Iterable[str] = ()) -> Dict[str, Any]:
     """这张推出去的单记进 ``pushed`` 的样子（`pushed_evidence` 用）：值与来源取推出去的载荷，对方档取 CC 桌面版实际写的码（载荷
     写定的码，没写按 CC 桌面版找档 `payload_values`；找不到要新建 / 定不出的记空串，同线上回执 ``meta.party_code``，审查处理
     10-17）；这次要人选的类按答案（模拟的人选的）——科目来源记 ``chosen``（推送服务按上传后有人选细分），现 / 赊记 ``remembered``
@@ -1193,7 +1290,9 @@ def pushed_record(answer: Mapping[str, Any], payload: Optional[Mapping[str, Any]
     科目的 confirmed 不算证据）。``ok``：推出去的对方档、科目、现 / 赊、抵进项、入账方式、存货都与答案相同（答案没有这一项不比，
     一单多科目算不同）——合格回读里整张没被改；入账方式与存货只在计分的单上比（审查处理 10-17：原先不比，比线上整张记录宽）。
     ``scope`` 为 ``account`` 时只比科目（第四轮口径，``--readback-scope account`` 对照）。没载荷时（推不出）各类记 None，``ok``
-    只比要人选的几类（乐观近似）。"""
+    只比要人选的几类（乐观近似）。``corrected``：模拟的人复核时把凭记忆推的值改成会计记法的类（`Review`，10-18）：按答案推，科目
+    来源记 ``chosen``、现 / 赊记 ``manual``（同线上：复核页选的科目、票上改的付款方式，推的时候就算证据）。``changed_kinds``：
+    回读里会被改的科目 / 现 / 赊 / 对方档（R2 的比例，同线上 `readback.diff.FIELD_KINDS`；``scope`` 为 ``account`` 时只看科目）。"""
     payload = payload if isinstance(payload, Mapping) else None
     needed = set(needed or ())
     doctype = str((payload or {}).get("doctype") or "").strip().upper()
@@ -1218,9 +1317,21 @@ def pushed_record(answer: Mapping[str, Any], payload: Optional[Mapping[str, Any]
     for kind in ("vat", "item"):
         if kind in needed:
             pushed[kind] = answer.get(kind)
+    for kind in corrected or ():
+        if kind == "account":
+            out.update(account=str(answer.get("account") or ""), source="chosen")
+        elif kind == "payment":
+            out.update(payment={"cash": "HP", "credit": "RR"}.get(answer.get("payment"), ""), payment_source="manual")
+        elif kind == "party":
+            out.update(party=str(answer.get("party") or ""))
+        pushed[kind] = answer.get(kind)
     kinds = PUSHED_KINDS if scope == "record" else ("account",)
-    out["ok"] = all(answer.get(kind) is None or (kind not in pushed and payload is None)
-                    or (answer[kind] != "*multi" and pushed.get(kind) == answer[kind]) for kind in kinds)
+
+    def differs(kind):
+        return not (answer.get(kind) is None or (kind not in pushed and payload is None)
+                    or (answer[kind] != "*multi" and pushed.get(kind) == answer[kind]))
+    out["ok"] = not any(differs(kind) for kind in kinds)
+    out["changed_kinds"] = [kind for kind in ("account", "payment", "party") if kind in kinds and differs(kind)]
     return out
 
 
@@ -1258,7 +1369,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
                    company: Optional[CompanyChoice] = None, shaped: Optional[Sequence[Mapping[str, Any]]] = None,
                    pushed: Optional[Dict[str, List[Dict[str, Any]]]] = None, lines: str = "none",
                    names: str = "stkdes", recent_max: int = RECENT_MAX, readback_scope: str = "record",
-                   auto: Optional[set] = None, recent_periods: Optional[int] = None):
+                   auto: Optional[set] = None, recent_periods: Optional[int] = None, review: Optional[Review] = None):
     """一张答案单走一遍推送判定 → 判定结果（类别、原因、逐项计分）。C 类由模拟的人按答案选（记进账套记忆）；商品单入账方式
     因没选过交人时，模拟的人按这张单的答案替这家公司选一次（``company``）。``shaped``：这家公司各份账套（`shaped_books`），
     按日期选账套用；没给只认这一份。``pushed``：这份账套里各家供应商（13 位税号）之前推出去的单（科目、现 / 赊、对方档与整张
@@ -1272,7 +1383,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     CC 推的单，回放里能被自动推的单线上会是 USERID=PEARNLY、不进历史，所以不剔是上界、全剔是下界），以及按「录入日与税期截止日
     取早」估上传日重判日期核对的 ``class_alt``。``recent_max`` / ``recent_periods`` / ``readback_scope`` 见 `pushed_evidence`
     / `pushed_record`；``memory_cap_lost`` 记账套记忆定的哪几类只因证据窗口往回看的上限（``recent_max`` 张、``recent_periods`` 个
-    税期）没到 A（都不设上限会到）。"""
+    税期）没到 A（都不设上限会到）。``review``：模拟的人复核 B / C 单时改凭记忆推错的值（`Review`，10-18），判档时这份账套的改值
+    记录进 ``Facts.overrides``（R1）；行里另记 ``memory_holds``（账套记忆定的类为什么不是 A，`automation.memory_holds`）、
+    ``review_class``（B / Cn / Cr）与 ``corrected``（这张被模拟的人改了哪几类）。"""
     company = company if company is not None else CompanyChoice()
     pushed = pushed if pushed is not None else {}
     automation = m["automation"]
@@ -1365,12 +1478,31 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
 
     periods = window_periods(recent_max, recent_periods)
 
-    def evidence(limit, cap):
-        return {"account": pushed_evidence(m, log, entered, limit=limit, periods=cap),
-                "payment": pushed_evidence(m, log, entered, "payment", limit=limit, periods=cap),
-                "party": pushed_evidence(m, log, entered, "party", branch, limit=limit, periods=cap)}
+    def windows(limit, cap):
+        return {"account": pushed_window(m, log, entered, limit=limit, periods=cap),
+                "payment": pushed_window(m, log, entered, "payment", limit=limit, periods=cap),
+                "party": pushed_window(m, log, entered, "party", branch, limit=limit, periods=cap)}
 
-    recent = evidence(recent_max, periods) if direction == "purchase" else {"account": [], "payment": None, "party": None}
+    def evidence(limit, cap, rows=None):
+        rows = rows if rows is not None else windows(limit, cap)
+        return {kind: automation.memory_window(found, kind, branch=branch if kind == "party" else None, scan=limit,
+                                               periods=cap) for kind, found in rows.items()}
+
+    since: Dict[str, Any] = {}
+    share = None
+    if direction == "purchase":
+        rows_now = windows(recent_max, periods)
+        recent = evidence(recent_max, periods, rows_now)
+        # R1 比的「最近 3 张证据」的最早录入日、R2 的回读改动比例（10-18 E1，线上 `assess._recent` 同一组函数）
+        since = {kind: automation.memory_since(rows_now[kind], kind, scan=recent_max, periods=periods)
+                 for kind in automation.OVERRIDE_KINDS}
+        share = automation.change_share(rows_now["account"], "account", scan=recent_max, periods=periods)
+    else:
+        recent = {"account": [], "payment": None, "party": None}
+    # R1：这份账套里人改记忆值的记录（同线上 `push.choices.overrides`：只取这张单记忆值的那几类）
+    overrides = review.visible(book["key"], entered, {kind: automation.memory_value(kind, payload)
+                                                      for kind in automation.OVERRIDE_KINDS}) \
+        if review is not None and payload else []
     pages = [{"fields": fields, "_layer_chain": ["direct"]}]
     picked = day_books(m, shaped, book, day) if shaped is not None else [book_key(m, book)]
     facts = automation.Facts(
@@ -1383,8 +1515,15 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
         payment_recent=recent["payment"], party_recent=recent["party"],
         prior_pushes=prior.get(_ref_key(m, fields["invoice_number"]), []), history_read=entered,
         layers=automation.layers(fields, direction=direction, remembered=remembered,
-                                 history=(decision.get("history") or {}).get("account")))
+                                 history=(decision.get("history") or {}).get("account")),
+        overrides=overrides, memory_since=since, account_share=share)
     verdict = automation.classify(facts)
+    # 账套记忆定的类为什么不是 A（R1–R3 各挡了多少，回放按码统计）
+    memory_sources = {"account": (payload or {}).get("account_source"), "payment": (payload or {}).get("doctype_src"),
+                      "party": (decision.get("decided_by") or {}).get("party")}
+    holds = {kind: list(automation.memory_holds(facts, kind)) for kind in REVIEW_KINDS
+             if payload and memory_sources[kind] == "remembered" and verdict.items.get(kind) == "B"}
+    holds = {kind: codes for kind, codes in holds.items() if codes}
 
     def history_tier(kind: str) -> Optional[str]:
         """按公司选入账方式的单加上供应商存货历史这一层的档：调线上同一个判据 `automation.posting_by_history`（用户 10-17 批准接
@@ -1418,7 +1557,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             if sources[kind] != "remembered" or verdict.items.get(kind) != "B" or not wanted[kind]:
                 continue
             loose = loose or evidence(0, 0)
-            if automation.memory_settled(loose[kind], wanted[kind]):
+            if automation.memory_settled(loose[kind], wanted[kind], kind):
                 cap_lost.append(kind)
 
     # 上传日另估一次（10-17，`upload_proxy`）：只重判日期类核对（date_stale / day_month / date_future），其余时钟不变
@@ -1439,20 +1578,39 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     if verdict.cls == "C":
         memory.learn(decision["needed"], answer, item_codes)
     pushed_from = ""
+    review_class = "B" if verdict.cls == "B" else ("Cn" if decision["needed"] else "Cr") if verdict.cls == "C" else ""
+    corrected: List[str] = []
     if len(supplier) == 13:
         # 这张推出去的单（A / B 照载荷；C 由模拟的人推：要人选的按答案选，没出载荷的学完记忆、公司选过入账方式后照线上再出一次，
         # 拿到人真正会推出去的载荷；还是出不来的按 `pushed_record` 的乐观近似）
-        pushed_payload, pushed_from, _kind = payload, "payload", posting_kind
+        pushed_payload, pushed_from, _kind, pushed_decision = payload, "payload", posting_kind, decision
         if payload is None:
             config = configure()
             remembered = {kind: dict(values) for kind, values in memory.kinds.items()}
-            _kind, _origin, _decision, pushed_payload, _ready, _reason = plan()
+            _kind, _origin, pushed_decision, pushed_payload, _ready, _reason = plan()
             pushed_from = "replanned" if pushed_payload else "approx"
-        record = pushed_record(answer, pushed_payload,
-                               payload_values(pushed_payload, book, fields,
-                                              None if lines == "answer" else _kind or "service")
-                               if pushed_payload else {},
-                               [item.get("kind") for item in decision["needed"]], readback_scope)
+        pushed_values = payload_values(pushed_payload, book, fields, None if lines == "answer" else _kind or "service") \
+            if pushed_payload else {}
+        needed_kinds = [item.get("kind") for item in decision["needed"]]
+        if review is not None and review_class in review.classes and pushed_payload:
+            # 模拟的人复核这张 B / C 单：凭账套记忆推的科目、现 / 赊、对方档与会计记的不同就改（`Review`），改的值记进账套记忆、
+            # 科目与现 / 赊另记改值（R1）
+            found_sources = {"account": pushed_payload.get("account_source"), "payment": pushed_payload.get("doctype_src"),
+                             "party": (pushed_decision.get("decided_by") or {}).get("party")}
+            olds = {"account": automation.memory_value("account", pushed_payload),
+                    "payment": automation.memory_value("payment", pushed_payload),
+                    "party": str(pushed_values.get("party") or "")}
+            supplier_key = m["choices"].supplier_subject(direction, fields.get("seller_tax"), fields.get("seller_name"))
+            for kind in REVIEW_KINDS:
+                want, old = answer.get(kind), olds[kind]
+                if (kind in needed_kinds or found_sources[kind] != "remembered" or want is None or want == "*multi"
+                        or not old or old in ("new", "ambiguous") or old == want):
+                    continue
+                key = subject if kind == "party" else supplier_key
+                memory.kinds[kind][key] = want
+                review.note(book["key"], kind, old, want, entered, key, review_class)
+                corrected.append(kind)
+        record = pushed_record(answer, pushed_payload, pushed_values, needed_kinds, readback_scope, corrected=corrected)
         pushed.setdefault(supplier, []).append(dict(record, branch=branch, period=day.strftime("%Y-%m"),
                                                     entered=entered))
     prior.setdefault(_ref_key(m, fields["invoice_number"]), []).append(
@@ -1478,7 +1636,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             "items_status": str((payload or {}).get("items_status") or ""), "posting_history": posting_history,
             "posting_tier_if_history": history_tier(posting_history),
             "posting_history_manual": posting_manual, "posting_tier_if_history_manual": history_tier(posting_manual),
-            "memory_cap_lost": cap_lost,
+            "memory_cap_lost": cap_lost, "memory_holds": holds, "review_class": review_class, "corrected": corrected,
             # 估上传日（10-17）：日子、来源（entered / vat_deadline）、按它重判的类别与原因（原因与现行一样时不重复存）
             "uploaded_alt": uploaded_alt.isoformat(), "uploaded_src": uploaded_src, "class_alt": alt.cls,
             **({} if list(alt.reasons) == list(verdict.reasons) else {"reasons_alt": list(alt.reasons)}),
@@ -1568,8 +1726,8 @@ def holders(books: Sequence[Mapping[str, Any]]) -> collections.Counter:
 def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Mapping[str, set]] = None, *,
                   lines: str = "none", names: str = "stkdes", choice_mode: str = "prior",
                   choice: Optional[Dict[str, Any]] = None, recent_max: int = RECENT_MAX,
-                  readback_scope: str = "record",
-                  recent_periods: Optional[int] = None) -> Tuple[List[Dict[str, Any]], collections.Counter]:
+                  readback_scope: str = "record", recent_periods: Optional[int] = None,
+                  review: Optional[Review] = None) -> Tuple[List[Dict[str, Any]], collections.Counter]:
     """一家公司（各年度账套）按单据录入日顺序判；每份账套各自一份账套记忆与已推记录。同一张单只在一份账套里回放
     （`owners`）。``registered``（`registered_books`）：给了时按日期选账套与目录只认登记了的账套（线上目录 = 登记表），
     没登记的账套里的单照样判（选出的就不是它）。每行另记 ``unique``（这张单只在一份账套里有，`tiebreak` 只拿这种计分）、
@@ -1578,7 +1736,8 @@ def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Ma
     多数，对照）；两种「多数」都只在会因入账方式交人的单里数（`posting_population`，审查处理 10-17：原先整家全部单都算，费用车道的
     单偏向 service），此前的不到 `PRIOR_MIN` 张时退到全期多数（``full_fallback``）；给了 ``choice`` 时把这家选了什么、凭什么
     （`CompanyChoice.summary`）写进去。``recent_max`` / ``recent_periods`` / ``readback_scope`` 见 `pushed_evidence` /
-    `pushed_record`。"""
+    `pushed_record`。``review``：模拟的人复核时改值（`Review`，一家一个，各份账套各记各的改值）；不给按默认（`REVIEW_CLASSES`、
+    `REVIEW_LAG`），给 ``Review(())`` 不模拟。"""
     listed = [book for book in books if is_registered(book, registered)]
     catalog = [account_row(book) for book in listed]
     out, skipped = [], collections.Counter()
@@ -1621,11 +1780,12 @@ def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Ma
     shaped = shaped_books(m, listed)
     pushed = collections.defaultdict(dict)  # 每份账套：供应商 → 推出去的单（科目、现 / 赊、对方档，`pushed_evidence`）
     auto: set = set()  # 判成 A / B 的单（``id``）：存货历史「不含 CC 推的」下界口径从历史里剔掉（`judge_document`）
+    review = review if review is not None else Review()
     for entered, _day, _number, book, doc in queue:
         row = judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
                              purchases[book["key"]], company, shaped, pushed[book["key"]], lines=lines, names=names,
                              recent_max=recent_max, readback_scope=readback_scope, auto=auto,
-                             recent_periods=recent_periods)
+                             recent_periods=recent_periods, review=review)
         if row["class"] in ("A", "B"):
             auto.add(id(doc))
         row.update(unique=held[doc_key(doc)] == 1, registered=is_registered(book, registered),
@@ -2210,9 +2370,11 @@ def cmd_judge(args) -> int:
     for company, pairs in sorted(loaded.items()):
         books = [book for _folder, book in pairs]
         choice: Dict[str, Any] = {}
+        review = Review(review_classes(args.review_classes), args.review_lag)
         judged, why = judge_company(m, books, registered, lines=args.lines, names=args.line_names,
                                     choice_mode=args.company_choice, choice=choice, recent_max=args.recent_max,
-                                    readback_scope=args.readback_scope, recent_periods=args.recent_periods)
+                                    readback_scope=args.readback_scope, recent_periods=args.recent_periods,
+                                    review=review)
         base = m["automation_rules"].THRESHOLDS
         tiers = {name: timeline(m, judged, value or base) for name, value in THRESHOLD_SETS.items()}
         tiers["A_task"] = timeline(m, judged, base, trigger="task")
@@ -2234,7 +2396,10 @@ def cmd_judge(args) -> int:
                      # 账套记忆的证据口径（审查处理 10-17）：最新几张（0 不设上限）、回读按整张记录还是只比科目
                      "recent_max": args.recent_max, "readback_scope": args.readback_scope,
                      "recent_periods": window_periods(args.recent_max, args.recent_periods),
-                     "evidence_window": EVIDENCE_WINDOW})
+                     "evidence_window": EVIDENCE_WINDOW,
+                     # 模拟的人复核时改值（10-18 E1）：哪几类单、R1 只认几天前的改值、这家改了多少
+                     "review": {company: review.summary()},
+                     "rules": MEMORY_RULES})
         print(f"{company}: {len(judged)} docs, " + ", ".join(
             f"{key} {sum(1 for row in judged if row['class'] == key)}" for key in "ABC"), flush=True)
     return 0
@@ -2246,7 +2411,8 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
         return None
     merged: Dict[str, Any] = {"rows": [], "skipped": {}, "tiers": {}, "tiebreak": {}, "origins": {}, "periods": set(),
                               "lines": set(), "company_choice": set(), "goods_posting": {}, "recent_max": set(),
-                              "readback_scope": set(), "evidence_window": set(), "recent_periods": set(), "reask": set()}
+                              "readback_scope": set(), "evidence_window": set(), "recent_periods": set(), "reask": set(),
+                              "review": {}, "rules": set()}
     for path in files:
         part = json.loads(path.read_text(encoding="utf-8"))
         merged["rows"].extend(part["rows"])
@@ -2263,8 +2429,10 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
         merged["evidence_window"].add(part.get("evidence_window") or "newest")  # 第五轮及以前：截最新几张再跳过
         merged["recent_periods"].add(str(part.get("recent_periods", 0)))  # 10-17 审查前不按税期截
         merged["reask"].add(part.get("reask") or "off")  # 10-18 之前的 ask_once 不重问
+        merged["review"].update(part.get("review") or {})  # 10-18 E1 之前不模拟人改值
+        merged["rules"].add(part.get("rules") or "-")  # 第六轮及以前没有三条收严
     for key in ("periods", "lines", "company_choice", "recent_max", "readback_scope", "evidence_window",
-                "recent_periods", "reask"):
+                "recent_periods", "reask", "rules"):
         merged[key] = sorted(merged[key])
     return merged
 
@@ -2472,6 +2640,50 @@ def upload_summary(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
             "A_alt": _accuracy([row for row in rows if (row.get("class_alt") or row["class"]) == "A"], "correct_eval")}
 
 
+# 三条收严（10-18 E1）挡下的码（`automation.memory_holds`）：R3 科目到了 3 张不到 5 张、R1 同账套记忆值被人改、R2 科目回读改动比例
+NEW_HOLDS = ("streak_long", "overruled", "changed_share")
+
+
+def tightening_summary(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    """三条收严各挡了多少（只在本遍的判定里数，不是反事实）：``holds`` 每类每个码的张数（A / B 里账套记忆定的类为什么是 B）；
+    ``tightened`` 只因 `NEW_HOLDS` 才是 B 的单（每个 CC 判断的项都是账套记忆定的、挡它的码都是新三条）——按单数、其中推错的
+    （近似「挡错 / 误挡」：之前的判定会推这些单，挡下的单回放里也不再被改值，量的是这一遍的状态）与按码。"""
+    holds = collections.Counter()
+    tightened = {"docs": 0, "wrong": 0, "by_code": collections.defaultdict(collections.Counter)}
+    for row in rows:
+        found = row.get("memory_holds") or {}
+        for kind, codes in found.items():
+            for code in codes:
+                holds[f"{kind}:{code}"] += 1
+        if row["class"] != "B":
+            continue
+        judged = [reason.split(":", 1)[1] for reason in row["reasons"] if reason.startswith("judged:")]
+        if not judged or not all(found.get(kind) and set(found[kind]) <= set(NEW_HOLDS) for kind in judged):
+            continue
+        wrong = not row.get("correct_eval")
+        tightened["docs"] += 1
+        tightened["wrong"] += int(wrong)
+        for code in sorted({code for kind in judged for code in found[kind]}):
+            tightened["by_code"][code]["docs"] += 1
+            tightened["by_code"][code]["wrong"] += int(wrong)
+    return {"holds": dict(sorted(holds.items())),
+            "tightened": {"docs": tightened["docs"], "wrong": tightened["wrong"],
+                          "by_code": {code: dict(value) for code, value in sorted(tightened["by_code"].items())}}}
+
+
+def review_summary(data: Mapping[str, Any]) -> Dict[str, Any]:
+    """模拟的人复核时改值（`Review`）：各家合起来的参数、改的次数（类别|项）与进改值记录的条数；没有这一项的存档（10-18 之前）
+    记 ``classes`` 空。"""
+    parts = list((data.get("review") or {}).values())
+    corrections = collections.Counter()
+    for part in parts:
+        corrections.update(part.get("corrections") or {})
+    return {"classes": sorted({tuple(part.get("classes") or ()) for part in parts}),
+            "lag": sorted({part.get("lag") for part in parts if part.get("lag") is not None}),
+            "corrections": dict(sorted(corrections.items())), "events": sum(int(part.get("events") or 0) for part in parts),
+            "corrected_docs": sum(1 for row in data["rows"] if row.get("corrected"))}
+
+
 def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
     rows = data["rows"]
     by_class = collections.Counter(row["class"] for row in rows)
@@ -2547,6 +2759,8 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             "recent_max": list(data.get("recent_max") or []), "readback_scope": list(data.get("readback_scope") or []),
             "evidence_window": list(data.get("evidence_window") or []),
             "recent_periods": list(data.get("recent_periods") or []), "reask": list(data.get("reask") or []),
+            "rules": list(data.get("rules") or []), "review": review_summary(data),
+            "tightening": tightening_summary(rows),
             "goods": goods_summary(rows, data.get("goods_posting") or {}), "upload_alt": upload_summary(rows),
             "tiebreak": {name: dict(counter) for name, counter in tiebreaks.items()},
             "tiebreak_companies": {company: found for company, found in sorted((data.get("tiebreak") or {}).items())
@@ -2624,6 +2838,25 @@ def summarize_gate(data: Mapping[str, Any]) -> Dict[str, Any]:
                           "a_wrong": sum(1 for row in claims if row["vat_claim"]["tier"] == "A"
                                          and row["vat_claim"]["result"] == "wrong")},
             "by_form": {form: part([row for row in rows if row["form"] == form]) for form in sorted({row["form"] or "?" for row in rows})}}
+
+
+def _render_tightening(s: Mapping[str, Any]) -> List[str]:
+    """账套记忆的三条收严（10-18 E1）与模拟的人改值。"""
+    review, tight = s.get("review") or {}, s.get("tightening") or {}
+    if not review and not tight:
+        return []
+    found = tight.get("tightened") or {}
+    return ["账套记忆三条收严（R1 同账套记忆值被人改、R2 科目回读改动 > 20%、R3 科目连续 5 张；存档 "
+            + "、".join(s.get("rules") or ["-"]) + "）：只因这三条才是 B 的单 " + str(found.get("docs", 0)) + " 张（其中推错 "
+            + str(found.get("wrong", 0)) + "）；按码 " + ("、".join(
+                f"{code} {value.get('docs', 0)}（错 {value.get('wrong', 0)}）"
+                for code, value in (found.get("by_code") or {}).items()) or "无")
+            + "；各类各码（A / B 里账套记忆定的类为什么是 B，可重叠）：" + ("、".join(
+                f"{key} {value}" for key, value in (tight.get("holds") or {}).items()) or "无") + "。",
+            "", "模拟的人复核时改凭记忆推错的值：单 " + ",".join("/".join(item) or "不模拟" for item in review.get("classes") or [])
+            + "，R1 只认 " + ",".join(str(item) for item in review.get("lag") or []) + " 天前的改值；改的次数（类别|项） "
+            + ("、".join(f"{key} {value}" for key, value in (review.get("corrections") or {}).items()) or "无")
+            + f"；进改值记录 {review.get('events', 0)} 条；被改的单 {review.get('corrected_docs', 0)} 张。", ""]
 
 
 def _rate(counter: Mapping[str, int]) -> str:
@@ -2802,7 +3035,8 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                     f"{pct(value['wrong'] / value['n'] if value['n'] else None)} |"
                     for key, value in list(s["item_errors"].items())[:16]], "",
                   "A / B 推错的项：" + "、".join(f"{key} {value}" for key, value in list(s["wrong_items"].items())[:12]), "",
-                  "账套记忆定的项（科目、现 / 赊、对方档要最近连续 3 张有证据，10-17 推广；vat 是记过的小票抵进项，仍是记一次就 A，"
+                  "账套记忆定的项（现 / 赊、对方档要最近连续 3 张有证据，科目 5 张，10-17 推广、10-18 科目改 5 张；vat 是记过的小票"
+                  "抵进项，仍是记一次就 A，"
                   "只量不改；按家 A / B / A 里错）。回放假定每期都在申报截止日后一天做了合格回读，线上要有人真发起回读才有证据；"
                   "证据窗口往回看的上限因此丢掉的 A：" + "、".join(
                       f"{kind} {sum(found.values())}" for kind, found in (s.get("memory_cap_lost") or {}).items()) + "。",
@@ -2811,6 +3045,7 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                   *[f"| {kind} | {company} | {value.get('A', 0)} | {value.get('B', 0)} | {value.get('A_wrong', 0)} |"
                     for kind, found in (s.get("memory_sources") or {}).items()
                     for company, value in sorted(found.items(), key=lambda kv: -kv[1].get("A_wrong", 0))[:8]], "",
+                  *_render_tightening(s),
                   "推送记录来源（payload 照载荷 / replanned C 类学完记忆再出 / approx 推不出的乐观近似）："
                   + "、".join(f"{key} {value}" for key, value in (s.get("pushed_from") or {}).items()), "",
                   "C 类按主要原因（每张只算一类）：", "", "| 主要原因 | 张数 |", "|---|---|",
@@ -2981,6 +3216,10 @@ def main(argv=None) -> int:
     judge.add_argument("--recent-periods", type=int, default=None,
                        help="证据窗口往回最多跨几个不同的税期（同线上 6，线上每个税期另查一次回读）；0 不设上限；"
                             "不给时跟 --recent-max：非 0 取 6，0 也不设上限")
+    judge.add_argument("--review-classes", default=",".join(REVIEW_CLASSES),
+                       help="模拟的人复核时改凭记忆推错的值的单：B / Cn（待处理页当场选）/ Cr（复核页处理），逗号隔开；none 不模拟")
+    judge.add_argument("--review-lag", type=int, default=REVIEW_LAG,
+                       help="R1 只认几天前的改值（0 = 同一天先处理的也算，1 = 只认前一天及更早，默认 1）")
     judge.add_argument("--readback-scope", choices=READBACK_SCOPES, default="record",
                        help="回读里改没改：record 按整张记录（同线上，默认）、account 只比科目（第四轮，对照）")
     judge.add_argument("--out", required=True)

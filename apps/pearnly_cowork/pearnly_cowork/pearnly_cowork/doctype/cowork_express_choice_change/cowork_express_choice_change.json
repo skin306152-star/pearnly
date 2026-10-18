@@ -1,0 +1,108 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Express Choice Change",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-18 12:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
+ "sort_field": "changed_at",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "autoname": "hash",
+ "description": "A remembered Express account set choice (expense account or cash / credit) that a person changed to another value; kept 90 days for the automation tiers.",
+ "field_order": [
+  "connection",
+  "account_set",
+  "kind",
+  "subject",
+  "old_value",
+  "new_value",
+  "source",
+  "changed_by",
+  "changed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "options": "Cowork ERP Connection",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_set",
+   "label": "Account Set",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "kind",
+   "label": "Kind",
+   "fieldtype": "Select",
+   "options": "account\npayment",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "subject",
+   "label": "Subject",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "old_value",
+   "label": "Old Value",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "new_value",
+   "label": "New Value",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "source",
+   "label": "Source",
+   "fieldtype": "Select",
+   "options": "choice\nrule",
+   "read_only": 1
+  },
+  {
+   "fieldname": "changed_by",
+   "label": "Changed By",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "changed_at",
+   "label": "Changed At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

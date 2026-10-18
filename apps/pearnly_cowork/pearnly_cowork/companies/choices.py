@@ -620,11 +620,12 @@ def _branch(sets, branch) -> str:
     return found
 
 
-def _drop_memories(sets, kind, subject, branch) -> int:
-    """存了规则：这家各份 Express 账套（分店规则只看那个分店的）里同一类别同一归类键的记忆删掉（真删），规则立刻生效。"""
+def _drop_memories(sets, kind, subject, branch, value=None) -> int:
+    """存了规则：这家各份 Express 账套（分店规则只看那个分店的）里同一类别同一归类键的记忆删掉（真删），规则立刻生效。
+    ``value`` 是规则的值：记过的记忆与它不同就是人改了记忆的值（`push.choices.forget` 记改值，自动推判档 R1 用）。"""
     removed = 0
     for connection, keys in _express_sets([item for item in sets if not branch or item.get("branch") == branch]).items():
-        removed += int(express_choices.forget(connection, keys, kind, [subject]) or 0)
+        removed += int(express_choices.forget(connection, keys, kind, [subject], replaced_by=value) or 0)
     return removed
 
 
@@ -646,7 +647,7 @@ def _save_rule(company, sets, kind, subject, value, branch, period, *, subject_l
                        value=value, branch=branch, subject_label=subject_label,
                        value_label=_value_label(kind, value) or _master_name(kind, value, masters),
                        evidence=evidence, session=session)
-    saved["removed_memories"] = _drop_memories(sets, kind, subject, branch)
+    saved["removed_memories"] = _drop_memories(sets, kind, subject, branch, value)
     return {"saved": True, "rule": saved, "key": encode("rule", saved["id"])}
 
 

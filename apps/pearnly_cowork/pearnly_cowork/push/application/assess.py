@@ -41,7 +41,10 @@ PRIOR_STATUSES = ("prepared", "pending", "leased", "manual", "success")
 # - 取票：查询 1 + ceil((1000 − 30) / 200) = 6 次、读 1,000 行、解析 2,000 段 JSON（载荷与回执各一），回读标记钩子调 6 次；
 # - 回读：每个税期一次 `readback.service.month_changes`（同一请求 / 后台任务里按期缓存），至多 `RECENT_PERIOD_MAX` = 6 次，每次
 #   最多读 `MONTH_SCAN_MAX` = 500 行回读、只解析这份账套那一行的 2 段 JSON（摘要与差异表），合计至多 3,000 行、12 段 JSON。
-# 原先只取最新 30 张再跳过，高频供应商两次回读之间推了 30 张以上就攒不出证据（第五轮回放）；10-17 审查补上回读一侧的期数上限
+# 原先只取最新 30 张再跳过，高频供应商两次回读之间推了 30 张以上就攒不出证据（第五轮回放）；10-17 审查补上回读一侧的期数上限。
+# 10-18 E1：科目由账套记忆定、连续张数又够了的，要算证据窗口里回读改动的比例（R2，`automation.change_share`），取满整个窗口才停
+# （上界不变，只是这类单常走到上界）；人改值的记录（R1，`push.choices.overrides`）另查一次、≤ 200 行，只在账套记忆定的科目 / 现 / 赊
+# 连续张数够了时才查。所以一张单最坏：取票 6 次、回读 6 次、改值 1 次查询。
 RECENT_FIRST = 30
 RECENT_PAGE = 200
 _RECENT_SQL = """SELECT h.name AS history_name, h.creation AS uploaded, r.name, r.payload_json, r.response_json,
@@ -117,6 +120,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     page_texts = text_layer.pages(doc)
     tier = automation_service.tier(connection, account_set, account_row)
     recent = _recent(connection, account_set, doc, direction, dated, payload, decision)
+    overrides, overrule = _overrides(connection, account_set, payload, recent)
     # 按公司选的入账方式：这家供应商的 Express 历史定下的（只读存着的，用户 10-17），定档用（`automation.posting_by_history`）
     posting_history = service._posting_history(connection, account_set, dated, direction, posting_from)
     facts = automation.Facts(
@@ -128,7 +132,8 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc, direction),
         posting_from=posting_from, posting_kind=posting_kind or "", posting_history=posting_history,
         account_recent=recent["account"], payment_recent=recent["payment"],
-        party_recent=recent["party"],
+        party_recent=recent["party"], overrides=overrides, memory_since=recent["since"],
+        account_share=recent["account_share"],
         layers=automation.layers(dated, direction=direction, fixed=fixed, remembered=remembered,
                                  rules=(company or {}).get("rules") or (), branch=(company or {}).get("branch") or "",
                                  history=(decision.get("history") or {}).get("account")))
@@ -143,13 +148,17 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     codes = automation.reason_codes(automation.Verdict(verdict.cls, (*verdict.reasons, *([why] if why else ())),
                                                        verdict.items))
     at = datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None)
+    judged = {"class": verdict.cls, "tier": tier["tier"], "trigger": trigger, "reasons": list(verdict.reasons)}
+    # 判成 A 的账套记忆科目 / 现 / 赊（R1）：冻结记忆的值与证据时刻，领单时再看同账套有没有人刚改掉同一个值（`rules.frozen`）
+    kept = {kind: item for kind, item in overrule.items() if verdict.items.get(kind) == "A"}
+    if kept:
+        judged["overrule"] = kept
     return {"assessed": True, "class": verdict.cls, "reasons": list(verdict.reasons), "items": dict(verdict.items),
             "tier": tier["tier"], "company": tier["company"], "action": action, "why": why,
             "account_set": account_set, "codes": codes, "checked_at": at, "needed": decision["needed"],
             "proposal": rules.proposal(verdict.cls, tier["tier"], trigger, payload, dated, at=at.isoformat(),
                                        items=verdict.items) if verdict.cls in ("A", "B") else None,
-            "automation": {"class": verdict.cls, "tier": tier["tier"], "trigger": trigger,
-                           "reasons": list(verdict.reasons)}}
+            "automation": judged}
 
 
 def _catalog(loaded):
@@ -201,9 +210,12 @@ def _prior(connection, account_set, doc, direction):
 
 def _recent(connection, account_set, doc, direction, fields, payload, decision):
     """这家供应商在这份账套里推成功的单（新的在前）里有证据的科目、现 / 赊、对方档（`automation.memory_window`）→
-    ``{"account", "payment", "party"}``，每项是序列或 None（没取）。账套记忆定的这几类都要最近连续 `automation.MEMORY_STREAK`
-    张有证据的同值才算规则定（`automation.memory_settled`）；只取这张单真由账套记忆定的类（科目看载荷 ``account_source``、
-    现 / 赊看 ``doctype_src``、对方档看 ``decided_by``），都不是、或没出载荷（本来就是 C）就不查库。
+    ``{"account", "payment", "party", "since", "account_share"}``，前三项是序列或 None（没取）。账套记忆定的这几类都要最近连续
+    `automation.streak_for` 张（科目 5、现 / 赊与对方档 3，R3）有证据的同值才算规则定（`automation.memory_settled`）；只取这张单真由
+    账套记忆定的类（科目看载荷 ``account_source``、现 / 赊看 ``doctype_src``、对方档看 ``decided_by``），都不是、或没出载荷（本来就是
+    C）就不查库。``since``：科目、现 / 赊最近 `automation.OVERRIDE_EVIDENCE` 张证据里最早那张的上传时刻（R1，`automation.memory_since`）；
+    ``account_share``：科目由账套记忆定时，证据窗口里有合格回读结果的推送中科目被改的 ``(张数, 有结果的张数)``（R2，
+    `automation.change_share`），没取为 None。
 
     证据：推的时候由人或规则定（科目：这张单上传后有人选的、任务默认、公司规则、Express 历史已定；现 / 赊：本票人工裁决、任务默认、
     公司规则；对方档只认回读），或被合格回读覆盖、整张没被改（经钩子 ``cowork_push_readback_marks``，三类共用）；凭记忆
@@ -217,23 +229,34 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
     窗口（10-17 改取法）：先跳过凭记忆推出去、还没合格回读核过的，再在剩下能当证据的里取最近的——取票按「本工作区 + 卖方税号」的
     索引（`workspace_seller_tax_index`）按上传先后分批往前取（`RECENT_FIRST`、之后每批 `RECENT_PAGE`），推送记录取它冻结的载荷与
     回执，每批先按税期截（`automation.window_take`：碰到第 `automation.RECENT_PERIOD_MAX` + 1 个不同的税期就截掉、不再往前取，
-    每个税期要另查一次回读），再标回读；记忆定的每一类都凑够 `MEMORY_STREAK` 张证据就停；取完、合计到 `automation.RECENT_SCAN_MAX`
-    张或碰到税期上限也停（硬上限，证据真不够的照样 B）。最坏查询、行数与 JSON 段数见文件头 `RECENT_FIRST` 上的注释。"""
+    每个税期要另查一次回读），再标回读（带上改了哪几类）；记忆定的每一类都凑够这一类的张数就停——只有科目连续张数够了时要取满窗口
+    算 R2 的比例；取完、合计到 `automation.RECENT_SCAN_MAX` 张或碰到税期上限也停（硬上限，证据真不够的照样 B）。最坏查询、行数与
+    JSON 段数见文件头 `RECENT_FIRST` 上的注释。"""
     payload = payload if isinstance(payload, dict) else {}
     decided = (decision or {}).get("decided_by") or {}
     wanted = {"account": payload.get("account_source") == "remembered",
               "payment": payload.get("doctype_src") == "remembered",
               "party": decided.get("party") == "remembered"}
-    out = dict.fromkeys(RECENT_KINDS)
+    out = {**dict.fromkeys(RECENT_KINDS), "since": {}, "account_share": None}
     if direction != "purchase" or not payload or not any(wanted.values()):
         return out
     raw = str(fields.get("seller_tax") or fields.get("seller_tax_id") or "").strip()
     tax = clean_tax_id(raw)
     if len(tax) != 13:
-        return {kind: [] if wanted[kind] else None for kind in RECENT_KINDS}
+        return {**{kind: [] if wanted[kind] else None for kind in RECENT_KINDS}, "since": {}, "account_share": None}
     branch = choice_rules.branch5(fields.get("seller_branch"))
+    account = str(payload.get("items_account") or "").strip()
     taxes, entries, found, periods = tuple({raw, tax}), [], {}, set()
     after, scanned, size = None, 0, RECENT_FIRST
+
+    def enough(kind):
+        if not wanted[kind]:
+            return True
+        if len(found[kind]) < automation.streak_for(kind):
+            return False
+        # R2：科目连续张数够了，比例要看整个窗口（不够的反正是 B，不再往前取）
+        return not (kind == "account" and automation.memory_settled(found[kind], account, "account"))
+
     while True:
         size = min(size, automation.RECENT_SCAN_MAX - scanned)
         if size <= 0:
@@ -245,17 +268,45 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
         capped, batch = keep < len(batch), batch[:keep]
         if batch:
             marks = automation_service.readback_marks(connection, account_set, [
-                {key: entry[key] for key in ("record", "invoice_date", "completed_at")} for entry in batch])
+                {key: entry[key] for key in ("record", "invoice_date", "completed_at")} for entry in batch], detail=True)
             for entry in batch:
-                entry["readback"] = marks.get(entry["record"], "")
+                mark = marks.get(entry["record"])
+                if isinstance(mark, dict):
+                    entry["readback"], entry["changed_kinds"] = mark.get("readback") or "", mark.get("changed")
+                else:  # 只给整张结果的提供者：改了哪几类按不知道（被改的三类都算）
+                    entry["readback"], entry["changed_kinds"] = mark or "", None if mark else []
             entries.extend(batch)
         found = {"account": automation.memory_window(entries), "payment": automation.memory_window(entries, "payment"),
                  "party": automation.memory_window(entries, "party", branch=branch)}
-        if capped or len(rows) < size or all(len(found[kind]) >= automation.MEMORY_STREAK
-                                   for kind in RECENT_KINDS if wanted[kind]):
+        if capped or len(rows) < size or all(enough(kind) for kind in RECENT_KINDS):
             break
         after, size = rows[-1], RECENT_PAGE
-    return {kind: found.get(kind, []) if wanted[kind] else None for kind in RECENT_KINDS}
+    result = {kind: found.get(kind, []) if wanted[kind] else None for kind in RECENT_KINDS}
+    result["since"] = {kind: automation.memory_since(entries, kind) for kind in automation.OVERRIDE_KINDS if wanted[kind]}
+    result["account_share"] = automation.change_share(entries, "account") if wanted["account"] else None
+    return result
+
+
+def _overrides(connection, account_set, payload, recent):
+    """R1 的取数（10-18）：账套记忆定的科目 / 现 / 赊里连续张数够了的（不够的本来就是 B，不查），取这份账套近
+    `automation.OVERRIDE_DAYS` 天里有人把同一个记忆值改掉的记录（`push.choices.overrides`，一次查询）→ ``(记录, overrule)``；
+    ``overrule`` ``{类: {"value": 记忆的值, "since": 证据时刻 ISO}}`` 给判成 A 的那几类冻结进自动推、领单时重判。"""
+    payload = payload if isinstance(payload, dict) else {}
+    values, overrule = {}, {}
+    for kind in automation.OVERRIDE_KINDS:
+        sequence = recent.get(kind)
+        value = automation.memory_value(kind, payload)
+        shown = str(payload.get("items_account" if kind == "account" else "doctype") or "").strip()
+        since = (recent.get("since") or {}).get(kind)
+        if sequence is None or not value or since is None:
+            continue
+        if not automation.memory_settled(sequence, shown.upper() if kind == "payment" else shown, kind):
+            continue
+        values[kind] = value
+        overrule[kind] = {"value": value, "since": since.isoformat() if hasattr(since, "isoformat") else str(since)}
+    if not values:
+        return [], {}
+    return choice_store.overrides(connection, account_set, values), overrule
 
 
 def _recent_rows(doc, taxes, connection, account_set, after, size):
@@ -282,7 +333,7 @@ def _recent_entry(row, tax):
     planned = str(supplier.get("code") or "").strip()
     written = str(meta.get("party_code") or "").strip() or planned
     modes = response.get("line_modes") if isinstance(response.get("line_modes"), list) else []
-    return {"record": row.name, "account": str(pushed.get("items_account") or "").strip(),
+    return {"record": row.name, "at": getattr(row, "uploaded", None), "account": str(pushed.get("items_account") or "").strip(),
             "source": str(pushed.get("account_source") or ""),
             "payment": str(pushed.get("doctype") or "").strip().upper(),
             "payment_source": str(pushed.get("doctype_src") or ""),
