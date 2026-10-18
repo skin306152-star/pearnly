@@ -335,7 +335,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
       if (answered(result)) onDone(item.document);
       else if (result.status === "needs_choice") await load();
       else {
-        setError(result.reason ?? "");
+        setError(result.reason_label || result.reason || "");
         onChanged();
       }
     } catch (e) {
@@ -451,7 +451,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
       else {
         // 还要人选（科目等）：原因记在单上，列表重取后按新原因显示；推不成（没进账本）：单回到「待选账套」能再选，
         // 这次的原因显示在这一行下面
-        setError(result.reason ?? "");
+        setError(result.reason_label || result.reason || "");
         onChanged();
       }
     } catch (e) {

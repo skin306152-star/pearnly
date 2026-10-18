@@ -99,7 +99,7 @@ export type ChoicesView = {
 };
 /** 当场选作答的结果（assistant/pending_api.answer）：sent = 已交出去（Express 由 CC 桌面版写入）；already_* = 早推过了；
  *  needs_choice = 还有要选的；其余（failed、waiting_for_cc…）原因记在单上，仍在「待处理」。 */
-export type AnswerResult = { document: string; status: string; reason?: string };
+export type AnswerResult = { document: string; status: string; reason?: string; reason_label?: string };
 export const answered = (result: Pick<AnswerResult, "status">) => result.status === "sent" || result.status.startsWith("already_");
 
 // ---------------------------------------------------------------- 接口

@@ -1375,7 +1375,8 @@ class PendingAnswerTests(unittest.TestCase):
         doc = Row(name="h1", push_connection="C1", push_account_set="")
         module, calls = self._answer(doc, {"status": "needs_choice", "reason": "choice_needed:vat"})
         out = module.answer("h1", [{"kind": "account", "subject": "s", "value": "5300"}])
-        self.assertEqual(out, {"document": "h1", "status": "needs_choice", "reason": "choice_needed:vat"})
+        self.assertEqual(out, {"document": "h1", "status": "needs_choice", "reason": "choice_needed:vat",
+                               "reason_label": "text:choice_needed:vat"})  # 页面显示给人看的话，不显示码
         self.assertIsNone(calls[0][3])  # 没有账套键时交 None（推送服务按连接的选择取）
         for bad in ("{}", json.dumps([{}] * 51)):
             with self.assertRaises(frappe.ValidationError):
@@ -1439,10 +1440,27 @@ class PendingAnswerTests(unittest.TestCase):
         module, calls = self._answer(doc, {"status": "failed", "reason": "account_match:branch"})
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
-        self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "account_match:branch"})
+        self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "account_match:branch",
+                               "reason_label": "text:account_match:branch"})
         self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("restore", "h1", "cowork.folder.account_set_ambiguous",
                                   ("account_set", "S:\\69EXP\\ABC"), ("connection", "C1"))])
+
+    def test_a_switch_stopped_by_the_document_kind_choice_leaves_the_account_set_row(self):
+        """第 7 批 B7（2026-10-18 lab）：选了账套，推送停在「这类单据录不录」（document_policy_needed_*，租户选一次，与选哪份
+        账套无关）。原先放回「待选账套」，换哪份都是同一个原因，页面上还把码原样标红，会计员过不去。现在去向记成选的这份、
+        原因记成要选录不录：这张单转成一般的待处理（交给 CC、复核页选录不录），页面显示词条的话。"""
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy")])
+        make()
+        doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous", push_account_set="S:\\69EXP\\ABC")
+        module, calls = self._answer(doc, {"status": "failed", "reason": "document_policy_needed_payment_evidence"})
+        fresh_request()
+        out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
+        self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "document_policy_needed_payment_evidence",
+                               "reason_label": "text:document_policy_needed_payment_evidence"})
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
+                                 ("restore", "h1", "document_policy_needed_payment_evidence",
+                                  ("account_set", "s:\\69exp\\abc2"), ("connection", "C1"))])
 
     def test_switchable_account_sets_follow_the_tasks_company_and_branch(self):
         """第 6 批审查第 4 条：可换的账套按出这张票的定时任务记的公司与分店列（同定时任务选账套），不按票上现算的归属——
