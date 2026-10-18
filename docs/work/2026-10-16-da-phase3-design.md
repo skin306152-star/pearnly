@@ -703,6 +703,63 @@
   （下限 76.63%）；合并约 88.8%（73.2% ～ 94.3%）；建议 A 6 家升 L1、自动推 8,873 张错 137 张；都没到 99.5%。
   既有断言只按有意变化改了期望值（`posting` A → B、抵进项按方向推断要原文、存货一项按行、「连续 3 张」按证据、回放的 `score` 多 `posting`）。
 
+- **并入 main（10-18 晚）**：多电脑已进 main，用 merge 把 `origin/main` 并到 `81bcd88a`（合并提交 `4016c52a`，本分支原 `c9adb5e9`，领先 50、落后 245），
+  另一个修正提交 `b3d58255`。冲突 14 个文件 20 处，按两边的有意变化合并、没有只取一边：
+  1. `assistant/pending_api.py`：main 把回包收成 `_answer`（多 `reason_label`，第 7 批 B7），并在 `choose_account_set` 加「停在这类单据录不录时去向记成选的这份、
+     原因记成要选录不录」一支；本分支的「推成了才记现用账套」、回包 `current_book`、`_remember` / `rechoose_current_book` 保留，回包改经 `_answer` 再加
+     `current_book`。语义冲突另改一处（`b3d58255`）：停在录不录也是账套收下了，同「停在要人选的项」，现用账套照记、回包带 `current_book`（原来那一支
+     不记，同一组下一张会再问）；`test_cowork_companies` 的 B7 用例改成断言记下。`_remember` 里 `history.document_policy` 改别名导入，不与 main 新加的模块级
+     `contracts.document_policy` 同名。
+  2. `assistant/tools.py` `cowork_choose_document_policy`：说明取 main 的「全工作空间、不是一家公司」「settled 张数、跳过的别再推」与 `document` 参数说明，
+     接上本分支的 `goods_posting`（走库存 / 记费用后再推）与 `current_book`（推往选的那份、推成了才记，别再推；改选只改记）两段；`value` 枚举
+     `enter / skip / stock / service / current_book`，保留 `account_set_key`。步骤名随 main 改成「Document handling set」。
+  3. `history/document_policy.py`：`choose` 走本分支带校验与留痕的 `record`，回包加 main 的 `settled`（`_settle_waiting` 原样保留）；`record` / `forget` /
+     `_audit` 不变。
+  4. `companies/pending.py`：常量两边都留（`PROPOSAL_LABEL` / `BOOK_MANY` / `PROPOSED` 与 main 的 `SKIPPED_POLICY`）；`classify` 自动合并，选了不录入的单在
+     判提议之前就回 None，不会成「待推送」。
+  5. `companies/rules.py` `for_push`：字段取并集（main 的 `name` / `subject_label` / `value_label` → 规则 `id` 与名称，本分支的 `modified` → `at`）；
+     `__all__` 同时有 `account_company` 与 `values_now`；文档串照改。`test_cowork_companies` 对应用例合并断言（除 `at` 外全等，`at` 都在）。
+  6. `push/application/service.py`：准备推送时先冻结 main 的 `company_rules`，再冻结本分支的 `party_face` / `automation`（或人推提议的 `proposal`）；
+     `_decisions` 取本分支的纯函数 `push.express.decide.decide`，main 给 `company_choices.finish` 加的 `rules` / `branch` 参数改在 `decide.py` 里传（不然
+     `company_rules` 永远为空）；`written` 同时取 `verify_state` / `verify_json`（本分支）与 `_rules_now`（main）。
+  7. `hooks.py`：本分支的六个档位 / 回读钩子与 main 的 `cowork_push_company_choices_saved` 都留。
+  8. `Cowork Push Record`：两边都加了字段（本分支 `verify_state` / `verify_json`，main 改标签），`modified` 取两边之后的 `2026-10-19 00:00`，否则线上已是
+     main 那版时 migrate 不同步本分支的两列。
+  9. 词条：`translations/zh.csv`、`frontend/assistant/src/i18n.ts` 取 main 第 10 轮的改写（「该值不在本月账套主档中」「未回读」、`vatExpense`「记费用」——
+     本分支原记的「计费用待用户定」已由 main 定掉）并留本分支新增的档位、入账方式、提议词条；`scripts/i18n/keep-cjk.tsv` 两边的登记都留。
+  10. 测试：`test_cowork_assistant_tools` 两组类都留；`test_assistant_ui` 记住的选择取 main 外壳的行样式断言，本分支的入账方式 / 现用账套断言接在后面，
+      并照本条第 14 条原计划在展开的行上补断言（入账方式出两段按钮、选中的那段 `aria-pressed`；现用账套没有分段，只有删除）。
+  合并后闸门露出的三处（`b3d58255`）：「全部推送」按钮的转圈登记进 `test_cc_idle_motion` 的 `BUSY_SITES`（只在请求没回来时挂）；`test_cc_month_ledger`
+  手机宽度断言改认标准化后的 `gap: var(--cc-space-4)`；`Cowork Express Choice Change` 的开发说明（DocType description）删掉、`modified` 升到
+  `2026-10-19 00:00`（这张表还没上过线），两个标签「Old Value」「Changed At」登记进 `messages.tsv`（原值 / 修改时间，四语）——main 的文案闸门 R-HARD
+  拦新 DocType 标签不在术语表。
+  语义核对：T1 跟随年度（`companies/tasks.py`、`identity.for_day`、`folder_intake/follow.py`）、写账分派与领单（`push/native/service.py` main 只改了一句注释）、推送准备，main 自 `5c11dc5b` 起都没改判据，合并后与 [多电脑记录](2026-10-15-multi-desktop-build.md) T1 一节第 5 条
+  （先本年、没有用旧账套次年段，新年度已建或同分店有期间没报全的就停）与第 6 条（两份同期没选过停、选过照选）一致：`targets.account_match.for_day` /
+  `for_month` / `newer_book_covers`、`tasks.books_of` → `current_book.remembered`、`automation.day_scope` / `day_books` 同一判据，`test_cowork_folder_follow_year`
+  43 条全过。main 的「选不录入一并了结等着的单」（`document_policy_skip_*`）与自动推扫描不冲突：扫描只取 `last_push_reason` 为空的票，跳过的不会被推；
+  选「录入」清掉原因的票成了「没推、没人动」，按档位照常可被自动推（与用户选了录入一致）。CC 桌面版：版本号 1.9.0（main 已发 1.7.0，本分支 1.8.0 /
+  1.9.0 都没发），`worker.py` 两边改的段不重叠、自动合并。
+  闸门与候选离线检查见下一条。
+- **并入 main 之后的检查与没做完的两项（10-18 晚）**：
+  - 完整本地闸门 `gate.sh`（照 `development.yml`，105 步）：合并提交上第一次 3 步不过（上一条末尾三处），修好后在 `b3d58255` + 本条文档上 105 步全过、退出码 0；
+    其中 `check-architecture` PASS、`check-dms-offline` 过、`check-copy` 无拦截（基线 `81bcd88a`：新增 40、改动 0、标黄 38，标黄是本分支原有的档名 /
+    「（自动 N）」/ `push.automation_changed` 等，都是新增词条，没改已有文案）、`i18n-build --check` PASS、`check-i18n --strict` 只报告。
+  - 本分支对 `origin/main` 没有改 `apps/pearnly_core`；仍在本机 docker 用生产镜像 `sha256:1d1e0366…`（源码 4090d01f，amd64 仿真）跑了一遍完整
+    `ci-candidate-checks offline`（清单取合并后仓库里的 `scripts/ci-candidate-checks.sh`，比开发机 `cand-local.sh` 多 4 个原件层测试；工作树只读挂载、
+    `--network none`）：76 步全过、1,431 条测试、退出码 0。没连生产、测试机、甲骨文，没有付费识别。
+  - **E3 桌面「录入标记」没做**（要发 CC 桌面版）：重问现在只认经 Pearnly 写入的录入（池登记 `last_written_at`）。要看到会计直接在 Express 录进**未被选中**
+    那份的单，CC 桌面版要在账套目录每一行另报录入标记（如 `GLJNL.DBF` 表头的记录数与最后更新日期，或文件修改时间），服务端存进目录行、
+    `current_book.seen_of` / `document_policy.current_book_newer` 改成按「记录数变了或更新日期更晚」比，契约 `tests/test_companion_contract.py` 加字段。
+    卡点：1.7.0 的增量扫描（`reuse_registry`，登记表没变就用本机索引里的行）正是为了不逐份读账套文件，办公室测试机 1,353 份账套（1,252 份在局域网
+    服务器）每轮多一次表头读取的耗时要在测试机实测、且要守「CC 桌面版要轻量」；表头日期只到天。上线顺序同 1.9.0：先服务端、再发桌面版。零识别费用；
+    回放已有 `--reask entered` 可先量能多选对多少（甲骨文满核约 2–3 小时）。
+  - **E2 补普通供应商电子 PDF 样本没做**（要付费识别、要测试机）：现有 458 张过闸票里水电 273、BakeLab 174、其余只有 11 张。要做：① 测试机
+    `C:\PearnlyStress\语料` 里挑有 Express 答案、非水电 / 非 BakeLab / 非 ASIA SPORT 报关、不在两批样本里的电子 PDF（`06-录入推送` 的普通供应商大多已在
+    第一批里，可能要从别的语料补，先只读盘点数量）；② 用户批上限（建议 10 美元：第一批平均约 0.004 美元 / 份，多页、升 Opus 的约 0.1 美元 / 份，
+    300 份约 1–30 美元，脚本到上限停交）；③ 与「消息含义理解」窗口约时间，`testenv.sh lab-start cowork`，testcowork 走 Claude 路线照 `gold_run.py` 交；
+    ④ 过闸的件补独立金标（代理盲填、不一致处另一路盲读）；⑤ `da-replay.py gate` 计分，与第七次判定层合并；⑥ 按 `removal.delete` / `files.purge` 删记录与
+    原件（连甲骨文）、`lab-stop`。要单独过 99% 下限：1 错时总共约 563 张过闸票，即至少再补约 105 张过闸、且不出错。
+
 ## 第一轮回放后的决定（2026-10-16）
 
 用户定：
