@@ -128,7 +128,7 @@ function Welcome() {
       <div className="aui-thread-welcome-root cc-enter -mb-(--cc-space-8) flex flex-col items-center justify-center gap-(--cc-space-8) px-(--cc-space-16) text-center md:flex-row md:gap-(--cc-space-12)">
         {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
         {/* 问候语换了（名字取回、换了时段）再播一次小动画（上一次没播完就不打断） */}
-        {mascot && <Mascot src={mascot} play={hello} className="pearnly-mascot-host h-(--cc-mascot-h) shrink-0 sm:h-(--cc-mascot-h-wide)" />}
+        {mascot && <Mascot src={mascot} play={hello} className="pearnly-mascot-host h-(--cc-mascot-h) shrink-0 md:h-(--cc-mascot-h-wide)" />}
         <h1 className="cc-greeting text-3xl">{hello}</h1>
       </div>
       {/* 手机：公司、月份、分店在问候下面（同线上旧版的公司条）；电脑在输入框下巴里 */}
