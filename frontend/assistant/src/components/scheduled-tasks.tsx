@@ -926,8 +926,10 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                   <div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>
                     <button
                       type="button"
-                      className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default"
-                      style={!picked && (rule || !ok) ? { opacity: 0.5 } : undefined}
+                      className={cn(
+                        "cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default",
+                        !picked && (rule || !ok) && "opacity-(--cc-disabled-opacity)",
+                      )}
                       disabled={Boolean(rule) || !ok}
                       onClick={() => {
                         setTarget(a.adapter);

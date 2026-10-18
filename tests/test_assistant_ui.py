@@ -8785,7 +8785,7 @@ class Round11ReviewTests(unittest.TestCase):
         # 审查（复量附录 #83）：写入目标卡（MR.ERP / Express）的内边距在卡片上，按钮只有 21–38 高；挪进按钮，手机至少 44
         tasks = read("components/scheduled-tasks.tsx")
         self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>', tasks)
-        self.assertIn('className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default"', tasks)
+        self.assertIn('"cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default",', tasks)
         self.assertIn('<button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>', tasks)
         self.assertNotIn("cc-card flex items-center justify-between gap-(--cc-space-8) px-", tasks)
 

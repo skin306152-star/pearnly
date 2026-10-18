@@ -1389,6 +1389,13 @@ class DialogsAndListsTests(unittest.TestCase):
         for rel in self.B4:
             self.assertNotIn("animate-pulse", self.read(rel), rel)
 
+    def test_disabled_controls_share_one_opacity(self):
+        # V6（B4）：不可用的开关、定时任务表单里选不了的目标卡同一档 --cc-disabled-opacity（0.4），不写 0.5、不写内联透明度
+        for rel in self.B4:
+            source = self.read(rel)
+            self.assertNotRegex(source, r"opacity-\d|opacity:\s*0", rel)
+        self.assertIn('!picked && (rule || !ok) && "opacity-(--cc-disabled-opacity)"', self.read("components/scheduled-tasks.tsx"))
+
 
 if __name__ == "__main__":
     unittest.main()
