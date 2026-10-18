@@ -233,7 +233,7 @@ class Documents(Base):
                 return SimpleNamespace(insert=lambda **kw: inserted.append(value) or SimpleNamespace(
                     **value, get=value.get, name=f"NEW-{len(inserted)}"))
             if value == "File":
-                return SimpleNamespace(get_content=lambda: b"img")
+                return SimpleNamespace(get_content=lambda: b"img", file_name="a.jpg")
             return doc
 
         self.enterContext(patch.object(frappe, "get_doc", side_effect=get_doc, create=True))

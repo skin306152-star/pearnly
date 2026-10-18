@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,ERP 数据报告中�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,部分支出或存入金额为负数，请检查支出 / 存入列
 Abbreviated Tax Invoice,简式税务发票
 Abbreviated tax invoice,简易税票
-Access to the CC Desktop queue has been revoked.,CC 桌面版队列的访问权限已撤销。
 Account Codes,科目编码
 Account Key,账套键
 Account Set,账套
@@ -350,8 +349,6 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择操作
-Choosing how a kind of document is handled,正在设定这类单据的处理方式
-Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
 Claim VAT,抵进项
@@ -417,6 +414,7 @@ Content Hash,内容摘要
 Content Key,内容键
 Continues the scheduled task «{0}»; only files put in from now on are processed,接续定时任务「{0}」，只处理此后放入的文件
 Continuous counting,连续盘点
+Conversation,对话
 Copy card,复制卡片
 Copy link,复制链接
 Copy list,复制列表
@@ -607,6 +605,7 @@ Dividends,股息
 Document Key,单据防重键
 Document No.,单据号
 Document Policy,单据录入规则
+Document handling set,已设置单据处理方式
 Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
@@ -712,7 +711,7 @@ Expense (goods from now on),记费用（商品单据均记费用）
 Expense (this kind from now on),记费用（同类单据均记费用）
 Expense account,费用科目
 Expense account when no category matches,未匹配科目的费用
-Expense it,计费用
+Expense it,记费用
 Expires At,到期时间
 Export,导出
 Export Excel,导出 Excel
@@ -1009,7 +1008,7 @@ Matched Count,已匹配笔数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",已按预设刷卡手续费率匹配 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记
 Matches,一致
 Matching and saving,逐笔核对并保存
-Max Payload Version,最高载荷版本
+Max Push Data Version,最高推送数据版本
 Member,成员
 Member management,成员管理权限
 Members,成员
@@ -1023,7 +1022,7 @@ Month,月份
 Month paid,支付月份
 Monthly,每月
 Monthly on {0} at {1},每月 {0} {1}
-More than one account set of this company covers the document date.,这家公司有多份账套覆盖单据日期。
+More than one account set of this company covers the document date.,该公司有多份账套覆盖单据日期
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",大部分发票在时限内未读取完成（{1} 份中 {0} 份），以下差异多为发票未读取所致，请稍后重新提交。
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
@@ -1053,15 +1052,15 @@ No CC Desktop credential has been issued for this connection.,此连接尚未签
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
-No account set of this company covers the document date.,这家公司没有覆盖单据日期的账套。
-No account set of this company covers this month,这家公司（或这个分店）没有覆盖本月的账套
+No account set of this company covers the document date.,该公司没有覆盖单据日期的账套
+No account set of this company covers this month,该公司或分店没有覆盖本月的账套
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
 No changes were given.,没有指定要改的内容。
 No computer can reach the account set for the document date.,没有电脑能访问单据日期所在的账套。
 No computer can write,没有能写的电脑
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
+No computer with CC Desktop can write to this account set,没有可写入该账套的电脑
 No documents were given.,没有指定单据。
 No due date,无到期日
 No files were given.,没有指定文件。
@@ -1204,7 +1203,6 @@ Payee tax ID missing,缺收款方税号
 Payees,收款方数
 Payer not clear,付款方不明
 Payload Json,冻结载荷（JSON）
-Payload Version,载荷版本
 Payment,付款方式
 Payment Date,付款日期
 Payment Evidence,付款凭证
@@ -1259,7 +1257,9 @@ Purple,紫
 Push Account Set,推送账套
 Push Attempt,推送尝试
 Push Connection,推送连接
+Push Data Version,推送数据版本
 Push Record,推送记录
+Push choices set for a client company or one of its branches,按客户公司或分店设的推送选择
 Push record not found.,找不到推送记录。
 Pushed,推送时
 Pushed documents,推送了单据
@@ -1346,7 +1346,7 @@ Recurring,重复性
 Red,红
 Reference,参考编号
 Refresh Error Code,刷新错误码
-Refresh Lease Computer,刷新租约电脑
+Refresh Lease Computer,领取刷新的电脑
 Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
 Refresh Lease Generation,刷新租约版本
 Refresh Lease Handle,刷新租约标识
@@ -1377,7 +1377,7 @@ Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Remove mirror,移除镜像
 Remove template,取消模板
-Remove this company choice?,删除这条公司选择？
+Remove this company choice?,删除公司选择？
 Remove this company note?,删除这条公司说明？
 Removed a company choice,删除了公司选择
 Removed a company note,删除了公司说明
@@ -1469,7 +1469,7 @@ Same day,当天
 Sample Key,修正例标识
 Save and next,保存并下一项
 Save these scheduled tasks?,要保存这些定时任务吗？
-Save this choice for the company?,把这个选择记到公司？
+Save this choice for the company?,保存为公司选择？
 Save this scheduled task?,要保存这个定时任务吗？
 Save this to the company's notes?,把这条记进公司知识库？
 Saved,已保存
@@ -1528,6 +1528,7 @@ Set By,设定人
 Set a local folder once; documents are read and entered every month,设一个本机文件夹，每月自动识别推送
 Set as the account set in use?,设为现用账套？
 Set by {0} on {1},{0} 于 {1} 设定
+Set document handling,设置单据处理方式
 Set due date,到期日设为 N 天后
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。
 Set reminder,设置提醒
@@ -1703,8 +1704,7 @@ The account balance could not be checked right now. Try again in a moment.,暂�
 The account codes are invalid.,科目号无效。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
-The account set on this computer is not the registered one. Another computer will send it automatically.,这台电脑上的账套不是登记的那一份，将由其他电脑自动推送
-The account set on this computer is not the registered one. Waiting for another computer.,这台电脑上的账套不是登记的那一份，等待其他电脑
+The account set on this computer is not the registered one. Waiting for another computer.,此电脑上的账套与登记的不一致，等待其他电脑
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up. Correct them and submit again,金额合计不一致，请更正后重新提交
 The answer is not valid.,回答无效。
@@ -1902,10 +1902,9 @@ This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This board no longer exists,该看板不存在
 This channel is not open yet,此渠道尚未开放
-This choice cannot be saved,无法保存这条选择
+This choice cannot be saved,无法保存此选择
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
-This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
+This computer can no longer handle this document,此电脑已不能处理该单据
 This connection does not support an Express CC Desktop credential.,此连接不支持 Express CC 桌面版凭据。
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
@@ -1933,9 +1932,9 @@ This invoice has no lines. Add them and submit again.,此发票没有明细，�
 This invoice was already sent successfully,此发票已推送成功
 This is a reissued or backdated document. Check it and submit again,这是补开或倒签的单据，请核对后重新提交
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",此文件为销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,此单据为转账凭条。选择是否录入，所有同类单据将按此处理
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,此文件为试算表，仅含科目合计，请上传包含逐笔凭证的总账。
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理
 This is set by the scheduled task's default handling. Change it in the task,此项由定时任务的默认处理决定，请在定时任务中修改
 This is taking too long. Check the list later.,对账耗时较长，请稍后在列表中查看。
 This item is also stocked at:,该物料在以下位置也有库存：
@@ -1971,7 +1970,7 @@ This task uses the previous count format and cannot accept scan entries.,此任�
 This tax ID is already used by another company.,该税号已被其他公司使用。
 This tax id is already used by another client.,该税号已被其他客户使用。
 This value cannot be chosen for this account set.,此账套不能选择该值。
-This value is not in this month's account set,这个值不在本月账套的主档里
+This value is not in this month's account set,该值不在本月账套主档中
 Tier,档位
 Tier Since (UTC),档位起始时间（UTC）
 Time left {0},剩余 {0}
@@ -2002,6 +2001,7 @@ Transaction Date,交易日期
 Transaction type,业务类型
 Transfer,转账
 Transfer slips,转账凭条
+Transfer slips are not entered; this one is not sent,转账凭条不录入，此单据不推送
 Transport,运费
 Turn off,停用
 Turn on,启用
@@ -2135,6 +2135,7 @@ With differences,有差异
 Withdrawal,提款
 Withholding agent,扣缴义务人
 Withholding tax certificates,预扣税凭证
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,预扣税凭证（50 ทวิ）不录入，此单据不推送
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workbook Revision,工作簿版本
@@ -2180,7 +2181,7 @@ companion.on_demand_invalid,发给 CC 桌面版的请求无效。
 companion.on_demand_missing,找不到发给 CC 桌面版的请求。
 companion.on_demand_not_ready,CC 桌面版还没做完。
 companion.on_demand_unsupported,这条连接的电脑做不了这件事。
-companion.queue_access_revoked,CC 桌面版队列的访问权限已撤销。
+companion.queue_access_revoked,此电脑已不能处理该单据
 companion.queue_conflict,此回执与任务当前状态冲突。
 companion.queue_request_invalid,CC 桌面版队列请求无效。
 companion.queue_response_invalid,CC 桌面版队列响应无效。
@@ -2232,11 +2233,11 @@ cowork.company.choice.goods,商品单
 cowork.company.choice.next_year,次年
 cowork.company.choice.service,记费用
 cowork.company.choice.stock,走库存
-cowork.company.choice_invalid,这个值不在本月账套的主档里
+cowork.company.choice_invalid,该值不在本月账套主档中
 cowork.company.choice_not_editable,这里只能改付款方式和抵不抵进项
 cowork.company.choice_not_found,这条记住的选择已不在
-cowork.company.choice_scope_invalid,这家公司（或这个分店）没有覆盖本月的账套
-cowork.company.choice_unsupported,无法保存这条选择
+cowork.company.choice_scope_invalid,该公司或分店没有覆盖本月的账套
+cowork.company.choice_unsupported,无法保存此选择
 cowork.company.choices_full,公司选择已满
 cowork.company.head_office,总公司
 cowork.company.not_found,找不到这家公司
@@ -2256,9 +2257,9 @@ cowork.company.period_invalid,月份不对
 cowork.company.title_invalid,请输入 140 字以内的名称
 cowork.company.too_many,公司数量已达上限
 cowork.company.whole_company,全公司
-cowork.folder.account_set_ambiguous,这家公司有多份账套覆盖单据日期。
+cowork.folder.account_set_ambiguous,该公司有多份账套覆盖单据日期
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
-cowork.folder.account_set_none,这家公司没有覆盖单据日期的账套。
+cowork.folder.account_set_none,该公司没有覆盖单据日期的账套
 cowork.folder.account_set_unreachable,没有电脑能访问单据日期所在的账套。
 cowork.folder.agentStale,CC 桌面版不在线或需升级
 cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
@@ -3319,7 +3320,7 @@ intake.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重�
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 intake.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
-intake.error.ERR_ACCOUNT_UID_MISMATCH,这台电脑上的账套不是登记的那一份，等待其他电脑
+intake.error.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。
@@ -3369,10 +3370,10 @@ intake.error.date_implausible,票面日期可能有误，请核对后重新提�
 intake.error.date_reissued,这是补开或倒签的单据，请核对后重新提交
 intake.error.deposit_receipt,押金或定金收据需人工决定如何在 Express 入账
 intake.error.direction_unknown,请选择此发票为进项或销项后重新提交
-intake.error.document_policy_needed_payment_evidence,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
-intake.error.document_policy_needed_withholding_certificate,此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理
-intake.error.document_policy_skip_payment_evidence,本公司不录入转账凭条，此单据不推送
-intake.error.document_policy_skip_withholding_certificate,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
+intake.error.document_policy_needed_payment_evidence,此单据为转账凭条。选择是否录入，所有同类单据将按此处理
+intake.error.document_policy_needed_withholding_certificate,此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理
+intake.error.document_policy_skip_payment_evidence,转账凭条不录入，此单据不推送
+intake.error.document_policy_skip_withholding_certificate,预扣税凭证（50 ทวิ）不录入，此单据不推送
 intake.error.entry_not_balanced,分录借贷不平，请核对金额
 intake.error.items_incomplete,部分明细缺少品名或金额，请补全后重新提交
 intake.error.items_mismatch,明细合计与票面金额不一致，请修改明细后重新提交
@@ -3506,7 +3507,7 @@ push.native_stale_attempt,此推送尝试已失效。
 push.native_state_invalid,当前推送状态不允许此操作。
 push.native_target_changed,推送目标已变更，请重新准备票据。
 push.native_target_mismatch,已冻结的推送目标与授权目标不一致。
-push.no_writer,没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
+push.no_writer,没有可写入该账套的电脑
 push.original_reference_invalid,原票据引用无效或不可访问。
 push.posting_kind_invalid,过账类型无效。
 push.preparation_cancelled,尚未发送的推送准备已撤销。

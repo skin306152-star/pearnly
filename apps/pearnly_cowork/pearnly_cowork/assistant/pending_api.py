@@ -29,6 +29,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.contracts import document_policy
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
 
@@ -56,9 +57,18 @@ def answer(document, items):
 
     result = tools._push_one(name, route_device=_reader(name, doc.push_connection))
     frappe.db.commit()
+    return _answer(name, result)
+
+
+def _answer(name, result):
+    """回给页面的结论：``reason`` 是原因码（页面按它判断），``reason_label`` 是给人看的话（与列表 `reason_label` 同一套词条，
+    第 7 批 B7：页面原先把 ``document_policy_needed_payment_evidence`` 这样的码原样标红显示）。"""
+    from pearnly_cowork.push import export_facts
+
     out = {"document": name, "status": str(result.get("status") or "")}
     if result.get("reason"):
         out["reason"] = str(result["reason"])[:300]
+        out["reason_label"] = str(export_facts.reason_text(out["reason"]) or "")[:300]
     return out
 
 
@@ -140,26 +150,30 @@ def choose_account_set(document, account_set_key):
                              route_device=_reader(name, doc.push_connection))
     frappe.db.commit()
     status = str(result.get("status") or "")
+    reason = str(result.get("reason") or "")
     after = frappe.db.get_value("Cowork OCR History", name, ["last_push_record"], as_dict=True) or {}
-    if status in NOT_ENTERED and (after.get("last_push_record") or None) == (stop["record"] or None):
+    if status in NOT_ENTERED and reason.startswith(document_policy.NEEDED_PREFIX):
+        # 账套收下了，挡住它的是「这类单据录不录」（租户选一次，与选哪份账套无关）：去向记成选的这份、原因记成要选录不录，
+        # 这张单从「待选账套」转成一般的待处理（交给 CC、复核页选录不录）。放回「待选账套」的话换哪份都是同一个原因，
+        # 会计员在这一行永远过不去（第 7 批 B7，2026-10-18 lab）。
+        push_state.record_failure(name, reason, connection=doc.push_connection, account_set=picked["key"])
+    elif status in NOT_ENTERED and (after.get("last_push_record") or None) == (stop["record"] or None):
         push_state.record_failure(name, stop["reason"], connection=stop["connection"], account_set=stop["account_set"])
     elif status not in NOT_ENTERED:
         push_state.retarget(name, doc.push_connection, picked["key"])
         if current:
             _remember(current)
     frappe.db.commit()
-    out = {"document": name, "status": status}
+    out = _answer(name, result)
     if current and status not in NOT_ENTERED:
         out["current_book"] = current["value"]
-    if result.get("reason"):
-        out["reason"] = str(result["reason"])[:300]
     return out
 
 
 def _remember(found) -> None:
-    from pearnly_cowork.history import document_policy
+    from pearnly_cowork.history import document_policy as policy_store
 
-    document_policy.record(found["workspace"], found["key"], found["value"], seen=found.get("seen") or "")
+    policy_store.record(found["workspace"], found["key"], found["value"], seen=found.get("seen") or "")
 
 
 def rechoose_current_book(doc, account_set_key) -> dict | None:

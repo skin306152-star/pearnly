@@ -100,6 +100,57 @@ def _json(value, utc=(), local=()) -> str:
 
 # ---------------- 账套给人看的名字 ----------------
 
+# 已入账的单 CC 改不了时怎么说（第 5 轮测试：让 CC 把已入账的 SD-6909-1010 改科目，它答改不了，又给了「自己去 Express
+# 改 HP690920-001，我再回读」的选项）。用户在 F19 验收时定的口径：不叫人去 Express（或 MR.ERP、待处理页、复核页）改已入账
+# 的单；只说明改不到，给这张的单号、泰铢金额、当地时间；回读照常可以提。GUIDANCE、WRITTEN_NOTE、改单 / 推送 / 回读的说明与
+# 结果提示共用这一段，免得几处说法走样。
+# 第 6 轮测试：CC 说了改不了、给了单号泰铢时间，最后一句仍是「ถ้าต้องการให้ใบนี้ลงบัญชี 53-05-28-00 ต้องแก้ใน Express
+# โดยตรง」（要记到那个科目就得在 Express 里直接改）——条件句、收尾句同样不许说；可以提议把以后的同类单记成规则（要用户允许）。
+# 三种语言的反例只是给模型看的说明（不做输出过滤）。
+# 存公司规则时规则的对象（2026-10-16 测试：SD-6909-1010 的卖方是สะอาดดี，CC 提议存规则时却说成说明里另一条规则的ซ่อมไว）：
+# 对象就是正说着的那张单自己的对方，按那张单上的名字说；document 只传那一张，expect_party 写出说给用户的对方（服务端核对）。
+RULE_SUBJECT_NOTE = ("Such a rule is always for that document's own party: its seller (its buyer for a sales "
+                     "customer), named exactly as on that document; never name the party of another document or of a "
+                     "rule in <client_choices>. To save it, pass that same document as document and that party's tax "
+                     "ID (or its name when it has none) as expect_party.")
+ENTERED_NOTE = ("CC cannot change a document that is already entered into Express or MR.ERP (its account, cash or "
+                "credit, amounts or anything else). When the user asks to change one, say plainly that it cannot be "
+                "changed from here and give that document's number there (docnum), amounts in baht and times in local "
+                "time. Do not suggest, as an option or a next step, that the user changes it in Express or MR.ERP, on "
+                "the pending page or on the review page, nor offer to check it after they have; just say it cannot be "
+                "changed. Never say either that it needs to be, has to be or can be changed in Express or MR.ERP or "
+                "anywhere else, not even as a condition or a closing sentence ('if you want it under account X, it "
+                "has to be changed in Express directly' is just as wrong), and never point to any place, program, page "
+                "or person to change it. That holds in every language: nothing like '" + "ต้องแก้ใน Express โดยตรง"
+                + "' or '" + "ไปแก้ใน Express" + "' in Thai, nothing like '" + "需要在 Express 里直接改" + "' or '"
+                + "去 Express 改" + "' in Chinese. What you may offer instead is to save a rule so that later "
+                "documents of the same kind go the way the user wants (cowork_company_choice_save for the whole "
+                "company; the user allows it first). " + RULE_SUBJECT_NOTE + " Offering a readback of that month "
+                "(cowork_express_readback) to show what Express holds is fine.")
+# 改单、选项工具碰到已入账的单时随结果带上的提示（同一口径的短句）
+ENTERED_RESULT = ("This document is already entered into Express or MR.ERP and stays as entered there: CC cannot "
+                  "change it, and choices saved now apply only to later documents. Tell the user it cannot be "
+                  "changed, with its docnum, amounts in baht and times in local time; do not suggest changing it in "
+                  "Express or MR.ERP, on the pending page or on the review page. Never say it needs to be or can be "
+                  "changed in Express, MR.ERP or anywhere else, not even as a condition or a closing sentence, in any "
+                  "language. You may offer to save a rule for later documents of the same kind "
+                  "(cowork_company_choice_save; the user allows it first). " + RULE_SUBJECT_NOTE)
+
+
+def _entered_note(status) -> dict:
+    """已入账（推送成功）的单在改单 / 选项工具的结果里带上 `entered_note`；别的状态不带。"""
+    return {"entered_note": ENTERED_RESULT} if status == "success" else {}
+
+
+# Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：模型照用户的语言说
+# 这个名字，不自己意译。放在每轮都带的 GUIDANCE 里（第 7 批 B8，2026-10-18 lab：只写在 cowork_companion_status 的说明里时，
+# 排队回复照抄了结果提示里的英文「CC Desktop」），不再放在 cowork_companion_status 的说明里。
+CC_DESKTOP = ("The Windows program on the user's computer that reads their folders and writes into Express is "
+              "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
+              + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
+              "never by a generic description.")
+
+
 # 给模型的「怎么说话」：Cowork 自己的几条，接在共用说明后面（hooks `pearnly_assistant_guidance`）。
 # 2026-10-13 录屏：CC 对会计说账套「demo02」（Express 数据文件夹名）；会计认公司，不认文件夹代码。
 GUIDANCE = [
@@ -124,7 +175,7 @@ GUIDANCE = [
     # 第 5 轮测试 8：推到 Express 后 CC 说「เลขที่เอกสารใน ERP」；入账后又叫人去待处理页检查或修改（已入账的不在待处理里）
     "Call the accounting program by its name, Express or MR.ERP (the one the account set uses); never say 'the ERP' or "
     "'ERP' for it. A document already entered there is done: never suggest checking or changing it on the pending "
-    "page or the review page.",
+    "page or the review page. " + ENTERED_NOTE,
     # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张
     "When the user names documents by invoice number, counterparty, amount and date (for example a message "
     "prefilled from the pending list or the month card), find each one with cowork_list_documents search set to "
@@ -134,6 +185,7 @@ GUIDANCE = [
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
     "only when the document names a different buyer.",
+    CC_DESKTOP,
 ]
 
 
@@ -695,7 +747,8 @@ PUSH_WAIT_SECONDS = 25
 PUSH_WAIT_STEP = 2
 PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (or CC Desktop on that computer is "
                     "offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
-                    "cowork_push_results when they ask. Do not wait or sleep.")
+                    "cowork_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: "
+                    "never say it was entered or recorded into Express or MR.ERP, not even at the start of the reply.")
 
 
 def _may_wait() -> bool:
@@ -1170,7 +1223,7 @@ OPTIONS_SHOWN = 30
 MRERP_READ_WAIT_SECONDS = 60
 
 
-# 不能选的 Express 状态给模型的说明（不是界面文案）：分清「没有能写的电脑」与「CC 桌面版未连接」（ADR-021 第 53 条，10-16 审查）
+# 不能选的 Express 状态给模型的说明（不是界面文案）：分清「没有能写的电脑」与「未连接电脑」（ADR-021 第 53 条，10-16 审查）
 TARGET_NOTES = {
     "no_writer": "None of the user's own computers with CC Desktop can open this program's account sets (documents "
                  "are written only by the user's own computers, never a colleague's). Tell the user and ask them to "
@@ -1527,7 +1580,8 @@ def edit_document(tool_input) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"status": "saved", **_detail(saved)})
+    out = _detail(saved)
+    return _json({"status": "saved", **out, **_entered_note(out.get("push_status"))})
 
 
 ORIGINAL_PAGES_MAX = 3
@@ -1542,7 +1596,7 @@ def document_original(tool_input) -> str:
 
     from pearnly_cowork.files import access as file_access
     from pearnly_cowork.files import service as file_service
-    from pearnly_cowork.ocr import originals
+    from pearnly_core.originals import checks as originals
 
     name = str(tool_input.get("document") or "")
     try:
@@ -1670,7 +1724,7 @@ def push_choices(tool_input) -> str:
     if view.get("fixed"):
         # 来自定时任务、推往该任务账套的票：任务默认处理已定的类别（推送服务按任务取，不再问、不记进账套）
         out["task_defaults"] = view["fixed"]
-    return _json(out)
+    return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})
 
 
 def save_push_choices(tool_input) -> str:
@@ -1689,7 +1743,7 @@ def save_push_choices(tool_input) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"document": name, "status": "saved", "result": result})
+    return _json({"document": name, "status": "saved", "result": result, **_entered_note(getattr(doc, "last_push_status", None))})
 
 
 def resolve_push_result(tool_input) -> str:
@@ -3344,12 +3398,6 @@ SCOPE_PROPS = {
                                                         "company's account sets."},
 }
 
-# Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：
-# 工具说明一直在模型的上下文里，写在 cowork_companion_status 一处就够；模型照用户的语言说这个名字，不自己意译。
-CC_DESKTOP = ("The Windows program on the user's computer that reads their folders and writes into Express is "
-              "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
-              + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
-              "never by a generic description.")
 # 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目及其来源，`pushed.written`）：推送与查推送
 # 结果共用一段说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对；测试窗口第 2 轮：没报 ERP
 # 单号、没说科目从哪来。
@@ -3361,8 +3409,8 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
                 "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
-                "remembered (the choice saved for this supplier in this account set), company_rule (the client "
-                "company's choice, see <client_choices>), task_default (the "
+                "remembered (the choice saved for this supplier in this account set), company_rule (a client "
+                "company choice, see written.company_rules), task_default (the "
                 "scheduled folder task's default), document (written on the document), document_type (receipt or "
                 "simplified tax invoice = paid, tax invoice = credit), supplier_profile, bank (a matching bank "
                 "payment), pos_summary (POS daily sales, always cash), default (no signal: the account set's "
@@ -3373,14 +3421,16 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "the company page or in this chat; kept for this supplier, so other documents of the same supplier "
                 "waiting at that time count too), remembered (picked earlier for this supplier in this account set), "
                 "task_default (the scheduled folder task's default), express_history (this supplier was posted to "
-                "this account consistently in Express before), company_rule (the client company's choice, see "
-                "<client_choices>), matched (the document's category matched an account "
+                "this account consistently in Express before), company_rule (a client company choice, see "
+                "written.company_rules), matched (the document's category matched an account "
                 "mapping), default (the account set's default account; worth a look). Older documents may have no "
                 "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
-                "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
+                "added_to_cost (not claimed, in the cost) or none. written.writer, when present, is the name of the "
+                "computer whose CC Desktop wrote it into Express; when the user asks which computer wrote it, give "
+                "that name. Whenever a document is entered, always give the "
                 "user its document number (docnum), amounts in baht and times in local time. An entered document "
                 "is done: it is no longer on the pending page, so never point the user to the pending page, the "
-                "review page or Express to check or change it. Say plainly whether it was entered as cash or credit and "
+                "review page, Express or MR.ERP to check or change it. " + ENTERED_NOTE + " Say plainly whether it was entered as cash or credit and "
                 "which account it went to, each with where that came from, described in the user's own language "
                 "(for example 'you chose it for this supplier' or 'remembered from before'); never show the codes "
                 "themselves (chosen, remembered, task_default, express_history, company_rule, matched, default and "
@@ -3388,7 +3438,13 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "never end with a suggestion to check or confirm in Express what you have just told them. "
                 "decided_by, when present, says per kind what decided each choice with the same words (remembered, "
                 "company_rule, express_history, task_default; mixed when the lines of one kind came from different "
-                "places); describe those in the user's own words too.")
+                "places); describe those in the user's own words too. written.company_rules, when present, lists the client "
+                "company choices this document was entered by: kind, for (the party, or the item, the choice is for), "
+                "tax_id, value, branch and still_saved (false: that choice was removed or changed since; now_value is "
+                "the value it has now). When a company_rule decided something, name the choice from "
+                "written.company_rules only; when it is missing, say only that it was the company's choice. Never take "
+                "a choice from <client_choices> or the team notes as the one that decided an entered document: they "
+                "show today's choices, which may be for other parties.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
@@ -3526,9 +3582,8 @@ TOOLS = [
                     "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
                     "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
                     "and tell the user. This changes the record in Pearnly only: a document already entered into "
-                    "Express or MR.ERP is not changed there and is not pushed again. Never send the user to Express "
-                    "or MR.ERP to change an entered document; only when they ask, say plainly that this edit does not "
-                    "reach it. For Express, read it back afterwards with cowork_express_readback.",
+                    "Express or MR.ERP is not changed there and is not pushed again; only when the user asks, say "
+                    "plainly that this edit does not reach it. " + ENTERED_NOTE,
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"},
          "version": {"type": "integer"},
@@ -3539,23 +3594,29 @@ TOOLS = [
              "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}}},
          "required": ["document", "version"]},
      "handler": "pearnly_cowork.assistant.tools.edit_document"},
-    {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
+    {"name": "cowork_choose_document_policy", "label": "Document handling set",
      "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "
-                    "records documents of this kind, skip leaves them out. It applies to every document of this kind "
-                    "for the whole company from now on (the user allows it in the chat). For handling_choice_needed "
-                    "goods_posting (a goods document of a company that keeps stock in Express): stock enters this "
-                    "company's goods documents to stock, service enters them as expense, from now on. For "
+                    "records documents of this kind, skip leaves them out. It applies from now on to every document "
+                    "of this kind in this workspace, for all of its companies, not one company (the user allows it in "
+                    "the chat); say it that way. Every document waiting for this choice is settled with it (settled "
+                    "is how many): after skip they are left out and not pushed, so do not push them; after enter, "
+                    "push the document again. For handling_choice_needed goods_posting (a goods document of a "
+                    "company that keeps stock in Express): stock enters this company's goods documents to stock, "
+                    "service enters them as expense, from now on; then push the document again. For "
                     "handling_choice_needed current_book (two account sets of the company cover the same dates): "
                     "current_book with account_set_key from current_book_options pushes the document to that account "
                     "set and, once it is entered, remembers it as the one in use for this company and these account "
                     "sets; do not push it again yourself. If the user wants another one in use later, current_book "
                     "on a document of that company and date with the other account set's key changes what is "
-                    "remembered without pushing. For the other values push the document again afterwards.",
-     "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
-                                                        "value": {"type": "string",
-                                                                  "enum": ["enter", "skip", "stock", "service",
-                                                                           "current_book"]},
-                                                        "account_set_key": {"type": "string"}},
+                    "remembered without pushing.",
+     # 第 7 批 B7（2026-10-18 lab）：document 没写说明，CC 先后交了「transfer slip」「payment_evidence」（详情里
+     # handling_choice_needed 的类别名），两次都找不到单据、规则没存上
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string", "description": "The record name of the document whose push waits for this "
+                                                       "choice (the document value in tool results, such as from "
+                                                       "cowork_list_documents), not the kind of document."},
+         "value": {"type": "string", "enum": ["enter", "skip", "stock", "service", "current_book"]},
+         "account_set_key": {"type": "string"}},
                       "required": ["document", "value"]},
      "approval": True,
      "ask": "Change how this kind of document is handled?",
@@ -3613,7 +3674,7 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.pos_layout"},
     {"name": "cowork_companion_status", "label": "Checked CC Desktop",
      "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether CC Desktop is online "
-                    "(cc_desktop_online), and whether the account set list has been read. " + CC_DESKTOP + " To find "
+                    "(cc_desktop_online), and whether the account set list has been read. To find "
                     "or choose an account set for recognition or pushing, use cowork_intake_options instead.",
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_cowork.assistant.tools.companion_status"},
@@ -3665,9 +3726,8 @@ TOOLS = [
                     "there, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
                     "(get the choices with cowork_push_choices, ask the user, save them and push again), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
-                    "or already_success / already_pending (already entered or on its way; it is not pushed again: a "
-                    "pushed document can only be changed by a person in Express, then read back with "
-                    "cowork_express_readback). connection and account_set_key choose where to push (from "
+                    "or already_success / already_pending (already entered or on its way; it is not pushed again and "
+                    "CC cannot change it, see below). connection and account_set_key choose where to push (from "
                     "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
                     "upload is used. " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
@@ -3787,7 +3847,7 @@ TOOLS = [
                     "output VAT check left_files), purchase_vat (the input VAT report) and changes (documents Pearnly "
                     "pushed that were changed, cancelled or deleted in Express, and entries made directly in Express). "
                     "Read-only: Express may stay open, nothing is recognized or charged. Use it for Express's own "
-                    "figures, after the user corrected a pushed document in Express, and before reconciling or "
+                    "figures, after the user says they changed Express themselves, and before reconciling or "
                     "checking tax. connection and account_set_key as listed by cowork_intake_options; period is "
                     "YYYY-MM; accounts narrows the general ledger to those account codes (prefixes), e.g. the bank "
                     "account. Waits up to 90 seconds; reading means the computer is still reading: check with "

@@ -123,8 +123,8 @@ def context_rows(company) -> list:
     rows = frappe.get_all(CHOICE, filters={"company": company},
                           fields=["kind", "subject_label", "subject", "value", "value_label", "branch"],
                           order_by="set_at desc, name asc", limit_page_length=CONTEXT_MAX + 1)
-    return [{"kind": row.kind, "subject_label": row.subject_label or "", "value": row.value or "",
-             "value_label": row.value_label or "", "branch": row.branch or ""} for row in rows]
+    return [{"kind": row.kind, "subject_label": row.subject_label or "", "subject": row.subject or "",
+             "value": row.value or "", "value_label": row.value_label or "", "branch": row.branch or ""} for row in rows]
 
 
 def account_company(connection, account_row) -> tuple:
@@ -140,19 +140,34 @@ def account_company(connection, account_row) -> tuple:
 
 
 def for_push(connection, account_set, account_row) -> dict | None:
-    """推送准备的钩子（``cowork_push_company_choices``）：这份账套所属公司的规则 ``{"company", "branch", "rules": [{kind,
-    subject, value, branch, at}]}``（``at`` 是规则最后改的时间，站点时区；人推提议时据此分清人改了规则还是提议过时）；目录里没有这一行、没建主档回 None。直接按身份查公司（不读账套目录、不缓存）；出错由推送那边
+    """推送准备的钩子（``cowork_push_company_choices``）：这份账套所属公司的规则 ``{"company", "branch", "rules": [{id, kind,
+    subject, subject_label, value, value_label, branch, at}]}``（``at`` 是规则最后改的时间，站点时区；人推提议时据此分清人改了规则还是提议过时）；目录里没有这一行、没建主档回 None。直接按身份查公司（不读账套目录、不缓存）；出错由推送那边
     接住（这一张不用「历史已定」）。推送服务已核过录入权限与这条连接的使用授权；规则全所共用。"""
     del account_set  # 归属由目录这一行定
     name, branch = account_company(connection, account_row)
     if not name:
         return None
-    rows = frappe.get_all(CHOICE, filters={"company": name}, fields=["kind", "subject", "value", "branch", "modified"],
+    rows = frappe.get_all(CHOICE, filters={"company": name},
+                          fields=["name", "kind", "subject", "subject_label", "value", "value_label", "branch", "modified"],
                           limit_page_length=RULES_MAX)
     return {"company": name, "branch": branch,
-            "rules": [{"kind": row.kind, "subject": row.subject, "value": row.value, "branch": row.branch or "",
+            "rules": [{"id": row.name, "kind": row.kind, "subject": row.subject, "subject_label": row.subject_label or "",
+                       "value": row.value, "value_label": row.value_label or "", "branch": row.branch or "",
                        "at": str(row.modified or "")} for row in rows]}
 
 
+IDS_MAX = 500
+
+
+def values_now(ids) -> dict:
+    """推送回读的钩子（``cowork_push_company_choices_saved``）：推送时用上的这几条规则现在的值 ``{编号: 值}``，删了的不在里面
+    （CC 说「按哪条公司规则」时据此说还在不在）。只回编号与值，不回对象、公司；编号来自已按权限取到的推送记录。"""
+    names = [str(name) for name in ids or () if isinstance(name, str) and 0 < len(name) <= 140][:IDS_MAX]
+    if not names:
+        return {}
+    rows = frappe.get_all(CHOICE, filters={"name": ["in", names]}, fields=["name", "value"], limit_page_length=len(names))
+    return {row.name: row.value or "" for row in rows}
+
+
 __all__ = ["CONTEXT_MAX", "KIND_WORDS", "RULES_MAX", "account_company", "context_rows", "delete", "for_push", "forget_company", "listing",
-           "one", "rule_key", "save"]
+           "one", "rule_key", "save", "values_now"]

@@ -31,6 +31,16 @@ x-runtime: &runtime
     SOCKETIO_PORT: '9000'
     GUNICORN_WORKERS: '2'
     GUNICORN_THREADS: '4'
+    # Claude 识别路线（ADR-022，pearnly_core.claude_ocr.client）：甲骨文 claude-ocr 服务的地址、令牌、证书指纹，
+    # 与连不上时生产本机直调 Anthropic 用的密钥；都在 runtime.env，没配时选了 Claude 的租户识别会排队重试。
+    PEARNLY_CLAUDE_OCR_URL: ${PEARNLY_CLAUDE_OCR_URL:-}
+    PEARNLY_CLAUDE_OCR_TOKEN: ${PEARNLY_CLAUDE_OCR_TOKEN:-}
+    PEARNLY_CLAUDE_OCR_CERT_SHA256: ${PEARNLY_CLAUDE_OCR_CERT_SHA256:-}
+    PEARNLY_ANTHROPIC_API_KEY: ${PEARNLY_ANTHROPIC_API_KEY:-}
+    # 选了 Claude 识别的租户，Cowork 直传原件存甲骨文（ADR-023，pearnly_cowork.files.edge）：浏览器经 Cloudflare 隧道的地址、
+    # 生产签上传 / 预览 / 下载地址用的密钥（与甲骨文同一把）。没配时这类租户照旧经服务器上传。
+    PEARNLY_ORIGINALS_PUBLIC_URL: ${PEARNLY_ORIGINALS_PUBLIC_URL:-}
+    PEARNLY_ORIGINALS_SIGNING_KEY: ${PEARNLY_ORIGINALS_SIGNING_KEY:-}
 
 x-web: &web
   <<: *runtime
@@ -80,6 +90,7 @@ services:
     # 可在 runtime.env 调（PEARNLY_MARIADB_MEM）：连接上限 300 后每个连接还要一份缓冲，2026-10-01 压测时已到 1.65 / 2GiB。
     # 线上可先 `docker update --memory` 不重启生效，这里保证重建后仍是同一值。
     mem_limit: ${PEARNLY_MARIADB_MEM:-2g}
+    memswap_limit: ${PEARNLY_MARIADB_MEM:-2g}
     # --max-allowed-packet: 大数据量租户的单份快照可达 20MB 以上（rayong 15,135 个客户），
     # 默认 16MB 会让写入在读取中途被数据库拒绝。必须覆盖 store.MAX_BYTES。
     # --max-connections：runtime.env 的 PEARNLY_MARIADB_MAX_CONNECTIONS，默认 151（MariaDB 默认值）。2026-10-01 线上 SET GLOBAL 到 300
@@ -112,6 +123,7 @@ services:
     # 翻译表已改为按语言共享（pearnly_core/desk/boot_messages.py，每人降到约 0.1MB）；上限按机器内存算（sizing.py），
     # 容器比 maxmemory 多留 128m 开销（原 192m 顶上限 8969 次）。
     mem_limit: ${PEARNLY_REDIS_CACHE_MEM:-192m}
+    memswap_limit: ${PEARNLY_REDIS_CACHE_MEM:-192m}
     command: [redis-server, --maxmemory, '${PEARNLY_REDIS_CACHE_MAXMEMORY:-128mb}', --maxmemory-policy, allkeys-lru]
     networks: [runtime]
     logging: *logging
@@ -125,6 +137,8 @@ services:
     image: redis:6.2-alpine@sha256:ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0
     restart: unless-stopped
     mem_limit: 256m
+    # 宿主有 swap（scripts/production/ensure-swap.sh）后，数据库与 Redis 不许换出到磁盘：换出会让每次查询变慢。
+    memswap_limit: 256m
     command: [redis-server, --appendonly, 'yes', --appendfsync, everysec, --maxmemory, 160mb, --maxmemory-policy, noeviction]
     volumes: [queue:/data]
     networks: [runtime]

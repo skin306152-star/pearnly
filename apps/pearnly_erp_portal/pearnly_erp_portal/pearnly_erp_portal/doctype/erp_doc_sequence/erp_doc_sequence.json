@@ -33,7 +33,7 @@
    "reqd": 1,
    "in_list_view": 1,
    "length": 20,
-   "description": "Year, year-month or ALL, depending on the reset policy"
+   "description": "Year, year-month or ALL, per the reset policy"
   },
   {
    "fieldname": "next_number",
@@ -46,7 +46,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Doc Sequence",
  "owner": "Administrator",

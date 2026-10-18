@@ -5,6 +5,9 @@
 与写账套的推送线完全分开（同文件夹自动录入的做法）：自己一条守护线程、自己的 httpx 客户端，不进 PollWorker、
 不碰看门狗的存活时标——读得再慢也不挡推送，也不会被当成「卡死」重启。一次只做一件；线程里任何错误都不抛出去。
 
+每条连接一直用同一个客户端（连接保持，2026-10-18 轻量化）：原来每 15 秒新建一个，Windows 上每次新建要约 250 ms CPU
+（见 http_tls.py）、还要重新握手；出错、被拒、连接不再在用、线程停下时才关掉，下一轮再新建。
+
 加一种请求：服务端与 ``request_contract`` 的 KINDS 等常量各加一项，写处理函数 ``fn(cfg, params) -> Result``（做不了
 抛 ``RequestFailed(code)``），登记进 ``HANDLERS``。领请求时声明的 kinds 就是 ``HANDLERS`` 的键，旧服务端不认的种类
 它自己会略过。
@@ -59,6 +62,7 @@ class RequestWorker:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._working = False
+        self._clients: dict = {}   # {连接身份: 客户端}（只在本线程用）
 
     # ── 线程 ──────────────────────────────────────────────────────────────
 
@@ -99,9 +103,17 @@ class RequestWorker:
             return []
 
     def _loop(self) -> None:
+        try:
+            self._serve()
+        finally:
+            self.close_clients()
+
+    def _serve(self) -> None:
         while not self._stop.is_set():
             worked = False
-            for cfg in self._active():
+            active = self._active()
+            self.forget_others({_key(cfg) for cfg in active})
+            for cfg in active:
                 if self._stop.is_set():
                     return
                 key = _key(cfg)
@@ -123,8 +135,8 @@ class RequestWorker:
     # ── 一轮：领一件、做、交 ────────────────────────────────────────────────
 
     def round(self, cfg) -> bool:
-        """问这条连接要一件来做；做了返回 True（马上再问一次）。"""
-        client = self._client_factory(cfg.backend_url, cfg.bearer_token)
+        """问这条连接要一件来做；做了返回 True（马上再问一次）。出了错这条连接的客户端关掉，下一轮新建。"""
+        client = self._client(cfg)
         try:
             reply = client.next({"version": VERSION, "kinds": list(self._handlers), "device": _device_name()})
             request = reply.get("request") if reply.get("ok") else None
@@ -133,8 +145,35 @@ class RequestWorker:
             with self._work():
                 self._handle(client, cfg, request)
             return True
-        finally:
-            client.close()
+        except BaseException:
+            self._drop(_key(cfg))
+            raise
+
+    # ── 客户端（每条连接一个，一直用） ──────────────────────────────────────
+
+    def _client(self, cfg):
+        key = _key(cfg)
+        client = self._clients.get(key)
+        if client is None:
+            client = self._clients[key] = self._client_factory(cfg.backend_url, cfg.bearer_token)
+        return client
+
+    def _drop(self, key: str) -> None:
+        client = self._clients.pop(key, None)
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                log.debug("按需请求客户端关闭失败", exc_info=True)
+
+    def forget_others(self, keep: set) -> None:
+        """不再在用的连接（断开、换了密钥）：关掉它的客户端。"""
+        for key in [key for key in self._clients if key not in keep]:
+            self._drop(key)
+
+    def close_clients(self) -> None:
+        for key in list(self._clients):
+            self._drop(key)
 
     def _handle(self, client, cfg, request: dict) -> None:
         ident = {"request": request.get("id"), "handle": request.get("handle")}

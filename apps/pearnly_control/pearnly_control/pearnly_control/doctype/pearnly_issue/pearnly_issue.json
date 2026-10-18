@@ -14,9 +14,7 @@
   "column_break_head",
   "account_username",
   "account_password",
-  "assistant_engine",
-  "assistant_model",
-  "assistant_api_key",
+  "ocr_engine",
   "welcome_email_language",
   "section_apps",
   "apps",
@@ -35,38 +33,180 @@
   "welcome_email_error"
  ],
  "fields": [
-  {"default": "draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "draft\nissued\nfailed", "read_only": 1, "reqd": 1},
-  {"fieldname": "target", "fieldtype": "Link", "in_list_view": 1, "label": "Provisioning Target", "options": "Pearnly Target", "read_only": 1},
-  {"fieldname": "section_basic", "fieldtype": "Section Break", "label": "Basic Info"},
-  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "Company Name", "reqd": 1},
-  {"fieldname": "account_email", "fieldtype": "Data", "in_list_view": 1, "label": "Email", "options": "Email", "reqd": 1},
-  {"fieldname": "column_break_head", "fieldtype": "Column Break"},
-  {"fieldname": "account_username", "fieldtype": "Data", "label": "Username", "reqd": 1},
-  {"fieldname": "account_password", "fieldtype": "Password", "label": "Initial Password", "reqd": 1},
-  {"fieldname": "assistant_engine", "fieldtype": "Select", "label": "CC Engine"},
-  {"fieldname": "assistant_model", "fieldtype": "Select", "label": "CC Model"},
-  {"fieldname": "assistant_api_key", "fieldtype": "Password", "label": "CC API Key", "length": 255},
-  {"fieldname": "section_apps", "fieldtype": "Section Break", "label": "Products & Domains"},
-  {"fieldname": "apps", "fieldtype": "Table", "label": "Products & Domains", "options": "Pearnly Issue App", "reqd": 1},
-  {"fieldname": "feature_summary", "fieldtype": "Data", "label": "Enabled Features", "read_only": 1},
-  {"default": "password", "fieldname": "delivery", "fieldtype": "Select", "hidden": 1, "in_list_view": 1, "label": "Credential Delivery", "options": "invite\npassword", "read_only": 1},
-  {"fieldname": "section_result", "fieldtype": "Section Break", "label": "Result"},
-  {"fieldname": "tenant", "fieldtype": "Link", "label": "Tenant", "options": "Pearnly Tenant", "read_only": 1},
-  {"fieldname": "identity_subject", "fieldtype": "Data", "label": "Identity Subject", "read_only": 1},
-  {"fieldname": "cowork_identity_subject", "fieldtype": "Data", "label": "Cowork Identity Subject", "read_only": 1, "description": "Cowork has its own account pool; this is the account created there."},
-  {"fieldname": "invited_at", "fieldtype": "Datetime", "label": "Invitation Sent At", "read_only": 1},
-  {"fieldname": "password_delivered_at", "fieldtype": "Datetime", "label": "Password Delivered At", "read_only": 1},
-  {"fieldname": "column_break_result", "fieldtype": "Column Break"},
-  {"fieldname": "issued_at", "fieldtype": "Datetime", "label": "Issued At", "read_only": 1},
-  {"fieldname": "issued_by", "fieldtype": "Link", "label": "Issued By", "options": "User", "read_only": 1},
-  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"},
-  {"fieldname": "welcome_email_language", "fieldtype": "Select", "label": "Welcome Email Language", "options": "th\nzh\nen\nja", "default": "th"},
-  {"fieldname": "welcome_email_queue", "fieldtype": "Data", "label": "Welcome Email Queue", "read_only": 1, "no_copy": 1},
-  {"fieldname": "welcome_email_error", "fieldtype": "Small Text", "label": "Welcome Email Error", "read_only": 1, "no_copy": 1}
+  {
+   "default": "draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "draft\nissued\nfailed",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "target",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Provisioning Target",
+   "options": "Pearnly Target",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_basic",
+   "fieldtype": "Section Break",
+   "label": "Basic Info"
+  },
+  {
+   "fieldname": "tenant_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Company Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account_username",
+   "fieldtype": "Data",
+   "label": "Username",
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_password",
+   "fieldtype": "Password",
+   "label": "Initial Password",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ocr_engine",
+   "fieldtype": "Select",
+   "label": "Recognition Engine",
+   "options": "Google\nClaude",
+   "default": "Claude",
+   "description": "Google or Claude. A change applies from the next document."
+  },
+  {
+   "fieldname": "section_apps",
+   "fieldtype": "Section Break",
+   "label": "Products & Domains"
+  },
+  {
+   "fieldname": "apps",
+   "fieldtype": "Table",
+   "label": "Products & Domains",
+   "options": "Pearnly Issue App",
+   "reqd": 1
+  },
+  {
+   "fieldname": "feature_summary",
+   "fieldtype": "Data",
+   "label": "Enabled Features",
+   "read_only": 1
+  },
+  {
+   "default": "password",
+   "fieldname": "delivery",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "in_list_view": 1,
+   "label": "Credential Delivery",
+   "options": "invite\npassword",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_result",
+   "fieldtype": "Section Break",
+   "label": "Result"
+  },
+  {
+   "fieldname": "tenant",
+   "fieldtype": "Link",
+   "label": "Tenant",
+   "options": "Pearnly Tenant",
+   "read_only": 1
+  },
+  {
+   "fieldname": "identity_subject",
+   "fieldtype": "Data",
+   "label": "Identity Subject",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cowork_identity_subject",
+   "fieldtype": "Data",
+   "label": "Cowork Identity Subject",
+   "read_only": 1,
+   "description": "Account created in the Cowork account pool"
+  },
+  {
+   "fieldname": "invited_at",
+   "fieldtype": "Datetime",
+   "label": "Invitation Sent At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "password_delivered_at",
+   "fieldtype": "Datetime",
+   "label": "Password Delivered At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_result",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "issued_at",
+   "fieldtype": "Datetime",
+   "label": "Issued At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "issued_by",
+   "fieldtype": "Link",
+   "label": "Issued By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "welcome_email_language",
+   "fieldtype": "Select",
+   "label": "Welcome Email Language",
+   "options": "th\nzh\nen\nja",
+   "default": "th"
+  },
+  {
+   "fieldname": "welcome_email_queue",
+   "fieldtype": "Data",
+   "label": "Welcome Email Queue",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "welcome_email_error",
+   "fieldtype": "Small Text",
+   "label": "Welcome Email Error",
+   "read_only": 1,
+   "no_copy": 1
+  }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-13 18:00:00.000000",
+ "modified": "2026-10-18 21:30:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Issue",

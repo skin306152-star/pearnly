@@ -114,7 +114,7 @@ class DmsFixture:
     def _parse_form_defaults(self, body):
         return json.loads(body)
 
-    def create_booking_via_form(self, *, customer_id, booking, card, on_attempt):
+    def create_booking_via_form(self, *, customer_id, booking, card, on_attempt, readback_out=None):
         number = self.label + "-" + str(len(self.orders) + 1)
         fields = {"txtdocno": number, "cusval": customer_id, "txttel": card.phone}
         on_attempt.capture_submission(number, fields)
@@ -129,6 +129,9 @@ class DmsFixture:
         if self.unknown_after_submit:
             # The transport/client reports uncertainty, never fabricates success.
             raise DmsClientError("fixture lost response", "ERR_DMS_BOOKING_OUTCOME_UNKNOWN")
+        if readback_out is not None:
+            # The verified readback hands its form to the receipt review, as the real client does.
+            readback_out.update({"form": dict(self.form), "submitted": dict(fields)})
         return str(len(self.orders)), number
 
     def attach_booking_files(self, *, booking_id, files):
@@ -439,7 +442,7 @@ class NativeFlow(unittest.TestCase):
                     if number in str((data.get("json") or {}).get("messages"))]
         self.assertEqual(len(receipts), 1)
         self.assertEqual(receipts[0]["replyToken"], "reply-" + event)
-        stored = json.loads(self.deliveries()[0].attempt)["receipt"]["text"]
+        stored = json.loads(self.deliveries()[0].attempt)["receipt"]["message"]["text"]
         self.assertIn(stored, [message.get("text") for message in receipts[0]["messages"]])
         self.assertFalse(any(url.endswith("/push") for _, url, _ in self.http))
         sent = len(self.http)

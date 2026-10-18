@@ -50,6 +50,21 @@ def setup_logging(cfg: CompanionConfig | None = None) -> logging.Logger:
     return root
 
 
+WINDOW_LOG_FILE = LOG_DIR / "window.log"
+
+
+def setup_window_logging() -> logging.Logger:
+    """CC 窗口进程（window_main.py）的日志：单独一个小文件，不和托盘进程抢着轮转 companion.log / activity.log。"""
+    root = logging.getLogger("pearnly_companion")
+    if root.handlers:
+        return root
+    root.setLevel(logging.INFO)
+    fh = RotatingFileHandler(WINDOW_LOG_FILE, maxBytes=1024 * 1024, backupCount=2, encoding="utf-8")
+    fh.setFormatter(logging.Formatter(_FMT))
+    root.addHandler(fh)
+    return root
+
+
 def _setup_activity() -> logging.Logger:
     act = logging.getLogger("pearnly_companion.activity")
     if act.handlers:

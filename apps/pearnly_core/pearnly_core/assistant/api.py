@@ -9,6 +9,20 @@ from frappe import _
 from pearnly_core.assistant import files, sessions, tools
 from pearnly_core.assistant import projects as filed  # 接口名 `projects` 留给下面的方法
 
+METHODS = "/api/method/pearnly_core.assistant."
+
+
+def no_traceback():
+    """before_request：对话页这些接口出错时不回 Python 堆栈。Frappe 在系统设置「显示完整错误」（默认开）且请求人是系统用户时，
+    把整段堆栈放进回复的 `exc`（`frappe.throw` 的拒收也一样，不只是开发模式；测试窗口第 10 轮 B 段：换公司被拒的 417 带着堆栈）。
+    这里关掉（`disable_traceback`，同 pearnly_control 的成员接口）：拒收照旧只回 `_server_messages` 里的原文，堆栈仍记进错误日志。
+    边界（接受，不另改配置）：进 before_request 之前就抛的错（例如 CSRF 校验失败，在 init_request 建请求对象时）照 Frappe 默认；
+    只认 `/api/method/`（对话页只用这一种），`/api/v2/method/` 不在内。产品站点的系统设置 allow_error_traceback 现在每次 migrate 都关掉
+    （`pearnly_core.desk.error_detail`，用户 2026-10-18），那几种照它也不带堆栈；这里仍按请求关，不依赖那项设置。"""
+    request = getattr(frappe, "request", None)
+    if request and (request.path or "").startswith(METHODS):
+        frappe.flags.disable_traceback = True
+
 
 @frappe.whitelist(methods=["GET"])
 def listing(archived=0, after=None, check=None, grouped=0, group=None):
@@ -22,6 +36,7 @@ def create(project=None, period=None, scope=None):
     return sessions.create(project=project or None, period=period or None, scope=scope or None)
 
 
+# 改对话的处理月份、分店；project 是它现在的公司（不能换公司，见 `sessions.move`）
 @frappe.whitelist(methods=["POST"])
 def move(session_id, project="", period=None, scope=None):
     return sessions.move(session_id, project or "", period=period or None, scope=scope or None)
@@ -75,7 +90,7 @@ def send(session_id, text):
 
 @frappe.whitelist(methods=["POST"])
 def confirm(session_id, confirmations):
-    return {"confirmed": sessions.confirm(session_id, frappe.parse_json(confirmations))}
+    return sessions.confirm(session_id, frappe.parse_json(confirmations))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -112,6 +127,21 @@ def preview(session_id, file_id):
 @frappe.whitelist(methods=["GET"])
 def page_image(session_id, file_id, page=1, size="thumb"):
     return files.page_image(session_id, file_id, page=page, size=size)
+
+
+# 外壳的个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）：按人存、跨设备同步，只读写自己的（`prefs`）
+@frappe.whitelist(methods=["GET"])
+def layout():
+    from pearnly_core.assistant import prefs
+
+    return {"prefs": prefs.read()}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_layout(prefs):
+    from pearnly_core.assistant import prefs as layout_prefs
+
+    return {"prefs": layout_prefs.save(prefs)}
 
 
 @frappe.whitelist(methods=["GET"])

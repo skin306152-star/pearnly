@@ -5,20 +5,22 @@
 //   参数   — 都在 globals.css：--cc-marquee-delay（约 150ms 后开始，行尾操作按钮已出现、标题区已变窄再量）、
 //            --cc-marquee-speed（每秒约 40px，线性）、--cc-marquee-min（最短 0.3s）、--cc-marquee-fade（滚动中左端 24 渐隐）；
 //            元素自己的 --cc-marquee-end（已有的右端渐隐宽度）
-//   放不放得下 — 按文字宽度与「框宽 - 右端渐隐」比（第 5 轮：比框窄不到一个渐隐宽度的标题，最后几个字一直被渐隐遮着，
-//            原来按框宽判断不滚）；滚到末尾时最后一个字越过渐隐才算露出
+//   放不放得下 — 同静止时的末尾渐隐一个量法（lib/overflow-fade.ts 的 overflowOf，用户 10-16「统一渐隐」：只有真的放不下才
+//            渐隐）：文字比框宽才滚，放得下的末尾不淡、也不滚；滚到末尾时最后一个字越过右端渐隐才算露出
 //   键盘焦点 — 只有真正的键盘操作才因焦点滚（上一次输入是键盘，且 :focus-visible）。用鼠标关掉菜单、焦点被程序还给
 //            「···」时不算，鼠标不在这一行就立即回到开头（第 5 轮：原来一直停在滚完的位置，要等焦点移走才复位）
 //   滚动中文字变了 — 立即回到开头、重新量（只在滚动中观察这一个元素，不常驻）
 //   不滚   — 系统减少动态效果（prefers-reduced-motion）、触屏 / 不能悬停的设备、这一行里正开着输入框（就地改名）、
 //            拖动中（按着键移进来、正在拖动 lib/layers.ts、页面上有 [data-dragging]）；按下（开始拖动、点进去）就回到开头
-//   只在悬停时量：不给每一行常驻 ResizeObserver。静止时的截断样式（渐隐 / 省略号）不变：只有滚动中才换成 inline-block 平移
+//   悬停时才量滚多远（静止时放不放得下由 lib/overflow-fade.ts 整页一个观察器判定）。静止时的末尾渐隐不变：滚动中左右两端渐隐
 //
 // 用法：components/ui/marquee.tsx 的 <Marquee>（外层是原来那个截断的元素，里面包一层平移的文字）。触发的「这一行」是最近的
 // [data-marquee-host]，没有就取最近的菜单项 / 按钮 / 链接 / 会话栏行 / 列表行，再没有就是文字自己（整行都该触发的地方
 // 给那一行标 data-marquee-host）。
 import { useEffect, useRef } from "react";
+import { cssMs } from "@/lib/css-var";
 import { isDragging } from "@/lib/layers";
+import { overflowOf, overflows } from "@/lib/overflow-fade";
 import { touchOnly } from "@/lib/touch";
 
 const HOST = "[data-marquee-host]";
@@ -31,13 +33,8 @@ export function canHoverScroll(): boolean {
   return !touchOnly() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** CSS 时长（「150ms」「0.3s」）→ 毫秒（共用拖动的动效时长也用它）。 */
-export function cssMs(value: string, fallback: number): number {
-  const text = value.trim();
-  const n = parseFloat(text);
-  if (!Number.isFinite(n)) return fallback;
-  return text.endsWith("ms") ? n : text.endsWith("s") ? n * 1000 : n;
-}
+// CSS 时长 → 毫秒的解析在 lib/css-var.ts（三份合成一份，标准化记录 2.6）；这里再导出一次，原来从这里导入的调用方（共用拖动）不动，B8 删掉
+export { cssMs };
 
 function rootVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name);
@@ -58,17 +55,13 @@ function watchInput() {
   window.addEventListener("pointerdown", () => (keyboardLast = false), true);
 }
 
-/** 文字要滚多远才露出最后一个字（≤ 1 就是放得下）：文字宽 + 左右内边距 - 框宽 + 右端渐隐宽。 */
-export function scrollDistance(text: number, box: { width: number; padding: number; fade: number }): number {
-  return text + box.padding - box.width + box.fade;
+/** 文字要滚多远才露出最后一个字（0 就是放得下、不滚）：放不下时 = 多出的宽 + 右端渐隐宽；放得下（末尾不淡）不滚。 */
+export function scrollDistance(over: number, fade: number): number {
+  return overflows(over) ? over + fade : 0;
 }
 
 function distanceOf(box: HTMLElement): number {
-  const style = getComputedStyle(box);
-  const text = box.querySelector<HTMLElement>(":scope > .cc-marquee-text");
-  const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
-  const width = text ? text.getBoundingClientRect().width : box.scrollWidth - padding;
-  return scrollDistance(width, { width: box.clientWidth, padding, fade: parseFloat(style.getPropertyValue("--cc-marquee-end")) || 0 });
+  return scrollDistance(overflowOf(box), parseFloat(getComputedStyle(box).getPropertyValue("--cc-marquee-end")) || 0);
 }
 
 /** 给截断的那个元素挂上悬停滚动，返回卸下的函数。元素里面要有一层 .cc-marquee-text（平移的就是它）。 */
@@ -95,7 +88,7 @@ export function attachHoverScroll(box: HTMLElement): () => void {
     timer = 0;
     if (!(hovered || focused) || busy(host)) return;
     const distance = distanceOf(box);
-    if (distance <= 1) return; // 放得下（最后一个字也不在渐隐里）：不滚
+    if (!distance) return; // 放得下（末尾不淡）：不滚
     const speed = parseFloat(rootVar("--cc-marquee-speed")) || 40;
     const duration = Math.max(cssMs(rootVar("--cc-marquee-min"), 300), (distance / speed) * 1000);
     box.setAttribute("data-marquee", "run");

@@ -200,7 +200,9 @@ def origin(file_id) -> str:
 def listing(session_id) -> list[dict]:
     """本会话的全部文件：挂进去的附件（只作输入）+ 智能体产出的结果（可下载）。按生成时间从早到晚排：引擎列文件是
     新的在前，结果面板默认打开最后一个，新导出的文件出来时面板却停在最早那份（2026-10-10 测试）。
-    附件（kind = upload）按本站留存的那份补上大小与 PDF 页数（`pages`），对话里的附件卡片显示「PDF · N 页」/ 大小。"""
+    附件（kind = upload）按本站留存的那份补上大小与 PDF 页数（`pages`），对话里的附件卡片显示「PDF · N 页」/ 大小。
+    附件的编号是上传时引擎给的那个（`upload` 返回、消息的挂载位置里记的、本站留存用的同一个，引擎另存的副本不列，见适配器
+    `files`），刷新后、别的设备上卡片照样按它对上（第 5 轮测试 1）。"""
     row = sessions.owned(session_id, allow_archived=True)
     api = engine.adapter()
     found = sorted((f for remote in sessions.segments(row) for f in api.files(remote)),

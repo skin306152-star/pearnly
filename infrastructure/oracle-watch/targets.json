@@ -1,0 +1,8 @@
+[
+  {"name": "ris.pearnly.com（DMS）", "url": "https://ris.pearnly.com/api/method/ping", "contains": "pong"},
+  {"name": "mrerp.pearnly.com（ERP）", "url": "https://mrerp.pearnly.com/api/method/ping", "contains": "pong"},
+  {"name": "erpcowork.pearnly.com（Cowork）", "url": "https://erpcowork.pearnly.com/api/method/ping", "contains": "pong"},
+  {"name": "登录服务 auth.pearnly.com", "url": "https://auth.pearnly.com/realms/pearnly-cowork/.well-known/openid-configuration", "contains": "issuer"},
+  {"name": "fatcc.com", "url": "https://fatcc.com/"},
+  {"name": "pearnly.com 官网", "url": "https://pearnly.com/"}
+]

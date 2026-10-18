@@ -12,9 +12,10 @@ from frappe import _
 from frappe.utils import cint
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.files import access, cloud, guard
-from pearnly_cowork.ocr import originals
-from pearnly_cowork.ocr.inputs import IMAGE_EXTENSIONS, MAX_FILE_BYTES as MAX_BYTES, OcrInputError
+from pearnly_cowork.files import access, guard
+from pearnly_core.originals import gcs as cloud, store
+from pearnly_core.originals import checks as originals
+from pearnly_core.originals.rules import IMAGE_EXTENSIONS, MAX_FILE_BYTES as MAX_BYTES, TABLE_EXTENSIONS, OcrInputError
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,16 @@ def create(workspace, filename, content, request_key, client=None):
     fingerprint = _fingerprint(client, meta)
     if frappe.db.exists(access.SOURCE, name):
         return project(_existing(name, fingerprint))
+    # 生产手上已有的字节（LINE 收单、CC 对话、经服务器传的 HEIC 照片）交原件层存（ADR-024），不落本机盘；
+    # 存放处一时连不上抛 Deferred（队列重试 / 页面稍后再传）。这个站点没配存放处才照旧存本机。
+    stored = store.put(name, meta["suffix"], filename, content)
+    if stored is not None:
+        if stored["status"] != "ok":
+            reject(stored["code"])
+        if frappe.db.exists(access.SOURCE, name):
+            return project(_existing(name, fingerprint))
+        return project(_new_source(name, key, workspace, client, fingerprint, meta, storage_url=stored["ref"],
+                                   native_content_hash=stored["md5"]))
     doc = _new_source(name, key, workspace, client, fingerprint, meta)
     file_doc = frappe.get_doc({"doctype": "File", "file_name": name + meta["suffix"],
         "is_private": 1, "content": content, "owner": "Administrator", "folder": attachments_folder(),
@@ -126,9 +137,14 @@ def _heic_as_jpeg(filename, content):
     return filename, content
 
 
-# 浏览器直传（ADR-016）：只收 PDF / 图片（表格、Word 要在服务器上解析，照旧经服务器上传）。
-# HEIC 不直传：浏览器原样 PUT 到原件桶就没法先转 JPEG，所以照旧经服务器上传（`create` 里转）。
-DIRECT_KINDS = IMAGE_EXTENSIONS | {".pdf"}
+# 浏览器直传（ADR-016 / ADR-024）：PDF、图片、表格 / Word 都直传存放处（表格识别时再读回解析，文件都小）。
+# HEIC 不直传：浏览器原样 PUT 就没法先转 JPEG，所以照旧经服务器上传（`create` 里转，再交原件层存）。
+DIRECT_KINDS = IMAGE_EXTENSIONS | TABLE_EXTENSIONS | {".pdf"}
+
+
+def _kind_of(suffix):
+    """扩展名该是哪种原件（存放处读出来的类型必须对得上）。"""
+    return "pdf" if suffix == ".pdf" else "image" if suffix in IMAGE_EXTENSIONS else "document"
 
 
 def _direct_target(workspace, filename, byte_size, request_key, client):
@@ -152,7 +168,8 @@ def _direct_target(workspace, filename, byte_size, request_key, client):
 
 
 def begin_direct(workspace, filename, byte_size, request_key, client=None):
-    """浏览器直传第一步：签发上传地址。没开直传或不是 PDF / 图片返回 ``{"direct": 0}``，页面照旧经服务器上传。
+    """浏览器直传第一步：签发上传地址（存哪由原件层按租户路线定：Claude → 甲骨文、谷歌 → 谷歌存储）。这个站点不直传
+    （没配存放处）或 HEIC 照片返回 ``{"direct": 0}``，页面照旧经服务器上传。
 
     同一个幂等键已经登记过就直接给出原件信息（``done``），页面不用再传。"""
     from pearnly_core.desk import heic
@@ -160,13 +177,12 @@ def begin_direct(workspace, filename, byte_size, request_key, client=None):
     if str(filename or "").lower().endswith(heic.EXTENSIONS):
         return {"direct": 0}
     name, _key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
-    bucket_name = cloud.bucket()
-    if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
+    if suffix not in DIRECT_KINDS:
         return {"direct": 0}
-    if frappe.db.exists(access.SOURCE, name):
+    target = store.begin_upload(name, suffix, int(byte_size))
+    if target["direct"] and frappe.db.exists(access.SOURCE, name):
         return {"direct": 1, "done": project(_existing(name, None, filename=filename, byte_size=byte_size))}
-    target = cloud.upload_target(bucket_name, cloud.object_name(frappe.local.site, name, suffix), int(byte_size))
-    return {"direct": 1, **target}
+    return target
 
 
 # 网页进程里同时等 Cloud Run 核对原件 / 现画页图的上限（每进程）：超出的直传确认让页面过几秒再来（页面本来就认 ``retry``），
@@ -178,23 +194,21 @@ RENDER_WAIT_SECONDS = 10
 
 
 def finish_direct(workspace, filename, byte_size, request_key, client=None):
-    """浏览器直传第二步：Cloud Run 读一遍原件（类型、页数、sha256，同 :func:`inspect_content`），通过就登记。"""
+    """浏览器直传第二步：请存放处读一遍原件（类型、页数、sha256，同 :func:`inspect_content`；甲骨文或 Cloud Run 上做），
+    通过就登记。存放处一时连不上 / 忙：页面过几秒再来确认（页面本来就认 ``retry``），不退回生产存。"""
     from pearnly_core.execution.errors import Deferred
-    from pearnly_cowork.ocr.remote import forward
 
     name, key, filename, suffix = _direct_target(workspace, filename, byte_size, request_key, client)
-    bucket_name = cloud.bucket()
-    if not bucket_name or suffix not in DIRECT_KINDS or not _remote_ready():
+    if suffix not in DIRECT_KINDS or store.where() == store.LOCAL:
         frappe.throw(_("Direct upload is not available. Please upload again."))
     if frappe.db.exists(access.SOURCE, name):
         return project(_existing(name, None, filename=filename, byte_size=byte_size))
-    object_name = cloud.object_name(frappe.local.site, name, suffix)
     if not INSPECT_SLOTS.acquire(blocking=False):
         return {"retry": 2}  # 这个进程已有 4 份在等核对：页面过两秒再来（核对内容一点不放宽）
     try:
-        result = forward.inspect_original(object_name, filename)
+        result = store.finish_upload(name, suffix, filename)
     except Deferred as error:
-        return {"retry": max(1, int(error.delay or 5))}  # Cloud Run 一时连不上 / 忙：页面过几秒再来确认
+        return {"retry": max(1, int(error.delay or 5))}
     finally:
         INSPECT_SLOTS.release()
     if result["status"] != "ok":
@@ -204,15 +218,14 @@ def finish_direct(workspace, filename, byte_size, request_key, client=None):
     meta = result["meta"]
     expected = {"filename": filename, "suffix": suffix, "byte_size": int(byte_size)}
     differing = sorted(field for field, value in expected.items() if meta.get(field) != value)
-    if meta.get("kind") not in ("pdf", "image"):
+    if meta.get("kind") != _kind_of(suffix):
         differing.append("kind")
     if differing:
         _not_received(name, "meta_mismatch:" + ",".join(differing))
     fingerprint = _fingerprint(client, meta)
     if frappe.db.exists(access.SOURCE, name):
         return project(_existing(name, fingerprint))
-    doc = _new_source(name, key, workspace, client, fingerprint, meta,
-                      storage_url=cloud.url_of(bucket_name, object_name, result["generation"]),
+    doc = _new_source(name, key, workspace, client, fingerprint, meta, storage_url=result["ref"],
                       native_content_hash=result["md5"])
     return project(doc)
 
@@ -224,23 +237,30 @@ def _not_received(name, reason):
     frappe.throw(_("The uploaded file was not received. Please upload again."))
 
 
-def _remote_ready():
-    from pearnly_cowork.ocr.remote import forward
-
-    return forward.settings() is not None
+def _stored_ref(source):
+    """原件存在存放处（甲骨文 / 谷歌存储）返回它的引用；存在服务器上（老文件、没配存放处的站点）返回 ``None``。"""
+    if getattr(source, "stored_file", None):
+        return None
+    ref = getattr(source, "storage_url", None)
+    return ref if store.parse(ref) else None
 
 
 def stored_original(source):
-    """原件存在原件桶里（浏览器直传）返回 ``(桶, 对象, 版本号)``，存在服务器上返回 ``None``。"""
-    if getattr(source, "stored_file", None):
-        return None
-    return cloud.parse_url(getattr(source, "storage_url", None))
+    """原件存在谷歌存储返回 ``(桶, 对象, 版本号)``（交 Cloud Run 识别时按版本号读），否则 ``None``。"""
+    found = store.parse(_stored_ref(source))
+    return found[1] if found and found[0] == store.GCS else None
+
+
+def edge_original(source):
+    """原件存在甲骨文返回 ``(对象名, sha256)``（交 Claude 识别时甲骨文自己读），否则 ``None``。"""
+    found = store.parse(_stored_ref(source))
+    return found[1] if found and found[0] == store.ORACLE else None
 
 
 def verify_stored(source):
     """登记识别结果前核对原件还是那一份。原件桶里的按版本号存（同一版本内容不会变，登记时已由 Cloud Run 核对过
     sha256），不再整份下载；服务器上的照旧读一遍核对。"""
-    if stored_original(source):
+    if _stored_ref(source):
         return
     read_bytes(source)
 
@@ -329,9 +349,10 @@ def freeze_doc_manifest(source, document):
 
 def read_bytes(source):
     """Internal capability, called only after whole-file/page authorization."""
-    stored = stored_original(source)
-    if stored:
-        data = cloud.read(stored)
+    ref = _stored_ref(source)
+    if ref:
+        # 存在存放处（ADR-024）：只有表格解析、导出打包等少数地方要整份字节；预览、下载、识别都不经过这里。
+        data = store.read(ref)
         if hashlib.sha256(data).hexdigest() != source.sha256:
             frappe.throw(_("The original file checksum does not match."))
         return data
@@ -359,10 +380,10 @@ def original(name):
 
 
 def original_link(name):
-    """原件在原件桶里：``(文件名, 短时签名下载地址)``；在服务器上返回 ``None``（照旧由接口回字节）。"""
+    """原件在存放处（甲骨文 / 谷歌存储）：``(文件名, 短时签名下载地址)``；在服务器上返回 ``None``（照旧由接口回字节）。"""
     source = get_source(name)
-    stored = stored_original(source)
-    return (source.filename, cloud.download_url(stored, source.filename)) if stored else None
+    ref = _stored_ref(source)
+    return (source.filename, store.download_url(ref, source.filename)) if ref else None
 
 
 def page_source(history_name, physical_page):
@@ -419,6 +440,9 @@ def preview_link(source, number):
     调用方先做完 :func:`page_source` 的权限判定。"""
     from pearnly_cowork.ocr.remote import contract
 
+    link = store.preview_url(_stored_ref(source), source.kind, int(number))
+    if link:
+        return link  # 甲骨文现画并存下（ADR-023），生产不画
     if not previews_on():
         return None
     try:
@@ -452,14 +476,14 @@ def render_page(source, number):
 
 
 def _render_page(source, number):
-    stored = stored_original(source)
-    if stored:
-        # 原件在原件桶里：在 Cloud Run 上生成这一页的预览，只把生成好的图传回来（不把整份原件下载到服务器，ADR-016）。
+    if edge_original(source):
+        frappe.throw(_("The preview is temporarily unavailable. Please try again."))  # 甲骨文的预览走签名地址
+    if stored_original(source):
+        # 原件在谷歌存储：在 Cloud Run 上生成这一页的预览，只把生成好的图传回来（不把整份原件下载到服务器，ADR-016）。
         from pearnly_core.execution.errors import Deferred
-        from pearnly_cowork.ocr.remote import forward
 
         try:
-            result = forward.preview(stored[1], stored[2], source.sha256, source.kind, number)
+            result = store.render(_stored_ref(source), source.sha256, source.kind, number)
         except Deferred:
             frappe.throw(_("The preview is temporarily unavailable. Please try again."))
         if result.get("code"):
@@ -484,7 +508,7 @@ def purge(source_names):
     调用方（`history/removal.py`）已核过权限并删掉了引用它的票；这里再核一次：还有票在用、或还有识别没结束的原件不删。
     数据库行当场删；磁盘文件与桶里的对象等事务提交后再删（回滚时不丢文件），桶里的放后台任务，不拖慢删除请求。
     返回删掉的原件数。"""
-    paths, prefixes, removed = [], [], 0
+    paths, prefixes, edge_objects, removed = [], [], [], 0
     bucket_name = cloud.bucket()
     for name in dict.fromkeys(source_names or []):
         source = frappe.db.get_value(access.SOURCE, name, ["name", "stored_file", "storage_url"], as_dict=True,
@@ -513,15 +537,20 @@ def purge(source_names):
         frappe.db.delete("Cowork OCR Batch", {"source_file": name})
         frappe.db.delete(access.SOURCE, {"name": name})
         removed += 1
-        stored = cloud.parse_url(source.storage_url) if source.storage_url else None
-        if stored:
-            prefixes.append((stored[0], stored[1]))
+        found = store.parse(source.storage_url) if source.storage_url else None
+        if found and found[0] == store.ORACLE:
+            edge_objects.append(found[1][0])
+        elif found:
+            prefixes.append((found[1][0], found[1][1]))
         if bucket_name:
             prefixes.append((bucket_name, f"{frappe.local.site}/previews/{name}/"))
     if paths:
         frappe.db.after_commit.add(lambda: _remove_paths(paths))
     if prefixes:
         frappe.enqueue("pearnly_cowork.files.service.purge_objects", queue="short", prefixes=prefixes,
+                       enqueue_after_commit=True)
+    if edge_objects:
+        frappe.enqueue("pearnly_cowork.files.service.purge_edge", queue="short", names=edge_objects,
                        enqueue_after_commit=True)
     return removed
 
@@ -545,3 +574,13 @@ def purge_objects(prefixes):
             cloud.delete_prefix(bucket_name, prefix)
         except Exception:
             frappe.log_error(title="Cowork original objects not deleted", message=frappe.get_traceback()[-1500:])
+
+
+def purge_edge(names):
+    """后台：删甲骨文上这些原件与预览（ADR-023；失败记一条错误日志，不重试，留着只占那台的磁盘）。"""
+    from pearnly_core.originals import oracle
+
+    try:
+        oracle.delete(names)
+    except Exception:
+        frappe.log_error(title="Cowork Oracle originals not deleted", message=frappe.get_traceback()[-1500:])

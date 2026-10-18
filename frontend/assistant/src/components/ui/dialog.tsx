@@ -1,10 +1,12 @@
-
+// 组件库的弹窗（shadcn）：现在只有图片预览在用（attachment.tsx）。没人用的头部、脚部、说明已删（标准化记录 B2）；
+// 默认最宽不再写（唯一的调用方自己给），新弹窗用 globals.css 的 .cc-dialog 一套（data-size 三档宽）。圆角是整窗弹窗的 16（V9）；
+// 遮罩与弹层的进出场同其他弹层（.cc-overlay / .cc-pop：快档 120ms、主缓动，V38；原来是 tw-animate 的 150ms 淡入与 200ms 淡入放大）。
 import type * as React from "react";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 
 function Dialog({
   ...props
@@ -38,7 +40,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in fixed inset-0 z-50 bg-overlay",
+        "cc-overlay z-(--cc-z-sheet)",
         className,
       )}
       {...props}
@@ -60,60 +62,21 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 bg-background data-[state=closed]:animate-out data-[state=open]:animate-in cc-modal fixed start-[50%] z-50 grid overflow-y-auto w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-pop duration-200 outline-none sm:max-w-lg rtl:-translate-x-[-50%]",
+          "cc-pop bg-background cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto w-full max-w-[calc(100%-var(--cc-dialog-gutter)*2)] -translate-x-1/2 -translate-y-1/2 gap-(--cc-space-16) rounded-dialog border p-(--cc-space-24) shadow-pop outline-none rtl:translate-x-1/2",
           className,
         )}
         {...props}
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute end-4 top-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
+          // 默认关闭钮同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44）
+          <DialogPrimitive.Close data-slot="dialog-close" className="cc-icon-btn cc-tap absolute end-(--cc-space-12) top-(--cc-space-12)">
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("close")}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
     </DialogPortal>
-  );
-}
-
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-start", className)}
-      {...props}
-    />
-  );
-}
-
-function DialogFooter({
-  className,
-  showCloseButton = false,
-  children,
-  ...props
-}: React.ComponentProps<"div"> & {
-  showCloseButton?: boolean;
-}) {
-  return (
-    <div
-      data-slot="dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
-        </DialogPrimitive.Close>
-      )}
-    </div>
   );
 }
 
@@ -130,28 +93,10 @@ function DialogTitle({
   );
 }
 
-function DialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
-  return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  );
-}
-
 export {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
   DialogTrigger,
 };

@@ -22,6 +22,8 @@ COPY apps/pearnly_core/pearnly_core/execution/__init__.py apps/pearnly_core/pear
 COPY apps/pearnly_core/pearnly_core/ocr_models/__init__.py apps/pearnly_core/pearnly_core/ocr_models/orient.py apps/pearnly_core/pearnly_core/ocr_models/doc_ori.onnx pearnly_core/ocr_models/
 # Cowork 识别域（引擎、输入、提供方适配、远程执行）；本域里依赖 Frappe 的模块镜像里不会被导入
 COPY apps/pearnly_core/pearnly_core/tax_documents pearnly_core/tax_documents
+# 原件层的纯计算部分（ADR-024）：文件规则、核对与预览渲染、核对 / 预览请求约定（站点侧调用要 Frappe，Cloud Run 不用）。
+COPY apps/pearnly_core/pearnly_core/originals/__init__.py apps/pearnly_core/pearnly_core/originals/rules.py apps/pearnly_core/pearnly_core/originals/checks.py apps/pearnly_core/pearnly_core/originals/cloud_run.py pearnly_core/originals/
 COPY apps/pearnly_cowork/pearnly_cowork/__init__.py pearnly_cowork/__init__.py
 COPY apps/pearnly_cowork/pearnly_cowork/ocr pearnly_cowork/ocr
 RUN find /app -name "test*.py" -delete && python -c "import pearnly_cowork.ocr.remote.app" \

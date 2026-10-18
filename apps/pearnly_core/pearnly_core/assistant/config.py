@@ -25,6 +25,19 @@ def product() -> str:
     return code
 
 
+def unavailable() -> str:
+    """本站此刻开不了 CC 对话的原因（同 `product()` / `settings()` 建会话时拒收的那一句，已按当前语言翻译）；能开回空串。
+    只读站点配置，不抛、不留提示：对话页打开新对话就据此先显示（外壳启动数据 `shell.describe`），不用等发了第一条被拒。"""
+    if not str(frappe.conf.get("pearnly_product") or "").strip():
+        return _("CC is only available on product sites.")
+    try:
+        engines.check(frappe.conf.get("pearnly_assistant_engine"), frappe.conf.get("pearnly_assistant_api_key"),
+                      frappe.conf.get("pearnly_assistant_model"))
+    except engines.EngineError:
+        return _("CC is not set up for this site yet.")
+    return ""
+
+
 def engine_code() -> str:
     """当前引擎；没配好返回空串（会话列表据此只列本引擎的会话）。"""
     try:

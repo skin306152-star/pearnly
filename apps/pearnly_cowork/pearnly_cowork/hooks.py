@@ -613,6 +613,8 @@ cowork_push_verify_mismatch = ["pearnly_cowork.companies.automation.on_mismatch"
 # readback 与 companies 互不导入。
 cowork_readback_ready = ["pearnly_cowork.companies.automation.on_readback"]
 cowork_company_month_changes = ["pearnly_cowork.readback.service.month_changes"]
+# 推送回读（CC 的 written.company_rules）：推送时用上的公司规则现在还在不在、值改没改（`companies.rules.values_now`）。
+cowork_push_company_choices_saved = ["pearnly_cowork.companies.rules.values_now"]
 # 定时任务的提醒 / 完成简报属于哪家公司（点开到这家的主档页）：folder_intake 不导入 companies（反过来依赖）。
 cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
 # 定时任务跟随公司当年账套（T1）：保存任务时所选账套属于哪家主档（与分店），到点按单据日期取这家公司覆盖那天的账套

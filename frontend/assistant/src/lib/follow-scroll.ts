@@ -1,31 +1,75 @@
-// 回复在出时跟到底，用户往上翻就不动（教程第 12 条；同 Claude）。
+// 对话滚动照 Claude（用户 10-17 给的三张手机截图；电脑网页同样）：回复在出时不跟到底，下面还有内容就在输入框上方出 ↓，
+// 点了才滚到最新（thread.tsx 的 ThreadScrollToBottom）。
 //
-// 组件库的对话视口用「这一轮从顶上开始」（turnAnchor="top"）：发出后把自己的消息推到顶上，下面留出空白给回复，回复没超出
-// 一屏时它管位置。它不跟随超出一屏的回复，判断「在底部」也只容 1 像素（手机惯性滚动几乎停不准）。这里补上超出之后的跟随：
-//   - 用户往上翻（滚轮向上、手指往下拖、按上翻键、拖滚动条向上）立刻停止跟随，不等滚动事件（内容同时在长，单看滚动位置分不清）；
-//   - 回到离底部 NEAR_BOTTOM_PX 以内、且离上次往上翻已过 COOLDOWN_MS（惯性还在走的那一下不算），接着跟；
-//   - 只在这一轮在跑时跟；新的一轮（用户又发了一条）从跟随开始；
-//   - 组件库还在给这一轮留空白（顶部锚定的占位还有高度）时不插手，免得抢它把消息推到顶上的那一下。
+// 发出一条时组件库的对话视口用「这一轮从顶上开始」（turnAnchor="top"）：把自己的消息推到顶上，下面留出空白给回复；
+// 回复超出一屏后它不跟（autoScroll 关着），画面停在这一轮开头，这正是要的样子，这里不再补跟随。
 //
-// 打开一段对话（settle）停在最新一条：组件库只在消息第一次出现时滚到底一次，「这一轮从顶上开始」时它不再跟着内容长
-// （autoScroll 关着），而打开后内容还会变高——消息用 content-visibility 先按估计高度排、滚到哪儿才量出真实高度，
-// 正文排版、文件卡片、缩略图随后才到——于是停在中间（2026-10-15 三星 A14 实测 F11f）。打开后内容一变高就贴回最底下，
-// 直到内容静下来 SETTLE_QUIET_MS（最多 SETTLE_MAX_MS），或用户一碰（滚轮、按下手指 / 鼠标、按键）就交还：
-// 往上翻照旧立刻停、不拉回。
+// 这里只管打开一段对话（settle）停在哪儿，规则一条：
+//   - 没有在跑的一轮（已结束的对话）：停在最新一条（最底下）；
+//   - 有在跑的一轮：停在这一轮开头，提问顶在上面——与新对话第一句、电脑发出后组件库给的落点同一套算法（turnStart，提问太高
+//     时只留最后 6em）。
+// 「有没有在跑的一轮、它的提问是哪条」按会话控制器的状态（runningTurn：在跑、最后一条是回复、前一条是提问），不看组件库标的
+// data-aui-top-anchor-user：那个标记跑完也留着（换回一段已结束的对话时还在），第 0 条提问（新对话第一句）又从来不标。
+// 打开后内容还会变高——消息用 content-visibility 先按估计高度排、滚到哪儿才量出真实高度，正文排版、文件列表取回后的结果
+// 文件卡、缩略图随后才到——所以打开后内容一变高就把位置重新对回去（最底下 / 这一轮开头），直到内容静下来 SETTLE_QUIET_MS
+// （最多 SETTLE_MAX_MS），或用户一碰（滚轮、手指滑动、按下手指 / 鼠标、按键；在输入框里点、打字、发送不算，但在输入框上滚轮、
+// 手指滑动照样算：那是在翻对话）就交还，之后不再替他滚，
+// 也不跟随（出 ↓）。还在对位置时本页或别处发出了新的一轮，就按新这一轮对（它的提问顶在上面，与发出后的落点一致）。
+// 停在这一轮开头以后这一轮跑完了也不改去最底下（不跟随）；只有打开时的状态是离开前留下的旧状态（离开期间这一轮结束了，
+// 回来时还显示在跑）才不算数：等这段对话按服务端核对完（synced），用户还没碰过就按核对后的状态重新对一次。
+// 第 11 轮 C19：组件库只在这一轮第一次出现时按当时的版面滚一次（一次性的平滑滚动），之后上面的内容变高它不管；浏览器的
+// 滚动锚定也补不回来（回复根元素 -mb-7.5 pb-7.5 盖住下一条的顶上 30px，提问顶在上面时锚点选在上一轮回复里，它往下长就
+// 把提问推出屏幕）。A14 打开正在回复的长对话时提问因此被推到屏幕下方 967px、画面停在上一轮回复中间。
 // 只看本页的滚动与尺寸，不发请求、不开定时。
 
-export const NEAR_BOTTOM_PX = 48;
-export const COOLDOWN_MS = 400;
+/** 这一轮开头的滚动位置（同组件库 computeTopAnchorTargetScrollTop 的默认夹取 10em / 6em）：提问顶在上面；
+ *  提问高过 10em 时只留它最后 6em 在上面，下面留地方给回复。offset = 提问在滚动内容里的上沿。 */
+export function turnStart(offset: number, height: number, em: number): number {
+  return offset + Math.max(0, height - (height <= 10 * em ? height : 6 * em));
+}
+
 export const SETTLE_QUIET_MS = 1500;
 export const SETTLE_MAX_MS = 10_000;
-const DRAG_PX = 4;
-const UP_KEYS = new Set(["PageUp", "ArrowUp", "Home"]);
 
 type Viewport = Pick<
   HTMLElement,
-  "addEventListener" | "removeEventListener" | "scrollTop" | "scrollHeight" | "clientHeight" | "scrollTo" | "querySelector"
+  | "addEventListener"
+  | "removeEventListener"
+  | "scrollTop"
+  | "scrollHeight"
+  | "clientHeight"
+  | "scrollTo"
+  | "querySelector"
+  | "getBoundingClientRect"
 >;
+type Box = Pick<HTMLElement, "getBoundingClientRect" | "offsetHeight">;
 type Observe = (target: unknown, onResize: () => void) => () => void;
+
+/** 打开对话停在哪儿要用的状态：turn = 这一轮在跑时它的提问的消息编号（没有在跑的一轮为 null）；synced = 这段对话的状态已按
+ *  服务端核对过（会话控制器的 isSynced；离开再回来、核对完之前是离开时的旧状态）。 */
+export type OpenState = { turn: string | null; synced: boolean };
+
+/** 在跑的这一轮的提问：在跑（含等「允许」）时，最后一条是提问（回复还没出字）就是它，最后一条是回复就取它前一条提问
+ *  （同组件库认这一轮的条件，只是第 0 条也算；组件库在回复出字前自己补一条空回复，这里的消息里没有）。 */
+export function runningTurn(busy: boolean, messages: ReadonlyArray<{ id: string; role: string }>): string | null {
+  if (!busy) return null;
+  const last = messages.at(-1);
+  if (last?.role === "user") return last.id;
+  const question = messages.at(-2);
+  return last?.role === "assistant" && question?.role === "user" ? question.id : null;
+}
+
+/** 输入框（.aui-composer-root）里的点按、打字、发送：不算碰了对话（不交还），见 OpenSettler 的构造。 */
+const COMPOSER = ".aui-composer-root";
+/** 手指挪了多远算在滑（不是点）：点按时手指的微小抖动不算。 */
+const SWIPE_PX = 10;
+
+const NOT_RUNNING: OpenState = { turn: null, synced: true };
+
+function emOf(el: unknown): number {
+  if (typeof getComputedStyle !== "function") return 16;
+  return Number.parseFloat(getComputedStyle(el as Element).fontSize) || 16;
+}
 
 function observeSize(target: unknown, onResize: () => void): () => void {
   if (typeof ResizeObserver === "undefined") return () => {};
@@ -34,68 +78,58 @@ function observeSize(target: unknown, onResize: () => void): () => void {
   return () => observer.disconnect();
 }
 
-function editable(target: unknown): boolean {
-  const el = target as { tagName?: string; isContentEditable?: boolean } | null;
-  return !!el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || !!el.isContentEditable);
-}
-
-export class StreamFollower {
-  following = true;
-  private pausedAt = Number.NEGATIVE_INFINITY;
-  // 打开对话后贴底：从哪一刻起、内容最近一次变高在哪一刻（-∞ = 不在贴底）
+export class OpenSettler {
+  // 打开对话后对位置：从哪一刻起、内容最近一次变高在哪一刻（-∞ = 不在对）
   private settleFrom = Number.NEGATIVE_INFINITY;
   private settleLast = Number.NEGATIVE_INFINITY;
-  private touchY: number | null = null;
-  private dragging = false;
-  private lastTop: number;
+  // 这次打开以后用户碰过没有（还没打开过也算碰过：没有要重新对的）
+  private touched = true;
+  // 打开时（或上次重新对时）状态核对过没有：没核对过，核对完要按新状态重新对一次
+  private synced = true;
+  // 已按核对过的状态停在哪一轮开头：这一轮跑完了也接着停在这儿，不改去最底下（不跟随）
+  private held: string | null = null;
   private readonly off: Array<() => void> = [];
 
   constructor(
     private readonly viewport: Viewport,
     content: unknown,
-    private readonly live: () => boolean,
+    private readonly state: () => OpenState = () => NOT_RUNNING,
     private readonly now: () => number = () => Date.now(),
     observe: Observe = observeSize,
   ) {
-    this.lastTop = viewport.scrollTop;
-    // 只读事件（passive）：不拦浏览器自己的滚动
-    const on = <E>(type: string, handle: (event: E) => void) => {
-      const listener = handle as unknown as EventListener;
-      viewport.addEventListener(type, listener, { passive: true });
-      this.off.push(() => viewport.removeEventListener(type, listener));
+    // 只读事件（passive）：不拦浏览器自己的滚动；用户一碰就交还。在输入框里点、打字、发送、停止键、Esc 不算（审查第 3 条：
+    // 打开后马上发出，上一轮晚到的结果文件卡会把新这一轮的提问推下去——还在对位置就按新这一轮对回去）；↓ 等输入框外的按钮照样算
+    const release = (e: Event) => {
+      if ((e.target as Element | null)?.closest?.(COMPOSER)) return;
+      this.unsettle();
     };
-    on("wheel", (e: { deltaY: number }) => {
-      this.unsettle();
-      if (e.deltaY < 0) this.pause();
-    });
-    on("touchstart", (e: { touches: ArrayLike<{ clientY: number }> }) => {
-      this.unsettle();
-      this.touchY = e.touches[0]?.clientY ?? null;
-    });
-    on("touchmove", (e: { touches: ArrayLike<{ clientY: number }> }) => {
-      const y = e.touches[0]?.clientY;
-      if (y === undefined) return;
-      // 手指往下拖 = 内容往上翻
-      if (this.touchY !== null && y - this.touchY > DRAG_PX) this.pause();
-      this.touchY = y;
-    });
-    const release = () => {
-      this.touchY = null;
-      this.dragging = false;
+    for (const type of ["touchstart", "keydown", "pointerdown"]) {
+      viewport.addEventListener(type, release, { passive: true });
+      this.off.push(() => viewport.removeEventListener(type, release));
+    }
+    // 滚轮、手指滑动是在翻对话，不看落在哪儿（第 11 轮合并审查：在输入框上方滚轮或手指往上翻也走了输入框的例外，回复还在出的
+    // 10 秒里被一次次拉回这一轮开头）。手指要真挪动（超过 SWIPE_PX）才算：在输入框里点按时的微小抖动不算
+    const scrolled = () => this.unsettle();
+    let from: { x: number; y: number } | null = null;
+    const point = (e: Event) => {
+      const touch = (e as TouchEvent).touches?.[0];
+      return touch ? { x: touch.clientX ?? 0, y: touch.clientY ?? 0 } : null;
     };
-    on("touchend", release);
-    on("touchcancel", release);
-    on("keydown", (e: { key: string; target: unknown }) => {
-      this.unsettle();
-      if (UP_KEYS.has(e.key) && !editable(e.target)) this.pause();
-    });
-    // 按在视口自己身上（不是里面的内容）= 在拖滚动条
-    on("pointerdown", (e: { target: unknown }) => {
-      this.unsettle();
-      this.dragging = e.target === viewport;
-    });
-    on("pointerup", release);
-    on("scroll", () => this.onScroll());
+    const down = (e: Event) => {
+      from = point(e);
+    };
+    const swiped = (e: Event) => {
+      const at = point(e);
+      if (!from || !at) return;
+      if (Math.abs(at.x - from.x) > SWIPE_PX || Math.abs(at.y - from.y) > SWIPE_PX) this.unsettle();
+    };
+    const listen = (type: string, fn: (e: Event) => void) => {
+      viewport.addEventListener(type, fn, { passive: true });
+      this.off.push(() => viewport.removeEventListener(type, fn));
+    };
+    listen("wheel", scrolled);
+    listen("touchstart", down);
+    listen("touchmove", swiped);
     this.off.push(observe(content, () => this.onResize()));
   }
 
@@ -103,68 +137,63 @@ export class StreamFollower {
     this.off.splice(0).forEach((off) => off());
   }
 
-  /** 新的一轮：从跟随开始。 */
-  resume() {
-    this.following = true;
-    this.pausedAt = Number.NEGATIVE_INFINITY;
-  }
-
-  /** 打开了一段对话（换到另一段、或这段的消息刚取回）：贴到最底下，内容还在长就接着贴（见文件头）。 */
+  /** 打开了一段对话（换到另一段、或这段的消息刚取回）：停到该停的位置，内容还在长就接着对回去（见文件头）。 */
   settle() {
-    this.resume();
-    this.settleFrom = this.settleLast = this.now();
-    this.toBottom();
+    this.touched = false;
+    this.synced = this.state().synced;
+    this.restart();
   }
 
-  /** 正在打开后的贴底：用户没碰过、内容最近还在变、没超过上限。 */
+  /** 状态变了（这一轮开始 / 结束、核对完）：核对完而用户还没碰过，按核对后的状态重新对一次（打开时是旧状态）；
+   *  还在对位置就按新状态对一次（例如这一轮刚标出来）。 */
+  recheck() {
+    const { synced } = this.state();
+    const confirmed = synced && !this.synced;
+    this.synced = synced;
+    if (confirmed && !this.touched) this.restart();
+    else if (this.settling) this.place();
+  }
+
+  /** 正在打开后的对位置：用户没碰过、内容最近还在变、没超过上限。 */
   get settling(): boolean {
     const now = this.now();
-    return this.following && now - this.settleLast < SETTLE_QUIET_MS && now - this.settleFrom < SETTLE_MAX_MS;
+    return now - this.settleLast < SETTLE_QUIET_MS && now - this.settleFrom < SETTLE_MAX_MS;
+  }
+
+  private restart() {
+    this.settleFrom = this.settleLast = this.now();
+    this.held = null;
+    this.place();
   }
 
   private unsettle() {
+    this.touched = true;
     this.settleFrom = this.settleLast = Number.NEGATIVE_INFINITY;
   }
 
-  private pause() {
-    this.following = false;
-    this.pausedAt = this.now();
-    this.unsettle();
-  }
-
-  private distance(): number {
-    const v = this.viewport;
-    return v.scrollHeight - v.scrollTop - v.clientHeight;
-  }
-
-  /** 回到底部附近、冷却已过、手没按着：接着跟。 */
-  private maybeResume() {
-    if (this.following || this.touchY !== null || this.dragging) return;
-    if (this.distance() <= NEAR_BOTTOM_PX && this.now() - this.pausedAt >= COOLDOWN_MS) this.following = true;
-  }
-
-  private onScroll() {
-    const top = this.viewport.scrollTop;
-    if (this.dragging && top < this.lastTop) this.pause();
-    this.lastTop = top;
-    this.maybeResume();
-  }
-
   private onResize() {
-    const settling = this.settling;
-    if (!this.live() && !settling) return;
-    if (settling) this.settleLast = this.now();
-    this.maybeResume();
-    if (!this.following) return;
-    this.toBottom();
+    if (!this.settling) return;
+    this.settleLast = this.now();
+    this.place();
   }
 
-  private toBottom() {
-    // 组件库正把这一轮推到顶上（占位还有高度）：位置归它管
-    const reserve = this.viewport.querySelector<HTMLElement>("[data-aui-top-anchor-reserve]");
-    if ((reserve?.offsetHeight ?? 0) > 0) return;
-    if (this.distance() <= 1) return;
-    this.viewport.scrollTo({ top: this.viewport.scrollHeight, behavior: "instant" });
-    this.lastTop = this.viewport.scrollTop;
+  /** 该停的位置：有在跑的一轮（或已停在某一轮开头）→ 这一轮开头；否则最底下（超出能滚的范围时浏览器自己收在最底下）。
+   *  这一轮的提问还没画出来时先到最底下，画出来内容变高时再对过去。 */
+  private target(): number {
+    const v = this.viewport;
+    const { turn, synced } = this.state();
+    if (turn && synced) this.held = turn;
+    const id = turn ?? this.held;
+    const question = id ? (v.querySelector(`[data-message-id=${JSON.stringify(id)}]`) as Box | null) : null;
+    if (!question) return v.scrollHeight - v.clientHeight;
+    const offset = question.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop;
+    return turnStart(offset, question.offsetHeight, emOf(question));
+  }
+
+  private place() {
+    const v = this.viewport;
+    const top = Math.min(this.target(), v.scrollHeight - v.clientHeight);
+    if (Math.abs(v.scrollTop - top) <= 1) return;
+    v.scrollTo({ top, behavior: "instant" });
   }
 }

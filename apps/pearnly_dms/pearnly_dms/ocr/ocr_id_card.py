@@ -197,10 +197,18 @@ def extract(image_bytes: bytes) -> dict:
 
     # `OcrUnavailable` / `Deferred` 会从这里直接冒出去（刻意不 catch）：配额/限流是
     # 基础设施问题，上层要能分辨，不能落进"待人工核对"里。
-    data = ocr.json_from_images(_ID_CARD_PROMPT, [(img, mime)], model=ID_CARD_MODEL)
+    from pearnly_core.claude_ocr import client as claude_ocr
+    if claude_ocr.uses_claude():
+        # 本租户选了 Claude 识别（ADR-022）：只调 Anthropic，不调谷歌；字段名与下面 normalize 认的一致。
+        read = claude_ocr.read("id_card", [(img, mime)])["read"]
+        if read is not None and read.get("is_id_card") is False:
+            read = {}
+        data = read
+    else:
+        data = ocr.json_from_images(_ID_CARD_PROMPT, [(img, mime)], model=ID_CARD_MODEL)
     if not isinstance(data, dict):
         raise IdCardExtractError(
-            _("Neither tier produced a result (network, key or model name could all be the cause)")
+            _("Recognition returned no result")
         )
     return normalize(data)
 

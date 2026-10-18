@@ -142,8 +142,9 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
             acquired = bool(lock.acquire(blocking=True, blocking_timeout=timeout_sec))
         except Exception as exc:  # noqa: BLE001 — 锁基础设施坏了要如实处理，不能装作没事
             if not _allow_lockless():
+                logger.warning("[session-lock] could not acquire %s (Redis unreachable?): %s", name, exc)
                 raise SessionLockUnavailable(
-                    _("Could not take the lock (Redis down?): {0}").format(type(exc).__name__)
+                    _("Could not acquire the lock: {0}").format(type(exc).__name__)
                 ) from exc
             logger.warning("[session-lock] 取锁异常 · 已允许降级放行: %s", exc)
             yield False
@@ -152,8 +153,12 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
         if not acquired:
             if not _allow_lockless():
                 left = lock_remaining_sec(lock)
+                if left is not None:
+                    # 给运维：多半是被杀掉的进程留下的锁；确认没有任务在跑，可删掉这个键
+                    logger.warning("[session-lock] %s still held for %ss; if nothing is running the key can be deleted",
+                                   name, left)
                 hint = (
-                    _("The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)").format(left)
+                    _("Locked; released in {0}s").format(left)
                     if left is not None
                     else _("Cannot read the remaining time")
                 )

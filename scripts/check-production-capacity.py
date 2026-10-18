@@ -210,6 +210,51 @@ else:
 assert capacity.available_floor(HOST_MIB * M) == 8192 * M
 assert capacity.available_floor(64 * 1024 * M) == 16 * 1024 * M
 checks.append('Overcommit is only admitted while the host has max(8 GiB, 25%) available')
+# 超配要有 swap 兜着（2026-10-17）：上限之和 ≤ min(物理内存 × 1.3, 物理内存 + swap)。
+for swap_gib, admitted in ((0, False), (4, False), (16, True)):
+    try:
+        report = capacity.calculate(target, live, 'cowork', HOST_MIB * M, 24000 * M, 1024 * M, swap_gib * 1024 * M)
+    except ValueError as error:
+        assert not admitted and 'exceed this host' in str(error), (swap_gib, error)
+    else:
+        assert admitted and report['swap_mib'] == swap_gib * 1024, (swap_gib, report)
+        assert report['budget_limit_mib'] == int(HOST_MIB * M * capacity.OVERCOMMIT) // M, report
+checks.append('Overcommitted limits need swap behind them: none or 4 GiB refuses production, 16 GiB admits it')
+# 余量不够时等回落：只等「现在的余量」这一种，配置错误立刻报；等满了照旧报错。
+_real_check, _calls = capacity.check, []
+def _fake(outcomes):
+    def fake(product, transient_mib=0):
+        _calls.append(product)
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+    return fake
+_now = [0.0]
+def _sleep(seconds):
+    _now[0] += seconds
+try:
+    headroom = ValueError(capacity.HEADROOM_ERROR + ': {}')
+    capacity.check = _fake([headroom, headroom, {'ok': 1}])
+    assert capacity.check_waiting('erp', 0, 600, 15, lambda: _now[0], _sleep) == {'ok': 1} and len(_calls) == 3
+    capacity.check, _now[0] = _fake([ValueError('Product memory budgets exceed this host: {}')]), 0.0
+    try:
+        capacity.check_waiting('erp', 0, 600, 15, lambda: _now[0], _sleep)
+        raise AssertionError('Budget errors must not wait')
+    except ValueError as error:
+        assert 'exceed this host' in str(error) and _now[0] == 0.0
+    capacity.check, _now[0] = _fake([headroom] * 100), 0.0
+    try:
+        capacity.check_waiting('erp', 0, 60, 15, lambda: _now[0], _sleep)
+        raise AssertionError('Waiting must give up after the deadline')
+    except ValueError as error:
+        assert str(error).startswith(capacity.HEADROOM_ERROR) and _now[0] == 60.0
+finally:
+    capacity.check = _real_check
+activate = (ROOT / 'scripts/production/activate-product.sh').read_text()
+assert activate.index('ensure-swap.sh') < activate.index('capacity.py --product "$product" --wait-seconds 600'), activate
+assert 'ensure-swap.sh' in (ROOT / 'scripts/production/bootstrap-host.sh').read_text()
+checks.append('Activation ensures swap first and waits up to 10 minutes for memory to settle between products')
 assert '--max-connections=151' in services['mariadb']['command']
 assert '--max-connections=300' in rendered(PEARNLY_MARIADB_MAX_CONNECTIONS='300')['mariadb']['command']
 assert int(services['mariadb']['mem_limit']) == 2048 * M

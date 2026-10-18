@@ -1,0 +1,11 @@
+[Unit]
+Description=Pearnly database change logs (binlog) to gs://pearnly-backups-sg/binlog every 5 minutes
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/pearnly/deploy/scripts/production/binlog-ship.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=20min

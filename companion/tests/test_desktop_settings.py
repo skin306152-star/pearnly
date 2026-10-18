@@ -286,23 +286,135 @@ def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path,
     assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}
 
 
-def test_an_old_always_on_setting_is_ignored_and_dropped_on_the_next_save(tmp_path, monkeypatch):
-    # ADR-021 第 56 条（用户 10-16）：没有「常驻模式」了。CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），不防睡眠、
-    # 不锁屏；1.4.2–1.7.0 开发版写进 companion.json 的 always_on 读时忽略，下次写回时丢掉
+def test_an_old_always_on_setting_becomes_keep_awake_and_is_dropped_on_the_next_save(tmp_path, monkeypatch):
+    # ADR-021 第 56、58 条（用户 10-16）：「常驻模式」拆开——替别人接活删掉、开机锁屏删掉；防睡眠照 Claude 改成「CC 开着时
+    # 保持电脑唤醒」「用电池时也保持」，前者默认开、后者 10-18 起默认关（D8）。1.4.2–1.6 写进 companion.json 的
+    # always_on=True 迁成 keep_awake=True，下次写回时旧键丢掉
     import json
 
     store = _store(tmp_path, monkeypatch)
     raw = json.loads(store.path.read_text(encoding="utf-8"))
     raw["global"]["always_on"] = True
+    raw["global"].pop("keep_awake", None)
+    raw["global"].pop("keep_awake_on_battery", None)
     store.path.write_text(json.dumps(raw), encoding="utf-8")
     loaded = ProfileStore.load(store.path, protector=_Protector())
     assert not hasattr(loaded.global_settings, "always_on")
-    assert all(not hasattr(cfg, "always_on") for cfg in loaded.runtime_configs(include_paused=True))
+    assert loaded.global_settings.keep_awake is True and loaded.global_settings.keep_awake_on_battery is False
+    assert all(not hasattr(cfg, "always_on") and cfg.keep_awake for cfg in loaded.runtime_configs(include_paused=True))
     monkeypatch.setattr(desktop_settings.autostart, "enable", lambda: None)
     monkeypatch.setattr(desktop_settings.autostart, "is_enabled", lambda: True)
     settings = _settings(loaded)
-    assert "always_on" not in settings.snapshot()
-    assert not hasattr(settings, "set_always_on")
-    assert settings.snapshot()["autostart"] is True   # 开机自启照旧是默认
+    snap = settings.snapshot()
+    assert "always_on" not in snap and not hasattr(settings, "set_always_on")
+    assert snap["keep_awake"] is True and snap["keep_awake_on_battery"] is False
+    assert snap["autostart"] is True   # 开机自启照旧是默认
     assert settings.set_autostart(True) == {"ok": True}
-    assert "always_on" not in json.loads(store.path.read_text(encoding="utf-8"))["global"]
+    saved = json.loads(store.path.read_text(encoding="utf-8"))["global"]
+    assert "always_on" not in saved and saved["keep_awake"] is True and saved["keep_awake_on_battery"] is False
+
+
+def test_keep_awake_defaults_on_and_an_explicit_off_is_not_overridden_by_always_on(tmp_path, monkeypatch):
+    import json
+
+    store = _store(tmp_path, monkeypatch)
+    assert store.global_settings.keep_awake is True and store.global_settings.keep_awake_on_battery is False
+    raw = json.loads(store.path.read_text(encoding="utf-8"))
+    raw["global"].update(always_on=False)
+    raw["global"].pop("keep_awake", None)
+    store.path.write_text(json.dumps(raw), encoding="utf-8")
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.keep_awake is True   # 新默认：开
+    raw["global"].update(always_on=True, keep_awake=False)
+    store.path.write_text(json.dumps(raw), encoding="utf-8")
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.keep_awake is False  # 新键说了算
+
+
+def test_the_two_keep_awake_switches_save_and_tell_the_tray(tmp_path, monkeypatch):
+    store = _store(tmp_path, monkeypatch)
+    told = []
+    settings = _settings(store, on_keep_awake=lambda enabled, on_battery: told.append((enabled, on_battery)))
+
+    assert settings.set_keep_awake(on_battery=False) == {"ok": True}
+    assert told[-1] == (True, False)
+    assert settings.set_keep_awake(enabled=False) == {"ok": True}
+    assert told[-1] == (False, False)
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    assert (reloaded.global_settings.keep_awake, reloaded.global_settings.keep_awake_on_battery) == (False, False)
+    assert all(not cfg.keep_awake for cfg in reloaded.runtime_configs(include_paused=True))
+    assert reloaded.profiles == store.profiles   # 成员不动
+    snap = settings.snapshot()
+    assert (snap["keep_awake"], snap["keep_awake_on_battery"]) == (False, False)
+    settings.set_keep_awake(enabled=True)
+    settings.set_keep_awake(on_battery=True)
+    assert told[-2:] == [(True, False), (True, True)]
+    g = ProfileStore.load(store.path, protector=_Protector()).global_settings
+    assert (g.keep_awake_on_battery, g.keep_awake_on_battery_set) == (True, True)   # 用户设过：重读照用户的值
+
+
+def test_on_battery_defaults_off_and_old_configs_without_the_user_mark_fall_back_to_it(tmp_path, monkeypatch):
+    # 用户 10-18 定（D8）：「用电池时也保持」默认关。以前每次存盘都把整份全局设置写进文件，文件里的 True 分不出是用户开的
+    # 还是旧默认写进去的；没有 keep_awake_on_battery_set 标记的一律按「没设过」取新默认，有标记的照用户的值
+    import json
+
+    store = _store(tmp_path, monkeypatch)
+    assert (store.global_settings.keep_awake, store.global_settings.keep_awake_on_battery) == (True, False)
+    raw = json.loads(store.path.read_text(encoding="utf-8"))
+    assert raw["global"]["keep_awake_on_battery"] is False and raw["global"]["keep_awake_on_battery_set"] is False
+
+    def load_with(**values):
+        doc = json.loads(store.path.read_text(encoding="utf-8"))
+        doc["global"].pop("keep_awake_on_battery_set", None)
+        doc["global"].update(values)
+        store.path.write_text(json.dumps(doc), encoding="utf-8")
+        return ProfileStore.load(store.path, protector=_Protector())
+
+    # 1.7.0 测试包写下的旧配置（没有标记）：True 是旧默认 → 关；False 本来就是关
+    old = load_with(keep_awake=True, keep_awake_on_battery=True)
+    assert (old.global_settings.keep_awake, old.global_settings.keep_awake_on_battery) == (True, False)
+    assert all(cfg.keep_awake_on_battery is False for cfg in old.runtime_configs(include_paused=True))
+    assert load_with(keep_awake_on_battery=False).global_settings.keep_awake_on_battery is False
+    assert load_with(keep_awake=False, keep_awake_on_battery=True).global_settings.keep_awake is False   # 插电那个照旧
+    # 用户设过（有标记）：开就是开、关就是关
+    assert load_with(keep_awake_on_battery=True, keep_awake_on_battery_set=True).global_settings.keep_awake_on_battery is True
+    assert load_with(keep_awake_on_battery=False, keep_awake_on_battery_set=True).global_settings.keep_awake_on_battery is False
+    # 旧配置下次存盘（例如开机自启）后文件里也是新默认、标记仍是没设过
+    loaded = load_with(keep_awake_on_battery=True)
+    monkeypatch.setattr(desktop_settings.autostart, "enable", lambda: None)
+    _settings(loaded).set_autostart(True)
+    saved = json.loads(store.path.read_text(encoding="utf-8"))["global"]
+    assert (saved["keep_awake_on_battery"], saved["keep_awake_on_battery_set"]) == (False, False)
+
+
+def test_an_old_worker_copy_saving_on_a_heartbeat_does_not_put_the_switches_back(tmp_path, monkeypatch):
+    # 10-16 审查：取任务线程启动时 copy() 了各成员的配置；设置里关掉开关后，心跳同步账套名 / 连接名 / 新年度文件夹时
+    # 副本存盘曾把读到时的全局设置整份写回，开关又变成开、下次重读配置又拿住。现在副本只写它自己改过的项。
+    from copy import copy
+
+    from src.companion.i18n import persist_ui_lang
+
+    store = _store(tmp_path, monkeypatch)
+    tray_cfg = store.runtime_configs(include_paused=True)[0]
+    worker_copy = copy(tray_cfg)   # gui_tray_workers.PollWorker 的做法
+    settings = _settings(store, on_keep_awake=lambda enabled, on_battery: None)
+    monkeypatch.setattr(desktop_settings.autostart, "disable", lambda: None)
+    settings.set_keep_awake(enabled=False)
+    settings.set_keep_awake(on_battery=True)   # 副本读到的是默认的关：用户打开后不被副本盖回关
+    settings.set_autostart(False)
+    persist_ui_lang(ProfileStore.load(store.path, protector=_Protector()), "th")
+
+    worker_copy.update(account_set="NEW").save()   # worker._sync_account_set
+
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    g = reloaded.global_settings
+    assert (g.keep_awake, g.keep_awake_on_battery, g.autostart, g.ui_lang) == (False, True, False, "th")
+    assert reloaded.runtime_configs(include_paused=True)[0].account_set == "NEW"   # 副本自己改的照样存下
+    assert worker_copy.keep_awake is False and worker_copy.ui_lang == "th"         # 存盘后副本跟上文件里的值
+    assert settings.snapshot()["keep_awake"] is False
+    tray_cfg.save()   # 托盘手上那份（同样读得早）存盘也一样
+    g = ProfileStore.load(store.path, protector=_Protector()).global_settings
+    assert (g.keep_awake, g.keep_awake_on_battery, g.autostart, g.ui_lang) == (False, True, False, "th")
+
+    # 持有者自己改的全局项照样写（旧副本改语言 → 写下；其余仍以文件为准）
+    tray_cfg.update(ui_lang="zh").save()
+    g = ProfileStore.load(store.path, protector=_Protector()).global_settings
+    assert (g.ui_lang, g.keep_awake, g.autostart) == ("zh", False, False)

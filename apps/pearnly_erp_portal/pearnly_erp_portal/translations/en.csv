@@ -1,4 +1,3 @@
-"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.","0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it."
 1 = January,1 = January
 1-12; Thai companies commonly start in January,1-12; Thai companies commonly start in January
 13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
@@ -187,7 +186,6 @@ Closed At,Closed At
 Closed at,Closed at
 Closed by,Closed by
 Closing Quantity,Closing Quantity
-Closing locks every entry. Rows never counted stay empty. Continue?,Closing locks every entry. Rows never counted stay empty. Continue?
 Code,Code
 Code expired,Code expired
 Code or barcode,Code or barcode
@@ -394,7 +392,7 @@ Filters,Filters
 Find,Find
 Find product,Find product
 Finish,Finish
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.
 First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
 Fiscal Year Starts In,Fiscal Year Starts In
 Fiscal year start month,Fiscal year start month
@@ -406,7 +404,6 @@ Following fields have missing values:,Following fields have missing values:
 Foreigner,Foreigner
 Found,Found
 Found: {0},Found: {0}
-"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).","Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set)."
 "Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
 From Date,From Date
 From the document,From the document
@@ -498,6 +495,7 @@ Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
 Line Total,Line Total
+Line prices include VAT,Line prices include VAT
 Lines,Lines
 Lines in this shift,Lines in this shift
 List Price,List Price
@@ -689,7 +687,6 @@ Posted by,Posted by
 Posted to Stock,Posted to Stock
 Posted {0} differences,Posted {0} differences
 Posting Date,Posting Date
-Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
 Prefix for this company's document numbers,Prefix for this company's document numbers
 Preview,Preview
 Preview opening stock,Preview opening stock
@@ -728,7 +725,7 @@ Purchase document not found,Purchase document not found
 Purchasing,Purchasing
 Purpose,Purpose
 QR Payload,QR Payload
-QR payload,QR payload
+QR content,QR content
 Qty,Qty
 "Qty (base unit, signed)","Qty (base unit, signed)"
 Qty (entered unit),Qty (entered unit)
@@ -860,6 +857,7 @@ Selling price,Selling price
 Selling warehouse,Selling warehouse
 Send,Send
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
+Sender's LINE language when the document arrived,Sender's LINE language when the document arrived
 Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
 Sent By,Sent By
 Serial No: {0} has already been transacted into another POS Invoice.,Serial No: {0} has already been transacted into another POS Invoice.
@@ -988,6 +986,7 @@ The company used for new documents and for the company profile page,The company 
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The discount exceeds the line amount,The discount exceeds the line amount
 The discount exceeds the total,The discount exceeds the total
+The file could not be saved. Please try again shortly.,The file could not be saved. Please try again shortly.
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The opening stock amount is too large,The opening stock amount is too large
@@ -1095,6 +1094,9 @@ Unit Price,Unit Price
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
 Unpaid,Unpaid
+Unticked: cost not set.,Unticked: cost not set.
+"Unticked: no cashier pages, role or permissions for this company","Unticked: no cashier pages, role or permissions for this company"
+Unticked: price not set (not ฿0).,Unticked: price not set (not ฿0).
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
 Update Additional Information,Update Additional Information
 Update Stock,Update Stock
@@ -1155,7 +1157,7 @@ Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
-"Year, year-month or ALL, depending on the reset policy","Year, year-month or ALL, depending on the reset policy"
+"Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
 Yes,Yes
 You can redeem upto {0}.,You can redeem upto {0}.
 You cannot redeem more than {0}.,You cannot redeem more than {0}.
@@ -1366,7 +1368,7 @@ product.field.name,Product name
 product.field.nameEn,English name
 product.field.nameZh,Chinese name
 product.field.price,Selling price
-product.field.qr,QR payload
+product.field.qr,QR content
 product.field.search,Search name or barcode
 product.field.trackBatch,Track batches
 product.field.trackExpiry,Track expiry
@@ -1452,7 +1454,6 @@ stock.count.chart,Chart
 stock.count.chartEmpty,Nothing counted yet
 stock.count.chartTotals,Book {0} · counted {1} · difference {2}
 stock.count.close,Close count
-stock.count.closeConfirm,Closing locks every entry. Rows never counted stay empty. Continue?
 stock.count.closed,Count closed
 stock.count.counted,Counted quantity
 stock.count.countedAt,Counted at
@@ -1508,7 +1509,6 @@ stock.count.over,Over
 stock.count.photoInfo,Product / position / counted by / time
 stock.count.photos,Photos
 stock.count.post,Post differences
-stock.count.postConfirm,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
 stock.count.posted,Posted {0} differences
 stock.count.problemCode,No product matches that code
 stock.count.problemIdentifier,The row has no product code or barcode
@@ -1595,7 +1595,7 @@ stock.workbench.editEntry,Correct entry
 stock.workbench.elsewhere,This item is also stocked at:
 stock.workbench.entryQty,Quantity counted this time
 stock.workbench.find,Find product
-stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.
 stock.workbench.locationDiff,Position differences
 stock.workbench.lookupFailed,Product not found. Check the code and try again.
 stock.workbench.needsRecount,Stock changed; recount
@@ -1653,9 +1653,6 @@ supplier.new,New Supplier
 supplier.notice.toggled,Updated {0} supplier(s)
 supplier.save,Save
 supplier.title,Suppliers
-tax_invoice,tax_invoice
-tax_invoice_receipt,tax_invoice_receipt
-tax_invoice_simple,tax_invoice_simple
 team.action.bulkDisable,Disable {0}
 team.action.bulkEnable,Enable {0}
 team.active,Active

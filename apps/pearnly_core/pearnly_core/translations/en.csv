@@ -5,9 +5,9 @@
 A DMS customer reference is required before confirming or pushing,A DMS customer reference is required before confirming or pushing
 A DMS customer reference is required; otherwise this link means nothing,A DMS customer reference is required; otherwise this link means nothing
 A board instance is created only when this is on,A board instance is created only when this is on
+A conversation cannot be moved to another company.,A conversation cannot be moved to another company.
 A disabled operator cannot issue a bind code; enable them first,A disabled operator cannot issue a bind code; enable them first
 "A human-readable name, e.g. MR.ERP DMS","A human-readable name, e.g. MR.ERP DMS"
-"A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.","A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back."
 A new record can only start as draft or recognized,A new record can only start as draft or recognized
 A new record can only start as uploaded or recognized,A new record can only start as uploaded or recognized
 A one-time short code. The user sends it to this tenant's LINE official account to bind.,A one-time short code. The user sends it to this tenant's LINE official account to bind.
@@ -16,9 +16,12 @@ Account,Account
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first","Account ""{0}"" already has a default connection ({1}); clear that one's default first"
 Account With Write Access,Account With Write Access
 Account balance,Account balance
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.
 Account name,Account name
 Account number,Account number
+Account that owns this connection. Leave empty for a site-wide shared connection.,Account that owns this connection. Leave empty for a site-wide shared connection.
 Account with admin rights,Account with admin rights
+Action not found,Action not found
 Actions,Actions
 Adapter,Adapter
 Add official account,Add official account
@@ -45,8 +48,10 @@ Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
 Attempt,Attempt
 Attempts,Attempts
+Authoritative push status.,Authoritative push status.
 Auto Push,Auto Push
 Automatic (by DMS account),Automatic (by DMS account)
+Automatic push is not supported for this connection; confirm manually.,Automatic push is not supported for this connection; confirm manually.
 Back to home,Back to home
 Balance,Balance
 Balance after,Balance after
@@ -80,8 +85,8 @@ CC is not set up for this site yet.,CC is not set up for this site yet.
 CC is only available on product sites.,CC is only available on product sites.
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.","Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.","Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
-Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.,Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.
-"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself.","Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself."
+"Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.","Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return."
+"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.","Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return."
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
@@ -90,7 +95,9 @@ Cannot reach the billing service: {0},Cannot reach the billing service: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},Cannot reach the identity service of the target environment ({0}): {1} {2}
 Cannot read the remaining time,Cannot read the remaining time
 Car models {0},Car models {0}
+Carried,Carried
 Change account,Change account
+Change declined,Change declined
 Change password,Change password
 Change your password and sign out other devices on the account page of the identity service,Change your password and sign out other devices on the account page of the identity service
 Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
@@ -111,7 +118,7 @@ Company List,Company List
 Company Master,Company Master
 Company Profile,Company Profile
 Company Tax ID,Company Tax ID
-"Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise","Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise"
+Configuration is complete. The connection was not tested.,Configuration is complete. The connection was not tested.
 Confirm,Confirm
 Confirm new password,Confirm new password
 Confirmed,Confirmed
@@ -132,9 +139,15 @@ Connection,Connection
 "Connection ""{0}"" is disabled and cannot be used","Connection ""{0}"" is disabled and cannot be used"
 Connection OK · {0},Connection OK · {0}
 Connection failed,Connection failed
+Connection {0} has no password,Connection {0} has no password
+Connection {0} is disabled,Connection {0} is disabled
+Connection {0} is not an MR.ERP DMS connection,Connection {0} is not an MR.ERP DMS connection
 Console,Console
 Contact support with the record ID,Contact support with the record ID
+Context Tokens,Context Tokens
+Conversation not found,Conversation not found
 Copy,Copy
+Could not acquire the lock: {0},Could not acquire the lock: {0}
 Could not call the model: {0},Could not call the model: {0}
 Could not create the OIDC client: {0} {1},Could not create the OIDC client: {0} {1}
 Could not create the account in the target environment: {0} {1},Could not create the account in the target environment: {0} {1}
@@ -150,7 +163,6 @@ Could not read the account profile: {0},Could not read the account profile: {0}
 Could not read the client secret: {0} {1},Could not read the client secret: {0} {1}
 Could not send the invitation email: {0} {1},Could not send the invitation email: {0} {1}
 Could not set the password: {0} {1},Could not set the password: {0} {1}
-Could not take the lock (Redis down?): {0},Could not take the lock (Redis down?): {0}
 Could not update the OIDC client: {0} {1},Could not update the OIDC client: {0} {1}
 Could not update the account language.,Could not update the account language.
 Could not update your account. Please reload and try again.,Could not update your account. Please reload and try again.
@@ -164,6 +176,7 @@ Created At,Created At
 Created: {0},Created: {0}
 Credited,Credited
 Currency,Currency
+Current Password,Current Password
 Current State,Current State
 Current account,Current account
 Current billing: pay as you go.,Current billing: pay as you go.
@@ -187,24 +200,21 @@ DMS Operator,DMS Operator
 DMS Password,DMS Password
 DMS Username,DMS Username
 DMS admin credentials failed to sign in: {0},DMS admin credentials failed to sign in: {0}
-"DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
-
-The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
-
-The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match."
+"DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.","DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching."
 DMS login account,DMS login account
 DMS login password,DMS login password
 DMS password,DMS password
 DMS refused the sign-in: {0},DMS refused the sign-in: {0}
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
 DMS usage and balance,DMS usage and balance
 DMS username,DMS username
+Data,Data
 Date,Date
 Date as printed,Date as printed
+Dedup Key,Dedup Key
 Dedupe Key,Dedupe Key
 Default Connection,Default Connection
 Delete,Delete
-Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.
+Delete {0} selected operators? Their LINE bindings and DMS connections are removed; push records are kept.,Delete {0} selected operators? Their LINE bindings and DMS connections are removed; push records are kept.
 Delete {0} selected push records from this list? Sent business documents will not be affected.,Delete {0} selected push records from this list? Sent business documents will not be affected.
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.
 Delete {0} selected records?,Delete {0} selected records?
@@ -219,13 +229,17 @@ Deleting the OIDC client failed: {0} {1},Deleting the OIDC client failed: {0} {1
 Deleting the account failed: {0} {1},Deleting the account failed: {0} {1}
 Deployment,Deployment
 Description,Description
+Device Key,Device Key
+Device Secret,Device Secret
 Direction,Direction
 Direction must be inbound or outbound,Direction must be inbound or outbound
 Disable,Disable
 "Disable ""{0}""? Its DMS pushes stop and the LINE link is released.","Disable ""{0}""? Its DMS pushes stop and the LINE link is released."
-Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.,Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.
+Disabled connections are not used for pushes.,Disabled connections are not used for pushes.
+Disconnect LINE for {0}? Unused bind codes expire; the operator and DMS credentials are kept.,Disconnect LINE for {0}? Unused bind codes expire; the operator and DMS credentials are kept.
 Display Name,Display Name
 Display name,Display name
+Display only; the push log is authoritative,Display only; the push log is authoritative
 Doc Date,Doc Date
 Doc No,Doc No
 Document Type,Document Type
@@ -245,15 +259,12 @@ Edit operator,Edit operator
 Elapsed (ms),Elapsed (ms)
 Email,Email
 Email is required,Email is required
-Empty = matched automatically from the DMS account (the legacy product's default).,Empty = matched automatically from the DMS account (the legacy product's default).
 Enable,Enable
 "Enable ""{0}""? A new bind code is needed to link LINE again.","Enable ""{0}""? A new bind code is needed to link LINE again."
 Enabled,Enabled
 Enabled features,Enabled features
 Endpoint,Endpoint
-Endpoint {0} has no password configured,Endpoint {0} has no password configured
-Endpoint {0} is disabled,Endpoint {0} is disabled
-"Endpoint {0} uses adapter {1}, not mrerp_dms","Endpoint {0} uses adapter {1}, not mrerp_dms"
+"Enter the display name, DMS account and password. Issue bind codes after saving.","Enter the display name, DMS account and password. Issue bind codes after saving."
 Entering,Entering
 Error Message,Error Message
 Event ID,Event ID
@@ -278,10 +289,10 @@ Failure Reason,Failure Reason
 Failures,Failures
 File,File
 File Key,File Key
-Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
+Filed Note Digest,Filed Note Digest
+Filed Under,Filed Under
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
 "Filters must be four-value rows with string doctypes, fields, and operators.","Filters must be four-value rows with string doctypes, fields, and operators."
-Finalize failed: desktop:home_page={0} is_setup_complete={1},Finalize failed: desktop:home_page={0} is_setup_complete={1}
 Fiscal year,Fiscal year
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
@@ -310,6 +321,7 @@ ID number is required,ID number is required
 IP,IP
 Identity Session,Identity Session
 Image Fingerprint,Image Fingerprint
+In-progress state of a multi-turn conversation. One row per session.,In-progress state of a multi-turn conversation. One row per session.
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
 "Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
 "Install, pair, upgrade and uninstall guide for CC Desktop","Install, pair, upgrade and uninstall guide for CC Desktop"
@@ -328,6 +340,7 @@ Item / description,Item / description
 "Kept as evidence, not a business field","Kept as evidence, not a business field"
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
 Key,Key
+"Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.","Key the other system uses to detect duplicates, such as the DMS customer number or invoice number."
 Kind,Kind
 LINE Display Name,LINE Display Name
 LINE Login,LINE Login
@@ -342,6 +355,7 @@ LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn 
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.
 Language,Language
 Last Code,Last Code
+Last Delivered,Last Delivered
 Last Login At,Last Login At
 Last Result,Last Result
 Last Seen At,Last Seen At
@@ -353,6 +367,7 @@ Lease Owner,Lease Owner
 Lease Until,Lease Until
 Leave blank to keep the current password.,Leave blank to keep the current password.
 Leave blank to keep unchanged,Leave blank to keep unchanged
+Leave empty to match from the DMS account automatically.,Leave empty to match from the DMS account automatically.
 Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
@@ -364,6 +379,7 @@ Loading…,Loading…
 Local Account,Local Account
 Local Session,Local Session
 "Local sample site: not sent to LINE, the raw text is only recorded","Local sample site: not sent to LINE, the raw text is only recorded"
+Locked; released in {0}s,Locked; released in {0}s
 Looked up a tax ID,Looked up a tax ID
 Looking up a tax ID,Looking up a tax ID
 Looking up the OIDC client failed: {0} {1},Looking up the OIDC client failed: {0} {1}
@@ -377,7 +393,6 @@ Missing code or state,Missing code or state
 My Profile,My Profile
 Name,Name
 Namespace is not allowed: {0},Namespace is not allowed: {0}
-"Neither tier produced a result (network, key or model name could all be the cause)","Neither tier produced a result (network, key or model name could all be the cause)"
 Net Amount,Net Amount
 Net Payable,Net Payable
 Net amount,Net amount
@@ -393,18 +408,18 @@ Next Run,Next Run
 No,No
 No DMS connection has been configured yet,No DMS connection has been configured yet
 No Data,No Data
-No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (site config pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
 No camera was found on this device. Enter the code instead.,No camera was found on this device. Enter the code instead.
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
+No computer connected,No computer connected
+No connection to test,No connection to test
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
+No file was received.,No file was received.
 No operators yet — add one above,No operators yet — add one above
 No provisioning target is available; configure one under “Provisioning Target” first,No provisioning target is available; configure one under “Provisioning Target” first
-No purchase orders yet. Use “New purchase order” in the top right to add the first one.,No purchase orders yet. Use “New purchase order” in the top right to add the first one.
+No purchase orders,No purchase orders
 No recognition result — please re-upload,No recognition result — please re-upload
 No records,No records
-No records yet. Use “New entry” in the top right to add the first one.,No records yet. Use “New entry” in the top right to add the first one.
-No service account configured (site config pearnly_ocr_credentials),No service account configured (site config pearnly_ocr_credentials)
 No sign-in credentials configured,No sign-in credentials configured
 No such local account: {0},No such local account: {0}
 No.,No.
@@ -420,17 +435,17 @@ Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show
 OK,OK
-"Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).","Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place)."
 Once disabled its DMS pushes stop and the LINE binding is released,Once disabled its DMS pushes stop and the LINE binding is released
+One default connection per account and system type.,One default connection per account and system type.
 One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code,One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code
 Only a company admin can top up or change the subscription,Only a company admin can top up or change the subscription
 Only a company admin can view top-up records,Only a company admin can view top-up records
 Only an admin can configure DMS connections,Only an admin can configure DMS connections
 Only an admin can manage the operator roster,Only an admin can manage the operator roster
 Only confirmed documents can be queued for push,Only confirmed documents can be queued for push
-Only one default per account + adapter (the legacy product's unique index).,Only one default per account + adapter (the legacy product's unique index).
-Only the config was checked; a real connectivity test waits for the adapter,Only the config was checked; a real connectivity test waits for the adapter
+Only the configuration was checked; the connection was not tested,Only the configuration was checked; the connection was not tested
 Only the owner can manage it,Only the owner can manage it
+Open View,Open View
 Open in browser,Open in browser
 "Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.","Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself."
 "Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.","Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself."
@@ -458,13 +473,13 @@ Password updated. Use the new password next time you sign in.,Password updated. 
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.
 Payer,Payer
 Payer name on the bank transfer,Payer name on the bank transfer
-Payload,Payload
 Payment Status,Payment Status
 Pearnly,Pearnly
 Pearnly Cowork,Pearnly Cowork
 Pearnly Dark,Pearnly Dark
 Pearnly Light,Pearnly Light
 Pending,Pending
+Pending Carry-over,Pending Carry-over
 Pending review,Pending review
 Personal data: not shown in lists and never written to logs,Personal data: not shown in lists and never written to logs
 Plan,Plan
@@ -475,6 +490,7 @@ Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
 Please try again later,Please try again later
 Preparing the file,Preparing the file
+Private Key,Private Key
 Processing…,Processing…
 Product,Product
 Product Ref,Product Ref
@@ -483,6 +499,7 @@ Product master data,Product master data
 Products,Products
 Products & Stock,Products & Stock
 Provide at least one line item,Provide at least one line item
+Public Key,Public Key
 Purchase,Purchase
 Purchase (bills received),Purchase (bills received)
 Purchase / Sale,Purchase / Sale
@@ -497,9 +514,10 @@ Push Log,Push Log
 Push Log Reference,Push Log Reference
 Push Records,Push Records
 Push Status,Push Status
+Push TTL,Push TTL
 Push failed,Push failed
 Push status must be one of {0},Push status must be one of {0}
-Push to the external ERP; the push log is the only source of status,Push to the external ERP; the push log is the only source of status
+Push to an external ERP,Push to an external ERP
 Pushed,Pushed
 Qty,Qty
 Query access,Query access
@@ -514,6 +532,9 @@ Recognition Records,Recognition Records
 Recognition failed. Please try again.,Recognition failed. Please try again.
 Recognition records,Recognition records
 Recognition result,Recognition result
+Recognition returned no result,Recognition returned no result
+Recognition service configuration is invalid,Recognition service configuration is invalid
+Recognition service is not configured,Recognition service is not configured
 Recognition took too long. Please try again later.,Recognition took too long. Please try again later.
 Recognition waited too long in the queue. Please upload again.,Recognition waited too long in the queue. Please upload again.
 Recognize and export,Recognize and export
@@ -531,6 +552,7 @@ Regenerate,Regenerate
 Rejected,Rejected
 Reload advisors,Reload advisors
 Remote Address,Remote Address
+Remote Sessions,Remote Sessions
 Removed At,Removed At
 Removed By,Removed By
 Removed from Product History At,Removed from Product History At
@@ -539,6 +561,7 @@ Reorder sidebar,Reorder sidebar
 Request & Response,Request & Response
 Request Body,Request Body
 Request failed (HTTP {0}),Request failed (HTTP {0})
+Request refused,Request refused
 Requested,Requested
 Requested By,Requested By
 Response Body,Response Body
@@ -557,15 +580,15 @@ Rounding,Rounding
 Row {0}: quantity must be greater than 0,Row {0}: quantity must be greater than 0
 Row {0}: unit price cannot be negative,Row {0}: unit price cannot be negative
 Sale,Sale
-Sale (bills we issue),Sale (bills we issue)
 Sales,Sales
 Sales (confirmed and above),Sales (confirmed and above)
+Sales (issued invoices),Sales (issued invoices)
 Sales Commission Owner,Sales Commission Owner
 Sales Records,Sales Records
 Sales commission owner,Sales commission owner
 Sales documents and customer dealings,Sales documents and customer dealings
 Salesperson,Salesperson
-Same ID number means the same customer; avoids duplicate records,Same ID number means the same customer; avoids duplicate records
+Same ID number means the same customer,Same ID number means the same customer
 Save,Save
 Save purchase order,Save purchase order
 Saved,Saved
@@ -573,19 +596,22 @@ Saved as a draft; confirm it before it can be pushed,Saved as a draft; confirm i
 "Scan to add this account, then send the bind code in LINE.","Scan to add this account, then send the bind code in LINE."
 Seller,Seller
 Seller Tax ID,Seller Tax ID
+Session,Session
+Session ID,Session ID
 Session Payload,Session Payload
 Sign in again before changing your username.,Sign in again before changing your username.
 Sign out,Sign out
 Sign out and sign in again,Sign out and sign in again
 Sign-in Credentials,Sign-in Credentials
+"Sign-in URL, for example the MR.ERP DMS sign-in URL.","Sign-in URL, for example the MR.ERP DMS sign-in URL."
+Sign-in verification failed. Sign in again.,Sign-in verification failed. Sign in again.
 Signed In Via,Signed In Via
-Site config is missing {0},Site config is missing {0}
-Site config is missing {0}_admin_client_id / _secret,Site config is missing {0}_admin_client_id / _secret
-Site config is missing {0}_issuer,Site config is missing {0}_issuer
-Site config pearnly_ocr_credentials must point at an existing service-account JSON,Site config pearnly_ocr_credentials must point at an existing service-account JSON
+Site finalization failed,Site finalization failed
+Site is missing setting: {0},Site is missing setting: {0}
 Size And Permission Check,Size And Permission Check
 Source,Source
 Source Attachment,Source Attachment
+Starred,Starred
 State,State
 Status,Status
 Status cannot go backwards: {0} → {1},Status cannot go backwards: {0} → {1}
@@ -597,12 +623,14 @@ Stock In,Stock In
 Stock In / Out,Stock In / Out
 Stock Out,Stock Out
 "Stock in/out summary (kept item, see the ERP manifest)","Stock in/out summary (kept item, see the ERP manifest)"
+Stored encrypted; never shown,Stored encrypted; never shown
 Subject,Subject
 Submit request,Submit request
 Submitting…,Submitting…
 Subscribe to this plan,Subscribe to this plan
 Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.
 Subscribing…,Subscribing…
+Subscription Key,Subscription Key
 Subscription and top-up,Subscription and top-up
 Subtotal,Subtotal
 Succeeded,Succeeded
@@ -614,8 +642,10 @@ Supplier / customer,Supplier / customer
 Supplier Tax ID,Supplier Tax ID
 Supplier name,Supplier name
 Suppliers,Suppliers
+System Type,System Type
 System URL,System URL
 System URL is not filled in,System URL is not filled in
+System URL is required,System URL is required
 Target ERP,Target ERP
 Tax Return Drafts,Tax Return Drafts
 Team,Team
@@ -629,13 +659,10 @@ The DMS advisor list is empty.,The DMS advisor list is empty.
 The ERP timed out or the network failed. Please try again later.,The ERP timed out or the network failed. Please try again later.
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
-The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
 The LINE channel is not configured for this account,The LINE channel is not configured for this account
 The OCR service returned HTTP {0}: {1},The OCR service returned HTTP {0}: {1}
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.
 The account is disabled,The account is disabled
 The account was created but no id came back,The account was created but no id came back
-The admin session must be requested inside a `with` block,The admin session must be requested inside a `with` block
 The balance could not be read,The balance could not be read
 The balance grows once the platform confirms the transfer.,The balance grows once the platform confirms the transfer.
 The barcode reader could not load. Refresh the page and try again.,The barcode reader could not load. Refresh the page and try again.
@@ -650,20 +677,9 @@ The current password is wrong,The current password is wrong
 The document number the supplier issued; it must be kept as-is,The document number the supplier issued; it must be kept as-is
 The export could not be created.,The export could not be created.
 The file is ready,The file is ready
-The identity service did not return an id_token,The identity service did not return an id_token
 The identity service refused the password change: {0} {1},The identity service refused the password change: {0} {1}
 The identity service returned an error: {0},The identity service returned an error: {0}
-"The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
-
-**One row per session** (a LINE user runs only one flow at a time inside one tenant).","The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
-
-**One row per session** (a LINE user runs only one flow at a time inside one tenant)."
-"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.","The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing."
-The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.
-"The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.","The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials."
 The legacy system's product identifier; it becomes a link once product master data lands,The legacy system's product identifier; it becomes a link once product master data lands
-"The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)","The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)"
 The name is resolved server-side when pinning; the client's value is not trusted,The name is resolved server-side when pinning; the client's value is not trusted
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).","The name the owner uses to tell people apart on this table, e.g. Ming (sales)."
 The new password cannot be the same as the current one,The new password cannot be the same as the current one
@@ -677,23 +693,20 @@ The recognition queue is full. Please try again later.,The recognition queue is 
 The recognition result is not confirmed yet. Refresh later to check.,The recognition result is not confirmed yet. Refresh later to check.
 The result of each push,The result of each push
 The service account could not exchange its token: {0},The service account could not exchange its token: {0}
-"The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.","The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change."
 The subscription could not be activated,The subscription could not be activated
 "The target environment is incomplete: URL, realm, client ID and secret are all required","The target environment is incomplete: URL, realm, client ID and secret are all required"
 The test for a duplicate upload of the same document,The test for a duplicate upload of the same document
 The tool failed. Try again later.,The tool failed. Try again later.
 The total is calculated automatically.,The total is calculated automatically.
-"The truth is in erp_push_logs, trigger=id_card","The truth is in erp_push_logs, trigger=id_card"
-The truth is in erp_push_logs; this is only a display reference,The truth is in erp_push_logs; this is only a display reference
 The two new passwords do not match,The two new passwords do not match
 The two passwords do not match,The two passwords do not match
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.
 "There is no DMS customer reference, so it cannot be pushed","There is no DMS customer reference, so it cannot be pushed"
 This ERP account has no company or year to choose.,This ERP account has no company or year to choose.
 This LINE account is not bound to this account on this site. Sign in with your password.,This LINE account is not bound to this account on this site. Sign in with your password.
 This Operator's Own DMS Credentials,This Operator's Own DMS Credentials
 "This account has no identity binding, so it cannot change its own password; contact an admin","This account has no identity binding, so it cannot change its own password; contact an admin"
+This action is not supported on this site,This action is not supported on this site
 This advisor is no longer in the current DMS list. Please select again.,This advisor is no longer in the current DMS list. Please select again.
 "This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.","This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 This attachment is not in this conversation.,This attachment is not in this conversation.
@@ -721,10 +734,14 @@ This system address is not allowed; only public addresses can be used.,This syst
 This username is already in use.,This username is already in use.
 This year,This year
 Time,Time
+Title Source,Title Source
 Titles {0},Titles {0}
 To confirm,To confirm
 To verify,To verify
 Today,Today
+Tool,Tool
+Tool Input,Tool Input
+Tool Use ID,Tool Use ID
 Top up,Top up
 Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.,Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.
 Top-ups,Top-ups
@@ -735,6 +752,7 @@ Transport Result,Transport Result
 Trigger,Trigger
 Try again,Try again
 Type,Type
+Type of the connected system,Type of the connected system
 UI language,UI language
 Unable to load this page. Please reload.,Unable to load this page. Please reload.
 Unable to read the current advisor list. Retry before changing the assignment.,Unable to read the current advisor list. Retry before changing the assignment.
@@ -756,6 +774,7 @@ Usage,Usage
 "Use a JPG, PNG or PDF transfer slip","Use a JPG, PNG or PDF transfer slip"
 Used,Used
 Used At,Used At
+"Used to connect, check duplicates, create and rewrite customer records. Business writes use these credentials, not the operator's own.","Used to connect, check duplicates, create and rewrite customer records. Business writes use these credentials, not the operator's own."
 Used {0} pages this month · pay-as-you-go,Used {0} pages this month · pay-as-you-go
 "Used {0} pages this month · plan {1}, {2} left this cycle","Used {0} pages this month · plan {1}, {2} left this cycle"
 User,User
@@ -776,17 +795,16 @@ What Was Pushed,What Was Pushed
 What Was Recognised,What Was Recognised
 Whether this LINE can sign in to this account; kept in step with the identity service.,Whether this LINE can sign in to this account; kept in step with the identity service.
 Which connection it went to. Empty = it failed before a connection was chosen.,Which connection it went to. Empty = it failed before a connection was chosen.
-Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.
-"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).","Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over)."
-"Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.","Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull","Windows app on the merchant's accounting PC: installer, pairing, outbound pull"
 Withholding Tax,Withholding Tax
 Work,Work
+Work Month,Work Month
+Work Scope,Work Scope
 Work together,Work together
+Worker currently processing this row.,Worker currently processing this row.
 Workspace,Workspace
 Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP username or password. Check it under Connect and try again.
 Yes,Yes
-You need to sign in to the site before opening this page. Enter through the site domain and sign in.,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
 You're offline,You're offline
 Your access domain,Your access domain
 Your account was updated elsewhere. Sign in again to load the current username.,Your account was updated elsewhere. Sign in again to load the current username.
@@ -815,6 +833,9 @@ account.themeDark,Pearnly Dark
 account.themeLight,Pearnly Light
 account.usernameFormat,"Username must contain 3–30 letters, digits, dots, underscores or hyphens."
 account.usernameTaken,This username is already in use.
+assistant.tool.declined,Change declined
+assistant.tool.refused,Request refused
+assistant.tool.unavailable,This action is not supported on this site
 common.backHome,Back to home
 common.cancel,Cancel
 common.col.date,Date
@@ -838,8 +859,8 @@ common.scan.allow_title,Allow LINE to use the camera
 common.scan.busy,The camera is being used by another app. Close that app and try again.
 common.scan.decoder,The barcode reader could not load. Refresh the page and try again.
 common.scan.denied,"Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
-common.scan.denied_android,"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself."
-common.scan.denied_ios,Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.
+common.scan.denied_android,"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return."
+common.scan.denied_ios,"Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return."
 common.scan.failed,"The camera could not start. Try again, or enter the code."
 common.scan.in_app,"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 common.scan.in_line,LINE does not have permission to use the camera yet.
@@ -899,7 +920,6 @@ connect.state.notConnected,Not connected
 connect.title,Connect DMS
 connect.yes,Yes
 e.g. Ming (sales),e.g. Ming (sales)
-endpoint is missing (which connection to test),endpoint is missing (which connection to test)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
 home.balance.title,Account balance
 home.balance.used,"Used {0} pages this month · plan {1}, {2} left this cycle"
@@ -985,7 +1005,7 @@ intake.agent.key,Pairing code
 intake.agent.loginHint,"Install it, then sign in with this account to connect."
 intake.agent.reset,Regenerate
 intake.agent.resetConfirm,The old key stops working right away.
-intake.agent.state.missing,CC Desktop not connected
+intake.agent.state.missing,No computer connected
 intake.card.purchaseTotal,Purchases (confirmed and above)
 intake.card.readyToPush,Confirmed · ready to push
 intake.card.salesTotal,Sales (confirmed and above)
@@ -1013,8 +1033,8 @@ intake.delete.partial,Deleted {0}. {1} being pushed were not deleted
 intake.dir.purchase,Purchase
 intake.dir.purchaseFull,Purchase (bills received)
 intake.dir.sales,Sale
-intake.dir.salesFull,Sale (bills we issue)
-intake.empty,No records yet. Use “New entry” in the top right to add the first one.
+intake.dir.salesFull,Sales (issued invoices)
+intake.empty,No records
 intake.error.http,Request failed (HTTP {0})
 intake.error.poll_unreachable,Network error
 intake.error.provider_outcome_unknown,The recognition result is not confirmed yet. Refresh later to check.
@@ -1119,7 +1139,6 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.warehouses,Warehouses
 nav.work,Work together
-nonce mismatch,nonce mismatch
 purchase.action.addLine,Add row
 purchase.action.new,New purchase order
 purchase.action.removeLine,Delete
@@ -1132,7 +1151,7 @@ purchase.col.grandTotal,Total incl. VAT
 purchase.col.name,No.
 purchase.col.status,Status
 purchase.collapse,Collapse
-purchase.empty,No purchase orders yet. Use “New purchase order” in the top right to add the first one.
+purchase.empty,No purchase orders
 purchase.error.http,Request failed (HTTP {0})
 purchase.field.docDate,Document date
 purchase.field.docNo,External document no.
@@ -1153,7 +1172,7 @@ purchase.saving,Saving…
 purchase.subtitle,Manage purchase orders and payment details.
 purchase.title,Purchase Records
 roster.add,Add operator
-roster.addHint,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
+roster.addHint,"Enter the display name, DMS account and password. Issue bind codes after saving."
 roster.advisor.auto,Automatic (by DMS account)
 roster.advisor.empty,The DMS advisor list is empty.
 roster.advisor.invalid,This advisor is no longer in the current DMS list. Please select again.
@@ -1180,11 +1199,11 @@ roster.col.operator,Operator
 roster.col.query,Query access
 roster.collapse,Collapse
 roster.confirm.delete,"This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?"
-roster.confirm.deleteSelected,Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.
+roster.confirm.deleteSelected,Delete {0} selected operators? Their LINE bindings and DMS connections are removed; push records are kept.
 roster.confirm.disable,"Disable ""{0}""? Its DMS pushes stop and the LINE link is released."
 roster.confirm.enable,"Enable ""{0}""? A new bind code is needed to link LINE again."
 roster.confirm.title,Please confirm
-roster.confirm.unbind,Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.
+roster.confirm.unbind,Disconnect LINE for {0}? Unused bind codes expire; the operator and DMS credentials are kept.
 roster.delete,Delete
 roster.disable,Disable
 roster.edit,Edit
@@ -1230,7 +1249,7 @@ roster.subtitle,One row per salesperson/administrator: each has their own DMS cr
 roster.title,Operators
 roster.unbindLine,Unbind LINE
 roster.unbound,Not linked
-"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
+"sales = salesperson, admin = administrator","sales = salesperson, admin = administrator"
 shell.backHome,Back to home
 shell.boot.failed,Failed to start (HTTP {0}): {1}
 shell.boot.failedPlain,Failed to start: {0}
@@ -1240,14 +1259,12 @@ shell.bootCard.language,UI language
 shell.bootCard.none,(none)
 shell.bootCard.product,Product
 shell.bootCard.title,Tenant boot data
-shell.needLogin,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
 shell.notBuilt,Page unavailable
 shell.notBuilt.body,Return to the home page to continue.
 shell.notBuilt.title,Page unavailable
 shell.wait.elapsed,{0} seconds so far
 shell.wait.pages,Recognized {0}/{1} pages · {2}%
 state is invalid or has expired,state is invalid or has expired
-system_url is required,system_url is required
 username / password are required,username / password are required
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle

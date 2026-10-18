@@ -73,7 +73,7 @@ class LedgerSourceTests(unittest.TestCase):
         # 同一张单在相邻的「待处理」卡里叫什么，这里就叫什么（服务端已有词条 cowork.company.pending.not_pushed）
         tsv = (COWORK / "i18n/messages.tsv").read_text(encoding="utf-8")
         self.assertIn("Not pushed yet\t还没推送\tยังไม่ได้ส่ง\t", tsv)
-        for words in ('not_pushed: "Not pushed yet"', 'not_pushed: "还没推送"', 'not_pushed: "ยังไม่ได้ส่ง"'):
+        for words in ('not_pushed: "Not pushed"', 'not_pushed: "未推送"', 'not_pushed: "ยังไม่ได้ส่ง"'):
             self.assertIn(words, i18n)
         # 泰文的「在 Express 里改了 / 删了 / 作废了」是被动（不是叫人去删）
         for words in ('express_changed: "ถูกแก้ไขใน Express"', 'express_deleted: "ถูกลบใน Express"', 'express_voided: "ถูกยกเลิกใน Express"'):
@@ -90,6 +90,28 @@ class LedgerSourceTests(unittest.TestCase):
         ledger = read("components/month-ledger.tsx")
         self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', ledger)
         self.assertIn("summary={month ? monthSummary(month) : undefined}", ledger)
+        # 段行右侧的状态完整显示，左边段名让位、放不下时由它滚；同一行不会两处一起滚（用户 10-16 截图）
+        self.assertEqual(ledger.count('className="cc-panel-extra cc-month-status"'), 1)
+        css = read("globals.css")
+        self.assertIn('[data-slot="cc-month-stage"] > .cc-panel-extra.cc-month-status { max-width: calc(100% - var(--cc-month-name-min)); }', css)
+        # 账套行两行（第 8 轮：1024 宽、右侧栏 280 时状态要 178px 只给了 156px、账套名压到 60px）：账套名一行、状态一行（12px 淡色），
+        # 各自全宽、各自是一行悬停滚动的范围
+        self.assertIn('<div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent cc-month-set" data-slot="cc-month-set">\n'
+                      '            <Marquee className="cc-month-set-name" data-marquee-host="">{set.label || set.key}</Marquee>\n'
+                      '            <Marquee className="cc-month-set-status" data-marquee-host="">{setSummary(set)}</Marquee>', ledger)
+        self.assertIn(".cc-panel-row.cc-month-set { flex-direction: column; align-items: stretch; gap: 0; padding-block: var(--cc-panel-row-py); }", css)
+        status = css.split("  .cc-month-set-status {", 1)[1].split("}", 1)[0]
+        for part in ("min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);",
+                     "font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);"):
+            self.assertIn(part, status)
+        self.assertNotIn("max-width", status)
+        # 第 8 轮审查：账套名沿用原来子行的 12px 淡色（不与段名同级）；段行的段名、状态各自是悬停滚动的范围（都放不下时不两处一起滚）
+        name = css.split("  .cc-month-set-name {", 1)[1].split("}", 1)[0]
+        for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);"):
+            self.assertIn(part, name)
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate" data-marquee-host="">{co.ledger.stage[stage]}</Marquee>\n'
+                      '        <Marquee className="cc-panel-extra cc-month-status" data-marquee-host="">{stageSummary(stage, month) || word}</Marquee>',
+                      ledger)
         self.assertIn("const period = isPeriod(chosen) ? chosen : lastMonth();", ledger)  # 页面「不指定」时看上个月
         # 会话栏：没取到、空月不显示；出错显示原因
         card = ledger.split("export const MonthCard: FC", 1)[1].split("\n};", 1)[0]
@@ -243,7 +265,7 @@ assert.equal(attentionCount(cut), 9);
 assert.equal(unlisted(cut), 10);
 assert.ok(text(html(cut)).join("|").includes("To do|7"));
 assert.deepEqual([...html(cut).matchAll(/data-slot="cc-month-note">([\s\S]*?)<\/div>/g)].map((m) => text(m[1]).join("")),
-  ["10 more not listed", "Only part of this month's documents was counted"]);
+  ["10 more not listed", "Only some documents counted"]);
 assert.equal(unlisted(month), 0);
 assert.ok(!page.includes("cc-month-note"));
 // 组标题是语义标题
@@ -373,7 +395,7 @@ assert.equal(zh[5], "已录 2/7 · 仅识别 2");
 assert.equal(zh[7], `Bee ${dayTime("2026-10-02T03:01:00Z")} 回读`);
 assert.ok(zh.includes("INV-7 · 2 张"));
 assert.ok(zh.includes("需处理") && zh.includes("需留意") && zh.includes("知悉"));
-assert.ok(zh.includes("要人选") && zh.includes("Express 中找不到"));
+assert.ok(zh.includes("待选择") && zh.includes("Express 中找不到"));
 """, lang="zh")
         self.run_page(r"""
 const th = text(html(month));

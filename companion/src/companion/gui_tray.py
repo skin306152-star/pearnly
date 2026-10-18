@@ -4,6 +4,10 @@
 2026-10-10 起小助手并入 Tomo 桌面端：托盘左键、Ctrl+Alt+Space、再次打开程序都是打开 Tomo 窗口（gui_tomo.py）；
 Express / MR.ERP 的连接与设置留在「连接与设置」主窗口，取任务、直写、文件夹录入照旧在后台跑，没配对也能单用 Tomo。
 
+2026-10-18 轻量化（用户：「CC 桌面版必须要轻量设计并满足老机器能正常运行使用」）：本进程**不加载网页内核**。CC 窗口在
+另一个进程里（``companion.exe --window``，window_main.py），要打开时由这里拉起、关了它就退出（window_link.WindowHost）；
+对话页的桥仍在这里应答（tomo_bridge.py），窗口进程转过来。
+
 主线程 = Qt 事件循环 + 托盘图标(绿空闲/黄工作/红错误/灰离线)+ 右键菜单(状态/打开小助手/
 退出;左键单击也打开小助手主窗口);后台 QThread = QueueClient poll → _handle_dbf_task 直写 → 周期心跳 +
 夜间 PACK tick(复用 main 的核心,不重复直写逻辑)。worker 出状态/离线通过信号回主线程。
@@ -12,7 +16,6 @@ Express / MR.ERP 的连接与设置留在「连接与设置」主窗口，取任
 from __future__ import annotations
 
 import os
-import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
@@ -22,6 +25,7 @@ from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
 from . import toast, watchdog
+from .gui_icon import asset_path, pearnly_icon, pearnly_pixmap as _pearnly_pixmap  # noqa: F401  （asset_path 旧入口）
 from .config import CompanionConfig, member_active
 from .auto_update import AutoUpdate
 from .update_block import UpdateMemory, state_file
@@ -35,14 +39,6 @@ from .gui_tray_workers import (
 )
 from .i18n import MessageSpec, default_lang, normalize, t
 from .logger import activity, get_logger
-
-
-def asset_path(name: str) -> Path:
-    """资源定位:frozen exe 走 PyInstaller 解包目录(_MEIPASS),否则 repo assets/。"""
-    base = getattr(sys, "_MEIPASS", None)
-    return (
-        (Path(base) if base else Path(__file__).resolve().parents[2]) / "assets" / name
-    )
 
 
 log = get_logger(__name__)
@@ -87,22 +83,6 @@ def _dot_icon(color: str) -> QIcon:
     return icon
 
 
-_BASE_PM: QPixmap | None = None
-
-
-def pearnly_icon() -> QIcon:
-    """Pearnly logo(任务栏/窗口图标 · 与 exe 内嵌图标一致)。"""
-    return QIcon(_pearnly_pixmap())
-
-
-def _pearnly_pixmap() -> QPixmap:
-    global _BASE_PM
-    if _BASE_PM is None:
-        p = asset_path("cc.png")
-        _BASE_PM = QPixmap(str(p)) if p.exists() else QPixmap()
-    return _BASE_PM
-
-
 def _status_icon(key: str) -> QIcon:
     """托盘图标 = CC 图标（带胡须原版）+ 右下角状态点(brand + 状态都在)。无资源时回落纯色点。"""
     icon = _ICON_CACHE.get("logo:" + key)
@@ -125,13 +105,13 @@ def _status_icon(key: str) -> QIcon:
 
 
 
+WINDOW_HOST = None   # 本进程的 CC 窗口管家（window_link.WindowHost，TrayApp 建）：_window_open 看窗口进程报来的状态
+
+
 def _window_open() -> bool:
-    """有人正在用 Tomo 窗口（开着且在最前面）：自动更新先不装（只看已经打开过的模块，不为这个去导入界面）。"""
-    window = getattr(sys.modules.get(__package__ + ".gui_tomo"), "OPEN_WINDOW", None)
-    try:
-        return bool(window is not None and window.isVisible() and window.isActiveWindow())
-    except RuntimeError:
-        return False  # Qt 对象已回收
+    """有人正在用 Tomo 窗口（开着且在最前面）：自动更新先不装。窗口在另一个进程里，看它报来的状态（window_link）。"""
+    host = WINDOW_HOST
+    return bool(host is not None and host.connected and host.visible and host.active)
 
 
 MENU_TEXT_MAX = 48
@@ -234,6 +214,15 @@ class TrayApp(QObject):
             str(getattr(cfg, "profile_id", "") or ""), status)
         device_link.device_key()
         self.worker = self._spawn_worker()
+        # CC 开着时保持电脑唤醒（keep_awake.py，同 Claude 桌面版，用户 10-16）：有成员连着就不让系统空闲睡眠；不锁屏
+        from .keep_awake import KeepAwake
+
+        self._keep_awake = KeepAwake()
+        # 两个开关是这台电脑的全局设置：托盘单独记着（启动 / 重读配置时取文件里的值，设置里改了由 _set_keep_awake 更新），
+        # 不写进各成员的配置——取任务线程手上的配置副本存盘时只写它自己改过的全局项（profile_store.save_profile）
+        self._awake_settings = (bool(getattr(self.cfg, "keep_awake", True)),
+                                bool(getattr(self.cfg, "keep_awake_on_battery", False)))
+        self._apply_keep_awake()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
         self.folder_notices.connect(self._on_folder_notices)
@@ -249,13 +238,19 @@ class TrayApp(QObject):
         # 按需请求（CC 对话里读账套、列 / 取已授权文件夹的文件）：又一条独立守护线程，与推送线、看门狗无关（request_worker.py）。
         self._requests = RequestWorker(lambda: self.configs)
         self._requests.start()
-        # Tomo：窗口第一次打开时才建（开机自启不加载网页内核）；快捷输入条、全局快捷键、「再打开一次」的管道一开始就在。
-        self._tomo = None
+        # CC 窗口在另一个进程里，要打开时才拉起（本进程不加载网页内核，window_link.py）；桥在这里照旧应答（第一次用到才建）。
+        # 快捷输入条、全局快捷键、「再打开一次」的管道一开始就在。
+        global WINDOW_HOST
+        from .window_link import WindowHost
+
+        self._bridge = None
+        self._window = WINDOW_HOST = WindowHost(on_request=self._on_window_request, on_notify=self._on_window_notify,
+                                                lang=lambda: self.lang)
         self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知 / 对话提醒才有）
         self._message_at = 0.0        # 那条带动作的通知什么时候弹的（单调时钟）
         self.tray.messageClicked.connect(self._on_message_clicked)
         self._toast_relay = _ClickRelay(self._on_toast_clicked)   # 在界面线程建：点击排队回这里
-        from .gui_tomo import QuickAsk
+        from .gui_quick import QuickAsk
         from .tomo_hotkey import GlobalHotkey
         from . import instance_channel
 
@@ -310,6 +305,9 @@ class TrayApp(QObject):
     def _apply_language(self, lang: str) -> None:
         self.lang = normalize(lang)
         self._retranslate()
+        window = getattr(self, "_window", None)
+        if window is not None:
+            window.send("lang", lang=self.lang)
 
     def _retranslate(self) -> None:
         if getattr(self, "_tomo_action", None):
@@ -329,21 +327,26 @@ class TrayApp(QObject):
     def _render_status(self) -> None:
         if not self._profile_states:
             text = t("tray_starting" if self.configs else "tray_no_connection", self.lang)
-            self.tray.setIcon(_status_icon("offline"))
-            self.tray.setToolTip(f"{t('tray_tooltip', self.lang)} · {text}")
-            if self._status_action:
-                self._status_action.setText(text)
+            self._show_status("offline", f"{t('tray_tooltip', self.lang)} · {text}", text)
             return
         overall, display_profile, display_detail = self._aggregate_status()
-        self.tray.setIcon(_status_icon(overall))
         label = t("st_" + overall, self.lang) if overall in _LABELED_STATES else overall
         detail = self._detail_text(display_detail)
         text = f"{label} · {detail}" if detail else label
         if len([cfg for cfg in self.configs if not cfg.paused]) > 1 and display_profile:
             text = f"{self._profile_label(display_profile)} · {text}"
-        self.tray.setToolTip(f"{t('tray_tooltip', self.lang)} · {text}")
-        if self._status_action:
-            self._status_action.setText(_menu_text(text))
+        self._show_status(overall, f"{t('tray_tooltip', self.lang)} · {text}", _menu_text(text))
+
+    def _show_status(self, icon: str, tooltip: str, menu: str) -> None:
+        """只在变了时才重画托盘图标 / 悬停提示 / 菜单状态行（取任务线程每 3 秒报一次「空闲」，2026-10-18 轻量化）。"""
+        shown = getattr(self, "_shown_status", (None, None, None))
+        if shown[0] != icon:
+            self.tray.setIcon(_status_icon(icon))
+        if shown[1] != tooltip:
+            self.tray.setToolTip(tooltip)
+        if shown[2] != menu and self._status_action:
+            self._status_action.setText(menu)
+        self._shown_status = (icon, tooltip, menu)
 
     def _on_update_available(self, version: str, url: str) -> None:
         if not self._auto_update.offer(version, url):
@@ -619,20 +622,9 @@ class TrayApp(QObject):
         if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
             self.open_tomo()
 
-    # ── Tomo 桌面窗口 ──
-    def _tomo_window(self):
-        if self._tomo is None:
-            from .gui_tomo import TomoWindow
-
-            self._tomo = TomoWindow(lang=self.lang, icon=pearnly_icon(), notify=self._notify, bridge=self._make_bridge())
-        return self._tomo
-
+    # ── Tomo 桌面窗口（在窗口进程里，window_link / window_main） ──
     def open_tomo(self, text: str | None = None) -> None:
-        window = self._tomo_window()
-        if text is None:
-            window.show_front()
-        else:
-            window.ask(text)
+        self._window.open({"op": "show"} if text is None else {"op": "ask", "text": text})
 
     def open_conversation(self, site: str, session: str = "") -> None:
         """对话提醒点开：打开那段对话（没有对话 = 定时任务页）；站点不是自家 https 地址就只打开窗口。"""
@@ -642,7 +634,7 @@ class TrayApp(QObject):
         if not url:
             self.open_tomo()
             return
-        self._tomo_window().open_conversation(url, session)
+        self._window.open({"op": "open_conversation", "url": url, "session": session})
 
     def _on_folder_notices(self, site: str, items) -> None:
         """文件夹同步带来的对话提醒（folder_worker._notices 已校验形状），同一条只弹一次。一批只弹一条（托盘点击只记得住
@@ -725,8 +717,35 @@ class TrayApp(QObject):
 
     def _repair(self) -> None:
         """「连接与设置」：打开 Tomo 并打开对话页设置的「连接」一栏（2026-10-10 起取代原小助手主窗口）。"""
-        self.open_tomo()
-        self._tomo.open_settings("connections")
+        self._window.open({"op": "open_settings", "section": "connections"})
+
+    # ── 窗口进程转来的 ──
+    def _on_window_request(self, message: dict):
+        """对话页经窗口进程调桥（state / call）：在这里照旧应答，返回桥的 JSON 字符串。"""
+        bridge = self._bridge or self._make_bridge()
+        if message.get("op") == "state":
+            return bridge.state()
+        return bridge.call(str(message.get("method") or ""), str(message.get("args") or ""))
+
+    def _on_window_notify(self, message: dict) -> None:
+        """窗口里要弹的系统通知：在这里弹（按 notice:<编号> 去重同前）；点了「在文件夹中显示」这里自己做，其余转回窗口。"""
+        path = str(message.get("reveal") or "")
+        click = str(message.get("click") or "")
+        if path:
+            from .gui_quick import Reveal
+
+            action = Reveal(Path(path))
+        elif click:
+            action = lambda click=click: self._window_click(click)  # noqa: E731
+        else:
+            action = None
+        self._notify(str(message.get("title") or "CC"), str(message.get("body") or ""), action,
+                     tag=str(message.get("tag") or ""))
+
+    def _window_click(self, click: str) -> None:
+        """点了窗口转来的通知：窗口进程还在就交回去执行（点开那段对话等）；已经退了就打开窗口。"""
+        if not self._window.send("click", id=click):
+            self.open_tomo()
 
     def _make_bridge(self):
         from . import tomo_links
@@ -740,20 +759,26 @@ class TrayApp(QObject):
             states=lambda: dict(self._profile_states), update_status=self.update_status, on_update=self._update_now,
             on_download=self._open_download,
             on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
+            on_keep_awake=self._set_keep_awake,
             hotkey=lambda: bool(getattr(self._hotkey, "registered", False)),
             # 公司的文件夹（pick_folder）：新加了根目录马上快速同步一次、唤醒文件夹线程；设置页的旧授权清理行看最近一次
             # 服务端回的在用根目录；上限按服务端回的 max_roots（没收到过按 20）
             report_roots=self._folders.report_roots_now, wake_folders=self._folders.wake,
             roots_in_use=self._folders.roots_in_use, max_roots=self._folders.max_roots)
+        host = self._window
         self._bridge = TomoBridge(
             settings,
-            allowed=lambda: self._tomo is not None and tomo_links.is_chat(self._page_url()),
-            window=lambda: self._tomo, set_lang=self._set_lang, page_url=self._page_url)
+            allowed=lambda: host.connected and tomo_links.is_chat(self._page_url()),
+            window=lambda: None, set_lang=self._set_lang, page_url=self._page_url, pick=host.pick)
+        # 桥的两个信号交给窗口进程里的页面（窗口没开就不发）
+        self._bridge.changed.connect(lambda: host.send("changed"))
+        self._bridge.done.connect(lambda job, result: host.send("done", job=job, result=result))
         return self._bridge
 
     def _page_url(self) -> str:
-        """Tomo 窗口里当前页面的地址（桥据此只在对话页上应答、选文件夹时核对站点）；窗口还没建是空串。"""
-        return self._tomo.page.url().toString() if self._tomo is not None else ""
+        """Tomo 窗口里当前页面的地址（窗口进程每次调桥都带上，状态变了也报）；窗口没开是空串。"""
+        window = getattr(self, "_window", None)
+        return window.url if window is not None and window.connected else ""
 
     def _on_folder_roots(self) -> None:
         """（界面线程）文件夹线程收回了根目录：对话页的设置重取本机状态。"""
@@ -789,6 +814,8 @@ class TrayApp(QObject):
         self._profile_states.clear()
         self._last_keys.clear()
         self._retranslate()
+        self._awake_settings = (bool(store.global_settings.keep_awake), bool(store.global_settings.keep_awake_on_battery))
+        self._apply_keep_awake()   # 成员都断开 / 都暂停了马上放开，新连上马上拿住
         self._restart_worker()
         if getattr(self, "_folders", None) is not None:
             self._folders.start()
@@ -811,6 +838,24 @@ class TrayApp(QObject):
         bridge = getattr(self, "_bridge", None)
         if bridge is not None:
             bridge.changed.emit()
+
+    def _apply_keep_awake(self) -> None:
+        """（界面线程）按开关与成员拿住 / 放开：至少一个成员连着（配对有效：没暂停、密钥没被说不能再用）才保持。"""
+        keeper = getattr(self, "_keep_awake", None)
+        if keeper is None or self._quitting:
+            return
+        enabled, on_battery = getattr(self, "_awake_settings", (True, False))
+        try:
+            keeper.apply(enabled=enabled, on_battery=on_battery,
+                         members=any(member_active(cfg) for cfg in self.configs))
+        except Exception:
+            log.exception("保持电脑唤醒失败（忽略）")
+
+    def _set_keep_awake(self, enabled: bool, on_battery: bool) -> None:
+        """（界面线程）设置里改了两个开关（已存进文件）：按新值拿住 / 放开。不改各成员配置——取任务线程的配置副本
+        存盘时只写它自己改过的全局项，文件里的新值不会被旧副本盖回去（profile_store.save_profile）。"""
+        self._awake_settings = (bool(enabled), bool(on_battery))
+        self._apply_keep_awake()
 
     def _start_folders(self) -> None:
         """设置里添加 / 移除了文件夹、公司选了文件夹：文件夹线程没在跑就起来，在跑就让下一轮马上开始。"""
@@ -875,12 +920,14 @@ class TrayApp(QObject):
         self._restart_pending = False
         activity("log_quit", lang=self.lang)
         self._watchdog.stop()
+        if getattr(self, "_keep_awake", None) is not None:
+            self._keep_awake.stop()   # 退出 CC 马上放开，系统按原电源设置睡眠
         if getattr(self, "_hotkey", None) is not None:
             self._hotkey.release()
         if getattr(self, "_bridge", None) is not None:
             self._bridge.shutdown()
-        if getattr(self, "_tomo", None) is not None:
-            self._tomo.shutdown()
+        if getattr(self, "_window", None) is not None:
+            self._window.quit()   # 窗口进程跟着退出
         if getattr(self, "_auto_timer", None) is not None:
             self._auto_timer.stop()
         if getattr(self, "_folders", None) is not None:

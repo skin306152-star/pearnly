@@ -1726,10 +1726,42 @@ class TaskSources(unittest.TestCase):
         self.assertNotIn('values.get("cc_session")', rules)  # 对话编号只从参数取，网页报文传不进来
         self.assertEqual(ast.literal_eval(rules.split("BATCH_MAX = ", 1)[1].split()[0]), 20)
         api = (APP / "folder_intake/api.py").read_text()
-        self.assertIn("def set_enabled(name, enabled):\n    return rules.set_enabled(name, enabled)", api)
+        self.assertIn("def set_enabled(name, enabled):\n    return _retried(rules.set_enabled, name, enabled)", api)
         machine = (APP / "folder_intake/machine.py").read_text()
         self.assertIn('"existing": int(rule.include_existing or 0),', machine)
         self.assertIn('pending = contracts.pending(body.get("rule_pending"))', machine)
+
+    def test_web_writes_retry_a_deadlock_with_the_heartbeat(self):
+        """第 7 批 B7 收尾（10-18 lab）：删除定时任务第一次回 500 QueryDeadlockError（与电脑心跳 / 同步并发），再点才删掉。
+        保存、启停、删除与读选项一样：回滚后整次重来，最多 3 次，第 3 次仍死锁才报出去。"""
+        class Deadlock(Exception):
+            pass
+
+        rollbacks = []
+        frappe = types.SimpleNamespace(QueryDeadlockError=Deadlock, whitelist=lambda **kw: (lambda f: f),
+                                       db=types.SimpleNamespace(rollback=lambda: rollbacks.append(1)))
+        calls = {"n": 0}
+
+        def flaky(names, fail=1):
+            calls["n"] += 1
+            if calls["n"] <= fail:
+                raise Deadlock()
+            return {"deleted": 1}
+
+        rules = types.SimpleNamespace(delete=flaky, save=None, set_enabled=None, options=None)
+        package = types.SimpleNamespace(rules=rules)
+        with mock.patch.dict(sys.modules, {"frappe": frappe, "pearnly_cowork.folder_intake": package,
+                                           "pearnly_cowork.folder_intake.rules": rules}):
+            spec = importlib.util.spec_from_file_location("folder_api_under_test", APP / "folder_intake/api.py")
+            api = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(api)
+            self.assertEqual(api.delete('["R1"]'), {"deleted": 1})
+            self.assertEqual((calls["n"], len(rollbacks)), (2, 1))
+            calls["n"] = 0
+            rules.delete = lambda names: flaky(names, fail=3)
+            with self.assertRaises(Deadlock):
+                api.delete('["R1"]')
+            self.assertEqual(calls["n"], 3)
 
     def test_the_desk_page_refreshes_itself_and_shows_progress(self):
         source = (APP / "public/desk/intake-folders.js").read_text()

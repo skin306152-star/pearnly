@@ -13,7 +13,7 @@
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "A push choice set for a whole client company or one of its branches (CC company master). Shared by the firm; a choice saved in one account set overrides it there.",
+ "description": "Push choices set for a client company or one of its branches",
  "field_order": [
   "input_key",
   "company",

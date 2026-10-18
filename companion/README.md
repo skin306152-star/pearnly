@@ -37,7 +37,12 @@
     之后变了再发、没变也每 12 小时再发；回 `superseded` / `claimed_elsewhere` 的密钥本机停用、等对话页重新登记（沿用原密钥重配不解除）；「断开连接」先 `device_api.leave`
     吊销本机这把再删成员。两条方法回 401 / 403 / 404 一律当旧服务端，**从不当成配对失效**；
   - 去掉 1.4.2 起的「常驻模式」（ADR-021 第 56 条，用户 10-16）：CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），
-    不再防睡眠、不再开机锁屏；电脑睡了就算离线，单子排队等它醒。旧配置里的 `always_on` 读时忽略、写回时丢掉；询问框只看服务端的 `attended`；
+    不再开机锁屏、不再替别人接活；询问框只看服务端的 `attended`。防睡眠那一半照 Claude 桌面版改成设置「此电脑 → 系统」里的两个开关
+    （第 58 条，`keep_awake.py`）：「CC 开着时保持电脑唤醒」（默认开）——至少一个成员连着（没暂停、密钥有效）就不让系统空闲睡眠，
+    没有成员、退出 CC、关掉开关马上放开；「用电池时也保持」（10-18 起默认关，D8）——关着时一换成电池就放开、插上电按插电的设置再拿起
+    （订阅系统的插电 / 电池切换通知，另每 15 秒查一次电源兜底）；1.7.0 测试包留下的、没有「用户改过」标记的旧值按没设过取默认。
+    用的是验证过的 `SetThreadExecutionState`（专用线程）：一般电脑只保持系统、屏幕照常关；现代待机的电脑另保持屏幕（只保持系统一关屏就待机，
+    10-12 测试机实测）。不改电源计划，合盖、按电源键照样睡。旧配置里的 `always_on` 读时迁成 `keep_awake`、写回时丢掉；
   - 心跳与配对上报的每行账套加 `uid`（目录的卷序列号 + 64 位文件号，`GetFileInformationByHandle`，只用 `FILE_READ_ATTRIBUTES`
     打开，不用 `FileIdInfo`）与 `share`（映射盘经 `WNetGetConnectionW`，本机共享经 `LanmanServer\Shares` 换成
     `\\本机名\共享名\…`），见 `device_facts.py`；`host_names` 只报有默认网关的网卡地址（不报 WSL / Hyper-V / VPN）；
@@ -47,6 +52,11 @@
     找不到这份账套 → 按「等账套」回报 `[ERR_ACCOUNT_UID_MISMATCH]`（单子交给别的电脑），并整套重扫一次账套；
   - 没有 Express 的电脑也能加入事务所的 Express 池（当只读文件夹的成员，永远领不到写账），之后找到 Express 用原密钥按 Express
     重新配对。
+  - 轻量化（10-18，用户：老办公机也要能正常用）：托盘进程**不加载网页内核**；CC 窗口在自己的进程里（`companion.exe --window`，
+    `window_main.py`），打开窗口时由托盘拉起、关窗口就退出（正在回复时等回复完再退），窗口没开时没有 QtWebEngineProcess。
+    两边经本用户的本地管道说话（`window_link.py`：一次性口令、一行一条 JSON），对话页的桥照旧在托盘应答（`tomo_bridge.py`）；
+    日志：窗口进程写 `logs/window.log`。窗口开着却没人看得见（锁屏、屏幕关了、被别的窗口完全挡住 3 秒；最小化 Qt 自己处理）时
+    对话页停画（`visibility_watch.py`），window.log 与 companion.log 各记一行「页面已暂停 / 已恢复」。
   - 只有真机能验的：真的 DPAPI、`GetFileInformationByHandle` / `WNetGetConnectionW` / 共享表 / 网卡表在 NAS 与服务器共享上的结果、
     两台电脑同一份账套的分派与写前核对，见 `docs/work/2026-10-15-multi-desktop-build.md` 第 7 批。
 - 1.8.0（数字会计员第 3 期，`docs/work/2026-10-16-da-phase3-design.md`；**与服务端同批发**，服务端在它之前上线时所有自动推只出提议）：
@@ -80,6 +90,10 @@ QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests
 2. 先手动运行一次测试发布：
    `gh workflow run companion-release.yml --ref main -f target=staging`（只写 `staging/`，用户看不到）。
 3. 正式发布：推标签 `companion-v<VERSION>`（或手动运行选 `prod`）。
+
+没进 main 的分支要先装到真机上验（ADR-021），用只构建、不发布的 `.github/workflows/companion-build.yml`：
+`gh workflow run companion-build.yml --ref <分支>`，跑完 `gh run download <运行编号>` 取 `CC-Setup.exe`。它和发布同一套测试与打包，
+不连服务器、不改 `latest.json`，产物只留 1 天；装上去的版本号就是那个分支 `version.py` 里的。
 
 流水线：Windows 上跑全量测试 → PyInstaller + Inno Setup 打包（`packaging/release.ps1 -BuildOnly`）→
 Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/production/receive-companion.py` → 从公网下载回来比对 sha256。

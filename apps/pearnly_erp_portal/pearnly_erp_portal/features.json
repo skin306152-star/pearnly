@@ -160,7 +160,7 @@
       "code": "erp_push",
       "label": "External ERP Push",
       "default_on": false,
-      "description": "Push to the external ERP; the push log is the only source of status",
+      "description": "Push to an external ERP",
       "role": "",
       "doctypes": [],
       "read_only": []

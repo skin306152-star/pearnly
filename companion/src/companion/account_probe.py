@@ -22,14 +22,15 @@ from __future__ import annotations
 
 import os
 import ntpath
-import threading
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import Iterator, List, Optional, Tuple
 
 import dbf
 
 from . import dbf_schema as S
+from .account_index import INDEX
 from .express_locate import sccomp_path
 from .logger import get_logger
 
@@ -66,10 +67,12 @@ def _branch_no(value) -> str:
     return f"{number:05d}" if 0 <= number <= 99999 else ""
 
 
-def _read_isinfo(account_dir: Path) -> Tuple[str, str, str]:
-    """只读账套 ISINFO 首行 → (公司名 THINAM, 税号 TAXID, 本公司分店号 ORGNUM);无/坏档返 ('','','')。
+def _read_isinfo(account_dir: Path) -> Tuple[str, str, str, dict]:
+    """只读账套 ISINFO 首行 → (公司名 THINAM, 税号 TAXID, 本公司分店号 ORGNUM, 默认科目向量);无/坏档返 ('','','',{})。
 
     分店号用来在同一税号下分开总公司与各分店各自的账套(用户 2026-09-27:旧项目分店票录错)。
+    默认科目与 ``probe_default_accounts`` 同一口径;扫账套清单时一次打开全读完(原来公司名、默认科目各开一次 ISINFO,
+    这张表 249 列,打开它是扫描里最花 CPU 的一步,2026-10-18)。表里没有的列就不读(不让一列缺失把整行丢掉)。
     """
     for cand in (_INFO_DBF, _INFO_DBF.lower()):
         p = account_dir / cand
@@ -81,43 +84,35 @@ def _read_isinfo(account_dir: Path) -> Tuple[str, str, str]:
             try:
                 if len(t):
                     r = t[0]
-                    branch = ""
-                    if "ORGNUM" in {name.upper() for name in t.field_names}:
-                        branch = _branch_no(getattr(r, "ORGNUM", ""))
-                    return (
-                        _clean(getattr(r, "THINAM", "")),
-                        _clean(getattr(r, "TAXID", "")),
-                        branch,
-                    )
+                    names = {name.upper() for name in t.field_names}
+
+                    def field(name: str) -> str:
+                        return _clean(getattr(r, name, "")) if name in names else ""
+
+                    branch = _branch_no(getattr(r, "ORGNUM", "")) if "ORGNUM" in names else ""
+                    mapping = {key: field(slot) for key, slot in _ISINFO_DEFAULT_SLOTS.items() if field(slot)}
+                    return field("THINAM"), field("TAXID"), branch, mapping
             finally:
                 t.close()
         except Exception:
             log.exception("ISINFO read failed: %s", p)
-    return "", "", ""
+    return "", "", "", {}
 
 
-# 账套 ISINFO 读出的(公司名, 税号, 默认科目)按文件修改时间缓存:近千份账套在共享盘上逐个开档要一两分钟,
-# 文件没变就不重读(用户 2026-09-27:目录改成手动「重新读取」+ 登记表变化才重扫,要快)。
-_details_lock = threading.Lock()
-_details_cache: dict = {}
+# 账套 ISINFO / ISPRD 读出的(公司名, 税号, 默认科目, 会计期间)按两个文件的(大小, 修改时间)缓存:近千份账套在共享盘上
+# 逐个开档要好几分钟,文件没变就不重读(用户 2026-09-27)。2026-10-18 起缓存存在本机(account_index),重启后也不重读。
 
 
-def _isinfo_file(account_dir: Path) -> Path | None:
-    for cand in (_INFO_DBF, _INFO_DBF.lower()):
-        p = account_dir / cand
-        if p.exists():
-            return p
-    return None
-
-
-def _stamp(path: Path | None) -> tuple | None:
-    if path is None:
-        return None
-    try:
-        stat = path.stat()
-    except OSError:
-        return None
-    return (stat.st_size, stat.st_mtime_ns)
+def _stat_first(account_dir: Path, names) -> Tuple[Optional[Path], Optional[tuple]]:
+    """按顺序找第一个在的文件 → (路径, (大小, 修改时间纳秒));都不在返 (None, None)。一个文件只 stat 一次。"""
+    for name in names:
+        candidate = account_dir / name
+        try:
+            stat = candidate.stat()
+        except OSError:
+            continue
+        return candidate, (stat.st_size, stat.st_mtime_ns)
+    return None, None
 
 
 def _fiscal_window(account_dir: str) -> dict:
@@ -146,33 +141,31 @@ def _fiscal_window(account_dir: str) -> dict:
     return window
 
 
+_NO_DETAILS = ("", "", {}, {})
+
+
 def _account_details(account_dir: str) -> tuple:
-    """(公司名, 税号, 默认科目向量, 会计期间);按 ISINFO / ISPRD 的大小与修改时间缓存。"""
+    """(公司名, 税号, 默认科目向量, 会计期间);按 ISINFO / ISPRD 的大小与修改时间缓存(本机索引,重启后仍有效)。
+
+    文件没变:两次 stat,不开 DBF。变了 / 第一次:ISINFO 开一次、ISPRD 开一次。"""
     if not account_dir:
-        return "", "", {}, {}
+        return _NO_DETAILS
     base = Path(account_dir)
-    info = _isinfo_file(base)
-    periods = base / "ISPRD.DBF"
-    stamp = (_stamp(info), _stamp(periods if periods.exists() else None))
+    info, info_stamp = _stat_first(base, (_INFO_DBF, _INFO_DBF.lower()))
+    periods_stamp = _stat_first(base, ("ISPRD.DBF",))[1]
+    stamp = (info_stamp, periods_stamp)
     if stamp == (None, None):
-        return "", "", {}, {}
+        return _NO_DETAILS
     identity = ntpath.normcase(str(base))
-    with _details_lock:
-        cached = _details_cache.get(identity)
-    if cached and cached[0] == stamp:
-        return cached[1]
-    company, tax_id, branch = _read_isinfo(base) if info is not None else ("", "", "")
-    extra = _fiscal_window(account_dir) if stamp[1] is not None else {}
+    cached = INDEX.details(identity, stamp)
+    if cached is not None:
+        return cached
+    company, tax_id, branch, mapping = _read_isinfo(base) if info is not None else ("", "", "", {})
+    extra = _fiscal_window(account_dir) if periods_stamp is not None else {}
     if branch:
         extra = {**extra, "branch": branch}
-    details = (
-        company,
-        tax_id,
-        probe_default_accounts(account_dir) if info is not None else {},
-        extra,
-    )
-    with _details_lock:
-        _details_cache[identity] = (stamp, details)
+    details = (company, tax_id, mapping, extra)
+    INDEX.remember_details(identity, stamp, details)
     return details
 
 
@@ -207,17 +200,22 @@ def _resolve_path(raw: str, express_root: str | Path) -> str:
     return raw
 
 
-def probe_account_sets(
-    express_root: str | Path, *, include_details: bool = True
-) -> List[AccountSet]:
-    """读 `express_root/secure/SCCOMP.DBF` → 登记账套名单(与 Express 登录 grid 一致)。
+def _registry_rows(express_root: str | Path, *, reuse: bool = False) -> List[Tuple[str, str, str]]:
+    """登记表的非删除行 [(COMPNAM, COMPCOD, PATH)],按 COMPNAM 升序(= Express 登录 grid 的顺序与行号)。
 
-    按 COMPNAM 升序定行号;逐条按解析路径读 ISINFO 补公司名/税号 + 查 OS 可写。
-    登记表缺/坏 → 抛 RegistryUnavailable(不回退扫文件夹)。
-    """
+    ``reuse``(后台扫账套清单用):登记表的(大小, 修改时间)与本机索引里上次读的一样就不再打开它;推送、配对照旧每次现读。
+    登记表缺 / 读不到 / 坏 → 抛 RegistryUnavailable。"""
     reg = sccomp_path(express_root)
-    if not Path(reg).exists():
-        raise RegistryUnavailable(f"未找到 Express 公司登记表: {reg}")
+    try:
+        stat = os.stat(reg)
+    except OSError as e:
+        raise RegistryUnavailable(f"未找到 Express 公司登记表: {reg}") from e
+    stamp = (stat.st_size, stat.st_mtime_ns)
+    key = ntpath.normcase(str(reg))
+    if reuse:
+        cached = INDEX.registry(key, stamp)
+        if cached is not None:
+            return cached
     try:
         t = dbf.Table(str(reg), codepage="cp874", unicode_errors=S.UNICODE_ERRORS)
         t.open(dbf.READ_ONLY)
@@ -240,32 +238,48 @@ def probe_account_sets(
             )
     finally:
         t.close()
-
     raw_rows.sort(key=lambda x: x[0])  # grid 排序 = COMPNAM 升序
-    out: List[AccountSet] = []
+    INDEX.remember_registry(key, stamp, raw_rows)
+    return raw_rows
+
+
+def _probe_rows(
+    express_root: str | Path, *, include_details: bool = True, reuse_registry: bool = False
+) -> Iterator[Tuple[AccountSet, tuple, float]]:
+    """逐份账套给出 (账套, 详情, 开始读它的时刻);详情 = ``_account_details`` 的四项(不带详情时为空)。"""
+    raw_rows = _registry_rows(express_root, reuse=reuse_registry)
     for i, (name, code, raw_path) in enumerate(raw_rows, start=1):
+        started = time.monotonic()
         path = _resolve_path(raw_path, express_root)
-        company, tax_id, _mapping, _window = (
-            _account_details(path) if include_details and path else ("", "", {}, {})
-        )
+        details = _account_details(path) if include_details and path else _NO_DETAILS
+        company, tax_id = details[0], details[1]
         writable = False
         if include_details:
             try:
                 writable = bool(path) and os.access(path, os.W_OK)
             except OSError:
                 writable = False
-        out.append(
-            AccountSet(
-                code=code,
-                name=name,
-                company=company,
-                path=path,
-                tax_id=tax_id,
-                writable=writable,
-                row=i,
-            )
+        account = AccountSet(
+            code=code,
+            name=name,
+            company=company,
+            path=path,
+            tax_id=tax_id,
+            writable=writable,
+            row=i,
         )
-    return out
+        yield account, details, started
+
+
+def probe_account_sets(
+    express_root: str | Path, *, include_details: bool = True
+) -> List[AccountSet]:
+    """读 `express_root/secure/SCCOMP.DBF` → 登记账套名单(与 Express 登录 grid 一致)。
+
+    按 COMPNAM 升序定行号;逐条按解析路径读 ISINFO 补公司名/税号 + 查 OS 可写。
+    登记表缺/坏 → 抛 RegistryUnavailable(不回退扫文件夹)。登记表每次现读(推送前核对、配对都走这里)。
+    """
+    return [account for account, _details, _started in _probe_rows(express_root, include_details=include_details)]
 
 
 # 多台电脑认同一份账套（ADR-021，方案 2.3；1.7.0 起）：每行账套另报这两个键（服务端两处白名单都收，
@@ -286,31 +300,44 @@ def with_identity(rows: List[dict], locator=None) -> List[dict]:
 
 
 def account_sets_payload(
-    express_root: str | Path, *, include_details: bool = True, locator=None
+    express_root: str | Path,
+    *,
+    include_details: bool = True,
+    locator=None,
+    pace=None,
+    reuse_registry: bool = False,
 ) -> List[dict]:
     """heartbeat 上报用(best-effort):登记表缺/坏 → 返空(心跳不因此中断;配对路径才严格报错)。
 
-    带详情时每行另报 ``uid`` / ``share``（``with_identity``；一次扫描共用一个 ``locator``）。"""
+    带详情时每行另报 ``uid`` / ``share``（``with_identity``；一次扫描共用一个 ``locator``）。
+    后台扫账套清单时(master_refresh)另给:``pace``(scan_pace.Pace,每份账套读完让一下 CPU;某份读得太久 → 这台服务器
+    这一轮跳过,这个数据根报空)、``reuse_registry``(登记表没变就用本机索引里的行)。"""
+    from . import scan_pace
+
+    root = str(express_root or "").strip()
+    root_label = ntpath.basename(root.rstrip("\\/")) or root
+    rows = []
     try:
-        root = str(express_root or "").strip()
-        root_label = ntpath.basename(root.rstrip("\\/")) or root
-        rows = []
-        for account in probe_account_sets(
-            express_root, include_details=include_details
+        for account, details, started in _probe_rows(
+            express_root, include_details=include_details, reuse_registry=reuse_registry
         ):
             row = asdict(account)
             row["root"] = root
             row["root_label"] = root_label
             if include_details:
-                details = _account_details(account.path)
                 row["mapping"] = dict(details[2])
                 row.update(details[3])  # period_start / period_end / next_end / branch
             else:
                 for key in ("company", "tax_id", "writable"):
                     row.pop(key, None)
             rows.append(row)
+            if pace is not None:
+                pace.account(express_root, started)
         return with_identity(rows, locator) if include_details else rows
     except RegistryUnavailable:
+        return []
+    except scan_pace.HostStalled:
+        log.info("[accounts] 数据根 %s 读到一半服务器没响应，这一轮先不报它（%d 份已读）", root_label, len(rows))
         return []
 
 
@@ -373,14 +400,35 @@ def probe_chart_of_accounts(account_dir: str | Path) -> List[ChartAccount]:
 
 
 def chart_accounts_payload(account_dir: str | Path) -> List[dict]:
-    """heartbeat 上报科目表用(best-effort):缺/坏 → 返空(心跳不中断)。"""
+    """heartbeat 上报科目表用(best-effort):缺/坏 → 返空(心跳不中断)。
+
+    GLACC 的(大小, 修改时间)与本机索引里上次读的一样就用上次的(不再打开);变了才重读并记下。"""
     try:
-        return [asdict(a) for a in probe_chart_of_accounts(account_dir)]
+        stamp = None
+        key = ""
+        if account_dir:
+            key = ntpath.normcase(str(account_dir))
+            stamp = _stat_first(Path(account_dir), (_GLACC_DBF, _GLACC_DBF.lower()))[1]
+        if stamp is not None:
+            cached = INDEX.chart(key, stamp)
+            if cached is not None:
+                return cached
+        rows = [asdict(a) for a in probe_chart_of_accounts(account_dir)]
+        if stamp is not None:
+            INDEX.remember_chart(key, stamp, rows)
+        return rows
     except RegistryUnavailable:
         return []
     except Exception:  # noqa: BLE001 — 心跳隔离,任何读档异常都不该拖垮直写
         log.exception("chart_accounts_payload failed: %s", account_dir)
         return []
+
+
+def cached_chart(account_dir: str | Path) -> List[dict]:
+    """本机索引里这份账套上次读到的科目表(不碰账套文件,启动时先报;后台扫描随后核对、换成现在的)。没有返空。"""
+    if not str(account_dir or "").strip():
+        return []
+    return INDEX.chart(ntpath.normcase(str(account_dir))) or []
 
 
 # ── 默认科目向量(G/L Link Account)· 读账套 ISINFO.ACCNUMxx → 6 角色默认科目 ──

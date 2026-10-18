@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,ค่าในรา
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Abbreviated tax invoice,ใบกำกับภาษีอย่างย่อ
-Access to the CC Desktop queue has been revoked.,สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว
 Account Codes,รหัสบัญชี
 Account Key,คีย์ชุดบัญชี
 Account Set,ชุดบัญชี
@@ -350,8 +349,6 @@ Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
-Choosing how a kind of document is handled,กำลังกำหนดวิธีจัดการเอกสารประเภทนี้
-Chose how a kind of document is handled,กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว
 Chosen At,เวลาที่เลือก
 Chosen By,ผู้เลือก
 Claim VAT,ขอคืนภาษีซื้อ
@@ -417,6 +414,7 @@ Content Hash,แฮชเนื้อหา
 Content Key,คีย์เนื้อหา
 Continues the scheduled task «{0}»; only files put in from now on are processed,ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้
 Continuous counting,ตรวจนับต่อเนื่อง
+Conversation,การสนทนา
 Copy card,คัดลอกการ์ด
 Copy link,คัดลอกลิงก์
 Copy list,คัดลอกรายการ
@@ -607,6 +605,7 @@ Dividends,เงินปันผล
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document No.,เลขที่เอกสาร
 Document Policy,กฎการบันทึกเอกสาร
+Document handling set,ตั้งค่าวิธีจัดการเอกสารแล้ว
 Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น
@@ -1009,7 +1008,7 @@ Matched Count,จำนวนที่จับคู่แล้ว
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกในบัญชีแยกประเภท
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
-Max Payload Version,เวอร์ชันข้อมูลงานสูงสุด
+Max Push Data Version,เวอร์ชันข้อมูลงานสูงสุด
 Member,สมาชิก
 Member management,สิทธิ์จัดการสมาชิก
 Members,สมาชิก
@@ -1061,7 +1060,7 @@ No cards are assigned to you,ยังไม่มีการ์ดที่ม
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
 No computer can reach the account set for the document date.,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
 No computer can write,ไม่มีคอมพิวเตอร์ที่บันทึกได้
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
+No computer with CC Desktop can write to this account set,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No files were given.,ไม่ได้ระบุไฟล์
@@ -1204,7 +1203,6 @@ Payee tax ID missing,ไม่มีเลขประจำตัวผู้�
 Payees,จำนวนราย
 Payer not clear,ไม่ชัดเจนว่าใครเป็นผู้จ่าย
 Payload Json,ข้อมูลส่งที่ตรึงไว้ (JSON)
-Payload Version,เวอร์ชันข้อมูลงาน
 Payment,วิธีชำระเงิน
 Payment Date,วันที่จ่าย
 Payment Evidence,หลักฐานการชำระเงิน
@@ -1259,7 +1257,9 @@ Purple,ม่วง
 Push Account Set,ชุดบัญชีปลายทาง
 Push Attempt,การพยายามส่ง
 Push Connection,การเชื่อมต่อปลายทาง
+Push Data Version,เวอร์ชันข้อมูลงาน
 Push Record,รายการส่ง
+Push choices set for a client company or one of its branches,ตัวเลือกการส่งที่ตั้งไว้สำหรับบริษัทลูกค้าหรือสาขา
 Push record not found.,ไม่พบรายการส่ง
 Pushed,ตอนส่ง
 Pushed documents,ส่งเอกสารแล้ว
@@ -1528,6 +1528,7 @@ Set By,ตั้งโดย
 Set a local folder once; documents are read and entered every month,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 Set as the account set in use?,ตั้งเป็นชุดบัญชีที่ใช้อยู่หรือไม่
 Set by {0} on {1},ตั้งโดย {0} เมื่อ {1}
+Set document handling,ตั้งค่าวิธีจัดการเอกสาร
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง
 Set reminder,ตั้งการแจ้งเตือน
@@ -1703,7 +1704,6 @@ The account balance could not be checked right now. Try again in a moment.,ไ�
 The account codes are invalid.,รหัสบัญชีไม่ถูกต้อง
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย กรุณารีเฟรชใหม่
 The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
-The account set on this computer is not the registered one. Another computer will send it automatically.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ คอมพิวเตอร์เครื่องอื่นจะส่งให้อัตโนมัติ
 The account set on this computer is not the registered one. Waiting for another computer.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 The amounts do not add up. Correct them and submit again,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
@@ -1904,8 +1904,7 @@ This board no longer exists,ไม่พบบอร์ดนี้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This choice cannot be saved,บันทึกตัวเลือกนี้ไม่ได้
 This client still has {0} invoice record(s). Reassign them first.,ลูกค้ารายนี้ยังมีรายการใบกำกับภาษี {0} รายการ กรุณาย้ายไปยังลูกค้ารายอื่นก่อน
-This company does not enter transfer slips; this one is not sent,บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
+This computer can no longer handle this document,คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว
 This connection does not support an Express CC Desktop credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express
 This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
@@ -1933,9 +1932,9 @@ This invoice has no lines. Add them and submit again.,เอกสารนี�
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
 This is a reissued or backdated document. Check it and submit again,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลองซึ่งมีเฉพาะยอดรวมของแต่ละบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการตามใบสำคัญแต่ละใบ
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 This is set by the scheduled task's default handling. Change it in the task,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 This is taking too long. Check the list later.,การกระทบยอดใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:
@@ -2002,6 +2001,7 @@ Transaction Date,วันที่ทำรายการ
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Transfer slips,สลิปโอนเงิน
+Transfer slips are not entered; this one is not sent,ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
 Transport,ค่าขนส่ง
 Turn off,ปิดใช้งาน
 Turn on,เปิดใช้งาน
@@ -2135,6 +2135,7 @@ With differences,มีผลต่าง
 Withdrawal,ถอน
 Withholding agent,ผู้มีหน้าที่หักภาษี ณ ที่จ่าย
 Withholding tax certificates,หนังสือรับรองการหักภาษี ณ ที่จ่าย
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก
@@ -2180,7 +2181,7 @@ companion.on_demand_invalid,คำขอถึง CC เดสก์ท็อป
 companion.on_demand_missing,ไม่พบคำขอถึง CC เดสก์ท็อป
 companion.on_demand_not_ready,CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ
 companion.on_demand_unsupported,คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้
-companion.queue_access_revoked,สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว
+companion.queue_access_revoked,คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว
 companion.queue_conflict,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 companion.queue_request_invalid,คำขอคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
 companion.queue_response_invalid,การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
@@ -3369,10 +3370,10 @@ intake.error.date_implausible,วันที่เอกสารอาจไ�
 intake.error.date_reissued,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.deposit_receipt,ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร
 intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
-intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
-intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
-intake.error.document_policy_skip_payment_evidence,บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
-intake.error.document_policy_skip_withholding_certificate,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
+intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
+intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
+intake.error.document_policy_skip_payment_evidence,ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
+intake.error.document_policy_skip_withholding_certificate,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 intake.error.entry_not_balanced,ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน
 intake.error.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
@@ -3506,7 +3507,7 @@ push.native_stale_attempt,การพยายามส่งครั้งน
 push.native_state_invalid,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
 push.native_target_changed,ปลายทางการส่งเปลี่ยนแปลงแล้ว กรุณาเตรียมเอกสารใหม่
 push.native_target_mismatch,ปลายทางการส่งที่ล็อกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
-push.no_writer,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
+push.no_writer,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้
 push.original_reference_invalid,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 push.posting_kind_invalid,ประเภทการลงบัญชีไม่ถูกต้อง
 push.preparation_cancelled,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว

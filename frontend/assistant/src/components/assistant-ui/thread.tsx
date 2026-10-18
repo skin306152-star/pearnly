@@ -8,6 +8,7 @@ import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-s
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
 import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
@@ -40,11 +41,16 @@ import {
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
 import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
-import { useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
+import { useSendFailure } from "@/lib/managed-agents/send-failure";
+import { stopRun } from "@/lib/managed-agents/stop-run";
+import { useActiveSessionSnapshot, useOpenState } from "@/lib/managed-agents/runtime-provider";
 import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
-import { StreamFollower } from "@/lib/follow-scroll";
+import { OpenSettler, type OpenState } from "@/lib/follow-scroll";
 import { holdImeEnter } from "@/lib/ime";
+import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { useToolLabels } from "@/lib/tool-labels";
+import { approvalCard, type CardPart } from "@/lib/approval-card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createContext,
   useContext,
@@ -54,6 +60,7 @@ import {
   useState,
   type ComponentType,
   type FC,
+  type KeyboardEvent,
   type PropsWithChildren,
 } from "react";
 import { Marquee } from "@/components/ui/marquee";
@@ -110,7 +117,7 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
   const { Welcome = ThreadWelcome, Loading } = useContext(ThreadComponentsContext);
-  const follow = useFollowStream();
+  const settle = useSettleOnOpen();
 
   return (
     <ThreadPrimitive.Root
@@ -120,13 +127,13 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
       }}
     >
       <ThreadPrimitive.Viewport
-        ref={follow.viewport}
+        ref={settle.viewport}
         turnAnchor="top"
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto [scrollbar-gutter:stable] scroll-smooth"
       >
         <div
-          ref={follow.content}
+          ref={settle.content}
           className={cn(
             // 栏宽 768（设计文档 3.10）：内容区左右各留 1rem，正文与输入框正好 --thread-max-width
             "mx-auto flex w-full max-w-[calc(var(--thread-max-width)+2rem)] flex-1 flex-col px-4 pt-4",
@@ -162,6 +169,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
           >
             <ThreadScrollToBottom />
             <ThreadFollowupSuggestions />
+            <SendFailure />
+            <ApprovalSheet />
             <Composer />
             <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
               <ThreadSuggestions />
@@ -173,25 +182,27 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
   );
 };
 
-/** 按下发送到真正的气泡画出来之前，先显示发送中的用户气泡（附件名旁一块骨架在闪，不用转圈：ccs 卡片规矩；lib/managed-agents/pending-send.ts）。
+/** 按下发送到真正的气泡画出来之前，先显示用户气泡（附件名旁一块骨架在闪，不用转圈：ccs 卡片规矩；lib/managed-agents/pending-send.ts）。
  *  对话里画出了接替它的那一条才撤（同一次提交里换过去），中间不会两个都不在。 */
 const PendingSendBubble: FC = () => {
   const pending = useShownPending();
   if (!pending) return null;
+  // 用户气泡同 Claude：发出去就是平常的样子，不加「发送中」的扫光；工作状态行在 CC 这一侧（左边），
+  // 和正式回复下面的状态行同一列（px-2），不跟着用户气泡靠右（用户 10-16：「发送时我方不应该出现气泡，cc 那边正常出现」）
   return (
-    <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
-      <div className="flex flex-wrap justify-end gap-2">
-        {pending.files.map((name, i) => (
-          <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
-            <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
-            {name}
-          </span>
-        ))}
+    <div>
+      <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {pending.files.map((name, i) => (
+            <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
+              <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
+              {name}
+            </span>
+          ))}
+        </div>
+        {pending.text && <div className="cc-bubble-user" data-enter="">{pending.text}</div>}
       </div>
-      {pending.text && (
-        <div className="cc-bubble-user" data-enter="" data-sending="">{pending.text}</div>
-      )}
-      <RunIndicator className="col-span-full col-start-1 pt-4" />
+      <RunIndicator className="px-2 pt-4" />
     </div>
   );
 };
@@ -206,35 +217,40 @@ function useShownPending() {
   return landed ? null : pending;
 }
 
-/** 回复在出时跟到底、用户往上翻就不动（lib/follow-scroll.ts）。新的一轮（又发了一条）从跟随开始。 */
-function useFollowStream() {
+/** 打开一段对话：已结束的停在最新一条，正在回复的停在这一轮开头（提问顶在上面），之后这一轮跑完也不改（lib/follow-scroll.ts）。
+ *  回复在出时不跟到底，下面有内容就出 ↓（同 Claude，三端一样）。 */
+function useSettleOnOpen() {
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
-  const live = useRef(false);
-  live.current = useAuiState((s) => s.thread.isRunning);
-  const turn = useAuiState((s) => {
-    for (let i = s.thread.messages.length - 1; i >= 0; i--) if (s.thread.messages[i]!.role === "user") return s.thread.messages[i]!.id;
-    return undefined;
-  });
-  // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到最新一条（follow-scroll 的 settle）
+  // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到该停的位置（follow-scroll 的 settle）
   const opened = useAuiState((s) => (s.thread.messages.length > 0 ? s.threadListItem.id : ""));
   const openedNow = useRef(opened);
   openedNow.current = opened;
-  const follower = useRef<StreamFollower | null>(null);
+  // 本页刚发出（发送中的气泡还在）：新对话第一条落进来不算打开，位置交给组件库的「这一轮顶到上面」
+  const sending = useRef(false);
+  sending.current = usePendingSend() !== null;
+  // 有没有在跑的一轮、状态核对过没有（会话控制器的快照，不看组件库的标记，见 follow-scroll.ts 文件头）
+  const { turn, synced } = useOpenState();
+  const openState = useRef<OpenState>({ turn, synced });
+  openState.current = { turn, synced };
+  const settler = useRef<OpenSettler | null>(null);
   useEffect(() => {
     if (!viewport || !content) return;
-    const created = new StreamFollower(viewport, content, () => live.current);
-    follower.current = created;
-    if (openedNow.current) created.settle();
+    const created = new OpenSettler(viewport, content, () => openState.current);
+    settler.current = created;
+    if (openedNow.current && !sending.current) created.settle();
     return () => {
       created.dispose();
-      if (follower.current === created) follower.current = null;
+      if (settler.current === created) settler.current = null;
     };
   }, [viewport, content]);
-  useEffect(() => follower.current?.resume(), [turn]);
   useEffect(() => {
-    if (opened) follower.current?.settle();
+    if (opened && !sending.current) settler.current?.settle();
   }, [opened]);
+  // 这一轮开始 / 结束、状态核对完：打开时的旧状态核对完要重新对一次，还在对位置就按新状态对
+  useEffect(() => {
+    settler.current?.recheck();
+  }, [turn, synced]);
   return { viewport: setViewport, content: setContent };
 }
 
@@ -281,55 +297,61 @@ const NoticeMessage: FC = () => {
   const push = usePush();
   return (
     <MessagePrimitive.Root data-slot="cc-notice" data-role="notice" className="flex flex-col items-start gap-2 px-2">
-      <div role="note" aria-label={t("notice")} className="cc-card flex w-full max-w-md gap-3 px-3 py-2.5 font-sans">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
-          <BellIcon className="size-4.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          {title && <div className="font-medium text-ink text-sm">{title}</div>}
-          <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
-          <div className="mt-1 text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+      <div role="note" aria-label={t("notice")} className="cc-card flex w-full max-w-md flex-col gap-2.5 px-3 py-2.5 font-sans">
+        <div className="flex gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
+            <BellIcon className="size-4.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            {title && <div className="font-medium text-ink text-sm">{title}</div>}
+            <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
+            <div className="mt-1 text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+          </div>
         </div>
+        {/* 「打开通知」在卡片底部靠右（卡片按钮，同允许卡）；打开了按钮就没了，没打开原因写在按钮上方一行 */}
+        {push.state === "off" && (
+          <div className="cc-ask-foot">
+            {push.failure && (
+              <div role="alert" className={ERROR_BOX}>
+                <p className="line-clamp-2">{push.failure}</p>
+              </div>
+            )}
+            <div className="cc-card-actions">
+              <button type="button" className="cc-card-btn" onClick={() => void push.enable()}>
+                {st.turnOnNotifications}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      {push.state === "off" && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button type="button" className="cc-btn cc-tap" onClick={() => void push.enable()}>
-            {st.turnOnNotifications}
-          </button>
-          {push.failure && <span className="text-danger text-sm">{push.failure}</span>}
-        </div>
-      )}
     </MessagePrimitive.Root>
   );
 };
 
+/** 下面还有内容时在输入框上方居中出 ↓，点了平滑滚到最新（同 Claude，13.webp / 12.webp）。
+ *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距）；在底部时组件库把它禁用，这里藏起来
+ *  （visibility: hidden：读屏读不到、Tab 走不到）。读屏名写在 aria-label 上（第 11 轮 C21：只靠按钮里的隐藏文字时属性是空的）。 */
 const ThreadScrollToBottom: FC = () => {
   return (
-    <ThreadPrimitive.ScrollToBottom asChild>
+    <ThreadPrimitive.ScrollToBottom asChild behavior="smooth">
       <TooltipIconButton
         tooltip={t("scrollToBottom")}
+        aria-label={t("scrollToBottom")}
         variant="outline"
-        className="aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-12 z-10 self-center rounded-full p-4 shadow-[var(--cc-shadow-composer)] disabled:invisible"
+        className="aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-9 z-10 size-10 self-center rounded-full p-0 shadow-[var(--cc-shadow-composer)] disabled:invisible"
       >
-        <ArrowDownIcon />
+        <ArrowDownIcon className="size-5" />
       </TooltipIconButton>
     </ThreadPrimitive.ScrollToBottom>
   );
 };
 
-const ThreadWelcome: FC = () => {
-  return (
-    <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
-        How can I help you today?
-      </h1>
-    </div>
-  );
-};
+// 组件库默认的欢迎区：CC 一律传入自己的 Welcome（assistant.tsx），这里不放任何文案
+const ThreadWelcome: FC = () => null;
 
 const ThreadSuggestions: FC = () => {
   return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4">
+    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4 empty:hidden">
       <ThreadPrimitive.Suggestions>
         {() => <ThreadSuggestionItem />}
       </ThreadPrimitive.Suggestions>
@@ -358,25 +380,62 @@ const Composer: FC = () => {
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
   const placeholder = hasMessages ? t("reply") : t("placeholder");
+  // 没在输入、也没有字和附件时标 data-collapsed：手机上收成一行胶囊（「＋」、占位字，同 Claude 手机端），点进去展开成
+  // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
+  const [typing, setTyping] = useState(false);
+  const empty = useAuiState((s) => s.composer.isEmpty);
+  // 安卓返回键收起键盘时输入框仍聚焦：键盘收起、输入框是空的就让它失焦，收回一行（同点了空白处）
+  const emptyNow = useRef(empty);
+  emptyNow.current = empty;
+  useEffect(() => {
+    const closed = () => {
+      const el = document.activeElement;
+      if (emptyNow.current && el instanceof HTMLTextAreaElement && el.closest('[data-slot="aui_composer-shell"]')) el.blur();
+    };
+    window.addEventListener(KEYBOARD_CLOSED, closed);
+    return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
+  }, []);
+  // 手机（触屏或手机外壳）发出去就收起键盘：这一轮顶到上面、下面留空（同 Claude 手机 app，11.webp）；电脑保持焦点接着打字
+  const phone = useIsMobile();
+  const dropKeyboard = TOUCH || phone;
+  const input = useRef<HTMLTextAreaElement>(null);
+  const sent = () => {
+    if (dropKeyboard && !emptyNow.current) input.current?.blur();
+  };
+  // 在跑时输入框里按 Esc 停止（同停止键，stop-run.ts）；选字中的 Esc 归输入法
+  const thread = useAuiState((s) => s.threadListItem.id);
+  const running = useAuiState((s) => s.thread.isRunning);
+  const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    holdImeEnter(event); // Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts
+    if (event.key !== "Escape" || !running || event.nativeEvent.isComposing || event.defaultPrevented) return;
+    event.preventDefault();
+    void stopRun(thread);
+  };
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col" onSubmit={sent}>
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
           className="cc-composer cc-composer-inline"
+          data-collapsed={!typing && empty ? "" : undefined}
         >
           <ComposerAttachments />
           <DraftWatcher />
           <ComposerPrimitive.Input
+            ref={input}
             placeholder={placeholder}
             className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans outline-none"
             rows={1}
             autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
+            unstable_focusOnRunStart={!dropKeyboard /* 手机上开跑、点 ↓ 都不把焦点拉回输入框 */}
+            unstable_focusOnScrollToBottom={!dropKeyboard}
             enterKeyHint="send"
-            onKeyDown={holdImeEnter /* Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts */}
+            onKeyDown={keyDown}
+            onFocus={() => setTyping(true)}
+            onBlur={() => setTyping(false)}
             aria-label={placeholder}
           />
-          <ComposerAction />
+          <ComposerAction onSend={sent} />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
       {Chin && (
@@ -388,7 +447,7 @@ const Composer: FC = () => {
   );
 };
 
-const ComposerAction: FC = () => {
+const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <AuiIf condition={(s) => s.thread.capabilities.attachments}>
@@ -397,49 +456,89 @@ const ComposerAction: FC = () => {
       <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send asChild>
-            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")}>
+            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} onClick={onSend}>
               <ArrowUpIcon className="aui-composer-send-icon" />
             </button>
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
-          <ComposerPrimitive.Cancel asChild>
-            <button type="button" className="aui-composer-cancel cc-send" aria-label={t("stop")} title={t("stop")}>
-              <SquareIcon className="aui-composer-cancel-icon !size-3.5 fill-current" />
-            </button>
-          </ComposerPrimitive.Cancel>
+          <StopButton />
         </AuiIf>
       </div>
     </div>
   );
 };
 
+/** 停止键：真正的打断，消息留在对话里、字不放回输入框（不经组件库的 cancelRun，stop-run.ts）。 */
+const StopButton: FC = () => {
+  const thread = useAuiState((s) => s.threadListItem.id);
+  return (
+    <button type="button" className="aui-composer-cancel cc-send" aria-label={t("stop")} title={t("stop")} onClick={() => void stopRun(thread)}>
+      <SquareIcon className="aui-composer-cancel-icon !size-3.5 fill-current" />
+    </button>
+  );
+};
+
+// 对话里出错那一行（回复出错、发送没成功）同一个样子：淡红底、红字、最多两行
+const ERROR_BOX = "border-danger-line bg-danger-soft text-danger rounded-md border p-3 text-sm";
+
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root border-danger-line bg-danger-soft text-danger mt-2 rounded-md border p-3 text-sm">
+      <ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
 };
 
-// 思考与工具调用连续的一段收成一组「步骤」（同 claude.ai）。停下来等批准的那一步不收进组：
-// 收在折叠里的「允许 / 拒绝」没人看得见，会话就卡住了。
+/** 这段对话上次发送没成功（新对话建会话被拒——例如本站点没设置 CC——、没有权限、断网、服务端出错）：原因写在输入框上方，
+ *  同对话里出错那一行；打的字与附件已放回输入框，再发送时清掉（lib/managed-agents/send-failure.ts）。 */
+const SendFailure: FC = () => {
+  const thread = useAuiState((s) => s.threadListItem.id);
+  const message = useSendFailure(thread);
+  if (!message) return null;
+  return (
+    <div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>
+      <p className="line-clamp-2">{message}</p>
+    </div>
+  );
+};
+
+// 思考与工具调用连续的一段收成一组「步骤」（同 claude.ai）。允许 / 拒绝卡不收进组（lib/approval-card.ts）：等回答的收在折叠里
+// 没人看得见，会话就卡住了；点完的照 Claude 留在对话流原处（当场、切回、重开对话同一个样子）。
 const groupByBase = groupPartByType({
   reasoning: ["group-chainOfThought"],
   "tool-call": ["group-chainOfThought"],
   "standalone-tool-call": [],
 });
-const groupByWithVisibleGates: typeof groupByBase = (part, context) => {
-  if (part.type === "tool-call" && part.approval && part.approval.approved === undefined) {
-    return [];
-  }
-  return groupByBase(part, context);
-};
+function useGroupByWithVisibleGates(): typeof groupByBase {
+  const labels = useToolLabels();
+  return useMemo<typeof groupByBase>(
+    () => (part, context) =>
+      part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context),
+    [labels],
+  );
+}
+
+/** 这条回复要不要等工具名字（lib/tool-labels.ts）取回再画：有本站工具已有结果、本页没有点击记录的那一步（重开对话时），是不是
+ *  点完的卡片要靠它认；没取回前先画会先进折叠的步骤组、取回后再跳出来（第 10 轮审查）。取失败也算取回（按普通步骤画）。 */
+function useWaitForLabels(): boolean {
+  const ready = useToolLabels().ready === true;
+  return useAuiState(
+    (s) =>
+      !ready &&
+      s.message.parts.some((p) => {
+        const part = p as { type: string; result?: unknown; approval?: unknown; toolKind?: string };
+        return part.type === "tool-call" && part.toolKind === "custom" && part.result !== undefined && !part.approval;
+      }),
+  );
+}
 
 const AssistantMessage: FC = () => {
   const { ToolFallback: ToolFallbackComponent = StepRow } = useContext(ThreadComponentsContext);
+  const groupByWithVisibleGates = useGroupByWithVisibleGates();
+  const waitForLabels = useWaitForLabels();
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -456,31 +555,33 @@ const AssistantMessage: FC = () => {
         className="cc-reply px-2 wrap-break-word"
       >
         {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
-        <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
-          {({ part, children }) => {
-            switch (part.type) {
-              case "group-chainOfThought":
-                return <StepsGroup group={part}>{children}</StepsGroup>;
-              case "text":
-                return <MarkdownText />;
-              case "reasoning":
-                return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
-              case "tool-call":
-                // 不进组的只有等批准的那一步：同组里的步骤一样放进带环的卡片，不单独浮在正文里
-                return (
-                  part.toolUI ?? (
-                    <LoneStep>
-                      <ToolFallbackComponent {...part} />
-                    </LoneStep>
-                  )
-                );
-              case "data":
-                return part.dataRendererUI;
-              default:
-                return null;
-            }
-          }}
-        </MessagePrimitive.GroupedParts>
+        {!waitForLabels && (
+          <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
+            {({ part, children }) => {
+              switch (part.type) {
+                case "group-chainOfThought":
+                  return <StepsGroup group={part}>{children}</StepsGroup>;
+                case "text":
+                  return <MarkdownText />;
+                case "reasoning":
+                  return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
+                case "tool-call":
+                  // 不进组的只有允许 / 拒绝卡：同组里的步骤一样放进带环的卡片（只一层框），不单独浮在正文里；手机上还在等回答的不画
+                  return (
+                    part.toolUI ?? (
+                      <LoneStep part={part as unknown as CardPart}>
+                        <ToolFallbackComponent {...part} />
+                      </LoneStep>
+                    )
+                  );
+                case "data":
+                  return part.dataRendererUI;
+                default:
+                  return null;
+              }
+            }}
+          </MessagePrimitive.GroupedParts>
+        )}
         <MessageError />
         <MessageFiles />
       </div>
@@ -514,18 +615,31 @@ const LastReplyRunIndicator: FC = () => {
 const thinking = new ThinkingClock();
 
 /** 工作状态行（同 Claude，lib/managed-agents/turn.ts）：发出即出现在用户消息下面，橘色小点在动，旁边「计时 · 在做什么」，
- *  一直在，直到这一轮真正结束；等用户点「允许」时收起，点完再出来。计时从按下发送那一刻起本地每秒走；
+ *  一直在，直到这一轮真正结束；电脑上等用户点「允许」时换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方），点完换回来；
+ *  手机上等回答时由输入框上方的浮层代替（approval-sheet.tsx），这一行不显示。计时从按下发送那一刻起本地每秒走；
  *  想完开始出正文时说「思考了 M秒」；很久收不到服务端消息时改说「连接中断，正在重连」。 */
 const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   const pending = usePendingSend();
   const snapshot = useActiveSessionSnapshot();
   const labels = useToolLabels();
+  const phone = useIsMobile();
   const sending = !!pending; // 临时气泡还在（正式气泡还没画出来）：这一轮刚开始
   const activity = turnActivity(snapshot, sending);
-  const visible = activity.kind !== "hidden";
+  const waiting = activity.kind === "input";
+  const visible = activity.kind !== "hidden" && !waiting;
   const now = useClock(visible);
   const start = turnStartedAt(snapshot.messages, lastSendAt(), sending, now) ?? now;
-  const thought = thinking.note(activity.kind, start, Date.now());
+  // 等用户回答时同以前收起状态行一样记（不计进「思考了几秒」）
+  const thought = thinking.note(waiting ? "hidden" : activity.kind, start, Date.now());
+  if (waiting) {
+    if (phone) return null;
+    return (
+      <div data-slot="cc-run-indicator" data-kind="input" className={cn("flex min-w-0 items-center font-sans", className)}>
+        <span className="cc-needs-input-dot" aria-hidden="true" />
+        <span className="cc-needs-input">{t("needsInput")}</span>
+      </div>
+    );
+  }
   if (!visible) return null;
   const step = activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "";
   const text = statusText(activity, Math.floor((now - start) / 1000), thought, step);
@@ -534,7 +648,7 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   return (
     <div data-slot="cc-run-indicator" data-kind={activity.kind} className={cn("flex min-w-0 items-center font-sans", className)}>
       <TypingDots label={label} showLabel={false} />
-      <span className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</span>
+      <Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>
     </div>
   );
 };
@@ -572,11 +686,12 @@ const MessageFiles: FC = () => {
   return (
     <div className="flex flex-col gap-2">
       {mine.map((file) => (
+        // 卡片的内边距在「打开」按钮里：除了右边的下载，整张卡都能点（手机点按区，按钮排查 H11）
         <div
           key={file.id}
-          className="cc-card cc-card-hover flex max-w-md items-center gap-3 px-3 py-2.5 font-sans"
+          className="cc-card cc-card-hover flex max-w-md items-center pe-3 font-sans"
         >
-          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-md px-3 py-2.5 text-left">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
               <FileTypeIcon filename={file.filename} className="size-4.5" />
             </span>
@@ -616,7 +731,7 @@ const AssistantActionBar: FC = () => {
 
 const CopyAction: FC = () => (
   <ActionBarPrimitive.Copy asChild>
-    <TooltipIconButton tooltip={t("copy")}>
+    <TooltipIconButton tooltip={t("copy")} className="cc-tap">
       <AuiIf condition={(s) => s.message.isCopied}>
         <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
       </AuiIf>

@@ -24,6 +24,7 @@ class ManualBusyRetryTests(unittest.TestCase):
         self.frappe = types.ModuleType("frappe")
         self.frappe.db = types.SimpleNamespace(commit=Mock(), rollback=Mock())
         self.frappe.get_attr = Mock()
+        self.frappe._ = lambda text: text
         self.store = types.ModuleType("pearnly_dms.snapshots.store")
         self.store.DT = "DMS Read Snapshot"
         self.store.SnapshotUnavailable = type("SnapshotUnavailable", (Exception,), {})

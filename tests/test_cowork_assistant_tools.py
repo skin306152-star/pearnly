@@ -233,11 +233,13 @@ class BehaviourTests(unittest.TestCase):
         self.assertIn("cc_desktop_online", data)  # 模型读到的键也不带旧称
 
     def test_the_model_is_told_cc_desktop_names_once(self):
-        # 2026-10-13：模型从没被告知 Windows 端叫什么，又读到 companion，就转述成「小助手 / ผู้ช่วย / コンパニオン」
-        status = next(t for t in tools.TOOLS if t["name"] == "cowork_companion_status")
+        # 2026-10-13：模型从没被告知 Windows 端叫什么，又读到 companion，就转述成「小助手 / ผู้ช่วย / コンパニオン」。
+        # 第 7 批 B8（10-18 lab）：只写在 cowork_companion_status 的说明里时，中文的排队回复照抄了「CC Desktop」；
+        # 改为放进每轮都带的 GUIDANCE，只说一次。
         for name in ("CC Desktop", "CC 桌面版", "CC เดสก์ท็อป", "CC デスクトップ"):
-            self.assertIn(name, status["description"])
-        self.assertEqual(sum(tools.CC_DESKTOP in t["description"] for t in tools.TOOLS), 1)
+            self.assertIn(name, tools.CC_DESKTOP)
+        self.assertEqual(tools.GUIDANCE.count(tools.CC_DESKTOP), 1)
+        self.assertEqual(sum(tools.CC_DESKTOP in t["description"] for t in tools.TOOLS), 0)
         run = json.loads(tools.run_folder_task({"task": "R1"}))
         self.assertTrue(run["note"].startswith("CC Desktop "))
 
@@ -1550,8 +1552,10 @@ class OriginalTests(unittest.TestCase):
         service.page_source = lambda name, number: ("SRC", number)
         service.preview_link = lambda source, number: None
         service.render_page = lambda source, number: b"\xff\xd8\xff-page%d" % number
-        originals = types.ModuleType("pearnly_cowork.ocr.originals")
+        originals = types.ModuleType("pearnly_core.originals.checks")
         originals.preview_type = lambda data: "image/jpeg"
+        layer = types.ModuleType("pearnly_core.originals")  # 原件层（ADR-024）的父包
+        layer.checks = originals
         chat = sys.modules.get("pearnly_core.assistant.files") or types.ModuleType("pearnly_core.assistant.files")
         chat.add_to_conversation = lambda name, content, mime: added.append((name, mime)) or "/mnt/x/" + name
         access_log = types.ModuleType("frappe.core.doctype.access_log.access_log")
@@ -1560,7 +1564,8 @@ class OriginalTests(unittest.TestCase):
         requests.RequestException = type("RequestException", (Exception,), {})
         mods = {"requests": requests, "pearnly_cowork.files": files_mod, "pearnly_cowork.files.access": access,
                 "pearnly_cowork.files.service": service, "pearnly_cowork.ocr": types.ModuleType("pearnly_cowork.ocr"),
-                "pearnly_cowork.ocr.originals": originals, "pearnly_core.assistant.files": chat,
+                "pearnly_core.originals": layer, "pearnly_core.originals.checks": originals,
+                "pearnly_core.assistant.files": chat,
                 "frappe.core": types.ModuleType("frappe.core"), "frappe.core.doctype": types.ModuleType("x"),
                 "frappe.core.doctype.access_log": types.ModuleType("y"),
                 "frappe.core.doctype.access_log.access_log": access_log}
@@ -2017,7 +2022,7 @@ class PushWaitTests(unittest.TestCase):
                       # 第 5 轮测试 8：单号说成 Express / MR.ERP 的，不说「ERP」；已入账的不指去待处理 / 复核 / Express 改
                       "always give the user its document number (docnum), amounts in baht and times in local time",
                       "Call the program by its name, Express or MR.ERP, never 'the ERP'",
-                      "never point the user to the pending page, the review page or Express to check or change it",
+                      "never point the user to the pending page, the review page, Express or MR.ERP to check or change it",
                       "written into Express or MR.ERP; docnum is its document number there",
                       "whether it was entered as cash or credit and which account it went to, each with where that "
                       "came from", "never ask the user to check Express for the number, cash or credit, or the account",
@@ -2268,6 +2273,88 @@ class AutomationWrittenTests(unittest.TestCase):
                                                 "proposal": True})
         with mock.patch.object(frappe.db, "get_value", lambda *a, **k: {"auto_class": ""}, create=True):
             self.assertNotIn("automation", tools._detail({"name": "D2", "push_connection": "EXP1", "pages": []}))
+
+
+class PushRuleReadbackTests(unittest.TestCase):
+    """2026-10-16 测试：SD-6909-1010 按一条后来删掉的สะอาดดี规则入账，CC 把说明里仅剩的ซ่อมไว那条说成它的规则。written 读回
+    冻结的是哪一条（对象、税号、值），并经钩子一次查完现在还在不在；查不到不挡回读，只是不说还在不在。"""
+
+    RULES = [{"id": "R-CLEAN", "kind": "account", "subject": "purchase|0105562012340",
+              "label": "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", "value": "53-05-02-00", "value_label": "", "branch": ""}]
+
+    def rows(self):
+        target = json.dumps({"decided_by": {"account": "company_rule"}, "company_rules": self.RULES})
+        payload = json.dumps({**CASH_PAYLOAD, "account_source": "company_rule"})
+        return [{"name": "PR1", "actor": "a@example.com", "status": "success", "reason": "", "result_unknown": 0,
+                 "external_docnum": "HP690920-001", "payload_json": payload, "target_json": target},
+                {"name": "PR2", "actor": "a@example.com", "status": "success", "reason": "", "result_unknown": 0,
+                 "external_docnum": "HP690920-002", "payload_json": payload, "target_json": target}]
+
+    def service(self, values_now):
+        service, queries = _push_service(self.rows())
+        asked, logged = [], []
+
+        def provider(ids):
+            asked.append(ids)
+            if isinstance(values_now, Exception):
+                raise values_now
+            return values_now
+
+        service.frappe.get_hooks = lambda name: ["p.saved"] if name == "cowork_push_company_choices_saved" else []
+        service.frappe.get_attr = lambda path: provider
+        service.frappe.log_error = lambda **kw: logged.append(kw.get("title"))
+        service.frappe.get_traceback = lambda: ""
+        service.frappe.clear_messages = lambda: None
+        return service, asked, logged
+
+    def test_the_rule_that_decided_it_is_named_and_checked_once(self):
+        service, asked, _logged = self.service({})  # 规则已删
+        found = service.written(["PR1", "PR2"])
+        rule = {"kind": "account", "for": "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", "value": "53-05-02-00",
+                "tax_id": "0105562012340", "branch": "whole company", "still_saved": False}
+        self.assertEqual(found["PR1"]["company_rules"], [rule])
+        self.assertEqual(found["PR1"]["account_from"], "company_rule")
+        self.assertEqual(asked, [["R-CLEAN"]])  # 几条记录一次查完
+        service, asked, _logged = self.service({"R-CLEAN": "53-05-02-00"})
+        self.assertTrue(service.outcomes(["PR1"])["PR1"]["written"]["company_rules"][0]["still_saved"])
+        service, _asked, logged = self.service(RuntimeError("db"))
+        self.assertNotIn("still_saved", service.written(["PR1"])["PR1"]["company_rules"][0])
+        self.assertEqual(logged, ["Cowork push company choices state failed"])
+
+    def test_one_entered_record_carries_both_the_computer_and_the_rule_state(self):
+        # 并入外壳（10-17）：``outcomes`` / ``written`` 同时经 ``_with_writers``（多电脑：由哪台电脑写入）与
+        # ``_entered(row, _rules_now(...))``（外壳：公司规则现在还在不在）；以后再合并覆盖掉其中一个，这里报出来
+        rows = [{**row, "written_by_device": "CCD-2"} for row in self.rows()]
+        service, _queries = _push_service(rows)
+        hooks = {"cowork_device_labels": ["d.labels"], "cowork_push_company_choices_saved": ["p.saved"]}
+        providers = {"d.labels": lambda names: {"CCD-2": "ACC-02"},
+                     "p.saved": lambda ids: {"R-CLEAN": "53-05-02-00"}}
+        service.frappe.get_hooks = lambda name: hooks.get(name, [])
+        service.frappe.get_attr = lambda path: providers[path]
+        for found in (service.written(["PR1"])["PR1"], service.outcomes(["PR1"])["PR1"]["written"]):
+            self.assertEqual(found["writer"], "ACC-02")
+            self.assertEqual(found["docnum"], "HP690920-001")
+            self.assertTrue(found["company_rules"][0]["still_saved"])
+            self.assertEqual(found["account_from"], "company_rule")
+
+    def test_cc_is_told_which_computer_wrote_it(self):
+        self.assertIn("written.writer, when present, is the name of the computer whose CC Desktop wrote it into "
+                      "Express", tools.WRITTEN_NOTE)
+
+    def test_cc_is_told_to_name_the_rule_from_written_never_from_client_choices(self):
+        note = tools.WRITTEN_NOTE
+        self.assertNotIn("see <client_choices>", note)
+        self.assertIn("company_rule (a client company choice, see written.company_rules)", note)
+        self.assertIn("name the choice from written.company_rules only; when it is missing, say only that it was the "
+                      "company's choice", note)
+        self.assertIn("Never take a choice from <client_choices> or the team notes as the one that decided an entered "
+                      "document", note)
+        for text in (tools.ENTERED_NOTE, tools.ENTERED_RESULT):
+            self.assertIn(tools.RULE_SUBJECT_NOTE, text)
+        self.assertIn("Such a rule is always for that document's own party: its seller (its buyer for a sales "
+                      "customer), named exactly as on that document", tools.RULE_SUBJECT_NOTE)
+        self.assertIn("pass that same document as document and that party's tax ID (or its name when it has none) as "
+                      "expect_party", tools.RULE_SUBJECT_NOTE)
 
 
 class WrittenFactsTests(unittest.TestCase):
@@ -2557,9 +2644,94 @@ class ListAndRunsTests(unittest.TestCase):
         for words in ("the ERP", "an ERP", "ERP's", "target ERP", "ERP document"):
             self.assertNotIn(words, said)
         edit = next(tool["description"] for tool in tools.TOOLS if tool["name"] == "cowork_edit_document")
-        self.assertIn("Never send the user to Express or MR.ERP to change an entered document", edit)
+        self.assertIn(tools.ENTERED_NOTE, edit)
         self.assertNotIn("only a person can change it", edit)
         self.assertIn("cowork_list_documents search set to its invoice number", guidance)
+
+    def test_the_document_kind_choice_is_given_the_record_name(self):
+        """第 7 批 B7（10-18 lab）：cowork_choose_document_policy 的 document 没写说明，CC 把类别名当单据交，两次都存不上。"""
+        tool = next(t for t in tools.TOOLS if t["name"] == "cowork_choose_document_policy")
+        described = tool["input_schema"]["properties"]["document"]["description"]
+        self.assertIn("record name of the document whose push waits for this choice", described)
+        self.assertIn("not the kind of document", described)
+
+    def test_a_queued_push_is_never_called_entered(self):
+        """第 7 批 B6（2026-10-18 lab）：录制机关着，新成员的单排队，CC 回「已录入「นิภา…」的收据……目前状态是已排队」，
+        前后矛盾。排队的说明写明还没入账，回复开头也不说已录入。"""
+        note = tools.PUSH_QUEUED_NOTE
+        self.assertIn("Tell the user it is queued", note)
+        self.assertIn("A queued document is not entered yet", note)
+        self.assertIn("never say it was entered or recorded into Express or MR.ERP, not even at the start", note)
+
+    def test_an_entered_document_that_cannot_be_changed_is_never_sent_to_express(self):
+        """第 5 轮测试：让 CC 把已入账的 SD-6909-1010 改科目，它答改不了，又给「自己去 Express 改 HP690920-001，我再回读」
+        的选项。F19 验收口径：不叫人去 Express（或 MR.ERP、待处理页、复核页）改已入账的单；只说明改不到，给单号、泰铢、
+        当地时间；回读照常可以提。说明（GUIDANCE、WRITTEN_NOTE、改单 / 推送 / 回读）与改单、选项工具的结果提示同一口径。"""
+        note = tools.ENTERED_NOTE
+        for words in ("CC cannot change a document that is already entered into Express or MR.ERP",
+                      "say plainly that it cannot be changed from here",
+                      "docnum), amounts in baht and times in local time",
+                      "Do not suggest, as an option or a next step, that the user changes it in Express or MR.ERP",
+                      "nor offer to check it after they have",
+                      "Offering a readback of that month (cowork_express_readback) to show what Express holds is fine"):
+            self.assertIn(words, note)
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn(note, " ".join(tools.GUIDANCE))
+        self.assertIn(note, tools.WRITTEN_NOTE)
+        for name in ("cowork_edit_document", "cowork_push_documents", "cowork_document_detail", "cowork_push_results"):
+            self.assertIn(note, by_name[name], name)
+        # 说明文字（CC 读到的全部说明与结果提示）里不再有引导人去 Express / MR.ERP 改已入账单的写法
+        said = " ".join(list(by_name.values()) + list(tools.GUIDANCE) + [tools.WRITTEN_NOTE, tools.ENTERED_RESULT,
+                                                                         tools.PUSH_QUEUED_NOTE])
+        said = said.replace(note, "").replace(tools.ENTERED_RESULT, "")
+        for words in ("can only be changed by a person in Express", "changed by a person in Express",
+                      "corrected a pushed document in Express", "read it back afterwards",
+                      "change it in Express", "change it in MR.ERP", "fix it in Express", "correct it in Express",
+                      "edit it in Express", "then read back", "then read it back"):
+            self.assertNotIn(words, said)
+        self.assertNotRegex(said, r"(?i)(change|correct|fix|edit)[^.]{0,60}\bin (Express|MR\.ERP)[^.]{0,60}(then|and)"
+                                  r"[^.]{0,30}read")
+        self.assertIn("do not suggest changing it in Express or MR.ERP", tools.ENTERED_RESULT)
+        # 结果提示：已入账的单改了 Pearnly 里的记录、查 / 存选项时带上 entered_note；没入账的不带
+        self.assertEqual(tools._entered_note("success"), {"entered_note": tools.ENTERED_RESULT})
+        for status in (None, "", "pending", "failed", "manual"):
+            self.assertEqual(tools._entered_note(status), {})
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py").read_text(encoding="utf-8")
+        self.assertIn('return _json({"status": "saved", **out, **_entered_note(out.get("push_status"))})', source)
+        self.assertIn('return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})', source)
+        self.assertIn('"result": result, **_entered_note(getattr(doc, "last_push_status", None))})', source)
+
+    def test_entered_documents_are_never_sent_anywhere_to_be_changed_in_any_language(self):
+        """第 6 轮测试：改已入账的 SD-6909-1010 科目，CC 说了改不了、给了单号泰铢时间，最后一句仍是「ถ้าต้องการให้ใบนี้ลงบัญชี
+        53-05-28-00 ต้องแก้ใน Express โดยตรง」（条件句：要记到那个科目就得在 Express 里直接改）。说明里点明：条件句、收尾句同样
+        不许说「需要 / 可以在 Express（或任何地方）改」，不指引去任何地方、任何人改；三种语言各给反例；可以提议把以后的同类单记成
+        规则（存规则要用户允许）。只检查给模型的说明，不做输出过滤。"""
+        note = tools.ENTERED_NOTE
+        for words in ("Never say either that it needs to be, has to be or can be changed in Express or MR.ERP or anywhere else",
+                      "not even as a condition or a closing sentence",
+                      "'if you want it under account X, it has to be changed in Express directly' is just as wrong",
+                      "never point to any place, program, page or person to change it",
+                      "That holds in every language",
+                      "nothing like '" + "ต้องแก้ใน Express โดยตรง" + "' or '" + "ไปแก้ใน Express" + "' in Thai",
+                      "nothing like '" + "需要在 Express 里直接改" + "' or '" + "去 Express 改" + "' in Chinese",
+                      "What you may offer instead is to save a rule so that later documents of the same kind go the way "
+                      "the user wants (cowork_company_choice_save for the whole company; the user allows it first)"):
+            self.assertIn(words, note)
+        # 存规则的工具确实要用户「允许」
+        company = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py").read_text(encoding="utf-8")
+        save = company.split('{"name": "cowork_company_choice_save"', 1)[1].split('{"name": ', 1)[0]
+        self.assertIn('"approval": True,', save)
+        # 改单工具的说明、结果提示与总说明都带同一口径
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn(note, by_name["cowork_edit_document"])
+        self.assertIn(note, " ".join(tools.GUIDANCE))
+        result = tools.ENTERED_RESULT
+        for words in ("Never say it needs to be or can be changed in Express, MR.ERP or anywhere else",
+                      "not even as a condition or a closing sentence, in any language",
+                      "You may offer to save a rule for later documents of the same kind (cowork_company_choice_save; "
+                      "the user allows it first)"):
+            self.assertIn(words, result)
+        self.assertEqual(tools._entered_note("success"), {"entered_note": result})
 
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},

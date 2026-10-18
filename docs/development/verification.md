@@ -15,6 +15,7 @@
 | 任何旧功能迁移 | 开工与交付前旧生产版本回读、源码映射、行为及依赖增量核对 | 线上相关行为变化时同步增量并复验；见 [线上基准](migration-baseline.md) |
 | Compose、镜像、底座依赖 | 配置解析、锁定版本/架构核对；受影响启动与持久化 | 底座升级加入安装、迁移、恢复及 DMS 关键回归 |
 | 检查脚本、CI | 语法、正常路径和关键拒绝路径，核实作用范围 | 不为每行配置写一份镜像测试，不触发业务全量作为默认 |
+| 界面文案（术语表、CC 网页 `i18n.ts` / TSX、CC 桌面版 `i18n.py`、Keycloak 主题、页面与邮件模板） | `python3 scripts/check-copy.py`（相对 merge-base 的新增 / 改动文案与新代码里的写死、拼接；改已有文案先给用户看并登记），交付时附 `--report` 清单给用户和测试窗口；见 [界面文案](interface-copy.md) | 改了闸门本身或词表时跑 `python3 tests/test_check_copy.py`；整改存量用 `--audit` 出报告 |
 | 发票识别读法（模型版本、提示词、读法、识别后确定性规则） | 两批金标同口径评测四项指标不退、测试租户并发压测（3 租户 × 10 人）速度不退；见 [识别改动上线闸门](#识别改动上线闸门) | 一次只改一个变量；成本变化先报告再上线 |
 | 需要在真实环境确认的改动 | 在 [Windows 测试环境](test-environment.md) 用**同一镜像 digest** 起环境，并用测试租户走一遍受影响路径 | 涉及电话/手机、真实 LINE 消息、第三方落单时，要在切换状态下做真机验收并单独记录 |
 
@@ -32,6 +33,7 @@ git diff --cached --check
 python3 scripts/i18n-build.py --check
 python3 scripts/check-i18n.py --strict
 python3 scripts/check-frontend-i18n.py --strict
+python3 scripts/check-copy.py
 npm --prefix frontend run build
 ```
 
@@ -41,7 +43,7 @@ CC 对话页（`frontend/assistant`）改界面时另跑 `python3 scripts/check-
 
 构建输出在 `apps/pearnly_core/pearnly_core/public/pearnly-app/`，是被忽略的生成目录。正式构建需确保镜像包含对应版本的产物；不能把旧仓的 `static/dist` 提交规则搬过来。前端开发入口见 [前端说明](../../frontend/README.md)。
 
-App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查；根级只有 `.githooks` 的共享钩子（提交时跑架构检查并禁止在 `main` 上提交，推送 `main` 时要求快进且 CI 已通过）。整合后的主线已有手动镜像构建/投递工作流，这与统一 PR 检查不同。不能认为进入 App 目录就会自动检查整个单仓，也不要未经核对运行带 `--fix` 的全仓钩子。
+App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查；根级只有 `.githooks` 的共享钩子（提交时跑架构检查与界面文案闸门并禁止在 `main` 上提交，推送 `main` 时要求快进且 CI 已通过）。整合后的主线已有手动镜像构建/投递工作流，这与统一 PR 检查不同。不能认为进入 App 目录就会自动检查整个单仓，也不要未经核对运行带 `--fix` 的全仓钩子。
 
 ### Frappe 与 DMS
 

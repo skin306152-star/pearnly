@@ -19,7 +19,7 @@
   {
    "fieldname": "endpoint_key",
    "fieldtype": "Data",
-   "label": "Endpoint Key",
+   "label": "Subscription Key",
    "read_only": 1,
    "reqd": 1,
    "unique": 1
@@ -75,7 +75,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-13 12:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Push Subscription",

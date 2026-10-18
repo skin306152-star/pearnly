@@ -1103,8 +1103,8 @@ CC 桌面版（`C` = `companion/src/companion`）：删 `C/always_on.py`（防�
 
 ### 没做 / 拿不准
 
-- 办公室测试机以前靠常驻模式保持在线（记忆「10-12 起保持 CC 常驻」）。升级 1.7.0 后屏幕一关就进待机，远程测试会断——要用户在 Windows 电源设置里改「从不睡眠」，
-  这是系统设置，要用户自己点。
+- ~~办公室测试机以前靠常驻模式保持在线（记忆「10-12 起保持 CC 常驻」）。升级 1.7.0 后屏幕一关就进待机，远程测试会断——要用户在 Windows 电源设置里改「从不睡眠」，
+  这是系统设置，要用户自己点。~~〔10-16 取代：防睡眠照 Claude 改回、默认开，见文末「CC 开着时保持电脑唤醒」，测试机不用改电源设置〕
 - 共用电脑每个人都要在那台 CC 上用自己的账号登录一次，那台才写他的单；帮同事登录过一次，那台以后也写他的单，除了移除整台电脑没有入口去掉。
 - 询问框仍可能卡住写入线程（第 7 批最后一条）。
 - 改挂电脑（`readers.moved`、`credentials` 的旧槽位改挂）只转读者字段，不改已冻结在推送记录上的 `route_device`：改挂前排着的定时任务单冻结的是旧电脑编号，旧电脑退役后
@@ -1172,3 +1172,859 @@ CC 桌面版只改了一行注释，没重跑它的 pytest；`tests/test_cowork_
 - 电脑退役只转「排队」的单；「已准备」的确认时自会按 `push.no_writer` 被拒，「正在写」的照旧等回执或租约过期转「结果不明」。
 - `retire_orphan` 判「没人认领」用的是锁电脑行之前的不加锁预看：极少数情况下那一刻电脑刚被认领，排着的单会被转人工（能重推，不丢）。
 - 第 3 条口径按「仍算定时任务」施工，没问用户（见上）。
+
+## CC 开着时保持电脑唤醒（用户 10-16，2026-10-16，本地提交，未推送）
+
+来源（用户 10-16 原话，在上面删掉常驻之后）：「卧槽，这个模式需要啊，我之前以为是电脑常驻的意思，之前是我理解错了呀，改成和 claude 一样的功能」；
+两个方案里选了「CC 开着就不睡」。原来的「常驻」拆成两件事：**替别人接活**（常驻电脑档位、开机锁屏、不弹询问框）按「谁的活谁的电脑做」删掉、不回来；
+**防睡眠**照 Claude 桌面版（「Keep computer awake while Claude works」「Keep awake on battery power」）改成两个开关，默认都开。ADR-021 第 58 条，
+第 56 条与「有意变化」「兼容」对应补注。
+
+### 改了什么
+
+- 新 `companion/src/companion/keep_awake.py`：`KeepAwake.apply(enabled, on_battery, members)` 两样都满足就起一条专用守护线程（`keep-awake`）拿住，
+  否则马上放开；线程里每 15 秒查一次电源（开关、成员一变马上重算），用电池且「用电池时也保持」关着就放开、插上电再拿起；`stop()` 退出时放开。
+  系统调用在 `WindowsPower`：`SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED [| ES_DISPLAY_REQUIRED])`、`GetSystemPowerStatus`
+  （`ACLineStatus == 0` 才算用电池）、`powrprof.GetPwrCapabilities`（`AoAc`，只查一次，查不出按现代待机）。非 Windows 什么都不做。
+- 用的调用与依据：找回 `ecabec82` 之前 `always_on.py` 的做法——同样的 `SetThreadExecutionState`、同样挂在专用线程上、放开时同一条线程只留
+  `ES_CONTINUOUS`。那套 2026-10-12 在办公室测试机（Windows、现代待机）实测：只保持系统 → 关屏立即待机；保持「系统 + 屏幕」再锁屏 → 4 分钟以上一直
+  在线、系统日志无待机记录。所以现代待机的电脑仍用「系统 + 屏幕」（屏幕不会自动关）；一般电脑（S3）只用「系统」，屏幕照常关。开机锁屏
+  （`LockWorkStation`）不带回来。没用 `PowerCreateRequest` / `PowerSetRequest`（没验证过）。
+- `config.py` / `profile_store.py`：`keep_awake`、`keep_awake_on_battery`（默认 True）进 `CompanionConfig` 与 `GlobalSettings`；旧 `always_on=true`
+  且没有 `keep_awake` 时迁成 `keep_awake=true`，旧键不在白名单里、下次写回时丢掉。
+- `desktop_settings.py`：快照多 `keep_awake`、`keep_awake_on_battery`；`set_keep_awake(enabled=, on_battery=)` 存全局设置后回调托盘。
+  `tomo_bridge.py`：桥方法 `keep_awake`、`keep_awake_on_battery`。
+- `gui_tray.py`：启动时建 `KeepAwake` 并 `_apply_keep_awake()`（开关取自配置，成员 = `any(member_active(cfg))`）；`_reload_profiles`（配对、断开、
+  暂停、移除、被顶掉都走这里）后重算；设置里改开关 → `_set_keep_awake` 先把各线程手上的配置一起改（它们写回配置时不把旧值盖回去）再重算；
+  `_quit` 先放开。〔审查改：只改托盘的配置并没改到取任务线程的副本，见文末「审查（10-16）」第 2 条〕
+- 前端（`frontend/assistant/src`）：`settings.tsx` 新 `KeepAwakeRows`，放在「此电脑 → 系统」的「开机时自动启动 CC」下面（有桥才有这一栏；
+  状态里没有 `keep_awake` 的旧版桌面端不显示）；`lib/desktop.ts` 的 `DesktopState` 多两项可选键；`i18n.ts` 三种语言各两条。
+- `companion/README.md` 改写 1.7.0 那一条。服务端没改（`hello` 不报、分派与询问框不看它）。
+
+### 文案（只放开关和标签，不加说明文字）
+
+| 键 | 中文 | English | ไทย |
+|---|---|---|---|
+| `keepAwake` | CC 开着时保持电脑唤醒 | Keep computer awake while CC is open | ไม่ให้คอมพิวเตอร์สลีปขณะเปิด CC |
+| `keepAwakeOnBattery` | 用电池时也保持 | Keep awake on battery power | รวมถึงขณะใช้แบตเตอรี่ |
+
+CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的服务端词条）。界面里不再出现「常驻」（测试守着 `i18n.ts`）。
+
+### 检查
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1 / httpx / dbf / pytest 临时虚拟环境） | 900 passed, 41 skipped（新 `test_keep_awake.py` 7 条：有成员才拿、成员都断开放开、关开关与退出马上放开、用电池按开关放开 / 插电再拿、现代待机加屏幕、非 Windows 不做事、`WindowsPower` 调的接口与查不出按现代待机、源码里没有锁屏调用与托盘接线；`test_desktop_settings` 3 条：旧 `always_on` 迁移与写回丢键、默认开与明写的关不被覆盖、两个开关保存并回调托盘） |
+| `python3 -m unittest tests.test_assistant_ui.KeepAwakeTests tests.test_assistant_ui.NoAlwaysOnTests` | OK（真跑 `KeepAwakeRows`：中英两种语言的两行标签、开关状态、点了调 `keep_awake` / `keep_awake_on_battery`、旧版桌面端不显示；只在「此电脑 → 系统」、有桥才渲染；界面不再有「常驻」） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 91 步全过，退出码 0（含 `frontend/assistant` 构建、`check-architecture.py` PASS、`check-i18n.py --strict`）；另跑 `npm --prefix frontend run build` 通过（产物按 `.gitignore` 不入库）；记录与 ADR 改完后另跑 `check-architecture.py` 与 `git diff --check` 通过 |
+
+### 给测试窗口的点验（替换上面第 8 条里「不再防睡眠」那半句）
+
+8'. CC 桌面版 1.7.0 设置「此电脑 → 系统」：「开机时自动启动 CC」下面有「CC 开着时保持电脑唤醒」「用电池时也保持」两个开关，默认都开；网页（浏览器里）
+    设置没有这两行；任何地方没有「常驻」二字；开机后不锁屏。旧配置里打开过常驻的，升级后两个开关都是开。
+
+### 第 7 批真机要验（办公室测试机，Windows 现代待机）
+
+- 关屏后不睡：CC 连着、开关开着，等过电源设置的关屏 / 睡眠时间（或 `powercfg /requests` 看到 `SYSTEM` 与 `DISPLAY` 两项挂着 CC 的进程），
+  远程一直连得上、`powercfg /sleepstudy` / 系统日志没有进待机；现代待机的电脑屏幕不会自动关（预期）。
+- 拔电时按开关：「用电池时也保持」开着拔电 → 仍拿住；关掉后拔电 → 约 15 秒内放开（`powercfg /requests` 里 CC 那两项消失），插上电约 15 秒内又出现。
+- 退出 CC（托盘「退出」）后能睡：`powercfg /requests` 里没有 CC，按电源设置正常关屏、待机；关掉「CC 开着时保持电脑唤醒」、断开全部成员同样马上放开。
+- 合上笔记本盖子照样睡（录制笔记本上验）。
+
+### 没做 / 拿不准
+
+- 任务书说「屏幕照常可以关」，又说现代待机「以原来验证过的方式为准」：现代待机上两者冲突，取验证过的「系统 + 屏幕」，这种电脑屏幕不会自动关、
+  也就不会因关屏而自动锁屏；以前常驻靠开机锁屏挡住，现在不锁屏（Claude 没有），桌面会一直亮着、不上锁（屏幕保护程序的「恢复时显示登录屏幕」照样起作用）。
+  要不要在现代待机上另找只防睡眠、允许关屏的办法（例如 `PowerSetRequest` 的 `PowerRequestExecutionRequired`）没验证过，没做。
+- 「至少一个成员连着」按配对有效算（没暂停、密钥没被说不能再用），不看此刻网络通不通：断网时也拿住，网络回来照常接活。
+- ~~电源变化靠每 15 秒查一次，不是系统广播（`WM_POWERBROADCAST`）；拔插电后最多约 15 秒才跟上。~~〔10-18 D8 取代：订阅插电 / 电池切换通知，见下面「D8」〕
+- `AoAc` 按 `winnt.h` 的 `SYSTEM_POWER_CAPABILITIES` 第 20 字节读，开发机上只用假的验证，真机要看日志「这台电脑是 / 不是现代待机」核一次。
+- 托盘菜单里没加这两个开关（托盘菜单本来就没有设置项，设置都在对话页「此电脑」里）。
+
+### 审查（10-16）
+
+5 条发现（其中第 2、4 条是同一件事），逐条核实：
+
+| # | 发现 | 核实 | 处理 |
+|---|---|---|---|
+| 1 | 现代待机的电脑默认拿着 `ES_DISPLAY_REQUIRED`：屏幕永远不自动关、不会因关屏自动上锁，用电池时同样（高） | 成立（行为本来就这样，上面「拿不准」写了屏幕不关，但没写「不自动上锁」和用电池耗电的后果） | 不改代码：只防睡眠、允许关屏的调用在现代待机上没验证过，任务书要求按验证过的做；要不要在现代待机上让「用电池时也保持」默认关、或用电池时只保持系统，是产品取舍，等用户拍板。后果写进 ADR-021 第 58 条，列为待用户确认 |
+| 2 / 4 | `_set_keep_awake` 只改托盘的配置，取任务线程启动时 `copy()` 的副本还是旧值；心跳存盘（`_sync_connection_identity` / `_sync_account_set` / `_remember_roots`）经 `GlobalSettings.from_config(副本)` 把开关写回成开（中） | 成立：先在旧代码上复现（关开关后副本 `save()`，磁盘又成 `keep_awake=true`），新测试在旧 `profile_store.py` 上失败 | 按类修：`save_profile` 只写这份配置自己改过的全局项（读出时记 `_globals_seen`，与它相同的项以文件里最新的为准，读文件与写回在同一把锁里，存完副本跟上文件里的值）；界面语言、开机自启同样不再被旧副本盖回。直接构造、不是从文件读出的配置照旧整份写。托盘不再改各成员配置，开关单独记在 `_awake_settings`（启动 / `_reload_profiles` 取文件里的值，设置回调更新） |
+| 3 | `GetPwrCapabilities` 返回 `BOOLEAN` 却没设 `restype`，失败时 EAX 高位残值会被当成功、读到全零、现代待机被当 S3（低） | 成立（概率低，但后果正是要防的关屏即待机） | 设 `restype = c_ubyte`；`AoAc` 偏移 20 按 `winnt.h` 再核一遍（15 个 BOOLEAN + 两个 BYTE + `FastSystemS4`、`Hiberboot`、`WakeAlarmPresent`）；第 7 批真机加 `powercfg /a` 对照 |
+| 5 | 页面用变量 `run(method, method, …)` 调桥，契约检查的正则抓不到 `keep_awake` / `keep_awake_on_battery`，桥的分派也没测试（低） | 成立 | 页面改成字面量 `run("keep_awake", "keep_awake", …)` / `run("keep_awake_on_battery", …)`；`tests/test_companion_contract.py` 断言两个方法在页面调用里、桥分别调 `set_keep_awake(enabled=…)` 与 `set_keep_awake(on_battery=…)` |
+
+另见（没改，不在这次范围）：取任务线程那份配置所在的 `ProfileStore` 手里的成员列表也是启动时读的，副本存盘时整份写回成员列表；成员增删、暂停都经
+`_reload_profiles` 先停旧线程再起新线程，所以平常碰不到，只在停线程的那一小段里理论上可能盖掉别处刚改的成员。没有实际现象，按「只修实际问题」不动。
+
+检查：
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版完整 pytest（companion/，Python 3.11 + PySide6 6.12.0 / httpx / dbf / pytest 临时虚拟环境，跑完删） | 901 passed, 41 skipped（新 `test_an_old_worker_copy_saving_on_a_heartbeat_does_not_put_the_switches_back`：关开关、关自启、换语言后，旧副本心跳存盘与托盘那份存盘都不盖回，副本自己改的账套名照样存下、持有者自己改的语言照样写；在旧 `profile_store.py` 上失败。`test_keep_awake` 补 `restype` 与偏移、托盘不改成员配置） |
+| `tests/test_companion_contract.py` | 69 passed |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 91 步全过，退出码 0（含 `frontend/assistant` 构建、`tests.test_assistant_ui` 的 `KeepAwakeTests` 改成核对多行写法的 `<KeepAwakeRows`）；另跑 `npm --prefix frontend run build` 通过 |
+
+第 7 批真机补一条：`powercfg /a` 列出「Standby (S0 Low Power Idle)」即现代待机，与日志「这台电脑是 / 不是现代待机」对照；现代待机上开着开关时
+屏幕不自动关、不自动上锁（预期，待用户确认要不要改）。
+
+### D8：用电池时默认不保持（用户 10-18 定，本分支提交）
+
+**用户 10-18 定：「用电池时也保持」默认关**（原话「要我定的都按你建议」，建议即此项）。依据：办公室测试机 10-18 12:26 起用电池，约 3 小时电量
+68%→21%，期间 `powercfg /requests` 里 CC 一直拿着 DISPLAY + SYSTEM，电脑不睡、屏幕不关（见上一节「1.7.0 空闲 CPU」与 test4 核查第 3 条）。
+「CC 开着时保持电脑唤醒」（插电）默认仍开。界面文案、布局没动，没加说明。
+
+- 默认值：`CompanionConfig` / `GlobalSettings` 的 `keep_awake_on_battery` 默认 False；`KeepAwake` 自己的初值、托盘取不到配置时的兜底、对话页
+  `KeepAwakeRows` 状态缺这一项时的兜底一并改成关（后两处正常走不到，只为一致）。
+- 「从没设过」与「用户设过」：新字段 `keep_awake_on_battery_set`，只有设置里点了这个开关（`DesktopSettings.set_keep_awake(on_battery=…)`）才写 True；
+  读配置时没有这个标记就不看文件里的值、取默认（关）。**老配置按「没设过」处理的理由**：之前每次存盘都把整份全局设置写进 `companion.json`，
+  文件里的 `keep_awake_on_battery: true` 分不出是用户亲手开的还是旧默认写进去的；这个开关只在没发布的 1.7.0 测试包里有过（测试机、录制机），
+  旧默认是开，所以写着 False 的必是用户关的、本来就等于新默认，写着 True 的多半是默认，最多丢掉测试机上一次手动的「开」。存盘时副本只写自己改过的全局项
+  （10-16 审查的 `_globals_seen`），用户打开后旧副本存盘不会把它盖回关（测试覆盖）。
+- 拔电立即放开：守护线程起来时订阅 `powrprof.PowerSettingRegisterNotification(GUID_ACDC_POWER_SOURCE, DEVICE_NOTIFY_CALLBACK)`（回调形式，
+  不要窗口；Windows 8 起），回调只叫醒守护线程，由它重新查 `GetSystemPowerStatus`：用电池且开关关着 → 同一条线程上只留 `ES_CONTINUOUS`（DISPLAY、
+  SYSTEM 都放开）；插上电 → 按插电的设置拿回（现代待机「系统 + 屏幕」，一般电脑「系统」）。线程退出时取消订阅。15 秒轮询保留作兜底，订阅失败
+  （返回错误码或抛异常）只记一条警告、照样靠轮询。
+
+检查（Mac 上替身）：
+
+| 命令 | 结果 |
+|---|---|
+| `test_keep_awake.py` 新 4 条 | 切换通知叫醒（轮询设 60 秒）：插电拿「系统 + 屏幕」→ 拔电马上全放开 → 插电拿回 → 打开开关用电池也拿；拿 / 放都在 `keep-awake` 线程、放开时取消订阅；一开始就在用电池什么都不拿；订阅抛错照样靠轮询放开；`WindowsPower.watch` 用的 GUID、`DEVICE_NOTIFY_CALLBACK`、回调叫醒、取消订阅、注册返回错误码回 None；真 Windows 上真注册 / 取消（Mac 跳过，windows-latest 跑） |
+| `test_desktop_settings.py` | 新配置默认（开, 关）且文件里标记为 False；无标记的旧配置 True → 关、False → 关、插电开关照旧；有标记照用户的值；旧配置存盘后文件里也是新默认；设置里打开后重读仍开、标记 True；旧副本存盘不把打开盖回关 |
+| 改代码前跑同样的测试 | 8 条失败（新默认、迁移、通知），改后全过 |
+
+真机（第 7 批，测试机插电后）要验：默认装好后用电池 `powercfg /requests` 里没有 CC；插上电几秒内出现 DISPLAY + SYSTEM，再拔掉几秒内消失；
+日志没有「订阅插电 / 电池切换失败」；设置里打开「用电池时也保持」后拔电仍拿住、重启 CC 后开关仍是开。
+
+## 并入外壳（10-17，本地提交，未推送）
+
+`git merge --no-ff pearnly/cc-shell-rebuild`（对方 `630ca3aa`，自上次合并 `f5c04929` 起 34 个提交，含 4 个子分支合并：侧栏对话只在本组排序、
+删「移到」、服务端 `sessions.move` 拒换公司；审批卡片照 Claude；记住的选择一行一条；手机端照 Claude；第 10 轮文案；个人排列跨设备同步；
+发送 / 停止失败说原因；公司规则按哪一条入账 `written.company_rules` 等）进 `pearnly/multi-desktop`（`b9dedf40`，第 6 批界面、谁的活谁的电脑做、
+保持唤醒）。不变基、不改写历史。外壳分支之后的提交由开发窗口再合一次增量。
+
+### 冲突怎么解
+
+| 文件 | 解法 |
+|---|---|
+| `push/application/service.py` `prepare` | 同上次：冻结目标只建一次。外壳分支在载荷之前那份 `frozen` 又多了 `company_rules`（这张单用上的是哪几条公司规则）；整段不要，`company_rules` 加到本分支那一份上（证据 v2 的 `basis_hash`、`ledger.writer_scope` 写者锁 v2、`decided_by` 之后）。不进载荷，不改 `basis_hash` |
+| `push/application/service.py` `_decisions` 文档串 | 两句都留：科目表没读到先没用的公司规则不拿 Express 历史顶替（本分支合并审查第 2 条）+ 结果带用上的公司规则 `company_rules`（外壳分支） |
+| `push/application/service.py` `outcomes` / `written` | 两边都要：查询带 `written_by_device`、结果经 `_with_writers` 加「由哪台电脑写入」`writer`（本分支第 6 批），`_entered(row, now)` 带 `_rules_now` 核的公司规则现在还在不在（外壳分支）。`outcomes` 只拿入账成功的行查规则现状，同外壳分支 |
+| `push/express/company_choices.py` `__all__` | 取并集：本分支的 `WAIT_KINDS`、`held_back`，外壳分支的 `USED_MAX`、`used` |
+| `translations/zh.csv` | 同上次：两边取并集（本分支 T1 的「这家公司没有覆盖单据日期的账套。」+ 外壳分支第 10 轮改的「该公司或分店没有覆盖本月的账套」），再 `python3 scripts/i18n-build.py` 按自动合并好的 `messages.tsv` 重新生成；`--check` PASS；逐个核过改动的翻译包，相对两边都没丢 msgid |
+| `frontend/assistant/src/components/settings.tsx` import | 并集：`postMethod` / `shownError`（本分支「电脑」列表移除、全所可用）+ `giveFocusBack` / `opener`（外壳分支设置关掉还焦点） |
+| `tests/test_assistant_ui.py` 文件末尾 | 两边各在同一处加的测试类都留：本分支 `NoAlwaysOnTests` / `KeepAwakeTests`，外壳分支 `UserAsks20261016Tests` 起到第 8 轮那几类；外壳分支放在 `__main__` 之后的 `Round10DragTests` 合并时原样（脚本方式运行时 `unittest.main()` 先退出，这一类 2 项从来不跑；合并审查后已挪到 `__main__` 之前，见下文「合并审查」第 2 条）。核过各测试文件没有重名类 |
+
+自动合并的 `hooks.py`（外壳分支的 `cowork_push_company_choices_saved`，本分支的 `cowork_device_labels` 等都在）、`assistant/tools.py`
+（外壳分支的已入账单不叫人去 Express 改、`written.company_rules` 说明；本分支 `intake_options` 的 `cc_desktop_online`。`written.writer` 合并时
+工具说明里其实没有，只在 `service.py` 的 `_with_writers` 里加进 `written`，合并审查后补上，见下文第 3 条）、
+`companies/service.py`（外壳分支 `with_tax_id`、公司说明带主档编号；本分支 T1 的 `tasks_of` / `_rule_company`）、`company-cards.tsx`、
+`month-ledger.tsx`、`pending.tsx`、`scheduled-tasks.tsx`、`i18n.ts`、`messages.tsv` 逐个看过，没有重复定义或互相覆盖。依赖没变（两边
+`package*.json` 自上次合并都没改），两个工作树的 `node_modules` 都已在，没建符号链接、没装。
+
+### 语义核对
+
+1. **冻结目标四件同时成立**：`prepare` 的冻结目标里证据 v2（`basis_hash`）、写者锁 v2（`lock_scheme` / `company_key`）、`decided_by`、
+   `company_rules` 都在同一份里；租约 v2 领取只核 route 与 `basis_hash`，多一项不影响。`tests/test_cowork_push_direction.py` `FrozenTarget`
+   加一项：带 `company_rules` 时它与证据 v2、写者锁 v2、`decided_by` 同在，不进载荷、不改 `basis_hash`；没有时冻结目标不多这一项。去掉
+   `company_rules` 那三行这项失败。
+2. **先没用的公司规则不算「用上的」**：`company_choices.used` 只认来源记成 `company_rule` 的归类键；本分支 `held_back`（科目表没读到先不用）
+   的那项来源不是 `company_rule`，不会冻结进 `company_rules`，CC 也不会说「按这条公司规则」。T1 跟到新年度账套、科目表读到后按规则推时照常记上。
+3. **回读同时说电脑和规则**：`written` / `outcomes` 一条成功记录同时有 `writer`（电脑名）与 `company_rules`（带 `still_saved` / `now_value`），
+   两个钩子各查一次，互不依赖。合并时只是读代码得出的，两边测试各断言一样；合并审查后加了同一条记录同时断言两样的测试（见下文第 6 条）。
+4. **界面没有用外壳删掉的东西**：本分支第 6 批及之后的界面（「电脑」列表、全所可用、读者编号、`AccountSetRow`、跟随公司当年账套、保持唤醒）
+   没用 `co.moveTo` / `sb.moveToN` / `MoveToMenu` / 跨组拖动 / 旧卡片的 `allowed` / `denied`（`grep` 与 `tsc --noEmit` 都核过）。「电脑」那一行的
+   「···」→「移除」是移除电脑，不是移动对话；10-17 并入外壳第 11 轮后菜单改成同其他菜单的 `cc-menu` / `cc-menu-item`（第 11 轮删了旧的
+   `menuItem`），触发钮加 `cc-tap`（电脑 28，手机点按区 44）。`AccountSetRow` 是待处理页 / 月结台账的一行（同当场选 `ChooseRow` 那一套），
+   不是对话里的审批卡片；第 11 轮把 `ChooseRow` 的「确认 / 立即推送 / 交给 CC」改成卡片按钮（`cc-card-btn`，电脑 24、手机 44 胶囊）后，
+   `AccountSetRow` 的「确认」「交给 CC」随之改用 `cc-card-btn`（10-17 合并审查）。没有用到外壳第 10 轮改掉的旧词（「等你处理」「还没推送」「要人选」等）。
+5. **服务端 `sessions.move` 拒换公司**：本分支没有调用 `move` 的地方（删公司走 `projects.release`），不受影响。
+
+### 闸门
+
+完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` 以第二遍为准：加 `FrozenTarget` 一项后，在最终代码树（与合并提交相同，
+之后只加了本节文档）上整套跑，91 步全过、退出码 0；所有代码文件的修改都早于这一遍开跑。第一遍跑的时候 `service.py` 和测试文件还在改
+（加测试、去掉三行再还原的变异实验），不算任何一棵固定代码树的证据。`cd frontend/assistant && npx tsc --noEmit -p .`
+无输出通过；`check-architecture.py` 0 违规；`i18n-build.py --check` PASS；`test_cowork_push_direction.py` 17 OK。
+
+没做 / 没验：真实 Site 迁移、测试机与真 Express；外壳分支新界面（侧栏本组排序、审批卡片、手机端）与多电脑界面同屏的点验留给测试机一轮。
+本分支 T1 / 第 3 批新加的几条服务端中文带指示词，合并时没改；合并审查后已照第 10 轮口径改掉，连同 3 个 DocType 字段标签，见下文第 1 条。
+
+### 合并审查（10-17，追加提交，不改合并提交 `b3aa1df4`）
+
+1. **多电脑新文案按第 10 轮口径改（成立，已改）**。开发窗口的文案闸门（`pearnly/copy-gate` 的 `scripts/check-copy.py`，未进 main）只读跑
+   `--base 630ca3aa` 拦下 9 处，全来自本分支；改后同一命令拦截 0；`--base 7c9bb445`（main 合并基线）只剩外壳分支待用户确认的 2 处 R-CHG
+   （`MESSAGES.needsInput` / `MESSAGES.question`），本分支 0 处。这几条都不在 main 上，闸门判新增，不需要登记用户同意。
+
+   | 词条 | 原中文 | 改为 |
+   |---|---|---|
+   | `cowork.folder.account_set_none` | 这家公司没有覆盖单据日期的账套。 | 该公司没有覆盖单据日期的账套 |
+   | `cowork.folder.account_set_ambiguous` | 这家公司有多份账套覆盖单据日期。 | 该公司有多份账套覆盖单据日期 |
+   | `intake.error.ERR_ACCOUNT_UID_MISMATCH` | 这台电脑上的账套不是登记的那一份，等待其他电脑 | 此电脑上的账套与登记的不一致，等待其他电脑 |
+   | `push.no_writer` | 没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送 | 没有可写入该账套的电脑（英 / 泰 / 日同去掉后半句操作提示） |
+   | 标签 `Max Payload Version`（CC 桌面版电脑 `max_payload_version`） | 最高载荷版本 | `Max Push Data Version` 最高推送数据版本 |
+   | 标签 `Payload Version`（推送记录 `payload_version`） | 载荷版本 | `Push Data Version` 推送数据版本 |
+   | 标签 `Refresh Lease Computer`（ERP 刷新 `lease_device`） | 刷新租约电脑 | 领取刷新的电脑（照已有的 `Lease Computer` 领取的电脑；英文不在锁语境，闸门不拦，msgid 不变） |
+
+   3 个 DocType 权限是 All / Guest 可读，算产品 Desk（强术语拦），所以没走豁免、换成业务说法；两张改了标签的 DocType `modified` 改到
+   `2026-10-17 12:00`，迁移时标签会更新。翻译包按术语表重新生成，同时删掉本分支自己留下、术语表已没有的 4 条旧 msgid 行（两个旧标签、
+   `push.no_writer` 的旧英文、第 5 批改掉的「将由其他电脑自动推送」那条），这几条 main 上都没有。仍标黄、不拦的：`ERR_ACCOUNT_UID_MISMATCH`
+   英 / 泰 / 日是两句（R-SENT）、`push.no_writer` 中英长度差（R-ALIGN）等 9 处。
+2. **`Round10DragTests` 在 `__main__` 之后（成立，已改）**：挪到文件末尾的 `if __name__ == "__main__"` 之前，`python3 tests/test_assistant_ui.py`
+   由 167 项变 169 项，全过。外壳分支 `630ca3aa` 上同样如此，开发窗口下次在外壳分支改或合增量时注意（本次只在本分支追加提交）。
+   全仓另有 `test_cowork_express_sales_mapper`、`test_cowork_recon_scanned_docs`、`test_desk_first_load`、`test_queue_targets` 四个文件 `__main__` 之后
+   还有定义，都是早已存在的，不在本次范围。
+3. **记录说 `tools.py` 有 `written.writer`（成立，已改记录并补说明）**：上文已更正；`WRITTEN_NOTE` 补一句 `written.writer` 是写入 Express
+   的电脑名、用户问哪台电脑写的就给这个名字，`tests/test_cowork_assistant_tools.py` 加一项断言。
+4. **同第 2 条（major）**：一并处理。
+5. **第一遍闸门不算证据（成立，已改记录）**：上文「闸门」一节只以第二遍为准。
+6. **电脑与规则现状没有同一条测试（成立，已补）**：`PushRuleReadbackTests` 加一项：一条带 `written_by_device` 与冻结 `company_rules` 的成功记录，
+   `written()` 与 `outcomes()` 都同时有 `writer` 与 `company_rules[0].still_saved`。把 `written` 里的 `_with_writers` 去掉、或 `outcomes` 不再查规则现状，
+   这项都报错（变异后已还原）。
+
+闸门（追加提交的最终代码树，代码文件都在开跑前改完，跑完核过没有文件比日志新）：`SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`
+91 步全过、退出码 0；`cd frontend/assistant && npx tsc --noEmit -p .` 通过；`check-architecture.py` 0 违规；`i18n-build.py --check` PASS；
+`test_assistant_ui.py` 169 OK、`test_cowork_assistant_tools.py` 193 OK、`test_cowork_express_dispatch.py` 63 OK；文案闸门只读跑见第 1 条。
+
+## 并入 main（10-18，本地提交，未推送）
+
+`origin/main` 并进 `pearnly/multi-desktop`（`58d654f4`），用 merge、不变基、不改写历史（分支里有 4 个外壳合并提交）。合并基点
+（merge-base）`84da6f81`（外壳分支第 11 轮合并审查，含 main `5edbd5e4`）；main 这段 43 个提交（39 个非合并），到 `19a26d22`
+（开工时 `origin/main` 是 `8626eb39`，合并中途前进了一个提交：控制面 CC 设置改成全平台一份）。分两段合：
+
+| 合并提交 | 合到 | 带进来的 |
+|---|---|---|
+| `0a228f45` | `c4ab0c3e`（文案闸门 `662cacd9` 进 main 之前那个提交，35 个） | 统一原件层 ADR-024、Claude 识别三批与原件存甲骨文（ADR-023）、第 11 轮重测修复、CC 前端标准化 B0 闸门、交接与发布记录 |
+| `fd0cfd38` | `19a26d22`（其余 8 个） | 界面文案闸门与评审轮、存量文案清单、控制面 CC 设置全平台一份 |
+
+为什么分两段：提交钩子的文案检查（`check-copy.py --staged`）只比 HEAD → 暂存快照。一次合并时，它把 main 自己在闸门进 main
+之前（`a9f44116` ERP 原件层）加的词条当成本次提交新增，拦下合并提交（见下文「被拦的已有文案」）。这条是 main 上的已有文案，
+改它要用户登记同意，本分支不改、不豁免、不绕钩子。先合到闸门之前（暂存树里还没有闸门，钩子按设计跳过文案检查，架构检查照跑），
+再合余下的（钩子只看闸门那几个提交带来的：0 拦截，删除 5 条是控制面去掉的词条）。两段合完的树与一次 `git merge origin/main`
+完全相同：`git merge-tree --write-tree 58d654f4 19a26d22` = `fd0cfd38^{tree}` = `27b6d8da`。
+
+### 冲突怎么解
+
+两段都没有文本冲突。两边都改过的 6 个文件逐个核过语义：
+
+| 文件 | 解法 |
+|---|---|
+| `.github/workflows/development.yml` | 自动合并，两边的步骤都在：main 的 checkout `fetch-depth: 0`（文案闸门要读基线）、`test_cc_frontend_gate.py`（标准化闸门自测）、`test_check_copy.py`（文案闸门自测）、`check-copy.py --report`（带 `COPY_GATE_BASE`）、`check-frontend-i18n.py --strict`；本分支多电脑那几步（密钥值、多台电脑、账套登记、写账分派、心跳、跟随当年账套）原样。run 步骤 92 → 96 |
+| `apps/pearnly_cowork/pearnly_cowork/assistant/tools.py` | main 只把 `document_original` 里的 `pearnly_cowork.ocr.originals` 换成 `pearnly_core.originals.checks`；本分支的 `_push_one(route_device)`、`TARGET_NOTES`、`folder_readers` 在别的段，自动合并 |
+| `tests/test_cowork_assistant_tools.py` | main 只改 `OriginalTests` 的模块替身（原件层父包 `pearnly_core.originals` + `checks`）；本分支加的测试不受影响 |
+| `tests/test_cowork_delete_everything.py` | main 改 `OriginalPurge` / `CloudPrefix` 的替身（原件层 `store.parse`、`gcs`、`rules`）并加 `OraclePurge`；本分支只改 `FolderRuleDelete` 的替身（`companion.devices`、`folder_intake.readers` / `follow`），不同段 |
+| `tests/test_assistant_ui.py` | 两边各加的测试类都在，没有重名类，最后一个类在 `__main__` 之前；脚本方式运行 224 项全过 |
+| `docs/development/architecture.md` | main 改「Claude 识别路线」一段、加「统一原件层」一节；本分支改的是域表 push / connections / companion / folder_intake / companies 几行与机器接口一段，不同段 |
+
+补丁号与 ADR 号不撞：本分支 Cowork 补丁 `v0_0_19`–`v0_0_23`，main 这段只加了控制面 `v0_0_4_cc_settings_platform_wide`（另一个 App 的
+`patches.txt`）；ADR 本分支 021，main 022–024（main 上 `docs/adr/README.md` 的索引没列 022–024，属 main 的现状，这次不改）。
+依赖没变：`frontend/assistant`、`frontend` 的 `package*.json` 与 `companion/` 这段 main 都没改，没装、没重装 `node_modules`。
+
+### 语义核对
+
+1. **原件层搬走的旧模块本分支没有新调用**：`pearnly_cowork.ocr.originals` / `ocr.inputs` / `files.cloud` 搬进 `pearnly_core.originals`
+   后全仓只剩 `tests/test_cowork_ocr_contracts.py`、`tests/test_cowork_ocr_source_parity.py` 两处 `from pearnly_cowork.ocr import inputs`，
+   main 上同样如此、不在闸门里，不是这次带进来的。main 删掉的 `files.service._remote_ready` 本分支没有引用。
+2. **文件夹录入的原件入口签名不变**：本分支 `folder_intake/pump.py` 调 `files.service.create` / `finish_direct`、`machine.py` 调
+   `begin_direct`，参数与 main 一致；`begin_direct` 不直传时仍回 `{"direct": 0}`（`machine._upload_target` 认它改走经接口上传），
+   直传时回原件层 `store.begin_upload` 的结果（main 自己的测试守着）。
+3. **共用层对话底座**：main 第 11 轮重测改的 `pearnly_core.assistant` relay / sessions / toolrun 本分支没改过；前端 main 改的
+   `assistant.tsx`、`delete-chats.tsx`、`sidebar.tsx`、`drag.tsx`、`globals.css` 与本分支改的 `settings.tsx`、`pending.tsx` 等不重叠，
+   `tsc --noEmit` 通过。CC 前端标准化「已完成文件清单」（`scripts/frontend-tokens-strict.txt`）现在是空的，本分支文件不在里面。
+4. **控制面 CC 设置全平台一份**（`19a26d22`）只动 `pearnly_control` 与 `tests/test_assistant.py`，本分支没碰。
+
+### 闸门
+
+| 检查 | 结果 |
+|---|---|
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（HEAD `fd0cfd38`，工作树干净，跑的期间没改文件） | 96 步全过，退出码 0 |
+| `cd frontend/assistant && npx tsc --noEmit -p .` | 无输出通过 |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/i18n-build.py --check` | PASS（5260 条文案） |
+| `python3 scripts/check-copy.py --report`（基线 = merge-base origin/main = `19a26d22`） | 新增 66、改动 0、删除 1（`SETTINGS.alwaysOn`「常驻模式」，10-16 去掉常驻时删的）、拦截 0、标黄 9（`Computer`、`intake.agent.state.offline`、`push.no_writer` 的 R-ALIGN，`Folder ID`、`Index Rebuild Pending Folder IDs` 的 R-DEV / R-LEN，`ERR_ACCOUNT_UID_MISMATCH` 的 R-SENT 等）；没有改已有文案，不需要登记 |
+| 提交钩子（两段合并） | 都过：架构 PASS；第一段文案检查按设计跳过，第二段 0 拦截 |
+| CC 桌面版 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1 / httpx 0.28.1 / dbf 0.99.11 / pytest 8.3.3 临时虚拟环境，跑完删） | 901 passed, 41 skipped（`companion/` 这次没变，与上次相同） |
+
+被拦的已有文案（main 上的，交用户定，本分支没改、没登记）：ERP 词条 `The file could not be saved. Please try again shortly.`
+（`apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv:1328`，中文「文件暂时保存不了，请稍后再试」，R-TALK「了，」进度口语）。
+它由 `a9f44116`（ERP 原件层）带进 main，晚于存量文案清单的基线 `786c376d`，不在存量清单里；main 和各分支的全量闸门因为它在基线里
+不判它，只有把 main 合进别的分支时提交钩子会碰到（下一个合 main 的分支同样会被拦）。
+
+没做 / 没验：推送与分支 CI（远端仍停在 `f87a0585`）、Windows 上的 Companion checks、真实 Site 迁移、测试机与真 Express。
+
+### 补登：10-17 两次并入外壳（`80ba3f8f`、`58d654f4`）
+
+`80ba3f8f`（第一父 `3e895ef3`，对方外壳 `9798f54e`：第 10 轮 B 修复、第 11 轮停止后的卡片、滚动与按钮照 Claude、删除确认、「记费用」、
+过期审批取消、当时的 main）：
+
+| 文件 | 解法 |
+|---|---|
+| `frontend/assistant/src/i18n.ts` 中文 `COMPANY` | 文本冲突：两边都要——本分支加的 `folderGone`「电脑已移除」、`followCompany`「跟随公司当年账套」，加外壳把 `vatExpense`「计费用」改成「记费用」 |
+| `tests/test_assistant_ui.py` | 文本冲突两处：① 外壳加的 `PREFS_STUB`（本分支那边是空），取外壳；② `Round10DragTests` 末尾：本分支那边是合并审查第 2 条挪到 `__main__` 之前时的旧断言（`save({ groups: … }, [groupField(group)], tidy)`），外壳那边同一类已改写（取消置顶 `unpinSettled` 先于 `forgetPinned`）并在后面加了第 10 轮 B、第 11 轮几类；取外壳那边，旧断言不留 |
+| `frontend/assistant/src/components/settings.tsx` | 没有文本冲突，但合并结果与两边都不同（`git show --cc` 可见）：「电脑」行尾「···」菜单从旧 `menuItem` 改成 `cc-menu` / `cc-menu-item`（`data-danger`），因为外壳第 11 轮删了 `menuItem`；之后 `38a86fb0` 再给触发钮加 `cc-tap`、`AccountSetRow` 两颗按钮改 `cc-card-btn`（见上文「并入外壳（10-17）」语义核对第 4 条） |
+
+`58d654f4`（第一父 `38a86fb0`，对方外壳 `84da6f81`：第 11 轮修复——卡片跟本站点的工具运行记录、经自己的中断停止、滚动、拖动帧、
+删除确认的焦点、触屏平板顶栏；当时的 main 含 Claude 识别路线）：
+
+| 文件 | 解法 |
+|---|---|
+| `tests/test_assistant_ui.py` `Round11ButtonsLikeClaudeTests` | 文本冲突一处，两边断言都留：待处理页 `cc-card-btn self-` 计数按两边相加改成 6（当场选 3 + 外壳 D32 列表底部「交给 CC」1 + 本分支 `AccountSetRow`「确认」「交给 CC」2）；本分支「电脑」行 `cc-tap` 断言与外壳 D26 触屏平板顶栏那组断言都在 |
+
+两次合并当时的闸门结果在本记录、开发交接（`~/pearnly-devtools/dev-window/交接-开发窗口-2026-10-18.md` 只写「最后一次闸门 91 步全过」，
+没绑定提交）和 `~/pearnly-devtools` 的日志里都查不到。以本节 `fd0cfd38` 上的 96 步全过为准，它包含这两次合并的全部内容。
+
+## 用户 10-18 定（经测试窗口转达，AskUserQuestion 原选项）
+
+- D2 第 7 批前对生产 erpcowork 只读核对（一次性只读客户端、不改数据）：「授权只读核对」。
+- D12「第 8 批」：「可以，第 8 批=发布」（方案 4.4：服务端批 1–4、6 一次发，紧接着发 CC 桌面版 1.7.0 正式版）。
+- D13 定时任务的票在待处理页补选后谁的电脑写：「读文件夹的电脑」（保持现做法，仍算定时任务，pending_api 照旧传 route_device）。
+- D14 已有文案 `intake.agent.state.missing`（10-16 起实际意思是「你没有连上的电脑」）：「改成「未连接电脑」」，四语如下（用户 10-18 当晚另说「涉及到文案的今晚特批，但是不用有口语」）：
+  - 中：未连接电脑
+  - 英：No computer connected
+  - 泰：ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
+  - 日：コンピューター未接続
+  代码注释里引用旧说法「CC 桌面版未连接」的 5 处同步改成「未连接电脑」；给模型的说明（`TARGET_NOTES`）不是界面文案，不改。
+- 测试机装 1.7.0（去掉常驻，改为「CC 开着时保持电脑唤醒」）：「同意装」。安装包由只构建不发布的 `companion-build.yml` 从本分支打。
+- 第二个测试成员加在 lab 上的 testcowork（第 7 批在 lab 跑，lab-start 不带 REFRESH 保留）；多电脑上生产（D16）后再在生产 testcowork 补加同一个测试账号。
+
+## D2 生产只读核对结果（10-18）
+
+时间是 2026-10-17 20:00–20:03 UTC。做法：经 `pearnly-production-cowork-web-1` 里的 `bench --site erpcowork.pearnly.com mariadb`，会话设成只读事务，只跑 SELECT；没有 exec 进 mariadb 容器，什么都没写；SSH 2 次。
+线上镜像 revision `ec90fdfc`（在 main 上），是旧结构：补丁到 `v0_0_18_history_push_targets` 为止，多电脑的表和列都还没有。只查了 erpcowork，工作空间 1 个。
+完整结论（计数与编号，不含单据明细）见 `~/pearnly-devtools/dev-window/D2-生产只读核对-2026-10-18.md`。
+
+| 问题 | 结果 |
+|---|---|
+| Express 连接、主连接 | 共 2 条，都启用、client 都为空、代数都为 0。**主连接是 `CWEC-9f8ad3b2-b89c-54aa-8221-afc06bf7dbe6`**（creation 2026-09-30 18:17:35，站点时间）。后建那条 `CWEC-79d8f2db-7fc6-50ae-8211-c11eb01c8a45` 晚 3.3 秒建。两条的使用名单、建的人、有效密钥签发人、显示名、所选账套都相同，名单都只有 1 人。MR.ERP 主连接是 `CWEC-14e095aa…` |
+| 有效密钥 | 共 2 把，**主连接、后建连接各 1 把**，分属两台电脑。主连接那台是 1.6.0，10-15 才登记，最后报到 10-17；后建连接那台是 1.3.5，最后报到 10-16。两台上报的账套有 34 份重合。10-15 时只有后建那条上的 1 把 |
+| 人工处理单 | `manual` 13 张，**全部挂在后建连接上**；`result_unknown` 都是 0，证据 v1，不占 `active_key`。原因：回读核对失败 12 张、`tax_id_invalid` 1 张；都是 9-30 产生的，只涉及 1 份账套，这份账套现在只有主连接那台在上报。另有 `success` 1 张在主连接上 |
+| 定时任务 | **0 条**（运行、文件、公司文件夹也都是 0）；**挂在非主连接上的 0 条** |
+| v1 结果不明 / 领取中 | **都是 0**；排队中、已准备也是 0。推送尝试 37 次全部 finished，写者锁没有持有者 |
+
+判定：
+
+- 主连接按规则是 `9f8ad3b2`。上线后固定认这条，和正在用的那台电脑（1.6.0，账套最多，唯一的成功单也在这条上）一致。现在的旧代码按 `modified DESC` 取第一条，此刻也是它，但这个结果会随心跳来回变。
+- 没有挂在后建连接上的定时任务，不需要迁移办法。
+- 后建连接上剩下的东西：1 把有效密钥（1.3.5 那台）、13 张人工处理单、7 条记住的选择、历史快照和尝试。没有在途单，没有锁，不挡部署。建议都不写补丁搬：
+  - 13 张单：待处理页按录入记录列，部署后照旧显示。由用户决定作废，或者在主连接上重新录入。
+  - 1.3.5 那台：如果还要用，装 1.7.0 后在那台电脑上登录 CC 一次，register v2 会在主连接上给它发自己的密钥。它一直没自己升级，能不能自动升级没核实，按手动装来准备。不用了就在部署后到「电脑」列表移除。要问用户这台还用不用。
+  - 7 条记住的选择：在主连接上再问一次。
+- 部署前进维护时仍按方案 4.4 第 1 步再统计一次 v1 单（主连接那台电脑还在用）。部署后回读预期：电脑 2 台；`reader_device` 回填 0；`all_members=1` 只设在 `9f8ad3b2`；两条 Express 连接的 `record_revision` 保持 3，`config_json` 不变。
+
+## 1.7.0 空闲 CPU 与 03:15 重启（10-18）
+
+来源：测试窗口 10-18 03:2x 实测 CC 桌面版 1.7.0（`9dd0992c`）两台 Windows 什么都没做时持续吃 1–1.5 个核、风扇一直响；之后用户（经开发窗口转达）定目标：
+「CC 桌面版必须要轻量设计并满足老机器能正常运行使用，架构不对就重构架构」。基线 `e766caa0`，本节提交 `70b65896`、`e13c742a`、`08792e73`、`a9ed8a09`、
+审查修复 `c25925ba`（本地，未推送）。
+
+### 目标（以老办公机为准：双核 / 4 线程、4 GB、Windows 10、机械硬盘或低速 SSD）
+
+- 后台空闲（托盘、窗口没开）：CPU 30 秒均值 < 1% 单核，只有心跳 / 扫描的瞬间短峰；常驻内存目标 < 150 MB，不常驻 Chromium 内核。
+- 打开 CC 窗口时才加载网页内核，关窗后释放（不是只隐藏）；登录窗口、CC 窗口不开时没有 QtWebEngineProcess。
+
+### 现状数据（只读采样，两台机器都没改任何东西）
+
+采样做法：PowerShell 里 `NtQuerySystemInformation` 取每条线程的 CPU 与上下文切换次数，两次快照相减（30 / 20 / 125 秒窗口）；
+线程起始模块用 `NtQueryInformationThread(ThreadQuerySetWin32StartAddress)` 对到 DLL；另每 2 秒看一次几条后台线程的累计 CPU 找节奏。
+脚本留在 `~/pearnly-devtools/dev-window/cc-idle-probe.ps1`、`cc-thread-rhythm.ps1`（只读，用完删远端副本）。CPU 都按单核百分比。
+
+| | 办公室测试机（i5-1135G7 8 线程 16 GB，skin3 已登录，CC 窗口 03:15:48 起开着） | 录制机（i5-1155G7 8 线程 8 GB，acct，CC 没登录：请求全 401，窗口 03:14:53 起开着） |
+|---|---|---|
+| companion.exe | 45–53%（30 / 125 秒），上下文切换 2 200–2 600 次/秒；WS 290 MB、私有 242 MB、42 线程 | 55–77%，2 800 次/秒；WS 77 MB、私有 262 MB |
+| QtWebEngineProcess（渲染进程，1 个） | 35–38%：主线程 18%、合成线程 16%（约 300 次/秒） | 88–101%：主线程 69–80%、合成线程 16% |
+| 渲染进程内存 | 私有 1 757 MB（03:25:51）→ 2 102 MB（03:27:53），约 +170 MB/分钟 | 私有 3 315 → 3 448 MB（33 秒内），约 +240 MB/分钟 |
+| companion.exe 里谁在花 | 网页内核自己的线程（`Qt6WebEngineCore` 起始）17.8%（内核态 14.5%）+ 12.9% + 3.3%；主线程（Qt 与 Chromium 界面线程同一条）9.2%；Intel 显卡驱动线程 4.7% + 2.3%（600 / 500 次/秒）；`WINMM` 高精度定时线程 0.6%（181 次/秒）——都是网页内核在出帧 | 同左：网页内核线程 24.7% + 13.0% + 2.3% + 2.2%，主线程 6.5%，显卡驱动 4.5% + 1.3%（890 / 506 次/秒） |
+| 纯后台的 Python 线程 | 按需请求线程 1.5%（**每 15 秒一次、每次约 250 ms CPU**）、文件夹线程 0.4%（每 60 秒一次约 280 ms）、取任务线程 0.1%、保持唤醒线程 0 | 401 退避中，量不出 |
+| `powercfg /requests` | DISPLAY、SYSTEM 都挂着 companion.exe | 同左 |
+
+### 根因
+
+**CPU（主因）：窗口开着就一直按屏幕刷新率出帧，而且网页内核一旦起来就再不释放。**
+
+- 两台的窗口都开着、没人看（办公室那台是安装程序完成页拉起的，见下面「03:15 重启」；录制机 03:14:53 有人打开过）。Qt 的网页内核只看窗口
+  自己有没有藏起来，不像 Chrome 那样在锁屏、被遮住、屏幕关了时停画；页面上又有一直在动的东西：登录页整窗背景点阵是 `requestAnimationFrame`
+  每帧重画约两千个点（`scripts/build-ai-entry.py` 生成的 `ai.*.js`），外加小猫的 SVG 无限动画；对话页欢迎页的 CC 小猫有眨眼 / 笑 / 尾巴 / 铃铛
+  四组无限动画（`frontend/assistant/src/globals.css`）。于是渲染进程、companion.exe 里的合成 / GPU 线程、显卡驱动线程一直每秒几十帧地转。
+  证据：合成线程、驱动线程每秒几百次唤醒；本机实验（PySide6 6.11.1，offscreen）窗口 `hide()` 后 `visibilityState` 变 `hidden`、
+  `requestAnimationFrame` 计数停住（183 → 183），`page.setVisible(False)` 同样停住。
+- 1.7.0 的设计是「关窗口 = 藏到托盘、网页内核一直留着」，打开过一次就常驻几百 MB；没打开过窗口时托盘启动也会经 `QuickAsk` 导入
+  `gui_tomo` 把 QtWebEngine 模块载进来（本机对照：托盘进程最大常驻 154 MB，去掉后 103 MB）。
+- 渲染进程内存每分钟涨 170–240 MB：只在页面一直出帧时出现，具体是网页内核哪一层在攒没查实（远程没有调试工具）；窗口关掉进程退出、锁屏 / 关屏停画
+  之后这条路就没了，复测时看窗口开着的那段内存曲线。
+- 录制机登录页还有一个页面缺陷（**登录页按用户 10-17「登录页不动」没改，要不要改请用户定**）：画点阵的循环只在页面看不见时停，`visibilitychange`
+  变回看得见时又另起一个 `requestAnimationFrame(draw)`，而停住时排着的那一帧回来后照样续上——每最小化 / 还原一次就多一条画点阵的循环，越开越费。
+  〔用户 10-18 授权只修这个循环缺陷（样子、布局、文案不动）：分支 `pearnly/login-dots-loop`（基于 `origin/main` `3a33e066`）改
+  `scripts/build-ai-entry.py` 并重新生成入口第一页与 `pearnly-ai` 主题脚本；任何时候最多一条绘制循环，看不见时取消排着的那一帧、停画，
+  改窗口大小只重画不另起（原来每次 resize 也多一条）。无界面 Chrome 实测切换 10 次 + 改 3 次大小：旧版排着的帧 15 个、450 次回调 / 秒，
+  新版始终 1 个（看不见时 0）、30 次 / 秒，前后截图逐像素一致。提交 `748f15ac`，本地，未推送、未合入 main、未部署。〕
+  录制机渲染主线程 69–80%（办公室对话页只有 18%）与此相符。
+
+**纯后台（窗口关着也有）：每次新建 HTTPS 客户端约 250 ms CPU。** 按需请求线程每 15 秒、文件夹线程每分钟都新建一个 httpx 客户端，每次都新建 SSL
+上下文、把 certifi 的一百多张根证书重新解析一遍（Windows 上 Python 3.11 自带 OpenSSL 3.0，这一步出名地慢），再重新握手。2 秒一次的采样里按需请求线程
+每 15–16 秒一个 250–280 ms 的尖峰，文件夹线程每 60 秒一个约 280 ms 的尖峰，其余时间都是 0；按需请求一轮只做「新建客户端 + 发一个请求」，CPU 都在这里
+（单次拆成「解析证书 / 握手 / 请求」各占多少是推断，复测看尖峰是否消失）。在快的 i5 上合计约 2% 单核，老电脑上成倍。文件夹计数本身（`survey`）在
+办公室那台上可以忽略，没改。
+
+**DISPLAY 请求：** `SetThreadExecutionState` 的 DISPLAY / SYSTEM 只是两个标志，保持唤醒线程每 15 秒醒一次，本身不占 CPU、不会让风扇转。但它让屏幕
+永远不自动关（现代待机电脑上就是这样设计的，D8 待实测定默认值，这次不改口径〔10-18 用户定用电池默认不保持，见「D8」〕），屏幕不关、会话也就不会因为关屏自动锁上——CC 窗口开着时，原来页面会
+一直出帧到天亮。改完以后窗口关着就没有网页内核；窗口开着但锁了屏会停画；**窗口开着、不锁屏、屏幕又被 DISPLAY 留着亮着** 时页面仍按它自己的动画出帧，
+这一条取决于页面动画（上面登录页那条）与 D8 的默认值。
+
+### 03:15:48 重启的原因（不是 CC 的缺陷）
+
+- 应用程序日志：`Microsoft-Windows-RestartManager` 会话 10000 / 10001 在 03:15:08 开始、03:15:49 结束，用户 `skin3`（前一次 03:12:04–03:13:14，
+  即测试窗口 README 记的 03:13:14 那次 1.6.0 → 1.7.0 安装）；安装目录 `unins000.exe` 03:15:14 新建、`unins000.dat` 03:15:38 改过——03:15 又跑了一次安装程序。
+- 安装程序 `PrepareToInstall` 先 `taskkill /F /IM companion.exe`：旧进程（pid 13736）是被强杀的，所以 03:14:25 心跳之后日志里没有退出或报错。
+- 新进程 pid 13548 的命令行是 `companion.exe`（**没有 `--background`**），父进程 2800 已不在，主线程建于 03:15:48.386，早于 RestartManager 会话结束
+  （03:15:49）：是安装程序结束前的 `[Run]` 拉起的。`installer.iss` 里静默安装（`/SILENT`、`/VERYSILENT`）走 `--background` 那一行，带
+  `skipifsilent` 的无参数那一行只在**非静默**安装（完成页「Launch CC」）时跑——所以 03:15 那次是一次非静默安装，以 skin3 身份。CC 自己的自动更新
+  走 `/VERYSILENT`，装完是 `--background`；activity.log 也没有「发现新版 / 正在更新 / 自愈重启」的记录；任务计划程序操作日志在这台上没开。
+- 结论：重启是 03:15 那次安装（多半是测试窗口自己的装包步骤又跑了一次，且没带静默参数），不是 1.7.0 的看门狗、更新检查、单实例或计划任务。
+  它的后果正是上面的 CPU：非静默安装完直接打开 CC 窗口，窗口一直开着。录制机 03:10:13–03:10:38 那次是静默安装，起来的是 `--background`，对得上。
+  请测试窗口核对自己 03:15 的装包命令。
+
+### 改法（不改功能、协议、文案）
+
+1. **托盘进程不加载网页内核，CC 窗口单独一个进程**（`70b65896`）：`companion.exe --window`（`window_main.py`）在要打开窗口时由托盘拉起
+   （`window_link.WindowHost`），关窗口就退出，QtWebEngineProcess 随之退出；正在回复（页面 `window.tomo.busy()`，`frontend/assistant/src/lib/desktop.ts`
+   新加）时先藏起来，每 3 秒问一次，回复完、通知弹出后再退（最多等 30 分钟；旧页面没有 `busy` 当没在回复）。托盘退出、管道断了窗口进程也退。
+   两边经本用户的本地管道说话（`QLocalServer` 只本用户可连，拉起时经环境变量给一次性口令，`hello` 口令不对就断开；一行一条 JSON；收到的先排队、
+   回到事件循环再逐条处理，处理时可以弹框、等对方回复）。对话页的桥照旧在托盘里的 `tomo_bridge.TomoBridge` 应答（只在 `*.pearnly.com/assistant`
+   对话页、`pick_folder` 核对站点都不变），窗口进程的 `RemoteBridge` 转过去，窗口按钮在窗口进程本地做；选择文件夹框由托盘请窗口进程弹，以 CC 窗口为父、
+   模态（同原来）。窗口里的通知交托盘弹（`notice:<编号>` 去重不变），点了转回窗口；窗口进程已退出就打开窗口，下载完成的「在文件夹中显示」托盘自己做。
+   快捷输入条与 `reveal` 挪到 `gui_quick.py`，图标挪到 `gui_icon.py`；窗口进程日志写 `logs/window.log`（不和托盘抢着轮转 companion.log）；
+   打包入口 `launcher_companion.py` 见到 `--window` 直接进窗口（不导入取任务 / 直写那一套），`main.py` 的 `--window` 在单实例锁之前分出去。
+   自动更新「窗口开着且在最前面先不装」改看窗口进程报来的状态。
+2. **后台空闲不白花 CPU**（`e13c742a`）：所有 httpx 客户端共用一份 SSL 上下文（`http_tls.py`，`httpx.create_ssl_context()`，与默认完全相同）；
+   按需请求线程每条连接一直用同一个客户端（连接保持），出错、被拒、连接不再在用、线程停下时才关；托盘图标、悬停提示、菜单状态行只在变了时重画
+   （取任务线程每 3 秒报一次「空闲」）。
+3. **窗口开着但没人看得见时停画**（`08792e73`）：窗口进程登记锁屏 / 解锁（`WTSRegisterSessionNotification`）与屏幕开 / 关（`GUID_CONSOLE_DISPLAY_STATE`）
+   通知，锁着或屏幕关着就 `page.setVisible(False)`（动画、重画停，回复与通知照常），解锁 / 亮屏且窗口开着没最小化再设回；窗口被激活时一律清掉这两个标志
+   （`session_watch.py`）。
+4. **从托盘打开窗口时拿到最前面**（`a9ed8a09`）：Windows 只许前台进程抢前台，托盘把权利交给窗口进程（`AllowSetForegroundWindow`：拉起时给新进程号，
+   之后给 `hello` 报的进程号）；再点一次桌面图标的那个进程先放出前台权利再通知托盘。
+
+### 审查（10-18，只读子代理，high）
+
+没有死锁或丢数据的严重问题；1 条中、9 条低 / 存疑，逐条处理（`c25925ba`）：
+
+| # | 发现 | 处理 |
+|---|---|---|
+| 1（中，两个进程实验复现） | 选择文件夹框开着超过 2 分钟：窗口进程的 `call` 先超时，页面报失败，托盘却已改了根目录 / 公司文件夹 | 会弹选择框的 `pick_roots` / `pick_folder` / `add_folder` 不设上限，其余 2 分钟照旧 |
+| 2 | 第一次启动超过 30 秒后又点打开，第二个窗口进程要把网页内核建完才收到「退出」，两个进程同时开同一份网页存储 | 窗口进程连上后先等托盘的第一条命令（最多 5 秒），是 `quit` 就不建窗口直接退 |
+| 3 | 窗口进程没连上就退了：30 秒内再点没反应，之后重拉会重放早先的快捷提问 | 托盘留着进程对象，发现已退出就马上重拉，旧命令丢掉、只做这一次点的 |
+| 4 | 退出 CC 时迟到的 `hello` 仍被收下、窗口闪一下 | 正在退出时一律叫它退，也不再拉起 |
+| 5 | 窗口进程刚退时点通知（毫秒级竞态）；页面实时收到的对话提醒，窗口进程退了以后再点只打开窗口、不打开那段对话 | 没改，记在下面「没做」 |
+| 6 | 口令留在窗口进程环境里会被子进程继承；打包后自己拉起自己沿用 PyInstaller 环境 | 读完就从环境里删掉；拉起时设 `PYINSTALLER_RESET_ENVIRONMENT=1` |
+| 7 | 每开一次窗口托盘里留一个连接对象 | 断开就释放 |
+| 8 | 共用 SSL 上下文以后若有客户端开 HTTP/2 会跨线程改协议列表 | 文件头写明（现在全是 HTTP/1.1，无影响） |
+| 9（存疑） | 回复刚完就退出，「回复完成」通知可能还没经网页内核另一条通道到托盘 | 等着的回复完了再留 1.5 秒才退 |
+| 10 | `window.tomo.busy()` 要先随前端部署；旧页面上关窗即退，回复中关窗的完成通知会丢 | 发布顺序本来就是服务端（含前端）先、CC 桌面版后（D12），复测前确认测试租户前端已是本分支 |
+
+### 取舍
+
+- 每次打开窗口都要新起一个进程、初始化网页内核（本机 Mac 冒烟：拉起到连上 0.2 秒，老电脑要实测）；原来第一次之后再打开是瞬间的。
+- 窗口开着时是两个 companion.exe（托盘 + 窗口），比原来单进程多一份 Python / Qt 运行时；窗口关着时只剩托盘一个。
+- 窗口关着时，只经页面实时通道来的提醒（定时任务提醒、完成简报）等下次打开窗口才看得到——与现在开机自启后还没打开过窗口时一样；文件夹同步带来的提醒照常由托盘弹；
+  关窗时正在进行的回复，完成通知照常弹（窗口进程等回复完再退）。页面实时收到的提醒弹出后窗口进程若已退出，再点它只打开窗口（回到上次的页面），
+  不直接打开那段对话（审查第 5 条）。
+- 窗口开着、有人在看时页面自己的动画照旧（登录页点阵、对话页小猫），属于页面设计，这次没动。
+
+### 测试
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版全量 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1 / httpx 0.28.1 / dbf / pytest 临时虚拟环境） | 935 passed, 41 skipped（基线 901 / 41）。新 `test_window_process.py` 23 条（审查后加 6 条：选择框不限时、没连上就退的重拉、退出中迟到的 hello、打包后独立实例、断开释放、第二个窗口进程不建网页内核就退，另有口令不留给子进程）：托盘进程（含 `main`）一个 WebEngine / WebChannel 模块都不导入、`gui_tray.py` 里也不导入 `gui_tomo`；窗口进程命令与入口；按行收发与坏行 / 超长行；同一进程里真连本地管道：打开时只拉起一次、连上前排着的命令按顺序交过去、口令不对不收、对话页调桥在托盘应答、托盘请窗口弹选择框、状态与通知到托盘、断开后状态清空再打开重新拉起、后连上的第二个窗口进程被叫退出且它说的不算、`bye` 后马上当作已退出、托盘退出叫窗口退出、前台权利交给窗口进程；托盘接窗口转来的请求与通知（「在文件夹中显示」托盘自己做、其余转回、窗口没了就打开窗口）；窗口进程：没在回复关窗即退、在回复等回复完、等的时候又打开就不退、托盘叫退或管道断了就退、托盘命令驱动窗口、通知交托盘、状态只在变了时报、桥只在对话页转发且窗口按钮不绕托盘；页面有 `window.tomo.busy()`；真的 `TomoWindow` 关窗先藏再交出去、「仍在后台运行」只提示一次（子进程里跑）。新 `test_idle_cost.py` 7 条：一份 SSL 上下文跨线程共用且照样校验证书与主机名、源码里每个 `httpx.Client` 都用它、空闲五轮只建一个客户端、被拒 / 网络错丢掉重建、换密钥关旧的、线程停下关掉、托盘五次「空闲」只重画一次。新 `test_session_watch.py` 4 条：锁屏 / 解锁 / 屏幕开关变暗的消息解析、锁屏关屏藏页面解锁亮屏再显示、关着或最小化的窗口不会被解锁弄成看得见、`TomoWindow` 接线。改过的旧测试 4 条只换了观察点（`_tomo` → 窗口管家、`OPEN_WINDOW` → 窗口进程报来的状态、按需请求客户端「每轮关」→「停下时关」），断言没放宽 |
+| 新测试先在改之前跑 | `test_idle_cost.py` 改之前 5 条失败（「线程停下时关掉」那条原来就成立，留作守护）；`test_window_process.py` 在基线源码上收集即失败（没有 `window_link`），其中「托盘不导入 gui_tomo」在基线上不成立 |
+| 本机冒烟（真拉起 `python -m src.companion.main --window`，offscreen） | 拉起到连上 0.2 秒、报来看得见与地址、托盘叫退后窗口进程退出码 0；本机托盘进程最大常驻 103 MB（基线 154 MB，少了 QtWebEngine 模块） |
+| `python3 tests/test_companion_contract.py`、`tests/test_cc_ccs.py`（3.11） | 92 tests OK |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（在 `02ff963f` 上） | 96 步全过，退出码 0（含 `frontend/assistant` 构建与 `check-architecture.py`）；审查修复只动 companion/，之后重跑 CC 全量与架构检查 |
+| `python3 scripts/check-architecture.py` | PASS（0 violations） |
+| `frontend/assistant` `tsc --noEmit` | 通过 |
+
+### 要测试窗口在两台机器上复测（新包由开发窗口用 `companion-build.yml` 从本分支打）
+
+装法照旧：核对安装包、`/VERYSILENT` 装（装完起来的是 `--background`），**别用非静默安装**（完成页会直接打开窗口）。每一步用同一个只读脚本采 30 秒
+（`cc-idle-probe.ps1 -User <skin3|acct> -Seconds 30`），记 companion.exe 个数与各自 CPU%（单核）、WS / 私有 MB、QtWebEngineProcess 个数与 CPU%；
+要看节奏时 `cc-thread-rhythm.ps1 -Tids <线程号…>`（每 2 秒一行，64 秒）。
+
+1. 后台空闲（装完没开过窗口，等 2 分钟）：companion.exe 1 个，**30 秒均值 < 1%**、WS **< 150 MB**；QtWebEngineProcess 0 个；节奏上按需请求线程
+   不再有每 15 秒约 250 ms 的尖峰，只剩心跳 / 文件夹每分钟的小峰。
+2. 打开 CC 窗口（托盘左键）：记从点击到页面出来的秒数；companion.exe 2 个（一个带 `--window`）+ QtWebEngineProcess 1 个；窗口在最前面。
+3. 关窗口（右上角 ×）：约 3 秒内 `--window` 进程与 QtWebEngineProcess 退出；再采 30 秒应回到第 1 步的数。
+4. 发一句话、回复中关窗口：窗口进程留着，回复完弹「回复完成」通知后退出；点通知能打开窗口。
+5. 窗口开着按 Win+L 锁屏，采 30 秒：QtWebEngineProcess 与 companion.exe（窗口进程）CPU 应降到接近 0、内存不再涨；解锁后页面照常。
+6. 回归：托盘「连接与设置」打开设置「连接」一栏；设置里公司「选择文件夹…」弹在 CC 窗口前面、是模态的；Ctrl+Alt+Space 快捷提问能开新对话发出去；
+   对话提醒点开那段对话；窗口开着且在最前面时自动更新等着、点「立即更新」照装；第二次双击桌面图标把已有窗口拿到前面（或打开窗口）。
+7. `powercfg /requests` 照旧（有成员连着就是 DISPLAY + SYSTEM）。
+8. 录制机（没登录）上第 1、3 步同样做；登录页开着时的 CPU 记下来，给「登录页要不要改」做依据。
+
+### 没做 / 拿不准
+
+- 登录页点阵循环每次「看不见 → 看得见」多一条（见根因）：登录页按 10-17 口径不动，要改请用户定（改法是只在没有排着的帧时才重新开始画，或干脆静态）。
+- 对话页小猫的无限动画、登录页背景在「窗口开着、不锁屏、屏幕被 DISPLAY 留着亮着」时仍会出帧：取决于页面设计与 D8 默认值，这次不动。〔10-18：D8 定用电池默认不保持；登录页叠加循环另在 `pearnly/login-dots-loop` 修，见上〕
+- 渲染进程内存为什么在一直出帧时每分钟涨上百 MB 没查实；复测第 2 步开着窗口的那段看内存曲线，若仍涨再单独查。
+- Windows 专属的几处（真的本地管道权限、`AllowSetForegroundWindow`、锁屏 / 关屏消息、打包后 `--window` 入口）Mac 上只能用假的验证，以复测为准。
+- 审查第 5 条：页面实时收到的对话提醒，窗口进程退了以后点它只打开窗口；要直接打开那段对话得让页面把提醒的去处交给桌面端（页面与桥的协议要加一项），这次没做。
+
+## 锁屏 / 最小化停画（10-18 复测后）
+
+来源：测试窗口 10-18 11:27–11:36 在办公室测试机复测 `CC-Setup-1.7.0-test2.exe`（`cbf1ddaf`，记录 `~/pearnly-devtools/test-window/round12/CC桌面版-1.7.0-test2-复测.md`，
+原始输出 `round12/cc170b-*.txt`）：后台空闲达标（0.2%、80 MB、没有网页内核），但**窗口开着 Win+L 锁屏后窗口进程 59%、网页内核 35%**，比锁屏前还略高——
+`08792e73` 的「锁屏停画」在真机上没生效。本节提交 `77df11f1`（本地，未推送）。对话页小猫的无限动画由另一个子代理在 `frontend/` 改，这里只管桌面版一侧。
+
+### 为什么 08792e73 没生效
+
+- 测试机只读核对（10-18 11:4x，`logs/window.log`）：窗口进程 11:32:30 起来，LogonUI（锁屏）11:32:55 起来；日志里**没有**「登记锁屏通知失败」——
+  `WTSRegisterSessionNotification` / `RegisterPowerSettingNotification` 当时都成功了，失败在后面。
+- 通知登记在 CC 窗口（`TomoWindow`）自己的系统句柄上：构造时 `winId()` 建出窗口、登记，然后才 `page.setUrl()`。对话页一开始载入，`QWebEngineView`
+  把渲染控件（Qt Quick 控件，GPU 合成）挂进窗口；Qt 发现顶层窗口要从普通绘制换成 RHI 合成表面，就把窗口的系统句柄**销毁再新建**
+  （Qt 6.11.1 `qwidget.cpp` `QWidget::setParent` 里「Recreating … with current type … to support …」那段 → `QWidgetPrivate::recreate()` =
+  `destroy(); create()`）。登记在旧句柄上的 `WM_WTSSESSION_CHANGE` / `WM_POWERBROADCAST` 从此送到一个已经不存在的窗口，新窗口一条都收不到，
+  页面一直当作看得见、一直按刷新率出帧。
+- 本机证据：Mac 原生平台（cocoa，PySide6 6.11.1）照同样的顺序先 `winId()` 再载页面：载完 `windowHandle()` 换成了另一个对象、表面类型
+  `RasterSurface → MetalSurface`（Windows 上是 Direct3D，测试机窗口进程确实载了 `d3d11.dll` / `dxgi.dll`）。改前对照（旧 `SessionWatch` 原样 +
+  假 Windows 接口，offscreen）：登记在句柄 1，照 Qt 的做法重建后 CC 窗口是 2，活着的窗口里没有 1。
+- 最小化本来就停：`QWebEngineView` 的 hide / show 事件里 Qt 自己 `page.setVisible(False / True)`，最小化时窗口会收到系统发的 hide（本机 offscreen 实测
+  `requestAnimationFrame` 0 帧）。没补，只补记录。
+- 被别的窗口完全挡住、只是失焦：原来都照画（Chrome 在 Windows 上有遮挡判断，Qt 的网页内核没有）。
+
+### 改法（`77df11f1`，只动 companion/）
+
+1. **通知登记到单独的消息窗口**（`visibility_watch._MessageWindow`）：一个从不显示、里面没有控件的 `QWindow`，系统句柄一直不变；它的 `nativeEvent`
+   收锁屏 / 解锁、屏幕关 / 开 / 变暗（变暗仍算看得见）。CC 窗口自己不再接原生消息。Windows 接口用自己的一份 `ctypes.WinDLL`（设函数签名不影响别处）。
+2. **被完全挡住时停**：从 CC 窗口往 Z 序上数（`GetWindow(GW_HWNDPREV)`），看得见、没最小化、不透明（分层窗口要 alpha 255 且不是色键）、不是工具窗 /
+   弹出窗、没被系统藏起来（cloaked）、形状是矩形的窗口才算能挡（与 Chromium 的 Windows 遮挡判断同一套规则），边框用 DWM 看得见的边框（不含系统的隐形
+   拉伸边），最大化的窗口截到它所在屏幕的工作区；CC 窗口在各屏幕工作区里的部分（任务栏下面那截不算）全被盖住才算挡住，拿不准的一律按看得见。
+   CC 窗口在别的虚拟桌面上、整个在屏幕外也算看不见。**连续挡住 3 秒才停**（来回切窗口不闪）。CC 窗口在最前面（激活）时不算；**只是失焦、还露着一块照画**。
+   什么时候重算：系统事件钩子（进程外、只在消息循环里回调）只听前台窗口换了、最小化 / 还原、拖动 / 拉伸结束、cloak / uncloak 这几种低频事件；挡住期间
+   另按进程盯挡着它的那几个进程的窗口移动 / 关闭 / 藏起（光标、输入光标的事件在回调第一行就丢掉）；兜底再算：挡住时每 2 秒、不在最前面又没挡住时
+   每 3 秒（例如前台窗口原地最大化）。CC 窗口两种边框坐标对不上（进程不是按每屏 DPI 算坐标）时不判断遮挡，日志记一次。
+3. **怎么停**：`page.setVisible(False)`——`visibilityState` 变 hidden，`requestAnimationFrame`、CSS 动画、重画都停；**页面脚本照跑**（实时推送来的回复、
+   回复完成的通知、关窗时问 `window.tomo.busy()` 都照常；计时器按浏览器规则降到每秒一次；前端补拉在页面后台时本来就停、回到前台马上补，见
+   `poll-source.ts` 文件头，与浏览器后台标签页一样）。看得见时网页内核按最新内容重画。**不用 `Frozen`**：本机实测冻结后页面计时器 0 次，回复、通知、
+   `busy` 都会卡住。关窗口、最小化照旧由 Qt 自己设，这里只记原因、不去改；被 Qt（视图的 show 事件）设回看得见时再对一次。
+4. **有人要看马上恢复**：CC 窗口被激活、托盘 / 通知 / 快捷提问打开（`show` / `ask` / `open_conversation` / `open_settings` / `click`）时一律当作没锁屏、
+   屏幕亮着、没挡住，当场设回看得见（快捷提问在页面里要等下一帧，不能卡到下一次重算）。
+5. **日志**（不加界面文案）：窗口进程 `logs/window.log` 启动时一行「CC 窗口看不见时停画：锁屏通知已登记、屏幕通知已登记、窗口事件 4 个（登记在消息窗口
+   0x… 上）」；每次停 / 恢复一行「CC 窗口看不见（锁屏 / 屏幕关了 / 最小化 / 被别的窗口完全挡住）：页面已暂停」「CC 窗口看得见：页面已恢复（停了 N 秒）」。
+   原因随 `status` 的新字段 `paused` 报给托盘，托盘在 `logs/companion.log` 记同样两种行（不带秒数）；开 / 关窗口另有日志，不重复记。
+6. `session_watch.py` 改名 `visibility_watch.py`（窗口进程 `WindowController` 里建、退出前撤掉登记与钩子）；`gui_tomo.py` 去掉 `nativeEvent` 与激活时清标志的旧接线。
+
+### 取舍 / 限制
+
+- 被挡住停画时网页那块是窗口底色；切回 CC 时网页内核要重画一帧（几十毫秒），挡住满 3 秒才停就是为了来回切窗口时不闪。挡着的窗口原地变小但没换前台、
+  没拖动（例如点它的「还原」按钮）时，最多等一个兜底周期（2 秒）才画回来——那几秒露出来的部分是底色。
+- 遮挡判断偏保守：工具窗、弹出窗（`WS_POPUP`）、半透明或取不到透明度的分层窗口、不规则窗口都不算挡；**Express 主窗口若是这几类之一，被它挡住就不会停**
+  （复测看日志有没有「被别的窗口完全挡住」）。CC 窗口自己是激活状态时即使被置顶窗口盖住也照画。
+- 不在最前面时每 3 秒兜底算一次：沿 Z 序往上逐个看窗口，一次约几百个系统调用（几毫秒），老电脑上约 0.1% 单核量级（本机没法量 Windows，复测看窗口进程
+  在「失焦但露着」时的 CPU，主要还是页面动画）。
+- 锁屏 / 关屏 / 遮挡都是 Windows 专属接口，Mac 上用假桌面（假的 user32 / dwmapi / gdi32 / wtsapi32）测，**以真机复测为准**。
+
+### 测试
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版全量 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1） | 963 passed, 41 skipped（基线 935 / 41；旧 `test_session_watch.py` 4 条并进新 `test_visibility_watch.py` 30 条，`test_window_process.py` 加 2 条） |
+| 新测试在改前源码（`cbf1ddaf`）上跑 | `test_visibility_watch.py` 收集即失败（没有 `visibility_watch`）；`test_window_process.py` 8 条失败（新的 2 条 + 构造窗口管家的 6 条）。根因那条另用旧 `SessionWatch` 原样对照：重建后登记的句柄不在 |
+| `test_visibility_watch.py` 要点 | 根因：Qt 式重建 CC 窗口（`destroy(); create()`）后，登记通知的句柄仍在一个活着、从不显示的窗口上，经它的 `nativeEvent` 锁屏即停、解锁即画，退出撤掉登记与钩子；锁屏 / 关屏 / 变暗 / 关屏又锁屏的原因与日志；最小化交给 Qt 且解锁不弄醒最小化或关着的窗口；被 Qt 设回看得见时再停；有人用马上恢复；挡住满宽限才停、事件来了马上恢复且只算一次、来回切不停、失焦露着照画、在最前面不算、锁着不重算解锁再算；假桌面上的遮挡判断（最大化盖住、露 7 像素不算、隐形拉伸边不算、两个窗口合起来盖住、十种不算挡的窗口、不透明分层窗口算、只看工作区、最大化边框截到本屏、屏幕外 / 别的虚拟桌面算看不见、坐标对不上与窗口没了按拿不准）；事件钩子只听低频的、按进程盯挡着的、光标事件不管；矩形算术。**真网页内核**（子进程 offscreen，真 `TomoWindow`）：看得见 0.6 秒约 37 帧、失焦露着照样 37 帧、挡住 0 帧且 `visibilityState` hidden、隐藏时脚本照样改页面、点回来照画且是最新内容、锁屏 0 帧解锁照画、最小化 0 帧还原照画 |
+| `test_window_process.py` 新 2 条 | 窗口进程报 `paused`、快捷提问一到马上照画、退出时撤掉；托盘只在开着的窗口停 / 恢复时记 companion.log（开关窗口不记、旧窗口进程不报 `paused` 当在画） |
+| 四份并行重复跑 `test_visibility_watch.py`（模拟慢机器） | 4 × 30 passed |
+| `python3 tests/test_companion_contract.py` | 69 tests OK |
+| `python3 scripts/check-architecture.py` | PASS（0 violations） |
+| 提交钩子（文案闸门暂存快照） | 新增 0 · 拦截 0 |
+
+### 复测口径（替换上一节第 5 条；新包由开发窗口从本分支打）
+
+每个场景先等状态落定再用只读脚本采 30 秒：`~/pearnly-devtools/dev-window/cc-idle-probe.ps1 -User skin3 -Seconds 30`，记**窗口进程**（`--window`）与
+**QtWebEngineProcess** 的 CPU%（单核）与内存；再看 `C:\Users\skin3\AppData\Roaming\Pearnly\logs\window.log` 与同目录 `companion.log` 的状态行。
+
+1. 打开窗口后先看 window.log 第一行附近：「CC 窗口看不见时停画：锁屏通知已登记、屏幕通知已登记、窗口事件 4 个（登记在消息窗口 0x… 上）」。写「登记失败」
+   或没有这一行就不用往下测，把日志带回来。
+2. 对照（窗口开着、在最前面、不操作）：记一次数，应与上次相近（页面动画在画；另一个子代理改动画后会降）。
+3. **锁屏**：Win+L，等 5 秒后采 30 秒——窗口进程与网页内核都应接近 0（单个百分点以内）、内存不再涨；日志「CC 窗口看不见（锁屏）：页面已暂停」。解锁后
+   页面照常，日志「CC 窗口看得见：页面已恢复（停了 N 秒）」。
+4. **最小化**：点最小化，采 30 秒——同样接近 0；日志「（最小化）：页面已暂停」。还原后照常。
+5. **完全遮住**：CC 窗口不最小化，把 Express（或记事本等普通窗口）**最大化**盖住它，等 5 秒（停画要连续挡满 3 秒）后采 30 秒——接近 0；日志
+   「（被别的窗口完全挡住）：页面已暂停」。没有这行而 CPU 没降：记下挡它的是哪个程序（Express 主窗口可能是弹出窗口类型，按规则不算挡）。
+   再把那个窗口还原成小窗口、让 CC 露出一块：应在 2 秒内画回来（日志「已恢复」），露着时照画属于预期。
+6. **只是失焦**：Express 小窗口放在 CC 旁边、点 Express 让 CC 失焦但大部分露着——照画（不该有「已暂停」）。
+7. **关屏**（可选）：屏幕自动关或合盖关屏时同样「（屏幕关了）：页面已暂停」；有成员连着时 DISPLAY 请求让屏幕不自动关，这一条可以跳过。
+8. 回复中验证：发一句较长的问题，回复中把 CC 盖住 / 锁屏 10 秒再回来——回复内容应是最新的、没有丢段；回复完成的通知照常弹。
+9. 远程限制照旧：跨会话看不到窗口、点不到窗口内容，锁屏 / 最小化 / 盖住要人在机器前或用计划任务以 skin3 身份操作，看日志行核对状态。
+
+## 账套清单增量扫描（10-18）
+
+用户口径：「CC 桌面版必须要轻量设计并满足老机器能正常运行使用，架构不对就重构架构」。来源：测试窗口在办公室测试机实测 1.7.0 test3（`b48534d0`）。
+只动 `companion/`；协议、上报格式、写入规则不变（写入照旧只认推送目标里明确选定、当场核过的账套，`dbf_schema.py` 第 419–423 行「目标 == 所选才放行」没动）。
+
+### 现状数字
+
+测试机（只读：`companion.log`、`companion.json` 只看数据根与所选账套、各成员的本机账套清单只数行数，没改任何东西）：
+
+- 这个成员授权了 **17 个数据根**：本机 `C:\PearnlyExpress\70EXP`（101 份）+ `\\Accserver\d$\ACCOUNT\` 下 16 个年度文件夹（1252 份），共 **1353 份账套、可写 679**。
+- 12:25:23 重启 → 12:25:24「先用上次扫到的账套清单 101 个」→ 12:25:24 到 12:29:29 五次心跳都是「上报账套 101 个 · 可写 101 · 科目 0」→ 12:30:31 才
+  「1353 个 · 可写 679 · 科目 133」：**整套扫完约 5 分 7 秒**；测试窗口采样扫描线程约 17% 单核、累计 21.8 秒 CPU，扫完后后台降到 0.3%。
+- 为什么本机清单是 101：10-17 20:59 到 10-18 12:25 心跳一直是 101 个（那段时间 16 个 Accserver 数据根都没读到，日志没有更细的原因），整套重扫把它们
+  去掉，本机清单 `account_sets_<成员>.json` 也被 11:30 那次扫描写成了 101 行。重启后先报的就是这份，等整套重扫完才回到 1353。
+- 科目 0：所选账套的科目表只在整套扫完时随快照带出来，本机不存，重启后到扫完前都没有（心跳不带科目表，服务端保留上一份；网页与日志看到的是 0）。
+
+代码里每次启动做的事（`master_refresh` 第一次整套扫描）：
+
+1. **整盘找新年度文件夹**（每次启动都做）：注册表、桌面 / 开始菜单快捷方式（起一个 PowerShell 子进程解析）、每个盘符与共享按 `*EXP*` 找、再在所有盘符、
+   映射过的共享、「映射网络驱动器」用过的地址、个人文件夹下最多 3 层深层查找（每个起点 8 秒 / 5000 个文件夹，并行，总共 20 秒）。
+2. 17 个数据根各读一次登记表 `secure\SCCOMP.DBF`；**每份账套 ISINFO 打开两次**（公司名一次、默认科目一次，这张表 249 列）、ISPRD 一次（72 列），
+   约 18 次 stat / exists、1 次 `os.access`、1 次打开目录取文件号。公司名等只缓存在内存里，**每次启动都全读**：1353 份 ≈ 4060 次打开 DBF、约两万多次
+   网络元数据调用。
+3. 之后：每 60 秒看一眼 17 个登记表 + 所选账套 GLACC 的大小 / 修改时间，变了整套重扫（内存缓存还在，只 stat）；每 24 小时整套重扫并整盘找；网页「重新读取」
+   整套重扫并整盘找。服务器断开时每 60 秒那一眼要对 16 个够不到的数据根逐个 stat（每个等系统超时）。
+4. 所选账套的目录（商品 / 客户 / 供应商 / 部门 / 记账指纹 / 存货科目组）每 30 分钟读一次：只这一份账套，6–7 次打开 DBF（STMAS、ARMAS、APMAS、ISTAB、
+   STCRD 最多 10 万行、ISACC、GLACC，每个存货科目组另 2 次）——不是这次的问题，没改。
+
+本机量测（Mac，合成账套，列数照测试机本地测试账套的真表头：ISINFO 249 列、ISPRD 72、GLACC 16、SCCOMP 5；300 份账套一个数据根；
+「加 2 毫秒」= 每次 stat / access 加 2 毫秒、每次打开 DBF 加 6 毫秒，模拟局域网共享盘；脚本在本会话临时目录，不进仓库）：
+
+| 场景 | 打开 DBF | stat / exists | CPU | 墙钟 | 墙钟（加 2 毫秒） |
+|---|---|---|---|---|---|
+| 改前：每次启动（首扫、重启都一样） | 902（ISINFO 600、ISPRD 300） | 5408 | 1.6 秒（满一个核） | 1.6 秒 | 26.8 秒 |
+| 改后：头一次（本机没有索引） | 602（ISINFO 300、ISPRD 300） | 2411 | 1.3 秒（限在 15% 个核） | 8.7 秒 | 14.4 秒 |
+| 改后：重启（索引在、文件没变） | **0** | 604 + 300 次 access | 0.02 秒 | 0.09 秒 | 2.7 秒 |
+| 改后：重启前改了一份 ISINFO | 2（就那一份的 ISINFO、ISPRD） | 612 | 0.03 秒 | 0.14 秒 | — |
+
+按这个比例估测试机 1353 份：重启后不再打开账套表，只剩约 2700 次 stat、1353 次 access、1353 次取文件号，CPU 在 1 秒以内；头一次（装新版后第一次启动）
+仍要全读一遍（每份 2 次打开，原来 3 次），CPU 限在 15% 个核。**真机数字以复测为准**。
+
+### 改法（`54aeaa58`，只动 `companion/`；顺带的事件过滤器防护单独在 `afbf68db`）
+
+1. **本机索引** `account_index.py`（新）：每个登记表的非删除行、每份账套 ISINFO / ISPRD 读出来的公司名 / 税号 / 分店号 / 默认科目 / 会计期间、用过的科目表，
+   连同读它们时文件的（大小, 修改时间纳秒），存在 `%APPDATA%\Pearnly\account_index.json`（与 `companion.json` 同目录，不含密钥、令牌或单据内容，
+   1353 份约 0.7 MB）。`account_probe._account_details` 原来的内存缓存换成它；**ISINFO 一份只开一次**（公司名与默认科目一起读，`_read_isinfo`）。
+2. **按指纹只重读变了的**：每份账套两次 stat（ISINFO、ISPRD），与索引一样就不开 DBF；登记表（后台扫描时）、科目表同理。**「可写」「文件号」「网络路径」
+   每一遍都现查**（多台电脑认同一份账套靠文件号，`rescan_soon` 之后报上去的必须是现在的）。推送前核账套（`worker._probe_task_account` →
+   `probe_account_sets`）照旧每次现读登记表。
+3. **启动时先用缓存上报**：账套清单照旧用本机清单；**科目表也先用索引里上次读到的**（`account_probe.cached_chart`，不碰账套文件）→ 第一次心跳就是
+   「1353 个 · 科目 133」，不再先报「科目 0」。
+4. **所选账套优先**：后台扫描先读所选账套的科目表，再读所选账套所在的数据根，其余按原顺序。扫得慢（开始读账套 3 秒后还没完）就先交一份「进行中」快照
+   （`partial`、`scanned_roots`），之后每 10 秒一份：心跳把读完的数据根换成新读到的、其余沿用上次报的（`projection_refresh.merge_partial`，清单不先缩水
+   再长回来）；「进行中」快照照常上报，但**不算网页「重新读取」已完成、不存本机清单、不记新年度文件夹**，等完整快照。扫得快就只有完整快照，与原来一样。
+   每交一份「进行中」快照先存一次索引（扫到一半关机，下次不白读）。
+5. **网络盘断开 / 慢**（`scan_pace.HostGate`，新）：按服务器（`\\服务器\共享`、盘符）每轮先限时 5 秒问一次（只读 stat 这一轮第一个数据根，放在守护线程里，
+   卡住不等、卡着期间不再问第二次）；超时或 Windows 报网络类错误（53、64、67、121、1231……）→ 这台的数据根这一轮全跳过（照旧不报它们），按 1、2、4、8、
+   15 分钟退避，退避期内一次网络读都不做，每 60 秒的登记表检查也不碰它（所以也不会因为它反复整套重扫）；只是文件夹不在 / 没权限不算服务器不在。
+   读到一半某份账套光读文件就超过 15 秒 → 这个数据根这一轮报空、这台服务器进退避。网页「重新读取」不等退避到点，马上再问一次。
+6. **限速、让出 CPU**（`scan_pace.Pace`，新）：每份账套读完按本线程累计 CPU 让出时间，平时不超过 **15% 个核**（网页「重新读取」有人在等时 50%），
+   读网络盘等着的时间也算，所以以读盘为主的扫描几乎不额外变慢。**不改 Windows 线程优先级**（`cb1805d0` 起；`54aeaa58` 曾降一档）：CC 的托盘、拉取任务、
+   扫描共用一个 Python 解释器锁，降了优先级的扫描线程拿着锁时被别的程序抢走 CPU、长时间轮不到，CC 自己的托盘与拉取任务那条线就跟着等锁卡住
+   （优先级反转）；「低优先级」由扫描自己让出 CPU 做到，最多占 15% 个核，其余留给别的程序。
+7. **整盘找新年度文件夹** 不再每次启动都做：距上次满 24 小时才做（时间记在索引里，重启不重找）；网页「重新读取」照旧马上找。
+
+### 缓存位置与失效规则
+
+- 位置：`%APPDATA%\Pearnly\account_index.json`（skin3 是 `C:\Users\skin3\AppData\Roaming\Pearnly\account_index.json`）；本机清单
+  `account_sets_<成员>.json` 照旧（只在完整快照时写）。
+- 键是文件 / 目录路径（不分大小写），值连着读它时的（大小, 修改时间纳秒）：对不上就当没有、重读后覆盖；读的过程中文件又变了，下一遍对不上会再读。
+- 30 天没用到的条目存盘时删掉；科目表只留最近用过的 8 份；文件坏了 / 版本不对 / 读不了 → 当空索引（重读一遍补回来），写盘先写临时文件再整体替换。
+- 删掉这个文件是安全的：下次启动当作头一次，全读一遍。
+
+### 取舍 / 限制
+
+- 头一次（装新版后第一次启动、或删了索引）仍要每份账套读一遍；CPU 限在 15% 个核后，以 CPU 为主的老电脑上墙钟会比原来长（以读网络盘为主时几乎不变），
+  期间心跳按数据根逐步换成新的。
+- 「进行中」快照里还没读到的数据根沿用上次报的那份（最多旧一轮）；完整快照照旧以这一轮读到的为准。
+- 服务器断开时它的账套照旧不报（如实）；退避上限 15 分钟：服务器回来后最多等到下一次再问（第一次失败 1 分钟，连续失败才拉长），网页「重新读取」马上再问。
+- 每遍仍逐份 stat 两个文件、查可写、取文件号：1353 份约 5400 次网络元数据调用（没有 CPU 负担，主要是往返时间），为了文件号与「可写」是现在的，没再省。
+- 优先级、网络类错误码、SMB 超时都是 Windows 上的行为，Mac 上用假的服务器 / 时钟测，**以真机复测为准**。
+
+### 测试
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版全量 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1） | 976 passed, 41 skipped（基线 963 / 41；新 `test_account_index.py` 13 条） |
+| 新测试在改前源码（`b48534d0`，临时工作树，用完已删）上跑 | 当时的 12 条里 11 条失败、1 条通过（通过的是「推送前照旧现读登记表」，本来就该不变）：重启后 ISINFO 8 次（一份两次）、改了一份账套重启后 ISINFO 6 次 + ISPRD 3 次 + 登记表 + 科目表全重读、重启后第一次心跳科目表为空（`None`）、「重新读取」被进行中快照提前回完成、重启后又整盘找一遍、其余新模块不存在 |
+| `test_account_index.py` 要点 | 首扫写索引、重启后一份 DBF 都不开且结果一样；改一份 ISINFO 只重读那一份、登记表变了只重读登记表与新账套；推送前照旧现读登记表；重启后第一次心跳就带上次的账套清单与科目表；所选账套所在的数据根先读、进行中快照带科目表、心跳合并不缩水、最终顺序照旧；进行中快照不回「重新读取」已完成、不存本机清单；服务器卡住只等 0.2 秒（测试值）、同一台只问一次、退避期内下一遍不卡也不再问；网络类错误退避 60 / 120 秒、文件夹不在不算；读到一半服务器没响应停在第一份、同服务器其它数据根退避；「重新读取」马上再问退避中的服务器；CPU 不超过 duty；24 小时内重启不整盘找、「重新读取」马上找；索引坏文件当空、30 天清理、科目表留 8 份、不含密钥 |
+| 顺带修的一处（单独提交） | 加了新测试文件后，`test_visibility_watch.py::test_locking_stops_the_cover_checks_and_unlocking_rechecks` 在全量里稳定失败（单独跑通过）：前面用例留下的 `VisibilityWatch` 被 Python 循环回收清到一半（属性已清、Qt 对象还挂着过滤器）时，正好在 `show()` 里收到事件，`eventFilter` 读 `_window` 报错。`eventFilter` 改为属性已清就什么都不做（正常时行为不变）；之后全量连跑 5 遍都是 976 passed |
+| 已有测试按新接缝改了两处 | `test_master_refresh.py` 断言扫描时多传 `pace`、`reuse_registry`；`test_write_dispatch.py` 身份字段那条改为桩登记表行（扫描不再经 `probe_account_sets`） |
+| `python3.11 tests/test_companion_contract.py` | 69 tests OK（本机系统 python3 是 3.9，另有 2 条 `type | None` 语法错误，基线同样有，CI 是 3.12） |
+| `python3 scripts/check-architecture.py` | PASS（0 violations） |
+
+### Windows 上测试不过与修正（10-18，`6732fd2e`、`bfd69eaa`、`cb1805d0`、`3f59d646`）
+
+推上去的 `902e71f1` 在 windows-latest 上 5 failed（Companion checks / companion-build run 39103496493），Mac 上全过。原因与改法：
+
+1. **本机盘也被当成了服务器**：Windows 上本机路径 `C:\…` 有盘符，关卡把 `C:` 也当一台「服务器」去问。两条关卡测试里假的「卡住 / 不通」落到了本机数据根上
+   （本机的账套整个没报）；真机上同理，老硬盘一时读得慢就可能把本机（通常是所选的那份）账套当成服务器不在、一分钟不报。改为只对 UNC 共享与
+   `GetDriveTypeW` 不是固定盘 / 移动盘 / 光驱 / 内存盘的盘符设关卡；本机盘读一份账套很慢也只是慢，不判「服务器卡住」。另把 1201（记住的网络盘没连上）、
+   1203（网络路径不对或网络不通）算作网络类错误；查盘符类型用自己的一份 kernel32、签名写明。
+2. **测试里的假 UNC 数据根被真的去问了**：`test_master_refresh.py` 两条用 `\\server\books` 这类假数据根（扫描读盘几步都是桩），新关卡在 Windows 上真去
+   `stat`，得到「找不到网络路径」、整台跳过。测试默认的关卡换成不碰网络的（conftest），专测关卡的用例自己放关卡与假的 stat。
+3. **`test_window_process.py::test_closed_connections_are_released_in_the_tray` 是改前就有的不稳**：测试管道名用 `time.monotonic_ns()`，Windows 上 Python 3.11 的
+   monotonic 是 `GetTickCount64`、15.625 毫秒才跳一次（测试机 3.11.9 只读实测：47 毫秒里只有 4 个不同的值）；前一条用例很快，两个用例拿到同一个名字，
+   客户端连到上一条用例还开着的管道（日志「CC 窗口管道：口令不对，断开」）。改为每个用例一个随机管道名；正式的管道名按 Windows 用户名，一个用户一个托盘，不受影响。
+4. **第二轮（`2f501e3d`，1 failed）`test_worker_payload_gate.py::test_slow_catalog_scan_never_blocks_heartbeat_or_polling`**：测试只在 `with` 里替换目录扫描，
+   心跳一返回就换回真的；后台线程什么时候真去调由解释器排。原来新线程一启动就能调到；`54aeaa58` 在目录线程开头加了降优先级（Windows 上第一次要载入
+   `kernel32`），新线程晚了几毫秒，调到的已是真的扫描。处理：去掉降优先级（见改法第 6 条，`cb1805d0`）；测试改为等后台线程调到桩之后才离开 `with`
+   （`3f59d646`，断言不变）。
+
+### 复测口径（新包由开发窗口用 `companion-build.yml` 从本分支打；按记忆以 skin3 普通权限重启 CC）
+
+只读看 `C:\Users\skin3\AppData\Roaming\Pearnly\logs\companion.log` 的 heartbeat 行；CPU 用 `~/pearnly-devtools/dev-window/cc-idle-probe.ps1 -User skin3 -Seconds 30`
+（或 `cc-thread-rhythm.ps1`）采后台进程（`--background`）按线程的 CPU。
+
+1. **装新版后第一次启动**（本机还没有索引）：第一次心跳应是「上报账套 1353 个 · 可写 679 · 科目 0」（本机清单是 12:30 那份 1353；科目表这一次还没进索引）。
+   扫描期间采 30 秒：扫描线程应在 **15% 单核以内**（原来约 17%、连续 5 分钟）；记下从「托盘常驻」到第一条「科目 133」、到「账套清单读完：N 份」（若有让出 CPU）
+   与心跳变成完整清单各用了多久。扫完后确认 `account_index.json` 在（只看大小，约 0.7 MB）。
+2. **再重启一次**（重点）：日志应有「本机账套索引：578 个账套文件夹、17 个登记表」（测试机 test4 实测 578，见下节；test4 包里这行写作「578 份账套」）「先用上次扫到的账套清单 1353 个」「先用上次读到的科目表 133 个」，
+   **第一次心跳就是「1353 个 · 可写 679 · 科目 133」**；完整快照预计在第一、二次心跳之间就到（几秒到几十秒，主要是 5400 次网络元数据往返）。
+   重启后马上连采两次 30 秒：后台进程应只有短暂的小峰，之后回到约 0.3%。不应再出现连续几分钟的工作线程占用。
+3. **网络盘断开**（可选，要人在机器前拔网线或断 Wi-Fi）：下一次心跳 Accserver 的 1252 份不再报（只剩 101 份），日志「服务器 … 读不到，60 秒后再试（连续第 1 次）」，
+   之后不应每分钟都卡几十秒；接回网络后最多等到下一次再问（1–15 分钟）就回到 1353，或在网页点「重新读取」马上回来。
+4. 不在 S: / Accserver 上写任何文件：本次只读（stat、只读打开 DBF），复测时也只看日志与本机文件。
+
+### test4 真机两个疑问（10-18 14:07–14:12）的核查
+
+测试窗口回报：test4（`8e094e6d`）上以 skin3 不带参数再启动一次 companion.exe，托盘没记「打开 CC 窗口（窗口进程）」（14:07、14:08、14:12）；
+14:09 结束全部 CC 后不带参数启动，没有进程、没写日志；另问重启日志「本机账套索引：578 份账套」为什么不是 1353。只读核查（日志、进程、管道、事件日志、
+电源，没改机器上任何东西）：
+
+1. **578 是对的、存全了**：本机清单 1353 行里只有 679 行的账套文件夹在这台电脑上够得到（可写 679），这 679 行是 **578 个不同的账套文件夹**
+   （几个年度文件夹的登记表登记了同一个文件夹，例如 `64EXP\63EXP` 与 `63EXP`）；索引里 578 条、登记表 17 个、够得到的账套没有一个不在索引里。
+   其余 674 行的文件夹在这台电脑上不存在（没有 ISINFO / ISPRD 可读，原来报的详情也是空的），没有可存的。日志改为「本机账套索引：578 个账套文件夹、
+   17 个登记表」，免得与清单的「账套 N 个」混淆。
+2. **再启动一次打不开窗口：同一份程序在干净的 Windows 上复现不出来**。test3 → test4 的改动不碰启动路径（`main.py`、`single_instance.py`、
+   `instance_channel.py`、`gui_tray.py`、`window_link.py`、打包都没变）；新加的打包启动冒烟（`packaging/smoke_launch.py`，Companion checks 与
+   Companion test build 打包后都跑）在 windows-latest 上用打出来的 `companion.exe`、全新 %APPDATA% 照用户的用法走：`--background` 起来 →
+   再不带参数启动一次（自己很快退出，已在跑的托盘记「打开 CC 窗口（窗口进程）」）→ 全部结束后不带参数启动（托盘起来并打开窗口），
+   run 39107465423 两段都通过（产品代码与 test4 相同）。测试机上托盘这时也在正常听两条本机管道（`PearnlyTomo-skin3`、`PearnlyCCWindow-skin3` 都在），
+   主线程状态与 test2 / test3 时一样。
+3. **测试机那几次启动多半根本没跑起来**：测试机 **12:26:25 起一直用电池**（系统日志 Kernel-Power 105；现在 PowerLineStatus Offline、68%）；
+   test3 那次成功（12:26:06）在换成电池前 19 秒。Windows 计划任务默认「用电池时不启动」（登记时没加 `-AllowStartIfOnBatteries` 就一直排队，删掉任务
+   就什么都不留，见记忆 office-windows-test-pc）；同一批 14:07 以 skin3 计划任务做的 LockWorkStation 也没生效。测试机任务计划程序的运行日志没开、
+   进程创建审计没开，没法直接证明，**请测试窗口复测时**：任务登记加 `-Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
+   -DontStopIfGoingOnBatteries)`（或插上电源），删任务前先看 `Get-ScheduledTaskInfo` 的 `LastTaskResult`（267011 = 从没跑过），再按 test4 的
+   两步做；能请用户在机器前双击桌面图标一次最直接。若插电 / 任务确实跑了还复现，带上那一刻的 companion.log 与 `Get-Process companion` 回来。
+
+## 第 7 批：lab 迁移与回读（10-18）
+
+交接 D3「迁移后回读」。对象是测试机 lab（cowork 栈）上的 testcowork：`lab-start`（`PEARNLY_TESTENV_REFRESH=1`）从**线上 testcowork** 重新导出导入，
+挂上本分支实时源码后迁移。lab 镜像 `49cbba82…`，与线上 cowork-web 同一份（线上 revision `afc615bb`，10-18 04:18 UTC 起运行）。
+只读做法：`pearnly-testenv-cowork-cowork-web-1` 里 `bench --site testcowork.pearnly.com mariadb`，会话设成只读事务，只跑 SELECT；没有 exec 进 mariadb 容器。
+唯一的写操作是第 4 项按交接要求重跑一次 `bench migrate`。线上对照值只取了一次：一次 SSH，在 `pearnly-production-cowork-web-1` 里对 testcowork 跑同样的只读 SELECT
+（10:38 UTC）。线上 testcowork 是旧结构，补丁只到 `v0_0_18`。测试机上的临时脚本用完已删。时间口径：Patch Log、各表 `creation` / `modified` 是站点时间（UTC+7），
+密钥 `last_seen_at`、登记 `registered_at` 是 UTC。
+
+### 第一次迁移失败与 5db1462d
+
+第一次 `migrate` 跑完了 `v0_0_19_companion_devices`（Patch Log 17:28:36），到 `v0_0_20_express_account_sets` 时报 AttributeError。原因是账套登记、可达、账套资料这三张表
+共用连接的 `ConnectionDocument.before_validate`，而这个守卫无条件写 `self.client`，这三张表没有 `client` 字段。`5db1462d` 改成只在有 `client` 字段的 DocType 上补空值，
+另加 `tests/test_cowork_connection_controller.py`。重跑后 `v0_0_20`–`v0_0_23` 在 17:31:28–29 执行完。`v0_0_20` 失败那次的写入随补丁事务回滚，重跑后没有残留：
+可达行全部对得上登记，孤儿行 0。
+
+### 回读数字（迁移刚完成时，以及重跑 migrate 前后）
+
+| 项 | lab（迁移后） | 线上 testcowork（迁移前） | 判定 |
+|---|---|---|---|
+| Patch Log `v0_0_19`–`v0_0_23` | 5 个都在，每个只有 1 条 | 没有（到 `v0_0_18`） | 通过 |
+| 工作空间 | 1 | 1 | — |
+| 连接 `config_json` MD5 / `record_revision` | MR.ERP `CWEC-283edc03…` `b0df1f51…` / 2；Express `CWEC-0a40b958…` `c7f74141…` / 5 | 两条都相同 | **不变** |
+| 使用名单 MD5、`creation` | 相同 | — | 不变 |
+| 连接 `modified` | 迁移刚完成时与线上相同（Express 16:46:13）。17:37:30 起被 CC 桌面版 1.7.0 的心跳更新，`config_json` 仍不变 | — | 补丁没碰 |
+| 有效密钥 | 2 把（Express 1、MR.ERP 1），都挂上了电脑；密钥行（名、`active_key`、吊销时间）的 MD5 与线上相同 | 2 把 | `active_key` 不变 |
+| 电脑 | 2 台，都没退役：`CCD-63fbcf64…`「DESKTOP-MN2BRKR」（就是办公室测试机），以及 `CCD-3eae81e6…`「MR.ERP」 | 没有电脑表 | 见下面第 2 条发现 |
+| 账套登记 | 1 073 份（Express 连接）。其中 1 070 份来自目录，3 份是定时任务引用、目录里已经没有的键 | 上报清单 `reported_account_sets` 1 353 行 | 合理（1 353 行里有重复路径） |
+| 可达行 | 1 070 行，都在 `CCD-63fbcf64…`，状态全部 `ok`，可写 578 | — | 与 CC 桌面版「578 个账套文件夹」一致 |
+| 账套资料 | 6 份（1 份 routine），都带来源电脑 | — | — |
+| 推送记录（全是证据 v1） | 159 张：success 141、manual 17、cancelled 1；整表 MD5（名、状态、版本、账套键）与线上相同 | 159 张，相同 | 不变 |
+| v1 排队中（prepared + pending）/ 领取中 / 结果不明 | **0 / 0 / 0** | 0 / 0 / 0 | 达到目标 0 |
+| 推送尝试 / 写者锁 | 147 次全部 finished；锁 13 行（account 11、endpoint 2），没有持有者 | 相同 | 不变 |
+| 定时任务 `reader_device` 回填 | **10 / 10**；`rule_revision` / `enabled` / `reader` 的 MD5 与线上相同 | 10 条（9 条启用） | 回填了，任务版本没升 |
+| 定时任务 `company` 回填 | **1 / 10**（那 1 条是停用的任务） | 没有这一列 | 见下面第 3 条发现 |
+| 运行 / 文件 / 公司文件夹 | 运行 19 条都是 sent，没有待发简报的，回填 0；文件 145 行按设计不补；公司文件夹 1 / 1 已回填 | 19 / 145 / 1 | 符合补丁口径 |
+| 按需请求 | 1 张 done，`target_device` / `account_key` 仍为 NULL（补丁只处理 requested / leased） | 1 张 done | 符合 |
+| `all_members` | Express 主连接 `CWEC-0a40b958…` = 1；MR.ERP = 0 | 没有这一列 | 通过。testcowork 只有 1 条 Express 连接，「后建连接不改」这一条在这里没有对象，要在生产 erpcowork 上核（D2 预期：只有 `9f8ad3b2` 设 1） |
+| 记住的选择、公司主档、用户 | 90、4、3（启用 2） | 相同 | 不变 |
+
+### 重跑 migrate（幂等）
+
+10:41:38–10:41:47 UTC 重跑一次 `bench --site testcowork.pearnly.com migrate`，退出码 0，一个补丁都没执行，Patch Log 没有重复行。紧挨着重跑前后各回读一遍，
+上表所有计数、连接 / 密钥 / 推送 / 定时任务的 MD5，以及另外 5 个 MD5（登记、可达、账套资料、任务的电脑与公司、电脑的选择与版本）都完全相同。
+前后唯一的差别是 Express 密钥的 `last_seen_at`（心跳）。**结论：幂等。** 限制：Frappe 按 Patch Log 跳过已执行的补丁，所以这次重跑证明的是迁移整体幂等、
+不会重复执行。补丁代码自身重复执行的幂等，仍以本机测试为准（各批测试里都有重跑断言）。
+
+### Error Log 与报错
+
+- Error Log 从 17:20 起 **0 条**。导入带来的旧记录 137 条，最后一条是 10-15 15:48，与线上相同。第一次迁移的 AttributeError 是命令行报错，不进 Error Log。
+- web、worker、long-worker、scheduler 四个容器从这次启动（10:34 UTC）起的日志里 `Traceback` 都是 0；Scheduled Job Log 从 17:20 起没有行。
+
+### 点名「迁移回读时一起看」的两项
+
+- `readers.moved` 同表子查询（`Cowork Company Folder` 的 `SELECT name … AND company IN (SELECT company FROM 同一张表 …)`）：用不存在的值在 MariaDB 11.8 上
+  照原样跑，返回空；执行计划是半连接 `FirstMatch`，外层走 `reader` 索引，内层走 `company` 索引，没有报 1093 之类的错误。删除是先 SELECT 出名字、再按名字删，
+  不是同表子查询里删。`UPDATE` 的执行计划在只读事务里跑不了（1792），没看。
+- `member_choices`（`access.assignees` 同一条 SQL）：2 人，按全名排序，没有空全名的。第二个测试成员还没加（用户 3 个，启用 2 个），加了之后人数会变成 3。
+
+### 发现的问题与建议
+
+1. **切域名后，测试机上旧的 CC 桌面版进程仍在给线上 testcowork 报到**：线上那把 Express 密钥的 `last_seen_at` 到 10:36:59 UTC 还在更新，lab 上停在导出那一刻
+   10:25:34。测试机上 CC 在 17:37:28 重启之后，17:37:30 起才报到 lab：电脑被认领（有了设备密钥摘要），`full_report_due` 清掉，整份重报以后登记仍是 1 073 份、
+   可达仍是 1 070 / 578。原因多半是 CC 的长连接还连着线上源站，没跟着 DNS 切过去（测试机现在解析到 Cloudflare，到线上 IP 的连接为 0）。线上 testcowork 这期间只多了
+   报到时间，配置与版本都没变，不影响这次对照。**建议**：`lab-start` 切完域名后重启测试机和笔记本上的 CC 桌面版，再开始测，写进第 7 批的步骤里。
+2. **给 MR.ERP 连接的密钥也补了一台旧电脑**：`v0_0_19` 不分连接种类，所有有效密钥都补电脑。MR.ERP 那把密钥 10-13 签发后从没报到，所以电脑名退到了连接名「MR.ERP」，
+   设备密钥摘要为空。「电脑」列表不列没在线、没报过版本的电脑（`rules.computers`），用户看不到它，不算缺陷。等那台电脑用 1.7.0 在 MR.ERP 上 `device_hello` 认领，
+   或者吊销这把密钥时由 `retire_orphan` 退役。生产 erpcowork 上 MR.ERP 没有密钥（D2），不会出现这种情况。
+3. **9 条启用的定时任务没补上公司，而且指向没有电脑够得到的账套**：这 9 条只指向 3 份账套，都是 `C:\Account\70EXP` 下的 DEMO 账套。测试机现在上报的目录里没有它们，
+   池里只作为「被引用的键」登记，没有可达行，没有属性，所以 `company_of` 认不出公司，按补丁口径留空（照旧推往固定账套）。这不是迁移缺陷。但这 9 条一旦到点运行，
+   推送会因为没有电脑能写而变成 `push.no_writer`。其中 3 条的账套正是公司主档 `rsr95oj3p1` 建档时用的那份。**建议**：第 7 批做定时任务联调前，由测试窗口决定
+   这 9 条测试任务是停用，还是改指测试机现在的账套（`C:\PearnlyExpress\70EXP`）。另外，只读回读看不出它们会不会在联调时被触发。
+4. 没有发现会挡第 7 批或部署的问题。生产 erpcowork 部署后的回读仍按 D2 的预期做：电脑 2 台、`reader_device` 回填 0、`all_members` 只设在 `9f8ad3b2`、
+   两条 Express 连接 `record_revision` = 3 且 `config_json` 不变、v1 排队中 / 领取中为 0。
+
+没做 / 没验：并发加锁与 1020、HTTP 链、两台真机联调（第 7 批其余各项）；`readers.moved` 的 UPDATE / DELETE 执行计划；补丁代码自身的重跑（见上面的限制）。
+
+## 第 7 批：测试中发现与修复（10-18 晚，lab，测试窗口实测）
+
+| 条目 | 现象（lab 实测） | 处理 | 提交 |
+|---|---|---|---|
+| B6 排队回复 | 录制机关着、新成员的单排队，CC 回「已录入「นิภา…」的收据……目前状态是已排队」，前后矛盾 | 排队说明写明还没入账、回复开头也不说已录入；B8 复测：「已送入……目前状态是已排队，还没有确认写入 Express」 | dc9ff711 |
+| B8 名称 | 中文排队回复写「CC Desktop」 | Windows 端正式名称这句从 cowork_companion_status 的说明挪进每轮都带的 GUIDANCE（仍只说一次） | 19a00519 |
+| B8「已在线」 | 两台都退出了，CC 说「CC Desktop 已在线」 | 不改：测试用 Stop-Process 直接结束进程，没走托盘退出（托盘退出会发下线，gui_tray.py signal_offline），3 分钟内按在线算 | — |
+| B7 待处理页死路 | 转账凭条停在「待选账套」，选账套后推送停在 document_policy_needed_payment_evidence，服务端放回「待选账套」，换哪份都一样；页面把码原样标红 | 被「录不录」挡下时选的账套照收、原因记成要选录不录，转成一般待处理（交给 CC / 复核页）；待处理页显示词条的话（reason_label）。复测通过 | 953a5a4c |
+| B7 CC 选录不录存不上 | cowork_choose_document_policy 的 document 没说明，CC 交了「transfer slip」「payment_evidence」，两次存不上，卡片退回列英文参数 | document 写明是等这个选择的那张单的记录名、不是类别。复测通过：卡片中文「转账凭条 不录入」，保存成功 | c4efee5b |
+| B7 选了以后单还挂着 | 选「不录入」保存后，等这个选择的凭条仍在待处理问同一句，要靠 CC 记得再推 | 选完把这个租户里停在「这类录不录」的单一并了结：不录入记 document_policy_skip_*，待处理不再列；录入清掉原因等人推。复核页同一处（history.document_policy.choose） | 本节提交 |
+| B7 范围说法 | 录不录按租户（工作空间）存，文案与 CC 说「本公司」 | 范围按设计不变（用户 09-26 Cowork 不按公司隔离、10-07 按租户选一次）；文案去掉「本公司 / for this company」，CC 工具说明改成整个工作空间、所有公司 | 本节提交 |
+
+验到的：B4 新成员的活由录制机写、B5 本人的活由测试机写、B6 录制机退出时排队不被抢、回来自动写完；B8 真并发服务端回读（泰国时间）：B706 录制机 18:11:18.109 领、18:11:28.963 回执，B707 测试机 18:11:32.821 才领（第一张回执后 3.9 秒）、18:11:33.704 回执，同一账套键、写者锁放开；D13 定时任务的票由新成员在手机补选，仍由读文件夹的测试机写（HP691018-009），任务结果仍计入定时任务；D12 插拔电保持唤醒切换正常。
+
+### 改已有文案（用户 10-18 晚「涉及到文案的今晚特批，但是不用有口语」）
+
+范围是整个租户，「本公司」会被读成某一家客户公司，所以去掉；问录不录的两条按闸门（出错最多 2 句）收成两句。
+
+| 来源·键 | 角色 | 中文 旧 → 新 | English | ไทย | 日本語 | 标记 | 登记 |
+|---|---|---|---|---|---|---|---|
+| pearnly_cowork·intake.error.document_policy_needed_payment_evidence | 出错 | 此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据… → 此单据为转账凭条。选择是否录入，所有同类单据将按此处理 | This is a transfer slip. Ente… → This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice | เอกสารนี้เป็นสลิปโอนเงิน บริษ… → เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้ | これは振込明細です。この会社でこの種類を入力しますか。一度… → これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます |  | 未登记 |
+| pearnly_cowork·intake.error.document_policy_needed_withholding_certificate | 出错 | 此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据… → 此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理 | This is a withholding tax cer… → This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice | เอกสารนี้เป็นหนังสือรับรองการ… → เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้ | これは源泉徴収証明書（50 ทวิ）です。この会社でこの種… → これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます | R-LEN↑ R-PAREN | 未登记 |
+| pearnly_cowork·intake.error.document_policy_skip_payment_evidence | 出错 | 本公司不录入转账凭条，此单据不推送 → 转账凭条不录入，此单据不推送 | This company does not enter t… → Transfer slips are not entered; this one is not sent | บริษัทนี้ไม่บันทึกสลิปโอนเงิน… → ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้ | この会社では振込明細を入力しないため、送信しません → 振込明細は入力しないため、送信しません |  | 2026-10-18 docs/work/2026-10-15-multi-desktop-build.md |
+| pearnly_cowork·intake.error.document_policy_skip_withholding_certificate | 出错 | 本公司不录入预扣税凭证（50 ทวิ），此单据不推送 → 预扣税凭证（50 ทวิ）不录入，此单据不推送 | This company does not enter w… → Withholding tax certificates (50 Tawi) are not entered; this one is not sent | บริษัทนี้ไม่บันทึกหนังสือรับร… → ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้ | この会社では源泉徴収証明書（50 ทวิ）を入力しないため… → 源泉徴収証明書（50 ทวิ）は入力しないため、送信しません | R-PAREN | 2026-10-18 docs/work/2026-10-15-multi-desktop-build.md |
+
+### 改已有文案：CC 桌面版连接提示（C10 ② / C11，10-18 晚，同上特批）
+
+1.7.0 起没有配对码，电脑被移除或成员被收窄后回设置点「连接」；池里的电脑不属于某一份账套，连上时不再写账套名。
+
+| 来源·键 | 角色 | 中文 旧 → 新 | English | ไทย | 日本語 | 标记 | 登记 |
+|---|---|---|---|---|---|---|---|
+| companion·log_paired | 未知 | 配对成功，账套：{company}。 → 已连接 Pearnly。 | — | จับคู่สำเร็จ ชุดบัญชี: {compa… → เชื่อมต่อ Pearnly แล้ว | — |  | 未登记 |
+| companion·off_auth | 未知 | 配对码已失效，请重新配对 → 连接已失效，请在设置中重新连接 | — | รหัสจับคู่ใช้งานไม่ได้แล้ว กร… → การเชื่อมต่อใช้งานไม่ได้แล้ว กรุณาเชื่อมต่อใหม่ในการตั้งค่า | — |  | 未登记 |
+
+### 改已有文案：电脑对单据失去权限（C10 ③，10-18 晚，同上特批）
+
+电脑被移除、成员被收窄后，排在那台电脑上的单转人工时待处理显示的原因；原文「队列的访问权限」是内部说法。
+
+| 来源·键 | 角色 | 中文 旧 → 新 | English | ไทย | 日本語 | 标记 | 登记 |
+|---|---|---|---|---|---|---|---|
+| pearnly_cowork·companion.queue_access_revoked | 未知 | CC 桌面版队列的访问权限已撤销。 → 此电脑已不能处理该单据 | Access to the CC Desktop queu… → This computer can no longer handle this document | สิทธิ์เข้าถึงคิวงานของ CC เดส… → คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว | CC デスクトップのキューへのアクセス権が取り消されました。 → このコンピューターではこの書類を処理できなくなりました |  | 未登记 |
+
+### 第 7 批结论（10-18 20:05，lab，multi-desktop 至 4d3a55e0 / 网页包 index.R9AeXN5K.js，桌面版 test6 = 7f89fdaf）
+
+- **通过**：A1–A3（两台上线、经 P: 认成同一份账套，按身份键 101 份共有、0 不一致）；B4–B8（谁的活谁的电脑做、本人的活本机写、电脑退出排队不被抢且回来自动写完、写者锁按物理账套互斥：第二张在第一张回执 3.9 秒后才领）；B7 / D13（定时任务的票由别人补选仍由读文件夹的电脑写）；C10 ①⑤（读者换电脑时已排的单仍等原电脑、回来只写一次；离线时主档选项照常）；C10 ③（收窄名单后被收窄的人排在那台的单转人工 companion.queue_access_revoked，待处理计数 +1 对得上）；C10 ② 移除（密钥立即 401、列表少一行）；C11 rejoin（新电脑记录、心跳恢复）；D12（保持唤醒开关、拔插电、托盘退出放开）；D13（录制机合盖 19:59:37 进现代待机、20:01:26 醒，计划任务 RecKeepAwake / RecAgent 不在）；E 段多人共看 / 升规则 / 删规则；F（测试机首页 4.9%、被挡 / 最小化 / 锁屏暂停与恢复、关窗约 3 秒退、后台约 0.3% / 25–31 MB；录制机被动 1.5%）。
+- **未测**：C9 与旧电脑改挂（两台都已不是 1.6）；C10 ⑥ 询问框卡住写入线程（要人在电脑前）；E 段「用不了的连接」一侧（只有一条连接，代码已核：只删本人可用连接上的记忆）、分类映射不问费用科目、忘掉历史写文件不跟事务。
+- **当晚修的**：见上「测试中发现与修复」表，另加 0d896cd4 合入 main（首页小猫只播几轮的修复此前没进本分支）、4d3a55e0（桌面版连接提示去掉「配对」、定时任务写接口死锁重试）、本节提交（电脑对单据失去权限的原因文案）。登录页动画只播一次在 main 05ff9e28，随部署后量。
+- **用户待定**：定时任务换读文件夹的电脑时，已排着的单要不要转给新电脑（现在不转）。
+- 识别花费：第 7 批 7 张，全晚约 11.02 美元（上限 50）。

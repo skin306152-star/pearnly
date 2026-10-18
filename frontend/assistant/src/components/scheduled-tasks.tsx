@@ -23,6 +23,7 @@
 
 import {
   AlertCircleIcon,
+  ChevronRightIcon,
   ClockIcon,
   ExternalLinkIcon,
   FolderIcon,
@@ -204,7 +205,9 @@ function Modal({ open, onClose, title, children, footer, wide }: {
           className={`cc-card cc-enter cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
+              <Marquee className="block truncate">{title}</Marquee>
+            </DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>
@@ -404,7 +407,7 @@ export function ScheduledTasks() {
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-page">
         <div className="cc-page-head">
-          <h1 className="cc-page-title">{tr("cowork.folder.title")}</h1>
+          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{tr("cowork.folder.title")}</Marquee></h1>
           <button type="button" className="cc-btn-sm" data-primary="" onClick={() => newTask(taskCompany)}>
             <PlusIcon />
             {tr("cowork.folder.new")}
@@ -422,11 +425,11 @@ export function ScheduledTasks() {
               {companyTitle}
               <button
                 type="button"
-                className="-me-1 flex items-center"
+                className="cc-chip-x"
                 aria-label={t("close")}
                 onClick={() => useCompanyNav.setState({ taskCompany: "", taskFocus: "" })}
               >
-                <XIcon className="size-3.5" />
+                <XIcon />
               </button>
             </span>
           </div>
@@ -491,7 +494,7 @@ export function ScheduledTasks() {
                   {rule.enabled ? (
                     <button
                       type="button"
-                      className="cc-icon-btn"
+                      className="cc-row-btn cc-tap"
                       title={tr("cowork.folder.runNow")}
                       aria-label={tr("cowork.folder.runNow")}
                       onClick={async () => {
@@ -504,7 +507,7 @@ export function ScheduledTasks() {
                     </button>
                   ) : null}
                   <DropdownMenu.Root>
-                    <DropdownMenu.Trigger className="cc-icon-btn" aria-label={t("more")}>
+                    <DropdownMenu.Trigger className="cc-row-btn cc-tap" aria-label={t("more")}>
                       <MoreHorizontalIcon />
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Portal>
@@ -916,11 +919,12 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                 const state = rule ? null : describe(a.adapter, snapshot, tr);
                 const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
                 const picked = target === a.adapter;
+                // 卡片的内边距在选择按钮里：整张卡都能点，手机点按区至少 44（同对话里的文件卡，按钮排查 H11；第 11 轮复量附录 #83）
                 return (
-                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-2 px-3 py-2.5" data-selected={picked || undefined}>
+                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 flex-col items-start text-start disabled:cursor-default"
+                      className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"
                       style={!picked && (rule || !ok) ? { opacity: 0.5 } : undefined}
                       disabled={Boolean(rule) || !ok}
                       onClick={() => {
@@ -932,7 +936,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                       {state && <span className="text-xs" style={{ color: state.tone === "ok" ? "var(--cc-success)" : state.tone === "bad" ? "var(--cc-danger)" : "var(--cc-ink-3)" }}>{state.text}</span>}
                     </button>
                     {!rule && !ok && (
-                      <button type="button" className="cc-btn h-8 px-3" onClick={() => setConnectOpen(a.adapter)}>
+                      <button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>
                         {tr("Connect")}
                       </button>
                     )}
@@ -1038,7 +1042,10 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
 
           {express && (
             <details className="cc-card px-4 py-3" open={Object.keys(defaults).length > 0}>
-              <summary className="cursor-pointer text-ink-2 text-sm">{tr("cowork.folder.section.defaults")}</summary>
+              <summary className="cc-disclosure">
+                <ChevronRightIcon aria-hidden />
+                {tr("cowork.folder.section.defaults")}
+              </summary>
               <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={tr("cowork.folder.default.payment")} hidden={!showDefault.payment}>
                   <Select value={defaults.payment || ""} onChange={(v) => setDefault("payment", v)} options={[{ value: "credit", label: tr("Credit") }, { value: "cash", label: tr("Cash") }]} />

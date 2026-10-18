@@ -11,14 +11,15 @@
 // 单据文件夹改在公司主档页按公司选（ADR-020，只在 CC 桌面版里经原生选择框）：桌面版声明了 company_folders 时这里不再有
 // 「网页可读取的文件夹」，只在还有以前授权、现在没人用的文件夹（state().legacy_roots）时多一行「以前授权的文件夹」可移除；
 // 1.6.0 以前的桌面版没有 company_folders，保留原来的文件夹块过渡。
-//     系统    — 开机自动启动、快捷提问、版本与更新、日志
+//     系统    — 开机自动启动、CC 开着时保持电脑唤醒 / 用电池时也保持（同 Claude，companion keep_awake.py；旧版桌面端没有这两项就不显示）、
+//               快捷提问、版本与更新、日志
 //
 // 桌面端托盘「连接与设置」直接打开「连接」一栏（window.tomo.settings）。
 
 import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { DropdownMenu } from "@/components/ui/menu";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   COMPANY_FOLDERS,
@@ -37,6 +38,7 @@ import { useInstallGuide } from "@/components/install-prompt";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { chooseLanguage, postMethod, shownError, siteFetch } from "@/lib/frappe";
+import { giveFocusBack, opener } from "@/lib/focus-return";
 import { useProfile } from "@/lib/profile";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
@@ -44,6 +46,10 @@ import { co, dayLabel, lang, LANGUAGES, st, t } from "../i18n";
 import { Marquee } from "@/components/ui/marquee";
 
 type Section = "general" | "connections" | "system";
+
+// 设置关掉后焦点回到打开它的控件；那个控件不在了（菜单项随菜单卸下、窄屏藏起）或没记到（焦点在 BODY 时按 Ctrl+,、Safari
+// 鼠标点按钮不拿焦点）就先回齿轮、齿轮不在再回用户菜单按钮（按这个先后，不按页面上的先后：用户菜单按钮排在齿轮前面）
+const SETTINGS_BACK = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'] as const;
 
 // 连接状态色：取 globals.css 的 --cc-status-*（深浅色各一套）
 const STATUS_COLOR: Record<string, string> = Object.fromEntries(
@@ -53,6 +59,14 @@ const STATUS_COLOR: Record<string, string> = Object.fromEntries(
 export function Settings() {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<Section>("general");
+  // 谁打开的（齿轮、用户菜单里的「设置」、Ctrl+,、公司页的按钮）：关掉后焦点还给它（第 6 轮：没有 Trigger，组件库关掉时
+  // 还焦点找不到去处，Esc 关掉后焦点落到 BODY）
+  const back = useRef<HTMLElement | null>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const remember = () => {
+    const from = opener();
+    if (!content.current?.contains(from)) back.current = from; // 开着时再按 Ctrl+, 不算
+  };
   const [api, setApi] = useState<Desktop | null>(null);
 
   useEffect(() => {
@@ -66,11 +80,13 @@ export function Settings() {
     const show = (event: Event) => {
       const wanted = String((event as CustomEvent).detail || "general") as Section;
       setSection(["general", "connections", "system"].includes(wanted) ? wanted : "general");
+      remember();
       setOpen(true);
     };
     const key = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === ",") {
         event.preventDefault();
+        remember();
         setOpen(true);
       }
     };
@@ -93,7 +109,12 @@ export function Settings() {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
+          ref={content}
           aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            giveFocusBack(back.current, SETTINGS_BACK);
+          }}
           className="cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))] w-[min(980px,95vw)] [--cc-modal-share:0.92] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
           <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-app p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
@@ -127,11 +148,9 @@ export function Settings() {
             {current === "connections" && web && <WebConnections />}
             {current === "system" && api && <System api={api} />}
           </main>
-          <DialogPrimitive.Close
-            aria-label={t("close")}
-            className="absolute top-3.5 right-3.5 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-          >
-            <XIcon className="size-4" />
+          {/* 关闭同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44） */}
+          <DialogPrimitive.Close aria-label={t("close")} className="cc-icon-btn absolute top-3.5 right-3.5">
+            <XIcon />
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -145,7 +164,8 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
       type="button"
       onClick={onClick}
       className={cn(
-        "flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-start text-sm [&_svg]:size-4",
+        // 同侧栏导航行：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8
+        "flex h-(--cc-row-h) shrink-0 items-center gap-2.5 whitespace-nowrap rounded-(--cc-radius-row) px-2.5 text-start text-sm [&_svg]:size-4",
         active ? "bg-(--cc-bg-selected) font-medium" : "hover:bg-hover",
       )}
     >
@@ -181,7 +201,9 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           aria-label={icon ? label : undefined}
           aria-pressed={value === key}
           className={cn(
-            "flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4",
+            // 选中的那一格带 shadow-sm（盖过 base 层的聚焦兜底），聚焦描边自己写
+            // 文字格与图标格一样高 28（手机点按区 44）
+            "cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",
             value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -295,7 +317,7 @@ export function Notifications() {
           {st.notifications}
           {usable && push.failure && <div className="text-danger text-xs">{push.failure}</div>}
           {push.state === "install" && (
-            <button type="button" className={cn(note, "block text-start underline underline-offset-2")} onClick={showGuide}>
+            <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-2")} onClick={showGuide}>
               {st.notificationsAddToHome}
             </button>
           )}
@@ -352,9 +374,6 @@ function useAction(api: Desktop, refresh: () => void) {
 
 // 这台电脑只连一家公司（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹（旧桌面版另有网页可读取的文件夹）。
 // 公司下可能有 Express 和 MR.ERP 两个成员（旧配对留下的），合成一行；文件夹记在 Express 成员上，没有才记在 MR.ERP 上。
-
-const menuItem =
-  "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted";
 
 function useLink() {
   const [value, setValue] = useState<Link>(currentLink());
@@ -434,16 +453,18 @@ function Connections({ api }: { api: Desktop }) {
                 <MoreHorizontalIcon className="size-4" />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-surface p-1.5 shadow-lg">
+                {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
+                <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
                   <DropdownMenu.Item
-                    className={menuItem}
+                    className="cc-menu-item"
                     onSelect={() => void Promise.all(members.map((m) => api.call("pause", { id: m.id, paused: !main.paused }))).then(refresh)}
                   >
                     {main.paused ? st.resume : st.pause}
                   </DropdownMenu.Item>
-                  <DropdownMenu.Separator className="my-1 border-t" />
+                  <DropdownMenu.Separator className="cc-menu-sep" />
                   <DropdownMenu.Item
-                    className={cn(menuItem, "text-danger")}
+                    className="cc-menu-item"
+                    data-danger=""
                     onSelect={() => void Promise.all(members.map((m) => api.call("remove", { id: m.id }))).then(refresh)}
                   >
                     {st.disconnect}
@@ -466,9 +487,9 @@ function Connections({ api }: { api: Desktop }) {
 
       {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
-          <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
+          <Marquee className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
-          </span>
+          </Marquee>
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
             {st.findAgain}
           </Button>
@@ -724,13 +745,14 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
             <DropdownMenu.Trigger
               disabled={busy}
               aria-label={t("more")}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+              className="cc-tap flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
             >
               <MoreHorizontalIcon className="size-4" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-surface p-1.5 shadow-lg">
-                <DropdownMenu.Item className={cn(menuItem, "text-danger")} onSelect={onRemove}>
+              {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
+              <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
+                <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={onRemove}>
                   {st.remove}
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
@@ -822,6 +844,15 @@ function System({ api }: { api: Desktop }) {
       <Row label={st.autostart}>
         <Switch checked={state.autostart} label={st.autostart} onChange={(on) => void run("autostart", "autostart", { enabled: on })} />
       </Row>
+      {/* 方法名写成字面量：契约检查（tests/test_companion_contract.py）按 run("…", "方法") 核对桥里有没有 */}
+      <KeepAwakeRows
+        state={state}
+        onChange={(method, on) =>
+          void (method === "keep_awake"
+            ? run("keep_awake", "keep_awake", { enabled: on })
+            : run("keep_awake_on_battery", "keep_awake_on_battery", { enabled: on }))
+        }
+      />
       <Row label={st.quickAsk}>
         {state.hotkey ? (
           <Shortcut keys="Ctrl + Alt + Space" kbd />
@@ -836,11 +867,37 @@ function System({ api }: { api: Desktop }) {
         onDownload={() => void run("download", "download_update")}
       />
       <Row label={st.logs}>
-        <Button variant="outline" size="sm" onClick={() => void run("logs", "logs")}>
+        <Button variant="outline" size="icon-sm" aria-label={st.logs} onClick={() => void run("logs", "logs")}>
           <FolderIcon className="size-4" />
         </Button>
       </Row>
       {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+    </>
+  );
+}
+
+/** 「CC 开着时保持电脑唤醒」「用电池时也保持」（同 Claude 桌面版，用户 10-16；companion keep_awake.py，前者默认开、后者 10-18 起默认关）。只在「此电脑 → 系统」
+ *  （有桥才有），旧版桌面端的状态里没有这两项就不显示。 */
+export function KeepAwakeRows({
+  state,
+  onChange,
+}: {
+  state: Pick<DesktopState, "keep_awake" | "keep_awake_on_battery">;
+  onChange: (method: "keep_awake" | "keep_awake_on_battery", on: boolean) => void;
+}) {
+  if (state.keep_awake === undefined) return null;
+  return (
+    <>
+      <Row label={st.keepAwake}>
+        <Switch checked={state.keep_awake} label={st.keepAwake} onChange={(on) => onChange("keep_awake", on)} />
+      </Row>
+      <Row label={st.keepAwakeOnBattery}>
+        <Switch
+          checked={state.keep_awake_on_battery ?? false}
+          label={st.keepAwakeOnBattery}
+          onChange={(on) => onChange("keep_awake_on_battery", on)}
+        />
+      </Row>
     </>
   );
 }

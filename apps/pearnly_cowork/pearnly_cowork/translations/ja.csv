@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,ERP データレポ�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
 Abbreviated tax invoice,簡易税務インボイス
-Access to the CC Desktop queue has been revoked.,CC デスクトップのキューへのアクセス権が取り消されました。
 Account Codes,勘定科目コード
 Account Key,会計データキー
 Account Set,会計データ
@@ -350,8 +349,6 @@ Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
-Choosing how a kind of document is handled,この種類の書類の扱いを設定しています
-Chose how a kind of document is handled,この種類の書類の扱いを設定しました
 Chosen At,選択日時
 Chosen By,選択者
 Claim VAT,仕入税額控除
@@ -417,6 +414,7 @@ Content Hash,内容ハッシュ
 Content Key,内容キー
 Continues the scheduled task «{0}»; only files put in from now on are processed,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 Continuous counting,連続棚卸
+Conversation,会話
 Copy card,カードをコピー
 Copy link,リンクをコピー
 Copy list,リストをコピー
@@ -607,6 +605,7 @@ Dividends,配当
 Document Key,伝票重複防止キー
 Document No.,伝票番号
 Document Policy,書類の取扱ルール
+Document handling set,書類の処理方法を設定済み
 Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
@@ -1009,7 +1008,7 @@ Matched Count,照合済み件数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します
 Matches,一致
 Matching and saving,照合して保存中
-Max Payload Version,最大ペイロードバージョン
+Max Push Data Version,送信データの最大バージョン
 Member,メンバー
 Member management,メンバー管理権限
 Members,メンバー
@@ -1061,7 +1060,7 @@ No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
 No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるコンピューターがありません。
 No computer can write,書き込めるコンピューターがありません
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
+No computer with CC Desktop can write to this account set,この会計データに書き込める CC デスクトップのコンピューターがありません
 No documents were given.,書類が指定されていません。
 No due date,期日なし
 No files were given.,ファイルが指定されていません。
@@ -1204,7 +1203,6 @@ Payee tax ID missing,受取人の納税者番号なし
 Payees,受取人数
 Payer not clear,支払者が不明
 Payload Json,固定ペイロードJSON
-Payload Version,ペイロードバージョン
 Payment,支払方法
 Payment Date,支払日
 Payment Evidence,支払証跡
@@ -1259,7 +1257,9 @@ Purple,紫
 Push Account Set,送信先会計データ
 Push Attempt,送信試行
 Push Connection,送信先接続
+Push Data Version,送信データのバージョン
 Push Record,送信記録
+Push choices set for a client company or one of its branches,顧客会社または支店ごとの送信の選択
 Push record not found.,送信記録が見つかりません。
 Pushed,送信時
 Pushed documents,書類を送信しました
@@ -1346,7 +1346,7 @@ Recurring,繰り返し
 Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
-Refresh Lease Computer,更新リースのコンピューター
+Refresh Lease Computer,更新を受け取ったコンピューター
 Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
 Refresh Lease Generation,更新リースの世代
 Refresh Lease Handle,更新リース識別子
@@ -1528,6 +1528,7 @@ Set By,設定者
 Set a local folder once; documents are read and entered every month,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
 Set as the account set in use?,使用中の会計データに設定しますか？
 Set by {0} on {1},{0}（{1}）が設定
+Set document handling,書類の処理方法を設定
 Set due date,期日を N 日後に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
 Set reminder,リマインダー
@@ -1703,7 +1704,6 @@ The account balance could not be checked right now. Try again in a moment.,現�
 The account codes are invalid.,勘定科目コードが無効です。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
-The account set on this computer is not the registered one. Another computer will send it automatically.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターから自動で送信します
 The account set on this computer is not the registered one. Waiting for another computer.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
@@ -1904,8 +1904,7 @@ This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
 This choice cannot be saved,この選択は保存できません
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
-This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
+This computer can no longer handle this document,このコンピューターではこの書類を処理できなくなりました
 This connection does not support an Express CC Desktop credential.,この接続は Express 用の CC デスクトップ認証情報に対応していません。
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
@@ -1933,9 +1932,9 @@ This invoice has no lines. Add them and submit again.,この請求書には明�
 This invoice was already sent successfully,この伝票は送信済みです
 This is a reissued or backdated document. Check it and submit again,再発行・遡及日付の伝票です。確認して再送信してください
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",これは売上明細で、売上税報告ではありません。売上税報告（รายงานภาษีขาย）をアップロードしてください。
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,これは科目合計だけの試算表です。伝票ごとの明細がある総勘定元帳をアップロードしてください。
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます
 This is set by the scheduled task's default handling. Change it in the task,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
@@ -2002,6 +2001,7 @@ Transaction Date,取引日
 Transaction type,取引区分
 Transfer,振込
 Transfer slips,振込明細
+Transfer slips are not entered; this one is not sent,振込明細は入力しないため、送信しません
 Transport,運送料
 Turn off,停止
 Turn on,有効にする
@@ -2135,6 +2135,7 @@ With differences,差異あり
 Withdrawal,出金
 Withholding agent,源泉徴収義務者
 Withholding tax certificates,源泉徴収票
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,源泉徴収証明書（50 ทวิ）は入力しないため、送信しません
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workbook Revision,ワークブック改訂番号
@@ -2180,7 +2181,7 @@ companion.on_demand_invalid,CC デスクトップへのリクエストが無効�
 companion.on_demand_missing,CC デスクトップへのリクエストが見つかりません。
 companion.on_demand_not_ready,CC デスクトップの処理はまだ終わっていません。
 companion.on_demand_unsupported,この接続のパソコンではこの操作はできません。
-companion.queue_access_revoked,CC デスクトップのキューへのアクセス権が取り消されました。
+companion.queue_access_revoked,このコンピューターではこの書類を処理できなくなりました
 companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
 companion.queue_request_invalid,CC デスクトップのキューリクエストが無効です。
 companion.queue_response_invalid,CC デスクトップのキューレスポンスが無効です。
@@ -3369,10 +3370,10 @@ intake.error.date_implausible,伝票日付がおかしいようです。確認�
 intake.error.date_reissued,再発行・遡及日付の伝票です。確認して再送信してください
 intake.error.deposit_receipt,預り金・手付金の領収書は Express での処理方法を手動で決めてください
 intake.error.direction_unknown,この伝票が仕入か売上かを選んで再送信してください
-intake.error.document_policy_needed_payment_evidence,これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
-intake.error.document_policy_needed_withholding_certificate,これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
-intake.error.document_policy_skip_payment_evidence,この会社では振込明細を入力しないため、送信しません
-intake.error.document_policy_skip_withholding_certificate,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
+intake.error.document_policy_needed_payment_evidence,これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます
+intake.error.document_policy_needed_withholding_certificate,これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます
+intake.error.document_policy_skip_payment_evidence,振込明細は入力しないため、送信しません
+intake.error.document_policy_skip_withholding_certificate,源泉徴収証明書（50 ทวิ）は入力しないため、送信しません
 intake.error.entry_not_balanced,仕訳の貸借が合いません。金額を確認してください
 intake.error.items_incomplete,品名または金額のない明細があります。直して再送信してください
 intake.error.items_mismatch,明細の合計が伝票の金額と合いません。明細を直して再送信してください
@@ -3506,7 +3507,7 @@ push.native_stale_attempt,この送信試行は無効になっています。
 push.native_state_invalid,現在の送信状態ではこの操作はできません。
 push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
 push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
-push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
+push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません
 push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
 push.posting_kind_invalid,転記タイプが無効です。
 push.preparation_cancelled,未送信の準備を取り消しました。

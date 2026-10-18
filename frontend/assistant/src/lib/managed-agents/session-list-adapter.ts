@@ -26,6 +26,9 @@
 // 之后组件库每要一页，按复合游标只翻一组（「显示更多」要的那组 → 最近 → 活动最近、还有更多的公司）。每一页带回的
 // 归属（公司、处理月份、分店）记进 filings（组件库遇到已认得的编号不更新，所以不放在 custom 里）。新对话建在待建的公司里。
 // 侧栏「分组依据」改成处理月份或不分组时（sidebar-view.ts）用普通列表（服务端每行同样带归属），换的时候整表重拉（list-sync.ts）。
+//
+// 第一页带回全部置顶的：读完第一页，本页每一行的置顶标记就对到了那次请求发出的时刻，记给侧栏按数据收拾手排顺序时判断依据新不新
+// （sidebar-order.ts 的 noteListRead；list-sync 的核对同样记）。
 
 import type { RemoteThreadListAdapter } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -59,11 +62,20 @@ import {
   takeRequestedGroup,
   useProjects,
 } from "./projects";
+import { clock } from "@/lib/prefs-sync";
 import { latestTitle, listen } from "./realtime";
 import { dropSessionController } from "./session-controller";
+import { forgetInGroups, noteListRead } from "./sidebar-order";
 import { byCompany, noteCreated } from "./sidebar-view";
 
 const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
+const STARRED_MAX = 100; // 同服务端 assistant/sessions.py LIST_LIMIT：第一页最多带这么多条置顶的
+
+/** 这一页（第一页）带回了全部置顶的（没到服务端的上限）：本页标着置顶、却不在这一页里的就不再是置顶。 */
+export const allStarsIn = (page: SessionPage) => page.sessions.filter((s) => s.starred).length < STARRED_MAX;
+
+// 第几次读第一页（重拉列表时组件库只用最后发出的那一次，先发的晚回来不算读到）
+let firstReads = 0;
 
 /** 侧栏列表带回的提醒圆点与运行状态（list 与 list-sync 的核对共用）。asked：这次请求发出的时刻。 */
 export function absorb(page: SessionPage, asked: number) {
@@ -148,16 +160,25 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
   async list(params) {
     const asked = Date.now();
     const after = params?.after;
+    const read = after ? 0 : ++firstReads;
+    // 读完第一页：本页每一行的置顶标记对到这次请求发出的时刻（seen）
+    const noteFirst = (page: SessionPage, seen: number) => {
+      if (read === firstReads && allStarsIn(page)) noteListRead(seen);
+    };
     if (!(await groupedListing())) {
       // 第一页顺带核对侧栏标着在跑的对话（在别处跑完了、推送漏了的不再转圈）
+      const seen = clock();
       const page = await listSessions(after, after ? [] : runningSessions());
       absorb(page, asked);
+      if (!after) noteFirst(page, seen);
       if (useProjects.getState().kind && !after) noteCursor({ recent: null, groups: {} });
       return { threads: page.sessions.map(toThreadMetadata), nextCursor: page.nextCursor ?? undefined };
     }
     if (!after) {
+      const seen = clock();
       const page = await firstPage(runningSessions());
       absorb(page, asked);
+      noteFirst(page, seen);
       const cursor = { recent: page.nextCursor || null, groups: { ...(page.groups ?? {}) } };
       noteCursor(cursor);
       return { threads: page.sessions.map(toThreadMetadata), nextCursor: encodeCursor(cursor) };
@@ -232,10 +253,14 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
   },
 
   async delete(remoteId) {
-    if (!takeQuiet("delete", remoteId)) {
+    const synced = takeQuiet("delete", remoteId);
+    if (!synced) {
       touch(remoteId);
       await deleteSession(remoteId);
     }
+    // 删了：从组里手排的先后里去掉（别的设备删的是按数据收拾，不是人改的；此刻这一行已经不在了）
+    if (synced) noteListRead(clock(), [remoteId]);
+    forgetInGroups([remoteId], synced);
     dropSessionController(remoteId);
   },
 

@@ -36,7 +36,7 @@ function setup() {
   const t = key => table[key]?.[locale.value] || key;
   const module = evaluate(compileScript(parse(source).descriptor, { id: 'snapshot-offline' }).content, {
     vue: { ...vue, onMounted() {} }, 'vue-router': { useRoute: () => ({ query: { draft: 'synthetic', editor: 'customer' } }) },
-    'frappe-ui': {}, '../../components/LineLayout.vue': {}, '../../lib/api': { ApiError },
+    'frappe-ui': {}, '../../components/LineLayout.vue': {}, './ReviewPage.vue': {}, '../../lib/api': { ApiError },
     '../../lib/dms-editor': helpers,
     '../../lib/i18n': { createTexts(keys, prefix) {
       assert.equal(prefix, 'dms.'); assert.equal(keys.length, 0);
@@ -98,9 +98,10 @@ test('five service error codes resolve to readable product translations in all l
 });
 test('no timestamp line is bound into the edit page, and query notes are declared in all languages', () => {
   assert.doesNotMatch(source, /snapshotNote|addressSnapshotNote/);
-  for (const key of ['dms.card.query.CARD_NOTE', 'dms.card.query.LBL_READ_AT', 'dms.card.query.TOP_NOTE_PREFIX',
+  // dms.card.query.CARD_NOTE 没有任何调用处，10-18 存量文案整改时删掉（docs/work/2026-10-17-copy-stock-review.md 第 7 节）
+  for (const key of ['dms.card.query.LBL_READ_AT', 'dms.card.query.TOP_NOTE_PREFIX',
     'dms.snapshot.geo_as_of', 'dms.snapshot.geo_stale']) {
     for (const language of ['en', 'zh', 'th', 'ja']) assert.ok(table[key][language]);
   }
-  assert.match(table['dms.card.query.CARD_NOTE'].en, /updated only when you click Read \/ refresh.*not draft revenue/);
+  assert.equal(table['dms.card.query.CARD_NOTE'], undefined);
 });

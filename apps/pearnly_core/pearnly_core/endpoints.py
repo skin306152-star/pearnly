@@ -178,10 +178,10 @@ def api_test_connection(name: str):
         problems.append(_("No sign-in credentials configured"))
     if problems:
         return {"ok": False, "checked": "config", "problems": problems,
-                "note": _("Only the config was checked; a real connectivity test waits for the adapter")}
+                "note": _("Only the configuration was checked; the connection was not tested")}
     return {
         "ok": True,
         "checked": "config",
         "problems": [],
-        "note": _("Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise"),
+        "note": _("Configuration is complete. The connection was not tested."),
     }

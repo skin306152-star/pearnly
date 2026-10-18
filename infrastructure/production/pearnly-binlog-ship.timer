@@ -1,0 +1,11 @@
+[Unit]
+Description=Pearnly binlog shipping every 5 minutes
+
+[Timer]
+# 每 5 分钟（整点后 2、7、12…分，错开每日备份的 19:00 UTC 整点）；上一次没完就跳过（脚本里 flock）。
+OnCalendar=*:2/5
+Persistent=false
+RandomizedDelaySec=0
+
+[Install]
+WantedBy=timers.target

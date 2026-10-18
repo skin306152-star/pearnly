@@ -48,6 +48,10 @@ jobs:
           if (-not $engine) { throw 'QtWebEngineProcess.exe is missing from the package' }
           $mb = [math]::Round((Get-Item dist\CC-Setup.exe).Length / 1MB, 1)
           Write-Host "web engine: $($engine.FullName) · installer: $mb MB"
+      # 打出来的程序照用户的用法启动一遍（2026-10-18 test4 真机：再点一次桌面图标打不开窗口）：后台常驻 → 再不带参数启动一次要交给
+      # 已在跑的那份打开窗口 → 全部结束后不带参数启动要起来并打开窗口。全新临时 %APPDATA%，不连服务端。
+      - name: Launch the packaged CC the way people do
+        run: python packaging/smoke_launch.py dist/companion/companion.exe
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: companion-installer-test

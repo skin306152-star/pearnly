@@ -6,6 +6,7 @@ import importlib.util
 import json
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import types
@@ -358,6 +359,103 @@ class PageTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(ROOT / "scripts/build-ai-entry.py"), "--check"],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipUnless(shutil.which("node"), "node not installed")
+    def test_the_dots_background_keeps_at_most_one_draw_loop(self):
+        # 10-18：点阵原来每次从看不见变回看得见、每次改窗口大小都多排一条 requestAnimationFrame 循环（看不见时排着的那一帧
+        # 回来照样续上），CC 桌面版登录窗口最小化 / 还原几次就越画越费。浏览器看不见时不跑 rAF 回调但留着；这里照此模拟。
+        script = next((ROOT / "infrastructure/keycloak/themes/pearnly-ai/login/resources/js").glob("ai.*.js"))
+        page = (CONTROL / "www/ai.html").read_text(encoding="utf-8")
+        dots = script.read_text(encoding="utf-8").split("var scene=", 1)[0]
+        self.assertIn(dots, page)   # 入口第一页用的是同一段
+        runner = r"""
+const vm = require("vm"), fs = require("fs");
+const queue = new Map(); let id = 0, hidden = false, intervals = 0, drawn = 0;
+const on = {}, listen = (t, f) => (on[t] = on[t] || []).push(f), fire = (t) => (on[t] || []).forEach((f) => f({}));
+const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => { if (k === "clearRect") drawn++; }), set: (t, k, v) => ((t[k] = v), true) });
+const list = { forEach() {} };
+const document = { get hidden() { return hidden; }, addEventListener: listen, querySelectorAll: () => list, getElementById: () => null,
+  querySelector: (s) => (s === "canvas.dots" ? { getContext: () => ctx, style: {} } : null),
+  body: { classList: { contains: () => false, add() {}, remove() {} } }, documentElement: { classList: { remove() {} } } };
+const g = { document, matchMedia: () => ({ matches: false }), performance: { now: () => 0 }, innerWidth: 120, innerHeight: 80,
+  devicePixelRatio: 1, addEventListener: listen, setTimeout: () => 0, setInterval: () => ++intervals,
+  requestAnimationFrame: (cb) => (queue.set(++id, cb), id), cancelAnimationFrame: (n) => queue.delete(n),
+  location: { hash: "", pathname: "/", search: "" }, history: { replaceState() {} } };
+g.window = g;
+vm.runInNewContext(fs.readFileSync(process.argv[1], "utf8"), g);
+const frame = () => { if (hidden) return; const due = [...queue.values()]; queue.clear(); due.forEach((cb) => cb(16)); };
+const out = { start: queue.size, hidden: [], visible: [] };
+for (let i = 0; i < 3; i++) frame();
+for (let i = 0; i < 20; i++) {
+  hidden = true; fire("visibilitychange"); frame(); out.hidden.push(queue.size);
+  hidden = false; fire("visibilitychange"); frame(); frame(); out.visible.push(queue.size);
+}
+for (let i = 0; i < 5; i++) { fire("resize"); frame(); }
+out.end = queue.size; out.intervals = intervals;
+const before = drawn; for (let i = 0; i < 10; i++) frame(); out.drawsPerFrame = (drawn - before) / 10;
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", runner, str(script)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["start"], 1)
+        self.assertEqual(out["hidden"], [0] * 20)    # 看不见时停画：没有排着的帧
+        self.assertEqual(out["visible"], [1] * 20)   # 变回看得见：只有一条
+        self.assertEqual(out["end"], 1)              # 改窗口大小只重画，不另起
+        self.assertEqual(out["drawsPerFrame"], 1)
+        self.assertEqual(out["intervals"], 1)        # 小人的随机动作只有一个定时器
+
+    @unittest.skipUnless(shutil.which("node"), "node not installed")
+    def test_everything_that_moves_on_its_own_plays_one_round(self):
+        # 用户 10-18 晚：「登录页的小猫和装饰动画改为就循环一次」（录制机实测开着登录页窗口 + 网页内核约 1.2 个核，
+        # 23 个无限动画 + 点阵一直在画）。点阵波浪走一个周期（约 9 秒）就停画，鼠标动了才画、跟完再停；随机动作每个小人轮一次；
+        # 样式里不再有 infinite。
+        script = next((ROOT / "infrastructure/keycloak/themes/pearnly-ai/login/resources/js").glob("ai.*.js"))
+        css = next((ROOT / "infrastructure/keycloak/themes/pearnly-ai/login/resources/css").glob("ai.*.css"))
+        page = (CONTROL / "www/ai.html").read_text(encoding="utf-8")
+        for text in (css.read_text(encoding="utf-8"), page):
+            self.assertNotIn("infinite", text)
+        runner = r"""
+const vm = require("vm"), fs = require("fs");
+const queue = new Map(); let id = 0, now = 0, ticks = new Map(), tid = 0, played = 0;
+const on = {}, listen = (t, f) => (on[t] = on[t] || []).push(f), fire = (t, e) => (on[t] || []).forEach((f) => f(e || {}));
+const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => ((t[k] = v), true) });
+const mascot = () => ({ getAttribute: () => "hm hm-x", style: {}, addEventListener() {}, getBoundingClientRect: () => ({ width: 10 }),
+  classList: { remove() {}, add: () => played++ } });
+const mascots = [mascot(), mascot(), mascot()];
+const document = { hidden: false, addEventListener: listen, getElementById: () => null,
+  querySelectorAll: (s) => (s === ".hm" ? mascots : []),
+  querySelector: (s) => (s === "canvas.dots" ? { getContext: () => ctx, style: {} } : null),
+  body: { classList: { contains: () => false, add() {}, remove() {} } }, documentElement: { classList: { remove() {} } } };
+const g = { document, matchMedia: () => ({ matches: false }), performance: { now: () => now }, innerWidth: 120, innerHeight: 80,
+  devicePixelRatio: 1, addEventListener: listen, setTimeout: () => 0,
+  setInterval: (f) => (ticks.set(++tid, f), tid), clearInterval: (n) => ticks.delete(n),
+  requestAnimationFrame: (cb) => (queue.set(++id, cb), id), cancelAnimationFrame: (n) => queue.delete(n),
+  location: { hash: "", pathname: "/", search: "" }, history: { replaceState() {} } };
+g.window = g;
+vm.runInNewContext(fs.readFileSync(process.argv[1], "utf8"), g);
+const frame = () => { now += 16; const due = [...queue.values()]; queue.clear(); due.forEach((cb) => cb(now)); };
+const out = {};
+frame(); out.early = queue.size;
+while (now < 9100) frame();
+out.afterRound = queue.size;
+fire("pointermove", { clientX: 50, clientY: 40 }); out.onMove = queue.size;
+let n = 0; while (queue.size && n < 400) { frame(); n++; }
+out.settled = queue.size; out.settleFrames = n;
+out.intervals = ticks.size; for (let i = 0; i < 10; i++) [...ticks.values()].forEach((f) => f());
+out.intervalsAfter = ticks.size;
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", runner, str(script)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["early"], 1)        # 第一个周期里照常画
+        self.assertEqual(out["afterRound"], 0)   # 走完一个周期就停画
+        self.assertEqual(out["onMove"], 2)       # 鼠标动了：点阵接着画 + 眼睛跟鼠标那一次（一次性，不循环）
+        self.assertEqual(out["settled"], 0)      # 跟完就停
+        self.assertLess(out["settleFrames"], 400)
+        self.assertEqual(out["intervals"], 1)    # 随机动作一个定时器
+        self.assertEqual(out["intervalsAfter"], 0)  # 每个小人轮一次就清掉
 
     def test_page_strings_have_translations(self):
         page = (CONTROL / "www/ai.html").read_text(encoding="utf-8")

@@ -326,12 +326,14 @@ class NextYearPeriod(unittest.TestCase):
 
 class FrozenTarget(unittest.TestCase):
     """冻结目标只建一次（并入 CC 外壳分支时冲突第 2 处，合并审查第 1 条）：``decided_by``（F19 的 written 读它）与准备证据
-    v2 的 ``basis_hash``、写者锁 v2 并存；「仍然推送」写进载荷在算 ``basis_hash`` 之前；``decided_by`` 不进载荷。"""
+    v2 的 ``basis_hash``、写者锁 v2 并存；「仍然推送」写进载荷在算 ``basis_hash`` 之前；``decided_by`` 不进载荷。10-17 再并入
+    外壳：用上的公司规则 ``company_rules`` 同样只进这一份冻结目标。"""
 
-    def prepare(self, decided_by=None, confirm_duplicate=False):
+    def prepare(self, decided_by=None, confirm_duplicate=False, company_rules=None):
         service, _seen, _ = wired(courier(buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX))
         reserved, hashed = [], []
-        decision = {"needed": [], "applied": {}, **({"decided_by": decided_by} if decided_by else {})}
+        decision = {"needed": [], "applied": {}, **({"decided_by": decided_by} if decided_by else {}),
+                    **({"company_rules": company_rules} if company_rules else {})}
         service._decisions = lambda *a, **k: copy.deepcopy(decision)
         service.preparation_sources.collect = lambda *a, **k: (
             {"reported_config": {}, "mappings": {}, "supplier_profiles": {}, "bank_index": ()}, {"version": 2})
@@ -360,8 +362,22 @@ class FrozenTarget(unittest.TestCase):
         reserved, hashed = self.prepare()
         frozen = reserved["frozen_target"]
         self.assertNotIn("decided_by", frozen)
+        self.assertNotIn("company_rules", frozen)
         self.assertEqual((frozen["preparation_evidence"]["basis_hash"], frozen["lock_scheme"]), ("H-1", "v2"))
         self.assertEqual(hashed, [{"doctype": "RR"}])
+
+    def test_company_rules_used_sit_in_the_same_single_frozen_target(self):
+        # 并入外壳（10-17）冲突第 1 处：外壳分支在载荷之前另建的那份 frozen 又多了 company_rules（用上的是哪几条公司规则，
+        # F19 的 written.company_rules 读它）；只留本分支那一份，company_rules 加在它上面，不进载荷、不改 basis_hash
+        rules = [{"id": "CCH-1", "kind": "account", "subject": f"purchase|{BOOK_TAX}|", "label": "ซินเซียร์ไอซ์",
+                  "value": "53-05-28-00", "value_label": "", "branch": ""}]
+        reserved, hashed = self.prepare({"account": "company_rule"}, company_rules=rules)
+        frozen = reserved["frozen_target"]
+        self.assertEqual(frozen["company_rules"], rules)
+        self.assertEqual(frozen["decided_by"], {"account": "company_rule"})
+        self.assertEqual((frozen["preparation_evidence"]["basis_hash"], frozen["lock_scheme"]), ("H-1", "v2"))
+        self.assertEqual(hashed, [{"doctype": "RR"}])
+        self.assertEqual(reserved["frozen_payload"], {"doctype": "RR"})
 
 
 if __name__ == "__main__":

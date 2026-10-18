@@ -175,7 +175,9 @@ def test_tray_opens_a_reminder_conversation_in_the_cc_window():
 
     app = TrayApp.__new__(TrayApp)
     calls = []
-    app._tomo = SimpleNamespace(open_conversation=lambda url, session: calls.append((url, session)))
+    # 2026-10-18：窗口在窗口进程里，托盘把「打开那段对话」交给 window_link.WindowHost（没在跑就拉起）
+    app._window = SimpleNamespace(open=lambda command: calls.append((command["url"], command["session"]))
+                                  if command["op"] == "open_conversation" else calls.append(command))
     app.open_tomo = lambda text=None: calls.append("window")
     app.open_conversation("https://acme.pearnly.com", "s-123")
     app.open_conversation("https://acme.pearnly.com", "")
@@ -295,14 +297,17 @@ def test_auto_update_only_waits_while_someone_is_using_the_tomo_window(monkeypat
     # 2026-10-10：原小助手窗口并入 Tomo；Tomo 窗口开着且在最前面才算「正在用」，开着放在后面照常更新
     from types import SimpleNamespace
 
-    from src.companion import gui_tomo, gui_tray
+    # 2026-10-18：窗口在窗口进程里，看它经管道报来的状态（window_link.WindowHost：连着、看得见、在最前面）
+    from src.companion import gui_tray
 
-    monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", None)
+    monkeypatch.setattr(gui_tray, "WINDOW_HOST", None)
     assert gui_tray._window_open() is False
-    monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", SimpleNamespace(isVisible=lambda: True, isActiveWindow=lambda: True))
+    monkeypatch.setattr(gui_tray, "WINDOW_HOST", SimpleNamespace(connected=True, visible=True, active=True))
     assert gui_tray._window_open() is True
-    monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", SimpleNamespace(isVisible=lambda: True, isActiveWindow=lambda: False))
+    monkeypatch.setattr(gui_tray, "WINDOW_HOST", SimpleNamespace(connected=True, visible=True, active=False))
     assert gui_tray._window_open() is False
+    monkeypatch.setattr(gui_tray, "WINDOW_HOST", SimpleNamespace(connected=False, visible=True, active=True))
+    assert gui_tray._window_open() is False   # 窗口进程已退出（报来的状态作废）
 
 
 def test_notifications_fall_back_to_the_tray_balloon_when_windows_notifications_are_unavailable(monkeypatch):

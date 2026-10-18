@@ -14,7 +14,7 @@ import os
 
 from pearnly_core.ocr_models.orient import orient
 from pearnly_cowork.ocr.inputs_runtime.source import PageSource
-from pearnly_cowork.ocr.originals import preview_type
+from pearnly_core.originals.checks import preview_type
 from pearnly_cowork.ocr.remote import gcs, runner
 
 MAX_BODY = 30 * 1024 * 1024

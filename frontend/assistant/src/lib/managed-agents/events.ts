@@ -33,8 +33,38 @@ export type NoticeEvent = {
   view?: string;
 };
 
+/** 卡片的回答（pearnly_core.assistant.toolrun.decide，contracts.answer_event）：本站拦下等「允许」的调用被点了「允许 / 拒绝」，
+ *  回答落库就推来（不等工具执行完），同一段对话开在别的设备上的卡片立即换成点完的样子（第 10 轮 C22）。只走推送、不在事件记录里；
+ *  编号带 panswer_ 前缀。result 同引擎 user.tool_confirmation。 */
+export type AnswerEvent = {
+  type: "pearnly.answer";
+  id: string;
+  processed_at: string;
+  tool_use_id: string;
+  result: "allow" | "deny";
+};
+
+/** 本站执行记录（Pearnly Assistant Tool Run）的状态，同服务端 contracts.TOOL_RUN_STATES。 */
+export type ToolRunStatus = "awaiting_approval" | "running" | "done" | "error" | "denied" | "cancelled";
+
+/** 一次本站工具调用在本站的执行状态（pearnly_core.assistant.toolrun，contracts.tool_run_event）：本站拦下等「允许」的卡片
+ *  最后什么样子以它为准（第 11 轮 A 段）。状态变了（执行完 / 出错、拒绝、作废）推来；读事件时按这页出现过的调用编号并在
+ *  这页最后；点「允许 / 拒绝」时服务端回的此刻状态（confirm 的 runs）也照它折进来。编号 ptoolrun_<调用编号>_<状态>。 */
+export type ToolRunEvent = {
+  type: "pearnly.tool_run";
+  id: string;
+  processed_at: string | null;
+  tool_use_id: string;
+  status: ToolRunStatus;
+};
+
 /** 对话页收到的全部事件：引擎事件 + 本站事件（类型以 pearnly. 开头）。 */
-export type FeedEvent = StreamEvent | NoticeEvent;
+export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent;
+
+/** 一条执行记录事件（服务端 contracts.tool_run_event 的同一种写法；confirm 回的状态在页面这边照它合成）。 */
+export function toolRunEvent(toolUseId: string, status: ToolRunStatus, processedAt: string | null = null): ToolRunEvent {
+  return { type: "pearnly.tool_run", id: `ptoolrun_${toolUseId}_${status}`, processed_at: processedAt, tool_use_id: toolUseId, status };
+}
 
 /** 本站事件不在引擎的事件记录里：补拉不能拿它的编号当锚点（服务端找不到，会退回整段重放）。 */
 export function isLocalEvent(event: FeedEvent): boolean {

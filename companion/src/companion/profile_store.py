@@ -51,6 +51,11 @@ class GlobalSettings:
     heartbeat_interval_s: int
     autostart: bool
     ui_lang: str
+    # CC 开着时保持电脑唤醒（默认开）/ 用电池时也保持（默认关，用户 10-18 定，D8）（keep_awake.py）；
+    # keep_awake_on_battery_set：用电池那个开关用户亲手改过（from_dict 据此区分「没设过 = 用默认」与「用户设过」）
+    keep_awake: bool = True
+    keep_awake_on_battery: bool = False
+    keep_awake_on_battery_set: bool = False
 
     @classmethod
     def from_config(cls, cfg: CompanionConfig) -> "GlobalSettings":
@@ -63,6 +68,19 @@ class GlobalSettings:
         for field in fields(cls):
             if field.name in raw:
                 values[field.name] = raw[field.name]
+        # 1.4.2–1.6 的「常驻模式」（always_on）里防睡眠那一半就是现在的 keep_awake：开着的照旧开着（新默认本来也是开）；
+        # 旧键不在白名单里，下次写回时丢掉（ADR-021 第 58 条）
+        if "keep_awake" not in raw and raw.get("always_on") is True:
+            values["keep_awake"] = True
+        # 「用电池时也保持」10-18 起默认关（D8）。之前每次存盘都把整份全局设置写进文件，文件里的 keep_awake_on_battery
+        # 是用户亲手开的还是默认值写进去的分不出来；这个开关只在没发布的 1.7.0 测试包里出现过（默认开，用户关掉才会写 False）。
+        # 所以没有 keep_awake_on_battery_set 标记的一律按「没设过」处理、取新默认（关）：写着 False 的本来就是关，
+        # 写着 True 的多半是旧默认，最多丢掉测试机上一次手动的「开」。标记是用户在设置里改过才写上的，之后照用户的值。
+        values["keep_awake_on_battery_set"] = bool(values["keep_awake_on_battery_set"])
+        if not values["keep_awake_on_battery_set"]:
+            values["keep_awake_on_battery"] = defaults.keep_awake_on_battery
+        for name in ("keep_awake", "keep_awake_on_battery"):
+            values[name] = bool(values[name])
         return cls(**values)
 
 
@@ -269,6 +287,7 @@ class ProfileStore:
         cfg = CompanionConfig(**values)
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        _stamp_globals(cfg, self.global_settings)
         return cfg
 
     def runtime_configs(self, *, include_paused: bool = False) -> list[CompanionConfig]:
@@ -294,10 +313,43 @@ class ProfileStore:
         cfg.paired = False
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        _stamp_globals(cfg, self.global_settings)
         return cfg
 
     def save_profile(self, cfg: CompanionConfig, paused: Optional[bool] = None) -> Path:
-        global_settings = GlobalSettings.from_config(cfg)
+        with _DEVICE_LOCK:   # 读文件里最新的全局设置与写回之间不插进别的写
+            return self._save_profile_locked(cfg, paused)
+
+    def _merged_globals(self, cfg: CompanionConfig) -> GlobalSettings:
+        """这次要写的全局设置：只取这份配置**自己改过**的全局项，其余以文件里最新的为准。
+
+        同一台电脑的全局设置（界面语言、开机自启、保持电脑唤醒……）有好几个持有者：托盘、设置页、取任务线程各自的配置副本。
+        副本存盘（心跳同步账套名、连接名、新年度文件夹）时若整份写回自己读到时的全局设置，就会把别处刚改的新值盖回旧值
+        （10-16 审查：关掉「CC 开着时保持电脑唤醒」后被心跳写回成开）。所以从本文件读出的配置记着读到时的全局设置
+        （_globals_seen），存盘时与它相同的项沿用文件里最新的值；不是从本文件读出的（直接构造的）配置照旧整份写。"""
+        ours = GlobalSettings.from_config(cfg)
+        seen = getattr(cfg, "_globals_seen", None)
+        if not isinstance(seen, dict):
+            return ours
+        latest = asdict(self._latest_globals())
+        for name, value in asdict(ours).items():
+            if name not in seen or value != seen[name]:
+                latest[name] = value
+        return GlobalSettings(**latest)
+
+    def _latest_globals(self) -> GlobalSettings:
+        """文件里此刻的全局设置；读不到（还没有文件、不是这一版的格式）用手里这份。"""
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return self.global_settings
+        if raw.get("schema_version") in SUPPORTED_SCHEMA_VERSIONS and isinstance(raw.get("global"), dict):
+            return GlobalSettings.from_dict(raw["global"])
+        return self.global_settings
+
+    def _save_profile_locked(self, cfg: CompanionConfig, paused: Optional[bool] = None) -> Path:
+        global_settings = self._merged_globals(cfg)
+        _adopt_globals(cfg, global_settings)
         if not cfg.paired and not str(cfg.account_dir or "").strip():
             self._write(global_settings, self._profiles)
             self.global_settings = global_settings
@@ -494,6 +546,19 @@ def _machine_of(raw) -> str:
     device = raw.get("device") if isinstance(raw, dict) else None
     value = device.get("machine") if isinstance(device, dict) else ""
     return value if isinstance(value, str) else ""
+
+
+def _stamp_globals(cfg: CompanionConfig, settings: GlobalSettings) -> None:
+    """记下这份配置读到的全局设置（save_profile 据此只写它自己改过的项）。整份换掉、不原地改：取任务线程用 copy()
+    复制配置，副本与原件共用同一个字典。"""
+    object.__setattr__(cfg, "_globals_seen", asdict(settings))
+
+
+def _adopt_globals(cfg: CompanionConfig, settings: GlobalSettings) -> None:
+    """存盘后这份配置的全局项跟上文件里的值，并重新记下（下次存盘照样只写之后改过的）。"""
+    for name, value in asdict(settings).items():
+        setattr(cfg, name, value)
+    _stamp_globals(cfg, settings)
 
 
 def _read_device(path: Path) -> dict:

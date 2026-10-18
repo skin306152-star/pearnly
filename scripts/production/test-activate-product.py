@@ -130,6 +130,8 @@ elif 'ps' in args:
                 target.chmod(0o755)
             # Capacity is independently tested; replace only this one copied call.
             source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'true')
+            # 宿主 swap 由 ensure-swap.sh 幂等建（要 root、动宿主），测试里不跑
+            source = source.replace('bash ' + str(root) + '/deploy/scripts/production/ensure-swap.sh', 'true')
             # The deploy-vs-image comparison is tested where it runs (server side); stub it here.
             source = source.replace('python3 ' + str(root) + '/deploy/scripts/production/check-deploy-image.py', 'true')
             source = source.replace('python3 "$root/scripts/production/check-deploy-image.py"', 'true')
@@ -156,6 +158,20 @@ elif 'ps' in args:
         self.assertEqual(trace[find('backup --with-files')]['image'], 'sha256:old-running-image')
         self.assertLess(find('enable-scheduler'), find('up -d'))
         self.assertLess(find('up -d'), find('set-maintenance-mode off'))
+
+    def test_activation_removes_the_products_maintenance_container_first(self):
+        # 开户代理的维护容器跑的是旧镜像：激活时收掉（持着开户锁），放在容量等待和停机之前
+        for product in ('dms', 'erp', 'cowork'):
+            result, trace = self.run_activation(product=product)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = [row['args'] for row in trace]
+            self.assertIn(['rm', '-f', f'pearnly-maintenance-{product}'], calls)
+            removal = calls.index(['rm', '-f', f'pearnly-maintenance-{product}'])
+            self.assertLess(removal, next(i for i, call in enumerate(calls) if 'set-maintenance-mode' in call))
+            self.assertFalse([call for call in calls if call[:2] == ['rm', '-f'] and call != calls[removal]])
+        # 没有这个容器（docker rm 失败）也不能挡住激活
+        result, _ = self.run_activation('pearnly-maintenance-dms')
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_warmup_runs_after_reopening_and_cannot_fail_activation(self):
         result, trace = self.run_activation(product='cowork')

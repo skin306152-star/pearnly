@@ -851,6 +851,52 @@ class CompanyRuleDecisions(unittest.TestCase):
         decision = self.decide([self.rule("account", "9999-99")], fields={**self.FIELDS, "payment_status": "paid"})
         self.assertEqual(decision["applied"]["account"], "5320-01")  # 落到历史已定
 
+    def test_the_rule_that_decided_it_is_frozen_and_read_back_with_its_party(self):
+        """2026-10-16 测试：SD-6909-1010 按一条สะอาดดี的公司规则入账，那条规则后来不在了；CC 被说明里「company_rule，见
+        <client_choices>」带去那里找，把仅剩的ซ่อมไว那条说成这张单的规则。推送时把用上的是哪一条（编号、对象、值、范围）冻结
+        进目标；written 读回时照它说，并核现在还在不在。"""
+        from pearnly_cowork.push.express import pushed
+
+        rules = [{**self.rule("account", "5310-02"), "id": "R-CLEAN", "subject_label": "ศรีกรุง เครื่องเขียน"},
+                 {**self.rule("payment", "credit"), "id": "R-PAY", "subject_label": "ศรีกรุง เครื่องเขียน",
+                  "value_label": "Credit"},
+                 {"kind": "account", "subject": "purchase|0105568077123", "value": "5310-09", "branch": "",
+                  "id": "R-QUICK", "subject_label": "ซ่อมไว เซอร์วิส"}]  # 别家供应商的规则：没用上，不冻结
+        decision = self.decide(rules)
+        self.assertEqual(sorted(decision["company_rules"], key=lambda item: item["id"]), [
+            {"id": "R-CLEAN", "kind": "account", "subject": self.SUBJECT, "label": "ศรีกรุง เครื่องเขียน",
+             "value": "5310-02", "value_label": "", "branch": ""},
+            {"id": "R-PAY", "kind": "payment", "subject": self.SUBJECT, "label": "ศรีกรุง เครื่องเขียน",
+             "value": "credit", "value_label": "Credit", "branch": ""}])
+        # 账套记忆定的、历史定的不算公司规则
+        self.assertNotIn("company_rules", self.decide(rules[:1], remembered={"account": {self.SUBJECT: "5310-01"}},
+                                                      fields={**self.FIELDS, "payment_status": "paid"}))
+        # 分店的规则比全公司的具体：冻结的是分店那条
+        branch_rule = {**rules[0], "id": "R-B", "value": "5310-03", "branch": "00000"}
+        picked = self.decide([rules[0], branch_rule], fields={**self.FIELDS, "payment_status": "paid"})
+        self.assertEqual([(item["id"], item["branch"]) for item in picked["company_rules"]], [("R-B", "00000")])
+
+        payload = {"direction": "purchase", "doctype": "RR", "doctype_src": "company_rule", "items_account": "5310-02",
+                   "account_source": "company_rule"}
+        frozen = decision["company_rules"]
+        found = pushed.written(payload, {"account": "company_rule"}, frozen, {"R-CLEAN": "5310-02", "R-PAY": "credit"})
+        account = next(item for item in found["company_rules"] if item["kind"] == "account")
+        self.assertEqual(account, {"kind": "account", "for": "ศรีกรุง เครื่องเขียน", "value": "5310-02",
+                                   "tax_id": "0105556012345", "branch": "whole company", "still_saved": True})
+        self.assertNotIn("id", account)  # 规则编号不交给模型
+        # 规则后来删了 / 改了：照实说不在了、现在是什么
+        gone = pushed.written(payload, None, frozen, {"R-PAY": "cash"})["company_rules"]
+        self.assertEqual({item["kind"]: (item["still_saved"], item.get("now_value")) for item in gone},
+                         {"account": (False, None), "payment": (False, "cash")})
+        # 查不到现状（没给 rules_now）：不说还在不在；旧记录没有冻结：不给 company_rules
+        self.assertNotIn("still_saved", pushed.written(payload, None, frozen)["company_rules"][0])
+        self.assertNotIn("company_rules", pushed.written(payload, {"account": "company_rule"}))
+        source = (APP / "push/application/service.py").read_text(encoding="utf-8")
+        self.assertIn('frozen["company_rules"] = [dict(item) for item in decision["company_rules"]]', source)
+        self.assertIn('frappe.get_hooks("cowork_push_company_choices_saved")', source)
+        hooks = (APP / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('cowork_push_company_choices_saved = ["pearnly_cowork.companies.rules.values_now"]', hooks)
+
     def test_written_tells_cc_what_decided_it(self):
         from pearnly_cowork.push.express import pushed
 

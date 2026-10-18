@@ -421,7 +421,7 @@ Signed-in User	当前登录账号	ผู้ใช้ที่ลงชื่อ�
 Signed-in Users	登录过的账号	ผู้ใช้ที่เคยลงชื่อเข้าใช้	サインインしたことのあるユーザー
 Computer Name	电脑名称	ชื่อคอมพิวเตอร์	コンピューター名
 Device Key Digest	设备密钥摘要	แฮชคีย์อุปกรณ์	デバイスキーのダイジェスト
-Max Payload Version	最高载荷版本	เวอร์ชันข้อมูลงานสูงสุด	最大ペイロードバージョン
+Max Push Data Version	最高推送数据版本	เวอร์ชันข้อมูลงานสูงสุด	送信データの最大バージョン
 Host Names	主机名	ชื่อโฮสต์	ホスト名
 Index Rebuild Pending	索引待重建	รอสร้างดัชนีใหม่	インデックス再構築待ち
 Retired At (UTC)	移除时间（UTC）	เวลานำออก (UTC)	削除日時 (UTC)
@@ -449,11 +449,11 @@ Seen At (UTC)	上报时间（UTC）	เวลารายงาน (UTC)	報告�
 Account Set Masters	账套主档	ข้อมูลหลักของชุดบัญชี	会計データのマスター
 From Routine Report	来自定期上报	จากรายงานตามรอบ	定期報告から
 Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ่าน	読み取ったコンピューター
-Refresh Lease Computer	刷新租约电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新リースのコンピューター
+Refresh Lease Computer	领取刷新的电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新を受け取ったコンピューター
 Parent Refresh Request	上级刷新请求	คำขอรีเฟรชหลัก	親の更新リクエスト
 Selected Account Set	所选账套	ชุดบัญชีที่เลือก	選択した会計データ
 Entered By	录入人	ผู้บันทึก	入力者
-Payload Version	载荷版本	เวอร์ชันข้อมูลงาน	ペイロードバージョン
+Push Data Version	推送数据版本	เวอร์ชันข้อมูลงาน	送信データのバージョン
 Written By Computer	写入的电脑	คอมพิวเตอร์ที่เขียน	書き込んだコンピューター
 Write Route	写入分派	การมอบหมายการเขียน	書き込みの割り当て
 Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพิวเตอร์	コンピューターの登録者
@@ -540,7 +540,7 @@ The CC Desktop queue request is invalid.	CC 桌面版队列请求无效。	ค�
 The CC Desktop queue response is invalid.	CC 桌面版队列响应无效。	การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのキューレスポンスが無効です。	companion.queue_response_invalid
 The CC Desktop delivery record is invalid.	CC 桌面版任务领取记录无效。	บันทึกการรับงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのタスク受領記録が無効です。	companion.delivery_invalid
 The CC Desktop delivery record was not found.	未找到 CC 桌面版任务领取记录。	ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป	CC デスクトップのタスク受領記録が見つかりません。	companion.delivery_not_found
-Access to the CC Desktop queue has been revoked.	CC 桌面版队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว	CC デスクトップのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
+This computer can no longer handle this document	此电脑已不能处理该单据	คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว	このコンピューターではこの書類を処理できなくなりました	companion.queue_access_revoked
 This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
 The request to CC Desktop is invalid.	发给 CC 桌面版的请求无效。	คำขอถึง CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップへのリクエストが無効です。	companion.on_demand_invalid
 The computer on this connection cannot do this.	这条连接的电脑做不了这件事。	คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้	この接続のパソコンではこの操作はできません。	companion.on_demand_unsupported
@@ -1464,7 +1464,7 @@ POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express
 The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
-The account set on this computer is not the registered one. Waiting for another computer.	这台电脑上的账套不是登记的那一份，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
+The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_SALES_DOCTYPE
 This invoice has no lines. Add them and submit again.	此发票没有明细，请补充后重新提交	เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่	この請求書には明細がありません。追加して再送信してください	intake.error.EMPTY_ITEMS
@@ -1557,10 +1557,10 @@ The receipts do not add up to the total row of this POS export	收据之和与�
 Choose an Express account set first	请先选择 Express 账套	กรุณาเลือกชุดบัญชี Express ก่อน	先に Express の帳簿を選んでください	pos.target_required
 POS exports can only be entered into Express	POS 导出只能录入 Express	ไฟล์ส่งออก POS บันทึกได้เฉพาะใน Express	POS エクスポートは Express にのみ入力できます	pos.not_express
 Choose the Express records for this invoice first, then submit again	请先为此发票选择 Express 中的对应项，再重新提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on	此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理	เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้	これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_payment_evidence
-This company does not enter transfer slips; this one is not sent	本公司不录入转账凭条，此单据不推送	บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้	この会社では振込明細を入力しないため、送信しません	intake.error.document_policy_skip_payment_evidence
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on	此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理	เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้	これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_withholding_certificate
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent	本公司不录入预扣税凭证（50 ทวิ），此单据不推送	บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้	この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません	intake.error.document_policy_skip_withholding_certificate
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice	此单据为转账凭条。选择是否录入，所有同类单据将按此处理	เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้	これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます	intake.error.document_policy_needed_payment_evidence
+Transfer slips are not entered; this one is not sent	转账凭条不录入，此单据不推送	ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้	振込明細は入力しないため、送信しません	intake.error.document_policy_skip_payment_evidence
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice	此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理	เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้	これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます	intake.error.document_policy_needed_withholding_certificate
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent	预扣税凭证（50 ทวิ）不录入，此单据不推送	ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้	源泉徴収証明書（50 ทวิ）は入力しないため、送信しません	intake.error.document_policy_skip_withholding_certificate
 Enter (this kind from now on)	录入（同类单据均录入）	บันทึก (เอกสารประเภทนี้ทั้งหมด)	入力する（以後も同様）	cowork.policy.enter
 Don't enter (this kind from now on)	不录入（同类单据均不录入）	ไม่บันทึก (เอกสารประเภทนี้ทั้งหมด)	入力しない（以後も同様）	cowork.policy.skip
 Not entered	不录入	ไม่บันทึก	入力しない	cowork.policy.skipped
@@ -1584,7 +1584,7 @@ Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入
 Recognition was interrupted (not charged). Upload this file again	识别已中断（未扣费），请重新上传此文件	การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
 CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
-No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again	没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่	この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください	push.no_writer
+No computer with CC Desktop can write to this account set	没有可写入该账套的电脑	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้	この会計データに書き込める CC デスクトップのコンピューターがありません	push.no_writer
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again
 Add Row	添加行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認	
@@ -1835,8 +1835,8 @@ Update CC Desktop on that computer to read this account set's chart of accounts.
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.	电脑读不到此账套的科目表。请确认那台电脑上的 Express 能打开这本账套。	คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้	パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。	cowork.masters.failed
 This account set is not on the computer's list of account sets.	电脑上报的账套中没有这本账套。	ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์	パソコンの会計データ一覧にこの会計データがありません。	cowork.masters.unavailable
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.	CC 桌面版正在读取此账套的科目表，读完后推送。	CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ	CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。	cowork.folder.reading_masters
-No account set of this company covers the document date.	这家公司没有覆盖单据日期的账套。	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
-More than one account set of this company covers the document date.	这家公司有多份账套覆盖单据日期。	มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データが複数あります。	cowork.folder.account_set_ambiguous
+No account set of this company covers the document date.	该公司没有覆盖单据日期的账套	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
+More than one account set of this company covers the document date.	该公司有多份账套覆盖单据日期	มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データが複数あります。	cowork.folder.account_set_ambiguous
 No computer can reach the account set for the document date.	没有电脑能访问单据日期所在的账套。	ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้	書類の日付の会計データにアクセスできるコンピューターがありません。	cowork.folder.account_set_unreachable
 Computer offline	电脑离线	คอมพิวเตอร์ออฟไลน์	コンピューターがオフライン	intake.agent.state.offline
 No computer can write	没有能写的电脑	ไม่มีคอมพิวเตอร์ที่บันทึกได้	書き込めるコンピューターがありません	intake.agent.state.noWriter
@@ -2109,7 +2109,7 @@ Checked the stock account group	查看了存货科目组	ตรวจสอบ�
 Checked MR.ERP import settings	查看了 MR.ERP 导入设置	ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว	MR.ERP の取り込み設定を確認しました
 Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました
 Edited a document	修改了单据	แก้ไขเอกสารแล้ว	書類を修正しました
-Chose how a kind of document is handled	设定了这类单据的处理方式	กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว	この種類の書類の扱いを設定しました
+Document handling set	已设置单据处理方式	ตั้งค่าวิธีจัดการเอกสารแล้ว	書類の処理方法を設定済み
 Pushed documents	推送了单据	ส่งเอกสารแล้ว	書類を送信しました
 Checked push results	查看了推送结果	ตรวจสอบผลการส่งแล้ว	送信結果を確認しました
 Listed stock counts	查看了盘点列表	ดูรายการตรวจนับสต็อกแล้ว	棚卸の一覧を確認しました
@@ -2184,7 +2184,7 @@ Checking the stock account group	正在查看存货科目组	กำลังต�
 Checking MR.ERP import settings	正在查看 MR.ERP 导入设置	กำลังตรวจสอบการตั้งค่านำเข้า MR.ERP	MR.ERP の取り込み設定を確認しています
 Viewing a document	正在查看单据详情	กำลังดูเอกสาร	書類を確認しています
 Editing a document	正在修改单据	กำลังแก้ไขเอกสาร	書類を修正しています
-Choosing how a kind of document is handled	正在设定这类单据的处理方式	กำลังกำหนดวิธีจัดการเอกสารประเภทนี้	この種類の書類の扱いを設定しています
+Set document handling	设置单据处理方式	ตั้งค่าวิธีจัดการเอกสาร	書類の処理方法を設定
 Opening the original	正在打开原件	กำลังเปิดต้นฉบับ	原本を開いています
 Checking recognition results	正在查看识别结果	กำลังตรวจสอบผลการอ่านเอกสาร	読み取り結果を確認しています
 Importing POS sales	正在导入 POS 销售	กำลังนำเข้ายอดขาย POS	POS の売上を取り込んでいます
@@ -2253,7 +2253,7 @@ This saved choice no longer exists	这条记住的选择已不在	ไม่พ�
 Only payment and VAT choices can be changed here	这里只能改付款方式和抵不抵进项	แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ	ここで変更できるのは支払方法と仕入税額控除だけです	cowork.company.choice_not_editable
 Notes	知识库	บันทึก	ノート	cowork.company.notes
 Claim VAT	抵进项	ขอคืนภาษีซื้อ	仕入税額控除
-Expense it	计费用	ลงค่าใช้จ่าย	費用計上
+Expense it	记费用	ลงค่าใช้จ่าย	費用計上
 Listed companies	列出了公司	แสดงรายชื่อบริษัท	会社一覧を表示
 Read company details	读取了公司资料	อ่านข้อมูลบริษัท	会社情報を確認
 Saved a company note	记下了公司说明	บันทึกข้อมูลบริษัท	会社メモを保存
@@ -2286,16 +2286,18 @@ Value Label	值名称	ชื่อค่า	値の名称
 Evidence	依据	หลักฐาน	根拠
 Whole company	全公司	ทั้งบริษัท	会社全体	cowork.company.whole_company
 Branch {0}	分店 {0}	สาขา {0}	支店 {0}	cowork.company.branch_n
-This value is not in this month's account set	这个值不在本月账套的主档里	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の帳簿のマスタにありません	cowork.company.choice_invalid
+This value is not in this month's account set	该值不在本月账套主档中	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の帳簿のマスタにありません	cowork.company.choice_invalid
 Company choices are full	公司选择已满	ตัวเลือกของบริษัทเต็มแล้ว	会社の選択が上限です	cowork.company.choices_full
-No account set of this company covers this month	这家公司（或这个分店）没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の帳簿がありません	cowork.company.choice_scope_invalid
-This choice cannot be saved	无法保存这条选择	บันทึกตัวเลือกนี้ไม่ได้	この選択は保存できません	cowork.company.choice_unsupported
+No account set of this company covers this month	该公司或分店没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の帳簿がありません	cowork.company.choice_scope_invalid
+This choice cannot be saved	无法保存此选择	บันทึกตัวเลือกนี้ไม่ได้	この選択は保存できません	cowork.company.choice_unsupported
 Saved a company choice	记下了公司选择	บันทึกตัวเลือกของบริษัทแล้ว	会社の選択を保存しました
 Removed a company choice	删除了公司选择	ลบตัวเลือกของบริษัทแล้ว	会社の選択を削除しました
-Save this choice for the company?	把这个选择记到公司？	บันทึกตัวเลือกนี้ให้บริษัทไหม	この選択を会社に保存しますか？
-Remove this company choice?	删除这条公司选择？	ลบตัวเลือกของบริษัทนี้ไหม	この会社の選択を削除しますか？
+Save this choice for the company?	保存为公司选择？	บันทึกตัวเลือกนี้ให้บริษัทไหม	この選択を会社に保存しますか？
+Remove this company choice?	删除公司选择？	ลบตัวเลือกของบริษัทนี้ไหม	この会社の選択を削除しますか？
 Saving a company choice	正在记公司选择	กำลังบันทึกตัวเลือกของบริษัท	会社の選択を保存しています
 Removing a company choice	正在删除公司选择	กำลังลบตัวเลือกของบริษัท	会社の選択を削除しています
+Push choices set for a client company or one of its branches	按客户公司或分店设的推送选择	ตัวเลือกการส่งที่ตั้งไว้สำหรับบริษัทลูกค้าหรือสาขา	顧客会社または支店ごとの送信の選択
+Conversation	对话	การสนทนา	会話
 Warehouse	仓库	คลังสินค้า	倉庫	cowork.stock.col.warehouse
 Category	商品类别	หมวดสินค้า	カテゴリ	cowork.stock.col.category
 Area	区域	พื้นที่	エリア	cowork.stock.workbench.area

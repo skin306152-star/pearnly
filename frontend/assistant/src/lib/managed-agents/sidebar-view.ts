@@ -2,14 +2,18 @@
 // （Cowork）出现，ERP / DMS 的侧栏不变：
 //
 //   分组依据 — 公司（默认）/ 处理月份 / 无
-//   排序方式 — 上次更新（默认）/ 创建日期 / 名称，降序（默认）/ 升序
+//   排序方式 — 上次更新（默认：对话最后有动静的时间——发消息、CC 回复、挂提醒，服务端 pearnly_core.assistant.context.active
+//              记，列表的 updated_at；本页推来的新消息、提醒当场浮顶，activity.ts）/ 创建日期 / 名称，降序（默认）/ 升序。
+//              改名、置顶、改月份 / 分店不算动静
 //   显示     — 元数据（行的第二行「9 月 · 分店 00012」，默认关：行高同 Code 的 32，设计文档 3.5）/ 空分组（没有对话的公司组，默认开）
 //
-// 每台设备、每个用户各记各的（localStorage，键带用户；不跨设备同步），存不了（无痕窗口）时本次照样生效。
+// 按人记住、跨设备同步（lib/prefs-sync.ts：存在服务端当前用户的那份里）；本机仍记一份（localStorage，键带用户）让打开时立刻
+// 生效、离线照样能用，存不了（无痕窗口）时本次照样生效。
 // 按公司分组时列表用分组接口（grouped=1）；按月份、不分组时用普通的按上次更新分页的列表（服务端每行同样带公司、月份、分店），
 // 换分组方式整表重拉（list-sync.ts）。「创建日期」只排已经加载的行：服务端分页仍按上次更新（列表行带 created_at），不加服务端排序。
 
 import { create } from "zustand";
+import { prefChanged, registerPref } from "@/lib/prefs-sync";
 import { clearSidebarOrder } from "./sidebar-order";
 
 export type GroupBy = "company" | "month" | "none";
@@ -88,8 +92,8 @@ export function bindSidebarViewUser(user: string) {
   else useSidebarView.setState(read(user), true);
 }
 
-export function setSidebarView(patch: Partial<SidebarView>) {
-  const next = { ...useSidebarView.getState(), ...patch };
+/** 换成 next 并记进本机（不同步）。 */
+function keep(next: SidebarView) {
   useSidebarView.setState(next, true);
   if (!owner) {
     unsaved = true;
@@ -103,7 +107,21 @@ export function setSidebarView(patch: Partial<SidebarView>) {
   }
 }
 
-/** 「恢复默认设置」：分组和排序回默认，手排的公司组、置顶顺序也清掉（回到按排序方式排）。 */
+export function setSidebarView(patch: Partial<SidebarView>) {
+  keep({ ...useSidebarView.getState(), ...patch });
+  prefChanged("view", Object.keys(patch));
+}
+
+registerPref("view", {
+  read: () => ({ ...useSidebarView.getState() }),
+  changed: () => !isDefaultView(useSidebarView.getState()),
+  apply: (value, user) => {
+    bindSidebarViewUser(user);
+    keep(parseView(value));
+  },
+});
+
+/** 「恢复默认设置」：分组和排序回默认，手排的公司组、置顶与组里的顺序也清掉（回到按排序方式排）。 */
 export function resetSidebarView() {
   setSidebarView(DEFAULT_VIEW);
   clearSidebarOrder();

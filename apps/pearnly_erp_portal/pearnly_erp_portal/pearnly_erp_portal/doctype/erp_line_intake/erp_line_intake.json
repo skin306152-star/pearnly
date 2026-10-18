@@ -69,7 +69,7 @@
    "description": "The LINE account that sent the document"
   },
   {
-   "description": "The sender's LINE app language when the document arrived; the card and any failure message use it.",
+   "description": "Sender's LINE language when the document arrived",
    "fieldname": "language",
    "fieldtype": "Data",
    "label": "Language",
@@ -102,8 +102,7 @@
   {
    "fieldname": "source_file",
    "fieldtype": "Data",
-   "label": "Source File",
-   "description": "Data, not Attach: an Attach field makes Frappe attach the File to this record, and recognition then refuses it as not the uploader's own unattached upload."
+   "label": "Source File"
   },
   {
    "fieldname": "source_file_name",
@@ -211,7 +210,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-26 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP LINE Intake",
  "owner": "Administrator",

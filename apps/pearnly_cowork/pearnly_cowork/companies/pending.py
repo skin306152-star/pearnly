@@ -43,6 +43,7 @@ PROPOSAL_LABEL = "cowork.company.pending.cc_proposal"
 BOOK_MANY = "book_many"
 # 自动推前判过、冻结了提议的类（数字会计员第 3 期）：A / B 在 L0 / L1 只出提议；C 类照旧落「没推」
 PROPOSED = ("A", "B")
+SKIPPED_POLICY = "document_policy_skip_"  # 同 `contracts.document_policy.SKIPPED_PREFIX`（这里只做纯判断，不引那个模块）
 # 早上汇总
 KIND = "cowork.pending_digest"
 MORNING = time(8, 30)
@@ -62,6 +63,9 @@ def classify(row, cutoff, unknown=frozenset()) -> str | None:
     status = str(row.get("last_push_status") or "")
     reason = str(row.get("last_push_reason") or "")
     if status in SETTLED:
+        return None
+    if reason.startswith(SKIPPED_POLICY):
+        # 这个租户选了这类单据不录入（转账凭条、预扣税凭证）：人已定了不推，不算待处理（第 7 批 B7）
         return None
     if reason.startswith("choice_needed"):
         # 要人选：推送服务停在复核时状态是 manual；CC 对话、定时任务在推之前就停下时只记原因（`push_state.record_failure`），

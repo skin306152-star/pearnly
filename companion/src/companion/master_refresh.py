@@ -9,6 +9,15 @@
 - 扫描一律带公司名(读 ISINFO 有按修改时间的缓存,见 account_probe),不再有只读登记表、
   把公司名丢掉的快扫。
 所有读盘都在后台线程里,不占拉取任务那条线。
+
+增量扫描(2026-10-18,老电脑也不长时间占核;办公室测试机 1353 份账套原来每次启动重扫 5 分钟、21.8 秒 CPU):
+- 每份账套读到的公司名 / 税号 / 默认科目 / 会计期间、各登记表的行、科目表连同文件的(大小, 修改时间)存在本机
+  (account_index);重启后的第一遍只 stat,没变的不开 DBF,变了的才重读。启动时心跳先报上次的清单与科目表。
+- 扫描线程主动让出 CPU(scan_pace.Pace,平时最多 15% 个核;不改 Windows 线程优先级,见 scan_pace 文件头);读完所选账套所在的数据根就先交一份「进行中」快照
+  (``partial``,心跳把这些数据根换成新的、其余沿用上次报的),扫得慢时之后每隔一会儿再交一份,全部读完交完整快照。
+- 局域网服务器断开 / 很慢:每台服务器每轮先限时问一次(scan_pace.HostGate),不在就整台跳过、按 1–15 分钟退避,
+  不反复卡在超时上,也不因为它反复整套重扫。
+- 找新年度文件夹(整盘、共享盘深层查找)不再每次启动都做:距上次超过 24 小时才做(时间记在本机),「重新读取」照旧马上找。
 """
 
 from __future__ import annotations
@@ -26,6 +35,11 @@ log = get_logger(__name__)
 
 _WATCH_INTERVAL_S = 60.0  # 多久看一次登记表有没有变
 _FULL_RESCAN_S = 24 * 3600.0  # 兜底全扫
+_DISCOVER_INTERVAL_S = 24 * 3600.0  # 多久找一次新的年度文件夹(重启不重找;网页「重新读取」马上找)
+# 扫得慢时交「进行中」快照:开始读账套这么久后第一次(读完所选账套所在的数据根就交),之后每隔这么久一次。
+# 扫得快(几秒内读完)就只交完整快照,与原来一样。
+_PARTIAL_AFTER_S = 3.0
+_PARTIAL_EVERY_S = 10.0
 
 
 @dataclass
@@ -83,6 +97,11 @@ def _key(
 
 
 def _sccomp_stamp(root: str) -> Optional[tuple]:
+    """登记表的(大小, 修改时间);读不到 / 所在服务器这会儿不在(退避期内不做网络读)回 None。"""
+    from .scan_pace import GATE
+
+    if not GATE.reachable(root):
+        return None
     try:
         from .express_locate import sccomp_path
 
@@ -124,6 +143,49 @@ def _discover(roots: list[str]) -> list[str]:
     return found
 
 
+def _scan_order(roots: list[str], account_dir: str) -> list[str]:
+    """读的顺序:所选账套所在的数据根先读(通常就是第一个主根),其余按原顺序。上报顺序不变(见 _snapshot)。"""
+    selected = _norm(account_dir)
+    owner = next((root for root in roots if selected and selected.startswith(_norm(root) + "\\")), None)
+    if owner is None:
+        return list(roots)
+    return [owner, *(root for root in roots if root is not owner)]
+
+
+def _snapshot(roots: list[str], done: dict, chart: Optional[list], *, partial: bool) -> Dict[str, Any]:
+    """按数据根原来的顺序拼账套清单(同一数据根下同一路径只报一次);``partial`` 时只含读完的数据根并注明是哪些。"""
+    seen_accounts: set[tuple[str, str]] = set()
+    account_sets: list[dict] = []
+    scanned: list[str] = []
+    for root in roots:
+        normalized_root = _norm(root)
+        if normalized_root not in done:
+            continue
+        scanned.append(root)
+        for account in done[normalized_root]:
+            identity = (normalized_root, _norm(account.get("path")))
+            if not identity[1] or identity in seen_accounts:
+                continue
+            seen_accounts.add(identity)
+            account_sets.append(account)
+    payload: Dict[str, Any] = {"account_sets": account_sets}
+    if partial:
+        payload["partial"] = True
+        payload["scanned_roots"] = scanned
+    if chart is not None:
+        payload["accounts"] = chart
+    return payload
+
+
+def _publish_partial(key: str, payload: Dict[str, Any]) -> None:
+    with _lock:
+        refresh = _refreshes.get(key)
+        if refresh is None:
+            return
+        refresh.payload = payload
+        refresh.completed_at = max(time.time(), refresh.completed_at + 1e-6)
+
+
 def _scan(
     key: str,
     express_root: str,
@@ -132,22 +194,27 @@ def _scan(
     authorized_roots: Optional[list[str]],
     discover: bool = False,
     previous: Optional[tuple] = None,
+    force: bool = False,
 ) -> None:
     """后台线程:`previous` 给了(平时的变化检查)就先比登记表,没变就不扫、不出新快照。
     整套重扫时先扫、先把结果交出去,再记登记表的修改时间 —— 够不到的共享盘读修改时间会卡好几秒,
-    不能让它拖住这次结果。"""
+    不能让它拖住这次结果。`discover` 时距上次找新年度文件夹满 24 小时(或 `force`)才真去找。"""
     error = ""
     payload = None
     signature: Optional[tuple] = None
     roots: list[str] = []
+    looked = False
     try:
-        from . import device_facts
+        from . import device_facts, scan_pace
+        from .account_index import INDEX
         from .account_probe import account_sets_payload, chart_accounts_payload
 
         locator = device_facts.Locator()  # 本机共享表、各盘符的映射这一遍只问一次
         roots = _roots(express_root, authorized_roots)
-        if discover:
+        if discover and (force or INDEX.discovery_due(time.time(), _DISCOVER_INTERVAL_S)):
             roots += _discover(roots)
+            INDEX.mark_discovered(time.time())
+            looked = True
         if previous is not None:
             signature = _signature(roots, account_dir, not account_sets_only)
             if signature == previous:
@@ -156,23 +223,36 @@ def _scan(
                     if refresh is not None:
                         refresh.running = False
                 return
-        seen_accounts: set[tuple[str, str]] = set()
-        account_sets: list[dict] = []
-        for root in roots:
-            normalized_root = _norm(root)
-            for account in account_sets_payload(root, locator=locator):
-                identity = (normalized_root, _norm(account.get("path")))
-                if not identity[1] or identity in seen_accounts:
-                    continue
-                seen_accounts.add(identity)
-                account_sets.append(account)
-        payload = {"account_sets": account_sets}
-        if discover:
-            payload["roots"] = roots
+        pace = scan_pace.Pace(gate=scan_pace.GATE, duty=scan_pace.FORCED_DUTY if force else scan_pace.DUTY)
+        # 科目表先读(所选账套一张表):进行中的快照就带上,网页「科目映射」不用等整套扫完
+        chart = None
         if not account_sets_only:
-            payload["accounts"] = (
-                chart_accounts_payload(account_dir) if account_dir else []
-            )
+            chart = chart_accounts_payload(account_dir) if account_dir else []
+        done: dict = {}
+        began = time.monotonic()
+        published = None
+        for root in _scan_order(roots, account_dir):
+            if scan_pace.GATE.reachable(root, retry=force):
+                rows = account_sets_payload(root, locator=locator, pace=pace, reuse_registry=True)
+            else:
+                rows = []  # 所在服务器这会儿不在(退避期内):不读,这一轮不报它
+            done[_norm(root)] = rows
+            now = time.monotonic()
+            if len(done) < len(roots) and now - began >= _PARTIAL_AFTER_S and (
+                published is None or now - published >= _PARTIAL_EVERY_S
+            ):
+                INDEX.save()  # 扫到一半关机 / 退出也不白读：已读到的下次启动直接用
+                _publish_partial(key, _snapshot(roots, done, chart, partial=True))
+                published = now
+        payload = _snapshot(roots, done, None if account_sets_only else chart, partial=False)
+        if looked:
+            payload["roots"] = roots
+        if pace.slept:
+            log.info("[accounts] 账套清单读完：%d 份，让出 CPU %.1f 秒", len(payload["account_sets"]), pace.slept)
+        try:
+            INDEX.save()  # 先存本机索引再交完整快照（本机盘，几十毫秒）：交出去的与下次启动读到的是同一份
+        except Exception:
+            log.exception("account index save failed")
     except Exception:
         log.exception("Express master refresh failed: %s", account_dir)
         payload = None
@@ -182,7 +262,7 @@ def _scan(
         if refresh is None:
             return
         refresh.payload = payload
-        refresh.completed_at = time.time()
+        refresh.completed_at = max(time.time(), refresh.completed_at + 1e-6)
         refresh.error = error
         if payload is None:
             refresh.running = False
@@ -243,10 +323,11 @@ def request_master(
                 account_dir,
                 account_sets_only,
                 authorized_roots,
-                # 找新年度文件夹：网页「重新读取」时，以及每次整套重扫时（启动后第一次、之后每天一次），
-                # 新建的年度（如明年的 71EXP）不用等人去点（2026-10-08）。
+                # 找新年度文件夹：网页「重新读取」时马上找；整套重扫时距上次满 24 小时才找（记在本机，重启不重找，
+                # 2026-10-18；原来每次启动都整盘找一遍）—— 新建的年度（如明年的 71EXP）不用等人去点（2026-10-08）。
                 bool(discover and (force or full)),
                 None if full else refresh.signature,
+                force,
             ),
             name="pearnly-master-refresh",
             daemon=True,

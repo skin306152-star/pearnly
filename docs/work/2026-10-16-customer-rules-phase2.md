@@ -122,3 +122,11 @@
   `test_assistant_push`、`test_cowork_push_contract` 共 71 个通过。
 - `check-architecture` 0 违规；全闸门 `SKIP_NPM_CI=1 gate.sh` 在复审修正后的工作树（推送接入为最后一个代码提交 `0e08e468`）上 85 步全绿。
 - 还没做：真实 Site 建表（`bench migrate`）、测试机真机点验、第二个测试用户的多人场景。
+
+### 2026-10-16 测试窗口：规则对象与来源（本分支 `pearnly/cc-shell-rebuild`，本地提交、未推送）
+
+- 推送冻结用上的公司规则（目标 `company_rules`：编号、对象、值、范围），CC 回读 `written.company_rules` 说是哪一条、现在还在不在
+  （钩子 `cowork_push_company_choices_saved` → `rules.values_now`）；不再叫 CC 去 `<client_choices>` 找。
+- `<client_choices>` 每行带对象税号，写明是现在的规则、不是入账记录。
+- CC 存规则加 `expect_party`：服务端按传进来的单据算对象，与 CC 说给用户的对方对不上就不出卡片、不写库（共用层工具声明 `refuse`）。
+- 详见 [CC 外壳任务记录](2026-10-16-cc-shell-rebuild.md) 同日条目。

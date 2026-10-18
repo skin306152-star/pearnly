@@ -1,0 +1,10 @@
+[Unit]
+Description=Pearnly monthly restore drill from gs://pearnly-backups-sg (mails the result)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/pearnly-watch/drill.sh
+Nice=10
+TimeoutStartSec=3h

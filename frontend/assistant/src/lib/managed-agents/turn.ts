@@ -1,5 +1,6 @@
 // 工作状态行（同 Claude 的工作指示，教程第 6、8 条）：用户一发出，对话底部就出现一行「橘色动画点 + 计时 · 在做什么」，
-// 一直在，直到这一轮真正结束；等用户点「允许」时轮到用户，这一行收起（卡片照常显示），点完再出来。
+// 一直在，直到这一轮真正结束；等用户点「允许」时轮到用户，这一行换成「需要您的输入」（照 Claude：橙色小点 + 浅橙小胶囊，
+// 在卡片下方），点完换回来。
 //
 // 这里只按会话状态算「此刻在做什么」，不碰 React、不读时钟（计时与「思考了几秒」在组件里按本页时钟算，同一份状态重放出来
 // 的结果不变）：
@@ -19,7 +20,8 @@ export type TurnActivity =
   | { kind: "thinking" }
   | { kind: "writing" }
   | { kind: "tool"; toolName: string; args: Record<string, unknown> }
-  | { kind: "reconnecting" };
+  | { kind: "reconnecting" }
+  | { kind: "input" };
 
 type TurnState = Pick<Projection, "messages" | "isRunning" | "pendingApprovals" | "pendingCustomTools"> & {
   /** 运行中很久收不到服务端任何消息（session-controller）。 */
@@ -31,12 +33,13 @@ const SAME_SEND_MS = 60_000;
 
 const HIDDEN: TurnActivity = { kind: "hidden" };
 const THINKING: TurnActivity = { kind: "thinking" };
+const INPUT: TurnActivity = { kind: "input" };
 
 /** 此刻状态行显示什么。sending：按下发送、正式气泡还没画出来（新对话建会话、附件还在上传，pending-send.ts）。 */
 export function turnActivity(state: TurnState, sending = false): TurnActivity {
   if (!sending && !isBusy(state)) return HIDDEN;
-  // 轮到用户：卡片在对话里等点，状态行收起
-  if (!sending && state.pendingApprovals.length > 0) return HIDDEN;
+  // 轮到用户：卡片在对话里等点，状态行说「需要您的输入」
+  if (!sending && state.pendingApprovals.length > 0) return INPUT;
   if (state.stalled) return { kind: "reconnecting" };
   const last = state.messages.at(-1);
   if (sending || !last || last.role !== "assistant") return THINKING;
@@ -85,6 +88,7 @@ export function statusText(activity: TurnActivity, seconds: number, thought: num
   const elapsed = steps.elapsed(Math.max(0, seconds));
   switch (activity.kind) {
     case "hidden":
+    case "input":
       return "";
     case "reconnecting":
       return steps.connectionLost;
@@ -130,9 +134,11 @@ type ConnectionState = Pick<Projection, "lastError"> & {
 
 /** 对话顶部那一行（assistant.tsx 的 SessionStatusBar）此刻要不要说「正在重新连接…」：读写出错、引擎在重试、加载完了尾巴却
  *  没连上时说。只说这一句本地化的话，不显示原始报错（fetch 的「Failed to fetch」、引擎原文，多是英文：2026-10-15 安卓 F5），
- *  原文由页面写进控制台排查。对话内状态行已经在说「连接中断，正在重连…」（stalled）时不说，免得两处说同一件事。 */
+ *  原文由页面写进控制台排查。
+ *  只看连接本身，不看这一轮是不是「卡住了」（stalled）：断网超过 STALL_MS 时这一轮的状态行改说「连接中断，正在重连…」，顶部这一行
+ *  照旧在，直到补拉成功、尾巴连上才收起（第 11 轮重测 E 段：以前卡住时顶部不说，断网第 30 秒起这一行自己消失，网络其实还断着）。
+ *  卡住而连接看着是好的（引擎慢、推送通道没断）时顶部本来就不说，只有状态行说。 */
 export function showsReconnecting(state: ConnectionState): boolean {
-  if (state.stalled) return false;
   return !!state.transportError || state.lastError?.retryStatus === "retrying" || (state.isLoaded && !state.isTailing);
 }
 

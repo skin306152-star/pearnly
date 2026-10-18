@@ -283,9 +283,9 @@ def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiti
     release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
     assert release.index("queue.ack_failure(") < release.index("self._ask_busy(lang)")
     assert 'outcome="waiting_lock"' in release
-    # 不再防睡眠、不再开机锁屏（电脑睡了就是离线，活等它醒）；关窗口进托盘照旧
+    # 不再开机锁屏；防睡眠改成「CC 开着时保持电脑唤醒」（keep_awake.py，第 58 条，见 test_keep_awake）；关窗口进托盘照旧
     tray = (root / "gui_tray.py").read_text(encoding="utf-8")
-    assert "KeepAwake" not in tray and "lock_screen" not in tray
+    assert "lock_screen" not in tray and "LockWorkStation" not in tray
     assert "setQuitOnLastWindowClosed(False)" in tray
     assert not (root / "always_on.py").exists()
 
@@ -407,8 +407,8 @@ def test_every_reported_account_set_row_carries_uid_and_share():
 
 
 def test_account_sets_payload_adds_identity_only_with_details(monkeypatch):
-    found = [account_probe.AccountSet("A", "1.A", "ACME", "S:\\2569\\A", "0105", True, 1)]
-    monkeypatch.setattr(account_probe, "probe_account_sets", lambda root, include_details=True: found)
+    # 登记表一行（扫描逐份读账套，不再经 probe_account_sets 整份列出，2026-10-18）
+    monkeypatch.setattr(account_probe, "_registry_rows", lambda root, reuse=False: [("1.A", "A", "S:\\2569\\A")])
     monkeypatch.setattr(account_probe, "_account_details", lambda path: ("ACME", "0105", {}, {}))
 
     class Finder:

@@ -125,7 +125,7 @@ export const Companies: FC = () => {
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-page">
         <div className="cc-page-head">
-          <h1 className="cc-page-title">{co.companies}</h1>
+          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{co.companies}</Marquee></h1>
           {!!rows?.length && <SortMenu value={sort} onChange={setSort} />}
           <button type="button" className="cc-btn-sm" data-primary="" onClick={add}>
             <PlusIcon />

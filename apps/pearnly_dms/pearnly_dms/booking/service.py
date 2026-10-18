@@ -182,6 +182,7 @@ def book_in_session(
     """
     from pearnly_dms.adapter.push import booking_defaults_from_endpoint
     from pearnly_dms.booking.booking_customer import CustomerIncomplete, card_from_customer
+    from pearnly_dms.booking import booking_review
     from pearnly_dms.booking.booking_org import resolve_booking_org
     from pearnly_dms.booking.booking_payload import build_booking_payload
     from pearnly_dms.booking.booking_preflight import local_preflight
@@ -304,10 +305,11 @@ def book_in_session(
             regis_name=str(answers.get("regis_name") or ""),
             payments=tuple(payments),
         )
+        readback: dict = {}
         with booking_lock(endpoint):
             booking_id, booking_no = cl.create_booking_via_form(
                 customer_id=customer_id, booking=booking, card=master_card,
-                on_attempt=on_attempt,
+                on_attempt=on_attempt, readback_out=readback,
             )
         attached = 0
         failed = list(attach_failed or [])
@@ -326,6 +328,8 @@ def book_in_session(
             "attach_ok": not failed,
             "attached": attached,
             "attach_failed": failed,
+            # 回执逐项复核（核实那一轮读到的表单 vs 提交值）；只决定回执怎么写，不改结果。
+            "review": booking_review.review(readback),
             "cache_updated": False,  # Compatibility: no complete sales read yet.
             "cache_refresh_requested": False,
         }

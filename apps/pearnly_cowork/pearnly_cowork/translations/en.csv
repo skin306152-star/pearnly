@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,A value in the ERP da
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Abbreviated tax invoice,Abbreviated tax invoice
-Access to the CC Desktop queue has been revoked.,Access to the CC Desktop queue has been revoked.
 Account Codes,Account Codes
 Account Key,Account Key
 Account Set,Account Set
@@ -350,8 +349,6 @@ Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
-Choosing how a kind of document is handled,Choosing how a kind of document is handled
-Chose how a kind of document is handled,Chose how a kind of document is handled
 Chosen At,Chosen At
 Chosen By,Chosen By
 Claim VAT,Claim VAT
@@ -417,6 +414,7 @@ Content Hash,Content Hash
 Content Key,Content Key
 Continues the scheduled task «{0}»; only files put in from now on are processed,Continues the scheduled task «{0}»; only files put in from now on are processed
 Continuous counting,Continuous counting
+Conversation,Conversation
 Copy card,Copy card
 Copy link,Copy link
 Copy list,Copy list
@@ -607,6 +605,7 @@ Dividends,Dividends
 Document Key,Document Key
 Document No.,Document No.
 Document Policy,Document Policy
+Document handling set,Document handling set
 Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
@@ -1009,7 +1008,7 @@ Matched Count,Matched Count
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger","Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
 Matches,Matches
 Matching and saving,Matching and saving
-Max Payload Version,Max Payload Version
+Max Push Data Version,Max Push Data Version
 Member,Member
 Member management,Member management
 Members,Members
@@ -1061,7 +1060,7 @@ No cards are assigned to you,No cards are assigned to you
 No changes were given.,No changes were given.
 No computer can reach the account set for the document date.,No computer can reach the account set for the document date.
 No computer can write,No computer can write
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again","No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
+No computer with CC Desktop can write to this account set,No computer with CC Desktop can write to this account set
 No documents were given.,No documents were given.
 No due date,No due date
 No files were given.,No files were given.
@@ -1204,7 +1203,6 @@ Payee tax ID missing,Payee tax ID missing
 Payees,Payees
 Payer not clear,Payer not clear
 Payload Json,Payload Json
-Payload Version,Payload Version
 Payment,Payment
 Payment Date,Payment Date
 Payment Evidence,Payment Evidence
@@ -1259,7 +1257,9 @@ Purple,Purple
 Push Account Set,Push Account Set
 Push Attempt,Push Attempt
 Push Connection,Push Connection
+Push Data Version,Push Data Version
 Push Record,Push Record
+Push choices set for a client company or one of its branches,Push choices set for a client company or one of its branches
 Push record not found.,Push record not found.
 Pushed,Pushed
 Pushed documents,Pushed documents
@@ -1528,6 +1528,7 @@ Set By,Set By
 Set a local folder once; documents are read and entered every month,Set a local folder once; documents are read and entered every month
 Set as the account set in use?,Set as the account set in use?
 Set by {0} on {1},Set by {0} on {1}
+Set document handling,Set document handling
 Set due date,Set due date
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder
@@ -1703,7 +1704,6 @@ The account balance could not be checked right now. Try again in a moment.,The a
 The account codes are invalid.,The account codes are invalid.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
-The account set on this computer is not the registered one. Another computer will send it automatically.,The account set on this computer is not the registered one. Another computer will send it automatically.
 The account set on this computer is not the registered one. Waiting for another computer.,The account set on this computer is not the registered one. Waiting for another computer.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
 The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
@@ -1904,8 +1904,7 @@ This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
 This choice cannot be saved,This choice cannot be saved
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
-This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
+This computer can no longer handle this document,This computer can no longer handle this document
 This connection does not support an Express CC Desktop credential.,This connection does not support an Express CC Desktop credential.
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
@@ -1933,9 +1932,9 @@ This invoice has no lines. Add them and submit again.,This invoice has no lines.
 This invoice was already sent successfully,This invoice was already sent successfully
 This is a reissued or backdated document. Check it and submit again,This is a reissued or backdated document. Check it and submit again
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).","This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย)."
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,This is a trial balance with account totals only. Upload the general ledger with each voucher.
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice
 This is set by the scheduled task's default handling. Change it in the task,This is set by the scheduled task's default handling. Change it in the task
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
@@ -2002,6 +2001,7 @@ Transaction Date,Transaction Date
 Transaction type,Transaction type
 Transfer,Transfer
 Transfer slips,Transfer slips
+Transfer slips are not entered; this one is not sent,Transfer slips are not entered; this one is not sent
 Transport,Transport
 Turn off,Turn off
 Turn on,Turn on
@@ -2135,6 +2135,7 @@ With differences,With differences
 Withdrawal,Withdrawal
 Withholding agent,Withholding agent
 Withholding tax certificates,Withholding tax certificates
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workbook Revision,Workbook Revision
@@ -2180,7 +2181,7 @@ companion.on_demand_invalid,The request to CC Desktop is invalid.
 companion.on_demand_missing,The request to CC Desktop was not found.
 companion.on_demand_not_ready,CC Desktop has not finished this yet.
 companion.on_demand_unsupported,The computer on this connection cannot do this.
-companion.queue_access_revoked,Access to the CC Desktop queue has been revoked.
+companion.queue_access_revoked,This computer can no longer handle this document
 companion.queue_conflict,This delivery conflicts with the current task state.
 companion.queue_request_invalid,The CC Desktop queue request is invalid.
 companion.queue_response_invalid,The CC Desktop queue response is invalid.
@@ -3369,10 +3370,10 @@ intake.error.date_implausible,The invoice date looks wrong. Correct it and submi
 intake.error.date_reissued,This is a reissued or backdated document. Check it and submit again
 intake.error.deposit_receipt,Deposit receipts need a person to decide how to post them in Express
 intake.error.direction_unknown,Choose purchase or sales for this invoice and submit again
-intake.error.document_policy_needed_payment_evidence,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
-intake.error.document_policy_needed_withholding_certificate,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
-intake.error.document_policy_skip_payment_evidence,This company does not enter transfer slips; this one is not sent
-intake.error.document_policy_skip_withholding_certificate,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
+intake.error.document_policy_needed_payment_evidence,This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice
+intake.error.document_policy_needed_withholding_certificate,This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice
+intake.error.document_policy_skip_payment_evidence,Transfer slips are not entered; this one is not sent
+intake.error.document_policy_skip_withholding_certificate,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
 intake.error.entry_not_balanced,The entry does not balance. Check the amounts
 intake.error.items_incomplete,Some line items have no name or amount. Fix the lines and submit again
 intake.error.items_mismatch,The line items do not add up to the invoice amount. Fix the lines and submit again
@@ -3506,7 +3507,7 @@ push.native_stale_attempt,This push attempt is no longer current.
 push.native_state_invalid,This action is not allowed in the current push state.
 push.native_target_changed,The push target has changed. Prepare the invoice again.
 push.native_target_mismatch,The frozen push target does not match the authorized target.
-push.no_writer,"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
+push.no_writer,No computer with CC Desktop can write to this account set
 push.original_reference_invalid,The original invoice reference is invalid or unavailable.
 push.posting_kind_invalid,Invalid posting type.
 push.preparation_cancelled,The unsent preparation was cancelled.

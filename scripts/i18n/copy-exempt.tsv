@@ -1,0 +1,47 @@
+# 界面文案闸门的逐条豁免（scripts/check-copy.py 读）。
+#
+# 只给已经定稿、确需例外的几条：豁免绑定当时的文案，文案一变就失效、闸门变红；不许整文件、不许通配。
+# 想过闸先改文案；改规则（copy-words.tsv）会出现在清单的「规则改动」一节，且 tests/test_check_copy.py 的坏例必须仍被拦。
+#
+# 格式（制表符分隔）：范围 <TAB> 规则 <TAB> 文案 <TAB> 原因
+#   范围   <来源>:<键>          某一条词条（来源:键 的写法同 copy-approved.tsv）
+#          术语:<词>@<来源>     业务专名，只对 R-DEV / R-MIX 生效；必须写 @ 适用的来源（如 @pearnly_cowork），
+#                               术语不能正好是开发术语词表里的一个词（「术语:接口」不行，「术语:Channel Access Token」可以）
+#          代码:<路径>          某个文件里的一处代码引用（R-HARD），文案列写引用原文
+#   规则   逗号分隔的规则 ID（R-LEN、R-SENT、R-WHY、R-HEDGE、R-TALK、R-WE、R-HINT、R-NARR、R-DEV、R-MIX、R-PAREN、R-EG、
+#          R-HELLO、R-EMOJI、R-EMPTY、R-NAME、R-ALIGN、R-LINE20、R-HARD、R-CONCAT），不许 *；R-CHG、R-EXEMPT、R-RULES 不能豁免
+#   文案   登记时的完整当前文案（有中文写中文，没有写英文；换行写 \n）；术语行写词本身
+#   原因   具体理由，≥ 6 个字，不能只写「历史遗留 / 需要 / 暂时 / 同上」
+#
+# ── 已定稿的例外（2026-10-17 建闸门时登记）
+pearnly_dms:dms.card.TXT_MENU_GREETING	R-HELLO,R-EMOJI,R-TALK	你好 🙏\n欢迎使用 Pearnly DMS\n请选择下方菜单开始使用	LINE 加好友欢迎语，只在加好友时出现一次，已定稿上线
+assistant:MESSAGES.placeholder	R-HELLO,R-WE	今天我能为您做些什么？	对照 Claude 网页版输入框占位的官方说法（CC 前端照 Claude 做，已定稿）
+assistant:MESSAGES.morning	R-HELLO	早上好	对照 Claude 网页版首页按时段的问候语（CC 前端照 Claude 做，已定稿）
+assistant:MESSAGES.afternoon	R-HELLO	下午好	同 MESSAGES.morning：Claude 网页版首页问候语，按时段
+assistant:MESSAGES.evening	R-HELLO	晚上好	同 MESSAGES.morning：Claude 网页版首页问候语，按时段
+pearnly_cowork:For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	R-HINT,R-WHY	拍摄提示：请将单据摆正、文字朝上，完整拍入画面。	拍照录入的拍摄要领，ERP 与 Cowork 共用的定稿说法（「拍摄提示：」是该说明的标题）
+pearnly_erp_portal:For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	R-ALIGN,R-HINT	拍摄提示：请将单据摆正，文字朝上，完整入镜。	拍照录入的拍摄要领，ERP 与 Cowork 共用的定稿说法（「拍摄提示：」是该说明的标题）
+# ── 后台专名：照第三方控制台或业务原名
+术语:API Key@pearnly_control	R-DEV	API Key	LINE / 识别服务后台的凭据栏名，照第三方控制台原名
+术语:Webhook URL@pearnly_control	R-DEV	Webhook URL	LINE Developers 控制台里的栏名，管理员照着填
+术语:Channel Access Token@pearnly_control	R-DEV	Channel Access Token	LINE Developers 控制台里的栏名，管理员照着填
+术语:Channel ID@pearnly_control	R-DEV	Channel ID	LINE Developers 控制台里的栏名，管理员照着填
+术语:LIFF ID@pearnly_control	R-DEV	LIFF ID	LINE Developers 控制台里的栏名，管理员照着填
+术语:识别字段@pearnly_cowork	R-DEV	识别字段	识别结果的栏位名，业务术语（Cowork 识别设置的标签）
+术语:识别字段@pearnly_core	R-DEV	识别字段	识别结果的栏位名，业务术语（录入记录的标签）
+术语:自定义字段@pearnly_cowork	R-DEV	自定义字段	任务表的自定义栏位，业务术语（Cowork 任务的标签）
+# ── hidden 字段（Desk 表单不显示的机制字段）：10-18 闸门把 hidden 字段的标签 / 说明按管理后台判（不在术语表只标黄）之前，现有命中逐条登记
+pearnly_cowork:Refresh Lease Owner	R-DEV	刷新租约持有者	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Generation	R-DEV	刷新租约版本	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Handle	R-DEV	刷新租约标识	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Lease Expires At (UTC)	R-DEV	刷新租约到期时间（UTC）	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+pearnly_cowork:Refresh Request Aliases	R-DEV	刷新请求幂等索引	cowork_erp_refresh 的 hidden 机制字段，Desk 表单不显示
+代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_pos_layout/cowork_pos_layout.json	R-HARD	Layout Key	hidden 字段的标签，Desk 表单不显示，不进术语表
+代码:apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.json	R-HARD	Run warnings and the anchor snapshot/overrides the workbook shows; keys are the deployed ones	hidden 字段的说明，Desk 表单不显示，不进术语表
+# ── LINE 消息逐行拼接（存量清单第 8 / 15 节，10-18）：每行是一句完整文案，按行发给 LINE
+代码:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	R-CONCAT	… + '\n' + _(Please upload a PDF or image) + '\n' + _(For the best reading, phot	LINE 上传前提示逐行拼接，每行是一句完整文案
+# ── 可编辑 JSON 字段的说明（存量清单第 12 节，10-18）：键名与可填项是管理员填写依据
+pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery days, pinned advisor advisor_id; the pinned advisor takes priority over automatic matching.	R-LEN,R-DEV	DMS 建单默认值（JSON）：车型、颜色、分店、团队、交车天数、指定顾问 advisor_id；指定顾问优先于自动匹配。	可编辑 JSON 字段，键名与可填项是管理员填写依据
+# ── 开户邮件的品牌口号（存量清单第 10 节，10-18）：品牌名与口号不翻译
+代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	alt=Pearnly — Smart Work, Happy Life	品牌名与品牌口号，四种语言的邮件都不翻译
+代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	© Pearnly · Smart Work, Happy Life	品牌版权行，品牌口号不翻译

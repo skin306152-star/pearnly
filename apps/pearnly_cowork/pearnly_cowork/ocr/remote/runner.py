@@ -28,7 +28,8 @@ from pearnly_cowork.ocr.engine.fewshot import fewshot_for_text
 from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.client import ProviderClient
 from pearnly_cowork.ocr.remote import contract
-from pearnly_cowork.ocr import originals as original_files, recon_reading
+from pearnly_core.originals import checks as original_files
+from pearnly_cowork.ocr import recon_reading
 
 UPLOAD_STEP_SECONDS = 30  # 与 pearnly_core.execution.provider 同一口径
 # 被谷歌限流时原地等：与 pearnly_core.execution.provider.post 在识别任务里同一规则（每步最多 20 秒、每次调用累计最多 60 秒；
@@ -929,6 +930,10 @@ def warm(body, backend, access_token, *, orient, page_source, originals=None, ht
         content = contract.parse_request(request)
     except ValueError:
         return {"status": "skipped", "reason": "task_request_invalid"}
+    if content is None:  # 原件在原件桶里（ADR-024）：同整份那一遍一样按版本号读、核对
+        content, failure = original_bytes(request, originals)
+        if failure:
+            return {"status": "skipped", "reason": failure}
     store = Store(backend, request["site"], request["work"])
     environment = dict(request["environment"])
     is_pdf = request["filename"].lower().endswith(".pdf")

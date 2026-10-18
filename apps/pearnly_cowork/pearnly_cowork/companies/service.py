@@ -126,6 +126,14 @@ def exists(name) -> bool:
     return bool(isinstance(name, str) and name and len(name) <= 140 and frappe.db.exists(COMPANY, name))
 
 
+def with_tax_id(tax_id) -> list:
+    """税号（13 位数字）对应的主档编号（同一税号可能有几份主档，例如不同适配器）；不是 13 位数字回空。"""
+    tax = str(tax_id or "").strip()
+    if len(tax) != 13 or not tax.isdigit():
+        return []
+    return sorted(frappe.get_all(COMPANY, filters={"tax_id": tax}, pluck="name", limit_page_length=20))
+
+
 def subtitle(row) -> str:
     return row.get("tax_id") or ""
 
@@ -562,7 +570,7 @@ def context_text(company, period="", work_scope="") -> str:
                         "month_candidates": picked["candidates"]})
     covering = {(item["connection"], item["key"]) for item in _covering(sets, period)}
     return context.company_note({
-        "title": row.title, "legal_name": row.legal_name, "tax_id": row.tax_id,
+        "id": row.name, "title": row.title, "legal_name": row.legal_name, "tax_id": row.tax_id,
         "combined_vat": bool(row.get("combined_vat")), "period": period, "scope": work_scope,
         "account_sets": sets, "branches": identity.branches(sets), "covering": covering, "folders": folders,
         "notes": notes.listing(row.name), "rules": rules.context_rows(row.name)})

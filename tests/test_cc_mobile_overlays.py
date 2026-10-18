@@ -104,11 +104,13 @@ class ViewportUnitGateTests(unittest.TestCase):
 
     def test_globals_define_the_viewport_tokens_with_a_vh_fallback(self):
         css = read("globals.css")
-        self.assertIn("  --cc-vh: 100vh;\n", css)
-        self.assertIn("  --cc-svh: 100vh;\n", css)
-        self.assertIn("  --cc-viewport-h: var(--cc-vvh, var(--cc-vh));\n", css)
-        self.assertIn("@supports (height: 100dvh) { :root { --cc-vh: 100dvh; } }", css)
-        self.assertIn("@supports (height: 100svh) { :root { --cc-svh: 100svh; } }", css)
+        self.assertRegex(css, r"\n  --cc-vh: 100vh; +/\* 系统值")
+        self.assertRegex(css, r"\n  --cc-svh: 100vh; +/\* 系统值")
+        # 可见区域高：lib/viewport.ts 写 --cc-vvh，运行时层登记的默认值是整屏高（原来写在 var() 的回退里）
+        self.assertIn("  --cc-viewport-h: var(--cc-vvh);\n", css)
+        self.assertIn("  --cc-vvh: var(--cc-vh);", css)
+        self.assertIn("@supports (height: 100dvh) { :root { --cc-vh: 100dvh; /* 系统值 */ } }", css)
+        self.assertIn("@supports (height: 100svh) { :root { --cc-svh: 100svh; /* 系统值 */ } }", css)
         # 手机外壳、整页外框、侧栏都只引用变量
         self.assertIn("height: var(--cc-viewport-h);", css.split(".cc-mshell {", 1)[1].split("}", 1)[0])
         self.assertIn('<div className="flex h-(--cc-vh) w-full bg-app">', read("assistant.tsx"))
@@ -122,17 +124,20 @@ class DialogFitTests(unittest.TestCase):
     def test_modals_are_centred_in_the_visible_area_and_capped_to_it(self):
         css = read("globals.css")
         modal = css.split("  .cc-modal {", 1)[1].split("}", 1)[0]
-        self.assertIn("top: calc(var(--cc-vvtop, 0px) + var(--cc-viewport-h) / 2);", modal)
-        self.assertIn("max-height: calc(var(--cc-viewport-h) * var(--cc-modal-share, 0.88));", modal)
+        # --cc-vvtop、--cc-modal-share 在运行时层登记了默认值（0px、0.88，原来写在 var() 的回退里）
+        self.assertIn("top: calc(var(--cc-vvtop) + var(--cc-viewport-h) / 2);", modal)
+        self.assertIn("max-height: calc(var(--cc-viewport-h) * var(--cc-modal-share));", modal)
+        self.assertIn("  --cc-vvtop: 0px;", css)
+        self.assertIn("  --cc-modal-share: 0.88;", css)
         guide = css.split("  .cc-install-guide {", 1)[1].split("}", 1)[0]
-        self.assertIn("max-height: calc(var(--cc-viewport-h) - 2rem); overflow-y: auto;", guide)
+        self.assertIn("max-height: calc(var(--cc-viewport-h) - var(--cc-dialog-gutter) * 2); overflow-y: auto;", guide)
         self.assertNotIn("top: 50%", guide)
         # 每个居中弹窗都用 cc-modal，不再自己写 top-1/2（工具类会盖过 cc-modal 的位置）
         for path, needle in [
             ("components/scheduled-tasks.tsx", "cc-card cc-enter cc-modal fixed left-1/2 z-50 flex"),
             ("components/add-company.tsx", "cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex"),
             ("components/settings.tsx", "cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))]"),
-            ("components/ui/dialog.tsx", "cc-modal fixed start-[50%] z-50 grid overflow-y-auto"),
+            ("components/ui/dialog.tsx", "cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto"),
         ]:
             source = read(path)
             self.assertIn(needle, source, path)
@@ -155,11 +160,42 @@ class DialogFitTests(unittest.TestCase):
         settings = read("components/settings.tsx")
         self.assertIn('<main className="min-h-0 min-w-0 flex-1 overflow-y-auto', settings)
 
+    def test_phone_composer_folds_to_one_line_like_claude(self):
+        # 用户 10-17（对照 Claude 手机端截图）：没在输入、也没有字和附件时输入框收成一行胶囊（「＋」、占位字），
+        # 点进去展开成两行；回复进行中的停止钮照样在；发送钮同「＋」是圆的；电脑不受影响（只在手机外壳里）
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn("const empty = useAuiState((s) => s.composer.isEmpty);", thread)
+        self.assertIn('data-collapsed={!typing && empty ? "" : undefined}', thread)
+        self.assertIn("onFocus={() => setTyping(true)}", thread)
+        self.assertIn("onBlur={() => setTyping(false)}", thread)
+        # 安卓返回键收起键盘后输入框仍聚焦：空的就失焦、收回一行（第 10 轮 A14）
+        self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", thread)
+        self.assertIn('if (emptyNow.current && el instanceof HTMLTextAreaElement && el.closest(\'[data-slot="aui_composer-shell"]\')) el.blur();', thread)
+        # 新对话没有建议时那个空容器不占 gap（第 10 轮 A14：输入框下多出 16px）
+        self.assertIn('className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4 empty:hidden"', thread)
+        css = read("globals.css")
+        fold = css[css.index(".cc-mshell .cc-composer[data-collapsed] {"):]
+        fold = fold[:fold.index("/* 手机新对话问候下面")]
+        self.assertIn("flex-direction: row;", fold)
+        self.assertIn("border-radius: var(--cc-radius-full);", fold)
+        self.assertIn(".cc-mshell .cc-composer[data-collapsed] .aui-composer-send { display: none; }", fold)
+        self.assertNotIn("aui-composer-cancel", fold)  # 停止钮不藏
+        self.assertNotIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer[data-collapsed]", css)
+        self.assertIn(".cc-mshell .cc-send { width: var(--cc-mcomposer-btn); height: var(--cc-mcomposer-btn); border-radius: var(--cc-radius-full); }", css)
+        self.assertIn("--cc-mcomposer-btn: 34px;", css)
+        self.assertIn(".cc-welcome-filing:empty { display: none; }", css)
+
     def test_viewport_tracking_moves_to_the_root_for_portaled_dialogs(self):
         viewport = read("lib/viewport.ts")
         self.assertIn('root.style.setProperty("--cc-vvh", `${viewport.height}px`);', viewport)
         self.assertIn('root.style.setProperty("--cc-vvtop", `${viewport.offsetTop}px`);', viewport)
+        self.assertIn('tallest = Math.max(tallest, window.innerHeight, shown);', viewport)
+        self.assertIn('root.toggleAttribute("data-cc-keyboard", next);', viewport)
+        self.assertIn('if (open && !next) window.dispatchEvent(new Event(KEYBOARD_CLOSED));', viewport)
         self.assertNotIn("scrollTo(", viewport)
+        # 键盘弹出时输入框贴着键盘（不留指示条那一截）
+        css = read("globals.css")
+        self.assertIn(":root[data-cc-keyboard] .cc-mmain .aui-thread-viewport-footer { padding-bottom: var(--cc-keyboard-gap); }", css)
         main = read("main.tsx")
         self.assertIn("trackViewport();", main)
         shell = read("components/mobile-shell.tsx")
@@ -179,20 +215,62 @@ import { trackViewport } from "@/lib/viewport";
 
 const g = globalThis as any;
 const handlers: Record<string, () => void> = {};
-g.visualViewport = { height: 786, offsetTop: 0, addEventListener: (t: string, f: () => void) => (handlers[t] = f), removeEventListener: (t: string) => delete handlers[t] };
+const fired: string[] = [];
+g.innerHeight = 786;
+g.innerWidth = 390;
+g.dispatchEvent = (e: Event) => fired.push(e.type);
+g.visualViewport = { height: 786, offsetTop: 0, scale: 1, addEventListener: (t: string, f: () => void) => (handlers[t] = f), removeEventListener: (t: string) => delete handlers[t] };
 const props: Record<string, string> = {};
-const root: any = { style: { setProperty: (k: string, v: string) => (props[k] = v) } };
+const attrs = new Set<string>();
+const root: any = {
+  style: { setProperty: (k: string, v: string) => (props[k] = v) },
+  toggleAttribute: (k: string, on: boolean) => (on ? attrs.add(k) : attrs.delete(k)),
+  removeAttribute: (k: string) => attrs.delete(k),
+};
 const stop = trackViewport(root);
 assert.deepEqual(props, { "--cc-vvh": "786px", "--cc-vvtop": "0px" });
-// 键盘弹出：可见区域只剩 475
+assert.equal(attrs.has("data-cc-keyboard"), false);
+// 键盘弹出：可见区域只剩 475（iOS 整屏高不变）→ 带 data-cc-keyboard，输入框底下不再留指示条那一截
 g.visualViewport.height = 475;
 handlers.resize!();
 assert.equal(props["--cc-vvh"], "475px");
+assert.equal(attrs.has("data-cc-keyboard"), true);
 g.visualViewport.offsetTop = 120;
 handlers.scroll!();
 assert.equal(props["--cc-vvtop"], "120px");
+// 双指放大两倍：可见区域按 CSS 像素只剩一半，乘上 scale 还是整屏，不算键盘
+g.visualViewport.height = 393;
+g.visualViewport.scale = 2;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+// 地址栏伸缩只差几十像素：不算键盘
+g.visualViewport.height = 730;
+g.visualViewport.scale = 1;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+// 放大与地址栏那两下键盘都是收起的：只有真从弹出变收起才发 KEYBOARD_CLOSED（上面 475 → 放大那一下发过一次）
+assert.deepEqual(fired, ["cc:keyboard-closed"]);
+// 安卓 resizes-content：键盘弹出时整屏高也跟着变矮（第 10 轮 A14），按这个宽度下见过的最高判，照样认得出
+g.innerHeight = 475;
+g.visualViewport.height = 475;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), true);
+g.innerHeight = 786;
+g.visualViewport.height = 786;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+assert.deepEqual(fired, ["cc:keyboard-closed", "cc:keyboard-closed"]);
+// 转屏（宽度变了）重新记最高：横屏矮了不算键盘
+g.innerWidth = 844;
+g.innerHeight = 390;
+g.visualViewport.height = 390;
+handlers.resize!();
+assert.equal(attrs.has("data-cc-keyboard"), false);
+g.visualViewport.height = 475;
+handlers.resize!();
 stop();
 assert.deepEqual(Object.keys(handlers), []);
+assert.equal(attrs.has("data-cc-keyboard"), false);
 // 没有 visualViewport：不写，CSS 退回 --cc-vh
 delete g.visualViewport;
 const none: Record<string, string> = {};
@@ -500,8 +578,8 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn("export const DropdownMenu = { ...Radix, Content, SubContent };", menu)
         css = read("globals.css").split("  .cc-menu {", 1)[1].split("}", 1)[0]
         # 限高：页面写的 --cc-menu-max（没写不封顶）与组件库量的可用高度取小；方向由包装按完整高度选（F11d）
-        self.assertIn("max-width: var(--radix-dropdown-menu-content-available-width); max-height: min(var(--cc-menu-max, 100vh), "
-                      "var(--radix-dropdown-menu-content-available-height, 100vh)); overflow-y: auto;", css)
+        self.assertIn("max-width: var(--radix-dropdown-menu-content-available-width); max-height: min(var(--cc-menu-max), "
+                      "var(--radix-dropdown-menu-content-available-height, var(--cc-menu-max-none))); overflow-y: auto;", css)
         for rel in ("components/period-chip.tsx", "components/assistant-ui/projects.tsx"):
             self.assertNotIn("max-h-80", read(rel), rel)
         self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]"'), 2)
@@ -528,18 +606,21 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<GlobeIcon />} label={t("language")} sideOffset={8}>', page)
         self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>', page)
         projects = read("components/assistant-ui/projects.tsx")
-        self.assertIn('<SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">', projects)
-        # 手机胶囊菜单里的「处理月份」移到了输入框下巴（设计文档 4.3），菜单里只留「移到…」
+        # 用户 10-17：对话不能换公司，「移到 ›」子菜单删了；手机对话页「…」里的处理月份、分店子菜单照用包装组件
+        self.assertNotIn("co.moveTo", projects)
+        self.assertIn('<SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
         self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
-        more = rows.split("const ThreadListItemMore: FC", 1)[1]
+        more = rows.split("const ThreadListItemMore = memo(function ThreadListItemMore(", 1)[1]
         self.assertEqual(more.count('side="bottom"\n            align="end"'), 1)
         self.assertEqual(more.count('side="bottom"\n      align="end"'), 1)  # 多选时的批量项
         self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)
         # 组标题「···」（分组和排序，公司组与已置顶 / 最近 / 月份共用）
         group = read("components/assistant-ui/sidebar-group.tsx")
-        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align="end"\n          sideOffset={4}', group)
+        # 右对齐；只有手机上的公司组头（alignHead）左边贴着组头开关的左边（第 7 轮：各行首字从菜单左边露出）
+        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align={head ? "start" : "end"}\n          alignOffset={head ? offset : 0}\n          sideOffset={4}', group)
+        self.assertIn("const head = alignHead && offset !== null;", group)
 
     @NEEDS_NODE
     def test_menus_keep_8px_from_the_edge_and_phones_open_submenus_in_place(self):

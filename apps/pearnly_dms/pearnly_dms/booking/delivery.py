@@ -153,12 +153,56 @@ def _repair_files(doc, marker):
     return bool(result.get("ok"))
 
 
-def _receipt_text(doc, marker):
+def _receipt_message(doc, marker):
+    """回执（一条 LINE 消息）：带上开单后的逐项复核结论（`result.review`，没有就照旧）。
+
+    有差异时登记一张差异卡（`review_fix.open_card`），卡上的三个按钮认这张登记。回执只定一次
+    （定好后存在记录里、重发用同一条），所以只登记一次。
+    """
     qa = marker["context"].get("qa") or {}
     answers = qa.get("answers") or {}
-    return cards.booking_receipt_text(doc.booking_no,
+    result = marker.get("result") or {}
+    review = result.get("review")
+    record = nonce = ""
+    if (review or {}).get("diffs"):
+        from pearnly_dms.booking.conversation import review_fix
+
+        record = doc.name
+        nonce = review_fix.open_card(record, doc.line_user_id, doc.booking_no, doc.booking_id,
+                                     review["diffs"])
+    return cards.booking_receipt_message(doc.booking_no,
         str((answers.get("car") or {}).get("label") or ""),
-        str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""))
+        str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""),
+        review=review, attach_ok=bool(result.get("attach_ok", True)), record=record, nonce=nonce)
+
+
+def record(name):
+    """一条回执投递记录（差异卡按钮要它的提交上下文）；没有就 `None`。"""
+    return frappe.get_doc(DT, name) if name and frappe.db.exists(DT, name) else None
+
+
+def endpoint_of(name):
+    """这张单当初提交到的端点名（台账用）。"""
+    doc = record(name)
+    return ((json.loads(doc.attempt or "{}").get("context") or {}).get("endpoint") or "") if doc else ""
+
+
+def sales_endpoint(name):
+    """改这张单要用的端点：原提交销售的端点，DMS 身份（地址 + 账号）没变、LINE 绑定还是他；否则 `None`。
+
+    与补附件（`_repair_files`）同一判据：只用原来那个销售的身份改原来那张单。
+    """
+    doc = record(name)
+    if not doc:
+        return None
+    context = (json.loads(doc.attempt or "{}").get("context") or {})
+    binding = context.get("binding") or {}
+    if not binding or not matches(binding, doc.line_user_id):
+        return None
+    endpoint = resolve_dms_endpoint(binding.get("user_id"), context.get("endpoint"))
+    if not endpoint or identity_fingerprint(endpoint) != context.get("endpoint_fingerprint"):
+        return None
+    return endpoint
 
 
 def _attachment_notice(doc):
@@ -236,8 +280,8 @@ def deliver(name):
             from pearnly_dms import i18n
 
             with i18n.line_language(doc.line_user_id):  # 回执按收件人自己的手机语言
-                receipt_text = _receipt_text(doc, marker)
-            receipt = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(), "text": receipt_text}
+                message = _receipt_message(doc, marker)
+            receipt = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(), "message": message}
             marker["receipt"] = receipt
         _save(doc, marker)
         frappe.db.commit()
@@ -247,7 +291,9 @@ def deliver(name):
         if age(receipt["created_at"]) >= WINDOW_SECONDS:
             _save(doc, marker, status="Review", error="receipt_key_expired")
             return False
-        accepted = line.push(doc.line_user_id, [{"type": "text", "text": receipt["text"]}], retry_key=receipt["key"])
+        # 新记录存整条消息（可能是差异卡）；升级前定好的旧记录只有 `text`，照原样重发。
+        message = receipt.get("message") or {"type": "text", "text": receipt["text"]}
+        accepted = line.push(doc.line_user_id, [message], retry_key=receipt["key"])
         if accepted and not marker["result"].get("attach_ok"):
             # 回执不等附件：和正常成功同一刻、同一句送到；这一轮不补，缺的附件交给后面几轮。
             receipt["accepted_at"] = frappe.utils.now()

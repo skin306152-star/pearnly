@@ -8,6 +8,8 @@
 - 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
   也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
   卡片上的问句是 `"ask"`；问法随参数变时另写 `"ask_when": {参数名: 问句}`，给了该参数就用那句。
+  出卡片前要先核对的另写 `"refuse": "<函数路径>"`（函数(参数) → 交回模型的拒绝结果文本或 None）：核出要拒绝的不出卡片、
+  不执行工具，直接把那段结果交回模型（`refusal`；2026-10-16：存公司规则时模型说给用户的对方与单据对不上，不该先让人点「允许」）。
 - 进行中的说法（对话底部的工作状态行、正在执行的那一步，如「正在识别单据」）另在 `pearnly_assistant_step_names`
   声明 `{工具名: 英文原文}`（共用工具在 `CORE_STEP_NAMES`），译文同样进声明它的 App 的术语表；没声明的显示 `label`。
 - 工具一律在本站服务端、以当前登录用户身份执行：权限、租户、套账与数据范围沿用各产品现有服务的
@@ -90,8 +92,16 @@ def step_names() -> dict[str, str]:
 
 
 def steps() -> dict[str, dict[str, str]]:
-    """对话页的步骤名（按当前用户语言）：`done` 做完的说法（同 `labels`），`running` 进行中的说法。"""
-    return {"done": labels(), "running": {name: _(text) for name, text in step_names().items()}}
+    """对话页的步骤名（按当前用户语言）：`done` 做完的说法（同 `labels`），`running` 进行中的说法，`ask` 要点「允许」的工具
+    卡片上那句问话（`ask`，没写用步骤名）——点了「拒绝」的那一步照它写成没做的样子，不写成做完的说法（第 8 轮测试机：
+    拒绝存公司规则后，步骤仍写「记下了公司选择」）；`gate` 是带了哪些参数才要「允许」的工具（`approval` 是参数名列表，
+    同 `needs_approval`）：重开对话时页面据此认出哪一步出过卡片，点完的卡片留在原处（用户 10-17，照 Claude）；`ask_when` 是问法随参数
+    变的工具 {参数: 问句}（按声明顺序，同 `approval_view`）：重开对话时卡片上的问话与当场一样。"""
+    return {"done": labels(), "running": {name: _(text) for name, text in step_names().items()},
+            "ask": {t["name"]: _(t.get("ask") or t.get("label") or t["name"]) for t in declared() if t.get("approval")},
+            "gate": {t["name"]: list(t["approval"]) for t in declared() if isinstance(t.get("approval"), (list, tuple))},
+            "ask_when": {t["name"]: {key: _(text) for key, text in t["ask_when"].items()}
+                         for t in declared() if t.get("approval") and t.get("ask_when")}}
 
 
 def _given(values: dict, key: str) -> bool:
@@ -136,7 +146,38 @@ def approval_view(name: str, tool_input) -> dict:
     return {"ask": _(ask), "preview": rows[:PREVIEW_ROWS]}
 
 
+def refusal(name: str, tool_input) -> str | None:
+    """要「允许」的工具出卡片前的核对（工具声明的 `refuse`）：要拒绝回交给模型的结果文本（按出错交回），否则 None。
+    只读、不写；核对本身出错按不拒绝处理（照常出卡片，工具执行时自己会再核一遍）。"""
+    tool = next((t for t in declared() if t["name"] == str(name or "")), None) or {}
+    if not tool.get("refuse"):
+        return None
+    try:
+        text = frappe.get_attr(tool["refuse"])(tool_input if isinstance(tool_input, dict) else {})
+    except Exception:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="Assistant approval check failed")
+        return None
+    return str(text) if text else None
+
+
 REFUSED = ("not_saved", "not_started", "not_exported", "failed")
+
+# 出卡片前就核出要拒绝、没问过用户的结果上带的标记（`not_asked`）：重开对话时对话页据此把它画成步骤组里没做成的一步，
+# 而点了「允许」后没做成的（同样是 not_saved / failed）画成卡片「允许 · 失败」，两种不再分不清（第 10 轮审查）。
+NOT_ASKED = {"approval": "not_asked"}
+
+
+def not_asked(text: str) -> str:
+    """出卡片前核出的拒绝结果带上 `NOT_ASKED`：结果是 JSON 对象就并进去；不是就包成 {status: failed, reason: 原文}。"""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        data = {"status": "failed", "reason": text}
+    return json.dumps({**data, **NOT_ASKED}, ensure_ascii=False)
 
 
 def _refused(text: str) -> bool:
@@ -151,10 +192,10 @@ def _refused(text: str) -> bool:
 def run(name: str, tool_input) -> tuple[str, bool]:
     tool = next((t for t in declared() if t["name"] == str(name or "")), None)
     if not tool:
-        return _("This tool is not available on this site."), True
+        return _("assistant.tool.unavailable"), True
     try:
         text = str(frappe.get_attr(tool["handler"])(tool_input if isinstance(tool_input, dict) else {}))
         return text, _refused(text)
     except (frappe.ValidationError, frappe.PermissionError) as err:
         frappe.db.rollback()
-        return str(err) or _("The request was refused."), True
+        return str(err) or _("assistant.tool.refused"), True

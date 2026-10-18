@@ -272,7 +272,7 @@ const PendingGroup: FC<{
         ),
       )}
       {hand.length > 0 && (
-        <button type="button" className="cc-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
+        <button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
           <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>
@@ -346,7 +346,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
       if (answered(result)) onDone(item.document);
       else if (result.status === "needs_choice") await load();
       else {
-        setError(result.reason ?? "");
+        setError(result.reason_label || result.reason || "");
         onChanged();
       }
     } catch (e) {
@@ -392,7 +392,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
               </select>
             </label>
           ))}
-          <button type="button" className="cc-btn self-end" data-primary=""
+          <button type="button" className="cc-card-btn self-end" data-primary=""
             disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
             {busy && <LoaderIcon className="size-4 animate-spin" />}
             {co.confirm}
@@ -400,7 +400,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         </>
       )}
       {open && view && settledView(view) && (
-        <button type="button" className="cc-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
+        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
           {busy && <LoaderIcon className="size-4 animate-spin" />}
           {co.pushNow}
         </button>
@@ -409,7 +409,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
         <>
           {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}
-          <button type="button" className="cc-btn self-start" onClick={onAsk}>
+          <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
             <SparklesIcon className="size-4" />
             {co.handToCC}
           </button>
@@ -502,7 +502,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
       else {
         // 还要人选（科目等）：原因记在单上，列表重取后按新原因显示；推不成（没进账本）：单回到「待选账套」能再选，
         // 这次的原因显示在这一行下面
-        setError(result.reason ?? "");
+        setError(result.reason_label || result.reason || "");
         onChanged();
       }
     } catch (e) {
@@ -534,14 +534,14 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
               ))}
             </select>
           </label>
-          <button type="button" className="cc-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
+          <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
             {busy && <LoaderIcon className="size-4 animate-spin" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && sets && !sets.length && (
-        <button type="button" className="cc-btn self-start" onClick={onAsk}>
+        <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
           <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>
@@ -560,7 +560,7 @@ export const PendingView: FC = () => {
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-page">
         <div className="cc-page-head">
-          <h1 className="cc-page-title">{co.pending}</h1>
+          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{co.pending}</Marquee></h1>
         </div>
         <label className="cc-page-search">
           <SearchIcon />
@@ -570,8 +570,8 @@ export const PendingView: FC = () => {
           <div className="mb-4">
             <span className="cc-chip">
               {title}
-              <button type="button" className="-me-1 flex items-center" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>
-                <XIcon className="size-3.5" />
+              <button type="button" className="cc-chip-x" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>
+                <XIcon />
               </button>
             </span>
           </div>

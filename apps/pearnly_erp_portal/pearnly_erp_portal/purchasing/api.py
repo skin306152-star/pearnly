@@ -82,6 +82,29 @@ def api_purchase_attachments(name, attachments):
 
 
 @frappe.whitelist(methods=["POST"])
+def api_purchase_upload_begin(filename, byte_size, request_key):
+    """附件原件直传第一步（统一原件层，``recognition.originals``）。"""
+    from pearnly_erp_portal.recognition import originals
+
+    return originals.begin("purchase", filename, byte_size, request_key)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_upload_finish(filename, byte_size, request_key):
+    from pearnly_erp_portal.recognition import originals
+
+    return originals.finish("purchase", filename, byte_size, request_key)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_upload(request_key):
+    """经服务器上传一份附件原件（iPhone 照片、站点没配原件层）。"""
+    from pearnly_erp_portal.recognition import originals
+
+    return originals.upload("purchase", request_key)
+
+
+@frappe.whitelist(methods=["POST"])
 def api_remove_purchase_attachment(name, file):
     from pearnly_erp_portal.purchasing import files
 

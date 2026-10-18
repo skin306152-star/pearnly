@@ -140,7 +140,7 @@
   },
   {
    "default": "0",
-   "description": "Prices on the lines already include VAT (retail / simplified receipts); VAT is extracted instead of added.",
+   "description": "Line prices include VAT",
    "fieldname": "price_includes_vat",
    "fieldtype": "Check",
    "label": "Prices Include Tax"
@@ -306,7 +306,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-26 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sales Document",
  "owner": "Administrator",

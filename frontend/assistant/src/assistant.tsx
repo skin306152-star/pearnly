@@ -47,13 +47,14 @@ import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
+import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
 import {
   ComposerChin,
   ConversationCompany,
   MobileCompanyItem,
+  MobileChatTitle,
   MobileFilingItems,
-  MoveToMenu,
+  WelcomeFiling,
 } from "@/components/assistant-ui/projects";
 import { AddCompanyDialog } from "@/components/add-company";
 import { Companies } from "@/components/companies";
@@ -95,6 +96,8 @@ import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
+import { syncPrefs } from "@/lib/prefs-sync";
+import { DeleteChatsHost, deleteChat } from "@/components/delete-chats";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -116,17 +119,19 @@ function Welcome() {
   const profile = useProfile();
   const name = firstName(profile);
   const mascot = assistantMascot();
+  const hello = name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting();
   return (
     <div className="flex flex-col items-center gap-5">
       {/* 在哪儿打开就引导装到哪儿（电脑下载桌面版、手机装成应用），关掉后不再出现 */}
       <InstallBanner />
       <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-2 px-4 text-center md:flex-row md:gap-3">
         {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
-        {mascot && <Mascot src={mascot} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
-        <h1 className="cc-greeting text-3xl md:text-4xl">
-          {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
-        </h1>
+        {/* 问候语换了（名字取回、换了时段）再播一次小动画（上一次没播完就不打断） */}
+        {mascot && <Mascot src={mascot} play={hello} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
+        <h1 className="cc-greeting text-3xl md:text-4xl">{hello}</h1>
       </div>
+      {/* 手机：公司、月份、分店在问候下面（同线上旧版的公司条）；电脑在输入框下巴里 */}
+      <WelcomeFiling />
     </div>
   );
 }
@@ -151,7 +156,7 @@ function SessionStatusBar() {
   }, [detail]);
   if (!snapshot.sessionId || !showsReconnecting(snapshot)) return null;
   return (
-    <div data-slot="cc-status" className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
+    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
       {t("reconnecting")}
     </div>
   );
@@ -232,14 +237,14 @@ function UserMenu({ children }: { children: ReactNode }) {
   );
 }
 
-// 侧栏底部托盘（设计文档 3.1、4.2，同 Claude Code）：高 48；头像 + 名字 · 产品（点开用户菜单），右边 32 的「设置」
+// 侧栏底部托盘（设计文档 3.1、4.2，同 Claude Code）：高 48；头像 + 名字 · 产品（点开用户菜单，高 32 同托盘按钮），右边 32 的「设置」
 function UserFooter() {
   const profile = useProfile();
   if (!profile) return null;
   return (
     <>
       <UserMenu>
-        <button type="button" className="cc-nav-item min-w-0 flex-1">
+        <button type="button" className="cc-nav-item h-(--cc-tray-btn) min-w-0 flex-1" data-slot="cc-user-menu">
           <span className="cc-nav-icon">
             <span className="cc-avatar size-6">{initials(profile)}</span>
           </span>
@@ -249,7 +254,7 @@ function UserFooter() {
           </Marquee>
         </button>
       </UserMenu>
-      <button type="button" className="cc-icon-btn" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
+      <button type="button" className="cc-icon-btn" data-slot="cc-settings-button" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
         <SettingsIcon />
       </button>
     </>
@@ -333,12 +338,14 @@ function useMaximized(enabled: boolean) {
 }
 
 // 标题栏左半：菜单 / 侧栏开关 / 后退 / 前进（侧栏开着时在侧栏顶上，收起时在对话区左上角）
-function TitleBarLeft({ nav }: { nav: Nav }) {
+// navToggle：放在对话区顶栏（侧栏收起时）的那一份，侧栏开关标成顶栏导航钮；侧栏标题栏里那一份标成侧栏的落点（删完对话一行不剩、
+// 侧栏展开时焦点掉了的落点，lib/sidebar-focus.ts）
+function TitleBarLeft({ nav, navToggle = false }: { nav: Nav; navToggle?: boolean }) {
   const { toggleSidebar } = useSidebar();
   return (
     <div className="flex items-center gap-0.5">
       <AppMenu />
-      <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+      <button type="button" className="cc-icon-btn" data-slot={navToggle ? "cc-nav-toggle" : undefined} data-cc-nav-fallback={navToggle ? undefined : ""} onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
         <PanelLeftIcon />
       </button>
       <button type="button" className="cc-icon-btn" onClick={nav.back} disabled={!nav.canBack} aria-label={t("back")} title={t("back")}>
@@ -488,7 +495,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               {APP_NAME}
             </span>
-            <button type="button" className="cc-row-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+            <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" data-cc-nav-fallback="" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
           </div>
@@ -527,7 +534,7 @@ function MobileDrawer() {
     >
       <div className="flex items-center justify-between px-4 pt-1 pb-3">
         <span className="cc-drawer-title">{APP_NAME}</span>
-        <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
+        <button type="button" className="cc-round-btn" data-cc-nav-fallback="" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>
       </div>
@@ -601,8 +608,8 @@ function DrawerIcon() {
 }
 
 // 对话区顶部。
-// - 手机（同 Claude 手机端对话页）：左边菜单，右边胶囊（新建对话、「…」对话选项），都浮在内容上。
-// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、移到、删除）；
+// - 手机（同 Claude 手机端对话页）：左边菜单，中间两行标题（对话名、公司名；8.webp），右边胶囊（新建对话、「…」对话选项），都浮在内容上。
+// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、删除）；
 //   右上 26 的按钮：本对话的文件 N（有文件才出现）、右侧会话栏开关（挂了公司的 Cowork 对话才有）。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
 function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; tools: ReactNode }) {
@@ -612,13 +619,14 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const inChat = view === "chat" && hasMessages;
   if (isMobile) {
-    // 同 Claude 手机端的对话页：没有标题、没有横条，按钮浮在内容上，顶上一层上实下透的渐变；抽屉打开时照样在（随页面推开、被压淡）
+    // 同 Claude 手机端的对话页：没有横条，按钮浮在内容上，顶上一层上实下透的渐变；对话里中间是两行标题（不可点）；抽屉打开时照样在
+    // （随页面推开、被压淡）
     return (
       <div className="cc-mtopbar">
-        <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
+        <button type="button" className="cc-round-btn" data-slot="cc-nav-toggle" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <DrawerIcon />
         </button>
-        <span />
+        {inChat ? <MobileChatTitle /> : <span />}
         {inChat ? <MobileChatPill onNew={() => { setView("chat"); setDraft({}); aui.threads().switchToNewThread(); }} /> : <span className="cc-mtopbar-slot" />}
       </div>
     );
@@ -627,7 +635,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
     return (
       <div className="cc-titlebar shrink-0 justify-between pe-0" {...dragHandlers(win.toggle)}>
         <div className="flex min-w-0 items-center gap-1">
-          {!open && <TitleBarLeft nav={nav} />}
+          {!open && <TitleBarLeft nav={nav} navToggle />}
           {inChat && <ConversationTitle />}
         </div>
         <div className="flex items-center gap-1">
@@ -641,7 +649,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   return (
     <div className="cc-topbar">
       {!open && (
-        <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+        <button type="button" className="cc-icon-btn" data-slot="cc-nav-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
           <PanelLeftIcon />
         </button>
       )}
@@ -651,7 +659,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   );
 }
 
-// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、移到…、处理月份、删除）
+// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、处理月份、分店、删除）
 function MobileChatPill({ onNew }: { onNew: () => void }) {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
@@ -676,8 +684,8 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
           <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
             {/* 挂在公司下时最上面是公司名：点了全屏打开右侧会话栏 */}
             <MobileCompanyItem />
-            {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
+            {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}
+            <DropdownMenu.Item className="cc-menu-item" onSelect={() => toggleStar(aui.threadListItem(), !starred)}>
               {starred ? <PinOffIcon /> : <PinIcon />}
               {starred ? t("unstar") : t("star")}
             </DropdownMenu.Item>
@@ -686,7 +694,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
               {t("rename")}
             </DropdownMenu.Item>
             <MobileFilingItems />
-            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => deleteChat(aui.threadListItem())}>
               <TrashIcon />
               {t("delete")}
             </DropdownMenu.Item>
@@ -722,12 +730,10 @@ function ConversationName() {
   );
 }
 
-// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、移到 ▸、删除
+// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、删除（对话不能换公司，用户 10-17 删了「移到 ▸」）
 function ConversationMenu({ onRename }: { onRename: () => void }) {
   const aui = useAui();
   const custom = useAuiState((s) => s.threadListItem.custom);
-  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
-  const localId = useAuiState((s) => s.threadListItem.id);
   const starred = !!custom?.starred;
   return (
     <DropdownMenu.Root>
@@ -736,8 +742,8 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
-          {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
+          {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => toggleStar(aui.threadListItem(), !starred)}>
             {starred ? <PinOffIcon /> : <PinIcon />}
             {starred ? t("unstar") : t("star")}
           </DropdownMenu.Item>
@@ -745,8 +751,7 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
-          <MoveToMenu sessionId={remoteId} localId={localId} />
-          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => deleteChat(aui.threadListItem())}>
             <TrashIcon />
             {t("delete")}
           </DropdownMenu.Item>
@@ -874,6 +879,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   // 宽屏并排（开关记在本机）；对话区放不下时浮在对话上、手机盖满屏（点了才开，换对话收起）
   const profile = useProfile();
   useEffect(() => loadPanelPrefs(profile?.user ?? ""), [profile?.user]);
+  // 个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）按人存在服务端：知道是谁了就取，本机记下的先顶着（lib/prefs-sync.ts）
+  useEffect(() => void syncPrefs(profile?.user ?? ""), [profile?.user]);
   const [area, setArea] = useState<HTMLDivElement | null>(null);
   const fits = useDockFits(area);
   const filing = useFiledCompany();
@@ -927,6 +934,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const panelButton = hasPanel ? (
     <button
       type="button"
+      data-slot="cc-panel-toggle"
       onClick={togglePanel}
       aria-pressed={panelShown}
       title={t(panelShown ? "hidePanel" : "showPanel")}
@@ -957,7 +965,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
         ) : (
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
-            <div className="min-h-0 flex-1">
+            <div className="cc-thread-slot min-h-0 flex-1">
               <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />
             </div>
           </div>
@@ -1063,6 +1071,7 @@ export function Assistant() {
   return (
     <ManagedAgentsRuntimeProvider>
       <Workspace />
+      <DeleteChatsHost />
     </ManagedAgentsRuntimeProvider>
   );
 }

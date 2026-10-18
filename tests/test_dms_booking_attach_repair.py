@@ -273,7 +273,9 @@ class CompleteFiles(Attachments):
         self.assertEqual((record["status"], record["last_error"]), ("Delivered", ""))
         self.assertEqual([text for _, text, _ in self.pushes], ["receipt BK-1"])
         marker = self.marker()
-        self.assertEqual(set(marker["receipt"]), {"key", "created_at", "text"})  # nothing new is stored
+        # nothing attachment-related is stored; since 2026-10-16 the receipt keeps the whole message
+        # (it may be the review's difference card) instead of only its text
+        self.assertEqual(set(marker["receipt"]), {"key", "created_at", "message"})
         self.assertEqual(marker["delivery"], {"attempts": 1})
         writes = [event for event in self.db.events if event[:3] == ("set", DELIVERY, record["name"])]
         self.assertEqual(len(writes), 3)  # retry, receipt key, result: the same three saves as before

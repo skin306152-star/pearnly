@@ -55,6 +55,7 @@ import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { isImeEnter } from "@/lib/ime";
+import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { ACCEPT } from "@/lib/managed-agents/attachments";
 
 // 卡片与各节的内容搬到了 company-cards.tsx（会话栏用）；原来从本文件导入的照样能用
@@ -131,7 +132,9 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
   const [renaming, setRenaming] = useState(false);
   const [value, setValue] = useState(c.title);
   const [error, setError] = useState("");
-  // 从「···」菜单点了重命名：菜单关上时不把焦点还给「···」按钮（第 5 轮测试 3：焦点被抢走，要再点一下改名框才能输入）
+  // 从「···」菜单点了重命名：等菜单关完再出改名框（第 5 轮测试 3，两轮实测焦点都落在 body）。菜单开着时有焦点陷阱：
+  // 在选中那一下就挂上改名框，它自动聚焦会被陷阱拉回菜单项，菜单项随即卸下，焦点掉到 body。组件库在陷阱拆掉之后
+  // （onCloseAutoFocus，卸下后的下一轮）才问焦点该去哪：在那里不还给「···」、改为出改名框，它挂上时已没有陷阱。
   const renameFromMenu = useRef(false);
   const save = async (input: string) => {
     const next = input.trim();
@@ -148,11 +151,12 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
       setError(shownError(e));
     }
   };
+  const startRename = () => {
+    setValue(title);
+    setRenaming(true);
+  };
   const rename = () => {
-    if (!isMobile) {
-      setValue(title);
-      return setRenaming(true);
-    }
+    if (!isMobile) return startRename();
     const next = window.prompt(t("rename"), title);
     if (next) void save(next);
   };
@@ -212,14 +216,16 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
             onCloseAutoFocus={(e) => {
               if (!renameFromMenu.current) return;
               renameFromMenu.current = false;
-              e.preventDefault(); // 焦点留在刚出现的改名框里
+              e.preventDefault(); // 不还给「···」：改名框此刻才挂上，自己拿到焦点
+              startRename();
             }}
           >
             <DropdownMenu.Item
               className="cc-menu-item"
               onSelect={() => {
-                renameFromMenu.current = !isMobile;
-                rename();
+                // 电脑：菜单关完再出改名框（见 renameFromMenu）；手机：系统输入框，照旧当场弹
+                if (isMobile) return rename();
+                renameFromMenu.current = true;
               }}
             >
               <PencilIcon />
@@ -245,6 +251,13 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
  *  回车保存（输入法选字的回车不算）、Esc 放弃（选字时的 Esc 只取消候选词），只结束一次（Esc 卸下输入框时的失焦不再存一遍）。 */
 const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone: (save: boolean) => void }> = ({ value, onChange, onDone }) => {
   const finished = useRef(false);
+  const box = useRef<HTMLInputElement>(null);
+  // 挂上就把光标放进来、全选（不只靠 autoFocus：挂上那一刻别的东西抢过焦点时这里再拿一次）
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && document.activeElement !== el) el.focus({ preventScroll: true });
+    el?.select();
+  }, []);
   const finish = (saveIt: boolean) => {
     if (finished.current) return;
     finished.current = true;
@@ -252,6 +265,7 @@ const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone
   };
   return (
     <input
+      ref={box}
       autoFocus
       value={value}
       aria-label={t("rename")}
@@ -275,6 +289,7 @@ const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone
 
 // ---------------------------------------------------------------- 输入框
 /** 同新对话的输入框与下巴（设计文档 3.12）：下巴里公司固定（不可换），月份、分店胶囊；发出 = 在这家开对话并发出。
+ *  手机上同对话页：没在输入、也没有字时收成一行胶囊（data-collapsed，「＋」、占位字），点进去展开（按钮排查 M10）。
  *  随内容长高（最高同新对话）；回车发送，输入法选字的回车不算（Safari 的 keyCode 229，lib/ime.ts）；「＋」选文件 = 在这家开
  *  新对话，打了的字与选的文件放进那边的输入框（上传进度、出错、发出都在那边，同拖文件进输入框）。 */
 const CompanyComposer: FC<{ company: string; title: string; period: string; branches: Branch[] }> = ({ company, title, period, branches }) => {
@@ -283,6 +298,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
   const withScope = useProjects((s) => s.scope);
   const [scope, setScope] = useState("");
   const [text, setText] = useState("");
+  const [typing, setTyping] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const filing = () => ({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" });
@@ -300,6 +316,16 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
     setText("");
     start(filing(), value, false, picked);
   };
+  // 安卓返回键收起键盘时输入框仍聚焦：键盘收起、输入框是空的就失焦，收回一行胶囊（同对话页的输入框，第 11 轮审查）
+  const emptyNow = useRef(true);
+  emptyNow.current = !text;
+  useEffect(() => {
+    const closed = () => {
+      if (emptyNow.current && document.activeElement === box.current) box.current?.blur();
+    };
+    window.addEventListener(KEYBOARD_CLOSED, closed);
+    return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
+  }, []);
   // 随内容长高：先收回再按内容量（上限由 max-h-72 管，超出在框里滚动）
   useLayoutEffect(() => {
     const el = box.current;
@@ -309,7 +335,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
   }, [text]);
   return (
     <div className="flex w-full flex-col" data-slot="cc-company-composer">
-      <div className="cc-composer cc-composer-inline">
+      <div className="cc-composer cc-composer-inline" data-collapsed={!typing && !text ? "" : undefined}>
         <textarea
           ref={box}
           rows={1}
@@ -318,6 +344,8 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
           placeholder={t("placeholder")}
           enterKeyHint="send"
           onChange={(e) => setText(e.target.value)}
+          onFocus={() => setTyping(true)}
+          onBlur={() => setTyping(false)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !isImeEnter(e)) {
               e.preventDefault();
@@ -327,12 +355,12 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
           className="block max-h-72 min-h-6 w-full resize-none overflow-y-auto bg-transparent font-sans outline-none"
         />
         <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-          <button type="button" className="cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
+          <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
             <PlusIcon className="stroke-[1.5px]" />
           </button>
           <input ref={picker} type="file" multiple accept={ACCEPT} hidden onChange={(e) => attach(e.target.files)} />
           <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
-            <button type="button" className="cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
+            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
               <ArrowUpIcon />
             </button>
           </div>

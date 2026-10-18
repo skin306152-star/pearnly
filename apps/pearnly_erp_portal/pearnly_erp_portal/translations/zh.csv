@@ -1,4 +1,3 @@
-"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",未勾选表示尚未设置价格（并非 ฿0）。
 1 = January,1 = 一月
 1-12; Thai companies commonly start in January,1–12；泰国公司一般从 1 月开始
 13 digits; a branch adds its 5-digit branch number,税号 13 位；有分店再带 5 位分店编号
@@ -151,7 +150,7 @@ Change Amount,找零
 Change Total,找零合计
 Chart,图表
 Chart by,统计维度
-Check the opening stock row,请检查这条期初明细
+Check the opening stock row,请检查此期初明细
 Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
 Cheque,支票
@@ -187,7 +186,6 @@ Closed At,交班时间
 Closed at,结束时间
 Closed by,结束人
 Closing Quantity,期末数量
-Closing locks every entry. Rows never counted stay empty. Continue?,结束后所有记录将被锁定，未盘点的行保持为空。确定要继续吗？
 Code,编码
 Code expired,绑定码已过期
 Code or barcode,编码或条码
@@ -394,7 +392,7 @@ Filters,筛选条件
 Find,查询
 Find product,查找物料
 Finish,完成
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点的 {1} 项保持不变。结束后任务仅可查看和导出。
+Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
 First warehouse of this company (more on the Warehouses page),公司的首个仓库（其他仓库可在「仓库」页面添加）
 Fiscal Year Starts In,会计年度起始月份
 Fiscal year start month,财年起月
@@ -406,7 +404,6 @@ Following fields have missing values:,以下字段缺少值：
 Foreigner,外国人
 Found,已找到
 Found: {0},已查到：{0}
-"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",未勾选表示尚未设置成本。
 "Free note kept with the collection record (who took the money, reference).",收款记录备注（收款人、参考号）。
 From Date,开始日期
 From the document,按票面识别
@@ -498,6 +495,7 @@ Line Amount,行金额
 Line Discount,行折扣
 Line No,行号
 Line Total,明细小计
+Line prices include VAT,明细单价已含增值税
 Lines,明细行
 Lines in this shift,当班小票
 List Price,标价
@@ -689,7 +687,6 @@ Posted by,过账人
 Posted to Stock,已记入库存
 Posted {0} differences,已过账 {0} 处差异
 Posting Date,记账日期
-Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,过账后结存将调整为实盘数量并生成库存流水，未盘点的行不受影响。确定要继续吗？
 Prefix for this company's document numbers,本公司单据编号前缀
 Preview,预览
 Preview opening stock,预览核对
@@ -728,7 +725,7 @@ Purchase document not found,采购单不存在
 Purchasing,采购
 Purpose,用途
 QR Payload,QR 内容
-QR payload,二维码内容
+QR content,二维码内容
 Qty,数量
 "Qty (base unit, signed)",数量（库存单位，带正负）
 Qty (entered unit),数量（录入单位）
@@ -860,6 +857,7 @@ Selling price,售价
 Selling warehouse,卖货的仓库
 Send,发送
 Send the code from the ERP page to bind,请发送 ERP 页面上的绑定码
+Sender's LINE language when the document arrived,单据到达时发送者的 LINE 语言
 Sending the same file twice must not create two drafts,同一文件重复发送不会生成重复草稿
 Sent By,发送人
 Serial No: {0} has already been transacted into another POS Invoice.,序列号 {0} 已用于另一张收银单据
@@ -988,6 +986,7 @@ The company used for new documents and for the company profile page,新建单据
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The discount exceeds the line amount,折扣超过该行金额
 The discount exceeds the total,折扣超过合计
+The file could not be saved. Please try again shortly.,文件保存失败，请稍后重试
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
 The opening stock amount is too large,期初库存金额过大
@@ -1095,6 +1094,9 @@ Unit Price,单价
 Unknown buyer,未知买家
 Unknown direction,未知的方向
 Unpaid,未付
+Unticked: cost not set.,未勾选表示尚未设置成本。
+"Unticked: no cashier pages, role or permissions for this company",未勾选则该公司不开放收银功能
+Unticked: price not set (not ฿0).,未勾选表示尚未设置价格（并非 ฿0）。
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update Additional Information,更新附加信息
 Update Stock,更新库存
@@ -1135,7 +1137,7 @@ Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 Void the payments before voiding the document,作废单据前请先冲销付款
 Void the refunds first,请先撤销相关退货退款
-Void this count of {0}?,确定要撤销 {0} 的这条盘点记录吗？
+Void this count of {0}?,确定要撤销 {0} 的盘点记录吗？
 Void this document and reverse its stock movements?,确定要作废此单据并冲销对应库存变动吗？
 Void {0} document(s) and reverse their stock movements?,确定要作废选中的 {0} 张单据并冲销对应库存变动吗？
 Void {0} selected,作废选中的 {0} 张
@@ -1155,7 +1157,7 @@ Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
-"Year, year-month or ALL, depending on the reset policy",年、年月或 ALL，取决于重置策略
+"Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
 Yes,是
 You can redeem upto {0}.,最多可抵扣 {0}
 You cannot redeem more than {0}.,抵扣金额不能超过 {0}
@@ -1452,7 +1454,6 @@ stock.count.chart,图表
 stock.count.chartEmpty,暂无盘点记录
 stock.count.chartTotals,账面 {0} · 实盘 {1} · 差异 {2}
 stock.count.close,结束盘点
-stock.count.closeConfirm,结束后所有记录将被锁定，未盘点的行保持为空。确定要继续吗？
 stock.count.closed,盘点已结束
 stock.count.counted,实盘数量
 stock.count.countedAt,盘点时间
@@ -1508,7 +1509,6 @@ stock.count.over,多货
 stock.count.photoInfo,物料 / 仓位 / 盘点人 / 时间
 stock.count.photos,照片
 stock.count.post,过账差异
-stock.count.postConfirm,过账后结存将调整为实盘数量并生成库存流水，未盘点的行不受影响。确定要继续吗？
 stock.count.posted,已过账 {0} 处差异
 stock.count.problemCode,未找到该编码对应的物料
 stock.count.problemIdentifier,该行缺少物料编码或条码
@@ -1529,7 +1529,7 @@ stock.count.system,{0}：系统数 {1} {2}
 stock.count.template,盘点表模板
 stock.count.title,盘点 — {0}
 stock.count.void,撤销
-stock.count.voidConfirm,确定要撤销 {0} 的这条盘点记录吗？
+stock.count.voidConfirm,确定要撤销 {0} 的盘点记录吗？
 stock.count.voidPick,选择要撤销的记录
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
@@ -1595,7 +1595,7 @@ stock.workbench.editEntry,修改记录
 stock.workbench.elsewhere,该物料还存放于：
 stock.workbench.entryQty,本次实盘数量
 stock.workbench.find,查找物料
-stock.workbench.finishConfirm,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点的 {1} 项保持不变。结束后任务仅可查看和导出。
+stock.workbench.finishConfirm,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
 stock.workbench.locationDiff,仓位差异
 stock.workbench.lookupFailed,未找到物料，请核对编码后重试。
 stock.workbench.needsRecount,库存已变动，需重新盘点
@@ -1653,9 +1653,6 @@ supplier.new,新建供应商
 supplier.notice.toggled,已更新 {0} 家供应商
 supplier.save,保存
 supplier.title,供应商
-tax_invoice,完整税务发票
-tax_invoice_receipt,税务发票兼收据
-tax_invoice_simple,简易税务发票
 team.action.bulkDisable,停用 {0}
 team.action.bulkEnable,启用 {0}
 team.active,正常

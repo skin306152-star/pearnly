@@ -13,6 +13,7 @@ from typing import Optional
 
 import httpx
 
+from . import http_tls
 from .queue_client import unwrap
 
 _METHOD = "/api/method/pearnly_cowork.companion.request_api."
@@ -31,6 +32,7 @@ class RequestClient:
             base_url=backend_url,
             headers={"Authorization": f"Bearer {bearer_token}"},
             timeout=httpx.Timeout(timeout, connect=min(10.0, timeout)),
+            verify=http_tls.context(),
         )
 
     def close(self) -> None:

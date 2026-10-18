@@ -104,13 +104,13 @@ def main():
     frappe.destroy()
 
     def rpc(action="create", email=None, username=None, password="fixture-password", tenant_value=tenant,
-            product="erp", request_id=None, token=None):
+            product="erp", request_id=None, token=None, issuer=""):
         response = requests.post(endpoint + "/api/method/pearnly_control.account.member_api.execute",
             headers={"Host": CONTROL, "X-Pearnly-Billing-Product": product,
                 "X-Pearnly-Billing-Token": token or tenant_token(ROOT_TOKEN, tenant_value, product)},
             json={"tenant": tenant_value, "action": action, "email": email or f"{suffix}@example.test",
                 "username": username or "Member" + suffix, "password": password,
-                "request_id": request_id or uuid.uuid4().hex}, timeout=60)
+                "request_id": request_id or uuid.uuid4().hex, "issuer": issuer}, timeout=60)
         assert response.status_code == 200, (response.status_code, response.text[:160])
         return response.json()["message"]
 
@@ -137,7 +137,17 @@ def main():
         assert not rpc(email=owner_email, username=owner_username, password="takeover-attempt")["ok"]
         assert not rpc(action="reset-password", email=owner_email, password="takeover-attempt")["ok"]
         assert login(owner_username, "owner-original").status_code == 200
-        print("PASS real private RPC: create/email+username login/replay/scope/tenant/owner isolation")
+        # The account pool is the one the site signs in to, kept on the record; an unknown pool is refused.
+        assert rpc(issuer=BASE + f"/realms/{REALM}")["subject"] == subject
+        pool_email = f"pool-{suffix}@example.test"
+        assert rpc(email=pool_email, username="Pool" + suffix, issuer=BASE + "/realms/master") == {
+            "ok": False, "error": "not_permitted"}
+        init(CONTROL)
+        assert frappe.db.get_value("Pearnly Member Identity", member_service._member_key(tenant, email, "erp"),
+                                   "realm") == REALM
+        assert not frappe.db.exists("Pearnly Member Identity", {"email": pool_email})
+        frappe.destroy()
+        print("PASS real private RPC: create/email+username login/replay/scope/tenant/owner/pool isolation")
 
         init(CONTROL)
         from frappe import recorder
@@ -225,7 +235,7 @@ def main():
         assert rpc(action="reset-password", password="reset-value", request_id=reset_id)["ok"]
         assert login(username, "reset-new").status_code == 200  # old completed request is a no-op
         init(CONTROL)
-        member_key = member_service._member_key(tenant, email)
+        member_key = member_service._member_key(tenant, email, "erp")
         frappe.db.set_value("Pearnly Member Identity", member_key, "subject", "not-the-verified-subject")
         frappe.db.commit()
         frappe.destroy()
@@ -258,7 +268,7 @@ def main():
         cleanup_email, cleanup_username = f"cleanup-{suffix}@example.test", "Cleanup" + suffix
         cleanup = rpc(tenant_value=cleanup_tenant, email=cleanup_email, username=cleanup_username)
         assert cleanup["ok"], cleanup
-        cleanup_key = member_service._member_key(cleanup_tenant, cleanup_email)
+        cleanup_key = member_service._member_key(cleanup_tenant, cleanup_email, "erp")
         # A forged persisted subject cannot make lifecycle deletion touch an owner.
         owner_subject = api.request(prefix + "/users?" + urlencode({"email": owner_email, "exact": "true"}))[0]["id"]
         init(CONTROL)

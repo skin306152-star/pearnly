@@ -15,31 +15,38 @@ def computers():
     return rules.computers()
 
 
-@frappe.whitelist()
-def options(connection, account_set_key=None):
-    # 读目录 / 存货科目组都锁这条连接行，与小助手心跳、刷新目录并发时可能死锁：只读请求，回滚重试即可。
+def _retried(call, *args):
+    """与电脑心跳、刷新目录、同步任务并发时会死锁（都锁连接行 / 任务行）：回滚后整次重来，最多 3 次。这几个接口只动库
+    （删除后清网页直传暂存挂在提交之后，回滚时一起撤掉），重来不会重复做库外的事。第 7 批 B7 收尾（10-18 lab）：删除任务
+    第一次回 500 QueryDeadlockError，再点才删掉。"""
     for attempt in range(3):
         try:
-            return rules.options(connection, account_set_key)
+            return call(*args)
         except frappe.QueryDeadlockError:
             frappe.db.rollback()
             if attempt == 2:
                 raise
 
 
+@frappe.whitelist()
+def options(connection, account_set_key=None):
+    # 读目录 / 存货科目组都锁这条连接行，与小助手心跳、刷新目录并发时可能死锁：只读请求，回滚重试即可。
+    return _retried(rules.options, connection, account_set_key)
+
+
 @frappe.whitelist(methods=["POST"])
 def save(values):
-    return rules.save(values)
+    return _retried(rules.save, values)
 
 
 @frappe.whitelist(methods=["POST"])
 def set_enabled(name, enabled):
-    return rules.set_enabled(name, enabled)
+    return _retried(rules.set_enabled, name, enabled)
 
 
 @frappe.whitelist(methods=["POST"])
 def delete(names):
-    return rules.delete(names)
+    return _retried(rules.delete, names)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -69,7 +69,7 @@ def finish(line_user_id, nonce, qa, result):
             or str(result.get('booking_no') or '') != str(marker.get('booking_no') or '')):
         return False
     result = {key: result[key] for key in ('ok', 'booking_no', 'booking_id', 'attach_ok',
-                                         'attached', 'attach_failed') if key in result}
+                                         'attached', 'attach_failed', 'review') if key in result}
     if not store.update_booking_attempt(line_user_id, nonce, {'result': result}):
         return False
     marker = {**_marker(line_user_id), 'completed_at': frappe.utils.now()}

@@ -3,11 +3,14 @@
 
 - 窗口里是网页版同一个对话页（入口 fatcc.com → 登录 → 公司自己的 /assistant），登录状态存在本机，
   下次打开直接回到上次的对话页；只开 Pearnly 自己的 https 页面，别的链接交给系统浏览器（tomo_links.py）。
-- 关窗口只是藏到托盘，后台的回复、Express 推送照常；回复完成时对话页发网页通知，这里转成系统通知，点一下回到窗口。
+- 窗口在自己的进程里（``companion.exe --window``，window_main.py，2026-10-18 轻量化）：托盘打开窗口时才拉起，关窗口这个进程就
+  退出、网页内核随之释放（正在回复时先藏起来等回复完）；Express 推送、文件夹录入在托盘进程里照常。回复完成时对话页发网页
+  通知，这里交给托盘弹系统通知，点一下回到窗口。
 - 定时任务的对话提醒（页面实时收到，或文件夹同步带来）按 ``notice:<编号>`` 只弹一次，点一下打开那段对话（open_conversation）。
 - 对话页里下载的文件存进「下载」文件夹，完成后通知，点一下在资源管理器里选中它。
-- 快捷输入条（Ctrl+Alt+Space，tomo_hotkey.py）：输入一句回车，Tomo 窗口开新对话发出去。
-- 网页内核只在第一次打开 Tomo 时加载（开机自启时不占内存），之后一直留着，通知才能在窗口关着时到达。
+- 快捷输入条（Ctrl+Alt+Space，tomo_hotkey.py）在托盘进程里（gui_quick.py）：输入一句回车，Tomo 窗口开新对话发出去。
+- 网页内核只在 CC 窗口开着时在（开机自启、窗口关着时都不占内存、不占 CPU）；窗口开着却没人看得见时对话页停画
+  （锁屏、屏幕关了、被完全挡住，window_main 里的 visibility_watch.py）。
 - 没有「文件 / 视图」菜单栏（同 Claude 桌面端）：设置在对话页左下角菜单里，「此电脑」一栏经 tomo_bridge 读写本机；
   快捷键 Ctrl+N 新对话、Ctrl+, 设置、Ctrl+R 重新加载、Ctrl+= / Ctrl+- / Ctrl+0 缩放。
 - 没有系统标题栏（同 Claude 桌面端，用户 2026-10-12）：对话页自己在顶上画菜单 / 侧栏 / 后退 / 前进与最小化 / 最大化 / 关闭，
@@ -17,11 +20,9 @@
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QFile, QIODevice, QLocale, QPoint, QSettings, QStandardPaths, Qt, QUrl, Signal
+from PySide6.QtCore import QEvent, QFile, QIODevice, QLocale, QPoint, QSettings, QStandardPaths, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication, QKeySequence, QPalette, QShortcut
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import (
@@ -34,11 +35,8 @@ from PySide6.QtWebEngineCore import (
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
-    QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QToolButton,
     QVBoxLayout,
@@ -47,6 +45,7 @@ from PySide6.QtWidgets import (
 
 from . import tomo_links
 from .config import APPDATA_DIR
+from .gui_quick import Reveal
 from .i18n import t
 from .logger import get_logger
 
@@ -69,13 +68,6 @@ def _channel_script() -> QWebEngineScript:
     script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
     script.setRunsOnSubFrames(False)
     return script
-
-
-def reveal(path: Path) -> None:
-    if sys.platform == "win32":
-        subprocess.Popen(["explorer", "/select,", str(path)])
-    else:
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.parent)))
 
 
 class _Popup(QWebEnginePage):
@@ -110,8 +102,6 @@ class TomoPage(QWebEnginePage):
         else:
             permission.deny()
 
-
-OPEN_WINDOW = None   # 进程内唯一的 Tomo 窗口（gui_tray._window_open 看它是否正在用）
 
 RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）
 # 窗口底色 / 字色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app / --cc-ink，浅 / 深各一个），拉伸边与登录页标题栏用它
@@ -215,12 +205,11 @@ class _ChromeBar(QWidget):
 
 
 class TomoWindow(QMainWindow):
-    def __init__(self, *, lang: str, icon, notify, bridge=None) -> None:
+    def __init__(self, *, lang: str, icon, notify, bridge=None, on_close=None) -> None:
         super().__init__()
-        global OPEN_WINDOW
-        OPEN_WINDOW = self
         self.lang = lang
         self._notify = notify          # notify(title, body, on_click, tag="")
+        self._on_close = on_close      # 窗口藏起来以后（window_main 决定窗口进程什么时候退）
         self._pending_ask: str | None = None
         self._pending_settings: str | None = None
         self._ready = False            # 页面至少打开成功过一次（之后才把「打开对话」交给页面脚本）
@@ -397,13 +386,16 @@ class TomoWindow(QMainWindow):
             self._settings.setValue("last_url", value)
 
     def closeEvent(self, event) -> None:
-        """关窗口 = 藏到托盘（后台回复与 Express 推送照常）；第一次关时提示一次还在后台。"""
+        """关窗口：先藏起来（托盘进程里的 Express 推送照常），再交给 window_main 决定窗口进程何时退出；第一次关时提示一次
+        CC 还在后台。"""
         self._settings.setValue("geometry", self.saveGeometry())
         event.ignore()
         self.hide()
         if not self._settings.value("told_background", False, type=bool):
             self._settings.setValue("told_background", True)
             self._notify("CC", t("tomo_still_running", self.lang), self.show_front)
+        if self._on_close is not None:
+            self._on_close()
 
     def shutdown(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
@@ -430,71 +422,8 @@ class TomoWindow(QMainWindow):
 
         def finished(r=request, p=path) -> None:
             if r.state() == QWebEngineDownloadRequest.DownloadState.DownloadCompleted:
-                self._notify("CC", t("tomo_downloaded", self.lang, name=p.name), lambda: reveal(p))
+                self._notify("CC", t("tomo_downloaded", self.lang, name=p.name), Reveal(p))
             elif r.state() == QWebEngineDownloadRequest.DownloadState.DownloadInterrupted:
                 log.warning("Tomo 下载中断：%s", r.interruptReasonString())
 
         request.isFinishedChanged.connect(finished)
-
-
-class QuickAsk(QWidget):
-    """快捷输入条：屏幕上方居中的一条圆角输入框，回车交给 Tomo 窗口，Esc 或点别处就收起。"""
-
-    submitted = Signal(str)
-
-    def __init__(self, *, lang: str, icon) -> None:
-        super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        frame = QFrame(self)
-        frame.setObjectName("quick")
-        frame.setStyleSheet("#quick{background:#ffffff;border:1px solid #e5e5e5;border-radius:18px}"
-                            "QLineEdit{border:0;background:transparent;font-size:17px;color:#1a1a18;padding:0}")
-        shadow = QGraphicsDropShadowEffect(frame)
-        shadow.setBlurRadius(36)
-        shadow.setOffset(0, 8)
-        shadow.setColor(Qt.GlobalColor.gray)
-        frame.setGraphicsEffect(shadow)
-        mark = QLabel(frame)
-        mark.setPixmap(icon.pixmap(30, 30))
-        self.input = QLineEdit(frame)
-        self.input.setPlaceholderText(t("tomo_ask_placeholder", lang))
-        self.input.returnPressed.connect(self._submit)
-        row = QHBoxLayout(frame)
-        row.setContentsMargins(16, 14, 18, 14)
-        row.setSpacing(12)
-        row.addWidget(mark)
-        row.addWidget(self.input, 1)
-        outer = QHBoxLayout(self)
-        outer.setContentsMargins(24, 24, 24, 24)   # 给阴影留位置
-        outer.addWidget(frame)
-        self.resize(680, 112)
-
-    def popup(self) -> None:
-        from PySide6.QtGui import QCursor, QGuiApplication
-
-        screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
-        area = screen.availableGeometry()
-        self.move(area.x() + (area.width() - self.width()) // 2, area.y() + int(area.height() * 0.24))
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        self.input.setFocus()
-
-    def _submit(self) -> None:
-        text = self.input.text().strip()
-        self.input.clear()
-        self.hide()
-        if text:
-            self.submitted.emit(text)
-
-    def keyPressEvent(self, event) -> None:
-        if event.key() == Qt.Key.Key_Escape:
-            self.input.clear()
-            self.hide()
-            return
-        super().keyPressEvent(event)
-
-    def changeEvent(self, event) -> None:
-        if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow():
-            self.hide()
-        super().changeEvent(event)

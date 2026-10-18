@@ -3,6 +3,7 @@ import hashlib
 
 import frappe
 from frappe import _
+from pearnly_core.originals import registered
 
 from pearnly_erp_portal.sales import access
 
@@ -39,7 +40,7 @@ def bind(doc, attachments):
         file.db_set({"attached_to_doctype": doc.doctype, "attached_to_name": doc.name},
                     update_modified=False)
         doc.append("attachments", {"file": file.name, "file_url": file.file_url,
-                   "file_name": file.file_name, "kind": kind})
+                   "file_name": registered.filename(file), "kind": kind})
 
 
 def add(name, attachments):
@@ -70,10 +71,8 @@ def remove(name, file):
 
 
 def content_hash(file):
-    content = file.get_content()
-    if isinstance(content, str):
-        content = content.encode("utf-8")
-    return hashlib.sha256(content).hexdigest()
+    """原件内容的 sha256（原件在原件层的取登记里的，不取回整份）。"""
+    return registered.sha256(file)
 
 
 def combined_hash(hashes):

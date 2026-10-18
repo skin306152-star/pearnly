@@ -30,7 +30,7 @@ TIMEOUT = 15
 def realm_base(prefix: str = "pearnly_oidc") -> str:
     value = str(frappe.conf.get(f"{prefix}_issuer") or "").rstrip("/")
     if not value:
-        frappe.throw(_("Site config is missing {0}_issuer").format(prefix))
+        frappe.throw(_("Site is missing setting: {0}").format(f"{prefix}_issuer"))
     return value
 
 
@@ -48,7 +48,7 @@ def admin_token(prefix: str = "pearnly_oidc") -> str:
     client_id = frappe.conf.get(f"{prefix}_admin_client_id")
     client_secret = frappe.conf.get(f"{prefix}_admin_client_secret")
     if not client_id or not client_secret:
-        frappe.throw(_("Site config is missing {0}_admin_client_id / _secret").format(prefix))
+        frappe.throw(_("Site is missing setting: {0}").format(f"{prefix}_admin_client_id / {prefix}_admin_client_secret"))
     resp = requests.post(
         realm_base(prefix) + "/protocol/openid-connect/token",
         data={

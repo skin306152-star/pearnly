@@ -65,7 +65,8 @@ def document_model_rows(gl_account_code="", *, model_call=None, model="", read=N
 			return None
 		if not legacy:
 			return None
-		if str(legacy.get("engine") or "").startswith("enterprise-"):
+		# 逐页一份账单 / 总账的结构：企业档与 Claude 路线（ADR-022，同样用 enterprise.adapter.make_page 拼页）走同一个出行器。
+		if str(legacy.get("engine") or "").startswith(("enterprise-", "claude_")):
 			return enterprise_rows(legacy, document_type, filename, gl_account_code)
 		if document_type == "bank_statement":
 			return bank_parse.statement_from_pipeline(legacy, filename)

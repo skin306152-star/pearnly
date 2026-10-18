@@ -7,11 +7,12 @@
 //   draft        → 待建的新对话挂在哪（组头 ＋、主档页输入框、输入框上方的公司条设好；顶部「新建」、Ctrl+N、托盘、快捷提问清掉）
 //   shown / requestedGroup → 每组显示几条；「显示更多」要翻哪一组（复合游标，session-list-adapter 的 list）
 //
-// 实时：服务端经侧栏同步同一通道推 pearnly.project（realtime.ts）——move（对话换组、换月份）、upsert（公司改名等）、
-// delete（删公司）——这里并入；页面打开、重连、回到前台重取一次 projects()（list-sync.ts 的 watchList）。
+// 实时：服务端经侧栏同步同一通道推 pearnly.project（realtime.ts）——move（对话改月份、分店；删公司时这家的对话回到最近）、
+// upsert（公司改名等）、delete（删公司）——这里并入；页面打开、重连、回到前台重取一次 projects()（list-sync.ts 的 watchList）。
 
 import { create } from "zustand";
 import { get } from "@/lib/frappe";
+import { clock } from "@/lib/prefs-sync";
 import { type Filing, moveSession } from "./api";
 
 export type { Filing } from "./api";
@@ -70,6 +71,11 @@ const store = useProjects;
 
 // ---------------------------------------------------------------- 读
 let loading: Promise<ProjectKind> | null = null;
+// 最近读完的一次公司列表是哪一刻发出的（prefs-sync 的 clock）：侧栏按「没有这家公司了」收拾手排顺序时看它新不新（sidebar-order.ts）
+let readAt = -Infinity;
+
+/** 最近读完的一次公司列表的请求发出的时刻（还没读过是 -Infinity）。 */
+export const projectsSeen = () => readAt;
 
 type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; projects?: ProjectRow[] };
 
@@ -77,6 +83,7 @@ type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; 
  *  保留已有的，第一次就按没有公司分组。 */
 export function refreshProjects(): Promise<ProjectKind> {
   const asked = Date.now();
+  const seen = clock();
   loading = get<ProjectsReply>("projects")
     .then((out) => {
       const kind: ProjectKind = out?.kind === "company" ? "company" : null;
@@ -96,6 +103,7 @@ export function refreshProjects(): Promise<ProjectKind> {
         scope: !!kind && !!out?.scope,
         projects: sortRows([...kept, ...rows]),
       });
+      readAt = seen;
       return kind;
     })
     .catch(() => {
@@ -348,16 +356,11 @@ export function setError(text: string) {
   store.setState({ error: text });
 }
 
-/** 整批移到某家公司（project "" = 最近）时真要动的：已经在这家的不动（不发请求、月份分店不清空；同「拖回原组不动」），
- *  拖动整批与行菜单「将 N 项移到…」共用。 */
-export function notIn(sessions: readonly string[], project: string): string[] {
-  return sessions.filter((id) => filingOf(id).project !== project);
-}
-
-/** 把对话移到某家公司（project "" = 最近），或改它的处理月份、分店。不改置顶。 */
-export async function fileSession(sessionId: string, target: Filing): Promise<void> {
+/** 改对话的处理月份、分店（挂在公司下才有；公司不变——用户 10-17：对话不能换公司，服务端同样拒绝）。不改置顶。 */
+export async function fileSession(sessionId: string, change: Partial<Pick<Filing, "period" | "scope">>): Promise<void> {
   const before = filingOf(sessionId);
-  const next = target.project ? target : NO_FILING;
+  if (!before.project) return;
+  const next = { ...before, ...change };
   if (same(before, next)) return;
   // 移动请求还没回：这期间读的列表（服务端可能还没改）不拿来改它；回来后，那之前问的也不算
   moved.set(sessionId, Number.POSITIVE_INFINITY);
@@ -399,6 +402,7 @@ export function applyProjectChange(change: ProjectChange): string | undefined {
 /** 测试用：回到页面刚打开的状态。 */
 export function resetProjects() {
   loading = null;
+  readAt = -Infinity;
   moved.clear();
   provisional.clear();
   holds.clear();

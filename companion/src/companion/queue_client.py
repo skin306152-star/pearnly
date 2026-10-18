@@ -20,6 +20,7 @@ from typing import Optional
 
 import httpx
 
+from . import http_tls
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -81,6 +82,7 @@ class QueueClient:
             # fail_streak 接住转离线),绝不无限期阻塞在 HTTP 上。非 HTTP 的僵死(账套文件
             # I/O 等)另由看门狗兜底。
             timeout=httpx.Timeout(cfg.timeout, connect=min(5.0, cfg.timeout)),
+            verify=http_tls.context(),
         )
 
     def close(self) -> None:

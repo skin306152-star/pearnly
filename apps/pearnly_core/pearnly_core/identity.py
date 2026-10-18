@@ -42,10 +42,16 @@ def assistant_entry_url() -> str:
     return str(frappe.conf.get("pearnly_assistant_entry_url") or ASSISTANT_ENTRY).rstrip("/")
 
 
+def _verification_failed(detail: str):
+    """登录校验没过（签发方不对、没拿到 id_token、nonce 不符）：对用户只说「登录校验失败」，细节进日志。"""
+    frappe.logger("pearnly.identity").warning("sign-in verification failed: %s" % detail)
+    frappe.throw(_("Sign-in verification failed. Sign in again."))
+
+
 def _conf(key, required=True):
     value = frappe.conf.get(key)
     if required and not value:
-        frappe.throw(_("Site config is missing {0}").format(key))
+        frappe.throw(_("Site is missing setting: {0}").format(key))
     return value
 
 
@@ -223,7 +229,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if not subject:
         frappe.throw(_("The ID token has no sub"))
     if token_issuer != issuer():
-        frappe.throw(_("The ID token issuer is not the identity service configured for this site"))
+        _verification_failed("id token issuer %s is not %s" % (token_issuer, issuer()))
 
     # 经 LINE 登录的：身份服务给的是这个 LINE 的专用身份，按本站生效绑定认人（必须是本站入口）。
     # 其余按 (issuer, subject) 找本站登记的账号。不通过就不建本地会话，并结束身份服务那边的会话。
@@ -348,7 +354,7 @@ def _exchange_and_verify(code: str, saved: dict) -> dict:
     tokens = resp.json()
     id_token = tokens.get("id_token")
     if not id_token:
-        frappe.throw(_("The identity service did not return an id_token"))
+        _verification_failed("the identity service returned no id_token")
 
     jwks_client = jwt.PyJWKClient(disc["jwks_uri"])
     signing_key = jwks_client.get_signing_key_from_jwt(id_token)
@@ -360,7 +366,7 @@ def _exchange_and_verify(code: str, saved: dict) -> dict:
         options={"require": ["exp", "iat", "sub", "iss"]},
     )
     if claims.get("nonce") != saved["nonce"]:
-        frappe.throw(_("nonce mismatch"))
+        _verification_failed("nonce mismatch")
     frappe.local.pearnly_verified_tokens = resp.json()
     return claims
 

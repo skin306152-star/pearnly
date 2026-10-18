@@ -1,0 +1,68 @@
+# ADR-024：统一原件层（所有产品、所有识别入口走共用层）
+
+- 状态：已采纳（用户 2026-10-18：「做统一原件层：所有产品所有入口都走共用层，按租户路线存谷歌或甲骨文，先给我施工顺序再开工」；
+  此前：「当初就是生产服务器满足不了并发才发谷歌的，所以不要再给生产服务器增加或者退回什么东西了」）。
+- 取代：ADR-016（Cowork 原件直传谷歌）与 ADR-023（Claude 租户原件存甲骨文）里「只有 Cowork 录入台一个入口」的范围；
+  两者的存取做法原样并进本层，作为两种存放。
+
+## 问题
+
+「收一份文件 → 存 → 核对页数 → 出预览 → 交识别 → 删除」在三个产品的 8 个入口各写一遍：只有 Cowork 录入台的 PDF / 图片直传了
+谷歌（10-01 压测出问题才改），表格、LINE、CC、POS、对账、ERP 都还存在生产服务器的磁盘上、由生产读回和渲染。换存放、换识别
+引擎都要逐处改，也会漏（10-17 Claude 路线漏了 4 个入口就是这样）。
+
+## 决定
+
+1. **一个原件层**：`pearnly_core.originals`。产品只调它，不再自己落文件：
+   - 浏览器直传：`begin_upload`（签上传地址）→ 浏览器 PUT → `finish_upload`（请存放处读一遍：类型、页数、sha256，
+     同一份检查）→ 返回**原件引用**；
+   - 生产手上已有字节的（LINE、CC 对话交来的文件）：`put(bytes)` 直接交给存放处，不落本机盘；
+   - 读：`download_url` / `preview_url`（签名地址，浏览器直接取）、`read`（少数要整份字节的地方，如表格解析、导出打包）；
+   - 识别：交原件引用，由存放处那边读（Claude 租户甲骨文读；谷歌租户 Cloud Run 读），生产不经手字节；
+   - 删除：`delete(refs)`（后台任务）。
+2. **原件引用**（存进各产品记录的 `storage_url`）：`oracle://<站点>/originals/<id><扩展名>#<sha256>`、
+   `gs://<桶>/<站点>/originals/<id><扩展名>#<版本号>`；旧的本机 File 照旧认（老文件不搬）。`<id>` = 产品前缀 + 48 位十六进制
+   （Cowork `CWS-`，ERP `ERO-`），由产品按「工作空间 / 公司 + 上传人 + 幂等键」算，别人猜不出。
+3. **存放按租户路线选**：选了 Claude（`pearnly_ocr_engine = claude`）→ 甲骨文（ADR-023 那一套，经 `originals.pearnly.com`
+   隧道）；谷歌租户 → 谷歌存储（ADR-016 那一套，核对 / 预览由 Cloud Run 做；ERP 站点也配同一个 Cloud Run 地址，Cloud Run 认
+   `ERO-`）。哪种都没配的站点照旧存本机（只是没配置时的样子）。甲骨文连不上：页面 `retry`、识别排队重试，不退回生产存。
+4. **纯计算的检查与渲染并进共用层**：`pearnly_core.originals.checks`（原 `pearnly_cowork.ocr.originals`），
+   生产、Cloud Run、甲骨文同一份。原来 Cowork 里的 `ocr/inputs`、`ocr/originals`、`files/edge*`、`files/cloud` 整体搬进
+   `pearnly_core.originals`（rules / checks / oracle / links / server / gcs / cloud_run），所有调用方一并改，没有留旧路径；
+   排队任务的点路径（`pearnly_cowork.files.service.purge_objects` / `purge_edge`）不变（`tests/test_queue_targets.py` 守着）。甲骨文服务改成通用（`pearnly_core.originals.server`），不再只认 Cowork。
+5. **入口迁移**（每步过单元测试 + 生产代码闸门）：Cowork 录入台（PDF / 图片 / 表格）、Cowork LINE、CC 工具建原件、POS 导入、
+   Cowork 对账中心（仍按任务结束即删）、ERP 采购 / 销售网页上传（拦下 Frappe 上传改直传）、ERP LINE。
+   对账中心：页面照旧一次提交，生产收到后交原件层存，本机只留不到 1KB 的登记（`recon_center.storage`）；扫描件、照片按引用读
+   ——Claude 租户由甲骨文逐页渲染（`claude_ocr.pages.frame`，与生产逐页渲染 `PageSource.frame` 逐字节相同）、谷歌租户由 Cloud Run
+   按版本号读；表格和电子 PDF 仍在生产解析（取回字节、不存）。原件层的检查不收的文件（超 50 页的电子总账、加密 PDF、坏图片）
+   照旧存本机，它们本来就在生产解析或报读不出、不交识别。
+   要一条 Frappe File 的地方（ERP 附件、ERP LINE、对账临时文件）用共用的**登记文件**（`pearnly_core.originals.registered`）：
+   File 只存不到 1KB 的登记（文件名 `<原件 id>.bin`），挂附件、归属、权限照旧按 File；读内容、原文件名、sha256 都经它。
+   浏览器打开登记的 `file_url` 时按 Frappe 私有文件规则核对能看后，转到存放处的签名下载地址（`before_request`）；File 删掉时
+   （最后一条）由 File 扩展排任务删存放处那份；复制附件、一张图几张票只复制登记，不再存一次。
+   ERP 网页上传仍用官方上传框，只把「传到哪」换成直传原件层（iPhone 照片经服务器转 JPEG 后交原件层）；Claude 租户的附件都在
+   甲骨文时识别只交引用，甲骨文按生产同样的「先转正、再出页」读（逐字节相同）；PDF 预览由甲骨文 / Cloud Run 画。
+6. **例外**：DMS 身份证不留存（2026-09 隐私口径不变），识别时直接交字节。不算原件、不在本层：ERP 盘点 Excel、生成的单据 PDF、
+   充值转账凭证、CC 智能体自己的工作文件。
+
+## 不做
+
+- 搬老文件（已存在服务器 / 谷歌桶的照旧能看、能下、能识别）。
+- 生产上的兜底存放（连不上就重试，不落本机）。
+
+## 部署
+
+本层改动分在三个独立部署的地方，各自的发版时机不同：
+
+1. **产品镜像**（生产三产品 + 控制面）：照常 `build-production` → stage → 激活。登记文件、下载转向（`before_request`）、
+   File 删除扩展都在 `pearnly_core`，随镜像生效。
+2. **甲骨文 claude-ocr 服务**（`scripts/claude-ocr/deploy.sh`）：读法在 `pearnly_core.claude_ocr.server` / `pages`。
+   改了这两个文件或 `originals` 的 rules / checks / links / server 就要重新部署。新接口都向下兼容，可以先于镜像部署。
+   2026-10-18 已部署对账逐页读（`original.page`）和多附件读（`originals` + `orient`）。
+3. **Cloud Run `cowork-ocr`**（`scripts/cloud-run/deploy-cowork-ocr.sh`，按修订版名切流量）：约定在
+   `pearnly_cowork.ocr.remote.contract` / `pearnly_core.originals.cloud_run`。这次新增两项：对账文档请求可以只带原件引用；
+   原件名认 `ERO-`。谷歌租户的对账、ERP 走原件层之前必须先发这一版。
+
+站点配置（谷歌租户）：ERP 站点要走谷歌存储，需与 Cowork 一样配 `pearnly_cowork_ocr_remote`（Cloud Run 地址）和
+`pearnly_cowork_originals_bucket`（原件桶）；没配就照旧存本机。Claude 租户只看 `pearnly_ocr_engine = claude` 与
+runtime.env 里甲骨文那 6 个变量。

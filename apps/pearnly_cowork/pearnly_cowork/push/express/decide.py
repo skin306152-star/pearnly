@@ -7,7 +7,8 @@
 - ``borrow(remembered, receipts)``：就地借同公司别年度记过的 POS 收款科目（只用于这一次判断）；
 - ``settle(needed)``：要人选费用科目时 Express 历史很一致的科目 ``{code, docs, ...}`` 或 None。
 
-结果同 `choices.resolve` 的 ``{"applied", "needed"}``，另带 ``decided_by``（每一类按什么定的）与历史已定时的 ``history``；
+结果同 `choices.resolve` 的 ``{"applied", "needed"}``，另带 ``decided_by``（每一类按什么定的）、用上的公司规则 ``company_rules``
+（`company_choices.used`）与历史已定时的 ``history``；
 第二个返回值是各值的来源 ``{kind: {subject: source}}``（推送服务据此细分费用科目的 ``account_from``）。
 """
 from __future__ import annotations
@@ -52,7 +53,7 @@ def decide(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[
             decision["history"]["version"] = settled["version"]
         if settled.get("read"):
             decision["history"]["read"] = str(settled["read"])[:10]  # 读的日子：各层说法不一只比近 31 天内读的
-    company_choices.finish(decision, trace, sources)
+    company_choices.finish(decision, trace, sources, rules, branch)
     return decision, sources
 
 

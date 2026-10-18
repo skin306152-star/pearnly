@@ -55,4 +55,12 @@ def describe() -> dict:
         "language": frappe.local.lang or "",
         "csrf_token": frappe.sessions.get_csrf_token(),
         "native_account": bool(frappe.conf.get("pearnly_native_account")),
+        # CC 对话页：本站还开不了对话的原因（没配 CC 等，已翻译），打开新对话就先显示；能开是空串
+        "assistant_unavailable": _assistant_unavailable(),
     }
+
+
+def _assistant_unavailable() -> str:
+    from pearnly_core.assistant import config
+
+    return config.unavailable()

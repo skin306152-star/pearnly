@@ -1,4 +1,4 @@
-// 添加公司（公司页「＋ 添加公司」、新对话公司条与「移到 ▸」里的「添加公司…」）：原生对话框，搜索 + 账套目录里的候选。
+// 添加公司（公司页「＋ 添加公司」、新对话公司条里的「添加公司…」）：原生对话框，搜索 + 账套目录里的候选。
 //
 //   候选来自服务端读的账套目录（companies.api.candidates，按公司身份合并；不调电脑、不扣费）。页面只交「哪条连接的哪份账套」，
 //   名称、税号由服务端从目录算；已添加的行尾「已添加」，点了直接打开那家。目录还没读到（没有候选）时只给「刷新账套」。
@@ -48,7 +48,9 @@ export const AddCompanyDialog: FC = () => {
           className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:0.8]"
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
+              <Marquee className="block truncate">{title}</Marquee>
+            </DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>

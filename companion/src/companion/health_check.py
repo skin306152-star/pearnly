@@ -13,6 +13,7 @@ from pathlib import Path
 
 import httpx
 
+from . import http_tls
 from .config import CompanionConfig
 from .logger import get_logger
 
@@ -39,7 +40,7 @@ def _check_backend(cfg: CompanionConfig) -> CheckItem:
     from .queue_client import _HEARTBEAT
 
     try:
-        with httpx.Client(timeout=3.0) as c:
+        with httpx.Client(timeout=3.0, verify=http_tls.context()) as c:
             r = c.post(
                 f"{cfg.backend_url}{_HEARTBEAT}",
                 headers={"Authorization": f"Bearer {cfg.bearer_token}"},

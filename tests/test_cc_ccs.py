@@ -8,6 +8,7 @@
 要跑 clipText 的那一条需要 node 与前端依赖（npm ci --prefix frontend/assistant），没有就跳过。
 """
 import importlib.util
+import json
 import pathlib
 import re
 import subprocess
@@ -34,6 +35,22 @@ def _gate():
 gate = _gate()
 
 
+def declared_asks():
+    """各产品工具声明的「允许」卡片问话（``ask`` / ``ask_when``，英文原文）连同服务端词条表里的中、泰、日译文。"""
+    found = set()
+    for path in (ROOT / "apps").glob("*/*/**/*.py"):
+        text = path.read_text(encoding="utf-8")
+        for block in re.findall(r'"ask(?:_when)?": (\{[^{}]*\}|"[^"]*")', text):
+            found.update(re.findall(r'"([^"]+\?)"', block))
+    asks = set(found)
+    for table in (ROOT / "apps").glob("*/*/i18n/messages.tsv"):
+        for line in table.read_text(encoding="utf-8").splitlines():
+            cells = line.split("\t")
+            if cells[0] in found:
+                asks.update(cell for cell in cells[1:] if cell)
+    return sorted(asks)
+
+
 def css_block(css, selector):
     """globals.css 里第一个以 selector 开头、含 --ccs- 的块，解析成 {变量: 值}。"""
     for m in re.finditer(r"^" + re.escape(selector) + r" \{\n(.*?)\n\}", css, re.M | re.S):
@@ -44,11 +61,18 @@ def css_block(css, selector):
 
 
 def cc_block(css, selector):
-    """--cc-* 那一块（第二个同名块）。"""
+    """--cc-* 的定义：主块（含 --cc-brand）连同刻度层、用途层、运行时层几块同名块合在一起（标准化记录 1.1 分层）。"""
     blocks = [m.group(1) for m in re.finditer(r"^" + re.escape(selector) + r" \{\n(.*?)\n\}", css, re.M | re.S)]
-    body = next(b for b in blocks if "--cc-brand:" in b)
-    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
-    return dict(re.findall(r"(--[\w-]+):\s*([^;]+);", body))
+    assert any("--cc-brand:" in b for b in blocks), selector
+    out = {}
+    for body in blocks:
+        body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
+        defs = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", body))
+        if any(name.startswith("--cc-") for name in defs):
+            for name in defs:
+                assert name not in out, f"{name} 在 {selector} 里定义了两次"
+            out.update(defs)
+    return out
 
 
 def code_block(css, selector):
@@ -116,7 +140,7 @@ CODE_COLORS = {
     "line-stronger": (BLACK.format(0.4), WHITE.format(0.4)),
     "link": ("#184f95", "#6da7ec"), "code-ink": ("#8e2626", "#ec7e7e"), "code-bg": (BLACK.format(0.05), WHITE.format(0.05)),
     "danger": ("#8e2626", "#ec7e7e"), "success": ("#006300", "#0ca30c"), "warning": ("#734500", "#db9300"),
-    "focus": ("#2a78d6", "#2a78d6"), "focus-halo": ("#cde2fb", "rgb(24 79 149 / 0.6)"), "clay": ("#d97757", "#d97757"),
+    "focus": ("#2a78d6", "#2a78d6"), "clay": ("#d97757", "#d97757"),
     "backdrop": (BLACK.format(0.4), BLACK.format(0.5)),
     "tooltip-bg": ("#0b0b0b", "#20201f"), "tooltip-ink": ("#ffffff", "#f0efec"),
     "search-bg": (WHITE.format(0.5), WHITE.format(0.05)),
@@ -141,7 +165,7 @@ CODE_SHARED = {
     "radius-input": "14px",
     "gap-1": "8px", "gap-2": "12px", "gap-3": "16px", "gap-4": "28px", "gap-5": "40px",
     "pad-1": "6px", "pad-2": "8px", "pad-3": "12px", "pad-4": "16px", "pad-5": "24px", "icon": "20px", "icon-sm": "16px",
-    "sidebar-w": "288px", "sidebar-head": "44px", "search-h": "32px", "row": "32px", "row-desktop": "30px", "row-phone": "44px",
+    "sidebar-w": "288px", "sidebar-head": "44px", "search-h": "32px", "search-h-desktop": "28px", "row": "32px", "row-desktop": "30px", "row-phone": "44px",
     "row-gap": "2px", "row-radius": "8px", "row-pad": "10px", "row-ctl": "24px", "row-lead": "28px",
     "group-band": "32px", "group-band-phone": "44px", "group-top": "16px", "group-top-desktop": "14px", "group-chevron": "12px", "row-pulse": "6px",
     "tray": "48px", "tray-btn": "32px", "sidebar-float": "8px",
@@ -224,15 +248,14 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-ink": "--code-ink-1", "--cc-ink-2": "--code-ink-2", "--cc-ink-3": "--code-ink-3", "--cc-ink-4": "--code-ink-disabled",
             "--cc-bg-app": "--code-surface-1", "--cc-bg-sidebar": "--code-sidebar-web", "--cc-bg-surface": "--code-surface-2",
             "--cc-bg-popover": "--code-surface-popover", "--cc-bg-subtle": "--code-alpha-1",
-            "--cc-bg-hover": "--code-fill-hover", "--cc-bg-active": "--code-fill-selected", "--cc-bg-selected": "--code-fill-selected",
+            "--cc-bg-hover": "--code-fill-hover", "--cc-bg-selected": "--code-fill-selected",
             "--cc-bg-overlay": "--code-backdrop",
             "--cc-alpha-1": "--code-alpha-1", "--cc-alpha-2": "--code-alpha-2", "--cc-alpha-3": "--code-alpha-3",
-            "--cc-fill-hover": "--code-fill-hover", "--cc-fill-selected": "--code-fill-selected",
             "--cc-row-hover": "--code-row-hover", "--cc-row-selected": "--code-row-selected",
-            "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong", "--cc-line-stronger": "--code-line-stronger",
+            "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong",
             "--cc-link": "--code-link", "--cc-code-ink": "--code-code-ink", "--cc-code-bg": "--code-code-bg",
             "--cc-tooltip-bg": "--code-tooltip-bg", "--cc-tooltip-ink": "--code-tooltip-ink", "--cc-search-bg": "--code-search-bg",
-            "--cc-focus-ring": "--code-focus", "--cc-focus-halo": "--code-focus-halo", "--cc-bubble-bg": "--cc-alpha-1",
+            "--cc-focus-ring": "--code-focus", "--cc-bubble-bg": "--cc-alpha-1",
             "--cc-shadow-card": "--code-shadow-card", "--cc-shadow-float": "--code-shadow-float", "--cc-shadow-pop": "--code-shadow-pop",
             "--cc-shadow-composer": "--code-shadow-composer", "--cc-shadow-search": "--code-shadow-search",
             "--cc-radius-bubble": "--code-radius-10", "--cc-radius-code": "--code-radius-code", "--cc-radius-menu": "--code-radius-menu",
@@ -245,7 +268,7 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-menu-item-h": "--code-menu-item", "--cc-menu-item-py": "--code-menu-item-py", "--cc-menu-item-px": "--code-menu-item-px",
             "--cc-menu-sep": "--code-menu-sep", "--cc-menu-sep-gap": "--code-menu-sep-gap", "--cc-menu-sep-inset": "--code-menu-sep-inset",
             "--cc-ease": "--code-ease", "--cc-ease-fast": "--code-ease-fast", "--cc-ease-out": "--code-ease-out",
-            "--cc-dur-instant": "--code-dur-1", "--cc-dur-fast": "--code-dur-2", "--cc-dur": "--code-dur-3",
+            "--cc-dur-fast": "--code-dur-2", "--cc-dur": "--code-dur-3",
             "--cc-dur-slow": "--code-dur-4", "--cc-dur-pop": "--code-dur-5", "--cc-reveal": "--cc-dur-fast",
             "--cc-radius-composer": "--code-radius-input",
             "--cc-md-block": "--code-prose-block", "--cc-md-heading": "--code-prose-heading",
@@ -258,15 +281,20 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-chin-btn": "--code-chin-btn", "--cc-chin-font": "--code-text-footnote", "--cc-radius-chin": "--code-radius-5",
         }.items():
             self.assertEqual(cc.get(name), f"var({target})", name)
-        # 聚焦：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕
-        self.assertEqual(cc["--cc-shadow-focus"],
-                         "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--code-focus), 0 0 0 6px var(--code-focus-halo)")
+        # 2.4：没人用的纯同义变量删掉（--cc-bg-active 并到 --cc-bg-selected）
+        for gone in ("--cc-bg-active", "--cc-fill-hover", "--cc-fill-selected", "--cc-dur-instant", "--cc-line-stronger", "--cc-titlebar-h"):
+            self.assertNotIn(gone, self.css, gone)
+        # 聚焦：内描 1px 页面色 + 外 1px 蓝描边，没有光晕（用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」）；
+        # 光晕变量浅色、深色都删掉，不留不用的变量
+        self.assertEqual(cc["--cc-shadow-focus"], "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--cc-focus-ring)")
+        self.assertEqual(cc["--cc-shadow-focus-inset"], "inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring)")
+        self.assertNotIn("halo", self.css)
         self.assertEqual(cc["--cc-reveal-rest"], "0")
         self.assertEqual(cc["--cc-sidebar-float"], "0px")
         # 结构色只在 --code-* 里分深浅：--cc-* 深色块不再另给底色、叠色与弹层阴影；页面底色所有变体（含手机）同一个
         dark = [b for b in re.findall(r"^\.dark \{\n(.*?)\n\}", self.css, re.M | re.S) if "--cc-brand:" in b][0]
-        for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-active", "--cc-shadow-pop",
-                     "--cc-shadow-composer:", "--cc-focus-halo"):
+        for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-selected", "--cc-shadow-pop",
+                     "--cc-shadow-composer:", "--cc-shadow-focus"):
             self.assertNotIn(name, dark, name)
         self.assertEqual(self.css.count("--cc-bg-app:"), 1)
         self.assertNotIn("@media (max-width: 767px) { :root", self.css)
@@ -275,11 +303,21 @@ class OfficialValuesTests(unittest.TestCase):
         self.assertEqual(variant_block(self.css, "desktop"), {
             "--cc-bg-sidebar": "var(--code-sidebar-desktop)", "--cc-row-h": "var(--code-row-desktop)",
             "--cc-group-top": "var(--code-group-top-desktop)", "--cc-sidebar-float": "var(--code-sidebar-float)",
+            # 桌面窗口的侧栏搜索框 28（Claude 桌面版截图约 27.4；第 11 轮按钮排查 G9）
+            "--cc-search-h": "var(--code-search-h-desktop)",
         })
+        # 手机：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（第 11 轮按钮排查 G1 / G9）；触屏平板（粗指针，非桌面窗口）同样
         self.assertEqual(variant_block(self.css, "phone"), {
+            # 手机问候、形象（外壳实测；用途层登记，标准化记录 2.2）
+            "--cc-greeting-font": "20px", "--cc-mascot-h": "var(--cc-mascot-h-sm)",
             "--cc-row-h": "var(--code-row-phone)", "--cc-group-h": "var(--code-group-band-phone)", "--cc-reveal-rest": "1",
             "--cc-body-size": "var(--code-text-prose)", "--cc-body-lh": "var(--code-text-prose-lh)",
         })
+        # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，标准化记录 B1 合成一份）的菜单项、搜索框 44；触屏平板（网页布局，
+        # 第 11 轮 D26）的对话顶栏高也在这个不分层的变量块里（写在 components 层敌不过 :root，合并审查）
+        self.assertIn(':root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n'
+                      ':root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', self.css)
+        self.assertNotIn("@media (pointer: coarse) {\n  :root", self.css)
         # 桌面窗口：侧栏浮成卡片（离窗口边 8px、卡片阴影）
         self.assertIn(':root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); '
                       "border-inline-width: 0; }", self.css)
@@ -289,8 +327,12 @@ class OfficialValuesTests(unittest.TestCase):
         variant = (SRC / "lib/variant.ts").read_text(encoding="utf-8")
         self.assertIn('import { MOBILE_QUERY } from "@/hooks/use-mobile";', variant)
         self.assertIn('import { isDesktopApp } from "@/lib/desktop";', variant)
-        self.assertIn("root.dataset.ccVariant = pickVariant(desktop, narrow.matches);", variant)
+        self.assertIn("const variant = pickVariant(desktop, narrow.matches);\n    root.dataset.ccVariant = variant;", variant)
         self.assertIn('  apply();\n  narrow.addEventListener("change", apply);', variant)  # 桌面窗口拉窄也跟着换
+        # 触屏标记（标准化记录 3.4）：同一次写入、先于首帧；外接鼠标、平板主指针变了跟着换；与原来 @media (pointer: coarse) 同一条查询
+        self.assertIn('export const COARSE_QUERY = "(pointer: coarse)";', variant)
+        self.assertIn('if (pickTouch(variant, coarse.matches)) root.dataset.ccTouch = "";\n    else delete root.dataset.ccTouch;', variant)
+        self.assertIn('  coarse.addEventListener("change", apply);', variant)
         mobile = (SRC / "hooks/use-mobile.ts").read_text(encoding="utf-8")
         self.assertIn("window.matchMedia(MOBILE_QUERY)", mobile)
         self.assertEqual(mobile.count("setIsMobile(mql.matches);"), 2)  # 与变体同一个判断，不用 innerWidth
@@ -303,12 +345,47 @@ class OfficialValuesTests(unittest.TestCase):
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { pickVariant } from "@/lib/variant";
+import { pickTouch, pickVariant } from "@/lib/variant";
 assert.equal(pickVariant(true, false), "desktop");
 assert.equal(pickVariant(true, true), "phone");  // 桌面窗口拉到分界以下换手机外壳，密度跟着换
 assert.equal(pickVariant(false, true), "phone");
 assert.equal(pickVariant(false, false), "web");
+// 触屏标记：手机变体一定是；粗指针且不是桌面窗口（平板、触屏笔记本上的网页）是；桌面窗口在触屏上也不是；鼠标的网页不是
+assert.equal(pickTouch("phone", false), true);
+assert.equal(pickTouch("phone", true), true);
+assert.equal(pickTouch("web", true), true);
+assert.equal(pickTouch("web", false), false);
+assert.equal(pickTouch("desktop", true), false);
+assert.equal(pickTouch("desktop", false), false);
 (globalThis as any).done();
+""", stubs={"@/lib/desktop": "export const isDesktopApp = () => false;"})
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_install_variant_writes_the_touch_marker_and_follows_the_pointer(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { MOBILE_QUERY } from "@/hooks/use-mobile";
+import { installVariant } from "@/lib/variant";
+const g = globalThis as any;
+const listeners: Record<string, Array<() => void>> = {};
+const state: Record<string, boolean> = { [MOBILE_QUERY]: false, "(pointer: coarse)": true };
+g.window.matchMedia = (query: string) => ({
+  get matches() { return state[query] ?? false; },
+  addEventListener: (_: string, f: () => void) => { (listeners[query] ??= []).push(f); },
+});
+const root = { dataset: {} as Record<string, string> } as unknown as HTMLElement;
+installVariant(root);
+assert.equal(root.dataset.ccVariant, "web");
+assert.equal(root.dataset.ccTouch, "");             // 平板上的网页：粗指针、不是桌面窗口
+state["(pointer: coarse)"] = false;                 // 接上鼠标
+for (const f of listeners["(pointer: coarse)"]) f();
+assert.equal("ccTouch" in root.dataset, false);
+state[MOBILE_QUERY] = true;                         // 窗口拉窄成手机外壳：鼠标也按触屏尺寸
+for (const f of listeners[MOBILE_QUERY]) f();
+assert.equal(root.dataset.ccVariant, "phone");
+assert.equal(root.dataset.ccTouch, "");
+g.done();
 """, stubs={"@/lib/desktop": "export const isDesktopApp = () => false;"})
 
     def test_shared_classes_use_the_design_values(self):
@@ -326,13 +403,14 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn(".cc-nav-item svg { width: var(--cc-icon); height: var(--cc-icon); flex-shrink: 0; }", css)
         self.assertIn("width: var(--cc-row-lead); height: var(--cc-row-lead);", rule(".cc-nav-icon"))
         label = css.split(".cc-section-label {", 1)[1].split("}", 1)[0]
-        for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-group-font);", "line-height: var(--cc-group-lh);",
-                     "transition: color var(--cc-reveal) var(--cc-ease);"):
+        for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-group-font);", "line-height: var(--cc-group-lh);"):
             self.assertIn(part, label)
-        # 鼠标在组标题上才变次要色（设计文档 3.4）；鼠标进侧栏只淡入箭头，不改组标题字色
-        self.assertIn(".cc-section-toggle:hover, .cc-section-toggle:focus-visible { color: var(--cc-ink-2); }", css)
+        # 可折叠的组标题都是 .cc-group-*（ERP / DMS 的日期组第 11 轮起也用 GroupHeader）：.cc-section-label 只是标题，不再有开关样式；
+        # 鼠标在组标题上才变次要色（设计文档 3.4），鼠标进侧栏只淡入箭头
+        self.assertNotIn(".cc-section-toggle", css)
         self.assertNotIn('[data-slot="sidebar-inner"]:hover .cc-section-label', css)
-        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-section-chevron', css)
+        self.assertIn(".cc-group-row:hover .cc-group-toggle, .cc-group-toggle:focus-visible { color: var(--cc-ink-2); }", css)
+        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-group-caret', css)
         search = rule(".cc-search")
         for part in ("height: var(--cc-search-h);", "border-radius: var(--cc-radius-row);", "background: var(--cc-search-bg);",
                      "box-shadow: inset 0 0 0 var(--cc-hairline) var(--cc-line), var(--cc-shadow-search);"):
@@ -351,7 +429,10 @@ assert.equal(pickVariant(false, false), "web");
         for part in ("min-height: var(--cc-menu-item-h);", "padding: var(--cc-menu-item-py) var(--cc-menu-item-px);",
                      "border-radius: var(--cc-radius-row);", "font-size: var(--cc-row-font); line-height: var(--cc-row-lh);"):
             self.assertIn(part, item)
-        self.assertIn(".cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }", css)
+        self.assertIn(".cc-menu-item[data-disabled] { opacity: var(--cc-disabled-opacity); pointer-events: none; }", css)
+        # 不可用统一一档 40%（实测菜单不可用项，V6）：共用类里不再写别的不可用透明度
+        self.assertRegex(css, r"--cc-disabled-opacity: 0\.4;")
+        self.assertEqual(re.findall(r":disabled \{ opacity: (?!var\(--cc-disabled-opacity\))[^;]+;", css), [])
         self.assertIn("font-size: var(--cc-text-footnote);", rule(".cc-menu-value"))
         self.assertIn(".cc-menu-sep { height: 0; margin: var(--cc-menu-sep-gap) var(--cc-menu-sep-inset); "
                       "border-top: var(--cc-menu-sep) solid var(--cc-line); }", css)
@@ -361,7 +442,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn("font-size: var(--cc-body-size); line-height: var(--cc-body-lh);", rule(".cc-reply"))
         self.assertIn("font-family: var(--cc-font-reply);", rule(".cc-reply"))
         bubble = rule(".cc-bubble-user")
-        self.assertIn("padding: 0.5rem 0.75rem;", bubble)
+        self.assertIn("padding: var(--cc-space-8) var(--cc-space-12);", bubble)
         self.assertIn("font-size: var(--cc-body-size); line-height: var(--cc-body-lh);", bubble)
         self.assertIn("--cc-radius-code: var(--code-radius-code);", css)
         theme = css.split("@theme inline {", 1)[1].split("\n}", 1)[0]
@@ -372,11 +453,25 @@ assert.equal(pickVariant(false, false), "web");
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        for rel in ("components/ui/button.tsx", "components/ui/input.tsx"):
-            self.assertIn("focus-visible:shadow-focus", read(rel), rel)
-            self.assertNotIn("ring-[3px]", read(rel), rel)
+        self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
+        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条）：
+        # 留下的侧栏只有容器，自己没有可聚焦的控件（侧栏里的按钮都是 cc-* 类，聚焦见 globals.css）
+        for rel in ("input", "sheet", "avatar", "separator"):
+            self.assertFalse((SRC / f"components/ui/{rel}.tsx").exists(), rel)
+        self.assertNotIn("focus-visible:", read("components/ui/sidebar.tsx"))
+        # 弹窗默认的 × 第 11 轮起是图标按钮（.cc-icon-btn 的聚焦就是 --cc-shadow-focus）
+        self.assertIn('className="cc-icon-btn cc-tap absolute end-(--cc-space-12) top-(--cc-space-12)"', read("components/ui/dialog.tsx"))
+        self.assertIn(".cc-icon-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }", self.css)
+        # 聚焦不带光晕（用户 10-16）：整个 CC 前端不再有 ring 光晕写法（ring-[3px]、半透明 ring、ring-offset、focus 时的 ring-2）
+        halo = re.compile(r"ring-\[\d|ring-ring|ring-offset|(?:focus|focus-visible|aria-invalid):ring-|ring-[a-z-]+/\d|outline-ring/\d")
+        for path in sorted(SRC.rglob("*.ts*")) + [SRC / "globals.css"]:
+            self.assertIsNone(halo.search(path.read_text(encoding="utf-8")), path)
         self.assertIn("shadow-pop", read("components/ui/dialog.tsx"))
         self.assertIn("bg-tooltip text-tooltip-ink", read("components/ui/tooltip.tsx"))
+        # V18：提示框字号实测 caption 12/17、进出场 .cc-pop（快档、主缓动），不用 tw-animate
+        self.assertIn('"cc-pop bg-tooltip text-tooltip-ink z-(--cc-z-tooltip) w-fit', read("components/ui/tooltip.tsx"))
+        self.assertIn(" text-caption text-balance", read("components/ui/tooltip.tsx"))
+        self.assertNotRegex(read("components/ui/tooltip.tsx"), r"animate-(?:in|out)\b|\b(?:fade|zoom|slide)-(?:in|out)|text-xs")
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertIn('className="cc-reply px-2 wrap-break-word"', thread)
         md = read("components/assistant-ui/markdown-text.tsx")
@@ -402,7 +497,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn("--cc-md-li-indent: 7px;", self.css)
         self.assertNotIn("--cc-md-list-top", self.css)
         # 回复里的块（正文、步骤、文件卡）之间同样只用上外边距；回复下的操作行悬停淡入、没有悬停的设备常显
-        self.assertIn("  .cc-reply > * + * { margin-top: var(--cc-md-block); }", self.css)
+        self.assertIn("  .cc-reply > :where(:not(:first-child)) { margin-top: var(--cc-md-block); }", self.css)
         self.assertIn("  .cc-reply-actions { opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }",
                       self.css)
         self.assertIn('  [data-role="assistant"]:hover .cc-reply-actions, .cc-reply-actions:focus-within { opacity: 1; }', self.css)
@@ -442,7 +537,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn('user_preferences: { color_scheme_dark: { background_color: "#151515", theme_color: "#151515" } },', vite)
         main = (SRC / "main.tsx").read_text(encoding="utf-8")
         apply = main.split("const applyScheme = () => {", 1)[1].split("\n};", 1)[0]
-        self.assertIn("colorScheme(theme);\n  themeColor();", apply)
+        self.assertIn("colorScheme(theme);\n  themeColor(true);", apply)
         self.assertIn("const value = colorSchemeOf(theme);", main)
         self.assertIn('window.addEventListener("cc-theme", applyScheme);', main)
         appearance = (SRC / "lib/appearance.ts").read_text(encoding="utf-8")
@@ -458,6 +553,200 @@ assert.equal(pickVariant(false, false), "web");
                      "--radius-md: var(--cc-radius-md);", "--text-sm: var(--ccs-text-sm-size);",
                      "--text-sm--line-height: var(--ccs-text-sm-line-height);", "--color-warning: var(--cc-warning);"):
             self.assertIn(line, theme)
+
+
+def theme_block(css):
+    return css.split("@theme inline {", 1)[1].split("\n}", 1)[0]
+
+
+class StandardLayerTests(unittest.TestCase):
+    """标准层（标准化记录第 2 节，B1）：刻度层、@theme 接的字阶与字重、cn() 认识这些名字。"""
+
+    def setUp(self):
+        self.css = (SRC / "globals.css").read_text(encoding="utf-8")
+
+    def test_type_scale_and_weights_are_wired_into_the_theme(self):
+        theme = theme_block(self.css)
+        for name, (size, lh) in {
+            "caption": ("--cc-text-caption", "--cc-text-caption-lh"), "footnote": ("--cc-text-footnote", "--cc-text-footnote-lh"),
+            "group": ("--cc-group-font", "--cc-group-lh"), "panel": ("--cc-panel-font", "--cc-panel-lh"),
+            "body": ("--cc-row-font", "--cc-row-lh"), "subhead": ("--cc-text-subhead", "--cc-text-subhead-lh"),
+            "prose": ("--cc-text-prose", "--cc-text-prose-lh"), "title": ("--cc-text-title", "--cc-text-title-lh"),
+            "page": ("--cc-text-page", "--cc-text-page-lh"),
+        }.items():
+            self.assertIn(f"  --text-{name}: var({size});\n  --text-{name}--line-height: var({lh});", theme, name)
+        self.assertIn("--text-page--font-weight: var(--cc-text-page-weight);", theme)
+        cc = cc_block(self.css, ":root")
+        # 全部引用 Claude 设计系统实测的字阶（设计文档 2.2）
+        for name, target in {"--cc-text-subhead": "--code-text-heading", "--cc-text-prose": "--code-text-prose",
+                             "--cc-text-title": "--code-text-title", "--cc-text-caption": "--code-text-caption",
+                             "--cc-text-footnote": "--code-text-footnote"}.items():
+            self.assertEqual(cc[name], f"var({target})", name)
+        for name, weight in {"normal": "regular", "medium": "medium", "semibold": "semibold", "bold": "bold"}.items():
+            self.assertIn(f"  --font-weight-{name}: var(--cc-weight-{weight});", theme)
+            self.assertEqual(cc[f"--cc-weight-{weight}"], f"var(--ccs-font-weight-{name})")
+        self.assertIn("--breakpoint-md: 768px;", theme)
+        # V2：Tailwind 默认过渡接到设计系统的快档与主缓动
+        self.assertIn("--default-transition-duration: var(--cc-dur-fast);", theme)
+        self.assertIn("--default-transition-timing-function: var(--cc-ease);", theme)
+
+    def test_cn_knows_the_theme_names(self):
+        # 2.5：tailwind-merge 要登记 @theme 接过的字阶与字重名，与 globals.css 两边一致
+        theme = theme_block(self.css)
+        sizes = sorted(set(re.findall(r"^  --text-([a-z]+):", theme, re.M)) - {"xs", "sm", "base", "lg", "xl"} - {"2xl", "3xl", "4xl"})
+        weights = sorted(re.findall(r"^  --font-weight-([a-z]+):", theme, re.M))
+        utils = (SRC / "lib/utils.ts").read_text(encoding="utf-8")
+        listed = lambda name: sorted(re.findall(r'"([a-z]+)"', utils.split(f"export const {name} = [", 1)[1].split("]", 1)[0]))
+        self.assertEqual(listed("TEXT_SIZES"), sizes)
+        self.assertEqual(listed("FONT_WEIGHTS"), weights)
+        # @theme 接过的动画名（B2 起骨架用 animate-cc-pulse）
+        animations = sorted(re.findall(r"^  --animate-([a-z-]+):", theme, re.M))
+        self.assertEqual(sorted(re.findall(r'"([a-z-]+)"', utils.split("export const ANIMATIONS = [", 1)[1].split("]", 1)[0])), animations)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_cn_merges_type_scale_names_as_sizes_not_colors(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { cn } from "@/lib/utils";
+// 字号与字色各留一个（原来 text-caption 被当成颜色，text-ink-3 就丢了）
+assert.equal(cn("text-ink-3", "text-caption"), "text-ink-3 text-caption");
+assert.equal(cn("text-caption", "text-ink-3"), "text-caption text-ink-3");
+// 同是字号：后一个赢
+assert.equal(cn("text-sm", "text-caption"), "text-caption");
+assert.equal(cn("text-body", "text-page"), "text-page");
+assert.equal(cn("text-prose text-ink", "text-(length:--cc-body-size)"), "text-ink text-(length:--cc-body-size)");
+// 字重
+assert.equal(cn("font-medium", "font-semibold"), "font-semibold");
+assert.equal(cn("font-medium text-caption", "text-ink-2"), "font-medium text-caption text-ink-2");
+// 动画名：后一个赢（调用方能用 animate-none 关掉骨架的呼吸）
+assert.equal(cn("animate-cc-pulse h-(--cc-skeleton-h)", "animate-none"), "h-(--cc-skeleton-h) animate-none");
+(globalThis as any).done();
+""")
+
+    def test_one_breakpoint_text_in_three_places(self):
+        # 2.1「断点」：hooks/use-mobile.ts 的 MOBILE_QUERY、Tailwind 的 max-md / md 生成的查询、globals.css 的 @media 同一段文本
+        mobile = (SRC / "hooks/use-mobile.ts").read_text(encoding="utf-8")
+        self.assertIn("export const MOBILE_BREAKPOINT = 768;", mobile)
+        self.assertIn("export const MOBILE_QUERY = `(width < ${MOBILE_BREAKPOINT}px)`;", mobile)
+        query = "(width < 768px)"
+        self.assertIn("--breakpoint-md: 768px;", theme_block(self.css))
+        widths = re.findall(r"@media[^{]*?(\([^()]*\bwidth\b[^()]*\))", re.sub(r"/\*.*?\*/", "", self.css, flags=re.S))
+        self.assertTrue(widths)
+        self.assertEqual(set(widths) - {query, "(width >= 768px)"}, set(), widths)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_tailwind_generates_the_same_breakpoint_text(self):
+        # 用前端依赖里的 Tailwind 现编 globals.css：max-md: / md: 生成的查询与 MOBILE_QUERY 一字不差（V37：原来是 (max-width: 767px)，
+        # 767.5 宽时 max-md: 的类生效、变体却判成 web）
+        script = r"""
+const path = require("path");
+const fs = require("fs");
+const front = process.argv[2];
+(async () => {
+  const { compile } = await import(path.join(front, "node_modules/tailwindcss/dist/lib.mjs"));
+  const css = fs.readFileSync(path.join(front, "src/globals.css"), "utf8");
+  // 样式包按 package.json 的 style / exports["."].style / main 找入口（同构建时的解析），相对路径照常
+  const resolve = (id, base) => {
+    if (id.startsWith(".")) return path.resolve(base, id);
+    const name = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : id.split("/")[0];
+    const dir = path.join(front, "node_modules", name);
+    const sub = id.slice(name.length + 1);
+    if (sub) return path.join(dir, sub.endsWith(".css") ? sub : `${sub}.css`);
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+    const entry = pkg.style ?? pkg.exports?.["."]?.style ?? pkg.main;
+    return path.join(dir, entry);
+  };
+  const loadStylesheet = async (id, base) => { const file = resolve(id, base); return { path: file, base: path.dirname(file), content: fs.readFileSync(file, "utf8") }; };
+  const compiler = await compile(css, { base: path.join(front, "src"), loadStylesheet });
+  process.stdout.write(compiler.build(["max-md:hidden", "md:flex"]));
+})().catch((e) => { console.error(e); process.exit(1); });
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = pathlib.Path(tmp) / "tw.cjs"
+            runner.write_text(script, encoding="utf-8")
+            out = subprocess.run([NODE, str(runner), str(SRC.parent)], capture_output=True, text=True, timeout=120)
+        self.assertEqual(out.returncode, 0, out.stderr[-2000:])
+        built = out.stdout
+        self.assertTrue("@media (width < 768px) {\n    .max-md\\:hidden" in built, "max-md: 没有生成 (width < 768px)")
+        self.assertTrue("@media (width >= 768px) {\n    .md\\:flex" in built, "md: 没有生成 (width >= 768px)")
+        # 生成的 CSS 里只有这一条宽度断点（没有 48rem 的写法，也没有 max-width: 767px 一类）
+        widths = set(re.findall(r"@media[^{]*?(\([^()]*\bwidth\b[^()]*\))", built))
+        self.assertEqual(widths, {"(width < 768px)", "(width >= 768px)"}, sorted(widths))
+
+    def test_the_scale_layer_has_one_definition_per_value(self):
+        # 2.4 第 1 / 6 条：刻度只有一份，刻度层这一块里不出现两个定义完全相同的变量
+        block = self.css.split("/* ── 刻度层", 1)[1].split("\n}", 1)[0]
+        defs = re.findall(r"^  (--cc-[\w-]+):\s*([^;]+);", block, re.M)
+        self.assertGreater(len(defs), 60)
+        seen = {}
+        for name, value in defs:
+            self.assertNotIn(value.strip(), seen, f"{name} 与 {seen.get(value.strip())} 定义相同")
+            seen[value.strip()] = name
+        names = [n for n, _ in defs]
+        for prefix in ("--cc-space-", "--cc-control", "--cc-icon", "--cc-z-", "--cc-dur", "--cc-weight-", "--cc-radius-"):
+            self.assertTrue(any(n.startswith(prefix) for n in names), prefix)
+        # 间距刻度按像素命名，值就是名字（设计文档 2.3 的 --code-gap / pad）
+        spacing = {n: v for n, v in defs if n.startswith("--cc-space-")}
+        self.assertEqual(list(spacing), [f"--cc-space-{n}" for n in (2, 4, 6, 8, 12, 16, 24, 28, 40)])
+        code = code_block(self.css, ":root")
+        for name, value in spacing.items():
+            target = re.fullmatch(r"var\((--code-[\w-]+)\)", value).group(1)
+            self.assertEqual(code[target], name.rsplit("-", 1)[1] + "px", name)
+
+
+# 2.4 第 6 条「每个 --cc-* 至少被引用一次」：B1 一次登记了后面各批组件迁移要用的用途变量（globals.css 只在 B1 补、B8 只删），
+# 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
+# 这不是豁免：表外的 --cc-* 没人引用就失败。
+AWAITING = {
+    # B3 外壳：欢迎页、侧栏头、手机抽屉
+    "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
+    "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
+    "--cc-mdrawer-tray-px": "B3", "--cc-mdrawer-tail": "B3",
+    "--cc-menu-w-sm": "B3", "--cc-menu-w-md": "B3", "--cc-menu-w-lg": "B3", "--cc-menu-w-max": "B3",
+    # B4 弹窗与列表页：设置弹窗、删除确认的层级、列表预取的 rootMargin
+    "--cc-settings-w": "B4", "--cc-settings-w-max": "B4", "--cc-settings-h": "B4", "--cc-settings-share": "B4",
+    "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",
+    "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
+    "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4", "--cc-observe-margin": "B4",
+    "--cc-composer-input-max": "B4",
+    # B5 会话栏、结果、文档
+    "--cc-results-head-h": "B5", "--cc-link-offset": "B5", "--cc-icon-2xl": "B5",
+    # B6 侧栏列表：拖动浮层层级（drag.tsx 拿起时读）
+    "--cc-z-drag": "B6",
+    # B7 对话区
+    "--cc-thread-gutter": "B7", "--cc-turn-gap": "B7", "--cc-thread-tail": "B7", "--cc-run-gap": "B7", "--cc-run-gap-reply": "B7",
+    "--cc-reply-actions-h": "B7", "--cc-msg-intrinsic": "B7", "--cc-md-h1": "B7", "--cc-md-h2": "B7", "--cc-md-heading-lh": "B7",
+    "--cc-md-heading-scroll": "B7", "--cc-md-li-gap": "B7", "--cc-md-quote-w": "B7", "--cc-code-inline-size": "B7",
+    # 图片预览的最宽与占高：写在 attachment.tsx 的调用处（B7 的文件），B2 的 dialog.tsx 不再给默认宽（原登记为 B2）
+    "--cc-preview-w": "B7", "--cc-preview-share": "B7",
+    # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
+    "--cc-control-nested": "B2–B7",
+}
+
+
+def cc_references():
+    """globals.css 与组件里对 --cc-* 的引用：var(--cc-x)、-(--cc-x)、JS 里写的名字；模板拼接 `--cc-status-${k}` 按前缀算（2.4 第 4 条）。"""
+    css = re.sub(r"/\*.*?\*/", "", (SRC / "globals.css").read_text(encoding="utf-8"), flags=re.S)
+    names = {m.group(1) for m in re.finditer(r"(?<![\w-])(--cc-[\w-]+)(?!\s*:)", css)}
+    prefixes = set()
+    for path in SRC.rglob("*.ts*"):
+        for m in re.finditer(r"(?<![\w-])(--cc-[\w-]*)(\$\{)?", path.read_text(encoding="utf-8")):
+            (prefixes if m.group(2) or m.group(1).endswith("-") else names).add(m.group(1))
+    defined = set(re.findall(r"(?<![\w-])(--cc-[\w-]+)\s*:", css))
+    return defined, names, prefixes
+
+
+class TokenUseTests(unittest.TestCase):
+    def test_every_cc_token_is_used_or_waits_for_a_named_batch(self):
+        defined, names, prefixes = cc_references()
+        used = lambda name: name in names or any(name.startswith(p) for p in prefixes)
+        unused = sorted(n for n in defined if not used(n) and n not in AWAITING)
+        self.assertEqual(unused, [], "定义了却没人引用：删掉，或写明由哪一批接上")
+        for name, batch in AWAITING.items():
+            self.assertIn(name, defined, name)
+            self.assertFalse(used(name), f"{name} 已经接上（{batch}），从 AWAITING 里删掉")
+            self.assertRegex(batch, r"^B[2-7]")
 
 
 class TokenGateTests(unittest.TestCase):
@@ -526,12 +815,174 @@ class TokenGateTests(unittest.TestCase):
         self.assertIn("run: python3 tests/test_cc_ccs.py", workflow)
 
 
+def token_value(defs, name):
+    """globals.css 里一个变量一路 var() 引用下去的取值（只认整串是一个 var(--x) 的引用）。"""
+    value = defs[name].strip()
+    while (m := re.fullmatch(r"var\((--[\w-]+)\)", value)):
+        value = defs[m.group(1)].strip()
+    return value
+
+
+class ComponentLibraryTests(unittest.TestCase):
+    """标准化 B2（组件库，记录 4.2）：components/ui 只留在用的部件、写死值换成标准层变量；JS 用到的值用时从 globals.css 读，
+    回退常量与 globals.css 同值；三份「CSS 值 → 数字」的解析合成 lib/css-var.ts。"""
+
+    def setUp(self):
+        self.css = (SRC / "globals.css").read_text(encoding="utf-8")
+        self.defs = {**code_block(self.css, ":root"), **cc_block(self.css, ":root")}
+        self.read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
+
+    def test_js_fallbacks_match_globals_css(self):
+        # 2.6：菜单离边 / 离触发器 / 子菜单离父菜单、提示框延时只在 globals.css 定值，JS 用时读；回退常量与它同值
+        menu = self.read("components/ui/menu.tsx")
+        for const, name in (("MENU_EDGE", "--cc-menu-edge"), ("MENU_OFFSET", "--cc-menu-offset"),
+                            ("MENU_SUB_OFFSET", "--cc-menu-sub-offset")):
+            fallback = re.search(rf"^export const {const} = (\d+);$", menu, re.M).group(1)
+            self.assertEqual(token_value(self.defs, name), f"{fallback}px", name)
+            self.assertIn(f'fixedPx("{name}", {const})', menu)
+        self.assertIn("collisionPadding = menuEdge(),", menu)
+        self.assertIn("sideOffset={sideOffset ?? menuSubOffset()}", menu)
+        self.assertNotRegex(menu, r"(?:sideOffset|collisionPadding)\s*=\s*[1-9]")
+        tooltip = self.read("components/ui/tooltip.tsx")
+        fallback = re.search(r"^export const TOOLTIP_DELAY = (\d+);$", tooltip, re.M).group(1)
+        self.assertEqual(token_value(self.defs, "--cc-tooltip-delay"), f"{fallback}ms")
+        self.assertIn('fixedMs("--cc-tooltip-delay", TOOLTIP_DELAY)', tooltip)
+        self.assertIn("delayDuration={delayDuration ?? tooltipDelay()}", tooltip)
+        # V7：提示框盖过菜单（原来 50，被菜单 60 盖住）
+        self.assertEqual(tooltip.count("z-(--cc-z-tooltip)"), 2)
+        self.assertNotRegex(tooltip, r"\bz-\d")
+        self.assertEqual(token_value(self.defs, "--cc-z-tooltip"), "90")
+        self.assertGreater(int(token_value(self.defs, "--cc-z-tooltip")), int(token_value(self.defs, "--cc-z-confirm")))
+        # 提示框不用在外面包 Provider：每个 Tooltip 自带一层，main.tsx、侧栏原来那几层从来不起作用
+        self.assertNotIn("TooltipProvider", self.read("main.tsx"))
+        self.assertNotIn("TooltipProvider", self.read("components/ui/sidebar.tsx"))
+
+    def test_only_the_parts_in_use_are_left(self):
+        ui = SRC / "components/ui"
+        self.assertEqual(sorted(p.name for p in ui.glob("*.tsx")),
+                         ["button.tsx", "dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
+        exports = lambda rel: sorted(re.findall(r"^  (\w+),$", self.read(rel).split("\nexport {\n", 1)[1].split("};", 1)[0], re.M))
+        self.assertEqual(exports("components/ui/sidebar.tsx"),
+                         ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
+        self.assertEqual(exports("components/ui/dialog.tsx"), ["Dialog", "DialogClose", "DialogContent", "DialogTitle", "DialogTrigger"])
+        # V9：图片预览（唯一用组件库弹窗的地方）同整窗弹窗圆角 16（--cc-radius-dialog，外壳实测），原来 10
+        dialog = self.read("components/ui/dialog.tsx")
+        self.assertIn(" rounded-dialog border ", dialog)
+        self.assertNotIn("rounded-lg", dialog)
+        # V38：遮罩与弹层的进出场同其他弹层（.cc-overlay / .cc-pop），不用 tw-animate
+        self.assertIn('"cc-overlay z-(--cc-z-sheet)"', dialog)
+        self.assertIn('"cc-pop bg-background cc-modal fixed', dialog)
+        self.assertNotRegex(dialog, r"animate-(?:in|out)\b|\b(?:fade|zoom)-(?:in|out)|duration-\d")
+        button = self.read("components/ui/button.tsx")
+        variants = button.split("variant: {", 1)[1].split("},", 1)[0]
+        sizes = button.split("size: {", 1)[1].split("},", 1)[0]
+        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", variants, re.M), ["outline", "ghost"])
+        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", sizes, re.M), ["default", "sm", "icon", "icon-sm"])
+        # 侧栏没有随机宽度的骨架（比对工具要稳定），也没有手机分支（手机是 mobile-shell 的抽屉）
+        sidebar = self.read("components/ui/sidebar.tsx")
+        self.assertNotIn("Math.random", sidebar)
+        self.assertNotIn("<Sheet", sidebar)
+
+    def test_sidebar_width_is_one_token(self):
+        # 2.4 第 3 条：--sidebar-width 别名改成 --cc-sidebar-w，分隔条写的也是它（本机记住的宽度仍按 cc.sidebar.width 存）
+        for path in sorted(SRC.rglob("*.ts*")):
+            self.assertNotIn("--sidebar-width", path.read_text(encoding="utf-8"), path)
+        split = self.read("components/split-handle.tsx")
+        self.assertIn('  key: "cc.sidebar.width",\n  cssVar: "--cc-sidebar-w",', split)
+        sidebar = self.read("components/ui/sidebar.tsx")
+        self.assertEqual(sidebar.count("w-(--cc-sidebar-w)"), 2)   # 占位与侧栏本体
+        self.assertIn("group-data-[collapsible=offcanvas]:-start-(--cc-sidebar-w)", sidebar)
+        self.assertEqual(sidebar.count("px-(--cc-sidebar-pad)"), 2)   # 侧栏头、脚的左右
+        # V11：收起、展开 200ms 主缓动（原来 Tailwind 的匀速 linear）
+        self.assertEqual(sidebar.count("duration-(--cc-dur) ease-cc"), 2)
+        self.assertNotIn("ease-linear", sidebar)
+        # V5：骨架的明暗呼吸同运行中的脉冲点（--cc-pulse 1.2s、透明度 0.35↔1），不再是 Tailwind 的 pulse（2s、1↔0.5）
+        self.assertIn('cn("bg-accent animate-cc-pulse rounded-md h-(--cc-skeleton-h)", className)', self.read("components/ui/skeleton.tsx"))
+        self.assertIn("--animate-cc-pulse: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;", self.css)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_css_values_are_read_when_used(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { cssMs, cssPx, cssVar, fixedMs, fixedPx } from "@/lib/css-var";
+import { cssMs as hoverMs } from "@/lib/hover-scroll";
+import { cssPx as panelPx } from "@/lib/company-panel";
+const g = globalThis as any;
+// 三份解析合成一份：原来的导入处拿到的是同一个函数
+assert.equal(hoverMs, cssMs);
+assert.equal(panelPx, cssPx);
+assert.equal(cssMs("150ms", 0), 150);
+assert.equal(cssMs(" 0.3s", 0), 300);
+assert.equal(cssMs("", 7), 7);
+assert.equal(cssPx("280px"), 280);
+assert.equal(cssPx(" 24rem", 16), 384);
+assert.equal(cssPx("var(--x)"), 0);
+assert.equal(cssPx("x", 16, 5), 5);
+g.innerWidth = 1000;
+assert.equal(cssPx("80vw"), 800);
+// 不在浏览器里（没有 getComputedStyle）：读到空串，用回退值
+assert.equal(cssVar("--cc-menu-edge"), "");
+assert.equal(fixedPx("--cc-menu-edge", 8), 8);
+// 样式表还没生效（读到空）：用回退值、不记住；生效后读到就记住，之后不再读样式
+const vars: Record<string, string> = {};
+let reads = 0;
+g.getComputedStyle = () => ({ getPropertyValue: (name: string) => { reads++; return vars[name] ?? ""; } });
+assert.equal(fixedPx("--cc-menu-edge", 8), 8);
+vars["--cc-menu-edge"] = "12px";
+assert.equal(fixedPx("--cc-menu-edge", 8), 12);
+vars["--cc-menu-edge"] = "20px";
+const before = reads;
+assert.equal(fixedPx("--cc-menu-edge", 8), 12);
+assert.equal(reads, before);
+vars["font-size"] = "20px";
+vars["--cc-x"] = "1rem";
+assert.equal(fixedPx("--cc-x", 0), 20);
+vars["--cc-tooltip-delay"] = "0ms";
+assert.equal(fixedMs("--cc-tooltip-delay", 300), 0);
+vars["--cc-tooltip-delay"] = "300ms";
+assert.equal(fixedMs("--cc-tooltip-delay", 300), 0);
+g.done();
+""", stubs={"socket.io-client": "export const io = () => ({ on() {}, off() {}, emit() {}, connect() {}, disconnect() {} });",
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_tooltip_delay_comes_from_globals_css(self):
+        # 组件库换成记下 props 的空壳：提示框交给组件库的延时是 globals.css 的 --cc-tooltip-delay（用时读）；写明的照样用
+        fake = r"""
+import { createElement } from "react";
+const g = globalThis as any;
+g.seen = [] as Array<{ part: string; props: any }>;
+const part = (name: string) => (props: any) => {
+  g.seen.push({ part: name, props });
+  return createElement("div", null, props.children);
+};
+export const Tooltip: any = Object.fromEntries(["Provider", "Root", "Trigger", "Portal", "Content", "Arrow"].map((n) => [n, part(n)]));
+"""
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement as h } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+const g = globalThis as any;
+g.getComputedStyle = () => ({ getPropertyValue: (name: string) => (name === "--cc-tooltip-delay" ? "250ms" : "") });
+renderToStaticMarkup(h(Tooltip, null, "x"));
+assert.equal(g.seen.find((s: any) => s.part === "Provider").props.delayDuration, 250);
+g.seen.length = 0;
+renderToStaticMarkup(h(TooltipProvider, { delayDuration: 0 }, "x"));
+assert.equal(g.seen.find((s: any) => s.part === "Provider").props.delayDuration, 0);
+g.done();
+""", stubs={"radix-ui": fake})
+
+
 class CardRuleTests(unittest.TestCase):
     def test_cards_in_the_conversation_follow_the_card_rules(self):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         # 卡内不套滚动：步骤详情自动撑高，长了收起
         self.assertNotRegex(steps, r"max-h-|overflow-(?:y-)?auto|overflow-scroll")
-        self.assertIn("<Clipped text={step.input} />", steps)
+        self.assertIn("{input && <Clipped text={input} />}", steps)
+        # 能点的：内容展开「… N 行」、步骤行、步骤组摘要（允许卡的问话照 Claude 不是按钮，第 10 轮起不再算点按区）
         self.assertEqual(steps.count("cc-tap"), 3)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         pending = thread.split("const PendingSendBubble: FC = () => {", 1)[1].split("\n};", 1)[0]
@@ -539,10 +990,20 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("<Skeleton", pending)
         files = thread.split("const MessageFiles: FC = () => {", 1)[1].split("\n};", 1)[0]
         self.assertIn('className="cc-icon-btn cc-tap"', files)
+        # 提醒卡的「打开通知」在卡片里、底部靠右，用卡片按钮（同允许卡，用户 10-17）；没打开的原因在按钮上方一行
         notice = thread.split("const NoticeMessage: FC = () => {", 1)[1].split("\n};", 1)[0]
-        self.assertIn('className="cc-btn cc-tap"', notice)
+        self.assertNotIn("cc-btn ", notice)
+        card = notice[notice.index('role="note"'):]
+        foot = card[card.index('<div className="cc-ask-foot">'):]
+        self.assertLess(foot.index("push.failure"), foot.index('<div className="cc-card-actions">'))
+        self.assertIn('<button type="button" className="cc-card-btn" onClick={() => void push.enable()}>', foot)
+        self.assertLess(card.index("{noticeTime(createdAt)}"), card.index('<div className="cc-ask-foot">'))
         css = (SRC / "globals.css").read_text(encoding="utf-8")
-        self.assertIn("@media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }", css)
+        # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，标准化记录 V3）；CC 桌面版在触屏上不改电脑值
+        self.assertIn(":root[data-cc-touch] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }", css)
+        self.assertNotIn("@media (pointer: coarse) { .cc-tap", css)
+        # 月份、分店胶囊外观 28 不变，触屏点按区上下补到 44（V3）
+        self.assertIn(':root[data-cc-touch] .cc-chip-btn::after { content: ""; position: absolute; inset: calc((var(--cc-control-sm) - var(--cc-tap)) / 2) 0; }', css)
         self.assertIn("--cc-tap: 2.75rem;", css)
 
     def test_steps_follow_claude_code(self):
@@ -551,18 +1012,22 @@ class CardRuleTests(unittest.TestCase):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         group = steps[steps.index("export const StepsGroup"):]
         self.assertIn("const title = groupLive(group.status)\n    ? steps.running\n"
-                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done);", group)
+                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { asks: labels.ask, failed: steps.failed });", group)
+        # 第 8 轮：点了「拒绝」的一步没做，摘要与行都写卡片上的问话（去掉问号）加「已拒绝」，不写做完的说法
+        self.assertIn("return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool), undone: stepUndone(tool) };", steps)
         self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
                       group)
         # 一张卡片、一步一行：组给卡片，组里的每一步不再各包一层（测试窗口 S2：外卡套内卡）
         self.assertIn('<div className="cc-steps-card">\n          <InStepsGroup.Provider value={true}>{children}</InStepsGroup.Provider>', group)
-        self.assertIn('useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;', steps)
-        # 等批准的那一步不进组（允许 / 拒绝要看得见），也放进同样带环的卡片
+        self.assertIn('if (inGroup) return <>{children}</>;', steps)
+        self.assertIn('return <div className="cc-steps-card">{children}</div>;', steps)
+        # 允许 / 拒绝卡不进组（等回答的要看得见，点完的照 Claude 留在原处），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('<LoneStep>\n                      <ToolFallbackComponent {...part} />', thread)
+        self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
+        self.assertIn('<LoneStep part={part as unknown as CardPart}>\n                        <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)
-        row = steps[steps.index("export const StepRow"):steps.index("/** 工作状态行上这一步的说法")]
+        row = steps[steps.index("const PlainStep"):steps.index("/** 卡片上的问话")]
         self.assertIn("const errored = stepFailed({ result, isError, status });", row)
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}', row)
         self.assertIn('className="cc-step-row cc-tap"', row)
@@ -570,6 +1035,11 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">', row)   # 放不下时悬停滚动（components/ui/marquee.tsx）
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}\n'
                       '        {expandable && <ChevronRightIcon aria-hidden />}\n      </button>', row)
+        # 允许 / 拒绝卡（拒绝了、允许了却没存上的也是）不在这里：卡片写问话、点完一行所选那一项（用户 10-17），步骤行不再写「已拒绝」
+        self.assertIn("return card ? <AskStep {...props} card={card} labels={labels} /> : <PlainStep {...props} labels={labels} />;", steps)
+        self.assertNotIn("cc-step-denied", steps)
+        # 出卡片前就核出要拒绝的那一步（没做成）写问话，其余写步骤名（第 10 轮审查，undoneText）
+        self.assertIn("{undone ?? step.verb}\n          {step.target", row)
         # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；
         # 只在展开的行里用，摘要行（按类计数）与工作状态行不用
         self.assertIn("const subject = step.own ? stepSubject(args as Args, output?.text, known) : \"\";", row)
@@ -596,12 +1066,13 @@ class CardRuleTests(unittest.TestCase):
             self.assertIn(part, summary)
         self.assertIn('  .cc-steps-summary:hover, .cc-steps-summary[aria-expanded="true"] { color: var(--cc-ink-2); }', css)
         self.assertIn("border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);", rule(".cc-steps-card"))
-        self.assertIn("  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
+        self.assertIn("  .cc-steps-card > :where(:not(:first-child)) { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
         self.assertIn("padding: var(--cc-step-row-py) var(--cc-step-row-px);", rule(".cc-step-row"))
         self.assertIn("color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);", rule(".cc-step-row"))
         self.assertIn("width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0;", rule(".cc-step-row > svg"))
         self.assertIn('  .cc-step-row[aria-expanded="true"] > svg { transform: rotate(90deg); }', css)
         self.assertIn("  .cc-step-failed { flex-shrink: 0; color: var(--cc-danger); }", css)
+        self.assertNotIn(".cc-step-denied", css)
         self.assertIn("font-family: var(--cc-font-mono);", rule(".cc-step-detail"))
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -656,6 +1127,65 @@ assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: tr
         }
         for lang, (want, one) in cases.items():
             run_ts(script.replace("__WANT__", repr(want)).replace("__ONE__", repr(one)), lang=lang)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_a_denied_step_reads_as_not_done(self):
+        # 第 8 轮：规则卡点了「拒绝」，步骤仍写「记下了公司选择」（3 次）。拒绝的一步写卡片上的问话（去掉问号）加「已拒绝」；
+        # 重开对话时没有本页的点击记录，按结果里的 status: denied 认（pearnly_core toolrun.decide）。结果说没存上的算失败
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
+import { steps, t } from "@/i18n";
+const done = { cowork_company_choice_save: "记下了公司选择" };
+const asks = { cowork_company_choice_save: "保存为公司选择？" };
+const denial = { word: "已拒绝", asks, failed: steps.failed };
+assert.equal(askStem("保存为公司选择？"), "保存为公司选择");
+assert.equal(askStem("Save this choice for the company? "), "Save this choice for the company");
+// 本页点了拒绝；重开后按结果认；允许了、还在等的不算
+assert.equal(stepDenied({ approval: { approved: false } }), true);
+assert.equal(stepDenied({ result: { text: JSON.stringify({ status: "denied", message: "The user did not allow this change." }), isError: false } }), true);
+assert.equal(stepDenied({ approval: { approved: true }, result: { text: "{\"status\": \"saved\"}", isError: false } }), false);
+assert.equal(stepDenied({ approval: {} }), false);
+assert.equal(stepDenied({ result: { text: "plain", isError: false } }), false);
+// 第 8 轮以前的旧对话：拒绝交回的是那句原文（服务端不翻译），重开时同样认出
+assert.equal(stepDenied({ result: { text: "The user did not allow this change. Do not try it again unless the user asks.", isError: false } }), true);
+// 摘要：拒绝的写问话 + 已拒绝，存上的照旧写做完的说法；几次时 ×n
+const parts = [{ toolName: "cowork_company_choice_save", failed: false, denied: true }];
+assert.equal(summaryText(summarize(parts, done), steps.summary, done, denial), "保存为公司选择 · 已拒绝");
+assert.equal(summaryText(summarize([...parts, ...parts], done), steps.summary, done, denial), "保存为公司选择 ×2 · 已拒绝");
+assert.equal(summaryText(summarize([{ toolName: "cowork_company_choice_save", failed: false }], done), steps.summary, done, denial), "记下了公司选择");
+// 没给问话（不是要允许的工具）：用做完的说法
+assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: false, denied: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了 · 已拒绝");
+// 结果写明没存上（对象对不上回 not_saved、公司认不出回 failed）：算失败；存上了不算
+assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "not_saved", reason: "x" }), isError: false } }), true);
+assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "failed", reason: "x" }), isError: false } }), true);
+assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
+assert.equal(stepFailed({ result: { text: "{not json", isError: false } }), false);
+// 第 8 轮审查：结果写明没存上的（点了允许、二次核对没过）不写做完的说法：问话 + 失败；几次 ×n；没有问话的工具照做完的说法加失败数
+const notSaved = { text: JSON.stringify({ status: "not_saved", reason: "x" }), isError: false };
+assert.equal(stepUndone({ result: notSaved }), true);
+assert.equal(stepUndone({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
+const undone = { toolName: "cowork_company_choice_save", failed: true, undone: true };
+assert.equal(summaryText(summarize([undone], done), steps.summary, done, denial), "保存为公司选择 · 失败");
+assert.equal(summaryText(summarize([undone, undone], done), steps.summary, done, denial), "保存为公司选择 ×2 · 失败");
+assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: true, undone: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了（1 个失败）");
+assert.equal(summaryText(summarize([undone, ...parts], done), steps.summary, done, denial), "保存为公司选择 · 失败, 保存为公司选择 · 已拒绝");
+// 问话去掉疑问的写法：中文「要…吗」，泰文句末 ไหม / หรือไม่，日文句末「か」（第 8 轮审查：只去问号时读着仍在问）
+assert.equal(askStem("要删除这些定时任务吗？"), "删除这些定时任务");
+assert.equal(askStem("บันทึกตัวเลือกนี้ให้บริษัทไหม"), "บันทึกตัวเลือกนี้ให้บริษัท");
+assert.equal(askStem("ลบงานตามกำหนดเวลาเหล่านี้หรือไม่"), "ลบงานตามกำหนดเวลาเหล่านี้");
+assert.equal(askStem("この選択を会社に保存しますか？"), "この選択を会社に保存します");
+// 各工具声明的问话（四种语言，服务端词条表）去掉后都不再是问句
+const declared = __ASKS__ as string[];
+assert.ok(declared.length >= 40, String(declared.length));
+for (const ask of declared) {
+  const stem = askStem(ask);
+  assert.ok(stem.length > 0, ask);
+  assert.doesNotMatch(stem, /[?？吗]$|ไหม$|หรือไม่$|か$/u, ask);
+}
+(globalThis as any).done();
+""".replace("__ASKS__", json.dumps(declared_asks(), ensure_ascii=False)), lang="zh")
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_step_subject_names_the_record_not_its_internal_name(self):
@@ -797,6 +1327,9 @@ assert.deepEqual(sanitizeDetail({ files: [{ path: "2026-09/inv-01.pdf", name: "i
 assert.equal(detailOutput(JSON.stringify({ document: "CWH-1", connection: "x" })), "");
 assert.equal(detailOutput("Express is offline on CWEC-0003"), "Express is offline on CWEC-0003");
 assert.equal(detailOutput("42"), "42");
+// 点了「拒绝」：给用户看 message（术语表，按用户语言）；只给模型读的英文 instruction 不显示
+assert.deepEqual(JSON.parse(detailOutput(JSON.stringify({ status: "denied", message: "已拒绝此更改",
+  instruction: "Do not try it again unless the user asks." }))), { status: "denied", message: "已拒绝此更改" });
 (globalThis as any).done();
 """)
 

@@ -15,6 +15,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+          # 界面文案闸门要读基线（merge-base origin/main）那一版的文案
+          fetch-depth: 0
       - name: Test the architecture guard
         run: python3 tests/test_architecture_guard.py
       - name: Verify native Desk contracts
@@ -33,6 +35,8 @@ jobs:
         run: python3 tests/test_line_liff.py
       - name: Verify queued/reflected dotted targets resolve
         run: python3 tests/test_queue_targets.py
+      - name: Verify Claude recognition route rules and escalation (ADR-022)
+        run: python3 tests/test_claude_ocr_rules.py
       - name: Verify DMS queue and reply-token call contracts
         run: python3 scripts/test-dms-call-contracts.py
       - name: Verify exact DMS customer identity before automatic writes
@@ -125,6 +129,12 @@ jobs:
         run: python3 tests/test_assistant.py
       - name: Verify product sites keep people signed in for 30 days unless an administrator chose otherwise
         run: python3 tests/test_account_session_length.py
+      - name: Verify every DocType sharing the Cowork connection guard passes before_validate (with or without a client field)
+        run: python3 tests/test_cowork_connection_controller.py
+      - name: Verify product sites do not send Python tracebacks to the page (System Settings allow_error_traceback off)
+        run: python3 tests/test_desk_error_detail.py
+      - name: Verify the member identity record accepts every product the member service serves (Cowork team members)
+        run: python3 tests/test_member_identity_products.py
       - name: Verify the fatcc.com entry (lookup, private billing, Keycloak client, generated sign-in pages)
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
@@ -158,6 +168,10 @@ jobs:
         run: python3 tests/test_cc_mobile_content.py
       - name: Keep CC colors, radii and shadows in globals.css only (ccs, official Claude style variables)
         run: python3 scripts/check-frontend-tokens.py
+      - name: Verify the CC frontend standards gate (sizes, spacing, type, layers, motion fail inside the completed-files list)
+        run: python3 tests/test_cc_frontend_gate.py
+      - name: Keep CC idle when nothing happens (decorative animations stop after a few rounds, infinite ones only while working)
+        run: python3 tests/test_cc_idle_motion.py
       - name: Keep dvh / svh / lvh behind a vh fallback (Chrome and Android WebView before 108 drop the whole declaration)
         run: python3 scripts/check-frontend-viewport-units.py
       - name: Verify CC phone overlays (dialogs fit and scroll, the back key closes the top layer, long-press rows, menus inside the screen)
@@ -216,5 +230,14 @@ jobs:
         run: python3 scripts/i18n-build.py --check
       - name: Block hard-coded Chinese or Thai interface text
         run: python3 scripts/check-i18n.py --strict
+      - name: Verify the interface copy gate catches known explanatory copy and passes official copy
+        run: python3 tests/test_check_copy.py
+      - name: Keep new and changed interface copy short and official (changed copy needs the user's go-ahead)
+        env:
+          # PR：合并提交的第一个父提交就是 GitHub 实际合并到的 base（payload 里的 base.sha 可能已过时）；推 main：event.before
+          COPY_GATE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
+        run: python3 scripts/check-copy.py --report --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+      - name: Check frontend translation keys
+        run: python3 scripts/check-frontend-i18n.py --strict
       - name: Check whitespace
         run: git diff --check

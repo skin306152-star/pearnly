@@ -88,10 +88,7 @@ def main():
         # 说明文案是**翻译过**的（msgid 是英文，见 docs/i18n.md），所以这里比的是
         # 「同一个 msgid 在本站点语言下的译文」，不是写死的中文 —— 写死中文的检查
         # 在英文站点上必然失败（服务端文案改英文 msgid 之后就一直是 FAIL）。
-        honest = frappe._(
-            "Config is complete. Nothing was really connected — the adapter has not been ported"
-            " yet, and this does not pretend otherwise"
-        )
+        honest = frappe._("Configuration is complete. The connection was not tested.")
         check(
             "测试连接说明了它只检查配置、没有真连",
             probe.get("checked") == "config" and probe.get("note") == honest,
