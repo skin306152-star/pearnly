@@ -595,6 +595,9 @@ class StandardLayerTests(unittest.TestCase):
         listed = lambda name: sorted(re.findall(r'"([a-z]+)"', utils.split(f"export const {name} = [", 1)[1].split("]", 1)[0]))
         self.assertEqual(listed("TEXT_SIZES"), sizes)
         self.assertEqual(listed("FONT_WEIGHTS"), weights)
+        # @theme 接过的动画名（B2 起骨架用 animate-cc-pulse）
+        animations = sorted(re.findall(r"^  --animate-([a-z-]+):", theme, re.M))
+        self.assertEqual(sorted(re.findall(r'"([a-z-]+)"', utils.split("export const ANIMATIONS = [", 1)[1].split("]", 1)[0])), animations)
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_cn_merges_type_scale_names_as_sizes_not_colors(self):
@@ -612,6 +615,8 @@ assert.equal(cn("text-prose text-ink", "text-(length:--cc-body-size)"), "text-in
 // 字重
 assert.equal(cn("font-medium", "font-semibold"), "font-semibold");
 assert.equal(cn("font-medium text-caption", "text-ink-2"), "font-medium text-caption text-ink-2");
+// 动画名：后一个赢（调用方能用 animate-none 关掉骨架的呼吸）
+assert.equal(cn("animate-cc-pulse h-(--cc-skeleton-h)", "animate-none"), "h-(--cc-skeleton-h) animate-none");
 (globalThis as any).done();
 """)
 
@@ -873,8 +878,9 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertEqual(sidebar.count("w-(--cc-sidebar-w)"), 2)   # 占位与侧栏本体
         self.assertIn("group-data-[collapsible=offcanvas]:-start-(--cc-sidebar-w)", sidebar)
         self.assertEqual(sidebar.count("px-(--cc-sidebar-pad)"), 2)   # 侧栏头、脚的左右
-        self.assertIn('cn("bg-accent animate', self.read("components/ui/skeleton.tsx"))
-        self.assertIn("h-(--cc-skeleton-h)", self.read("components/ui/skeleton.tsx"))
+        # V5：骨架的明暗呼吸同运行中的脉冲点（--cc-pulse 1.2s、透明度 0.35↔1），不再是 Tailwind 的 pulse（2s、1↔0.5）
+        self.assertIn('cn("bg-accent animate-cc-pulse rounded-md h-(--cc-skeleton-h)", className)', self.read("components/ui/skeleton.tsx"))
+        self.assertIn("--animate-cc-pulse: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;", self.css)
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_css_values_are_read_when_used(self):

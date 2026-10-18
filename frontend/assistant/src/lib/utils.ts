@@ -5,12 +5,15 @@ import { extendTailwindMerge } from "tailwind-merge";
 // cn("text-ink-3", "text-caption") 就吞掉其中一个。在这里登记，cn() 才按字号 / 字重合并；与 @theme 两边一致由 tests/test_cc_ccs.py 核对。
 export const TEXT_SIZES = ["caption", "footnote", "group", "panel", "body", "subhead", "prose", "title", "page"] as const;
 export const FONT_WEIGHTS = ["normal", "medium", "semibold", "bold"] as const;
+// @theme 接过的动画名（--animate-*）：不登记的话 cn("animate-cc-pulse", "animate-none") 两个都留着，调用方关不掉骨架的呼吸
+export const ANIMATIONS = ["cc-pulse"] as const;
 
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       text: [...TEXT_SIZES],
       "font-weight": [...FONT_WEIGHTS],
+      animate: [...ANIMATIONS],
     },
   },
 });
