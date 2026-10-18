@@ -147,7 +147,7 @@ export const Companies: FC = () => {
             />
           </label>
         )}
-        {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+        {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
         {shown === null ? (
           <div className="cc-card-grid">
             {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-pulse" />)}
@@ -161,7 +161,7 @@ export const Companies: FC = () => {
             </button>
           </div>
         ) : !shown.length ? (
-          <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
+          <div className="cc-empty-line">{t("noResults")}</div>
         ) : (
           <>
             <div className="cc-card-grid" data-slot="cc-company-rows">

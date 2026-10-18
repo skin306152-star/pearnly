@@ -99,7 +99,7 @@ export const CompanyPage: FC = () => {
   if (!detail) {
     return (
       <div className="flex flex-1 items-center justify-center text-ink-3">
-        {error ? <p role="alert" className="text-danger text-sm">{error}</p> : <LoaderIcon className="cc-spinner" />}
+        {error ? <p role="alert" className="text-danger text-body">{error}</p> : <LoaderIcon className="cc-spinner" />}
       </div>
     );
   }
@@ -113,7 +113,7 @@ const Master: FC<{ detail: Detail; period: string; reload: () => Promise<void>; 
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-company-page" data-slot="cc-company-page">
         <Header detail={detail} reload={reload} />
-        {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+        {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
         <CompanyComposer company={id} title={detail.company.title} period={period} branches={branchesOf(detail)} />
         <Conversations company={id} />
       </div>
@@ -196,7 +196,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
             </button>
           </h1>
         )}
-        {error && <p role="alert" className="mt-(--cc-space-4) text-danger text-sm">{error}</p>}
+        {error && <p role="alert" className="mt-(--cc-space-4) text-danger text-body">{error}</p>}
       </div>
       {/* 手机：会话栏盖满屏，从这里打开（电脑上用标题栏右上的开关） */}
       {isMobile && (

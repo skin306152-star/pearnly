@@ -1371,6 +1371,17 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertIn("sideOffset={menuOffset()}", source, rel)
             self.assertNotRegex(source, r"sideOffset=\{\d", rel)
 
+    B4 = ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/add-company.tsx", "components/delete-chats.tsx",
+          "components/companies.tsx", "components/company-page.tsx", "components/pending.tsx")
+
+    def test_text_uses_the_measured_steps(self):
+        # V1（B4）：text-sm / text-xs 换成实测字阶 text-body 14/20、text-caption 12/17；提示条、无结果行用共用类
+        for rel in self.B4:
+            self.assertNotRegex(self.read(rel), r"\btext-(?:xs|sm|base)\b", rel)
+        tasks = self.read("components/scheduled-tasks.tsx")
+        self.assertIn('<div className="cc-toast">{message}</div>', tasks)
+        self.assertEqual(tasks.count('className="cc-empty-line"'), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -150,12 +150,12 @@ const Candidates: FC = () => {
             >
               <span className="min-w-0 flex-1">
                 <Marquee className="block truncate text-ink">{row.title}</Marquee>
-                <Marquee className="block truncate text-ink-3 text-xs">{candidateLine(row)}</Marquee>
+                <Marquee className="block truncate text-ink-3 text-caption">{candidateLine(row)}</Marquee>
               </span>
               {busy === row.identity ? (
                 <LoaderIcon className="cc-spinner text-ink-3" />
               ) : row.company ? (
-                <span className="shrink-0 text-ink-3 text-xs">{co.added}</span>
+                <span className="shrink-0 text-ink-3 text-caption">{co.added}</span>
               ) : null}
             </button>
           ))
@@ -167,9 +167,9 @@ const Candidates: FC = () => {
             </button>
           </div>
         ) : (
-          <div className="px-2 py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
+          <div className="cc-empty-line px-(--cc-space-8)">{t("noResults")}</div>
         )}
-        {error && <p role="alert" className="px-(--cc-space-8) pt-(--cc-space-8) text-danger text-sm">{error}</p>}
+        {error && <p role="alert" className="px-(--cc-space-8) pt-(--cc-space-8) text-danger text-body">{error}</p>}
       </div>
     </>
   );

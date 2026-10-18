@@ -223,7 +223,7 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
   if (embedded && (!items || !items.length) && !error) return null;
   return (
     <div className="flex flex-col gap-(--cc-space-16)" data-slot="cc-pending">
-      {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+      {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
       {items === null ? (
         <div className="flex justify-center py-(--cc-space-24) text-ink-3">
           <LoaderIcon className="cc-spinner" />
@@ -233,7 +233,7 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
           <InboxIcon />
         </div>
       ) : !groups.length ? (
-        <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
+        <div className="cc-empty-line">{t("noResults")}</div>
       ) : (
         groups.map(([id, rows]) => (
           <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} />
@@ -283,10 +283,10 @@ export function useAskCC(company: string, title: string) {
 /** 一张单的摘要：单号 · 对方 · 金额 · 日期，下面一行原因。 */
 const Summary: FC<{ item: PendingItem }> = ({ item }) => (
   <span className="min-w-0 flex-1">
-    <Marquee className="block truncate text-ink text-sm">
+    <Marquee className="block truncate text-ink text-body">
       {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
     </Marquee>
-    <Marquee className="block truncate text-ink-3 text-xs">{item.reason_label}</Marquee>
+    <Marquee className="block truncate text-ink-3 text-caption">{item.reason_label}</Marquee>
   </span>
 );
 
@@ -351,10 +351,10 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         aria-expanded={open} onClick={toggle}>
         {head ?? (
           <span className="min-w-0 flex-1">
-            <Marquee className="block truncate text-ink text-sm">
+            <Marquee className="block truncate text-ink text-body">
               {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
             </Marquee>
-            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</Marquee>}
+            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-caption">{kinds || item.reason_label}</Marquee>}
           </span>
         )}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
@@ -368,7 +368,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         <>
           {view.needed.map((need) => (
             <label key={choiceKey(need)} className="cc-field">
-              <Marquee className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
+              <Marquee className="truncate text-caption">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
               <select
                 className="cc-input"
                 value={values[choiceKey(need)] ?? ""}
@@ -397,14 +397,14 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
       {open && view && !choosableView(view) && !settledView(view) && (
         // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
         <>
-          {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}
+          {view.wait?.message && <p className="text-ink-3 text-body">{view.wait.message}</p>}
           <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
             <SparklesIcon className="size-4" />
             {co.handToCC}
           </button>
         </>
       )}
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
   );
 };
@@ -475,7 +475,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
       {open && sets && sets.length > 0 && (
         <>
           <label className="cc-field">
-            <span className="text-xs">{co.accountSets}</span>
+            <span className="text-caption">{co.accountSets}</span>
             <select className="cc-input" value={value} onChange={(e) => setValue(e.target.value)}>
               {!value && <option value="" disabled>—</option>}
               {sets.map((set) => (
@@ -495,7 +495,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
           {co.handToCC}
         </button>
       )}
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
   );
 };

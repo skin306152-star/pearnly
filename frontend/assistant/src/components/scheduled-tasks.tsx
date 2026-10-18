@@ -229,7 +229,7 @@ function Field({ label, hint, children, hidden }: { label: string; hint?: string
     <label className="cc-field">
       <span>{label}</span>
       {children}
-      {hint && <span className="text-ink-3 text-xs">{hint}</span>}
+      {hint && <span className="text-ink-3 text-caption">{hint}</span>}
     </label>
   );
 }
@@ -265,7 +265,7 @@ function useToast() {
     timer.current = window.setTimeout(() => setMessage(""), 2600);
   }, []);
   const node = message ? (
-    <div className="cc-card cc-enter fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 px-4 py-2.5 text-sm shadow-[var(--cc-shadow-pop)]">{message}</div>
+    <div className="cc-toast">{message}</div>
   ) : null;
   return { show, node };
 }
@@ -436,13 +436,13 @@ export function ScheduledTasks() {
             </span>
           </div>
         )}
-        {error && <div className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+        {error && <div className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
         {rules === null || shown === null ? (
           <div className="flex flex-col gap-(--cc-space-8)">
             {[0, 1, 2].map((i) => <div key={i} className="cc-card h-(--cc-task-skeleton-h) animate-pulse" />)}
           </div>
         ) : shown.length === 0 && search.trim() ? (
-          <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
+          <div className="cc-empty-line">{t("noResults")}</div>
         ) : shown.length === 0 ? (
           <div className="cc-empty cc-enter">
             <ClockIcon />
@@ -471,7 +471,7 @@ export function ScheduledTasks() {
                       <Marquee className="truncate font-medium text-ink">{rule.title}</Marquee>
                       <Chip tone={s.tone}>{s.text}</Chip>
                     </div>
-                    <div className="mt-(--cc-space-4) flex flex-wrap items-center gap-x-(--cc-space-12) gap-y-(--cc-space-4) text-ink-3 text-sm">
+                    <div className="mt-(--cc-space-4) flex flex-wrap items-center gap-x-(--cc-space-12) gap-y-(--cc-space-4) text-ink-3 text-body">
                       <span>{[target, rule.company ? tr("cowork.folder.followCompany") : rule.account_label].filter(Boolean).join(" · ")}</span>
                       <span className="flex items-center gap-(--cc-space-4)">
                         <FolderIcon className="size-(--cc-icon-xs)" />
@@ -482,15 +482,15 @@ export function ScheduledTasks() {
                         {`${dayLabel(rule.run_day)} ${rule.run_time || ""}`}
                       </span>
                     </div>
-                    <div className="mt-(--cc-space-4) text-ink-2 text-sm">
+                    <div className="mt-(--cc-space-4) text-ink-2 text-body">
                       {tr("cowork.folder.counts", rule.results?.entered || 0, rule.results?.attention || 0)}
                       {rule.results?.moving ? ` · ${tr("cowork.folder.moving", rule.results.moving)}` : ""}
                     </div>
                     {rule.results?.account_sets?.length ? (
-                      <div className="mt-(--cc-space-2) text-ink-3 text-sm">{accountSetsText(tr, rule.results.account_sets)}</div>
+                      <div className="mt-(--cc-space-2) text-ink-3 text-body">{accountSetsText(tr, rule.results.account_sets)}</div>
                     ) : null}
                     {rule.enabled && rule.waiting ? (
-                      <div className="mt-(--cc-space-2) text-ink-3 text-sm">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
+                      <div className="mt-(--cc-space-2) text-ink-3 text-body">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
                     ) : null}
                   </button>
                   {rule.enabled ? (
@@ -619,9 +619,9 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
   return (
     <Modal open onClose={onClose} title={`${tr("cowork.folder.runs")} · ${rule.title}`}>
       {runs === null ? (
-        <div className="py-6 text-center text-ink-3 text-sm">…</div>
+        <div className="cc-empty-line">…</div>
       ) : runs.length === 0 ? (
-        <div className="py-6 text-center text-ink-3 text-sm">{tr("cowork.folder.noRuns")}</div>
+        <div className="cc-empty-line">{tr("cowork.folder.noRuns")}</div>
       ) : (
         <div className="flex flex-col divide-y divide-line">
           {runs.map((run, i) => {
@@ -633,16 +633,16 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
             const sets = accountSetsText(tr, run.results?.account_sets);
             const missing = ["root_missing", "folder_missing"].includes(run.note || "") ? ` · ${tr("cowork.folder.folderMissing")}` : "";
             return (
-              <div key={i} className="py-(--cc-run-row-py) text-sm">
+              <div key={i} className="py-(--cc-run-row-py) text-body">
                 <div className="text-ink">
                   {new Date(run.started_at.replace(" ", "T")).toLocaleString()} · {tr(`cowork.folder.trigger.${run.trigger || "schedule"}`)}
                   {missing}
                 </div>
-                <div className="text-ink-3 text-xs">
+                <div className="text-ink-3 text-caption">
                   {tr("cowork.folder.runScan", run.found || 0, run.new_files || 0, run.skipped || 0, run.upload_failed || 0)}
                   {states ? ` · ${states}` : ""}
                 </div>
-                {sets && <div className="text-ink-3 text-xs">{sets}</div>}
+                {sets && <div className="text-ink-3 text-caption">{sets}</div>}
               </div>
             );
           })}
@@ -901,7 +901,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
         title={rule ? rule.title : tr("cowork.folder.new")}
         footer={
           <>
-            {error && <span className="me-auto text-danger text-sm">{error}</span>}
+            {error && <span className="me-auto text-danger text-body">{error}</span>}
             <button type="button" className="cc-btn" onClick={onClose}>{t("cancel")}</button>
             <button type="button" className="cc-btn" data-primary="" disabled={!canSave || busy} onClick={() => void save()}>
               {tr("Save")}
@@ -935,7 +935,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                       }}
                     >
                       <span className="font-medium text-ink">{a.label}</span>
-                      {state && <span className={cn("text-xs", state.tone === "ok" ? "text-success" : state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
+                      {state && <span className={cn("text-caption", state.tone === "ok" ? "text-success" : state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
                     </button>
                     {!rule && !ok && (
                       <button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>
@@ -993,7 +993,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             </Field>
           </div>
 
-          <div className="flex items-center justify-between gap-(--cc-space-12) text-ink-2 text-sm">
+          <div className="flex items-center justify-between gap-(--cc-space-12) text-ink-2 text-body">
             <span>{tr("cowork.folder.field.remind")}</span>
             <Switch checked={remind} disabled={!enabled} label={tr("cowork.folder.field.remind")} onChange={setRemind} />
           </div>
@@ -1212,7 +1212,7 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
       title={`${tr("Connect")} MR.ERP`}
       footer={
         <>
-          {error && <span className="me-auto text-danger text-sm">{error}</span>}
+          {error && <span className="me-auto text-danger text-body">{error}</span>}
           <button type="button" className="cc-btn" onClick={onClose}>{t("cancel")}</button>
           <button
             type="button"
@@ -1283,7 +1283,7 @@ function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connectio
         >
           {tr("intake.target.download")}
         </button>
-        <span className="text-ink-3 text-xs">{missing ? tr("intake.installerMissing") : tr("intake.agent.loginHint")}</span>
+        <span className="text-ink-3 text-caption">{missing ? tr("intake.installerMissing") : tr("intake.agent.loginHint")}</span>
       </div>
     </Modal>
   );

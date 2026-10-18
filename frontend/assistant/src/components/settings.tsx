@@ -113,7 +113,7 @@ export function Settings() {
           className="cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))] w-[min(var(--cc-settings-w),var(--cc-settings-w-max))] [--cc-modal-share:var(--cc-settings-share)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
           <nav className="flex shrink-0 gap-(--cc-space-4) overflow-x-auto border-b bg-app p-(--cc-space-12) md:w-(--cc-settings-nav-w) md:flex-col md:border-r md:border-b-0">
-            <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-xs md:block">
+            <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-caption md:block">
               {st.settings}
             </DialogPrimitive.Title>
             <NavItem active={current === "general"} onClick={() => setSection("general")} icon={<Settings2Icon />}>
@@ -126,7 +126,7 @@ export function Settings() {
             )}
             {api && (
               <>
-                <div className="hidden px-2.5 pt-4 pb-2 text-muted-foreground text-xs md:block">{st.thisComputer}</div>
+                <div className="hidden px-2.5 pt-4 pb-2 text-muted-foreground text-caption md:block">{st.thisComputer}</div>
                 <NavItem active={current === "connections"} onClick={() => setSection("connections")} icon={<PlugIcon />}>
                   {st.connections}
                 </NavItem>
@@ -160,7 +160,7 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
       onClick={onClick}
       className={cn(
         // 同侧栏导航行：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8
-        "flex h-(--cc-row-h) shrink-0 items-center gap-2.5 whitespace-nowrap rounded-(--cc-radius-row) px-2.5 text-start text-sm [&_svg]:size-4",
+        "flex h-(--cc-row-h) shrink-0 items-center gap-2.5 whitespace-nowrap rounded-(--cc-radius-row) px-2.5 text-start text-body [&_svg]:size-4",
         active ? "bg-(--cc-bg-selected) font-medium" : "hover:bg-hover",
       )}
     >
@@ -177,7 +177,7 @@ function Heading({ children }: { children: ReactNode }) {
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-(--cc-space-24) gap-y-(--cc-space-8) border-b py-(--cc-space-16) last:border-b-0">
-      <div className="min-w-0 text-sm">{label}</div>
+      <div className="min-w-0 text-body">{label}</div>
       <div className="flex min-w-0 items-center gap-(--cc-space-8)">{children}</div>
     </div>
   );
@@ -198,7 +198,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           className={cn(
             // 选中的那一格带 shadow-sm（盖过 base 层的聚焦兜底），聚焦描边自己写
             // 文字格与图标格一样高 28（手机点按区 44）
-            "cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-sm [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",
+            "cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-body [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",
             value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -304,13 +304,13 @@ export function Notifications() {
   useEffect(() => void syncPush(), []);
   if (push.state === "desktop") return null;
   const usable = push.state === "on" || push.state === "off";
-  const note = "text-muted-foreground text-xs";
+  const note = "text-muted-foreground text-caption";
   return (
     <Row
       label={
         <>
           {st.notifications}
-          {usable && push.failure && <div className="text-danger text-xs">{push.failure}</div>}
+          {usable && push.failure && <div className="text-danger text-caption">{push.failure}</div>}
           {push.state === "install" && (
             <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-(--cc-link-offset)")} onClick={showGuide}>
               {st.notificationsAddToHome}
@@ -422,8 +422,8 @@ function Connections({ api }: { api: Desktop }) {
     <>
       <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
         <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
-          {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
+          <Marquee as="div" className="truncate text-body">{state.site || location.host}</Marquee>
+          {kinds && <div className="text-muted-foreground text-caption">{kinds}</div>}
         </div>
         {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因
             （被另一台电脑认领 = 现有「已在另一台电脑连接」）、点「重试」再登记。这台电脑被「电脑」列表移除过（登记回 removed）：
@@ -434,7 +434,7 @@ function Connections({ api }: { api: Desktop }) {
         {main ? (
           <>
             {!relink && (
-              <span className="cc-status-line text-sm" data-status={main.status}>
+              <span className="cc-status-line text-body" data-status={main.status}>
                 <span className="cc-status-dot" />
                 {st.status[main.status] ?? main.status}
               </span>
@@ -482,7 +482,7 @@ function Connections({ api }: { api: Desktop }) {
 
       {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
-          <Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
+          <Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
           </Marquee>
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
@@ -500,7 +500,7 @@ function Connections({ api }: { api: Desktop }) {
             <Heading>{st.earlierFolders}</Heading>
           </div>
           {legacy.map((root) => (
-            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-sm last:border-b-0">
+            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-body last:border-b-0">
               <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={root.path}>
                 {root.path}
@@ -528,9 +528,9 @@ function Connections({ api }: { api: Desktop }) {
               {st.addFolder}
             </Button>
           </div>
-          {!main.folders.length && <p className="py-(--cc-space-12) text-muted-foreground text-sm">{st.noFolders}</p>}
+          {!main.folders.length && <p className="py-(--cc-space-12) text-muted-foreground text-body">{st.noFolders}</p>}
           {main.folders.map((path) => (
-            <div data-marquee-host="" key={path} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-sm last:border-b-0">
+            <div data-marquee-host="" key={path} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-body last:border-b-0">
               <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={path}>
                 {path}
@@ -549,7 +549,7 @@ function Connections({ api }: { api: Desktop }) {
           ))}
         </>
       )}
-      {error && <p className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
+      {error && <p className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
 
       <PoolComputers inDesktop />
     </>
@@ -563,7 +563,7 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
   link: Link; deviceState?: string; onConnect: (o?: { replace?: number; rejoin?: boolean }) => void; onDownload: () => void;
   disabled: boolean;
 }) {
-  const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-sm", tone)}>{text}</span>;
+  const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-body", tone)}>{text}</span>;
   if (link.kind === "connecting") return note(st.connecting);
   if (link.kind === "not_admin") return note(st.notAdmin);
   // 这台是旧版、池里已有新版认领过的电脑（服务端不让旧版顶掉新版）：更新 CC 桌面版
@@ -709,7 +709,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
           />
         ))
       )}
-      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
       <AllMembers />
     </>
   );
@@ -723,15 +723,15 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
     <section className="mb-(--cc-settings-section-pt) last:mb-0">
       <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
         <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
-          <div className="text-muted-foreground text-xs">
+          <Marquee as="div" className="truncate text-body">{row.device}</Marquee>
+          <div className="text-muted-foreground text-caption">
             {row.adapter === "mrerp" ? "MR.ERP" : "Express"}
           </div>
           {row.update_blocked && (
-            <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
+            <div className="text-muted-foreground text-caption">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
           )}
         </div>
-        <span className="cc-status-line text-sm" data-status={status}>
+        <span className="cc-status-line text-body" data-status={status}>
           <span className="cc-status-dot" />
           {st.status[status]}
         </span>
@@ -823,7 +823,7 @@ function AllMembers({ heading = false }: { heading?: boolean }) {
           })}
         </>
       )}
-      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
     </div>
   );
 }
@@ -852,7 +852,7 @@ function System({ api }: { api: Desktop }) {
         {state.hotkey ? (
           <Shortcut keys="Ctrl + Alt + Space" kbd />
         ) : (
-          <span className="text-muted-foreground text-sm">{st.hotkeyBusy}</span>
+          <span className="text-muted-foreground text-body">{st.hotkeyBusy}</span>
         )}
       </Row>
       <VersionRow
@@ -866,7 +866,7 @@ function System({ api }: { api: Desktop }) {
           <FolderIcon className="size-4" />
         </Button>
       </Row>
-      {error && <p className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
+      {error && <p className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
     </>
   );
 }
@@ -930,7 +930,7 @@ export function VersionRow({
       }
     >
       {updateText && (
-        <span className="flex items-center gap-(--cc-space-4) text-muted-foreground text-sm">
+        <span className="flex items-center gap-(--cc-space-4) text-muted-foreground text-body">
           {updateState === "latest" && <CheckIcon className="size-(--cc-settings-close)" />}
           {updateText}
         </span>

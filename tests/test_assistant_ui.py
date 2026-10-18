@@ -170,7 +170,7 @@ class PushTests(unittest.TestCase):
     def test_settings_row_and_sign_out_forget_the_device(self):
         settings = read("components/settings.tsx")
         self.assertIn("const push = usePush();", settings)
-        self.assertIn('push.failure && <div className="text-danger text-xs">{push.failure}</div>', settings)
+        self.assertIn('push.failure && <div className="text-danger text-caption">{push.failure}</div>', settings)
         self.assertIn("export function Switch(", settings)
         self.assertIn("<Notifications />", settings)
         # 这一行一直在（桌面端窗口除外）：开不了开关灰着，下面一行给原因（用户 2026-10-13，iPhone 上找不到「通知」）
@@ -6563,7 +6563,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
             self.assertIn('<DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
-        self.assertIn('<Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-sm"', read("components/settings.tsx"))
+        self.assertIn('<Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body"', read("components/settings.tsx"))
         self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
         panel = read("components/results-panel.tsx")
         self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
@@ -6629,7 +6629,7 @@ class Round5SmallFixesTests(unittest.TestCase):
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
         # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
         # 第 11 轮按钮排查 H26：文字格与图标格一样高 28、手机点按区 44（cc-tap）
-        self.assertIn('"cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-sm [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",',
+        self.assertIn('"cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-body [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",',
                       read("components/settings.tsx"))
         self.assertIn(".cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }", block(css, "@layer components {"))
         mobile = css.index(".cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {")
