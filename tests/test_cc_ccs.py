@@ -1476,6 +1476,13 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertEqual(settings.count('className="cc-row-btn cc-tap"'), 4)
         self.assertNotIn("size-7", settings)
 
+    def test_one_breakpoint_for_the_task_form(self):
+        # V36（B4）：定时任务表单的两列（目标卡片、账套与进项销项、默认处理）跟变体同一条断点 768，640–767 段按手机排
+        tasks = self.read("components/scheduled-tasks.tsx")
+        self.assertEqual(tasks.count("md:grid-cols-2"), 3)
+        for rel in self.B4:
+            self.assertNotRegex(self.read(rel), r"\b(?:sm|lg|xl|2xl):", rel)
+
 
 if __name__ == "__main__":
     unittest.main()

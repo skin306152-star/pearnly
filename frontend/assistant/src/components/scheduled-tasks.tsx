@@ -916,7 +916,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
 
           <div className="cc-field">
             <span>{tr("intake.target.title")}</span>
-            <div className="grid grid-cols-1 gap-(--cc-space-8) sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-(--cc-space-8) md:grid-cols-2">
               {ADAPTERS.map((a) => {
                 const state = rule ? null : describe(a.adapter, snapshot, tr);
                 const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
@@ -950,7 +950,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-(--cc-space-16) sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-(--cc-space-16) md:grid-cols-2">
             <Field label={express ? tr("intake.target.year") : tr("Company")} hint={catalogNote}>
               <Select value={year} disabled={!enabled || !groups.length} options={groups.map((g) => ({ value: g.value, label: g.label }))} onChange={(v) => { setYear(v); setAccountSet(""); }} />
             </Field>
@@ -1050,7 +1050,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                 <ChevronRightIcon aria-hidden />
                 {tr("cowork.folder.section.defaults")}
               </summary>
-              <div className="mt-(--cc-space-12) grid grid-cols-1 gap-(--cc-space-16) sm:grid-cols-2">
+              <div className="mt-(--cc-space-12) grid grid-cols-1 gap-(--cc-space-16) md:grid-cols-2">
                 <Field label={tr("cowork.folder.default.payment")} hidden={!showDefault.payment}>
                   <Select value={defaults.payment || ""} onChange={(v) => setDefault("payment", v)} options={[{ value: "credit", label: tr("Credit") }, { value: "cash", label: tr("Cash") }]} />
                 </Field>
