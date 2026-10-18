@@ -918,6 +918,10 @@
   --cc-file-icon: var(--cc-control-md);          /* 36：文件卡、提醒卡左边的图标格 */
   --cc-msg-intrinsic: 200px;      /* 现有值·CC 自定：消息离屏时的占位高（content-visibility 的性能提示，不是外观） */
   --cc-bubble-min: 20%;           /* 现有值·CC 自定：用户气泡那一列最窄（grid-cols-[minmax(…,1fr)_auto]） */
+  /* B7 补登（标准化记录 4.1）：对话区迁移时缺的档 */
+  --cc-file-card-py: 10px;        /* 现有值·CC 自定：提醒卡、结果文件卡上下（提醒卡里正文与按钮之间同值） */
+  --cc-alert-lines: 2;            /* 现有值·CC 自定：对话里出错那一行最多两行 */
+  --cc-compose-x-stroke: 2.5px;   /* 现有值·CC 自定：输入框附件右上「×」深色下加粗 */
 
   /* Markdown 与代码（回复正文） */
   --cc-md-h1: 1.25em;             /* 现有值·CC 自定 */

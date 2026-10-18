@@ -473,7 +473,7 @@ g.done();
         self.assertIn(" text-caption text-balance", read("components/ui/tooltip.tsx"))
         self.assertNotRegex(read("components/ui/tooltip.tsx"), r"animate-(?:in|out)\b|\b(?:fade|zoom|slide)-(?:in|out)|text-xs")
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('className="cc-reply px-2 wrap-break-word"', thread)
+        self.assertIn('className="cc-reply px-(--cc-space-8) wrap-break-word"', thread)
         md = read("components/assistant-ui/markdown-text.tsx")
         # 块之间只用上外边距（设计文档 3.10）：段落、列表、表格、代码、引用、分隔线 0.75em，标题前 1.25em，第一块 0
         self.assertIn('"aui-md-p mt-(--cc-md-block) first:mt-0"', md)
@@ -488,11 +488,15 @@ g.done();
         self.assertIn("[&>li]:ps-(--cc-md-li-indent)", md)
         # 表格：外圈 1px 环加圆角（10），里面细线
         self.assertIn("overflow-x-auto rounded-lg border-(length:--cc-ring-w) border-line first:mt-0", md)
-        self.assertIn('"aui-md-th min-w-24 border-line border-b px-3 py-1.5 text-start font-medium not-first:border-s', md)
-        self.assertIn('"aui-md-td min-w-24 border-line border-b px-3 py-1.5 text-start not-first:border-s', md)
+        # 单元格（V13 统一一套 .cc-table）：最窄 96、左右 12、上下 6、靠起始边，表头字重 500；组件只留细线
+        self.assertIn('"aui-md-table cc-table w-full border-separate border-spacing-0"', md)
+        self.assertIn('"aui-md-th border-line border-b not-first:border-s', md)
+        self.assertIn('"aui-md-td border-line border-b not-first:border-s', md)
+        self.assertIn("min-width: var(--cc-cell-min-w); max-width: var(--cc-cell-max-w); padding: var(--cc-cell-py) var(--cc-cell-px); text-align: start;", self.css)
+        self.assertIn(".cc-table th { font-weight: var(--cc-weight-medium); }", self.css)
         self.assertNotIn("bg-muted px-3", md)
-        self.assertIn('"aui-md-a text-link hover:text-link/80 underline underline-offset-2"', md)
-        self.assertIn('"aui-md-inline-code bg-code-bg text-code-ink rounded-code px-1 py-0.5 font-mono text-[0.9em]"', md)
+        self.assertIn('"aui-md-a text-link hover:text-link/80 underline underline-offset-(--cc-link-offset)"', md)
+        self.assertIn('"aui-md-inline-code bg-code-bg text-code-ink rounded-code px-(--cc-space-4) py-(--cc-space-2) font-mono text-(length:--cc-code-inline-size)"', md)
         self.assertIn("--cc-md-list-indent: 28px;", self.css)
         self.assertIn("--cc-md-li-indent: 7px;", self.css)
         self.assertNotIn("--cc-md-list-top", self.css)
@@ -506,8 +510,10 @@ g.done();
         self.assertIn('autohide="never"', bar)
         self.assertIn("hideWhenRunning", bar)
         self.assertIn("cc-reply-actions", bar)
-        # 栏宽 768：内容区左右各 1rem，正文与输入框正好 --thread-max-width（= --cc-thread-w 48rem）
-        self.assertIn("max-w-[calc(var(--thread-max-width)+2rem)] flex-1 flex-col px-4 pt-4", thread)
+        # 栏宽 768：内容区左右各一份 --cc-thread-gutter（16），正文与输入框正好 --cc-thread-w 48rem；不再另设 --thread-max-width
+        self.assertIn("max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] flex-1 flex-col px-(--cc-thread-gutter) pt-(--cc-space-16)", thread)
+        self.assertNotIn("--thread-max-width", thread)
+        self.assertIn("--cc-thread-gutter: var(--cc-space-16);", self.css)
         self.assertIn("--cc-thread-w: 48rem;", self.css)
 
     def test_background_copies_follow_the_page_color(self):
@@ -709,17 +715,10 @@ AWAITING = {
     "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",
     "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
     "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4", "--cc-observe-margin": "B4",
-    "--cc-composer-input-max": "B4",
     # B5 会话栏、结果、文档
-    "--cc-results-head-h": "B5", "--cc-link-offset": "B5", "--cc-icon-2xl": "B5",
+    "--cc-results-head-h": "B5", "--cc-icon-2xl": "B5",
     # B6 侧栏列表：拖动浮层层级（drag.tsx 拿起时读）
     "--cc-z-drag": "B6",
-    # B7 对话区
-    "--cc-thread-gutter": "B7", "--cc-turn-gap": "B7", "--cc-thread-tail": "B7", "--cc-run-gap": "B7", "--cc-run-gap-reply": "B7",
-    "--cc-reply-actions-h": "B7", "--cc-msg-intrinsic": "B7", "--cc-md-h1": "B7", "--cc-md-h2": "B7", "--cc-md-heading-lh": "B7",
-    "--cc-md-heading-scroll": "B7", "--cc-md-li-gap": "B7", "--cc-md-quote-w": "B7", "--cc-code-inline-size": "B7",
-    # 图片预览的最宽与占高：写在 attachment.tsx 的调用处（B7 的文件），B2 的 dialog.tsx 不再给默认宽（原登记为 B2）
-    "--cc-preview-w": "B7", "--cc-preview-share": "B7",
     # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
     "--cc-control-nested": "B2–B7",
 }

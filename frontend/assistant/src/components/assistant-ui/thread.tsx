@@ -4,14 +4,12 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
-import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
 import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
@@ -25,7 +23,6 @@ import {
   ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
-  SuggestionPrimitive,
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
@@ -116,15 +113,12 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 };
 
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
-  const { Welcome = ThreadWelcome, Loading } = useContext(ThreadComponentsContext);
+  const { Welcome, Loading } = useContext(ThreadComponentsContext);
   const settle = useSettleOnOpen();
 
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root bg-app @container flex h-full flex-col font-sans text-ink"
-      style={{
-        ["--thread-max-width" as string]: "var(--cc-thread-w)",
-      }}
     >
       <ThreadPrimitive.Viewport
         ref={settle.viewport}
@@ -135,8 +129,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
         <div
           ref={settle.content}
           className={cn(
-            // 栏宽 768（设计文档 3.10）：内容区左右各留 1rem，正文与输入框正好 --thread-max-width
-            "mx-auto flex w-full max-w-[calc(var(--thread-max-width)+2rem)] flex-1 flex-col px-4 pt-4",
+            // 栏宽 768（设计文档 3.10）：内容区左右各留一份 --cc-thread-gutter，正文与输入框正好 --cc-thread-w
+            "mx-auto flex w-full max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] flex-1 flex-col px-(--cc-thread-gutter) pt-(--cc-space-16)",
             (isEmpty || isLoading) && "justify-center",
           )}
         >
@@ -144,15 +138,17 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
           {isEmpty && (
             // 手机上问候在屏幕中间、输入框贴底（同 Claude 手机端）；电脑上两者一起居中
             <div className="max-md:flex max-md:flex-1 max-md:items-center max-md:justify-center">
-              <AuiIf condition={isNewChatView}>
-                <Welcome />
-              </AuiIf>
+              {Welcome && (
+                <AuiIf condition={isNewChatView}>
+                  <Welcome />
+                </AuiIf>
+              )}
             </div>
           )}
 
           <div
             data-slot="aui_message-group"
-            className="mb-14 flex flex-col gap-y-6 empty:hidden"
+            className="mb-(--cc-thread-tail) flex flex-col gap-y-(--cc-turn-gap) empty:hidden"
           >
             <ThreadPrimitive.Messages>
               {() => <ThreadMessage />}
@@ -162,19 +158,15 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
 
           <ThreadPrimitive.ViewportFooter
             className={cn(
-              "aui-thread-viewport-footer flex flex-col gap-4 overflow-visible bg-linear-to-b from-transparent via-app/85 to-app pt-4 pb-4 md:pb-6",
+              "aui-thread-viewport-footer flex flex-col gap-(--cc-space-16) overflow-visible bg-linear-to-b from-transparent via-app/85 to-app pt-(--cc-space-16) pb-(--cc-space-16) md:pb-(--cc-space-24)",
               !isEmpty &&
                 "sticky bottom-0 mt-auto rounded-t-xl",
             )}
           >
             <ThreadScrollToBottom />
-            <ThreadFollowupSuggestions />
             <SendFailure />
             <ApprovalSheet />
             <Composer />
-            <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
-              <ThreadSuggestions />
-            </AuiIf>
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
@@ -191,7 +183,7 @@ const PendingSendBubble: FC = () => {
   // 和正式回复下面的状态行同一列（px-2），不跟着用户气泡靠右（用户 10-16：「发送时我方不应该出现气泡，cc 那边正常出现」）
   return (
     <div>
-      <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
+      <div data-role="user" className="cc-user-row">
         <div className="flex flex-wrap justify-end gap-2">
           {pending.files.map((name, i) => (
             <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
@@ -202,7 +194,7 @@ const PendingSendBubble: FC = () => {
         </div>
         {pending.text && <div className="cc-bubble-user" data-enter="">{pending.text}</div>}
       </div>
-      <RunIndicator className="px-2 pt-4" />
+      <RunIndicator className="px-(--cc-space-8) pt-(--cc-run-gap)" />
     </div>
   );
 };
@@ -296,16 +288,16 @@ const NoticeMessage: FC = () => {
   const createdAt = useAuiState((s) => s.message.createdAt);
   const push = usePush();
   return (
-    <MessagePrimitive.Root data-slot="cc-notice" data-role="notice" className="flex flex-col items-start gap-2 px-2">
-      <div role="note" aria-label={t("notice")} className="cc-card flex w-full max-w-md flex-col gap-2.5 px-3 py-2.5 font-sans">
-        <div className="flex gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
-            <BellIcon className="size-4.5" />
+    <MessagePrimitive.Root data-slot="cc-notice" data-role="notice" className="flex flex-col items-start gap-(--cc-space-8) px-(--cc-space-8)">
+      <div role="note" aria-label={t("notice")} className="cc-file-card w-full flex-col gap-(--cc-file-card-py) px-(--cc-space-12) py-(--cc-file-card-py)">
+        <div className="flex gap-(--cc-space-12)">
+          <span className="cc-file-card-icon">
+            <BellIcon />
           </span>
           <div className="min-w-0 flex-1">
             {title && <div className="font-medium text-ink text-sm">{title}</div>}
             <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
-            <div className="mt-1 text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+            <div className="mt-(--cc-space-4) text-ink-3 text-xs">{noticeTime(createdAt)}</div>
           </div>
         </div>
         {/* 「打开通知」在卡片底部靠右（卡片按钮，同允许卡）；打开了按钮就没了，没打开原因写在按钮上方一行 */}
@@ -313,7 +305,7 @@ const NoticeMessage: FC = () => {
           <div className="cc-ask-foot">
             {push.failure && (
               <div role="alert" className={ERROR_BOX}>
-                <p className="line-clamp-2">{push.failure}</p>
+                <p className="line-clamp-(--cc-alert-lines)">{push.failure}</p>
               </div>
             )}
             <div className="cc-card-actions">
@@ -343,35 +335,6 @@ const ThreadScrollToBottom: FC = () => {
         <ArrowDownIcon className="size-5" />
       </TooltipIconButton>
     </ThreadPrimitive.ScrollToBottom>
-  );
-};
-
-// 组件库默认的欢迎区：CC 一律传入自己的 Welcome（assistant.tsx），这里不放任何文案
-const ThreadWelcome: FC = () => null;
-
-const ThreadSuggestions: FC = () => {
-  return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4 empty:hidden">
-      <ThreadPrimitive.Suggestions>
-        {() => <ThreadSuggestionItem />}
-      </ThreadPrimitive.Suggestions>
-    </div>
-  );
-};
-
-const ThreadSuggestionItem: FC = () => {
-  return (
-    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
-      <SuggestionPrimitive.Trigger send asChild>
-        <Button
-          variant="ghost"
-          className="aui-thread-welcome-suggestion text-ink-2 hover:bg-hover border-line bg-surface h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors"
-        >
-          <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1" />
-          <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 empty:hidden" />
-        </Button>
-      </SuggestionPrimitive.Trigger>
-    </div>
   );
 };
 
@@ -424,7 +387,7 @@ const Composer: FC = () => {
           <ComposerPrimitive.Input
             ref={input}
             placeholder={placeholder}
-            className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans outline-none"
+            className="aui-composer-input block max-h-(--cc-composer-input-max) min-h-(--cc-control-xs) w-full resize-none bg-transparent font-sans outline-none"
             rows={1}
             autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
             unstable_focusOnRunStart={!dropKeyboard /* 手机上开跑、点 ↓ 都不把焦点拉回输入框 */}
@@ -453,7 +416,7 @@ const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
       <AuiIf condition={(s) => s.thread.capabilities.attachments}>
         <ComposerAddAttachment />
       </AuiIf>
-      <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
+      <div className="aui-composer-send-slot ms-auto flex items-center gap-(--cc-space-6)">
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send asChild>
             <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} onClick={onSend}>
@@ -473,8 +436,8 @@ const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
 const StopButton: FC = () => {
   const thread = useAuiState((s) => s.threadListItem.id);
   return (
-    <button type="button" className="aui-composer-cancel cc-send" aria-label={t("stop")} title={t("stop")} onClick={() => void stopRun(thread)}>
-      <SquareIcon className="aui-composer-cancel-icon !size-3.5 fill-current" />
+    <button type="button" className="aui-composer-cancel cc-send" data-stop="" aria-label={t("stop")} title={t("stop")} onClick={() => void stopRun(thread)}>
+      <SquareIcon className="aui-composer-cancel-icon fill-current" />
     </button>
   );
 };
@@ -486,7 +449,7 @@ const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-(--cc-alert-lines)" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
@@ -500,7 +463,7 @@ const SendFailure: FC = () => {
   if (!message) return null;
   return (
     <div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>
-      <p className="line-clamp-2">{message}</p>
+      <p className="line-clamp-(--cc-alert-lines)">{message}</p>
     </div>
   );
 };
@@ -540,19 +503,18 @@ const AssistantMessage: FC = () => {
   const groupByWithVisibleGates = useGroupByWithVisibleGates();
   const waitForLabels = useWaitForLabels();
 
-  const ACTION_BAR_PT = "pt-1.5";
-  // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
-  const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
+  // 操作行留在消息自己的绘制区里（content-visibility 会裁掉区外的），再用负外边距把它占的高让出来（--cc-reply-actions-h）
+  const ACTION_BAR_HEIGHT = "min-h-(--cc-reply-actions-h) pt-(--cc-space-6)";
 
   return (
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="group/message relative -mb-7.5 pb-7.5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className="group/message relative -mb-(--cc-reply-actions-h) pb-(--cc-reply-actions-h) [contain-intrinsic-size:auto_var(--cc-msg-intrinsic)] [content-visibility:auto]"
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="cc-reply px-2 wrap-break-word"
+        className="cc-reply px-(--cc-space-8) wrap-break-word"
       >
         {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
         {!waitForLabels && (
@@ -591,7 +553,7 @@ const AssistantMessage: FC = () => {
 
       <div
         data-slot="aui_assistant-message-footer"
-        className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
+        className={cn("ms-(--cc-space-8) flex items-center", ACTION_BAR_HEIGHT)}
       >
         <AssistantActionBar />
       </div>
@@ -608,7 +570,7 @@ const LastReplyIndicator: FC = () => {
 const LastReplyRunIndicator: FC = () => {
   // 又发了一条、临时气泡还在：状态行在临时气泡下面，上一轮的回复下面不再放一个
   const sending = !!useShownPending();
-  return sending ? null : <RunIndicator className="px-2 pt-2" />;
+  return sending ? null : <RunIndicator className="px-(--cc-space-8) pt-(--cc-run-gap-reply)" />;
 };
 
 // 「思考了几秒」跨组件记：发送中气泡下的、组件库占位里的、正式回复里的是同一行，换位置时不归零
@@ -648,7 +610,7 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   return (
     <div data-slot="cc-run-indicator" data-kind={activity.kind} className={cn("flex min-w-0 items-center font-sans", className)}>
       <TypingDots label={label} showLabel={false} />
-      <Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>
+      <Marquee className="typing-dots-label ms-(--cc-dots-gap) min-w-0 truncate" aria-hidden="true">{text}</Marquee>
     </div>
   );
 };
@@ -684,16 +646,16 @@ const MessageFiles: FC = () => {
   }, [files, messages, id]);
   if (!sessionId || !mine.length) return null;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-(--cc-space-8)">
       {mine.map((file) => (
         // 卡片的内边距在「打开」按钮里：除了右边的下载，整张卡都能点（手机点按区，按钮排查 H11）
         <div
           key={file.id}
-          className="cc-card cc-card-hover flex max-w-md items-center pe-3 font-sans"
+          className="cc-file-card cc-card-hover items-center pe-(--cc-space-12)"
         >
-          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-md px-3 py-2.5 text-left">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
-              <FileTypeIcon filename={file.filename} className="size-4.5" />
+          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-(--cc-space-12) self-stretch rounded-md px-(--cc-space-12) py-(--cc-file-card-py) text-left">
+            <span className="cc-file-card-icon">
+              <FileTypeIcon filename={file.filename} />
             </span>
             <span className="min-w-0">
               <Marquee className="block truncate font-medium text-ink text-sm">{file.filename}</Marquee>
@@ -706,7 +668,7 @@ const MessageFiles: FC = () => {
             aria-label={t("download")}
             className="cc-icon-btn cc-tap"
           >
-            <DownloadIcon className="size-4" />
+            <DownloadIcon className="size-(--cc-icon-sm)" />
           </a>
         </div>
       ))}
@@ -722,7 +684,7 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="never"
-      className="aui-assistant-action-bar-root cc-reply-actions -ms-1 flex gap-0.5 text-ink-3"
+      className="aui-assistant-action-bar-root cc-reply-actions -ms-(--cc-space-4) flex gap-(--cc-space-2) text-ink-3"
     >
       <CopyAction />
     </ActionBarPrimitive.Root>
@@ -754,7 +716,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="grid auto-rows-auto grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="grid auto-rows-auto grid-cols-[minmax(var(--cc-bubble-min),1fr)_auto] content-start gap-y-(--cc-space-8) px-(--cc-space-8) [contain-intrinsic-size:auto_var(--cc-msg-intrinsic)] [content-visibility:auto]"
       data-role="user"
     >
       <UserMessageAttachments />
@@ -766,7 +728,7 @@ const UserMessage: FC = () => {
       </div>
 
       {/* 你发的消息悬停时在气泡下方右侧出现「复制」（同 claude.ai），位置先留好、出现时不跳；手机上长按选字即可 */}
-      <div className="-mt-1 -me-1 flex min-h-7 justify-end pointer-coarse:hidden">
+      <div className="-mt-(--cc-space-4) -me-(--cc-space-4) flex min-h-(--cc-control-sm) justify-end pointer-coarse:hidden">
         <ActionBarPrimitive.Root autohide="always" className="flex text-ink-3">
           <CopyAction />
         </ActionBarPrimitive.Root>

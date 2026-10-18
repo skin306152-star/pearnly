@@ -89,7 +89,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
       src={src}
       alt=""
       className={cn(
-        "block h-auto max-h-[calc(var(--cc-viewport-h)*0.8)] w-auto max-w-full object-contain",
+        "block h-auto max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))] w-auto max-w-full object-contain",
         isLoaded
           ? "aui-attachment-preview-image-loaded"
           : "aui-attachment-preview-image-loading invisible",
@@ -112,9 +112,9 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       >
         {children}
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-2 sm:max-w-3xl">
+      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-(--cc-space-8) sm:max-w-(--cc-preview-w)">
         <DialogTitle className="aui-sr-only sr-only">{t("imagePreview")}</DialogTitle>
-        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*0.8)] w-full items-center justify-center overflow-hidden">
+        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
         {/* 关闭：浮在图片右上角的圆钮（电脑 32、手机 44） */}
@@ -195,7 +195,7 @@ const ComposerAttachment: FC = () => {
                   aria-hidden="true"
                   className="aui-attachment-tile-error bg-danger-soft absolute inset-0 flex items-center justify-center"
                 >
-                  <AlertCircleIcon className="text-destructive size-5" />
+                  <AlertCircleIcon className="text-destructive size-(--cc-icon)" />
                 </div>
               )}
             </div>
@@ -221,7 +221,7 @@ const AttachmentRemove: FC = () => {
         className="aui-attachment-tile-remove cc-compose-x hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute size-5 rounded-full p-0 opacity-100 shadow-sm"
         side="top"
       >
-        <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />
+        <XIcon className="aui-attachment-remove-icon size-(--cc-icon-2xs) dark:stroke-(length:--cc-compose-x-stroke)" />
       </TooltipIconButton>
     </AttachmentPrimitive.Remove>
   );
@@ -359,7 +359,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
+    <div className="aui-composer-attachments flex w-full flex-row items-center gap-(--cc-space-8) overflow-x-auto empty:hidden">
       <ComposerPrimitive.Attachments>
         {() => <ComposerAttachment />}
       </ComposerPrimitive.Attachments>
@@ -371,7 +371,7 @@ export const ComposerAddAttachment: FC = () => {
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")}>
-        <PlusIcon className="aui-attachment-add-icon stroke-[1.5px]" />
+        <PlusIcon className="aui-attachment-add-icon stroke-(length:--cc-icon-stroke)" />
       </button>
     </ComposerPrimitive.AddAttachment>
   );

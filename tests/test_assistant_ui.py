@@ -6564,7 +6564,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
         self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
-        self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
+        self.assertIn('<Marquee className="typing-dots-label ms-(--cc-dots-gap) min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
         panel = read("components/results-panel.tsx")
         self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
         self.assertIn('watchOverflow([el], () => el.querySelectorAll<HTMLElement>("td.cc-fade-cell"))', panel)
@@ -6580,7 +6580,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
                 context = "\n".join(text.splitlines()[max(0, i - 3):i + 1])
                 self.assertTrue(any(rel == f and key in context for f, key in allowed), f"{rel}:{i + 1}: {line.strip()}")
         # 多行截断（line-clamp）不在这次范围，保持原样
-        self.assertIn("line-clamp-2", read("components/assistant-ui/thread.tsx"))
+        self.assertIn("line-clamp-(--cc-alert-lines)", read("components/assistant-ui/thread.tsx"))
 
 
 class Round5SmallFixesTests(unittest.TestCase):
