@@ -233,11 +233,13 @@ class BehaviourTests(unittest.TestCase):
         self.assertIn("cc_desktop_online", data)  # 模型读到的键也不带旧称
 
     def test_the_model_is_told_cc_desktop_names_once(self):
-        # 2026-10-13：模型从没被告知 Windows 端叫什么，又读到 companion，就转述成「小助手 / ผู้ช่วย / コンパニオン」
-        status = next(t for t in tools.TOOLS if t["name"] == "cowork_companion_status")
+        # 2026-10-13：模型从没被告知 Windows 端叫什么，又读到 companion，就转述成「小助手 / ผู้ช่วย / コンパニオン」。
+        # 第 7 批 B8（10-18 lab）：只写在 cowork_companion_status 的说明里时，中文的排队回复照抄了「CC Desktop」；
+        # 改为放进每轮都带的 GUIDANCE，只说一次。
         for name in ("CC Desktop", "CC 桌面版", "CC เดสก์ท็อป", "CC デスクトップ"):
-            self.assertIn(name, status["description"])
-        self.assertEqual(sum(tools.CC_DESKTOP in t["description"] for t in tools.TOOLS), 1)
+            self.assertIn(name, tools.CC_DESKTOP)
+        self.assertEqual(tools.GUIDANCE.count(tools.CC_DESKTOP), 1)
+        self.assertEqual(sum(tools.CC_DESKTOP in t["description"] for t in tools.TOOLS), 0)
         run = json.loads(tools.run_folder_task({"task": "R1"}))
         self.assertTrue(run["note"].startswith("CC Desktop "))
 

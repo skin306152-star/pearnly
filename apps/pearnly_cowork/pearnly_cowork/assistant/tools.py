@@ -142,6 +142,15 @@ def _entered_note(status) -> dict:
     return {"entered_note": ENTERED_RESULT} if status == "success" else {}
 
 
+# Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：模型照用户的语言说
+# 这个名字，不自己意译。放在每轮都带的 GUIDANCE 里（第 7 批 B8，2026-10-18 lab：只写在 cowork_companion_status 的说明里时，
+# 排队回复照抄了结果提示里的英文「CC Desktop」），不再放在 cowork_companion_status 的说明里。
+CC_DESKTOP = ("The Windows program on the user's computer that reads their folders and writes into Express is "
+              "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
+              + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
+              "never by a generic description.")
+
+
 # 给模型的「怎么说话」：Cowork 自己的几条，接在共用说明后面（hooks `pearnly_assistant_guidance`）。
 # 2026-10-13 录屏：CC 对会计说账套「demo02」（Express 数据文件夹名）；会计认公司，不认文件夹代码。
 GUIDANCE = [
@@ -176,6 +185,7 @@ GUIDANCE = [
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
     "only when the document names a different buyer.",
+    CC_DESKTOP,
 ]
 
 
@@ -3296,12 +3306,6 @@ SCOPE_PROPS = {
                                                         "company's account sets."},
 }
 
-# Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：
-# 工具说明一直在模型的上下文里，写在 cowork_companion_status 一处就够；模型照用户的语言说这个名字，不自己意译。
-CC_DESKTOP = ("The Windows program on the user's computer that reads their folders and writes into Express is "
-              "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
-              + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
-              "never by a generic description.")
 # 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目及其来源，`pushed.written`）：推送与查推送
 # 结果共用一段说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对；测试窗口第 2 轮：没报 ERP
 # 单号、没说科目从哪来。
@@ -3560,7 +3564,7 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.pos_layout"},
     {"name": "cowork_companion_status", "label": "Checked CC Desktop",
      "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether CC Desktop is online "
-                    "(cc_desktop_online), and whether the account set list has been read. " + CC_DESKTOP + " To find "
+                    "(cc_desktop_online), and whether the account set list has been read. To find "
                     "or choose an account set for recognition or pushing, use cowork_intake_options instead.",
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_cowork.assistant.tools.companion_status"},
