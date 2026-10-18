@@ -25,6 +25,7 @@
 | B1 标准层 | `pearnly/cc-std-b1`（基线 c4ab0c3e，工作树 `.claude/worktrees/cc-std-b1`），提交见下面「B1 做了什么」；纯替换 4 个提交逐个比对 0 样式差、0 像素差，画面变化 V2 / V3 / V4 / V6 / V37 逐个比对只差预期的项；本地全闸门 87 步全过。比对报告 `~/pearnly-devtools/cc-std-b1/reports/`，画面变化前后图 `~/pearnly-devtools/cc-std-b1/visual/`。**未推送、未合入 main、未部署；待测试窗口验收**（V3、V4、V37 的触屏与中间宽度要用户手机 / 平板走） |
 | 插批：静置动效 | `pearnly/cc-idle-anim`（基线 cc-std-b1 顶端 f1978271）：首页小猫的 7 个装饰动画不再无限循环，出现时播几轮（`--cc-mascot-*-runs`，最多 10 秒）就停；闸门加「动画轮数只写 var()」；见 [静置动效记录](2026-10-18-cc-idle-animations.md)。未推送、未合入 main、待测试机复测 |
 | B2 组件库 | `pearnly/cc-std-b2`（基线 `pearnly/cc-longpress-race` 顶端 93a10475，开发窗口指定；工作树 `.claude/worktrees/cc-std-b2`），提交见下面「B2 做了什么」；纯替换 8bc08765 对基线全矩阵 773 个场景 0 样式差、0 像素差（报告里 1 个悬停残留经前后各复拍 2 次判为基线那一遍离群），画面变化 V5 / V7 / V9 / V11 / V18 / V38 逐个比对只差预期的项（V38 是 B2 按 4.1 补进第 7 节的）；本地全闸门全过。比对报告 `~/pearnly-devtools/cc-std-b2/reports/`，前后图 `~/pearnly-devtools/cc-std-b2/visual/`。10-18 晚变基到 origin/main 2a558d14 → 84c644f6，本地全闸门 100 步过、分支 CI 两条过；lab 挂 84c644f6 由测试窗口验收**六项全过、回归无变化**（见「B2 测试窗口验收」）；用户 10-18 晚手机真手指走过预览与长按、通过，合入 main；未部署（随下一批） |
+| B5 会话栏、结果、文档与工具卡 | `pearnly/cc-std-b5`（基线 origin/main 81bcd88a，工作树 `.claude/worktrees/cc-std-b5`），提交见下面「B5 做了什么」；纯替换 14045108 对基线全矩阵 773 个场景 0 样式差、0 像素差，画面变化 V1 / V12 / V13 / V23 / V24 / V26 / V27 逐个比对只差预期的项（主场景没渲染到的加载、出错、步骤明细由本地加场景补比）；V25 不变。比对报告 `~/pearnly-devtools/cc-std-b5/reports/`，前后图 `~/pearnly-devtools/cc-std-b5/visual/`。本地全闸门全过、分支推送等 CI；**未合入 main、未部署；待测试窗口验收**（V23 / V26 / V12 的手机项、V27 的分隔线要用户手机走） |
 | B3–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
@@ -286,6 +287,73 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   2. `companies.tsx:150`、`scheduled-tasks.tsx:440` 的加载卡片仍是 `animate-pulse`——补登进 V5，B4 照做。
   3. 手机打开图片预览时关闭钮带 `:focus-visible` 蓝框（组件库打开弹窗自动聚焦关闭钮）——B2 没动焦点；用户手机看过说不碍事，不改。
   4. adb `input swipe` 模拟长按不出菜单是工具问题（三星按下同一毫秒就发 contextmenu），调试接口触摸事件正常；用户真手指正常。
+
+### B5 做了什么（10-18 晚–10-19，`pearnly/cc-std-b5`）
+
+基线 `origin/main` **81bcd88a**（B2 已合入）；工作树 `.claude/worktrees/cc-std-b5`，自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`）。与 B3 / B4 / B6 / B7 同时在各自工作树施工，本批只改 4.2 B5 列的 9 个源码文件，加登记文件、`globals.css` 两个补登变量（见 4.1）和断言本批文件的共享测试。
+
+| 提交 | 内容 | 类 |
+| :- | :- | :- |
+| 14045108 | 纯替换（见下） | 纯替换 |
+| b35d1838 | V1（B5 部分）`text-sm / xs` → `text-body / caption` | 画面变化 B |
+| 2ed0be00 | V12（B5 部分）允许卡「没送到」原因改用 `.cc-alert` | 原 C·已定 |
+| 4332c799 | V13（B5 部分）结果面板工作表、Word 预览表格改用 `.cc-table` | 原 C·已定 |
+| 2619b177 | V23 结果面板头部按钮 `.cc-icon-btn cc-tap`、「下载」`.cc-btn` | 画面变化 A |
+| b0f7fd41 | V24 结果面板两套页签统一 `.cc-tabs` | 原 C·已定 |
+| 9357207a | V26 Word 预览照对话 Markdown | 画面变化 A |
+| 19f43eab | V27 会话栏卡片字号继承、加载骨架、步骤明细 | 画面变化 A |
+| a113b8e9 | 收紧清单登记 9 个文件 | 清单 |
+| （本记录） | 本记录 B5 小节、4.1 例外；ccs.md 一条 | 文档 |
+
+V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-results-head-h)`，没有单独的画面变化提交。
+
+**纯替换（14045108）做了什么**：
+
+- 写死的间距、尺寸换同值变量：结果面板头（高、间距、左右）、文本 / 源码预览内边距、读不出预览时的图标（`--cc-icon-2xl`）与文件名最宽（`max-w-[80%]` → 分数 `max-w-4/5`，计算值同为 80%）；知识库编辑框、文件夹列表、月结异常组标题、允许卡改动清单、手机允许浮层；Word 预览的正文最宽、内边距、列表标记间距、下划线偏移（`--cc-link-offset`）；步骤明细的上下。
+- `.cc-btn` 里的「下载」「让 CC 起草」图标去掉 `size-4`（`.cc-btn svg` 本来就是 16）。
+- 两处转圈改 `.cc-spinner`：结果面板加载（`size-(--cc-icon)` 保留 20，只用变量写尺寸）、文件夹「在电脑上选择」按钮里的忙状态。计算样式只差动画名 `spin → cc-spin`（同为 1s 匀速转一圈，减少动效时两者都照转），本地场景 `x-results-loading` 14 组核对：样式差只有这一项和节点多了类名，像素 0 差。
+- 允许卡出错原因的两行截断读 `--cc-alert-lines`。
+- `globals.css` 补登 `--cc-doc-w`、`--cc-alert-lines`（4.1）；`--cc-results-head-h`、`--cc-link-offset`、`--cc-icon-2xl` 接上，从 `AWAITING` 删掉。
+- 共享测试断言改成新写法（`test_assistant_ui.py` 的出错原因与 Word 预览、`test_cc_month_ledger.py` 的组标题、`test_cc_idle_motion.py` 的「在忙」动画登记）。
+
+**与第 7 节不同、按依据定的几处**：
+
+1. **V1 在本批只有 4 处可见**：结果面板「读不出预览」一行、会话栏整栏出错一行、文件夹 / 账套 / 任务 / 草稿行里的 12px 淡色小字。结果面板顶上的文件下拉框也换了 `text-body`，但 Chrome 对 `<select>` 固定 `line-height: normal`，画面不变。页签、出错框、卡片里的字、Word 预览的 `text-sm / base` 分别随 V24、V12、V27、V26 换掉，不算在 V1。
+2. **V12 在本批只有允许卡**：会话栏里的出错（整栏、月结卡、卡片里）是一行红字、不是框，不改成 `.cc-alert`；整栏那一行属 V1，卡片里的属 V27。
+3. **V26 的标题字号**：`title / h1 / h2` 的 `text-2xl / xl / lg` 是 1.2 允许的文档标题档，不动；`h3 / h4` 的 `text-base` 改 `text-prose`（16/22.4 → 16/24），`h5 / h6` 的 `text-sm` 改 `text-body`（14/19.6 → 14/20），并在本条里。单元格里的段落与标题都不加块距（原来只有段落去掉了下边距，单元格里的标题还留着上边距）；表中表同样不加。块距常量在组件里写一处（`BLOCK_GAP / HEADING_GAP`）。
+4. **V27 的范围**：「继承 13/19」包括知识库、文件夹、记住的选择的出错行和文件夹卡「在电脑上选择」那行；记住的选择**展开时**出错行在 12/17 的说明区里，继承下来是 12/17。加载骨架是两条字高的条（`PanelSkeleton`，`components/company-cards.tsx`，会话栏整栏与公司页「月结」卡共用）。步骤明细命令与输出之间的线 0.5 → 1px：本机 Chrome 把 0.5px 边线算成 1px（计算样式两边都是 1px，比对看不出），只有按物理像素画细线的浏览器（iPhone Safari）上才看得出，验收要看手机。
+5. **结果面板的加载转圈不改成骨架**：第 7 节没列，面板里要预览的类型取到之前不知道，骨架画不出形状；保留转圈、只换成 `.cc-spinner`（纯替换，见上）。
+
+**比对**（`scripts/cc-visual/`，全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、773 张，3 条跑道，每遍约 30 分钟；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b5/dist-<名>`，截图 `…/shots/<名>`，报告 `…/reports/<编号>/report.md`）。主场景表没渲染到的状态（加载、出错、允许卡没送到、步骤明细、读不出预览、第二张工作表）另用**本地加场景**补：仓库的比对工具复制一份到 `~/pearnly-devtools/cc-std-b5/tool/`（不进仓库，免得和并行批次抢 `scripts/cc-visual`），加 9 个 `x-*` 场景，假服务端副本加一个读不出预览的 `.zip` 结果文件、`/__hold` 的毫秒给负数时该接口回 417 与一句原因；7 种环境 × 浅深 = 14 组、126 张，每遍约 10 分钟，截图 `…/shots-x/<名>`，报告 `…/reports/x-<编号>`。
+
+| 比的两遍 | 主场景结果 | 本地加场景结果 |
+| :- | :- | :- |
+| 基线 81bcd88a → 纯替换 14045108（`base-vs-pure`） | **0 样式差、0 像素差**；光栅抖动 12 个（窄屏长对话输入框那条带，复拍出现一模一样的一对）。覆盖检查列的 `.cc-note-editor` 是工具把 `data-slot="cc-note-editor"` 里的字也当成类名，节点 `div[cc-note-editor]` 在 notes-edit 场景前后都渲染到了；`.cc-spinner` 由本地场景补 | `x-results-loading` 14 组：动画名 `spin → cc-spin`、节点多了类名，像素 0 差；其余 112 个 0 差 |
+| V1：纯替换 → b35d1838 | 346 个场景（宽屏 8 组的会话栏全部场景、公司页三场景的各组）：只有行高 `16.8 → 17`（文件夹、账套、任务、草稿行的小字）与随之下移的外框 | 另多 `x-results-nopreview`、`x-panel-error` 的 `19.6 → 20`，其余同 |
+| V12：b35d1838 → 2ed0be00 | 0 差（主场景没有没送到的允许卡；光栅抖动 10 个） | `x-approval-failure` 12 组（桌面版拉窄两组前后都没打开，见下）：出错框 `display block → flex`、间距 8、行高 `19.6 → 20` |
+| V13：2ed0be00 → 4332c799 | `results-sheet`、`results-doc` 14 组：单元格左右 `10 → 12`，别的不变 | `x-results-tab2` 同 |
+| V23：4332c799 → 2619b177 | `results-*` 四场景 14 组：两颗头部按钮换 `.cc-icon-btn cc-tap`（字色 ink-2 → ink-3、图标 16 → 20、120ms 过渡；手机、平板竖屏、触屏网页、桌面版拉窄 32 → 44，触屏上的 CC 桌面版仍 32）。另 desktop-dark `boot-page-menu` 1 个悬停残留：v13、v23 两份构建各单独复拍 2 次（`reports/recheck-bpm-1 / -2`）都 0 差，判为 v23 那一遍离群（下一遍 v24 又回到原样） | `x-results-nopreview`：「下载」76×34 → 80×32（触屏 84×44）、字重 500、白底；`x-results-loading / -tab2` 同头部按钮 |
+| V24：2619b177 → b0f7fd41 | `results-html`、`results-sheet` 14 组：工作表页签间距 `4 → 16`、整行左右 `8 → 16`、页签左右 `8 → 0`、上下 `6 → 8`、指示线位移 `-1 → -0.5px`；两套行高 `19.6 → 20`、过渡、聚焦描边；`boot-page-menu` 那处回到原样 | `x-results-tab2` 同 |
+| V26：b0f7fd41 → 9357207a | `results-doc` 14 组：段落、标题去掉下边距、加上边距（0.75em / 1.25em，第一块 0）；正文电脑 `14/22.75 → 14/20`、手机与平板竖屏 `14/22.75 → 16/24`；二级列表缩进 `21 → 28`；表格上下 `12/12 → 0.75em/0` | 0 差 |
+| V27：9357207a → 19f43eab | 0 差（主场景没有加载中、出错的会话栏，步骤明细没点开；光栅抖动 17 个） | `x-panel-loading`、`x-month-loading`：转圈换成两条骨架；`x-month-error`：出错行 `14/19.6 → 13/19`；`x-step-detail` 12 组：明细左右 `12 → 8`（分隔线见上第 4 条） |
+
+- **动作没做完**（前后一致）：本地场景 `x-approval-failure`、`x-step-detail` 在桌面版拉窄（desktop-narrow）两组没打开（那里是手机外壳，允许浮层的「允许」与步骤行的位置和场景动作对不上）；手机、平板竖屏的同一场景都打开了。
+- **没有比对的**：知识库、文件夹、记住的选择的出错行（要点保存 / 移除 / 删除失败才出，假服务端没接；写法与 `x-month-error` 同一处改动，字号由 `.cc-panel-card-body` 决定）、文件夹「在电脑上选择」的忙状态（要 CC 桌面版桥），悬停、聚焦以外的交互，真机字体，Qt WebEngine 与 WSL2 的渲染（5.2 已知局限）。
+- **画面变化的前后图**：`~/pearnly-devtools/cc-std-b5/visual/<编号>/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`（主场景）与 `visual/<编号>-本地场景/…`，每个目录带一份比对报告。V1（346 + 72）、V12（12，只有本地场景）、V13（28）、V23（56 + 42）、V24（28 + 14）、V26（14）、V27（54，只有本地场景）。上面写明的离群复拍没导出。
+
+**闸门报数**（`--report`）：81bcd88a 的范围外 641 处 → **552 处**（R4 134 → 116、R5 340 → 280、R6 4 → 3、R8 54 → 50、R9 14 → 10、R10 48 → 47、R12 27 → 26，R7 14、R11 6 不变）；收紧清单 14 → 23 个文件，范围内 0 违例。
+
+**给测试窗口的验收项**（三种变体 × 深浅色；本次没有同步到测试机）：
+
+1. 结果面板（对话里点结果文件卡）：头部「下载」「关闭」是 32 的图标钮、字色淡一档、图标 20，键盘 Tab 到上面有聚焦描边；**手机、平板竖屏 44**（要用户手机走），触屏 Windows 上的 CC 桌面版仍 32（V23）。读不出预览的文件（如 .zip）中间的「下载」是标准文字按钮（白底、细边、字重 500）。
+2. 结果面板页签：HTML 文件的「预览 / 源码」与多张工作表的表名页签同一套——间距 16、上下 8、当前页签 2px 线（工作表页签的线在上边、贴表格）（V24）。工作表单元格左右 12（V13）。
+3. Word 预览（.docx）：段落之间 0.75em、标题前 1.25em、没有段后空；正文电脑 14/20、**手机 16/24**；多级列表每级缩 28；表格单元格左右 12（V26、V13）。
+4. 会话栏（挂了公司的对话、公司页）：打开或换公司时先出两条骨架、不是转圈（网速快时一闪而过，可用浏览器限速看）；月结卡、整栏出错时红字一行（卡片里 13/19、整栏 14/20）；文件夹 / 账套 / 任务 / 草稿行的小字行高 17（V27、V1）。
+5. 允许卡：允许时确认没送到（断网后点「允许」）按钮上方是淡红底、细红边、圆角 8 的出错框，原因最多两行；**手机浮层里同样**（V12）。
+6. 步骤明细：点开「已运行 1 个命令」再点那一步，命令与输出离左边 8（同步骤行），中间的分隔线 **iPhone Safari 上由细线变成 1px**（电脑 Chrome 上本来就画成 1px，看不出）（V27）。
+7. 回归（应无变化）：结果面板头高 48（V25）、PDF 逐页、图片预览、文件下拉框；会话栏卡片拖动排序、折叠、知识库编辑「取消 / 保存」。
+
+**还缺什么**：测试窗口验收（上面几项，手机项要用户手机走）；按「主线集成」变基到最新 `origin/main`、快进合入 main（本次没做，B3 / B4 / B6 / B7 同时在改共享测试与本记录，合入时串行变基）；部署随下一批。
 
 ## 0. 结论
 
@@ -671,6 +739,8 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   - **`split-handle.tsx:75`** 这一行（`cssVar` 改成 `--cc-sidebar-w`）随 B2 的 sidebar.tsx 一起改，文件其余部分归 B3。
   - **`lib/hover-scroll.ts`、`lib/company-panel.ts`** 在 B2 把 `cssMs`、`cssPx` 改成从 `lib/css-var.ts` 再导出，在 B8 删掉再导出（纯删除，测试证明已无人导入）。
   - **`globals.css` 的 B2 补登**（B1「还缺什么」允许 B2–B7 补缺档）：用途层加提示框小箭头 `--cc-tooltip-arrow` 10 / `--cc-tooltip-arrow-turn` 45deg（现有值·CC 自定，组件库模板带的值）；删掉 `--cc-on-danger`（唯一的引用是 B2 删掉的危险按钮外观，删后没人引用，「每个 `--cc-*` 都有人用」的测试当场要求删）。
+  - **`globals.css` 的 B5 补登**：用途层加 `--cc-doc-w` 48rem（结果面板 Word 预览正文最宽，原 `max-w-3xl`；不借 `--cc-thread-w`，它随「对话记录宽度」设置变）、`--cc-alert-lines` 2（出错框原因最多两行，原 `line-clamp-2`），都是现有值·CC 自定、同值。**B7 注意**：`thread.tsx` 的 ERROR_BOX 里同样有 `line-clamp-2`，改成 `.cc-alert` 时直接用 `line-clamp-(--cc-alert-lines)`，不要再登记一个同义变量。
+  - **`tests/test_cc_idle_motion.py`**（4.1 共享测试表没列，B5 起按同一规则改）：`BUSY_SITES / BUSY_MOUNTS` 登记的「在忙」动画位置随组件换写法改成新的标记（`cc-spinner`、`<Skeleton`、`PanelSkeleton` 的挂载条件），意思不变。
   - **`docs/development/ccs.md`、本任务记录、`scripts/frontend-tokens-strict.txt`** 是登记文件，每批顺序追加。
   - **共享测试**：`tests/test_cc_ccs.py`、`test_assistant_ui.py`、`test_cc_mobile_overlays.py`、`test_cc_mobile_content.py`、`test_cc_run_indicator.py`、`test_cc_month_ledger.py`、`test_cc_session_panel.py` 直接断言写死的类名和渲染出的 HTML（例：Shortcut 断言 `text-ink-3 text-xs`；document-view 断言 `text-2xl / font-bold / mb-2 / padding-inline-start:1.5em`；弹窗断言 `px-5 pt-4 pb-2`、`z-50`；菜单断言 `!min-w-40`、`sideOffset 6`）。断言按它所测组件所在的批次改，各批文件清单列出要改的测试；并行批次合入集成分支时串行、变基。不靠删断言过关：断言改成新写法（类名或变量），意思不变。
 - **每批的提交顺序**：

@@ -60,6 +60,7 @@ ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统�
 - 只做舒适档，不加紧凑档。
 - JS 里用到的值（菜单离触发器、子菜单离父菜单、离屏幕边，提示框延时，拖动浮层层级，列表预取距离）同样只在 globals.css 定值，**用的时候读**（打开菜单、提示框出现、拿起拖动那一刻），不在导入或首次渲染时读（生产页动态插入样式表，太早读到空串）：`lib/css-var.ts` 的 `fixedPx / fixedMs`（不随变体变的值，读到就记住）与 `cssVar / cssPx / cssMs`（现读现算），各处的回退常量与 globals.css 同值、测试核对。菜单离触发器写 `sideOffset={menuOffset()}`（`components/ui/menu.tsx`），不写数。
 - 组件库（`components/ui`）只留在用的部件，外观同样只走变量与 `cc-*` 类；提示框、弹窗的进出场用 `.cc-pop` / `.cc-overlay`，骨架用 `animate-cc-pulse`，不用 tw-animate。
+- 面板与预览里同一类东西用同一个类（B5 起）：页签 `.cc-tabs`（指示线贴内容一侧，内容在上面时写 `data-edge="top"`），表格单元格 `.cc-table`（`data-kind="sheet" / "doc"` 只换最宽与最窄），出错框 `.cc-alert`，面板头的图标钮 `.cc-icon-btn cc-tap`、文字按钮 `.cc-btn`；会话栏还没取到时用 `PanelSkeleton`（`components/company-cards.tsx`，两条骨架），按钮里、行内的转圈用 `.cc-spinner`。会话栏卡片里的字不另写字号，继承卡片的 13/19。结果面板的 Word 预览块距、正文行高、列表缩进同对话里的 Markdown（`--cc-md-heading / -block`、`--cc-body-*`、`--cc-md-list-indent`）。
 - 开着不操作不耗电（10-18 起，[静置动效记录](../work/2026-10-18-cc-idle-animations.md)）：装饰动画（产品形象小单的眨眼、笑、尾巴、铃铛、举牌、打勾）不无限循环，出现时播 `--cc-mascot-*-runs` 轮（轮数 × 时长不超过约 10 秒）后停在静止姿势——keyframes 的结尾就是不加动画时的样子；页面在后台（`visibilityState` hidden）时暂停、回到前台接着播；问候语换了且上一次已播完才再播一次。无限循环只留给「正在工作」的动画（按钮与行内转圈、等待回复的四点、在跑的对话行尾脉冲点、骨架、加载页形象上下浮），而且只在工作时挂载；减少动效时照旧不播（转圈除外）。动画轮数同时长一样只写 `var()`（闸门：globals.css 记 R13、任意属性记 R8、内联 style 记 R12）。`tests/test_cc_idle_motion.py` 核对：装饰动画轮数与总时长、静止姿势与 keyframes 首尾一致、infinite 白名单、组件里「在忙」动画与 `setInterval`、自排 `requestAnimationFrame` 的循环都登记了只在什么时候跑。
 
 ## 2. 对话里的卡片
