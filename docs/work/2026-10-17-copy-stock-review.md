@@ -642,3 +642,16 @@
 | 位置 | 现在 | 处理 |
 |---|---|---|
 | erp_portal `i18n/messages.tsv:1325`（原件层 a9f44116 带进 main） | 中：文件暂时保存不了，请稍后再试<br>英：The file could not be saved. Please try again shortly. | 10-18 由消息含义理解窗口改，见其分支（本分支不改、不登记） |
+
+## CC 审批步骤名（E10，10-18 用户按建议同意）
+
+用户 10-18 下午「要我定的都按你建议」，当晚「涉及到文案的今晚特批，但是不用有口语」。CC 工具 `cowork_choose_document_policy` 的进行中步骤名（`pearnly_cowork/assistant/step_names.py`，术语表 `pearnly_cowork/i18n/messages.tsv`）改为书面短句；档名「只提议 / 按规则 / 整月」与「自动推送」「全部推送」不改，做完的说法 `Chose how a kind of document is handled` 不在本次范围、不改。
+
+| 语言 | 原文 | 新写法 |
+|---|---|---|
+| 英 | Choosing how a kind of document is handled | Set document handling |
+| 中 | 正在设定这类单据的处理方式 | 设置单据处理方式 |
+| 泰 | กำลังกำหนดวิธีจัดการเอกสารประเภทนี้ | ตั้งค่าวิธีจัดการเอกสาร |
+| 日 | この種類の書類の扱いを設定しています | 書類の処理方法を設定 |
+
+翻译包 `pearnly_cowork/translations/*.csv` 按术语表重新生成，旧 msgid 的残留行（全仓已无引用）一并删除。

@@ -339,7 +339,6 @@ Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
-Choosing how a kind of document is handled,กำลังกำหนดวิธีจัดการเอกสารประเภทนี้
 Chose how a kind of document is handled,กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว
 Chosen At,เวลาที่เลือก
 Chosen By,ผู้เลือก
@@ -1462,6 +1461,7 @@ Set At,เวลาที่ตั้ง
 Set By,ตั้งโดย
 Set a local folder once; documents are read and entered every month,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 Set by {0} on {1},ตั้งโดย {0} เมื่อ {1}
+Set document handling,ตั้งค่าวิธีจัดการเอกสาร
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง
 Set reminder,ตั้งการแจ้งเตือน

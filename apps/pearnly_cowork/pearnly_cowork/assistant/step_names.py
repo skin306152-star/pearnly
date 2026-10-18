@@ -12,7 +12,7 @@ STEP_NAMES = {
     "cowork_mrerp_setup": "Checking MR.ERP import settings",
     "cowork_document_detail": "Viewing a document",
     "cowork_edit_document": "Editing a document",
-    "cowork_choose_document_policy": "Choosing how a kind of document is handled",
+    "cowork_choose_document_policy": "Set document handling",
     "cowork_document_original": "Opening the original",
     "cowork_recognition_results": "Checking recognition results",
     "cowork_pos_import": "Importing POS sales",

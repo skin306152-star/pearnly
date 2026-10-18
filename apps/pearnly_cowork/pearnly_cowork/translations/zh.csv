@@ -339,7 +339,6 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择操作
-Choosing how a kind of document is handled,正在设定这类单据的处理方式
 Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
@@ -1462,6 +1461,7 @@ Set At,设定时间
 Set By,设定人
 Set a local folder once; documents are read and entered every month,设一个本机文件夹，每月自动识别推送
 Set by {0} on {1},{0} 于 {1} 设定
+Set document handling,设置单据处理方式
 Set due date,到期日设为 N 天后
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。
 Set reminder,设置提醒
