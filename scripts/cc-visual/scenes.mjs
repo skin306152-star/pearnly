@@ -156,6 +156,8 @@ export const SCENES = [
   S("tasks", "/assistant?view=tasks"),
   S("tasks-new", "/assistant?view=tasks", [["click", ".cc-page-head .cc-btn-sm[data-primary]", 0], ["wait", 500]]),
   S("tasks-confirm", "/assistant?view=tasks", [["click", '[data-task] [aria-haspopup="menu"]', 0], ["click", '[role="menuitem"][data-danger]', 0], ["wait", 400]], { expect: DIALOG }),
+  // 打开已有任务的表单（点任务行）：目标卡片（选不了的那张淡显）、两列的账套与进项销项、文件夹、每月几号几点、提醒开关、默认处理
+  S("tasks-edit", "/assistant?view=tasks", [["click", `${TASK_ROW} > button`, 0], ["wait", 600]], { expect: DIALOG }),
   S("tasks-runs", "/assistant?view=tasks", [["click", `${TASK_ROW} [aria-haspopup="menu"]`, 0], ["click", '[role="menuitem"]', 1], ["wait", 400]], { init: RUNS, expect: DIALOG }),
   // 「立即运行」后底部的提示条：它 2.6 秒后自己消失，比拍一张的时间短，这个场景里不让 2600ms 的定时器走（只这一个时长）
   S("tasks-toast", "/assistant?view=tasks", [["click", `${TASK_ROW} button[title]`, 0], ["wait", 300]],
