@@ -338,13 +338,10 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
             <SheetTable rows={sheet.rows} />
           </Tabs.Content>
         ))}
-        <Tabs.List className="flex gap-1 overflow-x-auto border-t px-2 text-sm">
+        {/* 工作表页签在表格下面：同一套 .cc-tabs，指示线贴内容一侧（上边） */}
+        <Tabs.List className="cc-tabs overflow-x-auto border-t" data-edge="top">
           {sheets.sheets.map((sheet, i) => (
-            <Tabs.Trigger
-              key={i}
-              value={String(i)}
-              className="-mt-px border-transparent border-t-2 px-2 py-1.5 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <Tabs.Trigger key={i} value={String(i)}>
               {sheet.name}
             </Tabs.Trigger>
           ))}
@@ -355,13 +352,9 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
   if (kind === "html") {
     return (
       <Tabs.Root defaultValue="preview" className="flex h-full flex-col">
-        <Tabs.List className="flex gap-4 border-b px-4 text-sm">
+        <Tabs.List className="cc-tabs border-b">
           {(["preview", "source"] as const).map((tab) => (
-            <Tabs.Trigger
-              key={tab}
-              value={tab}
-              className="-mb-px border-transparent border-b-2 py-2 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <Tabs.Trigger key={tab} value={tab}>
               {t(tab)}
             </Tabs.Trigger>
           ))}
