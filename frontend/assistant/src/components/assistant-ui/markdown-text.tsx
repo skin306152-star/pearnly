@@ -45,10 +45,10 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
       </span>
       <TooltipIconButton tooltip={t("copy")} onClick={onCopy} className="aui-button-icon cc-row-btn cc-tap active:scale-(--cc-press-scale)">
         {!isCopied && (
-          <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+          <CopyIcon className="animate-[cc-pop-in_var(--cc-dur-fast)_var(--cc-ease-out)_both]" />
         )}
         {isCopied && (
-          <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+          <CheckIcon className="animate-[cc-pop-in_var(--cc-dur)_var(--cc-ease-out)_both]" />
         )}
       </TooltipIconButton>
     </div>

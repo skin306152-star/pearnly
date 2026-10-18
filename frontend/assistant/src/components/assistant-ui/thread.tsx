@@ -685,14 +685,15 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+// 「复制」与「已复制」图标切换时轻弹出（cc-pop-in；时长 --cc-dur-fast / --cc-dur、淡出缓动，V34），代码块的「复制」同样
 const CopyAction: FC = () => (
   <ActionBarPrimitive.Copy asChild>
     <TooltipIconButton tooltip={t("copy")} className="aui-button-icon cc-row-btn cc-tap active:scale-(--cc-press-scale)">
       <AuiIf condition={(s) => s.message.isCopied}>
-        <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+        <CheckIcon className="animate-[cc-pop-in_var(--cc-dur)_var(--cc-ease-out)_both]" />
       </AuiIf>
       <AuiIf condition={(s) => !s.message.isCopied}>
-        <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+        <CopyIcon className="animate-[cc-pop-in_var(--cc-dur-fast)_var(--cc-ease-out)_both]" />
       </AuiIf>
     </TooltipIconButton>
   </ActionBarPrimitive.Copy>
