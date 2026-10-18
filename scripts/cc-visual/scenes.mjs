@@ -73,6 +73,9 @@ export const SCENES = [
   S("chin-month", "/assistant?c=sesn_a1", both([["click", ".cc-chin-btn", 1]],
     [["click", ".cc-mpill button", 1], ["click", '[data-slot="cc-menu-sub"]', 0], ["wait", 500]]), { expect: MENU }),
   S("tooltip", "/assistant?c=sesn_a1", [["hover", ".cc-titlebar .cc-icon-btn, .cc-topbar .cc-icon-btn, .cc-topbar .cc-row-btn", 0], ["wait", 700]], { layouts: ["wide"] }),
+  // 组件库的提示框（components/ui/tooltip.tsx）：上面那个场景悬停的是带 title 的按钮（浏览器自带提示，不出图）；代码块「复制」是组件库提示框
+  S("tooltip-copy", "/assistant?c=sesn_rich", [["hover", ".aui-code-header-root button", 0], ["wait", 500]],
+    { layouts: ["wide"], expect: '[data-slot="tooltip-content"]' }),
 
   // ── 侧栏 ──
   S("sidebar-row-hover", "/assistant?c=sesn_a1", [["hover", ROW, 1]], { layouts: ["wide"] }),
@@ -85,6 +88,10 @@ export const SCENES = [
   S("sidebar-drag", "/assistant?c=sesn_a1", [["press", ROW, 2, 0, 60]], { layouts: ["wide"] }),
   S("split-resize", "/assistant?c=sesn_a1", [["drag", ".cc-split", 0, 60, 0], ["reload"]], { layouts: ["wide"] }),
   S("split-resizing", "/assistant?c=sesn_a1", [["attr", "data-cc-resizing", ""]], { layouts: ["wide"] }),
+  // 收起侧栏（components/ui/sidebar.tsx 的 offcanvas：侧栏移到屏外、占位宽 0）：网页点侧栏头的收起钮，CC 桌面版点侧栏标题栏里的开关；
+  // 收起后对话区左上角出展开钮（cc-nav-toggle）
+  S("sidebar-collapsed", "/assistant?c=sesn_a1", [["click", '[data-slot="sidebar"] [data-cc-nav-fallback]', 0], ["wait", 300]],
+    { layouts: ["wide"], expect: '[data-slot="cc-nav-toggle"]' }),
   S("account-menu", "/assistant?c=sesn_a1", [["click", '[data-slot="sidebar-footer"] .cc-nav-item', 0]], { layouts: ["wide"], expect: MENU }),
   S("titlebar-menu", "/assistant?c=sesn_a1", [["click", ".cc-titlebar .cc-icon-btn", 0]], { layouts: ["wide"], envs: ["desktop", "desktop-coarse"], expect: MENU }),
 
