@@ -119,6 +119,8 @@ jobs:
         run: python3 tests/test_assistant.py
       - name: Verify product sites keep people signed in for 30 days unless an administrator chose otherwise
         run: python3 tests/test_account_session_length.py
+      - name: Verify every DocType sharing the Cowork connection guard passes before_validate (with or without a client field)
+        run: python3 tests/test_cowork_connection_controller.py
       - name: Verify the fatcc.com entry (lookup, private billing, Keycloak client, generated sign-in pages)
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
