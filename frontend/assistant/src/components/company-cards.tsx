@@ -332,7 +332,7 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
         {adding && <NoteEditor initial="" onSave={(text) => save(text)} onCancel={() => setAdding(false)} />}
         {keepEmpty && !list.length && !adding && (
           <button type="button" className="cc-btn self-start" data-slot="cc-notes-draft" onClick={draft}>
-            <SparklesIcon className="size-4" />
+            <SparklesIcon />
             {co.draftNotes}
           </button>
         )}
@@ -375,7 +375,7 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
     }
   };
   return (
-    <div className="flex flex-col gap-2 py-1" data-slot="cc-note-editor">
+    <div className="flex flex-col gap-(--cc-space-8) py-(--cc-space-4)" data-slot="cc-note-editor">
       <textarea
         autoFocus
         rows={2}
@@ -390,7 +390,7 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
           if (action === "cancel") onCancel();
           else void save();
         }}
-        className="cc-input h-auto w-full py-1.5"
+        className="cc-input h-auto w-full py-(--cc-space-6)"
       />
       {error && <p role="alert" className="text-danger text-sm">{error}</p>}
       {/* 同一栏其他卡片按钮（记住的选择、允许卡）：.cc-card-btn，电脑 24、手机 44 胶囊 */}
@@ -459,7 +459,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
   if (hideEmpty && !app && !folders.length && !error) return null;
   return (
     <PanelCard id="folders" title={co.docFolder} summary={folderSummary(folders)} slot="cc-company-folders">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-(--cc-space-4)">
         {folders.map((f) => (
           <div key={`${idOf(f)}-${f.device}`} className="cc-folder-line" data-state={f.reader_gone ? "missing" : f.state}>
             <FolderIcon />
@@ -489,7 +489,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
         ))}
         {app && companyFolders && !hasMine && (
           <button type="button" className="cc-btn self-start" data-slot="cc-choose-folder" disabled={busy} onClick={() => void choose()}>
-            {busy ? <LoaderIcon className="size-4 animate-spin" /> : <FolderIcon className="size-4" />}
+            {busy ? <LoaderIcon className="cc-spinner" /> : <FolderIcon />}
             {co.chooseOnComputer}
           </button>
         )}

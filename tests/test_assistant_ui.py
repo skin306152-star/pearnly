@@ -1531,7 +1531,7 @@ html = renderToStaticMarkup(createElement(ApprovalBar, {
   approval: { id: "x", preview: rows(1), failure: "Something went wrong. Try again." }, respondToApproval: () => {} }));
 assert.equal(buttons(html).length, 2);
 assert.ok(html.indexOf('role="alert"') < html.indexOf("<button"));
-assert.match(html, /<p class="line-clamp-2">Something went wrong\. Try again\.<\/p>/);
+assert.match(html, /<p class="line-clamp-\(--cc-alert-lines\)">Something went wrong\. Try again\.<\/p>/);
 g.done();
 """)
         run_ts(APPROVAL_CARD + r"""
@@ -1901,8 +1901,8 @@ const markup = html(DocumentView, { blocks: [
 ] });
 assert.match(markup, /<h1 class="[^"]*text-2xl[^"]*text-center">สรุปภาษี ก\.ย\. 2569<\/h1>/);
 assert.match(markup, /<h2 class="[^"]*">ภาษีขาย<\/h2>/);
-assert.match(markup, /<p class="mb-2">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-2"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-2">ลิงก์<\/span><\/p>/);
-assert.match(markup, /<p class="mb-2 flex gap-2" style="padding-inline-start:1\.5em"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
+assert.match(markup, /<p class="mb-2">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-\(--cc-link-offset\)"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-\(--cc-link-offset\)">ลิงก์<\/span><\/p>/);
+assert.match(markup, /<p class="mb-2 flex gap-\(--cc-space-8\)" style="padding-inline-start:1\.5em"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
 assert.match(markup, /<p class="mb-2"> <\/p>/);  // 空段落占一行
 assert.match(markup, /<td class="[^"]*bg-subtle[^"]*"><p class="mb-0">รายการ<\/p><\/td>/);
 assert.match(markup, /<td colSpan="2" rowSpan="2" class="[^"]*"><p class="mb-0">1,234\.00<\/p><\/td>/);

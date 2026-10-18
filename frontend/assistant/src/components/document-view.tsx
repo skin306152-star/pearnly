@@ -55,7 +55,7 @@ function Run({ run }: { run: DocRun }) {
   const className = cn(
     run.bold && "font-bold",
     run.italic && "italic",
-    (run.underline || run.link) && "underline underline-offset-2",
+    (run.underline || run.link) && "underline underline-offset-(--cc-link-offset)",
     run.strike && "line-through",
   );
   return className ? <span className={className}>{node}</span> : <>{node}</>;
@@ -71,7 +71,7 @@ function Paragraph({ block, inCell }: { block: Extract<DocBlock, { type: "paragr
     const level = Math.min(Math.max(Number(block.list.level) || 0, 0), 8);
     const marker = typeof block.list.marker === "string" ? block.list.marker : "";
     return (
-      <Tag className={cn(className, "flex gap-2")} style={{ paddingInlineStart: `${level * 1.5}em` }}>
+      <Tag className={cn(className, "flex gap-(--cc-space-8)")} style={{ paddingInlineStart: `${level * 1.5}em` }}>
         {marker && <span className="shrink-0 tabular-nums">{marker}</span>}
         <span className="min-w-0 flex-1">{content}</span>
       </Tag>
@@ -128,7 +128,7 @@ function Blocks({ blocks, inCell = false }: { blocks: readonly DocBlock[]; inCel
 export default function DocumentView({ blocks }: { blocks: readonly DocBlock[] }) {
   return (
     <div className="h-full overflow-x-hidden overflow-y-auto">
-      <article className="mx-auto max-w-3xl px-6 py-6 text-sm leading-relaxed break-words whitespace-pre-wrap [tab-size:4] max-md:px-4">
+      <article className="mx-auto max-w-(--cc-doc-w) px-(--cc-space-24) py-(--cc-space-24) text-sm leading-relaxed break-words whitespace-pre-wrap [tab-size:4] max-md:px-(--cc-space-16)">
         <Blocks blocks={blocks} />
       </article>
     </div>

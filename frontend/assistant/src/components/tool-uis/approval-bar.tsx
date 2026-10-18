@@ -47,11 +47,11 @@ export function ChangeList({ preview, className }: { preview?: readonly Change[]
     <ul className={cn("cc-ask-changes", className)}>
       {shown.map((change, i) => (
         <li key={i} className="break-words">
-          <span className="me-2 text-ink-3">{change.field}</span>
+          <span className="me-(--cc-space-8) text-ink-3">{change.field}</span>
           {change.before ? (
             <>
               <span className="line-through decoration-ink-4">{change.before}</span>
-              <span className="px-1.5 text-ink-3">→</span>
+              <span className="px-(--cc-space-6) text-ink-3">→</span>
             </>
           ) : null}
           <span className="font-medium">{change.after}</span>
@@ -67,7 +67,7 @@ export function ApprovalFailure({ message }: { message?: string | undefined }) {
   if (!message) return null;
   return (
     <div role="alert" data-slot="cc-ask-failure" className={FAILURE_BOX}>
-      <p className="line-clamp-2">{message}</p>
+      <p className="line-clamp-(--cc-alert-lines)">{message}</p>
     </div>
   );
 }

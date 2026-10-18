@@ -710,8 +710,6 @@ AWAITING = {
     "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
     "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4", "--cc-observe-margin": "B4",
     "--cc-composer-input-max": "B4",
-    # B5 会话栏、结果、文档
-    "--cc-results-head-h": "B5", "--cc-link-offset": "B5", "--cc-icon-2xl": "B5",
     # B6 侧栏列表：拖动浮层层级（drag.tsx 拿起时读）
     "--cc-z-drag": "B6",
     # B7 对话区

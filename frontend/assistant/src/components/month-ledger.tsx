@@ -197,7 +197,7 @@ export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> 
         const shown = GROUP_SHOWN_BY[severity];
         return (
           <div key={severity} className="flex flex-col" data-slot="cc-month-group" data-severity={severity}>
-            <div className="cc-subheading flex items-center gap-1.5" role="heading" aria-level={3}>
+            <div className="cc-subheading flex items-center gap-(--cc-space-6)" role="heading" aria-level={3}>
               <span>{co.ledger.severity[severity]}</span>
               <span className="tabular-nums">{severityCount(month, severity)}</span>
             </div>

@@ -58,7 +58,7 @@ BUSY_MARKER = re.compile(r"animate-(?:spin|pulse|ping|bounce)\b|\banimate-cc-pul
 BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
     ("components/month-ledger.tsx", "animate-spin", "{loading && (", 3),
-    ("components/results-panel.tsx", "animate-spin", "function Loading()", 3),
+    ("components/results-panel.tsx", "cc-spinner", "function Loading()", 3),
     ("components/add-company.tsx", "animate-spin", "rows === null ?", 3),
     ("components/add-company.tsx", "animate-spin", "busy === row.identity ?", 1),
     ("components/add-company.tsx", "animate-spin", "refreshing ?", 0),
@@ -70,7 +70,7 @@ BUSY_SITES = [
     ("components/pending.tsx", "animate-spin", "busy &&", 0),
     ("components/company-page.tsx", "animate-spin", "if (!detail)", 3),
     ("components/company-page.tsx", "animate-spin", "if (!rows) return", 0),
-    ("components/company-cards.tsx", "animate-spin", "busy ?", 0),
+    ("components/company-cards.tsx", "cc-spinner", "busy ?", 0),
     ("components/scheduled-tasks.tsx", "animate-pulse", "rules === null || shown === null ?", 3),
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
     ("components/assistant-ui/thread-list.tsx", "animate-spin", "loadingMore &&", 0),

@@ -183,7 +183,7 @@ function usePreview(sessionId: string, fileId: string | null) {
 function Loading() {
   return (
     <div className="flex h-full items-center justify-center">
-      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+      <LoaderIcon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
     </div>
   );
 }
@@ -227,9 +227,9 @@ function SheetTable({ rows }: { rows: string[][] }) {
 
 function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
-      <FileTypeIcon filename={file.filename} className="size-10" />
-      <Marquee className="max-w-[80%] truncate text-foreground">{file.filename}</Marquee>
+    <div className="flex h-full flex-col items-center justify-center gap-(--cc-space-12) text-muted-foreground text-sm">
+      <FileTypeIcon filename={file.filename} className="size-(--cc-icon-2xl)" />
+      <Marquee className="max-w-4/5 truncate text-foreground">{file.filename}</Marquee>
       <a
         href={fileUrl(sessionId, file.id)}
         className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-foreground hover:bg-muted"
@@ -303,7 +303,7 @@ export function PdfPages({ sessionId, file }: { sessionId: string; file: Session
       ))}
       {pages > shown && (
         <a href={fileUrl(sessionId, file.id)} className="cc-btn self-center">
-          <DownloadIcon className="size-4" />
+          <DownloadIcon />
           {t("download")}
         </a>
       )}
@@ -324,7 +324,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
     return <iframe title={file.filename} src={fileUrl(sessionId, file.id, true)} className="h-full w-full" />;
   }
   if (kind === "text") {
-    return <pre className="h-full overflow-auto p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>;
+    return <pre className="h-full overflow-auto p-(--cc-space-16) font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>;
   }
   if (kind === "doc") return <DocumentPreview sessionId={sessionId} file={file} preview={preview} />;
   if (kind === "sheet") {
@@ -374,7 +374,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
           <iframe title={file.filename} sandbox="allow-scripts allow-forms" srcDoc={text ?? ""} className="h-full w-full bg-surface" />
         </Tabs.Content>
         <Tabs.Content value="source" className="min-h-0 flex-1 overflow-auto">
-          <pre className="p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>
+          <pre className="p-(--cc-space-16) font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>
         </Tabs.Content>
       </Tabs.Root>
     );
@@ -403,7 +403,7 @@ export function ResultsPanel({
   return (
     <aside className={cn("cc-results flex h-full min-w-0 flex-col border-l bg-surface", className)} style={width.style}>
       <SplitHandle size={resultsSize} edge="start" onChange={width.update} />
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+      <header className="flex h-(--cc-results-head-h) shrink-0 items-center gap-(--cc-space-8) border-b px-(--cc-space-12)">
         <select
           value={current.id}
           onChange={(e) => onSelect(e.target.value)}

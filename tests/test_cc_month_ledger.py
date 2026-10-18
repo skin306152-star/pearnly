@@ -257,7 +257,7 @@ assert.deepEqual([...html(cut).matchAll(/data-slot="cc-month-note">([\s\S]*?)<\/
 assert.equal(unlisted(month), 0);
 assert.ok(!page.includes("cc-month-note"));
 // 组标题是语义标题
-assert.match(page, /<div class="cc-subheading flex items-center gap-1.5" role="heading" aria-level="3"><span>To do<\/span>/);
+assert.match(page, /<div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
 // choice_needed：当场选的那一行（待处理的 ChooseRow 行变体），码名 · 单据 · 金额，展开前不取可选项
 assert.match(page, /data-slot="cc-pending-choose" data-variant="row"/);
 const choose = page.split('data-variant="row"')[1].split("</button>")[0];
