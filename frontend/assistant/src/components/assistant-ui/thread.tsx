@@ -445,10 +445,11 @@ const StopButton: FC = () => {
 // 对话里出错那一行（回复出错、发送没成功、通知没打开）同一个样子：统一的出错框 .cc-alert（危险浅底、危险线、内边距 12、圆角 8，V12），最多两行
 const ERROR_BOX = "cc-alert";
 
+// 和回复里别的块一样只用上外边距（.cc-reply 的 --cc-md-block，V32），不另写 mt
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>
+      <ErrorPrimitive.Root className={cn("aui-message-error-root", ERROR_BOX)}>
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-(--cc-alert-lines)" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>

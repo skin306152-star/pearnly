@@ -1625,7 +1625,7 @@ g.setTimeout = realSetTimeout;
         self.assertIn('<div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>', failure)
         self.assertIn('const ERROR_BOX = "cc-alert";', thread)  # 同对话里出错那一行：统一的出错框（V12）
         self.assertIn('<p className="line-clamp-(--cc-alert-lines)">{message}</p>', failure)
-        self.assertIn('<ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>', thread)
+        self.assertIn('<ErrorPrimitive.Root className={cn("aui-message-error-root", ERROR_BOX)}>', thread)  # 块间距归 .cc-reply（V32）
         attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")
         self.assertIn("(placed ? localPreview(placed) : undefined)", attachment)
 
