@@ -1986,3 +1986,12 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 | pearnly_cowork·intake.error.document_policy_needed_withholding_certificate | 出错 | 此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据… → 此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理 | This is a withholding tax cer… → This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice | เอกสารนี้เป็นหนังสือรับรองการ… → เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้ | これは源泉徴収証明書（50 ทวิ）です。この会社でこの種… → これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます | R-LEN↑ R-PAREN | 未登记 |
 | pearnly_cowork·intake.error.document_policy_skip_payment_evidence | 出错 | 本公司不录入转账凭条，此单据不推送 → 转账凭条不录入，此单据不推送 | This company does not enter t… → Transfer slips are not entered; this one is not sent | บริษัทนี้ไม่บันทึกสลิปโอนเงิน… → ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้ | この会社では振込明細を入力しないため、送信しません → 振込明細は入力しないため、送信しません |  | 2026-10-18 docs/work/2026-10-15-multi-desktop-build.md |
 | pearnly_cowork·intake.error.document_policy_skip_withholding_certificate | 出错 | 本公司不录入预扣税凭证（50 ทวิ），此单据不推送 → 预扣税凭证（50 ทวิ）不录入，此单据不推送 | This company does not enter w… → Withholding tax certificates (50 Tawi) are not entered; this one is not sent | บริษัทนี้ไม่บันทึกหนังสือรับร… → ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้ | この会社では源泉徴収証明書（50 ทวิ）を入力しないため… → 源泉徴収証明書（50 ทวิ）は入力しないため、送信しません | R-PAREN | 2026-10-18 docs/work/2026-10-15-multi-desktop-build.md |
+
+### 改已有文案：CC 桌面版连接提示（C10 ② / C11，10-18 晚，同上特批）
+
+1.7.0 起没有配对码，电脑被移除或成员被收窄后回设置点「连接」；池里的电脑不属于某一份账套，连上时不再写账套名。
+
+| 来源·键 | 角色 | 中文 旧 → 新 | English | ไทย | 日本語 | 标记 | 登记 |
+|---|---|---|---|---|---|---|---|
+| companion·log_paired | 未知 | 配对成功，账套：{company}。 → 已连接 Pearnly。 | — | จับคู่สำเร็จ ชุดบัญชี: {compa… → เชื่อมต่อ Pearnly แล้ว | — |  | 未登记 |
+| companion·off_auth | 未知 | 配对码已失效，请重新配对 → 连接已失效，请在设置中重新连接 | — | รหัสจับคู่ใช้งานไม่ได้แล้ว กร… → การเชื่อมต่อใช้งานไม่ได้แล้ว กรุณาเชื่อมต่อใหม่ในการตั้งค่า | — |  | 未登记 |
