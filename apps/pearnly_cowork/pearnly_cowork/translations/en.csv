@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,A value in the ERP da
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Abbreviated tax invoice,Abbreviated tax invoice
-Access to the CC Desktop queue has been revoked.,Access to the CC Desktop queue has been revoked.
 Account Codes,Account Codes
 Account Key,Account Key
 Account Set,Account Set
@@ -1884,6 +1883,7 @@ This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
 This choice cannot be saved,This choice cannot be saved
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
+This computer can no longer handle this document,This computer can no longer handle this document
 This connection does not support an Express CC Desktop credential.,This connection does not support an Express CC Desktop credential.
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
@@ -2156,7 +2156,7 @@ companion.on_demand_invalid,The request to CC Desktop is invalid.
 companion.on_demand_missing,The request to CC Desktop was not found.
 companion.on_demand_not_ready,CC Desktop has not finished this yet.
 companion.on_demand_unsupported,The computer on this connection cannot do this.
-companion.queue_access_revoked,Access to the CC Desktop queue has been revoked.
+companion.queue_access_revoked,This computer can no longer handle this document
 companion.queue_conflict,This delivery conflicts with the current task state.
 companion.queue_request_invalid,The CC Desktop queue request is invalid.
 companion.queue_response_invalid,The CC Desktop queue response is invalid.

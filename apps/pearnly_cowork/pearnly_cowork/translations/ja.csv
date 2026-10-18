@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,ERP データレポ�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
 Abbreviated tax invoice,簡易税務インボイス
-Access to the CC Desktop queue has been revoked.,CC デスクトップのキューへのアクセス権が取り消されました。
 Account Codes,勘定科目コード
 Account Key,会計データキー
 Account Set,会計データ
@@ -1884,6 +1883,7 @@ This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
 This choice cannot be saved,この選択は保存できません
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
+This computer can no longer handle this document,このコンピューターではこの書類を処理できなくなりました
 This connection does not support an Express CC Desktop credential.,この接続は Express 用の CC デスクトップ認証情報に対応していません。
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
@@ -2156,7 +2156,7 @@ companion.on_demand_invalid,CC デスクトップへのリクエストが無効�
 companion.on_demand_missing,CC デスクトップへのリクエストが見つかりません。
 companion.on_demand_not_ready,CC デスクトップの処理はまだ終わっていません。
 companion.on_demand_unsupported,この接続のパソコンではこの操作はできません。
-companion.queue_access_revoked,CC デスクトップのキューへのアクセス権が取り消されました。
+companion.queue_access_revoked,このコンピューターではこの書類を処理できなくなりました
 companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
 companion.queue_request_invalid,CC デスクトップのキューリクエストが無効です。
 companion.queue_response_invalid,CC デスクトップのキューレスポンスが無効です。

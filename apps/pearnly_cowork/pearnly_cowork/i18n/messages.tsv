@@ -539,7 +539,7 @@ The CC Desktop queue request is invalid.	CC 桌面版队列请求无效。	ค�
 The CC Desktop queue response is invalid.	CC 桌面版队列响应无效。	การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのキューレスポンスが無効です。	companion.queue_response_invalid
 The CC Desktop delivery record is invalid.	CC 桌面版任务领取记录无效。	บันทึกการรับงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのタスク受領記録が無効です。	companion.delivery_invalid
 The CC Desktop delivery record was not found.	未找到 CC 桌面版任务领取记录。	ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป	CC デスクトップのタスク受領記録が見つかりません。	companion.delivery_not_found
-Access to the CC Desktop queue has been revoked.	CC 桌面版队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว	CC デスクトップのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
+This computer can no longer handle this document	此电脑已不能处理该单据	คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว	このコンピューターではこの書類を処理できなくなりました	companion.queue_access_revoked
 This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
 The request to CC Desktop is invalid.	发给 CC 桌面版的请求无效。	คำขอถึง CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップへのリクエストが無効です。	companion.on_demand_invalid
 The computer on this connection cannot do this.	这条连接的电脑做不了这件事。	คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้	この接続のパソコンではこの操作はできません。	companion.on_demand_unsupported

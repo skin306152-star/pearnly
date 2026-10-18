@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,ERP 数据报告中�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,部分支出或存入金额为负数，请检查支出 / 存入列
 Abbreviated Tax Invoice,简式税务发票
 Abbreviated tax invoice,简易税票
-Access to the CC Desktop queue has been revoked.,CC 桌面版队列的访问权限已撤销。
 Account Codes,科目编码
 Account Key,账套键
 Account Set,账套
@@ -1884,6 +1883,7 @@ This board no longer exists,该看板不存在
 This channel is not open yet,此渠道尚未开放
 This choice cannot be saved,无法保存此选择
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
+This computer can no longer handle this document,此电脑已不能处理该单据
 This connection does not support an Express CC Desktop credential.,此连接不支持 Express CC 桌面版凭据。
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
@@ -2156,7 +2156,7 @@ companion.on_demand_invalid,发给 CC 桌面版的请求无效。
 companion.on_demand_missing,找不到发给 CC 桌面版的请求。
 companion.on_demand_not_ready,CC 桌面版还没做完。
 companion.on_demand_unsupported,这条连接的电脑做不了这件事。
-companion.queue_access_revoked,CC 桌面版队列的访问权限已撤销。
+companion.queue_access_revoked,此电脑已不能处理该单据
 companion.queue_conflict,此回执与任务当前状态冲突。
 companion.queue_request_invalid,CC 桌面版队列请求无效。
 companion.queue_response_invalid,CC 桌面版队列响应无效。

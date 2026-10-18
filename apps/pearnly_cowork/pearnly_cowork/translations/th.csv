@@ -56,7 +56,6 @@ A value in the ERP data report exceeds the allowed length.,ค่าในรา
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Abbreviated tax invoice,ใบกำกับภาษีอย่างย่อ
-Access to the CC Desktop queue has been revoked.,สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว
 Account Codes,รหัสบัญชี
 Account Key,คีย์ชุดบัญชี
 Account Set,ชุดบัญชี
@@ -1884,6 +1883,7 @@ This board no longer exists,ไม่พบบอร์ดนี้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This choice cannot be saved,บันทึกตัวเลือกนี้ไม่ได้
 This client still has {0} invoice record(s). Reassign them first.,ลูกค้ารายนี้ยังมีรายการใบกำกับภาษี {0} รายการ กรุณาย้ายไปยังลูกค้ารายอื่นก่อน
+This computer can no longer handle this document,คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว
 This connection does not support an Express CC Desktop credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express
 This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
@@ -2156,7 +2156,7 @@ companion.on_demand_invalid,คำขอถึง CC เดสก์ท็อป
 companion.on_demand_missing,ไม่พบคำขอถึง CC เดสก์ท็อป
 companion.on_demand_not_ready,CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ
 companion.on_demand_unsupported,คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้
-companion.queue_access_revoked,สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว
+companion.queue_access_revoked,คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว
 companion.queue_conflict,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 companion.queue_request_invalid,คำขอคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
 companion.queue_response_invalid,การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง

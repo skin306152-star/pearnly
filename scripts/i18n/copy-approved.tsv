@@ -74,3 +74,4 @@ pearnly_cowork:Set document handling	zh	设置单据处理方式	2026-10-18	docs
 pearnly_cowork:Document handling set	zh	已设置单据处理方式	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 按建议同意 E10，做完的说法一并统一）
 companion:log_paired	zh	已连接 Pearnly。	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
 companion:off_auth	zh	连接已失效，请在设置中重新连接	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
+pearnly_cowork:companion.queue_access_revoked	zh	此电脑已不能处理该单据	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
