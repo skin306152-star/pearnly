@@ -38,7 +38,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
 import { openAddCompany } from "@/components/add-company";
@@ -60,6 +60,7 @@ import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { co, t } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { Marquee } from "@/components/ui/marquee";
 
 const API = "pearnly_cowork.folder_intake.api.";
@@ -200,9 +201,9 @@ function Modal({ open, onClose, title, children, footer, wide }: {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-sheet) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
-          className={`cc-card cc-enter cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
+          className={`cc-card cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
             <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
@@ -420,7 +421,7 @@ export function ScheduledTasks() {
           </label>
         )}
         {taskCompany && (
-          <div className="mb-4">
+          <div className="mb-(--cc-space-16)">
             <span className="cc-chip">
               {companyTitle}
               <button
@@ -436,8 +437,8 @@ export function ScheduledTasks() {
         )}
         {error && <div className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
         {rules === null || shown === null ? (
-          <div className="flex flex-col gap-2">
-            {[0, 1, 2].map((i) => <div key={i} className="cc-card h-20 animate-pulse" />)}
+          <div className="flex flex-col gap-(--cc-space-8)">
+            {[0, 1, 2].map((i) => <div key={i} className="cc-card h-(--cc-task-skeleton-h) animate-pulse" />)}
           </div>
         ) : shown.length === 0 && search.trim() ? (
           <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
@@ -450,10 +451,10 @@ export function ScheduledTasks() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-(--cc-space-16)">
             {groups.map(([group, rows]) => (
-              <section key={group || "other"} className="flex flex-col gap-2" data-slot="cc-task-group">
-                {headed && <h2 className="cc-section-label !px-0 !pt-0">{group ? (overview.titles[group] ?? "") : co.other}</h2>}
+              <section key={group || "other"} className="flex flex-col gap-(--cc-space-8)" data-slot="cc-task-group">
+                {headed && <h2 className="cc-section-label" data-flush="">{group ? (overview.titles[group] ?? "") : co.other}</h2>}
             {rows.map((rule) => {
               const s = status(rule, tr);
               const target = ADAPTERS.find((a) => a.adapter === rule.adapter)?.label ?? "";
@@ -465,30 +466,30 @@ export function ScheduledTasks() {
                   className="cc-list-item cc-enter items-start"
                 >
                   <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(rule)}>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-(--cc-space-8)">
                       <Marquee className="truncate font-medium text-ink">{rule.title}</Marquee>
                       <Chip tone={s.tone}>{s.text}</Chip>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-sm">
+                    <div className="mt-(--cc-space-4) flex flex-wrap items-center gap-x-(--cc-space-12) gap-y-(--cc-space-4) text-ink-3 text-sm">
                       <span>{[target, rule.company ? tr("cowork.folder.followCompany") : rule.account_label].filter(Boolean).join(" · ")}</span>
-                      <span className="flex items-center gap-1">
-                        <FolderIcon className="size-3.5" />
+                      <span className="flex items-center gap-(--cc-space-4)">
+                        <FolderIcon className="size-(--cc-icon-xs)" />
                         {[rule.reader_label, rule.folder || rule.root_label || ""].filter(Boolean).join(" · ")}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <ClockIcon className="size-3.5" />
+                      <span className="flex items-center gap-(--cc-space-4)">
+                        <ClockIcon className="size-(--cc-icon-xs)" />
                         {`${dayLabel(rule.run_day)} ${rule.run_time || ""}`}
                       </span>
                     </div>
-                    <div className="mt-1 text-ink-2 text-sm">
+                    <div className="mt-(--cc-space-4) text-ink-2 text-sm">
                       {tr("cowork.folder.counts", rule.results?.entered || 0, rule.results?.attention || 0)}
                       {rule.results?.moving ? ` · ${tr("cowork.folder.moving", rule.results.moving)}` : ""}
                     </div>
                     {rule.results?.account_sets?.length ? (
-                      <div className="mt-0.5 text-ink-3 text-sm">{accountSetsText(tr, rule.results.account_sets)}</div>
+                      <div className="mt-(--cc-space-2) text-ink-3 text-sm">{accountSetsText(tr, rule.results.account_sets)}</div>
                     ) : null}
                     {rule.enabled && rule.waiting ? (
-                      <div className="mt-0.5 text-ink-3 text-sm">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
+                      <div className="mt-(--cc-space-2) text-ink-3 text-sm">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
                     ) : null}
                   </button>
                   {rule.enabled ? (
@@ -511,7 +512,7 @@ export function ScheduledTasks() {
                       <MoreHorizontalIcon />
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Portal>
-                      <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu">
+                      <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu">
                         <DropdownMenu.Item className="cc-menu-item" onSelect={() => setEditing(rule)}>
                           <PencilIcon />
                           {t("edit")}
@@ -631,7 +632,7 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
             const sets = accountSetsText(tr, run.results?.account_sets);
             const missing = ["root_missing", "folder_missing"].includes(run.note || "") ? ` · ${tr("cowork.folder.folderMissing")}` : "";
             return (
-              <div key={i} className="py-2.5 text-sm">
+              <div key={i} className="py-(--cc-run-row-py) text-sm">
                 <div className="text-ink">
                   {new Date(run.started_at.replace(" ", "T")).toLocaleString()} · {tr(`cowork.folder.trigger.${run.trigger || "schedule"}`)}
                   {missing}
@@ -907,24 +908,24 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
           </>
         }
       >
-        <div className="flex flex-col gap-4 pb-2">
+        <div className="flex flex-col gap-(--cc-space-16) pb-(--cc-space-8)">
           <Field label={tr("cowork.folder.field.title")}>
             <input className="cc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
 
           <div className="cc-field">
             <span>{tr("intake.target.title")}</span>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-(--cc-space-8) sm:grid-cols-2">
               {ADAPTERS.map((a) => {
                 const state = rule ? null : describe(a.adapter, snapshot, tr);
                 const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
                 const picked = target === a.adapter;
                 // 卡片的内边距在选择按钮里：整张卡都能点，手机点按区至少 44（同对话里的文件卡，按钮排查 H11；第 11 轮复量附录 #83）
                 return (
-                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>
+                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>
                     <button
                       type="button"
-                      className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"
+                      className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default"
                       style={!picked && (rule || !ok) ? { opacity: 0.5 } : undefined}
                       disabled={Boolean(rule) || !ok}
                       onClick={() => {
@@ -933,10 +934,10 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                       }}
                     >
                       <span className="font-medium text-ink">{a.label}</span>
-                      {state && <span className="text-xs" style={{ color: state.tone === "ok" ? "var(--cc-success)" : state.tone === "bad" ? "var(--cc-danger)" : "var(--cc-ink-3)" }}>{state.text}</span>}
+                      {state && <span className={cn("text-xs", state.tone === "ok" ? "text-success" : state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
                     </button>
                     {!rule && !ok && (
-                      <button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>
+                      <button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>
                         {tr("Connect")}
                       </button>
                     )}
@@ -946,7 +947,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-(--cc-space-16) sm:grid-cols-2">
             <Field label={express ? tr("intake.target.year") : tr("Company")} hint={catalogNote}>
               <Select value={year} disabled={!enabled || !groups.length} options={groups.map((g) => ({ value: g.value, label: g.label }))} onChange={(v) => { setYear(v); setAccountSet(""); }} />
             </Field>
@@ -982,7 +983,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             </button>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-(--cc-space-16)">
             <Field label={tr("cowork.folder.field.day")}>
               <Select value={runDay} disabled={!enabled} options={days(tr)} onChange={setRunDay} />
             </Field>
@@ -991,14 +992,14 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             </Field>
           </div>
 
-          <div className="flex items-center justify-between gap-3 text-ink-2 text-sm">
+          <div className="flex items-center justify-between gap-(--cc-space-12) text-ink-2 text-sm">
             <span>{tr("cowork.folder.field.remind")}</span>
             <Switch checked={remind} disabled={!enabled} label={tr("cowork.folder.field.remind")} onChange={setRemind} />
           </div>
           {remind && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-(--cc-space-8)">
               {remindTimes.map((row, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="flex items-center gap-(--cc-space-8)">
                   <select
                     className="cc-input"
                     aria-label={tr("cowork.folder.field.remindDay")}
@@ -1041,12 +1042,12 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
           )}
 
           {express && (
-            <details className="cc-card px-4 py-3" open={Object.keys(defaults).length > 0}>
+            <details className="cc-card px-(--cc-space-16) py-(--cc-space-12)" open={Object.keys(defaults).length > 0}>
               <summary className="cc-disclosure">
                 <ChevronRightIcon aria-hidden />
                 {tr("cowork.folder.section.defaults")}
               </summary>
-              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="mt-(--cc-space-12) grid grid-cols-1 gap-(--cc-space-16) sm:grid-cols-2">
                 <Field label={tr("cowork.folder.default.payment")} hidden={!showDefault.payment}>
                   <Select value={defaults.payment || ""} onChange={(v) => setDefault("payment", v)} options={[{ value: "credit", label: tr("Credit") }, { value: "cash", label: tr("Cash") }]} />
                 </Field>
@@ -1171,7 +1172,7 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
         </>
       }
     >
-      <div className="flex flex-col gap-4 pb-2">
+      <div className="flex flex-col gap-(--cc-space-16) pb-(--cc-space-8)">
         {kinds.map((kind) => (
           <Field key={kind} label={tr(`intake.mrerpMenu.${kind}`)}>
             <Select value={values[kind] || ""} onChange={(v) => setValues((s) => ({ ...s, [kind]: v }))}
@@ -1238,7 +1239,7 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
         </>
       }
     >
-      <div className="flex flex-col gap-4 pb-2">
+      <div className="flex flex-col gap-(--cc-space-16) pb-(--cc-space-8)">
         <Field label={tr("System URL")}><input className="cc-input" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
         <Field label={tr("Account")}><input className="cc-input" value={user} onChange={(e) => setUser(e.target.value)} autoComplete="username" /></Field>
         <Field label={tr("Password")}><input className="cc-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
@@ -1267,7 +1268,7 @@ function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connectio
   const [missing, setMissing] = useState(false);
   return (
     <Modal open onClose={onClose} title={adapter === "express" ? `${tr("Connect")} Express` : tr("cowork.folder.connectHelper")}>
-      <div className="flex flex-col items-start gap-3 pb-3">
+      <div className="flex flex-col items-start gap-(--cc-space-12) pb-(--cc-space-12)">
         <Chip tone={online ? "ok" : "wait"}>{online ? tr("connect.state.connected") : tr("intake.agent.state.missing")}</Chip>
         <button
           type="button"

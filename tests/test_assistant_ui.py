@@ -6563,7 +6563,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
             self.assertIn('<DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
-        self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
+        self.assertIn('<Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-sm"', read("components/settings.tsx"))
         self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
         panel = read("components/results-panel.tsx")
         self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
@@ -6629,7 +6629,7 @@ class Round5SmallFixesTests(unittest.TestCase):
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
         # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
         # 第 11 轮按钮排查 H26：文字格与图标格一样高 28、手机点按区 44（cc-tap）
-        self.assertIn('"cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",',
+        self.assertIn('"cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-sm [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",',
                       read("components/settings.tsx"))
         self.assertIn(".cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }", block(css, "@layer components {"))
         mobile = css.index(".cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {")
@@ -8784,10 +8784,10 @@ class Round11ReviewTests(unittest.TestCase):
     def test_scheduled_task_target_cards_are_tappable_edge_to_edge(self):
         # 审查（复量附录 #83）：写入目标卡（MR.ERP / Express）的内边距在卡片上，按钮只有 21–38 高；挪进按钮，手机至少 44
         tasks = read("components/scheduled-tasks.tsx")
-        self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>', tasks)
-        self.assertIn('className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"', tasks)
-        self.assertIn('<button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>', tasks)
-        self.assertNotIn("cc-card flex items-center justify-between gap-2 px-3 py-2.5", tasks)
+        self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>', tasks)
+        self.assertIn('className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default"', tasks)
+        self.assertIn('<button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>', tasks)
+        self.assertNotIn("cc-card flex items-center justify-between gap-(--cc-space-8) px-", tasks)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")

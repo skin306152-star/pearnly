@@ -18,7 +18,7 @@
 
 import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,7 +107,7 @@ export function Settings() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-modal) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           ref={content}
           aria-describedby={undefined}
@@ -115,9 +115,9 @@ export function Settings() {
             event.preventDefault();
             giveFocusBack(back.current, SETTINGS_BACK);
           }}
-          className="cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))] w-[min(980px,95vw)] [--cc-modal-share:0.92] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
+          className="cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))] w-[min(var(--cc-settings-w),var(--cc-settings-w-max))] [--cc-modal-share:var(--cc-settings-share)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
-          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-app p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
+          <nav className="flex shrink-0 gap-(--cc-space-4) overflow-x-auto border-b bg-app p-(--cc-space-12) md:w-(--cc-settings-nav-w) md:flex-col md:border-r md:border-b-0">
             <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-xs md:block">
               {st.settings}
             </DialogPrimitive.Title>
@@ -141,15 +141,15 @@ export function Settings() {
               </>
             )}
           </nav>
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-9 md:py-8">
-            <h2 className="mb-6 font-medium text-xl">{titles[current]}</h2>
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-(--cc-settings-px) py-(--cc-settings-py) md:px-(--cc-settings-px-wide) md:py-(--cc-settings-py-wide)">
+            <h2 className="mb-(--cc-space-24) font-medium text-xl">{titles[current]}</h2>
             {current === "general" && <General />}
             {current === "connections" && api && <Connections api={api} />}
             {current === "connections" && web && <WebConnections />}
             {current === "system" && api && <System api={api} />}
           </main>
           {/* 关闭同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44） */}
-          <DialogPrimitive.Close aria-label={t("close")} className="cc-icon-btn absolute top-3.5 right-3.5">
+          <DialogPrimitive.Close aria-label={t("close")} className="cc-icon-btn absolute top-(--cc-settings-close) right-(--cc-settings-close)">
             <XIcon />
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
@@ -176,14 +176,14 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
 }
 
 function Heading({ children }: { children: ReactNode }) {
-  return <h3 className="mt-8 mb-1 font-medium text-(length:--cc-text-heading) first:mt-0">{children}</h3>;
+  return <h3 className="mt-(--cc-settings-section-pt) mb-(--cc-settings-section-pb) font-medium text-(length:--cc-text-heading) first:mt-0">{children}</h3>;
 }
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b py-4 last:border-b-0">
+    <div className="flex flex-wrap items-center justify-between gap-x-(--cc-space-24) gap-y-(--cc-space-8) border-b py-(--cc-space-16) last:border-b-0">
       <div className="min-w-0 text-sm">{label}</div>
-      <div className="flex min-w-0 items-center gap-2">{children}</div>
+      <div className="flex min-w-0 items-center gap-(--cc-space-8)">{children}</div>
     </div>
   );
 }
@@ -191,7 +191,7 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
 // 分段选择（同 Claude 设置）：带图标的只显示图标（如主题），文字放进提示与读屏
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string, ReactNode?][]; onChange: (v: T) => void }) {
   return (
-    <div className="flex rounded-lg bg-muted p-0.5">
+    <div className="flex rounded-lg bg-muted p-(--cc-space-2)">
       {options.map(([key, label, icon]) => (
         <button
           key={key}
@@ -203,7 +203,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           className={cn(
             // 选中的那一格带 shadow-sm（盖过 base 层的聚焦兜底），聚焦描边自己写
             // 文字格与图标格一样高 28（手机点按区 44）
-            "cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",
+            "cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-sm [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",
             value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -317,7 +317,7 @@ export function Notifications() {
           {st.notifications}
           {usable && push.failure && <div className="text-danger text-xs">{push.failure}</div>}
           {push.state === "install" && (
-            <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-2")} onClick={showGuide}>
+            <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-(--cc-link-offset)")} onClick={showGuide}>
               {st.notificationsAddToHome}
             </button>
           )}
@@ -425,7 +425,7 @@ function Connections({ api }: { api: Desktop }) {
 
   return (
     <>
-      <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
+      <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
@@ -454,7 +454,7 @@ function Connections({ api }: { api: Desktop }) {
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
-                <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
+                <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
                   <DropdownMenu.Item
                     className="cc-menu-item"
                     onSelect={() => void Promise.all(members.map((m) => api.call("pause", { id: m.id, paused: !main.paused }))).then(refresh)}
@@ -478,7 +478,7 @@ function Connections({ api }: { api: Desktop }) {
         )}
       </div>
       {main && linkState.kind === "other_site" && state.site !== location.host && (
-        <div className="flex items-center justify-end border-b py-3">
+        <div className="flex items-center justify-end border-b py-(--cc-space-12)">
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
             {st.switchTo(location.host)}
           </Button>
@@ -487,7 +487,7 @@ function Connections({ api }: { api: Desktop }) {
 
       {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
-          <Marquee className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
+          <Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
           </Marquee>
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
@@ -501,12 +501,12 @@ function Connections({ api }: { api: Desktop }) {
 
       {companyFolders && legacy.length > 0 && (
         <>
-          <div className="mt-8">
+          <div className="mt-(--cc-settings-section-pt)">
             <Heading>{st.earlierFolders}</Heading>
           </div>
           {legacy.map((root) => (
-            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
-              <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-sm last:border-b-0">
+              <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={root.path}>
                 {root.path}
               </Marquee>
@@ -527,16 +527,16 @@ function Connections({ api }: { api: Desktop }) {
 
       {!companyFolders && main && main.folders !== null && (
         <>
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-(--cc-settings-section-pt) flex items-center justify-between">
             <Heading>{st.folders}</Heading>
             <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("folder", "add_folder", { id: main.id })}>
               {st.addFolder}
             </Button>
           </div>
-          {!main.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
+          {!main.folders.length && <p className="py-(--cc-space-12) text-muted-foreground text-sm">{st.noFolders}</p>}
           {main.folders.map((path) => (
-            <div data-marquee-host="" key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
-              <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+            <div data-marquee-host="" key={path} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-sm last:border-b-0">
+              <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={path}>
                 {path}
               </Marquee>
@@ -554,7 +554,7 @@ function Connections({ api }: { api: Desktop }) {
           ))}
         </>
       )}
-      {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
 
       <PoolComputers inDesktop />
     </>
@@ -686,7 +686,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   return (
     <>
       {inDesktop && (
-        <div className="mt-8">
+        <div className="mt-(--cc-settings-section-pt)">
           <Heading>{st.computers}</Heading>
         </div>
       )}
@@ -714,7 +714,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
           />
         ))
       )}
-      {error && <p role="alert" className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
       <AllMembers />
     </>
   );
@@ -725,8 +725,8 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
 export function ComputerSection({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
   const status = row.online ? "online" : "offline";
   return (
-    <section className="mb-8 last:mb-0">
-      <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
+    <section className="mb-(--cc-settings-section-pt) last:mb-0">
+      <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
           <div className="text-muted-foreground text-xs">
@@ -751,7 +751,7 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
-              <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
+              <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
                 <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={onRemove}>
                   {st.remove}
                 </DropdownMenu.Item>
@@ -805,7 +805,7 @@ function AllMembers({ heading = false }: { heading?: boolean }) {
   const listed = [...new Set([...team.map((member) => member.email), ...users])];
   const name = (email: string) => team.find((member) => member.email === email)?.display || email;
   return (
-    <div className="mt-8">
+    <div className="mt-(--cc-settings-section-pt)">
       {heading && <Heading>{st.computers}</Heading>}
       <Row label={st.allMembers}>
         <Switch checked={!!pool.all_members} disabled={busy} label={st.allMembers} onChange={(on) => void save({ all_members: on })} />
@@ -828,7 +828,7 @@ function AllMembers({ heading = false }: { heading?: boolean }) {
           })}
         </>
       )}
-      {error && <p role="alert" className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
     </div>
   );
 }
@@ -871,7 +871,7 @@ function System({ api }: { api: Desktop }) {
           <FolderIcon className="size-4" />
         </Button>
       </Row>
-      {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p className="mt-(--cc-space-12) text-danger text-sm">{error}</p>}
     </>
   );
 }
@@ -935,8 +935,8 @@ export function VersionRow({
       }
     >
       {updateText && (
-        <span className="flex items-center gap-1 text-muted-foreground text-sm">
-          {updateState === "latest" && <CheckIcon className="size-3.5" />}
+        <span className="flex items-center gap-(--cc-space-4) text-muted-foreground text-sm">
+          {updateState === "latest" && <CheckIcon className="size-(--cc-settings-close)" />}
           {updateText}
         </span>
       )}

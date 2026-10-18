@@ -222,10 +222,10 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
 
   if (embedded && (!items || !items.length) && !error) return null;
   return (
-    <div className="flex flex-col gap-4" data-slot="cc-pending">
+    <div className="flex flex-col gap-(--cc-space-16)" data-slot="cc-pending">
       {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
       {items === null ? (
-        <div className="flex justify-center py-6 text-ink-3">
+        <div className="flex justify-center py-(--cc-space-24) text-ink-3">
           <LoaderIcon className="size-4 animate-spin" />
         </div>
       ) : !items.length ? (
@@ -249,8 +249,8 @@ const PendingGroup: FC<{
   const ask = useAskCC(company, title);
   const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item));
   return (
-    <section className="flex flex-col gap-2">
-      {title && <h2 className="cc-section-label !px-0 !pt-0">{title}</h2>}
+    <section className="flex flex-col gap-(--cc-space-8)">
+      {title && <h2 className="cc-section-label" data-flush="">{title}</h2>}
       {items.map((item) =>
         choosable(item) ? (
           <ChooseRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
@@ -347,7 +347,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
   const kinds = choiceLine(item, view);
   return (
     <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
         aria-expanded={open} onClick={toggle}>
         {head ?? (
           <span className="min-w-0 flex-1">
@@ -360,7 +360,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
       {open && !view && !error && (
-        <div className="flex justify-center py-2 text-ink-3">
+        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
           <LoaderIcon className="size-4 animate-spin" />
         </div>
       )}
@@ -462,13 +462,13 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
   };
   return (
     <div className="cc-list-item flex-col" data-slot="cc-pending-account-set" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
         aria-expanded={open} onClick={toggle}>
         {head ?? <Summary item={item} />}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
       {open && !sets && !error && (
-        <div className="flex justify-center py-2 text-ink-3">
+        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
           <LoaderIcon className="size-4 animate-spin" />
         </div>
       )}
@@ -516,7 +516,7 @@ export const PendingView: FC = () => {
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
         </label>
         {company && (
-          <div className="mb-4">
+          <div className="mb-(--cc-space-16)">
             <span className="cc-chip">
               {title}
               <button type="button" className="cc-chip-x" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>

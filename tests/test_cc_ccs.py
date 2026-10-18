@@ -703,15 +703,9 @@ AWAITING = {
     "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
     "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
     "--cc-mdrawer-tray-px": "B3", "--cc-mdrawer-tail": "B3",
-    "--cc-menu-w-sm": "B3", "--cc-menu-w-md": "B3", "--cc-menu-w-lg": "B3", "--cc-menu-w-max": "B3",
-    # B4 弹窗与列表页：设置弹窗、删除确认的层级、列表预取的 rootMargin
-    "--cc-settings-w": "B4", "--cc-settings-w-max": "B4", "--cc-settings-h": "B4", "--cc-settings-share": "B4",
-    "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",
-    "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
-    "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4", "--cc-observe-margin": "B4",
-    "--cc-composer-input-max": "B4",
+    "--cc-menu-w-sm": "B3", "--cc-menu-w-lg": "B3", "--cc-menu-w-max": "B3",
     # B5 会话栏、结果、文档
-    "--cc-results-head-h": "B5", "--cc-link-offset": "B5", "--cc-icon-2xl": "B5",
+    "--cc-results-head-h": "B5", "--cc-icon-2xl": "B5",
     # B6 侧栏列表：拖动浮层层级（drag.tsx 拿起时读）
     "--cc-z-drag": "B6",
     # B7 对话区
@@ -1352,6 +1346,30 @@ assert.deepEqual(clipText(long), { text: "x".repeat(CLIP_CHARS), hidden: 1 });
 assert.deepEqual(clipText(`a\n${long}\nb`), { text: `a\n${"x".repeat(CLIP_CHARS - 2)}`, hidden: 2 });
 g.done();
 """)
+
+
+class DialogsAndListsTests(unittest.TestCase):
+    """标准化 B4（弹窗与列表页，记录 4.2）：设置、定时任务、添加公司、删除确认、公司列表、公司页、待处理只用标准层的变量与共用类。"""
+
+    def setUp(self):
+        self.css = (SRC / "globals.css").read_text(encoding="utf-8")
+        self.defs = {**code_block(self.css, ":root"), **cc_block(self.css, ":root")}
+        self.read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
+
+    def test_list_prefetch_margin_is_read_from_globals_css(self):
+        # 2.6：IntersectionObserver 的 rootMargin 不是样式、也是长度：globals.css 定值，建观察器时读，回退常量与它同值
+        companies = self.read("components/companies.tsx")
+        fallback = re.search(r"^export const OBSERVE_MARGIN = (\d+);$", companies, re.M).group(1)
+        self.assertEqual(token_value(self.defs, "--cc-observe-margin"), f"{fallback}px")
+        self.assertIn('rootMargin: `${fixedPx("--cc-observe-margin", OBSERVE_MARGIN)}px`', companies)
+        self.assertNotIn('"200px"', companies)
+
+    def test_menus_take_the_shared_offset(self):
+        # V8（B4）：本批的菜单原来都是 4，改成 menu.tsx 导出的 menuOffset()（主菜单 4），不再写数
+        for rel in ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/companies.tsx", "components/company-page.tsx"):
+            source = self.read(rel)
+            self.assertIn("sideOffset={menuOffset()}", source, rel)
+            self.assertNotRegex(source, r"sideOffset=\{\d", rel)
 
 
 if __name__ == "__main__":

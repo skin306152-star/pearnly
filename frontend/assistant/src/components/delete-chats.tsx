@@ -196,11 +196,11 @@ export const DeleteChatsHost: FC = () => {
   return (
     <DialogPrimitive.Root open={!!ask} onOpenChange={(open) => !open && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-confirm) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           data-slot="cc-delete-chats"
           aria-describedby={undefined}
-          className="cc-card cc-enter cc-modal fixed left-1/2 z-[80] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)]"
+          className="cc-card cc-enter cc-modal fixed left-1/2 z-(--cc-z-confirm) flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)]"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             cancel.current?.focus();

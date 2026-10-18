@@ -903,6 +903,9 @@
   --cc-settings-section-pt: 32px; /* 现有值·CC 自定：设置分节上 */
   --cc-settings-section-pb: var(--cc-space-4);
   --cc-settings-value-max: 22rem; /* 现有值·CC 自定：设置值列最宽 */
+  --cc-add-company-share: 0.8;    /* 现有值·CC 自定：添加公司弹窗最多占可见高（B4 补登） */
+  --cc-run-row-py: 10px;          /* 现有值·CC 自定：定时任务运行记录一行上下（B4 补登） */
+  --cc-target-card-py: 10px;      /* 现有值·CC 自定：定时任务表单里目标 ERP 卡片上下（B4 补登） */
   --cc-preview-w: 48rem;          /* 现有值·CC 自定：图片预览最宽 */
   --cc-preview-share: 0.8;        /* 现有值·CC 自定：图片预览最多占可见高 */
 
@@ -943,6 +946,7 @@
 
   /* 其他 */
   --cc-skeleton-h: 14px;          /* 现有值·CC 自定：骨架条高 */
+  --cc-task-skeleton-h: 80px;     /* 现有值·CC 自定：定时任务列表加载时一张占位卡的高（B4 补登） */
   /* 提示框的小箭头（components/ui/tooltip.tsx，B2 补登：组件库模板带的 10 的方块转 45° 露出一角） */
   --cc-tooltip-arrow: 10px;       /* 现有值·CC 自定 */
   --cc-tooltip-arrow-turn: 45deg; /* 现有值·CC 自定 */

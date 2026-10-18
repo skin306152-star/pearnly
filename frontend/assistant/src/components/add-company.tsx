@@ -42,10 +42,10 @@ export const AddCompanyDialog: FC = () => {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-sheet) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           data-slot="cc-add-company"
-          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:0.8]"
+          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:var(--cc-add-company-share)]"
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
             <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
@@ -121,7 +121,7 @@ const Candidates: FC = () => {
 
   return (
     <>
-      <div className="shrink-0 px-5 pb-2">
+      <div className="shrink-0 px-(--cc-dialog-px) pb-(--cc-space-8)">
         <label className="cc-search">
           <input
             autoFocus
@@ -133,9 +133,9 @@ const Candidates: FC = () => {
           />
         </label>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3" data-slot="cc-candidates">
+      <div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">
         {rows === null ? (
-          <div className="flex justify-center py-6 text-ink-3">
+          <div className="flex justify-center py-(--cc-space-24) text-ink-3">
             <LoaderIcon className="size-4 animate-spin" />
           </div>
         ) : rows.length ? (
@@ -159,7 +159,7 @@ const Candidates: FC = () => {
             </button>
           ))
         ) : !search.trim() ? (
-          <div className="flex justify-center py-6">
+          <div className="flex justify-center py-(--cc-space-24)">
             <button type="button" className="cc-btn" disabled={refreshing} onClick={() => void refresh()}>
               {refreshing ? <LoaderIcon className="size-4 animate-spin" /> : <RefreshCwIcon className="size-4" />}
               {co.refreshSets}
@@ -168,7 +168,7 @@ const Candidates: FC = () => {
         ) : (
           <div className="px-2 py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
         )}
-        {error && <p role="alert" className="px-2 pt-2 text-danger text-sm">{error}</p>}
+        {error && <p role="alert" className="px-(--cc-space-8) pt-(--cc-space-8) text-danger text-sm">{error}</p>}
       </div>
     </>
   );
