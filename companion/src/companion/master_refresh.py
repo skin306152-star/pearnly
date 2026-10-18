@@ -13,7 +13,7 @@
 增量扫描(2026-10-18,老电脑也不长时间占核;办公室测试机 1353 份账套原来每次启动重扫 5 分钟、21.8 秒 CPU):
 - 每份账套读到的公司名 / 税号 / 默认科目 / 会计期间、各登记表的行、科目表连同文件的(大小, 修改时间)存在本机
   (account_index);重启后的第一遍只 stat,没变的不开 DBF,变了的才重读。启动时心跳先报上次的清单与科目表。
-- 扫描线程低一档优先级、限 CPU(scan_pace.Pace,平时 15% 个核);读完所选账套所在的数据根就先交一份「进行中」快照
+- 扫描线程主动让出 CPU(scan_pace.Pace,平时最多 15% 个核;不改 Windows 线程优先级,见 scan_pace 文件头);读完所选账套所在的数据根就先交一份「进行中」快照
   (``partial``,心跳把这些数据根换成新的、其余沿用上次报的),扫得慢时之后每隔一会儿再交一份,全部读完交完整快照。
 - 局域网服务器断开 / 很慢:每台服务器每轮先限时问一次(scan_pace.HostGate),不在就整台跳过、按 1–15 分钟退避,
   不反复卡在超时上,也不因为它反复整套重扫。
@@ -209,7 +209,6 @@ def _scan(
         from .account_index import INDEX
         from .account_probe import account_sets_payload, chart_accounts_payload
 
-        scan_pace.low_priority()  # 低优先级:别的程序要用 CPU 时先让(限 CPU 靠下面的 Pace)
         locator = device_facts.Locator()  # 本机共享表、各盘符的映射这一遍只问一次
         roots = _roots(express_root, authorized_roots)
         if discover and (force or INDEX.discovery_due(time.time(), _DISCOVER_INTERVAL_S)):

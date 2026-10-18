@@ -402,7 +402,6 @@ def test_pace_keeps_cpu_under_the_duty_cycle():
         pace.yield_cpu()
     assert cpu[0] / clock[0] <= 0.25 + 1e-9
     assert pace.slept == pytest.approx(sum(slept)) and pace.slept > 0
-    assert scan_pace.low_priority() in (True, False) and scan_pace.is_low_priority()
 
 
 def test_restart_does_not_search_every_drive_again_within_a_day(tmp_path, opened, monkeypatch):

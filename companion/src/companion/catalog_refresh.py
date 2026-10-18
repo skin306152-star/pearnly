@@ -42,9 +42,6 @@ def _stamp(previous: float) -> float:
 
 
 def _scan(key: str, account_dir: str) -> None:
-    from .scan_pace import low_priority
-
-    low_priority()  # 每 30 分钟例行读所选账套的目录：后台活，别的程序要用 CPU 时先让（2026-10-18）
     try:
         payload = catalog_payload(account_dir)
     except Exception:

@@ -396,13 +396,8 @@ def _deep_scan(parents: Sequence[str], total_seconds: float = _DEEP_TOTAL_SECOND
             seen.add(key)
             starts.append(str(parent))
     results: dict = {}
-    from . import scan_pace
-
-    low = scan_pace.is_low_priority()  # 后台扫账套清单时找新年度文件夹：查找线程也降一档（界面上人等着找的不降）
 
     def run(index: int, start: str) -> None:
-        if low:
-            scan_pace.low_priority()
         try:
             results[index] = _walk_data_roots(start, **limits)
         except Exception as exc:  # noqa: BLE001 - 某个起点读不了就跳过

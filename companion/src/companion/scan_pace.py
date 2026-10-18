@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """账套清单后台扫描的节奏（2026-10-18：老电脑也不长时间占核，局域网服务器断开 / 很慢时不卡、不反复整扫）。
 
-- ``low_priority()``：当前线程优先级降一档（Windows ``THREAD_PRIORITY_BELOW_NORMAL``：别的程序要用 CPU 时先让它们）；
-  别的系统什么都不做。线程记住自己降过，它再开的查找线程跟着降（``is_low_priority``）。
-  不用 Windows「后台模式」（``THREAD_MODE_BACKGROUND_BEGIN``，CPU 降到最低档）：扫描线程跑 Python 时拿着解释器锁（GIL），
-  被别的程序压得长时间轮不到时，CC 自己的托盘与拉取任务那条线也跟着等锁卡住；真正限 CPU 靠下面的 ``Pace``。
+- 「低优先级」靠自己让：扫描线程不改 Windows 线程优先级（``THREAD_PRIORITY_BELOW_NORMAL`` / 后台模式都不用）。CC 的托盘、拉取任务、
+  扫描都在一个 Python 进程里共用解释器锁（GIL）：降了优先级的扫描线程拿着锁时被别的程序抢走 CPU、长时间轮不到，CC 自己的托盘与
+  拉取任务那条线就跟着等锁卡住（优先级反转）。所以由下面的 ``Pace`` 主动让出 CPU：扫描最多占 15% 个核，其余都留给别的程序。
 - ``Pace``：每份账套读完调一次。按本线程累计用掉的 CPU 让出时间，使「CPU 时间 / 经过时间」不超过 ``duty``
   （平时 15% 个核：测试机原来首扫平均约 17%；网页「重新读取」有人在等，放宽到一半个核）；读网络盘等着的时间也算经过时间，
   所以以读盘为主的扫描几乎不额外变慢；Windows 的线程 CPU 计时 15.6 毫秒一跳，按累计算，跳得粗也不影响。某份账套光读文件就超过
@@ -42,8 +41,6 @@ PROBE_SECONDS = 5.0  # 问服务器在不在最多等这么久
 PROBE_FRESH_SECONDS = 30.0  # 问通了之后这么久内同一台不再问
 BACKOFF_SECONDS = (60.0, 120.0, 240.0, 480.0, 900.0)  # 连续问不通时下一次再问的间隔
 
-_THREAD_PRIORITY_BELOW_NORMAL = -1
-_local = threading.local()
 _kernel32 = None
 
 
@@ -57,33 +54,10 @@ def _win32():
         from ctypes import wintypes
 
         dll = ctypes.WinDLL("kernel32", use_last_error=True)
-        dll.GetCurrentThread.restype = wintypes.HANDLE
-        dll.GetCurrentThread.argtypes = ()
-        dll.SetThreadPriority.restype = wintypes.BOOL
-        dll.SetThreadPriority.argtypes = (wintypes.HANDLE, ctypes.c_int)
         dll.GetDriveTypeW.restype = wintypes.UINT
         dll.GetDriveTypeW.argtypes = (wintypes.LPCWSTR,)
         _kernel32 = dll
     return _kernel32
-
-
-def low_priority() -> bool:
-    """当前线程优先级降一档（只在 Windows 上真降）；返回 Windows 是否接受。可重复调用。"""
-    if getattr(_local, "low", False):
-        return True
-    _local.low = True
-    try:
-        kernel32 = _win32()
-        if kernel32 is None:
-            return False
-        return bool(kernel32.SetThreadPriority(kernel32.GetCurrentThread(), _THREAD_PRIORITY_BELOW_NORMAL))
-    except Exception:  # noqa: BLE001 - 降不了优先级就照常跑，靠 Pace 限 CPU
-        log.debug("扫描线程降不了优先级", exc_info=True)
-        return False
-
-
-def is_low_priority() -> bool:
-    return bool(getattr(_local, "low", False))
 
 
 class HostStalled(Exception):
@@ -296,5 +270,4 @@ class Pace:
             self.slept += pause
 
 
-__all__ = ["GATE", "HostGate", "HostStalled", "Pace", "drive_type", "host_of", "is_low_priority", "low_priority",
-           "network_error"]
+__all__ = ["GATE", "HostGate", "HostStalled", "Pace", "drive_type", "host_of", "network_error"]
