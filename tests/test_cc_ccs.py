@@ -695,8 +695,6 @@ const front = process.argv[2];
 # 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
 # 这不是豁免：表外的 --cc-* 没人引用就失败。
 AWAITING = {
-    # B2 组件库：提示框层级（tooltip.tsx，V7）
-    "--cc-z-tooltip": "B2",
     # B3 外壳：欢迎页、侧栏头、手机抽屉
     "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
     "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
@@ -846,6 +844,11 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertEqual(token_value(self.defs, "--cc-tooltip-delay"), f"{fallback}ms")
         self.assertIn('fixedMs("--cc-tooltip-delay", TOOLTIP_DELAY)', tooltip)
         self.assertIn("delayDuration={delayDuration ?? tooltipDelay()}", tooltip)
+        # V7：提示框盖过菜单（原来 50，被菜单 60 盖住）
+        self.assertEqual(tooltip.count("z-(--cc-z-tooltip)"), 2)
+        self.assertNotRegex(tooltip, r"\bz-\d")
+        self.assertEqual(token_value(self.defs, "--cc-z-tooltip"), "90")
+        self.assertGreater(int(token_value(self.defs, "--cc-z-tooltip")), int(token_value(self.defs, "--cc-z-confirm")))
         # 提示框不用在外面包 Provider：每个 Tooltip 自带一层，main.tsx、侧栏原来那几层从来不起作用
         self.assertNotIn("TooltipProvider", self.read("main.tsx"))
         self.assertNotIn("TooltipProvider", self.read("components/ui/sidebar.tsx"))
