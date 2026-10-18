@@ -58,6 +58,7 @@ ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统�
 - 断点只有一条 768：`hooks/use-mobile.ts` 的 `MOBILE_QUERY`、`@theme` 的 `--breakpoint-md`（`max-md: / md:`）、globals.css 的 `@media` 都是 `(width < 768px)` / `(width >= 768px)` 这一段文本（测试核对）。
 - 触屏的三种判定各管各的：`data-cc-touch`（`lib/variant.ts` 写：手机变体，或粗指针且不是桌面窗口）管尺寸与点按区，globals.css 用 `:root[data-cc-touch]`、组件用 `in-data-[cc-touch]:`；`data-cc-variant` 管外壳变体；`lib/touch.ts` 的 `touchOnly()`（`hover: none`）只管「没有悬停」时的行为（长按、操作常显），不管尺寸。
 - 只做舒适档，不加紧凑档。
+- 开着不操作不耗电（10-18 起，[静置动效记录](../work/2026-10-18-cc-idle-animations.md)）：装饰动画（产品形象小单的眨眼、笑、尾巴、铃铛、举牌、打勾）不无限循环，出现时播 `--cc-mascot-*-runs` 轮（轮数 × 时长不超过约 10 秒）后停在静止姿势——keyframes 的结尾就是不加动画时的样子；页面在后台（`visibilityState` hidden）时暂停、回到前台接着播；问候语换了且上一次已播完才再播一次。无限循环只留给「正在工作」的动画（按钮与行内转圈、等待回复的四点、在跑的对话行尾脉冲点、骨架、加载页形象上下浮），而且只在工作时挂载；减少动效时照旧不播（转圈除外）。动画轮数同时长一样只写 `var()`（闸门：globals.css 记 R13、任意属性记 R8、内联 style 记 R12）。`tests/test_cc_idle_motion.py` 核对：装饰动画轮数与总时长、静止姿势与 keyframes 首尾一致、infinite 白名单、组件里「在忙」动画与 `setInterval`、自排 `requestAnimationFrame` 的循环都登记了只在什么时候跑。
 
 ## 2. 对话里的卡片
 

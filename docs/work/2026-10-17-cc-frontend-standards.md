@@ -23,6 +23,7 @@
 | :- | :- |
 | B0 闸门与比对工具骨架 | 10-18 变基到 main（669427ca，之后只多了交接文档的 249f5928），本地全闸门 87 步全过，推分支等 Development checks 通过后快进合入 main；不碰 `src`，无画面变化，不部署 |
 | B1 标准层 | `pearnly/cc-std-b1`（基线 c4ab0c3e，工作树 `.claude/worktrees/cc-std-b1`），提交见下面「B1 做了什么」；纯替换 4 个提交逐个比对 0 样式差、0 像素差，画面变化 V2 / V3 / V4 / V6 / V37 逐个比对只差预期的项；本地全闸门 87 步全过。比对报告 `~/pearnly-devtools/cc-std-b1/reports/`，画面变化前后图 `~/pearnly-devtools/cc-std-b1/visual/`。**未推送、未合入 main、未部署；待测试窗口验收**（V3、V4、V37 的触屏与中间宽度要用户手机 / 平板走） |
+| 插批：静置动效 | `pearnly/cc-idle-anim`（基线 cc-std-b1 顶端 f1978271）：首页小猫的 7 个装饰动画不再无限循环，出现时播几轮（`--cc-mascot-*-runs`，最多 10 秒）就停；闸门加「动画轮数只写 var()」；见 [静置动效记录](2026-10-18-cc-idle-animations.md)。未推送、未合入 main、待测试机复测 |
 | B2–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
@@ -388,7 +389,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 
 - 已有 `--cc-dur-instant / fast / dur / slow / pop`，即 60 / 120 / 200 / 300 / 450（引用 `--code-dur-1…5`）。
 - 新增，都照现值登记：`--cc-spin-dur` 1s（按钮里转圈）、`--cc-skeleton-dur`（现在 2s，见 V5）、`--cc-bob-dur` 1.4s（加载页形象上下浮）、`--cc-dots-dur` 1.2s 与 `--cc-dots-step` 0.3s（`.cc-spin` 四点转圈和它的错开延时）、`--cc-tooltip-delay` 0（Claude 未测）。
-- 形象动画（`globals.css` 2229–2241 行，尾巴 2.6s、铃铛 2.2s、举牌与打勾 5s、笑 8s、眨眼 5s，`ease-in-out` / `ease-out`）登记成 `--cc-mascot-*-dur` 和对应缓动变量，注释「照搬宣传页」，节奏不改。
+- 形象动画（`globals.css` 2229–2241 行，尾巴 2.6s、铃铛 2.2s、举牌与打勾 5s、笑 8s、眨眼 5s，`ease-in-out` / `ease-out`）登记成 `--cc-mascot-*-dur` 和对应缓动变量，注释「照搬宣传页」，节奏不改。10-18 起不再无限循环：轮数登记成 `--cc-mascot-*-runs`（CC 自定，最多 10 秒），见[静置动效记录](2026-10-18-cc-idle-animations.md)。
 - `--cc-results-in` 240ms 和 `--cc-dur-drawer` 380ms 不在时长阶上，照现值保留，补出处注释：前者为现有值·CC 自定，后者为外壳实测。不挪到阶上。
 - `@theme` 补上 `--default-transition-duration: var(--cc-dur-fast)` 和 `--default-transition-timing-function: var(--cc-ease)`（V2）。
 - **不登记** `--cc-shimmer-dur`：src 里没有任何 shimmer 用法，B1 删掉 `@import "tw-shimmer"`（globals.css:3）、`--animate-shimmer`、`shimmer-sweep` 关键帧和没人用的 `collapsible-down / up` 关键帧。
