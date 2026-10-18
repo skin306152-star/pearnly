@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div role="alert" className="flex h-(--cc-vh) w-full items-center justify-center bg-app">
         <button type="button" className="cc-btn" onClick={() => location.reload()}>
-          <RotateCwIcon className="size-4" />
+          <RotateCwIcon />
           {t("reload")}
         </button>
       </div>

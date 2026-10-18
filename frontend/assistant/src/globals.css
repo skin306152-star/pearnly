@@ -848,8 +848,7 @@
 :root {
   /* 外壳 */
   --cc-sidebar-pad: var(--cc-space-8);           /* 侧栏左右内边距 */
-  --cc-sidebar-head-pt: var(--cc-space-8);       /* 侧栏头上下 8 / 4 */
-  --cc-sidebar-head-pb: var(--cc-space-4);
+  --cc-sidebar-head-pb: var(--cc-space-4);       /* 侧栏头下 4（上 0：网页的标题区、桌面版的标题栏自带高度） */
   --cc-titlebar-gap: var(--cc-space-2);          /* 桌面窗口标题栏里控件之间 */
   --cc-topbar-gap: var(--cc-space-4);            /* 电脑对话顶栏里控件之间 */
   --cc-nav-pad: var(--cc-space-6);               /* 导航行左右内边距（新建、待处理、定时任务、公司） */
@@ -862,6 +861,7 @@
   --cc-logo: var(--cc-control-xs);               /* 24：侧栏头的 logo */
   --cc-mavatar: 48px;             /* 外壳实测：手机抽屉左下头像 */
   --cc-winbtn-w: 46px;            /* 系统值：Windows 窗口按钮宽 */
+  --cc-mirror: -1;                /* 现有值·CC 自定：水平镜像（CC 桌面版「还原」按钮的两个方框，同 Windows） */
   --cc-win-titlebar-h: 40px;      /* 外壳实测：CC 桌面版自画标题栏高（同 Claude 桌面端；别与对话顶栏 --cc-topbar-h 32 混） */
   --cc-mdrawer-px: var(--cc-space-16);           /* 手机抽屉：标题、搜索左右（外壳实测） */
   --cc-mdrawer-list-px: var(--cc-space-12);      /* 手机抽屉：列表左右（外壳实测） */

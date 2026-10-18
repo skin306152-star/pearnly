@@ -699,11 +699,9 @@ const front = process.argv[2];
 # 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
 # 这不是豁免：表外的 --cc-* 没人引用就失败。
 AWAITING = {
-    # B3 外壳：欢迎页、侧栏头、手机抽屉
-    "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
-    "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
-    "--cc-mdrawer-tray-px": "B3", "--cc-mdrawer-tail": "B3",
-    "--cc-menu-w-sm": "B3", "--cc-menu-w-md": "B3", "--cc-menu-w-lg": "B3", "--cc-menu-w-max": "B3",
+    # 菜单宽档：160（--cc-menu-w-sm）B3 已接上；176 是设置里的菜单（B4），208 / 最宽 288 是公司胶囊菜单（projects.tsx，B6）。
+    # B3 外壳的其余几项（欢迎页、侧栏头、手机抽屉）都已接上
+    "--cc-menu-w-md": "B4", "--cc-menu-w-lg": "B6", "--cc-menu-w-max": "B6",
     # B4 弹窗与列表页：设置弹窗、删除确认的层级、列表预取的 rootMargin
     "--cc-settings-w": "B4", "--cc-settings-w-max": "B4", "--cc-settings-h": "B4", "--cc-settings-share": "B4",
     "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",

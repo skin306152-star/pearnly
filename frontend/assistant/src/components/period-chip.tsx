@@ -42,7 +42,7 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+        <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <PeriodChoices value={value} onChange={onChange} allowNone={allowNone} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -97,7 +97,7 @@ export const BranchChip: FC<
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+        <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <BranchChoices branches={branches} value={value} onChange={onChange} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
