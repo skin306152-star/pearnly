@@ -11,7 +11,7 @@
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, XIcon } from "lucide-react";
 import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
@@ -262,7 +262,6 @@ const PendingGroup: FC<{
       )}
       {hand.length > 0 && (
         <button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
-          <SparklesIcon />
           {co.handToCC}
         </button>
       )}
@@ -399,7 +398,6 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         <>
           {view.wait?.message && <p className="text-ink-3 text-body">{view.wait.message}</p>}
           <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-            <SparklesIcon />
             {co.handToCC}
           </button>
         </>
@@ -491,7 +489,6 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
       )}
       {open && sets && !sets.length && (
         <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-          <SparklesIcon />
           {co.handToCC}
         </button>
       )}

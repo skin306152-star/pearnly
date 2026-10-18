@@ -1463,6 +1463,12 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertNotRegex(pending, r"cc-card-btn[^>]*>\s*<\w+Icon className=\"[^\"]*size-")
         self.assertEqual(token_value(self.defs, "--cc-card-btn-icon-phone"), "22px")
 
+    def test_card_buttons_carry_no_icon(self):
+        # V21（B4）：ccs.md「卡片按钮不带图标」（用户 10-17，点名待处理「交给 CC」）：去掉 Sparkles；转圈只在忙时出现
+        pending = self.read("components/pending.tsx")
+        self.assertNotIn("Sparkles", pending)
+        self.assertEqual(pending.count("{co.handToCC}"), 3)
+
 
 if __name__ == "__main__":
     unittest.main()
