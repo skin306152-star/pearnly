@@ -230,11 +230,8 @@ function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }
     <div className="flex h-full flex-col items-center justify-center gap-(--cc-space-12) text-muted-foreground text-body">
       <FileTypeIcon filename={file.filename} className="size-(--cc-icon-2xl)" />
       <Marquee className="max-w-4/5 truncate text-foreground">{file.filename}</Marquee>
-      <a
-        href={fileUrl(sessionId, file.id)}
-        className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-foreground hover:bg-muted"
-      >
-        <DownloadIcon className="size-4" />
+      <a href={fileUrl(sessionId, file.id)} className="cc-btn">
+        <DownloadIcon />
         {t("download")}
       </a>
     </div>
@@ -419,18 +416,18 @@ export function ResultsPanel({
           href={fileUrl(sessionId, current.id)}
           title={t("download")}
           aria-label={t("download")}
-          className="flex size-8 items-center justify-center rounded-md text-ink-2 hover:bg-muted"
+          className="cc-icon-btn cc-tap"
         >
-          <DownloadIcon className="size-4" />
+          <DownloadIcon />
         </a>
         <button
           type="button"
           onClick={onClose}
           title={t("close")}
           aria-label={t("close")}
-          className="flex size-8 items-center justify-center rounded-md text-ink-2 hover:bg-muted"
+          className="cc-icon-btn cc-tap"
         >
-          <XIcon className="size-4" />
+          <XIcon />
         </button>
       </header>
       <div className="min-h-0 flex-1">
