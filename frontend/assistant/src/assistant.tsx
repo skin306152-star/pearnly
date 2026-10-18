@@ -119,16 +119,16 @@ function Welcome() {
   const profile = useProfile();
   const name = firstName(profile);
   const mascot = assistantMascot();
+  const hello = name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting();
   return (
     <div className="flex flex-col items-center gap-5">
       {/* 在哪儿打开就引导装到哪儿（电脑下载桌面版、手机装成应用），关掉后不再出现 */}
       <InstallBanner />
       <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-2 px-4 text-center md:flex-row md:gap-3">
         {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
-        {mascot && <Mascot src={mascot} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
-        <h1 className="cc-greeting text-3xl md:text-4xl">
-          {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
-        </h1>
+        {/* 问候语换了（名字取回、换了时段）再播一次小动画（上一次没播完就不打断） */}
+        {mascot && <Mascot src={mascot} play={hello} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
+        <h1 className="cc-greeting text-3xl md:text-4xl">{hello}</h1>
       </div>
       {/* 手机：公司、月份、分店在问候下面（同线上旧版的公司条）；电脑在输入框下巴里 */}
       <WelcomeFiling />

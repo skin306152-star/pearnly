@@ -1011,6 +1011,15 @@
   --cc-mascot-tick-dur: 5s;       /* 照搬宣传页：泡泡里的勾 */
   --cc-mascot-ease: ease-in-out;  /* 照搬宣传页 */
   --cc-mascot-ease-out: ease-out; /* 照搬宣传页 */
+  /* 每个小动画出现一次播几轮：轮数 × 时长不超过约 10 秒（tests/test_cc_idle_motion.py 核对），播完停在静止姿势。
+     宣传页是无限循环，这里不循环：10-18 测试机上 7 个无限循环让静置的 CC 桌面版约占 0.8 核（docs/work/2026-10-18-cc-idle-animations.md） */
+  --cc-mascot-blink-runs: 2;      /* CC 自定：2 × 5s，眨两次眼 */
+  --cc-mascot-laugh-runs: 1;      /* CC 自定：1 × 8s，笑一下 */
+  --cc-mascot-tail-runs: 3;       /* CC 自定：3 × 2.6s */
+  --cc-mascot-bell-runs: 4;       /* CC 自定：4 × 2.2s */
+  --cc-mascot-hold-runs: 2;       /* CC 自定：2 × 5s */
+  --cc-mascot-tick-runs: 2;       /* CC 自定：2 × 5s，勾画两次 */
+  --cc-reduced-runs: 1;           /* 现有值·CC 自定：减少动效时动画只走一轮（转圈除外） */
   /* 新共用类（标准化记录 2.3）用到的 */
   --cc-toast-bottom: var(--cc-space-24);         /* toast 离底 */
   --cc-toast-py: 10px;            /* 现有值·CC 自定：toast 上下 */
@@ -2601,19 +2610,23 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 .hd-badge { overflow: visible; }
 .hd-badge .hm-shadow { display: none; }
 .hd-badge .hm-hop { stroke-width: 3; }
-.hm .hm-eyes { animation: hm-blink var(--cc-mascot-blink-dur) infinite; transform-box: fill-box; transform-origin: center; }
+.hm .hm-eyes { animation: hm-blink var(--cc-mascot-blink-dur) var(--cc-mascot-blink-runs); transform-box: fill-box; transform-origin: center; }
 @keyframes hm-blink { 0%, 95%, 100% { transform: none; } 97% { transform: scaleY(.1); } }
 .hm-laser { opacity: .35; }
-/* CC（吐司胖橘）：隔一会儿眯眼张嘴笑一下，鼠标放上去也笑；尾巴摆、铃铛晃、泡泡里的勾反复画出来（同入口登录页） */
+/* CC（吐司胖橘）：出现时眨眼、眯眼张嘴笑一下，尾巴摆、铃铛晃、举牌、泡泡里的勾画出来，各播几轮（--cc-mascot-*-runs）后停在静止姿势——
+   每个 keyframes 的结尾就是不加动画时的样子，停下不跳；鼠标放上去也笑。宣传页、入口登录页是无限循环，这里不循环（见变量处的说明）。
+   页面在后台（visibilityState hidden）时停住、回到前台接着播；回放（components/mascot.tsx）先摘掉动画再挂回，从头播。 */
 .hm-laugh { opacity: 0; }
-.hm-cc .hm-calm { animation: cc-calm var(--cc-mascot-laugh-dur) infinite; } .hm-cc .hm-laugh { animation: cc-laugh var(--cc-mascot-laugh-dur) infinite; }
+.hm-cc .hm-calm { animation: cc-calm var(--cc-mascot-laugh-dur) var(--cc-mascot-laugh-runs); } .hm-cc .hm-laugh { animation: cc-laugh var(--cc-mascot-laugh-dur) var(--cc-mascot-laugh-runs); }
 @keyframes cc-calm { 0%, 72%, 92%, 100% { opacity: 1; } 75%, 89% { opacity: 0; } }
 @keyframes cc-laugh { 0%, 72%, 92%, 100% { opacity: 0; } 75%, 89% { opacity: 1; } }
 .hm-cc:hover .hm-calm { animation: none; opacity: 0; } .hm-cc:hover .hm-laugh { animation: none; opacity: 1; }
-.cc-tail { animation: cc-tail var(--cc-mascot-tail-dur) var(--cc-mascot-ease) infinite; } @keyframes cc-tail { 50% { transform: rotate(-14deg); } }
-.cc-bell { animation: cc-bell var(--cc-mascot-bell-dur) var(--cc-mascot-ease) infinite; } @keyframes cc-bell { 25% { transform: rotate(12deg); } 75% { transform: rotate(-12deg); } }
-.cc-hold { animation: cc-hold var(--cc-mascot-hold-dur) var(--cc-mascot-ease) infinite; } @keyframes cc-hold { 50% { transform: rotate(-5deg); } }
-.cc-tick { stroke-dasharray: 1; animation: cc-tick var(--cc-mascot-tick-dur) var(--cc-mascot-ease-out) infinite; } @keyframes cc-tick { 0% { stroke-dashoffset: 1; } 18%, 100% { stroke-dashoffset: 0; } }
+.cc-tail { animation: cc-tail var(--cc-mascot-tail-dur) var(--cc-mascot-ease) var(--cc-mascot-tail-runs); } @keyframes cc-tail { 50% { transform: rotate(-14deg); } }
+.cc-bell { animation: cc-bell var(--cc-mascot-bell-dur) var(--cc-mascot-ease) var(--cc-mascot-bell-runs); } @keyframes cc-bell { 25% { transform: rotate(12deg); } 75% { transform: rotate(-12deg); } }
+.cc-hold { animation: cc-hold var(--cc-mascot-hold-dur) var(--cc-mascot-ease) var(--cc-mascot-hold-runs); } @keyframes cc-hold { 50% { transform: rotate(-5deg); } }
+.cc-tick { stroke-dasharray: 1; animation: cc-tick var(--cc-mascot-tick-dur) var(--cc-mascot-ease-out) var(--cc-mascot-tick-runs); } @keyframes cc-tick { 0% { stroke-dashoffset: 1; } 18%, 100% { stroke-dashoffset: 0; } }
+.pearnly-mascot-host[data-cc-paused] :is(.hm-eyes, .hm-calm, .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick) { animation-play-state: paused; }
+.pearnly-mascot-host[data-cc-replay] :is(.hm-eyes, .hm-calm, .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick) { animation: none; }
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes, .hm-cc .hm-calm, .hm-cc .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
 
@@ -2637,7 +2650,7 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 :root[data-cc-font="sans"] { --cc-font-reply: var(--cc-font-sans); }
 :root[data-cc-motion="reduce"] *:not(.animate-spin, .cc-spinner, .cc-spin i),
 :root[data-cc-motion="reduce"] ::before,
-:root[data-cc-motion="reduce"] ::after { animation-duration: var(--cc-dur-reduced) !important; animation-iteration-count: 1 !important; transition-duration: var(--cc-dur-reduced) !important; scroll-behavior: auto !important; }
+:root[data-cc-motion="reduce"] ::after { animation-duration: var(--cc-dur-reduced) !important; animation-iteration-count: var(--cc-reduced-runs) !important; transition-duration: var(--cc-dur-reduced) !important; scroll-behavior: auto !important; }
 
 /* 对话文字大小（设置 → 常规，lib/desktop.ts 写在 <html data-text-size>）：只缩放对话记录 */
 html[data-text-size="small"] [data-slot="aui_message-group"] { zoom: 0.92; }
