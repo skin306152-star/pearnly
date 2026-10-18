@@ -227,7 +227,7 @@ function SheetTable({ rows }: { rows: string[][] }) {
 
 function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-(--cc-space-12) text-muted-foreground text-sm">
+    <div className="flex h-full flex-col items-center justify-center gap-(--cc-space-12) text-muted-foreground text-body">
       <FileTypeIcon filename={file.filename} className="size-(--cc-icon-2xl)" />
       <Marquee className="max-w-4/5 truncate text-foreground">{file.filename}</Marquee>
       <a
@@ -407,7 +407,7 @@ export function ResultsPanel({
         <select
           value={current.id}
           onChange={(e) => onSelect(e.target.value)}
-          className="min-w-0 flex-1 truncate bg-transparent font-medium text-sm outline-none"
+          className="min-w-0 flex-1 truncate bg-transparent font-medium text-body outline-none"
         >
           {files.map((f) => (
             <option key={f.id} value={f.id}>

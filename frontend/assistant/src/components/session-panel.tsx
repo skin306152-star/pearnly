@@ -230,7 +230,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
           <LoaderIcon className="size-4 animate-spin" />
         </div>
       )}
-      {error && <p role="alert" className="px-2 text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="px-(--cc-space-8) text-danger text-body">{error}</p>}
       <SortableCards cards={cards} scope={company} />
     </aside>
   );

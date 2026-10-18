@@ -465,7 +465,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
             <FolderIcon />
             <span className="min-w-0 flex-1">
               <Marquee className="block truncate" title={f.label}>{[f.device, f.label].filter(Boolean).join(" · ")}</Marquee>
-              <Marquee className="block truncate text-ink-3 text-xs">
+              <Marquee className="block truncate text-ink-3 text-caption">
                 {[folderState(f), f.month_folder ? co.monthFolder(f.month_folder) : ""].filter(Boolean).join(" · ")}
               </Marquee>
             </span>
@@ -509,7 +509,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
 const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) => (
   <div className="cc-list-row cursor-default" data-covering={covering || undefined}>
     <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
-    <span className="shrink-0 text-ink-3 text-xs">{set.year_label}</span>
+    <span className="shrink-0 text-ink-3 text-caption">{set.year_label}</span>
   </div>
 );
 
@@ -585,7 +585,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
           <button key={task.name} type="button" className="cc-list-row" onClick={() => open(task.name)}>
             <span className="min-w-0 flex-1">
               <Marquee className="block truncate text-ink">{task.title}</Marquee>
-              <Marquee className="block truncate text-ink-3 text-xs">
+              <Marquee className="block truncate text-ink-3 text-caption">
                 {[task.follows ? co.followCompany : task.account_label, task.folder_label].filter(Boolean).join(" · ")}
               </Marquee>
             </span>
@@ -610,7 +610,7 @@ export const DraftsSection: FC<{ company: string; drafts: Draft[]; branches: Bra
   const row = (d: Draft) => (
     <button key={d.name} type="button" className="cc-list-row" onClick={() => open(d)}>
       <Marquee className="min-w-0 flex-1 truncate text-ink">{[d.period, d.kind].filter(Boolean).join(" · ")}</Marquee>
-      <span className="shrink-0 text-ink-3 text-xs">{formatWhen(d.updated_at)}</span>
+      <span className="shrink-0 text-ink-3 text-caption">{formatWhen(d.updated_at)}</span>
     </button>
   );
   const grouped = branches.length > 1 && !combined;
