@@ -140,15 +140,15 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .contacts a{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-size:13px;text-decoration:none;padding:2px 0;border-bottom:1px solid transparent}
 .contacts a:hover{border-bottom-color:var(--line-strong)}
 .hm-spark{transform-box:fill-box;transform-origin:center}
-.hm-spark{animation:twinkle 2.2s ease-in-out infinite}
-.hm-laugh{opacity:0}.hm-ai .hm-calm,.hm-ai .hm-laugh,.hm-cc .hm-calm,.hm-cc .hm-laugh{animation:tomo-calm 8s infinite}.hm-ai .hm-laugh,.hm-cc .hm-laugh{animation-name:tomo-laugh}
+.hm-spark{animation:twinkle 2.2s ease-in-out}
+.hm-laugh{opacity:0}.hm-ai .hm-calm,.hm-ai .hm-laugh,.hm-cc .hm-calm,.hm-cc .hm-laugh{animation:tomo-calm 8s}.hm-ai .hm-laugh,.hm-cc .hm-laugh{animation-name:tomo-laugh}
 .hm-cc .hm-calm,.hm-cc .hm-laugh{animation-delay:-3s}
 @keyframes tomo-calm{0%,72%,92%,100%{opacity:1}75%,89%{opacity:0}}@keyframes tomo-laugh{0%,72%,92%,100%{opacity:0}75%,89%{opacity:1}}
 .hm-ai:hover .hm-calm,.hm-cc:hover .hm-calm,.hm.hm-laughing .hm-calm{animation:none;opacity:0}.hm-ai:hover .hm-laugh,.hm-cc:hover .hm-laugh,.hm.hm-laughing .hm-laugh{animation:none;opacity:1}
-.cc-tail{animation:cc-tail 2.6s ease-in-out infinite}@keyframes cc-tail{50%{transform:rotate(-14deg)}}
-.cc-bell{animation:cc-bell 2.2s ease-in-out infinite}@keyframes cc-bell{25%{transform:rotate(12deg)}75%{transform:rotate(-12deg)}}
-.cc-hold{animation:cc-hold 5s ease-in-out infinite}@keyframes cc-hold{50%{transform:rotate(-5deg)}}
-.cc-tick{stroke-dasharray:1;animation:cc-tick 5s ease-out infinite}@keyframes cc-tick{0%{stroke-dashoffset:1}18%,100%{stroke-dashoffset:0}}
+.cc-tail{animation:cc-tail 2.6s ease-in-out}@keyframes cc-tail{50%{transform:rotate(-14deg)}}
+.cc-bell{animation:cc-bell 2.2s ease-in-out}@keyframes cc-bell{25%{transform:rotate(12deg)}75%{transform:rotate(-12deg)}}
+.cc-hold{animation:cc-hold 5s ease-in-out}@keyframes cc-hold{50%{transform:rotate(-5deg)}}
+.cc-tick{stroke-dasharray:1;animation:cc-tick 5s ease-out}@keyframes cc-tick{0%{stroke-dashoffset:1}18%,100%{stroke-dashoffset:0}}
 .or{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:var(--faint);font-size:12.5px}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .who{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 6px 0 14px;border-radius:12px;background:var(--soft);margin-bottom:10px;font-size:15px;color:var(--ink)}
@@ -181,7 +181,7 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .scene-svg{display:block;width:100%;height:100%;overflow:visible}.scene-svg.phone{display:none}
 .hm-hop,.hm-eyes,.deco,.dot{transform-box:fill-box;transform-origin:center}
 .hm-arm,.hm-wave,.hm-leg{transition:transform .35s var(--ease)}
-.hm .hm-eyes{animation:blink 5s infinite}
+.hm .hm-eyes{animation:blink 5s}
 @keyframes blink{0%,95%,100%{transform:none}97%{transform:scaleY(.1)}}
 .hm.hm-hopping .hm-hop{animation:hop .6s var(--ease)}
 @keyframes hop{35%{transform:translateY(-22px)}60%{transform:translateY(0) scaleY(.94)}}
@@ -192,15 +192,15 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .hm-flash{opacity:0}.hm.hm-snap .hm-flash{animation:flash .5s .2s ease-out both}@keyframes flash{0%{opacity:.95}100%{opacity:0}}
 .hm-laser{opacity:.35;transition:opacity .15s}.hm.hm-beep .hm-laser{opacity:1}
 .shy .hm .hm-eyes{animation:none;transform:scaleY(.1)}.shy .hm .hm-mouth{transform:scale(.7,.6)}
-.bubble{animation:float 5s ease-in-out infinite}.b2{animation-delay:-1.2s}.b3{animation-delay:-2.4s}.b4{animation-delay:-3.6s}
+.bubble{animation:float 5s ease-in-out}.b2{animation-delay:-1.2s}.b3{animation-delay:-2.4s}.b4{animation-delay:-3.6s}
 @keyframes float{50%{transform:translateY(-7px)}}
-.dot{animation:typing 1.2s infinite}.d1{animation-delay:.15s}.d2{animation-delay:.3s}
+.dot{animation:typing 1.2s}.d1{animation-delay:.15s}.d2{animation-delay:.3s}
 @keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-5px);opacity:1}}
-.sparkle{animation:twinkle 2.6s ease-in-out infinite}.s2{animation-delay:-.7s}.s3{animation-delay:-1.4s}.s4{animation-delay:-2s}
+.sparkle{animation:twinkle 2.6s ease-in-out}.s2{animation-delay:-.7s}.s3{animation-delay:-1.4s}.s4{animation-delay:-2s}
 @keyframes twinkle{50%{transform:scale(.55) rotate(25deg);opacity:.5}}
-.drift{animation:drift 7s ease-in-out infinite}.r2{animation-delay:-3s}
+.drift{animation:drift 7s ease-in-out}.r2{animation-delay:-3s}
 @keyframes drift{50%{transform:translate(6px,-10px) rotate(8deg)}}
-.plane{animation:glide 9s ease-in-out infinite}
+.plane{animation:glide 9s ease-in-out}
 @keyframes glide{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-12px)}}
 .step{animation:in .35s var(--ease)}@keyframes in{from{opacity:0;transform:translateY(6px)}}
 @media (max-width:640px){.card{padding:20px;border-radius:18px}.top{position:static;align-self:stretch;padding:14px 16px}.hero{padding-top:clamp(16px,4vh,48px)}.scene{padding-top:24px}.scene-svg.wide{display:none}.scene-svg.phone{display:block}}
@@ -211,24 +211,28 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 # 背景点阵（宣传页 site.js dots() 原样）+ 小人：眼睛跟鼠标、随机做自己的动作、点一下跳、输密码时闭眼。
 # 点阵任何时候最多一条绘制循环（raf 记着排着的那一帧）：页面看不见时取消、停画，变回看得见时没有排着的才另起；改窗口大小只重画一次，
 # 不另起循环（10-18：原来每次从看不见变回看得见、每次改窗口大小都多一条循环，越开越费；样子不变）。
+# 动的都只走一轮（用户 10-18 晚：「登录页的小猫和装饰动画改为就循环一次」，录制机实测开着登录页约 1.2 个核）：点阵波浪走一个周期
+# （sin(t·0.7)，约 9 秒，周期末与开头同一画面）就停画，之后只在鼠标移动、点阵跟着鼠标还没跟完时画；小人随机动作每个轮一次就停；
+# 样式里的形象与装饰动画（见 CSS）只播一次。点一下跳、悬停笑、眼睛跟鼠标、输密码闭眼照旧。
 JS = """
 (function(){var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-var canvas=document.querySelector('canvas.dots');if(canvas&&canvas.getContext){var ctx=canvas.getContext('2d'),GAP=22,R=1,REACH=150,w=0,h=0,dpr=1,mouse={x:-9999,y:-9999,tx:-9999,ty:-9999},t0=performance.now();
+var canvas=document.querySelector('canvas.dots');if(canvas&&canvas.getContext){var ctx=canvas.getContext('2d'),GAP=22,R=1,REACH=150,w=0,h=0,dpr=1,mouse={x:-9999,y:-9999,tx:-9999,ty:-9999},t0=performance.now(),END=2*Math.PI/.7*1000,drawn=0;
 function size(){dpr=Math.min(window.devicePixelRatio||1,2);w=innerWidth;h=innerHeight;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#141413'}
-function draw(now){var t=(now-t0)/1000;mouse.x+=(mouse.tx-mouse.x)*.12;mouse.y+=(mouse.ty-mouse.y)*.12;ctx.clearRect(0,0,w,h);
+function draw(now){drawn=Math.min(now-t0,END);var t=drawn/1000;mouse.x+=(mouse.tx-mouse.x)*.12;mouse.y+=(mouse.ty-mouse.y)*.12;ctx.clearRect(0,0,w,h);
 for(var y=0;y<h+GAP;y+=GAP){for(var x=GAP/2;x<w;x+=GAP){var wave=reduce?0:.5+.5*Math.sin(t*.7-(x+y)*.008),a=.10+wave*.06,r=R,px=x,py=y,dx=x-mouse.x,dy=y-mouse.y,d=Math.sqrt(dx*dx+dy*dy);
 if(d<REACH){var k=1-d/REACH;k=k*k;a+=k*.45;r+=k*1.3;if(d>.1){px+=dx/d*k*7;py+=dy/d*k*7}}ctx.globalAlpha=a;ctx.beginPath();ctx.arc(px,py,r,0,6.2832);ctx.fill()}}
 }
 var raf=0;function frame(now){raf=0;draw(now);loop()}
-function loop(){if(!reduce&&!document.hidden&&!raf)raf=requestAnimationFrame(frame)}
+function moving(){return drawn<END||Math.abs(mouse.tx-mouse.x)+Math.abs(mouse.ty-mouse.y)>.5}
+function loop(){if(!reduce&&!document.hidden&&!raf&&moving())raf=requestAnimationFrame(frame)}
 size();draw(performance.now());loop();addEventListener('resize',function(){size();draw(performance.now())});
-if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.ty=e.clientY},{passive:true});document.addEventListener('pointerleave',function(){mouse.tx=mouse.ty=-9999});
+if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.ty=e.clientY;loop()},{passive:true});document.addEventListener('pointerleave',function(){mouse.tx=mouse.ty=-9999;loop()});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)loop();else if(raf){cancelAnimationFrame(raf);raf=0}})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
 function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0||k.indexOf('hm-cc')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
 window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000);play(m,'hm-laughing',2000)},i*120)})};
-if(!reduce){setInterval(function(){var m=all[Math.floor(Math.random()*all.length)];if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
+if(!reduce){var round=all.slice().sort(function(){return Math.random()-.5}),turns=setInterval(function(){var m=round.shift();if(!round.length)clearInterval(turns);if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
 all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700);play(m,'hm-laughing',1400)})});
 document.addEventListener('focusin',function(e){if(e.target.type==='password')document.body.classList.add('shy')});
 document.addEventListener('focusout',function(e){if(e.target.type==='password')document.body.classList.remove('shy')});
