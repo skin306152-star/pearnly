@@ -716,7 +716,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="grid auto-rows-auto grid-cols-[minmax(var(--cc-bubble-min),1fr)_auto] content-start gap-y-(--cc-space-8) px-(--cc-space-8) [contain-intrinsic-size:auto_var(--cc-msg-intrinsic)] [content-visibility:auto]"
+      className="cc-user-row [contain-intrinsic-size:auto_var(--cc-msg-intrinsic)] [content-visibility:auto]"
       data-role="user"
     >
       <UserMessageAttachments />
