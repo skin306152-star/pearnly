@@ -551,7 +551,7 @@ def _assistant_payload(dep) -> dict:
 
 def _ocr_payload(dep, site, group) -> dict:
     """识别底座 + 本租户选的识别引擎（ADR-022：google / claude，租户表单与开户单可选）。"""
-    engine = (frappe.db.get_value("Pearnly Tenant", dep.tenant, "ocr_engine") if dep.tenant else None) or "Google"
+    engine = (frappe.db.get_value("Pearnly Tenant", dep.tenant, "ocr_engine") if dep.tenant else None) or "Claude"
     return {"site": site, "group": group, "engine": engine.lower()}
 
 

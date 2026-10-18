@@ -229,8 +229,8 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
         tenant = _find_or_create_tenant(doc.tenant_name)
         # 开户单选的识别引擎落到租户上（ADR-022）；开户计划的 set_ocr 读租户这一份。
-        if (doc.get("ocr_engine") or "Google") != (frappe.db.get_value(TENANT, tenant, "ocr_engine") or "Google"):
-            frappe.db.set_value(TENANT, tenant, "ocr_engine", doc.get("ocr_engine") or "Google")
+        if (doc.get("ocr_engine") or "Claude") != (frappe.db.get_value(TENANT, tenant, "ocr_engine") or "Claude"):
+            frappe.db.set_value(TENANT, tenant, "ocr_engine", doc.get("ocr_engine") or "Claude")
         # 开出来的租户**余额是 0**（用户 2026-09-18 确认的口径）：
         # 钱包这时候就建好，免得第一次用 OCR 时才发现没账本。
         from pearnly_control import billing, infra

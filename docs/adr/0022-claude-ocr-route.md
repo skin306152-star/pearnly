@@ -12,7 +12,7 @@
 
 ## 决定
 
-1. **两条路线互不调用。** 站点配置 `pearnly_ocr_engine` = `google`（默认）或 `claude`。选 `claude` 的租户，识别全程只调 Anthropic：
+1. **两条路线互不调用。** 站点配置 `pearnly_ocr_engine` = `google`（站点上未设时）或 `claude`；控制面租户与开户单的默认值 2026-10-18 起是 Claude（用户：新开户默认走 Claude），所以新开的站点都写 `claude`。选 `claude` 的租户，识别全程只调 Anthropic：
    不调 Vertex / Vision / Document AI，失败也不转谷歌；谷歌路线代码一行不改。
 2. **一套引擎、三个产品的全部识别入口。** 选 Claude 的站点：Cowork 录入（图片 / PDF、Excel / Word 表格按逻辑页文字）、销项税核查的发票、
    对账三类文档（银行账单 / 总账 / 销项税报告，扫描件与照片逐页读，结果按原企业档格式拼页，下游对账不动）；ERP 采购 / 销售（含 LINE）；

@@ -51,7 +51,7 @@
    "fieldtype": "Select",
    "label": "Recognition Engine",
    "options": "Google\nClaude",
-   "default": "Google",
+   "default": "Claude",
    "description": "Google or Claude. A change applies from the next document."
   },
   {
@@ -62,7 +62,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-18 03:00:00.000000",
+ "modified": "2026-10-18 21:30:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Tenant",
