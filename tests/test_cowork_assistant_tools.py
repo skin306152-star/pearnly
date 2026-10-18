@@ -2527,6 +2527,14 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertNotIn("only a person can change it", edit)
         self.assertIn("cowork_list_documents search set to its invoice number", guidance)
 
+    def test_a_queued_push_is_never_called_entered(self):
+        """第 7 批 B6（2026-10-18 lab）：录制机关着，新成员的单排队，CC 回「已录入「นิภา…」的收据……目前状态是已排队」，
+        前后矛盾。排队的说明写明还没入账，回复开头也不说已录入。"""
+        note = tools.PUSH_QUEUED_NOTE
+        self.assertIn("Tell the user it is queued", note)
+        self.assertIn("A queued document is not entered yet", note)
+        self.assertIn("never say it was entered or recorded into Express or MR.ERP, not even at the start", note)
+
     def test_an_entered_document_that_cannot_be_changed_is_never_sent_to_express(self):
         """第 5 轮测试：让 CC 把已入账的 SD-6909-1010 改科目，它答改不了，又给「自己去 Express 改 HP690920-001，我再回读」
         的选项。F19 验收口径：不叫人去 Express（或 MR.ERP、待处理页、复核页）改已入账的单；只说明改不到，给单号、泰铢、

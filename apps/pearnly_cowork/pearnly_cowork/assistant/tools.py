@@ -737,7 +737,8 @@ PUSH_WAIT_SECONDS = 25
 PUSH_WAIT_STEP = 2
 PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (or CC Desktop on that computer is "
                     "offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
-                    "cowork_push_results when they ask. Do not wait or sleep.")
+                    "cowork_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: "
+                    "never say it was entered or recorded into Express or MR.ERP, not even at the start of the reply.")
 
 
 def _may_wait() -> bool:
