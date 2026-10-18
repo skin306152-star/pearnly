@@ -66,3 +66,4 @@ pearnly_control:Channel ID and Channel secret only (LINE Developers → Basic se
 companion:busy_body	zh	账套正被 Express 占用。关闭正在使用该账套的 Express 后点击「重试」，或点击「终止推送」。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 companion:pair_err_drive_missing	zh	本机没有「{drive}」盘。请在录入此账套的电脑上安装 CC 桌面版，或将该盘映射到相同的网络位置。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_cowork:Set document handling	zh	设置单据处理方式	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 按建议同意 E10）
+pearnly_cowork:Document handling set	zh	已设置单据处理方式	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 按建议同意 E10，做完的说法一并统一）

@@ -645,7 +645,7 @@
 
 ## CC 审批步骤名（E10，10-18 用户按建议同意）
 
-用户 10-18 下午「要我定的都按你建议」，当晚「涉及到文案的今晚特批，但是不用有口语」。CC 工具 `cowork_choose_document_policy` 的进行中步骤名（`pearnly_cowork/assistant/step_names.py`，术语表 `pearnly_cowork/i18n/messages.tsv`）改为书面短句；档名「只提议 / 按规则 / 整月」与「自动推送」「全部推送」不改，做完的说法 `Chose how a kind of document is handled` 不在本次范围、不改。
+用户 10-18 下午「要我定的都按你建议」，当晚「涉及到文案的今晚特批，但是不用有口语」。CC 工具 `cowork_choose_document_policy` 的进行中步骤名（`pearnly_cowork/assistant/step_names.py`，术语表 `pearnly_cowork/i18n/messages.tsv`）改为书面短句；档名「只提议 / 按规则 / 整月」与「自动推送」「全部推送」不改。同一工具做完的说法（`tools.py` 的 `label`）随后按开发窗口转达一并统一，与步骤名同一口吻（见下第二张表）。
 
 | 语言 | 原文 | 新写法 |
 |---|---|---|
@@ -653,5 +653,14 @@
 | 中 | 正在设定这类单据的处理方式 | 设置单据处理方式 |
 | 泰 | กำลังกำหนดวิธีจัดการเอกสารประเภทนี้ | ตั้งค่าวิธีจัดการเอกสาร |
 | 日 | この種類の書類の扱いを設定しています | 書類の処理方法を設定 |
+
+做完的说法：
+
+| 语言 | 原文 | 新写法 |
+|---|---|---|
+| 英 | Chose how a kind of document is handled | Document handling set |
+| 中 | 设定了这类单据的处理方式 | 已设置单据处理方式 |
+| 泰 | กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว | ตั้งค่าวิธีจัดการเอกสารแล้ว |
+| 日 | この種類の書類の扱いを設定しました | 書類の処理方法を設定済み |
 
 翻译包 `pearnly_cowork/translations/*.csv` 按术语表重新生成，旧 msgid 的残留行（全仓已无引用）一并删除。

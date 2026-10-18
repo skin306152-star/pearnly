@@ -339,7 +339,6 @@ Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
-Chose how a kind of document is handled,กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว
 Chosen At,เวลาที่เลือก
 Chosen By,ผู้เลือก
 Claim VAT,ขอคืนภาษีซื้อ
@@ -583,6 +582,7 @@ Dividends,เงินปันผล
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document No.,เลขที่เอกสาร
 Document Policy,กฎการบันทึกเอกสาร
+Document handling set,ตั้งค่าวิธีจัดการเอกสารแล้ว
 Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น

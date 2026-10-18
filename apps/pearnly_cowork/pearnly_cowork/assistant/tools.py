@@ -3451,7 +3451,7 @@ TOOLS = [
              "price": {"type": ["string", "number"]}, "subtotal": {"type": ["string", "number"]}}}}},
          "required": ["document", "version"]},
      "handler": "pearnly_cowork.assistant.tools.edit_document"},
-    {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
+    {"name": "cowork_choose_document_policy", "label": "Document handling set",
      "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "
                     "records documents of this kind, skip leaves them out. It applies to every document of this kind "
                     "for the whole company from now on (the user allows it in the chat). Then push the document "

@@ -339,7 +339,6 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择操作
-Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
 Claim VAT,抵进项
@@ -583,6 +582,7 @@ Dividends,股息
 Document Key,单据防重键
 Document No.,单据号
 Document Policy,单据录入规则
+Document handling set,已设置单据处理方式
 Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
