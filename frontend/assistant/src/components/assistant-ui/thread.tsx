@@ -10,7 +10,6 @@ import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/to
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
@@ -322,21 +321,17 @@ const NoticeMessage: FC = () => {
 };
 
 /** 下面还有内容时在输入框上方居中出 ↓，点了平滑滚到最新（同 Claude，13.webp / 12.webp）。
- *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距）；在底部时组件库把它禁用，这里藏起来
- *  （visibility: hidden：读屏读不到、Tab 走不到）。读屏名写在 aria-label 上（第 11 轮 C21：只靠按钮里的隐藏文字时属性是空的）。 */
+ *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距），样子是共用的 .cc-scroll-btn（V70）；在底部时组件库把它禁用，
+ *  这里藏起来（visibility: hidden：读屏读不到、Tab 走不到）。读屏名写在 aria-label 上（第 11 轮 C21：只靠按钮里的隐藏文字时属性是空的）。 */
 const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom asChild behavior="smooth">
       <TooltipIconButton
         tooltip={t("scrollToBottom")}
         aria-label={t("scrollToBottom")}
-        className={cn(
-          buttonVariants({ variant: "outline", size: "icon" }),
-          "aui-button-icon size-(--cc-control-xs) p-(--cc-space-4) active:scale-90",
-          "aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-9 z-10 size-10 self-center rounded-full p-0 shadow-[var(--cc-shadow-composer)] disabled:invisible",
-        )}
+        className="aui-thread-scroll-to-bottom cc-scroll-btn"
       >
-        <ArrowDownIcon className="size-5" />
+        <ArrowDownIcon />
       </TooltipIconButton>
     </ThreadPrimitive.ScrollToBottom>
   );

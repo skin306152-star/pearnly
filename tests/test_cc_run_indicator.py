@@ -443,10 +443,15 @@ assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
         self.assertIn("{...rest}", button)
         self.assertNotIn("aria-label", button)
         self.assertNotIn("@/components/ui/button", button)
-        for cls in ("size-10", "p-0", "-top-9", "self-center", "rounded-full", "disabled:invisible"):
-            self.assertIn(cls, arrow)
-        self.assertNotIn("p-4", arrow)
-        self.assertIn('<ArrowDownIcon className="size-5" />', arrow)
+        # 样子是共用的 .cc-scroll-btn（V70）：40 的圆、在输入框上方居中、比输入框顶高出一个钮减 4、到底时藏起来、箭头 20
+        self.assertIn('className="aui-thread-scroll-to-bottom cc-scroll-btn"', arrow)
+        self.assertIn("<ArrowDownIcon />", arrow)
+        css = (SRC / "globals.css").read_text(encoding="utf-8")
+        scroll = css[css.index("  .cc-scroll-btn {"):css.index("  .cc-scroll-btn svg")]
+        for decl in ("top: calc(var(--cc-space-4) - var(--cc-control-lg));", "align-self: center;", "width: var(--cc-control-lg); height: var(--cc-control-lg);",
+                     "border-radius: var(--cc-radius-full);", ".cc-scroll-btn:disabled { visibility: hidden; }"):
+            self.assertIn(decl, scroll)
+        self.assertIn(".cc-scroll-btn svg { width: var(--cc-icon); height: var(--cc-icon); }", css)
 
     def test_sending_on_a_phone_drops_the_keyboard(self):
         # 手机（触屏或手机外壳）发出去就收起键盘（同 Claude 手机 app，11.webp）；电脑保持焦点；回车、发送键两条路都管
