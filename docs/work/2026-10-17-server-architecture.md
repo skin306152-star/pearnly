@@ -63,4 +63,7 @@
 
 ## 未完成 / 待办
 
-- 后台容器统一封顶（slice MemoryMax）、PSI 守护：动宿主 systemd，待用户决定。
+- 后台容器统一封顶（slice MemoryMax）、PSI 守护：10-18 用户交本窗口定，定为**暂不做**。依据：加 swap 后 4090d01f 部署中可用内存最低约 26 GB、swap 仅用约 74 MB，未再骤降。
+  触发即做（不再另问）：守望报站点连续不可用且生产可用内存掉到几 GB、`free` 可用低于约 4 GiB，或 swap 持续超过约 4 GiB。
+  届时按 `~/pearnly-devtools/handoff/memory-analysis-2026-10-17.md` 的 S 方案：后台类容器进 `pearnly-background.slice`，MemoryHigh 12 GiB / MemoryMax 14 GiB
+  （整机 31.3 GiB，关键服务上限合计约 15.6 GiB，后台合计约 21.8 GiB），随下一次产品激活生效。
