@@ -532,7 +532,9 @@ class VisibilityWatch(QObject):
         self._soon()
 
     def eventFilter(self, watched, event) -> bool:
-        if watched is self._window:
+        # Python 回收到一半（循环引用清理先清掉了属性、Qt 对象还挂着过滤器）时 Qt 仍可能递来事件：这时什么都不做
+        window = self.__dict__.get("_window")
+        if window is not None and watched is window:
             kind = event.type()
             if kind == QEvent.Type.ActivationChange:
                 if self._window.isActiveWindow():
