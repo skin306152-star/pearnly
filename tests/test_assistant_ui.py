@@ -1901,17 +1901,17 @@ const markup = html(DocumentView, { blocks: [
 ] });
 assert.match(markup, /<h1 class="[^"]*text-2xl[^"]*text-center">สรุปภาษี ก\.ย\. 2569<\/h1>/);
 assert.match(markup, /<h2 class="[^"]*">ภาษีขาย<\/h2>/);
-assert.match(markup, /<p class="mb-2">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-\(--cc-link-offset\)"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-\(--cc-link-offset\)">ลิงก์<\/span><\/p>/);
-assert.match(markup, /<p class="mb-2 flex gap-\(--cc-space-8\)" style="padding-inline-start:1\.5em"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
-assert.match(markup, /<p class="mb-2"> <\/p>/);  // 空段落占一行
-assert.match(markup, /<td class="[^"]*bg-subtle[^"]*"><p class="mb-0">รายการ<\/p><\/td>/);
-assert.match(markup, /<td colSpan="2" rowSpan="2" class="[^"]*"><p class="mb-0">1,234\.00<\/p><\/td>/);
-assert.match(markup, /<p class="mb-0 text-right">รวม<\/p>/);
-assert.match(markup, /<td class="[^"]*"><div class="my-3 max-w-full overflow-x-auto"><table/);  // 表中表
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-\(--cc-link-offset\)"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-\(--cc-link-offset\)">ลิงก์<\/span><\/p>/);
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0 flex gap-\(--cc-space-8\)" style="padding-inline-start:calc\(var\(--cc-md-list-indent\) \* 1\)"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0"> <\/p>/);  // 空段落占一行
+assert.match(markup, /<td class="[^"]*bg-subtle[^"]*"><p>รายการ<\/p><\/td>/);
+assert.match(markup, /<td colSpan="2" rowSpan="2" class="[^"]*"><p>1,234\.00<\/p><\/td>/);
+assert.match(markup, /<p class="text-right">รวม<\/p>/);
+assert.match(markup, /<td class="[^"]*"><div class="mt-\(--cc-md-block\) first:mt-0 max-w-full overflow-x-auto"><table/);  // 表中表
 assert.match(markup, /<img src="data:image\/png;base64,iVBORw0KGgo=" alt="" draggable="false" class="[^"]*max-w-full[^"]*" style="width:100px;aspect-ratio:100 \/ 50"\/>/);
 // 手机：整篇竖着滚、不横向撑开；宽表格在自己的框里横着滚；长串文字折行；图片不超过面板宽
 assert.match(markup, /^<div class="h-full overflow-x-hidden overflow-y-auto"><article class="[^"]*break-words[^"]*">/);
-assert.equal((markup.match(/<div class="my-3 max-w-full overflow-x-auto"><table/g) ?? []).length, 2);
+assert.equal((markup.match(/<div class="mt-\(--cc-md-block\) first:mt-0 max-w-full overflow-x-auto"><table/g) ?? []).length, 2);
 // 颜色只用设计变量（globals.css）：不写死色值
 assert.doesNotMatch(markup, /#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
 """)
@@ -1937,9 +1937,9 @@ for (const tag of tags(markup)) {
 }
 assert.match(markup, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 assert.match(markup, /&lt;img src=x onerror=alert\(1\)&gt;/);
-assert.match(markup, /<p class="mb-2">s<\/p><p class="mb-2">p<\/p>/);  // 不认识的样式按正文、不当标签名
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0">s<\/p><p class="mt-\(--cc-md-block\) first:mt-0">p<\/p>/);  // 不认识的样式按正文、不当标签名
 assert.match(markup, /<span class="shrink-0 tabular-nums">&lt;b&gt;m&lt;\/b&gt;<\/span>/);
-assert.match(markup, /<td class="[^"]*"><p class="mb-0">c<\/p><\/td>/);  // 怪的合并数不带出来
+assert.match(markup, /<td class="[^"]*"><p>c<\/p><\/td>/);  // 怪的合并数不带出来
 assert.equal(safeImage("data:image/webp;base64,UklGRg=="), "data:image/webp;base64,UklGRg==");
 assert.equal(safeImage("data:image/jpeg;base64,/9j/4AAQ"), "data:image/jpeg;base64,/9j/4AAQ");
 for (const bad of ["data:image/png;base64,AA== x", "DATA:image/png;base64,AA==", "data:image/png,raw", "", null, {}])

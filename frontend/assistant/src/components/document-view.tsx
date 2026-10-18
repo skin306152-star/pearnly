@@ -17,16 +17,20 @@ export function safeImage(src: unknown): string | null {
 
 // 段落样式 → 标签与字号（同对话里 Markdown 标题的层级感）；不认识的样式按正文
 const STYLES: Record<string, { tag: "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"; className: string }> = {
-  title: { tag: "h1", className: "mt-6 mb-3 text-2xl font-semibold first:mt-0" },
-  subtitle: { tag: "p", className: "mb-3 text-lg text-ink-3" },
-  h1: { tag: "h1", className: "mt-5 mb-2 text-xl font-semibold first:mt-0" },
-  h2: { tag: "h2", className: "mt-5 mb-2 text-lg font-semibold first:mt-0" },
-  h3: { tag: "h3", className: "mt-4 mb-1.5 text-base font-semibold first:mt-0" },
-  h4: { tag: "h4", className: "mt-3.5 mb-1 text-base font-medium first:mt-0" },
-  h5: { tag: "h5", className: "mt-3 mb-1 text-sm font-semibold first:mt-0" },
-  h6: { tag: "h6", className: "mt-3 mb-1 text-sm font-medium first:mt-0" },
+  title: { tag: "h1", className: "text-2xl font-semibold" },
+  subtitle: { tag: "p", className: "text-lg text-ink-3" },
+  h1: { tag: "h1", className: "text-xl font-semibold" },
+  h2: { tag: "h2", className: "text-lg font-semibold" },
+  h3: { tag: "h3", className: "text-prose font-semibold" },
+  h4: { tag: "h4", className: "text-prose font-medium" },
+  h5: { tag: "h5", className: "text-body font-semibold" },
+  h6: { tag: "h6", className: "text-body font-medium" },
 };
-const BODY = { tag: "p" as const, className: "mb-2" };
+const BODY = { tag: "p" as const, className: "" };
+// 块之间的距离同对话里的 Markdown（V26）：只加上外边距、按 em——标题前 --cc-md-heading，段落、表格前 --cc-md-block，第一块 0；
+// 单元格里的段落一个接一个，不加块距
+const BLOCK_GAP = "mt-(--cc-md-block) first:mt-0";
+const HEADING_GAP = "mt-(--cc-md-heading) first:mt-0";
 const ALIGN: Record<string, string> = { center: "text-center", right: "text-right", justify: "text-justify" };
 
 /** 只认表里自己的键（「__proto__」这类键取不到原型上的东西）。 */
@@ -66,12 +70,14 @@ function Paragraph({ block, inCell }: { block: Extract<DocBlock, { type: "paragr
   const Tag = look.tag;
   const runs = Array.isArray(block.runs) ? block.runs : [];
   const content = runs.length ? runs.map((run, i) => <Run key={i} run={run} />) : " ";
-  const className = cn(look.className, inCell && "mb-0", pick(ALIGN, block.align));
+  const gap = inCell ? undefined : look.tag === "p" ? BLOCK_GAP : HEADING_GAP;
+  const className = cn(gap, look.className, pick(ALIGN, block.align)) || undefined;
   if (block.list && typeof block.list === "object") {
     const level = Math.min(Math.max(Number(block.list.level) || 0, 0), 8);
     const marker = typeof block.list.marker === "string" ? block.list.marker : "";
+    // 每一级缩进同对话里 Markdown 的列表缩进
     return (
-      <Tag className={cn(className, "flex gap-(--cc-space-8)")} style={{ paddingInlineStart: `${level * 1.5}em` }}>
+      <Tag className={cn(className, "flex gap-(--cc-space-8)")} style={{ paddingInlineStart: `calc(var(--cc-md-list-indent) * ${level})` }}>
         {marker && <span className="shrink-0 tabular-nums">{marker}</span>}
         <span className="min-w-0 flex-1">{content}</span>
       </Tag>
@@ -95,7 +101,7 @@ function Cell({ cell, header }: { cell: DocCell; header: boolean }) {
 function Table({ block }: { block: Extract<DocBlock, { type: "table" }> }) {
   const rows = Array.isArray(block.rows) ? block.rows : [];
   return (
-    <div className="my-3 max-w-full overflow-x-auto">
+    <div className={cn(BLOCK_GAP, "max-w-full overflow-x-auto")}>
       <table className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="doc">
         <tbody>
           {rows.map((row, r) => (
@@ -128,7 +134,7 @@ function Blocks({ blocks, inCell = false }: { blocks: readonly DocBlock[]; inCel
 export default function DocumentView({ blocks }: { blocks: readonly DocBlock[] }) {
   return (
     <div className="h-full overflow-x-hidden overflow-y-auto">
-      <article className="mx-auto max-w-(--cc-doc-w) px-(--cc-space-24) py-(--cc-space-24) text-sm leading-relaxed break-words whitespace-pre-wrap [tab-size:4] max-md:px-(--cc-space-16)">
+      <article className="mx-auto max-w-(--cc-doc-w) px-(--cc-space-24) py-(--cc-space-24) text-(length:--cc-body-size) leading-(--cc-body-lh) break-words whitespace-pre-wrap [tab-size:4] max-md:px-(--cc-space-16)">
         <Blocks blocks={blocks} />
       </article>
     </div>
