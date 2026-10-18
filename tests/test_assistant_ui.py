@@ -2657,7 +2657,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 新对话：「公司 ▾」选公司（至少有一家公司才出现），下巴里菜单向上开；月份、分店是草稿
         draft = projects.split('const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {', 1)[1].split("\n};", 1)[0]
         self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
-        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">', draft)
+        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">', draft)
         self.assertIn('<PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
         # 手机新对话：同一行放在问候下面（WelcomeFiling），菜单向下开；只在手机、Cowork、新对话

@@ -17,7 +17,7 @@
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
-import { DropdownMenu, SubMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
 import { type FC, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
@@ -340,7 +340,7 @@ const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">
+          <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">
             <CompanyChoices current={draft.project} onPick={pick} />
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
