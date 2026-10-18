@@ -25,7 +25,8 @@
 | B1 标准层 | `pearnly/cc-std-b1`（基线 c4ab0c3e，工作树 `.claude/worktrees/cc-std-b1`），提交见下面「B1 做了什么」；纯替换 4 个提交逐个比对 0 样式差、0 像素差，画面变化 V2 / V3 / V4 / V6 / V37 逐个比对只差预期的项；本地全闸门 87 步全过。比对报告 `~/pearnly-devtools/cc-std-b1/reports/`，画面变化前后图 `~/pearnly-devtools/cc-std-b1/visual/`。**未推送、未合入 main、未部署；待测试窗口验收**（V3、V4、V37 的触屏与中间宽度要用户手机 / 平板走） |
 | 插批：静置动效 | `pearnly/cc-idle-anim`（基线 cc-std-b1 顶端 f1978271）：首页小猫的 7 个装饰动画不再无限循环，出现时播几轮（`--cc-mascot-*-runs`，最多 10 秒）就停；闸门加「动画轮数只写 var()」；见 [静置动效记录](2026-10-18-cc-idle-animations.md)。未推送、未合入 main、待测试机复测 |
 | B2 组件库 | `pearnly/cc-std-b2`（基线 `pearnly/cc-longpress-race` 顶端 93a10475，开发窗口指定；工作树 `.claude/worktrees/cc-std-b2`），提交见下面「B2 做了什么」；纯替换 8bc08765 对基线全矩阵 773 个场景 0 样式差、0 像素差（报告里 1 个悬停残留经前后各复拍 2 次判为基线那一遍离群），画面变化 V5 / V7 / V9 / V11 / V18 / V38 逐个比对只差预期的项（V38 是 B2 按 4.1 补进第 7 节的）；本地全闸门全过。比对报告 `~/pearnly-devtools/cc-std-b2/reports/`，前后图 `~/pearnly-devtools/cc-std-b2/visual/`。10-18 晚变基到 origin/main 2a558d14 → 84c644f6，本地全闸门 100 步过、分支 CI 两条过；lab 挂 84c644f6 由测试窗口验收**六项全过、回归无变化**（见「B2 测试窗口验收」）；用户 10-18 晚手机真手指走过预览与长按、通过，合入 main；未部署（随下一批） |
-| B3–B8 | 待开工 |
+| B3 外壳 | `pearnly/cc-std-b3`（基线 `origin/main` 81bcd88a，工作树 `.claude/worktrees/cc-std-b3`），提交见下面「B3 做了什么」；纯替换 1a16d652 对基线全矩阵 0 样式差、0 像素差（1 个悬停残留经前后各复拍 2 次判为纯替换那一遍离群；新补的 `install-guide` 场景单独补拍 0 差），画面变化 V1 / V8 / V16 / V36（0 差）/ V39 逐个比对只差预期的项（V39 是 B3 按 4.1 补进第 7 节的）；本地全闸门 100 步全过。比对报告 `~/pearnly-devtools/cc-std-b3/reports/`，前后图 `~/pearnly-devtools/cc-std-b3/visual/`。**已推任务分支、未合入 main、未部署；待测试窗口验收**（V8 手机菜单、V39 要用户 iPhone 走） |
+| B4–B8 | 以各批分支与小节为准（B4–B7 与 B3 同时在各自工作树施工；B8 待开工） |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
@@ -286,6 +287,68 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   2. `companies.tsx:150`、`scheduled-tasks.tsx:440` 的加载卡片仍是 `animate-pulse`——补登进 V5，B4 照做。
   3. 手机打开图片预览时关闭钮带 `:focus-visible` 蓝框（组件库打开弹窗自动聚焦关闭钮）——B2 没动焦点；用户手机看过说不碍事，不改。
   4. adb `input swipe` 模拟长按不出菜单是工具问题（三星按下同一毫秒就发 contextmenu），调试接口触摸事件正常；用户真手指正常。
+
+### B3 做了什么（10-18 夜—10-19，`pearnly/cc-std-b3`）
+
+基线 `origin/main` **81bcd88a**（B2 已合入）；工作树 `.claude/worktrees/cc-std-b3`，自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`）。与 B4–B7 同时在各自工作树里做：本批只改 4.2「B3 外壳」的文件，`globals.css` 只按 4.1 补登（见下），共享测试只改断言本批文件的几行。
+
+| 提交 | 内容 | 类 |
+| :- | :- | :- |
+| 1a16d652 | 纯替换（见下） | 纯替换 |
+| d9b78361 | V1 外壳里的 `text-sm / xs` 换实测字阶 | 画面变化 B |
+| 2cfb3e33 | V8 菜单离触发器 4、子菜单用包装默认 6 | 原 C·已定 |
+| 9c72fca1 | V16 菜单里的快捷键提示用 `.cc-menu-key` | 画面变化 A |
+| d1bd1067 | V36 欢迎页形象 `sm:` 改 `md:` | 画面变化 A（无可见变化） |
+| fdc27655 | 比对工具补 `install-guide` 场景（iPhone / iPad 欢迎页点「添加」出「添加到主屏幕」步骤；场景脚本先吞掉无界面 Chrome 的 `beforeinstallprompt`，真 iPhone 不发这个事件） | 工具 |
+| 686bf75d | V39（B3 补进第 7 节）「添加到主屏幕」步骤的遮罩用 `.cc-overlay` | 画面变化 B |
+| 67175ffa | 收紧清单登记 9 个文件 | 清单 |
+| （本记录） | 本记录 B3 小节、4.1 补登、第 7 节 V39、第 8 节；ccs.md 菜单写法一条 | 文档 |
+
+**纯替换（1a16d652）做了什么**：
+
+- **欢迎页**：`gap-5 / -mb-2 / gap-2 / px-4 / md:gap-3` 换 `--cc-welcome-gap`、`--cc-space-8 / 16 / 12`；形象 `h-24 / sm:h-28` 换 `--cc-mascot-h / -wide`（`sm:` 在 V36 改）；删掉不起作用的 `md:text-4xl`（与 `text-3xl` 同值，B8 删 `--text-4xl` 那一档）。
+- **侧栏头 / 脚**（B2 留下的）：删掉调用处与默认值重复的 `gap-2 px-2`（头）、`px-2`（脚），头下 `pb-1` 换 `--cc-sidebar-head-pb`；标题区 `ps-1.5 pe-1 / gap-2`、logo 与托盘小头像 `size-6` 换 `--cc-space-6 / 4 / 8`、`--cc-logo`、`--cc-avatar-sm`；侧栏主体 `px-2` 换 `--cc-sidebar-pad`；导航几行之间 `gap-0.5` 换 `--cc-row-gap`。
+- **标题栏 / 顶栏**：桌面版标题栏左侧四颗 `gap-0.5` 换 `--cc-titlebar-gap`、`-mx-0.5` 换 `--cc-space-2`；顶栏几处 `gap-1` 换 `--cc-topbar-gap`；对话名一组 `gap-0.5` 换 `--cc-space-2`；窗口按钮的 `!size-3.5` 去掉 `!` 换 `--cc-icon-xs`（`.cc-winbtn svg` 在 components 层，工具类本来就盖得过），「还原」图标的 `-scale-x-100` 改 `[scale:var(--cc-mirror)_1]`（见下「与方案不同」第 2 条）。
+- **手机抽屉**：标题与搜索 `px-4` 换 `--cc-mdrawer-px`，列表 `px-3` 换 `--cc-mdrawer-list-px`、`pb-28` 换 `--cc-mdrawer-tail`（算出来同是 112），托盘 `px-5 pt-6 pb-[max(1.25rem,…)]` 换 `--cc-mdrawer-tray-px / -tray-pt / -bottom`，头像 `size-12` 换 `--cc-mavatar`；手机顶栏 DrawerIcon 删掉不生效的 `width / height="22"`（`.cc-round-btn svg` 定 20），`strokeWidth="1.5"` 改 `stroke-(length:--cc-icon-stroke)`。
+- **菜单**：`!min-w-40` 换 `min-w-(--cc-menu-w-sm)`（`.cc-menu` 在 components 层，不用 `!`）；原来就是 4 的两处 `sideOffset` 换 `menuOffset()`。
+- **其他**：ResultsPanel 调用处的 `max-md:fixed max-md:inset-0 max-md:z-50 max-md:w-full` 删掉（B1 已写进 `.cc-results` 的手机规则）；`split-handle.tsx` 的 `px()` 与 `assistant.tsx` 的 `cssPx` 改从 `lib/css-var.ts` 导入（`px()` 成了 `cssPx(cssVar(名, 栏), rootFontPx())` 一行）；整页出错的「重新加载」图标删掉 `size-4`（`.cc-btn svg` 同是 16）；安装步骤遮罩 `z-[70]` 换 `--cc-z-modal`。
+- **globals.css（4.1 新登记的例外）**：加 `--cc-mirror` -1；删 `--cc-sidebar-head-pt`。`AWAITING` 表 B3 的 14 项：接上 10 项、删掉 `--cc-sidebar-head-pt` 1 项，都从表里删掉；剩下的三档菜单宽改登记给真正用它们的批次：`--cc-menu-w-md`（176，设置里的菜单）B4，`--cc-menu-w-lg / -max`（208 / 288，公司胶囊菜单 `projects.tsx`）B6。
+
+**与方案不同、按依据定的几处**：
+
+1. **`--cc-sidebar-head-pt` 删掉，不接**：2.2 写「侧栏头纵向 8 / 4」，实际侧栏头上一直是 0（网页的标题区 44、桌面版的标题栏 40 自带高度，调用处写 `pt-0`），接上 8 就是画面变化；没人用又过不了「每个 `--cc-*` 都有人用」。下 4 照接 `--cc-sidebar-head-pb`。
+2. **「还原」图标的镜像写 `[scale:var(--cc-mirror)_1]`**：1.2 表说变换「只用变量」，但闸门的 R9 认不出 `scale-x-(--x)` / `rotate-y-(--x)`——`R9_FAMILIES` 里 `scale|scale-[xyz]` 的交替先配上 `scale`，把 `x-(--cc-mirror)` 当成值、判成违例（`scale-(--x)` 这种不带轴的才放行）。闸门脚本是 B0 的文件，不在本批范围，没改；任意属性写法计算值与原来的 `-scale-x-100` 一致（合成节点核对 0 差）。**B8 收口时修这条正则**（把带轴的写在前面），再把这里改回 `scale-x-(--cc-mirror)`。
+3. **V36（形象）没有可见变化**：640–767 宽现在一律是手机变体（V37 后变体与 `max-md` 同一条分界），手机外壳里 globals.css 不分层的 `.cc-mshell .pearnly-mascot-host { height: var(--cc-mascot-h) }`（72）本来就压过 `sm:h-28`；`sm:` 改 `md:` 只是去掉 640 这条断点。全矩阵 0 差（tablet-portrait 744、desktop-narrow 700 的欢迎页都在里面）。
+4. **V8 子菜单「6」是 `sideOffset`，看上去离父菜单外沿 2**：子菜单按父菜单里那一项定位，项离菜单外沿还有菜单内边距 4，所以原来写的 8 量出来是 4（测试窗口 B2 记的），改成包装默认的 6 后量出来是 2——与侧栏分组菜单、手机「处理月份 / 分店」这些一直用默认值的子菜单一样。V8 定稿的是同一套取值，没改 `--cc-menu-sub-offset`。
+5. **V39 补进第 7 节**：记录没列 `install-prompt.tsx` 遮罩的 tw-animate，不改过不了 R8、B8 也删不掉 tw-animate；同 V15 / V38 一类（B）。
+6. **快捷键格换 `.cc-kbd` 算在 V1**：设置「快捷提问」那一格原来是工具类拼的（`rounded-md border bg-app px-2 py-0.5 … text-xs`），换成 B1 定义的 `.cc-kbd` 后只差行高 16.8 → 17（格子高 22.8 → 23，合成节点核对，按设置行的 flex 上下文放）；场景里没渲染到它（假服务端的设置里没有快捷键）。
+
+**比对**（`scripts/cc-visual/`，全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、773 张（`install-guide` 补进后 777 张），本机同时有别的批在跑，用 3 条跑道，每遍约 30 分钟；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b3/dist-<名>`，截图 `…/shots/<名>`，报告 `…/reports/<编号>/report.md`）：
+
+| 比的两遍 | 结果 | 说明 |
+| :- | :- | :- |
+| 基线 81bcd88a → 纯替换 1a16d652（`reports/base-vs-pure`） | **0 样式差、0 像素差**（报告列出 2 个 + 4 个只在一边，见右） | 列出的 2 个是 desktop 浅 / 深 `boot-page-menu` 的悬停残留（行尾「···」与组箭头，B1 / B2 记过的同一种）：前、后单独各复拍 2 次（`reports/recheck-bpm-1 / -2`）都 0 差，复拍的基线与基线那一遍一致，离群的是纯替换那一遍。只在一边的 4 个是 `install-guide`（基线开拍后才补的场景）：单独给基线补拍（`shots/ig-base`）后与纯替换比 0 差（`reports/ig-base-vs-pure`）。光栅抖动 12 个（窄屏长对话输入框那条渐变）。覆盖检查：改到的 9 个类 / data-slot 场景渲染到 7 个，没渲染到的 `.cc-status`（重连提示条）与场景外的「还原」图标、整页出错按钮图标用合成节点核对（`tools/synth-check.mjs`，两份构建的 CSS 各放进空白页、按变体放「前」「后」的标记，比计算样式与外框）0 差 |
+| V1：1a16d652 → d9b78361 | 账户菜单（`account-menu / -submenu`，宽屏 6 种组合 × 深浅）与抽屉账户菜单（`drawer-account`）：顶上账号那一行 `line-height 19.6 → 20`、多了 `cc-menu-label` 类，菜单整体高 0.4、向上开所以上移 0.5；手机抽屉头像 `line-height 19.6 → 20`（窄屏 299 个场景都挂着抽屉，看不见的那份） | 另有 11 个窄屏长对话场景（`chat-rich / -bottom`、`font-sans`、`text-large`、`width-wide`、`th-chat`）同时有抽屉头像那条样式差和像素差：不是「只差像素」所以工具没复拍，单独前、后各拍一遍（`reports/v1-jitter`）像素差换了场景、数值仍是那几种（11075 / 13770 / 11790 …），是同一条光栅抖动带。重连提示条（`text-caption`：高 24.8 → 25）与快捷键格合成节点核对 |
+| V8：d9b78361 → 2cfb3e33 | 48 个场景：用户菜单向上开、离触发器 6 → 4（整块下移 2）；「语言 ›」子菜单离父菜单外沿 4 → 2（左移 2）；手机「…」胶囊菜单（`pill-menu`、`boot-page-menu` 窄屏）、月份胶囊菜单（`chin-month` 14 组）离触发器 6 → 4 | 光栅抖动 9 个 |
+| V16：2cfb3e33 → 9c72fca1 | 18 个场景：账户菜单、桌面版应用菜单（`titlebar-menu`）、桌面版拉窄的抽屉账户菜单里的快捷键：多了 `cc-menu-key` 类，`padding-left 0 → 12`、`line-height 16.8 → 20`；应用菜单宽 128 → 129.31（最长的一行加上 12 后超出最小宽 128） | 手机、平板、触屏网页不显示快捷键，不变 |
+| V36：9c72fca1 → d1bd1067 | **0 差** | 见上第 3 条 |
+| V39：d1bd1067 → 686bf75d（中间的 fdc27655 只改场景表） | 只有 `install-guide` 4 组（手机、平板竖屏 × 深浅）：遮罩 `animation enter 0.15s ease → cc-fade-in 0.12s 主缓动`，节点多了 `cc-overlay` 类；层级、底色不变 | 静止画面 0 像素差；光栅抖动 10 个 |
+
+- **画面变化的前后图**：`~/pearnly-devtools/cc-std-b3/visual/<编号>/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`，每个目录带一份比对报告。V1（账户菜单 22 个场景；抽屉头像那份看不见、没导出）、V8（48 个）、V16（18 个）、V39（`install-guide` 4 组）。V36 0 差，没有图。
+- **没有比对的**：悬停、聚焦以外的交互状态（菜单与子菜单同时开时的过渡、遮罩关掉时的淡出），真机字体，Qt WebEngine 与 WSL2 的渲染（5.2 已知局限）。
+
+**闸门报数**（`--report`）：81bcd88a 的范围外 641 处 → **569 处**（R4 134 → 122、R5 340 → 304、R7 14 → 12、R8 54 → 52、R9 14 → 13、R10 48 → 41、R11 6 → 5、R12 27 → 16，R6 4 不变）；收紧清单 14 → 23 个文件（加 `assistant.tsx` 与 `components/` 的 error-boundary、install-prompt、mascot、mobile-shell、period-chip、shortcut、split-handle、typing-dots），范围内 0 违例。本地全闸门（`~/pearnly-devtools/gate.sh`，照 development.yml）100 步全过。
+
+**还缺什么**：测试窗口验收（下面几项）；合入 main（本次没做：只推了任务分支，按「主线集成」由开发窗口串行变基合入）；B8 修 R9 的带轴变换正则（上第 2 条）。
+
+**给测试窗口的验收项**（三种变体 × 深浅色；本次没有同步到测试机）：
+
+1. 用户菜单（网页、CC 桌面版：侧栏左下头像 / 名字；手机：抽屉左下头像）：离触发器 4（原来 6，整块往下靠近 2）；顶上账号一行 14/20；「语言 ›」「了解更多 ›」子菜单离父菜单外沿 2（原来 4），与侧栏分组菜单的「分组方式 ›」一样（V1、V8）。
+2. 菜单里的快捷键（网页、CC 桌面版；桌面版左上「☰」应用菜单、用户菜单的「设置 Ctrl ,」）：灰字 12、离左边文字至少 12，行高跟着菜单项；应用菜单略宽 1px 多（V16）。手机、平板、触屏网页不显示快捷键，不看。
+3. 手机对话页右上「…」菜单、输入框下巴 / 手机问候下的月份与分店胶囊菜单：离按钮 4（原来 6）（V8；**要用户手机走一遍**）。
+4. 「添加到主屏幕」步骤（**iPhone / iPad 的 Safari 或 Chrome 里**打开网页版，欢迎页安装提示点「添加」）：遮罩淡入 120ms、点「关闭」时淡出（原来 150ms 淡入、直接消失）（V39；要用户 iPhone 走一遍）。
+5. 设置「快捷提问」那一格（CC 桌面版）：字 12、高 23（原来 22.8），外观不变（V1）；重连时对话上方「正在重新连接…」一行 12/17（V1，难以复现可不看）。
+6. 回归（应无变化）：网页侧栏头、桌面版标题栏（左侧四颗间距 2、窗口按钮图标 14；窗口最大化后「还原」图标是两个方框、前面那个在左下）、托盘、手机抽屉（标题 / 搜索 / 列表左右、底部托盘离底与安全区、列表末尾不被托盘挡住）、欢迎页形象与问候（**平板竖屏、CC 桌面版拉窄到 700 左右也看一眼**，V36）、手机上点结果文件全屏打开结果面板、拖分隔条调侧栏宽度并刷新。
 
 ## 0. 结论
 
@@ -671,6 +734,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   - **`split-handle.tsx:75`** 这一行（`cssVar` 改成 `--cc-sidebar-w`）随 B2 的 sidebar.tsx 一起改，文件其余部分归 B3。
   - **`lib/hover-scroll.ts`、`lib/company-panel.ts`** 在 B2 把 `cssMs`、`cssPx` 改成从 `lib/css-var.ts` 再导出，在 B8 删掉再导出（纯删除，测试证明已无人导入）。
   - **`globals.css` 的 B2 补登**（B1「还缺什么」允许 B2–B7 补缺档）：用途层加提示框小箭头 `--cc-tooltip-arrow` 10 / `--cc-tooltip-arrow-turn` 45deg（现有值·CC 自定，组件库模板带的值）；删掉 `--cc-on-danger`（唯一的引用是 B2 删掉的危险按钮外观，删后没人引用，「每个 `--cc-*` 都有人用」的测试当场要求删）。
+  - **`globals.css` 的 B3 补登**：用途层加 `--cc-mirror` -1（现有值·CC 自定：CC 桌面版「还原」按钮的两个方框水平镜像，原来写 `-scale-x-100`）；删掉 `--cc-sidebar-head-pt`（2.2 写「侧栏头纵向 8 / 4」，实际侧栏头上是 0：网页的标题区、桌面版的标题栏自带高度，调用处一直写 `pt-0`；接上就是画面变化，没人用又过不了「每个 `--cc-*` 都有人用」）。
   - **`docs/development/ccs.md`、本任务记录、`scripts/frontend-tokens-strict.txt`** 是登记文件，每批顺序追加。
   - **共享测试**：`tests/test_cc_ccs.py`、`test_assistant_ui.py`、`test_cc_mobile_overlays.py`、`test_cc_mobile_content.py`、`test_cc_run_indicator.py`、`test_cc_month_ledger.py`、`test_cc_session_panel.py` 直接断言写死的类名和渲染出的 HTML（例：Shortcut 断言 `text-ink-3 text-xs`；document-view 断言 `text-2xl / font-bold / mb-2 / padding-inline-start:1.5em`；弹窗断言 `px-5 pt-4 pb-2`、`z-50`；菜单断言 `!min-w-40`、`sideOffset 6`）。断言按它所测组件所在的批次改，各批文件清单列出要改的测试；并行批次合入集成分支时串行、变基。不靠删断言过关：断言改成新写法（类名或变量），意思不变。
 - **每批的提交顺序**：
@@ -939,6 +1003,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | V36 | B2 / B3 / B4 / B7 | `sm:`（640）改 `md:`（768）：`dialog.tsx` 的 `sm:text-start / sm:flex-row`、图片预览的 `sm` 断点、`assistant.tsx:128` 形象 `sm:h-28`、`scheduled-tasks.tsx` 863 / 895 / 995 行的 `sm:grid-cols-2`、`attachment.tsx:115` 的 `sm:max-w-3xl` | 640–767 宽（iPad mini 竖屏 744、CC 桌面版窗口拉窄）按宽屏排 | 只有一条断点 768（与变体同一条），这一段按手机排；640 没有 Claude 依据。验证用 tablet-portrait、desktop-narrow 两种环境 | A |
 | V37 | B1 | 手机 / 电脑分界的查询文本：`hooks/use-mobile.ts` 的 `MOBILE_QUERY` 是 `(max-width: 767px)`，`max-md:` 是 `(width < 48rem)` | 浏览器缩放出 767.5 这类小数宽度时变体判成 web、`max-md:` 的类却生效：侧栏已收起、却没有手机顶栏，设置等入口点不到（B0 比对 web-767.5 实测） | 三处同一段文本 `(width < 768px)` / `(width >= 768px)`（2.1「断点」），767.5 宽按手机外壳排；测试用项目自己的 Tailwind 现编 globals.css 核对 | A（B1 比对时补进本节） |
 | V38 | B2 | 组件库弹窗（`dialog.tsx`，现在只有图片预览用）的遮罩与弹层进出场 | tw-animate：遮罩淡入 150ms、弹层淡入放大（0.95）200ms，`ease` | `.cc-overlay` / `.cc-pop`：快档 120ms、主缓动（同 V15 遮罩、V18 提示框）；组件库文件不再用 tw-animate，B8 才删得掉这个依赖 | B（B2 开工时按 4.1 补进本节：记录把 dialog 的动效漏了，不改就过不了 R8、也删不掉 tw-animate） |
+| V39 | B3 | 「添加到主屏幕」步骤（`install-prompt.tsx`，iPhone / iPad 浏览器里点安装提示）的遮罩进出场 | tw-animate 淡入 150ms、`ease`，关掉时不淡出 | `.cc-overlay`：淡入淡出快档 120ms、主缓动（同 V15、V38）；层级 `--cc-z-modal` 70 不变 | B（B3 开工时按 4.1 补进本节：记录把这个文件的 tw-animate 漏了，不改过不了 R8） |
 
 ## 8. 批次清单
 
@@ -947,7 +1012,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | B0 | 闸门与比对工具骨架 | 无（现在开工） | 无 |
 | B1 | 标准层（globals.css、@theme、touch 标记、断点、twMerge） | B0、cc-drag-perf 合入、cc-scroll-fix 合入 | V2、V3、V4、V6、V20（B1 部分无可见变化）、V37 |
 | B2 | 组件库与共用 lib | B1 | V5、V7、V9、V11、V18、V36（无可见变化，见 B2 小节）、V38 |
-| B3 | 外壳 | B2 | V1、V8、V16、V36 |
+| B3 | 外壳 | B2 | V1、V8、V16、V36（无可见变化，见 B3 小节）、V39 |
 | B4 | 弹窗与列表页 | B2 | V1、V3、V6、V8、V10、V12、V14、V15、V17、V19、V20、V21、V22、V36 |
 | B5 | 会话栏、结果、文档、工具卡 | B2 | V1、V12、V13、V23–V27 |
 | B6 | 侧栏列表（拖动分支的文件） | B2、cc-drag-perf 合入 | V1、V8、V28、V29 |
