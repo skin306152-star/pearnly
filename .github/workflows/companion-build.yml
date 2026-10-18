@@ -49,6 +49,9 @@ jobs:
           RELEASE_PY: python
           RELEASE_ISCC: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
         run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
+      # 交给测试机之前先照用户的用法启动一遍打出来的程序（同 Companion checks；packaging/smoke_launch.py）
+      - name: Launch the packaged CC the way people do
+        run: python packaging/smoke_launch.py dist/companion/companion.exe
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: companion-test-installer-${{ steps.identity.outputs.version }}-${{ github.sha }}
