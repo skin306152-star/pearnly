@@ -1,5 +1,6 @@
 // 组件库的弹窗（shadcn）：现在只有图片预览在用（attachment.tsx）。没人用的头部、脚部、说明已删（标准化记录 B2）；
-// 默认最宽不再写（唯一的调用方自己给），新弹窗用 globals.css 的 .cc-dialog 一套（data-size 三档宽）。圆角是整窗弹窗的 16（V9）。
+// 默认最宽不再写（唯一的调用方自己给），新弹窗用 globals.css 的 .cc-dialog 一套（data-size 三档宽）。圆角是整窗弹窗的 16（V9）；
+// 遮罩与弹层的进出场同其他弹层（.cc-overlay / .cc-pop：快档 120ms、主缓动，V38；原来是 tw-animate 的 150ms 淡入与 200ms 淡入放大）。
 import type * as React from "react";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
@@ -39,7 +40,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in fixed inset-0 z-(--cc-z-sheet) bg-overlay",
+        "cc-overlay z-(--cc-z-sheet)",
         className,
       )}
       {...props}
@@ -61,7 +62,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 bg-background data-[state=closed]:animate-out data-[state=open]:animate-in cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto w-full max-w-[calc(100%-var(--cc-dialog-gutter)*2)] -translate-x-1/2 -translate-y-1/2 gap-(--cc-space-16) rounded-dialog border p-(--cc-space-24) shadow-pop duration-200 outline-none rtl:translate-x-1/2",
+          "cc-pop bg-background cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto w-full max-w-[calc(100%-var(--cc-dialog-gutter)*2)] -translate-x-1/2 -translate-y-1/2 gap-(--cc-space-16) rounded-dialog border p-(--cc-space-24) shadow-pop outline-none rtl:translate-x-1/2",
           className,
         )}
         {...props}

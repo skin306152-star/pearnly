@@ -869,6 +869,10 @@ class ComponentLibraryTests(unittest.TestCase):
         dialog = self.read("components/ui/dialog.tsx")
         self.assertIn(" rounded-dialog border ", dialog)
         self.assertNotIn("rounded-lg", dialog)
+        # V38：遮罩与弹层的进出场同其他弹层（.cc-overlay / .cc-pop），不用 tw-animate
+        self.assertIn('"cc-overlay z-(--cc-z-sheet)"', dialog)
+        self.assertIn('"cc-pop bg-background cc-modal fixed', dialog)
+        self.assertNotRegex(dialog, r"animate-(?:in|out)\b|\b(?:fade|zoom)-(?:in|out)|duration-\d")
         button = self.read("components/ui/button.tsx")
         variants = button.split("variant: {", 1)[1].split("},", 1)[0]
         sizes = button.split("size: {", 1)[1].split("},", 1)[0]
