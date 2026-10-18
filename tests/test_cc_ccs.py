@@ -1469,6 +1469,13 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertNotIn("Sparkles", pending)
         self.assertEqual(pending.count("{co.handToCC}"), 3)
 
+    def test_settings_row_buttons_are_cc_row_btn(self):
+        # V22（B4）：设置「此电脑 · 连接」与「连接」里手写的 28 图标钮（公司一行与电脑一行的「···」、以前授权的文件夹的 ×）换成 .cc-row-btn 24，
+        # 触屏点按区 44（cc-tap）
+        settings = self.read("components/settings.tsx")
+        self.assertEqual(settings.count('className="cc-row-btn cc-tap"'), 4)
+        self.assertNotIn("size-7", settings)
+
 
 if __name__ == "__main__":
     unittest.main()

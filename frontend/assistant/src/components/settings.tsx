@@ -434,9 +434,9 @@ function Connections({ api }: { api: Desktop }) {
               <DropdownMenu.Trigger
                 disabled={!!busy}
                 aria-label={t("more")}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+                className="cc-row-btn cc-tap"
               >
-                <MoreHorizontalIcon className="size-4" />
+                <MoreHorizontalIcon />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
@@ -502,9 +502,9 @@ function Connections({ api }: { api: Desktop }) {
                 title={st.remove}
                 disabled={!!busy}
                 onClick={() => void run("folder", "remove_folder", { id: root.member, path: root.path })}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                className="cc-row-btn cc-tap"
               >
-                <XIcon className="size-4" />
+                <XIcon />
               </button>
             </div>
           ))}
@@ -532,9 +532,9 @@ function Connections({ api }: { api: Desktop }) {
                 title={st.remove}
                 disabled={!!busy}
                 onClick={() => void run("folder", "remove_folder", { id: main.id, path })}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                className="cc-row-btn cc-tap"
               >
-                <XIcon className="size-4" />
+                <XIcon />
               </button>
             </div>
           ))}
@@ -731,9 +731,9 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
             <DropdownMenu.Trigger
               disabled={busy}
               aria-label={t("more")}
-              className="cc-tap flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+              className="cc-row-btn cc-tap"
             >
-              <MoreHorizontalIcon className="size-4" />
+              <MoreHorizontalIcon />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}

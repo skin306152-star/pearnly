@@ -8712,8 +8712,8 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
         # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
         self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 6)
-        # 设置「电脑」列表每台电脑行尾「···」：电脑 28，手机点按区 44（.cc-tap）
-        self.assertIn('className="cc-tap flex size-7 items-center justify-center rounded-md', read("components/settings.tsx"))
+        # 设置「电脑」列表每台电脑行尾「···」：电脑 24（.cc-row-btn，标准化 V22；原来手写 28），手机点按区 44（.cc-tap）
+        self.assertIn('className="cc-row-btn cc-tap"', read("components/settings.tsx"))
         self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))
         # D26：触屏平板（网页布局 + 粗指针）对话顶栏 44、顶栏图标钮与侧栏收起钮点按区 44，鼠标与桌面版不跟
         # 触屏判定 B1 起统一成 data-cc-touch（手机变体，或粗指针且不是桌面窗口；lib/variant.ts），网页布局再加 data-cc-variant="web"
