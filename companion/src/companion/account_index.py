@@ -124,7 +124,8 @@ class AccountIndex:
             self._discovered_at = float(raw.get("discovered_at") or 0.0)
         except (TypeError, ValueError):
             self._discovered_at = 0.0
-        log.info("[accounts] 本机账套索引：%d 份账套、%d 个登记表", len(self._details), len(self._registry))
+        # 按账套文件夹计（几个年度登记同一个文件夹只算一个；本机找不到的文件夹没有可存的）：与清单里的「账套 N 个」不是一回事
+        log.info("[accounts] 本机账套索引：%d 个账套文件夹、%d 个登记表", len(self._details), len(self._registry))
 
     def save(self) -> bool:
         """有改动才写（先写临时文件再整体替换）；30 天没用到的条目这时删掉。返回是否写了。"""
