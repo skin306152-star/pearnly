@@ -727,8 +727,8 @@ const UserMessage: FC = () => {
         </div>
       </div>
 
-      {/* 你发的消息悬停时在气泡下方右侧出现「复制」（同 claude.ai），位置先留好、出现时不跳；手机上长按选字即可 */}
-      <div className="-mt-(--cc-space-4) -me-(--cc-space-4) flex min-h-(--cc-control-sm) justify-end pointer-coarse:hidden">
+      {/* 你发的消息悬停时在气泡下方右侧出现「复制」（同 claude.ai），位置先留好、出现时不跳；触屏上不放（data-cc-touch：手机变体，或粗指针且不是桌面窗口，V3），长按选字即可 */}
+      <div className="-mt-(--cc-space-4) -me-(--cc-space-4) flex min-h-(--cc-control-sm) justify-end in-data-[cc-touch]:hidden">
         <ActionBarPrimitive.Root autohide="always" className="flex text-ink-3">
           <CopyAction />
         </ActionBarPrimitive.Root>
