@@ -389,6 +389,11 @@ taken on battery power; when off, the hold drops while the computer runs on batt
       所以按「连着」而不是「正在干活」）。只防系统空闲睡眠：不改电源计划、不改系统设置、不改合盖动作，合盖、按电源键照样睡；**不锁屏**（Claude 没有）。
     - 「用电池时也保持」（`keep_awake_on_battery`，默认开）：关掉时用电池就放开、插上电再拿起（守护线程每 15 秒查一次 `GetSystemPowerStatus`，
       开关与成员一变马上重算）。
+      〔用户 10-18 定（D8）：**默认关**。依据：办公室测试机用电池约 3 小时电量 68%→21%，期间 CC 一直拿着 DISPLAY + SYSTEM 不让睡。
+      关着时订阅 `PowerSettingRegisterNotification(GUID_ACDC_POWER_SOURCE)`（回调形式，不要窗口），一换成电池马上放开 DISPLAY / SYSTEM、
+      插上电按插电的设置拿回，15 秒轮询留作兜底。配置加 `keep_awake_on_battery_set`（用户在设置里改过才写 True）：之前每次存盘都整份写全局设置，
+      文件里的 `keep_awake_on_battery` 分不出是用户开的还是旧默认，没有这个标记的一律按没设过取新默认（这个开关只在没发布的 1.7.0 测试包里出现过）。
+      插电的 `keep_awake` 默认仍开。下面「现代待机电脑上的后果」里用电池那一半随之解决；插电时屏幕不自动关仍按原口径。〕
     - 调用沿用 1.4.2–1.6 常驻模式（`always_on.py`，ecabec82 删）在办公室测试机上验证过的那一种：`SetThreadExecutionState(ES_CONTINUOUS | …)`
       挂在一条专用守护线程上，放开时在同一条线程上只留 `ES_CONTINUOUS`（进程退出系统也自动收回）。**关屏**：一般电脑（S3）只要
       `ES_SYSTEM_REQUIRED`，屏幕照常按电源设置关、系统不睡；现代待机（S0，`GetPwrCapabilities` 的 `AoAc`）屏幕一关就进待机，只保持系统拦不住——

@@ -876,7 +876,7 @@ function System({ api }: { api: Desktop }) {
   );
 }
 
-/** 「CC 开着时保持电脑唤醒」「用电池时也保持」（同 Claude 桌面版，用户 10-16；companion keep_awake.py，默认都开）。只在「此电脑 → 系统」
+/** 「CC 开着时保持电脑唤醒」「用电池时也保持」（同 Claude 桌面版，用户 10-16；companion keep_awake.py，前者默认开、后者 10-18 起默认关）。只在「此电脑 → 系统」
  *  （有桥才有），旧版桌面端的状态里没有这两项就不显示。 */
 export function KeepAwakeRows({
   state,
@@ -893,7 +893,7 @@ export function KeepAwakeRows({
       </Row>
       <Row label={st.keepAwakeOnBattery}>
         <Switch
-          checked={state.keep_awake_on_battery ?? true}
+          checked={state.keep_awake_on_battery ?? false}
           label={st.keepAwakeOnBattery}
           onChange={(on) => onChange("keep_awake_on_battery", on)}
         />

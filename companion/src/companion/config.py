@@ -98,9 +98,11 @@ class CompanionConfig:
     )
     paired: bool = False  # 是否完成首次配对
     autostart: bool = True  # 开机自启(配对成功后写注册表 Run)
-    # CC 开着时保持电脑唤醒 / 用电池时也保持（keep_awake.py，同 Claude 桌面版，用户 10-16；旧 always_on 迁过来，profile_store）
+    # CC 开着时保持电脑唤醒 / 用电池时也保持（keep_awake.py，同 Claude 桌面版，用户 10-16；旧 always_on 迁过来，profile_store）。
+    # 用电池时默认不保持（用户 10-18 定，D8）；keep_awake_on_battery_set = 用户在设置里亲手改过这个开关（没改过就一直按默认）
     keep_awake: bool = True
-    keep_awake_on_battery: bool = True
+    keep_awake_on_battery: bool = False
+    keep_awake_on_battery_set: bool = False
     ui_lang: str = ""  # 界面语言 th/zh(空=按 Windows 语言 · 配对窗可切换并记住)
     # F2 运行时身份。由 ProfileStore 持久化，旧 flat 配置下留空。
     profile_id: str = ""

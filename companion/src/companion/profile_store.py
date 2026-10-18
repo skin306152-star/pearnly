@@ -51,9 +51,11 @@ class GlobalSettings:
     heartbeat_interval_s: int
     autostart: bool
     ui_lang: str
-    # CC 开着时保持电脑唤醒 / 用电池时也保持（keep_awake.py，默认开）
+    # CC 开着时保持电脑唤醒（默认开）/ 用电池时也保持（默认关，用户 10-18 定，D8）（keep_awake.py）；
+    # keep_awake_on_battery_set：用电池那个开关用户亲手改过（from_dict 据此区分「没设过 = 用默认」与「用户设过」）
     keep_awake: bool = True
-    keep_awake_on_battery: bool = True
+    keep_awake_on_battery: bool = False
+    keep_awake_on_battery_set: bool = False
 
     @classmethod
     def from_config(cls, cfg: CompanionConfig) -> "GlobalSettings":
@@ -70,6 +72,13 @@ class GlobalSettings:
         # 旧键不在白名单里，下次写回时丢掉（ADR-021 第 58 条）
         if "keep_awake" not in raw and raw.get("always_on") is True:
             values["keep_awake"] = True
+        # 「用电池时也保持」10-18 起默认关（D8）。之前每次存盘都把整份全局设置写进文件，文件里的 keep_awake_on_battery
+        # 是用户亲手开的还是默认值写进去的分不出来；这个开关只在没发布的 1.7.0 测试包里出现过（默认开，用户关掉才会写 False）。
+        # 所以没有 keep_awake_on_battery_set 标记的一律按「没设过」处理、取新默认（关）：写着 False 的本来就是关，
+        # 写着 True 的多半是旧默认，最多丢掉测试机上一次手动的「开」。标记是用户在设置里改过才写上的，之后照用户的值。
+        values["keep_awake_on_battery_set"] = bool(values["keep_awake_on_battery_set"])
+        if not values["keep_awake_on_battery_set"]:
+            values["keep_awake_on_battery"] = defaults.keep_awake_on_battery
         for name in ("keep_awake", "keep_awake_on_battery"):
             values[name] = bool(values[name])
         return cls(**values)

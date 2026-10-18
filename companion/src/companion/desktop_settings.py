@@ -191,7 +191,7 @@ class DesktopSettings:
             "express_roots": roots,
             "members": members,
             "autostart": self._autostart(store),
-            # CC 开着时保持电脑唤醒 / 用电池时也保持（keep_awake.py，默认开）；旧版桥没有这两项，设置页据此不显示
+            # CC 开着时保持电脑唤醒（默认开）/ 用电池时也保持（默认关，D8）（keep_awake.py）；旧版桥没有这两项，设置页据此不显示
             "keep_awake": bool(store.global_settings.keep_awake),
             "keep_awake_on_battery": bool(store.global_settings.keep_awake_on_battery),
             "hotkey": bool(self._hotkey()),
@@ -335,7 +335,7 @@ class DesktopSettings:
         if enabled is not None:
             cfg.update(keep_awake=bool(enabled))
         if on_battery is not None:
-            cfg.update(keep_awake_on_battery=bool(on_battery))
+            cfg.update(keep_awake_on_battery=bool(on_battery), keep_awake_on_battery_set=True)   # 用户设过：之后不再按默认
         store.save_profile(cfg)
         self._on_keep_awake(bool(cfg.keep_awake), bool(cfg.keep_awake_on_battery))
         return {"ok": True}

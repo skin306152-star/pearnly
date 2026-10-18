@@ -221,7 +221,7 @@ class TrayApp(QObject):
         # 两个开关是这台电脑的全局设置：托盘单独记着（启动 / 重读配置时取文件里的值，设置里改了由 _set_keep_awake 更新），
         # 不写进各成员的配置——取任务线程手上的配置副本存盘时只写它自己改过的全局项（profile_store.save_profile）
         self._awake_settings = (bool(getattr(self.cfg, "keep_awake", True)),
-                                bool(getattr(self.cfg, "keep_awake_on_battery", True)))
+                                bool(getattr(self.cfg, "keep_awake_on_battery", False)))
         self._apply_keep_awake()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
@@ -844,7 +844,7 @@ class TrayApp(QObject):
         keeper = getattr(self, "_keep_awake", None)
         if keeper is None or self._quitting:
             return
-        enabled, on_battery = getattr(self, "_awake_settings", (True, True))
+        enabled, on_battery = getattr(self, "_awake_settings", (True, False))
         try:
             keeper.apply(enabled=enabled, on_battery=on_battery,
                          members=any(member_active(cfg) for cfg in self.configs))

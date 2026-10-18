@@ -3,11 +3,13 @@
 
 CC 的活大多从外面来（手机、LINE、夜里的定时任务），所以只要 CC 桌面版在运行、至少有一个成员连着（配对有效：没暂停、
 密钥没被服务端说不能再用，``config.member_active``），就不让系统**空闲睡眠**；没有成员、退出 CC、关掉开关时马上放开。
-两个开关都在设置「此电脑 → 系统」（默认都开），同 Claude 桌面版的「Keep computer awake」「Keep awake on battery power」：
+两个开关都在设置「此电脑 → 系统」，同 Claude 桌面版的「Keep computer awake」「Keep awake on battery power」：
 
-- ``keep_awake``：CC 开着时保持电脑唤醒；
-- ``keep_awake_on_battery``：用电池时也保持。关掉时用电池就放开、插上电再拿起（每 15 秒查一次 ``GetSystemPowerStatus``，
-  开关与成员一变马上重算）。
+- ``keep_awake``：CC 开着时保持电脑唤醒（默认开）；
+- ``keep_awake_on_battery``：用电池时也保持（默认关，用户 10-18 定，D8：测试机用电池约 3 小时 68%→21%，期间 CC 一直拿着
+  DISPLAY + SYSTEM 不让睡）。关着时一换成电池就放开、插上电按插电的设置再拿起：订阅系统的交流 / 直流切换通知
+  （``PowerSettingRegisterNotification(GUID_ACDC_POWER_SOURCE)``，回调只叫醒守护线程），另每 15 秒查一次
+  ``GetSystemPowerStatus`` 兜底（订阅不上时就靠它）；开关与成员一变马上重算。
 
 做法沿用 1.4.2–1.6 的常驻模式（``always_on.py``，10-16 删、提交 ecabec82 之前）在办公室测试机上验证过的那一种：
 ``SetThreadExecutionState(ES_CONTINUOUS | …)`` 挂在一条专用守护线程上（Windows 按调用线程记这个状态，线程在、状态就在；
@@ -40,6 +42,7 @@ log = get_logger(__name__)
 ES_CONTINUOUS = 0x80000000
 ES_SYSTEM_REQUIRED = 0x00000001
 ES_DISPLAY_REQUIRED = 0x00000002
+DEVICE_NOTIFY_CALLBACK = 2   # winuser.h：Recipient 是 DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS，不要窗口
 
 POLL_SECONDS = 15.0          # 电源（插电 / 电池）多久查一次
 _AOAC_OFFSET = 20            # SYSTEM_POWER_CAPABILITIES.AoAc（winnt.h：15 个 BOOLEAN + 两个 BYTE + 3 个 BOOLEAN 之后）
@@ -49,6 +52,8 @@ class Power(Protocol):
     def set_state(self, flags: int) -> bool: ...
     def on_battery(self) -> bool: ...
     def modern_standby(self) -> bool: ...
+    # 可选：电源（插电 / 电池）一变就叫 ``notify``；回一个取消订阅的函数，订阅不上回 None（只靠轮询）
+    # def watch(self, notify: Callable[[], None]) -> Optional[Callable[[], None]]: ...
 
 
 class _PowerStatus(ctypes.Structure):
@@ -57,8 +62,26 @@ class _PowerStatus(ctypes.Structure):
                 ("BatteryLifeTime", ctypes.c_ulong), ("BatteryFullLifeTime", ctypes.c_ulong)]
 
 
+class _Guid(ctypes.Structure):
+    _fields_ = [("Data1", ctypes.c_ulong), ("Data2", ctypes.c_ushort), ("Data3", ctypes.c_ushort),
+                ("Data4", ctypes.c_ubyte * 8)]
+
+
+# GUID_ACDC_POWER_SOURCE {5D3E9A59-E9D5-4B00-A6BD-FF34FF516548}（winnt.h）：交流 / 直流（电池）/ 短时电源切换
+GUID_ACDC_POWER_SOURCE = (0x5D3E9A59, 0xE9D5, 0x4B00, (0xA6, 0xBD, 0xFF, 0x34, 0xFF, 0x51, 0x65, 0x48))
+
+if sys.platform == "win32":
+    _NOTIFY_CALLBACK = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p)
+else:   # 只为能 import；非 Windows 不订阅
+    _NOTIFY_CALLBACK = ctypes.CFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p)
+
+
+class _SubscribeParameters(ctypes.Structure):   # DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS
+    _fields_ = [("Callback", _NOTIFY_CALLBACK), ("Context", ctypes.c_void_p)]
+
+
 class WindowsPower:
-    """Windows 的三样：设线程执行状态、是不是在用电池、是不是现代待机（只查一次）。"""
+    """Windows 的四样：设线程执行状态、是不是在用电池、是不是现代待机（只查一次）、订阅插电 / 电池切换。"""
 
     def __init__(self) -> None:
         self._aoac: Optional[bool] = None
@@ -89,6 +112,48 @@ class WindowsPower:
             log.info("这台电脑%s现代待机", "是" if self._aoac else "不是")
         return self._aoac
 
+    def watch(self, notify):
+        """订阅交流 / 直流切换（Windows 8 起的 ``powrprof.PowerSettingRegisterNotification``，回调形式不要窗口）。
+        回调在系统线程上，只叫 ``notify``（叫醒守护线程，由它重新查电源）；订阅时系统会先按当前状态回调一次，无妨。
+        订阅不上回 None（只靠 15 秒轮询）。回的函数取消订阅；回调对象与参数结构挂在它身上，取消前不会被回收。"""
+        try:
+            def _callback(_context, _type, _setting):
+                try:
+                    notify()
+                except Exception:   # 不让异常穿回系统线程
+                    pass
+                return 0
+
+            callback = _NOTIFY_CALLBACK(_callback)
+            params = _SubscribeParameters(callback, None)
+            d1, d2, d3, d4 = GUID_ACDC_POWER_SOURCE
+            guid = _Guid(d1, d2, d3, (ctypes.c_ubyte * 8)(*d4))
+            handle = ctypes.c_void_p()
+            powrprof = ctypes.windll.powrprof
+            register = powrprof.PowerSettingRegisterNotification
+            register.argtypes = [ctypes.POINTER(_Guid), ctypes.c_ulong, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)]
+            register.restype = ctypes.c_ulong
+            unregister = powrprof.PowerSettingUnregisterNotification
+            unregister.argtypes = [ctypes.c_void_p]
+            unregister.restype = ctypes.c_ulong
+            error = register(ctypes.byref(guid), DEVICE_NOTIFY_CALLBACK, ctypes.c_void_p(ctypes.addressof(params)),
+                             ctypes.byref(handle))
+            if error or not handle.value:
+                log.warning("订阅插电 / 电池切换失败（%s），只按 15 秒轮询", error)
+                return None
+        except Exception:
+            log.warning("订阅插电 / 电池切换失败，只按 15 秒轮询", exc_info=True)
+            return None
+
+        def _unwatch() -> None:
+            try:
+                unregister(handle)
+            except Exception:
+                log.warning("取消订阅插电 / 电池切换失败（忽略）", exc_info=True)
+
+        _unwatch.keep = (callback, params, guid)   # type: ignore[attr-defined]
+        return _unwatch
+
 
 class KeepAwake:
     """（界面线程调 ``apply`` / ``stop``）要保持时起一条专用守护线程拿住状态，不用保持时放开并让线程退出。"""
@@ -98,7 +163,7 @@ class KeepAwake:
             power = WindowsPower()
         self._power = power
         self._poll = poll
-        self._on_battery_too = True
+        self._on_battery_too = False
         self._lock = threading.Lock()
         self._thread: Optional[threading.Thread] = None
         self._stop: Optional[threading.Event] = None
@@ -153,6 +218,13 @@ class KeepAwake:
 
     def _hold(self, stop: threading.Event, wake: threading.Event) -> None:
         assert self._power is not None
+        watch = getattr(self._power, "watch", None)
+        unwatch = None
+        if watch is not None:
+            try:
+                unwatch = watch(wake.set)   # 插电 / 电池一变马上重算（用电池且没开「用电池时也保持」就放开）
+            except Exception:
+                log.warning("订阅插电 / 电池切换失败，只按 15 秒轮询", exc_info=True)
         try:
             while not stop.is_set():
                 try:
@@ -165,6 +237,8 @@ class KeepAwake:
                 wake.wait(self._poll)
                 wake.clear()
         finally:
+            if unwatch is not None:
+                unwatch()
             if self.flags:
                 self._set(0)
 
