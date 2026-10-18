@@ -32,6 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { buttonVariants } from "@/components/ui/button";
 import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
 import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
 import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
@@ -218,7 +219,11 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip={t("removeFile")}
-        className="aui-attachment-tile-remove cc-compose-x hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute size-5 rounded-full p-0 opacity-100 shadow-sm"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon" }),
+          "aui-button-icon size-(--cc-control-xs) p-(--cc-space-4) active:scale-90",
+          "aui-attachment-tile-remove cc-compose-x hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute size-5 rounded-full p-0 opacity-100 shadow-sm",
+        )}
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-(--cc-icon-2xs) dark:stroke-(length:--cc-compose-x-stroke)" />

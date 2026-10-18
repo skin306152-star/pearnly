@@ -42,7 +42,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
       <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
         {language}
       </span>
-      <TooltipIconButton tooltip={t("copy")} onClick={onCopy}>
+      <TooltipIconButton tooltip={t("copy")} onClick={onCopy} className="aui-button-icon cc-row-btn cc-tap active:scale-(--cc-press-scale)">
         {!isCopied && (
           <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
         )}

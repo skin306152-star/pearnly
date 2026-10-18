@@ -10,6 +10,7 @@ import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/to
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
@@ -329,8 +330,11 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip={t("scrollToBottom")}
         aria-label={t("scrollToBottom")}
-        variant="outline"
-        className="aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-9 z-10 size-10 self-center rounded-full p-0 shadow-[var(--cc-shadow-composer)] disabled:invisible"
+        className={cn(
+          buttonVariants({ variant: "outline", size: "icon" }),
+          "aui-button-icon size-(--cc-control-xs) p-(--cc-space-4) active:scale-90",
+          "aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-9 z-10 size-10 self-center rounded-full p-0 shadow-[var(--cc-shadow-composer)] disabled:invisible",
+        )}
       >
         <ArrowDownIcon className="size-5" />
       </TooltipIconButton>
@@ -694,7 +698,7 @@ const AssistantActionBar: FC = () => {
 
 const CopyAction: FC = () => (
   <ActionBarPrimitive.Copy asChild>
-    <TooltipIconButton tooltip={t("copy")} className="cc-tap">
+    <TooltipIconButton tooltip={t("copy")} className="aui-button-icon cc-row-btn cc-tap active:scale-(--cc-press-scale)">
       <AuiIf condition={(s) => s.message.isCopied}>
         <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
       </AuiIf>

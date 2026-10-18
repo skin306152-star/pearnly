@@ -438,10 +438,11 @@ assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
         # 第 11 轮 C21：读屏名写在 aria-label 上（复用 scrollToBottom 词条）；到底时 visibility: hidden，读屏读不到、Tab 走不到
         self.assertIn('aria-label={t("scrollToBottom")}', arrow)
         self.assertIn('tooltip={t("scrollToBottom")}', arrow)
-        # aria-label 原样落到按钮上（TooltipIconButton 把其余属性展开到 Button，不另给 aria-label 盖掉）
+        # aria-label 原样落到按钮上（TooltipIconButton 把其余属性展开到按钮，不另给 aria-label 盖掉）；B7 起是普通 <button>，不再套 shadcn Button
         button = (SRC / "components/assistant-ui/tooltip-icon-button.tsx").read_text(encoding="utf-8")
         self.assertIn("{...rest}", button)
         self.assertNotIn("aria-label", button)
+        self.assertNotIn("@/components/ui/button", button)
         for cls in ("size-10", "p-0", "-top-9", "self-center", "rounded-full", "disabled:invisible"):
             self.assertIn(cls, arrow)
         self.assertNotIn("p-4", arrow)
