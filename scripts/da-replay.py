@@ -1554,7 +1554,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
                                 else {}).get("code") or "")}
         loose = None
         for kind in ("account", "payment", "party"):
-            if sources[kind] != "remembered" or verdict.items.get(kind) != "B" or not wanted[kind]:
+            # 只数连续张数不够才是 B 的（R1 / R2 挡下的、窗口里本来就够的不算上限挤掉，10-18）
+            if sources[kind] != "remembered" or verdict.items.get(kind) != "B" or not wanted[kind] \
+                    or automation.memory_settled(recent[kind], wanted[kind], kind):
                 continue
             loose = loose or evidence(0, 0)
             if automation.memory_settled(loose[kind], wanted[kind], kind):

@@ -303,6 +303,10 @@ class JudgementLayer(unittest.TestCase):
         self.assertEqual((next_week["class"], next_week["items"]["payment"]), ("B", "B"))
         self.assertEqual((next_week["memory_holds"]["payment"], next_week["corrected"]), (["overruled"], ["payment"]))
         self.assertEqual((review.summary()["events"], review.summary()["corrections"]), (2, {"B|payment": 2}))
+        # 证据窗口有上限、窗口里连续张数本来就够、是 R1 挡下的：不算「上限挤掉」（10-18）
+        capped = {row["docnum"]: row for row in replay.judge_company(m, [book], review=replay.Review(), recent_max=12)[0]}
+        self.assertEqual((capped["B1-0412"]["class"], capped["B1-0412"]["memory_holds"]), ("B", {"payment": ["overruled"]}))
+        self.assertEqual(capped["B1-0412"]["memory_cap_lost"], [])
         # 同一天先处理的也算：当天那张也挡住
         rows = run(replay.Review(lag=0))
         self.assertEqual((rows["B1-0405"]["class"], rows["B1-0405"]["memory_holds"]), ("B", {"payment": ["overruled"]}))
