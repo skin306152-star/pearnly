@@ -1884,3 +1884,80 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
    进程创建审计没开，没法直接证明，**请测试窗口复测时**：任务登记加 `-Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
    -DontStopIfGoingOnBatteries)`（或插上电源），删任务前先看 `Get-ScheduledTaskInfo` 的 `LastTaskResult`（267011 = 从没跑过），再按 test4 的
    两步做；能请用户在机器前双击桌面图标一次最直接。若插电 / 任务确实跑了还复现，带上那一刻的 companion.log 与 `Get-Process companion` 回来。
+
+## 第 7 批：lab 迁移与回读（10-18）
+
+交接 D3「迁移后回读」。对象是测试机 lab（cowork 栈）上的 testcowork：`lab-start`（`PEARNLY_TESTENV_REFRESH=1`）从**线上 testcowork** 重新导出导入，
+挂上本分支实时源码后迁移。lab 镜像 `49cbba82…`，与线上 cowork-web 同一份（线上 revision `afc615bb`，10-18 04:18 UTC 起运行）。
+只读做法：`pearnly-testenv-cowork-cowork-web-1` 里 `bench --site testcowork.pearnly.com mariadb`，会话设成只读事务，只跑 SELECT；没有 exec 进 mariadb 容器。
+唯一的写操作是第 4 项按交接要求重跑一次 `bench migrate`。线上对照值只取了一次：一次 SSH，在 `pearnly-production-cowork-web-1` 里对 testcowork 跑同样的只读 SELECT
+（10:38 UTC）。线上 testcowork 是旧结构，补丁只到 `v0_0_18`。测试机上的临时脚本用完已删。时间口径：Patch Log、各表 `creation` / `modified` 是站点时间（UTC+7），
+密钥 `last_seen_at`、登记 `registered_at` 是 UTC。
+
+### 第一次迁移失败与 5db1462d
+
+第一次 `migrate` 跑完了 `v0_0_19_companion_devices`（Patch Log 17:28:36），到 `v0_0_20_express_account_sets` 时报 AttributeError。原因是账套登记、可达、账套资料这三张表
+共用连接的 `ConnectionDocument.before_validate`，而这个守卫无条件写 `self.client`，这三张表没有 `client` 字段。`5db1462d` 改成只在有 `client` 字段的 DocType 上补空值，
+另加 `tests/test_cowork_connection_controller.py`。重跑后 `v0_0_20`–`v0_0_23` 在 17:31:28–29 执行完。`v0_0_20` 失败那次的写入随补丁事务回滚，重跑后没有残留：
+可达行全部对得上登记，孤儿行 0。
+
+### 回读数字（迁移刚完成时，以及重跑 migrate 前后）
+
+| 项 | lab（迁移后） | 线上 testcowork（迁移前） | 判定 |
+|---|---|---|---|
+| Patch Log `v0_0_19`–`v0_0_23` | 5 个都在，每个只有 1 条 | 没有（到 `v0_0_18`） | 通过 |
+| 工作空间 | 1 | 1 | — |
+| 连接 `config_json` MD5 / `record_revision` | MR.ERP `CWEC-283edc03…` `b0df1f51…` / 2；Express `CWEC-0a40b958…` `c7f74141…` / 5 | 两条都相同 | **不变** |
+| 使用名单 MD5、`creation` | 相同 | — | 不变 |
+| 连接 `modified` | 迁移刚完成时与线上相同（Express 16:46:13）。17:37:30 起被 CC 桌面版 1.7.0 的心跳更新，`config_json` 仍不变 | — | 补丁没碰 |
+| 有效密钥 | 2 把（Express 1、MR.ERP 1），都挂上了电脑；密钥行（名、`active_key`、吊销时间）的 MD5 与线上相同 | 2 把 | `active_key` 不变 |
+| 电脑 | 2 台，都没退役：`CCD-63fbcf64…`「DESKTOP-MN2BRKR」（就是办公室测试机），以及 `CCD-3eae81e6…`「MR.ERP」 | 没有电脑表 | 见下面第 2 条发现 |
+| 账套登记 | 1 073 份（Express 连接）。其中 1 070 份来自目录，3 份是定时任务引用、目录里已经没有的键 | 上报清单 `reported_account_sets` 1 353 行 | 合理（1 353 行里有重复路径） |
+| 可达行 | 1 070 行，都在 `CCD-63fbcf64…`，状态全部 `ok`，可写 578 | — | 与 CC 桌面版「578 个账套文件夹」一致 |
+| 账套资料 | 6 份（1 份 routine），都带来源电脑 | — | — |
+| 推送记录（全是证据 v1） | 159 张：success 141、manual 17、cancelled 1；整表 MD5（名、状态、版本、账套键）与线上相同 | 159 张，相同 | 不变 |
+| v1 排队中（prepared + pending）/ 领取中 / 结果不明 | **0 / 0 / 0** | 0 / 0 / 0 | 达到目标 0 |
+| 推送尝试 / 写者锁 | 147 次全部 finished；锁 13 行（account 11、endpoint 2），没有持有者 | 相同 | 不变 |
+| 定时任务 `reader_device` 回填 | **10 / 10**；`rule_revision` / `enabled` / `reader` 的 MD5 与线上相同 | 10 条（9 条启用） | 回填了，任务版本没升 |
+| 定时任务 `company` 回填 | **1 / 10**（那 1 条是停用的任务） | 没有这一列 | 见下面第 3 条发现 |
+| 运行 / 文件 / 公司文件夹 | 运行 19 条都是 sent，没有待发简报的，回填 0；文件 145 行按设计不补；公司文件夹 1 / 1 已回填 | 19 / 145 / 1 | 符合补丁口径 |
+| 按需请求 | 1 张 done，`target_device` / `account_key` 仍为 NULL（补丁只处理 requested / leased） | 1 张 done | 符合 |
+| `all_members` | Express 主连接 `CWEC-0a40b958…` = 1；MR.ERP = 0 | 没有这一列 | 通过。testcowork 只有 1 条 Express 连接，「后建连接不改」这一条在这里没有对象，要在生产 erpcowork 上核（D2 预期：只有 `9f8ad3b2` 设 1） |
+| 记住的选择、公司主档、用户 | 90、4、3（启用 2） | 相同 | 不变 |
+
+### 重跑 migrate（幂等）
+
+10:41:38–10:41:47 UTC 重跑一次 `bench --site testcowork.pearnly.com migrate`，退出码 0，一个补丁都没执行，Patch Log 没有重复行。紧挨着重跑前后各回读一遍，
+上表所有计数、连接 / 密钥 / 推送 / 定时任务的 MD5，以及另外 5 个 MD5（登记、可达、账套资料、任务的电脑与公司、电脑的选择与版本）都完全相同。
+前后唯一的差别是 Express 密钥的 `last_seen_at`（心跳）。**结论：幂等。** 限制：Frappe 按 Patch Log 跳过已执行的补丁，所以这次重跑证明的是迁移整体幂等、
+不会重复执行。补丁代码自身重复执行的幂等，仍以本机测试为准（各批测试里都有重跑断言）。
+
+### Error Log 与报错
+
+- Error Log 从 17:20 起 **0 条**。导入带来的旧记录 137 条，最后一条是 10-15 15:48，与线上相同。第一次迁移的 AttributeError 是命令行报错，不进 Error Log。
+- web、worker、long-worker、scheduler 四个容器从这次启动（10:34 UTC）起的日志里 `Traceback` 都是 0；Scheduled Job Log 从 17:20 起没有行。
+
+### 点名「迁移回读时一起看」的两项
+
+- `readers.moved` 同表子查询（`Cowork Company Folder` 的 `SELECT name … AND company IN (SELECT company FROM 同一张表 …)`）：用不存在的值在 MariaDB 11.8 上
+  照原样跑，返回空；执行计划是半连接 `FirstMatch`，外层走 `reader` 索引，内层走 `company` 索引，没有报 1093 之类的错误。删除是先 SELECT 出名字、再按名字删，
+  不是同表子查询里删。`UPDATE` 的执行计划在只读事务里跑不了（1792），没看。
+- `member_choices`（`access.assignees` 同一条 SQL）：2 人，按全名排序，没有空全名的。第二个测试成员还没加（用户 3 个，启用 2 个），加了之后人数会变成 3。
+
+### 发现的问题与建议
+
+1. **切域名后，测试机上旧的 CC 桌面版进程仍在给线上 testcowork 报到**：线上那把 Express 密钥的 `last_seen_at` 到 10:36:59 UTC 还在更新，lab 上停在导出那一刻
+   10:25:34。测试机上 CC 在 17:37:28 重启之后，17:37:30 起才报到 lab：电脑被认领（有了设备密钥摘要），`full_report_due` 清掉，整份重报以后登记仍是 1 073 份、
+   可达仍是 1 070 / 578。原因多半是 CC 的长连接还连着线上源站，没跟着 DNS 切过去（测试机现在解析到 Cloudflare，到线上 IP 的连接为 0）。线上 testcowork 这期间只多了
+   报到时间，配置与版本都没变，不影响这次对照。**建议**：`lab-start` 切完域名后重启测试机和笔记本上的 CC 桌面版，再开始测，写进第 7 批的步骤里。
+2. **给 MR.ERP 连接的密钥也补了一台旧电脑**：`v0_0_19` 不分连接种类，所有有效密钥都补电脑。MR.ERP 那把密钥 10-13 签发后从没报到，所以电脑名退到了连接名「MR.ERP」，
+   设备密钥摘要为空。「电脑」列表不列没在线、没报过版本的电脑（`rules.computers`），用户看不到它，不算缺陷。等那台电脑用 1.7.0 在 MR.ERP 上 `device_hello` 认领，
+   或者吊销这把密钥时由 `retire_orphan` 退役。生产 erpcowork 上 MR.ERP 没有密钥（D2），不会出现这种情况。
+3. **9 条启用的定时任务没补上公司，而且指向没有电脑够得到的账套**：这 9 条只指向 3 份账套，都是 `C:\Account\70EXP` 下的 DEMO 账套。测试机现在上报的目录里没有它们，
+   池里只作为「被引用的键」登记，没有可达行，没有属性，所以 `company_of` 认不出公司，按补丁口径留空（照旧推往固定账套）。这不是迁移缺陷。但这 9 条一旦到点运行，
+   推送会因为没有电脑能写而变成 `push.no_writer`。其中 3 条的账套正是公司主档 `rsr95oj3p1` 建档时用的那份。**建议**：第 7 批做定时任务联调前，由测试窗口决定
+   这 9 条测试任务是停用，还是改指测试机现在的账套（`C:\PearnlyExpress\70EXP`）。另外，只读回读看不出它们会不会在联调时被触发。
+4. 没有发现会挡第 7 批或部署的问题。生产 erpcowork 部署后的回读仍按 D2 的预期做：电脑 2 台、`reader_device` 回填 0、`all_members` 只设在 `9f8ad3b2`、
+   两条 Express 连接 `record_revision` = 3 且 `config_json` 不变、v1 排队中 / 领取中为 0。
+
+没做 / 没验：并发加锁与 1020、HTTP 链、两台真机联调（第 7 批其余各项）；`readers.moved` 的 UPDATE / DELETE 执行计划；补丁代码自身的重跑（见上面的限制）。
