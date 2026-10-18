@@ -1728,7 +1728,7 @@ class ChoiceChanges(unittest.TestCase):
         self.assertTrue(all(field.get("read_only") for field in meta["fields"]))
         self.assertEqual(fields["kind"]["options"].split("\n"), list(auto.OVERRIDE_KINDS))
         self.assertEqual((fields["old_value"]["length"], fields["new_value"]["length"]), (60, 60))
-        self.assertEqual(meta.get("modified"), "2026-10-18 12:00:00.000000")
+        self.assertEqual(meta.get("modified"), "2026-10-19 00:00:00.000000")
         controller = (folder / "cowork_express_choice_change.py").read_text(encoding="utf-8")
         for hook in ("check_permission", "before_validate", "on_trash", "before_rename", "on_doctype_update"):
             self.assertIn(f"def {hook}", controller)

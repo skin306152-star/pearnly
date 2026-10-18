@@ -152,20 +152,22 @@ def choose_account_set(document, account_set_key):
     status = str(result.get("status") or "")
     reason = str(result.get("reason") or "")
     after = frappe.db.get_value("Cowork OCR History", name, ["last_push_record"], as_dict=True) or {}
+    accepted = status not in NOT_ENTERED
     if status in NOT_ENTERED and reason.startswith(document_policy.NEEDED_PREFIX):
         # 账套收下了，挡住它的是「这类单据录不录」（租户选一次，与选哪份账套无关）：去向记成选的这份、原因记成要选录不录，
         # 这张单从「待选账套」转成一般的待处理（交给 CC、复核页选录不录）。放回「待选账套」的话换哪份都是同一个原因，
-        # 会计员在这一行永远过不去（第 7 批 B7，2026-10-18 lab）。
+        # 会计员在这一行永远过不去（第 7 批 B7，2026-10-18 lab）。同「停在要人选的项」，现用账套照记（并入 main 时补）。
         push_state.record_failure(name, reason, connection=doc.push_connection, account_set=picked["key"])
+        accepted = True
     elif status in NOT_ENTERED and (after.get("last_push_record") or None) == (stop["record"] or None):
         push_state.record_failure(name, stop["reason"], connection=stop["connection"], account_set=stop["account_set"])
     elif status not in NOT_ENTERED:
         push_state.retarget(name, doc.push_connection, picked["key"])
-        if current:
-            _remember(current)
+    if accepted and current:
+        _remember(current)
     frappe.db.commit()
     out = _answer(name, result)
-    if current and status not in NOT_ENTERED:
+    if accepted and current:
         out["current_book"] = current["value"]
     return out
 

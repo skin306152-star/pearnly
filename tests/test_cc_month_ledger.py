@@ -502,7 +502,7 @@ assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);
         self.assertIn('className="flex min-w-0 items-center justify-between gap-2" data-slot="cc-month-group-head"', ledger)
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{co.ledger.automation}</Marquee>', ledger)
         css = read("globals.css")
-        self.assertIn("flex-shrink: 0; align-items: center; gap: 0.25rem; height: var(--cc-list-btn);", css)  # .cc-btn-sm 不缩
+        self.assertIn("flex-shrink: 0; align-items: center; gap: var(--cc-space-4); height: var(--cc-list-btn);", css)  # .cc-btn-sm 不缩（间距照标准化 B1 走 --cc-space-4）
         # 只用 globals.css 现有的零件与变量：这一批不加新样式
         self.assertNotIn("cc-month-automation {", css)
         self.assertNotIn("cc-pending-proposal {", css)

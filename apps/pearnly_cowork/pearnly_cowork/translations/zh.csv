@@ -280,6 +280,7 @@ Change the stock account group?,要更改存货科目组吗？
 Change these scheduled tasks?,要更改这些定时任务吗？
 Change this scheduled task?,要更改这个定时任务吗？
 Changed,改过
+Changed At,修改时间
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
 Changes,变动
@@ -1120,6 +1121,7 @@ OUT,出账
 Observed At (UTC),观测时间（UTC）
 Observer,观察者
 Off,关
+Old Value,原值
 On,开
 On schedule,定时
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",以下识别出的销项税报告页金额与单号错行（金额在总账中均存在，仅单号对应有误），属识别错误，请对照原件更正（括号内为行数）：{0}

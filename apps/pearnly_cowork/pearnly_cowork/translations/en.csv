@@ -280,6 +280,7 @@ Change the stock account group?,Change the stock account group?
 Change these scheduled tasks?,Change these scheduled tasks?
 Change this scheduled task?,Change this scheduled task?
 Changed,Changed
+Changed At,Changed At
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
 Changes,Changes
@@ -1120,6 +1121,7 @@ OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Observer,Observer
 Off,Off
+Old Value,Old Value
 On,On
 On schedule,On schedule
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"

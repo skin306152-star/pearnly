@@ -280,6 +280,7 @@ Change the stock account group?,在庫勘定グループを変更しますか？
 Change these scheduled tasks?,これらの定期タスクを変更しますか？
 Change this scheduled task?,この定期タスクを変更しますか？
 Changed,変更あり
+Changed At,変更日時
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
 Changes,変更
@@ -1120,6 +1121,7 @@ OUT,出金
 Observed At (UTC),観測日時（UTC）
 Observer,オブザーバー
 Off,オフ
+Old Value,変更前の値
 On,オン
 On schedule,スケジュール
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}

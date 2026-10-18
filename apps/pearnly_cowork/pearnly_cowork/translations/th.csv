@@ -280,6 +280,7 @@ Change the stock account group?,เปลี่ยนกลุ่มบัญช
 Change these scheduled tasks?,เปลี่ยนงานตามกำหนดเวลาเหล่านี้หรือไม่
 Change this scheduled task?,เปลี่ยนงานตามกำหนดเวลานี้หรือไม่
 Changed,แก้ไขแล้ว
+Changed At,เวลาที่แก้ไข
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
 Changes,การเปลี่ยนแปลง
@@ -1120,6 +1121,7 @@ OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Observer,ผู้สังเกตการณ์
 Off,ปิด
+Old Value,ค่าเดิม
 On,เปิด
 On schedule,ตามกำหนดเวลา
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านได้ มียอดเงินกับเลขที่เอกสารเหลื่อมแถวกัน (ยอดเงินทุกรายการมีในบัญชีแยกประเภท เพียงแต่เลขที่เอกสารไม่ตรงกัน) เป็นการอ่านผิด กรุณาแก้ไขตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}

@@ -1775,7 +1775,8 @@ class PendingAnswerTests(unittest.TestCase):
     def test_a_switch_stopped_by_the_document_kind_choice_leaves_the_account_set_row(self):
         """第 7 批 B7（2026-10-18 lab）：选了账套，推送停在「这类单据录不录」（document_policy_needed_*，租户选一次，与选哪份
         账套无关）。原先放回「待选账套」，换哪份都是同一个原因，页面上还把码原样标红，会计员过不去。现在去向记成选的这份、
-        原因记成要选录不录：这张单转成一般的待处理（交给 CC、复核页选录不录），页面显示词条的话。"""
+        原因记成要选录不录：这张单转成一般的待处理（交给 CC、复核页选录不录），页面显示词条的话。账套收下了，同「停在要人选
+        的项」，两份同期时选的这份照记成现用的（并入 main 时补，第五轮后审查「推成了才记」的口径）。"""
         reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy")])
         make()
         doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous", push_account_set="S:\\69EXP\\ABC")
@@ -1783,10 +1784,12 @@ class PendingAnswerTests(unittest.TestCase):
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
         self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "document_policy_needed_payment_evidence",
-                               "reason_label": "text:document_policy_needed_payment_evidence"})
+                               "reason_label": "text:document_policy_needed_payment_evidence",
+                               "current_book": "s:\\69exp\\abc2"})
         self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("restore", "h1", "document_policy_needed_payment_evidence",
-                                  ("account_set", "s:\\69exp\\abc2"), ("connection", "C1"))])
+                                  ("account_set", "s:\\69exp\\abc2"), ("connection", "C1")),
+                                 ("remember", "WS1", f"current_book|tax:{TAX}|00000|cy", "s:\\69exp\\abc2")])
 
     def test_switchable_account_sets_follow_the_tasks_company_and_branch(self):
         """第 6 批审查第 4 条：可换的账套按出这张票的定时任务记的公司与分店列（同定时任务选账套），不按票上现算的归属——

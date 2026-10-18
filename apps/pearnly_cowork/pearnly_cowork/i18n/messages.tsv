@@ -2281,6 +2281,8 @@ Automation Proposal	自动推送提议	ข้อเสนอการส่ง�
 Automation Checked At (UTC)	判定时间（UTC）	เวลาที่ตรวจ (UTC)	判定日時（UTC）
 Write Check	写入核对	ตรวจการบันทึก	書き込み確認
 Write Check Detail	写入核对明细	รายละเอียดการตรวจการบันทึก	書き込み確認の詳細
+Old Value	原值	ค่าเดิม	変更前の値
+Changed At	修改时间	เวลาที่แก้ไข	変更日時
 Subject Label	对象名称	ชื่อรายการ	対象名
 Value Label	值名称	ชื่อค่า	値の名称
 Evidence	依据	หลักฐาน	根拠
