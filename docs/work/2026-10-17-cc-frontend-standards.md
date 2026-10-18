@@ -25,6 +25,7 @@
 | B1 标准层 | `pearnly/cc-std-b1`（基线 c4ab0c3e，工作树 `.claude/worktrees/cc-std-b1`），提交见下面「B1 做了什么」；纯替换 4 个提交逐个比对 0 样式差、0 像素差，画面变化 V2 / V3 / V4 / V6 / V37 逐个比对只差预期的项；本地全闸门 87 步全过。比对报告 `~/pearnly-devtools/cc-std-b1/reports/`，画面变化前后图 `~/pearnly-devtools/cc-std-b1/visual/`。**未推送、未合入 main、未部署；待测试窗口验收**（V3、V4、V37 的触屏与中间宽度要用户手机 / 平板走） |
 | 插批：静置动效 | `pearnly/cc-idle-anim`（基线 cc-std-b1 顶端 f1978271）：首页小猫的 7 个装饰动画不再无限循环，出现时播几轮（`--cc-mascot-*-runs`，最多 10 秒）就停；闸门加「动画轮数只写 var()」；见 [静置动效记录](2026-10-18-cc-idle-animations.md)。未推送、未合入 main、待测试机复测 |
 | B2 组件库 | `pearnly/cc-std-b2`（基线 `pearnly/cc-longpress-race` 顶端 93a10475，开发窗口指定；工作树 `.claude/worktrees/cc-std-b2`），提交见下面「B2 做了什么」；纯替换 8bc08765 对基线全矩阵 773 个场景 0 样式差、0 像素差（报告里 1 个悬停残留经前后各复拍 2 次判为基线那一遍离群），画面变化 V5 / V7 / V9 / V11 / V18 / V38 逐个比对只差预期的项（V38 是 B2 按 4.1 补进第 7 节的）；本地全闸门全过。比对报告 `~/pearnly-devtools/cc-std-b2/reports/`，前后图 `~/pearnly-devtools/cc-std-b2/visual/`。10-18 晚变基到 origin/main 2a558d14 → 84c644f6，本地全闸门 100 步过、分支 CI 两条过；lab 挂 84c644f6 由测试窗口验收**六项全过、回归无变化**（见「B2 测试窗口验收」）；用户 10-18 晚手机真手指走过预览与长按、通过，合入 main；未部署（随下一批） |
+| B7 对话区 | `pearnly/cc-std-b7`（基线 origin/main 81bcd88a，工作树 `.claude/worktrees/cc-std-b7`），提交见下面「B7 做了什么」；纯替换 d9cb99bd 对基线全矩阵 801 个场景 0 样式差、0 像素差（只有类名标签与删掉的隐藏空容器，9 个渐变带抖动经复拍判定），画面变化 V1 / V3 / V12 / V30–V36 与补进第 7 节的 V70 / V71 / V72 逐个比对只差预期的项（V13 在 B7 无可见变化）。比对报告 `~/pearnly-devtools/cc-std-b7/reports/`，前后图 `~/pearnly-devtools/cc-std-b7/visual/`。**推了任务分支、未合入 main、未部署；待测试窗口验收**（V30、V36 要用户手机 / 平板走） |
 | B3–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
@@ -286,6 +287,92 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   2. `companies.tsx:150`、`scheduled-tasks.tsx:440` 的加载卡片仍是 `animate-pulse`——补登进 V5，B4 照做。
   3. 手机打开图片预览时关闭钮带 `:focus-visible` 蓝框（组件库打开弹窗自动聚焦关闭钮）——B2 没动焦点；用户手机看过说不碍事，不改。
   4. adb `input swipe` 模拟长按不出菜单是工具问题（三星按下同一毫秒就发 contextmenu），调试接口触摸事件正常；用户真手指正常。
+
+### B7 做了什么（10-18 夜 – 10-19，`pearnly/cc-std-b7`）
+
+基线 `origin/main` **81bcd88a**（B2 已合入，前置的 `cc-scroll-fix` 早已在 main）；工作树 `.claude/worktrees/cc-std-b7`，自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`）。B3–B6 同时在各自工作树里做，B7 只改本批 5 个源码文件、`globals.css` 补缺档（4.1 例外）、登记文件与共享测试里断言本批文件的那几行。
+对话区的滚动（`lib/follow-scroll.ts`、`useSettleOnOpen`、`turnAnchor="top"`）和输入法回车（`holdImeEnter`）一行没动，`test_cc_run_indicator.py`（含 follow-scroll 的 node 用例）、`test_assistant_ui.py` 的输入法用例照过。图片预览打开时关闭钮自动聚焦的蓝框（B2 验收用户看过不碍事）没动焦点行为。
+
+| 提交 | 内容 | 类 |
+| :- | :- | :- |
+| 9bb8f4ed | 比对工具先补覆盖再拍基线：富文本对话加 1–4 级标题、分隔线、脚注和一张用户附件卡；`compose-uploading`（挂起上传接口：方块的上传中转圈与遮罩）、`send-pending`（上传没完成就发送：发送中气泡与附件骨架）两个场景。场景 70 → 72，全矩阵每遍 801 张 | 工具 |
+| d9cb99bd | 纯替换（见下） | 纯替换 |
+| f9fdf7ed | V1 字号换实测字阶 | 画面变化 B |
+| c0c8d45c | V3 用户消息「复制」条改按触屏标记 | 画面变化 A |
+| 6864f9af | V72（B7 补进第 7 节）用户消息改用 `.cc-user-row`，「复制」条回到气泡下方右侧 | 画面变化 A（缺陷修复） |
+| b187e690 | V12 出错框 `.cc-alert` | 画面变化（原 C·已定） |
+| 0b6851e2 | V32 出错块去掉 `mt-2` | 画面变化 A |
+| 2666b128 | V30 回复与代码块「复制」`.cc-row-btn cc-tap`；`TooltipIconButton` 不再包 shadcn Button | 画面变化 A |
+| f5579212 | V70（B7 补进第 7 节）滚到底 `.cc-scroll-btn` | 画面变化 A |
+| 5365f730 | V71（B7 补进第 7 节）附件移除钮自己写标准写法 | 画面变化 B |
+| 818ad90c | V31 发送中气泡的附件 = 同款 `.cc-attach-card` + 骨架 | 画面变化 A |
+| 71932df1 | V33 代码块 `.cc-code-block-head` / `.cc-code-block` | 画面变化（原 C·已定） |
+| f6ceadf4 | V34 复制图标切换的时长与缓动 | 画面变化 B |
+| 52294f91 | V35 附件只留一层悬停、去掉 1px 模糊、转圈 `.cc-spinner` | 画面变化 A |
+| a97486f6 | V36 图片预览 `sm:` 改 `md:` | 画面变化 A |
+| 9f524e6f | 收紧清单登记 4 个文件 | 清单 |
+| （本记录） | 本记录 B7 小节、4.1 例外、4.2 / 第 7 / 8 节 B7 的行；ccs.md 一条 | 文档 |
+
+每个提交都单独跑过 `npm run typecheck`、本批相关的 9 个共享测试文件、`check-frontend-tokens.py`（`git rebase --exec` 逐个提交跑，全过）。
+
+**纯替换（d9cb99bd）做了什么**：
+
+- **写死值换成同值变量**：栏宽 `max-w-[calc(var(--cc-thread-w)+var(--cc-thread-gutter)*2)] px-(--cc-thread-gutter)`，删 `thread.tsx` 自设的 `--thread-max-width`（2.4 第 3 条）；一轮之间 `--cc-turn-gap`、末尾让位 `--cc-thread-tail`、工作状态行 `--cc-run-gap / -reply`、回复操作行 `--cc-reply-actions-h`（`-mb / pb / min-h` 三处）、`content-visibility` 占位 `--cc-msg-intrinsic`、输入框最高 `--cc-composer-input-max`、四点与计时之间 `--cc-dots-gap`；Markdown 标题 `--cc-md-h1 / -h2 / -heading-lh / -heading-scroll`、列表项 `--cc-md-li-gap`、引用竖线 `--cc-md-quote-w`、链接下划线 `--cc-link-offset`、行内代码 `--cc-code-inline-size`；图片预览 `--cc-preview-w / -share`；其余间距、尺寸换刻度。
+- **换成已有的共用类（计算值逐项相同）**：提醒卡与结果文件卡 `.cc-file-card` / `.cc-file-card-icon`（图标格里的 `size-4.5` 删掉，由类给 18）、回复表格 `.cc-table`（单元格的 `min-w-24 px-3 py-1.5 text-start font-medium` 删掉，V13 在 B7 这一处本来就是这套）、发送中气泡 `.cc-user-row`、停止钮 `data-stop`（去掉 `!size-3.5`，B1 的 `.cc-send[data-stop] svg` 给 14）。
+- **删死代码**：组件库默认的欢迎区 `ThreadWelcome`（CC 总是传自己的 Welcome）、`ThreadSuggestions`（运行时从不给建议，只剩一个 `empty:hidden` 的空容器）、`follow-up-suggestions.tsx` 整个文件；`TooltipIconButton` 外面那层 `TooltipProvider delayDuration={0}`（每个 Tooltip 自带一层 Provider，外层从不起作用，B2 点名）。
+- **globals.css（4.1 新登记的例外）**：用途层「对话」补 `--cc-file-card-py` 10（卡片上下、提醒卡内正文与按钮之间）、`--cc-alert-lines` 2（出错行最多两行，`line-clamp-(--cc-alert-lines)`）、`--cc-compose-x-stroke` 2.5px（深色下附件「×」加粗）；V30 再补 `--cc-press-scale` 0.94（图标按钮按下，同 `.cc-icon-btn:active`）。都是「现有值·CC 自定」。
+- **共享测试**：断言改成新写法、意思不变（`test_cc_ccs.py` 的回复内边距、表格、链接、行内代码、栏宽；`test_cc_mobile_overlays.py` 的预览占高、「新对话输入框下不多出空容器」改成断言建议容器已删；`test_cc_run_indicator.py` 的 `ThreadWelcome` 锚点改 `const Composer: FC`、发送失败、状态行；`test_assistant_ui.py` 的计时 Marquee、`line-clamp`）。`AWAITING` 表删掉 B7 一节（全部接上），另删 `--cc-composer-input-max`（登记 B4，`thread.tsx` 先用上了）、`--cc-link-offset`（登记 B5，`markdown-text.tsx` 先用上了）——B4 / B5 合入时这两行会有小冲突，删掉即可。
+
+**与方案不同、按依据定的几处**：
+
+1. **V13 在 B7 没有可见变化**：对话里的表格本来就是 12 / 6，换 `.cc-table` 是纯替换；10 → 12 的变化在 B5（结果面板、文档预览）。
+2. **补进第 7 节三项，编号从 V70 起**（B3–B6 同时在补，避免撞号）：V70 滚到底、V71 附件移除钮——都是「`TooltipIconButton` 不再包 Button」带出来的（B2 点名要做，第 7 节只列了 V30 的复制钮）；V72 用户消息的 `[&:where(>*)]:col-start-2` 从来没生成规则（构建产物里没有这条），复制条一直落在左边那一大列、在气泡左下外侧，换成 B1 的 `.cc-user-row` 后在气泡下方右侧（同 claude.ai，代码注释原本就写「气泡下方右侧」）。
+3. **V30 的「按下 0.94」**：`.cc-row-btn` 本身没有按下缩放（会话行「···」不缩），回复与代码块的复制按钮在组件上加 `active:scale-(--cc-press-scale)`，补登 `--cc-press-scale`（同 `.cc-icon-btn:active` 的 0.94）。
+4. **V31 的做法**：发送中的附件不再是一个小胶囊，而是和发出后同一种 `.cc-attach-card`、同一个位置（附件那一排在气泡上面、靠右），缩略图位置放骨架；组件放在 `attachment.tsx` 的 `PendingAttachments`（`AttachmentCard` 加 `loading`）。
+5. **V33 比记录多出的两样**：`.cc-code-block-head / .cc-code-block` 是 B1 按标准定的外观，换上后除了圆角 12 → 10、行高 1.625 → 20，还有边线从半透明的 `border/50` 变成正常线色、头部底色从 `muted/50` 变成叠色底（同对话里别的块）、代码区不再垫 `muted/30` 的底、语言名从正文色变淡色。同属「代码块统一成对话里的块级卡片」，不另起编号。
+6. **V35 顺带**：上传中的转圈从 `animate-spin` 换成 `.cc-spinner`（同为 1 秒一圈匀速，图标 20 用 `size-(--cc-icon)` 保持），`test_cc_idle_motion.py` 的登记跟着改。
+7. **V3 的范围**：按 `data-cc-touch` 后，触屏 Windows 上的 CC 桌面版（desktop-coarse）显示复制条；CC 桌面版拉窄成手机外壳（desktop-narrow，手机变体也带触屏标记）不再显示——与手机一致，规则就是「手机变体，或粗指针且不是桌面窗口」。
+8. **V32 实测**：出错块不再自带 `mt-2`，间距归 `.cc-reply` 的块间距；假数据里的出错回复只有这一块（是第一块），所以从 8 变 0，排在正文后面时是 0.75em。
+
+**比对**（`scripts/cc-visual/`；全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、801 张；对话区子集 = 7 种环境 × 浅深 × 12 个对话场景 = 143 张；并行跑道 3 条（本机同时还有 4 个批次在跑），全矩阵每遍约 54 分钟、子集约 7 分钟；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b7/dist-<名>`，截图 `…/shots/<名>`、`…/shots/sub-<名>`，报告 `…/reports/<前>-vs-<后>/report.md`。工具的报告每个场景只列前 30 条差异，下表的种类用 `~/pearnly-devtools/cc-std-b7/allkinds.mjs` 拿工具自己的 `diffSnapshots` 对全部快照逐条汇总）：
+
+| 比的两遍 | 结果 | 说明 |
+| :- | :- | :- |
+| 基线 81bcd88a（含工具提交）→ 纯替换 d9cb99bd，全矩阵（`reports/base-vs-pure`） | **0 样式差、0 像素差**（DOM 标签与死代码见右） | 「样式差异」2712 条全是类名标签：`span → span.cc-file-card-icon` 1221、`div.cc-card(.cc-card-hover) → div.cc-file-card(.cc-card-hover)` 1221、`table.aui-md-table → +.cc-table` 183、`div → div.cc-user-row` 14；另 73 个「只在前」都是删掉的 `display:none` 空容器 `aui-thread-welcome-suggestions`。9 个场景有像素差，全在窄屏长对话输入框那一条渐变带（B1 记过的光栅抖动带）；因为同场景有标签变化，工具不自动复拍，手工前、后各复拍 2 遍（`shots/re-pure-*`），9 个场景都出现一模一样的一对图，判为抖动。覆盖检查：改到的类与 data-slot 都有场景渲染到（列出的 `.cc-notice` 是 `data-slot="cc-notice"` 被当成类名，`[cc-notice]` 渲染到了） |
+| V1：纯替换 → f9fdf7ed（子集，`reports/pure-vs-v1`） | 85 个场景：只有行高 `19.6 → 20`（提醒卡、文件卡名、出错框、发送中附件名）与 `16.8 → 17`（代码块头、脚注、时间、类型行），随之下面的内容挪 0.4 / 0.2px | 没有别的属性变化 |
+| V3：f9fdf7ed → c0c8d45c | 只有 desktop-coarse（显示复制条）与 desktop-narrow（不再显示）两种环境、28 个场景 | 其余 5 种环境 0 差 |
+| V72：c0c8d45c → 6864f9af | 样式只有标签 `div[aui_user-message-root] → +.cc-user-row`，外框是复制条换到气泡那一列；像素差只在宽屏的 `chat-user-hover`（复制钮从气泡左下外侧挪到气泡右下，742–748 像素） | 窄屏、触屏上复制条本来就不显示 |
+| V12：6864f9af → b187e690 | 只有 `chat-error` 14 组：出错框 `display block → flex`、`gap 8`，外框是里面那行字的宽 | 0 像素差（行高已在 V1 变）；发送失败、通知没打开两处没有场景，与回复出错同一个常量 |
+| V32：b187e690 → 0b6851e2 | 只有 `chat-error` 14 组：`margin-top 8px → 0px`，下面整体上移 8 | 见上第 8 条 |
+| V30：0b6851e2 → 2666b128 | 复制钮（回复 435 处、代码块 57 处）：圆角 `8 → 6`、内边距 `4 → 0`、`transition all → background-color, color, opacity`、继承的字号字重变化（按钮里只有图标，看不见）；代码块「复制」图标从继承的正文色变成 ink-3；触屏环境代码块头随 `cc-tap` 变高 | 像素差：宽屏是代码块复制图标的颜色（约 380 像素），手机 / 平板 / 拉窄是代码块头变高带动下面挪位 |
+| V70：2666b128 → f5579212 | 滚到底（143 个场景都有这颗按钮，多数时候在底部被藏起来）：箭头 `ink → ink-2`；深色底 `input/30（白 3%） → 表面色`；**阴影从无到有**——原来的 `shadow-[var(--cc-shadow-composer)]` 被 Tailwind 当成阴影颜色、从来没生效，现在是 `.cc-scroll-btn` 的输入框同款 1px 环 + 投影；`transition all → background-color`；到底时 `opacity 0.5`（本来就 `invisible`）→ 1 | 看得见的只有 `chat-scroll-btn`：环与投影、深色底色 |
+| V71：f5579212 → 5365f730 | 只有 `compose-uploading`、`image-preview`：`transition all → 颜色类`，其余是按钮里看不见的继承字号 | 0 像素差 |
+| V31：5365f730 → 818ad90c | 只有 `send-pending` 14 组：小胶囊（`span.cc-card` + 骨架）换成 `div.cc-attach-card`（骨架缩略图 + 文件名 + 类型） | 落地后的正式气泡同一个样子 |
+| V33：818ad90c → 71932df1 | 代码块头与代码（57 处）：圆角 `12 → 10`、行高 `22.75 → 20`、头部底 `黑 2.5% → 叠色 5%`、边线 `黑 5% → 线色 10%`、代码区底 `黑 1.5% → 透明`、语言名 `ink → ink-3` | 深色同理（白） |
+| V34：71932df1 → f6ceadf4 | 复制图标 492 处：`animation enter 0.15s ease → cc-pop-in 0.12s 淡出缓动`（已复制那颗 0.2s） | 静止画面 0 差；2 个场景的像素差在那条渐变带，同纯替换 |
+| V35：f6ceadf4 → 52294f91 | `compose-uploading`：遮罩 `backdrop-filter blur(1px) → none`、转圈 `spin → cc-spin`（加 `.cc-spinner`）；`image-preview` 等：方块 `transition-property 颜色类 → opacity`（回到 `.cc-compose-tile` 自己的） | 像素差在上传中那块方块（去掉模糊） |
+| V36：52294f91 → a97486f6 | 只有 tablet-portrait、desktop-narrow 的 `image-preview` 4 组：预览弹窗从贴满屏宽变成离屏边 16 | 宽屏、手机 0 差 |
+| 纯替换 d9cb99bd → 终点 a97486f6，全矩阵（`reports/pure-vs-v36`，代码与 9f524e6f 相同） | 668 / 801 个场景有差异（滚到底按钮在所有对话场景里都有，V70 的样式差到处都是）；用 `~/pearnly-devtools/cc-std-b7/novel.mjs` 扣掉上面各提交子集里出现过的差异种类后，剩 21 种，逐个看过：出错块 `margin-top` 与滚到底圆角只是标签 / 像素比不同的同一项（V32、V70，767.5 宽那组子集没有），`chat-user-hover` 触屏桌面版多出复制钮（V3 + V30）；web-light `sidebar-row-menu` 的组箭头透明度与「···」颜色是悬停残留（前、后各复拍 2 遍 0 差，`shots/re-fin-*`）；desktop-narrow 的 `chat-steps-open` 改前（基线同）点步骤摘要没展开、动作没记失败，改后展开，内容变长、滚到底按钮出现——前、后复拍各 2 遍结果稳定，改的是这个环境里 V3 收起复制条后的布局，步骤卡本身的样式与其他环境一致 | 子集以外的场景没有发现第 7 节以外的变化 |
+
+- **画面变化的前后图**：`~/pearnly-devtools/cc-std-b7/visual/<编号>/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`，每个目录带一份比对报告（V1、V3、V12、V30–V36、V70–V72）。
+- **没有比对的**：悬停在按钮本身上的状态（复制钮、滚到底、附件移除的悬停色与按下缩放）、提示框里的复制钮聚焦、发送失败与「打开通知」没打开时的出错框（同一个常量，没有场景）、真机字体、Qt WebEngine 与 WSL2 的渲染（5.2 已知局限）。
+
+**闸门报数**（`--report`）：81bcd88a 的范围外 641 处 → **493 处**（R4 134 → 109、R5 340 → 267、R6 4 → 1、R7 14 → 13、R8 54 → 30、R9 14 → 8、R10 48 → 34、R11 6 → 4，R12 27 不变）；收紧清单 14 → 18 个文件（加 `components/assistant-ui/` 的 attachment、markdown-text、thread、tooltip-icon-button；follow-up-suggestions 已删），范围内 0 违例。
+
+**给测试窗口的验收项**（三种变体 × 深浅色；本次没有同步到测试机）：
+
+1. 对话正文里的小字（提醒卡、文件卡、出错框、代码块头）行高 20 / 17（V1）。
+2. 你发的消息：电脑上悬停出的「复制」在气泡下方右侧（V72）；手机、平板、CC 桌面版拉窄不显示，**触屏 Windows 上的 CC 桌面版要显示**（V3）。
+3. 出错的回复（断网或服务端出错时）：淡红框同侧栏外的出错框一套，紧贴在回复第一块时上面不留 8（V12、V32）。
+4. 回复下与代码块的「复制」：圆角 6、悬停底色同侧栏、按下缩一点；**手机上代码块「复制」点按区 44**（V30，要用户手机走）。
+5. 往上翻出 ↓：圆钮带一圈细线与投影，深色下是表面色（V70）。
+6. 输入框里的附件：右上 × 悬停变红（V71）；悬停方块只变淡、不再叠一层底色；上传中的遮罩不模糊（V35）。
+7. 带附件、上传没完成就发送：发送中的气泡里附件是和发出后一样的卡片、缩略图位置在闪，落地时不跳（V31）。
+8. 代码块：圆角 10、行高 20、头部浅底与正常线色（V33）；复制后打勾图标轻弹出（V34）。
+9. 图片预览：**iPad mini 竖屏与 CC 桌面版拉窄（640–767 宽）离屏边 16**，不再贴满（V36，要平板）；关闭钮的蓝色焦点框照旧（不改）。
+10. 回归（应无变化）：打开正在回复的对话停在本轮开头、出 ↓；已结束的停在最新一条；中文 / 泰文输入法选字回车不发送；停止钮图标 14；表格、标题、列表、引用、链接、行内代码样子不变。
+
+**还缺什么**：测试窗口验收（上面几项）；用户手机 / 平板走 V30、V36 与回归第 10 条；合入 main（按「主线集成」变基，本次没做）；不部署。
 
 ## 0. 结论
 
@@ -671,6 +758,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   - **`split-handle.tsx:75`** 这一行（`cssVar` 改成 `--cc-sidebar-w`）随 B2 的 sidebar.tsx 一起改，文件其余部分归 B3。
   - **`lib/hover-scroll.ts`、`lib/company-panel.ts`** 在 B2 把 `cssMs`、`cssPx` 改成从 `lib/css-var.ts` 再导出，在 B8 删掉再导出（纯删除，测试证明已无人导入）。
   - **`globals.css` 的 B2 补登**（B1「还缺什么」允许 B2–B7 补缺档）：用途层加提示框小箭头 `--cc-tooltip-arrow` 10 / `--cc-tooltip-arrow-turn` 45deg（现有值·CC 自定，组件库模板带的值）；删掉 `--cc-on-danger`（唯一的引用是 B2 删掉的危险按钮外观，删后没人引用，「每个 `--cc-*` 都有人用」的测试当场要求删）。
+  - **`globals.css` 的 B7 补登**：用途层「对话」加 `--cc-file-card-py` 10（提醒卡、文件卡上下）、`--cc-alert-lines` 2（出错行最多两行）、`--cc-compose-x-stroke` 2.5px（深色下附件「×」加粗）、`--cc-press-scale` 0.94（回复与代码块「复制」按下，同 `.cc-icon-btn:active`），都是现有值·CC 自定。
   - **`docs/development/ccs.md`、本任务记录、`scripts/frontend-tokens-strict.txt`** 是登记文件，每批顺序追加。
   - **共享测试**：`tests/test_cc_ccs.py`、`test_assistant_ui.py`、`test_cc_mobile_overlays.py`、`test_cc_mobile_content.py`、`test_cc_run_indicator.py`、`test_cc_month_ledger.py`、`test_cc_session_panel.py` 直接断言写死的类名和渲染出的 HTML（例：Shortcut 断言 `text-ink-3 text-xs`；document-view 断言 `text-2xl / font-bold / mb-2 / padding-inline-start:1.5em`；弹窗断言 `px-5 pt-4 pb-2`、`z-50`；菜单断言 `!min-w-40`、`sideOffset 6`）。断言按它所测组件所在的批次改，各批文件清单列出要改的测试；并行批次合入集成分支时串行、变基。不靠删断言过关：断言改成新写法（类名或变量），意思不变。
 - **每批的提交顺序**：
@@ -774,6 +862,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   - `thread.tsx:748` 用户消息「复制」条的 `pointer-coarse:hidden` 改按 `data-cc-touch`（V3）。
 - `lib/follow-scroll.ts` 没有样式，不进任何批次。
 - 画面变化：V1、V3、V12、V13、V30–V35、V36（`attachment.tsx:115` 的 `sm:max-w-3xl`）。机器时间约 2 小时。
+- 实际（见「B7 做了什么」）：V13 在对话里无可见变化；补进第 7 节 V70（滚到底）、V71（附件移除钮）、V72（用户消息「复制」条位置）；全矩阵 3 遍 + 子集 14 遍，约 5 小时（3 条跑道）。
 
 **B8 收口**（依赖：B3–B7 全部合入）
 - 文件：
@@ -939,6 +1028,9 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | V36 | B2 / B3 / B4 / B7 | `sm:`（640）改 `md:`（768）：`dialog.tsx` 的 `sm:text-start / sm:flex-row`、图片预览的 `sm` 断点、`assistant.tsx:128` 形象 `sm:h-28`、`scheduled-tasks.tsx` 863 / 895 / 995 行的 `sm:grid-cols-2`、`attachment.tsx:115` 的 `sm:max-w-3xl` | 640–767 宽（iPad mini 竖屏 744、CC 桌面版窗口拉窄）按宽屏排 | 只有一条断点 768（与变体同一条），这一段按手机排；640 没有 Claude 依据。验证用 tablet-portrait、desktop-narrow 两种环境 | A |
 | V37 | B1 | 手机 / 电脑分界的查询文本：`hooks/use-mobile.ts` 的 `MOBILE_QUERY` 是 `(max-width: 767px)`，`max-md:` 是 `(width < 48rem)` | 浏览器缩放出 767.5 这类小数宽度时变体判成 web、`max-md:` 的类却生效：侧栏已收起、却没有手机顶栏，设置等入口点不到（B0 比对 web-767.5 实测） | 三处同一段文本 `(width < 768px)` / `(width >= 768px)`（2.1「断点」），767.5 宽按手机外壳排；测试用项目自己的 Tailwind 现编 globals.css 核对 | A（B1 比对时补进本节） |
 | V38 | B2 | 组件库弹窗（`dialog.tsx`，现在只有图片预览用）的遮罩与弹层进出场 | tw-animate：遮罩淡入 150ms、弹层淡入放大（0.95）200ms，`ease` | `.cc-overlay` / `.cc-pop`：快档 120ms、主缓动（同 V15 遮罩、V18 提示框）；组件库文件不再用 tw-animate，B8 才删得掉这个依赖 | B（B2 开工时按 4.1 补进本节：记录把 dialog 的动效漏了，不改就过不了 R8、也删不掉 tw-animate） |
+| V70 | B7 | 滚到底 ↓（`thread.tsx` 的 ThreadScrollToBottom）走 shadcn 的 outline 图标 Button | 箭头正文色；深色底是 `input/30`（白 3%）；写的 `shadow-[var(--cc-shadow-composer)]` 被 Tailwind 当成阴影颜色，从没生效；`transition-all` | 共用的 `.cc-scroll-btn`（B1 定义）：箭头 ink-2、表面色底、输入框同款 1px 环 + 投影、只过渡底色 120ms，位置与大小不变 | A（B7 补进本节：`TooltipIconButton` 不再包 Button 带出来的，第 7 节只列了复制钮；编号从 70 起，避开 B3–B6 同时补的号） |
+| V71 | B7 | 输入框附件右上的移除 ×（`attachment.tsx`）走 shadcn 的 ghost 图标 Button，类几乎都被覆盖 | `transition-all`、按下 0.9 | 自己的标准写法：20 圆钮、表面色、轻投影、× 悬停变红（同原样），只过渡颜色、按下 0.94（`--cc-press-scale`） | B（同 V70） |
+| V72 | B7 | 你发的消息里「复制」条的位置：`[&:where(>*)]:col-start-2` 不生成任何规则 | 复制条落在左边那一大列，在气泡左下外侧 | 用 B1 的 `.cc-user-row`（发送中气泡已在用）：子元素都在气泡那一列，复制条在气泡下方右侧（同 claude.ai，代码注释原本就写「气泡下方右侧」） | A（缺陷修复，B7 比对前补进本节） |
 
 ## 8. 批次清单
 
@@ -951,7 +1043,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | B4 | 弹窗与列表页 | B2 | V1、V3、V6、V8、V10、V12、V14、V15、V17、V19、V20、V21、V22、V36 |
 | B5 | 会话栏、结果、文档、工具卡 | B2 | V1、V12、V13、V23–V27 |
 | B6 | 侧栏列表（拖动分支的文件） | B2、cc-drag-perf 合入 | V1、V8、V28、V29 |
-| B7 | 对话区（滚动分支的文件） | B2、cc-scroll-fix 合入 | V1、V3、V12、V13、V30–V36 |
+| B7 | 对话区（滚动分支的文件） | B2、cc-scroll-fix 合入 | V1、V3、V12、V13（无可见变化）、V30–V36、V70–V72 |
 | B8 | 收口：全仓失败、删旧名、删 tw-animate / tw-shimmer 依赖、改 NOTICE | B3–B7 | 无 |
 
 ## 9. 漏项审查 18 条的处理
