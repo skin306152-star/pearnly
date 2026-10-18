@@ -242,6 +242,10 @@ CSS_SPACE_PROPS = re.compile(r"^(?:padding|margin|scroll-margin|scroll-padding|i
                              r"^(?:gap|row-gap|column-gap|top|right|bottom|left|translate)$")
 CSS_UNITLESS_PROPS = {"line-height", "font-weight", "z-index"}
 CSS_MOTION_PROPS = re.compile(r"^(?:transition|animation)(?:-(?:duration|delay|timing-function))?$")
+# 动画轮数（animation 简写里不带单位的数、animation-iteration-count）同时长一样只能写 var()：装饰动画播几轮登记在 globals.css
+# （--cc-mascot-*-runs，docs/work/2026-10-18-cc-idle-animations.md）；infinite 是关键字不在这里判（「装饰动画不许无限循环」由
+# tests/test_cc_idle_motion.py 按白名单查）
+CSS_RUNS_PROPS = re.compile(r"^animation(?:-iteration-count)?$")
 
 STYLE_LENGTH_PROPS = (
     "width|height|minWidth|minHeight|maxWidth|maxHeight|inlineSize|blockSize|flexBasis|"
@@ -541,8 +545,8 @@ def check_class(token: str, std: Standard, alone: bool = False) -> list:
                 if not name.startswith("--cc-"):
                     found.append(("R10", f"[{prop}:…var({name})…]"))
                     break
-            if CSS_MOTION_PROPS.match(prop):
-                # [transition:…] / [animation:…] / [*-timing-function:…]：时间与缓动按 globals.css 的 R13 同一判法
+            if CSS_MOTION_PROPS.match(prop) or CSS_RUNS_PROPS.match(prop):
+                # [transition:…] / [animation:…] / [*-timing-function:…] / [animation-iteration-count:…]：时间、缓动与轮数按 globals.css 的 R13 同一判法
                 bad = css_value_problem(prop, value.replace("_", " "))
                 if bad:
                     found.append(("R8", f"[{prop}:…{bad}…]"))
@@ -806,6 +810,11 @@ def style_value_problem(prop: str, value: str) -> str:
         if prop in ("opacity", "zIndex", "fontWeight", "lineHeight") and re.fullmatch(r"\s*-?\d*\.?\d+\s*", body) \
                 and float(body) not in (0, 1):
             return body
+        if prop in ("animation", "animationIterationCount"):
+            # 轮数同 globals.css：animation 简写里不带单位的数、animationIterationCount 只能走 var(--cc-…)
+            for m in NUMBER_IN_VALUE.finditer(body):
+                if m.group(3) == "" and float(m.group(2)) != 0:
+                    return m.group(0)
         return ""
     number = float(value)
     if number == 0 or (prop == "opacity" and number == 1):
@@ -940,13 +949,17 @@ def css_value_problem(prop: str, value: str) -> str:
     text = QUOTED.sub(" ", value)
     text = CSS_NAME.sub(" ", text)
     text = re.sub(r"!important", " ", text)
-    if CSS_MOTION_PROPS.match(prop):
+    if CSS_MOTION_PROPS.match(prop) or CSS_RUNS_PROPS.match(prop):
         for m in TIME_LITERAL.finditer(text):
             if float(m.group(1)) != 0:
                 return m.group(0)
         m = EASE_WORD.search(text)
         if m:
             return m.group(0)
+        if CSS_RUNS_PROPS.match(prop):
+            for m in NUMBER_IN_VALUE.finditer(text):
+                if m.group(3) == "" and float(m.group(2)) != 0:
+                    return m.group(0)
         return ""
     if prop == "transform":
         # 只判平移的长度（按间距）；scale()、rotate() 等不在间距范畴
