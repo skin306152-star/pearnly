@@ -2528,7 +2528,11 @@ g.done();
         self.assertIn(".cc-thread-row:is(:hover, :focus-visible, [data-active], :has(:focus-visible), :has([data-state=\"open\"])) { background: var(--cc-row-hover); }", row_css)
         self.assertIn(".cc-thread-row:is([data-active], :has(:focus-visible)) { color: var(--cc-ink); }", row_css)
         self.assertNotIn(":hover) { color", row_css)
-        self.assertIn('<MoreHorizontalIcon className="size-(--cc-icon-sm)" />', thread_list)  # 行尾「···」图标 16，同 .cc-row-btn
+        # 行尾「···」是行里的图标按钮 .cc-row-btn（24、圆角 6、淡色、图标 16；标准化 B6 / V29，原来是组件库 Button）
+        more = thread_list.split('data-slot="aui_thread-list-item-more"\n', 1)[1].split("\n", 1)[0]
+        self.assertIn('className="cc-row-btn absolute ', more)
+        self.assertIn("<MoreHorizontalIcon />", thread_list)
+        self.assertNotIn("@/components/ui/button", thread_list)
         self.assertNotIn("hover:text-", item)  # 键盘焦点同选中一样主色字（设计文档 3.5，见上面 .cc-thread-row），悬停不改字色
         self.assertIn("h-(--cc-row-h)", item)
         # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪

@@ -20,7 +20,6 @@
 //            排先后（三种分组方式都可以），不拖出去取消置顶。按处理月份、不分组时其余行不能拖；搜索时都不能拖。
 //            手机抽屉：长按 250ms 后再动 = 拖，长按不动 = 原来的长按菜单。键盘空格拿起、方向键只在本组里挪（不拖进置顶），Alt+↑/↓
 //            在公司组头、置顶行、组里的行上挪一格。出错在侧栏出错行写服务端原文
-import { Button } from "@/components/ui/button";
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -1230,16 +1229,15 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
+          type="button"
           tabIndex={-1}
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-hover absolute end-(--cc-space-4) top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          className="cc-row-btn absolute end-(--cc-space-4) top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
         >
-          <MoreHorizontalIcon className="size-(--cc-icon-sm)" />
+          <MoreHorizontalIcon />
           <span className="sr-only">{t("more")}</span>
-        </Button>
+        </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {bulk ? (
