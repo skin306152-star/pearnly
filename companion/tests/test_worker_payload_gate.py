@@ -198,9 +198,10 @@ def test_slow_catalog_scan_never_blocks_heartbeat_or_polling():
         before = time.monotonic()
         worker._run_periodic(cfg, qc, state, on_update_available=None)
         elapsed = time.monotonic() - before
+        # 后台线程什么时候真去调目录扫描由解释器排：等它调到之前桩一直在（离开 with 就换回真的扫描，后台线程会读到真的）
+        assert started.wait(1)
 
     assert elapsed < 0.2
-    assert started.wait(1)
     assert qc.health_calls[0]["catalog"] is None
     assert state.get("last_catalog", 0.0) == 0.0
     release.set()
