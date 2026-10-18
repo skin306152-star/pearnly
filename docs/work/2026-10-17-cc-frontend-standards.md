@@ -24,7 +24,8 @@
 | B0 闸门与比对工具骨架 | 10-18 变基到 main（669427ca，之后只多了交接文档的 249f5928），本地全闸门 87 步全过，推分支等 Development checks 通过后快进合入 main；不碰 `src`，无画面变化，不部署 |
 | B1 标准层 | `pearnly/cc-std-b1`（基线 c4ab0c3e，工作树 `.claude/worktrees/cc-std-b1`），提交见下面「B1 做了什么」；纯替换 4 个提交逐个比对 0 样式差、0 像素差，画面变化 V2 / V3 / V4 / V6 / V37 逐个比对只差预期的项；本地全闸门 87 步全过。比对报告 `~/pearnly-devtools/cc-std-b1/reports/`，画面变化前后图 `~/pearnly-devtools/cc-std-b1/visual/`。**未推送、未合入 main、未部署；待测试窗口验收**（V3、V4、V37 的触屏与中间宽度要用户手机 / 平板走） |
 | 插批：静置动效 | `pearnly/cc-idle-anim`（基线 cc-std-b1 顶端 f1978271）：首页小猫的 7 个装饰动画不再无限循环，出现时播几轮（`--cc-mascot-*-runs`，最多 10 秒）就停；闸门加「动画轮数只写 var()」；见 [静置动效记录](2026-10-18-cc-idle-animations.md)。未推送、未合入 main、待测试机复测 |
-| B2–B8 | 待开工 |
+| B2 组件库 | `pearnly/cc-std-b2`（基线 `pearnly/cc-longpress-race` 顶端 93a10475，开发窗口指定；工作树 `.claude/worktrees/cc-std-b2`），提交见下面「B2 做了什么」；纯替换 8bc08765 对基线全矩阵 773 个场景 0 样式差、0 像素差（报告里 1 个悬停残留经前后各复拍 2 次判为基线那一遍离群），画面变化 V5 / V7 / V9 / V11 / V18 / V38 逐个比对只差预期的项（V38 是 B2 按 4.1 补进第 7 节的）；本地全闸门全过。比对报告 `~/pearnly-devtools/cc-std-b2/reports/`，前后图 `~/pearnly-devtools/cc-std-b2/visual/`。**未推送、未合入 main、未部署、未同步测试机；待测试窗口验收**（图片预览与长按菜单回归要用户手机走） |
+| B3–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
@@ -210,6 +211,70 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 
 **闸门报数**（`--report`）：范围外 1340 → 854 处（R13 427 → 0、R14 21 → 0、R15 38 → 0，其余各条不变：R4 190、R5 412、R6 4、R7 22、R8 103、R9 27、R10 58、R11 13、R12 25）；收紧清单 4 个文件（`globals.css`、`hooks/use-mobile.ts`、`lib/utils.ts`、`lib/variant.ts`）0 违例。
 
+
+### B2 做了什么（10-18，`pearnly/cc-std-b2`）
+
+基线是开发窗口指定的 `pearnly/cc-longpress-race` 顶端 **93a10475**（main afc615bb 之上依次叠 H 线、第 13 轮拖动、B1 标准层、静置动效、长按竞争修复，测试机 lab 正挂着它），不是 `origin/main`；工作树 `.claude/worktrees/cc-std-b2`，自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`）。
+动工前核对：第 13 轮改过的 `components/ui/menu.tsx`（弹层 Portal 直接给 container）与 `drag.tsx`、长按修复改过的 `hooks/use-long-press.ts`、`lib/layers.ts`——B2 在 menu.tsx 里只换了离边 / 子菜单偏移的取值，Portal、上下翻面、点菜单外吞 click、窄屏换页原样，对应用例（`test_cc_mobile_overlays.py` 的 MenuEdgeTests、`test_assistant_ui.py` 的点菜单外只关菜单）照过；drag.tsx、use-long-press.ts、layers.ts 没碰。
+
+| 提交 | 内容 | 类 |
+| :- | :- | :- |
+| 9f5ee25c | 比对工具补两个场景：`tooltip-copy`（悬停代码块「复制」出组件库提示框；原 `tooltip` 场景悬停的是只带 title 的按钮，浏览器自带提示不出图）、`sidebar-collapsed`（收起侧栏：offcanvas 偏移与占位宽 0）。先补场景再拍基线 | 工具 |
+| 8bc08765 | 纯替换（见下） | 纯替换 |
+| e5c77fab | V5 骨架呼吸同脉冲点；`cn()` 登记 `@theme` 的动画名 | 画面变化 B |
+| 0330a501 | V7 提示框层级 `--cc-z-tooltip` 90 | 画面变化 A |
+| bf8351cd | V9 图片预览圆角 16 | 画面变化 A |
+| 14a83a8e | V11 侧栏收起 / 展开 200ms 主缓动 | 画面变化 B |
+| 62d4069a | V18 提示框字号 caption 12/17、进出场 `.cc-pop` | 画面变化 B |
+| 43046edc | V38（B2 补进第 7 节）组件库弹窗的遮罩与弹层进出场 `.cc-overlay` / `.cc-pop` | 画面变化 B |
+| 88e0ce34 | 收紧清单登记 10 个文件 | 清单 |
+| （本记录） | 本记录 B2 小节、4.1 例外、第 7 节 V38；ccs.md 两条 | 文档 |
+
+**纯替换（8bc08765）做了什么**：
+
+- **删没人用的**：`ui/avatar.tsx`、`ui/sheet.tsx`、`ui/input.tsx`、`ui/separator.tsx` 四个文件（全仓无引用；separator 唯一的引用是侧栏没人用的 SidebarSeparator）；`ui/sidebar.tsx` 17 个没人用的导出（菜单、分组、搜索框、分隔线、拖边条、收起钮、随机宽度骨架 SidebarMenuSkeleton …）、从来没渲染过的手机 Sheet 分支（`assistant.tsx` 在手机上挂 MobileShell，不挂 `<Sidebar>`）、图标档 / 浮起 / 内嵌三种外观与 `collapsible="none"`；`ui/dialog.tsx` 没人用的 DialogHeader / Footer / Description；`ui/button.tsx` 没人用的 4 种外观（default、destructive、secondary、link）与 4 档尺寸（xs、lg、icon-xs、icon-lg）——记录写「6 档」，实数 8 档；默认外观改成 ghost（所有调用方都写明了外观）。
+- **写死值换成同值变量**：button 的间距、高、内边距、默认图标；dialog 的定位（`start-1/2`、`-translate-x/y-1/2`，计算值与原来的 `50%` / `-50%` 逐字一致）、离屏边 `calc(100%-var(--cc-dialog-gutter)*2)`、层级 `--cc-z-sheet`、间距与关闭钮位置；tooltip 内边距与小箭头（尺寸、角度新登记 `--cc-tooltip-arrow / -turn`，位移写成 `calc(100%/-2-var(--cc-space-2))`，计算值同原来的 `calc(-50% - 2px)`）；sidebar 层级 `--cc-z-float`、时长 `--cc-dur`、头 / 脚左右 `--cc-sidebar-pad`、间距；skeleton 默认条高 `--cc-skeleton-h`（现有两个调用方都写了尺寸，照旧盖掉它）。
+- **侧栏宽一个名字**：`--sidebar-width` → `--cc-sidebar-w`，同一个提交把 `split-handle.tsx:75` 的 `cssVar` 改成它（4.1 登记的跨批例外）；本机记住的宽度仍按 `cc.sidebar.width` 存，旧值照常恢复（`split-resize` 场景：拖宽 60、刷新后网页 347 / 桌面版 348，前后一致）。收起时的偏移 `-start-(--cc-sidebar-w)` 跟着记住的宽度走（`sidebar-collapsed` 场景 -288，前后一致）。
+- **JS 用到的值用时读（2.6）**：`menu.tsx` 导出 `menuEdge() / menuSubOffset() / menuOffset()`，读 `--cc-menu-edge / -sub-offset / -offset`，回退 8 / 6 / 4；`tooltip.tsx` 的延时读 `--cc-tooltip-delay`（回退 0）。都用 `lib/css-var.ts` 的 `fixedPx / fixedMs`：读到就记住、之后不再读样式（调用方在每次渲染里取也不逼整页重算样式），读到空（样式表还没生效）用回退值、下次再读；回退常量与 globals.css 同值由测试核对。`main.tsx` 与侧栏 Provider 里多包的两层 TooltipProvider 删掉（每个 Tooltip 自带一层，延时由最近的这层决定，外面的从来不起作用）。
+- **`lib/css-var.ts`**：三份解析合成一份——`cssMs`（原 hover-scroll）、`cssPx`（原 company-panel，补上 split-handle `px()` 的 vw 换算）、`cssVar`、`rootFontPx`；`hover-scroll.ts`、`company-panel.ts` 改成再导出（B8 删）。`split-handle.tsx:42` 的 `px()` 与 `assistant.tsx:98` 的 `cssPx` 改导入在 B3，`drag.tsx:103` 的 `cssMs` 在 B6。`menu.tsx` 自己的 `lengthPx` 没并：它认不出就当「不封顶」，`--cc-menu-max` 的默认 `100vh` 要当不封顶，并进 `cssPx` 会变成 100px。
+- **globals.css（4.1 新登记的例外）**：用途层补 `--cc-tooltip-arrow` 10 / `--cc-tooltip-arrow-turn` 45deg；删 `--cc-on-danger`（唯一的引用是删掉的 destructive 按钮）。
+
+**与方案不同、按依据定的几处**：
+
+1. **button.tsx 不进收紧清单**：在用的输出照记录保持原样，剩下的 `transition-all`、`disabled:opacity-50`、`has-[>svg]:px-2.5`（10，刻度上没有）一改就是 V10 / V29 / V30 提前出现。B4（设置页 → `.cc-btn`）、B6（会话行「···」→ `.cc-row-btn`）、B7（TooltipIconButton 不再包 Button、删 ThreadSuggestions）迁完后 Button 没有调用方，**由 B8 整个删掉**（纯删除），不再单独迁。
+2. **dialog 的默认最宽删掉，不改成 `md:`**：唯一的调用方 `attachment.tsx` 写 `sm:max-w-3xl`，`cn()` 本来就把默认的 `sm:max-w-lg` 合并掉了，删掉是纯替换；改成 `md:max-w-*` 反而会在 ≥768 时压过调用方的 `sm:max-w-3xl`，把图片预览缩到 512。所以 **V36 的 dialog 部分没有可见变化**（`sm:text-start / sm:flex-row` 随没人用的头 / 脚删掉）；图片预览自己的 `sm:` 在 attachment.tsx（B7）。
+3. **`--cc-preview-w / --cc-preview-share` 改由 B7 接**：用它们的是 attachment.tsx 调用处（B7 的文件），`AWAITING` 表改登记 B7。B2 接上并删掉的有：`--cc-menu-offset`、`--cc-menu-sub-offset`、`--cc-menu-edge`、`--cc-tooltip-delay`、`--cc-z-tooltip`、`--cc-sidebar-pad`、`--cc-skeleton-h`。`--cc-control-nested`（B2–B7）仍没人用。
+4. **V38 补进第 7 节**：记录没列 dialog.tsx 的 tw-animate（遮罩、弹层进出场），不改过不了 R8，B8 也删不掉 tw-animate；同 V15 / V18 一类（B）。
+5. separator.tsx 记录列在「迁」里，侧栏清掉没人用的导出后它没有引用了，一并删掉。
+6. `--cc-sidebar-pad` 接在侧栏头 / 脚的默认左右（调用方现在写的 `px-2` 照样盖掉，B3 可以删）；侧栏主体原来没有默认内边距，不加。
+7. `cn()` 登记 `@theme` 的动画名（`ANIMATIONS`，现在只有 `cc-pulse`）：不登记的话调用方写 `animate-none` 关不掉骨架的呼吸；测试核对与 `@theme --animate-*` 一致。
+
+**比对**（`scripts/cc-visual/`，全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、773 张，7 条跑道，每遍约 13–15.5 分钟；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b2/dist-<名>`，截图 `…/shots/<名>`，报告 `…/reports/<编号>/report.md`）：
+
+| 比的两遍 | 结果 | 说明 |
+| :- | :- | :- |
+| 基线 93a10475 → 纯替换 8bc08765（`reports/base-vs-pure`） | **0 样式差、0 像素差**（报告列出 1 个，见右） | 列出的是 desktop-dark `boot-page-menu`：行尾「···」与组箭头的悬停态，基线那一遍没拍到悬停（B1 记过的同一种悬停残留）；这个场景前、后各单独复拍 2 次（`reports/recheck-bpm-1 / -2`）都 0 差，复拍的基线与纯替换一致、与基线那一遍不同。光栅抖动 16 个（窄屏长对话输入框那条渐变，复拍出现一模一样的一对）。覆盖检查：改到的 47 个类 / data-slot 里场景没渲染到的 38 个全是删掉的死代码（「前」那一遍同样没渲染到，证实没人用） |
+| V5：纯替换 → e5c77fab | 只有 `loading` 场景 14 组：骨架 `animation-name pulse → cc-pulse`、`2s → 1.2s`、`cubic-bezier(.4,0,.6,1) → ease-in-out`、停在首帧时透明度 `1 → 0.35` | 静止截图 0 像素差（截图时动画归零）。另 1 个 web-light `company-panel` 菜单整体差 1px：v5 那一遍离群（同时在跑别的比对），单独前后各复拍 2 次 0 差，下一遍 v7 又回到原位 |
+| V7：e5c77fab → 0330a501 | 只有 `tooltip-copy` 8 组（宽屏 4 种环境 × 深浅）：提示框外层、内容、小箭头 `z-index 50 → 90` | 0 像素差（场景里提示框没压着菜单）；`company-panel` 那 1px 是上一遍离群的回位 |
+| V9：0330a501 → bf8351cd | 只有 `image-preview` 14 组：四角 `10px → 16px` | 差异像素 2274–13315（只在四个角） |
+| V11：bf8351cd → 14a83a8e | 宽屏 8 组的每个场景（464 个）：侧栏本体与占位 `transition-timing-function linear → cubic-bezier(0.32, 0.72, 0, 1)` | 静止画面 0 像素差；时长仍 200ms |
+| V18：14a83a8e → 62d4069a | 只有 `tooltip-copy` 8 组：行高 `16.8 → 17`、高 `28.8 → 29`；`animation enter 0.15s ease → cc-pop-in 0.12s 主缓动`；节点多了 `cc-pop` 类 | 差异像素 651（高多 0.2px 的那条边） |
+| V38：62d4069a → 43046edc | 只有 `image-preview` 14 组：遮罩 `enter 0.15s ease → cc-fade-in 0.12s 主缓动`；弹层 `enter 0.2s ease → cc-pop-in 0.12s 主缓动`；弹层的 `transition-duration 0.2s → 0s`（原来的 `duration-200` 同时给了过渡时长，弹层本身没有会变的样式，看不出）；节点多了 `cc-overlay` / `cc-pop` 类 | 静止画面 0 像素差 |
+
+- **画面变化的前后图**：`~/pearnly-devtools/cc-std-b2/visual/<编号>/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`，每个目录带一份比对报告。V5（骨架，14 组；静止画面一样，差在呼吸）、V7 / V18（提示框，网页、桌面版及其触屏版 × 深浅；手机、平板没有悬停提示框）、V9 / V38（图片预览，14 组）、V11（`sidebar-collapsed`，宽屏 8 组；静止画面一样，差在缓动）。只导出编号对应的场景，上面写明的离群复拍没导出。
+- **没有比对的**：悬停、聚焦以外的交互状态（提示框与菜单同时开、侧栏收起的过程），真机字体，Qt WebEngine 与 WSL2 的渲染（5.2 已知局限）。
+
+**闸门报数**（`--report`）：93a10475 的范围外 851 处 → **623 处**（R4 190 → 128、R5 410 → 333、R7 22 → 13、R8 99 → 52、R9 27 → 14、R10 58 → 47、R11 13 → 6、R12 28 → 26，R6 4 不变）；收紧清单 4 → 14 个文件（加 `components/ui/` 的 dialog、marquee、menu、sidebar、skeleton、tooltip，`lib/` 的 company-panel、css-var、hover-scroll，`main.tsx`），范围内 0 违例。
+
+**还缺什么**：测试窗口验收（下面几项）；推分支、等 Development checks、合入 main（本次没做，基线也不在 main 上，合入前要按「主线集成」变基）；后面各批顺带：B3 把 `split-handle.tsx` 的 `px()`、`assistant.tsx` 的 `cssPx` 改从 `lib/css-var.ts` 导入、删侧栏头 / 脚调用处多余的 `px-2`；B3 / B4 / B6 的菜单 `sideOffset` 用 `menuOffset()`（V8）；B6 的 `drag.tsx` 改导入 `cssMs`；B7 在 attachment.tsx 接 `--cc-preview-w / -share` 并把 `sm:` 改 `md:`（V36）、删 TooltipIconButton 外面那层不起作用的 `TooltipProvider delayDuration={0}`；B8 删 button.tsx（见上第 1 条）与两处再导出。
+
+**给测试窗口的验收项**（三种变体 × 深浅色；本次没有同步到测试机）：
+
+1. 提示框（网页、CC 桌面版，有鼠标的设备）：悬停代码块「复制」、回复下「复制」、附件上的按钮——字 12、行高 17，出现略快（120ms、主缓动，原来 150ms 淡入放大加滑入）；提示框不再被菜单盖住（V7、V18）。手机、平板没有悬停提示框，不看。
+2. 侧栏（网页、CC 桌面版）：侧栏头按钮或 ⌘B 收起 / 展开，200ms 由匀速变成先快后慢（V11）；拖分隔条调宽、刷新后恢复记住的宽度；调宽后再收起、展开位置对。
+3. 图片预览（输入框粘贴一张图、点附件）：圆角 16（V9），遮罩淡入与弹窗出现 120ms（V38）；**手机、平板竖屏也要看**（用户手机走一遍），关闭钮照旧 44。
+4. 加载骨架（首次打开侧栏列表、发送中带附件的文件条）：呼吸 1.2s、最暗 35%（V5），减少动效时不动。
+5. 回归（应无变化）：菜单离屏边 8、子菜单离父菜单 6（「语言 ›」「了解更多 ›」页面写的 8 照旧）、手机长按菜单（第 13 轮与长按竞争修复的 A14 复测项不受影响，**要用户手机走**）、设置弹窗里的按钮手机点按区 44（H27 仍认 `data-slot="button"`）。
 
 ## 0. 结论
 
@@ -594,6 +659,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   - **`globals.css`** 在 B1 补标准，在 B8 只删已经没人引用的旧名（含 reduce-motion 里的 `.animate-spin`、`tw-animate-css` 的 import）。B8 是纯删除，不改画面；它必须等所有组件改完名才能删。
   - **`split-handle.tsx:75`** 这一行（`cssVar` 改成 `--cc-sidebar-w`）随 B2 的 sidebar.tsx 一起改，文件其余部分归 B3。
   - **`lib/hover-scroll.ts`、`lib/company-panel.ts`** 在 B2 把 `cssMs`、`cssPx` 改成从 `lib/css-var.ts` 再导出，在 B8 删掉再导出（纯删除，测试证明已无人导入）。
+  - **`globals.css` 的 B2 补登**（B1「还缺什么」允许 B2–B7 补缺档）：用途层加提示框小箭头 `--cc-tooltip-arrow` 10 / `--cc-tooltip-arrow-turn` 45deg（现有值·CC 自定，组件库模板带的值）；删掉 `--cc-on-danger`（唯一的引用是 B2 删掉的危险按钮外观，删后没人引用，「每个 `--cc-*` 都有人用」的测试当场要求删）。
   - **`docs/development/ccs.md`、本任务记录、`scripts/frontend-tokens-strict.txt`** 是登记文件，每批顺序追加。
   - **共享测试**：`tests/test_cc_ccs.py`、`test_assistant_ui.py`、`test_cc_mobile_overlays.py`、`test_cc_mobile_content.py`、`test_cc_run_indicator.py`、`test_cc_month_ledger.py`、`test_cc_session_panel.py` 直接断言写死的类名和渲染出的 HTML（例：Shortcut 断言 `text-ink-3 text-xs`；document-view 断言 `text-2xl / font-bold / mb-2 / padding-inline-start:1.5em`；弹窗断言 `px-5 pt-4 pb-2`、`z-50`；菜单断言 `!min-w-40`、`sideOffset 6`）。断言按它所测组件所在的批次改，各批文件清单列出要改的测试；并行批次合入集成分支时串行、变基。不靠删断言过关：断言改成新写法（类名或变量），意思不变。
 - **每批的提交顺序**：
@@ -642,7 +708,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
   - **menu**：偏移、离边按 2.6 使用时从 `--cc-menu-offset / sub-offset / edge` 读，导出给调用方用。
   - **tooltip**：延时按 2.6 从 `--cc-tooltip-delay` 读。
 - 场景：拖分隔条调侧栏宽度后宽度生效、刷新后恢复记住的宽度。
-- 画面变化：V5、V7、V9、V11、V18、V36（dialog 部分）。机器时间约 1.5 小时。
+- 画面变化：V5、V7、V9、V11、V18、V36（dialog 部分；实际随死代码删除、无可见变化）、V38（B2 补进第 7 节）。机器时间约 1.5 小时（实际 8 遍全矩阵约 2 小时）。
 
 **B3 外壳**（依赖：B2；可与 B4、B5 并行）
 - 文件：`assistant.tsx`、`components/mobile-shell.tsx`、`shortcut.tsx`、`period-chip.tsx`、`mascot.tsx`、`split-handle.tsx`（第 75 行已在 B2）、`install-prompt.tsx`、`error-boundary.tsx`、`typing-dots.tsx`。
@@ -861,6 +927,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | V35 | B7 | 附件：悬停效果叠了两层；上传遮罩有 1px 模糊 | 两种悬停叠加；有模糊 | 只留 `.cc-compose-tile` 的悬停；去掉模糊 | A |
 | V36 | B2 / B3 / B4 / B7 | `sm:`（640）改 `md:`（768）：`dialog.tsx` 的 `sm:text-start / sm:flex-row`、图片预览的 `sm` 断点、`assistant.tsx:128` 形象 `sm:h-28`、`scheduled-tasks.tsx` 863 / 895 / 995 行的 `sm:grid-cols-2`、`attachment.tsx:115` 的 `sm:max-w-3xl` | 640–767 宽（iPad mini 竖屏 744、CC 桌面版窗口拉窄）按宽屏排 | 只有一条断点 768（与变体同一条），这一段按手机排；640 没有 Claude 依据。验证用 tablet-portrait、desktop-narrow 两种环境 | A |
 | V37 | B1 | 手机 / 电脑分界的查询文本：`hooks/use-mobile.ts` 的 `MOBILE_QUERY` 是 `(max-width: 767px)`，`max-md:` 是 `(width < 48rem)` | 浏览器缩放出 767.5 这类小数宽度时变体判成 web、`max-md:` 的类却生效：侧栏已收起、却没有手机顶栏，设置等入口点不到（B0 比对 web-767.5 实测） | 三处同一段文本 `(width < 768px)` / `(width >= 768px)`（2.1「断点」），767.5 宽按手机外壳排；测试用项目自己的 Tailwind 现编 globals.css 核对 | A（B1 比对时补进本节） |
+| V38 | B2 | 组件库弹窗（`dialog.tsx`，现在只有图片预览用）的遮罩与弹层进出场 | tw-animate：遮罩淡入 150ms、弹层淡入放大（0.95）200ms，`ease` | `.cc-overlay` / `.cc-pop`：快档 120ms、主缓动（同 V15 遮罩、V18 提示框）；组件库文件不再用 tw-animate，B8 才删得掉这个依赖 | B（B2 开工时按 4.1 补进本节：记录把 dialog 的动效漏了，不改就过不了 R8、也删不掉 tw-animate） |
 
 ## 8. 批次清单
 
@@ -868,7 +935,7 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | :- | :- | :- | :- |
 | B0 | 闸门与比对工具骨架 | 无（现在开工） | 无 |
 | B1 | 标准层（globals.css、@theme、touch 标记、断点、twMerge） | B0、cc-drag-perf 合入、cc-scroll-fix 合入 | V2、V3、V4、V6、V20（B1 部分无可见变化）、V37 |
-| B2 | 组件库与共用 lib | B1 | V5、V7、V9、V11、V18、V36 |
+| B2 | 组件库与共用 lib | B1 | V5、V7、V9、V11、V18、V36（无可见变化，见 B2 小节）、V38 |
 | B3 | 外壳 | B2 | V1、V8、V16、V36 |
 | B4 | 弹窗与列表页 | B2 | V1、V3、V6、V8、V10、V12、V14、V15、V17、V19、V20、V21、V22、V36 |
 | B5 | 会话栏、结果、文档、工具卡 | B2 | V1、V12、V13、V23–V27 |
