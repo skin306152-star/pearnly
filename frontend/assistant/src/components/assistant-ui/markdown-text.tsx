@@ -38,7 +38,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="aui-code-header-root border-border/50 bg-muted/50 mt-(--cc-md-block) first:mt-0 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-xs">
+    <div className="aui-code-header-root border-border/50 bg-muted/50 mt-(--cc-md-block) first:mt-0 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-caption">
       <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
         {language}
       </span>
@@ -232,7 +232,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   sup: ({ className, ...props }) => (
     <sup
-      className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)}
+      className={cn("aui-md-sup [&>a]:text-caption [&>a]:no-underline", className)}
       {...props}
     />
   ),

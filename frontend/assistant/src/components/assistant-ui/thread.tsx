@@ -186,7 +186,7 @@ const PendingSendBubble: FC = () => {
       <div data-role="user" className="cc-user-row">
         <div className="flex flex-wrap justify-end gap-2">
           {pending.files.map((name, i) => (
-            <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
+            <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-body">
               <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
               {name}
             </span>
@@ -295,9 +295,9 @@ const NoticeMessage: FC = () => {
             <BellIcon />
           </span>
           <div className="min-w-0 flex-1">
-            {title && <div className="font-medium text-ink text-sm">{title}</div>}
-            <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
-            <div className="mt-(--cc-space-4) text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+            {title && <div className="font-medium text-ink text-body">{title}</div>}
+            <div className="wrap-break-word whitespace-pre-line text-ink-2 text-body">{text}</div>
+            <div className="mt-(--cc-space-4) text-ink-3 text-caption">{noticeTime(createdAt)}</div>
           </div>
         </div>
         {/* 「打开通知」在卡片底部靠右（卡片按钮，同允许卡）；打开了按钮就没了，没打开原因写在按钮上方一行 */}
@@ -443,7 +443,7 @@ const StopButton: FC = () => {
 };
 
 // 对话里出错那一行（回复出错、发送没成功）同一个样子：淡红底、红字、最多两行
-const ERROR_BOX = "border-danger-line bg-danger-soft text-danger rounded-md border p-3 text-sm";
+const ERROR_BOX = "border-danger-line bg-danger-soft text-danger rounded-md border p-3 text-body";
 
 const MessageError: FC = () => {
   return (
@@ -658,8 +658,8 @@ const MessageFiles: FC = () => {
               <FileTypeIcon filename={file.filename} />
             </span>
             <span className="min-w-0">
-              <Marquee className="block truncate font-medium text-ink text-sm">{file.filename}</Marquee>
-              <span className="block text-ink-3 text-xs">{fileTypeLabel(file.filename)}</span>
+              <Marquee className="block truncate font-medium text-ink text-body">{file.filename}</Marquee>
+              <span className="block text-ink-3 text-caption">{fileTypeLabel(file.filename)}</span>
             </span>
           </button>
           <a
