@@ -157,7 +157,7 @@ function SessionStatusBar() {
   }, [detail]);
   if (!snapshot.sessionId || !showsReconnecting(snapshot)) return null;
   return (
-    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-(--cc-space-16) pt-(--cc-space-8) text-ink-3 text-xs">
+    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-(--cc-space-16) pt-(--cc-space-8) text-ink-3 text-caption">
       {t("reconnecting")}
     </div>
   );
@@ -199,7 +199,7 @@ function UserMenu({ children }: { children: ReactNode }) {
       <DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu">
-          <Marquee as="div" className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</Marquee>
+          <Marquee as="div" className="cc-menu-label truncate">{profile.user}</Marquee>
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
@@ -569,7 +569,7 @@ function MobileDrawer() {
         className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-(--cc-mdrawer-tray-px) pt-(--cc-mdrawer-tray-pt) pb-[max(var(--cc-mdrawer-bottom),env(safe-area-inset-bottom))]">
         {profile && (
           <UserMenu>
-            <button type="button" className="cc-avatar pointer-events-auto size-(--cc-mavatar) text-sm" aria-label={profile.full_name || profile.user}>
+            <button type="button" className="cc-avatar pointer-events-auto size-(--cc-mavatar) text-body" aria-label={profile.full_name || profile.user}>
               {initials(profile)}
             </button>
           </UserMenu>

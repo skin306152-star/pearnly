@@ -30,6 +30,6 @@ export function keysFor(keys: string, apple = appleKeys()): string {
 export function Shortcut({ keys, kbd }: { keys: string; kbd?: boolean }) {
   if (!showShortcuts()) return null;
   const shown = keysFor(keys);
-  if (kbd) return <kbd className="rounded-md border bg-app px-2 py-0.5 font-sans text-muted-foreground text-xs">{shown}</kbd>;
+  if (kbd) return <kbd className="cc-kbd">{shown}</kbd>;
   return <span className="text-ink-3 text-xs">{shown}</span>;
 }
