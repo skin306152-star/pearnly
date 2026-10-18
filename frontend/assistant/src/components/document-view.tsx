@@ -85,7 +85,7 @@ function Cell({ cell, header }: { cell: DocCell; header: boolean }) {
     <td
       colSpan={count(cell.colspan, 64)}
       rowSpan={count(cell.rowspan, 1000)}
-      className={cn("min-w-24 max-w-80 border border-line px-2.5 py-1.5 align-top", header && "bg-subtle font-medium")}
+      className={cn("border border-line align-top", header && "bg-subtle font-medium")}
     >
       <Blocks blocks={cell.blocks} inCell />
     </td>
@@ -96,7 +96,7 @@ function Table({ block }: { block: Extract<DocBlock, { type: "table" }> }) {
   const rows = Array.isArray(block.rows) ? block.rows : [];
   return (
     <div className="my-3 max-w-full overflow-x-auto">
-      <table className="border-collapse text-(length:--cc-text-sm)">
+      <table className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="doc">
         <tbody>
           {rows.map((row, r) => (
             <tr key={r}>

@@ -6566,7 +6566,8 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
         self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
         panel = read("components/results-panel.tsx")
-        self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
+        self.assertIn('"cc-fade-cell border border-line"', panel)
+        self.assertIn('className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="sheet"', panel)  # 最宽 288 由 .cc-table[data-kind="sheet"] 给（V13）
         self.assertIn('watchOverflow([el], () => el.querySelectorAll<HTMLElement>("td.cc-fade-cell"))', panel)
         # 其余还写着 truncate 的只能在 Marquee 上（盖掉省略号）；保留原样的：文件下拉框（原生控件）。没用到的官方侧栏菜单按钮
         # （[&>span:last-child]:truncate）标准化 B2 已删

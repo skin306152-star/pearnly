@@ -201,7 +201,7 @@ function SheetTable({ rows }: { rows: string[][] }) {
   }, [rows]);
   return (
     <div className="h-full overflow-auto">
-      <table ref={table} className="border-collapse text-(length:--cc-text-sm)">
+      <table ref={table} className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="sheet">
         <tbody>
           {rows.map((row, r) => (
             <tr key={r} className={r === 0 ? "bg-subtle font-medium" : undefined}>
@@ -209,7 +209,7 @@ function SheetTable({ rows }: { rows: string[][] }) {
                 <td
                   key={c}
                   className={cn(
-                    "cc-fade-cell max-w-72 border border-line px-2.5 py-1.5",
+                    "cc-fade-cell border border-line",
                     isAmount(cell) && "text-right tabular-nums",
                   )}
                   title={cell}
