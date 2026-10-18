@@ -254,7 +254,7 @@ const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
   }, [aui, hasMore, loadingMore, searching]);
   if (!hasMore && !loadingMore) return null;
   return (
-    <div ref={ref} className="flex h-8 items-center px-(--cc-row-pad) text-ink-3">
+    <div ref={ref} className="flex h-(--cc-row-h) items-center px-(--cc-row-pad) text-ink-3">
       {loadingMore && <LoaderIcon className="size-3.5 animate-spin" />}
     </div>
   );
@@ -951,7 +951,7 @@ const ThreadListSkeleton: FC = () => {
           role="status"
           aria-label={t("search")}
           data-slot="aui_thread-list-skeleton-wrapper"
-          className="flex h-8 items-center px-(--cc-row-pad)"
+          className="flex h-(--cc-row-h) items-center px-(--cc-row-pad)"
         >
           <Skeleton data-slot="aui_thread-list-skeleton" className="w-full" />
         </div>
