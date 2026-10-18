@@ -1623,6 +1623,7 @@ g.setTimeout = realSetTimeout;
         self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <Composer />", thread)
         failure = thread.split("const SendFailure: FC = () => {", 1)[1].split("\n};\n", 1)[0]
         self.assertIn('<div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>', failure)
+        self.assertIn('const ERROR_BOX = "cc-alert";', thread)  # 同对话里出错那一行：统一的出错框（V12）
         self.assertIn('<p className="line-clamp-(--cc-alert-lines)">{message}</p>', failure)
         self.assertIn('<ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>', thread)
         attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")

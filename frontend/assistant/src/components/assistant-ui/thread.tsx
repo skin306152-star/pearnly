@@ -442,8 +442,8 @@ const StopButton: FC = () => {
   );
 };
 
-// 对话里出错那一行（回复出错、发送没成功）同一个样子：淡红底、红字、最多两行
-const ERROR_BOX = "border-danger-line bg-danger-soft text-danger rounded-md border p-3 text-body";
+// 对话里出错那一行（回复出错、发送没成功、通知没打开）同一个样子：统一的出错框 .cc-alert（危险浅底、危险线、内边距 12、圆角 8，V12），最多两行
+const ERROR_BOX = "cc-alert";
 
 const MessageError: FC = () => {
   return (
