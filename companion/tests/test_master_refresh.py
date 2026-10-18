@@ -115,8 +115,10 @@ def test_endpoint_refresh_reads_company_names_and_skips_chart(monkeypatch):
     result = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", **kwargs))
 
     assert result[0] == {"account_sets": [{"path": "C:/books/A", "company": "ACME"}]}
-    # 带详情（不传 include_details）；一次扫描共用一个换算网络路径的 locator（账套行的 uid / share，device_facts）
-    assert [root for root, _kwargs in scans] == ["C:/books"] and set(scans[0][1]) == {"locator"}
+    # 带详情（不传 include_details）；一次扫描共用一个换算网络路径的 locator（账套行的 uid / share，device_facts）、
+    # 一个限 CPU 的节拍器（pace），登记表没变就用本机索引里的行（reuse_registry，2026-10-18）
+    assert [root for root, _kwargs in scans] == ["C:/books"]
+    assert set(scans[0][1]) == {"locator", "pace", "reuse_registry"} and scans[0][1]["reuse_registry"] is True
 
 
 def test_endpoint_refresh_scans_each_authorized_root_once(monkeypatch):

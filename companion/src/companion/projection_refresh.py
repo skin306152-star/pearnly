@@ -62,21 +62,35 @@ def _sets_cache_file(profile_id: str):
     return APPDATA_DIR / f"account_sets_{name}.json"
 
 
-def load_account_sets(state: dict, profile_id: str) -> None:
+def load_account_sets(state: dict, profile_id: str, account_dir: str = "") -> None:
     """这次启动还没扫完账套时，先用上次扫到的清单（大数据根一次要扫几分钟）。
 
     2026-09-28 真机复测：刚启动那几分钟心跳没有账套清单，服务端认不出按账套刷新带回的主档，
-    刷新一直停在「处理中」；这期间推的票也准备不出小助手凭据。扫完后照常换成新清单。"""
-    if "reported_account_sets" in state or state.get("_sets_cache_tried"):
+    刷新一直停在「处理中」；这期间推的票也准备不出小助手凭据。扫完后照常换成新清单。
+    2026-10-18：所选账套的科目表也先用本机索引里上次读到的（account_probe.cached_chart，不碰账套文件），
+    心跳不再先报「科目 0」；后台扫描先读科目表，读到就换成现在的。"""
+    if state.get("_sets_cache_tried"):
         return
     state["_sets_cache_tried"] = True
-    try:
-        rows = json.loads(_sets_cache_file(profile_id).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return
-    if isinstance(rows, list) and rows:
-        state["reported_account_sets"] = rows
-        log.info("[heartbeat] 先用上次扫到的账套清单 %d 个（这次还在扫）", len(rows))
+    if "reported_account_sets" not in state:
+        try:
+            rows = json.loads(_sets_cache_file(profile_id).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            rows = None
+        if isinstance(rows, list) and rows:
+            state["reported_account_sets"] = rows
+            log.info("[heartbeat] 先用上次扫到的账套清单 %d 个（这次还在扫）", len(rows))
+    if "reported_accounts" not in state and str(account_dir or "").strip():
+        try:
+            from .account_probe import cached_chart
+
+            chart = cached_chart(account_dir)
+        except Exception:  # noqa: BLE001 - 本机索引读不了就等扫描
+            log.warning("[heartbeat] 本机索引里的科目表读不了", exc_info=True)
+            chart = []
+        if chart:
+            state["reported_accounts"] = chart
+            log.info("[heartbeat] 先用上次读到的科目表 %d 个", len(chart))
 
 
 def save_account_sets(state: dict, profile_id: str) -> None:
@@ -90,10 +104,25 @@ def save_account_sets(state: dict, profile_id: str) -> None:
         log.warning("[heartbeat] 账套清单存不进本机缓存", exc_info=True)
 
 
+def _root_key(value: object) -> str:
+    return _norm_path(str(value or "").replace("/", "\\"))
+
+
+def merge_partial(previous: list[dict], incoming: list[dict], scanned_roots: list) -> list[dict]:
+    """「进行中」快照（master_refresh 扫得慢时先交的）：读完的数据根换成新读到的，其余沿用上次报的。
+
+    这样重启后清单不会先缩水再长回来（服务端看到的账套不会一会儿没了一会儿又有），没读到的数据根也不会凭空多出来。"""
+    scanned = {_root_key(root) for root in scanned_roots or ()}
+    kept = [item for item in previous if isinstance(item, dict) and _root_key(item.get("root")) not in scanned]
+    return [*incoming, *kept]
+
+
 def apply_endpoint_snapshot(state: dict, master: dict, version: float) -> None:
     incoming_sets = master.get("account_sets") or []
     previous = state.get("reported_account_sets") or []
-    if not incoming_sets and previous:
+    if master.get("partial"):
+        incoming_sets = merge_partial(previous, incoming_sets, master.get("scanned_roots") or [])
+    elif not incoming_sets and previous:
         # 重扫一个账套都没读到（登记表这会儿打不开，如 Express 正在打开账套）：保留上一份，
         # 不让网页和服务端看到「0 个账套」（2026-09-28 录制：心跳连续 2 分钟报 0 个，之后自行恢复）。
         log.warning("[heartbeat] 重扫没读到账套，沿用上一份 %d 个", len(previous))

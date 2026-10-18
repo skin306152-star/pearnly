@@ -407,8 +407,8 @@ def test_every_reported_account_set_row_carries_uid_and_share():
 
 
 def test_account_sets_payload_adds_identity_only_with_details(monkeypatch):
-    found = [account_probe.AccountSet("A", "1.A", "ACME", "S:\\2569\\A", "0105", True, 1)]
-    monkeypatch.setattr(account_probe, "probe_account_sets", lambda root, include_details=True: found)
+    # 登记表一行（扫描逐份读账套，不再经 probe_account_sets 整份列出，2026-10-18）
+    monkeypatch.setattr(account_probe, "_registry_rows", lambda root, reuse=False: [("1.A", "A", "S:\\2569\\A")])
     monkeypatch.setattr(account_probe, "_account_details", lambda path: ("ACME", "0105", {}, {}))
 
     class Finder:

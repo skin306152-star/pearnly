@@ -490,7 +490,7 @@ def _run_periodic(
             root = cfg.resolved_express_root()
             authorized = list(getattr(cfg, "authorized_roots", None) or ())
             profile_id = str(getattr(cfg, "profile_id", "") or "")
-            projection_refresh.load_account_sets(state, profile_id)
+            projection_refresh.load_account_sets(state, profile_id, cfg.account_dir or "")
             master, master_version, refresh_error = projection_refresh.collect_endpoint(
                 state,
                 root or "",
@@ -502,16 +502,21 @@ def _run_periodic(
                 # 只授权过一个年度的也一样（2026-10-08：原来只在授权多个、且有人点「重新读取」时才找）。
                 discover=True,
             )
+            # 扫得慢时先交「进行中」快照（读完的数据根换成新的、其余沿用上次报的，master_refresh / merge_partial）：
+            # 照常上报，但不算网页「重新读取」已完成、不存本机清单、不记新年度文件夹，等完整快照。
+            complete = master is not None and not master.get("partial")
             if master is not None:
-                _remember_roots(cfg, authorized, master.get("roots"))
-                authorized = list(getattr(cfg, "authorized_roots", None) or ())
+                if complete:
+                    _remember_roots(cfg, authorized, master.get("roots"))
+                    authorized = list(getattr(cfg, "authorized_roots", None) or ())
                 projection_refresh.apply_endpoint_snapshot(
                     state, master, master_version
                 )
-                projection_refresh.save_account_sets(state, profile_id)
-            # 这次启动还没扫完（大数据根要几分钟）：账套先用本机存的上次清单（load_account_sets），科目不报
-            # （报「0 个」服务端会盖掉上一份，这期间要人选的科目没有选项，2026-09-28 真机复测）。
-            # 头一次启动、本机也没有清单时账套照旧报空：不报的话服务端会把目录换成只剩所选的那一个。
+                if complete:
+                    projection_refresh.save_account_sets(state, profile_id)
+            # 这次启动还没扫完（大数据根要几分钟）：账套先用本机存的上次清单、科目先用本机索引里上次的科目表
+            # （load_account_sets）；本机没有科目表时不报（报「0 个」服务端会盖掉上一份，这期间要人选的科目没有选项，
+            # 2026-09-28 真机复测）。头一次启动、本机也没有清单时账套照旧报空：不报的话服务端会把目录换成只剩所选的那一个。
             known_sets = state.get("reported_account_sets") or []
             known_accts = state.get("reported_accounts")
             sets = known_sets or []
@@ -569,7 +574,7 @@ def _run_periodic(
                 refresh_request_id,
                 refresh_scope,
                 refresh_account_set,
-                endpoint_ready=master is not None,
+                endpoint_ready=complete,
                 account_ready=refresh_ready,
                 error=refresh_error,
             )

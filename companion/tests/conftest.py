@@ -53,6 +53,29 @@ def _account_set_cache_in_tmp(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _account_index_in_tmp(tmp_path, monkeypatch):
+    """账套清单本机索引（account_index）放进本次的临时目录，每个用例当作刚启动（内存里的索引清空）；
+    服务器在不在的记录（scan_pace.GATE）也从空开始。"""
+    import importlib
+
+    for name in ("companion", "src.companion"):
+        try:
+            index = importlib.import_module(name + ".account_index")
+            pace = importlib.import_module(name + ".scan_pace")
+        except ImportError:
+            continue
+        monkeypatch.setattr(index, "index_file", lambda: tmp_path / "account_index.json")
+        index.INDEX._reset_for_tests()
+        pace.GATE._reset_for_tests()
+    yield
+    for name in ("companion", "src.companion"):
+        try:
+            importlib.import_module(name + ".account_index").INDEX._reset_for_tests()
+        except ImportError:
+            continue
+
+
+@pytest.fixture(autouse=True)
 def _folder_state_in_tmp(tmp_path, monkeypatch):
     """文件夹自动录入的本机状态（folder_store）：测试里放进本次的临时目录。"""
     monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folder_intake"))
