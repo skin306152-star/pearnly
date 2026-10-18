@@ -32,7 +32,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { buttonVariants } from "@/components/ui/button";
 import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
 import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
 import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
@@ -214,16 +213,13 @@ const ComposerAttachment: FC = () => {
   );
 };
 
+/** 方块右上角 20 的圆形移除：白底、轻投影、× 悬停变红（V71：不再套 shadcn Button，只过渡颜色，按下同图标按钮 94%）。 */
 const AttachmentRemove: FC = () => {
   return (
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip={t("removeFile")}
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "icon" }),
-          "aui-button-icon size-(--cc-control-xs) p-(--cc-space-4) active:scale-90",
-          "aui-attachment-tile-remove cc-compose-x hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute size-5 rounded-full p-0 opacity-100 shadow-sm",
-        )}
+        className="aui-attachment-tile-remove cc-compose-x absolute inline-flex size-(--cc-control-2xs) items-center justify-center rounded-full bg-surface shadow-sm outline-none transition-colors focus-visible:shadow-focus active:scale-(--cc-press-scale) [&_svg]:text-ink hover:[&_svg]:text-danger"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-(--cc-icon-2xs) dark:stroke-(length:--cc-compose-x-stroke)" />

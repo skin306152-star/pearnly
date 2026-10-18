@@ -8671,7 +8671,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         tile = read("components/assistant-ui/attachment.tsx")
         self.assertIn('className="aui-attachment-tile cc-compose-tile"', tile)
         self.assertIn("cc-compose-x", tile)
-        self.assertIn("size-5 rounded-full p-0", tile)
+        self.assertIn("size-(--cc-control-2xs) items-center justify-center rounded-full", tile)  # 右上 20 的圆形移除
         # 位置写在 globals.css（手机要挪到外角，工具类盖不住）：组件上不再写 end-1.5 top-1.5
         self.assertNotIn("end-1.5 top-1.5", tile)
         self.assertIn(".cc-compose-x { top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); }", css)
