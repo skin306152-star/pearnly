@@ -137,7 +137,7 @@ class DialogFitTests(unittest.TestCase):
             ("components/scheduled-tasks.tsx", "cc-card cc-enter cc-modal fixed left-1/2 z-50 flex"),
             ("components/add-company.tsx", "cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex"),
             ("components/settings.tsx", "cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))]"),
-            ("components/ui/dialog.tsx", "cc-modal fixed start-[50%] z-50 grid overflow-y-auto"),
+            ("components/ui/dialog.tsx", "cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto"),
         ]:
             source = read(path)
             self.assertIn(needle, source, path)

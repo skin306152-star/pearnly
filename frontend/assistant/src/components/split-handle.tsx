@@ -72,7 +72,7 @@ export const resultsSize = {
 /** 左侧栏：按像素宽，夹在最窄与最宽之间。 */
 export const sidebarSize = {
   key: "cc.sidebar.width",
-  cssVar: "--sidebar-width",
+  cssVar: "--cc-sidebar-w",
   unit: "px" as const,
   fromPointer(panel: HTMLElement, x: number) {
     return this.limit(panel, x - panel.getBoundingClientRect().left);

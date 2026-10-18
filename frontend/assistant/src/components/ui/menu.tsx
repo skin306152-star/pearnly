@@ -37,6 +37,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { fixedPx } from "@/lib/css-var";
 
 const unsubscribed = () => () => undefined;
 
@@ -49,8 +50,20 @@ function Portal({ container, ...props }: ComponentProps<typeof RadixMenu.Portal>
 // 组件库的下拉菜单，弹层换成上面那个（本文件里的子菜单同样用它）
 const Radix = { ...RadixMenu, Portal };
 
-/** 菜单离屏幕边的最小距离（px）。 */
+// 菜单离触发器、子菜单离父菜单、离屏幕边的距离只在 globals.css（--cc-menu-offset / --cc-menu-sub-offset / --cc-menu-edge，标准化记录 2.6）：
+// 菜单打开时读（这一层只在菜单开着时渲染），读到就记住（lib/css-var.ts 的 fixedPx）；样式表还没生效时用下面的回退值，与 globals.css 同值（测试核对）。
+// 调用方要写离触发器的距离时用 menuOffset()，不写数。
+
+/** 菜单离屏幕边的最小距离（px）：回退值。 */
 export const MENU_EDGE = 8;
+/** 主菜单离触发器（px）：回退值。 */
+export const MENU_OFFSET = 4;
+/** 子菜单离父菜单（px）：回退值。 */
+export const MENU_SUB_OFFSET = 6;
+
+export const menuEdge = () => fixedPx("--cc-menu-edge", MENU_EDGE);
+export const menuOffset = () => fixedPx("--cc-menu-offset", MENU_OFFSET);
+export const menuSubOffset = () => fixedPx("--cc-menu-sub-offset", MENU_SUB_OFFSET);
 
 type Pages = { open: string | null; setOpen: (id: string | null) => void; host: HTMLElement | null };
 const PagesContext = createContext<Pages | null>(null);
@@ -119,7 +132,7 @@ export function closeWithoutClickThrough(event: OutsideEvent) {
 }
 
 function Content({
-  collisionPadding = MENU_EDGE,
+  collisionPadding = menuEdge(),
   side,
   sideOffset = 0,
   ref,
@@ -196,16 +209,16 @@ function Content({
   );
 }
 
-function SubContent({ collisionPadding = MENU_EDGE, ...props }: ComponentProps<typeof Radix.SubContent>) {
+function SubContent({ collisionPadding = menuEdge(), ...props }: ComponentProps<typeof Radix.SubContent>) {
   return <Radix.SubContent collisionPadding={collisionPadding} {...props} />;
 }
 
-/** 子菜单（「处理月份 ›」「语言 ›」…）。className、sideOffset：宽屏旁边展开的那一块。 */
+/** 子菜单（「处理月份 ›」「语言 ›」…）。className、sideOffset：宽屏旁边展开的那一块（默认离父菜单 --cc-menu-sub-offset）。 */
 export function SubMenu({
   icon,
   label,
   className = "cc-menu",
-  sideOffset = 6,
+  sideOffset,
   children,
 }: {
   icon?: ReactNode;
@@ -234,7 +247,7 @@ export function SubMenu({
       <Radix.Sub>
         <Radix.SubTrigger className="cc-menu-item">{row}</Radix.SubTrigger>
         <Radix.Portal>
-          <SubContent sideOffset={sideOffset} className={className}>
+          <SubContent sideOffset={sideOffset ?? menuSubOffset()} className={className}>
             {children}
           </SubContent>
         </Radix.Portal>

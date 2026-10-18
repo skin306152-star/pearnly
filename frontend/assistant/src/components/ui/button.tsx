@@ -1,3 +1,6 @@
+// 组件库的按钮（shadcn）：只留在用的两种外观（outline、ghost）与四档尺寸（default、sm、icon、icon-sm），没人用的已删（标准化记录 B2）。
+// 在用的几处输出保持原样，随调用方所在的批次换成标准类：设置页按钮 → .cc-btn（B4，V10）、会话行「···」→ .cc-row-btn（B6，V29）、
+// 回复与代码块「复制」→ .cc-row-btn（B7，V30）；那之前这里的 transition-all、disabled:opacity-50、has-[>svg]:px-2.5 不改（一改就提前变画面）。
 import type * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
@@ -5,34 +8,24 @@ import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "focus-visible:shadow-focus aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "focus-visible:shadow-focus aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-(--cc-space-8) rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-(--cc-icon-sm)",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive hover:bg-destructive/90 text-(--cc-on-danger)",
         outline:
           "bg-background hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 border shadow-xs",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        default: "h-(--cc-control-md) px-(--cc-space-16) py-(--cc-space-8) has-[>svg]:px-(--cc-space-12)",
+        sm: "h-(--cc-control) gap-(--cc-space-6) rounded-md px-(--cc-space-12) has-[>svg]:px-2.5",
+        icon: "size-(--cc-control-md)",
+        "icon-sm": "size-(--cc-control)",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "ghost",
       size: "default",
     },
   },
@@ -40,7 +33,7 @@ const buttonVariants = cva(
 
 function Button({
   className,
-  variant = "default",
+  variant = "ghost",
   size = "default",
   asChild = false,
   ...props

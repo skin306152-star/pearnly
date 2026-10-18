@@ -72,7 +72,6 @@ BUSY_SITES = [
     ("components/company-page.tsx", "animate-spin", "if (!rows) return", 0),
     ("components/company-cards.tsx", "animate-spin", "busy ?", 0),
     ("components/scheduled-tasks.tsx", "animate-pulse", "rules === null || shown === null ?", 3),
-    ("components/ui/sidebar.tsx", "<Skeleton", "function SidebarMenuSkeleton(", 25),
     ("components/ui/skeleton.tsx", "animate-pulse", "function Skeleton(", 5),
     ("components/assistant-ui/thread-list.tsx", "animate-spin", "loadingMore &&", 0),
     ("components/assistant-ui/thread-list.tsx", "<Skeleton", "const ThreadListSkeleton", 15),

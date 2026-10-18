@@ -18,6 +18,7 @@
 // [data-marquee-host]，没有就取最近的菜单项 / 按钮 / 链接 / 会话栏行 / 列表行，再没有就是文字自己（整行都该触发的地方
 // 给那一行标 data-marquee-host）。
 import { useEffect, useRef } from "react";
+import { cssMs } from "@/lib/css-var";
 import { isDragging } from "@/lib/layers";
 import { overflowOf, overflows } from "@/lib/overflow-fade";
 import { touchOnly } from "@/lib/touch";
@@ -32,13 +33,8 @@ export function canHoverScroll(): boolean {
   return !touchOnly() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** CSS 时长（「150ms」「0.3s」）→ 毫秒（共用拖动的动效时长也用它）。 */
-export function cssMs(value: string, fallback: number): number {
-  const text = value.trim();
-  const n = parseFloat(text);
-  if (!Number.isFinite(n)) return fallback;
-  return text.endsWith("ms") ? n : text.endsWith("s") ? n * 1000 : n;
-}
+// CSS 时长 → 毫秒的解析在 lib/css-var.ts（三份合成一份，标准化记录 2.6）；这里再导出一次，原来从这里导入的调用方（共用拖动）不动，B8 删掉
+export { cssMs };
 
 function rootVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name);

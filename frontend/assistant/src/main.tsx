@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Assistant } from "./assistant";
 import "./globals.css";
 import { colorSchemeOf, pref, type Theme } from "@/lib/appearance";
@@ -61,13 +60,12 @@ trackViewport();
 // 手机返回键先关最上面一层弹层（lib/back-stack.ts）
 installBackKey();
 
-// 最外层错误边界：哪里抛错都不整页变白（components/error-boundary.tsx）
+// 最外层错误边界：哪里抛错都不整页变白（components/error-boundary.tsx）。提示框不用在外面包 Provider：每个 Tooltip 自带一层
+// （components/ui/tooltip.tsx，延时读 globals.css），原来包在这里的那层从来不起作用
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
-      <TooltipProvider>
-        <Assistant />
-      </TooltipProvider>
+      <Assistant />
     </ErrorBoundary>
   </StrictMode>,
 );

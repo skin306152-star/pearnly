@@ -453,17 +453,19 @@ g.done();
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        for rel in ("components/ui/button.tsx", "components/ui/input.tsx", "components/ui/sheet.tsx",
-                    "components/ui/sidebar.tsx"):
-            self.assertIn("focus-visible:shadow-focus", read(rel), rel)
+        self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
+        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条）：
+        # 留下的侧栏只有容器，自己没有可聚焦的控件（侧栏里的按钮都是 cc-* 类，聚焦见 globals.css）
+        for rel in ("input", "sheet", "avatar", "separator"):
+            self.assertFalse((SRC / f"components/ui/{rel}.tsx").exists(), rel)
+        self.assertNotIn("focus-visible:", read("components/ui/sidebar.tsx"))
         # 弹窗默认的 × 第 11 轮起是图标按钮（.cc-icon-btn 的聚焦就是 --cc-shadow-focus）
-        self.assertIn('className="cc-icon-btn cc-tap absolute end-3 top-3"', read("components/ui/dialog.tsx"))
+        self.assertIn('className="cc-icon-btn cc-tap absolute end-(--cc-space-12) top-(--cc-space-12)"', read("components/ui/dialog.tsx"))
         self.assertIn(".cc-icon-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }", self.css)
         # 聚焦不带光晕（用户 10-16）：整个 CC 前端不再有 ring 光晕写法（ring-[3px]、半透明 ring、ring-offset、focus 时的 ring-2）
         halo = re.compile(r"ring-\[\d|ring-ring|ring-offset|(?:focus|focus-visible|aria-invalid):ring-|ring-[a-z-]+/\d|outline-ring/\d")
         for path in sorted(SRC.rglob("*.ts*")) + [SRC / "globals.css"]:
             self.assertIsNone(halo.search(path.read_text(encoding="utf-8")), path)
-        self.assertEqual(read("components/ui/sidebar.tsx").count("focus-visible:shadow-focus"), 5)
         self.assertIn("shadow-pop", read("components/ui/dialog.tsx"))
         self.assertIn("bg-tooltip text-tooltip-ink", read("components/ui/tooltip.tsx"))
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
@@ -688,10 +690,8 @@ const front = process.argv[2];
 # 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
 # 这不是豁免：表外的 --cc-* 没人引用就失败。
 AWAITING = {
-    # B2 组件库：菜单偏移与离边（menu.tsx 用时读）、提示框延时与层级（tooltip.tsx，V7）、侧栏头、骨架条
-    "--cc-menu-offset": "B2", "--cc-menu-sub-offset": "B2", "--cc-menu-edge": "B2", "--cc-tooltip-delay": "B2",
-    "--cc-z-tooltip": "B2", "--cc-sidebar-pad": "B2", "--cc-skeleton-h": "B2",
-    "--cc-preview-w": "B2", "--cc-preview-share": "B2",
+    # B2 组件库：提示框层级（tooltip.tsx，V7）
+    "--cc-z-tooltip": "B2",
     # B3 外壳：欢迎页、侧栏头、手机抽屉
     "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
     "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
@@ -711,6 +711,8 @@ AWAITING = {
     "--cc-thread-gutter": "B7", "--cc-turn-gap": "B7", "--cc-thread-tail": "B7", "--cc-run-gap": "B7", "--cc-run-gap-reply": "B7",
     "--cc-reply-actions-h": "B7", "--cc-msg-intrinsic": "B7", "--cc-md-h1": "B7", "--cc-md-h2": "B7", "--cc-md-heading-lh": "B7",
     "--cc-md-heading-scroll": "B7", "--cc-md-li-gap": "B7", "--cc-md-quote-w": "B7", "--cc-code-inline-size": "B7",
+    # 图片预览的最宽与占高：写在 attachment.tsx 的调用处（B7 的文件），B2 的 dialog.tsx 不再给默认宽（原登记为 B2）
+    "--cc-preview-w": "B7", "--cc-preview-share": "B7",
     # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
     "--cc-control-nested": "B2–B7",
 }
@@ -804,6 +806,150 @@ class TokenGateTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/development.yml").read_text(encoding="utf-8")
         self.assertIn("run: python3 scripts/check-frontend-tokens.py", workflow)
         self.assertIn("run: python3 tests/test_cc_ccs.py", workflow)
+
+
+def token_value(defs, name):
+    """globals.css 里一个变量一路 var() 引用下去的取值（只认整串是一个 var(--x) 的引用）。"""
+    value = defs[name].strip()
+    while (m := re.fullmatch(r"var\((--[\w-]+)\)", value)):
+        value = defs[m.group(1)].strip()
+    return value
+
+
+class ComponentLibraryTests(unittest.TestCase):
+    """标准化 B2（组件库，记录 4.2）：components/ui 只留在用的部件、写死值换成标准层变量；JS 用到的值用时从 globals.css 读，
+    回退常量与 globals.css 同值；三份「CSS 值 → 数字」的解析合成 lib/css-var.ts。"""
+
+    def setUp(self):
+        self.css = (SRC / "globals.css").read_text(encoding="utf-8")
+        self.defs = {**code_block(self.css, ":root"), **cc_block(self.css, ":root")}
+        self.read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
+
+    def test_js_fallbacks_match_globals_css(self):
+        # 2.6：菜单离边 / 离触发器 / 子菜单离父菜单、提示框延时只在 globals.css 定值，JS 用时读；回退常量与它同值
+        menu = self.read("components/ui/menu.tsx")
+        for const, name in (("MENU_EDGE", "--cc-menu-edge"), ("MENU_OFFSET", "--cc-menu-offset"),
+                            ("MENU_SUB_OFFSET", "--cc-menu-sub-offset")):
+            fallback = re.search(rf"^export const {const} = (\d+);$", menu, re.M).group(1)
+            self.assertEqual(token_value(self.defs, name), f"{fallback}px", name)
+            self.assertIn(f'fixedPx("{name}", {const})', menu)
+        self.assertIn("collisionPadding = menuEdge(),", menu)
+        self.assertIn("sideOffset={sideOffset ?? menuSubOffset()}", menu)
+        self.assertNotRegex(menu, r"(?:sideOffset|collisionPadding)\s*=\s*[1-9]")
+        tooltip = self.read("components/ui/tooltip.tsx")
+        fallback = re.search(r"^export const TOOLTIP_DELAY = (\d+);$", tooltip, re.M).group(1)
+        self.assertEqual(token_value(self.defs, "--cc-tooltip-delay"), f"{fallback}ms")
+        self.assertIn('fixedMs("--cc-tooltip-delay", TOOLTIP_DELAY)', tooltip)
+        self.assertIn("delayDuration={delayDuration ?? tooltipDelay()}", tooltip)
+        # 提示框不用在外面包 Provider：每个 Tooltip 自带一层，main.tsx、侧栏原来那几层从来不起作用
+        self.assertNotIn("TooltipProvider", self.read("main.tsx"))
+        self.assertNotIn("TooltipProvider", self.read("components/ui/sidebar.tsx"))
+
+    def test_only_the_parts_in_use_are_left(self):
+        ui = SRC / "components/ui"
+        self.assertEqual(sorted(p.name for p in ui.glob("*.tsx")),
+                         ["button.tsx", "dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
+        exports = lambda rel: sorted(re.findall(r"^  (\w+),$", self.read(rel).split("\nexport {\n", 1)[1].split("};", 1)[0], re.M))
+        self.assertEqual(exports("components/ui/sidebar.tsx"),
+                         ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
+        self.assertEqual(exports("components/ui/dialog.tsx"), ["Dialog", "DialogClose", "DialogContent", "DialogTitle", "DialogTrigger"])
+        button = self.read("components/ui/button.tsx")
+        variants = button.split("variant: {", 1)[1].split("},", 1)[0]
+        sizes = button.split("size: {", 1)[1].split("},", 1)[0]
+        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", variants, re.M), ["outline", "ghost"])
+        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", sizes, re.M), ["default", "sm", "icon", "icon-sm"])
+        # 侧栏没有随机宽度的骨架（比对工具要稳定），也没有手机分支（手机是 mobile-shell 的抽屉）
+        sidebar = self.read("components/ui/sidebar.tsx")
+        self.assertNotIn("Math.random", sidebar)
+        self.assertNotIn("<Sheet", sidebar)
+
+    def test_sidebar_width_is_one_token(self):
+        # 2.4 第 3 条：--sidebar-width 别名改成 --cc-sidebar-w，分隔条写的也是它（本机记住的宽度仍按 cc.sidebar.width 存）
+        for path in sorted(SRC.rglob("*.ts*")):
+            self.assertNotIn("--sidebar-width", path.read_text(encoding="utf-8"), path)
+        split = self.read("components/split-handle.tsx")
+        self.assertIn('  key: "cc.sidebar.width",\n  cssVar: "--cc-sidebar-w",', split)
+        sidebar = self.read("components/ui/sidebar.tsx")
+        self.assertEqual(sidebar.count("w-(--cc-sidebar-w)"), 2)   # 占位与侧栏本体
+        self.assertIn("group-data-[collapsible=offcanvas]:-start-(--cc-sidebar-w)", sidebar)
+        self.assertEqual(sidebar.count("px-(--cc-sidebar-pad)"), 2)   # 侧栏头、脚的左右
+        self.assertIn('cn("bg-accent animate', self.read("components/ui/skeleton.tsx"))
+        self.assertIn("h-(--cc-skeleton-h)", self.read("components/ui/skeleton.tsx"))
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_css_values_are_read_when_used(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { cssMs, cssPx, cssVar, fixedMs, fixedPx } from "@/lib/css-var";
+import { cssMs as hoverMs } from "@/lib/hover-scroll";
+import { cssPx as panelPx } from "@/lib/company-panel";
+const g = globalThis as any;
+// 三份解析合成一份：原来的导入处拿到的是同一个函数
+assert.equal(hoverMs, cssMs);
+assert.equal(panelPx, cssPx);
+assert.equal(cssMs("150ms", 0), 150);
+assert.equal(cssMs(" 0.3s", 0), 300);
+assert.equal(cssMs("", 7), 7);
+assert.equal(cssPx("280px"), 280);
+assert.equal(cssPx(" 24rem", 16), 384);
+assert.equal(cssPx("var(--x)"), 0);
+assert.equal(cssPx("x", 16, 5), 5);
+g.innerWidth = 1000;
+assert.equal(cssPx("80vw"), 800);
+// 不在浏览器里（没有 getComputedStyle）：读到空串，用回退值
+assert.equal(cssVar("--cc-menu-edge"), "");
+assert.equal(fixedPx("--cc-menu-edge", 8), 8);
+// 样式表还没生效（读到空）：用回退值、不记住；生效后读到就记住，之后不再读样式
+const vars: Record<string, string> = {};
+let reads = 0;
+g.getComputedStyle = () => ({ getPropertyValue: (name: string) => { reads++; return vars[name] ?? ""; } });
+assert.equal(fixedPx("--cc-menu-edge", 8), 8);
+vars["--cc-menu-edge"] = "12px";
+assert.equal(fixedPx("--cc-menu-edge", 8), 12);
+vars["--cc-menu-edge"] = "20px";
+const before = reads;
+assert.equal(fixedPx("--cc-menu-edge", 8), 12);
+assert.equal(reads, before);
+vars["font-size"] = "20px";
+vars["--cc-x"] = "1rem";
+assert.equal(fixedPx("--cc-x", 0), 20);
+vars["--cc-tooltip-delay"] = "0ms";
+assert.equal(fixedMs("--cc-tooltip-delay", 300), 0);
+vars["--cc-tooltip-delay"] = "300ms";
+assert.equal(fixedMs("--cc-tooltip-delay", 300), 0);
+g.done();
+""", stubs={"socket.io-client": "export const io = () => ({ on() {}, off() {}, emit() {}, connect() {}, disconnect() {} });",
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_tooltip_delay_comes_from_globals_css(self):
+        # 组件库换成记下 props 的空壳：提示框交给组件库的延时是 globals.css 的 --cc-tooltip-delay（用时读）；写明的照样用
+        fake = r"""
+import { createElement } from "react";
+const g = globalThis as any;
+g.seen = [] as Array<{ part: string; props: any }>;
+const part = (name: string) => (props: any) => {
+  g.seen.push({ part: name, props });
+  return createElement("div", null, props.children);
+};
+export const Tooltip: any = Object.fromEntries(["Provider", "Root", "Trigger", "Portal", "Content", "Arrow"].map((n) => [n, part(n)]));
+"""
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement as h } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+const g = globalThis as any;
+g.getComputedStyle = () => ({ getPropertyValue: (name: string) => (name === "--cc-tooltip-delay" ? "250ms" : "") });
+renderToStaticMarkup(h(Tooltip, null, "x"));
+assert.equal(g.seen.find((s: any) => s.part === "Provider").props.delayDuration, 250);
+g.seen.length = 0;
+renderToStaticMarkup(h(TooltipProvider, { delayDuration: 0 }, "x"));
+assert.equal(g.seen.find((s: any) => s.part === "Provider").props.delayDuration, 0);
+g.done();
+""", stubs={"radix-ui": fake})
 
 
 class CardRuleTests(unittest.TestCase):

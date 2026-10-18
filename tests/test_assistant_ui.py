@@ -6568,8 +6568,9 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         panel = read("components/results-panel.tsx")
         self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
         self.assertIn('watchOverflow([el], () => el.querySelectorAll<HTMLElement>("td.cc-fade-cell"))', panel)
-        # 其余还写着 truncate 的只能在 Marquee 上（盖掉省略号）；保留原样的：文件下拉框（原生控件）、没用到的官方侧栏组件
-        allowed = {("components/results-panel.tsx", "<select"), ("components/ui/sidebar.tsx", "[&>span:last-child]:truncate")}
+        # 其余还写着 truncate 的只能在 Marquee 上（盖掉省略号）；保留原样的：文件下拉框（原生控件）。没用到的官方侧栏菜单按钮
+        # （[&>span:last-child]:truncate）标准化 B2 已删
+        allowed = {("components/results-panel.tsx", "<select")}
         for path in sorted(SRC.rglob("*.tsx")):
             rel = path.relative_to(SRC).as_posix()
             text = path.read_text(encoding="utf-8")
@@ -9114,7 +9115,8 @@ assert.equal(await run(node("pill-more")), "row:c");
         # 第 11 轮重测 E 段：电脑上收起侧栏后，行在屏幕外（left=-274）却没有 inert / aria-hidden，还能 focus()，Tab 会走进看不见的侧栏。
         # 现在：收起（offcanvas）时整块 inert，展开恢复；收起那一刻焦点在侧栏里就交给顶栏的展开钮。手机抽屉照旧 inert
         sidebar = read("components/ui/sidebar.tsx")
-        self.assertIn('const offscreen = !isMobile && collapsible === "offcanvas" && state === "collapsed";', sidebar)
+        # 侧栏只有 offcanvas 一种收起（标准化 B2 删了没人用的图标档、不收起档）
+        self.assertIn('const offscreen = !isMobile && state === "collapsed";', sidebar)
         container = sidebar.split('data-slot="sidebar-container"', 1)
         self.assertIn("ref={container}", container[0][-200:])
         self.assertIn("inert={offscreen || undefined}", container[1][:200])

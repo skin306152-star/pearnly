@@ -527,7 +527,6 @@
   --cc-warning-soft: var(--ccs-bg-warning);
   --cc-info: var(--ccs-text-info);
   --cc-info-soft: var(--ccs-bg-info);
-  --cc-on-danger: var(--ccs-text-inverse);
   /* 状态点（设置里 CC 桌面版的连接状态）：官方状态色里饱和度适中的边线色 */
   --cc-status-online: var(--ccs-border-success);
   --cc-status-processing: var(--ccs-border-info);
@@ -944,6 +943,9 @@
 
   /* 其他 */
   --cc-skeleton-h: 14px;          /* 现有值·CC 自定：骨架条高 */
+  /* 提示框的小箭头（components/ui/tooltip.tsx，B2 补登：组件库模板带的 10 的方块转 45° 露出一角） */
+  --cc-tooltip-arrow: 10px;       /* 现有值·CC 自定 */
+  --cc-tooltip-arrow-turn: 45deg; /* 现有值·CC 自定 */
   --cc-observe-margin: 200px;     /* 现有值·CC 自定：列表滚到离底这么远就预先取下一页（IntersectionObserver 的 rootMargin，JS 用时读，见 2.6） */
 
   /* 下面的共用类（.cc-*）自己用到的、不在刻度上的值（B1 把类里写死的值换成变量，同值） */
