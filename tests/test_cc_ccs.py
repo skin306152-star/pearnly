@@ -1456,6 +1456,13 @@ class DialogsAndListsTests(unittest.TestCase):
         rule = self.css.split("  .cc-switch::after {", 1)[1].split("}", 1)[0]
         self.assertIn("transition: transform var(--cc-dur) var(--cc-ease-spring);", rule)
 
+    def test_card_button_icons_take_the_class_size(self):
+        # V20（B4）：待处理卡片按钮里的图标（转圈）不再写 size 压掉 .cc-card-btn svg：电脑 16、手机 22
+        pending = self.read("components/pending.tsx")
+        self.assertEqual(pending.count('{busy && <LoaderIcon className="cc-spinner" />}'), 3)
+        self.assertNotRegex(pending, r"cc-card-btn[^>]*>\s*<\w+Icon className=\"[^\"]*size-")
+        self.assertEqual(token_value(self.defs, "--cc-card-btn-icon-phone"), "22px")
+
 
 if __name__ == "__main__":
     unittest.main()

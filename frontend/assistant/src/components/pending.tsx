@@ -262,7 +262,7 @@ const PendingGroup: FC<{
       )}
       {hand.length > 0 && (
         <button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
-          <SparklesIcon className="size-4" />
+          <SparklesIcon />
           {co.handToCC}
         </button>
       )}
@@ -383,14 +383,14 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
           ))}
           <button type="button" className="cc-card-btn self-end" data-primary=""
             disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="cc-spinner size-(--cc-icon-sm)" />}
+            {busy && <LoaderIcon className="cc-spinner" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && view && settledView(view) && (
         <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
-          {busy && <LoaderIcon className="cc-spinner size-(--cc-icon-sm)" />}
+          {busy && <LoaderIcon className="cc-spinner" />}
           {co.pushNow}
         </button>
       )}
@@ -399,7 +399,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         <>
           {view.wait?.message && <p className="text-ink-3 text-body">{view.wait.message}</p>}
           <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-            <SparklesIcon className="size-4" />
+            <SparklesIcon />
             {co.handToCC}
           </button>
         </>
@@ -484,14 +484,14 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
             </select>
           </label>
           <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="cc-spinner size-(--cc-icon-sm)" />}
+            {busy && <LoaderIcon className="cc-spinner" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && sets && !sets.length && (
         <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-          <SparklesIcon className="size-4" />
+          <SparklesIcon />
           {co.handToCC}
         </button>
       )}
