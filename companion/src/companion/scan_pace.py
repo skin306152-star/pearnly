@@ -9,11 +9,13 @@
   （平时 15% 个核：测试机原来首扫平均约 17%；网页「重新读取」有人在等，放宽到一半个核）；读网络盘等着的时间也算经过时间，
   所以以读盘为主的扫描几乎不额外变慢；Windows 的线程 CPU 计时 15.6 毫秒一跳，按累计算，跳得粗也不影响。某份账套光读文件就超过
   ``slow_seconds``（服务器中途断开、读一下要等系统超时）→ 抛 ``HostStalled``，这一轮这台服务器上的数据根全部跳过。
-- ``HostGate``：数据根所在的服务器（UNC 的 ``\\\\服务器\\共享``、盘符）每轮先问一次它在不在：只读看一眼这一轮
+- ``HostGate``：数据根所在的服务器（UNC 的 ``\\\\服务器\\共享``、网络盘符）每轮先问一次它在不在：只读看一眼这一轮
   要读的第一个数据根（``os.stat``），限时 ``probe_seconds``，卡住也不等（放在守护线程里，卡着期间不再问第二次）。
   超时、或 Windows 报的是网络类错误（找不到网络路径、网络名不再可用、信号灯超时……）→ 这台的数据根这一轮全跳过，
   之后按 1、2、4、8 分钟退避（最多 15 分钟）再问，期间一次网络读都不做；问通了 30 秒内同一台不再问。
   只是这个文件夹不在 / 没权限（服务器是好的）不算服务器不在：照常往下读，登记表读不到的那个数据根照旧报空。
+  本机盘（Windows 报固定盘 / 移动盘 / 光驱 / 内存盘的盘符）不设关卡：本机盘不会「断开」，一时读得慢（老硬盘、系统正忙）
+  也不该把本机的账套（通常就是所选的那份）当成服务器不在、一分钟不报。
 
 全部只读：只对数据根做 ``os.stat``，不建、不写任何文件。
 """
@@ -42,6 +44,27 @@ BACKOFF_SECONDS = (60.0, 120.0, 240.0, 480.0, 900.0)  # 连续问不通时下一
 
 _THREAD_PRIORITY_BELOW_NORMAL = -1
 _local = threading.local()
+_kernel32 = None
+
+
+def _win32():
+    """自己的一份 kernel32（设函数签名不影响别处的 ``ctypes.windll``）；不是 Windows 回 None。"""
+    global _kernel32
+    if sys.platform != "win32":
+        return None
+    if _kernel32 is None:
+        import ctypes
+        from ctypes import wintypes
+
+        dll = ctypes.WinDLL("kernel32", use_last_error=True)
+        dll.GetCurrentThread.restype = wintypes.HANDLE
+        dll.GetCurrentThread.argtypes = ()
+        dll.SetThreadPriority.restype = wintypes.BOOL
+        dll.SetThreadPriority.argtypes = (wintypes.HANDLE, ctypes.c_int)
+        dll.GetDriveTypeW.restype = wintypes.UINT
+        dll.GetDriveTypeW.argtypes = (wintypes.LPCWSTR,)
+        _kernel32 = dll
+    return _kernel32
 
 
 def low_priority() -> bool:
@@ -49,12 +72,10 @@ def low_priority() -> bool:
     if getattr(_local, "low", False):
         return True
     _local.low = True
-    if sys.platform != "win32":
-        return False
     try:
-        import ctypes
-
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        kernel32 = _win32()
+        if kernel32 is None:
+            return False
         return bool(kernel32.SetThreadPriority(kernel32.GetCurrentThread(), _THREAD_PRIORITY_BELOW_NORMAL))
     except Exception:  # noqa: BLE001 - 降不了优先级就照常跑，靠 Pace 限 CPU
         log.debug("扫描线程降不了优先级", exc_info=True)
@@ -73,18 +94,38 @@ class HostStalled(Exception):
         self.host = host
 
 
-def host_of(path) -> str:
-    """数据根所在的服务器 / 盘：``\\\\server\\share``、``S:``（不分大小写）；本机相对路径 / 别的系统的路径为空串（不设关卡）。"""
+# GetDriveTypeW：2 移动盘、3 固定盘、5 光驱、6 内存盘 = 本机盘；4 网络盘、0 / 1（未知、没有这个盘）照网络盘处理
+_LOCAL_DRIVE_TYPES = frozenset({2, 3, 5, 6})
+
+
+def drive_type(drive: str) -> int:
+    """Windows ``GetDriveTypeW("S:\\")``（只查本机的盘符表，不碰网络）；别的系统 / 取不到回 0（未知）。"""
+    try:
+        kernel32 = _win32()
+        if kernel32 is None:
+            return 0
+        return int(kernel32.GetDriveTypeW(drive.rstrip("\\") + "\\"))
+    except Exception:  # noqa: BLE001 - 取不到就当未知（照网络盘设关卡）
+        return 0
+
+
+def host_of(path, *, drive_type: Callable[[str], int] = drive_type) -> str:
+    """数据根所在的服务器 / 网络盘：``\\\\server\\share``、``s:``（不分大小写）；本机盘、相对路径、别的系统的路径为空串（不设关卡）。"""
     text = str(path or "").strip().replace("/", "\\")
     if not text:
         return ""
-    drive = ntpath.splitdrive(text)[0]
-    return drive.rstrip("\\").casefold() if drive else ""
+    drive = ntpath.splitdrive(text)[0].rstrip("\\")
+    if not drive:
+        return ""
+    if not drive.startswith("\\\\") and drive_type(drive) in _LOCAL_DRIVE_TYPES:
+        return ""
+    return drive.casefold()
 
 
 # Windows 网络类错误：网络路径 / 网络名找不到、网络名不再可用、意外的网络错误、信号灯超时、网络不可达、没连上……
 # 文件夹不在（2、3）、没权限（5）不在里面：服务器是好的，只是这一个数据根读不到。
-_NETWORK_ERRORS = frozenset({51, 53, 54, 55, 59, 64, 65, 67, 121, 1219, 1222, 1231, 1232, 2250})
+# 1201 = 记住的网络盘这会儿没连上、1203 = 网络路径不对或网络不通（断开的映射盘重连失败时常见）。
+_NETWORK_ERRORS = frozenset({51, 53, 54, 55, 59, 64, 65, 67, 121, 1201, 1203, 1219, 1222, 1231, 1232, 2250})
 
 
 def network_error(exc: BaseException) -> bool:
@@ -119,7 +160,9 @@ class HostGate:
         backoff: tuple = BACKOFF_SECONDS,
         fresh_seconds: float = PROBE_FRESH_SECONDS,
         clock: Callable[[], float] = time.monotonic,
+        drive_type: Callable[[str], int] = drive_type,
     ) -> None:
+        self._drive_type = drive_type
         self._probe = probe
         self._probe_seconds = probe_seconds
         self._backoff = backoff
@@ -131,7 +174,7 @@ class HostGate:
     def reachable(self, path, *, retry: bool = False) -> bool:
         """这个数据根的服务器现在能不能读：退避期内直接回 False（不做任何网络读）；到点了限时问一次。
         ``retry``（网页「重新读取」，有人在等）：不等退避到点，马上再问一次（上一次卡住还没回来的仍不重复问）。"""
-        host = host_of(path)
+        host = host_of(path, drive_type=self._drive_type)
         if not host:
             return True
         now = self._clock()
@@ -150,9 +193,13 @@ class HostGate:
                 self._failed(host, state)
         return ok
 
+    def host(self, path) -> str:
+        """这个数据根归哪台服务器（本机盘为空串：不设关卡）。"""
+        return host_of(path, drive_type=self._drive_type)
+
     def fail(self, path) -> None:
         """扫描中途发现这台服务器读不动（HostStalled）：记一次失败，按退避等下一次。"""
-        host = host_of(path)
+        host = self.host(path)
         if not host:
             return
         with self._lock:
@@ -230,10 +277,13 @@ class Pace:
         self.slept = 0.0
 
     def account(self, root, started: float) -> None:
-        """一份账套读完：这份光读文件超过 slow_seconds → 这台服务器记一次失败并抛 HostStalled；否则按 CPU 占用让出。"""
+        """一份账套读完：在网络上的、光读文件就超过 slow_seconds → 这台服务器记一次失败并抛 HostStalled；
+        本机盘慢只是慢，照常读完。之后按 CPU 占用让出。"""
         if self._clock() - started > self._slow:
-            self._gate.fail(root)
-            raise HostStalled(host_of(root))
+            host = self._gate.host(root)
+            if host:
+                self._gate.fail(root)
+                raise HostStalled(host)
         self.yield_cpu()
 
     def yield_cpu(self) -> None:
@@ -246,4 +296,5 @@ class Pace:
             self.slept += pause
 
 
-__all__ = ["GATE", "HostGate", "HostStalled", "Pace", "host_of", "is_low_priority", "low_priority", "network_error"]
+__all__ = ["GATE", "HostGate", "HostStalled", "Pace", "drive_type", "host_of", "is_low_priority", "low_priority",
+           "network_error"]

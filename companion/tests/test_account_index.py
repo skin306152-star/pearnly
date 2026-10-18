@@ -352,8 +352,14 @@ def test_network_errors_mark_the_server_down_but_a_missing_folder_does_not(monke
     FakeOs.winerror = 3
     other = scan_pace.HostGate(probe_seconds=1, clock=clock)
     assert other.reachable(r"\\nas\books\70EXP") is True  # 只是这个文件夹不在：服务器是好的
-    assert scan_pace.host_of(r"\\NAS\Books\70EXP") == r"\\nas\books" and scan_pace.host_of("S:\\70EXP") == "s:"
+    assert scan_pace.host_of(r"\\NAS\Books\70EXP") == r"\\nas\books" and scan_pace.host_of("\\\\nas\\books/A") == r"\\nas\books"
+    assert scan_pace.host_of("S:\\70EXP", drive_type=lambda d: 4) == "s:"  # 网络盘符
+    assert scan_pace.host_of("S:\\70EXP", drive_type=lambda d: 1) == "s:"  # 没有这个盘 / 未知：照网络盘
+    assert scan_pace.host_of("C:\\PearnlyExpress\\70EXP", drive_type=lambda d: 3) == ""  # 本机固定盘：不设关卡
     assert scan_pace.host_of("70EXP") == ""
+    probed = []
+    local = scan_pace.HostGate(lambda path: probed.append(path) or False, drive_type=lambda d: 3)
+    assert local.reachable("C:\\PearnlyExpress\\70EXP") is True and probed == []  # 本机盘不问、不退避
 
 
 def test_server_that_stalls_mid_scan_is_dropped_for_this_pass(tmp_path, opened):
@@ -361,9 +367,17 @@ def test_server_that_stalls_mid_scan_is_dropped_for_this_pass(tmp_path, opened):
     不再一份一份地等超时。"""
     root = _data_root(tmp_path / "70EXP", ["A", "B", "C"])
     opened.clear()  # 建合成账套时的打开不算
-    late = scan_pace.Pace(slow_seconds=15, clock=lambda: time.monotonic() + 100, sleep=lambda s: None)
+    on_server = scan_pace.HostGate(lambda path: True)
+    on_server.host = lambda path: r"\\nas\books"  # 当作这个数据根在服务器上（合成账套只能建在本机临时目录）
+    late = scan_pace.Pace(gate=on_server, slow_seconds=15, clock=lambda: time.monotonic() + 100, sleep=lambda s: None)
     assert account_probe.account_sets_payload(str(root), pace=late) == []
     assert opened.get("ISINFO.DBF") == 1  # 第一份读完就停：后面两份没再去读
+
+    opened.clear()
+    local = scan_pace.Pace(gate=scan_pace.HostGate(lambda path: True, drive_type=lambda d: 3), slow_seconds=15,
+                           clock=lambda: time.monotonic() + 100, sleep=lambda s: None)
+    rows = account_probe.account_sets_payload(str(root), pace=local)
+    assert [row["code"] for row in rows] == ["A", "B", "C"]  # 本机盘读得慢只是慢：照常读完
 
     clock = _Clock()
     asked = []

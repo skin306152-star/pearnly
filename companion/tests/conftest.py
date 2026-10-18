@@ -55,7 +55,8 @@ def _account_set_cache_in_tmp(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def _account_index_in_tmp(tmp_path, monkeypatch):
     """账套清单本机索引（account_index）放进本次的临时目录，每个用例当作刚启动（内存里的索引清空）；
-    服务器在不在的记录（scan_pace.GATE）也从空开始。"""
+    问服务器在不在（scan_pace.GATE）换成一个不碰网络的：用例里的 ``\\\\server\\books`` 这类数据根本来就是假的（扫描读盘那几步
+    都换成了桩），在真的 Windows 上去问会是「找不到网络路径」、整台跳过。专测关卡的用例自己放关卡与假的 stat。"""
     import importlib
 
     for name in ("companion", "src.companion"):
@@ -66,7 +67,7 @@ def _account_index_in_tmp(tmp_path, monkeypatch):
             continue
         monkeypatch.setattr(index, "index_file", lambda: tmp_path / "account_index.json")
         index.INDEX._reset_for_tests()
-        pace.GATE._reset_for_tests()
+        monkeypatch.setattr(pace, "GATE", pace.HostGate(lambda path: True))
     yield
     for name in ("companion", "src.companion"):
         try:
