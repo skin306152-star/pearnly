@@ -3507,8 +3507,13 @@ TOOLS = [
                     "records documents of this kind, skip leaves them out. It applies to every document of this kind "
                     "for the whole company from now on (the user allows it in the chat). Then push the document "
                     "again.",
-     "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
-                                                        "value": {"type": "string", "enum": ["enter", "skip"]}},
+     # 第 7 批 B7（2026-10-18 lab）：document 没写说明，CC 先后交了「transfer slip」「payment_evidence」（详情里
+     # handling_choice_needed 的类别名），两次都找不到单据、规则没存上
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string", "description": "The record name of the document whose push waits for this "
+                                                       "choice (the document value in tool results, such as from "
+                                                       "cowork_list_documents), not the kind of document."},
+         "value": {"type": "string", "enum": ["enter", "skip"]}},
                       "required": ["document", "value"]},
      "approval": True,
      "ask": "Change how this kind of document is handled?",

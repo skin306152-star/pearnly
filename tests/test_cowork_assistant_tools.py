@@ -2529,6 +2529,13 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertNotIn("only a person can change it", edit)
         self.assertIn("cowork_list_documents search set to its invoice number", guidance)
 
+    def test_the_document_kind_choice_is_given_the_record_name(self):
+        """第 7 批 B7（10-18 lab）：cowork_choose_document_policy 的 document 没写说明，CC 把类别名当单据交，两次都存不上。"""
+        tool = next(t for t in tools.TOOLS if t["name"] == "cowork_choose_document_policy")
+        described = tool["input_schema"]["properties"]["document"]["description"]
+        self.assertIn("record name of the document whose push waits for this choice", described)
+        self.assertIn("not the kind of document", described)
+
     def test_a_queued_push_is_never_called_entered(self):
         """第 7 批 B6（2026-10-18 lab）：录制机关着，新成员的单排队，CC 回「已录入「นิภา…」的收据……目前状态是已排队」，
         前后矛盾。排队的说明写明还没入账，回复开头也不说已录入。"""
