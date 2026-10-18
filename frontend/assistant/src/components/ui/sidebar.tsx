@@ -118,7 +118,7 @@ function SidebarProvider({
   );
 }
 
-/** 电脑上的侧栏（手机上不挂，见文件头）：收起时整块移到屏外（offcanvas），占位宽变 0。 */
+/** 电脑上的侧栏（手机上不挂，见文件头）：收起时整块移到屏外（offcanvas），占位宽变 0；收起、展开 200ms 主缓动（V11，原来匀速）。 */
 function Sidebar({ className, children, ...props }: React.ComponentProps<"div">) {
   const { isMobile, state } = useSidebar();
   // 收起（offcanvas，移到屏幕外）时整块 inert：不进 Tab 顺序、读屏读不到、程序也聚焦不上；展开恢复（第 11 轮重测 E 段：收起后行还能
@@ -156,14 +156,14 @@ function Sidebar({ className, children, ...props }: React.ComponentProps<"div">)
       {/* 占位：对话区靠它让出侧栏的宽，收起时变 0 */}
       <div
         data-slot="sidebar-gap"
-        className="relative w-(--cc-sidebar-w) bg-transparent transition-[width] duration-(--cc-dur) ease-linear group-data-[collapsible=offcanvas]:w-0"
+        className="relative w-(--cc-sidebar-w) bg-transparent transition-[width] duration-(--cc-dur) ease-cc group-data-[collapsible=offcanvas]:w-0"
       />
       <div
         ref={container}
         data-slot="sidebar-container"
         inert={offscreen || undefined}
         className={cn(
-          "fixed inset-y-0 z-(--cc-z-float) hidden h-(--cc-svh) w-(--cc-sidebar-w) transition-[left,right,width] duration-(--cc-dur) ease-linear md:flex",
+          "fixed inset-y-0 z-(--cc-z-float) hidden h-(--cc-svh) w-(--cc-sidebar-w) transition-[left,right,width] duration-(--cc-dur) ease-cc md:flex",
           "start-0 group-data-[collapsible=offcanvas]:-start-(--cc-sidebar-w) border-e",
           className,
         )}

@@ -885,6 +885,9 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertEqual(sidebar.count("w-(--cc-sidebar-w)"), 2)   # 占位与侧栏本体
         self.assertIn("group-data-[collapsible=offcanvas]:-start-(--cc-sidebar-w)", sidebar)
         self.assertEqual(sidebar.count("px-(--cc-sidebar-pad)"), 2)   # 侧栏头、脚的左右
+        # V11：收起、展开 200ms 主缓动（原来 Tailwind 的匀速 linear）
+        self.assertEqual(sidebar.count("duration-(--cc-dur) ease-cc"), 2)
+        self.assertNotIn("ease-linear", sidebar)
         # V5：骨架的明暗呼吸同运行中的脉冲点（--cc-pulse 1.2s、透明度 0.35↔1），不再是 Tailwind 的 pulse（2s、1↔0.5）
         self.assertIn('cn("bg-accent animate-cc-pulse rounded-md h-(--cc-skeleton-h)", className)', self.read("components/ui/skeleton.tsx"))
         self.assertIn("--animate-cc-pulse: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;", self.css)
