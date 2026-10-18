@@ -2657,7 +2657,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 新对话：「公司 ▾」选公司（至少有一家公司才出现），下巴里菜单向上开；月份、分店是草稿
         draft = projects.split('const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {', 1)[1].split("\n};", 1)[0]
         self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
-        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
+        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">', draft)
         self.assertIn('<PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
         # 手机新对话：同一行放在问候下面（WelcomeFiling），菜单向下开；只在手机、Cowork、新对话
@@ -5487,8 +5487,11 @@ setDragging(false);
         self.assertIn("export const OVERLAY_Z = 55;", drag)
         overlay = drag.split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
         self.assertIn('overlay.className = "cc-drag-overlay";', overlay)
-        self.assertIn("style.zIndex = String(OVERLAY_Z);", overlay)
+        # 层级在 globals.css 的 --cc-z-drag，拿起时读（标准化记录 2.6）；OVERLAY_Z 是读不到时的回退值，与 globals.css 同值
+        self.assertIn("style.zIndex = String(overlayZ());", overlay)
+        self.assertIn('export const overlayZ = () => fixedPx("--cc-z-drag", OVERLAY_Z);', drag)
         css = read("globals.css")
+        self.assertRegex(css, r"(?m)^\s*--cc-z-drag: 55;")
         # 层级 B1 起写成刻度层的变量（--cc-z-*），按变量取值
         level = lambda m: m and re.search(r"(?m)^\s*" + re.escape(m.group(1)) + r":\s*(\d+);", css)
         menu = level(re.search(r"\.cc-menu \{\s*z-index: var\((--cc-z-[\w-]+)\);", css))

@@ -703,17 +703,14 @@ AWAITING = {
     "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
     "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
     "--cc-mdrawer-tray-px": "B3", "--cc-mdrawer-tail": "B3",
-    "--cc-menu-w-sm": "B3", "--cc-menu-w-md": "B3", "--cc-menu-w-lg": "B3", "--cc-menu-w-max": "B3",
-    # B4 弹窗与列表页：设置弹窗、删除确认的层级、列表预取的 rootMargin
+    # B4 弹窗与列表页：设置弹窗、删除确认的层级
     "--cc-settings-w": "B4", "--cc-settings-w-max": "B4", "--cc-settings-h": "B4", "--cc-settings-share": "B4",
     "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",
     "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
-    "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4", "--cc-observe-margin": "B4",
+    "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4",
     "--cc-composer-input-max": "B4",
     # B5 会话栏、结果、文档
     "--cc-results-head-h": "B5", "--cc-link-offset": "B5", "--cc-icon-2xl": "B5",
-    # B6 侧栏列表：拖动浮层层级（drag.tsx 拿起时读）
-    "--cc-z-drag": "B6",
     # B7 对话区
     "--cc-thread-gutter": "B7", "--cc-turn-gap": "B7", "--cc-thread-tail": "B7", "--cc-run-gap": "B7", "--cc-run-gap-reply": "B7",
     "--cc-reply-actions-h": "B7", "--cc-msg-intrinsic": "B7", "--cc-md-h1": "B7", "--cc-md-h2": "B7", "--cc-md-heading-lh": "B7",
@@ -856,6 +853,23 @@ class ComponentLibraryTests(unittest.TestCase):
         # 提示框不用在外面包 Provider：每个 Tooltip 自带一层，main.tsx、侧栏原来那几层从来不起作用
         self.assertNotIn("TooltipProvider", self.read("main.tsx"))
         self.assertNotIn("TooltipProvider", self.read("components/ui/sidebar.tsx"))
+
+    def test_sidebar_list_fallbacks_match_globals_css(self):
+        # B6（2.6）：侧栏列表预取下一页的距离（IntersectionObserver 的 rootMargin）与拖动浮层层级只在 globals.css 定值，
+        # 建观察器、拿起时读；回退常量与它同值
+        rows = self.read("components/assistant-ui/thread-list.tsx")
+        fallback = re.search(r"^export const OBSERVE_MARGIN = (\d+);$", rows, re.M).group(1)
+        self.assertEqual(token_value(self.defs, "--cc-observe-margin"), f"{fallback}px")
+        self.assertIn('fixedPx("--cc-observe-margin", OBSERVE_MARGIN)', rows)
+        self.assertIn("{ rootMargin: `${observeMargin()}px` }", rows)
+        self.assertNotIn('rootMargin: "', rows)
+        drag = self.read("components/ui/drag.tsx")
+        fallback = re.search(r"^export const OVERLAY_Z = (\d+);$", drag, re.M).group(1)
+        self.assertEqual(token_value(self.defs, "--cc-z-drag"), fallback)
+        self.assertIn('fixedPx("--cc-z-drag", OVERLAY_Z)', drag)
+        # 拖动的读时长解析与其他地方同一份（lib/css-var.ts），不从 hover-scroll 的再导出拿
+        self.assertIn('import { cssMs, fixedPx } from "@/lib/css-var";', drag)
+        self.assertNotIn("@/lib/hover-scroll", drag)
 
     def test_only_the_parts_in_use_are_left(self):
         ui = SRC / "components/ui"

@@ -245,7 +245,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
   );
   return (
     <>
-      <div className="px-1 pb-1">
+      <div className="px-(--cc-space-4) pb-(--cc-space-4)">
         <input
           className="cc-input w-full"
           value={search}
@@ -340,7 +340,7 @@ const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
+          <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">
             <CompanyChoices current={draft.project} onPick={pick} />
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
@@ -466,12 +466,12 @@ export const MobileFilingItems: FC = () => {
   return (
     <>
       {withPeriod && (
-        <SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+        <SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <PeriodChoices value={filing.period} onChange={(period) => change({ period })} />
         </SubMenu>
       )}
       {withScope && branches.length > 1 && (
-        <SubMenu icon={<StoreIcon />} label={co.branch} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+        <SubMenu icon={<StoreIcon />} label={co.branch} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <BranchChoices branches={branches} value={filing.scope} onChange={(scope) => change({ scope })} />
         </SubMenu>
       )}
