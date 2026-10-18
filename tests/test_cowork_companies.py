@@ -1159,6 +1159,11 @@ class PendingTests(unittest.TestCase):
                                   self.CUTOFF), "choice_needed")
         self.assertIsNone(classify(history("n", last_push_status="success", last_push_reason="choice_needed:account"),
                                    self.CUTOFF))
+        # 第 7 批 B7：这个租户选了这类单据不录入（document_policy_skip_*）：人已定了不推，不算待处理；还没选的照旧算
+        for kind in ("payment_evidence", "withholding_certificate"):
+            self.assertIsNone(classify(history("s", last_push_reason="document_policy_skip_" + kind), self.CUTOFF))
+            self.assertEqual(classify(history("t", last_push_reason="document_policy_needed_" + kind), self.CUTOFF),
+                             "failed")
         # 不算：推送成功、在推、刚上传还在路上、只识别不推
         for row in (history("g", last_push_status="success"), history("h", last_push_status="pending"),
                     history("i", creation=datetime(2026, 10, 15, 8, 50)), history("j", intake_target="none"),
@@ -1289,6 +1294,50 @@ class PendingTests(unittest.TestCase):
 
 
 # ---------------- provider 与 CC 工具 ----------------
+
+
+class DocumentPolicySettleTests(unittest.TestCase):
+    """第 7 批 B7（2026-10-18 lab）：选了转账凭条「不录入」，等这个选择的凭条还挂在待处理里问同一句，要靠 CC 记得再推一次。
+    现在选完就把这个租户里停在「这类录不录」的单一并了结：不录入记成 skip（离开待处理）；录入清掉原因、等人推。"""
+
+    def _module(self):
+        calls = []
+        push_state = types.SimpleNamespace(record_failure=lambda *args, **kw: calls.append(args))
+        storage = types.SimpleNamespace(read=lambda name: None)
+        patcher = mock.patch.dict(sys.modules, {
+            "pearnly_cowork.history": types.SimpleNamespace(storage=storage, push_state=push_state),
+            "pearnly_cowork.history.storage": storage, "pearnly_cowork.history.push_state": push_state})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        spec = importlib.util.spec_from_file_location(
+            "document_policy_under_test", ROOT / "apps/pearnly_cowork/pearnly_cowork/history/document_policy.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module, calls
+
+    def _rows(self):
+        reset()
+        frappe.db.tables["Cowork OCR History"] = {row["name"]: row for row in (
+            history("w1", workspace="W", last_push_reason="document_policy_needed_payment_evidence"),
+            history("w2", workspace="W", last_push_reason="document_policy_needed_payment_evidence",
+                    last_push_status="failed"),
+            history("cert", workspace="W", last_push_reason="document_policy_needed_withholding_certificate"),
+            history("done", workspace="W", last_push_reason="document_policy_needed_payment_evidence",
+                    last_push_status="success"),
+            history("other", workspace="X", last_push_reason="document_policy_needed_payment_evidence"))}
+
+    def test_skip_settles_every_waiting_document_of_that_kind_in_the_workspace(self):
+        module, calls = self._module()
+        self._rows()
+        self.assertEqual(module._settle_waiting("W", "payment_evidence", "skip"), 2)
+        self.assertEqual(sorted(calls), [("w1", "document_policy_skip_payment_evidence"),
+                                         ("w2", "document_policy_skip_payment_evidence")])
+
+    def test_enter_clears_the_question_so_they_wait_for_a_push(self):
+        module, calls = self._module()
+        self._rows()
+        self.assertEqual(module._settle_waiting("W", "withholding_certificate", "enter"), 1)
+        self.assertEqual(calls, [("cert", "")])
 
 
 class PendingAnswerTests(unittest.TestCase):

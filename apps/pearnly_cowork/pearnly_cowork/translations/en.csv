@@ -1884,8 +1884,6 @@ This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
 This choice cannot be saved,This choice cannot be saved
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
-This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
 This connection does not support an Express CC Desktop credential.,This connection does not support an Express CC Desktop credential.
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
@@ -1913,9 +1911,9 @@ This invoice has no lines. Add them and submit again.,This invoice has no lines.
 This invoice was already sent successfully,This invoice was already sent successfully
 This is a reissued or backdated document. Check it and submit again,This is a reissued or backdated document. Check it and submit again
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).","This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย)."
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,This is a trial balance with account totals only. Upload the general ledger with each voucher.
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice
 This is set by the scheduled task's default handling. Change it in the task,This is set by the scheduled task's default handling. Change it in the task
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
@@ -1980,6 +1978,7 @@ Transaction Date,Transaction Date
 Transaction type,Transaction type
 Transfer,Transfer
 Transfer slips,Transfer slips
+Transfer slips are not entered; this one is not sent,Transfer slips are not entered; this one is not sent
 Transport,Transport
 Turn off,Turn off
 Turn on,Turn on
@@ -2113,6 +2112,7 @@ With differences,With differences
 Withdrawal,Withdrawal
 Withholding agent,Withholding agent
 Withholding tax certificates,Withholding tax certificates
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
 Work Coordination,Work Coordination
 Work Name,Work Name
 Workbook Revision,Workbook Revision
@@ -3335,10 +3335,10 @@ intake.error.date_implausible,The invoice date looks wrong. Correct it and submi
 intake.error.date_reissued,This is a reissued or backdated document. Check it and submit again
 intake.error.deposit_receipt,Deposit receipts need a person to decide how to post them in Express
 intake.error.direction_unknown,Choose purchase or sales for this invoice and submit again
-intake.error.document_policy_needed_payment_evidence,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
-intake.error.document_policy_needed_withholding_certificate,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
-intake.error.document_policy_skip_payment_evidence,This company does not enter transfer slips; this one is not sent
-intake.error.document_policy_skip_withholding_certificate,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
+intake.error.document_policy_needed_payment_evidence,This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice
+intake.error.document_policy_needed_withholding_certificate,This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice
+intake.error.document_policy_skip_payment_evidence,Transfer slips are not entered; this one is not sent
+intake.error.document_policy_skip_withholding_certificate,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
 intake.error.entry_not_balanced,The entry does not balance. Check the amounts
 intake.error.items_incomplete,Some line items have no name or amount. Fix the lines and submit again
 intake.error.items_mismatch,The line items do not add up to the invoice amount. Fix the lines and submit again

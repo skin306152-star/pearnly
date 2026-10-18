@@ -1884,8 +1884,6 @@ This board no longer exists,该看板不存在
 This channel is not open yet,此渠道尚未开放
 This choice cannot be saved,无法保存此选择
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
-This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
 This connection does not support an Express CC Desktop credential.,此连接不支持 Express CC 桌面版凭据。
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
@@ -1913,9 +1911,9 @@ This invoice has no lines. Add them and submit again.,此发票没有明细，�
 This invoice was already sent successfully,此发票已推送成功
 This is a reissued or backdated document. Check it and submit again,这是补开或倒签的单据，请核对后重新提交
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",此文件为销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,此单据为转账凭条。选择是否录入，所有同类单据将按此处理
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,此文件为试算表，仅含科目合计，请上传包含逐笔凭证的总账。
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理
 This is set by the scheduled task's default handling. Change it in the task,此项由定时任务的默认处理决定，请在定时任务中修改
 This is taking too long. Check the list later.,对账耗时较长，请稍后在列表中查看。
 This item is also stocked at:,该物料在以下位置也有库存：
@@ -1980,6 +1978,7 @@ Transaction Date,交易日期
 Transaction type,业务类型
 Transfer,转账
 Transfer slips,转账凭条
+Transfer slips are not entered; this one is not sent,转账凭条不录入，此单据不推送
 Transport,运费
 Turn off,停用
 Turn on,启用
@@ -2113,6 +2112,7 @@ With differences,有差异
 Withdrawal,提款
 Withholding agent,扣缴义务人
 Withholding tax certificates,预扣税凭证
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,预扣税凭证（50 ทวิ）不录入，此单据不推送
 Work Coordination,工作协调
 Work Name,后台任务标识
 Workbook Revision,工作簿版本
@@ -3335,10 +3335,10 @@ intake.error.date_implausible,票面日期可能有误，请核对后重新提�
 intake.error.date_reissued,这是补开或倒签的单据，请核对后重新提交
 intake.error.deposit_receipt,押金或定金收据需人工决定如何在 Express 入账
 intake.error.direction_unknown,请选择此发票为进项或销项后重新提交
-intake.error.document_policy_needed_payment_evidence,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
-intake.error.document_policy_needed_withholding_certificate,此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理
-intake.error.document_policy_skip_payment_evidence,本公司不录入转账凭条，此单据不推送
-intake.error.document_policy_skip_withholding_certificate,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
+intake.error.document_policy_needed_payment_evidence,此单据为转账凭条。选择是否录入，所有同类单据将按此处理
+intake.error.document_policy_needed_withholding_certificate,此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理
+intake.error.document_policy_skip_payment_evidence,转账凭条不录入，此单据不推送
+intake.error.document_policy_skip_withholding_certificate,预扣税凭证（50 ทวิ）不录入，此单据不推送
 intake.error.entry_not_balanced,分录借贷不平，请核对金额
 intake.error.items_incomplete,部分明细缺少品名或金额，请补全后重新提交
 intake.error.items_mismatch,明细合计与票面金额不一致，请修改明细后重新提交

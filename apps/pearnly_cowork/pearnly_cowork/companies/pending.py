@@ -38,6 +38,7 @@ PENDING_MAX = 500
 LIMIT_MAX = 200
 REASONS = ("choice_needed", "result_unknown", "manual", "failed", "not_pushed")
 NOT_PUSHED_LABEL = "cowork.company.pending.not_pushed"
+SKIPPED_POLICY = "document_policy_skip_"  # 同 `contracts.document_policy.SKIPPED_PREFIX`（这里只做纯判断，不引那个模块）
 # 早上汇总
 KIND = "cowork.pending_digest"
 MORNING = time(8, 30)
@@ -57,6 +58,9 @@ def classify(row, cutoff, unknown=frozenset()) -> str | None:
     status = str(row.get("last_push_status") or "")
     reason = str(row.get("last_push_reason") or "")
     if status in SETTLED:
+        return None
+    if reason.startswith(SKIPPED_POLICY):
+        # 这个租户选了这类单据不录入（转账凭条、预扣税凭证）：人已定了不推，不算待处理（第 7 批 B7）
         return None
     if reason.startswith("choice_needed"):
         # 要人选：推送服务停在复核时状态是 manual；CC 对话、定时任务在推之前就停下时只记原因（`push_state.record_failure`），

@@ -1961,3 +1961,28 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
    两条 Express 连接 `record_revision` = 3 且 `config_json` 不变、v1 排队中 / 领取中为 0。
 
 没做 / 没验：并发加锁与 1020、HTTP 链、两台真机联调（第 7 批其余各项）；`readers.moved` 的 UPDATE / DELETE 执行计划；补丁代码自身的重跑（见上面的限制）。
+
+## 第 7 批：测试中发现与修复（10-18 晚，lab，测试窗口实测）
+
+| 条目 | 现象（lab 实测） | 处理 | 提交 |
+|---|---|---|---|
+| B6 排队回复 | 录制机关着、新成员的单排队，CC 回「已录入「นิภา…」的收据……目前状态是已排队」，前后矛盾 | 排队说明写明还没入账、回复开头也不说已录入；B8 复测：「已送入……目前状态是已排队，还没有确认写入 Express」 | dc9ff711 |
+| B8 名称 | 中文排队回复写「CC Desktop」 | Windows 端正式名称这句从 cowork_companion_status 的说明挪进每轮都带的 GUIDANCE（仍只说一次） | 19a00519 |
+| B8「已在线」 | 两台都退出了，CC 说「CC Desktop 已在线」 | 不改：测试用 Stop-Process 直接结束进程，没走托盘退出（托盘退出会发下线，gui_tray.py signal_offline），3 分钟内按在线算 | — |
+| B7 待处理页死路 | 转账凭条停在「待选账套」，选账套后推送停在 document_policy_needed_payment_evidence，服务端放回「待选账套」，换哪份都一样；页面把码原样标红 | 被「录不录」挡下时选的账套照收、原因记成要选录不录，转成一般待处理（交给 CC / 复核页）；待处理页显示词条的话（reason_label）。复测通过 | 953a5a4c |
+| B7 CC 选录不录存不上 | cowork_choose_document_policy 的 document 没说明，CC 交了「transfer slip」「payment_evidence」，两次存不上，卡片退回列英文参数 | document 写明是等这个选择的那张单的记录名、不是类别。复测通过：卡片中文「转账凭条 不录入」，保存成功 | c4efee5b |
+| B7 选了以后单还挂着 | 选「不录入」保存后，等这个选择的凭条仍在待处理问同一句，要靠 CC 记得再推 | 选完把这个租户里停在「这类录不录」的单一并了结：不录入记 document_policy_skip_*，待处理不再列；录入清掉原因等人推。复核页同一处（history.document_policy.choose） | 本节提交 |
+| B7 范围说法 | 录不录按租户（工作空间）存，文案与 CC 说「本公司」 | 范围按设计不变（用户 09-26 Cowork 不按公司隔离、10-07 按租户选一次）；文案去掉「本公司 / for this company」，CC 工具说明改成整个工作空间、所有公司 | 本节提交 |
+
+验到的：B4 新成员的活由录制机写、B5 本人的活由测试机写、B6 录制机退出时排队不被抢、回来自动写完；B8 真并发服务端回读（泰国时间）：B706 录制机 18:11:18.109 领、18:11:28.963 回执，B707 测试机 18:11:32.821 才领（第一张回执后 3.9 秒）、18:11:33.704 回执，同一账套键、写者锁放开；D13 定时任务的票由新成员在手机补选，仍由读文件夹的测试机写（HP691018-009），任务结果仍计入定时任务；D12 插拔电保持唤醒切换正常。
+
+### 改已有文案（用户 10-18 晚「涉及到文案的今晚特批，但是不用有口语」）
+
+范围是整个租户，「本公司」会被读成某一家客户公司，所以去掉；问录不录的两条按闸门（出错最多 2 句）收成两句。
+
+| 来源·键 | 角色 | 中文 旧 → 新 | English | ไทย | 日本語 | 标记 | 登记 |
+|---|---|---|---|---|---|---|---|
+| pearnly_cowork·intake.error.document_policy_needed_payment_evidence | 出错 | 此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据… → 此单据为转账凭条。选择是否录入，所有同类单据将按此处理 | This is a transfer slip. Ente… → This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice | เอกสารนี้เป็นสลิปโอนเงิน บริษ… → เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้ | これは振込明細です。この会社でこの種類を入力しますか。一度… → これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます |  | 未登记 |
+| pearnly_cowork·intake.error.document_policy_needed_withholding_certificate | 出错 | 此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据… → 此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理 | This is a withholding tax cer… → This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice | เอกสารนี้เป็นหนังสือรับรองการ… → เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้ | これは源泉徴収証明書（50 ทวิ）です。この会社でこの種… → これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます | R-LEN↑ R-PAREN | 未登记 |
+| pearnly_cowork·intake.error.document_policy_skip_payment_evidence | 出错 | 本公司不录入转账凭条，此单据不推送 → 转账凭条不录入，此单据不推送 | This company does not enter t… → Transfer slips are not entered; this one is not sent | บริษัทนี้ไม่บันทึกสลิปโอนเงิน… → ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้ | この会社では振込明細を入力しないため、送信しません → 振込明細は入力しないため、送信しません |  | 2026-10-18 docs/work/2026-10-15-multi-desktop-build.md |
+| pearnly_cowork·intake.error.document_policy_skip_withholding_certificate | 出错 | 本公司不录入预扣税凭证（50 ทวิ），此单据不推送 → 预扣税凭证（50 ทวิ）不录入，此单据不推送 | This company does not enter w… → Withholding tax certificates (50 Tawi) are not entered; this one is not sent | บริษัทนี้ไม่บันทึกหนังสือรับร… → ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้ | この会社では源泉徴収証明書（50 ทวิ）を入力しないため… → 源泉徴収証明書（50 ทวิ）は入力しないため、送信しません | R-PAREN | 2026-10-18 docs/work/2026-10-15-multi-desktop-build.md |

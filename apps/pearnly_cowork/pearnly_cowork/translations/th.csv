@@ -1884,8 +1884,6 @@ This board no longer exists,ไม่พบบอร์ดนี้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This choice cannot be saved,บันทึกตัวเลือกนี้ไม่ได้
 This client still has {0} invoice record(s). Reassign them first.,ลูกค้ารายนี้ยังมีรายการใบกำกับภาษี {0} รายการ กรุณาย้ายไปยังลูกค้ารายอื่นก่อน
-This company does not enter transfer slips; this one is not sent,บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
-This company does not enter withholding tax certificates (50 Tawi); this one is not sent,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 This connection does not support an Express CC Desktop credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express
 This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
@@ -1913,9 +1911,9 @@ This invoice has no lines. Add them and submit again.,เอกสารนี�
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
 This is a reissued or backdated document. Check it and submit again,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
-This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
+This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลองซึ่งมีเฉพาะยอดรวมของแต่ละบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการตามใบสำคัญแต่ละใบ
-This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
+This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 This is set by the scheduled task's default handling. Change it in the task,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 This is taking too long. Check the list later.,การกระทบยอดใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:
@@ -1980,6 +1978,7 @@ Transaction Date,วันที่ทำรายการ
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Transfer slips,สลิปโอนเงิน
+Transfer slips are not entered; this one is not sent,ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
 Transport,ค่าขนส่ง
 Turn off,ปิดใช้งาน
 Turn on,เปิดใช้งาน
@@ -2113,6 +2112,7 @@ With differences,มีผลต่าง
 Withdrawal,ถอน
 Withholding agent,ผู้มีหน้าที่หักภาษี ณ ที่จ่าย
 Withholding tax certificates,หนังสือรับรองการหักภาษี ณ ที่จ่าย
+Withholding tax certificates (50 Tawi) are not entered; this one is not sent,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก
@@ -3335,10 +3335,10 @@ intake.error.date_implausible,วันที่เอกสารอาจไ�
 intake.error.date_reissued,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.deposit_receipt,ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร
 intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
-intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
-intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
-intake.error.document_policy_skip_payment_evidence,บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
-intake.error.document_policy_skip_withholding_certificate,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
+intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
+intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
+intake.error.document_policy_skip_payment_evidence,ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
+intake.error.document_policy_skip_withholding_certificate,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
 intake.error.entry_not_balanced,ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน
 intake.error.items_incomplete,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.items_mismatch,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่

@@ -3504,9 +3504,11 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.edit_document"},
     {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
      "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "
-                    "records documents of this kind, skip leaves them out. It applies to every document of this kind "
-                    "for the whole company from now on (the user allows it in the chat). Then push the document "
-                    "again.",
+                    "records documents of this kind, skip leaves them out. It applies from now on to every document "
+                    "of this kind in this workspace, for all of its companies, not one company (the user allows it in "
+                    "the chat); say it that way. Every document waiting for this choice is settled with it (settled "
+                    "is how many): after skip they are left out and not pushed, so do not push them; after enter, "
+                    "push the document again.",
      # 第 7 批 B7（2026-10-18 lab）：document 没写说明，CC 先后交了「transfer slip」「payment_evidence」（详情里
      # handling_choice_needed 的类别名），两次都找不到单据、规则没存上
      "input_schema": {"type": "object", "properties": {
