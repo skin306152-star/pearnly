@@ -1796,6 +1796,20 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 | `python3.11 tests/test_companion_contract.py` | 69 tests OK（本机系统 python3 是 3.9，另有 2 条 `type | None` 语法错误，基线同样有，CI 是 3.12） |
 | `python3 scripts/check-architecture.py` | PASS（0 violations） |
 
+### Windows 上测试不过与修正（10-18，`6732fd2e`、`bfd69eaa`）
+
+推上去的 `902e71f1` 在 windows-latest 上 5 failed（Companion checks / companion-build run 39103496493），Mac 上全过。原因与改法：
+
+1. **本机盘也被当成了服务器**：Windows 上本机路径 `C:\…` 有盘符，关卡把 `C:` 也当一台「服务器」去问。两条关卡测试里假的「卡住 / 不通」落到了本机数据根上
+   （本机的账套整个没报）；真机上同理，老硬盘一时读得慢就可能把本机（通常是所选的那份）账套当成服务器不在、一分钟不报。改为只对 UNC 共享与
+   `GetDriveTypeW` 不是固定盘 / 移动盘 / 光驱 / 内存盘的盘符设关卡；本机盘读一份账套很慢也只是慢，不判「服务器卡住」。另把 1201（记住的网络盘没连上）、
+   1203（网络路径不对或网络不通）算作网络类错误；降优先级、查盘符类型用自己的一份 kernel32、签名写明。
+2. **测试里的假 UNC 数据根被真的去问了**：`test_master_refresh.py` 两条用 `\\server\books` 这类假数据根（扫描读盘几步都是桩），新关卡在 Windows 上真去
+   `stat`，得到「找不到网络路径」、整台跳过。测试默认的关卡换成不碰网络的（conftest），专测关卡的用例自己放关卡与假的 stat。
+3. **`test_window_process.py::test_closed_connections_are_released_in_the_tray` 是改前就有的不稳**：测试管道名用 `time.monotonic_ns()`，Windows 上 Python 3.11 的
+   monotonic 是 `GetTickCount64`、15.625 毫秒才跳一次（测试机 3.11.9 只读实测：47 毫秒里只有 4 个不同的值）；前一条用例很快，两个用例拿到同一个名字，
+   客户端连到上一条用例还开着的管道（日志「CC 窗口管道：口令不对，断开」）。改为每个用例一个随机管道名；正式的管道名按 Windows 用户名，一个用户一个托盘，不受影响。
+
 ### 复测口径（新包由开发窗口用 `companion-build.yml` 从本分支打；按记忆以 skin3 普通权限重启 CC）
 
 只读看 `C:\Users\skin3\AppData\Roaming\Pearnly\logs\companion.log` 的 heartbeat 行；CPU 用 `~/pearnly-devtools/dev-window/cc-idle-probe.ps1 -User skin3 -Seconds 30`
