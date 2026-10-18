@@ -69,7 +69,11 @@ const DESKTOP_STATE = `if (window.tomoDesktop) { const s = ${JSON.stringify({
   members: [{ id: "M1", name: "Express", kind: "express", paused: false, status: "online", folders: null }],
   autostart: true, keep_awake: true, keep_awake_on_battery: false, hotkey: true, update: { state: "found", version: "1.7.1" },
   features: ["company_folders"], legacy_roots: [{ member: "M1", id: "R1", path: "D:\\Old" }],
-})}; window.tomoDesktop.state = (cb) => cb(JSON.stringify(s)); }`;
+})}; window.tomoDesktop.state = (cb) => cb(JSON.stringify(s));
+  // 「此电脑 · 连接」公司一行写的是站点（没连时 = location.host）：假服务端的端口每遍不同，字宽跟着变；页面里把它换成固定的 cc.test
+  const pin = (root) => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (n.data.includes(location.host)) n.data = n.data.split(location.host).join("cc.test"); };
+  new MutationObserver(() => pin(document.body)).observe(document, { childList: true, subtree: true, characterData: true }); }`;
 // 池里的两台电脑（设置「连接」/「此电脑 → 连接」下面的电脑列表）：一台在线可移除，一台离线、自动更新被 Windows 拦下
 const COMPUTERS = FAKE(["pearnly_cowork.folder_intake.api.computers", [
   { adapter: "express", device: "OFFICE-PC", online: true, version: "1.7.0", folders: [], id: "D1", can_remove: true },
