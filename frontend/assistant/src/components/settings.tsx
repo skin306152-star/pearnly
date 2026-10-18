@@ -101,7 +101,7 @@ export function Settings() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-modal) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-modal)" />
         <DialogPrimitive.Content
           ref={content}
           aria-describedby={undefined}

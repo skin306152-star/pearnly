@@ -196,7 +196,7 @@ export const DeleteChatsHost: FC = () => {
   return (
     <DialogPrimitive.Root open={!!ask} onOpenChange={(open) => !open && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-confirm) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-confirm)" />
         <DialogPrimitive.Content
           data-slot="cc-delete-chats"
           aria-describedby={undefined}

@@ -1429,6 +1429,14 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertIn('<div className="cc-dialog-foot">', self.read("components/delete-chats.tsx"))
         self.assertEqual(token_value(self.defs, "--cc-radius-dialog"), "16px")
 
+    def test_overlays_fade_with_cc_overlay(self):
+        # V15（B4）：弹窗遮罩用 .cc-overlay（120ms 主缓动），不用 tw-animate 的 animate-in / fade-in（150ms）；层级与弹窗同档
+        for rel, layer in (("components/settings.tsx", "--cc-z-modal"), ("components/add-company.tsx", "--cc-z-sheet"),
+                           ("components/delete-chats.tsx", "--cc-z-confirm"), ("components/scheduled-tasks.tsx", "--cc-z-sheet")):
+            source = self.read(rel)
+            self.assertIn(f'<DialogPrimitive.Overlay className="cc-overlay z-({layer})" />', source, rel)
+            self.assertNotRegex(source, r"animate-in|fade-in", rel)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -42,7 +42,7 @@ export const AddCompanyDialog: FC = () => {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-sheet) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-sheet)" />
         <DialogPrimitive.Content
           data-slot="cc-add-company"
           data-size="md"
