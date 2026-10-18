@@ -11,6 +11,7 @@ import json
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -90,7 +91,9 @@ class _Host:
         self.foreground = []
         self.host = window_link.WindowHost(on_request=self._request, on_notify=self.notes.append,
                                            lang=lambda: "th", spawn=self._spawn, foreground=self.foreground.append,
-                                           name=f"PearnlyCCWindowTest-{time.monotonic_ns()}")
+                                           # 每个用例一个管道名：Windows 上 Python 3.11 的 monotonic 15.6 毫秒才跳一次，
+                                           # 连着两个很快的用例会拿到同一个名字、连到上一个用例还开着的管道（口令不对被断开）
+                                           name=f"PearnlyCCWindowTest-{uuid.uuid4().hex}")
 
     def _request(self, message):
         self.requests.append(message)
