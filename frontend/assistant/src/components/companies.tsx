@@ -153,10 +153,10 @@ export const Companies: FC = () => {
             {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-pulse" />)}
           </div>
         ) : !shown.length && !search ? (
-          <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <Building2Icon className="size-8 text-ink-3" />
+          <div className="cc-empty cc-enter">
+            <Building2Icon />
             <button type="button" className="cc-btn" data-primary="" onClick={add}>
-              <PlusIcon className="size-4" />
+              <PlusIcon />
               {co.addCompany}
             </button>
           </div>
@@ -182,7 +182,7 @@ export const Companies: FC = () => {
               ))}
             </div>
             <div ref={end} className="flex h-(--cc-control) items-center justify-center text-ink-3">
-              {loading && <LoaderIcon className="size-3.5 animate-spin" />}
+              {loading && <LoaderIcon className="cc-spinner size-(--cc-icon-xs)" />}
             </div>
           </>
         )}

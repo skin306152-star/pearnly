@@ -203,9 +203,10 @@ function Modal({ open, onClose, title, children, footer, wide }: {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-sheet) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
-          className={`cc-card cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
+          data-size={wide ? "lg" : "sm"}
+          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col"
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
+          <div className="cc-dialog-head">
             <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
               <Marquee className="block truncate">{title}</Marquee>
             </DialogPrimitive.Title>
@@ -214,8 +215,8 @@ function Modal({ open, onClose, title, children, footer, wide }: {
             </DialogPrimitive.Close>
           </div>
           <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">{children}</div>
-          {footer && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+          <div className="cc-dialog-body">{children}</div>
+          {footer && <div className="cc-dialog-foot">{footer}</div>}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
@@ -443,10 +444,10 @@ export function ScheduledTasks() {
         ) : shown.length === 0 && search.trim() ? (
           <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
         ) : shown.length === 0 ? (
-          <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <ClockIcon className="size-8 text-ink-3" />
+          <div className="cc-empty cc-enter">
+            <ClockIcon />
             <button type="button" className="cc-btn" data-primary="" onClick={() => newTask(taskCompany)}>
-              <PlusIcon className="size-4" />
+              <PlusIcon />
               {tr("cowork.folder.new")}
             </button>
           </div>
@@ -1034,7 +1035,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                   disabled={!enabled}
                   onClick={() => setRemindTimes((rows) => [...rows, nextRemind(rows)])}
                 >
-                  <PlusIcon className="size-4" />
+                  <PlusIcon />
                   {tr("cowork.folder.remind.add")}
                 </button>
               )}

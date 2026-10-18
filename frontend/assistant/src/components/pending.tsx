@@ -226,11 +226,11 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
       {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
       {items === null ? (
         <div className="flex justify-center py-(--cc-space-24) text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
+          <LoaderIcon className="cc-spinner" />
         </div>
       ) : !items.length ? (
-        <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-ink-3">
-          <InboxIcon className="size-8" />
+        <div className="cc-empty cc-enter">
+          <InboxIcon />
         </div>
       ) : !groups.length ? (
         <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
@@ -361,7 +361,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
       </button>
       {open && !view && !error && (
         <div className="flex justify-center py-(--cc-space-8) text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
+          <LoaderIcon className="cc-spinner" />
         </div>
       )}
       {open && view && choosableView(view) && (
@@ -383,14 +383,14 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
           ))}
           <button type="button" className="cc-card-btn self-end" data-primary=""
             disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="size-4 animate-spin" />}
+            {busy && <LoaderIcon className="cc-spinner size-(--cc-icon-sm)" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && view && settledView(view) && (
         <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
-          {busy && <LoaderIcon className="size-4 animate-spin" />}
+          {busy && <LoaderIcon className="cc-spinner size-(--cc-icon-sm)" />}
           {co.pushNow}
         </button>
       )}
@@ -469,7 +469,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
       </button>
       {open && !sets && !error && (
         <div className="flex justify-center py-(--cc-space-8) text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
+          <LoaderIcon className="cc-spinner" />
         </div>
       )}
       {open && sets && sets.length > 0 && (
@@ -484,7 +484,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
             </select>
           </label>
           <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="size-4 animate-spin" />}
+            {busy && <LoaderIcon className="cc-spinner size-(--cc-icon-sm)" />}
             {co.confirm}
           </button>
         </>

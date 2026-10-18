@@ -45,9 +45,10 @@ export const AddCompanyDialog: FC = () => {
         <DialogPrimitive.Overlay className="fixed inset-0 z-(--cc-z-sheet) bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           data-slot="cc-add-company"
-          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:var(--cc-add-company-share)]"
+          data-size="md"
+          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:var(--cc-add-company-share)]"
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
+          <div className="cc-dialog-head">
             <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
               <Marquee className="block truncate">{title}</Marquee>
             </DialogPrimitive.Title>
@@ -136,7 +137,7 @@ const Candidates: FC = () => {
       <div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">
         {rows === null ? (
           <div className="flex justify-center py-(--cc-space-24) text-ink-3">
-            <LoaderIcon className="size-4 animate-spin" />
+            <LoaderIcon className="cc-spinner" />
           </div>
         ) : rows.length ? (
           rows.map((row) => (
@@ -152,7 +153,7 @@ const Candidates: FC = () => {
                 <Marquee className="block truncate text-ink-3 text-xs">{candidateLine(row)}</Marquee>
               </span>
               {busy === row.identity ? (
-                <LoaderIcon className="size-4 shrink-0 animate-spin text-ink-3" />
+                <LoaderIcon className="cc-spinner text-ink-3" />
               ) : row.company ? (
                 <span className="shrink-0 text-ink-3 text-xs">{co.added}</span>
               ) : null}
@@ -161,7 +162,7 @@ const Candidates: FC = () => {
         ) : !search.trim() ? (
           <div className="flex justify-center py-(--cc-space-24)">
             <button type="button" className="cc-btn" disabled={refreshing} onClick={() => void refresh()}>
-              {refreshing ? <LoaderIcon className="size-4 animate-spin" /> : <RefreshCwIcon className="size-4" />}
+              {refreshing ? <LoaderIcon className="cc-spinner" /> : <RefreshCwIcon />}
               {co.refreshSets}
             </button>
           </div>

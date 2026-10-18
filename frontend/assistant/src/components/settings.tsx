@@ -51,11 +51,6 @@ type Section = "general" | "connections" | "system";
 // 鼠标点按钮不拿焦点）就先回齿轮、齿轮不在再回用户菜单按钮（按这个先后，不按页面上的先后：用户菜单按钮排在齿轮前面）
 const SETTINGS_BACK = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'] as const;
 
-// 连接状态色：取 globals.css 的 --cc-status-*（深浅色各一套）
-const STATUS_COLOR: Record<string, string> = Object.fromEntries(
-  ["online", "processing", "attention", "offline", "connecting", "paused"].map((k) => [k, `var(--cc-status-${k})`]),
-);
-
 export function Settings() {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<Section>("general");
@@ -439,8 +434,8 @@ function Connections({ api }: { api: Desktop }) {
         {main ? (
           <>
             {!relink && (
-              <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[main.status] }}>
-                <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[main.status] }} />
+              <span className="cc-status-line text-sm" data-status={main.status}>
+                <span className="cc-status-dot" />
                 {st.status[main.status] ?? main.status}
               </span>
             )}
@@ -736,8 +731,8 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
             <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
           )}
         </div>
-        <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[status] }}>
-          <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[status] }} />
+        <span className="cc-status-line text-sm" data-status={status}>
+          <span className="cc-status-dot" />
           {st.status[status]}
         </span>
         {onRemove && (

@@ -59,17 +59,17 @@ BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
     ("components/month-ledger.tsx", "animate-spin", "{loading && (", 3),
     ("components/results-panel.tsx", "animate-spin", "function Loading()", 3),
-    ("components/add-company.tsx", "animate-spin", "rows === null ?", 3),
-    ("components/add-company.tsx", "animate-spin", "busy === row.identity ?", 1),
-    ("components/add-company.tsx", "animate-spin", "refreshing ?", 0),
+    ("components/add-company.tsx", "cc-spinner", "rows === null ?", 3),
+    ("components/add-company.tsx", "cc-spinner", "busy === row.identity ?", 1),
+    ("components/add-company.tsx", "cc-spinner", "refreshing ?", 0),
     ("components/companies.tsx", "animate-pulse", "shown === null ?", 2),
-    ("components/companies.tsx", "animate-spin", "loading &&", 0),
+    ("components/companies.tsx", "cc-spinner", "loading &&", 0),
     ("components/session-panel.tsx", "animate-spin", "{!detail && !error && (", 3),
-    ("components/pending.tsx", "animate-spin", "items === null ?", 2),
-    ("components/pending.tsx", "animate-spin", "open && !view && !error", 3),
-    ("components/pending.tsx", "animate-spin", "busy &&", 0),
-    ("components/company-page.tsx", "animate-spin", "if (!detail)", 3),
-    ("components/company-page.tsx", "animate-spin", "if (!rows) return", 0),
+    ("components/pending.tsx", "cc-spinner", "items === null ?", 2),
+    ("components/pending.tsx", "cc-spinner", "open && !view && !error", 3),
+    ("components/pending.tsx", "cc-spinner", "busy &&", 0),
+    ("components/company-page.tsx", "cc-spinner", "if (!detail)", 3),
+    ("components/company-page.tsx", "cc-spinner", "if (!rows) return", 0),
     ("components/company-cards.tsx", "animate-spin", "busy ?", 0),
     ("components/scheduled-tasks.tsx", "animate-pulse", "rules === null || shown === null ?", 3),
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
@@ -79,7 +79,7 @@ BUSY_SITES = [
     ("components/assistant-ui/thread.tsx", "<TypingDots", "if (!visible) return null;", 12),
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
     ("components/assistant-ui/attachment.tsx", "animate-spin", "{isUploading && (", 5),
-    ("components/pending.tsx", "animate-spin", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
+    ("components/pending.tsx", "cc-spinner", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
 BUSY_MOUNTS = [

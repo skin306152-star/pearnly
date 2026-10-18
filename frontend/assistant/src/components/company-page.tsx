@@ -99,7 +99,7 @@ export const CompanyPage: FC = () => {
   if (!detail) {
     return (
       <div className="flex flex-1 items-center justify-center text-ink-3">
-        {error ? <p role="alert" className="text-danger text-sm">{error}</p> : <LoaderIcon className="size-4 animate-spin" />}
+        {error ? <p role="alert" className="text-danger text-sm">{error}</p> : <LoaderIcon className="cc-spinner" />}
       </div>
     );
   }
@@ -488,7 +488,7 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
     }, RUN_RECHECK_MS);
     return () => clearTimeout(timer);
   }, [missing, company, absorbRuns]);
-  if (!rows) return <LoaderIcon className="size-4 animate-spin text-ink-3" aria-hidden />;
+  if (!rows) return <LoaderIcon className="cc-spinner text-ink-3" aria-hidden />;
   return (
     <section className="flex flex-col" data-slot="cc-company-chats" aria-label={co.conversations}>
       <h2 className="cc-subheading">{co.conversations}</h2>
