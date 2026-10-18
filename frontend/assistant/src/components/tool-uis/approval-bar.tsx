@@ -36,9 +36,6 @@ export function cardRows(preview: readonly Change[] = []): { shown: readonly Cha
   return { shown: preview.slice(0, CARD_ROWS - 1), more: preview.length - (CARD_ROWS - 1) };
 }
 
-// 对话里出错那一行（同 thread.tsx 的 ERROR_BOX：回复出错、发送没成功）：淡红底、红字、最多两行
-const FAILURE_BOX = "border-danger-line bg-danger-soft text-danger rounded-md border p-3 text-sm";
-
 /** 改动清单：前几行 + 「还有 N 项」；没有改动不画。 */
 export function ChangeList({ preview, className }: { preview?: readonly Change[] | undefined; className?: string }) {
   const { shown, more } = cardRows(preview);
@@ -62,11 +59,11 @@ export function ChangeList({ preview, className }: { preview?: readonly Change[]
   );
 }
 
-/** 确认没送到的原因（按钮上方一行）。 */
+/** 确认没送到的原因（按钮上方一行）：共用出错框 .cc-alert（V12，同对话里回复出错、发送没成功那一行），最多两行。 */
 export function ApprovalFailure({ message }: { message?: string | undefined }) {
   if (!message) return null;
   return (
-    <div role="alert" data-slot="cc-ask-failure" className={FAILURE_BOX}>
+    <div role="alert" data-slot="cc-ask-failure" className="cc-alert">
       <p className="line-clamp-(--cc-alert-lines)">{message}</p>
     </div>
   );
