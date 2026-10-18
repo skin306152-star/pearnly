@@ -1446,6 +1446,16 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertIn('<nav className="flex shrink-0 gap-(--cc-space-2) overflow-x-auto', settings)
         self.assertNotIn("bg-(--cc-bg-selected)", settings)
 
+    def test_settings_switch_is_cc_switch(self):
+        # V19（B4）：设置开关（定时任务表单的提醒也用它）改用 .cc-switch：尺寸 40×24 不变，动效 --cc-dur 加回弹
+        settings = self.read("components/settings.tsx")
+        switch = settings.split("export function Switch(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('role="switch"', switch)
+        self.assertIn('className="cc-switch"', switch)
+        self.assertNotIn("<span", switch)
+        rule = self.css.split("  .cc-switch::after {", 1)[1].split("}", 1)[0]
+        self.assertIn("transition: transform var(--cc-dur) var(--cc-ease-spring);", rule)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -202,7 +202,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   );
 }
 
-/** 开关（同 Claude 设置）：定时任务表单的「前一天提醒」也用这一个。 */
+/** 开关（同 Claude 设置，globals.css 的 .cc-switch：40×24、圆点回弹）：定时任务表单的「前一天提醒」也用这一个。 */
 export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
@@ -212,10 +212,8 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:opacity-(--cc-disabled-opacity)", checked ? "bg-ink" : "bg-fill-muted")}
-    >
-      <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow-sm transition-transform", checked && "translate-x-4")} />
-    </button>
+      className="cc-switch"
+    />
   );
 }
 
