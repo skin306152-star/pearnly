@@ -150,7 +150,7 @@ export const Companies: FC = () => {
         {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-body">{error}</div>}
         {shown === null ? (
           <div className="cc-card-grid">
-            {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-pulse" />)}
+            {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-cc-pulse" />)}
           </div>
         ) : !shown.length && !search ? (
           <div className="cc-empty cc-enter">

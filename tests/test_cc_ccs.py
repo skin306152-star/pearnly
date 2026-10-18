@@ -1382,6 +1382,13 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertIn('<div className="cc-toast">{message}</div>', tasks)
         self.assertEqual(tasks.count('className="cc-empty-line"'), 3)
 
+    def test_loading_cards_breathe_like_the_skeleton(self):
+        # V5（B4 部分，B2 验收时测试窗口发现）：公司列表、定时任务列表的加载卡片同 Skeleton 的节奏（animate-cc-pulse），不用 Tailwind 的 pulse
+        self.assertIn('className="cc-grid-card animate-cc-pulse"', self.read("components/companies.tsx"))
+        self.assertIn('className="cc-card h-(--cc-task-skeleton-h) animate-cc-pulse"', self.read("components/scheduled-tasks.tsx"))
+        for rel in self.B4:
+            self.assertNotIn("animate-pulse", self.read(rel), rel)
+
 
 if __name__ == "__main__":
     unittest.main()
