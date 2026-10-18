@@ -4,10 +4,12 @@ function size(){dpr=Math.min(window.devicePixelRatio||1,2);w=innerWidth;h=innerH
 function draw(now){var t=(now-t0)/1000;mouse.x+=(mouse.tx-mouse.x)*.12;mouse.y+=(mouse.ty-mouse.y)*.12;ctx.clearRect(0,0,w,h);
 for(var y=0;y<h+GAP;y+=GAP){for(var x=GAP/2;x<w;x+=GAP){var wave=reduce?0:.5+.5*Math.sin(t*.7-(x+y)*.008),a=.10+wave*.06,r=R,px=x,py=y,dx=x-mouse.x,dy=y-mouse.y,d=Math.sqrt(dx*dx+dy*dy);
 if(d<REACH){var k=1-d/REACH;k=k*k;a+=k*.45;r+=k*1.3;if(d>.1){px+=dx/d*k*7;py+=dy/d*k*7}}ctx.globalAlpha=a;ctx.beginPath();ctx.arc(px,py,r,0,6.2832);ctx.fill()}}
-if(!reduce&&!document.hidden)requestAnimationFrame(draw)}
-size();draw(performance.now());addEventListener('resize',function(){size();draw(performance.now())});
+}
+var raf=0;function frame(now){raf=0;draw(now);loop()}
+function loop(){if(!reduce&&!document.hidden&&!raf)raf=requestAnimationFrame(frame)}
+size();draw(performance.now());loop();addEventListener('resize',function(){size();draw(performance.now())});
 if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.ty=e.clientY},{passive:true});document.addEventListener('pointerleave',function(){mouse.tx=mouse.ty=-9999});
-document.addEventListener('visibilitychange',function(){if(!document.hidden)requestAnimationFrame(draw)})}}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)loop();else if(raf){cancelAnimationFrame(raf);raf=0}})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
 function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0||k.indexOf('hm-cc')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}

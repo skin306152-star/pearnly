@@ -209,6 +209,8 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 """.strip()
 
 # 背景点阵（宣传页 site.js dots() 原样）+ 小人：眼睛跟鼠标、随机做自己的动作、点一下跳、输密码时闭眼。
+# 点阵任何时候最多一条绘制循环（raf 记着排着的那一帧）：页面看不见时取消、停画，变回看得见时没有排着的才另起；改窗口大小只重画一次，
+# 不另起循环（10-18：原来每次从看不见变回看得见、每次改窗口大小都多一条循环，越开越费；样子不变）。
 JS = """
 (function(){var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 var canvas=document.querySelector('canvas.dots');if(canvas&&canvas.getContext){var ctx=canvas.getContext('2d'),GAP=22,R=1,REACH=150,w=0,h=0,dpr=1,mouse={x:-9999,y:-9999,tx:-9999,ty:-9999},t0=performance.now();
@@ -216,10 +218,12 @@ function size(){dpr=Math.min(window.devicePixelRatio||1,2);w=innerWidth;h=innerH
 function draw(now){var t=(now-t0)/1000;mouse.x+=(mouse.tx-mouse.x)*.12;mouse.y+=(mouse.ty-mouse.y)*.12;ctx.clearRect(0,0,w,h);
 for(var y=0;y<h+GAP;y+=GAP){for(var x=GAP/2;x<w;x+=GAP){var wave=reduce?0:.5+.5*Math.sin(t*.7-(x+y)*.008),a=.10+wave*.06,r=R,px=x,py=y,dx=x-mouse.x,dy=y-mouse.y,d=Math.sqrt(dx*dx+dy*dy);
 if(d<REACH){var k=1-d/REACH;k=k*k;a+=k*.45;r+=k*1.3;if(d>.1){px+=dx/d*k*7;py+=dy/d*k*7}}ctx.globalAlpha=a;ctx.beginPath();ctx.arc(px,py,r,0,6.2832);ctx.fill()}}
-if(!reduce&&!document.hidden)requestAnimationFrame(draw)}
-size();draw(performance.now());addEventListener('resize',function(){size();draw(performance.now())});
+}
+var raf=0;function frame(now){raf=0;draw(now);loop()}
+function loop(){if(!reduce&&!document.hidden&&!raf)raf=requestAnimationFrame(frame)}
+size();draw(performance.now());loop();addEventListener('resize',function(){size();draw(performance.now())});
 if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.ty=e.clientY},{passive:true});document.addEventListener('pointerleave',function(){mouse.tx=mouse.ty=-9999});
-document.addEventListener('visibilitychange',function(){if(!document.hidden)requestAnimationFrame(draw)})}}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)loop();else if(raf){cancelAnimationFrame(raf);raf=0}})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
 function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0||k.indexOf('hm-cc')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
