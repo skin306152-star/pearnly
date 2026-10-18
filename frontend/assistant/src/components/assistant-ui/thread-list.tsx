@@ -255,7 +255,7 @@ const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
   if (!hasMore && !loadingMore) return null;
   return (
     <div ref={ref} className="flex h-(--cc-row-h) items-center px-(--cc-row-pad) text-ink-3">
-      {loadingMore && <LoaderIcon className="size-3.5 animate-spin" />}
+      {loadingMore && <LoaderIcon className="cc-spinner" />}
     </div>
   );
 };

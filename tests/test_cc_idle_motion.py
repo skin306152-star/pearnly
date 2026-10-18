@@ -73,7 +73,7 @@ BUSY_SITES = [
     ("components/company-cards.tsx", "animate-spin", "busy ?", 0),
     ("components/scheduled-tasks.tsx", "animate-pulse", "rules === null || shown === null ?", 3),
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
-    ("components/assistant-ui/thread-list.tsx", "animate-spin", "loadingMore &&", 0),
+    ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loadingMore &&", 0),
     ("components/assistant-ui/thread-list.tsx", "<Skeleton", "const ThreadListSkeleton", 15),
     ("components/assistant-ui/thread.tsx", "<Skeleton", "pending.files.map", 3),
     ("components/assistant-ui/thread.tsx", "<TypingDots", "if (!visible) return null;", 12),
