@@ -4281,6 +4281,24 @@ class MrErpTests(unittest.TestCase):
         self.assertEqual(out["needed"], {"menus": ["purchase"], "defaults": ["ap_account"]})
         self.assertEqual([row["code"] for row in searched["defaults"]["fields"]["ap_account"]["options"]], ["ap_007"])
 
+    def test_the_setup_view_names_menus_and_keeps_ids_for_calls(self):
+        # 10-19 lab：CC 回答里说「idmenu 68」。选过的菜单带上菜单名（同默认值的 chosen_name），编号只留给调用；导入页路径不给
+        with mock.patch.object(tools.connections_api, "mrerp_menu", lambda name, key: json.loads(json.dumps(self.view)),
+                               create=True):
+            out = json.loads(tools.mrerp_setup({"connection": "MR1", "account_set_key": "12:3"}))
+        chosen = out["kinds"]["purchase_expense"]
+        self.assertEqual((chosen["chosen"], chosen["chosen_label"]), ("68", "ซื้อ"))
+        self.assertEqual(chosen["options"], [{"idmenu": "68", "label": "ซื้อ"}, {"idmenu": "454", "label": "ซื้อ2"}])
+        self.assertNotIn("chosen_label", out["kinds"]["purchase"])  # 还没选
+        self.assertTrue(all("page" not in item for item in out["kinds"].values()))
+        # 说明里写明编号、类别、字段名、账套键只给调用，对人说名称：工具说明与每轮的 MR.ERP 说明都带
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn(tools.MRERP_NAMES_NOTE, by_name["cowork_mrerp_setup"])
+        self.assertIn(tools.MRERP_NAMES_NOTE, tools.MRERP_GUIDANCE)
+        self.assertIn(tools.MRERP_GUIDANCE, tools.GUIDANCE)
+        for words in ("never say idmenu", "chosen_label", "chosen_name", "account_label"):
+            self.assertIn(words, tools.MRERP_NAMES_NOTE)
+
     def test_vat_drafts_and_readbacks_are_for_express_only(self):
         with mock.patch.dict(sys.modules, {"pearnly_cowork.tax.service": types.SimpleNamespace(
                 vat_draft=lambda *a: self.fail("an MR.ERP account set has no readback to draft from"))}):
