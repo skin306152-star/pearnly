@@ -1,6 +1,14 @@
 @import "tailwindcss";
 /* 回复与问候语的衬线字体：随包自带，数字是等高的（系统里的 Georgia 数字高低不齐，2026-10-12 用户反馈看着奇怪） */
 @import "@fontsource-variable/source-serif-4";
+/* 衬线栈里的中日文字与全角标点固定用本机的中日文字体（只覆盖下列 CJK 区段，拉丁字母、泰文、“”—… 等通用标点不变）：
+   Mac 宋体（与原先落到的 Songti SC 同一套字重），Linux / 安卓 Noto Serif SC，Windows 微软雅黑。Windows 没有排在后面的中文衬线字体，
+   原先每个字各自走系统回退，「删除对话？」的全角问号会落到别的字体上画成窄的（2026-10-19 测试机截图）。字重按 Songti SC 自带的四档分开写，
+   让粗体选到真粗体 */
+@font-face { font-family: "CC CJK Serif"; font-style: normal; font-weight: 300; src: local("Songti SC Light"), local("STSongti-SC-Light"), local("Noto Serif SC Light"), local("NotoSerifSC-Light"), local("Microsoft YaHei Light"), local("MicrosoftYaHeiLight"); unicode-range: U+2E80-2FFF, U+3000-312F, U+3190-33FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-3134F; }
+@font-face { font-family: "CC CJK Serif"; font-style: normal; font-weight: 400; src: local("Songti SC Regular"), local("STSongti-SC-Regular"), local("Noto Serif SC"), local("NotoSerifSC-Regular"), local("Microsoft YaHei"), local("MicrosoftYaHei"); unicode-range: U+2E80-2FFF, U+3000-312F, U+3190-33FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-3134F; }
+@font-face { font-family: "CC CJK Serif"; font-style: normal; font-weight: 700; src: local("Songti SC Bold"), local("STSongti-SC-Bold"), local("Noto Serif SC Bold"), local("NotoSerifSC-Bold"), local("Microsoft YaHei Bold"), local("MicrosoftYaHei-Bold"); unicode-range: U+2E80-2FFF, U+3000-312F, U+3190-33FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-3134F; }
+@font-face { font-family: "CC CJK Serif"; font-style: normal; font-weight: 900; src: local("Songti SC Black"), local("STSongti-SC-Black"), local("Noto Serif SC Black"), local("NotoSerifSC-Black"), local("Microsoft YaHei Bold"), local("MicrosoftYaHei-Bold"); unicode-range: U+2E80-2FFF, U+3000-312F, U+3190-33FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-3134F; }
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
@@ -606,7 +614,7 @@
   --cc-menu-sep-inset: var(--code-menu-sep-inset);
 
   --cc-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --cc-font-serif: "Source Serif 4 Variable", ui-serif, Georgia, "Noto Serif Thai", "Songti SC", "Noto Serif SC", serif;
+  --cc-font-serif: "CC CJK Serif", "Source Serif 4 Variable", ui-serif, Georgia, "Noto Serif Thai", "Songti SC", "Noto Serif SC", serif;
   --cc-font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
 
   /* 整屏高：先写 vh，认 dvh / svh 的浏览器在下面的 @supports 里换掉（Chrome / 安卓 WebView 108、Safari 15.4 以前不认，
