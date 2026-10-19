@@ -1,8 +1,8 @@
 # 2026-10-19 testcowork 改到 Cowork 号池（Keycloak realm `pearnly-cowork`）
 
-状态：方案与代码在分支 `pearnly/cowork-realm-testcowork`（起点集成分支 `pearnly/batch-1019b` `60184389`，
-工作树 `.claude/worktrees/cowork-realm-testcowork`）。**没连生产、没改 Keycloak、没改任何站点配置。**
-真正切换是生产身份改动：代码随下一批部署上线后，由开发窗口与「消息含义理解」窗口约时间，按第 3 节执行。
+状态：**10-20 已在生产切换完成**（随 23471f87 部署后，泰国时间 04:50–05:00）：R1–R4 只读核对全符合、S1 备份、S2 搬池、S3 执行器跑完、S4–S6 回读符合，
+站点签 `pearnly-cowork`、LINE 绑定 `linked`；过程与回读见 `docs/work/2026-10-20-release-23471f87.md`。待用户：网页、测试机与录制机 CC 重新登录一次，
+123@123.com 的密码由管理员在「团队管理」重设；业务池旧号不删（U4 一周后再定）。
 
 ## 1. 现状（只读代码与记录推断；标 ★ 的部署时要在生产只读核对）
 
