@@ -28,3 +28,4 @@ pearnly_cowork.patches.v0_0_21_reader_devices
 pearnly_cowork.patches.v0_0_22_express_all_members
 pearnly_cowork.patches.v0_0_23_folder_task_company
 pearnly_cowork.patches.v0_0_24_mrerp_task_company
+pearnly_cowork.patches.v0_0_25_push_queue_index
