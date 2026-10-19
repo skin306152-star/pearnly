@@ -50,6 +50,8 @@ const MENU = '[role="menu"]';
 const DIALOG = '[role="dialog"], [role="alertdialog"]';
 const SEARCH = '[data-slot="aui_thread-list-search"] input';
 // 结果面板的 PDF：浏览器自带的 PDF 查看器（不是我们的样式）在无界面 Chrome 里出图不稳，统一走页图（触屏的那条路）
+// 真 iPhone 没有 beforeinstallprompt：在页面脚本之前挂一个捕获阶段的监听吞掉它（lib/install.ts 就不会当成能一键安装）
+const NO_INSTALL_PROMPT = "addEventListener('beforeinstallprompt', (e) => e.stopImmediatePropagation(), true);";
 const NO_PDF_VIEWER = "Object.defineProperty(Navigator.prototype, 'pdfViewerEnabled', { get: () => false });";
 
 export const SCENES = [
@@ -142,6 +144,10 @@ export const SCENES = [
 
   // ── 其他 ──
   S("loading", "/assistant?c=sesn_a1", [], { before: [["hold", "pearnly_core.assistant.api.listing", 20000], ["hold", "pearnly_core.assistant.api.events", 20000]] }),
+  // 「添加到主屏幕」步骤（components/install-prompt.tsx）：iPhone / iPad 的浏览器里欢迎页的安装提示点「添加」出步骤弹窗与遮罩。
+  // 无界面 Chrome 会发 beforeinstallprompt（真 iPhone 不会），先拦掉，安装提示才按 iPhone 走步骤
+  S("install-guide", "/assistant", [["click", ".cc-install .cc-card-btn[data-primary]", 0], ["wait", 500]],
+    { envs: ["phone", "tablet-portrait"], expect: ".cc-install-guide", init: NO_INSTALL_PROMPT }),
 
   // ── 根节点状态 ──
   S("width-medium", "/assistant?c=sesn_rich", [], { storage: { "cc.width": "medium" } }),

@@ -1074,13 +1074,13 @@ assert.doesNotMatch(row(), /Ctrl/);
 g.device.touch = false;
 assert.equal(showShortcuts(), true);
 // 苹果设备接了键盘：按 ⌘ / ⌥ 显示（第 7 轮）
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">⌘ ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">⌘ ,</span>');
 assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), /^<kbd class="[^"]*">⌘ \+ ⌥ \+ Space<\/kbd>$/);
 
 g.device.touch = true;
 g.qt = { webChannelTransport: {} };
 assert.equal(showShortcuts(), true);
-assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-xs">⌘ N</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="cc-menu-key">⌘ N</span>');
 """, lang="th")
 
     def test_shortcuts_use_command_on_mac_and_ctrl_elsewhere(self):
@@ -1088,17 +1088,17 @@ assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-x
         self.on_device("windows-chrome", r"""
 import { appleKeys, keysFor } from "@/components/shortcut";
 assert.equal(appleKeys(), false);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">Ctrl ,</span>');
 assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), />Ctrl \+ Alt \+ Space<\/kbd>$/);
 assert.equal(keysFor("Ctrl R", true), "⌘ R");
 assert.equal(keysFor("Ctrl + Alt + Space", true), "⌘ + ⌥ + Space");
 assert.equal(keysFor("Ctrl =", false), "Ctrl =");
 (navigator as any).userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
 assert.equal(appleKeys(), true);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">⌘ ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">⌘ ,</span>');
 (navigator as any).userAgentData = { platform: "Linux" };
 assert.equal(appleKeys(), false);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">Ctrl ,</span>');
 """)
 
     def test_iphone_safari_tab_shows_the_row_with_add_to_home_screen(self):

@@ -80,7 +80,7 @@ export function InstallProvider({ children }: { children: ReactNode }) {
       {children}
       <DialogPrimitive.Root open={guide !== null} onOpenChange={(open) => !open && setGuide(null)}>
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-modal)" />
           <DialogPrimitive.Content aria-describedby={undefined} className="cc-install-guide">
             <DialogPrimitive.Title className="cc-install-guide-title">
               {guide === "mac-safari" ? t("addToDock") : t("addToHome")}

@@ -1,4 +1,5 @@
 import { t } from "@/i18n";
+import { cssPx, cssVar, rootFontPx } from "@/lib/css-var";
 import { useCallback, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 
 // 三栏都能拖（同 claude.ai）：左侧栏右边、右侧结果面板左边各有一条分隔条。按住左右拖动调宽度，双击或回车恢复默认，
@@ -39,13 +40,8 @@ export function useStoredSize(key: string, cssVar: string, unit: "" | "px") {
   return { size, update, style };
 }
 
-function px(el: Element, name: string): number {
-  const value = getComputedStyle(el).getPropertyValue(name).trim();
-  const size = parseFloat(value) || 0;
-  if (value.endsWith("rem")) return size * parseFloat(getComputedStyle(document.documentElement).fontSize);
-  if (value.endsWith("vw")) return (size * window.innerWidth) / 100;
-  return size;
-}
+/** 这一栏上某个长度变量此刻的像素值（px、rem、vw；读不到为 0）。 */
+const px = (el: Element, name: string) => cssPx(cssVar(name, el), rootFontPx());
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
 
