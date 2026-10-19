@@ -1031,7 +1031,7 @@
   --cc-vvtop: 0px;                /* 运行时写入：lib/viewport.ts，可见区域顶在页面里的位置 */
   --cc-marquee-x: 0px;            /* 运行时写入：lib/hover-scroll.ts，悬停滚动要平移到的位置 */
   --cc-marquee-dur: 0ms;          /* 运行时写入：lib/hover-scroll.ts，悬停滚动用时 */
-  --cc-modal-share: 0.88;         /* 运行时写入：居中弹窗最多占可见高，add-company.tsx、settings.tsx 用任意属性覆盖 */
+  --cc-modal-share: 0.88;         /* 运行时写入：居中弹窗最多占可见高，add-company.tsx 用任意属性覆盖，设置弹窗由 .cc-dialog[data-size="settings"] 覆盖 */
   --cc-menu-max: var(--cc-menu-max-none);   /* 运行时写入：页面写 [--cc-menu-max:…] 给长列表菜单限高；默认不另限 */
   --cc-menu-max-none: 100vh;      /* 现有值·CC 自定：菜单默认的限高（整屏高，实际由可用高度决定） */
 }
@@ -1383,12 +1383,18 @@
      放在 .cc-card 前面：还带着 cc-card 的旧弹窗（添加公司）圆角照旧按 cc-card 的 8，B4 换成这一套后才是 16 */
   .cc-dialog {
     background: var(--cc-bg-surface); color: var(--cc-ink); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-dialog);
-    box-shadow: var(--cc-shadow-pop);
+    box-shadow: var(--cc-shadow-pop); outline: none;
   }
   .cc-dialog[data-size] { width: calc(100% - var(--cc-dialog-gutter) * 2); }
   .cc-dialog[data-size="sm"] { max-width: var(--cc-dialog-w-sm); }
   .cc-dialog[data-size="md"] { max-width: var(--cc-dialog-w-md); }
   .cc-dialog[data-size="lg"] { max-width: var(--cc-dialog-w-lg); }
+  /* 设置（两栏整窗）：宽高按用途层 --cc-settings-w / -w-max / -h，最多占可见高 --cc-settings-share（.cc-modal 的上限用同一份额）；
+     头、主体由设置自己的左栏与内容区排，不用 .cc-dialog-head / -body */
+  .cc-dialog[data-size="settings"] {
+    --cc-modal-share: var(--cc-settings-share);
+    width: min(var(--cc-settings-w), var(--cc-settings-w-max)); height: min(var(--cc-settings-h), calc(var(--cc-viewport-h) * var(--cc-settings-share)));
+  }
   .cc-dialog-head {
     display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--cc-space-12);
     padding: var(--cc-dialog-head-pt) var(--cc-dialog-px) var(--cc-space-8);

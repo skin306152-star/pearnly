@@ -1470,6 +1470,18 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertNotIn("cc-greeting", source, rel)
         self.assertIn('<div className="cc-dialog-foot">', self.read("components/delete-chats.tsx"))
         self.assertEqual(token_value(self.defs, "--cc-radius-dialog"), "16px")
+        # 设置弹窗（两栏整窗）也只用 .cc-dialog（10-19，B4 / B8 留下的一处）：外观不在组件里另写，尺寸是 data-size="settings"，
+        # 宽高份额读用途层 --cc-settings-*，不另起一套
+        settings = self.read("components/settings.tsx")
+        self.assertIn('data-size="settings"', settings)
+        self.assertIn('className="cc-dialog cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex', settings)
+        shell = settings.split('data-size="settings"', 1)[1].split("\n", 2)[1]
+        for old in ("rounded-dialog", "shadow-pop", "bg-surface", "outline-none", "--cc-settings-w", "--cc-settings-h", "--cc-settings-share"):
+            self.assertNotIn(old, shell)
+        self.assertNotIn("--cc-settings-share", settings)
+        size = self.css.split('  .cc-dialog[data-size="settings"] {', 1)[1].split("}", 1)[0]
+        self.assertIn("width: min(var(--cc-settings-w), var(--cc-settings-w-max));", size)
+        self.assertIn("outline: none;", self.css.split("  .cc-dialog {", 1)[1].split("}", 1)[0])
 
     def test_overlays_fade_with_cc_overlay(self):
         # V15（B4）：弹窗遮罩用 .cc-overlay（120ms 主缓动），不用 tw-animate 的 animate-in / fade-in（150ms）；层级与弹窗同档
