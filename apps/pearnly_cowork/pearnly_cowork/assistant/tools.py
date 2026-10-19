@@ -3901,6 +3901,45 @@ def preview_stock_group(tool_input) -> list:
     return [_change("Inventory account group", shown(chosen), shown(tool_input.get("acccod")))]
 
 
+def preview_mrerp_setup(tool_input) -> list:
+    """MR.ERP 导入设置的「允许」卡片（10-19 lab：四次都列出 account_set_key / connection / defaults JSON / direction 原样）：
+    第一行是账套名，往下一项一行，项名同网页弹窗与公司页「记住的选择」（`intake.mrerpMenu.*` / `intake.mrerpDefault.*`），
+    值写菜单名、默认值的「代码 · 名称」（同任务卡的科目，现在 → 改后）。只改的那几项，不列 direction 等读取参数。"""
+    connection, key = str(tool_input.get("connection") or ""), str(tool_input.get("account_set_key") or "")
+    try:
+        view = connections.mrerp_menu(connection, key)
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        view = {}
+    kinds = (view or {}).get("kinds") or {}
+    fields = ((view or {}).get("defaults") or {}).get("fields") or {}
+    known_kinds, known_fields = mrerp_needs.used(None)
+
+    def menu(kind, idmenu):
+        options = (kinds.get(kind) or {}).get("options") or []
+        found = next((o for o in options if str(o.get("idmenu")) == str(idmenu or "")), None)
+        return str((found or {}).get("label") or "") or _shown(idmenu)
+
+    def default(field, code):
+        found = next((o for o in (fields.get(field) or {}).get("options") or [] if o.get("code") == str(code or "")), None)
+        return " · ".join(part for part in (str(code or ""), str((found or {}).get("name") or "")) if part)
+
+    label = _account_names({}, connection).get(_account_key(key)) or ""
+    rows = [_change("intake.target.accountSet", "", label)] if label else []
+    # 认不出的类别 / 字段（工具会拒）不上卡片：卡片只写人看得懂的
+    for kind, idmenu in (tool_input.get("menus") or {}).items():
+        if kind not in known_kinds:
+            continue
+        rows.append(_change(f"intake.mrerpMenu.{kind}", menu(kind, (kinds.get(kind) or {}).get("chosen")),
+                            menu(kind, idmenu)))
+    for field, code in (tool_input.get("defaults") or {}).items():
+        if field not in known_fields:
+            continue
+        rows.append(_change(f"intake.mrerpDefault.{field}", default(field, (fields.get(field) or {}).get("chosen")),
+                            default(field, code)))
+    return rows
+
+
 _OBJ = {"type": "object", "properties": {}}
 # 按公司可筛的读工具（单据列表、推送结果、定时任务）共用的两个参数，见 `company_tools.default_scope`
 SCOPE_PROPS = {
@@ -4097,6 +4136,7 @@ TOOLS = [
          "required": ["connection", "account_set_key"]},
      "approval": ["menus", "defaults"],
      "ask": "Change the MR.ERP import settings?",
+     "preview": "pearnly_cowork.assistant.tools.preview_mrerp_setup",
      "handler": "pearnly_cowork.assistant.tools.mrerp_setup"},
     {"name": "cowork_document_detail", "label": "Viewed a document",
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "

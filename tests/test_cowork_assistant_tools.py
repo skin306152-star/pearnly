@@ -4381,6 +4381,24 @@ class MrErpTests(unittest.TestCase):
         self.assertEqual(item["mrerp_setup"], {"connection": "MR1", "account_set_key": "12:3",
                                                "defaults": ["supplier_type", "ap_account"], "direction": "purchase"})
 
+    def test_the_setup_card_shows_names_not_parameters(self):
+        # 10-19 lab：四张「允许」卡片都列出 account_set_key / connection / defaults JSON / direction 原样
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        self.assertEqual(declared["cowork_mrerp_setup"]["preview"], "pearnly_cowork.assistant.tools.preview_mrerp_setup")
+        self.view = _mrerp_view()
+        self.view["defaults"]["fields"]["expense_account"]["options"].append({"code": "1150-40", "name": "เครื่องเขียน"})
+        with mock.patch.object(tools, "_account_names", lambda cache, connection: {"12:3": "บริษัท ทดสอบ · TEST2019"}):
+            rows = tools.preview_mrerp_setup({"connection": "MR1", "account_set_key": "12:3", "direction": "purchase",
+                                              "menus": {"purchase": "454", "nonsense": "1"},
+                                              "defaults": {"expense_account": "1150-40", "bogus": "x"}})
+        self.assertEqual(rows, [
+            {"field": "intake.target.accountSet", "before": "", "after": "บริษัท ทดสอบ · TEST2019"},
+            {"field": "intake.mrerpMenu.purchase", "before": "ซื้อ", "after": "ซื้อ2"},
+            {"field": "intake.mrerpDefault.expense_account", "before": "exp000 · name 0", "after": "1150-40 · เครื่องเขียน"}])
+        shown = json.dumps(rows, ensure_ascii=False)
+        for raw in ("MR1", "12:3", "direction", "{"):
+            self.assertNotIn(raw, shown.replace('{"field"', ""))
+
     def test_cc_is_told_what_mrerp_has_and_has_not(self):
         guidance = " ".join(tools.GUIDANCE)
         for words in ("no computer and no CC Desktop are involved in an MR.ERP push",
