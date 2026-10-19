@@ -819,6 +819,53 @@
   两个工具说明同名写明「同一条回复里转告」。不改用户可见词条。测试：`test_the_same_group_is_listed_in_the_result_with_a_note_to_tell_the_user`
   （推送与 current_book、单复数、读不到的不列、0 不带）、`test_the_cc_tool_gets_the_names_of_the_group_it_carried_on`、说明断言。
 
+- **E11 试点露出的两处（10-19，分支 `pearnly/e11-fixes`，起点 batch-1019b `60184389`）**：测试窗口在 lab 试点 E11 时导出的 18 张 BakeLab
+  销项（`~/pearnly-devtools/test-window/round-e11/results/`，只读）16 张判 C、原因只有 `date_stale,evidence`，另 2 张没判。
+  - **压缩时间** `174243c1`：`date_stale` 按上传日（票的创建日，真实的 10-19）往前 60 天，2025-08 的单必 C；定时任务那条路没有指定「今天」的口子。
+    加 `push.automation.clock`：只认测试租户（回放同一份 `replay.TEST_SITES`，从那里导入、不另写；正式站误配照真实日子、一小时记一条错误日志）
+    的站点配置 `pearnly_da_today = "YYYY-MM-DD"`，`scripts/da-clock.py` 设 / 撤 / 查，架构检查拦这个键进生产配置与别的代码。
+    用到「今天」的点逐一核过：**跟它走**——自动推前的判定 `assess`（期间、不晚于今天、不早于上传前 60 天、日月对调；上传日当作这一天；同一次判定里的
+    入账方式与预检 `date_future`）、公司升降档记的「自何时」与升降记录时刻（`companies.automation._set`，之后只认这天以后开始的完整期；不接的话
+    「自何时」是真实此刻，试点的 L1 期永远评不到）；**照真实时间**（比的是库里的真实时刻）——扫描的近 3 天 / 满 15 分钟窗口（票的创建时刻）、
+    R1「近 60 天有人改值」（判定里另给真实的今天 `Facts.now`，领单重核同口径）、Express 历史「31 天内读的」、合格回读「截止日之后发起」
+    （回读发起时刻；过去各期的截止日都早于真实今天，试点里回读一律合格——所以试点步骤要在模拟日子过了截止日之后才发起回读）、
+    `auto_checked_at` 与提议时刻、月结台账「这个月过完没有」、人推的准备与「要选的项」（真实今天晚于试点各期，只会比判定松）。MR.ERP 不跟它走。
+    测试：`PilotClock`（测试租户认、正式站不认并记日志、没配 / 认不出照旧；判定按它判 `date_stale` / `date_future`）、
+    `test_the_pilot_clock_dates_tier_changes_on_a_test_tenant`（L0 期回读 → 升 L1 记模拟日子 → L1 期回读降档；不配 / 正式站评不到下一期）、
+    R1 与历史新鲜度按 `now`、架构守卫。
+  - **副本页不算证据页** `445cb328`：导出数据里第 2 页起识别（Claude 路线）全是 `is_not_invoice: true`、`document_type: other`、单号 / 金额 / 税号
+    全空、`notes = "claude: no document starts on this page"`，整份 `is_copy_or_duplicate: true`；第 1 页的 notes 写着第 2 页是同一单号的
+    ใบเสร็จรับเงิน（ใบแนบใบกำกับภาษี）。识别对这些页什么字段都不给，所以判据只能看那一页自己的 PDF 文字层（判定本来就抽，`text_layer.pages`，
+    零费用）。`automation.same_document_page`：不是第一页、只拆出这一张；这一页识别自己读出了单号 / 含税额的要与这张票相同；这一页文字层里有这张票的
+    单号（完整的号，前后不连字母数字，至少 4 个字母数字）、含税额（完整的数，不为 0）与对方 13 位税号；不是减项 / 增项通知单（除非这张票本身是
+    减项单）——都成立才不算证据页。谷歌路线丢下的附属页（`attachment_page:`，记在被丢下的那一页）同一条判据，第一页上的照旧算。扫描件、
+    隐形识别文字层的页、文字层与识别页对不上、对方没有 13 位税号的照旧 C，不放宽。测试 `SameDocumentPages` 用导出形状脱敏（单号、金额、
+    空字段页原样，税号换成测试号）。
+    - 没核到的一层：导出里没有原件文字层，副本页上是不是真印着买方税号、含税额，要测试窗口在 lab 上读一次（下面「验证」）；四页一份里
+      收据联跨两页、合计只印在后一页的，前一页照旧算证据（C）。
+    - **升 Opus 那一条没改**：「3 pages but only 1 documents were read」在识别阶段（`pearnly_core.claude_ocr.rules.voucher_problems`，
+      甲骨文上的 claude-ocr 服务与生产本机兜底），那时手上只有渲染好的图片、读回里也没有每页的归属（spec 的 `documents[].page` 只记第一页），
+      认不出后面几页是副本。缺的是：每页的文字层（或读回里「这一页属于哪张单 / 是副本」）。最小改法：`claude_ocr.pages` 加一个按页抽 PDF 文字层
+      （pymupdf `page.get_text()`，图片给空串，与 `prepare` 同样截到 `MAX_PAGES`），`engine.run` / `voucher_problems` 多收 `page_texts`，
+      没有单据起始的页都在文字层里重复了某张已读单的单号 + 含税额 + 读出的 13 位税号时不出这一条；`server.read`（原件地址那条路自己抽）与
+      `client.read`（随图片带上）各接一处；改完要重发甲骨文 claude-ocr（`scripts/claude-ocr/deploy.sh`）。按架构文档「改它的提示词、规则先过闸门」
+      要先跑 `scripts/claude-ocr/run-gate.sh`（甲骨文、付费），本窗口不能连甲骨文、不能付费识别，所以没施工。它只多花一次 Opus（不影响判类）。
+  - **有意变化**：测试租户配了 `pearnly_da_today` 时，自动推判定与升降档按模拟日子；正式租户不受影响。自动推前的核对里，同一张票的副本 /
+    收据联页不再判 `evidence`（定时任务 A 类照推的范围随之多出这类原件 + 副本的电子税票）。
+  - **试点怎么配**（测试窗口，lab 实时源码 `testenv.sh live cowork` 之后）：设 `env/bin/python <源码>/scripts/da-clock.py --site testcowork.pearnly.com
+    set 2025-08-31`（或 `bench --site testcowork.pearnly.com set-config pearnly_da_today 2025-08-31`），查 `... status`，撤 `... off`
+    （或 `bench --site testcowork.pearnly.com set-config pearnly_da_today None`）；改后等 60 秒（站点配置缓存）再触发。按期往前拨：
+    1. L0 期（八月单）：日子设在这期单据之后、不晚于最早一张后 60 天（例 2025-08-31），手动触发定时任务 / 扫描判、人在待处理推；
+    2. 回读前把日子拨到这期 ภ.พ.30 截止日（取电子申报的，八月期 2025-09-23）之后（例 2025-09-24），再发起八月期回读；回读处理完的评估把「自何时」
+       记成 2025-09-24，升 L1；
+    3. 九月单在 L1 自动推（九月期在升档前已开始，不算 L1 的完整期），十月单同样；十月期回读前拨到 2025-11-24 再回读，评估只认十月期。
+    试点做完一定 `off`。
+  - **验证**（lab，只看不记）：`bench --site testcowork.pearnly.com console` 里，`doc = frappe.get_doc("Cowork OCR History", "<票>")`、
+    `t = text_layer.pages(doc)`（`from pearnly_cowork.history import text_layer`），逐页看
+    `automation.number_in_text(doc.invoice_no, x)`、`automation.amount_in_text(doc.total_amount, x)`、`automation.tax_in_text(doc.buyer_tax, x)`
+    （`from pearnly_cowork.push.express import automation`；销项对方是买方）；再以上传人身份 `push.application.service.assess(...)` 看 `codes`
+    里没有 `evidence`。
+
 ## 第一轮回放后的决定（2026-10-16）
 
 用户定：
