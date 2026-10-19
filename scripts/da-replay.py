@@ -29,7 +29,7 @@
         [--periods strict|estimated] [--tiebreak none,recent_entry,recent_push,ask_once] [--reask written|entered|off] \
         [--lines none|answer] [--line-names stkdes|opaque] [--company-choice prior|full] \
         [--review-classes B,Cn,Cr|none] [--review-lag 1]
-    PYTHONPATH=<含 pypdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
+    PYTHONPATH=<含 pypdf 与 pymupdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
         --manifest /mnt/c/PearnlyStress/语料/06-录入推送/清单.tsv --out OUT
     python3 da-replay.py report --out OUT
 
@@ -2111,18 +2111,16 @@ def pair_gold(invoice: Mapping[str, Any], golds: Sequence[Mapping[str, Any]]) ->
     return best if best_score >= 2 else None
 
 
-def pdf_texts(path: Path) -> Optional[List[str]]:
-    """原件 PDF 每页的文字层（与生产 `history.text_layer` 同样用 pypdf）；不是 PDF、读不出回 None。"""
+def pdf_texts(path: Path, fallen: Optional[List[int]] = None) -> Optional[List[str]]:
+    """原件 PDF 每页的文字层（与生产 `history.text_layer` 同一个 `history.pdf_text.page_texts`：pypdf 逐页抽，带隐形识别文字层
+    的页给空串，ToUnicode 坏了的页改用 pymupdf，换过的页码记进 ``fallen``）；不是 PDF、读不出回 None。"""
     path = refuse_lan(path)
     if path.suffix.lower() != ".pdf" or not path.is_file():
         return None
     try:
-        import pypdf
+        from pearnly_cowork.history.pdf_text import page_texts
 
-        from pearnly_cowork.history.pdf_text import page_text  # 同生产：带隐形识别文字层的页给空串
-
-        reader = pypdf.PdfReader(str(path))
-        return [page_text(page) for page in reader.pages]
+        return page_texts(path.read_bytes(), fallen=fallen)
     except Exception:  # noqa: BLE001 — 读不出就当没有文字层
         return None
 
@@ -2460,7 +2458,8 @@ def cmd_gate(args) -> int:
         number = record["id"]
         row, truth = sample.get(number) or {}, gold.get(number) or {}
         direction = "sales" if row.get("分类") in SALES_CATEGORIES else "purchase"
-        texts = pdf_texts(corpus_root / row.get("路径", "")) if row.get("路径") else None
+        fallen: List[int] = []
+        texts = pdf_texts(corpus_root / row.get("路径", ""), fallen) if row.get("路径") else None
         golds = list(truth.get("invoices") or [])
         invoices = list(record.get("invoices") or [])
         for invoice in invoices:
@@ -2486,7 +2485,7 @@ def cmd_gate(args) -> int:
                          "page": invoice.get("page"), "text_pdf": "image" not in reasons, "reasons": reasons,
                          "passed": not reasons, "entry": truth.get("entry"), "paired": index is not None,
                          "result": result, "uncertain": uncertain, "gold_source": source or "independent",
-                         "vat_claim": claim,
+                         "vat_claim": claim, "text_fallback": list(fallen),
                          "wrong": [key for key, value in result.items() if value == "wrong"]})
     _write_json(out / "gate.json", {"rows": rows, "records": args.records, "flags": args.flags,
                                     "manifest": str(args.manifest)})

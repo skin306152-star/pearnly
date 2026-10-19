@@ -3,14 +3,13 @@
 只给已核过这张票读取范围的服务端调用（`push.application.assess`）；不是 PDF、读不出、页码对不上都回 None（交给调用方按「找不到
 原文」处理，归 C）。
 """
-import io
 import json
 
 import frappe
 
 from pearnly_cowork.files import service as originals
 from pearnly_cowork.files.access import SOURCE
-from pearnly_cowork.history.pdf_text import page_text
+from pearnly_cowork.history.pdf_text import page_texts
 
 # 一张票最多抽这么多页的文字（发票一般一两页；挂了长附件的也只看前面这些页）
 PAGES_MAX = 20
@@ -26,7 +25,8 @@ def _pages(doc) -> list:
 
 def pages(doc):
     """票 ``doc``（`Cowork OCR History`）所在原件这几页**各自**的文字层（按页序的字符串表）；带隐形文字（``3 Tr``，扫描件上
-    叠的识别文字层）的页给空串，按图片算（`history.pdf_text`）。不是 PDF、读不出回 None。"""
+    叠的识别文字层）的页给空串，按图片算；pypdf 抽出的某页 ToUnicode 坏了（满是控制字符）时那一页改用 pymupdf 抽
+    （`history.pdf_text.page_texts`，回放同一条）。不是 PDF、读不出回 None。"""
     if not doc.get("source_file"):
         return None
     source = frappe.get_doc(SOURCE, doc.source_file)
@@ -36,10 +36,7 @@ def pages(doc):
     if not indices:
         return None
     try:
-        import pypdf
-
-        reader = pypdf.PdfReader(io.BytesIO(originals.read_bytes(source)))
-        found = [page_text(reader.pages[index - 1]) for index in indices if index <= len(reader.pages)]
+        found = page_texts(originals.read_bytes(source), indices)
     except Exception:  # noqa: BLE001 — 读不出就当没有原文（归 C），不挡判定
         frappe.clear_messages()
         return None

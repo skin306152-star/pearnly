@@ -987,6 +987,207 @@ class DecideCore(unittest.TestCase):
         self.assertEqual(([item["kind"] for item in decision["needed"]], asked), (["account"], []))
 
 
+def _cid_pdf(*pages):
+    """造一份多页 PDF：每页一个 Type0 / Identity-H 字体（不嵌字形），字形码照子集字体从 3 起按首次出现顺序编，文字层靠 ToUnicode。
+    ``pages`` 每项 ``(文字, ToUnicode 坏不坏)``；坏的那份 ToUnicode 第一项源码是奇数长度十六进制串（``<003>``），pypdf 报
+    「Skipping broken line … Odd-length string」丢掉整行、把字形码原样给出（\x03\x04…），pymupdf 照常读——同 E11 BakeLab 副本页。"""
+    objects = ["<< /Type /Catalog /Pages 2 0 R >>", None]
+    kids = []
+    for text, broken in pages:
+        codes = {}
+        for char in text:
+            codes.setdefault(char, len(codes) + 3)
+        pairs = " ".join("<%04X> <%04X>" % (code, ord(char)) for char, code in codes.items())
+        cmap = ("/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapName /T def 1 begincodespacerange "
+                "<0000> <FFFF> endcodespacerange\n%d beginbfchar\n%s%s\nendbfchar\nendcmap CMapName currentdict /CMap "
+                "defineresource pop end end") % (len(codes) + broken, "<003> <0020> " if broken else "", pairs)
+        content = "BT /F1 2 Tf 20 800 Td <%s> Tj ET" % "".join("%04X" % codes[char] for char in text)
+        base = len(objects) + 1
+        kids.append(base)
+        objects += [
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 %d 0 R >> >> /Contents %d 0 R >>"
+            % (base + 1, base + 2),
+            "<< /Type /Font /Subtype /Type0 /BaseFont /AAAAAA+Sarabun /Encoding /Identity-H /DescendantFonts [%d 0 R] "
+            "/ToUnicode %d 0 R >>" % (base + 3, base + 4),
+            "<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content),
+            "<< /Type /Font /Subtype /CIDFontType2 /BaseFont /AAAAAA+Sarabun /CIDSystemInfo << /Registry (Adobe) "
+            "/Ordering (Identity) /Supplement 0 >> /CIDToGIDMap /Identity /DW 500 /FontDescriptor %d 0 R >>" % (base + 5),
+            "<< /Length %d >>\nstream\n%s\nendstream" % (len(cmap.encode()), cmap),
+            "<< /Type /FontDescriptor /FontName /AAAAAA+Sarabun /Flags 32 /FontBBox [0 0 1000 1000] /ItalicAngle 0 "
+            "/Ascent 900 /Descent -200 /CapHeight 700 /StemV 80 >>",
+        ]
+    objects[1] = "<< /Type /Pages /Kids [%s] /Count %d >>" % (" ".join("%d 0 R" % kid for kid in kids), len(kids))
+    out, offsets = b"%PDF-1.4\n", []
+    for number, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += ("%d 0 obj\n%s\nendobj\n" % (number, body)).encode()
+    xref = len(out)
+    out += ("xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)).encode()
+    out += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    return out + ("trailer << /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)).encode()
+
+
+GARBAGE = "".join(chr(code) for code in (3, 4, 5, 6, 4, 7, 8, 3, 9, 10, 11, 12, 13, 14, 3, 15, 16, 17, 18))
+
+
+class _FakePage:
+    def __init__(self, text, content=b"BT /F1 9 Tf (x) Tj ET", warn=False):
+        self.text, self.content, self.warn = text, content, warn
+
+    def get_contents(self):
+        return type("Stream", (), {"get_data": lambda _self: self.content})()
+
+    def extract_text(self):
+        if self.warn:  # 同 pypdf 6.15 `_cmap.process_cm_line`
+            import logging
+
+            logging.getLogger("pypdf._cmap").warning("Skipping broken line %(line)r: %(error)s",
+                                                     {"line": b"003 0020", "error": "Odd-length string"})
+        return self.text
+
+
+def _fake_pypdf(*pages):
+    return type(sys)("pypdf"), type("Reader", (), {"__init__": lambda self, stream: setattr(self, "pages", list(pages))})
+
+
+def _fake_mupdf(texts, opened, fail=None):
+    """pymupdf 的替身：``texts`` 页码 → 文字；``opened`` 记打开次数；``fail`` = "open" 打不开、页码集合 = 那几页抽不出。"""
+    class Page:
+        def __init__(self, number):
+            self.number = number
+
+        def get_text(self):
+            if isinstance(fail, set) and self.number in fail:
+                raise RuntimeError("cannot extract")
+            return texts.get(self.number, "")
+
+    class Document:
+        page_count = max(texts or {0: ""})
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def __getitem__(self, index):
+            return Page(index + 1)
+
+    def open_(stream=None, filetype=None):
+        opened.append(filetype)
+        if fail == "open":
+            raise RuntimeError("cannot open")
+        return Document()
+
+    module = type(sys)("pymupdf")
+    module.open = open_
+    return module
+
+
+class BrokenTextLayer(unittest.TestCase):
+    """E11：pypdf 抽出的副本页 ToUnicode 坏了（满是 \\x03\\x04…），那一页改用 pymupdf 抽（`history.pdf_text.page_texts`，
+    生产 `history.text_layer.pages` 与回放 `da-replay.py gate` 同一条）；正常的页不碰 pymupdf；pymupdf 不行时照旧，不报错。"""
+
+    def setUp(self):
+        from pearnly_cowork.history import pdf_text
+
+        self.pdf_text = pdf_text
+
+    def run_pages(self, pages, mupdf=None, numbers=None):
+        from unittest import mock
+
+        module, reader = _fake_pypdf(*pages)
+        module.PdfReader = reader
+        fallen = []
+        modules = {"pypdf": module, "pymupdf": mupdf if mupdf is not None else None}
+        with mock.patch.dict(sys.modules, modules):
+            return self.pdf_text.page_texts(b"%PDF", numbers, fallen), fallen
+
+    def test_the_criterion(self):
+        share, broken = self.pdf_text.control_share, self.pdf_text.broken
+        self.assertEqual(share(E11_RECEIPT), 0)
+        self.assertEqual(share("a\tb\nc\r\fd\v"), 0)       # 制表、换行、回车、换页不算
+        self.assertEqual(share(""), 0)
+        self.assertEqual(share(None), 0)
+        self.assertFalse(broken(E11_INVOICE, decode_error=True))  # 没有控制字符的页永远不算坏
+        self.assertTrue(broken(GARBAGE))
+        self.assertTrue(broken(",19\x10\x19\x1b\x14\x13 727$/\x03"))
+        stray = E11_RECEIPT + "\x03"                              # 一页里个别没映射的字形（< 1%）
+        self.assertLess(share(stray), self.pdf_text.BROKEN_SHARE)
+        self.assertFalse(broken(stray))
+        self.assertTrue(broken(stray, decode_error=True))         # 这份原件 pypdf 报过 ToUnicode 解码错误
+        self.assertTrue(broken("x" * 9 + "\x03"))                 # 到 10% 就算
+        self.assertFalse(broken("x" * 10 + "\x03"))
+
+    def test_a_broken_page_falls_back_to_pymupdf_and_good_pages_stay(self):
+        opened = []
+        mupdf = _fake_mupdf({1: "pymupdf page 1", 2: E11_RECEIPT + "\x03", 3: "pymupdf page 3"}, opened)
+        found, fallen = self.run_pages([_FakePage(E11_INVOICE), _FakePage(GARBAGE), _FakePage("y" * 300)], mupdf)
+        self.assertEqual(found, [E11_INVOICE, E11_RECEIPT + "\x03", "y" * 300])
+        self.assertEqual((fallen, opened), ([2], ["pdf"]))
+
+    def test_good_pages_never_open_pymupdf(self):
+        opened = []
+        pages = [_FakePage(E11_INVOICE), _FakePage(E11_RECEIPT), _FakePage("", content=b"3 Tr BT (x) Tj ET")]
+        found, fallen = self.run_pages(pages, _fake_mupdf({1: "other"}, opened))
+        self.assertEqual(found, [E11_INVOICE, E11_RECEIPT, ""])   # 隐形识别文字层的页照旧给空串
+        self.assertEqual((fallen, opened), ([], []))
+
+    def test_pymupdf_failing_keeps_the_old_result_without_error(self):
+        pages = [_FakePage(E11_INVOICE), _FakePage(GARBAGE)]
+        for name, mupdf in (("missing", None), ("open", _fake_mupdf({2: E11_RECEIPT}, [], fail="open")),
+                            ("page", _fake_mupdf({2: E11_RECEIPT}, [], fail={2})),
+                            ("empty", _fake_mupdf({2: "  \n"}, [])),
+                            ("no better", _fake_mupdf({2: GARBAGE}, []))):
+            found, fallen = self.run_pages(pages, mupdf)
+            self.assertEqual((found, fallen), ([E11_INVOICE, GARBAGE], []), name)
+
+    def test_a_decode_error_counts_on_pages_with_any_control_character(self):
+        stray = E11_RECEIPT + "\x03"
+        mupdf = _fake_mupdf({1: "other 1", 2: E11_RECEIPT}, [])
+        found, fallen = self.run_pages([_FakePage(E11_INVOICE, warn=True), _FakePage(stray)], mupdf)
+        self.assertEqual((found, fallen), ([E11_INVOICE, E11_RECEIPT], [2]))
+        found, fallen = self.run_pages([_FakePage(E11_INVOICE), _FakePage(stray)], mupdf)  # 没报错：个别控制字符不换
+        self.assertEqual((found, fallen), ([E11_INVOICE, stray], []))
+
+    def test_page_numbers_follow_the_request(self):
+        mupdf = _fake_mupdf({1: "a", 2: "b", 3: E11_RECEIPT}, [])
+        found, fallen = self.run_pages([_FakePage("one"), _FakePage("two"), _FakePage(GARBAGE)], mupdf, numbers=[3, 1, 9])
+        self.assertEqual((found, fallen), ([E11_RECEIPT, "one"], [3]))
+
+    def test_the_copy_page_read_by_pymupdf_still_has_to_match(self):
+        """坏页从「读不到」变成「读得到」只是有了原文；单号、含税额、对方税号照旧要逐项对上，读出另一张的照旧算证据页。"""
+        self.assertIn("evidence", auto.checks(_e11(E11_INVOICE, GARBAGE)))
+        for text, evidence in ((E11_RECEIPT, False), (E11_RECEIPT.replace(E11_NUMBER, "INV2025080062"), True),
+                               (E11_RECEIPT.replace("414.00", "400.00"), True), (E11_RECEIPT.replace(SELLER, ""), True)):
+            found, _ = self.run_pages([_FakePage(E11_INVOICE), _FakePage(GARBAGE)], _fake_mupdf({2: text}, []))
+            self.assertEqual("evidence" in auto.checks(_e11(*found)), evidence, text[-40:])
+
+    def test_with_the_real_libraries(self):
+        """真 pypdf / pymupdf（生产镜像里有；CI 没装时跳过）读造的坏 ToUnicode PDF。"""
+        try:
+            import pymupdf  # noqa: F401
+            import pypdf
+        except ImportError:
+            self.skipTest("pypdf / pymupdf not installed")
+        import io
+
+        content = _cid_pdf((E11_INVOICE, False), (E11_RECEIPT, True))
+        plain = [page.extract_text() for page in pypdf.PdfReader(io.BytesIO(content)).pages]
+        self.assertEqual(plain[0], E11_INVOICE)
+        self.assertTrue(plain[1].startswith("\x03\x04\x05"), repr(plain[1][:20]))  # 同 E11 现象
+        self.assertTrue(self.pdf_text.broken(plain[1]))
+        self.assertIn("evidence", auto.checks(_e11(*plain)))
+        fallen = []
+        found = self.pdf_text.page_texts(content, fallen=fallen)
+        self.assertEqual(found[0], plain[0])                       # 好页逐字不变
+        self.assertEqual(fallen, [2])
+        self.assertEqual("".join(found[1].split()), "".join(E11_RECEIPT.split()))  # pymupdf 在泰文组合字前后另断空白
+        self.assertNotIn("evidence", auto.checks(_e11(*found)))
+        self.assertEqual(self.pdf_text.page_texts(_cid_pdf((E11_INVOICE, False), (E11_RECEIPT, False))),
+                         [E11_INVOICE, E11_RECEIPT])               # 没坏的原件两页都是 pypdf 的
+
+
 class Purity(unittest.TestCase):
     def test_no_framework_or_io(self):
         for name in ("automation.py", "decide.py"):

@@ -1476,6 +1476,25 @@ class GateLayer(unittest.TestCase):
         self.assertEqual(replay.pair_gold(invoice, golds), 1)
         self.assertIsNone(replay.pair_gold({"page": 3, "fields": {"total_amount": "9"}}, golds))
 
+    def test_the_gate_reads_pdf_text_like_production(self):
+        """闸层抽原件文字层与生产 `history.text_layer` 同一个 `history.pdf_text.page_texts`（坏 ToUnicode 页退 pymupdf），换过的页码带回。"""
+        from pearnly_cowork.history import pdf_text
+
+        def fake(content, numbers=None, fallen=None):
+            fallen.append(2)
+            return [content.decode(), "copy page"]
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / "a.pdf"
+            path.write_bytes(b"%PDF one")
+            fallen = []
+            with mock.patch.object(pdf_text, "page_texts", side_effect=fake):
+                self.assertEqual(replay.pdf_texts(path, fallen), ["%PDF one", "copy page"])
+            self.assertEqual(fallen, [2])
+            with mock.patch.object(pdf_text, "page_texts", side_effect=ValueError("bad")):
+                self.assertIsNone(replay.pdf_texts(path))
+            self.assertIsNone(replay.pdf_texts(pathlib.Path(folder) / "a.jpg"))
+
     def test_gate_uses_the_text_layer_and_recognition_flags(self):
         m = replay._modules()
         fields = {"document_type": "tax_invoice", "invoice_number": "IV-0012", "date": "2025-03-04",
