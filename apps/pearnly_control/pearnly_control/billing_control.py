@@ -87,6 +87,22 @@ def dispatch(action: str, payload=None):
                 frappe.throw(_("Not permitted"), frappe.PermissionError)
         frappe.db.commit()
         return {"token": tenant_token(billing_api.service_token(create=False), tenant, product)}
+    if action == "move_members":
+        # 拆池前开的 Cowork 租户换账号池（本机管理后台 `account.repool` 调用），见 member_service.move_members。
+        tenant = str(payload.get("tenant") or "").strip()
+        if not tenant or len(tenant) > 140 or payload.get("product") not in PRODUCTS:
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+        from pearnly_control.account import member_service
+        from pearnly_control.account.member_provider import MemberError
+        try:
+            result = member_service.move_members(tenant, payload["product"], payload.get("issuer"),
+                                                 dry_run=bool(payload.get("dry_run")))
+        except MemberError as error:
+            # 固定的几个码（not_permitted / conflict / unavailable）原样带回管理后台；已写的一律不留。
+            frappe.db.rollback()
+            return {"error": error.code}
+        frappe.db.commit()
+        return result
     if action == "slip":
         from pearnly_control.payments.topup import evidence
         return evidence(payload["request"])

@@ -49,6 +49,52 @@ def line_login(p, group, runtime):
     return alias
 
 
+ISSUER_BASE = "https://auth.pearnly.com/realms/"
+BUSINESS_REALM = "pearnly-business"
+# 每个产品组签到自己的账号池：Cowork 是 pearnly-cowork，ERP / DMS 是业务账号池。
+OWN_REALMS = {"cowork": "pearnly-cowork"}
+
+
+def oidc_config(p, group, site, current):
+    """`set_oidc` 要写进站点的身份配置，与签发方变没变（变了要让 LINE 关联在新池重挂）。
+
+    签发方只能是该产品组自己的账号池。例外只有拆池（2026-09-26）前开的 Cowork 站点：它们签在业务池，
+    可以原样留在业务池、搬去 Cowork 池（`pearnly_control.account.repool`），搬过之后还能搬回业务池（回退）——
+    判据是站点现在或搬之前签到的池（`pearnly_oidc_origin_issuer`，第一次换池时记下、之后不改），不信载荷。
+    `current`：站点现在的配置（frappe.conf）。
+    """
+    own = ISSUER_BASE + OWN_REALMS.get(group, BUSINESS_REALM)
+    business = ISSUER_BASE + BUSINESS_REALM
+    previous = str(current.get("pearnly_oidc_issuer") or "").rstrip("/")
+    origin = str(current.get("pearnly_oidc_origin_issuer") or "").rstrip("/")
+    allowed = {own} | ({business} if group == "cowork" and business in (previous, origin) else set())
+    issuer = str(p.get("issuer") or "").rstrip("/")
+    assert issuer in allowed, "OIDC issuer is not this product's account pool"
+    assert p["client_id"] == site and p["native_account"] is True
+    assert p["redirect_uri"] == "https://" + site + "/api/method/pearnly_core.identity.callback"
+    assert not any(p.get(key) for key in ("admin_client_secret", "password_check_client_secret"))
+    values = {"pearnly_oidc_issuer": issuer, "pearnly_oidc_client_id": p["client_id"],
+              "pearnly_oidc_client_secret": p["client_secret"], "pearnly_oidc_redirect_uri": p["redirect_uri"],
+              "pearnly_product": group, "pearnly_native_account": True}
+    changed = bool(previous) and previous != issuer
+    if changed and not origin:
+        values["pearnly_oidc_origin_issuer"] = previous
+    return values, changed
+
+
+def relink_line_logins():
+    """站点换了账号池：LINE 关联是挂在旧池的身份上的，本站生效的绑定都改回待同步，每小时对账在新池重挂
+    （`pearnly_core.account.line_login.reconcile`）。没装 LINE 绑定表的站点什么也不做。"""
+    import frappe
+
+    if not frappe.db.table_exists("Pearnly LINE Binding"):
+        return 0
+    rows = frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="name")
+    for name in rows:
+        frappe.db.set_value("Pearnly LINE Binding", name, "login_link", "pending", update_modified=False)
+    return len(rows)
+
+
 def webhook_url(site):
     return "https://" + site + "/api/method/pearnly_core.line.webhook"
 
@@ -351,15 +397,10 @@ def main():
         if p["app"] not in frappe.get_installed_apps():
             install_app(p["app"])
     elif action == "set_oidc":
-        # 每个产品组签到自己的账号池：Cowork 是 pearnly-cowork，ERP / DMS 是业务账号池。
-        realm = "pearnly-cowork" if group == "cowork" else "pearnly-business"
-        assert p["issuer"] == "https://auth.pearnly.com/realms/" + realm
-        assert p["client_id"] == site and p["native_account"] is True
-        assert p["redirect_uri"] == "https://" + site + "/api/method/pearnly_core.identity.callback"
-        assert not any(p.get(key) for key in ("admin_client_secret", "password_check_client_secret"))
-        config(pearnly_oidc_issuer=p["issuer"], pearnly_oidc_client_id=p["client_id"],
-               pearnly_oidc_client_secret=p["client_secret"], pearnly_oidc_redirect_uri=p["redirect_uri"],
-               pearnly_product=group, pearnly_native_account=True)
+        values, changed = oidc_config(p, group, site, frappe.conf)
+        config(**values)
+        if changed:
+            print(f"LINE_RELINK {relink_line_logins()}")
     elif action == "set_billing":
         assert p["api"] == "http://billing-web:8000" and p["host_header"] == "billing.internal"
         config(pearnly_tenant=p["tenant"], pearnly_billing_api=p["api"],
@@ -422,7 +463,12 @@ def main():
             config(pearnly_cowork_erp_push_enabled=1)
     elif action == "bind_user":
         from pearnly_core.provisioning import ensure_local_user
-        ensure_local_user(p["email"], p["full_name"], p["subject"], p["deployment"])
+        if p.get("member"):
+            # 换账号池时给团队里已有的成员绑上新池里的身份：只绑已有账号，不建号、不加任何角色。
+            assert frappe.db.exists("User", p["email"]), "Member account does not exist on this site"
+            ensure_local_user(p["email"], p["full_name"], p["subject"], p["deployment"], role="")
+        else:
+            ensure_local_user(p["email"], p["full_name"], p["subject"], p["deployment"])
     elif action == "set_roles":
         from pearnly_core.provisioning import ensure_feature_roles
         ensure_feature_roles(json.dumps(p), admin_user=p["admin_user"])

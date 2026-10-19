@@ -283,6 +283,52 @@ def execute(tenant, action, email, password, username="", request_id="", subject
     raise MemberError("invalid_request")
 
 
+def move_members(tenant, product, issuer, *, dry_run=False):
+    """管理通道：站点换了账号池（拆池前开的 Cowork 租户搬到 Cowork 池，或回退搬回原来的池）。
+
+    本租户本产品团队里建的号都放进站点新签到的池：新池里已有本服务建的同一个号（归属证明一致，回退时就是原来那个）
+    就沿用，否则建一个**不带密码**的（老板在团队管理里重设密码，密码不经过本服务以外的任何人）。登记改记新池与新身份；
+    原来那个池里的号不删，回退时按归属证明找回。原来那个池里本租户本产品的 LINE 关联记录删掉（那个池里没别的站点用这个
+    LINE 了就释放它的专用身份），站点对账时在新池重新挂。`dry_run` 只读：列出每个号会沿用还是新建，不写任何东西。
+    """
+    if product not in PRODUCTS or not str(issuer or "").strip():
+        raise MemberError("not_permitted")
+    _lock_tenant(tenant)
+    pool = pool_prefix(product, issuer)
+    provider = MemberProvider(prefix=pool)
+    rows = frappe.get_all(IDENTITY, filters={"tenant": tenant, "product": product},
+        fields=["name", "email", "username", "subject", "realm", "product"], order_by="name asc")
+    members = []
+    for row in rows:
+        owner = _digest("member-owner-v1", tenant, product, row.email, row.username.lower())
+        if not row.subject:
+            # 建号请求登记了、号没建出来（超时后没再重试）：站点上也没有这个人，不搬。
+            members.append({"email": row.email, "username": row.username, "subject": None, "action": "incomplete"})
+            continue
+        if _pool_of(row) == pool:
+            subject = provider.read_owned(row.subject, email=row.email, username=row.username, owner=owner)
+            members.append({"email": row.email, "username": row.username, "subject": subject, "action": "kept"})
+            continue
+        found = provider.lookup_owned(None, email=row.email, username=row.username, owner=owner)
+        if dry_run:
+            members.append({"email": row.email, "username": row.username, "subject": found,
+                            "action": "adopt" if found else "create"})
+            continue
+        subject = found or provider.create(email=row.email, username=row.username, password=None, owner=owner)
+        frappe.db.set_value(IDENTITY, row.name, {"subject": subject, "realm": provider.realm})
+        members.append({"email": row.email, "username": row.username, "subject": subject,
+                        "action": "adopted" if found else "created"})
+    stale = [link for link in frappe.get_all(LINE_LINK, filters={"tenant": tenant, "product": product},
+                                             fields=["name", "realm", "alias", "line_user_id"], order_by="name asc")
+             if link.realm and link.realm != provider.realm]
+    if not dry_run:
+        for link in stale:
+            frappe.db.delete(LINE_LINK, {"name": link.name})
+            _person_lock(link.realm, link.alias, link.line_user_id)
+            _release(link.realm, link.alias, link.line_user_id)
+    return {"realm": provider.realm, "members": members, "line_links_released": len(stale)}
+
+
 def _purge_preflight(tenant, *, frozen=False):
     """Only management dispatch calls lifecycle methods; no product RPC action."""
     status = frappe.db.get_value("Pearnly Tenant", tenant, "status", for_update=True)

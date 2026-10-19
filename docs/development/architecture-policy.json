@@ -384,6 +384,7 @@
     "pearnly_oidc_admin_client_secret": "Keycloak 管理客户端密钥",
     "pearnly_oidc_client_id": "Keycloak 登录客户端",
     "pearnly_oidc_issuer": "Keycloak 签发方",
+    "pearnly_oidc_origin_issuer": "站点第一次换账号池前签到的签发方（set_oidc 写，之后不改）：拆池前开的 Cowork 站点搬去 Cowork 池后，只凭它允许搬回业务池",
     "pearnly_oidc_password_check_client_id": "Keycloak 改密校验客户端",
     "pearnly_oidc_password_check_client_secret": "Keycloak 改密校验密钥",
     "pearnly_product": "租户所属产品",

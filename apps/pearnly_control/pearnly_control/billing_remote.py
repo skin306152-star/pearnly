@@ -39,6 +39,11 @@ def provision_scope(tenant, product, company_name, owner_subject=None, *, site=N
     return call("register", **payload)
 
 
+def move_members(tenant, product, issuer, *, dry_run=False):
+    """站点换账号池时，把团队里建的号放进新池（计费服务上的 member_service.move_members）。"""
+    return call("move_members", tenant=tenant, product=product, issuer=issuer, dry_run=bool(dry_run))
+
+
 def review(action, request, actor, amount=None, note=""):
     result = call(action, request=request, actor=actor, amount=amount, note=note)
     sync_topups(name=request)
