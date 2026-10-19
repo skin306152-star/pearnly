@@ -3,12 +3,11 @@
 · 每条规则至少一个「拦」、一个「放」的用例：尺寸、间距、字号与行高、层级、动效、其他数值类、任意值与 ``!``、断点与输入设备变体、
   JSX 数值属性与内联 style、globals.css 自身、``--cc-*`` 必须已定义、字重；
 · 多行 className、``cn()`` 拼接、模板字符串、``[&_svg]:size-4`` 这类变体前缀、注释不算；
-· 收紧范围（scripts/frontend-tokens-strict.txt，已完成清单）：格式、只在范围内失败、范围外只报数；
-· 现行 R1–R3 的 scan() 不受影响（tests/test_cc_ccs.py 的 TokenGateTests 原样保留）；对真实 src 跑：范围内 0 违例，CI 跑本文件。
+· 全仓失败（B8 起）：分批迁移用的收紧清单 scripts/frontend-tokens-strict.txt 已删，任何一个受检文件违例都失败，不按文件跳过；
+· 现行 R1–R3 的 scan() 不受影响（tests/test_cc_ccs.py 的 TokenGateTests 原样保留）；对真实 src 跑：0 违例，CI 跑本文件。
 """
 import importlib.util
 import pathlib
-import posixpath
 import subprocess
 import sys
 import tempfile
@@ -16,7 +15,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GATE = ROOT / "scripts/check-frontend-tokens.py"
-STRICT = ROOT / "scripts/frontend-tokens-strict.txt"
+STRICT = ROOT / "scripts/frontend-tokens-strict.txt"   # B8 删掉了，测试核对它不再出现
 SRC = ROOT / "frontend/assistant/src"
 
 
@@ -51,6 +50,7 @@ GLOBALS = """@import "tailwindcss";
   --cc-space-12: var(--code-gap-2);
   --cc-icon-sm: var(--code-icon-sm);
   --cc-z-menu: 60; /* 现有值·CC 自定 */
+  --cc-mirror: -1; /* 现有值·CC 自定 */
   --cc-dur: var(--code-dur-3);
   --cc-ease: var(--code-ease);
   --cc-thread-w: var(--code-thread-w);
@@ -76,8 +76,8 @@ GLOBALS = """@import "tailwindcss";
 
 
 class StrictCase(unittest.TestCase):
-    def scan(self, source, name="components/x.tsx", css=GLOBALS, strict=None):
-        """返回 [(规则, 片段)]；默认把被测文件放进收紧范围。"""
+    def scan(self, source, name="components/x.tsx", css=GLOBALS):
+        """返回被测文件的 [(规则, 片段)]。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             (root / "globals.css").write_text(css, encoding="utf-8")
@@ -85,9 +85,8 @@ class StrictCase(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             if name != "globals.css":
                 path.write_text(source, encoding="utf-8")
-            scope = [name] if strict is None else strict
-            hits = gate.scan_strict(str(root), scope)
-            return [(rule, snippet) for rel, _, rule, snippet, inside in hits if rel == name and inside]
+            hits = gate.scan_strict(str(root))
+            return [(rule, snippet) for rel, _, rule, snippet in hits if rel == name]
 
     def rules(self, source, **kw):
         return [rule for rule, _ in self.scan(source, **kw)]
@@ -169,6 +168,9 @@ class RuleTests(StrictCase):
             '<i className="active:scale-90" />': "R9",
             '<i className="-scale-x-100" />': "R9",
             '<i className="rotate-45" />': "R9",
+            '<i className="scale-x-90" />': "R9",
+            '<i className="rotate-y-45" />': "R9",
+            '<i className="skew-x-6" />': "R9",
             '<i className="ring-2" />': "R9",
             '<i className="outline-2" />': "R9",
             '<i className="border-t-2" />': "R9",
@@ -181,6 +183,8 @@ class RuleTests(StrictCase):
         })
         self.assertPasses([
             '<i className="opacity-0 opacity-100 border border-t ring-ink outline-none stroke-current line-clamp-none" />',
+            # 带轴的变换同样只用变量（B3 的「还原」图标；B8 前 R9 把轴当成值、误判）
+            '<i className="scale-x-(--cc-mirror) -scale-y-(--cc-mirror) rotate-y-(--cc-mirror) scale-(--cc-mirror)" />',
             'window.addEventListener("blur", stop);',
         ])
 
@@ -425,58 +429,40 @@ class GlobalsTests(StrictCase):
 
 
 class ScopeTests(StrictCase):
-    def test_new_rules_fail_only_inside_the_strict_list(self):
+    def test_new_rules_fail_in_every_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             (root / "globals.css").write_text(GLOBALS, encoding="utf-8")
-            (root / "components").mkdir()
+            (root / "components/ui").mkdir(parents=True)
             (root / "components/done.tsx").write_text('<i className="p-(--cc-space-8)" />', encoding="utf-8")
-            (root / "components/todo.tsx").write_text('<i className="p-3 z-50" />', encoding="utf-8")
-            listing = root / "strict.txt"
-            listing.write_text("# 说明\ncomponents/done.tsx\n", encoding="utf-8")
             run = lambda *extra: subprocess.run(  # noqa: E731
-                [sys.executable, str(GATE), "--root", str(root), "--strict-list", str(listing), *extra],
-                capture_output=True, text=True)
+                [sys.executable, str(GATE), "--root", str(root), *extra], capture_output=True, text=True)
             ok = run()
             self.assertEqual(ok.returncode, 0, ok.stdout)
-            self.assertIn("范围外 R4–R15：2 处 / 1 个文件", ok.stdout)
-            listing.write_text("components/done.tsx\ncomponents/todo.tsx\n", encoding="utf-8")
+            self.assertIn("R4–R15 全仓没有违例", ok.stdout)
+            # 任何一个受检文件（组件库、lib、深层目录都一样）有违例就失败，没有「范围外只报数」
+            (root / "components/ui/todo.tsx").write_text('<i className="p-3 z-50" />', encoding="utf-8")
             bad = run()
             self.assertEqual(bad.returncode, 1, bad.stdout)
-            self.assertIn("components/todo.tsx:1: [R5] p-3", bad.stdout)
-            self.assertIn("components/todo.tsx:1: [R7] z-50", bad.stdout)
+            self.assertIn("components/ui/todo.tsx:1: [R5] p-3", bad.stdout)
+            self.assertIn("components/ui/todo.tsx:1: [R7] z-50", bad.stdout)
+            self.assertIn("FAIL: 2 处 / 1 个文件 R4–R15 违例", bad.stdout)
+            self.assertNotIn("范围外", bad.stdout)
             report = run("--report")
-            self.assertIn("R5         1      0", report.stdout)
-            # 写法不规范、扩展名不受管、文件不存在的条目对不上任何受检文件：直接失败，不能悄悄跳过
-            for entry in ("./components/todo.tsx", "components//todo.tsx", "components/../components/todo.tsx",
-                          "components/Todo.tsx", "components/todo.md", "components/gone.tsx"):
-                listing.write_text(f"components/done.tsx\n{entry}\n", encoding="utf-8")
-                odd = run()
-                self.assertEqual(odd.returncode, 1, (entry, odd.stdout))
-                self.assertIn(f"收紧清单条目对不上任何受检文件：{entry}", odd.stdout)
-            # 清单文件删掉（B8）= 全仓收紧
-            listing.unlink()
-            self.assertIsNone(gate.strict_list(str(listing)))
-            self.assertEqual(run().returncode, 1)
+            self.assertIn("R5         1  间距", report.stdout)
+            self.assertIn("全仓", report.stdout)
+            # 清单参数已经没有了：不能靠传一份清单把文件挪到「范围外」
+            self.assertNotEqual(run("--strict-list", str(root / "x.txt")).returncode, 0)
 
-    def test_strict_list_is_a_sorted_completed_list(self):
-        self.assertTrue(STRICT.exists(), "B8 之前清单文件必须存在（B8 删掉后改成断言它不存在）")
-        entries = gate.strict_list(str(STRICT))
-        self.assertEqual(entries, sorted(entries))
-        self.assertEqual(len(entries), len(set(entries)))
-        checked = {rel for rel, _ in gate.checked_files(str(SRC))}
-        for entry in entries:
-            self.assertTrue((SRC / entry).is_file(), entry)
-            self.assertEqual(entry, posixpath.normpath(entry), entry)
-            self.assertTrue(entry.endswith(gate.EXTENSIONS), entry)
-            self.assertIn(entry, checked)
-        self.assertEqual(gate.unmatched_entries(str(SRC), entries), [])
-        text = STRICT.read_text(encoding="utf-8")
-        self.assertIn("已完成清单，不是豁免清单", text)
-        self.assertIn("B8 删掉本文件", text)
+    def test_the_completed_list_is_gone(self):
+        # 3.2：B8 删掉收紧清单（分批迁移时的「已完成清单」），新判据全仓失败；脚本里也不再有清单入口
+        self.assertFalse(STRICT.exists(), "B8 已删掉收紧清单，新判据全仓失败；不要再加回按文件放行的清单")
+        script = GATE.read_text(encoding="utf-8")
+        for name in ("frontend-tokens-strict.txt", "STRICT_LIST", "strict_list", "unmatched_entries", "--strict-list"):
+            self.assertNotIn(name, script.split('"""', 2)[2], name)
         # 不设忽略清单、不支持行内禁用
         self.assertNotIn("IGNORE", dir(gate))
-        self.assertNotIn("noqa", GATE.read_text(encoding="utf-8").split("def scan_strict", 1)[1])
+        self.assertNotIn("noqa", script.split("def scan_strict", 1)[1])
 
     def test_the_old_scan_still_only_judges_colors_radii_and_shadows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -485,10 +471,8 @@ class ScopeTests(StrictCase):
             (root / "x.tsx").write_text('<i className="p-3 z-50 text-[0.9em] rounded-md" />', encoding="utf-8")
             self.assertEqual(gate.scan(str(root)), [])
 
-    def test_the_real_frontend_has_no_violations_inside_the_strict_list(self):
-        entries = gate.strict_list(str(STRICT))
-        inside = [h for h in gate.scan_strict(str(SRC), entries) if h[4]]
-        self.assertEqual(inside, [])
+    def test_the_real_frontend_has_no_violations(self):
+        self.assertEqual(gate.scan_strict(str(SRC)), [])
         result = subprocess.run([sys.executable, str(GATE)], capture_output=True, text=True, cwd=ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

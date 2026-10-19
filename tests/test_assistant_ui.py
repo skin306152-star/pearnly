@@ -6655,10 +6655,10 @@ class Round5SmallFixesTests(unittest.TestCase):
                      ".cc-note-text:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-chip-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-title-company:focus-visible { box-shadow: var(--cc-shadow-focus); }",
-                     # 消息下面的「复制」、知识库表单的「取消」本来就有（Button 的 focus-visible:shadow-focus、.cc-btn）
+                     # 知识库表单的「取消」等文字按钮本来就有（.cc-btn）；组件库的 Button 已删（标准化 B8：迁完后没有调用方）
                      ".cc-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }"):
             self.assertIn(rule, css)
-        self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
+        self.assertFalse((SRC / "components/ui/button.tsx").exists())
         # 侧栏宽度拖把（分隔条）：键盘聚焦时那根线换成聚焦蓝、1px
         self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: var(--cc-ring-w); }", css)
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：

@@ -31,7 +31,7 @@
 | B7 对话区 | `pearnly/cc-std-b7`（基线 origin/main 81bcd88a，工作树 `.claude/worktrees/cc-std-b7`），提交见下面「B7 做了什么」；纯替换 d9cb99bd 对基线全矩阵 801 个场景 0 样式差、0 像素差（只有类名标签与删掉的隐藏空容器，9 个渐变带抖动经复拍判定），画面变化 V1 / V3 / V12 / V30–V36 与补进第 7 节的 V70 / V71 / V72 逐个比对只差预期的项（V13 在 B7 无可见变化）。比对报告 `~/pearnly-devtools/cc-std-b7/reports/`，前后图 `~/pearnly-devtools/cc-std-b7/visual/`。**推了任务分支、未合入 main、未部署；待测试窗口验收**（V30、V36 要用户手机 / 平板走） |
 | B4 弹窗与列表页 | `pearnly/cc-std-b4`（基线 origin/main 81bcd88a，工作树 `.claude/worktrees/cc-std-b4`），提交见下面「B4 做了什么」；纯替换两个提交合比基线全矩阵 955 张 **0 像素差**（样式差只有类名标签、转圈关键帧名等「值不同、画面相同」的五种，逐条见下），画面变化 V1 / V5 / V6 / V10 / V12 / V14 / V15 / V17 / V19 / V20 / V21 / V22 / V36 逐个比对只差预期的项（V3、V8 在 B4 无可见变化）；本地全闸门全过，分支已推、Development checks 通过。比对报告 `~/pearnly-devtools/cc-std-b4/reports/`，前后图 `~/pearnly-devtools/cc-std-b4/visual/`。**未合入 main、未部署；待测试窗口验收**（设置的手机点按区、平板竖屏的表单一列、手机卡片按钮转圈要用户手机 / 平板走） |
 | B3–B7 合入 | `pearnly/cc-std-b3b7`（基线 origin/main 81bcd88a）：B3、B5、B6、B7、B4 依次 `--no-ff` 合入，见下面「B3–B7 合入」；测试窗口 10-19 早在 CC 桌面版深浅色验收通过，快进合入 main；手机 / 平板 / 触屏与网页端待用户部署前走 |
-| B8 | 待开工 |
+| B8 收口 | `pearnly/cc-std-b8`（基线 origin/main 4277e95c，工作树 `.claude/worktrees/cc-std-b8`），提交见下面「B8 做了什么」：闸门 R9 带轴变换修正、删 Button 与两处再导出、删 tw-animate-css / tw-shimmer / class-variance-authority 与 globals.css 里没人用的旧名、删收紧清单改全仓失败、改 NOTICE 删 components.json。基线对终点全矩阵 1001 个场景 **0 样式差、0 像素差**（10 个光栅抖动前后各单独复拍 2 次判定）；本地全闸门 105 步全过，分支 Development checks 通过。比对报告 `~/pearnly-devtools/cc-std-b8/reports/`。**无画面变化；未合入 main、未部署** |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
@@ -635,6 +635,52 @@ V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-r
 - 合完范围外报数 3 处 / 1 个文件（`ui/button.tsx`，留 B8）。
 - 没验到、部署前请用户走：网页端深浅色；手机 / 平板 / 触屏各项（各批「给测试窗口的验收项」里标了手机的）；触屏 Windows 上用户消息的复制条。
 
+### B8 做了什么（10-19，`pearnly/cc-std-b8`）
+
+基线 `origin/main` **4277e95c**（B2–B7 都已在 main 并上线）；工作树 `.claude/worktrees/cc-std-b8`，自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`）。按 4.2「B8 收口」做，纯删除与写法收口，画面不变。
+
+| 提交 | 内容 | 类 |
+| :- | :- | :- |
+| 63903061 | 闸门 R9：`R9_FAMILIES` 里带轴的 `scale-[xyz] / rotate-[xyz] / skew-[xy]` 写在不带轴的前面，`scale-x-(--x)` / `rotate-y-(--x)` 不再把轴当成值误判（B3 记的）；测试补带轴的拦 / 放用例（修前那条用例确实失败） | 闸门 |
+| e271aba3 | CC 桌面版「还原」图标改回 `scale-x-(--cc-mirror)`（B3 临时写的 `[scale:var(--cc-mirror)_1]`） | 纯替换 |
+| bdb89934 | 删 `components/ui/button.tsx`：B4 / B6 / B7 迁完后全仓没有调用方（B2 第 1 条）；H27 手机点按区选择器去掉它的 `data-slot="button"`，只认 `.cc-btn` / `.cc-icon-btn` | 纯删除 |
+| bb5a808b | 删 `lib/hover-scroll.ts` 的 `cssMs`、`lib/company-panel.ts` 的 `cssPx` 两处再导出；`test_cc_session_panel.py`、`test_cc_ccs.py` 改从 `lib/css-var.ts` 导入，并断言两处已不再导出 | 纯删除 |
+| e5d07a4e | 依赖与 globals.css 的旧名（见下） | 纯删除 |
+| 0fff7494 | 删 `scripts/frontend-tokens-strict.txt`，R4–R15 全仓失败（见下） | 闸门 |
+| 59098ee0 | `components/NOTICE.md` 改写（保留 MIT 声明）；删 `frontend/assistant/components.json` | 文档 / 删除 |
+| （本记录） | 本记录 B8 小节与进度表；`ccs.md` 收口（`scripts/README.md` 的闸门一行随 0fff7494 改） | 文档 |
+
+**删了什么（e5d07a4e）**，都先 grep 与构建确认没人用，删后由测试守住：
+
+- 依赖：`tw-animate-css`（最后的进出场在 B2 / B3 / B4 换成 `.cc-overlay` / `.cc-pop`）、`tw-shimmer`（从没用过），以及 **`class-variance-authority`**——记录没列，它只给删掉的 Button 用，Button 删了它就成了孤儿依赖，一并删（`npm uninstall`，锁文件只少这三个包，`tailwindcss` 重新标回 dev）。`globals.css` 删 `@import "tw-animate-css"`。
+- `@theme` 与 `:root, .dark` 里组件改名后没人用的 shadcn 别名 16 个：`card / popover / primary / secondary`（各带 `-foreground`）、`input`、`accent-foreground`、`sidebar-primary / -accent / -border / -ring`（带 `-foreground` 的一并）；留下的 `background / foreground / muted / muted-foreground / accent / destructive / border / ring / sidebar / sidebar-foreground` 都还有组件类或 `@apply` 在用。
+- `@theme` 的 `--text-xs / sm / base`（V1 迁完后组件里一处都没有）与 `--text-4xl`（与 3xl 同值，B3 删掉了唯一的 `md:text-4xl`）：不删的话闸门 R6 照样放行 `text-sm`，1.2 表「不允许」的这几档就拦不住。
+- `--cc-control-nested`（B2–B7 都没人用），`AWAITING` 表随之为空并删掉，测试改成「每个 `--cc-*` 都有人用」。
+- 减少动效例外里的 `.animate-spin`（转圈都是 `.cc-spinner`；`:not()` 的权重由 `.cc-spin i` 决定，不变）。
+- **构建核对**：清理前后两份构建的 CSS 逐条规则比，只少了上面这些名字的定义、tw-animate 的 `@property --tw-enter-* / --tw-exit-*` 等、Button 独有的工具类（`transition-all`、`disabled:opacity-50`、`has-[>svg]:px-2.5` …）和 tw-animate 带来的 `.running / .paused`、Button 文本带出的 `.outline`（组件里没有元素用这几个类），H27 两条换成新选择器，再没有别的变化（脚本 `~/pearnly-devtools/cc-std-b8/tools/css-rules.py`）。
+- 新测试（`test_cc_ccs.py`）：`test_shadcn_aliases_left_are_all_in_use`（留下的每个别名都有人用、`:root` 里的都有 `@theme` 接，删掉的不再出现）、`test_dependencies_left_by_the_migration_are_gone`（三个依赖不在 package.json 与锁文件、globals.css 不再引用、没有 `animate-spin`）、`test_tailwind_utilities_resolve_to_ccs` 补「xs / sm / base / 4xl 不在 `@theme`、组件里不用」。反例核对过：往 `@theme` 加回一个没人用的别名，测试当场失败。
+
+**闸门全仓失败（0fff7494）**：`check-frontend-tokens.py` 去掉 `STRICT_LIST`、`strict_list()`、`unmatched_entries()`、`--strict-list` 与报数里的「范围内 / 范围外」两栏，`scan_strict(src)` 只返回 `(路径, 行号, 规则, 片段)`，R4–R15 任何一个受检文件有违例就退出码 1；`--report` 改成按规则、按文件的全仓报数。`test_cc_frontend_gate.py` 的收紧范围测试改成：违例在哪个文件都失败、不再有「范围外」、传 `--strict-list` 报错；清单文件不存在、脚本里没有清单入口、仍没有 `IGNORE` 与行内禁用；对真实 `src` 全仓 0 违例。合入前范围外是 3 处（都在 `ui/button.tsx`），删掉后全仓 0 处。
+
+**与方案不同、按依据定的几处**：
+
+1. **Button 直接删，不按标准改**：全仓没有任何调用方（`grep` 只剩 globals.css 的一句注释与测试），按 B2 第 1 条纯删除；测试里读 button.tsx 的三处改成断言它已删、没有文件再导入它。
+2. **H27 选择器去掉 `data-slot="button"`**：没有元素再带这个属性（比对的覆盖检查：「前」那一遍也没渲染到）。第二条从 `:is([data-slot][data-size^="icon"], .cc-icon-btn)` 改成 `.cc-icon-btn` 后权重低了一档，核对过 globals.css 里没有夹在中间、会改写弹窗里图标钮 `min-width` 的规则，全矩阵 0 差。
+3. 记录没列的另删了 `class-variance-authority` 与 shadcn 别名、`text-xs / sm / base`（上面「删了什么」）：都是本批删掉 Button 或前面各批改名后剩下的没人用的旧名，属于 4.2「删掉组件改名后已无人引用的旧变量名」。Claude 自己的 `@theme` 颜色名（`brand-*`、`hover`、`overlay` 等）里有几个组件暂时没用，它们是标准层可用的名字、不是旧名，不删。
+4. 设置弹窗外层（`.cc-modal`）没有改成 `.cc-dialog`（B4 记的「B8 如要合并再看」）：它是整窗两栏、尺寸自定，合并会动布局，不是纯删除，不做。
+5. 选做的「重复工具类组合报警」不做（开发窗口定）。
+
+**比对**（`scripts/cc-visual/`，全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、1001 张，本机只有本批在跑，7 条跑道，每遍约 28 分钟；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b8/dist-<名>`，截图 `…/shots/<名>`，报告 `…/reports/<名>/report.md`）：
+
+| 比的两遍 | 结果 | 说明 |
+| :- | :- | :- |
+| 基线 4277e95c → 终点 59098ee0（`reports/base-vs-after`） | **0 样式差、0 像素差** | 报告列出 10 个「只差像素、样式 0 差」的场景，工具复拍判为光栅抖动（窄屏 / 平板长对话输入框那条渐变 7 个，平板 `width-wide`、`text-small`、泰文欢迎页各 1 个）。照 B2 的办法另把这 10 个场景前、后各单独复拍 2 次（`shots/re-base-1 / -2`、`re-after-1 / -2`，`reports/recheck-1 / -2`）：样式 0 差，每个场景前、后都拍出一模一样的图（md5 一致的一对），出现的另一种图在前、后两边都有，判为抖动。`web-coarse` 的 `tooltip-copy` 两边都是「动作没做完」（触屏网页顶栏盖住代码块「复制」，基线就这样），不是本批引入。覆盖检查：改到的 7 个类 / data-slot 渲染到 6 个，没渲染到的是删掉的 `data-slot="button"`（「前」那一遍同样没有，证实没人用） |
+| 「还原」图标（场景外：CC 桌面版窗口最大化） | 0 差 | 合成节点核对（`tools/synth-check.mjs`，两份构建的 CSS 各放进空白页，桌面版 / 网页 / 手机 × 深浅）：计算出的 `scale` 都是 `-1 1`、外框一致；反例（去掉镜像类）能核出差异 |
+
+**闸门报数**：范围外 3 处 / 1 个文件 → **全仓 0 处**（清单删掉，不再分范围内外）。本地全闸门（`~/pearnly-devtools/gate.sh`，照 development.yml）105 步全过；`check-architecture.py` 0 违例；`check-copy.py --report` 新增 / 改动 / 删除文案都是 0。
+
+**还缺什么**：合入 main（本次只推了任务分支，按「主线集成」由开发窗口变基、快进合入）；部署随下一批。B8 无画面变化，测试窗口只需回归：设置弹窗里的按钮手机点按区仍是 44（H27）、减少动效时按钮里的转圈照常转、CC 桌面版最大化后「还原」图标仍是两个方框、前面那个在左下。
+
 ## 0. 结论
 
 1. **标准只有一个来源：`globals.css`**。`ccs.md` 只写规则和变量名，不抄数值。组件 className 只写布局，外加变量写法（`p-(--cc-space-12)`、`size-(--cc-icon-sm)`）。同一组外观出现两处以上，就收成一个 `cc-*` 类。
@@ -1140,6 +1186,7 @@ V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-r
   - `components.json`：只给 shadcn 命令用、构建不读，删前 grep 确认没有脚本引用，然后删除。
 - 选做：加一项检查，长度 5 个以上的受管工具类组合在两处以上一字不差出现时报警。
 - 画面变化：无。机器时间约 0.5 小时。
+- 实际（见「B8 做了什么」）：另删了只给 Button 用的 `class-variance-authority`、没人用的 shadcn 别名与 `text-xs / sm / base / 4xl`；全矩阵 2 遍 + 抖动场景复拍 4 遍，约 1.2 小时（7 条跑道）。
 
 ## 5. 验证
 

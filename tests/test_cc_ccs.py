@@ -453,10 +453,10 @@ g.done();
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
-        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条）：
+        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条），
+        # B8 删了 Button（B4 / B6 / B7 把设置页、会话行「···」、「复制」换成 cc-* 类后没有调用方）：
         # 留下的侧栏只有容器，自己没有可聚焦的控件（侧栏里的按钮都是 cc-* 类，聚焦见 globals.css）
-        for rel in ("input", "sheet", "avatar", "separator"):
+        for rel in ("input", "sheet", "avatar", "separator", "button"):
             self.assertFalse((SRC / f"components/ui/{rel}.tsx").exists(), rel)
         self.assertNotIn("focus-visible:", read("components/ui/sidebar.tsx"))
         # 弹窗默认的 × 第 11 轮起是图标按钮（.cc-icon-btn 的聚焦就是 --cc-shadow-focus）
@@ -556,9 +556,48 @@ g.done();
     def test_tailwind_utilities_resolve_to_ccs(self):
         theme = self.css.split("@theme inline {", 1)[1].split("\n}", 1)[0]
         for line in ("--default-border-width: var(--cc-hairline);", "--shadow-sm: var(--cc-shadow-sm);",
-                     "--radius-md: var(--cc-radius-md);", "--text-sm: var(--ccs-text-sm-size);",
-                     "--text-sm--line-height: var(--ccs-text-sm-line-height);", "--color-warning: var(--cc-warning);"):
+                     "--radius-md: var(--cc-radius-md);", "--text-lg: var(--ccs-text-lg-size);",
+                     "--text-lg--line-height: var(--ccs-text-lg-line-height);", "--color-warning: var(--cc-warning);"):
             self.assertIn(line, theme)
+        # B8：text-xs / sm / base 在 V1 迁完后退出组件、4xl 与 3xl 同值，都从 @theme 删掉（闸门 R6 只放行这里接过的名字，删了才拦得住）
+        for size in ("xs", "sm", "base", "4xl"):
+            self.assertNotIn(f"--text-{size}:", theme)
+            for path in sorted(SRC.rglob("*.ts*")):
+                self.assertNotRegex(path.read_text(encoding="utf-8"), rf"(?<![\w-])text-{size}(?![\w-])", path)
+
+    def test_shadcn_aliases_left_are_all_in_use(self):
+        # B8 删掉了组件改名后没人用的 shadcn 别名（card、popover、primary、secondary、input、accent-foreground、sidebar-primary …）。
+        # 留下的每一个：@theme 的 --color-<名> 有组件或 globals.css 的 @apply 在用，:root / .dark 里的 --<名> 有 @theme 接
+        theme = theme_block(self.css)
+        aliases = dict(re.findall(r"^  --color-([\w-]+): var\(--(?!cc-)([\w-]+)\);$", theme, re.M))
+        self.assertTrue(aliases)
+        components = "\n".join(p.read_text(encoding="utf-8") for p in sorted(SRC.rglob("*.ts*")))
+        applied = " ".join(re.findall(r"@apply ([^;]+);", self.css))
+        for name in aliases:
+            pattern = rf"(?<![\w-])(?:[\w-]+-)?{re.escape(name)}(?:/\d+)?(?![\w-])"
+            utility = rf"(?:^|[\s\"'`:])(?:bg|text|border|ring|outline|fill|stroke|divide|placeholder|marker:text)-{re.escape(name)}(?:/\d+)?(?![\w-])"
+            self.assertTrue(re.search(utility, components) or re.search(pattern, applied), f"--color-{name} 没人用：删掉")
+        block = self.css.split(":root, .dark {", 1)[1].split("\n}", 1)[0]
+        for name in re.findall(r"^  --([\w-]+):", block, re.M):
+            self.assertIn(name, aliases.values(), f"--{name} 没有 @theme 接，没人用：删掉")
+        for gone in ("card", "popover", "primary", "secondary", "input", "accent-foreground", "sidebar-primary", "sidebar-accent",
+                     "sidebar-border", "sidebar-ring"):
+            self.assertNotIn(gone, aliases)
+
+    def test_dependencies_left_by_the_migration_are_gone(self):
+        # B8：tw-animate-css（遮罩、弹层、提示框进出场已换 .cc-overlay / .cc-pop）、tw-shimmer（从没用过）、
+        # class-variance-authority（只有删掉的 Button 用）不再是依赖；减少动效的例外不再认 Tailwind 的 animate-spin（转圈都是 .cc-spinner）
+        package = json.loads((ROOT / "frontend/assistant/package.json").read_text(encoding="utf-8"))
+        lock = json.loads((ROOT / "frontend/assistant/package-lock.json").read_text(encoding="utf-8"))
+        for dep in ("tw-animate-css", "tw-shimmer", "class-variance-authority"):
+            self.assertNotIn(dep, package["dependencies"])
+            self.assertNotIn(dep, lock["packages"][""]["dependencies"])
+            self.assertNotIn(f"node_modules/{dep}", lock["packages"])
+            self.assertNotIn(dep, self.css)
+        self.assertIn(':root[data-cc-motion="reduce"] *:not(.cc-spinner, .cc-spin i),', self.css)
+        self.assertNotIn("animate-spin", re.sub(r"/\*.*?\*/", "", self.css, flags=re.S))
+        for path in sorted(SRC.rglob("*.ts*")):
+            self.assertNotRegex(path.read_text(encoding="utf-8"), r"(?<![\w-])animate-spin(?![\w-])", path)
 
 
 def theme_block(css):
@@ -701,13 +740,8 @@ const front = process.argv[2];
             self.assertEqual(code[target], name.rsplit("-", 1)[1] + "px", name)
 
 
-# 2.4 第 6 条「每个 --cc-* 至少被引用一次」：B1 一次登记了后面各批组件迁移要用的用途变量（globals.css 只在 B1 补、B8 只删），
-# 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
-# 这不是豁免：表外的 --cc-* 没人引用就失败。
-AWAITING = {
-    # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
-    "--cc-control-nested": "B2–B7",
-}
+# 2.4 第 6 条「每个 --cc-* 至少被引用一次」：B1 一次登记了后面各批组件迁移要用的用途变量，B2–B7 接上一个就从待接表（AWAITING）里删一个；
+# B8 收口时表已清空并删掉（最后没人用的 --cc-control-nested 一并删了）。之后新登记的 --cc-* 当批就要有人用，没人引用就失败。
 
 
 def cc_references():
@@ -723,15 +757,11 @@ def cc_references():
 
 
 class TokenUseTests(unittest.TestCase):
-    def test_every_cc_token_is_used_or_waits_for_a_named_batch(self):
+    def test_every_cc_token_is_used(self):
         defined, names, prefixes = cc_references()
         used = lambda name: name in names or any(name.startswith(p) for p in prefixes)
-        unused = sorted(n for n in defined if not used(n) and n not in AWAITING)
-        self.assertEqual(unused, [], "定义了却没人引用：删掉，或写明由哪一批接上")
-        for name, batch in AWAITING.items():
-            self.assertIn(name, defined, name)
-            self.assertFalse(used(name), f"{name} 已经接上（{batch}），从 AWAITING 里删掉")
-            self.assertRegex(batch, r"^B[2-7]")
+        unused = sorted(n for n in defined if not used(n))
+        self.assertEqual(unused, [], "定义了却没人引用：删掉")
 
 
 class TokenGateTests(unittest.TestCase):
@@ -862,7 +892,7 @@ class ComponentLibraryTests(unittest.TestCase):
     def test_only_the_parts_in_use_are_left(self):
         ui = SRC / "components/ui"
         self.assertEqual(sorted(p.name for p in ui.glob("*.tsx")),
-                         ["button.tsx", "dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
+                         ["dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
         exports = lambda rel: sorted(re.findall(r"^  (\w+),$", self.read(rel).split("\nexport {\n", 1)[1].split("};", 1)[0], re.M))
         self.assertEqual(exports("components/ui/sidebar.tsx"),
                          ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
@@ -875,11 +905,10 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertIn('"cc-overlay z-(--cc-z-sheet)"', dialog)
         self.assertIn('"cc-pop bg-background cc-modal fixed', dialog)
         self.assertNotRegex(dialog, r"animate-(?:in|out)\b|\b(?:fade|zoom)-(?:in|out)|duration-\d")
-        button = self.read("components/ui/button.tsx")
-        variants = button.split("variant: {", 1)[1].split("},", 1)[0]
-        sizes = button.split("size: {", 1)[1].split("},", 1)[0]
-        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", variants, re.M), ["outline", "ghost"])
-        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", sizes, re.M), ["default", "sm", "icon", "icon-sm"])
+        # 组件库的 Button 在 B8 整个删掉（B2 只删了没人用的档位，在用的几处随调用方所在批次换成 cc-* 类）
+        self.assertFalse((SRC / "components/ui/button.tsx").exists())
+        for path in sorted(SRC.rglob("*.ts*")):
+            self.assertNotIn("@/components/ui/button", path.read_text(encoding="utf-8"), path)
         # 侧栏没有随机宽度的骨架（比对工具要稳定），也没有手机分支（手机是 mobile-shell 的抽屉）
         sidebar = self.read("components/ui/sidebar.tsx")
         self.assertNotIn("Math.random", sidebar)
@@ -908,12 +937,12 @@ class ComponentLibraryTests(unittest.TestCase):
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import { cssMs, cssPx, cssVar, fixedMs, fixedPx } from "@/lib/css-var";
-import { cssMs as hoverMs } from "@/lib/hover-scroll";
-import { cssPx as panelPx } from "@/lib/company-panel";
+import * as hoverScroll from "@/lib/hover-scroll";
+import * as companyPanel from "@/lib/company-panel";
 const g = globalThis as any;
-// 三份解析合成一份：原来的导入处拿到的是同一个函数
-assert.equal(hoverMs, cssMs);
-assert.equal(panelPx, cssPx);
+// 三份解析合成一份：只从 lib/css-var.ts 导出，原来的两处再导出 B8 删掉了
+assert.equal("cssMs" in hoverScroll, false);
+assert.equal("cssPx" in companyPanel, false);
 assert.equal(cssMs("150ms", 0), 150);
 assert.equal(cssMs(" 0.3s", 0), 300);
 assert.equal(cssMs("", 7), 7);
@@ -1413,8 +1442,9 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertNotIn("<Button", settings)
         self.assertNotIn("@/components/ui/button", settings)
         self.assertEqual(settings.count('className="cc-btn"'), 11)
-        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"], .cc-btn) { min-height: var(--cc-tap); }', self.css)
-        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"][data-size^="icon"], .cc-icon-btn) { min-width: var(--cc-tap); }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-modal .cc-btn { min-height: var(--cc-tap); }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-modal .cc-icon-btn { min-width: var(--cc-tap); }', self.css)
+        self.assertNotIn('data-slot="button"', self.css)   # 组件库 Button 已删（B8），选择器只认 cc-* 类
 
     def test_error_boxes_are_cc_alert(self):
         # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份

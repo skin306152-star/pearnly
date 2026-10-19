@@ -366,7 +366,7 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
         <MinusIcon />
       </button>
       <button type="button" className="cc-winbtn" onClick={toggle} aria-label={t(maximized ? "restore" : "maximize")} title={t(maximized ? "restore" : "maximize")}>
-        {maximized ? <CopyIcon className="size-(--cc-icon-xs) [scale:var(--cc-mirror)_1]" /> : <SquareIcon className="size-(--cc-icon-xs)" />}
+        {maximized ? <CopyIcon className="size-(--cc-icon-xs) scale-x-(--cc-mirror)" /> : <SquareIcon className="size-(--cc-icon-xs)" />}
       </button>
       <button type="button" className="cc-winbtn" data-close="" onClick={() => void windowAction("close")} aria-label={t("closeWindow")} title={t("closeWindow")}>
         <XIcon />
