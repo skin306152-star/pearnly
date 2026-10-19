@@ -263,6 +263,26 @@ def parse_head_branch(page: str) -> str:
     return _text(value.group(1)) if value else ""
 
 
+_COMPANY_TAX = re.compile(r"<input\b[^>]*\bid=[\"']txttaxid[\"'][^>]*>", re.IGNORECASE)
+
+
+def head_branch_id(rows: Any, head: str) -> str:
+    """本公司分店列表（`fabillrev` 接口的 `txtothcombrh`，`[id, 代码, 名称]`）里总店那一行的 id：按总店代码找；
+    读不到总店代码时只有一行就用它；找不到是空串。"""
+    rows = [r for r in rows or [] if isinstance(r, list) and len(r) > 1 and str(r[0]).strip().isdigit()]
+    head = str(head or "").strip()
+    found = [r for r in rows if str(r[1]).strip() == head] if head else rows
+    return str(found[0][0]).strip() if len(found) == 1 else ""
+
+
+def parse_company_tax(page: str) -> str:
+    """本公司分店档案的查看页（`combrh/allform.php?id=…&status=vie`，`tbl_othcombrh.taxid`）登记的税号 → 只留数字；
+    页上没有是空串。是不是有效税号由调用方判（MR.ERP 样板库填的是 ``8-888-888-88888-8``）。"""
+    match = _COMPANY_TAX.search(page or "")
+    value = _VALUE.search(match.group(0)) if match else None
+    return re.sub(r"\D", "", _html.unescape(value.group(1))) if value else ""
+
+
 # ── 按账套记住所选 ─────────────────────────────────────────────────────────
 
 
@@ -354,7 +374,8 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
 
 
 __all__ = ["ACCOUNT_FIELDS", "CHANGED", "CHOICE_REQUIRED", "FIELDS", "FIELDS_FOR_DIRECTION", "REFERENCE",
-           "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "parse_head_branch", "rule_default", "suggest",
+           "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "head_branch_id", "parse_company_tax", "parse_head_branch",
+           "rule_default", "suggest",
            "UNREADABLE", "choices", "choose", "chosen_map", "customer_defaults", "known_codes", "masters",
            "observe", "observed_for", "options", "parse_listbox", "parse_prefixes", "parse_reference", "prefix_for",
            "resolve", "resolve_field", "view"]

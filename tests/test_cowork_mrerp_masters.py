@@ -123,6 +123,22 @@ class Resolve(unittest.TestCase):
         self.assertEqual(rules.parse_head_branch(page), "00001")
         self.assertEqual(rules.parse_head_branch("<html></html>"), "")
 
+    def test_the_company_tax_id_comes_from_the_head_branch_record(self):
+        # `combrh/allform.php?id=…&status=vie`：本公司分店档案（tbl_othcombrh.taxid），MR.ERP 打印税票表头用的同一个值
+        page = ('<label>เลขประจำตัวผู้เสียภาษี</label><input type="text" name="txttaxid" id="txttaxid" size="25" '
+                'maxlength="40" value="0-1055-51234-56-7">')
+        self.assertEqual(rules.parse_company_tax(page), "0105551234567")
+        self.assertEqual(rules.parse_company_tax('<input id="txttaxid" name="txttaxid" value="">'), "")
+        self.assertEqual(rules.parse_company_tax("<html></html>"), "")
+        # 总店那一行：按总店代码认；读不到总店代码时只有一行才用它
+        branches = [[1, "00000", "สำนักงานใหญ่"], [2, "00002", "สาขา 02"]]
+        self.assertEqual(rules.head_branch_id(branches, "00000"), "1")
+        self.assertEqual(rules.head_branch_id(branches, "00002"), "2")
+        self.assertEqual(rules.head_branch_id(branches, ""), "")
+        self.assertEqual(rules.head_branch_id(branches[:1], ""), "1")
+        self.assertEqual(rules.head_branch_id(branches, "00009"), "")
+        self.assertEqual(rules.head_branch_id(None, "00000"), "")
+
     def test_a_failed_read_keeps_what_was_seen_before(self):
         observed = rules.observe(None, "15:1", rules.masters([FABILLREV]), at="t1")
         observed = rules.observe(observed, "15:1", None, at="t2", error="ERR_AUTH")

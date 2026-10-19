@@ -103,7 +103,7 @@ class FakeMrErp:
 
     def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False,
                  menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None,
-                 lists=None, records=None, head="00000"):
+                 lists=None, records=None, head="00000", company_tax=""):
         self.password, self.importpc, self.notes = password, importpc, notes
         self.upload_error, self.importpc_raises = upload_error, importpc_raises
         self.menus = dict(MENUS, **(menus or {}))
@@ -115,6 +115,7 @@ class FakeMrErp:
         self.lists = {k: v for k, v in {**LISTS, **(lists or {})}.items() if v is not None}
         self.files = []
         self.records, self.head = dict(records or {}), head  # {(模块, id): dupdata 回应}；总店分店
+        self.company_tax, self.company_reads = company_tax, []  # 本公司分店档案登记的税号；读过哪几个分店 id
 
     def __call__(self, session, method, url, **kwargs):
         path = url.replace(BASE, "").split("?")[0]
@@ -165,6 +166,10 @@ class FakeMrErp:
             return response(url, PREFIXES)
         if path == "/artran/allform.php":
             return response(url, f'<input type="text" name="txtothcombrh" id="txtothcombrh" value="{self.head}" readonly>')
+        if path == "/combrh/allform.php":
+            self.company_reads.append(query)
+            return response(url, '<label>เลขประจำตัวผู้เสียภาษี</label><input type="text" name="txttaxid" '
+                                 f'id="txttaxid" size="25" maxlength="40" value="{self.company_tax}">')
         if path.endswith("/component/dupdata.php"):
             import json
             return response(url, json.dumps(self.records.get((module, kwargs["data"]["hiddupdata"]), [])))
@@ -337,6 +342,27 @@ class Import(unittest.TestCase):
     def test_upload_rejection_happens_before_the_import_is_sent(self):
         with self.assertRaises(MRERPBusinessError):
             push(FakeMrErp(upload_error="รูปแบบไฟล์ไม่ถูกต้อง"), [purchase()])
+
+    def test_bookkeeping_for_a_client_goes_by_the_companys_own_tax_id(self):
+        # T2（2026-10-19）：事务所的工作空间税号不是票上的买卖方；按这家公司在 MR.ERP 登记的税号（总店分店档案）判出进项，
+        # 匹配闸也认它。以前判不出 → 默认赊销模块 → 匹配闸拦成 ERR_ACCOUNT_SET_MISMATCH。
+        firm, client = "0107536000188", "0105551234567"  # 事务所工作空间 / 客户公司（校验位都对）
+        bill = flat("t2", None, seller_name="บริษัท ผู้ขาย จำกัด", seller_tax=SUPPLIER, buyer_name="บริษัท ลูกค้า จำกัด",
+                    buyer_tax=client)
+        site = FakeMrErp(company_tax="0-1055-51234-56-7")
+        _, result = push(site, [bill], {"_own_tax_id": firm})
+        self.assertEqual(site.company_reads, ["id=1&status=vie"])  # 总店 00000 是分店列表里 id 1 那一行
+        self.assertEqual((len(result.success), result.failed), (1, []))
+        self.assertEqual([module for module, _ in site.uploads if module.startswith("imp")][-1:], ["impaptran"])
+        # 这家公司没登记税号：照旧只按工作空间税号，拦下
+        site = FakeMrErp()
+        _, result = push(site, [bill], {"_own_tax_id": firm})
+        self.assertEqual(result.failed[0].reasons, [routing.ACCOUNT_SET_MISMATCH_CODE])
+
+    def test_the_company_tax_id_is_not_read_when_every_document_declares_its_direction(self):
+        site = FakeMrErp(company_tax="0-1055-51234-56-7")
+        push(site, [purchase()])
+        self.assertEqual(site.company_reads, [])
 
     def test_another_companys_invoice_never_reaches_the_import(self):
         # 票面声明的方向优先于税号锚点（旧版同）：这道闸只在方向没声明时起作用。

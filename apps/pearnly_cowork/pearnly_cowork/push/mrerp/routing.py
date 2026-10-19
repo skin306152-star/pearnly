@@ -5,12 +5,15 @@
 
 复用 Express 侧确定性方向判定(services/erp/express_push/direction · 税号锚点 · 不靠 LLM):
 套账主体税号 == 卖方 → 销项;== 买方 → 采购;两边都对不上/都命中 → ambiguous(None,留人工)。
+有意变化(2026-10-19,同 Express 2b825a00):工作空间税号判不出时再按推往的这家 MR.ERP 公司自己登记的税号判
+(`contracts.push.resolve_account_direction`;事务所替客户记账时工作空间税号不是票上的买卖方),匹配闸两个税号都认。
 方向再按付款状态细分成具体导入模块(见 modules.MODULES):
   销项:已付/现金 → sales_cash;否则 → sales_credit
   采购:judge_direction(services/purchase/intake · 与 Pearnly 自身单据同口径)判 expense →
        purchase_expense(费用档);判 purchase_invoice → purchase(货品)。各推这家公司的哪个菜单见 targets/mrerp_menus
 
-只做纯映射;own_tax_id 由调用方从套账主体解析后传入。doc_type=None 时调用方不自动推(留人工)。
+只做纯映射;own_tax_id(工作空间税号)与 account_tax_id(这家公司在 MR.ERP 登记的税号,`account_tax` 核过校验位)
+由调用方传入。doc_type=None 时调用方不自动推(留人工)。
 """
 
 from __future__ import annotations
@@ -21,7 +24,8 @@ from typing import Any, Dict, List, Optional
 
 from datetime import date
 
-from pearnly_cowork.contracts.push import clean_tax_id, resolve_direction
+from pearnly_core.tax_documents.amounts import valid_tax_id
+from pearnly_cowork.contracts.push import clean_tax_id, resolve_account_direction
 from pearnly_cowork.push.express.doc_sanity import check_document
 from pearnly_cowork.push.express.field_rules import item_verdict
 from pearnly_cowork.push.express.payment import payment_verdict_for
@@ -37,19 +41,28 @@ def _fields(flat: Dict[str, Any]) -> Dict[str, Any]:
     return f if isinstance(f, dict) else {}
 
 
+def account_tax(raw: Any) -> str:
+    """这家公司在 MR.ERP 登记的税号 → 能当方向与匹配闸锚点的 13 位有效税号;读不到、不是有效税号
+    (MR.ERP 样板库填的 8-888-888-88888-8、分店填的 1)→ 空串,只按工作空间税号判。"""
+    tax = clean_tax_id(raw)
+    return tax if tax and valid_tax_id(tax) else ""
+
+
 def choose_doc_type(
     flat: Dict[str, Any],
     history: Dict[str, Any],
     *,
     own_tax_id: Any,
+    account_tax_id: Any = None,
     mappings: Optional[Dict[str, Any]] = None,
     today: date,
 ) -> Optional[str]:
     """套账主体税号 × 票面买卖方 → sales_credit / sales_cash / purchase(_expense) / None。
 
+    方向:明确声明的优先,其次工作空间税号,再其次这家公司在 MR.ERP 登记的税号(`resolve_account_direction`)。
     mappings 可选(_bank_index · F6 银行佐证喂进销项 payment_verdict);未传 = 旧调用点零改动。
     """
-    direction = resolve_direction(flat, history, own_tax_id=own_tax_id)
+    direction = resolve_account_direction(flat, history, own_tax_id=own_tax_id, account_tax_id=account_tax_id)
     fields = _fields(flat)
 
     if direction == "sales":
@@ -140,11 +153,12 @@ def route_and_upload(adapter, histories: List[Dict[str, Any]], mappings: Dict[st
         return ImportResult(total=0)
     total = len(histories)
     own = mappings.get("_own_tax_id") if isinstance(mappings, dict) else None
+    account = mappings.get("_account_tax_id") if isinstance(mappings, dict) else None
     default_doc = adapter.module.doc_type
     sanity_failed: List[FailedRow] = []
     groups: Dict[str, List[Dict[str, Any]]] = {}  # dict 保序 → 无需单独 order 列表
     for h in histories:
-        chosen = choose_doc_type(h, h, own_tax_id=own, mappings=mappings, today=today)
+        chosen = choose_doc_type(h, h, own_tax_id=own, account_tax_id=account, mappings=mappings, today=today)
         if chosen in _PURCHASE_DOC_TYPES or chosen == "sales_cash":
             # 采购(货品)、采购费用、现金销售分别切到各自模块(菜单在导入时按账套所选定)。
             # 有意差异：旧版这里只切采购，销项一律默认赊销（除散客）——用户在入口选的「现金」
@@ -212,23 +226,25 @@ ACCOUNT_SET_MISMATCH_CODE = "ERR_ACCOUNT_SET_MISMATCH"
 
 
 def confirmed_account_set_mismatch(
-    flat: Dict[str, Any], history: Dict[str, Any], *, own_tax_id: Any, expected_direction: str
+    flat: Dict[str, Any], history: Dict[str, Any], *, own_tax_id: Any, expected_direction: str,
+    account_tax_id: Any = None,
 ) -> bool:
     """能【确认】这张票不属于本套账吗?防"把别家的票推错套账"的安全闸。
 
     只在【确认不符】时返 True(挡下),读不到税号=无法确认→False(不挡·交上游已判的方向)。
     确认不符 = ① 方向刚好相反(如采购票走销项)· 或 ② 票面读到了买卖方税号但都不是套账主体。
-    own_tax_id 空(套账税号未解析)→ 无锚点无法判 → False(不挡)。
+    套账主体认两个税号:工作空间税号 own_tax_id、这家公司在 MR.ERP 登记的税号 account_tax_id(方向判定同
+    `choose_doc_type`;事务所替客户记账时票上是客户公司的税号)。两个都空 → 无锚点无法判 → False(不挡)。
     """
-    if not own_tax_id:
+    anchors = [t for t in (clean_tax_id(own_tax_id), clean_tax_id(account_tax_id)) if t]
+    if not anchors:
         return False
-    direction = resolve_direction(flat, history, own_tax_id=own_tax_id)
+    direction = resolve_account_direction(flat, history, own_tax_id=own_tax_id, account_tax_id=account_tax_id)
     if direction == expected_direction:
         return False  # 确认属于本套账
     if direction:
         return True  # 方向相反(采购票走销项等)→ 确认不符
     # direction=None(ambiguous):仅当票面确实读到买卖方税号、却都不是套账主体,才算确认别家的票
-    own = clean_tax_id(own_tax_id)
     fields = _fields(flat)
     read = [
         t
@@ -238,4 +254,4 @@ def confirmed_account_set_mismatch(
         )
         if t
     ]
-    return bool(read) and own not in read
+    return bool(read) and not any(anchor in read for anchor in anchors)

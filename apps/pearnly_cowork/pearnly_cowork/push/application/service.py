@@ -716,6 +716,8 @@ def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_re
     mappings = deepcopy(connections.mrerp_mappings(loaded))
     if own_tax:
         mappings["_own_tax_id"] = own_tax  # 匹配闸锚点：确认是别家的票就挡下，不推错账套
+    # 推往的这家公司自己的税号目录里没有（MR.ERP 选公司页不带税号）：执行时在 MR.ERP 会话里读它登记的税号，
+    # 作第二个锚点判方向、过匹配闸（`push.mrerp.transport.upload_routed_batch`，同 Express 按账套税号判）。
     # 这份账套各类单据选过的 MR.ERP 菜单（选一次记住，用户 2026-09-28）；推送时按导入页核对，失效就停下。
     mappings["_mrerp_menus"] = connections.mrerp_chosen_menus(loaded, target.account_set)
     # 主档默认值（部门 / 员工 / 科目等，选一次记住，用户 2026-10-08）；推送时按这次读到的主档核对，失效就停下。

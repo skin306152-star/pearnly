@@ -380,5 +380,102 @@ class FrozenTarget(unittest.TestCase):
         self.assertEqual(reserved["frozen_payload"], {"doctype": "RR"})
 
 
+# MR.ERP 的分流与匹配闸（`push/mrerp/routing.py`）：方向判定与匹配闸是真规则，货 / 费判据、付款判据、单据防呆换成替身
+# （这里只核方向）。货 / 费替身：复核屏点过「费用」才是费用。
+_ROUTING_STUBS = {
+    **CORE,
+    "pearnly_cowork.contracts.push": push_contract,
+    "pearnly_cowork.push.express.doc_sanity": types.SimpleNamespace(check_document=lambda *a, **k: None),
+    "pearnly_cowork.push.express.field_rules": types.SimpleNamespace(
+        item_verdict=lambda fields, today: (fields.get("posting_item_type_manual") == "expense", "stub")),
+    "pearnly_cowork.push.express.payment": types.SimpleNamespace(
+        payment_verdict_for=lambda flat, fields, mappings, direction: (False, None)),
+    "pearnly_cowork.push.mrerp.models": types.SimpleNamespace(FailedRow=object, ImportResult=object),
+    "pearnly_cowork.push.mrerp.modules": types.SimpleNamespace(get_module=lambda doc_type: None),
+    "pearnly_cowork.push.mrerp.xlsx": types.SimpleNamespace(generator=types.SimpleNamespace()),
+}
+routing = _load("mrerp_routing_direction", APP / "push/mrerp/routing.py", _ROUTING_STUBS)
+
+
+def mrerp_flat(direction=None, **fields):
+    """推往 MR.ERP 的一张票（`flatten_history_for_mrerp` 的形状：票面在 ``fields``，声明的方向在顶层）。"""
+    return {"id": "CWH-9152", **({"direction": direction} if direction else {}), "fields": dict(fields)}
+
+
+class MrErpDirection(unittest.TestCase):
+    """MR.ERP 按推往的这家公司在 MR.ERP 登记的税号判进 / 销项（T2，2026-10-19，同 Express 2b825a00）。
+
+    事务所替客户记账：工作空间税号（FIRM）不是票上的买卖方；推往的公司（BOOK_TAX）才是。以前只按工作空间税号判，
+    判不出就按默认赊销、匹配闸看两边税号都不是工作空间的，拦成 ERR_ACCOUNT_SET_MISMATCH。"""
+
+    def route(self, flat, account=BOOK_TAX, own=FIRM):
+        return routing.choose_doc_type(flat, flat, own_tax_id=own, account_tax_id=account, mappings={},
+                                       today=None)
+
+    def gate(self, flat, expected, account=BOOK_TAX, own=FIRM):
+        return routing.confirmed_account_set_mismatch(flat, flat, own_tax_id=own, expected_direction=expected,
+                                                      account_tax_id=account)
+
+    def test_the_company_as_buyer_is_a_purchase(self):
+        flat = mrerp_flat(seller_tax=OTHER, buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX)
+        self.assertEqual(self.route(flat), "purchase")
+        self.assertEqual(self.route(mrerp_flat(**flat["fields"], posting_item_type_manual="expense")),
+                         "purchase_expense")
+        self.assertFalse(self.gate(flat, "purchase"))
+
+    def test_the_company_as_seller_is_a_sale(self):
+        flat = mrerp_flat(seller_tax=BOOK_TAX, buyer_name="ลูกค้า", buyer_tax=OTHER)
+        self.assertEqual(self.route(flat), "sales_credit")
+        self.assertFalse(self.gate(flat, "sales"))
+
+    def test_bookkeeping_for_a_client_no_longer_hits_the_gate(self):
+        # 工作空间是事务所：票上买方是客户公司、或是快递公司开给客户的无买方简易税票
+        for flat in (mrerp_flat(seller_tax=OTHER, buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX),
+                     mrerp_flat(**courier())):
+            with self.subTest(flat=flat["fields"].get("seller_tax")):
+                # 以前（只有工作空间税号）：判不出 → 默认赊销模块，匹配闸拦下
+                self.assertIsNone(self.route(flat, account=""))
+                self.assertTrue(self.gate(flat, "sales", account=""))
+                # 现在：按这家公司的税号判出进项，进项模块的匹配闸放行
+                self.assertEqual(self.route(flat), "purchase")
+                self.assertFalse(self.gate(flat, "purchase"))
+        sale = mrerp_flat(seller_tax=BOOK_TAX, buyer_name="ลูกค้า", buyer_tax=OTHER)
+        self.assertEqual(self.route(sale), "sales_credit")
+        self.assertFalse(self.gate(sale, "sales"))
+
+    def test_without_a_company_tax_id_the_workspace_tax_id_decides_as_before(self):
+        flat = mrerp_flat(seller_tax=OTHER, buyer_tax=BOOK_TAX)
+        # MR.ERP 没登记、登记的不是有效税号（样板库 8-888-888-88888-8、分店填的 1）→ 不当锚点
+        for raw in ("", None, "8-888-888-88888-8", "1"):
+            self.assertEqual(routing.account_tax(raw), "")
+        self.assertEqual(routing.account_tax("0-1055-51234-56-7"), BOOK_TAX)
+        self.assertIsNone(self.route(flat, account=""))
+        self.assertTrue(self.gate(flat, "sales", account=""))
+        # 工作空间就是这家公司（自己记账）：照旧按工作空间税号判
+        self.assertEqual(self.route(flat, account="", own=BOOK_TAX), "purchase")
+        self.assertFalse(self.gate(flat, "purchase", account="", own=BOOK_TAX))
+        # 两个税号都没有：不判、不拦（同旧版）
+        self.assertFalse(self.gate(flat, "sales", account="", own=""))
+
+    def test_a_seller_tax_id_close_to_the_company_is_not_taken_for_another_seller(self):
+        # 客户自开的无买方简易税票，卖方税号读错一位：不当成别家开来的进项（同 Express `_other_seller`）
+        flat = mrerp_flat(**courier(seller_tax="0105551234568"))
+        self.assertIsNone(self.route(flat))
+        self.assertTrue(self.gate(flat, "sales"))  # 判不出就不按默认赊销推，转人工（同旧版）
+
+    def test_an_explicit_direction_is_kept(self):
+        flat = mrerp_flat("sales", seller_tax=OTHER, buyer_tax=BOOK_TAX)
+        self.assertEqual(self.route(flat), "sales_credit")
+        self.assertFalse(self.gate(flat, "sales"))
+
+    def test_another_companys_document_is_still_refused(self):
+        flat = mrerp_flat(seller_tax=OTHER, buyer_name="บริษัทอื่น", buyer_tax=COURIER)
+        self.assertIsNone(self.route(flat))
+        self.assertTrue(self.gate(flat, "sales"))
+        self.assertTrue(self.gate(flat, "purchase"))
+        # 方向判出来了、却被推进相反的模块：照旧拦
+        self.assertTrue(self.gate(mrerp_flat(seller_tax=OTHER, buyer_tax=BOOK_TAX), "sales"))
+
+
 if __name__ == "__main__":
     unittest.main()
