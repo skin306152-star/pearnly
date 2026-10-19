@@ -7,7 +7,7 @@ services:
     cpus: 1
     environment:
       MARIADB_ROOT_PASSWORD: cowork-backend-lab-only
-    command: [--innodb-buffer-pool-size=128M, --max-connections=40]
+    command: [--innodb-buffer-pool-size=128M, '--max-connections=${PEARNLY_COWORK_LAB_DB_CONNECTIONS:-40}']
     volumes: [db:/var/lib/mysql]
     healthcheck:
       test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
@@ -20,9 +20,11 @@ services:
     cpus: 0.5
     command: [redis-server, --maxmemory, 96mb, --maxmemory-policy, noeviction]
   bench:
-    image: sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9
-    mem_limit: 768m
-    cpus: 1
+    # 默认是当时的本地候选镜像；要在线上同一份镜像里跑（第 7 批 D9 / D11），设
+    # PEARNLY_COWORK_LAB_IMAGE=<线上 digest>，并发压测再放大 PEARNLY_COWORK_LAB_BENCH_MEM / _CPUS。
+    image: ${PEARNLY_COWORK_LAB_IMAGE:-sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9}
+    mem_limit: ${PEARNLY_COWORK_LAB_BENCH_MEM:-768m}
+    cpus: ${PEARNLY_COWORK_LAB_BENCH_CPUS:-1}
     command: [sleep, infinity]
     environment:
       PEARNLY_COWORK_BACKEND_LAB: "1"

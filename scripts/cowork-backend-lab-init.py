@@ -20,7 +20,10 @@ def main():
                "cowork-backend-execution.localhost", "cowork-backend-table.localhost",
                "cowork-backend-roundtrip.localhost", "cowork-backend-push.localhost",
                "cowork-backend-heartbeat.localhost", "cowork-backend-companion.localhost",
-               "cowork-backend-ledger.localhost"}
+               "cowork-backend-ledger.localhost",
+               # 多电脑并发压测（第 7 批 D9）：三个租户各一个站点，scripts/cowork-companion-concurrency-lab-verify.py
+               "cowork-backend-load-1.localhost", "cowork-backend-load-2.localhost",
+               "cowork-backend-load-3.localhost"}
     requested = set(os.environ.get("PEARNLY_COWORK_LAB_SITES", "").split()) or allowed
     if not requested <= allowed:
         raise SystemExit("Refusing an unknown lab Site")

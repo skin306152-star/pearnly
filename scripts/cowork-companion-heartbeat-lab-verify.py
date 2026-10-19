@@ -115,16 +115,20 @@ class NativeHeartbeat(unittest.TestCase):
     def persisted(self):
         return self.db(lambda: frappe.get_doc('Cowork ERP Connection', self.connection['name']).as_dict())
 
+    def facts(self):
+        from pearnly_cowork.connections import pool
+        return self.db(lambda: pool.facts(self.connection['name'], 'DATAT')) or {}
+
     def test_real_report_preserves_body_and_publishes_local_directory(self):
         result = self.report(self.body())
         self.assertTrue(result['ok']); self.assertTrue(result['connected'])
         self.assertEqual(result['endpoint_id'], self.connection['name'])
         self.assertEqual(result['accounts_received'], 1)
         self.assertNotIn(self.token, json.dumps(result))
-        row = self.persisted(); report = json.loads(row['report_json'])
-        self.assertEqual(report['agent_device_name'], 'Synthetic machine')
-        self.assertEqual(report['reported_accounts'][0]['code'], '4000')
-        self.assertEqual(report['companion_version'], 'synthetic-1')
+        # 多台电脑之后（ADR-021 第 2 批）：连接的上报记录只留被拦的自动更新，电脑名、版本记在电脑上，主档进这份账套的资料
+        row = self.persisted(); report = json.loads(row['report_json'] or '{}')
+        self.assertFalse({'agent_device_name', 'reported_accounts', 'companion_version'} & set(report))
+        self.assertEqual(self.facts()['reported_accounts'][0]['code'], '4000')
         targets = self.db(lambda: self.connections.targets(self.connection['name']))
         self.assertTrue(targets['account_sets'])
         self.assertEqual(targets['account_sets'][0]['source_id'], 'datat')
@@ -266,8 +270,8 @@ class NativeHeartbeat(unittest.TestCase):
         denied = self.request(headers=self.human_headers, body={'offline': True})
         self.assertIn(denied.status_code, (401, 403))
         # 报到时间记在密钥行：人的会话冒用不能把它清成下线。
-        self.assertIsNotNone(frappe.db.get_value('Cowork Express Agent Credential', self.issued['credential_id'],
-                                                 'last_seen_at'))
+        self.assertIsNotNone(self.db(lambda: frappe.db.get_value('Cowork Express Agent Credential',
+                                                                 self.issued['credential_id'], 'last_seen_at')))
 
     def test_authority_is_revalidated_after_hook_and_before_writes(self):
         real = self.heartbeat._receive
@@ -309,7 +313,7 @@ class NativeHeartbeat(unittest.TestCase):
                 self.report(self.body())
                 self.assertEqual(ingest.call_count, 1)
         self.assertEqual(len(attempts), 2)
-        self.assertEqual(json.loads(self.persisted()['report_json'])['agent_device_name'], 'Synthetic machine')
+        self.assertEqual(self.facts()['reported_accounts'][0]['code'], '4000')  # 这一次上报落了库
 
     def test_initial_authentication_deadlock_exhaustion_never_reaches_report(self):
         from frappe.utils import error
@@ -431,7 +435,7 @@ class NativeHeartbeat(unittest.TestCase):
             return result
         with patch.object(self.heartbeat, '_receive', side_effect=retry_once): self.report(self.body())
         self.assertEqual(len(attempts), 2)
-        self.assertEqual(json.loads(self.persisted()['report_json'])['agent_device_name'], 'Synthetic machine')
+        self.assertEqual(self.facts()['reported_accounts'][0]['code'], '4000')  # 这一次上报落了库
         with patch.object(self.heartbeat, '_receive', side_effect=frappe.PermissionError('synthetic denied')) as denied:
             self.assertEqual(self.request(body=self.body()).status_code, 403)
             self.assertEqual(denied.call_count, 1)
