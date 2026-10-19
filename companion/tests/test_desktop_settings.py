@@ -3,7 +3,7 @@
 import base64
 from types import SimpleNamespace
 
-from src.companion import desktop_settings, pairing_flow
+from src.companion import desktop_settings, express_machine, pairing_flow
 from src.companion.account_probe import AccountSet
 from src.companion.desktop_settings import DesktopSettings, status_key
 from src.companion.i18n import t
@@ -125,7 +125,8 @@ def test_changing_the_express_folder_writes_every_member_and_asks_for_a_reload(t
     store = _store(tmp_path, monkeypatch)
     applied = []
     monkeypatch.setattr(desktop_settings, "roots_for_pick", lambda path: [path, r"T:\\EXP69"])
-    monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots: applied.append((fresh.path, roots)))
+    monkeypatch.setattr(desktop_settings, "apply_roots",
+                        lambda fresh, roots, offline=(): applied.append((fresh.path, roots)))
 
     result = _settings(store).change_roots(r"T:\\EXP70", "zh")
 
@@ -277,13 +278,66 @@ def test_cc_program_folder_is_never_offered_or_added():
 
 def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path, monkeypatch):
     store = _store(tmp_path, monkeypatch)
-    applied = []
-    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh: [r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"])
-    monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots: applied.append(roots))
+    applied, rescans = [], []
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: rescans.append(1))
+    monkeypatch.setattr(desktop_settings, "rescan_roots",
+                        lambda fresh, previous: ([r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"], []))
+    monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots, offline=(): applied.append(roots))
     assert _settings(store).rescan("zh") == {"ok": True, "profiles_changed": True}
     assert applied == [[r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"]]
-    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh: [])
+    # 之后账套清单整套重扫一遍（账套目录改名不改登记表，10-20 测试机）
+    assert rescans == [1]
+    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh, previous: ([], []))
     assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}
+
+
+def test_find_again_keeps_the_folders_it_cannot_reach_right_now(tmp_path, monkeypatch):
+    """10-20 测试机：夜里 S 盘不在线时点「重新查找」，17 个授权只剩本机那 1 个。暂时访问不到的照旧授权（不去读它们的登记表、
+    不换掉主根在其中的成员的账套），确实没了的才去掉；一个都没找到时什么都不改，仍整套重扫一遍账套清单。"""
+    store = _store(tmp_path, monkeypatch)
+    seen, rescans = {}, []
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: rescans.append(1))
+    monkeypatch.setattr(express_machine, "detect_roots", lambda fresh, extra=(): [r"C:\\70EXP"])
+    monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: root == r"S:\\EXP69")
+    monkeypatch.setattr(express_machine, "probe_account_sets",
+                        lambda root, include_details=True: seen.setdefault("probed", []).append(root) or [])
+    assert _settings(store).rescan("zh") == {"ok": True, "profiles_changed": True}
+    cfg = ProfileStore.load(store.path, protector=_Protector()).runtime_configs()[0]
+    # 主根 S:\EXP68 这会儿访问不到：仍是主根、账套不换；S:\EXP69 确实没了才去掉；新找到的 C:\70EXP 加进来
+    assert (cfg.express_root, cfg.account_dir) == (r"S:\\EXP68", r"S:\\EXP68\\ACME")
+    assert sorted(cfg.authorized_roots) == sorted([r"S:\\EXP68", r"C:\\70EXP"])
+    assert seen["probed"] == [r"C:\\70EXP"]   # 访问不到的不去读登记表
+    assert rescans == [1]
+    # 一个都没找到（全在关着的服务器上）：什么都不改
+    before = store.path.read_bytes()
+    monkeypatch.setattr(express_machine, "detect_roots", lambda fresh, extra=(): [])
+    monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
+    assert _settings(store).rescan("zh") == {"ok": True}
+    assert store.path.read_bytes() == before and rescans == [1, 1]
+
+
+def test_disconnecting_the_last_member_keeps_the_express_folders_for_the_next_connection(tmp_path, monkeypatch):
+    """C9（10-20 判断）：断开连接只吊销密钥、删本机成员，不顺带丢掉授权的 Express 文件夹。下次在这台电脑上连接时照旧授权，
+    这会儿访问不到的也保留（接在找到的后面）。"""
+    store = _store(tmp_path, monkeypatch)
+    member = store.profiles[0].profile_id
+    settings = _settings(store, leave=lambda url, token: True)
+    assert settings.disconnect(member) == {"ok": True, "left": True, "profiles_changed": True}
+    assert settings.snapshot()["express_roots"] == [r"S:\\EXP68", r"S:\\EXP69"]
+    asked, seen = [], {}
+    monkeypatch.setattr(express_machine, "detect_roots",
+                        lambda fresh, extra=(): asked.append(list(extra)) or [r"S:\\EXP68", r"C:\\70EXP"])
+    monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
+    monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: seen.update(roots=roots) or
+                        SimpleNamespace(ok=True, error_key="", error_fmt={}))
+    assert settings.pair(" exp_e_s@testcowork.pearnly.com ", "zh") == {"ok": True, "profiles_changed": True}
+    assert asked == [[r"S:\\EXP68", r"S:\\EXP69"]]
+    assert seen["roots"] == [r"S:\\EXP68", r"C:\\70EXP", r"S:\\EXP69"]
+    # 断开前授权的一个都找不到（全在关着的服务器上）：不拿它们去配对，先留着
+    monkeypatch.setattr(express_machine, "detect_roots", lambda fresh, extra=(): [])
+    fresh = _settings(store)
+    fresh._kept = [r"S:\\EXP68"]
+    assert fresh.detect() == [] and fresh._kept == [r"S:\\EXP68"]
 
 
 def test_an_old_always_on_setting_becomes_keep_awake_and_is_dropped_on_the_next_save(tmp_path, monkeypatch):

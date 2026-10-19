@@ -187,12 +187,24 @@ def for_day(books: Iterable[Mapping[str, Any]], day: object) -> list:
     """这一天（`YYYY-MM-DD`）该推往的账套（定时任务跟随公司当年账套 T1、自动推的「推往的须是按日期选出的那份」）：先找本年
     期间覆盖这一天的（会计期间从月中起止时核到日，不把相邻两份都算上）；没有，就用期间里含这一天的旧账套（次年段，到
     ``next_end``：新年度账套还没建时下一年的单记进旧账套的下一年期间，用户 2026-10-16）。两份同期都回（调用方停下）。
-    规则在 `targets.account_match.for_day`（推送的期间硬闸同一份）。日期不是这个形状回空表。"""
+    规则在 `targets.account_match.for_day`（推送的期间硬闸同一份）。日期不是这个形状回空表。写不写得进不在这里看（「现用账套」
+    的键按这一整组算），见 :func:`writable_first`。"""
     day = str(day or "")[:10]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
         return []
     return account_match.for_day(books, day, lambda item: (item.get("period_start"), item.get("period_end"),
                                                            item.get("next_end")))
+
+
+def writable_first(books: Iterable[Mapping[str, Any]]) -> list:
+    """按日期选出的同期几份里只留写得进的（`book` 的 ``writable``；目录标为假 = 池里没有一台电脑能写它，或目录已经不在）：
+    只剩一份就是它、不用选；不到两份、或一份写得进的都没有，原样回（调用方按「没有电脑能访问」停下，10-20 测试机 D10 第 5 步）。
+    在按期间选之后、按「现用账套」筛之后用（`current_book.pick`）：新年度账套已建但写不进时不退回旧账套的次年段，记住的那份
+    写不进时停下、不改推别的那份（T1 设计第 6 条「够不到」停下）。"""
+    books = list(books)
+    if len(books) < 2:
+        return books
+    return [item for item in books if item.get("writable") is not False] or books
 
 
 def for_branch(books: Iterable[Mapping[str, Any]], number: object) -> list:
@@ -261,4 +273,4 @@ def scope_value(value: object) -> str:
 
 __all__ = ["BOOKS_MAX", "HEAD_OFFICE", "autofill", "belongs", "book", "branch", "branches", "company_identity",
            "covering", "digits", "for_branch", "for_day", "identities", "name_identity", "newest_first", "route_branch",
-           "scope_value", "scoped", "tax_id", "usable"]
+           "scope_value", "scoped", "tax_id", "usable", "writable_first"]

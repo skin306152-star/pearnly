@@ -257,3 +257,27 @@ def test_a_full_rescan_also_looks_for_new_year_folders_without_anyone_clicking(m
     master_refresh.request_master("C:/books", "C:/books/A", newer_than=first[1], discover=True)
     time.sleep(0.1)
     assert looked == [True]  # 平时的变化检查不找
+
+
+def test_after_rescan_soon_an_earlier_snapshot_is_never_handed_out_again(monkeypatch):
+    """10-20 测试机：设置里「重新查找」重启取任务线程后，头一拍拿到的是进程里缓存的上一遍（账套目录改名时扫的），目录改回
+    原名后仍报旧行，直到重启 CC。rescan_soon() 之后之前扫的结果不再交出去，下一次就是新扫的。"""
+    scans = []
+
+    def sets(root, **_kwargs):
+        scans.append(root)
+        return [{"path": "C:/books/A", "scan": len(scans)}]
+
+    monkeypatch.setattr(account_probe, "account_sets_payload", sets)
+    monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
+    monkeypatch.setattr(express_locate, "candidate_roots", lambda: [])
+
+    first = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A"))
+    assert first[0]["account_sets"] == [{"path": "C:/books/A", "scan": 1}]
+    # 取任务线程重启（newer_than 从 0 起）：没要求重扫时照旧先交缓存的那一遍
+    assert master_refresh.request_master("C:/books", "C:/books/A")[0] == first[0]
+    master_refresh.rescan_soon()
+    assert master_refresh.request_master("C:/books", "C:/books/A") == (None, 0.0)
+    second = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A"))
+    assert second[0]["account_sets"] == [{"path": "C:/books/A", "scan": 2}]
+    assert scans == ["C:/books", "C:/books"]

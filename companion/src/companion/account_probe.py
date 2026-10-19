@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import ntpath
+from stat import S_ISDIR
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -347,6 +348,18 @@ def with_identity(rows: List[dict], locator=None) -> List[dict]:
     return rows
 
 
+def _present(path: str) -> bool:
+    """账套目录此刻在不在（只 stat 一次）：找不到 / 不是目录才算不在；别的读盘错误当作在（不因一次出错丢掉账套）。"""
+    if not str(path or "").strip():
+        return False
+    try:
+        return S_ISDIR(os.stat(path).st_mode)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except OSError:
+        return True
+
+
 def account_sets_payload(
     express_root: str | Path,
     *,
@@ -366,10 +379,20 @@ def account_sets_payload(
     root = str(express_root or "").strip()
     root_label = ntpath.basename(root.rstrip("\\/")) or root
     rows = []
+    missing = []
     try:
         for account, details, started in _probe_rows(
             express_root, include_details=include_details, reuse_registry=reuse_registry
         ):
+            # ISINFO、ISPRD 都没 stat 到（详情为空）才再看一眼目录本身：平常的账套不多一次读盘
+            if include_details and details == _NO_DETAILS and not _present(account.path):
+                # 登记表里还有、账套目录已经不在（改名、挪走、删了）：不报这一行。报了的话服务端读不出它的身份，会另登记
+                # 一份带本机名的写法，候选里多出一份写不进的（2026-10-20 测试机 T8SINCER 改名）。所在服务器整台不在由
+                # 关卡（scan_pace）先跳过，走不到这里
+                missing.append(account.name or account.code)
+                if pace is not None:
+                    pace.account(express_root, started)
+                continue
             row = asdict(account)
             row["root"] = root
             row["root_label"] = root_label
@@ -385,6 +408,9 @@ def account_sets_payload(
             rows.append(row)
             if pace is not None:
                 pace.account(express_root, started)
+        if missing:
+            log.info("[accounts] 数据根 %s 里 %d 份账套的目录不在，不报：%s", root_label, len(missing),
+                     "、".join(missing[:5]))
         return with_identity(rows, locator) if include_details else rows
     except RegistryUnavailable:
         return []

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import ntpath
+import os
 import re
 from dataclasses import replace
 from pathlib import Path
@@ -120,9 +121,10 @@ def machine_roots(store) -> List[str]:
     return found
 
 
-def detect_roots(store) -> List[str]:
-    """还没有成员时自动找 Express：已配过的根、注册表、快捷方式、常见盘位，默认年度排第一。"""
-    ranked = rank_roots([*machine_roots(store), *profile_root_candidates(store), *candidate_roots()])
+def detect_roots(store, extra: Iterable[str] = ()) -> List[str]:
+    """还没有成员时自动找 Express：已配过的根（``extra``：断开连接前这台电脑授权过的）、注册表、快捷方式、常见盘位，
+    默认年度排第一。"""
+    ranked = rank_roots([*machine_roots(store), *extra, *profile_root_candidates(store), *candidate_roots()])
     if not ranked:
         return []
     first = pick_default(ranked)
@@ -153,13 +155,67 @@ def roots_for_pick(path: str) -> List[str]:
     return [first, *(root for root, _count in ranked if not same_root(root, first))]
 
 
-def rescan_roots(store) -> List[str]:
-    """「重新查找」：全机 + 局域网再找一遍（同第一次连接时）；现在用的主数据根还找得到就仍排第一。"""
-    found = detect_roots(store)
-    current = machine_roots(store)[:1]
-    if current and any(same_root(current[0], root) for root in found):
-        return [current[0], *(root for root in found if not same_root(root, current[0]))]
-    return found
+def root_gone(root: str, asked: Optional[dict] = None) -> bool:
+    """这个数据根确实没了：它所在的盘 / 共享此刻访问得到，文件夹却不在。服务器关着、网络盘没连上、盘符不在（拔掉的移动盘）
+    都不算没了（只是暂时访问不到）；文件夹在、只是这次没读到登记表的也不算。所在服务器先限时问一次（scan_pace.GATE，
+    卡住不等），不在就不再碰它；``asked``（同一次查找共用）记着问过的服务器，同一台只问一次（夜里 16 个年度在同一台上）。"""
+    from .scan_pace import GATE
+
+    text = str(root or "").strip()
+    if not text:
+        return False
+    host = GATE.host(text)
+    if asked is None or host not in asked:
+        reachable = GATE.reachable(text, retry=True)
+        if asked is not None:
+            asked[host] = reachable
+    else:
+        reachable = asked[host]
+    if not reachable:
+        return False
+    anchor = ntpath.splitdrive(text.replace("/", "\\"))[0]
+    try:
+        if anchor and not os.path.isdir(anchor + "\\"):
+            return False
+        return not os.path.isdir(text)
+    except OSError:
+        return False
+
+
+def offline_roots(found: Iterable[str], previous: Iterable[str], *, gone=None) -> List[str]:
+    """以前授权、这次没找到、又不是确实没了的数据根（暂时访问不到：夜里关着的服务器、没连上的网络盘）：保留授权，
+    下次在线时心跳照常扫到它（扫描按服务器限时问、不在就跳过，见 scan_pace）。一次查找失败不删用户的授权（2026-10-20
+    测试机：夜里 S 盘不在线时点「重新查找」，17 个授权只剩本机那 1 个）。"""
+    if gone is None:
+        asked: dict = {}
+
+        def gone(root):
+            return root_gone(root, asked)
+    found = list(found)
+    kept: List[str] = []
+    for root in previous:
+        if any(same_root(root, known) for known in (*found, *kept)):
+            continue
+        if not gone(root):
+            kept.append(root)
+    return kept
+
+
+def rescan_roots(store, previous: Optional[Iterable[str]] = None, *, gone=None):
+    """「重新查找」：全机 + 局域网再找一遍（同第一次连接时）→ ``(要授权的数据根, 其中暂时访问不到、照旧保留的)``。
+
+    ``previous``：这台电脑原来授权的（默认是成员现在的；断开连接后重新连接时是断开前的）。找到的全部授权；原来授权、这次
+    没找到的，暂时访问不到就保留（:func:`offline_roots`），确实没了才去掉。原来的主数据根仍排第一（找得到，或只是暂时访问
+    不到：不因为它所在的服务器这会儿关着就把成员的账套换掉）。"""
+    previous = machine_roots(store) if previous is None else list(previous)
+    found = detect_roots(store, previous)
+    kept = offline_roots(found, previous, gone=gone)
+    roots = [*found, *kept]
+    current = previous[:1]
+    if current and any(same_root(current[0], root) for root in roots):
+        first = next(root for root in roots if same_root(current[0], root))
+        roots = [first, *(root for root in roots if root is not first)]
+    return roots, kept
 
 
 def default_account(sets: List[AccountSet], keep: str = "") -> Optional[AccountSet]:
@@ -171,16 +227,21 @@ def default_account(sets: List[AccountSet], keep: str = "") -> Optional[AccountS
     return next((item for item in sets if str(item.path or "").strip() and Path(str(item.path)).exists()), None)
 
 
-def apply_roots(store, roots: List[str]) -> int:
+def apply_roots(store, roots: List[str], offline: Iterable[str] = ()) -> int:
     """把这台电脑的数据根写进每个成员（暂停的也写）；返回改了几个成员。
 
     成员原来的默认账套仍登记在新数据根里（按登记表里的账套名单认，账套可以在别的盘）→ 账套、行号、人工改过的
     科目原样保留，主数据根取真正登记它的那一个（推送按「数据根 + 账套」找账套，两者必须对得上）；
     不在了才换成主根里第一个够得到的账套，科目取它 ISINFO 的默认值。全部算好再写，有一个成员找不到可用账套
     就一个都不改。服务端在下一次心跳拿到新的账套与数据根，不用重新配对。
+
+    ``offline``：其中暂时访问不到、只是保留授权的数据根（:func:`rescan_roots`）：不去读它们的登记表；成员的主数据根就是
+    其中之一时它的账套、科目原样不动（核不了，不当作「不在了」换掉）。
     """
     if not roots:
         raise ValueError("no Express data root")
+    offline = [root for root in offline or ()]
+    reachable = [root for root in roots if not any(same_root(root, away) for away in offline)]
     listed: dict = {}
 
     def registered(root: str) -> List[AccountSet]:
@@ -196,17 +257,22 @@ def apply_roots(store, roots: List[str]) -> int:
     for record in express_members(store):
         cfg = store.runtime_config(record.profile_id)
         account = str(cfg.account_dir or "").strip()
-        home = next((root for root in roots
+        home = next((root for root in reachable
                      if account and any(same_root(item.path, account) for item in registered(root))), None)
+        away = next((root for root in offline if same_root(root, cfg.express_root)), None)
         if home is not None:
             updates = {"express_root": home}
+        elif away is not None:
+            home, updates = away, {"express_root": away}
         else:
+            if not reachable:
+                raise ValueError(roots[0])
             if not fallback:
-                fallback.append(default_account(probe_account_sets(roots[0])))
+                fallback.append(default_account(probe_account_sets(reachable[0])))
             chosen = fallback[0]
             if chosen is None:
-                raise ValueError(roots[0])
-            home = roots[0]
+                raise ValueError(reachable[0])
+            home = reachable[0]
             defaults = probe_default_accounts(chosen.path) or {}
             updates = {
                 "express_root": home,

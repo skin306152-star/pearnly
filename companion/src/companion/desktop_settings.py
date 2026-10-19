@@ -22,7 +22,7 @@ import time
 from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
-from . import autostart, device_link, folder_store, pairing, pairing_flow
+from . import autostart, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
 from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
 from .i18n import MessageSpec, normalize, t
@@ -148,6 +148,8 @@ class DesktopSettings:
         self._env = env   # 判定「系统位置」用的环境变量（测试里换掉；None = 本机的）
         self._load_store = load_store
         self._detected: list[str] | None = None
+        # 断开最后一个 Express 成员前这台电脑授权的数据根（_keep_roots），下次连接时照旧授权
+        self._kept: list[str] = []
 
     def _store(self) -> ProfileStore:
         return self._load_store()   # 每次从磁盘重读：取任务线程可能刚更新过成员，不拿旧副本盖回去
@@ -156,7 +158,7 @@ class DesktopSettings:
     def snapshot(self) -> dict:
         store = self._store()
         states = dict(self._states() or {})
-        roots = machine_roots(store) or list(self._detected or [])
+        roots = machine_roots(store) or list(self._detected or self._kept or [])
         members, legacy = [], []
         for record in store.profiles:
             try:
@@ -221,11 +223,16 @@ class DesktopSettings:
             return bool(store.global_settings.autostart)
 
     def detect(self) -> list[str]:
-        """还没有成员时后台找一次 Express（读共享盘上的登记表较慢）。"""
+        """还没有成员时后台找一次 Express（读共享盘上的登记表较慢）。断开连接前授权过的（``_kept``）一并找；其中这会儿访问
+        不到的排在找到的后面、照旧授权（同「重新查找」）；一个都没找到时不拿它们去配对（配对要读得到账套），先留着。"""
         store = self._store()
         if store.profiles:
             return machine_roots(store)
-        self._detected = list(detect_roots(store) or [])
+        if self._kept:
+            roots, kept = rescan_roots(store, self._kept)
+            self._detected = roots if len(roots) > len(kept) else []
+        else:
+            self._detected = list(detect_roots(store) or [])
         return self._detected
 
     # ── 写 ──
@@ -242,6 +249,7 @@ class DesktopSettings:
                 return {"ok": False, "other_site": current}
             for record in list(store.profiles):
                 self._leave_member(store, record.profile_id)
+                self._keep_roots(store, record.profile_id)
                 store.remove_profile(record.profile_id)
             store, switched = self._store(), True
         if profile_id is None:
@@ -285,9 +293,23 @@ class DesktopSettings:
         return {"ok": True}
 
     def remove(self, profile_id: str) -> dict:
-        self._store().remove_profile(profile_id)
+        store = self._store()
+        self._keep_roots(store, profile_id)
+        store.remove_profile(profile_id)
         self._on_profiles_changed()
         return {"ok": True}
+
+    def _keep_roots(self, store: ProfileStore, profile_id: str) -> None:
+        """要删本机成员前（断开连接、移除、改连别的公司）。Express 数据根是这台电脑的设置、存在各成员记录里（express_machine
+        文件头）：删的是最后一个 Express 成员时先记下它们，下次在这台电脑上连接时照旧授权（暂时访问不到的也保留，见 detect）。
+        断开连接只吊销密钥、删成员，不该顺带丢掉用户授权的 Express 文件夹（2026-10-20 判断：C9 观察到断开清掉 17 个，不是
+        设计）。只记在内存里：没有成员时 CC 重启就没了（照旧重新查找）。"""
+        others = [r for r in store.profiles if r.profile_id != profile_id
+                  and (getattr(r, "kind", "express") or "express") != "folder"]
+        if not others:
+            roots = machine_roots(store)
+            if roots:
+                self._kept, self._detected = list(roots), None
 
     def _settle_member(self, store: ProfileStore, profile_id: str, new_token: str) -> None:
         """对话页登记来的新密钥要换掉这个成员的旧密钥：旧密钥还没被服务端说过不能再用（没有 ``device_state``）就先拿它认一次
@@ -317,6 +339,7 @@ class DesktopSettings:
         由桥回到界面线程重启各线程（profiles_changed）。"""
         store = self._store()
         left = self._leave_member(store, profile_id)
+        self._keep_roots(store, profile_id)
         self._store().remove_profile(profile_id)
         return {"ok": True, "left": left, "profiles_changed": True}
 
@@ -352,20 +375,35 @@ class DesktopSettings:
                                                     if not any(same_root(root, new) for new in found))], lang)
 
     def rescan(self, lang: str) -> dict:
-        """（后台线程）「重新查找」：全机 + 局域网再找一遍 Express，找到的全部授权（同「更换…」写到全部成员）。"""
+        """（后台线程）「重新查找」：全机 + 局域网再找一遍 Express，找到的全部授权（同「更换…」写到全部成员）；原来授权、
+        这次暂时访问不到的（夜里关着的服务器、没连上的网络盘）照旧保留，确实没了的才去掉（express_machine.rescan_roots）。
+        之后账套清单整套重扫一遍（master_refresh.rescan_soon）：账套目录改名、挪走不改登记表，平时每分钟那一眼看不出来，
+        不重扫就一直报旧的那一行（2026-10-20 测试机）。"""
         began = time.monotonic()
-        roots = rescan_roots(self._store())
-        log.info("重新查找 Express：找到 %d 个年度，用时 %.1f 秒", len(roots), time.monotonic() - began)
-        return self._use_roots(roots, lang)
+        store = self._store()
+        roots, kept = rescan_roots(store, machine_roots(store) or list(self._kept))
+        log.info("重新查找 Express：找到 %d 个年度，暂时访问不到、保留授权 %d 个，用时 %.1f 秒",
+                 len(roots) - len(kept), len(kept), time.monotonic() - began)
+        if kept:
+            log.info("暂时访问不到的数据根（保留授权，下次在线时照常扫描）：%s", kept)
+        result = self._use_roots(roots, lang, offline=kept)
+        if result.get("ok"):
+            master_refresh.rescan_soon()
+        return result
 
-    def _use_roots(self, roots: list, lang: str) -> dict:
+    def _use_roots(self, roots: list, lang: str, offline: list = ()) -> dict:
+        """``offline``：其中只是暂时访问不到、照旧保留授权的（「重新查找」）。一个都没找到、只剩保留的：什么都不改。"""
         if not roots:
             return {"ok": False, "message": t("express_not_found", lang)}
+        found = [root for root in roots if root not in offline]
+        if not found:
+            return {"ok": True}
         store = self._store()
         if store.profiles:
             if any((getattr(r, "kind", "express") or "express") != "folder" for r in store.profiles):
-                apply_roots(store, roots)
-            self._upgrade_pool_members(roots, lang)
+                apply_roots(store, roots, offline)
+            # 只读成员按 Express 重新配对：读得到的排前面（配对要读账套），暂时访问不到的接在后面照旧授权
+            self._upgrade_pool_members([*found, *(root for root in roots if root in offline)], lang)
             return {"ok": True, "profiles_changed": True}
         self._detected = list(roots)
         return {"ok": True}

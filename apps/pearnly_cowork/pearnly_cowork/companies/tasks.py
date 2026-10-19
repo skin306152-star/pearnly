@@ -61,7 +61,7 @@ def company_of(connection, account_set_key) -> dict | None:
 def books_of(company, connection, day=None, branch="", *, remembered=True) -> list | None:
     """这家公司在这条连接上的账套（`identity.book` 的样子，新年度在前）；``day``（`YYYY-MM-DD`）给了只留覆盖那天的，
     ``branch`` 给了按分店筛。覆盖那天的有多份同期时按这家公司选过的现用账套只留那份（``remembered``；列「可换的账套」时
-    给 False，列全这一组）。主档不在回 None。"""
+    给 False，列全这一组）；没选过时写不进的不算候选（`current_book.pick`）。主档不在回 None。"""
     if not service.exists(company):
         return None
     service.forget_cache()
@@ -78,7 +78,7 @@ def books_of(company, connection, day=None, branch="", *, remembered=True) -> li
     if not remembered or len(found) < 2:
         return found
     workspace = frappe.db.get_value(COMPANY, company, "workspace")
-    return current_book.remembered(workspace, row.get("identity"), day, found)
+    return current_book.pick(workspace, row.get("identity"), day, found)
 
 
 __all__ = ["books_of", "company_of"]

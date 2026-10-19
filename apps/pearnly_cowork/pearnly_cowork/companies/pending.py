@@ -243,7 +243,11 @@ def account_set_options(row) -> dict:
         picked = current_book.remembered(found["workspace"], found.get("identity"), str(row.get("invoice_date") or "")[:10],
                                          books)
         current = picked[0]["key"] if len(picked) == 1 else ""
-    return {"account_sets": [{"key": item["key"], "label": item.get("label") or item["key"]} for item in books],
+    # 写不进的不列（目录标 writable=false：没有电脑能写、目录已不在，10-20 测试机）；全写不进时照列（停在「没有电脑能访问」）
+    shown = identity.writable_first(books)
+    if not any(item["key"] == current for item in shown):
+        current = ""
+    return {"account_sets": [{"key": item["key"], "label": item.get("label") or item["key"]} for item in shown],
             "current": current}
 
 

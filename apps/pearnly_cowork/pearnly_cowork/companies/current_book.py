@@ -151,4 +151,12 @@ def remembered(workspace, company_identity, day, books) -> list:
     return picked[:1] or books
 
 
-__all__ = ["key_of", "live_keys", "marks", "policy", "remembered", "seen_of"]
+def pick(workspace, company_identity, day, books) -> list:
+    """按日期选出的这一组（`identity.for_day`）该推往哪份：这家公司对这一组选过现用的那份就是它（写不进也是它，调用方按
+    「没有电脑能访问」停下，不改推没选的那份）；没选过时写不进的不算候选（`identity.writable_first`，10-20 测试机：目录里一份
+    写不进的 T8 让两张票停在「多份账套」）。定时任务（`tasks.books_of`）与自动推（`automation.day_books`）共用。"""
+    found = remembered(workspace, company_identity, day, books)
+    return found if len(found) < 2 else identity.writable_first(found)
+
+
+__all__ = ["key_of", "live_keys", "marks", "pick", "policy", "remembered", "seen_of"]

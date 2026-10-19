@@ -60,8 +60,9 @@ _rescan_generation = 0
 
 
 def rescan_soon() -> None:
-    """下一次心跳整套重扫一遍账套（不等登记表变化或每天一次）：写前核文件号对不上（ERR_ACCOUNT_UID_MISMATCH）时，
-    服务端要这台整份重报，报上去的文件号得是现在的。"""
+    """下一次心跳整套重扫一遍账套（不等登记表变化或每天一次），之前扫的结果不再交出去：写前核文件号对不上
+    （ERR_ACCOUNT_UID_MISMATCH）时服务端要这台整份重报，报上去的文件号得是现在的；设置里「重新查找」之后同理（账套目录改名、
+    挪走不改登记表，平时每分钟那一眼看不出来）。"""
     global _rescan_generation
     with _lock:
         _rescan_generation += 1
@@ -303,14 +304,18 @@ def request_master(
     now = time.time()
     with _lock:
         refresh = _refreshes.setdefault(identity, _Refresh())
-        if refresh.completed_at > newer_than:
+        # rescan_soon() 之后（设置里「重新查找」、写前核文件号对不上）之前扫的结果不再交出去：取任务线程重启后头一拍
+        # 拿到的也是新扫的，不把上一遍里已经不在的账套再报一次（2026-10-20 测试机：目录改回原名后仍报旧行到重启 CC）
+        stale = refresh.generation < _rescan_generation
+        if refresh.completed_at > newer_than and not stale:
             return refresh.payload, refresh.completed_at
         if refresh.running:
             return None, 0.0
-        stale = refresh.generation < _rescan_generation
         if not force and not stale and refresh.completed_at and now - refresh.checked_at < _WATCH_INTERVAL_S:
             return None, 0.0
         full = force or stale or not refresh.completed_at or now - refresh.completed_at >= refresh_interval
+        if stale:  # 新的一遍交出（含「进行中」快照）之前，上一代的结果谁都不再拿到
+            refresh.payload, refresh.completed_at = None, 0.0
         refresh.generation = _rescan_generation
         refresh.running = True
         refresh.error = ""

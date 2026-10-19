@@ -212,11 +212,41 @@ def test_nothing_is_written_when_a_member_has_no_usable_account_set(tmp_path, mo
 
 
 def test_find_again_keeps_the_root_in_use_first(monkeypatch):
-    monkeypatch.setattr(gui_pairing, "detect_roots", lambda store: [r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"])
+    monkeypatch.setattr(gui_pairing, "detect_roots", lambda store, extra=(): [r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"])
     monkeypatch.setattr(gui_pairing, "machine_roots", lambda store: [r"C:\70EXP"])
-    assert gui_pairing.rescan_roots(None) == [r"C:\70EXP", r"S:\71EXP", r"C:\69EXP"]
+    gone = lambda root: True  # noqa: E731
+    assert gui_pairing.rescan_roots(None, gone=gone) == ([r"C:\70EXP", r"S:\71EXP", r"C:\69EXP"], [])
     monkeypatch.setattr(gui_pairing, "machine_roots", lambda store: [r"D:\GONE"])
-    assert gui_pairing.rescan_roots(None) == [r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"]
+    assert gui_pairing.rescan_roots(None, gone=gone) == ([r"S:\71EXP", r"C:\70EXP", r"C:\69EXP"], [])
+
+
+def test_find_again_keeps_authorized_roots_it_cannot_reach_right_now(monkeypatch):
+    """10-20 测试机：夜里服务器关着时「重新查找」只找到本机的 70EXP。原来授权、这次没找到的：暂时访问不到就保留（主根仍排
+    第一），确实没了（所在盘 / 共享访问得到、文件夹不在）才去掉。"""
+    monkeypatch.setattr(gui_pairing, "detect_roots", lambda store, extra=(): [r"C:\70EXP"])
+    previous = [r"\\accserver\d$\ACCOUNT\69EXP", r"C:\70EXP", r"\\accserver\d$\ACCOUNT\68EXP", r"C:\OLD"]
+    roots, kept = gui_pairing.rescan_roots(None, previous, gone=lambda root: root == r"C:\OLD")
+    assert kept == [r"\\accserver\d$\ACCOUNT\69EXP", r"\\accserver\d$\ACCOUNT\68EXP"]
+    assert roots == [r"\\accserver\d$\ACCOUNT\69EXP", r"C:\70EXP", r"\\accserver\d$\ACCOUNT\68EXP"]
+
+
+def test_a_root_is_gone_only_when_its_drive_or_share_answers_and_the_folder_is_missing(tmp_path, monkeypatch):
+    from src.companion import scan_pace
+
+    asked = []
+    monkeypatch.setattr(scan_pace.GATE, "reachable", lambda path, retry=False: asked.append((path, retry)) or True)
+    assert gui_pairing.root_gone(str(tmp_path / "missing")) is True
+    assert gui_pairing.root_gone(str(tmp_path)) is False
+    assert asked[0][1] is True   # 有人在等：不等退避到点，马上问
+    # 所在服务器这会儿不在：不算没了，也不再碰文件夹
+    monkeypatch.setattr(scan_pace.GATE, "reachable", lambda path, retry=False: asked.append(path) or False)
+    assert gui_pairing.root_gone(str(tmp_path / "missing")) is False
+    assert gui_pairing.root_gone("") is False
+    # 同一次查找里同一台服务器只问一次（夜里同一台上的十几个年度）
+    monkeypatch.setattr(scan_pace.GATE, "host", lambda path: "\\\\accserver\\d$")
+    asked.clear()
+    kept = gui_pairing.offline_roots([], [r"\\accserver\d$\ACCOUNT\68EXP", r"\\accserver\d$\ACCOUNT\69EXP"])
+    assert kept == [r"\\accserver\d$\ACCOUNT\68EXP", r"\\accserver\d$\ACCOUNT\69EXP"] and len(asked) == 1
 
 
 def test_the_same_folder_written_two_ways_is_one_root():

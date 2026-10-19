@@ -73,7 +73,8 @@ def choose(rule, history, device=None):
     if not day or not found:
         return {"stop": NONE}
     if len(found) > 1:
-        return {"stop": AMBIGUOUS}
+        # 写不进的不算候选（`identity.for_day` 已去掉）：剩下的几份都写不进 = 没有电脑能访问，不是「要选哪份」
+        return {"stop": UNREACHABLE if all(item.get("writable") is False for item in found) else AMBIGUOUS}
     book = found[0]
     if frappe.db.get_value(CONNECTION, rule.connection, "adapter") != "express":
         # MR.ERP 由服务器直接写，不看电脑（电脑只读文件夹）

@@ -122,11 +122,11 @@ def day_scope(connection, account_row, day, catalog=None) -> dict | None:
 def day_books(connection, account_row, day, catalog=None) -> list | None:
     """推送的钩子（``cowork_push_day_books``）：按这张单的日期，这家公司（这个分店）在这条连接上该推往哪份账套 —— 与定时任务
     跟随公司当年账套（T1，`tasks.books_of`）同一判据 → 规范账套键列表（正好一份才算选得出）。选出多份同期时按这家公司选过的
-    现用账套只留那份（`current_book.remembered`，用户 2026-10-17）。认不出公司回 None。只读。"""
+    现用账套只留那份（`current_book.remembered`，用户 2026-10-17），没选过时写不进的不算（`current_book.pick`）。认不出公司回 None。只读。"""
     found = day_scope(connection, account_row, day, catalog)
     if found is None:
         return None
-    return [item["key"] for item in current_book.remembered(found["workspace"], found["identity"], day, found["books"])]
+    return [item["key"] for item in current_book.pick(found["workspace"], found["identity"], day, found["books"])]
 
 
 # ---------------- 写 ----------------

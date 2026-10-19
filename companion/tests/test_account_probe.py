@@ -314,6 +314,26 @@ def test_lightweight_account_rows_only_read_registry(tmp_path, monkeypatch):
     ]
 
 
+def test_an_account_set_whose_folder_is_gone_is_not_reported(tmp_path):
+    """10-20 测试机：账套目录 T8SINCER 改名后登记表里还有它，心跳照报那一行（文件号、网络路径都读不出），服务端另登记一份
+    带本机名的写法、候选里多出一份写不进的。目录不在的不报；目录在、只是没有 ISINFO 的照报；推送 / 配对照旧现读登记表全名单。"""
+    root = tmp_path / "70EXP"
+    _isinfo(root / "T9SINCER", "บริษัท ทดสอบ จำกัด", "0105559000001")
+    (root / "EMPTY").mkdir(parents=True)
+    table = _sccomp(root)
+    for name, path in (("T8", "T8SINCER"), ("T9", "T9SINCER"), ("EMPTY", "EMPTY")):
+        table.append({"COMPNAM": name, "COMPCOD": name, "PATH": path, "CANDEL": "Y"})
+    table.close()
+
+    rows = account_sets_payload(root)
+
+    assert [row["name"] for row in rows] == ["EMPTY", "T9"]
+    assert [item.name for item in probe_account_sets(root)] == ["EMPTY", "T8", "T9"]
+    # 改回原名：下一遍照常报
+    _isinfo(root / "T8SINCER", "บริษัท ทดสอบ จำกัด", "0105559000001")
+    assert [row["name"] for row in account_sets_payload(root)] == ["EMPTY", "T8", "T9"]
+
+
 def test_registry_unavailable_no_folder_fallback(tmp_path):
     root = tmp_path / "70EXP"
     (root / "someacct").mkdir(parents=True)  # 有账套文件夹但没登记表

@@ -234,10 +234,14 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
     # 3 D 以前用同一本机路径够到过，且是同一处：那份登记还没报过文件号 / 网络路径（升级），或者网络路径（都没有也算）
     #   与内容键都相同（从备份恢复到原处）。盘符改映射到另一处（网络路径或内容键对不上）就不认，落到第 5、6 条。
     #   那份已带别的文件号、又有别的电脑够得到时也不认：那是两台各自本机同一路径的两份拷贝。
+    #   这一行读不出身份（文件号、网络路径都没有：目录这会儿打不开 / 不在了、本机共享撤了）又没有对不上的内容键，没有
+    #   反证就仍是 D 一直用这个路径够到的那份，不另登记一份带主机名的（10-20 测试机：账套目录改名后冒出
+    #   `\\本机\c$\…` 一行，改回原名也回不去）。
     key = own_reach.get(local)
     if key in by_key:
         item = by_key[key]
-        same_place = not item.identified or (
+        blind = not uid and not location and (not content or content == item.content_key)
+        same_place = not item.identified or blind or (
             normalize_location(item.location, aliases=aliases) == location and item.content_key == content)
         if (same_place and not item.foreign
                 and not (uid and item.uid and item.uid != uid and item.reached_by_others)):

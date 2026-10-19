@@ -273,6 +273,22 @@ class PureRuleTests(unittest.TestCase):
         self.assertEqual(identity.covering([old], "2026-13"), [])
         self.assertEqual(identity.covering([old], ""), [])
 
+    def test_books_nobody_can_write_are_not_candidates(self):
+        """10-20 测试机 D10 第 5 步：同期两份里一份写不进（目录标 writable=false：没有电脑能写、目录已不在）不算候选，
+        只剩一份就是它、不用选；都写不进原样回（调用方按「没有电脑能访问」停下）。按期间选（`for_day`）不看写不写得进：
+        新年度账套已建但写不进时不退回旧账套的次年段。"""
+        keys = lambda found: [item["key"] for item in found]  # noqa: E731
+        t8 = dict(self.book("t8", "2025-01-01", "2025-12-31"), next_end="2026-12-31", writable=False)
+        t9 = dict(self.book("t9", "2025-01-01", "2025-12-31"), next_end="2026-12-31", writable=True)
+        self.assertEqual(keys(identity.for_day([t8, t9], "2025-01-07")), ["t8", "t9"])
+        self.assertEqual(keys(identity.writable_first(identity.for_day([t8, t9], "2025-01-07"))), ["t9"])
+        self.assertEqual(keys(identity.writable_first(identity.for_day([t8, t9], "2026-01-08"))), ["t9"])
+        both = [t8, dict(t9, writable=False)]
+        self.assertEqual(keys(identity.writable_first(both)), ["t8", "t9"])
+        new = dict(self.book("y26", "2026-01-01", "2026-12-31"), writable=False)
+        self.assertEqual(keys(identity.writable_first(identity.for_day([dict(t9), new], "2026-03-01"))), ["y26"])
+        self.assertEqual(keys(identity.writable_first([t8])), ["t8"])
+
     def test_books_without_a_period_never_cover_a_day(self):
         self.assertEqual(identity.for_day([self.book("a", "", "")], "2025-01-01"), [])
 
@@ -412,6 +428,45 @@ class CrossYearPushTests(Base):
         company = env.make("C1", T8)["id"]
         result = self.send(self.rule(company=company), self.ticket("H8", date(2026, 3, 3)))
         self.assertEqual(result["reason"], folder_contracts.ACCOUNT_SET_UNREACHABLE)
+
+    def test_a_twin_book_nobody_can_write_is_not_asked_about(self):
+        """10-20 测试机 D10 第 5 步：T8 目录改名后目录里多出一行写不进的 T8（另一个键），两张票停在「多份账套」、候选是它 + T9。
+        写不进的不算候选：只剩 T9 就推往它（本年、次年段都一样）；第 4 步记住的是原来那一组（T8、T9），这一组不同、不起作用。
+        记住的那份写不进时停在「没有电脑能访问」，不改推没选的那份；两份都写不进也是「没有电脑能访问」，不是「多份」。"""
+        ghost = "\\\\desktop-mn2brkr\\c$\\70exp\\t8sincer"
+        env.reset(C1=[row(ghost, "SINCER 2568", "2025-01-01", "2025-12-31", next_end="2026-12-31", writable=False),
+                      row(T9, "SINCER 2568 (2)", "2025-01-01", "2025-12-31", next_end="2026-12-31")])
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["C1"].update(adapter="express", record_revision=1)
+        company = env.make("C1", T9)["id"]
+        remember("cy", T9, T8, T9)
+        remember("ny", T9, T8, T9)
+        rule = self.rule(company=company, account_set_key=T9)
+        first = self.send(rule, self.ticket("H1", date(2025, 1, 7)))
+        second = self.send(rule, self.ticket("H2", date(2026, 1, 8)))
+        self.assertEqual([(item["status"], item["account_set"]) for item in (first, second)],
+                         [("sent", _key(T9)), ("sent", _key(T9))])
+        # 已经停在「多份账套」的旧票：待处理页可换的账套只列写得进的 T9（选它照样记成这一组现用的）
+        patcher = mock.patch.object(pending, "_task_company", lambda found: (company, "00000"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        stopped = env.Row(name="H0", invoice_date="2025-01-07", push_connection="C1", push_account_set=T9,
+                          last_push_reason=folder_contracts.ACCOUNT_SET_AMBIGUOUS, last_push_status="")
+        self.assertEqual(pending.account_set_options(stopped),
+                         {"account_sets": [{"key": _key(T9), "label": "SINCER 2568 (2)"}], "current": ""})
+        self.assertEqual(pending.current_book_choice(stopped, T9)["value"], _key(T9))
+        self.assertIsNone(pending.account_set_pick(stopped, ghost))
+        # 记住的是写不进的那份：停在「没有电脑能访问」（带上它），不改推 T9
+        catalog = connections.catalogs["C1"]
+        remember("cy", ghost, ghost, T9)
+        result = self.send(rule, self.ticket("H3", date(2025, 1, 7)))
+        self.assertEqual((result["reason"], result["account_set"]),
+                         (folder_contracts.ACCOUNT_SET_UNREACHABLE, _key(ghost)))
+        self.assertEqual(self.send(rule, self.ticket("H4", date(2026, 1, 8)))["account_set"], _key(T9))   # 次年段没选过
+        # 两份都写不进、没选过：不是「要选哪份」，是没有电脑能访问
+        catalog[1]["attributes"]["writable"] = False
+        result = self.send(rule, self.ticket("H5", date(2026, 1, 8)))
+        self.assertEqual(result, {"status": "held", "reason": folder_contracts.ACCOUNT_SET_UNREACHABLE})
 
     def test_a_task_owner_who_lost_the_connection_stops_instead_of_guessing(self):
         connections.users["C1"] = {"someone@example.com"}

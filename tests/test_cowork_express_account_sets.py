@@ -118,6 +118,22 @@ class Identity(unittest.TestCase):
         restored = [R("c:\\exp\\book", "c:\\exp", uid="u-old")]
         self.assertEqual(decide(row(r"C:\EXP\BOOK", uid="u-new"), restored, own={"c:\\exp\\book": "c:\\exp\\book"}).rule, 3)
 
+    def test_rule_3_a_row_without_identity_stays_the_same_local_account_set(self):
+        """10-20 测试机：本机账套目录改名后（1.9.0 仍报那一行，文件号、网络路径都读不出，显示属性沿用上次的），原来按文件号
+        认上、带着旧共享写法的那份登记不另登记成带本机名的管理共享写法；内容键对不上（同一路径换了别的账套）照旧新登记。"""
+        content = identity.content_key(TAX)
+        known = R("c:\\pearnlyexpress\\70exp\\t8sincer", "c:\\pearnlyexpress\\70exp", uid="aa:1",
+                  location=r"\\acc-02\pearnlyexpressro\70exp\t8sincer", content_key=content)
+        own = {"c:\\pearnlyexpress\\70exp\\t8sincer": known.account_key}
+        blind = decide(row(r"C:\PearnlyExpress\70EXP\T8SINCER", uid="", share="", **TAX), [known], own=own)
+        self.assertEqual((blind.kind, blind.rule, blind.account_key, blind.uid), ("match", 3, known.account_key, ""))
+        bare = decide(row(r"C:\PearnlyExpress\70EXP\T8SINCER", uid="", share=""), [known], own=own)
+        self.assertEqual((bare.kind, bare.account_key), ("match", known.account_key))
+        other = decide(row(r"C:\PearnlyExpress\70EXP\T8SINCER", uid="", share="", tax_id="9"), [known], own=own)
+        self.assertEqual((other.kind, other.account_key), ("new", r"\\acc-02\c$\pearnlyexpress\70exp\t8sincer"))
+        # 没用这个路径够到过它的电脑：照旧新登记、键带主机名（第 4 条用例同口径）
+        self.assertEqual(decide(row(r"C:\PearnlyExpress\70EXP\T8SINCER", **TAX), [known]).kind, "new")
+
     def test_rule_3_never_merges_two_local_copies_at_the_same_path(self):
         copies = [R("c:\\exp\\book", "c:\\exp", uid="u-a", reached_by_others=True)]
         found = decide(row(r"C:\EXP\BOOK", uid="u-b"), copies, own={"c:\\exp\\book": "c:\\exp\\book"})
