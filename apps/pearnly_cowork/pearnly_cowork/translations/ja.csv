@@ -561,6 +561,8 @@ Delete these scheduled tasks?,これらの定期タスクを削除しますか�
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0},{0}件を削除
+Delete {0} item permanently?,{0} 件を完全に削除しますか？
+Delete {0} items permanently?,{0} 件を完全に削除しますか？
 Delete {0} reconciliation(s)?,{0}件の照合を削除しますか？
 Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。

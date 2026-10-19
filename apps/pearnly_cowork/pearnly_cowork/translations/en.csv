@@ -561,6 +561,8 @@ Delete these scheduled tasks?,Delete these scheduled tasks?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0},Delete {0}
+Delete {0} item permanently?,Delete {0} item permanently?
+Delete {0} items permanently?,Delete {0} items permanently?
 Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
 Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
