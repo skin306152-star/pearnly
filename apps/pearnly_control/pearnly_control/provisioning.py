@@ -287,13 +287,14 @@ def _ensure_line_channel(issue, row, dep, credentials):
     return channel.name
 
 
-def _ensure_oidc_client(dep, target: str | None = None) -> None:
+def _ensure_oidc_client(dep, target: str | None = None, pool: str | None = None) -> None:
     """给这个部署建一个自己的 OIDC 客户端（幂等），并记在部署上。
 
     回调地址按站点域名与端口算 —— 这正是"共用客户端不行"的原因。
+    `pool`：建在哪个池的代表产品（`identity_pools.REPRESENTATIVE`）；缺省是该产品自己的池。换账号池（`account.repool`）时给。
     """
     # 客户端建在该产品的账号池里（Cowork 在自己的池，ERP / DMS 在业务池）。
-    client, _target_name = kc.client_for_target(target, dep.product)
+    client, _target_name = kc.client_for_target(target, pool or dep.product)
     base = infra.deployment_base_url(dep)
     urls = [f"{base}/api/method/pearnly_core.identity.callback"]
     origins = [base]

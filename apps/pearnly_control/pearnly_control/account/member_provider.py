@@ -150,17 +150,20 @@ class MemberProvider:
             raise MemberError("unavailable")
 
     def create(self, *, email, username, password, owner):
+        """`password` 为 None：建一个没有密码的号（换账号池时搬过去的成员，由老板在团队管理里重设密码）。"""
         # An ordinary existing identity (including a tenant owner) is never adopted.
         for field, value in (("email", email), ("username", username)):
             found = self.find(field, value)
             if found:
                 return self.verify(found, email=email, username=username, owner=owner)
-        response = self._request("POST", "/users", json={
+        body = {
             "email": email, "username": username, "firstName": username,
             "enabled": True, "emailVerified": True, "requiredActions": [],
             "attributes": {OWNER_ATTRIBUTE: [owner]},
-            "credentials": [{"type": "password", "value": password, "temporary": False}],
-        })
+        }
+        if password is not None:
+            body["credentials"] = [{"type": "password", "value": password, "temporary": False}]
+        response = self._request("POST", "/users", json=body)
         if response.status_code not in (201, 204, 409):
             raise MemberError("unavailable")
         # Do not trust Location alone. A conflict or a retry after a lost response

@@ -464,9 +464,8 @@ class FakeDb:
         pass
 
 
-class TestMemberPools(unittest.TestCase):
-    """建号按站点实际签到的账号池（2026-10-18：testcowork 是 Cowork 产品却签到业务池），池记在登记上，
-    改密码 / 清理按记下的池；老登记（没记池）按产品默认的池。真实 MemberProvider，两个内存账号池。"""
+class _TwoPools(unittest.TestCase):
+    """真实 MemberProvider + 两个内存账号池 + 内存登记表。"""
 
     def setUp(self):
         self.native = MagicMock()
@@ -532,6 +531,11 @@ class TestMemberPools(unittest.TestCase):
 
     def password(self, realm, username="Employee42"):
         return self.users(realm)[username]["credentials"][0]["value"]
+
+
+class TestMemberPools(_TwoPools):
+    """建号按站点实际签到的账号池（2026-10-18：testcowork 是 Cowork 产品却签到业务池），池记在登记上，
+    改密码 / 清理按记下的池；老登记（没记池）按产品默认的池。"""
 
     def test_cowork_site_on_the_business_pool_creates_there_and_records_it(self):
         created = self.call("create", "cowork", BUSINESS + "/")
@@ -623,6 +627,118 @@ class TestMemberPools(unittest.TestCase):
             service.prepare_purge("tenant-a")
         self.assertEqual(self.password("pearnly-business"), "secret-a")
         self.assertEqual(self.db.tenants["tenant-a"], "active")
+
+
+class TestMoveMembers(_TwoPools):
+    """拆池前开的 Cowork 租户换账号池（2026-10-19 testcowork）：团队里建的号搬进站点新签到的池，回退时找回原来的号。"""
+
+    LINE = "U" + "a" * 32
+
+    def setUp(self):
+        super().setUp()
+        self.native.db.sql.return_value = [[1]]  # _person_lock 的 get_lock
+        self.native.db.exists.side_effect = lambda doctype, filters: bool(
+            self.db.get_all(doctype, filters=filters, pluck="name"))
+
+    def person(self, realm, tenant, product, subject, line=None, alias="line-2010411313"):
+        """一条 LINE 关联登记 + 该池里这个 LINE 的专用身份。"""
+        line = line or self.LINE
+        provider = member_provider.MemberProvider(prefix=member_provider.realm_prefix(realm))
+        owner = service._person_owner(provider, alias, line)
+        username = member_provider.LINE_PERSON_PREFIX + owner[:32]
+        uid = "kc-line-%s-%s" % (realm, line[-4:])
+        self.pools[realm].users[uid] = {"id": uid, "username": username,
+            "email": f"{username}@{member_provider.LINE_PERSON_DOMAIN}",
+            "attributes": {member_provider.OWNER_ATTRIBUTE: [owner]}}
+        self.pools[realm].links[uid] = {alias: line}
+        key = service._link_key(tenant, product, subject, alias)
+        self.db.insert({"doctype": service.LINE_LINK, "name": key, "tenant": tenant, "product": product,
+                        "subject": subject, "alias": alias, "line_user_id": line, "realm": realm})
+        return uid
+
+    def test_members_move_to_the_cowork_pool_without_a_password(self):
+        old = self.seed("cowork", "pearnly-business", "pearnly-business")
+        planned = service.move_members("tenant-a", "cowork", COWORK, dry_run=True)
+        self.assertEqual([m["action"] for m in planned["members"]], ["create"])
+        self.assertEqual(self.users("pearnly-cowork"), {})  # 只读：什么也没建
+        self.assertEqual(self.row("tenant-a", "employee@example.test", "cowork")["realm"], "pearnly-business")
+
+        moved = service.move_members("tenant-a", "cowork", COWORK)
+        new = self.users("pearnly-cowork")["Employee42"]
+        self.assertNotIn("credentials", new)  # 老板在团队管理里重设密码
+        self.assertEqual(new["attributes"][member_provider.OWNER_ATTRIBUTE],
+                         [service._digest("member-owner-v1", "tenant-a", "cowork", "employee@example.test", "employee42")])
+        self.assertEqual(moved["realm"], "pearnly-cowork")
+        self.assertEqual(moved["members"], [{"email": "employee@example.test", "username": "Employee42",
+                                             "subject": new["id"], "action": "created"}])
+        row = self.row("tenant-a", "employee@example.test", "cowork")
+        self.assertEqual((row["realm"], row["subject"]), ("pearnly-cowork", new["id"]))
+        self.assertIn(old, self.pools["pearnly-business"].users)  # 原来的号不删，回退靠它
+        # 重跑：沿用，不建第二个
+        self.assertEqual(service.move_members("tenant-a", "cowork", COWORK)["members"][0]["action"], "kept")
+        self.assertEqual(len(self.pools["pearnly-cowork"].users), 1)
+        # 搬过去之后，从 Cowork 池的站点改密码按新池改
+        self.call("reset-password", "cowork", COWORK, password="secret-n")
+        self.assertEqual(self.password("pearnly-cowork"), "secret-n")
+        self.assertEqual(self.password("pearnly-business"), "secret-a")
+
+    def test_rollback_finds_the_original_account_again(self):
+        old = self.seed("cowork", "pearnly-business", "pearnly-business")
+        service.move_members("tenant-a", "cowork", COWORK)
+        back = service.move_members("tenant-a", "cowork", BUSINESS)
+        self.assertEqual(back["members"][0]["action"], "adopted")
+        row = self.row("tenant-a", "employee@example.test", "cowork")
+        self.assertEqual((row["realm"], row["subject"]), ("pearnly-business", old))
+        self.assertEqual(len(self.pools["pearnly-business"].users), 1)
+        # 再搬过去：Cowork 池里上次建的号按归属证明认回来
+        again = service.move_members("tenant-a", "cowork", COWORK)
+        self.assertEqual(again["members"][0]["action"], "adopted")
+        self.assertEqual(len(self.pools["pearnly-cowork"].users), 1)
+
+    def test_an_account_of_someone_else_in_the_new_pool_is_never_adopted(self):
+        self.seed("cowork", "pearnly-business", "pearnly-business")
+        self.pools["pearnly-cowork"].users["kc-x"] = {"id": "kc-x", "email": "employee@example.test",
+                                                      "username": "someone", "attributes": {}}
+        with self.assertRaises(member_provider.MemberError) as raised:
+            service.move_members("tenant-a", "cowork", COWORK)
+        self.assertEqual(raised.exception.code, "conflict")
+        self.assertEqual(self.row("tenant-a", "employee@example.test", "cowork")["realm"], "pearnly-business")
+
+    def test_other_tenants_products_and_unfinished_requests_are_left_alone(self):
+        self.seed("cowork", "pearnly-business", "pearnly-business", tenant="tenant-b", email="b@example.test",
+                  username="B1")
+        self.seed("erp", "pearnly-business", "pearnly-business", email="clerk@example.test", username="Clerk7")
+        self.seed("cowork", "pearnly-business", "pearnly-business", email="late@example.test", username="Late1",
+                  subject=False)
+        moved = service.move_members("tenant-a", "cowork", COWORK)
+        self.assertEqual(moved["members"], [{"email": "late@example.test", "username": "Late1", "subject": None,
+                                             "action": "incomplete"}])
+        self.assertEqual(self.users("pearnly-cowork"), {})
+        self.assertEqual(self.row("tenant-b", "b@example.test", "cowork")["realm"], "pearnly-business")
+        self.assertEqual(self.row("tenant-a", "clerk@example.test", "erp")["realm"], "pearnly-business")
+
+    def test_old_pool_line_links_are_dropped_and_unused_line_identities_released(self):
+        member = self.seed("cowork", "pearnly-business", "pearnly-business")
+        shared = self.person("pearnly-business", "tenant-a", "cowork", member)
+        # 同一个 LINE 在业务池里还绑着别的租户（testerp）：专用身份留着
+        self.db.insert({"doctype": service.LINE_LINK, "name": "other", "tenant": "tenant-b", "product": "erp",
+                        "subject": "kc-b", "alias": "line-2010411313", "line_user_id": self.LINE,
+                        "realm": "pearnly-business"})
+        lonely = self.person("pearnly-business", "tenant-a", "cowork", "owner-sub", line="U" + "b" * 32)
+        planned = service.move_members("tenant-a", "cowork", COWORK, dry_run=True)
+        self.assertEqual(planned["line_links_released"], 2)
+        self.assertEqual(len(self.db.tables[service.LINE_LINK]), 3)  # 只读
+        moved = service.move_members("tenant-a", "cowork", COWORK)
+        self.assertEqual(moved["line_links_released"], 2)
+        self.assertEqual(list(self.db.tables[service.LINE_LINK]), ["other"])
+        self.assertIn(shared, self.pools["pearnly-business"].users)
+        self.assertNotIn(lonely, self.pools["pearnly-business"].users)
+
+    def test_only_member_products_and_a_known_pool(self):
+        for product, issuer in (("dms", COWORK), ("cowork", ""), ("cowork", "https://auth.example.test/realms/master")):
+            with self.assertRaises(member_provider.MemberError) as raised:
+                service.move_members("tenant-a", product, issuer)
+            self.assertEqual(raised.exception.code, "not_permitted")
 
 
 class TestProviderLinePerson(unittest.TestCase):
