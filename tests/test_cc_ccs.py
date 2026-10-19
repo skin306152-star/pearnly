@@ -1207,6 +1207,7 @@ assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: true, undone: 
 assert.equal(summaryText(summarize([undone, ...parts], done), steps.summary, done, denial), "保存为公司选择 · 失败, 保存为公司选择 · 已拒绝");
 // 问话去掉疑问的写法：中文「要…吗」，泰文句末 ไหม / หรือไม่，日文句末「か」（第 8 轮审查：只去问号时读着仍在问）
 assert.equal(askStem("要删除这些定时任务吗？"), "删除这些定时任务");
+assert.equal(askStem("确定要删除以下定时任务吗？"), "删除以下定时任务");
 assert.equal(askStem("บันทึกตัวเลือกนี้ให้บริษัทไหม"), "บันทึกตัวเลือกนี้ให้บริษัท");
 assert.equal(askStem("ลบงานตามกำหนดเวลาเหล่านี้หรือไม่"), "ลบงานตามกำหนดเวลาเหล่านี้");
 assert.equal(askStem("この選択を会社に保存しますか？"), "この選択を会社に保存します");

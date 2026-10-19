@@ -1,7 +1,10 @@
 (Not specified),(ไม่ระบุ)
 (the root folder itself),(ตัวโฟลเดอร์หลัก)
+-1 means not applicable,-1 หมายถึงไม่เกี่ยวข้อง
+0 means not matched,0 หมายถึงไม่ได้จับคู่
 1 day before,ก่อน 1 วัน
 1 hour before,ก่อน 1 ชั่วโมง
+1 means the ledger has this document number,1 หมายถึงพบเลขที่เอกสารนี้ในบัญชีแยกประเภท
 1% e-Withholding Tax rate,อัตรา 1% (e-Withholding Tax)
 10 minutes before,ก่อน 10 นาที
 15 minutes before,ก่อน 15 นาที
@@ -34,8 +37,7 @@ A positive record revision is required.,เวอร์ชันของรา�
 A positive source page number is required.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 A product code or barcode identifies more than one product.,รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ
 A product needs a name.,กรุณากรอกชื่อสินค้า
-A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,การกระทบยอดไม่สำเร็จเนื่องจากข้อผิดพลาดของโปรแกรม ระบบบันทึกข้อผิดพลาดแล้ว การลองใหม่จะได้ผลเช่นเดิม
-A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.,หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ที่อ่านแล้ว เก็บไว้สำหรับร่าง ภ.ง.ด.3 / ภ.ง.ด.53 เมื่อบริษัทเลือกไม่บันทึกหนังสือรับรอง ไม่ใช่ใบกำกับภาษี ไม่ส่งข้อมูลและไม่คิดค่าบริการ
+A program error stopped this reconciliation. The error has been recorded; trying again gives the same result.,การกระทบยอดไม่สำเร็จเนื่องจากข้อผิดพลาดของโปรแกรม ระบบบันทึกข้อผิดพลาดแล้ว การลองใหม่จะได้ผลเช่นเดิม
 A referenced history record is unavailable in the selected company and client.,ไม่สามารถเข้าถึงประวัติที่อ้างอิงภายใต้บริษัทและลูกค้าที่เลือกได้
 A remembered column is not in this POS export. Choose the columns again,ไม่พบคอลัมน์ที่จำไว้ในไฟล์ส่งออก POS นี้ กรุณากำหนดคอลัมน์ใหม่
 A reported ERP action is invalid.,การดำเนินการ ERP ที่รายงานไม่ถูกต้อง
@@ -110,6 +112,7 @@ Amount,จำนวนเงิน
 Amount Tolerance,ค่าผลต่างยอมรับได้
 Amount not read,อ่านจำนวนเงินไม่ได้
 Amount paid,จำนวนเงินที่จ่ายในครั้งนี้
+Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},หน้าต่อไปนี้ของรายงานภาษีขายมียอดเงินกับเลขที่เอกสารเหลื่อมแถว กรุณาแก้ไขตามต้นฉบับ: {0}
 An account needed for this invoice is not set. Check the account settings,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
 An amount could not be read. Check the amount format in the file,มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์
@@ -138,6 +141,7 @@ Archived cards,การ์ดที่เก็บถาวร
 Archived items,รายการที่เก็บถาวร
 Archived lists,รายการที่เก็บถาวร
 Area,พื้นที่
+As printed on the report,ตามที่พิมพ์ในรายงาน
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
 Assign to,มอบหมายให้
 Assign · Track · Discuss,มอบหมาย · ติดตาม · พูดคุย
@@ -185,6 +189,7 @@ Billing State,สถานะการเรียกเก็บเงิน
 Billing Units,หน่วยคิดค่าบริการ
 Bind this account first,กรุณาผูกบัญชีก่อน
 Binding Generation,เวอร์ชันการผูก
+Binding Key,คีย์การผูก
 Binding code,รหัสผูกบัญชี
 Blocked By,รายการที่ขัดขวาง
 Blue,น้ำเงิน
@@ -208,7 +213,9 @@ Bound at,เวลาที่ผูกบัญชี
 Bound to {0},ผูกบัญชีกับ {0} แล้ว
 Branch,เส้นทางการดำเนินการ
 Branch No,เลขที่สาขา
+Branch When Added,สาขาเมื่อเพิ่ม
 Branch {0},สาขา {0}
+Brief Group,กลุ่มสรุป
 Brief Key,คีย์สรุปผล
 Brief Sent At,เวลาส่งสรุปผล
 Brief Status,สถานะสรุปผล
@@ -236,7 +243,7 @@ CC Desktop authentication failed.,การยืนยันตัวตน CC 
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 CC Desktop could not write this invoice. It is retried automatically,CC เดสก์ท็อปไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
-CC Desktop has not finished this yet.,CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ
+CC Desktop has not finished.,CC เดสก์ท็อปยังดำเนินการไม่เสร็จ
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 "CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.",CC เดสก์ท็อปออฟไลน์ จึงอ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่า CC เดสก์ท็อปทำงานอยู่ แล้วลองใหม่
 CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
@@ -369,6 +376,7 @@ Code or barcode,รหัสหรือบาร์โค้ด
 Collapse list,ย่อรายการ
 Collection is not connected for this ERP data type.,ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Color,สี
+Combined VAT Filing,ยื่นภาษีมูลค่าเพิ่มรวม
 Comment,ความคิดเห็น
 Commented on a task,แสดงความคิดเห็นในงานแล้ว
 Commenting,สิทธิ์แสดงความคิดเห็น
@@ -600,6 +608,7 @@ Disable {0},ปิดใช้งาน {0}
 Disabled,ปิด
 Discount,ส่วนลด
 Discount Amount,จำนวนส่วนลด
+Display Path,พาธที่แสดง
 Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
 Dividends,เงินปันผล
 Document Key,คีย์ป้องกันเอกสารซ้ำ
@@ -704,7 +713,7 @@ Evidence Fingerprint,ลายนิ้วมือหลักฐาน
 Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่
-Excel/CSV exported from online banking or the electronic PDF is most accurate,แนะนำให้ใช้ Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
+Excel/CSV from online banking or electronic PDF,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
 Expected VAT,ภาษีที่ควรเป็น
 Expense (goods from now on),ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)
@@ -751,7 +760,7 @@ Find product,ค้นหาสินค้า
 Fingerprint,ลายนิ้วมือข้อมูล
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
-Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วจะดูและส่งออกได้เท่านั้น
+"Finish this count? {0} counted, {1} uncounted; the task becomes read-only.",ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น
 Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
 Finishing a stock count,กำลังปิดการตรวจนับสต็อก
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
@@ -826,6 +835,7 @@ Holder Fence,ลำดับการพยายามที่ถือล็�
 Host Names,ชื่อโฮสต์
 How to put documents in the folders,วิธีวางเอกสารในโฟลเดอร์
 IN,เงินเข้า
+Identity,ตัวระบุ
 "If you have the electronic statement, upload it instead",หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน
 Import result,ผลการนำเข้า
@@ -936,21 +946,18 @@ Last month to claim,เดือนสุดท้ายที่ใช้สิ
 Last name,ชื่อสกุล
 Last used,ที่ใช้ล่าสุด
 Lease Computer,คอมพิวเตอร์ที่รับงาน
-Lease Credential,ข้อมูลรับรองของสิทธิ์ถือครอง
-Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
-Lease Expires At (UTC),เวลาสิทธิ์ถือครองหมดอายุ (UTC)
-Lease Handle,รหัสสิทธิ์ถือครอง
 Leased At (UTC),เวลารับไปดำเนินการ (UTC)
 Leave board,ออกจากบอร์ด
 Ledger account,บัญชีแยกประเภท
 Ledger amount,ยอดบัญชีแยกประเภท
 Ledger credit only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 Ledger debit only,มีเฉพาะเดบิตในบัญชีแยกประเภท
+Ledger file the rows were read from,ไฟล์บัญชีแยกประเภทที่อ่านรายการ
 Ledger {0} {1}: one line {2},บัญชีแยกประเภท {0} {1}: 1 รายการ {2}
 "Ledger: {0} card slip(s) on {1}, total {2}",บัญชีแยกประเภท: รายการบัตร {0} รายการ วันที่ {1} รวม {2}
 Left out (not in the tax report),ไม่นำมากระทบยอด (ไม่มีในรายงานภาษีขาย)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},ตัดออกแล้ว {0} รายการ ซึ่งซ้ำกับรายการเดินบัญชีหลักและอาจอ่านผิด กรุณาตรวจสอบ: {1}
-Legacy Status,สถานะเดิม
+Legal Name,ชื่อตามกฎหมาย
 Less exempt sales,ลบ ยอดขายที่ได้รับยกเว้น (ถ้ามี)
 Less zero-rated sales,ลบ ยอดขายที่เสียภาษีในอัตราร้อยละ 0 (ถ้ามี)
 Level,ระดับ
@@ -975,10 +982,15 @@ Local To Computer,เฉพาะคอมพิวเตอร์
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
+Lock Credential,ข้อมูลรับรองการล็อก
+Lock Expires At,เวลาหมดอายุการล็อก
+Lock Expires At (UTC),เวลาหมดอายุการล็อก (UTC)
+Lock Handle,รหัสการล็อก
 Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
 Lookup Key,คีย์ค้นหา
+MR.ERP Company,บริษัท MR.ERP
 MR.ERP Import Menu Options Seen,เมนูนำเข้า MR.ERP ที่พบ
 MR.ERP Import Menu per Account Set,เมนูนำเข้า MR.ERP ของแต่ละชุดบัญชี
 MR.ERP Master Defaults per Account Set,ค่าเริ่มต้น MR.ERP ของแต่ละชุดบัญชี
@@ -1006,7 +1018,7 @@ Match and save,จับคู่และบันทึก
 Match rate,อัตราการจับคู่
 Matched,จับคู่แล้ว
 Matched Count,จำนวนที่จับคู่แล้ว
-"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกในบัญชีแยกประเภท
+"Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger",จับคู่ยอดบัตร {0} รายการตามอัตราที่ตั้งไว้ ค่าธรรมเนียม {1} แสดงเป็นยอดที่ธนาคารหัก ยังไม่บันทึกบัญชี
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
 Max Push Data Version,เวอร์ชันข้อมูลงานสูงสุด
@@ -1024,7 +1036,6 @@ Month paid,เดือนที่จ่ายเงินได้
 Monthly,ทุกเดือน
 Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
 More than one account set of this company covers the document date.,มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร
-"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",ใบกำกับภาษีส่วนใหญ่ยังอ่านไม่เสร็จภายในเวลาที่กำหนด ({0} จาก {1} ไฟล์) ผลต่างด้านล่างส่วนใหญ่เกิดจากใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
@@ -1032,6 +1043,7 @@ Moved a task,ย้ายงานแล้ว
 Moving a task,กำลังย้ายงาน
 My cards,การ์ดของฉัน
 Name,ชื่อ
+Name Key,คีย์ชื่อ
 Name suggests P.N.D.3,ชื่อบ่งว่าเป็น ภ.ง.ด.3
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจทาน
@@ -1078,21 +1090,22 @@ No number_,ไม่มีเลขที่_
 No presets yet,ยังไม่มีค่าที่ตั้งไว้
 No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
+No push target,ยังไม่ได้เลือกปลายทางการส่ง
 No recognition record,ไม่มีบันทึกการอ่านเอกสาร
 No recognition tasks were given.,ไม่ได้ระบุงานอ่านเอกสาร
 No rules yet,ยังไม่มีกฎ
 No runs yet,ยังไม่มีประวัติการทำงาน
 No sales were found in this POS export,ไม่พบรายการขายในไฟล์ส่งออก POS นี้
+No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.,ไม่มีรายการเดินบัญชีในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบช่วงเวลาของทั้งสองไฟล์
 No tasks were given.,ไม่ได้ระบุงาน
 No tax month,ไม่มีเดือนภาษี
 No templates yet,ยังไม่มีเทมเพลต
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 "No, check line by line",ไม่ใช่ ตรวจทีละรายการ
-"No, not in the tax report (interest, other income)",ไม่นำมากระทบยอด (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)
+"No, not in the tax report (non-invoiced income)",ไม่นำมากระทบยอด (รายได้ที่ไม่ออกใบกำกับภาษี)
 No.,ลำดับที่
 Non-life insurance premiums,เบี้ยประกันวินาศภัย
 None,ไม่มี
-None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
 Not Permitted,ไม่ได้รับอนุญาต
 Not a tax invoice,ไม่ใช่ใบกำกับภาษี
 Not an invoice file,ไม่ใช่ใบกำกับภาษี
@@ -1104,7 +1117,7 @@ Not found,ไม่พบ
 Not included,ไม่ได้รวมในแบบ
 Not invoices {0},ไม่ใช่ใบกำกับภาษี {0}
 Not permitted,ไม่มีสิทธิ์
-Not pushed yet,ยังไม่ได้ส่ง
+Not pushed,ยังไม่ได้ส่ง
 Not set,ยังไม่กรอก
 Not specified in books,ไม่ได้ระบุในบัญชี
 Not uploaded {0},ยังไม่ได้อัปโหลด {0}
@@ -1123,7 +1136,6 @@ Off,ปิด
 Old Value,ค่าเดิม
 On,เปิด
 On schedule,ตามกำหนดเวลา
-"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านได้ มียอดเงินกับเลขที่เอกสารเหลื่อมแถวกัน (ยอดเงินทุกรายการมีในบัญชีแยกประเภท เพียงแต่เลขที่เอกสารไม่ตรงกัน) เป็นการอ่านผิด กรุณาแก้ไขตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 One folder per rule. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ
 One folder per scheduled task. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
@@ -1146,6 +1158,7 @@ Options,ตัวเลือก
 Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
 Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
+Origin,ที่มา
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
 Original Document Manifest,ดัชนีเนื้อหาเอกสารต้นฉบับ
 Original File,ไฟล์ต้นฉบับ
@@ -1165,6 +1178,7 @@ Other party,คู่สัญญา
 Other records,รายการอื่น
 Outcome,ผลการดำเนินการ
 Output VAT report,รายงานภาษีขาย
+Output VAT report file the rows were read from,ไฟล์รายงานภาษีขายที่อ่านรายการ
 Output tax report,รายงานภาษีขาย
 Output tax this month,ภาษีขายเดือนนี้
 Over,เกิน
@@ -1203,7 +1217,6 @@ Payee tax ID invalid,เลขประจำตัวผู้เสียภ�
 Payee tax ID missing,ไม่มีเลขประจำตัวผู้เสียภาษีของผู้มีเงินได้
 Payees,จำนวนราย
 Payer not clear,ไม่ชัดเจนว่าใครเป็นผู้จ่าย
-Payload Json,ข้อมูลส่งที่ตรึงไว้ (JSON)
 Payment,วิธีชำระเงิน
 Payment Date,วันที่จ่าย
 Payment Evidence,หลักฐานการชำระเงิน
@@ -1232,8 +1245,10 @@ Preparation data does not match the connection or account set.,ข้อมู�
 Preparation data for this account set is incomplete.,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
 Prepared a stock count template,เตรียมแม่แบบตรวจนับสต็อกแล้ว
 Preparing a stock count template,กำลังเตรียมแม่แบบตรวจนับสต็อก
+Preset group match number; 0 means not grouped,หมายเลขกลุ่มการจับคู่ที่ตั้งไว้ 0 หมายถึงไม่อยู่ในกลุ่ม
 Presets,ค่าที่ตั้งไว้
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
+Previous Status,สถานะเดิม
 Private,ส่วนตัว
 Private File,ไฟล์ส่วนตัว
 Private Storage URL,URL ที่จัดเก็บส่วนตัว
@@ -1258,15 +1273,17 @@ Purple,ม่วง
 Push Account Set,ชุดบัญชีปลายทาง
 Push Attempt,การพยายามส่ง
 Push Connection,การเชื่อมต่อปลายทาง
+Push Data (JSON),ข้อมูลที่ส่ง (JSON)
 Push Data Version,เวอร์ชันข้อมูลงาน
 Push Record,รายการส่ง
 Push choices set for a client company or one of its branches,ตัวเลือกการส่งที่ตั้งไว้สำหรับบริษัทลูกค้าหรือสาขา
 Push record not found.,ไม่พบรายการส่ง
 Pushed,ตอนส่ง
 Pushed documents,ส่งเอกสารแล้ว
-Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ
+Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งซ้ำ
 Pushing documents,กำลังส่งเอกสาร
 "Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดใช้การส่งข้อมูล จึงไม่มีการส่งข้อมูลใด ๆ
+Pushing to this ERP is not supported.,ไม่รองรับการส่งไปยัง ERP นี้
 Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
@@ -1292,6 +1309,7 @@ Read general ledger,อ่านบัญชีแยกประเภท
 Read tax invoices,อ่านใบกำกับภาษี
 Readback,อ่านกลับ
 Readback ID,รหัสการอ่านข้อมูลกลับ
+Reader,เครื่องที่อ่าน
 Reader Device,คอมพิวเตอร์ที่อ่านโฟลเดอร์
 Reading back the accounting books,กำลังอ่านข้อมูลบัญชีกลับมา
 Reading files,กำลังอ่านไฟล์
@@ -1318,9 +1336,10 @@ Recognition Quality,คุณภาพการอ่าน
 Recognition Reference,เลขอ้างอิงการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
 Recognition is busy. Try again in a moment.,บริการอ่านเอกสารมีผู้ใช้งานจำนวนมาก กรุณาลองใหม่ภายหลัง
-Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
+Recognition tasks cannot be deleted here.,ไม่สามารถลบงานอ่านเอกสารที่นี่ได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
 Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
+Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,หนังสือรับรอง 50 ทวิ ที่เก็บไว้สำหรับร่าง ภ.ง.ด.3 / ภ.ง.ด.53 เมื่อบริษัทไม่บันทึกหนังสือรับรอง ไม่ส่งข้อมูลและไม่คิดค่าบริการ
 Recognized Fields,ข้อมูลที่อ่านได้
 Recognized documents,อ่านเอกสารแล้ว
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
@@ -1348,10 +1367,10 @@ Red,แดง
 Reference,เลขที่อ้างอิง
 Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
 Refresh Lease Computer,คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช
-Refresh Lease Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
-Refresh Lease Generation,เวอร์ชันสิทธิ์การรีเฟรช
-Refresh Lease Handle,รหัสสิทธิ์การรีเฟรช
-Refresh Lease Owner,ผู้ถือสิทธิ์การรีเฟรช
+Refresh Lock Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
+Refresh Lock Generation,เวอร์ชันสิทธิ์การรีเฟรช
+Refresh Lock Handle,รหัสสิทธิ์การรีเฟรช
+Refresh Locked By,ผู้ถือสิทธิ์การรีเฟรช
 Refresh Request Aliases,ดัชนีป้องกันคำขอรีเฟรชซ้ำ
 Refresh Started At (UTC),เวลาเริ่มรีเฟรช (UTC)
 Refresh Status,สถานะการรีเฟรช
@@ -1362,7 +1381,7 @@ Registered At,เวลาที่ลงทะเบียน
 Registered At (UTC),เวลาลงทะเบียน (UTC)
 Registered By,ผู้ลงทะเบียน
 Registry Row,แถวในรายการเข้าสู่ระบบ
-Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
+Reimporting review workbooks is not supported.,ไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 Relative Path,พาธสัมพัทธ์
 Reload,โหลดใหม่
 Remarks,หมายเหตุ
@@ -1375,9 +1394,9 @@ Reminder day,วันที่แจ้งเตือน
 Reminder time,เวลาแจ้งเตือน
 Remove,ลบ
 Remove color,ลบสี
-Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Remove mirror,ลบมิเรอร์
 Remove template,ยกเลิกเทมเพลต
+Remove the old document shares before opening Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Remove this company choice?,ลบตัวเลือกของบริษัทนี้ไหม
 Remove this company note?,ลบบันทึกบริษัทนี้ไหม
 Removed a company choice,ลบตัวเลือกของบริษัทแล้ว
@@ -1500,6 +1519,8 @@ Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 Searched tasks,ค้นหางานแล้ว
 Searching tasks,กำลังค้นหางาน
+Seed Account Set,ชุดบัญชีต้นทาง
+Seed Connection,การเชื่อมต่อต้นทาง
 Seen At (UTC),เวลารายงาน (UTC)
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 100 distinct history records to export.,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
@@ -1539,7 +1560,6 @@ Settings Json,ข้อมูลการตั้งค่า (JSON)
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",มีหลายบัญชีที่มีรายการตรงกับรายการเดินบัญชีนี้ เมื่อเลือกแล้ว ระบบจะกระทบยอดใหม่จากไฟล์เดิม (ไม่อ่านไฟล์ซ้ำ)
-"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านจากรูปถ่าย / ไฟล์สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท อาจเกิดจากการอ่านผิด (เหลื่อมแถวหรือตกหล่น) กรุณาตรวจสอบกับต้นฉบับ (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}
 Sheet,ไฟล์
 Sheets,จำนวนแผ่น
 Short,ขาด
@@ -1632,6 +1652,7 @@ Summary Json,ข้อมูลสรุป
 Summary table import,นำเข้าตารางสรุป
 Supplier type,ประเภทผู้จำหน่าย
 Surcharge,เงินเพิ่ม
+Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.,หน้ารายงานภาษีขายต่อไปนี้สงสัยว่าอ่านผิด จำนวนรายการที่ไม่ตรงกับบัญชีแยกประเภท: {0} กรุณาตรวจสอบกับต้นฉบับ
 Table,ตาราง
 Tap Send documents to ERP in the menu first,กรุณากด «ส่งเอกสารเข้า ERP» ในเมนูก่อน
 Tap the menu to start,กรุณากดเมนูเพื่อเริ่มต้น
@@ -1687,7 +1708,7 @@ The ERP report contains duplicate action identifiers.,รายงาน ERP ม
 The ERP report contains duplicate field identifiers.,รายงาน ERP มีรหัสฟิลด์ซ้ำกัน
 The ERP report observation time is invalid.,เวลาเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง
 The ERP report refresh status is invalid.,สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง
-The ERP report uses an unsupported adapter.,รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ
+The ERP report uses an unsupported system type.,รายงาน ERP ใช้ประเภทระบบที่ไม่รองรับ
 The ERP target context is inconsistent.,บริบทของปลายทาง ERP ไม่สอดคล้องกัน
 The MR.ERP import page shows no menu (setup incomplete or no permission).,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
@@ -1711,7 +1732,7 @@ The amounts do not add up. Correct them and submit again,ยอดรวมไ�
 The answer is not valid.,คำตอบไม่ถูกต้อง
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
-The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทของคุณ ซึ่งอาจเป็นใบกำกับภาษีซื้อ กรุณาตรวจสอบว่าใส่ผิดช่องหรือไม่: {0}
+The buyer on these invoices is this company: {0},ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทนี้: {0}
 The camera could not start,ไม่สามารถเปิดกล้องได้
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่พบการ์ดนี้
@@ -1722,7 +1743,7 @@ The client fields are invalid.,ข้อมูลลูกค้าไม่ถ�
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้
-The computer on this connection cannot do this.,คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้
+The computer on this connection does not support this action.,คอมพิวเตอร์ของการเชื่อมต่อนี้ไม่รองรับรายการนี้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The credential changed. Reload before resetting or revoking it.,ข้อมูลรับรองมีการเปลี่ยนแปลง กรุณารีเฟรชก่อนรีเซ็ตหรือยกเลิก
 The credential request is invalid.,คำขอข้อมูลรับรองไม่ถูกต้อง
@@ -1762,7 +1783,6 @@ The file size or page metadata is invalid.,ข้อมูลขนาดไฟ�
 The folder rule is incomplete or invalid.,ข้อมูลกฎไม่ครบถ้วนหรือไม่ถูกต้อง
 The frozen push target does not match the authorized target.,ปลายทางการส่งที่ล็อกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
 The general ledger could not be read.,ไม่สามารถอ่านบัญชีแยกประเภทได้
-"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.",บัญชีแยกประเภททั่วไปครอบคลุมช่วงเวลายาวกว่ารายการเดินบัญชีธนาคาร ใช้เฉพาะรายการวันที่ {0} ถึง {1} และยกยอดรายการก่อนหน้าเป็นยอดยกมา ({2})
 The general ledger has no revenue account rows.,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.,บัญชีแยกประเภททั่วไปมีหลายรหัสบัญชี ระบบเลือกรหัสบัญชี {0} ซึ่งตรงกับรายการเดินบัญชีธนาคารมากที่สุด
 "The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่
@@ -1787,8 +1807,9 @@ The invoice has changed. Prepare it again.,เอกสารมีการเ�
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The invoice page data has an invalid format.,รูปแบบข้อมูลหน้าใบกำกับภาษีไม่ถูกต้อง
 The item lines do not add up to the day's total,ยอดรวมรายการสินค้าไม่เท่ากับยอดรวมของวัน
+"The ledger covers more than the statement; only {0} to {1} was used, and earlier entries form an opening balance of {2}.",บัญชีแยกประเภทยาวกว่ารายการเดินบัญชี ใช้เฉพาะ {0} ถึง {1} รายการก่อนหน้ารวมเป็นยอดยกมา ({2})
 The ledger file content is invalid.,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
-"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",ยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวมของใบกำกับภาษีนี้ไม่ตรงกัน กรุณาตรวจสอบในหน้าแก้ไขก่อนส่งออก
+"The line amounts, net amount, VAT and total of this invoice do not add up. Check them on the edit page.",ยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวมของใบกำกับภาษีนี้ไม่ตรงกัน กรุณาตรวจสอบในหน้าแก้ไขก่อนส่งออก
 The line items do not add up to the invoice amount. Fix the lines and submit again,ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่
 The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 The matching stock item is missing. Choose it and submit again.,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
@@ -1815,7 +1836,7 @@ The push data exceeds the size limit.,ข้อมูลส่งเกินข
 The push record has changed. Reload and try again.,รายการส่งมีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The push target has changed. Prepare the invoice again.,ปลายทางการส่งเปลี่ยนแปลงแล้ว กรุณาเตรียมเอกสารใหม่
 The quantity is not a valid number,จำนวนไม่ใช่ตัวเลขที่ถูกต้อง
-The readback is not ready yet.,การอ่านข้อมูลกลับยังไม่เสร็จ
+The readback is not finished.,การอ่านข้อมูลกลับยังไม่เสร็จ
 The readback request is invalid.,คำขออ่านข้อมูลบัญชีกลับไม่ถูกต้อง
 The readback was not found.,ไม่พบผลการอ่านข้อมูลกลับ
 The receipts do not add up to the total row of this POS export,ยอดรวมใบเสร็จไม่เท่ากับแถวยอดรวมในไฟล์ส่งออก POS นี้
@@ -1876,18 +1897,16 @@ Then,ให้ทำ
 There is not enough balance to read the scanned or photographed document. Top up and try again.,ยอดคงเหลือไม่เพียงพอสำหรับการอ่านเอกสารสแกนหรือรูปถ่าย กรุณาเติมเงินแล้วลองใหม่
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดคงเหลือไม่เพียงพอสำหรับอ่านใบกำกับภาษีที่เป็นรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 There is not enough recognition balance. Top up and send the document again.,ยอดคงเหลือสำหรับอ่านเอกสารไม่เพียงพอ กรุณาเติมเงินแล้วส่งใหม่
+These VAT report pages could not be checked against their page totals: {0}. Check them against the original,หน้าต่อไปนี้ของรายงานภาษีขายตรวจกับยอดรวมท้ายหน้าไม่ได้: {0} กรุณาตรวจสอบกับต้นฉบับ
 "These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}",ไฟล์ต่อไปนี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี จึงไม่ได้รวมไว้ (บัญชีแยกประเภทให้วางด้านขวา): {0}
 These files could not be read and were left out: {0},ไม่สามารถอ่านไฟล์ต่อไปนี้ได้ จึงไม่ได้นำมาตรวจสอบ: {0}
 These files could not be read and were left out; upload them again to include them: {0},ไม่สามารถอ่านไฟล์ต่อไปนี้ได้ จึงไม่ได้นำมารวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามแล้ว: {0}
 These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},รายการต่อไปนี้ในรายงานภาษีขายที่อ่านได้มีข้อมูลไม่สอดคล้องกันเอง อาจเกิดจากการอ่านผิด กรุณาตรวจสอบกับต้นฉบับ: {0}
-"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",หน้าต่อไปนี้ของรายงานภาษีขายไม่สามารถตรวจทานกับยอดรวมท้ายหน้าได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้) กรุณาตรวจสอบกับต้นฉบับ: {0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},รายการเดินบัญชีต่อไปนี้มีธนาคารหรือเลขที่บัญชีไม่ตรงกับรายการเดินบัญชีอื่น อาจเป็นของบัญชีอื่น: {0}
 These statements look like another account and were left out of this reconciliation: {0},รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},แผ่นงานต่อไปนี้ซ้ำกับแผ่นงานอื่นในไฟล์เดียวกันทุกบรรทัด จึงนับเพียงครั้งเดียว: {0}
-This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
-This ERP adapter is not connected yet.,อะแดปเตอร์ ERP นี้ยังไม่ได้เชื่อมต่อ
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ปิดใช้งานแล้ว
 This MR.ERP menu cannot be chosen for this account set.,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
 This PC already has the maximum number of folder rules.,เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว
@@ -1915,11 +1934,10 @@ This delivery conflicts with the current task state.,ผลรับนี้ข
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่
 This document does not need this choice,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
-This document has no push target,เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This file cannot be read,ไม่สามารถอ่านไฟล์นี้ได้
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
-"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย
+"This file is a general ledger, not a bank statement. Put it on the ledger side.",ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท
 This file is too large to send from this PC.,ไฟล์มีขนาดใหญ่เกินไป ไม่สามารถอัปโหลดจากเครื่องนี้ได้
 This file record was not found.,ไม่พบรายการไฟล์นี้
 This file type cannot be brought into the chat.,ไม่สามารถนำไฟล์ประเภทนี้เข้ามาในแชตได้
@@ -1949,6 +1967,7 @@ This original already has a recognition task with different parameters.,ไฟ�
 This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
 This product already has a unit called {0}.,สินค้านี้มีหน่วย {0} อยู่แล้ว
 This push attempt is no longer current.,การพยายามส่งครั้งนี้ไม่มีผลแล้ว
+This recognition mode is not supported.,ไม่รองรับโหมดอ่านเอกสารนี้
 This recognition service currently accepts PDF and image originals.,บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้
 This refresh request has expired. Request a new refresh.,คำขอรีเฟรชนี้หมดอายุแล้ว กรุณาส่งคำขอใหม่
 This request conflicts with an existing reservation.,คำขอนี้ขัดแย้งกับรายการที่จองไว้
@@ -1963,7 +1982,7 @@ This saved choice no longer exists,ไม่พบตัวเลือกที
 This scanned or photographed document could not be read. Check the file and try again.,ไม่สามารถอ่านเอกสารสแกนหรือรูปถ่ายนี้ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
 This scheduled task is turned off.,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
 This scheduled task no longer exists for this PC.,ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้
-"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",ตารางนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
+"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.",ไฟล์นี้ไม่ใช่รายการเดินบัญชีจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
 "This statement shows no running balance, so balances cannot be checked line by line.",รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงไม่สามารถตรวจสอบยอดคงเหลือทีละรายการได้
 This stock count task is closed.,งานตรวจนับสินค้านี้ปิดแล้ว
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
@@ -2026,6 +2045,7 @@ Unmatched Count,จำนวนที่ไม่พบคู่
 Unsupported ERP connection type.,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 Unusual rate,อัตราไม่ปกติ
 Up to 5 photos per entry; take a photo or choose from the gallery.,แต่ละรายการแนบรูปได้ไม่เกิน 5 รูป โดยถ่ายรูปหรือเลือกจากอัลบั้ม
+Up to six decimal places; empty actual quantity means not counted,ทศนิยมไม่เกิน 6 ตำแหน่ง จำนวนนับจริงว่างหมายถึงยังไม่ได้นับ
 Update CC Desktop on that computer to read this account set's chart of accounts.,กรุณาอัปเดต CC เดสก์ท็อปบนคอมพิวเตอร์เครื่องนั้นเพื่ออ่านผังบัญชีของชุดบัญชีนี้
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบกำกับภาษีผ่านฟังก์ชันตรวจทานของ Cowork
 Update this company note?,แก้ไขบันทึกบริษัทนี้ไหม
@@ -2180,8 +2200,8 @@ companion.generation_conflict,ข้อมูลรับรองมีกา�
 companion.on_demand_busy,มีคำขอรอ CC เดสก์ท็อปมากเกินไป กรุณาลองใหม่ภายหลัง
 companion.on_demand_invalid,คำขอถึง CC เดสก์ท็อปไม่ถูกต้อง
 companion.on_demand_missing,ไม่พบคำขอถึง CC เดสก์ท็อป
-companion.on_demand_not_ready,CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ
-companion.on_demand_unsupported,คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้
+companion.on_demand_not_ready,CC เดสก์ท็อปยังดำเนินการไม่เสร็จ
+companion.on_demand_unsupported,คอมพิวเตอร์ของการเชื่อมต่อนี้ไม่รองรับรายการนี้
 companion.queue_access_revoked,คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว
 companion.queue_conflict,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 companion.queue_request_invalid,คำขอคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
@@ -2248,10 +2268,10 @@ cowork.company.notes,บันทึก
 cowork.company.notes_full,บันทึกเต็มแล้ว
 cowork.company.pending.cc_proposal,รอส่ง
 cowork.company.pending.more,อีก {0} บริษัท
-cowork.company.pending.no_target,เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง
+cowork.company.pending.no_target,ยังไม่ได้เลือกปลายทางการส่ง
 cowork.company.pending.not_pushed,ยังไม่ได้ส่ง
-cowork.company.pending.text,มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})
-cowork.company.pending.text_plain,มีเอกสาร {0} รายการรอคุณดำเนินการ
+cowork.company.pending.text,เอกสาร {0} รายการรอดำเนินการ ({1})
+cowork.company.pending.text_plain,เอกสาร {0} รายการรอดำเนินการ
 cowork.company.pending.title,เอกสารรอดำเนินการ
 cowork.company.period_invalid,เดือนไม่ถูกต้อง
 cowork.company.title_invalid,กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร
@@ -2483,7 +2503,7 @@ cowork.readback.version_unsupported,กรุณาอัปเดตเว็�
 cowork.recon.bank.gl_credit_only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 cowork.recon.bank.gl_debit_only,มีเฉพาะเดบิตในบัญชีแยกประเภท
 cowork.recon.bank.left,รายการเดินบัญชีธนาคาร
-cowork.recon.bank.leftHint,แนะนำให้ใช้ Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
+cowork.recon.bank.leftHint,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 cowork.recon.bank.matched,จับคู่แล้ว
 cowork.recon.bank.right,บัญชีแยกประเภททั่วไป
 cowork.recon.bank.stmt_deposit_only,มีเฉพาะรายการฝากในธนาคาร
@@ -2761,7 +2781,7 @@ cowork.stock.workbench.editEntry,แก้ไขรายการ
 cowork.stock.workbench.elsewhere,สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:
 cowork.stock.workbench.entryQty,จำนวนที่นับครั้งนี้
 cowork.stock.workbench.find,ค้นหาสินค้า
-cowork.stock.workbench.finishConfirm,ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วจะดูและส่งออกได้เท่านั้น
+cowork.stock.workbench.finishConfirm,ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น
 cowork.stock.workbench.locationDiff,ผลต่างตำแหน่ง
 cowork.stock.workbench.lookupFailed,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
 cowork.stock.workbench.needsRecount,สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่
@@ -3262,7 +3282,7 @@ erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้�
 erp.endpoint_disabled,การเชื่อมต่อ ERP นี้ปิดใช้งานแล้ว
 erp.target_access_denied,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
 erp.target_context_invalid,บริบทของปลายทาง ERP ไม่สอดคล้องกัน
-erp.target_projection_adapter_invalid,รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ
+erp.target_projection_adapter_invalid,รายงาน ERP ใช้ประเภทระบบที่ไม่รองรับ
 erp.target_projection_collector_invalid,ข้อมูลตัวเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง
 erp.target_projection_collector_not_connected,ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 erp.target_projection_duplicate_action,รายงาน ERP มีรหัสการดำเนินการซ้ำกัน
@@ -3323,7 +3343,7 @@ intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ยืนยั
 intake.error.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
-intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งซ้ำ
 intake.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 intake.error.ERR_MRERP_MENU_CHANGED,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
@@ -3453,7 +3473,7 @@ ocr.table_invalid_archive,ไฟล์เอกสารเสียหายห
 ocr.table_invalid_bytes,เนื้อหาเอกสารไม่ถูกต้อง
 ocr.table_invalid_dimensions,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
 ocr.table_parse_failed,ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง
-ocr.table_roundtrip_not_supported,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
+ocr.table_roundtrip_not_supported,ไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 ocr.table_row_limit,เอกสารมีจำนวนแถวเกินขีดจำกัด
 ocr.table_text_limit,เอกสารมีปริมาณข้อความเกินขีดจำกัด
 ocr.table_text_too_long,"มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน"
@@ -3490,7 +3510,7 @@ pos.type_unsupported,นำเข้าได้เฉพาะไฟล์ส�
 pos.vat_out_of_range,คอลัมน์ภาษีมูลค่าเพิ่มเกิน 7% ของยอดขายในวันนั้น
 pos.xls_not_supported,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่
 probably {0},น่าจะเป็น {0}
-push.adapter_not_connected,อะแดปเตอร์ ERP นี้ยังไม่ได้เชื่อมต่อ
+push.adapter_not_connected,ไม่รองรับการส่งไปยัง ERP นี้
 push.automation_changed,ถอนการส่งอัตโนมัติแล้ว เพราะกฎเปลี่ยนก่อนบันทึก
 push.branch_invalid,โหมดการส่งไม่ถูกต้อง
 push.companion_account_unreported,ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่
@@ -3543,7 +3563,7 @@ reconciliation.files_unread,ไม่สามารถอ่านไฟล์�
 reconciliation.gl_account_auto,บัญชีแยกประเภททั่วไปมีหลายรหัสบัญชี ระบบเลือกรหัสบัญชี {0} ซึ่งตรงกับรายการเดินบัญชีธนาคารมากที่สุด
 reconciliation.gl_no_revenue_rows,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
 reconciliation.gl_parse_failed,ไม่สามารถอ่านบัญชีแยกประเภทได้
-reconciliation.gl_period_trimmed,บัญชีแยกประเภททั่วไปครอบคลุมช่วงเวลายาวกว่ารายการเดินบัญชีธนาคาร ใช้เฉพาะรายการวันที่ {0} ถึง {1} และยกยอดรายการก่อนหน้าเป็นยอดยกมา ({2})
+reconciliation.gl_period_trimmed,บัญชีแยกประเภทยาวกว่ารายการเดินบัญชี ใช้เฉพาะ {0} ถึง {1} รายการก่อนหน้ารวมเป็นยอดยกมา ({2})
 reconciliation.gl_rows_outside_report,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 reconciliation.gl_source_invalid,ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง
 reconciliation.gl_trial_balance,ไฟล์นี้เป็นงบทดลองซึ่งมีเฉพาะยอดรวมของแต่ละบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการตามใบสำคัญแต่ละใบ
@@ -3554,7 +3574,7 @@ reconciliation.parse_info_invalid,ข้อมูลกระทบยอดม�
 reconciliation.parse_info_rows,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.parse_info_too_many,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
 reconciliation.prefer_electronic,หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
-reconciliation.preset.card_fee_applied,จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกในบัญชีแยกประเภท
+reconciliation.preset.card_fee_applied,จับคู่ยอดบัตร {0} รายการตามอัตราที่ตั้งไว้ ค่าธรรมเนียม {1} แสดงเป็นยอดที่ธนาคารหัก ยังไม่บันทึกบัญชี
 reconciliation.preset.card_fee_count,ที่อัตราค่าธรรมเนียม {1}% จับคู่ได้ {0} รายการ
 reconciliation.preset.card_fee_evidence_gl,บัญชีแยกประเภท: รายการบัตร {0} รายการ วันที่ {1} รวม {2}
 reconciliation.preset.card_fee_evidence_stmt,ธนาคาร {0}: รับเงิน {1}
@@ -3570,7 +3590,7 @@ reconciliation.preset.excluded_applied,ตามค่าที่ตั้ง�
 reconciliation.preset.excluded_count,บัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีรายการที่ตรงกันในรายงานภาษีขาย
 reconciliation.preset.excluded_no,นำมากระทบยอด
 reconciliation.preset.excluded_title,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
-reconciliation.preset.excluded_yes,ไม่นำมากระทบยอด (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)
+reconciliation.preset.excluded_yes,ไม่นำมากระทบยอด (รายได้ที่ไม่ออกใบกำกับภาษี)
 reconciliation.preset.gl_account_applied,ตามค่าที่ตั้งไว้ บัญชีนี้ใช้บัญชีแยกประเภท {0}
 reconciliation.preset.gl_account_count,มีหลายบัญชีที่มีรายการตรงกับรายการเดินบัญชีนี้ เมื่อเลือกแล้ว ระบบจะกระทบยอดใหม่จากไฟล์เดิม (ไม่อ่านไฟล์ซ้ำ)
 reconciliation.preset.gl_account_option,{0} (ตรงกัน {1} รายการ)
@@ -3583,9 +3603,9 @@ reconciliation.preset.grouped_yes,ใช่ จับคู่ตามยอด
 reconciliation.program_error,การกระทบยอดไม่สำเร็จเนื่องจากข้อผิดพลาดของโปรแกรม ระบบบันทึกข้อผิดพลาดแล้ว การลองใหม่จะได้ผลเช่นเดิม
 reconciliation.recognition_busy,บริการอ่านเอกสารมีผู้ใช้งานจำนวนมาก กรุณาลองใหม่ภายหลัง
 reconciliation.recognition_timeout,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
-reconciliation.report_page_likely_misread,หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านจากรูปถ่าย / ไฟล์สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท อาจเกิดจากการอ่านผิด (เหลื่อมแถวหรือตกหล่น) กรุณาตรวจสอบกับต้นฉบับ (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}
-reconciliation.report_page_shifted,หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านได้ มียอดเงินกับเลขที่เอกสารเหลื่อมแถวกัน (ยอดเงินทุกรายการมีในบัญชีแยกประเภท เพียงแต่เลขที่เอกสารไม่ตรงกัน) เป็นการอ่านผิด กรุณาแก้ไขตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
-reconciliation.report_pages_unverified,หน้าต่อไปนี้ของรายงานภาษีขายไม่สามารถตรวจทานกับยอดรวมท้ายหน้าได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้) กรุณาตรวจสอบกับต้นฉบับ: {0}
+reconciliation.report_page_likely_misread,หน้ารายงานภาษีขายต่อไปนี้สงสัยว่าอ่านผิด จำนวนรายการที่ไม่ตรงกับบัญชีแยกประเภท: {0} กรุณาตรวจสอบกับต้นฉบับ
+reconciliation.report_page_shifted,หน้าต่อไปนี้ของรายงานภาษีขายมียอดเงินกับเลขที่เอกสารเหลื่อมแถว กรุณาแก้ไขตามต้นฉบับ: {0}
+reconciliation.report_pages_unverified,หน้าต่อไปนี้ของรายงานภาษีขายตรวจกับยอดรวมท้ายหน้าไม่ได้: {0} กรุณาตรวจสอบกับต้นฉบับ
 reconciliation.report_rows_repeated,มี {0} รายการในรายงานภาษีขายซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันซ้ำ) จึงนับเพียงครั้งเดียว
 reconciliation.report_rows_suspect,รายการต่อไปนี้ในรายงานภาษีขายที่อ่านได้มีข้อมูลไม่สอดคล้องกันเอง อาจเกิดจากการอ่านผิด กรุณาตรวจสอบกับต้นฉบับ: {0}
 reconciliation.request_conflict,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
@@ -3607,16 +3627,16 @@ reconciliation.row_unknown_field,มีบางแถวในไฟล์ท�
 reconciliation.rows_invalid,มีบางแถวในไฟล์ที่ไม่สามารถแปลความได้ กรุณาตรวจสอบรูปแบบไฟล์
 reconciliation.rows_too_many,ไฟล์มีจำนวนแถวมากเกินไป กรุณาแบ่งไฟล์แล้วกระทบยอดทีละส่วน
 reconciliation.run_info_invalid,ข้อมูลกระทบยอดมีรูปแบบไม่ถูกต้อง กรุณาอัปโหลดไฟล์ใหม่
-reconciliation.statement_all_outside,ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน
+reconciliation.statement_all_outside,ไม่มีรายการเดินบัญชีในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบช่วงเวลาของทั้งสองไฟล์
 reconciliation.statement_balances_from_ledger,รายการเดินบัญชีไม่มียอดคงเหลือหรือยอดไม่สอดคล้องกัน ยอดยกมาและยอดยกไปจึงใช้ตามบัญชีแยกประเภท
-reconciliation.statement_is_ledger,ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย
+reconciliation.statement_is_ledger,ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท
 reconciliation.statement_lines_dropped,ตัดออกแล้ว {0} รายการ ซึ่งซ้ำกับรายการเดินบัญชีหลักและอาจอ่านผิด กรุณาตรวจสอบ: {1}
 reconciliation.statement_no_movement,รายการเดินบัญชีไม่มีรายการเคลื่อนไหวแต่ละรายการ (มีเฉพาะหน้าปกหรือหน้าสรุป) กรุณาอัปโหลดหน้าที่มีรายละเอียดรายการเคลื่อนไหว
 reconciliation.statement_no_running_balance,รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงไม่สามารถตรวจสอบยอดคงเหลือทีละรายการได้
-reconciliation.statement_not_a_statement,ตารางนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
+reconciliation.statement_not_a_statement,ไฟล์นี้ไม่ใช่รายการเดินบัญชีจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี
 reconciliation.statement_other_account,รายการเดินบัญชีต่อไปนี้มีธนาคารหรือเลขที่บัญชีไม่ตรงกับรายการเดินบัญชีอื่น อาจเป็นของบัญชีอื่น: {0}
 reconciliation.statement_other_account_left_out,รายการเดินบัญชีต่อไปนี้น่าจะเป็นของบัญชีอื่น จึงไม่ได้นำมากระทบยอดครั้งนี้: {0}
-reconciliation.statement_pages_recovered,{0}: หน้า {1} อ่านซ้ำจากต้นฉบับและได้รายการเพิ่มแล้ว แต่ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน กรุณาตรวจสอบกับต้นฉบับทีละรายการ
+reconciliation.statement_pages_recovered,{0}: หน้า {1} ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน
 reconciliation.statement_pages_unread,{0}: ไม่สามารถอ่านหน้า {1} ได้ (การอ่านหมดเวลา) ยอดคงเหลือไม่ต่อเนื่องตั้งแต่หน้านี้ กรุณาตรวจสอบกับต้นฉบับ
 reconciliation.statement_rows_outside,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออกแล้ว {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}
 reconciliation.statement_unparsed,ไม่สามารถอ่านรายการเดินบัญชีได้
@@ -3692,9 +3712,9 @@ total,รวมภาษี
 used by {0} items,มีสินค้าใช้อยู่ {0} รายการ
 vat_check.balance_insufficient,ยอดคงเหลือไม่เพียงพอสำหรับอ่านใบกำกับภาษีที่เป็นรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
 vat_check.balance_unavailable,ไม่สามารถตรวจสอบยอดคงเหลือในบัญชีได้ในขณะนี้ กรุณาลองใหม่ภายหลัง
-vat_check.mostly_unread,ใบกำกับภาษีส่วนใหญ่ยังอ่านไม่เสร็จภายในเวลาที่กำหนด ({0} จาก {1} ไฟล์) ผลต่างด้านล่างส่วนใหญ่เกิดจากใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง
+vat_check.mostly_unread,ใบกำกับภาษี {0} จาก {1} ไฟล์อ่านไม่เสร็จภายในเวลาที่กำหนด ผลต่างด้านล่างรวมใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง
 vat_check.no_invoices,ไม่พบใบกำกับภาษีที่อ่านได้
-vat_check.note.purchase_invoices,ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทของคุณ ซึ่งอาจเป็นใบกำกับภาษีซื้อ กรุณาตรวจสอบว่าใส่ผิดช่องหรือไม่: {0}
+vat_check.note.purchase_invoices,ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทนี้: {0}
 vat_check.note.unread,ไม่สามารถอ่านไฟล์ต่อไปนี้ได้ จึงไม่ได้นำมาตรวจสอบ: {0}
 vat_check.periods_differ,รายงานแต่ละฉบับมีงวดไม่ตรงกัน ({0}) กรุณาตรวจสอบ
 vat_check.recognition_busy,ระบบอ่านใบกำกับภาษีไม่ว่าง กรุณาลองใหม่อีกครั้งภายหลัง
@@ -3714,8 +3734,8 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
 {0} d {1} h left,อีก {0} วัน {1} ชั่วโมง
 {0} days before,ล่วงหน้า {0} วัน
-{0} documents are waiting for you,มีเอกสาร {0} รายการรอคุณดำเนินการ
-{0} documents are waiting for you ({1}),มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})
+{0} documents pending,เอกสาร {0} รายการรอดำเนินการ
+{0} documents pending ({1}),เอกสาร {0} รายการรอดำเนินการ ({1})
 {0} files,{0} ไฟล์
 "{0} files in the folder now, processed at the run time",ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา
 {0} files in the folder now.,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
@@ -3733,6 +3753,7 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
 {0} of {1} files processed,ดำเนินการแล้ว {0}/{1} ไฟล์
+{0} of {1} invoice files were not read in time; the differences below include unread invoices. Submit again later.,ใบกำกับภาษี {0} จาก {1} ไฟล์อ่านไม่เสร็จภายในเวลาที่กำหนด ผลต่างด้านล่างรวมใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,มี {0} รายการในรายงานภาษีขายซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันซ้ำ) จึงนับเพียงครั้งเดียว
 {0} rows were not imported,ไม่ได้นำเข้า {0} แถว
 {0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน
@@ -3745,8 +3766,8 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0}/{1} files,{0}/{1} ไฟล์
 {0}/{1} pages,{0}/{1} หน้า
 {0}: are the card deposits paid in net of a card fee?,{0}: ยอดเข้าบัญชีจากบัตรเป็นยอดสุทธิหลังหักค่าธรรมเนียมหรือไม่
+{0}: page {1} balance does not follow; all rows on the page are marked for review,{0}: หน้า {1} ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: ไม่สามารถอ่านหน้า {1} ได้ (การอ่านหมดเวลา) ยอดคงเหลือไม่ต่อเนื่องตั้งแต่หน้านี้ กรุณาตรวจสอบกับต้นฉบับ
-"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0}: หน้า {1} อ่านซ้ำจากต้นฉบับและได้รายการเพิ่มแล้ว แต่ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน กรุณาตรวจสอบกับต้นฉบับทีละรายการ
 {0}: which ledger account is it?,{0} ตรงกับบัญชีใดในบัญชีแยกประเภท
 {0}: {1},{0}: {1}
 {1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"

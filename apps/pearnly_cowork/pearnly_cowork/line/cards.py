@@ -90,9 +90,14 @@ def _items(items, shown):
 
 
 def _party_rows(role, fields, prefix):
-    return [_kv(_(role), fields.get(prefix + "_name")), _kv(_(role + " tax ID"), fields.get(prefix + "_tax")),
-            _kv(_(role + " branch"), fields.get(prefix + "_branch")),
-            _kv(_(role + " address"), fields.get(prefix + "_addr"))]
+    """对方那一组：名称、税号、分店、地址。每个标签是一条完整的词条，不拼接。"""
+    if role == "Seller":
+        labels = (_("Seller"), _("Seller tax ID"), _("Seller branch"), _("Seller address"))
+    else:
+        labels = (_("Buyer"), _("Buyer tax ID"), _("Buyer branch"), _("Buyer address"))
+    values = (fields.get(prefix + "_name"), fields.get(prefix + "_tax"), fields.get(prefix + "_branch"),
+              fields.get(prefix + "_addr"))
+    return [_kv(label, value) for label, value in zip(labels, values)]
 
 
 def _account(record, labels):

@@ -75,3 +75,85 @@ pearnly_cowork:Document handling set	zh	已设置单据处理方式	2026-10-18	d
 companion:log_paired	zh	已连接 Pearnly。	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
 companion:off_auth	zh	连接已失效，请在设置中重新连接	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
 pearnly_cowork:companion.queue_access_revoked	zh	此电脑已不能处理该单据	2026-10-18	docs/work/2026-10-15-multi-desktop-build.md
+assistant:MESSAGES.dropFiles	zh	将文件拖放到此处	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+assistant:SETTINGS.noComputer	zh	暂无已连接的电脑	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+assistant:SETTINGS.noFolders	zh	暂无文件夹	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+assistant:SETTINGS.useHere	zh	改用此电脑	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Change these scheduled tasks?	zh	确定要更改以下定时任务吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Change this scheduled task?	zh	确定要更改此定时任务吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Delete these scheduled tasks?	zh	确定要删除以下定时任务吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Refresh Request Aliases	zh	刷新请求去重索引	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Remove this company note?	zh	确定要删除此公司说明吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Save these scheduled tasks?	zh	确定要保存以下定时任务吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Save this scheduled task?	zh	确定要保存此定时任务吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Save this to the company's notes?	zh	确定要将此内容记入公司知识库吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.	zh	此单据属于其他分店，与所选账套不符。请选择该分店的账套后重新发送。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Turn this scheduled task on or off?	zh	确定要启用或停用此定时任务吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Update this company note?	zh	确定要修改此公司说明吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:companion.on_demand_not_ready	zh	CC 桌面版尚未完成。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:companion.on_demand_unsupported	zh	此连接的电脑不支持该操作。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.choice_not_editable	zh	此处只能修改付款方式和进项抵扣	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.choice_not_found	zh	未找到该选择	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.not_found	zh	未找到公司	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.not_in_catalog	zh	账套目录中没有此账套	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.note_not_found	zh	未找到该说明	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.pending.no_target	zh	未选择推送目标	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.pending.not_pushed	zh	未推送	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.pending.text	zh	{0} 份单据待处理（{1}）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.company.pending.text_plain	zh	{0} 份单据待处理	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.folder.defaults_invalid	zh	部分默认处理在此账套中不可用。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.folder.enableConfirmAll	zh	确定要启用此定时任务吗？到点处理文件夹中未处理的文件。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.folder.fetch_path_invalid	zh	请提供此文件夹中的文件路径。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.masters.failed	zh	无法读取此账套的科目表。请确认该电脑上的 Express 能打开此账套。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.masters.update_needed	zh	请更新该电脑上的 CC 桌面版以读取此账套的科目表。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.readback.account_missing	zh	此连接中没有该账套。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.readback.data_invalid	zh	无法读取 CC 桌面版返回的数据。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.readback.missing	zh	未找到回读结果。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.readback.not_ready	zh	回读尚未完成。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.readback.version_unsupported	zh	请先更新本站，再使用此版本的 CC 桌面版回读。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.recon.bank.leftHint	zh	网银导出的 Excel/CSV 或电子版 PDF	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.stock.count.voidConfirm	zh	确定要撤销 {0} 的记录吗？	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.stock.workbench.finishConfirm	zh	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后仅可查看和导出。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.tax.issue.pairing_unclear	zh	票据与凭证不一致	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.work.mine.empty	zh	暂无分配给您的卡片	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.work.notify.assign	zh	{0} 已将您添加到卡片「{1}」	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:cowork.work.notify.mention	zh	{0} 在卡片「{1}」中提及您	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:erp.target_projection_adapter_invalid	zh	ERP 报告使用了不支持的系统类型。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED	zh	此单据在菜单修复前已推送至 MR.ERP，可能在未关联日记账的菜单中未入账，请在 MR.ERP 核对后再推送。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:intake.error.pos_facts_invalid	zh	此单据的 POS 日汇总数据已损坏，请重新导入 POS 导出文件	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:ocr.table_roundtrip_not_supported	zh	不支持复核工作簿回导。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:push.adapter_not_connected	zh	不支持推送到此 ERP。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.dedicated_api_required	zh	请通过对账流程更改此类记录。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.gl_period_trimmed	zh	总账期间长于银行账单，仅使用 {0} 至 {1} 的记录，此前发生额已计入期初余额（{2}）。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.preset.excluded_applied	zh	按预设，以下科目不参与对账：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.preset.excluded_yes	zh	不参与（不开税票的收入）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.report_page_likely_misread	zh	以下销项税报告页疑似识别错误，与总账不一致的行数：{0}。请对照原件核对。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.report_page_shifted	zh	以下销项税报告页金额与单号错行，请对照原件更正：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.report_pages_unverified	zh	以下销项税报告页无法与页合计核对：{0}，请对照原件核对	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.statement_all_outside	zh	账单行均不在总账期间（{1} 至 {2}）内，已全部参与对账。请核对两份文件的期间。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.statement_is_ledger	zh	此文件为总账而非银行账单，请放在总账一侧。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.statement_not_a_statement	zh	此文件不是网银导出的账单（无余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:reconciliation.statement_pages_recovered	zh	{0} 第 {1} 页余额不连续，该页各行已标记为待复核	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:stocktake.dedicated_api_required	zh	请通过盘点流程更改此类记录。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:vat_check.mostly_unread	zh	{1} 份发票中 {0} 份未在时限内读取完成，以下差异含未读取的发票。请稍后重新提交。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:vat_check.note.purchase_invoices	zh	以下发票的买方为本公司：{0}	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/bank_warnings.py#_BRV2_WARN.completeness	zh	⚠️ 对账单完整性检查未通过：{detail}。请对照原始账单核对并补充缺失行。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/bank_warnings.py#_BRV2_WARN.multi_account	zh	⚠️ 此对账单含 {n} 个账户（{codes}），请只看与 GL 对应账户的结果。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/bank_warnings.py#_MISSPAGE_LBL	zh	（疑似缺页）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/export/labels.py#I18N_EXPORT.banner_low_match	zh	⚠ 仅匹配 {n} 笔（{r}%），请核对 GL 与对账单是否为同一账户、同一期间。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/export/labels.py#I18N_EXPORT.banner_no_match	zh	⚠ 匹配 0 笔，差异为 0 不代表已对平。请核对账户与期间。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/export/labels.py#I18N_EXPORT.lbl_manual_warn	zh	⚠ 含手动录入余额	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/export/usage.py#USAGE_BLOCKS.20.0	zh	⚠ 或 ◌ 标记的行需对照原 PDF 核对。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+table:pearnly_cowork/reconciliation/export/vat_check_i18n.py#_I18N.help_lines.1	zh	1. 「发票明细」Sheet = 智能识别的发票明细 · 对账前可修改数值	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Recognition tasks cannot be deleted here.	zh	识别任务不能在此删除。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:This recognition mode is not supported.	zh	不支持此识别模式。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Lock Expires At	zh	锁定到期时间	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Push Data (JSON)	zh	推送数据（JSON）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Refresh Locked By	zh	刷新锁定方	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Refresh Lock Generation	zh	刷新锁定版本	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Refresh Lock Handle	zh	刷新锁定标识	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Refresh Lock Expires At (UTC)	zh	刷新锁定到期时间（UTC）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Lock Handle	zh	锁定标识	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Lock Credential	zh	锁定凭据	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Lock Expires At (UTC)	zh	锁定到期时间（UTC）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_cowork:Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.	zh	公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的 50 ทวิ。不推送、不计费。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）

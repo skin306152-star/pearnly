@@ -23,7 +23,6 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,具有管理权限的账号
 Action not found,未找到该操作
 Actions,操作
-Adapter,适配器
 Add official account,添加官方账号为好友
 Add operator,新增操作员
 Add row,添加明细
@@ -364,7 +363,6 @@ Last Used,最近使用
 Last Verified At,最后核对时间
 Last result,最近结果
 Lease Expires,租约到期
-Lease Owner,租约持有者
 Lease Until,租约到期
 Leave blank to keep the current password.,留空则不修改当前密码。
 Leave blank to keep unchanged,留空则不修改
@@ -380,6 +378,7 @@ Loading…,加载中…
 Local Account,本地账号
 Local Session,本地会话
 "Local sample site: not sent to LINE, the raw text is only recorded",本机样例站点：未发往 LINE，仅记录原文
+Locked By,锁定方
 Locked; released in {0}s,锁定中，{0} 秒后释放
 Looked up a tax ID,查了税号
 Looking up a tax ID,正在查税号

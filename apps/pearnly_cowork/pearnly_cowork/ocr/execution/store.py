@@ -44,7 +44,7 @@ def validate(doc):
 
 
 def reject_delete(doc):
-    frappe.throw(_("Recognition tasks cannot be deleted through the document API."), frappe.PermissionError)
+    frappe.throw(_("Recognition tasks cannot be deleted here."), frappe.PermissionError)
 
 
 def read(name, *, lock=False, authorize=True, write=False):

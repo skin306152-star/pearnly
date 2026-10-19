@@ -2,7 +2,7 @@
 
 只出建议：本次没有改任何产品文案，也没有改闸门规则。用户同意后由开发窗口按「改已有文案先给用户看」的流程改。
 
-> **用户 10-18 同意第 3–14 节按建议改（含三个真缺陷）；第 1、2 节不动**（两套 Keycloak 登录页）。表中建议就是登记用的定稿；施工、延后的行与原因见文末「施工（10-18）」。
+> **用户 10-18 同意第 3–14 节按建议改（含三个真缺陷）；第 1、2 节不动**（两套 Keycloak 登录页）。表中建议就是登记用的定稿；施工、延后的行与原因见文末「施工（10-18）」，延后的行 10-19 施工，见「施工（10-19，C2）」。
 >
 > 用户 10-18 夜原话（经「消息含义理解」窗口转达）：「涉及到文案的今晚特批，但是不用有口语」—— 今晚改已有文案已获同意，措辞一律书面、不用口语；建议写法偏口语的，按书面改写后再登记（改写的行在「施工（10-18）」里列出）。
 
@@ -642,6 +642,84 @@
 | 位置 | 现在 | 处理 |
 |---|---|---|
 | erp_portal `i18n/messages.tsv:1325`（原件层 a9f44116 带进 main） | 中：文件暂时保存不了，请稍后再试<br>英：The file could not be saved. Please try again shortly. | 10-18 由消息含义理解窗口改，见其分支（本分支不改、不登记） |
+
+## 施工（10-19，C2）
+
+10-18 延后的 138 行（与多电脑 D、第 3 期 E 两条在途分支冲突）。两条线已合入 main 并上线，本次照定稿施工。
+
+### 分支与依据
+
+- 分支 `pearnly/copy-stock-c2`，基线 `origin/main` `4277e95c`，工作树 `/Users/skin/pearnly/.claude/worktrees/copy-stock-c2`。未合入 main、未部署。
+- 依据：用户 10-18 同意第 3–14 节按建议改（见开头批示），10-18 夜「涉及到文案的今晚特批，但是不用有口语」。改已有文案按这份同意登记 `scripts/i18n/copy-approved.tsv`：日期写批准日 `2026-10-18`，出处写本记录（与 10-18 登记行同一写法）；`check-copy.py --approve` 依据这份确认执行（闸门在本记录里逐字找到了全部 82 条新文案），执行后把它写入的当天日期改回批准日。
+- 对齐：在 main `4277e95c` 重跑 `python3 scripts/check-copy.py --audit --report --top 1000`（拦截级 241），按词条键 / 英文 msgid / 文件把 138 行逐条对上（第 3 期等后来的改动让行号整体后移，例如 Cowork 术语表 `1065` → `1113`、`i18n.ts:181` → `:197`、`Refresh Lease *` → `messages.tsv:480–483`）。第 3 期新增、不在本清单的词条（如 `COMPANY.card.instructions`、`SIDEBAR.drag.instructions`）没碰。
+
+### 各节完成情况
+
+| 节 | 延后 | 做了 | 已不存在 | 其他 |
+|---|---|---|---|---|
+| 3 CC 网页 | 4 | 4（`dropFiles` / `noFolders` / `noComputer` / `useHere`） | 0 | — |
+| 5 Cowork | 71 | 68（A 64、D 3、B 1 登记豁免） | 2 | 1 条收窄后不再拦 |
+| 6 Cowork 导出工作簿 | 12 | 12（A 11、B 1 登记豁免） | 0 | — |
+| 11 Cowork DocType | 39 | 35（D 19、A 5、C 11） | 3 | 1 条（`Layout Key`）10-18 已登记豁免，保留不动 |
+| 12 后台字段说明等 | 12（另部分完成 1） | 12，`Adapter` 部分完成的那行也做完 | 0 | — |
+
+合计做了 131 行，已不存在 5 行，收窄后不再拦 1 行，10-18 已登记豁免保留 1 行（共 138 行）；`Adapter` 一行补完。改后全量审计拦截级 241 → 58，剩下的都不在本清单：两套 Keycloak 登录页 33 处（第 1、2 节，不动）、发号页 `pearnly-issue.html` 写死中文 23 处（10-18 盲区补上后新发现、不在同意范围）、第 3 期新增的 CC 网页读屏说明 2 条。
+
+### 已不存在的行
+
+| 位置 | 情况 |
+|---|---|
+| cowork `intake.error.document_policy_needed_payment_evidence` | 多电脑分支（`eaf4de32`）已改为「此单据为转账凭条。选择是否录入，所有同类单据将按此处理」，不再拦，未改 |
+| cowork `intake.error.document_policy_needed_withholding_certificate` | 同上，现为「此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理」，未改 |
+| cowork `cowork_company_folder.json` · Reader Device | 后来的改动已补进术语表（读文件夹的电脑），不再拦，未改 |
+| cowork `cowork_company_folder.json` · Network Path | 后来的改动已补进术语表（网络路径），不再拦 |
+| cowork `cowork_company_note.json` · Conversation | 后来的改动已补进术语表（对话），不再拦 |
+
+收窄后不再拦：`ocr/remote/callback.py:104`（`frappe.QueryDeadlockError`，第 15 节已把只作重试信号的异常排除），未改。
+
+### 按书面改写后登记的行
+
+无。逐条核对了 138 行的定稿：确认句「确定要…吗？」、空态「暂无…」、出错「未找到… / 无法… / 尚未…」都是书面写法，没有口语，全部按定稿原文登记。
+
+### 「推送」一词
+
+用户 10-19 定「推送」保持不变。定稿里没有把「推送」改成「录入」的行；涉及推送的几条照定稿保留「推送」：「未推送」「未选择推送目标」「…请在 MR.ERP 核对后再推送」「不支持推送到此 ERP」「推送数据（JSON）」。
+
+### 与定稿不同的处理
+
+- 第 11 节 `Origin`：定稿给公司说明写日文「作成元」、POS 版式写「取得元」，但两处是同一个 msgid，只能有一条译文；两处都是「由谁定的（人 / CC / 自动）」，统一用「作成元」。
+- 第 11 节 `cowork_stocktake_item.json` 里同一句说明出现两处（125、133 行），两处一起改成新英文。
+- CC 网页步骤摘要：被拒绝 / 没做成的那一步用卡片问话去掉疑问的写法（`lib/step-summary.ts` 的 `askStem`），原来只去掉句首「要」；中文确认句统一成「确定要…吗？」后同样去掉「确定要」，摘要仍是「删除以下定时任务 · 已拒绝」这种写法；补了测试。
+- 第 12 节 hidden 字段 `Refresh Lease *` / `Refresh Request Aliases` 改名后，10-18 为它们登记的 5 条 R-DEV 豁免失效，删掉；第 11 节删掉 `cowork_bank_reconciliation.json` 的 hidden 字段说明后，对应的 1 条代码豁免同样删掉。
+- 换 msgid、改英文后留下的翻译包残留行一并删掉（Cowork 40 个旧 msgid、共用层 `Lease Owner` 与 `Adapter`，全仓已无 `_()` / `__()` / DocType 引用）。
+- 改了 26 个 DocType JSON，`modified` 更新到 2026-10-19 12:00，部署后 migrate 生效。
+
+### 做了什么（按类）
+
+- **A 改写**：Cowork 术语表 75 行（中文改写的确认句、出错、空态，英文 / 泰文 / 日文超长或带推测的按定稿压缩）；换 msgid 的同步改了调用处：`ocr/execution/store.py`、`work_guard.py`（Recognition tasks cannot be deleted here.）、`ocr/execution/settings.py` 三处（This recognition mode is not supported.）、`access/scope.py` 等五个访问校验（Remove the old document shares before opening Cowork records.）、`cowork_wht_certificate.json` 的说明。导出工作簿四语表（`bank_warnings.py`、`export/labels.py`、`export/usage.py`、`export/vat_check_i18n.py`）按定稿改。第 12 节「租约 / 载荷 / 适配器 / Legacy」改为「锁定 / 推送数据 / 系统类型 / Previous Status」，`cowork_erp_connection` / `cowork_erp_mapping` / `cowork_erp_refresh` / `cowork_erp_snapshot` 的标签改用共用层已有的 System Type，`Adapter` 旧行删除；`Lease Owner` 换成共用层 `Locked By`（`cowork_push_record.json`、`pearnly_push_log.json`）。
+- **C 删除**：10 个 Cowork DocType 的 DocType 级说明，`cowork_bank_reconciliation.json` 一个 hidden 字段的迁移备注。
+- **D 抽进字典**：Cowork 术语表新增 21 行（DocType 标签 13 条、字段说明 8 条，含第 11 节 A 类 5 行改写后的 4 条说明，两个盘点 DocType 共用一条）；DocType JSON 的说明同步改为新英文；`line/cards.py` 的 `_(role + " tax ID")` 等拼接 msgid 改为按角色写完整词条（Seller / Buyer 的 tax ID、branch、address，已有词条，译文沿用），同 ERP 10-18 的写法。
+- **B 豁免**（`scripts/i18n/copy-exempt.tsv`，逐条绑定文案、写原因）：`代码:apps/pearnly_cowork/pearnly_cowork/line/flow.py` R-CONCAT（LINE 上传前提示逐行拼接，同 ERP 已登记的那行）；`table:…/vat_check_i18n.py#_I18N.help_lines.0` R-HINT（导出工作簿段标题「使用说明:」）。第 15 节 R-HINT 收窄仍没做（要改词表，见「施工（10-18）」），所以按 B 类逐条登记。豁免合计删 6 条、加 2 条。
+- **测试**：`tests/test_cc_month_ledger.py`（「未推送」词条行）、`tests/test_cowork_companies.py`（待处理摘要的英文）改成新文案，意思不变；`tests/test_cc_ccs.py` 补「确定要…吗？」的 askStem 断言；`tests/test_check_copy.py` 里的旧文案是闸门的坏例，不动。
+
+### 检查
+
+| 命令 | 结果 |
+|---|---|
+| `python3 scripts/check-copy.py`（工作树） | 退出码 0，没有拦截；改动 82 条全部已登记 |
+| `python3 scripts/check-copy.py --audit --report --top 1000` | 拦截级 241 → 58（剩余见上） |
+| `python3 scripts/i18n-build.py --check` / `check-i18n.py --strict` / `check-frontend-i18n.py --strict` / `check-architecture.py` / `tests/test_check_copy.py` | 均通过 |
+| 全闸门 `~/pearnly-devtools/gate.sh`（工作树 `6322d733` + 本记录） | 105 步全部 ok，退出码 0（第一次跑出 `test_cowork_folder_intake.py` 断言旧的 `modified` 和改动行的行尾制表符两处，已改） |
+| 候选离线 `cand-local.sh offline`（生产镜像 `frappe@sha256:bcb5e240…`，本机 docker） | 退出码 0（共用层只改了术语表与翻译包，按规矩照跑） |
+
+`check-copy.py --report` 清单（交付给用户和测试窗口）：`~/pearnly-devtools/copy-stock/report-2026-10-19-c2.md`。
+
+### 部署前要人工核对
+
+- 改了 Cowork 与 DMS 的 DocType JSON：部署后 migrate 生效；CC 网页改了 `frontend/assistant/src`，要随镜像重新构建前端。
+- 共用层只改了术语表与翻译包（`Lease Owner` → `Locked By`、删 `Adapter`），没有改 `pearnly_core` 的代码；生产镜像上的候选离线检查已过。
+- 测试环境点一遍：Cowork 定时任务的保存 / 启停 / 删除确认句，公司说明的保存 / 修改 / 删除确认句，公司页待处理卡片（「{0} 份单据待处理」「未推送」「未选择推送目标」），对账与销项税核查的提示和导出工作簿（警告条、缺页标签、使用说明块），CC 网页设置里的空态与「改用此电脑」、拖文件进对话的提示，CC 里拒绝一次定时任务删除后的步骤摘要。
+- LINE 上传摘要卡片的卖方 / 买方标签：真 LINE 由用户手机走一次，服务器核对回调与日志。
 
 ## CC 审批步骤名（E10，10-18 用户按建议同意）
 

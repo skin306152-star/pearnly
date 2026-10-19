@@ -289,7 +289,7 @@ def file_query(user=None):
                            or_filters={"user": user, "everyone": 1}, pluck="share_name", limit_page_length=0)
     for name in shared:
         if frappe.db.exists("File", name) and is_protected(frappe.get_doc("File", name)):
-            frappe.throw(_("Remove legacy document shares before accessing Cowork records."), frappe.PermissionError)
+            frappe.throw(_("Remove the old document shares before opening Cowork records."), frappe.PermissionError)
     # Older aliases can have a noncanonical URL even though new writes reject
     # them. Inspect only unusual URLs; ordinary canonical files use the join.
     aliases = []

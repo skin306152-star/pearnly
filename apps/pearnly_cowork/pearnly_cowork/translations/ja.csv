@@ -1,7 +1,10 @@
 (Not specified),（未指定）
 (the root folder itself),（ルートフォルダー自体）
+-1 means not applicable,-1 は該当なし
+0 means not matched,0 は未照合
 1 day before,1日前
 1 hour before,1時間前
+1 means the ledger has this document number,1 は元帳にこの番号があること
 1% e-Withholding Tax rate,1% 電子源泉徴収税率
 10 minutes before,10分前
 15 minutes before,15分前
@@ -34,8 +37,7 @@ A positive record revision is required.,レコードの版には正の整数が�
 A positive source page number is required.,元ファイルのページ番号には正の整数が必要です。
 A product code or barcode identifies more than one product.,商品コードまたはバーコードが複数の商品に対応しています。
 A product needs a name.,商品名を入力してください。
-A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,プログラムのエラーにより今回の照合は完了しませんでした。自動で記録され、こちらで対応します。再試行しても同じ結果になります。
-A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.,会社が源泉徴収票を取り込まない設定のとき、ภ.ง.ด.3 / ภ.ง.ด.53 の下書き用に保管する認識済みの 50 ทวิ。請求書ではないため、連携も課金もしません。
+A program error stopped this reconciliation. The error has been recorded; trying again gives the same result.,プログラムのエラーにより照合が完了しませんでした。エラーは記録済みです。再試行しても同じ結果になります。
 A referenced history record is unavailable in the selected company and client.,選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。
 A remembered column is not in this POS export. Choose the columns again,記憶した列がこの POS エクスポートにありません。列を指定し直してください
 A reported ERP action is invalid.,報告された ERP の操作が無効です。
@@ -110,6 +112,7 @@ Amount,金額
 Amount Tolerance,金額許容差
 Amount not read,金額を読めない
 Amount paid,今回の支払額
+Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},次の税務報告のページで金額と番号の行がずれています。原本に合わせて修正してください：{0}
 An account needed for this invoice is not set. Check the account settings,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 An amount could not be read. Check the amount format in the file,読み取れない金額があります。ファイルの金額の書式を確認してください
@@ -138,6 +141,7 @@ Archived cards,アーカイブ済みカード
 Archived items,アーカイブ済みアイテム
 Archived lists,アーカイブ済みリスト
 Area,エリア
+As printed on the report,報告書の記載どおり
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
 Assign to,担当に追加
 Assign · Track · Discuss,割り当て · 追跡 · 相談
@@ -185,6 +189,7 @@ Billing State,課金状態
 Billing Units,課金単位
 Bind this account first,先にアカウントを連携してください
 Binding Generation,関連付け世代
+Binding Key,連携キー
 Binding code,連携コード
 Blocked By,ブロック元の記録
 Blue,青
@@ -208,7 +213,9 @@ Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,実行分岐
 Branch No,支店番号
+Branch When Added,追加時の支店
 Branch {0},支店 {0}
+Brief Group,概要グループ
 Brief Key,サマリーキー
 Brief Sent At,サマリー送信日時
 Brief Status,サマリーの状態
@@ -236,7 +243,7 @@ CC Desktop authentication failed.,CC デスクトップの認証に失敗しま�
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 CC Desktop could not write this invoice. It is retried automatically,CC デスクトップが書き込めませんでした。自動で再試行します
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
-CC Desktop has not finished this yet.,CC デスクトップの処理はまだ終わっていません。
+CC Desktop has not finished.,CC デスクトップの処理が完了していません。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 "CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.",CC デスクトップがオフラインのため、この会計データの勘定科目表を読み込めません。CC デスクトップが起動していることを確認してからもう一度お試しください。
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
@@ -369,6 +376,7 @@ Code or barcode,コードまたはバーコード
 Collapse list,リストを折りたたむ
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
 Color,色
+Combined VAT Filing,付加価値税の一括申告
 Comment,コメント
 Commented on a task,タスクにコメントしました
 Commenting,コメント権限
@@ -600,6 +608,7 @@ Disable {0},{0}件を無効化
 Disabled,無効
 Discount,割引額
 Discount Amount,割引額
+Display Path,表示パス
 Display text (optional),表示テキスト（任意）
 Dividends,配当
 Document Key,伝票重複防止キー
@@ -704,7 +713,7 @@ Evidence Fingerprint,証跡フィンガープリント
 Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
-Excel/CSV exported from online banking or the electronic PDF is most accurate,ネットバンキングの Excel/CSV か電子版 PDF が最も正確です
+Excel/CSV from online banking or electronic PDF,ネットバンキングの Excel/CSV または電子版 PDF
 Excess tax brought forward,繰越超過納付額
 Expected VAT,想定税額
 Expense (goods from now on),費用に計上（以後も同様）
@@ -751,7 +760,7 @@ Find product,商品を検索
 Fingerprint,フィンガープリント
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
-Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。
+"Finish this count? {0} counted, {1} uncounted; the task becomes read-only.",棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件で、終了後は閲覧とエクスポートのみ可能です。
 Finished a stock count,棚卸を終了しました
 Finishing a stock count,棚卸を終了しています
 First Recognition Snapshot,初回認識結果のスナップショット
@@ -826,6 +835,7 @@ Holder Fence,ロック保持試行番号
 Host Names,ホスト名
 How to put documents in the folders,フォルダーへの書類の置き方
 IN,入金
+Identity,識別子
 "If you have the electronic statement, upload it instead",電子版の明細があればそちらをアップロードしてください
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,画像・PDF の請求書はまだ使えません。当面は Excel か CSV を使ってください。
 Import result,取り込み結果
@@ -936,21 +946,18 @@ Last month to claim,控除の最終月
 Last name,姓
 Last used,前回使用
 Lease Computer,受け取ったコンピューター
-Lease Credential,リースの認証情報
-Lease Expires At,リース有効期限
-Lease Expires At (UTC),リース有効期限（UTC）
-Lease Handle,リース識別子
 Leased At (UTC),取得日時（UTC）
 Leave board,ボードから退出
 Ledger account,総勘定元帳の科目
 Ledger amount,元帳金額
 Ledger credit only,元帳貸方のみ
 Ledger debit only,元帳借方のみ
+Ledger file the rows were read from,行を読み取った元帳ファイル
 Ledger {0} {1}: one line {2},総勘定元帳 {0} {1}：1 件 {2}
 "Ledger: {0} card slip(s) on {1}, total {2}",元帳：{1} のカード {0} 件、合計 {2}
 Left out (not in the tax report),照合に含めない（税報告にない）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},メインの明細と重複し読み誤りと思われる {0} 行を除外しました。確認してください：{1}
-Legacy Status,旧ステータス
+Legal Name,法定名称
 Less exempt sales,控除：免税の売上高
 Less zero-rated sales,控除：ゼロ税率の売上高
 Level,レベル
@@ -975,10 +982,15 @@ Local To Computer,限定コンピューター
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
+Lock Credential,ロックの認証情報
+Lock Expires At,ロック期限
+Lock Expires At (UTC),ロック期限（UTC）
+Lock Handle,ロック識別子
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
 Lookup Key,検索キー
+MR.ERP Company,MR.ERP 会社
 MR.ERP Import Menu Options Seen,取得済みの MR.ERP 取込メニュー
 MR.ERP Import Menu per Account Set,会計データ別 MR.ERP 取込メニュー
 MR.ERP Master Defaults per Account Set,会計データ別 MR.ERP 既定値
@@ -1006,7 +1018,7 @@ Match and save,照合と保存
 Match rate,一致率
 Matched,一致
 Matched Count,照合済み件数
-"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します
+"Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger",プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します
 Matches,一致
 Matching and saving,照合して保存中
 Max Push Data Version,送信データの最大バージョン
@@ -1024,7 +1036,6 @@ Month paid,支払月
 Monthly,毎月
 Monthly on {0} at {1},毎月 {0} {1}
 More than one account set of this company covers the document date.,この会社には書類の日付を含む会計データが複数あります。
-"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
@@ -1032,6 +1043,7 @@ Moved a task,タスクを移動しました
 Moving a task,タスクを移動しています
 My cards,自分のカード
 Name,名前
+Name Key,名称キー
 Name suggests P.N.D.3,名称から ภ.ง.ด.3 の可能性
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
@@ -1078,21 +1090,22 @@ No number_,番号なし_
 No presets yet,プリセットはまだありません
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
+No push target,送信先が未選択です
 No recognition record,認識記録なし
 No recognition tasks were given.,読み取りタスクが指定されていません。
 No rules yet,ルールはまだありません
 No runs yet,実行履歴はまだありません
 No sales were found in this POS export,この POS エクスポートに売上がありません
+No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.,明細行がいずれも総勘定元帳の期間（{1}〜{2}）外のため、すべて照合しました。両ファイルの期間を確認してください。
 No tasks were given.,タスクが指定されていません。
 No tax month,課税月なし
 No templates yet,テンプレートはまだありません
 No warehouse matches that name,その倉庫名は存在しません
 "No, check line by line",いいえ、1 件ずつ照合
-"No, not in the tax report (interest, other income)",含めない（利息など税票を出さない収入）
+"No, not in the tax report (non-invoiced income)",含めない（税票を出さない収入）
 No.,番号
 Non-life insurance premiums,損害保険料
 None,なし
-None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
 Not Permitted,適切な権限がありません
 Not a tax invoice,税務インボイスではない
 Not an invoice file,請求書以外
@@ -1104,7 +1117,7 @@ Not found,見つかりません
 Not included,未計上
 Not invoices {0},請求書以外 {0}
 Not permitted,権限がありません
-Not pushed yet,まだ送信していません
+Not pushed,未送信
 Not set,未入力
 Not specified in books,帳簿に指定なし
 Not uploaded {0},未アップロード {0}
@@ -1123,7 +1136,6 @@ Off,オフ
 Old Value,変更前の値
 On,オン
 On schedule,スケジュール
-"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 One folder per rule. PDF and image files only.,1 フォルダーに 1 ルール。PDF と画像のみ。
 One folder per scheduled task. PDF and image files only.,1 フォルダーに 1 定期タスク。PDF と画像のみ。
@@ -1146,6 +1158,7 @@ Options,オプション
 Options (one per line),選択肢（1行に1つ）
 Orange,橙
 Order Evidence,注文記録
+Origin,作成元
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
 Original File,元ファイル
@@ -1165,6 +1178,7 @@ Other party,相手方
 Other records,その他の記録
 Outcome,実行結果
 Output VAT report,売上税報告
+Output VAT report file the rows were read from,行を読み取った売上税報告ファイル
 Output tax report,売上税報告
 Output tax this month,当月の売上税額
 Over,過剰
@@ -1203,7 +1217,6 @@ Payee tax ID invalid,受取人の納税者番号が無効
 Payee tax ID missing,受取人の納税者番号なし
 Payees,受取人数
 Payer not clear,支払者が不明
-Payload Json,固定ペイロードJSON
 Payment,支払方法
 Payment Date,支払日
 Payment Evidence,支払証跡
@@ -1232,8 +1245,10 @@ Preparation data does not match the connection or account set.,準備情報が�
 Preparation data for this account set is incomplete.,この会計データの送信準備情報が不足しています。
 Prepared a stock count template,棚卸テンプレートを用意しました
 Preparing a stock count template,棚卸テンプレートを用意しています
+Preset group match number; 0 means not grouped,プリセットのグループ照合番号。0 はグループなし
 Presets,プリセット
 Previous Json,変更前のデータ（JSON）
+Previous Status,以前のステータス
 Private,非公開
 Private File,非公開ファイル
 Private Storage URL,非公開ストレージ URL
@@ -1258,15 +1273,17 @@ Purple,紫
 Push Account Set,送信先会計データ
 Push Attempt,送信試行
 Push Connection,送信先接続
+Push Data (JSON),送信データ（JSON）
 Push Data Version,送信データのバージョン
 Push Record,送信記録
 Push choices set for a client company or one of its branches,顧客会社または支店ごとの送信の選択
 Push record not found.,送信記録が見つかりません。
 Pushed,送信時
 Pushed documents,書類を送信しました
-Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
+Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票で、仕訳帳に連携されていないメニューにあり記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 Pushing documents,書類を送信しています
 "Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
+Pushing to this ERP is not supported.,この ERP への送信には対応していません。
 Quantity,数量
 Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
@@ -1292,6 +1309,7 @@ Read general ledger,総勘定元帳の読み取り
 Read tax invoices,請求書の読み取り
 Readback,読み戻し
 Readback ID,読み戻し ID
+Reader,読み取り端末
 Reader Device,フォルダーを読み取るコンピューター
 Reading back the accounting books,会計データを読み戻しています
 Reading files,ファイルを読み込み中
@@ -1318,9 +1336,10 @@ Recognition Quality,認識品質
 Recognition Reference,読み取り参照番号
 Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
 Recognition is busy. Try again in a moment.,読み取りが混み合っています。しばらくしてからもう一度お試しください。
-Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
+Recognition tasks cannot be deleted here.,認識タスクはここでは削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
+Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,会社が源泉徴収票を取り込まない場合に ภ.ง.ด.3 / ภ.ง.ด.53 下書き用に保管する 50 ทวิ。送信・課金しません。
 Recognized Fields,認識した項目
 Recognized documents,書類を読み取りました
 Recognized with high confidence,高い信頼度で認識
@@ -1348,10 +1367,10 @@ Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
 Refresh Lease Computer,更新を受け取ったコンピューター
-Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
-Refresh Lease Generation,更新リースの世代
-Refresh Lease Handle,更新リース識別子
-Refresh Lease Owner,更新リースの所有者
+Refresh Lock Expires At (UTC),更新リース有効期限（UTC）
+Refresh Lock Generation,更新リースの世代
+Refresh Lock Handle,更新リース識別子
+Refresh Locked By,更新リースの所有者
 Refresh Request Aliases,更新要求の冪等索引
 Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
@@ -1362,7 +1381,7 @@ Registered At,登録日時
 Registered At (UTC),登録日時 (UTC)
 Registered By,登録者
 Registry Row,ログイン一覧の行番号
-Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
+Reimporting review workbooks is not supported.,確認用ワークブックの再取り込みには対応していません。
 Relative Path,相対パス
 Reload,再読み込み
 Remarks,備考
@@ -1375,9 +1394,9 @@ Reminder day,リマインド日
 Reminder time,リマインド時刻
 Remove,削除
 Remove color,色を削除
-Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Remove the old document shares before opening Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove this company choice?,この会社の選択を削除しますか？
 Remove this company note?,この会社メモを削除しますか？
 Removed a company choice,会社の選択を削除しました
@@ -1500,6 +1519,8 @@ Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 Searched tasks,タスクを検索しました
 Searching tasks,タスクを検索しています
+Seed Account Set,元の会計データ
+Seed Connection,元の接続
 Seen At (UTC),報告日時 (UTC)
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
@@ -1539,7 +1560,6 @@ Settings Json,設定データ（JSON）
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",複数の科目に一致する明細があります。一度選ぶと同じファイルで照合し直します（再読み取りはしません）。
-"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",写真・スキャンから読み取った次の税務報告のページで複数の行が元帳と一致しません。読み取り誤りの可能性が高いため、実際の差異と判断する前に原本と照合してください（括弧内は不一致の行数）：{0}
 Sheet,シート
 Sheets,枚数
 Short,不足
@@ -1632,6 +1652,7 @@ Summary Json,集計情報
 Summary table import,集計表の取り込み
 Supplier type,仕入先区分
 Surcharge,加算金
+Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.,次の税務報告のページは読み取り誤りの疑いがあり、元帳と一致しない行数は {0} です。原本と照合してください。
 Table,テーブル
 Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
 Tap the menu to start,メニューを押して始めてください
@@ -1687,7 +1708,7 @@ The ERP report contains duplicate action identifiers.,ERP レポートに操作�
 The ERP report contains duplicate field identifiers.,ERP レポートにフィールドの識別子が重複しています。
 The ERP report observation time is invalid.,ERP レポートの収集日時が無効です。
 The ERP report refresh status is invalid.,ERP レポートの更新状態が無効です。
-The ERP report uses an unsupported adapter.,ERP レポートに対応していないアダプターが指定されています。
+The ERP report uses an unsupported system type.,ERP レポートに対応していないシステム種別が指定されています。
 The ERP target context is inconsistent.,ERP送信先の情報が一致しません。
 The MR.ERP import page shows no menu (setup incomplete or no permission).,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
@@ -1711,7 +1732,7 @@ The amounts do not add up. Correct them and submit again,金額が合いませ�
 The answer is not valid.,回答が無効です。
 The bank statement could not be read.,銀行明細を読み取れません。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
-The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}
+The buyer on these invoices is this company: {0},次の請求書の買い手は自社です：{0}
 The camera could not start,カメラを起動できません
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
@@ -1722,7 +1743,7 @@ The client fields are invalid.,顧客の項目が正しくありません。
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。
-The computer on this connection cannot do this.,この接続のパソコンではこの操作はできません。
+The computer on this connection does not support this action.,この接続のパソコンはこの操作に対応していません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
 The credential changed. Reload before resetting or revoking it.,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
 The credential request is invalid.,認証情報のリクエストが無効です。
@@ -1762,7 +1783,6 @@ The file size or page metadata is invalid.,ファイルサイズまたはペー�
 The folder rule is incomplete or invalid.,ルールの内容が不完全または不正です。
 The frozen push target does not match the authorized target.,固定された送信先が許可された送信先と一致しません。
 The general ledger could not be read.,総勘定元帳を読み取れません。
-"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.",総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。
 The general ledger has no revenue account rows.,総勘定元帳に収益科目の行がありません。
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.,総勘定元帳に複数の科目があるため、銀行明細と最も一致する科目 {0} を使用しました。
 "The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
@@ -1787,8 +1807,9 @@ The invoice has changed. Prepare it again.,伝票が変更されました。再�
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
 The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
 The item lines do not add up to the day's total,品目の合計がその日の合計と一致しません
+"The ledger covers more than the statement; only {0} to {1} was used, and earlier entries form an opening balance of {2}.",総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。
 The ledger file content is invalid.,元帳の内容が無効です。
-"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。
+"The line amounts, net amount, VAT and total of this invoice do not add up. Check them on the edit page.",この請求書の明細金額・税抜金額・税額・合計が一致しません。編集画面で確認してください。
 The line items do not add up to the invoice amount. Fix the lines and submit again,明細の合計が伝票の金額と合いません。明細を直して再送信してください
 The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
 The matching stock item is missing. Choose it and submit again.,対応する在庫品目がありません。選択して再送信してください
@@ -1815,7 +1836,7 @@ The push data exceeds the size limit.,送信データがサイズ制限を超え
 The push record has changed. Reload and try again.,送信記録が更新されました。再読み込みしてお試しください。
 The push target has changed. Prepare the invoice again.,送信先が変更されました。伝票を再度準備してください。
 The quantity is not a valid number,数量が正しい数値ではありません
-The readback is not ready yet.,読み戻しはまだ終わっていません。
+The readback is not finished.,読み戻しはまだ終わっていません。
 The readback request is invalid.,読み戻しのリクエストが無効です。
 The readback was not found.,読み戻しの結果が見つかりません。
 The receipts do not add up to the total row of this POS export,レシートの合計がこの POS エクスポートの合計行と一致しません
@@ -1876,18 +1897,16 @@ Then,実行
 There is not enough balance to read the scanned or photographed document. Top up and try again.,残高が不足しているため、スキャンや写真の書類を読み取れません。チャージしてからもう一度お試しください。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 There is not enough recognition balance. Top up and send the document again.,読み取り残高が不足しています。チャージしてからもう一度送信してください。
+These VAT report pages could not be checked against their page totals: {0}. Check them against the original,次の税務報告のページはページ合計と照合できませんでした：{0}。原本と照合してください
 "These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}",次のファイルは総勘定元帳で銀行明細ではないため含めていません（元帳は右側へ）：{0}
 These files could not be read and were left out: {0},次のファイルは読み取れず、照合に含めていません：{0}
 These files could not be read and were left out; upload them again to include them: {0},次のファイルは読み取れなかったため今回の照合に含まれていません。再度アップロードしてください：{0}
 These files have no transactions (a cover or account page) and were skipped: {0},次のファイルには取引がないため（表紙や口座情報のページ）スキップしました：{0}
 These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},読み取った次の税務報告の行はそれ自体で整合せず、読み取り誤りの可能性があります。原本と照合してください：{0}
-"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}",次の税務報告のページはページ合計で自己検証できませんでした（行の合計がページ合計と一致しない、またはページ合計が読み取れない。再読込済み）。原本と照合してください：{0}
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},次の表は銀行からエクスポートした明細ではない（残高列がない）ため、含めていません：{0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
 These statements look like another account and were left out of this reconciliation: {0},次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},次のワークシートは同じファイル内の別のワークシートと行ごとに同一のため、1 回だけ数えました：{0}
-This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
-This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
 This ERP connection is disabled.,このERP接続は無効です。
 This MR.ERP menu cannot be chosen for this account set.,この会計データではこの MR.ERP メニューを選択できません。
 This PC already has the maximum number of folder rules.,この PC のルール数が上限に達しています。
@@ -1915,11 +1934,10 @@ This delivery conflicts with the current task state.,この受領結果はタス
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 This document does not need this choice,この伝票ではこの選択は不要です
 This document format is not supported.,この文書形式には対応していません。
-This document has no push target,この書類はまだ送信先が選ばれていません
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This file cannot be read,このファイルは読み取れません
 This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
-"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置き、左側には銀行明細またはネットバンキングの出力をアップロードしてください。
+"This file is a general ledger, not a bank statement. Put it on the ledger side.",このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置いてください。
 This file is too large to send from this PC.,このファイルは大きすぎて送信できません。
 This file record was not found.,このファイル記録が見つかりません。
 This file type cannot be brought into the chat.,この種類のファイルはチャットに取り込めません。
@@ -1949,6 +1967,7 @@ This original already has a recognition task with different parameters.,この�
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
 This product already has a unit called {0}.,この商品には既に単位 {0} があります。
 This push attempt is no longer current.,この送信試行は無効になっています。
+This recognition mode is not supported.,この認識モードには対応していません。
 This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
 This refresh request has expired. Request a new refresh.,この更新要求は期限切れです。再度要求してください。
 This request conflicts with an existing reservation.,この要求は既存の送信予約と矛盾しています。
@@ -2026,6 +2045,7 @@ Unmatched Count,未照合件数
 Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
 Unusual rate,通常にない税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
+Up to six decimal places; empty actual quantity means not counted,小数点以下6桁まで。実数量が空欄の場合は未棚卸
 Update CC Desktop on that computer to read this account set's chart of accounts.,この会計データの勘定科目表を読み込むには、そのパソコンの CC デスクトップを更新してください。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Update this company note?,この会社メモを更新しますか？
@@ -2180,8 +2200,8 @@ companion.generation_conflict,認証情報が変更されました。再読み�
 companion.on_demand_busy,CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。
 companion.on_demand_invalid,CC デスクトップへのリクエストが無効です。
 companion.on_demand_missing,CC デスクトップへのリクエストが見つかりません。
-companion.on_demand_not_ready,CC デスクトップの処理はまだ終わっていません。
-companion.on_demand_unsupported,この接続のパソコンではこの操作はできません。
+companion.on_demand_not_ready,CC デスクトップの処理が完了していません。
+companion.on_demand_unsupported,この接続のパソコンはこの操作に対応していません。
 companion.queue_access_revoked,このコンピューターではこの書類を処理できなくなりました
 companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
 companion.queue_request_invalid,CC デスクトップのキューリクエストが無効です。
@@ -2248,10 +2268,10 @@ cowork.company.notes,ノート
 cowork.company.notes_full,ノートが上限です
 cowork.company.pending.cc_proposal,送信待ち
 cowork.company.pending.more,ほか {0} 社
-cowork.company.pending.no_target,この書類はまだ送信先が選ばれていません
-cowork.company.pending.not_pushed,まだ送信していません
-cowork.company.pending.text,{0} 件の書類があなたの処理を待っています（{1}）
-cowork.company.pending.text_plain,{0} 件の書類があなたの処理を待っています
+cowork.company.pending.no_target,送信先が未選択です
+cowork.company.pending.not_pushed,未送信
+cowork.company.pending.text,{0} 件の書類が未処理です（{1}）
+cowork.company.pending.text_plain,{0} 件の書類が未処理です
 cowork.company.pending.title,処理待ちの書類
 cowork.company.period_invalid,月が正しくありません
 cowork.company.title_invalid,140 文字以内で名前を入力してください
@@ -2483,7 +2503,7 @@ cowork.readback.version_unsupported,この CC デスクトップで読み戻す�
 cowork.recon.bank.gl_credit_only,元帳貸方のみ
 cowork.recon.bank.gl_debit_only,元帳借方のみ
 cowork.recon.bank.left,銀行明細
-cowork.recon.bank.leftHint,ネットバンキングの Excel/CSV か電子版 PDF が最も正確です
+cowork.recon.bank.leftHint,ネットバンキングの Excel/CSV または電子版 PDF
 cowork.recon.bank.matched,一致
 cowork.recon.bank.right,総勘定元帳
 cowork.recon.bank.stmt_deposit_only,銀行入金のみ
@@ -2761,7 +2781,7 @@ cowork.stock.workbench.editEntry,記録を修正
 cowork.stock.workbench.elsewhere,この商品は他の場所にも在庫があります:
 cowork.stock.workbench.entryQty,今回の実地数量
 cowork.stock.workbench.find,商品を検索
-cowork.stock.workbench.finishConfirm,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。
+cowork.stock.workbench.finishConfirm,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件で、終了後は閲覧とエクスポートのみ可能です。
 cowork.stock.workbench.locationDiff,棚番の差異
 cowork.stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
 cowork.stock.workbench.needsRecount,在庫変動・再棚卸
@@ -3262,7 +3282,7 @@ erp.account_set_unavailable,この会計データは利用できません。
 erp.endpoint_disabled,このERP接続は無効です。
 erp.target_access_denied,このERP送信先にアクセスする権限がありません。
 erp.target_context_invalid,ERP送信先の情報が一致しません。
-erp.target_projection_adapter_invalid,ERP レポートに対応していないアダプターが指定されています。
+erp.target_projection_adapter_invalid,ERP レポートに対応していないシステム種別が指定されています。
 erp.target_projection_collector_invalid,ERP レポートの収集元情報が無効です。
 erp.target_projection_collector_not_connected,この ERP データの種類には収集機能が接続されていません。
 erp.target_projection_duplicate_action,ERP レポートに操作の識別子が重複しています。
@@ -3323,7 +3343,7 @@ intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。
 intake.error.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
-intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票で、仕訳帳に連携されていないメニューにあり記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み取れません。
 intake.error.ERR_MRERP_MENU_CHANGED,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。
@@ -3453,7 +3473,7 @@ ocr.table_invalid_archive,文書ファイルが破損しているか、展開で
 ocr.table_invalid_bytes,文書の内容が無効です。
 ocr.table_invalid_dimensions,ワークシートの行または列の情報が無効です。
 ocr.table_parse_failed,文書を読み取れません。ファイルを確認してから再試行してください。
-ocr.table_roundtrip_not_supported,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
+ocr.table_roundtrip_not_supported,確認用ワークブックの再取り込みには対応していません。
 ocr.table_row_limit,文書の行数が上限を超えています。
 ocr.table_text_limit,文書のテキスト量が上限を超えています。
 ocr.table_text_too_long,"文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
@@ -3490,7 +3510,7 @@ pos.type_unsupported,取り込めるのは Excel（.xlsx）か CSV の POS エ�
 pos.vat_out_of_range,消費税の列がその日の売上の 7% を超えています
 pos.xls_not_supported,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 probably {0},おそらく {0}
-push.adapter_not_connected,このERPアダプターはまだ接続されていません。
+push.adapter_not_connected,この ERP への送信には対応していません。
 push.automation_changed,書き込み前にルールが変わったため、自動送信を取り消しました。
 push.branch_invalid,送信実行モードが無効です。
 push.companion_account_unreported,送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
@@ -3570,7 +3590,7 @@ reconciliation.preset.excluded_applied,プリセットにより次の科目は�
 reconciliation.preset.excluded_count,総勘定元帳 {0} 件・合計 {1}、税報告には 1 件もありません
 reconciliation.preset.excluded_no,照合に含める
 reconciliation.preset.excluded_title,科目 {0} を照合に含めますか
-reconciliation.preset.excluded_yes,含めない（利息など税票を出さない収入）
+reconciliation.preset.excluded_yes,含めない（税票を出さない収入）
 reconciliation.preset.gl_account_applied,プリセットにより、この口座には総勘定元帳の科目 {0} を使用
 reconciliation.preset.gl_account_count,複数の科目に一致する明細があります。一度選ぶと同じファイルで照合し直します（再読み取りはしません）。
 reconciliation.preset.gl_account_option,{0}（一致 {1} 件）
@@ -3580,12 +3600,12 @@ reconciliation.preset.grouped_count,今期このような組が {0} 組
 reconciliation.preset.grouped_no,いいえ、1 件ずつ照合
 reconciliation.preset.grouped_title,{0} はまとめて入金されますか
 reconciliation.preset.grouped_yes,はい、合計で照合
-reconciliation.program_error,プログラムのエラーにより今回の照合は完了しませんでした。自動で記録され、こちらで対応します。再試行しても同じ結果になります。
+reconciliation.program_error,プログラムのエラーにより照合が完了しませんでした。エラーは記録済みです。再試行しても同じ結果になります。
 reconciliation.recognition_busy,読み取りが混み合っています。しばらくしてからもう一度お試しください。
 reconciliation.recognition_timeout,スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。
-reconciliation.report_page_likely_misread,写真・スキャンから読み取った次の税務報告のページで複数の行が元帳と一致しません。読み取り誤りの可能性が高いため、実際の差異と判断する前に原本と照合してください（括弧内は不一致の行数）：{0}
-reconciliation.report_page_shifted,読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
-reconciliation.report_pages_unverified,次の税務報告のページはページ合計で自己検証できませんでした（行の合計がページ合計と一致しない、またはページ合計が読み取れない。再読込済み）。原本と照合してください：{0}
+reconciliation.report_page_likely_misread,次の税務報告のページは読み取り誤りの疑いがあり、元帳と一致しない行数は {0} です。原本と照合してください。
+reconciliation.report_page_shifted,次の税務報告のページで金額と番号の行がずれています。原本に合わせて修正してください：{0}
+reconciliation.report_pages_unverified,次の税務報告のページはページ合計と照合できませんでした：{0}。原本と照合してください
 reconciliation.report_rows_repeated,{0} 行の売上税報告が複数のファイルで重複していたため（同じページを 2 回アップロード）、1 回だけ数えました。
 reconciliation.report_rows_suspect,読み取った次の税務報告の行はそれ自体で整合せず、読み取り誤りの可能性があります。原本と照合してください：{0}
 reconciliation.request_conflict,このリクエストは別の内容で使用済みです。
@@ -3607,16 +3627,16 @@ reconciliation.row_unknown_field,ファイルに読み取れない行があり�
 reconciliation.rows_invalid,ファイルに読み取れない行があります。ファイルの形式を確認してください
 reconciliation.rows_too_many,行数が多すぎます。ファイルを分けて照合してください
 reconciliation.run_info_invalid,照合データの形式が正しくありません。ファイルをもう一度アップロードしてください
-reconciliation.statement_all_outside,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
+reconciliation.statement_all_outside,明細行がいずれも総勘定元帳の期間（{1}〜{2}）外のため、すべて照合しました。両ファイルの期間を確認してください。
 reconciliation.statement_balances_from_ledger,明細書に残高がないか前後が合わないため、期首・期末残高は総勘定元帳に合わせています。
-reconciliation.statement_is_ledger,このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置き、左側には銀行明細またはネットバンキングの出力をアップロードしてください。
+reconciliation.statement_is_ledger,このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置いてください。
 reconciliation.statement_lines_dropped,メインの明細と重複し読み誤りと思われる {0} 行を除外しました。確認してください：{1}
 reconciliation.statement_no_movement,明細書は読み取れましたが、取引明細がありません（表紙や集計ページのみ）。取引明細のあるページをアップロードしてください。
 reconciliation.statement_no_running_balance,この明細書には各行の残高がないため、残高を1行ずつ確認できません。
 reconciliation.statement_not_a_statement,この表は銀行からエクスポートした明細ではありません（残高列がありません）。ネットバンキングから出力した Excel/CSV または明細 PDF をアップロードしてください。
 reconciliation.statement_other_account,これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}
 reconciliation.statement_other_account_left_out,次の明細書は別の口座のものと思われるため、今回の照合に含めていません：{0}
-reconciliation.statement_pages_recovered,{0} の {1} ページは原本から読み直して行を補いましたが、残高がつながりません（1 ページに表が 2 つある場合によくあります）。このページの全行に要確認を付けたので、原本と一行ずつ照合してください
+reconciliation.statement_pages_recovered,{0} の {1} ページは残高がつながりません。このページの全行を要確認にしました
 reconciliation.statement_pages_unread,{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください
 reconciliation.statement_rows_outside,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 reconciliation.statement_unparsed,銀行明細を読み取れません。
@@ -3635,7 +3655,7 @@ reconciliation.vat_report_unparsed,税報告を読み取れません。Excel、C
 reconciliation.vat_source_invalid,税報告の内容が無効です。
 roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
 roundtrip.export_amount_missing,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
-roundtrip.export_amount_not_roundtrippable,この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。
+roundtrip.export_amount_not_roundtrippable,この請求書の明細金額・税抜金額・税額・合計が一致しません。編集画面で確認してください。
 roundtrip.export_date_invalid,請求書の日付が無効です。修正してからエクスポートしてください。
 roundtrip.export_facts_invalid,確認済みの ERP エクスポート情報が無効です。
 roundtrip.export_history_invalid,エクスポート対象に無効または重複した履歴参照があります。
@@ -3692,9 +3712,9 @@ total,税込
 used by {0} items,{0} 品目が使用中
 vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
 vat_check.balance_unavailable,現在、残高を確認できません。しばらくしてからもう一度お試しください。
-vat_check.mostly_unread,請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
+vat_check.mostly_unread,{1} 件中 {0} 件の請求書が時間内に読み取れず、以下の差異には未読の請求書が含まれます。後でもう一度送信してください。
 vat_check.no_invoices,請求書を1件も読み取れませんでした。
-vat_check.note.purchase_invoices,これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}
+vat_check.note.purchase_invoices,次の請求書の買い手は自社です：{0}
 vat_check.note.unread,次のファイルは読み取れず、照合に含めていません：{0}
 vat_check.periods_differ,報告の期間が異なります（{0}）。確認してください。
 vat_check.recognition_busy,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。
@@ -3714,8 +3734,8 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0} completed {1},{0} が「{1}」を完了しました
 {0} d {1} h left,あと {0} 日 {1} 時間
 {0} days before,{0} 日前
-{0} documents are waiting for you,{0} 件の書類があなたの処理を待っています
-{0} documents are waiting for you ({1}),{0} 件の書類があなたの処理を待っています（{1}）
+{0} documents pending,{0} 件の書類が未処理です
+{0} documents pending ({1}),{0} 件の書類が未処理です（{1}）
 {0} files,{0} 件のファイル
 "{0} files in the folder now, processed at the run time",フォルダーに現在 {0} 件、実行時刻にまとめて処理します
 {0} files in the folder now.,フォルダーに現在 {0} 件あります。
@@ -3733,6 +3753,7 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0} more possible combined matches are not listed,ほかに合計一致の可能性がある {0} 組は表示していません
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} of {1} files processed,{0}/{1} ファイル処理済み
+{0} of {1} invoice files were not read in time; the differences below include unread invoices. Submit again later.,{1} 件中 {0} 件の請求書が時間内に読み取れず、以下の差異には未読の請求書が含まれます。後でもう一度送信してください。
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} 行の売上税報告が複数のファイルで重複していたため（同じページを 2 回アップロード）、1 回だけ数えました。
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。
@@ -3745,8 +3766,8 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0}/{1} files,{0}/{1} 件
 {0}/{1} pages,{0}/{1} ページ
 {0}: are the card deposits paid in net of a card fee?,{0}：カード入金は手数料を差し引いた純額ですか？
+{0}: page {1} balance does not follow; all rows on the page are marked for review,{0} の {1} ページは残高がつながりません。このページの全行を要確認にしました
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください
-"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0} の {1} ページは原本から読み直して行を補いましたが、残高がつながりません（1 ページに表が 2 つある場合によくあります）。このページの全行に要確認を付けたので、原本と一行ずつ照合してください
 {0}: which ledger account is it?,{0} は総勘定元帳のどの科目ですか
 {0}: {1},{0}：{1}
 {1} is due at {2},「{1}」の期限は {2} です

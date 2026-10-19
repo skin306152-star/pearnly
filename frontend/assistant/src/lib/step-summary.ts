@@ -48,11 +48,12 @@ export function stepKind(toolName: string, done: Readonly<Record<string, string>
   return own(KINDS, toolName) ?? (own(done, toolName) ? `own:${toolName}` : "tool");
 }
 
-/** 卡片上的问话当成没做的那一步的说法：去掉疑问的写法——问号；中文「要更改…吗」去掉「要」「吗」；泰文句末的 ไหม / มั้ย /
- *  หรือไม่ / หรือเปล่า；日文「…しますか」去掉句末「か」（第 8 轮审查：只去问号时泰文、日文、中文「吗」读着仍是在问）。 */
+/** 卡片上的问话当成没做的那一步的说法：去掉疑问的写法——问号；中文「（确定）要更改…吗」去掉「确定要 / 要」「吗」；泰文句末的
+ *  ไหม / มั้ย / หรือไม่ / หรือเปล่า；日文「…しますか」去掉句末「か」（第 8 轮审查：只去问号时泰文、日文、中文「吗」读着仍是在问；
+ *  存量文案 C2：中文确认句统一为 Frappe 的「确定要…吗？」）。 */
 export function askStem(ask: string): string {
   let stem = ask.replace(/[\s?？]+$/u, "");
-  if (/吗$/u.test(stem)) stem = stem.replace(/吗$/u, "").replace(/^要/u, "");
+  if (/吗$/u.test(stem)) stem = stem.replace(/吗$/u, "").replace(/^(?:确定)?要/u, "");
   stem = stem.replace(/\s*(?:หรือไม่|หรือเปล่า|ไหม|มั้ย)$/u, "");
   stem = stem.replace(/(ます|です)か$/u, "$1");
   return stem.trim();

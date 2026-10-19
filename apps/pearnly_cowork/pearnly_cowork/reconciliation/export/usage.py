@@ -34,8 +34,7 @@ USAGE_BLOCKS: Dict[str, List[Tuple[str, bool]]] = {
         ("  计算期末 应等于 对账单期末; 差异 = 计算期末 − 对账单期末 (应为 0)", False),
         ("", False),
         (
-            "重要提示: 扫描件 PDF 通过 AI OCR 识别 · 不可避免存在识别风险 · 凡是看到 ⚠ 或 ◌ 的行必须人工核对原 PDF 后才能采信。"
-            "Pearnly 永远不会自行填充模糊的数字 — 看不清就标红,决不替你猜。",
+            "⚠ 或 ◌ 标记的行需对照原 PDF 核对。",
             False,
         ),
     ],
@@ -65,7 +64,7 @@ USAGE_BLOCKS: Dict[str, List[Tuple[str, bool]]] = {
             False,
         ),
         (
-            "• Balance check ✓Pass: prev_balance ± amount == this row balance (tolerance 0.05)",
+            "• Balance check ✓Pass: previous balance ± amount = this row's balance (tolerance 0.05)",
             False,
         ),
         (
@@ -85,9 +84,7 @@ USAGE_BLOCKS: Dict[str, List[Tuple[str, bool]]] = {
         ),
         ("", False),
         (
-            "IMPORTANT: Scanned PDFs go through AI OCR. There is always residual OCR risk. "
-            "Any row marked ⚠ or ◌ MUST be cross-checked against the original PDF before trusting it. "
-            "Pearnly will NEVER auto-fill an unclear digit — if we can't read it, we flag it; we don't guess for you.",
+            "Rows marked ⚠ or ◌ must be checked against the original PDF.",
             False,
         ),
     ],
@@ -131,9 +128,7 @@ USAGE_BLOCKS: Dict[str, List[Tuple[str, bool]]] = {
         ),
         ("", False),
         (
-            "สำคัญ: PDF ที่สแกนผ่าน AI OCR ย่อมมีความเสี่ยงในการอ่านผิดเสมอ "
-            "แถวที่ติด ⚠ หรือ ◌ ต้องตรวจสอบกับ PDF ต้นฉบับก่อนเชื่อถือทุกครั้ง "
-            "Pearnly จะไม่เติมตัวเลขที่ไม่ชัดเจนเอง — ถ้าอ่านไม่ออก เราติดสัญลักษณ์ ไม่เดาแทนคุณ",
+            "แถวที่มี ⚠ หรือ ◌ ต้องตรวจสอบกับ PDF ต้นฉบับ",
             False,
         ),
     ],
@@ -162,9 +157,7 @@ USAGE_BLOCKS: Dict[str, List[Tuple[str, bool]]] = {
         ("  計算期末 は 明細期末 と等しいはず; 差異 = 計算期末 − 明細期末 (0 が理想)", False),
         ("", False),
         (
-            "重要: スキャンPDFはAI OCRを使用 · OCR誤読リスクは常に存在します "
-            "⚠ または ◌ が付いた行は必ず元のPDFと照合してから利用してください "
-            "Pearnly は不明瞭な数字を自動で埋めません — 読めないものはマークし、推測しません",
+            "⚠ または ◌ の行は元の PDF と照合してください。",
             False,
         ),
     ],

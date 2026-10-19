@@ -23,7 +23,6 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,บัญชีที่มีสิทธิ์ผู้ดูแลระบบ
 Action not found,ไม่พบการดำเนินการ
 Actions,การจัดการ
-Adapter,อะแดปเตอร์
 Add official account,เพิ่มบัญชีทางการเป็นเพื่อน
 Add operator,เพิ่มพนักงาน
 Add row,เพิ่มรายการ
@@ -364,7 +363,6 @@ Last Used,ใช้ล่าสุด
 Last Verified At,ตรวจสอบล่าสุดเมื่อ
 Last result,ผลล่าสุด
 Lease Expires,การจองงานหมดอายุ
-Lease Owner,ผู้จองงาน
 Lease Until,หมดอายุการจองงาน
 Leave blank to keep the current password.,เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่านปัจจุบัน
 Leave blank to keep unchanged,เว้นว่างไว้หากไม่แก้ไข
@@ -380,6 +378,7 @@ Loading…,กำลังโหลด…
 Local Account,บัญชีในเครื่อง
 Local Session,เซสชันในเครื่อง
 "Local sample site: not sent to LINE, the raw text is only recorded",เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ
+Locked By,ผู้ล็อก
 Locked; released in {0}s,ถูกล็อกอยู่ จะปลดล็อกใน {0} วินาที
 Looked up a tax ID,ตรวจสอบเลขประจำตัวผู้เสียภาษีแล้ว
 Looking up a tax ID,กำลังตรวจสอบเลขประจำตัวผู้เสียภาษี

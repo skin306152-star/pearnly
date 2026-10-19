@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-27 18:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -77,7 +77,7 @@
    "label": "VAT Date",
    "read_only": 1,
    "length": 40,
-   "description": "Kept as printed by the report; the deployed core sorted it as text"
+   "description": "As printed on the report"
   },
   {
    "fieldname": "customer_name",
@@ -98,7 +98,7 @@
    "label": "Has GL Match",
    "read_only": 1,
    "default": "0",
-   "description": "1 means ledger rows were found for this document number"
+   "description": "1 means the ledger has this document number"
   },
   {
    "fieldname": "gl_amount",

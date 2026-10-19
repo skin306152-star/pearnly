@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-22 00:00:00.000000",
- "modified": "2026-09-22 00:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -88,7 +88,7 @@
   },
   {
    "fieldname": "adapter",
-   "label": "Adapter",
+   "label": "System Type",
    "fieldtype": "Data",
    "read_only": 1,
    "no_copy": 1,

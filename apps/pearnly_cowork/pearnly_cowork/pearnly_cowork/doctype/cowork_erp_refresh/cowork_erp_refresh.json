@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-22 00:00:00.000000",
- "modified": "2026-10-16 00:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -96,7 +96,7 @@
   },
   {
    "fieldname": "adapter",
-   "label": "Adapter",
+   "label": "System Type",
    "fieldtype": "Data",
    "read_only": 1,
    "no_copy": 1,
@@ -181,7 +181,7 @@
   },
   {
    "fieldname": "lease_owner",
-   "label": "Refresh Lease Owner",
+   "label": "Refresh Locked By",
    "fieldtype": "Data",
    "read_only": 1,
    "no_copy": 1,
@@ -190,7 +190,7 @@
   },
   {
    "fieldname": "lease_generation",
-   "label": "Refresh Lease Generation",
+   "label": "Refresh Lock Generation",
    "fieldtype": "Int",
    "read_only": 1,
    "no_copy": 1,
@@ -198,7 +198,7 @@
   },
   {
    "fieldname": "lease_handle",
-   "label": "Refresh Lease Handle",
+   "label": "Refresh Lock Handle",
    "fieldtype": "Data",
    "read_only": 1,
    "no_copy": 1,
@@ -208,7 +208,7 @@
   },
   {
    "fieldname": "lease_expires_at",
-   "label": "Refresh Lease Expires At (UTC)",
+   "label": "Refresh Lock Expires At (UTC)",
    "fieldtype": "Datetime",
    "read_only": 1,
    "no_copy": 1,

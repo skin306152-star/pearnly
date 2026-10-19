@@ -23,7 +23,6 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,Account with admin rights
 Action not found,Action not found
 Actions,Actions
-Adapter,Adapter
 Add official account,Add official account
 Add operator,Add operator
 Add row,Add row
@@ -363,7 +362,6 @@ Last Used,Last Used
 Last Verified At,Last Verified At
 Last result,Last result
 Lease Expires,Lease Expires
-Lease Owner,Lease Owner
 Lease Until,Lease Until
 Leave blank to keep the current password.,Leave blank to keep the current password.
 Leave blank to keep unchanged,Leave blank to keep unchanged
@@ -379,6 +377,7 @@ Loading…,Loading…
 Local Account,Local Account
 Local Session,Local Session
 "Local sample site: not sent to LINE, the raw text is only recorded","Local sample site: not sent to LINE, the raw text is only recorded"
+Locked By,Locked By
 Locked; released in {0}s,Locked; released in {0}s
 Looked up a tax ID,Looked up a tax ID
 Looking up a tax ID,Looking up a tax ID
