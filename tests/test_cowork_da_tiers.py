@@ -567,7 +567,13 @@ def _companies(store, *, company="CO1", books=None):
     if package is not None:
         vars(package).pop("current_book", None)
     current = _load("da_tiers_current_book", APP / "companies/current_book.py", {"frappe": frappe})
+    # 判定用的日子（`push.automation.clock`）同样按这次的替身 frappe 读站点配置与此刻
+    automation_package = sys.modules.get("pearnly_cowork.push.automation")
+    if automation_package is not None:
+        vars(automation_package).pop("clock", None)
+    clock = _load("da_tiers_clock", APP / "push/automation/clock.py", {"frappe": frappe})
     module = _load("da_tiers_companies_automation", APP / "companies/automation.py", {
+        "pearnly_cowork.push.automation.clock": clock,
         "frappe": frappe, "frappe.utils": utils, "pearnly_cowork.access": ns(scope=scope),
         "pearnly_cowork.access.scope": scope, "pearnly_cowork.companies.access": access,
         "pearnly_cowork.companies.service": service, "pearnly_cowork.companies.tasks": tasks,
@@ -690,6 +696,36 @@ class CompanyTier(unittest.TestCase):
         # 旧的回读提供者没有 ``kinds``：被改的按不知道
         store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), changes={"R2": "changed"})]
         self.assertEqual(marks(records[1:2], detail=True), {"R2": {"readback": "changed", "changed": None}})
+
+    def test_the_pilot_clock_dates_tier_changes_on_a_test_tenant(self):
+        """第 17 条试点（`push.automation.clock`）：测试租户配了模拟日子，升档记的「自何时」是那一天（钟点照真实的），之后开始的期
+        才评：L0 期（十月）回读 → 升 L1 → L1 期（十二月）的回读里自动推被改超阈值 → 降回 L0。不配、或配在正式站上，「自何时」
+        是真实此刻（远在试点各期之后），十二月期再也评不到。"""
+        def run(site, conf):
+            store = Store()
+            module = _companies(store)
+            module.frappe.local.site = site
+            module.frappe.conf = conf
+            module.frappe.cache = ns(get_value=lambda key: None, set_value=lambda *a, **k: None)
+            module.frappe.utils.now_datetime = lambda: dt.datetime(2027, 6, 1, 9, 30)
+            store.records[("C1", BOOK.lower())] = [_record(f"R{i}", proposal={"class": "A", "changed": [], "stale": [],
+                                                                              "edited": False}) for i in range(20)]
+            store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0))]
+            self.assertEqual(module.on_readback("C1", BOOK, "2026-10")["tier"], "L1")
+            since = store.rows["CO1"].since
+            store.records[("C1", BOOK.lower())] = [_record(f"A{i}", automated="A") for i in range(10)]
+            store.changes = [self._readback(dt.datetime(2027, 1, 24, 3, 0), changes={"A0": "changed", "A1": "changed"})]
+            return since, module.on_readback("C1", BOOK, "2026-12"), store
+
+        since, found, store = run("testcowork.pearnly.com", {"pearnly_da_today": "2026-11-24"})
+        self.assertEqual(since, dt.datetime(2026, 11, 24, 9, 30))
+        self.assertEqual((found["tier"], store.rows["CO1"].reason), ("L0", "changed"))
+        self.assertEqual([entry["at"] for entry in json.loads(store.rows["CO1"].history_json)],
+                         ["2026-11-24 09:30:00", "2026-11-24 09:30:00"])  # 降档时的模拟日子没改（同一天）
+        for site, conf in (("testcowork.pearnly.com", {}), ("cowork.pearnly.com", {"pearnly_da_today": "2026-11-24"})):
+            since, found, _store = run(site, conf)
+            self.assertEqual(since, dt.datetime(2027, 6, 1, 9, 30), site)
+            self.assertEqual(found["tier"], "L1", site)
 
     def test_a_write_mismatch_drops_to_l0_at_once(self):
         store = Store()
@@ -1058,7 +1094,7 @@ def _paged(pushes, per_period=None):
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
             prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
             suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history="", marks_hook=None,
-            overrides=None, stamped=False):
+            overrides=None, stamped=False, simulated=None, today=dt.date(2026, 10, 25)):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -1117,7 +1153,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
             "target": ns(account_set=BOOK), "flat": {}, "fields": fields, "direction": direction,
             "preparation": {"mappings": {}, "supplier_profiles": {}, "bank_index": ()},
             "selected": {"config": config}, "history_value": {"pages": pages}, "own_tax": OWN,
-            "account_row": account, "invoice_date": dt.date(2026, 10, 20)},
+            "account_row": account, "invoice_date": dt.date.fromisoformat(fields["date"])},
         _document_block=lambda doc: None, _work_branch=lambda *a: "", _fixed=lambda *a: None,
         _company_rules=lambda *a: (None, True), _same_company=lambda *a: [], _apply_stock_group=lambda *a: None,
         _account_tax=lambda row: OWN, _loads=json.loads,
@@ -1142,10 +1178,68 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         "pearnly_cowork.push": ns(choices=ns(remembered=lambda *a: {}, overrides=changes)),
         "pearnly_cowork.push.application": ns(service=service),
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda doc: doc.name),
-        "pearnly_cowork.push.automation": ns(rules=rules, service=automation_service),
+        "pearnly_cowork.push.automation": ns(rules=rules, service=automation_service,
+                                             clock=ns(simulated=lambda: simulated, today=lambda: simulated)),
         "pearnly_cowork.push.express.preflight": ns(ExpressContext=lambda **kwargs: kwargs),
         "pearnly_cowork.push.express.prepare": ns(prepare_express=lambda *a, **k: prepared)})
-    return module.run("H1", "C1", BOOK, None, trigger=trigger, today=dt.date(2026, 10, 25)), seen
+    return module.run("H1", "C1", BOOK, None, trigger=trigger, today=today), seen
+
+
+class PilotClock(unittest.TestCase):
+    """第 17 条第 3 点试点：测试租户用站点配置 ``pearnly_da_today`` 指定判定用的日子（`push.automation.clock`）；正式站误配不认、
+    记一条错误日志；没配、认不出照真实日子。"""
+
+    def clock(self, site, value=None, now=dt.datetime(2026, 10, 19, 21, 35)):
+        frappe, utils = _frappe(site=site)
+        frappe.conf = {} if value is None else {"pearnly_da_today": value}
+        cached = {}
+        frappe.cache = ns(get_value=cached.get, set_value=lambda key, val, expires_in_sec=None: cached.__setitem__(key, val))
+        utils.now_datetime = lambda: now
+        return _load("da_tiers_pilot_clock", APP / "push/automation/clock.py", {"frappe": frappe}), frappe
+
+    def test_only_a_test_tenant_takes_the_simulated_day(self):
+        for site in ("testcowork.pearnly.com", "testcowork2.pearnly.com", "lab.localhost"):
+            clock, _frappe_stub = self.clock(site, "2025-09-16")
+            self.assertEqual(clock.simulated(), dt.date(2025, 9, 16), site)
+            self.assertEqual(clock.today(), dt.date(2025, 9, 16), site)
+            self.assertEqual(clock.now(), dt.datetime(2025, 9, 16, 21, 35), site)  # 钟点照真实的
+        for site in ("cowork.pearnly.com", "acme.pearnly.com", "testcowork.pearnly.com.evil.com", None):
+            clock, stub = self.clock(site, "2025-09-16")
+            self.assertIsNone(clock.simulated(), site)
+            self.assertEqual(clock.now(), dt.datetime(2026, 10, 19, 21, 35), site)
+            self.assertEqual(stub.logged, ["Digital accountant clock refused on a non-test site"], site)  # 一小时记一条
+        for value in (None, "", "None", "not a day", "2025-02-30"):
+            clock, stub = self.clock("testcowork.pearnly.com", value)
+            self.assertIsNone(clock.simulated(), value)
+            self.assertEqual(stub.logged, [], value)
+        clock, _stub = self.clock("testcowork.pearnly.com")
+        self.assertEqual(clock.today(), dt.datetime.now(clock.BANGKOK).date())
+
+    def test_the_judgement_uses_the_simulated_day_for_dates_and_the_upload_day(self):
+        """压缩时间试点：票是现在（10-21）传的、单据是两个月以前的：真实日子判 ``date_stale``；测试租户给了模拟日子时，上传日与今天
+        都按它判（期间、不晚于今天、不早于上传前 60 天），R1 与 Express 历史新鲜度另按真实的今天比。"""
+        old = {"date": "2026-08-01"}
+        found, _seen = _assess(fields_over=old)
+        self.assertIn("date_stale", found["reasons"])
+        found, _seen = _assess(fields_over=old, today=None, simulated=dt.date(2026, 8, 20))
+        self.assertNotIn("date_stale", found["reasons"])
+        found, _seen = _assess(fields_over=old, today=None, simulated=dt.date(2026, 7, 31))
+        self.assertIn("date_future", found["reasons"])
+        source = (APP / "push/application/assess.py").read_text(encoding="utf-8")
+        self.assertIn("uploaded=simulated or _day(doc.creation), now=datetime.now(BANGKOK).date() if simulated else None,",
+                      source)
+        self.assertIn("today or clock.today()", source)
+
+    def test_the_points_that_compare_real_record_times_stay_on_the_real_clock(self):
+        """拿库里真实时刻比的几处不跟模拟日子走（见 `clock` 文件头）：扫描的近 3 天窗口、领单重核 R1、合格回读的发起时刻。
+        只有判定与升降档的「自何时」接它。"""
+        uses = {path: (APP / path).read_text(encoding="utf-8") for path in (
+            "push/automation/sweep.py", "push/automation/service.py", "companies/automation.py",
+            "push/application/assess.py")}
+        self.assertNotIn("clock", uses["push/automation/sweep.py"])
+        self.assertNotIn("clock", uses["push/automation/service.py"])
+        self.assertIn("now = clock.now()", uses["companies/automation.py"])
+        self.assertIn("automation_rules.qualified(_bangkok_day(requested), deadline)", uses["companies/automation.py"])
 
 
 class Judging(unittest.TestCase):

@@ -70,6 +70,12 @@ REPLAY_KEY = "pearnly_ocr_replay"
 REPLAY_SITES = r"test(?:cowork|erp|dms)[0-9]{0,2}\.pearnly\.com|[a-z0-9-]+\.localhost"
 REPLAY_MODULE = "apps/pearnly_core/pearnly_core/execution/replay.py"
 REPLAY_ALLOWED = {REPLAY_MODULE, "scripts/check-architecture.py", "scripts/ocr-replay.py"}
+# 数字会计员压缩时间试点的模拟日子（``pearnly_cowork.push.automation.clock``，第 3 期第 17 条）同一道守卫：只认回放的测试租户名单
+# （从 replay 导入、不自己写一份），键只许出现在那个模块与设撤它的脚本里。
+CLOCK_KEY = "pearnly_da_today"
+CLOCK_MODULE = "apps/pearnly_cowork/pearnly_cowork/push/automation/clock.py"
+CLOCK_ALLOWED = {CLOCK_MODULE, "scripts/check-architecture.py", "scripts/da-clock.py"}
+TEST_ONLY_KEYS = {REPLAY_KEY: (REPLAY_ALLOWED, "scripts/ocr-replay.py"), CLOCK_KEY: (CLOCK_ALLOWED, "scripts/da-clock.py")}
 
 
 def check_ocr_replay(root):
@@ -80,13 +86,17 @@ def check_ocr_replay(root):
     sites = re.search(r'^TEST_SITES = re\.compile\(r"([^"]*)"\)', module.read_text(), re.MULTILINE)
     if not sites or sites.group(1) != REPLAY_SITES:
         errors.append(f"{REPLAY_MODULE}: OCR replay may only be enabled on the test tenants; do not widen TEST_SITES")
+    clock = root / CLOCK_MODULE
+    if clock.is_file() and ("from pearnly_core.execution.replay import TEST_SITES" not in clock.read_text()
+                            or "re.compile" in clock.read_text()):
+        errors.append(f"{CLOCK_MODULE}: the simulated day may only be taken on the replay test tenants (TEST_SITES)")
     for top in ("apps", "infrastructure", "scripts", ".github"):
         base = root / top
         if not base.is_dir():
             continue
         for path in base.rglob("*"):
             relative = path.relative_to(root).as_posix()
-            if (not path.is_file() or relative in REPLAY_ALLOWED or "/test_" in relative or "/tests/" in relative
+            if (not path.is_file() or "/test_" in relative or "/tests/" in relative
                     or any(part in {"node_modules", "__pycache__", "translations"} for part in path.parts)
                     or path.suffix in {".png", ".jpg", ".pdf", ".xlsx", ".woff2", ".csv", ".tsv"}):
                 continue
@@ -94,8 +104,9 @@ def check_ocr_replay(root):
                 text = path.read_text()
             except (UnicodeDecodeError, OSError):
                 continue
-            if REPLAY_KEY in text:
-                errors.append(f"{relative}: {REPLAY_KEY} may only be set on a test tenant through scripts/ocr-replay.py")
+            for key, (allowed, script) in TEST_ONLY_KEYS.items():
+                if key in text and relative not in allowed:
+                    errors.append(f"{relative}: {key} may only be set on a test tenant through {script}")
     return errors
 
 

@@ -18,12 +18,13 @@ import json
 from zoneinfo import ZoneInfo
 
 import frappe
-from frappe.utils import get_datetime, now_datetime
+from frappe.utils import get_datetime
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.companies import automation_rules, current_book, identity, service, tasks
 from pearnly_cowork.companies.access import AUTOMATION, read, write
 from pearnly_cowork.companies.rules import account_company
+from pearnly_cowork.push.automation import clock
 from pearnly_cowork.push.automation import rules as tier_rules
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -147,7 +148,7 @@ def _set(company, tier, reason, *, evidence=None, period="", restart=False):
     if evidence is not None:
         doc.evidence_json = json.dumps(evidence, ensure_ascii=False, sort_keys=True)
     if tier != before or restart:
-        now = now_datetime()
+        now = clock.now()  # 测试租户压缩时间试点：记模拟的那一天（之后只认这天以后开始的完整期）
         doc.tier, doc.since, doc.reason = tier, now, reason
         doc.history_json = json.dumps(automation_rules.keep_history(
             _json(doc.history_json, []), automation_rules.history_entry(before, tier, reason, now, period)),
