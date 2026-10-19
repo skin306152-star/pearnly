@@ -135,6 +135,12 @@ def choose_account_set(document, account_set_key):
     先推、推成了（进了账本、或停在要人选科目等）才把去向抄到票上（`push_state.retarget`；停下时 `_push_one` 自己抄）。推不成
     也没进账本（`account_match` 硬闸拒了、科目表还没读到等）：票上的去向与「待选账套」原因原样放回，会计员还能再选一份，
     这次推不成的原因只回给页面显示在那一行下面（第 6 批审查第 4 条：以前先抄去向再推，失败后原因被换掉，再也选不了）。"""
+    return push_to_account_set(document, account_set_key)[0]
+
+
+def push_to_account_set(document, account_set_key, posting_kind=None) -> tuple[dict, dict]:
+    """同 `choose_account_set`，另回 `tools._push_one` 的原样结果（CC 的 `cowork_push_documents` 推停在「待选账套」的单走这里，
+    等写账结论要用里面的推送记录名，不交给页面）；不在列时第二项为空。"""
     scope.require("intake")
     name = str(document or "")
     from pearnly_cowork.companies import pending
@@ -142,7 +148,7 @@ def choose_account_set(document, account_set_key):
     doc = storage.read(name)
     picked = pending.account_set_pick(_row(doc), account_set_key)
     if not picked:
-        return {"document": name, "status": "stale"}
+        return {"document": name, "status": "stale"}, {}
     # 两份同期时要记的现用账套：按停下时的候选先算好（推完这张单就不再停在「待选账套」），推成了才记
     current = pending.current_book_choice(_row(doc), picked["key"])
     stop = {"reason": doc.last_push_reason, "connection": doc.push_connection, "account_set": doc.push_account_set,
@@ -150,6 +156,7 @@ def choose_account_set(document, account_set_key):
     from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
 
     result = tools._push_one(name, doc.push_connection, picked["key"],
+                             **({"posting_kind": posting_kind} if posting_kind else {}),
                              route_device=_reader(name, doc.push_connection))
     frappe.db.commit()
     status = str(result.get("status") or "")
@@ -173,7 +180,7 @@ def choose_account_set(document, account_set_key):
     if accepted and current:
         out["current_book"] = current["value"]
         out["settled"] = _continue_group(current, name)
-    return out
+    return out, result
 
 
 def _remember(found) -> None:

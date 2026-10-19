@@ -355,7 +355,28 @@ def _account_counts(filters, or_filters=None) -> dict:
     return counts
 
 
-def _by_account_set(dated, filters, or_filters, matched, names, complete=True, only=None) -> dict:
+def _stopped_counts(filters, or_filters) -> dict:
+    """符合条件、停在「待选账套」的单按票上的账套数张数（同 `_account_counts` 的形状）：定时任务 T1 的三个原因码一组，自动推前
+    判出 ``book_many``（C 类、没推过）一组；与这次条件不可能同时成立的组不查（推送成功 / 在途的、只看没推过的）。"""
+    status = filters.get("last_push_status")
+    if status in ("pending", "success"):
+        return {}
+    counts = {}
+    groups = []
+    if "last_push_reason" not in filters:
+        groups.append({**filters, "last_push_reason": ["in", list(folder_contracts.ACCOUNT_SET_STOPS)],
+                       **({} if status else {"last_push_status": ["not in", PUSHED_OR_ON_ITS_WAY]})})
+    groups.append({**filters, "auto_class": "C", "auto_reasons": ["like", "%book_many%"],
+                   "last_push_status": ["is", "not set"], "last_push_reason": ["is", "not set"]})
+    for group in groups:
+        for key, (connection, account_set, count) in _account_counts(group, or_filters).items():
+            if key[1]:
+                entry = counts.setdefault(key, [connection, account_set, 0])
+                entry[2] += count
+    return counts
+
+
+def _by_account_set(dated, filters, or_filters, matched, names, complete=True, only=None, stopped=()) -> dict:
     """{"by_account_set": [...]}：``dated`` 圈出这段时间有单据的账套，``filters`` / ``or_filters`` 是这次的条件；
     ``matched`` 是取回后再筛过的全部行（方向、合计那条路），给了就按它数。账套名同列表（``names`` 是同一份缓存）。
     一份账套都没有（全是没选账套的）就不给。
@@ -366,14 +387,25 @@ def _by_account_set(dated, filters, or_filters, matched, names, complete=True, o
 
     ``only``：公司对话的默认范围按连接、账套分别筛时多圈进来的（别的连接上同名的账套）不列，只留这些（连接、账套键归一）。"""
     known = _account_counts(dated)
+    undecided = 0
     if matched is not None:
         hits = {}
         for row in matched:
+            if row.get("name") in stopped:
+                undecided += 1  # 停在「待选账套」：不算在票上那份账套名下（`_stop_target`）
+                continue
             _tally(hits, row.get("push_connection"), row.get("push_account_set"), 1)
-    elif filters == dated and not or_filters:
-        hits = known  # 除了时间范围没有别的条件：同一组数，不再查一遍
     else:
-        hits = _account_counts(filters, or_filters)
+        if filters == dated and not or_filters:
+            hits = known  # 除了时间范围没有别的条件：同一组数，不再查一遍
+        else:
+            hits = _account_counts(filters, or_filters)
+        hits = {key: list(entry) for key, entry in hits.items()}
+        for key, (_connection, _account_set, count) in _stopped_counts(filters, or_filters).items():
+            if key in hits:
+                taken = min(count, hits[key][2])
+                hits[key][2] -= taken
+                undecided += taken
     if not any(key[1] for key in [*known, *hits]):
         return {}
     listed = []
@@ -390,6 +422,8 @@ def _by_account_set(dated, filters, or_filters, matched, names, complete=True, o
         label = _account_names(names, connection).get(key[1]) if connection else None
         listed.append({**({"account_label": label} if label else {}), "connection": connection,
                        "account_set_key": account_set, "count": count, **partial})
+    if undecided:
+        listed.append({"push_target": ACCOUNT_SET_UNDECIDED, "count": undecided, **({} if complete else {"partial": True})})
     listed.sort(key=lambda item: (-(item["count"] or 0), item["count"] is None, "account_set_key" not in item,
                                   str(item.get("account_label") or item.get("account_set_key") or "")))
     out = {"by_account_set": listed[:BY_ACCOUNT_SHOWN]}
@@ -497,7 +531,8 @@ def list_documents(tool_input) -> str:
         if len(digits) >= 5:
             or_filters += [[field, "like", f"%{digits}%"] for field in ("seller_tax", "buyer_tax", "invoice_no")]
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
-    query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages", "last_push_record"],
+    query = {"filters": filters, "or_filters": or_filters,
+             "fields": DOC_FIELDS + ["pages", "last_push_record", *STOP_FIELDS],
              "order_by": "modified desc, name desc"}
     out, matched, complete = {}, None, True
     if exact and not (search and failed_only) and not direction and not tool_input.get("totals"):
@@ -542,16 +577,22 @@ def list_documents(tool_input) -> str:
                            "none from it; narrow the dates or ask about that company with its account_set_key.")
     next_offset = offset + len(rows)
     _attach_written(rows)
+    # 停在「待选账套」的单不按票上的账套报去向（`_stop_target`）；要在原因码换成给人看的话之前认
+    stopped = {row.get("name") for row in (rows if matched is None else matched) if _stopped(row)}
+    stops = {}
+    targets = {row.get("name"): _stop_target(row, stops) for row in rows if row.get("name") in stopped}
     names = {}
     for row in rows:
         row["last_push_reason"] = _reason(row.get("last_push_reason"))
-    rows = [_account_named(row, row.get("push_connection"), "push_account_set", names) for row in rows]
+    rows = [_account_named(_with_stop_target({key: value for key, value in row.items() if key not in STOP_FIELDS},
+                                             targets.get(row.get("name"))),
+                           row.get("push_connection"), "push_account_set", names) for row in rows]
     if not tool_input.get("account_set_key") and not search:
         # 没限定公司：每份账套各几张，同一时间范围里有单据的账套都列（0 张也列），见 `_by_account_set`
         dated = {key: value for key, value in filters.items()
                  if key in ("creation", "invoice_date", "push_connection", "push_account_set")}
         out.update(_by_account_set(dated, filters, or_filters, matched, names, complete,
-                                   None if exact else pairs))
+                                   None if exact else pairs, stopped))
     if company:
         out["scope"] = company["scope"]  # 这次按哪家公司的范围取的（或 all_companies）
     # 推送时刻存的是 UTC（推送账本 `push.native` 的 now_utc）；上传时刻 creation 是站点时区
@@ -811,13 +852,37 @@ def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
         frappe.throw(_("No documents were given."))
-    results = [_push_one(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
-                         tool_input.get("posting_kind") or None) for name in names]
+    results = [_push_listed(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
+                            tool_input.get("posting_kind") or None) for name in names]
     _settle(results)
     out = {"results": results}
     if any(item.get("status") == "queued" for item in results):
         out["note"] = PUSH_QUEUED_NOTE
     return _json(out)
+
+
+def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
+    """`cowork_push_documents` 的一张。停在「待选账套」的单（推往票上那条连接）不按票上那份账套推：这次说了账套、或这一组记住了
+    现用的那份，走待处理当场换账套同一条（`pending_api.push_to_account_set`：只收候选里的，推成了才抄去向，推不成放回「待选
+    账套」，多份同期时选的那份记成这家公司现用的）；都没有、或说的不在候选里回 ``needs_choice``（``account_set_not_chosen``，
+    带候选），不推。其余照 `_push_one`。"""
+    try:
+        doc = storage.read(name)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return {"document": name, "status": "not_found"}
+    stop = _stop_target(doc) if connection in (None, _field(doc, "push_connection")) else None
+    if not stop:
+        return _push_one(name, connection, account_set_key, posting_kind)
+    key = account_set_key or (stop.get("push_account_set") if stop.get("account_set_remembered") else None)
+    if not key:
+        return _not_chosen(name, stop, status="needs_choice")
+    from pearnly_cowork.assistant import pending_api
+
+    out, result = pending_api.push_to_account_set(name, key, posting_kind)
+    if out.get("status") == "stale":
+        return _not_chosen(name, stop, status="needs_choice")
+    return {**result, **{field: out[field] for field in ("current_book", "settled") if field in out}}
 
 
 # ---------------- 对话里的票据：上传识别 ----------------
@@ -918,6 +983,82 @@ def _push_target(doc) -> dict:
     return {} if doc.get("push_connection") else {"push_target": "not chosen yet"}
 
 
+# 停在「待选账套」的单（定时任务跟随公司当年账套 T1 的没有 / 多于一份 / 够不到单据日期，自动推前判出多份同期 ``book_many``，
+# `companies.pending.account_set_stop`）：票上的 push_account_set 是定时任务存下的那份（或判档时那份），不是这张单推往哪里
+# （2026-10-19 验收：候选 T.7 / 67NIEXCP 两份同期停下的单，CC 照票上任务的默认账套说成「T.9 账套」）。给 CC 的去向改成：这一组
+# 记住了现用账套、此刻仍算数 → 那份（``account_set_remembered``）；否则说还没定，列出候选（`pending.account_set_options`，
+# 同待处理页账套框的名称）。列表、详情、识别结果、推送要选的项与推送本身都按这一处。
+ACCOUNT_SET_UNDECIDED = "account set not chosen yet"
+STOP_FIELDS = ("auto_class", "auto_reasons")
+ACCOUNT_SET_STOP_NOTE = (
+    "A document stopped because its account set is not decided (two or more of the company's account sets cover its "
+    "date, or none does) has push_target 'account set not chosen yet' and account_set_options (where it can go): it "
+    "is not going to any account set yet, so never name one as its account set; ask the user which one, then push it "
+    "with that account_set_key. account_set_remembered means the company's remembered account set in use applies "
+    "to it.")
+
+
+def _field(doc, key):
+    return doc.get(key) if hasattr(doc, "get") else getattr(doc, key, None)
+
+
+def _stopped(doc) -> bool:
+    """停在「待选账套」：先按原因码粗看（大多数单不导入 companies、不读账套目录），像的再按 `pending.account_set_stop` 判。"""
+    reason = str(_field(doc, "last_push_reason") or "")
+    if not _field(doc, "push_connection") or not (
+            reason in folder_contracts.ACCOUNT_SET_STOPS
+            or "book_many" in str(_field(doc, "auto_reasons") or "").split(",")):
+        return False
+    from pearnly_cowork.companies import pending
+
+    return bool(pending.account_set_stop(_plain(doc)))
+
+
+def _plain(doc) -> dict:
+    return doc if isinstance(doc, dict) else storage.project(doc)
+
+
+def _stop_target(doc, cache=None) -> dict | None:
+    """停在「待选账套」的单这次推往哪（见上）：记住了 → ``{"account_label"?, "push_account_set", "account_set_remembered",
+    "account_set_options"}``；没定 → ``{"push_target", "account_set_options"}``（候选 ``[{key, label}]``，可能为空：没有覆盖单据
+    日期的账套）。不是这种单回 None。``cache``：一次调用里每张单只算一次（按单据名）。"""
+    name = _field(doc, "name")
+    if cache is not None and name in cache:
+        return cache[name]
+    found = None
+    if _stopped(doc):
+        from pearnly_cowork.companies import pending
+
+        options = pending.account_set_options(_plain(doc))
+        books = [{"key": item["key"], "label": item.get("label") or item["key"]}
+                 for item in options.get("account_sets") or []]
+        current = str(options.get("current") or "")
+        if current:
+            label = next((item["label"] for item in books if _account_key(item["key"]) == _account_key(current)), "")
+            found = {**({"account_label": label} if label else {}), "push_account_set": current,
+                     "account_set_remembered": True, "account_set_options": books}
+        else:
+            found = {"push_target": ACCOUNT_SET_UNDECIDED, "account_set_options": books}
+    if cache is not None:
+        cache[name] = found
+    return found
+
+
+def _with_stop_target(out, target, key_field="push_account_set") -> dict:
+    """把 :func:`_stop_target` 放进一条结果：换掉票上的账套键与名称（放在原来账套键的位置）。``target`` 为空原样返回。"""
+    if not target:
+        return out
+    placed = {}
+    for field, value in out.items():
+        if field == key_field:
+            placed.update(target)
+        elif field != "account_label":
+            placed[field] = value
+    if key_field not in out:
+        placed.update(target)
+    return placed
+
+
 def _filled(values: dict) -> dict:
     """空值不给：模型会把「币种：未识别到」之类的空项当成要说的事。"""
     return {key: value for key, value in values.items() if value not in (None, "", [], {})}
@@ -954,7 +1095,7 @@ def _document(name, names=None) -> dict:
     page = history_contracts.primary_page_fields(doc.get("pages") or [])
     out = {key: doc.get(key) for key in ("name", "invoice_no", "invoice_date", "seller_name", "total_amount",
                                           "posting_kind", "push_connection", "push_account_set", "duplicate_warning")}
-    out = _account_named(out, doc.get("push_connection"), "push_account_set", names)
+    out = _account_named(_with_stop_target(out, _stop_target(doc)), doc.get("push_connection"), "push_account_set", names)
     out.update(_push_target(doc))
     out.update({key: page.get(key) for key in ("document_type", "seller_tax", "seller_branch", "buyer_name",
                                                 "buyer_tax", "subtotal", "vat", "discount", "wht_amount", "currency")})
@@ -1464,7 +1605,7 @@ def _detail(doc) -> dict:
            "push_status": doc.get("last_push_status"), "push_reason": _reason(doc.get("last_push_reason")),
            "push_connection": doc.get("push_connection"), "push_account_set": doc.get("push_account_set"),
            "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages), **_push_target(doc)}
-    out = _account_named(out, doc.get("push_connection"), "push_account_set")
+    out = _account_named(_with_stop_target(out, _stop_target(doc)), doc.get("push_connection"), "push_account_set")
     out.update({key: fields.get(key) for key in DETAIL_FIELDS})
     out["items"] = [_filled({key: row.get(key) if key != "subtotal" else row.get("subtotal", row.get("amount"))
                              for key in ITEM_COLUMNS}) for row in (fields.get("items") or [])[:ITEMS_SHOWN]
@@ -1479,6 +1620,7 @@ def _detail(doc) -> dict:
         # 两份同期账套：这家公司这一组哪份是现用的，选一次并推往那份（`assistant.pending_api.choose_account_set`）
         out["handling_choice_needed"] = "current_book"
         out["current_book_options"] = books
+        out.pop("account_set_options", None)  # 同一组候选，不给两遍
     # 用户问「这张是不是现金」时 CC 最常查的就是详情：入账的票带上怎么写进去的（验收 F19 复审 M1），记录名不给
     written = _written_of(doc.get("last_push_status"), doc.get("last_push_record"))
     if written:
@@ -1684,9 +1826,24 @@ CHOICE_OPTIONS_SHOWN = 30
 
 
 def _push_target_of(doc, tool_input):
+    """（连接, 账套, 没定时的去向）：这次说的优先，否则票上记的。停在「待选账套」的单推往票上那条连接时，票上那份账套不算
+    （`_stop_target`）：记住了用记住的那份，没定账套回 None、第三项是给 CC 的去向（还没定、候选）。"""
     connection = tool_input.get("connection") or doc.push_connection
-    account_set = tool_input.get("account_set_key") or doc.push_account_set or None
-    return connection, account_set
+    account_set = tool_input.get("account_set_key") or None
+    if account_set or connection != doc.push_connection:
+        return connection, account_set or doc.push_account_set or None, None
+    stop = _stop_target(doc)
+    if not stop:
+        return connection, doc.push_account_set or None, None
+    if stop.get("account_set_remembered"):
+        return connection, stop["push_account_set"], None
+    return connection, None, stop
+
+
+def _not_chosen(name, stop, **extra) -> dict:
+    """停在「待选账套」、账套还没定：不按票上那份看 / 记 / 推，给候选让 CC 问用户（`ACCOUNT_SET_STOP_NOTE`）。"""
+    return {"document": name, **extra, "reason": "account_set_not_chosen",
+            "account_set_options": stop.get("account_set_options") or []}
 
 
 def push_choices(tool_input) -> str:
@@ -1698,9 +1855,11 @@ def push_choices(tool_input) -> str:
     except (frappe.DoesNotExistError, frappe.PermissionError):
         frappe.clear_messages()
         return _json({"document": name, "status": "not_found"})
-    connection, account_set = _push_target_of(doc, tool_input)
+    connection, account_set, stop = _push_target_of(doc, tool_input)
     if not connection:
         return _json({"document": name, "status": "failed", "reason": "no_push_target"})
+    if stop:
+        return _json(_not_chosen(name, stop, status="account_set_not_chosen"))
     try:
         view = _choices_waited(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind,
                                str(tool_input.get("hint") or "").strip()[:120] or None)
@@ -1736,7 +1895,9 @@ def save_push_choices(tool_input) -> str:
     except (frappe.DoesNotExistError, frappe.PermissionError):
         frappe.clear_messages()
         return _json({"document": name, "status": "not_found"})
-    connection, account_set = _push_target_of(doc, tool_input)
+    connection, account_set, stop = _push_target_of(doc, tool_input)
+    if stop:
+        return _json(_not_chosen(name, stop, status="not_saved"))
     try:
         result = application_api.save_choices(name, connection, account_set, json.dumps(tool_input.get("items") or []))
         frappe.db.commit()
@@ -3573,7 +3734,7 @@ TOOLS = [
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
                     "buyer, tax IDs, invoice number, date, amounts, line items, push status, and the version needed "
                     "to edit it. handling_choice_needed means the push waits for cowork_choose_document_policy. "
-                    + WRITTEN_NOTE,
+                    + ACCOUNT_SET_STOP_NOTE + " " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"}}, "required": ["document"]},
      "handler": "pearnly_cowork.assistant.tools.document_detail"},
     {"name": "cowork_edit_document", "label": "Edited a document",
@@ -3705,7 +3866,8 @@ TOOLS = [
                     "none; narrow the dates or ask about that company with its account_set_key. In a conversation "
                     "filed under a company, a call without account_set_key or company covers only that "
                     "company's account sets (scope names it); all_companies true lifts that. Amounts are as "
-                    "recognized, not the figures in Express or MR.ERP.",
+                    "recognized, not the figures in Express or MR.ERP. " + ACCOUNT_SET_STOP_NOTE + " In "
+                    "by_account_set such documents are counted on their own row, not under any account set.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["waiting", "not_pushed", "pending", "success", "failed"]},
@@ -3733,7 +3895,9 @@ TOOLS = [
                     "or already_success / already_pending (already entered or on its way; it is not pushed again and "
                     "CC cannot change it, see below). connection and account_set_key choose where to push (from "
                     "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
-                    "upload is used. " + WRITTEN_NOTE,
+                    "upload is used. " + ACCOUNT_SET_STOP_NOTE + " Pushed with one of account_set_options, it goes "
+                    "there and, when two of them cover the same dates, that one is remembered as the account set in "
+                    "use (as with current_book). " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
@@ -3754,7 +3918,8 @@ TOOLS = [
                     "the last 12 months, name = the account name matches the document; reason says why): name the "
                     "first one and ask the user to confirm it (a short yes is enough) or pick another; never save a "
                     "suggestion the user has not confirmed. When the user said in the chat what kind of expense this "
-                    "document is (e.g. stationery), pass it as hint in the user's own words.",
+                    "document is (e.g. stationery), pass it as hint in the user's own words. "
+                    "status account_set_not_chosen: " + ACCOUNT_SET_STOP_NOTE,
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "posting_kind": {"type": "string", "enum": ["service", "stock"]}, "search": {"type": "string"},

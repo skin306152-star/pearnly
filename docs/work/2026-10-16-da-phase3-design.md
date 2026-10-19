@@ -784,6 +784,14 @@
      （`verify_version`），领单时再核一次；所以服务端先上线、1.9.0 发版前，定时任务推 Express 全部改成提议（本文件进度里「留给后面阶段的接口」一条已写明）。
   5. 造数方法（只给方法）已交测试窗口：提议行用现有的未推单走扫描（或只看不记的判定 + 记判定）造，入账方式用一张推往 C 盘测试账套的
      单走 `goods_posting.choose`，都不调识别。
+  6. CC 把停在「多份账套」的单说成「T.9 账套」（要改，已改）：票上的 `push_account_set` 是定时任务的默认账套（t9niexcp），这张停在
+     候选 T.7 / 67NIEXCP 两份同期。CC 工具对停在「待选账套」（`pending.account_set_stop`：T1 的三个原因码、自动推前的 `book_many`）
+     的单不再按票上那份报或用（`assistant.tools._stop_target`）：没定时给 `push_target`「account set not chosen yet」与候选
+     `account_set_options`（`pending.account_set_options`，同待处理账套框的名称），记住了现用账套、仍算数的报记住的那份
+     （`account_set_remembered`）。出口：列单每行与 `by_account_set`（停下的单另起一行计数，不算在票上那份名下）、单据详情、
+     识别结果；推送要选的项 / 记选择在账套没定时回 `account_set_not_chosen` 加候选；`cowork_push_documents` 推停下的单走待处理当场
+     换账套同一条（`pending_api.push_to_account_set`，从 `choose_account_set` 拆出；只收候选、推成了才抄去向并记现用账套），没定也没说
+     账套时不推、回候选。四个工具说明补同一句（内部文字，无用户可见文案）。单测 `StoppedAccountSetTests` 与 `AllCompaniesTests` 两条。
 
 ## 第一轮回放后的决定（2026-10-16）
 

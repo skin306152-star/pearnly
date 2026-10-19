@@ -2498,6 +2498,8 @@ class ListAndRunsTests(unittest.TestCase):
         books = [{"key": "s:\\68exp\\a", "label": "A 2568"}, {"key": "s:\\69exp\\a", "label": "A 2569"}]
         shown, stopped, chosen, rechosen = {"books": books}, {"value": True}, [], []
         pending = types.SimpleNamespace(account_set_stop=lambda doc: stopped["value"],
+                                        account_set_options=lambda doc: {"account_sets": list(shown["books"]),
+                                                                         "current": ""},
                                         current_book_options=lambda doc: list(shown["books"]))
         keys = {item["key"] for item in books}
 
@@ -3504,7 +3506,7 @@ class AccountSetNameTests(unittest.TestCase):
 
 
 def _matches(row, filters, or_filters) -> bool:
-    """替身库的筛选（只认工具用到的几种写法）：等值（不分大小写）、not in、between、>=、is set / not set、like。"""
+    """替身库的筛选（只认工具用到的几种写法）：等值（不分大小写）、in、not in、between、>=、is set / not set、like。"""
     def holds(field, condition):
         value = row.get(field)
         if not isinstance(condition, list):
@@ -3512,6 +3514,8 @@ def _matches(row, filters, or_filters) -> bool:
         op, arg = condition
         if op == "not in":
             return (value or "") not in arg
+        if op == "in":
+            return (value or "") in arg
         if op == "between":
             return value is not None and arg[0] <= value <= arg[1]
         if op == ">=":
@@ -3640,7 +3644,9 @@ class AllCompaniesTests(unittest.TestCase):
             ("70EXP · D.2 บริษัท ภูผาแก้ว จำกัด", 2),
             ("70EXP · D.4 Suan Co", 1),
             ("not chosen yet", 1)])
-        self.assertEqual([call["group_by"] for call in self.grouped], ["push_connection", "push_account_set"])
+        # 另两次按连接分组数停在「待选账套」的（定时任务 T1 一组、自动推判出 book_many 一组；这里一张都没有，不再往下按账套分）
+        self.assertEqual([call["group_by"] for call in self.grouped],
+                         ["push_connection", "push_account_set", "push_connection", "push_connection"])
 
     def test_counts_cover_every_matching_document_not_only_this_page(self):
         out = json.loads(tools.list_documents({**self.SEPTEMBER, "limit": 2}))
@@ -3694,6 +3700,64 @@ class AllCompaniesTests(unittest.TestCase):
         self.assertIn("by_account_set", guidance)
         listing = {tool["name"]: tool for tool in tools.TOOLS}["cowork_list_documents"]["description"]
         self.assertIn("Without account_set_key and search, by_account_set gives every account set (company)", listing)
+
+    def _stopped_rows(self, current=""):
+        """2026-10-19 验收：同一家两份同期账套（T.7 / 67NIEXCP）停下的单，票上记的是定时任务的默认账套（这里 ดาวเหนือ 那份），
+        一张定时任务 T1 停下（多于一份），一张自动推前判出 ``book_many``（票上是 ภูผาแก้ว 那份）。"""
+        self.rows += [
+            {"name": "T1STOP", "invoice_no": "T1STOP", "invoice_date": "2026-09-08", "push_connection": "EXP1",
+             "push_account_set": self.DAO, "last_push_status": "", "last_push_reason": "cowork.folder.account_set_ambiguous",
+             "total_amount": "107", "pages": json.dumps([{"fields": {"direction": "purchase"}}])},
+            {"name": "MANY", "invoice_no": "MANY", "invoice_date": "2026-09-09", "push_connection": "EXP1",
+             "push_account_set": self.PHU, "last_push_status": "", "last_push_reason": "", "auto_class": "C",
+             "auto_reasons": "book_many,amount_math", "total_amount": "107",
+             "pages": json.dumps([{"fields": {"direction": "purchase"}}])}]
+        books = [{"key": "s:\\68exp\\t7", "label": "T.7 ตัวอย่าง"}, {"key": "s:\\68exp\\67niexcp", "label": "67NIEXCP ตัวอย่าง"}]
+        pending = types.SimpleNamespace(
+            account_set_stop=lambda row: row.get("last_push_reason") == "cowork.folder.account_set_ambiguous" or (
+                "book_many" in str(row.get("auto_reasons") or "") and not row.get("last_push_status")),
+            account_set_options=lambda row: {"account_sets": books, "current": current})
+        patcher = mock.patch.dict(sys.modules, {"pearnly_cowork.companies": types.SimpleNamespace(pending=pending),
+                                                "pearnly_cowork.companies.pending": pending})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return books
+
+    def test_documents_stopped_at_the_account_set_are_not_reported_under_the_stored_one(self):
+        books = self._stopped_rows()
+        dao, phu = "70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด", "70EXP · D.2 บริษัท ภูผาแก้ว จำกัด"
+        # 库里数（只有时间范围 / 带条件）、取回后再筛两条路；票上那两份账套的张数与没有这两张时一样
+        for call, unchanged in (({"invoice_date_from": "2026-09-01", "invoice_date_to": "2026-09-30", "limit": 50},
+                                 {dao: 3, phu: 2}),
+                                ({**self.SEPTEMBER, "limit": 50}, {dao: 2, phu: 1}),
+                                ({**self.SEPTEMBER, "direction": "purchase", "totals": True, "limit": 50},
+                                 {dao: 1, phu: 0})):
+            out = json.loads(tools.list_documents(call))
+            docs = {doc["name"]: doc for doc in out["documents"]}
+            for name in ("T1STOP", "MANY"):
+                doc = docs[name]
+                self.assertNotIn("push_account_set", doc)
+                self.assertNotIn("account_label", doc)
+                self.assertEqual((doc["push_target"], doc["account_set_options"]), ("account set not chosen yet", books))
+                self.assertNotIn("auto_reasons", doc)
+                self.assertNotIn(dao, json.dumps(doc, ensure_ascii=False))
+                self.assertNotIn(phu, json.dumps(doc, ensure_ascii=False))
+            # 普通单照旧按票上的账套报
+            self.assertEqual(docs["NF-2026-091744"]["account_label"], dao)
+            counts = dict(self.counts(out))
+            self.assertEqual(counts["account set not chosen yet"], 2, call)
+            self.assertEqual({name: counts[name] for name in unchanged}, unchanged, call)
+            self.assertEqual(sum(item["count"] or 0 for item in out["by_account_set"]), out["total"], call)
+
+    def test_a_remembered_account_set_in_use_is_reported_for_a_stopped_document(self):
+        self._stopped_rows(current="s:\\68exp\\t7")
+        docs = {doc["name"]: doc for doc in json.loads(tools.list_documents({**self.SEPTEMBER, "limit": 50}))["documents"]}
+        for name in ("T1STOP", "MANY"):
+            doc = docs[name]
+            self.assertEqual((doc["account_label"], doc["push_account_set"], doc["account_set_remembered"]),
+                             ("T.7 ตัวอย่าง", "s:\\68exp\\t7", True))
+            self.assertLess(list(doc).index("account_label"), list(doc).index("push_account_set"))
+            self.assertNotIn("push_target", doc)
 
 
 class ThisMonthTests(unittest.TestCase):
@@ -3844,6 +3908,128 @@ class CompanyNamedForADocumentTests(unittest.TestCase):
         ocr.submit = lambda source, key, **choices: (_ for _ in ()).throw(frappe.ValidationError("Invalid push target."))
         out = json.loads(tools.recognize_attachments({"files": ["file_abc"]}))["results"][0]
         self.assertEqual(out, {"file": "file_abc", "status": "not_started", "reason": "Invalid push target."})
+
+
+class StoppedAccountSetTests(unittest.TestCase):
+    """2026-10-19 验收：一张单停在「该公司有多份账套覆盖单据日期」（候选 T.7 / 67NIEXCP），票上的 push_account_set 是定时任务的
+    默认账套 t9niexcp，CC 在对话里把它说成「T.9 账套」。详情、识别结果、推送要选的项与推送都不按票上那份报 / 用：没定说还没定、
+    给候选；记住了现用账套、仍算数的报记住的那份；普通单照旧。"""
+
+    T9 = "c:\\70exp\\t9niexcp"
+    BOOKS = [{"key": "s:\\68exp\\t7", "label": "T.7 ตัวอย่าง"}, {"key": "s:\\68exp\\67niexcp", "label": "67NIEXCP ตัวอย่าง"}]
+
+    def setUp(self):
+        self.current, self.pushed, self.chosen = "", [], []
+        pending = types.SimpleNamespace(
+            account_set_stop=lambda row: row.get("last_push_reason") == "cowork.folder.account_set_ambiguous",
+            account_set_options=lambda row: {"account_sets": list(self.BOOKS), "current": self.current},
+            current_book_options=lambda row: list(self.BOOKS))
+
+        def push_to_account_set(name, key, posting_kind=None):
+            self.chosen.append((name, key))
+            if key not in {item["key"] for item in self.BOOKS}:
+                return {"document": name, "status": "stale"}, {}
+            return ({"document": name, "status": "sent", "current_book": key, "settled": 1},
+                    {"document": name, "status": "sent", "adapter": "express", "record": "PR1"})
+
+        pending_api = types.SimpleNamespace(push_to_account_set=push_to_account_set)
+        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
+        history.primary_page = lambda pages: pages[0] if pages else {}
+        contracts = sys.modules["pearnly_cowork.contracts"]
+        patchers = [mock.patch.dict(sys.modules, {
+                        "pearnly_cowork.companies": types.SimpleNamespace(pending=pending),
+                        "pearnly_cowork.companies.pending": pending,
+                        "pearnly_cowork.assistant": types.SimpleNamespace(pending_api=pending_api),
+                        "pearnly_cowork.assistant.pending_api": pending_api,
+                        "pearnly_cowork.contracts.history": history}),
+                    mock.patch.object(contracts, "history", history, create=True),
+                    mock.patch.object(tools, "_account_names",
+                                      lambda cache, connection: {tools._account_key(self.T9): "70EXP · T.9 ตัวอย่าง"}),
+                    mock.patch.object(tools, "_automation_of", lambda name: None),
+                    mock.patch.object(tools, "_settle", lambda results: [
+                        item.pop("record", None) and item.update(status="queued") for item in results]),
+                    mock.patch.object(tools, "_push_one", lambda *args: self.pushed.append(args) or {"status": "sent"})]
+        for patcher in patchers:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def doc(self, reason="cowork.folder.account_set_ambiguous", **extra):
+        return {"name": "H1", "push_connection": "EXP1", "push_account_set": self.T9, "last_push_status": "",
+                "last_push_reason": reason, "invoice_date": "2026-09-08", "pages": [{"fields": {}}], **extra}
+
+    def assertNoStoredSet(self, out):
+        text = json.dumps(out, ensure_ascii=False)
+        self.assertNotIn("t9niexcp", text)
+        self.assertNotIn("T.9", text)
+
+    def test_the_detail_and_the_recognition_result_give_the_candidates(self):
+        detail = tools._detail(self.doc())
+        self.assertNoStoredSet(detail)
+        self.assertEqual((detail["push_target"], detail["handling_choice_needed"], detail["current_book_options"]),
+                         ("account set not chosen yet", "current_book", self.BOOKS))
+        self.assertNotIn("account_set_options", detail)  # 同一组候选不给两遍
+        with mock.patch.object(tools.storage, "read", lambda name: name), \
+                mock.patch.object(tools.storage, "project", create=True, new=lambda name: self.doc()):
+            result = tools._document("H1")
+        self.assertNoStoredSet(result)
+        self.assertEqual((result["push_target"], result["account_set_options"]), ("account set not chosen yet", self.BOOKS))
+        # 记住了现用账套、仍算数：报记住的那份
+        self.current = "s:\\68exp\\t7"
+        detail = tools._detail(self.doc())
+        self.assertNoStoredSet(detail)
+        self.assertEqual((detail["account_label"], detail["push_account_set"], detail["account_set_remembered"]),
+                         ("T.7 ตัวอย่าง", "s:\\68exp\\t7", True))
+        # 普通单照旧
+        plain = tools._detail(self.doc(reason=""))
+        self.assertEqual((plain["account_label"], plain["push_account_set"]), ("70EXP · T.9 ตัวอย่าง", self.T9))
+        self.assertNotIn("push_target", plain)
+
+    def test_pushing_or_choosing_does_not_fall_back_to_the_stored_set(self):
+        stored = types.SimpleNamespace(**self.doc(), posting_kind="", record_version=1, last_push_record="")
+        stored.get = lambda key, default=None: getattr(stored, key, default)
+        seen = []
+        with mock.patch.object(tools.storage, "read", lambda name: stored), \
+                mock.patch.object(tools.storage, "project", create=True, new=lambda doc: self.doc()), \
+                mock.patch.object(tools, "_choices_waited", create=True,
+                                  new=lambda name, connection, account_set, kind, hint: seen.append(account_set) or {
+                                      "needed": [], "options": {}, "account_set": account_set}):
+            out = json.loads(tools.push_documents({"documents": ["H1"]}))["results"][0]
+            self.assertEqual((out["status"], out["reason"], out["account_set_options"]),
+                             ("needs_choice", "account_set_not_chosen", self.BOOKS))
+            self.assertEqual((self.pushed, self.chosen), ([], []))
+            out = json.loads(tools.push_choices({"document": "H1"}))
+            self.assertEqual((out["status"], out["account_set_options"]), ("account_set_not_chosen", self.BOOKS))
+            out = json.loads(tools.save_push_choices({"document": "H1", "items": [{"kind": "account", "value": "1"}]}))
+            self.assertEqual((out["status"], out["reason"]), ("not_saved", "account_set_not_chosen"))
+            self.assertEqual(seen, [])
+            # 说了候选里的一份：走待处理当场换账套同一条（推成了才抄去向、记现用账套）
+            out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": "s:\\68exp\\67niexcp"}))
+            self.assertEqual(self.chosen, [("H1", "s:\\68exp\\67niexcp")])
+            self.assertEqual((out["results"][0]["status"], out["results"][0]["current_book"]),
+                             ("queued", "s:\\68exp\\67niexcp"))
+            # 不在候选里：不推，给候选
+            out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": self.T9}))["results"][0]
+            self.assertEqual((out["status"], out["reason"]), ("needs_choice", "account_set_not_chosen"))
+            # 记住了现用账套：推往 / 看记住的那份
+            self.current, self.chosen[:] = "s:\\68exp\\t7", []
+            json.loads(tools.push_documents({"documents": ["H1"]}))
+            self.assertEqual(self.chosen, [("H1", "s:\\68exp\\t7")])
+            tools.push_choices({"document": "H1"})
+            self.assertEqual(seen, ["s:\\68exp\\t7"])
+            # 普通单照旧走 _push_one、按票上那份看
+            stored.last_push_reason = ""
+            json.loads(tools.push_documents({"documents": ["H1"]}))
+            self.assertEqual(self.pushed, [("H1", None, None, None)])
+            tools.push_choices({"document": "H1"})
+            self.assertEqual(seen[-1], self.T9)
+        self.assertEqual(self.pushed[-1:], [("H1", None, None, None)])
+
+    def test_cc_is_told_a_stopped_document_has_no_account_set_yet(self):
+        declared = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        for name in ("cowork_list_documents", "cowork_document_detail", "cowork_push_documents", "cowork_push_choices"):
+            self.assertIn("account set not chosen yet", declared[name], name)
+            self.assertIn("never name one as its account set", declared[name], name)
 
 
 if __name__ == "__main__":
