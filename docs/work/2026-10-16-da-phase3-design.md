@@ -747,7 +747,7 @@
   - 本分支对 `origin/main` 没有改 `apps/pearnly_core`；仍在本机 docker 用生产镜像 `sha256:1d1e0366…`（源码 4090d01f，amd64 仿真）跑了一遍完整
     `ci-candidate-checks offline`（清单取合并后仓库里的 `scripts/ci-candidate-checks.sh`，比开发机 `cand-local.sh` 多 4 个原件层测试；工作树只读挂载、
     `--network none`）：76 步全过、1,431 条测试、退出码 0。没连生产、测试机、甲骨文，没有付费识别。
-  - **E3 桌面「录入标记」没做**（要发 CC 桌面版）：重问现在只认经 Pearnly 写入的录入（池登记 `last_written_at`）。要看到会计直接在 Express 录进**未被选中**
+  - **E3 桌面「录入标记」（10-19 已做，CC 桌面版 1.9.1，`docs/work/2026-10-19-cc-desktop-191.md` 第 3 节；待测试机实测与发版）**。原记录：重问现在只认经 Pearnly 写入的录入（池登记 `last_written_at`）。要看到会计直接在 Express 录进**未被选中**
     那份的单，CC 桌面版要在账套目录每一行另报录入标记（如 `GLJNL.DBF` 表头的记录数与最后更新日期，或文件修改时间），服务端存进目录行、
     `current_book.seen_of` / `document_policy.current_book_newer` 改成按「记录数变了或更新日期更晚」比，契约 `tests/test_companion_contract.py` 加字段。
     卡点：1.7.0 的增量扫描（`reuse_registry`，登记表没变就用本机索引里的行）正是为了不逐份读账套文件，办公室测试机 1,353 份账套（1,252 份在局域网
