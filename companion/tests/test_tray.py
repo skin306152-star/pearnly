@@ -526,3 +526,17 @@ def test_the_blocked_notice_waits_for_an_unclicked_reminder(monkeypatch, tmp_pat
     assert [toast[0] for toast in seen["toasts"]] == ["T1"]
     assert _menu(app)[1] == "下载新版 v1.5.2"
     assert app._auto_update.take_blocked_notice() == "1.5.2"   # 没消耗：下次被拦时补弹
+
+
+def test_a_folder_member_with_a_rejected_key_shows_the_reconnect_prompt():
+    # 1.9.1：文件夹线程报 auth（401）→ 托盘同 Express 成员心跳回 401：离线 +「连接已失效，请在设置中重新连接」
+    from src.companion.gui_tray import TrayApp
+    from src.companion.i18n import MessageSpec
+
+    app = TrayApp.__new__(TrayApp)
+    seen = []
+    app._on_status = lambda profile_id, key, detail: seen.append((profile_id, key, detail))
+    app._on_folder_status("m1", "auth")
+    app._on_folder_status("m1", "idle")
+    assert seen[0][:2] == ("m1", "offline") and isinstance(seen[0][2], MessageSpec) and seen[0][2].key == "off_auth"
+    assert seen[1] == ("m1", "idle", "")

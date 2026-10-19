@@ -6,7 +6,8 @@
   POST /api/method/pearnly_cowork.folder_intake.machine.finish         上传完成（经接口上传的带上内容）
   POST /api/method/pearnly_cowork.folder_intake.machine.workbook_file  取一张发票的结果表格
 
-业务上的「不收」回 200 + ``{ok: false, code}``；401 / 403 只表示配对或总闸问题。
+业务上的「不收」回 200 + ``{ok: false, code}``；401 是配对失效（密钥被吊销 / 电脑被移除，托盘提示重新连接），
+403 / 404 是总闸关着、连接停用或旧服务端没有这些接口。
 签名直传用**单独的** httpx 客户端：不带配对密钥、不跟随跳转，只发云端给的那几个头。
 """
 
@@ -32,7 +33,15 @@ WORKBOOK = _METHOD + "workbook_file"
 
 
 class Refused(Exception):
-    """服务端不认这些接口（旧版本）、总闸关着或配对失效：本轮不做。"""
+    """服务端不认这些接口（旧版本）、总闸关着或配对失效：本轮不做。``status`` 是 HTTP 状态码；``rejected`` = 配对失效（401）。"""
+
+    def __init__(self, message: str = "", status: int = 0) -> None:
+        super().__init__(message)
+        self.status = int(status or 0)
+
+    @property
+    def rejected(self) -> bool:
+        return self.status == 401
 
 
 class FolderClient:
@@ -52,7 +61,7 @@ class FolderClient:
         response = self._client.post(path, json=body, timeout=timeout or httpx.USE_CLIENT_DEFAULT)
         if response.status_code in (401, 403, 404):
             # 旧服务端没有这些接口、总闸关着、配对失效：本轮不做，下一轮再看（不影响写账套那条线）。
-            raise Refused(f"folder intake refused: {response.status_code}")
+            raise Refused(f"folder intake refused: {response.status_code}", response.status_code)
         response.raise_for_status()
         return unwrap(response)
 

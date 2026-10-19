@@ -4,7 +4,8 @@
   POST /api/method/pearnly_cowork.companion.request_api.next_request      领一件（没有回 request: null）
   POST /api/method/pearnly_cowork.companion.request_api.complete_request  交结果（分块）或失败原因
 
-业务上的「不行」回 200 + ``{ok: false, code}``；401 / 403 / 404 表示旧服务端没有这些接口、总闸关着或配对失效。
+业务上的「不行」回 200 + ``{ok: false, code}``；401 是配对失效（密钥被吊销 / 电脑被移除），403 / 404 是总闸关着、
+连接停用或旧服务端没有这些接口。
 """
 
 from __future__ import annotations
@@ -22,7 +23,15 @@ COMPLETE = _METHOD + "complete_request"
 
 
 class Refused(Exception):
-    """服务端不认这些接口（旧版本）、总闸关着或配对失效：这一轮不做。"""
+    """服务端不认这些接口（旧版本）、总闸关着或配对失效：这一轮不做。``status`` 是 HTTP 状态码；``rejected`` = 配对失效（401）。"""
+
+    def __init__(self, message: str = "", status: int = 0) -> None:
+        super().__init__(message)
+        self.status = int(status or 0)
+
+    @property
+    def rejected(self) -> bool:
+        return self.status == 401
 
 
 class RequestClient:
@@ -41,7 +50,7 @@ class RequestClient:
     def _post(self, path: str, body: dict, timeout: Optional[float] = None) -> dict:
         response = self._client.post(path, json=body, timeout=timeout or httpx.USE_CLIENT_DEFAULT)
         if response.status_code in (401, 403, 404):
-            raise Refused(f"on-demand request refused: {response.status_code}")
+            raise Refused(f"on-demand request refused: {response.status_code}", response.status_code)
         response.raise_for_status()
         return unwrap(response)
 

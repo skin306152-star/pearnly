@@ -200,7 +200,8 @@ class FolderIntake:
                     self._status(cfg, "idle")
                 except Refused as error:
                     log.info("文件夹录入本轮跳过: %s", error)
-                    self._status(cfg, "offline")
+                    # 配对失效（401）报 auth：托盘显示「连接已失效，请在设置中重新连接」（同 Express 成员心跳回 401）
+                    self._status(cfg, "auth" if error.rejected else "offline")
                 except Exception:
                     log.exception("文件夹录入本轮失败")
                     self._status(cfg, "offline")

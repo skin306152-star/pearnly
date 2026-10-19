@@ -146,7 +146,7 @@ class _ClickRelay(QObject):
 
 class TrayApp(QObject):
     worker_stopped = Signal(object)
-    folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline
+    folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline / auth（401）
     folder_notices = Signal(str, object)  # 文件夹同步带来的对话提醒：(站点, [提醒…])
     folder_update = Signal(str, str)  # 文件夹同步带来的新版本（只读文件夹的成员没有心跳）：(版本, 地址)
     folder_roots = Signal()  # 文件夹线程自动收回了经公司添加、没人用的根目录：设置页重取本机状态
@@ -224,7 +224,7 @@ class TrayApp(QObject):
                                 bool(getattr(self.cfg, "keep_awake_on_battery", False)))
         self._apply_keep_awake()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
-        self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
+        self.folder_status.connect(self._on_folder_status)
         self.folder_notices.connect(self._on_folder_notices)
         self.folder_update.connect(self._on_update_available)
         self.folder_roots.connect(self._on_folder_roots)
@@ -600,6 +600,14 @@ class TrayApp(QObject):
                     return key, profile_id, state[1]
         profile_id, state = next(iter(states.items()))
         return "offline", profile_id, state[1]
+
+    def _on_folder_status(self, profile_id: str, key: str) -> None:
+        """MR.ERP 的小助手成员（只读文件夹）的状态：``auth`` = 这把密钥服务端不认（401），同 Express 成员心跳回 401
+        显示成离线 +「连接已失效，请在设置中重新连接」（gui_tray_workers.friendly_poll_error_spec）。"""
+        if key == "auth":
+            self._on_status(profile_id, "offline", MessageSpec("off_auth"))
+        else:
+            self._on_status(profile_id, key, "")
 
     def _on_status(self, profile_id: str, key: str, detail: object) -> None:
         self._profile_states[profile_id] = (key, detail)

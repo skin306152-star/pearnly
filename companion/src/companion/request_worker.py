@@ -124,7 +124,11 @@ class RequestWorker:
                     self._refused.pop(key, None)
                 except Refused as error:
                     self._refused[key] = self._timer() + REFUSED_BACKOFF
-                    log.info("按需请求暂不可用（%s 秒后再问）: %s", REFUSED_BACKOFF, error)
+                    if error.rejected:
+                        # 配对失效（401）：等重新连接（托盘由心跳 / 文件夹同步提示），换了密钥就是另一个成员键，马上再问
+                        log.info("按需请求：这把密钥服务端不认（已吊销或电脑已移除），等重新连接: %s", error)
+                    else:
+                        log.info("按需请求暂不可用（%s 秒后再问）: %s", REFUSED_BACKOFF, error)
                 except httpx.TransportError as error:
                     log.info("按需请求连不上服务器: %s", type(error).__name__)
                 except Exception:

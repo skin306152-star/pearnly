@@ -102,8 +102,8 @@ class PairingCode(unittest.TestCase):
 
 class DeviceMethods(unittest.TestCase):
     """认电脑的两条机器方法（ADR-021；服务端第 1 批，CC 桌面版 1.7.0 第 5 批）：表与另外三张不重叠、都是只收 POST 的白名单
-    方法，MR.ERP 的只读文件夹密钥也放行；桌面端调的正是这两条路径、报文键与服务端收的一致、状态同名，401 / 403 / 404 一律当
-    旧服务端（不当成配对失效）；设备密钥的形状服务端收；桥的状态里有设备密钥（对话页每次打开带它调 register，页面一侧在第 6 批）。"""
+    方法，MR.ERP 的只读文件夹密钥也放行；桌面端调的正是这两条路径、报文键与服务端收的一致、状态同名，403 / 404 当旧服务端、
+    401 当密钥被拒（1.9.1 起，都不当成要删成员）；设备密钥的形状服务端收；桥的状态里有设备密钥（对话页每次打开带它调 register，页面一侧在第 6 批）。"""
 
     DEVICE_CONTRACTS = SERVER / "device_contracts.py"
     LINK = COMPANION / "device_link.py"
@@ -155,12 +155,19 @@ class DeviceMethods(unittest.TestCase):
         for _ in range(50):
             self.assertIsNotNone(re.fullmatch(pattern.group(1), namespace["new_device_key"]()))
 
-    def test_401_403_404_from_the_device_methods_mean_an_old_server(self):
-        helper = number_constants(self.LINK, ("REFUSED",))
-        self.assertEqual(set(helper["REFUSED"]), {401, 403, 404})
+    def test_401_is_a_rejected_key_and_only_403_404_from_the_device_methods_mean_an_old_server(self):
+        # 1.9.1：服务端认不出密钥（吊销、移除，`credentials.authenticate` → AuthenticationError）是 401，不是旧服务端；
+        # 403（总闸 / 停用，`_deny_permission`）与 404（没有这条方法）才是
+        helper = number_constants(self.LINK, ("REFUSED", "REJECTED"))
+        self.assertEqual(set(helper["REFUSED"]), {403, 404})
+        self.assertEqual(set(helper["REJECTED"]), {401})
         post = method_source_of(self.LINK, "_post")
-        self.assertIn("if response.status_code in REFUSED:", post)
+        self.assertLess(post.index("if response.status_code in REJECTED:"), post.index("if response.status_code in REFUSED:"))
+        self.assertIn("raise KeyRejected(", post)
         self.assertIn("raise OldServer(", post)
+        self.assertIn("frappe.throw(_('companion.unauthorized'), frappe.AuthenticationError)",
+                      (SERVER / "http_auth.py").read_text(encoding="utf-8"))
+        self.assertIn("http_status_code = 403", (SERVER / "http_auth.py").read_text(encoding="utf-8"))
         # 断开：服务端吊销不了（旧版、连不上）也照样只删本机成员
         disconnect = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "disconnect")
         self.assertLess(disconnect.index("_leave_member("), disconnect.index("remove_profile("))

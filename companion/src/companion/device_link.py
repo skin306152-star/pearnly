@@ -14,8 +14,12 @@
     这个，没有就标出来等对话页重新登记（``rekey``）；
   - ``claimed_elsewhere``：这把密钥已被另一台电脑认领（同一配对码抄到了两台）→ 这台不再用它，标出来等对话页重新登记；
   - ``{ok: false, code}``：报文问题，过一阵再试。
-- **旧服务端**：两条方法回 401 / 403 / 404 一律当旧服务端（半小时后再问），**从不当成配对失效**；密钥被吊销仍由心跳发现
-  （同 ``request_client`` / ``folder_client``）。断开时旧服务端退回只删本机成员。
+- **拒绝码按类分（1.9.1）**：401 是这把密钥服务端不认（被吊销、电脑被移除、重新连接前留下的旧密钥、不是这个站点发的），
+  抛 ``KeyRejected``，五分钟后再试、不当成服务端旧版；提示重新连接走现有的那条路（Express 成员的心跳 / MR.ERP 成员的文件夹
+  同步回 401 → 托盘显示「连接已失效，请在设置中重新连接」），重新配对换了密钥马上用新的认。这里**从不自己删成员、也不停用它**：
+  不影响取任务、写账。404（服务端没有这条方法）与 403（总闸关着 / 连接停用）才当旧服务端或暂不可用，半小时后再问。
+  1.7.0–1.9.0 把 401 也当旧服务端（半小时后再问，日志写「服务端还不认电脑（旧版）」）：录制机重连时旧密钥被拒就是这样误判的。
+  断开时旧服务端、密钥早已失效都退回只删本机成员。
 """
 from __future__ import annotations
 
@@ -43,15 +47,20 @@ LEFT = "left"
 SUPERSEDED = "superseded"
 # 要人在对话页重新登记的两种：这个成员停用（不取任务、不同步、不领请求），直到换上新的密钥
 NEEDS_REGISTER = (SUPERSEDED, CLAIMED_ELSEWHERE)
-REFUSED = (401, 403, 404)
+REJECTED = (401,)           # 这把密钥服务端不认：配对失效（见文件头），不是服务端旧版
+REFUSED = (403, 404)        # 服务端没有这两条方法（旧版）、总闸关着或连接停用
 OLD_SERVER_RETRY = 1800.0   # 旧服务端：半小时后再问一次（服务端可能已升级）
-FAILED_RETRY = 300.0        # 网络、报文问题：五分钟后再试
+FAILED_RETRY = 300.0        # 网络、报文问题、密钥被拒：五分钟后再试
 # 挂上了、内容也没变，最多这么久也再认一次（服务端那边把这台摘掉了而本机不知道时，不必等进程重启才恢复）
 REFRESH_SECONDS = 12 * 3600.0
 
 
 class OldServer(Exception):
-    """服务端没有这两条方法（旧版）、总闸关着或这把密钥已失效：不当成配对失效。"""
+    """服务端没有这两条方法（旧版，404）、总闸关着或连接停用（403）：过一阵再问。"""
+
+
+class KeyRejected(Exception):
+    """这把密钥服务端不认（401）：配对失效，等重新连接（托盘由心跳 / 文件夹同步提示），不是服务端旧版。"""
 
 
 def new_device_key() -> str:
@@ -63,6 +72,8 @@ def _post(backend_url: str, token: str, path: str, body: dict, timeout: float) -
     with httpx.Client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
                       timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
         response = client.post(path, json=body)
+    if response.status_code in REJECTED:
+        raise KeyRejected(f"device key rejected: {response.status_code}")
     if response.status_code in REFUSED:
         raise OldServer(f"device method refused: {response.status_code}")
     response.raise_for_status()
@@ -79,8 +90,11 @@ def leave(backend_url: str, token: str, timeout: float = 15.0) -> bool:
         return False
     try:
         reply = _post(backend_url, token, LEAVE, {}, timeout)
+    except KeyRejected as error:
+        log.info("断开时这把密钥早已失效（被吊销或电脑已移除），只删本机成员: %s", error)
+        return False
     except OldServer as error:
-        log.info("断开时服务端不认电脑方法（旧版或密钥已失效），只删本机成员: %s", error)
+        log.info("断开时服务端不认电脑方法（旧版或连接停用），只删本机成员: %s", error)
         return False
     except Exception as error:
         log.warning("断开时连不上服务端，只删本机成员: %r", error)
@@ -95,7 +109,7 @@ def settle_old_key(backend_url: str, token: str, *, timeout: float = 15.0) -> st
     旧槽位密钥还挂在没人认领的「旧电脑」上，换掉以后再也不会去认电脑——那台「旧电脑」永远离线却不吊销，写账可能分派给它
     （第 6 批审查第 5 条）。先认一次：服务端发现这台电脑在这条连接上已有自己的密钥 → ``superseded``，吊销旧钥，把旧电脑的
     可达行、读文件夹任务转给这台再让旧电脑退役（`credentials.hello`）。旧钥是别的电脑认领过的（同一配对码抄到两台）回
-    ``claimed_elsewhere``、什么都不改；旧钥早已吊销、旧服务端回 401 等一律不管。从不抛，回服务端的状态（没发、失败是空串）。"""
+    ``claimed_elsewhere``、什么都不改；旧钥早已吊销（401）、旧服务端（404）等一律不管。从不抛，回服务端的状态（没发、失败是空串）。"""
     if not str(backend_url or "").strip() or not str(token or "").startswith("exp_"):
         return ""
     key = device_key()
@@ -103,8 +117,11 @@ def settle_old_key(backend_url: str, token: str, *, timeout: float = 15.0) -> st
         return ""
     try:
         reply = hello(backend_url, token, hello_body(key), timeout)
+    except KeyRejected as error:
+        log.info("换密钥前旧密钥认电脑被拒（旧密钥已失效，照常换上新密钥）: %s", error)
+        return ""
     except OldServer as error:
-        log.info("换密钥前旧密钥认电脑被拒（旧服务端或旧密钥已失效）: %s", error)
+        log.info("换密钥前旧密钥认电脑被拒（服务端不认电脑方法）: %s", error)
         return ""
     except Exception as error:
         log.info("换密钥前旧密钥认电脑失败: %r", error)
@@ -198,8 +215,16 @@ class Announcer:
             return None   # 挂上了、内容没变、没到再认的时候：不再发
         try:
             reply = self._send(url, token, body)
+        except KeyRejected as error:
+            # 配对失效不是服务端旧版：不停用这个成员（心跳 / 文件夹同步照样回 401，托盘提示重新连接），五分钟后再认；
+            # 重新连接换了密钥，下一轮按新密钥马上认
+            log.warning("这把密钥服务端不认（已吊销、电脑已移除或不是这个站点发的），等重新连接 · profile=%s: %s",
+                        getattr(cfg, "profile_id", ""), error)
+            with self._lock:
+                self._memory[token] = (now + FAILED_RETRY, None, None)
+            return None
         except OldServer as error:
-            log.info("服务端还不认电脑（旧版），半小时后再问: %s", error)
+            log.info("服务端还不认电脑（旧版或连接停用），半小时后再问: %s", error)
             with self._lock:
                 self._memory[token] = (now + OLD_SERVER_RETRY, None, None)
             return None
@@ -256,6 +281,6 @@ def settle(store, profile_id: str, status: str) -> str:
 
 ANNOUNCER = Announcer()
 
-__all__ = ["ANNOUNCER", "ATTACHED", "Announcer", "CLAIMED_ELSEWHERE", "HELLO", "LEAVE", "LEFT", "NEEDS_REGISTER",
-           "OldServer", "REFUSED", "SUPERSEDED", "device_key", "hello", "hello_body", "identity", "leave", "settle_old_key",
-           "new_device_key", "settle"]
+__all__ = ["ANNOUNCER", "ATTACHED", "Announcer", "CLAIMED_ELSEWHERE", "HELLO", "KeyRejected", "LEAVE", "LEFT",
+           "NEEDS_REGISTER", "OldServer", "REFUSED", "REJECTED", "SUPERSEDED", "device_key", "hello", "hello_body", "identity",
+           "leave", "settle_old_key", "new_device_key", "settle"]
