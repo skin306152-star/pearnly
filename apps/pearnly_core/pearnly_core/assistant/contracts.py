@@ -113,17 +113,46 @@ def title_parts(events) -> tuple[str, str]:
 
 
 # 内容里冒充标签的字样（例如消息里写了 </message>）去掉，免得跳出标签
-TITLE_TAGS = re.compile(r"</?\s*(?:message|reply|too_long)\b[^>]*>", re.I)
+TITLE_TAGS = re.compile(r"</?\s*(?:message|reply|too_long|language)\b[^>]*>", re.I)
+# 侧栏标题的语言（10-19 测试：中文对话里夹着泰文公司名、单号，标题被起成泰文）：按会话主人的界面语言写，
+# 交给模型的是语言的英文名；别的语言回落英文
+TITLE_LANGUAGES = {"zh": "Chinese", "en": "English", "th": "Thai", "ja": "Japanese"}
+TITLE_FALLBACK_LANGUAGE = "English"
+
+
+def title_language(*codes) -> str:
+    """几个候选语言标签（先后有序，例如对话页的语言、账号语言）里第一个认得的 → 标题语言名；都不认得给英文。
+    zh-CN / zh_TW → Chinese，th-TH → Thai。"""
+    for code in codes:
+        name = TITLE_LANGUAGES.get(str(code or "").strip().replace("_", "-").split("-")[0].lower())
+        if name:
+            return name
+    return TITLE_FALLBACK_LANGUAGE
+
+
+# 随每条用户消息带上的界面语言规则（只给模型读）。智能体说明（`definition.SYSTEM`）里也有同一条，这里再写一遍：
+# 会话建好后绑定建时的智能体版本、系统提示词改不了，已开着的对话只能靠这段拿到新规则
+LANGUAGE_RULE = ("This is the user's interface language. Reply in it, including short notes while working. Names and "
+                 "numbers from the data mixed into the message (company names, document numbers, account names) do not "
+                 "change it. Use another language only when the user writes the whole message in it or asks for it.")
+
+
+def language_note(language) -> str:
+    """随每条用户消息带上的界面语言（批末系统消息里的一段，对话页不显示）：CC 用它回复，不跟着消息里夹的外文专名走
+    （10-19 测试：中文提问夹着泰文公司名、单号，整段被答成泰文）。语言名见 `title_language`；没有就回空串。"""
+    name = _tag_body(language, 40)
+    return f"<language>{name}</language>\n{LANGUAGE_RULE}" if name else ""
 
 
 def _tag_body(text, limit) -> str:
     return " ".join(TITLE_TAGS.sub(" ", str(text or "")).split())[:limit]
 
 
-def title_prompt(message, reply="", too_long="") -> str:
-    """交给概括模型的内容（怎么写见 `engines.base.TITLE_INSTRUCTION`）：首条消息、CC 第一段回复的开头；
-    上一次概括超宽时带上它（`too_long`），请模型写短一些。"""
-    parts = [f"<message>\n{_tag_body(message, TITLE_SOURCE_MAX)}\n</message>"]
+def title_prompt(message, reply="", too_long="", language="") -> str:
+    """交给概括模型的内容（怎么写见 `engines.base.TITLE_INSTRUCTION`）：标题要用的语言（`title_language`）、首条消息、
+    CC 第一段回复的开头；上一次概括超宽时带上它（`too_long`），请模型写短一些。"""
+    parts = [f"<language>{_tag_body(language, 40)}</language>"] if language else []
+    parts.append(f"<message>\n{_tag_body(message, TITLE_SOURCE_MAX)}\n</message>")
     if reply:
         parts.append(f"<reply>\n{_tag_body(reply, TITLE_REPLY_MAX)}\n</reply>")
     if too_long:

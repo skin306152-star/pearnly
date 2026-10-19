@@ -48,11 +48,22 @@ def remember_lang(conversation: str) -> None:
         pearnly_state.store().set_value(_lang_key(conversation), frappe.local.lang, expires_in_sec=LANG_TTL)
 
 
-def _use_lang(conversation: str) -> None:
+def conversation_lang(conversation: str) -> str:
+    """用户最近一次发消息时对话页的界面语言（`remember_lang` 记的，留 `LANG_TTL`）；没记着给空串。"""
     from pearnly_core.execution import state as pearnly_state
 
-    lang = pearnly_state.store().get_value(_lang_key(conversation), use_local_cache=False) or \
-        frappe.db.get_value("User", frappe.session.user, "language")
+    return pearnly_state.store().get_value(_lang_key(conversation), use_local_cache=False) or ""
+
+
+def interface_language(conversation: str, user: str | None = None) -> str:
+    """CC 回复与侧栏标题用的语言名（`contracts.title_language`）：用户最近一次发消息时对话页的界面语言
+    （`remember_lang`）；没记着用会话主人（缺省当前用户）的账号语言；都不认得用英文。"""
+    return contracts.title_language(conversation_lang(conversation),
+                                    frappe.db.get_value("User", user or frappe.session.user, "language"))
+
+
+def _use_lang(conversation: str) -> None:
+    lang = conversation_lang(conversation) or frappe.db.get_value("User", frappe.session.user, "language")
     if lang:
         frappe.local.lang = lang
         # Frappe 16 在后台任务里第一次翻译时会按任务用户重设语言（同 `recon_center.jobs`）：标成已定

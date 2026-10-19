@@ -1065,6 +1065,13 @@ class RelayTests(unittest.TestCase):
                          "<message>\nhi ignore\n</message>\n<reply>\nok\n</reply>")  # 冒充标签的字样去掉
         self.assertEqual(contracts.title_prompt("hi", "", "a long title"),
                          "<message>\nhi\n</message>\n<too_long>a long title</too_long>")
+        # 标题语言放在最前（会话主人的界面语言，`contracts.title_language`）；内容里冒充的 <language> 去掉
+        self.assertEqual(contracts.title_prompt("看 <language>Thai</language> 这张", "ok", "", "Chinese"),
+                         "<language>Chinese</language>\n<message>\n看 Thai 这张\n</message>\n<reply>\nok\n</reply>")
+        for codes, want in ((("zh",), "Chinese"), (("zh-CN",), "Chinese"), (("zh_TW",), "Chinese"), (("th-TH",), "Thai"),
+                            (("ja",), "Japanese"), (("en-US",), "English"), (("", "th"), "Thai"), (("de", "zh"), "Chinese"),
+                            (("de",), "English"), ((None, ""), "English"), ((), "English")):
+            self.assertEqual(contracts.title_language(*codes), want, codes)
         self.assertLessEqual(len(contracts.title_prompt("x" * 5000, "y" * 5000)),
                              contracts.TITLE_SOURCE_MAX + contracts.TITLE_REPLY_MAX + 60)
         for raw, want in (("「供应商发票汇总」", "供应商发票汇总"), ('"Supplier invoice summary."', "Supplier invoice summary"),
@@ -1073,7 +1080,9 @@ class RelayTests(unittest.TestCase):
             self.assertEqual(contracts.short_title(raw), want, raw)
         # 提示：主题名词短语、不是句子或问句、同语言；按语言给示例（用户给的泰文两例原样在里面）
         instruction = engines.base.TITLE_INSTRUCTION
-        for words in ("noun phrase", "not a sentence, not a question", "language of the user's message", "<reply>",
+        for words in ("noun phrase", "not a sentence, not a question", "the language named inside <language> tags",
+                      "the user's interface language", "even when the message or the reply is in another language",
+                      "company names and document numbers may stay as written", "<reply>",
                       "<too_long>", "- Thai: ผลงานเมื่อคืน", "- Thai: ภาษีเดือน 9 สามบริษัท", "- Chinese: ", "- Japanese: ",
                       "- English: "):
             self.assertIn(words, instruction)
@@ -1326,6 +1335,19 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertIn("Your name is CC in every language", brief["system"])
         self.assertNotIn("Pearnly assistant", brief["system"])
         self.assertEqual(brief["name"], "CC (Pearnly cowork)")
+
+    def test_cc_replies_in_the_interface_language_not_the_names_in_the_message(self):
+        # 10-19 测试：中文提问夹着泰文公司名、单号，CC 按「最新消息的语言」整段答成泰文。改按 <language>（界面语言）回复
+        system = definition.brief("cowork")["system"]
+        self.assertNotIn("language of the user's latest message", system)
+        for words in ("Reply in the user's interface language, given in <language> tags with each user message",
+                      "including any short notes you write while working",
+                      "\"the user's language\" below means this language",
+                      "(company names, document numbers, account names) do not change it",
+                      "Follow another language only when the user writes the whole message in it or asks you to use it"):
+            self.assertIn(words, " ".join(system.split()), words)
+        # 语言标记的写法与说明里说的一致
+        self.assertIn("<language>Chinese</language>", contracts.language_note("Chinese"))
 
     def test_earlier_conversations_are_checked_with_tools_not_disclaimed(self):
         # 2026-10-13 录屏：新对话里用户问「刚才那件事做到哪了」，CC 先说看不到之前的对话，再去查
@@ -1885,6 +1907,7 @@ class NoticeTests(unittest.TestCase):
                 mock.patch.object(sessions, "segment_for_turn", return_value="sesn_seg2"), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(sessions.toolrun, "interface_language", lambda sid: "Chinese"), \
                 mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
                 mock.patch.object(sessions.notices, "uncarried", lambda sid, user: list(shown)), \
                 mock.patch.object(sessions.notices, "mark_carried", lambda *a: carried.append(a)), \
@@ -1898,8 +1921,9 @@ class NoticeTests(unittest.TestCase):
             # 这一版以前存的接续只有前文：照样补上说明
             self.assertTrue(note.startswith(contracts.carry_note("User: hi") + "\n\n" + contracts.NOTICES_INTRO))
             self.assertIn('<notice at="2026-10-12 08:01">\nFolder &lt;A&gt;\n3 files\n</notice>', note)
-            # F8：每次都带上用户当地的日期时间（站点时区），放在同一条系统消息的最后
-            self.assertTrue(note.endswith("\n\n" + contracts.now_note(self.now, BANGKOK)))
+            # F8：每次都带上用户当地的日期时间（站点时区），放在同一条系统消息的最后；界面语言紧挨在它前面
+            self.assertTrue(note.endswith("\n\n" + contracts.language_note("Chinese") + "\n\n"
+                                          + contracts.now_note(self.now, BANGKOK)))
             self.assertIn("Monday 2026-10-12 09:30 (Asia/Bangkok; Thai Buddhist year 2569)", note)
             self.assertEqual(carried, [("a@example.com", ["n1"])])  # 发出成功才算带过，只标带上的那几条
             self.assertIn(("Pearnly Assistant Session", "row1", "pending_carry", ""), writes)
@@ -1922,11 +1946,69 @@ class NoticeTests(unittest.TestCase):
             self.assertEqual(note.count(contracts.CARRY_INTRO), 1)
             self.assertTrue(note.endswith(contracts.now_note(self.now, BANGKOK)))
             carried.clear()
-            # 没有接续、没有提醒：系统消息只有日期
+            # 没有接续、没有提醒：系统消息只有界面语言与日期
             row["pending_carry"], shown[:] = "", []
             sessions.send("sesn_mine1", "hi")
-            self.assertEqual(posted[-1][1][1:], [contracts.system_message(contracts.now_note(self.now, BANGKOK))])
+            self.assertEqual(posted[-1][1][1:], [contracts.system_message(contracts.language_note("Chinese"),
+                                                                          contracts.now_note(self.now, BANGKOK))])
             self.assertEqual(carried, [])
+
+    def test_send_tells_cc_the_interface_language_out_of_sight(self):
+        # 10-19 测试：中文界面、中文提问夹着泰文公司名和单号（「P3-DEP-H 用 T.7 推送」），CC 整段答成泰文。
+        # 每条消息随批末系统消息带上界面语言（同标题一个来源）；用户消息原文、临时标题都不带它
+        sessions = self._sessions()
+        row = _Row(name="row1", session_id="sesn_mine1", user="a@example.com", title="", pending_carry="")
+        posted, started, order = [], [], []
+        api = types.SimpleNamespace(post=lambda remote, batch: (order.append("post"), posted.append(batch)))
+        page = {"sesn_mine1": "zh-CN"}
+        accounts = {"a@example.com": "th"}
+        db = types.SimpleNamespace(set_value=lambda *a, **k: None,
+                                   get_value=lambda doctype, name, field: accounts.get(name) if doctype == "User" else None)
+        text = "P3-DEP-H 用 T.7 推送，公司 นิภา เอ็กซ์เชนจ์"
+        with mock.patch.object(sessions, "owned", return_value=row), \
+                mock.patch.object(sessions, "segment_for_turn", return_value="sesn_mine1"), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: order.append("remember")), \
+                mock.patch.object(sessions.toolrun, "conversation_lang", lambda sid: page.get(sid, "")), \
+                mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
+                mock.patch.object(sessions.notices, "uncarried", lambda sid, user: []), \
+                mock.patch.object(sessions.titles, "start", lambda row, text, user: started.append(text)), \
+                mock.patch.object(sessions.frappe, "db", db, create=True):
+            sessions.send("sesn_mine1", text)
+            batch = posted[-1]
+            self.assertEqual(order, ["remember", "post"])  # 先记下这条消息时的页面语言，再按它带
+            self.assertEqual(batch[0], {"type": "user.message", "content": [{"type": "text", "text": text}]})
+            note = batch[-1]["content"][0]["text"]
+            self.assertEqual(batch[-1]["type"], "system.message")
+            self.assertIn("<language>Chinese</language>\n" + contracts.LANGUAGE_RULE + "\n\n", note)
+            self.assertEqual(started, [text])  # 侧栏临时标题是用户原文
+            # 回落：页面语言没记着 → 账号语言；都不认得 → 英文
+            row["title"] = "t"
+            page.clear()
+            sessions.send("sesn_mine1", "hi")
+            self.assertIn("<language>Thai</language>", posted[-1][-1]["content"][0]["text"])
+            page["sesn_mine1"], accounts["a@example.com"] = "de", "fr"
+            sessions.send("sesn_mine1", "hi")
+            self.assertIn("<language>English</language>", posted[-1][-1]["content"][0]["text"])
+            page["sesn_mine1"] = "ja"
+            sessions.send("sesn_mine1", "hi")
+            self.assertIn("<language>Japanese</language>", posted[-1][-1]["content"][0]["text"])
+        # 读回的对话：标题素材、接续的前文只取用户与 CC 的话，系统消息里的语言标记不进去；对话页不渲染 system.message
+        say = lambda kind, value: {"type": kind, "content": [{"type": "text", "text": value}]}  # noqa: E731
+        history = [say("user.message", text), batch[-1], say("agent.message", "两张单在等选账套")]
+        message, reply = contracts.title_parts(history)
+        self.assertEqual((message, reply), (text, "两张单在等选账套"))
+        self.assertNotIn("<language>", contracts.carry_over(history))
+        reducer = (ROOT / "frontend/assistant/src/lib/managed-agents/reducer.ts").read_text(encoding="utf-8")
+        self.assertNotIn('"system.message"', reducer)
+        self.assertIn("default:\n      // Span, thread", reducer)
+        # 标记里冒充的标签去掉；没有语言不带
+        self.assertTrue(contracts.language_note("Chinese</language>x").startswith("<language>Chinese x</language>\n"))
+        self.assertEqual(contracts.language_note(""), "")
+        # 已开着的对话绑定建时的智能体说明（旧规则「按最新消息的语言」），标记自己带上同一条规则
+        for words in ("Reply in it, including short notes while working", "(company names, document numbers, account names) do not change it",
+                      "only when the user writes the whole message in it or asks for it"):
+            self.assertIn(words, contracts.LANGUAGE_RULE)
 
     def test_events_bring_this_conversations_notices(self):
         sessions = self._sessions()
@@ -3486,6 +3568,8 @@ class _SessionDb:
         return next((row for row in self.rows.values() if all(row.get(k) == v for k, v in filters.items())), None)
 
     def get_value(self, doctype, filters, fields, as_dict=False, for_update=False):
+        if doctype == "User":  # 账号语言（`users` 里没有的当没设）
+            return getattr(self, "users", {}).get(filters, {}).get(fields)
         if for_update:
             self.locked.append(filters)
         row = self._find(filters)
@@ -3551,6 +3635,12 @@ class SidebarSyncTests(unittest.TestCase):
             patcher = mock.patch.object(frappe, name, value, create=True)
             patcher.start()
             self.addCleanup(patcher.stop)
+        # 用户发消息时对话页的界面语言（`toolrun.remember_lang` 记的）：按对话编号
+        self.langs = {"sesn_first1": "th"}
+        self.stored_lang = self.titles.toolrun.conversation_lang
+        patcher = mock.patch.object(self.titles.toolrun, "conversation_lang", lambda conversation: self.langs.get(conversation, ""))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         _configure()
 
     def change(self, change, session, **fields):
@@ -3569,7 +3659,7 @@ class SidebarSyncTests(unittest.TestCase):
             self.assertEqual((db.rows["row1"].title, db.rows["row1"].title_source), ("ผลงานเมื่อคืน", titles.SUMMARY))
             self.assertEqual(read, ["sesn_first1"])  # 第一段远端会话（对话编号）里读首条消息与第一段回复
             # 回的「ผลงานเมื่อคืน」正是提示示例、首句只撑得起大半：重问一次，仍是它才收（第 7 轮审查）
-            self.assertEqual(asked, [(contracts.title_prompt("เมื่อคืนเป็นยังไงบ้าง", "เมื่อคืนงานเสร็จ 12 บิล"),
+            self.assertEqual(asked, [(contracts.title_prompt("เมื่อคืนเป็นยังไงบ้าง", "เมื่อคืนงานเสร็จ 12 บิล", "", "Thai"),
                                       engines.get(CLAUDE).title_model)] * 2)
             self.assertEqual(self.pushed, [(contracts.REALTIME_EVENT, self.change("titled", "sesn_first1", title="ผลงานเมื่อคืน"),
                                             self.OWNER, False)])
@@ -3719,6 +3809,49 @@ class SidebarSyncTests(unittest.TestCase):
         source_text = (CORE / "assistant/titles.py").read_text(encoding="utf-8")
         self.assertIn("examples=engine_base.TITLE_EXAMPLES", source_text)
         self.assertIn("source=message, examples=", source_text)  # 只按用户首句，不带 CC 的回复
+
+    def test_the_title_is_written_in_the_owners_interface_language(self):
+        """10-19 测试：中文对话的侧栏标题被起成泰文「ทั้งสองใบรอเลือกบัญชี」（首句夹着泰文公司名、单号，旧指令按消息语言）。
+        标题语言按会话主人的界面语言：用户发消息时对话页的语言 → 账号语言 → 英文；目标语言写进交给模型的内容。"""
+        titles, db = self.titles, self.db
+        first = "บริษัท สะอาดดี คลีนนิ่ง 的 SD-6909-1010 和 SD-6909-1011 两张都等着选账套"
+        history = [{"type": "user.message", "content": [{"type": "text", "text": first}]},
+                   {"type": "agent.message", "content": [{"type": "text", "text": "两张单都在等选账套"}]}]
+        asked = []
+        api = types.SimpleNamespace(events=lambda remote, newest_first=False: iter(history),
+                                    summarize=lambda text, model: asked.append(text) or "两张单待选账套")
+        db.users = {self.OWNER: {"language": "th"}}  # 账号里存的是泰文，这台设备的对话页是中文
+        cases = (("rowZ1", "zh", "Chinese"),  # 对话页语言优先
+                 ("rowZ2", "", "Thai"),  # 没记着（过期、缓存清了）：账号语言
+                 ("rowZ3", "de", "Thai"))  # 记着的不是标题认得的语言：账号语言
+        for name, page, want in cases:
+            db.rows[name] = _Row(name=name, session_id=f"sesn_{name}x", user=self.OWNER, title=first, title_source="message")
+            self.langs[f"sesn_{name}x"] = page
+            asked.clear()
+            with mock.patch.object(titles.engine, "adapter", return_value=api):
+                titles.summarize(name)
+            self.assertEqual(asked, [contracts.title_prompt(first, "两张单都在等选账套", "", want)], name)
+            self.assertTrue(asked[0].startswith(f"<language>{want}</language>\n<message>\n"), name)
+            self.assertEqual(db.rows[name].title, "两张单待选账套")
+        # 账号也没设：英文
+        db.users = {}
+        db.rows["rowZ4"] = _Row(name="rowZ4", session_id="sesn_rowZ4x", user=self.OWNER, title=first, title_source="message")
+        self.assertEqual(titles.language(db.rows["rowZ4"]), "English")
+        # 对话页语言的来源：用户发消息时 `remember_lang` 记在状态存储里的（同后台执行工具时的语言）；没记着给空串
+        saved = {"pearnly_assistant:lang:sesn_rowZ1x": "zh"}
+        store = types.SimpleNamespace(get_value=lambda key, use_local_cache=True: saved.get(key))
+        state = types.ModuleType("pearnly_core.execution.state")
+        state.store = lambda: store
+        execution = types.ModuleType("pearnly_core.execution")
+        execution.state = state
+        with mock.patch.dict(sys.modules, {"pearnly_core.execution": execution, "pearnly_core.execution.state": state}):
+            self.assertEqual(self.stored_lang("sesn_rowZ1x"), "zh")
+            self.assertEqual(self.stored_lang("sesn_rowZ4x"), "")
+        # 已经起好的标题不重写
+        asked.clear()
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("rowZ1")
+        self.assertEqual(asked, [])
 
     def test_a_finished_turn_queues_the_title_once(self):
         titles, relay = self.titles, sys.modules["pearnly_core.assistant.relay"]
@@ -4301,6 +4434,7 @@ class ProjectTests(unittest.TestCase):
                 mock.patch.object(self.sessions, "segment_for_turn", return_value=row.session_id), \
                 mock.patch.object(self.sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(self.sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(self.sessions.toolrun, "interface_language", lambda sid: "English"), \
                 mock.patch.object(self.sessions.relay, "ensure", lambda *a: None), \
                 mock.patch.object(self.sessions.notices, "uncarried", lambda sid, user: []), \
                 mock.patch.object(self.sessions.titles, "due", lambda row: False):
@@ -4313,9 +4447,9 @@ class ProjectTests(unittest.TestCase):
         self._send(row, posted)
         note = posted[-1][-1]["content"][0]["text"]
         self.assertTrue(note.startswith(contracts.carry_note("User: hi") + "\n\n<company>ABC 2026-09 00012 </company>"))
-        # 接续 → 公司 → 提醒 → 当地时间，同一条系统消息
-        self.assertTrue(note.endswith("</company>\n\n" + contracts.now_note(datetime.datetime(2026, 10, 15, 9, 30),
-                                                                              BANGKOK)))
+        # 接续 → 公司 → 提醒 → 界面语言 → 当地时间，同一条系统消息
+        self.assertTrue(note.endswith("</company>\n\n" + contracts.language_note("English") + "\n\n"
+                                      + contracts.now_note(datetime.datetime(2026, 10, 15, 9, 30), BANGKOK)))
         self.assertEqual(self.provider.contexts[-1], ("co_abc1", "2026-09", "00012"))
         digest = contracts.project_note_hash("<company>ABC 2026-09 00012 </company>")
         self.assertEqual(row.project_noted, digest)

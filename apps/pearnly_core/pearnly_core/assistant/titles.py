@@ -4,6 +4,7 @@
 - 第一轮结束后在后台概括一次（`summarize`）：推送线程看到这一轮结束时排（`turn_ended`）；推送线程没看到的（进程重启、
   过了时限），下一条消息或任一页面在对话空闲时读运行状态时补排。带上首条消息与 CC 第一段回复的开头（从引擎会话读），
   用引擎目录登记的便宜模型，按显示宽度卡长度（`contracts.make_title`：超宽重问一次，仍超宽在词或字形簇边界收短）。
+- 标题用会话主人的界面语言（`language`），不跟着消息里夹的外文专名走（10-19 测试：中文对话被起成泰文标题）。
 - 每段对话只概括一次：任务先在行锁下把状态从 message 改成 summarizing 才调模型，同时排了几次也只有一次调到模型。
   概括不出来（模型出错、没给、照抄提示里的示例标题）保留临时标题，同样算概括过，不再重试。
 - 素材只取这段对话自己的：本行的对话编号读首条消息与第一段回复（`contracts.title_parts`），推给本行记的主人；
@@ -15,7 +16,7 @@
 """
 import frappe
 
-from pearnly_core.assistant import config, context, contracts, engine, sidebar
+from pearnly_core.assistant import config, context, contracts, engine, sidebar, toolrun
 from pearnly_core.assistant.engines import base as engine_base
 
 SESSION = context.SESSION
@@ -68,12 +69,20 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
             # 第一段远端会话的编号就是对话编号（接续的新段在 remote_ids 后面），第一轮一定在它里面
             message, reply = contracts.title_parts(api.events(row.session_id))
             message = message or row.title or ""
+            target = language(row)
             title = contracts.make_title(
-                lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long), model),
+                lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long, target), model),
                 source=message, examples=engine_base.TITLE_EXAMPLES)  # 只按用户首句判断是否照抄示例
         except Exception:
             frappe.log_error(title="Assistant title summary failed")
     _finish(row, title)
+
+
+def language(row) -> str:
+    """标题用的语言（`toolrun.interface_language`，与 CC 回复的语言、这段对话里工具结果的语言同一来源）：用户发消息时
+    对话页的界面语言（`toolrun.remember_lang` 记下的）；没记着（过期、缓存清了）用会话主人的账号语言；都不认得用英文。
+    后台任务没有请求和设备，不能按 `preferences.interface_language` 现取。"""
+    return toolrun.interface_language(row.session_id, row.user)
 
 
 def _claim(name, legacy_title):
