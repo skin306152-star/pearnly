@@ -2180,6 +2180,18 @@ class TaskOverviewTests(unittest.TestCase):
         self.assertEqual(found["titles"], {self.abc: "บริษัท เอบีซี จำกัด", self.xyz: "XYZ Co"})
         self.assertEqual(connections.reads, ["C1"])  # 每条连接的目录只读一次
 
+    def test_cc_reads_the_catalog_again_in_its_next_tool_call(self):
+        # 10-19 lab 第 0 步：CC 的推送线程一轮里连着执行几次工具（同一个上下文）。目录缓存放在请求缓存里，共用层每次执行工具前
+        # 清它（toolrun.fresh 清 frappe.local.cache），刷新账套后再读公司资料拿到的是新目录，不是刷新前的
+        frappe.local.cache = {}
+        self.addCleanup(delattr, frappe.local, "cache")
+        service.task_overview()
+        service.task_overview()
+        self.assertEqual(connections.reads, ["C1"])  # 同一次工具里照旧只读一次
+        frappe.local.cache.clear()  # 下一次工具
+        service.task_overview()
+        self.assertEqual(connections.reads, ["C1", "C1"])
+
     def test_a_missing_folder_is_an_alert_and_permissions_hold(self):
         states = {"C1": {"health": {"R1": "folder_missing"}}}
         with mock.patch.object(service.agent, "read", lambda reader: states.get(reader, {})), \

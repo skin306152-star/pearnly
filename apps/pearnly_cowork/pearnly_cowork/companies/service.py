@@ -39,6 +39,7 @@ ADAPTERS = ("express", "mrerp")
 ANNOUNCE_ROLES = ("Cowork Intake", "Cowork Admin")
 SAVEPOINT = "cowork_company_create"
 TASKS_MAX = 50
+CACHE_KEY = "cowork_company_cache"
 
 
 def _error(code, exc=None):
@@ -61,10 +62,16 @@ def require_write():
 
 
 def _cache() -> dict:
-    found = getattr(frappe.local, "cowork_company_cache", None)
+    """请求内缓存（账套目录、归属索引、电脑状态）。放在 Frappe 的请求缓存 ``frappe.local.cache`` 里：CC 的推送线程一轮里连着执行
+    几次工具用的是同一个上下文，共用层每次执行工具前清它（`pearnly_core.assistant.toolrun.fresh`）——10-19 lab 第 0 步：先读了
+    公司资料、再刷新账套，同一轮里再读还是刷新前的目录。没有请求缓存（脚本、测试）时挂在 ``frappe.local`` 上。"""
+    holder = getattr(frappe.local, "cache", None)
+    if isinstance(holder, dict):
+        return holder.setdefault(CACHE_KEY, {})
+    found = getattr(frappe.local, CACHE_KEY, None)
     if found is None:
         found = {}
-        frappe.local.cowork_company_cache = found
+        setattr(frappe.local, CACHE_KEY, found)
     return found
 
 
@@ -718,7 +725,10 @@ def company_of_rules(owner, rule_names) -> str:
 
 def forget_cache() -> None:
     """换了身份（后台按人算）时清掉请求内缓存：账套目录按人能用的连接读。"""
-    frappe.local.cowork_company_cache = {}
+    holder = getattr(frappe.local, "cache", None)
+    if isinstance(holder, dict):
+        holder[CACHE_KEY] = {}
+    setattr(frappe.local, CACHE_KEY, {})
 
 
 # ---------------- 实时事件 ----------------

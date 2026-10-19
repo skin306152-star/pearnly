@@ -270,10 +270,42 @@ def companion_status(tool_input) -> str:
     return _json({"connections": out})
 
 
+# 10-19 lab 第 0 步：CC 先发刷新、马上读公司资料，用刷新前的目录答「期间是空的」（后台约 1 秒就读完了）。刷新同推送一样在工具里
+# 等结论（MR.ERP 由服务端读；Express 要那台电脑在线），到点还在读就明说别拿旧资料下结论。只在推送线程里等（`_may_wait`）。
+REFRESH_WAIT_SECONDS = 60
+REFRESH_WAIT_STEP = 2
+REFRESH_RUNNING = ("requested", "leased")
+REFRESH_RUNNING_NOTE = ("reading: the account sets are still being read. Until it finishes, account sets, fiscal "
+                        "periods and tax IDs in other tool results (company profile, intake options) are the old "
+                        "ones: do not answer from them now; tell the user it is still reading and check "
+                        "refresh_status with cowork_companion_status before answering. Do not ask for another "
+                        "refresh meanwhile.")
+REFRESH_DONE_NOTE = ("The account sets were read again: read company profiles and intake options now (not results "
+                     "from before this refresh) before answering about account sets or periods.")
+
+
 def refresh_account_sets(tool_input) -> str:
     connection = str(tool_input.get("connection") or "")
     result = connections_api.request_refresh(connection, "assistant:" + uuid.uuid4().hex)
-    return _json({"connection": connection, "status": result.get("status"), "request_id": result.get("request_id")})
+    frappe.db.commit()  # MR.ERP 的采集任务提交后才排上
+    status, request = result.get("status"), result.get("request_id")
+    adapter = _adapter_of(connection)
+    waits = adapter == "mrerp" or (adapter == "express" and destinations.online("express", connection))
+    deadline = time.monotonic() + REFRESH_WAIT_SECONDS
+    while status in REFRESH_RUNNING and request and waits and _may_wait() and time.monotonic() < deadline:
+        time.sleep(max(0.0, min(REFRESH_WAIT_STEP, deadline - time.monotonic())))
+        frappe.db.rollback()  # 读完是在别的进程里提交的
+        try:
+            status = connections_api.refresh_status(connection, request).get("status")
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+            break
+    out = {"connection": connection, "status": status, "request_id": request}
+    if status in REFRESH_RUNNING:
+        out["note"] = REFRESH_RUNNING_NOTE
+    elif status == "succeeded":
+        out["note"] = REFRESH_DONE_NOTE
+    return _json(out)
 
 
 # ---------------- 单据与推送结果 ----------------
@@ -4264,8 +4296,11 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_cowork.assistant.tools.companion_status"},
     {"name": "cowork_refresh_account_sets", "label": "Refreshed account sets",
-     "description": "Ask a connection to re-read its account sets from the accounting program. Check the result later "
-                    "with cowork_companion_status.",
+     "description": "Ask a connection to re-read its account sets (with fiscal periods and, for MR.ERP, the "
+                    "company's tax ID) from the accounting program. It waits up to about "
+                    f"{REFRESH_WAIT_SECONDS} seconds for the read to finish: status succeeded means the new list is "
+                    "in; still requested or leased means it is still reading (follow note). Call it before reading "
+                    "the company profile or intake options for an answer, never in parallel with them.",
      "input_schema": {"type": "object", "properties": {"connection": {"type": "string"}}, "required": ["connection"]},
      "handler": "pearnly_cowork.assistant.tools.refresh_account_sets"},
     {"name": "cowork_list_documents", "label": "Listed documents",

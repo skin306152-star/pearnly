@@ -4406,6 +4406,32 @@ class MrErpTests(unittest.TestCase):
             self.assertIn("never ask whether to push because of it", by_name[name])
             self.assertIn("says nothing about Express or MR.ERP", by_name[name])
 
+    def test_a_refresh_waits_for_the_new_list_before_cc_reads_it(self):
+        # 10-19 lab 第 0 步：CC 发了刷新马上读公司资料，用刷新前的目录答「期间是空的」（后台约 1 秒就读完了）
+        statuses = ["leased", "succeeded"]
+        frappe.local.pearnly_assistant = {"may_wait": True}
+        self.addCleanup(setattr, frappe.local, "pearnly_assistant", None)
+        with mock.patch.object(tools.connections_api, "request_refresh",
+                               lambda *a: {"request_id": "R1", "status": "requested"}, create=True), \
+                mock.patch.object(tools.connections_api, "refresh_status",
+                                  lambda *a: {"status": statuses.pop(0)}, create=True), \
+                mock.patch.object(tools.time, "sleep", lambda seconds: None):
+            out = json.loads(tools.refresh_account_sets({"connection": "MR1"}))
+        self.assertEqual(out["status"], "succeeded")
+        self.assertIn("read company profiles and intake options now", out["note"])
+        # 到点还在读：明说别拿旧资料下结论
+        clock = iter([0, 0, 100, 100])
+        with mock.patch.object(tools.connections_api, "request_refresh",
+                               lambda *a: {"request_id": "R1", "status": "requested"}, create=True), \
+                mock.patch.object(tools.connections_api, "refresh_status", lambda *a: {"status": "leased"}, create=True), \
+                mock.patch.object(tools.time, "sleep", lambda seconds: None), \
+                mock.patch.object(tools.time, "monotonic", lambda: next(clock, 100)):
+            out = json.loads(tools.refresh_account_sets({"connection": "MR1"}))
+        self.assertEqual(out["status"], "leased")
+        self.assertIn("do not answer from them now", out["note"])
+        description = {tool["name"]: tool["description"] for tool in tools.TOOLS}["cowork_refresh_account_sets"]
+        self.assertIn("never in parallel with them", description)
+
     def test_cc_is_told_what_mrerp_has_and_has_not(self):
         guidance = " ".join(tools.GUIDANCE)
         for words in ("no computer and no CC Desktop are involved in an MR.ERP push",
