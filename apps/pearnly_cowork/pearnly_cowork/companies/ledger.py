@@ -188,17 +188,17 @@ def _document_item(row, code, group, company_tax) -> dict:
         # CC 准备好的提议：当场「推送」（同待处理，数字会计员第 3 期第 12 条）
         fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                             "kinds": []}
+    elif pending.mrerp_setup_stop(row):
+        # MR.ERP 停在要选导入菜单 / 默认值（码是 choice_needed）：同待处理页，当场选完重推（2026-10-19）
+        fields["action"] = "mrerp"
+        fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                            "kinds": []}
     elif code == "choice_needed":
         if row.get("push_connection"):
             fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                                 "kinds": pending.choice_kinds(row.get("last_push_reason"))}
         else:
             fields["action"] = "open"
-    elif pending.mrerp_setup_stop(row):
-        # MR.ERP 停在要选导入菜单 / 默认值：同待处理页，当场选完重推（2026-10-19）
-        fields["action"] = "mrerp"
-        fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
-                            "kinds": []}
     elif pending.account_set_stop(row):
         # 定时任务跟随公司当年账套停在「待选账套」（T1）、自动推前判出多份同期账套：同待处理页，当场换账套重推（第 6 批）
         fields["action"] = "account_set"

@@ -3853,6 +3853,18 @@ class MrErpChoicesAndPendingTests(MrErpCompanyTests):
             found = ledger.month(self.company, "2026-09")
         stop = next(entry for entry in found["exceptions"]["items"] if entry["document"] == "r1")
         self.assertEqual((stop["action"], stop["choice"]["account_set_key"]), ("mrerp", "12:3"))
+        # 10-19 lab：「本月」卡把在等选默认值的单写成「推送失败」。是要人选（码 choice_needed，同待处理当场选），
+        # CC 推之前就停下的（状态没变、只记了原因）也一样；待处理原有的粗分照旧
+        self.assertEqual((stop["code"], stop["severity"], stop["detail"]), ("choice_needed", "action", ""))
+        self.assertEqual((item["code"], item["reason_code"]), ("choice_needed", "manual"))
+        frappe.db.tables["Cowork OCR History"]["r1"].update(last_push_status="",
+                                                             last_push_reason="ERR_MRERP_DEFAULT_CHOICE_REQUIRED")
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}), \
+                mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            fresh_request()
+            found = ledger.month(self.company, "2026-09")
+        stop = next(entry for entry in found["exceptions"]["items"] if entry["document"] == "r1")
+        self.assertEqual((stop["code"], stop["action"]), ("choice_needed", "mrerp"))
 
 
 class MrErpPendingAnswerTests(PendingAnswerTests):

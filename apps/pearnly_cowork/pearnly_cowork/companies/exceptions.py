@@ -73,6 +73,9 @@ def document_code(row, cutoff, unknown=frozenset()):
     group = pending.classify(row, cutoff, unknown)
     if not group:
         return None
+    if group in ("manual", "failed") and pending.mrerp_setup_stop(row):
+        # MR.ERP 停在要选导入菜单 / 默认值：是要人选、当场能选（同待处理），不是推送失败（10-19 lab：「本月」卡写「推送失败」）
+        return "choice_needed", group
     if group in ("manual", "failed"):
         return (conflict_code(row.get("last_push_reason")) or ("push_manual" if group == "manual" else "push_failed"),
                 group)
