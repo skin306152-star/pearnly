@@ -34,6 +34,9 @@ _ACCOUNT_SET_KEYS = (
     # 旧版不报，按路径认。
     "uid",
     "share",
+    # 第 3 期 E3（CC 桌面版 1.9.1）：录入标记，Express GLJNL.DBF 表头的最后更新日期与记录数（``YYYY-MM-DD/记录数``）。
+    # 旧版不报；存进池登记、不进目录（`connections.pool.entered_of`）
+    "entry_mark",
 )
 
 _ACCOUNT_MAPPING_KEYS = (
@@ -319,6 +322,8 @@ def _account_sets(raw: Any) -> list[dict[str, Any]]:
             # 与上面原始名单同一组新键（ADR-021）：认账套用，不进池目录（`connections.pool.catalog`）
             "uid",
             "share",
+            # 录入标记（第 3 期 E3，1.9.1）：存进池登记、不进池目录，只给两份同期时的重问读
+            "entry_mark",
         ),
     )
     normalized: list[dict[str, Any]] = []

@@ -442,3 +442,64 @@ def test_index_file_survives_corruption_and_prunes_old_entries(tmp_path, monkeyp
     assert again.details("new", ((2, 2), None)) == ("B", "2", {}, {})
     assert again.details("new", ((2, 3), None)) is None  # 文件变了：当没有
     assert again.chart("c9") == [{"code": "9"}]
+
+
+# ── 录入标记（第 3 期 E3，1.9.1）：GLJNL.DBF 表头的最后更新日期 / 记录数 ─────────────────────────────
+
+_GLJNL = "VOUCHER C(12); VOUDAT D; AMOUNT N(14,2)"
+
+
+def _journal(account: Path, rows: int) -> Path:
+    account.mkdir(parents=True, exist_ok=True)
+    path = account / "GLJNL.DBF"
+    table = dbf.Table(str(path), _GLJNL, codepage="cp874", dbf_type="vfp") if not path.exists() \
+        else dbf.Table(str(path), codepage="cp874")
+    table.open(dbf.READ_WRITE)
+    for index in range(rows):
+        table.append({"VOUCHER": f"JV{index:04d}", "VOUDAT": dt.date(2026, 10, 1), "AMOUNT": 100})
+    table.close()
+    return path
+
+
+def test_the_journal_header_is_read_without_opening_the_table(tmp_path):
+    """只读表头前 8 个字节：第 1–3 字节是年 - 1900 / 月 / 日，第 4–7 字节记录数（小端）；不合法、太短、读不到回空串。"""
+    path = tmp_path / "GLJNL.DBF"
+    path.write_bytes(bytes([0x30, 126, 10, 19]) + (12345).to_bytes(4, "little") + b"\x00" * 24)
+    assert account_probe.read_entry_header(path) == "2026-10-19/12345"
+    path.write_bytes(bytes([0x03, 26, 10, 19]) + (7).to_bytes(4, "little"))   # 按两位年写的
+    assert account_probe.read_entry_header(path) == "2026-10-19/7"
+    for broken in (bytes([0x30, 126, 13, 1, 0, 0, 0, 0]), bytes([0x30, 126, 10])):
+        path.write_bytes(broken)
+        assert account_probe.read_entry_header(path) == ""
+    assert account_probe.read_entry_header(tmp_path / "missing.DBF") == ""
+    journal = _journal(tmp_path / "A", 3)
+    assert account_probe.read_entry_header(journal).endswith("/3")
+
+
+def test_entry_marks_ride_the_scan_and_a_restart_opens_no_journal(tmp_path, opened, monkeypatch):
+    """每份账套另报 ``entry_mark``（服务端按它判两份同期时要不要重问）；GLJNL 没变就只 stat、不打开（同 ISINFO / ISPRD），
+    重启后也一样；多录了单（记录数变）的那份才重读表头；没有 GLJNL 的不报这个键。"""
+    root = _data_root(tmp_path / "70EXP", ["A", "B", "C"])
+    _journal(root / "A", 3)
+    _journal(root / "C", 5)
+    reads = []
+    real = account_probe.read_entry_header
+    monkeypatch.setattr(account_probe, "read_entry_header", lambda path: reads.append(Path(path).parent.name) or real(path))
+    opened.clear()
+    first, _ = _complete(root, root / "A")
+    marks = {row["code"]: row.get("entry_mark") for row in first["account_sets"]}
+    assert marks["A"].endswith("/3") and marks["C"].endswith("/5") and marks["B"] is None
+    assert sorted(reads) == ["A", "C"] and "GLJNL.DBF" not in opened   # 表头不经 dbf 库打开
+
+    _restart()
+    reads.clear()
+    opened.clear()
+    second, _ = _complete(root, root / "A")
+    assert second["account_sets"] == first["account_sets"] and reads == [] and opened == {}
+
+    _journal(root / "C", 1)
+    _bump(root / "C" / "GLJNL.DBF")
+    _restart()
+    reads.clear()
+    third, _ = _complete(root, root / "A")
+    assert reads == ["C"] and {row["code"]: row.get("entry_mark") for row in third["account_sets"]}["C"].endswith("/6")

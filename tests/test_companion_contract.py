@@ -833,11 +833,31 @@ class AccountSetIdentity(unittest.TestCase):
         self.assertTrue(fields)
         identity = set(module_constants(COMPANION / "account_probe.py")["IDENTITY_KEYS"])
         self.assertEqual(identity, {"uid", "share"})
-        reported = fields | {"root", "root_label", "mapping"} | identity
+        entry = module_constants(COMPANION / "account_probe.py")["ENTRY_KEY"]
+        reported = fields | {"root", "root_label", "mapping", entry} | identity
         raw, attribute = self.server_keys()
         # 原始名单清洗按白名单逐键取（`mapping` 单独处理）；目录属性另收期间与分店
         self.assertEqual(reported - raw - {"mapping"}, set())
         self.assertEqual((reported - {"name"}) - attribute, set())
+
+    def test_the_entry_mark_is_one_key_both_sides_and_stays_out_of_the_directory(self):
+        """第 3 期 E3（1.9.1）：账套行另报的录入标记（GLJNL.DBF 表头 ``YYYY-MM-DD/记录数``）同名进两处白名单、池登记按同一个键
+        读、不进池目录；服务端认的写法就是桌面端写出的样子；桌面端只读表头前 8 个字节（不经 dbf 库打开整张表）。"""
+        helper = module_constants(COMPANION / "account_probe.py")["ENTRY_KEY"]
+        self.assertEqual(helper, "entry_mark")
+        self.assertEqual(module_constants(ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/pool.py")["ENTRY_KEY"], helper)
+        raw, attribute = self.server_keys()
+        self.assertIn(helper, raw)
+        self.assertIn(helper, attribute)
+        reader = method_source_of(COMPANION / "account_probe.py", "read_entry_header")
+        self.assertIn("stream.read(8)", reader)
+        self.assertNotIn("dbf.Table", reader)
+        self.assertIn("int.from_bytes(head[4:8], 'little')", reader)
+        self.assertIn("day.isoformat()}/", reader)
+        policy = (ROOT / "apps/pearnly_cowork/pearnly_cowork/contracts/document_policy.py").read_text(encoding="utf-8")
+        self.assertIn('_ENTRY = re.compile(r"(\\d{4}-\\d{2}-\\d{2})/(\\d{1,10})")', policy)
+        payload = method_source_of(COMPANION / "account_probe.py", "account_sets_payload")
+        self.assertIn("row[ENTRY_KEY] = mark", payload)
 
     def test_the_helper_fills_uid_and_share_on_every_row_it_reports(self):
         fill = method_source_of(COMPANION / "account_probe.py", "with_identity")

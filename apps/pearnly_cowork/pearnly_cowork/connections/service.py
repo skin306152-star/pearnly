@@ -270,6 +270,13 @@ def account_sets_written(connection, account_keys):
             if row.last_written_at}
 
 
+def account_sets_entered(connection, account_keys):
+    """这条连接上这几份 Express 账套最近一次报来的录入标记（CC 桌面版 1.9.1 起账套目录每行另报 ``GLJNL.DBF`` 表头的最后更新
+    日期与记录数，存在池登记上、不进目录，`pool.entered_of`）：``{规范键: 原样的标记}``，没报过的不在里面。一次主键查询；只读、
+    不核权限（同 :func:`account_sets_written`，只给 `companies.current_book` 判两份同期时记住的回答还算不算数用）。"""
+    return pool.entered_of(connection, account_keys)
+
+
 MAIN_ADAPTERS = ("express", "mrerp")
 
 

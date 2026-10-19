@@ -36,6 +36,10 @@ FACT_KEYS = model.REPORTED_KEYS - {"max_payload_version", "companion_version"}
 FACTS_TOUCH_EVERY = timedelta(minutes=10)
 # 属于某台电脑的写法，不进登记上全池共用的显示属性
 _PER_COMPUTER = frozenset(("path", "root", "uid", "share", "writable"))
+# 存在登记上、但不进池目录（不发布进目录快照）的属性：CC 桌面版 1.9.1 起每行报的录入标记（GLJNL.DBF 表头的日期 / 记录数，
+# 第 3 期 E3），每天随整套重扫变，进目录会让目录天天出新版本；只给两份同期时的重问读（:func:`entered_of`）
+ENTRY_KEY = "entry_mark"
+_NOT_IN_CATALOG = frozenset((ENTRY_KEY,))
 _REACH_FIELDS = ("path", "root", "registry_row", "writable", "state", "uid", "share", "content_key", "details_json")
 
 Q_REGISTRATIONS = (f"SELECT name, account_key, root_key, path, root, label, attributes_json, uid, location, content_key, "
@@ -49,6 +53,7 @@ Q_REACHERS_OF = (f"SELECT account_key, device, writable FROM `tab{REACH}` WHERE 
                  f"AND state='ok'")
 Q_REGISTRATIONS_OF = (f"SELECT account_key, uid, content_key, last_writer_device, last_written_at FROM `tab{ACCOUNT_SET}` "
                       f"WHERE name IN %s")
+Q_ENTERED_OF = f"SELECT account_key, attributes_json FROM `tab{ACCOUNT_SET}` WHERE name IN %s"
 Q_WRITABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
               f"AND state='ok' AND writable=1")
 Q_READABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
@@ -222,6 +227,21 @@ def registrations_of(connection, account_keys):
     return {row.account_key: row for row in _rows(Q_REGISTRATIONS_OF, (names,))}
 
 
+def entered_of(connection, account_keys):
+    """这几份账套登记上最近一次报来的录入标记（CC 桌面版 1.9.1 起账套目录每行的 ``entry_mark``，原样的字符串，调用方自己
+    认形状）：``{规范键: 标记}``，没登记、没报过的不在里面。一次主键查询，只读。"""
+    keys = sorted({identity(key) for key in account_keys or () if identity(key)})
+    if not connection or not keys:
+        return {}
+    names = tuple(registration_name(connection, key) for key in keys)
+    found = {}
+    for row in _rows(Q_ENTERED_OF, (names,)):
+        value = (model.parse(row.attributes_json, {}) or {}).get(ENTRY_KEY)
+        if isinstance(value, str) and value.strip():
+            found[row.account_key] = value.strip()[:40]
+    return found
+
+
 def writers(doc, account_key=None, *, peers=None):
     """池里能写（这份 / 任一份）账套的电脑：可达行状态正常、可写（给了账套还要它登记着），这台在 ``peers`` 里（默认
     :func:`presence`：有一把没吊销的密钥、没退役；调用方按人或按电脑先筛过时只在那几台里找，:func:`owned`），
@@ -301,7 +321,8 @@ def listing(connection, *, lock=False):
         attributes = {**(model.parse(row.attributes_json, {}) or {}), "path": row.path or row.account_key,
                       "root": row.root or row.root_key, "writable": bool(writable[row.account_key])}
         result.append({"source_id": row.account_key, "label": row.label or row.account_key,
-                       "attributes": {key: value for key, value in attributes.items() if value not in (None, "")}})
+                       "attributes": {key: value for key, value in attributes.items()
+                                      if value not in (None, "") and key not in _NOT_IN_CATALOG}})
     return result, max(0, len(rows) - MAX_ACCOUNT_SETS)
 
 

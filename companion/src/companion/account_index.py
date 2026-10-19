@@ -17,6 +17,8 @@
 - 文件坏了 / 版本不对 / 读不了 → 当作空索引（重读一遍就补回来），不报错；写盘先写临时文件再整体替换。
 - 「上次找新年度文件夹的时间」也记在这里（``discovered_at``）：重启不再每次都整盘找，24 小时一次；
   网页「重新读取」照旧马上找。
+- 录入标记（1.9.1，第 3 期 E3）：每份账套 ``GLJNL.DBF`` 表头读出的「最后更新日期 / 记录数」，同样连着（大小, 修改时间）存，
+  文件没变就不再打开它（``entries``；旧版本机索引没有这一项，当空，读一遍补上）。
 
 本模块只管内存与本机文件，不读任何账套（读账套在 account_probe）；线程安全，整个程序共用一个（``INDEX``）。
 """
@@ -85,6 +87,7 @@ class AccountIndex:
         self._details: Dict[str, list] = {}  # 账套目录 → [(ISINFO 戳, ISPRD 戳), (公司名, 税号, 默认科目, 期间等), 用到的日期]
         self._registry: Dict[str, list] = {}  # 登记表路径 → [戳, [(显示名, 槽位, 原始路径)], 用到的日期]
         self._charts: Dict[str, list] = {}  # 账套目录 → [GLACC 戳, 科目表, 用到的日期, 用到的次序]
+        self._entries: Dict[str, list] = {}  # 账套目录 → [GLJNL 戳, 录入标记, 用到的日期]
         self._discovered_at = 0.0
         self._order = 0
 
@@ -120,6 +123,11 @@ class AccountIndex:
                 if stamp is not None:
                     self._charts[str(key)] = [stamp, rows, str(entry[2] or today), int(entry[3] or 0)]
                     self._order = max(self._order, int(entry[3] or 0))
+        for key, entry in (raw.get("entries") or {}).items():
+            if isinstance(entry, list) and len(entry) == 3 and isinstance(entry[1], str):
+                stamp = _pair(entry[0])
+                if stamp is not None:
+                    self._entries[str(key)] = [stamp, entry[1], str(entry[2] or today)]
         try:
             self._discovered_at = float(raw.get("discovered_at") or 0.0)
         except (TypeError, ValueError):
@@ -133,7 +141,7 @@ class AccountIndex:
             if not self._loaded or not self._dirty:
                 return False
             cutoff = (_dt.date.today() - _dt.timedelta(days=KEEP_DAYS)).isoformat()
-            for table in (self._details, self._registry, self._charts):
+            for table in (self._details, self._registry, self._charts, self._entries):
                 for key in [key for key, entry in table.items() if entry[2] < cutoff]:
                     table.pop(key, None)
             data = {
@@ -143,6 +151,7 @@ class AccountIndex:
                 "registry": {key: [list(entry[0]), [list(row) for row in entry[1]], entry[2]]
                              for key, entry in self._registry.items()},
                 "charts": {key: [list(entry[0]), entry[1], entry[2], entry[3]] for key, entry in self._charts.items()},
+                "entries": {key: [list(entry[0]), entry[1], entry[2]] for key, entry in self._entries.items()},
             }
             self._dirty = False
         target = index_file()
@@ -218,6 +227,23 @@ class AccountIndex:
                 self._charts.pop(old, None)
             self._dirty = True
 
+    # ── 录入标记（GLJNL 表头） ───────────────────────────────────────────────────
+
+    def entry(self, key: str, stamp: tuple) -> Optional[str]:
+        with self._lock:
+            self._ensure()
+            found = self._entries.get(key)
+            if found is None or found[0] != stamp:
+                return None
+            self._touch(found)
+            return found[1]
+
+    def remember_entry(self, key: str, stamp: tuple, mark: str) -> None:
+        with self._lock:
+            self._ensure()
+            self._entries[key] = [tuple(stamp), str(mark or ""), _today()]
+            self._dirty = True
+
     # ── 找新年度文件夹的时间 ────────────────────────────────────────────────────
 
     def discovery_due(self, now: float, interval: float) -> bool:
@@ -245,6 +271,7 @@ class AccountIndex:
             self._details.clear()
             self._registry.clear()
             self._charts.clear()
+            self._entries.clear()
             self._discovered_at = 0.0
             self._order = 0
 

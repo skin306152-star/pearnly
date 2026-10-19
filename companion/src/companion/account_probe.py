@@ -169,6 +169,54 @@ def _account_details(account_dir: str) -> tuple:
     return details
 
 
+# ── 录入标记（第 3 期 E3，1.9.1）：账套目录每行另报 GLJNL.DBF 表头的「最后更新日期 / 记录数」 ──────────────────
+# 服务端（companies.current_book）记住「两份同期账套哪份是现用的」时一起记下各份的录入标记；会计不经 Pearnly 直接在 Express
+# 录进没被选中的那份（记录数变了、日期更晚）就重问一次。只读 DBF 表头前 8 个字节（不读整张表、不用 dbf 库打开、不锁文件）；
+# 按 GLJNL 的（大小, 修改时间）存在本机索引，文件没变就只 stat 一次、不打开（同 ISINFO / ISPRD）。跟着整套重扫走，不另加读取。
+ENTRY_KEY = "entry_mark"
+_JOURNAL_DBF = "GLJNL.DBF"
+
+
+def read_entry_header(path: str | Path) -> str:
+    """DBF 表头 → ``YYYY-MM-DD/记录数``（第 1–3 字节是最后更新的年 - 1900 / 月 / 日，第 4–7 字节是记录数，小端）；
+    读不到、太短、日期不合法回空串。记录数含已标删除的行（Express 删单是标删除，整理后才变少）。"""
+    import datetime as _dt
+
+    try:
+        with open(path, "rb") as stream:
+            head = stream.read(8)
+    except OSError:
+        return ""
+    if len(head) < 8:
+        return ""
+    year = 1900 + head[1]
+    if year < 1980:
+        year += 100   # 少数工具按两位年写（26 = 2026）
+    try:
+        day = _dt.date(year, head[2], head[3])
+    except ValueError:
+        return ""
+    return f"{day.isoformat()}/{int.from_bytes(head[4:8], 'little')}"
+
+
+def _entry_mark(account_dir: str) -> str:
+    """这份账套的录入标记（见上）；GLJNL 不在、读不到回空串（这一行不报这个键，服务端保留上次的）。"""
+    if not account_dir:
+        return ""
+    base = Path(account_dir)
+    journal, stamp = _stat_first(base, (_JOURNAL_DBF, _JOURNAL_DBF.lower()))
+    if journal is None:
+        return ""
+    identity = ntpath.normcase(str(base))
+    cached = INDEX.entry(identity, stamp)
+    if cached is not None:
+        return cached
+    mark = read_entry_header(journal)
+    if mark:
+        INDEX.remember_entry(identity, stamp, mark)
+    return mark
+
+
 def _resolve_path(raw: str, express_root: str | Path) -> str:
     """SCCOMP.PATH → 绝对路径:相对则相对 express_root;绝对(盘符/UNC)本机够得到就原样。
 
@@ -309,7 +357,8 @@ def account_sets_payload(
 ) -> List[dict]:
     """heartbeat 上报用(best-effort):登记表缺/坏 → 返空(心跳不因此中断;配对路径才严格报错)。
 
-    带详情时每行另报 ``uid`` / ``share``（``with_identity``；一次扫描共用一个 ``locator``）。
+    带详情时每行另报 ``uid`` / ``share``（``with_identity``；一次扫描共用一个 ``locator``）与录入标记 ``entry_mark``
+    （GLJNL.DBF 表头的日期 / 记录数，1.9.1；读不到不报）。
     后台扫账套清单时(master_refresh)另给:``pace``(scan_pace.Pace,每份账套读完让一下 CPU;某份读得太久 → 这台服务器
     这一轮跳过,这个数据根报空)、``reuse_registry``(登记表没变就用本机索引里的行)。"""
     from . import scan_pace
@@ -327,6 +376,9 @@ def account_sets_payload(
             if include_details:
                 row["mapping"] = dict(details[2])
                 row.update(details[3])  # period_start / period_end / next_end / branch
+                mark = _entry_mark(account.path)
+                if mark:
+                    row[ENTRY_KEY] = mark
             else:
                 for key in ("company", "tax_id", "writable"):
                     row.pop(key, None)

@@ -522,6 +522,24 @@ class Dispatch(Base):
         self.assertEqual(found[self.KEY].content_key, identity.content_key(TAX))
         self.assertEqual((pool.reachers_of("CONN", []), pool.registrations_of("CONN", [])), ({}, {}))
 
+    def test_entry_marks_are_kept_on_the_registration_but_never_change_the_directory(self):
+        """第 3 期 E3（CC 桌面版 1.9.1）：每行账套另报录入标记（GLJNL.DBF 表头的日期 / 记录数）：两处白名单都收，存在登记上
+        给重问读（一次主键查询），不进池目录——标记每天随整套重扫变，目录不因它出新版本；不报这个键的电脑（旧版）不抹掉
+        别的电脑报的。"""
+        self.assertIn("entry_mark", _ACCOUNT_SET_KEYS)
+        marked = {**self.S_BOOK, "attributes": {**self.S_BOOK["attributes"], "entry_mark": "2026-10-19/120"}}
+        self.a.report(body(marked), NOW)
+        self.assertNotIn("entry_mark", union()[self.KEY]["attributes"])
+        self.assertEqual(pool.entered_of("CONN", [self.KEY, r"\\srv\none"]), {self.KEY: "2026-10-19/120"})
+        published = len(DB.rows("Cowork ERP Snapshot"))
+        later = {**marked, "attributes": {**marked["attributes"], "entry_mark": "2026-10-20/121"}}
+        self.a.report(body(later), NOW + timedelta(minutes=1))
+        self.assertEqual(len(DB.rows("Cowork ERP Snapshot")), published)
+        self.assertEqual(pool.entered_of("CONN", [self.KEY]), {self.KEY: "2026-10-20/121"})
+        self.b.report(body(self.Z_BOOK), NOW + timedelta(minutes=2))   # 旧版 CC 桌面版不报：保留上一份
+        self.assertEqual(pool.entered_of("CONN", [self.KEY]), {self.KEY: "2026-10-20/121"})
+        self.assertEqual((pool.entered_of("CONN", []), pool.entered_of("", [self.KEY])), ({}, {}))
+
     def test_a_writer_needs_a_live_key_whose_issuer_may_still_use_the_connection(self):
         # 第 3 批审查：确认（`has_writer`）与池的状态同一个判据
         self.a.report(body(self.S_BOOK), NOW)

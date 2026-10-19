@@ -269,16 +269,21 @@ scope = Scope()
 
 class Connections(types.ModuleType):
     """连接目录替身：`catalogs[连接] = [目录行]`；`users[连接]` 是能用它的人；`written[(连接, 规范键)]` 是池登记上那份账套最近一次
-    经 CC 桌面版写成的时刻（`account_sets_written`）。"""
+    经 CC 桌面版写成的时刻（`account_sets_written`）；`entered[(连接, 规范键)]` 是 CC 桌面版报的录入标记（`account_sets_entered`，
+    第 3 期 E3）。"""
 
     def __init__(self):
         super().__init__("pearnly_cowork.connections.service")
         self.catalogs, self.adapters, self.users, self.reads, self.written = {}, {}, {}, [], {}
+        self.entered = {}
         self.written_asked = []
 
     def account_sets_written(self, connection, account_keys):
         self.written_asked.append((connection, tuple(account_keys)))
         return {key: self.written[(connection, key)] for key in account_keys if (connection, key) in self.written}
+
+    def account_sets_entered(self, connection, account_keys):
+        return {key: self.entered[(connection, key)] for key in account_keys if (connection, key) in self.entered}
 
     def records(self, workspace, client=None, start=0, limit=50):
         user = frappe.session.user
@@ -484,7 +489,7 @@ def reset(**catalogs):
     frappe.session.user = "a@example.com"
     scope.features = {"intake", "ocr_history"}
     connections.catalogs, connections.adapters, connections.users, connections.reads = {}, {}, {}, []
-    connections.written, connections.written_asked = {}, []
+    connections.written, connections.written_asked, connections.entered = {}, [], {}
     for name, rows in catalogs.items():
         connections.catalogs[name] = rows
         connections.adapters[name] = "mrerp" if name.startswith("M") else "express"

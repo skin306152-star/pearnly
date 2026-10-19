@@ -320,6 +320,33 @@ class Storage(unittest.TestCase):
         self.assertTrue(policy.current_book_newer({"a": "", "b": ""}, {"b": "2020-01-01T00:00:00"}, "a"))
         self.assertFalse(policy.current_book_newer({"a": "", "b": ""}, {"c": "2030-01-01T00:00:00"}, "a"))
 
+    def test_entry_marks_from_the_desktop_ride_after_the_written_time(self):
+        """第 3 期 E3：CC 桌面版 1.9.1 起报 GLJNL.DBF 表头的录入标记（``YYYY-MM-DD/记录数``），接在时刻后面 ``~`` 存；
+        记录数变了或日期更晚算新录入，有一边没有就只比时刻；旧写法照旧认，认不得的录入标记当没有。"""
+        self.assertEqual([policy.entry_mark(value) for value in ("2026-10-19/0012", " 2026-10-19/5 ", "2026-13-01/5",
+                                                                  "2026-10-19", "19/10/2026/5", None, "2026-10-19/12345678901")],
+                         ["2026-10-19/12", "2026-10-19/5", "", "", "", "", ""])
+        written = dt.datetime(2026, 10, 1, 8, 0)
+        self.assertEqual(policy.book_mark(written, "2026-10-19/12"), "2026-10-01T08:00:00.000000~2026-10-19/12")
+        self.assertEqual(policy.book_mark(None, "2026-10-19/12"), "~2026-10-19/12")
+        self.assertEqual(policy.book_mark(written, "junk"), "2026-10-01T08:00:00.000000")
+        self.assertEqual(policy.book_mark("2026-10-01T08:00:00~2026-10-19/12"), "2026-10-01T08:00:00.000000~2026-10-19/12")
+        head = policy.current_book_key("tax:1", "", "cy", ["a", "b"])
+        value = policy.book_marks({"a": policy.book_mark(written, "2026-10-19/12"), "b": "~2026-10-18/300"})
+        stored = policy.normalize({head: "a", policy.current_book_seen_key(head): value})
+        seen = policy.current_book_seen(stored, head, ["a", "b"])
+        self.assertEqual(seen, {"a": "2026-10-01T08:00:00.000000~2026-10-19/12", "b": "~2026-10-18/300"})
+        newer = policy.current_book_newer
+        self.assertFalse(newer(seen, {"a": "~2026-10-20/99", "b": "~2026-10-18/300"}, "a"))   # 选中的那份变了不算
+        self.assertTrue(newer(seen, {"b": "~2026-10-18/301"}, "a"))                          # 同一天多录一笔
+        self.assertTrue(newer(seen, {"b": "~2026-10-18/299"}, "a"))                          # 删了又整理也算变
+        self.assertTrue(newer(seen, {"b": "~2026-10-19/300"}, "a"))                          # 改了已录的单
+        self.assertFalse(newer(seen, {"b": "~2026-10-17/300"}, "a"))                         # 日期往前（换回旧备份）不算
+        self.assertFalse(newer(seen, {"b": ""}, "a"))                                        # 此刻没报
+        self.assertFalse(newer({"a": "", "b": ""}, {"b": "~2026-10-19/301"}, "a"))           # 回答时没有录入标记
+        self.assertTrue(newer({"a": "", "b": "2026-10-01T08:00:00~2026-10-18/300"},
+                              {"b": "2026-10-02T08:00:00~2026-10-18/300"}, "a"))             # 时刻照旧比
+
 
 class Choose(unittest.TestCase):
     """写入口：按这张票推往的账套认公司，记进工作空间同一个字段。"""
