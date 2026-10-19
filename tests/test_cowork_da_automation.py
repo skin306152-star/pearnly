@@ -529,6 +529,9 @@ class MemoryTightening(unittest.TestCase):
         self.assertEqual(self.payment(today=dt.date(2026, 12, 5), overrides=[changed]), "A")       # 61 天
         self.assertEqual(self.payment(today=dt.date(2026, 12, 4), overrides=[changed]), "B")       # 60 天
         self.assertEqual(self.payment(today=dt.date(2026, 10, 4), overrides=[changed]), "A")
+        # 测试租户压缩时间试点（`push.automation.clock`）：判单据日子的今天是模拟的，R1 的「近 60 天」照真实今天（``now``）比改值记录
+        self.assertEqual(self.payment(today=dt.date(2025, 9, 16), now=dt.date(2026, 10, 25), overrides=[changed]), "B")
+        self.assertEqual(self.payment(today=dt.date(2025, 9, 16), overrides=[changed]), "A")  # 拿模拟日子比就漏了
         # 没给证据时刻（取不到）：不判；票面写明 / 人工裁决的现 / 赊不看
         self.assertEqual(self.payment(memory_since={}, overrides=[changed]), "A")
         self.assertEqual(self.payment(payload=_payload(doctype="HP", doctype_src="manual"), overrides=[changed]), "A")
@@ -629,6 +632,11 @@ class Conflicts(unittest.TestCase):
         self.assertEqual(auto.conflicts(_facts(layers=layers)), [])
         self.assertEqual(auto.conflicts(_facts(layers=layers, history_read=dt.date(2026, 9, 1))), [])
         self.assertEqual(auto.conflicts(_facts(layers=layers, history_read=dt.date(2026, 10, 1))), ["account"])
+        # 模拟的今天（试点）不拿来比 Express 历史读的真实日子：按真实今天（``now``）
+        self.assertEqual(auto.conflicts(_facts(layers=layers, history_read=dt.date(2026, 10, 1),
+                                               today=dt.date(2025, 9, 16), now=dt.date(2026, 10, 25))), ["account"])
+        self.assertEqual(auto.conflicts(_facts(layers=layers, history_read=dt.date(2026, 10, 1),
+                                               today=dt.date(2025, 9, 16), now=dt.date(2026, 12, 1))), [])
 
 
 class Checks(unittest.TestCase):

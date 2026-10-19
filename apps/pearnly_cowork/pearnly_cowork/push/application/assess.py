@@ -22,7 +22,7 @@ from pearnly_cowork.history import storage, text_layer
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application import service
 from pearnly_cowork.push.application.provenance import original_history
-from pearnly_cowork.push.automation import rules
+from pearnly_cowork.push.automation import clock, rules
 from pearnly_cowork.push.automation import service as automation_service
 from pearnly_cowork.push.express import automation
 from pearnly_cowork.push.express import choices as choice_rules
@@ -73,8 +73,7 @@ def run(history, connection, account_set_key=None, posting_kind=None, *, fixed=N
     try:
         if loaded.endpoint.get("adapter") != "express":
             return {"assessed": False}
-        return _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_device,
-                       today or datetime.now(BANGKOK).date())
+        return _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_device, today or clock.today())
     finally:
         frappe.db.rollback()  # 只是看：记付款方式、读历史请求这些都不在这里落
 
@@ -123,11 +122,14 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     overrides, overrule = _overrides(connection, account_set, payload, recent)
     # 按公司选的入账方式：这家供应商的 Express 历史定下的（只读存着的，用户 10-17），定档用（`automation.posting_by_history`）
     posting_history = service._posting_history(connection, account_set, dated, direction, posting_from)
+    # 测试租户配了模拟日子（`clock`，第 17 条试点）：上传日当作那一天；R1 与 Express 历史新鲜度比的是库里的真实时刻，另给真实的今天
+    simulated = clock.simulated()
     facts = automation.Facts(
         direction=direction, fields=dated, decision=decision, payload=payload, config=config, today=today,
         ready=ready, blocked=blocked or conflict or reason, pages=pages, review_reasons=_list(doc.review_reasons),
         text=text_layer.text(doc, page_texts), page_texts=page_texts, account=account_row, catalog=catalog,
-        day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
+        day_books=automation_service.day_books(connection, account_row, day, catalog),
+        uploaded=simulated or _day(doc.creation), now=datetime.now(BANGKOK).date() if simulated else None,
         history_read=_read_day((decision.get("history") or {}).get("read")),
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc, direction),
         posting_from=posting_from, posting_kind=posting_kind or "", posting_history=posting_history,

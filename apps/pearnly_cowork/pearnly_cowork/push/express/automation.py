@@ -150,7 +150,10 @@ class Facts:
     10-18 E1 三条（账套记忆定的科目 / 现 / 赊才用）：``overrides``：这份账套近 `OVERRIDE_DAYS` 天里人把账套记忆的值改掉的记录
     ``[{kind, old, new, at}]``（`push.choices.overrides`，R1）；``memory_since``：``{类: 最近 `OVERRIDE_EVIDENCE` 张证据里最早那张的
     时刻}``（`memory_since`，与 ``at`` 同一种时间：线上上传时刻、回放录入日）；``account_share``：证据窗口里有合格回读结果的推送中
-    科目被改的 ``(张数, 有结果的张数)``（`change_share`，R2；None 按没取）。"""
+    科目被改的 ``(张数, 有结果的张数)``（`change_share`，R2；None 按没取）。
+
+    ``today`` 是判单据日子用的今天（测试租户压缩时间试点时是模拟的日子，`push.automation.clock`）；``now``：拿来比库里真实时刻
+    （R1 改值记录、Express 历史读的日子）用的真实今天，只在 ``today`` 是模拟的时候给，None 按 ``today``（线上与回放都一样）。"""
 
     direction: str
     fields: Mapping[str, Any]
@@ -181,6 +184,7 @@ class Facts:
     overrides: Sequence[Mapping[str, Any]] = ()
     memory_since: Mapping[str, Any] = field(default_factory=dict)
     account_share: Optional[Tuple[int, int]] = None
+    now: Optional[dt.date] = None
 
 
 @dataclass(frozen=True)
@@ -936,7 +940,7 @@ def memory_holds(facts: Facts, kind: str) -> Tuple[str, ...]:
     elif streak < streak_for(kind):
         holds.append("streak_long")
     if kind in OVERRIDE_KINDS and overruled(kind, memory_value(kind, payload), (facts.memory_since or {}).get(kind),
-                                            facts.overrides, facts.today):
+                                            facts.overrides, facts.now or facts.today):
         holds.append("overruled")
     if kind == "account" and share_exceeded(facts.account_share):
         holds.append("changed_share")
@@ -1060,7 +1064,7 @@ def conflicts(facts: Facts) -> List[str]:
     """各层对同一项给的值不同（哪怕优先级能裁出一个）的类：只看这张单真用了这几层定的类（``decided_by`` 里有的）。
     Express 历史只认 ``HISTORY_FRESH_DAYS`` 天内读的。只作内部分流；提示与确认是第 4 期 `rule_conflict`。"""
     decided = (facts.decision or {}).get("decided_by") or {}
-    fresh = facts.history_read is not None and (facts.today - facts.history_read).days <= HISTORY_FRESH_DAYS
+    fresh = facts.history_read is not None and ((facts.now or facts.today) - facts.history_read).days <= HISTORY_FRESH_DAYS
     out = []
     for kind, found in (facts.layers or {}).items():
         if kind not in decided:

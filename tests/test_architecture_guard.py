@@ -261,5 +261,22 @@ class OcrReplay(unittest.TestCase):
         self.assertEqual(flagged, {"infrastructure/production/runtime.env.example",
                                    "apps/pearnly_cowork/pearnly_cowork/hooks.py", "scripts/set-site-config.py"})
 
+    def test_the_pilot_clock_takes_the_same_test_tenants_and_its_key_stays_in_its_module(self):
+        """数字会计员压缩时间试点的模拟日子（``pearnly_da_today``）：模块只认回放的测试租户名单，键只在模块与 da-clock 脚本里。"""
+        clock = self.root / guard.CLOCK_MODULE
+        clock.parent.mkdir(parents=True)
+        clock.write_text('from pearnly_core.execution.replay import TEST_SITES\nCONFIG = "pearnly_da_today"\n')
+        script = self.root / "scripts/da-clock.py"
+        script.parent.mkdir(parents=True)
+        script.write_text('KEY = "pearnly_da_today"\n')
+        self.assertEqual(self.errors(), [])
+        clock.write_text('TEST_SITES = re.compile(r"[a-z.]+")\nCONFIG = "pearnly_da_today"\n')
+        self.assertTrue(any("simulated day" in error for error in self.errors()))
+        clock.write_text('from pearnly_core.execution.replay import TEST_SITES\nCONFIG = "pearnly_da_today"\n')
+        hooks = self.root / "infrastructure/production/runtime.env"
+        hooks.parent.mkdir(parents=True)
+        hooks.write_text("pearnly_da_today=2025-09-16\n")
+        self.assertEqual([error.split(":")[0] for error in self.errors()], ["infrastructure/production/runtime.env"])
+
 if __name__ == "__main__":
     unittest.main()
