@@ -119,6 +119,22 @@ class RuleCorpus(unittest.TestCase):
         self.assertBlocks("R-HINT", entry(en="Note: the read continues later"))
         self.assertPasses("R-HINT", entry(zh="备注", th="หมายเหตุ", role="label"))
 
+    def test_hint_explanation_only_at_sentence_start(self):
+        """「说明：」只在句首算提示语头；前面紧挨汉字的是段标题（10-19 收窄）。"""
+        for text in ("说明：仅统计已推送的单据", "说明: 仅统计已推送的单据", "保存后无法修改。说明：仅统计已推送的单据",
+                     "（说明：金额按含税价计算）", "已推送 3 张\n说明：其余单据待处理", "注：仅统计已推送的单据",
+                     "备注：金额按含税价计算", "请注意：保存后无法修改"):
+            self.assertBlocks("R-HINT", entry(zh=text, source="assistant", key="MESSAGES.x"))
+        # 销项税核查导出工作簿的段标题（vat_check_i18n.py help_lines.0）
+        table = sources.Entry("table", "pearnly_cowork/reconciliation/export/vat_check_i18n.py#_I18N.help_lines.0",
+                              {"zh": "使用说明:"})
+        table.extra["keyed"] = True
+        table.role = rules.role_of(table, {}, WORDS)
+        table.surface = rules.surface_of(table, table.role)
+        self.assertPasses("R-HINT", table)
+        for text in ("使用说明:", "操作说明：", "字段的说明", "导出文件的说明", "查看使用说明"):
+            self.assertPasses("R-HINT", entry(zh=text, source="assistant", key="MESSAGES.x"))
+
     def test_narr(self):
         self.assertBlocks("R-NARR", entry(zh="DMS 连接中断，本次读取已暂停。系统将从断点继续读取，已完成的组仍保留。"))
         # 逗号连成的一句也算：≥ 2 个分句且还在讲"之后会怎样"
