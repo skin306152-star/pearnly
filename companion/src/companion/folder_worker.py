@@ -61,7 +61,9 @@ UNSTABLE_ROUNDS = 3
 RETRY_CODES = {"cowork.folder.owner_not_ready", "cowork.folder.rule_disabled", "cowork.folder.disabled",
                "cowork.folder.step_error"}
 # 同步回复里的对话提醒：字段与服务端 folder_intake/contracts.NOTICE_FIELDS 逐字一致（tests/test_companion_contract.py 守住）。
-NOTICE_FIELDS = ("id", "title", "text", "created", "session")
+# ``view``（1.9.1 起）：没有对话时点开哪一页（``company:<编号>`` = 这家公司的主档页）；旧服务端不带，当作定时任务页。
+NOTICE_FIELDS = ("id", "title", "text", "created", "session", "view")
+NOTICE_OPTIONAL = ("view",)
 NOTICE_LIMIT = 20
 
 
@@ -198,7 +200,8 @@ class FolderIntake:
                     self._status(cfg, "idle")
                 except Refused as error:
                     log.info("文件夹录入本轮跳过: %s", error)
-                    self._status(cfg, "offline")
+                    # 配对失效（401）报 auth：托盘显示「连接已失效，请在设置中重新连接」（同 Express 成员心跳回 401）
+                    self._status(cfg, "auth" if error.rejected else "offline")
                 except Exception:
                     log.exception("文件夹录入本轮失败")
                     self._status(cfg, "offline")
@@ -825,17 +828,19 @@ def _covered(folder: str, scope) -> bool:
 
 
 def _notice(row) -> Optional[dict]:
-    """一条对话提醒（字段 NOTICE_FIELDS）：形状不对就丢掉，不让一条坏数据拦住其余的。"""
-    if not isinstance(row, dict) or any(field not in row for field in NOTICE_FIELDS):
+    """一条对话提醒（字段 NOTICE_FIELDS，``view`` 可以没有）：形状不对就丢掉，不让一条坏数据拦住其余的。"""
+    if not isinstance(row, dict) or any(field not in row for field in NOTICE_FIELDS if field not in NOTICE_OPTIONAL):
         return None
-    notice_id, title, text, created, session = (row[field] for field in NOTICE_FIELDS)
+    notice_id, title, text, created, session, view = (row.get(field) for field in NOTICE_FIELDS)
     session = "" if session is None else session
     if not isinstance(notice_id, str) or not 0 < len(notice_id) <= 200 or not isinstance(title, str) \
             or not isinstance(text, str) or not (title or text) or not isinstance(session, str) \
             or isinstance(created, bool) or not isinstance(created, (int, float)) or not math.isfinite(created):
         return None
+    # 页面写法认不得的（形状由 tomo_links.view_query 再核一次）当作没有：照旧打开定时任务页，不丢整条
+    view = view[:40] if isinstance(view, str) else ""
     return {"id": notice_id, "title": title[:200], "text": text[:4000], "created": float(created),
-            "session": session[:200]}
+            "session": session[:200], "view": view}
 
 
 def _folder_health(rule: dict, root: Optional[dict]) -> str:

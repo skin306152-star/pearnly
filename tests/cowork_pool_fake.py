@@ -169,6 +169,10 @@ class Db:
                 return [Doc(account_key=row.account_key, uid=row.get("uid"), content_key=row.get("content_key"),
                             last_writer_device=row.get("last_writer_device"), last_written_at=row.get("last_written_at"))
                         for row in self.rows(pool.ACCOUNT_SET) if row.name in names]
+            if base == " ".join(pool.Q_ENTERED_OF.split()):
+                names = set(values[0])
+                return [Doc(account_key=row.account_key, attributes_json=row.get("attributes_json"))
+                        for row in self.rows(pool.ACCOUNT_SET) if row.name in names]
             if base == " ".join(pool.Q_WRITABLE.split()):
                 return [Doc(account_key=row.account_key, path=row.path, root=row.root, registry_row=row.registry_row)
                         for row in reach if row.connection == values[0] and row.device == values[1]

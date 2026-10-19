@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """这台电脑在池里的身份（多台电脑，ADR-021，CC 桌面版 1.7.0）：设备密钥、认电脑（device_hello）、断开（device_leave），
-旧服务端（401 / 403 / 404）从不当成配对失效，以及服务端说「这把密钥不能再用」时本机怎么处理。"""
+旧服务端（403 / 404）从不当成配对失效、401 是密钥被拒而不是旧服务端（1.9.1），以及服务端说「这把密钥不能再用」时本机
+怎么处理。"""
 import base64
 import json
 import re
@@ -138,12 +139,21 @@ def test_hello_and_leave_post_to_the_device_methods_with_the_member_key(monkeypa
                     ("POST", "/api/method/pearnly_cowork.companion.device_api.leave", "Bearer exp_C1_s", {})]
 
 
-@pytest.mark.parametrize("code", [401, 403, 404])
-def test_401_403_404_mean_an_old_server_never_an_unpairing(monkeypatch, code):
+@pytest.mark.parametrize("code", [403, 404])
+def test_403_404_mean_an_old_server_never_an_unpairing(monkeypatch, code):
     _transport(monkeypatch, lambda request: httpx.Response(code, json={}))
     with pytest.raises(device_link.OldServer):
         device_link.hello("https://site.test", "exp_C1_s", {})
     assert device_link.leave("https://site.test", "exp_C1_s") is False
+
+
+def test_401_means_the_key_was_rejected_not_an_old_server(monkeypatch):
+    # 1.9.1：401 是这把密钥服务端不认（被吊销、电脑被移除、重新连接前的旧密钥），不是旧服务端（录制机 10-18 的误判）
+    _transport(monkeypatch, lambda request: httpx.Response(401, json={"exc_type": "AuthenticationError"}))
+    with pytest.raises(device_link.KeyRejected):
+        device_link.hello("https://site.test", "exp_C1_s", {})
+    assert not issubclass(device_link.KeyRejected, device_link.OldServer)
+    assert device_link.leave("https://site.test", "exp_C1_s") is False   # 断开照样只删本机成员
 
 
 def test_leave_without_a_network_only_reports_that_nothing_was_revoked(monkeypatch):
@@ -223,6 +233,24 @@ def test_an_old_server_is_asked_again_in_half_an_hour_and_nothing_changes_locall
     assert announcer.announce(cfg) is None and len(sent) == 1
     clock.now = 1801
     assert announcer.announce(cfg) == "attached" and len(sent) == 2
+
+
+def test_a_rejected_key_is_not_called_an_old_server_and_the_member_keeps_working(caplog):
+    # 1.9.1（10-18 录制机）：重连前的旧密钥回 401，原来记「服务端还不认电脑（旧版），半小时后再问」。现在：记成密钥被拒、
+    # 不标 device_state、不停用成员（不影响取任务写账；提示重新连接由心跳 / 文件夹同步的 401 给），五分钟后再试；
+    # 重新连接换了密钥，新密钥马上认
+    clock = _Clock()
+    announcer, sent = _announcer([device_link.KeyRejected("401")], clock)
+    cfg = _cfg(token="exp_C1_old")
+    with caplog.at_level("INFO"):
+        assert announcer.announce(cfg) is None
+    assert cfg.device_state == "" and member_active(cfg)
+    assert "旧版" not in caplog.text and "等重新连接" in caplog.text
+    clock.now = 299
+    assert announcer.announce(cfg) is None and len(sent) == 1
+    assert announcer.announce(_cfg(token="exp_C1_new")) == "attached" and len(sent) == 2
+    clock.now = 301
+    assert announcer.announce(cfg) == "attached" and len(sent) == 3
 
 
 def test_a_failed_or_refused_hello_is_tried_again_in_five_minutes():
@@ -516,11 +544,12 @@ def test_settle_old_key_sends_hello_with_the_old_key_and_swallows_refusals(monke
     assert device_link.settle_old_key("", "exp_C1_old") == "" and device_link.settle_old_key("https://t", "x") == ""
     assert len(sent) == 1
 
-    def refused(url, token, body, timeout=15.0):
-        raise device_link.OldServer("401")
+    for error in (device_link.KeyRejected("401"), device_link.OldServer("404")):
+        def refused(url, token, body, timeout=15.0, error=error):
+            raise error
 
-    monkeypatch.setattr(device_link, "hello", refused)
-    assert device_link.settle_old_key("https://t.pearnly.com", "exp_C1_old") == ""
+        monkeypatch.setattr(device_link, "hello", refused)
+        assert device_link.settle_old_key("https://t.pearnly.com", "exp_C1_old") == ""
 
 
 # ── 没有 Express 也能加入池 ──

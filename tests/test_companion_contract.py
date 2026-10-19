@@ -102,8 +102,8 @@ class PairingCode(unittest.TestCase):
 
 class DeviceMethods(unittest.TestCase):
     """认电脑的两条机器方法（ADR-021；服务端第 1 批，CC 桌面版 1.7.0 第 5 批）：表与另外三张不重叠、都是只收 POST 的白名单
-    方法，MR.ERP 的只读文件夹密钥也放行；桌面端调的正是这两条路径、报文键与服务端收的一致、状态同名，401 / 403 / 404 一律当
-    旧服务端（不当成配对失效）；设备密钥的形状服务端收；桥的状态里有设备密钥（对话页每次打开带它调 register，页面一侧在第 6 批）。"""
+    方法，MR.ERP 的只读文件夹密钥也放行；桌面端调的正是这两条路径、报文键与服务端收的一致、状态同名，403 / 404 当旧服务端、
+    401 当密钥被拒（1.9.1 起，都不当成要删成员）；设备密钥的形状服务端收；桥的状态里有设备密钥（对话页每次打开带它调 register，页面一侧在第 6 批）。"""
 
     DEVICE_CONTRACTS = SERVER / "device_contracts.py"
     LINK = COMPANION / "device_link.py"
@@ -155,12 +155,19 @@ class DeviceMethods(unittest.TestCase):
         for _ in range(50):
             self.assertIsNotNone(re.fullmatch(pattern.group(1), namespace["new_device_key"]()))
 
-    def test_401_403_404_from_the_device_methods_mean_an_old_server(self):
-        helper = number_constants(self.LINK, ("REFUSED",))
-        self.assertEqual(set(helper["REFUSED"]), {401, 403, 404})
+    def test_401_is_a_rejected_key_and_only_403_404_from_the_device_methods_mean_an_old_server(self):
+        # 1.9.1：服务端认不出密钥（吊销、移除，`credentials.authenticate` → AuthenticationError）是 401，不是旧服务端；
+        # 403（总闸 / 停用，`_deny_permission`）与 404（没有这条方法）才是
+        helper = number_constants(self.LINK, ("REFUSED", "REJECTED"))
+        self.assertEqual(set(helper["REFUSED"]), {403, 404})
+        self.assertEqual(set(helper["REJECTED"]), {401})
         post = method_source_of(self.LINK, "_post")
-        self.assertIn("if response.status_code in REFUSED:", post)
+        self.assertLess(post.index("if response.status_code in REJECTED:"), post.index("if response.status_code in REFUSED:"))
+        self.assertIn("raise KeyRejected(", post)
         self.assertIn("raise OldServer(", post)
+        self.assertIn("frappe.throw(_('companion.unauthorized'), frappe.AuthenticationError)",
+                      (SERVER / "http_auth.py").read_text(encoding="utf-8"))
+        self.assertIn("http_status_code = 403", (SERVER / "http_auth.py").read_text(encoding="utf-8"))
         # 断开：服务端吊销不了（旧版、连不上）也照样只删本机成员
         disconnect = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "disconnect")
         self.assertLess(disconnect.index("_leave_member("), disconnect.index("remove_profile("))
@@ -278,8 +285,29 @@ class FolderSync(unittest.TestCase):
     def test_notice_fields_are_the_same_on_both_sides(self):
         helper = module_constants(COMPANION / "folder_worker.py").get("NOTICE_FIELDS")
         server = module_constants(FOLDER_SERVER / "contracts.py").get("NOTICE_FIELDS")
-        self.assertEqual(helper, ("id", "title", "text", "created", "session"))
+        self.assertEqual(helper, ("id", "title", "text", "created", "session", "view"))
         self.assertEqual(server, helper)
+        # view 是 1.9.1 加的：桌面端收旧服务端不带它的提醒；共用层同步给的每条都带（形状同 deep_link 认的）
+        self.assertEqual(module_constants(COMPANION / "folder_worker.py").get("NOTICE_OPTIONAL"), ("view",))
+        listing = method_source_of(ROOT / "apps/pearnly_core/pearnly_core/assistant/notices.py", "for_references")
+        self.assertIn("'view': contracts.notice_view(row.get('view') or '')", listing)
+
+    def test_a_reminder_of_one_company_opens_the_page_the_server_links_to(self):
+        """旧交接 T3（1.9.1）：托盘点开属于某家公司、没挂对话的提醒，地址与共用层 deep_link 同形（``?company=<编号>``），
+        公司编号的形状两端一样；对话页开着时交给 window.tomo.open 的页内深链接由 lib/nav.ts 的 useDeepLinks 接手。"""
+        core = (ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py").read_text(encoding="utf-8")
+        server = re.search(r'NOTICE_PROJECT_VIEW = re.compile\(r"(.+)"\)', core).group(1)
+        helper = re.search(r'COMPANY_VIEW = re.compile\(r"(.+)"\)',
+                           (COMPANION / "tomo_links.py").read_text(encoding="utf-8")).group(1)
+        self.assertEqual(server.replace("company:", "company:(", 1).rstrip("$") + ")$", helper)
+        self.assertEqual(module_constants(COMPANION / "tomo_links.py")["NOTICE_VIEWS"],
+                         module_constants(ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py")["NOTICE_VIEWS"])
+        self.assertIn('return "/assistant?company=" + quote(view.split(":", 1)[1], safe="")', core)
+        nav = (ROOT / "frontend/assistant/src/lib/nav.ts").read_text(encoding="utf-8")
+        self.assertIn('const link = id.startsWith("/assistant") ? targetOf(id) : null;', nav)
+        self.assertIn('parsed.searchParams.get("company")', nav)
+        self.assertIn("open: (target: string) => openTarget(target),",
+                      (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8"))
 
     def test_the_helper_sends_the_new_request_keys(self):
         round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")
@@ -805,11 +833,31 @@ class AccountSetIdentity(unittest.TestCase):
         self.assertTrue(fields)
         identity = set(module_constants(COMPANION / "account_probe.py")["IDENTITY_KEYS"])
         self.assertEqual(identity, {"uid", "share"})
-        reported = fields | {"root", "root_label", "mapping"} | identity
+        entry = module_constants(COMPANION / "account_probe.py")["ENTRY_KEY"]
+        reported = fields | {"root", "root_label", "mapping", entry} | identity
         raw, attribute = self.server_keys()
         # 原始名单清洗按白名单逐键取（`mapping` 单独处理）；目录属性另收期间与分店
         self.assertEqual(reported - raw - {"mapping"}, set())
         self.assertEqual((reported - {"name"}) - attribute, set())
+
+    def test_the_entry_mark_is_one_key_both_sides_and_stays_out_of_the_directory(self):
+        """第 3 期 E3（1.9.1）：账套行另报的录入标记（GLJNL.DBF 表头 ``YYYY-MM-DD/记录数``）同名进两处白名单、池登记按同一个键
+        读、不进池目录；服务端认的写法就是桌面端写出的样子；桌面端只读表头前 8 个字节（不经 dbf 库打开整张表）。"""
+        helper = module_constants(COMPANION / "account_probe.py")["ENTRY_KEY"]
+        self.assertEqual(helper, "entry_mark")
+        self.assertEqual(module_constants(ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/pool.py")["ENTRY_KEY"], helper)
+        raw, attribute = self.server_keys()
+        self.assertIn(helper, raw)
+        self.assertIn(helper, attribute)
+        reader = method_source_of(COMPANION / "account_probe.py", "read_entry_header")
+        self.assertIn("stream.read(8)", reader)
+        self.assertNotIn("dbf.Table", reader)
+        self.assertIn("int.from_bytes(head[4:8], 'little')", reader)
+        self.assertIn("day.isoformat()}/", reader)
+        policy = (ROOT / "apps/pearnly_cowork/pearnly_cowork/contracts/document_policy.py").read_text(encoding="utf-8")
+        self.assertIn('_ENTRY = re.compile(r"(\\d{4}-\\d{2}-\\d{2})/(\\d{1,10})")', policy)
+        payload = method_source_of(COMPANION / "account_probe.py", "account_sets_payload")
+        self.assertIn("row[ENTRY_KEY] = mark", payload)
 
     def test_the_helper_fills_uid_and_share_on_every_row_it_reports(self):
         fill = method_source_of(COMPANION / "account_probe.py", "with_identity")

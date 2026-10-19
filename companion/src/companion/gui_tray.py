@@ -146,7 +146,7 @@ class _ClickRelay(QObject):
 
 class TrayApp(QObject):
     worker_stopped = Signal(object)
-    folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline
+    folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline / auth（401）
     folder_notices = Signal(str, object)  # 文件夹同步带来的对话提醒：(站点, [提醒…])
     folder_update = Signal(str, str)  # 文件夹同步带来的新版本（只读文件夹的成员没有心跳）：(版本, 地址)
     folder_roots = Signal()  # 文件夹线程自动收回了经公司添加、没人用的根目录：设置页重取本机状态
@@ -224,7 +224,7 @@ class TrayApp(QObject):
                                 bool(getattr(self.cfg, "keep_awake_on_battery", False)))
         self._apply_keep_awake()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
-        self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
+        self.folder_status.connect(self._on_folder_status)
         self.folder_notices.connect(self._on_folder_notices)
         self.folder_update.connect(self._on_update_available)
         self.folder_roots.connect(self._on_folder_roots)
@@ -601,6 +601,14 @@ class TrayApp(QObject):
         profile_id, state = next(iter(states.items()))
         return "offline", profile_id, state[1]
 
+    def _on_folder_status(self, profile_id: str, key: str) -> None:
+        """MR.ERP 的小助手成员（只读文件夹）的状态：``auth`` = 这把密钥服务端不认（401），同 Express 成员心跳回 401
+        显示成离线 +「连接已失效，请在设置中重新连接」（gui_tray_workers.friendly_poll_error_spec）。"""
+        if key == "auth":
+            self._on_status(profile_id, "offline", MessageSpec("off_auth"))
+        else:
+            self._on_status(profile_id, key, "")
+
     def _on_status(self, profile_id: str, key: str, detail: object) -> None:
         self._profile_states[profile_id] = (key, detail)
         self._render_status()
@@ -626,20 +634,21 @@ class TrayApp(QObject):
     def open_tomo(self, text: str | None = None) -> None:
         self._window.open({"op": "show"} if text is None else {"op": "ask", "text": text})
 
-    def open_conversation(self, site: str, session: str = "") -> None:
-        """对话提醒点开：打开那段对话（没有对话 = 定时任务页）；站点不是自家 https 地址就只打开窗口。"""
+    def open_conversation(self, site: str, session: str = "", view: str = "") -> None:
+        """对话提醒点开：打开那段对话；没有对话按 ``view`` 开那一页（``company:<编号>`` = 这家公司的主档页，1.9.1 起），
+        其余定时任务页；站点不是自家 https 地址就只打开窗口。"""
         from . import tomo_links
 
-        url = tomo_links.conversation_url(site, session)
+        url = tomo_links.conversation_url(site, session, view)
         if not url:
             self.open_tomo()
             return
-        self._window.open({"op": "open_conversation", "url": url, "session": session})
+        self._window.open({"op": "open_conversation", "url": url, "session": tomo_links.open_target(session, view)})
 
     def _on_folder_notices(self, site: str, items) -> None:
         """文件夹同步带来的对话提醒（folder_worker._notices 已校验形状），同一条只弹一次。一批只弹一条（托盘点击只记得住
-        最后一条的动作，连弹几条会点错）：只有一条就点开那段对话；不止一条合成一条——标题带条数与最新一条的标题，
-        点开定时任务页。"""
+        最后一条的动作，连弹几条会点错）：只有一条就点开那段对话（没有对话按它的 ``view``：属于某家公司的开那家公司的主档页）；
+        不止一条合成一条——标题带条数与最新一条的标题，点开定时任务页。"""
         fresh = []
         for item in items or []:
             try:
@@ -653,7 +662,8 @@ class TrayApp(QObject):
             newest = max(fresh, key=lambda item: item.get("created") or 0)
             title = newest["title"] or "CC"
             if len(fresh) == 1:
-                self._show(title, newest["text"], lambda s=site, c=newest["session"]: self.open_conversation(s, c),
+                self._show(title, newest["text"],
+                           lambda s=site, c=newest["session"], v=newest.get("view") or "": self.open_conversation(s, c, v),
                            tag=NOTICE_TAG + newest["id"])
             else:
                 self._show(f"({len(fresh)}) {title}", newest["text"], lambda s=site: self.open_conversation(s, ""))

@@ -218,7 +218,7 @@ def _notices(names, after):
         return []
     # 只给涉及的任务全是本机读的那几条（提醒与简报已按电脑分开写；任务之后换了电脑读，旧提醒也不跟过去）
     items = contracts.machine_notices(items, names)
-    return [{key: item.get(key) for key in contracts.NOTICE_FIELDS} for item in items[:contracts.NOTICE_LIMIT]]
+    return [{key: item.get(key, "") for key in contracts.NOTICE_FIELDS} for item in items[:contracts.NOTICE_LIMIT]]
 
 
 def _record_run(context, row, device):

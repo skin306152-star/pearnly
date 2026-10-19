@@ -93,7 +93,7 @@ def epoch(value):
 
 
 def for_rules(rule_names, since_epoch, limit=20):
-    """这些任务在 ``since_epoch`` 之后的提醒（按时间先后）：``[{"id", "title", "text", "created", "session", "refs"}]``，
+    """这些任务在 ``since_epoch`` 之后的提醒（按时间先后）：``[{"id", "title", "text", "created", "session", "view", "refs"}]``，
     ``refs`` 是这条提醒涉及的全部任务（小助手同步只给涉及的任务全是本机读的那几条，见 `contracts.machine_notices`）。"""
     names = [name for name in rule_names or [] if name]
     if not names:

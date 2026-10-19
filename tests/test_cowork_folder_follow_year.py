@@ -59,6 +59,11 @@ def wrote(path, at, connection="C1"):
     connections.written[(connection, _key(path))] = at
 
 
+def entered(path, mark, connection="C1"):
+    """CC 桌面版报的录入标记（GLJNL.DBF 表头 ``YYYY-MM-DD/记录数``，`connections.service.account_sets_entered` 的替身，E3）。"""
+    connections.entered[(connection, _key(path))] = mark
+
+
 def row(path, label, start, end, **extra):
     return env.express_row(path, label, start=start, end=end, year=label[-4:], **extra)
 
@@ -518,6 +523,32 @@ class CurrentBookTests(Base):
         wrote(T9, datetime(2026, 10, 6, 9, 0))
         self.assertEqual(self.send(self.rule(), self.ticket("H5", date(2025, 6, 30)))["reason"],
                          folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+
+    def test_an_entry_made_straight_in_express_into_the_book_not_chosen_asks_again(self):
+        """第 3 期 E3（CC 桌面版 1.9.1）：会计不经 Pearnly 直接在 Express 录进没被选中的那份，CC 桌面版报的录入标记
+        （GLJNL.DBF 表头的记录数 / 日期）变了也重问：同一天多录一笔（记录数变）、日期更晚都算；选中的那份变了不算；
+        回答时没记录入标记（1.9.1 之前的回答、旧版 CC 桌面版）只比经 Pearnly 写成的时刻，不因升级多问。"""
+        entered(T8, "2026-10-05/120")
+        entered(T9, "2026-10-05/300")
+        remember("cy", T9, T8, T9, seen={T8: "~2026-10-05/120", T9: "~2026-10-05/300"})
+        self.assertEqual(self.send(self.rule(), self.ticket("H1", date(2025, 6, 30)))["account_set"], _key(T9))
+        entered(T9, "2026-10-06/305")                       # 选中的那份有新录入：照用
+        self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["account_set"], _key(T9))
+        entered(T8, "2026-10-05/121")                       # 没被选中的那份同一天多录一笔：重问
+        self.assertEqual(self.send(self.rule(), self.ticket("H3", date(2025, 6, 30)))["reason"],
+                         folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+        remember("cy", T9, T8, T9, seen={T8: "~2026-10-05/121", T9: "~2026-10-06/305"})
+        self.assertEqual(self.send(self.rule(), self.ticket("H4", date(2025, 6, 30)))["account_set"], _key(T9))
+        entered(T8, "2026-10-07/121")                       # 记录数没变、日期更晚（改了已录的单）：也重问
+        self.assertEqual(self.send(self.rule(), self.ticket("H5", date(2025, 6, 30)))["reason"],
+                         folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+        # 回答时没有录入标记（1.9.1 之前记的）：此刻有了也不比，只看经 Pearnly 写成的时刻
+        remember("cy", T9, T8, T9, seen={T8: "", T9: ""})
+        self.assertEqual(self.send(self.rule(), self.ticket("H6", date(2025, 6, 30)))["account_set"], _key(T9))
+        # 现在记回答时，两样一起记下（`pending` 同一条 `current_book.seen_of`）
+        wrote(T8, datetime(2026, 10, 1, 8, 0))
+        self.assertEqual(current_book.marks([{"connection": "C1", "key": _key(T8)}, {"connection": "C1", "key": _key(T9)}]),
+                         {_key(T8): "2026-10-01T08:00:00.000000~2026-10-07/121", _key(T9): "~2026-10-06/305"})
 
     def test_a_book_without_entries_at_the_answer_asks_again_once_it_has_one(self):
         remember("cy", T9, T8, T9, seen={T8: "", T9: ""})

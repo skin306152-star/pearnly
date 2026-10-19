@@ -1907,7 +1907,7 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual([g["id"] for g in got], ["pnotice_r2", "pnotice_r4"])
         self.assertEqual(got[1], {"id": "pnotice_r4", "title": "", "text": "t",
                                   "created": contracts.epoch(START + datetime.timedelta(minutes=4), BANGKOK),
-                                  "session": "sesn_mine1", "refs": ["R2"]})
+                                  "session": "sesn_mine1", "view": "", "refs": ["R2"]})
         # refs 一并给出：产品据此只把涉及记录全归这台电脑的提醒交出去
         self.assertEqual(notices.for_references(rule, ["R2"], 0)[0]["refs"], ["R1", "R2"])
         self.assertEqual([g["id"] for g in notices.for_references(rule, ["R2", "R3"], 0)],
@@ -1915,6 +1915,11 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual([g["id"] for g in notices.for_references(rule, ["R2"], 0, limit=1)], ["pnotice_r1"])
         for args in ((rule, ["R2"], 0, 0), (rule, [], 0, 20), ("", ["R2"], 0, 20)):
             self.assertEqual(notices.for_references(*args), [], args)
+        # 属于某家公司的提醒带上 view（CC 桌面版托盘点开那家公司的主档页）；认不得的写法当没有
+        self.db.add("r7", 7, reference_doctype=rule, reference_name="R2", refs='["R2"]', view="company:abc1234567")
+        self.db.add("r8", 8, reference_doctype=rule, reference_name="R2", refs='["R2"]', view="company:../x")
+        self.assertEqual([g["view"] for g in notices.for_references(rule, ["R2"], 0)[-2:]],
+                         ["company:abc1234567", ""])
 
     # —— 会话读写 ——
 

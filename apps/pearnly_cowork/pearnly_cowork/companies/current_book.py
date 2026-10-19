@@ -26,11 +26,15 @@
 `contracts.document_policy.book_marks`）；之后**未被选中**的某份此刻的最新录入晚于记下的，:func:`remembered` 当作没选过、原样回
 （照旧停下再问，仍不自动挑最近有录入的那份）。选中的那份自己有新录入不算；旧存储没有这一项的回答照旧用、不重问。
 
-「最新录入」取池登记上这份账套最近一次经 CC 桌面版写成的时刻（`connections.service.account_sets_written`：回执成功时由服务端
-记，每份登记了的物理账套都有、随每次写入更新，按连接一次主键查询，只在这一组有记住的回答、且回答时记了标记时才查）。现有代码里
-Express 那一端没有对未被选中的那份持续更新的录入标记（账套目录不报录入，Express 历史只在它是推送目标时才读，回读要人按月发起），
-所以会计直接在 Express 里录进另一份、不经 Pearnly 的，此刻看不到；要看到得 CC 桌面版在账套目录里另报录入标记（未做）。
-已知偏差：改选时旧那份还在排队、回答之后才写成的单，也算「回答之后的新录入」，会多问一次。
+「最新录入」取两样：池登记上这份账套最近一次经 CC 桌面版写成的时刻（`connections.service.account_sets_written`：回执成功时由
+服务端记，每份登记了的物理账套都有、随每次写入更新），和 CC 桌面版 1.9.1 起在账套目录每行另报的录入标记（第 3 期 E3，
+`connections.service.account_sets_entered`：Express ``GLJNL.DBF`` 表头的最后更新日期与记录数，存在池登记上、不进目录），会计不经
+Pearnly 直接在 Express 里录进另一份的也看得到。各按连接一次主键查询，只在这一组有记住的回答、且回答时记了标记时才查。比法见
+`contracts.document_policy.current_book_newer`（录入标记两边都有才比：记录数变了或日期更晚）。
+
+已知限制与偏差：录入标记跟着 CC 桌面版的整套重扫走（每天一次兜底、登记表变了、网页「重新读取」、重启），不另加常驻读取，最晚约
+一天后才看到；表头日期只到天，同一天里的新录入靠记录数看出来；回答前、上次重扫后录进另一份的单，下一次重扫后也算回答之后的新录入，
+会多问一次。改选时旧那份还在排队、回答之后才写成的单，也算「回答之后的新录入」，会多问一次。
 """
 from __future__ import annotations
 
@@ -109,8 +113,8 @@ def policy(workspace) -> dict:
 
 
 def marks(books) -> dict:
-    """各候选此刻的「最新录入」：``{规范账套键: 池登记上最近一次经 CC 桌面版写成的时刻（`book_mark` 写法），没有为空串}``。
-    每条连接一次主键查询。"""
+    """各候选此刻的「最新录入」：``{规范账套键: 池登记上最近一次经 CC 桌面版写成的时刻，带上 CC 桌面版报的录入标记
+    （`book_mark` 写法），都没有为空串}``。每条连接两次主键查询。"""
     from pearnly_cowork.connections import service as connections  # 只在这一组记了标记时才用：判档的轻路径不加载连接服务
 
     by_connection = {}
@@ -118,9 +122,11 @@ def marks(books) -> dict:
         by_connection.setdefault(item.get("connection") or "", []).append(_key(item))
     out = {}
     for connection, keys in by_connection.items():
-        found = connections.account_sets_written(connection, keys) if connection else {}
-        found = {normalize_express_account_key(key) or key: value for key, value in (found or {}).items()}
-        out.update({key: policy_rules.book_mark(found.get(key)) for key in keys})
+        written = connections.account_sets_written(connection, keys) if connection else {}
+        written = {normalize_express_account_key(key) or key: value for key, value in (written or {}).items()}
+        entered = connections.account_sets_entered(connection, keys) if connection else {}
+        entered = {normalize_express_account_key(key) or key: value for key, value in (entered or {}).items()}
+        out.update({key: policy_rules.book_mark(written.get(key), entered.get(key) or "") for key in keys})
     return out
 
 

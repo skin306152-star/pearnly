@@ -698,7 +698,25 @@ def test_tombstones_stay_when_the_scan_could_not_read_everything(tmp_path, monke
 
 
 def _notice(n, **extra):
-    return {"id": f"pnotice_{n}", "title": f"T{n}", "text": f"text {n}", "created": float(n), "session": "", **extra}
+    return {"id": f"pnotice_{n}", "title": f"T{n}", "text": f"text {n}", "created": float(n), "session": "", "view": "",
+            **extra}
+
+
+def test_notices_carry_the_page_to_open_and_old_servers_without_it_still_work(tmp_path):
+    # 1.9.1（T3）：服务端提醒带 view（company:<编号> = 这家公司的主档页）；旧服务端不带也收（当作定时任务页），
+    # 不是字符串的当作没有、不丢整条
+    cfg = _cfg()
+    key = folder_store.connection_key(cfg)
+    fake = FakeClient([])
+    got = []
+    worker = FolderIntake(lambda: [cfg], client_factory=fake, on_notices=lambda site, items: got.extend(items))
+    fake.extra = {"notices": []}
+    worker.round(cfg, key)
+    old = {key_: value for key_, value in _notice(100).items() if key_ != "view"}
+    fake.extra = {"notices": [old, _notice(200, view="company:abc1234567"), _notice(300, view=7)]}
+    worker.round(cfg, key)
+    assert [(item["id"], item["view"]) for item in got] == [("pnotice_100", ""), ("pnotice_200", "company:abc1234567"),
+                                                           ("pnotice_300", "")]
 
 
 def test_notices_reach_the_tray_once_and_move_the_cursor(tmp_path):

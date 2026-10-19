@@ -801,7 +801,8 @@ class CompanyTier(unittest.TestCase):
             {key: twin.lower(), policy.current_book_seen_key(key): seen}))
         written, asked = {}, []
         pool = ns(account_sets_written=lambda connection, account_keys: asked.append((connection, list(account_keys)))
-                  or {item: written[item] for item in account_keys if item in written})
+                  or {item: written[item] for item in account_keys if item in written},
+                  account_sets_entered=lambda connection, account_keys: {})
         with mock.patch.dict(sys.modules, {"pearnly_cowork.connections": ns(service=pool),
                                            "pearnly_cowork.connections.service": pool}):
             written.update({keys[0]: dt.datetime(2026, 10, 1, 8, 0), keys[1]: dt.datetime(2026, 10, 3, 9, 0)})

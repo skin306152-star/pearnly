@@ -181,8 +181,9 @@ def _refs(row) -> list:
 
 
 def for_references(doctype, names, since_epoch, limit=20) -> list[dict]:
-    """某类产品记录（`doctype`）里这些记录（`names`）在 `since_epoch` 之后的提醒，旧 → 新，最多 `limit` 条。
-    给小助手同步用（按记录、不按用户：读同一文件夹的成员都要弹）。"""
+    """某类产品记录（`doctype`）里这些记录（`names`）在 `since_epoch` 之后的提醒，旧 → 新，最多 `limit` 条：
+    ``[{"id", "title", "text", "created", "session", "view", "refs"}]``。给 CC 桌面版同步用（按记录、不按用户：读同一文件夹的
+    成员都要弹）。"""
     wanted = contracts.notice_refs(names)
     cap = min(max(frappe.utils.cint(limit), 0), REFERENCE_SCAN)
     if not doctype or not wanted or not cap:
@@ -198,9 +199,10 @@ def for_references(doctype, names, since_epoch, limit=20) -> list[dict]:
         if not set(wanted) & set(_refs(row)):
             continue
         # refs 一并给：产品按它只把「涉及的记录全归这台电脑」的提醒交出去（Cowork `machine_notices`）
+        # view：没有对话时点开哪一页（``company:<编号>`` 是这家公司的主档页，`contracts.deep_link`）；CC 桌面版 1.9.1 起照它开
         found.append({"id": contracts.NOTICE_PREFIX + row.name, "title": row.title or "", "text": row.text,
                       "created": contracts.epoch(row.creation, tz), "session": row.session_id or "",
-                      "refs": _refs(row)})
+                      "view": contracts.notice_view(row.get("view") or ""), "refs": _refs(row)})
         if len(found) >= cap:
             break
     return found

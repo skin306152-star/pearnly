@@ -26,6 +26,11 @@
 按位排序、逗号隔开（标记是 ISO 时刻，没有为空，:func:`book_marks`）。之后**未被选中**的某份此刻的标记晚于记下的
 （:func:`current_book_newer`）就当没选过、照旧停下再问；选中的那份自己有新录入不算。旧存储没有这一项（或认不得）的回答照旧可用、
 不会因此重问。标记取什么见 `companies.current_book.marks`。
+
+标记后面可以再带一段 **录入标记**（第 3 期 E3，CC 桌面版 1.9.1 起）：``<ISO 时刻>~<YYYY-MM-DD>/<记录数>``，是 CC 桌面版在账套目录
+每一行另报的 Express ``GLJNL.DBF`` 表头（最后更新日期只到天、记录数，:func:`entry_mark`），会计不经 Pearnly 直接在 Express 里录的
+单也看得到。比较时这一段「记录数变了或日期更晚」就算有新录入；回答时或此刻有一边没有这一段（旧版 CC 桌面版、回答记在 1.9.1 之前）
+就只比前面的时刻，不因升级多问一次。
 """
 from __future__ import annotations
 
@@ -54,7 +59,11 @@ BOOK_KEY_MAX = 500  # 同 `targets.identity.normalize_express_account_key` 的�
 # 记回答时各候选的最新录入标记（见文件头）：键 ``current_book_seen|…``，值 ``<8 位>=<ISO 时刻或空>,…``
 CURRENT_BOOK_SEEN = "current_book_seen"
 SEEN_ID = 8
-_SEEN_VALUE = re.compile(r"[0-9a-f]{8}=[0-9T:.\-]{0,32}(?:,[0-9a-f]{8}=[0-9T:.\-]{0,32})*")
+_MARK = r"[0-9T:.\-]{0,32}(?:~\d{4}-\d{2}-\d{2}/\d{1,10})?"
+_SEEN_VALUE = re.compile(rf"[0-9a-f]{{8}}={_MARK}(?:,[0-9a-f]{{8}}={_MARK})*")
+# 录入标记（见文件头）：Express GLJNL.DBF 表头的最后更新日期与记录数，CC 桌面版账套目录每行的 ``entry_mark``
+ENTRY_SEP = "~"
+_ENTRY = re.compile(r"(\d{4}-\d{2}-\d{2})/(\d{1,10})")
 
 
 def _not_invoice(fields: Mapping[str, Any]) -> bool:
@@ -137,8 +146,36 @@ def current_book_seen_key(key: Any) -> str:
     return seen if len(seen) <= GOODS_POSTING_KEY_MAX else ""
 
 
-def book_mark(value: Any) -> str:
-    """一份账套的「最新录入」标记 → 存的写法（ISO 时刻到微秒；日期按当天零点）；空、认不出回空串（当作没有录入）。"""
+def entry_mark(value: Any) -> str:
+    """CC 桌面版报的录入标记（``YYYY-MM-DD/记录数``，GLJNL.DBF 表头）→ 规范写法；空、认不出回空串（当作没报）。"""
+    found = _ENTRY.fullmatch(str(value or "").strip())
+    if not found:
+        return ""
+    try:
+        day = date.fromisoformat(found.group(1))
+    except ValueError:
+        return ""
+    return f"{day.isoformat()}/{int(found.group(2))}"
+
+
+def _split_mark(value: Any) -> tuple:
+    """存的标记 → (时刻部分, 录入标记)；不是字符串的（datetime / date）整个当时刻。"""
+    if isinstance(value, str) and ENTRY_SEP in value:
+        written, _sep, entry = value.partition(ENTRY_SEP)
+        return written, entry_mark(entry)
+    return value, ""
+
+
+def book_mark(value: Any, entry: Any = None) -> str:
+    """一份账套的「最新录入」标记 → 存的写法（ISO 时刻到微秒；日期按当天零点；有录入标记接在 ``~`` 后面，见文件头）；
+    时刻空、认不出为空（当作没有经 Pearnly 的录入），两样都没有回空串。``value`` 也可以是已存的写法。"""
+    value, stored_entry = _split_mark(value)
+    entry = entry_mark(entry) if entry is not None else stored_entry
+    written = _written_mark(value)
+    return f"{written}{ENTRY_SEP}{entry}" if entry else written
+
+
+def _written_mark(value: Any) -> str:
     if isinstance(value, datetime):
         found = value.replace(tzinfo=None)
     elif isinstance(value, date):
@@ -183,14 +220,25 @@ def current_book_seen(policy: Mapping[str, str], key: Any, candidates: Iterable[
     return {keys[ident]: book_mark(mark) for ident, mark in stored.items()}
 
 
+def _entry_newer(current: str, before: str) -> bool:
+    """录入标记（``YYYY-MM-DD/记录数``）：记录数变了（多录、删了又整理）或日期更晚算有新录入；有一边没有不算。"""
+    if not current or not before:
+        return False
+    (day, count), (old_day, old_count) = current.split("/"), before.split("/")
+    return count != old_count or day > old_day
+
+
 def current_book_newer(seen: Mapping[str, Any], now: Mapping[str, Any], chosen: Any) -> bool:
     """记住的回答还算不算数（用户 2026-10-18）：**未被选中**的候选里有一份此刻的最新录入（``now``）晚于回答时记下的（``seen``，
-    当时没有录入的按最早算）→ True，要重问；选中的那份自己有新录入不算，此刻没有标记的不算。"""
+    当时没有录入的按最早算）→ True，要重问；选中的那份自己有新录入不算，此刻没有标记的不算。两边都带录入标记（E3）时，
+    它的记录数变了或日期更晚也算（:func:`_entry_newer`）。"""
     for key, mark in (now or {}).items():
         if key == chosen or key not in (seen or {}):
             continue
-        current, before = book_mark(mark), book_mark(seen[key])
-        if current and (not before or datetime.fromisoformat(current) > datetime.fromisoformat(before)):
+        current, before = _split_mark(book_mark(mark)), _split_mark(book_mark(seen[key]))
+        if current[0] and (not before[0] or datetime.fromisoformat(current[0]) > datetime.fromisoformat(before[0])):
+            return True
+        if _entry_newer(current[1], before[1]):
             return True
     return False
 
@@ -281,6 +329,6 @@ def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
 
 __all__ = ["CERTIFICATE", "CURRENT_BOOK", "CURRENT_BOOK_PARTS", "CURRENT_BOOK_SEEN", "ENTER", "GOODS_POSTING",
            "GOODS_POSTING_VALUES", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages",
-           "book_mark", "book_marks", "certificate_shape", "company_keys", "current_book", "current_book_key",
+           "book_mark", "book_marks", "entry_mark", "certificate_shape", "company_keys", "current_book", "current_book_key",
            "current_book_newer", "current_book_parts", "current_book_seen", "current_book_seen_key", "document_class",
            "goods_posting", "goods_posting_key", "normalize", "push_block", "skipped_certificates"]

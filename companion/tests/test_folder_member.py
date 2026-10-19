@@ -4,6 +4,8 @@
 import base64
 from types import SimpleNamespace
 
+import pytest
+
 from companion import express_machine, folder_client, folder_store, pairing
 from companion.folder_worker import FolderIntake
 from companion.profile_store import ProfileRecord, ProfileStore
@@ -116,6 +118,29 @@ def test_folder_member_syncs_without_folders_and_reports_its_status(tmp_path, mo
     assert len(bodies) == 2 and all(body["roots"] == [] for body in bodies)
     assert [cfg.profile_id for cfg in (express, member) if intake._due(cfg, folder_store.connection_key(cfg))] == ["m1"]
     assert statuses == [("m1", "idle")]  # Express 成员的状态仍由取任务线程报
+
+
+@pytest.mark.parametrize("code, status", [(401, "auth"), (403, "offline"), (404, "offline")])
+def test_a_folder_member_whose_key_was_rejected_asks_to_reconnect(tmp_path, monkeypatch, code, status):
+    # 1.9.1：只读文件夹的成员没有心跳，配对失效（401：密钥被吊销、电脑被移除）由文件夹同步报 auth，托盘显示「连接已失效，
+    # 请在设置中重新连接」；403 / 404（总闸、旧服务端）照旧离线
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    statuses = []
+
+    class Client(_Client):
+        def sync(self, body):
+            raise folder_client.Refused(f"folder intake refused: {code}", code)
+
+    member = SimpleNamespace(profile_id="m1", kind="folder", paused=False, paired=True, device_state="",
+                             backend_url="https://testcowork.pearnly.com", bearer_token=CODE.split("@")[0], endpoint_id="")
+
+    def report(pid, key):
+        statuses.append((pid, key))
+        intake.stop()
+
+    intake = FolderIntake(lambda: [member], client_factory=Client, on_status=report)
+    intake._loop()
+    assert statuses == [("m1", status)]
 
 
 def test_a_folder_member_says_hello_itself_and_stops_when_its_key_was_claimed_elsewhere(tmp_path, monkeypatch):
