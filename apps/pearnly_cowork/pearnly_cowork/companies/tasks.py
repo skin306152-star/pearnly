@@ -1,7 +1,7 @@
 """定时任务跟随公司当年账套（T1，2026-10-15）：任务记下公司主档与分店，到点按单据日期取这家公司覆盖那天的账套。
 
 folder_intake 不导入本域（companies 依赖 folder_intake，反过来会成环），经 hooks 问这里：
-- `company_of`（``cowork_task_company``）：保存任务时，所选 Express 账套属于唯一一家主档 → 记下主档编号与这份账套的分店；
+- `company_of`（``cowork_task_company``）：保存任务时，所选 Express / MR.ERP 账套属于唯一一家主档 → 记下主档编号与这份账套的分店；
   对不上或多于一家回 None（任务照旧用固定账套）。补丁 `v0_0_23_folder_task_company` 给旧任务回填也用它。
 - `books_of`（``cowork_task_books``）：这家公司在这条连接上的账套，给了日期只留覆盖那天的、给了分店按分店筛
   （纯规则 `identity.for_day` / `identity.for_branch`）；覆盖那天的有多份同期时，这家公司对这一组选过现用的那份就只留它
@@ -21,35 +21,41 @@ from pearnly_cowork.targets.identity import normalize_express_account_key
 FIELDS = ["name", "identity", "adapter", "seed_connection", "name_key"]
 
 
+ADAPTERS = ("express", "mrerp")
+
+
 def _catalog_row(connection, key):
-    """这条连接（本人能用的 Express 连接）目录里这份账套那一行；没有回 None。"""
-    if not any(row["name"] == connection and row["adapter"] == "express" for row in service.usable_connections()):
-        return None
+    """这条连接（本人能用的 Express / MR.ERP 连接）目录里这份账套那一行与连接的 ERP 类型；没有回 (None, "")。"""
+    adapter = next((row["adapter"] for row in service.usable_connections()
+                    if row["name"] == connection and row["adapter"] in ADAPTERS), "")
+    if not adapter:
+        return None, ""
     return next((row for row in service.facts(connection).get("account_sets") or []
                  if isinstance(row, dict) and row.get("active", True) is not False
-                 and normalize_express_account_key(row.get("source_id")) == key), None)
+                 and normalize_express_account_key(row.get("source_id")) == key), None), adapter
 
 
 def company_of(connection, account_set_key) -> dict | None:
-    """这份 Express 账套属于哪家主档：唯一一家时 ``{"company": 编号, "branch": 这份账套的分店号（没有税号是空串）}``，
-    对不上或多于一家回 None。判据同 `identity.belongs`（身份相同；或没有税号、与按名称建的主档同连接同名称键）。"""
+    """这份账套属于哪家主档：唯一一家时 ``{"company": 编号, "branch": 这份账套的分店号（没有税号是空串）}``，
+    对不上或多于一家回 None。判据同 `identity.belongs`（身份相同；或没有税号、与按名称建的主档同连接同名称键）。
+    MR.ERP（2026-10-19 起）按连接 + 公司代码认，一样记下，到点按单据日期换年度库（账套报了会计期间才换，`books_of`）。"""
     connection = str(connection or "").strip()
     key = normalize_express_account_key(account_set_key)
     if not connection or not key:
         return None
     service.forget_cache()
-    row = _catalog_row(connection, key)
-    found = identity.company_identity("express", connection, row) if row else None
+    row, adapter = _catalog_row(connection, key)
+    found = identity.company_identity(adapter, connection, row) if row else None
     if not found:
         return None
     rows = frappe.get_all(COMPANY, filters={"identity": found["key"]}, fields=FIELDS, limit_page_length=0)
-    if not found["tax_id"] and found["name_key"]:
+    if adapter == "express" and not found["tax_id"] and found["name_key"]:
         rows += frappe.get_all(COMPANY, filters={"adapter": "express", "seed_connection": connection,
                                                  "name_key": found["name_key"]}, fields=FIELDS, limit_page_length=0)
-    names = {item.name for item in rows if identity.belongs(item, "express", connection, row)}
+    names = {item.name for item in rows if identity.belongs(item, adapter, connection, row)}
     if len(names) != 1:
         return None
-    return {"company": names.pop(), "branch": identity.book("express", connection, row)["branch"]}
+    return {"company": names.pop(), "branch": identity.book(adapter, connection, row)["branch"]}
 
 
 def books_of(company, connection, day=None, branch="", *, remembered=True) -> list | None:
@@ -64,6 +70,10 @@ def books_of(company, connection, day=None, branch="", *, remembered=True) -> li
     sets = identity.for_branch(sets, branch)
     if day is None:
         return sets
+    if row.get("adapter") == "mrerp" and not any(item.get("period_start") for item in sets):
+        # MR.ERP 年度库还没读到会计期间（这条连接 2026-10-19 之后还没刷新过账套）：说不出哪份覆盖这一天，不跟随，
+        # 照旧推往任务的固定账套（不因没读到期间停下）
+        return None
     found = identity.for_day(sets, day)
     if not remembered or len(found) < 2:
         return found

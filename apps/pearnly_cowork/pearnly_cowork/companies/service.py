@@ -144,7 +144,17 @@ def books(company, limit=identity.BOOKS_MAX) -> list:
     按名称建的主档，同一连接同名称的行后来报了有效税号 → 顺手补上税号（那个 `tax:` 键没被别的主档占用时；占了就不动，
     只记日志）。"""
     company = dict(company)
-    if not company.get("tax_id"):
+    if not company.get("tax_id") and company.get("adapter") == "mrerp":
+        # MR.ERP：刷新账套时读到了这家公司总店登记的有效税号就补上（只补空的，身份不变；读不到保持为空）
+        for connection, adapter, row in _rows():
+            if adapter != "mrerp" or not identity.belongs(company, adapter, connection, row):
+                continue
+            tax = (identity.company_identity(adapter, connection, row) or {}).get("tax_id")
+            if tax:
+                if _autofill(company, {"tax_id": tax}):
+                    company["tax_id"] = tax
+                break
+    elif not company.get("tax_id"):
         for connection, adapter, row in _rows():
             fill = identity.autofill(company, adapter, connection, row) if adapter == company.get("adapter") else None
             if not fill:

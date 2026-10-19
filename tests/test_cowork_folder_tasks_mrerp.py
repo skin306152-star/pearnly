@@ -111,8 +111,9 @@ class SaveMrerpTask(unittest.TestCase):
         self.assertEqual((row["payment"], row["posting_kind"], json.loads(row["defaults_json"]), row["reader"],
                           row["reader_device"]), ("credit", "", {}, "C1", "PC1"))
         masters.assert_not_called()  # 不读 Express 主档
-        # 跟随公司当年账套（T1）只给 Express：MR.ERP 的账套是公司 + 年度、目录里没有会计期间，任务照旧固定账套
-        self.assertEqual((row["company"], row["company_branch"]), ("", ""))
+        # 跟随公司当年账套（T1）2026-10-19 起 MR.ERP 也记公司（刷新账套时读到每个年度库的会计期间后到点按日期换年度库；
+        # 没读到期间照旧固定账套，`companies.tasks.books_of`）；MR.ERP 没有分店
+        self.assertEqual((row["company"], row["company_branch"]), ("CO-1", ""))
 
     def test_mrerp_task_can_borrow_the_express_helper(self):
         rules, saved, _masters = self._rules("mrerp")

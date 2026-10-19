@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import html as _html
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
+
+from pearnly_core.tax_documents.amounts import valid_tax_id
 
 COLLECTOR = {"kind": "cloud", "adapter_version": "mrerp-live-v1"}
 #: 可以原样重试一次的失败（网络/对方超时）；账号密码错误重试也没用。
@@ -68,8 +70,48 @@ def parse_account_sets(page: str) -> list[dict[str, str]]:
     return found
 
 
+# ── 每个年度库的会计期间与公司税号（2026-10-19：让 MR.ERP 账套也有起止日期、公司主档有税号） ─────────────
+# 期间：年度库的「รอบบัญชี」页 `period/allview.php`（`tbl_othperiod`，每期一行：起、止，泰历 dd/mm/yyyy，
+# `component/php/formatdates.php::dateeng2thai`）；本年起止 = 最早的起、最晚的止。页面不带 idmenu 就不改会话里的当前菜单，
+# 只查登录（`checkuseruse.php`）。期间表在年度库里（`connectdb`），所以每个年度库要先切进去再读。
+PERIOD_PAGE = "period/allview.php"
+_SHOWDATA = re.compile(r"<div\b[^>]*\bid=[\"']showdata[\"']", re.IGNORECASE)
+_THAI_DATE = re.compile(r"(?<!\d)(\d{1,2})/(\d{1,2})/(\d{4})(?!\d)")
+
+
+def _iso(match: re.Match) -> str:
+    day, month, year = (int(part) for part in match.groups())
+    year = year - 543 if year > 2400 else year  # dateeng2thai 一律 +543；万一是公历照收
+    try:
+        return date(year, month, day).isoformat()
+    except ValueError:
+        return ""
+
+
+def parse_periods(page: str) -> tuple[str, str]:
+    """期间页 → (本年起, 本年止) ISO 日期；页上没有期间表、一期都读不出回 ("", "")。每行头两个日期是起、止（后面是
+    制单 / 复核 / 核准日期）；页头「เงื่อนไขรอบบัญชีเพิ่มเติม」那块的今天日期不在期间表里，不算。"""
+    found = _SHOWDATA.search(page or "")
+    if not found:
+        return "", ""
+    starts, ends = [], []
+    for _, row in _ROW.findall(page[found.end():]):
+        dates = [day for day in (_iso(m) for m in _THAI_DATE.finditer(_text(row))) if day]
+        if len(dates) >= 2 and dates[0] <= dates[1]:
+            starts.append(dates[0])
+            ends.append(dates[1])
+    return (min(starts), max(ends)) if starts else ("", "")
+
+
+def company_tax(value: Any) -> str:
+    """总店登记的税号（`targets.mrerp_masters.parse_company_tax` 读出的数字）：13 位且校验位对才算，其余是空串。"""
+    digits = re.sub(r"\D", "", str(value or ""))
+    return digits if len(digits) == 13 and valid_tax_id(digits) else ""
+
+
 def account_sets(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """目录行：键 `comidyear:seldb`，标签是年度账套名，公司放在属性里给两级选择用。"""
+    """目录行：键 `comidyear:seldb`，标签是年度账套名，公司放在属性里给两级选择用；读到了的本年起止
+    （``period_start`` / ``period_end``）与公司税号（``tax_id``）也放在属性里（`companies.identity.book` 照 Express 读它们）。"""
     result = []
     for row in rows:
         comidyear = str(row.get("comidyear") or "").strip()
@@ -82,6 +124,12 @@ def account_sets(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             value = str(row.get(name) or "").strip()[:200]
             if value:
                 attributes[name] = value
+        start, end = str(row.get("period_start") or "")[:10], str(row.get("period_end") or "")[:10]
+        if start and end:
+            attributes.update(period_start=start, period_end=end)
+        tax = company_tax(row.get("tax_id"))
+        if tax:
+            attributes["tax_id"] = tax
         result.append({"source_id": key,
                        "label": str(row.get("name") or "").strip()[:_LABEL_LIMIT] or key,
                        "attributes": attributes})

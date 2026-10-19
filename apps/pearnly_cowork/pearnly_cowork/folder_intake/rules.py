@@ -308,7 +308,8 @@ def save(values, *, cc_session=None):
         _error(error)
     account_set_key, label = _catalog_item(doc.name, values.get("account_set_key"))
     # 跟随公司当年账套（T1）：所选账套属于唯一一家公司主档就记下公司与分店，到点按单据日期换账套；对不上照旧固定
-    link = follow.company_of(doc.name, account_set_key) if express else {"company": "", "branch": ""}
+    # MR.ERP 也记（2026-10-19：年度库刷新时读到会计期间后，到点按单据日期换年度库；没读到期间照旧用固定账套）
+    link = follow.company_of(doc.name, account_set_key)
     if posting_kind == "stock":
         _stock_ready(doc.name, account_set_key)
     # 任务存下时就请电脑读这份账套的科目表（还没读到的话），到点推送时已经有了

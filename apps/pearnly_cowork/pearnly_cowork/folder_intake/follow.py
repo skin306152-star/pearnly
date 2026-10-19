@@ -10,7 +10,8 @@
   选（待处理 / 复核页当场选一份即记住，组合变了再问；回答之后没被选中的那份有了更新的录入也再问，用户 2026-10-18），
   不按名称、新旧或最近有录入去猜；
 - 一份都没有（含票上没有日期、旧账套没报次年段）、或那台电脑够不到这份账套 → 停下等人，不猜；原因码见下，四种语言在本 App 术语表。
-任务没记公司（旧任务对不上公司、不是 Express）或主档已删 → 不跟随，照旧推往任务的固定账套 `account_set_key`。
+任务没记公司（旧任务对不上公司）、主档已删、MR.ERP 年度库还没读到会计期间 → 不跟随，照旧推往任务的固定账套
+`account_set_key`。MR.ERP 任务 2026-10-19 起同样跟随（按连接 + 公司代码认公司，服务器直接写、不看电脑）。
 
 公司与账套由 companies 现算，本域不导入它（companies 依赖 folder_intake）：经 hooks ``cowork_task_company`` /
 ``cowork_task_books``（`companies.tasks`）。推送照旧过 `account_match` 的期间、税号与分店硬闸。
@@ -74,6 +75,9 @@ def choose(rule, history, device=None):
     if len(found) > 1:
         return {"stop": AMBIGUOUS}
     book = found[0]
+    if frappe.db.get_value(CONNECTION, rule.connection, "adapter") != "express":
+        # MR.ERP 由服务器直接写，不看电脑（电脑只读文件夹）
+        return {"key": book["key"], "label": book.get("label") or book["key"]}
     # 够不够得到按读这张票所在文件夹的那台电脑判（只有它写，ADR-021 第 51 条；旧任务没记电脑时按负责人自己的电脑）
     reader = device if device is not None else (getattr(rule, "reader_device", None) or "")
     if book.get("writable") is False or not ledger.has_writer(
