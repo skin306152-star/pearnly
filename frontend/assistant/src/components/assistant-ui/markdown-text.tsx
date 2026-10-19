@@ -1,6 +1,7 @@
 
 // 正文的块照 Claude Code（设计文档 3.10）：块之间只用上外边距——段落、列表、表格、代码、引用 --cc-md-block（0.75em），
-// 标题前 --cc-md-heading（1.25em），第一块 0；表格细线、外圈 1px 环加圆角。
+// 标题前 --cc-md-heading（1.25em），第一块 0；表格细线、外圈 1px 环加圆角。代码块是共用的 .cc-code-block-head + .cc-code-block（V33：
+// 圆角同对话里的块级卡片 10、代码 14/20）。
 // 不用组件库的圆点光标（styles/dot.css）：同 Claude，回复在出时由对话底部的工作状态行表示（thread.tsx 的 RunIndicator）。
 // 那个光标挂在「这一段还在出」上，正文刚开头还没字时只剩一个黑点、正文出完还要等结束才消失（教程第 8 条 b、c）。
 import {
@@ -38,16 +39,16 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="aui-code-header-root border-border/50 bg-muted/50 mt-(--cc-md-block) first:mt-0 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-xs">
-      <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
+    <div className="aui-code-header-root cc-code-block-head mt-(--cc-md-block) first:mt-0">
+      <span className="aui-code-header-language font-medium lowercase">
         {language}
       </span>
-      <TooltipIconButton tooltip={t("copy")} onClick={onCopy}>
+      <TooltipIconButton tooltip={t("copy")} onClick={onCopy} className="aui-button-icon cc-row-btn cc-tap active:scale-(--cc-press-scale)">
         {!isCopied && (
-          <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+          <CopyIcon className="animate-[cc-pop-in_var(--cc-dur-fast)_var(--cc-ease-out)_both]" />
         )}
         {isCopied && (
-          <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+          <CheckIcon className="animate-[cc-pop-in_var(--cc-dur)_var(--cc-ease-out)_both]" />
         )}
       </TooltipIconButton>
     </div>
@@ -82,7 +83,7 @@ const defaultComponents = memoizeMarkdownComponents({
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
-        "aui-md-h1 mt-(--cc-md-heading) scroll-m-20 text-[1.25em] leading-snug font-semibold first:mt-0",
+        "aui-md-h1 mt-(--cc-md-heading) scroll-m-(--cc-md-heading-scroll) text-(length:--cc-md-h1) leading-(--cc-md-heading-lh) font-semibold first:mt-0",
         className,
       )}
       {...props}
@@ -91,7 +92,7 @@ const defaultComponents = memoizeMarkdownComponents({
   h2: ({ className, ...props }) => (
     <h2
       className={cn(
-        "aui-md-h2 mt-(--cc-md-heading) scroll-m-20 text-[1.125em] leading-snug font-semibold first:mt-0",
+        "aui-md-h2 mt-(--cc-md-heading) scroll-m-(--cc-md-heading-scroll) text-(length:--cc-md-h2) leading-(--cc-md-heading-lh) font-semibold first:mt-0",
         className,
       )}
       {...props}
@@ -100,7 +101,7 @@ const defaultComponents = memoizeMarkdownComponents({
   h3: ({ className, ...props }) => (
     <h3
       className={cn(
-        "aui-md-h3 mt-(--cc-md-heading) scroll-m-20 font-semibold first:mt-0",
+        "aui-md-h3 mt-(--cc-md-heading) scroll-m-(--cc-md-heading-scroll) font-semibold first:mt-0",
         className,
       )}
       {...props}
@@ -109,7 +110,7 @@ const defaultComponents = memoizeMarkdownComponents({
   h4: ({ className, ...props }) => (
     <h4
       className={cn(
-        "aui-md-h4 mt-(--cc-md-heading) scroll-m-20 font-medium first:mt-0",
+        "aui-md-h4 mt-(--cc-md-heading) scroll-m-(--cc-md-heading-scroll) font-medium first:mt-0",
         className,
       )}
       {...props}
@@ -145,7 +146,7 @@ const defaultComponents = memoizeMarkdownComponents({
   a: ({ className, ...props }) => (
     <a
       className={cn(
-        "aui-md-a text-link hover:text-link/80 underline underline-offset-2",
+        "aui-md-a text-link hover:text-link/80 underline underline-offset-(--cc-link-offset)",
         className,
       )}
       {...props}
@@ -154,7 +155,7 @@ const defaultComponents = memoizeMarkdownComponents({
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "aui-md-blockquote border-muted-foreground/30 text-muted-foreground mt-(--cc-md-block) border-s-2 ps-4 first:mt-0",
+        "aui-md-blockquote border-muted-foreground/30 text-muted-foreground mt-(--cc-md-block) border-s-(length:--cc-md-quote-w) ps-(--cc-space-16) first:mt-0",
         className,
       )}
       {...props}
@@ -163,7 +164,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ul: ({ className, ...props }) => (
     <ul
       className={cn(
-        "aui-md-ul marker:text-muted-foreground mt-(--cc-md-block) ps-(--cc-md-list-indent) list-disc first:mt-0 [&>li]:mt-1 [&>li]:ps-(--cc-md-li-indent)",
+        "aui-md-ul marker:text-muted-foreground mt-(--cc-md-block) ps-(--cc-md-list-indent) list-disc first:mt-0 [&>li]:mt-(--cc-md-li-gap) [&>li]:ps-(--cc-md-li-indent)",
         className,
       )}
       {...props}
@@ -172,7 +173,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ol: ({ className, ...props }) => (
     <ol
       className={cn(
-        "aui-md-ol marker:text-muted-foreground mt-(--cc-md-block) ps-(--cc-md-list-indent) list-decimal first:mt-0 [&>li]:mt-1 [&>li]:ps-(--cc-md-li-indent)",
+        "aui-md-ol marker:text-muted-foreground mt-(--cc-md-block) ps-(--cc-md-list-indent) list-decimal first:mt-0 [&>li]:mt-(--cc-md-li-gap) [&>li]:ps-(--cc-md-li-indent)",
         className,
       )}
       {...props}
@@ -189,7 +190,7 @@ const defaultComponents = memoizeMarkdownComponents({
   table: ({ className, ...props }) => (
     <div className="aui-md-table-wrap mt-(--cc-md-block) w-full overflow-x-auto rounded-lg border-(length:--cc-ring-w) border-line first:mt-0">
       <table
-        className={cn("aui-md-table w-full border-separate border-spacing-0", className)}
+        className={cn("aui-md-table cc-table w-full border-separate border-spacing-0", className)}
         {...props}
       />
     </div>
@@ -197,7 +198,7 @@ const defaultComponents = memoizeMarkdownComponents({
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "aui-md-th min-w-24 border-line border-b px-3 py-1.5 text-start font-medium not-first:border-s [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-th border-line border-b not-first:border-s [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -206,7 +207,7 @@ const defaultComponents = memoizeMarkdownComponents({
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "aui-md-td min-w-24 border-line border-b px-3 py-1.5 text-start not-first:border-s [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-td border-line border-b not-first:border-s [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -232,14 +233,14 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   sup: ({ className, ...props }) => (
     <sup
-      className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)}
+      className={cn("aui-md-sup [&>a]:text-caption [&>a]:no-underline", className)}
       {...props}
     />
   ),
   pre: ({ className, ...props }) => (
     <pre
       className={cn(
-        "aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-(length:--cc-text-sm) leading-relaxed",
+        "aui-md-pre cc-code-block",
         className,
       )}
       {...props}
@@ -251,7 +252,7 @@ const defaultComponents = memoizeMarkdownComponents({
       <code
         className={cn(
           !isCodeBlock &&
-            "aui-md-inline-code bg-code-bg text-code-ink rounded-code px-1 py-0.5 font-mono text-[0.9em]",
+            "aui-md-inline-code bg-code-bg text-code-ink rounded-code px-(--cc-space-4) py-(--cc-space-2) font-mono text-(length:--cc-code-inline-size)",
           className,
         )}
         {...props}

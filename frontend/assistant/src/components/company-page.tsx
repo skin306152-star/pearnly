@@ -15,7 +15,7 @@
 
 import { useAui } from "@assistant-ui/react";
 import { ArrowUpIcon, Building2Icon, LoaderIcon, MoreHorizontalIcon, PanelRightIcon, PencilIcon, PlusIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { type FC, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
@@ -99,7 +99,7 @@ export const CompanyPage: FC = () => {
   if (!detail) {
     return (
       <div className="flex flex-1 items-center justify-center text-ink-3">
-        {error ? <p role="alert" className="text-danger text-sm">{error}</p> : <LoaderIcon className="size-4 animate-spin" />}
+        {error ? <p role="alert" className="text-danger text-body">{error}</p> : <LoaderIcon className="cc-spinner" />}
       </div>
     );
   }
@@ -113,7 +113,7 @@ const Master: FC<{ detail: Detail; period: string; reload: () => Promise<void>; 
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-company-page" data-slot="cc-company-page">
         <Header detail={detail} reload={reload} />
-        {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+        {error && <div role="alert" className="cc-alert">{error}</div>}
         <CompanyComposer company={id} title={detail.company.title} period={period} branches={branchesOf(detail)} />
         <Conversations company={id} />
       </div>
@@ -196,7 +196,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
             </button>
           </h1>
         )}
-        {error && <p role="alert" className="mt-1 text-danger text-sm">{error}</p>}
+        {error && <p role="alert" className="mt-(--cc-space-4) text-danger text-body">{error}</p>}
       </div>
       {/* 手机：会话栏盖满屏，从这里打开（电脑上用标题栏右上的开关） */}
       {isMobile && (
@@ -211,8 +211,8 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
         <DropdownMenu.Portal>
           <DropdownMenu.Content
             align="end"
-            sideOffset={4}
-            className="cc-menu !min-w-44"
+            sideOffset={menuOffset()}
+            className="cc-menu min-w-(--cc-menu-w-md)"
             onCloseAutoFocus={(e) => {
               if (!renameFromMenu.current) return;
               renameFromMenu.current = false;
@@ -326,7 +326,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
     window.addEventListener(KEYBOARD_CLOSED, closed);
     return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
   }, []);
-  // 随内容长高：先收回再按内容量（上限由 max-h-72 管，超出在框里滚动）
+  // 随内容长高：先收回再按内容量（上限由 --cc-composer-input-max 管，超出在框里滚动）
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -352,14 +352,14 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
               send();
             }
           }}
-          className="block max-h-72 min-h-6 w-full resize-none overflow-y-auto bg-transparent font-sans outline-none"
+          className="block max-h-(--cc-composer-input-max) min-h-(--cc-control-xs) w-full resize-none overflow-y-auto bg-transparent font-sans outline-none"
         />
         <div className="aui-composer-action-wrapper relative flex items-center justify-between">
           <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
-            <PlusIcon className="stroke-[1.5px]" />
+            <PlusIcon className="stroke-(length:--cc-icon-stroke)" />
           </button>
           <input ref={picker} type="file" multiple accept={ACCEPT} hidden onChange={(e) => attach(e.target.files)} />
-          <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
+          <div className="aui-composer-send-slot ms-auto flex items-center gap-(--cc-space-6)">
             <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
               <ArrowUpIcon />
             </button>
@@ -488,7 +488,7 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
     }, RUN_RECHECK_MS);
     return () => clearTimeout(timer);
   }, [missing, company, absorbRuns]);
-  if (!rows) return <LoaderIcon className="size-4 animate-spin text-ink-3" aria-hidden />;
+  if (!rows) return <LoaderIcon className="cc-spinner text-ink-3" aria-hidden />;
   return (
     <section className="flex flex-col" data-slot="cc-company-chats" aria-label={co.conversations}>
       <h2 className="cc-subheading">{co.conversations}</h2>

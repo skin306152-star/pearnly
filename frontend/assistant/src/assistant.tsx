@@ -44,7 +44,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { Marquee } from "@/components/ui/marquee";
-import { DropdownMenu, SubMenu } from "@/components/ui/menu";
+import { DropdownMenu, SubMenu, menuOffset } from "@/components/ui/menu";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch, toggleStar } from "@/components/assistant-ui/thread-list";
@@ -95,7 +95,8 @@ import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
-import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
+import { dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
+import { cssPx } from "@/lib/css-var";
 import { syncPrefs } from "@/lib/prefs-sync";
 import { DeleteChatsHost, deleteChat } from "@/components/delete-chats";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
@@ -121,14 +122,14 @@ function Welcome() {
   const mascot = assistantMascot();
   const hello = name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting();
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="flex flex-col items-center gap-(--cc-welcome-gap)">
       {/* 在哪儿打开就引导装到哪儿（电脑下载桌面版、手机装成应用），关掉后不再出现 */}
       <InstallBanner />
-      <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-2 px-4 text-center md:flex-row md:gap-3">
+      <div className="aui-thread-welcome-root cc-enter -mb-(--cc-space-8) flex flex-col items-center justify-center gap-(--cc-space-8) px-(--cc-space-16) text-center md:flex-row md:gap-(--cc-space-12)">
         {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
         {/* 问候语换了（名字取回、换了时段）再播一次小动画（上一次没播完就不打断） */}
-        {mascot && <Mascot src={mascot} play={hello} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
-        <h1 className="cc-greeting text-3xl md:text-4xl">{hello}</h1>
+        {mascot && <Mascot src={mascot} play={hello} className="pearnly-mascot-host h-(--cc-mascot-h) shrink-0 md:h-(--cc-mascot-h-wide)" />}
+        <h1 className="cc-greeting text-3xl">{hello}</h1>
       </div>
       {/* 手机：公司、月份、分店在问候下面（同线上旧版的公司条）；电脑在输入框下巴里 */}
       <WelcomeFiling />
@@ -156,7 +157,7 @@ function SessionStatusBar() {
   }, [detail]);
   if (!snapshot.sessionId || !showsReconnecting(snapshot)) return null;
   return (
-    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
+    <div data-slot="cc-status" className="cc-status mx-auto w-full max-w-(--cc-thread-w) px-(--cc-space-16) pt-(--cc-space-8) text-ink-3 text-caption">
       {t("reconnecting")}
     </div>
   );
@@ -197,14 +198,14 @@ function UserMenu({ children }: { children: ReactNode }) {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu">
-          <Marquee as="div" className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</Marquee>
+        <DropdownMenu.Content side="top" align="start" sideOffset={menuOffset()} className="cc-menu">
+          <Marquee as="div" className="cc-menu-label truncate">{profile.user}</Marquee>
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
             <Shortcut keys="Ctrl ," />
           </DropdownMenu.Item>
-          <SubMenu icon={<GlobeIcon />} label={t("language")} sideOffset={8}>
+          <SubMenu icon={<GlobeIcon />} label={t("language")}>
             {LANGUAGES.map((l) => (
               <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void chooseLanguage(l.code)}>
                 <span className="flex-1">{l.label}</span>
@@ -219,7 +220,7 @@ function UserMenu({ children }: { children: ReactNode }) {
               <ExternalLinkIcon className="text-ink-3" />
             </a>
           </DropdownMenu.Item>
-          <SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>
+          <SubMenu icon={<InfoIcon />} label={t("learnMore")}>
             <MenuLink href={siteUrl("/about/")}>{t("about")}</MenuLink>
             <DropdownMenu.Separator className="cc-menu-sep" />
             <MenuLink href={siteUrl("/privacy/")}>{t("privacy")}</MenuLink>
@@ -246,7 +247,7 @@ function UserFooter() {
       <UserMenu>
         <button type="button" className="cc-nav-item h-(--cc-tray-btn) min-w-0 flex-1" data-slot="cc-user-menu">
           <span className="cc-nav-icon">
-            <span className="cc-avatar size-6">{initials(profile)}</span>
+            <span className="cc-avatar size-(--cc-avatar-sm)">{initials(profile)}</span>
           </span>
           <Marquee className="cc-nav-label min-w-0 flex-1 truncate">
             {profile.full_name || profile.user}
@@ -274,7 +275,7 @@ function AppMenu() {
         <MenuIcon />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu">
+        <DropdownMenu.Content align="start" sideOffset={menuOffset()} className="cc-menu">
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => { setView("chat"); setDraft({}); aui.threads().switchToNewThread(); }}>
             <span className="flex-1">{t("newChatPill")}</span>
             <Shortcut keys="Ctrl N" />
@@ -343,7 +344,7 @@ function useMaximized(enabled: boolean) {
 function TitleBarLeft({ nav, navToggle = false }: { nav: Nav; navToggle?: boolean }) {
   const { toggleSidebar } = useSidebar();
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-(--cc-titlebar-gap)">
       <AppMenu />
       <button type="button" className="cc-icon-btn" data-slot={navToggle ? "cc-nav-toggle" : undefined} data-cc-nav-fallback={navToggle ? undefined : ""} onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
         <PanelLeftIcon />
@@ -365,7 +366,7 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
         <MinusIcon />
       </button>
       <button type="button" className="cc-winbtn" onClick={toggle} aria-label={t(maximized ? "restore" : "maximize")} title={t(maximized ? "restore" : "maximize")}>
-        {maximized ? <CopyIcon className="!size-3.5 -scale-x-100" /> : <SquareIcon className="!size-3.5" />}
+        {maximized ? <CopyIcon className="size-(--cc-icon-xs) [scale:var(--cc-mirror)_1]" /> : <SquareIcon className="size-(--cc-icon-xs)" />}
       </button>
       <button type="button" className="cc-winbtn" data-close="" onClick={() => void windowAction("close")} aria-label={t("closeWindow")} title={t("closeWindow")}>
         <XIcon />
@@ -383,7 +384,7 @@ function SidebarNav() {
   const { view, setView } = useView();
   const taskCompany = useCompanyNav((s) => s.taskCompany);
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-(--cc-row-gap)">
       <ThreadListNew onClick={() => setView("chat")} />
       <PendingNav />
       {hasScheduledTasks(profile) && (
@@ -482,17 +483,17 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
   const logo = assistantLogo();
   return (
     <>
-      <SidebarHeader className="gap-2 px-2 pt-0 pb-1">
+      <SidebarHeader className="pt-0 pb-(--cc-sidebar-head-pb)">
         {chrome ? (
-          <div className="cc-titlebar -mx-0.5" {...dragHandlers(win.toggle)}>
+          <div className="cc-titlebar -mx-(--cc-space-2)" {...dragHandlers(win.toggle)}>
             <TitleBarLeft nav={nav} />
           </div>
         ) : (
           // 标题区 44（设计文档 3.1）：「图标 + CC」在左、24 的收起钮在右（用户 2026-10-12：放右边更顺手）；收起后只在左上角
           // 留展开按钮（MainTopBar）
-          <div className="flex h-(--cc-sidebar-head-h) items-center justify-between ps-1.5 pe-1">
-            <span className="flex items-center gap-2 font-semibold text-ink text-lg">
-              {logo && <img src={logo} alt="" className="cc-logo size-6" />}
+          <div className="flex h-(--cc-sidebar-head-h) items-center justify-between ps-(--cc-space-6) pe-(--cc-space-4)">
+            <span className="flex items-center gap-(--cc-space-8) font-semibold text-ink text-lg">
+              {logo && <img src={logo} alt="" className="cc-logo size-(--cc-logo)" />}
               {APP_NAME}
             </span>
             <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" data-cc-nav-fallback="" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
@@ -502,11 +503,11 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
         )}
         <ThreadListSearch value={search} onValueChange={setSearch} />
       </SidebarHeader>
-      <SidebarContent ref={keys} className="px-2" onClickCapture={pick} data-cc-view={useView().view}>
+      <SidebarContent ref={keys} className="px-(--cc-sidebar-pad)" onClickCapture={pick} data-cc-view={useView().view}>
         <SidebarNav />
         <ThreadList search={search} />
       </SidebarContent>
-      <SidebarFooter className="h-(--cc-sidebar-foot-h) flex-row items-center gap-1 border-t border-line px-2 py-0">
+      <SidebarFooter className="h-(--cc-sidebar-foot-h) flex-row items-center gap-(--cc-space-4) border-t border-line py-0">
         <UserFooter />
       </SidebarFooter>
       <SplitHandle size={sidebarSize} edge="end" onChange={onResize} panel={(handle) => handle.closest<HTMLElement>('[data-slot="sidebar-container"]')} />
@@ -532,18 +533,18 @@ function MobileDrawer() {
       onFocusCapture={(e) => setTyping(isTextField(e.target))}
       onBlurCapture={() => setTyping(false)}
     >
-      <div className="flex items-center justify-between px-4 pt-1 pb-3">
+      <div className="flex items-center justify-between px-(--cc-mdrawer-px) pt-(--cc-space-4) pb-(--cc-space-12)">
         <span className="cc-drawer-title">{APP_NAME}</span>
         <button type="button" className="cc-round-btn" data-cc-nav-fallback="" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>
       </div>
       {searching && (
-        <div className="cc-enter px-4 pb-2">
+        <div className="cc-enter px-(--cc-mdrawer-px) pb-(--cc-space-8)">
           <ThreadListSearch value={search} onValueChange={setSearch} autoFocus />
         </div>
       )}
-      <div className="cc-drawer flex-1 overflow-y-auto px-3 pb-28" onClickCapture={pick}>
+      <div className="cc-drawer flex-1 overflow-y-auto px-(--cc-mdrawer-list-px) pb-(--cc-mdrawer-tail)" onClickCapture={pick}>
         <PendingNav onPick={close} />
         {hasScheduledTasks(profile) && (
           <button
@@ -565,10 +566,10 @@ function MobileDrawer() {
       <div
         data-slot="cc-drawer-foot"
         hidden={typing}
-        className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-(--cc-mdrawer-tray-px) pt-(--cc-mdrawer-tray-pt) pb-[max(var(--cc-mdrawer-bottom),env(safe-area-inset-bottom))]">
         {profile && (
           <UserMenu>
-            <button type="button" className="cc-avatar pointer-events-auto size-12 text-sm" aria-label={profile.full_name || profile.user}>
+            <button type="button" className="cc-avatar pointer-events-auto size-(--cc-mavatar) text-body" aria-label={profile.full_name || profile.user}>
               {initials(profile)}
             </button>
           </UserMenu>
@@ -601,7 +602,7 @@ function isTextField(target: EventTarget | null): boolean {
 /** 手机顶栏打开抽屉的图标（同 Claude 手机端）：三条线、最下面一条短。 */
 function DrawerIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" className="stroke-(length:--cc-icon-stroke)" aria-hidden>
       <path d="M4 7h16M4 12h16M4 17h10" />
     </svg>
   );
@@ -634,11 +635,11 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   if (chrome) {
     return (
       <div className="cc-titlebar shrink-0 justify-between pe-0" {...dragHandlers(win.toggle)}>
-        <div className="flex min-w-0 items-center gap-1">
+        <div className="flex min-w-0 items-center gap-(--cc-topbar-gap)">
           {!open && <TitleBarLeft nav={nav} navToggle />}
           {inChat && <ConversationTitle />}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-(--cc-topbar-gap)">
           {tools}
           <WindowButtons maximized={win.maximized} toggle={win.toggle} />
         </div>
@@ -654,7 +655,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
         </button>
       )}
       {inChat && <ConversationTitle />}
-      <div className="ms-auto flex items-center gap-1">{tools}</div>
+      <div className="ms-auto flex items-center gap-(--cc-topbar-gap)">{tools}</div>
     </div>
   );
 }
@@ -681,7 +682,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
+          <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm)">
             {/* 挂在公司下时最上面是公司名：点了全屏打开右侧会话栏 */}
             <MobileCompanyItem />
             {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}
@@ -709,7 +710,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
 // 月份、分店胶囊在输入框下巴里。
 function ConversationTitle() {
   return (
-    <div className="flex min-w-0 items-center gap-0.5">
+    <div className="flex min-w-0 items-center gap-(--cc-space-2)">
       <ConversationCompany />
       <ConversationName />
     </div>
@@ -741,7 +742,7 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
         <MoreHorizontalIcon />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
+        <DropdownMenu.Content align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm)">
           {/* 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行 */}
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => toggleStar(aui.threadListItem(), !starred)}>
             {starred ? <PinOffIcon /> : <PinIcon />}
@@ -977,7 +978,6 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
             selected={results.selected}
             onSelect={results.setSelected}
             onClose={() => results.setOpen(false)}
-            className="max-md:fixed max-md:inset-0 max-md:z-50 max-md:w-full"
           />
         )}
         {panelShown &&

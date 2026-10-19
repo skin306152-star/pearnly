@@ -28,7 +28,7 @@ export function ApprovalSheet() {
   const question = askText(part.toolName, part.args, approval.ask, labels);
   return (
     <section key={approval.id} data-slot="cc-ask-sheet" aria-label={question} className="cc-ask-sheet">
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-(--cc-space-12)">
         <p className="cc-ask-sheet-q">{question}</p>
         <button type="button" className="cc-card-btn" data-icon="" aria-label={t("deny")} onClick={() => respond(false)}>
           <XIcon />

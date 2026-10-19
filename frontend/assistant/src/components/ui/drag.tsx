@@ -66,7 +66,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { cssMs } from "@/lib/hover-scroll";
+import { cssMs, fixedPx } from "@/lib/css-var";
 import { LONG_PRESS_MS, LONG_PRESS_SLOP } from "@/hooks/use-long-press";
 import { isDragging, markDragMoved, releaseDrag, setDragShield, setDragging } from "@/lib/layers";
 
@@ -1290,7 +1290,9 @@ export function cloneOf(node: HTMLElement): HTMLElement {
 
 // 浮层的层级：在抽屉、手机会话栏（50）之上，在菜单（.cc-menu 60）之下。手机按住不动拿起后到 500ms 弹出的长按菜单（行、公司组头）
 // 落在拿起的那一项范围里时不被浮层盖住（审查）
+// 值在 globals.css 的 --cc-z-drag，拿起时读（标准化记录 2.6）；OVERLAY_Z 是读不到时的回退值，与 globals.css 同值，测试核对
 export const OVERLAY_Z = 55;
+export const overlayZ = () => fixedPx("--cc-z-drag", OVERLAY_Z);
 
 /** 浮层：拿起那一刻在拖动层里建好（克隆原来那一项一次；拖进另一列时那一项在那里重挂，不再重克隆），fixed 定位在拿起时那一项的框，
  *  跟手只改它的 transform；外层大小由唯一的子元素撑开（量落点时量它）。整块 inert、aria-hidden：读屏不念，进不了 Tab。 */
@@ -1304,7 +1306,7 @@ function liftOverlay(node: HTMLElement, data: DragData, start: ClientRect, keybo
   style.width = `${start.width}px`;
   style.height = `${start.height}px`;
   style.transform = transformOf({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
-  style.zIndex = String(OVERLAY_Z);
+  style.zIndex = String(overlayZ());
   // 键盘拖动时浮层一格一格挪，也用动效变量过渡
   if (keyboard) style.transition = `transform ${keyboard.duration}ms ${keyboard.easing}`;
   const float = document.createElement("div");
@@ -1378,20 +1380,15 @@ export function wheelUnder(shield: HTMLElement, event: WheelEvent) {
 const counters = { DndDescribedBy: -1, DndLiveRegion: -1 };
 const nextId = (prefix: keyof typeof counters) => `${prefix}-${(counters[prefix] += 1)}`;
 
-// 拖动的播报区：看不见、不占位，常驻（不只在拖动时）
+// 拖动的播报区：看不见、不占位，常驻（不只在拖动时）。尺寸、外边距、溢出、换行用 Tailwind 的 sr-only（同 MoveLive），
+// 这里只补 sr-only 没有的：钉在视口左上角（fixed，不随页面滚动、不撑开滚动区）、不带边框（sr-only 只把边宽归 0）与两种裁切写法
 const LIVE_STYLE: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   top: "0",
   left: "0",
-  width: "1px",
-  height: "1px",
-  margin: "-1px",
   border: "0",
-  padding: "0",
-  overflow: "hidden",
   clip: "rect(0 0 0 0)",
   clipPath: "inset(100%)",
-  whiteSpace: "nowrap",
 };
 
 /** Alt+↑/↓ 挪一格的播报区（挂在 body 上，同拖动的播报区；看不见、不占位）。 */
@@ -1674,6 +1671,7 @@ export class DragEngine {
       live.setAttribute("role", "status");
       live.setAttribute("aria-live", "assertive");
       live.setAttribute("aria-atomic", "true");
+      live.className = "sr-only";
       Object.assign(live.style, LIVE_STYLE);
       live.textContent = this.said;
       document.body.append(hidden, live);

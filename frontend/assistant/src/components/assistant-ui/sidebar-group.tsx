@@ -22,7 +22,7 @@ import { type FC, type HTMLAttributes, type KeyboardEvent, memo, type ReactNode,
 import { altMove, chain, type DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { isDragging } from "@/lib/layers";
-import { DropdownMenu, SubMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { co, sb, t } from "@/i18n";
 import {
@@ -206,19 +206,19 @@ export const GroupSortMenu = memo(function GroupSortMenu({
           side="bottom"
           align={head ? "start" : "end"}
           alignOffset={head ? offset : 0}
-          sideOffset={4}
-          className="cc-menu !min-w-52"
+          sideOffset={menuOffset()}
+          className="cc-menu min-w-(--cc-menu-w-lg)"
           data-slot="cc-group-sort-menu"
           aria-label={sb.groupAndSort}
         >
-          <SubMenu label={<Parent label={sb.groupBy} value={GROUP_LABEL[view.by]()} />} className="cc-menu !min-w-40">
+          <SubMenu label={<Parent label={sb.groupBy} value={GROUP_LABEL[view.by]()} />} className="cc-menu min-w-(--cc-menu-w-sm)">
             <DropdownMenu.RadioGroup value={view.by} onValueChange={(by) => setSidebarView({ by: by as GroupBy })}>
               {(["company", "month", "none"] as const).map((by) => (
                 <Choice key={by} label={GROUP_LABEL[by]()} value={by} />
               ))}
             </DropdownMenu.RadioGroup>
           </SubMenu>
-          <SubMenu label={<Parent label={sb.sortBy} value={SORT_LABEL[view.sort]()} />} className="cc-menu !min-w-40">
+          <SubMenu label={<Parent label={sb.sortBy} value={SORT_LABEL[view.sort]()} />} className="cc-menu min-w-(--cc-menu-w-sm)">
             <DropdownMenu.RadioGroup value={view.sort} onValueChange={(sort) => setSidebarView({ sort: sort as SortBy })}>
               {(["updated", "created", "name"] as const).map((sort) => (
                 <Choice key={sort} label={SORT_LABEL[sort]()} value={sort} onSelect={clearGroupOrders} />
@@ -230,7 +230,7 @@ export const GroupSortMenu = memo(function GroupSortMenu({
               <Choice label={sb.ascending} value="asc" onSelect={clearGroupOrders} />
             </DropdownMenu.RadioGroup>
           </SubMenu>
-          <SubMenu label={<Parent label={sb.show} />} className="cc-menu !min-w-40">
+          <SubMenu label={<Parent label={sb.show} />} className="cc-menu min-w-(--cc-menu-w-sm)">
             <Toggle label={sb.metadata} on={view.meta} onChange={(meta) => setSidebarView({ meta })} />
             <Toggle label={sb.emptyGroups} on={view.empty} onChange={(empty) => setSidebarView({ empty })} />
           </SubMenu>

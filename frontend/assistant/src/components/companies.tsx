@@ -10,14 +10,17 @@ import { CheckIcon, ChevronDownIcon, Building2Icon, InboxIcon, LoaderIcon, PlusI
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { co, lang, t } from "@/i18n";
 import { branchShort, type CompanyRow, forgetAnyCompany, formatWhen, listCompanies, usePendingCounts } from "@/lib/companies";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
+import { fixedPx } from "@/lib/css-var";
 
 const PAGE = 50;
+// 滚到离底这么远就取下一页（globals.css 的 --cc-observe-margin，建观察器时读；这是样式表还没生效时的回退，测试核对两边同值）
+export const OBSERVE_MARGIN = 200;
 
 /** 一行的第二行：税号 · 分店 · 年度。 */
 export function companyLine(row: Pick<CompanyRow, "tax_id" | "branch" | "years">): string {
@@ -48,7 +51,7 @@ const SortMenu: FC<{ value: CompanySort; onChange: (sort: CompanySort) => void }
       <ChevronDownIcon />
     </DropdownMenu.Trigger>
     <DropdownMenu.Portal>
-      <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu">
+      <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu">
         {SORTS.map(([sort, label]) => (
           <DropdownMenu.Item key={sort} className="cc-menu-item" onSelect={() => onChange(sort)}>
             <span className="flex-1">{label()}</span>
@@ -102,7 +105,7 @@ export const Companies: FC = () => {
   useEffect(() => {
     const el = end.current;
     if (!el || done || loading || !rows?.length) return;
-    const observer = new IntersectionObserver(([entry]) => entry?.isIntersecting && void load(search, rows.length), { rootMargin: "200px" });
+    const observer = new IntersectionObserver(([entry]) => entry?.isIntersecting && void load(search, rows.length), { rootMargin: `${fixedPx("--cc-observe-margin", OBSERVE_MARGIN)}px` });
     observer.observe(el);
     return () => observer.disconnect();
   }, [rows, done, loading, search, load]);
@@ -144,21 +147,21 @@ export const Companies: FC = () => {
             />
           </label>
         )}
-        {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+        {error && <div role="alert" className="cc-alert mb-(--cc-space-16)">{error}</div>}
         {shown === null ? (
           <div className="cc-card-grid">
-            {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-pulse" />)}
+            {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-cc-pulse" />)}
           </div>
         ) : !shown.length && !search ? (
-          <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <Building2Icon className="size-8 text-ink-3" />
+          <div className="cc-empty cc-enter">
+            <Building2Icon />
             <button type="button" className="cc-btn" data-primary="" onClick={add}>
-              <PlusIcon className="size-4" />
+              <PlusIcon />
               {co.addCompany}
             </button>
           </div>
         ) : !shown.length ? (
-          <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
+          <div className="cc-empty-line">{t("noResults")}</div>
         ) : (
           <>
             <div className="cc-card-grid" data-slot="cc-company-rows">
@@ -168,7 +171,7 @@ export const Companies: FC = () => {
                   <Marquee className="truncate text-ink-3">{companyLine(row)}</Marquee>
                   <span className="cc-grid-card-foot">
                     {!!pending[row.id] && (
-                      <span className="flex items-center gap-1" title={co.pending}>
+                      <span className="flex items-center gap-(--cc-space-4)" title={co.pending}>
                         <InboxIcon />
                         {pending[row.id]}
                       </span>
@@ -178,8 +181,8 @@ export const Companies: FC = () => {
                 </button>
               ))}
             </div>
-            <div ref={end} className="flex h-8 items-center justify-center text-ink-3">
-              {loading && <LoaderIcon className="size-3.5 animate-spin" />}
+            <div ref={end} className="flex h-(--cc-control) items-center justify-center text-ink-3">
+              {loading && <LoaderIcon className="cc-spinner size-(--cc-icon-xs)" />}
             </div>
           </>
         )}

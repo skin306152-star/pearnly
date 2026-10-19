@@ -50,7 +50,46 @@ const MENU = '[role="menu"]';
 const DIALOG = '[role="dialog"], [role="alertdialog"]';
 const SEARCH = '[data-slot="aui_thread-list-search"] input';
 // 结果面板的 PDF：浏览器自带的 PDF 查看器（不是我们的样式）在无界面 Chrome 里出图不稳，统一走页图（触屏的那条路）
+// 真 iPhone 没有 beforeinstallprompt：在页面脚本之前挂一个捕获阶段的监听吞掉它（lib/install.ts 就不会当成能一键安装）
+const NO_INSTALL_PROMPT = "addEventListener('beforeinstallprompt', (e) => e.stopImmediatePropagation(), true);";
 const NO_PDF_VIEWER = "Object.defineProperty(Navigator.prototype, 'pdfViewerEnabled', { get: () => false });";
+
+// 只在这个场景里换掉某几个接口的回复（页面里包一层 fetch，假服务端不变）：[方法名, 回复（null = 失败 500）, 查询串里要带的一段（可选）]
+const FAKE = (...rules) => `(() => { const rules = ${JSON.stringify(rules)}; const real = window.fetch.bind(window);
+  window.fetch = (input, init) => { const url = String(typeof input === "string" ? input : input.url);
+    for (const [m, body, when] of rules) {
+      const at = url.indexOf("/api/method/" + m);
+      if (at < 0 || !/^($|\\?)/.test(url.slice(at + 12 + m.length)) || (when && !url.includes(when))) continue;
+      return Promise.resolve(body === null ? new Response("{}", { status: 500, headers: { "content-type": "application/json" } })
+        : new Response(JSON.stringify({ message: body }), { headers: { "content-type": "application/json" } }));
+    }
+    return real(input, init); }; })();`;
+// CC 桌面版的本机状态（设置「此电脑」两页有东西可看：公司一行、Express 文件夹、以前授权的文件夹、开关、版本、日志）。
+// 只在有桌面版桥（qt 桩）的环境里换；浏览器环境不碰（不能凭空造出 tomoDesktop，否则变体会变成桌面版）
+const DESKTOP_STATE = `if (window.tomoDesktop) { const s = ${JSON.stringify({
+  window: { frameless: true, maximized: false }, connected: true, version: "1.7.0", site: "", express_roots: ["D:\\Express"],
+  members: [{ id: "M1", name: "Express", kind: "express", paused: false, status: "online", folders: null }],
+  autostart: true, keep_awake: true, keep_awake_on_battery: false, hotkey: true, update: { state: "found", version: "1.7.1" },
+  features: ["company_folders"], legacy_roots: [{ member: "M1", id: "R1", path: "D:\\Old" }],
+})}; window.tomoDesktop.state = (cb) => cb(JSON.stringify(s));
+  // 「此电脑 · 连接」公司一行写的是站点（没连时 = location.host）：假服务端的端口每遍不同，字宽跟着变；页面里把它换成固定的 cc.test
+  const pin = (root) => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (n.data.includes(location.host)) n.data = n.data.split(location.host).join("cc.test"); };
+  new MutationObserver(() => pin(document.body)).observe(document, { childList: true, subtree: true, characterData: true }); }`;
+// 池里的两台电脑（设置「连接」/「此电脑 → 连接」下面的电脑列表）：一台在线可移除，一台离线、自动更新被 Windows 拦下
+const COMPUTERS = FAKE(["pearnly_cowork.folder_intake.api.computers", [
+  { adapter: "express", device: "OFFICE-PC", online: true, version: "1.7.0", folders: [], id: "D1", can_remove: true },
+  { adapter: "mrerp", device: "LAPTOP", online: false, version: "1.6.0", folders: [], update_blocked: { version: "1.7.0", at: "2026-10-17T11:18:00Z" } },
+]]);
+const RUNS = FAKE(["pearnly_cowork.folder_intake.api.runs", { runs: [
+  { started_at: "2026-10-17 08:00:00", trigger: "schedule", found: 5, new_files: 3, skipped: 2, upload_failed: 0, results: { entered: 3, attention: 1 }, states: { pushing: 1 } },
+  { started_at: "2026-10-16 08:00:00", trigger: "manual", note: "folder_missing", found: 0, new_files: 0, skipped: 0, upload_failed: 0 },
+] }]);
+const CHOICES = FAKE(["pearnly_cowork.push.application.api.choices", {
+  needed: [{ kind: "account", subject: "MEA", label: "MEA", suggested: [{ code: "5100" }], options: [{ code: "5100", name: "ค่าไฟฟ้า" }, { code: "5200", name: "ค่าน้ำ" }] }],
+  options: {},
+}]);
+const TASK_ROW = "[data-task]";
 
 export const SCENES = [
   // ── 外壳与对话 ──
@@ -68,6 +107,11 @@ export const SCENES = [
   S("composer-typed", "/assistant?c=sesn_r1", [["type", "textarea", "你好，帮我看一下九月"]]),
   // 「＋」直接调起系统选文件（没有菜单）：这个场景看的是按下后的按钮状态
   S("attach-menu", "/assistant?c=sesn_r1", [["click", ".cc-attach", 0]]),
+  // 输入框里的附件还在上传（转圈与遮罩），和上传没完成就点发送时的「发送中」气泡（附件名旁的骨架）：挂起上传接口（B7 补）
+  S("compose-uploading", "/assistant?c=sesn_r1", [["paste", "textarea", "photo.png"]],
+    { before: [["hold", "pearnly_core.assistant.api.upload", 20000]], expect: ".aui-attachment-tile-uploading" }),
+  S("send-pending", "/assistant?c=sesn_r1", [["type", "textarea", "看一下这张"], ["paste", "textarea", "photo.png"], ["click", ".aui-composer-send", 0], ["wait", 400]],
+    { before: [["hold", "pearnly_core.assistant.api.upload", 20000]], expect: '[data-role="user"] [data-slot="skeleton"]' }),
   // 月份胶囊：电脑在输入框下巴里；手机没有下巴（用户 10-17：基础信息放上面），已有对话的月份在右上「…」的「处理月份」里
   // （窄屏的子菜单在原菜单里换页：components/ui/menu.tsx 的 data-slot="cc-menu-sub"）
   S("chin-month", "/assistant?c=sesn_a1", both([["click", ".cc-chin-btn", 1]],
@@ -119,7 +163,26 @@ export const SCENES = [
   S("tasks", "/assistant?view=tasks"),
   S("tasks-new", "/assistant?view=tasks", [["click", ".cc-page-head .cc-btn-sm[data-primary]", 0], ["wait", 500]]),
   S("tasks-confirm", "/assistant?view=tasks", [["click", '[data-task] [aria-haspopup="menu"]', 0], ["click", '[role="menuitem"][data-danger]', 0], ["wait", 400]], { expect: DIALOG }),
+  // 打开已有任务的表单（点任务行）：目标卡片（选不了的那张淡显）、两列的账套与进项销项、文件夹、每月几号几点、提醒开关、默认处理
+  S("tasks-edit", "/assistant?view=tasks", [["click", `${TASK_ROW} > button`, 0], ["wait", 600]], { expect: DIALOG }),
+  S("tasks-runs", "/assistant?view=tasks", [["click", `${TASK_ROW} [aria-haspopup="menu"]`, 0], ["click", '[role="menuitem"]', 1], ["wait", 400]], { init: RUNS, expect: DIALOG }),
+  // 「立即运行」后底部的提示条：它 2.6 秒后自己消失，比拍一张的时间短，这个场景里不让 2600ms 的定时器走（只这一个时长）
+  S("tasks-toast", "/assistant?view=tasks", [["click", `${TASK_ROW} button[title]`, 0], ["wait", 300]],
+    { init: "{ const real = window.setTimeout; window.setTimeout = (fn, ms, ...a) => (ms === 2600 ? 0 : real(fn, ms, ...a)); }" }),
+  S("tasks-loading", "/assistant?view=tasks", [], { before: [["hold", "pearnly_cowork.folder_intake.api.listing", 20000]] }),
+  // 取列表失败：出错框 + 空状态卡
+  S("tasks-error", "/assistant?view=tasks", [], { init: FAKE(["pearnly_cowork.folder_intake.api.listing", null]) }),
   S("companies", "/assistant?view=companies"),
+  S("companies-loading", "/assistant?view=companies", [], { before: [["hold", "pearnly_cowork.companies.api.companies", 20000]] }),
+  S("companies-error", "/assistant?view=companies", [], { init: FAKE(["pearnly_cowork.companies.api.companies", null]) }),
+  S("companies-search-empty", "/assistant?view=companies", [["type", ".cc-page-search input", "zz"], ["wait", 600]],
+    { init: FAKE(["pearnly_cowork.companies.api.companies", [], "search="]) }),
+  S("pending-loading", "/assistant?view=pending", [], { before: [["hold", "pearnly_cowork.companies.api.pending", 20000]] }),
+  S("pending-error", "/assistant?view=pending", [], { init: FAKE(["pearnly_cowork.companies.api.pending", null]) }),
+  S("pending-search-empty", "/assistant?view=pending", [["type", ".cc-page-search input", "zz"]]),
+  // 能当场选的那一张点开：一个下拉（建议项预选）+「确认」
+  S("pending-open", "/assistant?view=pending", [["click", '[data-slot="cc-pending-choose"] .cc-pending-toggle', 0], ["wait", 400]],
+    { init: CHOICES, expect: '[data-slot="cc-pending-choose"] select' }),
   S("company", "/assistant?company=C-0001"),
   S("add-company", "/assistant?view=companies", [["click", ".cc-page-head .cc-btn-sm[data-primary]", 0], ["wait", 500]]),
   // 知识库编辑：公司页的知识库卡点「+」出编辑框（卡头的按钮在卡里第一个；能悬停的设备上悬停卡头才显示，窄屏先打开公司栏）
@@ -137,11 +200,24 @@ export const SCENES = [
   // 图片预览：输入框选一张图，点附件出预览
   S("image-preview", "/assistant?c=sesn_r1", [["paste", "textarea", "photo.png"], ["click", ".aui-attachment-preview-trigger", 0], ["wait", 500]],
     { expect: ".aui-attachment-preview-dialog-content" }),
-  S("settings-tab2", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1]], [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1]])),
-  S("settings-tab3", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 2]], [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 2]]), { envs: ["desktop", "desktop-coarse", "desktop-narrow"] }),
+  // 「连接」（浏览器里：池里没有电脑时「下载 CC 桌面版」）/「此电脑 → 连接」（桌面版）：手机设置弹窗里按钮的点按区 44（按钮排查 H27）
+  S("settings-tab2", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1]], [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1]]),
+    { init: DESKTOP_STATE, expect: '.cc-modal main :is([data-slot="button"], .cc-btn)' }),
+  S("settings-tab3", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 2]], [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 2]]),
+    { envs: ["desktop", "desktop-coarse", "desktop-narrow"], init: DESKTOP_STATE, expect: '.cc-modal main [role="switch"]' }),
+  // 池里有电脑：一台一行（状态点、「···」），再打开第一个「···」菜单（桌面版是本机公司那一行的，浏览器是第一台电脑的）
+  S("settings-computers", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 300]],
+    [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 300]]), { init: DESKTOP_STATE + COMPUTERS }),
+  S("settings-computer-menu", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 300], ["click", '.cc-modal main [aria-haspopup="menu"]', 0]],
+    [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 300], ["click", '.cc-modal main [aria-haspopup="menu"]', 0]]),
+    { init: DESKTOP_STATE + COMPUTERS, expect: MENU }),
 
   // ── 其他 ──
   S("loading", "/assistant?c=sesn_a1", [], { before: [["hold", "pearnly_core.assistant.api.listing", 20000], ["hold", "pearnly_core.assistant.api.events", 20000]] }),
+  // 「添加到主屏幕」步骤（components/install-prompt.tsx）：iPhone / iPad 的浏览器里欢迎页的安装提示点「添加」出步骤弹窗与遮罩。
+  // 无界面 Chrome 会发 beforeinstallprompt（真 iPhone 不会），先拦掉，安装提示才按 iPhone 走步骤
+  S("install-guide", "/assistant", [["click", ".cc-install .cc-card-btn[data-primary]", 0], ["wait", 500]],
+    { envs: ["phone", "tablet-portrait"], expect: ".cc-install-guide", init: NO_INSTALL_PROMPT }),
 
   // ── 根节点状态 ──
   S("width-medium", "/assistant?c=sesn_rich", [], { storage: { "cc.width": "medium" } }),

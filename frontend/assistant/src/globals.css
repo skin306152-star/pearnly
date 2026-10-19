@@ -848,8 +848,7 @@
 :root {
   /* 外壳 */
   --cc-sidebar-pad: var(--cc-space-8);           /* 侧栏左右内边距 */
-  --cc-sidebar-head-pt: var(--cc-space-8);       /* 侧栏头上下 8 / 4 */
-  --cc-sidebar-head-pb: var(--cc-space-4);
+  --cc-sidebar-head-pb: var(--cc-space-4);       /* 侧栏头下 4（上 0：网页的标题区、桌面版的标题栏自带高度） */
   --cc-titlebar-gap: var(--cc-space-2);          /* 桌面窗口标题栏里控件之间 */
   --cc-topbar-gap: var(--cc-space-4);            /* 电脑对话顶栏里控件之间 */
   --cc-nav-pad: var(--cc-space-6);               /* 导航行左右内边距（新建、待处理、定时任务、公司） */
@@ -862,6 +861,7 @@
   --cc-logo: var(--cc-control-xs);               /* 24：侧栏头的 logo */
   --cc-mavatar: 48px;             /* 外壳实测：手机抽屉左下头像 */
   --cc-winbtn-w: 46px;            /* 系统值：Windows 窗口按钮宽 */
+  --cc-mirror: -1;                /* 现有值·CC 自定：水平镜像（CC 桌面版「还原」按钮的两个方框，同 Windows） */
   --cc-win-titlebar-h: 40px;      /* 外壳实测：CC 桌面版自画标题栏高（同 Claude 桌面端；别与对话顶栏 --cc-topbar-h 32 混） */
   --cc-mdrawer-px: var(--cc-space-16);           /* 手机抽屉：标题、搜索左右（外壳实测） */
   --cc-mdrawer-list-px: var(--cc-space-12);      /* 手机抽屉：列表左右（外壳实测） */
@@ -903,6 +903,9 @@
   --cc-settings-section-pt: 32px; /* 现有值·CC 自定：设置分节上 */
   --cc-settings-section-pb: var(--cc-space-4);
   --cc-settings-value-max: 22rem; /* 现有值·CC 自定：设置值列最宽 */
+  --cc-add-company-share: 0.8;    /* 现有值·CC 自定：添加公司弹窗最多占可见高（B4 补登） */
+  --cc-run-row-py: 10px;          /* 现有值·CC 自定：定时任务运行记录一行上下（B4 补登） */
+  --cc-target-card-py: 10px;      /* 现有值·CC 自定：定时任务表单里目标 ERP 卡片上下（B4 补登） */
   --cc-preview-w: 48rem;          /* 现有值·CC 自定：图片预览最宽 */
   --cc-preview-share: 0.8;        /* 现有值·CC 自定：图片预览最多占可见高 */
 
@@ -918,6 +921,11 @@
   --cc-file-icon: var(--cc-control-md);          /* 36：文件卡、提醒卡左边的图标格 */
   --cc-msg-intrinsic: 200px;      /* 现有值·CC 自定：消息离屏时的占位高（content-visibility 的性能提示，不是外观） */
   --cc-bubble-min: 20%;           /* 现有值·CC 自定：用户气泡那一列最窄（grid-cols-[minmax(…,1fr)_auto]） */
+  /* B7 补登（标准化记录 4.1）：对话区迁移时缺的档 */
+  --cc-file-card-py: 10px;        /* 现有值·CC 自定：提醒卡、结果文件卡上下（提醒卡里正文与按钮之间同值） */
+  --cc-alert-lines: 2;            /* 现有值·CC 自定：出错原因最多两行（对话 B7、会话栏允许卡 B5 共用） */
+  --cc-compose-x-stroke: 2.5px;   /* 现有值·CC 自定：输入框附件右上「×」深色下加粗 */
+  --cc-press-scale: 0.94;         /* 现有值·CC 自定：图标按钮按下缩到 94%（同 .cc-icon-btn:active；回复与代码块「复制」，V30） */
 
   /* Markdown 与代码（回复正文） */
   --cc-md-h1: 1.25em;             /* 现有值·CC 自定 */
@@ -940,9 +948,11 @@
   --cc-cell-max-w-sheet: 288px;   /* 现有值·CC 自定：结果面板的表格单元格最宽 */
   --cc-cell-max-w-doc: 320px;     /* 现有值·CC 自定：文档预览的表格单元格最宽 */
   --cc-results-head-h: 48px;      /* 现有值·CC 自定：结果面板头高（V25） */
+  --cc-doc-w: 48rem;              /* 现有值·CC 自定：结果面板里 Word 预览的正文最宽（B5 补登） */
 
   /* 其他 */
   --cc-skeleton-h: 14px;          /* 现有值·CC 自定：骨架条高 */
+  --cc-task-skeleton-h: 80px;     /* 现有值·CC 自定：定时任务列表加载时一张占位卡的高（B4 补登） */
   /* 提示框的小箭头（components/ui/tooltip.tsx，B2 补登：组件库模板带的 10 的方块转 45° 露出一角） */
   --cc-tooltip-arrow: 10px;       /* 现有值·CC 自定 */
   --cc-tooltip-arrow-turn: 45deg; /* 现有值·CC 自定 */

@@ -269,7 +269,7 @@ assert.deepEqual([...html(cut).matchAll(/data-slot="cc-month-note">([\s\S]*?)<\/
 assert.equal(unlisted(month), 0);
 assert.ok(!page.includes("cc-month-note"));
 // 组标题是语义标题
-assert.match(page, /<div class="cc-subheading flex items-center gap-1.5" role="heading" aria-level="3"><span>To do<\/span>/);
+assert.match(page, /<div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
 // choice_needed：当场选的那一行（待处理的 ChooseRow 行变体），码名 · 单据 · 金额，展开前不取可选项
 assert.match(page, /data-slot="cc-pending-choose" data-variant="row"/);
 const choose = page.split('data-variant="row"')[1].split("</button>")[0];
@@ -377,12 +377,12 @@ const render = (type: any, props: any) => renderToStaticMarkup(createElement(Sid
 // 会话栏：还没取到不占位；对话没定月份不取
 assert.ok(!render(MonthCard, { company: "COMPANY", period: "2026-09" }).includes("cc-panel-month"));
 assert.ok(!render(MonthCard, { company: "COMPANY", period: "" }).includes("cc-panel-month"));
-// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候转圈
+// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候是骨架（V27）
 const section = render(MonthSection, { company: "COMPANY", period: "", onPeriod: () => {} });
 assert.match(section, /data-slot="cc-company-month"/);
 assert.ok(text(section).slice(0, 2).join("|") === `Month-end|${monthLabel(lastMonth())}`);
 assert.match(section, /class="cc-chin-btn" data-slot="cc-period-chip"/);
-assert.match(section, /animate-spin/);
+assert.match(section, /data-slot="cc-panel-skeleton"/);
 """)
 
     def test_thai_and_chinese_words(self):
@@ -456,7 +456,7 @@ assert.match(proposals[0][1], /<button type="button" class="cc-btn-sm" data-prim
 assert.equal(proposalException(proposalItem), true);
 assert.equal(proposalException({ ...proposalItem, choice: null }), false);
 // 组标题旁「全部推送」：只在有提议的组（要处理）里
-assert.match(page, /data-slot="cc-month-group-head"><div class="cc-subheading flex items-center gap-1.5" role="heading" aria-level="3"><span>To do<\/span>/);
+assert.match(page, /data-slot="cc-month-group-head"><div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
 assert.equal((page.match(/data-slot="cc-month-push-all"/g) ?? []).length, 1);
 assert.ok(!html(withItems([mismatch, judged])).includes("cc-month-push-all"));
 // 写入与预期不符、CC 判断推送：交给 CC（预填不发送，同其余单据）；CC 判断推送只是知悉
@@ -496,10 +496,10 @@ assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);
         # 手机同一组件（会话栏照 ERP 手机端）：行里的字可截断、按钮不缩，组标题一行放得下标题与「全部推送」
         pending = read("components/pending.tsx")
         row = pending.split("export const ProposalRow: FC<", 1)[1].split("\n};", 1)[0]
-        self.assertIn('<div className={head ? "cc-panel-row" : "flex min-w-0 items-center gap-2"}>', row)
+        self.assertIn('<div className={head ? "cc-panel-row" : "flex min-w-0 items-center gap-(--cc-space-8)"}>', row)
         self.assertIn('className="cc-btn-sm" data-primary="" data-slot="cc-pending-push"', row)
         ledger = read("components/month-ledger.tsx")
-        self.assertIn('className="flex min-w-0 items-center justify-between gap-2" data-slot="cc-month-group-head"', ledger)
+        self.assertIn('className="flex min-w-0 items-center justify-between gap-(--cc-space-8)" data-slot="cc-month-group-head"', ledger)
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{co.ledger.automation}</Marquee>', ledger)
         css = read("globals.css")
         self.assertIn("flex-shrink: 0; align-items: center; gap: var(--cc-space-4); height: var(--cc-list-btn);", css)  # .cc-btn-sm 不缩（间距照标准化 B1 走 --cc-space-4）

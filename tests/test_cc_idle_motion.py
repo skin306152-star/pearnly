@@ -57,36 +57,37 @@ WORKING_CSS = {
 BUSY_MARKER = re.compile(r"animate-(?:spin|pulse|ping|bounce)\b|\banimate-cc-pulse\b|\bcc-spinner\b|<TypingDots\b|<Skeleton\b|\"cc-loading\"")
 BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
-    ("components/month-ledger.tsx", "animate-spin", "{loading && (", 3),
-    ("components/month-ledger.tsx", "animate-spin", "{busy && <LoaderIcon", 0),  # 「全部推送」请求没回来（数字会计员第 3 期）
-    ("components/results-panel.tsx", "animate-spin", "function Loading()", 3),
-    ("components/add-company.tsx", "animate-spin", "rows === null ?", 3),
-    ("components/add-company.tsx", "animate-spin", "busy === row.identity ?", 1),
-    ("components/add-company.tsx", "animate-spin", "refreshing ?", 0),
-    ("components/companies.tsx", "animate-pulse", "shown === null ?", 2),
-    ("components/companies.tsx", "animate-spin", "loading &&", 0),
-    ("components/session-panel.tsx", "animate-spin", "{!detail && !error && (", 3),
-    ("components/pending.tsx", "animate-spin", "items === null ?", 2),
-    ("components/pending.tsx", "animate-spin", "open && !view && !error", 3),
-    ("components/pending.tsx", "animate-spin", "busy &&", 0),
-    ("components/company-page.tsx", "animate-spin", "if (!detail)", 3),
-    ("components/company-page.tsx", "animate-spin", "if (!rows) return", 0),
-    ("components/company-cards.tsx", "animate-spin", "busy ?", 0),
-    ("components/scheduled-tasks.tsx", "animate-pulse", "rules === null || shown === null ?", 3),
+    ("components/month-ledger.tsx", "cc-spinner", "{busy && <LoaderIcon", 0),  # 「全部推送」请求没回来（数字会计员第 3 期）
+    ("components/results-panel.tsx", "cc-spinner", "function Loading()", 3),
+    ("components/company-cards.tsx", "<Skeleton", "export const PanelSkeleton", 3),
+    ("components/company-cards.tsx", "cc-spinner", "busy ?", 0),
+    ("components/add-company.tsx", "cc-spinner", "rows === null ?", 3),
+    ("components/add-company.tsx", "cc-spinner", "busy === row.identity ?", 1),
+    ("components/add-company.tsx", "cc-spinner", "refreshing ?", 0),
+    ("components/companies.tsx", "animate-cc-pulse", "shown === null ?", 2),
+    ("components/companies.tsx", "cc-spinner", "loading &&", 0),
+    ("components/pending.tsx", "cc-spinner", "items === null ?", 2),
+    ("components/pending.tsx", "cc-spinner", "open && !view && !error", 3),
+    ("components/pending.tsx", "cc-spinner", "busy &&", 0),
+    ("components/company-page.tsx", "cc-spinner", "if (!detail)", 3),
+    ("components/company-page.tsx", "cc-spinner", "if (!rows) return", 0),
+    ("components/scheduled-tasks.tsx", "animate-cc-pulse", "rules === null || shown === null ?", 3),
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
-    ("components/assistant-ui/thread-list.tsx", "animate-spin", "loadingMore &&", 0),
+    ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loadingMore &&", 0),
     ("components/assistant-ui/thread-list.tsx", "<Skeleton", "const ThreadListSkeleton", 15),
-    ("components/assistant-ui/thread.tsx", "<Skeleton", "pending.files.map", 3),
+    ("components/assistant-ui/attachment.tsx", "<Skeleton", "{loading ?", 0),
     ("components/assistant-ui/thread.tsx", "<TypingDots", "if (!visible) return null;", 12),
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
-    ("components/assistant-ui/attachment.tsx", "animate-spin", "{isUploading && (", 5),
-    ("components/pending.tsx", "animate-spin", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
+    ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
+    ("components/pending.tsx", "cc-spinner", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
 BUSY_MOUNTS = [
     ("components/assistant-ui/thread.tsx", "{isLoading && Loading && <Loading />}"),
     ("components/assistant-ui/thread-list.tsx", "<AuiIf condition={(s) => s.threads.isLoading && !s.threads.threadIds.length}>\n        <ThreadListSkeleton />"),
     ("components/results-panel.tsx", "if (!preview) return <Loading />;"),
+    ("components/session-panel.tsx", "{!detail && !error && <PanelSkeleton />}"),
+    ("components/month-ledger.tsx", "{loading && <PanelSkeleton />}"),
     ("components/assistant-ui/thread.tsx", "if (!pending) return null;"),
 ]
 

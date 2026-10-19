@@ -70,7 +70,10 @@ const DONE = [
   { type: "session.status_idle", id: "sevt_s9", processed_at: at(5), stop_reason: { type: "end_turn" } },
 ];
 
+// 标题 1–4 级、分隔线、脚注（上标）也各放一处：对话区 Markdown 的每种块都有场景渲染到（B7 补）
 const MARKDOWN = [
+  "# 九月对账",
+  "",
   "## สรุปการกระทบยอด",
   "",
   "เดือนกันยายนตรวจแล้ว **42** รายการ มี `2` รายการที่ยังไม่ตรง：",
@@ -86,12 +89,22 @@ const MARKDOWN = [
   "",
   "> 对不上的两张已经放进待处理。",
   "",
+  "### 小结",
+  "",
+  "#### 说明",
+  "",
+  "金额按含税计[^1]。",
+  "",
+  "---",
+  "",
   "```python",
   "total = sum(row.amount for row in rows)",
   "print(f\"{total:,.2f}\")",
   "```",
   "",
   "详见 [对账说明](https://example.invalid/recon)。",
+  "",
+  "[^1]: 不含预扣税。",
 ].join("\n");
 
 // 前面几轮问答：让对话比一屏长，滚到底按钮才有机会出现
@@ -102,7 +115,7 @@ const EARLIER = Array.from({ length: 6 }, (_, i) => [
 
 const RICH = [
   ...EARLIER,
-  { type: "user.message", id: "sevt_ru1", processed_at: at(0), content: [{ type: "text", text: "把九月的对账结果整理成表格" }] },
+  { type: "user.message", id: "sevt_ru1", processed_at: at(0), content: [{ type: "text", text: "把九月的对账结果整理成表格\n\n[Attached file, mounted read-only in the sandbox:\n- a.pdf → /mnt/session/uploads/file_p/a.pdf]" }] },
   { type: "session.status_running", id: "sevt_rs1", processed_at: at(1) },
   { type: "agent.tool_use", id: "sevt_rt1", processed_at: at(2), name: "bash", input: { command: "python3 recon.py --month 2026-09" } },
   { type: "agent.tool_result", id: "sevt_rr1", processed_at: at(3), tool_use_id: "sevt_rt1", content: [{ type: "text", text: "42 rows\n2 mismatched" }] },

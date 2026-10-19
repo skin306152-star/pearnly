@@ -26,10 +26,10 @@ export function keysFor(keys: string, apple = appleKeys()): string {
   return apple ? keys.replace(/\w+/g, (key) => APPLE[key] ?? key) : keys;
 }
 
-/** 菜单项右边的灰字；kbd：设置里那一格（带边框）。 */
+/** 菜单项右边的灰字（.cc-menu-key，与会话行菜单的单字母快捷键同一类）；kbd：设置里那一格（.cc-kbd）。 */
 export function Shortcut({ keys, kbd }: { keys: string; kbd?: boolean }) {
   if (!showShortcuts()) return null;
   const shown = keysFor(keys);
-  if (kbd) return <kbd className="rounded-md border bg-app px-2 py-0.5 font-sans text-muted-foreground text-xs">{shown}</kbd>;
-  return <span className="text-ink-3 text-xs">{shown}</span>;
+  if (kbd) return <kbd className="cc-kbd">{shown}</kbd>;
+  return <span className="cc-menu-key">{shown}</span>;
 }

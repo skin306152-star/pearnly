@@ -33,6 +33,7 @@ ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统�
 | `desktop` | CC 桌面版窗口（`isDesktopApp()`） | 浮成卡片，离窗口边 8px，白卡 / `#262626`，卡片阴影 | 30 | 14 | — |
 | `phone` | 窄屏（< 768） | 抽屉 | 44 | — | 组标题带 44、组箭头与组操作常显、正文 16/24 |
 
+- 侧栏列表（标准化 B6 起）：会话行是 `.cc-thread-row`，行尾「···」与组标题的操作是 `.cc-row-btn`；无结果一行 `.cc-empty-line`（菜单里不能点的一行 `.cc-menu-label`）；「加载更多」行与加载骨架行同会话行高 `--cc-row-h`，转圈 `.cc-spinner`；菜单最小宽写 `min-w-(--cc-menu-w-sm / md / lg)`、最宽 `max-w-(--cc-menu-w-max)`，不写 `!min-w-*`。
 - 只有舒适档（没有密度设置入口，不写紧凑档）。行字 14/20、组标题 13/16 淡色（鼠标在侧栏里变次要色）、行尾控件 24（圆角 6）、导航图标 20 放在 28 的前导槽、行圆角 8。
 - 侧栏行悬停 / 选中：浅色 `#f0efec` / `#edece8`，深色白 7.5% / 15%；**会话列表里选中 = 悬停色 + 主色字**，悬停不改字色。
 - 菜单：圆角 12、内边距 4、最小宽 128、弹层底 + 1px 内环 + 弹出阴影；项高 32、圆角 8、内边距 6/10；分隔线 1px 左右内缩 10、上下 4；右侧当前值 13px 淡色（`.cc-menu-value`）；不可用 40%。放不下时按完整高度翻到另一边（`components/ui/menu.tsx` 的 `pickSide`），两边都放不下取大的一边在菜单里滚动；页面限高写 `[--cc-menu-max:…]`。
@@ -59,7 +60,11 @@ ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统�
 - 触屏的三种判定各管各的：`data-cc-touch`（`lib/variant.ts` 写：手机变体，或粗指针且不是桌面窗口）管尺寸与点按区，globals.css 用 `:root[data-cc-touch]`、组件用 `in-data-[cc-touch]:`；`data-cc-variant` 管外壳变体；`lib/touch.ts` 的 `touchOnly()`（`hover: none`）只管「没有悬停」时的行为（长按、操作常显），不管尺寸。
 - 只做舒适档，不加紧凑档。
 - JS 里用到的值（菜单离触发器、子菜单离父菜单、离屏幕边，提示框延时，拖动浮层层级，列表预取距离）同样只在 globals.css 定值，**用的时候读**（打开菜单、提示框出现、拿起拖动那一刻），不在导入或首次渲染时读（生产页动态插入样式表，太早读到空串）：`lib/css-var.ts` 的 `fixedPx / fixedMs`（不随变体变的值，读到就记住）与 `cssVar / cssPx / cssMs`（现读现算），各处的回退常量与 globals.css 同值、测试核对。菜单离触发器写 `sideOffset={menuOffset()}`（`components/ui/menu.tsx`），不写数。
+- 菜单（B3 起）：主菜单离触发器一律 `menuOffset()`，子菜单 `SubMenu` 不写 `sideOffset`（用包装的默认 `--cc-menu-sub-offset`）；最小宽用宽档 `min-w-(--cc-menu-w-sm / -md / -lg)`，不用 `!min-w-*` 压 `.cc-menu`；菜单里不能点的说明行（如用户菜单顶上的账号）`.cc-menu-label`；快捷键提示只经 `<Shortcut>`：菜单项右边是 `.cc-menu-key`（与会话行菜单的单字母同一类），设置里那一格是 `.cc-kbd`。
 - 组件库（`components/ui`）只留在用的部件，外观同样只走变量与 `cc-*` 类；提示框、弹窗的进出场用 `.cc-pop` / `.cc-overlay`，骨架用 `animate-cc-pulse`，不用 tw-animate。
+- 面板与预览里同一类东西用同一个类（B5 起）：页签 `.cc-tabs`（指示线贴内容一侧，内容在上面时写 `data-edge="top"`），表格单元格 `.cc-table`（`data-kind="sheet" / "doc"` 只换最宽与最窄），出错框 `.cc-alert`，面板头的图标钮 `.cc-icon-btn cc-tap`、文字按钮 `.cc-btn`；会话栏还没取到时用 `PanelSkeleton`（`components/company-cards.tsx`，两条骨架），按钮里、行内的转圈用 `.cc-spinner`。会话栏卡片里的字不另写字号，继承卡片的 13/19。结果面板的 Word 预览块距、正文行高、列表缩进同对话里的 Markdown（`--cc-md-heading / -block`、`--cc-body-*`、`--cc-md-list-indent`）。
+- 对话区（`components/assistant-ui` 的 thread、attachment、markdown-text，B7 起）用共用类：你发的消息与发送中的气泡 `.cc-user-row`，提醒卡与结果文件卡 `.cc-file-card` / `.cc-file-card-icon`，出错那一行 `.cc-alert`，滚到底 `.cc-scroll-btn`，代码块 `.cc-code-block-head` + `.cc-code-block`，回复里的表格 `.cc-table`，回复与代码块的「复制」`.cc-row-btn cc-tap`；发送中的附件同发出后的 `.cc-attach-card`，缩略图位置是骨架。`TooltipIconButton` 只是带提示框的普通 `<button>`，外观全由调用方的 `cc-*` 类给，不套 shadcn 的 Button。
+- 弹窗与列表页（B4 起）：居中弹窗的外壳只用 `.cc-dialog`（`data-size` sm / md / lg）+ `.cc-dialog-head / -title / -body / -foot`，遮罩 `.cc-overlay`，层级在调用处给（普通 `--cc-z-sheet`、删除确认 `--cc-z-confirm`）；出错框 `.cc-alert`、空状态卡 `.cc-empty`、无结果与加载占位行 `.cc-empty-line`、底部提示条 `.cc-toast`、转圈 `.cc-spinner`、加载卡片 `animate-cc-pulse`；设置左栏同侧栏导航行（`.cc-nav-item` + `.cc-nav-icon`、组标题 `.cc-section-label`），开关 `.cc-switch`，连接状态 `.cc-status-line[data-status]` + `.cc-status-dot`，文字按钮 `.cc-btn`、只有图标的 `.cc-icon-btn`、行尾小图标钮 `.cc-row-btn`；卡片按钮里的图标不写尺寸（`.cc-card-btn svg` 决定，手机 22），也不加装饰图标。
 - 开着不操作不耗电（10-18 起，[静置动效记录](../work/2026-10-18-cc-idle-animations.md)）：装饰动画（产品形象小单的眨眼、笑、尾巴、铃铛、举牌、打勾）不无限循环，出现时播 `--cc-mascot-*-runs` 轮（轮数 × 时长不超过约 10 秒）后停在静止姿势——keyframes 的结尾就是不加动画时的样子；页面在后台（`visibilityState` hidden）时暂停、回到前台接着播；问候语换了且上一次已播完才再播一次。无限循环只留给「正在工作」的动画（按钮与行内转圈、等待回复的四点、在跑的对话行尾脉冲点、骨架、加载页形象上下浮），而且只在工作时挂载；减少动效时照旧不播（转圈除外）。动画轮数同时长一样只写 `var()`（闸门：globals.css 记 R13、任意属性记 R8、内联 style 记 R12）。`tests/test_cc_idle_motion.py` 核对：装饰动画轮数与总时长、静止姿势与 keyframes 首尾一致、infinite 白名单、组件里「在忙」动画与 `setInterval`、自排 `requestAnimationFrame` 的循环都登记了只在什么时候跑。
 
 ## 2. 对话里的卡片

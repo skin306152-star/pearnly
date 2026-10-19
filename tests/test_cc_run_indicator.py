@@ -432,20 +432,26 @@ assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertNotIn("resume()", thread)
         self.assertIn('turnAnchor="top"', thread)
-        arrow = thread[thread.index("const ThreadScrollToBottom"):thread.index("const ThreadWelcome")]
+        arrow = thread[thread.index("const ThreadScrollToBottom"):thread.index("const Composer: FC")]
         # ↓ 照 13.webp：40 的圆、箭头 20、在输入框上方居中；点了平滑滚到最新；在底部时藏起来
         self.assertIn('<ThreadPrimitive.ScrollToBottom asChild behavior="smooth">', arrow)
         # 第 11 轮 C21：读屏名写在 aria-label 上（复用 scrollToBottom 词条）；到底时 visibility: hidden，读屏读不到、Tab 走不到
         self.assertIn('aria-label={t("scrollToBottom")}', arrow)
         self.assertIn('tooltip={t("scrollToBottom")}', arrow)
-        # aria-label 原样落到按钮上（TooltipIconButton 把其余属性展开到 Button，不另给 aria-label 盖掉）
+        # aria-label 原样落到按钮上（TooltipIconButton 把其余属性展开到按钮，不另给 aria-label 盖掉）；B7 起是普通 <button>，不再套 shadcn Button
         button = (SRC / "components/assistant-ui/tooltip-icon-button.tsx").read_text(encoding="utf-8")
         self.assertIn("{...rest}", button)
         self.assertNotIn("aria-label", button)
-        for cls in ("size-10", "p-0", "-top-9", "self-center", "rounded-full", "disabled:invisible"):
-            self.assertIn(cls, arrow)
-        self.assertNotIn("p-4", arrow)
-        self.assertIn('<ArrowDownIcon className="size-5" />', arrow)
+        self.assertNotIn("@/components/ui/button", button)
+        # 样子是共用的 .cc-scroll-btn（V70）：40 的圆、在输入框上方居中、比输入框顶高出一个钮减 4、到底时藏起来、箭头 20
+        self.assertIn('className="aui-thread-scroll-to-bottom cc-scroll-btn"', arrow)
+        self.assertIn("<ArrowDownIcon />", arrow)
+        css = (SRC / "globals.css").read_text(encoding="utf-8")
+        scroll = css[css.index("  .cc-scroll-btn {"):css.index("  .cc-scroll-btn svg")]
+        for decl in ("top: calc(var(--cc-space-4) - var(--cc-control-lg));", "align-self: center;", "width: var(--cc-control-lg); height: var(--cc-control-lg);",
+                     "border-radius: var(--cc-radius-full);", ".cc-scroll-btn:disabled { visibility: hidden; }"):
+            self.assertIn(decl, scroll)
+        self.assertIn(".cc-scroll-btn svg { width: var(--cc-icon); height: var(--cc-icon); }", css)
 
     def test_sending_on_a_phone_drops_the_keyboard(self):
         # 手机（触屏或手机外壳）发出去就收起键盘（同 Claude 手机 app，11.webp）；电脑保持焦点；回车、发送键两条路都管
@@ -1623,8 +1629,9 @@ g.setTimeout = realSetTimeout;
         self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <Composer />", thread)
         failure = thread.split("const SendFailure: FC = () => {", 1)[1].split("\n};\n", 1)[0]
         self.assertIn('<div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>', failure)
-        self.assertIn('<p className="line-clamp-2">{message}</p>', failure)
-        self.assertIn('<ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>', thread)
+        self.assertIn('const ERROR_BOX = "cc-alert";', thread)  # 同对话里出错那一行：统一的出错框（V12）
+        self.assertIn('<p className="line-clamp-(--cc-alert-lines)">{message}</p>', failure)
+        self.assertIn('<ErrorPrimitive.Root className={cn("aui-message-error-root", ERROR_BOX)}>', thread)  # 块间距归 .cc-reply（V32）
         attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")
         self.assertIn("(placed ? localPreview(placed) : undefined)", attachment)
 
@@ -1722,7 +1729,7 @@ g.respond = respond;
         # 状态行挂在临时气泡下、这一轮的回复（或组件库补的占位）里：放在回复外面会被「推到顶上」留的空白挤到屏幕最下面
         bubble = thread[thread.index("const PendingSendBubble"):thread.index("function useShownPending")]
         # 状态行在 CC 一侧（左，px-2 同回复），不在用户气泡那一列；用户气泡发送时不扫光（用户 10-16，同 Claude）
-        self.assertIn('<RunIndicator className="px-2 pt-4" />', bubble)
+        self.assertIn('<RunIndicator className="px-(--cc-space-8) pt-(--cc-run-gap)" />', bubble)
         self.assertNotIn("col-start-1", bubble)
         self.assertNotIn("data-sending", bubble)
         css = (SRC / "globals.css").read_text(encoding="utf-8")

@@ -170,7 +170,7 @@ class PushTests(unittest.TestCase):
     def test_settings_row_and_sign_out_forget_the_device(self):
         settings = read("components/settings.tsx")
         self.assertIn("const push = usePush();", settings)
-        self.assertIn('push.failure && <div className="text-danger text-xs">{push.failure}</div>', settings)
+        self.assertIn('push.failure && <div className="text-danger text-caption">{push.failure}</div>', settings)
         self.assertIn("export function Switch(", settings)
         self.assertIn("<Notifications />", settings)
         # 这一行一直在（桌面端窗口除外）：开不了开关灰着，下面一行给原因（用户 2026-10-13，iPhone 上找不到「通知」）
@@ -1074,13 +1074,13 @@ assert.doesNotMatch(row(), /Ctrl/);
 g.device.touch = false;
 assert.equal(showShortcuts(), true);
 // 苹果设备接了键盘：按 ⌘ / ⌥ 显示（第 7 轮）
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">⌘ ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">⌘ ,</span>');
 assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), /^<kbd class="[^"]*">⌘ \+ ⌥ \+ Space<\/kbd>$/);
 
 g.device.touch = true;
 g.qt = { webChannelTransport: {} };
 assert.equal(showShortcuts(), true);
-assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-xs">⌘ N</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="cc-menu-key">⌘ N</span>');
 """, lang="th")
 
     def test_shortcuts_use_command_on_mac_and_ctrl_elsewhere(self):
@@ -1088,17 +1088,17 @@ assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-x
         self.on_device("windows-chrome", r"""
 import { appleKeys, keysFor } from "@/components/shortcut";
 assert.equal(appleKeys(), false);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">Ctrl ,</span>');
 assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), />Ctrl \+ Alt \+ Space<\/kbd>$/);
 assert.equal(keysFor("Ctrl R", true), "⌘ R");
 assert.equal(keysFor("Ctrl + Alt + Space", true), "⌘ + ⌥ + Space");
 assert.equal(keysFor("Ctrl =", false), "Ctrl =");
 (navigator as any).userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
 assert.equal(appleKeys(), true);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">⌘ ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">⌘ ,</span>');
 (navigator as any).userAgentData = { platform: "Linux" };
 assert.equal(appleKeys(), false);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">Ctrl ,</span>');
 """)
 
     def test_iphone_safari_tab_shows_the_row_with_add_to_home_screen(self):
@@ -1531,7 +1531,7 @@ html = renderToStaticMarkup(createElement(ApprovalBar, {
   approval: { id: "x", preview: rows(1), failure: "Something went wrong. Try again." }, respondToApproval: () => {} }));
 assert.equal(buttons(html).length, 2);
 assert.ok(html.indexOf('role="alert"') < html.indexOf("<button"));
-assert.match(html, /<p class="line-clamp-2">Something went wrong\. Try again\.<\/p>/);
+assert.match(html, /<p class="line-clamp-\(--cc-alert-lines\)">Something went wrong\. Try again\.<\/p>/);
 g.done();
 """)
         run_ts(APPROVAL_CARD + r"""
@@ -1901,17 +1901,17 @@ const markup = html(DocumentView, { blocks: [
 ] });
 assert.match(markup, /<h1 class="[^"]*text-2xl[^"]*text-center">สรุปภาษี ก\.ย\. 2569<\/h1>/);
 assert.match(markup, /<h2 class="[^"]*">ภาษีขาย<\/h2>/);
-assert.match(markup, /<p class="mb-2">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-2"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-2">ลิงก์<\/span><\/p>/);
-assert.match(markup, /<p class="mb-2 flex gap-2" style="padding-inline-start:1\.5em"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
-assert.match(markup, /<p class="mb-2"> <\/p>/);  // 空段落占一行
-assert.match(markup, /<td class="[^"]*bg-subtle[^"]*"><p class="mb-0">รายการ<\/p><\/td>/);
-assert.match(markup, /<td colSpan="2" rowSpan="2" class="[^"]*"><p class="mb-0">1,234\.00<\/p><\/td>/);
-assert.match(markup, /<p class="mb-0 text-right">รวม<\/p>/);
-assert.match(markup, /<td class="[^"]*"><div class="my-3 max-w-full overflow-x-auto"><table/);  // 表中表
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-\(--cc-link-offset\)"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-\(--cc-link-offset\)">ลิงก์<\/span><\/p>/);
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0 flex gap-\(--cc-space-8\)" style="padding-inline-start:calc\(var\(--cc-md-list-indent\) \* 1\)"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0"> <\/p>/);  // 空段落占一行
+assert.match(markup, /<td class="[^"]*bg-subtle[^"]*"><p>รายการ<\/p><\/td>/);
+assert.match(markup, /<td colSpan="2" rowSpan="2" class="[^"]*"><p>1,234\.00<\/p><\/td>/);
+assert.match(markup, /<p class="text-right">รวม<\/p>/);
+assert.match(markup, /<td class="[^"]*"><div class="mt-\(--cc-md-block\) first:mt-0 max-w-full overflow-x-auto"><table/);  // 表中表
 assert.match(markup, /<img src="data:image\/png;base64,iVBORw0KGgo=" alt="" draggable="false" class="[^"]*max-w-full[^"]*" style="width:100px;aspect-ratio:100 \/ 50"\/>/);
 // 手机：整篇竖着滚、不横向撑开；宽表格在自己的框里横着滚；长串文字折行；图片不超过面板宽
 assert.match(markup, /^<div class="h-full overflow-x-hidden overflow-y-auto"><article class="[^"]*break-words[^"]*">/);
-assert.equal((markup.match(/<div class="my-3 max-w-full overflow-x-auto"><table/g) ?? []).length, 2);
+assert.equal((markup.match(/<div class="mt-\(--cc-md-block\) first:mt-0 max-w-full overflow-x-auto"><table/g) ?? []).length, 2);
 // 颜色只用设计变量（globals.css）：不写死色值
 assert.doesNotMatch(markup, /#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
 """)
@@ -1937,9 +1937,9 @@ for (const tag of tags(markup)) {
 }
 assert.match(markup, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 assert.match(markup, /&lt;img src=x onerror=alert\(1\)&gt;/);
-assert.match(markup, /<p class="mb-2">s<\/p><p class="mb-2">p<\/p>/);  // 不认识的样式按正文、不当标签名
+assert.match(markup, /<p class="mt-\(--cc-md-block\) first:mt-0">s<\/p><p class="mt-\(--cc-md-block\) first:mt-0">p<\/p>/);  // 不认识的样式按正文、不当标签名
 assert.match(markup, /<span class="shrink-0 tabular-nums">&lt;b&gt;m&lt;\/b&gt;<\/span>/);
-assert.match(markup, /<td class="[^"]*"><p class="mb-0">c<\/p><\/td>/);  // 怪的合并数不带出来
+assert.match(markup, /<td class="[^"]*"><p>c<\/p><\/td>/);  // 怪的合并数不带出来
 assert.equal(safeImage("data:image/webp;base64,UklGRg=="), "data:image/webp;base64,UklGRg==");
 assert.equal(safeImage("data:image/jpeg;base64,/9j/4AAQ"), "data:image/jpeg;base64,/9j/4AAQ");
 for (const bad of ["data:image/png;base64,AA== x", "DATA:image/png;base64,AA==", "data:image/png,raw", "", null, {}])
@@ -2521,13 +2521,19 @@ g.done();
         item = thread_list.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]   # 置顶行、组里可拖的行、不能拖的行都是这一份（ThreadListItem 按所在的组选）
         self.assertIn("<ThreadListItemPrimitive.Title", item)
         self.assertIn("<ThreadActivity />", item)  # 行尾在跑、未读圆点照旧
-        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体
-        self.assertIn("hover:bg-row-hover", item)
-        self.assertIn("data-active:bg-row-hover", item)
-        self.assertIn("data-active:text-ink", item)
-        self.assertIn('<MoreHorizontalIcon className="size-(--cc-icon-sm)" />', thread_list)  # 行尾「···」图标 16，同 .cc-row-btn
-        self.assertIn("has-focus-visible:text-ink", item)  # 键盘焦点同选中一样主色字（设计文档 3.5），悬停不改字色
-        self.assertNotIn("hover:text-", item)
+        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体：写在共用类 .cc-thread-row（标准化 B6）
+        self.assertIn('className="cc-thread-row group/item"', item)
+        row_css = read("globals.css").split("  .cc-thread-row {", 1)[1].split("\n  /*", 1)[0]
+        self.assertIn("min-height: var(--cc-row-h);", row_css)
+        self.assertIn(".cc-thread-row:is(:hover, :focus-visible, [data-active], :has(:focus-visible), :has([data-state=\"open\"])) { background: var(--cc-row-hover); }", row_css)
+        self.assertIn(".cc-thread-row:is([data-active], :has(:focus-visible)) { color: var(--cc-ink); }", row_css)
+        self.assertNotIn(":hover) { color", row_css)
+        # 行尾「···」是行里的图标按钮 .cc-row-btn（24、圆角 6、淡色、图标 16；标准化 B6 / V29，原来是组件库 Button）
+        more = thread_list.split('data-slot="aui_thread-list-item-more"\n', 1)[1].split("\n", 1)[0]
+        self.assertIn('className="cc-row-btn absolute ', more)
+        self.assertIn("<MoreHorizontalIcon />", thread_list)
+        self.assertNotIn("@/components/ui/button", thread_list)
+        self.assertNotIn("hover:text-", item)  # 键盘焦点同选中一样主色字（设计文档 3.5，见上面 .cc-thread-row），悬停不改字色
         self.assertIn("h-(--cc-row-h)", item)
         # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪
         self.assertIn("s.threads.isLoading && !s.threads.threadIds.length", thread_list)
@@ -2657,7 +2663,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 新对话：「公司 ▾」选公司（至少有一家公司才出现），下巴里菜单向上开；月份、分店是草稿
         draft = projects.split('const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {', 1)[1].split("\n};", 1)[0]
         self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
-        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
+        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">', draft)
         self.assertIn('<PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
         # 手机新对话：同一行放在问候下面（WelcomeFiling），菜单向下开；只在手机、Cowork、新对话
@@ -4115,7 +4121,7 @@ assert.equal(choiceAfter(["a"], "a"), "");
 const pay = { key: "k1", source: "express", kind: "payment", subject_label: "ACME", value: "cash", editable: true, year_label: "69", promotable: true };
 const props = (open: boolean, error = "") => ({ choice: pay, open, error, onToggle() {}, onSet() {}, onForget() {}, onPromote() {} });
 const opened = renderToStaticMarkup(createElement(ChoiceRow, props(true, "Something went wrong. Try again.")));
-const alert = '<p role="alert" class="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">Something went wrong. Try again.</p>';
+const alert = '<p role="alert" class="cc-choice-error text-danger" data-slot="cc-choice-error">Something went wrong. Try again.</p>';
 assert.ok(opened.includes('</button></div>' + alert + '</div></div>'), opened);       // 按钮行（cc-card-actions）紧接着就是原因，在这一条里
 assert.ok(opened.indexOf('data-slot="cc-choice-forget"') < opened.indexOf(alert));
 const closed = renderToStaticMarkup(createElement(ChoiceRow, props(false, "Something went wrong. Try again.")));
@@ -5512,8 +5518,11 @@ setDragging(false);
         self.assertIn("export const OVERLAY_Z = 55;", drag)
         overlay = drag.split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
         self.assertIn('overlay.className = "cc-drag-overlay";', overlay)
-        self.assertIn("style.zIndex = String(OVERLAY_Z);", overlay)
+        # 层级在 globals.css 的 --cc-z-drag，拿起时读（标准化记录 2.6）；OVERLAY_Z 是读不到时的回退值，与 globals.css 同值
+        self.assertIn("style.zIndex = String(overlayZ());", overlay)
+        self.assertIn('export const overlayZ = () => fixedPx("--cc-z-drag", OVERLAY_Z);', drag)
         css = read("globals.css")
+        self.assertRegex(css, r"(?m)^\s*--cc-z-drag: 55;")
         # 层级 B1 起写成刻度层的变量（--cc-z-*），按变量取值
         level = lambda m: m and re.search(r"(?m)^\s*" + re.escape(m.group(1)) + r":\s*(\d+);", css)
         menu = level(re.search(r"\.cc-menu \{\s*z-index: var\((--cc-z-[\w-]+)\);", css))
@@ -6585,13 +6594,14 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
                            ("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}')):
             self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
         for rel in ("components/add-company.tsx", "components/scheduled-tasks.tsx"):
-            self.assertIn('<DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
+            self.assertIn('<DialogPrimitive.Title className="cc-dialog-title">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
-        self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
-        self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
+        self.assertIn('<Marquee className="typing-dots-label ms-(--cc-dots-gap) min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
+        self.assertIn('<Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body"', read("components/settings.tsx"))
         panel = read("components/results-panel.tsx")
-        self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
+        self.assertIn('"cc-fade-cell border border-line"', panel)
+        self.assertIn('className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="sheet"', panel)  # 最宽 288 由 .cc-table[data-kind="sheet"] 给（V13）
         self.assertIn('watchOverflow([el], () => el.querySelectorAll<HTMLElement>("td.cc-fade-cell"))', panel)
         # 其余还写着 truncate 的只能在 Marquee 上（盖掉省略号）；保留原样的：文件下拉框（原生控件）。没用到的官方侧栏菜单按钮
         # （[&>span:last-child]:truncate）标准化 B2 已删
@@ -6605,7 +6615,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
                 context = "\n".join(text.splitlines()[max(0, i - 3):i + 1])
                 self.assertTrue(any(rel == f and key in context for f, key in allowed), f"{rel}:{i + 1}: {line.strip()}")
         # 多行截断（line-clamp）不在这次范围，保持原样
-        self.assertIn("line-clamp-2", read("components/assistant-ui/thread.tsx"))
+        self.assertIn("line-clamp-(--cc-alert-lines)", read("components/assistant-ui/thread.tsx"))
 
 
 class Round5SmallFixesTests(unittest.TestCase):
@@ -6654,7 +6664,7 @@ class Round5SmallFixesTests(unittest.TestCase):
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
         # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
         # 第 11 轮按钮排查 H26：文字格与图标格一样高 28、手机点按区 44（cc-tap）
-        self.assertIn('"cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",',
+        self.assertIn('"cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-body [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",',
                       read("components/settings.tsx"))
         self.assertIn(".cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }", block(css, "@layer components {"))
         mobile = css.index(".cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {")
@@ -8696,7 +8706,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         tile = read("components/assistant-ui/attachment.tsx")
         self.assertIn('className="aui-attachment-tile cc-compose-tile"', tile)
         self.assertIn("cc-compose-x", tile)
-        self.assertIn("size-5 rounded-full p-0", tile)
+        self.assertIn("size-(--cc-control-2xs) items-center justify-center rounded-full", tile)  # 右上 20 的圆形移除
         # 位置写在 globals.css（手机要挪到外角，工具类盖不住）：组件上不再写 end-1.5 top-1.5
         self.assertNotIn("end-1.5 top-1.5", tile)
         self.assertIn(".cc-compose-x { top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); }", css)
@@ -8737,8 +8747,8 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
         # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
         self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 6)
-        # 设置「电脑」列表每台电脑行尾「···」：电脑 28，手机点按区 44（.cc-tap）
-        self.assertIn('className="cc-tap flex size-7 items-center justify-center rounded-md', read("components/settings.tsx"))
+        # 设置「电脑」列表每台电脑行尾「···」：电脑 24（.cc-row-btn，标准化 V22；原来手写 28），手机点按区 44（.cc-tap）
+        self.assertIn('className="cc-row-btn cc-tap"', read("components/settings.tsx"))
         self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))
         # D26：触屏平板（网页布局 + 粗指针）对话顶栏 44、顶栏图标钮与侧栏收起钮点按区 44，鼠标与桌面版不跟
         # 触屏判定 B1 起统一成 data-cc-touch（手机变体，或粗指针且不是桌面窗口；lib/variant.ts），网页布局再加 data-cc-variant="web"
@@ -8809,10 +8819,10 @@ class Round11ReviewTests(unittest.TestCase):
     def test_scheduled_task_target_cards_are_tappable_edge_to_edge(self):
         # 审查（复量附录 #83）：写入目标卡（MR.ERP / Express）的内边距在卡片上，按钮只有 21–38 高；挪进按钮，手机至少 44
         tasks = read("components/scheduled-tasks.tsx")
-        self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>', tasks)
-        self.assertIn('className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"', tasks)
-        self.assertIn('<button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>', tasks)
-        self.assertNotIn("cc-card flex items-center justify-between gap-2 px-3 py-2.5", tasks)
+        self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>', tasks)
+        self.assertIn('"cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default",', tasks)
+        self.assertIn('<button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>', tasks)
+        self.assertNotIn("cc-card flex items-center justify-between gap-(--cc-space-8) px-", tasks)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
