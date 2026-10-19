@@ -100,7 +100,8 @@ export type ChoicesView = {
 };
 /** 当场选作答的结果（assistant/pending_api.answer）：sent = 已交出去（Express 由 CC 桌面版写入）；already_* = 早推过了；
  *  needs_choice = 还有要选的；其余（failed、waiting_for_cc…）原因记在单上，仍在「待处理」。 */
-export type AnswerResult = { document: string; status: string; reason?: string; reason_label?: string };
+// settled：选现用账套时同一组还停在「多份账套」、按记住的那份接着判了的张数（列表要重取）
+export type AnswerResult = { document: string; status: string; reason?: string; reason_label?: string; settled?: number };
 export const answered = (result: Pick<AnswerResult, "status">) => result.status === "sent" || result.status.startsWith("already_");
 
 // ---------------------------------------------------------------- 接口
@@ -179,10 +180,11 @@ export function pushProposals(company: string, period: string): Promise<{ result
   return postMethod("pearnly_cowork.assistant.pending_api.push_proposals", { company, period });
 }
 
-/** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）。 */
-export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<Array<{ key: string; label: string }>> {
-  return getMethod<{ account_sets?: Array<{ key: string; label: string }> }>("pearnly_cowork.assistant.pending_api.account_sets",
-    { document: item.document }).then((found) => found?.account_sets ?? []);
+/** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）；
+ *  current 是这一组已经记住、仍算数的现用账套（预选它，F18：只预选已定的），没有为空串。 */
+export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<{ sets: Array<{ key: string; label: string }>; current: string }> {
+  return getMethod<{ account_sets?: Array<{ key: string; label: string }>; current?: string }>("pearnly_cowork.assistant.pending_api.account_sets",
+    { document: item.document }).then((found) => ({ sets: found?.account_sets ?? [], current: found?.current ?? "" }));
 }
 
 /** 换到选的那份账套并重推这一张（assistant.pending_api.choose_account_set）；结果同 answerChoices。

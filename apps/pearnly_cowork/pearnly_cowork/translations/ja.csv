@@ -520,7 +520,6 @@ Credit sales,掛売上
 Currency,通貨
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
-Current year,当年度
 Custom Fields,カスタム項目
 Custom fields,カスタムフィールド
 Custom fields saved,カスタムフィールドを保存しました
@@ -758,6 +757,7 @@ Finishing a stock count,棚卸を終了しています
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
 First name,名
+Fiscal year {0},{0} 年度
 Fix,要修正
 Folder,フォルダー
 Folder ID,フォルダー ID
@@ -1048,7 +1048,6 @@ New stock count,棚卸を作成
 New task,新規タスク
 "New, as on the invoice",伝票どおり新規作成
 Next Attempt At,次回再試行日時
-Next year,翌年度
 No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
 No ERP is ready to use,使用できるERPがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
@@ -2230,9 +2229,8 @@ cowork.choice.task_default,この項目は定期タスクの既定の処理で�
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
 cowork.company.branch_n,支店 {0}
-cowork.company.choice.current_year,当年度
+cowork.company.choice.fiscal_year,{0} 年度
 cowork.company.choice.goods,商品の伝票
-cowork.company.choice.next_year,翌年度
 cowork.company.choice.service,費用に計上
 cowork.company.choice.stock,在庫に計上
 cowork.company.choice_invalid,この値は今月の帳簿のマスタにありません

@@ -25,7 +25,8 @@
 - 入账方式、现用账套（用户 2026-10-17「加上，方便看和删」）：工作空间取主档上记的。口径里没记谁 / 何时，不写（写、删另记日志，
   `history.document_policy`）。入账方式按这家各身份取（`identity.identities`：按名称建档、后来补了税号的，旧年度没报税号的账套
   推送时按名称身份记），合成一行，改写主档身份与已记过的别的身份、删一起删。现用账套只列还起作用的组合（`current_book.live_keys`），
-  显示「本年 / 次年 · 总公司 / 分店 X → 账套名」、选中那份的年度（账套名按这家账套全集取），只能删（删了同一组候选再停下时重新问），
+  显示「单据所在的会计年度 · 总公司 / 分店 X → 账套名」（年度按选中那份的期间算：本年段是它自己的年度，次年段是下一个年度；
+  泰语按佛历，2026-10-19 验收：原先写「本年」，会被读成今年），账套名按这家账套全集取，只能删（删了同一组候选再停下时重新问），
   改选走待处理 / CC 工具。改入账方式的权限同改公司规则（录入权限 + 覆盖这个月那份账套所在连接的授权），删同删公司规则（录入
   权限 + 这家任一条 Express 连接的授权）：入账方式与公司规则一样是全公司、跨连接生效的。
 - Express 历史定下的「供应商 → 商品单入账方式」（数字会计员第 3 期，`readback.history`）与「供应商 → 科目」各列各删，
@@ -38,7 +39,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import frappe
@@ -248,7 +249,28 @@ def rule_rows(company) -> list:
     return out
 
 
-PART_LABELS = {"cy": "cowork.company.choice.current_year", "ny": "cowork.company.choice.next_year"}
+FISCAL_YEAR = "cowork.company.choice.fiscal_year"
+BUDDHIST_SHIFT = 543
+
+
+def _day(value):
+    try:
+        return date.fromisoformat(str(value or "")[:10])
+    except ValueError:
+        return None
+
+
+def fiscal_year(book, part) -> str:
+    """现用账套那一组管的单据所在的会计年度（``part``：``cy`` 本年段 = 这份账套自己的期间，``ny`` 次年段 = 期间止后一天到
+    次年段止）：起止同一年写一个年份，跨年写「2025/2026」；泰语按佛历。期间没报回空串。"""
+    start, end = _day(book.get("period_start")), _day(book.get("period_end"))
+    if part == "ny":
+        start, end = (end + timedelta(days=1) if end else None), _day(book.get("next_end"))
+    years = sorted({day.year for day in (start, end) if day})
+    if not years:
+        return ""
+    shift = BUDDHIST_SHIFT if str(getattr(frappe.local, "lang", "") or "").startswith("th") else 0
+    return _(FISCAL_YEAR).format("/".join(str(year + shift) for year in years))
 
 
 def _policy_scope(company) -> tuple:
@@ -308,7 +330,7 @@ def policy_rows(company, sets) -> list:
             continue  # 入账方式上面已列；组合已不成立的旧键不会再被问到
         branch, part = found
         chosen = known.get(value) or {}
-        subject = " · ".join(item for item in (_(PART_LABELS[part]), _branch_label(branch)) if item)
+        subject = " · ".join(item for item in (fiscal_year(chosen, part), _branch_label(branch)) if item)
         out.append({**base, "key": encode("policy", key), "kind": "current_book", "value": value,
                     "subject_label": subject, "value_label": chosen.get("label") or value,
                     "year_label": chosen.get("year_label") or "", "editable": False})

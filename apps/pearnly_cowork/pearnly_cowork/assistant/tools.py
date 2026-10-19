@@ -1663,6 +1663,7 @@ def _choose_current_book(name, key) -> str:
                    "push_status": status}
             if pushed.get("current_book"):
                 out["current_book"] = pushed["current_book"]
+                out["settled"] = int(pushed.get("settled") or 0)
             if pushed.get("reason"):
                 out["reason"] = pushed["reason"]
             return _json(out)
@@ -3608,7 +3609,10 @@ TOOLS = [
                     "set and, once it is entered, remembers it as the one in use for this company and these account "
                     "sets; do not push it again yourself. If the user wants another one in use later, current_book "
                     "on a document of that company and date with the other account set's key changes what is "
-                    "remembered without pushing.",
+                    "remembered without pushing. Either way, the company's other documents waiting on the same "
+                    "account sets continue with the remembered one (settled is how many): each now waits at its next "
+                    "step (a handling or other choice, a proposal to push, or not pushed yet); none of them is "
+                    "pushed, so push them only when the user asks.",
      # 第 7 批 B7（2026-10-18 lab）：document 没写说明，CC 先后交了「transfer slip」「payment_evidence」（详情里
      # handling_choice_needed 的类别名），两次都找不到单据、规则没存上
      "input_schema": {"type": "object", "properties": {

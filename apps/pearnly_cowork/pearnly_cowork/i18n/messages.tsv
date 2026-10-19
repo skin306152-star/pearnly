@@ -1571,8 +1571,7 @@ Expense (this kind from now on)	记费用（同类单据均记费用）	ค่�
 Goods documents	商品单	เอกสารสินค้า	商品の伝票	cowork.company.choice.goods
 Post to stock	走库存	ลงสินค้าคงเหลือ	在庫に計上	cowork.company.choice.stock
 Post as expense	记费用	ลงค่าใช้จ่าย	費用に計上	cowork.company.choice.service
-Current year	本年	ปีปัจจุบัน	当年度	cowork.company.choice.current_year
-Next year	次年	ปีถัดไป	翌年度	cowork.company.choice.next_year
+Fiscal year {0}	{0} 年度	ปีบัญชี {0}	{0} 年度	cowork.company.choice.fiscal_year
 Head office	总公司	สำนักงานใหญ่	本店	cowork.company.head_office
 The chosen Express stock item no longer exists. Choose again	所选的 Express 存货已不存在，请重新选择	สินค้าคงเหลือที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่	選んだ Express の在庫品目はもうありません。選び直してください	intake.error.STOCK_ITEM_NOT_FOUND
 Checked in the ERP	已在 ERP 核对	ตรวจใน ERP แล้ว	ERP で確認済み	cowork.unknown.check

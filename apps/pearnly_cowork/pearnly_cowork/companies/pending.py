@@ -210,10 +210,26 @@ def account_sets_for(row) -> list:
     """停在「待选账套」的单可换的账套：``[{"key", "label"}]``（:func:`_stop_scope`）。定时任务停下的与定时任务选账套同一判据
     （`tasks.books_of`，带分店），选了推送时任务默认处理照样套用（`follow.member`）。列全这一组（不按记住的现用账套筛，
     选另一份就是改选）。不是这种单、没有单据日期、归不上公司回空表（第 6 批，待处理页当场换账套；分店筛选见第 6 批审查第 4 条）。"""
+    return account_set_options(row)["account_sets"]
+
+
+def account_set_options(row) -> dict:
+    """同 :func:`account_sets_for`，另回 ``current``：这一组候选是多份同期、这家公司已经记住且此刻仍算数的现用账套
+    （`current_book.remembered` 只留下一份；另一份有了更新录入要重问的不算）的键，否则空串。待处理展开时预选它
+    （验收 F18：只预选已定的，2026-10-19 验收：记住了还停着的单展开后账套框是空的）。"""
+    from pearnly_cowork.companies import current_book
+
     if not account_set_stop(row):
-        return []
+        return {"account_sets": [], "current": ""}
     found = _stop_scope(row) or {}
-    return [{"key": item["key"], "label": item.get("label") or item["key"]} for item in found.get("books") or []]
+    books = found.get("books") or []
+    current = ""
+    if len(books) > 1 and found.get("workspace"):
+        picked = current_book.remembered(found["workspace"], found.get("identity"), str(row.get("invoice_date") or "")[:10],
+                                         books)
+        current = picked[0]["key"] if len(picked) == 1 else ""
+    return {"account_sets": [{"key": item["key"], "label": item.get("label") or item["key"]} for item in books],
+            "current": current}
 
 
 def current_book_choice(row, key) -> dict | None:
@@ -536,6 +552,6 @@ def _titles(names) -> dict:
                                                                 fields=["name", "title"], limit_page_length=0)}
 
 
-__all__ = ["account_set_stop", "account_sets_for", "book_many", "classify", "company_of", "counts", "current_book_choice",
-           "current_book_options", "current_book_rechoice",
+__all__ = ["account_set_options", "account_set_stop", "account_sets_for", "book_many", "classify", "company_of", "counts",
+           "current_book_choice", "current_book_options", "current_book_rechoice",
            "digest_text", "is_new", "month_of", "morning", "morning_due", "pending", "pending_counts", "proposal"]

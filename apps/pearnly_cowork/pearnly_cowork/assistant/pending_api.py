@@ -16,7 +16,9 @@
   候选是多份同期时，选的那份推成了（进了账本、或停在要人选的项）才同时记成这家公司这一组的现用账套（用户 2026-10-17「按公司
   问一次」，无确认步骤；推不成不记，同一组下一张照旧停下再问，第五轮后审查），之后同一组的单 T1 与自动推都照选；复核页与 CC
   工具 `cowork_choose_document_policy`（``current_book``）走的就是 `choose_account_set` 这一条。已经记住、不再停下的单要改选：
-  CC 工具对推送去向那份账套这一天有多份同期的单只记新的那份（`rechoose_current_book`，不推）。
+  CC 工具对推送去向那份账套这一天有多份同期的单只记新的那份（`rechoose_current_book`，不推）。两处记下时，同一组里还停在
+  「多份账套」的别的单按记住的那份接着判（`_continue_group`，2026-10-19 验收「选定一次再复用」）：判到哪一步就停在哪一步
+  （录不录、要人选的项），都定了的成提议或等人推，不替人推；回包带接着判了的张数 ``settled``。
 - CC 准备好的提议（数字会计员第 3 期）：一张张点「推送」走 `answer`（交空的选择）；「全部推送」走 `push_proposals`
   （这家这个月的提议，一次最多 `PROPOSALS_MAX` 张）。都算人发起，照常重判；放在这里而不在 `companies.api`：推送要用
   `tools._push_one`，companies 不导入 assistant（assistant 依赖 companies）。
@@ -117,7 +119,8 @@ def account_sets(document):
     name = str(document or "")
     from pearnly_cowork.companies import pending
 
-    return {"document": name, "account_sets": pending.account_sets_for(_row(storage.read(name)))}
+    # ``current``：这一组已经记住、此刻仍算数的现用账套，页面预选它（只预选已定的，验收 F18）
+    return {"document": name, **pending.account_set_options(_row(storage.read(name)))}
 
 
 # 推不成、也没进账本的结论：这张单回到「待选账套」，会计员能再选一份（第 6 批审查第 4 条）
@@ -169,6 +172,7 @@ def choose_account_set(document, account_set_key):
     out = _answer(name, result)
     if accepted and current:
         out["current_book"] = current["value"]
+        out["settled"] = _continue_group(current, name)
     return out
 
 
@@ -178,14 +182,113 @@ def _remember(found) -> None:
     policy_store.record(found["workspace"], found["key"], found["value"], seen=found.get("seen") or "")
 
 
+HISTORY = "Cowork OCR History"
+# 记住现用账套时，同一组还停在「多份账套」的单一次最多接着判这么多张（每张一次只看不记的判定）；多的仍停着，展开时预选记住的那份
+GROUP_MAX = 50
+GROUP_SCAN = 500
+GROUP_FIELDS = ["name", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax", "intake_target",
+                "push_connection", "push_account_set", "last_push_status", "last_push_reason", "last_push_record",
+                "auto_class", "auto_reasons", "source", "posting_kind", "workspace", "owner", "creation"]
+LINE_SOURCE = "cowork_line"  # 同 `push.automation.sweep.LINE_SOURCE`
+
+
+def _continue_group(found, chosen) -> int:
+    """刚记住了这家公司这一组现用的账套（``found``：`companies.pending.current_book_choice` / `current_book_rechoice` 的结果，
+    已提交）：这个工作空间里同一组（同公司、同分店、同一段、同一组候选，按各单自己的候选现算出同一个键）还停在「多份账套」的
+    别的单（定时任务 T1 的「多于一份」、自动推前判出的 ``book_many``；``chosen`` 是刚选的那张，已推），按记住的那份接着判
+    （2026-10-19 验收：选了 A，同组的 B 还挂着「多份账套」、展开后账套框是空的；口径同 `history.document_policy._settle_waiting`
+    了结等着录不录的单）。只判不推：
+
+    - 这类单据录不录没选（或选了不录入）→ 原因记成 ``document_policy_needed_*`` / ``skip_*``；
+    - 还有要人选的项 → 原因记成 ``choice_needed:…``（待处理当场选）；
+    - 都定了 → 原因清掉，判定（`application.assess`，与扫描、定时任务同一套）记在票上：A / B 冻结提议（待处理「推送」），
+      C 成「没推」交人。档位允许自动推的也只出提议：这几张不替人推，推送照旧由人发起。
+
+    推送去向都改成记住的那份。判的时候出错、另一份有了更新录入要重问（仍判出 ``book_many``）的不动，照旧停着。回接着判了的张数。"""
+    from pearnly_cowork.companies import pending
+    from pearnly_cowork.folder_intake.contracts import ACCOUNT_SET_AMBIGUOUS
+
+    rows = frappe.get_all(HISTORY, filters={"workspace": found["workspace"], "push_connection": ["is", "set"],
+                                            "invoice_date": ["is", "set"],
+                                            "last_push_status": ["not in", list(pending.SETTLED)]},
+                          or_filters=[["last_push_reason", "=", ACCOUNT_SET_AMBIGUOUS],
+                                      ["auto_reasons", "like", f"%{pending.BOOK_MANY}%"]],
+                          fields=GROUP_FIELDS, order_by="invoice_date asc", limit_page_length=GROUP_SCAN)
+    settled = 0
+    for row in rows:
+        if settled >= GROUP_MAX:
+            break
+        if row.name == chosen or not (row.last_push_reason == ACCOUNT_SET_AMBIGUOUS or pending.book_many(row)):
+            continue
+        try:
+            same = pending.current_book_choice(row, found["value"])
+            if not same or same["key"] != found["key"]:
+                continue  # 别家、别的分店、别的年段或别的候选组合：不是这一组
+            settled += int(_continue_one(row, found["value"]))
+            frappe.db.commit()
+        except Exception:  # noqa: BLE001 — 一张出意外只记日志、照旧停着，不挡刚选的那张与别的
+            frappe.db.rollback()
+            frappe.clear_messages()
+            frappe.log_error(title="Cowork current account set: continuing a waiting document failed",
+                             message=frappe.get_traceback()[-1500:])
+    return settled
+
+
+def _continue_one(row, account_set) -> bool:
+    """按记住的那份 ``account_set`` 接着判一张（见 `_continue_group`）；接着判了回 True。"""
+    from pearnly_cowork.contracts.history import primary_page_fields
+    from pearnly_cowork.folder_intake import push as folder_push
+    from pearnly_cowork.history import document_policy as policy_store
+    from pearnly_cowork.push.application import service as application
+    from pearnly_cowork.push.automation import rules as automation_rules
+
+    name, connection = row.name, row.push_connection
+    doc = storage.read(name)
+    block = document_policy.push_block(primary_page_fields(json.loads(doc.pages or "[]")),
+                                       policy_store.read(doc.workspace))
+    if block:
+        push_state.record_failure(name, block, connection=connection, account_set=account_set)
+        return True
+    if name in folder_push.task_histories([name]):
+        trigger = automation_rules.TASK
+    else:
+        trigger = automation_rules.LINE if row.source == LINE_SOURCE else automation_rules.UPLOAD
+    frappe.db.commit()  # 判定只看不记，结束整笔回滚：先把前面的落掉
+    try:
+        judged = application.assess(name, connection, account_set, row.posting_kind or None, trigger=trigger,
+                                    route_device=_reader(name, connection))
+    except (frappe.ValidationError, frappe.PermissionError):
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return False
+    if not judged.get("assessed") or _still_many(judged.get("codes")):
+        return False
+    needed = judged.get("needed") or []
+    reason = "choice_needed:" + ",".join(dict.fromkeys(item["kind"] for item in needed)) if needed else ""
+    proposal = judged.get("proposal") if not needed and judged.get("class") in ("A", "B") else None
+    push_state.record_assessment(name, cls=judged.get("class"), tier=judged.get("tier"), reasons=judged.get("codes"),
+                                 proposal=proposal, checked_at=judged.get("checked_at"))
+    push_state.record_failure(name, reason, connection=connection, account_set=judged.get("account_set") or account_set)
+    return True
+
+
+def _still_many(codes) -> bool:
+    """判出的原因码里仍有「按日期选出多份同期账套」：记住的那份此刻不算数（另一份有了更新录入要重问）。"""
+    from pearnly_cowork.companies import pending
+
+    return pending.BOOK_MANY in str(codes or "").split(",")
+
+
 def rechoose_current_book(doc, account_set_key) -> dict | None:
     """已经记住、不再停下的单改选这家公司这一组现用的账套（CC 工具 ``current_book``）：推送去向那份账套这一天有多份同期、
-    选的在这一组里（`companies.pending.current_book_rechoice`）才记，不推、不改这张单；回 ``{"current_book": 规范账套键}``，
-    否则 None。调用方已核录入权限、读到这张单；候选只取本人能用的连接上的账套。"""
+    选的在这一组里（`companies.pending.current_book_rechoice`）才记，不推、不改这张单；同一组还停在「多份账套」的别的单
+    按新记的那份接着判（`_continue_group`）。回 ``{"current_book": 规范账套键, "settled": 接着判了的张数}``，否则 None。
+    调用方已核录入权限、读到这张单；候选只取本人能用的连接上的账套。"""
     from pearnly_cowork.companies import pending
 
     found = pending.current_book_rechoice(_row(doc), account_set_key)
     if not found:
         return None
     _remember(found)
-    return {"current_book": found["value"]}
+    frappe.db.commit()  # 接着判同组停着的单之前先落下记住的那份（判定只看不记、结束回滚）
+    return {"current_book": found["value"], "settled": _continue_group(found, _row(doc).get("name"))}

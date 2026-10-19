@@ -476,9 +476,10 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
     setError("");
     setSets(null);
     try {
-      const found = await loadAccountSets(item);
+      const { sets: found, current } = await loadAccountSets(item);
       setSets(found);
-      setValue(found.length === 1 ? found[0]!.key : "");
+      // 只预选已定的（F18）：只有一份，或这一组已经记住的现用账套
+      setValue(found.length === 1 ? found[0]!.key : found.some((set) => set.key === current) ? current : "");
     } catch (e) {
       setError(shownError(e));
     }
@@ -494,7 +495,11 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
     setError("");
     try {
       const result = await chooseAccountSet(item, value);
-      if (answered(result)) onDone(item.document);
+      if (answered(result)) {
+        onDone(item.document);
+        // 同一组别的单跟着记住的那份接着判了：列表重取（它们不再停在「多份账套」）
+        if (result.settled) onChanged();
+      }
       // 选的那份这会儿已不在可换之列（目录刚变）：重取可换的账套再让人选，不弹错误
       else if (result.status === "stale") void load();
       else {

@@ -2507,12 +2507,13 @@ class ListAndRunsTests(unittest.TestCase):
                 return {"document": name, "status": "stale"}
             if key.endswith("68exp\\a"):
                 return {"document": name, "status": "failed", "reason": "account_match:period"}
-            return {"document": name, "status": "sent", "current_book": key}
+            return {"document": name, "status": "sent", "current_book": key, "settled": 2}
 
+        # 同组还停着的单按记住的那份接着判了几张（``settled``，2026-10-19 验收）：照实带回给 CC
         pending_api = types.SimpleNamespace(
             choose_account_set=choose_account_set,
             rechoose_current_book=lambda doc, key: rechosen.append((doc["name"], key)) or (
-                {"current_book": key} if key in keys else None))
+                {"current_book": key, "settled": 1} if key in keys else None))
         modules = {"pearnly_cowork.companies": types.SimpleNamespace(pending=pending),
                    "pearnly_cowork.companies.pending": pending,
                    "pearnly_cowork.assistant": types.SimpleNamespace(pending_api=pending_api),
@@ -2538,7 +2539,7 @@ class ListAndRunsTests(unittest.TestCase):
             out = json.loads(tools.choose_document_policy({"document": "D1", "value": "current_book",
                                                            "account_set_key": "s:\\69exp\\a"}))
             self.assertEqual(out, {"document": "D1", "status": "saved", "push_status": "sent",
-                                   "current_book": "s:\\69exp\\a"})
+                                   "current_book": "s:\\69exp\\a", "settled": 2})
             self.assertEqual(chosen, [("D1", "s:\\69exp\\a")])
             # 推不成：没记住，原因照实回
             out = json.loads(tools.choose_document_policy({"document": "D1", "value": "current_book",
@@ -2552,7 +2553,7 @@ class ListAndRunsTests(unittest.TestCase):
             stopped["value"], chosen[:] = False, []
             out = json.loads(tools.choose_document_policy({"document": "D2", "value": "current_book",
                                                            "account_set_key": "s:\\68exp\\a"}))
-            self.assertEqual(out, {"document": "D2", "status": "saved", "current_book": "s:\\68exp\\a"})
+            self.assertEqual(out, {"document": "D2", "status": "saved", "current_book": "s:\\68exp\\a", "settled": 1})
             self.assertEqual((chosen, rechosen), ([], [("D2", "s:\\68exp\\a")]))
             out = json.loads(tools.choose_document_policy({"document": "D2", "value": "current_book",
                                                            "account_set_key": "s:\\nope"}))

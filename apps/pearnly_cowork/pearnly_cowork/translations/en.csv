@@ -520,7 +520,6 @@ Credit sales,Credit sales
 Currency,Currency
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
-Current year,Current year
 Custom Fields,Custom Fields
 Custom fields,Custom fields
 Custom fields saved,Custom fields saved
@@ -758,6 +757,7 @@ Finishing a stock count,Finishing a stock count
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
 First name,First name
+Fiscal year {0},Fiscal year {0}
 Fix,Fix
 Folder,Folder
 Folder ID,Folder ID
@@ -1048,7 +1048,6 @@ New stock count,New stock count
 New task,New task
 "New, as on the invoice","New, as on the invoice"
 Next Attempt At,Next Attempt At
-Next year,Next year
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
@@ -2230,9 +2229,8 @@ cowork.choice.task_default,This is set by the scheduled task's default handling.
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
 cowork.company.branch_n,Branch {0}
-cowork.company.choice.current_year,Current year
+cowork.company.choice.fiscal_year,Fiscal year {0}
 cowork.company.choice.goods,Goods documents
-cowork.company.choice.next_year,Next year
 cowork.company.choice.service,Post as expense
 cowork.company.choice.stock,Post to stock
 cowork.company.choice_invalid,This value is not in this month's account set

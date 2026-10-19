@@ -520,7 +520,6 @@ Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
 Current Directory Heads,ดัชนีเวอร์ชันไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
-Current year,ปีปัจจุบัน
 Custom Fields,ฟิลด์ที่กำหนดเอง
 Custom fields,ช่องที่กำหนดเอง
 Custom fields saved,บันทึกช่องที่กำหนดเองแล้ว
@@ -758,6 +757,7 @@ Finishing a stock count,กำลังปิดการตรวจนับ�
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 First name,ชื่อ
+Fiscal year {0},ปีบัญชี {0}
 Fix,ต้องแก้
 Folder,โฟลเดอร์
 Folder ID,รหัสโฟลเดอร์
@@ -1048,7 +1048,6 @@ New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 "New, as on the invoice",สร้างใหม่ตามเอกสาร
 Next Attempt At,เวลาลองใหม่ครั้งถัดไป
-Next year,ปีถัดไป
 No CC Desktop credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No POS sales export headers were found in this file,ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้
@@ -2230,9 +2229,8 @@ cowork.choice.task_default,รายการนี้กำหนดโดย�
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
 cowork.company.branch_n,สาขา {0}
-cowork.company.choice.current_year,ปีปัจจุบัน
+cowork.company.choice.fiscal_year,ปีบัญชี {0}
 cowork.company.choice.goods,เอกสารสินค้า
-cowork.company.choice.next_year,ปีถัดไป
 cowork.company.choice.service,ลงค่าใช้จ่าย
 cowork.company.choice.stock,ลงสินค้าคงเหลือ
 cowork.company.choice_invalid,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้

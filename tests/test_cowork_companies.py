@@ -55,7 +55,8 @@ def _match(row, filters):
                 return False
             if op == "is" and (bool(value) != (arg == "set")):
                 return False
-            if op == "like" and not str(value or "").startswith(arg.rstrip("%")):
+            if op == "like" and not (arg.strip("%") in str(value or "") if arg.startswith("%")
+                                     else str(value or "").startswith(arg.rstrip("%"))):
                 return False
         elif value != wanted:
             return False
@@ -1178,10 +1179,10 @@ class PolicyChoiceTests(unittest.TestCase):
         shown = sorted((row["kind"], row["subject_label"], row["value"], row["value_label"], row["year_label"],
                         row["editable"]) for row in self.listed())
         self.assertEqual(shown, [
-            ("current_book", "cowork.company.choice.current_year · cowork.company.head_office", self.HQ[1], "ABC 69 new",
-             "69EXP", False),
-            ("current_book", "cowork.company.choice.next_year · cowork.company.branch_n", self.B12[1], "ABC B12 X",
+            ("current_book", "cowork.company.choice.fiscal_year · cowork.company.branch_n", self.B12[1], "ABC B12 X",
              "68EXP", False),
+            ("current_book", "cowork.company.choice.fiscal_year · cowork.company.head_office", self.HQ[1], "ABC 69 new",
+             "69EXP", False),
             ("posting", "cowork.company.choice.goods", "stock", "cowork.company.choice.stock", "", True)])
         self.assertTrue(all(row["set_by"] == "" and row["set_at"] == "" for row in self.listed()))  # 口径里没记谁 / 何时
         found = choices.find(self.company, self.sets, self.listed()[0]["key"])
@@ -1194,6 +1195,26 @@ class PolicyChoiceTests(unittest.TestCase):
             page = service.detail(self.company.name, "2026-10")
         names = sorted(row["value_label"] for row in page["choices"] if row["kind"] == "current_book")
         self.assertEqual((len(page["account_sets"]), names), (2, ["ABC 69 new", "ABC B12 X"]))
+
+    def test_the_current_book_row_names_the_fiscal_year_of_its_documents(self):
+        """2026-10-19 验收：现用账套那一行原先写「本年 · 总公司 · T.7」，「本年」是账套的本年段（相对次年段），会被读成今年。
+        改写单据所在的会计年度：本年段是选中那份自己的年度，次年段是它的下一个年度；泰语按佛历，跨年写两个年份。"""
+        with mock.patch.object(choices, "_", lambda text: "FY {0}" if text == choices.FISCAL_YEAR else text):
+            self.assertEqual(sorted(row["subject_label"] for row in self.listed() if row["kind"] == "current_book"),
+                             ["FY 2026 · cowork.company.branch_n", "FY 2026 · cowork.company.head_office"])
+            book = {"period_start": "2024-04-01", "period_end": "2025-03-31", "next_end": "2026-03-31"}
+            self.assertEqual((choices.fiscal_year(book, "cy"), choices.fiscal_year(book, "ny")),
+                             ("FY 2024/2025", "FY 2025/2026"))
+            self.assertEqual(choices.fiscal_year({"period_start": "2024-01-01", "period_end": "2024-12-31"}, "ny"),
+                             "FY 2025")  # 次年段没报止日：按起日
+            self.assertEqual(choices.fiscal_year({}, "cy"), "")
+            previous = getattr(frappe.local, "lang", None)
+            frappe.local.lang = "th"
+            try:
+                self.assertEqual(choices.fiscal_year({"period_start": "2024-01-01", "period_end": "2024-12-31"}, "cy"),
+                                 "FY 2567")
+            finally:
+                frappe.local.lang = previous
 
     def test_the_policy_lives_in_the_workspace_of_the_company(self):
         frappe.db.tables[COMPANY][self.company.name]["workspace"] = "WS2"
@@ -1213,7 +1234,7 @@ class PolicyChoiceTests(unittest.TestCase):
         for bad in ("", "enter", "Stock"):
             with self.assertRaises(frappe.ValidationError):
                 choices.set_value(self.company, self.sets, rows["posting"]["key"], bad, "2026-10")
-        head = "cowork.company.choice.current_year · cowork.company.head_office"
+        head = "cowork.company.choice.fiscal_year · cowork.company.head_office"
         with self.assertRaises(frappe.ValidationError):  # 现用账套卡上不改选
             choices.set_value(self.company, self.sets, rows[head]["key"], self.HQ[0], "2026-10")
         self.assertEqual(choices.forget(self.company, self.sets, rows[head]["key"]), {"removed": 1})
@@ -1248,7 +1269,7 @@ class PolicyChoiceTests(unittest.TestCase):
         self.assertEqual([key for key in self.policy() if key.startswith("current_book_seen|")], [seen_key])
         with self.assertRaises(frappe.DoesNotExistError):
             choices.forget(self.company, self.sets, choices.encode("policy", seen_key))
-        head = "cowork.company.choice.current_year · cowork.company.head_office"
+        head = "cowork.company.choice.fiscal_year · cowork.company.head_office"
         self.assertEqual(choices.forget(self.company, self.sets, self.rows()[head]["key"]), {"removed": 1})
         self.assertFalse({self.head, seen_key} & set(self.policy()))
 
@@ -1723,7 +1744,7 @@ class PendingAnswerTests(unittest.TestCase):
         self.assertEqual(sorted(item["label"] for item in found)[0][:6], "ABC 69")
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
-        self.assertEqual(out, {"document": "h1", "status": "sent", "current_book": "s:\\69exp\\abc2"})
+        self.assertEqual(out, {"document": "h1", "status": "sent", "current_book": "s:\\69exp\\abc2", "settled": 0})
         # 推往的、推成后抄到票上的都是目录里的那份（同定时任务选到时记的键）；先推、推成了才抄。两份同期：推成了才把选的
         # 那份记成这家公司这一组现用的（用户 2026-10-17「按公司问一次」，无确认步骤；第五轮后审查：推不成不记）
         self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
@@ -1785,7 +1806,7 @@ class PendingAnswerTests(unittest.TestCase):
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
         self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "document_policy_needed_payment_evidence",
                                "reason_label": "text:document_policy_needed_payment_evidence",
-                               "current_book": "s:\\69exp\\abc2"})
+                               "current_book": "s:\\69exp\\abc2", "settled": 0})
         self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("restore", "h1", "document_policy_needed_payment_evidence",
                                   ("account_set", "s:\\69exp\\abc2"), ("connection", "C1")),
@@ -1818,6 +1839,143 @@ class PendingAnswerTests(unittest.TestCase):
         source = (APP / "companies/pending.py").read_text(encoding="utf-8")
         self.assertIn('item["choice"] = {"connection": row.push_connection', source)
         self.assertNotIn("choices_view", source.split("def _items", 1)[1].split("\ndef ", 1)[0])
+
+
+class CurrentBookGroupTests(unittest.TestCase):
+    """2026-10-19 验收：同一家公司两份同期账套，A、B 两张单都停在「多份账套」。在 A 上选了一份、记成现用账套后，B 还挂着
+    「多份账套」，展开后账套框是空的，要手动再选。现在记住时同一组还停着的单按记住的那份接着判（只判不推：录不录、要人选的项
+    照常停，都定了的成提议 / 等人推），回包带张数 ``settled``；别家、别的分店、别的年段不动。展开时预选记住的那份（F18）。"""
+
+    def _module(self, verdicts, rules=None, tasks=()):
+        """按真实导入加载 `assistant.pending_api`；单据读取、推送状态、口径存储、判定（`application.assess`）、CC 的重推换成替身。
+        ``verdicts``：各张单的判定（`assess` 的回包，缺省 C 类、没有要选的）；``rules``：各张单出自的定时任务；``tasks``：出自定时任务
+        的单（`folder_intake.push.task_histories`）。"""
+        calls = []
+        table = frappe.db.tables["Cowork OCR History"]
+        storage = types.SimpleNamespace(read=lambda name: Row(table[name], pages="[]"))
+        push_state = types.SimpleNamespace(
+            retarget=lambda *args: calls.append(("retarget",) + args),
+            record_failure=lambda name, reason, **kw: calls.append(("stop", name, reason, kw.get("account_set"))),
+            record_assessment=lambda name, **kw: calls.append(("judged", name, kw["cls"], bool(kw["proposal"]))))
+        folder_push = types.SimpleNamespace(source_rules=lambda name: [Row(rule) for rule in (rules or {}).get(name, [])],
+                                            reader_of=lambda name, connection: "",
+                                            task_histories=lambda names: {name for name in names if name in tasks})
+        self.remembered = []
+        document_policy = types.SimpleNamespace(
+            record=lambda workspace, key, value, seen="": self.remembered.append((workspace, key, value)),
+            read=lambda workspace: {})
+        self.assessed = []
+
+        def assess(name, connection, account_set, posting_kind=None, *, trigger, route_device="", **kw):
+            self.assessed.append((name, connection, account_set, trigger))
+            return {"assessed": True, "class": "C", "tier": "L0", "codes": "", "needed": [], "proposal": None,
+                    "checked_at": datetime(2026, 10, 19, 1, 0), "account_set": account_set, **verdicts.get(name, {})}
+
+        application = types.SimpleNamespace(assess=assess)
+        tools = types.SimpleNamespace(_push_one=lambda *args, route_device="": calls.append(("push",) + args)
+                                      or {"status": "sent"})
+        patcher = mock.patch.dict(sys.modules, {
+            "pearnly_cowork.history": types.SimpleNamespace(storage=storage, push_state=push_state,
+                                                            document_policy=document_policy),
+            "pearnly_cowork.history.storage": storage, "pearnly_cowork.history.push_state": push_state,
+            "pearnly_cowork.history.document_policy": document_policy,
+            "pearnly_cowork.push.application": types.SimpleNamespace(api=types.SimpleNamespace(), service=application),
+            "pearnly_cowork.push.application.api": types.SimpleNamespace(),
+            "pearnly_cowork.push.application.service": application,
+            "pearnly_cowork.folder_intake.push": folder_push, "pearnly_cowork.assistant.tools": tools})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sys.modules.pop("pearnly_cowork.assistant.pending_api", None)
+        module = importlib.import_module("pearnly_cowork.assistant.pending_api")
+        package = sys.modules["pearnly_cowork.assistant"]
+        previous = getattr(package, "tools", None)
+        package.tools = tools
+        self.addCleanup(lambda: setattr(package, "tools", previous) if previous else delattr(package, "tools"))
+        return module, calls
+
+    def setUp(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy"),
+                  express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP", start="2025-01-01", end="2025-12-31"),
+                  express_row("S:\\68EXP\\ABCB", "ABC 68 copy", year="68EXP", start="2025-01-01", end="2025-12-31"),
+                  express_row("S:\\69EXP\\BR1", "ABC 69 branch 1", branch="00001"),
+                  express_row("S:\\69EXP\\BR1B", "ABC 69 branch 1 copy", branch="00001"),
+                  express_row("S:\\69EXP\\XYZ", "XYZ 69", company="XYZ", tax=OTHER_TAX),
+                  express_row("S:\\69EXP\\XYZ2", "XYZ 69 copy", company="XYZ", tax=OTHER_TAX)])
+        self.company = make()["id"]
+        make(key="S:\\69EXP\\XYZ")
+        hq = [{"connection": "C1", "company": self.company, "company_branch": "00000"}]
+        self.rules = {"a": hq, "b": hq, "year": hq}
+        many = {"auto_class": "C", "auto_reasons": "book_many,amount_math", "auto_checked_at": datetime(2026, 10, 19)}
+        ambiguous = {"last_push_reason": "cowork.folder.account_set_ambiguous"}
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("a", workspace="WS1", **ambiguous),  # 会计员在这张上选
+            history("b", workspace="WS1", **ambiguous),  # 同组、定时任务停下
+            history("c", workspace="WS1", **many),  # 同组、自动推前判出多份同期
+            history("again", workspace="WS1", **many),  # 同组，但判出来仍是多份（另一份有了更新录入要重问）
+            history("year", workspace="WS1", invoice_date="2025-06-01", push_account_set="S:\\68EXP\\ABC",
+                    **ambiguous),  # 别的年段
+            history("branch", workspace="WS1", push_account_set="S:\\69EXP\\BR1", **many),  # 别的分店
+            history("other", workspace="WS1", push_account_set="S:\\69EXP\\XYZ", buyer_tax=OTHER_TAX,
+                    **many),  # 别家公司
+            history("done", workspace="WS1", last_push_status="success", **ambiguous),  # 推过了
+            history("elsewhere", workspace="WS9", **ambiguous))}  # 别的工作空间
+
+    def test_choosing_on_one_document_carries_the_others_of_the_group_on(self):
+        module, calls = self._module({"b": {"class": "B", "codes": "cc_judged", "proposal": {"class": "B"}},
+                                      "c": {"needed": [{"kind": "account"}, {"kind": "account"}]},
+                                      "again": {"codes": "book_many"}},
+                                     rules=self.rules, tasks={"a", "b", "year"})
+        fresh_request()
+        out = module.choose_account_set("a", "S:\\69EXP\\ABC2")
+        self.assertEqual((out["status"], out["current_book"], out["settled"]), ("sent", "s:\\69exp\\abc2", 2))
+        # 同组停着的都按记住的那份判过（定时任务的按 task 判，自动推判出的按上传判）；别家、别的分店、别的年段、推过的不判
+        self.assertEqual(sorted(self.assessed), [("again", "C1", "s:\\69exp\\abc2", "upload"),
+                                                 ("b", "C1", "s:\\69exp\\abc2", "task"),
+                                                 ("c", "C1", "s:\\69exp\\abc2", "upload")])
+        after = [call for call in calls if call[0] in ("judged", "stop")]
+        self.assertEqual(after, [
+            # 都定了：判定记在票上（B 冻结提议，待处理「推送」），原因清掉、去向改成记住的那份；不替人推
+            ("judged", "b", "B", True), ("stop", "b", "", "s:\\69exp\\abc2"),
+            # 还有要人选的项：照常停在要人选（待处理当场选）
+            ("judged", "c", "C", False), ("stop", "c", "choice_needed:account", "s:\\69exp\\abc2")])
+        self.assertEqual([call for call in calls if call[0] == "push"], [("push", "a", "C1", "s:\\69exp\\abc2")])
+
+    def test_a_group_waiting_for_the_document_kind_choice_stops_there(self):
+        module, calls = self._module({}, rules=self.rules, tasks={"a", "b"})
+        with mock.patch.object(module.document_policy, "push_block",
+                               lambda fields, policy: "document_policy_needed_payment_evidence"):
+            fresh_request()
+            out = module.choose_account_set("a", "S:\\69EXP\\ABC2")
+        self.assertEqual(out["settled"], 3)  # b、c、again：录不录先挡住，不再判
+        self.assertEqual(self.assessed, [])
+        self.assertIn(("stop", "b", "document_policy_needed_payment_evidence", "s:\\69exp\\abc2"), calls)
+
+    def test_nothing_carries_on_when_the_choice_is_not_remembered(self):
+        # 推不成（没进账本）：不记现用账套，同组的也不动
+        module, calls = self._module({}, rules=self.rules)
+        sys.modules["pearnly_cowork.assistant"].tools._push_one = (
+            lambda *args, route_device="": {"status": "failed", "reason": "account_match:branch"})
+        fresh_request()
+        out = module.choose_account_set("a", "S:\\69EXP\\ABC2")
+        self.assertNotIn("settled", out)
+        self.assertEqual((self.assessed, self.remembered), ([], []))
+
+    def test_the_remembered_one_is_preselected_when_a_document_is_opened(self):
+        """展开「多份账套」的单时只预选已定的（F18）：这一组记住了、此刻仍算数的那份；没记的空着要人选。"""
+        module, _calls = self._module({}, rules=self.rules)
+        rows = frappe.db.tables["Cowork OCR History"]
+        fresh_request()
+        self.assertEqual(module.account_sets("c")["current"], "")
+        found = pending.current_book_choice(rows["c"], "S:\\69EXP\\ABC2")
+        frappe.db.tables.setdefault("Cowork Workspace", {})["WS1"] = Row(
+            name="WS1", document_policy=json.dumps({found["key"]: found["value"]}))
+        fresh_request()
+        listed = module.account_sets("c")
+        self.assertEqual((listed["current"], len(listed["account_sets"])), ("s:\\69exp\\abc2", 2))
+        fresh_request()
+        self.assertEqual(module.account_sets("b")["current"], "s:\\69exp\\abc2")  # 定时任务停下的同一组
+        fresh_request()
+        self.assertEqual(module.account_sets("branch")["current"], "")  # 别的分店是另一组
 
 
 class PendingContractTests(unittest.TestCase):

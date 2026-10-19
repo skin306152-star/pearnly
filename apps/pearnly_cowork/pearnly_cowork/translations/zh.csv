@@ -520,7 +520,6 @@ Credit sales,赊销
 Currency,货币
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
-Current year,本年
 Custom Fields,自定义字段
 Custom fields,自定义字段
 Custom fields saved,自定义字段已保存
@@ -758,6 +757,7 @@ Finishing a stock count,正在结束盘点
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 First name,名
+Fiscal year {0},{0} 年度
 Fix,需修正
 Folder,文件夹
 Folder ID,文件夹编号
@@ -1048,7 +1048,6 @@ New stock count,新建盘点
 New task,新建任务
 "New, as on the invoice",新建（按票面）
 Next Attempt At,下次重试时间
-Next year,次年
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
@@ -2230,9 +2229,8 @@ cowork.choice.task_default,此项由定时任务的默认处理决定，请在�
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
 cowork.company.branch_n,分店 {0}
-cowork.company.choice.current_year,本年
+cowork.company.choice.fiscal_year,{0} 年度
 cowork.company.choice.goods,商品单
-cowork.company.choice.next_year,次年
 cowork.company.choice.service,记费用
 cowork.company.choice.stock,走库存
 cowork.company.choice_invalid,该值不在本月账套主档中
