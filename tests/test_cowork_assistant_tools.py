@@ -30,12 +30,15 @@ class _Frappe(types.ModuleType):
     class AuthenticationError(Exception):
         pass
 
+    class QueryDeadlockError(Exception):
+        pass
+
     def __init__(self):
         super().__init__("frappe")
         self.calls, self.commits, self.rollbacks = [], 0, 0
         self.rows, self.grouped = [], []
         self.session = types.SimpleNamespace(user="a@example.com")
-        self.local = types.SimpleNamespace(lang="en", site="s1", pearnly_assistant=None)
+        self.local = types.SimpleNamespace(lang="en", site="s1", pearnly_assistant=None, message_log=[])
         self.db = types.SimpleNamespace(commit=self._commit, rollback=self._rollback,
                                         get_value=lambda *a, **k: ("express", 3))
 
@@ -133,6 +136,12 @@ def _install():
         spec.loader.exec_module(module)
         parent, _, child = name.rpartition(".")
         setattr(sys.modules[parent], child, module)
+    # 撞上写者锁时整笔重来的共用处（`push.application.conflicts`）用真的：次数、退避与用尽时的原因都按它
+    spec = importlib.util.spec_from_file_location("pearnly_cowork.push.application.conflicts",
+                                                  COWORK / "push/application/conflicts.py")
+    conflicts = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = sys.modules["pearnly_cowork.push.application"].conflicts = conflicts
+    spec.loader.exec_module(conflicts)
     # MR.ERP 推之前要选的（菜单、默认值）按方向挑的纯规则也用真的：工具与网页推送前那一步同一份判据
     sys.modules["pearnly_cowork.targets"] = types.ModuleType("pearnly_cowork.targets")
     for name, path in (("pearnly_cowork.targets.mrerp_menus", COWORK / "targets/mrerp_menus.py"),
@@ -1992,6 +2001,104 @@ class FolderTaskSwitchBatchTests(unittest.TestCase):
         self.assertEqual(len(self.calls), 1)
         with self.assertRaises(frappe.ValidationError):
             tools.set_folder_tasks_enabled({"tasks": []})
+
+
+class PushConflictRetryTests(unittest.TestCase):
+    """10-20 lab：待处理页连着推、CC 桌面版同时领单写账，5 张直接报 1020「Record has changed since last read in table
+    'tabCowork Push Writer Lock'」，隔几秒再点都成，其中 1 张再点先报 push.native_target_changed（确认那一步撞上、准备已提交，
+    再点换了请求号又准备一份）。准备与确认各自整笔回滚重来（`push.application.conflicts`），用替身账本看提交了什么：
+    被回滚的那次不留东西，同一张单只有一条推送记录、只排一次。"""
+
+    LOCK = "(1020, \"Record has changed since last read in table 'tabCowork Push Writer Lock'; try restarting transaction\")"
+
+    def setUp(self):
+        self.doc = types.SimpleNamespace(last_push_status="", push_connection="EXP1", push_account_set="K",
+                                         posting_kind="service", record_version=1, last_push_record="",
+                                         last_push_reason="")
+        self.pending, self.records, self.queued = [], {}, []
+        self.keys, self.confirms, self.sleeps, self.failed, self.cancelled = [], [], [], [], []
+        self.submit_conflicts = self.confirm_conflicts = 0
+
+        def commit():
+            for kind, key, value in self.pending:
+                if kind == "record":
+                    self.records.setdefault(key, value)  # 记录按请求号唯一（`reserve` 的 request_digest）
+                elif value not in self.queued:
+                    self.queued.append(value)  # 确认按 confirmation_request 回放
+            self.pending.clear()
+
+        def submit(history, target, key, *a, **k):
+            self.keys.append(key)
+            row = {"status": "prepared", "name": "CWP-" + key[:12], "revision": 1}
+            self.pending.append(("record", key, row))  # 撞上 1020 之前这笔里已经写了记录
+            if self.submit_conflicts:
+                self.submit_conflicts -= 1
+                raise frappe.QueryDeadlockError(self.LOCK)
+            return row
+
+        def confirm(target, result, request_key):
+            self.confirms.append((result["name"], result["revision"], request_key))
+            self.pending.append(("confirm", request_key, result["name"]))
+            if self.confirm_conflicts:
+                self.confirm_conflicts -= 1
+                raise frappe.QueryDeadlockError("(1213, 'Deadlock found when trying to get lock')")
+
+        def submission_failed(history, reason):
+            self.pending.clear()
+            self.failed.append((history, reason))
+            return {"status": "failed", "reason": reason, "history": history}
+
+        destination = types.SimpleNamespace(confirm=confirm)
+        for target, name, value in (
+                (tools.storage, "read", lambda name: self.doc),
+                (tools.application, "choices_view", lambda *a: {"needed": []}),
+                (tools.application, "submit", submit),
+                (tools.application, "submission_failed", submission_failed),
+                (tools.application, "cancel_prepared", lambda name, revision: self.cancelled.append(name)),
+                (tools.destinations, "of", lambda adapter: destination),
+                (tools.destinations, "online", lambda adapter, connection: True),
+                (tools.conflicts.time, "sleep", self.sleeps.append),
+                (tools.conflicts.random, "uniform", lambda low, high: 1.0),
+                (frappe.db, "commit", commit),
+                (frappe.db, "rollback", lambda save_point=None: self.pending.clear()),
+                (frappe.db, "get_value", lambda *a, **k: ("express", 3))):
+            patcher = mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_conflicts_in_preparation_and_confirm_are_retried_and_pushed_once(self):
+        self.submit_conflicts, self.confirm_conflicts = 2, 1
+        out = tools._push_one("H1")
+        self.assertEqual(out["status"], "sent")
+        self.assertEqual(len(set(self.keys)), 1)  # 重来照同一请求号（票没变）
+        self.assertEqual(len(self.keys), 3)
+        self.assertEqual(list(self.records), self.keys[:1])  # 被回滚的两次没留下记录
+        self.assertEqual(self.queued, ["CWP-" + self.keys[0][:12]])  # 只排一次
+        # 确认只重来确认：准备不再做一次，同一份准备、同一个确认请求号
+        self.assertEqual(len(set(self.confirms)), 1)
+        self.assertEqual(len(self.confirms), 2)
+        self.assertEqual(self.sleeps, [0.1, 0.2, 0.1])
+        self.assertEqual((self.failed, self.cancelled), ([], []))
+
+    def test_preparation_still_conflicting_is_a_formal_reason_on_the_document(self):
+        self.submit_conflicts = 99
+        out = tools._push_one("H1")
+        self.assertEqual(out, {"document": "H1", "status": "failed", "reason": "push.native_lock_conflict"})
+        self.assertEqual(self.failed, [("H1", "push.native_lock_conflict")])
+        self.assertEqual(len(self.keys), tools.conflicts.ATTEMPTS)
+        self.assertEqual((self.records, self.queued, self.confirms), ({}, [], []))
+        self.assertEqual(self.sleeps, list(tools.conflicts.BACKOFF))
+        self.assertNotIn("Record has changed", json.dumps(out))
+
+    def test_confirm_still_conflicting_cancels_its_preparation_like_other_confirm_failures(self):
+        self.confirm_conflicts = 99
+        out = tools._push_one("H1")
+        self.assertEqual((out["status"], out["reason"]), ("failed", "push.native_lock_conflict"))
+        self.assertEqual(len(self.keys), 1)  # 准备只做一次
+        self.assertEqual(len(self.confirms), tools.conflicts.ATTEMPTS)
+        self.assertEqual(self.queued, [])
+        self.assertEqual(self.cancelled, ["CWP-" + self.keys[0][:12]])
+        self.assertEqual(self.failed, [("H1", "push.native_lock_conflict")])
 
 
 class PushWaitTests(unittest.TestCase):

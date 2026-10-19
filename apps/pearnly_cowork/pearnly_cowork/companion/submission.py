@@ -2,8 +2,7 @@
 import frappe
 from frappe import _
 
-from pearnly_cowork.push.application import service
-from pearnly_cowork.push.application.api import _local_transaction
+from pearnly_cowork.push.application import conflicts, service
 
 
 def _confirm(name, expected_revision, request_key):
@@ -16,9 +15,10 @@ def _confirm(name, expected_revision, request_key):
 
 @frappe.whitelist(methods=['POST'])
 def confirm(name, expected_revision, request_key):
-    """Express 确认发送。失败不抛给页面：原因记在票上，列表状态图标悬浮可看（用户 2026-09-26）。"""
+    """Express 确认发送。失败不抛给页面：原因记在票上，列表状态图标悬浮可看（用户 2026-09-26）。与 CC 桌面版领单撞上
+    写者锁（1020 / 1213）时整笔重来，用尽的 `conflicts.Exhausted` 同样记在票上。"""
     try:
-        return _local_transaction(_confirm, name, expected_revision, request_key)
+        return conflicts.retried(_confirm, name, expected_revision, request_key)
     except (frappe.ValidationError, frappe.PermissionError, frappe.AuthenticationError) as error:
         frappe.db.rollback()
         history = frappe.db.get_value('Cowork Push Record', name, 'history')

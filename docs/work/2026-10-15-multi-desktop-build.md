@@ -2178,3 +2178,16 @@ MariaDB 不限核、缓冲池 4 GB。绝对值偏慢（客户端时延里还有 
   它们没写完的单留在排队（谁的活谁的电脑做，别人不代写），与设计一致。
 - 生产推送记录的实际行数没查（不连生产）；修前的耗时随行数涨（2 万行 19 ms、10 万行 1.1 s），所以这个索引越早上越好。
 - 这是服务端模拟：没有真 CC 桌面版、真 Express 写入时延、WSL / 办公网络；生产 8 核下的绝对值要部署后在测试租户压测时再量。
+
+## 人推撞上写者锁 1020（10-20，测试窗口 lab 实测，分支 `pearnly/batch-1019b`）
+
+现象：待处理页连着快速推单、测试机 CC 桌面版同时领单写账，5 张直接报 1020「Record has changed since last read in table 'tabCowork Push Writer Lock'」，
+隔几秒再点都成；其中 1 张再点先报 `push.native_target_changed`。原因：人推那笔事务先做了一致性读（读视图），准备完到 `reserve` / `confirm` 的
+`_locks` 加锁读写者锁行时，这一行已被 CC 桌面版的领单 / 回执改过并提交（快照隔离，上面「剩下的 1020」同一类）；Frappe 把 1020 与 1213 都抛成
+`QueryDeadlockError`，`assistant.tools._push_one` 一路没接住。撞在确认那一步时准备已提交，再点时请求号随 `last_push_record` 换了，拿旧准备去确认
+就是那一次 `native_target_changed`。修法（按类，一处）：`push.application.conflicts.retried`——整笔回滚（不是回保存点：1020 要新的读视图）、
+退避 0.1 / 0.2 / 0.4 秒 × 0.5–1.5 随机后重来，一共 4 次（依据：D9 压测领单服务端 p50 约 100 ms、p95 约 200 ms，合计约 1 秒、短于 3 秒取单间隔；
+原先 3 次不等、register 有过三连撞），用尽给已有正式原因 `push.native_lock_conflict`，不露 SQL 原文、不加新文案。复核页的推送 RPC
+（`push.application.api._local_transaction`）、Express 确认发送（`companion.submission.confirm`）、CC 工具与待处理页共用的 `_push_one`
+（准备到提交一笔、确认一笔，各自重来；确认只重来确认）都经它；被回滚的那次什么也不留，重来同一请求号，记录按请求号唯一、只排一次。
+测试 `tests/test_cowork_push_conflicts.py`（9 项）与 `tests/test_cowork_assistant_tools.py` 新增 3 项；没在真 MariaDB 上复现、待测试窗口照原步骤再推。

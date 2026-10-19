@@ -1,23 +1,18 @@
 """Local preparation only; no generic dispatch, ACK or worker RPC."""
 import frappe
 
-from pearnly_cowork.push.application import service
+from pearnly_cowork.push.application import conflicts, service
 
 
 def _local_transaction(function, *args, **kwargs):
     """Only dedicated RPCs retry whole local transactions, with no external IO.
 
     MariaDB can report 1020 while replacing an older RR view with a current
-    permission read. Internal orchestration must call service directly so this
-    retry cannot roll back unrelated work in a larger caller transaction.
+    permission read, or 1213 on a deadlock. Internal orchestration must call
+    service directly so this retry cannot roll back unrelated work in a larger
+    caller transaction. Attempts, backoff and the final reason: `conflicts`.
     """
-    for attempt in range(3):
-        try:
-            return function(*args, **kwargs)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.retried(function, *args, **kwargs)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -54,10 +49,14 @@ def submit(history, connection, request_key, expected_history_version, expected_
            confirm_duplicate=None):
     """复核页「提交」一张票：失败不抛，原因记在票上（列表状态图标悬浮可看）。
 
-    `confirm_duplicate`：会计在复核页点了「仍然推送」（Express 已有同号不同内容 / 上一版还在）。"""
-    return _local_transaction(service.submit, history, connection, request_key, expected_history_version,
-        expected_connection_revision, account_set_key, catalog_request_id, catalog_revision, posting_kind,
-        confirm_duplicate=_flag(confirm_duplicate))
+    `confirm_duplicate`：会计在复核页点了「仍然推送」（Express 已有同号不同内容 / 上一版还在）。
+    与 CC 桌面版领单写账撞上写者锁、重来用尽时同样不抛：原因记在票上（`conflicts`）。"""
+    try:
+        return _local_transaction(service.submit, history, connection, request_key, expected_history_version,
+            expected_connection_revision, account_set_key, catalog_request_id, catalog_revision, posting_kind,
+            confirm_duplicate=_flag(confirm_duplicate))
+    except conflicts.Exhausted as error:
+        return service.submission_failed(history, str(error))
 
 
 def _flag(value):

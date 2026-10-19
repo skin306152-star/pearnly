@@ -145,6 +145,8 @@ jobs:
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
         run: python3 tests/test_cowork_assistant_tools.py
+      - name: Verify human pushes retry a writer lock conflict (MariaDB 1020 / 1213) as one whole transaction, then give the formal reason
+        run: python3 tests/test_cowork_push_conflicts.py
       - name: Keep the old Windows app names out of what users and CC read (only CC Desktop, CC calls itself CC)
         run: python3 tests/test_cc_desktop_name.py
       - name: Verify the P.P.30 draft boxes and the input tax checks

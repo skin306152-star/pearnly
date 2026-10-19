@@ -28,6 +28,7 @@ from pearnly_cowork.folder_intake import contracts as folder_contracts
 from pearnly_cowork.folder_intake import readers as folder_readers
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
+from pearnly_cowork.push.application import conflicts
 from pearnly_cowork.push.application import service as application
 from pearnly_cowork.tax import wht as tax_contracts
 
@@ -895,9 +896,9 @@ def _mrerp_setup_of(name) -> dict | None:
     return {"connection": connection, "account_set_key": account_set, **setup} if setup else None
 
 
-def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="") -> dict:
-    """推一张票（CC 的 `cowork_push_documents` 每一张、待处理页当场补选都走这里）。``route_device``：定时任务的票由读文件夹的
-    那台电脑写（待处理页按 `folder_intake.push.reader_of` 给，ADR-021 第 51 条）；空 = 录入人自己的电脑写。"""
+def _submit_one(name, connection, account_set_key, posting_kind, route_device) -> dict:
+    """:func:`_push_one` 的准备那一步：停下 / 推不成回给页面的结论；交出去准备好了的回 ``{"submitted": (adapter, 连接, 请求号,
+    准备结果)}``。重来时从头读票（撞上冲突的那次整笔回滚了）。"""
     try:
         doc = storage.read(name)
     except (frappe.DoesNotExistError, frappe.PermissionError):
@@ -960,9 +961,30 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
     frappe.db.commit()
     if result.get("status") in ("failed", "cancelled", "manual"):
         return {"document": name, "status": result.get("status"), "reason": str(result.get("reason") or "")[:300]}
+    return {"submitted": (adapter, target, key, result)}
+
+
+def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="") -> dict:
+    """推一张票（CC 的 `cowork_push_documents` 每一张、待处理页当场推 / 当场选后重推 / 换账套推都走这里）。``route_device``：
+    定时任务的票由读文件夹的那台电脑写（待处理页按 `folder_intake.push.reader_of` 给，ADR-021 第 51 条）；空 = 录入人自己的电脑写。
+
+    准备（读票到提交为止，:func:`_submit_one`）与确认发送各是自己提交的一笔事务。与 CC 桌面版领单写账撞上写者锁（1020 / 1213，
+    10-20 lab）时经 `push.application.conflicts.retried` 整笔回滚、退避后重来：准备从读票重来，票没变所以请求号照旧，推送记录按
+    请求号唯一；确认只重来确认（已提交的准备不再准备一次，否则请求号随 ``last_push_record`` 变了会多出一份准备）。用尽时原因记在
+    票上，回 ``failed``。"""
+    try:
+        staged = conflicts.retried(_submit_one, name, connection, account_set_key, posting_kind, route_device)
+    except conflicts.Exhausted as error:
+        reason = str(error)
+        application.submission_failed(name, reason)
+        frappe.db.commit()
+        return {"document": name, "status": "failed", "reason": reason[:300]}
+    if "submitted" not in staged:
+        return staged
+    adapter, target, key, result = staged["submitted"]
     if result.get("status") == "prepared":
         try:
-            destinations.of(adapter).confirm(target, result, "confirm:" + key)
+            conflicts.retried(destinations.of(adapter).confirm, target, result, "confirm:" + key)
             frappe.db.commit()
         except (frappe.ValidationError, frappe.PermissionError, frappe.AuthenticationError) as error:
             frappe.db.rollback()
