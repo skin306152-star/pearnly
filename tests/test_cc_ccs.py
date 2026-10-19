@@ -453,10 +453,10 @@ g.done();
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
-        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条）：
+        # 标准化 B2 删了没人用的组件库部件（输入框、抽屉 Sheet、头像、分隔线，侧栏里的菜单、分组、搜索框、拖边条），
+        # B8 删了 Button（B4 / B6 / B7 把设置页、会话行「···」、「复制」换成 cc-* 类后没有调用方）：
         # 留下的侧栏只有容器，自己没有可聚焦的控件（侧栏里的按钮都是 cc-* 类，聚焦见 globals.css）
-        for rel in ("input", "sheet", "avatar", "separator"):
+        for rel in ("input", "sheet", "avatar", "separator", "button"):
             self.assertFalse((SRC / f"components/ui/{rel}.tsx").exists(), rel)
         self.assertNotIn("focus-visible:", read("components/ui/sidebar.tsx"))
         # 弹窗默认的 × 第 11 轮起是图标按钮（.cc-icon-btn 的聚焦就是 --cc-shadow-focus）
@@ -862,7 +862,7 @@ class ComponentLibraryTests(unittest.TestCase):
     def test_only_the_parts_in_use_are_left(self):
         ui = SRC / "components/ui"
         self.assertEqual(sorted(p.name for p in ui.glob("*.tsx")),
-                         ["button.tsx", "dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
+                         ["dialog.tsx", "drag.tsx", "marquee.tsx", "menu.tsx", "sidebar.tsx", "skeleton.tsx", "tooltip.tsx"])
         exports = lambda rel: sorted(re.findall(r"^  (\w+),$", self.read(rel).split("\nexport {\n", 1)[1].split("};", 1)[0], re.M))
         self.assertEqual(exports("components/ui/sidebar.tsx"),
                          ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
@@ -875,11 +875,10 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertIn('"cc-overlay z-(--cc-z-sheet)"', dialog)
         self.assertIn('"cc-pop bg-background cc-modal fixed', dialog)
         self.assertNotRegex(dialog, r"animate-(?:in|out)\b|\b(?:fade|zoom)-(?:in|out)|duration-\d")
-        button = self.read("components/ui/button.tsx")
-        variants = button.split("variant: {", 1)[1].split("},", 1)[0]
-        sizes = button.split("size: {", 1)[1].split("},", 1)[0]
-        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", variants, re.M), ["outline", "ghost"])
-        self.assertEqual(re.findall(r"^ {8}\"?([\w-]+)\"?:", sizes, re.M), ["default", "sm", "icon", "icon-sm"])
+        # 组件库的 Button 在 B8 整个删掉（B2 只删了没人用的档位，在用的几处随调用方所在批次换成 cc-* 类）
+        self.assertFalse((SRC / "components/ui/button.tsx").exists())
+        for path in sorted(SRC.rglob("*.ts*")):
+            self.assertNotIn("@/components/ui/button", path.read_text(encoding="utf-8"), path)
         # 侧栏没有随机宽度的骨架（比对工具要稳定），也没有手机分支（手机是 mobile-shell 的抽屉）
         sidebar = self.read("components/ui/sidebar.tsx")
         self.assertNotIn("Math.random", sidebar)
@@ -1413,8 +1412,9 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertNotIn("<Button", settings)
         self.assertNotIn("@/components/ui/button", settings)
         self.assertEqual(settings.count('className="cc-btn"'), 11)
-        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"], .cc-btn) { min-height: var(--cc-tap); }', self.css)
-        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"][data-size^="icon"], .cc-icon-btn) { min-width: var(--cc-tap); }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-modal .cc-btn { min-height: var(--cc-tap); }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-modal .cc-icon-btn { min-width: var(--cc-tap); }', self.css)
+        self.assertNotIn('data-slot="button"', self.css)   # 组件库 Button 已删（B8），选择器只认 cc-* 类
 
     def test_error_boxes_are_cc_alert(self):
         # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份

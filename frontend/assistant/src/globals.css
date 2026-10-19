@@ -1532,10 +1532,10 @@
   .cc-switch:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   /* 设置里的开关（settings.tsx 的 Switch，40×24）：手机点按区扩到 44×44，外观不变（按钮排查 H23） */
   :root[data-cc-touch] button[role="switch"]::before { content: ""; position: absolute; inset: calc((var(--cc-switch-h) - var(--cc-tap)) / 2) calc((var(--cc-switch-w) - var(--cc-tap)) / 2); }
-  /* 弹窗里的按钮（设置的「连接」「换站点」「下载」等）：手机 44（按钮排查 H27）。官方 Button（components/ui/button.tsx）与
-     B4 换成的 .cc-btn / .cc-icon-btn 两种写法都覆盖，换完点按区不回落（.cc-btn、.cc-icon-btn 在触屏上本来就是 44） */
-  :root[data-cc-touch] .cc-modal :is([data-slot="button"], .cc-btn) { min-height: var(--cc-tap); }
-  :root[data-cc-touch] .cc-modal :is([data-slot="button"][data-size^="icon"], .cc-icon-btn) { min-width: var(--cc-tap); }
+  /* 弹窗里的按钮（设置的「连接」「换站点」「下载」等）：手机 44（按钮排查 H27；.cc-btn、.cc-icon-btn 在触屏上本来就是 44）。
+     B8 删了组件库的 Button，选择器只认 cc-* 类 */
+  :root[data-cc-touch] .cc-modal .cc-btn { min-height: var(--cc-tap); }
+  :root[data-cc-touch] .cc-modal .cc-icon-btn { min-width: var(--cc-tap); }
 
   .cc-field { display: flex; flex-direction: column; gap: var(--cc-space-6); font-size: var(--cc-text-sm); color: var(--cc-ink-2); }
   .cc-input {
