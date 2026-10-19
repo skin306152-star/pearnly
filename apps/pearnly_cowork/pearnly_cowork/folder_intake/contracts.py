@@ -507,7 +507,9 @@ def session_ref(value: Any) -> str:
 
 
 # ── 电脑通知（2026-10-12）：同步回复里带给小助手的定时任务提醒与完成简报 ─────────────────
-NOTICE_FIELDS = ("id", "title", "text", "created", "session")
+# ``view``（2026-10-19，CC 桌面版 1.9.1 起照它开）：没有对话时点开哪一页，``company:<编号>`` 是这家公司的主档页（同共用层
+# `assistant.contracts.deep_link`）；旧版 CC 桌面版不认多出的键。
+NOTICE_FIELDS = ("id", "title", "text", "created", "session", "view")
 NOTICE_WINDOW = 12 * 3600
 NOTICE_LIMIT = 20
 

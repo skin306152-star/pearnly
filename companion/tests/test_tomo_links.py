@@ -71,6 +71,27 @@ def test_open_script_hands_the_target_to_the_page_or_falls_back_to_the_address()
     assert 't.open("s-123")' in script
     assert 'location.href="https://acme.pearnly.com/assistant?c=s-123"' in script   # 旧版页面没有 open
     assert 't.open("")' in links.open_script('bad"id</script>', url)               # 不合形状 = 定时任务页
+    # 1.9.1：公司主档页 / 待处理交页内深链接（frontend/assistant/src/lib/nav.ts 的 useDeepLinks 认「/assistant?…」）
+    assert 't.open("/assistant?company=abc1234567")' in links.open_script("/assistant?company=abc1234567", url)
+    assert 't.open("/assistant?view=pending")' in links.open_script("/assistant?view=pending", url)
+    for bad in ("/assistant?company=../x", "/assistant?view=chat", "/assistant?c=s-1&company=x", "/other?view=pending",
+                "/assistant?view=tasks"):
+        assert 't.open("")' in links.open_script(bad, url), bad
+
+
+def test_reminders_of_one_company_open_that_companys_page():
+    # 1.9.1（旧交接 T3）：提醒的 view = company:<编号>（服务端 NOTICE_PROJECT_VIEW）且没挂对话 → 主档页 ?company=<编号>；
+    # 有对话照旧开对话；pending 开待处理；认不得的照旧定时任务页（同共用层 contracts.deep_link）
+    site = "https://acme.pearnly.com"
+    assert links.conversation_url(site, "", "company:abc1234567") == f"{site}/assistant?company=abc1234567"
+    assert links.conversation_url(site, "s-123", "company:abc1234567") == f"{site}/assistant?c=s-123"
+    assert links.conversation_url(site, "", "pending") == f"{site}/assistant?view=pending"
+    for bad in ("company:", "company:../x", "company:" + "a" * 13, "company:abc", "companies", "chat", None):
+        assert links.conversation_url(site, "", bad) == f"{site}/assistant?view=tasks", bad
+    assert links.open_target("", "company:abc1234567") == "/assistant?company=abc1234567"
+    assert links.open_target("s-123", "company:abc1234567") == "s-123"
+    assert links.open_target("", "") == links.open_target("", "tasks") == links.open_target("", "company:../x") == ""
+    assert links.open_target("", "pending") == "/assistant?view=pending"
 
 
 def test_downloads_never_overwrite_and_clean_names(tmp_path: Path):

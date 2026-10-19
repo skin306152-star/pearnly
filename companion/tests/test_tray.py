@@ -88,7 +88,7 @@ def test_reminders_pop_up_once_per_notice_and_open_their_conversation():
     app = TrayApp.__new__(TrayApp)   # 不走 __init__：去重记忆现建
     shown, opened = [], []
     app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args))
-    app.open_conversation = lambda site, session: opened.append((site, session))
+    app.open_conversation = lambda site, session, view="": opened.append((site, session))
     items = [{"id": "pnotice_1", "title": "", "text": "2 files waiting", "created": 1.0, "session": "sess-1"}]
     app._on_folder_notices("https://acme.pearnly.com", items)
     app._on_folder_notices("https://acme.pearnly.com", items)
@@ -115,7 +115,7 @@ def test_a_batch_of_reminders_pops_up_as_one_notice_that_opens_the_tasks_page():
     app = TrayApp.__new__(TrayApp)
     shown, opened = [], []
     app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
-    app.open_conversation = lambda site, session: opened.append((site, session))
+    app.open_conversation = lambda site, session, view="": opened.append((site, session))
     site = "https://acme.pearnly.com"
     items = [{"id": f"p{n}", "title": f"T{n}", "text": f"text {n}", "created": float(n), "session": f"s-{n}"}
              for n in (1, 3, 2)]
@@ -150,7 +150,7 @@ def test_a_new_version_toast_does_not_wipe_a_fresh_reminder(monkeypatch):
     app._update_action = None
     app._auto_timer = SimpleNamespace(isActive=lambda: True)
     app._auto_update = SimpleNamespace(offer=lambda version, url: True)
-    app.open_conversation = lambda site, session: opened.append(session)
+    app.open_conversation = lambda site, session, view="": opened.append(session)
     site = "https://acme.pearnly.com"
 
     def remind(n):
@@ -184,6 +184,38 @@ def test_tray_opens_a_reminder_conversation_in_the_cc_window():
     app.open_conversation("https://evil.example", "s-123")
     assert calls == [("https://acme.pearnly.com/assistant?c=s-123", "s-123"),
                      ("https://acme.pearnly.com/assistant?view=tasks", ""), "window"]
+    # 1.9.1（T3）：属于某家公司、没挂对话的提醒点开那家公司的主档页；对话页开着时交给页面的深链接（lib/nav.ts 认）
+    calls.clear()
+    app.open_conversation("https://acme.pearnly.com", "", "company:abc1234567")
+    app.open_conversation("https://acme.pearnly.com", "s-123", "company:abc1234567")
+    app.open_conversation("https://acme.pearnly.com", "", "pending")
+    app.open_conversation("https://acme.pearnly.com", "", "company:../x")
+    assert calls == [("https://acme.pearnly.com/assistant?company=abc1234567", "/assistant?company=abc1234567"),
+                     ("https://acme.pearnly.com/assistant?c=s-123", "s-123"),
+                     ("https://acme.pearnly.com/assistant?view=pending", "/assistant?view=pending"),
+                     ("https://acme.pearnly.com/assistant?view=tasks", "")]
+
+
+def test_a_reminder_of_one_company_opens_that_companys_page():
+    # 1.9.1（T3）：文件夹同步带来的提醒带 view（服务端 folder_intake/contracts.NOTICE_FIELDS）：只有一条时点开照它；
+    # 一批合成一条时照旧开定时任务页
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    shown, opened = [], []
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
+    app.open_conversation = lambda site, session, view="": opened.append((site, session, view))
+    site = "https://acme.pearnly.com"
+    app._on_folder_notices(site, [{"id": "c1", "title": "T", "text": "x", "created": 1.0, "session": "",
+                                   "view": "company:abc1234567"}])
+    app._on_message_clicked()
+    assert opened == [(site, "", "company:abc1234567")]
+    app._on_folder_notices(site, [{"id": "c2", "title": "T", "text": "x", "created": 2.0, "session": ""}])
+    app._on_message_clicked()
+    assert opened[-1] == (site, "", "")   # 旧服务端不带 view：定时任务页
 
 
 def test_cc_window_hands_the_conversation_to_an_open_chat_page_or_loads_it():
@@ -202,6 +234,10 @@ def test_cc_window_hands_the_conversation_to_an_open_chat_page_or_loads_it():
     fake, calls = window("https://acme.pearnly.com/assistant")
     gui_tomo.TomoWindow.open_conversation(fake, url, "s-123")
     assert calls[0] == "front" and calls[1][0] == "js" and 't.open("s-123")' in calls[1][1]
+    fake, calls = window("https://acme.pearnly.com/assistant")
+    gui_tomo.TomoWindow.open_conversation(fake, "https://acme.pearnly.com/assistant?company=abc1234567",
+                                          "/assistant?company=abc1234567")
+    assert calls[1][0] == "js" and 't.open("/assistant?company=abc1234567")' in calls[1][1]
     for current, kwargs in (("https://other.pearnly.com/assistant", {}), ("https://fatcc.com/", {}),
                             ("https://acme.pearnly.com/assistant", {"loading": True}),
                             ("https://acme.pearnly.com/assistant", {"ready": False})):
@@ -322,7 +358,7 @@ def test_notifications_fall_back_to_the_tray_balloon_when_windows_notifications_
     monkeypatch.setattr(gui_tray.toast, "show", lambda *args: tried.append(args) or False)
     app = TrayApp.__new__(TrayApp)
     app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
-    app.open_conversation = lambda site, session: opened.append((site, session))
+    app.open_conversation = lambda site, session, view="": opened.append((site, session))
     app._on_folder_notices("https://acme.pearnly.com",
                            [{"id": "p1", "title": "T1", "text": "x", "created": 1.0, "session": "s-1"}])
     assert [args[:3] for args in tried] == [("T1", "x", "notice:p1")] and callable(tried[0][3])
@@ -351,7 +387,7 @@ def test_windows_notifications_replace_the_balloon_and_their_clicks_run_on_the_u
     app = TrayApp.__new__(TrayApp)
     app.lang = "zh"
     app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
-    app.open_conversation = lambda site, session: opened.append((site, session, threading.get_ident()))
+    app.open_conversation = lambda site, session, view="": opened.append((site, session, threading.get_ident()))
     app._update_action = None
     app._auto_timer = SimpleNamespace(isActive=lambda: True)
     app._auto_update = SimpleNamespace(offer=lambda version, url: True)

@@ -626,20 +626,21 @@ class TrayApp(QObject):
     def open_tomo(self, text: str | None = None) -> None:
         self._window.open({"op": "show"} if text is None else {"op": "ask", "text": text})
 
-    def open_conversation(self, site: str, session: str = "") -> None:
-        """对话提醒点开：打开那段对话（没有对话 = 定时任务页）；站点不是自家 https 地址就只打开窗口。"""
+    def open_conversation(self, site: str, session: str = "", view: str = "") -> None:
+        """对话提醒点开：打开那段对话；没有对话按 ``view`` 开那一页（``company:<编号>`` = 这家公司的主档页，1.9.1 起），
+        其余定时任务页；站点不是自家 https 地址就只打开窗口。"""
         from . import tomo_links
 
-        url = tomo_links.conversation_url(site, session)
+        url = tomo_links.conversation_url(site, session, view)
         if not url:
             self.open_tomo()
             return
-        self._window.open({"op": "open_conversation", "url": url, "session": session})
+        self._window.open({"op": "open_conversation", "url": url, "session": tomo_links.open_target(session, view)})
 
     def _on_folder_notices(self, site: str, items) -> None:
         """文件夹同步带来的对话提醒（folder_worker._notices 已校验形状），同一条只弹一次。一批只弹一条（托盘点击只记得住
-        最后一条的动作，连弹几条会点错）：只有一条就点开那段对话；不止一条合成一条——标题带条数与最新一条的标题，
-        点开定时任务页。"""
+        最后一条的动作，连弹几条会点错）：只有一条就点开那段对话（没有对话按它的 ``view``：属于某家公司的开那家公司的主档页）；
+        不止一条合成一条——标题带条数与最新一条的标题，点开定时任务页。"""
         fresh = []
         for item in items or []:
             try:
@@ -653,7 +654,8 @@ class TrayApp(QObject):
             newest = max(fresh, key=lambda item: item.get("created") or 0)
             title = newest["title"] or "CC"
             if len(fresh) == 1:
-                self._show(title, newest["text"], lambda s=site, c=newest["session"]: self.open_conversation(s, c),
+                self._show(title, newest["text"],
+                           lambda s=site, c=newest["session"], v=newest.get("view") or "": self.open_conversation(s, c, v),
                            tag=NOTICE_TAG + newest["id"])
             else:
                 self._show(f"({len(fresh)}) {title}", newest["text"], lambda s=site: self.open_conversation(s, ""))

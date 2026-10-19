@@ -278,8 +278,29 @@ class FolderSync(unittest.TestCase):
     def test_notice_fields_are_the_same_on_both_sides(self):
         helper = module_constants(COMPANION / "folder_worker.py").get("NOTICE_FIELDS")
         server = module_constants(FOLDER_SERVER / "contracts.py").get("NOTICE_FIELDS")
-        self.assertEqual(helper, ("id", "title", "text", "created", "session"))
+        self.assertEqual(helper, ("id", "title", "text", "created", "session", "view"))
         self.assertEqual(server, helper)
+        # view 是 1.9.1 加的：桌面端收旧服务端不带它的提醒；共用层同步给的每条都带（形状同 deep_link 认的）
+        self.assertEqual(module_constants(COMPANION / "folder_worker.py").get("NOTICE_OPTIONAL"), ("view",))
+        listing = method_source_of(ROOT / "apps/pearnly_core/pearnly_core/assistant/notices.py", "for_references")
+        self.assertIn("'view': contracts.notice_view(row.get('view') or '')", listing)
+
+    def test_a_reminder_of_one_company_opens_the_page_the_server_links_to(self):
+        """旧交接 T3（1.9.1）：托盘点开属于某家公司、没挂对话的提醒，地址与共用层 deep_link 同形（``?company=<编号>``），
+        公司编号的形状两端一样；对话页开着时交给 window.tomo.open 的页内深链接由 lib/nav.ts 的 useDeepLinks 接手。"""
+        core = (ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py").read_text(encoding="utf-8")
+        server = re.search(r'NOTICE_PROJECT_VIEW = re.compile\(r"(.+)"\)', core).group(1)
+        helper = re.search(r'COMPANY_VIEW = re.compile\(r"(.+)"\)',
+                           (COMPANION / "tomo_links.py").read_text(encoding="utf-8")).group(1)
+        self.assertEqual(server.replace("company:", "company:(", 1).rstrip("$") + ")$", helper)
+        self.assertEqual(module_constants(COMPANION / "tomo_links.py")["NOTICE_VIEWS"],
+                         module_constants(ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py")["NOTICE_VIEWS"])
+        self.assertIn('return "/assistant?company=" + quote(view.split(":", 1)[1], safe="")', core)
+        nav = (ROOT / "frontend/assistant/src/lib/nav.ts").read_text(encoding="utf-8")
+        self.assertIn('const link = id.startsWith("/assistant") ? targetOf(id) : null;', nav)
+        self.assertIn('parsed.searchParams.get("company")', nav)
+        self.assertIn("open: (target: string) => openTarget(target),",
+                      (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8"))
 
     def test_the_helper_sends_the_new_request_keys(self):
         round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")

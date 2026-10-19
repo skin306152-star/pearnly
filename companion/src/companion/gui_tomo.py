@@ -347,8 +347,9 @@ class TomoWindow(QMainWindow):
             self._pending_ask = text   # 还在登录 / 加载：进了对话页再交过去
 
     def open_conversation(self, url: str, session: str = "") -> None:
-        """托盘的对话提醒点开：拿到前面并打开那段对话（``session`` 为空 = 定时任务页）。对话页已在同一站点开着就交给
-        页面（不重新加载），否则直接打开地址（刚建的窗口也一样，顶掉正在打开的上次页面）。"""
+        """托盘的对话提醒点开：拿到前面并打开那段对话或那一页（``session`` 是 ``tomo_links.open_target`` 的结果：对话编号、
+        公司主档页 / 待处理的页内深链接，空 = 定时任务页）。对话页已在同一站点开着就交给页面（不重新加载），否则直接打开地址
+        （刚建的窗口也一样，顶掉正在打开的上次页面）。"""
         self.show_front()
         current = self.page.url().toString()
         if self._ready and tomo_links.is_chat(current) and tomo_links.same_site(current, url) \

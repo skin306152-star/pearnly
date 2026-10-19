@@ -574,7 +574,7 @@ class SessionsAndNotices(unittest.TestCase):
         for value in (None, "123", True, -5, 0, now - 13 * 3600, float("nan"), float("-inf")):
             self.assertEqual(contracts.notices_after(value, now), window, value)
         self.assertEqual(contracts.notices_after(now + 3600, now), now)
-        self.assertEqual(contracts.NOTICE_FIELDS, ("id", "title", "text", "created", "session"))
+        self.assertEqual(contracts.NOTICE_FIELDS, ("id", "title", "text", "created", "session", "view"))
         self.assertEqual((contracts.NOTICE_WINDOW, contracts.NOTICE_LIMIT), (12 * 3600, 20))
 
     def test_a_pc_only_gets_notices_about_its_own_tasks(self):
@@ -1577,13 +1577,18 @@ class MachineSync(unittest.TestCase):
     def test_new_helpers_get_the_latest_version_and_their_notices(self):
         latest = {"version": "1.4.4", "url": "/downloads/companion/CC-Setup.exe"}
         items = [{"id": "pnotice_1", "title": "T", "text": "x", "created": self.NOW - 5, "session": "", "user": "u",
-                  "refs": ["P1", "S2"]}]
+                  "refs": ["P1", "S2"]},
+                 {"id": "pnotice_2", "title": "T", "text": "y", "created": self.NOW - 4, "session": "",
+                  "view": "company:abc1234567", "refs": ["P1"]}]
         machine, calls = self._machine([self._rule("P1"), self._rule("S2", "sales", enabled=0)], latest=latest,
                                        notices=items)
         reply = machine._sync(types.SimpleNamespace(connection="C1"), {"notices_after": self.NOW - 60})
         self.assertEqual(reply["companion_latest"], latest)
+        # 属于某家公司的提醒带 view（CC 桌面版 1.9.1 起点开那家公司的主档页）；没有的给空串
         self.assertEqual(reply["notices"], [{"id": "pnotice_1", "title": "T", "text": "x", "created": self.NOW - 5,
-                                             "session": ""}])
+                                             "session": "", "view": ""},
+                                            {"id": "pnotice_2", "title": "T", "text": "y", "created": self.NOW - 4,
+                                             "session": "", "view": "company:abc1234567"}])
         # 停用的任务的完成简报也要弹：按本机读的全部任务取
         self.assertEqual(calls["for_rules"], [(["P1", "S2"], self.NOW - 60, contracts.NOTICE_LIMIT)])
         # 本机读的全部任务名（含停用的）：小助手据此清掉久未出现任务的台账；旧小助手不带 notices_after 就不给
