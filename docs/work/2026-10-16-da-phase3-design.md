@@ -875,6 +875,98 @@
     （`from pearnly_cowork.push.express import automation`；销项对方是买方）；再以上传人身份 `push.application.service.assess(...)` 看 `codes`
     里没有 `evidence`。
 
+- **E11 副本页文字层坏了：坏页退到 pymupdf（10-19，`0d4b2091`，分支 batch-1019b，起点 `f961e38a`）**：测试窗口 E11 实测，BakeLab 电子税票第 2 页起
+  的副本页字体 ToUnicode 坏了（十六进制串长度为奇数），pypdf 记「Skipping broken line … Odd-length string」、把那一整行映射丢掉，没映射上的字形码原样
+  当字符给出（`\x03\x04…`），第 1 页正常；所以上面「副本页不算证据页」的判据永远不成立，37 张照旧全 C。测试窗口用 pymupdf 抽同一批原件：47 页副本页
+  单号都在，41 页三样全在、6 页缺合计（收据联跨页），37 份里 32 份按规则能放行、5 份照旧 C；泰文个别字形仍是 `\x03`，数字、单号、税号完好。
+  - **改法**：不整体换库。`history.pdf_text.page_texts`（纯函数，生产 `history.text_layer.pages` 与回放 `da-replay.py gate` 的 `pdf_texts` 同一个）
+    照旧逐页用 pypdf（`page_text`，隐形识别文字层的页给空串）；只有**坏了的页**另用 pymupdf（`page.get_text()`，生产镜像 1.28.2，已是现有依赖）抽
+    同一页，而且 pymupdf 抽出的**有字、控制字符占比更低**才换。pymupdf 没有、打不开、那一页抽不出、抽出空的或更坏：这一页照旧是 pypdf 的结果
+    （等于读不到，不报错、不把整份变成 None）。没坏的页不打开 pymupdf，结果与以前逐字相同。
+  - **判据与阈值**（`pdf_text.broken`）：控制字符 = Unicode Cc 类（制表、换行、回车、换页、竖制表除外），占比 = 控制字符 ÷（非空白字符 + 控制字符）。
+    ① 占比 ≥ `BROKEN_SHARE` = 10%；或 ② 这份原件 pypdf 报过 ToUnicode 解码错误（`pypdf._cmap` 的「Skipping broken line」/「Got invalid hex string」，
+    只收本线程的；日志被调到 warning 以上时收不到、只靠 ①）且这一页有控制字符。依据：对得上 Unicode 的文字层里不会出控制字符，正常页是 0；
+    整页 / 整个字体坏的页（测试窗口看到的副本页几乎全是控制字符，测试里照子集字体编码造的样张约 60%）远高于 10%；一页里个别没映射的符号字形
+    （几百字里一两个）在 1% 以下，不该为它换库，所以 ① 取 10%；只坏了一部分字体（如泰文字体坏、数字字体好）占比可能不到 10%，由 ② 兜住
+    （pypdf 自己报了解码错误，这一页又真有没映射上的字）。②「整份原件」而不是「这一页」：pypdf 同一字体只解析一次映射，报错可能出在前一页。
+  - **调用方与影响**（全仓 `text_layer` / `pdf_text` / `page_text` 都核过）：
+    - 生产只有 `push.application.assess.run` 调 `text_layer.pages` / `text`，它的三个入口都受影响：网页上传 / LINE 的扫描（`push.automation.sweep`）、
+      定时任务推前判一次（`folder_intake.push._judge`）、记住现用账套后同组接着判（`assistant.pending_api._continue_group`）。人推（`service.submit`）、
+      `choices_view`、复核原因（`history.review`，只看识别字段）不读文字层，不受影响。
+    - 判定里用文字层的全部点（`automation.checks` 与 `classify`）：`text_layer`（每页够 `TEXT_CHARS_PER_PAGE` 字才算文字层 PDF；坏页以前满是控制字符也算
+      够字，换成 pymupdf 后字数照样数，不够就是 `image`，只会更严）、`text_total` / `text_date` / `text_tax`（含税额、日期、对方税号要在文字层里找到原文）、
+      `void`（作废字样，读得到更多字只会多拦）、`evidence` 里的 `same_document_page`（单号、含税额、对方 13 位税号三样都要在那一页里，减项 / 增项单不算副本）、
+      抵不抵进项的 `claim_in_text` / `no_claim_in_text`（标题与本方税号要在文字层里，A 与 B 之分）。凡是「放行」的地方都是「在原文里找到识别读出的值」：
+      坏页以前读不到（控制字符里没有数字），现在读得到的是 pymupdf 从同一页字体映射里解出的真字，照样逐项比，读出另一张、金额不同、没印对方税号的照旧
+      判证据页 / 拦下（测试 `test_the_copy_page_read_by_pymupdf_still_has_to_match`）。不改任何比对规则与阈值。
+    - 识别闸层回放：`da-replay.py gate` 的 `pdf_texts` 改用同一个函数（闸层与生产判同一份文字），`gate.json` 每行另记 `text_fallback`（这份原件换成
+      pymupdf 的页码）。判定层回放（`judge`）用造的文字层（`synthetic_text`），不受影响。
+    - 别的抽 PDF 文字的地方各用各的、这次不动：对账（`tabular.readers` / `reconciliation.pdf_text`、`recon_center.sources`、`ocr.enterprise.text_layer`）、
+      识别输入（`ocr.inputs_runtime.source`、`ocr.engine.document_tier`）、ERP 识别输入、CC 附件（`pearnly_core.assistant.files`）、Claude 读图
+      （`pearnly_core.claude_ocr.pages`，只渲染图片）。
+  - **测试**：`tests/test_cowork_da_automation.py` `BrokenTextLayer`（判据与阈值边界；坏页换成 pymupdf、只换那一页、记页码；正常页不打开 pymupdf；
+    pymupdf 没装 / 打不开 / 那页抽不出 / 抽出空的 / 不比 pypdf 好时照旧且不报错；解码错误 + 个别控制字符；页码顺序；换来的文字照旧要过比对；
+    真库：照 E11 现象造的坏 ToUnicode PDF（每页一个 Type0 / Identity-H 字体，字形码从 3 起，坏的那份第一项源码是 `<003>`），pypdf 原样给 `\x03\x04\x05…`、
+    整张判 `evidence`，走新函数后第 1 页逐字不变、第 2 页换成 pymupdf、不再判 `evidence`；没坏的原件两页都是 pypdf 的）。真库那条 CI 没装 pypdf / pymupdf
+    时跳过，在本机生产镜像 `sha256:bcb5e240…`（pypdf 6.15.0、pymupdf 1.28.2、Python 3.14）里跑过 8 条全过。`tests/test_da_replay.py` 加闸层抽字走同一函数。
+  - **金标闸门复跑（测试窗口在测试机做，原件在那里；零识别费用）**：按「生产冻结、过闸才上线」，这条要离线重跑识别闸层确认无回归才随批上线。
+    1. 源码：开发机 `git archive -o base.tgz f961e38a`（本条的父提交，对照）与 `git archive -o cand.tgz 0d4b2091`（或之后含它的 batch-1019b 提交，
+       只要两份之间只差这一条），拷到测试机 `C:\Users\codexops\AppData\Local\Temp\tl\`。
+    2. WSL 里跑（同一镜像、同一输入，只换源码；镜像用 lab 底座，即线上同一份）：
+       ```bash
+       set -euo pipefail
+       T=/mnt/c/Users/codexops/AppData/Local/Temp/tl; OUT=/mnt/c/PearnlyStress/_回放/2026-10-19-tl; R=/mnt/c/PearnlyStress/_回放
+       IMG=$(grep -E '^PEARNLY_IMAGE=' /opt/pearnly-testenv/env | cut -d= -f2-)
+       mkdir -p $OUT; chmod 777 $OUT
+       for v in base cand; do
+         W=/tmp/tl-$v; rm -rf $W; mkdir -p $W; tar xzf $T/$v.tgz -C $W; chmod -R a+rX $W
+         DR="docker run --rm --network none --memory 2g --entrypoint /home/frappe/frappe-bench/env/bin/python -v $W:/src:ro \
+           -v /mnt/c/PearnlyStress/语料:/corpus:ro -v $R:/r:ro -v $OUT:/out -e PYTHONDONTWRITEBYTECODE=1 \
+           -e PYTHONPATH=/src/apps/pearnly_cowork:/src/apps/pearnly_core -w /src $IMG"
+         # 金标-2026-10（215 份，谷歌 3.8 识别，默认 --records gold-gemini-code.jsonl / --flags gold-gemini-rec.jsonl）
+         $DR scripts/da-replay.py gate --gold /corpus/金标-2026-10 --originals /corpus \
+           --manifest /corpus/06-录入推送/清单.tsv --out /out/$v/g1026 </dev/null
+         # E2 第一批（10-18，Claude 路线，961 份识别、879 份金标）
+         $DR scripts/da-replay.py gate --gold /r/2026-10-18-e2 --originals /corpus --manifest /corpus/06-录入推送/清单.tsv \
+           --records rec.jsonl --flags rec.jsonl --out /out/$v/e2 </dev/null
+         # E2b（10-19，967 份，本方税号用按金标补的清单，同 gate-p6）
+         $DR scripts/da-replay.py gate --gold /r/2026-10-19-e2b --originals /corpus --manifest /r/2026-10-19-e2b/金标/清单-本方.tsv \
+           --records rec.jsonl --flags rec.jsonl --out /out/$v/e2b </dev/null
+         rm -rf $W
+       done
+       ```
+       （pypdf 的「Skipping broken line」等警告照旧会刷屏，可像 `e2b_gate.sh` 那样 `2>&1 | grep -v -E "startxref|Skipping broken|…"`。）
+    3. 比对（WSL 自带 python3，无依赖）：
+       ```bash
+       python3 - <<'EOF'
+       import json
+       OUT = "/mnt/c/PearnlyStress/_回放/2026-10-19-tl"
+       keep = ("reasons", "passed", "vat_claim", "result", "paired", "wrong")
+       for name in ("g1026", "e2", "e2b"):
+           load = lambda v: {(r["id"], r["page"], n): r for n, r in enumerate(json.load(open(f"{OUT}/{v}/{name}/gate.json"))["rows"])}
+           base, cand = load("base"), load("cand")
+           assert base.keys() == cand.keys(), name
+           fell = {k for k, r in cand.items() if r.get("text_fallback")}
+           same = [k for k in base if k not in fell and any(base[k][f] != cand[k][f] for f in keep)]
+           lost = [k for k in base if base[k]["passed"] and not base[k]["wrong"]
+                   and (not cand[k]["passed"] or cand[k]["wrong"] or cand[k]["vat_claim"] != base[k]["vat_claim"])]
+           new = [k for k in base if not base[k]["passed"] and cand[k]["passed"]]
+           print(name, "rows", len(base), "fallback docs", len({k[0] for k in fell}),
+                 "pages", len({(k[0], p) for k in fell for p in cand[k]["text_fallback"]}),
+                 "passed", sum(r["passed"] for r in base.values()), "->", sum(r["passed"] for r in cand.values()))
+           print("  unchanged-docs differ (must be 0):", same)
+           print("  was passed and right, now blocked / wrong / claim changed:", [(k, cand[k]["reasons"], cand[k]["wrong"]) for k in lost])
+           print("  newly passed (look at each):", [(k, base[k]["reasons"], cand[k]["text_fallback"], cand[k]["paired"], cand[k]["wrong"]) for k in new])
+       EOF
+       ```
+    4. **判「无回归」的标准**：① 三批行集合相同；② 没换页的原件（`text_fallback` 空）新旧每行 `reasons / passed / vat_claim / result` 逐项相同（不同即好页
+       被改了，算回归）；③ 原来过闸且字段全对的票，新结果仍过闸、仍全对、抵不抵进项的档不变（变成拦下的列出原因、逐张看，属覆盖率回退要报；变错算回归）；
+       ④ 原来拦下、现在过闸的票逐张看：要配上金标（`paired`）且 `wrong` 为空，并在原件上核那几页（`text_fallback` 的页）印着的单号、含税额、对方税号与识别
+       一致；有字段错、配不上金标、非票据过闸的任何一张都算回归，不上线。⑤ 另报各批换页的原件数 / 页数、过闸数新旧，`da-replay.py report --out` 出两边准确率。
+    5. **旧存档只作对照**：金标-2026-10 `C:\PearnlyStress\_回放\2026-10-16-d4\gate-金标仅\gate.json`、E2 第一批 `…\2026-10-18-e2\gate-p4\gate.json`、
+       E2b `…\2026-10-19-e2b\gate-p6\gate.json`。base 与它们的差别来自之后别的规则改动（如 `445cb328` 副本页不算证据页、`174243c1`），不算本条；
+       判无回归只看 base 对 cand。跑完删 `/tmp/tl-*` 与 `Temp\tl`，`_回放\2026-10-19-tl` 保留。
+
 ## 第一轮回放后的决定（2026-10-16）
 
 用户定：
