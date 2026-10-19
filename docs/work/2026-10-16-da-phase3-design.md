@@ -807,6 +807,9 @@
   新词条（CC 网页三语）`proposal.accountSet / date / docNo / party / beforeVat / vat / total`。测试：`ProposalDetailTests`（名称、回码、
   过时照旧、权限）；`test_cc_month_ledger` 两条（展开前后、推送在内容下面、不显示原因码）。
 
+- **CC 推停下的单后照实报同组（10-19 验收）**：测试窗口让 CC 用 T.7 推 F，G 已按记住的那份接着判，CC 却说「G 不动」。回包里
+  本来有 ``settled``，`cowork_push_documents` 的说明没要求报：补上「同组接着判了几张、各自停在下一步、都没推」，测试断言说明与回包。
+
 ## 第一轮回放后的决定（2026-10-16）
 
 用户定：

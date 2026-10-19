@@ -3897,7 +3897,10 @@ TOOLS = [
                     "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
                     "upload is used. " + ACCOUNT_SET_STOP_NOTE + " Pushed with one of account_set_options, it goes "
                     "there and, when two of them cover the same dates, that one is remembered as the account set in "
-                    "use (as with current_book). " + WRITTEN_NOTE,
+                    "use (as with current_book); then the company's other documents waiting on the same account sets "
+                    "continue with it (settled in that result is how many): tell the user how many and that each now "
+                    "waits at its next step (a handling or other choice, a proposal to push, or not pushed yet); none "
+                    "of them is pushed, so push them only when the user asks. " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},

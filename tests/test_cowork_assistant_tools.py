@@ -4008,6 +4008,7 @@ class StoppedAccountSetTests(unittest.TestCase):
             self.assertEqual(self.chosen, [("H1", "s:\\68exp\\67niexcp")])
             self.assertEqual((out["results"][0]["status"], out["results"][0]["current_book"]),
                              ("queued", "s:\\68exp\\67niexcp"))
+            self.assertEqual(out["results"][0]["settled"], 1)  # 同组跟着走了几张，照实交给 CC（10-19 验收「G 不动」）
             # 不在候选里：不推，给候选
             out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": self.T9}))["results"][0]
             self.assertEqual((out["status"], out["reason"]), ("needs_choice", "account_set_not_chosen"))
@@ -4030,6 +4031,8 @@ class StoppedAccountSetTests(unittest.TestCase):
         for name in ("cowork_list_documents", "cowork_document_detail", "cowork_push_documents", "cowork_push_choices"):
             self.assertIn("account set not chosen yet", declared[name], name)
             self.assertIn("never name one as its account set", declared[name], name)
+        # 推停下的单、记成现用账套时：同组跟着走的张数要告诉用户、它们没被推（10-19 验收：CC 说成「G 不动」）
+        self.assertIn("settled in that result is how many): tell the user how many", declared["cowork_push_documents"])
 
 
 if __name__ == "__main__":
