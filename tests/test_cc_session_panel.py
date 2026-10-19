@@ -341,7 +341,8 @@ assert.equal(JSON.parse(store.get("cc.panel.a@b")!).open, true);
 
     def test_dock_or_float_and_css_lengths(self):
         self.run_page(r"""
-import { cssPx, dockFits } from "@/lib/company-panel";
+import { cssPx } from "@/lib/css-var";
+import { dockFits } from "@/lib/company-panel";
 assert.equal(cssPx("280px"), 280);
 assert.equal(cssPx(" 24rem", 16), 384);
 assert.equal(cssPx("var(--x)"), 0);

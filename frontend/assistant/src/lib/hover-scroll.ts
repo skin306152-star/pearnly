@@ -33,9 +33,6 @@ export function canHoverScroll(): boolean {
   return !touchOnly() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-// CSS 时长 → 毫秒的解析在 lib/css-var.ts（三份合成一份，标准化记录 2.6）；这里再导出一次，原来从这里导入的调用方（共用拖动）不动，B8 删掉
-export { cssMs };
-
 function rootVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name);
 }

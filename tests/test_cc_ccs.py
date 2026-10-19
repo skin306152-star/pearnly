@@ -907,12 +907,12 @@ class ComponentLibraryTests(unittest.TestCase):
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import { cssMs, cssPx, cssVar, fixedMs, fixedPx } from "@/lib/css-var";
-import { cssMs as hoverMs } from "@/lib/hover-scroll";
-import { cssPx as panelPx } from "@/lib/company-panel";
+import * as hoverScroll from "@/lib/hover-scroll";
+import * as companyPanel from "@/lib/company-panel";
 const g = globalThis as any;
-// 三份解析合成一份：原来的导入处拿到的是同一个函数
-assert.equal(hoverMs, cssMs);
-assert.equal(panelPx, cssPx);
+// 三份解析合成一份：只从 lib/css-var.ts 导出，原来的两处再导出 B8 删掉了
+assert.equal("cssMs" in hoverScroll, false);
+assert.equal("cssPx" in companyPanel, false);
 assert.equal(cssMs("150ms", 0), 150);
 assert.equal(cssMs(" 0.3s", 0), 300);
 assert.equal(cssMs("", 7), 7);
