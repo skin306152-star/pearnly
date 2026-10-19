@@ -8,8 +8,10 @@
 //   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1；自动推前判出
 //   多份同期账套，数字会计员第 3 期）：点开取可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推
 //   （choose_account_set；多份同期时推成了服务端才记成这家公司现用的）；没有可换的就地「交给 CC」。
-//   CC 准备好的提议（action push，数字会计员第 3 期：自动推前判成 A / B、这家的档位还只出提议）：行尾一个「推送」，点了就按
-//   当场选同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
+//   CC 准备好的提议（action push，数字会计员第 3 期：自动推前判成 A / B、这家的档位还只出提议）：行上不露「推送」，点开取
+//   CC 备好的内容（assistant.pending_api.proposal_detail，只读：账套、每一项做法、日期、单号、对方、金额），下面「推送」按当场选
+//   同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
+//   推送 / 作答回包停在要人选时不报错、直接重取；其余失败显示服务端给人看的话，没有就写通用的「推送失败」，不显示原因码。
 //   其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），输入框预填「处理这几张：…」并带上单据编号，不自动发送。
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
@@ -20,7 +22,6 @@ import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
   answerChoices,
-  answered,
   cachedDetail,
   chooseAccountSet,
   type ChoiceNeeded,
@@ -33,8 +34,11 @@ import {
   loadAccountSets,
   loadChoices,
   loadPending,
+  loadProposal,
   PENDING_EVENTS,
   type PendingItem,
+  type ProposalView,
+  pushOutcome,
   pushProposal,
   refreshPendingCounts,
   useCompanyNav,
@@ -341,11 +345,11 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
     setBusy(true);
     setError("");
     try {
-      const result = await answerChoices(item, view, values);
-      if (answered(result)) onDone(item.document);
-      else if (result.status === "needs_choice") await load();
+      const outcome = pushOutcome(await answerChoices(item, view, values), co.ledger.code.push_failed!);
+      if (outcome.kind === "done") onDone(item.document);
+      else if (outcome.kind === "choose") await load();
       else {
-        setError(result.reason_label || result.reason || "");
+        setError(outcome.text);
         onChanged();
       }
     } catch (e) {
@@ -418,8 +422,37 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
   );
 };
 
-/** CC 准备好的提议（数字会计员第 3 期）：行上不露「推送」，点开这一行才有（用户 10-19 定，同当场选那一行的展开）；推成了从列表去掉，
- *  推不成（还要人选、写不进）原因记在单上、列表重取，这次的原因显示在这一行下面。 */
+/** 提议展开后的只读内容（一行一项：左类别名、右值）：推往的账套、CC 备好的每一项做法、日期、单号、对方、税前 / 税额 / 合计；
+ *  没有值的不列。做法的值同当场选的标签规则（optionsOf）：现 / 赊、抵 / 记费用用页面的词，其余是服务端按主档写的「码 名称」。 */
+export function proposalRows(view: ProposalView): Array<[string, string]> {
+  const fixed = FIXED();
+  const rows: Array<[string, string]> = [[co.proposal.accountSet, view.account_set.label || view.account_set.key]];
+  for (const one of view.items) rows.push([co.kind[one.kind] ?? one.label ?? one.kind, fixed[one.value] ?? (one.value_label || one.value)]);
+  rows.push(
+    [co.proposal.date, view.date],
+    [co.proposal.docNo, view.ref_no],
+    [co.proposal.party, view.party],
+    [co.proposal.beforeVat, formatAmount(view.before_vat)],
+    [co.proposal.vat, formatAmount(view.vat)],
+    [co.proposal.total, formatAmount(view.total)],
+  );
+  return rows.filter(([, value]) => !!value);
+}
+
+export const ProposalDetail: FC<{ view: ProposalView }> = ({ view }) => (
+  <dl className="flex min-w-0 flex-col gap-(--cc-space-4)" data-slot="cc-proposal-detail">
+    {proposalRows(view).map(([label, value], i) => (
+      <div key={i} className="flex min-w-0 items-baseline justify-between gap-(--cc-space-12)">
+        <dt className="shrink-0 text-ink-3">{label}</dt>
+        <dd className="min-w-0 text-end text-ink wrap-break-word">{value}</dd>
+      </div>
+    ))}
+  </dl>
+);
+
+/** CC 准备好的提议（数字会计员第 3 期）：行上不露「推送」，点开这一行先取 CC 备好的内容显示出来，下面才有「推送」（用户 10-19 定，
+ *  同当场选那一行的展开）；推成了从列表去掉，停在要人选时列表重取（这张单换成当场选那一行），推不成（写不进）原因记在单上、
+ *  列表重取，这次的话显示在这一行下面。 */
 export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; head?: ReactNode }> = ({
   item,
   onDone,
@@ -427,16 +460,31 @@ export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => 
   head,
 }) => {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<ProposalView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      setView(await loadProposal(item));
+    } catch (e) {
+      setError(shownError(e));
+    }
+  }, [item]);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !view) void load();
+  };
   const push = async () => {
     setBusy(true);
     setError("");
     try {
-      const result = await pushProposal(item);
-      if (answered(result)) onDone(item.document);
+      const outcome = pushOutcome(await pushProposal(item), co.ledger.code.push_failed!);
+      if (outcome.kind === "done") onDone(item.document);
+      else if (outcome.kind === "choose") onChanged();
       else {
-        setError(result.reason ?? "");
+        setError(outcome.text);
         onChanged();
       }
     } catch (e) {
@@ -448,20 +496,35 @@ export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => 
   return (
     <div className="cc-list-item flex-col" data-slot="cc-pending-proposal" data-variant={head ? "row" : undefined} data-open={open || undefined}>
       <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
-        aria-expanded={open} onClick={() => setOpen(!open)}>
+        aria-expanded={open} onClick={toggle}>
         {head ?? <Summary item={item} />}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
-      {open && (
-        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void push()}>
-          {busy && <LoaderIcon className="cc-spinner" />}
-          {co.pushNow}
-        </button>
-      )}
+      {open && <ProposalBody view={view} error={error} busy={busy} onPush={() => void push()} />}
       {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
   );
 };
+
+/** 展开后的那一块：内容还没取到时转圈（同当场选那一行），取到了是只读内容，下面靠右「推送」；取不到（出错）只显示错误。 */
+export const ProposalBody: FC<{ view: ProposalView | null; error: string; busy: boolean; onPush: () => void }> = ({ view, error, busy, onPush }) => (
+  <>
+    {!view && !error && (
+      <div className="flex justify-center py-(--cc-space-8) text-ink-3">
+        <LoaderIcon className="cc-spinner" />
+      </div>
+    )}
+    {view && (
+      <>
+        <ProposalDetail view={view} />
+        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={onPush}>
+          {busy && <LoaderIcon className="cc-spinner" />}
+          {co.pushNow}
+        </button>
+      </>
+    )}
+  </>
+);
 
 /** 停在「待选账套」的单：点开取可换的账套（一个下拉，只有一份时预选，几份时要人选），「确认」换到它并重推；没有可换的
  *  （新年度账套还没建、目录还没报上来）就地「交给 CC」。样式与当场选那一行同一套。 */
@@ -500,17 +563,19 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
     setError("");
     try {
       const result = await chooseAccountSet(item, value);
-      if (answered(result)) {
+      const outcome = pushOutcome(result, co.ledger.code.push_failed!);
+      if (outcome.kind === "done") {
         onDone(item.document);
         // 同一组别的单跟着记住的那份接着判了：列表重取（它们不再停在「多份账套」）
         if (result.settled) onChanged();
       }
       // 选的那份这会儿已不在可换之列（目录刚变）：重取可换的账套再让人选，不弹错误
       else if (result.status === "stale") void load();
+      // 还要人选（科目等）：原因记在单上，列表重取后这张单换成当场选那一行，不报错
+      else if (outcome.kind === "choose") onChanged();
       else {
-        // 还要人选（科目等）：原因记在单上，列表重取后按新原因显示；推不成（没进账本）：单回到「待选账套」能再选，
-        // 这次的原因显示在这一行下面
-        setError(result.reason_label || result.reason || "");
+        // 推不成（没进账本）：单回到「待选账套」能再选，这次的原因显示在这一行下面
+        setError(outcome.text);
         onChanged();
       }
     } catch (e) {

@@ -489,12 +489,114 @@ assert.ok(!page.includes('data-slot="cc-pending-push"'));  // 点开这一行才
 assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);
 """)
 
+    def test_a_proposal_shows_what_cc_prepared_once_opened_with_push_below(self):
+        # 用户 10-19：「先点开这一行看单据内容，展开后才有推送」。没点开：没有内容也没有「推送」；点开先转圈取内容
+        # （assistant.pending_api.proposal_detail，只读），取到了是账套名与每一项做法、日期、单号、对方、金额，「推送」在下面
+        self.run_page(r"""
+import { PendingItems, ProposalBody, proposalRows } from "@/components/pending";
+import { loadProposal } from "@/lib/companies";
+const item = pendingOf(proposalItem, "COMPANY");
+const closed = renderToStaticMarkup(createElement(PendingItems, { items: [item], error: "", done: noop, changed: noop, company: "COMPANY" }));
+assert.ok(!closed.includes("cc-proposal-detail"));
+assert.ok(!closed.includes('data-slot="cc-pending-push"'));
+const body = (view: any, error = "") => renderToStaticMarkup(createElement(ProposalBody, { view, error, busy: false, onPush: noop }));
+assert.match(body(null), /cc-spinner/);
+assert.ok(!body(null).includes("cc-pending-push"));
+assert.equal(body(null, "Not permitted"), "");
+const view: any = {
+  document: "p1", account_set: { key: "s:\\69exp\\abc", label: "ABC 69" },
+  items: [
+    { kind: "party", label: "Express record", value: "S001", value_label: "S001 Makro" },
+    { kind: "account", label: "Expense account", value: "5300", value_label: "5300 Supplies" },
+    { kind: "payment", label: "Payment", value: "credit", value_label: "Credit" },
+    { kind: "vat", label: "Tax on this receipt", value: "claim", value_label: "Claim VAT" },
+    { kind: "item", label: "Stock item", value: "P1,P2", value_label: "P1 Paper, P2" },
+  ],
+  date: "2026-09-20", ref_no: "INV-p1", party: "Makro", party_tax: "0105548064214", before_vat: "1000.47", vat: "70.03", total: "1070.5",
+};
+const open = body(view);
+const shown = [...open.matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>([^<]*)<\/dd>/g)].map((m) => [m[1], m[2]]);
+assert.deepEqual(shown, [
+  ["Account set", "ABC 69"], ["Party", "S001 Makro"], ["Expense account", "5300 Supplies"], ["Payment", "Credit"],
+  ["Tax on receipts", "Claim VAT"], ["Stock item", "P1 Paper, P2"], ["Date", "2026-09-20"], ["Document no.", "INV-p1"],
+  ["Counterparty", "Makro"], ["Before VAT", "1,000.47"], ["VAT", "70.03"], ["Total", "1,070.50"],
+]);
+assert.ok(open.indexOf("cc-proposal-detail") < open.indexOf('data-slot="cc-pending-push"'));
+assert.match(open, /<button type="button" class="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push">Push<\/button>$/);
+// 读不到名称时服务端回码：照码显示；空的项不列
+assert.deepEqual(proposalRows({ ...view, account_set: { key: "s:\\x", label: "" }, items: [{ kind: "department", label: "", value: "D1", value_label: "" }],
+  before_vat: "", vat: "", party: "" }), [["Account set", "s:\\x"], ["Department", "D1"], ["Date", "2026-09-20"], ["Document no.", "INV-p1"], ["Total", "1,070.50"]]);
+// 取内容：GET，只带单据编号
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: view }) });
+const urls: Array<[string, string]> = [];
+const fetchBefore = g.fetch;
+g.fetch = async (url: string, init: any = {}) => (urls.push([String(url), String(init.method ?? "GET")]), fetchBefore(url, init));
+const got = await loadProposal({ document: "p1" });
+g.fetch = fetchBefore;
+assert.equal(got.account_set.label, "ABC 69");
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.assistant.pending_api.proposal_detail");
+assert.equal(g.calls.at(-1).body, null);
+assert.equal(urls.length, 1);
+assert.match(urls[0][0], /pending_api\.proposal_detail\?document=p1$/);
+assert.equal(urls[0][1], "GET");
+""")
+        self.run_page(r"""
+import { proposalRows } from "@/components/pending";
+const view: any = { document: "p1", account_set: { key: "k", label: "T.7" }, items: [
+  { kind: "payment", label: "", value: "cash", value_label: "Cash" }, { kind: "vat", label: "", value: "expense", value_label: "Expense it" },
+  { kind: "payment", label: "", value: "HS", value_label: "Cash" }],
+  date: "2026-09-20", ref_no: "INV-1", party: "Makro", before_vat: "1000", vat: "70", total: "1070" };
+// 现 / 赊、抵 / 记费用用当场选同一套词（optionsOf 的 FIXED）；销项的单据类型用服务端的名称
+assert.deepEqual(proposalRows(view), [["账套", "T.7"], ["付款方式", "现购"], ["票面税额", "记费用"], ["付款方式", "Cash"], ["日期", "2026-09-20"],
+  ["单号", "INV-1"], ["对方", "Makro"], ["税前", "1,000.00"], ["税额", "70.00"], ["合计", "1,070.00"]]);
+""", lang="zh")
+        self.run_page(r"""
+import { proposalRows } from "@/components/pending";
+const view: any = { document: "p1", account_set: { key: "k", label: "T.7" }, items: [], date: "2026-09-20", ref_no: "INV-1", party: "Makro",
+  before_vat: "1000", vat: "70", total: "1070" };
+assert.deepEqual(proposalRows(view).map(([label]) => label), ["ชุดบัญชี", "วันที่", "เลขที่เอกสาร", "คู่ค้า", "ยอดก่อนภาษี", "ภาษีมูลค่าเพิ่ม", "ยอดรวม"]);
+""", lang="th")
+
+    def test_a_push_that_stops_for_a_choice_never_shows_the_reason_code(self):
+        # 10-19 验收：推一张提议停在要人选时，行里先冒出原始码「choice_needed:account」约 1 秒才刷新。现在要人选（needs_choice，或停下
+        # 原因是 choice_needed:*）不报错、直接重取；其余显示服务端给人看的话，没有就写通用的「推送失败」。当场选、换账套两行同一套
+        self.run_page(r"""
+import { pushOutcome } from "@/lib/companies";
+const failed = "Push failed";
+assert.deepEqual(pushOutcome({ document: "p1", status: "sent" }, failed), { kind: "done" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "already_success" }, failed), { kind: "done" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "needs_choice", reason: "choice_needed:account", reason_label: "Choose the expense account" }, failed), { kind: "choose" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "manual", reason: "choice_needed:party,account" }, failed), { kind: "choose" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "account_match:branch", reason_label: "Branch mismatch" }, failed),
+  { kind: "error", text: "Branch mismatch" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "account_match:branch" }, failed), { kind: "error", text: "Push failed" });
+assert.deepEqual(pushOutcome({ document: "p1", status: "failed", reason: "update_needed", reason_label: "update_needed" }, failed),
+  { kind: "error", text: "Push failed" });  // 服务端翻不了的原因，给人看的话就是码本身
+assert.deepEqual(pushOutcome({ document: "p1", status: "waiting_for_cc", reason: "reading", reason_label: "Reading the account set" }, failed),
+  { kind: "error", text: "Reading the account set" });
+""")
+        pending = read("components/pending.tsx")
+        for name in ("ChooseRow", "ProposalRow", "AccountSetRow"):
+            row = pending.split(f"export const {name}: FC<", 1)[1].split("\n};", 1)[0]
+            self.assertIn("pushOutcome(", row, name)
+            self.assertIn("co.ledger.code.push_failed!", row, name)
+            self.assertNotRegex(row, r"setError\(result\.reason", name)  # 不再把原因码显示出来
+        self.assertIn('else if (outcome.kind === "choose") onChanged();', pending.split("export const ProposalRow: FC<", 1)[1])
+        self.assertIn('else if (outcome.kind === "choose") await load();', pending.split("export const ChooseRow: FC<", 1)[1])
+
     def test_rows_stay_within_a_phone_width(self):
         # 手机同一组件（会话栏照 ERP 手机端）：行里的字可截断；「推送」在展开后（同当场选那一行的展开：卡片按钮靠右，手机 44）
         pending = read("components/pending.tsx")
         row = pending.split("export const ProposalRow: FC<", 1)[1].split("\n};", 1)[0]
         self.assertIn('className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}', row)
-        self.assertIn('{open && (\n        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push"', row)
+        self.assertIn("{open && <ProposalBody view={view} error={error} busy={busy} onPush={() => void push()} />}", row)
+        body = pending.split("export const ProposalBody: FC<", 1)[1].split("\n);\n", 1)[0]
+        self.assertIn('<ProposalDetail view={view} />\n        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push"', body)
+        # 展开后的内容是两列只读行（左类别名、右值，放不下的值换行），只用标准类与变量
+        detail = pending.split("export const ProposalDetail: FC<", 1)[1].split("\n);\n", 1)[0]
+        self.assertIn('<div key={i} className="flex min-w-0 items-baseline justify-between gap-(--cc-space-12)">', detail)
+        self.assertIn('<dd className="min-w-0 text-end text-ink wrap-break-word">{value}</dd>', detail)
+        self.assertNotIn("cc-proposal-detail {", read("globals.css"))
         ledger = read("components/month-ledger.tsx")
         self.assertNotIn("cc-month-group-head", ledger)
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{co.ledger.automation}</Marquee>', ledger)

@@ -1729,6 +1729,20 @@ class PendingAnswerTests(unittest.TestCase):
         finally:
             scope.features = {"intake", "ocr_history"}
 
+    def test_waiting_for_the_chart_says_so_instead_of_the_state_code(self):
+        # 10-19 验收：推了停在等电脑读科目表（`_push_one` 带 note 的 reading / offline …），页面原先显示 reading 这样的码；现在写
+        # 主档状态那一句（同展开时的 wait.message）
+        doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC")
+        module, _calls = self._answer(doc, {"status": "waiting_for_cc", "reason": "offline", "note": "for CC"})
+        sys.modules["pearnly_cowork.push.application"].service = types.SimpleNamespace(
+            MASTERS_TEXT={"reading": "cowork.masters.reading", "offline": "cowork.masters.offline"})
+        self.assertEqual(module.answer("h1", "[]"), {"document": "h1", "status": "waiting_for_cc", "reason": "offline",
+                                                     "reason_label": "cowork.masters.offline"})
+        module, _calls = self._answer(doc, {"status": "failed", "reason": "update_needed", "note": "for CC"})
+        sys.modules["pearnly_cowork.push.application"].service = types.SimpleNamespace(
+            MASTERS_TEXT={"reading": "cowork.masters.reading", "update_needed": "cowork.masters.update_needed"})
+        self.assertEqual(module.answer("h1", "[]")["reason_label"], "cowork.masters.update_needed")
+
     def test_a_document_waiting_for_an_account_set_is_switched_here(self):
         """第 6 批（T1 前端待办第 3 条）：定时任务跟随公司当年账套停在「待选账套」的单，待处理页当场换账套：可换的是这张单
         归的公司在推送去向那条连接上覆盖单据日期的账套（同定时任务的判据），只收其中一份；抄到票上再按 CC 同一条路重推。"""
@@ -1839,6 +1853,115 @@ class PendingAnswerTests(unittest.TestCase):
         source = (APP / "companies/pending.py").read_text(encoding="utf-8")
         self.assertIn('item["choice"] = {"connection": row.push_connection', source)
         self.assertNotIn("choices_view", source.split("def _items", 1)[1].split("\ndef ", 1)[0])
+
+
+def frozen_proposal(**fields):
+    """票上冻结的提议（`push.automation.rules.proposal` 的样子）。"""
+    data = {"class": "A", "tier": "L0", "trigger": "upload", "at": "2026-10-18T09:00:00",
+            "values": {"party": "S001", "item": "P1,P2", "account": "5300", "payment": "HP", "vat": "capitalize",
+                       "department": "D1"},
+            "items": {}, "date": "2026-09-20", "ref_no": "INV-h1", "party_tax": OTHER_TAX,
+            "before_vat": "1000.47", "vat": "70.03", "total": "1070.50"}
+    data.update(fields)
+    return json.dumps(data, ensure_ascii=False, sort_keys=True)
+
+
+MASTERS = {"reported_accounts": [{"code": "5300", "name": "ค่าวัสดุสิ้นเปลือง"}, {"code": "1120", "name": "ธนาคาร"}],
+           "reported_departments": [{"code": "D1", "name": "สำนักงาน"}],
+           "reported_products": [{"code": "P1", "name": "กระดาษ A4"}],
+           "reported_suppliers": [{"code": "S001", "name": "Makro"}], "reported_customers": []}
+
+
+class ProposalDetailTests(unittest.TestCase):
+    """用户 10-19：提议行「先点开这一行看单据内容，展开后才有推送」。点开时取 `assistant.pending_api.proposal_detail`（只读）：
+    推往的账套（名称同待处理账套框）、每一项做法（码按这份账套的主档写「码 名称」，付款 / 抵进项换成「记住的选择」的值）、
+    日期、单号、对方、三项金额。照票上冻结的显示（票改过也照旧），名称读不到时回码，权限同 `answer`。"""
+
+    _answer = PendingAnswerTests._answer
+
+    def _detail(self, **fields):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy")])
+        doc = history("h1", auto_class="A", auto_proposal=frozen_proposal(), **fields)
+        module, calls = self._answer(doc, {"status": "sent"})
+        return module, calls, doc
+
+    def test_the_frozen_proposal_is_shown_with_names_from_the_account_sets_masters(self):
+        module, calls, _doc = self._detail()
+        preparation.reported = MASTERS
+        fresh_request()
+        out = module.proposal_detail("h1")
+        self.assertEqual(out["account_set"], {"key": "s:\\69exp\\abc", "label": "ABC 69"})
+        self.assertEqual(out["items"], [
+            {"kind": "party", "label": "cowork.choice.party", "value": "S001", "value_label": "S001 Makro"},
+            {"kind": "item", "label": "cowork.choice.item", "value": "P1,P2", "value_label": "P1 กระดาษ A4, P2"},
+            {"kind": "account", "label": "cowork.choice.account", "value": "5300",
+             "value_label": "5300 ค่าวัสดุสิ้นเปลือง"},
+            {"kind": "payment", "label": "cowork.choice.payment", "value": "cash", "value_label": "Cash"},
+            {"kind": "vat", "label": "cowork.choice.vat", "value": "expense", "value_label": "Expense it"},
+            {"kind": "department", "label": "cowork.choice.department", "value": "D1", "value_label": "D1 สำนักงาน"}])
+        self.assertEqual({key: out[key] for key in ("date", "ref_no", "party", "party_tax", "before_vat", "vat", "total")},
+                         {"date": "2026-09-20", "ref_no": "INV-h1", "party": "Makro", "party_tax": OTHER_TAX,
+                          "before_vat": "1000.47", "vat": "70.03", "total": "1070.50"})
+        # 主档只读这份账套自己的（同「记住的选择」）；只读：不推、不记、不提交
+        self.assertEqual(preparation.asked, [("C1", "s:\\69exp\\abc", preparation.ALL_MASTER_LISTS)])
+        self.assertEqual(calls, [])
+        self.assertEqual(frappe.db.commits, 0)
+
+    def test_names_that_cannot_be_read_come_back_as_codes(self):
+        module, _calls, _doc = self._detail()
+        preparation.reported = None  # 这份账套的主档还没读过
+        fresh_request()
+        out = module.proposal_detail("h1")
+        self.assertEqual([(item["value"], item["value_label"]) for item in out["items"]],
+                         [("S001", "S001"), ("P1,P2", "P1, P2"), ("5300", "5300"), ("cash", "Cash"),
+                          ("expense", "Expense it"), ("D1", "D1")])
+        self.assertEqual(out["account_set"]["label"], "ABC 69")
+        # 本人用不了这条连接：账套名与主档都不读，回码，不报错
+        preparation.reported, preparation.asked = MASTERS, []
+        connections.users["C1"] = {"other@example.com"}
+        fresh_request()
+        out = module.proposal_detail("h1")
+        self.assertEqual(out["account_set"], {"key": "s:\\69exp\\abc", "label": "s:\\69exp\\abc"})
+        self.assertEqual(out["items"][0]["value_label"], "S001")
+        self.assertEqual(preparation.asked, [])
+
+    def test_a_stale_proposal_is_still_shown_as_frozen(self):
+        # 票被改过（作废了提议、交给人）、规则变了：照票上冻结的显示，推的时候照常重判
+        module, _calls, doc = self._detail(edit_count=1, invoice_no="INV-EDITED", total_amount="999")
+        preparation.reported = MASTERS
+        fresh_request()
+        out = module.proposal_detail("h1")
+        self.assertEqual((out["ref_no"], out["total"]), ("INV-h1", "1070.50"))
+        self.assertEqual(len(out["items"]), 6)
+        # 销项：单据类型保留，名称写现金；对方档新建写「新建（按票面）」；买方是对方
+        doc.auto_proposal = frozen_proposal(values={"party": "new", "payment": "HS", "receipt": "1120"},
+                                            party_tax=TAX)
+        doc.buyer_tax, doc.seller_tax, doc.buyer_name, doc.seller_name = TAX, OTHER_TAX, "ABC", "Makro"
+        fresh_request()
+        out = module.proposal_detail("h1")
+        self.assertEqual([(item["value"], item["value_label"]) for item in out["items"]],
+                         [("new", "cowork.choice.new"), ("HS", "Cash"), ("1120", "1120 ธนาคาร")])
+        self.assertEqual(out["party"], "ABC")
+        # 没有提议（还没判过）：没有做法，日期单号金额取票面
+        doc.auto_proposal = None
+        fresh_request()
+        out = module.proposal_detail("h1")
+        self.assertEqual((out["items"], out["ref_no"], out["date"], out["total"]), ([], "INV-EDITED", "2026-09-20", "999.00"))
+
+    def test_permission_is_the_same_as_answering(self):
+        module, _calls, _doc = self._detail()
+        scope.features = {"ocr_history"}
+        try:
+            with self.assertRaises(frappe.PermissionError):
+                module.proposal_detail("h1")
+        finally:
+            scope.features = {"intake", "ocr_history"}
+        source = (APP / "assistant/pending_api.py").read_text(encoding="utf-8")
+        body = source.split("def proposal_detail", 1)[1].split("\n\n\n", 1)[0]
+        self.assertIn('@frappe.whitelist(methods=["GET"])\ndef proposal_detail', source)
+        self.assertIn('scope.require("intake")', body)
+        self.assertIn("storage.read(name)", body)  # 单据读取范围
+        self.assertNotIn("commit", body)
 
 
 class CurrentBookGroupTests(unittest.TestCase):

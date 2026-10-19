@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -294,6 +295,106 @@ def account_set_pick(row, key) -> dict | None:
                  if wanted and normalize_express_account_key(item["key"]) == wanted), None)
 
 
+# ---------------- 提议展开（数字会计员第 3 期，用户 10-19「先点开这一行看单据内容，展开后才有推送」） ----------------
+
+PROPOSAL_MONEY = ("before_vat", "vat", "total")
+# 冻结的抵不抵进项（`push.automation.rules.values`：capitalize = 税额计入成本）→ 页面与「记住的选择」同一套值
+PROPOSAL_VAT = {"claim": "claim", "capitalize": "expense"}
+PROPOSAL_NEW = "new"  # `rules.values`：对方档要新建
+
+
+def _proposal_of(row) -> dict:
+    raw = row.get("auto_proposal")
+    try:
+        found = json.loads(raw) if isinstance(raw, str) and raw else raw
+    except ValueError:
+        return {}
+    return found if isinstance(found, dict) else {}
+
+
+def _proposal_book(connection, key) -> dict:
+    """推往的那份账套 ``{key, label}``：名称同待处理账套框（目录这一行经 `identity.book`）；本人用不了这条连接、目录里没有
+    这份时名称就是键。"""
+    from pearnly_cowork.companies import service
+
+    label = ""
+    usable = {item["name"]: item.get("adapter") for item in service.usable_connections()}
+    if connection in usable and key:
+        for row in service.facts(connection).get("account_sets") or []:
+            if isinstance(row, dict) and (normalize_express_account_key(row.get("source_id"))
+                                          or str(row.get("source_id") or "")) == key:
+                label = identity.book(usable[connection], connection, row)["label"]
+                break
+    return {"key": key, "label": label or key}
+
+
+def _proposal_masters(connection, key):
+    """这份账套报过的主档（科目、部门、存货、供应商 / 客户，只读，同「记住的选择」）；本人用不了这条连接、没读过回 None。"""
+    from pearnly_cowork.companies import service
+    from pearnly_cowork.connections import preparation
+
+    if not key or not any(item["name"] == connection for item in service.usable_connections()):
+        return None
+    return preparation.reported_masters(frappe.get_doc("Cowork ERP Connection", connection), key,
+                                        keys=preparation.ALL_MASTER_LISTS)
+
+
+def _proposal_item(kind, value, masters) -> dict:
+    """一项做法 → ``{kind, label, value, value_label}``：付款、抵进项换成「记住的选择」的值（现 / 赊、抵 / 记费用）；
+    对方档新建写「新建（按票面）」；码按主档写「码 名称」，几个码逗号隔开；主档里没有的就是码本身。"""
+    from pearnly_cowork.companies import choices
+    from pearnly_cowork.push.express.pushed import PAYMENT_OF
+
+    label = ""
+    if kind == "payment":
+        # 进项的 HP / RR 换成 cash / credit（页面用现购 / 赊购的词）；销项的 HS / IV 保留单据类型，名称写现金 / 赊账
+        direction = "purchase" if ("purchase", value) in PAYMENT_OF else "sales"
+        fixed = PAYMENT_OF.get((direction, value), "")
+        label = choices.value_label("payment", fixed) if fixed else ""
+        value = fixed if direction == "purchase" and fixed else value
+    elif kind == "vat":
+        value = PROPOSAL_VAT.get(value, value)
+        label = choices.value_label("vat", value)
+    elif kind == "party" and value == PROPOSAL_NEW:
+        label = _("cowork.choice.new")
+    else:
+        codes = [code for code in value.split(",") if code] if kind in ("item", "receipt") else [value]
+        label = ", ".join(choices.master_name(kind, code, masters) or code for code in codes)
+    return {"kind": kind, "label": _("cowork.choice." + kind), "value": value, "value_label": label or value}
+
+
+def proposal_view(row) -> dict:
+    """CC 准备好的提议给人看的样子（待处理、月结台账点开那一行时）：``{document, account_set: {key, label}, items: [{kind,
+    label, value, value_label}], date, ref_no, party, party_tax, before_vat, vat, total}``。照票上冻结的
+    ``auto_proposal``（`push.automation.rules.proposal`）显示：票改过、规则变了也照旧，推的时候照常重判；没有提议时
+    ``items`` 为空、日期单号金额取票面。只读，不写库、不请电脑读主档。"""
+    from pearnly_cowork.push.automation.rules import PROPOSAL_KINDS
+
+    proposed = _proposal_of(row)
+    connection = str(row.get("push_connection") or "")
+    raw_key = str(row.get("push_account_set") or "")
+    key = normalize_express_account_key(raw_key) or raw_key
+    values = proposed.get("values") if isinstance(proposed.get("values"), dict) else {}
+    wanted = [(kind, str(values.get(kind) or "").strip()) for kind in PROPOSAL_KINDS]
+    wanted = [(kind, value) for kind, value in wanted if value]
+    masters = _proposal_masters(connection, key) if wanted else None
+    party_tax = identity.digits(proposed.get("party_tax"))
+    buyer = bool(party_tax) and party_tax == identity.digits(row.get("buyer_tax")) \
+        and party_tax != identity.digits(row.get("seller_tax"))
+    party = str((row.get("buyer_name") if buyer else row.get("seller_name")) or row.get("seller_name")
+                or row.get("buyer_name") or "")
+    out = {"document": row.get("name"), "account_set": _proposal_book(connection, key),
+           "items": [_proposal_item(kind, value, masters) for kind, value in wanted],
+           "date": str(proposed.get("date") or row.get("invoice_date") or "")[:10],
+           "ref_no": str(proposed.get("ref_no") or row.get("invoice_no") or ""),
+           "party": party or party_tax, "party_tax": party_tax}
+    for field in PROPOSAL_MONEY:
+        out[field] = amount(proposed.get(field))
+    if not out["total"] and not proposed:
+        out["total"] = amount(row.get("total_amount"))
+    return out
+
+
 def choice_kinds(reason) -> list:
     text = str(reason or "")
     if not text.startswith("choice_needed:"):
@@ -554,4 +655,5 @@ def _titles(names) -> dict:
 
 __all__ = ["account_set_options", "account_set_stop", "account_sets_for", "book_many", "classify", "company_of", "counts",
            "current_book_choice", "current_book_options", "current_book_rechoice",
-           "digest_text", "is_new", "month_of", "morning", "morning_due", "pending", "pending_counts", "proposal"]
+           "digest_text", "is_new", "month_of", "morning", "morning_due", "pending", "pending_counts", "proposal",
+           "proposal_view"]

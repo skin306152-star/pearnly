@@ -176,6 +176,32 @@ export function pushProposal(item: Pick<PendingItem, "document">): Promise<Answe
 }
 
 
+/** CC 准备好的提议点开后显示的内容（assistant.pending_api.proposal_detail，只读）：推往的账套、每一项做法（value 是码或
+ *  cash / credit / claim / expense，value_label 是服务端按主档写的「码 名称」，读不到名称时就是码）、日期、单号、对方、三项金额
+ *  （十进制字符串）。照票上冻结的提议，推的时候服务端照常重判。 */
+export type ProposalItem = { kind: string; label: string; value: string; value_label: string };
+export type ProposalView = {
+  document: string; account_set: { key: string; label: string }; items: ProposalItem[];
+  date: string; ref_no: string; party: string; party_tax?: string; before_vat: string; vat: string; total: string;
+};
+
+export function loadProposal(item: Pick<PendingItem, "document">): Promise<ProposalView> {
+  return getMethod<ProposalView>("pearnly_cowork.assistant.pending_api.proposal_detail", { document: item.document }).then((view) => ({
+    ...view, account_set: view?.account_set ?? { key: "", label: "" }, items: view?.items ?? [],
+  }));
+}
+
+/** 推送 / 作答的回包怎么落：推成了（done）；还要人选（choose：不报错，重取——这张单按新原因显示，或当场重取要选的项）；
+ *  其余显示给人看的话，服务端没给就用通用的「推送失败」，不把原因码（choice_needed:account 这类）显示出来。 */
+export type PushOutcome = { kind: "done" } | { kind: "choose" } | { kind: "error"; text: string };
+export function pushOutcome(result: AnswerResult, failed: string): PushOutcome {
+  if (answered(result)) return { kind: "done" };
+  if (result.status === "needs_choice" || String(result.reason ?? "").startsWith("choice_needed")) return { kind: "choose" };
+  // 服务端翻不了的原因，给人看的话就是码本身：同样不显示
+  const label = result.reason_label && result.reason_label !== result.reason ? result.reason_label : "";
+  return { kind: "error", text: label || failed };
+}
+
 /** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）；
  *  current 是这一组已经记住、仍算数的现用账套（预选它，F18：只预选已定的），没有为空串。 */
 export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<{ sets: Array<{ key: string; label: string }>; current: string }> {

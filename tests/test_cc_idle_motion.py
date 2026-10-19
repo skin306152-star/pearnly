@@ -79,6 +79,7 @@ BUSY_SITES = [
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
     ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
     ("components/pending.tsx", "cc-spinner", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
+    ("components/pending.tsx", "cc-spinner", "{!view && !error && (", 3),  # 提议那一行展开、CC 备好的内容还没取回
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
 BUSY_MOUNTS = [

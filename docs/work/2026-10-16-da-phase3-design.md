@@ -798,6 +798,14 @@
   月结组标题旁的「全部推送」去掉，连同前端 `pushProposals`、服务端 `pending_api.push_proposals` / `PROPOSALS_MAX`、`ledger.proposals` 与
   三语词条 `pushAll` 一起删（没有别的调用方）。提议仍一张一张推，算人发起、照常重判。第 11、12 条里「全部推送」的说法以此为准。
   测试：`test_cc_month_ledger` 断言行上没有「推送」、组标题没有批量按钮；`test_cowork_da_verify` 断言没有批量推送的接口；待处理卡片按钮计数 6 → 7。
+  点开后先显示 CC 备好的内容（10-19，用户「先点开这一行看单据内容」）：展开时取只读接口 `assistant.pending_api.proposal_detail`
+  （GET，权限同 `answer`，`companies.pending.proposal_view`），「推送」上面两列只读行列出推往的账套（名称同待处理账套框）、票上冻结的
+  每一项做法（码按这份账套主档写「码 名称」，付款 / 抵进项用当场选同一套词；本人用不了这条连接或主档没读过就回码）、日期、单号、
+  对方、税前 / 税额 / 合计；票改过、规则变了照冻结的显示，推的时候照常重判。三种行（当场选、换账套、提议）推送回包停在要人选时
+  不报错、直接重取，其余显示服务端给人看的话，没有（或翻不了、就是码本身）就写「推送失败」（原先提议行会先冒出原因码
+  `choice_needed:account` 约 1 秒）；停在等电脑读科目表的（reading / offline …）`_answer` 写主档状态那一句。
+  新词条（CC 网页三语）`proposal.accountSet / date / docNo / party / beforeVat / vat / total`。测试：`ProposalDetailTests`（名称、回码、
+  过时照旧、权限）；`test_cc_month_ledger` 两条（展开前后、推送在内容下面、不显示原因码）。
 
 ## 第一轮回放后的决定（2026-10-16）
 

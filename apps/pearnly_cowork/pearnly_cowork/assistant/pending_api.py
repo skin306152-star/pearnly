@@ -19,8 +19,9 @@
   CC 工具对推送去向那份账套这一天有多份同期的单只记新的那份（`rechoose_current_book`，不推）。两处记下时，同一组里还停在
   「多份账套」的别的单按记住的那份接着判（`_continue_group`，2026-10-19 验收「选定一次再复用」）：判到哪一步就停在哪一步
   （录不录、要人选的项），都定了的成提议或等人推，不替人推；回包带接着判了的张数 ``settled``。
-- CC 准备好的提议（数字会计员第 3 期）：点开那一行点「推送」走 `answer`（交空的选择），一张一张推（用户 2026-10-19 定：
-  行上不露「推送」、不设「全部推送」）。算人发起，照常重判。
+- CC 准备好的提议（数字会计员第 3 期）：点开那一行先取它的内容（`proposal_detail`，只读：推往的账套、每一项做法的值、日期、
+  单号、对方、金额），下面「推送」走 `answer`（交空的选择），一张一张推（用户 2026-10-19 定：行上不露「推送」、不设「全部推送」，
+  先看单据内容再推）。算人发起，照常重判。
 - 定时任务的票补选后仍由读它所在文件夹的那台电脑写（`folder_intake.push.reader_of` → 推送记录的 ``route_device``，ADR-021
   第 51 条，10-16 审查）：点按钮的会计员只用网页或手机、或账套只在那台电脑上时照样推得进去。CC 对话里主动推送仍按发起人。
 """
@@ -70,6 +71,13 @@ def _answer(name, result):
     if result.get("reason"):
         out["reason"] = str(result["reason"])[:300]
         out["reason_label"] = str(export_facts.reason_text(out["reason"]) or "")[:300]
+        if result.get("note"):
+            # 停在等电脑读这份账套的科目表（`tools._push_one` 带 ``note`` 的那两种，原因是主档状态 reading / offline …）：
+            # 写主档状态那一句（同展开时的 ``wait.message``），不让页面显示 reading 这样的码（10-19 验收）
+            from pearnly_cowork.push.application import service as application
+
+            state = out["reason"] if out["reason"] in application.MASTERS_TEXT else "reading"
+            out["reason_label"] = str(_(application.MASTERS_TEXT[state]))[:300]
     return out
 
 
@@ -93,6 +101,18 @@ def account_sets(document):
 
     # ``current``：这一组已经记住、此刻仍算数的现用账套，页面预选它（只预选已定的，验收 F18）
     return {"document": name, **pending.account_set_options(_row(storage.read(name)))}
+
+
+@frappe.whitelist(methods=["GET"])
+def proposal_detail(document):
+    """点开 CC 准备好的提议那一行时显示的内容（只读，不写库）：推往的账套、每一项做法、日期、单号、对方、三项金额
+    （`companies.pending.proposal_view`，照票上冻结的提议，推的时候照常重判）。权限同 `answer`：录入权限 + 这张单的读取
+    范围；名称只从本人能用的连接上读，读不到的回码本身。"""
+    scope.require("intake")
+    name = str(document or "")
+    from pearnly_cowork.companies import pending
+
+    return pending.proposal_view(_row(storage.read(name)))
 
 
 # 推不成、也没进账本的结论：这张单回到「待选账套」，会计员能再选一份（第 6 批审查第 4 条）

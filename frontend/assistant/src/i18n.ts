@@ -561,6 +561,8 @@ const COMPANY = {
       dropped: { written_mismatch: "Write mismatch", changed: "Changed after push" } as Record<string, string>,
       auto: (n: number) => ` (${n} auto)`,
     },
+    // 提议点开后的只读内容（数字会计员第 3 期，用户 10-19）：账套、日期、单号、对方、三项金额；做法的类别名用下面的 kind
+    proposal: { accountSet: "Account set", date: "Date", docNo: "Document no.", party: "Counterparty", beforeVat: "Before VAT", vat: "VAT", total: "Total" },
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
@@ -646,6 +648,7 @@ const COMPANY = {
       dropped: { written_mismatch: "核不上", changed: "被改" } as Record<string, string>,
       auto: (n: number) => `（自动 ${n}）`,
     },
+    proposal: { accountSet: "账套", date: "日期", docNo: "单号", party: "对方", beforeVat: "税前", vat: "税额", total: "合计" },
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
@@ -730,6 +733,7 @@ const COMPANY = {
       dropped: { written_mismatch: "บันทึกไม่ตรง", changed: "ถูกแก้ไขหลังส่ง" } as Record<string, string>,
       auto: (n: number) => ` (อัตโนมัติ ${n})`,
     },
+    proposal: { accountSet: "ชุดบัญชี", date: "วันที่", docNo: "เลขที่เอกสาร", party: "คู่ค้า", beforeVat: "ยอดก่อนภาษี", vat: "ภาษีมูลค่าเพิ่ม", total: "ยอดรวม" },
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",

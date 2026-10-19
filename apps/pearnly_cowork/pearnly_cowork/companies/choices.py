@@ -232,7 +232,7 @@ def history_rows(company, sets) -> list:
     return out
 
 
-def _value_label(kind, value) -> str:
+def value_label(kind, value) -> str:
     label = VALUE_LABELS.get((kind, value))
     return _(label) if label else ""
 
@@ -243,7 +243,7 @@ def rule_rows(company) -> list:
     for row in rules.listing(company["name"]):
         out.append({"key": encode("rule", row["id"]), "source": "rule", "kind": row["kind"], "_tax": tax_in(row["subject"]),
                     "subject_label": subject_name(row["kind"], row["subject"], row["subject_label"]), "value": row["value"],
-                    "value_label": _value_label(row["kind"], row["value"]) or row["value_label"] or row["value"],
+                    "value_label": value_label(row["kind"], row["value"]) or row["value_label"] or row["value"],
                     "editable": row["kind"] in EDITABLE, "branch": row["branch"], "year_label": "",
                     "set_by": row["set_by"], "set_at": row["set_at"], "merged": 1})
     return out
@@ -620,7 +620,7 @@ def _masters(target) -> dict | None:
                                         keys=preparation.ALL_MASTER_LISTS)
 
 
-def _master_name(kind, value, masters) -> str:
+def master_name(kind, value, masters) -> str:
     """值在主档里的名称（科目、部门、存货、对方档；「代码 · 名称」由页面拼），没有就空串。"""
     keys = {"account": ("reported_accounts",), "receipt": ("reported_accounts",),
             "department": ("reported_departments",), "item": ("reported_products",),
@@ -667,7 +667,7 @@ def _save_rule(company, sets, kind, subject, value, branch, period, *, subject_l
         frappe.throw(_("cowork.company.choice_invalid"))
     saved = rules.save(company["name"], workspace=scope.default_workspace(), kind=kind, subject=subject,
                        value=value, branch=branch, subject_label=subject_label,
-                       value_label=_value_label(kind, value) or _master_name(kind, value, masters),
+                       value_label=value_label(kind, value) or master_name(kind, value, masters),
                        evidence=evidence, session=session)
     saved["removed_memories"] = _drop_memories(sets, kind, subject, branch, value)
     return {"saved": True, "rule": saved, "key": encode("rule", saved["id"])}
@@ -732,5 +732,5 @@ def promote(company, sets, key, branch="", period="", session="") -> dict:
     frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
 
 
-__all__ = ["decode", "encode", "find", "forget", "group_of", "history_rows", "listing", "merge_express", "name_parties", "policy_rows",
-           "promote", "rule_rows", "save_rule", "set_value", "target_set", "tax_in"]
+__all__ = ["decode", "encode", "find", "forget", "group_of", "history_rows", "listing", "master_name", "merge_express", "name_parties",
+           "policy_rows", "promote", "rule_rows", "save_rule", "set_value", "target_set", "tax_in", "value_label"]
