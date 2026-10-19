@@ -3680,5 +3680,102 @@ class GuardTests(unittest.TestCase):
             self.assertTrue(set(imported) - {"companies"} <= set(deps["companies"]), path.name)
 
 
+# ---------------- MR.ERP 公司（2026-10-19「让 CC 兼容 MR.ERP」） ----------------
+
+
+def _mrerp_needs():
+    """连接层按方向挑 MR.ERP 要选项的纯规则（`connections.mrerp_needs`），按文件载入（连接包在这里是替身）。"""
+    spec = importlib.util.spec_from_file_location("pearnly_cowork.connections.mrerp_needs",
+                                                  ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/mrerp_needs.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+MR_YEARS = [{"source_id": "12:3", "label": "TEST2019", "active": True,
+             "attributes": {"comidyear": "12", "seldb": "3", "company": "001", "company_name": "MR Co"}},
+            {"source_id": "13:4", "label": "TEST2020", "active": True,
+             "attributes": {"comidyear": "13", "seldb": "4", "company": "001", "company_name": "MR Co"}}]
+
+
+class MrErpCompanyTests(unittest.TestCase):
+    """MR.ERP 公司：资料里如实给每份账套选过的导入菜单与默认值，没有自动推档位；公司规则只给 Express，不出「允许」卡片就拒；
+    台账的定时任务按这家公司的全部账套数（MR.ERP 目录没有会计期间，说不出哪份覆盖这个月）。"""
+
+    def setUp(self):
+        reset(M1=[dict(row) for row in MR_YEARS])
+        self.company = make("M1", "12:3")["id"]
+        self.menus = []
+        needs = _mrerp_needs()
+        views = {"12:3": {"known": True, "kinds": {
+                     "purchase": {"options": [{"idmenu": "68", "label": "ซื้อ"}], "chosen": "68", "needed": False},
+                     "sales_credit": {"options": [{"idmenu": "119", "label": "ขายเชื่อ"}, {"idmenu": "120", "label": "x"}],
+                                      "chosen": None, "needed": True}},
+                     "defaults": {"known": True, "fields": {
+                         "dept": {"options": [{"code": "D001", "name": "บัญชี"}], "chosen": "D001", "needed": False},
+                         "ap_account": {"options": [{"code": "2120-01", "name": "เจ้าหนี้"}], "chosen": None,
+                                        "needed": True}}}},
+                 "13:4": {"known": False, "kinds": {}, "defaults": {"known": False, "fields": {}}}}
+
+        def mrerp_menu(name, key):
+            self.menus.append((name, key))
+            return json.loads(json.dumps(views[key]))
+
+        patches = [mock.patch.object(connections, "mrerp_menu", mrerp_menu, create=True),
+                   mock.patch.dict(sys.modules, {"pearnly_cowork.connections.mrerp_needs": needs}),
+                   mock.patch.object(sys.modules["pearnly_cowork.connections"], "mrerp_needs", needs, create=True)]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.tools = importlib.import_module("pearnly_cowork.assistant.company_tools")
+        fresh_request()
+
+    def test_the_profile_lists_the_mrerp_settings_and_no_tier(self):
+        found = json.loads(self.tools.profile({"company": self.company}))
+        self.assertIsNone(found["automation"])
+        settings = {item["account_set_key"]: item for item in found["mrerp_settings"]}
+        self.assertEqual(set(settings), {"12:3", "13:4"})
+        self.assertEqual(settings["12:3"]["menus"], {"purchase": "ซื้อ"})
+        self.assertEqual(settings["12:3"]["defaults"], {"dept": "D001 · บัญชี"})
+        self.assertEqual(settings["12:3"]["needed"], {"menus": ["sales_credit"], "defaults": ["ap_account"]})
+        self.assertFalse(settings["13:4"]["known"])
+        profile = next(tool for tool in self.tools.TOOLS if tool["name"] == "cowork_company_profile")["description"]
+        self.assertIn("mrerp_settings lists, per account set", profile)
+
+    def test_company_choices_are_refused_for_an_mrerp_company_before_the_card(self):
+        projects.sessions["sesn_mr"] = (self.company, "2026-09", "")
+        frappe.local.pearnly_assistant = {"session_id": "sesn_mr"}
+        self.addCleanup(lambda: setattr(frappe.local, "pearnly_assistant", None))
+        refused = json.loads(self.tools.choice_refusal({"document": "h1", "kind": "payment", "value": "cash"}))
+        self.assertEqual(refused["status"], "not_saved")
+        self.assertIn("this is an MR.ERP company", refused["reason"])
+        saved = json.loads(self.tools.choice_save({"document": "h1", "kind": "payment", "value": "cash"}))
+        self.assertEqual(saved["status"], "not_saved")
+        self.assertFalse(frappe.db.tables.get(RULE))
+        guidance = " ".join(self.tools.GUIDANCE)
+        self.assertIn("An MR.ERP company's account sets carry no fiscal dates", guidance)
+        self.assertIn("Express companies only, an MR.ERP company has none", guidance)
+
+    def test_the_ledger_counts_its_tasks_without_fiscal_periods(self):
+        frappe.db.tables["Cowork Folder Intake Rule"] = {
+            "R1": Row(name="R1", title="Buy", enabled=1, connection="M1", reader="C1", account_set_key="12:3",
+                      creation="1"),
+            "R2": Row(name="R2", title="Other", enabled=1, connection="M1", reader="C1", account_set_key="99:9",
+                      creation="2")}
+        frappe.db.tables["Cowork OCR History"] = {}
+        rules = types.SimpleNamespace(month_files=lambda names, start, end: {})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}), \
+                mock.patch.object(agent, "read", lambda reader: {"health": {}}), \
+                mock.patch.object(agent, "fresh", lambda state: True), \
+                mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            fresh_request()
+            found = ledger.month(self.company, "2026-09")
+        self.assertEqual(found["stages"]["intake"]["tasks"], {"count": 1, "enabled": 1, "attention": 0})
+        self.assertIsNone(found["automation"])
+        self.assertIsNone(found["stages"]["verify"])
+        # 报了会计期间的账套（Express）照旧只看覆盖这个月的
+        self.assertEqual(ledger._without_periods([{"key": "a", "period_start": "2026-01-01"}, {"key": "b"}]), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -26,7 +26,8 @@ GUIDANCE = [
     "When a <company> note is present, work for that company by default: use its account set covering the work "
     "month, its documents folder and month folder for cowork_folder_files, cowork_folder_fetch and new scheduled "
     "tasks; ask before working on another company. Do not move existing scheduled tasks to another folder unless the "
-    "user asks.",
+    "user asks. An MR.ERP company's account sets carry no fiscal dates, so none is marked as covering the month: with "
+    "one year use it; with several, ask the user once which year to use.",
     "When the user states or confirms a lasting fact about how this client's books are kept that is not already in "
     "the team notes (who is paid rent and the withholding rate, how POS days are closed, how a kind of receipt is "
     "booked), offer once in one short sentence to save it with cowork_company_note_save. Do not save one-off details, "
@@ -40,7 +41,7 @@ GUIDANCE = [
     "cowork_company_choice_save; a choice said for this document only is saved with cowork_save_push_choices as usual.",
     # 数字会计员第 3 期第 13 条：档位只由数据升降，没有改档位的工具；为什么没自动推按票上的原因码照实说
     "Automatic pushing for a company (automation in cowork_company_profile: L0 propose only, L1 by rules, L2 whole "
-    "month) moves only by data (qualified month readbacks, write checks); there is no tool or setting to change it, so "
+    "month; Express companies only, an MR.ERP company has none) moves only by data (qualified month readbacks, write checks); there is no tool or setting to change it, so "
     "never offer to. When asked why a document was not pushed automatically, answer from automation.reasons in "
     "cowork_document_detail as they are, in plain words.",
     "In a conversation filed under a company, cowork_list_documents, cowork_push_results and cowork_folder_tasks "
@@ -210,11 +211,52 @@ def profile(tool_input) -> str:
                           for item in rules.listing(row.name, CHOICES_MAX)]
     if filed == row.name and filed_scope:
         found["work_branch"] = filed_scope
+    if row.adapter == "mrerp":
+        # MR.ERP 公司没有自动推送（只判 Express，`push.application.assess`；台账同样给 None），也不用账套记忆与公司规则：
+        # 记住的是每份账套的导入菜单与默认值（存在连接上，`connections.service.mrerp_menu`），这里列出来
+        found["automation"] = None
+        found["mrerp_settings"] = _mrerp_settings(found.get("account_sets") or [])
+        return _json(_local_profile(found))
     # 自动推送的档位（第 3 期第 13 条）：档位、自何时、原因码；有录入权限时带近两期统计（`automation.view`）
     from pearnly_cowork.companies import automation  # 档位要读报税期间（`tax.periods`），只在读资料时加载
 
     found["automation"] = automation.view(row.name)
     return _json(_local_profile(found))
+
+
+MRERP_SETS_SHOWN = 5
+
+
+def _mrerp_settings(sets) -> list:
+    """MR.ERP 公司各份账套（新年度在前，最多 ``MRERP_SETS_SHOWN`` 份）选过的导入菜单与默认值、推之前还要选的；读不到的
+    （没有这条连接的使用授权）不列。只读，改用 cowork_mrerp_setup。"""
+    from pearnly_cowork.connections import mrerp_needs
+    from pearnly_cowork.connections import service as connections
+
+    out = []
+    for item in sets:
+        if item.get("adapter") != "mrerp" or len(out) >= MRERP_SETS_SHOWN:
+            continue
+        try:
+            view = connections.mrerp_menu(item.get("connection"), item.get("key"))
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+            continue
+        menus = {}
+        for kind, entry in (view.get("kinds") or {}).items():
+            if entry.get("chosen"):
+                menus[kind] = next((o.get("label") for o in entry.get("options") or ()
+                                    if o.get("idmenu") == entry["chosen"] and o.get("label")), entry["chosen"])
+        defaults = {}
+        for field, entry in ((view.get("defaults") or {}).get("fields") or {}).items():
+            if entry.get("chosen"):
+                name = next((o.get("name") for o in entry.get("options") or () if o.get("code") == entry["chosen"]), "")
+                defaults[field] = " · ".join(part for part in (entry["chosen"], name) if part)
+        needed = mrerp_needs.needed(view)
+        out.append({"account_set": item.get("label"), "connection": item.get("connection"),
+                    "account_set_key": item.get("key"), "known": needed["known"], "menus": menus,
+                    "defaults": defaults, "needed": {key: needed[key] for key in ("menus", "defaults")}})
+    return out
 
 
 def note_save(tool_input) -> str:
@@ -407,12 +449,21 @@ def mismatch(tool_input) -> str | None:
             f"rule is for {actual} and ask again.")
 
 
+MRERP_NO_RULES = ("Company choices are used only when pushing to Express; this is an MR.ERP company, so nothing was "
+                  "saved. In MR.ERP the counterparty is found by its tax ID and the import menus and default values "
+                  "are chosen per account set with cowork_mrerp_setup.")
+
+
 def choice_refusal(tool_input) -> str | None:
     """出「允许」卡片前的核对（工具声明的 ``refuse``）：公司认不出或是别家的税号（`company_refusal`）、对象对不上就不出卡片、
     直接回失败与原因。"""
     refused = company_refusal(tool_input)
     if refused:
         return refused
+    row = _company(tool_input, write=True)
+    if row and row.adapter == "mrerp":
+        # 公司规则只给 Express 推送用（`push.application.service._company_rules`）；MR.ERP 推送不看，存了也不起作用
+        return _json({"status": "not_saved", "reason": MRERP_NO_RULES})
     reason = mismatch(tool_input)
     return _json({"status": "not_saved", "reason": reason}) if reason else None
 
@@ -427,6 +478,8 @@ def choice_save(tool_input) -> str:
     row = _company(tool_input, write=True)
     if not row:
         return _no_company(tool_input, write=True)
+    if row.adapter == "mrerp":
+        return _json({"status": "not_saved", "reason": MRERP_NO_RULES})
     sets = service.books(row, limit=None)
     branch, period = str(tool_input.get("branch") or ""), _period(row, tool_input)
     if tool_input.get("key"):
@@ -531,7 +584,10 @@ TOOLS = [
                     "company this conversation is filed under; work_branch is the branch this conversation works on. "
                     "Times (set_at, updated_at, created_at) are the user's local time with its UTC offset: say them as "
                     "local time. Describe where a remembered choice or rule came from in the user's own words, never "
-                    "by its source code.",
+                    "by its source code. An MR.ERP company has no fiscal period on its account sets, automation null "
+                    "and no choices or rules (those are for Express); mrerp_settings lists, per account set, the "
+                    "import menus and default values chosen for MR.ERP and what is still needed (change them with "
+                    "cowork_mrerp_setup).",
      "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "period": {"type": "string"}}},
      "handler": "pearnly_cowork.assistant.company_tools.profile"},
     {"name": "cowork_company_note_save", "label": "Saved a company note",
@@ -558,7 +614,8 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.company_tools.note_remove"},
     {"name": "cowork_company_choice_save", "label": "Saved a company choice",
      "description": "Save a push choice for a whole client company (or one branch with branch, its 5-digit number), "
-                    "applied automatically to all its account sets; a choice saved in one account set still overrides "
+                    "Express companies only (MR.ERP pushes do not use them), applied automatically to all its account "
+                    "sets; a choice saved in one account set still overrides "
                     "it there, and saving this removes the same choice saved in its account sets. Either pass key, a "
                     "row from cowork_company_profile choices marked promotable (an account set choice or one learned "
                     "from Express history, which only goes company-wide, without branch), to make it company-wide; "

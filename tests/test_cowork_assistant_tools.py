@@ -133,6 +133,17 @@ def _install():
         spec.loader.exec_module(module)
         parent, _, child = name.rpartition(".")
         setattr(sys.modules[parent], child, module)
+    # MR.ERP 推之前要选的（菜单、默认值）按方向挑的纯规则也用真的：工具与网页推送前那一步同一份判据
+    sys.modules["pearnly_cowork.targets"] = types.ModuleType("pearnly_cowork.targets")
+    for name, path in (("pearnly_cowork.targets.mrerp_menus", COWORK / "targets/mrerp_menus.py"),
+                       ("pearnly_cowork.targets.mrerp_masters", COWORK / "targets/mrerp_masters.py"),
+                       ("pearnly_cowork.connections.mrerp_needs", COWORK / "connections/mrerp_needs.py")):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        parent, _, child = name.rpartition(".")
+        setattr(sys.modules[parent], child, module)
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tools)
@@ -2176,7 +2187,17 @@ class PushOutcomeServiceTests(unittest.TestCase):
              "external_docnum": "PO-1", "result_unknown": 0, "payload_json": json.dumps({"menu": "purchase"})},
             {"name": "PR7", "actor": "a@example.com", "status": "success", "reason": "",
              "external_docnum": "HP690901-001", "result_unknown": 0,
-             "payload_json": json.dumps({key: value for key, value in CASH_PAYLOAD.items() if key != "doctype_src"})}]
+             "payload_json": json.dumps({key: value for key, value in CASH_PAYLOAD.items() if key != "doctype_src"})},
+            # MR.ERP（2026-10-19 起）：服务端执行器在回执里记了进了哪类单据、哪个导入菜单；之前的回执没有
+            {"name": "PR8", "actor": "a@example.com", "status": "success", "reason": "",
+             "external_docnum": "SI690930-001", "result_unknown": 0, "payload_json": json.dumps({"histories": []}),
+             "target_json": json.dumps({"adapter": "mrerp", "account_set": "12:3"}),
+             "response_json": json.dumps({"ok": True, "mrerp_bill_no": "SI690930-001",
+                                          "meta": {"doc_type": "sales_cash", "mrerp_menu": "ใบขายเงินสด"}})},
+            {"name": "PR9", "actor": "a@example.com", "status": "success", "reason": "",
+             "external_docnum": "690930-002", "result_unknown": 0, "payload_json": json.dumps({"histories": []}),
+             "target_json": json.dumps({"adapter": "mrerp"}),
+             "response_json": json.dumps({"ok": True, "meta": {"stage": "success"}})}]
     CASH = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
 
     def test_only_my_own_pushes_and_the_number_only_when_entered(self):
@@ -2211,6 +2232,20 @@ class PushOutcomeServiceTests(unittest.TestCase):
         # 改版前的记录没有 doctype_src：照实给现 / 赊，不编来源
         self.assertEqual(found["PR7"]["written"], {**{key: value for key, value in self.CASH.items() if key != "payment_from"},
                                                    "docnum": "HP690901-001"})
+
+    def test_an_mrerp_record_says_which_kind_and_menu_it_went_into(self):
+        """2026-10-19 CC 兼容 MR.ERP：MR.ERP 的单 CC 也答得出现销还是赊销、进了哪个导入菜单（回执 meta），不编 Express 的
+        科目与来源；之前推的回执没记，只给单号。"""
+        service, _queries = _push_service(self.ROWS)
+        found = service.outcomes(["PR8", "PR9"])
+        self.assertEqual(found["PR8"]["written"], {"docnum": "SI690930-001", "entered_as": "sales_cash",
+                                                   "payment": "cash", "menu": "ใบขายเงินสด"})
+        self.assertEqual(found["PR9"]["written"], {"docnum": "690930-002"})
+        self.assertEqual(service.written(["PR8"]), {"PR8": found["PR8"]["written"]})
+        self.assertEqual(service.MRERP_PAYMENT, {"sales_cash": "cash", "sales_credit": "credit", "purchase": "credit",
+                                                 "purchase_expense": "credit"})
+        self.assertIn("entered_as with payment: sales_cash", tools.WRITTEN_NOTE)
+        self.assertIn("MR.ERP records give no payment_from, accounts, vat or writer", tools.WRITTEN_NOTE)
 
     def test_results_list_reads_what_was_written_for_entered_records_only(self):
         # cowork_push_results 那条路：记录名来自已按权限取到的单据，这里不按人筛；没成功的不回。单号一律从推送记录带上
@@ -4116,6 +4151,162 @@ class StoppedAccountSetTests(unittest.TestCase):
             self.assertEqual(out["settled"], 0)
             self.assertNotIn("same_group", out)
             self.assertNotIn("same_group_note", out)
+
+
+def _mrerp_view(menus=(), defaults=(), options=3):
+    """MR.ERP 菜单视图（`connections.service.mrerp_menu` 的形状）：``menus`` / ``defaults`` 里的项要人选，其余已选好。"""
+    kinds = {kind: {"page": "p", "options": [{"idmenu": "68", "label": "ซื้อ"}, {"idmenu": "454", "label": "ซื้อ2"}],
+                    "chosen": None if kind in menus else "68", "reason": None, "needed": kind in menus}
+             for kind in ("purchase", "purchase_expense", "sales_credit", "sales_cash")}
+    fields = {field: {"options": [{"code": f"{field[:3]}{i:03d}", "name": f"name {i}"} for i in range(options)],
+                      "chosen": None if field in defaults else f"{field[:3]}000", "reason": None,
+                      "needed": field in defaults}
+              for field in ("branch", "dept", "employee", "ap_account", "ar_account", "expense_account")}
+    return {"account_set_key": "12:3", "known": True, "observed_at": "2026-10-19T01:00:00", "kinds": kinds,
+            "defaults": {"known": True, "fields": fields}}
+
+
+class MrErpTests(unittest.TestCase):
+    """2026-10-19「cc 全是围绕 exp 在做……让 cc 兼容」：MR.ERP 账套推之前要选的只有导入菜单与默认值（同网页推送前那一步），
+    没有按单据选的项；回读 / 报税草稿 / 公司规则只给 Express；CC 的说明讲清两者的差别。"""
+
+    def setUp(self):
+        self.failures, self.submitted = [], []
+        self.doc = types.SimpleNamespace(
+            last_push_status="", push_connection="MR1", push_account_set="12:3", posting_kind="", record_version=1,
+            last_push_record="", last_push_reason="", pages=json.dumps([{"fields": {"direction": "purchase"}}]))
+        self.view = _mrerp_view(menus=("purchase",))
+        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
+        push = types.ModuleType("pearnly_cowork.contracts.push")
+        push.normalize_direction = lambda value: value if value in ("purchase", "sales") else None
+        contracts = sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts"))
+        patches = [
+            mock.patch.dict(sys.modules, {"pearnly_cowork.contracts.history": history,
+                                          "pearnly_cowork.contracts.push": push}),
+            mock.patch.object(contracts, "history", history, create=True),
+            mock.patch.object(contracts, "push", push, create=True),
+            mock.patch.object(frappe, "utils", types.SimpleNamespace(get_system_timezone=lambda: "Asia/Bangkok"),
+                              create=True),
+            mock.patch.object(frappe.db, "get_value",
+                              lambda doctype, name, field, *a, **k: ("mrerp", 3) if isinstance(field, list) else "mrerp"),
+            mock.patch.object(tools.storage, "read", lambda name: self.doc, create=True),
+            mock.patch.object(tools.push_state, "record_failure",
+                              lambda *a, **k: self.failures.append((a, k)), create=True),
+            mock.patch.object(tools.application, "choices_view", lambda *a, **k: {"needed": [], "options": {}},
+                              create=True),
+            mock.patch.object(tools.application, "submit",
+                              lambda *a, **k: self.submitted.append(a) or {"status": "failed", "reason": "stop"},
+                              create=True),
+            mock.patch.object(tools.connections, "mrerp_menu", lambda name, key: json.loads(json.dumps(self.view)),
+                              create=True)]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_a_push_waits_for_the_menu_its_direction_uses_like_the_web(self):
+        out = tools._push_one("H1")
+        self.assertEqual(out["status"], "needs_choice")
+        self.assertEqual(out["mrerp_setup"], {"connection": "MR1", "account_set_key": "12:3", "menus": ["purchase"]})
+        self.assertIn("cowork_mrerp_setup", out["note"])
+        self.assertEqual(self.submitted, [])  # 不登录 MR.ERP 去试
+        (args, kwargs), = self.failures
+        self.assertEqual((args, kwargs), (("H1", "ERR_MRERP_MENU_CHOICE_REQUIRED"),
+                                          {"connection": "MR1", "account_set": "12:3"}))
+        # 只看这个方向会用到的：销项票不因采购菜单没选而停；默认值要选时同样先停
+        self.doc.pages = json.dumps([{"fields": {"direction": "sales"}}])
+        self.assertEqual(tools._push_one("H1")["status"], "failed")
+        self.assertEqual(len(self.submitted), 1)
+        self.view = _mrerp_view(defaults=("ar_account",))
+        out = tools._push_one("H1")
+        self.assertEqual((out["status"], out["mrerp_setup"]["defaults"]), ("needs_choice", ["ar_account"]))
+        self.assertEqual(self.failures[-1][0][1], "ERR_MRERP_DEFAULT_CHOICE_REQUIRED")
+        # 菜单还没读过（说不出要不要选）：照旧推，MR.ERP 那边推送时再核对
+        self.view = {"known": False, "kinds": {}, "defaults": {"known": False, "fields": {}}}
+        tools._push_one("H1")
+        self.assertEqual(len(self.submitted), 2)
+
+    def test_a_menu_found_missing_while_pushing_is_a_choice_not_a_failure(self):
+        item = {"document": "H1", "status": "queued"}
+        self.assertTrue(tools._concluded(item, {"status": "manual", "result_unknown": False,
+                                                "reason": "ERR_MRERP_MENU_CHANGED"}))
+        self.assertEqual(item["status"], "needs_choice")
+        self.assertIn("cowork_mrerp_setup", item["note"])
+        other = {"document": "H2"}
+        tools._concluded(other, {"status": "manual", "result_unknown": False, "reason": "ERR_BUSINESS: x"})
+        self.assertEqual(other["status"], "failed")
+        # 详情里停在这一步的单也指去 cowork_mrerp_setup（不是这张单的口径选择）
+        found = tools._detail({"name": "H1", "pages": [], "last_push_reason": "ERR_MRERP_DEFAULT_CHANGED"})
+        self.assertIn("cowork_mrerp_setup", found["note"])
+        self.assertNotIn("handling_choice_needed", found)
+
+    def test_push_choices_say_mrerp_has_none_and_point_to_the_setup(self):
+        out = json.loads(tools.push_choices({"document": "H1"}))
+        self.assertEqual((out["adapter"], out["needed"]), ("mrerp", []))
+        self.assertEqual(out["mrerp_setup"]["menus"], ["purchase"])
+        self.assertIn("no per-document choices", out["note"])
+        saved = json.loads(tools.save_push_choices({"document": "H1", "items": [{"kind": "party", "value": "X"}]}))
+        self.assertEqual(saved["status"], "not_saved")
+        self.assertIn("cowork_mrerp_setup", saved["reason"])
+
+    def test_the_setup_view_is_short_and_follows_the_direction(self):
+        self.view = _mrerp_view(menus=("purchase",), defaults=("ap_account",), options=200)
+        with mock.patch.object(tools.connections_api, "mrerp_menu", lambda name, key: json.loads(json.dumps(self.view)),
+                               create=True):
+            out = json.loads(tools.mrerp_setup({"connection": "MR1", "account_set_key": "12:3",
+                                                "direction": "purchase", "fields": ["dept"]}))
+            searched = json.loads(tools.mrerp_setup({"connection": "MR1", "account_set_key": "12:3",
+                                                     "search": "ap_007"}))
+        self.assertEqual(set(out["kinds"]), {"purchase", "purchase_expense"})
+        fields = out["defaults"]["fields"]
+        self.assertNotIn("ar_account", fields)  # 采购用不到应收科目
+        self.assertEqual((fields["ap_account"]["options_total"], len(fields["ap_account"]["options"])),
+                         (200, tools.CHOICE_OPTIONS_SHOWN))
+        self.assertEqual(len(fields["dept"]["options"]), tools.CHOICE_OPTIONS_SHOWN)  # 点了名的
+        self.assertNotIn("options", fields["employee"])  # 已选好、没点名：只说选了哪个
+        self.assertEqual((fields["employee"]["chosen"], fields["employee"]["chosen_name"]), ("emp000", "name 0"))
+        self.assertEqual(out["needed"], {"menus": ["purchase"], "defaults": ["ap_account"]})
+        self.assertEqual([row["code"] for row in searched["defaults"]["fields"]["ap_account"]["options"]], ["ap_007"])
+
+    def test_vat_drafts_and_readbacks_are_for_express_only(self):
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.tax.service": types.SimpleNamespace(
+                vat_draft=lambda *a: self.fail("an MR.ERP account set has no readback to draft from"))}):
+            out = json.loads(tools.vat_draft({"connection": "MR1", "account_set_key": "12:3", "period": "2026-09"}))
+        self.assertEqual(out["status"], "not_applicable")
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn("an MR.ERP account set cannot be read back here", by_name["cowork_express_readback"])
+        self.assertIn("(not MR.ERP)", by_name["cowork_vat_draft"])
+
+    def test_an_mrerp_task_is_not_saved_before_its_menu_is_chosen(self):
+        task = {"title": "Buy", "connection": "MR1", "account_set_key": "12:3", "direction": "purchase",
+                "payment": "credit", "reader": "PC|MR1", "root_id": "r", "run_day": 0, "run_time": "22:00"}
+        refused = json.loads(tools.folder_task_refusal(task))
+        self.assertEqual(refused["status"], "not_saved")
+        self.assertEqual(refused["mrerp_setup"]["menus"], ["purchase"])
+        batch = json.loads(tools.folder_tasks_refusal({"tasks": [task, {**task, "direction": "sales", "title": "Sell"}]}))
+        self.assertEqual([item["task"] for item in batch["failed"]], [1])
+        self.view = _mrerp_view()
+        self.assertIsNone(tools.folder_task_refusal(task))
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        self.assertEqual(declared["cowork_save_folder_task"]["refuse"], "pearnly_cowork.assistant.tools.folder_task_refusal")
+        self.assertEqual(declared["cowork_save_folder_tasks"]["refuse"],
+                         "pearnly_cowork.assistant.tools.folder_tasks_refusal")
+        with mock.patch.object(frappe.db, "get_value", lambda *a, **k: "express"):
+            self.view = _mrerp_view(menus=("purchase",))
+            self.assertIsNone(tools.folder_task_refusal(task))  # Express 任务不看 MR.ERP 菜单
+
+    def test_cc_is_told_what_mrerp_has_and_has_not(self):
+        guidance = " ".join(tools.GUIDANCE)
+        for words in ("no computer and no CC Desktop are involved in an MR.ERP push",
+                      "import menu per document kind and its default values chosen once before pushing",
+                      "purchases are always on credit", "no readback or VAT draft",
+                      "no automatic push tiers or proposals, no company choices"):
+            self.assertIn(words, guidance)
+        self.assertIn("MR.ERP is written by Pearnly's server", tools.PUSH_QUEUED_NOTE)
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn("Express only: MR.ERP is reached by Pearnly's server", by_name["cowork_companion_status"])
+        self.assertIn("for MR.ERP it comes with mrerp_setup", by_name["cowork_push_documents"])
+        self.assertIn("this is all an MR.ERP account set asks for", by_name["cowork_mrerp_setup"])
 
 
 if __name__ == "__main__":
