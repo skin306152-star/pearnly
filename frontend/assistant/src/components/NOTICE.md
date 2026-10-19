@@ -1,10 +1,11 @@
 # Third-party components
 
-`components/assistant-ui/`, `components/ui/`, `components/icons/`, `hooks/`, and
-`lib/utils.ts` are the assistant-ui copy-in components, added the way any
-assistant-ui app adds them (`npx assistant-ui@latest add thread thread-list ...`).
-Regenerate or extend them with that command rather than treating them as this
-quickstart's source.
+`components/assistant-ui/`, `components/ui/`, `hooks/`, and `lib/utils.ts`
+started as the assistant-ui / shadcn copy-in components. They have since been
+rewritten to CC's styling standard (`docs/development/ccs.md`) and are kept by
+hand: do not regenerate them with the assistant-ui or shadcn command. A
+component copied in from there is first rewritten to the standard (`cc-*`
+classes and `globals.css` variables) before it goes into `src/`.
 
 They are distributed under the MIT license:
 
