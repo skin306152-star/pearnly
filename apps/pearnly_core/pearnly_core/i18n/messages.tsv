@@ -98,7 +98,6 @@ User	用户	ผู้ใช้	ユーザー
 User Agent	浏览器标识	User Agent	ユーザーエージェント
 Name	名称	ชื่อ	名称
 A human-readable name, e.g. MR.ERP DMS	显示名称，例如：MR.ERP DMS	ชื่อที่แสดง เช่น MR.ERP DMS	人が読むための名前（例: MR.ERP DMS）
-Adapter	适配器	อะแดปเตอร์	アダプタ
 System Type	系统类型	ประเภทระบบ	システム種別
 Type of the connected system	对端系统类型	ประเภทระบบปลายทาง	接続先システムの種類
 Owner Account	归属账号	บัญชีเจ้าของ	所属アカウント
@@ -178,7 +177,7 @@ Retry & Lease	重试与租约	การลองใหม่และการ�
 Retry Count	已重试次数	จำนวนครั้งที่ลองใหม่	再試行回数
 Max Retries	最大重试次数	จำนวนครั้งลองใหม่สูงสุด	最大再試行
 Next Retry At	下次重试时间	ลองใหม่ครั้งถัดไปเมื่อ	次回再試行日時
-Lease Owner	租约持有者	ผู้จองงาน	リース保有者
+Locked By	锁定方	ผู้ล็อก	ロック保持者
 Worker currently processing this row.	当前处理该记录的执行者。	ผู้ที่กำลังประมวลผลรายการนี้	現在この行を処理している実行者。
 Lease Expires	租约到期	การจองงานหมดอายุ	リース期限
 What Was Recognised	识别留证	หลักฐานการอ่านเอกสาร	認識の記録

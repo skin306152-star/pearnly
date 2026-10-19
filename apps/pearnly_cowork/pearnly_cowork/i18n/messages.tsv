@@ -49,7 +49,7 @@ Each record must have a name and revision.	每条记录都必须提供标识和�
 Each record must have a valid name.	每条记录都必须提供有效标识。	แต่ละรายการต้องมีรหัสที่ถูกต้อง	各レコードには有効な識別子が必要です。	
 Duplicate records are not allowed.	不能重复选择同一条记录。	ไม่สามารถเลือกรายการเดียวกันซ้ำได้	同じレコードを重複して選択することはできません。	
 Assign Cowork access through company and client permissions.	请通过公司和客户权限分配 Cowork 访问范围。	กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า	会社と顧客の権限からCoworkのアクセス範囲を設定してください。	
-Remove legacy document shares before accessing Cowork records.	请先移除旧的文档共享授权，再访问 Cowork 记录。	กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork	旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。	
+Remove the old document shares before opening Cowork records.	请先移除旧的文档共享授权，再访问 Cowork 记录。	กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork	旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Manual	手工	กรอกเอง	手入力	manual
 Cowork LINE	Cowork LINE	Cowork LINE	Cowork LINE	cowork_line
 Failed	失败	ล้มเหลว	失敗	failed
@@ -152,7 +152,7 @@ The PDF exceeds the allowed page count.	PDF 超过允许的页数上限。	ไ�
 This file type is not supported.	不支持此文件类型。	ไม่รองรับไฟล์ประเภทนี้	このファイル形式には対応していません。	ocr.unsupported_format
 A product code or barcode identifies more than one product.	产品编码或条形码对应了多个产品。	รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ	商品コードまたはバーコードが複数の商品に対応しています。	stocktake.ambiguous_code
 Product codes and barcodes must be stored as text.	产品编码和条形码必须以文本格式保存。	รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ	商品コードとバーコードは文字列として保存してください。	stocktake.code_as_text
-Use the stock count workflow to change these records.	请通过盘点流程更改这些记录。	กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสินค้า	これらの記録は棚卸の操作から変更してください。	stocktake.dedicated_api_required
+Use the stock count workflow to change these records.	请通过盘点流程更改此类记录。	กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสินค้า	これらの記録は棚卸の操作から変更してください。	stocktake.dedicated_api_required
 The import contains a repeated product code.	导入数据包含重复的产品编码。	ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ	インポートデータに重複する商品コードがあります。	stocktake.duplicate
 The import contains no product rows.	导入数据中没有产品行。	ข้อมูลนำเข้าไม่มีรายการสินค้า	インポートデータに商品行がありません。	stocktake.empty
 The import columns do not match the stock count template.	导入列与盘点模板不匹配。	คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสินค้า	インポートする列が棚卸テンプレートと一致しません。	stocktake.headers_invalid
@@ -201,7 +201,7 @@ Invalid Cowork OCR configuration.	Cowork 识别配置无效。	การตั�
 Phase	处理阶段	ขั้นตอนการประมวลผล	処理段階	
 Provider Evidence	服务商调用证据	หลักฐานการเรียกใช้ผู้ให้บริการ	プロバイダー呼び出し証跡	
 Recognition input and ownership cannot be changed.	识别输入和归属不能修改。	ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้	認識入力と所有情報は変更できません。	
-Recognition tasks cannot be deleted through the document API.	识别任务不能通过通用文档接口删除。	ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้	認識タスクは汎用ドキュメント API から削除できません。	
+Recognition tasks cannot be deleted here.	识别任务不能在此删除。	ไม่สามารถลบงานอ่านเอกสารที่นี่ได้	認識タスクはここでは削除できません。
 Recognition tasks cannot be shared separately from their originals.	识别任务不能脱离原始文件单独共享。	ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้	認識タスクは元ファイルと切り離して共有できません。	
 Requires Review	需要人工核对	ต้องตรวจสอบโดยผู้ใช้	確認が必要	
 Result Json	识别结果（JSON）	ผลการอ่านเอกสาร (JSON)	認識結果（JSON）	
@@ -218,7 +218,7 @@ The billing receipt cannot be reverted.	计费回执不能撤回。	ไม่ส
 The completed recognition result cannot be replaced.	已完成的识别结果不能替换。	ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้	完了済みの認識結果は置き換えられません。	
 The invoice configuration does not match the OCR connection.	发票识别配置与服务连接不一致。	การตั้งค่าการอ่านใบกำกับภาษีไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร	請求書の認識設定とサービスの接続設定が一致しません。	
 The recognized invoice manifest cannot be replaced.	已识别的发票关联清单不能替换。	ไม่สามารถแทนที่รายการเชื่อมโยงใบกำกับภาษีที่อ่านแล้วได้	認識済みの請求書関連付け一覧は置き換えられません。	
-This Cowork OCR mode is not available on the new platform yet.	新平台暂不支持此 Cowork 识别模式。	แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้	新プラットフォームは、この Cowork 認識モードにまだ対応していません。	
+This recognition mode is not supported.	不支持此识别模式。	ไม่รองรับโหมดอ่านเอกสารนี้	この認識モードには対応していません。
 This original already has a recognition task with different parameters.	此原始文件已有参数不同的识别任务。	ไฟล์ต้นฉบับนี้มีงานอ่านเอกสารที่ใช้พารามิเตอร์ต่างกันอยู่แล้ว	この元ファイルには、異なるパラメーターの認識タスクが既にあります。	
 This recognition service currently accepts PDF and image originals.	此识别服务目前仅支持 PDF 和图片原件。	บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้	この認識サービスは現在、PDF と画像の元ファイルに対応しています。	
 Use the Cowork OCR service to access recognition tasks.	请通过 Cowork 识别服务访问识别任务。	กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクへのアクセスには Cowork 認識サービスを使用してください。	
@@ -257,7 +257,7 @@ The document file is damaged or cannot be decompressed.	文档文件已损坏或
 The document content is invalid.	文档内容无效。	เนื้อหาเอกสารไม่ถูกต้อง	文書の内容が無効です。	ocr.table_invalid_bytes
 The worksheet row or column information is invalid.	工作表行列信息无效。	ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง	ワークシートの行または列の情報が無効です。	ocr.table_invalid_dimensions
 The document could not be read. Check the file and try again.	无法读取文档，请检查文件后重试。	ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง	文書を読み取れません。ファイルを確認してから再試行してください。	ocr.table_parse_failed
-Reimporting review workbooks is not available on the new platform yet.	新平台暂不支持复核工作簿回导。	แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ	新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。	ocr.table_roundtrip_not_supported
+Reimporting review workbooks is not supported.	不支持复核工作簿回导。	ไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ	確認用ワークブックの再取り込みには対応していません。	ocr.table_roundtrip_not_supported
 The document contains too many rows.	文档行数超过上限。	เอกสารมีจำนวนแถวเกินขีดจำกัด	文書の行数が上限を超えています。	ocr.table_row_limit
 The document contains too much text.	文档文本总量超过上限。	เอกสารมีปริมาณข้อความเกินขีดจำกัด	文書のテキスト量が上限を超えています。	ocr.table_text_limit
 A document section exceeds 30,000 characters. Split the document before recognition.	文档中有单个单元超过 30,000 字符，请拆分文档后再识别。	มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน	文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。	ocr.table_text_too_long
@@ -271,7 +271,7 @@ The review worksheet name contains extra spaces. Restore the original name.	复�
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.	复核工作簿在连续 50 个空行之后仍有数据，请移除空行间隔后回导。	สมุดงานตรวจทานยังมีข้อมูลหลังแถวว่างติดต่อกัน 50 แถว กรุณาลบช่วงแถวว่างก่อนนำเข้ากลับ	確認用ワークブックに、連続する 50 行の空行より後のデータがあります。空行部分を削除してから再取り込みしてください。	ocr.roundtrip_trailing_rows
 A review workbook must contain between 1 and 500 invoices.	复核工作簿须包含 1 至 500 张发票。	สมุดงานตรวจทานต้องมีใบกำกับภาษี 1 ถึง 500 ใบ	確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。	roundtrip.document_limit
 Required invoice amounts are missing. Complete them before exporting.	发票缺少必要金额，请补全后再导出。	ใบกำกับภาษีขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก	請求書に必要な金額がありません。入力を補ってからエクスポートしてください。	roundtrip.export_amount_missing
-The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.	此发票的明细金额、未税金额、税额与合计不一致，请在编辑页核对后再导出。	ยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวมของใบกำกับภาษีนี้ไม่ตรงกัน กรุณาตรวจสอบในหน้าแก้ไขก่อนส่งออก	この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。	roundtrip.export_amount_not_roundtrippable
+The line amounts, net amount, VAT and total of this invoice do not add up. Check them on the edit page.	此发票的明细金额、未税金额、税额与合计不一致，请在编辑页核对后再导出。	ยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวมของใบกำกับภาษีนี้ไม่ตรงกัน กรุณาตรวจสอบในหน้าแก้ไขก่อนส่งออก	この請求書の明細金額・税抜金額・税額・合計が一致しません。編集画面で確認してください。	roundtrip.export_amount_not_roundtrippable
 The invoice date is invalid. Correct it before exporting.	发票日期无效，请更正后再导出。	วันที่ใบกำกับภาษีไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก	請求書の日付が無効です。修正してからエクスポートしてください。	roundtrip.export_date_invalid
 The verified ERP export details are invalid.	已核实的 ERP 导出信息无效。	ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง	確認済みの ERP エクスポート情報が無効です。	roundtrip.export_facts_invalid
 The export contains an invalid or repeated history reference.	导出包含无效或重复的历史记录引用。	ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน	エクスポート対象に無効または重複した履歴参照があります。	roundtrip.export_history_invalid
@@ -300,7 +300,7 @@ The company, client and type of a connection cannot be changed.	连接的公司�
 The directory snapshot does not match this connection.	目录快照与当前连接不一致。	ข้อมูลไดเรกทอรีไม่ตรงกับการเชื่อมต่อนี้	ディレクトリのスナップショットが接続と一致しません。	connection.snapshot_invalid
 The directory snapshot exceeds the 16 MiB limit.	目录快照超过 16 MiB 上限。	ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB	ディレクトリのスナップショットが16 MiBの上限を超えています。	connection.snapshot_too_large
 The ERP address is invalid or not allowed.	ERP 连接地址无效或不允许访问。	ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต	ERPのアドレスが無効か、許可されていません。	connection.url_invalid
-This ERP adapter is not connected yet.	此 ERP 适配器尚未接通。	อะแดปเตอร์ ERP นี้ยังไม่ได้เชื่อมต่อ	このERPアダプターはまだ接続されていません。	push.adapter_not_connected
+Pushing to this ERP is not supported.	不支持推送到此 ERP。	ไม่รองรับการส่งไปยัง ERP นี้	この ERP への送信には対応していません。	push.adapter_not_connected
 Invalid push execution mode.	推送执行模式无效。	โหมดการส่งไม่ถูกต้อง	送信実行モードが無効です。	push.branch_invalid
 The acknowledgement conflicts with the recorded result.	回执与已记录结果冲突。	ผลตอบรับขัดแย้งกับผลที่บันทึกไว้	確認応答が記録済みの結果と矛盾しています。	push.native_ack_conflict
 The invoice has changed. Prepare it again.	票据已修改，请重新准备。	เอกสารมีการเปลี่ยนแปลง กรุณาเตรียมใหม่	伝票が変更されました。再度準備してください。	push.native_history_changed
@@ -377,19 +377,19 @@ Installed At (UTC)	安装时间（UTC）	เวลาติดตั้ง (UTC)
 Invoice No	发票号码	เลขที่ใบกำกับภาษี	伝票番号	Invoice No
 Last Request Hash	最近请求摘要	แฮชคำขอล่าสุด	最終要求ハッシュ	Last Request Hash
 Last Request Key	最近请求标识	คีย์คำขอล่าสุด	最終要求キー	Last Request Key
-Lease Expires At	租约到期时间	เวลาที่สิทธิ์ถือครองหมดอายุ	リース有効期限	Lease Expires At
+Lock Expires At	锁定到期时间	เวลาหมดอายุการล็อก	ロック期限	Lock Expires At
 Lock Key	锁键	คีย์ล็อก	ロックキー	Lock Key
 Lock Kind	锁类型	ประเภทล็อก	ロック種別	Lock Kind
 Observed At (UTC)	观测时间（UTC）	เวลาสังเกต (UTC)	観測日時（UTC）	Observed At (UTC)
 Outcome	执行结果	ผลการดำเนินการ	実行結果	Outcome
 Owner Id	执行者编号	รหัสผู้ดำเนินการ	実行者ID	Owner Id
-Payload Json	冻结载荷（JSON）	ข้อมูลส่งที่ตรึงไว้ (JSON)	固定ペイロードJSON	Payload Json
+Push Data (JSON)	推送数据（JSON）	ข้อมูลที่ส่ง (JSON)	送信データ（JSON）	Push Data (JSON)
 Preparation Evidence	准备资料证据	หลักฐานข้อมูลเตรียมส่ง	準備情報の証拠	Preparation Evidence
 Push Record	推送记录	รายการส่ง	送信記録	Push Record
 Reason	原因	เหตุผล	理由	Reason
 Record Key	记录键	คีย์รายการ	記録キー	Record Key
 Refresh Status	刷新状态	สถานะการรีเฟรช	更新状態	Refresh Status
-Refresh Request Aliases	刷新请求幂等索引	ดัชนีป้องกันคำขอรีเฟรชซ้ำ	更新要求の冪等索引	Refresh Request Aliases
+Refresh Request Aliases	刷新请求去重索引	ดัชนีป้องกันคำขอรีเฟรชซ้ำ	更新要求の冪等索引	Refresh Request Aliases
 Request Digest	请求摘要	แฮชคำขอ	要求ダイジェスト	Request Digest
 Request Hash	请求内容摘要	แฮชเนื้อหาคำขอ	要求内容ハッシュ	Request Hash
 Requested At (UTC)	请求时间（UTC）	เวลาร้องขอ (UTC)	要求日時（UTC）	Requested At (UTC)
@@ -477,17 +477,17 @@ Report Received At (UTC)	上报接收时间（UTC）	เวลารับรา
 Report Credential	上报凭据	ข้อมูลรับรองของรายงาน	レポート認証情報	
 Report Credential Generation	上报凭据版本	เวอร์ชันข้อมูลรับรองของรายงาน	レポート認証情報の世代	
 Refresh Started At (UTC)	刷新开始时间（UTC）	เวลาเริ่มรีเฟรช (UTC)	更新開始日時（UTC）	
-Refresh Lease Owner	刷新租约持有者	ผู้ถือสิทธิ์การรีเฟรช	更新リースの所有者	
-Refresh Lease Generation	刷新租约版本	เวอร์ชันสิทธิ์การรีเฟรช	更新リースの世代	
-Refresh Lease Handle	刷新租约标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子	
-Refresh Lease Expires At (UTC)	刷新租约到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）	
+Refresh Locked By	刷新锁定方	ผู้ถือสิทธิ์การรีเฟรช	更新リースの所有者
+Refresh Lock Generation	刷新锁定版本	เวอร์ชันสิทธิ์การรีเฟรช	更新リースの世代
+Refresh Lock Handle	刷新锁定标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子
+Refresh Lock Expires At (UTC)	刷新锁定到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）
 Refresh Error Code	刷新错误码	รหัสข้อผิดพลาดการรีเฟรช	更新エラーコード	
 Cowork CC Desktop Request	Cowork CC 桌面版请求	คำขอถึง CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップへのリクエスト	Cowork Companion Request
 Parameters	参数	พารามิเตอร์	パラメーター
-Lease Handle	租约标识	รหัสสิทธิ์ถือครอง	リース識別子
-Lease Credential	租约凭据	ข้อมูลรับรองของสิทธิ์ถือครอง	リースの認証情報
+Lock Handle	锁定标识	รหัสการล็อก	ロック識別子
+Lock Credential	锁定凭据	ข้อมูลรับรองการล็อก	ロックの認証情報
 Leased At (UTC)	领取时间（UTC）	เวลารับไปดำเนินการ (UTC)	取得日時（UTC）
-Lease Expires At (UTC)	租约到期时间（UTC）	เวลาสิทธิ์ถือครองหมดอายุ (UTC)	リース有効期限（UTC）
+Lock Expires At (UTC)	锁定到期时间（UTC）	เวลาหมดอายุการล็อก (UTC)	ロック期限（UTC）
 Error Code	错误码	รหัสข้อผิดพลาด	エラーコード
 Received Bytes	已收字节数	จำนวนไบต์ที่ได้รับ	受信バイト数
 Result Bytes	结果字节数	จำนวนไบต์ของผลลัพธ์	結果のバイト数
@@ -526,7 +526,7 @@ The ERP report contains duplicate action identifiers.	ERP 报告包含重复的�
 The ERP report observation time is invalid.	ERP 报告的采集时间无效。	เวลาเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง	ERP レポートの収集日時が無効です。	erp.target_projection_observed_at_invalid
 The ERP report collector information is invalid.	ERP 报告的采集器信息无效。	ข้อมูลตัวเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง	ERP レポートの収集元情報が無効です。	erp.target_projection_collector_invalid
 The ERP data report is invalid.	ERP 数据报告无效。	รายงานข้อมูล ERP ไม่ถูกต้อง	ERP データレポートが無効です。	erp.target_projection_invalid
-The ERP report uses an unsupported adapter.	ERP 报告使用了不支持的适配器。	รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ	ERP レポートに対応していないアダプターが指定されています。	erp.target_projection_adapter_invalid
+The ERP report uses an unsupported system type.	ERP 报告使用了不支持的系统类型。	รายงาน ERP ใช้ประเภทระบบที่ไม่รองรับ	ERP レポートに対応していないシステム種別が指定されています。	erp.target_projection_adapter_invalid
 The ERP report refresh status is invalid.	ERP 报告的刷新状态无效。	สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง	ERP レポートの更新状態が無効です。	erp.target_projection_refresh_status_invalid
 Collection is not connected for this ERP data type.	此 ERP 数据类型暂不支持采集。	ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้	この ERP データの種類には収集機能が接続されていません。	erp.target_projection_collector_not_connected
 The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面版服务暂时不可用，请稍后重试。	บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。	companion.report_busy
@@ -543,19 +543,19 @@ The CC Desktop delivery record was not found.	未找到 CC 桌面版任务领取
 This computer can no longer handle this document	此电脑已不能处理该单据	คอมพิวเตอร์เครื่องนี้ไม่สามารถดำเนินการเอกสารนี้ได้แล้ว	このコンピューターではこの書類を処理できなくなりました	companion.queue_access_revoked
 This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
 The request to CC Desktop is invalid.	发给 CC 桌面版的请求无效。	คำขอถึง CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップへのリクエストが無効です。	companion.on_demand_invalid
-The computer on this connection cannot do this.	这条连接的电脑做不了这件事。	คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้	この接続のパソコンではこの操作はできません。	companion.on_demand_unsupported
+The computer on this connection does not support this action.	此连接的电脑不支持该操作。	คอมพิวเตอร์ของการเชื่อมต่อนี้ไม่รองรับรายการนี้	この接続のパソコンはこの操作に対応していません。	companion.on_demand_unsupported
 Too many requests are waiting for CC Desktop. Try again shortly.	等 CC 桌面版处理的请求太多，请稍后再试。	มีคำขอรอ CC เดสก์ท็อปมากเกินไป กรุณาลองใหม่ภายหลัง	CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。	companion.on_demand_busy
 The request to CC Desktop was not found.	找不到发给 CC 桌面版的请求。	ไม่พบคำขอถึง CC เดสก์ท็อป	CC デスクトップへのリクエストが見つかりません。	companion.on_demand_missing
-CC Desktop has not finished this yet.	CC 桌面版还没做完。	CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ	CC デスクトップの処理はまだ終わっていません。	companion.on_demand_not_ready
+CC Desktop has not finished.	CC 桌面版尚未完成。	CC เดสก์ท็อปยังดำเนินการไม่เสร็จ	CC デスクトップの処理が完了していません。	companion.on_demand_not_ready
 The readback request is invalid.	回读请求无效。	คำขออ่านข้อมูลบัญชีกลับไม่ถูกต้อง	読み戻しのリクエストが無効です。	cowork.readback.invalid
 Give the month as YYYY-MM.	月份请写成 YYYY-MM。	กรุณาระบุเดือนเป็น YYYY-MM	月は YYYY-MM で指定してください。	cowork.readback.period_invalid
 The account codes are invalid.	科目号无效。	รหัสบัญชีไม่ถูกต้อง	勘定科目コードが無効です。	cowork.readback.accounts_invalid
 Only Express account sets can be read back.	只有 Express 账套可以回读。	อ่านข้อมูลกลับได้เฉพาะชุดบัญชี Express	読み戻しできるのは Express の会計データだけです。	cowork.readback.not_express
-This account set is not on this connection.	这条连接上没有这本账套。	ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้	この接続にこの会計データはありません。	cowork.readback.account_missing
-The readback was not found.	找不到这份回读。	ไม่พบผลการอ่านข้อมูลกลับ	読み戻しの結果が見つかりません。	cowork.readback.missing
-The readback is not ready yet.	回读还没完成。	การอ่านข้อมูลกลับยังไม่เสร็จ	読み戻しはまだ終わっていません。	cowork.readback.not_ready
-CC Desktop sent back data that cannot be read.	CC 桌面版交回的数据读不了。	ข้อมูลที่ CC เดสก์ท็อปส่งกลับมาอ่านไม่ได้	CC デスクトップから返されたデータを読み取れません。	cowork.readback.data_invalid
-Update this site before reading back with this CC Desktop.	请先更新本站，再用这个版本的 CC 桌面版回读。	กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้	この CC デスクトップで読み戻す前にサイトを更新してください。	cowork.readback.version_unsupported
+This account set is not on this connection.	此连接中没有该账套。	ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้	この接続にこの会計データはありません。	cowork.readback.account_missing
+The readback was not found.	未找到回读结果。	ไม่พบผลการอ่านข้อมูลกลับ	読み戻しの結果が見つかりません。	cowork.readback.missing
+The readback is not finished.	回读尚未完成。	การอ่านข้อมูลกลับยังไม่เสร็จ	読み戻しはまだ終わっていません。	cowork.readback.not_ready
+CC Desktop sent back data that cannot be read.	无法读取 CC 桌面版返回的数据。	ข้อมูลที่ CC เดสก์ท็อปส่งกลับมาอ่านไม่ได้	CC デスクトップから返されたデータを読み取れません。	cowork.readback.data_invalid
+Update this site before reading back with this CC Desktop.	请先更新本站，再使用此版本的 CC 桌面版回读。	กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้	この CC デスクトップで読み戻す前にサイトを更新してください。	cowork.readback.version_unsupported
 Changes	变动	การเปลี่ยนแปลง	変更	cowork.readback.sheet.changes
 Entered in Express	Express 直接录入	บันทึกใน Express โดยตรง	Express で直接入力	cowork.readback.sheet.direct
 Document No.	单据号	เลขที่เอกสาร	伝票番号	cowork.readback.col.docnum
@@ -604,7 +604,7 @@ Reading the scanned or photographed document took too long. Try again later.	扫
 This scanned or photographed document could not be read. Check the file and try again.	无法读取此扫描件或照片，请检查文件后重试。	ไม่สามารถอ่านเอกสารสแกนหรือรูปถ่ายนี้ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่	このスキャンや写真の書類は読み取れませんでした。ファイルを確認してもう一度お試しください。	reconciliation.document_unreadable
 Recognition is busy. Try again in a moment.	识别服务繁忙，请稍后重试。	บริการอ่านเอกสารมีผู้ใช้งานจำนวนมาก กรุณาลองใหม่ภายหลัง	読み取りが混み合っています。しばらくしてからもう一度お試しください。	reconciliation.recognition_busy
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.	总账中有多个科目，已选用与银行流水最匹配的科目 {0}。	บัญชีแยกประเภททั่วไปมีหลายรหัสบัญชี ระบบเลือกรหัสบัญชี {0} ซึ่งตรงกับรายการเดินบัญชีธนาคารมากที่สุด	総勘定元帳に複数の科目があるため、銀行明細と最も一致する科目 {0} を使用しました。	reconciliation.gl_account_auto
-The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.	总账期间长于银行流水，仅使用 {0} 至 {1} 的记录，此前发生额已结转至期初余额（{2}）。	บัญชีแยกประเภททั่วไปครอบคลุมช่วงเวลายาวกว่ารายการเดินบัญชีธนาคาร ใช้เฉพาะรายการวันที่ {0} ถึง {1} และยกยอดรายการก่อนหน้าเป็นยอดยกมา ({2})	総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。	reconciliation.gl_period_trimmed
+The ledger covers more than the statement; only {0} to {1} was used, and earlier entries form an opening balance of {2}.	总账期间长于银行账单，仅使用 {0} 至 {1} 的记录，此前发生额已计入期初余额（{2}）。	บัญชีแยกประเภทยาวกว่ารายการเดินบัญชี ใช้เฉพาะ {0} ถึง {1} รายการก่อนหน้ารวมเป็นยอดยกมา ({2})	総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。	reconciliation.gl_period_trimmed
 These files could not be read and were left out; upload them again to include them: {0}	以下文件无法读取，未计入本次对账，请重新上传：{0}	ไม่สามารถอ่านไฟล์ต่อไปนี้ได้ จึงไม่ได้นำมารวมในการกระทบยอดครั้งนี้ กรุณาอัปโหลดใหม่: {0}	次のファイルは読み取れなかったため今回の照合に含まれていません。再度アップロードしてください：{0}	reconciliation.files_unread
 These files have no transactions (a cover or account page) and were skipped: {0}	以下文件没有流水（封面或账户信息页），已跳过：{0}	ไฟล์ต่อไปนี้ไม่มีรายการเคลื่อนไหว (หน้าปกหรือหน้าข้อมูลบัญชี) จึงข้ามแล้ว: {0}	次のファイルには取引がないため（表紙や口座情報のページ）スキップしました：{0}	reconciliation.files_no_movement
 These statements look like another account (a different bank or account number) and may have been mixed in: {0}	以下账单的银行或账号与其他账单不一致，可能属于其他账户：{0}	รายการเดินบัญชีต่อไปนี้มีธนาคารหรือเลขที่บัญชีไม่ตรงกับรายการเดินบัญชีอื่น อาจเป็นของบัญชีอื่น: {0}	これらの明細は他と銀行または口座番号が異なり、別口座の明細が混ざっている可能性があります：{0}	reconciliation.statement_other_account
@@ -614,7 +614,7 @@ Possible combined match, please confirm: ledger {0} {1} of {2} equals the total 
 {0} more possible combined matches are not listed	另有 {0} 组疑似合计匹配未列出	ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง	ほかに合計一致の可能性がある {0} 組は表示していません	reconciliation.suspected_group_more
 Left out {0} lines that repeat the main statement and look misread; check them: {1}	已排除 {0} 行与主账单重复、疑似识别错误的行，请核对：{1}	ตัดออกแล้ว {0} รายการ ซึ่งซ้ำกับรายการเดินบัญชีหลักและอาจอ่านผิด กรุณาตรวจสอบ: {1}	メインの明細と重複し読み誤りと思われる {0} 行を除外しました。確認してください：{1}	reconciliation.statement_lines_dropped
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.	已排除 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初余额取 {1} 之前的余额。	ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออกแล้ว {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}	総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。	reconciliation.statement_rows_outside
-None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.	账单行均不在总账期间（{1} 至 {2}）内，已全部参与对账，请核对两份文件是否为同一期间。	ไม่มีรายการเดินบัญชีอยู่ในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบว่าไฟล์เป็นช่วงเวลาเดียวกัน	明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。	reconciliation.statement_all_outside
+No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.	账单行均不在总账期间（{1} 至 {2}）内，已全部参与对账。请核对两份文件的期间。	ไม่มีรายการเดินบัญชีในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบช่วงเวลาของทั้งสองไฟล์	明細行がいずれも総勘定元帳の期間（{1}〜{2}）外のため、すべて照合しました。両ファイルの期間を確認してください。	reconciliation.statement_all_outside
 Balance breaks	余额差异	จุดที่ยอดคงเหลือไม่ต่อเนื่อง	残高が合わない箇所	cowork.recon.breaks
 Missing page	此处缺页	หน้าขาดหาย	ページ欠落	cowork.recon.break.missing_page
 Known difference	已知差异	ผลต่างที่ทราบแล้ว	既知の差異	cowork.recon.break.known_difference
@@ -622,7 +622,7 @@ probably {0}	疑似应为 {0}	น่าจะเป็น {0}	おそらく {0}	c
 Mark each balance break as a missing page or a known difference before saving.	请将每处余额差异标记为「此处缺页」或「已知差异」后再保存。	กรุณาระบุทุกจุดที่ยอดคงเหลือไม่ต่อเนื่องว่าเป็น "หน้าขาดหาย" หรือ "ผลต่างที่ทราบแล้ว" ก่อนบันทึก	残高が合わない各箇所を「ページ欠落」または「既知の差異」にしてから保存してください。	reconciliation.review_breaks_unacknowledged
 Line {0} ({1}): balance off by {2} — {3}	第 {0} 行（{1}）余额差 {2}：{3}	รายการที่ {0} ({1}) ยอดคงเหลือต่าง {2}: {3}	{0} 行目（{1}）残高差 {2}：{3}	reconciliation.review_break
 The system is busy and the reconciliation was not finished. Please try again shortly.	系统繁忙，对账未完成，请稍后重试。	ระบบไม่ว่าง การกระทบยอดยังไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้งภายหลัง	システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。	reconciliation.system_busy
-A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.	对账因程序错误未完成，错误已记录。重试将得到相同结果。	การกระทบยอดไม่สำเร็จเนื่องจากข้อผิดพลาดของโปรแกรม ระบบบันทึกข้อผิดพลาดแล้ว การลองใหม่จะได้ผลเช่นเดิม	プログラムのエラーにより今回の照合は完了しませんでした。自動で記録され、こちらで対応します。再試行しても同じ結果になります。	reconciliation.program_error
+A program error stopped this reconciliation. The error has been recorded; trying again gives the same result.	对账因程序错误未完成，错误已记录。重试将得到相同结果。	การกระทบยอดไม่สำเร็จเนื่องจากข้อผิดพลาดของโปรแกรม ระบบบันทึกข้อผิดพลาดแล้ว การลองใหม่จะได้ผลเช่นเดิม	プログラムのエラーにより照合が完了しませんでした。エラーは記録済みです。再試行しても同じ結果になります。	reconciliation.program_error
 Check the statement balance differences before confirming.	请先修正账单余额差异，再确认。	กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน	明細の残高差異を修正してから確定してください。	reconciliation.review_balance_mismatch
 Complete statement review before exporting the result.	请先完成账单复核，再导出对账结果。	กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล	明細確認を完了してから照合結果を出力してください。	reconciliation.review_required
 Invalid statement review rows or row references.	复核行内容或原始行编号无效。	ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง	確認明細または元の行番号が無効です。	reconciliation.review_rows_invalid
@@ -785,7 +785,7 @@ In progress	进行中	กำลังดำเนินการ	進行中	cowor
 Closed	已结束	ปิดแล้ว	終了	cowork.stock.count.statusClosed
 Stock count template	盘点表模板	เทมเพลตตรวจนับ	棚卸テンプレート	cowork.stock.count.template
 Void	撤销	ยกเลิก	取消	cowork.stock.count.void
-Void this count of {0}?	确定要撤销 {0} 的这条记录吗？	ต้องการยกเลิกรายการนับ {0} นี้ใช่หรือไม่	この {0} の記録を取り消しますか？	cowork.stock.count.voidConfirm
+Void this count of {0}?	确定要撤销 {0} 的记录吗？	ต้องการยกเลิกรายการนับ {0} นี้ใช่หรือไม่	この {0} の記録を取り消しますか？	cowork.stock.count.voidConfirm
 Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	cowork.stock.field.search
 Light	灯光	ไฟฉาย	ライト	cowork.stock.scan.light
 Actual position	实际仓位	ตำแหน่งที่พบจริง	実際の棚番	cowork.stock.workbench.actualLocation
@@ -801,7 +801,7 @@ Correct entry	修改记录	แก้ไขรายการ	記録を修正	cow
 This item is also stocked at:	该物料在以下位置也有库存：	สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:	この商品は他の場所にも在庫があります:	cowork.stock.workbench.elsewhere
 Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	cowork.stock.workbench.entryQty
 Find product	查找物料	ค้นหาสินค้า	商品を検索	cowork.stock.workbench.find
-Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项。结束后仅可查看和导出。	ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วจะดูและส่งออกได้เท่านั้น	棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。	cowork.stock.workbench.finishConfirm
+Finish this count? {0} counted, {1} uncounted; the task becomes read-only.	确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后仅可查看和导出。	ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น	棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件で、終了後は閲覧とエクスポートのみ可能です。	cowork.stock.workbench.finishConfirm
 Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	cowork.stock.workbench.locationDiff
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	cowork.stock.workbench.lookupFailed
 Stock changed; recount	库存已变动，需重新盘点	สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่	在庫変動・再棚卸	cowork.stock.workbench.needsRecount
@@ -903,7 +903,7 @@ Upload both files.	请上传两份文件。	กรุณาอัปโหลด
 A file is larger than 25 MB.	文件超过 25 MB。	มีไฟล์ขนาดเกิน 25 MB	25MBを超えるファイルがあります。	reconciliation.file_too_large
 This file type is not supported. Use PDF, Excel or CSV.	不支持此文件类型，请使用 PDF、Excel 或 CSV。	ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV	このファイル形式は使えません。PDF、Excel、CSV を使ってください。	reconciliation.file_type_unsupported
 The reconciliation could not be completed.	对账未完成。	การกระทบยอดไม่สำเร็จ	照合を完了できませんでした。	reconciliation.failed
-Use the reconciliation workflow to change these records.	请通过对账流程更改这些记录。	กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด	照合の手順で変更してください。	reconciliation.dedicated_api_required
+Use the reconciliation workflow to change these records.	请通过对账流程更改此类记录。	กรุณาแก้ไขผ่านขั้นตอนการกระทบยอด	照合の手順で変更してください。	reconciliation.dedicated_api_required
 The ledger file content is invalid.	总账内容无效。	ข้อมูลบัญชีแยกประเภทไม่ถูกต้อง	元帳の内容が無効です。	reconciliation.gl_source_invalid
 The VAT report content is invalid.	销项税报告内容无效。	ข้อมูลรายงานภาษีขายไม่ถูกต้อง	税報告の内容が無効です。	reconciliation.vat_source_invalid
 Bank statement detail	银行对账单明细	รายละเอียดรายการเดินบัญชี	銀行明細	cowork.recon.sheet.statement
@@ -1032,7 +1032,7 @@ Payment date assumed	付款日为推定	วันที่จ่ายเป็�
 Payer not clear	付款方不明	ไม่ชัดเจนว่าใครเป็นผู้จ่าย	支払者が不明	cowork.tax.issue.certificate_direction_unclear
 Certificate received from a customer	客户开给本公司的凭证	หนังสือรับรองที่ได้รับจากลูกค้า	顧客から受け取った証明書	cowork.tax.issue.certificate_received
 Parties not read	双方未读出	อ่านข้อมูลคู่สัญญาไม่ได้	当事者を読めない	cowork.tax.issue.certificate_parties_unreadable
-Invoice and certificate do not match	票据与凭证对不上	เอกสารกับหนังสือรับรองไม่ตรงกัน	請求書と証明書が合わない	cowork.tax.issue.pairing_unclear
+Invoice and certificate do not match	票据与凭证不一致	เอกสารกับหนังสือรับรองไม่ตรงกัน	請求書と証明書が合わない	cowork.tax.issue.pairing_unclear
 Company tax ID not on the document	票面无本公司税号	ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร	書類に自社の納税者番号なし	cowork.tax.issue.buyer_unconfirmed
 Duplicate	重复	รายการซ้ำ	重複	cowork.tax.issue.duplicate_document
 Form	表	แบบ	様式	cowork.tax.col.form
@@ -1110,7 +1110,7 @@ Found {0}. Tap the number to choose:	找到 {0} 个账套，请点击序号选�
 Too many matches; type a few more letters to narrow it down	匹配结果过多，请输入更多关键字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。もう少し入力して絞り込んでください
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.	单据上的本方税号与所选账套不一致，请核对账套后重新发送。	เลขประจำตัวผู้เสียภาษีของกิจการบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่	書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.	单据日期不在所选账套的会计期间内，请核对年度后重新发送。	วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่	書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。
-This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.	这张单据属于另一个分店，与所选账套的分店不同，请选那个分店的账套后重新发送。	เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่	この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
+This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.	此单据属于其他分店，与所选账套不符。请选择该分店的账套后重新发送。	เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่	この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 Choose the year and account set first.	请先选择年度和账套。	กรุณาเลือกปีบัญชีและชุดบัญชีก่อน	先に年度と会計データを選択してください。
 Account set	账套	ชุดบัญชี	会計データ	intake.target.accountSet
 Read again	重新读取	อ่านใหม่	再読み込み	intake.catalog.reload
@@ -1272,8 +1272,8 @@ Cover	封面	ปก	カバー	cowork.work.field.cover
 No notifications	没有提醒	ไม่มีการแจ้งเตือน	通知はありません	cowork.work.notify.empty
 Mark all as read	全部标为已读	ทำเครื่องหมายว่าอ่านแล้วทั้งหมด	すべて既読にする	cowork.work.notify.readAll
 Notifications	提醒	การแจ้งเตือน	通知	cowork.work.notify.title
-{0} added you to {1}	{0} 将你添加到卡片「{1}」	{0} เพิ่มคุณในการ์ด "{1}"	{0} があなたを「{1}」に追加しました	cowork.work.notify.assign
-{0} mentioned you on {1}	{0} 在卡片「{1}」提到了你	{0} กล่าวถึงคุณในการ์ด "{1}"	{0} が「{1}」であなたをメンションしました	cowork.work.notify.mention
+{0} added you to {1}	{0} 已将您添加到卡片「{1}」	{0} เพิ่มคุณในการ์ด "{1}"	{0} があなたを「{1}」に追加しました	cowork.work.notify.assign
+{0} mentioned you on {1}	{0} 在卡片「{1}」中提及您	{0} กล่าวถึงคุณในการ์ด "{1}"	{0} が「{1}」であなたをメンションしました	cowork.work.notify.mention
 {0} commented on {1}	{0} 评论了卡片「{1}」	{0} แสดงความคิดเห็นในการ์ด "{1}"	{0} が「{1}」にコメントしました	cowork.work.notify.comment
 {0} moved {1} to {2}	{0} 将卡片「{1}」移至 {2}	{0} ย้ายการ์ด "{1}" ไปที่ {2}	{0} が「{1}」を{2}に移動しました	cowork.work.notify.move
 {1} is due soon ({2})	卡片「{1}」即将到期（{2}）	การ์ด "{1}" ใกล้ครบกำหนด ({2})	「{1}」の期日が近づいています（{2}）	cowork.work.notify.due_soon
@@ -1373,7 +1373,7 @@ Board	看板	บอร์ด	ボード	cowork.work.view.board
 My cards	我的卡片	การ์ดของฉัน	自分のカード	cowork.work.view.mine
 Calendar	日历	ปฏิทิน	カレンダー	cowork.work.view.calendar
 Table	表格	ตาราง	テーブル	cowork.work.view.table
-No cards are assigned to you	暂无分配给你的卡片	ยังไม่มีการ์ดที่มอบหมายให้คุณ	割り当てられたカードはありません	cowork.work.mine.empty
+No cards are assigned to you	暂无分配给您的卡片	ยังไม่มีการ์ดที่มอบหมายให้คุณ	割り当てられたカードはありません	cowork.work.mine.empty
 Overdue	已过期	เลยกำหนด	期限切れ	cowork.work.mine.overdue
 Due today	今天到期	ครบกำหนดวันนี้	今日が期限	cowork.work.mine.today
 Due this week	7 天内到期	ครบกำหนดภายใน 7 วัน	7日以内が期限	cowork.work.mine.week
@@ -1440,7 +1440,7 @@ MR.ERP has no import menu linked to a journal this year for this kind of documen
 The MR.ERP import page shows no menu (setup incomplete or no permission).	无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。	ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)	MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。	intake.error.ERR_MRERP_MENU_UNREADABLE
 MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.	MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。	MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ	MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。	intake.error.ERR_MRERP_READBACK_NOT_FOUND
 MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.	MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。	MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP	MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。	intake.error.ERR_MRERP_READBACK_NOT_LINKED
-Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.	此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。	เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ	メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。	intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED
+Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.	此单据在菜单修复前已推送至 MR.ERP，可能在未关联日记账的菜单中未入账，请在 MR.ERP 核对后再推送。	เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู อาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP ก่อนส่งซ้ำ	メニュー修正前に MR.ERP へ送信した伝票で、仕訳帳に連携されていないメニューにあり記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。	intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED
 This MR.ERP menu cannot be chosen for this account set.	此账套不能选择该 MR.ERP 菜单。	ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้	この会計データではこの MR.ERP メニューを選択できません。	connection.mrerp_menu_invalid
 MR.ERP import menu	MR.ERP 导入菜单	เมนูนำเข้า MR.ERP	MR.ERP 取込メニュー	intake.mrerpMenu.title
 Purchase (goods)	采购（货品）	ซื้อ (สินค้า)	仕入（商品）	intake.mrerpMenu.purchase
@@ -1459,7 +1459,7 @@ This account set has no general journal book for the transfer vouchers. Add one 
 The receiving account cannot be posted to in Express. Choose another account	收款科目在 Express 中不能记账，请重新选择	บัญชีรับเงินนี้บันทึกรายการใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น	この入金勘定は Express で記帳できません。別の勘定を選んでください	intake.error.ACCOUNT_NOT_POSTABLE
 The payment methods do not add up to the day's total. Import the POS export again	各付款方式之和与当天合计不符，请重新导入 POS 导出	ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่	支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください	intake.error.pos_payments_mismatch
 Choose the receiving account of each payment method	请为每种付款方式选择收款科目	กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน	支払方法ごとの入金勘定を選んでください	intake.error.pos_receipt_account_missing
-The POS daily totals of this document are damaged. Import the POS export again	这张单据的 POS 日汇总数据已损坏，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่	この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください	intake.error.pos_facts_invalid
+The POS daily totals of this document are damaged. Import the POS export again	此单据的 POS 日汇总数据已损坏，请重新导入 POS 导出文件	ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่	この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください	intake.error.pos_facts_invalid
 POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express	ยอดขายรายวันจาก POS ส่งได้เฉพาะไปยัง Express	POS の日計は Express にのみ送信できます	intake.error.pos_express_only
 The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
@@ -1608,16 +1608,16 @@ The reconciliation data is not in the expected format. Upload the files again	�
 {0} statement amounts were corrected from the running balance. Check them	对账单中有 {0} 行金额已按余额推算更正，请核对	ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ	明細で残高から金額を補正した行が {0} 行あります。確認してください	cowork.recon.note.amount_fixed
 The statement's count or totals do not match what it prints. A row may be missing or misread	对账单的笔数或合计与账单所印数值不一致，可能存在漏行或识别错误	จำนวนรายการหรือยอดรวมของใบแจ้งยอดไม่ตรงกับที่พิมพ์ไว้ อาจมีรายการตกหล่นหรืออ่านผิด	明細の件数または合計が印字と一致しません。行の漏れや読み違いの可能性があります	cowork.recon.note.completeness
 These files could not be read and were left out: {0}	以下文件无法读取，未计入核对：{0}	ไม่สามารถอ่านไฟล์ต่อไปนี้ได้ จึงไม่ได้นำมาตรวจสอบ: {0}	次のファイルは読み取れず、照合に含めていません：{0}	vat_check.note.unread
-The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}	以下发票的买方为本公司，疑似进项发票，请确认是否放错：{0}	ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทของคุณ ซึ่งอาจเป็นใบกำกับภาษีซื้อ กรุณาตรวจสอบว่าใส่ผิดช่องหรือไม่: {0}	これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}	vat_check.note.purchase_invoices
+The buyer on these invoices is this company: {0}	以下发票的买方为本公司：{0}	ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทนี้: {0}	次の請求書の買い手は自社です：{0}	vat_check.note.purchase_invoices
 The account balance could not be checked right now. Try again in a moment.	暂时无法查询账户余额，请稍后重试。	ไม่สามารถตรวจสอบยอดคงเหลือในบัญชีได้ในขณะนี้ กรุณาลองใหม่ภายหลัง	現在、残高を確認できません。しばらくしてからもう一度お試しください。	vat_check.balance_unavailable
 Void match	作废一致	ยกเลิก · ตรงกัน	取消 · 一致	vat_check.status.void_match
 Void · no invoice needed	作废（无需发票）	ยกเลิก · ไม่ต้องมีใบกำกับภาษี	取消 · 請求書不要	vat_check.status.void_no_invoice
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0}	以下表格不是网银导出的账单（无余额列），未纳入本次对账：{0}	ตารางต่อไปนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) จึงไม่ได้รวมไว้: {0}	次の表は銀行からエクスポートした明細ではない（残高列がない）ため、含めていません：{0}	reconciliation.files_not_a_statement
-This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.	这份表格不是网银导出的账单（没有余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。	ตารางนี้ไม่ใช่รายการเดินบัญชีที่ส่งออกจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี	この表は銀行からエクスポートした明細ではありません（残高列がありません）。ネットバンキングから出力した Excel/CSV または明細 PDF をアップロードしてください。	reconciliation.statement_not_a_statement
+This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF.	此文件不是网银导出的账单（无余额列）。请上传网银导出的 Excel/CSV 或账单 PDF。	ไฟล์นี้ไม่ใช่รายการเดินบัญชีจากธนาคาร (ไม่มีคอลัมน์ยอดคงเหลือ) กรุณาอัปโหลด Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF รายการเดินบัญชี	この表は銀行からエクスポートした明細ではありません（残高列がありません）。ネットバンキングから出力した Excel/CSV または明細 PDF をアップロードしてください。	reconciliation.statement_not_a_statement
 If you have the electronic statement, upload it instead	如有电子版账单，建议上传电子版	หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน	電子版の明細があればそちらをアップロードしてください	reconciliation.prefer_electronic
-Excel/CSV exported from online banking or the electronic PDF is most accurate	建议使用网银导出的 Excel/CSV 或电子版 PDF	แนะนำให้ใช้ Excel/CSV ที่ส่งออกจากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์	ネットバンキングの Excel/CSV か電子版 PDF が最も正確です	cowork.recon.bank.leftHint
+Excel/CSV from online banking or electronic PDF	网银导出的 Excel/CSV 或电子版 PDF	Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์	ネットバンキングの Excel/CSV または電子版 PDF	cowork.recon.bank.leftHint
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.	{0} 第 {1} 页读取失败（识别超时），余额链在此中断，请对照原件确认	{0}: ไม่สามารถอ่านหน้า {1} ได้ (การอ่านหมดเวลา) ยอดคงเหลือไม่ต่อเนื่องตั้งแต่หน้านี้ กรุณาตรวจสอบกับต้นฉบับ	{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください	reconciliation.statement_pages_unread
-{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.	{0} 第 {1} 页已按原件重新读取并补充行，但余额链不连续，该页各行均已标记为待复核，请对照原件逐行核对	{0}: หน้า {1} อ่านซ้ำจากต้นฉบับและได้รายการเพิ่มแล้ว แต่ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน กรุณาตรวจสอบกับต้นฉบับทีละรายการ	{0} の {1} ページは原本から読み直して行を補いましたが、残高がつながりません（1 ページに表が 2 つある場合によくあります）。このページの全行に要確認を付けたので、原本と一行ずつ照合してください	reconciliation.statement_pages_recovered
+{0}: page {1} balance does not follow; all rows on the page are marked for review	{0} 第 {1} 页余额不连续，该页各行已标记为待复核	{0}: หน้า {1} ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน	{0} の {1} ページは残高がつながりません。このページの全行を要確認にしました	reconciliation.statement_pages_recovered
 Cowork Recon Preset	Cowork 对账预设	ค่าที่ตั้งไว้สำหรับกระทบยอด Cowork	Cowork 照合プリセット	
 Reconciliation Type	对账类型	ประเภทการกระทบยอด	照合の種類	
 Scope	范围	ขอบเขต	範囲	
@@ -1632,7 +1632,7 @@ Cowork WHT Certificate	Cowork 预扣税凭证参考	หนังสือรั�
 Cowork Tax Filing	报税草稿	ร่างแบบยื่นภาษี	税務申告の下書き
 A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.	一家公司一个月的增值税申报（ภ.พ.30）或预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿。	ร่างแบบ ภ.พ.30 หรือ ภ.ง.ด.3 / ภ.ง.ด.53 ของหนึ่งบริษัทในหนึ่งเดือน	1社・1か月分の付加価値税申告（ภ.พ.30）または源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書き。
 The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.	预扣税收款方的所得类型，问一次记住：按收款方税号，或按识别出的分类。	ประเภทเงินได้ของผู้มีเงินได้ ถามครั้งเดียวแล้วจำไว้ ตามเลขประจำตัวผู้เสียภาษีหรือตามหมวดที่อ่านได้	源泉徴収の受取人の所得種類。一度だけ確認して記憶します（受取人の納税者番号、または認識したカテゴリ別）。
-A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.	公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的已识别 50 ทวิ。不是票据：不推送、不计费。	หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ที่อ่านแล้ว เก็บไว้สำหรับร่าง ภ.ง.ด.3 / ภ.ง.ด.53 เมื่อบริษัทเลือกไม่บันทึกหนังสือรับรอง ไม่ใช่ใบกำกับภาษี ไม่ส่งข้อมูลและไม่คิดค่าบริการ	会社が源泉徴収票を取り込まない設定のとき、ภ.ง.ด.3 / ภ.ง.ด.53 の下書き用に保管する認識済みの 50 ทวิ。請求書ではないため、連携も課金もしません。
+Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.	公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的 50 ทวิ。不推送、不计费。	หนังสือรับรอง 50 ทวิ ที่เก็บไว้สำหรับร่าง ภ.ง.ด.3 / ภ.ง.ด.53 เมื่อบริษัทไม่บันทึกหนังสือรับรอง ไม่ส่งข้อมูลและไม่คิดค่าบริการ	会社が源泉徴収票を取り込まない場合に ภ.ง.ด.3 / ภ.ง.ด.53 下書き用に保管する 50 ทวิ。送信・課金しません。
 Return Type	申报类型	ประเภทแบบ	申告の種類
 Tax Month	税期	เดือนภาษี	課税月
 Taxpayer ID	纳税人识别号	เลขประจำตัวผู้เสียภาษีอากร	納税者番号
@@ -1675,9 +1675,9 @@ Batched: match by total	汇总入账，按合计匹配	ลงบัญชีแ�
 Check line by line	逐笔核对	ตรวจทีละรายการ	1 件ずつ照合	cowork.recon.rule.grouped.no
 Does account {0} belong in this reconciliation?	科目 {0} 是否参与对账？	บัญชี {0} ต้องนำมากระทบยอดหรือไม่	科目 {0} を照合に含めますか	reconciliation.preset.excluded_title
 {0} ledger lines, {1} in total, none of them in the tax report	总账 {0} 笔，合计 {1}，销项税报告中均无对应记录	บัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีรายการที่ตรงกันในรายงานภาษีขาย	総勘定元帳 {0} 件・合計 {1}、税報告には 1 件もありません	reconciliation.preset.excluded_count
-No, not in the tax report (interest, other income)	不参与（不开税票的收入，如利息）	ไม่นำมากระทบยอด (รายได้ที่ไม่ออกใบกำกับภาษี เช่น ดอกเบี้ย)	含めない（利息など税票を出さない収入）	reconciliation.preset.excluded_yes
+No, not in the tax report (non-invoiced income)	不参与（不开税票的收入）	ไม่นำมากระทบยอด (รายได้ที่ไม่ออกใบกำกับภาษี)	含めない（税票を出さない収入）	reconciliation.preset.excluded_yes
 Yes, keep reconciling it	参与对账	นำมากระทบยอด	照合に含める	reconciliation.preset.excluded_no
-By preset, these accounts are left out: {0}	按预设，这些科目不参与对账：{0}	ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}	プリセットにより次の科目は照合に含めていません：{0}	reconciliation.preset.excluded_applied
+By preset, these accounts are left out: {0}	按预设，以下科目不参与对账：{0}	ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}	プリセットにより次の科目は照合に含めていません：{0}	reconciliation.preset.excluded_applied
 Income account	收入科目	บัญชีรายได้	収入科目	cowork.recon.rule.excluded
 Left out (not in the tax report)	不参与对账（不在销项税报告里）	ไม่นำมากระทบยอด (ไม่มีในรายงานภาษีขาย)	照合に含めない（税報告にない）	cowork.recon.rule.excluded.yes
 Reconciled	参与对账	นำมากระทบยอด	照合に含める	cowork.recon.rule.excluded.no
@@ -1713,11 +1713,11 @@ amount	金额	จำนวนเงิน	金額	cowork.recon.live.kind.amount
 Reconciliation completed: {0}	对账已完成：{0}	กระทบยอดเสร็จสิ้น: {0}	照合が完了しました：{0}	cowork.recon.finished
 Reconciliation failed: {0}	对账失败：{0}	กระทบยอดไม่สำเร็จ: {0}	照合に失敗しました：{0}	cowork.recon.finishedFailed
 These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}	以下文件为总账而非银行账单，未纳入本次对账（总账请放在右侧）：{0}	ไฟล์ต่อไปนี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี จึงไม่ได้รวมไว้ (บัญชีแยกประเภทให้วางด้านขวา): {0}	次のファイルは総勘定元帳で銀行明細ではないため含めていません（元帳は右側へ）：{0}	reconciliation.files_ledger_not_statement
-This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.	此文件为总账而非银行账单。请将其放在总账一侧，左侧放置银行账单或网银导出文件。	ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท และอัปโหลดรายการเดินบัญชีหรือไฟล์จากอินเทอร์เน็ตแบงกิ้งไว้ด้านซ้าย	このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置き、左側には銀行明細またはネットバンキングの出力をアップロードしてください。	reconciliation.statement_is_ledger
+This file is a general ledger, not a bank statement. Put it on the ledger side.	此文件为总账而非银行账单，请放在总账一侧。	ไฟล์นี้เป็นบัญชีแยกประเภท ไม่ใช่รายการเดินบัญชี กรุณาวางไว้ฝั่งบัญชีแยกประเภท	このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置いてください。	reconciliation.statement_is_ledger
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0}	以下工作表与同一文件中的另一工作表逐行相同，仅计算一次：{0}	แผ่นงานต่อไปนี้ซ้ำกับแผ่นงานอื่นในไฟล์เดียวกันทุกบรรทัด จึงนับเพียงครั้งเดียว: {0}	次のワークシートは同じファイル内の別のワークシートと行ごとに同一のため、1 回だけ数えました：{0}	reconciliation.files_duplicate_sheets
-These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}	以下销项税报告页无法自核（行合计与页合计不一致，或未读取到页合计），请对照原件核对：{0}	หน้าต่อไปนี้ของรายงานภาษีขายไม่สามารถตรวจทานกับยอดรวมท้ายหน้าได้ (ยอดรวมรายการไม่ตรงกับยอดรวมหน้า หรืออ่านยอดรวมหน้าไม่ได้) กรุณาตรวจสอบกับต้นฉบับ: {0}	次の税務報告のページはページ合計で自己検証できませんでした（行の合計がページ合計と一致しない、またはページ合計が読み取れない。再読込済み）。原本と照合してください：{0}	reconciliation.report_pages_unverified
-Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}	以下照片 / 扫描件识别的销项税报告页有多行与总账不一致，可能为识别错误（错位或漏行），请对照原件核对（括号内为不一致行数）：{0}	หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านจากรูปถ่าย / ไฟล์สแกน มีหลายรายการไม่ตรงกับบัญชีแยกประเภท อาจเกิดจากการอ่านผิด (เหลื่อมแถวหรือตกหล่น) กรุณาตรวจสอบกับต้นฉบับ (ในวงเล็บคือจำนวนรายการที่ไม่ตรง): {0}	写真・スキャンから読み取った次の税務報告のページで複数の行が元帳と一致しません。読み取り誤りの可能性が高いため、実際の差異と判断する前に原本と照合してください（括弧内は不一致の行数）：{0}	reconciliation.report_page_likely_misread
-On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}	以下识别出的销项税报告页金额与单号错行（金额在总账中均存在，仅单号对应有误），属识别错误，请对照原件更正（括号内为行数）：{0}	หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านได้ มียอดเงินกับเลขที่เอกสารเหลื่อมแถวกัน (ยอดเงินทุกรายการมีในบัญชีแยกประเภท เพียงแต่เลขที่เอกสารไม่ตรงกัน) เป็นการอ่านผิด กรุณาแก้ไขตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}	読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}	reconciliation.report_page_shifted
+These VAT report pages could not be checked against their page totals: {0}. Check them against the original	以下销项税报告页无法与页合计核对：{0}，请对照原件核对	หน้าต่อไปนี้ของรายงานภาษีขายตรวจกับยอดรวมท้ายหน้าไม่ได้: {0} กรุณาตรวจสอบกับต้นฉบับ	次の税務報告のページはページ合計と照合できませんでした：{0}。原本と照合してください	reconciliation.report_pages_unverified
+Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.	以下销项税报告页疑似识别错误，与总账不一致的行数：{0}。请对照原件核对。	หน้ารายงานภาษีขายต่อไปนี้สงสัยว่าอ่านผิด จำนวนรายการที่ไม่ตรงกับบัญชีแยกประเภท: {0} กรุณาตรวจสอบกับต้นฉบับ	次の税務報告のページは読み取り誤りの疑いがあり、元帳と一致しない行数は {0} です。原本と照合してください。	reconciliation.report_page_likely_misread
+Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0}	以下销项税报告页金额与单号错行，请对照原件更正：{0}	หน้าต่อไปนี้ของรายงานภาษีขายมียอดเงินกับเลขที่เอกสารเหลื่อมแถว กรุณาแก้ไขตามต้นฉบับ: {0}	次の税務報告のページで金額と番号の行がずれています。原本に合わせて修正してください：{0}	reconciliation.report_page_shifted
 The reconciliation was interrupted part way (the system restarted). Please submit it again.	对账中途被中断（系统重启），请重新提交。	การกระทบยอดถูกขัดจังหวะกลางคัน (ระบบรีสตาร์ต) กรุณาส่งใหม่อีกครั้ง	照合が途中で中断されました（システムの再起動）。もう一度送信してください。	reconciliation.interrupted
 Replaced by your later submission of the same files.	已被相同文件的后续提交取代。	ถูกแทนที่ด้วยการส่งไฟล์ชุดเดียวกันครั้งหลังของคุณแล้ว	同じファイルの後からの送信に置き換えられました。	reconciliation.superseded
 Card fee rate	刷卡手续费率	อัตราค่าธรรมเนียมบัตร	カード手数料率	cowork.recon.rule.card_fee
@@ -1729,8 +1729,8 @@ Ledger: {0} card slip(s) on {1}, total {2}	总账 {1} 刷卡 {0} 笔，合计 {2
 At a {1}% card fee, {0} deposits match	按手续费率 {1}% 可匹配 {0} 笔到账	ที่อัตราค่าธรรมเนียม {1}% จับคู่ได้ {0} รายการ	手数料率 {1}% で {0} 件の入金が一致します	reconciliation.preset.card_fee_count
 Yes, the card fee is {0}% (with or without 7% VAT on the fee)	是，刷卡手续费率 {0}%（手续费含或不含 7% 增值税均可）	ใช่ อัตราค่าธรรมเนียมบัตร {0}% (ค่าธรรมเนียมรวมหรือไม่รวม VAT 7% ก็ได้)	はい、カード手数料率は {0}%（手数料に 7% VAT 加算・込みのどちらも可）	reconciliation.preset.card_fee_yes
 No, check line by line	不是，逐笔核对	ไม่ใช่ ตรวจทีละรายการ	いいえ、1 件ずつ照合	reconciliation.preset.card_fee_no
-Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger	已按预设刷卡手续费率匹配 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记	จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกในบัญชีแยกประเภท	プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します	reconciliation.preset.card_fee_applied
-Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.	大部分发票在时限内未读取完成（{1} 份中 {0} 份），以下差异多为发票未读取所致，请稍后重新提交。	ใบกำกับภาษีส่วนใหญ่ยังอ่านไม่เสร็จภายในเวลาที่กำหนด ({0} จาก {1} ไฟล์) ผลต่างด้านล่างส่วนใหญ่เกิดจากใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง	請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。	vat_check.mostly_unread
+Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger	已按预设刷卡手续费率匹配 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记	จับคู่ยอดบัตร {0} รายการตามอัตราที่ตั้งไว้ ค่าธรรมเนียม {1} แสดงเป็นยอดที่ธนาคารหัก ยังไม่บันทึกบัญชี	プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します	reconciliation.preset.card_fee_applied
+{0} of {1} invoice files were not read in time; the differences below include unread invoices. Submit again later.	{1} 份发票中 {0} 份未在时限内读取完成，以下差异含未读取的发票。请稍后重新提交。	ใบกำกับภาษี {0} จาก {1} ไฟล์อ่านไม่เสร็จภายในเวลาที่กำหนด ผลต่างด้านล่างรวมใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง	{1} 件中 {0} 件の請求書が時間内に読み取れず、以下の差異には未読の請求書が含まれます。後でもう一度送信してください。	vat_check.mostly_unread
 These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0}	以下识别出的销项税报告行自身数据不一致，可能为识别错误，请对照原件核对：{0}	รายการต่อไปนี้ในรายงานภาษีขายที่อ่านได้มีข้อมูลไม่สอดคล้องกันเอง อาจเกิดจากการอ่านผิด กรุณาตรวจสอบกับต้นฉบับ: {0}	読み取った次の税務報告の行はそれ自体で整合せず、読み取り誤りの可能性があります。原本と照合してください：{0}	reconciliation.report_rows_suspect
 VAT is not 7% of the base	税额≠税基×7%	ภาษีไม่เท่ากับ 7% ของฐานภาษี	税額が課税標準の7%でない	reconciliation.row_check.vatRate
 VAT without a base amount	只有税额没有税基	มีภาษีแต่ไม่มีฐานภาษี	課税標準がなく税額のみ	reconciliation.row_check.vatOnly
@@ -1751,7 +1751,7 @@ Run history	运行记录	ประวัติการทำงาน	実行履
 Turn off	停用	ปิดใช้งาน	停止	cowork.folder.disable
 Turn on	启用	เปิดใช้งาน	有効にする	cowork.folder.enable
 Turn this scheduled task on? Only files added to the folder from now on are processed.	确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。	ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้	この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。	cowork.folder.enableConfirm
-Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.	确定要启用此定时任务吗？到点处理文件夹里还没处理过的文件。	ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา	この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。	cowork.folder.enableConfirmAll
+Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.	确定要启用此定时任务吗？到点处理文件夹中未处理的文件。	ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา	この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。	cowork.folder.enableConfirmAll
 Turn this scheduled task off? Documents already entered stay as they are.	确定要停用此定时任务吗？已推送的单据不受影响。	ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ	この定期タスクを停止しますか？登録済みの書類はそのままです。	cowork.folder.disableConfirm
 Rule is on	启用中	เปิดใช้งานอยู่	有効	cowork.folder.on
 Rule is off	已停用	ปิดใช้งานแล้ว	停止中	cowork.folder.off
@@ -1806,7 +1806,7 @@ The scheduled task is incomplete or invalid.	定时任务内容不完整或不�
 Choose a folder inside the allowed root, without system folders.	请选择允许读取的根目录下的文件夹，不能选择系统文件夹。	กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ	許可されたルート内の、システム以外のフォルダーを選んでください。	cowork.folder.path_invalid
 Choose an allowed root reported by CC Desktop.	请选择 CC 桌面版上报的根目录。	กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้	CC デスクトップが報告したルートを選んでください。	cowork.folder.root_invalid
 Choose a day and time for the monthly run.	请选择每月运行的日期和时间。	กรุณาเลือกวันและเวลาที่จะทำงานทุกเดือน	毎月の実行日と時刻を選んでください。	cowork.folder.schedule_invalid
-One of the default choices is not valid for this account set.	有一项默认处理在这份账套里不可用。	มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้	既定の処理の一部がこの帳簿では使えません。	cowork.folder.defaults_invalid
+One of the default choices is not valid for this account set.	部分默认处理在此账套中不可用。	มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้	既定の処理の一部がこの帳簿では使えません。	cowork.folder.defaults_invalid
 This account set is not in the connection's list. Reload the list in New Intake.	此账套不在该连接的账套列表中，请在新建录入中重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่	この帳簿は一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	cowork.folder.stock_group_needed
 A scheduled task cannot move to another PC. Turn it off and create a new one.	定时任务无法转移至其他电脑，请停用后新建定时任务。	ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่	定期タスクは別の PC に移せません。停止して新しく作成してください。	cowork.folder.connection_fixed
@@ -1816,7 +1816,7 @@ This scheduled task no longer exists for this PC.	此电脑上不存在该定时
 The task owner can no longer enter documents with this connection.	定时任务负责人已无权使用此连接录入。	ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว	定期タスクの担当者はこの接続で登録できなくなっています。	cowork.folder.owner_not_ready
 This file record was not found.	文件记录不存在。	ไม่พบรายการไฟล์นี้	このファイル記録が見つかりません。	cowork.folder.entry_missing
 Only PDF and image files are read.	仅支持 PDF 和图片文件。	รองรับเฉพาะไฟล์ PDF และรูปภาพ	読み取るのは PDF と画像だけです。	cowork.folder.type_invalid
-Give a file path inside this folder.	请给出这个文件夹里的文件路径。	กรุณาระบุพาธของไฟล์ภายในโฟลเดอร์นี้	このフォルダー内のファイルのパスを指定してください。	cowork.folder.fetch_path_invalid
+Give a file path inside this folder.	请提供此文件夹中的文件路径。	กรุณาระบุพาธของไฟล์ภายในโฟลเดอร์นี้	このフォルダー内のファイルのパスを指定してください。	cowork.folder.fetch_path_invalid
 This file type cannot be brought into the chat.	这种类型的文件不能取进对话。	ไม่สามารถนำไฟล์ประเภทนี้เข้ามาในแชตได้	この種類のファイルはチャットに取り込めません。	cowork.folder.fetch_type_invalid
 The file is empty or too large.	文件为空或过大。	ไฟล์ว่างหรือใหญ่เกินไป	ファイルが空か大きすぎます。	cowork.folder.size_invalid
 This file is too large to send from this PC.	文件过大，无法从此电脑上传。	ไฟล์มีขนาดใหญ่เกินไป ไม่สามารถอัปโหลดจากเครื่องนี้ได้	このファイルは大きすぎて送信できません。	cowork.folder.too_large
@@ -1830,8 +1830,8 @@ CC Desktop was not connected when this invoice was ready to push; it will try ag
 Waiting for this account set's stock purchases to be entered first.	等待同一账套的进货先录入。	รอบันทึกรายการซื้อสินค้าของชุดบัญชีนี้ก่อน	同じ会計データの仕入が先に登録されるのを待っています。	cowork.folder.waiting_purchases
 CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.	CC 桌面版正在从电脑读取此账套的科目表，请稍后再试。	CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้จากคอมพิวเตอร์ กรุณาลองใหม่อีกครั้งในอีกสักครู่	CC デスクトップがこの会計データの勘定科目表をパソコンから読み込んでいます。しばらくしてからもう一度お試しください。	cowork.masters.reading
 CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.	CC 桌面版不在线，无法读取此账套的科目表。请确认 CC 桌面版正在运行后再试。	CC เดสก์ท็อปออฟไลน์ จึงอ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่า CC เดสก์ท็อปทำงานอยู่ แล้วลองใหม่	CC デスクトップがオフラインのため、この会計データの勘定科目表を読み込めません。CC デスクトップが起動していることを確認してからもう一度お試しください。	cowork.masters.offline
-Update CC Desktop on that computer to read this account set's chart of accounts.	请更新那台电脑上的 CC 桌面版，才能读取此账套的科目表。	กรุณาอัปเดต CC เดสก์ท็อปบนคอมพิวเตอร์เครื่องนั้นเพื่ออ่านผังบัญชีของชุดบัญชีนี้	この会計データの勘定科目表を読み込むには、そのパソコンの CC デスクトップを更新してください。	cowork.masters.update_needed
-The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.	电脑读不到此账套的科目表。请确认那台电脑上的 Express 能打开这本账套。	คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้	パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。	cowork.masters.failed
+Update CC Desktop on that computer to read this account set's chart of accounts.	请更新该电脑上的 CC 桌面版以读取此账套的科目表。	กรุณาอัปเดต CC เดสก์ท็อปบนคอมพิวเตอร์เครื่องนั้นเพื่ออ่านผังบัญชีของชุดบัญชีนี้	この会計データの勘定科目表を読み込むには、そのパソコンの CC デスクトップを更新してください。	cowork.masters.update_needed
+The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.	无法读取此账套的科目表。请确认该电脑上的 Express 能打开此账套。	คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้	パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。	cowork.masters.failed
 This account set is not on the computer's list of account sets.	电脑上报的账套中没有这本账套。	ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์	パソコンの会計データ一覧にこの会計データがありません。	cowork.masters.unavailable
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.	CC 桌面版正在读取此账套的科目表，读完后推送。	CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ	CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。	cowork.folder.reading_masters
 No account set of this company covers the document date.	该公司没有覆盖单据日期的账套	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
@@ -1968,7 +1968,7 @@ Intake Target	录入目标	ปลายทางการบันทึก	取�
 Last Push Reason	最近推送原因	เหตุผลการส่งครั้งล่าสุด	最終送信理由	
 Last Seen Generation	最近确认代次	รุ่นล่าสุดที่ตรวจพบ	最終確認世代	
 Last Used At	最近使用时间	ใช้ล่าสุดเมื่อ	最終使用日時	
-Legacy Status	旧状态	สถานะเดิม	旧ステータス	
+Previous Status	旧状态	สถานะเดิม	以前のステータス
 MR.ERP Import Menu Options Seen	已读取的 MR.ERP 导入菜单	เมนูนำเข้า MR.ERP ที่พบ	取得済みの MR.ERP 取込メニュー	
 MR.ERP Import Menu per Account Set	各账套的 MR.ERP 导入菜单	เมนูนำเข้า MR.ERP ของแต่ละชุดบัญชี	会計データ別 MR.ERP 取込メニュー	
 Match Layer	匹配层级	ลำดับขั้นการจับคู่	照合レイヤー	
@@ -2132,12 +2132,12 @@ Change the inventory account group?	要更改存货科目组吗？	เปลี�
 Change the MR.ERP import settings?	要更改 MR.ERP 导入设置吗？	เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่	MR.ERP の取込設定を変更しますか？
 Change how this kind of document is handled?	要更改这类单据的处理方式吗？	เปลี่ยนวิธีจัดการเอกสารประเภทนี้หรือไม่	この種類の書類の扱いを変更しますか？
 Set as the account set in use?	设为现用账套？	ตั้งเป็นชุดบัญชีที่ใช้อยู่หรือไม่	使用中の会計データに設定しますか？
-Save this scheduled task?	要保存这个定时任务吗？	บันทึกงานตามกำหนดเวลานี้หรือไม่	この定期タスクを保存しますか？
-Save these scheduled tasks?	要保存这些定时任务吗？	บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを保存しますか？
-Turn this scheduled task on or off?	要启用或停用这个定时任务吗？	เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่	この定期タスクをオン／オフにしますか？
-Change this scheduled task?	要更改这个定时任务吗？	เปลี่ยนงานตามกำหนดเวลานี้หรือไม่	この定期タスクを変更しますか？
-Change these scheduled tasks?	要更改这些定时任务吗？	เปลี่ยนงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを変更しますか？
-Delete these scheduled tasks?	要删除这些定时任务吗？	ลบงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを削除しますか？
+Save this scheduled task?	确定要保存此定时任务吗？	บันทึกงานตามกำหนดเวลานี้หรือไม่	この定期タスクを保存しますか？
+Save these scheduled tasks?	确定要保存以下定时任务吗？	บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを保存しますか？
+Turn this scheduled task on or off?	确定要启用或停用此定时任务吗？	เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่	この定期タスクをオン／オフにしますか？
+Change this scheduled task?	确定要更改此定时任务吗？	เปลี่ยนงานตามกำหนดเวลานี้หรือไม่	この定期タスクを変更しますか？
+Change these scheduled tasks?	确定要更改以下定时任务吗？	เปลี่ยนงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを変更しますか？
+Delete these scheduled tasks?	确定要删除以下定时任务吗？	ลบงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを削除しますか？
 Transfer slips	转账凭条	สลิปโอนเงิน	振込明細
 Withholding tax certificates	预扣税凭证	หนังสือรับรองการหักภาษี ณ ที่จ่าย	源泉徴収票
 Started a reconciliation	开始了对账	เริ่มกระทบยอดแล้ว	照合を開始しました
@@ -2240,16 +2240,16 @@ Checking push results	正在查看推送结果	กำลังตรวจสอ
 Checking scheduled tasks	正在查看定时任务	กำลังตรวจสอบงานตามกำหนดเวลา	定期タスクを確認しています
 Starting a scheduled task	正在启动定时任务	กำลังเริ่มงานตามกำหนดเวลา	定期タスクを開始しています
 Checking scheduled task runs	正在查看定时任务记录	กำลังตรวจสอบประวัติงานตามกำหนดเวลา	定期タスクの実行履歴を確認しています
-Company not found	找不到这家公司	ไม่พบบริษัท	会社が見つかりません	cowork.company.not_found
-This account set is not in the catalog	账套目录里没有这份账套	ไม่พบชุดบัญชีนี้ในรายการ	この帳簿は一覧にありません	cowork.company.not_in_catalog
+Company not found	未找到公司	ไม่พบบริษัท	会社が見つかりません	cowork.company.not_found
+This account set is not in the catalog	账套目录中没有此账套	ไม่พบชุดบัญชีนี้ในรายการ	この帳簿は一覧にありません	cowork.company.not_in_catalog
 Too many companies	公司数量已达上限	บริษัทเกินจำนวนที่กำหนด	会社数が上限です	cowork.company.too_many
 Notes are full	知识库已满	บันทึกเต็มแล้ว	ノートが上限です	cowork.company.notes_full
 Note is empty or too long	说明为空或过长	บันทึกว่างหรือยาวเกินไป	ノートが空か長すぎます	cowork.company.note_invalid
-Note not found	找不到这条说明	ไม่พบบันทึกนี้	ノートが見つかりません	cowork.company.note_not_found
+Note not found	未找到该说明	ไม่พบบันทึกนี้	ノートが見つかりません	cowork.company.note_not_found
 Please enter a name of up to 140 characters	请输入 140 字以内的名称	กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร	140 文字以内で名前を入力してください	cowork.company.title_invalid
 Invalid month	月份不对	เดือนไม่ถูกต้อง	月が正しくありません	cowork.company.period_invalid
-This saved choice no longer exists	这条记住的选择已不在	ไม่พบตัวเลือกที่จำไว้นี้แล้ว	この保存した選択はもうありません	cowork.company.choice_not_found
-Only payment and VAT choices can be changed here	这里只能改付款方式和抵不抵进项	แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ	ここで変更できるのは支払方法と仕入税額控除だけです	cowork.company.choice_not_editable
+This saved choice no longer exists	未找到该选择	ไม่พบตัวเลือกที่จำไว้นี้แล้ว	この保存した選択はもうありません	cowork.company.choice_not_found
+Only payment and VAT choices can be changed here	此处只能修改付款方式和进项抵扣	แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ	ここで変更できるのは支払方法と仕入税額控除だけです	cowork.company.choice_not_editable
 Notes	知识库	บันทึก	ノート	cowork.company.notes
 Claim VAT	抵进项	ขอคืนภาษีซื้อ	仕入税額控除
 Expense it	记费用	ลงค่าใช้จ่าย	費用計上
@@ -2257,16 +2257,16 @@ Listed companies	列出了公司	แสดงรายชื่อบริษ�
 Read company details	读取了公司资料	อ่านข้อมูลบริษัท	会社情報を確認
 Saved a company note	记下了公司说明	บันทึกข้อมูลบริษัท	会社メモを保存
 Removed a company note	删除了公司说明	ลบบันทึกบริษัท	会社メモを削除
-Save this to the company's notes?	把这条记进公司知识库？	บันทึกข้อนี้ลงในบันทึกของบริษัทไหม	会社のノートに保存しますか？
-Update this company note?	修改这条公司说明？	แก้ไขบันทึกบริษัทนี้ไหม	この会社メモを更新しますか？
-Remove this company note?	删除这条公司说明？	ลบบันทึกบริษัทนี้ไหม	この会社メモを削除しますか？
+Save this to the company's notes?	确定要将此内容记入公司知识库吗？	บันทึกข้อนี้ลงในบันทึกของบริษัทไหม	会社のノートに保存しますか？
+Update this company note?	确定要修改此公司说明吗？	แก้ไขบันทึกบริษัทนี้ไหม	この会社メモを更新しますか？
+Remove this company note?	确定要删除此公司说明吗？	ลบบันทึกบริษัทนี้ไหม	この会社メモを削除しますか？
 Documents to handle	待处理单据	เอกสารรอดำเนินการ	処理待ちの書類	cowork.company.pending.title
-{0} documents are waiting for you ({1})	{0} 份单等你处理（{1}）	มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})	{0} 件の書類があなたの処理を待っています（{1}）	cowork.company.pending.text
-{0} documents are waiting for you	{0} 份单等你处理	มีเอกสาร {0} รายการรอคุณดำเนินการ	{0} 件の書類があなたの処理を待っています	cowork.company.pending.text_plain
+{0} documents pending ({1})	{0} 份单据待处理（{1}）	เอกสาร {0} รายการรอดำเนินการ ({1})	{0} 件の書類が未処理です（{1}）	cowork.company.pending.text
+{0} documents pending	{0} 份单据待处理	เอกสาร {0} รายการรอดำเนินการ	{0} 件の書類が未処理です	cowork.company.pending.text_plain
 {0} more companies	另有 {0} 家	อีก {0} บริษัท	ほか {0} 社	cowork.company.pending.more
-Not pushed yet	还没推送	ยังไม่ได้ส่ง	まだ送信していません	cowork.company.pending.not_pushed
+Not pushed	未推送	ยังไม่ได้ส่ง	未送信	cowork.company.pending.not_pushed
 Ready to push	待推送	รอส่ง	送信待ち	cowork.company.pending.cc_proposal
-This document has no push target	这张单还没选推送去向	เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง	この書類はまだ送信先が選ばれていません	cowork.company.pending.no_target
+No push target	未选择推送目标	ยังไม่ได้เลือกปลายทางการส่ง	送信先が未選択です	cowork.company.pending.no_target
 Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบริษัท	Cowork 会社マスター
 Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート
 Cowork Company Folder	Cowork 公司单据文件夹	Cowork โฟลเดอร์เอกสารบริษัท	Cowork 会社書類フォルダー
@@ -2306,3 +2306,24 @@ Already recorded:	已记录：	บันทึกไว้แล้ว:	記録�
 Book	账面	บัญชี	帳簿	cowork.stock.count.bookShort
 Counted	实盘	นับได้	実地	cowork.stock.count.countedShort
 Diff	差异	ผลต่าง	差異	cowork.stock.count.diffShort
+Identity	身份标识	ตัวระบุ	識別子
+Legal Name	法定名称	ชื่อตามกฎหมาย	法定名称
+Branch When Added	添加时分店	สาขาเมื่อเพิ่ม	追加時の支店
+Name Key	名称键	คีย์ชื่อ	名称キー
+Seed Connection	来源连接	การเชื่อมต่อต้นทาง	元の接続
+Seed Account Set	来源账套	ชุดบัญชีต้นทาง	元の会計データ
+MR.ERP Company	MR.ERP 公司	บริษัท MR.ERP	MR.ERP 会社
+Combined VAT Filing	合并申报增值税	ยื่นภาษีมูลค่าเพิ่มรวม	付加価値税の一括申告
+Reader	读取电脑	เครื่องที่อ่าน	読み取り端末
+Binding Key	绑定键	คีย์การผูก	連携キー
+Display Path	显示路径	พาธที่แสดง	表示パス
+Origin	来源	ที่มา	作成元
+Brief Group	简报分组	กลุ่มสรุป	概要グループ
+0 means not matched	0 表示未匹配	0 หมายถึงไม่ได้จับคู่	0 は未照合
+-1 means not applicable	-1 表示不适用	-1 หมายถึงไม่เกี่ยวข้อง	-1 は該当なし
+Preset group match number; 0 means not grouped	预设分组匹配编号；0 表示未分组	หมายเลขกลุ่มการจับคู่ที่ตั้งไว้ 0 หมายถึงไม่อยู่ในกลุ่ม	プリセットのグループ照合番号。0 はグループなし
+Ledger file the rows were read from	读取明细行的总账文件	ไฟล์บัญชีแยกประเภทที่อ่านรายการ	行を読み取った元帳ファイル
+Output VAT report file the rows were read from	读取明细行的销项税报告文件	ไฟล์รายงานภาษีขายที่อ่านรายการ	行を読み取った売上税報告ファイル
+As printed on the report	按报告原样保留	ตามที่พิมพ์ในรายงาน	報告書の記載どおり
+1 means the ledger has this document number	1 表示总账中有该单号	1 หมายถึงพบเลขที่เอกสารนี้ในบัญชีแยกประเภท	1 は元帳にこの番号があること
+Up to six decimal places; empty actual quantity means not counted	最多 6 位小数；实盘数量为空表示未盘点	ทศนิยมไม่เกิน 6 ตำแหน่ง จำนวนนับจริงว่างหมายถึงยังไม่ได้นับ	小数点以下6桁まで。実数量が空欄の場合は未棚卸

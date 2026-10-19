@@ -8,12 +8,11 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-16 12:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "One local file picked up by a folder auto-intake rule, from upload to recognition, push and result workbook.",
  "field_order": [
   "input_key",
   "rule",

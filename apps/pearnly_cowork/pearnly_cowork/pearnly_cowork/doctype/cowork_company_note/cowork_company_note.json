@@ -9,12 +9,11 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-15 06:00:00.000000",
- "modified": "2026-10-15 06:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "One line of the team's working notes about a client company (CC company master). Shared by the firm.",
  "field_order": [
   "company",
   "workspace",

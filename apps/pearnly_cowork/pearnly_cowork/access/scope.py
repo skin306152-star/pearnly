@@ -56,7 +56,7 @@ def _reject_share_fallback(doctype, user=None):
     user = user or frappe.session.user
     if _once(("share", doctype, user), lambda: frappe.get_all("DocShare", filters={"share_doctype": doctype},
                       or_filters={"user": user, "everyone": 1}, pluck="name", limit_page_length=1)):
-        frappe.throw(_("Remove legacy document shares before accessing Cowork records."),
+        frappe.throw(_("Remove the old document shares before opening Cowork records."),
                      frappe.PermissionError)
 
 

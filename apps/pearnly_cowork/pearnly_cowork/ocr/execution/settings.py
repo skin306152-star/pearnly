@@ -42,7 +42,7 @@ def snapshot(*, deterministic=False):
     # silently resolve an actual subscriber as plan 'none' or a typo as economy.
     effective_mode = environment.get("OCR_ENGINE_MODE", "").strip() or overrides.get("invoice") or policy["mode"]
     if effective_mode not in {"economy", "enterprise"}:
-        frappe.throw(_("This Cowork OCR mode is not available on the new platform yet."))
+        frappe.throw(_("This recognition mode is not supported."))
     try:
         selected = invoice_policy(environment, policy)
         config_from_environment(environment, selected)
@@ -55,9 +55,9 @@ def snapshot(*, deterministic=False):
                 "fewshot": False, "anchor_date": today.isoformat(), "schema": 1,
                 "input_engine": "roundtrip_workbook"}
     if selected.mode not in {"economy", "enterprise"} or selected.backend != "vertex":
-        frappe.throw(_("This Cowork OCR mode is not available on the new platform yet."))
+        frappe.throw(_("This recognition mode is not supported."))
     if selected.double_read or selected.image_first:
-        frappe.throw(_("This Cowork OCR mode is not available on the new platform yet."))
+        frappe.throw(_("This recognition mode is not supported."))
     destination = target()
     if not destination["credentials_path"]:
         frappe.throw(_("Cowork OCR requires a configured provider credential reference."))

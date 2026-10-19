@@ -8,12 +8,11 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-13 12:00:00.000000",
- "modified": "2026-10-16 12:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "One on-demand request to the CC Desktop app on a PC (read the books, list or fetch files in an authorised folder) and its result.",
  "field_order": [
   "request_id",
   "request_key",
@@ -115,14 +114,14 @@
   },
   {
    "fieldname": "lease_handle",
-   "label": "Lease Handle",
+   "label": "Lock Handle",
    "fieldtype": "Data",
    "read_only": 1,
    "length": 64
   },
   {
    "fieldname": "lease_credential",
-   "label": "Lease Credential",
+   "label": "Lock Credential",
    "fieldtype": "Data",
    "read_only": 1,
    "length": 140
@@ -150,7 +149,7 @@
   },
   {
    "fieldname": "lease_expires_at",
-   "label": "Lease Expires At (UTC)",
+   "label": "Lock Expires At (UTC)",
    "fieldtype": "Datetime",
    "read_only": 1
   },

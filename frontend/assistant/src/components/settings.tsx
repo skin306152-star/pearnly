@@ -642,7 +642,7 @@ const REMOVE_COMPUTER = "pearnly_cowork.companion.api.remove_device";
 /** 池里的电脑（一台一行，服务端 `folder_intake.rules.computers`）：在不在线、自动更新被拦；登记人或管理员「···」移除
  *  （`companion.api.remove_device`：吊销它的密钥、让它退役；它读的定时任务留着、标「电脑已移除」）。下面是管理员的「全所可用」。
  *  inDesktop：CC 桌面版「此电脑 → 连接」下面那一节（带「电脑」标题）；一台电脑都没有时整节不出现，不在桌面版里请人下载桌面版
- *  （第 6 批审查第 7 条）。浏览器的「连接」照旧写「还没有电脑连接」+「下载 CC 桌面版」。 */
+ *  （第 6 批审查第 7 条）。浏览器的「连接」照旧写「暂无已连接的电脑」+「下载 CC 桌面版」。 */
 export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   const [rows, setRows] = useState<Computer[] | null>(null);
   const [busy, setBusy] = useState("");

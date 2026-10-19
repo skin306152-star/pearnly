@@ -73,7 +73,7 @@ class LedgerSourceTests(unittest.TestCase):
         self.assertIn('handToCC: "交给 CC"', i18n)
         # 同一张单在相邻的「待处理」卡里叫什么，这里就叫什么（服务端已有词条 cowork.company.pending.not_pushed）
         tsv = (COWORK / "i18n/messages.tsv").read_text(encoding="utf-8")
-        self.assertIn("Not pushed yet\t还没推送\tยังไม่ได้ส่ง\t", tsv)
+        self.assertIn("Not pushed\t未推送\tยังไม่ได้ส่ง\t", tsv)
         for words in ('not_pushed: "Not pushed"', 'not_pushed: "未推送"', 'not_pushed: "ยังไม่ได้ส่ง"'):
             self.assertIn(words, i18n)
         # 泰文的「在 Express 里改了 / 删了 / 作废了」是被动（不是叫人去删）

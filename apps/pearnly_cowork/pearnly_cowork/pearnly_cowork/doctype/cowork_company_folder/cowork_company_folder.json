@@ -9,12 +9,11 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-15 06:00:00.000000",
- "modified": "2026-10-15 06:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "The documents folder of a client company on one computer: which computer reads it (reader), the folder opened in CC Desktop (root_id) and the subfolder under it. Only a pointer; folders are chosen only in CC Desktop.",
  "field_order": [
   "company",
   "reader",

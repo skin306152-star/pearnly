@@ -17,15 +17,15 @@ from typing import Optional
 _BRV2_WARN = {
 	"period_mismatch": {
 		"zh": "⚠️ 总账与对账单的期间不重叠（总账：{g}；对账单：{s}），请上传同一期间的总账与对账单。",
-		"en": "⚠️ The GL and bank statement periods do not overlap (GL: {g}; statement: {s}). You may have uploaded files from different periods — please re-upload the GL and statement for the same period.",
-		"th": "⚠️ ช่วงเวลาของบัญชีแยกประเภทและรายการเดินบัญชีไม่ตรงกัน (บัญชีแยกประเภท: {g}; รายการเดินบัญชี: {s}) กรุณาอัปโหลดบัญชีแยกประเภทและรายการเดินบัญชีของช่วงเวลาเดียวกัน",
-		"ja": "⚠️ GL と明細の期間が重なっていません(GL:{g};明細:{s})。異なる期間のファイルをアップロードした可能性があります。同じ期間の GL と明細を再アップロードしてください。",
+		"en": "⚠️ The GL and statement periods do not overlap (GL: {g}; statement: {s}). Upload the GL and statement for the same period.",
+		"th": "⚠️ ช่วงเวลาของบัญชีแยกประเภทและรายการเดินบัญชีไม่ตรงกัน (บัญชีแยกประเภท: {g}; รายการเดินบัญชี: {s}) กรุณาอัปโหลดไฟล์ของช่วงเวลาเดียวกัน",
+		"ja": "⚠️ GL と明細の期間が重なっていません（GL：{g}；明細：{s}）。同じ期間の GL と明細をアップロードしてください。",
 	},
 	"gl_too_few": {
 		"zh": "⚠️ 总账仅 {n} 行，对账单有 {m} 行，请确认总账完整且为同一账户。",
-		"en": "⚠️ The GL has only {n} row(s) but the statement has {m}. This large gap suggests an incomplete or mismatched GL — the reconciliation result may be meaningless.",
+		"en": "⚠️ The GL has only {n} rows; the statement has {m}. Check that the GL is complete and for the same account.",
 		"th": "⚠️ บัญชีแยกประเภทมีเพียง {n} รายการ แต่รายการเดินบัญชีมี {m} รายการ กรุณาตรวจสอบว่าบัญชีแยกประเภทครบถ้วนและเป็นบัญชีเดียวกัน",
-		"ja": "⚠️ GL は {n} 行のみですが明細は {m} 行あります。差が大きすぎるため、不完全または不一致の GL の可能性があり、照合結果が無意味になる場合があります。",
+		"ja": "⚠️ GL は {n} 行、明細は {m} 行です。GL が完全で同一口座のものか確認してください。",
 	},
 	"no_match": {
 		"zh": "⚠️ 无匹配记录，请确认总账与对账单为同一账户、同一期间。",
@@ -35,17 +35,17 @@ _BRV2_WARN = {
 	},
 	# v118.35.0.63 · 提取行与账单印刷合计/笔数/期末对不上 → 多半漏行或读错 · 主动提示核对
 	"completeness": {
-		"zh": "⚠️ 对账单完整性检查未通过:{detail}。这通常意味着有交易未被识别(漏行)或金额读错,请对照原始账单核对,必要时手动补充。",
-		"en": "⚠️ Statement completeness check failed: {detail}. This usually means a transaction was missed or an amount misread — please check against the original statement and add any missing rows.",
-		"th": "⚠️ การตรวจความครบถ้วนของใบแจ้งยอดไม่ผ่าน: {detail} มักหมายถึงมีรายการตกหล่นหรืออ่านยอดผิด กรุณาตรวจกับใบแจ้งยอดต้นฉบับและเพิ่มรายการที่ขาด",
-		"ja": "⚠️ 明細の完全性チェックに失敗: {detail}。取引の取りこぼしや金額の誤読の可能性があります。元の明細と照合し、不足行を補ってください。",
+		"zh": "⚠️ 对账单完整性检查未通过：{detail}。请对照原始账单核对并补充缺失行。",
+		"en": "⚠️ Statement completeness check failed: {detail}. Check against the original statement and add any missing rows.",
+		"th": "⚠️ การตรวจความครบถ้วนของใบแจ้งยอดไม่ผ่าน: {detail} กรุณาตรวจกับใบแจ้งยอดต้นฉบับและเพิ่มรายการที่ขาด",
+		"ja": "⚠️ 明細の完全性チェックに失敗：{detail}。元の明細と照合し、不足行を補ってください。",
 	},
 	# v118.35.0.61 · 一个文件含多个账户(每 sheet 一个)· 已分账户独立校验余额 · 提示用户
 	"multi_account": {
-		"zh": "⚠️ 此对账单文件含 {n} 个账户({codes})。系统已『分账户』独立核对各自余额,但银行对账需 GL 与单一账户对应。若 GL 只含其中某一个账户,请只看对应账户的结果。",
-		"en": "⚠️ This statement file contains {n} accounts ({codes}). Each account's balance was verified separately, but reconciliation requires the GL to match a single account. If your GL covers only one of them, refer to that account's result only.",
-		"th": "⚠️ ไฟล์ใบแจ้งยอดนี้มี {n} บัญชี ({codes}) ระบบตรวจยอดแต่ละบัญชีแยกกันแล้ว แต่การกระทบยอดต้องให้ GL ตรงกับบัญชีเดียว หาก GL มีเพียงบัญชีเดียว ให้ดูเฉพาะผลของบัญชีนั้น",
-		"ja": "⚠️ この明細ファイルには {n} 口座（{codes}）が含まれます。各口座の残高は個別に検証済みですが、照合には GL が単一口座に対応している必要があります。GL が 1 口座のみの場合、その口座の結果のみを参照してください。",
+		"zh": "⚠️ 此对账单含 {n} 个账户（{codes}），请只看与 GL 对应账户的结果。",
+		"en": "⚠️ This statement contains {n} accounts ({codes}). Use only the result of the account that matches the GL.",
+		"th": "⚠️ ใบแจ้งยอดนี้มี {n} บัญชี ({codes}) กรุณาดูเฉพาะผลของบัญชีที่ตรงกับ GL",
+		"ja": "⚠️ この明細には {n} 口座（{codes}）が含まれます。GL に対応する口座の結果のみを参照してください。",
 	},
 }
 
@@ -70,10 +70,10 @@ _COMP_LBL = {
 
 # v118.35.0.66 · 笔数缺口巨大(读到的远少于页脚印的)→ 多半是『只上传了部分页』· 醒目提示缺页
 _MISSPAGE_LBL = {
-	"zh": "(疑似缺页 · 请确认上传了完整页数)",
-	"en": "(likely missing pages — please upload all pages)",
-	"th": "(อาจขาดหน้า — กรุณาอัปโหลดให้ครบทุกหน้า)",
-	"ja": "(ページ欠落の可能性 — 全ページをアップロードしてください)",
+	"zh": "（疑似缺页）",
+	"en": "(possible missing pages)",
+	"th": "(อาจขาดหน้า)",
+	"ja": "（ページ欠落の疑い）",
 }
 
 

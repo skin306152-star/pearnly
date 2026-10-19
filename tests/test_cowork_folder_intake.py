@@ -1701,9 +1701,9 @@ class TaskSources(unittest.TestCase):
             self.assertEqual((device["fieldtype"], device["read_only"], device["length"]), ("Data", 1, 140))
         self.assertEqual(self._field(rule, "reader_device")["search_index"], 1)
         # 改了字段就升 modified，migrate 才同步（2026-10-16：多台电脑第 4 批加读文件夹的电脑；
-        # 2026-10-17：T1 任务加公司主档与分店）
-        for name, modified in ((rule, "2026-10-17 12:00"), (run, "2026-10-16 12:00"),
-                               ("cowork_folder_intake_file", "2026-10-16 12:00")):
+        # 2026-10-17：T1 任务加公司主档与分店；2026-10-19：存量文案 C2 删 DocType 说明）
+        for name, modified in ((rule, "2026-10-19 12:00"), (run, "2026-10-19 12:00"),
+                               ("cowork_folder_intake_file", "2026-10-19 12:00")):
             doctype = self._doctype(name)
             self.assertEqual(doctype["modified"], modified + ":00.000000")
             self.assertEqual(doctype["field_order"], [field["fieldname"] for field in doctype["fields"]])

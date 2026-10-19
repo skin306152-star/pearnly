@@ -23,7 +23,6 @@ Account that owns this connection. Leave empty for a site-wide shared connection
 Account with admin rights,権限アカウント
 Action not found,操作が見つかりません
 Actions,操作
-Adapter,アダプタ
 Add official account,公式アカウントを友だち追加
 Add operator,オペレーターを追加
 Add row,明細を追加
@@ -364,7 +363,6 @@ Last Used,最終使用
 Last Verified At,最終確認日時
 Last result,最新の結果
 Lease Expires,リース期限
-Lease Owner,リース保有者
 Lease Until,確保期限
 Leave blank to keep the current password.,空欄の場合、現在のパスワードを保持します。
 Leave blank to keep unchanged,空欄なら変更しません
@@ -380,6 +378,7 @@ Loading…,読み込み中…
 Local Account,ローカルアカウント
 Local Session,ローカルセッション
 "Local sample site: not sent to LINE, the raw text is only recorded",ローカル見本サイト：LINEへは送信せず、原文のみ記録
+Locked By,ロック保持者
 Locked; released in {0}s,ロック中です。{0} 秒後に解除されます
 Looked up a tax ID,税番号を照会しました
 Looking up a tax ID,税番号を照会しています

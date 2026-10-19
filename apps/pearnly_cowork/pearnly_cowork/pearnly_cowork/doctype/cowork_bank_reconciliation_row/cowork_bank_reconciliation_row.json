@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-30 00:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -93,7 +93,7 @@
    "label": "Match Layer",
    "read_only": 1,
    "default": "0",
-   "description": "0 means the row was not matched"
+   "description": "0 means not matched"
   },
   {
    "fieldname": "date_diff_days",
@@ -101,7 +101,7 @@
    "label": "Date Diff Days",
    "read_only": 1,
    "default": "-1",
-   "description": "-1 means no day distance was applicable"
+   "description": "-1 means not applicable"
   },
   {
    "fieldname": "stmt_date",
@@ -226,7 +226,7 @@
    "label": "Group",
    "read_only": 1,
    "default": "0",
-   "description": "Preset grouped match (layer 4); 0 means not in a group"
+   "description": "Preset group match number; 0 means not grouped"
   }
  ],
  "permissions": [

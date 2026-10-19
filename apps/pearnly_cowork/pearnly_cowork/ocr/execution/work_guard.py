@@ -66,7 +66,7 @@ def mutation(doc, method=None):
 
 def deny_delete(doc, method=None):
     if _protected(doc, _previous(doc)):
-        frappe.throw(_("Recognition tasks cannot be deleted through the document API."), frappe.PermissionError)
+        frappe.throw(_("Recognition tasks cannot be deleted here."), frappe.PermissionError)
 
 
 class CoworkWorkGuard:

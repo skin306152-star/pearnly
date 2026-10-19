@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-10-19 00:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -240,7 +240,7 @@
   },
   {
    "fieldname": "payload_json",
-   "label": "Payload Json",
+   "label": "Push Data (JSON)",
    "fieldtype": "Long Text",
    "read_only": 1,
    "reqd": 1
@@ -267,14 +267,14 @@
   },
   {
    "fieldname": "lease_owner",
-   "label": "Lease Owner",
+   "label": "Locked By",
    "fieldtype": "Data",
    "length": 140,
    "read_only": 1
   },
   {
    "fieldname": "lease_expires_at",
-   "label": "Lease Expires At",
+   "label": "Lock Expires At",
    "fieldtype": "Datetime",
    "read_only": 1
   },

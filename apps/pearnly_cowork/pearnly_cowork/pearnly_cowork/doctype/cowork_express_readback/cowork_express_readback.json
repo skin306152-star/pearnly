@@ -8,12 +8,11 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-13 18:00:00.000000",
- "modified": "2026-10-13 18:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "One month of an Express account set read back through CC Desktop at a user's request, with its workbooks and the changes found against Pearnly's pushes. Only the latest per user, connection, account set and month is kept.",
  "field_order": [
   "readback_id",
   "lookup",

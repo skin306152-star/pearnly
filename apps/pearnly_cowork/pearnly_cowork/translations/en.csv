@@ -1,7 +1,10 @@
 (Not specified),(Not specified)
 (the root folder itself),(the root folder itself)
+-1 means not applicable,-1 means not applicable
+0 means not matched,0 means not matched
 1 day before,1 day before
 1 hour before,1 hour before
+1 means the ledger has this document number,1 means the ledger has this document number
 1% e-Withholding Tax rate,1% e-Withholding Tax rate
 10 minutes before,10 minutes before
 15 minutes before,15 minutes before
@@ -34,8 +37,7 @@ A positive record revision is required.,A positive record revision is required.
 A positive source page number is required.,A positive source page number is required.
 A product code or barcode identifies more than one product.,A product code or barcode identifies more than one product.
 A product needs a name.,A product needs a name.
-A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.
-A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.,A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.
+A program error stopped this reconciliation. The error has been recorded; trying again gives the same result.,A program error stopped this reconciliation. The error has been recorded; trying again gives the same result.
 A referenced history record is unavailable in the selected company and client.,A referenced history record is unavailable in the selected company and client.
 A remembered column is not in this POS export. Choose the columns again,A remembered column is not in this POS export. Choose the columns again
 A reported ERP action is invalid.,A reported ERP action is invalid.
@@ -110,6 +112,7 @@ Amount,Amount
 Amount Tolerance,Amount Tolerance
 Amount not read,Amount not read
 Amount paid,Amount paid
+Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0},Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0}
 An account needed for this invoice is not set. Check the account settings,An account needed for this invoice is not set. Check the account settings
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,An account used for this invoice is not in the Express chart of accounts. Check the account settings
 An amount could not be read. Check the amount format in the file,An amount could not be read. Check the amount format in the file
@@ -138,6 +141,7 @@ Archived cards,Archived cards
 Archived items,Archived items
 Archived lists,Archived lists
 Area,Area
+As printed on the report,As printed on the report
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
 Assign to,Assign to
 Assign · Track · Discuss,Assign · Track · Discuss
@@ -185,6 +189,7 @@ Billing State,Billing State
 Billing Units,Billing Units
 Bind this account first,Bind this account first
 Binding Generation,Binding Generation
+Binding Key,Binding Key
 Binding code,Binding code
 Blocked By,Blocked By
 Blue,Blue
@@ -208,7 +213,9 @@ Bound at,Bound at
 Bound to {0},Bound to {0}
 Branch,Branch
 Branch No,Branch No
+Branch When Added,Branch When Added
 Branch {0},Branch {0}
+Brief Group,Brief Group
 Brief Key,Brief Key
 Brief Sent At,Brief Sent At
 Brief Status,Brief Status
@@ -236,7 +243,7 @@ CC Desktop authentication failed.,CC Desktop authentication failed.
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
 CC Desktop could not write this invoice. It is retried automatically,CC Desktop could not write this invoice. It is retried automatically
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
-CC Desktop has not finished this yet.,CC Desktop has not finished this yet.
+CC Desktop has not finished.,CC Desktop has not finished.
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 "CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.","CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again."
 CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
@@ -369,6 +376,7 @@ Code or barcode,Code or barcode
 Collapse list,Collapse list
 Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
 Color,Color
+Combined VAT Filing,Combined VAT Filing
 Comment,Comment
 Commented on a task,Commented on a task
 Commenting,Commenting
@@ -600,6 +608,7 @@ Disable {0},Disable {0}
 Disabled,Disabled
 Discount,Discount
 Discount Amount,Discount Amount
+Display Path,Display Path
 Display text (optional),Display text (optional)
 Dividends,Dividends
 Document Key,Document Key
@@ -704,7 +713,7 @@ Evidence Fingerprint,Evidence Fingerprint
 Evidence Owner,Evidence Owner
 Examples Json,Examples Json
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
-Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV exported from online banking or the electronic PDF is most accurate
+Excel/CSV from online banking or electronic PDF,Excel/CSV from online banking or electronic PDF
 Excess tax brought forward,Excess tax brought forward
 Expected VAT,Expected VAT
 Expense (goods from now on),Expense (goods from now on)
@@ -751,7 +760,7 @@ Find product,Find product
 Fingerprint,Fingerprint
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
-Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.
+"Finish this count? {0} counted, {1} uncounted; the task becomes read-only.","Finish this count? {0} counted, {1} uncounted; the task becomes read-only."
 Finished a stock count,Finished a stock count
 Finishing a stock count,Finishing a stock count
 First Recognition Snapshot,First Recognition Snapshot
@@ -826,6 +835,7 @@ Holder Fence,Holder Fence
 Host Names,Host Names
 How to put documents in the folders,How to put documents in the folders
 IN,IN
+Identity,Identity
 "If you have the electronic statement, upload it instead","If you have the electronic statement, upload it instead"
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
 Import result,Import result
@@ -936,21 +946,18 @@ Last month to claim,Last month to claim
 Last name,Last name
 Last used,Last used
 Lease Computer,Lease Computer
-Lease Credential,Lease Credential
-Lease Expires At,Lease Expires At
-Lease Expires At (UTC),Lease Expires At (UTC)
-Lease Handle,Lease Handle
 Leased At (UTC),Leased At (UTC)
 Leave board,Leave board
 Ledger account,Ledger account
 Ledger amount,Ledger amount
 Ledger credit only,Ledger credit only
 Ledger debit only,Ledger debit only
+Ledger file the rows were read from,Ledger file the rows were read from
 Ledger {0} {1}: one line {2},Ledger {0} {1}: one line {2}
 "Ledger: {0} card slip(s) on {1}, total {2}","Ledger: {0} card slip(s) on {1}, total {2}"
 Left out (not in the tax report),Left out (not in the tax report)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},Left out {0} lines that repeat the main statement and look misread; check them: {1}
-Legacy Status,Legacy Status
+Legal Name,Legal Name
 Less exempt sales,Less exempt sales
 Less zero-rated sales,Less zero-rated sales
 Level,Level
@@ -975,10 +982,15 @@ Local To Computer,Local To Computer
 Location,Location
 Location check,Location check
 Location mismatch,Location mismatch
+Lock Credential,Lock Credential
+Lock Expires At,Lock Expires At
+Lock Expires At (UTC),Lock Expires At (UTC)
+Lock Handle,Lock Handle
 Lock Key,Lock Key
 Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
 Lookup Key,Lookup Key
+MR.ERP Company,MR.ERP Company
 MR.ERP Import Menu Options Seen,MR.ERP Import Menu Options Seen
 MR.ERP Import Menu per Account Set,MR.ERP Import Menu per Account Set
 MR.ERP Master Defaults per Account Set,MR.ERP Master Defaults per Account Set
@@ -1006,7 +1018,7 @@ Match and save,Match and save
 Match rate,Match rate
 Matched,Matched
 Matched Count,Matched Count
-"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger","Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
+"Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger","Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger"
 Matches,Matches
 Matching and saving,Matching and saving
 Max Push Data Version,Max Push Data Version
@@ -1024,7 +1036,6 @@ Month paid,Month paid
 Monthly,Monthly
 Monthly on {0} at {1},Monthly on {0} at {1}
 More than one account set of this company covers the document date.,More than one account set of this company covers the document date.
-"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.","Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
 Move,Move
 Move all cards in this list,Move all cards in this list
 Move list,Move list
@@ -1032,6 +1043,7 @@ Moved a task,Moved a task
 Moving a task,Moving a task
 My cards,My cards
 Name,Name
+Name Key,Name Key
 Name suggests P.N.D.3,Name suggests P.N.D.3
 Native Content Hash,Native Content Hash
 Needs review,Needs review
@@ -1078,21 +1090,22 @@ No number_,No number_
 No presets yet,No presets yet
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
+No push target,No push target
 No recognition record,No recognition record
 No recognition tasks were given.,No recognition tasks were given.
 No rules yet,No rules yet
 No runs yet,No runs yet
 No sales were found in this POS export,No sales were found in this POS export
+No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.,No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.
 No tasks were given.,No tasks were given.
 No tax month,No tax month
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 "No, check line by line","No, check line by line"
-"No, not in the tax report (interest, other income)","No, not in the tax report (interest, other income)"
+"No, not in the tax report (non-invoiced income)","No, not in the tax report (non-invoiced income)"
 No.,No.
 Non-life insurance premiums,Non-life insurance premiums
 None,None
-None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
 Not a tax invoice,Not a tax invoice
 Not an invoice file,Not an invoice file
@@ -1104,7 +1117,7 @@ Not found,Not found
 Not included,Not included
 Not invoices {0},Not invoices {0}
 Not permitted,Not permitted
-Not pushed yet,Not pushed yet
+Not pushed,Not pushed
 Not set,Not set
 Not specified in books,Not specified in books
 Not uploaded {0},Not uploaded {0}
@@ -1123,7 +1136,6 @@ Off,Off
 Old Value,Old Value
 On,On
 On schedule,On schedule
-"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 One folder per rule. PDF and image files only.,One folder per rule. PDF and image files only.
 One folder per scheduled task. PDF and image files only.,One folder per scheduled task. PDF and image files only.
@@ -1146,6 +1158,7 @@ Options,Options
 Options (one per line),Options (one per line)
 Orange,Orange
 Order Evidence,Order Evidence
+Origin,Origin
 Original Content Coverage Complete,Original Content Coverage Complete
 Original Document Manifest,Original Document Manifest
 Original File,Original File
@@ -1165,6 +1178,7 @@ Other party,Other party
 Other records,Other records
 Outcome,Outcome
 Output VAT report,Output VAT report
+Output VAT report file the rows were read from,Output VAT report file the rows were read from
 Output tax report,Output tax report
 Output tax this month,Output tax this month
 Over,Over
@@ -1203,7 +1217,6 @@ Payee tax ID invalid,Payee tax ID invalid
 Payee tax ID missing,Payee tax ID missing
 Payees,Payees
 Payer not clear,Payer not clear
-Payload Json,Payload Json
 Payment,Payment
 Payment Date,Payment Date
 Payment Evidence,Payment Evidence
@@ -1232,8 +1245,10 @@ Preparation data does not match the connection or account set.,Preparation data 
 Preparation data for this account set is incomplete.,Preparation data for this account set is incomplete.
 Prepared a stock count template,Prepared a stock count template
 Preparing a stock count template,Preparing a stock count template
+Preset group match number; 0 means not grouped,Preset group match number; 0 means not grouped
 Presets,Presets
 Previous Json,Previous Json
+Previous Status,Previous Status
 Private,Private
 Private File,Private File
 Private Storage URL,Private Storage URL
@@ -1258,15 +1273,17 @@ Purple,Purple
 Push Account Set,Push Account Set
 Push Attempt,Push Attempt
 Push Connection,Push Connection
+Push Data (JSON),Push Data (JSON)
 Push Data Version,Push Data Version
 Push Record,Push Record
 Push choices set for a client company or one of its branches,Push choices set for a client company or one of its branches
 Push record not found.,Push record not found.
 Pushed,Pushed
 Pushed documents,Pushed documents
-Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
+Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.,Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.
 Pushing documents,Pushing documents
 "Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
+Pushing to this ERP is not supported.,Pushing to this ERP is not supported.
 Quantity,Quantity
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
@@ -1292,6 +1309,7 @@ Read general ledger,Read general ledger
 Read tax invoices,Read tax invoices
 Readback,Readback
 Readback ID,Readback ID
+Reader,Reader
 Reader Device,Reader Device
 Reading back the accounting books,Reading back the accounting books
 Reading files,Reading files
@@ -1318,9 +1336,10 @@ Recognition Quality,Recognition Quality
 Recognition Reference,Recognition Reference
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
 Recognition is busy. Try again in a moment.,Recognition is busy. Try again in a moment.
-Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
+Recognition tasks cannot be deleted here.,Recognition tasks cannot be deleted here.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
+Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.
 Recognized Fields,Recognized Fields
 Recognized documents,Recognized documents
 Recognized with high confidence,Recognized with high confidence
@@ -1348,10 +1367,10 @@ Red,Red
 Reference,Reference
 Refresh Error Code,Refresh Error Code
 Refresh Lease Computer,Refresh Lease Computer
-Refresh Lease Expires At (UTC),Refresh Lease Expires At (UTC)
-Refresh Lease Generation,Refresh Lease Generation
-Refresh Lease Handle,Refresh Lease Handle
-Refresh Lease Owner,Refresh Lease Owner
+Refresh Lock Expires At (UTC),Refresh Lock Expires At (UTC)
+Refresh Lock Generation,Refresh Lock Generation
+Refresh Lock Handle,Refresh Lock Handle
+Refresh Locked By,Refresh Locked By
 Refresh Request Aliases,Refresh Request Aliases
 Refresh Started At (UTC),Refresh Started At (UTC)
 Refresh Status,Refresh Status
@@ -1362,7 +1381,7 @@ Registered At,Registered At
 Registered At (UTC),Registered At (UTC)
 Registered By,Registered By
 Registry Row,Registry Row
-Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
+Reimporting review workbooks is not supported.,Reimporting review workbooks is not supported.
 Relative Path,Relative Path
 Reload,Reload
 Remarks,Remarks
@@ -1375,9 +1394,9 @@ Reminder day,Reminder day
 Reminder time,Reminder time
 Remove,Remove
 Remove color,Remove color
-Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Remove mirror,Remove mirror
 Remove template,Remove template
+Remove the old document shares before opening Cowork records.,Remove the old document shares before opening Cowork records.
 Remove this company choice?,Remove this company choice?
 Remove this company note?,Remove this company note?
 Removed a company choice,Removed a company choice
@@ -1500,6 +1519,8 @@ Search cards,Search cards
 Search name or barcode,Search name or barcode
 Searched tasks,Searched tasks
 Searching tasks,Searching tasks
+Seed Account Set,Seed Account Set
+Seed Connection,Seed Connection
 Seen At (UTC),Seen At (UTC)
 Select a file to upload.,Select a file to upload.
 Select between 1 and 100 distinct history records to export.,Select between 1 and 100 distinct history records to export.
@@ -1539,7 +1560,6 @@ Settings Json,Settings Json
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.","Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
-"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}","Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
 Sheet,Sheet
 Sheets,Sheets
 Short,Short
@@ -1632,6 +1652,7 @@ Summary Json,Summary Json
 Summary table import,Summary table import
 Supplier type,Supplier type
 Surcharge,Surcharge
+Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.,Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.
 Table,Table
 Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
 Tap the menu to start,Tap the menu to start
@@ -1687,7 +1708,7 @@ The ERP report contains duplicate action identifiers.,The ERP report contains du
 The ERP report contains duplicate field identifiers.,The ERP report contains duplicate field identifiers.
 The ERP report observation time is invalid.,The ERP report observation time is invalid.
 The ERP report refresh status is invalid.,The ERP report refresh status is invalid.
-The ERP report uses an unsupported adapter.,The ERP report uses an unsupported adapter.
+The ERP report uses an unsupported system type.,The ERP report uses an unsupported system type.
 The ERP target context is inconsistent.,The ERP target context is inconsistent.
 The MR.ERP import page shows no menu (setup incomplete or no permission).,The MR.ERP import page shows no menu (setup incomplete or no permission).
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
@@ -1711,7 +1732,7 @@ The amounts do not add up. Correct them and submit again,The amounts do not add 
 The answer is not valid.,The answer is not valid.
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
-The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}
+The buyer on these invoices is this company: {0},The buyer on these invoices is this company: {0}
 The camera could not start,The camera could not start
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
@@ -1722,7 +1743,7 @@ The client fields are invalid.,The client fields are invalid.
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.
-The computer on this connection cannot do this.,The computer on this connection cannot do this.
+The computer on this connection does not support this action.,The computer on this connection does not support this action.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
 The credential changed. Reload before resetting or revoking it.,The credential changed. Reload before resetting or revoking it.
 The credential request is invalid.,The credential request is invalid.
@@ -1762,7 +1783,6 @@ The file size or page metadata is invalid.,The file size or page metadata is inv
 The folder rule is incomplete or invalid.,The folder rule is incomplete or invalid.
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
 The general ledger could not be read.,The general ledger could not be read.
-"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.","The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
 The general ledger has no revenue account rows.,The general ledger has no revenue account rows.
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.,The general ledger has several accounts; account {0} was used because it matches the bank statement best.
 "The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again","CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
@@ -1787,8 +1807,9 @@ The invoice has changed. Prepare it again.,The invoice has changed. Prepare it a
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
 The item lines do not add up to the day's total,The item lines do not add up to the day's total
+"The ledger covers more than the statement; only {0} to {1} was used, and earlier entries form an opening balance of {2}.","The ledger covers more than the statement; only {0} to {1} was used, and earlier entries form an opening balance of {2}."
 The ledger file content is invalid.,The ledger file content is invalid.
-"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.","The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
+"The line amounts, net amount, VAT and total of this invoice do not add up. Check them on the edit page.","The line amounts, net amount, VAT and total of this invoice do not add up. Check them on the edit page."
 The line items do not add up to the invoice amount. Fix the lines and submit again,The line items do not add up to the invoice amount. Fix the lines and submit again
 The lines cannot be written to Express. Check them and submit again.,The lines cannot be written to Express. Check them and submit again.
 The matching stock item is missing. Choose it and submit again.,The matching stock item is missing. Choose it and submit again.
@@ -1815,7 +1836,7 @@ The push data exceeds the size limit.,The push data exceeds the size limit.
 The push record has changed. Reload and try again.,The push record has changed. Reload and try again.
 The push target has changed. Prepare the invoice again.,The push target has changed. Prepare the invoice again.
 The quantity is not a valid number,The quantity is not a valid number
-The readback is not ready yet.,The readback is not ready yet.
+The readback is not finished.,The readback is not finished.
 The readback request is invalid.,The readback request is invalid.
 The readback was not found.,The readback was not found.
 The receipts do not add up to the total row of this POS export,The receipts do not add up to the total row of this POS export
@@ -1876,18 +1897,16 @@ Then,Then
 There is not enough balance to read the scanned or photographed document. Top up and try again.,There is not enough balance to read the scanned or photographed document. Top up and try again.
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 There is not enough recognition balance. Top up and send the document again.,There is not enough recognition balance. Top up and send the document again.
+These VAT report pages could not be checked against their page totals: {0}. Check them against the original,These VAT report pages could not be checked against their page totals: {0}. Check them against the original
 "These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}","These files are general ledger exports, not bank statements, and were left out (put ledgers on the right): {0}"
 These files could not be read and were left out: {0},These files could not be read and were left out: {0}
 These files could not be read and were left out; upload them again to include them: {0},These files could not be read and were left out; upload them again to include them: {0}
 These files have no transactions (a cover or account page) and were skipped: {0},These files have no transactions (a cover or account page) and were skipped: {0}
 These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0},These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0}
-"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}","These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
 These spreadsheets are not bank statement exports (no balance column) and were left out: {0},These spreadsheets are not bank statement exports (no balance column) and were left out: {0}
 These statements look like another account (a different bank or account number) and may have been mixed in: {0},These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 These statements look like another account and were left out of this reconciliation: {0},These statements look like another account and were left out of this reconciliation: {0}
 These worksheets repeat another worksheet in the same file line for line and were counted once: {0},These worksheets repeat another worksheet in the same file line for line and were counted once: {0}
-This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
-This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
 This ERP connection is disabled.,This ERP connection is disabled.
 This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
 This PC already has the maximum number of folder rules.,This PC already has the maximum number of folder rules.
@@ -1915,11 +1934,10 @@ This delivery conflicts with the current task state.,This delivery conflicts wit
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.
 This document does not need this choice,This document does not need this choice
 This document format is not supported.,This document format is not supported.
-This document has no push target,This document has no push target
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
 This file cannot be read,This file cannot be read
 This file does not match the review workbook format.,This file does not match the review workbook format.
-"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.","This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
+"This file is a general ledger, not a bank statement. Put it on the ledger side.","This file is a general ledger, not a bank statement. Put it on the ledger side."
 This file is too large to send from this PC.,This file is too large to send from this PC.
 This file record was not found.,This file record was not found.
 This file type cannot be brought into the chat.,This file type cannot be brought into the chat.
@@ -1949,6 +1967,7 @@ This original already has a recognition task with different parameters.,This ori
 This page is too large to preview safely.,This page is too large to preview safely.
 This product already has a unit called {0}.,This product already has a unit called {0}.
 This push attempt is no longer current.,This push attempt is no longer current.
+This recognition mode is not supported.,This recognition mode is not supported.
 This recognition service currently accepts PDF and image originals.,This recognition service currently accepts PDF and image originals.
 This refresh request has expired. Request a new refresh.,This refresh request has expired. Request a new refresh.
 This request conflicts with an existing reservation.,This request conflicts with an existing reservation.
@@ -2026,6 +2045,7 @@ Unmatched Count,Unmatched Count
 Unsupported ERP connection type.,Unsupported ERP connection type.
 Unusual rate,Unusual rate
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
+Up to six decimal places; empty actual quantity means not counted,Up to six decimal places; empty actual quantity means not counted
 Update CC Desktop on that computer to read this account set's chart of accounts.,Update CC Desktop on that computer to read this account set's chart of accounts.
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Update this company note?,Update this company note?
@@ -2180,8 +2200,8 @@ companion.generation_conflict,The credential changed. Reload before resetting or
 companion.on_demand_busy,Too many requests are waiting for CC Desktop. Try again shortly.
 companion.on_demand_invalid,The request to CC Desktop is invalid.
 companion.on_demand_missing,The request to CC Desktop was not found.
-companion.on_demand_not_ready,CC Desktop has not finished this yet.
-companion.on_demand_unsupported,The computer on this connection cannot do this.
+companion.on_demand_not_ready,CC Desktop has not finished.
+companion.on_demand_unsupported,The computer on this connection does not support this action.
 companion.queue_access_revoked,This computer can no longer handle this document
 companion.queue_conflict,This delivery conflicts with the current task state.
 companion.queue_request_invalid,The CC Desktop queue request is invalid.
@@ -2248,10 +2268,10 @@ cowork.company.notes,Notes
 cowork.company.notes_full,Notes are full
 cowork.company.pending.cc_proposal,Ready to push
 cowork.company.pending.more,{0} more companies
-cowork.company.pending.no_target,This document has no push target
-cowork.company.pending.not_pushed,Not pushed yet
-cowork.company.pending.text,{0} documents are waiting for you ({1})
-cowork.company.pending.text_plain,{0} documents are waiting for you
+cowork.company.pending.no_target,No push target
+cowork.company.pending.not_pushed,Not pushed
+cowork.company.pending.text,{0} documents pending ({1})
+cowork.company.pending.text_plain,{0} documents pending
 cowork.company.pending.title,Documents to handle
 cowork.company.period_invalid,Invalid month
 cowork.company.title_invalid,Please enter a name of up to 140 characters
@@ -2475,7 +2495,7 @@ cowork.readback.field.vat_record,VAT record
 cowork.readback.invalid,The readback request is invalid.
 cowork.readback.missing,The readback was not found.
 cowork.readback.not_express,Only Express account sets can be read back.
-cowork.readback.not_ready,The readback is not ready yet.
+cowork.readback.not_ready,The readback is not finished.
 cowork.readback.period_invalid,Give the month as YYYY-MM.
 cowork.readback.sheet.changes,Changes
 cowork.readback.sheet.direct,Entered in Express
@@ -2483,7 +2503,7 @@ cowork.readback.version_unsupported,Update this site before reading back with th
 cowork.recon.bank.gl_credit_only,Ledger credit only
 cowork.recon.bank.gl_debit_only,Ledger debit only
 cowork.recon.bank.left,Bank statement
-cowork.recon.bank.leftHint,Excel/CSV exported from online banking or the electronic PDF is most accurate
+cowork.recon.bank.leftHint,Excel/CSV from online banking or electronic PDF
 cowork.recon.bank.matched,Matched
 cowork.recon.bank.right,General ledger
 cowork.recon.bank.stmt_deposit_only,Bank deposit only
@@ -2761,7 +2781,7 @@ cowork.stock.workbench.editEntry,Correct entry
 cowork.stock.workbench.elsewhere,This item is also stocked at:
 cowork.stock.workbench.entryQty,Quantity counted this time
 cowork.stock.workbench.find,Find product
-cowork.stock.workbench.finishConfirm,Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.
+cowork.stock.workbench.finishConfirm,"Finish this count? {0} counted, {1} uncounted; the task becomes read-only."
 cowork.stock.workbench.locationDiff,Position differences
 cowork.stock.workbench.lookupFailed,Product not found. Check the code and try again.
 cowork.stock.workbench.needsRecount,Stock changed; recount
@@ -3262,7 +3282,7 @@ erp.account_set_unavailable,This account set is unavailable.
 erp.endpoint_disabled,This ERP connection is disabled.
 erp.target_access_denied,You do not have access to this ERP target.
 erp.target_context_invalid,The ERP target context is inconsistent.
-erp.target_projection_adapter_invalid,The ERP report uses an unsupported adapter.
+erp.target_projection_adapter_invalid,The ERP report uses an unsupported system type.
 erp.target_projection_collector_invalid,The ERP report collector information is invalid.
 erp.target_projection_collector_not_connected,Collection is not connected for this ERP data type.
 erp.target_projection_duplicate_action,The ERP report contains duplicate action identifiers.
@@ -3323,7 +3343,7 @@ intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,The result is not confirmed. Chec
 intake.error.ERR_ACCOUNT_UID_MISMATCH,The account set on this computer is not the registered one. Waiting for another computer.
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
-intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
+intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.
 intake.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
 intake.error.ERR_MRERP_MENU_CHANGED,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
@@ -3453,7 +3473,7 @@ ocr.table_invalid_archive,The document file is damaged or cannot be decompressed
 ocr.table_invalid_bytes,The document content is invalid.
 ocr.table_invalid_dimensions,The worksheet row or column information is invalid.
 ocr.table_parse_failed,The document could not be read. Check the file and try again.
-ocr.table_roundtrip_not_supported,Reimporting review workbooks is not available on the new platform yet.
+ocr.table_roundtrip_not_supported,Reimporting review workbooks is not supported.
 ocr.table_row_limit,The document contains too many rows.
 ocr.table_text_limit,The document contains too much text.
 ocr.table_text_too_long,"A document section exceeds 30,000 characters. Split the document before recognition."
@@ -3490,7 +3510,7 @@ pos.type_unsupported,Only POS exports in Excel (.xlsx) or CSV can be imported
 pos.vat_out_of_range,The VAT column is more than 7% of a day's sales
 pos.xls_not_supported,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 probably {0},probably {0}
-push.adapter_not_connected,This ERP adapter is not connected yet.
+push.adapter_not_connected,Pushing to this ERP is not supported.
 push.automation_changed,Automatic push withdrawn: the rules changed before writing.
 push.branch_invalid,Invalid push execution mode.
 push.companion_account_unreported,"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
@@ -3543,7 +3563,7 @@ reconciliation.files_unread,These files could not be read and were left out; upl
 reconciliation.gl_account_auto,The general ledger has several accounts; account {0} was used because it matches the bank statement best.
 reconciliation.gl_no_revenue_rows,The general ledger has no revenue account rows.
 reconciliation.gl_parse_failed,The general ledger could not be read.
-reconciliation.gl_period_trimmed,"The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
+reconciliation.gl_period_trimmed,"The ledger covers more than the statement; only {0} to {1} was used, and earlier entries form an opening balance of {2}."
 reconciliation.gl_rows_outside_report,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 reconciliation.gl_source_invalid,The ledger file content is invalid.
 reconciliation.gl_trial_balance,This is a trial balance with account totals only. Upload the general ledger with each voucher.
@@ -3554,7 +3574,7 @@ reconciliation.parse_info_invalid,The reconciliation data is not in the expected
 reconciliation.parse_info_rows,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.parse_info_too_many,The reconciliation data is not in the expected format. Upload the files again
 reconciliation.prefer_electronic,"If you have the electronic statement, upload it instead"
-reconciliation.preset.card_fee_applied,"Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
+reconciliation.preset.card_fee_applied,"Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger"
 reconciliation.preset.card_fee_count,"At a {1}% card fee, {0} deposits match"
 reconciliation.preset.card_fee_evidence_gl,"Ledger: {0} card slip(s) on {1}, total {2}"
 reconciliation.preset.card_fee_evidence_stmt,Bank {0}: received {1}
@@ -3570,7 +3590,7 @@ reconciliation.preset.excluded_applied,"By preset, these accounts are left out: 
 reconciliation.preset.excluded_count,"{0} ledger lines, {1} in total, none of them in the tax report"
 reconciliation.preset.excluded_no,"Yes, keep reconciling it"
 reconciliation.preset.excluded_title,Does account {0} belong in this reconciliation?
-reconciliation.preset.excluded_yes,"No, not in the tax report (interest, other income)"
+reconciliation.preset.excluded_yes,"No, not in the tax report (non-invoiced income)"
 reconciliation.preset.gl_account_applied,"By preset, ledger account {0} is used for this bank account"
 reconciliation.preset.gl_account_count,"Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
 reconciliation.preset.gl_account_option,{0} ({1} matching lines)
@@ -3580,12 +3600,12 @@ reconciliation.preset.grouped_count,{0} such groups this period
 reconciliation.preset.grouped_no,"No, check line by line"
 reconciliation.preset.grouped_title,Does {0} post in batches?
 reconciliation.preset.grouped_yes,"Yes, match by total"
-reconciliation.program_error,A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.
+reconciliation.program_error,A program error stopped this reconciliation. The error has been recorded; trying again gives the same result.
 reconciliation.recognition_busy,Recognition is busy. Try again in a moment.
 reconciliation.recognition_timeout,Reading the scanned or photographed document took too long. Try again later.
-reconciliation.report_page_likely_misread,"Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
-reconciliation.report_page_shifted,"On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
-reconciliation.report_pages_unverified,"These pages of the VAT report could not be checked against their printed page totals (the rows do not add up to the page total, or no page total was read, even after reading the page again); check them against the original: {0}"
+reconciliation.report_page_likely_misread,Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.
+reconciliation.report_page_shifted,Amounts and invoice numbers are misaligned on these VAT report pages; correct against the original: {0}
+reconciliation.report_pages_unverified,These VAT report pages could not be checked against their page totals: {0}. Check them against the original
 reconciliation.report_rows_repeated,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 reconciliation.report_rows_suspect,These lines of the recognised VAT report do not agree with themselves and were probably misread; check them against the original: {0}
 reconciliation.request_conflict,This request was already used for different content.
@@ -3607,16 +3627,16 @@ reconciliation.row_unknown_field,Some rows in the file could not be understood. 
 reconciliation.rows_invalid,Some rows in the file could not be understood. Check the file format
 reconciliation.rows_too_many,The file has too many rows. Split it and reconcile each part
 reconciliation.run_info_invalid,The reconciliation data is not in the expected format. Upload the files again
-reconciliation.statement_all_outside,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
+reconciliation.statement_all_outside,No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.
 reconciliation.statement_balances_from_ledger,The statement's balances are missing or do not add up; the opening and closing balances follow the general ledger.
-reconciliation.statement_is_ledger,"This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
+reconciliation.statement_is_ledger,"This file is a general ledger, not a bank statement. Put it on the ledger side."
 reconciliation.statement_lines_dropped,Left out {0} lines that repeat the main statement and look misread; check them: {1}
 reconciliation.statement_no_movement,The statement was read but has no transactions (a cover or summary page only). Upload the pages that list the transactions.
 reconciliation.statement_no_running_balance,"This statement shows no running balance, so balances cannot be checked line by line."
 reconciliation.statement_not_a_statement,"This spreadsheet is not a bank statement export (it has no balance column). Upload the Excel/CSV exported from online banking, or the statement PDF."
 reconciliation.statement_other_account,These statements look like another account (a different bank or account number) and may have been mixed in: {0}
 reconciliation.statement_other_account_left_out,These statements look like another account and were left out of this reconciliation: {0}
-reconciliation.statement_pages_recovered,"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original."
+reconciliation.statement_pages_recovered,{0}: page {1} balance does not follow; all rows on the page are marked for review
 reconciliation.statement_pages_unread,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 reconciliation.statement_rows_outside,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 reconciliation.statement_unparsed,The bank statement could not be read.
@@ -3635,7 +3655,7 @@ reconciliation.vat_report_unparsed,"The VAT report could not be read. Use Excel,
 reconciliation.vat_source_invalid,The VAT report content is invalid.
 roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.
 roundtrip.export_amount_missing,Required invoice amounts are missing. Complete them before exporting.
-roundtrip.export_amount_not_roundtrippable,"The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
+roundtrip.export_amount_not_roundtrippable,"The line amounts, net amount, VAT and total of this invoice do not add up. Check them on the edit page."
 roundtrip.export_date_invalid,The invoice date is invalid. Correct it before exporting.
 roundtrip.export_facts_invalid,The verified ERP export details are invalid.
 roundtrip.export_history_invalid,The export contains an invalid or repeated history reference.
@@ -3692,9 +3712,9 @@ total,total
 used by {0} items,used by {0} items
 vat_check.balance_insufficient,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
 vat_check.balance_unavailable,The account balance could not be checked right now. Try again in a moment.
-vat_check.mostly_unread,"Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
+vat_check.mostly_unread,{0} of {1} invoice files were not read in time; the differences below include unread invoices. Submit again later.
 vat_check.no_invoices,No invoice could be read.
-vat_check.note.purchase_invoices,The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}
+vat_check.note.purchase_invoices,The buyer on these invoices is this company: {0}
 vat_check.note.unread,These files could not be read and were left out: {0}
 vat_check.periods_differ,The reports cover different periods ({0}).
 vat_check.recognition_busy,Invoice recognition is busy. Try again in a moment.
@@ -3714,8 +3734,8 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} completed {1},{0} completed {1}
 {0} d {1} h left,{0} d {1} h left
 {0} days before,{0} days before
-{0} documents are waiting for you,{0} documents are waiting for you
-{0} documents are waiting for you ({1}),{0} documents are waiting for you ({1})
+{0} documents pending,{0} documents pending
+{0} documents pending ({1}),{0} documents pending ({1})
 {0} files,{0} files
 "{0} files in the folder now, processed at the run time","{0} files in the folder now, processed at the run time"
 {0} files in the folder now.,{0} files in the folder now.
@@ -3733,6 +3753,7 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} more possible combined matches are not listed,{0} more possible combined matches are not listed
 {0} moved {1} to {2},{0} moved {1} to {2}
 {0} of {1} files processed,{0} of {1} files processed
+{0} of {1} invoice files were not read in time; the differences below include unread invoices. Submit again later.,{0} of {1} invoice files were not read in time; the differences below include unread invoices. Submit again later.
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 {0} rows were not imported,{0} rows were not imported
 {0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:
@@ -3745,8 +3766,8 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0}/{1} files,{0}/{1} files
 {0}/{1} pages,{0}/{1} pages
 {0}: are the card deposits paid in net of a card fee?,{0}: are the card deposits paid in net of a card fee?
+{0}: page {1} balance does not follow; all rows on the page are marked for review,{0}: page {1} balance does not follow; all rows on the page are marked for review
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
-"{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.","{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original."
 {0}: which ledger account is it?,{0}: which ledger account is it?
 {0}: {1},{0}: {1}
 {1} is due at {2},{1} is due at {2}

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-29 18:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -95,7 +95,7 @@
    "label": "GL File Name",
    "read_only": 1,
    "length": 140,
-   "description": "The ledger file the rows were read from; the deployed run showed both file names of a task"
+   "description": "Ledger file the rows were read from"
   },
   {
    "fieldname": "vat_filename",
@@ -103,7 +103,7 @@
    "label": "VAT File Name",
    "read_only": 1,
    "length": 140,
-   "description": "The output-VAT report file the rows were read from"
+   "description": "Output VAT report file the rows were read from"
   },
   {
    "fieldname": "source_format",

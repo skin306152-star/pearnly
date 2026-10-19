@@ -1556,15 +1556,15 @@ class PendingTests(unittest.TestCase):
 
     def test_the_digest_text_lists_companies_by_count(self):
         frappe.local.lang = "en"
-        terms = {"cowork.company.pending.text": "{0} documents are waiting for you ({1})",
+        terms = {"cowork.company.pending.text": "{0} documents pending ({1})",
                  "cowork.company.pending.more": "{0} more companies",
-                 "cowork.company.pending.text_plain": "{0} documents are waiting for you"}
+                 "cowork.company.pending.text_plain": "{0} documents pending"}
         with mock.patch.object(pending, "_", lambda key: terms.get(key, key)):
             text = pending.digest_text(8, {"a": 3, "b": 5}, {"a": "A Co", "b": "B Co"})
-            self.assertEqual(text, "8 documents are waiting for you (B Co 5, A Co 3)")
+            self.assertEqual(text, "8 documents pending (B Co 5, A Co 3)")
             many = {str(i): 1 for i in range(7)}
             self.assertIn("2 more companies", pending.digest_text(7, many, {str(i): f"C{i}" for i in range(7)}))
-            self.assertEqual(pending.digest_text(2, {}, {}), "2 documents are waiting for you")
+            self.assertEqual(pending.digest_text(2, {}, {}), "2 documents pending")
         self.assertTrue(pending.morning_due(datetime(2026, 10, 15, 8, 30)))
         self.assertTrue(pending.morning_due(datetime(2026, 10, 15, 10, 29)))
         self.assertFalse(pending.morning_due(datetime(2026, 10, 15, 8, 29)))
@@ -3509,7 +3509,7 @@ class CompanyRuleToolTests(unittest.TestCase):
         key = choices.encode("rule", "gone")
         preview = self.tools.preview_choice_remove({"key": key})
         self.assertNotIn(key, json.dumps(preview))
-        # 第 5 轮审查：找不到时不写「全公司」加空值（像要删全公司的一条空规则），只写公司与「这条记住的选择已不在」
+        # 第 5 轮审查：找不到时不写「全公司」加空值（像要删全公司的一条空规则），只写公司与「未找到该选择」
         self.assertEqual(preview, [{"field": "Company", "before": "", "after": "บริษัท เอบีซี จำกัด"},
                                    {"field": "Value", "before": "", "after": "cowork.company.choice_not_found"}])
         self.assertNotIn(key, json.dumps(self.tools.preview_choice_save({"key": key})))

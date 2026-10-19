@@ -9,12 +9,11 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-15 06:00:00.000000",
- "modified": "2026-10-15 06:00:00.000000",
+ "modified": "2026-10-19 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "A client company the firm keeps books for (CC company master): built from an account set in the catalog. Account sets, scheduled tasks, tax drafts and saved choices are found by their own keys, not stored here.",
  "field_order": [
   "workspace",
   "identity",
