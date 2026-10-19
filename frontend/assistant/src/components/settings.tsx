@@ -1,4 +1,4 @@
-// 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
+// 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏（同侧栏导航行 .cc-nav-item 与组标题 .cc-section-label），右边内容：
 //
 //   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）、通知（浏览器 / 手机推送）
 //   连接      — 只在浏览器里（Cowork 站点）出现：池里的电脑（一台一行）、在不在线；连接、文件夹只在电脑上的 CC 里改。
@@ -18,9 +18,8 @@
 
 import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   COMPANY_FOLDERS,
   connectComputer,
@@ -50,11 +49,6 @@ type Section = "general" | "connections" | "system";
 // 设置关掉后焦点回到打开它的控件；那个控件不在了（菜单项随菜单卸下、窄屏藏起）或没记到（焦点在 BODY 时按 Ctrl+,、Safari
 // 鼠标点按钮不拿焦点）就先回齿轮、齿轮不在再回用户菜单按钮（按这个先后，不按页面上的先后：用户菜单按钮排在齿轮前面）
 const SETTINGS_BACK = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'] as const;
-
-// 连接状态色：取 globals.css 的 --cc-status-*（深浅色各一套）
-const STATUS_COLOR: Record<string, string> = Object.fromEntries(
-  ["online", "processing", "attention", "offline", "connecting", "paused"].map((k) => [k, `var(--cc-status-${k})`]),
-);
 
 export function Settings() {
   const [open, setOpen] = useState(false);
@@ -107,7 +101,7 @@ export function Settings() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-modal)" />
         <DialogPrimitive.Content
           ref={content}
           aria-describedby={undefined}
@@ -115,10 +109,10 @@ export function Settings() {
             event.preventDefault();
             giveFocusBack(back.current, SETTINGS_BACK);
           }}
-          className="cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))] w-[min(980px,95vw)] [--cc-modal-share:0.92] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
+          className="cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))] w-[min(var(--cc-settings-w),var(--cc-settings-w-max))] [--cc-modal-share:var(--cc-settings-share)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
-          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-app p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
-            <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-xs md:block">
+          <nav className="flex shrink-0 gap-(--cc-space-2) overflow-x-auto border-b bg-app p-(--cc-space-12) md:w-(--cc-settings-nav-w) md:flex-col md:border-r md:border-b-0">
+            <DialogPrimitive.Title className="cc-section-label hidden md:block">
               {st.settings}
             </DialogPrimitive.Title>
             <NavItem active={current === "general"} onClick={() => setSection("general")} icon={<Settings2Icon />}>
@@ -131,7 +125,7 @@ export function Settings() {
             )}
             {api && (
               <>
-                <div className="hidden px-2.5 pt-4 pb-2 text-muted-foreground text-xs md:block">{st.thisComputer}</div>
+                <div className="cc-section-label hidden md:block">{st.thisComputer}</div>
                 <NavItem active={current === "connections"} onClick={() => setSection("connections")} icon={<PlugIcon />}>
                   {st.connections}
                 </NavItem>
@@ -141,15 +135,15 @@ export function Settings() {
               </>
             )}
           </nav>
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-9 md:py-8">
-            <h2 className="mb-6 font-medium text-xl">{titles[current]}</h2>
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-(--cc-settings-px) py-(--cc-settings-py) md:px-(--cc-settings-px-wide) md:py-(--cc-settings-py-wide)">
+            <h2 className="mb-(--cc-space-24) font-medium text-xl">{titles[current]}</h2>
             {current === "general" && <General />}
             {current === "connections" && api && <Connections api={api} />}
             {current === "connections" && web && <WebConnections />}
             {current === "system" && api && <System api={api} />}
           </main>
           {/* 关闭同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44） */}
-          <DialogPrimitive.Close aria-label={t("close")} className="cc-icon-btn absolute top-3.5 right-3.5">
+          <DialogPrimitive.Close aria-label={t("close")} className="cc-icon-btn absolute top-(--cc-settings-close) right-(--cc-settings-close)">
             <XIcon />
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
@@ -160,30 +154,24 @@ export function Settings() {
 
 function NavItem({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: ReactNode; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        // 同侧栏导航行：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8
-        "flex h-(--cc-row-h) shrink-0 items-center gap-2.5 whitespace-nowrap rounded-(--cc-radius-row) px-2.5 text-start text-sm [&_svg]:size-4",
-        active ? "bg-(--cc-bg-selected) font-medium" : "hover:bg-hover",
-      )}
-    >
-      {icon}
+    // 同侧栏导航行（.cc-nav-item）：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8、20 的图标放在 28 的前导槽；
+    // 窄屏左栏横排，宽度随内容（w-auto）
+    <button type="button" onClick={onClick} data-active={active || undefined} className="cc-nav-item w-auto shrink-0 whitespace-nowrap">
+      <span className="cc-nav-icon">{icon}</span>
       {children}
     </button>
   );
 }
 
 function Heading({ children }: { children: ReactNode }) {
-  return <h3 className="mt-8 mb-1 font-medium text-(length:--cc-text-heading) first:mt-0">{children}</h3>;
+  return <h3 className="mt-(--cc-settings-section-pt) mb-(--cc-settings-section-pb) font-medium text-(length:--cc-text-heading) first:mt-0">{children}</h3>;
 }
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b py-4 last:border-b-0">
-      <div className="min-w-0 text-sm">{label}</div>
-      <div className="flex min-w-0 items-center gap-2">{children}</div>
+    <div className="flex flex-wrap items-center justify-between gap-x-(--cc-space-24) gap-y-(--cc-space-8) border-b py-(--cc-space-16) last:border-b-0">
+      <div className="min-w-0 text-body">{label}</div>
+      <div className="flex min-w-0 items-center gap-(--cc-space-8)">{children}</div>
     </div>
   );
 }
@@ -191,7 +179,7 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
 // 分段选择（同 Claude 设置）：带图标的只显示图标（如主题），文字放进提示与读屏
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string, ReactNode?][]; onChange: (v: T) => void }) {
   return (
-    <div className="flex rounded-lg bg-muted p-0.5">
+    <div className="flex rounded-lg bg-muted p-(--cc-space-2)">
       {options.map(([key, label, icon]) => (
         <button
           key={key}
@@ -203,7 +191,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           className={cn(
             // 选中的那一格带 shadow-sm（盖过 base 层的聚焦兜底），聚焦描边自己写
             // 文字格与图标格一样高 28（手机点按区 44）
-            "cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",
+            "cc-tap flex h-(--cc-control-sm) items-center justify-center rounded-md px-(--cc-space-12) py-(--cc-space-4) text-body [&_svg]:size-(--cc-icon-sm) focus-visible:shadow-focus",
             value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -214,7 +202,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   );
 }
 
-/** 开关（同 Claude 设置）：定时任务表单的「前一天提醒」也用这一个。 */
+/** 开关（同 Claude 设置，globals.css 的 .cc-switch：40×24、圆点回弹）：定时任务表单的「前一天提醒」也用这一个。 */
 export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
@@ -224,10 +212,8 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:opacity-50", checked ? "bg-ink" : "bg-fill-muted")}
-    >
-      <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow-sm transition-transform", checked && "translate-x-4")} />
-    </button>
+      className="cc-switch"
+    />
   );
 }
 
@@ -309,15 +295,15 @@ export function Notifications() {
   useEffect(() => void syncPush(), []);
   if (push.state === "desktop") return null;
   const usable = push.state === "on" || push.state === "off";
-  const note = "text-muted-foreground text-xs";
+  const note = "text-muted-foreground text-caption";
   return (
     <Row
       label={
         <>
           {st.notifications}
-          {usable && push.failure && <div className="text-danger text-xs">{push.failure}</div>}
+          {usable && push.failure && <div className="text-danger text-caption">{push.failure}</div>}
           {push.state === "install" && (
-            <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-2")} onClick={showGuide}>
+            <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-(--cc-link-offset)")} onClick={showGuide}>
               {st.notificationsAddToHome}
             </button>
           )}
@@ -425,10 +411,10 @@ function Connections({ api }: { api: Desktop }) {
 
   return (
     <>
-      <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
+      <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
         <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
-          {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
+          <Marquee as="div" className="truncate text-body">{state.site || location.host}</Marquee>
+          {kinds && <div className="text-muted-foreground text-caption">{kinds}</div>}
         </div>
         {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因
             （被另一台电脑认领 = 现有「已在另一台电脑连接」）、点「重试」再登记。这台电脑被「电脑」列表移除过（登记回 removed）：
@@ -439,8 +425,8 @@ function Connections({ api }: { api: Desktop }) {
         {main ? (
           <>
             {!relink && (
-              <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[main.status] }}>
-                <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[main.status] }} />
+              <span className="cc-status-line text-body" data-status={main.status}>
+                <span className="cc-status-dot" />
                 {st.status[main.status] ?? main.status}
               </span>
             )}
@@ -448,13 +434,13 @@ function Connections({ api }: { api: Desktop }) {
               <DropdownMenu.Trigger
                 disabled={!!busy}
                 aria-label={t("more")}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+                className="cc-row-btn cc-tap"
               >
-                <MoreHorizontalIcon className="size-4" />
+                <MoreHorizontalIcon />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
-                <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
+                <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
                   <DropdownMenu.Item
                     className="cc-menu-item"
                     onSelect={() => void Promise.all(members.map((m) => api.call("pause", { id: m.id, paused: !main.paused }))).then(refresh)}
@@ -478,35 +464,35 @@ function Connections({ api }: { api: Desktop }) {
         )}
       </div>
       {main && linkState.kind === "other_site" && state.site !== location.host && (
-        <div className="flex items-center justify-end border-b py-3">
-          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
+        <div className="flex items-center justify-end border-b py-(--cc-space-12)">
+          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
             {st.switchTo(location.host)}
-          </Button>
+          </button>
         </div>
       )}
 
       {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
-          <Marquee className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
+          <Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
           </Marquee>
-          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
+          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
             {st.findAgain}
-          </Button>
-          <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void pickRoots()}>
+          </button>
+          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => void pickRoots()}>
             {st.change}
-          </Button>
+          </button>
         </Row>
       )}
 
       {companyFolders && legacy.length > 0 && (
         <>
-          <div className="mt-8">
+          <div className="mt-(--cc-settings-section-pt)">
             <Heading>{st.earlierFolders}</Heading>
           </div>
           {legacy.map((root) => (
-            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
-              <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-body last:border-b-0">
+              <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={root.path}>
                 {root.path}
               </Marquee>
@@ -516,9 +502,9 @@ function Connections({ api }: { api: Desktop }) {
                 title={st.remove}
                 disabled={!!busy}
                 onClick={() => void run("folder", "remove_folder", { id: root.member, path: root.path })}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                className="cc-row-btn cc-tap"
               >
-                <XIcon className="size-4" />
+                <XIcon />
               </button>
             </div>
           ))}
@@ -527,16 +513,16 @@ function Connections({ api }: { api: Desktop }) {
 
       {!companyFolders && main && main.folders !== null && (
         <>
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-(--cc-settings-section-pt) flex items-center justify-between">
             <Heading>{st.folders}</Heading>
-            <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("folder", "add_folder", { id: main.id })}>
+            <button type="button" className="cc-btn" disabled={!!busy} onClick={() => void run("folder", "add_folder", { id: main.id })}>
               {st.addFolder}
-            </Button>
+            </button>
           </div>
-          {!main.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
+          {!main.folders.length && <p className="py-(--cc-space-12) text-muted-foreground text-body">{st.noFolders}</p>}
           {main.folders.map((path) => (
-            <div data-marquee-host="" key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
-              <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+            <div data-marquee-host="" key={path} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-body last:border-b-0">
+              <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={path}>
                 {path}
               </Marquee>
@@ -546,15 +532,15 @@ function Connections({ api }: { api: Desktop }) {
                 title={st.remove}
                 disabled={!!busy}
                 onClick={() => void run("folder", "remove_folder", { id: main.id, path })}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                className="cc-row-btn cc-tap"
               >
-                <XIcon className="size-4" />
+                <XIcon />
               </button>
             </div>
           ))}
         </>
       )}
-      {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
 
       <PoolComputers inDesktop />
     </>
@@ -568,7 +554,7 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
   link: Link; deviceState?: string; onConnect: (o?: { replace?: number; rejoin?: boolean }) => void; onDownload: () => void;
   disabled: boolean;
 }) {
-  const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-sm", tone)}>{text}</span>;
+  const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-body", tone)}>{text}</span>;
   if (link.kind === "connecting") return note(st.connecting);
   if (link.kind === "not_admin") return note(st.notAdmin);
   // 这台是旧版、池里已有新版认领过的电脑（服务端不让旧版顶掉新版）：更新 CC 桌面版
@@ -576,9 +562,9 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
     return (
       <>
         {note(st.needsUpdate, "text-danger")}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={onDownload}>
+        <button type="button" className="cc-btn" disabled={disabled} onClick={onDownload}>
           {st.downloadNew}
-        </Button>
+        </button>
       </>
     );
   // 这台电脑被「电脑」列表移除过：人点「连接」才作为新电脑回来（rejoin）
@@ -586,18 +572,18 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
     return (
       <>
         {note(co.folderGone, "text-danger")}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect({ rejoin: true })}>
+        <button type="button" className="cc-btn" disabled={disabled} onClick={() => onConnect({ rejoin: true })}>
           {st.connect}
-        </Button>
+        </button>
       </>
     );
   if (link.kind === "in_use")
     return (
       <>
         {note(st.inUse)}
-        <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect({ replace: link.generation })}>
+        <button type="button" className="cc-btn" disabled={disabled} onClick={() => onConnect({ replace: link.generation })}>
           {st.useHere}
-        </Button>
+        </button>
       </>
     );
   return (
@@ -605,9 +591,9 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
       {link.kind === "failed"
         ? note(link.message || st.linkFailed, "text-danger")
         : note(deviceState === "claimed_elsewhere" ? st.inUse : st.notConnected)}
-      <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect()}>
+      <button type="button" className="cc-btn" disabled={disabled} onClick={() => onConnect()}>
         {link.kind === "failed" || deviceState ? st.retry : st.connect}
-      </Button>
+      </button>
     </>
   );
 }
@@ -686,15 +672,15 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   return (
     <>
       {inDesktop && (
-        <div className="mt-8">
+        <div className="mt-(--cc-settings-section-pt)">
           <Heading>{st.computers}</Heading>
         </div>
       )}
       {!rows.length ? (
         <Row label={<span className="text-muted-foreground">{st.noComputer}</span>}>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
+            className="cc-btn"
             onClick={() =>
               void getJson<{ url?: string }>("pearnly_cowork.companion.api.installer").then(
                 (info) => info?.url && window.open(info.url, "_blank", "noopener,noreferrer"),
@@ -702,7 +688,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
             }
           >
             {st.download}
-          </Button>
+          </button>
         </Row>
       ) : (
         rows.map((row, i) => (
@@ -714,7 +700,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
           />
         ))
       )}
-      {error && <p role="alert" className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
       <AllMembers />
     </>
   );
@@ -725,19 +711,19 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
 export function ComputerSection({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
   const status = row.online ? "online" : "offline";
   return (
-    <section className="mb-8 last:mb-0">
-      <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
+    <section className="mb-(--cc-settings-section-pt) last:mb-0">
+      <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
         <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
-          <div className="text-muted-foreground text-xs">
+          <Marquee as="div" className="truncate text-body">{row.device}</Marquee>
+          <div className="text-muted-foreground text-caption">
             {row.adapter === "mrerp" ? "MR.ERP" : "Express"}
           </div>
           {row.update_blocked && (
-            <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
+            <div className="text-muted-foreground text-caption">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
           )}
         </div>
-        <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[status] }}>
-          <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[status] }} />
+        <span className="cc-status-line text-body" data-status={status}>
+          <span className="cc-status-dot" />
           {st.status[status]}
         </span>
         {onRemove && (
@@ -745,13 +731,13 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
             <DropdownMenu.Trigger
               disabled={busy}
               aria-label={t("more")}
-              className="cc-tap flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+              className="cc-row-btn cc-tap"
             >
-              <MoreHorizontalIcon className="size-4" />
+              <MoreHorizontalIcon />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
-              <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
+              <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
                 <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={onRemove}>
                   {st.remove}
                 </DropdownMenu.Item>
@@ -805,7 +791,7 @@ function AllMembers({ heading = false }: { heading?: boolean }) {
   const listed = [...new Set([...team.map((member) => member.email), ...users])];
   const name = (email: string) => team.find((member) => member.email === email)?.display || email;
   return (
-    <div className="mt-8">
+    <div className="mt-(--cc-settings-section-pt)">
       {heading && <Heading>{st.computers}</Heading>}
       <Row label={st.allMembers}>
         <Switch checked={!!pool.all_members} disabled={busy} label={st.allMembers} onChange={(on) => void save({ all_members: on })} />
@@ -828,7 +814,7 @@ function AllMembers({ heading = false }: { heading?: boolean }) {
           })}
         </>
       )}
-      {error && <p role="alert" className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
     </div>
   );
 }
@@ -857,7 +843,7 @@ function System({ api }: { api: Desktop }) {
         {state.hotkey ? (
           <Shortcut keys="Ctrl + Alt + Space" kbd />
         ) : (
-          <span className="text-muted-foreground text-sm">{st.hotkeyBusy}</span>
+          <span className="text-muted-foreground text-body">{st.hotkeyBusy}</span>
         )}
       </Row>
       <VersionRow
@@ -867,11 +853,11 @@ function System({ api }: { api: Desktop }) {
         onDownload={() => void run("download", "download_update")}
       />
       <Row label={st.logs}>
-        <Button variant="outline" size="icon-sm" aria-label={st.logs} onClick={() => void run("logs", "logs")}>
-          <FolderIcon className="size-4" />
-        </Button>
+        <button type="button" className="cc-icon-btn" aria-label={st.logs} onClick={() => void run("logs", "logs")}>
+          <FolderIcon />
+        </button>
       </Row>
-      {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+      {error && <p className="mt-(--cc-space-12) text-danger text-body">{error}</p>}
     </>
   );
 }
@@ -935,20 +921,20 @@ export function VersionRow({
       }
     >
       {updateText && (
-        <span className="flex items-center gap-1 text-muted-foreground text-sm">
-          {updateState === "latest" && <CheckIcon className="size-3.5" />}
+        <span className="flex items-center gap-(--cc-space-4) text-muted-foreground text-body">
+          {updateState === "latest" && <CheckIcon className="size-(--cc-settings-close)" />}
           {updateText}
         </span>
       )}
       {blocked ? (
-        <Button variant="outline" size="sm" onClick={onDownload}>
+        <button type="button" className="cc-btn" onClick={onDownload}>
           {st.downloadNew}
-        </Button>
+        </button>
       ) : (
         !working && (
-          <Button variant="outline" size="sm" onClick={onUpdate}>
+          <button type="button" className="cc-btn" onClick={onUpdate}>
             {waiting ? st.updateNow : st.checkUpdate}
-          </Button>
+          </button>
         )
       )}
     </Row>

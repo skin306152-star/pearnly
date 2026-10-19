@@ -11,7 +11,7 @@
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, XIcon } from "lucide-react";
 import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
@@ -222,18 +222,18 @@ export const PendingItems: FC<PendingState & { company: string; embedded?: boole
 
   if (embedded && (!items || !items.length) && !error) return null;
   return (
-    <div className="flex flex-col gap-4" data-slot="cc-pending">
-      {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+    <div className="flex flex-col gap-(--cc-space-16)" data-slot="cc-pending">
+      {error && <div role="alert" className="cc-alert">{error}</div>}
       {items === null ? (
-        <div className="flex justify-center py-6 text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
+        <div className="flex justify-center py-(--cc-space-24) text-ink-3">
+          <LoaderIcon className="cc-spinner" />
         </div>
       ) : !items.length ? (
-        <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-ink-3">
-          <InboxIcon className="size-8" />
+        <div className="cc-empty cc-enter">
+          <InboxIcon />
         </div>
       ) : !groups.length ? (
-        <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
+        <div className="cc-empty-line">{t("noResults")}</div>
       ) : (
         groups.map(([id, rows]) => (
           <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} />
@@ -249,8 +249,8 @@ const PendingGroup: FC<{
   const ask = useAskCC(company, title);
   const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item));
   return (
-    <section className="flex flex-col gap-2">
-      {title && <h2 className="cc-section-label !px-0 !pt-0">{title}</h2>}
+    <section className="flex flex-col gap-(--cc-space-8)">
+      {title && <h2 className="cc-section-label" data-flush="">{title}</h2>}
       {items.map((item) =>
         choosable(item) ? (
           <ChooseRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
@@ -262,7 +262,6 @@ const PendingGroup: FC<{
       )}
       {hand.length > 0 && (
         <button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
-          <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>
       )}
@@ -283,10 +282,10 @@ export function useAskCC(company: string, title: string) {
 /** 一张单的摘要：单号 · 对方 · 金额 · 日期，下面一行原因。 */
 const Summary: FC<{ item: PendingItem }> = ({ item }) => (
   <span className="min-w-0 flex-1">
-    <Marquee className="block truncate text-ink text-sm">
+    <Marquee className="block truncate text-ink text-body">
       {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
     </Marquee>
-    <Marquee className="block truncate text-ink-3 text-xs">{item.reason_label}</Marquee>
+    <Marquee className="block truncate text-ink-3 text-caption">{item.reason_label}</Marquee>
   </span>
 );
 
@@ -347,28 +346,28 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
   const kinds = choiceLine(item, view);
   return (
     <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
         aria-expanded={open} onClick={toggle}>
         {head ?? (
           <span className="min-w-0 flex-1">
-            <Marquee className="block truncate text-ink text-sm">
+            <Marquee className="block truncate text-ink text-body">
               {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
             </Marquee>
-            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</Marquee>}
+            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-caption">{kinds || item.reason_label}</Marquee>}
           </span>
         )}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
       {open && !view && !error && (
-        <div className="flex justify-center py-2 text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
+        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
+          <LoaderIcon className="cc-spinner" />
         </div>
       )}
       {open && view && choosableView(view) && (
         <>
           {view.needed.map((need) => (
             <label key={choiceKey(need)} className="cc-field">
-              <Marquee className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
+              <Marquee className="truncate text-caption">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
               <select
                 className="cc-input"
                 value={values[choiceKey(need)] ?? ""}
@@ -383,28 +382,27 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
           ))}
           <button type="button" className="cc-card-btn self-end" data-primary=""
             disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="size-4 animate-spin" />}
+            {busy && <LoaderIcon className="cc-spinner" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && view && settledView(view) && (
         <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
-          {busy && <LoaderIcon className="size-4 animate-spin" />}
+          {busy && <LoaderIcon className="cc-spinner" />}
           {co.pushNow}
         </button>
       )}
       {open && view && !choosableView(view) && !settledView(view) && (
         // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
         <>
-          {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}
+          {view.wait?.message && <p className="text-ink-3 text-body">{view.wait.message}</p>}
           <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-            <SparklesIcon className="size-4" />
             {co.handToCC}
           </button>
         </>
       )}
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
   );
 };
@@ -462,20 +460,20 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
   };
   return (
     <div className="cc-list-item flex-col" data-slot="cc-pending-account-set" data-variant={head ? "row" : undefined} data-open={open || undefined}>
-      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
         aria-expanded={open} onClick={toggle}>
         {head ?? <Summary item={item} />}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
       {open && !sets && !error && (
-        <div className="flex justify-center py-2 text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
+        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
+          <LoaderIcon className="cc-spinner" />
         </div>
       )}
       {open && sets && sets.length > 0 && (
         <>
           <label className="cc-field">
-            <span className="text-xs">{co.accountSets}</span>
+            <span className="text-caption">{co.accountSets}</span>
             <select className="cc-input" value={value} onChange={(e) => setValue(e.target.value)}>
               {!value && <option value="" disabled>—</option>}
               {sets.map((set) => (
@@ -484,18 +482,17 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
             </select>
           </label>
           <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
-            {busy && <LoaderIcon className="size-4 animate-spin" />}
+            {busy && <LoaderIcon className="cc-spinner" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && sets && !sets.length && (
         <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
-          <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>
       )}
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
   );
 };
@@ -516,7 +513,7 @@ export const PendingView: FC = () => {
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
         </label>
         {company && (
-          <div className="mb-4">
+          <div className="mb-(--cc-space-16)">
             <span className="cc-chip">
               {title}
               <button type="button" className="cc-chip-x" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>

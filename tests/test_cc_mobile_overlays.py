@@ -134,29 +134,36 @@ class DialogFitTests(unittest.TestCase):
         self.assertNotIn("top: 50%", guide)
         # 每个居中弹窗都用 cc-modal，不再自己写 top-1/2（工具类会盖过 cc-modal 的位置）
         for path, needle in [
-            ("components/scheduled-tasks.tsx", "cc-card cc-enter cc-modal fixed left-1/2 z-50 flex"),
-            ("components/add-company.tsx", "cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex"),
-            ("components/settings.tsx", "cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))]"),
+            ("components/scheduled-tasks.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
+            ("components/add-company.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
+            ("components/settings.tsx", "cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))]"),
             ("components/ui/dialog.tsx", "cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto"),
         ]:
             source = read(path)
             self.assertIn(needle, source, path)
             self.assertNotRegex(source, r"\btop-(?:1/2|\[50%\])", path)
-        self.assertIn("[--cc-modal-share:0.8]", read("components/add-company.tsx"))
-        self.assertIn("[--cc-modal-share:0.92]", read("components/settings.tsx"))
+        self.assertIn("[--cc-modal-share:var(--cc-add-company-share)]", read("components/add-company.tsx"))
+        self.assertIn("  --cc-add-company-share: 0.8;", css)
+        self.assertIn("[--cc-modal-share:var(--cc-settings-share)]", read("components/settings.tsx"))
+        self.assertIn("  --cc-settings-share: 0.92;", css)
         self.assertIn("max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))]", read("components/assistant-ui/attachment.tsx"))
 
     def test_dialog_header_and_footer_stay_while_the_body_scrolls(self):
         tasks = read("components/scheduled-tasks.tsx")
         modal = tasks.split("function Modal(", 1)[1].split("\nfunction ", 1)[0]
-        self.assertIn('<div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">', modal)
-        self.assertIn('<div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">{children}</div>', modal)
-        self.assertIn('<div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>', modal)
-        self.assertLess(modal.index("DialogPrimitive.Close"), modal.index("overflow-y-auto"))  # 关闭在头上，不随主体滚走
+        # 头、脚不缩不滚，主体滚动（globals.css 的 .cc-dialog-head / -body / -foot，标准化 B4）
+        css = read("globals.css")
+        self.assertIn("display: flex; flex-shrink: 0; align-items: center; justify-content: space-between;", css.split("  .cc-dialog-head {", 1)[1].split("}", 1)[0])
+        self.assertIn("min-height: 0; flex: 1; overflow-y: auto;", css.split("  .cc-dialog-body {", 1)[1].split("}", 1)[0])
+        self.assertIn("display: flex; flex-shrink: 0;", css.split("  .cc-dialog-foot {", 1)[1].split("}", 1)[0])
+        self.assertIn('<div className="cc-dialog-head">', modal)
+        self.assertIn('<div className="cc-dialog-body">{children}</div>', modal)
+        self.assertIn('{footer && <div className="cc-dialog-foot">{footer}</div>}', modal)
+        self.assertLess(modal.index("DialogPrimitive.Close"), modal.index("cc-dialog-body"))  # 关闭在头上，不随主体滚走
         add = read("components/add-company.tsx")
-        self.assertIn('<div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">', add)
-        self.assertIn('<div className="shrink-0 px-5 pb-2">', add)  # 搜索框不随列表滚走
-        self.assertIn('<div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3" data-slot="cc-candidates">', add)
+        self.assertIn('<div className="cc-dialog-head">', add)
+        self.assertIn('<div className="shrink-0 px-(--cc-dialog-px) pb-(--cc-space-8)">', add)  # 搜索框不随列表滚走
+        self.assertIn('<div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">', add)
         settings = read("components/settings.tsx")
         self.assertIn('<main className="min-h-0 min-w-0 flex-1 overflow-y-auto', settings)
 

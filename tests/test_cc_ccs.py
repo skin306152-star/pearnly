@@ -705,9 +705,6 @@ const front = process.argv[2];
 # 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
 # 这不是豁免：表外的 --cc-* 没人引用就失败。
 AWAITING = {
-    "--cc-settings-w": "B4", "--cc-settings-w-max": "B4", "--cc-settings-h": "B4", "--cc-settings-share": "B4",
-    "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",
-    "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
     # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
     "--cc-control-nested": "B2–B7",
 }
@@ -1360,6 +1357,142 @@ assert.deepEqual(clipText(long), { text: "x".repeat(CLIP_CHARS), hidden: 1 });
 assert.deepEqual(clipText(`a\n${long}\nb`), { text: `a\n${"x".repeat(CLIP_CHARS - 2)}`, hidden: 2 });
 g.done();
 """)
+
+
+class DialogsAndListsTests(unittest.TestCase):
+    """标准化 B4（弹窗与列表页，记录 4.2）：设置、定时任务、添加公司、删除确认、公司列表、公司页、待处理只用标准层的变量与共用类。"""
+
+    def setUp(self):
+        self.css = (SRC / "globals.css").read_text(encoding="utf-8")
+        self.defs = {**code_block(self.css, ":root"), **cc_block(self.css, ":root")}
+        self.read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
+
+    def test_list_prefetch_margin_is_read_from_globals_css(self):
+        # 2.6：IntersectionObserver 的 rootMargin 不是样式、也是长度：globals.css 定值，建观察器时读，回退常量与它同值
+        companies = self.read("components/companies.tsx")
+        fallback = re.search(r"^export const OBSERVE_MARGIN = (\d+);$", companies, re.M).group(1)
+        self.assertEqual(token_value(self.defs, "--cc-observe-margin"), f"{fallback}px")
+        self.assertIn('rootMargin: `${fixedPx("--cc-observe-margin", OBSERVE_MARGIN)}px`', companies)
+        self.assertNotIn('"200px"', companies)
+
+    def test_menus_take_the_shared_offset(self):
+        # V8（B4）：本批的菜单原来都是 4，改成 menu.tsx 导出的 menuOffset()（主菜单 4），不再写数
+        for rel in ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/companies.tsx", "components/company-page.tsx"):
+            source = self.read(rel)
+            self.assertIn("sideOffset={menuOffset()}", source, rel)
+            self.assertNotRegex(source, r"sideOffset=\{\d", rel)
+
+    B4 = ("components/settings.tsx", "components/scheduled-tasks.tsx", "components/add-company.tsx", "components/delete-chats.tsx",
+          "components/companies.tsx", "components/company-page.tsx", "components/pending.tsx")
+
+    def test_text_uses_the_measured_steps(self):
+        # V1（B4）：text-sm / text-xs 换成实测字阶 text-body 14/20、text-caption 12/17；提示条、无结果行用共用类
+        for rel in self.B4:
+            self.assertNotRegex(self.read(rel), r"\btext-(?:xs|sm|base)\b", rel)
+        tasks = self.read("components/scheduled-tasks.tsx")
+        self.assertIn('<div className="cc-toast">{message}</div>', tasks)
+        self.assertEqual(tasks.count('className="cc-empty-line"'), 3)
+
+    def test_loading_cards_breathe_like_the_skeleton(self):
+        # V5（B4 部分，B2 验收时测试窗口发现）：公司列表、定时任务列表的加载卡片同 Skeleton 的节奏（animate-cc-pulse），不用 Tailwind 的 pulse
+        self.assertIn('className="cc-grid-card animate-cc-pulse"', self.read("components/companies.tsx"))
+        self.assertIn('className="cc-card h-(--cc-task-skeleton-h) animate-cc-pulse"', self.read("components/scheduled-tasks.tsx"))
+        for rel in self.B4:
+            self.assertNotIn("animate-pulse", self.read(rel), rel)
+
+    def test_disabled_controls_share_one_opacity(self):
+        # V6（B4）：不可用的开关、定时任务表单里选不了的目标卡同一档 --cc-disabled-opacity（0.4），不写 0.5、不写内联透明度
+        for rel in self.B4:
+            source = self.read(rel)
+            self.assertNotRegex(source, r"opacity-\d|opacity:\s*0", rel)
+        self.assertIn('!picked && (rule || !ok) && "opacity-(--cc-disabled-opacity)"', self.read("components/scheduled-tasks.tsx"))
+
+    def test_settings_buttons_are_cc_buttons(self):
+        # V10（B4）：设置页的 shadcn Button 换成 .cc-btn（日志那颗只有图标，换成 .cc-icon-btn）；手机 44 由 H27 的选择器保住
+        settings = self.read("components/settings.tsx")
+        self.assertNotIn("<Button", settings)
+        self.assertNotIn("@/components/ui/button", settings)
+        self.assertEqual(settings.count('className="cc-btn"'), 11)
+        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"], .cc-btn) { min-height: var(--cc-tap); }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-modal :is([data-slot="button"][data-size^="icon"], .cc-icon-btn) { min-width: var(--cc-tap); }', self.css)
+
+    def test_error_boxes_are_cc_alert(self):
+        # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份
+        for rel, n in (("components/companies.tsx", 1), ("components/company-page.tsx", 1), ("components/pending.tsx", 1),
+                       ("components/scheduled-tasks.tsx", 1)):
+            source = self.read(rel)
+            self.assertEqual(len(re.findall(r'className="cc-alert[ "]', source)), n, rel)
+            self.assertNotIn("bg-danger-soft", source, rel)
+
+    def test_confirm_dialogs_share_one_shell(self):
+        # V14（B4）：定时任务、添加公司、删除确认三份手抄的外壳统一 .cc-dialog：圆角 16（不再带 cc-card 的 8）、标题实测 title 档 22/28
+        # （衬线照旧）、脚部上下 12 带上边线；层级普通弹窗 --cc-z-sheet、删除确认 --cc-z-confirm（要盖过设置里的菜单）
+        for rel, size, layer in (("components/scheduled-tasks.tsx", '{wide ? "lg" : "sm"}', "--cc-z-sheet"),
+                                 ("components/add-company.tsx", '"md"', "--cc-z-sheet"),
+                                 ("components/delete-chats.tsx", '"sm"', "--cc-z-confirm")):
+            source = self.read(rel)
+            self.assertIn(f"data-size={size}", source, rel)
+            self.assertIn(f'className="cc-dialog cc-enter cc-modal fixed left-1/2 z-({layer}) flex', source, rel)
+            self.assertIn('<div className="cc-dialog-head">', source, rel)
+            self.assertIn('className="cc-dialog-title"', source, rel)
+            self.assertNotIn("cc-card cc-enter", source, rel)
+            self.assertNotIn("cc-greeting", source, rel)
+        self.assertIn('<div className="cc-dialog-foot">', self.read("components/delete-chats.tsx"))
+        self.assertEqual(token_value(self.defs, "--cc-radius-dialog"), "16px")
+
+    def test_overlays_fade_with_cc_overlay(self):
+        # V15（B4）：弹窗遮罩用 .cc-overlay（120ms 主缓动），不用 tw-animate 的 animate-in / fade-in（150ms）；层级与弹窗同档
+        for rel, layer in (("components/settings.tsx", "--cc-z-modal"), ("components/add-company.tsx", "--cc-z-sheet"),
+                           ("components/delete-chats.tsx", "--cc-z-confirm"), ("components/scheduled-tasks.tsx", "--cc-z-sheet")):
+            source = self.read(rel)
+            self.assertIn(f'<DialogPrimitive.Overlay className="cc-overlay z-({layer})" />', source, rel)
+            self.assertNotRegex(source, r"animate-in|fade-in", rel)
+
+    def test_settings_nav_is_the_sidebar_nav(self):
+        # V17（B4）：设置左栏同侧栏导航行与组标题：图标 20 放在 28 的前导槽、间距 6、行间 2、选中色同侧栏、组标题 13/16
+        settings = self.read("components/settings.tsx")
+        self.assertIn('data-active={active || undefined} className="cc-nav-item w-auto shrink-0 whitespace-nowrap"', settings)
+        self.assertIn('<span className="cc-nav-icon">{icon}</span>', settings)
+        self.assertEqual(settings.count('className="cc-section-label hidden md:block"'), 2)
+        self.assertIn('<nav className="flex shrink-0 gap-(--cc-space-2) overflow-x-auto', settings)
+        self.assertNotIn("bg-(--cc-bg-selected)", settings)
+
+    def test_settings_switch_is_cc_switch(self):
+        # V19（B4）：设置开关（定时任务表单的提醒也用它）改用 .cc-switch：尺寸 40×24 不变，动效 --cc-dur 加回弹
+        settings = self.read("components/settings.tsx")
+        switch = settings.split("export function Switch(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('role="switch"', switch)
+        self.assertIn('className="cc-switch"', switch)
+        self.assertNotIn("<span", switch)
+        rule = self.css.split("  .cc-switch::after {", 1)[1].split("}", 1)[0]
+        self.assertIn("transition: transform var(--cc-dur) var(--cc-ease-spring);", rule)
+
+    def test_card_button_icons_take_the_class_size(self):
+        # V20（B4）：待处理卡片按钮里的图标（转圈）不再写 size 压掉 .cc-card-btn svg：电脑 16、手机 22
+        pending = self.read("components/pending.tsx")
+        self.assertEqual(pending.count('{busy && <LoaderIcon className="cc-spinner" />}'), 3)
+        self.assertNotRegex(pending, r"cc-card-btn[^>]*>\s*<\w+Icon className=\"[^\"]*size-")
+        self.assertEqual(token_value(self.defs, "--cc-card-btn-icon-phone"), "22px")
+
+    def test_card_buttons_carry_no_icon(self):
+        # V21（B4）：ccs.md「卡片按钮不带图标」（用户 10-17，点名待处理「交给 CC」）：去掉 Sparkles；转圈只在忙时出现
+        pending = self.read("components/pending.tsx")
+        self.assertNotIn("Sparkles", pending)
+        self.assertEqual(pending.count("{co.handToCC}"), 3)
+
+    def test_settings_row_buttons_are_cc_row_btn(self):
+        # V22（B4）：设置「此电脑 · 连接」与「连接」里手写的 28 图标钮（公司一行与电脑一行的「···」、以前授权的文件夹的 ×）换成 .cc-row-btn 24，
+        # 触屏点按区 44（cc-tap）
+        settings = self.read("components/settings.tsx")
+        self.assertEqual(settings.count('className="cc-row-btn cc-tap"'), 4)
+        self.assertNotIn("size-7", settings)
+
+    def test_one_breakpoint_for_the_task_form(self):
+        # V36（B4）：定时任务表单的两列（目标卡片、账套与进项销项、默认处理）跟变体同一条断点 768，640–767 段按手机排
+        tasks = self.read("components/scheduled-tasks.tsx")
+        self.assertEqual(tasks.count("md:grid-cols-2"), 3)
+        for rel in self.B4:
+            self.assertNotRegex(self.read(rel), r"\b(?:sm|lg|xl|2xl):", rel)
 
 
 if __name__ == "__main__":

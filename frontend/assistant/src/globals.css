@@ -903,6 +903,9 @@
   --cc-settings-section-pt: 32px; /* 现有值·CC 自定：设置分节上 */
   --cc-settings-section-pb: var(--cc-space-4);
   --cc-settings-value-max: 22rem; /* 现有值·CC 自定：设置值列最宽 */
+  --cc-add-company-share: 0.8;    /* 现有值·CC 自定：添加公司弹窗最多占可见高（B4 补登） */
+  --cc-run-row-py: 10px;          /* 现有值·CC 自定：定时任务运行记录一行上下（B4 补登） */
+  --cc-target-card-py: 10px;      /* 现有值·CC 自定：定时任务表单里目标 ERP 卡片上下（B4 补登） */
   --cc-preview-w: 48rem;          /* 现有值·CC 自定：图片预览最宽 */
   --cc-preview-share: 0.8;        /* 现有值·CC 自定：图片预览最多占可见高 */
 
@@ -920,7 +923,7 @@
   --cc-bubble-min: 20%;           /* 现有值·CC 自定：用户气泡那一列最窄（grid-cols-[minmax(…,1fr)_auto]） */
   /* B7 补登（标准化记录 4.1）：对话区迁移时缺的档 */
   --cc-file-card-py: 10px;        /* 现有值·CC 自定：提醒卡、结果文件卡上下（提醒卡里正文与按钮之间同值） */
-  --cc-alert-lines: 2;            /* 现有值·CC 自定：对话里出错那一行最多两行 */
+  --cc-alert-lines: 2;            /* 现有值·CC 自定：出错原因最多两行（对话 B7、会话栏允许卡 B5 共用） */
   --cc-compose-x-stroke: 2.5px;   /* 现有值·CC 自定：输入框附件右上「×」深色下加粗 */
   --cc-press-scale: 0.94;         /* 现有值·CC 自定：图标按钮按下缩到 94%（同 .cc-icon-btn:active；回复与代码块「复制」，V30） */
 
@@ -949,6 +952,7 @@
 
   /* 其他 */
   --cc-skeleton-h: 14px;          /* 现有值·CC 自定：骨架条高 */
+  --cc-task-skeleton-h: 80px;     /* 现有值·CC 自定：定时任务列表加载时一张占位卡的高（B4 补登） */
   /* 提示框的小箭头（components/ui/tooltip.tsx，B2 补登：组件库模板带的 10 的方块转 45° 露出一角） */
   --cc-tooltip-arrow: 10px;       /* 现有值·CC 自定 */
   --cc-tooltip-arrow-turn: 45deg; /* 现有值·CC 自定 */
@@ -991,7 +995,6 @@
   --cc-split-line-hover: 2px;     /* 现有值·CC 自定：分隔条悬停、拖动时那根线 */
   --cc-grid-card-py: 14px;        /* 现有值·CC 自定：公司卡片上下 */
   --cc-alert-sm-px: 10px;         /* 现有值·CC 自定：侧栏出错行左右（紧凑出错框） */
-  --cc-alert-lines: 2;            /* 现有值·CC 自定：对话里出错框的原因最多两行（B5 补登） */
   --cc-list-row-px: 10px;         /* 现有值·CC 自定：主档页列表行、知识库、文件夹行左右 */
   --cc-panel-end-max: 60%;        /* 现有值·CC 自定：会话栏卡头摘要、卡内行右侧补充最多占的宽 */
   --cc-panel-row-py: 3px;         /* 现有值·CC 自定：会话栏里沿用的主档行上下 */

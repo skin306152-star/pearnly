@@ -196,11 +196,12 @@ export const DeleteChatsHost: FC = () => {
   return (
     <DialogPrimitive.Root open={!!ask} onOpenChange={(open) => !open && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-confirm)" />
         <DialogPrimitive.Content
           data-slot="cc-delete-chats"
           aria-describedby={undefined}
-          className="cc-card cc-enter cc-modal fixed left-1/2 z-[80] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)]"
+          data-size="sm"
+          className="cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-confirm) flex -translate-x-1/2 -translate-y-1/2 flex-col"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             cancel.current?.focus();
@@ -213,13 +214,13 @@ export const DeleteChatsHost: FC = () => {
             else focusBack(asked.current?.back);
           }}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">{ask ? sb.deleteAsk(ask.ids.length) : ""}</DialogPrimitive.Title>
+          <div className="cc-dialog-head">
+            <DialogPrimitive.Title className="cc-dialog-title">{ask ? sb.deleteAsk(ask.ids.length) : ""}</DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-5 pt-2 pb-4">
+          <div className="cc-dialog-foot">
             <DialogPrimitive.Close asChild>
               <button ref={cancel} type="button" className="cc-btn" data-slot="cc-delete-chats-no">{t("cancel")}</button>
             </DialogPrimitive.Close>
