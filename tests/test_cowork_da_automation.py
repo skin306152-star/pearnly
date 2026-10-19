@@ -860,6 +860,107 @@ class Checks(unittest.TestCase):
         self.assertTrue(auto.reason_codes(many).startswith("book_many,reason_000"))
 
 
+# 第 3 期 E11（10-19）：真实电子税票「原件 + 副本 / 收据联」几页一份。下面的形状取自测试机试点导出（BakeLab 销项 18 张，
+# 脱敏）：第 1 页是税票，第 2 页起识别（Claude 路线）记成非发票、字段全空、``claude: no document starts on this page``，
+# 整份副本标记 ``is_copy_or_duplicate``；判据只能看那一页自己的 PDF 文字层。
+E11_NUMBER, E11_TOTAL = "INV2025080061", "414.00"
+E11_FIELDS = dict(direction="sales", document_type="tax_invoice", seller_tax=OWN, seller_branch="00000",
+                  buyer_tax=SELLER, buyer_branch="", invoice_number=E11_NUMBER, date="2026-10-06",
+                  subtotal="386.92", vat="27.08", total_amount=E11_TOTAL)
+E11_BLANK = {"buyer_tax": "", "date": None, "document_type": "other", "invoice_number": None, "is_copy_or_duplicate": True,
+             "is_not_invoice": True, "notes": "claude: no document starts on this page", "seller_tax": "",
+             "total_amount": None, "items": []}
+E11_CHAIN = ["CLAUDE", "CLAUDE-HAIKU-5-5"]
+E11_LINES = "CAKE : Longan white chocolate cake ราคาส่ง ขนาด 3 ปอนด์ แยกหน้า/ตัด 10 1 ชิ้น 386.92 ติดต่อ 081-0000000 "
+E11_INVOICE = (f"ใบส่งสินค้า/ใบกำกับภาษี สำเนา เลขที่ {E11_NUMBER} วันที่ 06/10/2026 ผู้ขาย {OWN} สำนักงานใหญ่ "
+               f"ลูกค้า เลขประจำตัวผู้เสียภาษี {SELLER} {E11_LINES}รวมเป็นเงิน 386.92 ภาษีมูลค่าเพิ่ม 27.08 "
+               "จำนวนเงินรวมทั้งสิ้น 414.00")
+E11_RECEIPT = (f"ใบเสร็จรับเงิน สำเนา เลขที่ {E11_NUMBER} วันที่ 06/10/2026 ผู้ขาย {OWN} ลูกค้า เลขประจำตัวผู้เสียภาษี "
+               f"{SELLER} {E11_LINES}[X] เงินสด จำนวนเงิน 414.00 (สี่ร้อยสิบสี่บาทถ้วน) ใบแนบใบกำกับภาษี")
+
+
+def _e11(*page_texts, fields=None, extra=None, **over):
+    fields = _fields(**{**E11_FIELDS, **(fields or {})})
+    pages = [{"_layer_chain": E11_CHAIN, "fields": fields}]
+    pages += [{"_layer_chain": E11_CHAIN, "fields": {**E11_BLANK, **((extra or {}).get(index) or {})}}
+              for index in range(1, len(page_texts))]
+    payload = _payload(direction="sales", doctype="IV", ref_no=E11_NUMBER, total_amount=E11_TOTAL,
+                       customer={"code": "C1", "tax_id": SELLER}, supplier=None)
+    base = dict(direction="sales", fields=fields, pages=pages, page_texts=list(page_texts),
+                text="\n".join(page_texts), payload=payload, today=dt.date(2026, 10, 25), uploaded=dt.date(2026, 10, 22))
+    base.update(over)
+    return _facts(**base)
+
+
+class SameDocumentPages(unittest.TestCase):
+    """后面的页是同一张票的再印（单号、含税额、对方税号都在那一页自己的文字层里）就不算证据页；对不上的照旧 C。"""
+
+    def evidence(self, facts):
+        return "evidence" in auto.checks(facts)
+
+    def test_the_e11_receipt_copy_page_is_not_evidence(self):
+        facts = _e11(E11_INVOICE, E11_RECEIPT)
+        self.assertTrue(auto.same_document_page(facts, 1))
+        self.assertEqual(auto.checks(facts), [])  # 原先 ["evidence"]（日期按试点压缩时间另给）
+        # 三、四页一份（原件 + 两页收据联 / 副本）：每一页都要对得上
+        self.assertFalse(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, E11_RECEIPT, E11_RECEIPT)))
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, "ใบเสร็จรับเงิน รายการต่อ", E11_RECEIPT)))
+
+    def test_pages_that_do_not_repeat_the_same_document_stay_evidence(self):
+        other = E11_RECEIPT.replace(E11_NUMBER, "INV2025080062")
+        cases = {
+            "no text": "",                                                          # 扫描件 / 隐形识别文字层
+            "another number": other,
+            "longer number": E11_RECEIPT.replace(E11_NUMBER, E11_NUMBER + "1"),
+            "no total": E11_RECEIPT.replace("414.00", "400.00"),
+            "no party tax": E11_RECEIPT.replace(SELLER, ""),
+            "credit note": E11_RECEIPT.replace("ใบเสร็จรับเงิน", "ใบลดหนี้"),
+            "debit note": E11_RECEIPT + " DEBIT NOTE",
+        }
+        for name, text in cases.items():
+            self.assertTrue(self.evidence(_e11(E11_INVOICE, text)), name)
+        # 文字层与识别页对不上、只有整份连起来的一段、一拆多：不判
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, page_texts=[E11_INVOICE])))
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, page_texts=None)))
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, page_texts=E11_INVOICE + E11_RECEIPT)))
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, source_total=2)))
+        # 这一页识别自己读出了另一张（单号或含税额不同）
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, extra={1: {"invoice_number": "INV2025080062"}})))
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, extra={1: {"total_amount": "400.00"}})))
+        self.assertFalse(self.evidence(_e11(E11_INVOICE, E11_RECEIPT,
+                                            extra={1: {"invoice_number": E11_NUMBER.lower(), "total_amount": "414"}})))
+        # 对方没有 13 位税号、单号太短、含税额为 0：判不成
+        self.assertTrue(self.evidence(_e11(E11_INVOICE, E11_RECEIPT, fields={"buyer_tax": ""})))
+        short = E11_RECEIPT.replace(E11_NUMBER, "A12")
+        self.assertTrue(self.evidence(_e11(E11_INVOICE.replace(E11_NUMBER, "A12"), short,
+                                           fields={"invoice_number": "A12"}, payload=_payload(ref_no="A12"))))
+
+    def test_a_credit_note_may_repeat_on_its_copy_page(self):
+        note = E11_RECEIPT.replace("ใบเสร็จรับเงิน", "ใบลดหนี้")
+        self.assertFalse(self.evidence(_e11(E11_INVOICE, note, fields={"document_type": "credit_note"})))
+
+    def test_attachment_pages_follow_the_same_rule(self):
+        """谷歌路线丢下的附属页（``attachment_page:``，记在被丢下的那一页上）：同一条判据；第一页上的照旧算证据。"""
+        same = {"_validation_warnings": [f"attachment_page: same_number {E11_NUMBER}"]}
+        facts = _e11(E11_INVOICE, E11_RECEIPT)
+        pages = [facts.pages[0], {**facts.pages[1], **same}]
+        self.assertFalse(self.evidence(dataclasses.replace(facts, pages=pages)))
+        first = [{**facts.pages[0], **same}, facts.pages[1]]
+        self.assertTrue(self.evidence(dataclasses.replace(facts, pages=first)))
+        pages = [facts.pages[0], {**facts.pages[1], **same, "fields": {"document_type": "other"}}]
+        self.assertTrue(self.evidence(dataclasses.replace(facts, pages=pages, page_texts=[E11_INVOICE, ""])))
+
+    def test_number_in_text(self):
+        self.assertTrue(auto.number_in_text("IV69-001", "เลขที่ IV69-001 วันที่"))
+        self.assertTrue(auto.number_in_text("iv69-001", "No.IV69-001"))
+        self.assertTrue(auto.number_in_text("IV69-001", "IV69 -001"))   # 文字层在字之间断开一个空白
+        self.assertFalse(auto.number_in_text("IV69-001", "IV69-0012"))
+        self.assertFalse(auto.number_in_text("IV69-001", "XIV69-001"))
+        self.assertFalse(auto.number_in_text("A12", "A12"))
+        self.assertFalse(auto.number_in_text("IV69-001", None))
+        self.assertEqual(auto.NUMBER_MIN, 4)
+
+
 class DecideCore(unittest.TestCase):
     """判定核心（第 11 条抽出的纯函数）：历史已定带上汇总版本，classify 据此分 A / B。"""
 

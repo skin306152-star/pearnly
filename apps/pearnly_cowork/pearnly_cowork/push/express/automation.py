@@ -98,6 +98,11 @@ RECENT_PERIOD_MAX = 6
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
 ATTACHMENT_PAGE = "attachment_page:"
+# 同一张票的再印（`same_document_page`）：单号至少这么多个字母数字才拿来在文字层里找
+NUMBER_MIN = 4
+# 减项 / 增项通知单的标题（同 `pearnly_core.tax_documents.rules` 的标题表）：同号同额的减项单不是副本
+ADJUSTMENT_THAI = ("ใบลดหนี้", "ใบเพิ่มหนี้")
+ADJUSTMENT_ENGLISH = ("CREDIT NOTE", "DEBIT NOTE")
 
 # 「人或规则定」的来源（`company_choices.decided_by` 的词；mixed = 同一类几项都来自这几层）
 RULE_SOURCES = frozenset({"task_default", "remembered", "company_rule", "mixed"})
@@ -402,15 +407,76 @@ def _wrong_branch(facts: Facts, day: Optional[dt.date]) -> bool:
     return not printed or printed != _branch5(attributes.get("branch"))
 
 
-def _evidence(pages) -> bool:
-    """这张票挂了证据页（非发票页挂到相邻单据上、或识别丢下的附属页）。"""
-    pages = [page for page in pages or () if isinstance(page, Mapping)]
+def number_in_text(number: Any, text: Optional[str]) -> bool:
+    """单号在文字层里作为一个完整的号出现：逐字相同（不分大小写，字之间可夹一个空白），前后不连着字母或数字。字母数字不到
+    `NUMBER_MIN` 个的号不认（太短，随便一页都撞得上）。"""
+    key = re.sub(r"\s+", "", str(number or ""))
+    if len(re.sub(r"[^0-9A-Za-z]", "", key)) < NUMBER_MIN or not text:
+        return False
+    pattern = r"(?<![0-9A-Za-z])" + r"\s?".join(re.escape(char) for char in key) + r"(?![0-9A-Za-z])"
+    return re.search(pattern, str(text), re.IGNORECASE) is not None
+
+
+def _adjustment_note(text: str) -> bool:
+    """文字层里有减项 / 增项通知单的标题（ใบลดหนี้ / ใบเพิ่มหนี้ / CREDIT NOTE / DEBIT NOTE）。"""
+    thai = re.sub(r"\s+", "", text)
+    english = " " + re.sub(r"[^A-Z]+", " ", text.upper()) + " "
+    return any(name in thai for name in ADJUSTMENT_THAI) or any(f" {name} " in english for name in ADJUSTMENT_ENGLISH)
+
+
+def _flag(fields: Mapping[str, Any]) -> bool:
+    flag = fields.get("is_not_invoice")
+    return flag is True or str(flag).strip().lower() == "true"
+
+
+def same_document_page(facts: Facts, index: int) -> bool:
+    """这张票的第 ``index`` 页（从 0 数）是同一张票的再印：副本（สำเนา）、随税票的收据联（ใบเสร็จรับเงิน / ใบแนบใบกำกับภาษี）。
+    真实电子税票常是「原件 + 副本」几页一份（第 3 期 E11：BakeLab、VIDA），识别把后面几页记成非发票、什么字段都不给
+    （Claude 路线：``claude: no document starts on this page``），所以只能拿这一页自己的 PDF 文字层核。判据全部要成立：
+
+    - 不是第一页；这张票只拆出这一张（一拆多本来就交人）；
+    - 这一页识别自己读出了单号 / 含税额的，要与这张票的相同（读出另一张就不是副本）；
+    - 这一页自己的文字层（``page_texts`` 与识别页一一对应，对不上不判）里能找到这张票的单号（`number_in_text`）、含税额
+      （`amount_in_text`，不为 0）与对方 13 位税号（`tax_in_text`；对方没有 13 位税号的不判）；
+    - 不是减项 / 增项通知单（同号、同额的减项单不是副本），除非这张票本身就是减项单。
+
+    判不成（扫描件、隐形识别文字层的页给空串、文字层字不全、号太短）照旧算证据页（C），不放宽。纯函数，推送服务与回放共用。"""
+    pages = [page for page in facts.pages or () if isinstance(page, Mapping)]
+    texts = facts.page_texts
+    if not index or index >= len(pages) or isinstance(texts, str) or texts is None or len(texts) != len(pages):
+        return False
+    if int(facts.source_total or 1) >= 2:
+        return False
+    fields, payload = facts.fields, _payload(facts)
+    number = str(fields.get("invoice_number") or payload.get("ref_no") or "").strip()
+    total = _money(payload.get("total_amount") or fields.get("total_amount"))
+    party = _digits(fields.get(f"{_party_side(facts.direction)}_tax"))
+    if not number or total is None or total == 0 or len(party) != 13:
+        return False
+    own = pages[index].get("fields") if isinstance(pages[index].get("fields"), Mapping) else {}
+    read_number = re.sub(r"\s+", "", str(own.get("invoice_number") or "")).upper()
+    if read_number and read_number != re.sub(r"\s+", "", number).upper():
+        return False
+    read_total = _money(own.get("total_amount"))
+    if read_total not in (None, Decimal(0)) and read_total != total:
+        return False
+    text = str(texts[index] or "")
+    if not text.strip() or not number_in_text(number, text) or not amount_in_text(total, text) \
+            or not tax_in_text(party, text):
+        return False
+    return not _adjustment_note(text) or str(fields.get("document_type") or "").strip() == "credit_note"
+
+
+def _evidence(facts: Facts) -> bool:
+    """这张票挂了证据页：第二页起识别记成非发票的页、或识别丢下的附属页（``attachment_page:``，记在被丢下的那一页上）——
+    同一张票的再印（`same_document_page`）不算。"""
+    pages = [page for page in facts.pages or () if isinstance(page, Mapping)]
     for index, page in enumerate(pages):
         fields = page.get("fields") if isinstance(page.get("fields"), Mapping) else {}
-        flag = fields.get("is_not_invoice")
-        if index and (flag is True or str(flag).strip().lower() == "true"):
+        attached = any(note.startswith(ATTACHMENT_PAGE) for note in _notes([page]))
+        if ((index and _flag(fields)) or attached) and not same_document_page(facts, index):
             return True
-    return any(note.startswith(ATTACHMENT_PAGE) for note in _notes(pages))
+    return False
 
 
 def prior_entry(payload: Any) -> Optional[Dict[str, str]]:
@@ -545,7 +611,7 @@ def checks(facts: Facts) -> List[str]:
         found.append("void")
     if int(facts.source_total or 1) >= 2:
         found.append("split")
-    if _evidence(facts.pages):
+    if _evidence(facts):
         found.append("evidence")
     if _same_push(facts):
         found.append("duplicate_number")
@@ -1113,7 +1179,7 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
     return text
 
 
-__all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim_in_text", "CLASSES", "classify",
+__all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "number_in_text", "NUMBER_MIN", "same_document_page", "B", "C", "checks", "claim_in_text", "CLASSES", "classify",
            "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_BY_KIND", "EVIDENCE_SOURCES", "Facts",
            "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
