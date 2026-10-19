@@ -556,9 +556,48 @@ g.done();
     def test_tailwind_utilities_resolve_to_ccs(self):
         theme = self.css.split("@theme inline {", 1)[1].split("\n}", 1)[0]
         for line in ("--default-border-width: var(--cc-hairline);", "--shadow-sm: var(--cc-shadow-sm);",
-                     "--radius-md: var(--cc-radius-md);", "--text-sm: var(--ccs-text-sm-size);",
-                     "--text-sm--line-height: var(--ccs-text-sm-line-height);", "--color-warning: var(--cc-warning);"):
+                     "--radius-md: var(--cc-radius-md);", "--text-lg: var(--ccs-text-lg-size);",
+                     "--text-lg--line-height: var(--ccs-text-lg-line-height);", "--color-warning: var(--cc-warning);"):
             self.assertIn(line, theme)
+        # B8：text-xs / sm / base 在 V1 迁完后退出组件、4xl 与 3xl 同值，都从 @theme 删掉（闸门 R6 只放行这里接过的名字，删了才拦得住）
+        for size in ("xs", "sm", "base", "4xl"):
+            self.assertNotIn(f"--text-{size}:", theme)
+            for path in sorted(SRC.rglob("*.ts*")):
+                self.assertNotRegex(path.read_text(encoding="utf-8"), rf"(?<![\w-])text-{size}(?![\w-])", path)
+
+    def test_shadcn_aliases_left_are_all_in_use(self):
+        # B8 删掉了组件改名后没人用的 shadcn 别名（card、popover、primary、secondary、input、accent-foreground、sidebar-primary …）。
+        # 留下的每一个：@theme 的 --color-<名> 有组件或 globals.css 的 @apply 在用，:root / .dark 里的 --<名> 有 @theme 接
+        theme = theme_block(self.css)
+        aliases = dict(re.findall(r"^  --color-([\w-]+): var\(--(?!cc-)([\w-]+)\);$", theme, re.M))
+        self.assertTrue(aliases)
+        components = "\n".join(p.read_text(encoding="utf-8") for p in sorted(SRC.rglob("*.ts*")))
+        applied = " ".join(re.findall(r"@apply ([^;]+);", self.css))
+        for name in aliases:
+            pattern = rf"(?<![\w-])(?:[\w-]+-)?{re.escape(name)}(?:/\d+)?(?![\w-])"
+            utility = rf"(?:^|[\s\"'`:])(?:bg|text|border|ring|outline|fill|stroke|divide|placeholder|marker:text)-{re.escape(name)}(?:/\d+)?(?![\w-])"
+            self.assertTrue(re.search(utility, components) or re.search(pattern, applied), f"--color-{name} 没人用：删掉")
+        block = self.css.split(":root, .dark {", 1)[1].split("\n}", 1)[0]
+        for name in re.findall(r"^  --([\w-]+):", block, re.M):
+            self.assertIn(name, aliases.values(), f"--{name} 没有 @theme 接，没人用：删掉")
+        for gone in ("card", "popover", "primary", "secondary", "input", "accent-foreground", "sidebar-primary", "sidebar-accent",
+                     "sidebar-border", "sidebar-ring"):
+            self.assertNotIn(gone, aliases)
+
+    def test_dependencies_left_by_the_migration_are_gone(self):
+        # B8：tw-animate-css（遮罩、弹层、提示框进出场已换 .cc-overlay / .cc-pop）、tw-shimmer（从没用过）、
+        # class-variance-authority（只有删掉的 Button 用）不再是依赖；减少动效的例外不再认 Tailwind 的 animate-spin（转圈都是 .cc-spinner）
+        package = json.loads((ROOT / "frontend/assistant/package.json").read_text(encoding="utf-8"))
+        lock = json.loads((ROOT / "frontend/assistant/package-lock.json").read_text(encoding="utf-8"))
+        for dep in ("tw-animate-css", "tw-shimmer", "class-variance-authority"):
+            self.assertNotIn(dep, package["dependencies"])
+            self.assertNotIn(dep, lock["packages"][""]["dependencies"])
+            self.assertNotIn(f"node_modules/{dep}", lock["packages"])
+            self.assertNotIn(dep, self.css)
+        self.assertIn(':root[data-cc-motion="reduce"] *:not(.cc-spinner, .cc-spin i),', self.css)
+        self.assertNotIn("animate-spin", re.sub(r"/\*.*?\*/", "", self.css, flags=re.S))
+        for path in sorted(SRC.rglob("*.ts*")):
+            self.assertNotRegex(path.read_text(encoding="utf-8"), r"(?<![\w-])animate-spin(?![\w-])", path)
 
 
 def theme_block(css):
@@ -701,13 +740,8 @@ const front = process.argv[2];
             self.assertEqual(code[target], name.rsplit("-", 1)[1] + "px", name)
 
 
-# 2.4 第 6 条「每个 --cc-* 至少被引用一次」：B1 一次登记了后面各批组件迁移要用的用途变量（globals.css 只在 B1 补、B8 只删），
-# 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
-# 这不是豁免：表外的 --cc-* 没人引用就失败。
-AWAITING = {
-    # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
-    "--cc-control-nested": "B2–B7",
-}
+# 2.4 第 6 条「每个 --cc-* 至少被引用一次」：B1 一次登记了后面各批组件迁移要用的用途变量，B2–B7 接上一个就从待接表（AWAITING）里删一个；
+# B8 收口时表已清空并删掉（最后没人用的 --cc-control-nested 一并删了）。之后新登记的 --cc-* 当批就要有人用，没人引用就失败。
 
 
 def cc_references():
@@ -723,15 +757,11 @@ def cc_references():
 
 
 class TokenUseTests(unittest.TestCase):
-    def test_every_cc_token_is_used_or_waits_for_a_named_batch(self):
+    def test_every_cc_token_is_used(self):
         defined, names, prefixes = cc_references()
         used = lambda name: name in names or any(name.startswith(p) for p in prefixes)
-        unused = sorted(n for n in defined if not used(n) and n not in AWAITING)
-        self.assertEqual(unused, [], "定义了却没人引用：删掉，或写明由哪一批接上")
-        for name, batch in AWAITING.items():
-            self.assertIn(name, defined, name)
-            self.assertFalse(used(name), f"{name} 已经接上（{batch}），从 AWAITING 里删掉")
-            self.assertRegex(batch, r"^B[2-7]")
+        unused = sorted(n for n in defined if not used(n))
+        self.assertEqual(unused, [], "定义了却没人引用：删掉")
 
 
 class TokenGateTests(unittest.TestCase):
