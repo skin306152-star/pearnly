@@ -300,11 +300,11 @@
 		};
 
 		// ── 账套 / 方向 / 入账方式：与「新建录入」同一口径 ──
-		const set_options = (name, list, keep) => {
+		const set_options = (name, list, keep, single = true) => {
 			d.set_df_property(name, "options", list);
 			const current = keep ?? d.get_value(name);
 			if (current && list.some(row => row.value === current)) return d.set_value(name, current);
-			if (list.length === 1) return d.set_value(name, list[0].value);
+			if (single && list.length === 1) return d.set_value(name, list[0].value);
 			return d.set_value(name, "");
 		};
 		const enable = (name, on) => d.fields_dict[name].$input?.prop("disabled", !on);
@@ -328,15 +328,19 @@
 		// 默认处理只摆这条任务用得到的项（与服务端 `contracts.applicable` 同一口径）；MR.ERP 整段不摆。
 		const paint_defaults = () => {
 			const purchase = d.get_value("direction") === "purchase", stock = d.get_value("posting_kind") === "stock";
+			const sales = d.get_value("direction") === "sales";
 			d.set_df_property("defaults_section", "hidden", express() ? 0 : 1);
-			const show = {payment: purchase, vat: purchase, account: purchase && !stock, item: stock,
+			// 销项的科目是收入科目（用户 2026-10-20）：只列收入类，只有一个也不自动选（没人设过就照连接的默认收入科目）
+			const show = {payment: purchase, vat: purchase, account: (purchase && !stock) || sales, item: stock,
 				department: Boolean(state.options?.departments?.length)};
+			d.set_df_property("d_account", "label", sales ? ft("cowork.folder.default.income") : ft("cowork.folder.default.account"));
 			for (const [kind, visible] of Object.entries(show)) d.set_df_property("d_" + kind, "hidden", express() && visible ? 0 : 1);
 			// 科目 / 部门这份账套的选项还没读到（打开弹窗时、换账套途中）就不动下拉：否则先被清空，只改了运行时间保存
 			// 也会把任务原来的默认科目丢掉（10-09 实测：服务类票全部停在「要选科目」）。读到了再按任务原来的值预选。
 			if (state.options?.accounts) {
-				set_options("d_account", state.options.accounts.map(row => ({value: row.code, label: `${row.code} · ${row.name}`})),
-					d.get_value("d_account") || rule?.defaults?.account);
+				set_options("d_account", state.options.accounts.filter(row => !sales || row.income)
+					.map(row => ({value: row.code, label: `${row.code} · ${row.name}`})),
+					d.get_value("d_account") || rule?.defaults?.account, !sales);
 			}
 			if (state.options?.departments) {
 				set_options("d_department", state.options.departments.map(row => ({value: row.code,

@@ -113,7 +113,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     reported_accounts / reported_departments`）；`remembered`：`{kind: {subject: value}}`，这份账套里记过的；
     `account_resolved`：费用科目已由科目映射（分类 → 科目）定下，不用再问。
     `needed` 每条：`{kind, subject, label, options?, current?}`，页面据此弹一次框。
-    `fixed`：`{kind: value}`，自动录入规则给这条规则定的值（付款 / 抵进项 / 费用科目 / 存货 / 部门），只对这张票生效、
+    `fixed`：`{kind: value}`，自动录入规则给这条规则定的值（付款 / 抵进项 / 费用科目或销项收入科目 / 存货 / 部门），只对这张票生效、
     优先于账套里记过的，不写进账套记忆（用户 2026-10-08：规则的默认值只管自己的票）。对方档不在此列。
     `receipts`：POS 日汇总票里非现金的付款方式 `[(subject, label)]`（`contracts.pos`）；每一种要一个收款科目，
     记过的（且在科目表里）放进 `applied["receipts"]` `{subject: 科目}`，没有的要人选。
@@ -224,6 +224,16 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             used("account", party_key)
         else:
             needed.append({"kind": "account", "subject": party_key, "label": name, "current": value or ""})
+
+    # ── 销项的收入科目：只有定时任务设了默认收入科目才定（用户 2026-10-20），不用账套记忆、不问；没设照连接的默认收入科目。
+    # 与进项同一口径：科目映射（分类 → 科目）已定的照映射，科目须在这份账套的科目表里
+    value = str((fixed or {}).get("account") or "").strip()
+    if direction == "sales" and value and not account_resolved:
+        accounts = _rows(config.get("reported_accounts"))
+        if not accounts or value in _codes(accounts):
+            applied["account"] = value
+            applied["account_from"] = "task_default"
+            used("account", party_key)
 
     # ── POS 日汇总：非现金付款方式的收款科目 ──
     accounts = _rows(config.get("reported_accounts"))

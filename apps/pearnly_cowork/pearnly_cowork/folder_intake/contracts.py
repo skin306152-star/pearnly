@@ -47,6 +47,8 @@ PAYMENT_VALUES = ("cash", "credit")
 VAT_VALUES = ("claim", "expense")
 ITEM_VALUES = ("__new__", "ask")
 NEW = "__new__"
+# 收入类科目的 Express 科目类型（GLACC.GROUP）与编号首位
+INCOME_GROUP = "4"
 LAST_DAY = 0
 MAX_PATH = 500
 MAX_RELPATH = 1000
@@ -139,7 +141,8 @@ def defaults(raw: Any, *, direction: str, posting_kind: str, accounts: Optional[
     """「这一类以后都这样处理」：只留这条规则用得到的项，值必须在允许的选项里。
 
     空值 = 这一类遇到时照现有规则停下等人选一次。`accounts` / `departments` 为 None 表示小助手还没读过这份账套，
-    这时不核对代码是否存在（推送时现有规则会再核：选过的值主档里没有就当没选过）。"""
+    这时不核对代码是否存在（推送时现有规则会再核：选过的值主档里没有就当没选过）。销项任务的 `accounts` 由调用方给
+    科目表里的收入科目（`income_codes`）。"""
     if raw in (None, ""):
         raw = {}
     if isinstance(raw, str):
@@ -172,15 +175,38 @@ def defaults(raw: Any, *, direction: str, posting_kind: str, accounts: Optional[
 
 
 def applicable(direction: str, posting_kind: str) -> List[str]:
-    """这条规则会遇到哪几类「要人选一次」的决定（与 `push/express/choices.py` 同一组，对方档除外）。"""
+    """这条规则会遇到哪几类「要人选一次」的决定（与 `push/express/choices.py` 同一组，对方档除外）。
+
+    销项的 ``account`` 是收入科目（用户 2026-10-20）：服务、存货都记收入科目，没设照连接的默认收入科目。"""
     kinds = ["department"]
     if direction == "purchase":
         kinds += ["payment", "vat"]
         if posting_kind == "service":
             kinds.append("account")
+    elif direction == "sales":
+        kinds.append("account")
     if posting_kind == "stock":
         kinds.append("item")
     return kinds
+
+
+def income_account(row: Any) -> bool:
+    """科目表里能作收入科目的一行：有 Express 科目类型（GROUP）按类型 4，没报类型的按编号首位 4（同费用类按 5 的认法，
+    `push.express.account_suggest.expense`）。"""
+    if not isinstance(row, Mapping):
+        return False
+    code = str(row.get("code") or "").strip()
+    kind = str(row.get("type") or row.get("group") or "").strip()
+    if not code:
+        return False
+    return kind == INCOME_GROUP if kind else code[:1] == INCOME_GROUP
+
+
+def income_codes(rows: Any) -> Optional[set]:
+    """科目表里收入科目的代码；科目表没读到（None）回 None（同 `defaults` 的不核对）。"""
+    if rows is None:
+        return None
+    return {str(row["code"]).strip() for row in rows or () if income_account(row)}
 
 
 def default_value(defaults_map: Mapping[str, str], kind: str) -> str:

@@ -249,7 +249,9 @@ def options(connection, account_set_key=None):
         result["masters"] = masters
         _a, _d, found = _masters(doc, account_set_key)
         if "reported_accounts" in found:
-            result["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
+            # 收入类的标 income（销项任务的默认收入科目只从这些里选，`contracts.income_account`）
+            result["accounts"] = [{"code": row["code"], "name": row.get("name") or "",
+                                   **({"income": True} if contracts.income_account(row) else {})}
                                   for row in found["reported_accounts"] if isinstance(row, dict) and row.get("code")][:2000]
         if "reported_departments" in found:
             result["departments"] = [{"code": row["code"], "name": row.get("name") or ""}
@@ -301,7 +303,10 @@ def save(values, *, cc_session=None):
         times = None if values.get("remind_times") is None else contracts.remind_times(values.get("remind_times"))
         defaults = {}
         if express:
-            accounts, departments, _found = _masters(doc, values.get("account_set_key"))
+            accounts, departments, found = _masters(doc, values.get("account_set_key"))
+            if direction == "sales" and accounts is not None:
+                # 销项的默认科目是收入科目：只收这份账套科目表里的收入类（用户 2026-10-20）
+                accounts = contracts.income_codes(found.get("reported_accounts"))
             defaults = contracts.defaults(values.get("defaults"), direction=direction, posting_kind=posting_kind,
                                           accounts=accounts, departments=departments)
     except contracts.ContractError as error:

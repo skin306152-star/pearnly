@@ -184,6 +184,10 @@ def build_express_sales_payload(
 
     accounts = mappings.get("accounts") or []
     revenue_acc, acc_source = resolve_account_sourced(accounts, category, config.get("revenue_acc"))
+    # 定时任务设了默认收入科目（`choices.resolve` 放进 config["choices"]，来源 task_default，用户 2026-10-20）就记它
+    picked = config.get("choices") if isinstance(config.get("choices"), dict) else {}
+    if picked.get("account"):
+        revenue_acc, acc_source = str(picked["account"]), str(picked.get("account_from") or "choice")
     if not revenue_acc:
         return fail("no_revenue_account")
     ar_acc = resolve_account(accounts, "accounts_receivable", config.get("ar_acc"))

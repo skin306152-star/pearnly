@@ -2321,6 +2321,7 @@ cowork.folder.counts,ส่งแล้ว {0} · รอดำเนินกา
 cowork.folder.day,วันที่ {0}
 cowork.folder.default.account,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
 cowork.folder.default.department,แผนก
+cowork.folder.default.income,บัญชีรายได้
 cowork.folder.default.item,ไม่พบสินค้าใน Express
 cowork.folder.default.payment,เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ
 cowork.folder.default.vat,ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ

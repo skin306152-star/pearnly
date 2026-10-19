@@ -966,6 +966,20 @@
     5. **旧存档只作对照**：金标-2026-10 `C:\PearnlyStress\_回放\2026-10-16-d4\gate-金标仅\gate.json`、E2 第一批 `…\2026-10-18-e2\gate-p4\gate.json`、
        E2b `…\2026-10-19-e2b\gate-p6\gate.json`。base 与它们的差别来自之后别的规则改动（如 `445cb328` 副本页不算证据页、`174243c1`），不算本条；
        判无回归只看 base 对 cand。跑完删 `/tmp/tl-*` 与 `Temp\tl`，`_回放\2026-10-19-tl` 保留。
+- **销项定时任务的默认收入科目（10-20，用户定，有意变化）**：用户选「定时任务给收入科目」、要求随这批一起做。原来销项收入科目只能来自
+  连接上的默认收入科目（`config_default`，第 1 条算 B），定时任务表单对销项不给科目默认（`folder_intake.contracts.applicable` 只给进项服务类
+  `account`），销项映射器也不读选择里的科目，一次性客户多的销项公司永远到不了 A。改法（与进项费用科目同一个键 `account`、同一份 `defaults_json`）：
+  - `contracts.applicable`：销项（服务、存货）多一项 `account`；保存时（`rules.save`）只收这份账套科目表里的收入类（`contracts.income_account`：
+    Express 科目类型 GROUP = 4，没报类型的按编号首位 4，同费用类按 5 的认法）；科目表没读到照旧不核（推送时再核）；表单选项 `options` 给收入类标
+    `income`。进项照旧只核在不在科目表里。MR.ERP 任务照旧没有默认处理（收入科目由 MR.ERP 商品主档的参考科目定）；
+  - 推送：`choices.resolve` 销项只认任务默认（不用账套记忆、不问），科目映射已定的照映射、科目须在科目表里，`account_from = task_default`；
+    `sales_mapper` 有选择里的科目就记它（贷方收入行、`items_account`），`account_source = task_default`、`account_review` 为假；第 1 条按
+    `SALES_ACCOUNT_TIERS` 算 A。没设的销项任务照旧 `config_default`（B）；
+  - 前端：CC 定时任务表单与 Desk 表单销项显示「收入科目」（新词条 `cowork.folder.default.income` 四语），只列收入类；Desk 只有一个收入科目时
+    不自动选（没人设过就照旧 B）；换了方向后留下的费用科目不带去保存。CC 工具 `cowork_save_folder_task(s)` 说明、`cowork_folder_task_options`
+    说明同步，允许卡片上销项这一项叫「收入科目」；
+  - 测试 `tests/test_cowork_sales_income_default.py`（CI 加一步）：设了 → 推送用它、判 A；没设 → B；拒非收入科目；进项不变；MR.ERP 不变；
+    CC 工具能设（`tests/test_cowork_assistant_tools.py`）。
 
 ## 第一轮回放后的决定（2026-10-16）
 

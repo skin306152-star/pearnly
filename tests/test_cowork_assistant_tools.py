@@ -1604,7 +1604,8 @@ TERMS = {"cowork.folder.pair": "{0}: {1}", "cowork.folder.waiting": "{0} files i
          "cowork.folder.day": "Day {0}", "cowork.folder.lastDay": "Last day", "cowork.folder.remind.on": "On",
          "cowork.folder.remind.off": "Off", "cowork.folder.field.remind": "Reminder", "intake.dir.purchase": "Purchase",
          "cowork.folder.default.payment": "Payment", "cowork.folder.default.vat": "VAT",
-         "cowork.folder.default.account": "Account", "cowork.folder.vat.claim": "Claim",
+         "cowork.folder.default.account": "Account", "cowork.folder.default.income": "Income account",
+         "cowork.folder.vat.claim": "Claim",
          "cowork.folder.vat.expense": "Expense", "cowork.folder.new": "New scheduled task",
          "cowork.folder.remind.sameDay": "Same day", "cowork.folder.remind.dayBefore": "Day before",
          "cowork.folder.remind.daysBefore": "{0} days before"}
@@ -1759,6 +1760,30 @@ class FolderTaskBatchTests(unittest.TestCase):
             with mock.patch.object(tools.rules, "waiting", lambda *a: {"files": 0, "partial": False}):
                 rows = tools.preview_save_folder_task(self.new)
             self.assertEqual(rows[-1]["after"], "0 files in the folder now")
+
+    def test_a_sales_task_sets_its_income_account(self):
+        """用户 2026-10-20：销项任务可以设默认收入科目（同一个 ``account``），卡片上叫「收入科目」，存下的照实回。"""
+        sales = {**self.new, "title": "Ice sales", "direction": "sales", "folder": "Ice/sales",
+                 "defaults": {"account": "4100-01"}}
+        with mock.patch.object(tools.rules, "master_names", lambda connection, key: {"accounts": {"4100-01": "Sales"}}), \
+                mock.patch.object(tools, "_", _term):
+            shown = {row["field"]: row["after"] for row in tools.preview_save_folder_task(sales)}
+            batch = tools.preview_save_folder_tasks({"tasks": [sales]})
+        self.assertEqual(shown["Income account"], "4100-01 · Sales")
+        self.assertNotIn("Account", shown)
+        self.assertIn("Income account: 4100-01 · Sales", batch[0]["after"])
+        self.assertEqual(tools._kept_defaults(sales, "express"), {"account": "4100-01"})
+        self.assertEqual(tools._kept_defaults({**sales, "posting_kind": "stock"}, "express"), {"account": "4100-01"})
+        self.assertEqual(tools._kept_defaults(sales, "mrerp"), {})
+        # 改已有销项任务只说收入科目：以现值为底合并，交给任务服务的是同一个 account
+        self.current.update(direction="sales", defaults={})
+        self.result = {"saved": [{"name": "R1", "title": "Ice purchases", "enabled": 1, "remind": 0,
+                                  "defaults": {"account": "4100-01"}}], "failed": []}
+        out = json.loads(tools.save_folder_tasks({"tasks": [{"name": "R1", "defaults": {"account": "4100-01"}}]}))
+        (items, _conversation), = self.calls
+        self.assertEqual(items[0]["defaults"], {"account": "4100-01"})
+        self.assertEqual(out["tasks"][0]["defaults"], {"account": "4100-01"})
+        self.assertNotIn("defaults_not_applicable", out["tasks"][0])
 
     def test_a_task_that_continues_a_paused_one_says_so_instead_of_the_file_count(self):
         """business-logic-1：新任务的文件夹与停用的任务重叠（任务服务会置成只收此后放进来的），卡片说接续哪个任务，

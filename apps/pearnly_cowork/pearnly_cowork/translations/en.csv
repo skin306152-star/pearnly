@@ -2321,6 +2321,7 @@ cowork.folder.counts,Entered {0} · to check {1}
 cowork.folder.day,Day {0}
 cowork.folder.default.account,Expense account when no category matches
 cowork.folder.default.department,Department for this rule
+cowork.folder.default.income,Income account
 cowork.folder.default.item,Stock item not found in Express
 cowork.folder.default.payment,When the document does not show cash or credit
 cowork.folder.default.vat,VAT on receipts and abbreviated tax invoices

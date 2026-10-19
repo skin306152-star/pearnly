@@ -2321,6 +2321,7 @@ cowork.folder.counts,登録済み {0} · 要確認 {1}
 cowork.folder.day,{0} 日
 cowork.folder.default.account,区分が一致しない費用の勘定科目
 cowork.folder.default.department,部門
+cowork.folder.default.income,収入科目
 cowork.folder.default.item,Express に在庫品目がない場合
 cowork.folder.default.payment,現金・掛けが書類から分からない場合
 cowork.folder.default.vat,領収書・簡易税請求書の税額

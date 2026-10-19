@@ -130,7 +130,7 @@ type Reader = { connection: string; reader?: string; device?: string; label: str
 const readerId = (r: Pick<Reader, "reader" | "connection">) => r.reader || r.connection;
 const ruleFolder = (rule: Rule) => folderValue(rule.reader_id || rule.reader, rule.root_id, rule.folder || "");
 type StockGroup = { known?: boolean; chosen?: string; groups?: Array<{ acccod: string; label: string; used_by?: number }> };
-type Options = { readers?: Reader[]; accounts?: Array<{ code: string; name: string }>; departments?: Array<{ code: string; name: string }>; stock_group?: StockGroup };
+type Options = { readers?: Reader[]; accounts?: Array<{ code: string; name: string; income?: boolean }>; departments?: Array<{ code: string; name: string }>; stock_group?: StockGroup };
 
 const ADAPTERS = [
   { adapter: "mrerp", label: "MR.ERP" },
@@ -852,10 +852,14 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
     return n > 0 ? plus(n, root.partial) : "";
   })();
 
-  // 默认处理只摆这条任务用得到的项（同服务端 contracts.applicable）；MR.ERP 整段不摆
+  // 默认处理只摆这条任务用得到的项（同服务端 contracts.applicable）；MR.ERP 整段不摆。销项的科目是收入科目，只列收入类
+  const sales = direction === "sales";
   const showDefault: Record<string, boolean> = {
-    payment: purchase, vat: purchase, account: purchase && !stock, item: stock, department: Boolean(options?.departments?.length),
+    payment: purchase, vat: purchase, account: (purchase && !stock) || sales, item: stock, department: Boolean(options?.departments?.length),
   };
+  const accountRows = (options?.accounts || []).filter((r) => !sales || r.income);
+  // 换了方向后原来选的科目不在可选里（费用科目留到了销项）：不带去保存
+  const accountKept = (code: string) => !options?.accounts || accountRows.some((r) => r.code === code);
   const setDefault = (kind: string, value: string) => setDefaults((d) => ({ ...d, [kind]: value }));
 
   const canSave = Boolean(connection && title.trim() && accountSet && direction && folder && runDay && runTime &&
@@ -873,7 +877,9 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
       // MR.ERP 的单据菜单与默认值：没定过就问一次（同「新建录入」提交前那个弹窗），之后自动推送照用
       if (!express && !(await mrerpMenuReady(connection, accountSet, direction, setMenuView, setMenuAsk))) return;
       const chosen: Record<string, string> = {};
-      if (express) for (const kind of Object.keys(showDefault)) if (showDefault[kind] && defaults[kind]) chosen[kind] = defaults[kind]!;
+      if (express) for (const kind of Object.keys(showDefault)) {
+        if (showDefault[kind] && defaults[kind] && (kind !== "account" || accountKept(defaults[kind]!))) chosen[kind] = defaults[kind]!;
+      }
       const { reader, root_id, folder: path } = folderParts(folder);
       await postMethod(API + "save", {
         values: JSON.stringify({
@@ -1060,8 +1066,8 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
                 <Field label={tr("cowork.folder.default.item")} hidden={!showDefault.item}>
                   <Select value={defaults.item || ""} onChange={(v) => setDefault("item", v)} options={[{ value: "__new__", label: tr("cowork.folder.item.new") }, { value: "ask", label: tr("cowork.folder.item.ask") }]} />
                 </Field>
-                <Field label={tr("cowork.folder.default.account")} hidden={!showDefault.account}>
-                  <Select value={defaults.account || ""} onChange={(v) => setDefault("account", v)} options={(options?.accounts || []).map((r) => ({ value: r.code, label: `${r.code} · ${r.name}` }))} />
+                <Field label={sales ? tr("cowork.folder.default.income") : tr("cowork.folder.default.account")} hidden={!showDefault.account}>
+                  <Select value={accountKept(defaults.account || "") ? defaults.account || "" : ""} onChange={(v) => setDefault("account", v)} options={accountRows.map((r) => ({ value: r.code, label: `${r.code} · ${r.name}` }))} />
                 </Field>
                 <Field label={tr("cowork.folder.default.department")} hidden={!showDefault.department}>
                   <Select value={defaults.department || ""} onChange={(v) => setDefault("department", v)} options={(options?.departments || []).map((r) => ({ value: r.code, label: `${r.code} · ${r.name}` }))} />

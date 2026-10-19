@@ -3714,7 +3714,13 @@ DEFAULT_VALUE_LABELS = {"payment": PAYMENT_LABELS,
                         "vat": {"claim": "cowork.folder.vat.claim", "expense": "cowork.folder.vat.expense"},
                         "item": {folder_contracts.NEW: "cowork.folder.item.new", "ask": "cowork.folder.item.ask"}}
 REMIND_FIELD = "cowork.folder.field.remind"
-PAIRED = tuple(f"cowork.folder.default.{kind}" for kind in folder_contracts.KINDS) + (REMIND_FIELD,)
+# 销项任务的默认科目是收入科目（用户 2026-10-20）：卡片上换这一项的叫法，取值同一个 ``account``
+INCOME_FIELD = "cowork.folder.default.income"
+PAIRED = tuple(f"cowork.folder.default.{kind}" for kind in folder_contracts.KINDS) + (INCOME_FIELD, REMIND_FIELD)
+
+
+def _default_field(kind, direction) -> str:
+    return INCOME_FIELD if kind == "account" and direction == "sales" else f"cowork.folder.default.{kind}"
 
 
 def _cached(cache, key, read):
@@ -3848,7 +3854,7 @@ def _task_lines(item, rows, cache) -> tuple:
             pair = (row.get("connection"), row.get("account_set_key"))
             names[side] = _cached(cache, ("names",) + pair, lambda: rules.master_names(*pair))
     for kind in folder_contracts.KINDS:
-        field = f"cowork.folder.default.{kind}"
+        field = _default_field(kind, values.get("direction"))
         before[field] = _default_shown(kind, _shown(had.get(kind)), names.get("before"))
         after[field] = _default_shown(kind, kept.get(kind, ""), names.get("after"))
     # 新任务提醒默认关：卡片写「关 → 各提醒时刻」；只给了提醒时刻也是打开（同任务服务）
@@ -4085,7 +4091,9 @@ FOLDER_TASK_PROPS = {
     "defaults": {"type": "object", "additionalProperties": False,
                  "description": "Express only. How this task's documents are handled when the choice comes up; a kind "
                                 "is used only where it applies (payment and vat: purchases; account: service "
-                                "purchases; item: stock). A kind left out or empty stops and asks the first time. "
+                                "purchases and all sales; item: stock). A kind left out or empty stops and asks the "
+                                "first time (a sales task without account uses the connection's default income "
+                                "account). "
                                 "When changing a task, only the kinds given change; an empty string clears one.",
                  "properties": {
                      "payment": {"type": "string", "enum": ["cash", "credit", ""],
@@ -4095,10 +4103,13 @@ FOLDER_TASK_PROPS = {
                              "description": "VAT on receipts and abbreviated tax invoices: claim as input VAT, or "
                                             "record as expense."},
                      "account": {"type": "string",
-                                 "description": "Expense account code from cowork_folder_task_options. It replaces "
-                                                "the account remembered for each supplier for every document of this "
-                                                "task (a category-to-account mapping still wins); set it only when the "
-                                                "user says they all go to one account."},
+                                 "description": "Account code from cowork_folder_task_options. Purchases: the expense "
+                                                "account; it replaces the account remembered for each supplier for "
+                                                "every document of this task. Sales: the income account (only accounts "
+                                                "marked income); it replaces the connection's default income account, "
+                                                "and documents with it can be pushed automatically. A category-to-"
+                                                "account mapping still wins; set it only when the user says they all "
+                                                "go to one account."},
                      "item": {"type": "string", "enum": ["__new__", "ask", ""],
                               "description": "A stock item not found: __new__ creates it from the document; ask "
                                              "stops for a choice."},
@@ -4464,8 +4475,8 @@ TOOLS = [
     {"name": "cowork_folder_task_options", "label": "Checked scheduled task options",
      "description": "What a scheduled folder task can use, like the task form: each computer (reader) that reads "
                     "folders, whether it is online, the folders opened to the website in CC Desktop on it (root_id and "
-                    "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
-                    "and stock account group for defaults (accounts_status reading: still being read from the computer, "
+                    "subfolders; up to 50, pass search), and for Express with account_set_key the accounts (income marks the "
+                    "ones a sales task can default to), departments and stock account group for defaults (accounts_status reading: still being read from the computer, "
                     "check again shortly). files is how many photos and PDFs each folder holds now, "
                     "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many), "
                     "pos_files the POS exports (Excel / CSV) that a sales task into Express also enters; a root "

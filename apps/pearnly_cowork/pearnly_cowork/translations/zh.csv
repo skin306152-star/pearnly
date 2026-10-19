@@ -2321,6 +2321,7 @@ cowork.folder.counts,已推送 {0} · 待处理 {1}
 cowork.folder.day,{0} 日
 cowork.folder.default.account,未匹配科目的费用
 cowork.folder.default.department,部门
+cowork.folder.default.income,收入科目
 cowork.folder.default.item,Express 中无对应存货
 cowork.folder.default.payment,票面未注明现购 / 赊购
 cowork.folder.default.vat,收据、简易税票上的税额

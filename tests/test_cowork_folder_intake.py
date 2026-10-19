@@ -61,8 +61,11 @@ class ContractTests(unittest.TestCase):
 
     def test_defaults_keep_only_what_the_rule_meets(self):
         raw = {"payment": "credit", "vat": "claim", "account": "5300", "item": "__new__", "department": "01", "party": "X"}
+        # 销项的 account 是收入科目（用户 2026-10-20，`test_cowork_sales_income_default.py`）
         self.assertEqual(contracts.defaults(raw, direction="sales", posting_kind="service", departments={"01"}),
-                         {"department": "01"})
+                         {"department": "01", "account": "5300"})
+        self.assertEqual(contracts.defaults({k: v for k, v in raw.items() if k != "account"}, direction="sales",
+                                            posting_kind="service", departments={"01"}), {"department": "01"})
         self.assertEqual(contracts.defaults(raw, direction="purchase", posting_kind="service", accounts={"5300"}),
                          {"payment": "credit", "vat": "claim", "account": "5300", "department": "01"})
         self.assertEqual(contracts.defaults(raw, direction="purchase", posting_kind="stock")["item"], "__new__")
