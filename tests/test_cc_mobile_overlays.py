@@ -144,7 +144,7 @@ class DialogFitTests(unittest.TestCase):
             self.assertNotRegex(source, r"\btop-(?:1/2|\[50%\])", path)
         self.assertIn("[--cc-modal-share:0.8]", read("components/add-company.tsx"))
         self.assertIn("[--cc-modal-share:0.92]", read("components/settings.tsx"))
-        self.assertIn("max-h-[calc(var(--cc-viewport-h)*0.8)]", read("components/assistant-ui/attachment.tsx"))
+        self.assertIn("max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))]", read("components/assistant-ui/attachment.tsx"))
 
     def test_dialog_header_and_footer_stay_while_the_body_scrolls(self):
         tasks = read("components/scheduled-tasks.tsx")
@@ -171,8 +171,9 @@ class DialogFitTests(unittest.TestCase):
         # 安卓返回键收起键盘后输入框仍聚焦：空的就失焦、收回一行（第 10 轮 A14）
         self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", thread)
         self.assertIn('if (emptyNow.current && el instanceof HTMLTextAreaElement && el.closest(\'[data-slot="aui_composer-shell"]\')) el.blur();', thread)
-        # 新对话没有建议时那个空容器不占 gap（第 10 轮 A14：输入框下多出 16px）
-        self.assertIn('className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4 empty:hidden"', thread)
+        # 新对话输入框下不多出空容器占 gap（第 10 轮 A14：输入框下多出 16px）：组件库的欢迎建议从来没有内容，B7 整个删掉
+        self.assertNotIn("aui-thread-welcome-suggestions", thread)
+        self.assertNotIn("ThreadPrimitive.Suggestions", thread)
         css = read("globals.css")
         fold = css[css.index(".cc-mshell .cc-composer[data-collapsed] {"):]
         fold = fold[:fold.index("/* 手机新对话问候下面")]

@@ -8,9 +8,13 @@
 # · B8 删掉本文件，新判据改为全仓失败（测试改成「清单文件不存在」）。
 # · 不设忽略清单、不支持行内禁用注释：违例要么改掉，要么先在 globals.css 补档位并注明出处。
 assistant.tsx
+components/assistant-ui/attachment.tsx
+components/assistant-ui/markdown-text.tsx
 components/assistant-ui/projects.tsx
 components/assistant-ui/sidebar-group.tsx
 components/assistant-ui/thread-list.tsx
+components/assistant-ui/thread.tsx
+components/assistant-ui/tooltip-icon-button.tsx
 components/company-cards.tsx
 components/document-view.tsx
 components/error-boundary.tsx

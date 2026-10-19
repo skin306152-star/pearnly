@@ -38,6 +38,7 @@ import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/atta
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 import { Marquee } from "@/components/ui/marquee";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -89,7 +90,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
       src={src}
       alt=""
       className={cn(
-        "block h-auto max-h-[calc(var(--cc-viewport-h)*0.8)] w-auto max-w-full object-contain",
+        "block h-auto max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))] w-auto max-w-full object-contain",
         isLoaded
           ? "aui-attachment-preview-image-loaded"
           : "aui-attachment-preview-image-loading invisible",
@@ -99,6 +100,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   );
 };
 
+/** 点方块看大图。方块的悬停只有 .cc-compose-tile 那一层（变淡），不再叠组件库的底色（V35）。 */
 const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   const src = useAttachmentSrc();
 
@@ -107,14 +109,14 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   return (
     <Dialog>
       <DialogTrigger
-        className="aui-attachment-preview-trigger hover:bg-accent/50 cursor-pointer transition-colors"
+        className="aui-attachment-preview-trigger"
         asChild
       >
         {children}
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-2 sm:max-w-3xl">
+      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-(--cc-space-8) md:max-w-(--cc-preview-w)">
         <DialogTitle className="aui-sr-only sr-only">{t("imagePreview")}</DialogTitle>
-        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*0.8)] w-full items-center justify-center overflow-hidden">
+        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
         {/* 关闭：浮在图片右上角的圆钮（电脑 32、手机 44） */}
@@ -185,9 +187,9 @@ const ComposerAttachment: FC = () => {
               {isUploading && (
                 <div
                   aria-hidden="true"
-                  className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center backdrop-blur-[1px]"
+                  className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center"
                 >
-                  <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
+                  <Loader2Icon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
                 </div>
               )}
               {isError && (
@@ -195,7 +197,7 @@ const ComposerAttachment: FC = () => {
                   aria-hidden="true"
                   className="aui-attachment-tile-error bg-danger-soft absolute inset-0 flex items-center justify-center"
                 >
-                  <AlertCircleIcon className="text-destructive size-5" />
+                  <AlertCircleIcon className="text-destructive size-(--cc-icon)" />
                 </div>
               )}
             </div>
@@ -213,15 +215,16 @@ const ComposerAttachment: FC = () => {
   );
 };
 
+/** 方块右上角 20 的圆形移除：白底、轻投影、× 悬停变红（V71：不再套 shadcn Button，只过渡颜色，按下同图标按钮 94%）。 */
 const AttachmentRemove: FC = () => {
   return (
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip={t("removeFile")}
-        className="aui-attachment-tile-remove cc-compose-x hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute size-5 rounded-full p-0 opacity-100 shadow-sm"
+        className="aui-attachment-tile-remove cc-compose-x absolute inline-flex size-(--cc-control-2xs) items-center justify-center rounded-full bg-surface shadow-sm outline-none transition-colors focus-visible:shadow-focus active:scale-(--cc-press-scale) [&_svg]:text-ink hover:[&_svg]:text-danger"
         side="top"
       >
-        <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />
+        <XIcon className="aui-attachment-remove-icon size-(--cc-icon-2xs) dark:stroke-(length:--cc-compose-x-stroke)" />
       </TooltipIconButton>
     </AttachmentPrimitive.Remove>
   );
@@ -298,19 +301,20 @@ const MessageAttachment: FC = () => {
   return <AttachmentCard name={name} {...card} onOpen={open ? () => results.openUpload(open) : undefined} />;
 };
 
-/** 附件卡片本身（不读状态）：能打开时是按钮，否则只是一张卡片。 */
-export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; page?: boolean; onOpen?: () => void }> = ({
+/** 附件卡片本身（不读状态）：能打开时是按钮，否则只是一张卡片；loading（「发送中」临时气泡里）缩略图位置是骨架。 */
+export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; page?: boolean; loading?: boolean; onOpen?: () => void }> = ({
   name,
   label,
   typeLine,
   image,
   page,
+  loading,
   onOpen,
 }) => {
   const body = (
     <>
       <span className="cc-attach-thumb" aria-hidden data-page={page || undefined}>
-        <AttachmentThumbnail src={image} filename={name} />
+        {loading ? <Skeleton className="size-full rounded-none" /> : <AttachmentThumbnail src={image} filename={name} />}
       </span>
       <span className="cc-attach-meta" aria-hidden>
         <Marquee className="cc-attach-name">{name}</Marquee>
@@ -357,9 +361,20 @@ export const UserMessageAttachments: FC = () => {
   );
 };
 
+/** 「发送中」临时气泡里的附件（thread.tsx 的 PendingSendBubble）：与发出后的那一排同一个位置、同一种卡片，缩略图位置是骨架。 */
+export const PendingAttachments: FC<{ names: readonly string[] }> = ({ names }) => {
+  return (
+    <div className="aui-user-message-attachments-end cc-attach-list col-span-full col-start-1 row-start-1">
+      {names.map((name, i) => (
+        <AttachmentCard key={i} name={name} label={t("attachment").replace("{0}", name)} typeLine={attachmentTypeLine(name)} loading />
+      ))}
+    </div>
+  );
+};
+
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
+    <div className="aui-composer-attachments flex w-full flex-row items-center gap-(--cc-space-8) overflow-x-auto empty:hidden">
       <ComposerPrimitive.Attachments>
         {() => <ComposerAttachment />}
       </ComposerPrimitive.Attachments>
@@ -371,7 +386,7 @@ export const ComposerAddAttachment: FC = () => {
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")}>
-        <PlusIcon className="aui-attachment-add-icon stroke-[1.5px]" />
+        <PlusIcon className="aui-attachment-add-icon stroke-(length:--cc-icon-stroke)" />
       </button>
     </ComposerPrimitive.AddAttachment>
   );

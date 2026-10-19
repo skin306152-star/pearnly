@@ -1,17 +1,16 @@
 
+// 带组件库提示框的图标按钮（回复与代码块的「复制」、滚到底、附件移除）。只是一个普通 <button>，外观全由调用方给的
+// 标准类决定（.cc-row-btn、.cc-scroll-btn …），不再套 shadcn 的 Button（标准化记录 B7，V30）。读屏名是按钮里的隐藏文字，
+// 调用方给的其余属性（读屏名、点击……）原样展开到按钮上。
 import { type ComponentPropsWithRef, forwardRef } from "react";
-import { Slot } from "radix-ui";
 
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
-export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
+export type TooltipIconButtonProps = ComponentPropsWithRef<"button"> & {
   tooltip: string;
   side?: "top" | "bottom" | "left" | "right";
 };
@@ -19,28 +18,17 @@ export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
+>(({ children, tooltip, side = "bottom", type = "button", ...rest }, ref) => {
   return (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            {...rest}
-            className={cn(
-              "aui-button-icon size-6 p-1 active:scale-90",
-              className,
-            )}
-            ref={ref}
-          >
-            <Slot.Slottable>{children}</Slot.Slottable>
-            <span className="aui-sr-only sr-only">{tooltip}</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side={side}>{tooltip}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type={type} {...rest} ref={ref}>
+          {children}
+          <span className="aui-sr-only sr-only">{tooltip}</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side={side}>{tooltip}</TooltipContent>
+    </Tooltip>
   );
 });
 

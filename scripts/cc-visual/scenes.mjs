@@ -70,6 +70,11 @@ export const SCENES = [
   S("composer-typed", "/assistant?c=sesn_r1", [["type", "textarea", "你好，帮我看一下九月"]]),
   // 「＋」直接调起系统选文件（没有菜单）：这个场景看的是按下后的按钮状态
   S("attach-menu", "/assistant?c=sesn_r1", [["click", ".cc-attach", 0]]),
+  // 输入框里的附件还在上传（转圈与遮罩），和上传没完成就点发送时的「发送中」气泡（附件名旁的骨架）：挂起上传接口（B7 补）
+  S("compose-uploading", "/assistant?c=sesn_r1", [["paste", "textarea", "photo.png"]],
+    { before: [["hold", "pearnly_core.assistant.api.upload", 20000]], expect: ".aui-attachment-tile-uploading" }),
+  S("send-pending", "/assistant?c=sesn_r1", [["type", "textarea", "看一下这张"], ["paste", "textarea", "photo.png"], ["click", ".aui-composer-send", 0], ["wait", 400]],
+    { before: [["hold", "pearnly_core.assistant.api.upload", 20000]], expect: '[data-role="user"] [data-slot="skeleton"]' }),
   // 月份胶囊：电脑在输入框下巴里；手机没有下巴（用户 10-17：基础信息放上面），已有对话的月份在右上「…」的「处理月份」里
   // （窄屏的子菜单在原菜单里换页：components/ui/menu.tsx 的 data-slot="cc-menu-sub"）
   S("chin-month", "/assistant?c=sesn_a1", both([["click", ".cc-chin-btn", 1]],

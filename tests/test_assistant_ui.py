@@ -6573,7 +6573,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
         # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
         self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
         self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
-        self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
+        self.assertIn('<Marquee className="typing-dots-label ms-(--cc-dots-gap) min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
         panel = read("components/results-panel.tsx")
         self.assertIn('"cc-fade-cell border border-line"', panel)
         self.assertIn('className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="sheet"', panel)  # 最宽 288 由 .cc-table[data-kind="sheet"] 给（V13）
@@ -6590,7 +6590,7 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
                 context = "\n".join(text.splitlines()[max(0, i - 3):i + 1])
                 self.assertTrue(any(rel == f and key in context for f, key in allowed), f"{rel}:{i + 1}: {line.strip()}")
         # 多行截断（line-clamp）不在这次范围，保持原样
-        self.assertIn("line-clamp-2", read("components/assistant-ui/thread.tsx"))
+        self.assertIn("line-clamp-(--cc-alert-lines)", read("components/assistant-ui/thread.tsx"))
 
 
 class Round5SmallFixesTests(unittest.TestCase):
@@ -8681,7 +8681,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         tile = read("components/assistant-ui/attachment.tsx")
         self.assertIn('className="aui-attachment-tile cc-compose-tile"', tile)
         self.assertIn("cc-compose-x", tile)
-        self.assertIn("size-5 rounded-full p-0", tile)
+        self.assertIn("size-(--cc-control-2xs) items-center justify-center rounded-full", tile)  # 右上 20 的圆形移除
         # 位置写在 globals.css（手机要挪到外角，工具类盖不住）：组件上不再写 end-1.5 top-1.5
         self.assertNotIn("end-1.5 top-1.5", tile)
         self.assertIn(".cc-compose-x { top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); }", css)

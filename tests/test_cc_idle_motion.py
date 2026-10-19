@@ -74,10 +74,10 @@ BUSY_SITES = [
     ("components/ui/skeleton.tsx", "animate-cc-pulse", "function Skeleton(", 5),
     ("components/assistant-ui/thread-list.tsx", "cc-spinner", "loadingMore &&", 0),
     ("components/assistant-ui/thread-list.tsx", "<Skeleton", "const ThreadListSkeleton", 15),
-    ("components/assistant-ui/thread.tsx", "<Skeleton", "pending.files.map", 3),
+    ("components/assistant-ui/attachment.tsx", "<Skeleton", "{loading ?", 0),
     ("components/assistant-ui/thread.tsx", "<TypingDots", "if (!visible) return null;", 12),
     ("components/tool-uis/steps.tsx", "<TypingDots", "running &&", 0),
-    ("components/assistant-ui/attachment.tsx", "animate-spin", "{isUploading && (", 5),
+    ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
     ("components/pending.tsx", "animate-spin", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
