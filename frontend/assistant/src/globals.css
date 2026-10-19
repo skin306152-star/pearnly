@@ -1516,8 +1516,11 @@
     color: var(--cc-ink); font-size: var(--cc-text-sm); outline: none; transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-input:focus { box-shadow: var(--cc-shadow-focus); }
+  /* 文字按钮同 Claude 的按钮（inline-flex、shrink-0、whitespace-nowrap）：一行不换行、不被挤窄（泰文长字原来会折成两行，10-19）；
+     放不下时由布局让位：旁边的值列截断（Marquee）、设置一行的按钮组换到标签下面、弹窗脚部与卡片按钮行换行 */
   .cc-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: var(--cc-space-6); height: var(--cc-control); padding: 0 var(--cc-btn-px);
+    display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: var(--cc-space-6); height: var(--cc-control);
+    padding: 0 var(--cc-btn-px); white-space: nowrap;
     border-radius: var(--cc-radius-md); font-size: var(--cc-text-sm); font-weight: var(--cc-weight-medium); border: var(--cc-hairline) solid var(--cc-line); color: var(--cc-ink);
     background: var(--cc-bg-surface); outline: none;
     transition: background-color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease);
