@@ -121,7 +121,7 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         # 没问过用户的标记（`tools.not_asked`），对话页重开时才分得清它和点了「允许」后没做成的
         if asked:
             refused = tools.not_asked(refused)
-        engine.adapter().post(remote, [contracts.tool_result(use_id, refused, True)])
+        engine.adapter().post(remote, [contracts.tool_result(use_id, _with_language(conversation, refused), True)])
         frappe.db.set_value(TOOL_RUN, run.name, {"status": "error", "result": refused[:60000]})
         frappe.db.commit()
         return "error"
@@ -233,11 +233,22 @@ def _publish_run(conversation: str, use_id: str, status: str, user: str | None =
         print(f"assistant tool run {conversation}: {type(err).__name__}", flush=True)
 
 
+def _with_language(conversation: str, text: str) -> str:
+    """交回模型的结果最前面带上界面语言（`contracts.reply_language`）：CC 在几次工具之间写的话也按它说，不照抄结果里的英文提示
+    （10-19 lab）。语言读不到（缓存、库一时不可用）就原样交回：结果不能因此交不回去。"""
+    try:
+        language = interface_language(conversation)
+    except Exception as err:
+        print(f"assistant tool result language {conversation}: {type(err).__name__}", flush=True)
+        return text
+    return contracts.reply_language(text, language)
+
+
 def _hand_back(conversation: str, remote: str, use_id: str, text: str, is_error: bool) -> None:
     """把这次调用的结果交回引擎。执行记录已经先落库：交不回去（多半是这一轮已被停止，引擎已代发中断结果、不再收这次的结果）
     不再抛给调用方——工具确实执行过，点「允许」的请求不报 500、卡片照本站记录写（第 11 轮 A2）。只记类型，内容不进日志。"""
     try:
-        engine.adapter().post(remote, [contracts.tool_result(use_id, text, is_error)])
+        engine.adapter().post(remote, [contracts.tool_result(use_id, _with_language(conversation, text), is_error)])
     except Exception as err:
         print(f"assistant tool result {conversation}: {type(err).__name__}", flush=True)
 

@@ -20,6 +20,8 @@ const INTERNAL_KEYS = new Set([
   "request_id", "request_key", "history",
   // 点了「拒绝」交回模型的英文指令（pearnly_core toolrun.decide）：给用户看的是同一结果里的 message
   "instruction",
+  // 交回模型时带的界面语言（pearnly_core contracts.reply_language，10-19）：只给模型读
+  "reply_language",
 ]);
 
 /** 编号式的内部名字：Anthropic 的文件 / 会话 / 消息编号等（file_011C…、sesn_01…）。后缀里必须带数字，

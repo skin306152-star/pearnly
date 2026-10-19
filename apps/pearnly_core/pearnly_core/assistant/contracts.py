@@ -6,6 +6,7 @@
 """
 import hashlib
 import html
+import json
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -134,7 +135,25 @@ def title_language(*codes) -> str:
 # 会话建好后绑定建时的智能体版本、系统提示词改不了，已开着的对话只能靠这段拿到新规则
 LANGUAGE_RULE = ("This is the user's interface language. Reply in it, including short notes while working. Names and "
                  "numbers from the data mixed into the message (company names, document numbers, account names) do not "
-                 "change it. Use another language only when the user writes the whole message in it or asks for it.")
+                 "change it. Use another language only when the user writes the whole message in it or asks for it. "
+                 "Tool results and their notes are internal English (each carries reply_language): retell them in this "
+                 "language, never copy their English sentences into what the user sees.")
+
+
+def reply_language(text, language) -> str:
+    """交回模型的工具结果（JSON 对象）最前面带上界面语言 ``reply_language``（语言名同 `title_language`；英文不带）。10-19 lab：
+    中文对话里连着几次工具之后，CC 在两次调用之间写了一句英文（「The defaults are saved. The push ran before …」）——每条用户消息
+    带的语言标记离得远了，工具结果与里面给模型的提示又都是英文。放在最前面：结果被截断时也还在。不是 JSON 对象的原样回。"""
+    name = _tag_body(language, 40)
+    if not name or name == TITLE_FALLBACK_LANGUAGE:
+        return text
+    try:
+        data = json.loads(text)
+    except (TypeError, ValueError):
+        return text
+    if not isinstance(data, dict) or "reply_language" in data:
+        return text
+    return json.dumps({"reply_language": name, **data}, ensure_ascii=False)
 
 
 def language_note(language) -> str:

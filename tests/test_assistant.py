@@ -1349,6 +1349,32 @@ class ToolAndDefinitionTests(unittest.TestCase):
         # 语言标记的写法与说明里说的一致
         self.assertIn("<language>Chinese</language>", contracts.language_note("Chinese"))
 
+    def test_tool_results_carry_the_interface_language_for_notes_between_calls(self):
+        # 10-19 lab：中文对话里连着几次工具后，CC 在两次调用之间写了一句英文（「The defaults are saved. The push ran before
+        # they took effect, so I'm pushing again.」）。交回模型的 JSON 结果最前面带上 reply_language；英文、不是 JSON 的原样
+        found = contracts.reply_language('{"status": "saved", "note": "push again"}', "Chinese")
+        self.assertTrue(found.startswith('{"reply_language": "Chinese", '))
+        self.assertEqual(json.loads(found)["note"], "push again")
+        self.assertEqual(contracts.reply_language('{"status": "saved"}', "English"), '{"status": "saved"}')
+        self.assertEqual(contracts.reply_language("The tool failed.", "Thai"), "The tool failed.")
+        self.assertEqual(contracts.reply_language("[1, 2]", "Thai"), "[1, 2]")
+        self.assertIn("never copy their English sentences into what the user sees", contracts.LANGUAGE_RULE)
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        posted = []
+        adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        with mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                mock.patch.object(toolrun, "interface_language", lambda conversation, user=None: "Chinese"):
+            toolrun._hand_back("conv", "sesn", "sevt_1", '{"status": "saved"}', False)
+        self.assertEqual(posted, [contracts.tool_result("sevt_1", '{"reply_language": "Chinese", "status": "saved"}')])
+        # 语言读不到也照样交回原结果
+        with mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                mock.patch.object(toolrun, "interface_language", side_effect=RuntimeError("cache down")):
+            toolrun._hand_back("conv", "sesn", "sevt_2", '{"status": "saved"}', False)
+        self.assertEqual(posted[-1], contracts.tool_result("sevt_2", '{"status": "saved"}'))
+        # 对话页步骤详情不显示它（同 instruction）
+        detail = (ROOT / "frontend/assistant/src/lib/step-detail.ts").read_text(encoding="utf-8")
+        self.assertIn('"reply_language"', detail)
+
     def test_earlier_conversations_are_checked_with_tools_not_disclaimed(self):
         # 2026-10-13 录屏：新对话里用户问「刚才那件事做到哪了」，CC 先说看不到之前的对话，再去查
         system = definition.brief("cowork")["system"]
