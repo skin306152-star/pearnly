@@ -127,7 +127,8 @@ def _mrerp_target(name):
     row = _row(doc)
     if not pending.mrerp_setup_stop(row):
         return None
-    return doc.push_connection, doc.push_account_set, tools._doc_direction(doc)
+    return doc.push_connection, doc.push_account_set, tools._mrerp_direction(doc, doc.push_connection,
+                                                                              doc.push_account_set)
 
 
 @frappe.whitelist(methods=["GET"])

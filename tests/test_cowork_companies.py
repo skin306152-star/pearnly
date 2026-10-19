@@ -3855,7 +3855,7 @@ class MrErpPendingAnswerTests(PendingAnswerTests):
 
     def _mrerp(self, doc, pushed):
         module, calls = self._answer(doc, pushed)
-        sys.modules["pearnly_cowork.assistant.tools"]._doc_direction = lambda found: "purchase"
+        sys.modules["pearnly_cowork.assistant.tools"]._mrerp_direction = lambda *found: "purchase"
         needs = _mrerp_needs()
         patches = [mock.patch.object(connections, "mrerp_menu", lambda name, key: json.loads(json.dumps(self.VIEW)),
                                      create=True),

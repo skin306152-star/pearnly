@@ -719,9 +719,20 @@ def _key(name, version, last) -> str:
 # `targets.js::mrerp_menu_ready`）。网页推之前就问；CC 原先不问，直接推，要等 MR.ERP 登录、读完导入页才报「请选择菜单」。
 MRERP_SETUP_CODES = ("ERR_MRERP_MENU_CHOICE_REQUIRED", "ERR_MRERP_MENU_CHANGED", "ERR_MRERP_DEFAULT_CHOICE_REQUIRED",
                      "ERR_MRERP_DEFAULT_CHANGED")
+# 10-19 lab：默认值一项一项问（先费用科目、存完再问银行科目）。这张单要选的全部一次给出（``mrerp_setup``，按这张单的方向），
+# 说明里要 CC 一次问完、一次存
 MRERP_SETUP_NOTE = ("This MR.ERP account set needs its import menu or default values chosen once before pushing "
-                    "(shared by everyone, like on the web): get them with cowork_mrerp_setup (this connection and "
-                    "account_set_key), ask the user, save what they chose there, then push again.")
+                    "(shared by everyone, like on the web). mrerp_setup lists everything this document still needs: "
+                    "get their options with cowork_mrerp_setup (this connection and account_set_key, direction and "
+                    "fields as listed), ask the user for all of them in one message, save them together in one "
+                    "cowork_mrerp_setup call, wait for its result, then push again.")
+# 10-19 lab：同是文具费用，无买方的简易税票进了「采购（费用）」菜单，写明买方的完整税票进了「采购（货品）」，CC 推前按买的东西
+# 猜成费用。MR.ERP 的采购进哪个菜单按票面定（同推送 `push.mrerp.routing`、Express 的抵不抵进项），不按买了什么
+MRERP_ENTRY_NOTE = ("For an MR.ERP purchase, mrerp_entry says which import menu it will go into, decided by the document "
+                    "as when it is pushed, not by what was bought: a full tax invoice with VAT and the buyer named "
+                    "(input VAT claimable) goes in as purchase (the goods purchase menu), anything else (an abbreviated "
+                    "tax invoice, a receipt, no buyer) as purchase_expense. Before a push say the menu from mrerp_entry, "
+                    "never guess it from the items.")
 MRERP_CHOICES_NOTE = ("An MR.ERP account set has no per-document choices like Express (party, product, account, cash or "
                       "credit, VAT claim): the counterparty is found by tax ID in MR.ERP or created there, purchases are "
                       "always on credit, and the import menu per document kind and the default values are chosen once "
@@ -736,8 +747,14 @@ def _adapter_of(connection) -> str:
 
 def _doc_direction(doc) -> str:
     """票面方向（主页面识别结果，同复核页）；没定是空串（MR.ERP 推送时再按税号判，这里两边的菜单都看）。"""
-    from pearnly_cowork.contracts import history as history_contracts
     from pearnly_cowork.contracts.push import normalize_direction
+
+    return normalize_direction(_page_fields(doc).get("direction")) or ""
+
+
+def _page_fields(doc) -> dict:
+    """主页面的识别结果（同复核页、推送读的那一页）；读不出是空表。"""
+    from pearnly_cowork.contracts import history as history_contracts
 
     pages = _field(doc, "pages")
     try:
@@ -745,8 +762,60 @@ def _doc_direction(doc) -> str:
     except ValueError:
         pages = None
     if not isinstance(pages, list) or not pages:
+        return {}
+    found = history_contracts.primary_page_fields(pages)
+    return found if isinstance(found, dict) else {}
+
+
+def _catalog_tax(connection, account_set) -> str:
+    """这份 MR.ERP 账套的公司在 MR.ERP 总店登记的有效税号（刷新账套时读进目录的 ``tax_id``）；没读到是空串。"""
+    try:
+        rows = connections.account_set_facts(connection).get("account_sets") or []
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+        frappe.clear_messages()
         return ""
-    return normalize_direction(history_contracts.primary_page_fields(pages).get("direction")) or ""
+    want = _account_key(account_set)
+    row = next((r for r in rows if isinstance(r, dict) and _account_key(r.get("source_id")) == want), None)
+    return str(((row or {}).get("attributes") or {}).get("tax_id") or "")
+
+
+def _mrerp_direction(doc, connection, account_set) -> str:
+    """这张票推进这份 MR.ERP 账套时的方向：票上声明的优先；没声明按推送同一套判据预判（`contracts.push.resolve_account_direction`：
+    工作空间税号，再按这家公司在 MR.ERP 登记的税号）。判不出是空串（这时两个方向要选的都看）。10-19 lab：无方向的进项票
+    推之前把销项才用的银行收款科目也问了。"""
+    direction = _doc_direction(doc)
+    if direction or not connection:
+        return direction
+    fields = _page_fields(doc)
+    if not fields:
+        return ""
+    from pearnly_cowork.contracts.push import resolve_account_direction
+
+    workspace = frappe.db.get_value(CONNECTION, connection, "workspace")
+    own = frappe.db.get_value("Cowork Workspace", workspace, "tax_id") if isinstance(workspace, str) and workspace else ""
+    found = resolve_account_direction({"fields": fields}, {}, own_tax_id=own if isinstance(own, str) else "",
+                                      account_tax_id=_catalog_tax(connection, account_set))
+    return found if found in ("purchase", "sales") else ""
+
+
+def _mrerp_entry(doc, connection, account_set, direction) -> dict | None:
+    """MR.ERP 采购票推进去会是哪类单据、进哪个导入菜单（``{"entered_as", "menu"}``，菜单没选是空串）：按推送同一判据
+    （`push.express.field_rules.item_verdict`：完整税票、印了税额、写明买方 → 采购（货品），其余 → 采购（费用））。不是采购回 None。"""
+    if direction != "purchase":
+        return None
+    from pearnly_cowork.push.express.field_rules import item_verdict
+
+    today = datetime.now(ZoneInfo(frappe.utils.get_system_timezone())).date()
+    expense, _source = item_verdict(_page_fields(doc), today=today)
+    kind = "purchase_expense" if expense else "purchase"
+    try:
+        view = connections.mrerp_menu(connection, account_set)
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        view = {}
+    item = ((view or {}).get("kinds") or {}).get(kind) or {}
+    menu = next((str(o.get("label") or "") for o in item.get("options") or [] if o.get("idmenu") == item.get("chosen")), "")
+    return {"entered_as": kind, "menu": menu}
 
 
 def _mrerp_setup_needed(connection, account_set, direction="") -> dict | None:
@@ -760,7 +829,23 @@ def _mrerp_setup_needed(connection, account_set, direction="") -> dict | None:
         frappe.clear_messages()
         return None
     needed = {key: found[key] for key in ("menus", "defaults") if found.get(key)}
+    if needed and direction:
+        needed["direction"] = direction  # CC 取可选值时带上（`cowork_mrerp_setup` 只给这个方向用得到的）
     return needed or None
+
+
+def _mrerp_setup_of(name) -> dict | None:
+    """推送当中才发现要选菜单 / 默认值的那张（执行器已把这次读到的菜单与主档存回连接）：这张单此刻还要选的全部，同推之前那一步。"""
+    try:
+        doc = storage.read(name)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return None
+    connection, account_set = _field(doc, "push_connection"), _field(doc, "push_account_set")
+    if not connection or not account_set:
+        return None
+    setup = _mrerp_setup_needed(connection, account_set, _mrerp_direction(doc, connection, account_set))
+    return {"connection": connection, "account_set_key": account_set, **setup} if setup else None
 
 
 def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="") -> dict:
@@ -813,7 +898,7 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
         frappe.db.commit()
         return {"document": name, "status": "needs_choice", "reason": reason}
     if adapter == "mrerp":
-        setup = _mrerp_setup_needed(target, going["account_set"], _doc_direction(doc))
+        setup = _mrerp_setup_needed(target, going["account_set"], _mrerp_direction(doc, target, going["account_set"]))
         if setup:
             # 同网页：菜单 / 默认值没定就不推（原因码同 MR.ERP 推送时的那一句，待处理页照常出原因）
             reason = MRERP_SETUP_CODES[0] if setup.get("menus") else MRERP_SETUP_CODES[2]
@@ -937,6 +1022,12 @@ def push_documents(tool_input) -> str:
     results = [_push_listed(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
                             tool_input.get("posting_kind") or None) for name in names]
     _settle(results)
+    for item in results:
+        if item.get("status") == "needs_choice" and item.get("note") == MRERP_SETUP_NOTE and not item.get("mrerp_setup"):
+            # 推送当中才发现的：同推之前那一步，一次给全这张单此刻要选的（10-19 lab：只报一句原因，CC 一项项问）
+            setup = _mrerp_setup_of(item["document"])
+            if setup:
+                item["mrerp_setup"] = setup
     out = {"results": results}
     if any(item.get("status") == "queued" for item in results):
         out["note"] = PUSH_QUEUED_NOTE
@@ -1857,7 +1948,16 @@ def document_detail(tool_input) -> str:
     scope.require_read()
     name = str(tool_input.get("document") or "")
     doc = _read(name)
-    return _json(_detail(doc) if doc else {"document": name, "status": "not_found"})
+    if not doc:
+        return _json({"document": name, "status": "not_found"})
+    out = _detail(doc)
+    connection, account_set = doc.get("push_connection"), doc.get("push_account_set")
+    if connection and account_set and doc.get("last_push_status") not in ("pending", "success") \
+            and _adapter_of(connection) == "mrerp":
+        entry = _mrerp_entry(doc, connection, account_set, _mrerp_direction(doc, connection, account_set))
+        if entry:
+            out["mrerp_entry"] = entry
+    return _json(out)
 
 
 def edit_document(tool_input) -> str:
@@ -2059,7 +2159,11 @@ def push_choices(tool_input) -> str:
         # MR.ERP 没有按单据要人选的项：只说这份账套推之前还要选的菜单 / 默认值（同 `_push_one` 推之前那一步）
         out = {"document": name, "connection": connection, "account_set": account_set, "adapter": "mrerp",
                "needed": [], "note": MRERP_CHOICES_NOTE}
-        setup = _mrerp_setup_needed(connection, account_set, _doc_direction(doc))
+        direction = _mrerp_direction(doc, connection, account_set)
+        entry = _mrerp_entry(doc, connection, account_set, direction)
+        if entry:
+            out["mrerp_entry"] = entry
+        setup = _mrerp_setup_needed(connection, account_set, direction)
         if setup:
             out.update(mrerp_setup={"connection": connection, "account_set_key": account_set, **setup},
                        note=MRERP_CHOICES_NOTE + " " + MRERP_SETUP_NOTE)
@@ -3998,7 +4102,7 @@ TOOLS = [
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
                     "buyer, tax IDs, invoice number, date, amounts, line items, push status, and the version needed "
                     "to edit it. handling_choice_needed means the push waits for cowork_choose_document_policy. "
-                    + ACCOUNT_SET_STOP_NOTE + " " + WRITTEN_NOTE,
+                    + ACCOUNT_SET_STOP_NOTE + " " + WRITTEN_NOTE + " " + MRERP_ENTRY_NOTE,
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"}}, "required": ["document"]},
      "handler": "pearnly_cowork.assistant.tools.document_detail"},
     {"name": "cowork_edit_document", "label": "Edited a document",
@@ -4198,7 +4302,7 @@ TOOLS = [
                     "suggestion the user has not confirmed. When the user said in the chat what kind of expense this "
                     "document is (e.g. stationery), pass it as hint in the user's own words. For an MR.ERP account "
                     "set (adapter mrerp) needed is always empty: mrerp_setup, when present, lists the import menus "
-                    "or default values to choose with cowork_mrerp_setup. "
+                    "or default values to choose with cowork_mrerp_setup. " + MRERP_ENTRY_NOTE + " "
                     "status account_set_not_chosen: " + ACCOUNT_SET_STOP_NOTE,
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
