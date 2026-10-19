@@ -40,5 +40,3 @@ pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery 
 # ── 开户邮件的品牌口号（存量清单第 10 节，10-18）：品牌名与口号不翻译
 代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	alt=Pearnly — Smart Work, Happy Life	品牌名与品牌口号，四种语言的邮件都不翻译
 代码:apps/pearnly_control/pearnly_control/templates/emails/pearnly_welcome.html	R-HARD	© Pearnly · Smart Work, Happy Life	品牌版权行，品牌口号不翻译
-# ── 导出工作簿的段标题（存量清单第 6 节，10-19）
-table:pearnly_cowork/reconciliation/export/vat_check_i18n.py#_I18N.help_lines.0	R-HINT	使用说明:	销项税核查导出工作簿里的段标题，不是提示语头
