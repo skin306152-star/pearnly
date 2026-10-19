@@ -272,8 +272,7 @@ def companion_status(tool_input) -> str:
 
 # 10-19 lab 第 0 步：CC 先发刷新、马上读公司资料，用刷新前的目录答「期间是空的」（后台约 1 秒就读完了）。刷新同推送一样在工具里
 # 等结论（MR.ERP 由服务端读；Express 要那台电脑在线），到点还在读就明说别拿旧资料下结论。只在推送线程里等（`_may_wait`）。
-REFRESH_WAIT_SECONDS = 60
-REFRESH_WAIT_STEP = 2
+REFRESH_WAIT_STEP = 2  # 最多等 REFRESH_WAIT_SECONDS（同推送前请电脑读账套那一步，见下）
 REFRESH_RUNNING = ("requested", "leased")
 REFRESH_RUNNING_NOTE = ("reading: the account sets are still being read. Until it finishes, account sets, fiscal "
                         "periods and tax IDs in other tool results (company profile, intake options) are the old "
