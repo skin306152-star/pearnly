@@ -109,7 +109,8 @@ export function Settings() {
             event.preventDefault();
             giveFocusBack(back.current, SETTINGS_BACK);
           }}
-          className="cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))] w-[min(var(--cc-settings-w),var(--cc-settings-w-max))] [--cc-modal-share:var(--cc-settings-share)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
+          data-size="settings"
+          className="cc-dialog cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden md:flex-row"
         >
           <nav className="flex shrink-0 gap-(--cc-space-2) overflow-x-auto border-b bg-app p-(--cc-space-12) md:w-(--cc-settings-nav-w) md:flex-col md:border-r md:border-b-0">
             <DialogPrimitive.Title className="cc-section-label hidden md:block">

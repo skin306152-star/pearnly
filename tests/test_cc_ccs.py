@@ -1447,6 +1447,18 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertIn(':root[data-cc-touch] .cc-modal .cc-icon-btn { min-width: var(--cc-tap); }', self.css)
         self.assertNotIn('data-slot="button"', self.css)   # 组件库 Button 已删（B8），选择器只认 cc-* 类
 
+    def test_text_buttons_stay_on_one_line_like_claude(self):
+        # 10-19（B4 观察）：.cc-btn 没设不换行，泰文长字的按钮会折成两行。同 Claude 的按钮（inline-flex、shrink-0、
+        # whitespace-nowrap）：文字按钮、卡片按钮、列表小按钮都一行、不被挤窄，放不下时由布局让位
+        for cls in (".cc-btn", ".cc-card-btn", ".cc-btn-sm"):
+            rule = self.css.split(f"  {cls} {{", 1)[1].split("}", 1)[0]
+            self.assertIn("white-space: nowrap;", rule, cls)
+            self.assertIn("flex-shrink: 0;", rule, cls)
+        # 设置一行：标签与按钮组整组换行、值列截断，不靠按钮折字
+        settings = self.read("components/settings.tsx")
+        self.assertIn('<div className="flex flex-wrap items-center justify-between gap-x-(--cc-space-24)', settings)
+        self.assertIn("max-w-(--cc-settings-value-max) truncate", settings)
+
     def test_error_boxes_are_cc_alert(self):
         # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份
         for rel, n in (("components/companies.tsx", 1), ("components/company-page.tsx", 1), ("components/pending.tsx", 1),
@@ -1470,6 +1482,18 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertNotIn("cc-greeting", source, rel)
         self.assertIn('<div className="cc-dialog-foot">', self.read("components/delete-chats.tsx"))
         self.assertEqual(token_value(self.defs, "--cc-radius-dialog"), "16px")
+        # 设置弹窗（两栏整窗）也只用 .cc-dialog（10-19，B4 / B8 留下的一处）：外观不在组件里另写，尺寸是 data-size="settings"，
+        # 宽高份额读用途层 --cc-settings-*，不另起一套
+        settings = self.read("components/settings.tsx")
+        self.assertIn('data-size="settings"', settings)
+        self.assertIn('className="cc-dialog cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex', settings)
+        shell = settings.split('data-size="settings"', 1)[1].split("\n", 2)[1]
+        for old in ("rounded-dialog", "shadow-pop", "bg-surface", "outline-none", "--cc-settings-w", "--cc-settings-h", "--cc-settings-share"):
+            self.assertNotIn(old, shell)
+        self.assertNotIn("--cc-settings-share", settings)
+        size = self.css.split('  .cc-dialog[data-size="settings"] {', 1)[1].split("}", 1)[0]
+        self.assertIn("width: min(var(--cc-settings-w), var(--cc-settings-w-max));", size)
+        self.assertIn("outline: none;", self.css.split("  .cc-dialog {", 1)[1].split("}", 1)[0])
 
     def test_overlays_fade_with_cc_overlay(self):
         # V15（B4）：弹窗遮罩用 .cc-overlay（120ms 主缓动），不用 tw-animate 的 animate-in / fade-in（150ms）；层级与弹窗同档

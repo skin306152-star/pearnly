@@ -243,6 +243,12 @@ export const SCENES = [
     { boot: "page", expect: MENU }),
 ];
 
+// 泰文长字的按钮（.cc-btn / .cc-card-btn / .cc-btn-sm 不换行，10-19）：按钮多的设置页签、定时任务表单、待处理，泰文浅色各拍一份
+for (const name of ["settings-tab2", "settings-tab3", "settings-computers", "tasks-new", "tasks-edit", "pending", "pending-open"]) {
+  const scene = SCENES.find((s) => s.name === name);
+  SCENES.push({ ...scene, name: `th-${name}`, lang: "th", schemes: ["light"] });
+}
+
 // 小数宽度：变体判定与 max-md 要在同一处分界。CDP 的视口宽度只收整数：frame = 2 表示外层 1535 宽、像素比 1 的页面里放一个
 // zoom: 2、宽 767.5px 的同源 iframe，iframe 里的布局宽度正好 767.5、像素比 2（shoot.mjs 读回 matchMedia 核对）
 export const EXTRA_ENVS = {

@@ -152,6 +152,16 @@ CC_DESKTOP = ("The Windows program on the user's computer that reads their folde
               "never by a generic description.")
 
 
+# 10-19 lab：CC 回答里露出「idmenu 68」。菜单编号、主档代码、字段名、账套键只用于后面的调用；对人说菜单名、默认值的名称
+# （工具结果里的 label / chosen_label / name / chosen_name、account_label），单据类别与字段说成人话（共用说明「不说内部编码」的
+# MR.ERP 版，每轮带着，也写进 cowork_mrerp_setup 的说明）
+MRERP_NAMES_NOTE = (
+    "In MR.ERP results, idmenu, the document kinds (purchase, purchase_expense, sales_credit, sales_cash), the "
+    "default field names (dept, ap_account and the like) and account_set_key are for tool calls only. To the user, "
+    "name a menu by its label (chosen_label for the one chosen), a default value by its name (chosen_name; an account "
+    "with its code and name), an account set by account_label, and a document kind or field in plain words in the "
+    "user's language; never say idmenu, a menu number, a field name or a key.")
+
 # MR.ERP 与 Express 的差别（2026-10-19「cc 全是围绕 exp 在做……让 cc 兼容」）：CC 的说明大多按 Express 写，对 MR.ERP 的公司
 # 会照搬（叫人开电脑、问现赊科目、提回读与自动推档位）。每轮都带一段，说清 MR.ERP 有什么、没有什么。
 MRERP_GUIDANCE = (
@@ -163,7 +173,7 @@ MRERP_GUIDANCE = (
     "counterparty is found by its tax ID in MR.ERP or created there. MR.ERP account sets have no readback or VAT "
     "draft from their books here, no automatic push tiers or proposals, no company choices and no choices learned "
     "from history: when asked, say plainly that these are for Express account sets, and do not offer them for an "
-    "MR.ERP one.")
+    "MR.ERP one. " + MRERP_NAMES_NOTE)
 
 # 给模型的「怎么说话」：Cowork 自己的几条，接在共用说明后面（hooks `pearnly_assistant_guidance`）。
 # 2026-10-13 录屏：CC 对会计说账套「demo02」（Express 数据文件夹名）；会计认公司，不认文件夹代码。
@@ -1853,7 +1863,15 @@ def _mrerp_compact(view, tool_input) -> dict:
     search = str(tool_input.get("search") or "").strip().casefold()
     needed = mrerp_needs.needed(view, direction)
     used_kinds, used_fields = mrerp_needs.used(direction)
-    kinds = {kind: item for kind, item in (view.get("kinds") or {}).items() if kind in used_kinds}
+    # 菜单选过哪个只给编号（idmenu）时，CC 照说「idmenu 68」（10-19 lab）：同默认值的 chosen_name，带上给人看的菜单名；
+    # 编号只留给后面调用用。page 是导入页路径，调用用不到，不给
+    kinds = {}
+    for kind, item in (view.get("kinds") or {}).items():
+        if kind not in used_kinds:
+            continue
+        chosen = next((row for row in item.get("options") or [] if row.get("idmenu") == item.get("chosen")), None)
+        kinds[kind] = {**{key: value for key, value in item.items() if key != "page"},
+                       **({"chosen_label": chosen.get("label")} if chosen and chosen.get("label") else {})}
     fields = {}
     for field, item in (view["defaults"].get("fields") or {}).items():
         if field not in used_fields:
@@ -4173,7 +4191,7 @@ TOOLS = [
                     "or name; options_total is how many there are) only when needed or named in fields. read_again "
                     "reads the menus and defaults from MR.ERP first (up to a minute); known false means they were "
                     "never read. menus maps document kind to idmenu, defaults maps field to code; both only with "
-                    "values listed in the result, and only after the user chose them.",
+                    "values listed in the result, and only after the user chose them. " + MRERP_NAMES_NOTE,
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "read_again": {"type": "boolean"},

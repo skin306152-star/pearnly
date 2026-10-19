@@ -136,7 +136,7 @@ class DialogFitTests(unittest.TestCase):
         for path, needle in [
             ("components/scheduled-tasks.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
             ("components/add-company.tsx", "cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex"),
-            ("components/settings.tsx", "cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex h-[min(var(--cc-settings-h),calc(var(--cc-viewport-h)*var(--cc-settings-share)))]"),
+            ("components/settings.tsx", "cc-dialog cc-modal fixed left-1/2 z-(--cc-z-modal-top) flex"),
             ("components/ui/dialog.tsx", "cc-modal fixed start-1/2 z-(--cc-z-sheet) grid overflow-y-auto"),
         ]:
             source = read(path)
@@ -144,7 +144,11 @@ class DialogFitTests(unittest.TestCase):
             self.assertNotRegex(source, r"\btop-(?:1/2|\[50%\])", path)
         self.assertIn("[--cc-modal-share:var(--cc-add-company-share)]", read("components/add-company.tsx"))
         self.assertIn("  --cc-add-company-share: 0.8;", css)
-        self.assertIn("[--cc-modal-share:var(--cc-settings-share)]", read("components/settings.tsx"))
+        # 设置弹窗的份额与宽高在 .cc-dialog[data-size="settings"] 里（标准弹窗写法，10-19），组件只写 data-size
+        self.assertIn('data-size="settings"', read("components/settings.tsx"))
+        settings_size = css.split('  .cc-dialog[data-size="settings"] {', 1)[1].split("}", 1)[0]
+        self.assertIn("--cc-modal-share: var(--cc-settings-share);", settings_size)
+        self.assertIn("height: min(var(--cc-settings-h), calc(var(--cc-viewport-h) * var(--cc-settings-share)));", settings_size)
         self.assertIn("  --cc-settings-share: 0.92;", css)
         self.assertIn("max-h-[calc(var(--cc-viewport-h)*var(--cc-preview-share))]", read("components/assistant-ui/attachment.tsx"))
 
