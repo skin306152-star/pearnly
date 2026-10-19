@@ -752,6 +752,108 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 新年度账套刚在 Express 建好、电脑还没上报目录前到点的单会停下，要人重推（不再自动落进旧账套的次年期间，见有意变化 1）。
 - 主档页 / 侧栏的「定时任务」仍按任务存下的账套归公司（前端待办第 4 条）。
 
+### D10 第 5 步缺陷与修复（10-20）
+
+测试窗口 10-20 在测试机 DESKTOP-MN2BRKR（CC 1.9.0，账套根 `C:\PearnlyExpress\70EXP`，另有 16 个 `\\Accserver\d$\ACCOUNT\…` 授权目录，
+夜里离线）做第 5 步时发现三处，逐条按代码复现原因后按类修。分支 `pearnly/batch-1019b`，代码提交 `bd20c38c`；CC 桌面版不发版（仍是 1.9.1）、不上测试机。
+
+**1. 账套目录改名后，目录里冒出 `\\desktop-mn2brkr\c$\…\t8sincer`（不可写），改回原名也回不去，重启 CC 才好**
+
+原因（三环）：
+
+- CC 照报登记表里的每一行：`T8SINCER` 改名后 `SCCOMP.DBF` 里仍有它，`account_sets_payload` 照报这一行，路径不存在，文件号（`uid`）、
+  网络路径（`share`）都是空；心跳把它与上一份清单按路径合并（`projection_refresh.merge_account_sets`），公司名、税号、会计期间沿用上次的。
+  所以心跳仍是「101 个 · 可写 100」。
+- 服务端认定（`targets.identity.resolve`）：这份账套原登记是按文件号认上的，且带着旧的共享写法（`location`）；这一行没有文件号、
+  网络路径为空，第 3 条（同一台电脑同一本机路径）要求网络路径相同而不认，落到第 6 条新登记，键 = `host_qualified` 写成
+  `\\本机名\c$\…`（只在本机的新账套各台唯一的写法，**不是 CC 换算的管理共享路径**）。这一份没有电脑能写，进了目录。
+- 「重新查找」不重扫：它只改授权数据根、重启取任务线程；账套清单扫描的结果缓存在进程里（`master_refresh._refreshes`，按数据根 +
+  所选账套为键），取任务线程重启后头一拍拿到的仍是上一遍；每分钟那一眼只看登记表与科目表的大小 / 修改时间，目录改名不改它们，
+  所以不重扫。第一次点（授权从 17 个变 1 个，键变了）扫到了 T8 不在；改回原名再点，键没变，交出的仍是那一遍，一直报旧行，直到重启 CC
+  清掉进程缓存。
+
+改法：
+
+- CC：目录已经不在的账套不报（`account_probe.account_sets_payload`；ISINFO、ISPRD 都没 stat 到时才多看一眼目录，平常的账套不多一次
+  读盘；找不到 / 不是目录才算不在，别的读盘错误当作在）。推送前核账套、配对照旧现读登记表全名单。所在服务器整台不在由关卡先跳过，不受影响。
+- CC：「重新查找」之后 `master_refresh.rescan_soon()`；`rescan_soon` 之后之前扫的结果不再交出去（含取任务线程重启后的头一拍），
+  新的一遍交出（含「进行中」快照）前谁都拿不到旧的。写前核文件号对不上时的整份重报同样受益。
+- 服务端：第 3 条加一种「没有反证」：这一行文件号、网络路径都读不出（目录这会儿打不开 / 不在、本机共享撤了），内容键为空或与原登记
+  相同，就仍是这台电脑一直用这个路径够到的那份，不另登记带主机名的一份（防 1.9.0 及更早版本在现场照报这种行）。内容键对不上、或这台
+  电脑从没用这个路径够到过的，照旧第 6 条新登记。
+- 已登记出来的那份 `\\…\c$\…\t8sincer` 不删：规范键登记后不改；改回原名后 T8 按文件号认回原登记，那份没有电脑再报到，不进目录。
+
+**2. 之后两张票（2025-01-07、2026-01-08）停在「多份账套」，候选是写不进的 UNC T8 + 可写的 T9**
+
+原因：按单据日期选账套（`companies.identity.for_day` → `targets.account_match.for_day`）只看期间，不看写不写得进；那一行 T8 沿用了上次的
+会计期间，与 T9 本年 / 次年段同期，于是两张都判「多份」。定时任务（`tasks.books_of`）、自动推判档（`automation.day_scope` / `day_books`）、
+待处理页可换的账套（`pending._stop_scope`）、记住的「现用账套」键（`current_book`）都经这一个函数。
+
+改法：按期间选（`identity.for_day`，规则不动）之后、按「现用账套」筛之后，去掉目录标 `writable=false` 的（`identity.writable_first`：
+池里没有一台电脑能写它，或目录已不在），一处 `current_book.pick` 给定时任务（`tasks.books_of`）与自动推（`automation.day_books`）共用；
+待处理页可换的账套（`pending.account_set_options`）同样不列写不进的。
+
+- 只剩一份就是它、不用选；一份写得进的都没有就原样回，定时任务停「没有电脑能访问单据日期所在的账套」（`follow.choose`：多份且全写不进 →
+  `account_set_unreachable`，不是「多份」）。
+- 先选期间再去掉：新年度账套已建但写不进时不退回旧账套的次年段（设计第 6 条「够不到」停下）。
+- 先认「现用账套」再去掉：这家公司对这一组选过的那份写不进时停「没有电脑能访问」，**不改推没选的那份**（第 6 步「去掉 T9」正是这种：
+  第 4 步记住了 T9）。「现用账套」的键照旧按整组候选算（`for_day` 不过滤），T8 恢复后记住的两行照用。10-20 那行 UNC T8 的键与原 T8 不同，
+  它与 T9 是另一组、没选过，所以去掉它只剩 T9。
+- 推送的期间硬闸（`account_match.conflict`）不改。目录里的 `writable` 是池里任一台够得到且可写（`connections.pool.listing`），单份账套
+  「读文件夹的那台电脑够不够得到」仍由 `follow.choose` 的 `has_writer` 判。
+
+**3. 「重新查找」把 17 个授权目录覆盖成只剩 `C:\PearnlyExpress\70EXP`（夜里 S 盘 / Accserver 不在线）**
+
+原因：`express_machine.rescan_roots` 只用这次找得到的（`rank_roots` 要读得到登记表），`apply_roots` 把它整份写进每个成员的
+`authorized_roots`。服务器关着时点一次就丢掉全部局域网授权；主根若也在关着的服务器上，还会把成员的默认账套换成别的。
+
+改法：`rescan_roots` 回 `(要授权的, 其中暂时访问不到、保留的)`：原来授权、这次没找到的，**确实没了**（所在盘 / 共享此刻访问得到、
+文件夹却不在，`root_gone`）才去掉，其余（服务器关着、网络盘没连上、盘符不在、文件夹在只是没读到登记表）保留授权，排在找到的后面；原主根
+找得到或只是暂时访问不到都仍排第一。所在服务器经 `scan_pace.GATE` 限时问（同一次查找同一台只问一次）。`apply_roots` 不去读保留的那些的
+登记表，主根在其中的成员账套、科目不动。一个都没找到（全在关着的服务器上）时什么都不改，仍整套重扫一遍账套清单。「标记离线」不另存
+状态：心跳扫描本来就按服务器限时问、不在就跳过、退避重试（`scan_pace.HostGate`），回来就照常扫到；日志记「暂时访问不到、保留授权 N 个」。
+
+「断开连接」清掉授权（C9 观察到断开清 17 个）：判断**不是设计**。方案 2.8 的断开是「吊销这把密钥 + 删本机成员」；Express 数据根是这台
+电脑的设置（`express_machine` 文件头，用户 10-08「Express 账套是小助手的全局设置」），只因为存放在成员记录里才随成员一起删掉。重新连接时
+自动检测找不到用户手动加的 `\\Accserver\d$\…`（要重新「更换…」）。改法：删最后一个 Express 成员前（断开、移除、改连别的公司）把数据根
+记在设置对象里（`DesktopSettings._keep_roots`），下次连接时按「重新查找」同一规则检测（暂时访问不到的接在后面照旧授权；一个都找不到时不拿
+它们去配对，先留着）。只在内存里：没有成员时 CC 重启就没了（照旧重新查找），不另加持久字段。断开仍先吊销密钥再删成员（接口约定测试不变）。
+
+测试（CC 桌面版 `cd companion && QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`，Python 3.11 + PySide6 6.11.1）：
+1015 passed、42 skipped（Windows 专属的跳过）。新增 / 改：
+
+| 用例 | 钉住 |
+|---|---|
+| `test_account_probe::test_an_account_set_whose_folder_is_gone_is_not_reported` | 目录不在的不报、没 ISINFO 的目录照报、配对全名单不变、改回原名再报 |
+| `test_master_refresh::test_after_rescan_soon_an_earlier_snapshot_is_never_handed_out_again` | 重启头一拍照旧交缓存；`rescan_soon` 后不交旧的、下一次是新扫的（改前这条失败：拿到旧那一遍） |
+| `test_pairing_root_select` 三条 | 主根仍第一；暂时访问不到的保留、确实没了的去掉；`root_gone` 只在盘 / 共享访问得到且文件夹不在时为真、服务器不在不碰文件夹、同一台只问一次 |
+| `test_desktop_settings::test_find_again_keeps_the_folders_it_cannot_reach_right_now` | 走真的 `apply_roots`：主根访问不到时主根与账套不换、确实没了的去掉、不读访问不到的登记表、全找不到时文件一个字节不改、都会整套重扫 |
+| `test_desktop_settings::test_disconnecting_the_last_member_keeps_the_express_folders_for_the_next_connection` | 断开后设置页仍显示原数据根；重新连接按它们检测、找不到的接在后面授权；全找不到时不拿去配对 |
+| 改：`test_find_again_authorizes_everything_found…`、`test_changing_the_express_folder…`、`test_find_again_keeps_the_root_in_use_first` | 新签名（`rescan_roots` 回两项、`apply_roots` 多 `offline`）；「重新查找」后要求整套重扫 |
+
+服务端（`python3 -m unittest`，3.12）：`test_cowork_express_account_sets` 70 OK（新 `test_rule_3_a_row_without_identity_stays_the_same_local_account_set`：
+读不出身份的行认回原登记、内容键对不上照旧新登记、没用这个路径够到过的照旧新登记）；`test_cowork_folder_follow_year` 50 OK（新
+`test_books_nobody_can_write_are_not_candidates`：按期间选不看可写、去掉写不进的后本年 / 次年段只剩 T9、全写不进原样回、新年度写不进时
+不退回旧账套次年段；新 `test_a_twin_book_nobody_can_write_is_not_asked_about`：另一个键的写不进 T8 + T9，两张都推往 T9、原来那组记住的
+不起作用、停着的旧票可换账套只列 T9 且选它照样记住、记住的是写不进那份时停「没有电脑能访问」不改推 T9、全写不进也停「没有电脑能访问」）。
+变异核对：去掉第 3 条的「没有反证」、`current_book.pick` 不过滤、待处理页不过滤，各自对应的新用例失败。
+
+给测试窗口的复测（新包从本分支 `companion-build.yml` 打，附件 `companion-installer-test`；lab 照旧挂本分支实时源码，`testenv.sh live cowork`）：
+
+- 第 5 步：装新包、普通权限重启 CC；把 `T8SINCER` 改名 `T8SINCER_off`，CC 设置里点「重新查找」。预期：日志「数据根 70EXP 里 1 份账套的目录不在，
+  不报：…」、下一两次心跳「100 个 · 可写 100」，服务端目录里 T8 那行没了、**不出现** `\\desktop-mn2brkr\c$\…` 新行；夜里 Accserver 不在线时
+  日志「暂时访问不到、保留授权 16 个」，`companion.json` 里各成员 `authorized_roots` 仍是 17 个（只看个数）。放 2025-01-07、2026-01-08 两天的导出
+  「立即运行」：都推往 T9（本年 / 次年段），不停下问。把 T8 改回原名再点「重新查找」：一两次心跳内回到「101 个 · 可写 101」、目录里是原来的
+  `c:\…\t8sincer`（可写），不用重启 CC；主档页「现用账套」两行重新列出。10-20 留下的那行 UNC T8（若还在目录里）改回原名后应消失。
+  已经停在「多份账套」的那两张旧票：待处理页展开，可换的账套只剩 T9。
+- 第 6 步前半：新版 CC 上「目录不在」的账套直接从目录里去掉，不再是「写不进」（Windows 上 CC 报的 `writable=false` 实际只来自目录不在：
+  `os.access` 对目录不看权限）。所以把 `T9SINCER` 改名 `T9SINCER_off` 后「重新查找」：目录里只剩 T8，2025 单推往 T8（只剩一份），
+  不是「没有电脑能访问」——这一条预期按此改；T8、T9 都改名时停「该公司没有覆盖单据日期的账套」。「够不到」（目录里还在、读文件夹的那台
+  电脑写不了，或记住的那份写不进）要两台电脑才能在测试机上造（T9 只在另一台电脑的授权里），由离线用例钉住，这一轮不要求；第 6 步后半
+  （读文件夹的电脑退出 CC 时排队、回来自动写）照原文。测完把 T8、T9 改回原名、「重新查找」。
+- 断开连接（可选）：断开再在对话页登录自动连接，`authorized_roots` 仍是 17 个（夜里离线的也在）。
+- 限制：断开后保留的数据根只在 CC 进程内存里，没有成员时重启 CC 就没了；`\\…\c$\…` 那份旧登记不删（规范键不改）。
+
 ## 并入 CC 外壳分支（2026-10-16，本地提交，未推送）
 
 `git merge --no-ff pearnly/cc-shell-rebuild`（对方 `f5c04929`，67 个提交：CC 外壳重构、F19 推送摘要、数字会计员第 1 期月结台账、
