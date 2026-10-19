@@ -561,6 +561,8 @@ Delete these scheduled tasks?,ลบงานตามกำหนดเวล�
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0},ลบ {0} รายการ
+Delete {0} item permanently?,ต้องการลบ {0} รายการถาวรใช่หรือไม่
+Delete {0} items permanently?,ต้องการลบ {0} รายการถาวรใช่หรือไม่
 Delete {0} reconciliation(s)?,ต้องการลบงานกระทบยอด {0} รายการใช่หรือไม่
 Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้

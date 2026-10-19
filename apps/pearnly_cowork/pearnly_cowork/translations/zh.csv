@@ -561,6 +561,8 @@ Delete these scheduled tasks?,确定要删除以下定时任务吗？
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
 Delete this list and all its cards permanently? This cannot be undone.,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
 Delete {0},删除 {0} 项
+Delete {0} item permanently?,确定要永久删除 {0} 项吗？
+Delete {0} items permanently?,确定要永久删除 {0} 项吗？
 Delete {0} reconciliation(s)?,确定要删除 {0} 个对账任务吗？
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。

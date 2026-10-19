@@ -87,6 +87,8 @@ jobs:
         run: python3 tests/test_cowork_readback.py
       - name: Verify folder auto-intake rules and that it only adds to existing paths
         run: python3 tests/test_cowork_folder_intake.py
+      - name: Verify every term the CC scheduled tasks page asks for has English, Chinese, Thai and Japanese
+        run: python3 tests/test_cc_scheduled_task_terms.py
       - name: Verify POS exports become one cash sale per day with a transfer voucher per non-cash payment
         run: python3 tests/test_cowork_pos_import.py
       - name: Verify every CC Desktop refusal code and push reason has text in the reader's language

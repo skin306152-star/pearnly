@@ -1432,6 +1432,8 @@ The default board cannot be archived	默认看板不能归档	ไม่สาม
 MR.ERP purchases can only be entered on credit.	MR.ERP 的进项只能按赊购录入。	รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น	MR.ERP の仕入は掛けでのみ登録できます。
 Inventory account group	存货科目组	กลุ่มบัญชีสินค้าคงเหลือ	在庫勘定グループ
 used by {0} items	{0} 个商品使用中	มีสินค้าใช้อยู่ {0} รายการ	{0} 品目が使用中
+Delete {0} item permanently?	确定要永久删除 {0} 项吗？	ต้องการลบ {0} รายการถาวรใช่หรือไม่	{0} 件を完全に削除しますか？	
+Delete {0} items permanently?	确定要永久删除 {0} 项吗？	ต้องการลบ {0} รายการถาวรใช่หรือไม่	{0} 件を完全に削除しますか？	
 This inventory account group cannot be chosen for this account set.	此账套不能选择该存货科目组。	ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้	この会計データではこの在庫勘定グループを選択できません。	connection.stock_acc_group_invalid
 Choose the inventory account group for this account set. Tap the number:	请为此账套选择存货科目组（点击序号选择）：	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ (แตะหมายเลขเพื่อเลือก):	この会計データの在庫勘定グループを選択してください。番号をタップ：
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.	MR.ERP 中此类单据有多个已关联日记账的导入菜单，请选择一个后再推送。	MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง	MR.ERP にはこの種類の伝票で仕訳帳に連携済みの取込メニューが複数あります。送信前に一つ選択してください。	intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED
