@@ -18,9 +18,25 @@ python3 /opt/pearnly/deploy/infrastructure/production/sizing.py --write /opt/pea
   || { echo "sizing skipped; using runtime.env only" >&2; : > /opt/pearnly/state/sizing.env; }
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
 # 开户代理的维护容器（provision-agent.py `ensure_maintenance`，只跑 sleep、最多占 1 GiB）还是本产品的旧镜像：激活时收掉，
-# 下一张开户工单按新镜像重建。持着 provision.lock，此刻没有开户步骤在用它；放在容量等待之前，腾出的内存算进余量
-# （2026-10-18 生产上 10-12 起的 pearnly-maintenance-cowork 一直留着：改已有站点的工单不收，之后没再来工单）。
-docker rm -f "pearnly-maintenance-$product" >/dev/null 2>&1 || true
+# 下一张开户工单按新镜像重建。放在容量等待之前，腾出的内存算进余量（2026-10-18 生产上 10-12 起的
+# pearnly-maintenance-cowork 一直留着：改已有站点的工单不收，之后没再来工单；残留的还挡过一次 set_ocr 的容量准入）。
+# 只收本产品组的、确认是维护容器的那一个：名字对、标签 pearnly.role=maintenance 且 pearnly.group=本产品（ensure_maintenance 建时打的）。
+# 占用按开户代理现有机制判：开户代理整张工单持着 provision.lock，这里上面已 flock 同一把锁，此刻没有工单在跑；
+# 另外容器里还有 site-step.py 进程（上一张工单的 SSH 断了、步骤还在跑完）也算在用，留着并告警，不中途杀掉。
+maintenance="pearnly-maintenance-$product"
+maintenance_labels=$(docker inspect --format '{{index .Config.Labels "pearnly.role"}}/{{index .Config.Labels "pearnly.group"}}' "$maintenance" 2>/dev/null) \
+  || maintenance_labels=
+if [[ "$maintenance_labels" == "maintenance/$product" ]]; then
+  # 先存下再匹配：管道接 grep -q 在 pipefail 下会因 SIGPIPE 误判成「没在用」
+  maintenance_processes=$(docker top "$maintenance" -o pid,args 2>/dev/null) || maintenance_processes=
+  if [[ "$maintenance_processes" == *site-step.py* ]]; then
+    printf '%s is still running a provisioning step; kept.\n' "$maintenance" >&2
+  else
+    docker rm -f "$maintenance" >/dev/null || printf '%s could not be removed; capacity check continues.\n' "$maintenance" >&2
+  fi
+elif [[ -n "$maintenance_labels" ]]; then
+  printf '%s is not a provisioning maintenance container for %s; kept.\n' "$maintenance" "$product" >&2
+fi
 # 超配的内存上限要有 swap 兜着（capacity.py 核「上限之和 ≤ 物理内存 + swap」）；幂等，已有就不改。
 bash /opt/pearnly/deploy/scripts/production/ensure-swap.sh >/dev/null
 # 余量不够时最多等 10 分钟：上一个产品刚激活，迁移后的后台任务还在涨内存，等它回落再叠下一个，而不是马上叠上去或直接失败。
