@@ -51,6 +51,7 @@ GLOBALS = """@import "tailwindcss";
   --cc-space-12: var(--code-gap-2);
   --cc-icon-sm: var(--code-icon-sm);
   --cc-z-menu: 60; /* 现有值·CC 自定 */
+  --cc-mirror: -1; /* 现有值·CC 自定 */
   --cc-dur: var(--code-dur-3);
   --cc-ease: var(--code-ease);
   --cc-thread-w: var(--code-thread-w);
@@ -169,6 +170,9 @@ class RuleTests(StrictCase):
             '<i className="active:scale-90" />': "R9",
             '<i className="-scale-x-100" />': "R9",
             '<i className="rotate-45" />': "R9",
+            '<i className="scale-x-90" />': "R9",
+            '<i className="rotate-y-45" />': "R9",
+            '<i className="skew-x-6" />': "R9",
             '<i className="ring-2" />': "R9",
             '<i className="outline-2" />': "R9",
             '<i className="border-t-2" />': "R9",
@@ -181,6 +185,8 @@ class RuleTests(StrictCase):
         })
         self.assertPasses([
             '<i className="opacity-0 opacity-100 border border-t ring-ink outline-none stroke-current line-clamp-none" />',
+            # 带轴的变换同样只用变量（B3 的「还原」图标；B8 前 R9 把轴当成值、误判）
+            '<i className="scale-x-(--cc-mirror) -scale-y-(--cc-mirror) rotate-y-(--cc-mirror) scale-(--cc-mirror)" />',
             'window.addEventListener("blur", stop);',
         ])
 

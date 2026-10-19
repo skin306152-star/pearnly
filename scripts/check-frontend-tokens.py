@@ -711,7 +711,8 @@ R9_FAMILIES = (
     (re.compile(r"^border(?:-[xytrblse]|-bs|-be)?-(?P<v>\d+(?:\.\d+)?|\(length:.+\))$"), {"0"}),
     (re.compile(r"^underline-offset-(?P<v>.+)$"), {"auto"}),
     (re.compile(r"^decoration-(?P<v>\d+|\[.+\])$"), set()),
-    (re.compile(r"^(?:scale|scale-[xyz]|rotate|rotate-[xyz]|skew|skew-[xy])-(?P<v>.+)$"), {"none"}),
+    # 带轴的写在前面：先配上不带轴的 scale / rotate 会把 x-(--cc-mirror) 当成值、误判 scale-x-(--x)（B3 记过，B8 修）
+    (re.compile(r"^(?:scale-[xyz]|scale|rotate-[xyz]|rotate|skew-[xy]|skew)-(?P<v>.+)$"), {"none"}),
     (re.compile(r"^ring(?:-offset)?-(?P<v>\d+|\[.+\])$"), {"0"}),
     (re.compile(r"^outline(?:-offset)?-(?P<v>\d+|\[.+\])$"), {"0"}),
     (re.compile(r"^divide-[xy]-(?P<v>\d+|\[.+\])$"), {"0"}),
