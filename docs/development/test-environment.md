@@ -180,7 +180,7 @@ bash scripts/testenv.sh lab-stop cowork    # testcowork 切回线上 → 停栈�
 - 空白站点 `cowork.test.localhost` 仍在栈里（`lab-init cowork` 的旧做法：本地密码登录、本栈自建账本），
   只在需要不接统一身份的空白站点时用；它现在与导入的账本共用一个账本站，`lab-init` 会往里登记 `T-TESTCOWORK`。
 - 与线上不同 / 边界：OCR 读的是测试机 `/run/secrets/ocr.json`（线上真凭据，识别是**真实付费调用**，只在人工验收时用）；
-  账本是导入时的副本，扣费不回写线上；Cowork 独立账号池 `pearnly-cowork` 还没在线上建，`testcowork` 目前仍签到业务账号池。
+  账本是导入时的副本，扣费不回写线上。Cowork 独立账号池 `pearnly-cowork` 线上已有（erpcowork 签在那里）；`testcowork` 是拆池前开的，仍签到业务账号池，搬池方案见 [testcowork 改到 Cowork 号池](../work/2026-10-19-testcowork-cowork-realm.md)。搬过之后测试机上导入的那份还是搬之前的副本（签业务池），要和线上一致就 `PEARNLY_TESTENV_REFRESH=1` 重新导入。
 - **测 Claude 路线 / 统一原件层（2026-10-18 原件层实测的做法）**：
   1. 甲骨文 8443 已对办公室 IP 放行。办公室 IP 变了，要在甲骨文安全列表（用户点）和那台的 iptables 里同时改。
   2. `lab-start` 会重写 `/opt/pearnly-testenv/env`，所以要在它之后把甲骨文那 6 个变量（本机
