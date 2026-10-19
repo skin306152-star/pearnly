@@ -793,6 +793,12 @@
      换账套同一条（`pending_api.push_to_account_set`，从 `choose_account_set` 拆出；只收候选、推成了才抄去向并记现用账套），没定也没说
      账套时不推、回候选。四个工具说明补同一句（内部文字，无用户可见文案）。单测 `StoppedAccountSetTests` 与 `AllCompaniesTests` 两条。
 
+- **提议行点开才推送（10-19，用户定）**：测试窗口验收时指出月结卡「全部推送」与行上「推送」轻重不一，用户看后定「收进去，点开才有」：
+  提议行（待处理页、月结台账同一个 `ProposalRow`）行上不露「推送」，整行是展开钮，点开后右下才有「推送」（同当场选那一行展开后的按钮）；
+  月结组标题旁的「全部推送」去掉，连同前端 `pushProposals`、服务端 `pending_api.push_proposals` / `PROPOSALS_MAX`、`ledger.proposals` 与
+  三语词条 `pushAll` 一起删（没有别的调用方）。提议仍一张一张推，算人发起、照常重判。第 11、12 条里「全部推送」的说法以此为准。
+  测试：`test_cc_month_ledger` 断言行上没有「推送」、组标题没有批量按钮；`test_cowork_da_verify` 断言没有批量推送的接口；待处理卡片按钮计数 6 → 7。
+
 ## 第一轮回放后的决定（2026-10-16）
 
 用户定：

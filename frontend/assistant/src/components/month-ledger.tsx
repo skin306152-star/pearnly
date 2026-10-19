@@ -14,22 +14,21 @@
 //          知悉的整行淡色（不催）。
 //   自动推送（数字会计员第 3 期第 12 条）：卡头下一行「自动推送 · 只提议 / 按规则 / 整月」，降过档时跟一个短原因（核不上 /
 //          被改，按码翻译）；不是 Express 公司（服务端给 null）不显示。录账一段写「已录 N/总数（自动 M）」。CC 准备好的提议
-//          （cc_proposal）行尾「推送」（待处理的 ProposalRow），所在组标题旁「全部推送」（一次最多 20 张，多的再点）；
+//          （cc_proposal）同待处理的 ProposalRow：点开这一行才有「推送」；
 //          写入与预期不符、CC 判断推送的交给 CC（预填不发送）。没有确认步骤，不加说明文字。
 //   空态   会话栏：没取到、取不到月份、整个月什么都没有时整张卡不显示；出错时显示原因；卡头是当月写「本月」，否则写月份。
 //          公司页：一直显示，月份胶囊与「在这家新建对话」的同一个（页面选「不指定」时台账看上个月），取的时候是骨架。
 //
 // 文案走 i18n.ts 的 co.ledger（服务端只给码）；样式只用 globals.css 的 .cc-panel* / .cc-month-* 与变量。
 
-import { ChevronRightIcon, LoaderIcon, SparklesIcon } from "lucide-react";
+import { ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { PanelCard, PanelSkeleton } from "@/components/company-cards";
 import { AccountSetRow, ChooseRow, ProposalRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
-import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, pushProposals, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
-import { shownError } from "@/lib/frappe";
+import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
   accountSetException,
@@ -201,43 +200,13 @@ const ExceptionRow: FC<{ item: MonthException; company: string } & LedgerHandler
 const itemKey = (item: MonthException, i: number) =>
   [item.code, item.document ?? item.task ?? item.draft ?? item.account_set_key ?? "", item.issue ?? "", i].join(":");
 
-/** 组标题：严重度与条数；组里有 CC 准备好的提议时右侧「全部推送」——这家这个月的提议一次推出去（服务端一次最多 20 张，
- *  多的再点），推完重取；推不成的原因写在标题下面。 */
-const GroupHead: FC<{ month: Month; severity: Severity; proposals: boolean; onChanged: () => void }> = ({ month, severity, proposals, onChanged }) => {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const pushAll = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      await pushProposals(month.company, month.period);
-    } catch (e) {
-      setError(shownError(e));
-    } finally {
-      setBusy(false);
-      onChanged();
-    }
-  };
-  const heading = (
-    <div className="cc-subheading flex items-center gap-(--cc-space-6)" role="heading" aria-level={3}>
-      <span>{co.ledger.severity[severity]}</span>
-      <span className="tabular-nums">{severityCount(month, severity)}</span>
-    </div>
-  );
-  if (!proposals) return heading;
-  return (
-    <>
-      <div className="flex min-w-0 items-center justify-between gap-(--cc-space-8)" data-slot="cc-month-group-head">
-        {heading}
-        <button type="button" className="cc-btn-sm" data-slot="cc-month-push-all" disabled={busy} onClick={() => void pushAll()}>
-          {busy && <LoaderIcon className="cc-spinner" />}
-          {co.pushAll}
-        </button>
-      </div>
-      {error && <p role="alert" className="px-(--cc-space-4) text-danger">{error}</p>}
-    </>
-  );
-};
+/** 组标题：严重度与条数。 */
+const GroupHead: FC<{ month: Month; severity: Severity }> = ({ month, severity }) => (
+  <div className="cc-subheading flex items-center gap-(--cc-space-6)" role="heading" aria-level={3}>
+    <span>{co.ledger.severity[severity]}</span>
+    <span className="tabular-nums">{severityCount(month, severity)}</span>
+  </div>
+);
 
 /** 台账的内容：自动推送档位，四段，再是按严重度分组的异常。 */
 export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> = ({ month, company, ...handlers }) => {
@@ -260,7 +229,7 @@ export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> 
         const shown = GROUP_SHOWN_BY[severity];
         return (
           <div key={severity} className="flex flex-col" data-slot="cc-month-group" data-severity={severity}>
-            <GroupHead month={month} severity={severity} proposals={items.some(proposalException)} onChanged={handlers.onChanged} />
+            <GroupHead month={month} severity={severity} />
             {(all ? items : items.slice(0, shown)).map((item, i) => (
               <ExceptionRow key={itemKey(item, i)} item={item} company={company} {...handlers} />
             ))}

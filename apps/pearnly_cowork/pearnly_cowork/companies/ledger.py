@@ -406,20 +406,6 @@ def month(company, period, limit=None) -> dict:
                            "severities": exceptions.severities(items)}}
 
 
-def proposals(company, period) -> list:
-    """这家这个月 CC 准备好、等人推的提议（`pending.classify` 的 ``cc_proposal``，单据范围同 `month`）：``[(单据, 推送连接)]``，
-    单据日期新 → 旧。权限同台账读（每张推的时候再按录入权限与读取范围核）。"""
-    service.require_read()
-    period = _period(period)
-    row = service._company_row(company)
-    sets = service.books(row, None)
-    first, after = bounds(period)
-    dated, undated, _truncated = _documents(row, sets, first, after)
-    cutoff, unknown = pending._cutoff(), frozenset()
-    return [(found.name, found.push_connection) for found in dated + undated
-            if pending.classify(found, cutoff, unknown) == "cc_proposal"]
-
-
 def _automation(row):
     """这家的自动推送档位（数字会计员第 3 期第 11、12 条）：``{tier, since, reason}``；只有 Express 公司有，其余 None。
     读权限同台账（统计另由 CC 看，`automation.view`）。"""

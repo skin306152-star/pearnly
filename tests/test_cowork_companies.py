@@ -2844,7 +2844,6 @@ class AutomationLedgerTests(unittest.TestCase):
         self.assertEqual([(item["document"], item["stage"], item["detail"]) for item in mismatch],
                          [("m1", "verify", "refnum,party_tax")])
         self.assertEqual(found["stages"]["verify"]["state"], "attention")  # 写入与预期不符算核对一段要人看的
-        self.assertEqual(ledger.proposals(self.company, "2026-09"), [("p1", "C1")])
 
     def test_an_mr_erp_company_has_no_tier(self):
         self.assertIsNone(ledger._automation(Row(name="X", adapter="mrerp")))

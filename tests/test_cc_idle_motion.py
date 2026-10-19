@@ -57,7 +57,6 @@ WORKING_CSS = {
 BUSY_MARKER = re.compile(r"animate-(?:spin|pulse|ping|bounce)\b|\banimate-cc-pulse\b|\bcc-spinner\b|<TypingDots\b|<Skeleton\b|\"cc-loading\"")
 BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
-    ("components/month-ledger.tsx", "cc-spinner", "{busy && <LoaderIcon", 0),  # 「全部推送」请求没回来（数字会计员第 3 期）
     ("components/results-panel.tsx", "cc-spinner", "function Loading()", 3),
     ("components/company-cards.tsx", "<Skeleton", "export const PanelSkeleton", 3),
     ("components/company-cards.tsx", "cc-spinner", "busy ?", 0),

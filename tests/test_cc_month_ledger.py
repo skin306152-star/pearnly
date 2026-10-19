@@ -60,8 +60,9 @@ class LedgerSourceTests(unittest.TestCase):
             ledger = block(block(company, f"  {lang}: {{"), "    ledger: {")
             self.assertEqual(keys(block(ledger, "tier: {")), {"L0", "L1", "L2"}, lang)
             self.assertEqual(keys(block(ledger, "dropped: {")), {"written_mismatch", "changed"}, lang)
-        # 第 3 期产品用词（点验时给用户看）：自动推送、三个档名、全部推送、三个码名
-        for words in ('automation: "自动推送"', 'tier: { L0: "只提议", L1: "按规则", L2: "整月" }', 'pushAll: "全部推送"',
+        # 第 3 期产品用词（点验时给用户看）：自动推送、三个档名、三个码名；没有「全部推送」（用户 10-19 定）
+        self.assertNotIn("pushAll", i18n)
+        for words in ('automation: "自动推送"', 'tier: { L0: "只提议", L1: "按规则", L2: "整月" }',
                       'cc_proposal: "待推送"', 'cc_judged: "CC 判断推送"', 'written_mismatch: "写入与预期不符"',
                       'dropped: { written_mismatch: "核不上", changed: "被改" }'):
             self.assertIn(words, i18n)
@@ -443,39 +444,35 @@ assert.ok(text(html(withItems([proposalItem, judged, mismatch]))).join("|").incl
 assert.deepEqual(text(html(withTier("L2", ""))).slice(0, 2), ["ส่งอัตโนมัติ", "ทั้งเดือน"]);
 """, lang="th")
 
-    def test_a_proposal_is_pushed_from_its_row_and_the_group_pushes_them_all(self):
+    def test_a_proposal_row_opens_before_it_can_be_pushed_and_there_is_no_push_all(self):
         self.run_page(r"""
-import { pushProposal, pushProposals } from "@/lib/companies";
+import { pushProposal } from "@/lib/companies";
 import { proposalException } from "@/lib/month";
 const page = html(withItems([proposalItem, { ...proposalItem, document: "p2", invoice_no: "INV-p2" }, mismatch, judged]));
-// 提议：码名 · 单据 · 金额，行尾「推送」（主按钮，不用展开、不弹确认）
+// 提议：码名 · 单据 · 金额，行上不露「推送」（用户 10-19 定）：整行是展开钮，点开才有「推送」
 const proposals = [...page.matchAll(/data-slot="cc-pending-proposal" data-variant="row">([\s\S]*?)<\/button><\/div>/g)];
 assert.equal(proposals.length, 2);
-assert.deepEqual(text(proposals[0][1]), ["Ready to push", "INV-p1 · Makro", "1,070.50", "Push"]);
-assert.match(proposals[0][1], /<button type="button" class="cc-btn-sm" data-primary="" data-slot="cc-pending-push">/);
+assert.deepEqual(text(proposals[0][1]), ["Ready to push", "INV-p1 · Makro", "1,070.50"]);
+assert.match(proposals[0][1], /<button type="button" class="cc-pending-toggle cc-panel-row" aria-expanded="false">/);
+assert.ok(!page.includes('data-slot="cc-pending-push"'));
 assert.equal(proposalException(proposalItem), true);
 assert.equal(proposalException({ ...proposalItem, choice: null }), false);
-// 组标题旁「全部推送」：只在有提议的组（要处理）里
-assert.match(page, /data-slot="cc-month-group-head"><div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
-assert.equal((page.match(/data-slot="cc-month-push-all"/g) ?? []).length, 1);
-assert.ok(!html(withItems([mismatch, judged])).includes("cc-month-push-all"));
+// 组标题只有严重度与条数，没有「全部推送」
+assert.match(page, /data-slot="cc-month-group" data-severity="action"><div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
+assert.ok(!page.includes("cc-month-push-all"));
+assert.ok(!page.includes("cc-month-group-head"));
 // 写入与预期不符、CC 判断推送：交给 CC（预填不发送，同其余单据）；CC 判断推送只是知悉
 const items = [...page.matchAll(/data-slot="cc-month-item" data-code="(\w+)" data-severity="(\w+)" title="([^"]+)"/g)].map((m) => [m[1], m[2], m[3]]);
 assert.deepEqual(items, [["written_mismatch", "action", "Ask CC"], ["cc_judged", "info", "Ask CC"]]);
 assert.equal(codeName(mismatch), "Written not as expected");
 assert.equal(codeName(judged), "Pushed on CC's judgement");
-// 推一张：同当场选完重推那一条路，交空的选择；全部推送：这家这个月
+// 推一张：同当场选完重推那一条路，交空的选择
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { document: "p1", status: "sent" } }) });
 const one = await pushProposal({ document: "p1" });
 assert.equal(one.status, "sent");
-let asked = g.calls.at(-1);
+const asked = g.calls.at(-1);
 assert.equal(asked.method, "/api/method/pearnly_cowork.assistant.pending_api.answer");
 assert.deepEqual(asked.body, { document: "p1", items: "[]" });
-g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { results: [], remaining: 0 } }) });
-await pushProposals("COMPANY", "2026-09");
-asked = g.calls.at(-1);
-assert.equal(asked.method, "/api/method/pearnly_cowork.assistant.pending_api.push_proposals");
-assert.deepEqual(asked.body, { company: "COMPANY", period: "2026-09" });
 """)
 
     def test_the_pending_page_pushes_proposals_and_does_not_hand_them_to_cc(self):
@@ -487,19 +484,19 @@ assert.equal(proposal(item), true);
 const other = pendingOf(mismatch, "COMPANY");
 const page = renderToStaticMarkup(createElement(PendingItems, { items: [item, other], error: "", done: noop, changed: noop, company: "COMPANY" }));
 assert.match(page, /data-slot="cc-pending-proposal"/);
-assert.ok(text(page).includes("Push"));
+assert.ok(!page.includes('data-slot="cc-pending-push"'));  // 点开这一行才有「推送」
 // 「交给 CC」只带交给 CC 的那几张（提议自己有「推送」）
 assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);
 """)
 
     def test_rows_stay_within_a_phone_width(self):
-        # 手机同一组件（会话栏照 ERP 手机端）：行里的字可截断、按钮不缩，组标题一行放得下标题与「全部推送」
+        # 手机同一组件（会话栏照 ERP 手机端）：行里的字可截断；「推送」在展开后（同当场选那一行的展开：卡片按钮靠右，手机 44）
         pending = read("components/pending.tsx")
         row = pending.split("export const ProposalRow: FC<", 1)[1].split("\n};", 1)[0]
-        self.assertIn('<div className={head ? "cc-panel-row" : "flex min-w-0 items-center gap-(--cc-space-8)"}>', row)
-        self.assertIn('className="cc-btn-sm" data-primary="" data-slot="cc-pending-push"', row)
+        self.assertIn('className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}', row)
+        self.assertIn('{open && (\n        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push"', row)
         ledger = read("components/month-ledger.tsx")
-        self.assertIn('className="flex min-w-0 items-center justify-between gap-(--cc-space-8)" data-slot="cc-month-group-head"', ledger)
+        self.assertNotIn("cc-month-group-head", ledger)
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{co.ledger.automation}</Marquee>', ledger)
         css = read("globals.css")
         self.assertIn("flex-shrink: 0; align-items: center; gap: var(--cc-space-4); height: var(--cc-list-btn);", css)  # .cc-btn-sm 不缩（间距照标准化 B1 走 --cc-space-4）

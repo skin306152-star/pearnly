@@ -8746,7 +8746,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
         # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
-        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 6)
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 7)  # 第 3 期提议行展开后的「推送」
         # 设置「电脑」列表每台电脑行尾「···」：电脑 24（.cc-row-btn，标准化 V22；原来手写 28），手机点按区 44（.cc-tap）
         self.assertIn('className="cc-row-btn cc-tap"', read("components/settings.tsx"))
         self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))

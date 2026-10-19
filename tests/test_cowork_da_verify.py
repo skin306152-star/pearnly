@@ -5,7 +5,7 @@
 - 回执（`push/native/service.ack`）：成功时写 ``verify_state`` / ``verify_json``，MR.ERP 不核；自动推的核不上立刻降档（钩子），
   人推的不影响档位；不回滚、不重推；
 - Express 历史 v2（`readback/history_rules`）：收 v1 / v2，「已定」带版本与读的日子，判定与自动推前的判定接得上；
-- 「全部推送」（`assistant/pending_api.push_proposals`）：这家这个月的提议走待处理同一条路，一次最多 20 张；
+- 提议一张一张推（用户 10-19 定：行上不露「推送」、不设「全部推送」），没有批量推送的接口；
 - 档位与原因只由数据升降：CC 有档位、没有改档位的工具；定时任务简报写「待推送」；新词条四语齐。
 """
 import ast
@@ -193,44 +193,19 @@ class HistoryVersion(unittest.TestCase):
         self.assertIn('history_read=_read_day((decision.get("history") or {}).get("read")),', assess)
 
 
-# ── 第 11、12 条：全部推送 ───────────────────────────────────────────────────────
+# ── 第 11、12 条：提议一张一张推 ─────────────────────────────────────────────────
 
 
-class PushAll(unittest.TestCase):
-    def test_all_proposals_of_the_month_are_pushed_like_one_by_one_twenty_at_a_time(self):
-        pushed, commits, required = [], [], []
-        frappe = types.ModuleType("frappe")
-        frappe.whitelist = lambda **kwargs: (lambda fn: fn)
-        frappe.db = ns(commit=lambda: commits.append(1))
-        frappe._ = lambda text: text
-        scope = ns(require=required.append)
-        names = [(f"H{i:02d}", "C1") for i in range(23)]
-        ledger = ns(proposals=lambda company, period: list(names) if (company, period) == ("CO1", "2026-09") else [])
-        tools = ns(_push_one=lambda name, route_device="": pushed.append((name, route_device)) or (
-            {"document": name, "status": "sent"} if name != "H01" else {"status": "needs_choice", "reason": "x" * 400}))
-        folder_push = ns(reader_of=lambda document, connection: "PC-READ" if document == "H00" else "")
-        modules = {"frappe": frappe, "pearnly_cowork.access": ns(scope=scope), "pearnly_cowork.access.scope": scope,
-                   "pearnly_cowork.history": ns(push_state=None, storage=None),
-                   "pearnly_cowork.push.application": ns(api=None),
-                   "pearnly_cowork.companies": ns(ledger=ledger), "pearnly_cowork.companies.ledger": ledger,
-                   "pearnly_cowork.assistant": ns(tools=tools), "pearnly_cowork.assistant.tools": tools,
-                   "pearnly_cowork.folder_intake": ns(push=folder_push),
-                   "pearnly_cowork.folder_intake.push": folder_push}
-        module = _load("da_verify_pending_api", APP / "assistant/pending_api.py", modules)
-        with mock.patch.dict(sys.modules, modules):
-            found = module.push_proposals("CO1", "2026-09")
-        self.assertEqual(required, ["intake"])
-        self.assertEqual(len(pushed), module.PROPOSALS_MAX == 20 and 20)
-        self.assertEqual(pushed[0], ("H00", "PC-READ"))  # 定时任务的票仍由读文件夹的那台电脑写
-        self.assertEqual(found["remaining"], 3)
-        self.assertEqual(found["results"][1], {"document": "H01", "status": "needs_choice", "reason": "x" * 300})
-        self.assertEqual(len(commits), 20)  # 每张推完提交（结论由站点事件带回）
+class OneByOne(unittest.TestCase):
+    def test_there_is_no_bulk_push_of_proposals(self):
+        # 用户 10-19：提议行上不露「推送」、点开才有，不设「全部推送」——服务端也没有一次推一批提议的接口
+        pending_api = (APP / "assistant/pending_api.py").read_text(encoding="utf-8")
+        self.assertNotIn("def push_proposals", pending_api)
+        self.assertNotIn("PROPOSALS_MAX", pending_api)
+        ledger = (APP / "companies/ledger.py").read_text(encoding="utf-8")
+        self.assertNotIn("\ndef proposals(", ledger)
 
-    def test_the_proposals_are_the_ledgers_cc_proposal_rows(self):
-        source = (APP / "companies/ledger.py").read_text(encoding="utf-8")
-        body = source.split("\ndef proposals(", 1)[1].split("\ndef ", 1)[0]
-        self.assertIn("service.require_read()", body)
-        self.assertIn('pending.classify(found, cutoff, unknown) == "cc_proposal"', body)
+    def test_companies_does_not_import_assistant(self):
         # companies 不导入 assistant（assistant 依赖 companies）
         for path in (APP / "companies").glob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"))

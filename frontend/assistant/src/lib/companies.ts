@@ -175,10 +175,6 @@ export function pushProposal(item: Pick<PendingItem, "document">): Promise<Answe
   return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.answer", { document: item.document, items: "[]" });
 }
 
-/** 「全部推送」：这家这个月 CC 准备好的提议，一次最多 20 张（assistant.pending_api.push_proposals）；remaining 是还剩几张。 */
-export function pushProposals(company: string, period: string): Promise<{ results: AnswerResult[]; remaining: number }> {
-  return postMethod("pearnly_cowork.assistant.pending_api.push_proposals", { company, period });
-}
 
 /** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）；
  *  current 是这一组已经记住、仍算数的现用账套（预选它，F18：只预选已定的），没有为空串。 */

@@ -19,9 +19,8 @@
   CC 工具对推送去向那份账套这一天有多份同期的单只记新的那份（`rechoose_current_book`，不推）。两处记下时，同一组里还停在
   「多份账套」的别的单按记住的那份接着判（`_continue_group`，2026-10-19 验收「选定一次再复用」）：判到哪一步就停在哪一步
   （录不录、要人选的项），都定了的成提议或等人推，不替人推；回包带接着判了的张数 ``settled``。
-- CC 准备好的提议（数字会计员第 3 期）：一张张点「推送」走 `answer`（交空的选择）；「全部推送」走 `push_proposals`
-  （这家这个月的提议，一次最多 `PROPOSALS_MAX` 张）。都算人发起，照常重判；放在这里而不在 `companies.api`：推送要用
-  `tools._push_one`，companies 不导入 assistant（assistant 依赖 companies）。
+- CC 准备好的提议（数字会计员第 3 期）：点开那一行点「推送」走 `answer`（交空的选择），一张一张推（用户 2026-10-19 定：
+  行上不露「推送」、不设「全部推送」）。算人发起，照常重判。
 - 定时任务的票补选后仍由读它所在文件夹的那台电脑写（`folder_intake.push.reader_of` → 推送记录的 ``route_device``，ADR-021
   第 51 条，10-16 审查）：点按钮的会计员只用网页或手机、或账套只在那台电脑上时照样推得进去。CC 对话里主动推送仍按发起人。
 """
@@ -72,33 +71,6 @@ def _answer(name, result):
         out["reason"] = str(result["reason"])[:300]
         out["reason_label"] = str(export_facts.reason_text(out["reason"]) or "")[:300]
     return out
-
-
-# 「全部推送」一次最多推这么多张（同 CC 一次推送的上限 `push.application.service.OUTCOMES_MAX`），多的再点一次
-PROPOSALS_MAX = 20
-
-
-@frappe.whitelist(methods=["POST"])
-def push_proposals(company, period):
-    """「本月」卡与公司页异常清单里 CC 准备好的提议「全部推送」（数字会计员第 3 期第 11、12 条）：这家这个月的提议
-    （`companies.pending.classify` 的 ``cc_proposal``，范围同月结台账）按单据日期新 → 旧逐张走待处理同一条路推（每张照常重判，
-    算人发起），最多 `PROPOSALS_MAX` 张。回 ``{"results": [{"document", "status", "reason"?}], "remaining": 还剩几张}``。
-    权限：录入权限 + 台账读权限，每张再按单据读取范围与连接授权（都在被调的服务里判）。"""
-    scope.require("intake")
-    from pearnly_cowork.companies import ledger
-
-    names = ledger.proposals(company, period)
-    from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
-
-    results = []
-    for name, connection in names[:PROPOSALS_MAX]:
-        result = tools._push_one(name, route_device=_reader(name, connection))
-        frappe.db.commit()
-        item = {"document": name, "status": str(result.get("status") or "")}
-        if result.get("reason"):
-            item["reason"] = str(result["reason"])[:300]
-        results.append(item)
-    return {"results": results, "remaining": max(0, len(names) - PROPOSALS_MAX)}
 
 
 def _reader(document, connection):

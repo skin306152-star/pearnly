@@ -418,14 +418,15 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
   );
 };
 
-/** CC 准备好的提议：行尾「推送」，点了就推（同当场选完重推那一条路，交空的选择）；推不成或还要人选时原因写在这一行下面，
- *  列表重取后按新的原因显示。head：会话栏「本月」卡的一行 26（码名 · 单据 · 金额）；没有时用待处理的两行摘要。 */
+/** CC 准备好的提议（数字会计员第 3 期）：行上不露「推送」，点开这一行才有（用户 10-19 定，同当场选那一行的展开）；推成了从列表去掉，
+ *  推不成（还要人选、写不进）原因记在单上、列表重取，这次的原因显示在这一行下面。 */
 export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; head?: ReactNode }> = ({
   item,
   onDone,
   onChanged,
   head,
 }) => {
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const push = async () => {
@@ -445,14 +446,18 @@ export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => 
     }
   };
   return (
-    <div className="cc-list-item flex-col" data-slot="cc-pending-proposal" data-variant={head ? "row" : undefined}>
-      <div className={head ? "cc-panel-row" : "flex min-w-0 items-center gap-(--cc-space-8)"}>
+    <div className="cc-list-item flex-col" data-slot="cc-pending-proposal" data-variant={head ? "row" : undefined} data-open={open || undefined}>
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
+        aria-expanded={open} onClick={() => setOpen(!open)}>
         {head ?? <Summary item={item} />}
-        <button type="button" className="cc-btn-sm" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void push()}>
+        <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
+      </button>
+      {open && (
+        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void push()}>
           {busy && <LoaderIcon className="cc-spinner" />}
           {co.pushNow}
         </button>
-      </div>
+      )}
       {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
   );
