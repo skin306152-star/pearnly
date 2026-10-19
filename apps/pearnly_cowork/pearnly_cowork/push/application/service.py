@@ -854,7 +854,8 @@ def outcomes(records):
     if not names:
         return {}
     rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json, target_json,
-        written_by_device, verify_state, verify_json FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""",
+        response_json, written_by_device, verify_state, verify_json FROM `tabCowork Push Record`
+        WHERE actor=%s AND name IN %s""",
         (frappe.session.user, tuple(names)), as_dict=True)
     successes = [row for row in rows if row.status == "success"]
     now = _rules_now(successes)
@@ -896,7 +897,7 @@ def _entered(row, rules_now=None):
     """一条入账成功的记录给 CC 的 ``written``：Express 载荷里怎么写的（`pushed.written`，含冻结目标里的 ``decided_by``，
     第 2 期按什么定的；用上的公司规则 ``company_rules``，带 ``rules_now`` 核的「现在还在不在」），加上 ERP 回报的单号
     ``docnum``（测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，CC 后来查详情 / 推送结果时只有现赊与科目，没有单号）。
-    不是 Express 的（MR.ERP）只给单号；既没有载荷事实也没有单号回 None。"""
+    MR.ERP 的给单号与 `_mrerp_entered`（单据类型、现 / 赊、导入菜单）；什么都没有回 None。"""
     target = _loads(getattr(row, "target_json", None))
     target = target if isinstance(target, dict) else {}
     item = dict(pushed_rules.written(_loads(row.payload_json), target.get("decided_by"), target.get("company_rules"),
@@ -904,6 +905,8 @@ def _entered(row, rules_now=None):
     docnum = str(getattr(row, "external_docnum", None) or "").strip()
     if docnum:
         item["docnum"] = docnum
+    if target.get("adapter") == "mrerp":
+        item.update(_mrerp_entered(_loads(getattr(row, "response_json", None))))
     # 数字会计员第 3 期第 13 条：自动推的单说清是哪一类、按哪一档、谁触发的；写完核对的结论（只防写入走样与挂错对方）
     automation = target.get("automation") if isinstance(target, dict) else None
     if isinstance(automation, dict):
@@ -916,6 +919,22 @@ def _entered(row, rules_now=None):
     return item or None
 
 
+# MR.ERP 推成的单进了哪类单据（服务端执行器记在回执 meta.doc_type，`push.mrerp.runner.execute`）→ 现 / 赊（同 Express 的
+# ``payment`` 一套词）。MR.ERP 没有 Express 那些「按什么定的」与科目事实：只给这两项和导入菜单名。
+MRERP_PAYMENT = {"sales_cash": "cash", "sales_credit": "credit", "purchase": "credit", "purchase_expense": "credit"}
+
+
+def _mrerp_entered(response):
+    """MR.ERP 推送回执 → ``{entered_as, payment, menu}`` 里有的几项；2026-10-19 前推的回执没记，回空。"""
+    meta = response.get("meta") if isinstance(response, dict) else None
+    meta = meta if isinstance(meta, dict) else {}
+    kind = str(meta.get("doc_type") or "")
+    out = {"entered_as": kind, "payment": MRERP_PAYMENT[kind]} if kind in MRERP_PAYMENT else {}
+    if str(meta.get("mrerp_menu") or "").strip():
+        out["menu"] = str(meta["mrerp_menu"]).strip()
+    return out
+
+
 def written(records):
     """推送成功的这几条记录各自怎么写进 ERP 的（`_entered`）：``{记录名: {...}}``，没成功的、什么都没有的不回。
     给 CC 列推送结果、单据详情、已入账重推用（验收 F19）：记录名取自调用方已按权限取到的单据（``last_push_record``），
@@ -924,8 +943,9 @@ def written(records):
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:WRITTEN_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum, written_by_device, verify_state,
-        verify_json FROM `tabCowork Push Record` WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
+    rows = frappe.db.sql("""SELECT name, payload_json, target_json, response_json, external_docnum, written_by_device,
+        verify_state, verify_json FROM `tabCowork Push Record` WHERE status='success' AND name IN %s""", (tuple(names),),
+        as_dict=True)
     now = _rules_now(rows)
     found = _with_writers(rows, {row.name: _entered(row, now) for row in rows})
     return {name: item for name, item in found.items() if item}

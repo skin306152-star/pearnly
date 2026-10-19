@@ -309,6 +309,7 @@ class Import(unittest.TestCase):
                          {"products": [{"item_name": "กระดาษ A4", "erp_code": "P-A4"}]})
         self.assertEqual(len(result.success), 1)
         self.assertEqual(site.uploads[-1], ("imparse", "126"))
+        self.assertEqual((result.success[0].doc_type, result.success[0].menu), ("sales_cash", "ใบขายเงินสด"))
 
     def test_purchase_goods_and_expense_use_their_own_chosen_menus(self):
         menus = {"impaptran": [("67", "ซื้อ-เดิม", False), ("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]}
@@ -568,6 +569,8 @@ class Outcome(unittest.TestCase):
         self.assertEqual(out["status"], "success")
         self.assertEqual(out["docnum"], "PG" + routing._gen.derive_mrerp_invoice_no(purchase()))
         self.assertEqual([o["idmenu"] for o in out["menus"]["impaptran"]], ["67", "68"])  # 读到的选项交给调用方存
+        # 进了哪类单据、哪个导入菜单记进回执（CC 说得出「赊购（费用），进了 ซื้อ」，2026-10-19）
+        self.assertEqual((out["meta"]["doc_type"], out["meta"]["mrerp_menu"]), ("purchase_expense", "ซื้อ"))
 
     def test_already_existing_number_found_in_the_chosen_menu_is_already_pushed(self):
         invoice_no = routing._gen.derive_mrerp_invoice_no(purchase())

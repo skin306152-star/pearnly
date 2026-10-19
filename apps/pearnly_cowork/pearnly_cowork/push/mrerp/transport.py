@@ -198,6 +198,7 @@ class MrErpImport:
             return self._result(original, [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories],
                                 t0, 0)
         selmenu = menu["idmenu"]
+        self._menu_label = str(menu.get("label") or "")
 
         # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
         if m.doc_type.startswith("sales"):
@@ -459,7 +460,8 @@ class MrErpImport:
                 unknown.append(_fail(inv, [READBACK_NOT_LINKED if problem == "not_linked" else READBACK_NOT_FOUND]))
             else:
                 success.append(SuccessRow(invoice_no=inv, mrerp_bill_no=row.docno, original=by_inv.get(inv, {}),
-                                          already_pushed=inv in already))
+                                          already_pushed=inv in already, doc_type=self.module.doc_type,
+                                          menu=getattr(self, "_menu_label", "")))
         return success, failed, unknown
 
     def _read_back(self, selmenu: str, invoice_nos: List[str]) -> Tuple[Dict[str, readback.ListedRow], Optional[str]]:

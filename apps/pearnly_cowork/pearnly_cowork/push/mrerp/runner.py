@@ -175,6 +175,8 @@ def execute(payload, target, secrets, system_url, today):
         row = result.success[0]
         if row.already_pushed:
             meta["already_pushed"] = True
+        # 进了哪类单据、哪个导入菜单：记进推送回执，CC 说得出「记成现销，进了 ใบขายเงินสด」（`application.service._entered`）
+        meta.update({key: value for key, value in (("doc_type", row.doc_type), ("mrerp_menu", row.menu)) if value})
         return {"status": "success", "docnum": row.mrerp_bill_no, "reason": "", "meta": meta, "menus": menus,
                 "masters": masters}
     failed = result.failed[0] if result.failed else None
