@@ -609,7 +609,7 @@ class MenuEdgeTests(unittest.TestCase):
         projects = read("components/assistant-ui/projects.tsx")
         # 用户 10-17：对话不能换公司，「移到 ›」子菜单删了；手机对话页「…」里的处理月份、分店子菜单照用包装组件
         self.assertNotIn("co.moveTo", projects)
-        self.assertIn('<SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
+        self.assertIn('<SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
         self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
@@ -620,7 +620,7 @@ class MenuEdgeTests(unittest.TestCase):
         # 组标题「···」（分组和排序，公司组与已置顶 / 最近 / 月份共用）
         group = read("components/assistant-ui/sidebar-group.tsx")
         # 右对齐；只有手机上的公司组头（alignHead）左边贴着组头开关的左边（第 7 轮：各行首字从菜单左边露出）
-        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align={head ? "start" : "end"}\n          alignOffset={head ? offset : 0}\n          sideOffset={4}', group)
+        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align={head ? "start" : "end"}\n          alignOffset={head ? offset : 0}\n          sideOffset={menuOffset()}', group)
         self.assertIn("const head = alignHead && offset !== null;", group)
 
     @NEEDS_NODE

@@ -27,6 +27,7 @@
 | B2 组件库 | `pearnly/cc-std-b2`（基线 `pearnly/cc-longpress-race` 顶端 93a10475，开发窗口指定；工作树 `.claude/worktrees/cc-std-b2`），提交见下面「B2 做了什么」；纯替换 8bc08765 对基线全矩阵 773 个场景 0 样式差、0 像素差（报告里 1 个悬停残留经前后各复拍 2 次判为基线那一遍离群），画面变化 V5 / V7 / V9 / V11 / V18 / V38 逐个比对只差预期的项（V38 是 B2 按 4.1 补进第 7 节的）；本地全闸门全过。比对报告 `~/pearnly-devtools/cc-std-b2/reports/`，前后图 `~/pearnly-devtools/cc-std-b2/visual/`。10-18 晚变基到 origin/main 2a558d14 → 84c644f6，本地全闸门 100 步过、分支 CI 两条过；lab 挂 84c644f6 由测试窗口验收**六项全过、回归无变化**（见「B2 测试窗口验收」）；用户 10-18 晚手机真手指走过预览与长按、通过，合入 main；未部署（随下一批） |
 | B3 外壳 | `pearnly/cc-std-b3`（基线 `origin/main` 81bcd88a，工作树 `.claude/worktrees/cc-std-b3`），提交见下面「B3 做了什么」；纯替换 1a16d652 对基线全矩阵 0 样式差、0 像素差（1 个悬停残留经前后各复拍 2 次判为纯替换那一遍离群；新补的 `install-guide` 场景单独补拍 0 差），画面变化 V1 / V8 / V16 / V36（0 差）/ V39 逐个比对只差预期的项（V39 是 B3 按 4.1 补进第 7 节的）；本地全闸门 100 步全过。比对报告 `~/pearnly-devtools/cc-std-b3/reports/`，前后图 `~/pearnly-devtools/cc-std-b3/visual/`。**已推任务分支、未合入 main、未部署；待测试窗口验收**（V8 手机菜单、V39 要用户 iPhone 走） |
 | B5 会话栏、结果、文档与工具卡 | `pearnly/cc-std-b5`（基线 origin/main 81bcd88a，工作树 `.claude/worktrees/cc-std-b5`），提交见下面「B5 做了什么」；纯替换 14045108 对基线全矩阵 773 个场景 0 样式差、0 像素差，画面变化 V1 / V12 / V13 / V23 / V24 / V26 / V27 逐个比对只差预期的项（主场景没渲染到的加载、出错、步骤明细由本地加场景补比）；V25 不变。比对报告 `~/pearnly-devtools/cc-std-b5/reports/`，前后图 `~/pearnly-devtools/cc-std-b5/visual/`。本地全闸门全过、分支推送等 CI；**未合入 main、未部署；待测试窗口验收**（V23 / V26 / V12 的手机项、V27 的分隔线要用户手机走） |
+| B6 侧栏列表 | `pearnly/cc-std-b6`（基线 `origin/main` 81bcd88a，工作树 `.claude/worktrees/cc-std-b6`），提交见下面「B6 做了什么」；纯替换 e5efbdcb 对基线全矩阵 825 个场景 0 样式差、0 像素差，画面变化 V1 / V8 / V28 / V29 逐项比对只差预期的项（V28 补进「加载更多」转圈）；本地全闸门全过。比对报告 `~/pearnly-devtools/cc-std-b6/reports/`，前后图 `~/pearnly-devtools/cc-std-b6/visual/`。已推任务分支，**未合入 main、未部署；待测试窗口验收**（触屏上行的悬停底、拖动与长按回归要用户手机走） |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
@@ -411,6 +412,62 @@ V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-r
 7. 回归（应无变化）：结果面板头高 48（V25）、PDF 逐页、图片预览、文件下拉框；会话栏卡片拖动排序、折叠、知识库编辑「取消 / 保存」。
 
 **还缺什么**：测试窗口验收（上面几项，手机项要用户手机走）；按「主线集成」变基到最新 `origin/main`、快进合入 main（本次没做，B3 / B4 / B6 / B7 同时在改共享测试与本记录，合入时串行变基）；部署随下一批。
+### B6 做了什么（10-18 晚–10-19，`pearnly/cc-std-b6`）
+
+基线 `origin/main` **81bcd88a**（`cc-drag-perf`、第 13 轮拖动、长按竞争修复都已在 main 里）；工作树 `.claude/worktrees/cc-std-b6`，自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`）。
+拖动是共用模块，**drag.tsx、`hooks/use-long-press.ts`、手机长按菜单的行为不改**：drag.tsx 只换了 `cssMs` 的来源、浮层层级改成拿起时读（值仍是 55）、播报区换成 `sr-only` 加原来的定位与裁切（计算样式逐项相同）；`use-long-press.ts`、`lib/layers.ts` 没碰。第 13 轮拖动与长按竞争的用例（`test_cc_mobile_overlays.py` 全部、`test_assistant_ui.py` 的 SidebarDragTests 与长按项）照过，断言只改了写法（见下）。
+
+| e5efbdcb | 纯替换（见下） | 纯替换 |
+| 354e567f | V1 侧栏无结果行 `.cc-empty-line`、选公司菜单的无结果行 `.cc-menu-label` | 画面变化 B |
+| eb99cfd3 | V8 新对话选公司菜单离按钮 4（原 6） | 原 C·已定 |
+| 5535f73c | V28 「加载更多」行与加载骨架行高 `--cc-row-h` | 画面变化 A |
+| 2210cdac | V28（B6 补进第 7 节）「加载更多」转圈 `.cc-spinner` | 画面变化 A |
+| db55cc13 | V29 会话行 `.cc-thread-row` | 画面变化 A |
+| c33773b3 | V29 行尾「···」`.cc-row-btn`（不再用组件库 Button） | 画面变化 A |
+| 9e62b87d | 收紧清单登记 4 个文件 | 清单 |
+| （本记录） | 本记录 B6 小节、第 7 节 V28 / V29；ccs.md 一条 | 文档 |
+
+**纯替换（e5efbdcb）做了什么**：
+
+- `thread-list.tsx`：列表、骨架的行间 `gap-(--cc-space-2)`；搜索框图标 `size-(--cc-icon-sm)`；「新建」加号去掉 `!size-4`（`.cc-new-dot svg` 已给 16，B1 第 7 条）；行菜单、多选菜单的图标去掉 `size-4`（`.cc-menu-item svg` 给 16）；`!min-w-44` → `min-w-(--cc-menu-w-md)`（`!` 原来就多余：`.cc-menu` 在 components 层，工具类本来就盖得过）；`sideOffset={menuOffset()}`；行尾「···」右距 `end-(--cc-space-4)`；「加载更多」行、骨架行左右 `px-(--cc-row-pad)`，骨架条去掉 `h-3.5`（`Skeleton` 默认 `--cc-skeleton-h` 14）。
+- 列表预取：`IntersectionObserver` 的 `rootMargin` 建观察器时读 `--cc-observe-margin`（2.6），回退常量 `OBSERVE_MARGIN = 200` 与 globals.css 同值由测试核对。
+- `sidebar-group.tsx`：分组和排序菜单 `sideOffset={menuOffset()}`、`min-w-(--cc-menu-w-lg)`，三个子菜单 `min-w-(--cc-menu-w-sm)`。
+- `projects.tsx`：选公司菜单的搜索框外距 `--cc-space-4`、`min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)`；手机「处理月份」「分店」子菜单 `min-w-(--cc-menu-w-sm)`。
+- `drag.tsx`：`cssMs` 从 `lib/css-var.ts` 导入；浮层层级 `overlayZ()` 拿起时读 `--cc-z-drag`（`fixedPx`，读到就记住），`OVERLAY_Z = 55` 留作回退并由测试核对；播报区原来内联写 `width / height / margin` 的 `1px / -1px`（R12），改成 `className="sr-only"` 加内联的 `position: fixed`、`top / left: 0`、`border: 0`、两种裁切——第一版漏了 `border: 0`，全矩阵报出播报区节点 `border-top-style none → solid`（`sr-only` 只把边宽归 0，预检样式给了 solid；边宽 0 看不见），补上后重拍为 0 差。
+- `AWAITING` 表：`--cc-menu-w-sm / md / lg / max`（原登记 B3）、`--cc-observe-margin`（原登记 B4）、`--cc-z-drag`（B6）B6 接上，从表里删掉。B3 / B4 合入时 `test_cc_ccs.py` 这两行会冲突，照删即可（它们用到同一批变量时不用再动表）。
+- 测试断言改成新写法、意思不变：`test_cc_mobile_overlays.py`（月份子菜单的类、组菜单 `sideOffset={menuOffset()}`）、`test_assistant_ui.py`（选公司菜单的类、浮层层级改读变量并核对 `--cc-z-drag: 55`、会话行与「···」见 V29）、`test_cc_idle_motion.py`（「加载更多」转圈的登记由 `animate-spin` 改 `cc-spinner`，仍只在 `loadingMore &&` 时挂）；`test_cc_ccs.py` 新增一项核对列表预取距离、浮层层级的回退值与 globals.css 一致、drag.tsx 不再从 hover-scroll 再导出拿 `cssMs`。
+- globals.css **没有补登**（本批用到的档位 B1 都已登记）。
+
+
+1. **V28 补进转圈**：记录没列「加载更多」行的 `size-3.5 animate-spin`，不改过不了 R8。换成 `.cc-spinner`（16、1s 匀速，同其他行内转圈）是可见变化（14 → 16），按 4.1 补进第 7 节 V28 那一行（同一行的东西，不另起编号，免得与并行的 B3–B7 撞号），单独一个提交。
+2. **V29 分两个提交**（行、「···」），比对各自归因。实际差在：行从 `transition-colors`（8 种属性）变成只过渡底色与字色；**悬停底不再包在 `(hover: hover)` 里**——Tailwind 的 `hover:` 只在能悬停的设备生效，`.cc-thread-row:hover` 同侧栏其他 `cc-*` 行（导航项、组标题、显示更多）一样不分设备，触屏上点过 / 长按过的行可能留着悬停底，要用户手机看一眼（见验收项）。「···」字色从随行（ink-2，当前行 ink）变成 ink-3、深色悬停底从半透明变成整档；按钮自己的 `text-sm font-medium whitespace-nowrap gap` 随 Button 去掉（按钮里只有图标与读屏文字，看不出）。
+3. **比对工具用了副本**：`scripts/cc-visual/` 不是本批文件，库里不改；在 `~/pearnly-devtools/cc-std-b6/shim/`（复制一份，`apps/` 链回工作树）加了 8 个场景与两样桩：`sidebar-more`（假服务端第一页带下一页游标、翻页请求挂起：「加载更多」行与转圈，宽屏滚侧栏、窄屏滚抽屉到底）、`sidebar-row-more-hover`（悬停到「···」上）、`sidebar-group-submenu`（分组和排序的子菜单）、`drawer-drag`（手机 / 平板抽屉里手指长按 350ms 后挪动、不松手：拖动中静态帧；新动作 `tpress`）、`chin-company` / `chin-company-search`（新对话选公司菜单与查不到的结果；公司搜索带 `zz` 时假服务端回空）；窄屏触屏点开选公司菜单会自己关上（前后一致），逐项比对时另加两个鼠标点开的 `chin-company-m` / `-search-m`（只在 `CCV_EXTRA=1` 时拍，不进全矩阵）。拖动中（宽屏 `sidebar-drag`、窄屏 `drawer-drag`）与长按菜单（`drawer-longpress`、触屏宽屏的 `sidebar-row-menu` / `delete-confirm` / `boot-page-menu` 走长按）都在全矩阵里。
+4. 跑道 3 条（本机同时有 B3–B5、B7 在跑），全矩阵每遍约 50 分钟、825 张。
+
+**比对**（B6 的工具副本，全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、825 张；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b6/dist-<名>`，截图 `…/shots/<名>`，报告 `…/reports/<编号>/report.md`。画面变化逐项用「同一组场景、前后两份产物各拍一遍」的子集比对（16 组环境全拍，只拍相关场景，`subset.sh`），再用纯替换 → 最终版的全矩阵核对没有别处变化）：
+
+| 基线 81bcd88a → 纯替换 e5efbdcb（`reports/base-vs-pure`） | **0 样式差、0 像素差** | 光栅抖动 13 个（窄屏长对话输入框那条渐变带，复拍出现一模一样的一对）。覆盖检查：diff 改到的 4 个 cc-* 类 / data-slot 场景全部渲染到（`reports/base-vs-pure-cov`）。第一版报 805 个场景差，全是播报区节点 `border-top-style / -color`（见上），补 `border: 0` 后重拍 |
+| V1：e5efbdcb → 354e567f（`reports/V1`） | 只有无结果行 `line-height 19.6 → 20`：侧栏搜索查不到（14 组）、选公司菜单查不到（宽屏 8 组 + 手机 / 平板鼠标点开的 4 组）；向上开的选公司菜单因此高 0.4、整块上移 0.5 | 内边距、颜色不变 |
+| V8：354e567f → eb99cfd3（`reports/V8`） | 只有选公司菜单的位置差 2：电脑下巴里向上开的往下 2、手机问候下面向下开的往上 2 | 其余 0 差 |
+| V28 行高：eb99cfd3 → 5535f73c（`reports/V28`） | 骨架行（`loading`）与「加载更多」行（`sidebar-more`）的高：网页 32 不变（网页 4 组 0 差），CC 桌面版及其触屏版 32 → 30，窄屏（手机、平板竖屏、桌面版拉窄）32 → 44；随之下面的东西上下挪 | 骨架条仍是 14 高、左右 10 |
+| V28 转圈：5535f73c → 2210cdac（`reports/V28s`） | 只有 `sidebar-more` 14 组：转圈 14 → 16、`animation-name spin → cc-spin`（同为 1s 匀速） | 差异像素 248–327（转圈本身） |
+| V29 行：2210cdac → db55cc13（`reports/V29r`） | 每一行的 `transition-property` 由 Tailwind `transition-colors` 的 8 种变成 `background-color, color`（时长、曲线仍是 120ms 主缓动）；**触屏宽屏（web-coarse、desktop-coarse）`sidebar-row-hover` 鼠标悬停的行多了悬停底**（原来 `hover:` 只在能悬停的设备生效） | 其余环境静止画面 0 像素差；手机、平板竖屏的抽屉、长按、拖动场景 0 像素差 |
+| V29「···」：db55cc13 → c33773b3（`reports/V29`） | 「···」字色 ink-3（原来随行：ink-2，当前行 ink）；悬停 / 菜单开着时浅色字从 accent 前景（82,81,78）变正文色、深色底从半透明（bg-accent/50）变整档悬停底 `rgba(255,255,255,.075)`；按钮的 `transition-property all → background-color, color, opacity`；随 Button 去掉的 `font-size 14 → 16 / font-weight 500 → 400 / line-height / white-space / gap / outline-color`（按钮里只有图标与读屏文字，看不出） | 差异像素每处 100 左右（图标本身）：悬停、菜单开着、多选、长按的行 |
+| 纯替换 e5efbdcb → 最终 c33773b3 全矩阵（`reports/pure-vs-final`） | 821 / 825 个场景有样式差，全部是上面几项（逐条按元素与属性归类，没有别的属性或元素） | 像素差除上面几项外，窄屏长对话输入框带（`chat-rich*`、`font-sans`、`width-*`、`th-welcome`）与一次 `titlebar-menu`：这些场景带着行的过渡样式差、比对工具不自动复拍，另把两份产物在这 9 个场景上各复拍两轮（`reports/recheck-1 / -2`）——输入框带每轮落在不同场景（两种光栅之一，同 B1 / B2），`titlebar-menu` 两轮都 0 差，判为离群；稳定出现的只有 V29 的两种 |
+
+- **画面变化的前后图**：`~/pearnly-devtools/cc-std-b6/visual/<编号>/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`，每个目录带一份比对报告。V1（30 个场景）、V8（28）、V28（20）、V28s（14）、V29r（触屏宽屏的行悬停 8 个）、V29（悬停、悬停到「···」上、菜单开着、长按、生产页加载方式 40 个）。V29r / V29 只导出有像素差的场景（其余只差过渡样式，静止画面一样）。
+- **没有比对的**：悬停、聚焦以外的交互状态，真机字体，Qt WebEngine 与 WSL2 的渲染（5.2 已知局限）；ERP / DMS 的按日子分组侧栏（假服务端是 Cowork，按日子分组的无结果行与公司分组同一个类）；桌面版拉窄（非触屏）的选公司菜单（点不开，前后一致）。
+
+**闸门报数**（`--report`）：81bcd88a 的范围外 641 处 → **585 处**（R4 134 → 111、R5 340 → 326、R8 54 → 53、R10 48 → 38、R12 27 → 19，其余不变）；收紧清单 14 → 18 个文件（加 `components/assistant-ui/` 的 projects、sidebar-group、thread-list 与 `components/ui/drag.tsx`），范围内 0 违例。
+
+**还缺什么**：测试窗口验收（下面几项）；合入 main（按「主线集成」，本次只推了任务分支）；与并行的 B3 / B4 合入时 `test_cc_ccs.py` 的 `AWAITING` 表按上面说明解冲突；B8 删 button.tsx 时会话行已经不是它的调用方。
+
+
+1. 会话行「···」（网页、CC 桌面版，有鼠标）：悬停一行出「···」，字色淡（ink-3），鼠标移到「···」上变正文色、带悬停底（深色也是整档，原来很淡）；点开菜单时同样；当前对话那一行的「···」也是淡色（原来跟行字一样深）（V29）。
+2. 会话行的悬停 / 当前 / 键盘焦点 / 菜单开着的底色与字色照旧，过渡 120ms（V29）。**触屏**：手机、平板、Windows 触屏上点过或长按过的行，松手后悬停底会不会留着（原来不会，现在同侧栏导航项、组标题）——**要用户手机 / 平板走一遍**，留着且碍眼就告诉开发窗口。
+3. 侧栏搜索查不到、新对话选公司菜单搜查不到：「没有结果」一行高 20（原 19.6，看不出）（V1）；电脑下巴的选公司菜单离按钮 4（原 6）、手机问候下面的同样（V8）。
+4. 首次打开侧栏的加载骨架：CC 桌面版每行 30、手机抽屉每行 44（原来都是 32），网页不变；对话很多时滚到侧栏底的「加载更多」转圈 16（原 14）（V28）。
+5. 回归（应无变化，**拖动与长按要用户手机走**）：电脑上拖对话行排序 / 拖进已置顶、浮层在菜单下面、拖动中整页不出悬停；手机抽屉长按 250ms 后拖、长按不动出「置顶 / 重命名 / 删除」、松手不进对话；读屏念拖动播报；侧栏分组和排序菜单与子菜单的宽度与位置；手机对话页「…」里的处理月份、分店。
 
 ## 0. 结论
 
@@ -1056,8 +1113,8 @@ V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-r
 | V25 | B5 | 结果面板头高 | 48 | **保留 48**，登记 `--cc-results-head-h`「现有值·CC 自定」。Claude 面板头没有可对照的实测（右侧栏卡头 26 是卡片，不是面板头），不改 | 原 C·已定（无变化） |
 | V26 | B5 | 文档预览 | 标题段距按固定像素、上下都加；正文行高 1.625；缩进 1.5em；表格上下 12 | 照对话 Markdown：只加上间距、按 em；正文 `--cc-body-lh`（手机 16/24）；缩进 `--cc-md-list-indent` | A（注释本来就写「同对话里 Markdown」） |
 | V27 | B5 | 会话栏卡片里的文字；卡片加载状态；步骤明细 | 被强压成 14；转圈；明细左右 12，分隔 0.5px | 继承 13/19；骨架；明细 8，分隔 1px | A |
-| V28 | B6 | 「加载更多」行和骨架行的高度 | 固定 32 | `--cc-row-h`：桌面窗口 30、手机 44 | A |
-| V29 | B6 | 会话行「···」与行过渡 | shadcn Button，字色 ink-2，150ms | `.cc-row-btn`，字色 ink-3，120ms | A |
+| V28 | B6 | 「加载更多」行和骨架行的高度；「加载更多」行的转圈（B6 开工时按 4.1 补进：记录没列，`animate-spin` 不改过不了 R8） | 固定 32；转圈 14、Tailwind `animate-spin` | `--cc-row-h`：桌面窗口 30、手机 44；转圈 `.cc-spinner`（16、`--cc-spin-dur` 1s 匀速，同其他行内转圈，减少动效时照常转） | A |
+| V29 | B6 | 会话行「···」与行过渡 | shadcn Button，字色 ink-2，150ms（V2 后已是 120ms 主缓动）；行是一长串工具类，`transition-colors` | `.cc-row-btn`，字色 ink-3，120ms；B6 实际差在：「···」悬停底深色也是整档悬停底（原来半透明）、过渡只管底色 / 字色 / 透明度（原来 `transition-all`）；行换 `.cc-thread-row`，过渡只管底色与字色，悬停底不再包在 `(hover: hover)` 里（与侧栏其他 `cc-*` 行一致） | A |
 | V30 | B7 | 回复下的「复制」和代码块的「复制」 | 圆角 8、深色悬停半透明、150ms、按下 0.9；代码块的没有 cc-tap | `.cc-row-btn`：圆角 6、120ms、按下 0.94，加 cc-tap | A |
 | V31 | B7 | 发送中气泡的文件条 | 自写的一条，落地时会跳一下 | `.cc-attach-card` 加骨架 | A |
 | V32 | B7 | MessageError 的 `mt-2` 盖掉了标准块间距 | 8 | `--cc-md-block`（0.75em） | A |

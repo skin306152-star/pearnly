@@ -17,7 +17,7 @@
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CalendarIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, StoreIcon, XIcon } from "lucide-react";
-import { DropdownMenu, SubMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset, SubMenu } from "@/components/ui/menu";
 import { type FC, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, BranchChoices, PeriodChip, PeriodChoices } from "@/components/period-chip";
@@ -245,7 +245,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
   );
   return (
     <>
-      <div className="px-1 pb-1">
+      <div className="px-(--cc-space-4) pb-(--cc-space-4)">
         <input
           className="cc-input w-full"
           value={search}
@@ -257,7 +257,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
         />
       </div>
       {rows.map((p) => choice(p.id, p.title))}
-      {found !== null && !found.length && <div className="px-2.5 py-1.5 text-ink-3 text-sm">{t("noResults")}</div>}
+      {found !== null && !found.length && <div className="cc-menu-label">{t("noResults")}</div>}
       <DropdownMenu.Separator className="cc-menu-sep" />
       <DropdownMenu.Item className="cc-menu-item" onSelect={() => openAddCompany(onPick)}>
         <PlusIcon />
@@ -340,7 +340,7 @@ const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
+          <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">
             <CompanyChoices current={draft.project} onPick={pick} />
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
@@ -466,12 +466,12 @@ export const MobileFilingItems: FC = () => {
   return (
     <>
       {withPeriod && (
-        <SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+        <SubMenu icon={<CalendarIcon />} label={co.period} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <PeriodChoices value={filing.period} onChange={(period) => change({ period })} />
         </SubMenu>
       )}
       {withScope && branches.length > 1 && (
-        <SubMenu icon={<StoreIcon />} label={co.branch} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
+        <SubMenu icon={<StoreIcon />} label={co.branch} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
           <BranchChoices branches={branches} value={filing.scope} onChange={(scope) => change({ scope })} />
         </SubMenu>
       )}

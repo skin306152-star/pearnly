@@ -20,7 +20,6 @@
 //            排先后（三种分组方式都可以），不拖出去取消置顶。按处理月份、不分组时其余行不能拖；搜索时都不能拖。
 //            手机抽屉：长按 250ms 后再动 = 拖，长按不动 = 原来的长按菜单。键盘空格拿起、方向键只在本组里挪（不拖进置顶），Alt+↑/↓
 //            在公司组头、置顶行、组里的行上挪一格。出错在侧栏出错行写服务端原文
-import { Button } from "@/components/ui/button";
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -124,7 +123,8 @@ import {
   TrashIcon,
 } from "lucide-react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { DropdownMenu } from "@/components/ui/menu";
+import { DropdownMenu, menuOffset } from "@/components/ui/menu";
+import { fixedPx } from "@/lib/css-var";
 import {
   createContext,
   forwardRef,
@@ -165,7 +165,7 @@ export const ThreadListSearch = forwardRef<
 >(({ value, onValueChange, autoFocus }, ref) => {
   return (
     <label data-slot="aui_thread-list-search" className="cc-search">
-      <SearchIcon data-slot="aui_thread-list-search-icon" className="size-4 shrink-0" />
+      <SearchIcon data-slot="aui_thread-list-search-icon" className="size-(--cc-icon-sm) shrink-0" />
       <input
         ref={ref}
         type="search"
@@ -195,7 +195,7 @@ export const ThreadListRoot: FC<
         }
       }}
       data-slot="aui_thread-list-root"
-      className={cn("flex flex-col gap-0.5", className)}
+      className={cn("flex flex-col gap-(--cc-space-2)", className)}
       {...props}
     />
   );
@@ -207,7 +207,7 @@ export const ThreadListItems: FC<
   return (
     <div
       data-slot="aui_thread-list-items"
-      className={cn("flex flex-col gap-0.5", className)}
+      className={cn("flex flex-col gap-(--cc-space-2)", className)}
       {...props}
     >
       {/* 只有第一次加载显示骨架；之后重拉列表（别的设备新建了对话等，list-sync.ts）时旧列表留着，拉回来就地换上 */}
@@ -221,6 +221,11 @@ export const ThreadListItems: FC<
     </div>
   );
 };
+
+/** 列表滚到离底这么远就预取下一页（IntersectionObserver 的 rootMargin）：值在 globals.css 的 --cc-observe-margin，建观察器时读
+ *  （标准化记录 2.6）；读不到用回退值，与 globals.css 同值，测试核对。 */
+export const OBSERVE_MARGIN = 200;
+const observeMargin = () => fixedPx("--cc-observe-margin", OBSERVE_MARGIN);
 
 /** 列表底部（同 Claude）：先显示一页，滚到这里再加载下一页；搜索时把剩下的都加载进来，较早的对话也搜得到。
  *  按公司分组时滚到底只翻「最近」（各公司由组里的「显示更多」翻）；按月份、不分组时同没有公司分组，一页一页往下翻。 */
@@ -242,14 +247,14 @@ const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
     if (!el) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry?.isIntersecting) void aui.threads().loadMore();
-    }, { rootMargin: "200px" });
+    }, { rootMargin: `${observeMargin()}px` });
     observer.observe(el);
     return () => observer.disconnect();
   }, [aui, hasMore, loadingMore, searching]);
   if (!hasMore && !loadingMore) return null;
   return (
-    <div ref={ref} className="flex h-8 items-center px-2.5 text-ink-3">
-      {loadingMore && <LoaderIcon className="size-3.5 animate-spin" />}
+    <div ref={ref} className="flex h-(--cc-row-h) items-center px-(--cc-row-pad) text-ink-3">
+      {loadingMore && <LoaderIcon className="cc-spinner" />}
     </div>
   );
 };
@@ -296,7 +301,7 @@ function useDates() {
 }
 
 const NoResults: FC = () => (
-  <div data-slot="aui_thread-list-empty" className="text-ink-3 px-2.5 py-4 text-sm">
+  <div data-slot="aui_thread-list-empty" className="cc-empty-line">
     {t("noResults")}
   </div>
 );
@@ -851,10 +856,7 @@ const DayRows: FC<{ searchQuery?: string }> = ({
 
   if (query && filteredIndices.length === 0) {
     return (
-      <div
-        data-slot="aui_thread-list-empty"
-        className="text-ink-3 px-2.5 py-4 text-sm"
-      >
+      <div data-slot="aui_thread-list-empty" className="cc-empty-line">
         {t("noResults")}
       </div>
     );
@@ -925,7 +927,7 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
           {/* 28 的槽里放 20 的圆，加号图标框 16（同 Claude 侧栏，按钮排查 M5） */}
           <span className="cc-nav-icon">
             <span className="cc-new-dot">
-              <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-4" />
+              <PlusIcon data-slot="aui_thread-list-new-icon" />
             </span>
           </span>
           <span data-slot="aui_thread-list-new-label" className="cc-nav-label whitespace-nowrap">
@@ -941,19 +943,16 @@ ThreadListNew.displayName = "ThreadListNew";
 
 const ThreadListSkeleton: FC = () => {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-(--cc-space-2)">
       {Array.from({ length: 5 }, (_, i) => (
         <div
           key={i}
           role="status"
           aria-label={t("search")}
           data-slot="aui_thread-list-skeleton-wrapper"
-          className="flex h-8 items-center px-2.5"
+          className="flex h-(--cc-row-h) items-center px-(--cc-row-pad)"
         >
-          <Skeleton
-            data-slot="aui_thread-list-skeleton"
-            className="h-3.5 w-full"
-          />
+          <Skeleton data-slot="aui_thread-list-skeleton" className="w-full" />
         </div>
       ))}
     </div>
@@ -1083,7 +1082,7 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
         if (onMove && altMove(e, onMove)) return;
         dragKey?.(e);
       }}
-      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink has-focus-visible:text-ink relative flex min-h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
+      className="cc-thread-row group/item"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
@@ -1230,16 +1229,15 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
+          type="button"
           tabIndex={-1}
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-hover absolute end-1 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          className="cc-row-btn absolute end-(--cc-space-4) top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
         >
-          <MoreHorizontalIcon className="size-(--cc-icon-sm)" />
+          <MoreHorizontalIcon />
           <span className="sr-only">{t("more")}</span>
-        </Button>
+        </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {bulk ? (
@@ -1248,23 +1246,23 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
           <DropdownMenu.Content
             side="bottom"
             align="end"
-            sideOffset={4}
+            sideOffset={menuOffset()}
             data-slot="aui_thread-list-item-more-content"
-            className="cc-menu !min-w-44"
+            className="cc-menu min-w-(--cc-menu-w-md)"
             onKeyDown={menuLetterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}
           >
             <DropdownMenu.Item className="cc-menu-item" onSelect={pin}>
-              {starred ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+              {starred ? <PinOffIcon /> : <PinIcon />}
               <span className="flex-1">{starred ? t("unstar") : t("star")}</span>
               <MenuKey letter="P" />
             </DropdownMenu.Item>
             <DropdownMenu.Item className="cc-menu-item" onSelect={onRename}>
-              <PencilIcon className="size-4" />
+              <PencilIcon />
               <span className="flex-1">{t("rename")}</span>
               <MenuKey letter="R" />
             </DropdownMenu.Item>
             <DropdownMenu.Item data-slot="aui_thread-list-item-more-item" data-danger="" className="cc-menu-item" onSelect={remove}>
-              <TrashIcon className="size-4" />
+              <TrashIcon />
               <span className="flex-1">{t("delete")}</span>
               <MenuKey letter="D" />
             </DropdownMenu.Item>
@@ -1305,18 +1303,18 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
     <DropdownMenu.Content
       side="bottom"
       align="end"
-      sideOffset={4}
+      sideOffset={menuOffset()}
       data-slot="aui_thread-list-item-more-content"
-      className="cc-menu !min-w-44"
+      className="cc-menu min-w-(--cc-menu-w-md)"
       onKeyDown={menuLetterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}
     >
       <DropdownMenu.Item className="cc-menu-item" onSelect={pinAll}>
-        {allPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+        {allPinned ? <PinOffIcon /> : <PinIcon />}
         <span className="flex-1">{allPinned ? sb.unpinN(ids.length) : sb.pinN(ids.length)}</span>
         <MenuKey letter="P" />
       </DropdownMenu.Item>
       <DropdownMenu.Item data-danger="" className="cc-menu-item" onSelect={deleteAll}>
-        <TrashIcon className="size-4" />
+        <TrashIcon />
         <span className="flex-1">{sb.deleteN(ids.length)}</span>
         <MenuKey letter="D" />
       </DropdownMenu.Item>

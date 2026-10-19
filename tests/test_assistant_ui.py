@@ -2521,13 +2521,19 @@ g.done();
         item = thread_list.split("\nconst Row = memo(function Row(", 1)[1].split("\nconst RowMeta: FC", 1)[0]   # 置顶行、组里可拖的行、不能拖的行都是这一份（ThreadListItem 按所在的组选）
         self.assertIn("<ThreadListItemPrimitive.Title", item)
         self.assertIn("<ThreadActivity />", item)  # 行尾在跑、未读圆点照旧
-        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体
-        self.assertIn("hover:bg-row-hover", item)
-        self.assertIn("data-active:bg-row-hover", item)
-        self.assertIn("data-active:text-ink", item)
-        self.assertIn('<MoreHorizontalIcon className="size-(--cc-icon-sm)" />', thread_list)  # 行尾「···」图标 16，同 .cc-row-btn
-        self.assertIn("has-focus-visible:text-ink", item)  # 键盘焦点同选中一样主色字（设计文档 3.5），悬停不改字色
-        self.assertNotIn("hover:text-", item)
+        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体：写在共用类 .cc-thread-row（标准化 B6）
+        self.assertIn('className="cc-thread-row group/item"', item)
+        row_css = read("globals.css").split("  .cc-thread-row {", 1)[1].split("\n  /*", 1)[0]
+        self.assertIn("min-height: var(--cc-row-h);", row_css)
+        self.assertIn(".cc-thread-row:is(:hover, :focus-visible, [data-active], :has(:focus-visible), :has([data-state=\"open\"])) { background: var(--cc-row-hover); }", row_css)
+        self.assertIn(".cc-thread-row:is([data-active], :has(:focus-visible)) { color: var(--cc-ink); }", row_css)
+        self.assertNotIn(":hover) { color", row_css)
+        # 行尾「···」是行里的图标按钮 .cc-row-btn（24、圆角 6、淡色、图标 16；标准化 B6 / V29，原来是组件库 Button）
+        more = thread_list.split('data-slot="aui_thread-list-item-more"\n', 1)[1].split("\n", 1)[0]
+        self.assertIn('className="cc-row-btn absolute ', more)
+        self.assertIn("<MoreHorizontalIcon />", thread_list)
+        self.assertNotIn("@/components/ui/button", thread_list)
+        self.assertNotIn("hover:text-", item)  # 键盘焦点同选中一样主色字（设计文档 3.5，见上面 .cc-thread-row），悬停不改字色
         self.assertIn("h-(--cc-row-h)", item)
         # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪
         self.assertIn("s.threads.isLoading && !s.threads.threadIds.length", thread_list)
@@ -2657,7 +2663,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 新对话：「公司 ▾」选公司（至少有一家公司才出现），下巴里菜单向上开；月份、分店是草稿
         draft = projects.split('const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {', 1)[1].split("\n};", 1)[0]
         self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
-        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
+        self.assertIn('<DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-lg) max-w-(--cc-menu-w-max)">', draft)
         self.assertIn('<PeriodChip look="cc-chin-btn" side={side} value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
         # 手机新对话：同一行放在问候下面（WelcomeFiling），菜单向下开；只在手机、Cowork、新对话
@@ -5487,8 +5493,11 @@ setDragging(false);
         self.assertIn("export const OVERLAY_Z = 55;", drag)
         overlay = drag.split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
         self.assertIn('overlay.className = "cc-drag-overlay";', overlay)
-        self.assertIn("style.zIndex = String(OVERLAY_Z);", overlay)
+        # 层级在 globals.css 的 --cc-z-drag，拿起时读（标准化记录 2.6）；OVERLAY_Z 是读不到时的回退值，与 globals.css 同值
+        self.assertIn("style.zIndex = String(overlayZ());", overlay)
+        self.assertIn('export const overlayZ = () => fixedPx("--cc-z-drag", OVERLAY_Z);', drag)
         css = read("globals.css")
+        self.assertRegex(css, r"(?m)^\s*--cc-z-drag: 55;")
         # 层级 B1 起写成刻度层的变量（--cc-z-*），按变量取值
         level = lambda m: m and re.search(r"(?m)^\s*" + re.escape(m.group(1)) + r":\s*(\d+);", css)
         menu = level(re.search(r"\.cc-menu \{\s*z-index: var\((--cc-z-[\w-]+)\);", css))
