@@ -185,6 +185,8 @@ def mrerp_answer(document, values):
     frappe.db.commit()
     from pearnly_cowork.assistant import tools
 
+    if parsed:
+        tools.announce_mrerp_choices(connection, account)
     result = tools._push_one(name, route_device=_reader(name, connection))
     frappe.db.commit()
     return _answer(name, result)

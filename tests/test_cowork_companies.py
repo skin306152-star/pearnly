@@ -1655,7 +1655,8 @@ class PendingAnswerTests(unittest.TestCase):
             calls.append(("push",) + args + ((("route_device", route_device),) if route_device else ()))
             return dict(pushed)
 
-        tools = types.SimpleNamespace(_push_one=push_one)
+        tools = types.SimpleNamespace(_push_one=push_one, announce_mrerp_choices=lambda *args: calls.append(
+            ("announce",) + args))
         frappe.db.commits = 0
         patcher = mock.patch.dict(sys.modules, {
             "pearnly_cowork.history": types.SimpleNamespace(storage=storage, push_state=push_state,
@@ -3903,8 +3904,10 @@ class MrErpPendingAnswerTests(PendingAnswerTests):
                                                         {"value": "2120-02", "label": "2120-02"}])
         out = module.mrerp_answer("r1", json.dumps({"menu:purchase": "68", "default:ap_account": "2120-01"}))
         self.assertEqual(out, {"document": "r1", "status": "sent"})
-        self.assertEqual([call[0] for call in calls], ["menu", "default", "reader", "push"])
+        # 记下后推一次这家公司「记住的选择」变了（开着的公司页当场重取），再重推
+        self.assertEqual([call[0] for call in calls], ["menu", "default", "announce", "reader", "push"])
         self.assertEqual(calls[0][1:], ("M1", "12:3", "purchase", "68"))
+        self.assertEqual(calls[2], ("announce", "M1", "12:3"))
         with self.assertRaises(frappe.ValidationError):
             module.mrerp_answer("r1", json.dumps({"party:x": "1"}))
 

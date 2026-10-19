@@ -748,10 +748,19 @@ class IntakeChoiceTests(unittest.TestCase):
         tools.connections_api.choose_mrerp_default = lambda *a: calls.append(("default",) + a) or {}
         tools.connections_api.mrerp_menu = lambda *a: {"known": True}
         tools.stock_group({"connection": "EXP1", "account_set_key": "B", "acccod": "1140"})
-        tools.mrerp_setup({"connection": "MR1", "account_set_key": "1:2", "menus": {"purchase": 7},
-                           "defaults": {"department": "D1"}})
+        # 存了 MR.ERP 的选择就推一次这家公司「记住的选择」变了（10-19 lab：公司页到下一条消息才出现）
+        companies = types.ModuleType("pearnly_cowork.companies")
+        companies.service = types.SimpleNamespace(announce=lambda *a, **k: calls.append(("announce",) + a + (k,)))
+        companies.tasks = types.SimpleNamespace(company_of=lambda connection, key: {"company": "CO1", "branch": ""})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.companies": companies,
+                                           "pearnly_cowork.companies.service": companies.service,
+                                           "pearnly_cowork.companies.tasks": companies.tasks}):
+            tools.mrerp_setup({"connection": "MR1", "account_set_key": "1:2", "menus": {"purchase": 7},
+                               "defaults": {"department": "D1"}})
+            tools.mrerp_setup({"connection": "MR1", "account_set_key": "1:2", "direction": "sales"})  # 只读：不推
         self.assertEqual(calls, [("stock", "EXP1", "B", "1140"), ("menu", "MR1", "1:2", "purchase", "7"),
-                                 ("default", "MR1", "1:2", "department", "D1")])
+                                 ("default", "MR1", "1:2", "department", "D1"),
+                                 ("announce", "upsert", "CO1", {"part": "choices"})])
 
     def test_stock_groups_of_an_unread_account_set_are_requested_from_the_computer(self):
         asked = []

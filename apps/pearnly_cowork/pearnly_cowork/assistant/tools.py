@@ -1825,9 +1825,22 @@ def mrerp_setup(tool_input) -> str:
         if result.get("status") == "failed":
             return _json(result)
     frappe.db.commit()
+    if tool_input.get("menus") or tool_input.get("defaults"):
+        announce_mrerp_choices(name, key)
     view = _connection_call(connections_api.mrerp_menu, name, key)
     # 读到菜单 / 读失败的时刻是连接服务按 UTC 记的 ISO 字符串
     return _json(_account_named(_mrerp_compact(view, tool_input), name), utc=("observed_at", "error_at"))
+
+
+def announce_mrerp_choices(connection, account_set) -> None:
+    """MR.ERP 账套的导入菜单 / 默认值改了（CC 存、待处理页当场选）：推一次这家公司的「记住的选择」变了，开着的公司页当场重取
+    （同公司页改选择，`companies.service.announce`）。10-19 lab：CC 存了银行科目，公司页「记住的选择」到下一条消息才出现。
+    归不到唯一一家主档就不推；推不出去不影响已存的选择。"""
+    from pearnly_cowork.companies import service as companies, tasks as company_tasks
+
+    found = company_tasks.company_of(connection, account_set)
+    if found:
+        companies.announce("upsert", found["company"], part="choices")
 
 
 def _mrerp_compact(view, tool_input) -> dict:
