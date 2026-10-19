@@ -25,13 +25,13 @@ CC 橘黄强调色，**取值只写在 frontend/assistant/src/globals.css 一处
 
 尺寸、间距、字号与行高、层级、动效、透明度等数值类、任意值与 `!`、断点与输入设备变体、JSX 数值属性与内联 style、
 globals.css 自身、`--cc-*` 引用必须已定义、字重——也只能走 globals.css 的标准定义。上面三条（R1–R3）的 scan() 不变；
-新判据走 scan_strict()：scripts/frontend-tokens-strict.txt（收紧范围 = 已迁移完的文件，**不是**豁免清单）里的文件违例就失败，
-范围外只报数不失败；B8 删掉清单文件后全仓按新判据失败。允许的名字同样运行时从 globals.css 读（@theme 的 --text-* / --ease-* /
---animate-* / --font-weight-* 等与所有 --cc-* 定义），脚本里不维护数值清单。不支持行内禁用注释，也不按目录跳过。
+新判据走 scan_strict()，**全仓失败**（B1–B7 分批迁移时用过的「收紧范围」清单在 B8 迁完后删掉了）。允许的名字同样运行时从
+globals.css 读（@theme 的 --text-* / --ease-* / --animate-* / --font-weight-* 等与所有 --cc-* 定义），脚本里不维护数值清单。
+不支持行内禁用注释，也不按目录或文件跳过。
 
 用法：
 
-    python3 scripts/check-frontend-tokens.py            # R1–R3 全仓、R4–R15 收紧范围内有违例时退出码 1
+    python3 scripts/check-frontend-tokens.py            # R1–R15 任何一处违例退出码 1
     python3 scripts/check-frontend-tokens.py --report   # 另列 R4–R15 各条命中数、示例、按文件 × 规则
     python3 scripts/check-frontend-tokens.py --root DIR # 检查别的目录（测试用）
 """
@@ -182,11 +182,8 @@ def scan(src: str) -> list:
 
 # ---------------------------------------------------------------------------------------------------------------
 # 新判据 R4–R15（docs/work/2026-10-17-cc-frontend-standards.md 第 3 节）：尺寸、间距、字号、层级、动效……只能走 globals.css。
-# 现有 scan() 只判 R1–R3（颜色、圆角、阴影，全仓失败，不变）；新判据走 scan_strict()：
-# 收紧范围（STRICT_LIST，「已完成清单」）里的文件违例就失败，范围外只报数。B8 删掉清单文件后全仓失败。
+# 现有 scan() 只判 R1–R3（颜色、圆角、阴影）；新判据走 scan_strict()。两者都全仓失败（B8 起，分批迁移用的收紧清单已删）。
 # ---------------------------------------------------------------------------------------------------------------
-
-STRICT_LIST = os.path.join(HERE, "frontend-tokens-strict.txt")
 
 RULES = {
     "R4": "尺寸 size/w/h/min-*/max-*",
@@ -279,18 +276,6 @@ TEMPLATE_NUMBER = re.compile(r"\$\{(?P<expr>[\s\d.+\-*/()]+)\}(?P<unit>px|rem|em
 # 这些族的任意值不按 R10 判：颜色 / 圆角 / 阴影归 R1–R3，content / url / 光标 / will-change 不是数值
 UNCHECKED_ARBITRARY = ("content-", "bg-[url", "bg-[image", "cursor-", "will-change-", "rounded", "shadow", "drop-shadow",
                        "inset-shadow", "font-[")
-
-
-def strict_list(path: str = STRICT_LIST) -> list:
-    """收紧范围（已完成清单）：一行一个相对 frontend/assistant/src 的路径；# 开头是说明。文件不存在 = 全仓收紧（B8 起）。"""
-    if not os.path.exists(path):
-        return None
-    out = []
-    for line in read(path).splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            out.append(line)
-    return out
 
 
 def theme_block(css: str) -> str:
@@ -1053,49 +1038,35 @@ def checked_files(src: str):
     return out
 
 
-def unmatched_entries(src: str, strict) -> list:
-    """收紧清单里对不上任何受检文件的条目（./ 开头、// 或 .. 没规范化、大小写不同、扩展名不受管、在 node_modules 下、文件不存在）。
-    这种条目会被悄悄跳过，所以闸门直接失败。"""
-    if strict is None:
-        return []
-    seen = {rel for rel, _ in checked_files(src)}
-    return sorted(set(strict) - seen)
-
-
-def scan_strict(src: str, strict=None) -> list:
-    """R4–R15：返回 [(相对路径, 行号, 规则, 片段, 是否在收紧范围)]。strict=None 表示全仓收紧（清单文件已删）。"""
+def scan_strict(src: str) -> list:
+    """R4–R15：返回 [(相对路径, 行号, 规则, 片段)]，全仓（受检文件同 checked_files）。"""
     css_path = os.path.join(src, SOURCE)
     css = read(css_path) if os.path.exists(css_path) else ""
     std = Standard(css)
-    scope = None if strict is None else set(strict)
     out = []
     for rel, path in checked_files(src):
         text = read(path)
         hits = check_globals_strict(text, std) if rel.endswith(".css") else check_source_strict(text, std)
-        inside = scope is None or rel in scope
         for lineno, rule, snippet in hits:
-            out.append((rel, lineno, rule, snippet, inside))
+            out.append((rel, lineno, rule, snippet))
     return out
 
 
-def report(strict_hits: list, scope_size, limit: int = 3) -> None:
-    by_rule = {r: [0, 0] for r in RULES}
+def report(strict_hits: list, limit: int = 3) -> None:
+    by_rule = {r: 0 for r in RULES}
     examples = {r: [] for r in RULES}
     by_file = {}
-    for rel, lineno, rule, snippet, inside in strict_hits:
-        by_rule[rule][0 if inside else 1] += 1
+    for rel, lineno, rule, snippet in strict_hits:
+        by_rule[rule] += 1
         if len(examples[rule]) < limit:
             examples[rule].append(f"{rel}:{lineno} {snippet}")
         by_file.setdefault(rel, {}).setdefault(rule, 0)
         by_file[rel][rule] += 1
-    scope_text = "全仓" if scope_size is None else f"{scope_size} 个文件"
-    print(f"== 新判据报数（R4–R15；收紧范围：{scope_text}）==")
-    print(f"{'规则':<5} {'范围内':>6} {'范围外':>6}  说明")
-    for rule, (inside, outside) in by_rule.items():
-        print(f"{rule:<5} {inside:>6} {outside:>6}  {RULES[rule]}")
-    total_in = sum(v[0] for v in by_rule.values())
-    total_out = sum(v[1] for v in by_rule.values())
-    print(f"{'合计':<5} {total_in:>6} {total_out:>6}")
+    print("== 新判据报数（R4–R15，全仓）==")
+    print(f"{'规则':<5} {'命中':>6}  说明")
+    for rule, count in by_rule.items():
+        print(f"{rule:<5} {count:>6}  {RULES[rule]}")
+    print(f"{'合计':<5} {sum(by_rule.values()):>6}")
     print("== 示例 ==")
     for rule, items in examples.items():
         for item in items:
@@ -1111,39 +1082,28 @@ def report(strict_hits: list, scope_size, limit: int = 3) -> None:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--root", default=SRC, help="要检查的 src 目录（默认 frontend/assistant/src）")
-    parser.add_argument("--strict-list", default=STRICT_LIST, help="收紧范围清单（默认 scripts/frontend-tokens-strict.txt）")
     parser.add_argument("--report", action="store_true", help="列出 R4–R15 各条命中数、示例和按文件 × 规则的报数")
     args = parser.parse_args(argv)
     problems = scan(args.root)
     for rel, lineno, rule, snippet in problems:
         print(f"{rel}:{lineno}: [{rule}] {snippet}")
-    strict = strict_list(args.strict_list)
-    unmatched = unmatched_entries(args.root, strict)
-    for entry in unmatched:
-        print(f"收紧清单条目对不上任何受检文件：{entry}（须是相对 src 的规范写法，不带 ./，扩展名在 {' '.join(EXTENSIONS)} 内）")
-    strict_hits = scan_strict(args.root, strict)
-    inside = [h for h in strict_hits if h[4]]
-    for rel, lineno, rule, snippet, _ in inside:
+    strict_hits = scan_strict(args.root)
+    for rel, lineno, rule, snippet in strict_hits:
         print(f"{rel}:{lineno}: [{rule}] {snippet}")
     if args.report:
-        report(strict_hits, None if strict is None else len(strict))
-    outside = [h for h in strict_hits if not h[4]]
-    if outside:
-        files = len({h[0] for h in outside})
-        print(f"范围外 R4–R15：{len(outside)} 处 / {files} 个文件（只报数不失败；--report 看明细）")
+        report(strict_hits)
     failed = False
-    if unmatched:
-        print(f"FAIL: 收紧清单有 {len(unmatched)} 条对不上任何受检文件；这些文件不会被按新判据检查")
-        failed = True
     if problems:
         print(f"FAIL: {len(problems)} 处写死的颜色 / 圆角 / 阴影；改成 globals.css 的变量（见 docs/development/ccs.md）")
         failed = True
-    if inside:
-        print(f"FAIL: 收紧范围里有 {len(inside)} 处 R4–R15 违例；改成 globals.css 的标准（见 docs/work/2026-10-17-cc-frontend-standards.md 1.2）")
+    if strict_hits:
+        files = len({h[0] for h in strict_hits})
+        print(f"FAIL: {len(strict_hits)} 处 / {files} 个文件 R4–R15 违例；改成 globals.css 的标准（见 docs/development/ccs.md、"
+              "docs/work/2026-10-17-cc-frontend-standards.md 1.2）")
         failed = True
     if failed:
         return 1
-    print("PASS: 组件与 lib 只引用 globals.css 的颜色、圆角、阴影变量；收紧范围内没有 R4–R15 违例")
+    print("PASS: 组件与 lib 只引用 globals.css 的颜色、圆角、阴影变量；尺寸、间距、字号、层级、动效等 R4–R15 全仓没有违例")
     return 0
 
 
