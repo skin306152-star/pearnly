@@ -4399,6 +4399,13 @@ class MrErpTests(unittest.TestCase):
         for raw in ("MR1", "12:3", "direction", "{"):
             self.assertNotIn(raw, shown.replace('{"field"', ""))
 
+    def test_a_duplicate_upload_is_information_not_a_question(self):
+        # 10-19 lab：CC 先问「Express 已有同号，是否仍要推」。用户定「推送不查重不拦」
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        for name in ("cowork_document_detail", "cowork_recognition_results"):
+            self.assertIn("never ask whether to push because of it", by_name[name])
+            self.assertIn("says nothing about Express or MR.ERP", by_name[name])
+
     def test_cc_is_told_what_mrerp_has_and_has_not(self):
         guidance = " ".join(tools.GUIDANCE)
         for words in ("no computer and no CC Desktop are involved in an MR.ERP push",

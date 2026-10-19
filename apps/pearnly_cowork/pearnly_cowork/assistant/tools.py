@@ -733,6 +733,12 @@ MRERP_ENTRY_NOTE = ("For an MR.ERP purchase, mrerp_entry says which import menu 
                     "(input VAT claimable) goes in as purchase (the goods purchase menu), anything else (an abbreviated "
                     "tax invoice, a receipt, no buyer) as purchase_expense. Before a push say the menu from mrerp_entry, "
                     "never guess it from the items.")
+# 10-19 lab：识别结果带着 duplicate_warning（Pearnly 里传过同样的票），CC 推之前先问「Express 已有同号，是否仍要推」。
+# 用户定「推送不查重不拦」（同 `companies.exceptions` 的重复单号只列不拦）：这只是知会，不是确认步骤
+DUPLICATE_NOTE = ("duplicate_warning means a document with the same number or fields was uploaded to Pearnly before; it "
+                  "says nothing about Express or MR.ERP. It is information only: never ask whether to push because of "
+                  "it and never hold a push for it; push when the user asks, and at most mention it in one short line "
+                  "with the result.")
 MRERP_CHOICES_NOTE = ("An MR.ERP account set has no per-document choices like Express (party, product, account, cash or "
                       "credit, VAT claim): the counterparty is found by tax ID in MR.ERP or created there, purchases are "
                       "always on credit, and the import menu per document kind and the default values are chosen once "
@@ -4142,7 +4148,7 @@ TOOLS = [
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
                     "buyer, tax IDs, invoice number, date, amounts, line items, push status, and the version needed "
                     "to edit it. handling_choice_needed means the push waits for cowork_choose_document_policy. "
-                    + ACCOUNT_SET_STOP_NOTE + " " + WRITTEN_NOTE + " " + MRERP_ENTRY_NOTE,
+                    + ACCOUNT_SET_STOP_NOTE + " " + WRITTEN_NOTE + " " + MRERP_ENTRY_NOTE + " " + DUPLICATE_NOTE,
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"}}, "required": ["document"]},
      "handler": "pearnly_cowork.assistant.tools.document_detail"},
     {"name": "cowork_edit_document", "label": "Edited a document",
@@ -4210,7 +4216,8 @@ TOOLS = [
                       "required": ["document"]},
      "handler": "pearnly_cowork.assistant.tools.document_original"},
     {"name": "cowork_recognition_results", "label": "Checked recognition results",
-     "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments.",
+     "description": "Status and recognized documents of recognition tasks started by cowork_recognize_attachments. "
+                    + DUPLICATE_NOTE,
      "input_schema": {"type": "object", "properties": {
          "batches": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX}},
          "required": ["batches"]},
