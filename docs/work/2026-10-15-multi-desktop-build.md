@@ -690,23 +690,44 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 主档页「定时任务」现在仍按 `account_set_key` 归到公司（`companies.service.tasks_of` / `task_overview` 未改）：任务存下的那份账套从目录里消失后
   会归不上，外壳重做时可改成优先认 `company`。
 
-测试机验证计划（未执行；测试机 Express 账套写入要先列给用户确认）：
+测试机验证（D10，10-19 按第 3 期口径重写；原 6 步是第 3 期合入前的「新年度账套没建时停下」，已作废）：
 
-1. 起环境：`PEARNLY_TESTENV_SRC=<本工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> bash scripts/testenv.sh lab-start cowork`（已起就用
-   `testenv.sh live cowork`，表结构变了自动迁移）。迁移后只读回读：已有 Express 任务的 `company` / `company_branch` 回填数，对不上的留空。
-2. 账套：`C:\PearnlyExpress\70EXP` 里同一公司的 `T7SINCER` / `T8SINCER` / `T9SINCER`（C 盘可直接写；局域网 Accserver / S 盘不写）。
-   先在 testcowork 的公司页看三份的会计期间（T8、T9 都是 2025）；主档页「＋」用 T9 建一个任务（或用回填过的旧任务）。
-3. 造跨年单据，省钱先用 POS 导出（销项任务收 Excel / CSV，不识别、不扣费，一天一张票）：同一份导出里放 2024-12-30、2024-12-31、2025-01-02 三天。
-   - T8、T9 都在：2024 的两天进 T7SINCER；2025-01-02 停下「多份账套覆盖单据日期」。
-   - 把 `C:\PearnlyExpress\70EXP\T8SINCER` 暂时改名（目录刷新后 T8 不在目录里），复跑：2025-01-02 进 T9SINCER；测完改回原名。
-   - 一张 2026 年的单：停下「没有覆盖单据日期的账套」。
-   - 停下的票在网页 / CC 手动选账套重推，任务默认值照样套用。
-   照片 / PDF 收据各一两张走识别（会扣费）要先问用户。
-4. 核对：Express 里各张单在对应年度的账套（经 CC 回读或 Express 界面，只读）；票上「推送去向」与 CC 说的账套名是实际那份；运行记录 /
-   任务结果的 `account_sets`；完成简报写「待选账套」；结果表格的推送状态列。
-5. 够不到：在第二台电脑或把这台 CC 桌面版的账套列表去掉 T9 后跑一张 2025 单，停下「没有电脑能访问单据日期所在的账套」；整台断开时是
-   「电脑没连上」稍后重推，不是停下。
-6. 收尾：`testenv.sh lab-stop cowork` 切回线上；T8SINCER 改回原名；测试写入的单据按用户意见留或删。
+现在的口径（上面有意变化第 5、6 条）：每张票按单据日期选账套——先找本年期间覆盖这天的；没有，就用次年段（到 `next_end`）含这天的旧账套；
+新年度账套已建且有会计期间才换过去。同一组有两份同期（本年或次年段）时，这家公司没选过就停下「该公司有多份账套覆盖单据日期」，
+在待处理 / 复核页选一份、推成了就记住（主档页「现用账套」一行），之后同一组照选；本年和次年段是两组，各问一次。
+另外第 3 期的自动推判档在选账套之后：单据日期早于上传前 60 天的票判 C（`date_stale`），停在「待复核」（结果里 `checked`），
+不是账套原因。跨年那几天都是旧日期，所以下面「选到哪份」看票上的**推送去向**，不看有没有自动写进 Express；要写进去就在
+待处理 / 复核页手动推一次（推往的就是票上那份）。
+
+不调识别、不扣费：只用 POS 导出（销项任务收 Excel / CSV，一天一张票）。只写测试机 `C:\PearnlyExpress\70EXP` 下的
+`T7SINCER` / `T8SINCER` / `T9SINCER`（可直接写）；局域网 Accserver、S 盘一律不写、不改名。
+
+1. 起环境：`PEARNLY_TESTENV_SRC=<被测工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> bash scripts/testenv.sh lab-start cowork`
+   （已起就 `testenv.sh live cowork`）。只读回读：已有 Express 任务的 `company` / `company_branch` 回填数，对不上的留空。
+2. 看账套与记住的选择（只读）：testcowork 主档页打开 SINCERE 这家公司，记下 T7 / T8 / T9 三份的本年期间与次年段
+   （预期 T7 本年 2024；T8、T9 本年都是 2025、次年段 2026——与此不同就先停下，把实际期间回报开发窗口，下面的预期要按实际改）。
+   再看主档页「记住的选择」卡的「现用账套」小节：有这家公司的行（10-19 lab 可能留下过）先截图记下，再删掉，让第 3 步从「没选过」开始。
+   用 T9 建一个销项定时任务（或用回填过的旧任务），核对任务上记了公司（主档页任务行能归到这家）。
+3. 造跨年单（第一份导出）：同一份 POS 导出里放 2024-12-30、2024-12-31、2025-01-02、2026-01-05、2023-06-15 五天，放进任务文件夹，
+   CC 里「立即运行」。预期：
+   - 2024-12-30、2024-12-31：推送去向 T7SINCER（本年覆盖），停在「待复核」（日期早于 60 天）；T7 第一次用、停在「要选…」（科目、对方）
+     或「等电脑读科目表」也算对，账套判据看的是推送去向；
+   - 2025-01-02：停下「该公司有多份账套覆盖单据日期」（T8、T9 本年同期，没选过）；
+   - 2026-01-05：同样停下「该公司有多份账套覆盖单据日期」（本年没有覆盖 2026 的，T8、T9 次年段同期，是另一组）；
+   - 2023-06-15：停下「该公司没有覆盖单据日期的账套」；
+   - 结果 / 完成简报：两张「待选账套」、一张没有账套、两张待复核；运行记录的 `account_sets` 只数推往了账套的票（T7 两张）。
+4. 选现用账套并核对记住：在待处理页 2025-01-02 那张上选 T9SINCER → 推往 T9（推成了才记住）；主档页「现用账套」多一行
+   「本年 · 总公司 → T9SINCER」。2026-01-05 那张也选 T9 → 推进 T9 的次年段，「现用账套」再多一行「次年」。
+   第二份导出放 2025-01-03、2026-01-06 两天再运行一次：两张都直接推往 T9（不再停下问），停在「待复核」；在待处理页推 2025-01-03 一张，
+   Express 里落在 T9 本年。CC 里问这两张单推往哪份账套，回答与票上去向一致。
+5. 新年度账套「没建」：把 `C:\PearnlyExpress\70EXP\T8SINCER` 暂时改名（如 `T8SINCER_off`），等 CC 刷新账套目录（或 CC 设置里重新读账套列表）
+   后 T8 不在目录里；第三份导出放 2025-01-07、2026-01-08：2025-01-07 推往 T9 本年、2026-01-08 推往 T9 次年段，都不停下问
+   （只剩一份，不用选；第 4 步记住的两行不起作用，主档页不再列）。测完把 T8 改回原名、刷新目录，两行「现用账套」重新列出。
+6. 够不到：在这台 CC 的账套列表里去掉 T9（或让读文件夹的这台电脑访问不到 T9 所在目录）后跑一张 2025 单：停下「没有电脑能访问单据日期所在的账套。」。
+   读文件夹的电脑整台关掉 / 退出 CC 时跑：票照常确认排队（「电脑离线」），电脑回来后自动写，不是停下（多电脑之后的口径，D4）。
+7. 收尾：`testenv.sh lab-stop cowork` 切回线上；T8SINCER 已改回原名；主档页「现用账套」按第 2 步截图还原或留空（问用户）；
+   登记写了什么：每张手动推成的单的 Express 单号、所在账套与期间（预期最多 T7 两张 2024-12、T9 本年 2025-01 两张、T9 次年段 2026-01
+   一到两张），连同改名与恢复的时刻，写进本节下面；测试写入的单据按用户意见留或删。
 
 证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`，python3 3.12；需要 Frappe 的在一次性离线容器 `docker run --rm --network none`、
 `pearnly/frappe-sample:16.34.1`、工作树只读挂载里跑，不碰共享样板栈）：
@@ -2028,3 +2049,132 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 - **当晚修的**：见上「测试中发现与修复」表，另加 0d896cd4 合入 main（首页小猫只播几轮的修复此前没进本分支）、4d3a55e0（桌面版连接提示去掉「配对」、定时任务写接口死锁重试）、本节提交（电脑对单据失去权限的原因文案）。登录页动画只播一次在 main 05ff9e28，随部署后量。
 - **用户待定**：定时任务换读文件夹的电脑时，已排着的单要不要转给新电脑（现在不转）。
 - 识别花费：第 7 批 7 张，全晚约 11.02 美元（上限 50）。
+
+## 第 7 批后续 D9 / D10 / D11（10-19，分支 `pearnly/multi-desktop-followups`，起点 `pearnly/batch-1019b` 60184389）
+
+提交：`38a8bcd8` fix（推送记录队列索引 + 补丁 `v0_0_25`、register 加锁顺序、测试）、`072b9663` test（五个实验室脚本）、`7944c73b` test（并发压测脚本）、本条 docs。
+
+D10（T1 测试机验证按第 3 期口径重写）见上「T1 跨年度换账套」一节的「测试机验证（D10，10-19 按第 3 期口径重写…）」，没跑（要测试机）。
+
+本机环境（D9 / D11 共用，只本机 docker，不连生产 / 测试机 / 甲骨文）：`infrastructure/compose/cowork-backend-lab.yml` 的 bench 镜像、内存、
+CPU 与数据库连接上限改成可由环境变量指定（默认值不变），用线上同一份镜像
+`ghcr.io/skin306152-star/pearnly/frappe@sha256:bcb5e240…`（MariaDB 11.8、Redis 6.2 同生产），本任务单独的 compose 项目
+`pearnly-multidesk-lab`（不碰共享样板栈 `pearnly-sample`）：
+
+```sh
+export PEARNLY_COWORK_LAB_IMAGE=sha256:bcb5e240bb75b88dfaa584911fc0d6456f37cba0ade0421c59e770a38ad63b8e
+export PEARNLY_COWORK_LAB_BENCH_MEM=2560m PEARNLY_COWORK_LAB_BENCH_CPUS=4 PEARNLY_COWORK_LAB_DB_CONNECTIONS=120
+LAB="docker compose -p pearnly-multidesk-lab -f infrastructure/compose/cowork-backend-lab.yml"
+$LAB up -d --wait db redis bench
+$LAB exec -T -e PEARNLY_COWORK_LAB_SITES="cowork-backend-companion.localhost cowork-backend-load-1.localhost cowork-backend-load-2.localhost cowork-backend-load-3.localhost" \
+  bench env/bin/python /workspace/scripts/cowork-backend-lab-init.py        # 空白站点，约 25 分钟（Mac 上 amd64 镜像走转译）
+```
+
+### D11 五个实验室脚本按证据 v2 重写
+
+五个脚本都只写实验站点里带合成标签的数据，不连 Express / 测试机 / 任何外部服务——整份都是「离线部分」，没有要连真 Express 的段
+（连测试机的是另外的 `cowork-windows-lab-relay.py` / `cowork-windows-test-client.py`，不在本次范围）。跑法：
+
+```sh
+for f in cowork-companion-collector cowork-companion-heartbeat cowork-ack-effects cowork-preparation-confirm cowork-companion-transport; do
+  $LAB exec -T -e PEARNLY_COWORK_TEST_SITE=cowork-backend-companion.localhost bench env/bin/python /workspace/scripts/$f-lab-verify.py
+done
+```
+
+结果（10-19，线上镜像 bcb5e240、空白站点 `cowork-backend-companion.localhost`，本分支源码只读挂载）：collector 18、heartbeat 26、ack-effects 13、
+preparation-confirm 18、transport 40，**共 115 项全过**（改写前 0 / 18、22 / 26、0 / 13、0 / 18、0 / 40）。改服务端（下面 D9 两处）之后又全跑一遍，仍 115 全过。
+`tests/test_cowork_folder_computers.py`（10-16 改断言后本机没跑过）在线上镜像的离线容器里跑：8 OK。
+
+怎么改的（都是夹具与断言按现在的口径，产品代码不为脚本改）：
+
+- 上报一律走真实心跳入口 `heartbeat._receive`（原来手搭 `plan_report` + `collector.ingest`，缺 `member`）；collector 只把「此刻」换成用例给的时间。
+  账套行带 6 个科目（CC 桌面版 `account_probe` 也报在每一行上）；准备时明确给账套（连接配置不再存所选账套）；付款方式与科目像会计在复核页选过一样记进
+  账套记忆（现在的推送要先定这两项）。
+- 证据 v2 的断言：主档、存货主档数在账套资料（`pool.facts`）而不在连接的上报记录；上报不改连接配置、不升版本、不改 `report_credential`；
+  换钥不再让排着的单转人工、换钥前的准备照常确认，新钥报到后照领；能不能确认看 `has_writer`（签发人停用即没有能写的电脑）；
+  确认失败回 `failed`、整笔回滚（夹具退到保存点）；日期过了一天确认不了，但「这份账套正在重读主档」不再挡确认；银行窗口按录入人。
+- 领取 v2：每份账套只看排头（失效的排头这一次转人工、同账套下一张下一次领到）、任务多 `attended`（旧槽位电脑没有登录记录，为 False）、锁口径 v2
+  只有账套锁（合成登记没有内容键，所以没有公司锁，原来是 2 把）。
+- 失权：Cowork 不按人分公司（用户 2026-09-26），删工作空间用户权限不再是失权；改成收回录入角色（改使用名单会连带改连接版本，那是「目标变了」）。
+- 刷新租约 v2：整目录读是每台电脑一份子租约、每台同时只有一份租约；池里没有电脑够得到的账套的读请求失败（`ERR_ACCOUNT_SET_UNAVAILABLE`）；
+  空名单只清这台电脑自己的可达行、不把目录标错；旧槽位换钥后新钥是另一台「旧电脑」，在同一轮里领自己的子租约，旧钥的租约它交不回、也不判失败。
+- 复核工作簿跟着录入人的界面语言（合成用户英文），断言改成本语言的「成功」。
+- 基础脚本 `cowork-push-application-lab-verify.py` 的工作空间税号固定，长期保留的实验站点第二次跑就撞「税号已被使用」：建之前把上一轮同名合成工作空间停用。
+- 没在本次范围、仍按 v1 的：`cowork-push-application-lab-verify.py`（18 项里 12 项失败）、`cowork-push-native`、`cowork-companion-credentials`、
+  `cowork-connections` 这几个基础脚本本身的用例（五个脚本只借它们的夹具）。
+
+### D9 并发压测（10-19）
+
+脚本 `scripts/cowork-companion-concurrency-lab-verify.py`（`setup` / `history` / `jobs` / `run` / `report`，说明在文件头）。3 个租户 = 3 个站点
+（`cowork-backend-load-{1,2,3}.localhost`），每家 1 个管理员 + 10 个成员、一条 Express 主连接；每个成员用 register v2 登记自己的电脑、`device_hello`
+认电脑、经真实心跳报 8 份共享盘账套（同文件号同网络路径 → 池里同一份登记，十台都够得到）+ 2 份本机账套；每人 30 张手工票经真实准备 + 确认成为排队单
+（七成在共享盘账套上，互相抢写者锁）。租户 1 另有第二条 Express 连接，第 1 台电脑用旧槽位密钥 + `device_hello` 挂上去（`attached`，同一台电脑），
+那条上另有 10 张它的单。每个租户另克隆 2 万张已成功的旧推送记录（只占行数）。
+
+压的时候起与生产 Cowork 网页同形的 gunicorn（6 进程 × 4 线程 gthread、`--preload`），30 台电脑各一个线程走真实 HTTP，节奏照 CC 桌面版 1.7：
+每 3 秒领一次（带 `index_pending`）、领到就「写」2 秒再回执成功、每 60 秒心跳（第一次整份、之后「没变」）、每 15 秒问一次按需请求；每个成员每 30 秒
+打开一次对话页（register v2，比真实频繁）；压到一半管理员经网页接口移除租户 3 的两台电脑（它们照常在发心跳、领任务）。服务端计时与计数只加在本实验
+gunicorn 的 `post_fork` 里（数据库错误码、几类加锁读、排头查询、领取分派、register / remove 耗时），产品代码不为它改。不调识别、不起真 CC 桌面版。
+
+```sh
+for n in 1 2 3; do $LAB exec -T bench env/bin/python /workspace/scripts/cowork-companion-concurrency-lab-verify.py setup cowork-backend-load-$n.localhost --history 20000; done
+$LAB exec -T bench env/bin/python /workspace/scripts/cowork-companion-concurrency-lab-verify.py run --seconds 240
+for n in 1 2 3; do $LAB exec -T bench env/bin/python /workspace/scripts/cowork-companion-concurrency-lab-verify.py report cowork-backend-load-$n.localhost; done
+# 再压一轮前：jobs <站点>（被移除的电脑由人点「连接」重新加入、每台再排 30 张）
+```
+
+**环境限制**：Apple Silicon Mac 上跑 amd64 线上镜像（转译，bench 4 核 / 2.5 GB），MariaDB 11.8 原生但限 1 核 / 512 MB、缓冲池 128 MB；生产是 8 核、
+MariaDB 不限核、缓冲池 4 GB。绝对值偏慢（客户端时延里还有 gunicorn 排队），看前后对比与服务端耗时。
+
+发现两处问题，复现、定位、按类修了（下表「修前」是第 2 轮、「修后」是第 3 轮，两轮条件相同，各 240 秒；第 1 轮客户端没处理服务端关空闲连接、线程中途退出，作废）：
+
+| 指标（3 租户 × 10 台，每家 2 万张旧记录） | 修前 | 修后 |
+|---|---|---|
+| 排头查询 `Q_HEADS` 执行计划 | 推送记录整表扫两遍（`type ALL`，估 1.4 万行，临时表 + 排序） | 走新索引 `connection_status_created_index`（`ref`，只读排队中的几百行） |
+| `Q_HEADS` 耗时（服务端，压测中） | p50 395–430 ms，p95 500–574 ms | p50 1.3–1.7 ms，p95 2.9–3.1 ms |
+| `Q_HEADS` 耗时（空闲，`report`） | 2 万行 19.4 ms；10 万行 1121 ms | 2 万行 1.66 ms；10 万行 1.14 ms |
+| 领取（`transport.lease`，服务端） | p50 1.15–1.23 s，p95 1.32–1.38 s | p50 99–106 ms，p95 199–218 ms |
+| 其中挑单（`_claim`，含排头与 `route_contracts.decide`） | p50 ≈1.0 s | p50 87–93 ms；`decide` 每次 p50 0.08 ms、p99 0.12 ms |
+| 连接行加锁读等待（`Cowork ERP Connection` FOR UPDATE） | p95 2.57–3.72 s，p99 3.77–4.91 s，最长 7.1 s | p95 90–120 ms，p99 252–325 ms，最长 2.5 s |
+| 归属行加锁读（`Cowork Workspace`） | p95 1.0–1.18 s | p95 ≈1 ms |
+| register（对话页每 30 秒打开一次，每家 20 次 / 分钟） | 212 次里 205 次 500（死锁重试三次仍失败） | 239 次里 238 次 200（含被移除电脑的 8 次 `removed`），1 次 500（见下「剩下的 1020」） |
+| InnoDB 死锁 | 618 | 0 |
+| InnoDB 行锁等待 | 2853 次，合计 3778 s | 2601 次，合计 351 s |
+| 写成（240 s） | 179 / 190 / 188 张 | 846 / 440 / 486 张（租户 2、3 队列已写空） |
+| 移除电脑（压测中，客户端） | 8.8 s、10.1 s | 128 ms、230 ms |
+
+第 4 轮（修后再跑、加锁读按表细分）：死锁 0；1020 共 8 次，全在 register 对 `Cowork Express Agent Credential` 的加锁读，都在重试里成功，register 239 / 239；
+领取客户端 p50 38–75 ms、p95 82–251 ms；连接行加锁读 p95 17–48 ms；心跳服务端 p50 26 ms；按需请求每家 40 次 / 分钟，客户端 p50 21 ms；
+移除 155 / 180 ms。
+
+四轮压完 `report` 读回各租户全部排队单（三家合计 3513 张写成）：同一次尝试没有交付两次、没有一张交付过两次、没有一张成功两次、没有一张被别人的电脑写
+（谁录的谁的电脑写）；租户 2 有 1 张「结果不明」转人工——第 1 轮那台模拟电脑领走后线程退出没回执（客户端缺陷，同真电脑写到一半断开），是预期处理。
+
+问题 1：**排头查询整表扫推送记录、而且在锁着连接行的时候**。推送记录表只有 `name` 等索引，没有 `connection` / `status`，`Q_HEADS`（与领取前收回到期租约
+`_recover`）每次都扫全表；它在领取锁住连接行之后跑，同一条连接上的电脑轮流等这把锁。10 万行时一次 1.1 秒，10 台每 3 秒领一次就超过这把锁的承载
+（每秒要锁 3.3 秒）。修法：推送记录加组合索引（连接、状态、建立时间），排队中 / 领走的只是一小部分，按这两列开头只读它们；账套键 500 字符放不进
+3072 字节的索引上限，不放（按账套分组在排队中的几百行里做）。原生 `on_doctype_update` 建（新站点），补丁 `v0_0_25_push_queue_index` 给已有站点补
+（同 `v0_0_11` 的做法，已有同名索引跳过）；三个压测站点经 `bench migrate` 跑过补丁，删索引后再跑补丁会补回。
+
+问题 2：**register 与领取 / 心跳的加锁顺序相反，互相死锁**。认证（`credentials.revalidate`）先锁连接行、再按当前读核归属行（`access.require_scope` 的
+共享锁）；register 一进来先锁归属行（为了「两台同时登录不会各建一条 Express 连接」），再锁连接行——反序。对话页每打开一次就 register，十台电脑在领取，
+九成 register 死锁三次后 500，等待中的领取与心跳也被拖慢（归属行的排它锁挡住所有人的共享锁）。修法（`companion.credentials.register`）：连接已在时
+不锁归属行，顺序与别处一致（连接 → 密钥 → 电脑）；只有要新建本站 Express 连接（管理员、还没有）时才锁归属行，锁上后按当前读
+（`connections.service.main_connections(current=True)`，共享锁）再核一次别人刚建好的，快照隔离下撞 1020 由 `api._local_transaction` 整段重来。
+测试：`tests/test_cowork_cc_desktop_devices.py` 新增两项（连接已在时四种登记都不锁归属行、不做当前读；新建时先快照读、再锁归属行、再当前读，之后的登记不再锁），
+70 OK；`test_cowork_companion_register.py` 在线上镜像里 10 OK。
+
+剩下的、没改的：
+
+- **1020（快照隔离下的加锁读）**：修后每轮 8–9 次，全在 register：它先不加锁地读主连接（建立了读视图），再加锁读这台电脑那把密钥行，而那一行正被同一台
+  电脑的心跳改报到时间（`record_seen`）。三次重试里成功的占绝大多数，第 3 轮有 1 次三连撞、回 500（对话页下次打开再登记）。要根除得让心跳不每次改
+  密钥行、或 register 在第一次一致性读之前就锁住密钥行，牵涉报到时间口径，没动，写在这里。领取时 `_locks`（写者锁）的加锁读：修后两轮 0 次 1020；
+  修前那一轮的计数钩子没认出 Frappe 包了一层的错误码，没有分表的数，但领取函数一次都没抛过死锁 / 1020（被包着重试的也会经过计时钩子记下），那一轮的
+  618 次死锁都在 register。
+- **一台电脑挂两条连接**：服务端「每台一件」按整台电脑不加锁地看（ADR-021 第 16 条），两条连接各自锁自己的连接行。模拟成两个取任务线程同时领时，
+  修后两轮各有 1 次同一台电脑同时拿着两条连接上各一件（第一条连接一直有活时，第二条上的单照样在写：两轮各写成 13、17 张）。真 CC 桌面版是单写者、各成员轮流
+  领一次（`companion/src/companion/multi_profile_worker.py`），写完回执才轮到下一条，所以不会同时两件；服务端这一侧仍是已登记的已知口径，没改。
+- **移除与心跳并发**：移除 128–230 ms 完成，那两台随后的领取 / 心跳回 401（各 1–2 次后停），对话页再登记回 `removed`（8 次），没有死锁或 1020；
+  它们没写完的单留在排队（谁的活谁的电脑做，别人不代写），与设计一致。
+- 生产推送记录的实际行数没查（不连生产）；修前的耗时随行数涨（2 万行 19 ms、10 万行 1.1 s），所以这个索引越早上越好。
+- 这是服务端模拟：没有真 CC 桌面版、真 Express 写入时延、WSL / 办公网络；生产 8 核下的绝对值要部署后在测试租户压测时再量。
