@@ -32,6 +32,7 @@
 | B4 弹窗与列表页 | `pearnly/cc-std-b4`（基线 origin/main 81bcd88a，工作树 `.claude/worktrees/cc-std-b4`），提交见下面「B4 做了什么」；纯替换两个提交合比基线全矩阵 955 张 **0 像素差**（样式差只有类名标签、转圈关键帧名等「值不同、画面相同」的五种，逐条见下），画面变化 V1 / V5 / V6 / V10 / V12 / V14 / V15 / V17 / V19 / V20 / V21 / V22 / V36 逐个比对只差预期的项（V3、V8 在 B4 无可见变化）；本地全闸门全过，分支已推、Development checks 通过。比对报告 `~/pearnly-devtools/cc-std-b4/reports/`，前后图 `~/pearnly-devtools/cc-std-b4/visual/`。**未合入 main、未部署；待测试窗口验收**（设置的手机点按区、平板竖屏的表单一列、手机卡片按钮转圈要用户手机 / 平板走） |
 | B3–B7 合入 | `pearnly/cc-std-b3b7`（基线 origin/main 81bcd88a）：B3、B5、B6、B7、B4 依次 `--no-ff` 合入，见下面「B3–B7 合入」；测试窗口 10-19 早在 CC 桌面版深浅色验收通过，快进合入 main；手机 / 平板 / 触屏与网页端待用户部署前走 |
 | B8 收口 | `pearnly/cc-std-b8`（基线 origin/main 4277e95c，工作树 `.claude/worktrees/cc-std-b8`），提交见下面「B8 做了什么」：闸门 R9 带轴变换修正、删 Button 与两处再导出、删 tw-animate-css / tw-shimmer / class-variance-authority 与 globals.css 里没人用的旧名、删收紧清单改全仓失败、改 NOTICE 删 components.json。基线对终点全矩阵 1001 个场景 **0 样式差、0 像素差**（10 个光栅抖动前后各单独复拍 2 次判定）；本地全闸门 105 步全过，分支 Development checks 通过。比对报告 `~/pearnly-devtools/cc-std-b8/reports/`。**无画面变化；未合入 main、未部署** |
+| B8 后小修 | `pearnly/cc-small-fixes`（基线 `pearnly/batch-1019b` 60184389，工作树 `.claude/worktrees/cc-small-fixes`），见下面「B8 后小修」：设置弹窗外层改 `.cc-dialog`（0 像素差）、`.cc-btn` 不换行（0 像素差）；另含 MR.ERP 工具结果不露菜单编号。**未合入 main、未部署** |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
@@ -680,6 +681,21 @@ V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-r
 **闸门报数**：范围外 3 处 / 1 个文件 → **全仓 0 处**（清单删掉，不再分范围内外）。本地全闸门（`~/pearnly-devtools/gate.sh`，照 development.yml）105 步全过；`check-architecture.py` 0 违例；`check-copy.py --report` 新增 / 改动 / 删除文案都是 0。
 
 **还缺什么**：合入 main（本次只推了任务分支，按「主线集成」由开发窗口变基、快进合入）；部署随下一批。B8 无画面变化，测试窗口只需回归：设置弹窗里的按钮手机点按区仍是 44（H27）、减少动效时按钮里的转圈照常转、CC 桌面版最大化后「还原」图标仍是两个方框、前面那个在左下。
+
+### B8 后小修（10-19，`pearnly/cc-small-fixes`）
+
+基线 `pearnly/batch-1019b` **60184389**；工作树 `.claude/worktrees/cc-small-fixes`，自己的 `node_modules`。
+
+| 提交 | 内容 | 比对 |
+| :- | :- | :- |
+| 0eb6459f | 设置弹窗外层（B4 / B8 记的「没有改成 .cc-dialog」）：组件里手写的底色、边线、圆角、阴影、`outline-none` 与任意值宽高份额换成 `.cc-dialog` + `data-size="settings"`；globals.css 加 `.cc-dialog[data-size="settings"]`，宽高与份额读用途层已有的 `--cc-settings-w / -w-max / -h / -share`（不新登记变量），`.cc-dialog` 补 `outline: none` | 设置 6 个场景（含泰文）× web / phone / desktop / desktop-narrow × 深浅 40 张：**0 像素差**；样式差只有「值不同、画面相同」三种：节点标签多了 `cc-dialog`、`box-shadow` 序列化少了前面四层透明 ring（同 B4 纯替换二的 ⑤）、`outline-color`（两边 `outline-style` 都是 none） |
+| 85a0342f | `.cc-btn` 加 `flex-shrink: 0`、`white-space: nowrap`（同 Claude 的按钮与已有的 `.cc-card-btn` / `.cc-btn-sm`）；放不下时由布局让位（设置一行的值列截断、标签与按钮组整组换行、弹窗脚部换行），不加截断省略 | 泰文浅色：设置三页签与电脑、定时任务列表 / 新建 / 编辑、待处理与点开 × web / phone / desktop / desktop-narrow 34 张，另加 320 宽手机与 800 宽网页 16 张：**0 像素差**，样式差只有按钮（与里面图标继承的）`white-space normal → nowrap`。这些场景里改前也没有折行的按钮，本次是按标准补上，防真机字宽更大（Windows 的泰文字体）时折行 |
+
+过程中试过同时加 `max-width: 100%` + `overflow: hidden`（按钮比栏还宽时截在栏宽）：泰文「รีเฟรชชุดบัญชี」按钮图标处 55–61 个像素有差（合成层光栅），Claude 的按钮也不截，撤掉了。
+
+比对报告：`~/pearnly-devtools/cc-small-fixes/reports/p1`（设置外层）、`reports/th-p2b`（泰文按钮）、`reports/narrow-p2`（320 / 800 宽，环境只加在草稿副本里，没进仓库）。
+
+**还缺什么**：合入 main 与部署（按「主线集成」由开发窗口做）；测试窗口在 CC 桌面版（Windows，泰文界面）看设置「此电脑 · 连接 / 系统」、定时任务表单、待处理的按钮都是一行。
 
 ## 0. 结论
 
