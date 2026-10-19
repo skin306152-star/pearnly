@@ -84,7 +84,7 @@ class DeployToolingMatch(unittest.TestCase):
 
 class Activation(unittest.TestCase):
     def run_activation(self, failure='', source_file=SOURCE, product='dms', records=None, themes=('pearnly', 'pearnly-ai'),
-                       themes_record=None):
+                       themes_record=None, containers=None):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = source_file.read_text().replace('/opt/pearnly', str(root))
@@ -110,17 +110,30 @@ class Activation(unittest.TestCase):
 import json, os, sys
 args = sys.argv[1:]
 with open(os.environ['TRACE'], 'a') as f:
-    f.write(json.dumps({'args': args, 'image': os.environ.get('PEARNLY_IMAGE')})+'\\n')
+    f.write(json.dumps({'args': args, 'image': os.environ.get('PEARNLY_IMAGE'),
+                        'program': os.path.basename(sys.argv[0])})+'\\n')
 if os.environ.get('FAIL_AT') and os.environ['FAIL_AT'] in args:
     sys.exit(7)
+# 宿主上现有的维护类容器：{名字: {"labels": "role/group", "top": "进程列表"}}；不在里面的名字按「没有这个容器」处理
+containers = json.loads(os.environ.get('FAKE_CONTAINERS') or '{}')
 if args[:2] == ['image', 'inspect']:
     print('candidate-sha')
+elif args and args[0] == 'inspect' and 'pearnly.role' in ' '.join(args):
+    if args[-1] not in containers:
+        sys.exit(1)
+    print(containers[args[-1]]['labels'])
 elif args and args[0] == 'inspect':
     print('sha256:old-running-image')
+elif args and args[0] == 'top':
+    if args[1] not in containers:
+        sys.exit(1)
+    print(containers[args[1]].get('top', 'PID COMMAND\\n4242 /bin/sh -c sleep infinity\\n4251 sleep infinity'))
+elif args and args[0] == 'rm' and args[-1] not in containers:
+    sys.exit(1)
 elif 'ps' in args:
     print('old-web-container')
 '''
-            for name in ('docker', 'flock'):
+            for name in ('docker', 'flock', 'mark'):
                 target = root / name
                 target.write_text(mock)
                 target.chmod(0o755)
@@ -128,16 +141,16 @@ elif 'ps' in args:
                 target = root / 'mv'
                 target.write_text('#!/bin/sh\nexit 7\n')
                 target.chmod(0o755)
-            # Capacity is independently tested; replace only this one copied call.
-            source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'true')
-            # 宿主 swap 由 ensure-swap.sh 幂等建（要 root、动宿主），测试里不跑
-            source = source.replace('bash ' + str(root) + '/deploy/scripts/production/ensure-swap.sh', 'true')
+            # Capacity is independently tested; replace only this one copied call (traced as `capacity`, to check its order).
+            source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'mark capacity')
+            # 宿主 swap 由 ensure-swap.sh 幂等建（要 root、动宿主），测试里不跑，只记下它在哪一步
+            source = source.replace('bash ' + str(root) + '/deploy/scripts/production/ensure-swap.sh', 'mark ensure-swap')
             # The deploy-vs-image comparison is tested where it runs (server side); stub it here.
             source = source.replace('python3 ' + str(root) + '/deploy/scripts/production/check-deploy-image.py', 'true')
             source = source.replace('python3 "$root/scripts/production/check-deploy-image.py"', 'true')
             script.write_text(source)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
-                       TRACE=str(root/'trace'), FAIL_AT=failure)
+                       TRACE=str(root/'trace'), FAIL_AT=failure, FAKE_CONTAINERS=json.dumps(containers or {}))
             result = subprocess.run(['bash', str(script), IMAGE, product], env=env,
                                     text=True, capture_output=True, timeout=10)
             trace = [json.loads(line) for line in (root/'trace').read_text().splitlines()]
@@ -159,19 +172,79 @@ elif 'ps' in args:
         self.assertLess(find('enable-scheduler'), find('up -d'))
         self.assertLess(find('up -d'), find('set-maintenance-mode off'))
 
-    def test_activation_removes_the_products_maintenance_container_first(self):
-        # 开户代理的维护容器跑的是旧镜像：激活时收掉（持着开户锁），放在容量等待和停机之前
+    @staticmethod
+    def maintenance(group, role='maintenance', top=None):
+        """ensure_maintenance 建的那种容器：名字 pearnly-maintenance-<组>，标签 pearnly.role / pearnly.group。"""
+        container = {'labels': f'{role}/{group}'}
+        if top is not None:
+            container['top'] = top
+        return {f'pearnly-maintenance-{group}': container}
+
+    def order(self, calls):
+        """收维护容器 → ensure-swap → 容量检查 → 停机前的维护模式：各自第一次出现的位置。"""
+        find = lambda match: next((i for i, call in enumerate(calls) if match(call)), None)
+        return (find(lambda call: call[:2] == ['rm', '-f']),
+                find(lambda call: call[:1] == ['ensure-swap']),
+                find(lambda call: call[:1] == ['capacity']),
+                find(lambda call: 'set-maintenance-mode' in call))
+
+    def test_leftover_maintenance_container_is_removed_before_swap_and_capacity(self):
+        # 开户代理的维护容器跑的是旧镜像、占容量额度：激活时先收掉（持着开户锁），再建 swap、再做容量等待
         for product in ('dms', 'erp', 'cowork'):
-            result, trace = self.run_activation(product=product)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            calls = [row['args'] for row in trace]
-            self.assertIn(['rm', '-f', f'pearnly-maintenance-{product}'], calls)
-            removal = calls.index(['rm', '-f', f'pearnly-maintenance-{product}'])
-            self.assertLess(removal, next(i for i, call in enumerate(calls) if 'set-maintenance-mode' in call))
-            self.assertFalse([call for call in calls if call[:2] == ['rm', '-f'] and call != calls[removal]])
-        # 没有这个容器（docker rm 失败）也不能挡住激活
-        result, _ = self.run_activation('pearnly-maintenance-dms')
+            with self.subTest(product=product):
+                result, trace = self.run_activation(product=product, containers=self.maintenance(product))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                calls = [row['args'] for row in trace]
+                self.assertIn(['rm', '-f', f'pearnly-maintenance-{product}'], calls)
+                removal, swap, capacity, maintenance_mode = self.order(calls)
+                self.assertLess(removal, swap)
+                self.assertLess(swap, capacity)
+                self.assertLess(capacity, maintenance_mode)
+                self.assertEqual(calls[capacity], ['capacity', '--product', product, '--wait-seconds', '600'])
+                # 收之前已持有开户代理同一把 provision.lock（此刻没有开户工单在跑）
+                self.assertLess(next(i for i, row in enumerate(trace) if row['program'] == 'flock'), removal)
+                self.assertEqual([call for call in calls if call[:2] == ['rm', '-f']],
+                                 [['rm', '-f', f'pearnly-maintenance-{product}']])
+
+    def test_other_groups_maintenance_containers_are_left_alone(self):
+        containers = {**self.maintenance('erp'), **self.maintenance('cowork')}
+        result, trace = self.run_activation(product='dms', containers=containers)
         self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        self.assertFalse([call for call in calls if call[:1] == ['rm']])
+        self.assertFalse([call for call in calls if any(name in call for name in containers)])
+
+    def test_container_in_use_or_not_a_maintenance_container_is_kept(self):
+        busy = 'PID COMMAND\n4242 sleep infinity\n5120 /home/frappe/frappe-bench/env/bin/python /run/site-step.py'
+        cases = (('running a provisioning step', self.maintenance('dms', top=busy), 'still running a provisioning step'),
+                 ('labelled for another group', {'pearnly-maintenance-dms': {'labels': 'maintenance/erp'}},
+                  'not a provisioning maintenance container'),
+                 ('without the maintenance labels', {'pearnly-maintenance-dms': {'labels': '/'}},
+                  'not a provisioning maintenance container'))
+        for name, containers, message in cases:
+            with self.subTest(case=name):
+                result, trace = self.run_activation(product='dms', containers=containers)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(message, result.stderr)
+                calls = [row['args'] for row in trace]
+                self.assertFalse([call for call in calls if call[:1] == ['rm']])
+                _, swap, capacity, maintenance_mode = self.order(calls)
+                self.assertLess(swap, capacity)
+                self.assertLess(capacity, maintenance_mode)
+
+    def test_no_leftover_maintenance_container_activates_as_before(self):
+        result, trace = self.run_activation(product='dms')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        self.assertFalse([call for call in calls if call[:1] in (['rm'], ['top'])])
+        _, swap, capacity, maintenance_mode = self.order(calls)
+        self.assertLess(swap, capacity)
+        self.assertLess(capacity, maintenance_mode)
+        # 收不掉（docker rm 失败）也不能挡住激活：只告警，容量检查照做
+        result, trace = self.run_activation('rm', product='dms', containers=self.maintenance('dms'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('could not be removed', result.stderr)
+        self.assertIsNotNone(self.order([row['args'] for row in trace])[2])
 
     def test_warmup_runs_after_reopening_and_cannot_fail_activation(self):
         result, trace = self.run_activation(product='cowork')
