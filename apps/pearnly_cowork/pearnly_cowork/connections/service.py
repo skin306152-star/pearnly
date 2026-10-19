@@ -469,6 +469,17 @@ def _mrerp_view(doc, account):
             "defaults": master_rules.view(doc.get("mrerp_defaults"), doc.get("mrerp_master_options"), account)}
 
 
+def mrerp_remembered(name, account_set_key):
+    """这份 MR.ERP 账套人选过的导入菜单与主档默认值（谁、何时选的；只有一个可选值自动用的不在里面）：
+    ``{"menus": {单据类型: {idmenu, label, chosen_by, chosen_at}}, "defaults": {字段: {code, name, chosen_by, chosen_at}}}``，
+    给公司页「记住的选择」。权限同 `mrerp_menu`。"""
+    doc = _read(CONNECTION, name, lock=False)
+    access.require_connection(doc, lock=False)
+    account = _mrerp_menu_account(doc, account_set_key)
+    return {"menus": deepcopy(menu_rules.choices(doc.mrerp_menus).get(account) or {}),
+            "defaults": deepcopy(master_rules.choices(doc.get("mrerp_defaults")).get(account) or {})}
+
+
 def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
     """记下这份账套这类单据推哪个 MR.ERP 菜单（选一次，按连接 + 账套 + 单据类型记住，用户 2026-09-28）。
 

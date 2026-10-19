@@ -26,8 +26,9 @@ GUIDANCE = [
     "When a <company> note is present, work for that company by default: use its account set covering the work "
     "month, its documents folder and month folder for cowork_folder_files, cowork_folder_fetch and new scheduled "
     "tasks; ask before working on another company. Do not move existing scheduled tasks to another folder unless the "
-    "user asks. An MR.ERP company's account sets carry no fiscal dates, so none is marked as covering the month: with "
-    "one year use it; with several, ask the user once which year to use.",
+    "user asks. An MR.ERP company's account sets get their fiscal dates when its account sets are refreshed; until "
+    "then none is marked as covering the month: with one year use it; with several, ask the user once which year to "
+    "use.",
     "When the user states or confirms a lasting fact about how this client's books are kept that is not already in "
     "the team notes (who is paid rent and the withholding rate, how POS days are closed, how a kind of receipt is "
     "booked), offer once in one short sentence to save it with cowork_company_note_save. Do not save one-off details, "
@@ -584,10 +585,10 @@ TOOLS = [
                     "company this conversation is filed under; work_branch is the branch this conversation works on. "
                     "Times (set_at, updated_at, created_at) are the user's local time with its UTC offset: say them as "
                     "local time. Describe where a remembered choice or rule came from in the user's own words, never "
-                    "by its source code. An MR.ERP company has no fiscal period on its account sets, automation null "
-                    "and no choices or rules (those are for Express); mrerp_settings lists, per account set, the "
-                    "import menus and default values chosen for MR.ERP and what is still needed (change them with "
-                    "cowork_mrerp_setup).",
+                    "by its source code. An MR.ERP company has automation null and no rules or account set choices "
+                    "like Express: its remembered choices are the MR.ERP import menus and default values (source "
+                    "mrerp), and mrerp_settings lists, per account set, those and what is still needed (change them "
+                    "with cowork_mrerp_setup); its account sets carry fiscal periods once they were refreshed.",
      "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "period": {"type": "string"}}},
      "handler": "pearnly_cowork.assistant.company_tools.profile"},
     {"name": "cowork_company_note_save", "label": "Saved a company note",

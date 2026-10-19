@@ -285,6 +285,10 @@ class Connections(types.ModuleType):
         return [{"name": name, "adapter": self.adapters[name], "label": name, "enabled": True}
                 for name in sorted(self.catalogs) if user in self.users.get(name, {user})]
 
+    def mrerp_remembered(self, name, account_set_key):
+        """MR.ERP 账套人选过的导入菜单与默认值（`connections.service.mrerp_remembered`）：默认都没选过。"""
+        return {"menus": {}, "defaults": {}}
+
     def account_set_facts(self, name):
         self.reads.append(name)
         if frappe.session.user not in self.users.get(name, {frappe.session.user}):
@@ -3753,7 +3757,8 @@ class MrErpCompanyTests(unittest.TestCase):
         self.assertEqual(saved["status"], "not_saved")
         self.assertFalse(frappe.db.tables.get(RULE))
         guidance = " ".join(self.tools.GUIDANCE)
-        self.assertIn("An MR.ERP company's account sets carry no fiscal dates", guidance)
+        self.assertIn("An MR.ERP company's account sets get their fiscal dates when its account sets are refreshed",
+                      guidance)
         self.assertIn("Express companies only, an MR.ERP company has none", guidance)
 
     def test_the_ledger_counts_its_tasks_without_fiscal_periods(self):
@@ -3776,6 +3781,116 @@ class MrErpCompanyTests(unittest.TestCase):
         # 报了会计期间的账套（Express）照旧只看覆盖这个月的
         self.assertEqual(ledger._without_periods([{"key": "a", "period_start": "2026-01-01"}, {"key": "b"}]), [])
 
+
+class MrErpChoicesAndPendingTests(MrErpCompanyTests):
+    """公司页「记住的选择」里的 MR.ERP 导入菜单与默认值（能改、不能删）；待处理与月结台账对停在要选这些的单当场选
+    （action ``mrerp``），选完照常重推（`assistant.pending_api.mrerp_needs` / `mrerp_answer`，2026-10-19）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.chosen = []
+        remembered = {"12:3": {"menus": {"purchase": {"idmenu": "68", "label": "ซื้อ", "chosen_by": "a@example.com",
+                                                      "chosen_at": "2026-10-19T01:00:00"}},
+                               "defaults": {"dept": {"code": "D001", "name": "บัญชี", "chosen_by": "a@example.com",
+                                                     "chosen_at": "2026-10-19T01:00:00"}}},
+                      "13:4": {"menus": {}, "defaults": {}}}
+        for name, fn in (("mrerp_remembered", lambda conn, key: json.loads(json.dumps(remembered[key]))),
+                         ("choose_mrerp_menu", lambda *a: self.chosen.append(("menu",) + a) or {}),
+                         ("choose_mrerp_default", lambda *a: self.chosen.append(("default",) + a) or {})):
+            patcher = mock.patch.object(connections, name, fn, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _rows(self):
+        fresh_request()
+        return [row for row in service.detail(self.company)["choices"] if row["source"] == "mrerp"]
+
+    def test_remembered_menus_and_defaults_are_listed_and_changed_through_the_connection(self):
+        rows = self._rows()
+        self.assertEqual([(row["kind"], row["value"], row["value_label"], row["year_label"]) for row in rows],
+                         [("mrerp_menu", "68", "ซื้อ", "TEST2019"), ("mrerp_default", "D001", "บัญชี", "TEST2019")])
+        self.assertEqual(rows[0]["mrerp"], {"connection": "M1", "account_set_key": "12:3", "part": "menu",
+                                            "field": "purchase"})
+        self.assertFalse(rows[0].get("promotable"))
+        row = service.get(self.company)
+        choices.set_value(row, service.books(row, None), rows[0]["key"], "454")
+        choices.set_value(row, service.books(row, None), rows[1]["key"], "D002")
+        self.assertEqual(self.chosen, [("menu", "M1", "12:3", "purchase", "454"), ("default", "M1", "12:3", "dept", "D002")])
+        # 别家的账套、乱写的键不收
+        forged = choices.encode("mrerp", "M1", "99:9", "menu", "purchase")
+        with self.assertRaises(frappe.DoesNotExistError):
+            choices.set_value(row, service.books(row, None), forged, "68")
+
+    def test_a_menu_stop_is_chosen_on_the_spot_in_pending_and_the_month(self):
+        frappe.db.tables["Cowork OCR History"] = {"r1": history(
+            "r1", push_connection="M1", push_account_set="12:3", intake_target="mrerp", last_push_status="manual",
+            last_push_reason="ERR_MRERP_MENU_CHOICE_REQUIRED", buyer_tax="", seller_tax="", invoice_date="2026-09-20")}
+        fresh_request()
+        item, = pending.pending(self.company)["items"]
+        self.assertEqual((item["action"], item["choice"]["connection"], item["choice"]["account_set_key"]),
+                         ("mrerp", "M1", "12:3"))
+        self.assertTrue(pending.mrerp_setup_stop({"push_connection": "M1", "push_account_set": "12:3",
+                                                  "last_push_reason": "ERR_MRERP_DEFAULT_CHANGED"}))
+        self.assertFalse(pending.mrerp_setup_stop({"push_connection": "M1", "push_account_set": "12:3",
+                                                   "last_push_status": "success",
+                                                   "last_push_reason": "ERR_MRERP_MENU_CHANGED"}))
+        rules = types.SimpleNamespace(month_files=lambda names, start, end: {})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}), \
+                mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            fresh_request()
+            found = ledger.month(self.company, "2026-09")
+        stop = next(entry for entry in found["exceptions"]["items"] if entry["document"] == "r1")
+        self.assertEqual((stop["action"], stop["choice"]["account_set_key"]), ("mrerp", "12:3"))
+
+
+class MrErpPendingAnswerTests(PendingAnswerTests):
+    """`assistant.pending_api.mrerp_needs` / `mrerp_answer`：只给这张单方向会用到、还要选的；作答经连接服务记下再重推。"""
+
+    VIEW = {"known": True, "kinds": {
+        "purchase": {"options": [{"idmenu": "68", "label": "ซื้อ"}, {"idmenu": "454", "label": "ซื้อ2"}], "needed": True},
+        "purchase_expense": {"options": [{"idmenu": "68", "label": "ซื้อ"}], "needed": False},
+        "sales_credit": {"options": [{"idmenu": "119", "label": "x"}, {"idmenu": "120", "label": "y"}], "needed": True}},
+        "defaults": {"known": True, "fields": {"ap_account": {"options": [{"code": "2120-01", "name": "เจ้าหนี้"},
+                                                                          {"code": "2120-02", "name": ""}], "needed": True}}}}
+
+    def _mrerp(self, doc, pushed):
+        module, calls = self._answer(doc, pushed)
+        sys.modules["pearnly_cowork.assistant.tools"]._doc_direction = lambda found: "purchase"
+        needs = _mrerp_needs()
+        patches = [mock.patch.object(connections, "mrerp_menu", lambda name, key: json.loads(json.dumps(self.VIEW)),
+                                     create=True),
+                   mock.patch.object(connections, "choose_mrerp_menu", lambda *a: calls.append(("menu",) + a), create=True),
+                   mock.patch.object(connections, "choose_mrerp_default", lambda *a: calls.append(("default",) + a),
+                                     create=True),
+                   mock.patch.dict(sys.modules, {"pearnly_cowork.connections.mrerp_needs": needs}),
+                   mock.patch.object(sys.modules["pearnly_cowork.connections"], "mrerp_needs", needs, create=True)]
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return module, calls
+
+    def test_only_what_this_direction_needs_is_asked_then_it_is_pushed_again(self):
+        doc = Row(name="r1", push_connection="M1", push_account_set="12:3", last_push_status="manual",
+                  last_push_reason="ERR_MRERP_MENU_CHOICE_REQUIRED")
+        module, calls = self._mrerp(doc, {"status": "sent"})
+        found = module.mrerp_needs("r1")
+        self.assertEqual([item["key"] for item in found["items"]], ["menu:purchase", "default:ap_account"])
+        self.assertEqual(found["items"][1]["options"], [{"value": "2120-01", "label": "2120-01 · เจ้าหนี้"},
+                                                        {"value": "2120-02", "label": "2120-02"}])
+        out = module.mrerp_answer("r1", json.dumps({"menu:purchase": "68", "default:ap_account": "2120-01"}))
+        self.assertEqual(out, {"document": "r1", "status": "sent"})
+        self.assertEqual([call[0] for call in calls], ["menu", "default", "reader", "push"])
+        self.assertEqual(calls[0][1:], ("M1", "12:3", "purchase", "68"))
+        with self.assertRaises(frappe.ValidationError):
+            module.mrerp_answer("r1", json.dumps({"party:x": "1"}))
+
+    def test_a_document_not_stopped_on_mrerp_settings_is_refused(self):
+        doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC", last_push_reason="choice_needed:party")
+        module, calls = self._mrerp(doc, {"status": "sent"})
+        self.assertEqual(module.mrerp_needs("h1")["items"], [])
+        with self.assertRaises(frappe.ValidationError):
+            module.mrerp_answer("h1", "{}")
+        self.assertEqual(calls, [])
 
 if __name__ == "__main__":
     unittest.main()

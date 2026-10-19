@@ -80,6 +80,7 @@ BUSY_SITES = [
     ("components/assistant-ui/attachment.tsx", "cc-spinner", "{isUploading && (", 5),
     ("components/pending.tsx", "cc-spinner", "{open && !sets && !error && (", 3),  # 待选账套那一行展开、可换账套还没取回
     ("components/pending.tsx", "cc-spinner", "{!view && !error && (", 3),  # 提议那一行展开、CC 备好的内容还没取回
+    ("components/company-cards.tsx", "cc-spinner", "if (!options) return", 0),  # MR.ERP 记住的选择展开、可选值还没取回（10-19）
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
 BUSY_MOUNTS = [

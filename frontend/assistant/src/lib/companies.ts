@@ -51,7 +51,10 @@ export type Choice = {
   key: string; source: string; kind: string; subject_label: string; value: string; value_label?: string; editable?: boolean;
   year_label?: string; set_by?: string; set_at?: string; count?: number; last_date?: string;
   supplier_name?: string; account_label?: string; branch?: string; promotable?: boolean;
+  // MR.ERP 账套记住的导入菜单 / 默认值（source mrerp，2026-10-19）：改的时候可选值按这里点开时现取（loadMrErpOptions）
+  mrerp?: MrErpChoice;
 };
+export type MrErpChoice = { connection: string; account_set_key: string; part: "menu" | "default"; field: string };
 /** follows：跟随公司当年账套（T1，任务记了公司），账套处写「跟随公司当年账套」，account_label 只作兜底。 */
 export type TaskRow = {
   name: string; title: string; enabled?: boolean | number; account_label?: string; folder_label?: string; follows?: boolean;
@@ -82,7 +85,8 @@ export type PendingItem = {
   invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string; month?: string;
   // account_set：定时任务跟随公司当年账套停在「待选账套」（T1），当场换一份账套重推（ADR-021 第 6 批）
   // push：CC 准备好的提议（数字会计员第 3 期），当场「推送」
-  action: "choose" | "open" | "account_set" | "push";
+  // mrerp：MR.ERP 推送停在要选这份账套的导入菜单 / 默认值（2026-10-19），当场选完重推
+  action: "choose" | "open" | "account_set" | "push" | "mrerp";
   choice?: PendingChoice | null;
 };
 
@@ -213,6 +217,33 @@ export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<{ 
  *  候选是多份同期时，推成了服务端才把选的那份记成这家公司这一组现用的（之后同一组的单照选，组合变了再问）。 */
 export function chooseAccountSet(item: Pick<PendingItem, "document">, key: string): Promise<AnswerResult> {
   return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.choose_account_set", { document: item.document, account_set_key: key });
+}
+
+/** MR.ERP 停在要选导入菜单 / 默认值的单点开后要选的（assistant.pending_api.mrerp_needs，服务端按这张单的方向挑好、名称按用户
+ *  语言）：key 是 menu:单据类型 / default:字段；known 为假 = 菜单还没从 MR.ERP 读到过（交给 CC）。 */
+export type MrErpNeed = { key: string; label: string; options: Array<{ value: string; label: string }> };
+export function loadMrErpNeeds(item: Pick<PendingItem, "document">): Promise<{ known: boolean; items: MrErpNeed[] }> {
+  return getMethod<{ known?: boolean; items?: MrErpNeed[] }>("pearnly_cowork.assistant.pending_api.mrerp_needs", { document: item.document })
+    .then((found) => ({ known: !!found?.known, items: found?.items ?? [] }));
+}
+
+/** 记下选的 MR.ERP 导入菜单 / 默认值（这份账套大家共用，同网页弹窗）并重推这一张；结果同 answerChoices。 */
+export function answerMrErp(item: Pick<PendingItem, "document">, values: Record<string, string>): Promise<AnswerResult> {
+  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.mrerp_answer", { document: item.document, values: JSON.stringify(values) });
+}
+
+/** 公司页改一条 MR.ERP 记住的选择时的可选值：这份账套最近一次从 MR.ERP 读到的（connections.api.mrerp_menu，同推送前的弹窗）。 */
+type MrErpView = {
+  kinds?: Record<string, { options?: Array<{ idmenu: string; label?: string }> }>;
+  defaults?: { fields?: Record<string, { options?: Array<{ code: string; name?: string }> }> };
+};
+export function loadMrErpOptions(choice: MrErpChoice): Promise<Array<{ value: string; label: string }>> {
+  return getMethod<MrErpView>("pearnly_cowork.connections.api.mrerp_menu", { name: choice.connection, account_set_key: choice.account_set_key })
+    .then((view) =>
+      choice.part === "menu"
+        ? (view?.kinds?.[choice.field]?.options ?? []).map((o) => ({ value: o.idmenu, label: o.label || o.idmenu }))
+        : (view?.defaults?.fields?.[choice.field]?.options ?? []).map((o) => ({ value: o.code, label: [o.code, o.name].filter(Boolean).join(" · ") })),
+    );
 }
 
 /** 账套目录还没读到时「刷新账套」：本人能用的每条连接各请电脑读一次目录（connections.request_refresh，同网页）。 */

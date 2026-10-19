@@ -44,6 +44,7 @@ import {
   type Draft,
   forgetChoice,
   formatWhen,
+  loadMrErpOptions,
   monthLabel,
   type Note,
   promoteChoice,
@@ -96,14 +97,14 @@ export function folderSummary(folders: ReadonlyArray<Pick<CompanyFolder, "state"
 /** 记住的选择分小节：Express、公司规则与按公司记的口径（入账方式、现用账套）按类别，其余按来源（vat 预设叫「增值税核对」，
  *  免得与简易税票那一类混；Express 历史定下的入账方式单列「入账方式历史」）。 */
 export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
-  if (choice.source === "express" || choice.source === "rule" || choice.source === "policy") return choice.kind;
+  if (choice.source === "express" || choice.source === "rule" || choice.source === "policy" || choice.source === "mrerp") return choice.kind;
   if (choice.source === "vat") return "vatCheck";
   if (choice.source === "history" && choice.kind === "posting") return "posting_history";
   return choice.source;
 }
 
 const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "item", "department", "receipt", "current_book", "pos", "income",
-  "vatCheck", "history", "posting_history"];
+  "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default"];
 
 // ---------------------------------------------------------------- 卡片外框
 /** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的共用拖动负责）、登记看得见的卡片
@@ -663,11 +664,11 @@ const EDITABLE: Record<string, Array<{ value: string; label: () => string }>> = 
   ],
 };
 
-/** 改了一条记住的选择后列表的样子：值与显示名换成刚选的（选项的显示名在 EDITABLE）。 */
-export function setChoiceShown(choices: readonly Choice[], key: string, value: string): Choice[] {
+/** 改了一条记住的选择后列表的样子：值与显示名换成刚选的（选项的显示名在 EDITABLE；MR.ERP 的由下拉给 shown）。 */
+export function setChoiceShown(choices: readonly Choice[], key: string, value: string, shown = ""): Choice[] {
   return choices.map((c) => {
     if (c.key !== key) return c;
-    const label = EDITABLE[c.kind]?.find((o) => o.value === value)?.label();
+    const label = shown || EDITABLE[c.kind]?.find((o) => o.value === value)?.label();
     return { ...c, value, ...(label ? { value_label: label } : {}) };
   });
 }
@@ -677,7 +678,7 @@ export const toggleChoice = (open: string, key: string) => (open === key ? "" : 
 
 /** 值是主档代码的几类：科目（含 Express 历史）、收款科目、对方档、存货、部门。收起时只写代码（280 宽右侧栏里「代码 名称」长串会把
  *  左边的对方名挤得看不见，对方档的名称又常就是对方名本身），完整的「代码 名称」在点开后的说明里（第 10 轮审查）。 */
-const CODE_KINDS = new Set(["account", "receipt", "party", "item", "department"]);
+const CODE_KINDS = new Set(["account", "receipt", "party", "item", "department", "mrerp_default"]);
 
 /** 行尾的值（收起时 12px 淡色、不换行，放不下渐隐）：能改的写选项名（现购 / 赊购），代码类只写代码，POS 版式不写（值是内部的
  *  auto / person，没有给人看的说法），其余写显示名。 */
@@ -719,9 +720,9 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
 }) => {
   // 页面上显示的：改 / 删成功时先按刚做的改这里（两段式不弹回旧值），整页重取到了以服务端为准
   // 两段式改了还没回来的（键 → 刚选的值）：期间整页重取到的旧值不把它盖回去（第 11 轮审查）
-  const changing = useRef(new Map<string, string>());
+  const changing = useRef(new Map<string, [string, string]>());
   const withChanging = (rows: readonly Choice[]) =>
-    [...changing.current].reduce<Choice[]>((acc, [key, value]) => setChoiceShown(acc, key, value), [...rows]);
+    [...changing.current].reduce<Choice[]>((acc, [key, [value, shown]]) => setChoiceShown(acc, key, value, shown), [...rows]);
   const [list, setList] = useState(choices ?? []);
   useEffect(() => setList(withChanging(choices ?? [])), [choices]);
   // 没成功的原因写在出错的那一条里、紧挨着按钮（第 11 轮 F40：以前写在整张卡最底下，右侧栏没滚动时在视区外，只看到值跳回去）
@@ -779,17 +780,18 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   };
   // 两段式改现 / 赊：点下立即显示新选择（第 10 轮 D28：以前等接口回来约 200ms 才变）；没成功只把这一条的值退回原样
   // （不整条换回点下那一刻的，期间重取到的别的字段留着），卡内报错
-  const change = async (c: Choice, v: string) => {
+  // MR.ERP 的导入菜单 / 默认值从下拉选（shown 是选项的名字），同一条接口（服务端按键转给连接，只收 MR.ERP 读到的可选值）
+  const change = async (c: Choice, v: string, shown = "") => {
     if (!start(c.key)) return;
-    changing.current.set(c.key, v);
-    setList((rows) => setChoiceShown(rows, c.key, v));
+    changing.current.set(c.key, [v, shown]);
+    setList((rows) => setChoiceShown(rows, c.key, v, shown));
     try {
       await setChoice(company, c.key, v, period);
       // 自己这次重取回来之前一直按刚选的显示（之前发出的重取可能还带着旧值）
-      void reload().finally(() => changing.current.get(c.key) === v && changing.current.delete(c.key));
+      void reload().finally(() => changing.current.get(c.key)?.[0] === v && changing.current.delete(c.key));
     } catch (e) {
       changing.current.delete(c.key);
-      setList((rows) => setChoiceShown(rows, c.key, c.value));
+      setList((rows) => setChoiceShown(rows, c.key, c.value, c.value_label ?? ""));
       setError({ key: c.key, message: shownError(e) });
     } finally {
       end(c.key);
@@ -808,7 +810,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
               busy={busy === c.key}
               error={error?.key === c.key ? error.message : ""}
               onToggle={() => setOpen((o) => toggleChoice(o, c.key))}
-              onSet={(v) => void change(c, v)}
+              onSet={(v, shown) => void change(c, v, shown)}
               onForget={() => void run(c.key, () => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
               onPromote={() => void run(c.key, () => promoteChoice(company, c.key, period), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
             />
@@ -832,7 +834,8 @@ type ChoiceRowProps = {
   /** 这一条刚才没成功的原因（改现 / 赊、删除、设为全公司）：写在按钮下面，紧挨着刚按的操作；收着时写在行下面。 */
   error?: string;
   onToggle?: () => void;
-  onSet: (value: string) => void;
+  /** 改值；MR.ERP 的下拉另给选项的名字（shown）。 */
+  onSet: (value: string, shown?: string) => void;
   onForget: () => void;
   /** 账套行、历史行的「设为全公司」（不给就不显示）。 */
   onPromote?: () => void;
@@ -846,6 +849,7 @@ type ChoiceRowProps = {
 export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = false, error = "", onToggle, onSet, onForget, onPromote }) => {
   const history = choice.source === "history";
   const rule = choice.source === "rule";
+  const mrerp = choice.source === "mrerp" && !!choice.mrerp;
   const options = (choice.source === "express" || rule || choice.source === "policy") && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
   const subject = choice.subject_label || choice.supplier_name || "";
   const meta = history
@@ -882,19 +886,55 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
                 ))}
               </div>
             )}
+            {mrerp && <MrErpChoiceSelect choice={choice} label={subject} busy={busy} onSet={onSet} />}
             {onPromote && choice.promotable && (
               <button type="button" className="cc-card-btn" data-slot="cc-choice-promote" onClick={() => !busy && onPromote()}>
                 {co.makeCompanyWide}
               </button>
             )}
-            <button type="button" className="cc-card-btn" data-ghost="" data-danger="" data-slot="cc-choice-forget" onClick={() => !busy && onForget()}>
-              {t("delete")}
-            </button>
+            {!mrerp && (
+              <button type="button" className="cc-card-btn" data-ghost="" data-danger="" data-slot="cc-choice-forget" onClick={() => !busy && onForget()}>
+                {t("delete")}
+              </button>
+            )}
           </div>
           {alert}
         </div>
       )}
       {!open && alert}
     </div>
+  );
+};
+
+/** MR.ERP 记住的导入菜单 / 默认值展开后的下拉（2026-10-19，同定时任务表单与推送前那个弹窗）：可选值是这份账套最近一次从 MR.ERP
+ *  读到的，展开时现取（loadMrErpOptions），选了就改（同现 / 赊两段式，没有确认步骤）；只能改，不能删。 */
+const MrErpChoiceSelect: FC<{ choice: Choice; label: string; busy: boolean; onSet: (value: string, shown?: string) => void }> = ({
+  choice,
+  label,
+  busy,
+  onSet,
+}) => {
+  const [options, setOptions] = useState<Array<{ value: string; label: string }> | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!choice.mrerp) return;
+    let alive = true;
+    loadMrErpOptions(choice.mrerp)
+      .then((rows) => alive && setOptions(rows))
+      .catch((e) => alive && setError(shownError(e)));
+    return () => {
+      alive = false;
+    };
+  }, [choice.mrerp]);
+  if (error) return <p role="alert" className="cc-choice-error text-danger">{error}</p>;
+  if (!options) return <LoaderIcon className="cc-spinner text-ink-3" />;
+  const listed = options.some((o) => o.value === choice.value) ? options : [{ value: choice.value, label: choice.value_label || choice.value }, ...options];
+  return (
+    <select className="cc-input min-w-0 flex-1" aria-label={label} data-slot="cc-choice-mrerp" value={choice.value}
+      onChange={(e) => !busy && e.target.value !== choice.value && onSet(e.target.value, listed.find((o) => o.value === e.target.value)?.label ?? "")}>
+      {listed.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </select>
   );
 };

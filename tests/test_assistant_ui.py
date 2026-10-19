@@ -4089,16 +4089,16 @@ assert.equal(choiceAfter(["a"], "a"), "");
         self.assertIn("if (gone) setOpen((o) => (o === gone ? \"\" : o));", section)
         self.assertIn("busy={busy === c.key}", section)
         # 两段式点下立即显示新选择，没成功这一条退回原样、卡内报错（第 11 轮 D28）
-        change = section[section.index("const change = async (c: Choice, v: string) => {"):]
-        self.assertLess(change.index("setList((rows) => setChoiceShown(rows, c.key, v));"),
+        change = section[section.index("const change = async (c: Choice, v: string, shown = \"\") => {"):]
+        self.assertLess(change.index("setList((rows) => setChoiceShown(rows, c.key, v, shown));"),
                         change.index("await setChoice(company, c.key, v, period);"))
         # 第 11 轮审查：没成功只退回这一条的值（不整条换回点下那一刻的）；请求期间整页重取到的旧值不把刚选的盖回去
-        self.assertIn("setList((rows) => setChoiceShown(rows, c.key, c.value));", change)
+        self.assertIn("setList((rows) => setChoiceShown(rows, c.key, c.value, c.value_label ?? \"\"));", change)
         self.assertNotIn("row.key === c.key ? c : row", change)
         self.assertIn("useEffect(() => setList(withChanging(choices ?? [])), [choices]);", section)
-        self.assertLess(change.index("changing.current.set(c.key, v);"), change.index("await setChoice(company, c.key, v, period);"))
-        self.assertIn("void reload().finally(() => changing.current.get(c.key) === v && changing.current.delete(c.key));", change)
-        self.assertIn("onSet={(v) => void change(c, v)}", section)
+        self.assertLess(change.index("changing.current.set(c.key, [v, shown]);"), change.index("await setChoice(company, c.key, v, period);"))
+        self.assertIn("void reload().finally(() => changing.current.get(c.key)?.[0] === v && changing.current.delete(c.key));", change)
+        self.assertIn("onSet={(v, shown) => void change(c, v, shown)}", section)
         self.assertIn("if (gone) setFocusKey(choiceAfter(", section)
         self.assertIn('row?.querySelector<HTMLElement>(".cc-choice-row")?.focus();', section)
         self.assertEqual(section.count("(rows) => rows.filter((row) => row.key !== c.key), c.key)"), 2)
@@ -4335,6 +4335,21 @@ assert.deepEqual(text(policyRow(posting, true)), ["Goods documents", "Post to st
 assert.ok(policyRow(posting, true).includes('aria-pressed="true">Post to stock</button>'));
 assert.ok(!policyRow(book, true).includes("cc-choice-seg"));
 assert.deepEqual(text(policyRow(book, true)), ["Current year · Head office", "ABC 69", "69EXP", "Delete"]);
+// MR.ERP 账套记住的导入菜单 / 默认值（2026-10-19）：各自一组，菜单写菜单名、默认值收起时只写代码；点开是下拉（可选值点开时现取，
+// 先转圈），只能改、不能删、不能设为全公司
+const menu = { key: "m1", source: "mrerp", kind: "mrerp_menu", subject_label: "Purchase (goods)", value: "68", value_label: "ซื้อ",
+  editable: true, year_label: "TEST2019", mrerp: { connection: "M1", account_set_key: "12:3", part: "menu", field: "purchase" } };
+const dept = { key: "m2", source: "mrerp", kind: "mrerp_default", subject_label: "Department", value: "D001", value_label: "บัญชี",
+  editable: true, year_label: "TEST2019", mrerp: { connection: "M1", account_set_key: "12:3", part: "default", field: "dept" } };
+assert.deepEqual([choiceSection(menu), choiceSection(dept)], ["mrerp_menu", "mrerp_default"]);
+assert.deepEqual([co.kind.mrerp_menu, co.kind.mrerp_default], ["MR.ERP import menu", "MR.ERP settings"]);
+assert.deepEqual(text(policyRow(menu, false)), ["Purchase (goods)", "ซื้อ"]);
+assert.deepEqual(text(policyRow(dept, false)), ["Department", "D001"]);
+const opened = policyRow(dept, true);
+assert.deepEqual(text(opened), ["Department", "D001", "TEST2019", "Department → D001 บัญชี"]);
+assert.ok(opened.includes("cc-spinner"));
+assert.ok(!opened.includes("cc-choice-forget") && !opened.includes("cc-choice-promote"));
+assert.equal(setChoiceShown([menu], "m1", "454", "ซื้อ2")[0].value_label, "ซื้อ2");
 // 服务端给带时区的 UTC：按这台设备的时区显示；不带时区的不猜、原样（原先补 Z，晚 7 小时）
 assert.equal(formatWhen("2026-10-15T02:00:00Z"),
   new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Date.UTC(2026, 9, 15, 2))));
@@ -8746,7 +8761,8 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
         # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）+ 多电脑分支待选账套行（AccountSetRow）的「确认」「交给 CC」两颗
-        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 7)  # 第 3 期提议行展开后的「推送」
+        # 第 3 期提议行展开后的「推送」；MR.ERP 当场选那一行（10-19）的「确认」「推送」「交给 CC」三颗
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 10)
         # 设置「电脑」列表每台电脑行尾「···」：电脑 24（.cc-row-btn，标准化 V22；原来手写 28），手机点按区 44（.cc-tap）
         self.assertIn('className="cc-row-btn cc-tap"', read("components/settings.tsx"))
         self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))

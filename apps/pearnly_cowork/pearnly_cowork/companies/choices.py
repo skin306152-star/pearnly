@@ -141,6 +141,37 @@ def _express(sets) -> list:
     return out
 
 
+def mrerp_rows(sets) -> list:
+    """MR.ERP 账套人选过的导入菜单（``mrerp_menu``）与主档默认值（``mrerp_default``），每份账套一组（2026-10-19：公司页也能看、
+    能改）。存在连接上（`connections.service.mrerp_remembered`），不在推送记忆表里；改走连接的 `choose_mrerp_menu` /
+    `choose_mrerp_default`（页面带上 ``mrerp`` 里的连接、账套与类别，可选值点开时现取），不能删、不能设为全公司。
+    读不到的那条连接（没有使用授权）跳过。"""
+    from pearnly_cowork.connections import service as connections
+
+    out = []
+    for item in sets:
+        if item.get("adapter") != "mrerp":
+            continue
+        try:
+            found = connections.mrerp_remembered(item["connection"], item["key"])
+        except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+            continue
+        for part, rows in (("menu", found.get("menus") or {}), ("default", found.get("defaults") or {})):
+            for field, chosen in rows.items():
+                value = str(chosen.get("idmenu") if part == "menu" else chosen.get("code") or "")
+                label = str(chosen.get("label") if part == "menu" else chosen.get("name") or "")
+                term = f"intake.mrerpMenu.{field}" if part == "menu" else f"intake.mrerpDefault.{field}"
+                out.append({"key": encode("mrerp", item["connection"], item["key"], part, field), "source": "mrerp",
+                            "kind": "mrerp_" + part, "subject_label": _(term), "value": value,
+                            "value_label": label or value, "editable": True,
+                            "year_label": item.get("year_label") or item.get("label") or "",
+                            "set_by": str(chosen.get("chosen_by") or ""), "set_at": str(chosen.get("chosen_at") or ""),
+                            "mrerp": {"connection": item["connection"], "account_set_key": item["key"], "part": part,
+                                      "field": field}, "merged": 1})
+    return out
+
+
 def _pos_keys(sets) -> dict:
     from pearnly_cowork.pos_import import service as pos_service
 
@@ -358,7 +389,7 @@ def _all(company, sets) -> list:
     """这家公司记住的全部选择（补好名称、不截断）。"""
     found = []
     for part in (lambda: rule_rows(company), lambda: _express(sets), lambda: _pos(sets), lambda: _income(company),
-                 lambda: history_rows(company, sets), lambda: policy_rows(company, sets)):
+                 lambda: history_rows(company, sets), lambda: policy_rows(company, sets), lambda: mrerp_rows(sets)):
         try:
             found += part()
         except (frappe.PermissionError, frappe.ValidationError):
@@ -514,6 +545,23 @@ def forget(company, sets, key) -> dict:
     frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
 
 
+def _set_mrerp(sets, parts, value) -> dict:
+    """改一份 MR.ERP 账套记住的导入菜单 / 默认值（`mrerp_rows` 的行）：账套须是这家公司的；值只收这份账套最近一次从
+    MR.ERP 读到的可选值（连接服务核，同推送前那个弹窗）。"""
+    from pearnly_cowork.connections import service as connections
+
+    _source, connection, account, part, field = parts
+    if not any(item.get("adapter") == "mrerp" and item.get("connection") == connection and item.get("key") == account
+               for item in sets):
+        frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
+    value = str(value or "").strip()
+    if part == "menu":
+        connections.choose_mrerp_menu(connection, account, field, value)
+    else:
+        connections.choose_mrerp_default(connection, account, field, value)
+    return {"saved": True}
+
+
 def set_value(company, sets, key, value, period="") -> dict:
     """直接改一条：只收付款方式（cash / credit）与简易税票抵不抵（claim / expense）。推送按每份账套各自记的取
     （`push.choices.remembered`），所以写进这家公司在这条连接上**所有记过这一条的账套**（各分店、各年度），再加覆盖这个月
@@ -522,6 +570,8 @@ def set_value(company, sets, key, value, period="") -> dict:
     from pearnly_cowork.companies import identity
 
     parts = decode(key)
+    if len(parts) == 5 and parts[0] == "mrerp" and parts[3] in ("menu", "default"):
+        return _set_mrerp(sets, parts, value)
     if len(parts) == 2 and parts[0] == "rule":
         found = rules.one(company["name"], parts[1])
         if found["kind"] not in EDITABLE or str(value or "").strip() not in EDITABLE[found["kind"]]:

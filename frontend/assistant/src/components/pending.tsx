@@ -8,6 +8,8 @@
 //   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1；自动推前判出
 //   多份同期账套，数字会计员第 3 期）：点开取可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推
 //   （choose_account_set；多份同期时推成了服务端才记成这家公司现用的）；没有可换的就地「交给 CC」。
+//   停在要选 MR.ERP 导入菜单 / 默认值的（action mrerp，2026-10-19）：点开取这张单要选的（assistant.pending_api.mrerp_needs），
+//   选完「确认」记下并重推（mrerp_answer，同当场选）；别处已选好的直接「推送」，菜单没读到过的就地「交给 CC」。
 //   CC 准备好的提议（action push，数字会计员第 3 期：自动推前判成 A / B、这家的档位还只出提议）：行上不露「推送」，点开取
 //   CC 备好的内容（assistant.pending_api.proposal_detail，只读：账套、每一项做法、日期、单号、对方、金额），下面「推送」按当场选
 //   同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
@@ -22,6 +24,7 @@ import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
   answerChoices,
+  answerMrErp,
   cachedDetail,
   chooseAccountSet,
   type ChoiceNeeded,
@@ -33,9 +36,11 @@ import {
   listCompanies,
   loadAccountSets,
   loadChoices,
+  loadMrErpNeeds,
   loadPending,
   loadProposal,
   PENDING_EVENTS,
+  type MrErpNeed,
   type PendingItem,
   type ProposalView,
   pushOutcome,
@@ -103,6 +108,11 @@ export function choosable(item: PendingItem): boolean {
 /** CC 准备好的提议、能当场「推送」的那一类（服务端 action push，带推送去向，数字会计员第 3 期）。 */
 export function proposal(item: PendingItem): boolean {
   return item.action === "push" && !!item.choice?.connection;
+}
+
+/** MR.ERP 停在要选导入菜单 / 默认值、能当场选的那一类（服务端 action mrerp，带推送去向，2026-10-19）。 */
+export function mrerpChoosable(item: PendingItem): boolean {
+  return item.action === "mrerp" && !!item.choice?.connection;
 }
 
 /** 停在「待选账套」、能当场换账套的那一类（服务端 action account_set，带推送去向）。 */
@@ -260,7 +270,7 @@ const PendingGroup: FC<{
   company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
 }> = ({ company, title, items, onDone, onChanged }) => {
   const ask = useAskCC(company, title);
-  const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item) && !proposal(item));
+  const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item) && !proposal(item) && !mrerpChoosable(item));
   return (
     <section className="flex flex-col gap-(--cc-space-8)">
       {title && <h2 className="cc-section-label" data-flush="">{title}</h2>}
@@ -271,6 +281,8 @@ const PendingGroup: FC<{
           <AccountSetRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
         ) : proposal(item) ? (
           <ProposalRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} />
+        ) : mrerpChoosable(item) ? (
+          <MrErpRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
         ) : (
           <PendingRow key={item.document} item={item} />
         ),
@@ -416,6 +428,103 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
             {co.handToCC}
           </button>
         </>
+      )}
+      {error && <p role="alert" className="text-danger text-body">{error}</p>}
+    </div>
+  );
+};
+
+/** 停在要选 MR.ERP 导入菜单 / 默认值的单（action mrerp，2026-10-19）：同当场选那一行——点开才取这张单要选的（服务端按方向挑好、
+ *  名称按用户语言），每项一个下拉、不预选，点「确认」记下（这份账套大家共用，同网页弹窗）并重推；别处已经选好、没有要选的直接
+ *  「推送」；菜单还没从 MR.ERP 读到过的就地「交给 CC」（它能请服务器去读）。 */
+export const MrErpRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
+  item,
+  onDone,
+  onChanged,
+  onAsk,
+  head,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<{ known: boolean; items: MrErpNeed[] } | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    setError("");
+    setView(null);
+    try {
+      setView(await loadMrErpNeeds(item));
+      setValues({});
+    } catch (e) {
+      setError(shownError(e));
+    }
+  }, [item]);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !view) void load();
+  };
+  const confirm = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const outcome = pushOutcome(await answerMrErp(item, values), co.ledger.code.push_failed!);
+      if (outcome.kind === "done") onDone(item.document);
+      else if (outcome.kind === "choose") await load();
+      else {
+        setError(outcome.text);
+        onChanged();
+      }
+    } catch (e) {
+      setError(shownError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const choosing = !!view && view.items.length > 0;
+  const ready = !!view && view.known && !view.items.length;
+  return (
+    <div className="cc-list-item flex-col" data-slot="cc-pending-mrerp" data-variant={head ? "row" : undefined} data-open={open || undefined}>
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-(--cc-space-8) text-start"}
+        aria-expanded={open} onClick={toggle}>
+        {head ?? <Summary item={item} />}
+        <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
+      </button>
+      {open && !view && !error && (
+        <div className="flex justify-center py-(--cc-space-8) text-ink-3">
+          <LoaderIcon className="cc-spinner" />
+        </div>
+      )}
+      {open && choosing && (
+        <>
+          {view.items.map((need) => (
+            <label key={need.key} className="cc-field">
+              <Marquee className="truncate text-caption">{need.label}</Marquee>
+              <select className="cc-input" value={values[need.key] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [need.key]: e.target.value }))}>
+                {!values[need.key] && <option value="" disabled>—</option>}
+                {need.options.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <button type="button" className="cc-card-btn self-end" data-primary=""
+            disabled={busy || view.items.some((need) => !values[need.key])} onClick={() => void confirm()}>
+            {busy && <LoaderIcon className="cc-spinner" />}
+            {co.confirm}
+          </button>
+        </>
+      )}
+      {open && ready && (
+        <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy} onClick={() => void confirm()}>
+          {busy && <LoaderIcon className="cc-spinner" />}
+          {co.pushNow}
+        </button>
+      )}
+      {open && view && !choosing && !ready && (
+        <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
+          {co.handToCC}
+        </button>
       )}
       {error && <p role="alert" className="text-danger text-body">{error}</p>}
     </div>
