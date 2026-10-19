@@ -130,6 +130,20 @@ def title_language(*codes) -> str:
     return TITLE_FALLBACK_LANGUAGE
 
 
+# 随每条用户消息带上的界面语言规则（只给模型读）。智能体说明（`definition.SYSTEM`）里也有同一条，这里再写一遍：
+# 会话建好后绑定建时的智能体版本、系统提示词改不了，已开着的对话只能靠这段拿到新规则
+LANGUAGE_RULE = ("This is the user's interface language. Reply in it, including short notes while working. Names and "
+                 "numbers from the data mixed into the message (company names, document numbers, account names) do not "
+                 "change it. Use another language only when the user writes the whole message in it or asks for it.")
+
+
+def language_note(language) -> str:
+    """随每条用户消息带上的界面语言（批末系统消息里的一段，对话页不显示）：CC 用它回复，不跟着消息里夹的外文专名走
+    （10-19 测试：中文提问夹着泰文公司名、单号，整段被答成泰文）。语言名见 `title_language`；没有就回空串。"""
+    name = _tag_body(language, 40)
+    return f"<language>{name}</language>\n{LANGUAGE_RULE}" if name else ""
+
+
 def _tag_body(text, limit) -> str:
     return " ".join(TITLE_TAGS.sub(" ", str(text or "")).split())[:limit]
 

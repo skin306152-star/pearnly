@@ -79,11 +79,10 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
 
 
 def language(row) -> str:
-    """标题用的语言（`contracts.title_language`）：用户发消息时对话页的界面语言（`toolrun.remember_lang` 记下的，
-    与这段对话里工具结果的语言同一来源）；没记着（过期、缓存清了）用会话主人的账号语言；都不认得用英文。
+    """标题用的语言（`toolrun.interface_language`，与 CC 回复的语言、这段对话里工具结果的语言同一来源）：用户发消息时
+    对话页的界面语言（`toolrun.remember_lang` 记下的）；没记着（过期、缓存清了）用会话主人的账号语言；都不认得用英文。
     后台任务没有请求和设备，不能按 `preferences.interface_language` 现取。"""
-    return contracts.title_language(toolrun.conversation_lang(row.session_id),
-                                    frappe.db.get_value("User", row.user, "language"))
+    return toolrun.interface_language(row.session_id, row.user)
 
 
 def _claim(name, legacy_title):

@@ -55,6 +55,13 @@ def conversation_lang(conversation: str) -> str:
     return pearnly_state.store().get_value(_lang_key(conversation), use_local_cache=False) or ""
 
 
+def interface_language(conversation: str, user: str | None = None) -> str:
+    """CC 回复与侧栏标题用的语言名（`contracts.title_language`）：用户最近一次发消息时对话页的界面语言
+    （`remember_lang`）；没记着用会话主人（缺省当前用户）的账号语言；都不认得用英文。"""
+    return contracts.title_language(conversation_lang(conversation),
+                                    frappe.db.get_value("User", user or frappe.session.user, "language"))
+
+
 def _use_lang(conversation: str) -> None:
     lang = conversation_lang(conversation) or frappe.db.get_value("User", frappe.session.user, "language")
     if lang:

@@ -503,9 +503,12 @@ def send(session_id, text) -> None:
     shown = notices.uncarried(row.session_id, frappe.session.user)
     company, noted = projects.note(row, frappe.session.user)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
-    # 接续的前文、公司说明、还没带过的提醒、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后
+    # 接续的前文、公司说明、还没带过的提醒、界面语言、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后。
+    # 界面语言每条都带（同标题一个来源，`toolrun.interface_language`）：CC 按它回复，不按消息里夹的外文专名猜；
+    # 不写进智能体说明（说明一变远端就出新版本）。系统消息不进对话记录、标题素材和接续的前文
     note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), company,
                                     contracts.notices_note(shown),
+                                    contracts.language_note(toolrun.interface_language(row.session_id)),
                                     contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:
         batch.append(note)
