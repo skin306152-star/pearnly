@@ -253,6 +253,13 @@ def suggest(samples: Dict[str, List[Any]]) -> Dict[str, str]:
     return out
 
 
+def sampled(found: Dict[str, str], modules: List[str]) -> Dict[str, str]:
+    """这次抽样过的几类档案（``modules``）各字段的结论：有明显多数的是那个值，没有的是空串（「抽过、没有多数」）。
+    存回主档观测时按字段并进去（`observe`）：推送只抽它用得到的那类档案，不能把别类字段原来的结论冲掉（10-19 lab：推了
+    一张进项后客户类型 / 应收科目的结论没了，下一张销项又要人选；推了销项后供应商那两项也一样）。"""
+    return {field: str(found.get(field) or "") for module in modules for field in SAMPLE_COLUMNS.get(module, {})}
+
+
 _HEAD_BRANCH = re.compile(r"<input\b[^>]*\bid=[\"']txtothcombrh[\"'][^>]*>", re.IGNORECASE)
 
 
@@ -331,8 +338,11 @@ def observe(raw: Any, account: str, fields: Optional[Dict[str, List[Dict[str, st
     else:
         entry["fields"] = {**entry["fields"], **{k: v for k, v in (fields or {}).items()
                                                  if (k in (*SOURCES, "chart") and isinstance(v, list))
-                                                 or (k == "suggested" and isinstance(v, dict))
                                                  or (k == "head_branch" and isinstance(v, str))}}
+        if isinstance((fields or {}).get("suggested"), dict):
+            # 按字段并：这次没抽样的那类档案的结论留着；抽过、没有多数的（空串）去掉
+            merged = {**(entry["fields"].get("suggested") or {}), **fields["suggested"]}
+            entry["fields"]["suggested"] = {k: v for k, v in merged.items() if isinstance(v, str) and v}
         entry.update(observed_at=at, error=None, error_at=None)
     value[account] = entry
     if len(value) > _MAX_ACCOUNTS:
@@ -375,7 +385,7 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
 
 __all__ = ["ACCOUNT_FIELDS", "CHANGED", "CHOICE_REQUIRED", "FIELDS", "FIELDS_FOR_DIRECTION", "REFERENCE",
            "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "head_branch_id", "parse_company_tax", "parse_head_branch",
-           "rule_default", "suggest",
+           "rule_default", "sampled", "suggest",
            "UNREADABLE", "choices", "choose", "chosen_map", "customer_defaults", "known_codes", "masters",
            "observe", "observed_for", "options", "parse_listbox", "parse_prefixes", "parse_reference", "prefix_for",
            "resolve", "resolve_field", "view"]

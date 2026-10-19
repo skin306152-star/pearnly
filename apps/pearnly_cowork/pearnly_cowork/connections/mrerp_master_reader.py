@@ -128,7 +128,9 @@ class MasterReader:
         return self._samples[module]
 
     def suggested(self, *modules: str) -> Dict[str, str]:
-        return rules.suggest({m: self.samples(m) for m in modules})
+        """这几类档案各字段最常用的值（`rules.sampled`：抽到了样、没有明显多数的字段是空串；一份都没读到的那类不出现）。"""
+        samples = {m: self.samples(m) for m in modules}
+        return rules.sampled(rules.suggest(samples), [m for m, rows in samples.items() if rows])
 
 
 def read_for_choices(request: Request, base: str):

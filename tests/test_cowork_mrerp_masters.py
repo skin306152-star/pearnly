@@ -139,6 +139,28 @@ class Resolve(unittest.TestCase):
         self.assertEqual(rules.head_branch_id(branches, "00009"), "")
         self.assertEqual(rules.head_branch_id(None, "00000"), "")
 
+    def test_a_push_sampling_one_kind_of_record_keeps_the_others_conclusions(self):
+        # 10-19 lab：选择弹窗读到客户、供应商两类的结论（都不用问）；推了一张进项（只抽供应商档）后客户类型 / 应收科目的结论
+        # 被冲掉，下一张销项又要人选；推了销项后供应商那两项也一样。按字段并，没抽的那类留着
+        chart = [{"code": "1130-01", "name": "ลูกหนี้"}, {"code": "1130-02", "name": "ลูกหนี้ 2"},
+                 {"code": "2120-01", "name": "เจ้าหนี้"}, {"code": "2120-02", "name": "เจ้าหนี้ 2"}]
+        types = [{"code": "1-11", "name": "a"}, {"code": "1-12", "name": "b"}]
+        suppliers = [{"code": "2-11", "name": "c"}, {"code": "2-12", "name": "d"}]
+        full = rules.sampled({"customer_type": "1-11", "ar_account": "1130-01", "supplier_type": "2-11",
+                              "ap_account": "2120-01"}, ["armas", "apmas", "stkmas"])
+        self.assertEqual((full["product_group"], full["unit"]), ("", ""))  # 抽了、没有多数
+        observed = rules.observe(None, "15:1", {"chart": chart, "customer_type": types, "supplier_type": suppliers,
+                                                "suggested": full}, at="t1")
+        needed = lambda raw: [f for f in ("customer_type", "ar_account", "supplier_type", "ap_account")  # noqa: E731
+                              if rules.view(None, raw, "15:1")["fields"][f]["needed"]]
+        self.assertEqual(needed(observed), [])
+        # 推送只抽了供应商档：客户那两项照旧，供应商这次没有多数的那项要人选
+        observed = rules.observe(observed, "15:1", {"chart": chart, "suggested": rules.sampled(
+            {"supplier_type": "2-11"}, ["apmas"])}, at="t2")
+        self.assertEqual(needed(observed), ["ap_account"])
+        self.assertEqual(rules.observed_for(observed, "15:1")["suggested"],
+                         {"customer_type": "1-11", "ar_account": "1130-01", "supplier_type": "2-11"})
+
     def test_a_failed_read_keeps_what_was_seen_before(self):
         observed = rules.observe(None, "15:1", rules.masters([FABILLREV]), at="t1")
         observed = rules.observe(observed, "15:1", None, at="t2", error="ERR_AUTH")
