@@ -302,6 +302,15 @@ export function monthLabel(period: string): string {
   return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", year: "numeric", timeZone: "UTC" }).format(date);
 }
 
+/** 账套的本年起止（「2026年1月至12月」「Jan – Dec 2026」，按界面语言的原生区间写法）：两头都报了才有，否则空串。
+ *  Express 与 MR.ERP 同一条路（服务端 `companies.identity.book` 的 period_start / period_end；MR.ERP 刷新账套时读，10-19）。 */
+export function periodSpan(s: Pick<AccountSet, "period_start" | "period_end">): string {
+  const start = at((s.period_start ?? "").slice(0, 7));
+  const end = at((s.period_end ?? "").slice(0, 7));
+  if (!start || !end) return "";
+  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", year: "numeric", timeZone: "UTC" }).formatRange(start, end);
+}
+
 /** 侧栏对话行后面的月份短写：今年只写月（「ก.ย.」「9月」「Sep」），别的年带上年。 */
 export function monthShort(period: string, now = new Date()): string {
   const date = at(period);
@@ -561,6 +570,12 @@ export function setForPeriod(sets: readonly AccountSet[], period: string): Accou
   const day = period ? `${period}-01` : "";
   const covering = day ? sets.find((s) => covers(s, day)) : undefined;
   return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
+}
+
+/** 真覆盖这个月的那份（没有月份、一份都不覆盖时没有；不像 setForPeriod 那样退到最新可写的）：账套清单的「覆盖本月」高亮。 */
+export function coveringSet(sets: readonly AccountSet[], period: string): AccountSet | undefined {
+  const day = period ? `${period}-01` : "";
+  return day ? sets.find((s) => covers(s, day)) : undefined;
 }
 
 /** 一组账套里覆盖这个月的全部（没有月份时为空）。 */

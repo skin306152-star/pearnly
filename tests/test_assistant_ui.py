@@ -4297,8 +4297,24 @@ import { formatWhen } from "@/lib/companies";
 const sets = [{ connection: "c", key: "69HQ", label: "ABC 69", year_label: "69", period_start: "2025-10-01", period_end: "2026-09-30" },
   { connection: "c", key: "69B1", label: "ABC 69 B1", year_label: "69" }];
 const branches = [{ branch: "00000", label: "", account_sets: [sets[0]] }, { branch: "00001", label: "Rama 9", account_sets: [sets[1]] }];
+const span = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
+  .formatRange(new Date(Date.UTC(2025, 9, 15)), new Date(Date.UTC(2026, 8, 15)));
+// 报了会计期间的写本年起止，没报的写年度标签；卡头摘要：账套数
 assert.deepEqual(text(html(SetsSection, { sets, branches, period: "2026-09" })),
-  ["Account sets", "2 account sets", "Head office", "ABC 69", "69", "Rama 9", "ABC 69 B1", "69"]);   // 卡头摘要：账套数
+  ["Account sets", "2 account sets", "Head office", "ABC 69", span, "Rama 9", "ABC 69 B1", "69"]);
+// 10-19 lab：MR.ERP 年度标签就是账套名（不写两遍），刷新读到的起止同 Express 写出来；只高亮真覆盖这个月的那份，
+// 都不覆盖就不高亮（原先退到最新可写的那份也高亮）
+const mrerp = [{ connection: "M", key: "6:1", label: "TEST2019", year_label: "TEST2019", period_start: "2026-01-01", period_end: "2026-12-31" },
+  { connection: "M", key: "5:1", label: "TEST2020", year_label: "TEST2020", period_start: "2020-01-01", period_end: "2026-12-31" },
+  { connection: "M", key: "4:1", label: "TEST2018", year_label: "TEST2018" }];
+const mrerpHtml = html(SetsSection, { sets: mrerp, branches: [], period: "2026-10" });
+assert.deepEqual(text(mrerpHtml).slice(2), ["TEST2019", new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric",
+  timeZone: "UTC" }).formatRange(new Date(Date.UTC(2026, 0, 15)), new Date(Date.UTC(2026, 11, 15))), "TEST2020",
+  new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
+    .formatRange(new Date(Date.UTC(2020, 0, 15)), new Date(Date.UTC(2026, 11, 15))), "TEST2018"]);
+assert.equal(mrerpHtml.split("data-covering").length, 2);   // 只有 TEST2019 一行
+assert.ok(mrerpHtml.indexOf("data-covering") < mrerpHtml.indexOf("TEST2019"));
+assert.ok(!html(SetsSection, { sets: mrerp, branches: [], period: "2019-05" }).includes("data-covering"));
 // 付款方式能直接改（点开后两段式）；从 Express 历史学到的只读、可删，写明来源；收起时一行 = 对方名 + 值（科目只写科目码）
 const pay = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment",
   subject_label: "ACME", value: "credit", editable: true, year_label: "69" }, open, onSet() {}, onForget() {} }));

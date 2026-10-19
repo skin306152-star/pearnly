@@ -39,6 +39,7 @@ import {
   type Branch,
   type Choice,
   type CompanyFolder,
+  coveringSet,
   deleteNote,
   type Detail,
   type Draft,
@@ -47,6 +48,7 @@ import {
   loadMrErpOptions,
   monthLabel,
   type Note,
+  periodSpan,
   promoteChoice,
   saveNote,
   setChoice,
@@ -519,16 +521,22 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
 };
 
 // ---------------------------------------------------------------- 账套
-const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) => (
-  <div className="cc-list-row cursor-default" data-covering={covering || undefined}>
-    <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
-    <span className="shrink-0 text-ink-3 text-caption">{set.year_label}</span>
-  </div>
-);
+// 右边写本年起止（报了会计期间的：Express，及刷新过账套的 MR.ERP），没报的写年度标签（与名称相同时不重复写）。
+// 10-19 lab：MR.ERP 的年度标签就是账套名，一行写两遍「TEST2019」，起止日期读到了也看不到。
+const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) => {
+  const extra = periodSpan(set) || (set.year_label !== set.label ? set.year_label : "");
+  return (
+    <div className="cc-list-row cursor-default" data-covering={covering || undefined}>
+      <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
+      {extra && <span className="shrink-0 text-ink-3 text-caption">{extra}</span>}
+    </div>
+  );
+};
 
-/** 账套清单（多分店按分店分组，覆盖这个月的高亮）：账套卡与公司页会话栏的「公司」卡共用。 */
+/** 账套清单（多分店按分店分组，真覆盖这个月的那份高亮；都不覆盖就不高亮——10-19 lab：原先退到最新可写的那份也高亮，
+ *  看不出哪份覆盖本月）：账套卡与公司页会话栏的「公司」卡共用。 */
 export const SetsList: FC<{ sets: AccountSet[]; branches: Branch[]; period: string }> = ({ sets, branches, period }) => {
-  const covering = setFor(sets, period);
+  const covering = coveringSet(sets, period);
   if (!sets.length) return null;
   return branches.length ? (
     <>
@@ -536,7 +544,7 @@ export const SetsList: FC<{ sets: AccountSet[]; branches: Branch[]; period: stri
         <div key={b.branch} className="flex flex-col">
           <div className="cc-subheading">{branchName(b)}</div>
           {b.account_sets.map((set) => (
-            <SetRow key={`${set.connection}-${set.key}`} set={set} covering={setFor(b.account_sets, period) === set} />
+            <SetRow key={`${set.connection}-${set.key}`} set={set} covering={coveringSet(b.account_sets, period) === set} />
           ))}
         </div>
       ))}
