@@ -820,7 +820,8 @@
   （推送与 current_book、单复数、读不到的不列、0 不带）、`test_the_cc_tool_gets_the_names_of_the_group_it_carried_on`、说明断言。
 
 - **E11 试点露出的两处（10-19，分支 `pearnly/e11-fixes`，起点 batch-1019b `60184389`）**：测试窗口在 lab 试点 E11 时导出的 18 张 BakeLab
-  销项（`~/pearnly-devtools/test-window/round-e11/results/`，只读）16 张判 C、原因只有 `date_stale,evidence`，另 2 张没判。
+  八月销项全量 37 张（`~/pearnly-devtools/test-window/round-e11/results/`，只读）：31 张判 C、都带 `date_stale,evidence`（其中 1 张
+  INV2025080339 另有 `blocked,not_ready,review_reasons`，复核原因 `items_mismatch`，修完照旧 C），6 张没判（见下面第三项）。
   - **压缩时间** `174243c1`：`date_stale` 按上传日（票的创建日，真实的 10-19）往前 60 天，2025-08 的单必 C；定时任务那条路没有指定「今天」的口子。
     加 `push.automation.clock`：只认测试租户（回放同一份 `replay.TEST_SITES`，从那里导入、不另写；正式站误配照真实日子、一小时记一条错误日志）
     的站点配置 `pearnly_da_today = "YYYY-MM-DD"`，`scripts/da-clock.py` 设 / 撤 / 查，架构检查拦这个键进生产配置与别的代码。
@@ -833,7 +834,7 @@
     测试：`PilotClock`（测试租户认、正式站不认并记日志、没配 / 认不出照旧；判定按它判 `date_stale` / `date_future`）、
     `test_the_pilot_clock_dates_tier_changes_on_a_test_tenant`（L0 期回读 → 升 L1 记模拟日子 → L1 期回读降档；不配 / 正式站评不到下一期）、
     R1 与历史新鲜度按 `now`、架构守卫。
-  - **副本页不算证据页** `445cb328`：导出数据里第 2 页起识别（Claude 路线）全是 `is_not_invoice: true`、`document_type: other`、单号 / 金额 / 税号
+  - **副本页不算证据页** `445cb328`：导出数据里第 2 页起的 47 页（2 页 31 份、3 页 2 份、4 页 4 份）识别（Claude 路线）全是 `is_not_invoice: true`、`document_type: other`、单号 / 金额 / 税号
     全空、`notes = "claude: no document starts on this page"`，整份 `is_copy_or_duplicate: true`；第 1 页的 notes 写着第 2 页是同一单号的
     ใบเสร็จรับเงิน（ใบแนบใบกำกับภาษี）。识别对这些页什么字段都不给，所以判据只能看那一页自己的 PDF 文字层（判定本来就抽，`text_layer.pages`，
     零费用）。`automation.same_document_page`：不是第一页、只拆出这一张；这一页识别自己读出了单号 / 含税额的要与这张票相同；这一页文字层里有这张票的
@@ -850,6 +851,14 @@
       没有单据起始的页都在文字层里重复了某张已读单的单号 + 含税额 + 读出的 13 位税号时不出这一条；`server.read`（原件地址那条路自己抽）与
       `client.read`（随图片带上）各接一处；改完要重发甲骨文 claude-ocr（`scripts/claude-ocr/deploy.sh`）。按架构文档「改它的提示词、规则先过闸门」
       要先跑 `scripts/claude-ocr/run-gate.sh`（甲骨文、付费），本窗口不能连甲骨文、不能付费识别，所以没施工。它只多花一次 Opus（不影响判类）。
+  - **6 张没判是设计如此，不是漏送**：INV2025080123 / 176 / 222 / 251 / 254 / 282 都是定时任务的票（批次 `request_key` 以 `folder:` 开头），
+    `last_push_reason = choice_needed:party`、`last_push_record` 空、`auto_checked_at` 空、`edit_count = 0`。定时任务的顺序是
+    `folder_intake/push._push_to`：先 `choices_view`，还有要人选的项（这里是对方档；这 6 家为什么要选——T8BAKEL 客户主档里没有、或不止一档——
+    主档不在导出里，要在 lab 上看）就记 `choice_needed:*` 停下，**不进** `_judge`（第 4 条「接在 `choices_view` 之后、`submit` 之前」；
+    有要人选的项本来就是 C，第 1 条；同 10-19「同组接着判」的口径「还有要人选的项停在 `choice_needed:*`，都定了才判」）。停下的票进待处理
+    「当场选」，人选完推是人发起的推送，不看档位（第 4 条）；没判的票不进档位证据（`automation_rules.tally` 只数 A / B 的提议与自动推），
+    所以对升降档没有影响。网页上传 / LINE 的扫描不一样：它不先跑 `choices_view`，直接判，要人选的票记成 C（`needed`）——只是记法不同，
+    去向都是停下交人。没改。
   - **有意变化**：测试租户配了 `pearnly_da_today` 时，自动推判定与升降档按模拟日子；正式租户不受影响。自动推前的核对里，同一张票的副本 /
     收据联页不再判 `evidence`（定时任务 A 类照推的范围随之多出这类原件 + 副本的电子税票）。
   - **试点怎么配**（测试窗口，lab 实时源码 `testenv.sh live cowork` 之后）：设 `env/bin/python <源码>/scripts/da-clock.py --site testcowork.pearnly.com
