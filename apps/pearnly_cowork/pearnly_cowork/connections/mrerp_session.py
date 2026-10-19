@@ -144,6 +144,15 @@ class MrErpSession:
         self.idus, self._selected = idus, True
         return idus
 
+    def switch(self, comidyear, seldb):
+        """切进另一个年度库（同网页在选公司页点那一年）：只走选公司页 → mainmenu，不抓 idus（读期间、税号用不到）。
+        被踢回登录页 = 会话失效。"""
+        self._send("GET", "login/selectdb.php")
+        response = self._send("GET", "login/mainmenu.php", params={"comidyear": comidyear, "seldb": seldb},
+                              headers={"Referer": f"{self.base}/login/selectdb.php"})
+        if response.status_code != 200 or self._bounced(response):
+            raise SessionError("ERR_AUTH", "bounced to login while switching account sets")
+
     def prepare(self, comidyear, seldb, probe=IDUS_PROBE):
         """登录 + 选账套（幂等）：让会话就绪可发业务请求。"""
         if not self._selected:

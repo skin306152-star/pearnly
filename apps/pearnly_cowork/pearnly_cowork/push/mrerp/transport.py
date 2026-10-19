@@ -30,6 +30,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_core.session_lock import account_lock
+from pearnly_cowork.contracts.push import explicit_direction
 from pearnly_cowork.connections.mrerp_session import MrErpSession, SessionError, lock_key
 from pearnly_cowork.connections.mrerp_master_reader import MasterReader
 from pearnly_cowork.push.mrerp import readback, routing
@@ -128,10 +129,26 @@ class MrErpImport:
 
     def upload_routed_batch(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *,
                             today: date) -> ImportResult:
-        """按每张票的方向 / 付款 / 货费分流到对应导入模块后推送（见 routing.route_and_upload）。"""
+        """按每张票的方向 / 付款 / 货费分流到对应导入模块后推送（见 routing.route_and_upload）。
+
+        有票没有明确方向时，先读这家公司在 MR.ERP 登记的税号放进 ``mappings['_account_tax_id']``：工作空间税号判不出
+        方向时按它判，匹配闸也认它（事务所替客户记账，2026-10-19，同 Express 按账套税号判）。读不到 / 不是有效税号就不放，
+        照旧只按工作空间税号。都有明确方向时不读（方向与匹配闸都用不到）。"""
         if self._sess is None:
             raise RuntimeError("MrErpImport used outside `with` block")
+        if isinstance(mappings, dict) and any(not explicit_direction(h, h) for h in histories):
+            tax = routing.account_tax(self._reader(mappings).company_tax())
+            if tax:
+                mappings["_account_tax_id"] = tax
         return routing.route_and_upload(self, histories, mappings, today=today)
+
+    def _reader(self, mappings: Dict[str, Any]) -> MasterReader:
+        """登录选好账套后的主档读取（同一次会话共用一次，`upload_invoice_batch` 接着用）。"""
+        self._prepare(self.module)
+        if self.account_defaults is None:
+            self.account_defaults = AccountDefaults(MasterReader(self._request, self.login_url),
+                                                    (mappings or {}).get("_mrerp_defaults"))
+        return self.account_defaults.reader
 
     def upload_invoice_batch(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *,
                              today: date) -> ImportResult:
@@ -156,9 +173,7 @@ class MrErpImport:
         # 所以在打开导入页之前读。
         self._prepare(m)
         self.default_reason = None
-        if self.account_defaults is None:  # 同一次会话里几组单据（赊销 / 现金）共用一次读取
-            self.account_defaults = AccountDefaults(MasterReader(self._request, self.login_url),
-                                                    (mappings or {}).get("_mrerp_defaults"))
+        self._reader(mappings)  # 同一次会话里几组单据（赊销 / 现金）共用一次读取
         try:
             self.account_defaults.reader.reference()
             self.account_defaults.reader.prefixes()
@@ -183,6 +198,7 @@ class MrErpImport:
             return self._result(original, [], mismatch_failed + [self._fail_row(h, [reason]) for h in histories],
                                 t0, 0)
         selmenu = menu["idmenu"]
+        self._menu_label = str(menu.get("label") or "")
 
         # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
         if m.doc_type.startswith("sales"):
@@ -241,15 +257,18 @@ class MrErpImport:
 
     def _filter_by_account_set(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
                                ) -> Tuple[List[Dict[str, Any]], List[FailedRow]]:
-        """匹配闸:只挡能确认是别家的票(读不到税号→放行不误挡)· _own_tax_id 提供才启用(否则全放行)。"""
+        """匹配闸:只挡能确认是别家的票(读不到税号→放行不误挡)· _own_tax_id(工作空间税号)或
+        _account_tax_id(这家公司在 MR.ERP 登记的税号)有一个才启用(否则全放行)。"""
         own = mappings.get("_own_tax_id") if isinstance(mappings, dict) else None
-        if not own:
+        account = mappings.get("_account_tax_id") if isinstance(mappings, dict) else None
+        if not own and not account:
             return histories, []
         expected = "sales" if self.module.doc_type.startswith("sales") else "purchase"
         kept: List[Dict[str, Any]] = []
         failed: List[FailedRow] = []
         for h in histories:
-            if routing.confirmed_account_set_mismatch(h, h, own_tax_id=own, expected_direction=expected):
+            if routing.confirmed_account_set_mismatch(h, h, own_tax_id=own, expected_direction=expected,
+                                                      account_tax_id=account):
                 failed.append(self._fail_row(h, [routing.ACCOUNT_SET_MISMATCH_CODE]))
             else:
                 kept.append(h)
@@ -441,7 +460,8 @@ class MrErpImport:
                 unknown.append(_fail(inv, [READBACK_NOT_LINKED if problem == "not_linked" else READBACK_NOT_FOUND]))
             else:
                 success.append(SuccessRow(invoice_no=inv, mrerp_bill_no=row.docno, original=by_inv.get(inv, {}),
-                                          already_pushed=inv in already))
+                                          already_pushed=inv in already, doc_type=self.module.doc_type,
+                                          menu=getattr(self, "_menu_label", "")))
         return success, failed, unknown
 
     def _read_back(self, selmenu: str, invoice_nos: List[str]) -> Tuple[Dict[str, readback.ListedRow], Optional[str]]:

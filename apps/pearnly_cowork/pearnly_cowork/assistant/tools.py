@@ -21,6 +21,7 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
+from pearnly_cowork.connections import mrerp_needs
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import destinations, rules
 from pearnly_cowork.folder_intake import contracts as folder_contracts
@@ -151,6 +152,19 @@ CC_DESKTOP = ("The Windows program on the user's computer that reads their folde
               "never by a generic description.")
 
 
+# MR.ERP 与 Express 的差别（2026-10-19「cc 全是围绕 exp 在做……让 cc 兼容」）：CC 的说明大多按 Express 写，对 MR.ERP 的公司
+# 会照搬（叫人开电脑、问现赊科目、提回读与自动推档位）。每轮都带一段，说清 MR.ERP 有什么、没有什么。
+MRERP_GUIDANCE = (
+    "An MR.ERP account set works differently from Express. Pearnly's server signs in to MR.ERP and imports there "
+    "itself: no computer and no CC Desktop are involved in an MR.ERP push, so never ask the user to turn on a "
+    "computer or open CC Desktop for one (a scheduled task still needs the computer that reads its folder). Each "
+    "account set needs its import menu per document kind and its default values chosen once before pushing "
+    "(cowork_mrerp_setup); there are no per-document choices like Express, purchases are always on credit, and the "
+    "counterparty is found by its tax ID in MR.ERP or created there. MR.ERP account sets have no readback or VAT "
+    "draft from their books here, no automatic push tiers or proposals, no company choices and no choices learned "
+    "from history: when asked, say plainly that these are for Express account sets, and do not offer them for an "
+    "MR.ERP one.")
+
 # 给模型的「怎么说话」：Cowork 自己的几条，接在共用说明后面（hooks `pearnly_assistant_guidance`）。
 # 2026-10-13 录屏：CC 对会计说账套「demo02」（Express 数据文件夹名）；会计认公司，不认文件夹代码。
 GUIDANCE = [
@@ -186,6 +200,7 @@ GUIDANCE = [
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
     "only when the document names a different buyer.",
     CC_DESKTOP,
+    MRERP_GUIDANCE,
 ]
 
 
@@ -697,6 +712,57 @@ def _key(name, version, last) -> str:
     return "assistant:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
 
 
+# ---------------- MR.ERP：推之前每份账套选一次的导入菜单与默认值（2026-10-19「让 CC 兼容 MR.ERP」） ----------------
+
+# MR.ERP 没有 Express 那种按单据要人选的项（对方档 / 商品 / 科目 / 现赊 / 抵进项）：对方按税号找、找不到就自建；要人选的只有
+# 每份账套每类单据推哪个导入菜单、主档默认值（部门、员工、应付科目……），选一次大家共用（同网页推送前那一步，
+# `targets.js::mrerp_menu_ready`）。网页推之前就问；CC 原先不问，直接推，要等 MR.ERP 登录、读完导入页才报「请选择菜单」。
+MRERP_SETUP_CODES = ("ERR_MRERP_MENU_CHOICE_REQUIRED", "ERR_MRERP_MENU_CHANGED", "ERR_MRERP_DEFAULT_CHOICE_REQUIRED",
+                     "ERR_MRERP_DEFAULT_CHANGED")
+MRERP_SETUP_NOTE = ("This MR.ERP account set needs its import menu or default values chosen once before pushing "
+                    "(shared by everyone, like on the web): get them with cowork_mrerp_setup (this connection and "
+                    "account_set_key), ask the user, save what they chose there, then push again.")
+MRERP_CHOICES_NOTE = ("An MR.ERP account set has no per-document choices like Express (party, product, account, cash or "
+                      "credit, VAT claim): the counterparty is found by tax ID in MR.ERP or created there, purchases are "
+                      "always on credit, and the import menu per document kind and the default values are chosen once "
+                      "per account set with cowork_mrerp_setup.")
+
+
+def _adapter_of(connection) -> str:
+    """连接的 ERP 类型；没有这条连接是空串。"""
+    found = frappe.db.get_value(CONNECTION, connection, "adapter") if connection else None
+    return found if isinstance(found, str) else ""
+
+
+def _doc_direction(doc) -> str:
+    """票面方向（主页面识别结果，同复核页）；没定是空串（MR.ERP 推送时再按税号判，这里两边的菜单都看）。"""
+    from pearnly_cowork.contracts import history as history_contracts
+    from pearnly_cowork.contracts.push import normalize_direction
+
+    pages = _field(doc, "pages")
+    try:
+        pages = json.loads(pages) if isinstance(pages, str) else pages
+    except ValueError:
+        pages = None
+    if not isinstance(pages, list) or not pages:
+        return ""
+    return normalize_direction(history_contracts.primary_page_fields(pages).get("direction")) or ""
+
+
+def _mrerp_setup_needed(connection, account_set, direction="") -> dict | None:
+    """MR.ERP 推这张票前这份账套还要人选的 ``{"menus": [...], "defaults": [...]}``（`connections.mrerp_needs.needed`，菜单与主档
+    读到过才判得出）；不用选、还没读过、读不到（没有权限、账套键不对）回 None：照旧推，推送时 MR.ERP 那边再核对。"""
+    if not account_set:
+        return None
+    try:
+        found = mrerp_needs.needed(connections.mrerp_menu(connection, account_set), direction or None)
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        return None
+    needed = {key: found[key] for key in ("menus", "defaults") if found.get(key)}
+    return needed or None
+
+
 def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="") -> dict:
     """推一张票（CC 的 `cowork_push_documents` 每一张、待处理页当场补选都走这里）。``route_device``：定时任务的票由读文件夹的
     那台电脑写（待处理页按 `folder_intake.push.reader_of` 给，ADR-021 第 51 条）；空 = 录入人自己的电脑写。"""
@@ -746,6 +812,16 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
         push_state.record_failure(name, reason, **going)
         frappe.db.commit()
         return {"document": name, "status": "needs_choice", "reason": reason}
+    if adapter == "mrerp":
+        setup = _mrerp_setup_needed(target, going["account_set"], _doc_direction(doc))
+        if setup:
+            # 同网页：菜单 / 默认值没定就不推（原因码同 MR.ERP 推送时的那一句，待处理页照常出原因）
+            reason = MRERP_SETUP_CODES[0] if setup.get("menus") else MRERP_SETUP_CODES[2]
+            push_state.record_failure(name, reason, **going)
+            frappe.db.commit()
+            return {"document": name, "status": "needs_choice", "reason": _reason(reason),
+                    "mrerp_setup": {"connection": target, "account_set_key": going["account_set"], **setup},
+                    "note": MRERP_SETUP_NOTE}
     key = _key(name, doc.record_version, doc.last_push_record or doc.last_push_reason)
     result = application.submit(name, target, key, doc.record_version, revision, account_set, None, None, posting_kind,
                                 route_device=route_device if adapter == "express" else "")
@@ -786,8 +862,10 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
 # 与这里等价却多一套状态；写账回报（ACK）的请求里也不该去调模型厂商的接口。
 PUSH_WAIT_SECONDS = 25
 PUSH_WAIT_STEP = 2
-PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (or CC Desktop on that computer is "
-                    "offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
+PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (for Express, CC Desktop on that "
+                    "computer may be offline: it is entered once CC Desktop is back; MR.ERP is written by Pearnly's "
+                    "server, which is still importing it and finding it in the list in MR.ERP, with no computer involved). "
+                    "Tell the user it is queued; check later with "
                     "cowork_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: "
                     "never say it was entered or recorded into Express or MR.ERP, not even at the start of the reply.")
 
@@ -806,6 +884,10 @@ def _concluded(item, outcome) -> bool:
             item["docnum"] = outcome["docnum"]
         if outcome.get("written"):
             item["written"] = outcome["written"]  # 现购 / 赊购、哪层定的、记的科目（验收 F19）
+    elif status == "manual" and not outcome.get("result_unknown") and any(
+            code in str(outcome.get("reason") or "") for code in MRERP_SETUP_CODES):
+        # MR.ERP 推送时才发现菜单 / 默认值要选（推之前没读到过、或刚在 MR.ERP 里改过）：是要人选，不是失败
+        item.update(status="needs_choice", reason=_reason(outcome.get("reason")), note=MRERP_SETUP_NOTE)
     elif status == "manual":
         # 结果不明（写没写进 ERP 说不准）不说失败：要人去 ERP 核对后用 cowork_resolve_push_result 记下，别重推
         item.update(status="unconfirmed" if outcome.get("result_unknown") else "failed",
@@ -1614,9 +1696,38 @@ def mrerp_setup(tool_input) -> str:
         if result.get("status") == "failed":
             return _json(result)
     frappe.db.commit()
+    view = _connection_call(connections_api.mrerp_menu, name, key)
     # 读到菜单 / 读失败的时刻是连接服务按 UTC 记的 ISO 字符串
-    return _json(_account_named(_connection_call(connections_api.mrerp_menu, name, key), name),
-                 utc=("observed_at", "error_at"))
+    return _json(_account_named(_mrerp_compact(view, tool_input), name), utc=("observed_at", "error_at"))
+
+
+def _mrerp_compact(view, tool_input) -> dict:
+    """菜单视图交给模型前收短：主档默认值的可选值一份可能上千条（科目表），只给要选的、和这次点名的（``fields``）那几项，
+    每项最多 ``CHOICE_OPTIONS_SHOWN`` 条（``search`` 按代码 / 名称筛），其余只给选了哪个；``direction`` 只看那个方向会用到的
+    （同网页推送前那个弹窗）。菜单本身只有几个，原样给。"""
+    if not isinstance(view, dict) or not isinstance(view.get("defaults"), dict):
+        return view
+    direction = str(tool_input.get("direction") or "") or None
+    wanted = {str(field) for field in tool_input.get("fields") or ()}
+    search = str(tool_input.get("search") or "").strip().casefold()
+    needed = mrerp_needs.needed(view, direction)
+    used_kinds, used_fields = mrerp_needs.used(direction)
+    kinds = {kind: item for kind, item in (view.get("kinds") or {}).items() if kind in used_kinds}
+    fields = {}
+    for field, item in (view["defaults"].get("fields") or {}).items():
+        if field not in used_fields:
+            continue
+        options = item.get("options") or []
+        chosen = next((row for row in options if row.get("code") == item.get("chosen")), None)
+        out = {"chosen": item.get("chosen"), **({"chosen_name": chosen.get("name")} if chosen else {}),
+               "needed": bool(item.get("needed")), "reason": item.get("reason"), "options_total": len(options)}
+        if item.get("needed") or field in wanted:
+            found = [row for row in options if not search
+                     or search in f"{row.get('code')} {row.get('name')}".casefold()]
+            out.update(options=found[:CHOICE_OPTIONS_SHOWN], options_matched=len(found))
+        fields[field] = out
+    return {**view, "kinds": kinds, "defaults": {**view["defaults"], "fields": fields},
+            "needed": {key: needed[key] for key in ("menus", "defaults")}}
 
 
 # ---------------- 复核与修改（同录入工作台复核页） ----------------
@@ -1689,6 +1800,8 @@ def _detail(doc) -> dict:
         out["handling_choice_needed"] = reason[len("document_policy_needed_"):]
     elif reason.startswith("posting_needs_review"):
         out["handling_choice_needed"] = "goods_posting"  # 这家公司的商品单走库存还是记费用，选一次（`push.express.goods_posting`）
+    elif any(code in reason for code in MRERP_SETUP_CODES):
+        out["note"] = MRERP_SETUP_NOTE  # MR.ERP 停在要选导入菜单 / 默认值：去 cowork_mrerp_setup，不是这张单自己的选项
     books = _current_book_options(doc)
     if books:
         # 两份同期账套：这家公司这一组哪份是现用的，选一次并推往那份（`assistant.pending_api.choose_account_set`）
@@ -1942,6 +2055,16 @@ def push_choices(tool_input) -> str:
         return _json({"document": name, "status": "failed", "reason": "no_push_target"})
     if stop:
         return _json(_not_chosen(name, stop, status="account_set_not_chosen"))
+    if _adapter_of(connection) == "mrerp":
+        # MR.ERP 没有按单据要人选的项：只说这份账套推之前还要选的菜单 / 默认值（同 `_push_one` 推之前那一步）
+        out = {"document": name, "connection": connection, "account_set": account_set, "adapter": "mrerp",
+               "needed": [], "note": MRERP_CHOICES_NOTE}
+        setup = _mrerp_setup_needed(connection, account_set, _doc_direction(doc))
+        if setup:
+            out.update(mrerp_setup={"connection": connection, "account_set_key": account_set, **setup},
+                       note=MRERP_CHOICES_NOTE + " " + MRERP_SETUP_NOTE)
+        return _json({**_account_named(out, connection, "account_set"),
+                      **_entered_note(getattr(doc, "last_push_status", None))})
     try:
         view = _choices_waited(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind,
                                str(tool_input.get("hint") or "").strip()[:120] or None)
@@ -1980,6 +2103,8 @@ def save_push_choices(tool_input) -> str:
     connection, account_set, stop = _push_target_of(doc, tool_input)
     if stop:
         return _json(_not_chosen(name, stop, status="not_saved"))
+    if _adapter_of(connection) == "mrerp":
+        return _json({"document": name, "status": "not_saved", "reason": MRERP_CHOICES_NOTE})
     try:
         result = application_api.save_choices(name, connection, account_set, json.dumps(tool_input.get("items") or []))
         frappe.db.commit()
@@ -2431,6 +2556,11 @@ def _vat_boxes(boxes) -> list:
 def vat_draft(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
+    if _adapter_of(tool_input.get("connection")) == "mrerp":
+        # ภ.พ.30 草稿只读 Express 回读（`tax.service.vat_draft`）；MR.ERP 账套没有回读，不让 CC 去请一份读不了的回读
+        return _json({"status": "not_applicable", "connection": tool_input.get("connection"),
+                      "account_set_key": tool_input.get("account_set_key"),
+                      "reason": "VAT drafts are made from an Express readback; MR.ERP account sets have none here."})
     options = {key: tool_input.get(key) for key in ("exempt_sales", "excess_brought_forward", "zero_vat_as")
                if tool_input.get(key) not in (None, "")}
     summary = _tax_call(tax_service.vat_draft, tool_input.get("connection"), tool_input.get("account_set_key"),
@@ -3203,6 +3333,43 @@ def _saved_task(row, values) -> dict:
     return {key: value for key, value in out.items() if value is not None}
 
 
+# MR.ERP 任务保存前同网页表单先问一次菜单与默认值（`scheduled-tasks.tsx::mrerpMenuReady`、`intake-folders.js`）：没定就不出
+# 「允许」卡片、不存（工具声明的 ``refuse``），交回还要选的，CC 用 cowork_mrerp_setup 问完再存。
+TASK_MRERP_REFUSED = ("Nothing was saved. The MR.ERP account set of this task needs its import menu or default values "
+                      "chosen first, like on the web form.")
+
+
+def _task_mrerp_setup(values) -> dict | None:
+    connection = values.get("connection")
+    if not connection or _adapter_of(connection) != "mrerp":
+        return None
+    setup = _mrerp_setup_needed(connection, values.get("account_set_key"), values.get("direction") or "")
+    return {"connection": connection, "account_set_key": values.get("account_set_key"), **setup} if setup else None
+
+
+def folder_task_refusal(tool_input) -> str | None:
+    setup = _task_mrerp_setup(_task_values(tool_input, _task_rows([tool_input])))
+    if not setup:
+        return None
+    return _json({"status": "not_saved", "reason": TASK_MRERP_REFUSED, "mrerp_setup": setup, "note": MRERP_SETUP_NOTE})
+
+
+def folder_tasks_refusal(tool_input) -> str | None:
+    items = [item for item in tool_input.get("tasks") or () if isinstance(item, dict)][:FOLDER_BATCH_MAX]
+    rows = _task_rows(items)
+    failed = []
+    for number, item in enumerate(items, 1):
+        setup = _task_mrerp_setup(_task_values(item, rows))
+        if setup:
+            failed.append({"task": number, "title": str(item.get("title") or item.get("name") or "")[:140],
+                           "reason": TASK_MRERP_REFUSED, "mrerp_setup": setup})
+    if not failed:
+        return None
+    return _json({"status": "not_saved", "reason": "Nothing was saved. Choose what failed lists with "
+                                                   "cowork_mrerp_setup, then call again with the whole list.",
+                  "failed": failed, "note": MRERP_SETUP_NOTE})
+
+
 def save_folder_task(tool_input) -> str:
     refused = _unknown_defaults([tool_input])
     if refused:
@@ -3650,7 +3817,11 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "on every entered document however it was pushed: in a chat, from the pending page or by a scheduled "
                 "task. Call the program by its name, Express or MR.ERP, never 'the ERP'. For Express, payment cash = "
                 "a cash purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
-                "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
+                "supplier) or a credit sale (IV). For MR.ERP, written has docnum (the number shown in MR.ERP, with "
+                "its menu's prefix) and, on documents pushed from 2026-10-19 on, entered_as with payment: sales_cash "
+                "(a cash sale), sales_credit (a credit sale), purchase (a credit purchase of goods) or "
+                "purchase_expense (a credit purchase of expenses), and menu, the MR.ERP import menu it went into; "
+                "MR.ERP records give no payment_from, accounts, vat or writer, so never add any. payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
                 "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
                 "remembered (the choice saved for this supplier in this account set), company_rule (a client "
@@ -3799,13 +3970,24 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.stock_group"},
     {"name": "cowork_mrerp_setup", "label": "Checked MR.ERP import settings",
      "description": "MR.ERP import menus per document kind and default values, chosen once per account set before "
-                    "pushing (shared by everyone, like on the web). read_again reads the menus and defaults from "
-                    "MR.ERP first (up to a minute). menus maps document kind to idmenu, defaults maps field to code; "
-                    "both only with values listed in the result, and only after the user chose them. Items with "
-                    "needed true still need a choice.",
+                    "pushing (shared by everyone, like on the web); this is all an MR.ERP account set asks for, it "
+                    "has no per-document choices like Express. Document kinds: purchase (goods), purchase_expense, "
+                    "sales_credit, sales_cash; only menus linked to a journal this year are listed. Default fields "
+                    "are MR.ERP master data (branch, dept, job, store, employee, area, delivery, customer_type, "
+                    "ar_account, supplier_type, ap_account, bank_account, product_group, unit, expense_account). "
+                    "needed lists what still needs a choice before a push (direction purchase or sales narrows it to "
+                    "what that direction uses). Default fields show their options (up to 30; search narrows by code "
+                    "or name; options_total is how many there are) only when needed or named in fields. read_again "
+                    "reads the menus and defaults from MR.ERP first (up to a minute); known false means they were "
+                    "never read. menus maps document kind to idmenu, defaults maps field to code; both only with "
+                    "values listed in the result, and only after the user chose them.",
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "read_again": {"type": "boolean"},
+         "direction": {"type": "string", "enum": ["purchase", "sales"]},
+         "fields": {"type": "array", "items": {"type": "string"},
+                    "description": "Default fields whose options to show although they are already set."},
+         "search": {"type": "string"},
          "menus": {"type": "object", "additionalProperties": {"type": "string"}},
          "defaults": {"type": "object", "additionalProperties": {"type": "string"}}},
          "required": ["connection", "account_set_key"]},
@@ -3925,7 +4107,8 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.pos_layout"},
     {"name": "cowork_companion_status", "label": "Checked CC Desktop",
      "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether CC Desktop is online "
-                    "(cc_desktop_online), and whether the account set list has been read. To find "
+                    "(cc_desktop_online, Express only: MR.ERP is reached by Pearnly's server, not by a computer), and "
+                    "whether the account set list has been read. To find "
                     "or choose an account set for recognition or pushing, use cowork_intake_options instead.",
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_cowork.assistant.tools.companion_status"},
@@ -3976,7 +4159,9 @@ TOOLS = [
                     "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
                     "failed with a reason, unconfirmed with a reason (Express or MR.ERP may or may not have it: the user checks "
                     "there, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
-                    "(get the choices with cowork_push_choices, ask the user, save them and push again), "
+                    "(get the choices with cowork_push_choices, ask the user, save them and push again; for MR.ERP "
+                    "it comes with mrerp_setup, the import menus or default values that account set still needs: "
+                    "choose them with cowork_mrerp_setup instead), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
                     "or already_success / already_pending (already entered or on its way; it is not pushed again and "
                     "CC cannot change it, see below). connection and account_set_key choose where to push (from "
@@ -4011,7 +4196,9 @@ TOOLS = [
                     "the last 12 months, name = the account name matches the document; reason says why): name the "
                     "first one and ask the user to confirm it (a short yes is enough) or pick another; never save a "
                     "suggestion the user has not confirmed. When the user said in the chat what kind of expense this "
-                    "document is (e.g. stationery), pass it as hint in the user's own words. "
+                    "document is (e.g. stationery), pass it as hint in the user's own words. For an MR.ERP account "
+                    "set (adapter mrerp) needed is always empty: mrerp_setup, when present, lists the import menus "
+                    "or default values to choose with cowork_mrerp_setup. "
                     "status account_set_not_chosen: " + ACCOUNT_SET_STOP_NOTE,
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
@@ -4024,7 +4211,8 @@ TOOLS = [
      "description": "Record what the user chose for the items listed by cowork_push_choices: each item is the needed "
                     "entry's kind and subject with the chosen value (a listed code; party and product also accept "
                     "the NEW value given there). The account set reuses them for later documents of the same kind. "
-                    "Only values the user chose or confirmed in this chat.",
+                    "Only values the user chose or confirmed in this chat. Express only: MR.ERP choices are saved "
+                    "with cowork_mrerp_setup.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "items": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
@@ -4103,7 +4291,8 @@ TOOLS = [
          "required": ["reader", "root_id", "paths"]},
      "handler": "pearnly_cowork.assistant.tools.folder_fetch"},
     {"name": "cowork_express_readback", "label": "Read back the accounting books",
-     "description": "Read one month of an Express account set back from the computer through CC Desktop and add four "
+     "description": "Read one month of an Express account set back from the computer through CC Desktop (Express "
+                    "only; an MR.ERP account set cannot be read back here) and add four "
                     "workbooks in the Express report layout to this chat: general_ledger (bank reconciliation "
                     "right_files; income reconciliation left_files), sales_vat (income reconciliation right_files; "
                     "output VAT check left_files), purchase_vat (the input VAT report) and changes (documents Pearnly "
@@ -4140,7 +4329,9 @@ TOOLS = [
                     "processed yet, including those already there when it is created; a sales task into Express also "
                     "enters POS exports (Excel / CSV) there as daily sales without recognition; a task whose folder overlaps a "
                     "paused task continues it and only handles files put in after it is saved. Same rules as the web "
-                    "form: Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
+                    "form: Express needs posting_kind, MR.ERP needs payment (and its account set's import menu and "
+                    "default values chosen first: a refusal with mrerp_setup means choose them with "
+                    "cowork_mrerp_setup, then save again); folders of enabled tasks cannot overlap; the "
                     "accounting program of an existing task cannot change. When a task is changed (name given), values left "
                     "out keep their current ones. Change only the fields the user asked to change; any other value "
                     "you pass must be the task's current one. For two or more tasks use cowork_save_folder_tasks.",
@@ -4148,6 +4339,7 @@ TOOLS = [
                       "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
      "approval": True,
      "ask": "Save this scheduled task?",
+     "refuse": "pearnly_cowork.assistant.tools.folder_task_refusal",
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_task",
      "handler": "pearnly_cowork.assistant.tools.save_folder_task"},
     {"name": "cowork_save_folder_tasks", "label": "Saved scheduled tasks",
@@ -4167,6 +4359,7 @@ TOOLS = [
          "required": ["tasks"]},
      "approval": True,
      "ask": "Save these scheduled tasks?",
+     "refuse": "pearnly_cowork.assistant.tools.folder_tasks_refusal",
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.save_folder_tasks"},
     # 只改提醒时说「启用或停用」不对（2026-10-13 测试机）：步骤名用中性的「更新了定时任务」
@@ -4278,7 +4471,7 @@ TOOLS = [
          "tasks": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["kind", "tasks"]},
      "handler": "pearnly_cowork.assistant.tools.recon_delete"},
     {"name": "cowork_vat_draft", "label": "Drafted a VAT return",
-     "description": "Draft the P.P.30 VAT return of one Express account set and tax month from that month's "
+     "description": "Draft the P.P.30 VAT return of one Express account set (not MR.ERP) and tax month from that month's "
                     "Express readback (its input and output tax records), with the input tax check: seller tax ID "
                     "missing or invalid, claimed before the invoice month or past the 6-month window, abbreviated "
                     "tax invoices and non tax invoices (not claimable), buyer missing or another company, duplicates, "

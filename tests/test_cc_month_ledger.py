@@ -557,6 +557,38 @@ const view: any = { document: "p1", account_set: { key: "k", label: "T.7" }, ite
 assert.deepEqual(proposalRows(view).map(([label]) => label), ["ชุดบัญชี", "วันที่", "เลขที่เอกสาร", "คู่ค้า", "ยอดก่อนภาษี", "ภาษีมูลค่าเพิ่ม", "ยอดรวม"]);
 """, lang="th")
 
+    def test_an_mrerp_menu_stop_is_chosen_on_the_spot_and_pushed_again(self):
+        # 2026-10-19：MR.ERP 停在要选导入菜单 / 默认值的单，待处理页与「本月」卡当场选（action mrerp），不再只能交给 CC；
+        # 点开取这张单要选的（pending_api.mrerp_needs），「确认」记下并重推（mrerp_answer），值按键交
+        self.run_page(r"""
+import { MrErpRow, mrerpChoosable, PendingItems } from "@/components/pending";
+import { mrerpException } from "@/lib/month";
+import { answerMrErp, loadMrErpNeeds } from "@/lib/companies";
+const stop: any = { code: "push_failed", stage: "entry", severity: "action", action: "mrerp", group: "failed", document: "r1", ...doc,
+  invoice_no: "INV-r1", reason_label: "Choose the MR.ERP menu", choice: { connection: "M1", account_set_key: "12:3", kinds: [] } };
+assert.equal(mrerpException(stop), true);
+assert.equal(mrerpException({ ...stop, choice: null }), false);
+const item = pendingOf(stop, "COMPANY");
+assert.equal(item.action, "mrerp");
+assert.equal(mrerpChoosable(item), true);
+const page = renderToStaticMarkup(createElement(PendingItems, { items: [item, pendingOf(mismatch, "COMPANY")], error: "", done: noop, changed: noop, company: "COMPANY" }));
+assert.match(page, /data-slot="cc-pending-mrerp"/);
+assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);  // 只带交给 CC 的那一张
+const card = html(withItems([stop]));
+assert.match(card, /data-slot="cc-pending-mrerp" data-variant="row"/);
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { document: "r1", known: true,
+  items: [{ key: "menu:purchase", label: "Purchase (goods)", options: [{ value: "68", label: "ซื้อ" }, { value: "454", label: "ซื้อ2" }] }] } }) });
+const needs = await loadMrErpNeeds(item);
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.assistant.pending_api.mrerp_needs");
+assert.deepEqual(needs.items.map((need: any) => need.key), ["menu:purchase"]);
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { document: "r1", status: "sent" } }) });
+const sent = await answerMrErp(item, { "menu:purchase": "68" });
+assert.equal(sent.status, "sent");
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.assistant.pending_api.mrerp_answer");
+assert.deepEqual(g.calls.at(-1).body, { document: "r1", values: JSON.stringify({ "menu:purchase": "68" }) });
+assert.equal(typeof MrErpRow, "function");
+""")
+
     def test_a_push_that_stops_for_a_choice_never_shows_the_reason_code(self):
         # 10-19 验收：推一张提议停在要人选时，行里先冒出原始码「choice_needed:account」约 1 秒才刷新。现在要人选（needs_choice，或停下
         # 原因是 choice_needed:*）不报错、直接重取；其余显示服务端给人看的话，没有就写通用的「推送失败」。当场选、换账套两行同一套

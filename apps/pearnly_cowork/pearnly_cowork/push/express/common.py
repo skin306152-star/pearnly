@@ -375,6 +375,8 @@ _META_STR_KEYS = (
     "docnum",
     # ERP 里实际用的客户/供应商码。会计要清理误建的档、或核对配对对不对,都得知道码。
     "party_code",
+    # MR.ERP 推送成功时进的导入菜单名（服务端执行器写，doc_type 同键记单据类型）
+    "mrerp_menu",
     "stage",
     "error_code",
 )

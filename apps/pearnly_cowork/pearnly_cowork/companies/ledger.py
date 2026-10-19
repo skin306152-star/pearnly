@@ -103,6 +103,12 @@ def _follows(row, company, covering) -> bool:
     return bool(identity.for_branch(books, row.get("company_branch") or ""))
 
 
+def _without_periods(sets) -> list:
+    """账套都没报会计期间时（MR.ERP 的目录只有公司与年度库名，没有起止日期；旧版 CC 桌面版的 Express 也没有）说不出哪份覆盖
+    这个月：定时任务按这家公司的全部账套算（同公司页任务卡 `service.tasks_of`），文件照旧只数本月的。有一份报了就不用它。"""
+    return list(sets) if sets and not any(item.get("period_start") for item in sets) else []
+
+
 def _tasks(covering, company="") -> dict | None:
     """覆盖这个月的账套上的定时任务（同 `service.tasks_of` 的判据），加上跟着这家公司走、这个月有账套可推的（`_follows`）：
     ``{任务: {title, enabled, missing}}``；``missing``：启用着、电脑报文件夹不在了。没有录入权限回 None。"""
@@ -188,6 +194,11 @@ def _document_item(row, code, group, company_tax) -> dict:
                                 "kinds": pending.choice_kinds(row.get("last_push_reason"))}
         else:
             fields["action"] = "open"
+    elif pending.mrerp_setup_stop(row):
+        # MR.ERP 停在要选导入菜单 / 默认值：同待处理页，当场选完重推（2026-10-19）
+        fields["action"] = "mrerp"
+        fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                            "kinds": []}
     elif pending.account_set_stop(row):
         # 定时任务跟随公司当年账套停在「待选账套」（T1）、自动推前判出多份同期账套：同待处理页，当场换账套重推（第 6 批）
         fields["action"] = "account_set"
@@ -348,7 +359,7 @@ def month(company, period, limit=None) -> dict:
     dated, undated, truncated = _documents(row, sets, first, after)
     documents = dated + undated
     counted, entry_items = _entry(documents, tax_id)
-    tasks = _tasks(covering, row.name)
+    tasks = _tasks(covering or _without_periods(sets), row.name)
     files = _files(tasks, first, after) if tasks else {}
     intake_items = _duplicates(documents, tax_id) + exceptions.file_items(files, tasks or {})
 

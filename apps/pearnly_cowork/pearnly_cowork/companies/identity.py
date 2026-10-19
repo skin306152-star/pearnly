@@ -92,8 +92,10 @@ def company_identity(adapter: object, connection: object, row: Any) -> dict | No
         if not code:
             return None
         name = _text(attributes.get("company_name")) or code
-        return {"key": f"mrerp:{connection}:{code}"[:IDENTITY_MAX], "tax_id": "", "branch": "", "name": name,
-                "name_key": account_set_company(row), "code": code}
+        # 身份照旧按连接 + 公司代码（税号是刷新账套时读到的总店税号，2026-10-19 起才有；改身份会把已建的主档拆成两家），
+        # 税号只用来补主档（`service.books`）、建档时写上
+        return {"key": f"mrerp:{connection}:{code}"[:IDENTITY_MAX], "tax_id": tax_id(attributes.get("tax_id")),
+                "branch": "", "name": name, "name_key": account_set_company(row), "code": code}
     return None
 
 

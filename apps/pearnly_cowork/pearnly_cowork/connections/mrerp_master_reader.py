@@ -33,6 +33,9 @@ FOR_CHOICES = ("fabillrev", "armas", "apmas", "stktraniss", "stkmas")
 REFERENCE_PAGE = "acreffile/acreffileform.php"
 PREFIX_PAGE = "armas/allform.php"
 HEAD_BRANCH_PAGE = "artran/allform.php"  # 赊销新建单据页：预填的本公司分店 = 总店
+# 本公司分店档案的查看页：总店那一行登记的税号 = 这家公司的税号（MR.ERP 打印税票表头用的同一个值，
+# `component/php/showreportfile.php`）。不带 idmenu，不改会话里的当前菜单，只查登录（MR.ERP 源码 2026-10-19 核对）。
+COMPANY_PAGE = "combrh/allform.php"
 # 「最常用的那组」抽样：每类取最新的这么多份现有档案（`component/dupdata.php`，MR.ERP「复制现有档案」同源）。
 SAMPLE_SIZE = 30
 
@@ -48,6 +51,7 @@ class MasterReader:
         self._reference: Optional[Dict[int, str]] = None
         self._prefixes: Optional[list] = None
         self._head_branch = ""
+        self._company_tax = ""
         self._pages_read = set()
         self._samples: Dict[str, list] = {}
 
@@ -86,6 +90,18 @@ class MasterReader:
             response = self._request("GET", HEAD_BRANCH_PAGE, headers={"Referer": f"{self._base}/login/mainmenu.php"})
             self._head_branch = rules.parse_head_branch(getattr(response, "text", "") or "")
         return self._head_branch
+
+    def company_tax(self) -> str:
+        """这家公司在 MR.ERP 里登记的税号（总店分店档案，只留数字，没核校验位）；读不到是空串。总店按 `head_branch` 认，
+        所以也只能在导入页打开之前读。"""
+        if "company" not in self._pages_read:
+            self._pages_read.add("company")
+            branch = rules.head_branch_id((self.listbox("fabillrev") or {}).get("txtothcombrh"), self.head_branch())
+            if branch:
+                response = self._request("GET", f"{COMPANY_PAGE}?id={branch}&status=vie",
+                                         headers={"Referer": f"{self._base}/login/mainmenu.php"})
+                self._company_tax = rules.parse_company_tax(getattr(response, "text", "") or "")
+        return self._company_tax
 
     def known_head_branch(self) -> str:
         """已经读到的总店分店码（不去读网页：推送里网页只能在导入页打开前读）。"""

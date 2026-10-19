@@ -89,6 +89,11 @@ def mrerp_menu(name, account_set_key):
     return _call(service.mrerp_menu, name, account_set_key)
 
 
+@frappe.whitelist()
+def mrerp_remembered(name, account_set_key):
+    return _call(service.mrerp_remembered, name, account_set_key)
+
+
 @frappe.whitelist(methods=["POST"])
 def choose_mrerp_menu(name, account_set_key, doc_type, idmenu):
     return _call(service.choose_mrerp_menu, name, account_set_key, doc_type, idmenu)

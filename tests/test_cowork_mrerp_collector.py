@@ -75,6 +75,80 @@ def run(site, lease=None):
         return collector.collect(lease)
 
 
+def period_page(*spans):
+    """期间页（`period/allview.php`）：页头「เงื่อนไขรอบบัญชีเพิ่มเติม」有今天的日期，期间表每行起、止、再是制单日期。"""
+    rows = "".join(f'<p><span><select name="selseq{i}"><option>{i}</option></select></span><span>{start}</span>'
+                   f'<span>{end}</span><span>No</span><span><a></a><span class="showura"><span><span>User</span>'
+                   f'<span>admin</span><span>12/05/2562</span></span></span></span></p>'
+                   for i, (start, end) in enumerate(spans, 1))
+    return ('<div id="perioddays"><p><span>วันที่ปัจจุบัน</span></p><p><span>19/10/2569</span><span>5</span>'
+            '<span>14/10/2569</span></p></div><div id="showdata"><p><span>Seq</span><span>Begin</span>'
+            f'<span>End</span></p>{rows}</div>')
+
+
+class DetailSite(FakeSite):
+    """每个年度库的期间页与本公司分店档案（总店税号）：按 mainmenu 切进的那个年度回。"""
+
+    def __init__(self, periods, tax="0105536082808", **kwargs):
+        super().__init__(**kwargs)
+        self.periods, self.tax, self.year = periods, tax, None
+
+    def __call__(self, session, method, url, **kwargs):
+        path = url.replace(BASE, "")
+        if path.startswith("/login/mainmenu.php") and self.accepted:
+            self.year = kwargs.get("params", {}).get("comidyear")
+        if path.startswith("/period/allview.php"):
+            self.calls.append((method, path))
+            found = self.periods.get(self.year)
+            if isinstance(found, Exception):
+                raise found
+            return response(url, period_page(*found) if found else "<html></html>")
+        if path.startswith("/fabillrev/component/bshlistboxdata.php"):
+            self.calls.append((method, path))
+            return response(url, '{"txtothcombrh": [[1, "00000", "head"]]}')
+        if path.startswith("/artran/allform.php"):
+            self.calls.append((method, path))
+            return response(url, '<input type="text" id="txtothcombrh" value="00000">')
+        if path.startswith("/combrh/allform.php"):
+            self.calls.append((method, path))
+            return response(url, f'<input type="text" id="txttaxid" value="{self.tax}">')
+        return super().__call__(session, method, url, **kwargs)
+
+
+class Details(unittest.TestCase):
+    """刷新账套时每个年度库的会计期间与公司税号（2026-10-19）：只读、读不到留空不让刷新失败。"""
+
+    def test_each_year_gets_its_fiscal_period_and_the_company_its_tax_id(self):
+        site = DetailSite({"6": [("01/01/2562", "31/01/2562"), ("01/02/2562", "31/12/2562")],
+                           "15": [("01/04/2563", "31/03/2564")]})
+        result = run(site)
+        years = {r["comidyear"]: (r["period_start"], r["period_end"], r["tax_id"]) for r in result["rows"]}
+        self.assertEqual(years, {"6": ("2019-01-01", "2019-12-31", "0105536082808"),
+                                 "15": ("2020-04-01", "2021-03-31", "0105536082808")})
+        # 进了目录（`account_sets` 照 Express 放进属性），无效税号不放
+        from pearnly_cowork.connections import mrerp_catalog
+        attributes = mrerp_catalog.account_sets(result["rows"])[0]["attributes"]
+        self.assertEqual((attributes["period_start"], attributes["tax_id"]), ("2019-01-01", "0105536082808"))
+        self.assertEqual(mrerp_catalog.company_tax("8888888888888"), "")
+        self.assertEqual(sum(1 for _, path in site.calls if path.startswith("/combrh/allform.php")), 1)  # 每家一次
+
+    def test_a_year_that_cannot_be_read_is_left_without_a_period(self):
+        site = DetailSite({"6": requests.ConnectionError("down"), "15": [("01/01/2563", "31/12/2563")]},
+                          tax="8-888-888-88888-8")
+        result = run(site)
+        self.assertNotIn("error_code", result)
+        years = {r["comidyear"]: (r.get("period_start", ""), r.get("tax_id", "")) for r in result["rows"]}
+        self.assertEqual(years, {"6": ("", ""), "15": ("2020-01-01", "")})
+
+    def test_details_stop_at_the_time_budget_newest_first(self):
+        site = DetailSite({"6": [("01/01/2562", "31/12/2562")], "15": [("01/01/2563", "31/12/2563")]})
+        clock = iter([0, 0, collector.DETAILS_SECONDS + 1, collector.DETAILS_SECONDS + 1])
+        with patch.object(collector.time, "monotonic", lambda: next(clock, collector.DETAILS_SECONDS + 1)):
+            result = run(site)
+        years = {r["comidyear"]: r.get("period_start", "") for r in result["rows"]}
+        self.assertEqual(years, {"6": "2019-01-01", "15": ""})  # 已在里面的先读，超时后不再切库
+
+
 class Collect(unittest.TestCase):
     def test_collection_waits_for_the_same_account_lock_as_push(self):
         taken = []
@@ -107,9 +181,13 @@ class Collect(unittest.TestCase):
         self.assertNotIn("error_code", result)
         self.assertEqual([(r["comidyear"], r["name"], r["company"]) for r in result["rows"]],
                          [("6", "TEST2019", "TEST"), ("15", "TEST2020", "TEST")])
+        # 进第一个年度验账号后，读每个年度库的会计期间：已在里面的那个先读（不再切），其余新的在前切进去读；
+        # 每家公司在第一个读到的年度库里读一次总店税号（2026-10-19）
         self.assertEqual([path.split("?")[0] for _, path in site.calls], [
             "/", "/login/login.php", "/login/checklogin.php", "/login/selectdb.php",
-            "/login/selectdb.php", "/login/mainmenu.php", "/impartran/formupload.php"])
+            "/login/selectdb.php", "/login/mainmenu.php", "/impartran/formupload.php",
+            "/period/allview.php", "/fabillrev/component/bshlistboxdata.php", "/artran/allform.php",
+            "/login/selectdb.php", "/login/mainmenu.php", "/period/allview.php"])
         self.assertIsNotNone(result["observed_at"].tzinfo)
 
     def test_wrong_password_is_an_auth_error_not_retried(self):

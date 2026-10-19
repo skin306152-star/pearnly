@@ -27,7 +27,7 @@ export type Stage = (typeof STAGES)[number];
 export type StageState = "empty" | "open" | "attention" | "clear";
 export const SEVERITIES = ["action", "warn", "info"] as const;
 export type Severity = (typeof SEVERITIES)[number];
-export type ExceptionAction = "choose" | "push" | "open" | "task" | "readback" | "draft" | "account_set";
+export type ExceptionAction = "choose" | "push" | "open" | "task" | "readback" | "draft" | "account_set" | "mrerp";
 
 export type ReadbackSet = {
   connection: string; key: string; label: string; status: "none" | "reading" | "ready" | "failed" | string;
@@ -119,7 +119,7 @@ export function pendingOf(item: MonthException, company: string): PendingItem {
   return {
     document: item.document ?? "", company, reason_code: item.group ?? item.code, code: item.code, reason_label: item.reason_label ?? "",
     invoice_no: item.invoice_no, counterparty: item.counterparty, amount: item.amount, date: item.date, filename: item.filename,
-    action: item.action === "choose" || item.action === "account_set" || item.action === "push" ? item.action : "open",
+    action: item.action === "choose" || item.action === "account_set" || item.action === "push" || item.action === "mrerp" ? item.action : "open",
     choice: item.choice ?? null,
   };
 }
@@ -127,6 +127,11 @@ export function pendingOf(item: MonthException, company: string): PendingItem {
 /** 这条异常是不是「待选账套」、能当场换账套（服务端 action account_set、带推送去向，T1，第 6 批）。 */
 export function accountSetException(item: MonthException): boolean {
   return item.action === "account_set" && !!item.document && !!item.choice?.connection;
+}
+
+/** 这条异常是不是 MR.ERP 停在要选导入菜单 / 默认值、能当场选（服务端 action mrerp、带推送去向，2026-10-19）。 */
+export function mrerpException(item: MonthException): boolean {
+  return item.action === "mrerp" && !!item.document && !!item.choice?.connection;
 }
 
 /** 这条异常是不是 CC 准备好的提议、能当场「推送」（服务端 action push、带推送去向，数字会计员第 3 期）。 */

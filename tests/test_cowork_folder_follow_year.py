@@ -717,5 +717,88 @@ class PatchTests(Base):
             self.assertIn(f"{name} = {json.dumps(targets)}", hooks)
 
 
+def mr_row(key, label, start=None, end=None, tax=None):
+    attributes = {"comidyear": key.split(":")[0], "seldb": key.split(":")[1], "company": "001", "company_name": "MR Co"}
+    if start:
+        attributes.update(period_start=start, period_end=end)
+    if tax:
+        attributes["tax_id"] = tax
+    return {"source_id": key, "label": label, "active": True, "attributes": attributes}
+
+
+class MrErpFollowTests(Base):
+    """MR.ERP 定时任务跟随公司当年账套（2026-10-19）：刷新账套时读到每个年度库的会计期间后，到点按单据日期换年度库，
+    服务器直接写、不看电脑；年度库还没读到期间照旧推往固定账套，不停下；旧任务由补丁补公司；主档按读到的总店税号补税号。"""
+
+    YEARS = (mr_row("12:3", "TEST2019", "2019-01-01", "2019-12-31", TAX), mr_row("13:4", "TEST2020", "2020-01-01",
+                                                                                "2020-12-31", TAX))
+
+    def setUp(self):
+        super().setUp()
+        env.reset(M1=[dict(item) for item in self.YEARS])
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["M1"].update(adapter="mrerp", record_revision=1)
+        self.company = env.make("M1", "12:3")["id"]
+        env.fresh_request()
+        self.pool, self.fake = Pool(), Push()
+        self.follow = load_follow(self.pool)
+        self.push = load_push(self.follow, self.fake)
+
+    def mr_rule(self, **extra):
+        return self.rule(connection="M1", account_set_key="12:3", company=self.company, company_branch="",
+                         posting_kind="", payment="credit", **extra)
+
+    def test_saving_names_the_company_and_tickets_go_to_their_own_year(self):
+        self.assertEqual(tasks.company_of("M1", "13:4"), {"company": self.company, "branch": ""})
+        self.assertEqual([item["key"] for item in tasks.books_of(self.company, "M1", "2020-05-01")], ["13:4"])
+        self.send(self.mr_rule(), self.ticket("H1", "2020-03-01"))
+        self.send(self.mr_rule(), self.ticket("H2", "2019-11-30"))
+        self.assertEqual([item[1] for item in self.fake.submitted], ["13:4", "12:3"])
+        self.assertEqual(self.pool.asked, [])  # MR.ERP 由服务器写：不问哪台电脑够得到
+
+    def test_years_without_fiscal_periods_keep_the_fixed_account_set(self):
+        env.reset(M1=[mr_row("12:3", "TEST2019"), mr_row("13:4", "TEST2020")])
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["M1"].update(adapter="mrerp", record_revision=1)
+        self.company = env.make("M1", "12:3")["id"]
+        env.fresh_request()
+        self.assertIsNone(tasks.books_of(self.company, "M1", "2020-05-01"))
+        self.send(self.mr_rule(), self.ticket("H1", "2020-03-01"))
+        self.assertEqual([item[1] for item in self.fake.submitted], ["12:3"])
+        self.assertEqual(self.fake.failures, [])
+
+    def test_the_company_master_gets_the_head_office_tax_id_only_when_empty_and_valid(self):
+        found = service.detail(self.company)
+        self.assertEqual(found["company"]["tax_id"], TAX)
+        self.assertEqual([item["period_start"] for item in found["account_sets"]], ["2020-01-01", "2019-01-01"])
+        self.assertEqual(found["period_set"], None)  # 默认这个月（2026）没有覆盖的年度
+        self.assertEqual(service.detail(self.company, "2020-02")["period_set"]["key"], "13:4")
+        # 已有的税号不覆盖；读到的不是有效税号不补
+        frappe.db.tables["Cowork Company"][self.company]["tax_id"] = "0105548064214"
+        env.fresh_request()
+        self.assertEqual(service.detail(self.company)["company"]["tax_id"], "0105548064214")
+        env.reset(M1=[mr_row("12:3", "TEST2019", tax="8888888888888")])
+        other = env.make("M1", "12:3")["id"]
+        env.fresh_request()
+        self.assertEqual(service.detail(other)["company"]["tax_id"], "")
+        self.assertEqual(frappe.db.tables["Cowork Company"][other]["identity"], "mrerp:M1:001")  # 身份不变
+
+    def test_old_mrerp_tasks_get_their_company_from_the_patch(self):
+        frappe.db.tables[RULE] = {
+            "R1": env.Row(name="R1", connection="M1", account_set_key="12:3", rule_owner="a@example.com", company=""),
+            "R2": env.Row(name="R2", connection="M1", account_set_key="99:9", rule_owner="a@example.com", company="")}
+        frappe.db.has_column = lambda doctype, column: True
+        frappe.db.sql = lambda query, values=None, as_dict=False: [
+            env.Row(name=item["name"], connection=item["connection"], account_set_key=item["account_set_key"],
+                    rule_owner=item["rule_owner"]) for item in frappe.db.tables[RULE].values()
+            if not item.get("company") and "'mrerp'" in query]
+        patch = _load("mrerp_task_patch", APP / "patches/v0_0_24_mrerp_task_company.py", {})
+        patch.execute()
+        rules = frappe.db.tables[RULE]
+        self.assertEqual((rules["R1"]["company"], rules["R1"].get("company_branch")), (self.company, ""))
+        self.assertEqual(rules["R2"]["company"], "")
+        listed = (APP / "patches.txt").read_text(encoding="utf-8")
+        self.assertGreater(listed.index("v0_0_24_mrerp_task_company"), listed.index("v0_0_23_folder_task_company"))
+
 if __name__ == "__main__":
     unittest.main()

@@ -1145,6 +1145,7 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
   const fields = defaultNeeded(view, direction);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const all = [...kinds, ...fields.map((f) => `default_${f}`)];
   return (
     <Modal
@@ -1153,6 +1154,7 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
       title={tr(fields.length ? "intake.mrerpDefault.title" : "intake.mrerpMenu.title")}
       footer={
         <>
+          {error && <span className="me-auto text-danger text-body">{error}</span>}
           <button type="button" className="cc-btn" onClick={() => onDone(false)}>{t("cancel")}</button>
           <button
             type="button"
@@ -1160,14 +1162,22 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
             data-primary=""
             disabled={busy || all.some((k) => !values[k])}
             onClick={async () => {
+              // 存不进（选项刚在 MR.ERP 变了、没有权限）：原因写在弹窗里，按钮放开可再存（原先未接住，按钮一直转圈）
               setBusy(true);
-              for (const kind of kinds) {
-                await postMethod(CONN + "choose_mrerp_menu", { name: connection.name, account_set_key: accountSet, doc_type: kind, idmenu: values[kind] });
+              setError("");
+              try {
+                for (const kind of kinds) {
+                  await postMethod(CONN + "choose_mrerp_menu", { name: connection.name, account_set_key: accountSet, doc_type: kind, idmenu: values[kind] });
+                }
+                for (const field of fields) {
+                  await postMethod(CONN + "choose_mrerp_default", { name: connection.name, account_set_key: accountSet, field, code: values[`default_${field}`] });
+                }
+                onDone(true);
+              } catch (e) {
+                setError(shownError(e));
+              } finally {
+                setBusy(false);
               }
-              for (const field of fields) {
-                await postMethod(CONN + "choose_mrerp_default", { name: connection.name, account_set_key: accountSet, field, code: values[`default_${field}`] });
-              }
-              onDone(true);
             }}
           >
             {tr("Save")}

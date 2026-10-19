@@ -42,6 +42,9 @@ class SuccessRow:
     mrerp_bill_no: str  # MR.ERP 列表里回读到的实际单号(菜单前缀 + 我方单号)
     original: Dict[str, Any]
     already_pushed: bool = False  # MR.ERP 报「单号已存在」,且在所选菜单里回读查到
+    # 推进了哪类单据、哪个导入菜单（2026-10-19：CC 答得出 MR.ERP 的单是现销还是赊销、进了哪个菜单）
+    doc_type: str = ""
+    menu: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

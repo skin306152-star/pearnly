@@ -116,6 +116,79 @@ def proposal_detail(document):
     return pending.proposal_view(_row(storage.read(name)))
 
 
+# ---------------- MR.ERP：停在要选导入菜单 / 默认值的单当场选（2026-10-19） ----------------
+
+def _mrerp_target(name):
+    """这张单推往的 MR.ERP 连接、账套与票面方向；不是这种单（`companies.pending.mrerp_setup_stop`）回 None。"""
+    from pearnly_cowork.assistant import tools
+    from pearnly_cowork.companies import pending
+
+    doc = storage.read(name)
+    row = _row(doc)
+    if not pending.mrerp_setup_stop(row):
+        return None
+    return doc.push_connection, doc.push_account_set, tools._doc_direction(doc)
+
+
+@frappe.whitelist(methods=["GET"])
+def mrerp_needs(document):
+    """点开这张单时要选的（只有这张单的方向会用到、此刻还要人选的，同 CC 推之前那一步与网页推送前的弹窗）：
+    ``{"document", "known", "items": [{"key", "label", "options": [{"value", "label"}]}]}``。``key`` 是 ``menu:单据类型`` /
+    ``default:字段``；名称按用户语言（同网页弹窗的词条）。菜单与主档还没从 MR.ERP 读到过（``known`` 为假）时 ``items`` 为空，
+    页面交给 CC（它能请服务器去读）。不是这种单回空的 ``items``。"""
+    from pearnly_cowork.connections import mrerp_needs as needs
+    from pearnly_cowork.connections import service as connections
+
+    scope.require("intake")
+    name = str(document or "")
+    target = _mrerp_target(name)
+    if not target:
+        return {"document": name, "known": False, "items": []}
+    connection, account, direction = target
+    view = connections.mrerp_menu(connection, account)
+    found = needs.needed(view, direction or None)
+    items = [{"key": "menu:" + kind, "label": _(f"intake.mrerpMenu.{kind}"),
+              "options": [{"value": option["idmenu"], "label": option.get("label") or option["idmenu"]}
+                          for option in view["kinds"][kind]["options"]]} for kind in found["menus"]]
+    items += [{"key": "default:" + field, "label": _(f"intake.mrerpDefault.{field}"),
+               "options": [{"value": option["code"],
+                            "label": " · ".join(part for part in (option["code"], option.get("name")) if part)}
+                           for option in view["defaults"]["fields"][field]["options"]]} for field in found["defaults"]]
+    return {"document": name, "known": found["known"], "items": items}
+
+
+@frappe.whitelist(methods=["POST"])
+def mrerp_answer(document, values):
+    """记下这张单要选的 MR.ERP 导入菜单 / 默认值（``values``：``{key: 值}``，JSON，键同 `mrerp_needs`；值只收这份账套最近一次
+    读到的可选值，连接服务核），再按 CC 推送同一条路重推这一张（同 `answer`）；回同 `answer`。给空的 ``values`` 是直接重推
+    （别处已经选好了）。这份账套的选择大家共用，同网页弹窗。"""
+    from pearnly_cowork.connections import service as connections
+
+    scope.require("intake")
+    name = str(document or "")
+    target = _mrerp_target(name)
+    if not target:
+        frappe.throw(_("cowork.company.pending.no_target"))
+    connection, account, _direction = target
+    parsed = json.loads(values) if isinstance(values, str) else values
+    if not isinstance(parsed, dict) or len(parsed) > ITEMS_MAX:
+        frappe.throw(_("connection.config_invalid"))
+    for key, value in parsed.items():
+        part, _sep, field = str(key).partition(":")
+        if part == "menu":
+            connections.choose_mrerp_menu(connection, account, field, str(value or ""))
+        elif part == "default":
+            connections.choose_mrerp_default(connection, account, field, str(value or ""))
+        else:
+            frappe.throw(_("connection.config_invalid"))
+    frappe.db.commit()
+    from pearnly_cowork.assistant import tools
+
+    result = tools._push_one(name, route_device=_reader(name, connection))
+    frappe.db.commit()
+    return _answer(name, result)
+
+
 # 推不成、也没进账本的结论：这张单回到「待选账套」，会计员能再选一份（第 6 批审查第 4 条）
 NOT_ENTERED = ("failed", "not_found")
 

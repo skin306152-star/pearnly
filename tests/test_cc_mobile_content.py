@@ -166,7 +166,7 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn("if (el && document.activeElement !== el) el.focus({ preventScroll: true });", title)
         page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
-        self.assertIn("setChoiceShown(rows, c.key, v)", choices)
+        self.assertIn("setChoiceShown(rows, c.key, v, shown)", choices)
         self.assertIn("rows.filter((row) => row.key !== c.key)", choices)
         self.assertNotIn("await reload()", choices)
         folders = page[page.index("export const FolderSection"):page.index("// ---------------------------------------------------------------- 账套")]

@@ -142,6 +142,20 @@ def book_many(row) -> bool:
             and not row.get("last_push_reason") and BOOK_MANY in str(row.get("auto_reasons") or "").split(","))
 
 
+# MR.ERP 推送停在「这份账套的导入菜单 / 默认值要选」（推之前 CC 的核对、或推送时 MR.ERP 那边核对出来的，原因码同
+# `targets.mrerp_menus` / `targets.mrerp_masters`）：待处理与月结台账当场选（action ``mrerp``，2026-10-19），选完照常重推。
+MRERP_SETUP_CODES = ("ERR_MRERP_MENU_CHOICE_REQUIRED", "ERR_MRERP_MENU_CHANGED", "ERR_MRERP_DEFAULT_CHOICE_REQUIRED",
+                     "ERR_MRERP_DEFAULT_CHANGED")
+
+
+def mrerp_setup_stop(row) -> bool:
+    """停在要选 MR.ERP 导入菜单 / 默认值、知道推往哪条连接哪份账套的单（没推成：成功、在途、结果不明的不算）。纯判断。"""
+    reason = str(row.get("last_push_reason") or "")
+    return (bool(row.get("push_connection")) and bool(row.get("push_account_set"))
+            and str(row.get("last_push_status") or "") not in SETTLED
+            and any(code in reason for code in MRERP_SETUP_CODES))
+
+
 def account_set_stop(row) -> bool:
     """停在「待选账套」：定时任务跟随公司当年账套时没有 / 多于一份 / 够不到单据日期的账套（T1 的三个原因码），或自动推前
     判出多份同期账套（:func:`book_many`，数字会计员第 3 期），且有推送去向。"""
@@ -503,6 +517,11 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
         elif code == "cc_proposal":
             # CC 准备好的提议：页面当场「推送」（`assistant.pending_api.answer` 交空的选择，同一条路重判、推）
             item["action"] = "push"
+            item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                              "kinds": []}
+        elif mrerp_setup_stop(row):
+            # MR.ERP 停在要选导入菜单 / 默认值：页面当场选（`assistant.pending_api.mrerp_needs` / `mrerp_answer`），选完重推
+            item["action"] = "mrerp"
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                               "kinds": []}
         elif account_set_stop(row):
