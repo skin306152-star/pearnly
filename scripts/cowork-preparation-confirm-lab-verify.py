@@ -2,6 +2,10 @@
 
 No scheduler, external network, ERP/LINE writer, browser or paid provider. Uses
 native machine authentication + real report ingestion and human WSGI requests.
+
+Preparation evidence v2 (ADR-021): the computer reports through `heartbeat._receive` (account set rows carry
+their six mappings), confirmation needs a writer in the pool (`has_writer`), binds no key, compares the whole
+evidence of the day; bank evidence is the entering user's; a refused confirmation returns ``failed``.
 """
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -19,6 +23,7 @@ from pymysql.err import ProgrammingError
 
 BASE = runpy.run_path(str(Path(__file__).with_name('cowork-push-application-lab-verify.py')))
 P = BASE['NativePreparation']
+MAPPING_KEYS = ('fallback_acc', 'vat_input_acc', 'ap_acc', 'revenue_acc', 'vat_output_acc', 'ar_acc')
 connect = BASE['connect']
 
 
@@ -43,23 +48,46 @@ class PreparationConfirmation(unittest.TestCase):
         self.issued = credentials.issue(self.connection['name'], uuid4().hex)
         self.machine = credentials.authenticate(self.issued['token'])
         self.report()
+        self.choose()
         frappe.set_user(self.actor)
 
+    def choose(self):
+        # 现在的推送要先定付款方式与科目（复核页选一次记在账套记忆里）；这里像会计在复核页选过一样记下
+        from pearnly_cowork.push import choices as choice_store
+        subject = 'purchase|' + BASE['FIELDS']['seller_tax']
+        choice_store.record(self.connection['name'], 'DATAT', 'payment', subject, 'credit')
+        choice_store.record(self.connection['name'], 'DATAT', 'account', subject, 'A')
+
     def report(self, **changes):
-        doc = frappe.get_doc('Cowork ERP Connection', self.connection['name'], for_update=True)
         body = {'account_set': 'DATAT', 'express_root': BASE['CONFIG']['express_root'],
-            'account_sets': [{'code': 'DATAT', 'path': 'DATAT', 'root': BASE['CONFIG']['express_root'], 'writable': True}],
+            # 账套行带这份账套的 6 个科目（CC 桌面版 `account_probe` 同样报在每一行上）：多台电脑之后连接配置不再存它们
+            'account_sets': [{'code': 'DATAT', 'path': 'DATAT', 'root': BASE['CONFIG']['express_root'], 'writable': True,
+                              'mapping': {key: BASE['CONFIG'][key] for key in MAPPING_KEYS}}],
             'accounts': [{'code': code} for code in ('A','V','P','S','O','R')],
             'catalog': {'products': [], 'customers': []}, 'max_payload_version': 1}
         body.update(changes)
-        context = self.credentials.revalidate(self.machine)
-        previous = {**json.loads(doc.config_json), **json.loads(doc.report_json or '{}')}
-        plan = self.reports.plan_report(body, previous, datetime.now(timezone.utc))
-        return self.collector.ingest(doc, plan, credential_id=context.credential_id,
-            token_generation=context.token_generation, issuer=context.issuer)
+        # 心跳的真实入口（证据 v2 / 多台电脑：这台电脑的可达行、账套资料、电脑行，`heartbeat._receive`）
+        from pearnly_cowork.companion import heartbeat
+        return heartbeat._receive(self.machine, body)
 
     def confirm(self, prepared, key='confirm'):
         return self.submission.confirm(prepared['name'], prepared['revision'], key)
+
+    def refused(self, prepared, key='confirm'):
+        # 确认失败不抛给页面（2026-09-26 起）：整笔回滚、原因记在票上、回 failed。合成夹具不提交（各用例互不影响）：
+        # 这一次的「整笔回滚」只退到确认前的保存点，夹具还在，之后照样断言记录仍是 prepared
+        point = 'lab_refused_' + uuid4().hex[:12]
+        frappe.db.savepoint(point)
+        rollback = frappe.db.rollback
+        with patch.object(frappe.db, 'rollback', lambda save_point=None, **kwargs: rollback(save_point=save_point or point)):
+            result = self.confirm(prepared, key)
+        self.assertEqual(result['status'], 'failed', result)
+        return result
+
+    def issuer_enabled(self, enabled):
+        # 密钥签发人（管理员）停用 / 恢复：池里「能写的电脑」按签发人此刻能不能用这条连接核（`pool.writers`）
+        frappe.db.set_value('User', self.manager, 'enabled', int(enabled), update_modified=False)
+        frappe.clear_cache(user=self.manager)
 
     def row(self, prepared):
         return frappe.get_doc('Cowork Push Record', prepared['name'])
@@ -87,8 +115,9 @@ class PreparationConfirmation(unittest.TestCase):
         self.inputs.save_mapping('account', 'accounts_payable', 'P')
         self.inputs.save_profile(self.workspace, BASE['FIELDS']['seller_tax'], default_payment='credit')
         self.inputs.save_profile(self.workspace, BASE['FIELDS']['seller_tax'], default_payment='cash', source='correction')
-        self.bank.record(uuid4().hex, '2026-09-21', 'OUT', '107.00')
         frappe.set_user(self.actor)
+        # 准备证据 v2：银行窗口按录入人取（以前按连接上报的那个人）
+        self.bank.record(uuid4().hex, '2026-09-21', 'OUT', '107.00')
         prepared = self.prepare()
         self.assertEqual(prepared['preparation_states'], {'mappings': 'present',
             'supplier_profiles': 'present', 'bank_index': 'present', 'reported_config': 'present'})
@@ -99,7 +128,7 @@ class PreparationConfirmation(unittest.TestCase):
         frappe.set_user(self.manager)
         self.inputs.save_mapping('account', 'accounts_payable', 'CHANGED', expected_revision=1)
         frappe.set_user(self.actor)
-        with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
+        self.refused(prepared)
         self.assertEqual(self.row(prepared).payload_json, frozen)
         self.assertEqual(self.row(prepared).status, 'prepared')
 
@@ -116,16 +145,19 @@ class PreparationConfirmation(unittest.TestCase):
         frappe.set_user(self.manager)
         self.install(complete=False)
         frappe.set_user(self.actor)
+        self.report()  # 目录是池里各台电脑的并集（ADR-021），旧的整份快照不是推送依据；电脑再报到一次
         self.assertEqual(self.prepare()['status'], 'prepared')
         with patch.object(self.inputs, 'mappings', side_effect=RuntimeError('synthetic collector failure')):
             with self.assertRaises(RuntimeError): self.prepare(request_key=uuid4().hex)
 
-    def test_no_reported_credential_cannot_confirm(self):
-        frappe.db.set_value('Cowork ERP Connection', self.connection['name'], 'report_json', '{}')
-        self.report(account_set=None, account_sets=None, catalog=None, accounts=None, max_payload_version=None)
+    def test_no_writer_cannot_confirm(self):
+        # 证据 v2：能不能确认看池里有没有够得到这份账套、能写的电脑（`has_writer`），不再看连接上报的那把密钥。
+        # 唯一一台够得到这份账套的电脑，它的密钥签发人此刻用不了这条连接 → 目录里还有、池里没有能写的电脑
+        self.issuer_enabled(False)
         prepared = self.prepare()
-        self.assertFalse(prepared['has_reported_credential'])
-        with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
+        self.assertFalse(prepared['has_writer'])
+        self.assertFalse(prepared['has_reported_credential'])  # 旧名同值保留
+        self.refused(prepared)
 
     def test_a_preparation_that_can_no_longer_be_confirmed_is_replaced_on_push_again(self):
         # 2026-09-28 录制：小助手重扫账套的两分钟里推的票，恢复后重推一直「推送目标已变更」
@@ -133,14 +165,13 @@ class PreparationConfirmation(unittest.TestCase):
         chosen = patch('pearnly_cowork.push.application.service._decisions',
                        return_value={'needed': [], 'applied': {}})
         chosen.start(); self.addCleanup(chosen.stop)
-        frappe.db.set_value('Cowork ERP Connection', self.connection['name'], 'report_json', '{}')
-        self.report(account_set=None, account_sets=None, catalog=None, accounts=None, max_payload_version=None)
         stale = self.prepare()
-        self.assertFalse(stale['has_reported_credential'])
-        self.report()  # 小助手又报上了这份账套
+        self.assertTrue(stale['has_writer'])
+        # 小助手重扫账套后这份账套的科目表变了：准备时的事实对不上，这份准备确认不了（证据 v2 比整份事实）
+        self.report(accounts=[{'code': code} for code in ('A', 'V', 'P', 'S', 'O', 'R', 'NEW')])
         fresh = self.prepare(request_key=uuid4().hex)
         self.assertNotEqual(fresh['name'], stale['name'])
-        self.assertEqual((fresh['status'], fresh['has_reported_credential']), ('prepared', True))
+        self.assertEqual((fresh['status'], fresh['has_writer']), ('prepared', True))
         self.assertEqual((self.row(stale).status, self.row(stale).reason), ('cancelled', 'push.preparation_superseded'))
         self.assertEqual(frappe.db.count('Cowork Push Attempt', {'push_record': stale['name']}), 0)
         # 还能确认的准备照旧挡住重复准备，不被替换
@@ -151,56 +182,70 @@ class PreparationConfirmation(unittest.TestCase):
     def test_other_actor_and_revoked_scope_cannot_confirm(self):
         prepared = self.prepare()
         frappe.set_user(self.manager)
-        with self.assertRaises(frappe.PermissionError): self.confirm(prepared)
+        self.refused(prepared)
+        # Cowork 不按人分公司（用户 2026-09-26）：谁能用 Express 看连接自己的使用名单（ADR-021 D2）。把录入人移出名单
+        self.connection = self.connections.configure(self.workspace, 'express', uuid4().hex, 'Synthetic Express',
+            BASE['CONFIG'], users=[self.manager], name=self.connection['name'],
+            expected_revision=self.connection['revision'])
         frappe.set_user(self.actor)
-        frappe.db.delete('User Permission', {'name': self.permission})
-        with self.assertRaises(frappe.PermissionError): self.confirm(prepared)
+        self.refused(prepared)
         self.assertEqual(self.row(prepared).status, 'prepared')
 
-    def test_rotated_credentials_reject_confirm_and_pending_lease(self):
-        prepared = self.prepare(); self.confirm(prepared)
+    def rotate(self):
         frappe.set_user(self.manager)
         fresh = self.credentials.issue(self.connection['name'], uuid4().hex, reset=True, expected_generation=1)
-        machine = self.credentials.authenticate(fresh['token'])
+        old, self.machine = self.machine, self.credentials.authenticate(fresh['token'])
         frappe.set_user(self.actor)
-        self.assertEqual(self.transport.lease(machine, {})['jobs'], [])
-        self.assertEqual(self.row(prepared).status, 'manual')
-        self.assertEqual(frappe.db.count('Cowork Push Attempt', {'push_record': prepared['name']}), 0)
+        return old
 
-    def test_rotation_before_confirmation_rejected(self):
+    def test_rotated_key_does_not_quarantine_pending_work(self):
+        # 证据 v2 不绑密钥（ADR-021 第 3 批）：换钥前排着的单不再转人工；旧钥领不了，新钥报到后照常领到同一张
+        prepared = self.prepare(); self.confirm(prepared)
+        old = self.rotate()
+        with self.assertRaises(frappe.AuthenticationError): self.transport.lease(old, {})
+        self.report()
+        job = self.transport.lease(self.machine, {})['jobs'][0]
+        self.assertEqual(self.row(prepared).status, 'leased')
+        self.assertEqual(frappe.get_doc('Cowork Companion Delivery', job['log_id']).credential_id,
+                         self.machine.credential_id)
+        self.assertEqual(frappe.db.count('Cowork Push Attempt', {'push_record': prepared['name']}), 1)
+
+    def test_rotation_before_confirmation_still_confirms(self):
+        # 准备证据 v2 只认 `route` 与本单用到的主档，不认上报的那把密钥：换钥后照常确认
         prepared = self.prepare()
-        frappe.set_user(self.manager)
-        self.credentials.issue(self.connection['name'], uuid4().hex, reset=True, expected_generation=1)
-        frappe.set_user(self.actor)
-        with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
-        self.assertEqual(self.row(prepared).status, 'prepared')
+        self.rotate(); self.report()
+        self.assertEqual(self.confirm(prepared)['status'], 'pending')
 
-    def test_history_edit_pending_refresh_and_day_expiry_reject_confirmation(self):
+    def test_day_expiry_rejects_confirmation_but_pending_refresh_does_not(self):
+        # 准备证据 v2：人确认的是当天这份（过了一天确认不了）；这份账套正在重读主档不再挡确认——证据只比
+        # 准备时的事实与 `route`，没有刷新状态（v1 的「刷新中不许确认」随证据 v2 去掉）
         prepared = self.prepare()
         with patch('pearnly_cowork.connections.preparation.datetime') as clock:
             clock.now.return_value = datetime(2026, 10, 1, tzinfo=timezone.utc)
-            with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
-        self.connections.request_refresh(self.connection['name'], uuid4().hex, 'DATAT')
-        with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
+            self.refused(prepared)
         self.assertEqual(self.row(prepared).status, 'prepared')
+        self.connections.request_refresh(self.connection['name'], uuid4().hex, 'DATAT')
+        self.assertEqual(self.confirm(prepared)['status'], 'pending')
 
     def test_other_owner_bank_and_other_workspace_profile_do_not_leak(self):
-        frappe.set_user(self.actor)
-        self.bank.record(uuid4().hex, '2026-09-21', 'OUT', '107')
+        # 银行窗口按录入人（准备证据 v2）：别人记的流水，日期在窗口里也不算；别的工作空间的档案不算
         frappe.set_user(self.manager)
         self.inputs.save_profile(self.foreign, BASE['FIELDS']['seller_tax'], default_payment='cash')
-        self.bank.record(uuid4().hex, '2026-09-29', 'OUT', '107')
+        self.bank.record(uuid4().hex, '2026-09-21', 'OUT', '107')
         frappe.set_user(self.actor)
         prepared = self.prepare()
         self.assertEqual(prepared['preparation_states']['bank_index'], 'empty')
         self.assertEqual(prepared['preparation_states']['supplier_profiles'], 'empty')
 
     def test_partial_report_does_not_relabel_other_account_caches(self):
-        before = json.loads(frappe.get_doc('Cowork ERP Connection', self.connection['name']).report_json)
-        self.report(account_set='OTHER', account_sets=None, catalog=None, accounts=None)
-        after = json.loads(frappe.get_doc('Cowork ERP Connection', self.connection['name']).report_json)
-        self.assertEqual(after['_preparation_origins']['reported_accounts'], before['_preparation_origins']['reported_accounts'])
-        self.assertNotEqual(after['_preparation_binding']['account_set'], after['_preparation_origins']['reported_accounts']['account_set'])
+        # 主档进那份账套的账套资料（`pool.put_facts`），连接这一行不再存主档与来源；所选是这台电脑够不到的账套时不记到任何账套名下
+        from pearnly_cowork.connections import pool
+        before = pool.facts(self.connection['name'], 'datat')
+        self.report(account_set='OTHER', account_sets=None, catalog=None, accounts=[{'code': 'X'}])
+        self.assertEqual(pool.facts(self.connection['name'], 'datat'), before)
+        self.assertIsNone(pool.facts(self.connection['name'], 'other'))
+        report = json.loads(frappe.get_doc('Cowork ERP Connection', self.connection['name']).report_json or '{}')
+        self.assertFalse({'_preparation_origins', '_preparation_binding', 'reported_accounts'} & set(report))
 
     def test_late_failure_rolls_back_pending_and_receipt(self):
         from pearnly_cowork.push.native import service
@@ -231,7 +276,7 @@ class PreparationConfirmation(unittest.TestCase):
         prepared = self.prepare()
         pages = deepcopy(self.history['pages']); pages[0]['fields']['invoice_number'] = 'changed'
         self.storage.update_pages(self.history['name'], pages, self.history['record_version'])
-        with self.assertRaises(frappe.ValidationError): self.confirm(prepared)
+        self.refused(prepared)
         self.assertEqual(self.row(prepared).status, 'prepared')
 
     def test_client_id_is_server_derived_for_mapping(self):
@@ -245,7 +290,7 @@ class PreparationConfirmation(unittest.TestCase):
         self.connection = self.connections.configure(self.workspace, 'express', uuid4().hex,
             'Synthetic client connection', BASE['CONFIG'], client=client, users=[self.manager, self.actor])
         self.issued = self.credentials.issue(self.connection['name'], uuid4().hex)
-        self.machine = self.credentials.authenticate(self.issued['token']); self.report()
+        self.machine = self.credentials.authenticate(self.issued['token']); self.report(); self.choose()
         frappe.set_user(self.actor)
         pages = [{'fields': {**BASE['FIELDS'], 'client_id': 'FORGED'}}]
         self.history = self.storage.create_recognized(self.workspace, pages, uuid4().hex,

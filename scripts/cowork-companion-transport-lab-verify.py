@@ -2,6 +2,9 @@
 
 No HTTP listener, ERP writer, Windows client, notification or external call.
 Explicit pending activation uses the existing internal synthetic fixture seam.
+
+Lease v2 (ADR-021): the computer first reports its reach through `heartbeat._receive`; each account set's
+queue head only, `attended` on the job, lock scheme v2 (account-set lock, company lock by content key).
 """
 from copy import deepcopy
 from dataclasses import replace
@@ -21,6 +24,9 @@ import frappe
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-push-native-lab-verify.py')))
 BASE = FIXTURE['NativePush']
 connect = FIXTURE['connect']
+# 锁口径 v2（ADR-021 第 3 批）：只取账套锁 + 按内容键的公司锁，不再有整条连接的 endpoint 锁；合成登记没有内容键，只有账套锁
+LOCKS = 1
+MAPPING_KEYS = ('fallback_acc', 'vat_input_acc', 'ap_acc', 'revenue_acc', 'vat_output_acc', 'ar_acc')
 
 
 class CompanionTransport(unittest.TestCase):
@@ -42,7 +48,27 @@ class CompanionTransport(unittest.TestCase):
         frappe.set_user(self.manager)
         self.issued = credentials.issue(self.connection['name'], uuid4().hex)
         self.machine = credentials.authenticate(self.issued['token'])
+        self.report()
+        self.choose()
         frappe.set_user(self.actor)
+
+    def report(self, machine=None, **changes):
+        # 多台电脑之后（ADR-021）领取只看这台电脑够得到、能写的账套：电脑先经真实心跳入口报到这份账套（可达行、账套资料）
+        from pearnly_cowork.companion import heartbeat
+        mapping = {key: self.config[key] for key in MAPPING_KEYS}
+        body = {'account_set': 'DATAT', 'express_root': self.config['express_root'],
+                'account_sets': [{'code': 'DATAT', 'path': 'DATAT', 'root': self.config['express_root'],
+                                  'writable': True, 'mapping': mapping}],
+                'accounts': [{'code': code} for code in sorted(set(mapping.values()))],
+                'catalog': {'products': [], 'customers': []}, 'max_payload_version': 1, **changes}
+        return heartbeat._receive(machine or self.machine, body)
+
+    def choose(self):
+        # 推送前要定的付款方式与科目：像会计在复核页选过一次一样记在账套记忆里
+        from pearnly_cowork.push import choices as choice_store
+        subject = 'purchase|' + FIXTURE['FIXTURE']['FIELDS']['seller_tax']
+        choice_store.record(self.connection['name'], 'DATAT', 'payment', subject, 'credit')
+        choice_store.record(self.connection['name'], 'DATAT', 'account', subject, 'A')
 
     def pending(self):
         name, context = self.prepared()
@@ -71,7 +97,9 @@ class CompanionTransport(unittest.TestCase):
         return result
 
     def revoke_actor(self):
-        frappe.db.delete('User Permission', {'name': self.permission})
+        # Cowork 不按人分公司（用户 2026-09-26），删工作空间的用户权限不再是失权；收回录入角色才是（改使用名单会连带改
+        # 连接版本，那是「目标变了」，另一个原因）
+        frappe.db.delete('Has Role', {'parent': self.actor, 'role': ('in', ('Cowork Intake', 'Cowork Admin'))})
         frappe.clear_cache(user=self.actor)
 
     def assert_pristine(self, name, auth_count):
@@ -97,7 +125,9 @@ class CompanionTransport(unittest.TestCase):
         secret = self.deliveries.secret(delivery)
         self.assertEqual(set(result), {'ok', 'lease_seconds', 'jobs'})
         self.assertEqual(result['lease_seconds'], 120)
-        self.assertEqual(set(job), {'log_id', 'history_id', 'invoice_no', 'payload'})
+        # 领取 v2 多给 `attended`（这张单写的时候有没有人在电脑前，自动推的单不弹「账套被占用」）
+        self.assertEqual(set(job), {'log_id', 'history_id', 'invoice_no', 'payload', 'attended'})
+        self.assertIs(job['attended'], False)  # 旧槽位密钥的电脑没有登录记录：过渡期替谁都写，不弹询问框
         self.assertEqual(job['payload'], json.loads(row.payload_json))
         self.assertEqual(job['history_id'], self.history['name'])
         self.assertNotIn(secret, json.dumps(result))
@@ -338,7 +368,7 @@ class CompanionTransport(unittest.TestCase):
             self.assertEqual(self.take()['jobs'], [])
         row = frappe.get_doc(self.native.RECORD, name)
         self.assertEqual((row.status, row.result_unknown), ('manual', 1))
-        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), 2)
+        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), LOCKS)
         self.assertEqual(self.ack(handle)['status'], 'success')
         self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), 0)
 
@@ -348,7 +378,7 @@ class CompanionTransport(unittest.TestCase):
         expires = frappe.db.get_value(self.native.RECORD, name, 'lease_expires_at')
         with patch.object(self.native, 'now_utc', return_value=expires + timedelta(seconds=1)):
             self.assertEqual(self.take()['jobs'], [])
-        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), 2)
+        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), LOCKS)
         self.assertEqual(self.ack(handle)['status'], 'success')
 
     def test_internal_sources_filtered_before_fifo_limit(self):
@@ -423,11 +453,13 @@ class CompanionTransport(unittest.TestCase):
         self.history = self.another_history(); self.key = uuid4().hex
         second = self.pending()
         frappe.db.set_value(self.native.RECORD, first, 'created_at', '2026-09-20 00:00:00', update_modified=False)
+        # 领取 v2 每份账套只看排头：这一次把失效的排头转人工（不再整条连接停下），同一份账套的下一张下一次领到
+        self.assertEqual(self.take()['jobs'], [])
+        self.assertEqual(frappe.db.get_value(self.native.RECORD, first, 'status'), 'manual')
         handle = self.take()['jobs'][0]['log_id']
         self.assertEqual(self.deliveries.get(handle).push_record, second)
-        self.assertEqual(frappe.db.get_value(self.native.RECORD, first, 'status'), 'manual')
         self.assertEqual(frappe.db.count(self.native.ATTEMPT, {'push_record': first}), 0)
-        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': second}), 2)
+        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': second}), LOCKS)
 
     def test_quarantine_cannot_change_unknown_leased_work_or_release_locks(self):
         name, _ = self.claimed()
@@ -436,7 +468,7 @@ class CompanionTransport(unittest.TestCase):
         for reason in ('push.native_history_changed', 'made-up-reason'):
             with self.subTest(reason=reason), self.assertRaises(frappe.ValidationError):
                 self.native.quarantine_pending(name, context=context, adapter=self.adapter, reason=reason)
-        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), 2)
+        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), LOCKS)
 
     def test_finished_ack_after_quarantine_remains_accepted_without_requeue(self):
         for outcome in ('waiting_lock', 'failed'):

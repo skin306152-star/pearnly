@@ -183,6 +183,8 @@ class FakeDB:
 
     def get_value(self, doctype, name, field, for_update=False, as_dict=False, **ignored):
         if doctype == "Cowork Workspace":
+            if for_update:
+                _lock(doctype, [name])
             return name
         row = STORE.get(doctype, {}).get(name)
         if for_update and row is not None:
@@ -387,9 +389,10 @@ def _install_connections(frappe):
     service = types.ModuleType("pearnly_cowork.connections.service")
     service.MAIN_ADAPTERS = ("express", "mrerp")
 
-    def main_connections(workspace, *, enabled=True):
+    def main_connections(workspace, *, enabled=True, current=False):
         # 同 `connections.service.main_connections`：最早建、启用、不挂客户（FakeDB 认这句只回启用的）
         assert enabled
+        LOCKS.append(("MAIN", "current" if current else "snapshot"))
         found = {}
         for row in frappe.db.sql("""SELECT name, adapter FROM `tabCowork ERP Connection`
                 WHERE workspace=%s AND COALESCE(client,'')='' AND enabled=1 AND binding_generation=0
@@ -803,6 +806,27 @@ class DeviceRegister(Base):
         devices.retire(devices.read(a["device"]), ADMIN)
         self.register(ENTRY, device_key=KEY_A, rejoin=True)  # a removed computer joins again
         self.assert_lock_order()
+
+    def test_register_on_an_existing_pool_never_locks_the_workspace_row(self):
+        """D9（10-19 压测）：连接已在时 register 不锁归属行——认证 / 领取 / 心跳先锁连接行、再按当前读核归属行，
+        register 先锁归属行再锁连接行就是反序，并发时互相死锁。"""
+        self.register(ENTRY, device_key=KEY_A)
+        self.register(ENTRY, device_key=KEY_A)  # exists
+        self.register(OTHER, device_key=KEY_B)
+        self.register(ENTRY)  # 旧版不带设备密钥
+        self.assertNotIn("Cowork Workspace", [doctype for doctype, _ in LOCKS])
+        self.assertNotIn(("MAIN", "current"), LOCKS)
+
+    def test_creating_the_pool_locks_the_workspace_then_reads_the_connections_current(self):
+        STORE.clear()
+        LOCKS.clear()
+        made = self.register(ADMIN, device_key=KEY_A)
+        self.assertEqual(made["status"], "created")
+        order = [entry for entry in LOCKS if entry[0] in ("MAIN", "Cowork Workspace", CONNECTION)]
+        self.assertEqual(order[:3], [("MAIN", "snapshot"), ("Cowork Workspace", "WS"), ("MAIN", "current")])
+        LOCKS.clear()
+        self.assertEqual(self.register(ADMIN, device_key=KEY_B)["status"], "created")  # 之后的登记不再锁归属行
+        self.assertNotIn("Cowork Workspace", [doctype for doctype, _ in LOCKS])
 
     def test_no_pool_only_management_creates_it(self):
         STORE.clear()

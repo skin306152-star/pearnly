@@ -318,14 +318,16 @@ def issue(connection, request_key, reset=False, expected_generation=None):
         return {**_dto(doc, row), 'status': 'created', 'replayed': False, 'token': token}
 
 
-def _device_connection(express):
+def _device_connection(express, *, current=False):
     """这台电脑该连哪条连接：装了 Express 的只连 Express（本站还没有就回 None，由 `register` 新建），绝不退到
     MR.ERP——退过去这台电脑就写不了 Express、定时任务也用不了（2026-10-13 录制：testcowork 只剩 MR.ERP 连接时，
     装了 Express 的新笔记本连成了 MR.ERP）；没装的连 MR.ERP（只读文件夹给定时任务），没有 MR.ERP 再退回 Express。
-    每种 ERP 只认主连接（`connections.service.main_connections`：最早建、启用、不挂客户），与网页、LINE、CC 同一条。"""
+    每种 ERP 只认主连接（`connections.service.main_connections`：最早建、启用、不挂客户），与网页、LINE、CC 同一条。
+    ``current``：按当前读（锁住归属行之后核别人刚建好的连接）。"""
     from pearnly_cowork.connections import service
 
-    found = service.main_connections(access.default_workspace())
+    workspace = access.default_workspace()
+    found = service.main_connections(workspace, current=True) if current else service.main_connections(workspace)
     order = ('express',) if express else ('mrerp', 'express')
     return next((found[adapter] for adapter in order if found.get(adapter)), None)
 
@@ -345,9 +347,15 @@ def register(request_key, express=False, replace=False, expected_generation=None
     _enabled()
     actor = access.require_actor()
     express, replace, rekey, rejoin = (contracts.wire_flag(v) in (True, 1) for v in (express, replace, rekey, rejoin))
-    # 同一归属下串行：两台电脑同时登录不会各建一条 Express 连接
-    frappe.db.get_value('Cowork Workspace', access.default_workspace(), 'name', for_update=True)
     name = _device_connection(express)
+    if name is None and express and _manager(actor):
+        # 要新建本站的 Express 连接时才锁归属行、同一归属下串行（两台电脑同时登录不会各建一条）；锁上后按当前读再核一次
+        # 别人刚建好的（快照隔离下撞 1020 由 `api._local_transaction` 整段重来）。连接已在时不锁归属行：认证
+        # （`revalidate`）与领取、心跳都是先锁连接行、再按当前读核归属行（`access.require_scope`），这里先锁归属行
+        # 再锁连接行就是反序——3 租户 × 10 台压测（D9，10-19）里对话页每 30 秒打开一次，register 与领取 / 心跳互相死锁，
+        # 九成 register 重试三次仍失败（500）。
+        frappe.db.get_value('Cowork Workspace', access.default_workspace(), 'name', for_update=True)
+        name = _device_connection(express, current=True)
     if name is None:
         if not express or not _manager(actor):
             return {'status': 'no_connection'}

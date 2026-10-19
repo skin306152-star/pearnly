@@ -2,6 +2,9 @@
 
 Synthetic local users, invoices and machine credentials only. Reuses fixture
 helpers, not earlier suites. No LINE/ERP call, scheduler or external network.
+
+Evidence v2 (ADR-021): the stock master count lives on the account set's Account Facts, whichever
+computer read it; lock scheme v2 holds the account-set lock only for synthetic registrations.
 """
 from copy import deepcopy
 from datetime import timedelta
@@ -19,11 +22,14 @@ import frappe
 PREP = runpy.run_path(str(Path(__file__).with_name('cowork-preparation-confirm-lab-verify.py')))
 P = PREP['PreparationConfirmation']
 connect = PREP['connect']
+# 锁口径 v2（ADR-021 第 3 批）：账套锁 + 按内容键的公司锁，没有 endpoint 锁；合成登记没有内容键，只有账套锁
+LOCKS = 1
 
 
 class AckEffects(unittest.TestCase):
     setUpClass = classmethod(P.setUpClass.__func__)
     tearDown, install, prepare, report, confirm, row = P.tearDown, P.install, P.prepare, P.report, P.confirm, P.row
+    choose, refused = P.choose, P.refused
 
     def setUp(self):
         P.setUp(self)
@@ -56,8 +62,10 @@ class AckEffects(unittest.TestCase):
         return self.transport.acknowledge(context, body)
 
     def count(self):
-        doc = frappe.get_doc('Cowork ERP Connection', self.connection['name'])
-        return json.loads(doc.report_json or '{}').get('catalog_fingerprint', {}).get('stock_master_count')
+        # 存货主档数记在这份账套的账套资料上（ADR-021 第 2 批：主档不再存在连接的上报记录里）
+        from pearnly_cowork.connections import pool
+        found = pool.facts(self.connection['name'], 'datat') or {}
+        return (found.get('catalog_fingerprint') or {}).get('stock_master_count')
 
     def events(self, row):
         return frappe.get_all(self.effects.NOTIFICATION, filters={'push_record': row['name']}, fields=['*'])
@@ -99,7 +107,8 @@ class AckEffects(unittest.TestCase):
         workbook = load_workbook(BytesIO(service.export([self.history['name']])), data_only=True)
         values = [str(c) for sheet in workbook for row in sheet.values for c in row if c is not None]
         self.assertNotIn('FORGED-STATUS', values)
-        self.assertIn('สำเร็จ', values)  # The fixed review workbook protocol is Thai.
+        # 复核工作簿的表头与状态跟着录入人的界面语言（10-08 文案整改起，合成用户是英文）；状态取服务端的推送结果
+        self.assertIn(frappe._('Succeeded', lang='en'), values)
 
     def test_web_source_never_creates_line_event(self):
         row, handle = self.claimed(line=False)
@@ -138,7 +147,7 @@ class AckEffects(unittest.TestCase):
             adapter=_adapter(current.connection, delivery.owner_id),
             now=current.lease_expires_at.replace(tzinfo=PREP['timezone'].utc) + timedelta(seconds=1))
         self.assertEqual(self.storage.read(self.history['name']).last_push_status, 'manual')
-        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': row['name']}), 2)
+        self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': row['name']}), LOCKS)
         self.assertEqual(self.events(row), [])
         self.ack(handle)
         self.assertEqual(self.storage.read(self.history['name']).last_push_status, 'success')
@@ -150,21 +159,27 @@ class AckEffects(unittest.TestCase):
         fresh = self.credentials.issue(self.connection['name'], uuid4().hex, reset=True, expected_generation=1)
         self.machine = self.credentials.authenticate(fresh['token'])
         self.report(catalog={'fingerprint': {'stock_master_count': 10}})
-        frappe.db.delete('User Permission', {'name': self.permission})
+        # 录入人失权：收回录入角色（Cowork 不按人分公司，删工作空间权限不再是失权）
+        frappe.db.delete('Has Role', {'parent': self.actor, 'role': ('in', ('Cowork Intake', 'Cowork Admin'))})
+        frappe.clear_cache(user=self.actor)
         frappe.set_user('Guest')
         self.ack(handle)
-        self.assertEqual(self.count(), 10)
-        self.assertEqual(json.loads(self.row(row).completion_json)['stock']['state'], 'target_changed')
+        # 账套资料按账套存、不按哪把密钥读的（ADR-021 第 2 批）：换钥后新钥读到的 10 个存货主档仍是这份账套的，回执新建的
+        # 1 个累加上去（v1 按上报来源判「目标变了」不加）
+        self.assertEqual(self.count(), 11)
+        self.assertEqual(json.loads(self.row(row).completion_json)['stock']['state'], 'applied')
         self.assertEqual(len(self.events(row)), 1)
         self.assertEqual(frappe.db.get_value('Cowork OCR History', row['history'], 'last_push_status'), 'success')
 
     def test_stock_effect_requires_account_origin_and_later_scan_replaces_it(self):
         row, handle = self.claimed()
-        doc = frappe.get_doc('Cowork ERP Connection', self.connection['name'])
-        report = json.loads(doc.report_json); report['_preparation_origins']['catalog_fingerprint'] = None
-        frappe.db.set_value(doc.doctype, doc.name, 'report_json', json.dumps(report))
+        # 这份账套的资料里没有目录指纹（读不到存货主档数）：回执不编数，如实记 unavailable
+        from pearnly_cowork.connections import pool
+        name = pool.facts_name(self.connection['name'], 'datat')
+        body = json.loads(frappe.db.get_value(pool.FACTS, name, 'body')); body.pop('catalog_fingerprint', None)
+        frappe.db.set_value(pool.FACTS, name, 'body', json.dumps(body), update_modified=False)
         self.ack(handle)
-        self.assertEqual(self.count(), 0)
+        self.assertIsNone(self.count())
         self.assertEqual(json.loads(self.row(row).completion_json)['stock']['state'], 'unavailable')
         self.report(catalog={'fingerprint': {'stock_master_count': 7}})
         self.ack(handle)
@@ -180,7 +195,7 @@ class AckEffects(unittest.TestCase):
                 self.assertEqual(self.storage.read(self.history['name']).last_push_status, 'pending')
                 self.assertEqual(self.count(), 0)
                 self.assertEqual(self.events(row), [])
-                self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': row['name']}), 2)
+                self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': row['name']}), LOCKS)
         self.ack(handle)
         self.assertEqual(len(self.events(row)), 1)
 
@@ -231,7 +246,7 @@ class AckEffects(unittest.TestCase):
         self.install()
         self.issued = self.credentials.issue(self.connection['name'], uuid4().hex)
         self.machine = self.credentials.authenticate(self.issued['token'])
-        self.report(); frappe.set_user(self.actor)
+        self.report(); self.choose(); frappe.set_user(self.actor)
         newer = self.prepare(request_key=uuid4().hex); self.confirm(newer)
         self.connection, self.issued, self.history = old_connection, old_issued, old_history
         self.ack(handle)

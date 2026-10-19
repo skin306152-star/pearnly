@@ -38,6 +38,9 @@ class NativePreparation(unittest.TestCase):
         user(cls.other, ['Cowork Intake', 'Cowork Push Log'])
         user(cls.viewer, ['Cowork Push Log'])
         user(cls.manager, ['Cowork Admin'])
+        # 实验站点长期保留：上一轮留下的同税号合成工作空间先停用，否则同税号查重拒建（只动本脚本建的合成行）
+        frappe.db.sql("UPDATE `tabCowork Workspace` SET enabled=0 WHERE tax_id=%s AND display_name LIKE %s",
+                      ('0994000333444', 'Synthetic push application %'))
         cls.workspace = api.create_workspace('Synthetic push application ' + suffix, '0994000333444')['name']
         cls.foreign = api.create_workspace('Synthetic push foreign ' + suffix)['name']
         cls.permission = grant(cls.actor, 'Cowork Workspace', cls.workspace).name
@@ -79,9 +82,10 @@ class NativePreparation(unittest.TestCase):
             refresh['request_id'], self.connection['revision'], prep)
 
     def prepare(self, **changes):
+        # 证据 v2：连接配置不再带所选账套（每台电脑各自所选），准备时由页面明确给账套
         args = {'history': self.history['name'], 'connection': self.connection['name'],
             'request_key': self.key, 'expected_history_version': self.history['record_version'],
-            'expected_connection_revision': self.connection['revision']}
+            'expected_connection_revision': self.connection['revision'], 'account_set_key': CONFIG['account_set']}
         args.update(changes)
         return self.api.prepare(**args)
 

@@ -280,15 +280,17 @@ def account_sets_entered(connection, account_keys):
 MAIN_ADAPTERS = ("express", "mrerp")
 
 
-def main_connections(workspace, *, enabled=True):
+def main_connections(workspace, *, enabled=True, current=False):
     """每种 ERP 的主连接（ADR-021，方案 2.10）：本归属下、不挂客户、启用、代数为 0 的连接里最早建的那条，``{adapter: 名字}``。
 
     电脑登记（`companion.credentials.register`）、网页录入、LINE、CC 都按它认，不再各取「列表里第一条」（列表按修改时间排，
     erpcowork 有两条启用的 Express 连接时网页和电脑可能各认一条）。``enabled=False``（只给列表标记用）：这种 ERP 一条启用的都
-    没有时，标最早建的那条停用的，入口照旧显示「已停用」而不是「未连接」。只读。"""
+    没有时，标最早建的那条停用的，入口照旧显示「已停用」而不是「未连接」。只读；``current``：当前读（共享锁，
+    电脑登记新建连接前锁住归属行之后再核，`companion.credentials.register`），默认读自己的快照、不加锁。"""
     rows = frappe.db.sql("""SELECT name, adapter FROM `tabCowork ERP Connection`
         WHERE workspace=%s AND COALESCE(client,'')='' AND binding_generation=0 AND adapter IN %s"""
-        + (" AND enabled=1" if enabled else "") + " ORDER BY enabled DESC, creation, name",
+        + (" AND enabled=1" if enabled else "") + " ORDER BY enabled DESC, creation, name"
+        + (" LOCK IN SHARE MODE" if current else ""),
         (workspace, MAIN_ADAPTERS), as_dict=True)
     found = {}
     for row in rows:
