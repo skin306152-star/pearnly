@@ -15,7 +15,7 @@
 // 样式只用 globals.css 的 .cc-panel* 与变量。
 
 import { useAuiState } from "@assistant-ui/react";
-import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, LoaderIcon, StoreIcon, XIcon } from "lucide-react";
+import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, StoreIcon, XIcon } from "lucide-react";
 import { Fragment, type FC, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
@@ -27,6 +27,7 @@ import {
   PanelCard,
   PanelControlContext,
   type PanelControl,
+  PanelSkeleton,
   PendingCard,
   SetsList,
   TasksSection,
@@ -225,12 +226,8 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
           </button>
         </div>
       )}
-      {!detail && !error && (
-        <div className="flex justify-center py-4 text-ink-3">
-          <LoaderIcon className="size-4 animate-spin" />
-        </div>
-      )}
-      {error && <p role="alert" className="px-2 text-danger text-sm">{error}</p>}
+      {!detail && !error && <PanelSkeleton />}
+      {error && <p role="alert" className="px-(--cc-space-8) text-danger text-body">{error}</p>}
       <SortableCards cards={cards} scope={company} />
     </aside>
   );

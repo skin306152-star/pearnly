@@ -183,7 +183,7 @@ function usePreview(sessionId: string, fileId: string | null) {
 function Loading() {
   return (
     <div className="flex h-full items-center justify-center">
-      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+      <LoaderIcon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
     </div>
   );
 }
@@ -201,7 +201,7 @@ function SheetTable({ rows }: { rows: string[][] }) {
   }, [rows]);
   return (
     <div className="h-full overflow-auto">
-      <table ref={table} className="border-collapse text-(length:--cc-text-sm)">
+      <table ref={table} className="cc-table border-collapse text-(length:--cc-text-sm)" data-kind="sheet">
         <tbody>
           {rows.map((row, r) => (
             <tr key={r} className={r === 0 ? "bg-subtle font-medium" : undefined}>
@@ -209,7 +209,7 @@ function SheetTable({ rows }: { rows: string[][] }) {
                 <td
                   key={c}
                   className={cn(
-                    "cc-fade-cell max-w-72 border border-line px-2.5 py-1.5",
+                    "cc-fade-cell border border-line",
                     isAmount(cell) && "text-right tabular-nums",
                   )}
                   title={cell}
@@ -227,14 +227,11 @@ function SheetTable({ rows }: { rows: string[][] }) {
 
 function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
-      <FileTypeIcon filename={file.filename} className="size-10" />
-      <Marquee className="max-w-[80%] truncate text-foreground">{file.filename}</Marquee>
-      <a
-        href={fileUrl(sessionId, file.id)}
-        className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-foreground hover:bg-muted"
-      >
-        <DownloadIcon className="size-4" />
+    <div className="flex h-full flex-col items-center justify-center gap-(--cc-space-12) text-muted-foreground text-body">
+      <FileTypeIcon filename={file.filename} className="size-(--cc-icon-2xl)" />
+      <Marquee className="max-w-4/5 truncate text-foreground">{file.filename}</Marquee>
+      <a href={fileUrl(sessionId, file.id)} className="cc-btn">
+        <DownloadIcon />
         {t("download")}
       </a>
     </div>
@@ -303,7 +300,7 @@ export function PdfPages({ sessionId, file }: { sessionId: string; file: Session
       ))}
       {pages > shown && (
         <a href={fileUrl(sessionId, file.id)} className="cc-btn self-center">
-          <DownloadIcon className="size-4" />
+          <DownloadIcon />
           {t("download")}
         </a>
       )}
@@ -324,7 +321,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
     return <iframe title={file.filename} src={fileUrl(sessionId, file.id, true)} className="h-full w-full" />;
   }
   if (kind === "text") {
-    return <pre className="h-full overflow-auto p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>;
+    return <pre className="h-full overflow-auto p-(--cc-space-16) font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>;
   }
   if (kind === "doc") return <DocumentPreview sessionId={sessionId} file={file} preview={preview} />;
   if (kind === "sheet") {
@@ -341,13 +338,10 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
             <SheetTable rows={sheet.rows} />
           </Tabs.Content>
         ))}
-        <Tabs.List className="flex gap-1 overflow-x-auto border-t px-2 text-sm">
+        {/* 工作表页签在表格下面：同一套 .cc-tabs，指示线贴内容一侧（上边） */}
+        <Tabs.List className="cc-tabs overflow-x-auto border-t" data-edge="top">
           {sheets.sheets.map((sheet, i) => (
-            <Tabs.Trigger
-              key={i}
-              value={String(i)}
-              className="-mt-px border-transparent border-t-2 px-2 py-1.5 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <Tabs.Trigger key={i} value={String(i)}>
               {sheet.name}
             </Tabs.Trigger>
           ))}
@@ -358,13 +352,9 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
   if (kind === "html") {
     return (
       <Tabs.Root defaultValue="preview" className="flex h-full flex-col">
-        <Tabs.List className="flex gap-4 border-b px-4 text-sm">
+        <Tabs.List className="cc-tabs border-b">
           {(["preview", "source"] as const).map((tab) => (
-            <Tabs.Trigger
-              key={tab}
-              value={tab}
-              className="-mb-px border-transparent border-b-2 py-2 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <Tabs.Trigger key={tab} value={tab}>
               {t(tab)}
             </Tabs.Trigger>
           ))}
@@ -374,7 +364,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
           <iframe title={file.filename} sandbox="allow-scripts allow-forms" srcDoc={text ?? ""} className="h-full w-full bg-surface" />
         </Tabs.Content>
         <Tabs.Content value="source" className="min-h-0 flex-1 overflow-auto">
-          <pre className="p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>
+          <pre className="p-(--cc-space-16) font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>
         </Tabs.Content>
       </Tabs.Root>
     );
@@ -403,11 +393,11 @@ export function ResultsPanel({
   return (
     <aside className={cn("cc-results flex h-full min-w-0 flex-col border-l bg-surface", className)} style={width.style}>
       <SplitHandle size={resultsSize} edge="start" onChange={width.update} />
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+      <header className="flex h-(--cc-results-head-h) shrink-0 items-center gap-(--cc-space-8) border-b px-(--cc-space-12)">
         <select
           value={current.id}
           onChange={(e) => onSelect(e.target.value)}
-          className="min-w-0 flex-1 truncate bg-transparent font-medium text-sm outline-none"
+          className="min-w-0 flex-1 truncate bg-transparent font-medium text-body outline-none"
         >
           {files.map((f) => (
             <option key={f.id} value={f.id}>
@@ -419,18 +409,18 @@ export function ResultsPanel({
           href={fileUrl(sessionId, current.id)}
           title={t("download")}
           aria-label={t("download")}
-          className="flex size-8 items-center justify-center rounded-md text-ink-2 hover:bg-muted"
+          className="cc-icon-btn cc-tap"
         >
-          <DownloadIcon className="size-4" />
+          <DownloadIcon />
         </a>
         <button
           type="button"
           onClick={onClose}
           title={t("close")}
           aria-label={t("close")}
-          className="flex size-8 items-center justify-center rounded-md text-ink-2 hover:bg-muted"
+          className="cc-icon-btn cc-tap"
         >
-          <XIcon className="size-4" />
+          <XIcon />
         </button>
       </header>
       <div className="min-h-0 flex-1">

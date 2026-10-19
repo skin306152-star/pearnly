@@ -257,7 +257,7 @@ assert.deepEqual([...html(cut).matchAll(/data-slot="cc-month-note">([\s\S]*?)<\/
 assert.equal(unlisted(month), 0);
 assert.ok(!page.includes("cc-month-note"));
 // 组标题是语义标题
-assert.match(page, /<div class="cc-subheading flex items-center gap-1.5" role="heading" aria-level="3"><span>To do<\/span>/);
+assert.match(page, /<div class="cc-subheading flex items-center gap-\(--cc-space-6\)" role="heading" aria-level="3"><span>To do<\/span>/);
 // choice_needed：当场选的那一行（待处理的 ChooseRow 行变体），码名 · 单据 · 金额，展开前不取可选项
 assert.match(page, /data-slot="cc-pending-choose" data-variant="row"/);
 const choose = page.split('data-variant="row"')[1].split("</button>")[0];
@@ -365,12 +365,12 @@ const render = (type: any, props: any) => renderToStaticMarkup(createElement(Sid
 // 会话栏：还没取到不占位；对话没定月份不取
 assert.ok(!render(MonthCard, { company: "COMPANY", period: "2026-09" }).includes("cc-panel-month"));
 assert.ok(!render(MonthCard, { company: "COMPANY", period: "" }).includes("cc-panel-month"));
-// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候转圈
+// 公司页：一直显示，卡头月份胶囊（幽灵按钮）默认上个月，取的时候是骨架（V27）
 const section = render(MonthSection, { company: "COMPANY", period: "", onPeriod: () => {} });
 assert.match(section, /data-slot="cc-company-month"/);
 assert.ok(text(section).slice(0, 2).join("|") === `Month-end|${monthLabel(lastMonth())}`);
 assert.match(section, /class="cc-chin-btn" data-slot="cc-period-chip"/);
-assert.match(section, /animate-spin/);
+assert.match(section, /data-slot="cc-panel-skeleton"/);
 """)
 
     def test_thai_and_chinese_words(self):

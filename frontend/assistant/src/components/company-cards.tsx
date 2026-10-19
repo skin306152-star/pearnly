@@ -64,6 +64,7 @@ import { shownError } from "@/lib/frappe";
 import { touchOnly } from "@/lib/touch";
 import { altMove, type MoveSpot, useSortableItem } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
@@ -211,6 +212,14 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
   );
 };
 
+/** 会话栏里还没取到时的占位（会话栏整栏、公司页「月结」卡）：加载用骨架、不用转圈（ccs.md 卡片规矩，V27），两条字高的条。 */
+export const PanelSkeleton: FC = () => (
+  <div aria-hidden className="flex flex-col gap-(--cc-space-8) py-(--cc-space-8)" data-slot="cc-panel-skeleton">
+    <Skeleton />
+    <Skeleton className="w-2/3" />
+  </div>
+);
+
 // ---------------------------------------------------------------- 待处理
 /** 这家的待处理（当场选、交给 CC 都在 PendingList 里，F18 规则不变）；计数为 0 不显示。
  *  会话栏给 period：只列对话月份以外的（开发窗口 10-16 定，对话那个月的只在「本月」卡），一张不剩时同别的空卡一样不显示；
@@ -332,11 +341,11 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
         {adding && <NoteEditor initial="" onSave={(text) => save(text)} onCancel={() => setAdding(false)} />}
         {keepEmpty && !list.length && !adding && (
           <button type="button" className="cc-btn self-start" data-slot="cc-notes-draft" onClick={draft}>
-            <SparklesIcon className="size-4" />
+            <SparklesIcon />
             {co.draftNotes}
           </button>
         )}
-        {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+        {error && <p role="alert" className="text-danger">{error}</p>}
       </div>
     </PanelCard>
   );
@@ -375,7 +384,7 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
     }
   };
   return (
-    <div className="flex flex-col gap-2 py-1" data-slot="cc-note-editor">
+    <div className="flex flex-col gap-(--cc-space-8) py-(--cc-space-4)" data-slot="cc-note-editor">
       <textarea
         autoFocus
         rows={2}
@@ -390,9 +399,9 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
           if (action === "cancel") onCancel();
           else void save();
         }}
-        className="cc-input h-auto w-full py-1.5"
+        className="cc-input h-auto w-full py-(--cc-space-6)"
       />
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      {error && <p role="alert" className="text-danger">{error}</p>}
       {/* 同一栏其他卡片按钮（记住的选择、允许卡）：.cc-card-btn，电脑 24、手机 44 胶囊 */}
       <div className="cc-card-actions">
         <button type="button" className="cc-card-btn" disabled={busy} onClick={onCancel}>
@@ -459,13 +468,13 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
   if (hideEmpty && !app && !folders.length && !error) return null;
   return (
     <PanelCard id="folders" title={co.docFolder} summary={folderSummary(folders)} slot="cc-company-folders">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-(--cc-space-4)">
         {folders.map((f) => (
           <div key={`${idOf(f)}-${f.device}`} className="cc-folder-line" data-state={f.reader_gone ? "missing" : f.state}>
             <FolderIcon />
             <span className="min-w-0 flex-1">
               <Marquee className="block truncate" title={f.label}>{[f.device, f.label].filter(Boolean).join(" · ")}</Marquee>
-              <Marquee className="block truncate text-ink-3 text-xs">
+              <Marquee className="block truncate text-ink-3 text-caption">
                 {[folderState(f), f.month_folder ? co.monthFolder(f.month_folder) : ""].filter(Boolean).join(" · ")}
               </Marquee>
             </span>
@@ -489,7 +498,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
         ))}
         {app && companyFolders && !hasMine && (
           <button type="button" className="cc-btn self-start" data-slot="cc-choose-folder" disabled={busy} onClick={() => void choose()}>
-            {busy ? <LoaderIcon className="size-4 animate-spin" /> : <FolderIcon className="size-4" />}
+            {busy ? <LoaderIcon className="cc-spinner" /> : <FolderIcon />}
             {co.chooseOnComputer}
           </button>
         )}
@@ -498,8 +507,8 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
             {co.updateDesktop}
           </button>
         )}
-        {!app && !folders.length && <p className="text-ink-3 text-sm">{co.chooseOnComputer}</p>}
-        {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+        {!app && !folders.length && <p className="text-ink-3">{co.chooseOnComputer}</p>}
+        {error && <p role="alert" className="text-danger">{error}</p>}
       </div>
     </PanelCard>
   );
@@ -509,7 +518,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
 const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) => (
   <div className="cc-list-row cursor-default" data-covering={covering || undefined}>
     <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
-    <span className="shrink-0 text-ink-3 text-xs">{set.year_label}</span>
+    <span className="shrink-0 text-ink-3 text-caption">{set.year_label}</span>
   </div>
 );
 
@@ -585,7 +594,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
           <button key={task.name} type="button" className="cc-list-row" onClick={() => open(task.name)}>
             <span className="min-w-0 flex-1">
               <Marquee className="block truncate text-ink">{task.title}</Marquee>
-              <Marquee className="block truncate text-ink-3 text-xs">
+              <Marquee className="block truncate text-ink-3 text-caption">
                 {[task.follows ? co.followCompany : task.account_label, task.folder_label].filter(Boolean).join(" · ")}
               </Marquee>
             </span>
@@ -610,7 +619,7 @@ export const DraftsSection: FC<{ company: string; drafts: Draft[]; branches: Bra
   const row = (d: Draft) => (
     <button key={d.name} type="button" className="cc-list-row" onClick={() => open(d)}>
       <Marquee className="min-w-0 flex-1 truncate text-ink">{[d.period, d.kind].filter(Boolean).join(" · ")}</Marquee>
-      <span className="shrink-0 text-ink-3 text-xs">{formatWhen(d.updated_at)}</span>
+      <span className="shrink-0 text-ink-3 text-caption">{formatWhen(d.updated_at)}</span>
     </button>
   );
   const grouped = branches.length > 1 && !combined;
@@ -839,7 +848,7 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
       : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
   const value = choiceValue(choice);
   const full = choiceFullLine(choice, subject);
-  const alert = error ? <p role="alert" className="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">{error}</p> : null;
+  const alert = error ? <p role="alert" className="cc-choice-error text-danger" data-slot="cc-choice-error">{error}</p> : null;
   return (
     <div className="cc-choice" data-slot="cc-choice" data-source={choice.source} data-choice-key={choice.key} data-open={open ? "" : undefined}>
       <button type="button" className="cc-choice-row" data-slot="cc-choice-row" aria-expanded={open} onClick={onToggle}>

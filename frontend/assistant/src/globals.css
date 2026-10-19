@@ -940,6 +940,7 @@
   --cc-cell-max-w-sheet: 288px;   /* 现有值·CC 自定：结果面板的表格单元格最宽 */
   --cc-cell-max-w-doc: 320px;     /* 现有值·CC 自定：文档预览的表格单元格最宽 */
   --cc-results-head-h: 48px;      /* 现有值·CC 自定：结果面板头高（V25） */
+  --cc-doc-w: 48rem;              /* 现有值·CC 自定：结果面板里 Word 预览的正文最宽（B5 补登） */
 
   /* 其他 */
   --cc-skeleton-h: 14px;          /* 现有值·CC 自定：骨架条高 */
@@ -985,6 +986,7 @@
   --cc-split-line-hover: 2px;     /* 现有值·CC 自定：分隔条悬停、拖动时那根线 */
   --cc-grid-card-py: 14px;        /* 现有值·CC 自定：公司卡片上下 */
   --cc-alert-sm-px: 10px;         /* 现有值·CC 自定：侧栏出错行左右（紧凑出错框） */
+  --cc-alert-lines: 2;            /* 现有值·CC 自定：对话里出错框的原因最多两行（B5 补登） */
   --cc-list-row-px: 10px;         /* 现有值·CC 自定：主档页列表行、知识库、文件夹行左右 */
   --cc-panel-end-max: 60%;        /* 现有值·CC 自定：会话栏卡头摘要、卡内行右侧补充最多占的宽 */
   --cc-panel-row-py: 3px;         /* 现有值·CC 自定：会话栏里沿用的主档行上下 */
