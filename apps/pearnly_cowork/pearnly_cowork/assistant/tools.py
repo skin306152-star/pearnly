@@ -858,6 +858,9 @@ def push_documents(tool_input) -> str:
     out = {"results": results}
     if any(item.get("status") == "queued" for item in results):
         out["note"] = PUSH_QUEUED_NOTE
+    told = " ".join(_same_group_note(item["same_group"]) for item in results if item.get("same_group"))
+    if told:
+        out["same_group_note"] = told
     return _json(out)
 
 
@@ -882,7 +885,78 @@ def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
     out, result = pending_api.push_to_account_set(name, key, posting_kind)
     if out.get("status") == "stale":
         return _not_chosen(name, stop, status="needs_choice")
-    return {**result, **{field: out[field] for field in ("current_book", "settled") if field in out}}
+    pushed = {**result, **{field: out[field] for field in ("current_book", "settled") if field in out}}
+    group = _same_group(out, stop.get("account_set_options"), _field(doc, "push_connection"))
+    return {**pushed, "same_group": group} if group else pushed
+
+
+# 推停下的单 / 记现用账套后，同一组还停着的别的单按记住的那份接着判了（``settled``）：只在说明里要 CC 报张数不够（10-19 lab
+# 连续两轮：服务端 I 已跟着改用 T.7、往下判了，CC 只讲 H 要选科目）。结果里直接列出这几张（单号、对方、现在停在哪一步，
+# 最多 ``SAME_GROUP_SHOWN`` 张）与一句给 CC 的转告提示；``pushed`` 恒为 False：这几张不替人推。推送与 current_book 同一处。
+SAME_GROUP_SHOWN = 5
+
+
+def _same_group(out, options, connection) -> dict | None:
+    """``out``：`pending_api.push_to_account_set` / `rechoose_current_book` 的回包（``current_book``、``settled``、
+    ``settled_documents``）；``options``：选之前的候选 ``[{key, label}]``（取账套名称，同候选里的）。没接着判的回 None。"""
+    count = int(out.get("settled") or 0)
+    if count <= 0:
+        return None
+    book = str(out.get("current_book") or "")
+    label = next((item.get("label") for item in options or []
+                  if item.get("label") and _account_key(item.get("key")) == _account_key(book)), "")
+    label = label or _account_names({}, connection).get(_account_key(book)) or book
+    shown = (_same_group_document(name) for name in (out.get("settled_documents") or [])[:SAME_GROUP_SHOWN])
+    return {"count": count, "account_set": label, "documents": [item for item in shown if item], "pushed": False}
+
+
+def _same_group_document(name) -> dict | None:
+    """同组接着判了的一张：单据名（CC 之后要推用）、单号、对方（进项是卖方、销项是买方）、现在停在哪一步（英文短句，给 CC 转述，
+    不是界面文案）。读不到（没有读取范围）不列。"""
+    from pearnly_cowork.contracts import history as history_contracts
+    from pearnly_cowork.contracts.push import normalize_direction
+
+    try:
+        doc = storage.read(name)
+    except (frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return None
+    pages = _field(doc, "pages")
+    try:
+        pages = json.loads(pages) if isinstance(pages, str) else pages
+    except ValueError:
+        pages = None
+    page = history_contracts.primary_page_fields(pages if isinstance(pages, list) else [])
+    sales = normalize_direction(page.get("direction")) == "sales"
+    party = ((_field(doc, "buyer_name") or page.get("buyer_name")) if sales
+             else (_field(doc, "seller_name") or page.get("seller_name")))
+    return _filled({"document": name, "invoice_no": _field(doc, "invoice_no") or page.get("invoice_number"),
+                    "counterparty": party, "waits_at": _waits_at(doc)})
+
+
+def _waits_at(doc) -> str:
+    """接着判完停在哪一步（`pending_api._continue_one` 记下的原因与判定）。"""
+    from pearnly_cowork.contracts import document_policy as policy_rules
+
+    reason = str(_field(doc, "last_push_reason") or "")
+    if reason.startswith(policy_rules.NEEDED_PREFIX):
+        return f"waits for the handling choice (enter or skip) for {reason[len(policy_rules.NEEDED_PREFIX):]} documents"
+    if reason.startswith(policy_rules.SKIPPED_PREFIX):
+        return f"left out: {reason[len(policy_rules.SKIPPED_PREFIX):]} documents are skipped, not pushed"
+    if reason.startswith("choice_needed:"):
+        return "waits for the user to choose: " + ", ".join(
+            kind for kind in reason[len("choice_needed:"):].split(",") if kind)
+    if _field(doc, "auto_class") in ("A", "B") and _field(doc, "auto_proposal"):
+        return "a proposal is ready; it is pushed only when the user asks"
+    return "not pushed yet; it is pushed only when the user asks"
+
+
+def _same_group_note(group) -> str:
+    """给 CC 的转告提示（内部，英文；CC 用用户的语言转述）。"""
+    count = group["count"]
+    return (f"Tell the user: {count} other document{'s' if count != 1 else ''} of the same company and dates now "
+            f"use {group['account_set']} too and each waits at its next step (same_group lists "
+            f"{'them' if count != 1 else 'it'}); none of them was pushed.")
 
 
 # ---------------- 对话里的票据：上传识别 ----------------
@@ -1797,7 +1871,8 @@ def _choose_current_book(name, key) -> str:
     try:
         doc = storage.read(name)
         if pending.account_set_stop(storage.project(doc)):
-            pushed = pending_api.choose_account_set(name, key)
+            options = _current_book_options(storage.project(doc))  # 推完就不再停下：名称按选之前的候选
+            pushed = pending_api.push_to_account_set(name, key)[0]
             status = str(pushed.get("status") or "")
             if status == "stale":
                 frappe.throw(_("cowork.policy.invalid"))
@@ -1808,7 +1883,7 @@ def _choose_current_book(name, key) -> str:
                 out["settled"] = int(pushed.get("settled") or 0)
             if pushed.get("reason"):
                 out["reason"] = pushed["reason"]
-            return _json(out)
+            return _json(_told(out, _same_group(pushed, options, _field(doc, "push_connection"))))
         result = pending_api.rechoose_current_book(doc, key)
         if not result:
             frappe.throw(_("cowork.policy.invalid"))
@@ -1817,7 +1892,14 @@ def _choose_current_book(name, key) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"document": name, "status": "saved", **result})
+    group = _same_group(result, None, _field(doc, "push_connection"))
+    result.pop("settled_documents", None)
+    return _json(_told({"document": name, "status": "saved", **result}, group))
+
+
+def _told(out, group) -> dict:
+    """current_book 的结果放上同组接着判了的几张与转告提示（同 `cowork_push_documents`）；没有原样返回。"""
+    return {**out, "same_group": group, "same_group_note": _same_group_note(group)} if group else out
 
 
 # ---------------- 推送前要人选的项、结果不明的确认（同复核页） ----------------
@@ -3773,7 +3855,11 @@ TOOLS = [
                     "remembered without pushing. Either way, the company's other documents waiting on the same "
                     "account sets continue with the remembered one (settled is how many): each now waits at its next "
                     "step (a handling or other choice, a proposal to push, or not pushed yet); none of them is "
-                    "pushed, so push them only when the user asks.",
+                    "pushed, so push them only when the user asks. When settled is more than 0 the result has "
+                    f"same_group (count; account_set, its name; documents, up to {SAME_GROUP_SHOWN} with invoice_no, "
+                    "counterparty and waits_at, where each now waits; pushed false) and same_group_note: in the same "
+                    "reply, tell the user how many other documents now use that account set, where each waits and "
+                    "that none was pushed, as same_group_note says.",
      # 第 7 批 B7（2026-10-18 lab）：document 没写说明，CC 先后交了「transfer slip」「payment_evidence」（详情里
      # handling_choice_needed 的类别名），两次都找不到单据、规则没存上
      "input_schema": {"type": "object", "properties": {
@@ -3898,9 +3984,13 @@ TOOLS = [
                     "upload is used. " + ACCOUNT_SET_STOP_NOTE + " Pushed with one of account_set_options, it goes "
                     "there and, when two of them cover the same dates, that one is remembered as the account set in "
                     "use (as with current_book); then the company's other documents waiting on the same account sets "
-                    "continue with it (settled in that result is how many): tell the user how many and that each now "
-                    "waits at its next step (a handling or other choice, a proposal to push, or not pushed yet); none "
-                    "of them is pushed, so push them only when the user asks. " + WRITTEN_NOTE,
+                    "continue with it (settled in that result is how many): that result then has same_group (count; "
+                    f"account_set, its name; documents, up to {SAME_GROUP_SHOWN} with invoice_no, counterparty and "
+                    "waits_at, where each now waits; pushed false) and the tool result has same_group_note. In the "
+                    "same reply, besides that "
+                    "document's own outcome, tell the user how many other documents now use that account set, where "
+                    "each waits (a handling or other choice, a proposal to push, or not pushed yet) and that none of "
+                    "them was pushed, as same_group_note says; push them only when the user asks. " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},

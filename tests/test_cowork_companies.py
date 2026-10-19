@@ -2062,6 +2062,17 @@ class CurrentBookGroupTests(unittest.TestCase):
             # 还有要人选的项：照常停在要人选（待处理当场选）
             ("judged", "c", "C", False), ("stop", "c", "choice_needed:account", "s:\\69exp\\abc2")])
         self.assertEqual([call for call in calls if call[0] == "push"], [("push", "a", "C1", "s:\\69exp\\abc2")])
+        self.assertNotIn("settled_documents", out)  # 页面只用张数
+
+    def test_the_cc_tool_gets_the_names_of_the_group_it_carried_on(self):
+        """CC 工具列同组每张交 CC 转告（10-19 lab）：`push_to_account_set` 带接着判了的单据名（按单据日期先后），页面不给。"""
+        module, _calls = self._module({"b": {"class": "B", "codes": "cc_judged", "proposal": {"class": "B"}},
+                                       "c": {"needed": [{"kind": "account"}]}, "again": {"codes": "book_many"}},
+                                      rules=self.rules, tasks={"a", "b", "year"})
+        fresh_request()
+        out, _result = module.push_to_account_set("a", "S:\\69EXP\\ABC2")
+        self.assertEqual(out["settled"], 2)
+        self.assertEqual(sorted(out["settled_documents"]), ["b", "c"])
 
     def test_a_group_waiting_for_the_document_kind_choice_stops_there(self):
         module, calls = self._module({}, rules=self.rules, tasks={"a", "b"})

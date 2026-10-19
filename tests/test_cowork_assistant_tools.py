@@ -2503,17 +2503,17 @@ class ListAndRunsTests(unittest.TestCase):
                                         current_book_options=lambda doc: list(shown["books"]))
         keys = {item["key"] for item in books}
 
-        def choose_account_set(name, key):
+        def push_to_account_set(name, key):
             chosen.append((name, key))
             if key not in keys:
-                return {"document": name, "status": "stale"}
+                return {"document": name, "status": "stale"}, {}
             if key.endswith("68exp\\a"):
-                return {"document": name, "status": "failed", "reason": "account_match:period"}
-            return {"document": name, "status": "sent", "current_book": key, "settled": 2}
+                return {"document": name, "status": "failed", "reason": "account_match:period"}, {}
+            return {"document": name, "status": "sent", "current_book": key, "settled": 2}, {}
 
         # 同组还停着的单按记住的那份接着判了几张（``settled``，2026-10-19 验收）：照实带回给 CC
         pending_api = types.SimpleNamespace(
-            choose_account_set=choose_account_set,
+            push_to_account_set=push_to_account_set,
             rechoose_current_book=lambda doc, key: rechosen.append((doc["name"], key)) or (
                 {"current_book": key, "settled": 1} if key in keys else None))
         modules = {"pearnly_cowork.companies": types.SimpleNamespace(pending=pending),
@@ -2538,10 +2538,13 @@ class ListAndRunsTests(unittest.TestCase):
             self.assertNotIn("handling_choice_needed", tools._detail({
                 "name": "D1", "last_push_reason": "cowork.folder.account_set_ambiguous", "push_connection": "EXP1",
                 "pages": []}))
+            shown["books"] = books
             out = json.loads(tools.choose_document_policy({"document": "D1", "value": "current_book",
                                                            "account_set_key": "s:\\69exp\\a"}))
+            group = {"count": 2, "account_set": "A 2569", "documents": [], "pushed": False}  # 名称同候选里的
             self.assertEqual(out, {"document": "D1", "status": "saved", "push_status": "sent",
-                                   "current_book": "s:\\69exp\\a", "settled": 2})
+                                   "current_book": "s:\\69exp\\a", "settled": 2, "same_group": group,
+                                   "same_group_note": tools._same_group_note(group)})
             self.assertEqual(chosen, [("D1", "s:\\69exp\\a")])
             # 推不成：没记住，原因照实回
             out = json.loads(tools.choose_document_policy({"document": "D1", "value": "current_book",
@@ -2555,7 +2558,9 @@ class ListAndRunsTests(unittest.TestCase):
             stopped["value"], chosen[:] = False, []
             out = json.loads(tools.choose_document_policy({"document": "D2", "value": "current_book",
                                                            "account_set_key": "s:\\68exp\\a"}))
-            self.assertEqual(out, {"document": "D2", "status": "saved", "current_book": "s:\\68exp\\a", "settled": 1})
+            group = {"count": 1, "account_set": "s:\\68exp\\a", "documents": [], "pushed": False}  # 名称读不到：键
+            self.assertEqual(out, {"document": "D2", "status": "saved", "current_book": "s:\\68exp\\a", "settled": 1,
+                                   "same_group": group, "same_group_note": tools._same_group_note(group)})
             self.assertEqual((chosen, rechosen), ([], [("D2", "s:\\68exp\\a")]))
             out = json.loads(tools.choose_document_policy({"document": "D2", "value": "current_book",
                                                            "account_set_key": "s:\\nope"}))
@@ -4031,8 +4036,86 @@ class StoppedAccountSetTests(unittest.TestCase):
         for name in ("cowork_list_documents", "cowork_document_detail", "cowork_push_documents", "cowork_push_choices"):
             self.assertIn("account set not chosen yet", declared[name], name)
             self.assertIn("never name one as its account set", declared[name], name)
-        # 推停下的单、记成现用账套时：同组跟着走的张数要告诉用户、它们没被推（10-19 验收：CC 说成「G 不动」）
-        self.assertIn("settled in that result is how many): tell the user how many", declared["cowork_push_documents"])
+        # 推停下的单、记成现用账套时：同组跟着走的张数要告诉用户、它们没被推（10-19 验收：CC 说成「G 不动」）；说明与结果同名
+        for name in ("cowork_push_documents", "cowork_choose_document_policy"):
+            for field in ("same_group", "same_group_note", "invoice_no", "counterparty", "waits_at", "pushed false"):
+                self.assertIn(field, declared[name], (name, field))
+            self.assertIn("in the same reply", declared[name].lower(), name)
+
+    def test_the_same_group_is_listed_in_the_result_with_a_note_to_tell_the_user(self):
+        """10-19 lab 连续两轮：推 H 用 T.7，同组的 I 也改用 T.7 往下判了，回包只有 ``settled``，CC 只讲 H 要选科目。结果里直接列出
+        同组每张（单号、对方、停在哪一步）、``pushed`` False，整体结果带一句转告提示；current_book 同样；没接着判的不带。"""
+        stored = types.SimpleNamespace(**self.doc(), posting_kind="", record_version=1, last_push_record="")
+        stored.get = lambda key, default=None: getattr(stored, key, default)
+        others = {
+            "I1": {"name": "I1", "invoice_no": "IV-0091", "seller_name": "ร้าน ก", "buyer_name": "บริษัท เรา",
+                   "last_push_reason": "choice_needed:account,party", "auto_class": "", "auto_proposal": "",
+                   "pages": json.dumps([{"fields": {"direction": "purchase"}}])},
+            "I2": {"name": "I2", "invoice_no": "", "seller_name": "บริษัท เรา", "buyer_name": "ลูกค้า ข",
+                   "last_push_reason": "", "auto_class": "B", "auto_proposal": "{\"a\": 1}",
+                   "pages": [{"fields": {"direction": "sales", "invoice_number": "SO-7"}}]},
+            "I3": {"name": "I3", "invoice_no": "IV-3", "seller_name": "ร้าน ค", "last_push_reason":
+                   "document_policy_needed_payment_evidence", "pages": "[]"}}
+        settled = {"names": ["I1", "I2", "I3", "GONE"]}
+
+        def read(name):
+            if name == "H1":
+                return stored
+            if name not in others:
+                raise frappe.DoesNotExistError(name)
+            return others[name]
+
+        def push_to_account_set(name, key, posting_kind=None):
+            names = settled["names"]
+            return ({"document": name, "status": "needs_choice", "current_book": key, "settled": len(names),
+                     **({"settled_documents": names} if names else {})},
+                    {"document": name, "status": "needs_choice", "reason": "choice_needed:account"})
+
+        pending_api = sys.modules["pearnly_cowork.assistant.pending_api"]
+        push_contracts = types.ModuleType("pearnly_cowork.contracts.push")
+        push_contracts.normalize_direction = lambda value: value if value in ("sales", "purchase") else None
+        modules = {"pearnly_cowork.contracts.push": push_contracts,
+                   "pearnly_cowork.history.document_policy": types.SimpleNamespace(),
+                   "pearnly_cowork.push.application.goods_posting": types.SimpleNamespace()}
+        with mock.patch.object(tools.storage, "read", read), \
+                mock.patch.object(tools.storage, "project", create=True, new=lambda doc: self.doc()), \
+                mock.patch.object(pending_api, "push_to_account_set", push_to_account_set), \
+                mock.patch.dict(sys.modules, modules):
+            out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": "s:\\68exp\\t7"}))
+            group = out["results"][0]["same_group"]
+            self.assertEqual(group, {"count": 4, "account_set": "T.7 ตัวอย่าง", "pushed": False, "documents": [
+                {"document": "I1", "invoice_no": "IV-0091", "counterparty": "ร้าน ก",
+                 "waits_at": "waits for the user to choose: account, party"},
+                {"document": "I2", "invoice_no": "SO-7", "counterparty": "ลูกค้า ข",  # 销项：对方是买方
+                 "waits_at": "a proposal is ready; it is pushed only when the user asks"},
+                {"document": "I3", "invoice_no": "IV-3", "counterparty": "ร้าน ค",
+                 "waits_at": "waits for the handling choice (enter or skip) for payment_evidence documents"}]})
+            self.assertEqual(out["same_group_note"],
+                             "Tell the user: 4 other documents of the same company and dates now use T.7 ตัวอย่าง too "
+                             "and each waits at its next step (same_group lists them); none of them was pushed.")
+            self.assertNotIn("settled_documents", json.dumps(out))
+            self.assertNoStoredSet(out)
+            # current_book 同一口径
+            out = json.loads(tools.choose_document_policy({"document": "H1", "value": "current_book",
+                                                           "account_set_key": "s:\\68exp\\t7"}))
+            self.assertEqual((out["status"], out["same_group"], out["same_group_note"].split(":")[0]),
+                             ("saved", group, "Tell the user"))
+            self.assertNotIn("settled_documents", out)
+            # 只接着判了一张：单数
+            settled["names"] = ["I1"]
+            out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": "s:\\68exp\\t7"}))
+            self.assertTrue(out["same_group_note"].startswith("Tell the user: 1 other document of the same company"))
+            # 没接着判的：不带
+            settled["names"] = []
+            out = json.loads(tools.push_documents({"documents": ["H1"], "account_set_key": "s:\\68exp\\t7"}))
+            self.assertEqual(out["results"][0]["settled"], 0)
+            self.assertNotIn("same_group", out["results"][0])
+            self.assertNotIn("same_group_note", out)
+            out = json.loads(tools.choose_document_policy({"document": "H1", "value": "current_book",
+                                                           "account_set_key": "s:\\68exp\\t7"}))
+            self.assertEqual(out["settled"], 0)
+            self.assertNotIn("same_group", out)
+            self.assertNotIn("same_group_note", out)
 
 
 if __name__ == "__main__":

@@ -809,6 +809,15 @@
 
 - **CC 推停下的单后照实报同组（10-19 验收）**：测试窗口让 CC 用 T.7 推 F，G 已按记住的那份接着判，CC 却说「G 不动」。回包里
   本来有 ``settled``，`cowork_push_documents` 的说明没要求报：补上「同组接着判了几张、各自停在下一步、都没推」，测试断言说明与回包。
+  只靠说明仍不够（10-19 lab 连续两轮：推 P3-DEP-H 用 T.7，回包 ``{"status":"needs_choice","reason":"choice_needed:account",
+  "settled":1}``，同组的 I 已改用 T.7 往下判，CC 只讲 H 要选科目）：改成把内容放进结果本身。`pending_api._continue_group` 回接着判了的
+  单据名，`push_to_account_set` / `rechoose_current_book` 非 0 时另带 ``settled_documents``（页面的 `choose_account_set` 去掉，只用张数）；
+  CC 工具 `cowork_push_documents` 那张结果与 `cowork_choose_document_policy`（current_book，停下的单改走 `push_to_account_set`，
+  已记住的改记同样）在 ``settled`` > 0 时带 ``same_group``：``{count, account_set（同候选里的名称）, documents（最多 5 张：document、
+  invoice_no、counterparty（进项卖方、销项买方）、waits_at 停在哪一步的英文短句）, pushed: false}``，整体结果带给 CC 的内部提示
+  ``same_group_note``（「Tell the user: N other document(s) … now use <账套> too … none of them was pushed.」）；``settled`` = 0 不带。
+  两个工具说明同名写明「同一条回复里转告」。不改用户可见词条。测试：`test_the_same_group_is_listed_in_the_result_with_a_note_to_tell_the_user`
+  （推送与 current_book、单复数、读不到的不列、0 不带）、`test_the_cc_tool_gets_the_names_of_the_group_it_carried_on`、说明断言。
 
 ## 第一轮回放后的决定（2026-10-16）
 

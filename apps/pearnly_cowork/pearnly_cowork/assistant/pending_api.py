@@ -18,7 +18,8 @@
   工具 `cowork_choose_document_policy`（``current_book``）走的就是 `choose_account_set` 这一条。已经记住、不再停下的单要改选：
   CC 工具对推送去向那份账套这一天有多份同期的单只记新的那份（`rechoose_current_book`，不推）。两处记下时，同一组里还停在
   「多份账套」的别的单按记住的那份接着判（`_continue_group`，2026-10-19 验收「选定一次再复用」）：判到哪一步就停在哪一步
-  （录不录、要人选的项），都定了的成提议或等人推，不替人推；回包带接着判了的张数 ``settled``。
+  （录不录、要人选的项），都定了的成提议或等人推，不替人推；回包带接着判了的张数 ``settled``，CC 工具另带这几张的单据名
+  ``settled_documents``（非 0 时；页面的 `choose_account_set` 不给），工具据此列出同组每张停在哪一步交 CC 转告（10-19 验收）。
 - CC 准备好的提议（数字会计员第 3 期）：点开那一行先取它的内容（`proposal_detail`，只读：推往的账套、每一项做法的值、日期、
   单号、对方、金额），下面「推送」走 `answer`（交空的选择），一张一张推（用户 2026-10-19 定：行上不露「推送」、不设「全部推送」，
   先看单据内容再推）。算人发起，照常重判。
@@ -127,12 +128,15 @@ def choose_account_set(document, account_set_key):
     先推、推成了（进了账本、或停在要人选科目等）才把去向抄到票上（`push_state.retarget`；停下时 `_push_one` 自己抄）。推不成
     也没进账本（`account_match` 硬闸拒了、科目表还没读到等）：票上的去向与「待选账套」原因原样放回，会计员还能再选一份，
     这次推不成的原因只回给页面显示在那一行下面（第 6 批审查第 4 条：以前先抄去向再推，失败后原因被换掉，再也选不了）。"""
-    return push_to_account_set(document, account_set_key)[0]
+    out = push_to_account_set(document, account_set_key)[0]
+    out.pop("settled_documents", None)  # 只给 CC 工具（列同组每张），页面只用张数
+    return out
 
 
 def push_to_account_set(document, account_set_key, posting_kind=None) -> tuple[dict, dict]:
     """同 `choose_account_set`，另回 `tools._push_one` 的原样结果（CC 的 `cowork_push_documents` 推停在「待选账套」的单走这里，
-    等写账结论要用里面的推送记录名，不交给页面）；不在列时第二项为空。"""
+    等写账结论要用里面的推送记录名，不交给页面）；不在列时第二项为空。同组接着判了的（``settled`` > 0）第一项另带它们的单据名
+    ``settled_documents``。"""
     scope.require("intake")
     name = str(document or "")
     from pearnly_cowork.companies import pending
@@ -171,8 +175,13 @@ def push_to_account_set(document, account_set_key, posting_kind=None) -> tuple[d
     out = _answer(name, result)
     if accepted and current:
         out["current_book"] = current["value"]
-        out["settled"] = _continue_group(current, name)
+        out.update(_settled(_continue_group(current, name)))
     return out, result
+
+
+def _settled(names) -> dict:
+    """同组接着判了的单 → 回包里的张数 ``settled``，非 0 时另带单据名 ``settled_documents``（CC 工具列出来交 CC 转告）。"""
+    return {"settled": len(names), **({"settled_documents": list(names)} if names else {})}
 
 
 def _remember(found) -> None:
@@ -191,7 +200,7 @@ GROUP_FIELDS = ["name", "invoice_date", "seller_name", "seller_tax", "buyer_name
 LINE_SOURCE = "cowork_line"  # 同 `push.automation.sweep.LINE_SOURCE`
 
 
-def _continue_group(found, chosen) -> int:
+def _continue_group(found, chosen) -> list:
     """刚记住了这家公司这一组现用的账套（``found``：`companies.pending.current_book_choice` / `current_book_rechoice` 的结果，
     已提交）：这个工作空间里同一组（同公司、同分店、同一段、同一组候选，按各单自己的候选现算出同一个键）还停在「多份账套」的
     别的单（定时任务 T1 的「多于一份」、自动推前判出的 ``book_many``；``chosen`` 是刚选的那张，已推），按记住的那份接着判
@@ -203,7 +212,8 @@ def _continue_group(found, chosen) -> int:
     - 都定了 → 原因清掉，判定（`application.assess`，与扫描、定时任务同一套）记在票上：A / B 冻结提议（待处理「推送」），
       C 成「没推」交人。档位允许自动推的也只出提议：这几张不替人推，推送照旧由人发起。
 
-    推送去向都改成记住的那份。判的时候出错、另一份有了更新录入要重问（仍判出 ``book_many``）的不动，照旧停着。回接着判了的张数。"""
+    推送去向都改成记住的那份。判的时候出错、另一份有了更新录入要重问（仍判出 ``book_many``）的不动，照旧停着。回接着判了的
+    单据名（按单据日期先后）。"""
     from pearnly_cowork.companies import pending
     from pearnly_cowork.folder_intake.contracts import ACCOUNT_SET_AMBIGUOUS
 
@@ -213,9 +223,9 @@ def _continue_group(found, chosen) -> int:
                           or_filters=[["last_push_reason", "=", ACCOUNT_SET_AMBIGUOUS],
                                       ["auto_reasons", "like", f"%{pending.BOOK_MANY}%"]],
                           fields=GROUP_FIELDS, order_by="invoice_date asc", limit_page_length=GROUP_SCAN)
-    settled = 0
+    settled = []
     for row in rows:
-        if settled >= GROUP_MAX:
+        if len(settled) >= GROUP_MAX:
             break
         if row.name == chosen or not (row.last_push_reason == ACCOUNT_SET_AMBIGUOUS or pending.book_many(row)):
             continue
@@ -223,7 +233,8 @@ def _continue_group(found, chosen) -> int:
             same = pending.current_book_choice(row, found["value"])
             if not same or same["key"] != found["key"]:
                 continue  # 别家、别的分店、别的年段或别的候选组合：不是这一组
-            settled += int(_continue_one(row, found["value"]))
+            if _continue_one(row, found["value"]):
+                settled.append(row.name)
             frappe.db.commit()
         except Exception:  # noqa: BLE001 — 一张出意外只记日志、照旧停着，不挡刚选的那张与别的
             frappe.db.rollback()
@@ -281,7 +292,8 @@ def _still_many(codes) -> bool:
 def rechoose_current_book(doc, account_set_key) -> dict | None:
     """已经记住、不再停下的单改选这家公司这一组现用的账套（CC 工具 ``current_book``）：推送去向那份账套这一天有多份同期、
     选的在这一组里（`companies.pending.current_book_rechoice`）才记，不推、不改这张单；同一组还停在「多份账套」的别的单
-    按新记的那份接着判（`_continue_group`）。回 ``{"current_book": 规范账套键, "settled": 接着判了的张数}``，否则 None。
+    按新记的那份接着判（`_continue_group`）。回 ``{"current_book": 规范账套键, "settled": 接着判了的张数,
+    "settled_documents"?: 它们的单据名}``，否则 None。
     调用方已核录入权限、读到这张单；候选只取本人能用的连接上的账套。"""
     from pearnly_cowork.companies import pending
 
@@ -290,4 +302,4 @@ def rechoose_current_book(doc, account_set_key) -> dict | None:
         return None
     _remember(found)
     frappe.db.commit()  # 接着判同组停着的单之前先落下记住的那份（判定只看不记、结束回滚）
-    return {"current_book": found["value"], "settled": _continue_group(found, _row(doc).get("name"))}
+    return {"current_book": found["value"], **_settled(_continue_group(found, _row(doc).get("name")))}
