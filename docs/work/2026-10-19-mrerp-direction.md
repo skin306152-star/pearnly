@@ -58,9 +58,14 @@
   push_fixed / folder_intake / assistant_tools / folder_tasks_mrerp / xlsx_source_parity，均通过。
 - 未改 CC 桌面版与写入契约（MR.ERP 推送在服务端），`tests/test_companion_contract.py` 随全闸门跑。
 
-## 上线后在 testerp 实测（测试窗口做；本任务不上测试机）
+## 外部写入授权
 
-前提：testerp 连的 MR.ERP 公司在「ข้อมูลบริษัท / สาขา」总店登记了真实有效税号；工作空间税号与该公司不同（模拟事务所）。
+- MR.ERP 推送挂在 Cowork 租户上（testcowork 有一条 Express、一条 MR.ERP 连接），与新平台 ERP 产品的测试租户 testerp 无关；原稿把实测写在 testerp 是错的，已改正。
+- 2026-10-19 用户在开发窗口同意（原话「同意」）实测时对 MR.ERP 测试公司 TEST2019 的两样外部写入：推 2–3 张测试单；总店没登记有效税号时先在「ข้อมูลบริษัท / สาขา」总店登记一个有效税号。其余 MR.ERP 数据与设置照旧不动；测完列出写了哪几张、改了什么。
+
+## 实测（在 testcowork 的 MR.ERP 连接上做；本任务不上测试机）
+
+前提：testcowork 的 MR.ERP 连接（`CWEC-283edc03…`，MR.ERP 测试公司 test01 · TEST2019）连的 MR.ERP 公司在「ข้อมูลบริษัท / สาขา」总店登记了真实有效税号；工作空间税号与该公司不同（模拟事务所）。
 
 1. 票面无买方的进项票（快递 / 便利店简易税票，卖方是别家），入口**不选**进 / 销项，推往这家 MR.ERP 公司：应进采购（或费用）菜单、
    不报 `ERR_ACCOUNT_SET_MISMATCH`；MR.ERP 里能查到单据。
