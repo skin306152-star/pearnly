@@ -806,6 +806,8 @@ class PushFollowUpTests(unittest.TestCase):
                                                                               for i in range(100)]},
                                                      "account_set": "K"}
         tools.application_api.save_choices = lambda *a: self.calls.append(("save",) + a) or {"saved": 1}
+        tools.application_api.save_document_choices = (
+            lambda *a: self.calls.append(("save",) + a) or {"saved": 1, "document_payment": "cash"})
         tools.application_api.resolve_unknown = lambda *a: self.calls.append(("resolve",) + a) or {"status": "success"}
 
     def test_options_are_capped_and_searchable(self):
@@ -942,6 +944,30 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertEqual(out["status"], "saved")
         self.assertEqual(self.calls[0][:4], ("save", "H1", "EXP1", "K"))
         self.assertEqual(json.loads(self.calls[0][4]), items)
+        # 2026-10-20 教程录制：CC 记的现 / 赊同时是这张票自己的（同一家供应商的两张票各记各的），结果里说写成了什么
+        self.assertEqual(out["result"]["document_payment"], "cash")
+        self.assertIn("document_payment", next(tool for tool in tools.TOOLS
+                                               if tool["name"] == "cowork_save_push_choices")["description"])
+
+    def test_nothing_to_choose_shows_how_it_will_be_entered(self):
+        """2026-10-20 教程录制：推前 CC 照票种说 NL-0907-2569-04 赊购，写进去是按记住的现购（HP690907-001）。没有要选的项时
+        `cowork_push_choices` 带上推出去会怎么写（planned，与入账后的 written 同一个函数），说明要 CC 推前照它说。"""
+        planned = {"payment": "cash", "payment_from": "remembered",
+                   "document_payment": {"payment": "credit", "from": "document_type"}}
+        tools.application.choices_view = lambda *a: {"needed": [], "options": {}, "account_set": "K",
+                                                     "planned": dict(planned)}
+        out = json.loads(tools.push_choices({"document": "H1"}))
+        self.assertEqual(out["planned"], planned)
+        # 已入账的不给（看 written）
+        self.doc.last_push_status = "success"
+        try:
+            self.assertNotIn("planned", json.loads(tools.push_choices({"document": "H1"})))
+        finally:
+            del self.doc.last_push_status
+        description = next(tool for tool in tools.TOOLS if tool["name"] == "cowork_push_choices")["description"]
+        self.assertIn("planned", description)
+        self.assertIn("document_payment", description)
+        self.assertIn("never from the document type", description)
 
     def test_unknown_result_is_confirmed_only_with_a_push_to_confirm(self):
         tools.resolve_push_result({"document": "H1", "entered": True, "docnum": "RR001"})
@@ -2420,6 +2446,80 @@ class PushOutcomeServiceTests(unittest.TestCase):
         self.assertNotIn("writer", found["PR6"])
         self.assertEqual(asked, [["CCD-2"]])
         self.assertEqual(service.outcomes(["PR1"])["PR1"]["written"]["writer"], "ACC-02")
+
+
+class PrintedNumberTests(unittest.TestCase):
+    """2026-10-20 教程录制：简易税票 ABB6909-00007 超出 Express 单号宽度（DOCNUM 12 字节），CC 桌面版改用自编号 HS690912-001，
+    CC 只报了新单号。推送结果（written）要带上票面号与原因，说明要 CC 两个号都说。"""
+
+    SALE = {"direction": "sales", "doctype": "HS", "doctype_src": "explicit", "ref_no": "ABB6909-00007",
+            "items_account": "41-01-00-00", "base_amount": "379.44", "vat_amount": "26.56", "total_amount": "406.00"}
+
+    def test_a_sale_numbered_by_express_says_its_printed_number(self):
+        pushed = _pushed_module()
+        self.assertEqual(pushed.numbers(self.SALE, "HS690912-001"),
+                         {"printed_number": "ABB6909-00007", "number_reason": "too_long"})
+        # 票面号就是单号（平常的销项）、POS 日汇总（本来就自编号）、没有单号：不说
+        self.assertEqual(pushed.numbers({**self.SALE, "ref_no": "IV6909-0009"}, "IV6909-0009"), {})
+        self.assertEqual(pushed.numbers({**self.SALE, "pos": {"days": 1}}, "HS690912-001"), {})
+        self.assertEqual(pushed.numbers(self.SALE, ""), {})
+        self.assertEqual(pushed.numbers({"menu": "purchase", "ref_no": "X"}, "PO-1"), {})  # MR.ERP 的载荷
+
+    def test_a_purchase_says_only_a_shortened_reference(self):
+        pushed = _pushed_module()
+        long_ref = {**CASH_PAYLOAD, "ref_no": "G0012-69-0045871"}
+        self.assertEqual(pushed.numbers(long_ref, "HP690901-001"),
+                         {"printed_number": "G0012-69-0045871", "reference_written": "G0012690045871",
+                          "number_reason": "too_long"})
+        # 进项单号本来就由账套自己排：票号放得下就不说
+        self.assertEqual(pushed.numbers({**CASH_PAYLOAD, "ref_no": "SND-IV-69090021"}, "RR690901-001"), {})
+
+    def test_entered_results_carry_the_printed_number(self):
+        rows = [{"name": "PR1", "actor": "a@example.com", "status": "success", "reason": "",
+                 "external_docnum": "HS690912-001", "result_unknown": 0, "payload_json": json.dumps(self.SALE)}]
+        service, _queries = _push_service(rows)
+        for found in (service.written(["PR1"])["PR1"], service.outcomes(["PR1"])["PR1"]["written"]):
+            self.assertEqual((found["docnum"], found["printed_number"], found["number_reason"]),
+                             ("HS690912-001", "ABB6909-00007", "too_long"))
+        for words in ("written.printed_number", "an Express document number holds at most 12 characters",
+                      "tell the user in that reply that the document with the printed number was entered as docnum"):
+            self.assertIn(words, tools.WRITTEN_NOTE)
+
+
+class PlannedTests(unittest.TestCase):
+    """推前会怎么写（`pushed.planned`）：与入账后的 written 同一个函数；现 / 赊按记住的选择、票面指向另一个值时另给
+    document_payment（2026-10-20 教程录制：NL-0907-2569-04 推前说赊购，写进去是记住的现购 HP690907-001）。"""
+
+    def test_a_remembered_payment_against_the_document_is_said_before_the_push(self):
+        pushed = _pushed_module()
+        planned = pushed.planned(CASH_PAYLOAD, {"payment": "remembered"}, None, (False, "doc_type"))
+        self.assertEqual(planned["payment"], "cash")
+        self.assertEqual(planned["payment_from"], "remembered")
+        self.assertEqual(planned["document_payment"], {"payment": "credit", "from": "document_type"})
+        self.assertEqual(planned, {**pushed.written(CASH_PAYLOAD, {"payment": "remembered"}, None),
+                                   "document_payment": {"payment": "credit", "from": "document_type"}})
+
+    def test_no_document_payment_when_they_agree_or_a_person_chose_it(self):
+        pushed = _pushed_module()
+        self.assertNotIn("document_payment", pushed.planned(CASH_PAYLOAD, None, None, (True, "explicit")))
+        self.assertNotIn("document_payment", pushed.planned(CASH_PAYLOAD, None, None, (None, "")))
+        chosen = {**CASH_PAYLOAD, "doctype_src": "manual"}  # 这张票自己选的：本来就是这张的值
+        self.assertNotIn("document_payment", pushed.planned(chosen, None, None, (False, "doc_type")))
+        self.assertIsNone(pushed.planned({"menu": "purchase"}, None, None, (False, "doc_type")))
+
+
+class TableRowsTests(unittest.TestCase):
+    """2026-10-20 教程录制（ccdemo 生产对话 sesn_016BD3yS3UxCv9AMfeFnePcP 的 agent.message 原文）：问「ส่งครบทั้ง 8 ใบหรือยัง」，
+    cowork_push_results 回了 8 张完整的单号与现赊，CC 写的表格第一行却只有「HP690901...」、其余列空（模型自己写的残行，前端照原文
+    渲染），还把 RR690903-001（赊购）照先前的说法写成 HP690903-001 现购。每轮都带的说话规矩要求表格每行从这一轮工具结果里
+    这张单的那一项抄、写完整。"""
+
+    def test_cc_builds_each_row_from_the_documents_own_entry_and_finishes_it(self):
+        guidance = " ".join(tools.GUIDANCE)
+        for words in ("build each row from that document's own entry in the latest tool result",
+                      "never from your earlier messages", "never leave a row unfinished or cut off with '...'",
+                      "When an entry differs from what you said earlier, say so plainly"):
+            self.assertIn(words, guidance)
 
 
 class AutomationWrittenTests(unittest.TestCase):

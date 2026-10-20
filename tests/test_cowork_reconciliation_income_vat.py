@@ -262,5 +262,133 @@ class Summary(unittest.TestCase):
         self.assertEqual(vat_rows, vat_before)
 
 
+
+
+class KnownNumbers(unittest.TestCase):
+    """2026-10-20 教程录制：ABB6909-00007 超出 Express 单号宽度，总账里是自编号 HS690912-001，收入对账在「税报有、总账没有」与
+    「总账有、税报没有」各报一次。推送记录知道两者是同一张单据（``aliases``）。"""
+
+    def _sides(self):
+        gls = [gl(doc_no="HS690912-001", norm_doc_no=income.normalize_doc_no("HS690912-001"), date="2026-09-12",
+                  credit=379.44),
+               gl(doc_no="IV6909-0009", norm_doc_no=income.normalize_doc_no("IV6909-0009"), date="2026-09-16",
+                  credit=1000.0)]
+        vats = [vat(ref="ABB6909-00007", date="2026-09-12", buyer="cash", amount=379.44),
+                vat(ref="IV6909-0009", date="2026-09-16", amount=1000.0)]
+        return gls, vats
+
+    def test_without_the_alias_the_same_sale_shows_on_both_sides(self):
+        gls, vats = self._sides()
+        rows, summary = income.reconcile_gl_vat(gls, vats)
+        self.assertEqual([item["doc_no"] for item in summary.vat_only_positive_items], ["ABB6909-00007"])
+        self.assertEqual([item["doc_no"] for item in summary.gl_only_credit_items], ["HS690912-001"])
+
+    def test_the_known_voucher_pairs_the_printed_number_once(self):
+        gls, vats = self._sides()
+        aliases = {income.normalize_doc_no("ABB6909-00007"): "HS690912-001"}
+        rows, summary = income.reconcile_gl_vat(gls, vats, aliases=aliases)
+        self.assertEqual((summary.vat_only_positive_items, summary.gl_only_credit_items), ([], []))
+        paired = next(row for row in rows if row.date == "2026-09-12")
+        self.assertEqual((paired.gl_amount, paired.diff), (379.44, 0.0))
+        self.assertEqual(vats[0]["report_ref_no"], "ABB6909-00007")  # 不改调用方的行
+
+    def test_an_alias_never_takes_a_voucher_another_line_names_or_one_not_in_the_ledger(self):
+        gls, vats = self._sides()
+        norm = income.normalize_doc_no("ABB6909-00007")
+        # 指向别的税报行点名的凭证、指向总账里没有的凭证：都不配
+        for target in ("IV6909-0009", "HS690999-001"):
+            with self.subTest(target=target):
+                _rows, summary = income.reconcile_gl_vat(gls, vats, aliases={norm: target})
+                self.assertEqual([item["doc_no"] for item in summary.vat_only_positive_items], ["ABB6909-00007"])
+        # 两行指向同一张凭证：说不准是哪一行，都不配
+        twice = vats + [vat(ref="ABB6909-00008", date="2026-09-12", buyer="cash", amount=379.44)]
+        _rows, summary = income.reconcile_gl_vat(gls, twice, aliases={
+            norm: "HS690912-001", income.normalize_doc_no("ABB6909-00008"): "HS690912-001"})
+        self.assertEqual(len(summary.vat_only_positive_items), 2)
+
+
+def _income_service(hooks, providers):
+    """真的 `income_recon_service`（只用 `known_numbers`），frappe 与别的对账模块换成替身；配对核心用真的。"""
+    import importlib.util
+    import pathlib
+    import sys
+    import types
+    from unittest import mock
+
+    app = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
+    fake = types.ModuleType("frappe")
+    fake._ = lambda text, *a, **k: text
+    fake.get_hooks = lambda name: list(hooks.get(name, []))
+    fake.get_attr = lambda path: providers[path]
+    utils = types.ModuleType("frappe.utils")
+    utils.now_datetime = lambda: None
+    fake.utils = utils
+    package = types.SimpleNamespace(**{name: mock.MagicMock() for name in (
+        "naming", "income_recon_access", "income_recon_contracts", "income_parse", "preset_store", "presets",
+        "recon_contracts", "recon_tasks", "vat_parse", "recon_documents")}, income_vat=income)
+    modules = {"frappe": fake, "frappe.utils": utils, "pearnly_cowork.reconciliation": package,
+               "pearnly_cowork.reconciliation.income_recon_access": types.SimpleNamespace(ROW="R", TASK="T"),
+               "pearnly_cowork.reconciliation.income_recon_documents": types.SimpleNamespace(persist=None),
+               "pearnly_cowork.reconciliation.export": types.SimpleNamespace(income_workbook=None)}
+    with mock.patch.dict(sys.modules, modules):
+        spec = importlib.util.spec_from_file_location("income_service_known", app / "reconciliation/income_recon_service.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    return module
+
+
+class KnownNumbersFromPushes(unittest.TestCase):
+    """对应关系经钩子 ``cowork_recon_known_numbers`` 从推送记录取（reconciliation 不导入 push），只拿两边没配上的号去问。"""
+
+    def _rows(self):
+        gls = [gl(doc_no="HS690912-001", norm_doc_no=income.normalize_doc_no("HS690912-001")),
+               gl(doc_no="IV6909-0009", norm_doc_no=income.normalize_doc_no("IV6909-0009"))]
+        vats = [vat(ref="ABB6909-00007"), vat(ref="IV6909-0009")]
+        return gls, vats
+
+    def test_the_push_records_name_the_voucher_of_a_printed_number(self):
+        asked = []
+        service = _income_service({"cowork_recon_known_numbers": ["p.known"]},
+                                  {"p.known": lambda *a: asked.append(a) or [("ABB6909-00007", "HS690912-001")]})
+        gls, vats = self._rows()
+        self.assertEqual(service.known_numbers("W1", gls, vats),
+                         {income.normalize_doc_no("ABB6909-00007"): "HS690912-001"})
+        self.assertEqual(asked, [("W1", ["ABB6909-00007"], ["HS690912-001"])])  # 只问没配上的号
+
+    def test_nothing_to_ask_ambiguous_or_no_provider_gives_nothing(self):
+        gls, vats = self._rows()
+        service = _income_service({}, {})
+        self.assertEqual(service.known_numbers("W1", gls, vats), {})
+        service = _income_service({"cowork_recon_known_numbers": ["p.known"]},
+                                  {"p.known": lambda *a: [("ABB6909-00007", "HS690912-001"),
+                                                          ("ABB6909-00007", "IV6909-0009"),
+                                                          ("ABB6909-00007", "HS690912-001")]})
+        # 同一票号对上两张凭证：说不准，不配（IV6909-0009 也不在没配上的那一边，本来就不会用）
+        found = service.known_numbers("W1", gls, vats)
+        self.assertEqual(found, {income.normalize_doc_no("ABB6909-00007"): "HS690912-001"})
+        service = _income_service({"cowork_recon_known_numbers": ["p.known"]},
+                                  {"p.known": lambda *a: [("ABB6909-00007", "HS690912-001"),
+                                                          ("ABB6909-00007", "HS690912-002")]})
+        gls.append(gl(doc_no="HS690912-002", norm_doc_no=income.normalize_doc_no("HS690912-002")))
+        self.assertEqual(service.known_numbers("W1", gls, vats), {})
+        service = _income_service({"cowork_recon_known_numbers": ["p.known"]},
+                                  {"p.known": lambda *a: self.fail("nothing to ask")})
+        self.assertEqual(service.known_numbers("W1", gls[1:2], vats[1:]), {})
+
+    def test_the_hook_is_declared_and_points_at_the_push_records(self):
+        import ast
+        import pathlib
+
+        app = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
+        hooks = {node.targets[0].id: ast.literal_eval(node.value) for node in ast.parse((app / "hooks.py").read_text()).body
+                 if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "cowork_recon_known_numbers"}
+        self.assertEqual(hooks, {"cowork_recon_known_numbers": ["pearnly_cowork.push.application.service.known_numbers"]})
+        functions = {node.name for node in ast.parse((app / "push/application/service.py").read_text()).body
+                     if isinstance(node, ast.FunctionDef)}
+        self.assertIn("known_numbers", functions)
+        source = (app / "reconciliation/income_recon_service.py").read_text()
+        self.assertIn("aliases=known_numbers(workspace, gl_matching, vat_matching)", source)
+        self.assertNotIn("pearnly_cowork.push", source)
+
 if __name__ == "__main__":
     unittest.main()

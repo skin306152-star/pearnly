@@ -63,11 +63,12 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_i
 	replayed = TASKS.replay(name, request_digest)
 	if replayed:
 		return replayed
-	results, summary = income_vat.reconcile_gl_vat(
-		income_recon_contracts.matching_gl_rows(without_excluded(rows[0],
-			excluded_accounts(workspace, report_tax_id(parse_values)))),
-		income_recon_contracts.matching_vat_rows(rows[1]),
-		amount_tolerance=float(header_values["amount_tolerance"]))
+	gl_matching = income_recon_contracts.matching_gl_rows(without_excluded(rows[0],
+		excluded_accounts(workspace, report_tax_id(parse_values))))
+	vat_matching = income_recon_contracts.matching_vat_rows(rows[1])
+	results, summary = income_vat.reconcile_gl_vat(gl_matching, vat_matching,
+		amount_tolerance=float(header_values["amount_tolerance"]),
+		aliases=known_numbers(workspace, gl_matching, vat_matching))
 	summary_value = {field: getattr(summary, field) for field in summary.__dataclass_fields__}
 	matched, findings, unmatched = result_counts(results)
 	task = frappe.get_doc({"doctype": TASK, "record_id": name, "workspace": workspace,
@@ -89,6 +90,38 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_i
 	_persist_rows(task, results)
 	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results),
 		"parse_info": parse_values}
+
+
+KNOWN_NUMBERS_MAX = 2000  # 一次最多拿这么多个没配上的号去问（一个月的税报与总账远少于此）
+
+
+def known_numbers(workspace, gl_rows, vat_rows):
+	"""税报里总账没有的号 → 同一张单据在总账里的凭证号（``{票面号规范化: 凭证号}``，`income_vat.pair_known_numbers`）。
+
+	票面号超出 Express 单号宽度（DOCNUM 12 字节）时 CC 桌面版给销项单自编号，真实票号只在 Express 的参考号里，总账只有自编号
+	（2026-10-20 教程录制：ABB6909-00007 → HS690912-001，收入对账两边各报一次）。对应关系在推送记录里（票号 ↔ Express 回报的
+	单号），经钩子 ``cowork_recon_known_numbers``（`push.application.service.known_numbers`）按工作空间取；reconciliation 不导入
+	push。只拿两边各自没配上的号去问；没有提供者、取不到回空（照旧按号配）。"""
+	vouchers = {row.norm_doc_no: row.doc_no for row in gl_rows if row.norm_doc_no}
+	printed = {}
+	for vat in vat_rows:
+		raw = income_vat.vat_doc_no(vat)
+		norm = income_vat.normalize_doc_no(raw)
+		if norm and norm not in vouchers:
+			printed.setdefault(norm, raw)
+	named = {income_vat.normalize_doc_no(income_vat.vat_doc_no(vat)) for vat in vat_rows}
+	free = {norm: doc_no for norm, doc_no in vouchers.items() if norm not in named}
+	if not printed or not free:
+		return {}
+	found = {}
+	for path in frappe.get_hooks("cowork_recon_known_numbers") or []:
+		for invoice_no, docnum in frappe.get_attr(path)(workspace, list(printed.values())[:KNOWN_NUMBERS_MAX],
+				list(free.values())[:KNOWN_NUMBERS_MAX]) or ():
+			norm = income_vat.normalize_doc_no(invoice_no)
+			if norm in printed and income_vat.normalize_doc_no(docnum) in free:
+				# 同一个票号在几张凭证上（重推、改单）：说不准是哪张，不配
+				found[norm] = docnum if found.get(norm) in (None, docnum) else ""
+	return {norm: docnum for norm, docnum in found.items() if docnum}
 
 
 def _persist_rows(task, results):

@@ -210,6 +210,13 @@ GUIDANCE = [
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
     "only when the document names a different buyer.",
+    # 2026-10-20 教程录制：问「ส่งครบทั้ง 8 ใบหรือยัง」，工具回了 8 张完整的单号与现赊，CC 的表格却多出一行只有「HP690901...」的
+    # 残行，还把 RR690903-001（赊购）照自己先前的说法写成 HP690903-001 现购。表格、清单里的每一格都从这一轮工具结果里这张单的那一项抄
+    "When you list documents in a table or a list, build each row from that document's own entry in the latest tool "
+    "result: its number in Express (docnum), cash or credit, amounts and dates exactly as given there, never from "
+    "your earlier messages or from what you expected. Write one complete row per document, in the order you choose "
+    "before you start, and never leave a row unfinished or cut off with '...'. When an entry differs from what you "
+    "said earlier, say so plainly.",
     CC_DESKTOP,
     MRERP_GUIDANCE,
 ]
@@ -2283,6 +2290,10 @@ def push_choices(tool_input) -> str:
     if view.get("fixed"):
         # 来自定时任务、推往该任务账套的票：任务默认处理已定的类别（推送服务按任务取，不再问、不记进账套）
         out["task_defaults"] = view["fixed"]
+    if view.get("planned") and getattr(doc, "last_push_status", None) not in ("pending", "success"):
+        # 没有要选的：推出去会怎么写（现 / 赊、科目、哪层定的；按记住的选择而票面指向另一个时带 document_payment），
+        # 与入账后的 written 同一个函数。CC 推前照它说（2026-10-20 教程录制：推前说赊购，写进去是现购）
+        out["planned"] = view["planned"]
     return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})
 
 
@@ -2300,7 +2311,9 @@ def save_push_choices(tool_input) -> str:
     if _adapter_of(connection) == "mrerp":
         return _json({"document": name, "status": "not_saved", "reason": MRERP_CHOICES_NOTE})
     try:
-        result = application_api.save_choices(name, connection, account_set, json.dumps(tool_input.get("items") or []))
+        # 为这张票选的现 / 赊同时写成这张票自己的（同复核页改付款方式）：同一家供应商的几张票可以各是各的（2026-10-20 教程录制）
+        result = application_api.save_document_choices(name, connection, account_set,
+                                                       json.dumps(tool_input.get("items") or []))
         frappe.db.commit()
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
@@ -4081,7 +4094,14 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
                 "added_to_cost (not claimed, in the cost) or none. written.writer, when present, is the name of the "
                 "computer whose CC Desktop wrote it into Express; when the user asks which computer wrote it, give "
-                "that name. Whenever a document is entered, always give the "
+                "that name. written.printed_number, when present, is the number printed on the document that Express "
+                "did not keep as it is: for a sale, Express could not use it as the document number (number_reason "
+                "too_long: an Express document number holds at most 12 characters), so the sale got docnum instead "
+                "and the printed number stays as its reference, the number the sales VAT report shows; for a "
+                "purchase, reference_written is the shortened reference Express holds (at most 15 characters). "
+                "Whenever printed_number is present, tell the user in that reply that the document with the printed "
+                "number was entered as docnum (and, for a purchase, its reference as reference_written), with the "
+                "reason. Whenever a document is entered, always give the "
                 "user its document number (docnum), amounts in baht and times in local time. An entered document "
                 "is done: it is no longer on the pending page, so never point the user to the pending page, the "
                 "review page, Express or MR.ERP to check or change it. " + ENTERED_NOTE + " Say plainly whether it was entered as cash or credit and "
@@ -4099,6 +4119,19 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "written.company_rules only; when it is missing, say only that it was the company's choice. Never take "
                 "a choice from <client_choices> or the team notes as the one that decided an entered document: they "
                 "show today's choices, which may be for other parties.")
+# 推前「会怎么写」（`push.express.pushed.planned`，`cowork_push_choices` 的 planned）：2026-10-20 教程录制，推前 CC 照票种说
+# NL-0907-2569-04 是赊购，推送时按这家记住的现购写成 HP690907-001，直到用户追问才解释。推前说现赊 / 科目只照 planned
+PLANNED_NOTE = ("When needed is empty, planned says how the document will be entered if it is pushed now, with the same "
+                "facts and words as written on an entered document (payment, payment_from, account and the like; no "
+                "docnum yet). planned.document_payment, when present, means the payment follows a remembered choice, a "
+                "client company choice or the task's default (payment_from) while the document itself points to the "
+                "other one (document_payment.payment, from the words on it or its type). Before you push, whenever you "
+                "tell the user whether a document goes in as cash or credit or to which account, take it from planned "
+                "(call cowork_push_choices for that document first), never from the document type; when "
+                "document_payment is present, say in that same message, before pushing, that it will be entered as "
+                "planned.payment because of that choice although the document points to document_payment.payment. "
+                "This is information, not a question: do not wait for a reply unless the user said otherwise for that "
+                "document, in which case save their payment for it with cowork_save_push_choices first.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
@@ -4434,7 +4467,7 @@ TOOLS = [
     {"name": "cowork_push_choices", "label": "Checked push choices",
      "description": "Before pushing to Express, what this document still needs a person to choose once in this "
                     "account set (party, product, expense account, payment, VAT claim, department, receiving account "
-                    "of a POS payment method; kinds in needed) "
+                    "of a POS payment method; kinds in needed) " + PLANNED_NOTE + " "
                     "and the allowed values (up to 30 per kind; pass search to narrow by code or name). Use it when a "
                     "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
                     "again. status reading means the computer is still reading that account set's chart: check again "
@@ -4460,6 +4493,11 @@ TOOLS = [
      "description": "Record what the user chose for the items listed by cowork_push_choices: each item is the needed "
                     "entry's kind and subject with the chosen value (a listed code; party and product also accept "
                     "the NEW value given there). The account set reuses them for later documents of the same kind. "
+                    "A payment (cash or credit) saved for a document is also that document's own payment "
+                    "(document_payment in the result), so documents of one supplier can each have their own: save it "
+                    "for each document with that document's value. Every other kind (party, product, account, VAT "
+                    "claim, department) is one value per supplier in the account set: when documents of one supplier "
+                    "need different values of such a kind, save and push them one document at a time. "
                     "Only values the user chose or confirmed in this chat. Express only: MR.ERP choices are saved "
                     "with cowork_mrerp_setup.",
      "input_schema": {"type": "object", "properties": {

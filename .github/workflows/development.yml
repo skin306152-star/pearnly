@@ -111,6 +111,8 @@ jobs:
         run: python3 tests/test_cowork_delete_everything.py
       - name: Verify re-pushed scheduled-task documents carry the task defaults and leave the account set memory alone
         run: python3 tests/test_cowork_push_fixed.py
+      - name: Verify income reconciliation pairs a sale whose Express number differs from its printed number (push records)
+        run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_reconciliation_income_vat.py
       - name: Verify expense account suggestions (the user's note, the supplier's usual account, names) and the account history read
         run: python3 tests/test_cowork_account_suggest.py
       - name: Verify a push takes its direction from the chosen account set's tax ID when the workspace's cannot tell

@@ -26,6 +26,7 @@ from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import decide as decide_rules
 from pearnly_cowork.push.express import goods_posting
+from pearnly_cowork.push.express import payment as payment_rules
 from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express import written_check
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
@@ -519,14 +520,19 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     if loaded.endpoint.get("adapter") != "express" or _document_block(doc):
         # 这类单据录不录还没定（或定了不录）：先不问对方档、科目这些，提交时停在口径那一步
         return {"needed": [], "options": {}}
-    target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
+    found = _express_context(doc, loaded, account_set_key)
+    target, flat, fields, direction, preparation = (found["target"], found["flat"], found["fields"],
+                                                    found["direction"], found["preparation"])
+    config = found["selected"]["config"]
     fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
+    today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     posting_kind, _posting_from, decision = _posting_decision(
         doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, config,
-        datetime.now(ZoneInfo("Asia/Bangkok")).date(),
+        today,
         lambda kind: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
                                 preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set),
                                 account_row=lambda: _account_row(loaded, target)))
+    planned = None if decision["needed"] else _planned(doc, loaded, found, posting_kind, decision, today)
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
     masters = account_masters(loaded.doc.name, target.account_set)
     kinds = {item["kind"] for item in decision["needed"]}
@@ -552,7 +558,42 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         result["wait"] = wait
     if fixed:
         result["fixed"] = dict(fixed)  # 这张票已定的（定时任务默认处理），不再问
+    if planned:
+        result["planned"] = planned  # 没有要选的：推出去会怎么写（与入账后的 written 同一个函数）
     return result
+
+
+def _planned(doc, loaded, found, posting_kind, decision, today):
+    """没有要人选的项时，这张票此刻推出去会怎么写（`pushed.planned`）：与准备推送同一套试算（`prepare` 里 ``choices`` 之后那一段，
+    同自动推判定 `assess._assess`），只看不记；票面本身指向的现 / 赊按付款判定不带选择再判一次。试算不成（口径没定、预检不过）
+    回 None，照旧推时再说。"""
+    if _document_block(doc):
+        return None
+    selected, fields, preparation = found["selected"], found["fields"], found["preparation"]
+    selected["config"]["choices"] = decision["applied"]
+    _apply_stock_group(selected["config"], loaded.doc, found["target"].account_set)
+    history_value = found["history_value"]
+    if found["direction"] and not explicit_direction(found["flat"], history_value):
+        history_value = {**history_value, "direction": found["direction"]}  # 同 `prepare`：按税号判出的方向交给预检
+    profile = preparation["supplier_profiles"].get(clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id")))
+    try:
+        prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
+            context=ExpressContext(enabled=True, today=today, own_tax_id=found["own_tax"],
+                account_tax_id=_account_tax(found["account_row"]), tenant_id=loaded.access.tenant_id,
+                mappings=preparation["mappings"], supplier_profile=profile, bank_index=preparation["bank_index"]))
+    except (frappe.ValidationError, ValueError, KeyError, TypeError):
+        frappe.clear_messages()
+        return None
+    payload = prepared.payload if prepared.disposition == "ready" else None
+    if not payload:
+        return None
+    verdict = None
+    if found["direction"] == "purchase":
+        verdict = payment_rules.payment_verdict(fields, profile=profile, bank_index=preparation["bank_index"],
+                                                direction="purchase",
+                                                invoice_date=found["flat"].get("invoice_date") or fields.get("date"),
+                                                total=found["flat"].get("total_amount") or fields.get("total_amount"))
+    return pushed_rules.planned(payload, decision.get("decided_by"), decision.get("company_rules"), verdict)
 
 
 def _suggest(needed, connection, account_set, fields, config, *, hint=None, refresh=False):
@@ -604,13 +645,18 @@ def masters_wait(masters, needed):
     return wait
 
 
-def save_choices(history, connection, account_set_key, items):
+def save_choices(history, connection, account_set_key, items, *, document_payment=False):
     """记下会计在复核页选的（每项 `{kind, subject, value, label}`）；值须在这份账套的主档里（或「新建」）。账套记忆里记过的科目 /
-    现 / 赊被改成别的值时 `push.choices.record` 另记一条改值（自动推判档 R1，10-18）。"""
+    现 / 赊被改成别的值时 `push.choices.record` 另记一条改值（自动推判档 R1，10-18）。
+
+    ``document_payment``（CC 记的，`api.save_document_choices`）：为这张进项票的供应商选的现 / 赊同时写成这张票自己的付款方式
+    （`posting_payment_manual`，同复核页改付款方式，付款判定的第一级）。账套记忆按供应商只有一个值：2026-10-20 教程录制，用户说
+    「印了已转账的是现金、其余赊账」，同一家供应商的两张票 CC 一张记现金、一张记赊账，后记的盖掉先记的，两张都按同一个值写进
+    Express（KD2609-00318 应现购写成 RR、NL-0907-2569-04 应赊购写成 HP），CC 推前说的与写入的不一致。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
-    target, _flat, _fields, _direction, _preparation, config = _express_facts(doc, loaded, account_set_key)
+    target, _flat, fields, direction, _preparation, config = _express_facts(doc, loaded, account_set_key)
     items = json.loads(items) if isinstance(items, str) else items
     if not isinstance(items, list) or not 1 <= len(items) <= 200:
         frappe.throw(_("connection.config_invalid"))
@@ -638,7 +684,33 @@ def save_choices(history, connection, account_set_key, items):
             frappe.throw(_("cowork.choice.invalid"))
         saved += int(choice_store.record(loaded.doc.name, target.account_set, kind, str(item.get("subject") or ""),
                                          value, item.get("label")))
-    return {"saved": saved}
+    result = {"saved": saved}
+    if document_payment:
+        chosen = _document_payment(doc, fields, direction, items)
+        if chosen:
+            result["document_payment"] = chosen
+    return result
+
+
+def _document_payment(doc, fields, direction, items):
+    """`save_choices` 的 ``document_payment``：items 里为这张进项票的供应商（归类键同 `choices.resolve`）选的现 / 赊写成这张票的
+    付款方式，回写下的值；已推出去的、不是进项、没选这家现 / 赊的、已是这个值的不动，回 None。"""
+    if direction != "purchase" or doc.last_push_status in ("pending", "success"):
+        return None
+    subject = choice_rules.supplier_subject(direction, fields.get("seller_tax"), fields.get("seller_name"))
+    values = [str(item.get("value") or "").strip() for item in items
+              if item.get("kind") == "payment" and str(item.get("subject") or "") == subject]
+    if not values or values[-1] not in choice_rules.PAYMENT_VALUES:
+        return None
+    value = values[-1]
+    pages = json.loads(doc.pages or "[]")
+    page = primary_page(pages)
+    index = next((i for i, item in enumerate(pages) if item is page), None)
+    if index is None or str((page.get("fields") or {}).get("posting_payment_manual") or "") == value:
+        return value if index is not None else None
+    pages[index] = {**page, "fields": {**(page.get("fields") or {}), "posting_payment_manual": value}}
+    storage.update_pages(doc.name, pages, str(doc.record_version))
+    return value
 
 
 def assess(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, trigger, route_device="",
@@ -905,6 +977,9 @@ def _entered(row, rules_now=None):
     docnum = str(getattr(row, "external_docnum", None) or "").strip()
     if docnum:
         item["docnum"] = docnum
+        if target.get("adapter") != "mrerp":
+            # 票面号没原样进 Express（销项超出单号宽度改用自编号、进项参考号被缩写）：两个号都给，CC 说清楚
+            item.update(pushed_rules.numbers(_loads(row.payload_json), docnum))
     if target.get("adapter") == "mrerp":
         item.update(_mrerp_entered(_loads(getattr(row, "response_json", None))))
     # 数字会计员第 3 期第 13 条：自动推的单说清是哪一类、按哪一档、谁触发的；写完核对的结论（只防写入走样与挂错对方）
@@ -978,6 +1053,23 @@ def records(connection, start=0, limit=50):
         ORDER BY creation DESC, name DESC LIMIT %s OFFSET %s FOR UPDATE""",
         (connection, owner["workspace"], owner.get("client") or "", limit, start), as_dict=True)
     return {"records": [_view(ledger.project(frappe.get_doc("Cowork Push Record", row.name, for_update=True))) for row in rows]}
+
+
+KNOWN_NUMBERS_MAX = 2000
+
+
+def known_numbers(workspace, invoice_numbers, docnums):
+    """收入对账问的：这个工作空间里推送成功、Express 单号在 ``docnums`` 里的记录各自的票面号 → ``[(票号, 单号)]``（钩子
+    ``cowork_recon_known_numbers``，`reconciliation.income_recon_service.known_numbers`）。票号超出 Express 单号宽度时 CC 桌面版
+    给销项单自编号，总账只有自编号（2026-10-20 教程录制）；配不配、怎么比号由对账自己定，这里只回推送记录里的两个号。
+    调用方已核过这个工作空间的对账权限；只读、不加锁。"""
+    docnums = sorted({str(item).strip() for item in docnums or () if str(item or "").strip()})[:KNOWN_NUMBERS_MAX]
+    if not workspace or not docnums or not invoice_numbers:
+        return []
+    rows = frappe.db.sql("""SELECT invoice_no, external_docnum FROM `tabCowork Push Record`
+        WHERE workspace=%s AND status='success' AND external_docnum IN %s""", (workspace, tuple(docnums)))
+    return [(str(invoice or "").strip(), str(docnum or "").strip()) for invoice, docnum in rows
+            if str(invoice or "").strip() and str(docnum or "").strip()]
 
 
 PUSHED_MAX = 3000

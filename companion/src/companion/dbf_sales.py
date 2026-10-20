@@ -5,7 +5,8 @@
 按月桶)。STCRD(存货出)本期非存货不碰(同采购延后)。
 
 字段语义逆向真 DATAT gold(现销 HL580301-001·3 行非库存):ARTRN.AMOUNT/TOTAL/NETAMT=
-含税、NETVAL=税前、VATAMT=税额、FLGVAT='1'(价含税);ISVAT('S').REFNUM=本单 DOCNUM;
+含税、NETVAL=税前、VATAMT=税额、FLGVAT='1'(价含税);ISVAT('S').REFNUM=票面号(gold 里与 DOCNUM
+相同;票号超出 DOCNUM 宽度时单号退回自编号,REFNUM 与 ARTRN.YOUREF 仍是票面号,见 _sales_docnum);
 GLJNLIT SEQIT 借资产=2/贷收入=5/贷销项税=6。⚠️ DATAT 无赊销样本 → IV(Dr 应收)按现销
 gold 类推,真机再证(见报告)。护栏沿用采购:DATAT 白名单/写前备份/失败回滚/读回校验/
 ref_no+客户 幂等/CDX 重建。
