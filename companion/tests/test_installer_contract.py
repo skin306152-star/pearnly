@@ -173,7 +173,8 @@ def test_installer_follows_the_windows_language_with_english_as_fallback():
         assert f'MessagesFile: "languages\\{name}"' in script
     # 看得到的字只有 Inno 译文自带的（取消、确认、出错）；窗口标题只写产品名，没有自写的多语言文案
     assert "[CustomMessages]" not in script and "{cm:" not in script
-    assert [line for line in _section(script, "[Messages]").splitlines() if "=" in line] == ["SetupWindowTitle=%1"]
+    assert [line for line in _section(script, "[Messages]").splitlines() if "=" in line] == [
+        "SetupWindowTitle=%1", "UninstallAppFullTitle=%1"]
     assert "AppVerName={#AppName}" in setup
 
 
@@ -213,6 +214,12 @@ def test_one_click_install_shows_only_the_icon_a_progress_bar_and_cancel():
     assert "UninstallProgressForm.OuterNotebook.Visible := False;" in uninstall
     assert "CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar" in uninstall
     assert "ExpandConstant('{app}\\cc.png')" in uninstall
+    # 从「设置 → 应用」卸载：系统已经确认过一次，卸载程序带 /SILENT 不再问、不弹「已删除」框
+    quiet = code.split("procedure QuietUninstallFromSettings", 1)[1].split("\nend;", 1)[0]
+    assert "RegWriteStringValue(HKCU, UninstallKey, 'UninstallString', Value + ' /SILENT')" in quiet
+    assert "UninstallKey = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{8F3C2A91-4E7B-4D2A-9C11-PEARNLYCOMP01}_is1';" in code
+    post = code.split("procedure CurStepChanged", 1)[1].split("\nend;", 1)[0]
+    assert "QuietUninstallFromSettings" in post
 
 
 def test_store_package_manifest():

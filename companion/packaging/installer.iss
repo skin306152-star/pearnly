@@ -71,6 +71,7 @@ Name: "chinesesimplified"; MessagesFile: "languages\ChineseSimplified.isl"
 
 [Messages]
 SetupWindowTitle=%1
+UninstallAppFullTitle=%1
 
 [InstallDelete]
 ; 上一版的程序文件夹整个换掉(不留旧版本的库);旧名字的快捷方式删掉,换成 CC
@@ -122,6 +123,8 @@ const
   RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
   RunValue = 'PearnlyCompanion';
   LegacyDirName = 'Pearnly Companion';
+  { 按用户安装的卸载项(Inno 以 AppId + _is1 命名;AppId 里的两个左花括号是转义,实际是一个) }
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8F3C2A91-4E7B-4D2A-9C11-PEARNLYCOMP01}_is1';
 
 { 托盘程序无顶层窗口,CloseApplications 的重启管理器可能关不掉它 → 真正开始安装时强制 taskkill,
   保证覆盖安装能替换正在运行的 companion.exe / cdx_reindex_runner.exe。不加 /T:自动更新时安装包本身就是 companion.exe
@@ -223,10 +226,22 @@ begin
     Log('Legacy folder removed: ' + LegacyDir);
 end;
 
+{ 从 Windows「设置 → 应用」卸载:系统先弹自己的确认,再运行卸载项的 UninstallString。给它加 /SILENT,
+  卸载程序就不再问第二遍、也不弹「已删除」框,只出进度小窗口(主流桌面产品的做法)。
+  开始菜单里的「Uninstall CC」快捷方式不带参数:卸载程序自己问一次(那里没有系统的确认)。 }
+procedure QuietUninstallFromSettings;
+var
+  Value: String;
+begin
+  if RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Value) and (Pos('/SILENT', Value) = 0) then
+    RegWriteStringValue(HKCU, UninstallKey, 'UninstallString', Value + ' /SILENT');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
+    QuietUninstallFromSettings;
     RepointAutostart;
     RemoveLegacyDir;
   end;
