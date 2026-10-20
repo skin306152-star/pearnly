@@ -3935,6 +3935,32 @@ assert.equal(pairs().at(-1).args.code.split("@")[0], "exp_C1_rejoined");
 assert.equal(currentLink().kind, "idle");
 """)
 
+    def test_switching_company_keeps_asking_for_a_key_while_the_old_company_is_still_connected(self):
+        # 教程问题第 10 条（10-20）：改连本公司时桌面端新连接配好才断开原来那家。第一次配对没成，原来那家的成员还在；再点一次时
+        # 服务端说这台电脑在本公司已有密钥（第一次登记发的、没配上），本机成员却是别家的 → 照样要一把新密钥（rekey）再配对
+        self.run_page(r"""
+import { connectComputer, currentLink, desktop, needsKey } from "@/lib/desktop";
+const REGISTER = "/api/method/pearnly_cowork.companion.api.register";
+const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+let replies: any[] = [];
+g.respond = async (method: string) => (method === REGISTER ? ok(replies.shift()) : ok(null));
+const registered = () => g.calls.filter((c: any) => c.method === REGISTER).map((c: any) => c.body);
+const pairs = () => g.bridgeCalls.filter((c: any) => c.method === "pair");
+g.location.host = "site.test";
+g.STATE.site = "old.test";
+g.STATE.members = [{ id: "m1", name: "Express", kind: "express", paused: false, status: "online", folders: null }];
+assert.equal(needsKey(g.STATE), true);
+assert.equal(needsKey({ ...g.STATE, site: "site.test" }), false);   // 本公司的成员好着：不要新密钥
+const api = (await desktop())!;
+replies = [{ status: "exists", device: "CCD-1" }, { status: "created", token: "exp_C2_new" }];
+await connectComputer(api, { switchSite: true });
+const [first, second] = registered().slice(-2);
+assert.ok(!first.rekey && second.rekey === true);
+assert.equal(pairs().at(-1).args.code, "exp_C2_new@site.test");
+assert.equal(pairs().at(-1).args.switch, true);
+assert.equal(currentLink().kind, "idle");
+""")
+
     def test_reader_ids_go_into_folder_values_and_this_computers_row_is_found_by_name(self):
         self.run_page(r"""
 import { folderIsMine, folderParts, folderValue, taskSeedOf } from "@/lib/companies";

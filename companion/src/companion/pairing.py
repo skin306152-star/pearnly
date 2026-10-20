@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import ntpath
 import re
+import time
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import List, Optional
@@ -108,6 +109,35 @@ def _connection_identity(heartbeat: dict, token: str) -> dict[str, str]:
         "endpoint_name": str(identity.get("endpoint_name") or "Express").strip(),
         "pearnly_account": str(identity.get("pearnly_account") or "").strip(),
     }
+
+
+# 配对时连 Pearnly 那一下（整份账套名单的心跳）没成、而且多半再来一次就行的：超时、连接断了、服务端正忙 / 正在重启。
+# 教程问题第 10 条（10-20）：改连另一家公司时第一次配对读超时、要人点「重试」——那次是服务端头一回收这台电脑 679 份账套，
+# 处理了 10 秒多（生产 nginx：heartbeat.report 499 rt=10.2，重试那次 9.1 秒）。整份名单的心跳另有更长的读超时
+# （queue_client.FULL_REPORT_TIMEOUT_S），这里再自动重试，不交给人点。心跳本身可重复（同一份名单再报一次结果一样）。
+REPORT_ATTEMPTS = 3
+REPORT_RETRY_PAUSES = (2.0, 5.0)   # 第 1、2 次没成后各等多久
+_RETRY_STATUS = frozenset({502, 503, 504})
+
+
+def _retryable(error: Exception) -> bool:
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code in _RETRY_STATUS
+    return isinstance(error, (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError))
+
+
+def _report_with_retry(qc_cfg: QueueClientConfig, **report) -> dict:
+    for attempt in range(1, REPORT_ATTEMPTS + 1):
+        try:
+            with QueueClient(qc_cfg) as qc:
+                return qc.health(**report)
+        except Exception as error:
+            if attempt >= REPORT_ATTEMPTS or not _retryable(error):
+                raise
+            wait = REPORT_RETRY_PAUSES[min(attempt, len(REPORT_RETRY_PAUSES)) - 1]
+            log.warning("配对时连接 Pearnly 第 %d 次没成（%s），%.0f 秒后重试", attempt, type(error).__name__, wait)
+            time.sleep(wait)
+    raise RuntimeError("unreachable")
 
 
 def _device_state_after(cfg: CompanionConfig, token: str, previous_token: str) -> str:
@@ -230,14 +260,14 @@ def pair(
     # 科目映射(配对窗全自动取值,见 pairing_flow.auto_mapping)· 随配对即时上报 + 存本地。
     _mapping = {k: str((mapping or {}).get(k) or "").strip() for k in ACCOUNT_MAP_KEYS}
     try:
-        with QueueClient(qc_cfg) as qc:
-            hb = qc.health(
-                # 每行带上文件号与网络路径（多台电脑认同一份账套，与心跳同一套，account_probe.with_identity）
-                account_sets=with_identity([asdict(a) for a in sets]),
-                method="dbf",
-                selected=selected,
-                mapping=_mapping,
-            )
+        hb = _report_with_retry(
+            qc_cfg,
+            # 每行带上文件号与网络路径（多台电脑认同一份账套，与心跳同一套，account_probe.with_identity）
+            account_sets=with_identity([asdict(a) for a in sets]),
+            method="dbf",
+            selected=selected,
+            mapping=_mapping,
+        )
     except httpx.HTTPStatusError as e:
         cat = http_status_category(e.response.status_code)
         if cat == "auth":

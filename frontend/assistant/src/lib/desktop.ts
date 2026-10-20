@@ -408,8 +408,10 @@ async function register(express: boolean, { replace, device, rekey, rejoin }: Re
   return body.message;
 }
 
-/** 本机要不要一把新密钥：一个成员都没有（第一次、重装过），或有成员被服务端说密钥不再用（device_state）。 */
-export function needsKey(state: Pick<DesktopState, "members">): boolean {
+/** 本机要不要一把新密钥：一个成员都没有（第一次、重装过），或有成员被服务端说密钥不再用（device_state），或本机的成员是别家公司的
+ *  （改连本公司：桌面端新连接配好才断开原来那家，配对没成时原来的成员还在，教程问题第 10 条）。 */
+export function needsKey(state: Pick<DesktopState, "members" | "site">): boolean {
+  if (state.site && state.site !== location.host) return true;
   return !state.members.length || state.members.some((member) => !!member.device_state);
 }
 

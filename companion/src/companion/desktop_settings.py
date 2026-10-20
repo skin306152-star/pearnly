@@ -27,7 +27,7 @@ from . import folder_plan as plan
 from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
-from .profile_store import ProfileRecord, ProfileStore
+from .profile_store import ProfileRecord, ProfileStore, ProfileStoreError
 from .queue_client import _device_name
 from .version import VERSION
 
@@ -240,28 +240,51 @@ class DesktopSettings:
         """（后台线程）用配对码添加成员；给了 profile_id 就是更换这个成员的配对码。
 
         CC 登录后自动连接（2026-10-10）也走这里，配对码由对话页向本站申请后交过来。一台电脑只连一家公司：
-        已连着别家时不混进来，回 other_site；用户点了「改连本公司」（switch）才先断开原来的全部成员。"""
+        已连着别家时不混进来，回 other_site；用户点了「改连本公司」（switch）才换。换的时候**新连接配对成功之后**才断开原来的
+        全部成员（吊销密钥、删成员）；配对没成（连不上、超时、密钥不对）原来那家照旧连着，不会两边都断（教程问题第 10 条，
+        10-20：以前先断旧的再配对，第一次配对超时就两边都没连着）。"""
         store = self._store()
         current, wanted = site_of(store), code_site(code)
-        switched = False
+        leaving: list[tuple[str, str, str]] = []
         if profile_id is None and current and wanted and wanted != current:
             if not switch:
                 return {"ok": False, "other_site": current}
-            for record in list(store.profiles):
-                self._leave_member(store, record.profile_id)
-                self._keep_roots(store, record.profile_id)
-                store.remove_profile(record.profile_id)
-            store, switched = self._store(), True
-        if profile_id is None:
+            # 先记下原来各成员的站点与密钥：配对成功后全局站点就换成新的了，吊销旧密钥要发到旧站点
+            leaving = [(record.profile_id, *self._credentials(store, record.profile_id)) for record in store.profiles]
+        elif profile_id is None:
             # 这台电脑原来就连着这条连接（被别的电脑顶掉后重新连接）：换这个成员的密钥，不多出一个成员
             endpoint = pairing._endpoint_id_from_token(str(code or "").strip().partition("@")[0])
             profile_id = next((r.profile_id for r in store.profiles if endpoint and r.endpoint_id == endpoint), None)
             if profile_id is not None:
                 self._settle_member(store, profile_id, str(code or "").strip().partition("@")[0])
         result = self._pair(store, code, lang, profile_id)
-        if switched:
-            result["profiles_changed"] = True   # 原来的成员已断开：失败也要重启取任务线程
+        if leaving and result.get("ok"):
+            for member, backend_url, token in leaving:
+                self._drop_member(member, backend_url, token)
+            result["profiles_changed"] = True
         return result
+
+    def _credentials(self, store: ProfileStore, profile_id: str) -> tuple[str, str]:
+        try:
+            cfg = store.runtime_config(profile_id)
+            return str(cfg.backend_url or ""), str(cfg.bearer_token or "")
+        except Exception:
+            log.exception("读原成员的连接失败（照常换连）")
+            return "", ""
+
+    def _drop_member(self, profile_id: str, backend_url: str, token: str) -> None:
+        """改连别家公司、新连接已配好：吊销原成员的密钥（发到它原来的站点），再删本机成员。都不拦（同断开连接）。"""
+        try:
+            if backend_url and token:
+                self._leave(backend_url, token)
+        except Exception:
+            log.exception("改连时吊销原来的密钥失败（只删本机成员）")
+        try:
+            store = self._store()
+            self._keep_roots(store, profile_id)
+            store.remove_profile(profile_id)
+        except ProfileStoreError:
+            log.exception("改连时删除原来的成员失败")
 
     def _pair(self, store: ProfileStore, code: str, lang: str, profile_id: Optional[str]) -> dict:
         roots = machine_roots(store) or list(self._detected or [])

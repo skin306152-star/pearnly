@@ -104,7 +104,8 @@ class TomoPage(QWebEnginePage):
 
 
 RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）
-# 窗口底色 / 字色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app / --cc-ink，浅 / 深各一个），拉伸边与登录页标题栏用它
+# 窗口底色 / 字色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app / --cc-ink，浅 / 深各一个），拉伸边、登录页标题栏
+# 与页面画出来之前的底色用它
 APP_BG = {"light": "#fcfcfb", "dark": "#151515"}
 APP_INK = {"light": "#0b0b0b", "dark": "#f0efec"}
 
@@ -238,6 +239,9 @@ class TomoWindow(QMainWindow):
 
         self.view = QWebEngineView(self)
         self.page = TomoPage(self.profile, self.view)
+        # 页面还没画出第一帧时（网页内核刚起、登录页 / 对话页还在路上）露出来的是页面底色：网页内核默认白色，打开窗口先白屏
+        # 一两秒（教程问题第 9 条，10-20）。设成对话页的底色（跟随亮 / 暗），之后页面自己的底色接上，看不出切换
+        self.page.setBackgroundColor(QColor(APP_BG[_scheme()]))
         self.view.setPage(self.page)
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._context_menu)
@@ -300,6 +304,7 @@ class TomoWindow(QMainWindow):
         palette.setColor(QPalette.ColorRole.Window, QColor(APP_BG[_scheme()]))
         self.frame.setAutoFillBackground(True)
         self.frame.setPalette(palette)
+        self.page.setBackgroundColor(QColor(APP_BG[_scheme()]))
         self.chrome.restyle()
 
     def _chrome_for(self, url: QUrl) -> None:

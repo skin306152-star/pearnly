@@ -31,6 +31,10 @@ _LEASE = _METHOD + "queue_api.lease"
 _ACK = _METHOD + "queue_api.acknowledge"
 MAX_INDEX_PENDING = 500  # 与服务端 queue_contracts.MAX_INDEX_PENDING 相同（多了服务端当没报）
 _NOT_SENT = object()  # health() 的 update_blocked 没传：不带这个键（None 是「没被拦」，要照发）
+# 带整份账套名单的心跳（配对、刚启动、名单变了、每 30 分钟一次）的读超时。服务端头一回收这台电脑的名单时逐行登记账套与
+# 可达行，几百份要十来秒（教程问题第 10 条，10-20 生产：679 份 heartbeat.report 9.1 秒、另一次超过 10 秒被这边断开 499）；
+# 按普通请求的 10 秒断开只会让服务端白做一遍、下次再来。只报在线的心跳与领取、回报仍是 10 秒。
+FULL_REPORT_TIMEOUT_S = 60.0
 
 
 def unwrap(response: httpx.Response) -> dict:
@@ -165,7 +169,12 @@ class QueueClient:
             )  # 上报本机名 → 网页显示"已连接:<电脑名>"(链接设备身份)
         if selected:
             body.update(selected)  # 整组所选账套并入 body 顶层(对齐云端契约)
-        r = self._client.post(_HEARTBEAT, json=body)
+        timeout = (
+            httpx.Timeout(max(self.cfg.timeout, FULL_REPORT_TIMEOUT_S), connect=min(5.0, self.cfg.timeout))
+            if account_sets is not None
+            else httpx.USE_CLIENT_DEFAULT
+        )
+        r = self._client.post(_HEARTBEAT, json=body, timeout=timeout)
         r.raise_for_status()
         return unwrap(r)
 
