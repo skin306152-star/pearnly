@@ -51,8 +51,9 @@ PARSE_INFO_SECTIONS = {
 	# recognized：这份账单是识别读出的（照片 / 扫描件）；unread_pages：识别时抽取超时没读出的页；account：读出的
 	# 账号末四位（对账预设按账户记）；duplicate_sheets：逐行相同、只算一次的工作表 [复制的, 原来的]。都是 2026-09-30 加的，旧任务没有。
 	# account_read：这个尾号是账单上读出的、不是退回的工作表名（2026-10-13 加，认不出银行的对账预设只认这种）。
+	# bank_name：账单上印着的银行名（2026-10-20 加，旧任务没有；给人看的银行名取它，见 `bank_names`）。
 	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "recovered_pages", "account",
-		"account_read", "duplicate_sheets"),
+		"account_read", "duplicate_sheets", "bank_name"),
 	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
 }
 CONFIDENCE_LEVELS = ("high", "medium", "low")
@@ -153,6 +154,8 @@ def parse_info(value):
 			}
 			if section == "stmt_files":
 				item["bank_code"] = _text(record.get("bank_code"), f"{section}.bank_code", limit=40)
+				if record.get("bank_name"):
+					item["bank_name"] = _text(record.get("bank_name"), f"{section}.bank_name", limit=80)
 				if record.get("recognized"):
 					item["recognized"] = True
 				unread = record.get("unread_pages") or []

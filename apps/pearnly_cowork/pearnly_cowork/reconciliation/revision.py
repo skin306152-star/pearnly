@@ -418,7 +418,7 @@ def _money(value):
 def bank_workbook_bytes(doc, results, summary, lang):
 	return bank_workbook(results, bank_matching.BankReconSummary(**summary), lang=lang,
 		parse_info=bank_recon_contracts.json_loads(doc.parse_info_json) or None,
-		**bank_recon_service._stored_run_records(doc))
+		bank_label=bank_recon_service.task_bank(doc), **bank_recon_service._stored_run_records(doc))
 
 
 # 余额链断点的两种确认（用户 2026-09-29 选 B，有意偏离旧线上：旧线上只提示不拦，迁移时改成必须连上才可保存，

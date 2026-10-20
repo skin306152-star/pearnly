@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from pearnly_cowork.reconciliation import bank_names
 from pearnly_cowork.reconciliation.bank_matching import BankReconRow, BankReconSummary
 from pearnly_cowork.reconciliation.export.labels import t
 from pearnly_cowork.reconciliation.export.styles import border_range
@@ -24,6 +25,7 @@ def build_summary_sheet(
     parse_info: Optional[Dict[str, Any]],
     anchor_overrides: Optional[Dict[str, Dict[str, float]]],
     warnings: Optional[List[str]],
+    bank_label: Optional[str] = None,
 ) -> None:
     # ══════════════════════════════════════════════════════════════════
     # SHEET 1: สรุป (Consolidated Summary · v118.34)
@@ -134,11 +136,14 @@ def build_summary_sheet(
         "ja": "銀行照合",
     }
     r = 1
-    _title_row(r, f"{_RECON_TITLE.get(lang, 'Bank Reconciliation')} · {summary.bank_code.upper()}")
+    # 银行名给人看：调用方给的 ``bank_label``（账单上印着的，读不出是空串，不写内部代号 GENERIC）；没给照旧写银行码。
+    bank = summary.bank_code.upper() if bank_label is None else bank_label
+    recon_title = _RECON_TITLE.get(lang, "Bank Reconciliation")
+    _title_row(r, f"{recon_title} · {bank}" if bank or bank_label is None else recon_title)
     r += 1
 
     # ── 2. Info: bank + GL account ──
-    _info_row(r, t("lbl_bank", lang), summary.bank_code.upper())
+    _info_row(r, t("lbl_bank", lang), bank if bank or bank_label is None else "—")
     r += 1
     _info_row(r, t("lbl_gl_acct", lang), summary.gl_account_code or "—")
     r += 1
@@ -271,7 +276,8 @@ def build_summary_sheet(
                     else t("fi_fail", lang)
                 )
             )
-            bank_part = f" · {f.get('bank_code')}" if f.get("bank_code") else ""
+            file_bank = f.get("bank_code") if bank_label is None else bank_names.file_label(f)
+            bank_part = f" · {file_bank}" if file_bank else ""
             err_part = f" · {f.get('error')}" if f.get("error") else ""
             label = f"{t('fi_stmt_type', lang)}: {f.get('file', '')} · {f.get('rows', 0)} {t('fi_rows', lang).lower()}{bank_part}{err_part}"
             fi_pairs.append((label, ok_status))
@@ -297,7 +303,7 @@ def build_summary_sheet(
                 continue
             rc = task_info.get("stmt_row_count", 0)
             ok_status = t("fi_ok", lang) if rc > 0 else t("fi_warn", lang)
-            bank_code = task_info.get("bank_code", "")
+            bank_code = task_info.get("bank_code", "") if bank_label is None else bank_label
             bank_part = f" · {bank_code}" if bank_code else ""
             label = f"{t('fi_stmt_type', lang)}: {fname} · {rc} {t('fi_rows', lang).lower()}{bank_part}"
             fi_pairs.append((label, ok_status))

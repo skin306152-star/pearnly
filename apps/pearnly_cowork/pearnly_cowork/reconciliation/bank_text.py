@@ -17,6 +17,7 @@
 
 另有 `labelled_account`（2026-10-13 新加，旧线上没有）：账单表头上标着「เลขที่บัญชี / Account No.」的账号，
 对账预设按账户记时用（与表格账单的 ``bank_sheets.labelled_sheet_account`` 同一口径）。
+还有 `printed_bank_name`（2026-10-20 新加，旧线上没有）：同一块表头上印着的银行名，结果、导出和 CC 回答里写的银行名取它。
 
 只读传入的文本：没有凭据、数据库、网络或模型调用。
 """
@@ -368,3 +369,47 @@ def labelled_account(page_text: str) -> str:
 			continue
 		found.setdefault(digits, number)
 	return next(iter(found.values())) if len(found) == 1 else ""
+
+
+# ── 表头上印着的银行名（结果、导出、CC 回答里写的银行名）──────────────────────────
+
+# 表头一行里几栏之间隔着两个以上空格、制表符或「 / 」（「ธนาคารสาธิต / SATHIT DEMO BANK」）；逐栏看。
+_HEADER_COLUMNS = re.compile(r"\s{2,}|\t|\s+/\s+|\s*\|\s*")
+# 「ธนาคาร…」开头的一栏：后面紧跟名字（不是冒号）。表头里也会印「ธนาคารผู้รับ / ธนาคารปลายทาง」这类栏名，不算。
+_THAI_BANK = re.compile(r"^ธนาคาร(?![\s:：])(?!ผู้|ผู|ปลายทาง|ต้นทาง|คู่|คู|และ)\S")
+# 「ธนาคาร: X」「ชื่อธนาคาร: X」「Bank: X」「Bank Name: X」：取冒号后面印的。
+_BANK_LABEL = re.compile(r"^(?:ชื่อ\s*ธนาคาร|ชื\s*อ\s*ธนาคาร|ธนาคาร|bank(?:\s+name)?)\s*[:：]\s*(?P<name>\S.*)$", re.I)
+# 英文名：只有字母与常见标点、带「bank」一词（KASIKORNBANK、Bangkok Bank、Bank of Ayudhya）；账单标题、栏名不算。
+_ENGLISH_BANK = re.compile(r"^[A-Za-z][A-Za-z.,&'()\- ]{1,78}$")
+_ENGLISH_NOT_A_NAME = re.compile(r"\b(?:statement|account|branch|transfer|deposits?|withdrawals?|balance|to|from|"
+	r"date|page|currency)\b", re.I)
+BANK_NAME_LIMIT = 80
+
+
+def _bank_name_in(column: str) -> str:
+	label = _BANK_LABEL.match(column)
+	if label:
+		return label.group("name").strip()
+	if _THAI_BANK.match(column):
+		# 「ธนาคารกสิกรไทย สาขาสีลม」只要银行名
+		return re.split(r"\s*\(?สาขา", column, maxsplit=1)[0].strip()
+	if (_ENGLISH_BANK.match(column) and re.search(r"bank\b", column, re.I)
+			and column.lower() not in ("bank", "bank name") and not _ENGLISH_NOT_A_NAME.search(column)):
+		return column
+	return ""
+
+
+def printed_bank_name(page_text: str) -> str:
+	"""PDF 文字层第一页表头上印着的银行名（照印出的写法，如 ``ธนาคารสาธิต``）；认不出回空，不按账号格式或流水里的对方行猜。
+
+	与 `labelled_account` 同一块表头：第一页（``\\f`` 之前）、流水表之前（``_TABLE_LINE``），从上往下第一个像银行名的栏：
+	「ธนาคาร…」开头的、「ธนาคาร / Bank (Name):」标签后面的、带「bank」一词的英文名。流水行里的对方银行、页脚都不看。
+	"""
+	for raw in str(page_text or "").split("\f")[0].replace("\x00", "").splitlines():
+		if _TABLE_LINE.search(raw.translate(_HEADER_CLEAN).strip()):
+			break
+		for column in _HEADER_COLUMNS.split(raw.strip()):
+			name = _bank_name_in(" ".join(column.split()))
+			if name:
+				return name[:BANK_NAME_LIMIT]
+	return ""
