@@ -605,3 +605,78 @@ def test_the_window_process_needs_the_tray_and_keeps_the_token_out_of_its_childr
     import os
 
     assert window_link.ENV_TOKEN not in os.environ and window_link.ENV_PIPE not in os.environ
+
+
+# 教程问题第 9 条（10-20）：打开 CC 窗口先白屏一两秒才出登录页 / 对话页。页面还没画出来时露出的是网页内核的默认白底；
+# 改成对话页的底色（跟随亮 / 暗，APP_BG 与 globals.css 的 --cc-bg-app 一致），页面自己的第一帧接上去看不出切换。
+_FIRST_FRAME = r"""
+import sys, tempfile, threading, time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+sys.path.insert(0, ".")
+tmp = Path(tempfile.mkdtemp())
+from src.companion.gui_font import qt_app
+app = qt_app()
+from PySide6.QtCore import QEvent, QSettings
+from PySide6.QtGui import QGuiApplication, QIcon
+from src.companion import gui_tomo
+
+
+class Slow(BaseHTTPRequestHandler):
+    def do_GET(self):
+        time.sleep(2.0)   # 登录页 / 对话页还在路上
+        body = b"<html><body style='background:#fcfcfb'></body></html>"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+server = HTTPServer(("127.0.0.1", 0), Slow)
+threading.Thread(target=server.serve_forever, daemon=True).start()
+gui_tomo.APPDATA_DIR = tmp
+gui_tomo.QSettings = lambda *args: QSettings(str(tmp / "tomo.ini"), QSettings.Format.IniFormat)
+gui_tomo.tomo_links.resume_url = lambda saved, env=None: "http://127.0.0.1:%d/" % server.server_port
+gui_tomo.tomo_links.route = lambda url: "load"   # 测试页不是 Pearnly 的地址
+
+
+def pump(seconds):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        app.processEvents(); time.sleep(0.01)
+
+
+window = gui_tomo.TomoWindow(lang="zh", icon=QIcon(), notify=lambda *a, **k: None, bridge=None)
+window.show()
+early = []
+for _ in range(5):   # 页面回来之前（前 1.25 秒）
+    pump(0.25)
+    image = window.view.grab().toImage()
+    early.append(image.pixelColor(image.width() // 2, image.height() // 2).name())
+light = window.page.backgroundColor().name()
+gui_tomo._scheme = lambda: "dark"   # 系统换成深色（离屏平台切不了系统主题，直接换判定）
+QGuiApplication.sendEvent(window, QEvent(QEvent.Type.ThemeChange))
+dark = window.page.backgroundColor().name()
+window.shutdown()
+print("RESULT", light, dark, " ".join(early))
+"""
+
+
+def test_the_cc_window_shows_the_chat_background_not_white_before_the_page_paints():
+    pytest.importorskip("PySide6.QtWebEngineWidgets")
+    import os
+
+    from src.companion import gui_tomo
+
+    out = subprocess.run([sys.executable, "-c", _FIRST_FRAME], cwd=COMPANION, capture_output=True, text=True,
+                         timeout=120, env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
+    result = [line for line in out.stdout.splitlines() if line.startswith("RESULT")]
+    assert result, out.stderr[-2000:]
+    _tag, light, dark, *early = result[0].split(" ")
+    assert light == gui_tomo.APP_BG["light"]
+    assert dark == gui_tomo.APP_BG["dark"]   # 跟着系统换成深色
+    assert early and set(early) == {gui_tomo.APP_BG["light"]}, early   # 页面没回来时一帧白都没有

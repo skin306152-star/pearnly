@@ -112,11 +112,15 @@ class PollWorker(QThread):
         return getattr(task, "attended", None) is False
 
     def _ask_busy(self, lang: str) -> str:
+        """弹「账套正在使用中」询问框并等人点。等人的这段时间取任务线程没卡：每 0.2 秒照常盖存活时标，看门狗不把它当卡死
+        （教程问题「附」，10-20 19:47：人还没点，看门狗判卡死 190 秒、重启取任务线程，旧线程停下时把这次询问当成「终止」，
+        单子报一次错，新线程领到同一张又弹一次框）。真卡在写盘、网络上照旧不盖时标，自愈不变。"""
         prompt = BusyPrompt(lang)
         self.busy_prompt.emit(prompt)
         while not self._stop:
             if prompt.done.wait(0.2):
                 return prompt.choice
+            self._live.tick()
         return "abort"
 
     def _release_then_ask(self, profile_id: str, queue, task, lang: str) -> str:

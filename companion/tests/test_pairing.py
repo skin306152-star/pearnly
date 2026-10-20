@@ -456,3 +456,93 @@ def test_pairing_connects_to_and_saves_the_site_from_the_code(tmp_path, monkeypa
     saved = store.save_profile.call_args.args[0]
     assert saved.backend_url == "https://testcowork.pearnly.com"
     assert saved.bearer_token == "exp_CWEC-9_s3cret"
+
+
+# ── 教程问题第 10 条（10-20）：改连另一家公司时第一次配对读超时，要人点「重试」 ──
+
+
+def _flaky_queue(errors, reply=None):
+    """前几次 health 依次抛 errors 里的异常，之后回 reply；记下每次的请求。"""
+    calls = []
+
+    class Queue:
+        def __init__(self, cfg):
+            self.cfg = cfg
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def health(self, **kwargs):
+            calls.append(kwargs)
+            if len(calls) <= len(errors):
+                raise errors[len(calls) - 1]
+            return reply or {"ok": True}
+
+    return Queue, calls
+
+
+def test_a_read_timeout_on_the_pairing_report_is_retried_by_itself(tmp_path, monkeypatch):
+    import httpx
+
+    acc = _acc(tmp_path)
+    request = httpx.Request("POST", "https://ccdemo.pearnly.com/api/method/pearnly_cowork.companion.heartbeat.report")
+    busy = httpx.HTTPStatusError("busy", request=request, response=httpx.Response(503, request=request))
+    queue, calls = _flaky_queue([httpx.ReadTimeout("The read operation timed out", request=request), busy])
+    monkeypatch.setattr(pairing, "QueueClient", queue)
+    waits = []
+    monkeypatch.setattr(pairing.time, "sleep", waits.append)
+    fake_cfg = mock.MagicMock()
+    fake_cfg.update.return_value = fake_cfg
+    monkeypatch.setattr(pairing.CompanionConfig, "load", staticmethod(lambda: fake_cfg))
+    monkeypatch.setattr(pairing.autostart, "enable", lambda: None)
+
+    result = pairing.pair(token="exp_e_s@ccdemo.pearnly.com", chosen=acc, all_sets=[acc], express_root=str(tmp_path))
+
+    assert result.ok, result.error
+    assert len(calls) == 3 and waits == list(pairing.REPORT_RETRY_PAUSES)
+    assert all(call["account_sets"] == calls[0]["account_sets"] for call in calls)   # 每次都是整份同一份名单
+
+
+def test_pairing_gives_up_after_the_retries_and_does_not_retry_a_refused_key(tmp_path, monkeypatch):
+    import httpx
+
+    acc = _acc(tmp_path)
+    request = httpx.Request("POST", "https://ccdemo.pearnly.com/x")
+    queue, calls = _flaky_queue([httpx.ReadTimeout("timed out", request=request)] * 5)
+    monkeypatch.setattr(pairing, "QueueClient", queue)
+    monkeypatch.setattr(pairing.time, "sleep", lambda _s: None)
+    result = pairing.pair(token="exp_e_s@ccdemo.pearnly.com", chosen=acc, all_sets=[acc], express_root=str(tmp_path),
+                          lang="th")
+    assert not result.ok and result.error_key == "pair_err_network" and len(calls) == pairing.REPORT_ATTEMPTS
+
+    refused = httpx.HTTPStatusError("no", request=request, response=httpx.Response(401, request=request))
+    queue, calls = _flaky_queue([refused] * 5)
+    monkeypatch.setattr(pairing, "QueueClient", queue)
+    result = pairing.pair(token="exp_e_s@ccdemo.pearnly.com", chosen=acc, all_sets=[acc], express_root=str(tmp_path))
+    assert not result.ok and result.error_key == "pair_err_invalid_code" and len(calls) == 1
+
+
+def test_a_report_with_the_whole_account_list_waits_longer_than_a_plain_heartbeat(monkeypatch):
+    import httpx
+
+    from src.companion import queue_client
+
+    seen = []
+
+    def handler(request):
+        seen.append(request.extensions["timeout"])
+        return httpx.Response(200, json={"message": {"ok": True}})
+
+    real = httpx.Client
+    monkeypatch.setattr(queue_client.httpx, "Client",
+                        lambda **kw: real(**{**kw, "transport": httpx.MockTransport(handler)}))
+    with queue_client.QueueClient(queue_client.QueueClientConfig("https://ccdemo.pearnly.com", "exp_e_s", "c")) as qc:
+        qc.health(account_sets=[{"path": "S:\\A"}])
+        qc.health(account_sets_unchanged=True)
+        qc.poll()
+    full, slim, lease = seen
+    assert full["read"] == queue_client.FULL_REPORT_TIMEOUT_S >= 60 and full["connect"] == 5.0
+    assert slim["read"] == lease["read"] == 10.0

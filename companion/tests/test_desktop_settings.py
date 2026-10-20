@@ -184,13 +184,37 @@ def test_one_computer_one_company_another_company_needs_an_explicit_switch(tmp_p
     # 同一家公司再连一条（例如 MR.ERP）照常添加
     assert settings.pair("exp_m_s@TestCowork.pearnly.com", "zh")["ok"] is True
     assert paired[-1] == [store.profiles[0].profile_id]
-    # 用户点了「改连本公司」：原来的成员全部断开后再配对；配对失败也要重启取任务线程
+    # 用户点了「改连本公司」，新连接第一次配对没成（教程问题第 10 条：健康检查超时）：原来那家照旧连着、密钥不吊销，
+    # 不用重启取任务线程（以前先断开旧的再配对，这时两边都没连着）
+    left = []
+    settings = _settings(store, leave=lambda url, token: left.append((url, token)) or True)
     monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: paired.append(
-        [p.profile_id for p in _store.profiles]) or SimpleNamespace(ok=False, error_key="pair_err_token_format",
+        [p.profile_id for p in _store.profiles]) or SimpleNamespace(ok=False, error_key="pair_err_network",
                                                                      error_fmt={}))
+    before = [p.profile_id for p in ProfileStore.load(store.path, protector=_Protector()).profiles]
     result = settings.pair("exp_c_s@other.pearnly.com", "zh", switch=True)
-    assert result["ok"] is False and result["profiles_changed"] is True
-    assert paired[-1] == [] and settings.snapshot()["members"] == [] and settings.snapshot()["site"] == ""
+    assert result["ok"] is False and "profiles_changed" not in result
+    assert left == [] and paired[-1] == before
+    assert [m["id"] for m in settings.snapshot()["members"]] == before
+    assert settings.snapshot()["site"] == "testcowork.pearnly.com"
+
+    # 再点一次配上了：新成员存下之后才吊销原来的密钥（发到原来的站点）、删原来的成员，再重启取任务线程
+    def paired_ok(_store, code, roots, profile_id, lang):
+        paired.append([p.profile_id for p in _store.profiles])
+        cfg = _store.new_runtime_config()
+        cfg.update(backend_url="https://other.pearnly.com", bearer_token="exp_c_s", account_dir=r"S:\\EXP68\\ACME",
+                   account_set=r"S:\\EXP68\\ACME", account_company="Acme Co.", paired=True)
+        _store.save_profile(cfg)
+        assert left == []   # 新的配好之前没吊销旧的
+        return SimpleNamespace(ok=True, error_key="", error_fmt={})
+
+    monkeypatch.setattr(pairing_flow, "run", paired_ok)
+    assert settings.pair("exp_c_s@other.pearnly.com", "zh", switch=True) == {"ok": True, "profiles_changed": True}
+    assert paired[-1] == before
+    assert left == [("https://testcowork.pearnly.com", "exp_endpoint-1_secret")]
+    after = settings.snapshot()
+    assert after["site"] == "other.pearnly.com" and len(after["members"]) == 1
+    assert after["members"][0]["id"] not in before
 
 
 def test_reconnecting_the_same_connection_replaces_its_member(tmp_path, monkeypatch):

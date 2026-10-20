@@ -464,11 +464,22 @@ function Connections({ api }: { api: Desktop }) {
           <LinkAction link={linkState} onConnect={connect} onDownload={download} disabled={!!busy} />
         )}
       </div>
-      {main && linkState.kind === "other_site" && state.site !== location.host && (
+      {/* 连着别家公司：改连本公司。桌面端新连接配好才断开原来那家；没配上时原来那家照旧连着，失败就写在这一行、按钮再试一次
+          （教程问题第 10 条） */}
+      {main && state.site !== location.host && ["other_site", "connecting", "failed"].includes(linkState.kind) && (
         <div className="cc-settings-row justify-end">
-          <button type="button" className="cc-btn" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
-            {st.switchTo(location.host)}
-          </button>
+          {linkState.kind === "connecting" ? (
+            <span className="text-body text-muted-foreground">{st.connecting}</span>
+          ) : (
+            <>
+              {linkState.kind === "failed" && (
+                <span className="text-body text-danger">{linkState.message || st.linkFailed}</span>
+              )}
+              <button type="button" className="cc-btn" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
+                {linkState.kind === "failed" ? st.retry : st.switchTo(location.host)}
+              </button>
+            </>
+          )}
         </div>
       )}
 

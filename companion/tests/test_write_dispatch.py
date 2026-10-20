@@ -446,3 +446,44 @@ def test_rescan_soon_makes_the_next_heartbeat_scan_everything_again(monkeypatch)
     master_refresh.rescan_soon()
     second = wait(first[1])
     assert second[0] is not None and scans == ["C:/books", "C:/books"]
+
+
+def test_waiting_for_someone_to_answer_the_busy_prompt_is_not_a_stall():
+    """教程问题「附」（10-20 19:47:31）：Express 开着同一份账套，询问框等人点的时候看门狗判「poll loop 卡死 190s」、重启
+    取任务线程，旧线程停下时把这次询问当成「终止」。等人点时线程照常盖存活时标；没在等人（真卡住）照旧算卡死。"""
+    import threading
+
+    from PySide6.QtCore import Qt
+
+    from companion import watchdog
+
+    now = [1000.0]
+    pw = _poll_worker()
+    pw._live = watchdog.Liveness(clock=lambda: now[0])
+    limit = watchdog.stall_limit_seconds(60)
+    shown = []
+    # 真机上询问框由界面线程弹（排队连接）；这里没有事件循环，直接在发信号的线程里收下
+    pw.busy_prompt.connect(shown.append, Qt.ConnectionType.DirectConnection)
+    answer = {}
+    asking = threading.Thread(target=lambda: answer.update(choice=pw._ask_busy("zh")), daemon=True)
+    asking.start()
+    try:
+        deadline = time.monotonic() + 5
+        while not shown and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert shown, "询问框没弹"
+        for _minute in range(5):   # 人五分钟没点
+            now[0] += 60.0
+            time.sleep(0.5)
+            assert not watchdog.is_stalled(pw.stall_seconds(), limit), pw.stall_seconds()
+        shown[0].choice = "retry"
+        shown[0].done.set()
+        asking.join(5)
+        assert answer == {"choice": "retry"}
+    finally:
+        pw._stop = True
+        asking.join(5)
+    # 不在等人时不盖时标：真卡住照旧判卡死、自愈
+    now[0] += limit + 10
+    time.sleep(0.5)
+    assert watchdog.is_stalled(pw.stall_seconds(), limit)
