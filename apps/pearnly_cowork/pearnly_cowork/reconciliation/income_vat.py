@@ -37,7 +37,12 @@ Intentional changes (2026-09-29, found reproducing wrong results offline):
 * a day the ledger books as one summary voucher while the report lists every invoice
   pairs as a whole: all the day's unpaired VAT lines go to the day's only unpaired
   voucher when their sum is within ฿1 of it (2026-09-30, I03 .xls). The per-line
-  rounding shows as the difference on the last line.
+  rounding shows as the difference on the last line;
+* a VAT number the ledger does not have pairs with the voucher the same document is
+  known to have got (``aliases`` from the push records: CC Desktop numbers a sale
+  itself when the printed number is longer than Express allows, ABB6909-00007 →
+  HS690912-001), when that voucher is in the ledger and no VAT line names it
+  (2026-10-20 tutorial recording: the sale showed once on each side).
 
 Pure logic: no Frappe, database, file, clock, HTTP, model or export access. Reading
 the GL and VAT files, persisting tasks and building the workbook stay in the legacy
@@ -215,6 +220,34 @@ def pair_prefixed_numbers(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]]) 
 	return paired
 
 
+def pair_known_numbers(gl_rows: List[GlRow], vat_rows: List[Dict[str, Any]],
+		aliases: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+	"""票面号与总账凭证号不同、但已知是同一张单据（``aliases`` {票面号规范化: 总账凭证号}，调用方从推送记录取：
+	票号超出 Express 单号宽度时 CC 桌面版改用自编号，ABB6909-00007 → HS690912-001，2026-10-20 教程录制）：税报行的号在总账里
+	没有、对应的凭证在总账里有且没被别的税报行点名，就按那张凭证配（同 `pair_prefixed_numbers` 的做法：配上后这一行算那张凭证）。
+	一张凭证只配一行；两行指向同一张凭证的都不配。"""
+	if not aliases:
+		return list(vat_rows)
+	gl_by_number = {}
+	for row in gl_rows:
+		if row.norm_doc_no:
+			gl_by_number.setdefault(row.norm_doc_no, row)
+	named = {normalize_doc_no(vat_doc_no(vat)) for vat in vat_rows} - {""}
+	wanted: Dict[str, List[int]] = defaultdict(list)
+	for index, vat in enumerate(vat_rows):
+		norm = normalize_doc_no(vat_doc_no(vat))
+		if not norm or norm in gl_by_number:
+			continue
+		voucher = normalize_doc_no(aliases.get(norm) or "")
+		if voucher and voucher in gl_by_number and voucher not in named:
+			wanted[voucher].append(index)
+	paired = list(vat_rows)
+	for voucher, indexes in wanted.items():
+		if len(indexes) == 1:
+			paired[indexes[0]] = dict(vat_rows[indexes[0]], report_ref_no=gl_by_number[voucher].doc_no)
+	return paired
+
+
 DAILY_TOLERANCE = 1.0  # 当日几百张发票逐张四舍五入，合计与汇总凭证差几毛
 
 
@@ -268,14 +301,17 @@ def reconcile_gl_vat(
 	gl_rows: List[GlRow],
 	vat_rows: List[Dict[str, Any]],
 	amount_tolerance: float = AMOUNT_TOLERANCE,
+	aliases: Optional[Dict[str, str]] = None,
 ) -> Tuple[List[ReconRow], GlVatSummary]:
 	"""Pair the VAT report with the ledger and summarize what each side misses.
 
 	The VAT side is the driver of the detail list; a difference within
-	``amount_tolerance`` is reported as a zero difference.
+	``amount_tolerance`` is reported as a zero difference. ``aliases`` maps a
+	printed number to the ledger voucher the same document got
+	(`pair_known_numbers`).
 	"""
 	vat_rows = pair_daily_totals(gl_rows, pair_prefixed_numbers(gl_rows,
-		pair_unnumbered_lines(gl_rows, vat_rows, amount_tolerance)))
+		pair_unnumbered_lines(gl_rows, pair_known_numbers(gl_rows, vat_rows, aliases), amount_tolerance)))
 	gl_idx: Dict[str, List[GlRow]] = defaultdict(list)
 	for row in gl_rows:
 		if row.norm_doc_no:

@@ -239,7 +239,11 @@ class ServiceEntrypoints(unittest.TestCase):
         service.connections.read_for_push = lambda *a, **k: loaded
         service.connections.ensure_account_masters = lambda *a, **k: dict(self.masters)
         service._express_facts = lambda *a: facts
+        service._express_context = lambda *a: {"target": facts[0], "flat": facts[1], "fields": facts[2],
+                                               "direction": facts[3], "preparation": facts[4],
+                                               "selected": {"config": facts[5]}}
         service._document_block = lambda doc: None
+        service._planned = lambda *a, **k: None
 
     masters = {"state": "ready", "present": True}
 
@@ -282,6 +286,53 @@ class ServiceEntrypoints(unittest.TestCase):
         self.assertNotIn("fixed", service.choices_view("H1", "C1", BOOK, None))
         self.assertEqual(seen, [None])
 
+    def test_choices_view_says_how_it_will_be_entered_when_nothing_is_needed(self):
+        """2026-10-20 教程录制：推前说赊购、写进去是记住的现购。没有要选的项时 `choices_view` 用准备推送同一套试算给出
+        ``planned``（与入账后的 written 同一个函数），记住的现购与票种指向的赊购不同时带 ``document_payment``。"""
+        service, _frappe_module, _calls = _service(hooks=[], providers={})
+        planned = service._planned  # 试算用真的（`_wired` 把它换成了不试算）
+        self._wired(service)
+        service._planned = planned
+        loaded = types.SimpleNamespace(endpoint={"adapter": "express"}, doc=types.SimpleNamespace(name="C1"),
+                                       access=types.SimpleNamespace(tenant_id="T1"))
+        service.connections.read_for_push = lambda *a, **k: loaded
+        pushed = _load("pushed_planned", APP / "push/express/pushed.py", {})
+        fields = {"seller_tax": "0105599220205", "document_type": "tax_invoice"}
+        context = {"target": types.SimpleNamespace(account_set=BOOK), "flat": {"total_amount": "30013.50"},
+                   "fields": fields, "direction": "purchase", "selected": {"config": {}}, "history_value": {},
+                   "own_tax": "", "account_row": {},
+                   "preparation": {"supplier_profiles": {}, "bank_index": [], "mappings": {}}}
+        payload = {"direction": "purchase", "doctype": "HP", "doctype_src": "remembered", "items_account": "51-03-01-00",
+                   "account_source": "chosen", "doc_lane": "goods", "vat_amount": "1963.50"}
+        prepared = []
+        service._express_context = lambda *a: context
+        service.prepare_express = lambda selected, history, **k: prepared.append(selected["config"]["choices"]) or \
+            types.SimpleNamespace(disposition="ready", payload=dict(payload))
+        verdicts = []
+        # 票面本身的现 / 赊（不带选择）：税票 → 赊（第③级票种）；付款判定本身另有测试，这里看接线与传的参数
+        service.pushed_rules = pushed
+        service.payment_rules = types.SimpleNamespace(
+            payment_verdict=lambda fields, **k: verdicts.append((fields, k)) or (False, "doc_type"))
+        service._apply_stock_group = lambda *a: None
+        service.explicit_direction = lambda *a: True
+        service.clean_tax_id = lambda value: value
+        service._account_tax = lambda row: ""
+        service._decisions = lambda *a, **k: {"needed": [], "applied": {"payment": "cash", "payment_from": "remembered"},
+                                              "decided_by": {"payment": "remembered"}}
+        view = service.choices_view("H1", "C1", BOOK, None)
+        self.assertEqual(prepared, [{"payment": "cash", "payment_from": "remembered"}])
+        self.assertEqual((view["planned"]["payment"], view["planned"]["payment_from"]), ("cash", "remembered"))
+        self.assertEqual(view["planned"]["document_payment"], {"payment": "credit", "from": "document_type"})
+        (seen_fields, seen_kwargs), = verdicts
+        self.assertNotIn("posting_payment_manual", seen_fields)
+        self.assertEqual((seen_kwargs["direction"], seen_kwargs["total"]), ("purchase", "30013.50"))
+        # 还有要选的、试算不成：不给（推时再说）
+        service._decisions = lambda *a, **k: {"needed": [{"kind": "payment", "subject": "S"}], "applied": {}}
+        self.assertNotIn("planned", service.choices_view("H1", "C1", BOOK, None))
+        service._decisions = lambda *a, **k: {"needed": [], "applied": {}}
+        service.prepare_express = lambda *a, **k: types.SimpleNamespace(disposition="manual", payload={"doctype": "RR"})
+        self.assertNotIn("planned", service.choices_view("H1", "C1", BOOK, None))
+
     def test_save_choices_refuses_kinds_covered_by_the_task_defaults(self):
         service, _frappe_module, calls = _service(hooks=["p.one"], providers={"p.one": {"account": "5300"}})
         self._wired(service)
@@ -302,6 +353,95 @@ class ServiceEntrypoints(unittest.TestCase):
         self._wired(service)
         items = [{"kind": "account", "subject": "s", "value": "5400"}]
         self.assertEqual(service.save_choices("H1", "C1", BOOK, json.dumps(items)), {"saved": 1})
+
+
+class DocumentPayment(unittest.TestCase):
+    """2026-10-20 教程录制：用户说「印了已转账的是现金、其余赊账」，同一家供应商（KD / NL）各有一张现金、一张赊账，CC 为每张票
+    记现 / 赊，账套记忆按供应商只有一个值、后记的盖掉先记的，两张都按同一个值写进 Express。CC 为这张票记的现 / 赊同时写成这张
+    票自己的付款方式（`posting_payment_manual`，同复核页，付款判定第一级）。"""
+
+    SUPPLIER = "0105599220205"
+
+    def _service(self, *, status="", manual=None, direction="purchase"):
+        service, _frappe_module, calls = _service()
+        fields = {"seller_tax": self.SUPPLIER, "seller_name": "NETLINK"}
+        if manual:
+            fields["posting_payment_manual"] = manual
+        doc = types.SimpleNamespace(name="H1", workspace="W1", client="", record_version=4, last_push_status=status,
+                                    pages=json.dumps([{"fields": dict(fields)}]))
+        loaded = types.SimpleNamespace(endpoint={"adapter": "express"}, doc=types.SimpleNamespace(name="C1"))
+        facts = (types.SimpleNamespace(account_set=BOOK), {}, fields, direction, {}, {})
+        service.scope.require = lambda *a: None
+        service.storage.read = lambda history, **k: doc
+        service.connections.read_for_push = lambda *a, **k: loaded
+        service._express_facts = lambda *a: facts
+        service.choice_rules = _choice_rules  # 归类键用真的（同 `choices.resolve`）
+        service.primary_page = lambda pages: pages[0]
+        updates = []
+        service.storage.update_pages = lambda name, pages, version: updates.append((name, pages, version))
+        return service, calls, updates
+
+    def items(self, value, supplier=None):
+        return json.dumps([{"kind": "payment", "subject": "purchase|" + (supplier or self.SUPPLIER), "value": value}])
+
+    def test_the_payment_cc_saves_for_a_document_is_written_on_that_document(self):
+        service, calls, updates = self._service()
+        out = service.save_choices("H1", "C1", BOOK, self.items("credit"), document_payment=True)
+        self.assertEqual(out, {"saved": 1, "document_payment": "credit"})
+        self.assertEqual([record[2:5] for record in calls["records"]],
+                         [("payment", "purchase|" + self.SUPPLIER, "credit")])  # 供应商记忆照记（以后的票用）
+        (name, pages, version), = updates
+        self.assertEqual((name, version, pages[0]["fields"]["posting_payment_manual"]), ("H1", "4", "credit"))
+
+    def test_the_web_entry_and_other_cases_leave_the_document_alone(self):
+        for kwargs, setup in (({}, {}),                                          # 网页「要选的项」照旧只记供应商
+                              ({"document_payment": True}, {"status": "success"}),  # 已入账的不动
+                              ({"document_payment": True}, {"direction": "sales"})):
+            with self.subTest(kwargs=kwargs, setup=setup):
+                service, _calls, updates = self._service(**setup)
+                out = service.save_choices("H1", "C1", BOOK, self.items("cash"), **kwargs)
+                self.assertEqual((out, updates), ({"saved": 1}, []))
+        # 选的是别家供应商的现 / 赊：不写到这张票上
+        service, _calls, updates = self._service()
+        out = service.save_choices("H1", "C1", BOOK, self.items("cash", "0105599220213"), document_payment=True)
+        self.assertEqual((out, updates), ({"saved": 1}, []))
+        # 这张票已是这个值：不重写
+        service, _calls, updates = self._service(manual="cash")
+        out = service.save_choices("H1", "C1", BOOK, self.items("cash"), document_payment=True)
+        self.assertEqual((out, updates), ({"saved": 1, "document_payment": "cash"}, []))
+
+    def test_two_documents_of_one_supplier_keep_their_own_payment_when_pushed(self):
+        """录制里的那一对：先记 NL-0924 现金、再记 NL-0907 赊账，供应商记忆最后是赊账；推送时各按自己的付款方式。"""
+        remembered = {"payment": {"purchase|" + self.SUPPLIER: "credit"}}
+        for manual, expected in (("cash", "cash"), ("credit", "credit"), (None, "credit")):
+            with self.subTest(manual=manual):
+                fields = {"seller_tax": self.SUPPLIER, "seller_name": "NETLINK", "document_type": "tax_invoice"}
+                if manual:
+                    fields["posting_payment_manual"] = manual
+                decision = _choice_rules.resolve(fields, direction="purchase", posting_kind="service", config={},
+                                                 remembered=remembered)
+                applied = decision["applied"]
+                paid = applied.get("remember_payment") or applied.get("payment")
+                self.assertEqual(paid, expected)
+
+
+class KnownNumbers(unittest.TestCase):
+    """收入对账问的票号 ↔ Express 单号（钩子 ``cowork_recon_known_numbers``）：只读这个工作空间推送成功的记录。"""
+
+    def test_successful_pushes_of_the_workspace_give_both_numbers(self):
+        service, frappe_module, _calls = _service()
+        queries = []
+        frappe_module.db.sql = lambda query, values: queries.append((" ".join(query.split()), values)) or [
+            ("ABB6909-00007", "HS690912-001"), ("", "HS690926-001"), ("IV1", None)]
+        found = service.known_numbers("W1", ["ABB6909-00007"], ["HS690912-001", " HS690926-001 ", "HS690912-001", ""])
+        self.assertEqual(found, [("ABB6909-00007", "HS690912-001")])
+        (query, values), = queries
+        self.assertIn("WHERE workspace=%s AND status='success' AND external_docnum IN %s", query)
+        self.assertEqual(values, ("W1", ("HS690912-001", "HS690926-001")))
+        queries.clear()
+        self.assertEqual((service.known_numbers("W1", [], ["HS1"]), service.known_numbers("", ["A"], ["HS1"]),
+                          service.known_numbers("W1", ["A"], [])), ([], [], []))
+        self.assertEqual(queries, [])
 
 
 # ── 接线：钩子登记、两个入口都经 _fixed、词条 ────────────────────────────────────────

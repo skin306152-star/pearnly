@@ -132,6 +132,60 @@ ACCOUNT_FROM = {"chosen": "chosen", "remembered": "remembered", "task_default": 
                 "config_default": "default"}
 
 
+# 推前的「会怎么写」（`planned`）里，现 / 赊由这几层定时，票面本身指向的现 / 赊另给（票面没写 / 票种推不出来的不给）
+CHOICE_LAYERS = ("remembered", "company_rule", "task_default")
+# 票面这一侧的付款判据（`payment.payment_verdict` 的来源）→ 同 PAYMENT_FROM 一套词
+DOCUMENT_FROM = {"explicit": "document", "doc_type": "document_type", "profile": "supplier_profile", "bank": "bank"}
+
+
+def planned(payload: Any, decided_by: Any = None, company_rules: Any = None,
+            document_verdict: Any = None) -> Optional[Dict[str, Any]]:
+    """推之前这张单会怎么写进 Express（复核页「要选的项」与 CC 的 `cowork_push_choices`）：与入账后的 ``written`` 同一个函数、
+    同一份载荷（准备推送那一步试算出的），所以推前说的与写进去的是同一个值。
+
+    现 / 赊由账套记忆、公司规则或任务默认定（``payment_from`` 在 `CHOICE_LAYERS`），而票面自己指向另一个值时（``document_verdict``
+    是不看这些选择时票面的判定 ``(是否已付, 来源)``），另给 ``document_payment`` ``{payment, from}``：CC 推前据此说清「按记住的
+    现购写，不按票面的赊购」（2026-10-20 教程录制：推前说赊购，写进去是现购，事后才解释）。不是 Express 进 / 销项载荷回 None。"""
+    out = written(payload, decided_by, company_rules)
+    if not out:
+        return None
+    paid, source = document_verdict if isinstance(document_verdict, tuple) and len(document_verdict) == 2 else (None, "")
+    if out.get("payment_from") in CHOICE_LAYERS and paid is not None and source in DOCUMENT_FROM:
+        document = "cash" if paid else "credit"
+        if document != out.get("payment"):
+            out["document_payment"] = {"payment": document, "from": DOCUMENT_FROM[source]}
+    return out
+
+
+DOCNUM_BYTES = 12  # Express 单号 DOCNUM C(12)（ARTRN / APTRN / ISVAT / GLJNL），按账套编码 cp874 计
+
+
+def numbers(payload: Any, docnum: Any) -> Dict[str, Any]:
+    """票面号在 Express 里没有原样留下时给 CC 的说法（2026-10-20 教程录制：简易税票 ABB6909-00007 超出单号宽度，CC 桌面版改用
+    自编号 HS690912-001，CC 只报了新单号）：
+
+    - 销项（POS 日汇总除外，它本来就自编号）：单号就该是票面号，不同时给 ``printed_number``（票面号，Express 的参考号与销项税报
+      里仍是它）；超出单号宽度再给 ``number_reason: too_long``；
+    - 进项：单号本来就由账套自己排；票面号超出参考号宽度（REFNUM 15 字节）被缩写时给 ``printed_number`` 与
+      ``reference_written``（写进 Express 的参考号）、``number_reason: too_long``。
+
+    不是 Express 进 / 销项载荷、没有票号或单号的回空。"""
+    payload = payload if isinstance(payload, dict) else {}
+    direction = payload.get("direction")
+    ref, docnum = str(payload.get("ref_no") or "").strip(), str(docnum or "").strip()
+    if (direction, str(payload.get("doctype") or "").strip().upper()) not in PAYMENT_OF or not ref or not docnum:
+        return {}
+    size = len(ref.encode("cp874", "replace"))
+    if direction == "sales":
+        if isinstance(payload.get("pos"), dict) or ref.upper() == docnum.upper():
+            return {}
+        return {"printed_number": ref, **({"number_reason": "too_long"} if size > DOCNUM_BYTES else {})}
+    written = fit_ref_no(ref)
+    if written == ref:
+        return {}
+    return {"printed_number": ref, "reference_written": written, "number_reason": "too_long"}
+
+
 def _rules_used(company_rules: Any, rules_now: Any) -> list:
     """冻结目标里用上的公司规则（`company_choices.used`）→ 给 CC 的 ``[{kind, for, tax_id?, value, value_name?, branch?,
     still_saved?}]``：``for`` 是这条规则的对象（卖方 / 买方名，存货是品名），``tax_id`` 取自归类键里的 13 位税号。

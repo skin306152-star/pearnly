@@ -83,6 +83,12 @@ def save_choices(history, connection, account_set_key, items):
     return _local_transaction(service.save_choices, history, connection, account_set_key, items)
 
 
+def save_document_choices(history, connection, account_set_key, items):
+    """CC 记下用户为这张票选的（`assistant.tools.save_push_choices`）：同 `save_choices`，另把为这张票选的现 / 赊写成这张票自己的
+    付款方式（同复核页改付款方式），同一家供应商的几张票可以各是各的。只给服务端调用，不开网页接口。"""
+    return _local_transaction(service.save_choices, history, connection, account_set_key, items, document_payment=True)
+
+
 @frappe.whitelist(methods=["POST"])
 def resolve_unknown(name, entered, docnum=None):
     """结果不明的推送：会计在 ERP 里核对后标「已入账」（可填 ERP 单号）或「未入账」（之后可重推）。"""

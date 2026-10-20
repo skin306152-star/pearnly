@@ -602,6 +602,10 @@ class PushService(unittest.TestCase):
         service.connections.read_for_push = lambda *a, **k: loaded
         service.connections.ensure_account_masters = lambda *a, **k: {"state": "ready", "present": True}
         service._express_facts = lambda *a: facts
+        service._express_context = lambda *a: {"target": facts[0], "flat": facts[1], "fields": facts[2],
+                                               "direction": facts[3], "preparation": facts[4],
+                                               "selected": {"config": facts[5]}}
+        service._planned = lambda *a, **k: None  # 推前试算另有测试（test_cowork_push_fixed）
         service._document_block = lambda doc: None
         service._decisions = lambda *a, **k: {"needed": [dict(item) for item in needed], "applied": {}}
 

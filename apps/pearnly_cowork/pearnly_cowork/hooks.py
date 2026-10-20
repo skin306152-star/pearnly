@@ -634,6 +634,9 @@ cowork_device_retiring = ["pearnly_cowork.push.native.service.release_route"]
 # 推送记录由哪台电脑写入（`written_by_device` → 电脑名，ADR-021 第 6 批：CC 列推送结果 / 单据详情的 ``written.writer``）：
 # 电脑归 companion，push 不导入它
 cowork_device_labels = ["pearnly_cowork.companion.devices.labels"]
+# 收入对账（`reconciliation.income_recon_service.known_numbers`）：票面号与 Express 单号不同的已推单据（票号超长，CC 桌面版给销项单
+# 自编号，2026-10-20 教程录制），按推送记录里的两个号配；reconciliation 不导入 push
+cowork_recon_known_numbers = ["pearnly_cowork.push.application.service.known_numbers"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",
