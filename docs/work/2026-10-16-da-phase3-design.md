@@ -851,6 +851,7 @@
       没有单据起始的页都在文字层里重复了某张已读单的单号 + 含税额 + 读出的 13 位税号时不出这一条；`server.read`（原件地址那条路自己抽）与
       `client.read`（随图片带上）各接一处；改完要重发甲骨文 claude-ocr（`scripts/claude-ocr/deploy.sh`）。按架构文档「改它的提示词、规则先过闸门」
       要先跑 `scripts/claude-ocr/run-gate.sh`（甲骨文、付费），本窗口不能连甲骨文、不能付费识别，所以没施工。它只多花一次 Opus（不影响判类）。
+      （10-20 已施工，见下面「识别阶段副本页不升 Opus」；闸门与重发甲骨文还没做。）
   - **6 张没判是设计如此，不是漏送**：INV2025080123 / 176 / 222 / 251 / 254 / 282 都是定时任务的票（批次 `request_key` 以 `folder:` 开头），
     `last_push_reason = choice_needed:party`、`last_push_record` 空、`auto_checked_at` 空、`edit_count = 0`。定时任务的顺序是
     `folder_intake/push._push_to`：先 `choices_view`，还有要人选的项（这里是对方档；这 6 家为什么要选——T8BAKEL 客户主档里没有、或不止一档——
@@ -980,6 +981,51 @@
     说明同步，允许卡片上销项这一项叫「收入科目」；
   - 测试 `tests/test_cowork_sales_income_default.py`（CI 加一步）：设了 → 推送用它、判 A；没设 → B；拒非收入科目；进项不变；MR.ERP 不变；
     CC 工具能设（`tests/test_cowork_assistant_tools.py`）。
+
+- **识别阶段副本页不升 Opus（10-20，分支 `pearnly/ocr-copy-pages`，起点 origin/main `1c98ffa0` = 生产 `23471f87` + 发布记录，代码 `95585394`）**：
+  补上面 E11「升 Opus 那一条没改」。现象：一份电子 PDF 第 1 页正本、后面几页是同一张票的副本 / 收据联，Haiku 只读出 1 张单，
+  `claude_ocr.rules.voucher_problems` 报「N pages but only 1 documents were read」→ 换 Opus 重读，结果不变、白花约 0.1 美元。
+  - **改法**（都在共用层，三产品同一条路）：
+    - `claude_ocr.pages.page_texts(files)`：与 `prepare` 出的页一一对应的 PDF 文字层（pymupdf `page.get_text()`；图片页空串；每个 PDF 与合起来
+      都截到 `MAX_PAGES`）；某页抽不出给空串；pymupdf 没有 / PDF 打不开时给不出逐页对应，回 `None`（等于没有文字层）。从不抛错，不影响识别，
+      不交给模型（只给自检用）。
+    - `rules.copy_page` / `copies_only`，`voucher_problems(read, pages, page_texts=None)`、`engine.run(…, page_texts=None)`：读出的单比页数少时，
+      **没有单据起始的页**（页号不在 `documents[].page` 里）**全都**是前面某张已读单的再印才不出这一条。一页算再印：这一页自己的文字层里有那张单的
+      单号（完整的号，前后不连字母数字，至少 4 个字母数字）、含税额（完整的数，不为 0）、它**读出的每个** 13 位税号（至少一个）；那张单的起始页
+      在这一页之前；这一页不是减项 / 增项通知单（除非那张单本身是减项单）。文字层与页数对不上、有单据没记起始页 / 起始页越界、扫描件（空串）、
+      隐形识别文字层、读不出 13 位税号的，照旧出这一条、照旧升 Opus，不放宽。别的原因（缺字段、校验位、金额对不上）照旧升。
+    - 与 Cowork 自动推前的 `push.express.automation.same_document_page` **同口径、同一组函数**：单号 / 金额 / 税号 / 减项单标题四个比对原样从
+      `automation` 搬到共用层 `pearnly_core.tax_documents.printed`（纯标准库；pearnly_core 不能依赖 pearnly_cowork），Cowork 改为从那里导入、名字
+      照旧导出（测试断言是同一个对象）。唯一的差别：Cowork 核对方税号；识别阶段不知道进销方向，读出的税号都要在（只会更严）。
+    - 接入：`server.read`（甲骨文）按原件地址读（`original` / `originals`）时自己抽文字层（只有 `kind = voucher`；对账逐页读不抽）；随图片来的请求认
+      `page_texts`（与图片一样多页、全是字符串才用，`given_texts`）。`client.read` 单据另抽文字层，随图片交甲骨文（`page_texts`）、本机兜底
+      `_local` 同样交给引擎；检查点键不变。旧调用方（不带 `page_texts`）、还没重发的甲骨文服务（不认这一项）都照旧。`stored_pages` / `stored_set`
+      照旧只回页（新加 `stored_read` / `stored_set_read` 同时回文字层）。
+    - 甲骨文部署包：`scripts/claude-ocr/deploy.sh` 多带 `tax_documents/__init__.py`、`printed.py`（测试 `OracleBuild` 守：`claude_ocr` 里除 `client`
+      外导入的共用层模块都要在部署包里）。`run-gate.sh` 加 `GATE_LOCAL_ENGINE=1`：gate 容器里用候选工作树的引擎直调 Anthropic（同生产本机兜底，
+      结果 `where = local`），不经常驻服务——**闸门可以在重发服务之前跑**（常驻服务是生产在用的那一份）。这个开关本窗口没在甲骨文上跑过。
+  - **有意变化**：Claude 路线的多页电子 PDF（正本 + 副本 / 收据联）只用 Haiku 的读法，不再升 Opus；`why` 里不再有这一条。识别结果的格式不变。
+  - **测试**（本机离线全过）：`tests/test_claude_ocr_rules.py`（CI）`CopyPages`：副本 / 收据联页不出这一条（含千分位、税号带连字号、单号断开一个
+    空白；4 页；两张单各带副本；减项单与它的副本）；真漏读（后面页单号不同、单号更长 / 带前缀、金额不同、金额是更大数的一部分、买方不同、
+    减项单标题）照旧出；扫描页（空串 / 空白）照旧出；没有 13 位税号、读出的买方税号没印在副本上照旧出（只读出卖方税号的只看卖方）；旧调用方
+    不带 `page_texts`、页数对不上、给一整段字符串照旧出；含税额为 0、单号太短、没记 / 越界的起始页照旧出；副本须在正本之后；引擎带文字层只用
+    Haiku、不带照旧升 Opus、截到 `MAX_PAGES`、文字层不进模型请求。`PageTexts`（假 pymupdf：与 `prepare` 对齐、某页抽不出、截页、没装 / 打不开回
+    `None`、只有图片不用 pymupdf）；`Service`（随图片来的文字层：对的才用，页数不对 / 非字符串 / 不给照旧升）；`OracleBuild`。
+    `tests/test_claude_ocr_products.py`（候选离线，生产镜像，真 pymupdf）`CopyPages`：真 PDF 抽文字层与页对齐（含没有文字层的页、图片、坏 PDF）；
+    站点把文字层交甲骨文（只有单据带）；甲骨文连不上时本机兜底拿到文字层、只用 Haiku；甲骨文按原件地址读（单份、几份带转正）自己抽、对账
+    逐页读不抽、旧入口 `stored_pages` 照旧。`tests/test_cowork_da_automation.py` 原有副本页判据全过 + 共用函数同一个对象。
+  - **上线前还要做的两步**（开发窗口，连甲骨文、付费；本窗口不能做）：
+    1. **闸门**：本分支同步过去，`GATE_LOCAL_ENGINE=1 bash scripts/claude-ocr/run-gate.sh invoices --set <test / sm / ex> --ids <这批多页 PDF>`
+       （只挑 3 页以上的电子 PDF：上一次闸门结果里 `pages ≥ 3`、`escalated` 为真、`why` 里有「pages but only」的那几份；先把
+       `/opt/pearnly-claude-eval/runs-prod/<set>-prod-cowork.jsonl` 与 `-prod-erp.jsonl` 挪开留作对照，否则已跑过的会被跳过）。逐份比：
+       ① 这类原件现在 `escalated` 为假、`why` 为空、`usd` 降到只剩 Haiku 一次；② 金标打分（同原来的评测打分工具）这几份每个字段与上一次（Opus）
+       相同或更好——有一份字段变差就不上线，记下是哪一页、哪一项；③ 单据张数不变（没有因此少录一张）；④ 不该放过的照旧升：扫描件、
+       同一 PDF 里真有第二张单的仍 `escalated`；⑤ 总花费、平均秒数新旧对比。另随机挑几份 1–2 页的单据确认结果逐项不变（规则只在 3 页以上起作用）。
+    2. **重发甲骨文 claude-ocr**：闸门过了再 `bash scripts/claude-ocr/deploy.sh`（不带 `--secrets`），回读 `docker ps` 正常、`/healthz`；之后生产
+       按原件地址读的 Cowork 录入马上按新规则（甲骨文自己抽文字层），随图片的那条路（ERP、Cowork 没存甲骨文的、本机兜底）要等生产镜像随下一批部署。
+       出问题：在 main（不含本条）上重跑 `deploy.sh` 回到旧服务。
+  - **没核到的**：真实 E11 原件的副本页上是不是每页都印着卖方、买方两个税号（上面 10-19 测试窗口只核了对方税号）：只印一方的那几页照旧升 Opus，
+    要闸门第 ① 项看实际放过几份。
 
 ## 第一轮回放后的决定（2026-10-16）
 
