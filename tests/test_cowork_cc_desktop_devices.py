@@ -828,6 +828,36 @@ class DeviceRegister(Base):
         self.assertEqual(self.register(ADMIN, device_key=KEY_B)["status"], "created")  # 之后的登记不再锁归属行
         self.assertNotIn("Cowork Workspace", [doctype for doctype, _ in LOCKS])
 
+    def test_register_ends_the_read_view_before_it_locks_the_connection(self):
+        """10-20 D9 复测：读视图在等连接行锁之前就建好了，等锁时同一条连接上别的电脑心跳改了自己的密钥行，register 扫这条
+        连接的密钥行就撞 1020，4 次都撞上回 500。现在只读没写时由调用方结束读视图（``before_lock``，`api.register` 传提交），
+        下一句就锁连接行，之后才读 / 锁密钥行与电脑行；新建连接的那一次已写了连接，不提交。"""
+        def before_lock():
+            LOCKS.append(("END_VIEW", None))
+
+        def locks_after_view():
+            ended = LOCKS.index(("END_VIEW", None))
+            return [doctype for doctype, _ in LOCKS[ended + 1:] if doctype in (CONNECTION, CREDENTIAL, DEVICE)]
+
+        STORE.clear()
+        LOCKS.clear()
+        frappe.session.user = ADMIN
+        made = credentials.register("rk-new", True, device_key=KEY_A, before_lock=before_lock)  # 新建本站连接
+        self.assertEqual(made["status"], "created")
+        self.assertNotIn(("END_VIEW", None), LOCKS)
+        frappe.db.commit()
+        for user, key in ((ADMIN, KEY_A), (ADMIN, KEY_B), (ADMIN, KEY_B)):  # exists / created / exists
+            LOCKS.clear()
+            frappe.session.user = user
+            out = credentials.register("rk-%s-%d" % (user, len(STORE[CREDENTIAL])), True, device_key=key,
+                                       before_lock=before_lock)
+            self.assertIn(out["status"], ("created", "exists"))
+            self.assertEqual(LOCKS.count(("END_VIEW", None)), 1)
+            before = [doctype for doctype, _ in LOCKS[:LOCKS.index(("END_VIEW", None))]]
+            self.assertFalse({CONNECTION, CREDENTIAL, DEVICE} & set(before), LOCKS)  # 结束读视图之前没锁过行
+            self.assertEqual(locks_after_view()[0], CONNECTION, LOCKS)  # 下一句就锁连接行
+            frappe.db.commit()
+
     def test_no_pool_only_management_creates_it(self):
         STORE.clear()
         self.assertEqual(self.register(ENTRY, device_key=KEY_A), {"status": "no_connection"})

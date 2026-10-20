@@ -99,9 +99,11 @@ def _management(name):
 
 def _use(name):
     """Issuing a key for one's own computer (D1, ADR-021): entry or management role plus the explicit grant to use
-    this enabled connection. Creating the connection (pool) itself stays management-only (`connections.service`)."""
-    actor = access.require_actor()
+    this enabled connection. Creating the connection (pool) itself stays management-only (`connections.service`).
+    The Connection row is locked first, like authentication / lease / heartbeat (Connection, then the current reads
+    of the issuer's grants)."""
     doc = _connection(name)
+    actor = access.require_actor()
     access.require_connection(doc, actor=actor)
     return doc, actor
 
@@ -333,7 +335,7 @@ def _device_connection(express, *, current=False):
 
 
 def register(request_key, express=False, replace=False, expected_generation=None,
-             device_key=None, device_name=None, rekey=False, rejoin=False):
+             device_key=None, device_name=None, rekey=False, rejoin=False, *, before_lock=None):
     """CC 桌面端用登录的账号连上这台电脑（2026-10-10 起取代手抄配对码，旧配对码照常有效）。
 
     权限（D1，ADR-021）：录入或管理角色、且在这条连接的可用名单里，就能给**自己的**电脑发密钥，签发人 = 本人，
@@ -343,6 +345,12 @@ def register(request_key, express=False, replace=False, expected_generation=None
     不带（旧版）：池里还没有电脑认领过时，照旧一条连接一个槽位——已有电脑连着时不抢，回 `in_use`，用户确认
     「改用这台电脑」后带上那把密钥的代数再来（`replace`），旧电脑立即断开；池里已有认领过的电脑就回
     `update_needed`，旧版不能再顶掉新版。
+
+    ``before_lock``（带设备密钥时）：前面只读没写、马上要锁连接行时调一次，由调用方结束本请求的读视图（`api.register`
+    传提交，事务由调用方收尾）。这样之后的读视图建在拿到连接行锁之后；这条连接的密钥行 / 电脑行只有拿着连接行锁的人改
+    （认证、心跳的报到时间、别的电脑登记），加锁读它们就不会因快照隔离撞 1020。原来读视图在等连接行锁之前就建好了，等锁
+    那几百毫秒里同一条连接上别的电脑心跳改了自己的密钥行，`_find_receipt` / `_latest` 扫这条连接的密钥行就撞 1020，
+    重来时照样再等、再撞（10-20 D9 复测：load-2 一次 register 4 次都撞上，回 500）。
     """
     _enabled()
     actor = access.require_actor()
@@ -356,6 +364,7 @@ def register(request_key, express=False, replace=False, expected_generation=None
         # 九成 register 重试三次仍失败（500）。
         frappe.db.get_value('Cowork Workspace', access.default_workspace(), 'name', for_update=True)
         name = _device_connection(express, current=True)
+    created = False
     if name is None:
         if not express or not _manager(actor):
             return {'status': 'no_connection'}
@@ -364,8 +373,11 @@ def register(request_key, express=False, replace=False, expected_generation=None
             name = service.configure(None, 'express', request_key, 'Express', {})['name']
         except model.ConnectionError as error:
             _error(error.code)
+        created = True
     adapter = frappe.db.get_value(CONNECTION, name, 'adapter')
     if device_key not in (None, ''):
+        if before_lock is not None and not created:
+            before_lock()  # 到这里只读没写；新建连接的那一次已经写了连接，不交给调用方提交
         return _register_device(name, adapter, actor, request_key, device_key, device_name, rekey, rejoin)
     result = issue(name, request_key, replace, expected_generation if replace else None)
     if result.get('status') == 'update_needed':

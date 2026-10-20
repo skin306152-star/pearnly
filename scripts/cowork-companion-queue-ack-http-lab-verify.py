@@ -19,6 +19,7 @@ from uuid import uuid4
 
 import frappe
 from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
+HELD = 1  # 一张领走的单持有的写者锁（见 `locks`）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-queue-http-lab-verify.py')))
 BASE = FIXTURE['NativeQueueHttp']
@@ -42,7 +43,10 @@ class NativeQueueAckHttp(unittest.TestCase):
     db, request, message = BASE.db, BASE.request, BASE.message
     pending, claimed, state = BASE.pending, BASE.claimed, BASE.state
     change_config, receipt = BASE.change_config, BASE.receipt
+    report, choose = BASE.report, BASE.choose  # transport 夹具 setUp 要的（D11 起）
 
+    # 写者锁口径 v2（ADR-021 D6）：Express 新记录只取账套锁，按内容键的公司锁要登记带内容键，合成登记没有，所以一把
+    # （原来按整条连接 + 账套两把；transport 夹具 D11 起同样按一把断言）
     def locks(self, name):
         return self.db(lambda: frappe.db.count(self.native.WRITER_LOCK, {'holder': name}))
 
@@ -99,7 +103,7 @@ class NativeQueueAckHttp(unittest.TestCase):
         self.assertEqual(self.state(name)['fence'], 2)
         self.denied(self.receipt(old_handle), 409)
         self.assertEqual(self.state(name)['status'], 'leased')
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
         self.assertEqual(self.message(self.receipt(new_handle))['status'], 'success')
 
     def test_definite_failure_exhaustion_and_changed_duplicate_conflict(self):
@@ -125,7 +129,7 @@ class NativeQueueAckHttp(unittest.TestCase):
             self.assertEqual(self.message(self.request())['jobs'], [])
         row = self.state(name)
         self.assertEqual((row['status'], row['result_unknown']), ('manual', 1))
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
         self.assertEqual(self.message(self.receipt(handle))['status'], 'success')
         self.assertEqual(self.locks(name), 0)
         self.assertFalse(self.state(name)['result_unknown'])
@@ -213,7 +217,7 @@ class NativeQueueAckHttp(unittest.TestCase):
             self.denied(self.receipt(handle), 401)
             self.assertEqual(checked.call_count, 1)
         self.assertEqual(self.state(name)['status'], 'leased')
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
         self.assertEqual(self.message(self.receipt(handle))['status'], 'success')
 
     def test_delivery_binding_is_revalidated_between_hook_and_write(self):
@@ -235,7 +239,7 @@ class NativeQueueAckHttp(unittest.TestCase):
             'workspace', self.foreign, update_modified=False), commit=True)
         self.denied(self.receipt(handle), 403)
         self.assertEqual(self.state(name)['status'], 'leased')
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
 
     def test_ack_local_deadlock_retries_complete_unit_and_revalidates(self):
         name, handle = self.claimed()
@@ -271,7 +275,7 @@ class NativeQueueAckHttp(unittest.TestCase):
             self.denied(self.receipt(handle), 401)
         self.assertEqual(len(calls), 2)
         self.assertEqual(self.state(name)['status'], 'leased')
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
 
     def test_ack_deadlock_exhaustion_is_503_without_secret_snapshot(self):
         name, handle = self.claimed()
@@ -289,7 +293,7 @@ class NativeQueueAckHttp(unittest.TestCase):
                 self.assertFalse(secret in response.get_data(as_text=True))
         self.assertEqual(len(calls), ATTEMPTS)
         self.assertEqual(self.state(name)['status'], 'leased')
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
 
     def test_decrypted_attempt_secret_never_enters_error_log_or_recorder(self):
         from frappe import recorder
@@ -360,7 +364,7 @@ class NativeQueueAckHttp(unittest.TestCase):
                 self.assertEqual(service.call_count, 1)
         self.assertEqual(committed, [True])
         self.assertEqual(self.state(name)['status'], 'leased')
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
         self.assertEqual(self.message(self.receipt(handle))['status'], 'success')
 
     def test_ack_after_commit_failure_keeps_durable_receipt_for_replay(self):
@@ -399,9 +403,12 @@ class NativeQueueAckHttp(unittest.TestCase):
             decrypted.append(True)
             raise frappe.QueryDeadlockError(secret)
         def rollback(db, *args, **kwargs):
-            # Fail only the queue boundary's first explicit recovery attempt.
+            # Fail only the queue boundary's first explicit recovery attempt (the
+            # whole-transaction rollback in `transaction.conflicts.retried`, which
+            # `queue_api._run` runs the service through since 10-20).
             # Native savepoint handling and the final app rollback remain real.
-            if sys._getframe(1).f_code is self.queue_api._run.__code__ and not rollback_failures:
+            from pearnly_cowork.transaction import conflicts
+            if sys._getframe(1).f_code is conflicts.retried.__code__ and not rollback_failures:
                 rollback_failures.append(True)
                 raise RuntimeError(secret)
             return real_rollback(db, *args, **kwargs)
@@ -418,7 +425,7 @@ class NativeQueueAckHttp(unittest.TestCase):
         after = self.state(name)
         for key in ('status', 'fence', 'revision', 'active_attempt', 'response_json', 'result_unknown'):
             self.assertEqual(after[key], before[key])
-        self.assertEqual(self.locks(name), 2)
+        self.assertEqual(self.locks(name), HELD)
         self.assertEqual(self.message(self.receipt(handle))['status'], 'success')
 
     def test_native_throw_messages_cannot_expose_decrypted_attempt_secret(self):
@@ -445,7 +452,7 @@ class NativeQueueAckHttp(unittest.TestCase):
                         self.assertFalse(secret in str(messages))
                 self.assertEqual(reached, [True])
                 self.assertEqual(self.state(name)['status'], 'leased')
-                self.assertEqual(self.locks(name), 2)
+                self.assertEqual(self.locks(name), HELD)
         self.assertEqual(self.message(self.receipt(handle))['status'], 'success')
 
     def test_receipt_http_capability_cannot_call_lease_or_heartbeat(self):

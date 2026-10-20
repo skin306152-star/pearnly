@@ -39,6 +39,7 @@ def retried(function, *args, **kwargs):
     """调 ``function``；撞上 1020 / 1213 时整笔回滚、退避后重来，最多 :data:`ATTEMPTS` 次，用尽抛 :class:`Exhausted`；
     回滚本身失败抛 :class:`RollbackFailed`、不再重来。别的错误原样抛出、不重来。"""
     messages = len(getattr(frappe.local, "message_log", None) or [])
+    flagged = _error_message()
     for attempt in range(ATTEMPTS):
         try:
             return function(*args, **kwargs)
@@ -48,7 +49,7 @@ def retried(function, *args, **kwargs):
                 rolled_back = True
             except Exception:
                 rolled_back = False
-            _drop_messages(messages)  # 被回滚的那次弹过的话不带给重来的那次
+            _drop_messages(messages, flagged)  # 被回滚的那次弹过的话不带给重来的那次
         if not rolled_back:
             raise RollbackFailed()  # 在 except 外抛：不挂原异常
         if attempt < ATTEMPTS - 1:
@@ -57,7 +58,24 @@ def retried(function, *args, **kwargs):
     raise Exhausted()
 
 
-def _drop_messages(keep):
+_UNSET = object()
+
+
+def _error_message():
+    flags = getattr(frappe, "flags", None)
+    return flags.get("error_message", _UNSET) if flags is not None else _UNSET
+
+
+def _drop_messages(keep, flagged):
+    """去掉被回滚那次留下的两路原生提示：``message_log`` 里它追加的几条，与 ``frappe.flags.error_message``（回复里的
+    ``_error_message``）还原成调用之前的样子（机器方法的那一次里可能带着回执密钥，10-20 lab `queue-http` 夹具核过）。"""
     log = getattr(frappe.local, "message_log", None)
     if log is not None and len(log) > keep:
         del log[keep:]
+    flags = getattr(frappe, "flags", None)
+    if flags is None:
+        return
+    if flagged is _UNSET:
+        flags.pop("error_message", None)
+    else:
+        flags["error_message"] = flagged

@@ -25,6 +25,12 @@ def _local_transaction(function, *args, **kwargs):
     raise frappe.QueryDeadlockError()
 
 
+def _end_read_view():
+    """`credentials.register` 锁连接行之前：到这里只读没写，提交结束本请求的读视图（同 `ocr.execution.service` 结束读快照
+    再锁）。之后的读视图建在拿到连接行锁之后，加锁读这条连接的密钥行不再撞 1020（见 `credentials.register`）。"""
+    frappe.db.commit()
+
+
 # 管理用的 issue / revoke / status 三个接口已下线（ADR-021）：没有界面调用，多台电脑后「当前那把」也说不清。
 # 电脑一律经 `register` 拿自己的密钥；断开连接由电脑自己 `device_leave`。
 
@@ -61,7 +67,7 @@ def register(request_key, express=False, replace=False, expected_generation=None
     新版带 `device_key` / `device_name` / `rekey` / `rejoin`（ADR-021；`rejoin` = 被移除的电脑由人亲手点「连接」重新加入）；
     不带的照旧走一条连接一个槽位。"""
     return _local_transaction(credentials.register, request_key, express, replace, expected_generation,
-                              device_key, device_name, rekey, rejoin)
+                              device_key, device_name, rekey, rejoin, before_lock=_end_read_view)
 
 
 @frappe.whitelist(methods=['POST'])
