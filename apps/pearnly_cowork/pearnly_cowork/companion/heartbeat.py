@@ -9,6 +9,7 @@ from pearnly_cowork.connections import collector, model
 from pearnly_cowork.connections.reports import ReportError, plan_report
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.targets.projection import ProjectionContractError
+from pearnly_cowork.transaction import conflicts
 from . import credentials, devices, http_auth, release
 
 # 每台电脑各自的（ADR-021）：上次报的所选账套、科目映射与版本取它自己的电脑行，不取连接配置 / 上报记录
@@ -49,24 +50,29 @@ def _receive(context, body):
     return reply
 
 
+def _attempt(context, body):
+    point = 'cowork_agent_report_' + uuid4().hex
+    frappe.db.savepoint(point)
+    try:
+        return _receive(context, body)
+    except frappe.QueryDeadlockError:
+        # No external output has happened; `conflicts.retried` rolls the entire local unit back and retries it.
+        raise
+    except (ReportError, model.ConnectionError, ProjectionContractError) as error:
+        frappe.db.rollback(save_point=point)
+        frappe.throw(_(error.code))
+    except Exception:
+        frappe.db.rollback(save_point=point)
+        raise
+
+
 @frappe.whitelist(methods=['POST'])
 def report(**ignored):
     # Route arguments cannot replace identity or the body frozen by auth_hooks.
     context, body = http_auth.current_request()
     frappe.local.cowork_private_response = True
-    for attempt in range(3):
-        point = 'cowork_agent_report_' + uuid4().hex
-        frappe.db.savepoint(point)
-        try:
-            return _receive(context, body)
-        except frappe.QueryDeadlockError as error:
-            # No external output has happened; the entire local unit may retry.
-            frappe.db.rollback()
-            if attempt == 2:
-                http_auth.raise_busy(error, stage='report')
-        except (ReportError, model.ConnectionError, ProjectionContractError) as error:
-            frappe.db.rollback(save_point=point)
-            frappe.throw(_(error.code))
-        except Exception:
-            frappe.db.rollback(save_point=point)
-            raise
+    # 撞上 1020 / 1213 整笔回滚、退避后重来（`transaction.conflicts`）；用尽同原来回「忙」，CC 桌面版下一轮再报。
+    try:
+        return conflicts.retried(_attempt, context, body)
+    except (conflicts.Exhausted, conflicts.RollbackFailed) as error:
+        http_auth.raise_busy(error, stage='report')

@@ -221,7 +221,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 `companion.transport` 单向调用 `push.native` 账本，不包含 HTTP 或提交。私有 Delivery 把线协议 UUID 绑定到本 Site/Connection/历史 Credential/Attempt/fence；原始 attempt secret 使用原生 Password 密文，不编码进句柄。`receipt_auth` 的窄能力可在停闸、撤权或轮换后接收原历史任务结果，不能领取新任务或写报告，也不跳过原 issuer 的 IP 限制；它与当前派发能力互不通用。
 
-`queue_api` 为薄事务入口，显式提交成功才返回原生 Frappe `message` 封套；只对提交前本地死锁有限重试并重验权限，提交或回滚失败不重跑任务。错误堆栈、Recorder 和原生消息列表不得带出 Bearer 或 attempt secret。没有后台外部写者、真实 Windows 接线或 ERP 调用，prepared 不由 poll 激活；人工激活、准备事实、History/库存/通知副作用仍待独立承接。实际旧客户端路径及顶层 JSON 协议需要适配，不能据这些本地接口称为直接兼容。见[HTTP 边界](../work/cowork-backend/companion-queue-http-boundary.md)和[第十二来源审查](../work/cowork-backend/twelfth-source-review.md)。
+`queue_api` 为薄事务入口，显式提交成功才返回原生 Frappe `message` 封套；只对提交前本地死锁有限重试并重验权限（1020 / 1213 经 `transaction.conflicts`，与心跳、机器认证、认电脑、按需请求、电脑登记 / 移除同一机制，用尽各回原有的「忙」/ 错误），提交或回滚失败不重跑任务。错误堆栈、Recorder 和原生消息列表不得带出 Bearer 或 attempt secret。没有后台外部写者、真实 Windows 接线或 ERP 调用，prepared 不由 poll 激活；人工激活、准备事实、History/库存/通知副作用仍待独立承接。实际旧客户端路径及顶层 JSON 协议需要适配，不能据这些本地接口称为直接兼容。见[HTTP 边界](../work/cowork-backend/companion-queue-http-boundary.md)和[第十二来源审查](../work/cowork-backend/twelfth-source-review.md)。
 
 ### Cowork 人工确认与 ACK 本地联动（第十三至十四批）
 

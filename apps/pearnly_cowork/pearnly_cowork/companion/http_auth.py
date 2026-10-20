@@ -13,6 +13,8 @@ import frappe
 from frappe import _
 from frappe.recorder import do_not_record
 
+from pearnly_cowork.transaction import conflicts
+
 from . import credentials, queue_contracts, receipt_auth
 from .contracts import AgentContext, parse_token
 
@@ -271,23 +273,18 @@ def _authenticate_request(request):
     # Session setup may already have established an RR view.
     # A current Connection lock can then raise MariaDB 1020/deadlock before the
     # handler retry boundary. This segment has emitted no external IO or new
-    # identity; roll back and authenticate completely again, never reuse context.
-    for attempt in range(3):
-        try:
-            context = (receipt_auth.authenticate(token, payload['log_id']) if operation == 'ack'
-                       else credentials.authenticate(token))
-            break
-        except frappe.QueryDeadlockError as error:
-            frappe.db.rollback()
-            clear_private_messages()
-            if attempt == 2:
-                raise_busy(error, stage='authenticate')
-        except (frappe.AuthenticationError, frappe.PermissionError):
-            raise
-        except Exception as error:
-            # An unexpected authentication failure is visible as retryable 503,
-            # with a fixed/type-only diagnostic. Never log original token frames.
-            raise_busy(error, stage='authenticate')
+    # identity; roll back and authenticate completely again, never reuse context
+    # (`transaction.conflicts`: whole rollback, backoff, bounded attempts).
+    try:
+        context = conflicts.retried(lambda: receipt_auth.authenticate(token, payload['log_id']) if operation == 'ack'
+                                    else credentials.authenticate(token))
+    except (frappe.AuthenticationError, frappe.PermissionError):
+        raise
+    except Exception as error:
+        # Exhausted conflicts, a failed rollback or an unexpected authentication failure
+        # are visible as retryable 503, with a fixed/type-only diagnostic. Never log
+        # original token frames.
+        raise_busy(error, stage='authenticate')
     # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法、按需请求（只会领到文件夹的那几种，
     # `request_service.lease_next` 按连接的 ERP 筛）与认电脑，心跳 / 领任务 / 回执拒绝（403）。
     if operation not in FOLDER_ONLY_ALLOWED and frappe.db.get_value(

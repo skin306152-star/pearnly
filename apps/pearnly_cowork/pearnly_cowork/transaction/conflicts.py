@@ -30,16 +30,27 @@ class Exhausted(Exception):
     """重来 :data:`ATTEMPTS` 次仍冲突。不带数据库原文、不挂原异常；各入口照自己原有的失败形状接住。"""
 
 
+class RollbackFailed(Exception):
+    """撞上冲突后整笔回滚本身失败：这笔事务是什么状态说不清，停下、不再重来。不挂原异常（机器方法的原异常帧里可能有
+    回执密钥），各入口照自己原有的失败形状接住。"""
+
+
 def retried(function, *args, **kwargs):
-    """调 ``function``；撞上 1020 / 1213 时整笔回滚、退避后重来，最多 :data:`ATTEMPTS` 次，用尽抛 :class:`Exhausted`。
-    别的错误原样抛出、不重来。"""
+    """调 ``function``；撞上 1020 / 1213 时整笔回滚、退避后重来，最多 :data:`ATTEMPTS` 次，用尽抛 :class:`Exhausted`；
+    回滚本身失败抛 :class:`RollbackFailed`、不再重来。别的错误原样抛出、不重来。"""
     messages = len(getattr(frappe.local, "message_log", None) or [])
     for attempt in range(ATTEMPTS):
         try:
             return function(*args, **kwargs)
         except frappe.QueryDeadlockError:
-            frappe.db.rollback()
+            try:
+                frappe.db.rollback()
+                rolled_back = True
+            except Exception:
+                rolled_back = False
             _drop_messages(messages)  # 被回滚的那次弹过的话不带给重来的那次
+        if not rolled_back:
+            raise RollbackFailed()  # 在 except 外抛：不挂原异常
         if attempt < ATTEMPTS - 1:
             time.sleep(BACKOFF[attempt] * random.uniform(*JITTER))
     # 在 except 外抛：不把数据库原文挂在异常链上

@@ -481,16 +481,16 @@ class Base(unittest.TestCase):
         self.express = add_connection("express", users=[ADMIN, ENTRY, OTHER])
 
     def retrying(self, call):
-        """Like `api._local_transaction` / `device_api._guarded`: a deadlock rolls the whole unit back and runs it
-        again (up to three times)."""
+        """Like `api._local_transaction` / `device_api._guarded` (`transaction.conflicts.retried`): a deadlock rolls the
+        whole unit back and runs it again (four attempts in all; backoff is not simulated here)."""
         frappe.db.commit()
-        for attempt in range(3):
+        for attempt in range(4):
             LOCKS.append(("BEGIN", None))
             try:
                 return call()
             except QueryDeadlockError:
                 frappe.db.rollback()
-                if attempt == 2:
+                if attempt == 3:
                     raise
 
     def register(self, user=ADMIN, request=None, **kwargs):

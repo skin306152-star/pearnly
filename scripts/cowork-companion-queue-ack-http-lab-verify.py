@@ -18,6 +18,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import frappe
+from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-queue-http-lab-verify.py')))
 BASE = FIXTURE['NativeQueueHttp']
@@ -286,7 +287,7 @@ class NativeQueueAckHttp(unittest.TestCase):
                 response = self.receipt(handle)
                 self.denied(response, 503)
                 self.assertFalse(secret in response.get_data(as_text=True))
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), ATTEMPTS)
         self.assertEqual(self.state(name)['status'], 'leased')
         self.assertEqual(self.locks(name), 2)
 

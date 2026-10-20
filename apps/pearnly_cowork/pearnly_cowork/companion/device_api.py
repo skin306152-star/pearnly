@@ -12,6 +12,8 @@ from uuid import uuid4
 
 import frappe
 
+from pearnly_cowork.transaction import conflicts
+
 from . import credentials, device_contracts, http_auth
 from .contracts import CredentialError
 
@@ -25,25 +27,27 @@ def _leave(context, body):
     return {'status': device_contracts.LEFT}
 
 
+def _attempt(handler, context, body):
+    point = 'cowork_device_api_' + uuid4().hex
+    frappe.db.savepoint(point)
+    try:
+        return handler(context, body)
+    except CredentialError:
+        frappe.db.rollback(save_point=point)
+        raise
+
+
 def _guarded(operation, handler):
     context, body = http_auth.current_request(operation)
     frappe.local.cowork_private_response = True
-    for attempt in range(3):
-        point = 'cowork_device_api_' + uuid4().hex
-        frappe.db.savepoint(point)
-        try:
-            result = handler(context, body)
-            break
-        except frappe.QueryDeadlockError as error:
-            # Nothing has left this server yet; the whole local unit may run again.
-            frappe.db.rollback()
-            http_auth.clear_private_messages()
-            if attempt == 2:
-                http_auth.raise_busy(error, stage=operation)
-        except CredentialError as error:
-            frappe.db.rollback(save_point=point)
-            http_auth.clear_private_messages()
-            return {'ok': False, 'code': error.code}
+    try:
+        # Nothing has left this server yet: on 1020 / 1213 the whole local unit runs again (`transaction.conflicts`).
+        result = conflicts.retried(_attempt, handler, context, body)
+    except (conflicts.Exhausted, conflicts.RollbackFailed) as error:
+        http_auth.raise_busy(error, stage=operation)
+    except CredentialError as error:
+        http_auth.clear_private_messages()
+        return {'ok': False, 'code': error.code}
     http_auth.clear_private_messages()
     return {'ok': True, 'protocol': device_contracts.PROTOCOL, **result}
 

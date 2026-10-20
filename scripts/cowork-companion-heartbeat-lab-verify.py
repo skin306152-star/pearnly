@@ -17,6 +17,7 @@ import frappe
 from frappe.config import clear_site_config_cache
 from werkzeug.test import Client, EnvironBuilder
 from werkzeug.wrappers import Request, Response
+from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-credentials-lab-verify.py')))
 BASE = FIXTURE['NativeCredentials']
@@ -322,7 +323,7 @@ class NativeHeartbeat(unittest.TestCase):
                 with patch.object(self.collector, 'ingest', wraps=self.collector.ingest) as ingest:
                     response = self.request(body=self.body())
                     self.assertEqual(response.status_code, 503)
-                    self.assertEqual(auth.call_count, 3)
+                    self.assertEqual(auth.call_count, ATTEMPTS)
                     self.assertEqual(ingest.call_count, 0)
                     self.assertEqual(snapshot.call_count, 0)
         self.assertFalse(self.persisted().get('report_json'))
@@ -395,7 +396,7 @@ class NativeHeartbeat(unittest.TestCase):
             with patch.object(self.heartbeat, '_receive', side_effect=frappe.QueryDeadlockError('synthetic report exhaustion')) as receive:
                 response = self.request(body=self.body())
                 self.assertEqual(response.status_code, 503)
-                self.assertEqual(receive.call_count, 3)
+                self.assertEqual(receive.call_count, ATTEMPTS)
                 self.assertEqual(snapshot.call_count, 0)
         self.assertFalse(self.persisted().get('report_json'))
 
