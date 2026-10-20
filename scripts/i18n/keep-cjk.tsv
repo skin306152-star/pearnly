@@ -132,6 +132,7 @@ apps/pearnly_cowork/pearnly_cowork/push/express/field_clean.py	*	数据：Expres
 apps/pearnly_cowork/pearnly_cowork/push/express/merchant.py	*	数据：已知连锁品牌泰/英别名正则，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/masters/client_import.py	*	数据：客户导入表头同义词（泰/英/中），按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/tax_documents/codes.py	*	数据：票种识别关键词与给识别模型的提示词，不进界面
+apps/pearnly_core/pearnly_core/tax_documents/printed.py	*	数据：减项 / 增项通知单的泰文标题（认副本页时在文字层里按原字面比对，2026-10-20 从 Cowork push/express/automation.py 原样搬来），不进界面
 apps/pearnly_core/pearnly_core/tax_documents/rules.py	*	数据：按标题认票种的关键词与泛称买方正则，按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/assistant/engines/base.py	ผลงานเมื่อคืน	给模型的示例：侧栏标题提示词里的泰文示例（用户 2026-10-13 原话），不进界面
 apps/pearnly_core/pearnly_core/assistant/engines/base.py	ภาษีเดือน 9 สามบริษัท	给模型的示例：侧栏标题提示词里的泰文示例（用户 2026-10-13 原话），不进界面
