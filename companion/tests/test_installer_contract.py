@@ -196,6 +196,7 @@ def test_one_click_install_shows_only_the_icon_a_progress_bar_and_cancel():
     assert "Icon.Width := ScaleX(64);" in layout
     assert _png_size(COMPANION / "assets" / "cc.png") == (256, 256)
     assert "Bar.Parent := Form;" in layout and "Cancel.Parent := Form;" in layout and "Form.ClientHeight" in layout
+    assert "Cancel.Anchors := [akLeft, akTop];" in layout  # 官方窗体上贴右下角，缩窗体时会被挤出可见区
     init = code.split("procedure InitializeWizard", 1)[1].split("end;", 1)[0]
     assert "ExtractTemporaryFile('cc.png')" in init and "WizardCompact" in init
     files = [line for line in _section(script, "[Files]").splitlines() if line.startswith("Source:")]

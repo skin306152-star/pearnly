@@ -304,16 +304,19 @@ begin
   Icon.Left := (Form.ClientWidth - Icon.Width) div 2;
   Icon.Top := Margin;
   Bar.Parent := Form;
+  Bar.Anchors := [akLeft, akTop];
   Bar.Visible := True;
   Bar.Left := Margin;
   Bar.Width := Form.ClientWidth - 2 * Margin;
   Bar.Height := ScaleY(8);
   Bar.Top := Icon.Top + Icon.Height + ScaleY(28);
-  { 取消按钮原来在底部按钮栏里(窗体缩小后那一栏在可见区域外,2026-10-20 测试机截图看不到取消):挪到窗体上 }
+  { 取消按钮在官方窗体上贴着右下角(Anchors 右、下):先定窗体高度、改成按左上定位,再摆位置,
+    否则缩窗体时它跟着往上移、被挤出可见区(2026-10-20 测试机截图看不到取消) }
   Cancel.Parent := Form;
+  Cancel.Anchors := [akLeft, akTop];
+  Form.ClientHeight := Bar.Top + Bar.Height + ScaleY(24) + Cancel.Height + ScaleY(16);
   Cancel.Top := Bar.Top + Bar.Height + ScaleY(24);
   Cancel.Left := Form.ClientWidth - Margin - Cancel.Width;
-  Form.ClientHeight := Cancel.Top + Cancel.Height + ScaleY(16);
   Result := Icon;
 end;
 
