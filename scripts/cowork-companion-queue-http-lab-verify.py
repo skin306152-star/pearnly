@@ -33,6 +33,8 @@ PATHS = {operation: '/api/method/' + method for operation, method in METHODS.ite
 class NativeQueueHttp(unittest.TestCase):
     prepare, prepared, install = BASE.prepare, BASE.prepared, BASE.install
     availability, another_history = BASE.availability, BASE.another_history
+    # D11 起 transport 夹具的 setUp 先经真实心跳报到账套、再记付款方式与科目（`report` / `choose`），这里一并借来
+    report, choose = BASE.report, BASE.choose
 
     @classmethod
     def setUpClass(cls):
@@ -158,7 +160,8 @@ class NativeQueueHttp(unittest.TestCase):
         self.assertEqual(set(result), {'ok', 'jobs', 'lease_seconds'})
         self.assertEqual(result['lease_seconds'], 120)
         job = result['jobs'][0]; row = self.state(name)
-        self.assertEqual(set(job), {'log_id', 'history_id', 'invoice_no', 'payload'})
+        # 领取 v2 多给 `attended`（同 transport 夹具，D11）
+        self.assertEqual(set(job), {'log_id', 'history_id', 'invoice_no', 'payload', 'attended'})
         self.assertEqual(job['payload'], json.loads(row['payload_json']))
         self.assertEqual(row['status'], 'leased')
         self.assertEqual(self.db(lambda: frappe.db.count('Cowork Companion Delivery', {'push_record': name})), 1)
@@ -367,7 +370,8 @@ class NativeQueueHttp(unittest.TestCase):
             self.assertEqual(self.state(name)['status'], 'leased')
             self.assertEqual(self.db(lambda: frappe.db.count(self.native.ATTEMPT, {'push_record': name})), 1)
             self.assertEqual(self.db(lambda: frappe.db.count('Cowork Companion Delivery', {'push_record': name})), 1)
-            self.assertEqual(self.db(lambda: frappe.db.count(self.native.WRITER_LOCK, {'holder': name})), 2)
+            # 写者锁口径 v2：合成登记没有内容键，只有账套锁一把（同 transport 夹具，D11）
+            self.assertEqual(self.db(lambda: frappe.db.count(self.native.WRITER_LOCK, {'holder': name})), 1)
         finally:
             for worker in workers:
                 if worker.poll() is None: worker.kill(); worker.communicate()
