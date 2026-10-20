@@ -60,7 +60,7 @@ BUSY_SITES = [
     ("components/results-panel.tsx", "cc-spinner", "function Loading()", 3),
     ("components/company-cards.tsx", "<Skeleton", "export const PanelSkeleton", 3),
     ("components/company-cards.tsx", "cc-spinner", "busy ?", 0),
-    ("components/add-company.tsx", "cc-spinner", "rows === null ?", 3),
+    ("components/add-company.tsx", "cc-spinner", "shown === null ?", 3),
     ("components/add-company.tsx", "cc-spinner", "busy === row.identity ?", 1),
     ("components/add-company.tsx", "cc-spinner", "refreshing ?", 0),
     ("components/companies.tsx", "animate-cc-pulse", "shown === null ?", 2),

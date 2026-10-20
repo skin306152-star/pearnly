@@ -1544,9 +1544,10 @@ class DialogsAndListsTests(unittest.TestCase):
         self.assertNotIn("size-7", settings)
 
     def test_one_breakpoint_for_the_task_form(self):
-        # V36（B4）：定时任务表单的两列（目标卡片、账套与进项销项、默认处理）跟变体同一条断点 768，640–767 段按手机排
+        # V36（B4）：定时任务表单的两列（目标卡片、账套与进项销项、默认处理；10-20 起加从公司建时的公司与目标 ERP）跟变体同一条断点 768，
+        # 640–767 段按手机排
         tasks = self.read("components/scheduled-tasks.tsx")
-        self.assertEqual(tasks.count("md:grid-cols-2"), 3)
+        self.assertEqual(tasks.count("md:grid-cols-2"), 4)
         for rel in self.B4:
             self.assertNotRegex(self.read(rel), r"\b(?:sm|lg|xl|2xl):", rel)
 

@@ -681,14 +681,14 @@ function FromCompany({ tr, company, target, state, onConnect }: {
     <div className="grid grid-cols-1 gap-(--cc-space-16) md:grid-cols-2">
       <div className="cc-field">
         <span>{tr("Company")}</span>
-        <span className="truncate text-ink">{company}</span>
+        <Marquee className="block truncate text-ink">{company}</Marquee>
       </div>
       <div className="cc-field">
         <span>{tr("intake.target.title")}</span>
-        <span className="truncate text-ink">{target}</span>
+        <Marquee className="block truncate text-ink">{target}</Marquee>
         {onConnect && (
           <span className="flex min-w-0 items-center gap-(--cc-space-8)">
-            {state && <span className={cn("min-w-0 truncate text-caption", state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
+            {state && <Marquee className={cn("block min-w-0 truncate text-caption", state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</Marquee>}
             <button type="button" className="cc-btn shrink-0" onClick={onConnect}>{tr("Connect")}</button>
           </span>
         )}
