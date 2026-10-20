@@ -1,0 +1,2 @@
+# 原样拷来的 Inno Setup 译文（来源与 sha256 见 installer.iss、tests/test_installer_contract.py）：不做换行转换
+*.isl -text
