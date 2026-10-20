@@ -88,6 +88,10 @@ APP_USER_MODEL_ID = "Pearnly.Companion"
 def _register_app_user_model_id() -> None:
     if sys.platform != "win32":
         return
+    from . import package_identity
+
+    if package_identity.packaged():
+        return  # Microsoft Store 版：进程本来就带包里的 AppUserModelID，另设的那个在包里没有快捷方式，通知会被丢掉
     try:
         import ctypes
 

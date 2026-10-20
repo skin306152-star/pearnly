@@ -1,7 +1,15 @@
+import hashlib
 import re
+import struct
+import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-INSTALLER_SCRIPT = Path(__file__).resolve().parents[1] / "packaging" / "installer.iss"
+import pytest
+
+COMPANION = Path(__file__).resolve().parents[1]
+PACKAGING = COMPANION / "packaging"
+INSTALLER_SCRIPT = PACKAGING / "installer.iss"
 
 
 def test_silent_update_restarts_companion_as_original_user():
@@ -51,15 +59,15 @@ def test_tomo_installs_as_a_folder_and_silent_updates_restart_in_the_background(
 
 
 def test_the_old_folder_name_is_never_shown_and_finishing_offers_launch_cc():
-    # 2026-10-13：目录名为原地升级沿用「Pearnly Companion」，但选目录页、Ready 页的目标位置、重装时的
-    # 「文件夹已存在」都会把它亮给用户；完成页的勾选框原来是默认的「Run companion.exe」。
+    # 2026-10-13：选目录页、Ready 页的目标位置、重装时的「文件夹已存在」都会把目录亮给用户；
+    # 完成页的勾选框原来是默认的「Run companion.exe」。2026-10-20 起目录本身也叫 CC（安装进度页会显示解压路径）。
     script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
     setup = script.split("[Setup]", 1)[1].split("[InstallDelete]", 1)[0]
     lines = {line.split("=", 1)[0].strip().lower(): line.split("=", 1)[1].strip()
              for line in setup.splitlines() if "=" in line and not line.strip().startswith(";")}
     assert lines["disabledirpage"].lower() == "yes"
     assert "alwaysshowdironreadypage" not in lines  # 默认 no：不选目录时 Ready 页不列目录
-    assert lines["defaultdirname"] == "{autopf}\\Pearnly Companion"  # 目录本身不改：已装的电脑原地升级
+    assert lines["defaultdirname"] == "{autopf}\\CC"  # 老目录「Pearnly Companion」由 [Code] 迁移（见下）
     run = script.split("[Run]", 1)[1].split("[Code]", 1)[0]
     manual = next(line for line in run.splitlines() if "skipifsilent" in line)
     assert 'Description: "{cm:LaunchProgram,CC}"' in manual
@@ -74,10 +82,153 @@ def test_the_old_folder_name_is_never_shown_and_finishing_offers_launch_cc():
 
 def test_the_app_and_its_installer_are_named_cc():
     # 2026-10-12 小助手统一改名 CC：任务管理器 / 开机启动 / 文件属性显示「CC」，安装包叫 CC-Setup.exe；
-    # exe 文件名与安装目录不改（已装的电脑原地升级）
+    # exe 文件名不改；安装目录 2026-10-20 起也叫 CC（见 test_upgrades_move_the_old_folder_to_cc）
     spec = (INSTALLER_SCRIPT.parent / "companion.spec").read_text(encoding="utf-8")
     assert 'StringStruct("FileDescription", "CC")' in spec and 'StringStruct("ProductName", "CC")' in spec
     assert "version=_version_info" in spec
     iss = INSTALLER_SCRIPT.read_text(encoding="utf-8")
     assert "OutputBaseFilename=CC-Setup" in iss and "VersionInfoProductName=CC" in iss
 
+
+
+def _section(script: str, name: str) -> str:
+    return script.split(name, 1)[1].split("\n[", 1)[0]
+
+
+def _png_size(path: Path) -> tuple[int, int]:
+    head = path.read_bytes()[:24]
+    assert head[:8] == b"\x89PNG\r\n\x1a\n", path
+    return struct.unpack(">II", head[16:24])
+
+
+def test_upgrades_move_the_old_folder_to_cc():
+    # 教程问题第 8 条（2026-10-20）：安装进度页显示「…\Programs\Pearnly Companion\_internal\…」。目录改叫 CC，
+    # AppId 不变（同一个卸载项、同一套升级）；老目录里的整份程序在装好新版后删掉，开机自启与任务栏固定的快捷方式改指新位置。
+    script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
+    assert "AppId={{8F3C2A91-4E7B-4D2A-9C11-PEARNLYCOMP01}" in script
+    code = script.split("[Code]", 1)[1]
+    assert "LegacyDirName = 'Pearnly Companion';" in code
+    assert "ExpandConstant('{userpf}\\') + LegacyDirName" in code  # 2026-10-08 起的按用户安装目录
+    post = code.split("procedure CurStepChanged", 1)[1].split("end;\n\n", 1)[0]
+    assert "ssPostInstall" in post and "RepointAutostart" in post and "RemoveLegacyDir" in post
+    remove = code.split("procedure RemoveLegacyDir", 1)[1].split("procedure CurStepChanged", 1)[0]
+    assert "DelTree(LegacyDir, True, True, True)" in remove
+    assert "CompareText(LegacyDir, ExpandConstant('{app}')) = 0" in remove  # 万一新旧是同一个目录，不删
+    # 自动更新（updater.run_installer_silent）不带 /DIR：静默升级装到 DefaultDirName，也就是新目录
+    updater = (COMPANION / "src" / "companion" / "updater.py").read_text(encoding="utf-8")
+    assert '"/VERYSILENT"' in updater and "/DIR" not in updater
+
+
+def test_autostart_value_is_the_one_the_app_writes():
+    # 教程问题第 6 条：开机自启项由程序写（autostart.py），卸载程序以前不知道它，卸载后还指向已删的 companion.exe
+    sys.path.insert(0, str(COMPANION))
+    from src.companion import autostart
+
+    code = INSTALLER_SCRIPT.read_text(encoding="utf-8").split("[Code]", 1)[1]
+    assert f"RunKey = '{autostart._RUN_KEY}';" in code
+    assert f"RunValue = '{autostart._VALUE_NAME}';" in code
+    # 安装包改指的命令与程序自己写的同一写法（autostart.repoint 才不会又改一遍）
+    assert "Result := '\"' + ExpandConstant('{app}\\companion.exe') + '\" --background';" in code
+
+
+def test_uninstall_removes_autostart_and_the_empty_local_folder_but_keeps_user_data():
+    script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
+    code = script.split("[Code]", 1)[1]
+    uninstall = code.split("procedure CurUninstallStepChanged", 1)[1]
+    assert "usUninstall" in uninstall and "KillRunning" in uninstall  # 先关掉在跑的 CC，companion.exe 才删得掉
+    assert "usPostUninstall" in uninstall and "RegDeleteValue(HKCU, RunKey, RunValue)" in uninstall
+    assert "not FileExists(Target)" in uninstall  # 1.9.1 及以前卸载留下、指向已删程序的那一项也清掉
+    removed = _section(script, "[UninstallDelete]")
+    entries = [line for line in removed.splitlines() if line.startswith("Type:")]
+    assert entries == ['Type: dirifempty; Name: "{localappdata}\\Pearnly\\write-backups"',
+                       'Type: dirifempty; Name: "{localappdata}\\Pearnly"']
+    # 配置、日志、配对（%APPDATA%\Pearnly）与设备密钥备份（HKCU\Software\Pearnly）照旧不删
+    assert "{userappdata}\\Pearnly" not in script and "{appdata}\\Pearnly" not in script
+    assert "Software\\Pearnly" not in code
+
+
+# 原样拷进来的 Inno Setup 译文（标签 is-6_7_1）：换文件时一并更新这里
+LANGUAGE_FILES = {
+    "Thai.isl": "cdc0a1af65ac503ee1f0b5ef9d14d81b8c173ba80a3ce78ba86e15e285a149b3",
+    "ChineseSimplified.isl": "7d544b9bb1d142cfa11f2e5d3cc8abe2e55f8e066c5124e3772675aa236e1278",
+}
+
+
+def test_wizard_follows_the_windows_language_with_english_as_fallback():
+    # 教程问题第 7 条：泰文系统上向导全是英文
+    script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
+    setup = _section(script, "[Setup]")
+    assert "ShowLanguageDialog=no" in setup and "LanguageDetectionMethod=uilanguage" in setup
+    languages = [line for line in _section(script, "[Languages]").splitlines() if line.startswith("Name:")]
+    names = [re.search(r'Name: "([^"]+)"', line).group(1) for line in languages]
+    assert names == ["english", "thai", "chinesesimplified"]  # 认不出的语言用第一个
+    assert 'MessagesFile: "compiler:Default.isl"' in languages[0]
+    for name, digest in LANGUAGE_FILES.items():
+        path = PACKAGING / "languages" / name
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, f"{name} changed: update the source note"
+        assert f'MessagesFile: "languages\\{name}"' in script
+    # 自己写的界面文字每种语言都有（只认 {cm:…}，LaunchProgram 是 Inno 自带的）
+    used = set(re.findall(r"\{cm:([A-Za-z]+)", script)) - {"LaunchProgram"}
+    custom = _section(script, "[CustomMessages]")
+    assert used
+    for key in used:
+        for name in names:
+            assert re.search(rf"^{name}\.{key}=\S", custom, re.M), f"{name}.{key}"
+    assert re.search(r"^english\.DesktopShortcut=Create a desktop shortcut$", custom, re.M)  # 英文沿用原文
+
+
+def test_wizard_images_are_the_cc_icon():
+    script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
+    setup = _section(script, "[Setup]")
+    assert "WizardImageFile=wizard\\cc-wizard-*.png" in setup
+    assert "WizardSmallImageFile=..\\assets\\cc.png" in setup
+    images = sorted((PACKAGING / "wizard").glob("cc-wizard-*.png"))
+    assert len(images) >= 2
+    for path in images:
+        width, height = _png_size(path)
+        assert f"{width}x{height}" in path.name
+        assert abs(width / height - 164 / 314) < 0.01  # 向导配图区的比例，不拉伸变形
+    assert _png_size(COMPANION / "assets" / "cc.png") == (256, 256)
+
+
+def test_store_package_manifest():
+    # 教程问题第 1 条：商店重新签名的 MSIX。开机自启用 StartupTask 带 --background；全信任桌面程序。
+    sys.path.insert(0, str(PACKAGING / "msix"))
+    import build_msix
+    from src.companion import package_identity
+
+    assert build_msix.package_version("1.9.1") == "1.9.1.0"
+    assert build_msix.package_version("1.9.1.3") == "1.9.1.0"  # 商店要求第四段是 0
+    with pytest.raises(ValueError):
+        build_msix.package_version("")
+    text, placeholder = build_msix.render_manifest("1.9.1", environ={})
+    assert placeholder
+    text, placeholder = build_msix.render_manifest("1.9.1", environ={
+        "MSIX_IDENTITY_NAME": "12345Pearnly.CC", "MSIX_PUBLISHER": "CN=ABCD-1234",
+        "MSIX_PUBLISHER_DISPLAY_NAME": "MR. ERP COMPANY LIMITED"})
+    assert not placeholder
+    root = ET.fromstring(text)
+    ns = {"m": "http://schemas.microsoft.com/appx/manifest/foundation/windows10",
+          "uap": "http://schemas.microsoft.com/appx/manifest/uap/windows10",
+          "uap10": "http://schemas.microsoft.com/appx/manifest/uap/windows10/10",
+          "desktop": "http://schemas.microsoft.com/appx/manifest/desktop/windows10",
+          "rescap": "http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"}
+    identity = root.find("m:Identity", ns)
+    assert identity.get("Name") == "12345Pearnly.CC" and identity.get("Publisher") == "CN=ABCD-1234"
+    assert identity.get("Version") == "1.9.1.0" and identity.get("ProcessorArchitecture") == "x64"
+    assert root.find("m:Properties/m:DisplayName", ns).text == "CC"
+    app = root.find("m:Applications/m:Application", ns)
+    assert app.get("Executable") == "companion.exe" and app.get("EntryPoint") == "Windows.FullTrustApplication"
+    startup = app.find("m:Extensions/desktop:Extension", ns)
+    assert startup.get("Category") == "windows.startupTask"
+    assert startup.get("{%s}Parameters" % ns["uap10"]) == "--background"
+    assert startup.find("desktop:StartupTask", ns).get("TaskId") == package_identity.STARTUP_TASK_ID
+    assert [c.get("Name") for c in root.findall("m:Capabilities/rescap:Capability", ns)] == ["runFullTrust"]
+    assert root.find("m:Dependencies/m:TargetDeviceFamily", ns).get("MinVersion") == "10.0.19041.0"  # uap10:Parameters
+    # 清单引用的图都在、尺寸对（packaging/make_images.py 生成）
+    visual = app.find("uap:VisualElements", ns)
+    refs = {visual.get("Square150x150Logo"): (150, 150), visual.get("Square44x44Logo"): (44, 44),
+            visual.find("uap:DefaultTile", ns).get("Wide310x150Logo"): (310, 150),
+            root.find("m:Properties/m:Logo", ns).text: (50, 50)}
+    for ref, size in refs.items():
+        assert _png_size(PACKAGING / "msix" / ref.replace("\\", "/")) == size, ref

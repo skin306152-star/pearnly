@@ -25,7 +25,7 @@ from companion.folder_worker import FolderIntake
 from companion.i18n import t
 from companion.profile_store import ProfileStore, ProfileStoreError
 
-PROGRAM = "C:\\Users\\a\\AppData\\Local\\Programs\\Pearnly Companion"
+PROGRAM = "C:\\Users\\a\\AppData\\Local\\Programs\\CC"
 ENV = {"SystemRoot": "C:\\Windows", "ProgramFiles": "C:\\Program Files", "ProgramFiles(x86)": "C:\\Program Files (x86)",
        "ProgramData": "C:\\ProgramData", "APPDATA": "C:\\Users\\a\\AppData\\Roaming",
        "LOCALAPPDATA": "C:\\Users\\a\\AppData\\Local", "USERPROFILE": "C:\\Users\\a"}

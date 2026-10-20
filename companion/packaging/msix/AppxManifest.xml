@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CC 桌面版的 MSIX 清单（Microsoft Store 上架用；教程问题第 1 条，docs/work/2026-10-20-cc-installer-fixes.md）。
+  {{…}} 由 packaging/msix/build_msix.py 填：Identity 的 Name / Publisher 与发布者显示名必须照抄 Partner Center
+  「产品标识」页给的值（没给时用占位值，只能做构建检查、不能上传）；版本取 src/companion/version.py，第四段固定 0（商店要求）。
+  runFullTrust：普通桌面程序（PyInstaller 打的 companion.exe），不进应用容器。
+  StartupTask：开机自启（包内写 HKCU Run 会被虚拟化、不生效），带后台参数起；开关由 autostart.py 经 WinRT 控制。
+  最低 Windows 10 2004（19041）：desktop:Extension 的 uap10:Parameters 从这一版起才有。
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10 desktop rescap">
+  <Identity Name="{{IDENTITY_NAME}}" Publisher="{{PUBLISHER}}" Version="{{VERSION}}" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>CC</DisplayName>
+    <PublisherDisplayName>{{PUBLISHER_DISPLAY_NAME}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="th-th" />
+    <Resource Language="zh-cn" />
+  </Resources>
+  <Applications>
+    <Application Id="CC" Executable="companion.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="CC" Description="CC" BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <desktop:Extension Category="windows.startupTask" Executable="companion.exe"
+          EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--background">
+          <desktop:StartupTask TaskId="CCStartup" Enabled="true" DisplayName="CC" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

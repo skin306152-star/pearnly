@@ -55,7 +55,7 @@ def test_repoint_moves_an_enabled_autostart_to_this_install_only(monkeypatch):
                                  OpenKey=lambda *_a: Key(), CreateKeyEx=lambda *_a: Key(), QueryValueEx=query,
                                  SetValueEx=lambda _key, name, _r, _t, value: store.__setitem__(name, value))
     monkeypatch.setattr(autostart, "_winreg", lambda: fake)
-    monkeypatch.setattr(autostart, "default_command", lambda: '"C:\\Users\\a\\AppData\\Local\\Programs\\Pearnly Companion\\companion.exe" --background')
+    monkeypatch.setattr(autostart, "default_command", lambda: '"C:\\Users\\a\\AppData\\Local\\Programs\\CC\\companion.exe" --background')
 
     monkeypatch.setattr(sys, "frozen", False, raising=False)
     store["PearnlyCompanion"] = '"C:\\Program Files\\Pearnly Companion\\companion.exe" --background'

@@ -21,6 +21,8 @@ winrt-Windows.Data.Xml.Dom==3.2.1
 winrt-Windows.Foundation==3.2.1
 winrt-Windows.Foundation.Collections==3.2.1
 winrt-Windows.UI.Notifications==3.2.1
+# Microsoft Store 版（以 MSIX 包身份运行）的开机自启：Windows.ApplicationModel.StartupTask（src/companion/autostart.py）。只依赖 winrt-runtime。
+winrt-Windows.ApplicationModel==3.2.1
 pyinstaller==6.21.0
 pyinstaller-hooks-contrib==2026.6
 altgraph==0.17.5

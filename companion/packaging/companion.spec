@@ -30,6 +30,8 @@ _hidden += [
     "winrt.windows.foundation.collections",
     "winrt.windows.data.xml.dom",
     "winrt.windows.ui.notifications",
+    # Microsoft Store 版的开机自启(autostart.py 用 StartupTask,只在以包身份运行时导入)
+    "winrt.windows.applicationmodel",
 ]
 
 a = Analysis(

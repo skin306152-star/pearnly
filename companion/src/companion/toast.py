@@ -29,6 +29,13 @@ _WINDOWS = sys.platform == "win32"
 _toaster = None  # (windows_toasts 模块, 发通知的对象)：第一次发时才建
 
 
+def app_id() -> str:
+    """通知归属的 AppUserModelID：Microsoft Store 装的（以 MSIX 包身份运行）用包里这个应用的，否则用 ``AUMID``。"""
+    from . import package_identity
+
+    return package_identity.app_user_model_id() or AUMID
+
+
 def show(title: str, body: str, tag: str = "", on_click=None) -> bool:
     """发一条 Windows 应用通知，发出去了返回 True；同一 tag 的新通知替换旧的。从不抛异常。
 
@@ -73,7 +80,7 @@ def _get_toaster(module):
     global _toaster
     if _toaster is None or _toaster[0] is not module:
         # WindowsToaster 只收一个名字并把它当 AppUserModelID；这个类才能分开给显示名与 AppUserModelID。
-        toaster = module.InteractableWindowsToaster(APP_NAME, notifierAUMID=AUMID)
+        toaster = module.InteractableWindowsToaster(APP_NAME, notifierAUMID=app_id())
         toaster.toastNotifier = _Keep(toaster.toastNotifier)
         _toaster = (module, toaster)
     return _toaster[1]

@@ -121,6 +121,15 @@ NOTICE_TAG = "notice:"
 # 刚弹出、还没点的带点击动作的通知（对话提醒等）这么久之内，「有新版本」不另弹通知——托盘点击只记得住最后一条的动作，
 # 新版提示会把它冲掉；托盘菜单里照样有「更新到最新版」。
 NOTICE_HOLD_SECONDS = 120
+
+
+def _store_updates() -> bool:
+    """以 MSIX 包身份运行（Microsoft Store 装的，package_identity.py）：更新交给商店。"""
+    from . import package_identity
+
+    return package_identity.packaged()
+
+
 UPDATE_TAG = "update"  # 有新版 / 正在下载 / 更新失败：同一个 tag，通知中心里只留最新一条
 
 
@@ -349,6 +358,8 @@ class TrayApp(QObject):
         self._shown_status = (icon, tooltip, menu)
 
     def _on_update_available(self, version: str, url: str) -> None:
+        if _store_updates():
+            return  # Microsoft Store 版由商店更新，不下载、不启动自己的安装包
         if not self._auto_update.offer(version, url):
             return  # 同版本只提示一次
         self._pending_update = (version, url)
@@ -406,7 +417,7 @@ class TrayApp(QObject):
 
     def _check_for_update(self, manual: bool = False) -> None:
         """后台查一次云端有没有新版；有就交给自动更新（下载 → 等空闲 → 安装）。同一时间只查一个。"""
-        if self._quitting or self._updating or self._checking is not None:
+        if self._quitting or self._updating or self._checking is not None or _store_updates():
             return
         from .updater import DOWNLOAD_SITE, check_update
 

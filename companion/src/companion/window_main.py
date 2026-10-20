@@ -260,6 +260,10 @@ class WindowController(QObject):
 def _register_app_user_model_id() -> None:
     if sys.platform != "win32":
         return
+    from . import package_identity
+
+    if package_identity.packaged():
+        return  # Microsoft Store 版用包里的 AppUserModelID（同 main._register_app_user_model_id）
     try:
         import ctypes
 

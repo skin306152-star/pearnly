@@ -7,6 +7,11 @@ name: Companion test build
 # 再 gh run download <运行编号> 取 CC-Setup.exe。
 on:
   workflow_dispatch:
+    inputs:
+      msix:
+        description: 'Also upload the unsigned Microsoft Store package (CC.msix)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -52,6 +57,22 @@ jobs:
       # 交给测试机之前先照用户的用法启动一遍打出来的程序（同 Companion checks；packaging/smoke_launch.py）
       - name: Launch the packaged CC the way people do
         run: python packaging/smoke_launch.py dist/companion/companion.exe
+      # Microsoft Store 用的 MSIX（教程问题第 1 条：智能应用控制拦没签名的安装包，商店审核后由微软重新签名）。
+      # 每次都打一遍（MakeAppx 校验清单与引用的文件）；包标识取仓库变量（照抄 Partner Center「产品标识」），没设时用占位值、
+      # 只能做构建检查。勾选 msix 才把 CC.msix 作为附件上传（约与安装包一样大，Actions 存储只有 0.5 GB）。
+      - name: Build the Microsoft Store package (unsigned)
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+        run: python packaging/msix/build_msix.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: ${{ inputs.msix }}
+        with:
+          name: companion-store-package-${{ steps.identity.outputs.version }}-${{ github.sha }}
+          path: companion/dist/CC.msix
+          if-no-files-found: error
+          retention-days: 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: companion-test-installer-${{ steps.identity.outputs.version }}-${{ github.sha }}

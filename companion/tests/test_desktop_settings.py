@@ -291,10 +291,10 @@ def test_folder_picker_never_opens_in_the_program_folder(tmp_path):
 
 
 def test_cc_program_folder_is_never_offered_or_added():
-    program = "C:\\Users\\a\\AppData\\Local\\Programs\\Pearnly Companion"
+    program = "C:\\Users\\a\\AppData\\Local\\Programs\\CC"
     assert desktop_settings.inside(program + "\\_internal", program)
     assert desktop_settings.inside(program.upper(), program)
-    assert not desktop_settings.inside("C:\\Users\\a\\AppData\\Local\\Programs\\Pearnly Companion2", program)
+    assert not desktop_settings.inside("C:\\Users\\a\\AppData\\Local\\Programs\\CC2", program)
     assert not desktop_settings.inside("C:\\Users\\a", program)
     # 上次加的就是程序文件夹（旧版留下的）：不从它的上一级（还是程序文件夹）打开，改从「文档」打开。
     assert desktop_settings.picker_start([program + "\\_internal"], "DOCS", program) == "DOCS"

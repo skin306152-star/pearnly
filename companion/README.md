@@ -138,6 +138,31 @@ Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/productio
   加进 root 的 `authorized_keys`；私钥存为仓库 Actions 密钥 `COMPANION_PUBLISH_SSH_KEY`（`PRODUCTION_KNOWN_HOSTS` 与镜像发布共用）。
   接收脚本随生产镜像的部署目录同步（`check-deploy-image` 要求同源）。
 
+## 安装包（`packaging/installer.iss`）
+
+- 按用户安装到 `%LOCALAPPDATA%\Programs\CC`（2026-10-20 起；以前叫 `Pearnly Companion`）。AppId 不变：从旧目录升级（手动装或
+  自动更新的 `/VERYSILENT`，都不带 `/DIR`）时装进新目录，再把开机自启项、任务栏固定的快捷方式改指新位置，删掉旧目录；卸载项随
+  AppId 指向新目录里的卸载程序。更早装在 `C:\Program Files\Pearnly Companion` 的全机安装当前用户删不了，只改开机自启。
+- 向导语言跟 Windows 显示语言：泰文（Inno Setup 6.7.1 官方译文）、简体中文（官方仓库的非官方译文），其余英文；两份译文原样拷在
+  `packaging/languages/`（来源标签 is-6_7_1，sha256 由 `tests/test_installer_contract.py` 守住）。编译要 Inno Setup 6.7.1 起。
+- 向导配图是 CC 图标：`packaging/wizard/*.png` 由 `packaging/make_images.py` 从 `assets/cc.png` 生成并提交（换图标时重跑）。
+- 卸载：先关掉在跑的 CC，卸完删开机自启项（`HKCU\…\Run\PearnlyCompanion`，指向本次卸掉的目录、旧目录或已不存在的程序时）与
+  `%LOCALAPPDATA%\Pearnly` 空目录。`%APPDATA%\Pearnly`（配置、配对、日志）与 `HKCU\Software\Pearnly`（设备密钥备份、窗口位置）照旧保留。
+
+## Microsoft Store 版（MSIX，未上架）
+
+开着「智能应用控制」的 Windows 11 不让没签名的安装包和程序运行，没有「仍要运行」。不买证书的出路是上架 Microsoft Store：交 MSIX、
+审核通过后由微软重新签名。核实结论、需要用户做的步骤见 `docs/work/2026-10-20-cc-installer-fixes.md` 第 1 条。
+
+- 打包：`python packaging/msix/build_msix.py`（在 `release.ps1 -BuildOnly` 之后，Windows SDK 的 MakeAppx）→ `dist\CC.msix`，不签名。
+  清单 `packaging/msix/AppxManifest.xml`；包标识三项取环境变量 `MSIX_IDENTITY_NAME` / `MSIX_PUBLISHER` /
+  `MSIX_PUBLISHER_DISPLAY_NAME`（照抄 Partner Center，CI 里是仓库变量），没设时是占位值、只能做构建检查。
+  `companion-build.yml` 每次都打一遍，勾 `msix` 才上传 `CC.msix`。
+- 以包身份运行时（`package_identity.py`）：不走自己的安装包更新（交给商店）；开机自启用清单的 StartupTask（`autostart.py` 经 WinRT，
+  包内写 HKCU 的 Run 会被虚拟化）；通知用包的 AppUserModelID。配置、日志照旧在 `%APPDATA%\Pearnly`（包内新建的文件系统会存到包的
+  私有目录、卸载包时一并删，已有的文件直接读写原位置），设备密钥的 HKCU 备份写进包的私有注册表（卸载包时一并删）。
+- 现有 Inno 安装包（`CC-Setup.exe`）仍是主发布方式，流程不变。
+
 安装包没有代码签名，Windows 下载时可能提示「未知发布者」；要去掉需另购代码签名证书（用户 2026-10-08 定不买）。
 开着「智能应用控制」等应用控制的电脑会拦下后台静默安装（2026-10-13 录制笔记本）。CC 桌面版不绕开这种拦截，只让人看得见、
 有出路（`update_block.py`）：启动安装包时系统按策略拒绝（4551 / 577 / 1260 等错误码）记成「被拦」，托盘菜单与设置页「版本」

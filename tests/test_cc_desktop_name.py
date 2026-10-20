@@ -242,7 +242,7 @@ class CcDesktop(unittest.TestCase):
         setup = script.split("[Setup]", 1)[1].split("\n[", 1)[0]
         values = {line.split("=", 1)[0].strip().lower(): line.split("=", 1)[1].strip()
                   for line in setup.splitlines() if "=" in line and not line.strip().startswith(";")}
-        self.assertEqual(values.get("disabledirpage", "").lower(), "yes")  # 选目录页会显示「…\Pearnly Companion」
+        self.assertEqual(values.get("disabledirpage", "").lower(), "yes")  # 选目录页会显示安装目录
         shown = [values[key] for key in ("appname", "uninstalldisplayname", "versioninfoproductname",
                                          "versioninfodescription", "defaultgroupname") if key in values]
         for section in ("[Icons]", "[Tasks]", "[Run]"):
