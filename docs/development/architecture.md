@@ -61,6 +61,7 @@
 | `access` | 作用域与共享权限判据 | 只给判据，不承载业务流程 |
 | `masters` | 主档输入、工作区与主档契约 | `masters.api` / `push_inputs`；写入口在服务端 |
 | `tabular` | 共享的内存文件读取叶子：表格/CSV/PDF 字节到值 | masters 的账套导入与 reconciliation 的银行/GL 共用；不依赖业务域、框架、网络或磁盘路径 |
+| `transaction` | 共享的本地事务冲突重来叶子（10-20 从 `push.application.conflicts` 搬出）：1020 / 1213 整笔回滚、退避后重来，一共 4 次 | `conflicts.retried`；只依赖 Frappe 的数据库，不依赖任何业务域；用尽抛不带数据库原文的 `Exhausted`，各入口按自己原有的失败形状接住；只在调用方自己的事务边界（白名单入口、机器方法、按步提交的编排）上用 |
 | `ocr` | 抽取：引擎、表引擎、校验闸、执行批次与计费、反馈 | `engine.runner`（本切片只承接 `invoice`/`auto`）、`execution.service`；依赖 `contracts` 与 `pearnly_core` 的计量 |
 | `reconciliation` | 银行与收入对账：解码、配对、原生落库、导出 | `bank_recon_service` / `income_recon_service`；收调用方已解码的内容，子进程不读文件、不调模型 |
 | `roundtrip` | 往返单契约与解析 | `service` / `parser` |
@@ -202,7 +203,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 `connections` 域持有原生 Connection/Snapshot/Refresh、显式连接授予、当前目录与可信准备资料；依赖 `targets` 纯合同和 Core 权益，不反向引用推送。Connection 是配置、刷新、快照安装和预留共用的事务锁；目录、用户、角色与公司范围使用当前读取。凭据只进原生 Password，专用查询不返回原文。没有安装真实采集器，公开请求不能上传权威快照。
 
-`push.application` 是专用服务端装配入口：先连接、后票据加锁，重验当前权限和版本，解析不可变 Source/Batch 的回导原键，读取本地成功账本，再调用纯 Express 准备并保存冻结结果。公司税号来自 Workspace，客户端不能替换公司或凭证来源。只返回准备状态、诊断与回执摘要，不返回运输载荷或凭据。RPC 只在无外部IO的本地事务发生数据库冲突时有界重试；内部组合调用必须直接使用 service。重试统一在 `push.application.conflicts`（1020 / 1213 整笔回滚、退避、用尽给 `push.native_lock_conflict`），自己按步提交的人推编排（`assistant.tools._push_one`：准备一笔、确认一笔）按自己的事务边界也经它。
+`push.application` 是专用服务端装配入口：先连接、后票据加锁，重验当前权限和版本，解析不可变 Source/Batch 的回导原键，读取本地成功账本，再调用纯 Express 准备并保存冻结结果。公司税号来自 Workspace，客户端不能替换公司或凭证来源。只返回准备状态、诊断与回执摘要，不返回运输载荷或凭据。RPC 只在无外部IO的本地事务发生数据库冲突时有界重试；内部组合调用必须直接使用 service。重试统一经共用的 `transaction.conflicts`（1020 / 1213 整笔回滚、退避，用尽抛 `Exhausted`），人推入口经 `push.application.conflicts`（用尽给 `push.native_lock_conflict`），自己按步提交的人推编排（`assistant.tools._push_one`：准备一笔、确认一笔）按自己的事务边界也经它。
 
 `push.native` 单向依赖 connections、history/access 和纯 targets/lifecycle/receipts；以三个原生 DocType 持久化 Record、Attempt、Writer Lock。记录及载荷不可变、当前版本放行、端点与公司/账套互斥、随机尝试令牌摘要及递增序号共同防重；旧派发结果未知时保留写锁，不自动重领。过时准备仅在从未派发的证据完整时可撤销替换；真实旧尝试的迟到回执仍可记录。所有框架 CRUD、分享入口拒绝绕过专用域服务。
 

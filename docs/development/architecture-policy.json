@@ -274,7 +274,8 @@
       "connections",
       "contracts",
       "history",
-      "targets"
+      "targets",
+      "transaction"
     ],
     "readback": [
       "access",
@@ -307,6 +308,7 @@
     ],
     "tabular": [],
     "targets": [],
+    "transaction": [],
     "tax": [
       "access",
       "contracts",
