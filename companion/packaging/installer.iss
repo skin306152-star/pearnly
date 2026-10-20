@@ -356,6 +356,8 @@ begin
   ExtractTemporaryFile('cc.png');
   WizardCompact;
   WizardForm.CenterOnShow := True;
+  { 安装窗口不能最大化(主流安装程序只有最小化和关闭) }
+  WizardForm.BorderIcons := [biSystemMenu, biMinimize];
 end;
 
 function SetTimer(hWnd, nIDEvent, uElapse, lpTimerFunc: LongWord): LongWord;
@@ -416,4 +418,5 @@ begin
   UninstallProgressForm.ClientHeight := UninstallProgressForm.ProgressBar.Top +
     UninstallProgressForm.ProgressBar.Height + ScaleY(32);
   UninstallProgressForm.CenterOnShow := True;
+  UninstallProgressForm.BorderIcons := [biSystemMenu, biMinimize];
 end;
