@@ -370,18 +370,22 @@ def workbook(
     anchor_overrides: Optional[Dict[str, Dict[str, float]]] = None,
     anchor_ocr: Optional[Dict[str, float]] = None,
     warnings: Optional[List[str]] = None,
+    bank_label: Optional[str] = None,
 ) -> bytes:
     """Generate Excel report with File Info + 4 data sheets, all headers i18n.
 
     P0.2 BUG-B-T2 v118.35.0.38 · anchor_overrides + anchor_ocr 来自 summary_json
     · anchor_overrides 非空时 · sheet 1 顶部加警示行 + 末尾加 "手动录入痕迹" section
     · 标黄(FFE082)被用户覆盖的 cell · 灰字显示 OCR 原值参考
+
+    ``bank_label``：给人看的银行名（``bank_names.task_label``，读不出是空串）；不传时照旧写银行码。
     """
     lang = lang if lang in ("th", "en", "zh", "ja") else "th"
 
     wb = openpyxl.Workbook()
     build_summary_sheet(
-        wb, recon_rows, summary, lang, task_info, parse_info, anchor_overrides, warnings
+        wb, recon_rows, summary, lang, task_info, parse_info, anchor_overrides, warnings,
+        bank_label=bank_label,
     )
     build_match_results_sheet(wb, recon_rows, lang)
     build_stmt_detail_sheet(wb, recon_rows, lang)

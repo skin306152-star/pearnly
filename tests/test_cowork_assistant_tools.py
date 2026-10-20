@@ -1238,6 +1238,22 @@ class ReconTests(unittest.TestCase):
             {"kind": "L6-card net (ledger)", "groups": 1, "lines": 3, "bank_deposits": "14782.29",
              "gl_debits": "15093.58", "gl_credits": "311.29"}])
 
+    def test_bank_result_names_the_bank_printed_on_the_statement_or_none(self):
+        """银行名只给账单上印着的；读不出就不给，不给内部银行码（2026-10-20 录制：虚构的 ธนาคารสาธิต 被说成 กสิกรไทย）。"""
+        api = sys.modules["pearnly_cowork.recon_center.api"]
+        for bank in ("ธนาคารสาธิต", ""):
+            with self.subTest(bank=bank):
+                api.detail = lambda kind, task, start, limit, bank=bank: {
+                    "rows": [], "total": 0, "summary": {"matched_count": 0}, "bank": bank}
+                out = json.loads(tools.recon_result({"kind": "bank", "task": "T1"}))
+                if bank:
+                    self.assertEqual(out["bank"], bank)
+                else:
+                    self.assertNotIn("bank", out)
+                self.assertNotIn("generic", json.dumps(out).lower())
+        spec = next(tool for tool in tools.TOOLS if tool["name"] == "cowork_recon_result")
+        self.assertIn("do not name a bank", spec["description"])
+
     def test_list_reads_the_tasks_the_page_lists(self):
         """列表接口回 {"tasks", "total"}（2026-10-10 测试：读错字段，三种对账都列成空的）。"""
         sys.modules["pearnly_cowork.recon_center.api"].tasks = lambda kind, start, limit: {

@@ -2513,10 +2513,10 @@ def recon_result(tool_input) -> str:
     if kind in ("bank", "income"):
         # 汇总用对账自己存的数（与结果页同一份）；没对上的行翻完全部明细再数（一页最多 200 行，2026-10-10 测试只看了
         # 第一页：368 笔流水说成 200 行、未匹配说成 0）。
-        rows, total, summary = [], None, None
+        rows, total, summary, bank = [], None, None, ""
         while total is None or len(rows) < min(total, RECON_ROWS_READ):
             page = recon_api.detail(kind, task, len(rows), RECON_PAGE) or {}
-            total, summary = int(page.get("total") or 0), page.get("summary")
+            total, summary, bank = int(page.get("total") or 0), page.get("summary"), page.get("bank") or ""
             rows += page.get("rows") or []
             if not page.get("rows"):
                 break
@@ -2524,6 +2524,8 @@ def recon_result(tool_input) -> str:
         out.update({"summary": summary, "rows_total": total, "unmatched_total": len(unmatched),
                     "unmatched": [_recon_row(r) for r in unmatched[:RECON_ROWS_SHOWN]]})
         if kind == "bank":
+            # 账单上印着的银行名，读不出就不给（不给内部银行码：2026-10-20 录制把虚构的 ธนาคารสาธิต 猜成 กสิกรไทย）
+            out["bank"] = bank
             out["matched_by_kind"] = _recon_matched_by_kind(rows)
     else:
         # 销项核查：逐张对照由存下的两边输入现算（同结果页、导出）；只给有问题的（2026-10-10 测试：没有明细，
@@ -4683,7 +4685,9 @@ TOOLS = [
                     "scan and must be checked on the page before export), notes, questions to answer once "
                     "(cowork_recon_answer), the summary counts and amounts, rows_total, unmatched_total and the first 30 "
                     "rows that did not match (for vat: invoices and report lines with a difference or missing on one "
-                    "side, with which fields differ). For bank, matched_by_kind sums the matched lines by how they "
+                    "side, with which fields differ). For bank, bank is the bank name as printed on the statement; "
+                    "when it is missing the name could not be read, so do not name a bank (never infer one from the "
+                    "account number or the transactions). matched_by_kind sums the matched lines by how they "
                     "were matched (groups, lines and the amounts on each side); when the two sides' totals differ, explain the "
                     "difference from it (for example ledger credits above bank withdrawals that are card fees the ledger "
                     "recorded in the card net-of-fee groups) instead of guessing. The reconciliation compares the "

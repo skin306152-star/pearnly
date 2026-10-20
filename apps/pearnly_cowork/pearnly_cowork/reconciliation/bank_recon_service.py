@@ -4,6 +4,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.reconciliation import (
+	bank_names,
 	bank_statement,
 	naming,
 	bank_intake,
@@ -40,7 +41,39 @@ LIST_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "status", "r
 	"matched_count", "formula_diff", "created_at")
 DETAIL_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "gl_account_code", "status",
 	"row_count", "source_format", "source_digest", "created_by", "created_at")
-TASKS = recon_tasks.ReconTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS, DETAIL_FIELDS)
+
+
+class BankTasks(recon_tasks.ReconTasks):
+	"""列表与结果要点里写给人看的银行名（`bank_names.task_label`：账单上印着的，读不出就空着），不写内部银行码
+	（认不出银行的通用版式是 ``generic``，2026-10-20 录制：列表、CC 回答里露出来，模型拿它和账号格式猜成别的银行）。
+	排序照旧按存的银行码。"""
+
+	def records(self, workspace, start=0, limit=50, sort_by=None, sort_order=None):
+		page = super().records(workspace, start, limit, sort_by, sort_order)
+		names = [row.get("name") for row in page["tasks"]]
+		stored = {item.name: item.parse_info_json for item in frappe.get_all(self.task,
+			filters={"name": ["in", names]}, fields=["name", "parse_info_json"])} if names else {}
+		for row in page["tasks"]:
+			row["bank_code"] = bank_names.task_label(row.get("bank_code"),
+				(bank_recon_contracts.json_loads(stored.get(row.get("name"))) or {}).get("stmt_files"))
+		return page
+
+	def detail(self, task_id, start=0, limit=100):
+		"""另给 ``bank``（给人看的银行名，读不出是空串）；汇总里的内部银行码去掉。"""
+		page = super().detail(task_id, start, limit)
+		if isinstance(page.get("summary"), dict):
+			page["summary"].pop("bank_code", None)
+		page["bank"] = task_bank(frappe.get_doc(self.task, task_id))
+		return page
+
+
+def task_bank(doc):
+	"""一次对账给人看的银行名（`bank_names.task_label`）。"""
+	return bank_names.task_label(doc.get("bank_code"),
+		(bank_recon_contracts.json_loads(doc.get("parse_info_json")) or {}).get("stmt_files"))
+
+
+TASKS = BankTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS, DETAIL_FIELDS)
 MOVED = "cowork-recon-moved:"
 
 
@@ -358,6 +391,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 			"stmt_files": [{"file": name, "rows": len(parsed.get("rows") or []), "ok": bool(parsed.get("ok")),
 				"error": parsed.get("error"), "error_code": parsed.get("error_code"),
 				"bank_code": parsed.get("bank_code", ""), **_read_by_recognition(parsed), **_account_of(parsed),
+				**({"bank_name": bank_names.printed(parsed)} if bank_names.printed(parsed) else {}),
 				**({"unread_pages": parsed["unread_pages"]} if parsed.get("unread_pages") else {}),
 				**({"recovered_pages": parsed["recovered_pages"]} if parsed.get("recovered_pages") else {}),
 				**({"duplicate_sheets": parsed["duplicate_sheets"]} if parsed.get("duplicate_sheets") else {})}
@@ -1309,9 +1343,9 @@ def export(task_id, lang="th"):
 		order_by="row_index asc", limit_page_length=0)
 	content = export_workbook([_export_row(row) for row in rows], _stored_summary(doc), lang=lang,
 		parse_info=bank_recon_contracts.json_loads(doc.parse_info_json) or None,
-		**_stored_run_records(doc))
+		bank_label=task_bank(doc), **_stored_run_records(doc))
 	return {"filename": naming.export_filename(doc.title,
-		f"BankRecon_v2_{doc.name}_{(doc.bank_code or 'bank').upper()}"), "content": content}
+		f"BankRecon_v2_{doc.name}_{bank_names.code_label(doc.bank_code) or 'BANK'}"), "content": content}
 
 
 def _stored_run_records(doc):
