@@ -77,7 +77,7 @@ jobs:
         run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_companion_credentials.py
       - name: Verify several computers per connection (register v2, digest authentication, device hello and leave, old-computer patch)
         run: python3 tests/test_cowork_cc_desktop_devices.py
-      - name: Verify the account-set register, reach and facts of a pool (identity rules, union directory, refresh hand-out, patch)
+      - name: Verify the account-set register, reach and facts of a pool (identity rules, union directory, refresh hand-out, patch, full reports written in batches)
         run: python3 tests/test_cowork_express_account_sets.py
       - name: Verify Express write dispatch across computers (routing, lease v2, lock scheme v2, evidence v2, pool state)
         run: python3 tests/test_cowork_express_dispatch.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_express_preflight.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_push_native_contract.py

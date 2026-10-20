@@ -833,6 +833,257 @@ class ReviewBatch2(Base):
         self.assertEqual(pool.reachers("CONN", r"\\srv\y\b"), [])
 
 
+# ── 整份上报批量写（CC 教程问题第 10 条：679 份首次上报逐行写，持连接行锁 9–10 秒）──────────────────────────
+
+
+def many(count, *, drive="S", legacy=False, volume=0x5A, relabel=(), skip=(), extra=0, mark="2026-10-20/100"):
+    """一台电脑报的一大份名单：每份一个目录文件号与网络路径（``legacy`` 时都没有，同 1.7.0 之前的旧版）。"""
+    rows = []
+    for index in [*range(count), *range(10_000, 10_000 + extra)]:
+        if index in skip:
+            continue
+        folder = "%d\\EXP%02d\\C%05d" % (2560 + index % 10, index % 100, index)
+        identified = {} if legacy else {"uid": "v1:%x:%05d" % (volume, index), "share": "\\\\srv\\pas\\" + folder,
+                                        "entry_mark": mark}
+        rows.append(row(drive + ":\\" + folder, drive + ":\\" + folder.rsplit("\\", 1)[0],
+                        name="Company %d%s" % (index, " (renamed)" if index in relabel else ""),
+                        tax_id="0105559%06d" % index, branch="00000", period_start="2026-01-01", **identified))
+    return rows
+
+
+def network_key(item):
+    return identity.normalize_location(item["attributes"]["share"], aliases=ALIASES)
+
+
+class RegistryIndex(unittest.TestCase):
+    """`targets.identity.Registry`：建一次、各行共用的登记索引，答案与逐份按登记顺序扫一样。"""
+
+    LOCATIONS = ["", r"\\ACC-01\exp\a", r"\\192.168.1.5\EXP\A", r"\\acc-02\exp\a"]
+
+    def registered(self, seed):
+        import random
+
+        chance = random.Random(seed)
+        return [R("k%02d" % index, uid=chance.choice(["", "u1", "u2", "u3"]), location=chance.choice(self.LOCATIONS),
+                  content_key=chance.choice(["", "tax:1", "tax:2"]), foreign=chance.random() < 0.3,
+                  others_live=chance.random() < 0.5) for index in range(60)]
+
+    @staticmethod
+    def scan(items, key, accept):
+        """原来 `resolve` 里逐份扫的条件（第 1、2、5 条）。"""
+        for item in items:
+            if key[0] == "uid" and item.uid and item.uid == key[1] and accept(item):
+                return item
+            if (key[0] == "location" and item.location
+                    and identity.normalize_location(item.location, aliases=ALIASES) == key[1]
+                    and item.content_key == key[2] and accept(item)):
+                return item
+            if key[0] == "content" and item.content_key == key[1] and accept(item):
+                return item
+        return None
+
+    @staticmethod
+    def probes():
+        for uid in ("u1", "u2", "u3", "u4"):
+            yield ("uid", uid), (lambda item: True)
+            yield ("uid", uid), (lambda item: not item.foreign)
+        for location in (r"\\acc-01\exp\a", r"\\acc-02\exp\a", r"\\acc-03\exp\a"):
+            for content in ("", "tax:1", "tax:2"):
+                yield ("location", location, content), (lambda item: True)
+        for content in ("tax:1", "tax:2", "tax:3"):
+            yield ("content", content), (lambda item: not item.identified and item.others_live)
+
+    def test_first_match_in_registration_order_like_a_linear_scan(self):
+        for seed in range(25):
+            items = self.registered(seed)
+            index = identity.Registry(items, aliases=ALIASES)
+            for key, accept in self.probes():
+                self.assertEqual(index.first(key, accept), self.scan(items, key, accept), (seed, key))
+            # 本轮里补上文件号 / 网络路径（原位替换）、新登记（追加在最后）：索引跟着换，答案仍同逐份扫
+            items[7] = items[7]._replace(uid="u4", location=r"\\acc-03\exp\a")
+            items.append(R("new", uid="u1", location=r"\\acc-01\exp\a", content_key="tax:1"))
+            index.put(items[7])
+            index.put(items[-1])
+            for key, accept in self.probes():
+                self.assertEqual(index.first(key, accept), self.scan(items, key, accept), (seed, key, "after put"))
+            self.assertEqual([item.account_key for item in index], [item.account_key for item in items])
+
+    def test_resolve_gives_the_same_decision_with_a_list_or_a_shared_registry(self):
+        registered = self.registered(3) + [R(r"\\acc-01\pas\book", "r", uid="v1:0001", location=r"\\acc-01\pas\book",
+                                             content_key=identity.content_key(TAX))]
+        index = identity.Registry(registered, aliases=ALIASES)
+        rows = [row(r"S:\BOOK", uid="v1:0001"), row(r"S:\BOOK", share=r"\\192.168.1.5\pas\book", **TAX),
+                row(r"C:\EXP\BOOK", uid="u2"), row(r"C:\EXP\BOOK"), row(r"Z:\X", uid="zz", **TAX)]
+        for item in rows:
+            for legacy in (True, False):
+                self.assertEqual(decide(item, registered, legacy=legacy),
+                                 resolve(item, registered=index, own_reach={}, legacy=legacy, host="acc-02",
+                                         aliases=ALIASES))
+
+
+class BatchedReport(Base):
+    """整份上报（`pool.apply_report`）与重核（`pool.reconsider`）：开头加锁读一次、认定用一份索引、写入攒到最后批量写。"""
+
+    COUNT = 679
+    CHUNKS = [200, 200, 200, 79]
+
+    def setUp(self):
+        super().setUp()
+        self.statements, self.document_writes = [], []
+        original_sql, original_write = DB.sql, pool.access.write
+
+        def sql(query, values=(), as_dict=False):
+            self.statements.append(" ".join(query.split()))
+            return original_sql(query, values, as_dict)
+
+        def write(doc):
+            self.document_writes.append(doc["doctype"])
+            return original_write(doc)
+
+        DB.sql = sql
+        pool.access.write = write
+        self.addCleanup(setattr, DB, "sql", original_sql)
+        self.addCleanup(setattr, pool.access, "write", original_write)
+
+    def reset(self):
+        self.statements.clear()
+        self.document_writes.clear()
+        DB.bulk_inserts.clear()
+        DB.updates.clear()
+        DB.locks.clear()
+
+    def pool_document_writes(self):
+        return [doctype for doctype in self.document_writes if doctype in (pool.ACCOUNT_SET, pool.REACH)]
+
+    def pool_statements(self, *prefixes):
+        return [q for q in self.statements if q.startswith(prefixes) and (pool.ACCOUNT_SET in q or pool.REACH in q)]
+
+    def batches(self, doctype, kind):
+        return [count for table, count in getattr(DB, kind) if table == doctype]
+
+    def test_a_first_full_report_inserts_each_table_in_a_few_statements_in_report_order(self):
+        rows = many(self.COUNT)
+        self.a.report(body(*rows), NOW)
+        reads = self.pool_statements("SELECT")
+        self.assertEqual(self.batches(pool.ACCOUNT_SET, "bulk_inserts"), self.CHUNKS)
+        self.assertEqual(self.batches(pool.REACH, "bulk_inserts"), self.CHUNKS)
+        self.assertEqual(self.pool_document_writes(), [])  # 一次逐行的文档写入都没有
+        # 登记、可达与目录照上报顺序（``ORDER BY creation, name``），同逐行插入
+        keys = [network_key(item) for item in rows]
+        self.assertEqual([r.account_key for r in DB.rows(pool.ACCOUNT_SET)], keys)
+        self.assertEqual([r.account_key for r in DB.rows(pool.REACH)], keys)
+        self.assertEqual([item["source_id"] for item in pool.catalog("CONN")], keys)
+        self.assertEqual(set(union()), set(keys))
+        # 锁区间：登记与可达整表加锁读，次数与只报 3 份时相同（不随份数涨）；不再逐行 ``get_doc(for_update=True)``
+        self.assertTrue(all(q.endswith("FOR UPDATE") for q in reads
+                            if q.startswith(("SELECT name, account_key, root_key", "SELECT name, device, account_key"))))
+        self.assertFalse([lock for lock in DB.locks if lock[0] in (pool.ACCOUNT_SET, pool.REACH)])
+        self.reset()
+        small = fake.Computer(connection("CONN2"), "CCD-A", credential="KA2", legacy=False, host="acc-01",
+                              aliases=ALIASES)
+        small.report(body(*many(3)), NOW)
+        self.assertEqual(len(self.pool_statements("SELECT")), len(reads))
+        self.assertEqual(len(self.pool_statements("INSERT")), 2)
+
+    def test_the_same_list_again_writes_nothing(self):
+        rows = many(self.COUNT)
+        self.a.report(body(*rows), NOW)
+        self.reset()
+        self.a.report(body(*rows), NOW + timedelta(minutes=1))
+        self.assertEqual((DB.bulk_inserts, DB.updates, self.pool_document_writes()), ([], [], []))
+        self.assertEqual(self.pool_statements("INSERT", "UPDATE", "DELETE"), [])
+        # 隔一天：可达行只补记报到时间，一组列一条语句
+        self.reset()
+        self.a.report(body(*rows), NOW + timedelta(days=1, minutes=2))
+        self.assertEqual(DB.updates, [(pool.REACH, count) for count in self.CHUNKS])
+        self.assertEqual({r.seen_at for r in DB.rows(pool.REACH)}, {NOW + timedelta(days=1, minutes=2)})
+
+    def test_entry_marks_changing_every_day_are_one_statement_per_chunk(self):
+        self.a.report(body(*many(self.COUNT)), NOW)
+        self.reset()
+        self.a.report(body(*many(self.COUNT, mark="2026-10-21/101")), NOW + timedelta(minutes=1))
+        self.assertEqual(DB.updates, [(pool.ACCOUNT_SET, count) for count in self.CHUNKS])
+        self.assertEqual({json.loads(r.attributes_json)["entry_mark"] for r in DB.rows(pool.ACCOUNT_SET)},
+                         {"2026-10-21/101"})
+        self.assertEqual(self.pool_document_writes(), [])
+
+    def test_a_partial_change_writes_only_what_changed_and_drops_what_is_gone(self):
+        rows = many(self.COUNT)
+        self.a.report(body(*rows), NOW)
+        dropped = set(range(5, self.COUNT, 20))
+        renamed = set(range(0, self.COUNT, 10)) - dropped
+        self.reset()
+        self.a.report(body(*many(self.COUNT, relabel=renamed, skip=dropped, extra=5)), NOW + timedelta(minutes=1))
+        self.assertEqual(sum(self.batches(pool.ACCOUNT_SET, "updates")), len(renamed))
+        self.assertEqual(DB.bulk_inserts, [(pool.ACCOUNT_SET, 5), (pool.REACH, 5)])
+        self.assertEqual(self.pool_document_writes(), [])
+        gone = {network_key(rows[index]) for index in dropped}
+        self.assertFalse(gone & {r.account_key for r in DB.rows(pool.REACH)})  # 名单里没了：这台的可达行删掉
+        self.assertTrue(gone <= {r.account_key for r in DB.rows(pool.ACCOUNT_SET)})  # 登记留着
+        self.assertFalse(gone & set(union()))
+        self.assertEqual(len(union()), self.COUNT - len(dropped) + 5)
+        labels = {r.account_key: r.label for r in DB.rows(pool.ACCOUNT_SET)}
+        self.assertEqual(labels[network_key(rows[0])], "Company 0 (renamed)")
+        # 报了空名单：只清这台的可达行
+        self.reset()
+        self.a.report(body(), NOW + timedelta(minutes=2))
+        self.assertFalse(DB.rows(pool.REACH))
+        self.assertEqual((DB.bulk_inserts, DB.updates, self.pool_document_writes()), ([], [], []))
+
+    def test_two_computers_reporting_the_same_list_in_turn_share_the_registrations(self):
+        self.a.report(body(*many(self.COUNT)), NOW)
+        seen_a = {r.name: r.seen_at for r in DB.rows(pool.REACH)}
+        self.reset()
+        self.b.report(body(*many(self.COUNT, drive="Z")), NOW + timedelta(minutes=1))
+        self.assertEqual(len(DB.rows(pool.ACCOUNT_SET)), self.COUNT)
+        self.assertEqual(DB.bulk_inserts, [(pool.REACH, count) for count in self.CHUNKS])
+        self.assertEqual(self.pool_document_writes(), [])
+        # B 的整份不碰 A 的可达行；轮流再报，内容没变就谁也不写
+        self.assertEqual({r.name: r.seen_at for r in DB.rows(pool.REACH) if r.device == "CCD-A"}, seen_a)
+        for minute in (2, 3):
+            self.reset()
+            self.a.report(body(*many(self.COUNT)), NOW + timedelta(minutes=minute))
+            self.b.report(body(*many(self.COUNT, drive="Z")), NOW + timedelta(minutes=minute))
+            self.assertEqual((DB.bulk_inserts, DB.updates), ([], []))
+        first = many(1)[0]
+        self.assertEqual(pool.local_paths("CONN", "CCD-B")[network_key(first)], r"Z:\2560\EXP00\C00000")
+
+    def test_a_whole_list_waiting_for_an_old_computer_is_identified_in_one_heartbeat(self):
+        """旧版电脑先登记（没有文件号），新版电脑报同一批 → 整份待认定；每次心跳重核、仍待认定时一行不写；旧版升级后带
+        文件号整份重报 → 另一台等着的整份在这一次心跳里认上，写入仍是批量的。"""
+        legacy = fake.Computer(self.doc, "CCD-A", credential="KA", legacy=True, version="1.5.1")
+        legacy.report(body(*many(self.COUNT, legacy=True)), NOW)
+        self.b.report(body(*many(self.COUNT, drive="Z", volume=0x6B)), NOW)
+        self.assertEqual({r.state for r in DB.rows(pool.REACH) if r.device == "CCD-B"}, {"pending_identity"})
+        self.reset()
+        self.b.report(body(unchanged=True), NOW + timedelta(minutes=1))
+        self.assertEqual((DB.bulk_inserts, DB.updates, self.pool_document_writes()), ([], [], []))
+        self.reset()
+        self.a.report(body(*many(self.COUNT, volume=0x6B)), NOW + timedelta(minutes=2))
+        self.assertEqual({r.state for r in DB.rows(pool.REACH)}, {"ok"})
+        self.assertEqual(len(DB.rows(pool.ACCOUNT_SET)), self.COUNT)  # 规范键仍是旧版登记的路径，不拆第二个键
+        self.assertEqual({r.account_key for r in DB.rows(pool.REACH) if r.device == "CCD-B"},
+                         {r.account_key for r in DB.rows(pool.ACCOUNT_SET)})
+        self.assertEqual(self.pool_document_writes(), [])
+        # 登记改列、A 的可达改列、B 认定后的可达插入、B 认上时登记的显示属性：每类按 200 行一批
+        self.assertLessEqual(len(DB.bulk_inserts) + len(DB.updates), 4 * len(self.CHUNKS))
+        self.assertEqual(pool.local_paths("CONN", "CCD-B")["s:\\2560\\exp00\\c00000"], r"Z:\2560\EXP00\C00000")
+
+    def test_rows_are_checked_like_a_document_write(self):
+        meta = frappe.get_meta(pool.REACH)
+        self.assertEqual(pool._valid(meta, {"registry_row": None, "path": "x"}), {"registry_row": 0, "path": "x"})
+        with self.assertRaises(fake.ValidationError):
+            pool._valid(meta, {"device": "d" * 141})  # 文字超长报错，不悄悄截断
+        with self.assertRaises(fake.ValidationError):
+            pool._valid(meta, {"not_a_column": 1})
+        # 规范根只从空补一次（同 ``CoworkExpressAccountSet.validate``）：批量改列照样过控制器的校验
+        self.a.report(body(*many(3)), NOW)
+        name = DB.rows(pool.ACCOUNT_SET)[0].name
+        with self.assertRaises(fake.PermissionError_):
+            DB.sql(f"UPDATE `tab{pool.ACCOUNT_SET}` SET `root_key`=CASE name WHEN %s THEN %s END, `modified`=%s, "
+                   f"`modified_by`=%s WHERE name IN %s", (name, "q:\\elsewhere", NOW, "x", (name,)))
+
+
 class NoDefaultAccountSet(unittest.TestCase):
     """方案 2.3 第 7 条：池里没有连接级默认账套。Express 读到的配置去掉旧心跳写下的所选与 6 个科目，数据原样留着。"""
 

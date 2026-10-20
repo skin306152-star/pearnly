@@ -5,9 +5,12 @@
 测试悄悄放过没覆盖的查询）。``FOR UPDATE`` 记进 ``DB.locks``。
 """
 import itertools
+import json
 import pathlib
+import re
 import sys
 import types
+from datetime import datetime
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps" / "pearnly_cowork"
@@ -89,11 +92,15 @@ def _match(row, filters):
 class Db:
     def __init__(self):
         self.docs, self.saved, self.locks, self.checks = {}, {}, [], {}
+        # 池的批量写：每次批量插入 / 批量改列记一条（表，行数）
+        self.bulk_inserts, self.updates = [], []
 
     def clear(self):
         self.docs.clear()
         self.saved.clear()
         self.locks.clear()
+        self.bulk_inserts.clear()
+        self.updates.clear()
         PRESENCE.clear()
         LOST_ACCESS.clear()
 
@@ -119,6 +126,50 @@ class Db:
 
     def set_value(self, doctype, name, field, value=None, update_modified=True):
         self.docs[doctype][name].update(field if isinstance(field, dict) else {field: value})
+
+    def _insert(self, q, values):
+        """池的批量插入（`pool._insert_rows`）：``INSERT INTO `tab…` (`列`, …) VALUES (%s, …), …``。按给的顺序插入（创建时刻
+        换成替身自己的递增序号，排序同真库按 creation）；名字重复整批报错。"""
+        doctype = re.match(r"INSERT INTO `tab([^`]+)` ", q).group(1)
+        fields = re.findall(r"`(\w+)`", q[q.index("(") + 1:q.index(") VALUES")])
+        values = list(values)
+        assert len(values) % len(fields) == 0, q
+        rows = [Doc(dict(zip(fields, values[start:start + len(fields)])), doctype=doctype)
+                for start in range(0, len(values), len(fields))]
+        table = self.docs.setdefault(doctype, {})
+        names = [row["name"] for row in rows]
+        if len(set(names)) != len(names) or any(name in table for name in names):
+            raise ValidationError("duplicate " + doctype)
+        for row in rows:
+            row["creation"], row["modified"] = next(_ORDER), next(_ORDER)
+            self.check(row)
+            table[row["name"]] = row
+            self.saved[(doctype, row["name"])] = Doc(row)
+        self.bulk_inserts.append((doctype, len(rows)))
+        return []
+
+    def _case_update(self, q, values):
+        """池的批量改列（`pool._update_rows`）：``UPDATE `tab…` SET `列`=CASE name WHEN %s THEN %s … END, …,
+        `modified`=%s, `modified_by`=%s WHERE name IN %s``。照真库逐行改，改完跑一次控制器校验（规范键 / 根不变量）。"""
+        doctype = re.match(r"UPDATE `tab([^`]+)` SET ", q).group(1)
+        columns = re.findall(r"`(\w+)`=CASE name((?: WHEN %s THEN %s)+) END", q)
+        names = values[-1]
+        params = list(values[:-3])
+        changes = {name: {} for name in names}
+        for column, whens in columns:
+            for _ in range(whens.count("WHEN")):
+                name, value = params.pop(0), params.pop(0)
+                changes[name][column] = value
+        assert not params, q
+        table = self.docs[doctype]
+        for name, update in changes.items():
+            row = table[name]
+            row.update(update)
+            row["modified"] = next(_ORDER)
+            self.check(row)
+            self.saved[(doctype, name)] = Doc(row)
+        self.updates.append((doctype, len(changes)))
+        return []
 
     def delete(self, doctype, filters):
         table = self.docs.get(doctype, {})
@@ -147,6 +198,10 @@ class Db:
                 connection, statuses = values[0], set(values[1:])
                 return [(row.name,) for row in sorted(refresh, key=lambda row: (row.requested_at, row.name))
                         if row.connection == connection and row.status in statuses]
+        if pool is not None and q.startswith("UPDATE `tab") and "=CASE name WHEN" in q:
+            return self._case_update(q, values)
+        if pool is not None and q.startswith("INSERT INTO `tab"):
+            return self._insert(q, values)
         if pool is not None:
             reach = [row for row in self.rows(pool.REACH)]
             if base == " ".join(pool.Q_REGISTRATIONS.split()):
@@ -213,6 +268,36 @@ _HOOKS = {"cowork_pool_presence": ["fake.presence"]}
 _ATTRS = {"fake.presence": lambda connection: PRESENCE.get(connection, {})}
 
 
+class _Field(types.SimpleNamespace):
+    pass
+
+
+class _Meta:
+    """`frappe.get_meta` 的够用替身：读本仓 DocType 定义里的字段（类型、长度、唯一）。"""
+
+    def __init__(self, doctype):
+        folder = doctype.lower().replace(" ", "_")
+        path = APP / "pearnly_cowork" / "pearnly_cowork" / "doctype" / folder / (folder + ".json")
+        fields = json.loads(path.read_text())["fields"]
+        self._fields = {field["fieldname"]: _Field(fieldtype=field["fieldtype"], length=field.get("length") or 0,
+                                                   unique=field.get("unique") or 0) for field in fields}
+
+    def get_field(self, fieldname):
+        return self._fields.get(fieldname)
+
+    def has_field(self, fieldname):
+        return fieldname in self._fields
+
+
+_METAS = {}
+
+
+def _get_meta(doctype):
+    if doctype not in _METAS:
+        _METAS[doctype] = _Meta(doctype)
+    return _METAS[doctype]
+
+
 def _throw(message, exc=None):
     raise (exc or ValidationError)(message)
 
@@ -237,7 +322,11 @@ def install(*, push_inputs=None, bank_window=None):
                            DoesNotExistError=ValidationError, clear_messages=lambda: None,
                            local=types.SimpleNamespace(site="testcowork.pearnly.com"),
                            session=types.SimpleNamespace(user="owner@example.com"), _dict=Doc,
-                           get_hooks=lambda name: list(_HOOKS.get(name, [])), get_attr=lambda path: _ATTRS[path])
+                           get_hooks=lambda name: list(_HOOKS.get(name, [])), get_attr=lambda path: _ATTRS[path],
+                           get_meta=_get_meta)
+    utils = types.ModuleType("frappe.utils")
+    utils.now_datetime = datetime.now
+    frappe.utils = utils
     model = types.ModuleType("frappe.model")
     document = types.ModuleType("frappe.model.document")
     document.Document = Doc
@@ -265,7 +354,7 @@ def install(*, push_inputs=None, bank_window=None):
         mappings=lambda client: {"accounts": [], "clients": []}, profiles=lambda workspace, tax: {})
     reconciliation = types.ModuleType("pearnly_cowork.reconciliation")
     reconciliation.bank_evidence = types.SimpleNamespace(window=bank_window or (lambda owner, date: []))
-    sys.modules.update({"frappe": frappe, "frappe.model": model, "frappe.model.document": document,
+    sys.modules.update({"frappe": frappe, "frappe.model": model, "frappe.model.document": document, "frappe.utils": utils,
                         "pymysql": pymysql, "pymysql.err": pymysql_err,
                         "pearnly_cowork.connections.access": access, "pearnly_cowork.masters": masters,
                         "pearnly_cowork.masters.push_inputs": masters.push_inputs,
