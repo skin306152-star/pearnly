@@ -170,7 +170,7 @@ function Heading({ children }: { children: ReactNode }) {
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-(--cc-space-24) gap-y-(--cc-space-8) border-b py-(--cc-space-16) last:border-b-0">
+    <div className="cc-settings-row" data-field="">
       <div className="min-w-0 text-body">{label}</div>
       <div className="flex min-w-0 items-center gap-(--cc-space-8)">{children}</div>
     </div>
@@ -412,7 +412,7 @@ function Connections({ api }: { api: Desktop }) {
 
   return (
     <>
-      <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
+      <div data-marquee-host="" className="cc-settings-row">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">{state.site || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-caption">{kinds}</div>}
@@ -465,7 +465,7 @@ function Connections({ api }: { api: Desktop }) {
         )}
       </div>
       {main && linkState.kind === "other_site" && state.site !== location.host && (
-        <div className="flex items-center justify-end border-b py-(--cc-space-12)">
+        <div className="cc-settings-row justify-end">
           <button type="button" className="cc-btn" disabled={!!busy} onClick={() => connect({ switchSite: true })}>
             {st.switchTo(location.host)}
           </button>
@@ -492,7 +492,7 @@ function Connections({ api }: { api: Desktop }) {
             <Heading>{st.earlierFolders}</Heading>
           </div>
           {legacy.map((root) => (
-            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-body last:border-b-0">
+            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="cc-settings-row text-body">
               <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={root.path}>
                 {root.path}
@@ -522,7 +522,7 @@ function Connections({ api }: { api: Desktop }) {
           </div>
           {!main.folders.length && <p className="py-(--cc-space-12) text-muted-foreground text-body">{st.noFolders}</p>}
           {main.folders.map((path) => (
-            <div data-marquee-host="" key={path} className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-12) text-body last:border-b-0">
+            <div data-marquee-host="" key={path} className="cc-settings-row text-body">
               <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={path}>
                 {path}
@@ -693,7 +693,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
         </Row>
       ) : (
         rows.map((row, i) => (
-          <ComputerSection
+          <ComputerRow
             key={`${row.adapter}-${row.id ?? row.device}-${i}`}
             row={row}
             busy={!!row.id && busy === row.id}
@@ -708,46 +708,44 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
 }
 
 /** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。
- *  能移除时行尾「···」→「移除」（同侧栏行菜单，不另加确认）。 */
-export function ComputerSection({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
+ *  能移除时行尾「···」→「移除」（同侧栏行菜单，不另加确认）。一台一行（.cc-settings-row），行间只有细线、不另加空。 */
+export function ComputerRow({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
   const status = row.online ? "online" : "offline";
   return (
-    <section className="mb-(--cc-settings-section-pt) last:mb-0">
-      <div data-marquee-host="" className="flex items-center gap-(--cc-space-12) border-b py-(--cc-space-16)">
-        <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-body">{row.device}</Marquee>
-          <div className="text-muted-foreground text-caption">
-            {row.adapter === "mrerp" ? "MR.ERP" : "Express"}
-          </div>
-          {row.update_blocked && (
-            <div className="text-muted-foreground text-caption">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
-          )}
+    <div data-marquee-host="" className="cc-settings-row">
+      <div className="min-w-0 flex-1">
+        <Marquee as="div" className="truncate text-body">{row.device}</Marquee>
+        <div className="text-muted-foreground text-caption">
+          {row.adapter === "mrerp" ? "MR.ERP" : "Express"}
         </div>
-        <span className="cc-status-line text-body" data-status={status}>
-          <span className="cc-status-dot" />
-          {st.status[status]}
-        </span>
-        {onRemove && (
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger
-              disabled={busy}
-              aria-label={t("more")}
-              className="cc-row-btn cc-tap"
-            >
-              <MoreHorizontalIcon />
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
-              <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
-                <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={onRemove}>
-                  {st.remove}
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+        {row.update_blocked && (
+          <div className="text-muted-foreground text-caption">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
         )}
       </div>
-    </section>
+      <span className="cc-status-line text-body" data-status={status}>
+        <span className="cc-status-dot" />
+        {st.status[status]}
+      </span>
+      {onRemove && (
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            disabled={busy}
+            aria-label={t("more")}
+            className="cc-row-btn cc-tap"
+          >
+            <MoreHorizontalIcon />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
+            <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
+              <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={onRemove}>
+                {st.remove}
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      )}
+    </div>
   );
 }
 

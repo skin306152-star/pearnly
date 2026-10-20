@@ -1456,8 +1456,26 @@ class DialogsAndListsTests(unittest.TestCase):
             self.assertIn("flex-shrink: 0;", rule, cls)
         # 设置一行：标签与按钮组整组换行、值列截断，不靠按钮折字
         settings = self.read("components/settings.tsx")
-        self.assertIn('<div className="flex flex-wrap items-center justify-between gap-x-(--cc-space-24)', settings)
+        self.assertIn('<div className="cc-settings-row" data-field="">', settings)
+        field = self.css.split("  .cc-settings-row[data-field] {", 1)[1].split("}", 1)[0]
+        self.assertIn("flex-wrap: wrap;", field)
+        self.assertIn("justify-content: space-between;", field)
         self.assertIn("max-w-(--cc-settings-value-max) truncate", settings)
+
+    def test_settings_rows_share_one_row_standard(self):
+        # 10-20（round-e2 观察「设置『电脑』列表每台一节，节间空 32」）：设置内容区的行（名称 + 值、公司一行、电脑、以前授权的文件夹、
+        # 换站点）都是 .cc-settings-row：上下 16、元素间 12、下边细线、最后一个不画线；电脑一台一行，不再每台包一节、节间加 32
+        settings = self.read("components/settings.tsx")
+        rule = self.css.split("  .cc-settings-row {", 1)[1].split("}", 1)[0]
+        self.assertIn("padding-block: var(--cc-space-16);", rule)
+        self.assertIn("gap: var(--cc-space-12);", rule)
+        self.assertIn("border-bottom: var(--cc-hairline) solid var(--cc-line);", rule)
+        self.assertIn(".cc-settings-row:last-child { border-bottom: 0; }", self.css)
+        self.assertNotRegex(settings, r"border-b py-\(--cc-space-")   # 行不再各写一份上下内边距和下边线
+        self.assertNotIn("<section", settings)
+        computer = settings.split("export function ComputerRow(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('<div data-marquee-host="" className="cc-settings-row">', computer)
+        self.assertNotIn("--cc-settings-section-pt", computer)
 
     def test_error_boxes_are_cc_alert(self):
         # V12（B4）：列表页、公司页的出错框统一 .cc-alert（危险浅底、危险线、内边距 12、圆角 8），不再各写一份

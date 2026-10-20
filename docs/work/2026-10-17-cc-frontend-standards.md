@@ -1412,3 +1412,28 @@ V25（结果面板头高 48）定稿就是不变：纯替换里写成 `h-(--cc-r
 - 原方案说 `cc-scroll-fix` 改了 ccs.md；它已提交的改动只有 `thread.tsx`、`lib/follow-scroll.ts`。B7 必须等它；B1 是否还要等，开工前按它最终改到的文件定；
 - 菜单 `sideOffset` 不只在 B3 / B6：`companies.tsx`、`company-page.tsx`、`scheduled-tasks.tsx`、`settings.tsx`（B4）也有，V8 批次补上 B4；
 - 其余引用（`assistant.tsx:98 / 128 / 129 / 1046 / 1058`、`thread-list.tsx:1074 / 1221`、`tooltip-icon-button.tsx:27`、`thread.tsx:360 / 748`、`split-handle.tsx:42 / 75`、`drag.tsx:103`、`settings.tsx:52`、`scheduled-tasks.tsx:863 / 895 / 995`、`attachment.tsx:115`、`sidebar.tsx:486`、globals.css 3 / 838 / 867 / 1368 / 1534 / 1931 / 2220 / 2229–2241 / 2263、`test_cc_ccs.py:400 / 495–560`、`test_cc_run_indicator.py:433`、`test_cc_mobile_overlays.py:170`、`test_cc_session_panel.py:344`、`ccs.md:51`、Tailwind 4.3.3、无人引用的 `--cc-fill-hover / -selected / --cc-dur-instant / --cc-line-stronger`）与仓库一致。
+
+## 11. 设置「电脑」列表间距（10-20，`pearnly/cc-device-spacing`）
+
+基线 `origin/main` 1c98ffa0；工作树 `.claude/worktrees/cc-device-spacing`。
+
+**问题出处**：测试窗口 `~/pearnly-devtools/test-window/round-e2/过程.md`「10-19 夜 新代码 f961e38a 验收 → CC 零碎」一条：「设置『电脑』列表每台一节，节间空 32，旧版也这样」。本机按 `settings-computers` 场景复拍确认：`ComputerSection` 每台电脑包一个 `<section>`，带 `mb-(--cc-settings-section-pt)`（32），两台电脑之间空出一整个分节的距离，像两节而不是一个列表；同一页「以前授权的文件夹」的行上下是 12，公司一行、「Express 数据文件夹」、电脑行是 16，同页两种密度，每处行样式都在组件里各拼一份工具类。
+
+**改了什么**：
+
+- `globals.css` 补设置内容区的行标准 `.cc-settings-row`（放在设置弹窗 `.cc-dialog[data-size="settings"]` 下面）：上下 `--cc-space-16`、元素间 `--cc-space-12`、下边 `--cc-hairline` 的 `--cc-line` 细线，`:last-child` 不画线；`[data-field]` 是「左名称、右值」（整组换行、两端对齐、列间 24、行间 8，即原来 `Row` 的写法）。只用已有变量，不加新档位。
+- `settings.tsx`：`Row`（常规、系统、Express 数据文件夹、全所可用与名单）、公司一行、换站点一行、以前授权的文件夹 / 旧版文件夹的行、电脑行全部换成 `.cc-settings-row`；`ComputerSection` 改名 `ComputerRow`，去掉每台一节的 `<section>` 和 32 的节间距，电脑一台一行连续排、行间只有细线，分节只靠「电脑」小标题。
+- 测试：`tests/test_cc_ccs.py` 新增 `test_settings_rows_share_one_row_standard`（行标准的取值、设置页不再手写 `border-b py-…`、不再有 `<section>`、电脑行用标准类），`test_text_buttons_stay_on_one_line_like_claude` 的设置一行断言改为核对 `.cc-settings-row[data-field]`；`tests/test_assistant_ui.py` 跟着改名。
+
+**画面变化**（`scripts/cc-visual` 只拍设置相关的 5 个场景：`settings`、`settings-tab2`、`settings-tab3`、`settings-computers`、`settings-computer-menu` × web / phone / desktop × 浅深 = 26 张，前后比对）：
+
+- 电脑列表（网页「连接」、CC 桌面版「此电脑 · 连接」下面的「电脑」）：两台电脑之间的 32 空白没了；最后一台在页尾时不再画下边线（同其他设置行）。
+- 「以前授权的文件夹」的行上下 12 → 16（行高 48 → 56），与同页其他行一致。
+- 常规（`settings`）、系统（`settings-tab3`）、网页与手机没有文件夹的「连接」页：**0 像素差**，样式差只有节点多了 `cc-settings-row` 类名。
+- 换站点一行（只在桌面版连的站点与当前网页不同时出现，场景覆盖不到）上下 12 → 16。
+
+**截图**：`~/pearnly-devtools/cc-device-spacing/visual/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`（`settings-computers`、`settings-tab2`），比对报告 `~/pearnly-devtools/cc-device-spacing/visual/report.md`。
+
+**给测试窗口的验收**：CC 桌面版「设置 → 此电脑 · 连接」下面的「电脑」、网页「设置 → 连接」：多台电脑连续一行一行排，行间只有细线、没有大块空白；「以前授权的文件夹」行高与上面几行一致。
+
+**还缺什么**：合入 main 与部署（按「主线集成」由开发窗口做）；Windows 真机（泰文字体）上目测。

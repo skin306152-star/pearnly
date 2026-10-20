@@ -1286,7 +1286,7 @@ import "cc-update-env";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
-import { blockedLine, ComputerSection, KeepAwakeRows, VersionRow } from "@/components/settings";
+import { blockedLine, ComputerRow, KeepAwakeRows, VersionRow } from "@/components/settings";
 
 const g = globalThis as any;
 const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(type, props));
@@ -1346,13 +1346,13 @@ const computer = { adapter: "express", device: "NOTEBOOK-REC", online: true, ver
                    update_blocked: { version: "1.5.2", at: at.toISOString().replace(".000Z", "+00:00") } };
 const hhmm = new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(at);
 // 文件夹按公司在主档页看（ADR-020，2026-10-15）：网页「连接」每台电脑下不再列文件夹
-assert.deepEqual(text(html(ComputerSection, { row: computer })),
+assert.deepEqual(text(html(ComputerRow, { row: computer })),
   ["NOTEBOOK-REC", "Express", `Windows blocked the automatic update to v1.5.2 · Yesterday ${hhmm}`, "Connected"]);
 // 服务端存的是 UTC：11:18 UTC = 曼谷 18:18（英文页面是 12 小时制，同对话里的时间）
 assert.match(blockedLine("1.5.2", "2026-10-13T11:18:00+00:00"), / 06:18 PM$/);
 // 没被拦、旧版 CC 桌面版不报：没有这一句
 for (const blocked of [null, undefined]) {
-  assert.deepEqual(text(html(ComputerSection, { row: { ...computer, update_blocked: blocked } })).slice(0, 3),
+  assert.deepEqual(text(html(ComputerRow, { row: { ...computer, update_blocked: blocked } })).slice(0, 3),
     ["NOTEBOOK-REC", "Express", "Connected"]);
 }
 """, lang="en")
@@ -1362,10 +1362,10 @@ for (const blocked of [null, undefined]) {
         self.run_page(r"""
 const computer = { adapter: "express", device: "ACC-02", online: false, version: "1.7.0", folders: [] as string[], id: "CCD-2",
   connection: "CWEC-1", can_remove: true };
-const shown = html(ComputerSection, { row: computer, onRemove: () => {} });
+const shown = html(ComputerRow, { row: computer, onRemove: () => {} });
 assert.deepEqual(text(shown), ["ACC-02", "Express", "Disconnected"]);
 assert.match(shown, /aria-label="More"/);
-const plain = html(ComputerSection, { row: { ...computer, can_remove: false } });
+const plain = html(ComputerRow, { row: { ...computer, can_remove: false } });
 assert.deepEqual(text(plain), ["ACC-02", "Express", "Disconnected"]);
 assert.doesNotMatch(plain, /aria-label="More"/);
 """, lang="en")
@@ -2612,7 +2612,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("{!companyFolders && main && main.folders !== null && (", settings)  # 旧桌面版保留旧块
         self.assertIn('onClick={() => void run("folder", "remove_folder", { id: root.member, path: root.path })}', settings)
         self.assertIn("<Row label={st.expressFolder}>", settings)  # Express 授权留在设置里
-        computer = block(settings, "export function ComputerSection(")
+        computer = block(settings, "export function ComputerRow(")
         self.assertNotIn("st.folders", computer)
         self.assertNotIn("row.folders", computer)
 
