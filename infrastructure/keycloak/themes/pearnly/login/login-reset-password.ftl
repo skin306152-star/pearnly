@@ -22,7 +22,7 @@
               <div class="field">
                 <span class="field-icon"><@layout.pnIco name="user" /></span>
                 <input type="text" id="username" name="username" autofocus dir="ltr"
-                       value="${(auth.attemptedUsername!'')}"
+                       value="${(auth.attemptedUsername!'')}" autocomplete="username"
                        placeholder="${msg("pearnlyUsernamePh")}"
                        aria-invalid="<#if messagesPerField.existsError('username')>true</#if>" />
               </div>

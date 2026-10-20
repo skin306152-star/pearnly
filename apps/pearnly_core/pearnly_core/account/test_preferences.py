@@ -145,6 +145,7 @@ class TestPreferences(unittest.TestCase):
         oidc_session.forget()
         self.native.cache.delete_value.assert_called_once_with("pearnly_oidc_session:session-a")
         self.native.session.sid = "session-b"
+        self.native.session.get.return_value = {}   # 会话里没有提示时才查状态存储
         oidc_session.logout_hint()
         self.native.cache.get_value.assert_called_with("pearnly_oidc_session:session-b")
 

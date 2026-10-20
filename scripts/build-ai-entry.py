@@ -363,6 +363,9 @@ parent=pearnly
 import=common/keycloak
 styles=
 locales=th,zh-CN,en
+# 不显示内容的过渡页（退出后自动跳回，info.ftl 在 pearnly 主题）用本主题的样式表和标题，底色与登录页一致。
+pearnlyBlankCss=css/""" + CSS_NAME + """
+pearnlyBlankTitle=CC
 """
 
 TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
@@ -413,7 +416,8 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
     <#assign who = (login.username!'')>
     <#if who?has_content && !messagesPerField.existsError('username')>
       <div class="who" id="who"><span>${who}</span><button type="button" id="who-change">${msg("pearnlyAiChange")}</button></div>
-      <input type="hidden" id="username" name="username" value="${who}" />
+      <#-- 密码保存在本页域名下，浏览器要在同一个表单里认出账号：type=hidden 会被密码管理器忽略，所以用不显示的只读文本框。 -->
+      <input type="text" id="username" name="username" value="${who}" autocomplete="username" readonly style="display:none" />
     <#else>
       <input class="input" id="username" name="username" type="text" value="${who}" autocomplete="username" placeholder="${msg("pearnlyAiLogin")}" style="margin-bottom:10px" <#if !who?has_content>autofocus</#if> />
     </#if>
@@ -438,6 +442,23 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
 </@layout.registrationLayout>
 """
 
+# 退出确认页：退出地址没带 id_token_hint 时身份服务会先要用户再点一次「注销」。用户 10-20 定任何产品退出都不出现这一页：
+# 不显示内容（底色同登录页），加载即提交身份服务给的确认表单（session_code 原样带回）；禁用脚本时留原生按钮。
+LOGOUT_CONFIRM_FTL = """<#-- """ + GENERATED + """ -->
+<!doctype html>
+<html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CC</title>""" + FAVICON + """<meta name="robots" content="noindex">
+<link href="${url.resourcesPath}/css/""" + CSS_NAME + """" rel="stylesheet" />
+</head>
+<body>
+<form id="kc-logout-confirm" action="${url.logoutConfirmAction}" method="POST">
+  <input type="hidden" name="session_code" value="${logoutConfirm.code}" />
+  <noscript><button type="submit" name="confirmLogout" value="${msg("doLogout")}">${msg("doLogout")}</button></noscript>
+</form>
+<script>document.getElementById("kc-logout-confirm").submit();</script>
+</body></html>
+"""
+
 # Keycloak 文案：只放 ai 主题新增的键，其余（密码、登录、忘记密码…）继承 pearnly 主题。
 MESSAGES = {
     "zh_CN": {"pearnlyAiChange": "更换", "pearnlyAiLogin": "用户名或邮箱", "pearnlyAiRemember": "记住登录",
@@ -459,7 +480,7 @@ def properties(values: dict) -> str:
 
 def outputs() -> dict:
     files = {PAGE: PAGE_HTML, THEME / "theme.properties": THEME_PROPERTIES, THEME / "template.ftl": TEMPLATE_FTL,
-             THEME / "login.ftl": LOGIN_FTL, THEME / "resources/css" / CSS_NAME: CSS + "\n", THEME / "resources/js" / JS_NAME: THEME_JS}
+             THEME / "login.ftl": LOGIN_FTL, THEME / "logout-confirm.ftl": LOGOUT_CONFIRM_FTL, THEME / "resources/css" / CSS_NAME: CSS + "\n", THEME / "resources/js" / JS_NAME: THEME_JS}
     for code, values in MESSAGES.items():
         files[THEME / f"messages/messages_{code}.properties"] = properties(values)
     return files

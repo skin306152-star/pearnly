@@ -44,6 +44,10 @@
                   <span class="pn-field-error">${kcSanitize(messagesPerField.getFirstError('username'))?no_esc}</span>
                 </#if>
               </div>
+            <#elseif (auth.attemptedUsername)?has_content>
+              <#-- 重新验证时不显示账号框；放一个不显示的只读账号框，浏览器保存 / 填充密码时才认得出是哪个账号。 -->
+              <input type="text" id="username" name="username" value="${auth.attemptedUsername}"
+                     autocomplete="username" readonly style="display:none" />
             </#if>
 
             <div class="form-row">
