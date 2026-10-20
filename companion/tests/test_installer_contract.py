@@ -195,7 +195,7 @@ def test_one_click_install_shows_only_the_icon_a_progress_bar_and_cancel():
     assert "Icon.PngImage.LoadFromFile(IconFile);" in layout and "Icon.Stretch := True;" in layout
     assert "Icon.Width := ScaleX(64);" in layout
     assert _png_size(COMPANION / "assets" / "cc.png") == (256, 256)
-    assert "Bar.Parent := Form;" in layout and "Cancel.Left" in layout and "Form.ClientHeight" in layout
+    assert "Bar.Parent := Form;" in layout and "Cancel.Parent := Form;" in layout and "Form.ClientHeight" in layout
     init = code.split("procedure InitializeWizard", 1)[1].split("end;", 1)[0]
     assert "ExtractTemporaryFile('cc.png')" in init and "WizardCompact" in init
     files = [line for line in _section(script, "[Files]").splitlines() if line.startswith("Source:")]

@@ -309,6 +309,8 @@ begin
   Bar.Width := Form.ClientWidth - 2 * Margin;
   Bar.Height := ScaleY(8);
   Bar.Top := Icon.Top + Icon.Height + ScaleY(28);
+  { 取消按钮原来在底部按钮栏里(窗体缩小后那一栏在可见区域外,2026-10-20 测试机截图看不到取消):挪到窗体上 }
+  Cancel.Parent := Form;
   Cancel.Top := Bar.Top + Bar.Height + ScaleY(24);
   Cancel.Left := Form.ClientWidth - Margin - Cancel.Width;
   Form.ClientHeight := Cancel.Top + Cancel.Height + ScaleY(16);
