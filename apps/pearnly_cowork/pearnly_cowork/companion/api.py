@@ -4,6 +4,7 @@ import frappe
 # 授权判据走连接域那一份（companion 的域依赖只有 connections/push/targets；
 # `pearnly_cowork.access` 不在它的允许列表里，不能在这里直接 import）。
 from pearnly_cowork.connections import access
+from pearnly_cowork.transaction import conflicts
 
 from . import credentials, pool
 
@@ -11,16 +12,17 @@ INSTALLER_URL = 'https://pearnly.com/downloads/companion/CC-Setup.exe'
 
 
 def _local_transaction(function, *args, **kwargs):
+    """电脑登记 / 移除电脑：一整笔本地事务，撞上 1020 / 1213（register 对密钥行的加锁读撞上同一台电脑的心跳，D9 压测）
+    经 `transaction.conflicts.retried` 整笔回滚、退避后重来。用尽时同原来一样是 ``QueryDeadlockError``（对话页下次打开
+    再登记），只是不带数据库原文。"""
     # after_request applies no-store/no-cache/nosniff. Set on errors and replays too, so
     # the one-time plaintext response cannot become a reusable HTTP artifact.
     frappe.local.cowork_private_response = True
-    for attempt in range(3):
-        try:
-            return function(*args, **kwargs)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    try:
+        return conflicts.retried(function, *args, **kwargs)
+    except conflicts.Exhausted:
+        pass
+    raise frappe.QueryDeadlockError()
 
 
 # 管理用的 issue / revoke / status 三个接口已下线（ADR-021）：没有界面调用，多台电脑后「当前那把」也说不清。

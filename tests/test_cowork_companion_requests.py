@@ -241,6 +241,7 @@ def _frappe():
         ValidationError, PermissionError, DoesNotExistError)
     frappe.UniqueValidationError = type("UniqueValidationError", (ValidationError,), {})
     frappe.DuplicateEntryError = type("DuplicateEntryError", (Exception,), {})
+    frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
     frappe.session = types.SimpleNamespace(user="acc@x.com")
     frappe._ = lambda text: text
 
@@ -833,10 +834,15 @@ class MachineReplyTests(unittest.TestCase):
         service = types.ModuleType("request_service")
         companion = types.ModuleType("pearnly_cowork.companion")
         companion.http_auth, companion.request_service, companion.request_contracts = auth, service, contracts
-        saved = {name: sys.modules.get(name) for name in ("frappe", "pearnly_cowork", "pearnly_cowork.companion")}
+        transaction = types.ModuleType("pearnly_cowork.transaction")
+        names = ("frappe", "pearnly_cowork", "pearnly_cowork.companion", "pearnly_cowork.transaction",
+                 "pearnly_cowork.transaction.conflicts")
+        saved = {name: sys.modules.get(name) for name in names}
         sys.modules.update({"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
-                            "pearnly_cowork.companion": companion})
+                            "pearnly_cowork.companion": companion, "pearnly_cowork.transaction": transaction})
         try:
+            # 撞锁整笔重来用真的共用处（`transaction.conflicts`），绑这里的 Frappe 替身
+            transaction.conflicts = _load("pearnly_cowork.transaction.conflicts", APP / "transaction/conflicts.py")
             self.api = _load("request_api_under_test", APP / "companion/request_api.py")
         finally:
             for name, module in saved.items():

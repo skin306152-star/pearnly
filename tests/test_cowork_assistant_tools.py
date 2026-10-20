@@ -136,7 +136,12 @@ def _install():
         spec.loader.exec_module(module)
         parent, _, child = name.rpartition(".")
         setattr(sys.modules[parent], child, module)
-    # 撞上写者锁时整笔重来的共用处（`push.application.conflicts`）用真的：次数、退避与用尽时的原因都按它
+    # 撞上写者锁时整笔重来的共用处（`push.application.conflicts` 经 `transaction.conflicts`）用真的：次数、退避与用尽时的原因都按它
+    sys.modules["pearnly_cowork.transaction"] = types.ModuleType("pearnly_cowork.transaction")
+    spec = importlib.util.spec_from_file_location("pearnly_cowork.transaction.conflicts", COWORK / "transaction/conflicts.py")
+    shared = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = sys.modules["pearnly_cowork.transaction"].conflicts = shared
+    spec.loader.exec_module(shared)
     spec = importlib.util.spec_from_file_location("pearnly_cowork.push.application.conflicts",
                                                   COWORK / "push/application/conflicts.py")
     conflicts = importlib.util.module_from_spec(spec)
@@ -2057,8 +2062,8 @@ class PushConflictRetryTests(unittest.TestCase):
                 (tools.application, "cancel_prepared", lambda name, revision: self.cancelled.append(name)),
                 (tools.destinations, "of", lambda adapter: destination),
                 (tools.destinations, "online", lambda adapter, connection: True),
-                (tools.conflicts.time, "sleep", self.sleeps.append),
-                (tools.conflicts.random, "uniform", lambda low, high: 1.0),
+                (tools.conflicts.shared.time, "sleep", self.sleeps.append),
+                (tools.conflicts.shared.random, "uniform", lambda low, high: 1.0),
                 (frappe.db, "commit", commit),
                 (frappe.db, "rollback", lambda save_point=None: self.pending.clear()),
                 (frappe.db, "get_value", lambda *a, **k: ("express", 3))):
@@ -2085,9 +2090,9 @@ class PushConflictRetryTests(unittest.TestCase):
         out = tools._push_one("H1")
         self.assertEqual(out, {"document": "H1", "status": "failed", "reason": "push.native_lock_conflict"})
         self.assertEqual(self.failed, [("H1", "push.native_lock_conflict")])
-        self.assertEqual(len(self.keys), tools.conflicts.ATTEMPTS)
+        self.assertEqual(len(self.keys), tools.conflicts.shared.ATTEMPTS)
         self.assertEqual((self.records, self.queued, self.confirms), ({}, [], []))
-        self.assertEqual(self.sleeps, list(tools.conflicts.BACKOFF))
+        self.assertEqual(self.sleeps, list(tools.conflicts.shared.BACKOFF))
         self.assertNotIn("Record has changed", json.dumps(out))
 
     def test_confirm_still_conflicting_cancels_its_preparation_like_other_confirm_failures(self):
@@ -2095,7 +2100,7 @@ class PushConflictRetryTests(unittest.TestCase):
         out = tools._push_one("H1")
         self.assertEqual((out["status"], out["reason"]), ("failed", "push.native_lock_conflict"))
         self.assertEqual(len(self.keys), 1)  # 准备只做一次
-        self.assertEqual(len(self.confirms), tools.conflicts.ATTEMPTS)
+        self.assertEqual(len(self.confirms), tools.conflicts.shared.ATTEMPTS)
         self.assertEqual(self.queued, [])
         self.assertEqual(self.cancelled, ["CWP-" + self.keys[0][:12]])
         self.assertEqual(self.failed, [("H1", "push.native_lock_conflict")])

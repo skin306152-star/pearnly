@@ -2293,3 +2293,88 @@ MariaDB 不限核、缓冲池 4 GB。绝对值偏慢（客户端时延里还有 
 （`push.application.api._local_transaction`）、Express 确认发送（`companion.submission.confirm`）、CC 工具与待处理页共用的 `_push_one`
 （准备到提交一笔、确认一笔，各自重来；确认只重来确认）都经它；被回滚的那次什么也不留，重来同一请求号，记录按请求号唯一、只排一次。
 测试 `tests/test_cowork_push_conflicts.py`（9 项）与 `tests/test_cowork_assistant_tools.py` 新增 3 项；没在真 MariaDB 上复现、待测试窗口照原步骤再推。
+
+## 电脑侧短事务撞锁整笔重来（10-20，分支 `pearnly/register-lock-retry`，起点 origin/main 1c98ffa0）
+
+背景：上面「D9 并发压测」第 4 轮的 1020 共 8 次，全在 register 对 `Cowork Express Agent Credential` 的加锁读（register 先不加锁地读主连接、
+建立了读视图，再加锁读这台电脑那把密钥行，而这一行刚被同一台电脑的心跳改过报到时间 `record_seen`）；第 3 轮有 1 次三连撞、回 500。
+人推已经有 `push.application.conflicts.retried`（上一节）。电脑侧各入口原来各写一个「不等、一共三次」的循环，按需请求一个都没有。
+
+提交：`4107fa20` refactor（纯搬移，行为不变）、`0a2590b4` fix（各入口改经同一处 + 测试）、本条 docs。
+
+### 一个机制、放在哪
+
+- 机制从 push 包搬到新的共用叶子 `pearnly_cowork.transaction.conflicts`（只依赖 Frappe 的数据库，不依赖任何业务域；架构文档域表加一行，
+  `architecture-policy.json` 登记 `transaction: []`、`push → transaction`、`companion → transaction`）。内容不变：撞上 1020 / 1213
+  整笔回滚（不回保存点：1020 要新的读视图）、退避 0.1 / 0.2 / 0.4 秒 × 0.5–1.5 随机、一共 4 次，用尽抛不带数据库原文的 `Exhausted`。
+  fix 里加一条：撞锁后整笔回滚本身失败抛 `RollbackFailed`，立刻停、不再重来、不挂原异常（原来只有领单 / 回执这样做）。
+- `push.application.conflicts` 保留原入口，只定人推用尽时给 `push.native_lock_conflict`；复核页、Express 确认发送、CC 工具的调用方不改。
+- 为什么不两套：电脑侧和人推撞的是同一类锁（写者锁行、连接行、密钥行、电脑行），对面也是同一批事务（领单 / 回执 / 心跳 / 登记）；
+  次数、退避、回滚、提示清理放一处，以后调一处，不会出现「人推 4 次带退避、register 3 次不等」这样各说各的。
+
+### 入口与用尽时给什么（沿用各自原有的失败形状，不加文案）
+
+| 入口 | 原来 | 现在 | 用尽时 |
+|---|---|---|---|
+| 电脑登记 / 移除电脑（`companion.api._local_transaction`：`register`、`remove_device`） | 3 次不等；用尽抛原来那个异常（带 1020 与表名原文） | 共用机制 | 照旧 `QueryDeadlockError`（500，对话页下次打开再登记），不带数据库原文 |
+| 心跳（`heartbeat.report`） | 3 次不等 | 共用机制；每次尝试一个保存点，上报格式错照旧只退回保存点、不重来 | 照旧回「忙」（`http_auth.raise_busy`，503 `companion.report_busy`），CC 桌面版忽略、下一轮再报 |
+| 领单 / 回执（`queue_api._run`） | 3 次不等；回滚失败回「忙」（阶段 `<操作>_rollback`） | 共用机制，每次照旧重验派发 / 回执能力，提交仍在重来之外 | 照旧回「忙」；回滚失败照旧 `lease_rollback` / `ack_rollback`、只领一次 |
+| 认电脑（`device_api`：`hello`、`leave`） | 3 次不等 | 共用机制；`CredentialError` 照旧退回保存点、回 `{ok: false, code}`、不重来 | 照旧回「忙」 |
+| 机器认证（`http_auth._authenticate_request`，心跳 / 领单 / 回执 / 文件夹 / 按需请求 / 认电脑共用） | 3 次不等 | 共用机制 | 照旧回「忙」（阶段 `authenticate`） |
+| 按需请求（`request_api`：`next_request`、`complete_request`） | 没有重试：两台同时领同一件撞 1020 直接 500 | 共用机制（结果分块按 offset 覆盖写，重来写的是同一块） | 回「忙」，与别的机器方法一样（CC 桌面版对非 2xx 本来就这一轮不做、下一轮再来） |
+
+被回滚的那次不留东西：整笔回滚丢掉这一笔里的写，Frappe 的 `db.rollback` 同时清掉排在提交后的回调与入队；被回滚那次弹过的提示也去掉。
+
+没改的、原因：
+
+- 文件夹机器方法（`folder_intake.machine` 的 `sync` / `begin` / `finish` / `workbook_file`）：鉴权后先提交、不锁连接行和写者锁；`begin` 要取原件
+  直传地址、`finish` 落收件箱文件并叫后台推进，有外部 IO，整笔重来要逐项审，不在本次；压测里也没出现过。
+- `credentials._atomic` / `transport._atomic` 里的 `except QueryDeadlockError: raise` 不是重试，是把冲突原样交给外层整笔重来，保留。
+- 其他域（对账、识别、盘点、主档等）的人用接口各自的三次循环不是电脑侧，不在本次范围。
+- 根因没动：register 先一致性读再加锁读密钥行、心跳每次改密钥行，仍然会撞，只是由重来吸收；根除牵涉报到时间口径（上面「剩下的 1020」）。
+
+### 测试
+
+- 新增 `tests/test_cowork_companion_lock_retry.py`（14 项，进 CI）：register 与 remove_device、心跳、领单 / 回执、认电脑、按需请求各自——
+  1020 / 1213 前 1–3 次失败第 4 次成功（回滚次数、退避、只留成功那次的写）、4 次都失败（register 是不带原文、不挂原异常的
+  `QueryDeadlockError`，机器方法回「忙」且记下的是 `Exhausted`）、非锁错误不重来（权限错、上报格式错退回保存点、`CredentialError`）、回滚失败
+  立刻停；以及「同一处」：六个入口都经 `transaction.conflicts.retried`、companion 里不再有自己的重试循环、人推也经它。旧代码上跑这份测试 10 项失败。
+- 本机离线：`test_cowork_push_conflicts` 9、`test_cowork_assistant_tools` 222、`test_cowork_cc_desktop_devices` 70（重来模拟改成 4 次）、
+  `test_cowork_companion_requests` 38、`test_companion_contract` 76、`test_companion_receiver` 5、`test_cowork_companion_http_auth` 21、
+  `-credentials` 17、`-queue_http_contracts` 16、`-queue_contracts` 18、`-reports` 23、`-release` 3，全 OK；架构检查 PASS。
+- 生产镜像 `dd360538…` 的离线容器（`--network none`，本分支源码只读挂载）：`test_cowork_companion_register` 10、`-liveness` 4、`-reports` 23、
+  `-legacy_wire` 3、`test_cowork_folder_computers` 8、`test_cowork_companion_lock_retry` 14，全 OK；改过的模块在镜像里全部能导入。
+- 实验室脚本里按「3 次」断言的四处改成按共用的 `ATTEMPTS`：`cowork-companion-credentials`、`-heartbeat`、`-queue-http`、`-queue-ack-http`
+  的 `-lab-verify.py`（只编译过，没在实验站点跑）。
+- 没在真 MariaDB 上复现：需要测试窗口在 lab 照 D9 压测复测（下面）。
+
+### 待测试窗口在 lab 复测
+
+在本分支的工作树里跑（compose 按相对路径只读挂本工作树的 `apps/`、`scripts/`、`tests/`），环境同上「第 7 批后续」：
+
+```sh
+export PEARNLY_COWORK_LAB_IMAGE=<线上镜像 digest，部署前取当时的>
+export PEARNLY_COWORK_LAB_BENCH_MEM=2560m PEARNLY_COWORK_LAB_BENCH_CPUS=4 PEARNLY_COWORK_LAB_DB_CONNECTIONS=120
+LAB="docker compose -p pearnly-multidesk-lab -f infrastructure/compose/cowork-backend-lab.yml"
+$LAB up -d --wait db redis bench
+# 站点没有时先建（约 25 分钟）：见上「第 7 批后续」的 cowork-backend-lab-init.py 一行
+for n in 1 2 3; do $LAB exec -T bench env/bin/python /workspace/scripts/cowork-companion-concurrency-lab-verify.py setup cowork-backend-load-$n.localhost --history 20000; done
+# 已经压过一轮的站点改跑：jobs cowork-backend-load-$n.localhost
+$LAB exec -T bench env/bin/python /workspace/scripts/cowork-companion-concurrency-lab-verify.py run --seconds 240
+for n in 1 2 3; do $LAB exec -T bench env/bin/python /workspace/scripts/cowork-companion-concurrency-lab-verify.py report cowork-backend-load-$n.localhost; done
+# 改了次数断言的四个实验室脚本
+for f in cowork-companion-credentials cowork-companion-heartbeat cowork-companion-queue-http cowork-companion-queue-ack-http; do
+  $LAB exec -T -e PEARNLY_COWORK_TEST_SITE=cowork-backend-companion.localhost bench env/bin/python /workspace/scripts/$f-lab-verify.py
+done
+```
+
+看 `run` 打出的 JSON（也写在 `sites/cowork-backend-load-1.localhost/private/concurrency-run.json`）：
+
+- `client.<站点>.register.status`：没有 `500:`（D9 第 3 轮有 1 次）；被移除的电脑仍是 `200:removed`。
+- `server.<站点>.db_errors` 里 `1020:lock:tabcowork express agent credential` 可以照旧有几次（根因没动），`raised` 里
+  `register:QueryDeadlockError:1020` 是被重来吸收的那几次；它们的和不该再变成 register 的 500。
+- `client.<站点>` 的 `heartbeat`、`lease`、`ack`、`next` 没有 5xx；`innodb_delta` 死锁仍为 0；领单服务端 p50 / p95 与第 4 轮（约 100 / 200 ms）
+  相比没有变慢（重来最多多等约 1 秒，只发生在撞锁的那几次）。
+- `report` 照旧：同一次尝试没有交付两次、没有一张成功两次、没有被别人的电脑写。
+
+验收：上面五条都满足、四个实验室脚本全过，才算这项在真 MariaDB 上通过；生产 8 核下的数要部署后在测试租户再看。

@@ -10,6 +10,7 @@ import frappe
 
 from pearnly_cowork.companion import http_auth, request_service
 from pearnly_cowork.companion import request_contracts as contracts
+from pearnly_cowork.transaction import conflicts
 
 PROTOCOL = 1
 
@@ -19,8 +20,12 @@ def _guarded(operation, handler):
     frappe.local.cowork_private_response = True
     frappe.db.commit()
     try:
-        result = handler(context, body)
+        # 领一件 / 交一块是一整笔本地事务（结果分块按 offset 覆盖写，重来写同一块）：撞上 1020 / 1213（两台同时领同一件）
+        # 整笔回滚、退避后重来（`transaction.conflicts`），用尽同别的机器方法回「忙」，CC 桌面版下一轮再来。
+        result = conflicts.retried(handler, context, body)
         frappe.db.commit()
+    except (conflicts.Exhausted, conflicts.RollbackFailed) as error:
+        http_auth.raise_busy(error, stage=operation)
     except contracts.ContractError as error:
         frappe.db.rollback()
         http_auth.clear_private_messages()

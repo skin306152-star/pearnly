@@ -19,6 +19,7 @@ from uuid import uuid4
 import frappe
 from werkzeug.test import Client
 from werkzeug.wrappers import Response
+from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-transport-lab-verify.py')))
 BASE = FIXTURE['CompanionTransport']
@@ -240,7 +241,7 @@ class NativeQueueHttp(unittest.TestCase):
     def test_deadlock_retry_rechecks_credential_and_is_bounded(self):
         name = self.pending()
         with patch.object(self.transport, 'lease', side_effect=frappe.QueryDeadlockError('synthetic contention')) as called:
-            self.assertEqual(self.request().status_code, 503); self.assertEqual(called.call_count, 3)
+            self.assertEqual(self.request().status_code, 503); self.assertEqual(called.call_count, ATTEMPTS)
         self.assertEqual(self.state(name)['status'], 'pending')
         calls = []
         def revalidate(context):
