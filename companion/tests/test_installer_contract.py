@@ -191,21 +191,27 @@ def test_one_click_install_shows_only_the_icon_a_progress_bar_and_cancel():
     for hidden in ("MainPanel", "Bevel1", "Bevel", "OuterNotebook", "NextButton", "BackButton"):
         assert f"WizardForm.{hidden}.Visible := False;" in wizard, hidden  # 页头小图、文件名、「正在提取文件」都在里面
     layout = code.split("function CompactLayout", 1)[1].split("\nend;", 1)[0]
-    assert "InitializeBitmapImageFromIcon(Icon, IconFile, clWhite" in layout  # 按 DPI 从 cc.ico 取一档，不拉伸
+    # 图标：256x256 的 cc.png 缩到 64 逻辑像素（只缩小，Inno 的高质量重采样），不从小图放大
+    assert "Icon.PngImage.LoadFromFile(IconFile);" in layout and "Icon.Stretch := True;" in layout
+    assert "Icon.Width := ScaleX(64);" in layout
+    assert _png_size(COMPANION / "assets" / "cc.png") == (256, 256)
     assert "Bar.Parent := Form;" in layout and "Cancel.Left" in layout and "Form.ClientHeight" in layout
-    assert "Stretch" not in layout
     init = code.split("procedure InitializeWizard", 1)[1].split("end;", 1)[0]
-    assert "ExtractTemporaryFile('cc.ico')" in init and "WizardCompact" in init
+    assert "ExtractTemporaryFile('cc.png')" in init and "WizardCompact" in init
     files = [line for line in _section(script, "[Files]").splitlines() if line.startswith("Source:")]
-    assert files[0].startswith('Source: "..\\assets\\cc.ico"')  # 固实压缩：放第一个，窗口一打开就解得出来
-    # 要人选择的「准备安装」页一出现就恢复官方布局
+    assert files[0].startswith('Source: "..\\assets\\cc.png"; DestDir: "{app}"')  # 固实压缩放第一个；卸载窗口也要用
+    # 所有页都跳过时 Inno 仍停在一页「安装」上，而且窗口没显示时不接受「下一步」：等窗口出来（计时器）再替人点
     page = code.split("procedure CurPageChanged", 1)[1].split("\nend;", 1)[0]
+    assert "(CurPageID = wpReady) and not WizardSilent" in page and "SetTimer(0, 0, 100, CreateCallback(@StartInstall))" in page
+    start = code.split("procedure StartInstall", 1)[1].split("\nend;", 1)[0]
+    assert "KillTimer(0, StartTimer)" in start and "WizardForm.NextButton.OnClick(WizardForm.NextButton)" in start
+    # 要人选择的「准备安装」页一出现就恢复官方布局
     assert "wpPreparing" in page and "WizardForm.OuterNotebook.Visible := True;" in page
     # 卸载：系统的确认框 + 同样的小窗口进度
     uninstall = code.split("procedure InitializeUninstallProgressForm", 1)[1].split("\nend;", 1)[0]
     assert "UninstallProgressForm.OuterNotebook.Visible := False;" in uninstall
     assert "CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar" in uninstall
-    assert (COMPANION / "assets" / "cc.ico").read_bytes()[:4] == b"\x00\x00\x01\x00"
+    assert "ExpandConstant('{app}\\cc.png')" in uninstall
 
 
 def test_store_package_manifest():

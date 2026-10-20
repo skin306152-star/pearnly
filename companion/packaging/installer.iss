@@ -85,7 +85,9 @@ Type: files; Name: "{autodesktop}\Tomo.lnk"
 Type: files; Name: "{app}\tomo.ico"
 
 [Files]
-; cc.ico 放第一个:安装窗口一打开就要用它(ExtractTemporaryFile),整包是固实压缩,排在后面要先解压前面一百多 MB
+; cc.png 放第一个:安装窗口一打开就要用它(ExtractTemporaryFile),整包是固实压缩,排在后面要先解压前面一百多 MB。
+; 装进程序目录是给卸载窗口用的。
+Source: "..\assets\cc.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\cc.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\companion\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Harbour DBFCDX 后台索引重建器(预编译原生 exe · 与主 exe 同目录 · cdx_reindex.py 定位)
@@ -269,7 +271,8 @@ end;
 { ── 一键安装的小窗口(2026-10-20 用户定,照主流桌面产品) ──
   安装时只有一个小白窗:CC 图标居中、下面一条进度条、右下角取消。不显示页标题、右上角小图、文件名与「正在提取文件」。
   做法:官方向导的进度条与取消按钮留在窗体上,其余(页头、两条分隔线、整个页面区)藏起来,窗体缩到内容大小。
-  图标从 cc.ico 按 DPI 取最合适的一档(InitializeBitmapImageFromIcon),不拉伸。卸载的进度窗口同一做法。
+  图标用 256x256 的 cc.png,按 DPI 缩到 64 逻辑像素(只缩小、用 Inno 的高质量重采样,不放大),白底。卸载的进度窗口同一做法。
+  所有向导页都跳过时 Inno 仍停在一页空白的「安装」按钮上(2026-10-20 测试机):那一页一出现就替人点下去。
   万一要显示「准备安装」页(有程序占着文件、要人选是否关掉),先恢复官方布局,不让人看不见要点的按钮。 }
 var
   CompactIcon: TBitmapImage;
@@ -290,8 +293,12 @@ begin
     Icon.BackColor := clWhite;
     Icon.Width := ScaleX(64);
     Icon.Height := ScaleY(64);
-    if not InitializeBitmapImageFromIcon(Icon, IconFile, clWhite, [32, 48, 64, 80, 96, 128, 160, 256]) then
-      Log('CC icon not loaded: ' + IconFile);
+    Icon.Stretch := True;
+    try
+      Icon.PngImage.LoadFromFile(IconFile);
+    except
+      Log('CC icon not loaded: ' + IconFile + ' ' + GetExceptionMessage);
+    end;
   end;
   Icon.Visible := True;
   Icon.Left := (Form.ClientWidth - Icon.Width) div 2;
@@ -317,7 +324,7 @@ begin
   WizardForm.NextButton.Visible := False;
   WizardForm.BackButton.Visible := False;
   CompactIcon := CompactLayout(WizardForm, WizardForm.ProgressGauge, WizardForm.CancelButton,
-    ExpandConstant('{tmp}\cc.ico'), CompactIcon);
+    ExpandConstant('{tmp}\cc.png'), CompactIcon);
 end;
 
 procedure InitializeWizard;
@@ -326,9 +333,25 @@ begin
   FullClientHeight := WizardForm.ClientHeight;
   FullCancelLeft := WizardForm.CancelButton.Left;
   FullCancelTop := WizardForm.CancelButton.Top;
-  ExtractTemporaryFile('cc.ico');
+  ExtractTemporaryFile('cc.png');
   WizardCompact;
   WizardForm.CenterOnShow := True;
+end;
+
+function SetTimer(hWnd, nIDEvent, uElapse, lpTimerFunc: LongWord): LongWord;
+  external 'SetTimer@user32.dll stdcall';
+function KillTimer(hWnd, uIDEvent: LongWord): BOOL;
+  external 'KillTimer@user32.dll stdcall';
+
+var
+  StartTimer: LongWord;
+
+procedure StartInstall(Wnd, Msg, IDEvent, Time: LongWord);
+begin
+  KillTimer(0, StartTimer);
+  StartTimer := 0;
+  if WizardForm.CurPageID = wpReady then
+    WizardForm.NextButton.OnClick(WizardForm.NextButton);
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -354,7 +377,10 @@ begin
     WizardForm.NextButton.Visible := True;
   end
   else if CurPageID = wpInstalling then
-    WizardCompact;
+    WizardCompact
+  else if (CurPageID = wpReady) and not WizardSilent then
+    { 这时窗口还没显示,Inno 不接受「下一步」(没显示的 Ready 页点了也不动):等窗口出来再点 }
+    StartTimer := SetTimer(0, 0, 100, CreateCallback(@StartInstall));
 end;
 
 procedure InitializeUninstallProgressForm;
@@ -364,6 +390,6 @@ begin
   UninstallProgressForm.Bevel.Visible := False;
   UninstallProgressForm.OuterNotebook.Visible := False;
   CompactIcon := CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar,
-    UninstallProgressForm.CancelButton, ExpandConstant('{app}\cc.ico'), nil);
+    UninstallProgressForm.CancelButton, ExpandConstant('{app}\cc.png'), nil);
   UninstallProgressForm.CenterOnShow := True;
 end;
