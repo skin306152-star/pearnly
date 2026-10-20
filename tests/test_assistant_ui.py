@@ -4310,6 +4310,9 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         add = read("components/add-company.tsx")
         self.assertIn("const shown = rows && erps.length > 1 ? rows.filter((row) => row.adapter === shownErp) : rows;", add)
         self.assertIn('{erps.length > 1 && (\n        <Tabs.Root value={shownErp} onValueChange={setErp}', add)
+        # 分了标签时整窗定高，切标签不跳
+        self.assertIn('.cc-modal:has([data-slot="cc-add-company-tabs"]) { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }',
+                      read("globals.css"))
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""

@@ -146,7 +146,7 @@ const Candidates: FC = () => {
         </label>
       </div>
       {erps.length > 1 && (
-        <Tabs.Root value={shownErp} onValueChange={setErp} className="shrink-0">
+        <Tabs.Root value={shownErp} onValueChange={setErp} className="shrink-0" data-slot="cc-add-company-tabs">
           <Tabs.List className="cc-tabs border-b" aria-label={co.companies}>
             {erps.map((e) => (
               <Tabs.Trigger key={e.adapter} value={e.adapter}>
