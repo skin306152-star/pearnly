@@ -8,7 +8,9 @@
 //   列表：任务名、目标 ERP、账套、文件夹、每月几号几点、结果（已推送 / 待处理 / 处理中）、文件夹里还没处理的份数、状态；
 //         立即运行、待处理的单据、编辑、运行记录、停用 / 启用、删除。列表自己刷新（lib/live.ts：定时任务服务的实时事件
 //         cowork_folder_changed 为主，有处理中的每 10 秒、否则每 60 秒兜底，回到前台马上刷）。
-//   新建 / 编辑：目标卡片（MR.ERP / Express，状态与「连接」）→ 两级账套 → 进项销项 → 入账方式（Express 过账类型、
+//   新建先选公司（主档页「＋」直接是这家），表单只摆公司与「目标 ERP · 本月账套」（ERP 没连上时写状态、给「连接」；几个分店各有
+//         账套时选分店），任务跟着公司走（用户 10-20）；公司还没有账套、没记公司的旧任务照旧：目标卡片（MR.ERP / Express，
+//         状态与「连接」）→ 两级账套。之后同为 进项销项 → 入账方式（Express 过账类型、
 //         MR.ERP 付款方式）→ 存货科目组（要选时）→ 文件夹（下面显示文件夹里现有几份）→ 每月几号几点 → 提醒（打开后
 //         最多 3 个提醒时刻：当天 / 前 1–7 天 + 任意时间）→
 //         Express 的默认处理；保存前 MR.ERP 的菜单与默认值没定就问一次。
@@ -670,6 +672,31 @@ function remembered(name: string) {
   }
 }
 
+/** 从公司建的任务：公司与目标 ERP（目标 · 账套名）只摆出来；ERP 没连上时写状态、给「连接」。 */
+function FromCompany({ tr, company, target, state, onConnect }: {
+  tr: Tr; company: string; target: string; state: { text: string; tone: string } | null; onConnect?: () => void;
+}) {
+  // 只摆值，不是表单控件：用 div（Field 的 label 包着按钮时，点标签文字也会按下「连接」）
+  return (
+    <div className="grid grid-cols-1 gap-(--cc-space-16) md:grid-cols-2">
+      <div className="cc-field">
+        <span>{tr("Company")}</span>
+        <span className="truncate text-ink">{company}</span>
+      </div>
+      <div className="cc-field">
+        <span>{tr("intake.target.title")}</span>
+        <span className="truncate text-ink">{target}</span>
+        {onConnect && (
+          <span className="flex min-w-0 items-center gap-(--cc-space-8)">
+            {state && <span className={cn("min-w-0 truncate text-caption", state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
+            <button type="button" className="cc-btn shrink-0" onClick={onConnect}>{tr("Connect")}</button>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   tr: Tr; rule: Rule | null; seed?: TaskSeed | null; onClose: () => void; onSaved: () => Promise<void>;
 }) {
@@ -680,6 +707,12 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const [catalogNote, setCatalogNote] = useState("");
   const [year, setYear] = useState("");
   const [accountSet, setAccountSet] = useState(rule?.account_set_key || seed?.account_set_key || "");
+  // 从公司建（新建带了公司）或跟着公司走的旧任务：目标 ERP 与账套由公司定，表单只摆出来、不让再选（用户 10-20：选了公司又要选
+  // 目标 ERP、再选公司账套不合理）。服务端按所选账套记下公司与分店，推送时按单据日期选这家公司的账套（`folder_intake.follow`）
+  const fromCompany = rule ? Boolean(rule.company) : Boolean(seed?.company);
+  const seedBranches = rule ? [] : seed?.branches ?? [];
+  const [branch, setBranch] = useState(seedBranches.find((b) => b.account_set_key === seed?.account_set_key)?.branch ?? "");
+  const companyTitle = useCompanyTitle(rule?.company || seed?.company || "");
   const [direction, setDirection] = useState(rule?.direction || "purchase");
   const [postingKind, setPostingKind] = useState(rule?.posting_kind || "service");
   const [payment, setPayment] = useState(rule?.payment || "");
@@ -768,8 +801,8 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   }, [connection?.name, express, accountSet]);
 
   useEffect(() => {
-    if (target && (rule || ready(target, snapshot))) void loadCatalog();
-  }, [target, snapshot, rule, loadCatalog]);
+    if (!fromCompany && target && (rule || ready(target, snapshot))) void loadCatalog();
+  }, [fromCompany, target, snapshot, rule, loadCatalog]);
   useEffect(() => {
     if (target) void loadOptions();
   }, [target, accountSet, loadOptions]);
@@ -920,49 +953,77 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             <input className="cc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
 
-          <div className="cc-field">
-            <span>{tr("intake.target.title")}</span>
-            <div className="grid grid-cols-1 gap-(--cc-space-8) md:grid-cols-2">
-              {ADAPTERS.map((a) => {
-                const state = rule ? null : describe(a.adapter, snapshot, tr);
-                const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
-                const picked = target === a.adapter;
-                // 卡片的内边距在选择按钮里：整张卡都能点，手机点按区至少 44（同对话里的文件卡，按钮排查 H11；第 11 轮复量附录 #83）
-                return (
-                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default",
-                        !picked && (rule || !ok) && "opacity-(--cc-disabled-opacity)",
-                      )}
-                      disabled={Boolean(rule) || !ok}
-                      onClick={() => {
-                        setTarget(a.adapter);
-                        setGroups([]); setYear(""); setAccountSet(""); setFolder(""); setOptions(null); setDefaults({});
-                      }}
-                    >
-                      <span className="font-medium text-ink">{a.label}</span>
-                      {state && <span className={cn("text-caption", state.tone === "ok" ? "text-success" : state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
-                    </button>
-                    {!rule && !ok && (
-                      <button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>
-                        {tr("Connect")}
+          {fromCompany ? (
+            <FromCompany
+              tr={tr}
+              company={companyTitle}
+              target={[ADAPTERS.find((a) => a.adapter === target)?.label ?? "", rule ? tr("cowork.folder.followCompany") : seedBranches.find((b) => b.branch === branch)?.account_label ?? seed?.account_label ?? ""]
+                .filter(Boolean).join(" · ")}
+              state={rule ? null : describe(target, snapshot, tr)}
+              onConnect={!rule && !ready(target, snapshot) ? () => setConnectOpen(target) : undefined}
+            />
+          ) : (
+            <div className="cc-field">
+              <span>{tr("intake.target.title")}</span>
+              <div className="grid grid-cols-1 gap-(--cc-space-8) md:grid-cols-2">
+                {ADAPTERS.map((a) => {
+                  const state = rule ? null : describe(a.adapter, snapshot, tr);
+                  const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
+                  const picked = target === a.adapter;
+                  // 卡片的内边距在选择按钮里：整张卡都能点，手机点按区至少 44（同对话里的文件卡，按钮排查 H11；第 11 轮复量附录 #83）
+                  return (
+                    <div key={a.adapter} className="cc-card flex items-center justify-between gap-(--cc-space-8)" data-selected={picked || undefined}>
+                      <button
+                        type="button"
+                        className={cn(
+                          "cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-(--cc-space-12) py-(--cc-target-card-py) text-start disabled:cursor-default",
+                          !picked && (rule || !ok) && "opacity-(--cc-disabled-opacity)",
+                        )}
+                        disabled={Boolean(rule) || !ok}
+                        onClick={() => {
+                          setTarget(a.adapter);
+                          setGroups([]); setYear(""); setAccountSet(""); setFolder(""); setOptions(null); setDefaults({});
+                        }}
+                      >
+                        <span className="font-medium text-ink">{a.label}</span>
+                        {state && <span className={cn("text-caption", state.tone === "ok" ? "text-success" : state.tone === "bad" ? "text-danger" : "text-ink-3")}>{state.text}</span>}
                       </button>
-                    )}
-                  </div>
-                );
-              })}
+                      {!rule && !ok && (
+                        <button type="button" className="cc-btn me-(--cc-space-12)" onClick={() => setConnectOpen(a.adapter)}>
+                          {tr("Connect")}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 gap-(--cc-space-16) md:grid-cols-2">
-            <Field label={express ? tr("intake.target.year") : tr("Company")} hint={catalogNote}>
-              <Select value={year} disabled={!enabled || !groups.length} options={groups.map((g) => ({ value: g.value, label: g.label }))} onChange={(v) => { setYear(v); setAccountSet(""); }} />
-            </Field>
-            <Field label={express ? tr("intake.target.accountSet") : tr("intake.target.year")} hint={express ? accountHint : undefined}>
-              <Select value={accountSet} disabled={!enabled || !yearItems.length} options={yearItems} onChange={setAccountSet} />
-            </Field>
+            {seedBranches.length > 1 && (
+              <Field label={co.branch}>
+                <Select
+                  value={branch}
+                  options={seedBranches.map((b) => ({ value: b.branch, label: b.label }))}
+                  onChange={(v) => {
+                    const picked = seedBranches.find((b) => b.branch === v);
+                    setBranch(v);
+                    if (picked) setAccountSet(picked.account_set_key);
+                  }}
+                />
+              </Field>
+            )}
+            {!fromCompany && (
+              <>
+                <Field label={express ? tr("intake.target.year") : tr("Company")} hint={catalogNote}>
+                  <Select value={year} disabled={!enabled || !groups.length} options={groups.map((g) => ({ value: g.value, label: g.label }))} onChange={(v) => { setYear(v); setAccountSet(""); }} />
+                </Field>
+                <Field label={express ? tr("intake.target.accountSet") : tr("intake.target.year")} hint={express ? accountHint : undefined}>
+                  <Select value={accountSet} disabled={!enabled || !yearItems.length} options={yearItems} onChange={setAccountSet} />
+                </Field>
+              </>
+            )}
             <Field label={tr("intake.field.direction")}>
               <Select value={direction} disabled={!enabled} onChange={setDirection} options={[{ value: "purchase", label: tr("intake.dir.purchase") }, { value: "sales", label: tr("intake.dir.sales") }]} />
             </Field>

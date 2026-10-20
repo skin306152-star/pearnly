@@ -162,6 +162,9 @@ export const SCENES = [
   S("pending", "/assistant?view=pending"),
   S("tasks", "/assistant?view=tasks"),
   S("tasks-new", "/assistant?view=tasks", [["click", ".cc-page-head .cc-btn-sm[data-primary]", 0], ["wait", 500]]),
+  // 选了公司之后的新建表单（用户 10-20）：公司与「目标 ERP · 账套名」只摆出来，不再有目标卡片与两级账套
+  S("tasks-new-company", "/assistant?view=tasks", [["click", ".cc-page-head .cc-btn-sm[data-primary]", 0], ["wait", 500],
+    ["click", '[data-slot="cc-candidates"] .cc-list-row', 0], ["wait", 800]], { expect: DIALOG }),
   S("tasks-confirm", "/assistant?view=tasks", [["click", '[data-task] [aria-haspopup="menu"]', 0], ["click", '[role="menuitem"][data-danger]', 0], ["wait", 400]], { expect: DIALOG }),
   // 打开已有任务的表单（点任务行）：目标卡片（选不了的那张淡显）、两列的账套与进项销项、文件夹、每月几号几点、提醒开关、默认处理
   S("tasks-edit", "/assistant?view=tasks", [["click", `${TASK_ROW} > button`, 0], ["wait", 600]], { expect: DIALOG }),
@@ -244,7 +247,7 @@ export const SCENES = [
 ];
 
 // 泰文长字的按钮（.cc-btn / .cc-card-btn / .cc-btn-sm 不换行，10-19）：按钮多的设置页签、定时任务表单、待处理，泰文浅色各拍一份
-for (const name of ["settings-tab2", "settings-tab3", "settings-computers", "tasks-new", "tasks-edit", "pending", "pending-open"]) {
+for (const name of ["settings-tab2", "settings-tab3", "settings-computers", "tasks-new", "tasks-new-company", "tasks-edit", "pending", "pending-open"]) {
   const scene = SCENES.find((s) => s.name === name);
   SCENES.push({ ...scene, name: `th-${name}`, lang: "th", schemes: ["light"] });
 }

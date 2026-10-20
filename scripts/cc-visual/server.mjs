@@ -252,6 +252,14 @@ function method(name, q, unmocked) {
     const m = name.slice(C.length);
     switch (m) {
       case "companies": return COMPANIES.map((c) => ({ id: c.id, title: c.title, legal_name: c.title, tax_id: c.subtitle, branch: "00000", adapter: "express", years: ["2569"], mine_count: c.count, mine_last_active: c.last_active }));
+      // 添加公司 / 新建任务先选公司：已添加的三家在 Express，另有两家 MR.ERP 的还没添加（看按 ERP 分的标签）
+      case "candidates": return [
+        ...COMPANIES.map((c) => ({ identity: `express:${c.subtitle}`, title: c.title, legal_name: c.title, tax_id: c.subtitle, branch: "00000",
+          adapter: "express", years: ["2569"], connection: "CONN-1", account_set_key: "SET1", company: c.id })),
+        ...[["ร้านทดสอบ จำกัด", "0105551000011"], ["Blue Sky Trading", "0105551000012"]].map(([title, tax]) => ({
+          identity: `mrerp:${tax}`, title, legal_name: title, tax_id: tax, branch: "00000", adapter: "mrerp", years: ["2026"],
+          connection: "CONN-2", account_set_key: `${tax}:2026`, company: null })),
+      ];
       case "detail": return DETAIL(q.get("company"));
       case "pending": return { items: MONTH("C-0001", "2026-09").exceptions.items.map((x) => ({ ...x, company: "C-0001", reason_code: x.code, month: "2026-09" })) };
       case "pending_counts": return { total: 2, companies: { "C-0001": 2 } };

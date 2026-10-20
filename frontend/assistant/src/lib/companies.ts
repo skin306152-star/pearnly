@@ -257,8 +257,14 @@ export async function refreshCatalogs(): Promise<void> {
 }
 
 // ---------------------------------------------------------------- 当前看的是哪家
-/** 定时任务表单的预填（主档页「＋」）：覆盖本月的账套；本机已绑定文件夹时连同文件夹（`folderValue` 的写法）。 */
-export type TaskSeed = { adapter: string; connection: string; account_set_key: string; folder?: string };
+/** 定时任务表单的预填（主档页「＋」、定时任务页选公司之后）：覆盖本月的账套；本机已绑定文件夹时连同文件夹（`folderValue` 的写法）。
+ *  任务跟着公司走（服务端按所选账套记下公司与分店、推送时按单据日期选这家公司的账套，`folder_intake.follow`），表单只摆公司与
+ *  账套名、不再让人选目标 ERP 与账套；几个分店各有账套时 `branches` 列出各分店覆盖本月的那份，表单只让选分店。 */
+export type TaskSeed = {
+  adapter: string; connection: string; account_set_key: string; folder?: string;
+  company?: string; company_title?: string; account_label?: string; branches?: SeedBranch[];
+};
+export type SeedBranch = { branch: string; label: string; connection: string; account_set_key: string; account_label: string };
 type CompanyNav = {
   company: string; // 主档页看的是哪家
   taskCompany: string; // 定时任务页只看这家（""= 全部）
@@ -546,20 +552,31 @@ export function folderIsMine(folder: Pick<CompanyFolder, "mine" | "reader" | "de
 }
 
 /** 新建定时任务的预填（主档页「＋」、总览「＋」先选公司）：覆盖这个月的账套；这台电脑绑了文件夹时连同文件夹，只需再选子文件夹。 */
-export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "company">, period: string, readers: readonly string[] = [],
+export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "company" | "branches">, period: string, readers: readonly string[] = [],
   desktop = false, deviceName = ""): TaskSeed | null {
   const set = setForPeriod(detail.account_sets, period);
   if (!set) return null;
   const folder = desktop
     ? detail.folders.find((f) => !f.reader_gone && folderIsMine(f, readers, deviceName))
     : undefined;
+  const branches = (detail.branches ?? []).flatMap((b) => {
+    const own = setForPeriod(b.account_sets, period);
+    return own ? [{ branch: b.branch, label: b.label || b.branch, connection: own.connection, account_set_key: own.key, account_label: setLabel(own) }] : [];
+  });
   return {
     adapter: set.adapter ?? detail.company.adapter ?? "",
     connection: set.connection,
     account_set_key: set.key,
+    company: detail.company.id,
+    company_title: detail.company.title,
+    account_label: setLabel(set),
+    ...(branches.length > 1 ? { branches } : {}),
     ...(folder?.root_id ? { folder: folderValue(folder.reader_id || folder.reader, folder.root_id, folder.folder ?? "") } : {}),
   };
 }
+
+/** 账套在表单上的写法：账套名，年度标签与名称不同时后面带上（同公司页账套行，MR.ERP 的年度标签就是账套名）。 */
+const setLabel = (s: AccountSet) => [s.label, s.year_label !== s.label ? s.year_label : ""].filter(Boolean).join(" · ");
 
 /** 账套的期间覆盖这一天（YYYY-MM-DD）。 */
 const covers = (s: AccountSet, day: string) =>

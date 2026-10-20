@@ -2883,9 +2883,18 @@ const sets = [{ connection: "c1", adapter: "express", key: "70EXP", label: "70",
 const detail: any = { company: { id: "comp_a", title: "A", adapter: "express" }, account_sets: sets,
   folders: [{ reader: "rdr1", device: "PC", label: "D:\\A", state: "ok", root_id: "R9", folder: "A" }] };
 assert.equal(setForPeriod(sets, "2026-09")?.key, "69EXP");
-assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], true),
-  { adapter: "express", connection: "c1", account_set_key: "69EXP", folder: "rdr1|R9|A" });
-assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], false), { adapter: "express", connection: "c1", account_set_key: "69EXP" });
+const base = { adapter: "express", connection: "c1", account_set_key: "69EXP", company: "comp_a", company_title: "A", account_label: "69" };
+assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], true), { ...base, folder: "rdr1|R9|A" });
+assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], false), base);
+// 年度标签与名称不同时带上（MR.ERP 的年度标签就是账套名，不重复写）
+assert.equal(taskSeedOf({ ...detail, account_sets: [{ ...sets[1], label: "ABC 69", year_label: "2569" }] }, "2026-09")?.account_label, "ABC 69 · 2569");
+// 几个分店各有账套：列出各分店覆盖本月的那份，表单只让选分店；只有一个分店不列
+const branches = [{ branch: "00000", label: "", account_sets: [sets[1]] },
+  { branch: "00001", label: "Rama 9", account_sets: [{ ...sets[1], key: "69B1", label: "69 B1" }] }];
+assert.deepEqual(taskSeedOf({ ...detail, branches }, "2026-09")?.branches, [
+  { branch: "00000", label: "00000", connection: "c1", account_set_key: "69EXP", account_label: "69" },
+  { branch: "00001", label: "Rama 9", connection: "c1", account_set_key: "69B1", account_label: "69 B1" }]);
+assert.equal(taskSeedOf({ ...detail, branches: branches.slice(0, 1) }, "2026-09")?.branches, undefined);
 assert.equal(taskSeedOf({ ...detail, account_sets: [] }, "2026-09"), null);
 // 提醒点开：同服务端 deep_link（属于某家公司的到主档页）
 assert.equal(deepLink("", "company:abc1234567"), "/assistant?company=abc1234567");
@@ -4290,6 +4299,17 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         self.assertIn("co.other", tasks)
         self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders, deviceName),",
                       read("components/company-cards.tsx"))
+        # 用户 10-20：选了公司不再让选目标 ERP 与账套——从公司建、跟着公司走的旧任务只摆公司与「目标 · 账套名」，
+        # 不读两级账套目录；没记公司的旧任务照旧能选
+        self.assertIn("const fromCompany = rule ? Boolean(rule.company) : Boolean(seed?.company);", tasks)
+        self.assertIn("if (!fromCompany && target && (rule || ready(target, snapshot))) void loadCatalog();", tasks)
+        self.assertIn("{fromCompany ? (\n            <FromCompany", tasks)
+        self.assertIn("{!fromCompany && (", tasks)
+        self.assertIn("<Field label={co.branch}>", tasks)
+        # 添加公司按 ERP 分标签：两种以上 ERP 才摆，只列选中的那种
+        add = read("components/add-company.tsx")
+        self.assertIn("const shown = rows && erps.length > 1 ? rows.filter((row) => row.adapter === shownErp) : rows;", add)
+        self.assertIn('{erps.length > 1 && (\n        <Tabs.Root value={shownErp} onValueChange={setErp}', add)
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""

@@ -3,12 +3,14 @@
 //   候选来自服务端读的账套目录（companies.api.candidates，按公司身份合并；不调电脑、不扣费）。页面只交「哪条连接的哪份账套」，
 //   名称、税号由服务端从目录算；已添加的行尾「已添加」，点了直接打开那家。目录还没读到（没有候选）时只给「刷新账套」。
 //   账套里没有的公司这一批不能建，也不做一次加多家。
+//   按 ERP 分标签（用户 10-20：添加公司没有按 ERP 分类）：候选里有两种以上 ERP 时搜索框下摆 MR.ERP / Express 标签，只列选中的那种；
+//   只有一种时不摆。标签只筛这次打开里看的，不记住。
 //
 // 打开方式：openAddCompany(then, title?)；then 收到公司编号（默认打开主档页）。title：定时任务总览「＋」先选公司时
 // 叫「选择公司」（选已添加的或新加一家都行）。对话框在 assistant.tsx 里挂一次。
 
 import { LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { Dialog as DialogPrimitive } from "radix-ui";
+import { Dialog as DialogPrimitive, Tabs } from "radix-ui";
 import { type FC, useEffect, useRef, useState } from "react";
 import { co, t } from "@/i18n";
 import { create } from "zustand";
@@ -25,6 +27,9 @@ export function openAddCompany(then: (id: string) => void, title = "") {
 }
 
 const close = () => useAddCompany.setState({ open: false, then: null, title: "" });
+
+// 标签顺序同定时任务表单的目标卡片；产品名不翻译
+const ERPS = [{ adapter: "mrerp", label: "MR.ERP" }, { adapter: "express", label: "Express" }];
 
 /** 候选一行的第二行：法定名 · 税号 · 分店 · 年度。 */
 export function candidateLine(row: Pick<Candidate, "legal_name" | "tax_id" | "branch" | "years" | "title">): string {
@@ -70,6 +75,7 @@ const Candidates: FC = () => {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [erp, setErp] = useState("");
   const keys = useRef(new Map<string, string>()); // 同一行重点不重复建（同一个 request_key）
   const asked = useRef(0);
 
@@ -120,6 +126,11 @@ const Candidates: FC = () => {
     }
   };
 
+  const erps = ERPS.filter((e) => rows?.some((row) => row.adapter === e.adapter));
+  // 没点过标签时停在候选第一行那种 ERP（服务端排在前面的）
+  const shownErp = erps.some((e) => e.adapter === erp) ? erp : rows?.[0]?.adapter ?? "";
+  const shown = rows && erps.length > 1 ? rows.filter((row) => row.adapter === shownErp) : rows;
+
   return (
     <>
       <div className="shrink-0 px-(--cc-dialog-px) pb-(--cc-space-8)">
@@ -134,13 +145,24 @@ const Candidates: FC = () => {
           />
         </label>
       </div>
+      {erps.length > 1 && (
+        <Tabs.Root value={shownErp} onValueChange={setErp} className="shrink-0">
+          <Tabs.List className="cc-tabs border-b" aria-label={co.companies}>
+            {erps.map((e) => (
+              <Tabs.Trigger key={e.adapter} value={e.adapter}>
+                {e.label}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+        </Tabs.Root>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">
-        {rows === null ? (
+        {shown === null ? (
           <div className="flex justify-center py-(--cc-space-24) text-ink-3">
             <LoaderIcon className="cc-spinner" />
           </div>
-        ) : rows.length ? (
-          rows.map((row) => (
+        ) : shown.length ? (
+          shown.map((row) => (
             <button
               key={row.identity}
               type="button"
