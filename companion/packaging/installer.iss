@@ -411,5 +411,9 @@ begin
   UninstallProgressForm.OuterNotebook.Visible := False;
   CompactIcon := CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar,
     UninstallProgressForm.CancelButton, ExpandConstant('{app}\cc.png'), nil);
+  { 卸载不能中途取消,官方窗体上那个取消按钮一直是灰的:不显示,窗体收到进度条下面 }
+  UninstallProgressForm.CancelButton.Visible := False;
+  UninstallProgressForm.ClientHeight := UninstallProgressForm.ProgressBar.Top +
+    UninstallProgressForm.ProgressBar.Height + ScaleY(32);
   UninstallProgressForm.CenterOnShow := True;
 end;

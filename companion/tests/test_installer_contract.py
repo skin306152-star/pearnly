@@ -214,6 +214,7 @@ def test_one_click_install_shows_only_the_icon_a_progress_bar_and_cancel():
     assert "UninstallProgressForm.OuterNotebook.Visible := False;" in uninstall
     assert "CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar" in uninstall
     assert "ExpandConstant('{app}\\cc.png')" in uninstall
+    assert "UninstallProgressForm.CancelButton.Visible := False;" in uninstall  # 卸载不能取消，灰按钮不显示
     # 从「设置 → 应用」卸载：系统已经确认过一次，卸载程序带 /SILENT 不再问、不弹「已删除」框
     quiet = code.split("procedure QuietUninstallFromSettings", 1)[1].split("\nend;", 1)[0]
     assert "RegWriteStringValue(HKCU, UninstallKey, 'UninstallString', Value + ' /SILENT')" in quiet
