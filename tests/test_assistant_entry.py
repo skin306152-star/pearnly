@@ -467,6 +467,61 @@ console.log(JSON.stringify(out));
         self.assertIn("| safe", page)
         self.assertIn("{{ s.company | e }}", page)
 
+    def test_password_forms_name_the_account_for_password_managers(self):
+        # 问题清单第 11 条（10-20）：fatcc.com 登录后 Chrome「保存密码」里用户名是空的。密码最后在 auth.pearnly.com 那一页提交，
+        # 浏览器只认同一表单里 autocomplete="username" 的文本框，type="hidden" 的账号会被忽略。
+        def inputs(path):
+            return re.findall(r"<input\b[^>]*>", path.read_text(encoding="utf-8"))
+
+        def account_fields(path):
+            return [tag for tag in inputs(path) if 'name="username"' in tag or 'id="login"' in tag]
+
+        ai_theme = ROOT / "infrastructure/keycloak/themes/pearnly-ai/login"
+        base_theme = ROOT / "infrastructure/keycloak/themes/pearnly/login"
+        for path in (CONTROL / "www/ai.html", ai_theme / "login.ftl", base_theme / "login.ftl",
+                     base_theme / "login-reset-password.ftl", base_theme / "login-update-password.ftl"):
+            fields = account_fields(path)
+            self.assertTrue(fields, path.name)
+            for tag in fields:
+                self.assertIn('autocomplete="username"', tag, path.name)
+                self.assertNotIn('type="hidden"', tag, path.name)
+        for path in (CONTROL / "www/ai.html", ai_theme / "login.ftl", base_theme / "login.ftl"):
+            self.assertTrue([t for t in inputs(path) if 'type="password"' in t and 'autocomplete="current-password"' in t], path.name)
+        new = [t for t in inputs(base_theme / "login-update-password.ftl") if 'type="password"' in t]
+        self.assertEqual(len(new), 2)
+        self.assertTrue(all('autocomplete="new-password"' in t for t in new))
+        # 第二步与重新验证页的账号框不显示、只读，布局不变（登录页冻结），浏览器也不会改掉入口带过来的账号
+        hidden_account = [t for t in account_fields(ai_theme / "login.ftl") if 'readonly style="display:none"' in t]
+        self.assertEqual(len(hidden_account), 1)
+        self.assertIn("<#elseif (auth.attemptedUsername)?has_content>", (base_theme / "login.ftl").read_text(encoding="utf-8"))
+
+    def test_logout_confirmation_submits_itself_without_a_card(self):
+        # 用户 10-20：任何产品退出都不出现身份服务的「您确定要注销吗？」页。退出地址没带 id_token_hint 时身份服务仍会出这一页，
+        # 两套主题都把它换成不显示内容、加载即提交确认表单的空白页（禁用脚本时留原生按钮）。
+        for theme in ("pearnly", "pearnly-ai"):
+            page = (ROOT / f"infrastructure/keycloak/themes/{theme}/login/logout-confirm.ftl").read_text(encoding="utf-8")
+            self.assertIn('action="${url.logoutConfirmAction}" method="POST"', page, theme)
+            self.assertIn('<input type="hidden" name="session_code" value="${logoutConfirm.code}" />', page, theme)
+            self.assertIn('document.getElementById("kc-logout-confirm").submit();', page, theme)
+            self.assertRegex(page, r"<noscript><button type=\"submit\"[^>]*>\$\{msg\(\"doLogout\"\)\}</button></noscript>")
+            self.assertNotIn("registrationLayout", page, theme)       # 不套登录卡片外壳
+            self.assertNotIn("logoutConfirmHeader", page, theme)      # 不出「您确定要注销吗？」
+            self.assertNotIn("pearnlyAiLegal", page, theme)           # 不出「登录即表示…」
+            self.assertIn("/css/", page, theme)                       # 底色沿用登录页样式
+        # 退出后没有跳回地址时身份服务出「您已被登出」卡片：能跳回（跳回地址 / 产品客户端首页）就直接跳，身份服务自带客户端不跳
+        info = (ROOT / "infrastructure/keycloak/themes/pearnly/login/info.ftl").read_text(encoding="utf-8")
+        self.assertIn('(message.summary)! == msg("successLogout")', info)
+        self.assertIn('<meta http-equiv="refresh" content="0;url=${pnBack}" />', info)
+        self.assertIn('"account", "account-console"', info)
+        for theme in ("pearnly", "pearnly-ai"):
+            props = (ROOT / f"infrastructure/keycloak/themes/{theme}/login/theme.properties").read_text(encoding="utf-8")
+            css = re.search(r"^pearnlyBlankCss=(\S+)$", props, re.M)
+            self.assertTrue(css, theme)
+            self.assertTrue((ROOT / f"infrastructure/keycloak/themes/{theme}/login/resources" / css.group(1)).exists(), theme)
+        # sign_out 只带身份服务会接受的提示（别的账号池签发的会让身份服务出错误页）
+        identity = (ROOT / "apps/pearnly_core/pearnly_core/identity.py").read_text(encoding="utf-8")
+        self.assertIn('_usable_logout_hint(oidc_session.logout_hint(), params["client_id"])', identity)
+
     def test_theme_messages_cover_the_templates(self):
         theme = ROOT / "infrastructure/keycloak/themes/pearnly-ai/login"
         self.assertIn("parent=pearnly", (theme / "theme.properties").read_text())

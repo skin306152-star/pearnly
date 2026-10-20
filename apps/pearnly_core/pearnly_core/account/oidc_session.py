@@ -20,24 +20,37 @@ def remember(tokens, subject):
         "id_token": tokens["id_token"], "refresh_token": tokens.get("refresh_token"),
         "subject": subject,
     }, expires_in_sec=get_expiry_in_seconds())
-    # 会话自己再存一份注销凭据：发布流程的 `clear-cache` 会把 Redis 那份带走，
-    # 之后点注销就会掉到身份服务自带的"您要退出登录吗"确认页（2026-09-25 实际遇到）。
-    # 会话数据存在站点数据库里，不随缓存清理消失。
+    # 会话自己再存一份注销凭据：Redis 那份丢了（清缓存、Redis 重建）时，点注销仍能带上 id_token_hint，
+    # 不掉到身份服务自带的"您确定要注销吗"确认页（2026-09-25 实际遇到）。
+    # 要放进 `frappe.session.data`：框架只把这一层写进 Sessions 表并在下次请求恢复；放在 `frappe.session` 顶层的
+    # 键（10-20 前的写法）下一次请求就没了。登录这次请求里会话记录已经先插入，所以这里强制写回一次。
     try:
-        frappe.session[SESSION_HINT] = tokens["id_token"]
+        _persist_hint(tokens["id_token"])
     except Exception:
         logger.warning("Could not persist the OIDC logout hint in the session", exc_info=True)
 
 
+def _persist_hint(value):
+    data = frappe.session.get("data")
+    if data is None or data.get(SESSION_HINT) == value:
+        return
+    data[SESSION_HINT] = value
+    session = getattr(frappe.local, "session_obj", None)
+    if session is not None and frappe.session.get("user") not in (None, "Guest"):
+        session.update(force=True)
+
+
 def logout_hint():
-    return (frappe.session.get(SESSION_HINT)
+    return ((frappe.session.get("data") or {}).get(SESSION_HINT)
             or (pearnly_state.store().get_value(cache_key()) or {}).get("id_token"))
 
 
 def forget():
     pearnly_state.store().delete_value(cache_key())
     try:
-        frappe.session[SESSION_HINT] = None
+        data = frappe.session.get("data")
+        if data is not None:
+            data.pop(SESSION_HINT, None)   # 随后就是登出、删会话，不必再写回
     except Exception:
         logger.warning("Could not clear the OIDC logout hint in the session", exc_info=True)
 

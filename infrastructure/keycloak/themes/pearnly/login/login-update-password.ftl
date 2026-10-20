@@ -18,6 +18,11 @@
     <#elseif section = "form">
         <form class="auth-form active" id="kc-passwd-update-form"
               onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
+          <#-- 不显示的只读账号框：浏览器把新密码记到对应账号下（密码管理器只认同一表单里 autocomplete="username" 的文本框）。 -->
+          <#if (username)?has_content>
+            <input type="text" id="username" name="username" value="${username}"
+                   autocomplete="username" readonly style="display:none" />
+          </#if>
           <div class="form-stack">
             <div class="form-row">
               <label for="password-new">${msg("passwordNew")}</label>

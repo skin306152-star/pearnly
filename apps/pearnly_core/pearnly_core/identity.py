@@ -286,6 +286,28 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     frappe.local.response["location"] = redirect_to
 
 
+def _usable_logout_hint(hint, client_id):
+    """只带身份服务会接受的 id_token_hint。
+
+    过期的提示身份服务照收（10-20 本地 Keycloak 26.7.4 实测），不用管；但换过账号池（`account.repool`）之前登录的会话，
+    提示是别的 realm 签发的，带上去身份服务直接出错误页、退不出去。这种提示不带，交给退出确认页的自动确认。
+    这里不验签：提示只是给身份服务认会话用的，由它自己验。
+    """
+    if not hint:
+        return None
+    try:
+        claims = jwt.decode(hint, options={"verify_signature": False})
+    except jwt.PyJWTError:
+        return None
+    audience = claims.get("aud")
+    audience = audience if isinstance(audience, list) else [audience]
+    if str(claims.get("iss") or "").rstrip("/") != issuer():
+        return None
+    if client_id and client_id not in audience and claims.get("azp") != client_id:
+        return None
+    return hint
+
+
 @frappe.whitelist(methods=["POST"])
 def sign_out(to=None):
     """After the in-app confirmation, end this session via native OIDC logout.
@@ -301,10 +323,10 @@ def sign_out(to=None):
         "client_id": _conf("pearnly_oidc_client_id"),
         "post_logout_redirect_uri": back,
     }
-    hint = oidc_session.logout_hint()
+    hint = _usable_logout_hint(oidc_session.logout_hint(), params["client_id"])
     if hint:
         params["id_token_hint"] = hint
-    # Old sessions without a hint retain the provider's safe confirmation fallback.
+    # 没有提示时身份服务会出退出确认页；两套登录主题的 logout-confirm.ftl 加载即自动确认，用户看不到这一页（10-20）。
     url = endpoint + "?" + urlencode(params)
     oidc_session.forget()
     frappe.local.login_manager.logout()

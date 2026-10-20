@@ -7,7 +7,8 @@
     <#assign who = (login.username!'')>
     <#if who?has_content && !messagesPerField.existsError('username')>
       <div class="who" id="who"><span>${who}</span><button type="button" id="who-change">${msg("pearnlyAiChange")}</button></div>
-      <input type="hidden" id="username" name="username" value="${who}" />
+      <#-- 密码保存在本页域名下，浏览器要在同一个表单里认出账号：type=hidden 会被密码管理器忽略，所以用不显示的只读文本框。 -->
+      <input type="text" id="username" name="username" value="${who}" autocomplete="username" readonly style="display:none" />
     <#else>
       <input class="input" id="username" name="username" type="text" value="${who}" autocomplete="username" placeholder="${msg("pearnlyAiLogin")}" style="margin-bottom:10px" <#if !who?has_content>autofocus</#if> />
     </#if>
