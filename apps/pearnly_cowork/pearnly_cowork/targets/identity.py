@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ntpath
 import re
+from bisect import insort
 from typing import Any, Iterable, Mapping, NamedTuple, Sequence
 
 
@@ -201,10 +202,79 @@ class Decision(NamedTuple):
     local: bool = False  # new：只在本机（键带主机名，或旧版报的路径），登记只属于这台电脑
 
 
-def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_reach: Mapping[str, str],
+class Registry:
+    """:func:`resolve` 用的登记索引：按文件号、（规整后的网络路径，内容键）、内容键、规范键各建一份，一行上报只看命中的
+    那几份，不再逐份扫整张登记、逐份规整网络路径（679 份的首次整份上报是 679 × 679 次规整，10-20 测试机约 1 秒、生产更慢，
+    全程持着连接行锁）。同一条件下仍取登记顺序里的第一份，与逐份扫的结果相同。
+
+    同一轮上报里新登记的（:meth:`put` 追加在最后）、补上了文件号 / 网络路径的（:meth:`put` 原位替换），后面的行马上认得。
+    ``aliases`` 与 :func:`resolve` 的同一份；``normalized`` 可传一个字典在几份索引之间共用网络路径的规整结果。纯内存。"""
+
+    def __init__(self, registered: Iterable[Registered] = (), *, aliases: Mapping[str, str] | None = None,
+                 normalized: dict[str, str] | None = None) -> None:
+        self.aliases = dict(aliases or {})
+        self._normalized = {} if normalized is None else normalized
+        self._items: list[Registered] = []
+        self._position: dict[str, int] = {}
+        self._by: dict[tuple, list[int]] = {}
+        for item in registered:
+            self.put(item)
+
+    def __iter__(self):
+        return iter(self._items)
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def get(self, account_key: str) -> Registered | None:
+        position = self._position.get(account_key)
+        return None if position is None else self._items[position]
+
+    def location_of(self, item: Registered) -> str:
+        if not item.location:
+            return ""
+        if item.location not in self._normalized:
+            self._normalized[item.location] = normalize_location(item.location, aliases=self.aliases)
+        return self._normalized[item.location]
+
+    def _keys(self, item: Registered) -> list[tuple]:
+        keys = []
+        if item.uid:
+            keys.append(("uid", item.uid))
+        location = self.location_of(item)
+        if location:
+            keys.append(("location", location, item.content_key))
+        if item.content_key:
+            keys.append(("content", item.content_key))
+        return keys
+
+    def put(self, item: Registered) -> None:
+        """登记一份：规范键已在就原位替换（顺序不变），否则追加在最后。"""
+        position = self._position.get(item.account_key)
+        if position is None:
+            position = len(self._items)
+            self._items.append(item)
+            self._position[item.account_key] = position
+        else:
+            for key in self._keys(self._items[position]):
+                self._by[key].remove(position)
+            self._items[position] = item
+        for key in self._keys(item):
+            insort(self._by.setdefault(key, []), position)
+
+    def first(self, key: tuple, accept) -> Registered | None:
+        for position in self._by.get(key, ()):
+            item = self._items[position]
+            if accept(item):
+                return item
+        return None
+
+
+def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered] | Registry, own_reach: Mapping[str, str],
             legacy: bool, host: str, aliases: Mapping[str, str] | None = None) -> Decision:
     """设备 D 上报的一行账套（投影行 ``{source_id, attributes: {path, root, uid, share, …}}``）按方案 2.4 认定。
 
+    ``registered``：已登记的账套，按登记顺序；整份名单逐行认定时传 :class:`Registry`（建一次、各行共用）。
     ``own_reach``：D 以前够到的 ``{本机路径（规整）: 规范键}``；``legacy``：D 是没认领过的旧版 CC 桌面版（只按路径认）；
     ``host``：D 的主机名（新登记的本机账套键用它）。不读库、不改任何东西。
     """
@@ -214,7 +284,8 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
     uid = clean_uid(attributes.get("uid"))
     location = normalize_location(attributes.get("share"), aliases=aliases, own_host=host)
     content = content_key(attributes)
-    by_key = {item.account_key: item for item in registered}
+    index = registered if (isinstance(registered, Registry) and registered.aliases == dict(aliases or {})) \
+        else Registry(registered, aliases=aliases)
 
     def match(item: Registered, rule: int) -> Decision:
         return Decision(MATCH, item.account_key, item.root_key, rule, uid, location, content)
@@ -222,24 +293,22 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
     # 1 目录文件号相同。上报行没有网络路径时，只属于另一台还够得到它的电脑的登记不认：整盘克隆的两台电脑，
     #   卷序列号跟着复制，各自本机的拷贝可能是同一个文件号
     if uid:
-        for item in registered:
-            if item.uid and item.uid == uid and (location or not item.foreign):
-                return match(item, 1)
+        item = index.first(("uid", uid), lambda item: location or not item.foreign)
+        if item is not None:
+            return match(item, 1)
     # 2 网络路径相同（主机别名归一）且内容键相同：补上文件号
     if location:
-        for item in registered:
-            if (item.location and normalize_location(item.location, aliases=aliases) == location
-                    and item.content_key == content):
-                return match(item, 2)
+        item = index.first(("location", location, content), lambda item: True)
+        if item is not None:
+            return match(item, 2)
     # 3 D 以前用同一本机路径够到过，且是同一处：那份登记还没报过文件号 / 网络路径（升级），或者网络路径（都没有也算）
     #   与内容键都相同（从备份恢复到原处）。盘符改映射到另一处（网络路径或内容键对不上）就不认，落到第 5、6 条。
     #   那份已带别的文件号、又有别的电脑够得到时也不认：那是两台各自本机同一路径的两份拷贝。
     #   这一行读不出身份（文件号、网络路径都没有：目录这会儿打不开 / 不在了、本机共享撤了）又没有对不上的内容键，没有
     #   反证就仍是 D 一直用这个路径够到的那份，不另登记一份带主机名的（10-20 测试机：账套目录改名后冒出
     #   `\\本机\c$\…` 一行，改回原名也回不去）。
-    key = own_reach.get(local)
-    if key in by_key:
-        item = by_key[key]
+    item = index.get(own_reach.get(local) or "")
+    if item is not None:
         blind = not uid and not location and (not content or content == item.content_key)
         same_place = not item.identified or blind or (
             normalize_location(item.location, aliases=aliases) == location and item.content_key == content)
@@ -250,26 +319,27 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
     # 4 旧版桌面端（没有文件号也没有位置）：规范键与路径相同的就是它（今天的口径）；否则新建一份只属于 D 的登记。
     #   路径相同的那份只属于另一台还够得到它的电脑时，D 的这份是它自己本机的另一份拷贝：键带 D 的主机名
     if legacy and not uid and not location:
-        item = by_key.get(local)
+        item = index.get(local)
         if item is None:
             return Decision(NEW, local, normalize_express_account_key(root), 4, local=True, content_key=content)
         key = host_qualified(path, host)
         if not item.foreign or key == local:  # 网络路径（写不成带主机名的）对谁都是同一处
             return match(item, 4)
-        if key in by_key and not by_key[key].foreign:
-            return match(by_key[key], 4)
+        mine = index.get(key)
+        if mine is not None and not mine.foreign:
+            return match(mine, 4)
         return Decision(NEW, key, host_qualified(root, host), 4, local=True, content_key=content)
     # 5 有文件号 / 位置但没认上，登记里有一份还没报过文件号 / 位置、内容键相同、上报它的电脑还在的：待认定
     if content:
-        for item in registered:
-            if not item.identified and item.content_key == content and item.others_live:
-                return Decision(PENDING, item.account_key, item.root_key, 5, uid, location, content)
+        item = index.first(("content", content), lambda item: not item.identified and item.others_live)
+        if item is not None:
+            return Decision(PENDING, item.account_key, item.root_key, 5, uid, location, content)
     # 6 新登记：有网络路径的键 = 网络路径；只在本机的键 = 带主机名的路径。同一个路径串已经登记过就是同一处——
     #   除非双方文件号都有且不同、别的电脑 7 天内还按原文件号够到它（不同办公室 / VPN 下同一个 IP 的两台 NAS）：
     #   那是另一份物理账套，待认定（不派写入），等原文件号没人再报了再认
     key = location or host_qualified(path, host)
-    if key in by_key:
-        item = by_key[key]
+    item = index.get(key)
+    if item is not None:
         if uid and item.uid and item.uid != uid and item.uid in item.others_uids:
             return Decision(PENDING, item.account_key, item.root_key, 6, uid, location, content)
         return match(item, 6)
@@ -277,6 +347,6 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
     return Decision(NEW, key, root_key, 6, uid, location, content, local=not location)
 
 
-__all__ = ["MATCH", "NEW", "PENDING", "Decision", "Registered", "account_set_company", "clean_uid", "content_key",
-           "host_aliases", "host_qualified", "network_root", "normalize_express_account_key", "normalize_location",
+__all__ = ["MATCH", "NEW", "PENDING", "Decision", "Registered", "Registry", "account_set_company", "clean_uid",
+           "content_key", "host_aliases", "host_qualified", "network_root", "normalize_express_account_key", "normalize_location",
            "reported_account_set_roots", "resolve", "same_company_account_sets"]
