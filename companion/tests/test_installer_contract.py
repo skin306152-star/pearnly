@@ -61,9 +61,9 @@ def test_tomo_installs_as_a_folder_and_silent_updates_restart_in_the_background(
     assert '"PySide6.QtWebEngineCore"' not in spec and '"PySide6.QtNetwork"' not in spec
 
 
-def test_the_old_folder_name_is_never_shown_and_finishing_offers_launch_cc():
-    # 2026-10-13：选目录页、Ready 页的目标位置、重装时的「文件夹已存在」都会把目录亮给用户；
-    # 完成页的勾选框原来是默认的「Run companion.exe」。2026-10-20 起目录本身也叫 CC（安装进度页会显示解压路径）。
+def test_the_old_folder_name_is_never_shown_and_manual_installs_open_cc():
+    # 2026-10-13：选目录页、Ready 页的目标位置、重装时的「文件夹已存在」都会把目录亮给用户。
+    # 2026-10-20 起目录本身也叫 CC；一键安装没有完成页，手动安装装完直接打开 CC。
     script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
     setup = script.split("[Setup]", 1)[1].split("[InstallDelete]", 1)[0]
     lines = {line.split("=", 1)[0].strip().lower(): line.split("=", 1)[1].strip()
@@ -73,7 +73,8 @@ def test_the_old_folder_name_is_never_shown_and_finishing_offers_launch_cc():
     assert lines["defaultdirname"] == "{autopf}\\CC"  # 老目录「Pearnly Companion」由 [Code] 迁移（见下）
     run = script.split("[Run]", 1)[1].split("[Code]", 1)[0]
     manual = next(line for line in run.splitlines() if "skipifsilent" in line)
-    assert 'Description: "{cm:LaunchProgram,CC}"' in manual
+    assert 'Filename: "{app}\\companion.exe"' in manual and "postinstall" not in manual  # 没有完成页时不等勾选
+    assert "nowait" in manual and "Parameters" not in manual  # 不带 --background：打开 CC 窗口
     # 用户看得到的名字（程序名、卸载项、版本信息、快捷方式、任务、完成页）里没有旧称
     shown = [lines[key] for key in ("appname", "uninstalldisplayname", "versioninfoproductname",
                                     "versioninfodescription", "defaultgroupname")]
@@ -157,7 +158,7 @@ LANGUAGE_FILES = {
 }
 
 
-def test_wizard_follows_the_windows_language_with_english_as_fallback():
+def test_installer_follows_the_windows_language_with_english_as_fallback():
     # 教程问题第 7 条：泰文系统上向导全是英文
     script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
     setup = _section(script, "[Setup]")
@@ -170,28 +171,41 @@ def test_wizard_follows_the_windows_language_with_english_as_fallback():
         path = PACKAGING / "languages" / name
         assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, f"{name} changed: update the source note"
         assert f'MessagesFile: "languages\\{name}"' in script
-    # 自己写的界面文字每种语言都有（只认 {cm:…}，LaunchProgram 是 Inno 自带的）
-    used = set(re.findall(r"\{cm:([A-Za-z]+)", script)) - {"LaunchProgram"}
-    custom = _section(script, "[CustomMessages]")
-    assert used
-    for key in used:
-        for name in names:
-            assert re.search(rf"^{name}\.{key}=\S", custom, re.M), f"{name}.{key}"
-    assert re.search(r"^english\.DesktopShortcut=Create a desktop shortcut$", custom, re.M)  # 英文沿用原文
+    # 看得到的字只有 Inno 译文自带的（取消、确认、出错）；窗口标题只写产品名，没有自写的多语言文案
+    assert "[CustomMessages]" not in script and "{cm:" not in script
+    assert [line for line in _section(script, "[Messages]").splitlines() if "=" in line] == ["SetupWindowTitle=%1"]
+    assert "AppVerName={#AppName}" in setup
 
 
-def test_wizard_images_are_the_cc_icon():
+def test_one_click_install_shows_only_the_icon_a_progress_bar_and_cancel():
+    # 2026-10-20 用户：「谁家产品安装的时候把 logo 放右上角？」照主流桌面产品一键安装：不出向导页，只有一个小窗口
     script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
     setup = _section(script, "[Setup]")
-    assert "WizardImageFile=wizard\\cc-wizard-*.png" in setup
-    assert "WizardSmallImageFile=..\\assets\\cc.png" in setup
-    images = sorted((PACKAGING / "wizard").glob("cc-wizard-*.png"))
-    assert len(images) >= 2
-    for path in images:
-        width, height = _png_size(path)
-        assert f"{width}x{height}" in path.name
-        assert abs(width / height - 164 / 314) < 0.01  # 向导配图区的比例，不拉伸变形
-    assert _png_size(COMPANION / "assets" / "cc.png") == (256, 256)
+    for page in ("Welcome", "Dir", "ProgramGroup", "Ready", "Finished"):
+        assert f"Disable{page}Page=yes" in setup, page
+    assert "WizardImageFile" not in setup and "WizardSmallImageFile" not in setup
+    code = script.split("[Code]", 1)[1]
+    skip = code.split("function ShouldSkipPage", 1)[1].split("end;", 1)[0]
+    assert "wpSelectTasks" in skip  # 附加任务页不出，沿用上次的选择
+    wizard = code.split("procedure WizardCompact", 1)[1].split("end;", 1)[0]
+    for hidden in ("MainPanel", "Bevel1", "Bevel", "OuterNotebook", "NextButton", "BackButton"):
+        assert f"WizardForm.{hidden}.Visible := False;" in wizard, hidden  # 页头小图、文件名、「正在提取文件」都在里面
+    layout = code.split("function CompactLayout", 1)[1].split("\nend;", 1)[0]
+    assert "InitializeBitmapImageFromIcon(Icon, IconFile, clWhite" in layout  # 按 DPI 从 cc.ico 取一档，不拉伸
+    assert "Bar.Parent := Form;" in layout and "Cancel.Left" in layout and "Form.ClientHeight" in layout
+    assert "Stretch" not in layout
+    init = code.split("procedure InitializeWizard", 1)[1].split("end;", 1)[0]
+    assert "ExtractTemporaryFile('cc.ico')" in init and "WizardCompact" in init
+    files = [line for line in _section(script, "[Files]").splitlines() if line.startswith("Source:")]
+    assert files[0].startswith('Source: "..\\assets\\cc.ico"')  # 固实压缩：放第一个，窗口一打开就解得出来
+    # 要人选择的「准备安装」页一出现就恢复官方布局
+    page = code.split("procedure CurPageChanged", 1)[1].split("\nend;", 1)[0]
+    assert "wpPreparing" in page and "WizardForm.OuterNotebook.Visible := True;" in page
+    # 卸载：系统的确认框 + 同样的小窗口进度
+    uninstall = code.split("procedure InitializeUninstallProgressForm", 1)[1].split("\nend;", 1)[0]
+    assert "UninstallProgressForm.OuterNotebook.Visible := False;" in uninstall
+    assert "CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar" in uninstall
+    assert (COMPANION / "assets" / "cc.ico").read_bytes()[:4] == b"\x00\x00\x01\x00"
 
 
 def test_store_package_manifest():
@@ -228,7 +242,7 @@ def test_store_package_manifest():
     assert startup.find("desktop:StartupTask", ns).get("TaskId") == package_identity.STARTUP_TASK_ID
     assert [c.get("Name") for c in root.findall("m:Capabilities/rescap:Capability", ns)] == ["runFullTrust"]
     assert root.find("m:Dependencies/m:TargetDeviceFamily", ns).get("MinVersion") == "10.0.19041.0"  # uap10:Parameters
-    # 清单引用的图都在、尺寸对（packaging/make_images.py 生成）
+    # 清单引用的图都在、尺寸对（packaging/msix/make_assets.py 生成）
     visual = app.find("uap:VisualElements", ns)
     refs = {visual.get("Square150x150Logo"): (150, 150), visual.get("Square44x44Logo"): (44, 44),
             visual.find("uap:DefaultTile", ns).get("Wide310x150Logo"): (310, 150),

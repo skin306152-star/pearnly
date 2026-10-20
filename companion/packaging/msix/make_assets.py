@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
-"""由 CC 图标（assets/cc.png）生成安装向导配图与 MSIX 图标资产，生成好的 PNG 随仓库提交。
+"""由 CC 图标（assets/cc.png）生成 MSIX 清单引用的图标（Square44x44Logo / Square150x150Logo / Wide310x150Logo / StoreLogo，
+透明底），生成好的 PNG 随仓库提交在 packaging/msix/Assets/。换了 cc.png 时重跑：
 
-    QT_QPA_PLATFORM=offscreen python packaging/make_images.py          # 重新生成（换了 cc.png 时）
-    QT_QPA_PLATFORM=offscreen python packaging/make_images.py --check  # 只核对已提交的文件与本脚本一致
+    QT_QPA_PLATFORM=offscreen python packaging/msix/make_assets.py
+    QT_QPA_PLATFORM=offscreen python packaging/msix/make_assets.py --check   # 只核对已提交的文件与本脚本一致
 
-- 安装向导（installer.iss 的 WizardImageFile）：Inno Setup 6.6 起的左侧配图区 202x386（100%）… 534x1022（250%），
-  按 164:314 的比例给四种尺寸，Setup 按当前 DPI 选最接近的；白底，图标居中。小图（WizardSmallImageFile）直接用 cc.png。
-- MSIX（packaging/msix/AppxManifest.xml 引用）：Square44x44Logo / Square150x150Logo / Wide310x150Logo / StoreLogo，透明底。
-
-用 PySide6（已锁在 requirements-build.txt）画图，不另加依赖。
+用 PySide6（已锁在 requirements-build.txt）画图，不另加依赖。Inno 安装包不用这些图（安装窗口的图标直接取 assets/cc.ico）。
 """
 from __future__ import annotations
 
@@ -17,20 +14,18 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SOURCE = HERE.parent / "assets" / "cc.png"
-WIZARD_DIR = HERE / "wizard"
-MSIX_ASSETS = HERE / "msix" / "Assets"
+COMPANION = HERE.parents[1]
+SOURCE = COMPANION / "assets" / "cc.png"
+MSIX_ASSETS = HERE / "Assets"
 
 # (文件, 宽, 高, 图标边长占较短边的比例, 底色；None = 透明)
-WIZARD = [(WIZARD_DIR / f"cc-wizard-{w}x{h}.png", w, h, 0.62, "#ffffff")
-          for w, h in ((202, 386), (336, 643), (430, 824), (534, 1022))]
 MSIX = [
     (MSIX_ASSETS / "Square44x44Logo.png", 44, 44, 1.0, None),
     (MSIX_ASSETS / "Square150x150Logo.png", 150, 150, 0.66, None),
     (MSIX_ASSETS / "Wide310x150Logo.png", 310, 150, 0.66, None),
     (MSIX_ASSETS / "StoreLogo.png", 50, 50, 1.0, None),
 ]
-TARGETS = WIZARD + MSIX
+TARGETS = MSIX
 
 
 def render(width: int, height: int, ratio: float, background):
@@ -72,12 +67,12 @@ def main(argv=None) -> int:
         if args.check:
             current = QImage(str(path))
             if current.isNull() or current.size() != image.size() or _pixels(current) != _pixels(image):
-                stale.append(str(path.relative_to(HERE.parent)))
+                stale.append(str(path.relative_to(COMPANION)))
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
         if not image.save(str(path), "PNG"):
             raise SystemExit(f"写不了 {path}")
-        print(path.relative_to(HERE.parent), f"{width}x{height}")
+        print(path.relative_to(COMPANION), f"{width}x{height}")
     if stale:
         print("与 cc.png 不一致，重新生成：", *stale, sep="\n  ")
         return 1

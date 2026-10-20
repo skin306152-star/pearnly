@@ -143,9 +143,11 @@ Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/productio
 - 按用户安装到 `%LOCALAPPDATA%\Programs\CC`（2026-10-20 起；以前叫 `Pearnly Companion`）。AppId 不变：从旧目录升级（手动装或
   自动更新的 `/VERYSILENT`，都不带 `/DIR`）时装进新目录，再把开机自启项、任务栏固定的快捷方式改指新位置，删掉旧目录；卸载项随
   AppId 指向新目录里的卸载程序。更早装在 `C:\Program Files\Pearnly Companion` 的全机安装当前用户删不了，只改开机自启。
-- 向导语言跟 Windows 显示语言：泰文（Inno Setup 6.7.1 官方译文）、简体中文（官方仓库的非官方译文），其余英文；两份译文原样拷在
-  `packaging/languages/`（来源标签 is-6_7_1，sha256 由 `tests/test_installer_contract.py` 守住）。编译要 Inno Setup 6.7.1 起。
-- 向导配图是 CC 图标：`packaging/wizard/*.png` 由 `packaging/make_images.py` 从 `assets/cc.png` 生成并提交（换图标时重跑）。
+- 一键安装（2026-10-20 用户定，照主流桌面产品）：双击即装，不出任何向导页；安装时只有一个小白窗（CC 图标居中、进度条、取消），
+  不显示文件路径；装完直接打开 CC。卸载是系统确认框 + 同样的小窗口进度。自动更新的 `/VERYSILENT` 不变。做法在 `installer.iss` 的
+  `[Code]`（`CompactLayout`）：官方向导的进度条与取消按钮留下、其余藏起来，图标从 `assets/cc.ico` 按 DPI 取一档。
+- 看得到的字（窗口标题「CC」、取消、确认、出错提示）跟 Windows 显示语言：泰文（Inno Setup 6.7.1 官方译文）、简体中文（官方仓库的非官方译文），
+  其余英文；两份译文原样拷在 `packaging/languages/`（来源标签 is-6_7_1，sha256 由 `tests/test_installer_contract.py` 守住）。编译要 Inno Setup 6.7.1 起。
 - 卸载：先关掉在跑的 CC，卸完删开机自启项（`HKCU\…\Run\PearnlyCompanion`，指向本次卸掉的目录、旧目录或已不存在的程序时）与
   `%LOCALAPPDATA%\Pearnly` 空目录。`%APPDATA%\Pearnly`（配置、配对、日志）与 `HKCU\Software\Pearnly`（设备密钥备份、窗口位置）照旧保留。
 

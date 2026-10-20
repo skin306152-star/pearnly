@@ -3,15 +3,18 @@
 ; 按用户安装(2026-10-08):不要管理员权限,自动更新静默覆盖安装时不弹「用户账户控制」授权窗口
 ; (原来装在 Program Files,每次自动更新都弹授权,打断正在用电脑的人)。配置、配对在 %APPDATA% 里,不受影响。
 ; 编译:ISCC.exe packaging\installer.iss → dist\CC-Setup.exe（2026-10-12 起；旧名 PearnlyCompanion-Setup.exe 由下载站同时保留）
-; 2026-10-20(教程问题第 6、7、8 条):目录从「Pearnly Companion」改成「CC」并迁移老用户;向导跟系统语言(泰文、简体中文,
-; 其余英文)、配图换成 CC 图标;卸载时清掉开机自启项与 %LOCALAPPDATA%\Pearnly 空目录。记录见 docs/work/2026-10-20-cc-installer-fixes.md。
+; 2026-10-20(教程问题第 6、7、8 条):目录从「Pearnly Companion」改成「CC」并迁移老用户;界面跟系统语言(泰文、简体中文,
+; 其余英文);卸载时清掉开机自启项与 %LOCALAPPDATA%\Pearnly 空目录。
+; 同日用户定:照主流桌面产品一键安装——双击即装、不出任何向导页,装的时候只有一个小窗口(CC 图标居中 + 进度条 + 取消),
+; 不显示文件路径;装完直接打开 CC。卸载同样精简(确认 + 小窗口进度)。自动更新的 /VERYSILENT 行为不变。
+; 记录见 docs/work/2026-10-20-cc-installer-fixes.md。
 #define AppName "CC"
 ; 版本号单一真相源 = src/companion/version.py。release.ps1 用 /DAppVersion=<ver> 注入;
 ; 直接 ISCC 编译时回落下方默认(手动保持与 version.py 一致)。
 #ifndef AppVersion
   #define AppVersion "1.1.19"
 #endif
-; 向导配图用 PNG(6.5.2 起)、泰文是官方语言(6.7.1 起):低于 6.7.1 的编译器不编,免得打出缺图、缺语言的包
+; 泰文是官方语言(6.7.1 起):低于 6.7.1 的编译器不编,免得打出缺语言的包
 #if Ver < EncodeVer(6,7,1)
   #error Inno Setup 6.7.1 or later is required
 #endif
@@ -20,19 +23,25 @@
 AppId={{8F3C2A91-4E7B-4D2A-9C11-PEARNLYCOMP01}
 AppName={#AppName}
 AppVersion={#AppVersion}
+; 窗口标题只写产品名(SetupWindowTitle=%1,%1 即 AppVerName),不写「安装 - CC 版本 x」
+AppVerName={#AppName}
 AppPublisher=Pearnly
 PrivilegesRequired=lowest
 ; 非管理员模式下 {autopf} = 当前用户的 %LOCALAPPDATA%\Programs。
-; 2026-10-20 起目录叫 CC(安装进度页会显示解压路径);以前叫「Pearnly Companion」,老用户升级时由 [Code] 迁过来
+; 2026-10-20 起目录叫 CC;以前叫「Pearnly Companion」,老用户升级时由 [Code] 迁过来
 ; (开机自启、任务栏固定的快捷方式改指新位置,旧目录删掉)。自动更新不带 /DIR,照样装到这里。
 DefaultDirName={autopf}\CC
 ; 不沿用上一次的目录:更早的全机安装在 Program Files(当前用户写不进去),2026-10-20 前的按用户安装在「Pearnly Companion」
 UsePreviousAppDir=no
-; 不显示选目录页(2026-10-13);不显示时 Ready 页也不列目录(AlwaysShowDirOnReadyPage 默认 no)
+; 一键安装:欢迎、选目录、开始菜单、准备安装、完成页都不出(选附加任务页在 [Code] ShouldSkipPage 里跳过),
+; 所有页都跳过时 Setup 直接开始安装
+DisableWelcomePage=yes
 DisableDirPage=yes
 DefaultGroupName=CC
 UsePreviousGroup=no
 DisableProgramGroupPage=yes
+DisableReadyPage=yes
+DisableFinishedPage=yes
 OutputDir=..\dist
 OutputBaseFilename=CC-Setup
 VersionInfoProductName=CC
@@ -41,10 +50,8 @@ Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
 WizardStyle=modern
-; 向导配图:左侧大图是 CC 图标(packaging/make_images.py 由 assets/cc.png 生成,按 DPI 选最接近的一张),右上小图直接用 cc.png
-WizardImageFile=wizard\cc-wizard-*.png
-WizardSmallImageFile=..\assets\cc.png
 ; 语言跟 Windows 显示语言:泰文、简体中文;其余(含没认出来)用第一个,英文。不弹选语言的对话框。
+; 一键安装后用户看得到的字只有:窗口标题「CC」、取消按钮、取消确认与出错提示、卸载确认,都是 Inno 译文自带的。
 ShowLanguageDialog=no
 LanguageDetectionMethod=uilanguage
 UninstallDisplayName=CC
@@ -62,13 +69,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "thai"; MessagesFile: "languages\Thai.isl"
 Name: "chinesesimplified"; MessagesFile: "languages\ChineseSimplified.isl"
 
-[CustomMessages]
-english.DesktopShortcut=Create a desktop shortcut
-english.ShortcutsGroup=Shortcuts:
-thai.DesktopShortcut=สร้างทางลัดบนเดสก์ท็อป
-thai.ShortcutsGroup=ทางลัด:
-chinesesimplified.DesktopShortcut=创建桌面快捷方式
-chinesesimplified.ShortcutsGroup=快捷方式：
+[Messages]
+SetupWindowTitle=%1
 
 [InstallDelete]
 ; 上一版的程序文件夹整个换掉(不留旧版本的库);旧名字的快捷方式删掉,换成 CC
@@ -83,10 +85,11 @@ Type: files; Name: "{autodesktop}\Tomo.lnk"
 Type: files; Name: "{app}\tomo.ico"
 
 [Files]
+; cc.ico 放第一个:安装窗口一打开就要用它(ExtractTemporaryFile),整包是固实压缩,排在后面要先解压前面一百多 MB
+Source: "..\assets\cc.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\companion\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Harbour DBFCDX 后台索引重建器(预编译原生 exe · 与主 exe 同目录 · cdx_reindex.py 定位)
 Source: "..\dist\cdx_reindex_runner.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\assets\cc.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; AppUserModelID 必须与进程 SetCurrentProcessExplicitAppUserModelID 一致,否则 Win10/11
@@ -96,13 +99,14 @@ Name: "{group}\Uninstall CC"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\CC"; Filename: "{app}\companion.exe"; IconFilename: "{app}\cc.ico"; AppUserModelID: "Pearnly.Companion"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm:ShortcutsGroup}"
+; 选附加任务页不出(ShouldSkipPage):新装默认建桌面快捷方式,升级沿用上次的选择(UsePreviousTasks)
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
 [Run]
-; 自动更新(静默安装)装完在后台重启,不在别人干活时弹 CC 窗口;手动安装装完直接打开 CC
-; (完成页的勾选框写「Launch CC」,不写默认的「Run companion.exe」)
+; 自动更新(静默安装)装完在后台重启,不在别人干活时弹 CC 窗口(这一行不变);
+; 手动安装没有完成页,装完直接打开 CC(不是 postinstall:没有完成页时不等勾选)
 Filename: "{app}\companion.exe"; Parameters: "--background"; Flags: nowait postinstall runasoriginaluser; Check: WizardSilent
-Filename: "{app}\companion.exe"; Description: "{cm:LaunchProgram,CC}"; Flags: nowait postinstall runasoriginaluser skipifsilent
+Filename: "{app}\companion.exe"; Flags: nowait runasoriginaluser skipifsilent
 
 [UninstallDelete]
 ; 写账套前的本机快照目录(src/companion/dbf_writer.py:写完即删);只删空目录,万一留着快照不动
@@ -127,6 +131,8 @@ var
 begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM companion.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM cdx_reindex_runner.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  { 给网页内核子进程一秒钟跟着退出,免得重启管理器又把它们当成占用文件的程序、弹出「准备安装」页 }
+  Sleep(1000);
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -258,4 +264,106 @@ begin
        or not FileExists(Target) then
       RegDeleteValue(HKCU, RunKey, RunValue);
   end;
+end;
+
+{ ── 一键安装的小窗口(2026-10-20 用户定,照主流桌面产品) ──
+  安装时只有一个小白窗:CC 图标居中、下面一条进度条、右下角取消。不显示页标题、右上角小图、文件名与「正在提取文件」。
+  做法:官方向导的进度条与取消按钮留在窗体上,其余(页头、两条分隔线、整个页面区)藏起来,窗体缩到内容大小。
+  图标从 cc.ico 按 DPI 取最合适的一档(InitializeBitmapImageFromIcon),不拉伸。卸载的进度窗口同一做法。
+  万一要显示「准备安装」页(有程序占着文件、要人选是否关掉),先恢复官方布局,不让人看不见要点的按钮。 }
+var
+  CompactIcon: TBitmapImage;
+  FullClientWidth, FullClientHeight, FullCancelLeft, FullCancelTop: Integer;
+
+function CompactLayout(const Form: TSetupForm; const Bar: TNewProgressBar; const Cancel: TNewButton;
+  const IconFile: String; Icon: TBitmapImage): TBitmapImage;
+var
+  Margin: Integer;
+begin
+  Margin := ScaleX(32);
+  Form.Color := clWhite;
+  Form.ClientWidth := ScaleX(360);
+  if Icon = nil then
+  begin
+    Icon := TBitmapImage.Create(Form);
+    Icon.Parent := Form;
+    Icon.BackColor := clWhite;
+    Icon.Width := ScaleX(64);
+    Icon.Height := ScaleY(64);
+    if not InitializeBitmapImageFromIcon(Icon, IconFile, clWhite, [32, 48, 64, 80, 96, 128, 160, 256]) then
+      Log('CC icon not loaded: ' + IconFile);
+  end;
+  Icon.Visible := True;
+  Icon.Left := (Form.ClientWidth - Icon.Width) div 2;
+  Icon.Top := Margin;
+  Bar.Parent := Form;
+  Bar.Visible := True;
+  Bar.Left := Margin;
+  Bar.Width := Form.ClientWidth - 2 * Margin;
+  Bar.Height := ScaleY(8);
+  Bar.Top := Icon.Top + Icon.Height + ScaleY(28);
+  Cancel.Top := Bar.Top + Bar.Height + ScaleY(24);
+  Cancel.Left := Form.ClientWidth - Margin - Cancel.Width;
+  Form.ClientHeight := Cancel.Top + Cancel.Height + ScaleY(16);
+  Result := Icon;
+end;
+
+procedure WizardCompact;
+begin
+  WizardForm.MainPanel.Visible := False;
+  WizardForm.Bevel1.Visible := False;
+  WizardForm.Bevel.Visible := False;
+  WizardForm.OuterNotebook.Visible := False;
+  WizardForm.NextButton.Visible := False;
+  WizardForm.BackButton.Visible := False;
+  CompactIcon := CompactLayout(WizardForm, WizardForm.ProgressGauge, WizardForm.CancelButton,
+    ExpandConstant('{tmp}\cc.ico'), CompactIcon);
+end;
+
+procedure InitializeWizard;
+begin
+  FullClientWidth := WizardForm.ClientWidth;
+  FullClientHeight := WizardForm.ClientHeight;
+  FullCancelLeft := WizardForm.CancelButton.Left;
+  FullCancelTop := WizardForm.CancelButton.Top;
+  ExtractTemporaryFile('cc.ico');
+  WizardCompact;
+  WizardForm.CenterOnShow := True;
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := PageID = wpSelectTasks;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = wpPreparing then
+  begin
+    WizardForm.ClientWidth := FullClientWidth;
+    WizardForm.ClientHeight := FullClientHeight;
+    WizardForm.CancelButton.Left := FullCancelLeft;
+    WizardForm.CancelButton.Top := FullCancelTop;
+    WizardForm.ProgressGauge.Visible := False;
+    if CompactIcon <> nil then
+      CompactIcon.Visible := False;
+    WizardForm.MainPanel.Visible := True;
+    WizardForm.Bevel1.Visible := True;
+    WizardForm.Bevel.Visible := True;
+    WizardForm.OuterNotebook.Visible := True;
+    WizardForm.NextButton.Visible := True;
+  end
+  else if CurPageID = wpInstalling then
+    WizardCompact;
+end;
+
+procedure InitializeUninstallProgressForm;
+begin
+  UninstallProgressForm.MainPanel.Visible := False;
+  UninstallProgressForm.Bevel1.Visible := False;
+  UninstallProgressForm.Bevel.Visible := False;
+  UninstallProgressForm.OuterNotebook.Visible := False;
+  CompactIcon := CompactLayout(UninstallProgressForm, UninstallProgressForm.ProgressBar,
+    UninstallProgressForm.CancelButton, ExpandConstant('{app}\cc.ico'), nil);
+  UninstallProgressForm.CenterOnShow := True;
 end;

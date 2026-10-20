@@ -250,7 +250,7 @@ class CcDesktop(unittest.TestCase):
             shown += re.findall(r'(?<![A-Za-z])(?:Name|Description|GroupDescription): "([^"]*)"', body)
         self.assertTrue(shown)
         self.assertEqual([text for text in shown if offending(text)], [])
-        self.assertIn('Description: "{cm:LaunchProgram,CC}"', script)  # 完成页不是「Run companion.exe」
+        self.assertIn("DisableFinishedPage=yes", script)  # 一键安装（2026-10-20）：没有写着「Run companion.exe」的完成页
 
 
 class DesktopMetadata(unittest.TestCase):
