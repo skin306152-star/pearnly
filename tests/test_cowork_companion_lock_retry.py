@@ -251,6 +251,20 @@ class RegisterTests(_Case):
                 self.register()
         self.assertEqual((self.calls, frappe.db.rollbacks, self.sleeps), (1, 0, []))
 
+    def test_register_hands_credentials_the_read_view_end(self):
+        """电脑登记锁连接行之前由这里结束读视图（提交；`credentials.register` 自己不提交）：之后的读视图建在拿到锁之后。"""
+        seen = []
+
+        def register(*args, before_lock=None):
+            frappe.db.write("read only so far")
+            before_lock()
+            seen.append(list(frappe.db.rows))
+            return {"status": "exists"}
+
+        with mock.patch.object(companion.credentials, "register", register, create=True):
+            self.assertEqual(self.register(), {"status": "exists"})
+        self.assertEqual(seen, [["read only so far"]])  # 调 before_lock 时提交了
+
     def test_remove_device_uses_the_same_transaction(self):
         with mock.patch.object(companion.credentials, "remove_device", self.failing(2, {"removed": True}), create=True):
             self.assertEqual(modules["api"].remove_device("DEV-1"), {"removed": True})
@@ -335,6 +349,35 @@ class MachineMethodTests(_Case):
         with self.assertRaises(_Busy):
             modules["request_api"]._guarded("request_complete", self.failing(99, None))
         self.assertEqual(([stage for stage, _ in busy], self.calls), (["request_complete"], shared.ATTEMPTS))
+
+
+class NativeMessageTests(_Case):
+    """被回滚的那次留下的两路原生提示（``message_log`` 与 ``frappe.flags.error_message``，回复里的 ``_error_message``）
+    都不带给重来的那次：机器方法那一次里可能带着配对码 / 回执密钥（10-20 lab `queue-http` 夹具：心跳认证重来后回复里
+    带出了配对码）。调用之前已有的照留。"""
+
+    def attempt(self, times):
+        def run():
+            self.calls += 1
+            if self.calls <= times:
+                frappe.flags["error_message"] = "exp_secret"
+                frappe.local.message_log.append("exp_secret")
+                raise frappe.QueryDeadlockError(LOCK_1020)
+            return "ok"
+        return run
+
+    def test_a_retried_attempt_leaves_no_error_message(self):
+        frappe.flags = {}
+        self.assertEqual(shared.retried(self.attempt(2)), "ok")
+        self.assertNotIn("error_message", frappe.flags)
+        self.assertEqual(frappe.local.message_log, [])
+
+    def test_an_earlier_error_message_is_kept(self):
+        frappe.flags = {"error_message": "before"}
+        frappe.local.message_log.append("before")
+        with self.assertRaises(shared.Exhausted):
+            shared.retried(self.attempt(99))
+        self.assertEqual((frappe.flags, frappe.local.message_log), ({"error_message": "before"}, ["before"]))
 
 
 class SamePlaceTests(unittest.TestCase):
