@@ -118,14 +118,14 @@ const
   LegacyDirName = 'Pearnly Companion';
 
 { 托盘程序无顶层窗口,CloseApplications 的重启管理器可能关不掉它 → 真正开始安装时强制 taskkill,
-  保证覆盖安装能替换正在运行的 companion.exe / cdx_reindex_runner.exe。/T 连同 CC 窗口的网页内核子进程一起结束
-  (它们占着 _internal 里的文件,旧目录删不干净)。
+  保证覆盖安装能替换正在运行的 companion.exe / cdx_reindex_runner.exe。不加 /T:自动更新时安装包本身就是 companion.exe
+  拉起的子进程,连进程树一起结束会把安装包也杀掉;CC 窗口的网页内核子进程在 companion.exe 退出后自己退出(旧目录删除另有重试)。
   不在向导一打开(InitializeSetup)就关:点「取消」时小助手已被关掉又不会重启(2026-09-28 录制实测)。 }
 procedure KillRunning;
 var
   ResultCode: Integer;
 begin
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM companion.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM companion.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM cdx_reindex_runner.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
@@ -162,7 +162,7 @@ end;
 { 任务栏上固定的 CC:固定时系统复制了一份快捷方式,指着旧目录的 companion.exe;旧目录删掉后它就打不开。改指新位置。 }
 procedure RepointPinnedShortcuts(const OldExe: String);
 var
-  Folder, Path: String;
+  Folder, Path, Target: String;
   FindRec: TFindRec;
   Shell, Link: Variant;
 begin
@@ -175,7 +175,8 @@ begin
       Path := Folder + '\' + FindRec.Name;
       try
         Link := Shell.CreateShortcut(Path);
-        if CompareText(Link.TargetPath, OldExe) = 0 then
+        Target := Link.TargetPath;
+        if CompareText(Target, OldExe) = 0 then
         begin
           Link.TargetPath := ExpandConstant('{app}\companion.exe');
           Link.WorkingDirectory := ExpandConstant('{app}');
@@ -192,7 +193,7 @@ begin
   end;
 end;
 
-{ 老用户升级:新版装进 {app} 之后,把旧目录里的整份程序删掉(卸载项随同一个 AppId 已改指 {app} 里的卸载程序)。
+{ 老用户升级:新版装进新目录之后,把旧目录里的整份程序删掉(卸载项随同一个 AppId 已改指新目录里的卸载程序)。
   删不干净(文件还被占着)就隔一秒再试几次;剩下的下一次更新再删。 }
 procedure RemoveLegacyDir;
 var

@@ -32,6 +32,9 @@ def test_the_running_helper_is_only_closed_once_installing_starts():
     assert "function InitializeSetup" not in code
     prepare = code.split("function PrepareToInstall", 1)[1].split("end;", 1)[0]
     assert "KillRunning" in prepare
+    # 自动更新时安装包是 companion.exe 拉起的子进程：按进程树结束（/T）会连安装包一起杀掉
+    kill = code.split("procedure KillRunning", 1)[1].split("end;", 1)[0]
+    assert "/IM companion.exe" in kill and "/T" not in kill
 
 
 def test_installs_per_user_so_silent_updates_never_ask_for_admin_rights():
@@ -232,3 +235,18 @@ def test_store_package_manifest():
             root.find("m:Properties/m:Logo", ns).text: (50, 50)}
     for ref, size in refs.items():
         assert _png_size(PACKAGING / "msix" / ref.replace("\\", "/")) == size, ref
+
+
+def test_code_comments_do_not_nest_braces():
+    # Pascal 的花括号注释不能嵌套：注释里写 {app} 会在第一个右括号处提前结束注释，编译报语法错（2026-10-20 CI 踩过）
+    code = INSTALLER_SCRIPT.read_text(encoding="utf-8").split("[Code]", 1)[1]
+    code = re.sub(r"'[^'\n]*'", "''", code)  # 字符串里的 {app} 是常量，不算
+    depth, nested = 0, []
+    for position, char in enumerate(code):
+        if char == "{":
+            depth += 1
+            if depth > 1:
+                nested.append(code[max(0, position - 40):position + 10])
+        elif char == "}":
+            depth = max(0, depth - 1)
+    assert not nested
