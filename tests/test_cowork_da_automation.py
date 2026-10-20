@@ -960,6 +960,12 @@ class SameDocumentPages(unittest.TestCase):
         self.assertFalse(auto.number_in_text("IV69-001", None))
         self.assertEqual(auto.NUMBER_MIN, 4)
 
+    def test_the_text_checks_are_the_shared_ones(self):
+        """原文比对与 Claude 识别的副本页自检（``claude_ocr.rules.copy_page``）同一份（共用层 ``tax_documents.printed``）。"""
+        from pearnly_core.tax_documents import printed
+        for name in ("number_in_text", "amount_in_text", "tax_in_text", "adjustment_note", "NUMBER_MIN"):
+            self.assertIs(getattr(auto, name), getattr(printed, name), name)
+
 
 class DecideCore(unittest.TestCase):
     """判定核心（第 11 条抽出的纯函数）：历史已定带上汇总版本，classify 据此分 A / B。"""

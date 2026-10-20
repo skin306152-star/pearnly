@@ -1,5 +1,6 @@
 """Claude 识别路线（ADR-022）的纯计算部分：硬性自检、Haiku→Opus 分级、结果格式，以及「三个产品每个识别入口都认 Claude 路线」
 的源码守卫。不调接口、不花钱。"""
+import base64
 import json
 import re
 import sys
@@ -8,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/pearnly_core"))
-from pearnly_core.claude_ocr import engine, rules, spec  # noqa: E402
+from pearnly_core.claude_ocr import engine, pages, rules, server, spec  # noqa: E402
 
 GOOD_TAX = "0105546015062"  # 冰厂 SINCERE，校验位对
 
@@ -133,6 +134,219 @@ class Engine(unittest.TestCase):
         engine.run(client, "voucher", [("image/jpeg", b"x")] * 12)
         images = [b for b in client.calls[0]["messages"][0]["content"] if b["type"] == "image"]
         self.assertEqual(len(images), engine.MAX_PAGES)
+
+
+def test_tax(body):
+    """测试用税号：12 位造的数字 + 算出的校验位（不是哪家真实公司）。"""
+    return body + str((11 - sum(int(body[i]) * (13 - i) for i in range(12)) % 11) % 10)
+
+
+# 「正本 + 副本 / 收据联」几页一份的电子税票（E11 导出形状脱敏：单号、金额照形状造，税号是测试号）
+SELLER_T, BUYER_T = test_tax("099999000001"), test_tax("099999000002")
+NUMBER, TOTAL = "INV2025080061", "414.00"
+
+
+def e11_doc(**kw):
+    return doc(**{"invoice_number": NUMBER, "total": TOTAL, "subtotal": "386.92", "vat": "27.08", "seller_tax": SELLER_T,
+                  "buyer_tax": BUYER_T, **kw})
+
+
+def printed_page(title, number=NUMBER, total="414.00", seller=SELLER_T, buyer=BUYER_T):
+    return (f"{title} เลขที่ {number} วันที่ 06/10/2025 ผู้ขาย เลขประจำตัวผู้เสียภาษี {seller} สำนักงานใหญ่ "
+            f"ลูกค้า เลขประจำตัวผู้เสียภาษี {buyer} รวมเงิน 386.92 ภาษีมูลค่าเพิ่ม 27.08 จำนวนเงินรวมทั้งสิ้น {total}")
+
+
+ORIGINAL = printed_page("ใบส่งสินค้า/ใบกำกับภาษี ต้นฉบับ")
+COPY = printed_page("ใบส่งสินค้า/ใบกำกับภาษี สำเนา")
+RECEIPT = printed_page("ใบเสร็จรับเงิน ใบแนบใบกำกับภาษี สำเนา")
+
+
+def short_read(why):
+    return any("pages but only" in w for w in why)
+
+
+class CopyPages(unittest.TestCase):
+    """多页电子 PDF 后面几页是同一张票的副本 / 收据联：不当成漏读、不升 Opus；扫描件、对不上、没税号的照旧升。"""
+
+    def problems(self, texts, read=None, pages=3):
+        return rules.voucher_problems(read or reading(e11_doc()), pages, texts)
+
+    def test_copy_and_receipt_pages_are_not_missed_documents(self):
+        self.assertEqual(self.problems([ORIGINAL, COPY, RECEIPT]), [])
+        self.assertEqual(self.problems([ORIGINAL, COPY, RECEIPT, COPY], pages=4), [])
+        # 千分位、税号带连字号、单号之间断开一个空白：照样是同一张
+        loose = COPY.replace("414.00", "414").replace(BUYER_T, f"{BUYER_T[0]}-{BUYER_T[1:5]}-{BUYER_T[5:10]}-{BUYER_T[10:12]}-"
+                                                                f"{BUYER_T[12]}").replace(NUMBER, "INV2025 080061")
+        self.assertEqual(self.problems([ORIGINAL, loose, RECEIPT]), [])
+
+    def test_a_really_missed_invoice_still_goes_to_opus(self):
+        other = printed_page("ใบกำกับภาษี", number="INV2025080062")
+        self.assertTrue(short_read(self.problems([ORIGINAL, COPY, other])))
+        for name, text in {"longer number": COPY.replace(NUMBER, NUMBER + "1"),
+                           "prefixed number": COPY.replace(NUMBER, "X" + NUMBER),
+                           "other total": printed_page("สำเนา", total="415.00"),
+                           "total inside a bigger number": COPY.replace("414.00", "1,414.00"),
+                           "other buyer": printed_page("สำเนา", buyer=test_tax("099999000003")),
+                           "credit note": printed_page("ใบลดหนี้ สำเนา")}.items():
+            with self.subTest(name):
+                self.assertTrue(short_read(self.problems([ORIGINAL, COPY, text])))
+
+    def test_scanned_pages_still_go_to_opus(self):
+        self.assertTrue(short_read(self.problems(["", "", ""])))
+        self.assertTrue(short_read(self.problems([ORIGINAL, COPY, "   "])))  # 隐形识别文字层的页给空串
+
+    def test_without_a_13_digit_tax_id_it_still_goes_to_opus(self):
+        read = reading(e11_doc(seller_tax=None, buyer_tax=None))
+        self.assertTrue(short_read(self.problems([ORIGINAL, COPY, RECEIPT], read)))
+        # 读出的税号都要在那一页：买方税号没印在副本上的不算
+        no_buyer = COPY.replace(BUYER_T, "")
+        self.assertTrue(short_read(self.problems([ORIGINAL, COPY, no_buyer])))
+        # 只读出卖方税号（买方是个人、没印税号）：卖方的在就算
+        seller_only = reading(e11_doc(buyer_tax=None))
+        self.assertEqual(self.problems([ORIGINAL, COPY.replace(BUYER_T, ""), RECEIPT.replace(BUYER_T, "")], seller_only), [])
+
+    def test_old_callers_without_page_texts_are_unchanged(self):
+        read = reading(e11_doc())
+        self.assertTrue(short_read(rules.voucher_problems(read, 3)))
+        self.assertTrue(short_read(self.problems(None)))
+        self.assertTrue(short_read(self.problems([ORIGINAL, COPY])))  # 与页数对不上：不判
+        self.assertTrue(short_read(self.problems("".join([ORIGINAL, COPY, RECEIPT]))))  # 一整段字符串：不判
+
+    def test_the_numbers_have_to_be_real(self):
+        for name, read in {"zero total": reading(e11_doc(total="0.00", subtotal="0.00", vat="0.00")),
+                           "short number": reading(e11_doc(invoice_number="A12")),
+                           "no start page": reading(e11_doc(page=None)),
+                           "start page out of range": reading(e11_doc(page=4))}.items():
+            texts = [t.replace(NUMBER, "A12") for t in (ORIGINAL, COPY, RECEIPT)] if name == "short number" else \
+                [t.replace("414.00", "0.00") for t in (ORIGINAL, COPY, RECEIPT)] if name == "zero total" else [ORIGINAL, COPY, RECEIPT]
+            with self.subTest(name):
+                self.assertTrue(short_read(self.problems(texts, read)))
+
+    def test_a_copy_has_to_follow_its_original(self):
+        # 第 3 页起始的单，不能拿来认第 2 页
+        read = reading(e11_doc(page=3))
+        self.assertTrue(short_read(self.problems([COPY, COPY, ORIGINAL], read)))
+
+    def test_two_invoices_each_with_its_copy(self):
+        second = printed_page("ใบกำกับภาษี ต้นฉบับ", number="INV2025080062", total="107.00")
+        read = reading(e11_doc(), e11_doc(page=2, invoice_number="INV2025080062", total="107.00", subtotal="100.00",
+                                          vat="7.00"))
+        copy2 = second.replace("ต้นฉบับ", "สำเนา")
+        self.assertEqual(self.problems([ORIGINAL, second, COPY, copy2], read, pages=4), [])
+        self.assertTrue(short_read(self.problems([ORIGINAL, second, COPY, ""], read, pages=4)))
+
+    def test_a_credit_note_and_its_copy(self):
+        note = printed_page("ใบลดหนี้ สำเนา")
+        read = dict(reading(e11_doc()), doc_kind="credit_note")
+        self.assertEqual(self.problems([printed_page("ใบลดหนี้ ต้นฉบับ"), note, note], read), [])
+
+    def test_engine_stays_on_haiku_for_copies(self):
+        client = FakeClient(reading(e11_doc()))
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")] * 3, page_texts=[ORIGINAL, COPY, RECEIPT])
+        self.assertFalse(out["escalated"])
+        self.assertEqual(out["why"], [])
+        client = FakeClient(reading(e11_doc()), reading(e11_doc()))
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")] * 3)
+        self.assertTrue(out["escalated"])
+        self.assertTrue(short_read(out["why"]))
+        # 页与文字层同样截到 MAX_PAGES
+        client = FakeClient(reading(e11_doc()))
+        out = engine.run(client, "voucher", [("image/jpeg", b"x")] * 12, page_texts=[ORIGINAL] + [COPY] * 11)
+        self.assertEqual(out["why"], [])
+        # 文字层不交给模型
+        sent = json.dumps(client.calls[0]["messages"], ensure_ascii=False)
+        self.assertNotIn(NUMBER, sent)
+
+
+class PageTexts(unittest.TestCase):
+    def run_with(self, files, texts):
+        from unittest import mock
+
+        class Doc(list):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def open_(stream, filetype):
+            if stream == b"broken":
+                raise RuntimeError("cannot open")
+            return Doc(SimpleNamespace(get_text=(lambda t=t: t) if t is not None else (lambda: 1 / 0)) for t in texts[stream])
+
+        module = SimpleNamespace(open=open_)
+        with mock.patch.dict(sys.modules, {"pymupdf": module}):
+            return pages.page_texts(files)
+
+    def test_pages_line_up_with_prepare(self):
+        texts = {b"a": ["one", "two"], b"b": ["three"]}
+        got = self.run_with([(b"a", "application/pdf"), (b"img", "image/jpeg"), (b"b", "application/pdf")], texts)
+        self.assertEqual(got, ["one", "two", "", "three"])
+
+    def test_a_page_that_cannot_be_read_is_blank(self):
+        self.assertEqual(self.run_with([(b"a", "application/pdf")], {b"a": ["one", None, "three"]}), ["one", "", "three"])
+
+    def test_cap_matches_prepare(self):
+        texts = {b"a": [str(n) for n in range(12)], b"b": ["x"] * 3}
+        got = self.run_with([(b"a", "application/pdf"), (b"b", "application/pdf")], texts)
+        self.assertEqual(got, [str(n) for n in range(engine.MAX_PAGES)])
+
+    def test_no_pymupdf_or_a_broken_pdf_gives_nothing(self):
+        from unittest import mock
+        self.assertIsNone(self.run_with([(b"broken", "application/pdf")], {}))
+        with mock.patch.dict(sys.modules, {"pymupdf": None}):
+            self.assertIsNone(pages.page_texts([(b"a", "application/pdf")]))
+        self.assertEqual(pages.page_texts([(b"img", "image/png")]), [""])  # 只有图片：不用 pymupdf
+        self.assertEqual(pages.page_texts([]), [])
+
+
+class Service(unittest.TestCase):
+    """甲骨文服务 /v1/read：随图片带来的文字层只在与页数相同、全是字符串时用。"""
+
+    def read(self, body, *reads):
+        handler = server.Handler.__new__(server.Handler)
+        handler.client = FakeClient(*reads)
+        sent = []
+        handler._send = lambda status, answer: sent.append((status, answer))
+        handler.read(body)
+        return sent[0], handler.client
+
+    def body(self, texts):
+        image = {"media_type": "image/jpeg", "data": base64.b64encode(b"x").decode()}
+        return {"kind": "voucher", "images": [image] * 3, "page_texts": texts}
+
+    def test_page_texts_sent_with_the_images(self):
+        (status, answer), client = self.read(self.body([ORIGINAL, COPY, RECEIPT]), reading(e11_doc()))
+        self.assertEqual((status, answer["escalated"], answer["why"]), (200, False, []))
+        for bad in (None, [ORIGINAL, COPY], [ORIGINAL, COPY, 3], "x"):
+            with self.subTest(bad):
+                (status, answer), _client = self.read(self.body(bad), reading(e11_doc()), reading(e11_doc()))
+                self.assertEqual(status, 200)
+                self.assertTrue(answer["escalated"])
+
+    def test_given_texts(self):
+        self.assertEqual(server.given_texts(["a", ""], 2), ["a", ""])
+        self.assertIsNone(server.given_texts(["a"], 2))
+        self.assertIsNone(server.given_texts({"a": 1}, 1))
+
+
+class OracleBuild(unittest.TestCase):
+    def test_every_core_module_the_service_imports_is_shipped(self):
+        """甲骨文 claude-ocr 只带几个纯计算的包（scripts/claude-ocr/deploy.sh）：本包（站点侧 client 除外）导入的共用层模块都要带上
+        （整个包 ``cp -R …/<包>``，或 ``for f in … <模块> …; do cp …/<包>/$f.py``）。"""
+        deploy = (ROOT / "scripts/claude-ocr/deploy.sh").read_text(encoding="utf-8")
+        whole = set(re.findall(r'/pearnly_core/pearnly_core/(\w+)"', deploy))
+        listed = {(package, name) for names, package in
+                  re.findall(r'for f in ([\w ]+); do cp "\$root/apps/pearnly_core/pearnly_core/(\w+)/\$f\.py"', deploy)
+                  for name in names.split()}
+        imported = set()
+        for path in (ROOT / "apps/pearnly_core/pearnly_core/claude_ocr").glob("*.py"):
+            if path.name != "client.py":
+                for package, names in re.findall(r"from pearnly_core\.(\w+) import ([\w, ]+)", path.read_text(encoding="utf-8")):
+                    imported |= {(package, name.strip()) for name in names.split(",")}
+        imported = {item for item in imported if item[0] != "claude_ocr"}
+        self.assertIn(("tax_documents", "printed"), imported)
+        self.assertEqual(sorted(item for item in imported if item[0] not in whole and item not in listed), [])
 
 
 def row(date, deposit="", withdrawal="", balance=""):

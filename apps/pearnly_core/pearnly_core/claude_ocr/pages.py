@@ -51,6 +51,30 @@ def prepare(files, skipped=None):
     return pages[:engine.MAX_PAGES]
 
 
+def page_texts(files):
+    """files 同 :func:`prepare` → 与它出的页一一对应的 PDF 文字层 ``[str, ...]``（pymupdf ``page.get_text()``；图片页给空串），
+    同样每个 PDF 最多 ``engine.MAX_PAGES`` 页、合起来截到 ``engine.MAX_PAGES``。只给硬性自检用（副本页不升 Opus，
+    ``rules.voucher_problems``），零费用；某一页抽不出给空串。pymupdf 没有、PDF 打不开时给不出逐页对应，回 ``None``
+    （等于没有文字层，自检照旧）——从不抛错、不影响识别。"""
+    texts = []
+    try:
+        for data, media_type in files:
+            if media_type != "application/pdf":
+                texts.append("")
+                continue
+            import pymupdf
+
+            with pymupdf.open(stream=data, filetype="pdf") as document:
+                for page in list(document)[:engine.MAX_PAGES]:
+                    try:
+                        texts.append(str(page.get_text() or ""))
+                    except Exception:  # noqa: BLE001  这一页抽不出：当作没有文字层
+                        texts.append("")
+    except Exception:  # noqa: BLE001  pymupdf 没装、PDF 打不开：不给
+        return None
+    return texts[:engine.MAX_PAGES]
+
+
 # 对账文档逐页（与 Cowork ``ocr.inputs_runtime.PageSource.frame`` 同一做法，那边是生产逐页渲染、闸门用的那一份）
 FRAME_DPI = 200
 MAX_FRAME_PIXELS = 40_000_000

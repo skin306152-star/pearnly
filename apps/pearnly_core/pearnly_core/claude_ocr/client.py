@@ -91,7 +91,7 @@ def internal(path, body, timeout=(5, 60)):
     return response.json()
 
 
-def _remote(kind, pages, own_tax, text=None):
+def _remote(kind, pages, own_tax, text=None, page_texts=None):
     import requests
 
     found = _session()
@@ -100,6 +100,8 @@ def _remote(kind, pages, own_tax, text=None):
     session, base = found
     body = {"kind": kind, "own_tax": own_tax, "text": text,
             "images": [{"media_type": m, "data": base64.standard_b64encode(d).decode()} for m, d in pages]}
+    if page_texts is not None:
+        body["page_texts"] = page_texts  # 还没重发的甲骨文服务不认这一项，照旧按图片自检
     try:
         response = session.post(base + "/v1/read", json=body, timeout=SEND_TIMEOUT)
     except requests.RequestException as error:
@@ -116,7 +118,7 @@ def _remote(kind, pages, own_tax, text=None):
     return result
 
 
-def _local(kind, pages, own_tax, text=None):
+def _local(kind, pages, own_tax, text=None, page_texts=None):
     global _direct
     import anthropic
     key = os.environ.get("PEARNLY_ANTHROPIC_API_KEY", "").strip()
@@ -126,7 +128,7 @@ def _local(kind, pages, own_tax, text=None):
     if _direct is None:
         _direct = anthropic.Anthropic(api_key=key, max_retries=3, timeout=180)
     try:
-        result = claude_engine.run(_direct, kind, pages, own_tax, text)
+        result = claude_engine.run(_direct, kind, pages, own_tax, text, page_texts)
     except anthropic.APIError as error:
         from pearnly_core.execution.errors import Deferred
         frappe.logger("pearnly.ocr").warning("Anthropic error %s", type(error).__name__)
@@ -137,7 +139,8 @@ def _local(kind, pages, own_tax, text=None):
 
 def read(kind, files, own_tax=None, text=None):
     """读一份单据（一个文件的所有页；对账文档一次一页）。``text``：表格文件导出的文字，代替 ``files``。
-    返回 claude_ocr.engine.run 的结果加 ``where``；read 为 None 表示读不出。
+    返回 claude_ocr.engine.run 的结果加 ``where``；read 为 None 表示读不出。单据另抽每页 PDF 文字层（``pages.page_texts``，
+    零费用）随图片交给引擎，只给硬性自检认「正本 + 副本 / 收据联」几页一份，不交给模型。
     在识别工作单里时按内容存断点：同一份重跑直接用上次读到的，不重复付费（与谷歌路线的检查点同一张表）。"""
     import hashlib
 
@@ -152,7 +155,8 @@ def read(kind, files, own_tax=None, text=None):
     done = work.checkpoint(key)
     if done and done.get("state") == "done" and done.get("body"):
         return dict(done["body"], where="checkpoint")
-    result = _remote(kind, pages, own_tax, text) or _local(kind, pages, own_tax, text)
+    texts = page_prep.page_texts(files) if kind == "voucher" else None
+    result = _remote(kind, pages, own_tax, text, texts) or _local(kind, pages, own_tax, text, texts)
     if result.get("read") is not None:
         work.checkpoint(key, "done", result)
     return result

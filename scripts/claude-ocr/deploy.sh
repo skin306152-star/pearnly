@@ -16,8 +16,10 @@ secrets=0; [[ "${1:-}" == "--secrets" ]] && secrets=1
   && sudo install -d -o 65534 -g 65534 -m 700 /opt/pearnly-originals'
 # 构建目录 app/：只带纯计算的包（不带 Frappe 相关模块），包入口文件置空，免得导入整个产品。
 stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT
-mkdir -p "$stage/app/pearnly_core/originals"
+mkdir -p "$stage/app/pearnly_core/originals" "$stage/app/pearnly_core/tax_documents"
 cp -R "$root/apps/pearnly_core/pearnly_core/claude_ocr" "$root/apps/pearnly_core/pearnly_core/ocr_models" "$stage/app/pearnly_core/"
+# 硬性自检认副本页用的原文比对（纯标准库，与 Cowork 自动推前的核对同一份）
+for f in __init__ printed; do cp "$root/apps/pearnly_core/pearnly_core/tax_documents/$f.py" "$stage/app/pearnly_core/tax_documents/"; done
 # 原件层（ADR-024）只带纯计算的部分：文件规则、核对与预览渲染、签名、原件服务（站点侧调用要 Frappe，这台不用）
 for f in __init__ rules checks links server; do cp "$root/apps/pearnly_core/pearnly_core/originals/$f.py" "$stage/app/pearnly_core/originals/"; done
 : > "$stage/app/pearnly_core/__init__.py"

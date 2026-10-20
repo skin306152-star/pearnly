@@ -65,16 +65,19 @@ class Handler(BaseHTTPRequestHandler):
     def read(self, body):
         try:
             text = body.get("text") or None
+            voucher = body.get("kind") == "voucher"
             if body.get("original") or body.get("originals"):
-                images = (stored_pages(body["original"]) if body.get("original")
-                          else stored_set(body["originals"], orient=bool(body.get("orient"))))
+                # 原件在这台：文字层这里自己抽（只有单据要，副本页不升 Opus）
+                images, texts = (stored_read(body["original"], voucher) if body.get("original")
+                                 else stored_set_read(body["originals"], bool(body.get("orient")), voucher))
                 if images is None:
                     return self._send(404, {"error": "original_missing"})
             else:
                 images = [(i["media_type"], base64.b64decode(i["data"])) for i in body.get("images") or []]
                 if not (images or isinstance(text, str)) or any(m not in MEDIA for m, _ in images):
                     return self._send(400, {"error": "bad_images"})
-            result = engine.run(self.client, body["kind"], images, body.get("own_tax"), text)
+                texts = given_texts(body.get("page_texts"), len(images)) if voucher else None
+            result = engine.run(self.client, body["kind"], images, body.get("own_tax"), text, texts)
         except (KeyError, ValueError) as error:
             return self._send(400, {"error": type(error).__name__})
         except Exception as error:  # noqa: BLE001  Anthropic 出错：交给生产按工作单重试
@@ -109,29 +112,47 @@ def _stored(original):
     return data, media_type
 
 
-def stored_set(originals, orient=False):
+def given_texts(texts, count):
+    """随图片带来的每页文字层（站点侧 ``client.read`` 抽好的）：要是与图片一样多页的字符串，否则不用（自检照旧）。"""
+    if isinstance(texts, list) and len(texts) == count and all(isinstance(item, str) for item in texts):
+        return texts
+    return None
+
+
+def stored_set_read(originals, orient=False, texts=False):
     """一张单据的几份原件（ERP 一次带几个附件）按次序读；``orient``：每份先转正再出页（同 ERP 在生产上先转正再交识别）。
-    有一份不在了回 ``None``。"""
+    回 ``(页, 每页文字层)``（``texts`` 为假时文字层是 ``None``）；有一份不在了回 ``(None, None)``。"""
     if not isinstance(originals, list) or not 1 <= len(originals) <= 20:
         raise ValueError("bad originals")
     files = []
     for original in originals:
         found = _stored(original)
         if found is None:
-            return None
+            return None, None
         files.append(pages.upright(*found) if orient else found)
-    return pages.prepare(files)
+    return pages.prepare(files), (pages.page_texts(files) if texts else None)
 
 
-def stored_pages(original):
-    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；不在了回 ``None``，内容不对抛 ``ValueError``。
+def stored_set(originals, orient=False):
+    """同 :func:`stored_set_read`，只回页（不在了回 ``None``）。"""
+    return stored_set_read(originals, orient)[0]
+
+
+def stored_read(original, texts=False):
+    """按原件地址读：读文件、核对 sha256、转正渲染成交给 Claude 的页；回 ``(页, 每页文字层)``（``texts`` 为假、或逐页读时
+    文字层是 ``None``），不在了回 ``(None, None)``，内容不对抛 ``ValueError``。
     带 ``page``（对账文档逐页读）时只出这一页，做法同生产逐页渲染（``pages.frame``）。"""
     found = _stored(original)
     if found is None:
-        return None
+        return None, None
     if "page" in original:
-        return pages.prepare([pages.frame(*found, original["page"])])
-    return pages.prepare([found])
+        return pages.prepare([pages.frame(*found, original["page"])]), None
+    return pages.prepare([found]), (pages.page_texts([found]) if texts else None)
+
+
+def stored_pages(original):
+    """同 :func:`stored_read`，只回页（不在了回 ``None``）。"""
+    return stored_read(original)[0]
 
 
 def main(handler=Handler):

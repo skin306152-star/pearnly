@@ -55,19 +55,21 @@ def _call(client, model, kind, images, hint, text=None):
     return read, stage
 
 
-def run(client, kind, images, own_tax=None, text=None):
-    """images：[(media_type, bytes), ...]，按页序；``text``：表格文件（Excel / Word）导出的文字，代替图片。
+def run(client, kind, images, own_tax=None, text=None, page_texts=None):
+    """images：[(media_type, bytes), ...]，按页序；``text``：表格文件（Excel / Word）导出的文字，代替图片；
+    ``page_texts``：与 images 一一对应的 PDF 文字层（``pages.page_texts``，只给硬性自检认副本页；不给同以前）。
     返回 {"read", "stages", "escalated", "why", "usd", "seconds"}。
     Haiku 读 → 硬性自检 → 不过交 Opus（告诉它哪些字段可疑）→ 本公司税号更正。读不出（两次都没结果）时 read 为 None。"""
     if kind not in spec.SPECS:
         raise ValueError(f"unknown kind {kind}")
     images = list(images)[:MAX_PAGES]
+    page_texts = list(page_texts)[:MAX_PAGES] if isinstance(page_texts, (list, tuple)) else None
     stages = []
     read, stage = _call(client, HAIKU, kind, images, "", text)
     stages.append(stage)
     if kind == "voucher":
         stage["own_tax_fixed"] = rules.fix_own_tax(read, own_tax)
-        why = rules.voucher_problems(read, len(images))
+        why = rules.voucher_problems(read, len(images), page_texts)
     else:
         why = rules.PROBLEMS[kind](read)
     if why:

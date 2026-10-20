@@ -1,6 +1,8 @@
 """硬性自检（ADR-022，10-17 评测定）：决定 Haiku 的结果能不能直接用，还是交 Opus 重读。不按模型自标的「不确定」升级。"""
 from decimal import Decimal, InvalidOperation
 
+from pearnly_core.tax_documents import printed
+
 
 def digits(value):
     return "".join(c for c in str(value or "") if c.isdigit())
@@ -36,8 +38,52 @@ def fix_own_tax(read, own_tax):
     return fixed
 
 
-def voucher_problems(read, pages):
-    """返回要交 Opus 的原因（空 = 直接用）。"""
+def _taxes(doc):
+    """这张单读出的 13 位税号（卖方、买方，读出几个算几个）。"""
+    return [tax for tax in (digits(doc.get(field)) for field in ("seller_tax", "buyer_tax")) if len(tax) == 13]
+
+
+def copy_page(text, documents, number, doc_kind=None):
+    """第 ``number`` 页（从 1 数，这一页没有单据起始）是前面某张已读单的再印：副本（สำเนา）、随税票的收据联
+    （ใบเสร็จรับเงิน / ใบแนบใบกำกับภาษี）。这一页自己的 PDF 文字层里要找得到那张单的单号（完整的号、至少 4 个字母数字）、
+    含税额（完整的数、不为 0）和它读出的每个 13 位税号（至少一个），且不是减项 / 增项通知单（除非那张单本身是减项单）。
+    与 Cowork 自动推前核对的 ``push.express.automation.same_document_page`` 同口径、同一组函数（``tax_documents.printed``）；
+    那边核对方税号，这里不知道进销方向，读出的税号都要在（只会更严）。扫描件、隐形识别文字层（空串）、对不上的一律不算。"""
+    text = str(text or "")
+    if not text.strip():
+        return False
+    for doc in documents:
+        total, taxes = money(doc.get("total")), _taxes(doc)
+        if not (type(doc.get("page")) is int and doc["page"] < number) or total is None or total == 0 or not taxes:
+            continue
+        if not printed.number_in_text(doc.get("invoice_number"), text) or not printed.amount_in_text(total, text):
+            continue
+        if not all(printed.tax_in_text(tax, text) for tax in taxes):
+            continue
+        if printed.adjustment_note(text) and doc_kind != "credit_note":
+            continue
+        return True
+    return False
+
+
+def copies_only(read, pages, page_texts):
+    """读出的单比页数少，是因为没有单据起始的页**全都**是前面已读单的再印（:func:`copy_page`）。``page_texts`` 要与页一一对应
+    （``pages.page_texts``），给不出、对不上、有单据没记起始页的一律不算。"""
+    documents = read.get("documents") or []
+    if not documents or not isinstance(page_texts, (list, tuple)) or len(page_texts) != pages:
+        return False
+    starts = set()
+    for doc in documents:
+        page = doc.get("page")
+        if type(page) is not int or not 1 <= page <= pages:
+            return False
+        starts.add(page)
+    rest = [number for number in range(1, pages + 1) if number not in starts]
+    return bool(rest) and all(copy_page(page_texts[number - 1], documents, number, read.get("doc_kind")) for number in rest)
+
+
+def voucher_problems(read, pages, page_texts=None):
+    """返回要交 Opus 的原因（空 = 直接用）。``page_texts``：每页的 PDF 文字层（``pages.page_texts``；不给 = 不看文字层，同以前）。"""
     if not read:
         return ["no_result"]
     if read.get("entry") != "enter":
@@ -54,7 +100,8 @@ def voucher_problems(read, pages):
         sub, vat, total = money(doc.get("subtotal")), money(doc.get("vat")), money(doc.get("total"))
         if sub is not None and vat is not None and total is not None and abs(sub + vat - total) > Decimal("0.05") and sub != total:
             out.append(f"documents[{i}] subtotal + vat != total")  # 含税小票印的 Subtotal 就是含税合计，算正常
-    if pages >= 3 and len(documents) < pages:
+    # 电子税票常是「正本 + 副本 / 收据联」几页一份：后面几页都在文字层里重复了前面的单，就不是漏读（E11，10-20）
+    if pages >= 3 and len(documents) < pages and not copies_only(read, pages, page_texts):
         out.append(f"{pages} pages but only {len(documents)} documents were read; check every page for further invoices")
     return out
 

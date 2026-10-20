@@ -161,6 +161,111 @@ class Client(unittest.TestCase):
             client.read("voucher", [(jpeg(), "image/jpeg")])
 
 
+def tax(body):
+    return body + str((11 - sum(int(body[i]) * (13 - i) for i in range(12)) % 11) % 10)
+
+
+SELLER_T, BUYER_T = tax("099999000001"), tax("099999000002")  # 测试号
+
+
+def copies_pdf(*titles):
+    """「正本 + 副本 / 收据联」几页一份的电子 PDF（单号、金额照 E11 形状造）；``None`` 给一页没有文字层（只有图形）。"""
+    import pymupdf
+
+    with pymupdf.open() as document:
+        for title in titles:
+            page = document.new_page()
+            if title is None:
+                page.draw_rect(pymupdf.Rect(72, 72, 300, 200), fill=(0, 0, 0))
+                continue
+            for line, text in enumerate((title, "No. INV2025080061  Date 06/10/2025", f"Seller Tax ID {SELLER_T}",
+                                         f"Buyer Tax ID {BUYER_T}", "Total 414.00")):
+                page.insert_text((72, 72 + 20 * line), text)
+        return document.tobytes()
+
+
+class CopyPages(unittest.TestCase):
+    """副本页的文字层：站点侧抽好随图片交甲骨文与本机兜底，甲骨文按原件地址读时自己抽（真 pymupdf）。"""
+
+    ENV = {"PEARNLY_CLAUDE_OCR_URL": "https://203.0.113.1:8443", "PEARNLY_CLAUDE_OCR_TOKEN": "t",
+           "PEARNLY_CLAUDE_OCR_CERT_SHA256": "ab" * 32, "PEARNLY_ANTHROPIC_API_KEY": "k"}
+
+    def setUp(self):
+        CHECKPOINTS.clear()
+
+    def test_page_texts_line_up_with_the_pages(self):
+        from pearnly_core.claude_ocr import pages
+        files = [(copies_pdf("TAX INVOICE ORIGINAL", None, "RECEIPT COPY"), "application/pdf"), (jpeg(), "image/jpeg")]
+        texts = pages.page_texts(files)
+        self.assertEqual(len(texts), len(client.prepare(files)))
+        self.assertIn("INV2025080061", texts[0])
+        self.assertEqual(texts[1].strip(), "")
+        self.assertIn(BUYER_T, texts[2])
+        self.assertEqual(texts[3], "")
+        self.assertIsNone(pages.page_texts([(b"not a pdf", "application/pdf")]))
+
+    def test_the_site_sends_page_texts_to_oracle(self):
+        answer = types.SimpleNamespace(status_code=200, json=lambda: outcome(voucher(doc())))
+        content = copies_pdf("TAX INVOICE ORIGINAL", "TAX INVOICE COPY", "RECEIPT COPY")
+        with patch.dict("os.environ", self.ENV), patch("requests.Session.post", autospec=True, return_value=answer) as post:
+            client.read("voucher", [(content, "application/pdf")])
+        body = post.call_args.kwargs["json"]
+        self.assertEqual(len(body["page_texts"]), len(body["images"]))
+        self.assertTrue(all("INV2025080061" in text for text in body["page_texts"]))
+        CHECKPOINTS.clear()
+        with patch.dict("os.environ", self.ENV), patch("requests.Session.post", autospec=True, return_value=answer) as post:
+            client.read("bank", [(content, "application/pdf")])
+        self.assertNotIn("page_texts", post.call_args.kwargs["json"])  # 只有单据要
+
+    def test_the_local_fallback_gets_the_page_texts_and_stays_on_haiku(self):
+        import requests
+        from pearnly_core.claude_ocr import engine
+        content = copies_pdf("TAX INVOICE ORIGINAL", "TAX INVOICE COPY", "RECEIPT COPY")
+        read = voucher(doc(invoice_number="INV2025080061", total="414.00", subtotal="386.92", vat="27.08",
+                           seller_tax=SELLER_T, buyer_tax=BUYER_T))
+        seen = []
+
+        def run(api, kind, pages, own_tax, text, page_texts):
+            seen.append(page_texts)
+            from pearnly_core.claude_ocr import rules
+            return dict(outcome(read), why=rules.voucher_problems(read, len(pages), page_texts))
+        with patch.dict("os.environ", self.ENV), patch("requests.Session.post", side_effect=requests.ConnectionError("down")), \
+                patch.object(client.claude_engine, "run", side_effect=run):
+            got = client.read("voucher", [(content, "application/pdf")])
+        self.assertEqual((got["where"], got["why"]), ("local", []))
+        self.assertEqual(len(seen[0]), 3)
+        self.assertIs(client.claude_engine, engine)
+
+    def test_oracle_reads_page_texts_from_the_stored_original(self):
+        import hashlib
+        import os
+        import tempfile
+        from pearnly_core.claude_ocr import server
+        site = "acme.pearnly.com"
+        name = f"{site}/originals/CWS-{'a' * 48}.pdf"
+        content = copies_pdf("TAX INVOICE ORIGINAL", "TAX INVOICE COPY", "RECEIPT COPY")
+        sha = hashlib.sha256(content).hexdigest()
+        calls, sent = [], []
+        handler = server.Handler.__new__(server.Handler)
+        handler.client = object()
+        handler._send = lambda status, body: sent.append(status)
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, site, "originals"))
+            with open(os.path.join(root, name), "wb") as stream:
+                stream.write(content)
+            with patch.dict("os.environ", {"ORIGINALS_ROOT": root}), \
+                    patch.object(server.engine, "run", side_effect=lambda *a: calls.append(a) or outcome(voucher(doc()))):
+                handler.read({"kind": "voucher", "original": {"object": name, "sha256": sha}})
+                handler.read({"kind": "voucher", "originals": [{"object": name, "sha256": sha}], "orient": True})
+                handler.read({"kind": "bank", "original": {"object": name, "sha256": sha, "page": 2}})
+                self.assertEqual(server.stored_pages({"object": name, "sha256": sha}), calls[0][2])  # 旧入口照旧只回页
+        self.assertEqual(sent, [200, 200, 200])
+        for call in calls[:2]:
+            self.assertEqual(len(call[5]), 3)
+            self.assertIn(BUYER_T, call[5][2])
+        self.assertIsNone(calls[2][5])
+
+
 class Upright(unittest.TestCase):
     def test_photos_and_pdf_pages_are_straightened_before_claude(self):
         import pymupdf

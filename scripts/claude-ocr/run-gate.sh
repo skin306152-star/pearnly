@@ -4,6 +4,8 @@
 # 与生产同一条路。语料与结果都在那台的 /opt/pearnly-claude-eval（不放这台 Mac）。
 # 用法：bash scripts/claude-ocr/run-gate.sh invoices --set test --cap 3 [--workers 6]
 #       bash scripts/claude-ocr/run-gate.sh recon --list /corpus/recon/list.tsv --cap 3
+# GATE_LOCAL_ENGINE=1：不经常驻的 claude-ocr 服务（那是生产在用的那一份），在 gate 容器里用这个工作树的引擎直调 Anthropic
+#   （同生产本机兜底那条路，结果 where = local）——改了引擎 / 自检规则、还没重发服务时，先用它过闸门再 deploy.sh。
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 oracle=(ssh -i "$HOME/.ssh/oracle_free" -o BatchMode=yes -o ConnectTimeout=15 ubuntu@213.35.126.34)
@@ -22,7 +24,11 @@ env=\$(mktemp)
 trap 'rm -f \$env' EXIT
 . /opt/pearnly-claude-ocr/secrets/env
 pin=\$(openssl x509 -in /opt/pearnly-claude-ocr/secrets/cert.pem -noout -fingerprint -sha256 | cut -d= -f2 | tr -d : | tr A-F a-f)
-printf 'PEARNLY_CLAUDE_OCR_URL=https://127.0.0.1:8443\nPEARNLY_CLAUDE_OCR_TOKEN=%s\nPEARNLY_CLAUDE_OCR_CERT_SHA256=%s\n' "\$CLAUDE_OCR_TOKEN" "\$pin" > \$env
+if [[ -n "${GATE_LOCAL_ENGINE:-}" ]]; then
+  printf 'PEARNLY_ANTHROPIC_API_KEY=%s\n' "\$ANTHROPIC_API_KEY" > \$env
+else
+  printf 'PEARNLY_CLAUDE_OCR_URL=https://127.0.0.1:8443\nPEARNLY_CLAUDE_OCR_TOKEN=%s\nPEARNLY_CLAUDE_OCR_CERT_SHA256=%s\n' "\$CLAUDE_OCR_TOKEN" "\$pin" > \$env
+fi
 install -d -m 755 /opt/pearnly-claude-eval/runs-prod && chown ubuntu /opt/pearnly-claude-eval/runs-prod
 docker run --rm --network host --memory 2g --env-file \$env -e PYTHONUNBUFFERED=1 \
   -v /opt/pearnly-claude-gate/src:/src:ro -v /opt/pearnly-claude-eval/corpus:/corpus:ro \

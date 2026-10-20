@@ -24,6 +24,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
 from pearnly_core.tax_documents.codes import RECEIPT, SIMPLIFIED_TAX_INVOICE, TAX_INVOICE
+# 在原文里找识别读出的值（单号 / 金额 / 税号 / 减项单标题）：与 Claude 识别的副本页判据（`claude_ocr.rules`）同一份，
+# 2026-10-20 从这里搬到共用层；名字照旧从本模块导出
+from pearnly_core.tax_documents.printed import NUMBER_MIN, adjustment_note, amount_in_text, number_in_text, tax_in_text
 from pearnly_core.tax_documents.rules import from_title
 from pearnly_core.tax_documents.rules import normalize as normalize_document_type
 
@@ -98,11 +101,6 @@ RECENT_PERIOD_MAX = 6
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
 ATTACHMENT_PAGE = "attachment_page:"
-# 同一张票的再印（`same_document_page`）：单号至少这么多个字母数字才拿来在文字层里找
-NUMBER_MIN = 4
-# 减项 / 增项通知单的标题（同 `pearnly_core.tax_documents.rules` 的标题表）：同号同额的减项单不是副本
-ADJUSTMENT_THAI = ("ใบลดหนี้", "ใบเพิ่มหนี้")
-ADJUSTMENT_ENGLISH = ("CREDIT NOTE", "DEBIT NOTE")
 
 # 「人或规则定」的来源（`company_choices.decided_by` 的词；mixed = 同一类几项都来自这几层）
 RULE_SOURCES = frozenset({"task_default", "remembered", "company_rule", "mixed"})
@@ -256,22 +254,6 @@ def _invoice_date(facts: Facts) -> Optional[dt.date]:
 # ── 第 2 条：原文对得上 ──────────────────────────────────────────────────────────
 
 
-# 一个完整的数：前后不连着数字（逗号后跟数字也算连着），千分位逗号可有可无
-_NUMBER = re.compile(r"(?<![\d.])(?<!\d,)(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?!\d|,\d|\.\d)")
-
-
-def amount_in_text(amount: Any, text: Optional[str]) -> bool:
-    """金额在文字层里作为一个完整的数出现（千分位逗号可有可无，小数位数不拘：1,070.00 / 1070 / 1070.0 都算）。"""
-    wanted = _money(amount)
-    if wanted is None or not text:
-        return False
-    for token in _NUMBER.findall(str(text)):
-        found = _money(token)
-        if found is not None and found == wanted:
-            return True
-    return False
-
-
 def _years(text: str) -> List[int]:
     """票面年份的公历候选：4 位佛历（>2400）减 543；2 位按佛历与公历各算一次。"""
     year = int(text)
@@ -331,15 +313,6 @@ def text_layer(pages: Sequence[Mapping[str, Any]], page_texts: Any = None) -> bo
         page_texts = [page_texts]
     texts = [str(item or "") for item in page_texts or ()]
     return len(texts) >= len(pages) and all(len(item.strip()) >= TEXT_CHARS_PER_PAGE for item in texts)
-
-
-def tax_in_text(tax: Any, text: Optional[str]) -> bool:
-    """13 位税号在文字层里能找到原文（数字之间可夹空格、连字号：0-1055-12345-67-8 也算）。"""
-    number = _digits(tax)
-    if len(number) != 13 or not text:
-        return False
-    pattern = r"(?<!\d)" + r"[\s\-]?".join(number) + r"(?!\d)"
-    return re.search(pattern, str(text)) is not None
 
 
 def _notes(pages) -> List[str]:
@@ -407,23 +380,6 @@ def _wrong_branch(facts: Facts, day: Optional[dt.date]) -> bool:
     return not printed or printed != _branch5(attributes.get("branch"))
 
 
-def number_in_text(number: Any, text: Optional[str]) -> bool:
-    """单号在文字层里作为一个完整的号出现：逐字相同（不分大小写，字之间可夹一个空白），前后不连着字母或数字。字母数字不到
-    `NUMBER_MIN` 个的号不认（太短，随便一页都撞得上）。"""
-    key = re.sub(r"\s+", "", str(number or ""))
-    if len(re.sub(r"[^0-9A-Za-z]", "", key)) < NUMBER_MIN or not text:
-        return False
-    pattern = r"(?<![0-9A-Za-z])" + r"\s?".join(re.escape(char) for char in key) + r"(?![0-9A-Za-z])"
-    return re.search(pattern, str(text), re.IGNORECASE) is not None
-
-
-def _adjustment_note(text: str) -> bool:
-    """文字层里有减项 / 增项通知单的标题（ใบลดหนี้ / ใบเพิ่มหนี้ / CREDIT NOTE / DEBIT NOTE）。"""
-    thai = re.sub(r"\s+", "", text)
-    english = " " + re.sub(r"[^A-Z]+", " ", text.upper()) + " "
-    return any(name in thai for name in ADJUSTMENT_THAI) or any(f" {name} " in english for name in ADJUSTMENT_ENGLISH)
-
-
 def _flag(fields: Mapping[str, Any]) -> bool:
     flag = fields.get("is_not_invoice")
     return flag is True or str(flag).strip().lower() == "true"
@@ -464,7 +420,7 @@ def same_document_page(facts: Facts, index: int) -> bool:
     if not text.strip() or not number_in_text(number, text) or not amount_in_text(total, text) \
             or not tax_in_text(party, text):
         return False
-    return not _adjustment_note(text) or str(fields.get("document_type") or "").strip() == "credit_note"
+    return not adjustment_note(text) or str(fields.get("document_type") or "").strip() == "credit_note"
 
 
 def _evidence(facts: Facts) -> bool:
