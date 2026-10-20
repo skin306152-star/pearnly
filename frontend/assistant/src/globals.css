@@ -1395,6 +1395,15 @@
     --cc-modal-share: var(--cc-settings-share);
     width: min(var(--cc-settings-w), var(--cc-settings-w-max)); height: min(var(--cc-settings-h), calc(var(--cc-viewport-h) * var(--cc-settings-share)));
   }
+  /* 设置内容区的一行（「名称 + 值」、公司一行、电脑列表、以前授权的文件夹）：上下 16、元素间 12、下边细线，最后一个不画线；
+     同一列表的行连续排、行间不另加空，分节只靠小标题（.cc-settings-row 之前电脑列表每台包一节、节间空 32）。
+     data-field：左名称、右值（settings.tsx 的 Row），放不下时整组换行 */
+  .cc-settings-row {
+    display: flex; align-items: center; gap: var(--cc-space-12); padding-block: var(--cc-space-16);
+    border-bottom: var(--cc-hairline) solid var(--cc-line);
+  }
+  .cc-settings-row:last-child { border-bottom: 0; }
+  .cc-settings-row[data-field] { flex-wrap: wrap; justify-content: space-between; column-gap: var(--cc-space-24); row-gap: var(--cc-space-8); }
   .cc-dialog-head {
     display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--cc-space-12);
     padding: var(--cc-dialog-head-pt) var(--cc-dialog-px) var(--cc-space-8);
