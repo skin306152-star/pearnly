@@ -118,10 +118,11 @@ def send(doctype, name):
 
 def _written(doctype, name):
     """写进 Express 了：这家公司的库存要按 Express 对齐（排一次主档同步，同一家公司排着的不重复排）。"""
+    from pearnly_erp_portal.express import masters
+
     company = frappe.db.get_value(doctype, name, "company")
     if company:
-        frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue="long", enqueue_after_commit=True,
-                       job_id=f"erp-express-sync:{frappe.local.site}:{company}", deduplicate=True, company=company)
+        masters.enqueue(company)
 
 
 def poll():

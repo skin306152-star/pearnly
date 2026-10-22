@@ -337,6 +337,22 @@
 			} else {
 				page.clear_primary_action();
 			}
+			// 接了事务所 Express 账本：主档与库存按 Express 同步一次（服务端最多等 30 秒电脑读完）
+			if (data.can_sync_express) {
+				page.add_inner_button(t("company.syncExpress"), async () => {
+					frappe.dom.freeze(t("company.syncExpress.reading"));
+					try {
+						const result = await p.call("pearnly_erp_portal.express.api.sync_company",
+							{company: name || data.name}, "POST");
+						if (result?.state === "ready") { p.success(t("company.syncExpress.ready")); return; }
+						const key = {reading: "reading", offline: "offline", outdated: "outdated"}[result?.state] || "failed";
+						frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)),
+							indicator: key === "reading" ? "blue" : "orange"});
+					} finally {
+						frappe.dom.unfreeze();
+					}
+				});
+			}
 			// 「设为当前公司」只在这一屏给（列表上不再放行内按钮）：写的是自己的用户默认值。
 			if (name && name !== frappe.boot.pearnly_company) {
 				page.add_inner_button(t("company.setCurrent"), () => p.switch_company(name));

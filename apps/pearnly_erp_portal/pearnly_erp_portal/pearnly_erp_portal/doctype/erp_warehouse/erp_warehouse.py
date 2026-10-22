@@ -7,6 +7,9 @@
 
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import locks as express_locks
+
 
 class ERPWarehouse(Document):
-    pass
+    def validate(self):
+        express_locks.guard(self)

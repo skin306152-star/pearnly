@@ -13,7 +13,7 @@ NOT_FOUND = "Supplier not found"
 INVALID = "Invalid value"
 
 FIELDS = ("name", "supplier_name", "tax_id", "branch_type", "branch_no",
-          "address", "phone", "note", "is_active")
+          "address", "phone", "note", "is_active", "express_code")
 
 
 def _clean(value, limit=300):

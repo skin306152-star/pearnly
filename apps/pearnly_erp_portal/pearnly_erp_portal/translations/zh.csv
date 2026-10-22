@@ -122,6 +122,8 @@ Buyer address,买方地址
 Buyer branch,买方分支机构
 Buyer tax ID,买方税号
 By Payment Method,按收款方式
+CC Desktop needs an update,CC 桌面版需更新
+CC Desktop not connected,CC 桌面版未连接
 Calculation Version,计算版本
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。
 Camera permission was refused; allow it and try again,摄像头权限被拒绝，请允许后重试
@@ -379,6 +381,7 @@ Exported {0} shifts,已导出 {0} 个班次
 Express,Express
 Express Account Set,Express 账套
 Express Code,Express 编码
+Express Company,Express 公司
 Express No.,Express 单号
 Express Note,Express 备注
 Express Sent At,Express 发送时间
@@ -519,6 +522,7 @@ Low stock alert,低库存提醒
 Loyalty Points,忠诚度积分
 Loyalty Program,忠诚度计划
 Main,主仓
+Maintained in Express,由 Express 维护
 Manual,手动
 Manual Entry,手动录入
 Manually Set Amounts,手动设置金额
@@ -753,6 +757,7 @@ Querying the Revenue Department...,正在向税务局查询…
 Queued,排队中
 Quotation,报价单
 Rate,单价
+Reading,读取中
 Ready to post,待入账
 Reason for Cancellation,取消原因
 Receipt,收据
@@ -957,6 +962,9 @@ Suppliers,供应商
 Switch Between Payment Modes,切换支付方式
 Switch company,切换公司
 Switching company...,正在切换公司…
+Sync Express,同步 Express
+Sync failed,同步失败
+Synced,已同步
 System number,单据编号
 Tap the menu to start,请点击下方菜单开始
 Tax Amount,税额
@@ -1291,6 +1299,12 @@ company.setCurrent,设为当前
 company.status.active,正常
 company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
+company.syncExpress,同步 Express
+company.syncExpress.failed,同步失败
+company.syncExpress.offline,CC 桌面版未连接
+company.syncExpress.outdated,CC 桌面版需更新
+company.syncExpress.reading,读取中
+company.syncExpress.ready,已同步
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
 company.terminalDefaultName,收银台 1
 company.terminalEdit,编辑

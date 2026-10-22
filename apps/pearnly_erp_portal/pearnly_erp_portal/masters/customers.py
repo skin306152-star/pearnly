@@ -13,7 +13,7 @@ INVALID = "Invalid value"
 
 LIST_FIELDS = ("name", "customer_name", "short_name", "party_type", "tax_id", "branch_type",
                "branch_no", "address", "contact_person", "contact_phone", "contact_email",
-               "promptpay_id", "color", "is_active")
+               "promptpay_id", "color", "is_active", "express_code")
 
 
 def _get(name):

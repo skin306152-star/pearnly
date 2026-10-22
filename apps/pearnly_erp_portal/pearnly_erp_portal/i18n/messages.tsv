@@ -1339,3 +1339,11 @@ Express Status	Express 状态	สถานะ Express	Express 状態
 Express No.	Express 单号	เลขที่ Express	Express 番号
 Express Note	Express 备注	หมายเหตุ Express	Express メモ
 Express Sent At	Express 发送时间	ส่ง Express เมื่อ	Express 送信日時
+Sync Express	同步 Express	ซิงค์ Express	Express と同期	company.syncExpress
+Synced	已同步	ซิงค์แล้ว	同期しました	company.syncExpress.ready
+Reading	读取中	กำลังอ่าน	読み込み中	company.syncExpress.reading
+CC Desktop not connected	CC 桌面版未连接	CC เดสก์ท็อปไม่ได้เชื่อมต่อ	CC デスクトップが接続されていません	company.syncExpress.offline
+CC Desktop needs an update	CC 桌面版需更新	CC เดสก์ท็อปต้องอัปเดต	CC デスクトップの更新が必要です	company.syncExpress.outdated
+Sync failed	同步失败	ซิงค์ไม่สำเร็จ	同期に失敗しました	company.syncExpress.failed
+Maintained in Express	由 Express 维护	จัดการใน Express	Express で管理
+Express Company	Express 公司	บริษัท Express	Express 会社

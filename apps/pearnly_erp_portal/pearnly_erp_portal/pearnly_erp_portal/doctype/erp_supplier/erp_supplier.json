@@ -18,6 +18,7 @@
   "branch_name",
   "express_section",
   "express_code",
+  "express_company",
   "express_book"
  ],
  "fields": [
@@ -99,6 +100,16 @@
    "no_copy": 1
   },
   {
+   "fieldname": "express_company",
+   "fieldtype": "Link",
+   "options": "ERP Company",
+   "label": "Express Company",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "express_book",
    "fieldtype": "Data",
    "label": "Express Account Set",
@@ -109,7 +120,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-22 20:00:00.000000",
+ "modified": "2026-10-23 10:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Supplier",
  "naming_rule": "Expression",

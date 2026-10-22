@@ -122,6 +122,8 @@ Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
 By Payment Method,By Payment Method
+CC Desktop needs an update,CC Desktop needs an update
+CC Desktop not connected,CC Desktop not connected
 Calculation Version,Calculation Version
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Camera permission was refused; allow it and try again,Camera permission was refused; allow it and try again
@@ -379,6 +381,7 @@ Exported {0} shifts,Exported {0} shifts
 Express,Express
 Express Account Set,Express Account Set
 Express Code,Express Code
+Express Company,Express Company
 Express No.,Express No.
 Express Note,Express Note
 Express Sent At,Express Sent At
@@ -519,6 +522,7 @@ Low stock alert,Low stock alert
 Loyalty Points,Loyalty Points
 Loyalty Program,Loyalty Program
 Main,Main
+Maintained in Express,Maintained in Express
 Manual,Manual
 Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
@@ -753,6 +757,7 @@ Querying the Revenue Department...,Querying the Revenue Department...
 Queued,Queued
 Quotation,Quotation
 Rate,Rate
+Reading,Reading
 Ready to post,Ready to post
 Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
@@ -957,6 +962,9 @@ Suppliers,Suppliers
 Switch Between Payment Modes,Switch Between Payment Modes
 Switch company,Switch company
 Switching company...,Switching company...
+Sync Express,Sync Express
+Sync failed,Sync failed
+Synced,Synced
 System number,System number
 Tap the menu to start,Tap the menu to start
 Tax Amount,Tax Amount
@@ -1291,6 +1299,12 @@ company.setCurrent,Set as current
 company.status.active,Active
 company.status.inactive,Disabled
 company.subtitle,The company on your documents
+company.syncExpress,Sync Express
+company.syncExpress.failed,Sync failed
+company.syncExpress.offline,CC Desktop not connected
+company.syncExpress.outdated,CC Desktop needs an update
+company.syncExpress.reading,Reading
+company.syncExpress.ready,Synced
 company.taxHint,13 digits; a branch adds its 5-digit branch number
 company.terminalDefaultName,Counter 1
 company.terminalEdit,Edit

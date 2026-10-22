@@ -2,13 +2,20 @@
 
 经 Cowork 网关请办公室电脑读这家公司现用账套的整套主档与各仓结存（按需请求 ``express_masters``），读好后在 ERP 里
 自动建档 / 更新：客户、供应商、商品（库存单位、售卖 / 进货单位、售价）、仓库（挂在这家公司下）。主档以 Express 为准：
-带 Express 编码的行由这里改，ERP 里没编码的同名 / 同税号 / 同编码的档第一次同步时认领过来，不另建一份。
+
+- 按「这家公司 + Express 编码」认档（``express_company`` + ``express_code``）：换了年度账套编码不变，不会重建一份；
+  一个 ERP 租户挂几家公司，各自的档互不相认。``express_book`` 只记最近从哪份账套来。
+- ERP 里没编码的同编码 / 同税号加分店 / 同名的档，第一次同步时认领过来，不另建一份。
+- Express 里没有了的档（这家公司的）在 ERP 里停用；又出现了就启用。
+- 身份类字段在 ERP 里不能改（`locks`）；售价、地址、电话只在 Express 有值时覆盖。
 库存对齐成「Express 结存 + 还没写进 Express 的 ERP 单的变动」，差额记一笔调整流水（来源 ``express_sync``）。
 
 触发：每小时一次（:func:`sync_all`）、ERP 单写进 Express 后一次（`push._written`）、管理员在公司页手动一次（`api`）。
-电脑离线 / 还在读：这次什么都不改，下次再来。
+电脑读一本账套一般十几秒：后台的两种在任务里等它读完（:data:`JOB_WAIT`），手动的在请求里最多等 :data:`api.WAIT` 秒；
+电脑离线 / 还没读完：这次什么都不改，下次再来。
 """
 from decimal import Decimal
+import time
 
 import frappe
 from frappe.utils import now_datetime, nowdate
@@ -24,6 +31,8 @@ PRODUCT = "ERP Product"
 WAREHOUSE = "ERP Warehouse"
 SYNC_REASON = "express_sync"
 TOL = Decimal("0.000001")
+JOB_WAIT = 180      # 后台同步等电脑读完的上限（秒）
+POLL_EVERY = 8
 
 
 def linked_companies():
@@ -32,16 +41,32 @@ def linked_companies():
     return [row for row in rows if contracts.tax13(row.tax_id)]
 
 
+def enqueue(company):
+    frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue="long", timeout=JOB_WAIT + 300,
+                   enqueue_after_commit=True, job_id=f"erp-express-sync:{frappe.local.site}:{company}",
+                   deduplicate=True, company=company, wait=JOB_WAIT)
+
+
 def sync_all():
     if not gateway.configured():
         return
     for row in linked_companies():
-        frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue="long",
-                       job_id=f"erp-express-sync:{frappe.local.site}:{row.name}", deduplicate=True, company=row.name)
+        enqueue(row.name)
 
 
-def sync(company):
-    """同步一家公司。回 ``{"state": ready | reading | offline | outdated | <网关原因码>}``。"""
+def sync(company, wait=0):
+    """同步一家公司。电脑还在读时每隔几秒再问，最多等 ``wait`` 秒。
+    回 ``{"state": ready | reading | offline | outdated | unavailable | <网关原因码>, ...}``。"""
+    deadline = time.monotonic() + max(0, int(wait or 0))
+    while True:
+        result = _sync_once(company)
+        if result.get("state") != "reading" or time.monotonic() + POLL_EVERY > deadline:
+            return result
+        frappe.db.commit()  # 不带着事务等
+        time.sleep(POLL_EVERY)
+
+
+def _sync_once(company):
     if not gateway.configured():
         return {"state": "not_configured"}
     row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)
@@ -61,18 +86,83 @@ def sync(company):
 
 
 def apply(company, book, data):
-    """把读好的整套主档落进 ERP（幂等：再落一次不改任何东西）。回各类新建 / 更新的条数。"""
+    """把读好的整套主档落进 ERP（幂等：再落一次不改任何东西）。回各类新建 / 更新 / 停用的条数。"""
     counts = {}
-    counts["customers"] = _parties(CUSTOMER, book, data.get("customers"), _customer_fields)
-    counts["suppliers"] = _parties(SUPPLIER, book, data.get("suppliers"), _supplier_fields)
-    counts["products"] = _products(book, data)
-    warehouses = _warehouses(company, book, data)
-    counts["warehouses"] = len(warehouses)
-    counts["stock"] = _stock(company, book, warehouses, data.get("stock"))
+    counts["customers"] = _parties(CUSTOMER, company, book, data.get("customers"), _customer_fields)
+    counts["suppliers"] = _parties(SUPPLIER, company, book, data.get("suppliers"), _supplier_fields)
+    counts["products"] = _products(company, book, data)
+    warehouses, counts["warehouses"] = _warehouses(company, book, data)
+    counts["stock"] = _stock(company, warehouses, data.get("stock"))
     frappe.db.set_value(COMPANY, company, {"express_book": book[:140], "express_synced_at": now_datetime()},
                         update_modified=False)
     frappe.db.commit()
     return counts
+
+
+# ── 写入 ─────────────────────────────────────────────────────────────────────
+
+
+def _same(value):
+    """比对用：空值一律当空串，数字按数值。"""
+    if value in (None, "") or value is False:
+        return ""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    return str(value)
+
+
+def _unit_rows(doc):
+    return [{"unit_name": row.unit_name, "factor": str(contracts.d(row.factor_to_base).normalize())}
+            for row in doc.get("units") or []]
+
+
+def _upsert(doctype, name, values):
+    """有就只改不一样的字段，没有就建。回 1 表示改了 / 建了。单行出错只记日志，不挡整次同步。"""
+    try:
+        if name:
+            doc = frappe.get_doc(doctype, name)
+            diff = {key: value for key, value in values.items() if key != "units" and _same(doc.get(key)) != _same(value)}
+            units = values.get("units")
+            if units is not None and _unit_rows(doc) != units:
+                doc.set("units", [{"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])} for row in units])
+                diff["units"] = True
+            if not diff:
+                return 0
+            doc.update({key: value for key, value in diff.items() if key != "units"})
+            doc.flags.express_sync = True
+            doc.save(ignore_permissions=True)
+            return 1
+        record = {key: value for key, value in values.items() if key != "units"}
+        doc = frappe.get_doc({"doctype": doctype, **record})
+        for row in values.get("units") or []:
+            doc.append("units", {"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])})
+        doc.flags.express_sync = True
+        doc.insert(ignore_permissions=True)
+        return 1
+    except frappe.ValidationError:
+        frappe.clear_messages()
+        frappe.log_error(title="ERP Express master sync row failed", message=frappe.get_traceback()[-1500:])
+        return 0
+
+
+def _retire(doctype, names):
+    """这家公司在 Express 里已经没有了的档：停用（同步自己写，不受锁）。"""
+    changed = 0
+    for name in names:
+        changed += _upsert(doctype, name, {"is_active": 0})
+    return changed
+
+
+def _mine(doctype, company, fields):
+    """ERP 现有的档：这家公司同步来的按编码认；没归属却带编码的（旧数据）按编码也认；其余是可认领的。"""
+    rows = frappe.get_all(doctype, fields=["name", "express_code", "express_company", *fields], limit_page_length=0)
+    by_code = {}
+    for row in sorted(rows, key=lambda item: item.express_company != company):
+        if row.express_code and row.express_company in (company, None, ""):
+            by_code.setdefault(row.express_code, row.name)
+    ours = {row.express_code: row.name for row in rows if row.express_code and row.express_company == company}
+    free = [row for row in rows if not row.express_code]
+    return by_code, ours, free
 
 
 # ── 客户 / 供应商 ─────────────────────────────────────────────────────────────
@@ -97,97 +187,51 @@ def _supplier_fields(item):
             **({"phone": item["phone"]} if item["phone"] else {})}
 
 
-def _parties(doctype, book, rows, fields_of):
+def _parties(doctype, company, book, rows, fields_of):
     name_field = "customer_name" if doctype == CUSTOMER else "supplier_name"
-    existing = frappe.get_all(doctype, fields=["name", "express_code", "express_book", "tax_id", "branch_no", name_field],
-                              limit_page_length=0)
-    by_code = {(row.express_book, row.express_code): row.name for row in existing if row.express_code}
-    free_tax = {}
-    free_name = {}
-    for row in existing:
-        if row.express_code:
-            continue
+    by_code, ours, free = _mine(doctype, company, ["tax_id", "branch_no", name_field])
+    free_tax, free_name = {}, {}
+    for row in free:
         if contracts.tax13(row.tax_id):
             free_tax.setdefault((row.tax_id, contracts.branch5(row.branch_no)), row.name)
         free_name.setdefault(str(row.get(name_field) or "").strip().casefold(), row.name)
-    changed = 0
+    changed, seen = 0, set()
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
-        values = {**fields_of(item), "express_code": item["code"], "express_book": book[:140], "is_active": 1}
-        name = (by_code.get((book, item["code"])) or by_code.get((None, item["code"])) or by_code.get(("", item["code"]))
+        seen.add(item["code"])
+        values = {**fields_of(item), "express_code": item["code"], "express_company": company,
+                  "express_book": book[:140], "is_active": 1}
+        name = (by_code.get(item["code"])
                 or (free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None)
                 or free_name.pop(item["name"].casefold(), None))
         changed += _upsert(doctype, name, values)
-    return changed
-
-
-def _upsert(doctype, name, values):
-    """有就只改不一样的字段，没有就建。回 1 表示改了 / 建了。单行出错只记日志，不挡整次同步。"""
-    try:
-        if name:
-            doc = frappe.get_doc(doctype, name)
-            diff = {key: value for key, value in values.items() if key != "units" and _same(doc.get(key)) != _same(value)}
-            units = values.get("units")
-            if units is not None and _unit_rows(doc) != units:
-                doc.set("units", [{"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])} for row in units])
-                diff["units"] = True
-            if not diff:
-                return 0
-            doc.update({key: value for key, value in diff.items() if key != "units"})
-            doc.save(ignore_permissions=True)
-            return 1
-        record = {key: value for key, value in values.items() if key != "units"}
-        doc = frappe.get_doc({"doctype": doctype, **record})
-        for row in values.get("units") or []:
-            doc.append("units", {"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])})
-        doc.insert(ignore_permissions=True)
-        return 1
-    except frappe.ValidationError:
-        frappe.clear_messages()
-        frappe.log_error(title="ERP Express master sync row failed", message=frappe.get_traceback()[-1500:])
-        return 0
-
-
-def _same(value):
-    """比对用：空值一律当空串，数字按数值。"""
-    if value in (None, "") or value is False:
-        return ""
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return float(value)
-    return str(value)
-
-
-def _unit_rows(doc):
-    return [{"unit_name": row.unit_name, "factor": str(contracts.d(row.factor_to_base).normalize())}
-            for row in doc.get("units") or []]
+    return changed + _retire(doctype, [name for code, name in ours.items() if code not in seen])
 
 
 # ── 商品 ─────────────────────────────────────────────────────────────────────
 
 
-def _products(book, data):
+def _products(company, book, data):
     units = contracts.unit_names(data)
-    existing = frappe.get_all(PRODUCT, fields=["name", "code", "barcode", "product_name", "express_code", "express_book"],
-                              limit_page_length=0)
-    by_code = {(row.express_book, row.express_code): row.name for row in existing if row.express_code}
-    free_code = {row.code: row.name for row in existing if row.code and not row.express_code}
+    by_code, ours, free = _mine(PRODUCT, company, ["code", "barcode", "product_name"])
+    free_code = {row.code: row.name for row in free if row.code}
     free_name = {}
-    for row in existing:
-        if not row.express_code:
-            free_name.setdefault(str(row.product_name or "").strip().casefold(), row.name)
-    taken_codes = {row.code for row in existing if row.code}
-    taken_barcodes = {row.barcode: row.name for row in existing if row.barcode}
-    changed = 0
+    for row in free:
+        free_name.setdefault(str(row.product_name or "").strip().casefold(), row.name)
+    taken = frappe.get_all(PRODUCT, fields=["name", "code", "barcode"], limit_page_length=0)
+    taken_codes = {row.code for row in taken if row.code}
+    taken_barcodes = {row.barcode: row.name for row in taken if row.barcode}
+    changed, seen = 0, set()
     for raw in contracts.rows(data.get("products")):
         item = contracts.product(raw, units)
-        name = (by_code.get((book, item["code"])) or by_code.get((None, item["code"])) or by_code.get(("", item["code"]))
-                or free_code.pop(item["code"], None)
+        seen.add(item["code"])
+        name = (by_code.get(item["code"]) or free_code.pop(item["code"], None)
                 or free_name.pop(item["name"].casefold(), None))
         values = {"product_name": item["name"], "base_unit": item["base_unit"], "unit": item["unit"],
                   "units": [{"unit_name": row["unit_name"], "factor": str(contracts.d(row["factor"]).normalize())}
                             for row in item["units"]],
-                  "express_code": item["code"], "express_book": book[:140], "express_stock": int(item["stock"]),
-                  "is_active": 1}
+                  "express_code": item["code"], "express_company": company, "express_book": book[:140],
+                  "express_stock": int(item["stock"]), "is_active": 1}
         if not name and item["code"] not in taken_codes:
             values["code"] = item["code"]
             taken_codes.add(item["code"])
@@ -196,34 +240,33 @@ def _products(book, data):
         if item["barcode"] and taken_barcodes.get(item["barcode"], name) == name:
             values["barcode"] = item["barcode"]
         changed += _upsert(PRODUCT, name, values)
-    return changed
+    return changed + _retire(PRODUCT, [name for code, name in ours.items() if code not in seen])
 
 
 # ── 仓库与库存 ───────────────────────────────────────────────────────────────
 
 
 def _warehouses(company, book, data):
-    """这家公司的仓库按 Express 仓库码建 / 认领：回 ``{仓库码: ERP 仓库}``。第一次同步时，这家公司唯一一个没编码的仓库
-    认作 Express 的主仓（ERP 开户自带一个仓库）。"""
+    """这家公司的仓库按 Express 仓库码建 / 认领 / 改名 / 停用：回 (``{仓库码: ERP 仓库}``, 改动条数)。
+    第一次同步时，这家公司唯一一个没编码的仓库认作 Express 的主仓（ERP 开户自带一个仓库）。"""
     existing = frappe.get_all(WAREHOUSE, filters={"company": company},
                               fields=["name", "warehouse_name", "express_code"], limit_page_length=0)
     by_code = {row.express_code: row.name for row in existing if row.express_code}
     free = [row for row in existing if not row.express_code]
     free_name = {str(row.warehouse_name or "").strip().casefold(): row.name for row in free}
     main = str((data.get("settings") or {}).get("mainloc") or "").strip()
-    found = {}
+    found, changed = {}, 0
     for raw in contracts.rows(data.get("warehouses")):
         code, label = str(raw["code"]).strip()[:4], str(raw.get("name") or raw["code"]).strip()[:140]
         name = by_code.get(code) or free_name.pop(label.casefold(), None)
         if not name and code == main and len(free) == 1 and free[0].name in free_name.values():
             name = free[0].name
             free_name = {key: value for key, value in free_name.items() if value != name}
-        values = {"express_code": code, "express_book": book[:140], "company": company, "is_active": 1}
-        if not name:
-            values["warehouse_name"] = label
-        _upsert(WAREHOUSE, name, values)
+        changed += _upsert(WAREHOUSE, name, {"warehouse_name": label, "express_code": code, "express_book": book[:140],
+                                             "company": company, "is_active": 1})
         found[code] = name or frappe.db.get_value(WAREHOUSE, {"company": company, "express_code": code}, "name")
-    return {code: name for code, name in found.items() if name}
+    changed += _retire(WAREHOUSE, [name for code, name in by_code.items() if code not in found])
+    return {code: name for code, name in found.items() if name}, changed
 
 
 def _pending(company, products, warehouses):
@@ -249,13 +292,13 @@ def _pending(company, products, warehouses):
     return pending
 
 
-def _stock(company, book, warehouses, stock_rows):
+def _stock(company, warehouses, stock_rows):
     """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水。回调整的笔数。
-    只认这份账套同步过来的商品（编码在账套内唯一）。"""
+    只认这家公司同步来的库存品（编码在公司内唯一）。"""
     if not warehouses:
         return 0
     products = {row.express_code: row.name for row in frappe.get_all(
-        PRODUCT, filters={"express_book": book[:140], "express_code": ["is", "set"], "express_stock": 1},
+        PRODUCT, filters={"express_company": company, "express_code": ["is", "set"], "express_stock": 1},
         fields=["name", "express_code"], order_by="creation asc", limit_page_length=0)}
     targets = contracts.stock_targets(stock_rows, _pending(company, products, warehouses))
     current = {}

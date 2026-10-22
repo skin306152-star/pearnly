@@ -20,7 +20,7 @@ DOCTYPE = "ERP Warehouse"
 NOT_FOUND = "Warehouse not found"
 NAME_REQUIRED = "A warehouse needs a name"
 
-FIELDS = ("name", "warehouse_name", "company", "is_active", "note")
+FIELDS = ("name", "warehouse_name", "company", "is_active", "note", "express_code")
 # 没指定仓库、而这家公司又有多个仓时那句提示（不给隐式默认）。
 WAREHOUSE_REQUIRED = "Pick a warehouse"
 # 建仓必须挂在某家公司名下（用户 2026-09-24："没有绑定公司不可以建仓库"）。

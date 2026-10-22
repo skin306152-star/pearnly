@@ -96,6 +96,11 @@
 				await inline?.on_saved?.({...row, ...values, ...saved});
 				await list?.reload();
 			});
+			// 由 Express 同步来的档：身份类栏位只认 Express（服务端 `express.locks` 同一份清单兜底）
+			if (row?.express_code) {
+				["supplier_name", "tax_id", "branch_type", "branch_no", "is_active"].forEach(key => d.fields_dict[key] && d.set_df_property(key, "read_only", 1));
+				d.fields_dict.lookup && d.set_df_property("lookup", "hidden", 1);
+			}
 			return d;
 		}
 

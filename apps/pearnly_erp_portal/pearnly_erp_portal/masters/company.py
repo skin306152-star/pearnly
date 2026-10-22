@@ -331,6 +331,10 @@ def get_profile(name=None) -> dict:
     payload["payment_methods"] = [row.method for row in doc.get("payment_methods") or []]
     payload["terminals"] = terminals_of(doc.name)
     payload["can_manage_pos"] = guard.has("company.manage")
+    # 接了事务所 Express 账本的站点：管理员可在这一屏手动同步主档与库存（`express.api.sync_company`）
+    from pearnly_erp_portal.express import gateway
+
+    payload["can_sync_express"] = guard.has("team.manage") and gateway.configured()
     return payload
 
 

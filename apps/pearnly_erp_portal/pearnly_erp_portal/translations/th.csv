@@ -122,6 +122,8 @@ Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
 By Payment Method,แยกตามวิธีรับเงิน
+CC Desktop needs an update,CC เดสก์ท็อปต้องอัปเดต
+CC Desktop not connected,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 Calculation Version,เวอร์ชันการคำนวณ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
 Camera permission was refused; allow it and try again,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
@@ -379,6 +381,7 @@ Exported {0} shifts,ส่งออก {0} กะแล้ว
 Express,Express
 Express Account Set,ชุดบัญชี Express
 Express Code,รหัส Express
+Express Company,บริษัท Express
 Express No.,เลขที่ Express
 Express Note,หมายเหตุ Express
 Express Sent At,ส่ง Express เมื่อ
@@ -519,6 +522,7 @@ Low stock alert,แจ้งเตือนสต็อกต่ำ
 Loyalty Points,คะแนนสะสม
 Loyalty Program,โปรแกรมสะสมคะแนน
 Main,คลังหลัก
+Maintained in Express,จัดการใน Express
 Manual,ด้วยตนเอง
 Manual Entry,กรอกข้อมูลเอง
 Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
@@ -753,6 +757,7 @@ Querying the Revenue Department...,กำลังค้นหาจากกร
 Queued,รอคิว
 Quotation,ใบเสนอราคา
 Rate,ราคาต่อหน่วย
+Reading,กำลังอ่าน
 Ready to post,พร้อมบันทึก
 Reason for Cancellation,เหตุผลในการยกเลิก
 Receipt,ใบเสร็จรับเงิน
@@ -957,6 +962,9 @@ Suppliers,ผู้จำหน่าย
 Switch Between Payment Modes,สลับวิธีชำระเงิน
 Switch company,สลับบริษัท
 Switching company...,กำลังสลับบริษัท…
+Sync Express,ซิงค์ Express
+Sync failed,ซิงค์ไม่สำเร็จ
+Synced,ซิงค์แล้ว
 System number,เลขที่เอกสาร
 Tap the menu to start,กรุณากดเมนูด้านล่างเพื่อเริ่มต้น
 Tax Amount,จำนวนภาษี
@@ -1291,6 +1299,12 @@ company.setCurrent,ตั้งเป็นปัจจุบัน
 company.status.active,ปกติ
 company.status.inactive,ปิดใช้งาน
 company.subtitle,ข้อมูลบริษัทที่ใช้บนเอกสาร
+company.syncExpress,ซิงค์ Express
+company.syncExpress.failed,ซิงค์ไม่สำเร็จ
+company.syncExpress.offline,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
+company.syncExpress.outdated,CC เดสก์ท็อปต้องอัปเดต
+company.syncExpress.reading,กำลังอ่าน
+company.syncExpress.ready,ซิงค์แล้ว
 company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 company.terminalDefaultName,จุดขาย 1
 company.terminalEdit,แก้ไข

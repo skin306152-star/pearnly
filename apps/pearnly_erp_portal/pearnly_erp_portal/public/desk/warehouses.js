@@ -132,6 +132,10 @@
 			// 光标先放在仓库名（框架默认落在第一格，也就是公司那格，下拉一展开就盖住下面）。
 			const focus_name = () => dialog.fields_dict.warehouse_name?.$input?.trigger("focus");
 			dialog.$wrapper.one("shown.bs.modal", () => setTimeout(focus_name, 0));
+			// 由 Express 同步来的档：身份类栏位只认 Express（服务端 `express.locks` 同一份清单兜底）
+			if (row?.express_code) {
+				["warehouse_name", "company", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
+			}
 			return dialog;
 		}
 

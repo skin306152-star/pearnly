@@ -10,9 +10,12 @@
 
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import locks as express_locks
+
 
 class ERPProduct(Document):
     def validate(self):
+        express_locks.guard(self)
         self._validate_active_unit()
 
     def _validate_active_unit(self):

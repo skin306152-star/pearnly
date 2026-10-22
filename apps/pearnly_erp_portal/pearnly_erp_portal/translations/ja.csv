@@ -122,6 +122,8 @@ Buyer address,買い手住所
 Buyer branch,買い手支店
 Buyer tax ID,買い手税番号
 By Payment Method,支払方法別
+CC Desktop needs an update,CC デスクトップの更新が必要です
+CC Desktop not connected,CC デスクトップが接続されていません
 Calculation Version,計算バージョン
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 Camera permission was refused; allow it and try again,カメラの許可が拒否されました。許可してから再試行してください
@@ -379,6 +381,7 @@ Exported {0} shifts,{0}件のシフトを出力しました
 Express,Express
 Express Account Set,Express 帳簿
 Express Code,Express コード
+Express Company,Express 会社
 Express No.,Express 番号
 Express Note,Express メモ
 Express Sent At,Express 送信日時
@@ -519,6 +522,7 @@ Low stock alert,低在庫アラート
 Loyalty Points,ロイヤルティポイント
 Loyalty Program,ロイヤルティプログラム
 Main,メイン倉庫
+Maintained in Express,Express で管理
 Manual,手動入力
 Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
@@ -753,6 +757,7 @@ Querying the Revenue Department...,税務局に照会中…
 Queued,待機中
 Quotation,見積書
 Rate,単価
+Reading,読み込み中
 Ready to post,登録可能
 Reason for Cancellation,取消理由
 Receipt,領収書
@@ -957,6 +962,9 @@ Suppliers,仕入先数
 Switch Between Payment Modes,支払方法を切り替え
 Switch company,会社を切り替える
 Switching company...,会社を切り替えています…
+Sync Express,Express と同期
+Sync failed,同期に失敗しました
+Synced,同期しました
 System number,システム番号
 Tap the menu to start,下のメニューから始めてください
 Tax Amount,税額
@@ -1291,6 +1299,12 @@ company.setCurrent,現在の会社にする
 company.status.active,有効
 company.status.inactive,無効
 company.subtitle,書類に使う自社情報
+company.syncExpress,Express と同期
+company.syncExpress.failed,同期に失敗しました
+company.syncExpress.offline,CC デスクトップが接続されていません
+company.syncExpress.outdated,CC デスクトップの更新が必要です
+company.syncExpress.reading,読み込み中
+company.syncExpress.ready,同期しました
 company.taxHint,13桁。支店は5桁の支店番号を続けます
 company.terminalDefaultName,レジ 1
 company.terminalEdit,編集

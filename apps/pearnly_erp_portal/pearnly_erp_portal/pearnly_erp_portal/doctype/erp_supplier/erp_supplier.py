@@ -3,8 +3,11 @@
 
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import locks as express_locks
+
 
 class ERPSupplier(Document):
     def validate(self):
+        express_locks.guard(self)
         if self.branch_type != "branch":
             self.branch_no = None

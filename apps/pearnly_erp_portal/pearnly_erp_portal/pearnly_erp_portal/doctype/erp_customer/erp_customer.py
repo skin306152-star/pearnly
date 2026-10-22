@@ -8,9 +8,12 @@
 import frappe
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import locks as express_locks
+
 
 class ERPCustomer(Document):
     def validate(self):
+        express_locks.guard(self)
         if self.party_type != "company":
             self.tax_id = None
             self.branch_type = None
