@@ -162,7 +162,7 @@ def pages(doc: dict) -> list:
     fields = {
         "direction": doc["direction"],
         "date": doc["date"],
-        "invoice_number": doc["number"] or doc["ref"][:40],
+        "invoice_number": doc["number"] or doc["ref"].split("@")[0][:40],
         "document_type": "tax_invoice" if doc["has_vat"] else "receipt",
         # 币种照 ERP 单据写明（不让推送按品名 / 单号里的外币记号去猜：商品叫「USD」的泰铢单不是外币票）
         "currency": doc["currency"],

@@ -39,6 +39,13 @@ def queue(doctype, name):
                    doctype=doctype, name=name)
 
 
+def ref(name, creation) -> str:
+    """交给网关的单据标识：单号 + 建单时刻。单号在一个站点里不重复，但站点从备份恢复、重建后会从头再编，
+    带上建单时刻免得撞上以前交过的同号单（网关按它认是不是同一件）。"""
+    stamp = frappe.utils.get_datetime(creation).strftime("%Y%m%d%H%M%S%f") if creation else ""
+    return f"{name}@{stamp}" if stamp else str(name)
+
+
 def _party(doctype, doc):
     if doctype == SALES:
         row = frappe.db.get_value("ERP Customer", doc.customer, ["express_code", "customer_name", "tax_id", "branch_no"],
@@ -84,7 +91,8 @@ def document(doctype, name) -> dict:
     else:
         number, paid = doc.doc_no or doc.system_no, bool(doc.is_paid) or doc.payment_status == "paid"
         currency = doc.currency or "THB"
-    return contracts.document(ref=doc.name, direction=DIRECTIONS[doctype], doc_date=str(doc.doc_date), number=number,
+    return contracts.document(ref=ref(doc.name, doc.creation), direction=DIRECTIONS[doctype],
+                              doc_date=str(doc.doc_date), number=number,
                               company=company, party=_party(doctype, doc), paid=paid, has_vat=bool(doc.has_vat),
                               total=doc.grand_total, vat=doc.vat_amount, lines=_lines(doctype, doc), currency=currency)
 
@@ -131,7 +139,7 @@ def poll():
         return
     for doctype, direction in DIRECTIONS.items():
         rows = frappe.get_all(doctype, filters={"express_state": ["in", contracts.OPEN_STATES]},
-                              fields=["name", "express_sent_at", "express_state", "express_docnum"],
+                              fields=["name", "creation", "express_sent_at", "express_state", "express_docnum"],
                               order_by="modified asc", limit_page_length=POLL_MAX)
         unsent = [row.name for row in rows if not row.express_sent_at]
         for name in unsent:
@@ -140,14 +148,15 @@ def poll():
         if not asked:
             continue
         try:
-            result = gateway.call("status", {"documents": [{"ref": row.name, "direction": direction} for row in asked]})
+            result = gateway.call("status", {"documents": [{"ref": ref(row.name, row.creation), "direction": direction}
+                                                           for row in asked]})
         except gateway.Unavailable:
             continue
         if not result.get("ok"):
             continue
         known = {item.get("ref"): item for item in result.get("documents") or [] if isinstance(item, dict)}
         for row in asked:
-            item = known.get(row.name)
+            item = known.get(ref(row.name, row.creation))
             if not item:
                 continue
             before = (row.express_state, row.express_docnum or "")
