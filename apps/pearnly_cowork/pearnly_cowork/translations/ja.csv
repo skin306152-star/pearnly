@@ -1064,6 +1064,7 @@ New task,新規タスク
 Next Attempt At,次回再試行日時
 No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
 No ERP is ready to use,使用できるERPがありません
+No Express account set covers this date for this company,この会社にこの日付を含む Express 会計データがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account set of this company covers the document date.,この会社には書類の日付を含む会計データがありません。
@@ -1559,6 +1560,7 @@ Set reminder,リマインダー
 Set the POS export columns,POS エクスポートの列を設定しました
 Setting the POS export columns,POS エクスポートの列を設定しています
 Settings Json,設定データ（JSON）
+Several Express account sets cover this date for this company,この会社にこの日付を含む Express 会計データが複数あります
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",複数の科目に一致する明細があります。一度選ぶと同じファイルで照合し直します（再読み取りはしません）。
@@ -1993,6 +1995,7 @@ This tax ID is already used by another company.,この納税者番号は既に�
 This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
 This value cannot be chosen for this account set.,この帳簿ではこの値を選択できません。
 This value is not in this month's account set,この値は今月の帳簿のマスタにありません
+This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
 Tier,レベル
 Tier Since (UTC),レベル開始日時（UTC）
 Time left {0},残り {0}
@@ -3308,6 +3311,8 @@ erp.target_projection_unknown_entity,ERP レポートに対応していないマ
 erp.target_projection_unknown_field_type,ERP レポートに対応していないフィールド型が含まれています。
 erp.target_projection_value_required,ERP データレポートに必須の値がありません。
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
+erp_gateway.account_set_missing,この会社にこの日付を含む Express 会計データがありません
+erp_gateway.account_set_several,この会社にこの日付を含む Express 会計データが複数あります
 excel,Excel
 failed,失敗
 held,送信連携待ち
@@ -3344,6 +3349,7 @@ intake.error.DUPLICATE_CONTENT_DIFFERS,Express に同じ番号で内容の違う
 intake.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。Express で確認してから再送信してください
 intake.error.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+intake.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票で、仕訳帳に連携されていないメニューにあり記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。

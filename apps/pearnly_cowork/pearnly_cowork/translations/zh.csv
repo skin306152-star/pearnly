@@ -1064,6 +1064,7 @@ New task,新建任务
 Next Attempt At,下次重试时间
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No ERP is ready to use,暂无可用的 ERP
+No Express account set covers this date for this company,该公司无覆盖此日期的 Express 账套
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
 No account set of this company covers the document date.,该公司没有覆盖单据日期的账套
@@ -1559,6 +1560,7 @@ Set reminder,设置提醒
 Set the POS export columns,设定了 POS 导出的列
 Setting the POS export columns,正在设定 POS 导出的列
 Settings Json,配置数据（JSON）
+Several Express account sets cover this date for this company,该公司有多份覆盖此日期的 Express 账套
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",多个科目均有可匹配的流水。选择后将使用原文件重新核对（不重新识别）。
@@ -1993,6 +1995,7 @@ This tax ID is already used by another company.,该税号已被其他公司使�
 This tax id is already used by another client.,该税号已被其他客户使用。
 This value cannot be chosen for this account set.,此账套不能选择该值。
 This value is not in this month's account set,该值不在本月账套主档中
+This warehouse is not in the Express account set,Express 账套中无此仓库
 Tier,档位
 Tier Since (UTC),档位起始时间（UTC）
 Time left {0},剩余 {0}
@@ -3308,6 +3311,8 @@ erp.target_projection_unknown_entity,ERP 报告包含不支持的主数据类型
 erp.target_projection_unknown_field_type,ERP 报告包含不支持的字段类型。
 erp.target_projection_value_required,ERP 数据报告缺少必填值。
 erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
+erp_gateway.account_set_missing,该公司无覆盖此日期的 Express 账套
+erp_gateway.account_set_several,该公司有多份覆盖此日期的 Express 账套
 excel,Excel
 failed,失败
 held,待接入发送
@@ -3344,6 +3349,7 @@ intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不
 intake.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
 intake.error.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
+intake.error.ERR_LOCATION,Express 账套中无此仓库
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,此单据在菜单修复前已推送至 MR.ERP，可能在未关联日记账的菜单中未入账，请在 MR.ERP 核对后再推送。

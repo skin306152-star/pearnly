@@ -1064,6 +1064,7 @@ New task,New task
 Next Attempt At,Next Attempt At
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
+No Express account set covers this date for this company,No Express account set covers this date for this company
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
 No account set of this company covers the document date.,No account set of this company covers the document date.
@@ -1559,6 +1560,7 @@ Set reminder,Set reminder
 Set the POS export columns,Set the POS export columns
 Setting the POS export columns,Setting the POS export columns
 Settings Json,Settings Json
+Several Express account sets cover this date for this company,Several Express account sets cover this date for this company
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.","Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
@@ -1993,6 +1995,7 @@ This tax ID is already used by another company.,This tax ID is already used by a
 This tax id is already used by another client.,This tax id is already used by another client.
 This value cannot be chosen for this account set.,This value cannot be chosen for this account set.
 This value is not in this month's account set,This value is not in this month's account set
+This warehouse is not in the Express account set,This warehouse is not in the Express account set
 Tier,Tier
 Tier Since (UTC),Tier Since (UTC)
 Time left {0},Time left {0}
@@ -3308,6 +3311,8 @@ erp.target_projection_unknown_entity,The ERP report contains an unsupported mast
 erp.target_projection_unknown_field_type,The ERP report contains an unsupported field type.
 erp.target_projection_value_required,The ERP data report is missing a required value.
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
+erp_gateway.account_set_missing,No Express account set covers this date for this company
+erp_gateway.account_set_several,Several Express account sets cover this date for this company
 excel,excel
 failed,Failed
 held,held
@@ -3344,6 +3349,7 @@ intake.error.DUPLICATE_CONTENT_DIFFERS,"Express already has this invoice number 
 intake.error.EMPTY_ITEMS,This invoice has no lines. Add them and submit again.
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,The result is not confirmed. Check in Express before sending again
 intake.error.ERR_ACCOUNT_UID_MISMATCH,The account set on this computer is not the registered one. Waiting for another computer.
+intake.error.ERR_LOCATION,This warehouse is not in the Express account set
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,Pushed to MR.ERP before the menu fix; it may be in a menu without a journal and not posted. Check in MR.ERP before pushing again.

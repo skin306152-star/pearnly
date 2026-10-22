@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-13 12:00:00.000000",
- "modified": "2026-10-19 12:00:00.000000",
+ "modified": "2026-10-22 22:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -71,7 +71,7 @@
    "label": "Kind",
    "fieldtype": "Select",
    "read_only": 1,
-   "options": "express_read\nfolder_list\nfolder_fetch\naccount_history",
+   "options": "express_read\nfolder_list\nfolder_fetch\naccount_history\nexpress_masters",
    "reqd": 1
   },
   {
