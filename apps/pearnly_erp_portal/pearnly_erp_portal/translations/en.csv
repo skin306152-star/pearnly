@@ -376,8 +376,18 @@ Expiry Date,Expiry Date
 Export,Export
 Export {0},Export {0}
 Exported {0} shifts,Exported {0} shifts
+Express,Express
+Express Account Set,Express Account Set
+Express Code,Express Code
+Express No.,Express No.
+Express Note,Express Note
+Express Sent At,Express Sent At
+Express Status,Express Status
+Express Stock Item,Express Stock Item
+Express Synced At,Express Synced At
 External System Reference,External System Reference
 Factor to Base Unit,Factor to Base Unit
+Failed,Failed
 Fetched At,Fetched At
 Fetched only {0} available serial numbers.,Fetched only {0} available serial numbers.
 File,File
@@ -515,6 +525,7 @@ Manually Set Amounts,Manually Set Amounts
 Media Type,Media Type
 Merge Items,Merge Items
 Method,Method
+Mismatch,Mismatch
 Missing Values Required,Missing Values Required
 Mode of Payment,Mode of Payment
 Modes of Payment,Modes of Payment
@@ -661,6 +672,7 @@ Payment method,Payment method
 Payment of {0} received successfully.,Payment of {0} received successfully.
 Payment of {0} received successfully. Waiting for other requests to complete...,Payment of {0} received successfully. Waiting for other requests to complete...
 Payments,Payments
+Pending,Pending
 Period,Period
 Person,Person
 Phone,Phone
@@ -738,6 +750,7 @@ Quantity differences,Quantity differences
 Quantity must be greater than zero,Quantity must be greater than zero
 Query,Query
 Querying the Revenue Department...,Querying the Revenue Department...
+Queued,Queued
 Quotation,Quotation
 Rate,Rate
 Ready to post,Ready to post

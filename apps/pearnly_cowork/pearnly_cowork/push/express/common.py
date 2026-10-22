@@ -223,11 +223,23 @@ def sanitize_payload_cp874(obj: Any) -> Any:
 PAYLOAD_VERSION = 1
 
 
+# 明细行带仓库码（``loccod``）的载荷：旧版小助手会静默写进主仓，用版本号让它诚实拒收（CC 桌面版按仓写入、维护 STLOC）
+LOCATION_PAYLOAD_VERSION = 4
+_STOCK_MODES = ("stock_item", "stock_sale")
+
+
 def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     """进项/销项两个 mapper 共用的写盘前收口:盖版本号 + CP874 净化,单一落点不两处复制。
 
-    带了选定存货码 / 部门码的载荷已被 `choices.apply_to_payload` 升到 2,这里不往回盖。"""
-    payload["payload_version"] = max(PAYLOAD_VERSION, int(payload.get("payload_version") or 0))
+    带了选定存货码 / 部门码的载荷已被 `choices.apply_to_payload` 升到 2,这里不往回盖；明细行带了存货码的至少 2，
+    带了仓库码的 4。"""
+    lines = [item for item in payload.get("items") or [] if isinstance(item, dict)]
+    floor = PAYLOAD_VERSION
+    if any(item.get("code") for item in lines):
+        floor = max(floor, 2)
+    if any(item.get("loccod") for item in lines):
+        floor = max(floor, LOCATION_PAYLOAD_VERSION)
+    payload["payload_version"] = max(floor, int(payload.get("payload_version") or 0))
     return sanitize_payload_cp874(payload)
 
 
@@ -270,16 +282,23 @@ def extract_line_items(
         if price is None:
             price = _q(amount / qty) if qty else amount
         mode = item_mode(idx, it) if callable(item_mode) else item_mode
-        items.append(
-            {
-                "name": name[:50],
-                "qty": _s(qty),
-                "unit": str(it.get("unit") or it.get("uom") or "").strip()[:10],
-                "unit_price": _s(price),
-                "amount": _s(amount),
-                "item_mode": mode,
-            }
-        )
+        row = {
+            "name": name[:50],
+            "qty": _s(qty),
+            "unit": str(it.get("unit") or it.get("uom") or "").strip()[:10],
+            "unit_price": _s(price),
+            "amount": _s(amount),
+            "item_mode": mode,
+        }
+        if mode in _STOCK_MODES:
+            # 来源已给出 Express 存货码 / 仓库码（ERP 前台的单，`erp_gateway`）：照码写，不再按品名对；OCR 的票没有这两键
+            code = str(it.get("code") or "").strip()
+            if code:
+                row["code"] = code[:20]
+            loccod = str(it.get("loccod") or "").strip()
+            if loccod:
+                row["loccod"] = loccod[:4]
+        items.append(row)
 
     if incomplete or not items:
         return {

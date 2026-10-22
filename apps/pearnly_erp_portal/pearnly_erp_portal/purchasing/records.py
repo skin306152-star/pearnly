@@ -10,7 +10,8 @@ from pearnly_erp_portal.purchasing import access, amounts
 
 FIELDS = ("name", "system_no", "doc_no", "doc_date", "creation", "supplier", "supplier_name",
           "summary", "doc_kind", "source", "status", "payment_status", "currency",
-          "fx_rate", "grand_total", "vat_amount", "wht_amount", "net_payable", "paid_amount", "stock_posted_at")
+          "fx_rate", "grand_total", "vat_amount", "wht_amount", "net_payable", "paid_amount", "stock_posted_at",
+          "express_state", "express_docnum")
 
 
 def query(params=None):

@@ -7,7 +7,10 @@
   "warehouse_name",
   "company",
   "is_active",
-  "note"
+  "note",
+  "express_section",
+  "express_code",
+  "express_book"
  ],
  "fields": [
   {
@@ -38,11 +41,33 @@
    "fieldname": "note",
    "fieldtype": "Small Text",
    "label": "Note"
+  },
+  {
+   "fieldname": "express_section",
+   "fieldtype": "Section Break",
+   "label": "Express",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "express_code",
+   "fieldtype": "Data",
+   "label": "Express Code",
+   "read_only": 1,
+   "search_index": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_book",
+   "fieldtype": "Data",
+   "label": "Express Account Set",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-22 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Warehouse",
  "show_title_field_in_link": 1,

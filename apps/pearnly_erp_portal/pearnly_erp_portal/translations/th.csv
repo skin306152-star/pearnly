@@ -376,8 +376,18 @@ Expiry Date,วันหมดอายุ
 Export,ส่งออก
 Export {0},ส่งออก {0} กะ
 Exported {0} shifts,ส่งออก {0} กะแล้ว
+Express,Express
+Express Account Set,ชุดบัญชี Express
+Express Code,รหัส Express
+Express No.,เลขที่ Express
+Express Note,หมายเหตุ Express
+Express Sent At,ส่ง Express เมื่อ
+Express Status,สถานะ Express
+Express Stock Item,สินค้าคงคลัง Express
+Express Synced At,ซิงค์ Express เมื่อ
 External System Reference,รหัสอ้างอิงระบบภายนอก
 Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐาน
+Failed,ไม่สำเร็จ
 Fetched At,เวลาที่ดึงข้อมูล
 Fetched only {0} available serial numbers.,ดึงหมายเลขเครื่องที่ใช้ได้เพียง {0} รายการ
 File,ไฟล์
@@ -515,6 +525,7 @@ Manually Set Amounts,กำหนดยอดเงินด้วยตนเ�
 Media Type,ประเภทไฟล์
 Merge Items,รวมรายการ
 Method,วิธีชำระเงิน
+Mismatch,ไม่ตรงกัน
 Missing Values Required,ยังไม่ได้กรอกข้อมูลที่จำเป็น
 Mode of Payment,วิธีการชำระเงิน
 Modes of Payment,วิธีชำระเงิน
@@ -661,6 +672,7 @@ Payment method,วิธีชำระเงิน
 Payment of {0} received successfully.,รับชำระ {0} แล้ว
 Payment of {0} received successfully. Waiting for other requests to complete...,รับชำระ {0} แล้ว กำลังรอคำขออื่นดำเนินการให้เสร็จ…
 Payments,การชำระเงิน
+Pending,รอดำเนินการ
 Period,ช่วงเวลา
 Person,บุคคล
 Phone,โทรศัพท์
@@ -738,6 +750,7 @@ Quantity differences,ผลต่างจำนวน
 Quantity must be greater than zero,จำนวนต้องมากกว่า 0
 Query,ค้นหา
 Querying the Revenue Department...,กำลังค้นหาจากกรมสรรพากร…
+Queued,รอคิว
 Quotation,ใบเสนอราคา
 Rate,ราคาต่อหน่วย
 Ready to post,พร้อมบันทึก

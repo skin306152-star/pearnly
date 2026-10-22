@@ -322,6 +322,15 @@
     ],
     "work": [
       "access"
+    ],
+    "erp_gateway": [
+      "companies",
+      "companion",
+      "connections",
+      "contracts",
+      "history",
+      "push",
+      "targets"
     ]
   },
   "site_config_keys": {
@@ -401,6 +410,8 @@
     "pearnly_tenant": "租户标识",
     "pearnly_welcome_email_account": "控制面：欢迎邮件发件账户",
     "pearnly_workspace": "租户工作空间",
-    "pearnly_ocr_engine": "识别引擎（ADR-022）：google（默认）或 claude，三个产品共用；由控制面租户表单 / 开户单选择，经开通执行器的 set_ocr 写入；选 claude 时识别只调 Anthropic（pearnly_core.claude_ocr），不调谷歌"
+    "pearnly_ocr_engine": "识别引擎（ADR-022）：google（默认）或 claude，三个产品共用；由控制面租户表单 / 开户单选择，经开通执行器的 set_ocr 写入；选 claude 时识别只调 Anthropic（pearnly_core.claude_ocr），不调谷歌",
+    "pearnly_erp_gateway": "Cowork：Pearnly ERP 前台交单的网关（erp_gateway.auth）——网关服务账号 user 与各 ERP 站点令牌的 sha256（clients）；由运维脚本写入，不进仓库",
+    "pearnly_express_gateway": "ERP：交单到事务所 Cowork 网关的地址与凭据（express.gateway）——api 内网地址、host 头、client（本站点）、token；由运维脚本写入，不进仓库"
   }
 }

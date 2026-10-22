@@ -376,8 +376,18 @@ Expiry Date,有効期限
 Export,エクスポート
 Export {0},{0}件をエクスポート
 Exported {0} shifts,{0}件のシフトを出力しました
+Express,Express
+Express Account Set,Express 帳簿
+Express Code,Express コード
+Express No.,Express 番号
+Express Note,Express メモ
+Express Sent At,Express 送信日時
+Express Status,Express 状態
+Express Stock Item,Express 在庫品
+Express Synced At,Express 同期日時
 External System Reference,外部システム参照
 Factor to Base Unit,基準単位への換算係数
+Failed,失敗
 Fetched At,取得日時
 Fetched only {0} available serial numbers.,利用可能なシリアル番号を {0} 件だけ取得しました
 File,ファイル
@@ -515,6 +525,7 @@ Manually Set Amounts,金額の手動設定
 Media Type,メディア種別
 Merge Items,明細統合
 Method,支払方法
+Mismatch,不一致
 Missing Values Required,必須項目が未入力です
 Mode of Payment,支払方法
 Modes of Payment,支払方法
@@ -661,6 +672,7 @@ Payment method,支払方法
 Payment of {0} received successfully.,{0} の入金に成功しました
 Payment of {0} received successfully. Waiting for other requests to complete...,{0} の入金に成功しました。他の処理の完了を待っています…
 Payments,支払履歴
+Pending,保留中
 Period,期間
 Person,個人
 Phone,電話
@@ -738,6 +750,7 @@ Quantity differences,数量差異
 Quantity must be greater than zero,数量は 0 より大きい必要があります
 Query,照会
 Querying the Revenue Department...,税務局に照会中…
+Queued,待機中
 Quotation,見積書
 Rate,単価
 Ready to post,登録可能

@@ -320,6 +320,9 @@ def set_status(name, target, reason=None, receive_stock=None):
     doc.save()
     if target == contracts.SUBMITTED:
         _post_stock(doc, receive_stock=receive_stock)
+        from pearnly_erp_portal.express import push as express_push
+
+        express_push.queue("Purchase Document", doc.name)  # 旧的草稿→提交入口同样交给 Express 账本
     elif target == contracts.VOID and doc.stock_posted_at:
         from pearnly_erp_portal.inventory import stock
 

@@ -36,7 +36,7 @@ POS_FIELDS = ("name", "receipt_no", "sold_at", "creation", "sale_type", "status"
 FIELDS = ("name", "system_no", "doc_date", "creation", "customer", "buyer_name", "party_type",
           "summary", "doc_kind", "source", "status", "payment_status", "payment_method",
           "payment_date", "subtotal", "vat_amount", "grand_total", "paid_amount",
-          "stock_posted_at")
+          "stock_posted_at", "express_state", "express_docnum")
 
 # 搜索只搜"人会在搜索框里打的字"：客户、我方单号、明细摘要、备注。
 SEARCH_FIELDS = ("buyer_name", "system_no", "summary", "note")

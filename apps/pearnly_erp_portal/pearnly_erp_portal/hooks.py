@@ -338,7 +338,13 @@ pearnly_tenant_ready = ["pearnly_erp_portal.masters.company.ensure_default"]
 pearnly_ocr_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.run"}
 pearnly_ocr_failure_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.ocr_failed"}
 # 过期没点的预览卡连源文件一起清掉（不做草稿）。
-scheduler_events = {"hourly": ["pearnly_erp_portal.integrations.intake.expire_stale"]}
+scheduler_events = {
+    "hourly": ["pearnly_erp_portal.integrations.intake.expire_stale",
+               # Express 当账本的公司：主档与库存从 Express 回读（没接 Express 的站点什么都不做）
+               "pearnly_erp_portal.express.masters.sync_all"],
+    # 推进 Express 的单：没交出去的再交、交出去的问结果（没有要问的就一条查询）
+    "cron": {"* * * * *": ["pearnly_erp_portal.express.push.poll"]},
+}
 
 # 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。
 boot_session = "pearnly_erp_portal.masters.boot.boot_session"

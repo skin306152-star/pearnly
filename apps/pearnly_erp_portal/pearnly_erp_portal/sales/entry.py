@@ -13,6 +13,7 @@ from frappe.utils import flt, getdate, now, nowdate
 from pearnly_core.execution import state as pearnly_state
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.express import push as express_push
 from pearnly_erp_portal.inventory import positions, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
@@ -147,6 +148,7 @@ def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False
             result = _post(payload, request_id, fingerprint, name, allow_duplicate)
             if finalize:
                 finalize(result)
+            express_push.queue(DOCTYPE, result["name"])  # 接了 Express 的站点：提交后交给事务所的账本
             frappe.db.commit()
             return result
         except Exception:

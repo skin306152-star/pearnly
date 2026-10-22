@@ -140,7 +140,11 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     rows = _rows(config.get("reported_customers" if direction == "sales" else "reported_suppliers"))
     subject = party_subject(direction, tax, branch, name)
     value = chosen("party", subject)
-    if value and (value == NEW or not rows or value in _codes(rows)):
+    pinned = str(fields.get("party_code") or "").strip()
+    if pinned and (not rows or pinned in _codes(rows)):
+        # 来源已给出 Express 的对方档编码（ERP 前台从 Express 回读的主档里选的，`erp_gateway`）：照码，不问、不记
+        applied["party"] = pinned
+    elif value and (value == NEW or not rows or value in _codes(rows)):
         applied["party"] = value
         used("party", subject)
     elif rows and len(digits(tax)) == 13:
@@ -199,6 +203,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
         codes = _codes(products)
         items: Dict[str, str] = {}
         for line in lines:
+            if str(line.get("code") or "").strip():
+                continue  # 行上已给出 Express 存货码（ERP 前台的单）：照码写，不按品名对、不问
             label = str(line.get("name") or "").strip()[:50]  # 载荷里的品名截到 50 字（`extract_line_items`）
             key = item_subject(direction, tax, name, label)
             value = chosen("item", key)
@@ -265,6 +271,8 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
     if items:
         for item in payload.get("items") or []:
             code = items.get(norm_name(item.get("name")))
+            if item.get("code"):
+                continue  # 行上自带的存货码（`common.extract_line_items` 照来源带上）不被同名的选择盖掉
             if code and code != NEW and str(item.get("item_mode") or "") in ("stock_item", "stock_sale"):
                 item["code"] = code
                 version = 2

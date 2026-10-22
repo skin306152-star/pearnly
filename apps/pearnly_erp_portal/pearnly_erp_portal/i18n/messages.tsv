@@ -1326,3 +1326,16 @@ The file could not be saved. Please try again shortly.	文件保存失败，请�
 Unticked: no cashier pages, role or permissions for this company	未勾选则该公司不开放收银功能	หากไม่เลือก บริษัทนี้จะไม่มีหน้าแคชเชียร์ บทบาท และสิทธิ์	チェックなし：この会社ではレジ画面・ロール・権限を使用しません
 Sender's LINE language when the document arrived	单据到达时发送者的 LINE 语言	ภาษา LINE ของผู้ส่งเมื่อได้รับเอกสาร	書類受信時の送信者の LINE 言語
 Line prices include VAT	明细单价已含增值税	ราคาต่อรายการรวมภาษีมูลค่าเพิ่มแล้ว	明細単価は税込
+Queued	排队中	รอคิว	待機中
+Pending	待处理	รอดำเนินการ	保留中
+Failed	失败	ไม่สำเร็จ	失敗
+Mismatch	不一致	ไม่ตรงกัน	不一致
+Express	Express	Express	Express
+Express Code	Express 编码	รหัส Express	Express コード
+Express Account Set	Express 账套	ชุดบัญชี Express	Express 帳簿
+Express Stock Item	Express 库存品	สินค้าคงคลัง Express	Express 在庫品
+Express Synced At	Express 同步时间	ซิงค์ Express เมื่อ	Express 同期日時
+Express Status	Express 状态	สถานะ Express	Express 状態
+Express No.	Express 单号	เลขที่ Express	Express 番号
+Express Note	Express 备注	หมายเหตุ Express	Express メモ
+Express Sent At	Express 发送时间	ส่ง Express เมื่อ	Express 送信日時

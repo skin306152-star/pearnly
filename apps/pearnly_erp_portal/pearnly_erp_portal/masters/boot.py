@@ -18,6 +18,12 @@ def _put(bootinfo, key, compute, default):
         frappe.log_error(title=f"ERP boot item {key} failed")
 
 
+def _express_linked():
+    from pearnly_erp_portal.express import gateway
+
+    return gateway.configured()
+
+
 def boot_session(bootinfo):
     if not frappe.conf.get("pearnly_product"):
         return
@@ -31,3 +37,5 @@ def boot_session(bootinfo):
     _put(bootinfo, "pearnly_warehouse", lambda: companies.selling_warehouse() or "", "")
     # 个人信息页要不要出现「LINE」那一块：与绑定接口同一个能力码（团队管理里逐人勾选）。
     _put(bootinfo, "pearnly_line", lambda: guard.has("integration.read"), False)
+    # 这个站点接了事务所的 Express 账本：销售 / 采购列表多一列 Express 单号与状态
+    _put(bootinfo, "pearnly_express", _express_linked, False)

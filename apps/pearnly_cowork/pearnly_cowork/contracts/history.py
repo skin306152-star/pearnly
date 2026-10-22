@@ -20,7 +20,9 @@ import re
 from pearnly_cowork.contracts.push import normalize_posting_kind
 
 
-SOURCES = frozenset({"manual", "cowork_line"})
+SOURCES = frozenset({"manual", "cowork_line", "erp_portal"})
+# Pearnly ERP 前台交来的单（`erp_gateway`，2026-10-22）：不是识别结果，只经网关建，网页 / LINE 不能选它
+GATEWAY_SOURCE = "erp_portal"
 _INTERNAL_ERP_SOURCES = frozenset({"erp_web", "line_erp"})
 _ISO_DATE = re.compile(r"^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$")
 # 票面也常见空格分隔（「28 05 2026」），与斜杠 / 点 / 横线同样按日 月 年读（有意变化，旧线上不认）。

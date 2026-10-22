@@ -68,7 +68,12 @@
   "payment_method",
   "attachments",
   "corrected_from",
-  "summary"
+  "summary",
+  "express_section",
+  "express_state",
+  "express_docnum",
+  "express_reason",
+  "express_sent_at"
  ],
  "fields": [
   {
@@ -466,11 +471,50 @@
    "label": "Description",
    "fieldtype": "Small Text",
    "read_only": 1
+  },
+  {
+   "fieldname": "express_section",
+   "fieldtype": "Section Break",
+   "label": "Express",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "express_state",
+   "fieldtype": "Select",
+   "label": "Express Status",
+   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "express_docnum",
+   "fieldtype": "Data",
+   "label": "Express No.",
+   "read_only": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "express_reason",
+   "fieldtype": "Small Text",
+   "label": "Express Note",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_sent_at",
+   "fieldtype": "Datetime",
+   "label": "Express Sent At",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-17 00:00:00.000000",
+ "modified": "2026-10-22 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Document",

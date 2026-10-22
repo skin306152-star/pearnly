@@ -376,8 +376,18 @@ Expiry Date,失效日期
 Export,导出
 Export {0},导出选中的 {0} 个班次
 Exported {0} shifts,已导出 {0} 个班次
+Express,Express
+Express Account Set,Express 账套
+Express Code,Express 编码
+Express No.,Express 单号
+Express Note,Express 备注
+Express Sent At,Express 发送时间
+Express Status,Express 状态
+Express Stock Item,Express 库存品
+Express Synced At,Express 同步时间
 External System Reference,外部系统引用
 Factor to Base Unit,换算到库存单位的系数
+Failed,失败
 Fetched At,获取时间
 Fetched only {0} available serial numbers.,仅获取到 {0} 个可用序列号
 File,文件
@@ -515,6 +525,7 @@ Manually Set Amounts,手动设置金额
 Media Type,文件类型
 Merge Items,合并明细
 Method,付款方式
+Mismatch,不一致
 Missing Values Required,缺少必填项
 Mode of Payment,付款方式
 Modes of Payment,付款方式
@@ -661,6 +672,7 @@ Payment method,付款方式
 Payment of {0} received successfully.,已成功收款 {0}
 Payment of {0} received successfully. Waiting for other requests to complete...,已成功收款 {0}，正在等待其他请求完成…
 Payments,付款
+Pending,待处理
 Period,期间
 Person,个人
 Phone,电话
@@ -738,6 +750,7 @@ Quantity differences,数量差异
 Quantity must be greater than zero,数量必须大于 0
 Query,查询
 Querying the Revenue Department...,正在向税务局查询…
+Queued,排队中
 Quotation,报价单
 Rate,单价
 Ready to post,待入账

@@ -4,6 +4,8 @@
 	u.api = "pearnly_erp_portal.purchasing.api.";
 	u.call = (method, args = {}, write = false) => p.call(u.api + method, args, write ? "POST" : "GET");
 	u.labels = {
+		express_queued: __("Queued"), express_held: __("Pending"), express_failed: __("Failed"),
+		express_mismatch: __("Mismatch"),
 		purchase_invoice: __("Purchase Invoice"), purchase_order: __("Purchase Order"), expense: __("Expense"),
 		goods: __("Goods"), service: __("Service"), tax_invoice: __("Tax Invoice"),
 		simple_tax_receipt: __("Abbreviated Tax Invoice"), receipt: __("Receipt"),

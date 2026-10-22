@@ -11,7 +11,7 @@ from pearnly_core.execution.work import step
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
 from . import categories, duplicates, names, review
-from pearnly_cowork.contracts.history import (HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
+from pearnly_cowork.contracts.history import (GATEWAY_SOURCE, HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
     extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page, primary_page_fields)
 from pearnly_cowork.contracts.push import declared_direction_pages
 
@@ -167,6 +167,20 @@ def create_manual(workspace, pages, request_key, client=None):
     body = contract(initial_history, parse(pages), public_create=True, anchor_year=anchor_year())
     body["ai_raw"] = None
     return _create(workspace, body, request_key, client)
+
+
+def create_gateway(workspace, pages, request_key):
+    """Pearnly ERP 前台交来的单（`erp_gateway`）：页面由网关从 ERP 单据转出，不是识别结果、不扣费、不查重、不换名称。
+    调用方已切成网关服务账号（录入权限同网页）。同一请求号同样内容回原记录，不同内容拒绝（同 :func:`create_manual`）。"""
+    body = contract(initial_history, pages, source=GATEWAY_SOURCE, anchor_year=anchor_year())
+    body["ai_raw"] = None
+    return _create(workspace, body, request_key)
+
+
+def gateway_name(workspace, request_key):
+    """网关建的票叫什么（与 :func:`_create` 同一算法，当前用户是网关服务账号）：按 ERP 单据查结果时不必另存对照表。"""
+    key = hashlib.sha256(encode([workspace, frappe.session.user, request_key]).encode()).hexdigest()
+    return "CWH-" + key[:48]
 
 
 def create_recognized(workspace, pages, request_key, *, source, confidence, ai_raw,
