@@ -114,7 +114,7 @@ def _parties(doctype, book, rows, fields_of):
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
         values = {**fields_of(item), "express_code": item["code"], "express_book": book[:140], "is_active": 1}
-        name = (by_code.get((book, item["code"]))
+        name = (by_code.get((book, item["code"])) or by_code.get((None, item["code"])) or by_code.get(("", item["code"]))
                 or (free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None)
                 or free_name.pop(item["name"].casefold(), None))
         changed += _upsert(doctype, name, values)
@@ -180,7 +180,8 @@ def _products(book, data):
     changed = 0
     for raw in contracts.rows(data.get("products")):
         item = contracts.product(raw, units)
-        name = (by_code.get((book, item["code"])) or free_code.pop(item["code"], None)
+        name = (by_code.get((book, item["code"])) or by_code.get((None, item["code"])) or by_code.get(("", item["code"]))
+                or free_code.pop(item["code"], None)
                 or free_name.pop(item["name"].casefold(), None))
         values = {"product_name": item["name"], "base_unit": item["base_unit"], "unit": item["unit"],
                   "units": [{"unit_name": row["unit_name"], "factor": str(contracts.d(row["factor"]).normalize())}
