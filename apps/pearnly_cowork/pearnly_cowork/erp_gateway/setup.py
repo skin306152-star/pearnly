@@ -5,7 +5,9 @@
 ``pearnly_erp_portal.express.setup.link``（地址、Host、本站点、这个令牌）。同一个 ERP 站点再跑一次就换一个令牌。
 
 做三件事：建 / 启用网关服务账号（录入与查看识别记录两个角色，不能登录网页）；Express 主连接没勾「全所可用」时把它放进
-使用名单；把令牌摘要写进站点配置 ``pearnly_erp_gateway``。``unlink`` 撤掉一个 ERP 站点（令牌立即失效）。
+使用名单；把令牌摘要写进站点配置 ``pearnly_erp_gateway``。``unlink`` 撤掉一个 ERP 站点。
+web 进程把站点配置在内存里缓存 60 秒（Frappe ``site_cache(ttl=60)``）：新令牌 / 撤掉的令牌最多一分钟后各进程才都生效，
+这期间 ERP 交单会得到 401，单据保持「排队中」，下一分钟自动重交。
 """
 import secrets
 
