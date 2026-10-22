@@ -80,12 +80,13 @@ def document(doctype, name) -> dict:
     doc = frappe.get_doc(doctype, name)
     company = frappe.db.get_value("ERP Company", doc.company, ["tax_id", "branch"], as_dict=True) or {}
     if doctype == SALES:
-        number, paid = doc.system_no, doc.payment_status == "paid"
+        number, paid, currency = doc.system_no, doc.payment_status == "paid", "THB"
     else:
         number, paid = doc.doc_no or doc.system_no, bool(doc.is_paid) or doc.payment_status == "paid"
+        currency = doc.currency or "THB"
     return contracts.document(ref=doc.name, direction=DIRECTIONS[doctype], doc_date=str(doc.doc_date), number=number,
                               company=company, party=_party(doctype, doc), paid=paid, has_vat=bool(doc.has_vat),
-                              total=doc.grand_total, vat=doc.vat_amount, lines=_lines(doctype, doc))
+                              total=doc.grand_total, vat=doc.vat_amount, lines=_lines(doctype, doc), currency=currency)
 
 
 def _record(doctype, name, result):

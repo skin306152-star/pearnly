@@ -42,7 +42,9 @@ class GatewayContract(unittest.TestCase):
         fields = G.pages(clean)[0]["fields"]
         self.assertEqual((fields["direction"], fields["seller_tax"], fields["buyer_tax"], fields["party_code"]),
                          ("purchase", SUPPLIER, OWN, "B004"))
-        self.assertEqual((fields["payment_status"], fields["posting_item_type_manual"]), ("unpaid", "goods"))
+        self.assertEqual((fields["payment_status"], fields["posting_item_type_manual"], fields["currency"]),
+                         ("unpaid", "goods", "THB"))
+        self.assertEqual(G.pages(G.document(doc(currency="usd")))[0]["fields"]["currency"], "USD")
         self.assertEqual((fields["subtotal"], fields["vat"], fields["total_amount"]), ("300.00", "21.00", "321.00"))
         first, second = fields["items"]
         self.assertEqual((first["code"], first["loccod"], first["posting_kind"]), ("ICE-01", "02", "stock"))
@@ -56,7 +58,8 @@ class GatewayContract(unittest.TestCase):
                            (doc(total="999"), "erp_gateway.amount_invalid"),
                            (doc(subtotal="250.00", total="271.00"), "erp_gateway.items_mismatch"),
                            (doc(date="2026-13-01"), "erp_gateway.date_invalid"),
-                           (doc(has_vat=False), "erp_gateway.amount_invalid")):
+                           (doc(has_vat=False), "erp_gateway.amount_invalid"),
+                           (doc(currency="baht"), "erp_gateway.currency_invalid")):
             with self.assertRaises(G.GatewayError) as caught:
                 G.document(body)
             self.assertEqual(caught.exception.code, code)

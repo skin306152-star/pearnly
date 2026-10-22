@@ -57,7 +57,7 @@ def spread(amounts: list, base: Decimal) -> list:
 
 
 def document(*, ref: str, direction: str, doc_date: str, number: str, company: dict, party: dict, paid: bool,
-             has_vat: bool, total, vat, lines: list) -> dict:
+             has_vat: bool, total, vat, lines: list, currency: str = "THB") -> dict:
     """一张已提交的 ERP 单 → 交给网关的单据。
 
     ``lines``：``[{name, code, unit, qty, amount（行金额，ERP 原样）, loccod, stock}]``。税前额 = 含税总额 − 税额，
@@ -83,6 +83,7 @@ def document(*, ref: str, direction: str, doc_date: str, number: str, company: d
             "party": {"code": str(party.get("code") or "").strip()[:20], "name": str(party.get("name") or "").strip()[:200],
                       "tax_id": tax13(party.get("tax_id")), "branch": branch5(party.get("branch"))},
             "paid": bool(paid), "has_vat": bool(has_vat) and vat > 0,
+            "currency": (str(currency or "THB").strip().upper() or "THB")[:3],
             "subtotal": money(base), "vat": money(vat), "total": money(total), "items": items}
 
 

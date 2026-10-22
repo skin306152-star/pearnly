@@ -10,7 +10,7 @@ ERP 只当前台：外地的人在 ERP 开采购 / 销售单，客户、供应�
     {"version": 1, "ref": "PUR-2026-00012", "direction": "purchase" | "sales", "date": "YYYY-MM-DD",
      "number": "票面 / 本方单号", "company": {"tax_id": 13 位, "branch": "00000"},
      "party": {"code": Express 对方档码或空, "name", "tax_id", "branch"},
-     "paid": true | false, "has_vat": true | false,
+     "paid": true | false, "has_vat": true | false, "currency": "THB"（ERP 单据的币种，照写进票面；非泰铢由推送照旧拦下）,
      "subtotal": 税前（扣折扣后）, "vat": 税额, "total": 含税总额（字符串化的十进制数）,
      "items": [{"name", "code": 存货码或空, "unit", "qty", "price", "amount": 行净额, "loccod": 仓库码或空,
                 "stock": true | false}]}
@@ -114,6 +114,13 @@ def _item(value) -> dict:
     return item
 
 
+def _currency(value) -> str:
+    code = str(value or "THB").strip().upper()
+    if not re.fullmatch(r"[A-Z]{3}", code):
+        raise GatewayError("erp_gateway.currency_invalid")
+    return code
+
+
 def document(body) -> dict:
     """校验并规整 ERP 交来的一张单；不合规抛 ``GatewayError``（码给 ERP 显示，不含单据内容）。"""
     if not isinstance(body, dict) or body.get("version") != VERSION:
@@ -135,6 +142,7 @@ def document(body) -> dict:
            "number": _text(body.get("number"), 40),
            "company": {"tax_id": tax, "branch": _branch(company.get("branch"))},
            "party": _party(body.get("party")), "paid": body.get("paid") is True, "has_vat": body.get("has_vat") is True,
+           "currency": _currency(body.get("currency")),
            "subtotal": _money(body.get("subtotal"), positive=True), "vat": _money(body.get("vat")),
            "total": _money(body.get("total"), positive=True), "items": [_item(item) for item in items]}
     if abs(doc["subtotal"] + doc["vat"] - doc["total"]) > _TOL:
@@ -156,6 +164,8 @@ def pages(doc: dict) -> list:
         "date": doc["date"],
         "invoice_number": doc["number"] or doc["ref"][:40],
         "document_type": "tax_invoice" if doc["has_vat"] else "receipt",
+        # 币种照 ERP 单据写明（不让推送按品名 / 单号里的外币记号去猜：商品叫「USD」的泰铢单不是外币票）
+        "currency": doc["currency"],
         "subtotal": _s(doc["subtotal"]), "vat": _s(doc["vat"]), "total_amount": _s(doc["total"]),
         # 票面写明的现 / 赊（推送按「票面写明」判 HP/RR、HS/IV，不写进这家的付款记忆）
         "payment_status": "paid" if doc["paid"] else "unpaid",
