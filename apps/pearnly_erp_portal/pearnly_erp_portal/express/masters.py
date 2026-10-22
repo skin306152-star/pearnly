@@ -7,7 +7,7 @@
   一个 ERP 租户挂几家公司，各自的档互不相认。``express_book`` 只记最近从哪份账套来。
 - ERP 里没编码的同编码 / 同税号加分店 / 同名的档，第一次同步时认领过来，不另建一份。
 - Express 里没有了的档（这家公司的）在 ERP 里停用；又出现了就启用。
-- 身份类字段在 ERP 里不能改（`locks`）；售价、地址、电话只在 Express 有值时覆盖。
+- Express 里有的字段完全照 Express 写（空也写），在 ERP 里不能改（`locks`）；ERP 自有字段（图片、分类等）不动。
 库存对齐成「Express 结存 + 还没写进 Express 的 ERP 单的变动」，差额记一笔调整流水（来源 ``express_sync``）。
 
 触发：每小时一次（:func:`sync_all`）、ERP 单写进 Express 后一次（`push._written`）、管理员在公司页手动一次（`api`）。
@@ -175,16 +175,14 @@ def _customer_fields(item):
             "branch_no": item["branch"] if company and not item["head"] else None,
             "branch_type": ("hq" if item["head"] else "branch") if company else None,
             "party_type": "company" if company else "person",
-            **({"address": item["address"]} if item["address"] else {}),
-            **({"contact_phone": item["phone"]} if item["phone"] else {})}
+            "address": item["address"] or None, "contact_phone": item["phone"] or None}
 
 
 def _supplier_fields(item):
     return {"supplier_name": item["name"], "tax_id": item["tax_id"] or None,
             "branch_no": None if item["head"] else item["branch"],
             "branch_type": "head_office" if item["head"] else "branch",
-            **({"address": item["address"]} if item["address"] else {}),
-            **({"phone": item["phone"]} if item["phone"] else {})}
+            "address": item["address"] or None, "phone": item["phone"] or None}
 
 
 def _parties(doctype, company, book, rows, fields_of):
@@ -235,9 +233,11 @@ def _products(company, book, data):
         if not name and item["code"] not in taken_codes:
             values["code"] = item["code"]
             taken_codes.add(item["code"])
-        if item["price"]:
-            values.update(unit_price=float(item["price"]), price_set=1)
-        if item["barcode"] and taken_barcodes.get(item["barcode"], name) == name:
+        # 售价、条码完全照 Express（空就清空；条码被别的商品占着时不写，免得撞唯一键）
+        values.update(unit_price=float(item["price"] or 0), price_set=1 if item["price"] else 0)
+        if not item["barcode"]:
+            values["barcode"] = None
+        elif taken_barcodes.get(item["barcode"], name) == name:
             values["barcode"] = item["barcode"]
         changed += _upsert(PRODUCT, name, values)
     return changed + _retire(PRODUCT, [name for code, name in ours.items() if code not in seen])

@@ -566,10 +566,10 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
-			if (can_write) attach_scan_icon(dialog, state, existing.name);
-			// 由 Express 同步来的档：身份类栏位只认 Express（服务端 `express.locks` 同一份清单兜底）
+			if (can_write && !existing.express_code) attach_scan_icon(dialog, state, existing.name);  // 条码只认 Express
+			// 由 Express 同步来的档：Express 里有的栏位只认 Express（服务端 `express.locks` 同一份清单兜底）
 			if (existing?.express_code) {
-				["product_name", "code", "base_unit", "unit", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
+				["product_name", "code", "code_value", "barcode", "base_unit", "unit", "unit_price", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
 			}
 			return dialog;
 		}

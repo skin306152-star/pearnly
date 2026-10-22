@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""No Frappe: master records synced from Express keep their identity fields (name, tax ID, code, units, active)."""
+"""No Frappe: master records synced from Express cannot change any field Express has; ERP-only fields stay free."""
 from pathlib import Path
 import sys
 import types
@@ -57,8 +57,13 @@ class Locks(unittest.TestCase):
             with self.assertRaises(Refused):
                 self.guard(self.supplier(**change))
 
-    def test_free_fields_and_sync_allowed(self):
-        self.guard(self.supplier(phone="02-123"))
+    def test_every_express_field_refused(self):
+        for change in ({"phone": "02-123"}, {"address": "x"}):
+            with self.assertRaises(Refused):
+                self.guard(self.supplier(**change))
+
+    def test_erp_only_fields_and_sync_allowed(self):
+        self.guard(self.supplier(note="ERP note"))
         doc = self.supplier(supplier_name="X")
         doc.flags.express_sync = True
         self.guard(doc)
@@ -74,8 +79,9 @@ class Locks(unittest.TestCase):
         after = Doc("ERP Product", {**before, "units": [Row(unit_name="กล่อง", factor_to_base=10)]}, before=before)
         with self.assertRaises(Refused):
             self.guard(after)
-        same = Doc("ERP Product", {**before, "unit_price": 35}, before=before)
-        self.guard(same)
+        with self.assertRaises(Refused):
+            self.guard(Doc("ERP Product", {**before, "unit_price": 35}, before=before))
+        self.guard(Doc("ERP Product", {**before, "image_url": "/files/ice.jpg", "min_stock": 5}, before=before))
 
 
 if __name__ == "__main__":
