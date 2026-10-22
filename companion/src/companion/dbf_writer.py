@@ -31,6 +31,7 @@ from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
 from . import purchase_lines
+from . import stock_location
 from . import write_verify
 from .consistency import account_company_matches
 from .write_result import DbfWriteResult  # noqa: F401  re-export · dbf_sales 与测试从本模块取
@@ -63,6 +64,8 @@ ERR_WAITING_LOCK = "ACCOUNT_BUSY_LOCKED"  # Express 占用账套 → 回滚,稍�
 ERR_SUPPLIER_DUP = "SUPPLIER_DUP_SUSPECTED"  # 疑似重复供应商 → 不建,转人工确认
 ERR_SUPPLIER_AMBIGUOUS = "SUPPLIER_BRANCH_AMBIGUOUS"  # 同税号多分店档定不出唯一 → 转人工
 ERR_STOCK_IN = "STOCK_IN_FAILED"  # 采购入库路失败(混行/数量成本非法/建档失败)→ 交会计
+# 载荷 4 的仓库码不合格 / 不在这套账的仓库代码表(ISTAB 21)里 → 整单不写,不回落主仓(见 stock_location)
+ERR_LOCATION = stock_location.ERR_LOCATION
 
 # 真表定宽列上限(逆向 DATAT):超长 → 写前拒,绝不溢出/截断坏 Express。
 _MAX_REFNUM = 15
@@ -324,6 +327,11 @@ def write_purchase(
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
+    # 载荷 4:逐行写进哪个仓(没带仓库码 → None,整条写路与以前逐字节相同)
+    try:
+        locations = stock_location.plan(account_dir, payload)
+    except stock_location.LocationError as exc:
+        return DbfWriteResult(False, error_code=ERR_LOCATION, error=str(exc))
 
     docdate_be = str(payload["docdate_be"])
     prefix = entry.doctype  # RR / HP
@@ -358,9 +366,11 @@ def write_purchase(
         return DbfWriteResult(False, error_code=ERR_SUPPLIER_DUP, error="dup")
 
     clock.lap("checks")
-    backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES) if make_backup else None
+    backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES + stock_location_tables(locations)) \
+        if make_backup else None
     clock.lap("backup")
     docnum = ""
+    moves = [] if locations is not None else None
     try:
         # 新供应商 → 先在 APMAS 建档(在备份-回滚事务内)拿到码
         entry.supplier_code = master_create.ensure_supplier(
@@ -380,7 +390,9 @@ def write_purchase(
             prefix,
             userid,
             depcod,
+            **_located(locations, moves),
         )
+        stloc_expected, notes = record_locations(account_dir, moves, notes)
         clock.lap("write")
         detail_n = (
             len(entry.items) if (entry.items_status == "ok" and entry.items) else 0
@@ -391,6 +403,7 @@ def write_purchase(
             detail_n,
             "APMAS" if created_supplier else "",
             index_batch,
+            **({"more": S.LOCATION_TABLES} if stloc_expected else {}),
         )
         clock.lap("reindex")
         _verify(
@@ -402,6 +415,7 @@ def write_purchase(
             detail_n=detail_n,
             has_stock=has_stock,
         )
+        verify_locations(account_dir, stloc_expected)
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AP_DOCNUM, docnum)
         clock.lap("index_check")
@@ -483,6 +497,9 @@ def _write_all(
     prefix,
     userid,
     depcod="",
+    *,
+    locations=None,
+    moves=None,
 ) -> tuple:
     """写完采购六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷, 金额)])。"""
     rectyp = S.RECTYP[prefix]
@@ -568,7 +585,8 @@ def _write_all(
     line_modes, reclass = [], []
     if write_detail:
         line_modes, reclass = purchase_lines.write_detail(
-            account_dir, docnum, docdat, entry, gl_rows, depcod=depcod, userid=userid
+            account_dir, docnum, docdat, entry, gl_rows, depcod=depcod, userid=userid,
+            **_located(locations, moves),
         )
         gl_rows += [] if periodic else reclass
 
@@ -680,7 +698,7 @@ def _reindex(account_dir: Path, tables=S.WRITE_TABLES) -> None:
 
 
 def _reindex_or_defer(
-    account_dir, write_tables, detail_n, party_table, index_batch
+    account_dir, write_tables, detail_n, party_table, index_batch, more=()
 ) -> None:
     """逐票重建交易表;主档(明细/商品/科目 + 新建对手方)按是否批量决定逐票或批末重建。
 
@@ -691,11 +709,44 @@ def _reindex_or_defer(
     extra = S.MASTER_EXTRA_TABLES if detail_n else ()
     if party_table:
         extra += (party_table,)
+    extra += tuple(more)  # 载荷 4 动过 STLOC(新建了品 × 仓的行要进 Express 的索引)
     if index_batch is not None and extra:
         _reindex(account_dir, write_tables)
         index_batch.add(account_dir, extra)
     else:
         _reindex(account_dir, write_tables + extra)
+
+
+def _located(locations, moves=None) -> dict:
+    """载荷 4 才往下层传仓库与变动收集(``locations`` / ``moves``);没带仓库码的单调用与以前一字不差。"""
+    if locations is None:
+        return {}
+    return {"locations": locations} if moves is None else {"locations": locations, "moves": moves}
+
+
+def stock_location_tables(locations) -> tuple:
+    """载荷 4 的单多备份 STLOC;没带仓库码的单不多备份(与以前相同)。"""
+    return S.LOCATION_TABLES if locations is not None else ()
+
+
+def record_locations(account_dir, moves, notes):
+    """载荷 4:把这张单的库存变动记进各仓结存 STLOC → (读回要核的终值, 合并后的 notes)。没带仓库码(moves 是 None)
+    什么都不做、notes 原样。"""
+    if moves is None:
+        return {}, notes
+    try:
+        expected, extra = stock_location.apply(account_dir, moves)
+    except stock_location.LocationError as e:
+        raise _WriteError(str(e), ERR_LOCATION) from e
+    return expected, ({**(notes or {}), **extra} if extra else notes)
+
+
+def verify_locations(account_dir, expected) -> None:
+    """载荷 4:读回 STLOC,不符按读回失败整单回滚。"""
+    try:
+        stock_location.verify(account_dir, expected)
+    except stock_location.LocationVerifyError as e:
+        raise _WriteError(str(e), ERR_VERIFY, e.evidence) from e
 
 
 def _verify_index(account_dir: Path, header: tuple, docnum: str) -> None:

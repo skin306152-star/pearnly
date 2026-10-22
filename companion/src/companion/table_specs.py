@@ -115,6 +115,19 @@ TABLE_SPECS = {
         "ACCNUM C(15); ACCNAM C(50); ACCNAM2 C(50); LEVEL N(1,0); PARENT C(15); "
         "GROUP C(1); ACCTYP C(1); USEDEP C(1); NATURE C(1); STATUS C(1)"
     ),
+    # 各仓结存(真表 68 列,列宽照 6902ASC / T9ASC 真表)。Express 录单时逐行维护(2026-10-22 用 5 套真账只读核对):
+    # LOCBAL = BEGBAL + ΣQTY{期}、QTY{期} / VAL{期} = 该期该仓 STCRD 的带符号 XTRNQTY / XTRNVAL,期号同 ISPRD
+    # (CY 12 + NY 12 两个年槽),LPURDAT / LSELDAT / LMOVDAT = 最后进货 / 销货 / 变动日;LOCVAL 不维护(几乎恒 0)。
+    "STLOC": (
+        "STKCOD C(20); LOCCOD C(4); AREA C(8); STKCLASS C(1); LOCBAL B; UNITPR B; LOCVAL B; "
+        "LOCREO B; LOCRES B; LPURDAT D; LSELDAT D; LMOVDAT D; TAKDAT D; MLOTNUM C(24); "
+        "MREMBAL B; MREMVAL B; BEGBAL B; BEGVAL B; "
+        + "; ".join(f"QTY{m} B" for m in range(1, 13)) + "; "
+        + "; ".join(f"QTY{m}NY B" for m in range(1, 13)) + "; "
+        + "; ".join(f"VAL{m} B" for m in range(1, 13)) + "; "
+        + "; ".join(f"VAL{m}NY B" for m in range(1, 13)) + "; "
+        "STATUS C(1); INACTDAT D"
+    ),
     # 代码表。TABTYP='20' 段是单位码(TYPCOD)—— 主档 QUCOD 只能写这里面的码。
     "ISTAB": (
         "TABTYP C(2); TYPCOD C(4); SHORTNAM C(15); SHORTNAM2 C(15); "

@@ -92,6 +92,13 @@
   - MSIX 商店包（未签名，待商店账号）：以包身份运行时更新交给商店、自启用系统启动任务。
   - 打开窗口先铺对话页底色（不再白屏）；改连另一租户时新连接配对成功后才吊销旧密钥、删旧成员，配对健康检查超时 / 断线 / 502–504 重试 3 次，
     带整份账套名单的心跳读超时 60 秒；询问框等人回答期间照常盖存活时标（看门狗不再误判卡死）。
+- 1.10.0（ERP 当手机前台、Express 当账本，`pearnly/erp-express-cc`；**未发布**，要等服务端认 `express_masters` 的 Select 选项、
+  `ERR_LOCATION` 词条与盖载荷 4 的那一侧上线后再发）：
+  - 按需请求新增只读 `express_masters`（`express_masters.py`）：一份账套的整套主档（ISINFO 设置、ARMAS、APMAS、STMAS、
+    ISTAB 单位 / 仓库 / 部门）与各仓结存 STLOC，参数只有 `account_set` / `account_root`，结果属于「连接 + 账套」
+    （服务端 `SHARED_KINDS`），服务端按 `KIND_MIN_COMPANION` 只交给 1.10.0 起的电脑；
+  - 载荷 4（`stock_location.py`）：明细行 / 表头带 `loccod` 的单，库存行写进那个仓并照 Express 的记法维护 STLOC（LOCBAL、
+    QTY / VAL 期桶、最后进货 / 销货 / 变动日），仓库码不在 ISTAB 21 里整单不写、回 `ERR_LOCATION`；不带 `loccod` 的单逐字节同 1.9.2。
 
 ## 本机测试
 

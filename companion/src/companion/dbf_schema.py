@@ -434,6 +434,10 @@ def account_dir_allowed(account_dir: str | Path, selected_dir: str = "") -> bool
 # 写入器追加/更新时要写的表(STCRD 存货卡留增量,本期非存货/费用不碰)。
 WRITE_TABLES = ("ISRUN", "APTRN", "ISVAT", "GLJNL", "GLJNLIT", "APBAL")
 
+# 载荷 4(带仓库码)的单另外要写的表:各仓结存。只在这类单上多备份、动过才多重建索引、写完读回核对
+# (stock_location),没带仓库码的单不碰,与以前逐字节相同。
+LOCATION_TABLES = ("STLOC",)
+
 # 写前备份的 allowlist:覆盖所有写路径会 mutate 的表 —— 采购/销项过账表
 # (WRITE_TABLES + SALES_WRITE_TABLES)+ 自建主档(APMAS/ARMAS)+ 存货(STCRD/STBAL,
 # 当前不写但留前向兼容)。漏一张 → 回滚不全,故宁可多备。选择性备份只复制其中存在的表,

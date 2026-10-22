@@ -13,7 +13,7 @@ Pearnly 云端算好、本来就平的那张分录一个字不改 —— 净效�
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from . import dbf_detail
 from . import dbf_schema as S
@@ -63,6 +63,8 @@ def write_detail(
     *,
     depcod: str = "",
     userid: str = S.PEARNLY_USERID,
+    locations: Optional[List[Optional[str]]] = None,
+    moves: Optional[list] = None,
 ) -> Tuple[List[dict], List[GlRow]]:
     """写本单明细行,返回 (逐行 mode 结果, 要追加的重分类分录行)。
 
@@ -82,6 +84,7 @@ def write_detail(
             userid=userid,
             ref_no=entry.ref_no,
             posopr=S.STCRD_POSOPR_PURCHASE,
+            **({"locations": locations} if locations is not None else {}),
         )
         return line_modes, []
     if len(stock_items) != len(entry.items):
@@ -98,6 +101,7 @@ def write_detail(
             acccod=getattr(entry, "stock_acccod", ""),
             userid=userid,
             ref_no=entry.ref_no,
+            **({"locations": locations, "moves": moves} if locations is not None else {}),
         )
     except Exception as e:  # 入库任一步失败 → 统一交会计(整单回滚·不留半截库存)
         raise StockLineError(str(e)) from e

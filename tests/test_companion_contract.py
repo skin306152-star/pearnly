@@ -10,6 +10,8 @@
 - POS 导出（第二批 L9）：两边收同一组扩展名（含登记即失败的 .xls）、云端按任务下发、小助手按它扫与数（老任务新收的
   扩展名先补拍底）；载荷 3 的 `pos` 块两边同形、票号上限一致，小助手的拒收码（含 POS_INVALID）云端认作「要人处理」且有
   译文，销项税摘要带「อย่างย่อ」给报税草稿认简易税票。
+- ERP 前台（2026-10-22）：按需请求 `express_masters`（整套主档 + 各仓结存）两边同一组种类常量、参数键与版本门槛，
+  结果属于连接与账套；载荷 4（明细行 / 表头 `loccod`）小助手认得、仓库码不对回 `ERR_LOCATION`（要人处理）。
 - 自动更新被 Windows 拦下（教程问题第 1 条，2026-10-15）：心跳与文件夹同步都带 `update_blocked`（版本 + UTC 时刻，
   null = 没被拦，旧版不带），服务端同一套收法（`connections/desktop_update.py`）；「下载新版」与官网同一个安装包地址。
 """
@@ -697,7 +699,7 @@ class AccountHistory(unittest.TestCase):
         server = number_constants(SERVER / "request_contracts.py", ("KINDS", "FOLDER_KINDS", "SHARED_KINDS"))
         self.assertIn("account_history", server["KINDS"])
         self.assertNotIn("account_history", server["FOLDER_KINDS"])  # MR.ERP 的文件夹成员不读账套
-        self.assertEqual(server["SHARED_KINDS"], ("account_history",))
+        self.assertEqual(server["SHARED_KINDS"], ("account_history", "express_masters"))
         # 推送服务按钩子取，不导入 readback（readback 依赖 push）
         hooks = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]', hooks)
@@ -727,7 +729,7 @@ class PosPayload(unittest.TestCase):
         server = _literal(self.COWORK / "contracts" / "pos.py", "PAYLOAD_VERSION")
         helper = _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS")
         self.assertEqual(server, 3)
-        self.assertEqual(max(helper), server)
+        self.assertIn(server, helper)
 
     def test_the_pos_block_keys_match(self):
         mapper = (self.COWORK / "push" / "express" / "sales_mapper.py").read_text(encoding="utf-8")
@@ -974,7 +976,7 @@ class PoolRequests(unittest.TestCase):
         server = number_constants(SERVER / "request_contracts.py", ("LOCATION_KEYS", "ACCOUNT_KINDS", "FOLDER_KINDS",
                                                                      "KINDS"))
         self.assertEqual(set(server["LOCATION_KEYS"]), {"account_set", "account_root"})
-        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history"})
+        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters"})
         self.assertEqual(set(server["ACCOUNT_KINDS"]) | set(server["FOLDER_KINDS"]), set(server["KINDS"]))
         for path, function in ((self.READBACK / "contracts.py", "read_params"),
                                (self.READBACK / "history_rules.py", "read_params")):
@@ -1153,3 +1155,47 @@ class CompanyFolders(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ErpExpressFront(unittest.TestCase):
+    """ERP 当手机前台、Express 当账本（2026-10-22）：CC 桌面版这一侧的两项约定。
+
+    - 按需请求 ``express_masters``：读一本账套（按规范键分派、参数里的位置换成领取电脑的写法）、结果属于连接与账套
+      （发起人是 Cowork 的网关服务账号，没在任何电脑上登录过 CC）；参数只有两个位置键；要 ``KIND_MIN_COMPANION`` 起的 CC；
+    - 载荷 4：明细行 / 表头可带 ``loccod``，小助手认 4；仓库码不在 ISTAB 21 里整单不写，回 ``ERR_LOCATION``，按「要人处理」回报。"""
+
+    def test_the_masters_request_is_an_account_read_shared_with_the_connection(self):
+        server = number_constants(SERVER / "request_contracts.py", ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS",
+                                                                     "FOLDER_KINDS", "LOCATION_KEYS",
+                                                                     "KIND_MIN_COMPANION", "MAX_BYTES"))
+        for group in ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS"):
+            self.assertIn("express_masters", server[group], group)
+        self.assertNotIn("express_masters", server["FOLDER_KINDS"])  # MR.ERP 的文件夹成员不读账套
+        self.assertEqual(server["MAX_BYTES"]["express_masters"], 16 * 1024 * 1024)
+        helper = number_constants(COMPANION / "express_masters.py", ("PARAM_KEYS",))["PARAM_KEYS"]
+        self.assertEqual(set(helper), set(server["LOCATION_KEYS"]))
+        self.assertIn("express_read.resolve(cfg, account_set, account_root)",
+                      method_source_of(COMPANION / "express_masters.py", "read_masters"))
+        self.assertIn('"express_masters": express_masters.read_masters',
+                      (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
+        version = module_constants(COMPANION / "version.py")["VERSION"]
+        minimum = server["KIND_MIN_COMPANION"]["express_masters"]
+        self.assertGreaterEqual(tuple(map(int, version.split("."))), tuple(map(int, minimum.split("."))))
+        self.assertIn("def minimum(", (SERVER / "request_contracts.py").read_text(encoding="utf-8"))
+
+    def test_the_masters_reader_never_waits_for_the_account_set_lock(self):
+        tree = ast.parse((COMPANION / "express_masters.py").read_text(encoding="utf-8"))
+        imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+                    for alias in node.names} | {node.module or "" for node in ast.walk(tree)
+                                                if isinstance(node, ast.ImportFrom)}
+        self.assertFalse({"account_lock", "is_account_busy", "dbf_writer"} & imported)
+
+    def test_payload_4_names_the_warehouse_and_a_wrong_code_needs_a_person(self):
+        self.assertIn(4, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertEqual(module_constants(COMPANION / "stock_location.py")["ERR_LOCATION"], "ERR_LOCATION")
+        outcome = method_source_of(COMPANION / "worker.py", "_outcome_for")
+        self.assertIn("ERR_LOCATION: 'needs_review'", outcome)
+        for writer in ("dbf_writer.py", "dbf_sales.py"):
+            source = (COMPANION / writer).read_text(encoding="utf-8")
+            self.assertIn("stock_location.plan(account_dir, payload)", source, writer)
+            self.assertIn("error_code=ERR_LOCATION", source, writer)

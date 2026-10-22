@@ -16,7 +16,10 @@ from typing import Optional
 # 旧版小助手会静默忽略这两个键(按品名新建存货、部门留空),所以带了它们的载荷盖 2,旧版诚实拒收。
 # 3:POS 导出的日汇总票带 `pos` 块(自编单号、票号起止写进销项税摘要、每种非现金付款方式同一次写入一张日记账凭证
 # 「借 收款科目 / 贷 现金」)。旧版小助手会把它当普通现销写、漏掉凭证,所以盖 3,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3})
+# 4:明细行 / 表头可带 `loccod`(Express 仓库码,行上的优先,表头是行的默认):库存行写进那个仓并维护各仓结存 STLOC,
+# 仓库码不在这套账的仓库代码表里整单失败(ERR_LOCATION,不回落主仓)。旧版会静默写主仓,所以带了它的载荷盖 4。
+# 没带 loccod 的载荷与以前逐字节相同(见 stock_location)。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

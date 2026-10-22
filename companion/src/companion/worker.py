@@ -336,6 +336,7 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     from .dbf_sales import ERR_CUSTOMER_AMBIGUOUS, ERR_CUSTOMER_DUP
     from .dbf_writer import (
         ERR_FIELD_WIDTH,
+        ERR_LOCATION,
         ERR_SUPPLIER_AMBIGUOUS,
         ERR_SUPPLIER_DUP,
     )
@@ -349,6 +350,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         ERR_CUSTOMER_AMBIGUOUS: "needs_review",
         ERR_SUPPLIER_AMBIGUOUS: "needs_review",
         ERR_FIELD_WIDTH: "needs_review",
+        # 仓库码不在这套账的仓库代码表里:重试结论一样,要人改单或在 Express 建仓
+        ERR_LOCATION: "needs_review",
     }.get(error_code or "")
 
 

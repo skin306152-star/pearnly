@@ -28,6 +28,7 @@ from . import fiscal_period
 from . import master_create
 from . import pos_journal
 from . import write_verify
+from . import stock_location
 from . import stock_sale
 from . import cdx_reindex
 from .consistency import account_company_matches
@@ -35,6 +36,7 @@ from .dbf_writer import (
     ERR_ACCOUNT_DIR,
     ERR_COMPANY,
     ERR_FIELD_WIDTH,
+    ERR_LOCATION,
     ERR_VALIDATION,
     ERR_VERIFY,
     ERR_WRITE,
@@ -49,7 +51,11 @@ from .dbf_writer import (
     _next_docnum,
     _open,
     _reindex_or_defer,
+    _located,
     _restore,
+    record_locations,
+    stock_location_tables,
+    verify_locations,
     _verify_index,
     _WriteError,
     amount_fields,
@@ -228,6 +234,11 @@ def write_sale(
     journal, journal_error, journal_reason = pos_journal.check(account_dir, entry.pos_transfers)
     if journal_error:
         return DbfWriteResult(False, error_code=journal_error, error=journal_reason)
+    # 载荷 4:逐行写进哪个仓(没带仓库码 → None,整条写路与以前逐字节相同)
+    try:
+        locations = stock_location.plan(account_dir, payload)
+    except stock_location.LocationError as exc:
+        return DbfWriteResult(False, error_code=ERR_LOCATION, error=str(exc))
 
     docdate_be = str(payload["docdate_be"])
     docdat = S.be_yymmdd_to_greg(docdate_be)
@@ -259,9 +270,11 @@ def write_sale(
         return DbfWriteResult(False, error_code=ERR_CUSTOMER_DUP, error="dup")
 
     clock.lap("checks")
-    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES) if make_backup else None
+    backup_dir = _backup(account_dir, S.SALES_BACKUP_TABLES + stock_location_tables(locations)) \
+        if make_backup else None
     clock.lap("backup")
     docnum = ""
+    moves = [] if locations is not None else None
     try:
         since = _table_sizes(account_dir)  # 读回只核对这之后追加的行(见 _VERIFY_TABLES)
         journal_since = pos_journal.sizes(account_dir) if journal else {}
@@ -292,7 +305,9 @@ def write_sale(
             has_vat,
             userid,
             depcod,
+            **_located(locations, moves),
         )
+        stloc_expected, notes = record_locations(account_dir, moves, notes)
         vouchers = []
         if journal:
             # 现金科目 = 本单借方实际记的那个(_write_all 已按账套换成 ACCNUM00;账套没设就是云端给的那个)
@@ -315,6 +330,7 @@ def write_sale(
             detail_n,
             "ARMAS" if created_customer else "",
             index_batch,
+            **({"more": S.LOCATION_TABLES} if stloc_expected else {}),
         )
         clock.lap("reindex")
         _verify(
@@ -327,6 +343,7 @@ def write_sale(
             has_stock=has_stock,
             since=since,
         )
+        verify_locations(account_dir, stloc_expected)
         pos_differ = (pos_journal.verify(account_dir, vouchers, cash_acc, journal_since, docdat=docdat)
                       if vouchers else [])
         clock.lap("verify")
@@ -392,6 +409,9 @@ def _write_all(
     has_vat,
     userid,
     depcod="",
+    *,
+    locations=None,
+    moves=None,
 ) -> tuple:
     """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷)])。"""
     prefix = entry.doctype  # IV / HS
@@ -482,10 +502,11 @@ def _write_all(
                 depcod=depcod,
                 userid=userid,
                 acccod=getattr(entry, "stock_acccod", ""),
+                **_located(locations, moves),
             )
         else:
             line_modes = _write_stcrd_detail(
-                account_dir, docnum, docdat, entry, depcod, userid=userid
+                account_dir, docnum, docdat, entry, depcod, userid=userid, **_located(locations)
             )
 
     if has_vat:
@@ -552,7 +573,7 @@ def _write_all(
 
 
 def _write_stcrd_detail(
-    account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID
+    account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID, locations=None
 ):
     """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。"""
     return dbf_detail.write_stcrd_detail(
@@ -564,6 +585,7 @@ def _write_stcrd_detail(
         entry.items_account,
         depcod=depcod,
         userid=userid,
+        **_located(locations),
     )
 
 

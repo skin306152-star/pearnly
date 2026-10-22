@@ -38,6 +38,7 @@ from . import account_rules
 from . import dbf_detail
 from . import dbf_schema as S
 from . import product_master
+from . import stock_location
 from . import stock_lookup
 from .logger import get_logger
 
@@ -234,6 +235,8 @@ def write_stock_lines(
     depcod: str = "",
     userid: str = S.PEARNLY_USERID,
     acccod: str = "",
+    locations: Optional[List[Optional[str]]] = None,
+    moves: Optional[list] = None,
 ) -> Tuple[List[Dict], List[Tuple[str, str, str, Decimal]]]:
     """写库存明细行 + 扣 STMAS,返回 (逐行 mode 结果, COGS 分录行)。
 
@@ -243,6 +246,7 @@ def write_stock_lines(
     - 账里没这品(None)→ 建 STKTYP=0 档再卖成负,无成本基础(reason=new_item_no_cost_basis)。
     COGS 分录按 (COGS科目, 存货科目) 聚合:借 COGS 总额 / 贷 存货 总额(有成本的行才产生)。
     `acccod`=账套配置的存货科目组,只在账里一条库存品都没有、要建首个库存档时用得上。
+    载荷 4(``stock_location``):``locations`` 逐行仓库码(None = 主仓),``moves`` 收集 STLOC 变动;都是 None 时同以前。
     """
     line_modes: List[Dict] = []
     cogs_by_pair: Dict[Tuple[str, str], Decimal] = {}
@@ -263,8 +267,7 @@ def write_stock_lines(
                 new_bal = item["mrembal"] - qty
                 new_val = _q2(item["mremval"] - cogs)
                 inv_acc, cogs_acc = stock_accounts(account_dir, item["acccod"])
-                st.append(
-                    account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
+                row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
                         seq,
                         docdat,
@@ -280,8 +283,10 @@ def write_stock_lines(
                         rem_val=new_val,
                         unit=unit,
                         depcod=depcod,
-                    ), unit)
-                )
+                    ), unit, stock_location.location_at(locations, seq - 1))
+                st.append(row)
+                if moves is not None:
+                    moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
                 key = (cogs_acc, inv_acc)
                 cogs_by_pair[key] = cogs_by_pair.get(key, Decimal("0")) + Decimal(
@@ -300,8 +305,7 @@ def write_stock_lines(
                 cogs = _q2(qty * cost) if cost > 0 else 0.0
                 new_bal = basis.bal - qty
                 new_val = _q2(basis.val - cogs)
-                st.append(
-                    account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
+                row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
                         seq,
                         docdat,
@@ -317,8 +321,10 @@ def write_stock_lines(
                         rem_val=new_val,
                         unit=unit,
                         depcod=depcod,
-                    ), unit)
-                )
+                    ), unit, stock_location.location_at(locations, seq - 1))
+                st.append(row)
+                if moves is not None:
+                    moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)
                 if cogs:
                     inv_acc, cogs_acc = stock_accounts(account_dir, basis.acccod)

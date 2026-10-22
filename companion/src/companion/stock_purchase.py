@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import dbf
 
@@ -27,6 +27,7 @@ from . import account_rules
 from . import dbf_detail
 from . import dbf_schema as S
 from . import product_master
+from . import stock_location
 from . import stock_sale
 from .dbf_detail import ITEM_MODE_STOCK  # item_mode 常量单一事实源在明细行路由那侧
 from .logger import get_logger
@@ -84,6 +85,8 @@ def write_stock_in_lines(
     userid: str = S.PEARNLY_USERID,
     acccod: str = "",
     ref_no: str = "",
+    locations: Optional[List[Optional[str]]] = None,
+    moves: Optional[list] = None,
 ) -> Tuple[List[Dict], Dict[str, Decimal]]:
     """写库存入库行 + 累加 STMAS 结存,返回 (逐行 mode 结果, {存货科目码: 入库金额合计})。
 
@@ -92,6 +95,9 @@ def write_stock_in_lines(
 
     只滚结存(MREMBAL/MREMVAL/TOTBAL/TOTVAL),**不碰期初列 OPNBAL/OPNVAL**:期初是会计的
     开账事实,进货是期中发生额,把进货写进期初会让客户的期初余额报表凭空长大。
+
+    载荷 4(``stock_location``):``locations`` 是逐行仓库码(None = 主仓,同以前),``moves`` 收集各行在 STLOC 上的
+    变动交调用方记账;两者都是 None 时与以前逐字节相同。
     """
     line_modes: List[Dict] = []
     in_by_account: Dict[str, Decimal] = {}
@@ -126,8 +132,7 @@ def write_stock_in_lines(
             inv_acc, _cogs_acc = stock_sale.stock_accounts(account_dir, item_acccod)
             new_bal = cur_bal + qty
             new_val = _money(cur_val + amount)
-            st.append(
-                account_rules.localize_stcrd(account_dir, S.stcrd_stock_in_row(
+            row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_in_row(
                     docnum,
                     seq,
                     docdat,
@@ -143,8 +148,10 @@ def write_stock_in_lines(
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=S.STCRD_POSOPR_PURCHASE,
-                ), unit)
-            )
+                ), unit, stock_location.location_at(locations, seq - 1))
+            st.append(row)
+            if moves is not None:
+                moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))
             stock_sale.write_stmas_fields(
                 account_dir,
                 stkcod,
