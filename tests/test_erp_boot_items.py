@@ -28,10 +28,15 @@ class ErpBootItems(unittest.TestCase):
         masters.company = self.companies
         access = types.ModuleType("pearnly_erp_portal.access")
         access.guard = self.guard
+        self.gateway = types.ModuleType("pearnly_erp_portal.express.gateway")
+        self.gateway.configured = Mock(return_value=True)
+        express = types.ModuleType("pearnly_erp_portal.express")
+        express.gateway = self.gateway
         modules = patch.dict(sys.modules, {
             "frappe": self.frappe, "pearnly_erp_portal": types.ModuleType("pearnly_erp_portal"),
             "pearnly_erp_portal.masters": masters, "pearnly_erp_portal.masters.company": self.companies,
-            "pearnly_erp_portal.access": access, "pearnly_erp_portal.access.guard": self.guard})
+            "pearnly_erp_portal.access": access, "pearnly_erp_portal.access.guard": self.guard,
+            "pearnly_erp_portal.express": express, "pearnly_erp_portal.express.gateway": self.gateway})
         modules.start()
         self.addCleanup(modules.stop)
         self.namespace = {}
@@ -41,7 +46,7 @@ class ErpBootItems(unittest.TestCase):
         boot = Boot()
         self.namespace["boot_session"](boot)
         self.assertEqual(boot, {"pearnly_companies": [{"name": "CO-00001"}], "pearnly_company": "CO-00001",
-                                "pearnly_warehouse": "WH-1", "pearnly_line": True})
+                                "pearnly_warehouse": "WH-1", "pearnly_line": True, "pearnly_express": True})
         self.frappe.log_error.assert_not_called()
 
     def test_tenant_without_company_still_gets_line(self):
@@ -62,6 +67,13 @@ class ErpBootItems(unittest.TestCase):
         self.namespace["boot_session"](boot)
         self.assertIs(boot["pearnly_line"], False)
         self.assertEqual(boot["pearnly_company"], "CO-00001")
+
+    def test_express_check_failure_defaults_to_not_linked(self):
+        self.gateway.configured.side_effect = RuntimeError("fixture")
+        boot = Boot()
+        self.namespace["boot_session"](boot)
+        self.assertIs(boot["pearnly_express"], False)
+        self.assertEqual(boot["pearnly_line"], True)
 
     def test_non_product_site_is_untouched(self):
         self.frappe.conf = {}
