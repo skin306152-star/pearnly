@@ -1,8 +1,9 @@
 """CC 桌面端的按需请求（2026-10 CC 闭环）：服务端请某台电脑上的 CC 桌面端读一样东西交回来——Express 账套
 （``express_read``）、已授权文件夹里的文件清单（``folder_list``）或其中一份文件（``folder_fetch``）、一本账套近 12 个月
-「供应商 → 常用科目」的次数（``account_history``，科目建议）。纯规则，不连库、不依赖框架。
+「供应商 → 常用科目」的次数（``account_history``，科目建议）、一本账套的整套主档与各仓结存（``express_masters``，
+ERP 前台的主档镜像）。纯规则，不连库、不依赖框架。
 
-结果属于发起人的（回读、取文件）只给发起人；``SHARED_KINDS`` 的结果属于这条连接与账套（科目建议的历史），同一请求号
+结果属于发起人的（回读、取文件）只给发起人；``SHARED_KINDS`` 的结果属于这条连接与账套（科目建议的历史、整套主档），同一请求号
 谁建都是同一件，凡此刻能用这条连接的人都能看状态、取结果、删（`request_service` 核连接使用授权）。
 
 与推送队列（lease / ack）完全分开：自己一张表（Cowork Companion Request）、两条机器方法（``request_api``，登记在
@@ -40,20 +41,25 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 MIB = 1024 * 1024
-KINDS = ("express_read", "folder_list", "folder_fetch", "account_history")
+KINDS = ("express_read", "folder_list", "folder_fetch", "account_history", "express_masters")
 FOLDER_KINDS = ("folder_list", "folder_fetch")
 # 读一本账套的种类：按账套的规范键分派，参数里的位置换成领取电脑的写法
-ACCOUNT_KINDS = ("express_read", "account_history")
+ACCOUNT_KINDS = ("express_read", "account_history", "express_masters")
 # 参数里的通用位置键：账套文件夹、所在的 Express 根目录（`readback.contracts.read_params` / `history_rules.read_params`）
 LOCATION_KEYS = ("account_set", "account_root")
-SHARED_KINDS = ("account_history",)
+# 结果属于连接与账套（谁先来谁读、能用这条连接的人都能取）：科目历史；整套主档（发起人是 Cowork 的网关服务账号，它没在任何电脑上
+# 登录过 CC，非共享种类不会有电脑领）
+SHARED_KINDS = ("account_history", "express_masters")
 # 哪种连接的电脑能做哪几种：Express 的电脑都能做；MR.ERP 的小助手成员只读文件夹。
 ADAPTER_KINDS = {"express": KINDS, "mrerp": FOLDER_KINDS}
 STATUSES = ("requested", "leased", "done", "failed", "expired")
 OPEN = ("requested", "leased")
 CHUNK_BYTES = 4 * MIB
-MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 30 * MIB, "account_history": 5 * MIB}
-LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900}
+# express_masters：gzip 后的大小（商品上万、STLOC 十几万行时实测远小于它）；超了 CC 回 too_large，不截断
+MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 30 * MIB, "account_history": 5 * MIB,
+             "express_masters": 16 * MIB}
+LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900,
+                 "express_masters": 900}
 # 这么久没有电脑来领就算过期（code not_claimed）；领了以后每交一块续一次租约。
 CLAIM_SECONDS = 600
 # 小助手空闲时每 POLL_SECONDS 来领一次：SEEN_SECONDS 之内来过才算此刻在线。
@@ -67,6 +73,8 @@ OPEN_PER_ACTOR = 20
 PARAMS_MAX = 64 * 1024
 META_MAX = 4 * 1024
 MIN_COMPANION = "1.5.0"
+# 后加的种类要更新的 CC 桌面端才会领（旧版领请求时不声明它，请求只会等到过期）：发起前按 :func:`minimum` 判。
+KIND_MIN_COMPANION = {"express_masters": "1.10.0"}
 _KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,140}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -219,6 +227,11 @@ def version_tuple(value: Any) -> tuple:
 def supports(version: Any, minimum: str = MIN_COMPANION) -> bool:
     """这个版本的 CC 桌面端会来领按需请求。"""
     return version_tuple(version) >= version_tuple(minimum)
+
+
+def minimum(kind_value: Any) -> str:
+    """这种请求要求的最低 CC 桌面端版本（``supports(version, minimum(kind))``）。"""
+    return KIND_MIN_COMPANION.get(kind_value, MIN_COMPANION)
 
 
 def seen_recently(at: Optional[datetime], now: datetime) -> bool:

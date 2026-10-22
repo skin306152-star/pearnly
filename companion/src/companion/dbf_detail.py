@@ -23,6 +23,7 @@ import dbf
 from . import account_rules
 from . import dbf_schema as S
 from . import product_master
+from . import stock_location
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -147,8 +148,10 @@ def write_stcrd_detail(
     userid: str = S.PEARNLY_USERID,
     ref_no: str = "",
     posopr: str = S.STCRD_POSOPR,
+    locations: Optional[List[Optional[str]]] = None,
 ) -> List[dict]:
     """逐行 OCR 商品写 STCRD,按 item_mode 分发。返回逐行 mode 结果(供状态诚实化)。
+    ``locations``:载荷 4 的逐行仓库码(None = 主仓);这些行不动库存,不碰 STLOC。
     NETVAL 逐行求和已在云端对账闸 ≈ 税前额;此处只忠实落行。
 
     `ref_no` 只有采购侧传(真账镜像:采购行带 REFNUM 98%+,销项行 0/14834 带)。"""
@@ -187,7 +190,7 @@ def write_stcrd_detail(
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=posopr,
-                ), unit, location)
+                ), unit, stock_location.location_at(locations, seq - 1) or location)
             )
             line_modes.append(
                 line_mode(
