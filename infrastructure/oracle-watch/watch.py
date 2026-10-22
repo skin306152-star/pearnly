@@ -29,6 +29,8 @@ SITE_FAILURES = 3
 DAILY_DUE_HOUR = 3
 # 改动记录每 5 分钟传一次；超过 20 分钟没有新的一份就算停了。
 BINLOG_STALE_MINUTES = 20
+# 存储桶连续这么多次（每 10 分钟一次）读不了才发信；偶尔一次超时不吵人。
+BUCKET_FAILURES = 3
 # 自己连这个都打不开时，说明是这台的网络问题，不发信。
 CONTROL_URL = "https://www.google.com/generate_204"
 
@@ -186,18 +188,18 @@ def check_backups(state, now_utc, stamp):
     except Exception as error:  # noqa: BLE001
         daily_ok, behind = None, None
         detail = type(error).__name__
-    checks = []
+    # 读桶这一项每次都推进：读成功就清掉告警并发「已恢复」，否则它会一直挂着、以后真读不了也不再发信（10-21 踩过）。
+    checks = [("备份存储桶", "读不了", daily_ok is not None, BUCKET_FAILURES,
+               "" if daily_ok is not None else f"连续 {BUCKET_FAILURES} 次读不了存储桶：{detail}")]
     if daily_ok is not None:
-        checks.append(("每日备份", daily_ok, f"{day:%Y-%m-%d} 那一份还没有"))
+        checks.append(("每日备份", "没有按时完成", daily_ok, 1, f"{day:%Y-%m-%d} 那一份还没有"))
         if watch_env().get("CHECK_BINLOG", "").strip() == "1":
-            checks.append(("改动记录同步", behind is not None and behind <= BINLOG_STALE_MINUTES,
+            checks.append(("改动记录同步", "没有按时完成", behind is not None and behind <= BINLOG_STALE_MINUTES, 1,
                            "存储桶里找不到改动记录" if behind is None else f"最新一份是 {behind} 分钟前"))
-    else:
-        checks.append(("备份存储桶", False, f"读不了存储桶：{detail}"))
-    for name, ok, detail in checks:
-        state[name], event = step(state.get(name), ok, 1, stamp, detail)
+    for name, problem, ok, threshold, detail in checks:
+        state[name], event = step(state.get(name), ok, threshold, stamp, detail)
         if event == "down":
-            mails.append((f"Pearnly 告警：{name}没有按时完成", f"{stamp}（曼谷时间）检查：{detail}。"))
+            mails.append((f"Pearnly 告警：{name}{problem}", f"{stamp}（曼谷时间）检查：{detail}。"))
         elif event == "up":
             mails.append((f"Pearnly 已恢复：{name}", f"{name}在 {stamp}（曼谷时间）已恢复正常。"))
     return mails

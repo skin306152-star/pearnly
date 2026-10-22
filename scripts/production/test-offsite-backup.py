@@ -64,6 +64,19 @@ for ok in (False, False, False, False, True, True):
 check("网站连续 3 分钟打不开发一封告警，期间不重复，恢复发一封", events == [None, None, "down", None, "up", None])
 state, event = watch.step(None, False, 1, "t"); state, again = watch.step(state, False, 1, "t")
 check("备份检查一次不对就告警、不重复", (event, again) == ("down", None))
+def _bucket_round(state, readable):
+    def gcs():
+        if not readable:
+            raise TimeoutError("ReadTimeout")
+        return object(), None
+    watch._gcs, watch.gcs_list, watch.watch_env = gcs, lambda session, prefix: ["x"], lambda: {}
+    return [subject for subject, _ in watch.check_backups(state, dt.datetime(2026, 10, 21, 13, 40, tzinfo=dt.timezone.utc), "t")]
+state, rounds = {}, []
+for readable in (False, False, False, False, True, False):
+    rounds.append(_bucket_round(state, readable))
+check("备份桶连续 3 次读不了才告警、不重复，读成功发一封已恢复并清掉告警，下次再读不了重新计数",
+      rounds == [[], [], ["Pearnly 告警：备份存储桶读不了"], [], ["Pearnly 已恢复：备份存储桶"], []]
+      and state["备份存储桶"]["failures"] == 1 and not state["备份存储桶"]["alerted"])
 bkk = watch.BANGKOK
 check("凌晨 3 点前看前一天的每日备份，3 点后看当天",
       watch.daily_due_day(dt.datetime(2026, 10, 17, 2, 59, tzinfo=bkk)) == dt.date(2026, 10, 16)
