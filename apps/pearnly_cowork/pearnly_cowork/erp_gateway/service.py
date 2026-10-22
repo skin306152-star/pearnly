@@ -11,6 +11,7 @@
 - 主档：按需请求 ``express_masters``（账套的公共资料，够得到的电脑谁先来谁读），读好的结果原样交给 ERP 一次后删掉。
 """
 import gzip
+import hashlib
 import json
 
 import frappe
@@ -207,7 +208,9 @@ def masters(client, body):
     del client
     target = _target(body)
     connection, key = target["connection"], target["key"]
-    request_key = "erp_masters:" + connection + ":" + normalize_express_account_key(key)
+    # 请求号只许字母数字与 _.:-（`request_contracts._KEY`）：账套键是路径，取摘要；同一连接同一账套是同一件（共享种类）
+    seed = connection + "\0" + normalize_express_account_key(key)
+    request_key = "erp_masters:" + hashlib.sha256(seed.encode()).hexdigest()[:48]
     head = {"company": target["company"], "account_set": key, "label": target["label"]}
     made = request_service.find(MASTERS_KIND, connection, request_key)
     if made is None:
