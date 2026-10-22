@@ -68,7 +68,7 @@ def apply(company, book, data):
     counts["products"] = _products(book, data)
     warehouses = _warehouses(company, book, data)
     counts["warehouses"] = len(warehouses)
-    counts["stock"] = _stock(company, warehouses, data.get("stock"))
+    counts["stock"] = _stock(company, book, warehouses, data.get("stock"))
     frappe.db.set_value(COMPANY, company, {"express_book": book[:140], "express_synced_at": now_datetime()},
                         update_modified=False)
     frappe.db.commit()
@@ -249,13 +249,14 @@ def _pending(company, products, warehouses):
     return pending
 
 
-def _stock(company, warehouses, stock_rows):
-    """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水。回调整的笔数。"""
+def _stock(company, book, warehouses, stock_rows):
+    """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水。回调整的笔数。
+    只认这份账套同步过来的商品（编码在账套内唯一）。"""
     if not warehouses:
         return 0
     products = {row.express_code: row.name for row in frappe.get_all(
-        PRODUCT, filters={"express_code": ["is", "set"], "express_stock": 1}, fields=["name", "express_code"],
-        limit_page_length=0)}
+        PRODUCT, filters={"express_book": book[:140], "express_code": ["is", "set"], "express_stock": 1},
+        fields=["name", "express_code"], order_by="creation asc", limit_page_length=0)}
     targets = contracts.stock_targets(stock_rows, _pending(company, products, warehouses))
     current = {}
     for row in frappe.get_all(stock.BALANCE, filters={"warehouse": ["in", list(warehouses.values())]},
