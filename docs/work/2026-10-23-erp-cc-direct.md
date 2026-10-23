@@ -49,6 +49,38 @@ Cowork；事务所现有 Cowork 用法不受影响。由哪台电脑写照 Cowor
 | 本地全闸门（`~/pearnly-devtools/gate.sh`，照 `development.yml` 全跑） | 114 步全过 |
 | `check-copy` | 新增 48 条、拦截 0 |
 
+## 分支 CI 与候选检查（代码 = `d9d7bb94`）
+
+| 检查 | 结果 |
+|---|---|
+| Development checks（run 39917885527） | 通过 |
+| Companion checks（run 39917885628） | 通过 |
+| CC 测试包 Companion test build（run 39917899955，`workflow_dispatch`） | 通过（首跑冒烟「second launch did not exit」偶发，重跑通过），产物 `CC-Setup.exe` 1.11.0 |
+| 共用层候选离线检查（生产镜像 `0ccdb2a0` 里跑完整 `ci-candidate-checks offline`） | 退出码 0 |
+
+## 测试机真实写入（环境 = 办公室测试机，实时源码 = 本工作树，底座镜像 `0ccdb2a0`）
+
+写入只落 C 盘 `C:\PearnlyExpress\70EXP` 的 T 账套；局域网 Accserver / S 盘未写。CC 桌面版 1.11.0 测试包以 skin3（普通权限）
+运行，同时连两个站点：Cowork 成员 → `testcowork.pearnly.com`（设备 `CCD-6f142429ee0742838e88`），ERP 成员 → `testerp.pearnly.com`
+（共用通道设备 `PCD-d087e8c8522ef343276a`，由 ERP 员工账号在对话页登记，登记结果 `created`）。两成员每分钟心跳各自上报账套 679 份。
+
+| 场景 | 结果（ERP 回读 + Express DBF 读回） |
+|---|---|
+| ERP 采购（未付，库存 USD × 3，02 仓）`PUR-2026-00111` | 写入 `RR691023-001`（T9NIEX12，นิภา เอ็กเช้นจ์ 分店 00012）；ERP 单状态 written、单号回填；队列件 success、核对 ok、写的电脑 = PCD 那台；APTRN 108.00 + VAT 7.56 = 115.56，STCRD 02 仓 3 |
+| ERP 销售（已收）`SD-00113` / `SD-00115` | `HS691023-001` / `HS691023-002`；ARTRN、STCRD 02 仓各 1 |
+| ERP 销售（未收）`SD-00117` | `IV691023-001`；排队 → CC 领单 → written |
+| 要人选的项在 ERP 里处理：服务类进项 `PUR-2026-00119` | 先停在「要选费用科目」，在 ERP 选 `53-05-18-00` 后写入 `RR691023-002`；GLJNLIT 借 53-05-18-00 200.00、借 VAT 14.00、贷 21-02-01-00 214.00 |
+| 主档与库存回读 | 公司 `CO-00078` 绑 `T.9 นิภา เอ็กเช้นจ์ (สาขา 00012)`，经按需请求 `express_masters` 同步；USD 在 02 仓结存 ERP = 2，与 Express STLOC（01：0，02：2）一致 |
+| Cowork 推送回归（搬移后 Cowork 自己的通道，`lab-start cowork`）：手工票 → `choices_view` → `submit` → `confirm` | `CWP-b6ed…` success，写入 `RR691023-003`（同一份 T9NIEX12），载荷 4、核对 ok、写的电脑 = CCD 那台；分录形状与 ERP 直写 `RR691023-001` 完全相同（库存科目借贷、VAT、应付） |
+| 两站点写同一份账套的锁 | 写入后账套目录有 `PEARNLY.LCK`（空文件，Express 不读）；锁不到回「等账套」由离线测试覆盖，测试机未造两台电脑同时写 |
+
+## 没验证的部分
+
+- 真人用 ERP 员工账号在 CC 窗口里登录 ERP、在 ERP 页面点开单 → Express 弹窗的整段点击：交给验收窗口由用户试（我不在登录页代输密码）。
+- 两台电脑同时写同一份账套（锁文件跨机互斥）只在离线测试里验证。
+- 生产部署、CC 1.11.0 正式版发布：未做，等用户同意。
+
 ## 记录
 
-（施工中补充：分支 CI、CC 测试包、测试机真实写入、Cowork 推送回归、部署）
+- 10-23 测试机验证完成后，按用户要求 `testerp.pearnly.com` 与测试机 CC 保持切在测试机，另开窗口做测试验证与验收。
+  测试机 CC 原配置备份 `C:\PearnlyStress\_备份\cc-config-2026-10-23-erp`；验收结束后 `lab-stop erp`、刷新 DNS、按需还原。
