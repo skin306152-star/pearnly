@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Optional
 
+from . import channel as channels
 from .config import CONFIG_FILE, CompanionConfig
 from .logger import get_logger
 from .token_protector import (
@@ -117,6 +118,10 @@ class ProfileRecord:
     device_state: str = ""
     # 没有 Express、按只读文件夹的成员加入 Express 池的（找到 Express 后只按它升级，见 CompanionConfig.pool）
     pool: bool = False
+    # 每个成员自己的站点与通道（1.11.0，ADR-025：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点）。旧文件里没有这两键：
+    # 读的时候站点取全局设置里那一个（以前所有成员同一个站点），通道是 cowork。
+    backend_url: str = ""
+    channel: str = channels.COWORK
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ProfileRecord":
@@ -196,6 +201,10 @@ class ProfileStore:
             raise ProfileStoreError("profile config schema is invalid")
         global_settings = GlobalSettings.from_dict(raw["global"])
         profiles = [ProfileRecord.from_dict(item) for item in raw["profiles"]]
+        # 1.10 及更早的成员没记自己的站点：以前所有成员同一个站点（全局设置那一个）
+        profiles = [record if record.backend_url else ProfileRecord(**{**asdict(record),
+                                                                       "backend_url": global_settings.backend_url})
+                    for record in profiles]
         store = cls(path, global_settings, profiles, protector, _device_of(raw))
         store._device_machine = _machine_of(raw)
         store._assert_unique_profile_ids(profiles)
@@ -275,6 +284,8 @@ class ProfileStore:
             kind="folder" if getattr(cfg, "kind", "") == "folder" else "express",
             device_state=str(getattr(cfg, "device_state", "") or ""),
             pool=bool(getattr(cfg, "pool", False)) and getattr(cfg, "kind", "") == "folder",
+            backend_url=str(cfg.backend_url or ""),
+            channel=channels.of_token(token),
         )
 
     def _runtime(self, record: ProfileRecord) -> CompanionConfig:
@@ -282,6 +293,8 @@ class ProfileStore:
         for field in fields(ProfileRecord):
             if field.name not in {"token_ciphertext"}:
                 values[field.name] = getattr(record, field.name)
+        if not record.backend_url:
+            values["backend_url"] = self.global_settings.backend_url
         values["bearer_token"] = self._protector.unprotect(record.token_ciphertext)
         values["paired"] = True
         cfg = CompanionConfig(**values)

@@ -213,7 +213,7 @@ class DeviceMethods(unittest.TestCase):
         self.assertIn('member.device_state === "superseded"', page)
         # 每次打开都登记（有设备密钥时不只在没有成员时），本机状态变了、新出现 device_state 再登记一次
         hook = page[page.index("export function useAutoConnect"):]
-        self.assertIn("if (!state.members.length || thisComputer(state)) await connectComputer(api);", hook)
+        self.assertIn("if (!membersHere(state).length || thisComputer(state)) await connectComputer(api);", hook)
         self.assertIn("off = api.onChanged(", hook)
 
     def test_replacing_a_members_key_lets_the_old_key_say_hello_not_leave(self):
@@ -1152,7 +1152,7 @@ class CompanyFolders(unittest.TestCase):
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
-        self.assertIn('FEATURES = ("company_folders", "devices")', self.bridge)
+        self.assertIn('FEATURES = ("company_folders", "devices", "sites")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)

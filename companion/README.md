@@ -92,6 +92,15 @@
   - MSIX 商店包（未签名，待商店账号）：以包身份运行时更新交给商店、自启用系统启动任务。
   - 打开窗口先铺对话页底色（不再白屏）；改连另一租户时新连接配对成功后才吊销旧密钥、删旧成员，配对健康检查超时 / 断线 / 502–504 重试 3 次，
     带整份账套名单的心跳读超时 60 秒；询问框等人回答期间照常盖存活时标（看门狗不再误判卡死）。
+- 1.11.0（ERP 直连 CC 桌面版，ADR-025，`pearnly/erp-cc-direct-26da5a`；**未发布**，要等服务端共用机器通道
+  `pearnly_core.cc_desktop` 与 ERP 的 `express` 上线后再发）：
+  - 每个成员记自己的站点与通道（`profile_store.ProfileRecord.backend_url` / `channel`，旧文件读的时候站点取全局那一个）：同一台
+    电脑可以同时连一个 Cowork 站点和一个 ERP 站点；同一种通道换站点仍要用户点「改连」（`desktop_settings.pair`）。
+  - 通道按密钥前缀认（`channel.py`）：`exp_` 是 Cowork（原来那一套路径），`pcc_` 是共用机器通道（`pearnly_core.cc_desktop.machine.*`，
+    ERP 站点的对话页登记这台电脑后交来）；请求体与回复两边相同，只换路径。文件夹自动录入、认电脑只给 Cowork 成员。
+  - 写一份账套期间锁住账套目录里的 `PEARNLY.LCK`（`account_write_lock.py`）：Cowork 与 ERP 两个站点同时派单写同一份账套时，
+    另一台电脑锁不到就按「等账套」回报（`ACCOUNT_WRITER_BUSY`，不算失败），过一会儿再写。
+  - `express_masters` 结果版本 2：另带 `facts`（科目表、6 个默认科目、能选的存货科目组），ERP 据此准备写账载荷。
 - 1.10.0（ERP 当手机前台、Express 当账本，`pearnly/erp-express-cc`；**未发布**，要等服务端认 `express_masters` 的 Select 选项、
   `ERR_LOCATION` 词条与盖载荷 4 的那一侧上线后再发）：
   - 按需请求新增只读 `express_masters`（`express_masters.py`）：一份账套的整套主档（ISINFO 设置、ARMAS、APMAS、STMAS、

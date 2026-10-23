@@ -22,7 +22,7 @@ import time
 from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
-from . import autostart, device_link, folder_store, master_refresh, pairing, pairing_flow
+from . import autostart, channel, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
 from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
 from .i18n import MessageSpec, normalize, t
@@ -53,11 +53,18 @@ def status_key(record: ProfileRecord, state: Optional[tuple]) -> str:
     return "offline"
 
 
-def site_of(store: ProfileStore) -> str:
-    """这台电脑连的是哪家公司（站点域名）：所有成员同一个后端（global backend_url），没有成员就是空。"""
-    if not store.profiles:
-        return ""
-    return (urlsplit(str(store.global_settings.backend_url or "")).hostname or "").lower()
+def member_site(record: ProfileRecord) -> str:
+    return (urlsplit(str(getattr(record, "backend_url", "") or "")).hostname or "").lower()
+
+
+def member_channel(record: ProfileRecord) -> str:
+    return str(getattr(record, "channel", "") or channel.COWORK)
+
+
+def site_of(store: ProfileStore, kind: str = channel.COWORK) -> str:
+    """这台电脑在某种通道上连的是哪家公司（站点域名）：同一种通道的成员同一个站点（1.11.0 起每个成员记自己的站点，ADR-025：
+    一个 Cowork 站点 + 一个 ERP 站点可以同时连）；这种通道一个成员都没有就是空。"""
+    return next((member_site(record) for record in store.profiles if member_channel(record) == kind), "")
 
 
 def code_site(code: str) -> str:
@@ -103,9 +110,11 @@ def pick_failure(code: str, lang: str, **fmt) -> dict:
 
 
 def main_member(store: ProfileStore) -> Optional[ProfileRecord]:
-    """新加的公司文件夹放在哪个成员下：有 Express 成员用它，没有就用 MR.ERP 成员（同设置页的主成员）。"""
-    return next((r for r in store.profiles if (getattr(r, "kind", "express") or "express") != "folder"),
-                store.profiles[0] if store.profiles else None)
+    """新加的公司文件夹放在哪个成员下：有 Express 成员用它，没有就用 MR.ERP 成员（同设置页的主成员）。只看 Cowork 的成员：
+    公司文件夹是 Cowork 的功能，共用机器通道的成员（ERP 站点，ADR-025）不读文件夹。"""
+    cowork = [r for r in store.profiles if member_channel(r) == channel.COWORK]
+    return next((r for r in cowork if (getattr(r, "kind", "express") or "express") != "folder"),
+                cowork[0] if cowork else None)
 
 
 class DesktopSettings:
@@ -169,6 +178,9 @@ class DesktopSettings:
             members.append({
                 "id": record.profile_id,
                 "name": member_name(record),
+                # 这个成员连的站点与通道（1.11.0，ADR-025）：对话页按自己的站点认「本站的成员」
+                "site": member_site(record),
+                "channel": member_channel(record),
                 "kind": getattr(record, "kind", "express") or "express",
                 "paused": bool(record.paused),
                 "status": status_key(record, states.get(record.profile_id)),
@@ -187,7 +199,9 @@ class DesktopSettings:
             device = {}
         return {
             "version": VERSION,
-            "site": site_of(store),
+            # Cowork 站点（旧版对话页只认这一个）；ERP 站点的成员在 members 里各带自己的 site
+            "site": site_of(store) or next((member_site(record) for record in store.profiles), ""),
+            "sites": sorted({member_site(record) for record in store.profiles if member_site(record)}),
             # 这台电脑（设备密钥 + 电脑名）：对话页每次打开带它调 register（多台电脑，ADR-021）；旧版桥没有这一项
             "device": device,
             "express_roots": roots,
@@ -244,13 +258,16 @@ class DesktopSettings:
         全部成员（吊销密钥、删成员）；配对没成（连不上、超时、密钥不对）原来那家照旧连着，不会两边都断（教程问题第 10 条，
         10-20：以前先断旧的再配对，第一次配对超时就两边都没连着）。"""
         store = self._store()
-        current, wanted = site_of(store), code_site(code)
+        # 同一种通道一个站点（ADR-025）：Cowork 站点与 ERP 站点各连一个，互不影响；同一种换站点才要用户点「改连」
+        kind = channel.of_token(str(code or "").strip().partition("@")[0])
+        current, wanted = site_of(store, kind), code_site(code)
         leaving: list[tuple[str, str, str]] = []
         if profile_id is None and current and wanted and wanted != current:
             if not switch:
                 return {"ok": False, "other_site": current}
-            # 先记下原来各成员的站点与密钥：配对成功后全局站点就换成新的了，吊销旧密钥要发到旧站点
-            leaving = [(record.profile_id, *self._credentials(store, record.profile_id)) for record in store.profiles]
+            # 先记下原来那几个成员的站点与密钥：吊销旧密钥要发到旧站点
+            leaving = [(record.profile_id, *self._credentials(store, record.profile_id)) for record in store.profiles
+                       if member_channel(record) == kind]
         elif profile_id is None:
             # 这台电脑原来就连着这条连接（被别的电脑顶掉后重新连接）：换这个成员的密钥，不多出一个成员
             endpoint = pairing._endpoint_id_from_token(str(code or "").strip().partition("@")[0])

@@ -28,7 +28,9 @@ import {
   type DesktopState,
   desktop,
   type Link,
+  membersHere,
   onLink,
+  otherSite,
   setTextSize,
   type TextSize,
   textSize,
@@ -359,8 +361,9 @@ function useAction(api: Desktop, refresh: () => void) {
   return { busy, error, setError, run };
 }
 
-// 这台电脑只连一家公司（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹（旧桌面版另有网页可读取的文件夹）。
+// 这台电脑在本站的连接（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹（旧桌面版另有网页可读取的文件夹）。
 // 公司下可能有 Express 和 MR.ERP 两个成员（旧配对留下的），合成一行；文件夹记在 Express 成员上，没有才记在 MR.ERP 上。
+// CC 桌面版 1.11.0 起一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点（ADR-025）：这里只列连着本站的成员。
 
 function useLink() {
   const [value, setValue] = useState<Link>(currentLink());
@@ -370,6 +373,7 @@ function useLink() {
 
 function Connections({ api }: { api: Desktop }) {
   const { state, refresh } = useDesktopState(api);
+  const product = useProfile()?.product;
   const { busy, error, setError, run } = useAction(api, refresh);
   const linkState = useLink();
   const [scanned, setScanned] = useState(false);
@@ -383,7 +387,9 @@ function Connections({ api }: { api: Desktop }) {
   }, [state, scanned, run]);
 
   if (!state) return null;
-  const members = state.members;
+  const members = membersHere(state);
+  // 本产品的通道上连着别的站点（同一种只连一家）：「改连本公司」
+  const elsewhere = otherSite(state, product);
   const main = members.find((m) => m.kind !== "folder") ?? members[0];
   const roots = state.express_roots;
   const express =
@@ -414,7 +420,7 @@ function Connections({ api }: { api: Desktop }) {
     <>
       <div data-marquee-host="" className="cc-settings-row">
         <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-body">{state.site || location.host}</Marquee>
+          <Marquee as="div" className="truncate text-body">{elsewhere || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-caption">{kinds}</div>}
         </div>
         {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因
@@ -460,13 +466,13 @@ function Connections({ api }: { api: Desktop }) {
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
           </>
-        ) : (
+        ) : elsewhere ? null : (
           <LinkAction link={linkState} onConnect={connect} onDownload={download} disabled={!!busy} />
         )}
       </div>
       {/* 连着别家公司：改连本公司。桌面端新连接配好才断开原来那家；没配上时原来那家照旧连着，失败就写在这一行、按钮再试一次
           （教程问题第 10 条） */}
-      {main && state.site !== location.host && ["other_site", "connecting", "failed"].includes(linkState.kind) && (
+      {elsewhere && (
         <div className="cc-settings-row justify-end">
           {linkState.kind === "connecting" ? (
             <span className="text-body text-muted-foreground">{st.connecting}</span>

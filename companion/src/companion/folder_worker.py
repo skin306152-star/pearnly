@@ -36,6 +36,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
+from . import channel
 from . import folder_plan as plan
 from . import update_block
 from .config import member_active
@@ -175,8 +176,9 @@ class FolderIntake:
 
     def _active(self) -> list:
         try:
+            # 文件夹自动录入只有 Cowork 有：共用机器通道的成员（ERP 站点，ADR-025）不同步文件夹
             return [cfg for cfg in list(self._configs() or []) if member_active(cfg)
-                    and getattr(cfg, "paired", True)]
+                    and getattr(cfg, "paired", True) and channel.folders(getattr(cfg, "bearer_token", ""))]
         except Exception:
             return []
 

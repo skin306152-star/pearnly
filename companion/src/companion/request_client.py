@@ -14,7 +14,7 @@ from typing import Optional
 
 import httpx
 
-from . import http_tls
+from . import channel, http_tls
 from .queue_client import unwrap
 
 _METHOD = "/api/method/pearnly_cowork.companion.request_api."
@@ -37,6 +37,9 @@ class Refused(Exception):
 class RequestClient:
     def __init__(self, backend_url: str, bearer_token: str, timeout: float = 30.0) -> None:
         self.backend_url = backend_url
+        # 共用机器通道的成员（``pcc_`` 密钥，ADR-025）换成 pearnly_core 的路径
+        self._next = channel.path(bearer_token, "request_next") or NEXT
+        self._complete = channel.path(bearer_token, "request_complete") or COMPLETE
         self._client = httpx.Client(
             base_url=backend_url,
             headers={"Authorization": f"Bearer {bearer_token}"},
@@ -55,7 +58,7 @@ class RequestClient:
         return unwrap(response)
 
     def next(self, body: dict) -> dict:
-        return self._post(NEXT, body)
+        return self._post(self._next, body)
 
     def complete(self, body: dict) -> dict:
-        return self._post(COMPLETE, body, timeout=120.0)
+        return self._post(self._complete, body, timeout=120.0)

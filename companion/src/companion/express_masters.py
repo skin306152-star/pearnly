@@ -17,6 +17,10 @@
 - 数字一律字符串化的 Decimal（DBF 浮点 → repr → Decimal 再按位数四舍五入，不带 float 误差）：金额（LOCVAL）两位小数；数量、
   换算、售价最多 6 位小数并去掉末尾的 0；付款期是整数。名称 cp874 解码、坏字节替换（同 ``catalog_probe``）。字段缺的给空串 / "0"，
   不省键。表缺的给空列表；ISINFO 与 STMAS 都没有才回 ``account_tables_missing``（那不是一份 Express 账套）。
+- facts（1.11.0 起，``RESULT_VERSION`` 2，ADR-025：ERP 直连后由 ERP 自己准备写账载荷）：与心跳按账套上报同形状的科目表
+  ``accounts``（GLACC 可记账、启用的科目，``account_probe.probe_chart_of_accounts``）、``mapping``（ISINFO 的 6 个默认科目，
+  ``probe_default_accounts``）、``catalog.isacc_candidates``（能选的存货科目组，最多 20 个，同 ``catalog_probe.catalog_payload``）。
+  各块读坏了给空，不挡主档。
 - 读出来的单行坏了（坏字节以外的异常）跳过并按表计数，放在 meta ``bad_rows``，服务端自己决定要不要信这一份。
 - 结果是 gzip 后的 JSON（``RESULT_VERSION``），超过 ``MAX_BYTES["express_masters"]`` 回 ``too_large``，不截断。
 """
@@ -37,8 +41,9 @@ from .request_contract import MAX_BYTES, RequestFailed, Result
 
 log = get_logger(__name__)
 
-RESULT_VERSION = 1
-TABLES = ("ISINFO", "ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC")
+RESULT_VERSION = 2
+TABLES = ("ISINFO", "ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "GLACC", "ISACC")
+MAX_STOCK_GROUPS = 20
 # 至少要有其中一张才是一份 Express 账套
 REQUIRED_ANY = ("ISINFO", "STMAS")
 PARAM_KEYS = ("account_set", "account_root")
@@ -144,6 +149,29 @@ def _stock(rec, columns, _gone):
             "qty": number(qty), "value": money(value)}
 
 
+def _facts(folder: Path) -> dict:
+    """准备写账载荷要用的账套资料（与心跳按账套上报同形状）；每块读坏了给空，不挡主档。"""
+    from dataclasses import asdict
+
+    from . import account_probe, catalog_probe
+
+    facts = {"accounts": [], "mapping": {}, "catalog": {"isacc_candidates": []}}
+    try:
+        facts["accounts"] = [asdict(row) for row in account_probe.probe_chart_of_accounts(folder)]
+    except Exception:
+        log.info("科目表读不出（没有 GLACC？），这份不带科目表")
+    try:
+        facts["mapping"] = dict(account_probe.probe_default_accounts(folder) or {})
+    except Exception:
+        log.info("默认科目读不出，这份不带默认科目")
+    try:
+        ranked = catalog_probe.probe_isacc_candidates(folder)
+        facts["catalog"]["isacc_candidates"] = [row for row in ranked if row["fit"]][:MAX_STOCK_GROUPS]
+    except Exception:
+        log.info("存货科目组读不出，这份不带存货科目组")
+    return facts
+
+
 def collect(folder: Path) -> tuple:
     """从复制出来的账套表读出整套主档与各仓结存 → (结果, 诊断)。读到一半坏了抛 ``express_read._Unreadable``。"""
     if not any((folder / f"{name}.DBF").is_file() for name in REQUIRED_ANY):
@@ -163,6 +191,7 @@ def collect(folder: Path) -> tuple:
         "warehouses": [row for kind, row in codes if kind == WAREHOUSE_TABTYP],
         "departments": [row for kind, row in codes if kind == DEPARTMENT_TABTYP],
         "stock": express_read._rows(folder, "STLOC", diag, _stock),
+        "facts": _facts(folder),
     }
     return data, diag
 

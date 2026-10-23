@@ -20,7 +20,7 @@ from typing import Optional
 
 import httpx
 
-from . import http_tls
+from . import channel, http_tls
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -79,6 +79,8 @@ class QueueClient:
     def __init__(self, cfg: QueueClientConfig) -> None:
         self.cfg = cfg
         self._master_refresh: Optional[dict] = None
+        # 共用机器通道的成员（``pcc_`` 密钥，ERP 站点，ADR-025）换成 pearnly_core 的路径；请求体与回复两边相同
+        self._paths = {op: channel.path(cfg.bearer_token, op) for op in ("heartbeat", "lease", "ack")}
         self._client = httpx.Client(
             base_url=cfg.backend_url,
             headers={"Authorization": f"Bearer {cfg.bearer_token}"},
@@ -174,7 +176,7 @@ class QueueClient:
             if account_sets is not None
             else httpx.USE_CLIENT_DEFAULT
         )
-        r = self._client.post(_HEARTBEAT, json=body, timeout=timeout)
+        r = self._client.post(self._paths["heartbeat"], json=body, timeout=timeout)
         r.raise_for_status()
         return unwrap(r)
 
@@ -186,7 +188,7 @@ class QueueClient:
         别的电脑写会查不到刚建的主档);报空列表表示都重建了。旧服务端忽略。"""
         pending = sorted({str(uid) for uid in (index_pending or ()) if str(uid or "").strip()})[:MAX_INDEX_PENDING]
         r = self._client.post(
-            _LEASE, json={"max": 1, "agent_id": self.cfg.companion_id, "index_pending": pending}
+            self._paths["lease"], json={"max": 1, "agent_id": self.cfg.companion_id, "index_pending": pending}
         )
         r.raise_for_status()
         response = unwrap(r)
@@ -262,6 +264,6 @@ class QueueClient:
             body["outcome"] = outcome
         if meta:  # V3 富元数据(写了哪些表/建客户商品/CDX 回查等)
             body["meta"] = meta
-        r = self._client.post(_ACK, json=body)
+        r = self._client.post(self._paths["ack"], json=body)
         r.raise_for_status()
         return bool(unwrap(r).get("ok", False))

@@ -31,7 +31,7 @@ from typing import Callable, Optional
 
 import httpx
 
-from . import device_facts, http_tls
+from . import channel, device_facts, http_tls
 from .logger import get_logger
 from .queue_client import _device_name, unwrap
 
@@ -86,10 +86,11 @@ def hello(backend_url: str, token: str, body: dict, timeout: float = 15.0) -> di
 
 def leave(backend_url: str, token: str, timeout: float = 15.0) -> bool:
     """断开这台电脑（吊销这把密钥本身）。服务端确实吊销了回 True；旧服务端、连不上、密钥早已失效回 False（照样删本机成员）。"""
-    if not str(backend_url or "").strip() or not str(token or "").startswith("exp_"):
+    if not str(backend_url or "").strip() or not channel.known(token):
         return False
     try:
-        reply = _post(backend_url, token, LEAVE, {}, timeout)
+        # 共用机器通道的成员（``pcc_``，ADR-025）断开走 pearnly_core 的路径
+        reply = _post(backend_url, token, channel.path(token, "leave"), {}, timeout)
     except KeyRejected as error:
         log.info("断开时这把密钥早已失效（被吊销或电脑已移除），只删本机成员: %s", error)
         return False

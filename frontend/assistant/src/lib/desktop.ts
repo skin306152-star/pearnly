@@ -165,6 +165,8 @@ export type MemberStatus = "online" | "processing" | "attention" | "offline" | "
  *  密钥）、claimed_elsewhere（同一配对码抄到了另一台电脑）；这个成员停着，等对话页重新登记。旧版没有这一项。 */
 export type DesktopMember = {
   id: string; name: string; kind: string; paused: boolean; status: MemberStatus; folders: string[] | null; device_state?: string;
+  // 这个成员连的站点与通道（CC 桌面版 1.11.0，features 含 sites，ADR-025）：cowork = Cowork 站点；core = 共用机器通道（ERP 站点）
+  site?: string; channel?: string;
 };
 export type DesktopState = {
   version: string;
@@ -260,6 +262,27 @@ export function desktop(): Promise<Desktop | null> {
 export const COMPANY_FOLDERS = "company_folders";
 /** 多台电脑（ADR-021，CC 桌面版 1.7.0）：state().device 有设备密钥、成员带 device_state、remove 先吊销本机这把密钥（回 job）。 */
 export const DEVICES = "devices";
+/** 每个成员带自己的站点与通道（CC 桌面版 1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点。 */
+export const SITES = "sites";
+
+/** 这个产品的站点在桌面端里是哪种通道：ERP 走共用机器通道（core），其余是 Cowork。 */
+export function channelOf(product: string | undefined): string {
+  return product === "erp" ? "core" : "cowork";
+}
+
+/** 连着本站的成员。旧桌面端（成员不带 site）所有成员同一个站点：站点就是本站才算。 */
+export function membersHere(state: Pick<DesktopState, "members" | "site">): DesktopMember[] {
+  if (!state.members.some((m) => m.site)) return !state.site || state.site === location.host ? state.members : [];
+  return state.members.filter((m) => m.site === location.host);
+}
+
+/** 这台电脑在本产品的通道上连着别的站点（要「改连」）：回那个站点；没有回空串。 */
+export function otherSite(state: Pick<DesktopState, "members" | "site">, product: string | undefined): string {
+  if (membersHere(state).length) return "";
+  if (!state.members.some((m) => m.site)) return state.site && state.site !== location.host ? state.site : "";
+  const kind = channelOf(product);
+  return state.members.find((m) => (m.channel || "cowork") === kind && m.site && m.site !== location.host)?.site ?? "";
+}
 
 /** 桥给的绑定（reader / root_id / folder / label / share / device），页面不读也不改，原样转交。 */
 export type FolderBinding = { reader: string; root_id: string; folder: string; label: string; share: string; device: string };
@@ -411,9 +434,32 @@ async function register(express: boolean, { replace, device, rekey, rejoin }: Re
 /** 本机要不要一把新密钥：一个成员都没有（第一次、重装过），或有成员被服务端说密钥不再用（device_state），或本机的成员是别家公司的
  *  （改连本公司：桌面端新连接配好才断开原来那家，配对没成时原来的成员还在，教程问题第 10 条）。 */
 export function needsKey(state: Pick<DesktopState, "members" | "site">): boolean {
-  if (state.site && state.site !== location.host) return true;
-  return !state.members.length || state.members.some((member) => !!member.device_state);
+  const here = membersHere(state);
+  return !here.length || here.some((member) => !!member.device_state);
 }
+
+// 共用机器通道（ERP 站点，ADR-025）：员工用 ERP 账号在 CC 窗口里登录 ERP，本站按账号发一把只交给本机的 ``pcc_`` 密钥。
+// 回 created（新电脑、或 rekey 换了新密钥，带 token）/ exists（这台已登记，只记下这次登录的人）/ removed（这台被移除过）。
+async function registerCore(device: NonNullable<ThisComputer>, { rekey, rejoin }: { rekey?: boolean; rejoin?: boolean } = {}): Promise<Registered | Link> {
+  const res = await fetch("/api/method/pearnly_core.cc_desktop.api.register", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+    body: JSON.stringify({
+      request_key: crypto.randomUUID(),
+      device_key: device.key,
+      device_name: device.name,
+      ...(rekey ? { rekey: true } : {}),
+      ...(rejoin ? { rejoin: true } : {}),
+    }),
+  });
+  const body = (await res.json().catch(() => null)) as { message?: Registered } | null;
+  if (!res.ok || !body?.message) return { kind: "failed", message: "" };
+  return body.message;
+}
+
+// 这个页面是哪个产品（useAutoConnect 记下，设置里的「连接」按钮照它走 Cowork 或共用通道）
+let pageProduct: string | undefined;
 
 /** 连接这台电脑。replace：这条连接正被另一台电脑用着时，用户确认改用这台（带那把密钥的代数，只属于旧版）；switchSite：断开原来连的别家公司。
  *
@@ -429,6 +475,7 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
   setLink({ kind: "connecting" });
   try {
     const state = await api.state();
+    if (channelOf(pageProduct) === "core") return await connectCore(api, state, options);
     let roots = state.express_roots ?? [];
     if (!roots.length) roots = (await api.call("detect")).roots ?? [];
     const device = thisComputer(state);
@@ -454,6 +501,22 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
   }
 }
 
+/** ERP 站点（共用机器通道，ADR-025）连接这台电脑：CC 桌面版 1.11.0 起才认 ``pcc_`` 配对码（features 含 sites），更旧的提示更新。 */
+async function connectCore(api: Desktop, state: DesktopState, options: { switchSite?: boolean; rejoin?: boolean }) {
+  const device = thisComputer(state);
+  if (!device || !state.features?.includes(SITES)) return setLink({ kind: "update_needed" });
+  const stale = membersHere(state).some((member) => member.device_state === "superseded");
+  let found = await registerCore(device, { rekey: stale, rejoin: options.rejoin });
+  if (!("kind" in found) && found.status === "exists" && needsKey(state)) found = await registerCore(device, { rekey: true });
+  if ("kind" in found) return setLink(found);
+  if (found.status === "removed") return setLink({ kind: "removed" });
+  if (found.status === "exists") return setLink({ kind: "idle" });
+  if (found.status !== "created" || !found.token) return setLink({ kind: "failed", message: "" });
+  const paired = await api.call("pair", { code: `${found.token}@${location.host}`, switch: !!options.switchSite });
+  if (paired.other_site) return setLink({ kind: "other_site", site: paired.other_site });
+  setLink(paired.ok ? { kind: "idle" } : { kind: "failed", message: paired.message ?? "" });
+}
+
 /** 对话页打开时（Cowork 站点、在桌面端里）：这台电脑还没连别家公司就登记一次。
  *
  * - 旧版（没有 devices）：照旧只在一个成员都没有时自动连；
@@ -463,7 +526,9 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
  *   状态只自动试一次，不来回重试；失败的留在设置「连接」里（需处理 + 重试）。 */
 export function useAutoConnect(product: string | undefined) {
   useEffect(() => {
-    if (product !== "cowork") return;
+    // Cowork 站点照旧；ERP 站点（ADR-025）员工用 ERP 账号登录 CC 后同样每次打开登记这台电脑（共用机器通道）
+    if (product !== "cowork" && product !== "erp") return;
+    pageProduct = product;
     let alive = true;
     let off = () => {};
     const tried = new Set<string>();
@@ -471,14 +536,15 @@ export function useAutoConnect(product: string | undefined) {
       if (!api || !alive) return;
       const state = await api.state();
       if (!state || !("members" in state)) return;
-      if (state.site && state.site !== location.host) return setLink({ kind: "other_site", site: state.site });
-      for (const member of state.members) if (member.device_state) tried.add(`${member.id}:${member.device_state}`);
-      if (!state.members.length || thisComputer(state)) await connectComputer(api);
+      const elsewhere = otherSite(state, product);
+      if (elsewhere) return setLink({ kind: "other_site", site: elsewhere });
+      for (const member of membersHere(state)) if (member.device_state) tried.add(`${member.id}:${member.device_state}`);
+      if (!membersHere(state).length || thisComputer(state)) await connectComputer(api);
       if (!alive || !thisComputer(state)) return;
       off = api.onChanged(() => {
         void api.state().then((next) => {
-          if (!alive || !next || !("members" in next) || (next.site && next.site !== location.host)) return;
-          const fresh = next.members.filter((m) => m.device_state && !tried.has(`${m.id}:${m.device_state}`));
+          if (!alive || !next || !("members" in next) || otherSite(next, product)) return;
+          const fresh = membersHere(next).filter((m) => m.device_state && !tried.has(`${m.id}:${m.device_state}`));
           if (!fresh.length) return;
           for (const member of fresh) tried.add(`${member.id}:${member.device_state}`);
           void connectComputer(api);

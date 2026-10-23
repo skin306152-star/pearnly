@@ -37,12 +37,16 @@ class HealthReport:
 
 def _check_backend(cfg: CompanionConfig) -> CheckItem:
     # 与 queue_client 统一:打新平台原生心跳(Bearer exp_ 密钥;原生接口要求 JSON 对象体)。
+    # 共用机器通道的成员(pcc_ 密钥,ERP 站点,ADR-025)打 pearnly_core 的心跳。
+    from . import channel
     from .queue_client import _HEARTBEAT
+
+    heartbeat = channel.path(cfg.bearer_token, "heartbeat") or _HEARTBEAT
 
     try:
         with httpx.Client(timeout=3.0, verify=http_tls.context()) as c:
             r = c.post(
-                f"{cfg.backend_url}{_HEARTBEAT}",
+                f"{cfg.backend_url}{heartbeat}",
                 headers={"Authorization": f"Bearer {cfg.bearer_token}"},
                 json={},
             )

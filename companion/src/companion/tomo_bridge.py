@@ -42,8 +42,10 @@ log = get_logger(__name__)
 REFUSED = json.dumps({"ok": False, "refused": True})
 # 本版桥能做的事（页面按这里判断，旧版没有这一项）：company_folders = 公司的「选择文件夹…」（pick_folder）；
 # devices = 多台电脑（ADR-021，1.7.0）：state() 带 ``device``（设备密钥与电脑名，对话页每次打开带它调 register）、成员带
-# ``device_state``（这把密钥不再用、要重新登记），``remove`` 先吊销本机这把密钥再删成员（慢，回 job）。
-FEATURES = ("company_folders", "devices")
+# ``device_state``（这把密钥不再用、要重新登记），``remove`` 先吊销本机这把密钥再删成员（慢，回 job）；
+# sites = 每个成员带自己的站点与通道（1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点，ERP 站点的
+# 对话页据此登记这台电脑（配对码 ``pcc_…``）。
+FEATURES = ("company_folders", "devices", "sites")
 
 
 class TomoBridge(QObject):

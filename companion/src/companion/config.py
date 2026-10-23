@@ -117,6 +117,9 @@ class CompanionConfig:
     # 没有 Express、按只读文件夹的成员加入事务所 Express 池的（pairing.pair_folder(pool=True) 且服务端说是 Express 连接）：
     # 以后找到 Express 只按这个标记重新配对成能写账的成员（desktop_settings._upgrade_pool_members），不靠联网查连接类型
     pool: bool = False
+    # 成员连的通道（ADR-025）：cowork（Cowork 站点）/ core（共用机器通道，ERP 站点）。按密钥前缀定（channel.of_token），
+    # 只记在成员上给设置页看；收发请求一律按密钥现判。
+    channel: str = "cowork"
 
     def resolved_express_root(self) -> Optional[str]:
         """探测账套用的数据根:显式 express_root 优先,否则取 account_dir 的父目录。"""

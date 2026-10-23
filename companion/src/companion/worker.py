@@ -296,13 +296,28 @@ def _handle_dbf_task(
         expected_company=st.account_company,
         index_batch=index_batch,
     )
-    if direction == "sales":
-        # 会计补的期初(库存卖但客户账里此品零库存 → 先垫库存再过账)· 与销售同事务原子成败。
-        res = write_sale(
-            payload, st.account_dir, opening_stock=_opening_items(payload), **common
+    # 同一份账套可能还有另一个站点的 CC 桌面版在写（Cowork 与 ERP 各派单，ADR-025）：写期间锁住账套目录里的锁文件，
+    # 锁不到就按「等账套」回报（不算失败），过一会儿服务端再派
+    from .account_write_lock import ERR_WRITER_BUSY, Busy, held
+
+    try:
+        with held(st.account_dir):
+            if direction == "sales":
+                # 会计补的期初(库存卖但客户账里此品零库存 → 先垫库存再过账)· 与销售同事务原子成败。
+                res = write_sale(
+                    payload, st.account_dir, opening_stock=_opening_items(payload), **common
+                )
+            else:
+                res = write_purchase(payload, st.account_dir, **common)
+    except Busy:
+        log.info(f"… dbf task {task.id} another computer is writing this account set, retry later")
+        qc.ack_failure(
+            task.id,
+            "another computer is writing this account set",
+            error_code=ERR_WRITER_BUSY,
+            outcome="waiting_lock",
         )
-    else:
-        res = write_purchase(payload, st.account_dir, **common)
+        return "waiting_lock"
     meta = _push_meta(res, direction, st.account_dir)
     if res.ok:
         log.info(f"✓ dbf task {task.id} → {res.docnum}")

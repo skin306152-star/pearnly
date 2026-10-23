@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """首次配对:校验配对码 → 锁定客户所选账套 → 存 config(method=dbf)→ 写自启。
 
-配对码 = 网页连接弹窗复制出来的 `exp_<endpoint_id>_<secret>@<租户域名>`:@ 前是密钥,
+配对码 = 网页连接弹窗复制出来的 `exp_<endpoint_id>_<secret>@<租户域名>`:@ 前是密钥,(ERP 站点交来的是
+`pcc_<电脑>_<secret>@<租户域名>`,共用机器通道,ADR-025,见 `channel`)
 @ 后是这家租户的站点(小助手从此连它,不再写死某个域名)。客户在配对窗从**探测到的真实账套
 列表**里选自家那一个(显示真公司名),配对据此一步到位:确认码有效(连云端 heartbeat)、
 把所选账套的目录/公司/账套名/grid 行号锁进 config(= 写盘唯一合法目标)、把探测列表 +
@@ -19,7 +20,7 @@ from typing import List, Optional
 
 import httpx
 
-from . import autostart
+from . import autostart, channel
 from .account_probe import AccountSet, probe_account_sets, with_identity
 from .config import CompanionConfig
 from .i18n import http_status_category, t
@@ -35,12 +36,12 @@ _LOCAL_HOSTS = ("localhost", "127.0.0.1")
 
 
 def split_pairing_code(code: str) -> tuple[str, str]:
-    """`exp_…@租户域名` → (密钥, 站点 URL);格式不对返回 ("", "")。"""
+    """`exp_…@租户域名` / `pcc_…@租户域名` → (密钥, 站点 URL);格式不对返回 ("", "")。"""
     value = "".join(str(code or "").split())
     token, sep, host = value.rpartition("@")
     name = host.split(":")[0].lower()
     local = name in _LOCAL_HOSTS or name.endswith(".localhost")
-    if not sep or not token.startswith("exp_") or not _HOST.match(host) or ("." not in name and not local):
+    if not sep or not token.startswith(("exp_", "pcc_")) or not _HOST.match(host) or ("." not in name and not local):
         return "", ""
     scheme = "http" if local else "https"
     return token, f"{scheme}://{host.lower()}"
@@ -181,7 +182,7 @@ def pair(
     else:
         token, site = split_pairing_code(code)
         backend_url = backend_url or site
-    if not token.startswith("exp_") or not backend_url.startswith(("https://", "http://")):
+    if not channel.known(token) or not backend_url.startswith(("https://", "http://")):
         return _failure("pair_err_token_format", lang)
     if chosen is None:
         return _failure("pair_err_no_chosen", lang)
@@ -361,6 +362,7 @@ def connection_kind(code: str, cfg: Optional[CompanionConfig] = None) -> str:
     from .folder_client import FolderClient
 
     token, site = _code_parts(code, cfg or CompanionConfig())
+    # 共用机器通道（ERP 站点，ADR-025）没有文件夹同步，也没有 MR.ERP：一律按 Express 配对
     if not token.startswith("exp_") or not site.startswith(("https://", "http://")):
         return "express"
     client = FolderClient(site, token, timeout=15.0)
