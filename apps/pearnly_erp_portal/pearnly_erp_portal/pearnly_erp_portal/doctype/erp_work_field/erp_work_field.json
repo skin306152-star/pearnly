@@ -1,0 +1,81 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Work Field",
+ "module": "Pearnly ERP Portal",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-23 00:00:00.000000",
+ "autoname": "hash",
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "actions": [],
+ "links": [],
+ "permissions": [
+  {
+   "role": "ERP Admin",
+   "read": 1
+  },
+  {
+   "role": "ERP Tasks",
+   "read": 1
+  }
+ ],
+ "title_field": "title",
+ "fields": [
+  {
+   "fieldname": "board",
+   "fieldtype": "Link",
+   "label": "Board",
+   "options": "ERP Work Board",
+   "read_only": 1,
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "length": 60,
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "fieldtype",
+   "fieldtype": "Select",
+   "label": "Type",
+   "options": "text\nnumber\ndate\ncheckbox\nselect",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "options",
+   "fieldtype": "Small Text",
+   "label": "Options"
+  },
+  {
+   "fieldname": "show_on_card",
+   "fieldtype": "Check",
+   "label": "Show on Card",
+   "default": "1"
+  },
+  {
+   "fieldname": "position",
+   "fieldtype": "Float",
+   "label": "Position",
+   "precision": "9",
+   "hidden": 1
+  }
+ ],
+ "modified": "2026-10-23 00:00:00.000000",
+ "field_order": [
+  "board",
+  "title",
+  "fieldtype",
+  "options",
+  "show_on_card",
+  "position"
+ ]
+}

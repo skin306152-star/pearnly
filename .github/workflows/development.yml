@@ -29,6 +29,8 @@ jobs:
         run: PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_erp_express_gateway.py
       - name: ERP master records synced from Express keep their identity fields
         run: python3 tests/test_erp_express_locks.py
+      - name: ERP task management (boards copied from Cowork) keeps Cowork's board rights, refuses people without it and shows only their boards
+        run: python3 tests/test_erp_work.py
       - name: Render the control-plane LINE setup guide with its screenshots
         run: python3 tests/test_control_line_guide.py
       - name: Verify each product declares its own feature catalog

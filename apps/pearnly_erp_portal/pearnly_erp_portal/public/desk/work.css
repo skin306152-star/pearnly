@@ -1,0 +1,973 @@
+/* 工作协调看板。卡片的样子照 Trello（用户 2026-09-27）：圆角白卡带轻阴影、悬停描边并出现完成圆圈
+ * 与归档 / 编辑按钮、标签条、封面、徽标行、头像；底色用我们自己的——页面白底、列用原生看板灰
+ * （`--kanban-column-bg`）。颜色一律取 Desk 原生变量，深色模式跟着走。
+ * 手机上三列纵排，顶上分区导航（借 Desk 的 `form-tabs-list`，照 ERP / 录入二级页）。 */
+.pearnly-work-nav {
+	display: none;
+}
+
+/* 视图切换（看板 / 我的任务 / 日历 / 表格）：借 Desk 的 `form-tabs-list`。 */
+.pearnly-work-views {
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-work-views .nav-link {
+	background: transparent;
+	border: 0;
+}
+
+/* 各视图内容与上方视图切换对齐，不贴页面左边（用户 2026-09-27）。 */
+.pearnly-work-view {
+	padding: var(--padding-xs) var(--padding-md) var(--padding-md);
+}
+
+.pearnly-work-empty {
+	padding: var(--padding-lg) 0;
+}
+
+/* 我的任务：按到期分组，卡片照看板的样子排成网格。 */
+.pearnly-work-mine-group {
+	margin-bottom: var(--margin-lg);
+}
+
+.pearnly-work-mine-title {
+	margin: 0 0 var(--margin-sm);
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.pearnly-work-mine-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 4px 12px;
+}
+
+/* 日历：卡片按到期状态上色（过期红、今明黄、完成绿、其余蓝）。 */
+.pearnly-work-calendar .fc-theme-standard {
+	padding: 0;
+}
+
+.pearnly-work-calendar .pearnly-work-event {
+	border: 0;
+	color: var(--gray-900, #1f272e);
+	cursor: pointer;
+}
+
+.pearnly-work-calendar .pearnly-work-event .fc-event-main {
+	color: inherit;
+}
+
+.pearnly-work-calendar .pearnly-work-event.due-later { background: var(--blue-300); }
+.pearnly-work-calendar .pearnly-work-event.due-soon { background: var(--yellow-300); }
+.pearnly-work-calendar .pearnly-work-event.due-overdue { background: var(--red-300); }
+.pearnly-work-calendar .pearnly-work-event.is-done { background: var(--green-300); text-decoration: line-through; }
+
+.pearnly-work-table-bar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: var(--margin-sm);
+}
+
+.pearnly-work-table-bar .btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.pearnly-work-board.kanban {
+	margin: 0;
+	gap: 12px;
+	align-items: flex-start;
+	overflow-x: auto;
+	/* 框架看板把横向滚动条整个藏掉了，鼠标没法左右走（用户 2026-09-27：左右滑动不灵敏）。
+	   这里显示一条细滚动条；看板高度由脚本撑到窗口底部，滚动条就停在屏幕最下面。
+	   空白处按住拖动、或滚滚轮也能左右移动（照 Trello）。 */
+	/* 标准属性回到 auto：Chrome 只要标准属性不是 auto 就忽略下面的 ::-webkit-scrollbar，
+	   Mac 上会变成滚动时才出现的隐形滚动条。 */
+	scrollbar-width: auto;
+	scrollbar-color: auto;
+	padding-bottom: 8px;
+	cursor: grab;
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar {
+	display: block;
+	height: 10px;
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar-thumb {
+	border-radius: 5px;
+	background: var(--gray-400);
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar-track {
+	border-radius: 5px;
+	background: var(--subtle-fg);
+}
+
+.pearnly-work-board.kanban::-webkit-scrollbar-thumb:hover {
+	background: var(--gray-500);
+}
+
+.pearnly-work-board.kanban.panning {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.pearnly-work-board.kanban > * {
+	cursor: auto;
+}
+
+/* 筛选区的下拉（成员 / 标签 / 到期）要盖在吸顶的视图页签上面，否则上半截被页签挡住（用户 2026-09-27 截图）。 */
+#page-pearnly-work .page-form .awesomplete > ul {
+	z-index: 6;
+}
+
+/* ── 列 ─────────────────────────────────────────────────────────────────────── */
+.pearnly-work-board .kanban-column {
+	flex: 0 0 272px;
+	max-width: 272px;
+	min-height: 0;
+	padding: 8px;
+	border-radius: 12px;
+	background-color: var(--kanban-column-bg);
+}
+
+/* 列表颜色（列菜单里点色块，全队共用）：原生色阶 200（照 Trello 列表的饱和度），深色模式换原生深色底；不选就是原生灰。 */
+.pearnly-work-board .kanban-column.tint-green { background-color: var(--green-200); }
+.pearnly-work-board .kanban-column.tint-yellow { background-color: var(--yellow-200); }
+.pearnly-work-board .kanban-column.tint-orange { background-color: var(--orange-200); }
+.pearnly-work-board .kanban-column.tint-red { background-color: var(--red-200); }
+.pearnly-work-board .kanban-column.tint-purple { background-color: var(--purple-200); }
+.pearnly-work-board .kanban-column.tint-blue { background-color: var(--blue-200); }
+.pearnly-work-board .kanban-column.tint-cyan { background-color: var(--cyan-200); }
+.pearnly-work-board .kanban-column.tint-pink { background-color: var(--pink-200); }
+.pearnly-work-board .kanban-column.tint-gray { background-color: var(--gray-200); }
+
+[data-theme="dark"] .pearnly-work-board .kanban-column[class*="tint-"] {
+	background-color: var(--kanban-column-bg);
+}
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-green { background-color: var(--bg-green); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-yellow { background-color: var(--bg-yellow); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-orange { background-color: var(--bg-orange); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-red { background-color: var(--bg-red); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-purple { background-color: var(--bg-purple); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-blue { background-color: var(--bg-blue); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-cyan { background-color: var(--bg-cyan); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-pink { background-color: var(--bg-pink); }
+[data-theme="dark"] .pearnly-work-board .kanban-column.tint-gray { background-color: var(--bg-gray); }
+
+.pearnly-work-board .pearnly-work-column-header {
+	align-items: center;
+	margin: 0 0 4px;
+	padding: 2px 4px 2px 8px;
+}
+
+.pearnly-work-column-tools {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.pearnly-work-count {
+	margin-right: 4px;
+	color: var(--text-muted);
+	font-size: var(--text-sm);
+}
+
+.pearnly-work-column-tools .btn {
+	padding: 2px 6px;
+	color: var(--text-muted);
+}
+
+.pearnly-work-column-tools .btn:hover {
+	color: var(--text-color);
+	background: var(--fg-hover-color);
+}
+
+.pearnly-work-board .kanban-column .kanban-cards {
+	height: auto;
+	/* 空列表也要留出能放卡的位置，否则拖不进去（测试机实测）。 */
+	min-height: 40px;
+	margin: 0 -4px;
+	padding: 2px 4px 4px;
+}
+
+/* 收起：一条竖条，标题竖排，点一下展开。 */
+.pearnly-work-board .kanban-column.collapsed {
+	flex: 0 0 44px;
+	max-width: 44px;
+	cursor: pointer;
+}
+
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-column-header {
+	flex-direction: column;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.pearnly-work-board .kanban-column.collapsed .kanban-column-title {
+	writing-mode: vertical-rl;
+	padding: 0;
+}
+
+.pearnly-work-board .kanban-column.collapsed .kanban-column-title .kanban-title {
+	margin: 8px 0 0;
+}
+
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-column-tools {
+	order: -1;
+	flex-direction: column;
+}
+
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-column-tools [data-popup],
+.pearnly-work-board .kanban-column.collapsed .kanban-cards,
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-add,
+.pearnly-work-board .kanban-column.collapsed .pearnly-work-compose {
+	display: none;
+}
+
+.pearnly-work-column-footer {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.pearnly-work-column-footer .pearnly-work-add {
+	flex: 1;
+	margin-top: 0;
+}
+
+.pearnly-work-template-button {
+	color: var(--text-muted);
+}
+
+.pearnly-work-template-button .icon {
+	margin: 0;
+}
+
+/* 列表最后一格「添加另一个列表」：半透明的一格，照 Trello。 */
+.pearnly-work-board .kanban-column.pearnly-work-add-list {
+	background-color: transparent;
+	border: 1px dashed var(--border-color);
+}
+
+.pearnly-work-board .kanban-column.pearnly-work-add-list .pearnly-work-add {
+	margin-top: 0;
+}
+
+.pearnly-work-column-header .kanban-column-title {
+	flex: 1;
+	min-width: 0;
+	cursor: pointer;
+}
+
+.pearnly-work-column-header .kanban-title {
+	margin-left: 0;
+}
+
+.pearnly-work-rename {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-rename .form-group,
+.pearnly-work-checklist .form-group,
+.pearnly-work-label-edit-name .form-group {
+	margin: 0;
+}
+
+.pearnly-work-check {
+	display: inline-flex;
+	width: 16px;
+}
+
+.pearnly-work-add {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	margin-top: 4px;
+	padding: 6px 8px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--text-md);
+	text-align: left;
+}
+
+.pearnly-work-add:hover {
+	background: var(--fg-hover-color);
+	color: var(--text-color);
+}
+
+.pearnly-work-add .icon {
+	margin: 0;
+}
+
+.pearnly-work-compose {
+	margin-top: 4px;
+}
+
+.pearnly-work-compose-actions {
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+/* ── 卡片 ───────────────────────────────────────────────────────────────────── */
+.pearnly-work-card-wrap {
+	padding: 4px 0;
+}
+
+.pearnly-work-card {
+	position: relative;
+	overflow: hidden;
+	border-radius: 8px;
+	background: var(--card-bg);
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+}
+
+.pearnly-work-card:hover {
+	box-shadow: var(--shadow-md);
+}
+
+/* 拖动（照 Trello）：放手会落到的位置是一个灰色空槽；拖着的卡片 / 列表不透明、微斜、带阴影，紧跟鼠标。
+   Sortable 模拟拖动时每动一下改写行内 transform 的平移、保留其中的旋转，所以倾斜写在 transform 里（写成独立的
+   rotate 会把平移也转歪，越拖越偏）；看板列自带的 0.2 秒过渡会让它一路追不上鼠标，要关掉；行内 opacity 0.8 要盖掉。 */
+.pearnly-work-ghost .pearnly-work-card {
+	background: var(--gray-500);
+	opacity: 0.25;
+	box-shadow: none;
+}
+
+.pearnly-work-ghost .pearnly-work-card > *,
+.pearnly-work-column.pearnly-work-ghost > * {
+	visibility: hidden;
+}
+
+.pearnly-work-board .pearnly-work-column.pearnly-work-ghost {
+	background: var(--gray-500) !important;
+	opacity: 0.25;
+}
+
+.pearnly-work-dragging.sortable-fallback {
+	opacity: 1 !important;
+	transition: none !important;
+	transform: rotate(3deg);
+	cursor: grabbing;
+}
+
+.pearnly-work-dragging .pearnly-work-card,
+.pearnly-work-column.pearnly-work-dragging {
+	box-shadow: var(--shadow-xl);
+}
+
+.pearnly-work-card-body {
+	padding: 8px 12px 6px;
+}
+
+.pearnly-work-cover {
+	height: 36px;
+}
+
+.pearnly-work-cover.image {
+	height: 140px;
+	background-color: var(--subtle-fg);
+	background-position: center;
+	background-size: cover;
+}
+
+.pearnly-work-cover.large {
+	height: 120px;
+	margin-bottom: var(--margin-md);
+	border-radius: var(--border-radius-md);
+}
+
+.pearnly-work-cover.image.large {
+	height: 200px;
+	background-size: contain;
+	background-repeat: no-repeat;
+}
+
+.pearnly-work-cover.green { background: var(--green-500); }
+.pearnly-work-cover.yellow { background: var(--yellow-400); }
+.pearnly-work-cover.orange { background: var(--orange-500); }
+.pearnly-work-cover.red { background: var(--red-500); }
+.pearnly-work-cover.purple { background: var(--purple-500); }
+.pearnly-work-cover.blue { background: var(--blue-500); }
+.pearnly-work-cover.cyan { background: var(--cyan-500); }
+.pearnly-work-cover.pink { background: var(--pink-500); }
+.pearnly-work-cover.gray { background: var(--gray-500); }
+
+.pearnly-work-labels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+
+.pearnly-work-label {
+	display: inline-block;
+	min-width: 40px;
+	max-width: 100%;
+	min-height: 16px;
+	padding: 0 8px;
+	border-radius: 4px;
+	font-size: var(--text-xs);
+	font-weight: 500;
+	line-height: 16px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* 标签色取 Desk 原生色阶的 500（与封面同一档；400 太浅，用户 2026-09-27 对照 Trello）。 */
+.pearnly-work-label.green { background: var(--green-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.yellow { background: var(--yellow-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.orange { background: var(--orange-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.red { background: var(--red-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.purple { background: var(--purple-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.blue { background: var(--blue-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.cyan { background: var(--cyan-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.pink { background: var(--pink-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-label.gray { background: var(--gray-500); color: var(--gray-900, #1f272e); }
+
+.pearnly-work-title-row {
+	display: flex;
+	align-items: flex-start;
+}
+
+.pearnly-work-title {
+	flex: 1;
+	min-width: 0;
+	color: var(--text-color);
+	font-size: var(--text-md);
+	line-height: 20px;
+	word-break: break-word;
+}
+
+/* 完成圆圈：平时收着，悬停才滑出来；已完成的卡一直显示绿勾。 */
+.pearnly-work-done {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	width: 0;
+	height: 20px;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	background: transparent;
+	color: var(--text-muted);
+	opacity: 0;
+	transition: width 0.15s ease, opacity 0.15s ease, margin 0.15s ease;
+}
+
+.pearnly-work-card:hover .pearnly-work-done,
+.pearnly-work-card.is-done .pearnly-work-done {
+	width: 18px;
+	margin-right: 6px;
+	opacity: 1;
+}
+
+.pearnly-work-card.is-done .pearnly-work-done {
+	color: var(--green-500);
+}
+
+.pearnly-work-done:hover {
+	color: var(--text-color);
+}
+
+/* 悬停右上角：归档、编辑（快捷菜单）。 */
+.pearnly-work-card-tools {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: none;
+	gap: 4px;
+}
+
+.pearnly-work-card:hover .pearnly-work-card-tools {
+	display: flex;
+}
+
+.pearnly-work-card-tools .btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border-radius: 50%;
+	background: var(--card-bg);
+	box-shadow: var(--shadow-sm);
+	color: var(--text-muted);
+}
+
+.pearnly-work-card-tools .btn:hover {
+	color: var(--text-color);
+	background: var(--fg-hover-color);
+}
+
+.pearnly-work-meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-top: 6px;
+}
+
+.pearnly-work-badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 2px 8px;
+	color: var(--text-muted);
+	font-size: var(--text-xs);
+}
+
+.pearnly-work-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	line-height: 20px;
+}
+
+.pearnly-work-badge.due {
+	padding: 0 4px;
+	border-radius: 4px;
+}
+
+.pearnly-work-badge.due.overdue { background: var(--bg-red); color: var(--text-on-red); }
+.pearnly-work-badge.due.soon { background: var(--bg-yellow); color: var(--text-on-yellow); }
+.pearnly-work-badge.due.done { background: var(--bg-green); color: var(--text-on-green); }
+.pearnly-work-badge.complete { color: var(--green-600); }
+.pearnly-work-badge.template { padding: 0 4px; border-radius: 4px; background: var(--bg-blue); color: var(--text-on-blue); }
+
+/* 镜像卡：同一张卡出现在另一个列表里，虚线边框区分。 */
+.pearnly-work-card.is-mirror {
+	box-shadow: none;
+	border: 1px dashed var(--gray-400);
+}
+
+.pearnly-work-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.pearnly-work-field-chip {
+	padding: 0 6px;
+	border-radius: 4px;
+	background: var(--control-bg);
+	color: var(--text-muted);
+	font-size: var(--text-xs);
+	line-height: 18px;
+}
+
+/* 浮在页面上的小菜单（卡片快捷菜单、列菜单），原生 dropdown 的样子。 */
+.pearnly-work-popup {
+	z-index: 1060;
+	min-width: 200px;
+	max-height: calc(100vh - 16px);
+	overflow-y: auto;
+}
+
+.pearnly-work-popup .dropdown-item {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 8px;
+	text-align: left;
+}
+
+.pearnly-work-popup .dropdown-item .icon {
+	flex-shrink: 0;
+	margin: 0;
+}
+
+/* 右上角铃铛上的未读数。 */
+.pearnly-work-bell {
+	position: relative;
+}
+
+.pearnly-work-bell-count {
+	position: absolute;
+	top: -2px;
+	right: -4px;
+	min-width: 16px;
+	padding: 0 4px;
+	border-radius: 8px;
+	background: var(--red-500);
+	color: #fff;
+	font-size: 10px;
+	line-height: 16px;
+	text-align: center;
+}
+
+/* ── 弹窗 ───────────────────────────────────────────────────────────────────── */
+.pearnly-work-dialog .pearnly-work-activity {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.pearnly-work-dialog .pearnly-work-activity-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-dialog .pearnly-work-comment {
+	margin-top: 4px;
+	padding: 6px 10px;
+	border-radius: var(--border-radius);
+	background: var(--control-bg);
+	word-break: break-word;
+}
+
+.pearnly-work-dialog .pearnly-work-file {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+	min-width: 0;
+}
+
+.pearnly-work-dialog .pearnly-work-file img {
+	width: 64px;
+	height: 44px;
+	object-fit: cover;
+	border-radius: var(--border-radius-sm);
+	flex-shrink: 0;
+}
+
+.pearnly-work-dialog .pearnly-work-file a {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pearnly-work-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	width: 100%;
+	padding: 8px;
+	border: 0;
+	border-radius: var(--border-radius);
+	background: transparent;
+	text-align: left;
+}
+
+.pearnly-work-notice:hover {
+	background: var(--fg-hover-color);
+}
+
+.pearnly-work-notice.unread {
+	background: var(--subtle-accent);
+	font-weight: 500;
+}
+
+.pearnly-work-notice-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.pearnly-work-notice-quote {
+	color: var(--text-muted);
+	font-weight: 400;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pearnly-work-notice-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	color: var(--text-muted);
+}
+
+/* 色块：列表颜色与标签颜色共用，照 Trello 直接点选，选中的打勾。 */
+.pearnly-work-swatches {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 6px;
+	padding: 4px 12px 8px;
+}
+
+.pearnly-work-swatch {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--border-color);
+	border-radius: 6px;
+}
+
+.pearnly-work-swatch:hover {
+	filter: brightness(0.95);
+}
+
+.pearnly-work-swatch.selected {
+	box-shadow: 0 0 0 2px var(--text-color);
+}
+
+.pearnly-work-swatch .icon {
+	margin: 0;
+}
+
+.pearnly-work-swatch.green { background: var(--green-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.yellow { background: var(--yellow-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.orange { background: var(--orange-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.red { background: var(--red-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.purple { background: var(--purple-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.blue { background: var(--blue-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.cyan { background: var(--cyan-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.pink { background: var(--pink-500); color: var(--gray-900, #1f272e); }
+.pearnly-work-swatch.gray { background: var(--gray-500); color: var(--gray-900, #1f272e); }
+
+/* 列表颜色的色块 = 列表实际的底色（上面 `.kanban-column.tint-*` 同一组变量），选什么画什么。 */
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.green { background: var(--green-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.yellow { background: var(--yellow-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.orange { background: var(--orange-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.red { background: var(--red-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.purple { background: var(--purple-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.blue { background: var(--blue-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.cyan { background: var(--cyan-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.pink { background: var(--pink-200); }
+.pearnly-work-swatches.list-tints .pearnly-work-swatch.gray { background: var(--gray-200); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.green { background: var(--bg-green); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.yellow { background: var(--bg-yellow); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.orange { background: var(--bg-orange); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.red { background: var(--bg-red); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.purple { background: var(--bg-purple); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.blue { background: var(--bg-blue); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.cyan { background: var(--bg-cyan); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.pink { background: var(--bg-pink); color: var(--text-color); }
+[data-theme="dark"] .pearnly-work-swatches.list-tints .pearnly-work-swatch.gray { background: var(--bg-gray); color: var(--text-color); }
+
+.pearnly-work-popup-pad {
+	padding: 0 12px 4px;
+}
+
+.pearnly-work-popup-pad .btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+}
+
+.pearnly-work-popup-pad .btn .icon {
+	margin: 0;
+}
+
+/* 标签编辑：一行一个标签，名字 + 色块。 */
+/* 只读（观察者 / 已归档的看板，用户 2026-09-29）：不出现任何写入口；服务端同样拒绝。 */
+.pearnly-work-readonly .pearnly-work-column-footer,
+.pearnly-work-readonly .pearnly-work-compose,
+.pearnly-work-readonly .pearnly-work-add-list,
+.pearnly-work-readonly .pearnly-work-card .pearnly-work-done,
+.pearnly-work-readonly .pearnly-work-card .pearnly-work-card-tools,
+.pearnly-work-readonly .pearnly-work-column-tools [data-popup],
+.pearnly-work-readonly .pearnly-work-file [data-file] {
+	display: none;
+}
+
+/* 看板成员：头像、名字、角色、移除 / 离开一行。 */
+.pearnly-work-member {
+	display: flex;
+	align-items: center;
+	gap: var(--padding-sm);
+	padding: var(--padding-xs) 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pearnly-work-member-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-member-role {
+	width: 10rem;
+}
+
+.pearnly-work-member-role .frappe-control {
+	margin-bottom: 0;
+}
+
+.pearnly-work-member .btn {
+	min-width: 7rem;
+}
+
+.pearnly-work-label-edit {
+	padding: 8px 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.pearnly-work-label-edit .pearnly-work-swatches {
+	padding: 8px 0 0;
+}
+
+.pearnly-work-label-edit-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pearnly-work-label-edit-head .pearnly-work-label {
+	width: 72px;
+	flex-shrink: 0;
+	line-height: 24px;
+	min-height: 24px;
+}
+
+.pearnly-work-label-edit-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-label-edit-name .form-group {
+	margin: 0;
+}
+
+/* 多个清单（卡片详情里）：标题 + 进度条 + 项目。 */
+.pearnly-work-checklist {
+	margin-bottom: 16px;
+}
+
+.pearnly-work-checklist-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pearnly-work-checklist-icon {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+
+.pearnly-work-checklist-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-progress {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 8px 0 4px;
+	color: var(--text-muted);
+	font-size: var(--text-xs);
+}
+
+.pearnly-work-progress span {
+	width: 32px;
+}
+
+.pearnly-work-progress .progress {
+	flex: 1;
+	height: 8px;
+	margin: 0;
+}
+
+.pearnly-work-checklist-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 2px 0;
+}
+
+.pearnly-work-checklist-check .checkbox {
+	margin: 0;
+}
+
+.pearnly-work-checklist-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.pearnly-work-checklist-text input.is-done {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
+.pearnly-work-checklist-add {
+	margin: 4px 0 0 28px;
+}
+
+/* 自定义字段设置：一格一个字段。 */
+.pearnly-work-field-edit {
+	padding: 8px 0 12px;
+	border-bottom: 1px solid var(--border-color);
+}
+
+/* 触屏没有悬停：完成圆圈与编辑按钮一直露出来。 */
+@media (hover: none) {
+	.pearnly-work-done {
+		width: 18px;
+		margin-right: 6px;
+		opacity: 1;
+	}
+
+	.pearnly-work-card-tools {
+		display: flex;
+	}
+
+	.pearnly-work-card-tools [data-action="archive"] {
+		display: none;
+	}
+
+	.pearnly-work-card-body {
+		padding-right: 40px;
+	}
+}
+
+@media (max-width: 767px) {
+	.pearnly-work-view {
+		padding: 0 var(--padding-sm) var(--padding-sm);
+	}
+
+	.pearnly-work-nav {
+		display: block;
+		position: sticky;
+		top: var(--navbar-height, 48px);
+		z-index: 3;
+		background: var(--bg-color);
+	}
+
+	.pearnly-work-board.kanban {
+		flex-direction: column;
+		align-items: stretch;
+		overflow: visible;
+		cursor: auto;
+	}
+
+	.pearnly-work-board .kanban-column {
+		flex: none;
+		width: 100%;
+		max-width: none;
+		scroll-margin-top: 110px;
+	}
+
+	.pearnly-work-board .kanban-column .kanban-cards {
+		max-height: none;
+		overflow: visible;
+	}
+
+	/* 手机上不收列（分区导航已经够用）。 */
+	.pearnly-work-collapse {
+		display: none;
+	}
+}

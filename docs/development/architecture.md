@@ -90,6 +90,17 @@ Pearnly ERP 的 `express` 域：站点配置 `pearnly_express_gateway` 有值（
 按 Express 编码建 / 认领 / 更新客户、供应商、商品、本公司仓库，结存对齐成「Express 结存 + 未写入单据的变动」，差额记调整流水
 （`express_sync`），ERP 自己的单据过账规则不变。纯规则在 `express.contracts`，内网调用在 `express.gateway`；没配网关的站点什么都不做。
 
+### ERP 任务管理（2026-10-23）
+
+Pearnly ERP 的 `work` 域是 Cowork `work`（任务管理看板）复制进 ERP 自有 App 的一份：ERP 站点不装 Cowork、ERP 不导入
+`pearnly_cowork`，所以表是 ERP 自己的 15 张 `ERP Work *`、页面是 `pearnly-tasks`（`public/desk/work.js`）、词条是 `erp.work.*`。
+分层与 Cowork 相同：`contracts`（纯规则，含看板权限矩阵，由 `tests/test_erp_work.py` 与 Cowork 那份逐组合比对）/ `access`（判据）/
+`boards` / `service` / `api`，写入只走 `documents` 写入闸，原生资源只读且按看板过滤，卡片附件是原生私有 File。不同处：
+租户 = 站点，看板直接属于站点（没有 Cowork 的 `workspace` 列，也不按 ERP 公司分看板）；能进任务管理走 ERP 的岗位 / 能力
+（功能码 `tasks`、能力 `tasks.use`，员工在团队管理逐人勾 `ERP Menu tasks`，管理员是 `ERP Admin`），与侧栏菜单同一判据。
+侧栏「销售系统」下方单独一项用 `groups` 里标题为 `None` 的条目声明（共用层 `desk.navigation` 按平铺项放在该位置）。
+做法与证据见 [任务记录](../work/2026-10-23-erp-tasks.md)。
+
 ## 票种与业务处理的共用口径（ADR-012）
 
 票据的票种（完整税票 / 简式税票 / 收据 / 贷项通知单 …）与由它决定的业务处理（抵不抵进项、默认付款、要不要人看）只在

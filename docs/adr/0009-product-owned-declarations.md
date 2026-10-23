@@ -47,4 +47,5 @@
 
 ## 2026-09-22 增量对齐
 
-ERP 原生侧栏分组由自身 `pearnly_navigation[0]["groups"]` 声明，Core 仅通用渲染。成本字段的 `field_permissions` 也放在 ERP `features.json`，Control 只按已授予角色及产品管理员过滤，Core 按原有校验落地。具体基线与开发顺序见 [对齐记录](../work/2026-09-22-shared-foundation-alignment.md)。
+ERP 原生侧栏分组由自身 `pearnly_navigation[0]["groups"]` 声明，Core 仅通用渲染。2026-10-23：`groups` 里标题为 `None` 的条目不是分组，
+其中的页面按平铺项放在该位置（ERP 任务管理放在「销售系统」下方），仍由产品声明、Core 通用渲染。成本字段的 `field_permissions` 也放在 ERP `features.json`，Control 只按已授予角色及产品管理员过滤，Core 按原有校验落地。具体基线与开发顺序见 [对齐记录](../work/2026-09-22-shared-foundation-alignment.md)。

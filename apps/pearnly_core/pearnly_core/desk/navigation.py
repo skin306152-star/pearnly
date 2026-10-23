@@ -42,7 +42,10 @@ def available_pages(product):
 
 
 def navigation_groups(product):
-    """Native sidebar grouping is generic; the product owns group contents."""
+    """Native sidebar grouping is generic; the product owns group contents.
+
+    An entry whose label is None is not a group: its pages are flat items placed at that position.
+    """
     return list((_declarations().get(product) or {}).get("groups") or [])
 
 
@@ -265,6 +268,11 @@ def _sidebar_items(product, features) -> list:
              if route not in grouped]
     for label, icon, routes in groups:
         children = [(route, offered[route]) for route in routes if route in offered]
+        if label is None:
+            # 标题为 None 的不是分组：这几页按平铺项放在这个位置（例如 ERP「销售系统」下方的任务管理）。
+            items += [{"type": "Link", "label": child_label, "link_type": "Page", "link_to": route,
+                       "icon": child_icon} for route, (child_label, _route, child_icon, _feature) in children]
+            continue
         if not children:
             # 整组一个页面都没有就不要出空标题 —— 空组比没有更让人以为"坏了"。
             continue
@@ -320,7 +328,7 @@ def extend_boot(boot):
     boot.pearnly_nav_groups = [
         {"label": label, "icon": icon,
          "routes": [route for route in routes if route in sidebar_routes]}
-        for label, icon, routes in navigation_groups(product)
+        for label, icon, routes in navigation_groups(product) if label is not None
     ]
 
     # Per-user boot projection, not a shared Workspace Sidebar mutation. Never save
@@ -348,6 +356,10 @@ def extend_boot(boot):
         for label, icon, group_routes in groups:
             members = [items[route] for route in group_routes
                        if route in items and route in routes]
+            if label is None:
+                # 不是分组：平铺项放在这个位置（同 `_sidebar_items`）。
+                projected += [{**member, "child": 0, "indent": 0} for member in members]
+                continue
             if not members:
                 continue
             # 原生给条目做的是 `_(item.label)`（frappe/boot.py:get_sidebar_items）。

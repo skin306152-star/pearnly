@@ -24,7 +24,14 @@ CATALOG = {
     "team": (None, "ERP Admin", ("team.manage",), (), ()),
     "company": (None, "ERP Admin", ("company.read", "company.manage"), ("ERP Company", "ERP POS Terminal"), ()),
     "warehouses": ("warehouses", "ERP Stock", ("warehouses.read", "warehouses.manage"), ("ERP Warehouse",), ()),
+    # 任务管理只读得到看板这几张表（且按看板过滤），写一律走 `work` 的专用接口；不带商品、库存等业务权限。
+    "tasks": ("tasks", "ERP Tasks", ("tasks.use",), (),
+              ("ERP Work Board", "ERP Work Card", "ERP Work Label", "ERP Work Activity", "ERP Work Notification",
+               "ERP Work Column", "ERP Work Field", "ERP Work Mirror", "ERP Work Rule")),
 }
+
+# 不是业务单据岗位的菜单：只勾这些的人不因此看得到商品、库存。
+NON_BUSINESS = ("home", "profile", "team", "tasks")
 
 
 def role(key):
@@ -40,7 +47,7 @@ def capabilities(held):
     result = {cap for key in selected for cap in CATALOG[key][2]}
     if selected:
         result.add("company.read")
-    if any(key not in ("home", "profile", "team") for key in selected):
+    if any(key not in NON_BUSINESS for key in selected):
         result.update(("products.view", "stock.read"))
     if any(key in selected for key in ("stock-in", "stock-out")):
         result.add("stock.write")

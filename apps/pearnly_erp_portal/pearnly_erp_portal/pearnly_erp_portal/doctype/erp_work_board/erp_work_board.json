@@ -1,0 +1,95 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Work Board",
+ "module": "Pearnly ERP Portal",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-23 00:00:00.000000",
+ "modified": "2026-10-23 00:00:00.000000",
+ "autoname": "hash",
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "title_field": "title",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "title",
+  "visibility",
+  "commenting",
+  "member_management",
+  "is_default",
+  "archived",
+  "archived_at",
+  "members"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "in_list_view": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "visibility",
+   "fieldtype": "Select",
+   "label": "Visibility",
+   "options": "team\nprivate",
+   "default": "team",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "commenting",
+   "fieldtype": "Select",
+   "label": "Commenting",
+   "options": "members\nobservers\ndisabled",
+   "default": "members",
+   "reqd": 1
+  },
+  {
+   "fieldname": "member_management",
+   "fieldtype": "Select",
+   "label": "Member management",
+   "options": "admins\nmembers",
+   "default": "members",
+   "reqd": 1
+  },
+  {
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "label": "Default board",
+   "default": "0"
+  },
+  {
+   "fieldname": "archived",
+   "fieldtype": "Check",
+   "label": "Archived",
+   "default": "0"
+  },
+  {
+   "fieldname": "archived_at",
+   "fieldtype": "Datetime",
+   "label": "Archived at"
+  },
+  {
+   "fieldname": "members",
+   "fieldtype": "Table",
+   "label": "Members",
+   "options": "ERP Work Board Member"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "ERP Admin",
+   "read": 1
+  },
+  {
+   "role": "ERP Tasks",
+   "read": 1
+  }
+ ]
+}
