@@ -66,6 +66,7 @@ Bind code,連携コード
 Binding needs a LINE user and a local account,連携にはLINEユーザーとローカルアカウントが必要です
 Birth Date,生年月日
 Body,本文
+Book Key,帳簿キー
 Booking Defaults,起票の既定値
 Both account and password are required,アカウントとパスワードの両方が必要です
 Both issuer and subject are required,issuer と subject はどちらも必須です
@@ -79,6 +80,7 @@ Buyer,買い手
 Buyer Tax ID,買い手税番号
 Bytes,バイト数
 CC Desktop,CC デスクトップ
+CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
 CC Desktop not connected,CC デスクトップ未接続
 CC is not set up for this site yet.,このサイトではまだ CC が設定されていません。
 CC is only available on product sites.,CC は製品サイトでのみ利用できます。
@@ -228,6 +230,7 @@ Deleting the OIDC client failed: {0} {1},OIDCクライアントの削除に失�
 Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
 Deployment,デプロイ
 Description,説明
+Device Digest,端末ダイジェスト
 Device Key,端末キー
 Device Secret,端末シークレット
 Direction,方向
@@ -273,6 +276,7 @@ Expired,期限切れ
 Expires At,有効期限
 Export details,明細をエクスポート
 Exporting…,エクスポート中…
+Express Document Number,Express 伝票番号
 Express Push Guide,Express プッシュガイド
 External Doc No,外部伝票番号
 External ERP Push,外部ERP連携
@@ -355,15 +359,21 @@ LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn 
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。
 Language,言語
 Last Code,前回のコード
+Last Computer,最後の端末
 Last Delivered,最終配信日時
 Last Login At,最終ログイン
 Last Result,最新の結果
 Last Seen At,最終アクセス
+Last Signed In User,最後にログインしたユーザー
 Last Used,最終使用
 Last Verified At,最終確認日時
 Last result,最新の結果
 Lease Expires,リース期限
+Lease Expires At,リース期限
+Lease Handle,リースハンドル
 Lease Until,確保期限
+Leased At,取得日時
+Leased By,取得した端末
 Leave blank to keep the current password.,空欄の場合、現在のパスワードを保持します。
 Leave blank to keep unchanged,空欄なら変更しません
 Leave empty to match from the DMS account automatically.,空欄の場合は DMS アカウントから自動照合します。
@@ -388,6 +398,7 @@ Manual,手入力
 Manual handling,手動処理
 Master Data,マスタデータ
 Match result must be unmatched / existing customer / new customer,照合結果は 不一致／既存顧客／新規顧客 のいずれかです
+Max Payload Version,最大ペイロードバージョン
 Max Retries,最大再試行
 Missing code or state,code または state がありません
 My Profile,個人プロフィール
@@ -403,6 +414,7 @@ New DMS password,新しいDMSパスワード
 New entry,新規入力
 New password,新しいパスワード
 New purchase order,仕入伝票を作成
+Next Period End,翌期末
 Next Retry At,次回再試行日時
 Next Run,次回実行
 No,いいえ
@@ -474,6 +486,7 @@ Password updated. Use the new password next time you sign in.,パスワードを
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。
 Payer,支払者
 Payer name on the bank transfer,銀行振込の振込人名
+Payload Version,ペイロードバージョン
 Payment Status,支払状況
 Pearnly,Pearnly
 Pearnly Cowork,Pearnly Cowork
@@ -482,7 +495,10 @@ Pearnly Light,Pearnly ライト
 Pending,処理待ち
 Pending Carry-over,引き継ぎ待ちの内容
 Pending review,審査待ち
+Period End,期末
+Period Start,期首
 Personal data: not shown in lists and never written to logs,個人情報のため一覧に表示せず、ログにも書きません
+Pinned Computer,指定端末
 Plan,プラン
 Plan & Balance,プランと残高
 Plans do not renew automatically. Subscribe again after expiry.,自動更新はありません。有効期限後に再登録できます。
@@ -527,6 +543,7 @@ Queued to push,送信待ち
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
 Reading companies and years from {0}…,{0} から会社と年度を読み込み中…
 Reading companies and years took too long. Please try again.,会社と年度の読み込みに時間がかかりすぎました。もう一度お試しください。
+Receipt Meta,受領メタ
 Received,受領額
 Recognition Raw,認識の生データ
 Recognition Records,認識記録
@@ -595,6 +612,7 @@ Save purchase order,仕入伝票を保存
 Saved,保存しました
 Saved as a draft; confirm it before it can be pushed,保存すると下書きになります。確認してから送信できます
 "Scan to add this account, then send the bind code in LINE.",スキャンして友だち追加し、LINEでこの連携コードを送信してください。
+Seen At,報告日時
 Seller,売り手
 Seller Tax ID,売り手税番号
 Session,セッション
@@ -606,12 +624,14 @@ Sign out and sign in again,ログアウトして再ログイン
 Sign-in Credentials,ログイン資格情報
 "Sign-in URL, for example the MR.ERP DMS sign-in URL.",ログインURL。例：MR.ERP DMS のログインURL。
 Sign-in verification failed. Sign in again.,ログインの検証に失敗しました。もう一度ログインしてください。
+Signed In Users,ログインしたユーザー
 Signed In Via,ログイン方法
 Site finalization failed,サイトの仕上げに失敗しました
 Site is missing setting: {0},サイトに設定項目がありません：{0}
 Size And Permission Check,サイズと権限の確認
 Source,ソース
 Source Attachment,元の添付ファイル
+Stage,段階
 Starred,スター付き
 State,状態
 Status,ステータス
@@ -654,10 +674,13 @@ Tenant boot data,このサイトの起動データ
 Test connection,接続テスト
 Testing…,テスト中…
 "Text files: {1} per {0} characters, rounded up.",テキストファイル：{0}文字ごとに{1}、端数切り上げ。
+The CC Desktop request is invalid.,CC デスクトップのリクエストが無効です。
+The CC Desktop service is temporarily unavailable. Try again shortly.,CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。
 The DMS account is marked as resigned,DMSアカウントは退職として記録されています
 The DMS account is not approved to use the system,DMSアカウントはシステム利用が承認されていません
 The DMS advisor list is empty.,DMS担当者一覧は空です。
 The ERP timed out or the network failed. Please try again later.,ERP への接続がタイムアウトしたか、ネットワークに問題があります。後でもう一度お試しください。
+The Express write is invalid.,Express への書き込み内容が無効です。
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
 The LINE channel is not configured for this account,このアカウントには LINE チャンネルが設定されていません
@@ -704,6 +727,7 @@ The two passwords do not match,パスワードが一致しません
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
 "There is no DMS customer reference, so it cannot be pushed",DMS顧客参照がないため送信できません
 This ERP account has no company or year to choose.,この ERP アカウントには選択できる会社・年度がありません。
+This Express write is in progress.,この Express への書き込みは処理中です。
 This LINE account is not bound to this account on this site. Sign in with your password.,このLINEはこのサイトのこのアカウントに連携されていません。パスワードでログインしてください。
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 "This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
@@ -740,6 +764,7 @@ Titles {0},敬称 {0}
 To confirm,確認待ち
 To verify,要確認
 Today,今日
+Token Last 4,キー末尾 4 桁
 Tool,ツール
 Tool Input,ツール入力
 Tool Use ID,ツール呼び出しID
@@ -788,6 +813,7 @@ VAT Included,税込
 VAT Rate %,税率%
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,付加価値税申告（ภ.พ.30）と源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書きと仕入税チェック
 Valid for {0},残り有効時間 {0}
+Verify State,照合結果
 WHT deducted,源泉徴収税額
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 Warehouses,倉庫
@@ -804,6 +830,9 @@ Work Scope,作業範囲
 Work together,コラボレーション
 Worker currently processing this row.,現在この行を処理している実行者。
 Workspace,ワークスペース
+Writing Key,書き込み中の帳簿
+Written At,書き込み日時
+Written By,書き込んだ端末
 Wrong ERP username or password. Check it under Connect and try again.,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。
 Yes,はい
 You're offline,オフラインです
@@ -837,6 +866,11 @@ account.usernameTaken,このユーザー名は使用されています。
 assistant.tool.declined,この変更は拒否されました
 assistant.tool.refused,リクエストが拒否されました
 assistant.tool.unavailable,このサイトではこの操作に対応していません
+cc_desktop.busy,CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。
+cc_desktop.job_busy,この Express への書き込みは処理中です。
+cc_desktop.job_invalid,Express への書き込み内容が無効です。
+cc_desktop.request_invalid,CC デスクトップのリクエストが無効です。
+cc_desktop.unauthorized,CC デスクトップの認証に失敗しました。
 common.backHome,ホームに戻る
 common.cancel,キャンセル
 common.col.date,日付

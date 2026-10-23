@@ -25,6 +25,8 @@ on_logout = "pearnly_core.assistant.push.forget_session"
 # 统一登录入口：业务站点的 `/`、`/login`、`/app`、`/desk` 对未登录访客一律
 # 送去身份服务 —— 站点上没有业务账号的密码，用 Frappe 自带登录页必然失败。
 before_request = [
+    # CC 桌面版共用机器通道（ADR-025）：带 ``pcc_`` 令牌的精确机器请求，在 Frappe 的 OAuth 校验之前收走令牌（不是机器请求原样放过）
+    "pearnly_core.cc_desktop.http_auth.before_request",
     # LINE 的 LIFF 深链先落站点根 `/?liff.state=<站内路径>`：跳到那个站内地址（放在登录拦截之前，路径才不会丢）
     "pearnly_core.login_redirect.follow_liff_state",
     # 未登录访客：站点的门一律送去身份服务（站点上没有业务账号的密码）
@@ -195,7 +197,14 @@ doc_events = {
     "File": {
         "before_insert": "pearnly_core.desk.heic.convert_file",
     },
+    # CC 桌面版共用机器通道的四张表不许分享（ADR-025，`cc_desktop.documents`）
+    "DocShare": {
+        "before_validate": "pearnly_core.cc_desktop.documents.reject_share",
+    },
 }
+# CC 桌面版共用机器通道的机器认证（ADR-025）：冒充 cmd=login 先拒；按令牌认电脑、切到签发人身份。
+before_login = ["pearnly_core.cc_desktop.http_auth.before_login"]
+auth_hooks = ["pearnly_core.cc_desktop.http_auth.authenticate_request"]
 # 原件层的登记文件（ADR-024，``originals.registered``）：删掉最后一条时连存放处那份一起删。
 extend_doctype_class = {"File": ["pearnly_core.originals.registered.RegisteredFile"]}
 
@@ -359,9 +368,15 @@ doctype_js = {"User": "public/desk/user.js"}
 # Product account preferences never expose the framework user directory.
 # 导出任务只给本人看（见 ``pearnly_core.exports``）。
 has_permission = {"User": "pearnly_core.desk.permissions.user_permission",
-                  "Pearnly Export": "pearnly_core.exports.service.has_permission"}
+                  "Pearnly Export": "pearnly_core.exports.service.has_permission",
+                  # CC 桌面版共用机器通道的四张表只经本域写，原生读写一律拒绝（ADR-025）
+                  **{doctype: "pearnly_core.cc_desktop.documents.native_permission"
+                     for doctype in ("Pearnly CC Device", "Pearnly CC Book", "Pearnly CC Job", "Pearnly CC Request")}}
 permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query",
-                               "Pearnly Export": "pearnly_core.exports.service.query_conditions"}
+                               "Pearnly Export": "pearnly_core.exports.service.query_conditions",
+                               **{doctype: "pearnly_core.cc_desktop.documents.native_query"
+                                  for doctype in ("Pearnly CC Device", "Pearnly CC Book", "Pearnly CC Job",
+                                                  "Pearnly CC Request")}}
 
 # Native clear-cache must not discard still-active identity sessions/state.
 persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]
@@ -374,7 +389,7 @@ scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"],
                     "daily": ["pearnly_core.execution.work.prune_checkpoints"]}
 
 # 导出文件的下载响应不进缓存（与 Cowork 原件下载同一做法）。
-after_request = ["pearnly_core.exports.service.protect_response"]
+after_request = ["pearnly_core.exports.service.protect_response", "pearnly_core.cc_desktop.http_auth.after_request"]
 
 # LINE 绑定即登录：绑定变化 → 作废失效的 LINE 会话、同步身份服务里的关联（多产品共用）。
 pearnly_line_binding_changed = ["pearnly_core.account.line_login.binding_changed"]

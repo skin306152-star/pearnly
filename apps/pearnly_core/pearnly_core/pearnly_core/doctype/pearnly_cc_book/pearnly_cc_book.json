@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "device",
+  "book_key",
+  "identity",
+  "path",
+  "root",
+  "row",
+  "uid",
+  "label",
+  "company",
+  "tax_id",
+  "branch",
+  "period_start",
+  "period_end",
+  "next_end",
+  "writable",
+  "mapping",
+  "seen_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "device",
+   "fieldtype": "Data",
+   "label": "Computer",
+   "read_only": 1,
+   "length": 30,
+   "search_index": 1
+  },
+  {
+   "fieldname": "book_key",
+   "fieldtype": "Data",
+   "label": "Book Key",
+   "read_only": 1,
+   "length": 64,
+   "search_index": 1
+  },
+  {
+   "fieldname": "identity",
+   "fieldtype": "Small Text",
+   "label": "Identity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "path",
+   "fieldtype": "Small Text",
+   "label": "Path",
+   "read_only": 1
+  },
+  {
+   "fieldname": "root",
+   "fieldtype": "Small Text",
+   "label": "Express Root",
+   "read_only": 1
+  },
+  {
+   "fieldname": "row",
+   "fieldtype": "Int",
+   "label": "Registry Row",
+   "read_only": 1
+  },
+  {
+   "fieldname": "uid",
+   "fieldtype": "Data",
+   "label": "Folder ID",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Data",
+   "label": "Company",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "tax_id",
+   "fieldtype": "Data",
+   "label": "Tax ID",
+   "read_only": 1,
+   "length": 20,
+   "search_index": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch",
+   "read_only": 1,
+   "length": 10
+  },
+  {
+   "fieldname": "period_start",
+   "fieldtype": "Date",
+   "label": "Period Start",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period_end",
+   "fieldtype": "Date",
+   "label": "Period End",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_end",
+   "fieldtype": "Date",
+   "label": "Next Period End",
+   "read_only": 1
+  },
+  {
+   "fieldname": "writable",
+   "fieldtype": "Check",
+   "label": "Writable",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "mapping",
+   "fieldtype": "Small Text",
+   "label": "Default Accounts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "seen_at",
+   "fieldtype": "Datetime",
+   "label": "Seen At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly CC Book",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

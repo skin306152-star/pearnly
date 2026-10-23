@@ -66,6 +66,7 @@ Bind code,Bind code
 Binding needs a LINE user and a local account,Binding needs a LINE user and a local account
 Birth Date,Birth Date
 Body,Body
+Book Key,Book Key
 Booking Defaults,Booking Defaults
 Both account and password are required,Both account and password are required
 Both issuer and subject are required,Both issuer and subject are required
@@ -79,6 +80,7 @@ Buyer,Buyer
 Buyer Tax ID,Buyer Tax ID
 Bytes,Bytes
 CC Desktop,CC Desktop
+CC Desktop authentication failed.,CC Desktop authentication failed.
 CC Desktop not connected,CC Desktop not connected
 CC is not set up for this site yet.,CC is not set up for this site yet.
 CC is only available on product sites.,CC is only available on product sites.
@@ -228,6 +230,7 @@ Deleting the OIDC client failed: {0} {1},Deleting the OIDC client failed: {0} {1
 Deleting the account failed: {0} {1},Deleting the account failed: {0} {1}
 Deployment,Deployment
 Description,Description
+Device Digest,Device Digest
 Device Key,Device Key
 Device Secret,Device Secret
 Direction,Direction
@@ -273,6 +276,7 @@ Expired,Expired
 Expires At,Expires At
 Export details,Export details
 Exporting…,Exporting…
+Express Document Number,Express Document Number
 Express Push Guide,Express Push Guide
 External Doc No,External Doc No
 External ERP Push,External ERP Push
@@ -354,15 +358,21 @@ LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn 
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.
 Language,Language
 Last Code,Last Code
+Last Computer,Last Computer
 Last Delivered,Last Delivered
 Last Login At,Last Login At
 Last Result,Last Result
 Last Seen At,Last Seen At
+Last Signed In User,Last Signed In User
 Last Used,Last Used
 Last Verified At,Last Verified At
 Last result,Last result
 Lease Expires,Lease Expires
+Lease Expires At,Lease Expires At
+Lease Handle,Lease Handle
 Lease Until,Lease Until
+Leased At,Leased At
+Leased By,Leased By
 Leave blank to keep the current password.,Leave blank to keep the current password.
 Leave blank to keep unchanged,Leave blank to keep unchanged
 Leave empty to match from the DMS account automatically.,Leave empty to match from the DMS account automatically.
@@ -387,6 +397,7 @@ Manual,Manual
 Manual handling,Manual handling
 Master Data,Master Data
 Match result must be unmatched / existing customer / new customer,Match result must be unmatched / existing customer / new customer
+Max Payload Version,Max Payload Version
 Max Retries,Max Retries
 Missing code or state,Missing code or state
 My Profile,My Profile
@@ -402,6 +413,7 @@ New DMS password,New DMS password
 New entry,New entry
 New password,New password
 New purchase order,New purchase order
+Next Period End,Next Period End
 Next Retry At,Next Retry At
 Next Run,Next Run
 No,No
@@ -472,6 +484,7 @@ Password updated. Use the new password next time you sign in.,Password updated. 
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.
 Payer,Payer
 Payer name on the bank transfer,Payer name on the bank transfer
+Payload Version,Payload Version
 Payment Status,Payment Status
 Pearnly,Pearnly
 Pearnly Cowork,Pearnly Cowork
@@ -480,7 +493,10 @@ Pearnly Light,Pearnly Light
 Pending,Pending
 Pending Carry-over,Pending Carry-over
 Pending review,Pending review
+Period End,Period End
+Period Start,Period Start
 Personal data: not shown in lists and never written to logs,Personal data: not shown in lists and never written to logs
+Pinned Computer,Pinned Computer
 Plan,Plan
 Plan & Balance,Plan & Balance
 Plans do not renew automatically. Subscribe again after expiry.,Plans do not renew automatically. Subscribe again after expiry.
@@ -525,6 +541,7 @@ Queued to push,Queued to push
 "Read the ID card, match it against the DMS customer base, then confirm","Read the ID card, match it against the DMS customer base, then confirm"
 Reading companies and years from {0}…,Reading companies and years from {0}…
 Reading companies and years took too long. Please try again.,Reading companies and years took too long. Please try again.
+Receipt Meta,Receipt Meta
 Received,Received
 Recognition Raw,Recognition Raw
 Recognition Records,Recognition Records
@@ -593,6 +610,7 @@ Save purchase order,Save purchase order
 Saved,Saved
 Saved as a draft; confirm it before it can be pushed,Saved as a draft; confirm it before it can be pushed
 "Scan to add this account, then send the bind code in LINE.","Scan to add this account, then send the bind code in LINE."
+Seen At,Seen At
 Seller,Seller
 Seller Tax ID,Seller Tax ID
 Session,Session
@@ -604,12 +622,14 @@ Sign out and sign in again,Sign out and sign in again
 Sign-in Credentials,Sign-in Credentials
 "Sign-in URL, for example the MR.ERP DMS sign-in URL.","Sign-in URL, for example the MR.ERP DMS sign-in URL."
 Sign-in verification failed. Sign in again.,Sign-in verification failed. Sign in again.
+Signed In Users,Signed In Users
 Signed In Via,Signed In Via
 Site finalization failed,Site finalization failed
 Site is missing setting: {0},Site is missing setting: {0}
 Size And Permission Check,Size And Permission Check
 Source,Source
 Source Attachment,Source Attachment
+Stage,Stage
 Starred,Starred
 State,State
 Status,Status
@@ -652,10 +672,13 @@ Tenant boot data,Tenant boot data
 Test connection,Test connection
 Testing…,Testing…
 "Text files: {1} per {0} characters, rounded up.","Text files: {1} per {0} characters, rounded up."
+The CC Desktop request is invalid.,The CC Desktop request is invalid.
+The CC Desktop service is temporarily unavailable. Try again shortly.,The CC Desktop service is temporarily unavailable. Try again shortly.
 The DMS account is marked as resigned,The DMS account is marked as resigned
 The DMS account is not approved to use the system,The DMS account is not approved to use the system
 The DMS advisor list is empty.,The DMS advisor list is empty.
 The ERP timed out or the network failed. Please try again later.,The ERP timed out or the network failed. Please try again later.
+The Express write is invalid.,The Express write is invalid.
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
 The LINE channel is not configured for this account,The LINE channel is not configured for this account
@@ -702,6 +725,7 @@ The two passwords do not match,The two passwords do not match
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.
 "There is no DMS customer reference, so it cannot be pushed","There is no DMS customer reference, so it cannot be pushed"
 This ERP account has no company or year to choose.,This ERP account has no company or year to choose.
+This Express write is in progress.,This Express write is in progress.
 This LINE account is not bound to this account on this site. Sign in with your password.,This LINE account is not bound to this account on this site. Sign in with your password.
 This Operator's Own DMS Credentials,This Operator's Own DMS Credentials
 "This account has no identity binding, so it cannot change its own password; contact an admin","This account has no identity binding, so it cannot change its own password; contact an admin"
@@ -738,6 +762,7 @@ Titles {0},Titles {0}
 To confirm,To confirm
 To verify,To verify
 Today,Today
+Token Last 4,Token Last 4
 Tool,Tool
 Tool Input,Tool Input
 Tool Use ID,Tool Use ID
@@ -786,6 +811,7 @@ VAT Included,VAT Included
 VAT Rate %,VAT Rate %
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks
 Valid for {0},Valid for {0}
+Verify State,Verify State
 WHT deducted,WHT deducted
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
 Warehouses,Warehouses
@@ -802,6 +828,9 @@ Work Scope,Work Scope
 Work together,Work together
 Worker currently processing this row.,Worker currently processing this row.
 Workspace,Workspace
+Writing Key,Writing Key
+Written At,Written At
+Written By,Written By
 Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP username or password. Check it under Connect and try again.
 Yes,Yes
 You're offline,You're offline
@@ -835,6 +864,11 @@ account.usernameTaken,This username is already in use.
 assistant.tool.declined,Change declined
 assistant.tool.refused,Request refused
 assistant.tool.unavailable,This action is not supported on this site
+cc_desktop.busy,The CC Desktop service is temporarily unavailable. Try again shortly.
+cc_desktop.job_busy,This Express write is in progress.
+cc_desktop.job_invalid,The Express write is invalid.
+cc_desktop.request_invalid,The CC Desktop request is invalid.
+cc_desktop.unauthorized,CC Desktop authentication failed.
 common.backHome,Back to home
 common.cancel,Cancel
 common.col.date,Date

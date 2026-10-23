@@ -1,0 +1,168 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "request_key",
+  "kind",
+  "actor",
+  "book_key",
+  "params",
+  "status",
+  "code",
+  "requested_at",
+  "lease_handle",
+  "lease_device",
+  "leased_at",
+  "lease_expires_at",
+  "companion_version",
+  "received_bytes",
+  "result_bytes",
+  "result_sha256",
+  "meta_json",
+  "completed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "length": 140,
+   "unique": 1
+  },
+  {
+   "fieldname": "kind",
+   "fieldtype": "Data",
+   "label": "Kind",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "book_key",
+   "fieldtype": "Data",
+   "label": "Book Key",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "params",
+   "fieldtype": "Long Text",
+   "label": "Parameters",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Status",
+   "read_only": 1,
+   "length": 20,
+   "search_index": 1
+  },
+  {
+   "fieldname": "code",
+   "fieldtype": "Data",
+   "label": "Code",
+   "read_only": 1,
+   "length": 80
+  },
+  {
+   "fieldname": "requested_at",
+   "fieldtype": "Datetime",
+   "label": "Requested At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lease_handle",
+   "fieldtype": "Data",
+   "label": "Lease Handle",
+   "read_only": 1,
+   "length": 32
+  },
+  {
+   "fieldname": "lease_device",
+   "fieldtype": "Data",
+   "label": "Leased By",
+   "read_only": 1,
+   "length": 30
+  },
+  {
+   "fieldname": "leased_at",
+   "fieldtype": "Datetime",
+   "label": "Leased At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Lease Expires At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "companion_version",
+   "fieldtype": "Data",
+   "label": "CC Desktop Version",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "received_bytes",
+   "fieldtype": "Int",
+   "label": "Received Bytes",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "result_bytes",
+   "fieldtype": "Int",
+   "label": "Result Bytes",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "result_sha256",
+   "fieldtype": "Data",
+   "label": "Result SHA-256",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "meta_json",
+   "fieldtype": "Small Text",
+   "label": "Meta",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly CC Request",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

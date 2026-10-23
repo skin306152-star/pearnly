@@ -1,0 +1,219 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "request_key",
+  "source_doctype",
+  "source_name",
+  "label",
+  "actor",
+  "book_key",
+  "payload",
+  "payload_version",
+  "status",
+  "route_device",
+  "attempt",
+  "fence",
+  "lease_device",
+  "lease_expires_at",
+  "writing_key",
+  "last_device",
+  "docnum",
+  "stage",
+  "reason",
+  "verify_state",
+  "verify_json",
+  "meta_json",
+  "written_by_device",
+  "written_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "length": 140,
+   "unique": 1
+  },
+  {
+   "fieldname": "source_doctype",
+   "fieldtype": "Data",
+   "label": "Source DocType",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "source_name",
+   "fieldtype": "Data",
+   "label": "Source Name",
+   "read_only": 1,
+   "length": 140,
+   "search_index": 1
+  },
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "Entered By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "book_key",
+   "fieldtype": "Data",
+   "label": "Book Key",
+   "read_only": 1,
+   "length": 64,
+   "search_index": 1
+  },
+  {
+   "fieldname": "payload",
+   "fieldtype": "Long Text",
+   "label": "Payload",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payload_version",
+   "fieldtype": "Int",
+   "label": "Payload Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Status",
+   "read_only": 1,
+   "length": 20,
+   "search_index": 1
+  },
+  {
+   "fieldname": "route_device",
+   "fieldtype": "Data",
+   "label": "Pinned Computer",
+   "read_only": 1,
+   "length": 30
+  },
+  {
+   "fieldname": "attempt",
+   "fieldtype": "Int",
+   "label": "Attempt",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "fence",
+   "fieldtype": "Int",
+   "label": "Fence",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "lease_device",
+   "fieldtype": "Data",
+   "label": "Leased By",
+   "read_only": 1,
+   "length": 30,
+   "search_index": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Lease Expires At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "writing_key",
+   "fieldtype": "Data",
+   "label": "Writing Key",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1
+  },
+  {
+   "fieldname": "last_device",
+   "fieldtype": "Data",
+   "label": "Last Computer",
+   "read_only": 1,
+   "length": 30
+  },
+  {
+   "fieldname": "docnum",
+   "fieldtype": "Data",
+   "label": "Express Document Number",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "stage",
+   "fieldtype": "Data",
+   "label": "Stage",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verify_state",
+   "fieldtype": "Data",
+   "label": "Verify State",
+   "read_only": 1,
+   "length": 20
+  },
+  {
+   "fieldname": "verify_json",
+   "fieldtype": "Small Text",
+   "label": "Verify",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meta_json",
+   "fieldtype": "Long Text",
+   "label": "Receipt Meta",
+   "read_only": 1
+  },
+  {
+   "fieldname": "written_by_device",
+   "fieldtype": "Data",
+   "label": "Written By",
+   "read_only": 1,
+   "length": 30
+  },
+  {
+   "fieldname": "written_at",
+   "fieldtype": "Datetime",
+   "label": "Written At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly CC Job",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

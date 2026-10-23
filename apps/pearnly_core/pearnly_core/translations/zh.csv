@@ -66,6 +66,7 @@ Bind code,绑定码
 Binding needs a LINE user and a local account,绑定需要 LINE 用户与本地账号
 Birth Date,出生日期
 Body,内容
+Book Key,账套键
 Booking Defaults,建单默认值
 Both account and password are required,请填写账号和密码
 Both issuer and subject are required,issuer 与 subject 不能为空
@@ -79,6 +80,7 @@ Buyer,买方
 Buyer Tax ID,买方税号
 Bytes,字节数
 CC Desktop,CC 桌面版
+CC Desktop authentication failed.,CC 桌面版认证失败。
 CC Desktop not connected,CC 桌面版未连接
 CC is not set up for this site yet.,本站点尚未设置 CC。
 CC is only available on product sites.,CC 仅在产品站点可用。
@@ -228,6 +230,7 @@ Deleting the OIDC client failed: {0} {1},删除 OIDC 客户端失败：{0} {1}
 Deleting the account failed: {0} {1},删除账号失败：{0} {1}
 Deployment,部署
 Description,说明
+Device Digest,电脑摘要
 Device Key,设备公钥
 Device Secret,设备密钥
 Direction,方向
@@ -273,6 +276,7 @@ Expired,已过期
 Expires At,过期时间
 Export details,导出明细
 Exporting…,导出中…
+Express Document Number,Express 单号
 Express Push Guide,Express 推送手册
 External Doc No,外部单据号
 External ERP Push,对外 ERP 推送
@@ -355,15 +359,21 @@ LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn 
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE 的相机权限已关闭。请前往手机「设置 → 应用程序 → LINE → 权限 → 相机」选择「允许」，返回 LINE 后将自动重试。
 Language,语言
 Last Code,上次结果码
+Last Computer,最近的电脑
 Last Delivered,最后送达时间
 Last Login At,最近登录
 Last Result,最近结果
 Last Seen At,最近活跃
+Last Signed In User,最近登录的用户
 Last Used,最近使用
 Last Verified At,最后核对时间
 Last result,最近结果
 Lease Expires,租约到期
+Lease Expires At,租约到期时间
+Lease Handle,租约标识
 Lease Until,租约到期
+Leased At,领取时间
+Leased By,领取的电脑
 Leave blank to keep the current password.,留空则不修改当前密码。
 Leave blank to keep unchanged,留空则不修改
 Leave empty to match from the DMS account automatically.,留空则按 DMS 账号自动匹配
@@ -388,6 +398,7 @@ Manual,手工
 Manual handling,人工处理
 Master Data,主数据
 Match result must be unmatched / existing customer / new customer,匹配结果必须为「未匹配」「已有客户」或「新建客户」
+Max Payload Version,最高载荷版本
 Max Retries,最大重试次数
 Missing code or state,缺少 code 或 state
 My Profile,个人信息
@@ -403,6 +414,7 @@ New DMS password,新 DMS 密码
 New entry,新建录入
 New password,新密码
 New purchase order,新建采购单
+Next Period End,次年期末
 Next Retry At,下次重试时间
 Next Run,下次运行
 No,否
@@ -474,6 +486,7 @@ Password updated. Use the new password next time you sign in.,密码已更新。
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。
 Payer,付款人
 Payer name on the bank transfer,银行转账时的付款方
+Payload Version,载荷版本
 Payment Status,付款状态
 Pearnly,Pearnly 主题
 Pearnly Cowork,Pearnly Cowork
@@ -482,7 +495,10 @@ Pearnly Light,Pearnly 浅色
 Pending,待处理
 Pending Carry-over,待转入内容
 Pending review,待审核
+Period End,期末
+Period Start,期初
 Personal data: not shown in lists and never written to logs,个人敏感信息：不在列表显示，不写日志
+Pinned Computer,指定的电脑
 Plan,套餐
 Plan & Balance,套餐与余额
 Plans do not renew automatically. Subscribe again after expiry.,套餐不自动续订，到期后可重新订阅。
@@ -527,6 +543,7 @@ Queued to push,待推送
 "Read the ID card, match it against the DMS customer base, then confirm",读取身份证，与 DMS 客户库比对后确认资料
 Reading companies and years from {0}…,正在从 {0} 读取公司和年度…
 Reading companies and years took too long. Please try again.,读取公司和年度超时，请重试。
+Receipt Meta,回执信息
 Received,实收金额
 Recognition Raw,识别原始输出
 Recognition Records,识别记录
@@ -595,6 +612,7 @@ Save purchase order,保存采购单
 Saved,已保存
 Saved as a draft; confirm it before it can be pushed,保存为草稿，确认后方可推送
 "Scan to add this account, then send the bind code in LINE.",扫码添加好友，再发送此绑定码。
+Seen At,上报时间
 Seller,卖方
 Seller Tax ID,卖方税号
 Session,会话
@@ -606,12 +624,14 @@ Sign out and sign in again,退出并重新登录
 Sign-in Credentials,登录凭据
 "Sign-in URL, for example the MR.ERP DMS sign-in URL.",系统登录地址，例如 MR.ERP DMS 的登录地址。
 Sign-in verification failed. Sign in again.,登录校验失败，请重新登录
+Signed In Users,登录过的用户
 Signed In Via,登录方式
 Site finalization failed,站点收尾失败
 Site is missing setting: {0},站点缺少配置项：{0}
 Size And Permission Check,大小与权限检查
 Source,来源
 Source Attachment,原始附件
+Stage,阶段
 Starred,已加星标
 State,状态
 Status,状态
@@ -654,10 +674,13 @@ Tenant boot data,本站点启动数据
 Test connection,测试连接
 Testing…,测试中…
 "Text files: {1} per {0} characters, rounded up.",文本文件：每 {0} 个字符 {1}，不足一组按一组计费。
+The CC Desktop request is invalid.,CC 桌面版请求无效。
+The CC Desktop service is temporarily unavailable. Try again shortly.,CC 桌面版服务暂时不可用，请稍后重试。
 The DMS account is marked as resigned,DMS 账号已标记为离职
 The DMS account is not approved to use the system,DMS 账号未被批准使用系统
 The DMS advisor list is empty.,DMS 顾问名册为空。
 The ERP timed out or the network failed. Please try again later.,连接目标 ERP 超时或网络异常，请稍后重试。
+The Express write is invalid.,Express 写入内容无效。
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The LINE channel is not configured for this account,该账号未配置 LINE 通道
@@ -704,6 +727,7 @@ The two passwords do not match,两次输入不一致
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINE 平台的 webhookEventId，具有唯一约束，重复投递的事件不会重复处理。
 "There is no DMS customer reference, so it cannot be pushed",缺少 DMS 客户引用，无法推送
 This ERP account has no company or year to choose.,此账号在目标 ERP 中没有可选的公司和年度。
+This Express write is in progress.,此 Express 写入正在进行中。
 This LINE account is not bound to this account on this site. Sign in with your password.,该 LINE 账号未绑定本站账号，请使用账号密码登录。
 This Operator's Own DMS Credentials,该操作员的 DMS 凭据
 "This account has no identity binding, so it cannot change its own password; contact an admin",当前账号未绑定身份，无法自行修改密码，请联系管理员
@@ -740,6 +764,7 @@ Titles {0},称谓 {0}
 To confirm,待确认
 To verify,待复核
 Today,今天
+Token Last 4,密钥末 4 位
 Tool,工具
 Tool Input,工具输入
 Tool Use ID,工具调用 ID
@@ -788,6 +813,7 @@ VAT Included,含增值税
 VAT Rate %,税率%
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,增值税申报（ภ.พ.30）与预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿及进项核查
 Valid for {0},剩余有效期 {0}
+Verify State,核对结果
 WHT deducted,预扣税额
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}
 Warehouses,仓库
@@ -804,6 +830,9 @@ Work Scope,工作范围
 Work together,工作协作
 Worker currently processing this row.,当前处理该记录的执行者。
 Workspace,工作区
+Writing Key,写入中的账套
+Written At,写入时间
+Written By,写入的电脑
 Wrong ERP username or password. Check it under Connect and try again.,目标 ERP 账号或密码错误，请在「连接」中检查后重试。
 Yes,是
 You're offline,无法连接网络
@@ -837,6 +866,11 @@ account.usernameTaken,该用户名已被使用。
 assistant.tool.declined,已拒绝此更改
 assistant.tool.refused,请求被拒绝
 assistant.tool.unavailable,本站不支持此操作
+cc_desktop.busy,CC 桌面版服务暂时不可用，请稍后重试。
+cc_desktop.job_busy,此 Express 写入正在进行中。
+cc_desktop.job_invalid,Express 写入内容无效。
+cc_desktop.request_invalid,CC 桌面版请求无效。
+cc_desktop.unauthorized,CC 桌面版认证失败。
 common.backHome,回到首页
 common.cancel,取消
 common.col.date,日期

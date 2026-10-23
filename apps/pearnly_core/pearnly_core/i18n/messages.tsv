@@ -904,3 +904,32 @@ Camera access is turned off. Tap the icon at the left of the address bar → Per
 Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.	相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。	การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่	カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。	common.scan.denied_ios
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.	LINE 的相机权限已关闭。请前往手机「设置 → 应用程序 → LINE → 权限 → 相机」选择「允许」，返回 LINE 后将自动重试。	การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง แล้วเลือก อนุญาต กลับมาที่ LINE แล้วระบบจะลองใหม่เอง	LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。	common.scan.in_line_android
 LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.	LINE 的相机权限已关闭。请前往 iPhone「设置 → LINE」开启「相机」，返回 LINE 后将自动重试。	การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → LINE แล้วเปิด กล้อง กลับมาที่ LINE แล้วระบบจะลองใหม่เอง	LINE のカメラへのアクセスがオフになっています。iPhone の「設定 → LINE」で「カメラ」をオンにしてください。LINE に戻ると自動で再試行します。	common.scan.in_line_ios
+Book Key	账套键	คีย์ชุดบัญชี	帳簿キー
+Device Digest	电脑摘要	รหัสย่อเครื่อง	端末ダイジェスト
+Express Document Number	Express 单号	เลขที่เอกสาร Express	Express 伝票番号
+Last Computer	最近的电脑	เครื่องล่าสุด	最後の端末
+Last Signed In User	最近登录的用户	ผู้ใช้ที่เข้าสู่ระบบล่าสุด	最後にログインしたユーザー
+Lease Expires At	租约到期时间	เวลาหมดสัญญาเช่า	リース期限
+Lease Handle	租约标识	รหัสสัญญาเช่า	リースハンドル
+Leased At	领取时间	เวลารับงาน	取得日時
+Leased By	领取的电脑	เครื่องที่รับงาน	取得した端末
+Max Payload Version	最高载荷版本	เวอร์ชันข้อมูลสูงสุด	最大ペイロードバージョン
+Next Period End	次年期末	สิ้นงวดปีถัดไป	翌期末
+Payload Version	载荷版本	เวอร์ชันข้อมูล	ペイロードバージョン
+Period End	期末	สิ้นงวด	期末
+Period Start	期初	ต้นงวด	期首
+Pinned Computer	指定的电脑	เครื่องที่กำหนด	指定端末
+Receipt Meta	回执信息	ข้อมูลผลตอบกลับ	受領メタ
+Seen At	上报时间	เวลารายงาน	報告日時
+Signed In Users	登录过的用户	ผู้ใช้ที่เคยเข้าสู่ระบบ	ログインしたユーザー
+Stage	阶段	ขั้นตอน	段階
+Token Last 4	密钥末 4 位	4 ตัวท้ายของคีย์	キー末尾 4 桁
+Verify State	核对结果	ผลการตรวจสอบ	照合結果
+Writing Key	写入中的账套	ชุดบัญชีที่กำลังบันทึก	書き込み中の帳簿
+Written At	写入时间	เวลาบันทึก	書き込み日時
+Written By	写入的电脑	เครื่องที่บันทึก	書き込んだ端末
+CC Desktop authentication failed.	CC 桌面版认证失败。	การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ	CC デスクトップの認証に失敗しました。	cc_desktop.unauthorized
+The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面版服务暂时不可用，请稍后重试。	บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。	cc_desktop.busy
+The CC Desktop request is invalid.	CC 桌面版请求无效。	คำขอของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのリクエストが無効です。	cc_desktop.request_invalid
+The Express write is invalid.	Express 写入内容无效。	ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง	Express への書き込み内容が無効です。	cc_desktop.job_invalid
+This Express write is in progress.	此 Express 写入正在进行中。	กำลังบันทึกลง Express อยู่	この Express への書き込みは処理中です。	cc_desktop.job_busy

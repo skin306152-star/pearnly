@@ -142,7 +142,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     value = chosen("party", subject)
     pinned = str(fields.get("party_code") or "").strip()
     if pinned and (not rows or pinned in _codes(rows)):
-        # 来源已给出 Express 的对方档编码（ERP 前台从 Express 回读的主档里选的，`erp_gateway`）：照码，不问、不记
+        # 来源已给出 Express 的对方档编码（ERP 前台从 Express 回读的主档里选的，ADR-025）：照码，不问、不记
         applied["party"] = pinned
     elif value and (value == NEW or not rows or value in _codes(rows)):
         applied["party"] = value

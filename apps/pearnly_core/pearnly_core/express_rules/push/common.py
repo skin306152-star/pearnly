@@ -291,7 +291,7 @@ def extract_line_items(
             "item_mode": mode,
         }
         if mode in _STOCK_MODES:
-            # 来源已给出 Express 存货码 / 仓库码（ERP 前台的单，`erp_gateway`）：照码写，不再按品名对；OCR 的票没有这两键
+            # 来源已给出 Express 存货码 / 仓库码（ERP 前台的单，CC 桌面版直连 ERP，ADR-025）：照码写，不再按品名对；OCR 的票没有这两键
             code = str(it.get("code") or "").strip()
             if code:
                 row["code"] = code[:20]

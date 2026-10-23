@@ -66,6 +66,7 @@ Bind code,รหัสผูก
 Binding needs a LINE user and a local account,การผูกต้องมีผู้ใช้ LINE และบัญชีภายในระบบ
 Birth Date,วันเกิด
 Body,เนื้อหา
+Book Key,คีย์ชุดบัญชี
 Booking Defaults,ค่าเริ่มต้นการสร้างใบจอง
 Both account and password are required,กรุณากรอกบัญชีและรหัสผ่าน
 Both issuer and subject are required,ต้องระบุทั้ง issuer และ subject
@@ -79,6 +80,7 @@ Buyer,ผู้ซื้อ
 Buyer Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
 Bytes,จำนวนไบต์
 CC Desktop,CC เดสก์ท็อป
+CC Desktop authentication failed.,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
 CC Desktop not connected,CC เดสก์ท็อปยังไม่เชื่อมต่อ
 CC is not set up for this site yet.,ไซต์นี้ยังไม่ได้ตั้งค่า CC
 CC is only available on product sites.,CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์
@@ -228,6 +230,7 @@ Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเ�
 Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
 Deployment,การติดตั้ง
 Description,คำอธิบาย
+Device Digest,รหัสย่อเครื่อง
 Device Key,คีย์อุปกรณ์
 Device Secret,รหัสลับอุปกรณ์
 Direction,ทิศทาง
@@ -273,6 +276,7 @@ Expired,หมดอายุ
 Expires At,หมดอายุเมื่อ
 Export details,ส่งออกรายละเอียด
 Exporting…,กำลังส่งออก…
+Express Document Number,เลขที่เอกสาร Express
 Express Push Guide,คู่มือการส่งเข้า Express
 External Doc No,เลขเอกสารภายนอก
 External ERP Push,ส่งข้อมูลเข้า ERP ภายนอก
@@ -355,15 +359,21 @@ LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn 
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง แล้วเลือก อนุญาต กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
 Language,ภาษา
 Last Code,รหัสผลลัพธ์ล่าสุด
+Last Computer,เครื่องล่าสุด
 Last Delivered,ส่งถึงล่าสุด
 Last Login At,เข้าสู่ระบบล่าสุด
 Last Result,ผลล่าสุด
 Last Seen At,ใช้งานล่าสุด
+Last Signed In User,ผู้ใช้ที่เข้าสู่ระบบล่าสุด
 Last Used,ใช้ล่าสุด
 Last Verified At,ตรวจสอบล่าสุดเมื่อ
 Last result,ผลล่าสุด
 Lease Expires,การจองงานหมดอายุ
+Lease Expires At,เวลาหมดสัญญาเช่า
+Lease Handle,รหัสสัญญาเช่า
 Lease Until,หมดอายุการจองงาน
+Leased At,เวลารับงาน
+Leased By,เครื่องที่รับงาน
 Leave blank to keep the current password.,เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่านปัจจุบัน
 Leave blank to keep unchanged,เว้นว่างไว้หากไม่แก้ไข
 Leave empty to match from the DMS account automatically.,เว้นว่างเพื่อจับคู่อัตโนมัติตามบัญชี DMS
@@ -388,6 +398,7 @@ Manual,บันทึกด้วยตนเอง
 Manual handling,ดำเนินการด้วยตนเอง
 Master Data,ข้อมูลหลัก
 Match result must be unmatched / existing customer / new customer,ผลการจับคู่ต้องเป็น «ยังไม่จับคู่» «ลูกค้าที่มีอยู่» หรือ «ลูกค้าใหม่» เท่านั้น
+Max Payload Version,เวอร์ชันข้อมูลสูงสุด
 Max Retries,จำนวนครั้งลองใหม่สูงสุด
 Missing code or state,ขาด code หรือ state
 My Profile,ข้อมูลส่วนตัว
@@ -403,6 +414,7 @@ New DMS password,รหัสผ่าน DMS ใหม่
 New entry,บันทึกใหม่
 New password,รหัสผ่านใหม่
 New purchase order,สร้างเอกสารซื้อใหม่
+Next Period End,สิ้นงวดปีถัดไป
 Next Retry At,ลองใหม่ครั้งถัดไปเมื่อ
 Next Run,ทำงานครั้งถัดไป
 No,ไม่
@@ -474,6 +486,7 @@ Password updated. Use the new password next time you sign in.,อัปเดต
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,คิดค่าบริการตามการใช้งาน: {0} หน้าแรกของแต่ละเดือนปฏิทิน {1}/หน้า ส่วนที่เกิน {2}/หน้า
 Payer,ผู้ชำระเงิน
 Payer name on the bank transfer,ชื่อผู้โอนในสลิปธนาคาร
+Payload Version,เวอร์ชันข้อมูล
 Payment Status,สถานะการชำระเงิน
 Pearnly,ธีม Pearnly
 Pearnly Cowork,Pearnly Cowork
@@ -482,7 +495,10 @@ Pearnly Light,Pearnly โหมดสว่าง
 Pending,รอดำเนินการ
 Pending Carry-over,เนื้อหาที่รอโอนต่อ
 Pending review,รอตรวจสอบ
+Period End,สิ้นงวด
+Period Start,ต้นงวด
 Personal data: not shown in lists and never written to logs,ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก
+Pinned Computer,เครื่องที่กำหนด
 Plan,แพ็กเกจ
 Plan & Balance,แพ็กเกจและยอดคงเหลือ
 Plans do not renew automatically. Subscribe again after expiry.,แพ็กเกจไม่ต่ออายุอัตโนมัติ สามารถสมัครใหม่ได้เมื่อหมดอายุ
@@ -527,6 +543,7 @@ Queued to push,รอส่ง
 "Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
 Reading companies and years from {0}…,กำลังอ่านบริษัทและปีบัญชีจาก {0}…
 Reading companies and years took too long. Please try again.,อ่านข้อมูลบริษัทและปีบัญชีหมดเวลา กรุณาลองใหม่
+Receipt Meta,ข้อมูลผลตอบกลับ
 Received,จำนวนเงินที่ได้รับจริง
 Recognition Raw,ผลลัพธ์ดิบจากการอ่านเอกสาร
 Recognition Records,บันทึกการอ่านเอกสาร
@@ -595,6 +612,7 @@ Save purchase order,บันทึกเอกสารซื้อ
 Saved,บันทึกแล้ว
 Saved as a draft; confirm it before it can be pushed,บันทึกเป็นฉบับร่าง ต้องยืนยันก่อนจึงจะส่งได้
 "Scan to add this account, then send the bind code in LINE.",สแกนเพื่อเพิ่มเพื่อน แล้วส่งรหัสผูกนี้ใน LINE
+Seen At,เวลารายงาน
 Seller,ผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
 Session,เซสชัน
@@ -606,12 +624,14 @@ Sign out and sign in again,ออกจากระบบแล้วเข้�
 Sign-in Credentials,ข้อมูลรับรองเข้าสู่ระบบ
 "Sign-in URL, for example the MR.ERP DMS sign-in URL.",ที่อยู่สำหรับเข้าสู่ระบบ เช่น ที่อยู่เข้าสู่ระบบของ MR.ERP DMS
 Sign-in verification failed. Sign in again.,ตรวจสอบการเข้าสู่ระบบไม่สำเร็จ กรุณาเข้าสู่ระบบอีกครั้ง
+Signed In Users,ผู้ใช้ที่เคยเข้าสู่ระบบ
 Signed In Via,เข้าสู่ระบบผ่าน
 Site finalization failed,ตั้งค่าเว็บไซต์ขั้นสุดท้ายไม่สำเร็จ
 Site is missing setting: {0},เว็บไซต์ขาดการตั้งค่า: {0}
 Size And Permission Check,การตรวจขนาดและสิทธิ์
 Source,ที่มา
 Source Attachment,ไฟล์แนบต้นฉบับ
+Stage,ขั้นตอน
 Starred,ติดดาว
 State,สถานะ
 Status,สถานะ
@@ -654,10 +674,13 @@ Tenant boot data,ข้อมูลเริ่มต้นของเว็บ
 Test connection,ทดสอบการเชื่อมต่อ
 Testing…,กำลังทดสอบ…
 "Text files: {1} per {0} characters, rounded up.",ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม
+The CC Desktop request is invalid.,คำขอของ CC เดสก์ท็อปไม่ถูกต้อง
+The CC Desktop service is temporarily unavailable. Try again shortly.,บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง
 The DMS account is marked as resigned,บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว
 The DMS account is not approved to use the system,บัญชี DMS ยังไม่ได้รับอนุมัติให้ใช้ระบบ
 The DMS advisor list is empty.,รายชื่อที่ปรึกษา DMS ว่างเปล่า
 The ERP timed out or the network failed. Please try again later.,การเชื่อมต่อ ERP ปลายทางหมดเวลาหรือเครือข่ายขัดข้อง กรุณาลองใหม่ภายหลัง
+The Express write is invalid.,ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง
 The FX rate must be greater than 0,อัตราแลกเปลี่ยนต้องมากกว่า 0
 The ID token has no sub,ID token ไม่มี sub
 The LINE channel is not configured for this account,บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE
@@ -704,6 +727,7 @@ The two passwords do not match,รหัสผ่านทั้งสองไ�
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,webhookEventId จากแพลตฟอร์ม LINE มีข้อจำกัดไม่ให้ซ้ำ อีเวนต์ที่ส่งซ้ำจะไม่ถูกประมวลผลซ้ำ
 "There is no DMS customer reference, so it cannot be pushed",ไม่มีรหัสอ้างอิงลูกค้า DMS จึงไม่สามารถส่งได้
 This ERP account has no company or year to choose.,บัญชีผู้ใช้นี้ไม่มีบริษัทและปีบัญชีให้เลือกใน ERP ปลายทาง
+This Express write is in progress.,กำลังบันทึกลง Express อยู่
 This LINE account is not bound to this account on this site. Sign in with your password.,บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีของเว็บไซต์นี้ กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน
 This Operator's Own DMS Credentials,ข้อมูลรับรอง DMS ของพนักงานรายนี้
 "This account has no identity binding, so it cannot change its own password; contact an admin",บัญชีนี้ยังไม่ได้ผูกตัวตน จึงไม่สามารถเปลี่ยนรหัสผ่านด้วยตนเองได้ กรุณาติดต่อผู้ดูแลระบบ
@@ -740,6 +764,7 @@ Titles {0},คำนำหน้า {0}
 To confirm,รอยืนยัน
 To verify,รอตรวจทาน
 Today,วันนี้
+Token Last 4,4 ตัวท้ายของคีย์
 Tool,เครื่องมือ
 Tool Input,ข้อมูลที่ส่งให้เครื่องมือ
 Tool Use ID,รหัสการเรียกใช้เครื่องมือ
@@ -788,6 +813,7 @@ VAT Included,รวมภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
 VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,ร่างแบบ ภ.พ.30 และ ภ.ง.ด.3 / ภ.ง.ด.53 พร้อมตรวจภาษีซื้อ
 Valid for {0},เหลืออายุ {0}
+Verify State,ผลการตรวจสอบ
 WHT deducted,ภาษีหัก ณ ที่จ่าย
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}
 Warehouses,คลังสินค้า
@@ -804,6 +830,9 @@ Work Scope,ขอบเขตงาน
 Work together,ทำงานร่วมกัน
 Worker currently processing this row.,ผู้ที่กำลังประมวลผลรายการนี้
 Workspace,พื้นที่ทำงาน
+Writing Key,ชุดบัญชีที่กำลังบันทึก
+Written At,เวลาบันทึก
+Written By,เครื่องที่บันทึก
 Wrong ERP username or password. Check it under Connect and try again.,ชื่อผู้ใช้หรือรหัสผ่าน ERP ไม่ถูกต้อง กรุณาตรวจสอบที่ «เชื่อมต่อ» แล้วลองใหม่
 Yes,ใช่
 You're offline,ไม่มีการเชื่อมต่ออินเทอร์เน็ต
@@ -837,6 +866,11 @@ account.usernameTaken,ชื่อผู้ใช้นี้ถูกใช้�
 assistant.tool.declined,ปฏิเสธการเปลี่ยนแปลงนี้แล้ว
 assistant.tool.refused,คำขอถูกปฏิเสธ
 assistant.tool.unavailable,เว็บไซต์นี้ไม่รองรับการดำเนินการนี้
+cc_desktop.busy,บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง
+cc_desktop.job_busy,กำลังบันทึกลง Express อยู่
+cc_desktop.job_invalid,ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง
+cc_desktop.request_invalid,คำขอของ CC เดสก์ท็อปไม่ถูกต้อง
+cc_desktop.unauthorized,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
 common.backHome,กลับหน้าหลัก
 common.cancel,ยกเลิก
 common.col.date,วันที่

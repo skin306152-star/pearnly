@@ -1,0 +1,137 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "device_label",
+  "device_digest",
+  "token_digest",
+  "token_last4",
+  "issued_by",
+  "issued_at",
+  "signed_in_user",
+  "signed_in_users",
+  "companion_version",
+  "max_payload_version",
+  "last_seen_at",
+  "full_report_due",
+  "retired_at",
+  "retired_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "device_label",
+   "fieldtype": "Data",
+   "label": "Computer Name",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "device_digest",
+   "fieldtype": "Data",
+   "label": "Device Digest",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1
+  },
+  {
+   "fieldname": "token_digest",
+   "fieldtype": "Data",
+   "label": "Token Digest",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1
+  },
+  {
+   "fieldname": "token_last4",
+   "fieldtype": "Data",
+   "label": "Token Last 4",
+   "read_only": 1,
+   "length": 4
+  },
+  {
+   "fieldname": "issued_by",
+   "fieldtype": "Link",
+   "label": "Issued By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "issued_at",
+   "fieldtype": "Datetime",
+   "label": "Issued At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "signed_in_user",
+   "fieldtype": "Link",
+   "label": "Last Signed In User",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "signed_in_users",
+   "fieldtype": "Long Text",
+   "label": "Signed In Users",
+   "read_only": 1
+  },
+  {
+   "fieldname": "companion_version",
+   "fieldtype": "Data",
+   "label": "CC Desktop Version",
+   "read_only": 1,
+   "length": 20
+  },
+  {
+   "fieldname": "max_payload_version",
+   "fieldtype": "Int",
+   "label": "Max Payload Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_seen_at",
+   "fieldtype": "Datetime",
+   "label": "Last Seen At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "full_report_due",
+   "fieldtype": "Check",
+   "label": "Full Report Due",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "retired_at",
+   "fieldtype": "Datetime",
+   "label": "Removed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "retired_by",
+   "fieldtype": "Link",
+   "label": "Removed By",
+   "read_only": 1,
+   "options": "User"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly CC Device",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

@@ -1,7 +1,8 @@
 """CC 桌面端的按需请求（2026-10 CC 闭环）：服务端请某台电脑上的 CC 桌面端读一样东西交回来——Express 账套
 （``express_read``）、已授权文件夹里的文件清单（``folder_list``）或其中一份文件（``folder_fetch``）、一本账套近 12 个月
 「供应商 → 常用科目」的次数（``account_history``，科目建议）、一本账套的整套主档与各仓结存（``express_masters``，
-ERP 前台的主档镜像）。纯规则，不连库、不依赖框架。
+ERP 前台的主档镜像与准备写账载荷的账套资料）。纯规则，不连库、不依赖框架。Cowork 的按需请求（`pearnly_cowork.companion.request_service`）
+与共用机器通道（`pearnly_core.cc_desktop.requests`，ERP 用，ADR-025）共用这一份线上约定，CC 桌面版领请求、交结果的代码不分叉。
 
 结果属于发起人的（回读、取文件）只给发起人；``SHARED_KINDS`` 的结果属于这条连接与账套（科目建议的历史、整套主档），同一请求号
 谁建都是同一件，凡此刻能用这条连接的人都能看状态、取结果、删（`request_service` 核连接使用授权）。
@@ -47,8 +48,8 @@ FOLDER_KINDS = ("folder_list", "folder_fetch")
 ACCOUNT_KINDS = ("express_read", "account_history", "express_masters")
 # 参数里的通用位置键：账套文件夹、所在的 Express 根目录（`readback.contracts.read_params` / `history_rules.read_params`）
 LOCATION_KEYS = ("account_set", "account_root")
-# 结果属于连接与账套（谁先来谁读、能用这条连接的人都能取）：科目历史；整套主档（发起人是 Cowork 的网关服务账号，它没在任何电脑上
-# 登录过 CC，非共享种类不会有电脑领）
+# 结果属于连接与账套（谁先来谁读、能用这条连接的人都能取）：科目历史；整套主档（ERP 的主档同步由后台发起，发起人不一定在哪台
+# 电脑上登录过 CC，非共享种类不会有电脑领）
 SHARED_KINDS = ("account_history", "express_masters")
 # 哪种连接的电脑能做哪几种：Express 的电脑都能做；MR.ERP 的小助手成员只读文件夹。
 ADAPTER_KINDS = {"express": KINDS, "mrerp": FOLDER_KINDS}
