@@ -95,7 +95,7 @@ def preview(payload):
 
 
 def _buyer(payload, company=None):
-    from pearnly_erp_portal.masters.selection import match_party
+    from pearnly_erp_portal.masters.selection import match_party, unlinked_party
 
     key = payload.get("customer")
     name = str(payload.get("buyer_name") or "").strip()
@@ -103,8 +103,10 @@ def _buyer(payload, company=None):
     tax = contracts.buyer_tax(payload.get("buyer_tax_id"))
     branch = contracts.branch_no(payload.get("buyer_branch_no")) if tax else None
     if not key and tax:
-        key = match_party("customer", name, tax_id=tax, branch_type="branch" if branch and branch != "00000" else "hq",
-                          branch_no=branch, company=company, ambiguous="none")
+        branch_type = "branch" if branch and branch != "00000" else "hq"
+        key = (match_party("customer", name, tax_id=tax, branch_type=branch_type, branch_no=branch, company=company,
+                           ambiguous="none")
+               or unlinked_party("customer", tax, branch_type=branch_type, branch_no=branch))
     if not key:
         key = match_party("customer", name, company=company)
     if key:

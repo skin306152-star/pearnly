@@ -30,14 +30,16 @@ def flag(value, default=False):
 
 
 def _supplier(payload, company=None):
-    from pearnly_erp_portal.masters.selection import match_party
+    from pearnly_erp_portal.masters.selection import match_party, unlinked_party
 
     key = payload.get("supplier")
     name = str(payload.get("supplier_name") or "").strip()
     if not key:
-        key = match_party("supplier", name, tax_id=payload.get("supplier_tax_id"),
-                          branch_type=payload.get("supplier_branch_type"), branch_no=payload.get("supplier_branch_no"),
-                          company=company)
+        tax = payload.get("supplier_tax_id")
+        options = {"branch_type": payload.get("supplier_branch_type"), "branch_no": payload.get("supplier_branch_no")}
+        # 同税号几条分不出：先用 ERP 自己先前建过的那条，没有再按名称 / 新建；挂哪条 Express 档写账时在 ERP 里选一次
+        key = match_party("supplier", name, tax_id=tax, company=company, ambiguous="none" if tax else "throw",
+                          **options) or (unlinked_party("supplier", tax, **options) if tax else None)
     if key:
         if not frappe.db.exists("ERP Supplier", key):
             frappe.throw(_("Supplier not found. Please select the supplier again."))

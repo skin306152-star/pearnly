@@ -56,6 +56,19 @@ def match_party(kind, name, *, tax_id=None, branch_type=None, branch_no=None, co
     return rows[0]["name"] if rows else None
 
 
+def unlinked_party(kind, tax_id, *, branch_type=None, branch_no=None):
+    """同税号（+ 分店）在 Express 里有几条、分不出用哪条时：ERP 自己先前建过的那条（没挂 Express 编码）接着用，
+    不每张单都再建一条；挂哪条 Express 档由写账时在 ERP 里选一次（记住复用）。没有回 None。"""
+    doctype, _title, _codes = KINDS[kind]
+    filters = {"is_active": 1, "tax_id": str(tax_id or "").strip(), "express_code": ["is", "not set"]}
+    if branch_type == "branch":
+        filters.update(branch_type="branch", branch_no=str(branch_no or "").strip())
+    elif branch_type in ("head", "head_office", "hq"):
+        filters["branch_type"] = ["in", ["head", "head_office", "hq"]]
+    rows = frappe.get_all(doctype, filters=filters, pluck="name", order_by="creation asc", limit_page_length=1)
+    return rows[0] if rows else None
+
+
 USED_BY = {"supplier": ("Purchase Document", "supplier"), "customer": ("ERP Sales Document", "customer")}
 
 
@@ -81,8 +94,13 @@ def match_product(description, company=None):
     """明细行按品名认商品（没选商品时）：``(商品, 认出几条)``。按 :func:`for_company` 只在这家公司该用的商品里认；
     认出不止一条时商品给 None，调用方按各自口径处理（要人选）。"""
     rows = frappe.get_all("ERP Product", filters={"product_name": description, "is_active": 1},
-                          fields=["name", "express_company"], limit_page_length=50)
+                          fields=["name", "express_company", "express_code", "code", "express_stock"],
+                          limit_page_length=50)
     rows = for_company(rows, company)
+    for prefer in (lambda row: description in (row.get("express_code"), row.get("code")),  # 编码就是品名的那条
+                   lambda row: bool(row.get("express_stock"))):                          # 库存品
+        if company and len(rows) > 1 and len([row for row in rows if prefer(row)]) == 1:  # 只在这家公司该用的档里挑
+            rows = [row for row in rows if prefer(row)]
     return (rows[0]["name"] if len(rows) == 1 else None), len(rows)
 
 

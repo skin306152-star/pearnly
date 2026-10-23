@@ -55,8 +55,13 @@ def _needed(row):
 def _options(item, data):
     """一项能选的值：写账规则给了就用给的，没给的（存货、费用科目、部门）从这份账套的主档里取。"""
     if item.get("options"):
-        rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or row.get("code") or "")}
-                for row in item["options"]]
+        options = item["options"]
+        if item["kind"] == "party":
+            # 票面读出的分店（归类键第 3 段）：同税号的档里有这个分店的就只列这个分店的
+            wanted = (str(item.get("subject") or "").split("|") + ["", "", ""])[2]
+            options = [row for row in options if row.get("branch") == wanted] or options
+        rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or row.get("code") or ""),
+                 **({"branch": row["branch"]} if row.get("branch") else {})} for row in options]
         if item["kind"] == "party" and not item.get("existing_only"):
             rows.append({"code": choice_rules.NEW, "name": ""})
         return rows

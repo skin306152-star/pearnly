@@ -323,6 +323,9 @@ class CompanyMasters(Base):
         self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค", "CO-00127"), (mine, 1))
         self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค", "CO-00999"), (loose, 1))  # 没接 Express 的公司
         self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค")[1], 3)  # 不给公司：照旧全认，交人选
+        # 本公司同名几条：编码就是品名的那条优先（Express 常拿品名当编码）
+        self.row("ERP Product", product_name="น้ำแข็งแพ็ค", express_code="ICE-PACK", express_company="CO-00127")
+        self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค", "CO-00127"), (mine, 1))
 
     def test_a_customer_is_found_by_the_buyer_tax_id_before_the_misread_name(self):
         head = self.row("ERP Customer", customer_name="บิ๊กซี (สำนักงานใหญ่)", tax_id="0107536000633", branch_type="hq",
@@ -347,6 +350,19 @@ class CompanyMasters(Base):
         found = self.selection.match_party("supplier", "บริษัท วิริยะประกันภัย จำกัด (มหาชน)", tax_id=tax,
                                            branch_type="head_office", company="CO-00127")
         self.assertEqual(found, used)  # 名称都对不上：取这家公司最近在单据上用过的那条，不报「找到多个匹配结果」
+
+    def test_an_erp_customer_made_earlier_for_an_ambiguous_tax_id_is_reused(self):
+        tax = "0105541034263"
+        for code, branch in (("ม005", "00020"), ("โบว์ลิ่ง01", "00020")):
+            self.row("ERP Customer", customer_name="เมเจอร์ โบว์ล " + code, tax_id=tax, branch_type="branch",
+                     branch_no=branch, express_code=code, express_company="CO-00127")
+        self.assertIsNone(self.selection.match_party("customer", "บริษัท เมเจอร์ โบว์ล กรุ๊ป จำกัด", tax_id=tax,
+                                                     branch_type="branch", branch_no="00020", company="CO-00127",
+                                                     ambiguous="none"))
+        self.assertIsNone(self.selection.unlinked_party("customer", tax, branch_type="branch", branch_no="00020"))
+        made = self.row("ERP Customer", customer_name="บริษัท เมเจอร์ โบว์ล กรุ๊ป จำกัด", tax_id=tax,
+                        branch_type="branch", branch_no="00020")
+        self.assertEqual(self.selection.unlinked_party("customer", tax, branch_type="branch", branch_no="00020"), made)
 
     def test_buyer_tax_and_branch_from_the_reading(self):
         from pearnly_erp_portal.sales import contracts as sales
