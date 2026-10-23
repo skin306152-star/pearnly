@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
 
-from pearnly_cowork.push.express.choices import branch5, digits
+from pearnly_core.express_rules.push.choices import branch5, digits
 
 OK, MISMATCH, UNVERIFIED = "ok", "mismatch", "unverified"
 STATES = (OK, MISMATCH, UNVERIFIED)
@@ -26,7 +26,7 @@ TAX_MAX, BRANCH_MAX = 20, 5
 def face(direction: Any, fields: Mapping[str, Any]) -> Dict[str, str]:
     """票面上的对方：进项看卖方、销项看买方；税号只认 13 位，分店只认票面印了的（数字或「总公司」字样）。"""
     # 只在准备推送时用：`common.sanitize_push_meta` 也导入本模块，那条路不带 pearnly_core（账套比对要它）
-    from pearnly_cowork.targets.account_match import printed_branch
+    from pearnly_core.express_rules.targets.account_match import printed_branch
 
     side = "buyer" if direction == "sales" else "seller"
     fields = fields if isinstance(fields, Mapping) else {}

@@ -20,7 +20,7 @@ from pymysql.err import OperationalError, ProgrammingError
 
 from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.reconciliation import bank_evidence
-from pearnly_cowork.targets.identity import normalize_express_account_key as identity
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key as identity
 from . import access, model, pool, state
 
 VERSION = 2

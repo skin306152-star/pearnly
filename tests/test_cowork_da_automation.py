@@ -22,7 +22,7 @@ for _name in [n for n in sys.modules if n.split(".")[0] == "pearnly_cowork"]:
 
 from pearnly_core.tax_documents.amounts import valid_tax_id  # noqa: E402
 from pearnly_cowork.push.express import automation as auto  # noqa: E402
-from pearnly_cowork.push.express import choices as choice_rules  # noqa: E402
+from pearnly_core.express_rules.push import choices as choice_rules  # noqa: E402
 from pearnly_cowork.push.express import decide as decide_rules  # noqa: E402
 from pearnly_cowork.push.express.pushed import fit_ref_no  # noqa: E402
 

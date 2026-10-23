@@ -93,7 +93,7 @@ class ClassificationChecks(unittest.TestCase):
         row = self.create(fields={"seller_name": "ptt"})
         category = row["pages"][0]["fields"]["category"]
         self.assertEqual(category, "ค่าไฟฟ้า")
-        from pearnly_cowork.push.express.common import resolve_account_sourced
+        from pearnly_core.express_rules.push.common import resolve_account_sourced
         self.assertEqual(resolve_account_sourced([{"erp_type": "express", "pearnly_category": category,
             "erp_code": "5500"}], category, "9999"), ("5500", "category_map"))
 

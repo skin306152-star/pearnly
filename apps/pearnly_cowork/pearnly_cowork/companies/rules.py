@@ -21,7 +21,7 @@ from frappe.utils import now_datetime
 from pearnly_cowork.companies import identity
 from pearnly_cowork.companies.access import CHOICE, COMPANY, read, write
 from pearnly_cowork.push.express import company_choices
-from pearnly_cowork.push.express.choices import KINDS
+from pearnly_core.express_rules.push.choices import KINDS
 
 RULES_MAX = 500
 CONTEXT_MAX = 40

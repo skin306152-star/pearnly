@@ -12,8 +12,8 @@ import contextlib
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from pearnly_cowork.push.express.common import PAYLOAD_VERSION, SRC_BANK, SRC_MANUAL, SRC_PROFILE
-from pearnly_cowork.push.express.mapper import build_express_payload
+from pearnly_core.express_rules.push.common import PAYLOAD_VERSION, SRC_BANK, SRC_MANUAL, SRC_PROFILE
+from pearnly_core.express_rules.push.mapper import build_express_payload
 _CONFIG = {'account_set': 'DATAT', 'fallback_acc': '11-04-02-00', 'vat_input_acc': '11-05-04-01', 'ap_acc': '21-02-01-00'}
 _BUYER_TAX = '1234567890123'
 

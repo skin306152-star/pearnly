@@ -6,7 +6,8 @@ import unittest
 
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, TargetSelectionError, freeze_target
 from pearnly_cowork.connections import account_search
-from pearnly_cowork.targets import account_match, catalog_groups, choice, choices, evidence, identity, projection, selection
+from pearnly_cowork.targets import catalog_groups, choice, choices, evidence, projection, selection
+from pearnly_core.express_rules.targets import account_match, identity
 
 REQUEST_ID = "11111111-1111-4111-8111-111111111111"
 NEW_REQUEST_ID = "22222222-2222-4222-8222-222222222222"

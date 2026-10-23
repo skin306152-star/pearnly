@@ -12,36 +12,36 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
-from pearnly_cowork.targets import stock_groups
+from pearnly_core.express_rules.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
-from pearnly_cowork.contracts import pos as pos_contract
-from pearnly_cowork.contracts.history import primary_page, primary_page_fields
-from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, resolve_account_direction, resolve_posting_kind
+from pearnly_core.express_rules.contracts import pos as pos_contract
+from pearnly_core.express_rules.contracts.history import primary_page, primary_page_fields
+from pearnly_core.express_rules.contracts.push import clean_tax_id, explicit_direction, resolve_account_direction, resolve_posting_kind
 from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.automation import rules as automation_rules
 from pearnly_cowork.push.automation import service as automation_service
 from pearnly_cowork.push.express import account_suggest
-from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_cowork.push.express import decide as decide_rules
 from pearnly_cowork.push.express import goods_posting
-from pearnly_cowork.push.express import payment as payment_rules
+from pearnly_core.express_rules.push import payment as payment_rules
 from pearnly_cowork.push.express import pushed as pushed_rules
-from pearnly_cowork.push.express import written_check
-from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
-from pearnly_cowork.push.express.prepare import prepare_express
-from pearnly_cowork.push.express.preflight import ExpressContext
-from pearnly_cowork.push.express.history import flatten_history_for_mrerp
-from pearnly_cowork.push.express.common import parse_invoice_date
+from pearnly_core.express_rules.push import written_check
+from pearnly_core.express_rules.push.common import SRC_CATEGORY, resolve_account_sourced
+from pearnly_core.express_rules.push.prepare import prepare_express
+from pearnly_core.express_rules.push.preflight import ExpressContext
+from pearnly_core.express_rules.push.history import flatten_history_for_mrerp
+from pearnly_core.express_rules.push.common import parse_invoice_date
 from pearnly_cowork.push.mrerp import runner
 from pearnly_cowork.push.native import service as ledger
-from pearnly_cowork.push.receipts import derive_external_ref, express_prior_number
+from pearnly_core.express_rules.receipts import derive_external_ref, express_prior_number
 from pearnly_cowork.targets.choice import endpoint_with_account_choice
 from pearnly_cowork.targets.contracts import TargetSelectionError
-from pearnly_cowork.targets import account_match
+from pearnly_core.express_rules.targets import account_match
 from pearnly_cowork.targets.freeze import freeze_target
-from pearnly_cowork.targets.identity import normalize_express_account_key, same_company_account_sets
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key, same_company_account_sets
 from pearnly_cowork.targets.selection import resolve_account_choice
 
 

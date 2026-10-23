@@ -15,7 +15,7 @@ from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 # facade re-export(体积闸拆分 · 付款判据簇下沉 payment.py · common.X 单一对象不变)
-from pearnly_cowork.push.express.payment import (  # noqa: F401,E402
+from pearnly_core.express_rules.push.payment import (  # noqa: F401,E402
     SRC_BANK,
     SRC_DOC_TYPE,
     SRC_EXPLICIT,
@@ -27,9 +27,9 @@ from pearnly_cowork.push.express.payment import (  # noqa: F401,E402
     payment_verdict_for,
 )
 
-from pearnly_cowork.contracts.line_items import TOLERANCE as _ITEMS_TOL, matched_target
-from pearnly_cowork.push.express.primitives import _d, parse_invoice_date
-from pearnly_cowork.push.express.written_check import clean as clean_verify
+from pearnly_core.express_rules.contracts.line_items import TOLERANCE as _ITEMS_TOL, matched_target
+from pearnly_core.express_rules.push.primitives import _d, parse_invoice_date
+from pearnly_core.express_rules.push.written_check import clean as clean_verify
 
 
 _CENT = Decimal("0.01")
@@ -448,7 +448,7 @@ def amounts(fields: Dict[str, Any], history: Dict[str, Any]) -> Optional[tuple]:
 
     优先采信票面 税前+税额 自洽;缺 VAT 用 总额−税前;只有总额按 7% 含税反推。
     """
-    from pearnly_cowork.push.express.field_rules import vat_from_inclusive
+    from pearnly_core.express_rules.push.field_rules import vat_from_inclusive
 
     total = (
         _d(history.get("total_amount")) or _d(fields.get("total_amount")) or _d(fields.get("total"))

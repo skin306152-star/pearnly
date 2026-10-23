@@ -10,11 +10,11 @@ from decimal import Decimal
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 
-from pearnly_cowork.push.express.common import ITEMS_MISMATCH, ITEMS_OK, amounts, extract_line_items  # noqa: E402
-from pearnly_cowork.push.express.field_clean import clean_seller  # noqa: E402
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload  # noqa: E402
+from pearnly_core.express_rules.push.common import ITEMS_MISMATCH, ITEMS_OK, amounts, extract_line_items  # noqa: E402
+from pearnly_core.express_rules.push.field_clean import clean_seller  # noqa: E402
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload  # noqa: E402
 from pearnly_cowork.roundtrip import money  # noqa: E402
-from pearnly_cowork.contracts.line_items import review_status  # noqa: E402
+from pearnly_core.express_rules.contracts.line_items import review_status  # noqa: E402
 
 CONFIG = {"account_set": "DATAT", "revenue_acc": "41-01-00-00", "vat_output_acc": "11-05-04-02", "ar_acc": "11-02-01-00"}
 

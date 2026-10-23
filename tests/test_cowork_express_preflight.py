@@ -7,13 +7,13 @@ import ast
 from pathlib import Path
 import unittest
 
-from pearnly_cowork.contracts.push import PushContractError
-from pearnly_cowork.push.express.preflight import CHECK_KEYS, ExpressContext, preflight_express
-from pearnly_cowork.push.express.prepare import prepare_express
-from pearnly_cowork.push.express.prior_doc import prior_history_id
-from pearnly_cowork.push.express.common import amounts
-from pearnly_cowork.push.express.account_rules import account_set_allowed, stock_lane_enabled
-from pearnly_cowork.push.express.stock_acc_group import resolve_stock_acc_group
+from pearnly_core.express_rules.contracts.push import PushContractError
+from pearnly_core.express_rules.push.preflight import CHECK_KEYS, ExpressContext, preflight_express
+from pearnly_core.express_rules.push.prepare import prepare_express
+from pearnly_core.express_rules.push.prior_doc import prior_history_id
+from pearnly_core.express_rules.push.common import amounts
+from pearnly_core.express_rules.push.account_rules import account_set_allowed, stock_lane_enabled
+from pearnly_core.express_rules.push.stock_acc_group import resolve_stock_acc_group
 
 
 class PreflightTests(unittest.TestCase):

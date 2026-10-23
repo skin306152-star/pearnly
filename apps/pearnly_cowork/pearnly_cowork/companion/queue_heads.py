@@ -11,7 +11,7 @@
 """
 import frappe
 
-from . import route_contracts
+from pearnly_core.cc_desktop.wire import route_contracts
 
 RECORD = 'Cowork Push Record'
 
@@ -21,7 +21,7 @@ _QUEUED = ("{r}.connection=%(connection)s AND {r}.workspace=%(workspace)s AND CO
            "AND COALESCE({r}.result_unknown,0)=0 AND COALESCE({h}.source,'') NOT IN ('erp_web','line_erp')")
 
 # 这台电脑 / 这个人的单（:func:`scope` 给参数）：``everyone`` 不筛；定时任务只归 ``device``；其余按录入人在 ``users`` 里，
-# ``anyone`` = 这台电脑没有登录记录（过渡期谁的单都写，`connections.member.serves`）
+# ``anyone`` = 这台电脑没有登录记录（过渡期谁的单都写，`route_contracts.serves`）
 _OWNED = ("(%(everyone)s=1 OR ({r}.route_device=%(device)s AND %(device)s<>'') "
           "OR (COALESCE({r}.route_device,'')='' AND (%(anyone)s=1 "
           "OR COALESCE(NULLIF({r}.entered_by,''),{r}.actor) IN %(users)s)))")

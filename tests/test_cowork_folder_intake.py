@@ -1,4 +1,5 @@
 """文件夹自动录入：纯规则 + 「只新增、不改现有」的守护（不连库、不依赖 Frappe）。"""
+from pathlib import Path
 import ast
 import csv
 import hashlib
@@ -26,7 +27,7 @@ def _load(name, path):
 
 
 contracts = _load("folder_contracts", APP / "folder_intake/contracts.py")
-identity = _load("folder_targets_identity", APP / "targets/identity.py")
+identity = _load("folder_targets_identity", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py")
 folder_plan = _load("companion_folder_plan", ROOT / "companion/src/companion/folder_plan.py")
 desktop_update = _load("connections_desktop_update", APP / "connections/desktop_update.py")
 
@@ -881,7 +882,7 @@ class ResultTally(unittest.TestCase):
         self.assertIn('_later(entry, result.get("seconds") or OFFLINE_SECONDS, result["reason"])',
                       (APP / "folder_intake/pump.py").read_text())
         # 要人选一次的几类，与推送那边同一组
-        self.assertEqual(self._constant("push/express/choices.py", "KINDS"), contracts.CHOICE_KINDS)
+        self.assertEqual(self._constant("../../pearnly_core/pearnly_core/express_rules/push/choices.py", "KINDS"), contracts.CHOICE_KINDS)
 
     def test_not_uploaded_counts_failures_and_files_still_being_written(self):
         runs = [Row(upload_failed=2, note="still_writing:3"), Row(upload_failed=1, note="folder_missing"),
@@ -1048,7 +1049,7 @@ class StockOrderPump(unittest.TestCase):
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="R", RUN="U", read=None, write=None),
                    "pearnly_cowork.folder_intake.machine": stub(owner_ready=None, request_key=None),
                    "pearnly_cowork.folder_intake.push": stub(push_one=None),
-                   "pearnly_cowork.targets.identity": identity}
+                   "pearnly_core.express_rules.targets.identity": identity}
         with mock.patch.dict(sys.modules, modules):
             pump = _load("folder_pump_under_test", APP / "folder_intake/pump.py")
         entry = Row(name="S1", rule="RS", connection="C1", registered_at=self.NOW - timedelta(minutes=55),
@@ -1144,7 +1145,7 @@ class PushRefreshesTheFile(unittest.TestCase):
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="R", RUN="U", read=None, write=None),
                    "pearnly_cowork.folder_intake.machine": stub(owner_ready=None, request_key=None),
                    "pearnly_cowork.folder_intake.push": stub(push_one=None),
-                   "pearnly_cowork.targets.identity": identity}
+                   "pearnly_core.express_rules.targets.identity": identity}
         with mock.patch.dict(sys.modules, modules):
             pump = _load("folder_pump_refresh_under_test", APP / "folder_intake/pump.py")
         pump.read = lambda doctype, name, for_update=False: entries[name]

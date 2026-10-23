@@ -17,7 +17,7 @@ import frappe
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.contracts.push import clean_tax_id
+from pearnly_core.express_rules.contracts.push import clean_tax_id
 from pearnly_cowork.history import storage, text_layer
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application import service
@@ -25,10 +25,10 @@ from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.automation import clock, rules
 from pearnly_cowork.push.automation import service as automation_service
 from pearnly_cowork.push.express import automation
-from pearnly_cowork.push.express import choices as choice_rules
-from pearnly_cowork.push.express.preflight import ExpressContext
-from pearnly_cowork.push.express.prepare import prepare_express
-from pearnly_cowork.targets import account_match
+from pearnly_core.express_rules.push import choices as choice_rules
+from pearnly_core.express_rules.push.preflight import ExpressContext
+from pearnly_core.express_rules.push.prepare import prepare_express
+from pearnly_core.express_rules.targets import account_match
 
 BANGKOK = ZoneInfo("Asia/Bangkok")
 PRIOR_MAX = 50

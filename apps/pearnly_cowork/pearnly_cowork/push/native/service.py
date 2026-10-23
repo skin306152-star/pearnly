@@ -25,11 +25,11 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import pool as account_pool
 from pearnly_cowork.connections import preparation as preparation_sources
-from pearnly_cowork.contracts.push import PushContractError, require_external_history
-from pearnly_cowork.push.express import common
-from pearnly_cowork.push.express import written_check
-from pearnly_cowork.push.lifecycle import acknowledgement, LEASE_SECONDS
-from pearnly_cowork.push.express.referenced import used_facts
+from pearnly_core.express_rules.contracts.push import PushContractError, require_external_history
+from pearnly_core.express_rules.push import common
+from pearnly_core.express_rules.push import written_check
+from pearnly_core.cc_desktop.wire.ack_rules import acknowledgement, LEASE_SECONDS
+from pearnly_core.express_rules.push.referenced import used_facts
 from pearnly_cowork.push.native.contracts import (
     ACTIVE_STATUSES, LOCK_SCHEME, PushLedgerError, ReservationContext, business_identity, digest, document_identity,
     duplicate_reason, encode, frozen_values, integer, request_identity, text, utc,
@@ -39,7 +39,7 @@ from pearnly_cowork.push.native.documents import TYPES, persist
 from pearnly_cowork.push.native import documents as ledger_documents
 from pearnly_cowork.targets.freeze import freeze_target
 from pearnly_cowork.targets.contracts import TargetSelectionError
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 RECORD, ATTEMPT, WRITER_LOCK = TYPES
 _ADAPTER_CAPABILITY = object()

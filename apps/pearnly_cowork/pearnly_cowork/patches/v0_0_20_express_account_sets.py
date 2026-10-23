@@ -37,7 +37,7 @@ def _old_computer(connection, report_credential):
 def _referenced(connection):
     """未了结的推送记录（不是成功、也不是作废）与启用的定时任务引用到的账套键 → 推送时冻结的根（定时任务不知道根）。"""
     import json
-    from pearnly_cowork.targets.identity import normalize_express_account_key as identity
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key as identity
 
     found = {}
     for row in frappe.db.sql("""SELECT account_key, target_json FROM `tabCowork Push Record`

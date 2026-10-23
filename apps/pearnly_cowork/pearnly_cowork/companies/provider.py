@@ -55,7 +55,7 @@ def work_branch(connection, account_set) -> str:
     from pearnly_core.assistant import projects
 
     from pearnly_cowork.companies import service
-    from pearnly_cowork.targets.identity import normalize_express_account_key
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
     session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
     if not session:

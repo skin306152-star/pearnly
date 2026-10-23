@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 import test_cowork_da_automation as da  # noqa: E402  先装好 pearnly_cowork 的导入路径（同一份纯模块）
 import test_cowork_folder_tasks_mrerp as harness  # noqa: E402
 
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload  # noqa: E402
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload  # noqa: E402
 
 auto, choice_rules, decide_rules, contracts = da.auto, da.choice_rules, da.decide_rules, harness.contracts
 

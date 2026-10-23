@@ -7,7 +7,7 @@ import hashlib
 import json
 import frappe
 from pearnly_cowork.connections import stock_effects
-from pearnly_cowork.push.express import common
+from pearnly_core.express_rules.push import common
 from .documents import persist
 
 NOTIFICATION = 'Cowork Push Notification'

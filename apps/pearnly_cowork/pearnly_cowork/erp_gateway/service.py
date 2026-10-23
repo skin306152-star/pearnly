@@ -25,7 +25,7 @@ from pearnly_cowork.erp_gateway import contracts
 from pearnly_cowork.erp_gateway.contracts import GatewayError
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import service as application
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 HISTORY = "Cowork OCR History"
 RECORD = "Cowork Push Record"

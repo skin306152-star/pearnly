@@ -13,9 +13,9 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "apps" / "pearnly_cowork"))
 sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 
-from pearnly_cowork.targets import stock_groups  # noqa: E402
-from pearnly_cowork.push.express.mapper import build_express_payload  # noqa: E402
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload  # noqa: E402
+from pearnly_core.express_rules.targets import stock_groups  # noqa: E402
+from pearnly_core.express_rules.push.mapper import build_express_payload  # noqa: E402
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload  # noqa: E402
 
 ACCOUNT = r"s:\2569\exp69\test"
 OTHER = r"s:\2569\exp69\other"

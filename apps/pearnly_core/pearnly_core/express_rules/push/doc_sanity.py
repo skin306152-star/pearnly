@@ -24,7 +24,7 @@ import re
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from pearnly_cowork.contracts.push import clean_tax_id
+from pearnly_core.express_rules.contracts.push import clean_tax_id
 
 # 票面 currency 字段归一小写后,视为"泰铢/未标注"的取值(放行)。其余一律视外币。
 _THB_CURRENCY = {"", "thb", "บาท", "baht", "฿", "thai baht"}

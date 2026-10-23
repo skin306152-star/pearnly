@@ -9,8 +9,8 @@ from collections import Counter
 from copy import deepcopy
 
 from pearnly_cowork.contracts import document_policy as policy_rules
-from pearnly_cowork.contracts.history import normalize_source
-from pearnly_cowork.contracts.push import (apply_batch_direction, apply_batch_payment,
+from pearnly_core.express_rules.contracts.history import normalize_source
+from pearnly_core.express_rules.contracts.push import (apply_batch_direction, apply_batch_payment,
     normalize_direction, normalize_payment, normalize_posting_kind)
 from pearnly_cowork.ocr.grouping import group_invoices
 from pearnly_cowork.ocr.pages import (

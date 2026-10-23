@@ -697,7 +697,7 @@ class SameNumbersAsTheTaskList(unittest.TestCase):
                    "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=contracts, destinations=stub(), inbox=stub(),
                                                         readers=stub(), follow=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE=FILE, RULE=RULE, RUN=RUN, read=None, write=None),
-                   "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda value: value)}
+                   "pearnly_core.express_rules.targets.identity": stub(normalize_express_account_key=lambda value: value)}
         with mock.patch.dict(sys.modules, modules):
             rules = _load("folder_rules_results", APP / "folder_intake/rules.py")
         tally = (f"SELECT state, last_code, outcome_json, registered_at FROM `tab{FILE}` WHERE rule=%s", ["R1"])

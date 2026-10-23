@@ -12,6 +12,7 @@
 不连库、不依赖 Frappe：纯函数直接导入，编排模块在替身模块上加载（`unittest.mock`）。真实 Site 上的加锁、并发、HTTP 链与
 真机在第 7 批联调。
 """
+from pathlib import Path
 import ast
 import importlib.util
 import json
@@ -27,10 +28,10 @@ APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
 sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 
-from pearnly_cowork.companion import queue_contracts, route_contracts as rc  # noqa: E402
-from pearnly_cowork.companion.route_contracts import Account, Job, Peer  # noqa: E402
-from pearnly_cowork.push.express import wire_location  # noqa: E402
-from pearnly_cowork.push.express.referenced import used_masters  # noqa: E402
+from pearnly_core.cc_desktop.wire import queue_contracts, route_contracts as rc  # noqa: E402
+from pearnly_core.cc_desktop.wire.route_contracts import Account, Job, Peer  # noqa: E402
+from pearnly_core.express_rules.push import wire_location  # noqa: E402
+from pearnly_core.express_rules.push.referenced import used_masters  # noqa: E402
 from pearnly_cowork.push.native.contracts import (  # noqa: E402
     LOCK_SCHEME, PushLedgerError, ReservationContext, digest, frozen_values, writer_identities)
 
@@ -281,9 +282,9 @@ class WireKeys(unittest.TestCase):
 
 class PureModules(unittest.TestCase):
     def test_the_new_contracts_import_no_framework(self):
-        for path in (APP / "companion/route_contracts.py", APP / "push/express/wire_location.py",
-                     APP / "push/express/referenced.py", APP / "push/native/contracts.py",
-                     APP / "companion/queue_contracts.py"):
+        for path in (Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/wire_location.py",
+                     Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/referenced.py", APP / "push/native/contracts.py",
+                     Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/cc_desktop/wire/queue_contracts.py"):
             tree = ast.parse(path.read_text())
             names = {alias.name.split(".")[0] for node in ast.walk(tree)
                      if isinstance(node, (ast.Import, ast.ImportFrom))
@@ -382,7 +383,7 @@ class Transport(unittest.TestCase):
                                                    name="1b4e28ba-2fa1-11d2-883f-0016d3cca427"))
         stub = types.SimpleNamespace
         heads = _load("pearnly_cowork.companion.queue_heads", APP / "companion/queue_heads.py",
-                      {"frappe": frappe, "pearnly_cowork.companion.route_contracts": rc})
+                      {"frappe": frappe, "pearnly_core.cc_desktop.wire.route_contracts": rc})
         modules = {
             "frappe": frappe,
             "pearnly_cowork.companion.queue_heads": heads,
@@ -587,7 +588,7 @@ class QueueHeadsQuery(unittest.TestCase):
         frappe.db = types.SimpleNamespace(sql=self.sql)
         frappe.parse_json = json.loads
         self.heads = _load("pearnly_cowork.companion._queue_heads_under_test", APP / "companion/queue_heads.py",
-                           {"frappe": frappe, "pearnly_cowork.companion.route_contracts": rc})
+                           {"frappe": frappe, "pearnly_core.cc_desktop.wire.route_contracts": rc})
         self.db = sqlite3.connect(":memory:")
         self.db.row_factory = sqlite3.Row
         self.db.execute("CREATE TABLE `tabCowork Push Record` (name, account_key, actor, entered_by, route_device, created_at, "
@@ -738,7 +739,7 @@ class _Fail(Exception):
 
 def account_pool_owned(peers, actor, *, device=""):
     """真 `connections.pool.owned`（不连库的那一段）。"""
-    from pearnly_cowork.connections.member import serves
+    from pearnly_core.cc_desktop.wire.route_contracts import serves
 
     if device:
         return {device: peers[device]} if device in peers else {}
@@ -1107,7 +1108,7 @@ class PoolState(unittest.TestCase):
         pool = types.SimpleNamespace(writers=writers, owned=account_pool_owned)
         credentials = types.SimpleNamespace(pool_peers=lambda c, now=None: self.peers)
         heads = _load("pearnly_cowork.companion.queue_heads", APP / "companion/queue_heads.py",
-                      {"frappe": frappe, "pearnly_cowork.companion.route_contracts": rc})
+                      {"frappe": frappe, "pearnly_core.cc_desktop.wire.route_contracts": rc})
         modules = {"frappe": frappe, "pearnly_cowork.connections.pool": pool,
                    "pearnly_cowork.connections.access": types.SimpleNamespace(require_connection=lambda doc, lock: None),
                    "pearnly_cowork.companion.credentials": credentials,

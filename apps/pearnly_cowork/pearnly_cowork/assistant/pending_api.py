@@ -322,7 +322,7 @@ def _continue_group(found, chosen) -> list:
 
 def _continue_one(row, account_set) -> bool:
     """按记住的那份 ``account_set`` 接着判一张（见 `_continue_group`）；接着判了回 True。"""
-    from pearnly_cowork.contracts.history import primary_page_fields
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.folder_intake import push as folder_push
     from pearnly_cowork.history import document_policy as policy_store
     from pearnly_cowork.push.application import service as application

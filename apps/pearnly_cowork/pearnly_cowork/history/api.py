@@ -113,7 +113,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     筛选与排序都在这条 SQL 上做（列表是服务端分页的）：`sort_by` 只认白名单里的
     字段，认不出的退回默认排序，不把前端传来的字符串直接拼进 SQL。
     """
-    from pearnly_cowork.contracts.history import normalize_posting_kind
+    from pearnly_core.express_rules.contracts.history import normalize_posting_kind
 
     scope.require_read()
     start, limit = max(0, int(start)), max(1, min(int(limit), 100))

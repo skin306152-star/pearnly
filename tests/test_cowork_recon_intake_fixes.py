@@ -10,8 +10,8 @@ from unittest import mock
 
 import frappe
 
-from pearnly_cowork.contracts import history as history_contract
-from pearnly_cowork.push.express.history import flatten_history_for_mrerp
+from pearnly_core.express_rules.contracts import history as history_contract
+from pearnly_core.express_rules.push.history import flatten_history_for_mrerp
 from pearnly_cowork.reconciliation import (
 	bank_recon_contracts,
 	bank_review,

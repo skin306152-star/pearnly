@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
-from pearnly_cowork.push.express.choices import KINDS, NEW, PAYMENT_VALUES, VAT_VALUES
+from pearnly_core.express_rules.push.choices import KINDS, NEW, PAYMENT_VALUES, VAT_VALUES
 
 SOURCES = ("task_default", "remembered", "company_rule", "express_history")  # 与 `pushed.ACCOUNT_FROM` 同一套词
 # 每一类的值来自这份账套的哪张主档（付款、抵进项是固定值）

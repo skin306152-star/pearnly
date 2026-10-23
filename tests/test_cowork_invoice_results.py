@@ -2,7 +2,7 @@
 from decimal import Decimal
 import unittest
 
-from pearnly_cowork.contracts.history import HistoryContractError, initial_history
+from pearnly_core.express_rules.contracts.history import HistoryContractError, initial_history
 from pearnly_cowork.ocr.results import OcrResultError, prepare_history_batch
 from pearnly_cowork.ocr.schema.invoice import validate_invoice
 from pearnly_cowork.ocr.schema.results import PipelinePageResult, PipelineResult

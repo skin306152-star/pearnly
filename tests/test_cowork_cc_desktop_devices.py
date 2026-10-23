@@ -17,6 +17,7 @@ import types
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # Express 写账规则与 CC 线上约定在共用层（ADR-025）
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 DOMAIN = APP / "companion"
 SITE = "cowork.example"

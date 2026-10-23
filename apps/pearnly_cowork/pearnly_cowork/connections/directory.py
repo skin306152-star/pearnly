@@ -2,7 +2,7 @@
 
 调用方已按入口授权（识别落库、推卡片），这里不做会话权限判断、不加锁、不刷新目录。
 """
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from . import model
 from .state import CONNECTION, SNAPSHOT, heads, read, scope
 

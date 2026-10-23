@@ -1,12 +1,13 @@
 """池里一台电脑在连接域眼里的样子（ADR-021）：不导入框架、不做 IO。
 
 电脑记录归 companion 域；连接域只把设备编号当不透明字符串（`architecture-policy.json`：connections 不依赖 companion）。
-心跳与领取由 companion 读好这台电脑的事实、装进 :class:`Member` 再交进来。
+心跳与领取由 companion 读好这台电脑的事实、装进 :class:`Member` 再交进来。归属判据 ``serves`` 在共用层
+`pearnly_core.cc_desktop.wire.route_contracts`（ADR-025，多产品共用）。
 """
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Iterable, Mapping, NamedTuple
+from typing import Mapping, NamedTuple
 
 
 class Member(NamedTuple):
@@ -25,12 +26,4 @@ class Member(NamedTuple):
     selected: str = ""
 
 
-def serves(users: Iterable[str] | None, actor: str) -> bool:
-    """这台电脑写不写 ``actor`` 的活（ADR-021 第 50 条，用户 10-16「谁的活谁的电脑做」）：``users`` 是在这台电脑上登录过
-    CC 的人，``actor`` 在里面才算他的电脑。一个登录记录都没有的电脑（补丁建的旧电脑、1.6 及更早、只认过电脑还没打开过
-    对话页的）在过渡期照旧谁的活都写；一旦有人在上面登录 CC，就只归登录过的人。"""
-    users = {user for user in users or () if user}
-    return not users or bool(actor) and actor in users
-
-
-__all__ = ["Member", "serves"]
+__all__ = ["Member"]

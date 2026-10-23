@@ -7,7 +7,7 @@ revocation, response wrapping, sessions, Recorder and safe transaction failures.
 from copy import deepcopy
 import unittest
 
-from pearnly_cowork.companion.queue_contracts import QueueContractError, ack_request, lease_request
+from pearnly_core.cc_desktop.wire.queue_contracts import QueueContractError, ack_request, lease_request
 from test_cowork_companion_http_auth import pure_contract
 
 

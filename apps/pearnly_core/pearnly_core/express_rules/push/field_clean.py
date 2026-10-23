@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from pearnly_cowork.contracts.push import clean_tax_id
+from pearnly_core.express_rules.contracts.push import clean_tax_id
 
 import re
 from decimal import Decimal, InvalidOperation
@@ -108,7 +108,7 @@ def clean_seller(raw) -> str:
     if s.lower() in _SELLER_STOPWORDS:
         return ""
     if _AMOUNT_RE.match(s):  # 纯数字:实为店号(711/7-11)当店名保留,否则当金额清空(B-2)
-        from pearnly_cowork.push.express import merchant
+        from pearnly_core.express_rules.push import merchant
 
         return s if merchant.is_known_brand(s) else ""
     if _FULL_DATE_RE.match(s):

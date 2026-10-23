@@ -17,9 +17,9 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
 sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 
 from pearnly_cowork.ocr import pages  # noqa: E402
-from pearnly_cowork.push.express import choices as C  # noqa: E402
-from pearnly_cowork.push.express.mapper import build_express_payload  # noqa: E402
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload  # noqa: E402
+from pearnly_core.express_rules.push import choices as C  # noqa: E402
+from pearnly_core.express_rules.push.mapper import build_express_payload  # noqa: E402
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload  # noqa: E402
 
 D2 = "0105560000001"
 SUPPLIER = "0105536080112"

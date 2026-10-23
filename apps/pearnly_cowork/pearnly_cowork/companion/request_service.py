@@ -33,13 +33,13 @@ from frappe.utils import get_datetime
 from pearnly_core.execution import state as pearnly_state
 
 from pearnly_cowork.companion import credentials
-from pearnly_cowork.companion import request_contracts as contracts
+from pearnly_core.cc_desktop.wire import request_contracts as contracts
 from pearnly_cowork.companion import request_store as store
 from pearnly_cowork.companion.request_access import REQUEST, read, write
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import pool as account_pool
-from pearnly_cowork.connections.member import serves
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.cc_desktop.wire.route_contracts import serves
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
 PRESENCE = "cowork:companion:requests:"

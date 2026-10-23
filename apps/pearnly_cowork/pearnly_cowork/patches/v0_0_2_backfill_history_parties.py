@@ -8,7 +8,7 @@
 
 def execute():
     import frappe
-    from pearnly_cowork.contracts.history import extract_party_fields
+    from pearnly_core.express_rules.contracts.history import extract_party_fields
     from pearnly_cowork.history import storage
 
     for row in frappe.get_all(storage.DOCTYPE, fields=["name", "pages"], limit_page_length=0):

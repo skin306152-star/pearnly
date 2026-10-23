@@ -316,6 +316,7 @@ def _get_doc(doctype, name=None, for_update=False):
 def install(*, push_inputs=None, bank_window=None):
     """装好替身，回 frappe 替身。连接的授权、主档映射、银行流水在别的测试里守着：这里只给最小替身。"""
     sys.path.insert(0, str(APP))
+    sys.path.insert(0, str(APP.parent / "pearnly_core"))  # Express 写账规则与 CC 线上约定在共用层（ADR-025）
     frappe = types.ModuleType("frappe")
     frappe.__dict__.update(db=DB, throw=_throw, _=lambda text: text, get_doc=_get_doc, ValidationError=ValidationError,
                            PermissionError=PermissionError_, QueryDeadlockError=QueryDeadlockError,

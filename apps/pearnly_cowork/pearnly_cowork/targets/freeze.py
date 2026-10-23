@@ -4,7 +4,7 @@ import json
 
 from .choice import endpoint_with_account_choice
 from .contracts import FrozenTarget, TargetAccess, TargetEvidence, TargetSelectionError
-from .identity import normalize_express_account_key, reported_account_set_roots
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key, reported_account_set_roots
 from .selection import require_catalog_evidence, resolve_account_choice
 
 _ACCOUNT_FIELDS = (

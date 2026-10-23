@@ -114,7 +114,7 @@ def run(site, count, profile=False):
     from pearnly_cowork.connections.member import Member
     from pearnly_cowork.connections.reports import plan_report
     from pearnly_cowork.push.native import service as ledger
-    from pearnly_cowork.targets import identity
+    from pearnly_core.express_rules.targets import identity
 
     frappe.set_user("Administrator")
     names = []

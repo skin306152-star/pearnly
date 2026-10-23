@@ -184,7 +184,7 @@ class Harness(unittest.TestCase):
                        inbox=stub(), follow=stub(company_of=self._company_of)),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE=RULE, RUN="U", read=self.store.read,
                                                                write=self.store.write),
-                   "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
+                   "pearnly_core.express_rules.targets.identity": stub(normalize_express_account_key=lambda v: v)}
         rules = _load("folder_rules_batch_under_test", APP / "folder_intake/rules.py", modules)
         self.real_project = rules.project
         rules.project = lambda rule: dict(rule)

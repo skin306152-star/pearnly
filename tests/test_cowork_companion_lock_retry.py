@@ -16,6 +16,7 @@ import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # Express 写账规则与 CC 线上约定在共用层（ADR-025）
 COWORK = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 COMPANION = COWORK / "companion"
 LOCK_1020 = ("(1020, \"Record has changed since last read in table 'tabCowork Express Agent Credential'; "
@@ -145,11 +146,11 @@ def _install():
                         devices=_module("pearnly_cowork.companion.devices"),
                         release=_module("pearnly_cowork.companion.release"),
                         transport=_module("pearnly_cowork.companion.transport"),
-                        queue_contracts=_module("pearnly_cowork.companion.queue_contracts",
+                        queue_contracts=_module("pearnly_core.cc_desktop.wire.queue_contracts",
                                                 QueueContractError=QueueContractError),
                         device_contracts=_module("pearnly_cowork.companion.device_contracts", PROTOCOL=1),
                         request_service=_module("pearnly_cowork.companion.request_service"),
-                        request_contracts=_module("pearnly_cowork.companion.request_contracts",
+                        request_contracts=_module("pearnly_core.cc_desktop.wire.request_contracts",
                                                   ContractError=ContractError))
     connections = _module("pearnly_cowork.connections", access=_module("pearnly_cowork.connections.access"),
                           collector=_module("pearnly_cowork.connections.collector"),

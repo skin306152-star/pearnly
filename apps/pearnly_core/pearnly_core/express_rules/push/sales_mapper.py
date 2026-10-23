@@ -28,18 +28,18 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from pearnly_cowork.contracts import pos as pos_contract
-from pearnly_cowork.contracts.history import primary_page
-from pearnly_cowork.push.express.prior_doc import attach_prior_docnum
-from pearnly_cowork.push.express.choices import apply_to_payload
+from pearnly_core.express_rules.contracts import pos as pos_contract
+from pearnly_core.express_rules.contracts.history import primary_page
+from pearnly_core.express_rules.push.prior_doc import attach_prior_docnum
+from pearnly_core.express_rules.push.choices import apply_to_payload
 from datetime import date
-from pearnly_cowork.push.express.posting_kind import (
+from pearnly_core.express_rules.push.posting_kind import (
     POSTING_KIND_SERVICE,
     POSTING_KIND_STOCK,
     VALID_POSTING_KINDS,
     item_posting_kinds,
 )
-from pearnly_cowork.push.express.common import (
+from pearnly_core.express_rules.push.common import (
     ExpressMapResult,
     ITEM_MODE_NONSTOCK,
     _d,
@@ -59,13 +59,13 @@ from pearnly_cowork.push.express.common import (
     resolve_account_sourced,
     SRC_DEFAULT,
 )
-from pearnly_cowork.push.express.account_rules import stock_lane_enabled
-from pearnly_cowork.push.express.posting_profile import (
+from pearnly_core.express_rules.push.account_rules import stock_lane_enabled
+from pearnly_core.express_rules.push.posting_profile import (
     account_set_has_no_stock_master,
     profile_from_config,
 )
-from pearnly_cowork.push.express.stock_acc_group import resolve_stock_acc_group
-from pearnly_cowork.push.express.field_clean import (
+from pearnly_core.express_rules.push.stock_acc_group import resolve_stock_acc_group
+from pearnly_core.express_rules.push.field_clean import (
     clean_address,
     clean_branch_no,
     clean_invoice_no,

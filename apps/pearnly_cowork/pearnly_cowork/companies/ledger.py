@@ -24,7 +24,7 @@ from pearnly_cowork.companies import exceptions, identity, pending, service
 from pearnly_cowork.folder_intake import agent
 from pearnly_cowork.folder_intake import readers as folder_readers
 from pearnly_cowork.folder_intake.access import RULE
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 HISTORY = pending.HISTORY
 LEDGER_MAX = 5000

@@ -18,7 +18,7 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts import document_policy as rules
-from pearnly_cowork.contracts.history import primary_page_fields
+from pearnly_core.express_rules.contracts.history import primary_page_fields
 from pearnly_cowork.history import storage
 
 DOCTYPE = "Cowork Workspace"

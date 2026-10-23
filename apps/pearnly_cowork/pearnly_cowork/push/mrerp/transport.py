@@ -30,7 +30,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_core.session_lock import account_lock
-from pearnly_cowork.contracts.push import explicit_direction
+from pearnly_core.express_rules.contracts.push import explicit_direction
 from pearnly_cowork.connections.mrerp_session import MrErpSession, SessionError, lock_key
 from pearnly_cowork.connections.mrerp_master_reader import MasterReader
 from pearnly_cowork.push.mrerp import readback, routing

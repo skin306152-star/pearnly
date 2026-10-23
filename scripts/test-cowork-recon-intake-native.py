@@ -232,9 +232,9 @@ def vat_check():
 
 
 def intake(workspace):
-    from pearnly_cowork.contracts.history import HistoryContractError
+    from pearnly_core.express_rules.contracts.history import HistoryContractError
     from pearnly_cowork.history import storage
-    from pearnly_cowork.push.express.history import flatten_history_for_mrerp
+    from pearnly_core.express_rules.push.history import flatten_history_for_mrerp
 
     pages = [{"fields": {"invoice_number": "IV69/09-001", "date_raw": "01/06/2569", "total_amount": "1070",
                          "seller_name": "ACME", "subtotal": "1000", "vat": "70"}},

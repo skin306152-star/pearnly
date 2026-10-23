@@ -20,8 +20,8 @@ fixture = runpy.run_path(str(Path(__file__).with_name('cowork-preparation-confir
 fixture['connect']()
 cls = fixture['PreparationConfirmation']; cls.setUpClass()
 from pearnly_cowork.push.application import service
-from pearnly_cowork.push.express.prepare import prepare_express
-from pearnly_cowork.push.express.preflight import preflight_express
+from pearnly_core.express_rules.push.prepare import prepare_express
+from pearnly_core.express_rules.push.preflight import preflight_express
 cases = 0
 try:
     for direction in ('purchase', 'sales'):

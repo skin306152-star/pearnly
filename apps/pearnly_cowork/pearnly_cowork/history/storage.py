@@ -11,9 +11,9 @@ from pearnly_core.execution.work import step
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
 from . import categories, duplicates, names, review
-from pearnly_cowork.contracts.history import (GATEWAY_SOURCE, HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
+from pearnly_core.express_rules.contracts.history import (GATEWAY_SOURCE, HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
     extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page, primary_page_fields)
-from pearnly_cowork.contracts.push import declared_direction_pages
+from pearnly_core.express_rules.contracts.push import declared_direction_pages
 
 DOCTYPE = "Cowork OCR History"
 _CREATE_TOKEN = object()

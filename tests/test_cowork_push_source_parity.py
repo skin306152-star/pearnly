@@ -14,7 +14,9 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 
-from pearnly_cowork.push import lifecycle, receipts, retry
+from pearnly_cowork.push import lifecycle, retry
+from pearnly_core.cc_desktop.wire import ack_rules
+from pearnly_core.express_rules import receipts
 
 SOURCE_SHA = "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188"
 HASHES = {
@@ -113,7 +115,7 @@ def verify(source):
     # branch (shared_express_agent_queue.ack_managed) was never enabled and is
     # retired (D9), so the native lifecycle rejects it outright.
     try:
-        lifecycle.acknowledgement(branch="managed", attempt=1, success=True)
+        ack_rules.acknowledgement(branch="managed", attempt=1, success=True)
     except lifecycle.LifecycleError:
         pass
     else:
@@ -134,7 +136,7 @@ def verify(source):
                     result = ack("E1", "L1", "W", **args)
                     assert result.get("ok") and sink.patch, result
                     expected = sink.patch
-                    new = lifecycle.acknowledgement(branch="legacy", attempt=attempt, **{k: args[k] for k in ("success", "error", "outcome")})
+                    new = ack_rules.acknowledgement(branch="legacy", attempt=attempt, **{k: args[k] for k in ("success", "error", "outcome")})
                     assert (expected["status"], expected["attempt"], expected["body"]["stage"], expected["error"] or "") == (
                         new.status, new.attempt, new.stage, new.reason), (attempt, args, expected, new)
                     counters["ack_transitions"] += 1

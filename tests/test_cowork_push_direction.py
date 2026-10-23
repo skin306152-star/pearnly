@@ -5,6 +5,7 @@
 现在工作空间税号判不出时按账套税号判（`contracts.push.resolve_account_direction`），判出的方向交给 Express 预检；
 没有方向时账套核对不拿卖方当本方（`targets.account_match`）。买方是别家的票照旧拦。
 """
+from pathlib import Path
 import copy
 import dataclasses
 import pathlib
@@ -21,8 +22,8 @@ amounts = _load("tax_amounts_direction", ROOT / "apps/pearnly_core/pearnly_core/
 CORE = {"pearnly_core": types.ModuleType("pearnly_core"),
         "pearnly_core.tax_documents": types.SimpleNamespace(amounts=amounts),
         "pearnly_core.tax_documents.amounts": amounts}
-push_contract = _load("push_contract_direction", APP / "contracts/push.py", CORE)
-account_match = _load("account_match_direction", APP / "targets/account_match.py", CORE)
+push_contract = _load("push_contract_direction", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/contracts/push.py", CORE)
+account_match = _load("account_match_direction", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py", CORE)
 
 BOOK = r"c:\pearnlyexpress\70exp\t9sincer"
 BOOK_TAX, FIRM, OTHER = "0105551234567", "0107536000188", "0105559999996"  # 账套 / 事务所工作空间 / 别家（校验位都对）
@@ -384,11 +385,11 @@ class FrozenTarget(unittest.TestCase):
 # （这里只核方向）。货 / 费替身：复核屏点过「费用」才是费用。
 _ROUTING_STUBS = {
     **CORE,
-    "pearnly_cowork.contracts.push": push_contract,
-    "pearnly_cowork.push.express.doc_sanity": types.SimpleNamespace(check_document=lambda *a, **k: None),
-    "pearnly_cowork.push.express.field_rules": types.SimpleNamespace(
+    "pearnly_core.express_rules.contracts.push": push_contract,
+    "pearnly_core.express_rules.push.doc_sanity": types.SimpleNamespace(check_document=lambda *a, **k: None),
+    "pearnly_core.express_rules.push.field_rules": types.SimpleNamespace(
         item_verdict=lambda fields, today: (fields.get("posting_item_type_manual") == "expense", "stub")),
-    "pearnly_cowork.push.express.payment": types.SimpleNamespace(
+    "pearnly_core.express_rules.push.payment": types.SimpleNamespace(
         payment_verdict_for=lambda flat, fields, mappings, direction: (False, None)),
     "pearnly_cowork.push.mrerp.models": types.SimpleNamespace(FailedRow=object, ImportResult=object),
     "pearnly_cowork.push.mrerp.modules": types.SimpleNamespace(get_module=lambda doc_type: None),

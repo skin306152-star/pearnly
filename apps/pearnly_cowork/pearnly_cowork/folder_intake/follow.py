@@ -21,7 +21,7 @@ import frappe
 from pearnly_cowork.connections import preparation
 from pearnly_cowork.folder_intake import contracts
 from pearnly_cowork.push.native import service as ledger
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"

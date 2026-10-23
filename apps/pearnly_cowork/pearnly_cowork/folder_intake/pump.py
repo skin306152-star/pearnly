@@ -29,7 +29,7 @@ from pearnly_cowork.folder_intake import contracts, destinations, inbox, setting
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.folder_intake.machine import owner_ready, request_key
 from pearnly_cowork.folder_intake.push import push_one
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 BATCH = "Cowork OCR Batch"
 WORK = "Pearnly OCR Work"

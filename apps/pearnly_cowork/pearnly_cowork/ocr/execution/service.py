@@ -9,7 +9,7 @@ from pearnly_core import billing_client
 from pearnly_core.execution import work
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.access import scope
-from pearnly_cowork.contracts.push import (normalize_direction, normalize_payment,
+from pearnly_core.express_rules.contracts.push import (normalize_direction, normalize_payment,
                                           normalize_posting_kind)
 from pearnly_cowork.files import access as files
 from pearnly_cowork.files import service as originals

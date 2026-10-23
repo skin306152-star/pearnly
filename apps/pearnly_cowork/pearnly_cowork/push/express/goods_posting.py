@@ -22,12 +22,12 @@ from typing import Any, Mapping, Optional, Tuple
 from pearnly_core.tax_documents.amounts import valid_tax_id
 
 from pearnly_cowork.contracts.document_policy import GOODS_POSTING_VALUES
-from pearnly_cowork.contracts.push import item_posting_kinds, normalize_posting_kind
-from pearnly_cowork.push.express.account_rules import stock_lane_enabled
-from pearnly_cowork.push.express.choices import digits
-from pearnly_cowork.push.express.field_rules import lane_verdict
-from pearnly_cowork.push.express.posting_profile import ESCALATE_REASON_PREFIX, profile_from_config
-from pearnly_cowork.targets.identity import account_set_company
+from pearnly_core.express_rules.contracts.push import item_posting_kinds, normalize_posting_kind
+from pearnly_core.express_rules.push.account_rules import stock_lane_enabled
+from pearnly_core.express_rules.push.choices import digits
+from pearnly_core.express_rules.push.field_rules import lane_verdict
+from pearnly_core.express_rules.push.posting_profile import ESCALATE_REASON_PREFIX, profile_from_config
+from pearnly_core.express_rules.targets.identity import account_set_company
 
 DECLARED, COMPANY_CHOICE = "declared", "company_choice"
 # 推送停在这一步的原因码前缀（映射器 `PostingProfile.escalate_reason`）：复核页据此出「走库存 / 记费用」两个按钮

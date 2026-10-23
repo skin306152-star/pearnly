@@ -1,7 +1,7 @@
 """账套选择（`push/express/choices.py`）：压测里系统猜不准的几类，要人选一次、记住后同类自动套用。"""
 import unittest
 
-from pearnly_cowork.push.express import choices as C
+from pearnly_core.express_rules.push import choices as C
 
 BIGC = "0107536000633"
 SUPPLIER = "0105536080112"

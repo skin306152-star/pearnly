@@ -13,6 +13,7 @@
 
 不连库、不依赖 Frappe：连接域的真 `service.py` 跑在内存里的小 Frappe 替身上，替身记下每次读是否要锁。
 """
+from pathlib import Path
 import contextlib
 import importlib.util
 import json
@@ -127,6 +128,8 @@ pymysql_err = types.ModuleType("pymysql.err")
 pymysql_err.OperationalError = type("OperationalError", (Exception,), {})
 pymysql_err.ProgrammingError = type("ProgrammingError", (Exception,), {})
 pearnly_core = types.ModuleType("pearnly_core")
+# 替身仍要能导入共用层里真的纯函数子包（ADR-025：Express 写账规则在 pearnly_core.express_rules）
+pearnly_core.__path__ = [str(Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core")]
 shell = types.ModuleType("pearnly_core.shell")
 shell.entitlements = lambda: ["intake"]
 pearnly_core.shell = shell

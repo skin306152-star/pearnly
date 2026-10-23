@@ -16,7 +16,7 @@ import frappe
 from pearnly_cowork.connections import pool as account_pool
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.automation import rules
-from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_cowork.push.express import company_choices
 
 TIER_HOOK = "cowork_push_company_tier"

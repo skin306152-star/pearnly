@@ -3,8 +3,8 @@
 The caller must establish success and authorization. Invoice fields are never
 proof of ERP actions. Keep the deployed seq ordering and document-number aliases.
 """
-from pearnly_cowork.push.receipts import _coerce_body
-from pearnly_cowork.push.express.stock_acc_group import describe_from_request, stock_acc_group_label
+from pearnly_core.express_rules.receipts import _coerce_body
+from pearnly_core.express_rules.push.stock_acc_group import describe_from_request, stock_acc_group_label
 
 
 def parse_actions(response_body, request_body=None, reported_groups=None):

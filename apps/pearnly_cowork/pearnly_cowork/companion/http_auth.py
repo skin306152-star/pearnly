@@ -15,7 +15,9 @@ from frappe.recorder import do_not_record
 
 from pearnly_cowork.transaction import conflicts
 
-from . import credentials, queue_contracts, receipt_auth
+from pearnly_core.cc_desktop.wire import queue_contracts
+
+from . import credentials, receipt_auth
 from .contracts import AgentContext, parse_token
 
 METHOD = 'pearnly_cowork.companion.heartbeat.report'

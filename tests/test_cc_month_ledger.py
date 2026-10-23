@@ -9,6 +9,7 @@
 
 假数据就是服务端测试断言过的真实输出（tests/fixtures/cc-month-contract.json）。做法同 tests/test_assistant_ui.py。
 """
+from pathlib import Path
 import json
 import pathlib
 import re
@@ -27,7 +28,7 @@ def server_codes():
     """companies/exceptions.py 的 CODES 键（account_match 的常量换成码）与 RESERVED。"""
     source = (COWORK / "companies/exceptions.py").read_text(encoding="utf-8")
     table = source.split("CODES = {", 1)[1].split("\n}", 1)[0]
-    match = (COWORK / "targets/account_match.py").read_text(encoding="utf-8")
+    match = (Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py").read_text(encoding="utf-8")
     constants = dict(re.findall(r'^(\w+_MISMATCH) = "(\w+)"', match, re.M))
     codes = set(re.findall(r'^\s+"(\w+)": \(', table, re.M))
     codes |= {constants[name] for name in re.findall(r"^\s+account_match\.(\w+): \(", table, re.M)}

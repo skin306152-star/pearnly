@@ -302,7 +302,7 @@ class FolderRuleDelete(unittest.TestCase):
                    "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=stub(), destinations=stub(), readers=stub(),
                                                         follow=stub(), inbox=stub(drop=dropped.append)),
                    "pearnly_cowork.folder_intake.access": access,
-                   "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
+                   "pearnly_core.express_rules.targets.identity": stub(normalize_express_account_key=lambda v: v)}
         rules = _load("folder_rules_under_test", APP / "folder_intake/rules.py", modules)
         rules._connection = checked.append  # 每条都按连接使用权核过
         self.assertEqual(rules.delete(json.dumps(["R1", "missing", "R1"])), {"deleted": 1})

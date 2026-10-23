@@ -16,9 +16,9 @@ from datetime import date, timedelta
 from typing import Any, Iterable, Mapping
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
-from pearnly_cowork.targets import account_match
+from pearnly_core.express_rules.targets import account_match
 from pearnly_cowork.targets.catalog_groups import year_rank
-from pearnly_cowork.targets.identity import account_set_company, normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import account_set_company, normalize_express_account_key
 
 HEAD_OFFICE = "00000"
 IDENTITY_MAX = 200

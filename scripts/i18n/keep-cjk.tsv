@@ -49,10 +49,10 @@ apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_prompts.py	*	数据：给
 apps/pearnly_cowork/pearnly_cowork/line/flow.py	*	数据：Cowork LINE 菜单唤起关键词（用户手打），按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/validation/confidence.py	*	数据：比对识别文本与字段值时剥离的分隔符/货币符正则，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/contracts/classification.py	*	数据：发票费用类别的预设类目树与识别关键词/正则，全部是分类数据，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/contracts/history.py	*	数据：泰文月份全称与缩写，用于解析票面日期，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/contracts/history.py	*	数据：泰文月份全称与缩写，用于解析票面日期，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/validation/sources.py	*	数据：总账/银行流水表头关键词，用于识别列，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/common.py	*	数据：泰国法人前缀与泰文声调符映射，写 Express DBF 前规整，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/doc_sanity.py	*	数据：币种、贷项单、押金、补开的票面关键词，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/common.py	*	数据：泰国法人前缀与泰文声调符映射，写 Express DBF 前规整，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/doc_sanity.py	*	数据：币种、贷项单、押金、补开的票面关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/retry.py	*	数据：MR.ERP/Express 返回的泰文错误原文片段，用于判重复/用户数据错，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/contracts/geo_matching.py	*	数据：泰国行政区划前缀词，用于地址匹配，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/fmt.py	*	数据：MR.ERP 导入模板的含税/不含税固定值与解析词，按原字面比对或写入外部系统，不进界面
@@ -75,10 +75,10 @@ apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_text.py	*	数据：银行
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	*	数据：LINE 手打指令词和公司类型词（按钮截名用），按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/client/client_forms.py	*	数据：泰国行政区前缀，用于去前缀匹配 DMS 主档，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/engine/prompts.py	*	数据：识别模型提示词（英文为主，夹泰文票据字样），按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/mapper.py	*	数据：写进 Express 的费用物料名与分录摘要固定值，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/mapper.py	*	数据：写进 Express 的费用物料名与分录摘要固定值，按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/tax_documents/amounts.py	*	数据：票据折扣行正则与金额符号清洗，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/booking/attachments.py	*	数据：写进 DMS 的附件名（也用于比对缺失附件），按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/payment.py	*	数据：付款状态识别关键词，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/payment.py	*	数据：付款状态识别关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/adapter/account_probe.py	*	数据：DMS 使用记录的模块名，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	*	数据：LINE 对话中现金付款的匹配词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/roundtrip/export_mapping.py	*	数据：金额解析去货币符号，按原字面比对或写入外部系统，不进界面
@@ -108,11 +108,11 @@ apps/pearnly_cowork/pearnly_cowork/reconciliation/vat_parse.py	*	数据：销项
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/product.py	*	数据：MR.ERP 商品导入模板泰文表头与默认值（库存型短标签、单位 ผน），按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/adapter/change_sync.py	*	数据：DMS 变更日志里的泰文模块名 → 本地数据集映射，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/reconciliation/vat_check_core.py	*	规格：销项税核对的识别词（散客/作废/总部）与逐行差异备注四语表，按导出语言取词
-apps/pearnly_cowork/pearnly_cowork/push/express/choices.py	*	数据：票面名称法人前后缀（บริษัท/หจก. 等），比对名称时剥离，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/choices.py	*	数据：票面名称法人前后缀（บริษัท/หจก. 等），比对名称时剥离，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/common.py	*	数据：金额解析去货币符号、银行流水收支方向关键词，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/field_corrections.py	*	数据：分公司号正则与加油票品名关键词，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/sales_mapper.py	*	数据：销项写入 Express 的现金客户名与分录摘要固定泰文，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/contracts/pos.py	*	数据：POS 付款方式里认作现金的写法（泰 / 中 / 日），按原字面比对，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/field_corrections.py	*	数据：分公司号正则与加油票品名关键词，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/sales_mapper.py	*	数据：销项写入 Express 的现金客户名与分录摘要固定泰文，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/contracts/pos.py	*	数据：POS 付款方式里认作现金的写法（泰 / 中 / 日），按原字面比对，不进界面
 apps/pearnly_cowork/pearnly_cowork/pos_import/contracts.py	*	输入词：POS 导出（Ocha、Loyverse 等）表头与状态值的泰 / 中 / 日写法、泰文月份，按原字面认列，翻了就认不出
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/account_valve.py	*	数据：解析 MR.ERP 报告备注判断科目问题的泰文关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/client/eventlog_reader.py	*	数据：DMS 事件日志原生泰文动作名（增/改/删），按原字面比对或写入外部系统，不进界面
@@ -128,8 +128,8 @@ apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/purchase.py	*	数据：MR.ERP
 apps/pearnly_cowork/pearnly_cowork/reconciliation/gl_sheets.py	*	数据：总账表头、期初关键词、期间起始标签词典，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/readback/layout.py	*	规格：回读出的总账、税报照 Express 报表的泰文版式出表，对账解析器按原字面认列，不随界面语言翻译
 apps/pearnly_dms/pearnly_dms/intake/draft.py	*	数据：身份证称谓别名组与泰国地址缩写拼接，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/field_clean.py	*	数据：Express 字段清洗：卖家停用词、泰文字符正则、总部写法，按原字面比对或写入外部系统，不进界面
-apps/pearnly_cowork/pearnly_cowork/push/express/merchant.py	*	数据：已知连锁品牌泰/英别名正则，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/field_clean.py	*	数据：Express 字段清洗：卖家停用词、泰文字符正则、总部写法，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/merchant.py	*	数据：已知连锁品牌泰/英别名正则，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/masters/client_import.py	*	数据：客户导入表头同义词（泰/英/中），按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/tax_documents/codes.py	*	数据：票种识别关键词与给识别模型的提示词，不进界面
 apps/pearnly_core/pearnly_core/tax_documents/rules.py	*	数据：按标题认票种的关键词与泛称买方正则，按原字面比对或写入外部系统，不进界面
@@ -186,7 +186,7 @@ apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	需要在 Express 里直�
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	去 Express 改	给模型的口径：同上，中文反例（不进界面）
 apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	ทุกเจ้า, เจ้าอื่น	给模型的口径：会计员说「所有公司 / 别家」的泰文说法，公司对话里据此传 all_companies（不进界面）
 apps/pearnly_cowork/pearnly_cowork/push/express/account_suggest.py	*	输入词：票面、会计员的话与 Express 科目名里的泰文费用关键词与泛词，按原字面认，翻了就认不出；不进界面（建议理由给模型，是英文）
-apps/pearnly_cowork/pearnly_cowork/targets/account_match.py	*	数据：票面「总公司」的泰文写法，按原字面比对票面分店，不进界面
+apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py	*	数据：票面「总公司」的泰文写法，按原字面比对票面分店，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/express/automation.py	*	数据：文字层里认作废 / 退货的泰文字样与泰文月名（找单据日期原文），按原字面比对票面，不进界面（分类结果只出原因码）
 apps/pearnly_core/pearnly_core/claude_ocr/spec.py	*	数据：Claude 识别提示词（英文，内含泰文票据与身份证字样），给模型看，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/execution/claude.py	บาท	数据：识别结果里的泰铢写法，按原字面认作本币，不进界面

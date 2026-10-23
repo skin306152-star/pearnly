@@ -20,7 +20,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_cowork.history import document_policy, storage
 from pearnly_cowork.push.express import goods_posting
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 
 def _row(loaded, account_set):

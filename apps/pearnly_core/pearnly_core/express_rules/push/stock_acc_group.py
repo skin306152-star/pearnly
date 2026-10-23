@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, NamedTuple, Optional
 
-from pearnly_cowork.targets import stock_groups
-from pearnly_cowork.push.receipts import request_payload
+from pearnly_core.express_rules.targets import stock_groups
+from pearnly_core.express_rules.receipts import request_payload
 
 # 零库存主档的账套要建第一个库存品时,缺的到底是哪一样 —— 两个码分开,补救卡给的指引才不一样:
 #   missing  一个合格的存货科目组都没有 → 会计得先去 Express 建(组本身不存在,问他选也没得选)

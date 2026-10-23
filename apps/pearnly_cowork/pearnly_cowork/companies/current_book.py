@@ -45,8 +45,8 @@ import frappe
 
 from pearnly_cowork.companies import identity
 from pearnly_cowork.contracts import document_policy as policy_rules
-from pearnly_cowork.targets import account_match
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets import account_match
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 WORKSPACE = "Cowork Workspace"
 FIELD = "document_policy"

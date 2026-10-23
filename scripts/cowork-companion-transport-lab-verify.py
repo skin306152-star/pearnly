@@ -433,7 +433,7 @@ class CompanionTransport(unittest.TestCase):
 
     def test_response_or_refresh_failure_rolls_back_mapping_secret_and_lease(self):
         name = self.pending(); before = frappe.db.sql('SELECT COUNT(*) FROM `__Auth`')[0][0]
-        for target in ('pearnly_cowork.companion.queue_contracts.job', 'pearnly_cowork.connections.refresh.lease'):
+        for target in ('pearnly_core.cc_desktop.wire.queue_contracts.job', 'pearnly_cowork.connections.refresh.lease'):
             with self.subTest(target=target), patch(target, side_effect=RuntimeError('synthetic tail failure')):
                 with self.assertRaises(RuntimeError): self.take()
             self.assert_pristine(name, before)

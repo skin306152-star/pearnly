@@ -17,10 +17,10 @@ sys.path[:0] = [str(ROOT / "apps/pearnly_cowork"), str(ROOT / "apps/pearnly_core
 
 from openpyxl import Workbook, load_workbook  # noqa: E402
 
-from pearnly_cowork.contracts import pos as P  # noqa: E402
+from pearnly_core.express_rules.contracts import pos as P  # noqa: E402
 from pearnly_cowork.pos_import import contracts as C  # noqa: E402
 from pearnly_cowork.pos_import import tables as T  # noqa: E402
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload  # noqa: E402
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload  # noqa: E402
 
 FIXTURES = ROOT / "tests/fixtures/pos"
 QR, TRANSFER, CARD = "QR พร้อมเพย์", "โอนเงิน", "บัตรเครดิต/เดบิต"

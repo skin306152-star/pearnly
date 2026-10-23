@@ -2,12 +2,14 @@
 
 不连库：Frappe 与 Cowork 各域服务用最小替身，只看工具层自己的逻辑。
 """
+from pathlib import Path
 import importlib.util
 import json
 import pathlib
 import sys
 import types
 import unittest
+from moved_modules import moved  # noqa: E402  （ADR-025 搬进共用层的模块）
 import uuid
 from datetime import date, datetime, timezone
 from unittest import mock
@@ -15,6 +17,29 @@ from unittest import mock
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 COWORK = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 CORE = ROOT / "apps/pearnly_core/pearnly_core"
+
+
+_CORE_DIR = Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core"
+# 搬进共用层的纯函数包（ADR-025）：替身包带真的目录，子模块照样按文件导入或由测试换成替身
+_CORE_PACKAGES = ("express_rules", "express_rules.contracts", "express_rules.push", "express_rules.targets",
+                  "cc_desktop", "cc_desktop.wire")
+
+
+def _core_stub():
+    """共用层的替身包：仍能导入真的纯函数子包（ADR-025：Express 写账规则在 ``pearnly_core.express_rules``）。"""
+    module = types.ModuleType("pearnly_core")
+    module.__path__ = [str(_CORE_DIR)]
+    _core_packages()
+    return module
+
+
+def _core_packages():
+    for name in _CORE_PACKAGES:
+        full = "pearnly_core." + name
+        if full not in sys.modules:
+            package = types.ModuleType(full)
+            package.__path__ = [str(_CORE_DIR.joinpath(*name.split(".")))]
+            sys.modules[full] = package
 
 
 class _Frappe(types.ModuleType):
@@ -122,7 +147,7 @@ def _install():
     # 报税的纯规则（所得类型码）也用真的：工具的枚举取自它；共用票种规则一并按文件载入，不把整个共用层放上路径。
     # 认 50 ทวิ 的口径规则（`contracts.document_policy`）也用真的：识别结果说「预扣税凭证」与报税草稿同一条规则
     for name in ("pearnly_core", "pearnly_core.tax_documents", "pearnly_cowork.tax", "pearnly_cowork.contracts"):
-        sys.modules[name] = types.ModuleType(name)
+        sys.modules[name] = _core_stub() if name == "pearnly_core" else types.ModuleType(name)
     for name, path in (("pearnly_core.tax_documents.codes", CORE / "tax_documents/codes.py"),
                        ("pearnly_core.tax_documents.amounts", CORE / "tax_documents/amounts.py"),
                        ("pearnly_core.tax_documents.rules", CORE / "tax_documents/rules.py"),
@@ -357,15 +382,15 @@ class RecognizeAttachmentTests(unittest.TestCase):
         ocr.detail = lambda batch: {"state": "saved", "page_count": 1, "billing_state": "pending", "requires_review": 0,
                                     "history_records": ["H1"]}
         ocr.certificates = lambda batch: {"pages": 0, "kept": 0}
-        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page_fields = lambda pages: pages[0]["fields"]
         for name, module in {"pearnly_core.execution.errors": errors, "pearnly_core.assistant.files": chat,
                              "pearnly_cowork.files.service": originals, "pearnly_cowork.ocr.execution.service": ocr,
-                             "pearnly_cowork.contracts.history": history}.items():
+                             "pearnly_core.express_rules.contracts.history": history}.items():
             sys.modules[name] = module
         for parent in ("pearnly_core", "pearnly_core.execution", "pearnly_core.assistant", "pearnly_cowork.files",
                        "pearnly_cowork.ocr", "pearnly_cowork.ocr.execution", "pearnly_cowork.contracts"):
-            sys.modules.setdefault(parent, types.ModuleType(parent))
+            sys.modules.setdefault(parent, _core_stub() if parent == "pearnly_core" else types.ModuleType(parent))
         sys.modules["pearnly_cowork.files"].service = originals
         sys.modules["pearnly_cowork.ocr.execution"].service = ocr
         sys.modules["pearnly_cowork.contracts"].history = history
@@ -547,7 +572,7 @@ class PosImportToolTests(unittest.TestCase):
                              "pearnly_cowork.pos_import.tables": tables}.items():
             sys.modules[name] = module
         for parent in ("pearnly_core", "pearnly_core.assistant", "pearnly_cowork.files"):
-            sys.modules.setdefault(parent, types.ModuleType(parent))
+            sys.modules.setdefault(parent, _core_stub() if parent == "pearnly_core" else types.ModuleType(parent))
         sys.modules["pearnly_core.assistant"].files = chat
         sys.modules["pearnly_cowork.files"].service = originals
         search = types.ModuleType("pearnly_cowork.connections.account_search")
@@ -632,15 +657,15 @@ class EditDocumentTests(unittest.TestCase):
 
     def setUp(self):
         self.saved = []
-        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page = lambda pages: next(p for p in pages if not p.get("is_copy"))
-        sys.modules["pearnly_cowork.contracts.history"] = history
+        sys.modules["pearnly_core.express_rules.contracts.history"] = history
         sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts")).history = history
         amounts = types.ModuleType("pearnly_core.tax_documents.amounts")
         amounts.valid_tax_id = lambda raw: raw == "0107542000011"
         sys.modules["pearnly_core.tax_documents.amounts"] = amounts
         for parent in ("pearnly_core", "pearnly_core.tax_documents"):
-            sys.modules.setdefault(parent, types.ModuleType(parent))
+            sys.modules.setdefault(parent, _core_stub() if parent == "pearnly_core" else types.ModuleType(parent))
         sys.modules["pearnly_core.tax_documents"].amounts = amounts
         self.doc = {"name": "H1", "record_version": 4, "pages": [
             {"is_copy": True, "fields": {"total_amount": 1}},
@@ -997,7 +1022,7 @@ class DeleteAndExportTests(unittest.TestCase):
         chat = sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("pearnly_core.assistant.files"))
         chat.add_to_conversation = lambda name, content, mime: self.calls.append(("attach", name, content)) or \
             "/mnt/session/uploads/file_x/" + name
-        sys.modules.setdefault("pearnly_core", types.ModuleType("pearnly_core"))
+        sys.modules.setdefault("pearnly_core", _core_stub())
         sys.modules.setdefault("pearnly_core.assistant", types.ModuleType("pearnly_core.assistant")).files = chat
 
     def test_delete_passes_the_list_and_reports_skipped(self):
@@ -1160,7 +1185,7 @@ class ReconTests(unittest.TestCase):
         mods = {}
         for name in ("pearnly_cowork.recon_center", "pearnly_cowork.reconciliation", "pearnly_core",
                      "pearnly_core.assistant"):
-            mods[name] = sys.modules.setdefault(name, types.ModuleType(name))
+            mods[name] = sys.modules.setdefault(name, _core_stub() if name == "pearnly_core" else types.ModuleType(name))
         jobs = types.ModuleType("pearnly_cowork.recon_center.jobs")
         jobs.start = lambda kind, title, sides, options: self.calls.append(("start", kind, sides)) or {"job": "J1"}
         jobs.status = lambda job: {"state": "done", "stage": "done", "task": "T1",
@@ -2346,7 +2371,7 @@ def _push_service(rows):
                  "push.express.prepare", "push.express.preflight", "push.express.history",
                  "push.mrerp", "push.native", "push.receipts", "targets.choice", "targets.contracts",
                  "targets.freeze", "targets.selection", "targets.identity"):
-        modules["pearnly_cowork." + name] = mock.MagicMock()
+        modules[moved("pearnly_cowork." + name)] = mock.MagicMock()
     pushed = modules["pearnly_cowork.push.express.pushed"] = _pushed_module()  # 纯函数：用真的
     modules["pearnly_cowork.push.express"].pushed = pushed
     with mock.patch.dict(sys.modules, modules):
@@ -2710,13 +2735,13 @@ class ListAndRunsTests(unittest.TestCase):
     """单据列表：翻页、按连接 / 账套筛、每行带识别出的税前额与税额、按方向筛与 Decimal 合计；运行记录带推送统计。"""
 
     def setUp(self):
-        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
-        push = types.ModuleType("pearnly_cowork.contracts.push")
+        push = types.ModuleType("pearnly_core.express_rules.contracts.push")
         push.normalize_direction = lambda value: value if value in ("purchase", "sales") else None
         contracts = sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts"))
-        patcher = mock.patch.dict(sys.modules, {"pearnly_cowork.contracts.history": history,
-                                                "pearnly_cowork.contracts.push": push})
+        patcher = mock.patch.dict(sys.modules, {"pearnly_core.express_rules.contracts.history": history,
+                                                "pearnly_core.express_rules.contracts.push": push})
         patcher.start()
         self.addCleanup(patcher.stop)
         for name, module in (("history", history), ("push", push)):
@@ -3138,9 +3163,9 @@ class CompanyScopeTests(unittest.TestCase):
     SCOPE = {"company": "T.8", "company_id": "CO-1", "conversation_company": True, "account_sets": 3}
 
     def setUp(self):
-        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
-        push = types.ModuleType("pearnly_cowork.contracts.push")
+        push = types.ModuleType("pearnly_core.express_rules.contracts.push")
         push.normalize_direction = lambda value: value if value in ("purchase", "sales") else None
         contracts = sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts"))
         self.asked = []
@@ -3149,8 +3174,8 @@ class CompanyScopeTests(unittest.TestCase):
         company_tools.default_scope = lambda tool_input: self.asked.append(dict(tool_input)) or self.answer
         package = types.ModuleType("pearnly_cowork.assistant")
         package.company_tools = company_tools
-        patcher = mock.patch.dict(sys.modules, {"pearnly_cowork.contracts.history": history,
-                                                "pearnly_cowork.contracts.push": push,
+        patcher = mock.patch.dict(sys.modules, {"pearnly_core.express_rules.contracts.history": history,
+                                                "pearnly_core.express_rules.contracts.push": push,
                                                 "pearnly_cowork.assistant": package,
                                                 "pearnly_cowork.assistant.company_tools": company_tools})
         patcher.start()
@@ -3478,7 +3503,7 @@ class FolderFilesTests(unittest.TestCase):
         self.chat = chat
         chat.add_to_conversation = lambda name, content, mime, origin="tool": self.calls.append(
             ("attach", name, content, mime, origin)) or f"/mnt/session/uploads/file_{len(self.calls)}/{name}"
-        sys.modules.setdefault("pearnly_core", types.ModuleType("pearnly_core"))
+        sys.modules.setdefault("pearnly_core", _core_stub())
         sys.modules.setdefault("pearnly_core.assistant", types.ModuleType("pearnly_core.assistant")).files = chat
         toolrun = types.ModuleType("pearnly_core.assistant.toolrun")
         toolrun.fresh = lambda: self.calls.append(("fresh",))
@@ -3620,7 +3645,7 @@ class ReadbackTests(unittest.TestCase):
         chat = sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("pearnly_core.assistant.files"))
         chat.add_to_conversation = lambda name, content, mime, origin="tool": self.calls.append(
             ("attach", name, mime, origin)) or f"/mnt/session/uploads/file_{len(self.calls)}/{name}"
-        sys.modules.setdefault("pearnly_core", types.ModuleType("pearnly_core"))
+        sys.modules.setdefault("pearnly_core", _core_stub())
         sys.modules.setdefault("pearnly_core.assistant", types.ModuleType("pearnly_core.assistant")).files = chat
         toolrun = types.ModuleType("pearnly_core.assistant.toolrun")
         toolrun.fresh = lambda: self.calls.append(("fresh",))
@@ -4089,7 +4114,7 @@ class CompanyNamedForADocumentTests(unittest.TestCase):
                                    RecognizeAttachmentTests._submit)
 
     def _rule(self):
-        spec = importlib.util.spec_from_file_location("cowork_account_match", COWORK / "targets/account_match.py")
+        spec = importlib.util.spec_from_file_location("cowork_account_match", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
@@ -4235,7 +4260,7 @@ class StoppedAccountSetTests(unittest.TestCase):
                     {"document": name, "status": "sent", "adapter": "express", "record": "PR1"})
 
         pending_api = types.SimpleNamespace(push_to_account_set=push_to_account_set)
-        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
         history.primary_page = lambda pages: pages[0] if pages else {}
         contracts = sys.modules["pearnly_cowork.contracts"]
@@ -4244,7 +4269,7 @@ class StoppedAccountSetTests(unittest.TestCase):
                         "pearnly_cowork.companies.pending": pending,
                         "pearnly_cowork.assistant": types.SimpleNamespace(pending_api=pending_api),
                         "pearnly_cowork.assistant.pending_api": pending_api,
-                        "pearnly_cowork.contracts.history": history}),
+                        "pearnly_core.express_rules.contracts.history": history}),
                     mock.patch.object(contracts, "history", history, create=True),
                     mock.patch.object(tools, "_account_names",
                                       lambda cache, connection: {tools._account_key(self.T9): "70EXP · T.9 ตัวอย่าง"}),
@@ -4369,9 +4394,9 @@ class StoppedAccountSetTests(unittest.TestCase):
                     {"document": name, "status": "needs_choice", "reason": "choice_needed:account"})
 
         pending_api = sys.modules["pearnly_cowork.assistant.pending_api"]
-        push_contracts = types.ModuleType("pearnly_cowork.contracts.push")
+        push_contracts = types.ModuleType("pearnly_core.express_rules.contracts.push")
         push_contracts.normalize_direction = lambda value: value if value in ("sales", "purchase") else None
-        modules = {"pearnly_cowork.contracts.push": push_contracts,
+        modules = {"pearnly_core.express_rules.contracts.push": push_contracts,
                    "pearnly_cowork.history.document_policy": types.SimpleNamespace(),
                    "pearnly_cowork.push.application.goods_posting": types.SimpleNamespace()}
         with mock.patch.object(tools.storage, "read", read), \
@@ -4439,15 +4464,15 @@ class MrErpTests(unittest.TestCase):
             last_push_status="", push_connection="MR1", push_account_set="12:3", posting_kind="", record_version=1,
             last_push_record="", last_push_reason="", pages=json.dumps([{"fields": {"direction": "purchase"}}]))
         self.view = _mrerp_view(menus=("purchase",))
-        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history = types.ModuleType("pearnly_core.express_rules.contracts.history")
         history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
         history.primary_page = lambda pages: pages[0] if pages else None
-        push = types.ModuleType("pearnly_cowork.contracts.push")
+        push = types.ModuleType("pearnly_core.express_rules.contracts.push")
         push.normalize_direction = lambda value: value if value in ("purchase", "sales") else None
         contracts = sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts"))
         patches = [
-            mock.patch.dict(sys.modules, {"pearnly_cowork.contracts.history": history,
-                                          "pearnly_cowork.contracts.push": push}),
+            mock.patch.dict(sys.modules, {"pearnly_core.express_rules.contracts.history": history,
+                                          "pearnly_core.express_rules.contracts.push": push}),
             mock.patch.object(contracts, "history", history, create=True),
             mock.patch.object(contracts, "push", push, create=True),
             mock.patch.object(frappe, "utils", types.SimpleNamespace(get_system_timezone=lambda: "Asia/Bangkok"),
@@ -4584,10 +4609,10 @@ class MrErpTests(unittest.TestCase):
         loaded = {}
         for name, path in (("pearnly_core.tax_documents.amounts", CORE / "tax_documents/amounts.py"),
                            ("pearnly_core.tax_documents.rules", CORE / "tax_documents/rules.py"),
-                           ("pearnly_cowork.contracts.push", COWORK / "contracts/push.py"),
-                           ("pearnly_cowork.push.express.field_clean", COWORK / "push/express/field_clean.py"),
-                           ("pearnly_cowork.push.express.field_corrections", COWORK / "push/express/field_corrections.py"),
-                           ("pearnly_cowork.push.express.field_rules", COWORK / "push/express/field_rules.py")):
+                           ("pearnly_core.express_rules.contracts.push", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/contracts/push.py"),
+                           ("pearnly_core.express_rules.push.field_clean", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/field_clean.py"),
+                           ("pearnly_core.express_rules.push.field_corrections", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/field_corrections.py"),
+                           ("pearnly_core.express_rules.push.field_rules", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/field_rules.py")):
             spec = importlib.util.spec_from_file_location(name, path)
             module = importlib.util.module_from_spec(spec)
             patch = mock.patch.dict(sys.modules, {name: module, "pearnly_cowork.push.express":
@@ -4599,7 +4624,7 @@ class MrErpTests(unittest.TestCase):
             setattr(sys.modules[name.rpartition(".")[0]], name.rpartition(".")[2], module)
             loaded[name] = module
         patch = mock.patch.object(sys.modules["pearnly_cowork.contracts"], "push",
-                                  loaded["pearnly_cowork.contracts.push"], create=True)
+                                  loaded["pearnly_core.express_rules.contracts.push"], create=True)
         patch.start()
         self.addCleanup(patch.stop)
 

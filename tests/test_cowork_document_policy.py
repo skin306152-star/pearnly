@@ -3,7 +3,7 @@ from decimal import Decimal
 import unittest
 
 from pearnly_cowork.contracts import document_policy as rules
-from pearnly_cowork.contracts.history import primary_page_fields
+from pearnly_core.express_rules.contracts.history import primary_page_fields
 from pearnly_cowork.ocr.grouping import group_invoices
 from pearnly_cowork.ocr.results import prepare_history_batch
 from pearnly_cowork.ocr.schema.invoice import validate_invoice

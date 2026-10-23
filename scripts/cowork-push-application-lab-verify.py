@@ -199,7 +199,7 @@ class NativePreparation(unittest.TestCase):
 
     def test_completed_ack_meta_docnum_is_used_for_prior_lookup(self):
         from pearnly_cowork.push.native import service as native
-        from pearnly_cowork.push.express.prepare import prepare_express
+        from pearnly_core.express_rules.push.prepare import prepare_express
         result = self.prepare()
         record = frappe.get_doc('Cowork Push Record', result['name'])
         context = native.ReservationContext(self.actor, self.workspace, '', self.history['name'],

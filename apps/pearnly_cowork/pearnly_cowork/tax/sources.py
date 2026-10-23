@@ -12,7 +12,7 @@ from datetime import timedelta
 import frappe
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.contracts.history import primary_page_fields
+from pearnly_core.express_rules.contracts.history import primary_page_fields
 from pearnly_cowork.contracts.recognized_names import name_key
 from pearnly_cowork.history import certificates
 from pearnly_cowork.tax import input_vat, wht

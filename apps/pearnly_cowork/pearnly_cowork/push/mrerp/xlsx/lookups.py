@@ -8,7 +8,7 @@ _product_name_norm_for_db 完全一致(才能命中映射表的 item_name_norm �
 import re
 from typing import Any, Dict, Optional
 
-from pearnly_cowork.contracts.push import clean_tax_id
+from pearnly_core.express_rules.contracts.push import clean_tax_id
 from pearnly_cowork.push.mrerp.xlsx.fmt import fmt_str
 
 # ============================================================

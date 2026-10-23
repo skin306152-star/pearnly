@@ -5,6 +5,7 @@
 - 推送服务：调用方给了 fixed（后台推送，{} 也算）照用、不查钩子；没给就合并钩子结果并去掉对方档；
 - 被任务默认值决定的类别不写进账套记忆（`save_choices` 拒收）。
 """
+from pathlib import Path
 import ast
 import importlib.util
 import json
@@ -12,9 +13,11 @@ import pathlib
 import sys
 import types
 import unittest
+from moved_modules import moved  # noqa: E402  （ADR-025 搬进共用层的模块）
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # Express 写账规则与 CC 线上约定在共用层（ADR-025）
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 sys.path.insert(0, str(ROOT / "tests"))
 from test_cowork_delete_everything import FakeDB, _frappe  # noqa: E402
@@ -32,19 +35,19 @@ def _load(name, path, modules):
 
 
 contracts = _load("folder_contracts_fixed", APP / "folder_intake/contracts.py", {})
-identity = _load("targets_identity_fixed", APP / "targets/identity.py", {})
+identity = _load("targets_identity_fixed", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py", {})
 # 函数内导入（`fixed_for` 里的 `targets.identity`）在调用时解析，测试期间一直挂着。
 IDENTITY = {"pearnly_cowork.targets": types.SimpleNamespace(identity=identity),
-            "pearnly_cowork.targets.identity": identity}
+            "pearnly_core.express_rules.targets.identity": identity}
 # 公司规则的纯函数（第 2 期）：推送服务的 `_decisions` 真用它（只导入 choices 的几个常量）
 company_choices = _load("company_choices_fixed", APP / "push/express/company_choices.py", {
-    "pearnly_cowork.push.express.choices": types.SimpleNamespace(
+    "pearnly_core.express_rules.push.choices": types.SimpleNamespace(
         KINDS=("party", "item", "account", "payment", "vat", "department", "receipt"), NEW="__new__",
         PAYMENT_VALUES=("cash", "credit"), VAT_VALUES=("claim", "expense"))})
 # 推送服务的判定核心（第 3 期第 11 条）：真的选择规则 + 上面的公司规则
-_payment = _load("payment_fixed", APP / "push/express/payment.py", {})
-_choice_rules = _load("choices_fixed", APP / "push/express/choices.py",
-                      {"pearnly_cowork.push.express.payment": _payment})
+_payment = _load("payment_fixed", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/payment.py", {})
+_choice_rules = _load("choices_fixed", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/choices.py",
+                      {"pearnly_core.express_rules.push.payment": _payment})
 DECIDE = _load("decide_fixed", APP / "push/express/decide.py", {
     "pearnly_cowork": types.ModuleType("pearnly_cowork"), "pearnly_cowork.push": types.ModuleType("pearnly_cowork.push"),
     "pearnly_cowork.push.express": types.SimpleNamespace(choices=_choice_rules, company_choices=company_choices)})
@@ -186,8 +189,8 @@ def _service(hooks=(), providers=None):
                  "push.express.prepare", "push.express.preflight", "push.express.history", "push.mrerp",
                  "push.native", "push.receipts", "targets.choice", "targets.contracts", "targets.freeze",
                  "targets.selection"):
-        modules["pearnly_cowork." + name] = stub()
-    modules["pearnly_cowork.targets.identity"] = identity
+        modules[moved("pearnly_cowork." + name)] = stub()
+    modules["pearnly_core.express_rules.targets.identity"] = identity
     modules["pearnly_cowork.push"].choices = choice_store
     modules["pearnly_cowork.push.express"].choices = choice_rules
     modules["pearnly_cowork.push.express"].company_choices = company_choices

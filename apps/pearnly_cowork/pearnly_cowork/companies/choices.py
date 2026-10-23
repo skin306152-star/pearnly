@@ -49,7 +49,7 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.companies import rules
 from pearnly_cowork.push import choices as express_choices
 from pearnly_cowork.push.express import company_choices
-from pearnly_cowork.push.express.choices import KINDS, PAYMENT_VALUES, VAT_VALUES
+from pearnly_core.express_rules.push.choices import KINDS, PAYMENT_VALUES, VAT_VALUES
 
 READ_MAX = 200
 SHOWN = 30
@@ -338,7 +338,7 @@ def policy_rows(company, sets) -> list:
     """这家公司在工作空间口径里按公司记的入账方式与现用账套（见文件头）。"""
     from pearnly_cowork.companies import current_book
     from pearnly_cowork.contracts import document_policy as policy_rules
-    from pearnly_cowork.targets.identity import normalize_express_account_key
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
     workspace, identities = _policy_scope(company)
     if not identities:
@@ -463,7 +463,7 @@ def _name_parties(rows, sets) -> None:
     try:
         if name_parties(rows):
             from pearnly_cowork.connections import preparation
-            from pearnly_cowork.targets.identity import normalize_express_account_key
+            from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
             target = target_set(sets, "", "")
             doc = frappe.get_doc("Cowork ERP Connection", target["connection"])
@@ -663,7 +663,7 @@ def target_set(sets, branch, period) -> dict:
 def _masters(target) -> dict | None:
     """覆盖这个月那份账套的主档（小助手报过的，出自当前凭据）；没读过回 None（放行，推送时再判）。"""
     from pearnly_cowork.connections import preparation
-    from pearnly_cowork.targets.identity import normalize_express_account_key
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
     doc = frappe.get_doc("Cowork ERP Connection", target["connection"])
     return preparation.reported_masters(doc, normalize_express_account_key(target["key"]),

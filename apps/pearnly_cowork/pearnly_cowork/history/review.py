@@ -22,8 +22,8 @@ from decimal import Decimal, InvalidOperation
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
 
-from pearnly_cowork.contracts.history import primary_page_fields
-from pearnly_cowork.contracts.line_items import review_status
+from pearnly_core.express_rules.contracts.history import primary_page_fields
+from pearnly_core.express_rules.contracts.line_items import review_status
 from pearnly_cowork.ocr.validation.accounting import number_alternative
 
 RESOLVED = "review_resolved"

@@ -18,6 +18,7 @@ import re
 import sys
 import types
 import unittest
+from moved_modules import moved  # noqa: E402  （ADR-025 搬进共用层的模块）
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -29,8 +30,8 @@ for _name in [n for n in sys.modules if n.split(".")[0] in ("pearnly_cowork", "f
     del sys.modules[_name]
 
 from pearnly_cowork.push.automation import rules  # noqa: E402
-from pearnly_cowork.push.express import written_check as check  # noqa: E402
-from pearnly_cowork.push.express.common import sanitize_push_meta  # noqa: E402
+from pearnly_core.express_rules.push import written_check as check  # noqa: E402
+from pearnly_core.express_rules.push.common import sanitize_push_meta  # noqa: E402
 from pearnly_cowork.readback import history_rules  # noqa: E402
 
 SELLER, BUYER = "0107561000013", "0994000333447"
@@ -111,9 +112,9 @@ class Receipt(unittest.TestCase):
                      "contracts.push", "push", "push.express", "push.express.common", "push.lifecycle",
                      "push.express.referenced", "push.native", "push.native.contracts", "push.native.documents",
                      "push.native.completion", "targets", "targets.freeze", "targets.contracts", "targets.identity"):
-            modules["pearnly_cowork." + name] = stub()
+            modules[moved("pearnly_cowork." + name)] = stub()
         modules["pearnly_cowork.push.express"].written_check = check
-        modules["pearnly_cowork.push.express.written_check"] = check
+        modules["pearnly_core.express_rules.push.written_check"] = check
         modules["pearnly_cowork.push.native.documents"].TYPES = ("Cowork Push Record", "Cowork Push Attempt", "Lock")
         modules["pearnly_cowork.push.native.contracts"].encode = lambda value: json.dumps(value, sort_keys=True)
         module = _load("pearnly_cowork.push.native.service_da_verify", APP / "push/native/service.py", modules)

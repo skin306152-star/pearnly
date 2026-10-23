@@ -36,7 +36,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.readback import history_rules as rules
 from pearnly_cowork.readback import service as readback
 from pearnly_cowork.readback.contracts import ContractError
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 KIND = "account_history"
 FOLDER = "cowork_account_history"

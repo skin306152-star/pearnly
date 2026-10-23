@@ -9,8 +9,8 @@ import unittest
 import contextlib
 from datetime import date
 from pathlib import Path
-from pearnly_cowork.push.express.mapper import build_express_payload
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload
+from pearnly_core.express_rules.push.mapper import build_express_payload
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload
 _PERPETUAL_FP = {'stock_master_count': 672, 'stcrd_lines': 9300, 'stcrd_lines_moving_stock': 8102}
 _NONE_FP = {'stock_master_count': 4, 'stcrd_lines': 1530, 'stcrd_lines_moving_stock': 75}
 _PURCHASE_CONFIG = {'account_set': 'DATAT', 'fallback_acc': '11-04-02-00', 'vat_input_acc': '11-05-04-01', 'ap_acc': '21-02-01-00'}

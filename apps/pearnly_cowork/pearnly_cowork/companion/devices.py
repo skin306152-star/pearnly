@@ -13,7 +13,7 @@ import frappe
 from pearnly_cowork.connections import pool
 from pearnly_cowork.connections.member import Member
 from pearnly_cowork.connections.reports import MAPPING_KEYS, SELECTED_KEYS
-from pearnly_cowork.targets.identity import host_aliases
+from pearnly_core.express_rules.targets.identity import host_aliases
 from . import contracts, device_contracts
 from .device_documents import DOCTYPE, persist
 from .documents import persist as persist_key

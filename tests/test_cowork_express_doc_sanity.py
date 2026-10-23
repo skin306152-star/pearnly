@@ -11,7 +11,7 @@ import contextlib
 from datetime import date
 from datetime import date
 from pathlib import Path
-from pearnly_cowork.push.express.doc_sanity import check_document
+from pearnly_core.express_rules.push.doc_sanity import check_document
 TODAY = date(2026, 6, 24)
 VENDOR_TAX = '0107561000013'
 CUSTOMER_TAX = '0105551234567'

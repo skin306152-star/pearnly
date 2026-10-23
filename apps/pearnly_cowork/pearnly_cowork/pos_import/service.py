@@ -20,7 +20,7 @@ from pearnly_cowork.history import storage
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.pages import assess_confidence
 from pearnly_cowork.pos_import import contracts, layouts, tables
-from pearnly_cowork.targets.identity import account_set_company, normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import account_set_company, normalize_express_account_key
 
 ENGINE = "pos_import_v1"
 TARGET = "express"

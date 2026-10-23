@@ -25,7 +25,7 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
-from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_core.express_rules.push import choices as choice_rules
 
 L0, L1, L2 = "L0", "L1", "L2"
 TIERS = (L0, L1, L2)

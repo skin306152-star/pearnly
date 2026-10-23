@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import uuid
 from typing import Any, Mapping
-from .identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 ENDPOINT_SCOPE_KEY = '@endpoint'
 CATALOG_REFRESH_REQUIRED = 'catalog_refresh_required'
 CATALOG_REFRESH_INVALID = 'catalog_refresh_invalid'

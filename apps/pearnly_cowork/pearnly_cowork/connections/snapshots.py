@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import uuid
 import frappe
 from frappe import _
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from . import access, model, state
 
 

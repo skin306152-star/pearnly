@@ -95,7 +95,7 @@ class SaveMrerpTask(unittest.TestCase):
                        inbox=stub(), follow=stub(company_of=lambda connection, key: {"company": "CO-1", "branch": ""})),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="Cowork Folder Intake Rule", RUN="U",
                                                                read=None, write=write),
-                   "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
+                   "pearnly_core.express_rules.targets.identity": stub(normalize_express_account_key=lambda v: v)}
         rules = _load(f"folder_rules_mrerp_{adapter}", APP / "folder_intake/rules.py", modules)
         rules.project = lambda rule: dict(rule)
         return rules, saved, masters

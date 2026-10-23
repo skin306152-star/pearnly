@@ -43,7 +43,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.push.application import service as push_service
 from pearnly_cowork.readback import contracts, diff, storage, workbooks
 from pearnly_cowork.readback.access import READBACK, read, write
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
 KIND = "express_read"

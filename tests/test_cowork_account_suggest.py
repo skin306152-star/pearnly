@@ -22,12 +22,13 @@ from unittest import mock
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # Express 写账规则在共用层（ADR-025）
 sys.path.insert(0, str(ROOT / "tests"))
 for _name in [n for n in sys.modules if n.split(".")[0] == "pearnly_cowork"]:
     del sys.modules[_name]
 
 from pearnly_cowork.push.express import account_suggest as S  # noqa: E402
-from pearnly_cowork.push.express import choices as choice_rules  # noqa: E402
+from pearnly_core.express_rules.push import choices as choice_rules  # noqa: E402
 from pearnly_cowork.readback import contracts as readback_contracts  # noqa: E402
 from pearnly_cowork.readback import history_rules as R  # noqa: E402
 

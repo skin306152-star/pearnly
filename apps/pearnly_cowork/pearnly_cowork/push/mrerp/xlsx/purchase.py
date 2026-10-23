@@ -32,7 +32,7 @@ from pearnly_cowork.push.mrerp.xlsx.lookups import (
     _resolve_product_code,
 )
 from pearnly_cowork.push.mrerp.xlsx.sales_credit import _format_num
-from pearnly_cowork.contracts.push import clean_tax_id
+from pearnly_core.express_rules.contracts.push import clean_tax_id
 
 _TEMPLATE_NAME = "test_data_mrerp_sample_purchase.xlsx"
 

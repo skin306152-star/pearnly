@@ -22,8 +22,10 @@ import frappe
 
 from pearnly_cowork.connections import access
 from pearnly_cowork.connections import pool as account_pool
-from pearnly_cowork.targets.identity import normalize_express_account_key
-from . import credentials, queue_heads, route_contracts
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+from pearnly_core.cc_desktop.wire import route_contracts
+
+from . import credentials, queue_heads
 
 CONNECTION = 'Cowork ERP Connection'
 

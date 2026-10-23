@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping
 
 from pearnly_cowork.connections import desktop_update
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 
 

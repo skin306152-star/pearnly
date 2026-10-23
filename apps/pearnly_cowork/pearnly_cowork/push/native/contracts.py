@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 MAX_JSON_BYTES = 8 * 1024 * 1024
 ACTIVE_STATUSES = frozenset({'prepared', 'pending', 'leased', 'success'})

@@ -16,6 +16,7 @@ import pathlib
 import sys
 import types
 import unittest
+from moved_modules import moved  # noqa: E402  （ADR-025 搬进共用层的模块）
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -27,7 +28,7 @@ for _name in [n for n in sys.modules if n.split(".")[0] in ("pearnly_cowork", "f
     del sys.modules[_name]
 
 from pearnly_cowork.companies import automation_rules as evidence  # noqa: E402
-from pearnly_cowork.companion import route_contracts  # noqa: E402
+from pearnly_core.cc_desktop.wire import route_contracts  # noqa: E402
 from pearnly_cowork.push.automation import rules  # noqa: E402
 from pearnly_cowork.push.express import automation as auto  # noqa: E402
 
@@ -1181,8 +1182,8 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda doc: doc.name),
         "pearnly_cowork.push.automation": ns(rules=rules, service=automation_service,
                                              clock=ns(simulated=lambda: simulated, today=lambda: simulated)),
-        "pearnly_cowork.push.express.preflight": ns(ExpressContext=lambda **kwargs: kwargs),
-        "pearnly_cowork.push.express.prepare": ns(prepare_express=lambda *a, **k: prepared)})
+        "pearnly_core.express_rules.push.preflight": ns(ExpressContext=lambda **kwargs: kwargs),
+        "pearnly_core.express_rules.push.prepare": ns(prepare_express=lambda *a, **k: prepared)})
     return module.run("H1", "C1", BOOK, None, trigger=trigger, today=today), seen
 
 
@@ -1610,12 +1611,12 @@ class LeaseRecheck(unittest.TestCase):
                      "contracts.push", "push", "push.express", "push.express.common", "push.lifecycle",
                      "push.express.referenced", "push.native", "push.native.contracts", "push.native.documents",
                      "push.native.completion", "targets", "targets.freeze", "targets.contracts", "targets.identity"):
-            modules["pearnly_cowork." + name] = stub()
+            modules[moved("pearnly_cowork." + name)] = stub()
         modules["pearnly_cowork.push.automation"] = ns(rules=rules, service=ns(
             current_hash=lambda version, connection, key, account, scope=None, overrule=None: (
                 current(version, account, scope) if overrule is None else current(version, account, scope, overrule))))
         modules["pearnly_cowork.push.native.documents"].TYPES = ("Cowork Push Record", "Cowork Push Attempt", "Lock")
-        modules["pearnly_cowork.targets.identity"].normalize_express_account_key = lambda value: str(value).lower()
+        modules["pearnly_core.express_rules.targets.identity"].normalize_express_account_key = lambda value: str(value).lower()
         push_state = ns(withdraw_automation=lambda row, reason, proposal=None: withdrawn.append((row.name, reason,
                                                                                                  proposal)))
         modules["pearnly_cowork.history"].push_state = push_state

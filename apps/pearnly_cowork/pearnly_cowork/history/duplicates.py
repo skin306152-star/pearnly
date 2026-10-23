@@ -89,7 +89,7 @@ def _find_party(workspace, client, summary):
     """第三道（有意新增，见 `contracts/duplicates.MATCH_FIELDS["party"]`）：同一对方税号 + 同日期 + 同金额。
 
     在当前用户看得见的本公司记录里查（同一批别人上传的照片也算），仍走原生可见性条件。"""
-    from pearnly_cowork.contracts.history import primary_page_fields
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
 
     fields = primary_page_fields(summary.get("pages") or [])
     column = "buyer_tax" if fields.get("direction") == "sales" else "seller_tax"

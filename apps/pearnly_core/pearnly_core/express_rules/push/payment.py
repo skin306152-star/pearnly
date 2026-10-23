@@ -67,7 +67,7 @@ def payment_verdict(
 
     # 票种语义(收据=已付 / 税票=赊)。旧线上汇总表批量建单的「合成票种跳过本层」分支随该功能一起删掉
     # (新平台只处理采购票与销售票,用户 2026-09-28)。
-    from pearnly_cowork.push.express.field_rules import doc_type_payment_hint
+    from pearnly_core.express_rules.push.field_rules import doc_type_payment_hint
 
     hint = doc_type_payment_hint(fields.get("document_type"))
     if hint is not None:
@@ -81,7 +81,7 @@ def payment_verdict(
             return False, SRC_PROFILE
 
     if bank_index:
-        from pearnly_cowork.push.express.bank_evidence import bank_paid_match
+        from pearnly_core.express_rules.push.bank_evidence import bank_paid_match
 
         matched = bank_paid_match(
             bank_index,

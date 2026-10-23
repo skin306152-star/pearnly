@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any, Dict, List
 
-from pearnly_cowork.push.express.choices import digits, norm_name
+from pearnly_core.express_rules.push.choices import digits, norm_name
 from pearnly_cowork.readback.contracts import PATH_MAX, ContractError
 
 RESULT_VERSION = 3

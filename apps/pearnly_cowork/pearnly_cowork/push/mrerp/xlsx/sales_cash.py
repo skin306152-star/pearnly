@@ -76,7 +76,7 @@ _DATE_COLS_1 = {2, 8, 12}
 
 
 def _is_cash(history: Dict[str, Any]) -> bool:
-    from pearnly_cowork.push.express.payment import payment_is_paid
+    from pearnly_core.express_rules.push.payment import payment_is_paid
 
     fields = history.get("fields") if isinstance(history.get("fields"), dict) else history
     return payment_is_paid(fields) and str(fields.get("payment_method", "")).lower() in ("", "cash", "เงินสด")

@@ -12,7 +12,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from pearnly_cowork.push.express import field_clean
+from pearnly_core.express_rules.push import field_clean
 
 _CENT = Decimal("0.01")
 _DATE_RE = re.compile(r"^\s*(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\s*$")

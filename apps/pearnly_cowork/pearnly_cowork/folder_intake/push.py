@@ -124,7 +124,7 @@ def fixed_for(history, connection, account_set):
     不套用（科目、部门代码按账套有效）——跟随公司当年账套的任务（T1）推往这家公司（这个分店）别的年度账套也套用，
     科目、部门代码只在那份账套的主档里有才用（`follow.fixed_in`）；回导工作簿生成的新票原件是工作簿，查不到任务，不套用。
     每次推送都会经过这里：取不到一律回 ``{}``、不抛错，推送照常问人。"""
-    from pearnly_cowork.targets.identity import normalize_express_account_key
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
     try:
         if not connection:

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Tuple
 
-from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_cowork.push.express import company_choices
 
 

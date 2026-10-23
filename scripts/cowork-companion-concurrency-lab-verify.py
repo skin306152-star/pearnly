@@ -90,7 +90,8 @@ def _instrument():
     import frappe
     import redis
     from frappe.database.database import Database
-    from pearnly_cowork.companion import credentials, heartbeat, route_contracts, transport
+    from pearnly_cowork.companion import credentials, heartbeat, transport
+    from pearnly_core.cc_desktop.wire import route_contracts
 
     store = redis.Redis.from_url(REDIS)
     original = Database.sql

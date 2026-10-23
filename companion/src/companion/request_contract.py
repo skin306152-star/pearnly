@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""按需请求的约定常量：与服务端 ``apps/pearnly_cowork/pearnly_cowork/companion/request_contracts.py`` 同名同值
+"""按需请求的约定常量：与服务端 ``apps/pearnly_core/pearnly_core/cc_desktop/wire/request_contracts.py`` 同名同值
 （``tests/test_companion_contract.py`` 逐值比对）。口径与加一种请求的做法见服务端那份文件头与 ``request_worker``。"""
 
 from __future__ import annotations

@@ -17,7 +17,7 @@ from decimal import Decimal, InvalidOperation
 import math
 import re
 
-from pearnly_cowork.contracts.push import normalize_posting_kind
+from pearnly_core.express_rules.contracts.push import normalize_posting_kind
 
 
 SOURCES = frozenset({"manual", "cowork_line", "erp_portal"})

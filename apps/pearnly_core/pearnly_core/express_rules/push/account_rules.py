@@ -2,7 +2,7 @@
 from __future__ import annotations
 import ntpath
 from typing import Any, Dict, Optional
-from pearnly_cowork.targets.identity import reported_account_set_roots
+from pearnly_core.express_rules.targets.identity import reported_account_set_roots
 
 def _path(value: object) -> str:
     raw = str(value or "").strip().replace("/", "\\").rstrip("\\")

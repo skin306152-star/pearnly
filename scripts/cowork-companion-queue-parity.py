@@ -21,7 +21,7 @@ from uuid import UUID
 import pydantic
 from pydantic import BaseModel, Field
 
-from pearnly_cowork.companion.queue_contracts import (
+from pearnly_core.cc_desktop.wire.queue_contracts import (
     QueueContractError, ack_request, ack_response, job, lease_request, lease_response,
 )
 

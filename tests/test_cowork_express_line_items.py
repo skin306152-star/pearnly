@@ -11,7 +11,7 @@ import contextlib
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from pearnly_cowork.push.express.common import ITEM_MODE_DIRECT, ITEM_MODE_NONSTOCK, ITEMS_EMPTY, ITEMS_INCOMPLETE, ITEMS_MISMATCH, ITEMS_OK, extract_line_items, sanitize_push_meta
+from pearnly_core.express_rules.push.common import ITEM_MODE_DIRECT, ITEM_MODE_NONSTOCK, ITEMS_EMPTY, ITEMS_INCOMPLETE, ITEMS_MISMATCH, ITEMS_OK, extract_line_items, sanitize_push_meta
 
 def _fields(items):
     return {'items': items}

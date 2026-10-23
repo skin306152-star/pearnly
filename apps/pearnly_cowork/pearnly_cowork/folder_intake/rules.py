@@ -24,7 +24,7 @@ from pearnly_cowork.connections import preparation
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import agent, contracts, destinations, follow, inbox, readers
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
 MAX_RULES = 50

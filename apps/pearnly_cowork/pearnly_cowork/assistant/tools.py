@@ -340,8 +340,8 @@ def _number(value):
 
 def _with_page(row) -> dict:
     """列表一行补上主页面的单据类型、方向、税前额、税额（识别结果；同复核页读的那一页），去掉整份页面原文。"""
-    from pearnly_cowork.contracts import history as history_contracts
-    from pearnly_cowork.contracts.push import normalize_direction
+    from pearnly_core.express_rules.contracts import history as history_contracts
+    from pearnly_core.express_rules.contracts.push import normalize_direction
 
     pages = row.pop("pages", None)
     try:
@@ -802,14 +802,14 @@ def _adapter_of(connection) -> str:
 
 def _doc_direction(doc) -> str:
     """票面方向（主页面识别结果，同复核页）；没定是空串（MR.ERP 推送时再按税号判，这里两边的菜单都看）。"""
-    from pearnly_cowork.contracts.push import normalize_direction
+    from pearnly_core.express_rules.contracts.push import normalize_direction
 
     return normalize_direction(_page_fields(doc).get("direction")) or ""
 
 
 def _page_fields(doc) -> dict:
     """主页面的识别结果（同复核页、推送读的那一页）；读不出是空表。"""
-    from pearnly_cowork.contracts import history as history_contracts
+    from pearnly_core.express_rules.contracts import history as history_contracts
 
     pages = _field(doc, "pages")
     try:
@@ -844,7 +844,7 @@ def _mrerp_direction(doc, connection, account_set) -> str:
     fields = _page_fields(doc)
     if not fields:
         return ""
-    from pearnly_cowork.contracts.push import resolve_account_direction
+    from pearnly_core.express_rules.contracts.push import resolve_account_direction
 
     workspace = frappe.db.get_value(CONNECTION, connection, "workspace")
     own = frappe.db.get_value("Cowork Workspace", workspace, "tax_id") if isinstance(workspace, str) and workspace else ""
@@ -858,7 +858,7 @@ def _mrerp_entry(doc, connection, account_set, direction) -> dict | None:
     （`push.express.field_rules.item_verdict`：完整税票、印了税额、写明买方 → 采购（货品），其余 → 采购（费用））。不是采购回 None。"""
     if direction != "purchase":
         return None
-    from pearnly_cowork.push.express.field_rules import item_verdict
+    from pearnly_core.express_rules.push.field_rules import item_verdict
 
     today = datetime.now(ZoneInfo(frappe.utils.get_system_timezone())).date()
     expense, _source = item_verdict(_page_fields(doc), today=today)
@@ -1162,8 +1162,8 @@ def _same_group(out, options, connection) -> dict | None:
 def _same_group_document(name) -> dict | None:
     """同组接着判了的一张：单据名（CC 之后要推用）、单号、对方（进项是卖方、销项是买方）、现在停在哪一步（英文短句，给 CC 转述，
     不是界面文案）。读不到（没有读取范围）不列。"""
-    from pearnly_cowork.contracts import history as history_contracts
-    from pearnly_cowork.contracts.push import normalize_direction
+    from pearnly_core.express_rules.contracts import history as history_contracts
+    from pearnly_core.express_rules.contracts.push import normalize_direction
 
     try:
         doc = storage.read(name)
@@ -1412,7 +1412,7 @@ def _choices(tool_input) -> dict:
 
 def _document(name, names=None) -> dict:
     from pearnly_cowork.contracts import document_policy as policy_rules
-    from pearnly_cowork.contracts import history as history_contracts
+    from pearnly_core.express_rules.contracts import history as history_contracts
 
     doc = storage.project(storage.read(name))
     page = history_contracts.primary_page_fields(doc.get("pages") or [])
@@ -1965,7 +1965,7 @@ def _clean(key, value) -> str:
 
 
 def _primary(pages) -> int:
-    from pearnly_cowork.contracts import history as history_contracts
+    from pearnly_core.express_rules.contracts import history as history_contracts
 
     page = history_contracts.primary_page(pages)
     return next((i for i, p in enumerate(pages) if p is page), 0)
@@ -3981,7 +3981,7 @@ def preview_delete_folder_tasks(tool_input) -> list:
 
 def preview_choose_document_policy(tool_input) -> list:
     from pearnly_cowork.contracts import document_policy as policy_rules
-    from pearnly_cowork.contracts.history import primary_page_fields
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.history import document_policy, storage
 
     doc = storage.read(str(tool_input.get("document") or ""))

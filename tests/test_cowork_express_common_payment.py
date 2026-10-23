@@ -9,7 +9,7 @@ from __future__ import annotations
 import unittest
 import contextlib
 from datetime import date
-from pearnly_cowork.push.express.common import SRC_BANK, SRC_DOC_TYPE, SRC_EXPLICIT, SRC_MANUAL, SRC_NONE, SRC_PROFILE, payment_is_paid, payment_verdict
+from pearnly_core.express_rules.push.common import SRC_BANK, SRC_DOC_TYPE, SRC_EXPLICIT, SRC_MANUAL, SRC_NONE, SRC_PROFILE, payment_is_paid, payment_verdict
 
 class PaymentIsPaidTests(unittest.TestCase):
 

@@ -87,7 +87,7 @@ class NoDrift(unittest.TestCase):
         erp = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/recognition.py").read_text(encoding="utf-8")
         self.assertIn("tax_rules.purchase_treatment(", erp)
         self.assertIn("tax_rules.classify(", erp)
-        express = (ROOT / "apps/pearnly_cowork/pearnly_cowork/push/express/field_rules.py").read_text(encoding="utf-8")
+        express = (Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/push/field_rules.py").read_text(encoding="utf-8")
         self.assertIn("tax_rules.purchase_treatment(", express)
         self.assertNotIn("simplified_tax_invoice", express)
 

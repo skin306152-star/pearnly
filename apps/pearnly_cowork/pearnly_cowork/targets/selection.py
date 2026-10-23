@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any
 from .contracts import TargetSelectionError
 from . import choices as line_target_projection, evidence as target_catalog_evidence
-from .identity import normalize_express_account_key, reported_account_set_roots
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key, reported_account_set_roots
 from .choice import endpoint_with_account_choice
 
 def _requested_key(endpoint: dict[str, Any], account_set_key: object, trusted_account_config: dict[str, Any] | None) -> str:

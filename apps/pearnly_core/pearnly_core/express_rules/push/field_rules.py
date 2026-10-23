@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, Optional, Tuple
-from pearnly_cowork.push.express.field_clean import to_decimal as _to_decimal
-from pearnly_cowork.push.express.field_corrections import normalize_fields
+from pearnly_core.express_rules.push.field_clean import to_decimal as _to_decimal
+from pearnly_core.express_rules.push.field_corrections import normalize_fields
 from pearnly_core.tax_documents import rules as tax_rules
 
 

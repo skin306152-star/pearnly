@@ -14,7 +14,7 @@ import cowork_pool_fake as fake  # noqa: E402
 fake.install()
 
 from pearnly_cowork.connections import model, pool  # noqa: E402
-from pearnly_cowork.targets.identity import normalize_express_account_key as key  # noqa: E402
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key as key  # noqa: E402
 
 ROOT_67 = r"\\accserver\ExpressI\2567"
 ROOT_68 = r"\\accserver\ExpressI\2568"

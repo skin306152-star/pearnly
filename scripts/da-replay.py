@@ -670,9 +670,9 @@ def _modules():
     from pearnly_cowork.contracts import document_policy
     from pearnly_cowork.push.automation import rules as tier_rules
     from pearnly_cowork.push.express import automation, decide, goods_posting
-    from pearnly_cowork.push.express import choices as choice_rules
-    from pearnly_cowork.push.express.preflight import ExpressContext
-    from pearnly_cowork.push.express.prepare import prepare_express
+    from pearnly_core.express_rules.push import choices as choice_rules
+    from pearnly_core.express_rules.push.preflight import ExpressContext
+    from pearnly_core.express_rules.push.prepare import prepare_express
     from pearnly_cowork.readback import history_rules
     from pearnly_cowork.tax import periods as tax_periods
 
@@ -766,7 +766,7 @@ def _product_index(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     """存货主档按归一品名（`choices.norm_name`，库存品在前）与码的索引，按 ``id(rows)`` 缓存（同 `_master_index`）。"""
     found = _PRODUCT_INDEXES.get(id(rows))
     if found is None or found["rows"] is not rows:
-        from pearnly_cowork.push.express.choices import norm_name
+        from pearnly_core.express_rules.push.choices import norm_name
 
         by_name: Dict[str, List[Mapping[str, Any]]] = collections.defaultdict(list)
         for row in sorted(rows, key=lambda item: item.get("kind") != "stock"):
@@ -1011,7 +1011,7 @@ def payload_values(payload: Mapping[str, Any], book: Mapping[str, Any], fields: 
     out["posting"] = ("stock" if declared == "stock" else "service") if declared is not None else \
         "stock" if stock else "service"
     if stock:
-        from pearnly_cowork.push.express.choices import norm_name
+        from pearnly_core.express_rules.push.choices import norm_name
 
         index = _product_index(book["products"])["name"]
         out["item"] = tuple(str(item.get("code") or "").strip()
@@ -1165,7 +1165,7 @@ def posting_population(m, book: Mapping[str, Any], doc: Mapping[str, Any], enter
         return False
     if doc["direction"] == "sales":
         return True
-    from pearnly_cowork.push.express.field_rules import lane_verdict
+    from pearnly_core.express_rules.push.field_rules import lane_verdict
 
     is_expense, _src = lane_verdict(perfect_fields(doc, book), today=entered)
     return not is_expense
@@ -2078,7 +2078,7 @@ def vat_claim(m, fields: Mapping[str, Any], text: Optional[str], gold: Mapping[s
               source: str) -> Dict[str, Any]:
     """进项、识别出税额的票：识别结果按方向推断抵不抵（`field_rules.judge_direction`），文字层核票种后的档（`automation.tiers`
     同一规则：判抵且原文核得到完整税票与买方税号 A、核不到 B；判不抵且识别票种与原文标题都正是简式税票 / 收据 A、否则 B），与金标口径比。"""
-    from pearnly_cowork.push.express.field_rules import judge_direction
+    from pearnly_core.express_rules.push.field_rules import judge_direction
 
     kind_ocr, _route = judge_direction(dict(fields), today=dt.date.today())
     claims = kind_ocr == "purchase_invoice"

@@ -162,7 +162,7 @@ class CompanionReportTests(unittest.TestCase):
         self.assertEqual(plan.patch["reported_account_sets"][104]["path"], r"C:\EXP\T104")
 
     def test_account_set_past_the_fiftieth_passes_the_push_allowlist(self):
-        from pearnly_cowork.push.express.account_rules import account_set_allowed
+        from pearnly_core.express_rules.push.account_rules import account_set_allowed
         rows = [{"code": f"T{i}", "path": rf"C:\EXP\T{i}", "root": r"C:\EXP", "writable": True} for i in range(105)]
         config = {"account_set": r"C:\EXP\T0", "express_root": r"C:\EXP",
                   **plan_report({"account_sets": rows}, {}, NOW).patch}

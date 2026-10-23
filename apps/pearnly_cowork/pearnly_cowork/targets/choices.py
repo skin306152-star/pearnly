@@ -2,7 +2,7 @@
 from __future__ import annotations
 import ntpath
 from typing import Any
-from .identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 _MASTER_REFRESH_MIN_VERSION = (1, 1, 76)
 

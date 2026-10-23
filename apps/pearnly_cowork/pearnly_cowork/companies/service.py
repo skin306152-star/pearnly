@@ -26,7 +26,7 @@ from pearnly_cowork.folder_intake import agent, company_folders
 from pearnly_cowork.folder_intake import contracts as folder_contracts
 from pearnly_cowork.folder_intake import readers as folder_readers
 from pearnly_cowork.folder_intake.access import RULE
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 COMPANY_MAX = 2000
 PAGE_MAX = 50

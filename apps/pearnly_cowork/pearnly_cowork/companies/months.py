@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from pearnly_cowork.contracts.history import MONTH_WORDS
+from pearnly_core.express_rules.contracts.history import MONTH_WORDS
 
 REPORTED_DEPTH = 3  # 电脑只报到 3 层下级文件夹（同 `folder_intake.contracts.REPORTED_DEPTH`）
 CANDIDATES_MAX = 5

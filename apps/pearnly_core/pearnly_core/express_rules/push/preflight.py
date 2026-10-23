@@ -8,14 +8,14 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Dict, List, Optional
-from pearnly_cowork.contracts import push as direction_mod
-from pearnly_cowork.contracts.push import clean_tax_id
-from pearnly_cowork.push.express.account_rules import account_set_allowed, chart_codes, wire_account_set
-from pearnly_cowork.push.express.doc_sanity import check_document
-from pearnly_cowork.push.express.mapper import build_express_payload
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload
-from pearnly_cowork.push.express.history import flatten_history_for_mrerp
-from pearnly_cowork.push.express import confidence
+from pearnly_core.express_rules.contracts import push as direction_mod
+from pearnly_core.express_rules.contracts.push import clean_tax_id
+from pearnly_core.express_rules.push.account_rules import account_set_allowed, chart_codes, wire_account_set
+from pearnly_core.express_rules.push.doc_sanity import check_document
+from pearnly_core.express_rules.push.mapper import build_express_payload
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload
+from pearnly_core.express_rules.push.history import flatten_history_for_mrerp
+from pearnly_core.express_rules.push import confidence
 
 @dataclass(frozen=True)
 class ExpressContext:

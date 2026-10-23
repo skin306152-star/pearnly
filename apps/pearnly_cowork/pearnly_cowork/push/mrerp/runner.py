@@ -28,7 +28,7 @@ import frappe
 
 from pearnly_core.session_lock import SessionLockUnavailable
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.push.express import common
+from pearnly_core.express_rules.push import common
 from pearnly_cowork.push.mrerp.models import MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
 from pearnly_cowork.push.mrerp.transport import MrErpImport
 from pearnly_cowork.push.native import service as ledger

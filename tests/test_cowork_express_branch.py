@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "apps" / "pearnly_cowork"))
 sys.path.insert(0, str(root / "apps" / "pearnly_core"))
 
-from pearnly_cowork.push.express.field_clean import clean_branch_no  # noqa: E402
+from pearnly_core.express_rules.push.field_clean import clean_branch_no  # noqa: E402
 
 
 class BranchNumberTest(unittest.TestCase):

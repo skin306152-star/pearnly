@@ -29,9 +29,10 @@ from pearnly_core.shell import entitlements
 
 from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
-from pearnly_cowork.targets import mrerp_masters as master_rules, mrerp_menus as menu_rules, stock_groups
+from pearnly_cowork.targets import mrerp_masters as master_rules, mrerp_menus as menu_rules
+from pearnly_core.express_rules.targets import stock_groups
 from . import access, account_masters, model, pool, snapshots, refresh as refresh_leases
 from .preparation import reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope

@@ -16,8 +16,8 @@
 from __future__ import annotations
 
 from pearnly_cowork.companies import identity, pending
-from pearnly_cowork.targets import account_match
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets import account_match
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 STAGES = ("intake", "entry", "verify", "tax")
 STATES = ("empty", "open", "attention", "clear")

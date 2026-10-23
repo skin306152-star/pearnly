@@ -25,7 +25,7 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.companies import identity
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 HISTORY = "Cowork OCR History"
 PUSH_RECORD = "Cowork Push Record"

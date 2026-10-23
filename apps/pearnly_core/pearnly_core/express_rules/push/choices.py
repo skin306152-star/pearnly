@@ -22,7 +22,7 @@ import unicodedata
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
-from pearnly_cowork.push.express.payment import payment_written
+from pearnly_core.express_rules.push.payment import payment_written
 
 NEW = "__new__"
 KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")

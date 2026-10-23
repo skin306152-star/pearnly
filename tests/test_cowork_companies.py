@@ -568,7 +568,7 @@ class IdentityTests(unittest.TestCase):
         self.assertIsNone(identity.scope_value("12"))
 
     def test_one_supplier_two_branches_share_the_account_but_write_their_own_party(self):
-        from pearnly_cowork.push.express import choices as rules
+        from pearnly_core.express_rules.push import choices as rules
 
         # 补充 甲.5：科目、付款、抵进项按对方税号记（不分店）；对方档按分店记，写 Express 用各自分店的代码
         self.assertEqual(rules.supplier_subject("purchase", OTHER_TAX, "Makro"),
@@ -2484,7 +2484,7 @@ class ProviderAndToolTests(unittest.TestCase):
 
 # ---------------- 统一异常清单与月结台账（数字会计员第 1 期） ----------------
 
-account_match = sys.modules["pearnly_cowork.targets.account_match"]
+account_match = sys.modules["pearnly_core.express_rules.targets.account_match"]
 
 
 class ExceptionCodeTests(unittest.TestCase):
@@ -3008,7 +3008,7 @@ class AutomationLedgerTests(unittest.TestCase):
 # ---------------- 公司规则（数字会计员第 2 期统一客户规则） ----------------
 
 company_choices = importlib.import_module("pearnly_cowork.push.express.company_choices")
-express_rules = importlib.import_module("pearnly_cowork.push.express.choices")
+express_rules = importlib.import_module("pearnly_core.express_rules.push.choices")
 SUPPLIER = "purchase|" + OTHER_TAX
 
 
@@ -3667,7 +3667,7 @@ class GuardTests(unittest.TestCase):
                                  .read_text(encoding="utf-8"))
         self.assertEqual({field["fieldname"] for field in choice_meta["fields"] if field.get("unique")}, {"input_key"})
         kinds = next(field for field in choice_meta["fields"] if field["fieldname"] == "kind")["options"].split("\n")
-        self.assertEqual(tuple(kinds), importlib.import_module("pearnly_cowork.push.express.choices").KINDS)
+        self.assertEqual(tuple(kinds), importlib.import_module("pearnly_core.express_rules.push.choices").KINDS)
         self.assertEqual(company_access.deny_query(), "1=0")
         company = json.loads((APP / "pearnly_cowork/doctype/cowork_company/cowork_company.json").read_text())
         unique = {field["fieldname"] for field in company["fields"] if field.get("unique")}

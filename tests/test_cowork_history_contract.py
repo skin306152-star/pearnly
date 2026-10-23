@@ -12,7 +12,7 @@ from decimal import Decimal
 from itertools import product
 import unittest
 
-from pearnly_cowork.contracts import history
+from pearnly_core.express_rules.contracts import history
 
 
 def legacy_summary(pages):

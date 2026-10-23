@@ -21,11 +21,12 @@ from datetime import timedelta
 import frappe
 from frappe import _
 
-from pearnly_cowork.targets import identity as rules
-from pearnly_cowork.targets.identity import normalize_express_account_key as identity
+from pearnly_core.express_rules.targets import identity as rules
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key as identity
+from pearnly_core.cc_desktop.wire.route_contracts import serves
 from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 from . import access, model, state
-from .member import Member, serves
+from .member import Member
 
 ACCOUNT_SET, REACH, FACTS = access.POOL_TYPES
 OK, PENDING_IDENTITY, STALE = "ok", "pending_identity", "stale"
@@ -140,7 +141,7 @@ def presence(connection):
 
 def owned(peers, actor, *, device=""):
     """池里替这件活干的电脑（ADR-021 第 50–53 条，用户 10-16「谁的活谁的电脑做」）：给了 ``device``（定时任务读文件夹的那台）
-    就只有它；否则是 ``actor`` 自己登录过 CC 的电脑（`member.serves`，没有登录记录的电脑过渡期照旧算）。同事的电脑不算。
+    就只有它；否则是 ``actor`` 自己登录过 CC 的电脑（`route_contracts.serves`，没有登录记录的电脑过渡期照旧算）。同事的电脑不算。
     ``peers`` 是 :func:`presence` 的结果，回它的子集。纯函数。"""
     peers = peers or {}
     if device:

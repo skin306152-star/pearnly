@@ -17,7 +17,7 @@ from pearnly_core.assistant import projects
 from pearnly_cowork.access import scope
 from pearnly_cowork.companies import choices as saved_choices
 from pearnly_cowork.companies import identity, notes, rules, service
-from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_core.express_rules.push import choices as choice_rules
 
 LIST_MAX = 20
 CHOICES_MAX = 200
@@ -349,7 +349,7 @@ def _party(tool_input) -> tuple:
     """按单据存规则时这条规则的对象：传进来的那张单（``document``）自己的对方 → (kind, direction, side, name, tax, fields)。
     付款、抵进项、费用科目按卖方（进项）；对方档、存货按方向（进项卖方 / 销项买方）。认不出抛 choice_unsupported。
     对象只按这张单算、不收模型给的名字（2026-10-16 测试：CC 把这张单的规则说成另一家供应商的）。"""
-    from pearnly_cowork.contracts.history import primary_page_fields
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.history import storage
 
     kind = str(tool_input.get("kind") or "")

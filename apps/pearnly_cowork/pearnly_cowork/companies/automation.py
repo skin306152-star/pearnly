@@ -26,7 +26,7 @@ from pearnly_cowork.companies.access import AUTOMATION, read, write
 from pearnly_cowork.companies.rules import account_company
 from pearnly_cowork.push.automation import clock
 from pearnly_cowork.push.automation import rules as tier_rules
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 THRESHOLDS = automation_rules.THRESHOLDS
 CHANGES_HOOK = "cowork_company_month_changes"

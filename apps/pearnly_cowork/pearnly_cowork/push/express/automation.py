@@ -27,11 +27,11 @@ from pearnly_core.tax_documents.codes import RECEIPT, SIMPLIFIED_TAX_INVOICE, TA
 from pearnly_core.tax_documents.rules import from_title
 from pearnly_core.tax_documents.rules import normalize as normalize_document_type
 
-from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_cowork.push.express import company_choices
 from pearnly_cowork.push.express.pushed import fit_ref_no
-from pearnly_cowork.targets import account_match
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets import account_match
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 A, B, C = "A", "B", "C"
 CLASSES = (A, B, C)

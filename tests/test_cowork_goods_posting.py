@@ -28,8 +28,8 @@ for _name in [n for n in sys.modules if n.split(".")[0] == "pearnly_cowork"]:
 from pearnly_cowork.companies import identity  # noqa: E402
 from pearnly_cowork.contracts import document_policy as policy  # noqa: E402
 from pearnly_cowork.push.express import goods_posting  # noqa: E402
-from pearnly_cowork.push.express.mapper import build_express_payload  # noqa: E402
-from pearnly_cowork.push.express.posting_profile import ESCALATE_REASON_PREFIX  # noqa: E402
+from pearnly_core.express_rules.push.mapper import build_express_payload  # noqa: E402
+from pearnly_core.express_rules.push.posting_profile import ESCALATE_REASON_PREFIX  # noqa: E402
 
 OWN, SELLER = "0994000333447", "0107561000013"
 TODAY = dt.date(2026, 10, 20)

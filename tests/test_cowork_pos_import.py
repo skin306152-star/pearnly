@@ -18,14 +18,14 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "apps/pearnly_cowork"), str(ROOT / "apps/pearnly_core")]
 
-from pearnly_cowork.contracts import pos as P  # noqa: E402
+from pearnly_core.express_rules.contracts import pos as P  # noqa: E402
 from pearnly_cowork.pos_import import contracts as C  # noqa: E402
 from pearnly_cowork.pos_import import tables as T  # noqa: E402
-from pearnly_cowork.push.express import choices as choice_rules  # noqa: E402
-from pearnly_cowork.push.express.common import extract_line_items  # noqa: E402
-from pearnly_cowork.push.express.preflight import _unknown_account  # noqa: E402
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload  # noqa: E402
-from pearnly_cowork.targets.identity import same_company_account_sets  # noqa: E402
+from pearnly_core.express_rules.push import choices as choice_rules  # noqa: E402
+from pearnly_core.express_rules.push.common import extract_line_items  # noqa: E402
+from pearnly_core.express_rules.push.preflight import _unknown_account  # noqa: E402
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload  # noqa: E402
+from pearnly_core.express_rules.targets.identity import same_company_account_sets  # noqa: E402
 
 OCHA_CSV = """รายงานยอดขายแยกตามบิล
 สาขา: ร้านทดสอบ (สำนักงานใหญ่)
@@ -551,7 +551,7 @@ class RememberedLayoutTests(unittest.TestCase):
                    "pearnly_cowork.history.recognition": stub(persist_batch=None),
                    "pearnly_cowork.ocr.pages": stub(assess_confidence=None),
                    "pearnly_cowork.pos_import": stub(contracts=C, layouts=layouts, tables=T),
-                   "pearnly_cowork.targets.identity": stub(account_set_company=None,
+                   "pearnly_core.express_rules.targets.identity": stub(account_set_company=None,
                                                            normalize_express_account_key=None)}
         with mock.patch.dict(sys.modules, modules):
             spec = importlib.util.spec_from_file_location(

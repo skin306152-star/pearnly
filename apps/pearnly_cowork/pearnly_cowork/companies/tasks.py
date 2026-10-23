@@ -16,7 +16,7 @@ import frappe
 
 from pearnly_cowork.companies import current_book, identity, service
 from pearnly_cowork.companies.access import COMPANY
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 FIELDS = ["name", "identity", "adapter", "seed_connection", "name_key"]
 

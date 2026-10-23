@@ -20,8 +20,8 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.push.express.automation import OVERRIDE_DAYS, OVERRIDE_KINDS
-from pearnly_cowork.push.express.choices import KINDS
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.push.choices import KINDS
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 DOCTYPE = "Cowork Express Choice"
 OVERRIDE_DOCTYPE = "Cowork Express Choice Change"

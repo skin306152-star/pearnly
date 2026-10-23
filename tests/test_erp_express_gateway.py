@@ -11,8 +11,8 @@ import pathlib
 import unittest
 
 from pearnly_cowork.erp_gateway import contracts as G
-from pearnly_cowork.push.express import choices as C
-from pearnly_cowork.push.express import common
+from pearnly_core.express_rules.push import choices as C
+from pearnly_core.express_rules.push import common
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _spec = importlib.util.spec_from_file_location(

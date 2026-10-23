@@ -12,6 +12,7 @@
 
 不连库、不依赖 Frappe（`cowork_pool_fake`）；真实 Site 上的迁移与并发在第 7 批联调。
 """
+from pathlib import Path
 import json
 import pathlib
 import sys
@@ -28,8 +29,8 @@ DB, Doc = fake.DB, fake.Doc
 from pearnly_cowork.connections import (  # noqa: E402
     account_masters, model, pool, preparation, refresh, state, stock_effects)
 from pearnly_cowork.connections.reports import _ACCOUNT_SET_KEYS, _account_sets  # noqa: E402
-from pearnly_cowork.targets import identity  # noqa: E402
-from pearnly_cowork.targets.identity import Registered as R, resolve  # noqa: E402
+from pearnly_core.express_rules.targets import identity  # noqa: E402
+from pearnly_core.express_rules.targets.identity import Registered as R, resolve  # noqa: E402
 from pearnly_cowork.targets.selection import require_catalog_evidence, resolve_account_choice  # noqa: E402
 from pearnly_cowork.targets.contracts import TargetSelectionError  # noqa: E402
 
@@ -231,7 +232,7 @@ class Identity(unittest.TestCase):
             self.assertEqual(found.root_key, current.root_key)
 
     def test_identity_module_stays_framework_free(self):
-        source = (APP / "targets" / "identity.py").read_text()
+        source = (Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py").read_text()
         self.assertNotIn("import frappe", source)
         self.assertNotIn("from frappe", source)
 

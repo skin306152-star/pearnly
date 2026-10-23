@@ -14,7 +14,8 @@ import random
 import sys
 from types import SimpleNamespace
 
-from pearnly_cowork.targets import choice, choices, evidence, identity, projection, selection, freeze_target
+from pearnly_cowork.targets import choice, choices, evidence, projection, selection, freeze_target
+from pearnly_core.express_rules.targets import identity
 from test_cowork_targets import REQUEST_ID, NEW_REQUEST_ID, access, rows as target_evidence, endpoint, evidence_args, observation, refresh, snapshot
 
 SOURCE_SHA = "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188"

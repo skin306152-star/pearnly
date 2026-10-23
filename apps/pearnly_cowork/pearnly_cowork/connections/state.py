@@ -1,7 +1,7 @@
 """Current reads and scope keys shared by native connection services."""
 import frappe
 from frappe import _
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_scope
 from . import access, model
 

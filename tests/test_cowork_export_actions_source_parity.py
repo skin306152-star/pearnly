@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 
 from pearnly_cowork.push.export_actions import parse_actions
-from pearnly_cowork.push.receipts import _coerce_body
-from pearnly_cowork.push.express.stock_acc_group import describe_from_request, stock_acc_group_label
+from pearnly_core.express_rules.receipts import _coerce_body
+from pearnly_core.express_rules.push.stock_acc_group import describe_from_request, stock_acc_group_label
 
 
 def verify(root):

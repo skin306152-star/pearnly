@@ -190,7 +190,7 @@ def run_cowork(content, filename):
     from pearnly_cowork.ocr.engine.config import config_from_environment
     from pearnly_cowork.ocr.inputs_runtime.source import PageSource
     from pearnly_cowork.ocr.policy import invoice_policy
-    from pearnly_cowork.push.express.field_rules import judge_direction
+    from pearnly_core.express_rules.push.field_rules import judge_direction
 
     # 与线上开户写入的 Cowork 识别配置相同（`infrastructure/production/site-step.py` COWORK_OCR）。
     environment = {"OCR_LLM_BACKEND": "vertex", "GCP_PROJECT": ocr.project(), "VERTEX_LOCATION": ocr.location()}

@@ -26,6 +26,9 @@ from urllib.parse import parse_qs, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 COMPANION = ROOT / "companion" / "src" / "companion"
 SERVER = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "companion"
+# CC 桌面版线上约定的纯函数在共用层（ADR-025）
+WIRE = ROOT / "apps" / "pearnly_core" / "pearnly_core" / "cc_desktop" / "wire"
+RULES = ROOT / "apps" / "pearnly_core" / "pearnly_core" / "express_rules" / "push"
 FOLDER_SERVER = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "folder_intake"
 
 
@@ -426,13 +429,13 @@ class OnDemandRequests(unittest.TestCase):
     def test_this_helper_is_new_enough_to_take_requests(self):
         """服务端只把 `MIN_COMPANION` 及以上的电脑当作「会领按需请求」：仓库里这版小助手不能低于它。"""
         version = module_constants(COMPANION / "version.py")["VERSION"]
-        minimum = module_constants(SERVER / "request_contracts.py")["MIN_COMPANION"]
+        minimum = module_constants(WIRE / "request_contracts.py")["MIN_COMPANION"]
         self.assertGreaterEqual(tuple(int(part) for part in version.split(".")),
                                 tuple(int(part) for part in minimum.split(".")))
 
     def test_both_sides_share_the_same_kinds_sizes_and_timings(self):
         helper = number_constants(COMPANION / "request_contract.py", self.SHARED)
-        server = number_constants(SERVER / "request_contracts.py", self.SHARED)
+        server = number_constants(WIRE / "request_contracts.py", self.SHARED)
         self.assertEqual(helper, server)
         self.assertEqual(set(server["MAX_BYTES"]), set(server["KINDS"]))
         self.assertEqual(set(server["LEASE_SECONDS"]), set(server["KINDS"]))
@@ -446,14 +449,14 @@ class OnDemandRequests(unittest.TestCase):
         worker = (COMPANION / "request_worker.py").read_text(encoding="utf-8")
         handlers = re.search(r"HANDLERS: dict = \{(.*?)\n\}", worker, re.S).group(1)
         kinds = set(re.findall(r'"([a-z_]+)":', handlers))
-        self.assertTrue(kinds and kinds <= set(number_constants(SERVER / "request_contracts.py", ("KINDS",))["KINDS"]))
+        self.assertTrue(kinds and kinds <= set(number_constants(WIRE / "request_contracts.py", ("KINDS",))["KINDS"]))
         code = module_constants(COMPANION / "request_worker.py")["OFFSET_CODE"]
         self.assertIn(f'"code": "{code}", "received": received', (SERVER / "request_service.py").read_text(encoding="utf-8"))
         round_source = method_source(COMPANION / "request_worker.py", "RequestWorker", "round")
         sent = next(node for node in ast.walk(ast.parse(round_source)) if isinstance(node, ast.Call)
                     and ast.unparse(node.func) == "client.next")
         self.assertEqual({key.value for key in sent.args[0].keys}, {"version", "kinds", "device"})
-        contracts = (SERVER / "request_contracts.py").read_text(encoding="utf-8")
+        contracts = (WIRE / "request_contracts.py").read_text(encoding="utf-8")
         for key in ("version", "kinds", "device", "request", "handle", "ok", "code", "offset", "content", "final",
                     "size", "sha256", "meta"):
             self.assertTrue(quoted(contracts, key), key)
@@ -472,7 +475,7 @@ class OnDemandRequests(unittest.TestCase):
         auth = (SERVER / "http_auth.py").read_text(encoding="utf-8")
         self.assertIn("if operation not in FOLDER_ONLY_ALLOWED and", auth)
         self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}", auth)
-        server = number_constants(SERVER / "request_contracts.py", ("ADAPTER_KINDS", "FOLDER_KINDS", "KINDS"))
+        server = number_constants(WIRE / "request_contracts.py", ("ADAPTER_KINDS", "FOLDER_KINDS", "KINDS"))
         self.assertEqual(server["ADAPTER_KINDS"], {"express": server["KINDS"], "mrerp": server["FOLDER_KINDS"]})
         self.assertNotIn("express_read", server["FOLDER_KINDS"])
         self.assertIn("contracts.allowed_kinds(adapter", (SERVER / "request_service.py").read_text(encoding="utf-8"))
@@ -515,7 +518,7 @@ class ExpressReadback(unittest.TestCase):
         names = ("RESULT_VERSION", "DOCNUMS_MAX", "DOCNUM_MAX")
         self.assertEqual(number_constants(COMPANION / "express_read.py", names),
                          number_constants(self.READBACK / "contracts.py", names))
-        server = number_constants(SERVER / "request_contracts.py", ("PARAMS_MAX",))["PARAMS_MAX"]
+        server = number_constants(WIRE / "request_contracts.py", ("PARAMS_MAX",))["PARAMS_MAX"]
         # 点名单据号放满（每条最长）再加两条路径，仍在按需请求的参数上限之内
         limits = number_constants(self.READBACK / "contracts.py", ("DOCNUMS_MAX", "DOCNUM_MAX", "PATH_MAX"))
         self.assertLess(limits["DOCNUMS_MAX"] * (limits["DOCNUM_MAX"] + 4) + 2 * limits["PATH_MAX"] + 200, server)
@@ -587,19 +590,19 @@ class WriteCheck(unittest.TestCase):
 
     def test_both_sides_name_the_same_mismatches(self):
         helper = number_constants(COMPANION / "write_verify.py", ("FIELDS", "STATE_OK", "STATE_MISMATCH"))
-        server = number_constants(self.PUSH / "express" / "written_check.py", ("COMPANION_FIELDS",))
+        server = number_constants(RULES / "written_check.py", ("COMPANION_FIELDS",))
         self.assertEqual(helper["FIELDS"], server["COMPANION_FIELDS"])
         self.assertIn(f'OK, MISMATCH, UNVERIFIED = "{helper["STATE_OK"]}", "{helper["STATE_MISMATCH"]}", "unverified"',
-                      (self.PUSH / "express" / "written_check.py").read_text(encoding="utf-8"))
+                      (RULES / "written_check.py").read_text(encoding="utf-8"))
 
     def test_the_receipt_carries_exactly_state_fields_and_party(self):
         result = method_source_of(COMPANION / "write_verify.py", "result")
         for key in ("state", "fields", "party"):
             self.assertTrue(quoted(result, key), key)
-        clean = method_source_of(self.PUSH / "express" / "written_check.py", "clean")
+        clean = method_source_of(RULES / "written_check.py", "clean")
         for key in ("state", "fields", "party", "tax_id", "branch"):
             self.assertTrue(quoted(clean, key), key)
-        self.assertIn("out['verify'] = verify", method_source_of(self.PUSH / "express" / "common.py",
+        self.assertIn("out['verify'] = verify", method_source_of(RULES / "common.py",
                                                                    "sanitize_push_meta"))
         meta = method_source_of(COMPANION / "worker.py", "_push_meta")
         self.assertIn("m['verify'] = dict(res.verify)", meta)
@@ -696,7 +699,7 @@ class AccountHistory(unittest.TestCase):
         self.assertFalse({"account_lock", "is_account_busy", "dbf_writer"} & imported)
         self.assertIn('"account_history": account_history.read_history',
                       (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
-        server = number_constants(SERVER / "request_contracts.py", ("KINDS", "FOLDER_KINDS", "SHARED_KINDS"))
+        server = number_constants(WIRE / "request_contracts.py", ("KINDS", "FOLDER_KINDS", "SHARED_KINDS"))
         self.assertIn("account_history", server["KINDS"])
         self.assertNotIn("account_history", server["FOLDER_KINDS"])  # MR.ERP 的文件夹成员不读账套
         self.assertEqual(server["SHARED_KINDS"], ("account_history", "express_masters"))
@@ -726,25 +729,25 @@ class PosPayload(unittest.TestCase):
     COWORK = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork"
 
     def test_the_helper_accepts_the_version_the_server_sends(self):
-        server = _literal(self.COWORK / "contracts" / "pos.py", "PAYLOAD_VERSION")
+        server = _literal(ROOT / "apps/pearnly_core/pearnly_core/express_rules/contracts/pos.py", "PAYLOAD_VERSION")
         helper = _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS")
         self.assertEqual(server, 3)
         self.assertIn(server, helper)
 
     def test_the_pos_block_keys_match(self):
-        mapper = (self.COWORK / "push" / "express" / "sales_mapper.py").read_text(encoding="utf-8")
+        mapper = (RULES / "sales_mapper.py").read_text(encoding="utf-8")
         adapter = (COMPANION / "sales_adapter.py").read_text(encoding="utf-8")
         for key in ("first", "last", "count", "docnum", "cash", "transfers", "acc", "amount", "label"):
             self.assertTrue(quoted(mapper, key) and quoted(adapter, key), key)
         # 票号起止的长度上限两边一致（云端截短，小助手的校验永远能过）
-        self.assertEqual(_literal(self.COWORK / "contracts" / "pos.py", "NUMBER_MAX"),
+        self.assertEqual(_literal(ROOT / "apps/pearnly_core/pearnly_core/express_rules/contracts/pos.py", "NUMBER_MAX"),
                          _literal(COMPANION / "sales_adapter.py", "_POS_NUMBER_MAX"))
         self.assertIn('"auto"', mapper)
         self.assertIn('"auto"', adapter)
 
     def test_the_helper_refusals_are_for_a_person_and_translated(self):
         constants = module_constants(COMPANION / "pos_journal.py")
-        lifecycle = (self.COWORK / "push" / "lifecycle.py").read_text(encoding="utf-8")
+        lifecycle = (WIRE / "ack_rules.py").read_text(encoding="utf-8")  # 转人工的错误码表（ADR-025 搬进共用层）
         terms = (self.COWORK / "i18n" / "messages.tsv").read_text(encoding="utf-8")
         codes = [constants[name] for name in ("ERR_JOURNAL_BOOK", "ERR_ACCOUNT")]
         codes.append(_literal(COMPANION / "sales_adapter.py", "ERR_POS_INVALID"))
@@ -771,7 +774,7 @@ class AnyAccountSetRead(unittest.TestCase):
                                 tuple(int(part) for part in minimum.split(".")))
 
     def test_the_lease_command_has_the_keys_the_helper_reads(self):
-        server = _literal(SERVER / "queue_contracts.py", "_REFRESH_KEYS")
+        server = _literal(WIRE / "queue_contracts.py", "_REFRESH_KEYS")
         command = (COMPANION / "projection_refresh.py").read_text(encoding="utf-8")
         reads = set(re.findall(r'pending\.get\("([a-z_]+)"\)', command))
         self.assertEqual(reads, set(server))
@@ -874,7 +877,7 @@ class AccountSetIdentity(unittest.TestCase):
         self.assertNotIn("GetFileInformationByHandleEx", facts)
         self.assertIn("_BACKUP_SEMANTICS = 0x02000000", facts)
         self.assertIn("_FILE_READ_ATTRIBUTES = 0x0080", facts)
-        clean = (ROOT / "apps/pearnly_cowork/pearnly_cowork/targets/identity.py").read_text(encoding="utf-8")
+        clean = (ROOT / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py").read_text(encoding="utf-8")
         self.assertIn('ch.isalnum() or ch in ":-_."', clean)   # uid_of 的写法（十六进制 + 连字符）在服务端清洗规则内
 
 
@@ -886,8 +889,8 @@ class WriteDispatch(unittest.TestCase):
     - 写前文件号对不上回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``：服务端据此标 stale；
     - 下发副本里换成领取电脑写法的位置字段，覆盖客户端 `_task_settings` 读的每一个位置键。"""
 
-    QUEUE = SERVER / "queue_contracts.py"
-    LOCATION = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "express" / "wire_location.py"
+    QUEUE = WIRE / "queue_contracts.py"
+    LOCATION = ROOT / "apps" / "pearnly_core" / "pearnly_core" / "express_rules" / "push" / "wire_location.py"
 
     def constants(self, path, *names):
         found = {}
@@ -930,7 +933,7 @@ class WriteDispatch(unittest.TestCase):
         self.assertIn("error_code=ERR_ACCOUNT_UID_MISMATCH", check)
         self.assertIn("outcome='waiting_lock'", check)
         self.assertIn("payload.get('account_uid')", handler)   # 服务端下发的键（push.express.wire_location）
-        self.assertIn('"account_uid"', (ROOT / "apps/pearnly_cowork/pearnly_cowork/push/express/wire_location.py")
+        self.assertIn('"account_uid"', (ROOT / "apps/pearnly_core/pearnly_core/express_rules/push/wire_location.py")
                       .read_text(encoding="utf-8").replace("'", '"'))
         transport = (SERVER / "transport.py").read_text(encoding="utf-8")
         self.assertIn("queue_contracts.ERR_ACCOUNT_UID_MISMATCH", transport)
@@ -973,7 +976,7 @@ class PoolRequests(unittest.TestCase):
         return {key.value for key in next(node.value for node in ast.walk(builder) if isinstance(node, ast.Return)).keys}
 
     def test_the_substituted_location_keys_are_what_both_reads_send_and_the_helper_reads(self):
-        server = number_constants(SERVER / "request_contracts.py", ("LOCATION_KEYS", "ACCOUNT_KINDS", "FOLDER_KINDS",
+        server = number_constants(WIRE / "request_contracts.py", ("LOCATION_KEYS", "ACCOUNT_KINDS", "FOLDER_KINDS",
                                                                      "KINDS"))
         self.assertEqual(set(server["LOCATION_KEYS"]), {"account_set", "account_root"})
         self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters"})
@@ -1165,7 +1168,7 @@ class ErpExpressFront(unittest.TestCase):
     - 载荷 4：明细行 / 表头可带 ``loccod``，小助手认 4；仓库码不在 ISTAB 21 里整单不写，回 ``ERR_LOCATION``，按「要人处理」回报。"""
 
     def test_the_masters_request_is_an_account_read_shared_with_the_connection(self):
-        server = number_constants(SERVER / "request_contracts.py", ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS",
+        server = number_constants(WIRE / "request_contracts.py", ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS",
                                                                      "FOLDER_KINDS", "LOCATION_KEYS",
                                                                      "KIND_MIN_COMPANION", "MAX_BYTES"))
         for group in ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS"):
@@ -1181,7 +1184,7 @@ class ErpExpressFront(unittest.TestCase):
         version = module_constants(COMPANION / "version.py")["VERSION"]
         minimum = server["KIND_MIN_COMPANION"]["express_masters"]
         self.assertGreaterEqual(tuple(map(int, version.split("."))), tuple(map(int, minimum.split("."))))
-        self.assertIn("def minimum(", (SERVER / "request_contracts.py").read_text(encoding="utf-8"))
+        self.assertIn("def minimum(", (WIRE / "request_contracts.py").read_text(encoding="utf-8"))
 
     def test_the_masters_reader_never_waits_for_the_account_set_lock(self):
         tree = ast.parse((COMPANION / "express_masters.py").read_text(encoding="utf-8"))

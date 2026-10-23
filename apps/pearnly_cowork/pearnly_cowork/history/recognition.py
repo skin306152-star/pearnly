@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 from pearnly_core.execution.work import step
 from pearnly_cowork.access import scope
-from pearnly_cowork.contracts.history import initial_history
+from pearnly_core.express_rules.contracts.history import initial_history
 from pearnly_cowork.files import access, guard, service as files
 from pearnly_cowork.history import storage
 

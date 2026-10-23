@@ -13,7 +13,7 @@ import uuid
 
 import frappe
 
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 from . import access, model, pool, preparation, refresh, state
 
 READY, READING, OFFLINE, UPDATE_NEEDED, UNAVAILABLE, FAILED = (

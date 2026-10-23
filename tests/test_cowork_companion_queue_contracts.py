@@ -3,7 +3,7 @@ from copy import deepcopy
 from decimal import Decimal
 import unittest
 
-from pearnly_cowork.companion.queue_contracts import (
+from pearnly_core.cc_desktop.wire.queue_contracts import (
     QueueContractError, ack_request, ack_response, job, lease_request, lease_response,
 )
 

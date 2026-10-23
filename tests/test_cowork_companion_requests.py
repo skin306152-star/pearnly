@@ -1,5 +1,6 @@
 """CC 桌面端按需请求（2026-10 CC 闭环）：纯规则、结果字节的分块存放、建 / 领 / 交 / 取 / 删的服务、两条机器方法的
 回包，以及 CC 从已授权文件夹列文件、取文件（`folder_intake/fetch.py`）。不连库、不依赖 Frappe（最小替身）。"""
+from pathlib import Path
 import base64
 import gzip
 import hashlib
@@ -26,9 +27,11 @@ def _load(name, path):
     return module
 
 
-contracts = _load("request_contracts_under_test", APP / "companion/request_contracts.py")
+contracts = _load("request_contracts_under_test", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/cc_desktop/wire/request_contracts.py")
 member = _load("member_for_requests", APP / "connections/member.py")
-identity = _load("identity_for_requests", APP / "targets/identity.py")
+# 归属判据 serves 搬进共用层（ADR-025）
+route = _load("route_for_requests", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py")
+identity = _load("identity_for_requests", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py")
 NOW = datetime(2026, 10, 13, 5, 0, 0)
 
 
@@ -295,10 +298,10 @@ class Pool:
 
     @staticmethod
     def owned(peers, actor, *, device=""):
-        """同 `connections.pool.owned`（纯函数那一段，按真的 `member.serves`）。"""
+        """同 `connections.pool.owned`（纯函数那一段，按真的 `route_contracts.serves`）。"""
         if device:
             return {device: peers[device]} if device in peers else {}
-        return {name: peer for name, peer in peers.items() if member.serves((peer or {}).get("users"), actor)}
+        return {name: peer for name, peer in peers.items() if route.serves((peer or {}).get("users"), actor)}
 
 
 def _service(clock):
@@ -336,7 +339,10 @@ def _service(clock):
                "pearnly_core.execution": execution, "pearnly_core.execution.state": execution.state,
                "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                "pearnly_cowork.companion": types.ModuleType("pearnly_cowork.companion"),
-               "pearnly_cowork.companion.request_contracts": contracts,
+               "pearnly_core.cc_desktop": types.ModuleType("pearnly_core.cc_desktop"),
+               "pearnly_core.cc_desktop.wire": types.SimpleNamespace(request_contracts=contracts, route_contracts=route),
+               "pearnly_core.cc_desktop.wire.request_contracts": contracts,
+               "pearnly_core.cc_desktop.wire.route_contracts": route,
                "pearnly_cowork.companion.request_access": access,
                "pearnly_cowork.connections": types.ModuleType("pearnly_cowork.connections"),
                "pearnly_cowork.connections.access": types.SimpleNamespace(require_connection=require_connection),
@@ -346,7 +352,7 @@ def _service(clock):
                "pearnly_cowork.connections.member": member,
                "pearnly_cowork.connections.pool": pool,
                "pearnly_cowork.targets": types.ModuleType("pearnly_cowork.targets"),
-               "pearnly_cowork.targets.identity": identity}
+               "pearnly_core.express_rules.targets.identity": identity}
     saved = {name: sys.modules.get(name) for name in list(modules) + ["pearnly_cowork.companion.request_store"]}
     sys.modules.update(modules)
     try:
@@ -836,10 +842,14 @@ class MachineReplyTests(unittest.TestCase):
         companion.http_auth, companion.request_service, companion.request_contracts = auth, service, contracts
         transaction = types.ModuleType("pearnly_cowork.transaction")
         names = ("frappe", "pearnly_cowork", "pearnly_cowork.companion", "pearnly_cowork.transaction",
-                 "pearnly_cowork.transaction.conflicts")
+                 "pearnly_cowork.transaction.conflicts", "pearnly_core.cc_desktop.wire",
+                 "pearnly_core.cc_desktop.wire.request_contracts")
         saved = {name: sys.modules.get(name) for name in names}
         sys.modules.update({"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
-                            "pearnly_cowork.companion": companion, "pearnly_cowork.transaction": transaction})
+                            "pearnly_cowork.companion": companion, "pearnly_cowork.transaction": transaction,
+                            # 线上约定在共用层（ADR-025）：被测入口拿到的是这里载入的同一份
+                            "pearnly_core.cc_desktop.wire": types.SimpleNamespace(request_contracts=contracts),
+                            "pearnly_core.cc_desktop.wire.request_contracts": contracts})
         try:
             # 撞锁整笔重来用真的共用处（`transaction.conflicts`），绑这里的 Frappe 替身
             transaction.conflicts = _load("pearnly_cowork.transaction.conflicts", APP / "transaction/conflicts.py")

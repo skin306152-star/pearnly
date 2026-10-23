@@ -12,8 +12,8 @@ import contextlib
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from pearnly_cowork.push.express.common import PAYLOAD_VERSION, SRC_BANK, SRC_MANUAL
-from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload
+from pearnly_core.express_rules.push.common import PAYLOAD_VERSION, SRC_BANK, SRC_MANUAL
+from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload
 _CONFIG = {'account_set': 'DATAT', 'revenue_acc': '41-01-00-00', 'vat_output_acc': '11-05-04-02', 'ar_acc': '11-02-01-00'}
 
 def _sales_history(**over):

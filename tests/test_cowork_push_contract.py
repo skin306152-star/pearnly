@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from typing import Any, Dict, Optional
 import unittest
 
-from pearnly_cowork.contracts import push
+from pearnly_core.express_rules.contracts import push
 
 
 class DirectionContract(unittest.TestCase):

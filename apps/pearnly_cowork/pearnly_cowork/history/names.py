@@ -18,7 +18,7 @@ from frappe.model.document import Document
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts import recognized_names as rules
-from pearnly_cowork.contracts.history import primary_page
+from pearnly_core.express_rules.contracts.history import primary_page
 
 MEMORY = "Cowork Name Memory"
 _WRITE = object()

@@ -1,7 +1,7 @@
 """需复核原因（`history/review.py`）：纯规则，用 2026-09-28 Express 压测里出现过的几类错误做例子。"""
 import unittest
 
-from pearnly_cowork.contracts.line_items import review_status
+from pearnly_core.express_rules.contracts.line_items import review_status
 from pearnly_cowork.history import review
 
 OWN = "0105546015062"          # 本方（压测冰厂）
@@ -145,7 +145,7 @@ class SettledAtIntake(unittest.TestCase):
         import json
         from pathlib import Path
         from types import SimpleNamespace
-        from pearnly_cowork.contracts.history import primary_page_fields
+        from pearnly_core.express_rules.contracts.history import primary_page_fields
         source = Path(review.__file__).with_name("storage.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         wanted = [node for node in tree.body if isinstance(node, ast.FunctionDef)

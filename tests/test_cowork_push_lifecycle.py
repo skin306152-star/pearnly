@@ -3,7 +3,9 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import unittest
 
-from pearnly_cowork.push import lifecycle as flow, receipts, retry
+from pearnly_cowork.push import lifecycle as flow, retry
+from pearnly_core.cc_desktop.wire import ack_rules
+from pearnly_core.express_rules import receipts
 
 NOW = datetime(2026, 9, 21, tzinfo=timezone.utc)
 
@@ -31,26 +33,26 @@ class QueueTests(unittest.TestCase):
         self.assertTrue(retry.counts_as_endpoint_success("pending"))  # old non-failure statistic only
 
     def test_legacy_waiting_lock_keeps_the_wire_attempt(self):
-        old = flow.acknowledgement(branch="legacy", attempt=1, success=False, outcome="waiting_lock")
+        old = ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, outcome="waiting_lock")
         self.assertEqual((old.status, old.attempt, old.retry), ("pending", 1, True))
 
     def test_zero_attempt_legacy_normalizes_only_on_failure(self):
         for outcome in ("success", "waiting_lock", "needs_review"):
-            self.assertEqual(flow.acknowledgement(branch="legacy", attempt=0, success=False, outcome=outcome).attempt, 0)
-        self.assertEqual(flow.acknowledgement(branch="legacy", attempt=0, success=False).attempt, 2)
+            self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=0, success=False, outcome=outcome).attempt, 0)
+        self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=0, success=False).attempt, 2)
 
     def test_explicit_outcome_beats_success_boolean(self):
         for branch in ("legacy",):
-            blocked = flow.acknowledgement(branch=branch, attempt=1, success=True, outcome="needs_mapping")
+            blocked = ack_rules.acknowledgement(branch=branch, attempt=1, success=True, outcome="needs_mapping")
             self.assertEqual((blocked.status, blocked.stage), ("manual", "needs_mapping"))
-            confirmed = flow.acknowledgement(branch=branch, attempt=1, success=False, outcome="success")
+            confirmed = ack_rules.acknowledgement(branch=branch, attempt=1, success=False, outcome="success")
             self.assertEqual(confirmed.status, "success")
 
     def test_failures_exhaust_and_rollback_is_not_success(self):
         for branch in ("legacy",):
             for attempt in (1, 2, 3, 4):
                 for outcome in (None, "failed", "rolled_back", "unknown"):
-                    state = flow.acknowledgement(branch=branch, attempt=attempt, success=False, outcome=outcome)
+                    state = ack_rules.acknowledgement(branch=branch, attempt=attempt, success=False, outcome=outcome)
                     self.assertEqual(state.attempt, attempt + 1)
                     self.assertEqual(state.status, "pending" if attempt < 3 else "manual")
                     self.assertEqual(state.retry, attempt < 3)
@@ -58,24 +60,24 @@ class QueueTests(unittest.TestCase):
     def test_a_rejection_retrying_cannot_change_goes_to_a_person(self):
         # 2026-09-28 压测：同税号两个客户档先按普通失败重试 3 次，列表一直「录入中」
         for branch in ("legacy",):
-            state = flow.acknowledgement(branch=branch, attempt=1, success=False,
+            state = ack_rules.acknowledgement(branch=branch, attempt=1, success=False,
                                          error="[CUSTOMER_BRANCH_AMBIGUOUS] ARMAS tax 0105554131661 matches 2 parties")
             self.assertEqual((state.status, state.stage, state.retry), ("manual", "needs_review", False))
             self.assertTrue(state.reason.startswith("[CUSTOMER_BRANCH_AMBIGUOUS]"))
-            ordinary = flow.acknowledgement(branch=branch, attempt=1, success=False, error="[DBF_WRITE_FAILED] io")
+            ordinary = ack_rules.acknowledgement(branch=branch, attempt=1, success=False, error="[DBF_WRITE_FAILED] io")
             self.assertEqual((ordinary.status, ordinary.retry), ("pending", True))
-            waiting = flow.acknowledgement(branch=branch, attempt=1, success=False, outcome="waiting_lock",
+            waiting = ack_rules.acknowledgement(branch=branch, attempt=1, success=False, outcome="waiting_lock",
                                            error="[CUSTOMER_BRANCH_AMBIGUOUS] x")
             self.assertEqual(waiting.status, "pending")  # 小助手自己给了去向的照它
             # 这台电脑没有这份账套 → 要人处理；暂时连不上的小助手回报「等账套」，不烧重试次数（2026-09-28 录制）
-            missing = flow.acknowledgement(branch=branch, attempt=1, success=False,
+            missing = ack_rules.acknowledgement(branch=branch, attempt=1, success=False,
                                            error="[NO_ACCOUNT_SELECTION] task account is not registered")
             self.assertEqual((missing.status, missing.stage), ("manual", "needs_review"))
-            unreachable = flow.acknowledgement(branch=branch, attempt=3, success=False, outcome="waiting_lock",
+            unreachable = ack_rules.acknowledgement(branch=branch, attempt=3, success=False, outcome="waiting_lock",
                                                error="[ACCOUNT_SET_UNREACHABLE] the account set cannot be reached")
             self.assertEqual((unreachable.status, unreachable.retry), ("pending", True))
-        self.assertEqual(flow.error_code("  [FIELD_TOO_LONG] REFNUM"), "FIELD_TOO_LONG")
-        self.assertEqual(flow.error_code("items_mismatch"), "")
+        self.assertEqual(ack_rules.error_code("  [FIELD_TOO_LONG] REFNUM"), "FIELD_TOO_LONG")
+        self.assertEqual(ack_rules.error_code("items_mismatch"), "")
 
     def test_duplicate_confirmation_matches_sql_truthiness(self):
         for value in (None, False, 0, "false", "FALSE", "null", "", "off", "no"):
@@ -123,7 +125,7 @@ class QueueTests(unittest.TestCase):
         # D9: the never-enabled managed shared-agent branch is retired; only legacy/0 exists.
         value = row(request_body={"account_set": "BOOK", "meta": {"managed_generation": 4}},
                     lease_owner="worker", lease_expires_at=NOW - timedelta(seconds=1))
-        for call in (lambda: flow.acknowledgement(branch="managed", attempt=1, success=False),
+        for call in (lambda: ack_rules.acknowledgement(branch="managed", attempt=1, success=False),
                      lambda: self.lease(value, branch="managed", binding_generation=4),
                      lambda: self.lease(value, branch="managed", binding_generation=0),
                      lambda: flow.ack_matches(value, branch="managed", endpoint_id="E1", owner="worker",

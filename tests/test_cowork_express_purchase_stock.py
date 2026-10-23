@@ -18,9 +18,9 @@ import contextlib
 from datetime import date
 from pathlib import Path
 from unittest import mock
-from pearnly_cowork.push.express.common import ITEM_MODE_NONSTOCK, ITEM_MODE_STOCK
-from pearnly_cowork.push.express.mapper import build_express_payload
-from pearnly_cowork.push.express.posting_profile import ESCALATE_REASON_PREFIX
+from pearnly_core.express_rules.push.common import ITEM_MODE_NONSTOCK, ITEM_MODE_STOCK
+from pearnly_core.express_rules.push.mapper import build_express_payload
+from pearnly_core.express_rules.push.posting_profile import ESCALATE_REASON_PREFIX
 _CONFIG = {'account_set': 'DATAT', 'fallback_acc': '51-03-00-00', 'vat_input_acc': '11-05-04-01', 'ap_acc': '21-02-01-00'}
 _PERPETUAL_FINGERPRINT = {'stcrd_lines': 100, 'stcrd_lines_moving_stock': 90}
 

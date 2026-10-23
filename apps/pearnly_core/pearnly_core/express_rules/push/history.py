@@ -1,7 +1,7 @@
 """Primary-page selection for the push; caller supplies a detached history."""
 from typing import Any, Dict
 
-from pearnly_cowork.contracts.history import primary_page
+from pearnly_core.express_rules.contracts.history import primary_page
 
 
 def flatten_history_for_mrerp(history_record: Dict[str, Any]) -> Dict[str, Any]:

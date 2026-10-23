@@ -8,7 +8,9 @@ import frappe
 
 from pearnly_cowork.transaction import conflicts
 
-from . import http_auth, queue_contracts, transport
+from pearnly_core.cc_desktop.wire import queue_contracts
+
+from . import http_auth, transport
 
 
 def _run(operation):

@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
-from pearnly_cowork.contracts import pos as pos_contract
+from pearnly_core.express_rules.contracts import pos as pos_contract
 
 LAYOUT_VERSION = 1
 FIELDS = ("date", "receipt", "amount", "vat", "payment", "kind", "status", "item", "sku", "qty")

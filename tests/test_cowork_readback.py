@@ -1,6 +1,7 @@
 """Express 回读（2026-10 CC 闭环 L1）：纯规则（读账结果校验、期初、总账、税报行、税务草稿记录）、与推送记录的比对、推送记录
 取数，以及服务的发起 / 处理 / 只留最新 / 删除 / 给税务草稿的记录。不连库、不依赖 Frappe（最小替身），工作簿用替身
 （真工作簿与三个解析器的验收在 `tests/test_cowork_readback_workbooks.py`，要 openpyxl）。"""
+from pathlib import Path
 import gzip
 import hashlib
 import importlib.util
@@ -10,11 +11,13 @@ import sys
 import tempfile
 import types
 import unittest
+from moved_modules import moved  # noqa: E402  （ADR-025 搬进共用层的模块）
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # Express 写账规则与 CC 线上约定在共用层（ADR-025）
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
 for _name in [n for n in sys.modules if n.split(".")[0] == "pearnly_cowork"]:
@@ -124,7 +127,7 @@ class Requests(unittest.TestCase):
         self.assertEqual(len(contracts.read_params("a", "", "2026-05", [f"D{n}" for n in range(5000)])["docnums"]),
                          contracts.DOCNUMS_MAX)
         # 点名的单据号放得进按需请求的参数上限（每条 ≤ 20 字）
-        request_contracts = _load("request_contracts_for_readback", APP / "companion/request_contracts.py")
+        request_contracts = _load("request_contracts_for_readback", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/cc_desktop/wire/request_contracts.py")
         biggest = contracts.read_params("S:\\" + "x" * 400, "S:\\" + "y" * 400, "2026-05",
                                         [f"{n:020d}" for n in range(contracts.DOCNUMS_MAX)])
         self.assertEqual(request_contracts.params(biggest), biggest)
@@ -497,8 +500,8 @@ def pos_day(journal=None, **override):
     """一张推送过的 POS 日汇总票（载荷 3）：推送记录 + Express 里 CC 桌面版写下的样子（`dbf_sales._write_all` 与
     `pos_journal.write`）——现销 HS 单号自编、YOUREF 与销项税 REFNUM 是票号区间、借账套现金科目；QR 与刷卡各一张普通
     日记账凭证「借 收款科目 / 贷 现金」。``journal`` 按凭证号替换（None = 那张不在了）。"""
-    from pearnly_cowork.contracts import pos as pos_contract
-    from pearnly_cowork.push.express import common as push_common
+    from pearnly_core.express_rules.contracts import pos as pos_contract
+    from pearnly_core.express_rules.push import common as push_common
 
     ref = pos_contract.day_ref("A0001", "A0120", date(2026, 5, 13))
     payload = {"direction": "sales", "doctype": "HS", "docdate_be": "690513", "ref_no": ref,
@@ -1178,10 +1181,10 @@ def push_service(rows):
                  "push.express.prepare", "push.express.preflight", "push.express.history", "push.mrerp",
                  "push.native", "push.receipts", "targets.choice", "targets.contracts", "targets.freeze",
                  "targets.selection"):
-        modules["pearnly_cowork." + name] = mock.MagicMock()
+        modules[moved("pearnly_cowork." + name)] = mock.MagicMock()
     modules["pearnly_cowork.push.express"].pushed = pushed_rules
     modules["pearnly_cowork.push.express.pushed"] = pushed_rules
-    modules["pearnly_cowork.targets.identity"] = _load("targets_identity_for_readback", APP / "targets/identity.py")
+    modules["pearnly_core.express_rules.targets.identity"] = _load("targets_identity_for_readback", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py")
     with mock.patch.dict(sys.modules, modules):
         service = _load("push_service_for_readback", APP / "push/application/service.py")
     return service, queries

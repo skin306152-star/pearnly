@@ -25,10 +25,10 @@ from typing import Any, Dict, List, Optional
 from datetime import date
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
-from pearnly_cowork.contracts.push import clean_tax_id, resolve_account_direction
-from pearnly_cowork.push.express.doc_sanity import check_document
-from pearnly_cowork.push.express.field_rules import item_verdict
-from pearnly_cowork.push.express.payment import payment_verdict_for
+from pearnly_core.express_rules.contracts.push import clean_tax_id, resolve_account_direction
+from pearnly_core.express_rules.push.doc_sanity import check_document
+from pearnly_core.express_rules.push.field_rules import item_verdict
+from pearnly_core.express_rules.push.payment import payment_verdict_for
 from pearnly_cowork.push.mrerp.models import FailedRow, ImportResult
 from pearnly_cowork.push.mrerp.modules import get_module
 from pearnly_cowork.push.mrerp.xlsx import generator as _gen

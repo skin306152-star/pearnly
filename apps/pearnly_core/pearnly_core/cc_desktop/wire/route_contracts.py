@@ -4,7 +4,7 @@
 准备时不选电脑，电脑来领任务（拉模式，每 3 秒一次）时才决定由谁写：
 
 - 归属（:func:`owns`）：定时任务的单冻结了读文件夹的那台（``route_device``），只有它写；其余的单只由录入人自己登录过
-  CC 的电脑写（`connections.member.serves`；一个登录记录都没有的电脑过渡期照旧谁的都写）。同事的电脑等多久都不领，
+  CC 的电脑写（:func:`serves`；一个登录记录都没有的电脑过渡期照旧谁的都写）。同事的电脑等多久都不领，
   没有档位、没有「排了多久谁都能领」；
 - 资格：这台电脑够得到这份账套（可达行状态正常、可写），它的 CC 桌面版支持这张单的载荷版本；
 - 按账套黏住：一台电脑写过这份账套、主档索引还没重建（它领任务时报的 ``index_pending`` 里有这份账套的文件号；旧版不报，
@@ -16,7 +16,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Iterable, Mapping, NamedTuple
 
-from pearnly_cowork.connections.member import serves
 
 # 旧版 CC 桌面版不报 ``index_pending``：按「这台最近这么久内写过这份账套」近似它的主档索引还没重建
 STICKY_SECONDS = 120
@@ -29,6 +28,14 @@ ROUTES = (OWN, READER, STICKY)
 
 # 不能领的原因（只给日志与测试；不进回复）
 UNREACHABLE, NOT_MINE, STUCK, VERSION, NEEDS_UPDATE = "unreachable", "not_mine", "sticky", "version", "needs_update"
+
+
+def serves(users: Iterable[str] | None, actor: str) -> bool:
+    """这台电脑写不写 ``actor`` 的活（ADR-021 第 50 条，用户 10-16「谁的活谁的电脑做」）：``users`` 是在这台电脑上登录过
+    CC 的人，``actor`` 在里面才算他的电脑。一个登录记录都没有的电脑（补丁建的旧电脑、1.6 及更早、只认过电脑还没打开过
+    对话页的）在过渡期照旧谁的活都写；一旦有人在上面登录 CC，就只归登录过的人。"""
+    users = {user for user in users or () if user}
+    return not users or bool(actor) and actor in users
 
 
 class Peer(NamedTuple):
@@ -158,4 +165,4 @@ def attended(job: Job, peer: Peer | None) -> bool:
 
 __all__ = ["Account", "Decision", "Job", "MAX_HEADS", "NEEDS_UPDATE", "NOT_MINE", "OWN", "Peer", "READER", "ROUTES",
            "STICKY", "STICKY_SECONDS", "STUCK", "UNREACHABLE", "VERSION", "attended", "decide", "heads", "needs_update",
-           "owns", "sticky_holder", "supports"]
+           "owns", "serves", "sticky_holder", "supports"]

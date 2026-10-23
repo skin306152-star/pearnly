@@ -2,9 +2,9 @@
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pearnly_cowork.contracts.push import require_external_history, resolve_posting_kind
-from pearnly_cowork.push.express.common import ITEMS_INCOMPLETE, ITEMS_MISMATCH
-from pearnly_cowork.push.express.preflight import ExpressContext, Preflight, preflight_express
+from pearnly_core.express_rules.contracts.push import require_external_history, resolve_posting_kind
+from pearnly_core.express_rules.push.common import ITEMS_INCOMPLETE, ITEMS_MISMATCH
+from pearnly_core.express_rules.push.preflight import ExpressContext, Preflight, preflight_express
 
 
 @dataclass(frozen=True)
