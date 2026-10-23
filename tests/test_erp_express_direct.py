@@ -398,7 +398,7 @@ class CompanyMasters(Base):
     def test_an_auto_matched_product_takes_its_own_unit(self):
         import types
         ice = types.SimpleNamespace(base_unit="กิโลกรัม", unit="กิโลกรัม",
-                                    get=lambda key: [types.SimpleNamespace(unit_name="กระสอบ")])
+                                    units=[types.SimpleNamespace(unit_name="กระสอบ")])
         self.assertEqual(self.selection.own_unit(ice, "ถุง"), "กิโลกรัม")  # 票面读的单位商品没有：用商品的
         self.assertEqual(self.selection.own_unit(ice, "กระสอบ"), "กระสอบ")
         self.assertEqual(self.selection.own_unit(ice, ""), "กิโลกรัม")

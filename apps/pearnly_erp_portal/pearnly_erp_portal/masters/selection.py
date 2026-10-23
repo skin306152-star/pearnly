@@ -93,7 +93,8 @@ def _in_use(kind, rows, name, title, company):
 def own_unit(product_doc, unit):
     """按品名自动认出的商品，明细的单位（票面读的）不是这个商品的单位时换成商品的基本单位 —— 与人在页面上选商品时
     一样（`sales-form.js` / `purchase-form.js` 的 on_select）。人选了商品、填了单位的照旧按商品单位表核（不随手换算）。"""
-    names = {product_doc.base_unit, product_doc.unit, *(row.unit_name for row in product_doc.get("units") or [])}
+    units = getattr(product_doc, "units", None) or []
+    names = {product_doc.base_unit, product_doc.unit, *(getattr(row, "unit_name", None) for row in units)}
     return unit if unit and unit in names else (product_doc.base_unit or product_doc.unit or unit)
 
 
