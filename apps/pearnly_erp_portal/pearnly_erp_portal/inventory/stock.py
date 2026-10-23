@@ -53,7 +53,7 @@ def resolve_factor(product_doc, unit_name=None) -> tuple[str, object]:
     for row in product_doc.get("units") or []:
         if row.unit_name == unit_name:
             return base, contracts.factor(row.factor_to_base)
-    frappe.throw(_("This unit is not defined on the product"))
+    frappe.throw(_("Unit {0} is not defined on {1}").format(unit_name, product_doc.product_name or product_doc.name))
 
 
 def _balance_doc(product: str, warehouse: str, location=""):

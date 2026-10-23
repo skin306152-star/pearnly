@@ -237,7 +237,7 @@ def _resolve_item(row, company=None):
 
         row["product"], found = match_product(row["description"], company)
         if found > 1:
-            frappe.throw(_("Several matches found. Please select a record."))
+            frappe.throw(_("Several matches found for {0}. Please select a record.").format(row["description"]))
     if row.get("product"):
         item = frappe.get_doc("ERP Product", row["product"])
         item.check_permission("read")

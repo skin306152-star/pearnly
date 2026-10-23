@@ -898,6 +898,7 @@ Service,บริการ
 Service or stock item?,กรุณาเลือก บริการ หรือ สินค้าคงคลัง
 Set as current,ตั้งเป็นปัจจุบัน
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
+Several matches found for {0}. Please select a record.,พบหลายรายการที่ตรงกับ「{0}」 กรุณาเลือกรายการ
 Several matches found. Please select a record.,พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ
 Sheet,ไฟล์
 Shelf,ตำแหน่ง
@@ -1128,6 +1129,7 @@ Unit,หน่วย
 Unit Cost,ต้นทุนต่อหน่วย
 Unit Cost (net of VAT),ต้นทุนต่อหน่วย (ไม่รวม VAT)
 Unit Price,ราคาต่อหน่วย
+Unit {0} is not defined on {1},ไม่ได้กำหนดหน่วย「{0}」ไว้ในสินค้า「{1}」
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ไม่ทราบทิศทางของเอกสาร
 Unpaid,ยังไม่ได้ชำระ

@@ -898,6 +898,7 @@ Service,サービス
 Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Setup Auto Email,自動メールを設定
+Several matches found for {0}. Please select a record.,「{0}」に複数の候補があります。レコードを選択してください。
 Several matches found. Please select a record.,複数の候補があります。レコードを選択してください。
 Sheet,シート
 Shelf,棚番
@@ -1128,6 +1129,7 @@ Unit,単位
 Unit Cost,単位原価
 Unit Cost (net of VAT),単価（VAT除く）
 Unit Price,単価
+Unit {0} is not defined on {1},単位「{0}」は「{1}」に定義されていません
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
 Unpaid,未払

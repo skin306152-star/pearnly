@@ -157,3 +157,5 @@ pearnly_cowork:Lock Handle	zh	锁定标识	2026-10-18	docs/work/2026-10-17-copy-
 pearnly_cowork:Lock Credential	zh	锁定凭据	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_cowork:Lock Expires At (UTC)	zh	锁定到期时间（UTC）	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
 pearnly_cowork:Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.	zh	公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的 50 ทวิ。不推送、不计费。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_erp_portal:Unit {0} is not defined on {1}	zh	单位「{0}」未在「{1}」中定义	2026-10-23	docs/work/2026-10-23-erp-cc-direct.md（用户 10-23 同意两条报错文案）
+pearnly_erp_portal:Several matches found for {0}. Please select a record.	zh	「{0}」找到多个匹配结果，请选择一条记录。	2026-10-23	docs/work/2026-10-23-erp-cc-direct.md（用户 10-23 同意两条报错文案）

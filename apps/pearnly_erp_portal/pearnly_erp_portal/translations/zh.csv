@@ -898,6 +898,7 @@ Service,服务
 Service or stock item?,请选择服务或库存商品
 Set as current,设为当前
 Setup Auto Email,设置自动邮件
+Several matches found for {0}. Please select a record.,「{0}」找到多个匹配结果，请选择一条记录。
 Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
 Sheet,表格文件
 Shelf,库位
@@ -1128,6 +1129,7 @@ Unit,单位
 Unit Cost,单位成本
 Unit Cost (net of VAT),单位成本（不含 VAT）
 Unit Price,单价
+Unit {0} is not defined on {1},单位「{0}」未在「{1}」中定义
 Unknown buyer,未知买家
 Unknown direction,未知的方向
 Unpaid,未付

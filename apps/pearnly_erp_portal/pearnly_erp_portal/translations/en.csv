@@ -898,6 +898,7 @@ Service,Service
 Service or stock item?,Service or stock item?
 Set as current,Set as current
 Setup Auto Email,Setup Auto Email
+Several matches found for {0}. Please select a record.,Several matches found for {0}. Please select a record.
 Several matches found. Please select a record.,Several matches found. Please select a record.
 Sheet,Sheet
 Shelf,Shelf
@@ -1128,6 +1129,7 @@ Unit,Unit
 Unit Cost,Unit Cost
 Unit Cost (net of VAT),Unit Cost (net of VAT)
 Unit Price,Unit Price
+Unit {0} is not defined on {1},Unit {0} is not defined on {1}
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
 Unpaid,Unpaid

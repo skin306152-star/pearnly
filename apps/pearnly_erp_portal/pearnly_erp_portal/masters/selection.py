@@ -52,7 +52,7 @@ def match_party(kind, name, *, tax_id=None, branch_type=None, branch_no=None, co
     if len(rows) > 1:
         if ambiguous == "none":
             return None
-        frappe.throw(_("Several matches found. Please select a record."))
+        frappe.throw(_("Several matches found for {0}. Please select a record.").format(name or tax_id))
     return rows[0]["name"] if rows else None
 
 

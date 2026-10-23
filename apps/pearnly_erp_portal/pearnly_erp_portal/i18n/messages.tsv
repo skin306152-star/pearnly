@@ -889,7 +889,7 @@ This stock count is closed	该盘点已结束	การตรวจนับน�
 That row is not part of this stock count	该行不属于此盘点	แถวนี้ไม่ได้อยู่ในการตรวจนับนี้	この行はこの棚卸に含まれていません
 Direction must be in or out	方向只能是入库或出库	ทิศทางต้องเป็น รับเข้า หรือ จ่ายออก เท่านั้น	方向は入庫か出庫のいずれかです
 Not enough stock on hand	库存不足	สินค้าคงเหลือไม่เพียงพอ	在庫が足りません
-This unit is not defined on the product	该单位未在此物料中定义	ไม่ได้กำหนดหน่วยนี้ไว้ในสินค้านี้	この単位はこの商品に定義されていません
+Unit {0} is not defined on {1}	单位「{0}」未在「{1}」中定义	ไม่ได้กำหนดหน่วย「{0}」ไว้ในสินค้า「{1}」	単位「{0}」は「{1}」に定義されていません
 Warehouse not found	未找到仓库	ไม่พบคลังสินค้า	倉庫が見つかりません
 This warehouse already exists	该仓库已存在	คลังสินค้านี้มีอยู่แล้ว	この倉庫は既に存在します
 No company is available for this account	此账号无可用公司	บัญชีนี้ไม่มีบริษัทที่ใช้งานได้	このアカウントで使える会社がありません
@@ -1163,7 +1163,7 @@ This payment method is not enabled for this company	该公司未启用此收款�
 Username	用户名	ชื่อผู้ใช้	ユーザー名	team.username
 Username can only have letters and numbers	用户名只能包含英文字母和数字	ชื่อผู้ใช้ต้องประกอบด้วยตัวอักษรภาษาอังกฤษและตัวเลขเท่านั้น	ユーザー名は英数字のみ使用できます	team.usernameCharset
 User Settings	用户菜单	เมนูผู้ใช้	ユーザーメニュー
-Several matches found. Please select a record.	找到多个匹配结果，请选择一条记录。	พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ	複数の候補があります。レコードを選択してください。
+Several matches found for {0}. Please select a record.	「{0}」找到多个匹配结果，请选择一条记录。	พบหลายรายการที่ตรงกับ「{0}」 กรุณาเลือกรายการ	「{0}」に複数の候補があります。レコードを選択してください。
 Supplier not found. Please select the supplier again.	供应商不存在，请重新选择供应商。	ไม่พบผู้จำหน่าย กรุณาเลือกใหม่	仕入先が見つかりません。選択し直してください。
 Customer not found. Please select the customer again.	客户不存在，请重新选择客户。	ไม่พบลูกค้า กรุณาเลือกใหม่	顧客が見つかりません。選択し直してください。
 General	常用功能	ฟังก์ชันที่ใช้บ่อย	一般
