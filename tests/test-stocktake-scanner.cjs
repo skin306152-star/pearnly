@@ -9,12 +9,12 @@ const source = ['apps/pearnly_core/pearnly_core/public/scan/reader.js',
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js'].map(path => fs.readFileSync(path, 'utf8')).join('\n');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/106', supported, capture } = {}) {
+function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/106', supported, capture, caps = { torch: true } } = {}) {
   const callbacks = new Map(), result = [], details = [], errors = [], constraints = [];
   // 反馈那一层看得见的东西：震动次数与放过的音（音效/震动都归"静音"这一位管）。
   const vibrations = [], sounds = [];
   let id = 0, stops = 0;
-  const track = { stop: () => stops++, getCapabilities: () => ({ torch: true }),
+  const track = { stop: () => stops++, getCapabilities: () => caps,
     applyConstraints: async value => constraints.push(value) };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   const video = { readyState: 2, play: async () => {} };
@@ -143,10 +143,22 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     acquire: (stream, value) => value.video?.facingMode ? Promise.reject(named('OverconstrainedError')) : Promise.resolve(stream),
   });
   await picky.reader.start(); await flush();
-  assert.equal(JSON.stringify(picky.requests[1]), JSON.stringify({ video: { deviceId: { exact: 'rear' } } }));
+  // 每一次都要 1080p（ideal：给不了就给能给的）——只要「后置」很多手机给 640×480，离远了条码读不出（10-23 双摄 iPhone）。
+  const SHARP = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  assert.equal(JSON.stringify(picky.requests[0]), JSON.stringify({ video: { facingMode: { ideal: 'environment' }, ...SHARP } }));
+  assert.equal(JSON.stringify(picky.requests[1]), JSON.stringify({ video: { deviceId: { exact: 'rear' }, ...SHARP } }));
   assert.equal(picky.errors.length, 0);
   await picky.tick(); assert.deepEqual(picky.result, ['盘点 QR 001']);
   picky.reader.stop();
+  // 能连续自动对焦的镜头（安卓 Chrome）打开连续对焦；没有这项能力（iPhone 自己对焦）就不动它。
+  const focusing = fixture({ caps: { focusMode: ['manual', 'single-shot', 'continuous'] } });
+  await focusing.reader.start(); await flush();
+  assert.equal(JSON.stringify(focusing.constraints), JSON.stringify([{ advanced: [{ focusMode: 'continuous' }] }]));
+  focusing.reader.stop();
+  const fixed = fixture({ caps: {} });
+  await fixed.reader.start(); await flush();
+  assert.equal(fixed.constraints.length, 0);
+  fixed.reader.stop();
   // 识别器加载失败：相机已经打开过也要关掉，原因归到"识别器"，不说成相机的事。
   const broken = fixture({ supported: () => Promise.reject(new Error('module')) });
   await broken.reader.start();

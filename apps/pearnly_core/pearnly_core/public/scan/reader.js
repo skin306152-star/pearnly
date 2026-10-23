@@ -76,17 +76,26 @@
 		return "failed";
 	}
 
+	// 画面要清楚：只要「后置镜头」时很多手机给 640×480（2026-10-23 双摄 iPhone 离远了条码只剩几十个像素读不出，
+	// 离近了又对不上焦），所以要 1080p（ideal，给不了就给能给的，不会因此打不开）。能连续自动对焦的（安卓 Chrome）打开它。
+	const SHARP = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+	async function focus(stream) {
+		const track = stream?.getVideoTracks?.()[0];
+		const modes = track?.getCapabilities?.().focusMode || [];
+		if (modes.includes("continuous")) await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+		return stream;
+	}
 	async function camera() {
 		const media = navigator.mediaDevices;
 		if (!window.isSecureContext || !media?.getUserMedia) throw failure(in_line() ? "in_line" : in_app() ? "in_app" : "unsupported");
 		try {
-			return await media.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
+			return await focus(await media.getUserMedia({ video: { facingMode: { ideal: "environment" }, ...SHARP } }));
 		} catch (error) {
 			if (!["OverconstrainedError", "NotReadableError", "AbortError", "NotFoundError"].includes(error?.name)) throw error;
 			const cameras = (await media.enumerateDevices().catch(() => [])).filter(device => device.kind === "videoinput");
 			const back = cameras.find(device => /back|rear|environment|后|後|หลัง/i.test(device.label || ""));
-			for (const video of [back && { deviceId: { exact: back.deviceId } }, true].filter(Boolean)) {
-				try { return await media.getUserMedia({ video }); } catch (_retry) { /* Next fallback. */ }
+			for (const video of [back && { deviceId: { exact: back.deviceId }, ...SHARP }, true].filter(Boolean)) {
+				try { return await focus(await media.getUserMedia({ video })); } catch (_retry) { /* Next fallback. */ }
 			}
 			throw error;
 		}
