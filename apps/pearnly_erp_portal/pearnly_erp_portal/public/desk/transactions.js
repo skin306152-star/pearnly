@@ -24,37 +24,77 @@
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
 		stock_group: "express.kind.stockGroup",
 	};
+	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
 		__new__: "New"};
+	// 要人定的那几项 → 原生下拉（单据上的 Express 弹窗与提交前问共用）
+	const needed_fields = (needed, direction) => needed.map((item, index) => {
+		const kind = EXPRESS_KINDS[item.kind];
+		const options = item.options.map(option => ({value: option.code,
+			label: EXPRESS_OPTIONS[option.code] ? __(EXPRESS_OPTIONS[option.code])
+				: item.kind === "account_set" ? option.name  // 账套的编码是内部键，只显示名称与位置
+				: [option.code, option.name, option.branch].filter(Boolean).join(" · ")}));
+		// 选项多（科目表、整张对方档表）用官方可输入搜索的下拉，少的用普通下拉
+		return {fieldtype: options.length > 20 ? "Autocomplete" : "Select", fieldname: `pick_${index}`, reqd: 1,
+			label: __(kind?.[direction] || kind || item.kind), description: item.label || "", default: item.current || "",
+			options: options.length > 20 ? options : [{value: "", label: ""}, ...options]};
+	});
+	const answers_of = (needed, values) => needed.map((item, index) =>
+		({kind: item.kind, subject: item.subject, value: values[`pick_${index}`]}));
+	// 提交前（用户 10-23：「点提交后，缺字段应该马上弹窗要求选择」）：服务端按写账规则把表单此刻的内容准备一遍，有要人定的
+	// 就当场弹窗问，选完记住再判一遍，直到没有要问的才回 true；关掉弹窗回 false（不提交，单据留在表单里）。没接 Express 直接 true。
+	p.express_preflight = async (doctype, payload) => {
+		if (!frappe.boot.pearnly_express) return true;
+		const api = "pearnly_erp_portal.express.api.preflight";
+		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
+		// 预检本身出错不拦提交：提交后照常准备，要选的再弹出
+		let info = await p.call(api, {doctype, payload: JSON.stringify(payload)}, "POST").catch(() => null);
+		while (info?.needed?.length) {
+			const needed = info.needed;
+			const answers = await new Promise(resolve => {
+				let picked = false;
+				const dialog = p.dialog(__("Express"), needed_fields(needed, direction), __("Save"), async (values, d) => {
+					picked = true;
+					d.hide();
+					resolve(answers_of(needed, values));
+				});
+				dialog.onhide = () => { if (!picked) resolve(null); };
+			});
+			if (!answers) return false;
+			info = await p.call(api, {doctype, payload: JSON.stringify(payload), answers: JSON.stringify(answers)}, "POST");
+		}
+		return true;
+	};
+	// 电脑写时才发现要人选的（疑似重复对方档、存货科目组）：服务端推给录入人，在线就直接弹出那张单的 Express 弹窗
+	const listen_needed = () => {
+		if (p.express_needed_listening || !frappe.realtime?.socket) return;
+		p.express_needed_listening = true;
+		frappe.realtime.on("pearnly_erp_express_needed", data => {
+			if (data?.doctype && data?.name) void p.express(data.doctype, data.name);
+		});
+	};
+	listen_needed();
+	$(document).on("app_ready", listen_needed);  // 实时连接在桌面起好后才有
 	p.express = async (doctype, name, reload) => {
 		const api = "pearnly_erp_portal.express.api.";
 		const info = await p.call(api + "document_express", {doctype, name});
 		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
+		// CC 桌面版回报的「[错误码] 原文」：认得的码给译文（会计期间已关账等），其余原样
+		const code = (info.reason || "").match(/^\[([A-Z0-9_]+)\]/)?.[1];
 		const reason = info.reason && !info.reason.startsWith("choice_needed")
-			? __(EXPRESS_REASONS[info.reason] || info.reason) : "";
+			? __(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || info.reason) : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
 					failed: "Failed"}[info.state] || info.state)},
 			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
-			...info.needed.map((item, index) => {
-				const kind = EXPRESS_KINDS[item.kind];
-				const options = item.options.map(option => ({value: option.code,
-					label: EXPRESS_OPTIONS[option.code] ? __(EXPRESS_OPTIONS[option.code])
-						: item.kind === "account_set" ? option.name  // 账套的编码是内部键，只显示名称与位置
-						: [option.code, option.name, option.branch].filter(Boolean).join(" · ")}));
-				// 选项多（科目表、整张对方档表）用官方可输入搜索的下拉，少的用普通下拉
-				return {fieldtype: options.length > 20 ? "Autocomplete" : "Select", fieldname: `pick_${index}`, reqd: 1,
-					label: __(kind?.[direction] || kind || item.kind), description: item.label || "", default: item.current || "",
-					options: options.length > 20 ? options : [{value: "", label: ""}, ...options]};
-			}),
+			...needed_fields(info.needed, direction),
 		];
 		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
 		p.dialog(__("Express"), fields, action, async (values, dialog) => {
 			if (info.can_answer) {
-				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(info.needed.map((item, index) =>
-					({kind: item.kind, subject: item.subject, value: values[`pick_${index}`]})))}, "POST");
+				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(answers_of(info.needed, values))}, "POST");
 				p.success(__("Saved"), "click");
 			} else if (info.can_retry) {
 				await p.call(api + "retry", {doctype, name}, "POST");

@@ -41,6 +41,7 @@ HANDLERS: dict = {
     "folder_fetch": folder_fetch.read_file,
     "account_history": account_history.read_history,
     "express_masters": express_masters.read_masters,
+    "express_marks": express_masters.read_marks,
 }
 # 交一块失败（网络断了一下）最多重试几次；续传（服务端说已收到多少）也算在内。
 RETRIES = 3

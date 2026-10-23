@@ -23,6 +23,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import {
   COMPANY_FOLDERS,
   connectComputer,
+  ERP_ROOTS,
   currentLink,
   type Desktop,
   type DesktopState,
@@ -501,6 +502,38 @@ function Connections({ api }: { api: Desktop }) {
             {st.change}
           </button>
         </Row>
+      )}
+
+      {/* ERP 站点：这台电脑上哪些 Express 数据根归这个 ERP（CC 桌面版 1.12.0）。打开的根里的账套连同这些公司别的年度报给 ERP，
+          ERP 按它们自动建公司、同步主档；默认全关（同一台电脑连着事务所时不把别的客户报进来） */}
+      {product === "erp" && main?.channel === "core" && state.features?.includes(ERP_ROOTS) && roots.length > 0 && (
+        <>
+          <div className="mt-(--cc-settings-section-pt)">
+            <Heading>{st.erpRoots}</Heading>
+          </div>
+          {roots.map((root) => {
+            const picked = (main.erp_roots ?? []).includes(root);
+            return (
+              <div data-marquee-host="" key={root} className="cc-settings-row text-body">
+                <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
+                <Marquee className="min-w-0 flex-1 truncate" title={root}>
+                  {root}
+                </Marquee>
+                <Switch
+                  checked={picked}
+                  disabled={!!busy}
+                  label={root}
+                  onChange={(on) =>
+                    void run("erp", "erp_roots", {
+                      id: main.id,
+                      roots: on ? [...(main.erp_roots ?? []), root] : (main.erp_roots ?? []).filter((r) => r !== root),
+                    })
+                  }
+                />
+              </div>
+            );
+          })}
+        </>
       )}
 
       {companyFolders && legacy.length > 0 && (

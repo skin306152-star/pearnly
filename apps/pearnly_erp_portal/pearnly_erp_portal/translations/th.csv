@@ -391,6 +391,7 @@ Express Choices Needed,รายการที่ต้องเลือกส
 Express Code,รหัส Express
 Express Company,บริษัท Express
 Express Job,งานบันทึก Express
+Express Mark,เครื่องหมาย Express
 Express No.,เลขที่ Express
 Express Note,หมายเหตุ Express
 Express Sent At,ส่ง Express เมื่อ
@@ -1013,6 +1014,7 @@ That warehouse belongs to another company,คลังสินค้านี�
 The LINE account that sent the document,บัญชี LINE ที่ส่งเอกสารนี้
 The Revenue Department replied in an unreadable format,ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
+The accounting period is closed in Express,งวดบัญชีนี้ปิดแล้วใน Express
 The amount is invalid,จำนวนเงินไม่ถูกต้อง
 The amount payable cannot be negative,ยอดที่ต้องชำระต้องไม่ติดลบ
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
@@ -1325,6 +1327,7 @@ company.syncExpress,ซิงค์ Express
 company.syncExpress.failed,ซิงค์ไม่สำเร็จ
 company.syncExpress.offline,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 company.syncExpress.outdated,CC เดสก์ท็อปต้องอัปเดต
+company.syncExpress.queued,อยู่ในคิว
 company.syncExpress.reading,กำลังอ่าน
 company.syncExpress.ready,ซิงค์แล้ว
 company.syncExpress.syncing,กำลังซิงค์
@@ -1373,6 +1376,7 @@ express.option.expense,บันทึกเป็นค่าใช้จ่า
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
 express.reason.offline,เครื่องออฟไลน์
+express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.reading,กำลังอ่านชุดบัญชี Express
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 express.state.written,บันทึกแล้ว

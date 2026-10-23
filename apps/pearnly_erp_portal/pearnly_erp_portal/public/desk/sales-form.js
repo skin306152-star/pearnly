@@ -159,6 +159,8 @@
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
 				values.attachments = state.attachments.filter(row => !row.intake);
+				// 写进 Express 缺人要定的（同期账套、费用科目、同税号几个档…）提交前就问；关掉就不提交
+				if (!(await p.express_preflight("ERP Sales Document", {...values, company: doc.company || undefined}))) return;
 				const result = intake ? await p.call("pearnly_erp_portal.integrations.api.api_submit_line_intake", {name: intake, payload: values}, "POST")
 					: await u.call("api_post_sale", {payload: values, request_id: state.request_id, name: doc.name || undefined}, true);
 				p.success(__("Submitted")); await go(result.name);

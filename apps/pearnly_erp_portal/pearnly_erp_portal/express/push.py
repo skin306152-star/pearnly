@@ -97,6 +97,43 @@ def _lines(doctype, doc):
     return out
 
 
+def form_document(doctype, payload, company) -> dict:
+    """表单此刻的内容（还没存）→ 交给写账规则的单（与 :func:`document` 同一个形状）：提交前问要人定的项用
+    （`api.preflight`）。金额用表单同一套计算（`entry.preview`），对方档、存货码、仓库码照表单选的主档取。"""
+    if doctype == SALES:
+        from pearnly_erp_portal.sales import entry
+
+        totals = entry.preview(payload)
+        row = frappe.db.get_value("ERP Customer", payload.get("customer"), ["express_code", "customer_name", "tax_id",
+                                  "branch_no"], as_dict=True) if payload.get("customer") else None
+        party = {"code": (row or {}).get("express_code") or "",
+                 "name": payload.get("buyer_name") or (row or {}).get("customer_name") or "-",
+                 "tax_id": (row or {}).get("tax_id") or payload.get("buyer_tax_id") or "",
+                 "branch": (row or {}).get("branch_no") or payload.get("buyer_branch_no") or ""}
+        paid = str(payload.get("is_paid", 1)) not in ("0", "False", "false", "")
+        number, currency = payload.get("system_no") or "-", "THB"
+    else:
+        from pearnly_erp_portal.purchasing import entry
+
+        totals = entry.preview(payload)
+        row = frappe.db.get_value("ERP Supplier", payload.get("supplier"), ["express_code", "supplier_name", "tax_id",
+                                  "branch_no"], as_dict=True) if payload.get("supplier") else None
+        party = {"code": (row or {}).get("express_code") or "",
+                 "name": payload.get("supplier_name") or (row or {}).get("supplier_name") or "-",
+                 "tax_id": payload.get("supplier_tax_id") or (row or {}).get("tax_id") or "",
+                 "branch": payload.get("supplier_branch_no") or (row or {}).get("branch_no") or ""}
+        paid = str(payload.get("is_paid") or 0) not in ("0", "False", "false", "")
+        number, currency = payload.get("doc_no") or payload.get("system_no") or "-", payload.get("currency") or "THB"
+    lines = [frappe._dict({**line, "line_total": computed.get("line_total")})
+             for line, computed in zip(payload.get("lines") or [], totals.get("lines") or [])]
+    company_row = frappe.db.get_value(COMPANY, company, ["tax_id", "branch"], as_dict=True) or {}
+    return contracts.document(ref="preflight", direction=DIRECTIONS[doctype], doc_date=str(payload.get("doc_date") or
+                              frappe.utils.nowdate()), number=number, company=company_row, party=party, paid=paid,
+                              has_vat=str(payload.get("has_vat", 1)) not in ("0", "False", "false", ""),
+                              total=totals.get("grand_total"), vat=totals.get("vat_amount"),
+                              lines=_lines(doctype, frappe._dict({"lines": lines})), currency=currency)
+
+
 def document(doctype, name) -> dict:
     """这张 ERP 单交给写账规则的样子（`contracts.document`）。"""
     doc = frappe.get_doc(doctype, name)
@@ -121,7 +158,7 @@ def send(doctype, name):
     if doctype not in DIRECTIONS:
         return
     row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "company", "owner", "express_state",
-                                              "express_job", "doc_kind"], as_dict=True)
+                                              "express_job", "doc_kind", "express_reason"], as_dict=True)
     if not row or row.status != "submitted" or row.express_job or row.express_state not in contracts.OPEN_STATES:
         return
     from pearnly_erp_portal.express import masters
@@ -136,6 +173,9 @@ def send(doctype, name):
         _set(doctype, name, {"express_state": contracts.HELD, "express_reason": result["hold"][:500],
                              "express_book": book.get("key") or None,
                              "express_needed": json.dumps(result.get("needed") or [], ensure_ascii=False) or None})
+        if result["hold"].startswith(contracts.CHOICE) and result["hold"] != (row.express_reason or ""):
+            # 提交时还问不了（主档那时还没读到），读到后才发现要人选：同样主动弹出，只在要问的变了时推一次
+            frappe.publish_realtime(NEEDED_EVENT, {"doctype": doctype, "name": name}, user=row.owner, after_commit=True)
     else:
         _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
         payload = result["payload"]
@@ -174,7 +214,22 @@ def job_changed(view):
             state, values["express_docnum"]) and before.company:
         from pearnly_erp_portal.express import masters
 
-        masters.enqueue(before.company)
+        masters.queue(before.company)
+    if view.get("status") == "manual" and _needs_choice(view.get("reason")):
+        # 电脑写时才发现、要人在 ERP 里选一次的（疑似重复对方档、存货科目组不合格）：推给录入人，页面在线就直接弹出
+        # 这张单的 Express 弹窗（用户 10-23：不让人去找右上角）
+        owner = frappe.db.get_value(doctype, name, "owner")
+        if owner:
+            frappe.publish_realtime(NEEDED_EVENT, {"doctype": doctype, "name": name}, user=owner, after_commit=True)
+
+
+NEEDED_EVENT = "pearnly_erp_express_needed"
+
+
+def _needs_choice(reason):
+    from pearnly_core.cc_desktop.wire import ack_rules
+
+    return ack_rules.error_code(reason) in prepare.PARTY_CODES | prepare.GROUP_CODES
 
 
 def _queued_note(row):

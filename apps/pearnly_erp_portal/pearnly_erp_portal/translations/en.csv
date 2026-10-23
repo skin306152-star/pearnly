@@ -391,6 +391,7 @@ Express Choices Needed,Express Choices Needed
 Express Code,Express Code
 Express Company,Express Company
 Express Job,Express Job
+Express Mark,Express Mark
 Express No.,Express No.
 Express Note,Express Note
 Express Sent At,Express Sent At
@@ -1013,6 +1014,7 @@ That warehouse belongs to another company,That warehouse belongs to another comp
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
 The account you give customers for transfers,The account you give customers for transfers
+The accounting period is closed in Express,The accounting period is closed in Express
 The amount is invalid,The amount is invalid
 The amount payable cannot be negative,The amount payable cannot be negative
 The amount received is less than the total,The amount received is less than the total
@@ -1325,6 +1327,7 @@ company.syncExpress,Sync Express
 company.syncExpress.failed,Sync failed
 company.syncExpress.offline,CC Desktop not connected
 company.syncExpress.outdated,CC Desktop needs an update
+company.syncExpress.queued,Queued
 company.syncExpress.reading,Reading
 company.syncExpress.ready,Synced
 company.syncExpress.syncing,Syncing
@@ -1373,6 +1376,7 @@ express.option.expense,Expense
 express.reason.noBook,No Express account set covers this date
 express.reason.noWriter,No computer can write this account set
 express.reason.offline,Computer offline
+express.reason.periodLocked,The accounting period is closed in Express
 express.reason.reading,Reading the Express account set
 express.reason.taxMissing,The company has no 13-digit tax ID
 express.state.written,Written

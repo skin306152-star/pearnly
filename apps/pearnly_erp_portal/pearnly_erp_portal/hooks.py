@@ -343,14 +343,20 @@ scheduler_events = {
                # Express 当账本的公司：主档与库存从 Express 回读（没接 Express 的站点什么都不做）
                "pearnly_erp_portal.express.masters.sync_all"],
     # 写进 Express 的单：停下的、会自己好的再准备一次（结果由写账队列直接交回，不轮询；没有要看的就一条查询）
-    "cron": {"* * * * *": ["pearnly_erp_portal.express.push.poll"]},
+    "cron": {"* * * * *": ["pearnly_erp_portal.express.push.poll",
+                           # 排着的 Express 主档同步：按顺序发起读取、读好了排后台任务落库（没有排着的就一条查询）
+                           "pearnly_erp_portal.express.masters.advance"],
+             # Express 主档有改动就跟上：请电脑看一眼主档表的文件属性，变了才整套同步（每家一件很轻的请求）
+             "*/10 * * * *": ["pearnly_erp_portal.express.masters.check_marks"]},
 }
 
 # CC 桌面版直连 ERP（ADR-025）：员工用 ERP 账号在 CC 窗口里登录，这台电脑接上本站的共用机器通道，替他把单写进 Express。
 pearnly_cc_desktop = {
     "allowed": "pearnly_erp_portal.express.desktop.allowed",
     "job_changed": "pearnly_erp_portal.express.desktop.job_changed",
-    "kinds": ["express_masters"],
+    # 电脑报来的账套名单变了：按账套自动建公司、排主档同步（`express.companies`）
+    "books_changed": "pearnly_erp_portal.express.companies.books_changed",
+    "kinds": ["express_masters", "express_marks"],
 }
 
 # 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。
@@ -493,6 +499,11 @@ for _doctype in ("ERP Sale", "ERP Shift"):
     has_permission[_doctype] = "pearnly_erp_portal.cashier.access.record_permission"
     permission_query_conditions[_doctype] = "pearnly_erp_portal.cashier.access.record_query"
 has_permission["ERP POS Terminal"] = "pearnly_erp_portal.cashier.access.terminal_permission"
+# 主档按公司（`masters.access.master_query`）：从 Express 同步来的档只在那家公司看得到
+for _doctype, _query in (("ERP Customer", "customer_query"), ("ERP Supplier", "supplier_query"),
+                         ("ERP Product", "product_query")):
+    has_permission[_doctype] = "pearnly_erp_portal.masters.access.master_permission"
+    permission_query_conditions[_doctype] = f"pearnly_erp_portal.masters.access.{_query}"
 permission_query_conditions.update({
     "ERP Company": "pearnly_erp_portal.masters.access.company_list_query",
     "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_list_query",

@@ -11,13 +11,18 @@
 - Express 里有的字段完全照 Express 写（空也写），在 ERP 里不能改（`locks`）；ERP 自有字段（图片、分类等）不动。
 库存对齐成「Express 结存 + 还没写进 Express 的 ERP 单的变动」，差额记一笔调整流水（来源 ``express_sync``）。
 
-触发：每小时一次（:func:`sync_all`）、ERP 单写进 Express 后一次（`push.job_changed`）、管理员在公司页手动一次（`api` →
+自动同步（下面除手动以外的触发）只把公司记成「排队中」（:func:`queue`），每分钟 :func:`advance` 按顺序发起读取（同时最多
+:data:`OPEN_READS` 家）、读好了才排后台任务落库，后台进程不空等电脑（生产 ERP 只有一个后台进程，写单任务也在里面）。
+触发：Express 主档有改动（:func:`check_marks` 每 10 分钟请电脑看一眼现用账套主档几张表的大小与修改时间，标记和上次落库时
+不同、或现用账套换了（新年度）才排整套同步）、每小时兜底一次（:func:`sync_all`：没有标记的旧版 CC 桌面版、一天没同步过的）、
+ERP 单写进 Express 后一次（`push.job_changed`）、管理员在公司页手动一次（`api` →
 :func:`start`）、准备写账时这份账套还没读过一次（:func:`ensure`）。**落库一律在后台任务里做**（10-23 生产：手动同步在网页请求
 里落一份约 1 MB 的账套超过 120 秒被杀、整笔回滚）：电脑读一本账套一般十几秒，任务里等它读完（:data:`JOB_WAIT`），再落库
 （上限 :data:`LAND_LIMIT`）。落库先一次取出现有档的比对字段，只对有变化的行读出保存，每 :data:`COMMIT_EVERY` 条提交一次。
 每次同步的结果记在公司上（``express_sync_state`` / ``express_sync_note``，公司页显示），失败另记 Error Log；手动发起的做完
 推给发起人（:data:`EVENT`）。电脑离线 / 还没读完：这次什么都不改，下次再来。
 """
+from datetime import timedelta
 from decimal import Decimal
 import gzip
 import json
@@ -39,6 +44,8 @@ PRODUCT = "ERP Product"
 WAREHOUSE = "ERP Warehouse"
 SYNC_REASON = "express_sync"
 KIND = "express_masters"
+MARK_KIND = "express_marks"  # CC 桌面版 1.12.0 起：只看主档几张表的文件属性，回变化标记
+STALE_AFTER = 24 * 3600      # 每小时兜底：超过这么久没同步的照样整套读一次
 TOL = Decimal("0.000001")
 JOB_WAIT = 180      # 后台同步等电脑读完的上限（秒）
 LAND_LIMIT = 3600   # 落库的上限（秒）：大账套首次落库的实测见 docs/work/2026-10-23-erp-express-sync-background.md
@@ -46,7 +53,8 @@ COMMIT_EVERY = 500  # 落库每改这么多条提交一次（任务中途出错�
 POLL_EVERY = 8
 EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{company, state, note}
 # 记在公司上的同步状态（公司页显示）
-READING, SYNCING, READY, FAILED = "reading", "syncing", "ready", "failed"
+QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
+OPEN_READS = 3  # 自动同步同时在读的公司最多这么多（电脑一本一本读；排太多会等过领取时限而过期）
 
 
 def linked_companies():
@@ -55,16 +63,87 @@ def linked_companies():
     return [row for row in rows if contracts.tax13(row.tax_id) and push.linked(row.name)]
 
 
-def enqueue(company, notify=None):
-    """排一次后台同步（同一家公司排着的只留一件）。``notify``：做完推给这个用户（手动发起的）。"""
+def queue(company):
+    """自动同步排上号（新建的公司、主档有改动、写单后、每小时兜底）：只记「排队中」，由每分钟的 :func:`advance` 按顺序发起读取、
+    读好了排后台任务落库；不占着后台进程等电脑。已经在读 / 在落库的不动。"""
+    state = frappe.db.get_value(COMPANY, company, "express_sync_state")
+    if state not in (QUEUED, READING, SYNCING):
+        _record(company, {"state": QUEUED})
+
+
+def advance():
+    """（每分钟）推进自动同步：在读的读好了就排后台任务落库（请求过期了重发）；在读的不满 :data:`OPEN_READS` 家就让排队最久的
+    几家发起读取（没同步过的先来）。没有排着的就一条查询。"""
+    rows = frappe.get_all(COMPANY, filters={"express_sync_state": ["in", [QUEUED, READING]], "is_active": 1},
+                          fields=["name", "express_sync_state"], order_by="express_synced_at asc, name asc",
+                          limit_page_length=0)
+    reading = 0
+    for row in rows:
+        if row.express_sync_state != READING:
+            continue
+        found = _request(row.name)
+        if found["state"] != READING:
+            _record(row.name, found)
+        elif found["made"]["status"] == "done":
+            enqueue(row.name, wait=0)
+        else:
+            reading += 1
+    for row in rows:
+        if row.express_sync_state != QUEUED or reading >= OPEN_READS:
+            continue
+        found = _request(row.name)
+        _record(row.name, found)
+        reading += found["state"] == READING
+
+
+def enqueue(company, notify=None, wait=JOB_WAIT):
+    """排一次后台同步（同一家公司排着的只留一件）。``notify``：做完推给这个用户（手动发起的）；``wait``：等电脑读完的上限
+    （:func:`advance` 排的是已经读好的，不等）。"""
     frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue="long", timeout=JOB_WAIT + LAND_LIMIT,
                    enqueue_after_commit=True, job_id=f"erp-express-sync:{frappe.local.site}:{company}",
-                   deduplicate=True, company=company, wait=JOB_WAIT, notify=notify)
+                   deduplicate=True, company=company, wait=wait, notify=notify)
 
 
 def sync_all():
+    """（每小时）兜底：没有变化标记的（电脑上是旧版 CC 桌面版，或还没同步过）、一天没同步过的，排整套同步；其余靠
+    :func:`check_marks` 发现改动。"""
+    names = [row.name for row in linked_companies()]
+    if not names:
+        return
+    edge = now_datetime() - timedelta(seconds=STALE_AFTER)
+    for row in frappe.get_all(COMPANY, filters={"name": ["in", names]},
+                              fields=["name", "express_mark", "express_synced_at"]):
+        if not row.express_mark or not row.express_synced_at or row.express_synced_at < edge:
+            queue(row.name)
+
+
+def check_marks():
+    """（每 10 分钟）每家接了 Express 的公司：取上一次请电脑看的标记，和上次落库时的不同（主档改了）、或现用账套换了
+    （新年度账套报上来了）就排整套同步；再发下一次看标记的请求。电脑不在线 / 旧版 CC 桌面版不认：不建，靠每小时兜底。"""
     for row in linked_companies():
-        enqueue(row.name)
+        book = target.current(row, nowdate())
+        if book is None:
+            continue
+        key = "erp_marks:" + book["key"]
+        made = requests.find(MARK_KIND, key)
+        if made is not None and made["status"] != "done":
+            continue  # 上一次的还在排 / 在读
+        if made is not None:
+            seen = _mark(made)
+            last = frappe.db.get_value(COMPANY, row.name, ["express_mark", "express_book"], as_dict=True) or {}
+            if seen and (seen != last.get("express_mark") or (last.get("express_book") or "") != book["label"][:140]):
+                queue(row.name)
+        if requests.waiting(MARK_KIND, book["key"]) is None:
+            requests.create(MARK_KIND, key, _params(book), book_key=book["key"], actor=frappe.session.user)
+
+
+def _mark(made):
+    content, _meta = requests.result(made["request"])
+    requests.drop(made["request"])
+    try:
+        return str(json.loads(gzip.decompress(content or b"")).get("mark") or "")
+    except (OSError, ValueError, AttributeError):
+        return ""
 
 
 def start(company):
@@ -106,7 +185,7 @@ def _record(company, result):
     """这次同步的结果记在公司上（公司页显示）：读取中 / 落库中 / 已同步 / 电脑离线 / CC 桌面版要更新；其余是失败，原因码或
     出错信息记在说明里。"""
     state = result.get("state") or FAILED
-    if state not in (READING, SYNCING, READY, "offline", "outdated"):
+    if state not in (QUEUED, READING, SYNCING, READY, "offline", "outdated"):
         note, state = result.get("note") or state, FAILED
     else:
         note = ""
@@ -214,10 +293,18 @@ def apply(company, book, data):
     counts["products"] = _products(company, book, data)
     warehouses, counts["warehouses"] = _warehouses(company, book, data)
     counts["stock"] = _stock(company, warehouses, data.get("stock"))
-    frappe.db.set_value(COMPANY, company, {"express_book": book[:140], "express_synced_at": now_datetime()},
-                        update_modified=False)
+    values = {"express_book": book[:140], "express_synced_at": now_datetime(), "express_mark": data.get("mark") or None}
+    values.update(_profile(company, data.get("settings") or {}))
+    frappe.db.set_value(COMPANY, company, values, update_modified=False)
     frappe.db.commit()
     return counts
+
+
+def _profile(company, settings):
+    """公司没填的地址、电话取账套设置里登记的（自动建的公司第一次同步时填上）；填过的不动（人改的为准）。"""
+    have = frappe.db.get_value(COMPANY, company, ["address", "phone"], as_dict=True) or {}
+    found = {"address": str(settings.get("address") or "").strip(), "phone": str(settings.get("phone") or "").strip()[:50]}
+    return {field: value for field, value in found.items() if value and not (have.get(field) or "").strip()}
 
 
 # ── 写入 ─────────────────────────────────────────────────────────────────────

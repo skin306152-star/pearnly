@@ -345,6 +345,26 @@ def _handle_dbf_task(
     return outcome  # waiting_lock 等 → 调用方据此设托盘状态(占用≠失败)
 
 
+def erp_scope(cfg, rows: list) -> list:
+    """ERP 成员（共用通道）只报归这个 ERP 的账套（1.12.0）：所选数据根（``erp_roots``）里的账套，加上这些公司（同税号）在这台
+    电脑别的年度文件夹里的账套 —— 单据按日期写进对应年度、新年度账套出现后自动接上，都要它们；同一台电脑上别的公司（如事务所
+    别的客户）不报进去。没选 = 一份都不报。Cowork 成员照旧整份报。"""
+    from . import channel
+    from .express_machine import same_root
+
+    if getattr(cfg, "channel", channel.COWORK) != channel.CORE:
+        return rows
+    scope = [root for root in (getattr(cfg, "erp_roots", None) or ()) if root]
+
+    def tax(row):
+        digits = "".join(ch for ch in str(row.get("tax_id") or "") if ch.isdigit())
+        return digits if len(digits) == 13 else ""
+
+    chosen = {id(row) for row in rows if any(same_root(str(row.get("root") or ""), root) for root in scope)}
+    companies = {tax(row) for row in rows if id(row) in chosen} - {""}
+    return [row for row in rows if id(row) in chosen or tax(row) in companies]
+
+
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     """DBF 写错误码 → 云端 V3 outcome(细粒度状态)。未映射 → None(走默认 failed)。"""
     from . import stock_template
@@ -370,6 +390,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         ERR_LOCATION: "needs_review",
         # 新建库存品的存货科目组不合格 / 没配:要人选一次组(1.11.0)
         stock_template.ERR_STOCK_GROUP: "needs_review",
+        # ERP 的单写进已关账的会计期:重试结论一样(1.12.0)
+        "PERIOD_LOCKED": "needs_review",
     }.get(error_code or "")
 
 
@@ -541,7 +563,7 @@ def _run_periodic(
             # 这次启动还没扫完（大数据根要几分钟）：账套先用本机存的上次清单、科目先用本机索引里上次的科目表
             # （load_account_sets）；本机没有科目表时不报（报「0 个」服务端会盖掉上一份，这期间要人选的科目没有选项，
             # 2026-09-28 真机复测）。头一次启动、本机也没有清单时账套照旧报空：不报的话服务端会把目录换成只剩所选的那一个。
-            known_sets = state.get("reported_account_sets") or []
+            known_sets = erp_scope(cfg, state.get("reported_account_sets") or [])
             known_accts = state.get("reported_accounts")
             sets = known_sets or []
             accts = known_accts or []

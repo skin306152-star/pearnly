@@ -45,7 +45,7 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # ``device_state``（这把密钥不再用、要重新登记），``remove`` 先吊销本机这把密钥再删成员（慢，回 job）；
 # sites = 每个成员带自己的站点与通道（1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点，ERP 站点的
 # 对话页据此登记这台电脑（配对码 ``pcc_…``）。
-FEATURES = ("company_folders", "devices", "sites")
+FEATURES = ("company_folders", "devices", "sites", "erp_roots")
 
 
 class TomoBridge(QObject):
@@ -116,6 +116,10 @@ class TomoBridge(QObject):
             return self._job(lambda: s.rescan(lang))
         if method == "pause":
             return self._changed(s.set_paused(member, bool(args.get("paused"))))
+        if method == "erp_roots":
+            # ERP 成员：哪些 Express 数据根归这个 ERP（1.12.0）。只认这台电脑已授权的数据根，只改连着本页站点的那个成员
+            roots = args.get("roots") if isinstance(args.get("roots"), list) else []
+            return self._changed(s.set_erp_roots(member, roots, self._page_host()))
         if method == "remove":
             # 断开连接：先请服务端吊销本机这把密钥（device_leave，要连网），再删成员；做完由 _job 回界面线程重启各线程
             return self._job(lambda: s.disconnect(member))

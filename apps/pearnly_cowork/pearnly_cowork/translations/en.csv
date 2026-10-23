@@ -1730,6 +1730,7 @@ The account codes are invalid.,The account codes are invalid.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
 The account set on this computer is not the registered one. Waiting for another computer.,The account set on this computer is not the registered one. Waiting for another computer.
+The accounting period is closed in Express,The accounting period is closed in Express
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
 The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
 The answer is not valid.,The answer is not valid.
@@ -3372,6 +3373,7 @@ intake.error.MISSING_REF_NO,The invoice number is missing. Add it and submit aga
 intake.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 intake.error.NO_ACCOUNT_SELECTION,"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
 intake.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
+intake.error.PERIOD_LOCKED,The accounting period is closed in Express
 intake.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"

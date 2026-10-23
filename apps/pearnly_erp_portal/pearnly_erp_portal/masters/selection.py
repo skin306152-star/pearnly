@@ -132,8 +132,12 @@ def api_choices(kind, context, txt="", scan=False, company=None):
                for field in (title, *codes)] if text else None
     # This endpoint intentionally grants only a bounded selection projection, under
     # transaction capability. Generic master CRUD still requires its own module role.
-    if company and company not in companies.allowed_companies():
-        company = None  # 页面带来的公司不是本人能用的：不按它分（只影响排序与过滤，不放宽权限）
+    if not company or company not in companies.allowed_companies():
+        # 页面没带或带来的不是本人能用的：按本人当前公司分（主档按公司隔离，服务端判，`masters.access.master_query`）
+        try:
+            company = companies.active_company()
+        except frappe.PermissionError:
+            company = None
     if company:
         # 这张单的公司：别家公司从 Express 同步来的档不列（`for_company`），本公司同步来的排前
         fields.append("express_company")

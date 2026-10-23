@@ -23,12 +23,16 @@
   各块读坏了给空，不挡主档。
 - 读出来的单行坏了（坏字节以外的异常）跳过并按表计数，放在 meta ``bad_rows``，服务端自己决定要不要信这一份。
 - 结果是 gzip 后的 JSON（``RESULT_VERSION``），超过 ``MAX_BYTES["express_masters"]`` 回 ``too_large``，不截断。
+- 1.12.0：settings 另带账套设置里的地址（ISINFO ADDR01–03 与邮编）、电话 TELNUM（ERP 按账套自动建的公司用）；结果顶层另带
+  ``mark``（:func:`mark`：主档几张表的大小与修改时间），ERP 记下它，之后用很轻的按需请求 ``express_marks``（:func:`read_marks`，
+  只看文件属性、不读内容）比一比，变了才再请整套读（10-23：Express 主档改了 ERP 自动跟上，又不让办公室电脑反复整套读）。
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import gzip
+import hashlib
 import json
 import time
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -53,6 +57,8 @@ WAREHOUSE_TABTYP = "21"
 DEPARTMENT_TABTYP = "50"
 PRICE_SLOTS = ("SELLPR1", "SELLPR2", "SELLPR3", "SELLPR4", "SELLPR5")
 SETTINGS = {"mainloc": "MAINLOC", "negallow": "NEGALLOW", "cosmtd": "COSMTD", "usedep": "USEDEP"}
+# 主档变没变看这几张表（大小 + 修改时间）：客户、供应商、商品、代码表（单位 / 仓库 / 部门）、各仓结存、账套设置
+MARK_TABLES = ("ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "ISINFO")
 CENT = Decimal("0.01")
 FINE = Decimal("0.000001")
 
@@ -185,11 +191,12 @@ def collect(folder: Path) -> tuple:
     diag = {"rows": {}, "bad_rows": {}}
     get, text = express_read._get, express_read._text
     infos = express_read._rows(folder, "ISINFO", diag,
-                               lambda r, c, _g: {key: _code(get(r, c, field)) for key, field in SETTINGS.items()})
+                               lambda r, c, _g: {**{key: _code(get(r, c, field)) for key, field in SETTINGS.items()},
+                                                 "address": _address(r, c), "phone": text(get(r, c, "TELNUM"))})
     codes = express_read._rows(folder, "ISTAB", diag, _code_table)
     data = {
         "version": RESULT_VERSION,
-        "settings": infos[0] if infos else {key: "" for key in SETTINGS},
+        "settings": infos[0] if infos else {**{key: "" for key in SETTINGS}, "address": "", "phone": ""},
         "customers": express_read._rows(folder, "ARMAS", diag, _party("CUSCOD", "CUSNAM")),
         "suppliers": express_read._rows(folder, "APMAS", diag, _party("SUPCOD", "SUPNAM")),
         "products": express_read._rows(folder, "STMAS", diag, _product),
@@ -202,6 +209,30 @@ def collect(folder: Path) -> tuple:
     return data, diag
 
 
+def mark(folder: Path) -> str:
+    """这份账套主档的变化标记：:data:`MARK_TABLES` 几张表的大小与修改时间（只看文件属性，不读内容；表不在记缺）。"""
+    stamps = []
+    for name in MARK_TABLES:
+        for candidate in (f"{name}.DBF", f"{name.lower()}.dbf"):
+            try:
+                stat = (folder / candidate).stat()
+            except OSError:
+                continue
+            stamps.append(f"{name}:{stat.st_size}:{stat.st_mtime_ns}")
+            break
+        else:
+            stamps.append(f"{name}:-")
+    return hashlib.sha1("|".join(stamps).encode("utf-8")).hexdigest()[:20]
+
+
+def read_marks(cfg, params: dict, **_ignored) -> Result:
+    """按需请求 ``express_marks``：{account_set, account_root} → ``{"mark"}``（gzip JSON）。账套判据同整套读（``resolve``）。"""
+    account_set, account_root = _params(params)
+    folder = express_read.resolve(cfg, account_set, account_root)
+    content = gzip.compress(json.dumps({"mark": mark(folder)}).encode("utf-8"))
+    return Result(content, {"format": "json.gz"})
+
+
 # ── 处理函数（request_worker.HANDLERS["express_masters"]）────────────────────
 
 
@@ -212,6 +243,7 @@ def read_masters(cfg, params: dict, *, sleep: Callable[[float], None] = time.sle
     folder = express_read.resolve(cfg, account_set, account_root)
     read, changed = None, False
     for attempt in range(express_read.READS):
+        stamp = mark(folder)  # 复制前取标记：复制途中又改了，下一次看标记会不同、再读一遍，不漏
         try:
             with express_read.snapshot(folder, tables=TABLES, sleep=sleep) as (copy, moved):
                 read, changed = collect(copy), moved
@@ -226,7 +258,7 @@ def read_masters(cfg, params: dict, *, sleep: Callable[[float], None] = time.sle
     if read is None:
         raise RequestFailed("account_unreadable")
     data, diag = read
-    data = {"version": data.pop("version"), "account_set": express_read._norm(folder)[:500],
+    data = {"version": data.pop("version"), "account_set": express_read._norm(folder)[:500], "mark": stamp,
             "read_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), **data}
     content = gzip.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
     if len(content) > MAX_BYTES["express_masters"]:

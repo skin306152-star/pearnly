@@ -122,6 +122,10 @@ class ProfileRecord:
     # 读的时候站点取全局设置里那一个（以前所有成员同一个站点），通道是 cowork。
     backend_url: str = ""
     channel: str = channels.COWORK
+    # ERP 成员（共用通道）：这台电脑上哪些 Express 数据根归这个 ERP（1.12.0，用户 10-23「CC 选了哪个盘，这个盘的数据同步到
+    # ERP」）。心跳只报这些根里的账套，ERP 按报来的账套自动建公司、同步主档；空 = 一份都不报（同一台电脑连着事务所的 Cowork 时，
+    # 不把事务所别的客户的账套报进这个 ERP）。Cowork 成员不用。
+    erp_roots: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ProfileRecord":
@@ -134,6 +138,9 @@ class ProfileRecord:
             )
         elif roots is not None and not isinstance(roots, tuple):
             clean["authorized_roots"] = ()
+        scope = clean.get("erp_roots")
+        clean["erp_roots"] = tuple(str(root).strip() for root in scope if str(root).strip()) \
+            if isinstance(scope, (list, tuple)) else ()
         try:
             record = cls(**clean)
         except TypeError as exc:
@@ -286,6 +293,7 @@ class ProfileStore:
             pool=bool(getattr(cfg, "pool", False)) and getattr(cfg, "kind", "") == "folder",
             backend_url=str(cfg.backend_url or ""),
             channel=channels.of_token(token),
+            erp_roots=tuple(str(root).strip() for root in (getattr(cfg, "erp_roots", None) or ()) if str(root).strip()),
         )
 
     def _runtime(self, record: ProfileRecord) -> CompanionConfig:
@@ -386,6 +394,16 @@ class ProfileStore:
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
         return self.path
+
+    def set_erp_roots(self, profile_id: str, roots) -> None:
+        """ERP 成员：归这个 ERP 的 Express 数据根（整份换掉）。"""
+        clean = tuple(dict.fromkeys(str(root).strip() for root in roots or () if str(root).strip()))
+        profiles = [ProfileRecord(**{**asdict(item), "erp_roots": clean}) if item.profile_id == profile_id else item
+                    for item in self._profiles]
+        if profiles == self._profiles:
+            raise ProfileStoreError("profile not found")
+        self._write(self.global_settings, profiles)
+        self._profiles = profiles
 
     def set_paused(self, profile_id: str, paused: bool) -> None:
         found = False

@@ -58,7 +58,7 @@ def test_nothing_to_do_returns_false_and_declares_what_it_can_do():
     body = client.calls[0][1]
     assert body["version"] == VERSION and body["kinds"] == list(request_worker.HANDLERS)
     assert set(request_worker.HANDLERS) == {"express_read", "folder_list", "folder_fetch", "account_history",
-                                            "express_masters"}
+                                            "express_masters", "express_marks"}
     # 2026-10-18：空闲时一直用同一个客户端（连接保持），线程停下时才关（test_idle_cost.py）
     assert client.closed == 0
     worker.close_clients()

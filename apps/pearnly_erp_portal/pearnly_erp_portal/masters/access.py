@@ -72,3 +72,42 @@ def warehouse_permission(doc, ptype="read", user=None, **kwargs):
         return False
     return (company_allowed(doc.company, user) if ptype in READ_TYPES
             else company_write_allowed(doc, user))
+
+
+# ── 主档按公司（2026-10-23 用户：选哪家公司就只看到、只能选哪家的档）──────────────────
+# 从某家公司 Express 同步来的客户 / 供应商 / 商品（`express_company`）只在当前公司是那家时列得出、选得到（列表、报表、链接
+# 搜索跟 `permission_query_conditions` 走）；打开单条（`has_permission`）要能用那家公司（看别家公司的旧单时链接照样打得开）。
+# ERP 本地建的档（没挂 Express）没有归属公司，各家都能用（原来就全租户共用）。系统内部取数（`frappe.get_all`）不受影响。
+COMPANY_MASTERS = ("ERP Customer", "ERP Supplier", "ERP Product")
+
+
+def master_query(doctype, user=None):
+    user = user or frappe.session.user
+    if user == "Administrator":
+        return ""
+    try:
+        current = company.active_company(user)
+    except frappe.PermissionError:
+        current = None
+    local = f"ifnull(`tab{doctype}`.`express_company`, '') = ''"
+    return f"({local} or `tab{doctype}`.`express_company` = {frappe.db.escape(current)})" if current else local
+
+
+def master_permission(doc, ptype="read", user=None, **kwargs):
+    user = user or frappe.session.user
+    owner = doc.get("express_company") if not isinstance(doc, str) else None
+    if user == "Administrator" or not owner or company_allowed(owner, user):
+        return None  # 本地档、能用的公司的档：不另加判断，照角色权限
+    return False
+
+
+def customer_query(user=None):
+    return master_query("ERP Customer", user)
+
+
+def supplier_query(user=None):
+    return master_query("ERP Supplier", user)
+
+
+def product_query(user=None):
+    return master_query("ERP Product", user)

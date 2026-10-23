@@ -92,8 +92,16 @@
   - MSIX 商店包（未签名，待商店账号）：以包身份运行时更新交给商店、自启用系统启动任务。
   - 打开窗口先铺对话页底色（不再白屏）；改连另一租户时新连接配对成功后才吊销旧密钥、删旧成员，配对健康检查超时 / 断线 / 502–504 重试 3 次，
     带整份账套名单的心跳读超时 60 秒；询问框等人回答期间照常盖存活时标（看门狗不再误判卡死）。
-- 1.11.0（ERP 直连 CC 桌面版，ADR-025，`pearnly/erp-cc-direct-26da5a`；**未发布**，要等服务端共用机器通道
-  `pearnly_core.cc_desktop` 与 ERP 的 `express` 上线后再发）：
+- 1.12.0（ERP 按 CC 所选的 Express 自动建公司与同步，`pearnly/erp-express-sync-background`，
+  `docs/work/2026-10-23-erp-express-auto-companies.md`；**未发布**，要等服务端认 `express_marks` 与 `PERIOD_LOCKED` 的那一侧上线后再发）：
+  - ERP 成员自己记「归这个 ERP 的 Express 数据根」（`profile_store.ProfileRecord.erp_roots`，设置页在 ERP 站点打开时每个数据根
+    一个开关，默认全关）：心跳只报这些根里的账套，加上这些公司（同税号）在别的年度文件夹里的账套（`worker.erp_scope`）；
+    Cowork 成员照旧整份报。
+  - 按需请求新增只读 `express_marks`：现用账套主档几张表（ARMAS、APMAS、STMAS、ISTAB、STLOC、ISINFO）的大小与修改时间算出的
+    变化标记（不读内容），ERP 每 10 分钟看一次、变了才整套读；`express_masters` 结果另带 `mark`，`settings` 另带地址、电话。
+  - 带 `respect_period_lock` 的载荷（只有 ERP 的单）写进 Express 已关账的会计期（ISPRD `LOCK{期}{槽}` = 'Y'）：整单不写、
+    回 `PERIOD_LOCKED`（转人工，ERP 单据上显示原因）；Cowork 的推送不带这个标记，照旧。
+- 1.11.0（ERP 直连 CC 桌面版，ADR-025，`pearnly/erp-cc-direct-26da5a`；**已发布**（10-23 随服务端 3205521e））：
   - 每个成员记自己的站点与通道（`profile_store.ProfileRecord.backend_url` / `channel`，旧文件读的时候站点取全局那一个）：同一台
     电脑可以同时连一个 Cowork 站点和一个 ERP 站点；同一种通道换站点仍要用户点「改连」（`desktop_settings.pair`）。
   - 通道按密钥前缀认（`channel.py`）：`exp_` 是 Cowork（原来那一套路径），`pcc_` 是共用机器通道（`pearnly_core.cc_desktop.machine.*`，

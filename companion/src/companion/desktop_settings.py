@@ -187,6 +187,8 @@ class DesktopSettings:
                 # superseded / claimed_elsewhere：这把密钥不再用，对话页据此重新登记（superseded 带 rekey）
                 "device_state": str(getattr(record, "device_state", "") or ""),
                 "folders": [row["path"] for row in folder_store.roots(key)] if key else None,
+                # ERP 成员：归这个 ERP 的 Express 数据根（1.12.0）
+                "erp_roots": list(getattr(record, "erp_roots", None) or ()),
             })
         try:
             update_state, update_version = self._update_status()
@@ -330,6 +332,18 @@ class DesktopSettings:
     def profiles_changed(self) -> None:
         """成员变了：重启取任务线程（只在界面线程调）。"""
         self._on_profiles_changed()
+
+    def set_erp_roots(self, profile_id: str, roots: list, host: str) -> dict:
+        """ERP 成员选哪些 Express 数据根归这个 ERP（1.12.0）：只认这台电脑已授权的数据根；只改连着 ``host``（本页站点）的
+        共用通道成员。心跳下一拍按新范围整份报，ERP 据此建公司、同步主档。"""
+        store = self._store()
+        record = next((item for item in store.profiles if item.profile_id == profile_id), None)
+        if record is None or member_channel(record) != channel.CORE or member_site(record) != str(host or "").lower():
+            return {"ok": False}
+        machine = machine_roots(store)
+        picked = [root for root in machine if any(same_root(root, str(wanted or "")) for wanted in roots)]
+        store.set_erp_roots(profile_id, picked)
+        return {"ok": True, "profiles_changed": True}
 
     def set_paused(self, profile_id: str, paused: bool) -> dict:
         self._store().set_paused(profile_id, bool(paused))

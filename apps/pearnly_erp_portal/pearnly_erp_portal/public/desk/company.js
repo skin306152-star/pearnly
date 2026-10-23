@@ -240,7 +240,7 @@
 		}
 
 		// ── Express 同步状态 ─────────────────────────────────────────────────────
-		const SYNC_STATES = ["reading", "syncing", "ready", "offline", "outdated"];
+		const SYNC_STATES = ["queued", "reading", "syncing", "ready", "offline", "outdated"];
 		const sync_key = state => (SYNC_STATES.includes(state) ? state : "failed");
 		// 失败原因：认得的原因码给译文，其余（出错信息）原样
 		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook"};

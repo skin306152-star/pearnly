@@ -391,6 +391,7 @@ Express Choices Needed,Express 待选项
 Express Code,Express 编码
 Express Company,Express 公司
 Express Job,Express 写入
+Express Mark,Express 标记
 Express No.,Express 单号
 Express Note,Express 备注
 Express Sent At,Express 发送时间
@@ -1013,6 +1014,7 @@ That warehouse belongs to another company,该仓库属于其他公司
 The LINE account that sent the document,发送此文件的 LINE 账号
 The Revenue Department replied in an unreadable format,税务局返回的数据格式无法解析
 The account you give customers for transfers,收款时给对方看的账号
+The accounting period is closed in Express,会计期间已在 Express 关账
 The amount is invalid,金额无效
 The amount payable cannot be negative,应付金额不能为负数
 The amount received is less than the total,实收金额小于应收金额
@@ -1325,6 +1327,7 @@ company.syncExpress,同步 Express
 company.syncExpress.failed,同步失败
 company.syncExpress.offline,CC 桌面版未连接
 company.syncExpress.outdated,CC 桌面版需更新
+company.syncExpress.queued,排队中
 company.syncExpress.reading,读取中
 company.syncExpress.ready,已同步
 company.syncExpress.syncing,同步中
@@ -1373,6 +1376,7 @@ express.option.expense,计入费用
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noWriter,没有能写此账套的电脑
 express.reason.offline,电脑离线
+express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.reading,正在读取 Express 账套
 express.reason.taxMissing,公司没有 13 位税号
 express.state.written,已写入

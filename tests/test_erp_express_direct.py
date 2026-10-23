@@ -354,6 +354,81 @@ class MasterSync(Base):
                          [("pearnly_erp_portal.express.masters.land", key)])
         self.assertEqual(fake.STATE.db.table("ERP Supplier"), {})
 
+    def test_automatic_syncs_start_a_few_at_a_time_and_land_what_was_read(self):
+        # 10-23：上百家公司自动建好后一起排同步。后台进程不空等电脑；同时只发起几家（电脑一本一本读，排多了等过领取时限）
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-0"] = {"name": "CO-0", "is_active": 1, "express_sync_state": "reading"}
+        for i in range(1, 6):
+            table[f"CO-{i}"] = {"name": f"CO-{i}", "is_active": 1, "express_sync_state": "ready"}
+            self.sync.queue(f"CO-{i}")
+        self.assertEqual({table[f"CO-{i}"]["express_sync_state"] for i in range(1, 6)}, {"queued"})
+        started, queued = [], []
+
+        def request(company):
+            if company == "CO-0":
+                return {"state": "reading", "made": {"status": "done"}}
+            started.append(company)
+            return {"state": "reading", "made": {"status": "requested"}}
+
+        with mock.patch.object(self.sync, "_request", request), \
+                mock.patch.object(frappe, "enqueue", lambda method, **kw: queued.append(kw), create=True):
+            self.sync.advance()
+        self.assertEqual([(kw["company"], kw["wait"]) for kw in queued], [("CO-0", 0)])  # 读好的排落库，不再等
+        self.assertEqual(started, ["CO-1", "CO-2", "CO-3"])
+        self.assertEqual([table[f"CO-{i}"]["express_sync_state"] for i in range(1, 6)],
+                         ["reading", "reading", "reading", "queued", "queued"])
+        self.sync.queue("CO-1")  # 已经在读的不打回排队
+        self.assertEqual(table["CO-1"]["express_sync_state"], "reading")
+
+    def test_only_a_changed_mark_or_a_new_book_starts_a_full_sync(self):
+        # Express 主档有改动 ERP 自动跟上：每 10 分钟请电脑看一眼主档表的文件属性，变了 / 换了新年度账套才整套读
+        import gzip
+        import types
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "express_mark": "m1", "express_book": "T.9", "express_sync_state": "ready"}
+        table["CO-2"] = {"name": "CO-2", "express_mark": "m2", "express_book": "T.9", "express_sync_state": "ready"}
+        table["CO-3"] = {"name": "CO-3", "express_mark": "m3", "express_book": "T.8", "express_sync_state": "ready"}
+        marks = {"k1": "m1", "k2": "m2-new", "k3": "m3"}
+        made = []
+        stub = types.SimpleNamespace(
+            find=lambda kind, key: {"request": key, "status": "done"},
+            result=lambda name: (gzip.compress(json.dumps({"mark": marks[name.split(":")[1]]}).encode()), {}),
+            drop=lambda name: None, waiting=lambda kind, key: None,
+            create=lambda kind, key, params, **kw: made.append((kind, key)))
+        rows = [types.SimpleNamespace(name=f"CO-{i}") for i in (1, 2, 3)]
+        with mock.patch.object(self.sync, "requests", stub), \
+                mock.patch.object(self.sync, "linked_companies", lambda: rows), \
+                mock.patch.object(self.sync.target, "current",
+                                  lambda row, day: {"key": "k" + row.name[-1], "label": "T.9", "path": PATH}, create=True):
+            self.sync.check_marks()
+        self.assertEqual([table[f"CO-{i}"]["express_sync_state"] for i in (1, 2, 3)], ["ready", "queued", "queued"])
+        self.assertEqual(made, [("express_marks", "erp_marks:k1"), ("express_marks", "erp_marks:k2"),
+                                ("express_marks", "erp_marks:k3")])
+
+    def test_the_hourly_sync_only_takes_old_computers_and_stale_companies(self):
+        import datetime as dt
+        import types
+        from unittest import mock
+        now = dt.datetime(2026, 10, 23, 12, 0)
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "express_mark": "m", "express_synced_at": now - dt.timedelta(hours=2)}
+        table["CO-2"] = {"name": "CO-2", "express_mark": None, "express_synced_at": now - dt.timedelta(hours=2)}
+        table["CO-3"] = {"name": "CO-3", "express_mark": "m", "express_synced_at": now - dt.timedelta(hours=30)}
+        rows = [types.SimpleNamespace(name=f"CO-{i}") for i in (1, 2, 3)]
+        with mock.patch.object(self.sync, "linked_companies", lambda: rows), \
+                mock.patch.object(self.sync, "now_datetime", lambda: now):
+            self.sync.sync_all()
+        self.assertEqual([table[f"CO-{i}"].get("express_sync_state") for i in (1, 2, 3)], [None, "queued", "queued"])
+
+    def test_an_empty_company_address_and_phone_come_from_the_book(self):
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "address": "", "phone": "02-111"}
+        settings = {"address": "99 ถ.สุขุมวิท กรุงเทพฯ", "phone": "02-999"}
+        self.assertEqual(self.sync._profile("CO-1", settings), {"address": "99 ถ.สุขุมวิท กรุงเทพฯ"})  # 人填过的不动
+        self.assertEqual(self.sync._profile("CO-1", {}), {})
+
     def test_one_erp_supplier_is_claimed_once_and_a_spaced_code_is_taken_back(self):
         loose = self.supplier(supplier_name="ชาญ ฟู้ด", express_code="ชาญ ฟู้ด", express_company="CO-00127")
         free = self.supplier(supplier_name="วิริยะประกันภัย", tax_id="0107555000139", branch_type="head_office")
@@ -455,6 +530,49 @@ class CompanyMasters(Base):
         self.assertEqual(sales.buyer_tax("0107536000634"), "")  # 校验位不对不认
         self.assertEqual((sales.branch_no("สาขา 12"), sales.branch_no(""), sales.branch_no("00000")), ("00012", None, "00000"))
 
+
+
+class AutoCompanies(Base):
+    """CC 桌面版报来的账套 → ERP 公司（`express.companies`）。"""
+
+    def test_books_are_grouped_by_tax_and_branch_and_the_latest_name_is_taken(self):
+        from pearnly_erp_portal.express import companies
+        rows = [{"company": "นิภา 2568", "tax_id": OWN, "branch": "12", "period_end": "2025-12-31"},
+                {"company": "นิภา เอ็กเช้นจ์", "tax_id": OWN, "branch": "00012", "period_end": "2026-12-31"},
+                {"company": "สาขาใหญ่", "tax_id": OWN, "branch": "", "period_end": "2026-12-31"},
+                {"company": "ไม่มีเลขภาษี", "tax_id": "", "branch": "", "period_end": "2026-12-31"},
+                {"company": "เลขผิด", "tax_id": "12345", "branch": "", "period_end": "2026-12-31"}]
+        found = companies.groups(rows)
+        self.assertEqual(found, {(OWN, "00012"): "นิภา เอ็กเช้นจ์", (OWN, "00000"): "สาขาใหญ่"})  # 没有效税号的不建
+        existing = [{"name": "CO-1", "tax_id": OWN, "branch": "00000"}]
+        self.assertEqual(companies.missing(found, existing), [(OWN, "00012", "นิภา เอ็กเช้นจ์")])
+
+
+class MasterIsolation(unittest.TestCase):
+    """主档按公司隔离（`masters.access`）：Express 同步来的档只在当前公司列得出，本地档各家都能用。"""
+
+    def setUp(self):
+        from unittest import mock
+        from pearnly_erp_portal.masters import access
+        self.access = access
+        patches = [mock.patch.object(access.company, "active_company", lambda user=None: "CO-A", create=True),
+                   mock.patch.object(access, "company_allowed", lambda name, user=None: name in ("CO-A", "CO-B")),
+                   mock.patch.object(frappe.db, "escape", lambda value: f"'{value}'", create=True)]
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_lists_show_local_records_and_the_current_company_only(self):
+        self.assertEqual(self.access.master_query("ERP Supplier", "staff@x"),
+                         "(ifnull(`tabERP Supplier`.`express_company`, '') = '' "
+                         "or `tabERP Supplier`.`express_company` = 'CO-A')")
+        self.assertEqual(self.access.master_query("ERP Supplier", "Administrator"), "")
+
+    def test_a_record_opens_for_a_company_the_user_may_use(self):
+        allowed = self.access.master_permission
+        self.assertIsNone(allowed({"express_company": ""}, user="staff@x"))       # 本地档：照角色权限
+        self.assertIsNone(allowed({"express_company": "CO-B"}, user="staff@x"))   # 能用的另一家：旧单的链接打得开
+        self.assertFalse(allowed({"express_company": "CO-Z"}, user="staff@x"))
 
 if __name__ == "__main__":
     unittest.main()

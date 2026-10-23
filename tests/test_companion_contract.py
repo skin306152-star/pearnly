@@ -702,7 +702,7 @@ class AccountHistory(unittest.TestCase):
         server = number_constants(WIRE / "request_contracts.py", ("KINDS", "FOLDER_KINDS", "SHARED_KINDS"))
         self.assertIn("account_history", server["KINDS"])
         self.assertNotIn("account_history", server["FOLDER_KINDS"])  # MR.ERP 的文件夹成员不读账套
-        self.assertEqual(server["SHARED_KINDS"], ("account_history", "express_masters"))
+        self.assertEqual(server["SHARED_KINDS"], ("account_history", "express_masters", "express_marks"))
         # 推送服务按钩子取，不导入 readback（readback 依赖 push）
         hooks = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]', hooks)
@@ -981,7 +981,7 @@ class PoolRequests(unittest.TestCase):
         server = number_constants(WIRE / "request_contracts.py", ("LOCATION_KEYS", "ACCOUNT_KINDS", "FOLDER_KINDS",
                                                                      "KINDS"))
         self.assertEqual(set(server["LOCATION_KEYS"]), {"account_set", "account_root"})
-        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters"})
+        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history", "express_masters", "express_marks"})
         self.assertEqual(set(server["ACCOUNT_KINDS"]) | set(server["FOLDER_KINDS"]), set(server["KINDS"]))
         for path, function in ((self.READBACK / "contracts.py", "read_params"),
                                (self.READBACK / "history_rules.py", "read_params")):
@@ -1152,7 +1152,7 @@ class CompanyFolders(unittest.TestCase):
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
-        self.assertIn('FEATURES = ("company_folders", "devices", "sites")', self.bridge)
+        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "erp_roots")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)

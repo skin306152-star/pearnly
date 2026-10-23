@@ -1,0 +1,92 @@
+# ERP 按 CC 所选的 Express 自动建公司与同步、主档按公司隔离、年度规则、提交时就问（2026-10-23）
+
+- 状态：施工中。用户 10-23：「和下一批做完，做完后给测试窗跑测试，测试没任何问题再考虑上线。」期间不合入 main、不部署。
+- 分支 `pearnly/erp-express-sync-background`（与同步超时修复 `ba395076` 同一批，见 [同步超时修复](2026-10-23-erp-express-sync-background.md)），
+  工作树 `.claude/worktrees/erp-sync-bg`，基线 `cecc475e`。架构沿用 [ADR-025](../adr/0025-cc-desktop-direct-product-sites.md)。
+
+## 用户口径（10-23）
+
+1. CC 这边选了 Express（选某个盘 / 文件夹 / 整个数据根，可多选），这些账套的数据主动同步回 ERP：ERP 按账套登记的公司名、税号、
+   分店建公司（同税号同分店已有就接上），建好后后台自动同步客户、供应商、商品、仓库、库存；之后 Express 主档有改动 ERP 自动跟上。
+   公司马上建好，主档按公司排队在后台慢慢同步，不卡页面、不超时。按 S 盘 428 份账套、上百家公司、单家 1.8 万客户的规模设计并实测。
+   「同步 Express」按钮保留当兜底。
+2. 主档按公司隔离：选哪家公司就只看到、只能选哪家的档（服务端过滤）。
+3. 年度：一家公司只建一个；单据按日期写进对应年度的账套；主档按「公司 + Express 编码」认、从当前年度账套读；库存跟当前年度；
+   新年度账套出现后自动切过去；上一年度账套被锁写不进时 ERP 显示原因；按年看用报表 / 列表的日期筛选。
+4. 提交时就问：采购 / 销售单点「提交」时，缺的人要定的选择（同期账套、费用科目、同税号多档、存货科目组等）当场用原生弹窗问，
+   选完再提交，关掉弹窗不提交；网页手录、网页识别、LINE 编辑页一样。只有电脑写时才发现的（疑似重复档等）才在提交后补，并主动弹出。
+5. 照旧：映射回来的档凡 Express 有的字段只读、照 Express 写；同期多份账套选一次记住、选项写位置；Cowork 现有行为不变。
+
+## 方案与取舍
+
+### 一、哪些账套归这个 ERP：在 CC 里按 ERP 成员选数据根
+
+- 现状：CC 的 Express 数据根是整台电脑一份（写进每个成员）；ERP 成员心跳把这台电脑全部账套名单报给 ERP（测试机 578 份）。
+  事务所电脑同时连 Cowork 和某个客户的 ERP 时，按名单自动建公司会把事务所全部客户建进这个客户的 ERP —— 隔离不允许。
+- 做法：ERP 成员自己记一份「归这个 ERP 的数据根」（`erp_roots`，这台电脑数据根的子集，按年度文件夹 / 盘选，可多选）；心跳只报
+  这些根里的账套。CC 设置页（在 ERP 站点打开时）「Express 文件夹」下面列出这台电脑的数据根，每个一个开关；**默认全关**，打开哪个
+  报哪个。选整个盘 = 打开这个盘下的全部年度文件夹。
+- 1.11.0 已连 ERP 的电脑升级后默认全关（之前报上来的名单在下一次心跳被清掉），要在 CC 里选一次。
+
+### 二、ERP 按账套自动建公司、排队同步
+
+- 共用通道心跳换了账套名单后叫产品的新钩子 `books_changed`；ERP 排一个后台任务（同站点只留一件）：按账套行的「税号 + 分店」分组，
+  有效 13 位税号的才建公司（已有同税号同分店的启用公司就接上，不重复建），公司名取账套登记的公司名；然后每家排一次主档同步。
+- **没有有效税号的账套不建公司**：ERP 认账套（选账套、写单、同步）全靠税号 + 分店，没税号就认不出哪份账套归哪家，建了也写不进、
+  同步不了；Express 里补上税号后下次心跳自动建。
+- 地址、电话：CC 读整套主档时另报账套设置里登记的（ISINFO），公司没填的同步时填上，填过的不动。
+- 排队：自动同步（新建的公司、主档有改动、写单后、每小时兜底）只把公司记成「排队中」（`masters.queue`），每分钟
+  `masters.advance` 让排队最久的几家（同时在读最多 3 家，没同步过的先来）发起读取，读好了才排后台任务落库。生产 ERP 只有一个
+  后台进程（写单任务也在里面），原来的做法是任务里每 8 秒问一次、最多等 180 秒电脑读完，上百家一起排会把它占满；电脑一本一本读
+  （一般十几秒），一次全发起又会有请求等过 10 分钟领取时限而过期。手动「同步 Express」照旧单独一件、做完推给本人。
+  公司页状态多一个「排队中」。
+
+### 三、Express 主档有改动 ERP 自动跟上
+
+- 不每小时把每家的整套主档都读一遍（上百家公司时办公室电脑扛不住，CC 要轻量）。改为：ERP 每 10 分钟对接上 Express 的公司发一个
+  很轻的按需请求 `express_marks`（只看现用账套 ARMAS、APMAS、STMAS、ISTAB、STLOC、ISINFO 的大小与修改时间，不读内容），
+  下一拍取回和上次落库时记下的标记（ERP Company 隐藏字段 `express_mark`，整套读时 CC 在复制前取的那个）比，变了、或现用账套
+  换了（新年度）才排整套同步。最长约 20 分钟跟上。
+- 每小时兜底（`sync_all`）：只排没有标记的（旧版 CC 不认这个请求，或还没同步过）和一天没同步过的。
+
+### 四、主档按公司隔离
+
+- 客户、供应商、商品：从某家公司 Express 同步来的档（`express_company`）只在当前公司是那家时看得到、选得到；ERP 本地建的档
+  （没挂 Express）各家公司都能用（原来就是全租户共用，没有归属公司可分）。
+- 服务端：这三个 DocType 加 `permission_query_conditions` 与 `has_permission`（列表、报表、打开单条都跟着走）；选择接口
+  （`selection.api_choices`）按单据公司 / 当前公司过滤（上一批已加，这次默认取当前公司）；提交时认档本来就按公司（上一批）。
+
+### 五、年度
+
+- 写单按单据日期挑账套（`target.pick`）、主档与库存按今天挑（`target.current`）：新年度账套出现（CC 报上来）就自动用它，不用重选。
+- 上一年度账套被锁写不进：原来 CC 不看锁，照样写进已关账的期（测试机 C 盘 T8 / T7 的 ISPRD 全年 LOCK = Y，T9 全 N）。1.12.0
+  起 ERP 的载荷带 `respect_period_lock`，CC 写前看单据日期所在期的 `LOCK{期}{槽}`，锁了整单不写、回 `PERIOD_LOCKED`（转人工，
+  不算失败）；ERP 单据的 Express 弹窗显示「会计期间已在 Express 关账」。Cowork 的推送不带这个标记，照旧写（行为不变）。
+
+### 六、提交时就问
+
+- 新接口 `express.api.preflight`：拿表单此刻的内容（不存）按写账规则准备一遍，回要人选的项；页面「提交」先调它，有要选的就弹
+  原生对话框，选完记住（同现有 `choices`）再提交；关掉就不提交。
+- 写进时电脑才发现的（疑似重复档、存货科目组不合格）：转人工那一刻推给单据的录入人，页面在线就直接弹出那张单的 Express 弹窗。
+
+## 改动登记
+
+| 位置 | 改动 |
+|---|---|
+| CC 桌面版 1.12.0 | `erp_roots`（成员记、设置页开关）、`worker.erp_scope`、`express_marks`（`express_masters.read_marks` / `mark`）、整套读另带 `mark` 与设置里的地址电话、`fiscal_period.locked` + 写路 `PERIOD_LOCKED`（只认 `respect_period_lock`） |
+| 共用通道 `pearnly_core.cc_desktop` | 产品钩子 `books_changed`（`books.replace` 名单有变时叫）；请求种类 `express_marks`（共享、账套种类，1.12.0 起）；`PERIOD_LOCKED` 进要人处理的回报码 |
+| Cowork | 只有请求表 `kind` 下拉多一项 `express_marks`（共用契约的种类表）、`intake.error.PERIOD_LOCKED` 词条；Cowork 不发这种请求、推送不带关账标记，行为不变 |
+| ERP `express` | `companies`（建公司）、`masters.queue` / `advance` / `check_marks` / `sync_all` 兜底 / `_profile`、`api.preflight`、`push.form_document`、`push` 转人工 / 准备停在要选时推 `pearnly_erp_express_needed`、`prepare` 载荷带 `respect_period_lock` |
+| ERP 主档 | `masters.access` 客户 / 供应商 / 商品的 `permission_query_conditions` 与 `has_permission`；`selection.api_choices` 默认当前公司 |
+| ERP Company | 隐藏字段 `express_mark`；同步状态多「排队中」 |
+| ERP 页面 | 采购 / 销售提交前 `p.express_preflight`；实时推送弹出单据 Express 弹窗；关账原因译文；公司页「排队中」 |
+| 定时 | 每分钟 `masters.advance`、每 10 分钟 `masters.check_marks`、每小时 `sync_all`（只兜底） |
+
+新增文案（`check-copy` 无拦截）：会计期间已在 Express 关账、排队中、Express 标记（隐藏字段标签）、本站使用的 Express 数据。
+
+## 记录
+
+- 本地：`tests/test_erp_express_direct.py` 31 项（新增自动同步排队与推进、标记比对、每小时兜底、公司地址电话、按账套建公司分组、
+  主档隔离）；CC 本机跑全部测试通过（Windows 专属的跳过，全量看 Windows 的 Companion checks），新增关账拒写、Cowork 照写、
+  变化标记、ERP 数据根选择、ERP 报账套范围；本地同名闸门全过。
+- 测试机实测：待做（大账套、多公司自动建、跨年度、关账年度、提交前弹窗网页 + LINE）。

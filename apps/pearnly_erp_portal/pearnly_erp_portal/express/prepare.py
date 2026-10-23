@@ -144,7 +144,9 @@ def prepare(doc, company_row, ensure_masters):
         enabled=True, today=today, own_tax_id=doc["company"]["tax_id"], tenant_id=frappe.local.site,
         mappings=dict(_NO_MAPPINGS), account_tax_id=book.get("tax_id") or ""))
     if prepared.disposition == "ready":
-        return {"payload": prepared.payload, "book": book}
+        # 单据日期所在的会计期在 Express 里已关账（上一年度账套常全年锁）：CC 桌面版不写、回 PERIOD_LOCKED，单据上显示原因
+        # （用户 10-23）。Cowork 的推送不带这个标记，照旧。
+        return {"payload": {**prepared.payload, "respect_period_lock": True}, "book": book}
     if prepared.reason == stock_acc_group.REASON_ACC_GROUP_REQUIRED:
         return {"hold": contracts.CHOICE + ":" + choices.STOCK_GROUP, "needed": _needed_group(config, book),
                 "book": book}

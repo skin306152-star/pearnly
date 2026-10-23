@@ -337,6 +337,11 @@ def write_purchase(
     docdate_be = str(payload["docdate_be"])
     prefix = entry.doctype  # RR / HP
     docdat = S.be_yymmdd_to_greg(docdate_be)
+    # ERP 的单（载荷带 respect_period_lock，1.12.0）：单据日期所在的会计期在 Express 里已关账（上一年度账套常全年锁）→ 不写，
+    # 回 PERIOD_LOCKED 转人工，ERP 显示原因。Cowork 的推送不带这个标记，照旧写。
+    if payload.get("respect_period_lock") and fiscal_period.locked(account_dir, docdat):
+        return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
+                              error=f"accounting period of {docdat} is locked in Express")
     vatprd = S.be_yymmdd_to_greg(payload.get("vat_period_be") or docdate_be)
     base, vat, total = (
         Decimal(entry.base_amount),

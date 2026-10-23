@@ -4,6 +4,7 @@
         "allowed": "<点路径>",        # (user) -> bool：谁能把自己的电脑连上这个站点（在 CC 窗口里登录站点时登记）
         "job_changed": "<点路径>",    # (job: dict) -> None：一件写账有了新状态（同一事务里叫，产品把单号 / 原因写回自己的单据）
         "kinds": ["express_masters"], # 这个站点会请电脑做的按需请求种类
+        "books_changed": "<点路径>",  # (device) -> None：可选；一台电脑报来的账套名单有了变化（同一事务里叫，产品排后台任务）
     }
 
 没声明的站点（Cowork、DMS）：登记一律拒绝，机器方法一律 403，什么都不做。一个站点只装一个产品，取最后声明的那一份。
@@ -40,6 +41,12 @@ def job_changed(view: dict) -> None:
     path = _path("job_changed")
     if path:
         frappe.get_attr(path)(view)
+
+
+def books_changed(device: str) -> None:
+    path = _path("books_changed")
+    if path:
+        frappe.get_attr(path)(device)
 
 
 def kinds() -> list:

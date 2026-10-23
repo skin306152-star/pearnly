@@ -54,7 +54,7 @@ def test_snapshot_lists_members_with_status_folders_and_the_machine_roots(tmp_pa
     assert snap["site"] == "testcowork.pearnly.com"
     assert snap["members"] == [{"id": member, "name": "owner@example.com", "site": "testcowork.pearnly.com",
                                 "channel": "cowork", "kind": "express", "paused": False,
-                                "status": "online", "device_state": "", "folders": []}]
+                                "status": "online", "device_state": "", "folders": [], "erp_roots": []}]
     assert snap["sites"] == ["testcowork.pearnly.com"]
     assert snap["device"] == {}  # 没注入设备密钥（旧桥 / 取不到）：空对象，页面按旧版处理
     assert snap["autostart"] is True and snap["hotkey"] is True
@@ -498,3 +498,23 @@ def test_an_old_worker_copy_saving_on_a_heartbeat_does_not_put_the_switches_back
     tray_cfg.update(ui_lang="zh").save()
     g = ProfileStore.load(store.path, protector=_Protector()).global_settings
     assert (g.ui_lang, g.keep_awake, g.autostart) == ("zh", False, False)
+
+
+def test_an_erp_member_picks_which_express_roots_belong_to_its_site(tmp_path, monkeypatch):
+    # 1.12.0：事务所电脑同时连 Cowork 和某个客户的 ERP，只有选了的数据根报给这个 ERP（默认一个都不报）
+    store = _store(tmp_path, monkeypatch)
+    cowork = store.profiles[0].profile_id
+    cfg = store.new_runtime_config()
+    cfg.update(backend_url="https://testerp.pearnly.com", bearer_token="pcc_PCD-0123456789abcdef0123_" + "s" * 43,
+               account_dir=r"S:\\EXP68\\ACME", account_set=r"S:\\EXP68\\ACME", account_company="Acme Co.",
+               express_root=r"S:\\EXP68", authorized_roots=[r"S:\\EXP68", r"S:\\EXP69"],
+               pearnly_account="staff@example.com", paired=True, ui_lang="zh")
+    store.save_profile(cfg)
+    erp = next(item.profile_id for item in ProfileStore.load(store.path, protector=_Protector()).profiles
+               if item.profile_id != cowork)
+    settings = _settings(store)
+    assert settings.set_erp_roots(erp, [r"S:\\EXP69", r"Z:\\ELSEWHERE"], "testcowork.pearnly.com") == {"ok": False}
+    assert settings.set_erp_roots(cowork, [r"S:\\EXP69"], "testcowork.pearnly.com") == {"ok": False}  # 不是 ERP 成员
+    assert settings.set_erp_roots(erp, [r"S:\\EXP69", r"Z:\\ELSEWHERE"], "testerp.pearnly.com")["ok"] is True
+    saved = {item.profile_id: item.erp_roots for item in ProfileStore.load(store.path, protector=_Protector()).profiles}
+    assert saved == {cowork: (), erp: (r"S:\\EXP69",)}  # 只认这台电脑已授权的数据根

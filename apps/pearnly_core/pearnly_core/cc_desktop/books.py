@@ -17,16 +17,19 @@ FIELDS = ("name", "device", "book_key", "identity", "path", "root", "row", "uid"
 
 
 def replace(device, raw, moment):
-    """这台电脑整份上报的账套名单 → 它的账套行（只动它自己的）。"""
+    """这台电脑整份上报的账套名单 → 它的账套行（只动它自己的）。有变化（新建 / 改 / 删）时告诉产品（`products.books_changed`）。"""
     fresh = {row["book_key"]: row for row in contracts.books(raw)}
     stored = {row.book_key: row for row in frappe.get_all(BOOK, filters={"device": device}, fields=list(FIELDS))}
+    changed = False
     for key, row in stored.items():
         if key not in fresh:
             documents.remove(BOOK, row.name)
+            changed = True
     for key, row in fresh.items():
         current = stored.get(key)
         if current is not None and contracts.same_book(current, row):
             continue
+        changed = True
         values = {**row, "writable": 1 if row["writable"] else 0, "seen_at": moment}
         if current is None:
             documents.new(BOOK, frappe.generate_hash(length=20), {"device": device, **values})
@@ -34,6 +37,10 @@ def replace(device, raw, moment):
             doc = frappe.get_doc(BOOK, current.name)
             doc.update(values)
             documents.persist(doc)
+    if changed:
+        from pearnly_core.cc_desktop import products
+
+        products.books_changed(device)
 
 
 def drop_device(device):

@@ -1730,6 +1730,7 @@ The account codes are invalid.,科目号无效。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
 The account set on this computer is not the registered one. Waiting for another computer.,此电脑上的账套与登记的不一致，等待其他电脑
+The accounting period is closed in Express,会计期间已在 Express 关账
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up. Correct them and submit again,金额合计不一致，请更正后重新提交
 The answer is not valid.,回答无效。
@@ -3372,6 +3373,7 @@ intake.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 intake.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 intake.error.NO_ACCOUNT_SELECTION,此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
 intake.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
+intake.error.PERIOD_LOCKED,会计期间已在 Express 关账
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试

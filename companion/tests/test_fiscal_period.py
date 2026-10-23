@@ -313,3 +313,23 @@ def _clear_isprd(acct):
             dbf.delete(r)
     finally:
         t.close()
+
+
+
+# ── 关账期间（1.12.0：只有 ERP 的单带 respect_period_lock）──────────────────
+
+
+def test_a_locked_period_refuses_an_erp_document_and_leaves_the_book_untouched(acct):
+    seed_fiscal_year(acct, 2026, locked_cy=(3,))
+    assert F.locked(acct, dt.date(2026, 3, 15)) and not F.locked(acct, dt.date(2026, 4, 1))
+    before = {p.name: p.read_bytes() for p in acct.iterdir() if p.is_file()}
+    res = W.write_purchase(_purchase(respect_period_lock=True), acct, **_gate(acct))
+    assert not res.ok and res.error_code == F.ERR_PERIOD_LOCKED
+    sale = WS.write_sale(_sale(docdate_be="690315", vat_period_be="690301", respect_period_lock=True), acct, **_gate(acct))
+    assert not sale.ok and sale.error_code == F.ERR_PERIOD_LOCKED
+    assert {p.name: p.read_bytes() for p in acct.iterdir() if p.is_file()} == before
+
+
+def test_cowork_documents_are_written_into_a_locked_period_as_before(acct):
+    seed_fiscal_year(acct, 2026, locked_cy=(3,))
+    assert W.write_purchase(_purchase(), acct, **_gate(acct)).ok

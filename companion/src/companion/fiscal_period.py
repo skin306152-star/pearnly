@@ -21,7 +21,8 @@ HP/RR 格,按日历月只能解释 17 个、按 ISPRD 期号 206 个全中。
 
 本文件与 `bridge/writepath/fiscal_period.py` 是**同源复制而非共享**:桥与小助手是两条独立
 发版线,互不 import(闸 `test_bridge_never_imports_companion` 锁着反向)。桥那份还带关账锁
-闸(LOCK 列 → 拒单),小助手这条写路没有拒单转人工的出口,故只搬期号判定这一半。
+闸(LOCK 列 → 拒单);小助手这条写路原来只搬期号判定这一半,1.12.0 起只对带 ``respect_period_lock`` 的载荷(ERP 的单)
+看锁(:func:`locked`),Cowork 的推送照旧不看。
 """
 
 from __future__ import annotations
@@ -150,3 +151,32 @@ def resolve_month_field(account_dir, day: dt.date, prefix: str) -> Tuple[Optiona
             f"{prefix} 月桶本单未写,请确认这张单是不是该进另一本账套"
         )
     return month_field(prefix, period), ""
+
+
+ERR_PERIOD_LOCKED = "PERIOD_LOCKED"
+
+
+def locked(account_dir, day: dt.date) -> bool:
+    """单据日期所在的会计期在 Express 里关账了没有（ISPRD 的 ``LOCK{期}{槽}`` = 'Y'，会计结账 / 审计后锁的；上一年度账套常
+    全年都锁）。表读不到、日期不在期间窗里：判不出，回 False（这两种由 :func:`resolve_month_field` 照旧报原因）。
+
+    1.12.0：只给带 ``respect_period_lock`` 的载荷用（ERP 的单，用户 10-23：上一年度账套被锁写不进时 ERP 要显示原因）。Cowork 的
+    推送不带这个标记，照旧写（行为不变）。"""
+    path = Path(account_dir) / f"{TABLE}.DBF"
+    if not path.is_file():
+        return False
+    cal = load(account_dir)
+    period = cal.locate(day) if cal is not None else None
+    if period is None:
+        return False
+    t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    t.open(dbf.READ_ONLY)
+    try:
+        row = next(iter(S.live_rows(t)), None)
+        try:
+            value = row[f"LOCK{period.suffix}"] if row is not None else ""
+        except Exception:
+            value = ""
+    finally:
+        t.close()
+    return str(value or "").strip().upper() == "Y"

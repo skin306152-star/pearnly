@@ -96,7 +96,7 @@ def seed_fiscal_year(
 
     `cy_year`/`start_month` = CY 第 1 期的年月。要复现非 1 月起账的账套(真账里 69ASIAMI/
     69ASIAR/68ASIAMI/68ASIAR 四本)传 `start_month=11`。`locked_*` 是关账期号列表 —— 小助手
-    这条写路目前不读锁,种它只为让合成表与真表同形(真账 432 格全是 'Y'/'N',没有空白)。
+    这条写路只对 ERP 的单(``respect_period_lock``)读锁,种它也为让合成表与真表同形(真账 432 格全是 'Y'/'N',没有空白)。
     重复调用覆盖原行,不叠加。
     """
     row = {}

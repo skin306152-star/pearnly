@@ -391,6 +391,7 @@ Express Choices Needed,Express の選択待ち
 Express Code,Express コード
 Express Company,Express 会社
 Express Job,Express 書き込み
+Express Mark,Express マーク
 Express No.,Express 番号
 Express Note,Express メモ
 Express Sent At,Express 送信日時
@@ -1013,6 +1014,7 @@ That warehouse belongs to another company,この倉庫は別会社のもので�
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
 The account you give customers for transfers,入金時に相手へ伝える口座
+The accounting period is closed in Express,会計期間は Express で締め済みです
 The amount is invalid,金額が無効です
 The amount payable cannot be negative,支払額はマイナスにできません
 The amount received is less than the total,受取額が合計に足りません
@@ -1325,6 +1327,7 @@ company.syncExpress,Express と同期
 company.syncExpress.failed,同期に失敗しました
 company.syncExpress.offline,CC デスクトップが接続されていません
 company.syncExpress.outdated,CC デスクトップの更新が必要です
+company.syncExpress.queued,待機中
 company.syncExpress.reading,読み込み中
 company.syncExpress.ready,同期しました
 company.syncExpress.syncing,同期中
@@ -1373,6 +1376,7 @@ express.option.expense,費用計上
 express.reason.noBook,この日付を含む Express 帳簿がありません
 express.reason.noWriter,この帳簿に書き込める端末がありません
 express.reason.offline,端末オフライン
+express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.reading,Express 帳簿を読み取り中
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.state.written,書き込み済み

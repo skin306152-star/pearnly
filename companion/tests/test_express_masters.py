@@ -121,14 +121,14 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     before = _state(books.acct)
     result, data = _read(books)
     assert _state(books.acct) == before  # 只读：账套里每个文件都不变
-    assert list(data) == ["version", "account_set", "read_at", "settings", "customers", "suppliers", "products",
+    assert list(data) == ["version", "account_set", "mark", "read_at", "settings", "customers", "suppliers", "products",
                           "units", "warehouses", "departments", "stock", "facts"]
     assert data["version"] == 2 and data["account_set"] == express_masters.express_read._norm(books.acct)
     # facts（ERP 直连后准备写账载荷用，ADR-025）：与心跳按账套上报同形状；ISINFO 没有默认科目列、没有存货科目组就给空
     assert data["facts"] == {"accounts": [{"code": "11-01-01-00", "name": "เงินสด", "type": "1"}], "mapping": {},
                              "catalog": {"isacc_candidates": []}}
     assert data["read_at"].endswith("Z")
-    assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y"}
+    assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y", "address": "", "phone": ""}
     assert data["customers"] == [{"code": "C01", "name": "ร้านป้าแดง", "tax_id": "0105560000001", "branch": "00002",
                                   "address": "1 ถนนหนึ่ง เมือง 31000", "phone": "044-111111", "payterm": "30"}]
     assert data["suppliers"] == [{"code": "ชาญ\xa0ฟู้ด", "name": "ชาญ ฟู้ด", "tax_id": "0105556012345", "branch": "00000",
@@ -168,7 +168,7 @@ def test_missing_tables_give_empty_lists_but_not_a_folder_without_the_masters(bo
         (books.acct / f"{name}.DBF").unlink()
     _result, data = _read(books)
     assert data["customers"] == data["suppliers"] == data["stock"] == []
-    assert data["settings"] == {"mainloc": "", "negallow": "", "cosmtd": "", "usedep": ""}
+    assert data["settings"] == {"mainloc": "", "negallow": "", "cosmtd": "", "usedep": "", "address": "", "phone": ""}
     (books.acct / "STMAS.DBF").unlink()
     with pytest.raises(RequestFailed) as error:
         _read(books)
@@ -222,3 +222,23 @@ def test_the_request_thread_knows_how_to_read_the_masters():
     assert "express_masters" in KINDS
     assert request_worker.HANDLERS["express_masters"] is express_masters.read_masters
     assert MAX_BYTES["express_masters"] == 16 * 1024 * 1024 and LEASE_SECONDS["express_masters"] == 900
+
+
+def test_the_mark_changes_only_when_a_master_table_changes(books):
+    # 1.12.0 express_marks：ERP 每 10 分钟看一眼，标记变了才整套读（只看文件属性，不读内容、不碰账套）
+    before = _state(books.acct)
+    params = _params(books)
+    first = json.loads(gzip.decompress(express_masters.read_marks(_cfg(books), params).content))["mark"]
+    _result, data = _read(books)
+    assert data["mark"] == first and _state(books.acct) == before
+    (books.acct / "GLACC.DBF").write_bytes((books.acct / "GLACC.DBF").read_bytes())  # 不是主档表：标记不变
+    assert express_masters.mark(books.acct) == first
+    _append(books.acct / "ARMAS.DBF", [{"CUSCOD": "C09", "CUSNAM": "ลูกค้าใหม่"}])
+    assert express_masters.mark(books.acct) != first
+    assert "express_marks" in KINDS and MAX_BYTES["express_marks"] < MAX_BYTES["express_masters"]
+    assert request_worker.HANDLERS["express_marks"] is express_masters.read_marks
+
+
+def test_the_book_settings_carry_the_company_address_and_phone(books):
+    _result, data = _read(books)
+    assert set(data["settings"]) >= {"address", "phone"}

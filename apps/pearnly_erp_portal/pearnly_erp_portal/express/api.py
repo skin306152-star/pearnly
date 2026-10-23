@@ -105,6 +105,48 @@ def document_express(doctype, name):
 
 
 @frappe.whitelist(methods=["POST"])
+def preflight(doctype, payload, answers=None):
+    """提交前（用户 10-23：「点提交后，缺字段应该马上弹窗要求选择」）：表单此刻的内容（不存）按写账规则准备一遍，回要人定的
+    项 ``{"needed": [...]}``，页面当场弹窗问；``answers`` 给了先照选的记住（同 :func:`answer` 的核对）再判一遍，直到没有要问的。
+    这家公司没接 Express、主档还没读到、没有账套这类不用人选的：回空，照常提交（提交后自动接着走）。"""
+    if doctype not in CAPABILITIES:
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    guard.require(CAPABILITIES[doctype][1])
+    payload = frappe.parse_json(payload) if isinstance(payload, str) else payload
+    if not isinstance(payload, dict) or not payload.get("lines"):
+        return {"needed": []}
+    company = companies.document_company(payload.get("company"))
+    if not push.linked(company):
+        return {"needed": []}
+    company_row = push._company(company)
+
+    def needed():
+        result = prepare.prepare(push.form_document(doctype, payload, company), company_row, masters.ensure)
+        if not str(result.get("hold") or "").startswith(contracts.CHOICE):
+            return [], None
+        book = result.get("book") or {}
+        data = facts.load(book["key"]) if book.get("key") else None
+        return [{**item, "options": _options(item, data)} for item in result.get("needed") or []], data
+
+    items, _data = needed()
+    answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
+    if answers:
+        if not isinstance(answers, list):
+            frappe.throw(_("Invalid request"))
+        asked = {(item["kind"], item["subject"]): item for item in items}
+        for given in answers:
+            item = asked.get((given.get("kind"), given.get("subject"))) if isinstance(given, dict) else None
+            value = str((given or {}).get("value") or "").strip()
+            options = {option["code"]: option["name"] for option in item["options"]} if item else {}
+            if not item or value not in options:
+                frappe.throw(_("Invalid request"))
+            choices.remember(company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
+        frappe.db.commit()
+        items, _data = needed()
+    return {"needed": items}
+
+
+@frappe.whitelist(methods=["POST"])
 def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)

@@ -27,7 +27,8 @@
   "express_book",
   "express_synced_at",
   "express_sync_state",
-  "express_sync_note"
+  "express_sync_note",
+  "express_mark"
  ],
  "fields": [
   {
@@ -183,11 +184,19 @@
    "label": "Express Sync Note",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "express_mark",
+   "fieldtype": "Data",
+   "label": "Express Mark",
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 21:00:00.000000",
+ "modified": "2026-10-24 09:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,
