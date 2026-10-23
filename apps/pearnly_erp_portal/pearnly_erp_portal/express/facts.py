@@ -66,6 +66,18 @@ def reported(data) -> dict:
     return out
 
 
+def accounts_first(rows, subject) -> list:
+    """要人选科目时的顺序：这一边最常用的大类在前（进项费用 5、销项收入 4），其余照旧跟在后面 —— 只排序不筛，进项也可能记
+    资产（同 Cowork 列整张科目表）。有 Express 科目类型（GROUP）按类型，没有按编号首位（同 Cowork `account_suggest.expense`）。"""
+    group = "4" if str(subject or "").startswith("sales|") else "5"
+
+    def first(row):
+        kind = str(row.get("type") or "").strip()
+        return kind == group if kind else str(row.get("code") or "").strip()[:1] == group
+
+    return sorted(rows, key=lambda row: not first(row))
+
+
 def mapping(data) -> dict:
     """1.11.0 起结果里另带这份账套 ISINFO 的 6 个默认科目（心跳的账套行也带，这里是读主档那一刻的）。"""
     facts = data.get("facts") if isinstance(data, dict) and isinstance(data.get("facts"), dict) else {}

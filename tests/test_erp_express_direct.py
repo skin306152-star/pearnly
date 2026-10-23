@@ -140,6 +140,13 @@ class Prepare(Base):
         payload = self.prepare(doc(items=service))["payload"]
         self.assertIn("52-08-00-00", [line["acc"] for line in payload["lines"] if line["side"] == "D"])
 
+    def test_the_expense_accounts_come_first_without_hiding_the_rest(self):
+        accounts = facts.reported({"facts": {"accounts": ACCOUNTS}})["reported_accounts"]
+        codes = [row["code"] for row in facts.accounts_first(accounts, "purchase|" + SUPPLIER)]
+        self.assertEqual(sorted(codes), sorted(row["code"] for row in ACCOUNTS))  # 进项也可能记资产：不筛
+        self.assertEqual(codes[:2], ["52-08-00-00", "51-03-00-00"])
+        self.assertEqual(facts.accounts_first([{"code": "52-01"}, {"code": "41-01"}], "sales|x")[0]["code"], "41-01")
+
     def test_bad_documents_fail(self):
         key, = self.computer([book()])
         self.masters(key)

@@ -74,9 +74,26 @@ Cowork；事务所现有 Cowork 用法不受影响。由哪台电脑写照 Cowor
 | Cowork 推送回归（搬移后 Cowork 自己的通道，`lab-start cowork`）：手工票 → `choices_view` → `submit` → `confirm` | `CWP-b6ed…` success，写入 `RR691023-003`（同一份 T9NIEX12），载荷 4、核对 ok、写的电脑 = CCD 那台；分录形状与 ERP 直写 `RR691023-001` 完全相同（库存科目借贷、VAT、应付） |
 | 两站点写同一份账套的锁 | 写入后账套目录有 `PEARNLY.LCK`（空文件，Express 不读）；锁不到回「等账套」由离线测试覆盖，测试机未造两台电脑同时写 |
 
+## 真人验收（验收窗口，代码 `59e1cd3a`，testerp 实验栈 + 生产 testcowork）
+
+完整记录在验收窗口的共享笔记 `erp-cc-direct-验收结果.md`。5 条全部通过：CC 窗口用 ERP 员工账号登录 testerp（对话页登记
+`PCD-64df5d5d14aad5cbe334`）；ERP 网页开采购 `PUR-2026-00121` → `HP691023-001`、销售 `SD-00123` → `IV691023-002`；费用科目在
+ERP 弹窗选一次写入 `RR691023-004`，同供应商下一张不再问 `RR691023-005`；公司页同步后供应商 6/6、客户 2/2、存货 21/21、USD
+02 仓 ERP = Express STLOC = 4；生产 testcowork 照常推送 `RR691023-006`（Cowork 通道 0.45 秒，无锁冲突）。
+
+验收另报 4 条，处理如下：
+
+| # | 发现 | 处理 |
+|---|---|---|
+| 1 | Cowork 不带仓库码的推送（`RR691023-006` 进主仓 01）只记 STCRD、不维护 STLOC；ERP 按 STLOC 读库存，看不到这批货 | **不并进本批**，单独做（已有任务卡「CC 不带仓库码的库存写入也维护 STLOC」）。原因：这是 CC 写入路径的既有行为（`stock_location.py` 有意保持旧写法逐字节不变），改它影响所有 Cowork 租户的线上写入，要 62 套离线回归；本批的约束是 Cowork 现有推送不变。ERP 读 STLOC 是照 Express 自己的分仓结存，读法本身对，STLOC 补齐后 ERP 自然一致 |
+| 2 | CC 里同站点同通道多出一个 ERP 成员（开发脚本用随机设备密钥登记的旧设备 + 真人登录登记的新设备） | 修：`desktop_settings.pair` 配共用通道时，同一站点原有的共用通道成员视为这台电脑的旧登记，新的配好后吊销并删掉（共用通道的设备就是电脑，一台电脑一个站点只一个）；Cowork 通道不变。测试 `test_a_new_device_on_the_same_erp_site_replaces_the_old_member` |
+| 3 | ERP 选供应商 / 客户不能按 Express 代码搜 | 修：`masters.selection` 供应商 / 客户的搜索与返回字段加 `express_code`，选项标签有 Express 代码时显示代码 |
+| 4 | 费用科目下拉列出整张科目表 | 只排序不筛：进项可能记固定资产 / 预付（Cowork 同样列整张科目表），硬筛会挡住合法科目。改为本边常用大类排前（进项费用 5、销项收入 4，`facts.accounts_first`），其余跟在后面 |
+
+第 2 条要新打 CC 测试包才在测试机生效（版本仍 1.11.0，未发布）；第 3、4 条在 testerp 实验栈 `testenv.sh live erp` 后生效。
+
 ## 没验证的部分
 
-- 真人用 ERP 员工账号在 CC 窗口里登录 ERP、在 ERP 页面点开单 → Express 弹窗的整段点击：交给验收窗口由用户试（我不在登录页代输密码）。
 - 两台电脑同时写同一份账套（锁文件跨机互斥）只在离线测试里验证。
 - 生产部署、CC 1.11.0 正式版发布：未做，等用户同意。
 

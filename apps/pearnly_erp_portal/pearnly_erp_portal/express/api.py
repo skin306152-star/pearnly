@@ -65,6 +65,8 @@ def _options(item, data):
               "department": reported.get("reported_departments") or []}.get(item["kind"])
     if source is None:
         return [{"code": code, "name": ""} for code in FIXED.get(item["kind"], ())]
+    if item["kind"] == "account":
+        source = facts.accounts_first(source, item["subject"])
     rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or "")} for row in source]
     if item["kind"] == "item":
         rows.append({"code": choice_rules.NEW, "name": ""})

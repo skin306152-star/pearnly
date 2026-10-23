@@ -18,7 +18,7 @@
 		// a new scan, an OCR refill or a master refresh supersedes its result.
 		const current = own => own === value_revision && control.$wrapper[0].isConnected;
 		const field = kind === "product" ? "product_name" : kind === "supplier" ? "supplier_name" : "customer_name";
-		const label = row => `${row[field]} · ${row.code || row.tax_id || row.name}${row.branch_no ? " / " + row.branch_no : ""} · ${row.name}`;
+		const label = row => `${row[field]} · ${row.code || row.express_code || row.tax_id || row.name}${row.branch_no ? " / " + row.branch_no : ""} · ${row.name}`;
 		const sync = async () => {
 			if (!editable || !control.$wrapper[0].isConnected) return;
 			const value = String(control.$input?.val() || "").trim();

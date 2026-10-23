@@ -125,6 +125,28 @@ def test_an_erp_site_joins_next_to_the_cowork_site(tmp_path, monkeypatch):
     assert desktop_settings.main_member(ProfileStore.load(store.path, protector=_Protector())).channel == "cowork"
 
 
+def test_a_new_device_on_the_same_erp_site_replaces_the_old_member(tmp_path, monkeypatch):
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    cowork = _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com")
+    old = _member(store, ERP_TOKEN, "https://testerp.pearnly.com")
+    left = []
+    settings = _settings(store, leave=lambda url, token: left.append((url, token)) or True)
+    fresh = "pcc_PCD-ffffffffffffffffffff_" + "t" * 43
+
+    def paired(self, store, code, lang, profile_id):
+        _member(store, fresh, "https://testerp.pearnly.com")
+        return {"ok": True, "profiles_changed": True}
+
+    monkeypatch.setattr(DesktopSettings, "_pair", paired)
+    # 这台电脑的设备密钥换过：对话页登记出一台新设备，同一站点同一种通道只留新配的这个，旧的吊销
+    assert settings.pair(f"{fresh}@testerp.pearnly.com", "zh")["ok"] is True
+    again = ProfileStore.load(store.path, protector=_Protector())
+    members = {cfg.profile_id: cfg.bearer_token for cfg in again.runtime_configs()}
+    assert old not in members and cowork in members and fresh in members.values()
+    assert left == [("https://testerp.pearnly.com", ERP_TOKEN)]
+
+
 def test_a_second_writer_of_the_same_account_set_is_turned_away(tmp_path):
     with held(str(tmp_path)):
         assert (tmp_path / LOCK_NAME).exists()

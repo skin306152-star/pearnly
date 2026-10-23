@@ -274,6 +274,10 @@ class DesktopSettings:
             profile_id = next((r.profile_id for r in store.profiles if endpoint and r.endpoint_id == endpoint), None)
             if profile_id is not None:
                 self._settle_member(store, profile_id, str(code or "").strip().partition("@")[0])
+            elif kind == channel.CORE:
+                # 共用通道的设备就是这台电脑：同一站点换了一台设备（设备密钥换过）时，原来那个成员是旧登记，配好新的就收掉
+                leaving = [(record.profile_id, *self._credentials(store, record.profile_id)) for record in store.profiles
+                           if member_channel(record) == kind and member_site(record) == wanted]
         result = self._pair(store, code, lang, profile_id)
         if leaving and result.get("ok"):
             for member, backend_url, token in leaving:
