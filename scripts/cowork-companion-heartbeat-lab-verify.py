@@ -17,7 +17,7 @@ import frappe
 from frappe.config import clear_site_config_cache
 from werkzeug.test import Client, EnvironBuilder
 from werkzeug.wrappers import Request, Response
-from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
+from pearnly_core.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-credentials-lab-verify.py')))
 BASE = FIXTURE['NativeCredentials']

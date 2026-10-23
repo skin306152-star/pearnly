@@ -19,7 +19,7 @@ from uuid import uuid4
 import frappe
 from werkzeug.test import Client
 from werkzeug.wrappers import Response
-from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
+from pearnly_core.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-transport-lab-verify.py')))
 BASE = FIXTURE['CompanionTransport']

@@ -18,7 +18,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import frappe
-from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
+from pearnly_core.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
 HELD = 1  # 一张领走的单持有的写者锁（见 `locks`）
 
 FIXTURE = runpy.run_path(str(Path(__file__).with_name('cowork-companion-queue-http-lab-verify.py')))
@@ -407,7 +407,7 @@ class NativeQueueAckHttp(unittest.TestCase):
             # whole-transaction rollback in `transaction.conflicts.retried`, which
             # `queue_api._run` runs the service through since 10-20).
             # Native savepoint handling and the final app rollback remain real.
-            from pearnly_cowork.transaction import conflicts
+            from pearnly_core.transaction import conflicts
             if sys._getframe(1).f_code is conflicts.retried.__code__ and not rollback_failures:
                 rollback_failures.append(True)
                 raise RuntimeError(secret)

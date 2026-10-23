@@ -6,7 +6,7 @@ need explicit transport adaptation and are not silently switched to these URLs.
 """
 import frappe
 
-from pearnly_cowork.transaction import conflicts
+from pearnly_core.transaction import conflicts
 
 from pearnly_core.cc_desktop.wire import queue_contracts
 

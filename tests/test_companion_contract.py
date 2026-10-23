@@ -810,14 +810,16 @@ class AccountSetIdentity(unittest.TestCase):
     客户端报的账套行键都在服务端白名单里；心跳与配对上报走同一个 `with_identity`。"""
 
     REPORTS = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "connections" / "reports.py"
+    # 目录属性的白名单在共用层的净化规则里（ADR-025）
+    RULES = WIRE / "report_rules.py"
 
     def server_keys(self):
-        tree = ast.parse(self.REPORTS.read_text(encoding="utf-8"))
         raw = attribute = None
-        for node in ast.walk(tree):
+        for node in [*ast.walk(ast.parse(self.REPORTS.read_text(encoding="utf-8"))),
+                     *ast.walk(ast.parse(self.RULES.read_text(encoding="utf-8")))]:
             if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "_ACCOUNT_SET_KEYS":
                 raw = set(ast.literal_eval(node.value))
-            if (isinstance(node, ast.FunctionDef) and node.name == "_account_sets"):
+            if (isinstance(node, ast.FunctionDef) and node.name == "account_sets"):
                 for keyword in ast.walk(node):
                     if isinstance(keyword, ast.keyword) and keyword.arg == "attribute_keys":
                         attribute = set(ast.literal_eval(keyword.value))

@@ -1,7 +1,7 @@
 """人发起的推送在数据库冲突时整笔重来（10-20 lab：待处理页连着推、测试机 CC 桌面版同时领单写账，5 张直接报
 「Record has changed since last read in table 'tabCowork Push Writer Lock'」，隔几秒再点都成）。
 
-机制（整笔回滚、次数、退避、为什么不回保存点、只在调用方自己的事务边界上用）在共用的 `pearnly_cowork.transaction.conflicts`，
+机制（整笔回滚、次数、退避、为什么不回保存点、只在调用方自己的事务边界上用）在共用的 `pearnly_core.transaction.conflicts`，
 CC 桌面版的电脑侧短事务也经它。这里只定人推用尽时给什么：正式原因 ``push.native_lock_conflict``（已有词条，
 「另一笔推送正在占用写入锁」），不带 SQL 原文。
 
@@ -12,7 +12,7 @@ CC 桌面版的电脑侧短事务也经它。这里只定人推用尽时给什�
 import frappe
 from frappe import _
 
-from pearnly_cowork.transaction import conflicts as shared
+from pearnly_core.transaction import conflicts as shared
 
 EXHAUSTED = "push.native_lock_conflict"
 

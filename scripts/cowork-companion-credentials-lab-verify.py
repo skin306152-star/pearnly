@@ -267,7 +267,7 @@ class NativeCredentials(unittest.TestCase):
         self.assertEqual(frappe.db.count(self.documents.DOCTYPE, {'connection': self.connection['name']}), 1)
 
     def test_local_transaction_retries_only_local_conflicts_and_never_swallows_permission(self):
-        from pearnly_cowork.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
+        from pearnly_core.transaction.conflicts import ATTEMPTS  # 共用的整笔重来（10-20 起 4 次、带退避）
         for error, count in ((frappe.QueryDeadlockError('synthetic'), ATTEMPTS), (frappe.PermissionError('synthetic'), 1)):
             with patch.object(self.service, 'issue', side_effect=error) as called:
                 with self.assertRaises(type(error)): self.issue()

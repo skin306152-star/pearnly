@@ -273,6 +273,8 @@ services:
     volumes: &erp-volumes
       - sites-erp:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+      # CC 桌面版发布目录：ERP 站点也收 CC 桌面版心跳（ADR-025），回复带上最新版本（pearnly_core/cc_desktop/release.py）
+      - /var/www/pearnly-downloads/companion:/opt/pearnly/companion-release:ro
       - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
     environment:
       <<: *frappe-env
@@ -328,7 +330,7 @@ services:
     volumes: &cowork-volumes
       - sites-cowork:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
-      # 小助手发布目录（receive-companion.py 写 latest.json）：心跳回复带上最新版本（pearnly_cowork/companion/release.py）
+      # 小助手发布目录（receive-companion.py 写 latest.json）：心跳回复带上最新版本（pearnly_core/cc_desktop/release.py）
       - /var/www/pearnly-downloads/companion:/opt/pearnly/companion-release:ro
       - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
     environment:

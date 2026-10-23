@@ -840,19 +840,19 @@ class MachineReplyTests(unittest.TestCase):
         service = types.ModuleType("request_service")
         companion = types.ModuleType("pearnly_cowork.companion")
         companion.http_auth, companion.request_service, companion.request_contracts = auth, service, contracts
-        transaction = types.ModuleType("pearnly_cowork.transaction")
-        names = ("frappe", "pearnly_cowork", "pearnly_cowork.companion", "pearnly_cowork.transaction",
-                 "pearnly_cowork.transaction.conflicts", "pearnly_core.cc_desktop.wire",
+        transaction = types.ModuleType("pearnly_core.transaction")
+        names = ("frappe", "pearnly_cowork", "pearnly_cowork.companion", "pearnly_core.transaction",
+                 "pearnly_core.transaction.conflicts", "pearnly_core.cc_desktop.wire",
                  "pearnly_core.cc_desktop.wire.request_contracts")
         saved = {name: sys.modules.get(name) for name in names}
         sys.modules.update({"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
-                            "pearnly_cowork.companion": companion, "pearnly_cowork.transaction": transaction,
+                            "pearnly_cowork.companion": companion, "pearnly_core.transaction": transaction,
                             # 线上约定在共用层（ADR-025）：被测入口拿到的是这里载入的同一份
                             "pearnly_core.cc_desktop.wire": types.SimpleNamespace(request_contracts=contracts),
                             "pearnly_core.cc_desktop.wire.request_contracts": contracts})
         try:
             # 撞锁整笔重来用真的共用处（`transaction.conflicts`），绑这里的 Frappe 替身
-            transaction.conflicts = _load("pearnly_cowork.transaction.conflicts", APP / "transaction/conflicts.py")
+            transaction.conflicts = _load("pearnly_core.transaction.conflicts", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/transaction/conflicts.py")
             self.api = _load("request_api_under_test", APP / "companion/request_api.py")
         finally:
             for name, module in saved.items():

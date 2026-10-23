@@ -10,7 +10,7 @@ import frappe
 
 from pearnly_cowork.companion import http_auth, request_service
 from pearnly_core.cc_desktop.wire import request_contracts as contracts
-from pearnly_cowork.transaction import conflicts
+from pearnly_core.transaction import conflicts
 
 PROTOCOL = 1
 

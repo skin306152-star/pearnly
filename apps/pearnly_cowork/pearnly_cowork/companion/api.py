@@ -4,7 +4,7 @@ import frappe
 # 授权判据走连接域那一份（companion 的域依赖只有 connections/push/targets；
 # `pearnly_cowork.access` 不在它的允许列表里，不能在这里直接 import）。
 from pearnly_cowork.connections import access
-from pearnly_cowork.transaction import conflicts
+from pearnly_core.transaction import conflicts
 
 from . import credentials, pool
 

@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.recorder import do_not_record
 
-from pearnly_cowork.transaction import conflicts
+from pearnly_core.transaction import conflicts
 
 from pearnly_core.cc_desktop.wire import queue_contracts
 

@@ -4,6 +4,7 @@
 前 N 次冲突后成功、用尽后给正式原因（不带 SQL 原文）、别的错误不重来、被回滚那次的提示不带出来；复核页「提交」与 Express
 「确认发送」用尽时照旧把原因记在票上；所有共用写者锁的人推入口都经同一处（不一处一补）。不连库：Frappe 用最小替身。
 """
+from pathlib import Path
 import ast
 import importlib.util
 import pathlib
@@ -68,10 +69,10 @@ def _install():
     service = types.ModuleType("pearnly_cowork.push.application.service")
     packages = {name: types.ModuleType(name) for name in
                 ("pearnly_cowork", "pearnly_cowork.push", "pearnly_cowork.push.application", "pearnly_cowork.companion",
-                 "pearnly_cowork.transaction")}
+                 "pearnly_core.transaction")}
     with mock.patch.dict(sys.modules, {"frappe": frappe, **packages, service.__name__: service}):
-        shared = _load("pearnly_cowork.transaction.conflicts", COWORK / "transaction/conflicts.py")
-        packages["pearnly_cowork.transaction"].conflicts = shared
+        shared = _load("pearnly_core.transaction.conflicts", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/transaction/conflicts.py")
+        packages["pearnly_core.transaction"].conflicts = shared  # 共用的整笔重来在共用层（ADR-025）
         conflicts = _load("pearnly_cowork.push.application.conflicts", COWORK / "push/application/conflicts.py")
         packages["pearnly_cowork.push.application"].conflicts = conflicts
         packages["pearnly_cowork.push.application"].service = service

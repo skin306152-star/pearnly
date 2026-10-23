@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import frappe
 
-from pearnly_cowork.transaction import conflicts
+from pearnly_core.transaction import conflicts
 
 from . import credentials, device_contracts, http_auth
 from .contracts import CredentialError

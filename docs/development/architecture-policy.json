@@ -209,8 +209,7 @@
     "companion": [
       "connections",
       "push",
-      "targets",
-      "transaction"
+      "targets"
     ],
     "connections": [
       "masters",
@@ -275,8 +274,7 @@
       "connections",
       "contracts",
       "history",
-      "targets",
-      "transaction"
+      "targets"
     ],
     "readback": [
       "access",
@@ -309,7 +307,6 @@
     ],
     "tabular": [],
     "targets": [],
-    "transaction": [],
     "tax": [
       "access",
       "contracts",

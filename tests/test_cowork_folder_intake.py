@@ -1489,7 +1489,9 @@ class MachineSync(unittest.TestCase):
                                         now_datetime=lambda: datetime(2026, 10, 12, 20, 0)),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub()),
-                   "pearnly_cowork.companion": stub(http_auth=stub(), release=stub(latest=lambda: latest)),
+                   "pearnly_cowork.companion": stub(http_auth=stub()),
+                   # 最新版本的读取在共用层（ADR-025）
+                   "pearnly_core.cc_desktop": stub(release=stub(latest=lambda: latest)),
                    "pearnly_cowork.connections": stub(access=stub(), desktop_update=desktop_update),
                    "pearnly_cowork.folder_intake": stub(
                        agent=agent, readers=readers, contracts=contracts, inbox=stub(), settings=stub(), workbook=stub(),

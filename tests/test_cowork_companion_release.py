@@ -1,4 +1,5 @@
 """最新发布版本随心跳回复带给小助手（2026-10-09）：只读服务器上的 latest.json，不联网、不定时。"""
+from pathlib import Path
 import importlib.util
 import json
 import os
@@ -11,7 +12,7 @@ APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
 
 
 def _release():
-    spec = importlib.util.spec_from_file_location("companion_release_under_test", APP / "companion/release.py")
+    spec = importlib.util.spec_from_file_location("companion_release_under_test", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/cc_desktop/release.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

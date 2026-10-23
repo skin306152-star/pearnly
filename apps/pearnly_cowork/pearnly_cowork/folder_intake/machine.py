@@ -16,7 +16,8 @@ import frappe
 from frappe.utils import get_datetime, get_system_timezone, now_datetime
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.companion import http_auth, release
+from pearnly_cowork.companion import http_auth
+from pearnly_core.cc_desktop import release
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.folder_intake import (agent, company_folders, contracts, inbox, live, notify, readers, settings,

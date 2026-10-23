@@ -162,10 +162,10 @@ def _install():
         parent, _, child = name.rpartition(".")
         setattr(sys.modules[parent], child, module)
     # 撞上写者锁时整笔重来的共用处（`push.application.conflicts` 经 `transaction.conflicts`）用真的：次数、退避与用尽时的原因都按它
-    sys.modules["pearnly_cowork.transaction"] = types.ModuleType("pearnly_cowork.transaction")
-    spec = importlib.util.spec_from_file_location("pearnly_cowork.transaction.conflicts", COWORK / "transaction/conflicts.py")
+    sys.modules["pearnly_core.transaction"] = types.ModuleType("pearnly_core.transaction")
+    spec = importlib.util.spec_from_file_location("pearnly_core.transaction.conflicts", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/transaction/conflicts.py")
     shared = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = sys.modules["pearnly_cowork.transaction"].conflicts = shared
+    sys.modules[spec.name] = sys.modules["pearnly_core.transaction"].conflicts = shared
     spec.loader.exec_module(shared)
     spec = importlib.util.spec_from_file_location("pearnly_cowork.push.application.conflicts",
                                                   COWORK / "push/application/conflicts.py")

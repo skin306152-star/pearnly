@@ -9,8 +9,9 @@ from pearnly_cowork.connections import collector, model
 from pearnly_cowork.connections.reports import ReportError, plan_report
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.targets.projection import ProjectionContractError
-from pearnly_cowork.transaction import conflicts
-from . import credentials, devices, http_auth, release
+from pearnly_core.cc_desktop import release
+from pearnly_core.transaction import conflicts
+from . import credentials, devices, http_auth
 
 # 每台电脑各自的（ADR-021）：上次报的所选账套、科目映射与版本取它自己的电脑行，不取连接配置 / 上报记录
 _PER_COMPUTER = frozenset(('companion_version', 'max_payload_version'))

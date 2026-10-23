@@ -7,6 +7,7 @@ D9 压测第 4 轮：1020 共 8 次，全在 register 对 `Cowork Express Agent 
 机器方法照旧回「忙」（`http_auth.raise_busy`）。被回滚的那次不留东西（替身库：回滚丢掉这一笔里写的，提交才算数）。
 不连库：Frappe 用最小替身，模块按文件载入。
 """
+from pathlib import Path
 import ast
 import importlib.util
 import pathlib
@@ -144,7 +145,7 @@ def _install():
                         credentials=_module("pearnly_cowork.companion.credentials"),
                         pool=_module("pearnly_cowork.companion.pool"),
                         devices=_module("pearnly_cowork.companion.devices"),
-                        release=_module("pearnly_cowork.companion.release"),
+                        release=_module("pearnly_core.cc_desktop.release"),
                         transport=_module("pearnly_cowork.companion.transport"),
                         queue_contracts=_module("pearnly_core.cc_desktop.wire.queue_contracts",
                                                 QueueContractError=QueueContractError),
@@ -159,7 +160,7 @@ def _install():
     stubs = {
         "frappe": frappe,
         "pearnly_cowork": _module("pearnly_cowork"),
-        "pearnly_cowork.transaction": _module("pearnly_cowork.transaction"),
+        "pearnly_core.transaction": _module("pearnly_core.transaction"),
         "pearnly_cowork.companion": companion,
         "pearnly_cowork.companion.contracts": _module("pearnly_cowork.companion.contracts",
                                                       CredentialError=CredentialError),
@@ -175,8 +176,8 @@ def _install():
                                                                                   (Exception,), {})),
     }
     with mock.patch.dict(sys.modules, stubs):
-        shared = _load("pearnly_cowork.transaction.conflicts", COWORK / "transaction/conflicts.py")
-        stubs["pearnly_cowork.transaction"].conflicts = shared
+        shared = _load("pearnly_core.transaction.conflicts", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/transaction/conflicts.py")
+        stubs["pearnly_core.transaction"].conflicts = shared
         modules = {name: _load(f"pearnly_cowork.companion.{name}", COMPANION / f"{name}.py")
                    for name in ("api", "heartbeat", "queue_api", "device_api", "request_api")}
     errors = types.SimpleNamespace(ReportError=ReportError, CredentialError=CredentialError,
@@ -395,7 +396,7 @@ class SamePlaceTests(unittest.TestCase):
     def test_every_machine_side_entry_runs_in_the_shared_retry(self):
         for filename, function in self.ENTRIES.items():
             source = (COMPANION / filename).read_text(encoding="utf-8")
-            self.assertIn("from pearnly_cowork.transaction import conflicts", source, filename)
+            self.assertIn("from pearnly_core.transaction import conflicts", source, filename)
             self.assertIn("conflicts.retried(", ast.unparse(self._functions(COMPANION / filename)[function]), filename)
 
     def test_no_second_retry_loop_is_left_in_companion(self):

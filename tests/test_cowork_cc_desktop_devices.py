@@ -1363,7 +1363,7 @@ class HeartbeatComputer(Base):
             return {"ok": True}
 
         stubs = {"pearnly_cowork.companion.http_auth": types.SimpleNamespace(),
-                 "pearnly_cowork.companion.release": types.SimpleNamespace(latest=lambda: None),
+                 "pearnly_core.cc_desktop.release": types.SimpleNamespace(latest=lambda: None),
                  "pearnly_cowork.connections.collector": types.SimpleNamespace(ingest=ingest),
                  "pearnly_cowork.connections.reports": types.SimpleNamespace(
                      **vars(sys.modules["pearnly_cowork.connections.reports"]), plan_report=plan_report,
