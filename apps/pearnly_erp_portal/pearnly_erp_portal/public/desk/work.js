@@ -1313,6 +1313,8 @@
 				d.add_custom_action(t(watching ? "erp.work.quick.unwatch" : "erp.work.quick.watch"),
 					async () => {
 						const result = await p.call(`${API}watch`, {name, on: watching ? 0 : 1}, "POST");
+						// 关注会让服务端存一次卡片、版本号跟着变：接过新版本号，否则再点「保存」会报被别人改过（testerp 10-23 实测）。
+						modified = result.modified;
 						watching = result.watching;
 						upsert(result);
 						render();
@@ -1394,10 +1396,16 @@
 				}, t("erp.work.file.insert"));
 			};
 			d.fields_dict.files.$wrapper.on("click", "[data-file]", async event => {
-				draw_files(await p.call(`${API}detach`, {name, file: $(event.currentTarget).attr("data-file")}, "POST"));
+				const file = $(event.currentTarget).attr("data-file");
+				const was_cover = base && cover_values(base.cover).cover_file === file;
+				draw_files(await p.call(`${API}detach`, {name, file}, "POST"));
 				frappe.utils.play_sound("delete");
 				if (base) base.cover = current().cover;
-				await refresh_activity();
+				const fresh = await p.call(`${API}card`, {name});
+				// 删掉的是封面：服务端顺手清了封面、存了卡片，接过新版本号（同「关注」）。
+				if (was_cover) modified = fresh.modified;
+				draw_activity(fresh.activity);
+				void reload();
 			});
 			d.fields_dict.activity.$wrapper.on("click", "[data-comment]", async event => {
 				draw_activity(await p.call(`${API}delete_comment`, {activity: $(event.currentTarget).attr("data-comment")}, "POST"));

@@ -78,7 +78,13 @@ def ensure_on_migrate():
     """装好 / 升级后建好默认看板和默认三列（名字用站点语言；只在 ERP 业务站点做）。"""
     if frappe.conf.get("pearnly_product") != "erp" or not frappe.db.table_exists(BOARD):
         return
-    ensure_lists(default_board())
+    # 迁移命令按英文跑（`frappe.local.lang` 是 en），默认三列的名字要按站点语言取（testerp 实测建成了 To do / In progress / Done）。
+    current = frappe.local.lang
+    frappe.local.lang = frappe.db.get_single_value("System Settings", "language") or current
+    try:
+        ensure_lists(default_board())
+    finally:
+        frappe.local.lang = current
 
 
 def open_board(board=None, right="view"):
