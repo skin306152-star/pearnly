@@ -22,6 +22,7 @@ A terminal needs a name,กรุณากรอกชื่อจุดขา�
 A warehouse must belong to a company,คลังสินค้าต้องสังกัดบริษัท
 A warehouse needs a name,กรุณากรอกชื่อคลังสินค้า
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
+Account Set,ชุดบัญชี
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
@@ -171,6 +172,8 @@ Choose the sheet to import,กรุณาเลือกไฟล์ที่�
 Choose the supplier,กรุณาเลือกผู้จำหน่าย
 Choose the warehouse,กรุณาเลือกคลังสินค้า
 Choose what to record,กรุณาเลือกประเภทที่ต้องการบันทึก
+Chosen By,ผู้เลือก
+Claim,ขอคืน
 Clear,ล้าง
 Clear Link,ล้างการเชื่อมโยง
 Clear cart,ล้างตะกร้า
@@ -209,6 +212,7 @@ Company not found,ไม่พบบริษัทนี้
 Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
+Computer offline,เครื่องออฟไลน์
 Confirm,ยืนยัน
 Confirm and record,ยืนยันบันทึก
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
@@ -251,6 +255,7 @@ Created when the draft is confirmed,สร้างเมื่อยืนย�
 Created {0} product(s),สร้างสินค้า {0} รายการแล้ว
 Created {0}; {1} row(s) were not saved — fix them and save again,สร้างสินค้าแล้ว {0} รายการ บันทึกไม่สำเร็จ {1} แถว กรุณาแก้ไขแล้วบันทึกอีกครั้ง
 Creation,วันที่สร้าง
+Credit,เงินเชื่อ
 Credit Note,ใบลดหนี้
 Currency,สกุลเงิน
 Current,ปัจจุบัน
@@ -283,6 +288,7 @@ Delete selected ({0}),ลบที่เลือก ({0})
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted {0},ลบแล้ว {0}
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
+Department,แผนก
 Description,คำอธิบาย
 Details,รายละเอียด
 Diff,ผลต่าง
@@ -372,6 +378,7 @@ Exchange Rate must be greater than zero,อัตราแลกเปลี่�
 Expected Amount,ยอดที่ควรมี
 Expected Cash,เงินสดที่ควรมี
 Expense,ค่าใช้จ่าย
+Expense Account,บัญชีค่าใช้จ่าย
 Expense Amount,ยอดค่าใช้จ่าย
 Expense Count,จำนวนรายการค่าใช้จ่าย
 Expiry Date,วันหมดอายุ
@@ -380,8 +387,10 @@ Export {0},ส่งออก {0} กะ
 Exported {0} shifts,ส่งออก {0} กะแล้ว
 Express,Express
 Express Account Set,ชุดบัญชี Express
+Express Choices Needed,รายการที่ต้องเลือกสำหรับ Express
 Express Code,รหัส Express
 Express Company,บริษัท Express
+Express Job,งานบันทึก Express
 Express No.,เลขที่ Express
 Express Note,หมายเหตุ Express
 Express Sent At,ส่ง Express เมื่อ
@@ -451,6 +460,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,ปิดใช้งาน
 Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
+Input VAT,ภาษีซื้อ
 Internal use,เบิกใช้ภายใน
 Invalid Currency,สกุลเงินไม่ถูกต้อง
 Invalid Discount,ส่วนลดไม่ถูกต้อง
@@ -556,9 +566,11 @@ New warehouse,เพิ่มคลังสินค้า
 Next,ถัดไป
 Next Number,เลขถัดไป
 No,ลำดับ
+No Express account set covers this date,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
 No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
+No computer can write this account set,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
 No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
 No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
 No items in cart,ยังไม่มีสินค้าในตะกร้า
@@ -758,7 +770,9 @@ Queued,รอคิว
 Quotation,ใบเสนอราคา
 Rate,ราคาต่อหน่วย
 Reading,กำลังอ่าน
+Reading the Express account set,กำลังอ่านชุดบัญชี Express
 Ready to post,พร้อมบันทึก
+Reason,เหตุผล
 Reason for Cancellation,เหตุผลในการยกเลิก
 Receipt,ใบเสร็จรับเงิน
 Receipt No,เลขที่ใบเสร็จ
@@ -916,6 +930,7 @@ Start counting,เริ่มตรวจนับ
 Status,สถานะ
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",ยังปิดอยู่: ตารางสต็อกต้องเข้าเป็นชุดงานของฝ่ายสต็อก และการลงบัญชีห้ามข้ามไปเงียบ ๆ
 Stock,สต็อก
+Stock Account Group,กลุ่มบัญชีสินค้าคงเหลือ
 Stock Posted At,วันเวลาที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
 Stock Token,โทเคนสต็อก
@@ -1002,6 +1017,7 @@ The balance could not be checked right now. Please try again in a minute.,ไม
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)
 The cashier is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)
+The company has no 13-digit tax ID,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
@@ -1178,6 +1194,7 @@ Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
+Written,บันทึกแล้ว
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
 Yes,ใช่
 You can redeem upto {0}.,ใช้คะแนนสะสมได้สูงสุด {0}
@@ -1342,6 +1359,17 @@ erp.line.status.bound,ผูกบัญชีแล้ว
 erp.line.status.unbound,ยังไม่ได้ผูกบัญชี
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
+express.kind.account,บัญชีค่าใช้จ่าย
+express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
+express.kind.vat,ภาษีซื้อ
+express.option.claim,ขอคืน
+express.option.expense,บันทึกเป็นค่าใช้จ่าย
+express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
+express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
+express.reason.offline,เครื่องออฟไลน์
+express.reason.reading,กำลังอ่านชุดบัญชี Express
+express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
+express.state.written,บันทึกแล้ว
 goods,สินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)

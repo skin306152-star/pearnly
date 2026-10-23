@@ -25,8 +25,10 @@ jobs:
         run: python3 tests/test_erp_boot_items.py
       - name: Verify ERP purchase lines remember their category by supplier and item
         run: python3 tests/test_erp_category_memory.py
-      - name: ERP front desk to Express ledger (gateway contract, pinned codes)
-        run: PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_erp_express_gateway.py
+      - name: ERP front desk to Express ledger, CC Desktop direct (payload from the shared rules, holds, pinned codes)
+        run: python3 tests/test_erp_express_direct.py
+      - name: CC Desktop shared machine channel (register, routing, writer lock, receipts, on-demand requests)
+        run: python3 tests/test_cc_desktop_channel.py
       - name: ERP master records synced from Express keep their identity fields
         run: python3 tests/test_erp_express_locks.py
       - name: Render the control-plane LINE setup guide with its screenshots

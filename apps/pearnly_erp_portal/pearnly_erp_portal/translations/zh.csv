@@ -22,6 +22,7 @@ A terminal needs a name,请填写收银台名称
 A warehouse must belong to a company,仓库必须隶属于公司
 A warehouse needs a name,请填写仓库名称
 Abbreviated Tax Invoice,简式税务发票
+Account Set,账套
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
@@ -171,6 +172,8 @@ Choose the sheet to import,请先选择要导入的表格
 Choose the supplier,请选择供应商
 Choose the warehouse,请选择仓库
 Choose what to record,请选择要录入的类型
+Chosen By,选择人
+Claim,抵扣
 Clear,清除
 Clear Link,清除关联
 Clear cart,清空购物车
@@ -209,6 +212,7 @@ Company not found,公司不存在
 Complete Order,完成订单
 Complete Payment,完成收款
 Completed,已完成
+Computer offline,电脑离线
 Confirm,确认
 Confirm and record,确定入账
 Confirm opening stock,确认入账
@@ -251,6 +255,7 @@ Created when the draft is confirmed,草稿确认后生成
 Created {0} product(s),已新建 {0} 个物料
 Created {0}; {1} row(s) were not saved — fix them and save again,已新建 {0} 个物料，{1} 行保存失败，请修正后重新保存
 Creation,创建日期
+Credit,赊账
 Credit Note,贷项通知单
 Currency,货币
 Current,当前
@@ -283,6 +288,7 @@ Delete selected ({0}),删除所选（{0}）
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 Deleted {0},已删除 {0}
 Deleted {0} stock counts,已删除 {0} 份盘点
+Department,部门
 Description,描述
 Details,详细信息
 Diff,差异
@@ -372,6 +378,7 @@ Exchange Rate must be greater than zero,汇率必须大于零
 Expected Amount,预期金额
 Expected Cash,应有现金
 Expense,费用
+Expense Account,费用科目
 Expense Amount,费用金额
 Expense Count,费用笔数
 Expiry Date,失效日期
@@ -380,8 +387,10 @@ Export {0},导出选中的 {0} 个班次
 Exported {0} shifts,已导出 {0} 个班次
 Express,Express
 Express Account Set,Express 账套
+Express Choices Needed,Express 待选项
 Express Code,Express 编码
 Express Company,Express 公司
+Express Job,Express 写入
 Express No.,Express 单号
 Express Note,Express 备注
 Express Sent At,Express 发送时间
@@ -451,6 +460,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,已停用
 Initial Password,初始密码
 Input Tax,进项税额
+Input VAT,进项税
 Internal use,内部领用
 Invalid Currency,币种无效
 Invalid Discount,无效折扣
@@ -556,9 +566,11 @@ New warehouse,新建仓库
 Next,下一个
 Next Number,下一编号
 No,序号
+No Express account set covers this date,没有覆盖此日期的 Express 账套
 No Open Shift,尚未开班
 No attachments,无附件
 No company is available for this account,此账号无可用公司
+No computer can write this account set,没有能写此账套的电脑
 No item matches the scanned code {0},未找到与扫描编码 {0} 匹配的物料
 No items found. Scan barcode again.,未找到物料，请重新扫码
 No items in cart,购物车为空
@@ -758,7 +770,9 @@ Queued,排队中
 Quotation,报价单
 Rate,单价
 Reading,读取中
+Reading the Express account set,正在读取 Express 账套
 Ready to post,待入账
+Reason,原因
 Reason for Cancellation,取消原因
 Receipt,收据
 Receipt No,小票号
@@ -916,6 +930,7 @@ Start counting,开始盘点
 Status,状态
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",仍然是关的：库存表要进库存那批，过账不能悄悄把它们跳过
 Stock,库存
+Stock Account Group,存货科目组
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
 Stock Token,库存令牌
@@ -1002,6 +1017,7 @@ The balance could not be checked right now. Please try again in a minute.,暂时
 The cart is empty,购物车为空
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
 The cashier is not enabled for this company,该公司未启用收银
+The company has no 13-digit tax ID,公司没有 13 位税号
 The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
@@ -1178,6 +1194,7 @@ Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
+Written,已写入
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
 Yes,是
 You can redeem upto {0}.,最多可抵扣 {0}
@@ -1342,6 +1359,17 @@ erp.line.status.bound,已绑定
 erp.line.status.unbound,未绑定
 erp.line.unbind,解绑 LINE
 erp.line.unbindConfirm,确定要解绑 Pearnly ERP LINE 吗？
+express.kind.account,费用科目
+express.kind.stockGroup,存货科目组
+express.kind.vat,进项税
+express.option.claim,抵扣
+express.option.expense,计入费用
+express.reason.noBook,没有覆盖此日期的 Express 账套
+express.reason.noWriter,没有能写此账套的电脑
+express.reason.offline,电脑离线
+express.reason.reading,正在读取 Express 账套
+express.reason.taxMissing,公司没有 13 位税号
+express.state.written,已写入
 goods,货物
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）

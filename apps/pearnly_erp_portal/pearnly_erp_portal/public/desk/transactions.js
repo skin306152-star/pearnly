@@ -12,6 +12,55 @@
 	p.terminal_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
+	// 单据写进 Express 的情况（CC 桌面版直连 ERP，ADR-025）：状态、Express 单号、停下的原因；要人拿主意的项在这里选一次
+	// （服务端只认这份账套里有的值，选过记在这家公司名下），转人工的可以再写一次。
+	const EXPRESS_REASONS = {
+		"express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
+		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
+		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
+	};
+	const EXPRESS_KINDS = {
+		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
+		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
+		stock_group: "express.kind.stockGroup",
+	};
+	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
+		__new__: "New"};
+	p.express = async (doctype, name, reload) => {
+		const api = "pearnly_erp_portal.express.api.";
+		const info = await p.call(api + "document_express", {doctype, name});
+		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
+		const reason = info.reason && !info.reason.startsWith("choice_needed")
+			? __(EXPRESS_REASONS[info.reason] || info.reason) : "";
+		const fields = [
+			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
+				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
+					failed: "Failed"}[info.state] || info.state)},
+			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
+			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
+			...info.needed.map((item, index) => {
+				const kind = EXPRESS_KINDS[item.kind];
+				return {fieldtype: "Select", fieldname: `pick_${index}`, reqd: 1, label: __(kind?.[direction] || kind || item.kind),
+					description: item.label || "", default: item.current || "",
+					options: [{value: "", label: ""}, ...item.options.map(option => ({value: option.code,
+						label: EXPRESS_OPTIONS[option.code] ? __(EXPRESS_OPTIONS[option.code])
+							: [option.code, option.name].filter(Boolean).join(" · ")}))]};
+			}),
+		];
+		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
+		p.dialog(__("Express"), fields, action, async (values, dialog) => {
+			if (info.can_answer) {
+				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(info.needed.map((item, index) =>
+					({kind: item.kind, subject: item.subject, value: values[`pick_${index}`]})))}, "POST");
+				p.success(__("Saved"), "click");
+			} else if (info.can_retry) {
+				await p.call(api + "retry", {doctype, name}, "POST");
+				p.success(__("Queued"), "submit");
+			}
+			dialog.hide();
+			if (info.can_answer || info.can_retry) await reload?.();
+		});
+	};
 	p.trade = {
 		// 采购 / 销售网页识别在后台跑（2026-10-02：同步请求读多页 PDF 会撞 120 秒超时）。推送优先、轮询兜底（同 Cowork 录入
 		// `intake-upload.js`，几百人同时识别时不能一两秒问一次）：服务端每读完一页、读完都推「pearnly_erp_recognise」给发起人，

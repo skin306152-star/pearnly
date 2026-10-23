@@ -22,6 +22,7 @@ A terminal needs a name,レジには名前が必要です
 A warehouse must belong to a company,倉庫は必ず会社に属します
 A warehouse needs a name,倉庫には名前が必要です
 Abbreviated Tax Invoice,簡易税務請求書
+Account Set,帳簿
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
@@ -171,6 +172,8 @@ Choose the sheet to import,取り込むシートを選択してください
 Choose the supplier,仕入先を選んでください
 Choose the warehouse,倉庫を選んでください
 Choose what to record,記録する種類を選んでください
+Chosen By,選択者
+Claim,控除
 Clear,クリア
 Clear Link,リンクを解除
 Clear cart,カートを空にする
@@ -209,6 +212,7 @@ Company not found,会社が見つかりません
 Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
+Computer offline,端末オフライン
 Confirm,確認
 Confirm and record,確定して記録
 Confirm opening stock,期首在庫を確定
@@ -251,6 +255,7 @@ Created when the draft is confirmed,下書きの確定時に作成されます
 Created {0} product(s),{0}件の商品を作成しました
 Created {0}; {1} row(s) were not saved — fix them and save again,{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください
 Creation,作成日時
+Credit,掛け
 Credit Note,返品・値引伝票
 Currency,通貨
 Current,現在
@@ -283,6 +288,7 @@ Delete selected ({0}),選択を削除（{0}）
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0} 件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
+Department,部門
 Description,説明
 Details,詳細
 Diff,差異
@@ -372,6 +378,7 @@ Exchange Rate must be greater than zero,為替レートはゼロより大きい�
 Expected Amount,あるべき金額
 Expected Cash,現金予定額
 Expense,経費
+Expense Account,費用勘定
 Expense Amount,経費金額
 Expense Count,経費件数
 Expiry Date,有効期限
@@ -380,8 +387,10 @@ Export {0},{0}件をエクスポート
 Exported {0} shifts,{0}件のシフトを出力しました
 Express,Express
 Express Account Set,Express 帳簿
+Express Choices Needed,Express の選択待ち
 Express Code,Express コード
 Express Company,Express 会社
+Express Job,Express 書き込み
 Express No.,Express 番号
 Express Note,Express メモ
 Express Sent At,Express 送信日時
@@ -451,6 +460,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,無効
 Initial Password,初期パスワード
 Input Tax,仕入税額
+Input VAT,仮払消費税
 Internal use,社内使用
 Invalid Currency,通貨が無効です
 Invalid Discount,割引が無効です
@@ -556,9 +566,11 @@ New warehouse,倉庫を追加
 Next,次へ
 Next Number,次の番号
 No,番号
+No Express account set covers this date,この日付を含む Express 帳簿がありません
 No Open Shift,未開店
 No attachments,添付ファイルなし
 No company is available for this account,このアカウントで使える会社がありません
+No computer can write this account set,この帳簿に書き込める端末がありません
 No item matches the scanned code {0},スキャンしたコード {0} に一致する商品がありません
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
 No items in cart,カートに商品がありません
@@ -758,7 +770,9 @@ Queued,待機中
 Quotation,見積書
 Rate,単価
 Reading,読み込み中
+Reading the Express account set,Express 帳簿を読み取り中
 Ready to post,登録可能
+Reason,理由
 Reason for Cancellation,取消理由
 Receipt,領収書
 Receipt No,レシート番号
@@ -916,6 +930,7 @@ Start counting,棚卸を開始
 Status,ステータス
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",まだオフです。在庫テーブルは在庫バッチに入る前提で、転記が黙って飛ばしてはいけません
 Stock,在庫
+Stock Account Group,在庫勘定グループ
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
 Stock Token,在庫トークン
@@ -1002,6 +1017,7 @@ The balance could not be checked right now. Please try again in a minute.,現在
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The cashier is not enabled for this company,この会社ではレジが有効になっていません
+The company has no 13-digit tax ID,会社に 13 桁の納税者番号がありません
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
@@ -1178,6 +1194,7 @@ Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
+Written,書き込み済み
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
 Yes,はい
 You can redeem upto {0}.,最大 {0} まで利用できます
@@ -1342,6 +1359,17 @@ erp.line.status.bound,連携済み
 erp.line.status.unbound,未連携
 erp.line.unbind,LINE 連携を解除
 erp.line.unbindConfirm,Pearnly ERP LINE の連携を解除しますか？
+express.kind.account,費用勘定
+express.kind.stockGroup,在庫勘定グループ
+express.kind.vat,仮払消費税
+express.option.claim,控除
+express.option.expense,費用計上
+express.reason.noBook,この日付を含む Express 帳簿がありません
+express.reason.noWriter,この帳簿に書き込める端末がありません
+express.reason.offline,端末オフライン
+express.reason.reading,Express 帳簿を読み取り中
+express.reason.taxMissing,会社に 13 桁の納税者番号がありません
+express.state.written,書き込み済み
 goods,物品
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）

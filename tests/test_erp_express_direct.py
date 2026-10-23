@@ -1,0 +1,206 @@
+"""ERP 当前台、Express 当账本，CC 桌面版直连 ERP（ADR-025）：ERP 这一侧不连库的检查（共用通道的表用内存替身）。
+
+- ERP 单 → 写账规则读的票面（`express.contracts.checked` / `pages`）：方向、现 / 赊、对方档码、逐行存货码与仓库、货 / 服务；
+- 准备载荷（`express.prepare`）走共用的 Express 写账规则（`pearnly_core.express_rules`，与 Cowork 推送同一份）：采购未付 RR、
+  销售已收 HS，对方档 / 存货照码写、带仓库的载荷 4、分录借贷平；
+- 停下的几种：本公司没有账套、主档还没读过（请电脑读一次）、同期两份账套（在 ERP 里选一次、记住复用）、服务类进项要选费用科目；
+- 写账规则的按码直落：票面给了对方档码就不问，明细行给了存货码 / 仓库码就照码写，OCR 的票行为不变；
+- ERP 侧主档落库与库存对齐的纯规则。
+"""
+from decimal import Decimal
+import json
+import pathlib
+import sys
+import tempfile
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT / "tests"), str(ROOT / "apps/pearnly_core"), str(ROOT / "apps/pearnly_erp_portal")]
+
+import cc_desktop_fake as fake  # noqa: E402
+
+frappe = fake.install()
+
+from pearnly_core.cc_desktop import books, contracts as channel  # noqa: E402
+from pearnly_core.express_rules.push import choices as C  # noqa: E402
+from pearnly_core.express_rules.push import common  # noqa: E402
+from pearnly_erp_portal.express import choices, contracts as E, facts, prepare  # noqa: E402
+
+OWN, SUPPLIER = "0105551234567", "0105536080112"
+PATH = r"C:\PearnlyExpress\70EXP\T9NIEX12"
+MAPPING = {"revenue_acc": "41-01-00-00", "ar_acc": "11-03-01-00", "vat_output_acc": "21-04-01-00",
+           "fallback_acc": "51-03-00-00", "ap_acc": "21-01-01-00", "vat_input_acc": "11-06-01-00"}
+ACCOUNTS = [{"code": code, "name": code, "type": code[0]} for code in
+            ("11-01-01-00", "11-02-01-00", "11-04-01-00", "52-08-00-00", *MAPPING.values())]
+SUPPLIERS = [{"code": "B004", "name": "BANGCHAK", "tax_id": SUPPLIER, "branch": "00000"},
+             {"code": "B005", "name": "BANGCHAK (สาขา 2)", "tax_id": SUPPLIER, "branch": "00000"}]
+CUSTOMERS = [{"code": "C01", "name": "ร้านป้าแดง", "tax_id": "", "branch": "00000"}]
+PRODUCTS = [{"code": "ICE-01", "name": "น้ำแข็งแพ็ค", "kind": "stock"}, {"code": "ICE-02", "name": "อื่น", "kind": "stock"}]
+
+
+def doc(**override):
+    body = {"version": 1, "ref": "PUR-2026-00012@20261023101010000000", "direction": "purchase", "date": "2026-10-20",
+            "number": "IV-889", "company": {"tax_id": OWN, "branch": "00012"}, "paid": False, "has_vat": True,
+            "currency": "THB", "party": {"code": "B004", "name": "BANGCHAK", "tax_id": SUPPLIER, "branch": "00000"},
+            "subtotal": "300.00", "vat": "21.00", "total": "321.00",
+            "items": [{"name": "น้ำแข็งแพ็ค", "code": "ICE-01", "unit": "ถุง", "qty": "10", "price": "20", "amount": "200.00",
+                       "loccod": "02", "stock": True},
+                      {"name": "น้ำแข็งอื่น", "code": "ICE-02", "unit": "ถุง", "qty": "5", "price": "20", "amount": "100.00",
+                       "loccod": "02", "stock": True}]}
+    body.update(override)
+    return body
+
+
+def book(path=PATH, uid="vsn:1/2", start="2026-01-01", end="2026-12-31"):
+    return {"code": "T9", "name": "นิภา", "company": "นิภา เอ็กเช้นจ์", "tax_id": OWN, "branch": "00012", "path": path,
+            "root": r"C:\PearnlyExpress\70EXP", "row": 3, "writable": True, "uid": uid, "period_start": start,
+            "period_end": end, "mapping": MAPPING}
+
+
+COMPANY = {"name": "CO-00001", "company_name": "นิภา", "tax_id": OWN, "branch": "00012"}
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        fake.reset(self.tmp.name)
+        frappe.session.user = "staff@x"
+        self.reads = []
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def computer(self, rows):
+        books.replace("PCD-0123456789abcdef0123", rows, None)
+        return [channel.book_key(channel.book_identity(row["path"], row["uid"])) for row in rows]
+
+    def masters(self, key, **extra):
+        data = {"version": 2, "customers": CUSTOMERS, "suppliers": SUPPLIERS, "products": PRODUCTS,
+                "departments": [], "facts": {"accounts": ACCOUNTS, "mapping": MAPPING,
+                                             "catalog": {"isacc_candidates": []}}}
+        data.update(extra)
+        facts.save(key, data)
+
+    def prepare(self, body):
+        return prepare.prepare(body, COMPANY, lambda company, chosen: self.reads.append(chosen["key"]))
+
+
+class Prepare(Base):
+    def test_purchase_and_sales_payloads_from_the_shared_rules(self):
+        key, = self.computer([book()])
+        self.masters(key)
+        result = self.prepare(doc())
+        self.assertNotIn("hold", result, result)
+        payload = result["payload"]
+        self.assertEqual((payload["direction"], payload["doctype"], payload["supplier"]["code"]), ("purchase", "RR", "B004"))
+        self.assertEqual([(item.get("code"), item.get("loccod")) for item in payload["items"]],
+                         [("ICE-01", "02"), ("ICE-02", "02")])
+        self.assertEqual(payload["payload_version"], 4)
+        self.assertEqual((payload["account_dir"], payload["account_set"]), (PATH, PATH))
+        lines = payload["lines"]
+        debit = sum(Decimal(line["amount"]) for line in lines if line["side"] == "D")
+        credit = sum(Decimal(line["amount"]) for line in lines if line["side"] == "C")
+        self.assertEqual((debit, credit), (Decimal("321.00"), Decimal("321.00")))
+        self.assertEqual(result["book"]["key"], key)
+        sales = self.prepare(doc(direction="sales", paid=True,
+                                 party={"code": "C01", "name": "ร้านป้าแดง", "tax_id": "", "branch": ""}))
+        self.assertNotIn("hold", sales, sales)
+        self.assertEqual((sales["payload"]["doctype"], sales["payload"]["customer"]["code"]), ("HS", "C01"))
+
+    def test_holds_until_the_computer_has_read_the_masters(self):
+        self.assertEqual(self.prepare(doc())["hold"], E.NO_BOOK)  # 本公司没有一份账套被 CC 报过
+        key, = self.computer([book()])
+        self.assertEqual(self.prepare(doc())["hold"], E.READING)
+        self.assertEqual(self.reads, [key])  # 请电脑读一次主档
+        self.masters(key)
+        self.assertIn("payload", self.prepare(doc()))
+
+    def test_two_account_sets_for_the_same_year_are_chosen_once(self):
+        first, second = self.computer([book(), book(path=r"C:\PearnlyExpress\70EXP\T9COPY", uid="vsn:1/9")])
+        for key in (first, second):
+            self.masters(key)
+        held = self.prepare(doc())
+        self.assertEqual(held["hold"], "choice_needed:account_set")
+        needed, = held["needed"]
+        self.assertEqual(sorted(option["code"] for option in needed["options"]), sorted([first, second]))
+        choices.remember(COMPANY["name"], needed["kind"], needed["subject"], second)
+        result = self.prepare(doc())
+        self.assertEqual(result["book"]["key"], second)
+        self.assertEqual(result["payload"]["account_dir"], r"C:\PearnlyExpress\70EXP\T9COPY")
+
+    def test_a_service_purchase_asks_for_the_expense_account(self):
+        key, = self.computer([book()])
+        self.masters(key)
+        service = [{"name": "ค่าขนส่ง", "code": "", "unit": "", "qty": "1", "price": "300", "amount": "300.00",
+                    "loccod": "", "stock": False}]
+        held = self.prepare(doc(items=service))
+        self.assertEqual(held["hold"], "choice_needed:account")
+        needed, = held["needed"]
+        choices.remember(COMPANY["name"], "account", needed["subject"], "52-08-00-00")
+        payload = self.prepare(doc(items=service))["payload"]
+        self.assertIn("52-08-00-00", [line["acc"] for line in payload["lines"] if line["side"] == "D"])
+
+    def test_bad_documents_fail(self):
+        key, = self.computer([book()])
+        self.masters(key)
+        for body, code in ((doc(total="999"), "express.amount_invalid"),
+                           (doc(subtotal="250.00", total="271.00"), "express.items_mismatch"),
+                           (doc(date="2026-13-01"), "express.date_invalid"),
+                           (doc(company={"tax_id": "123", "branch": ""}), E.NO_TAX)):
+            self.assertEqual(self.prepare(body), {"failed": code})
+
+
+class PinnedCodes(unittest.TestCase):
+    def test_party_and_item_codes_are_taken_without_asking(self):
+        fields = E.pages(E.checked(doc()))[0]["fields"]
+        config = {"reported_suppliers": SUPPLIERS, "reported_products": PRODUCTS}
+        result = C.resolve(fields, direction="purchase", posting_kind=None, config=config, remembered={})
+        self.assertEqual(result["needed"], [])
+        self.assertEqual(result["applied"]["party"], "B004")
+        ocr = {**fields, "party_code": ""}  # OCR 的票（没有 party_code）同税号两个档照旧要人选
+        self.assertIn("party", [item["kind"] for item in C.resolve(ocr, direction="purchase", posting_kind=None,
+                                                                    config=config, remembered={})["needed"]])
+
+    def test_ocr_lines_unchanged(self):
+        fields = {"items": [{"name": "น้ำแข็ง", "qty": "2", "price": "50", "subtotal": "100"}]}
+        detail = common.extract_line_items(fields, Decimal("100"), item_mode="stock_item")
+        self.assertEqual(set(detail["items"][0]), {"name", "qty", "unit", "unit_price", "amount", "item_mode"})
+        self.assertEqual(common.finalize_payload({"items": detail["items"]})["payload_version"], 1)
+
+
+class ErpSide(unittest.TestCase):
+    def test_document_spreads_lines_to_base(self):
+        body = E.document(ref="SD-00001", direction="sales", doc_date="2026-10-20", number="SD-00001",
+                          company={"tax_id": OWN, "branch": ""}, party={"code": "C01", "name": "ลูกค้า"},
+                          paid=True, has_vat=True, total="321.00", vat="21.00",
+                          lines=[{"name": "A", "code": "ICE-01", "qty": 10, "amount": "214.00", "loccod": "02",
+                                  "stock": True},
+                                 {"name": "B", "code": "", "qty": 1, "amount": "107.00", "loccod": "02", "stock": False}])
+        self.assertEqual([item["amount"] for item in body["items"]], ["200.00", "100.00"])
+        self.assertEqual(body["items"][1]["loccod"], "")  # 没有 Express 码的行不带仓库
+        fields = E.pages(E.checked(body))[0]["fields"]
+        self.assertEqual((fields["seller_tax"], fields["payment_status"], fields["items"][0]["posting_kind"]),
+                         (OWN, "paid", "stock"))
+
+    def test_master_rows_and_stock_targets(self):
+        units = E.unit_names({"units": [{"code": "01", "name": "ชิ้น"}, {"code": "02", "name": "กล่อง"}]})
+        item = E.product({"code": "ICE-01", "name": "น้ำแข็ง", "kind": "stock", "unit": "01", "sale_unit": "02",
+                          "sale_factor": "12", "purchase_unit": "01", "purchase_factor": "1",
+                          "prices": ["35.00", "0", "0", "0", "0"]}, units)
+        self.assertEqual((item["base_unit"], item["unit"], item["price"]), ("ชิ้น", "กล่อง", "35.00"))
+        targets = E.stock_targets([{"code": "ICE-01", "loccod": "01", "qty": "50"}], {("ICE-01", "01"): Decimal("-3")})
+        self.assertEqual(targets, {("ICE-01", "01"): Decimal("47")})
+
+    def test_reported_facts_use_the_shared_sanitizers(self):
+        reported = facts.reported({"customers": CUSTOMERS, "suppliers": SUPPLIERS, "products": PRODUCTS,
+                                   "departments": [{"code": "SUTI", "name": "ขาย"}],
+                                   "facts": {"accounts": ACCOUNTS, "catalog": {"isacc_candidates": []}}})
+        self.assertEqual(reported["reported_suppliers"][0], SUPPLIERS[0])
+        self.assertEqual(len(reported["reported_accounts"]), len(ACCOUNTS))
+        self.assertEqual(reported["reported_stock_acc_groups"], [])
+        self.assertNotIn("reported_accounts", facts.reported({"customers": []}))  # 旧版没有科目表：不当成「没有科目」
+        self.assertEqual(json.loads(json.dumps(facts.mapping({"facts": {"mapping": {**MAPPING, "x": "1"}}}))), MAPPING)
+
+
+if __name__ == "__main__":
+    unittest.main()

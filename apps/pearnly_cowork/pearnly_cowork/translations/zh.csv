@@ -123,6 +123,7 @@ An option in the ERP data report is invalid.,ERP 数据报告中的选项无效�
 An original file is already stored for this source.,此来源已保存原始文件。
 Anchor Date,参考日期
 Another active rule already uses this folder or a folder containing it.,已有启用中的规则使用此文件夹或其上级文件夹。
+Another computer is writing to this account set. It is sent automatically once it is done,另一台电脑正在写入此账套，完成后将自动推送
 Another push holds the writer lock.,另一笔推送正在占用写入锁。
 Answered a reconciliation question,回答了对账的问题
 Answered a withholding tax question,回答了预扣税的问题
@@ -1064,7 +1065,6 @@ New task,新建任务
 Next Attempt At,下次重试时间
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No ERP is ready to use,暂无可用的 ERP
-No Express account set covers this date for this company,该公司无覆盖此日期的 Express 账套
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
 No account set of this company covers the document date.,该公司没有覆盖单据日期的账套
@@ -1560,7 +1560,6 @@ Set reminder,设置提醒
 Set the POS export columns,设定了 POS 导出的列
 Setting the POS export columns,正在设定 POS 导出的列
 Settings Json,配置数据（JSON）
-Several Express account sets cover this date for this company,该公司有多份覆盖此日期的 Express 账套
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",多个科目均有可匹配的流水。选择后将使用原文件重新核对（不重新识别）。
@@ -3311,8 +3310,6 @@ erp.target_projection_unknown_entity,ERP 报告包含不支持的主数据类型
 erp.target_projection_unknown_field_type,ERP 报告包含不支持的字段类型。
 erp.target_projection_value_required,ERP 数据报告缺少必填值。
 erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
-erp_gateway.account_set_missing,该公司无覆盖此日期的 Express 账套
-erp_gateway.account_set_several,该公司有多份覆盖此日期的 Express 账套
 excel,Excel
 failed,失败
 held,待接入发送
@@ -3338,6 +3335,7 @@ intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 intake.error.ACCOUNT_NOT_POSTABLE,收款科目在 Express 中不能记账，请重新选择
 intake.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
+intake.error.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
 intake.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 intake.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 intake.error.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试

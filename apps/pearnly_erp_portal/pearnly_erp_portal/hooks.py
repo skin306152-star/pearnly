@@ -342,8 +342,15 @@ scheduler_events = {
     "hourly": ["pearnly_erp_portal.integrations.intake.expire_stale",
                # Express 当账本的公司：主档与库存从 Express 回读（没接 Express 的站点什么都不做）
                "pearnly_erp_portal.express.masters.sync_all"],
-    # 推进 Express 的单：没交出去的再交、交出去的问结果（没有要问的就一条查询）
+    # 写进 Express 的单：停下的、会自己好的再准备一次（结果由写账队列直接交回，不轮询；没有要看的就一条查询）
     "cron": {"* * * * *": ["pearnly_erp_portal.express.push.poll"]},
+}
+
+# CC 桌面版直连 ERP（ADR-025）：员工用 ERP 账号在 CC 窗口里登录，这台电脑接上本站的共用机器通道，替他把单写进 Express。
+pearnly_cc_desktop = {
+    "allowed": "pearnly_erp_portal.express.desktop.allowed",
+    "job_changed": "pearnly_erp_portal.express.desktop.job_changed",
+    "kinds": ["express_masters"],
 }
 
 # 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。

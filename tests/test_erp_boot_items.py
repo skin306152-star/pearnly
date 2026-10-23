@@ -18,6 +18,8 @@ class ErpBootItems(unittest.TestCase):
         self.frappe = types.ModuleType("frappe")
         self.frappe.conf = {"pearnly_product": "erp"}
         self.frappe.log_error = Mock()
+        # 接没接 Express 由数据定（ADR-025）：这个站点有 CC 桌面版报过账套
+        self.frappe.db = types.SimpleNamespace(exists=Mock(return_value="BOOK-1"))
         self.companies = types.ModuleType("pearnly_erp_portal.masters.company")
         self.companies.company_options = Mock(return_value=[{"name": "CO-00001"}])
         self.companies.active_company = Mock(return_value="CO-00001")
@@ -28,15 +30,10 @@ class ErpBootItems(unittest.TestCase):
         masters.company = self.companies
         access = types.ModuleType("pearnly_erp_portal.access")
         access.guard = self.guard
-        self.gateway = types.ModuleType("pearnly_erp_portal.express.gateway")
-        self.gateway.configured = Mock(return_value=True)
-        express = types.ModuleType("pearnly_erp_portal.express")
-        express.gateway = self.gateway
         modules = patch.dict(sys.modules, {
             "frappe": self.frappe, "pearnly_erp_portal": types.ModuleType("pearnly_erp_portal"),
             "pearnly_erp_portal.masters": masters, "pearnly_erp_portal.masters.company": self.companies,
-            "pearnly_erp_portal.access": access, "pearnly_erp_portal.access.guard": self.guard,
-            "pearnly_erp_portal.express": express, "pearnly_erp_portal.express.gateway": self.gateway})
+            "pearnly_erp_portal.access": access, "pearnly_erp_portal.access.guard": self.guard})
         modules.start()
         self.addCleanup(modules.stop)
         self.namespace = {}
@@ -69,7 +66,7 @@ class ErpBootItems(unittest.TestCase):
         self.assertEqual(boot["pearnly_company"], "CO-00001")
 
     def test_express_check_failure_defaults_to_not_linked(self):
-        self.gateway.configured.side_effect = RuntimeError("fixture")
+        self.frappe.db.exists.side_effect = RuntimeError("fixture")
         boot = Boot()
         self.namespace["boot_session"](boot)
         self.assertIs(boot["pearnly_express"], False)

@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-10-22 20:00:00.000000",
+ "modified": "2026-10-23 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -107,7 +107,7 @@
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
-   "options": "manual\ncowork_line\nerp_portal",
+   "options": "manual\ncowork_line",
    "reqd": 1,
    "read_only": 1
   },

@@ -1347,3 +1347,21 @@ CC Desktop needs an update	CC 桌面版需更新	CC เดสก์ท็อป�
 Sync failed	同步失败	ซิงค์ไม่สำเร็จ	同期に失敗しました	company.syncExpress.failed
 Maintained in Express	由 Express 维护	จัดการใน Express	Express で管理
 Express Company	Express 公司	บริษัท Express	Express 会社
+The company has no 13-digit tax ID	公司没有 13 位税号	บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก	会社に 13 桁の納税者番号がありません	express.reason.taxMissing
+No Express account set covers this date	没有覆盖此日期的 Express 账套	ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้	この日付を含む Express 帳簿がありません	express.reason.noBook
+No computer can write this account set	没有能写此账套的电脑	ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้	この帳簿に書き込める端末がありません	express.reason.noWriter
+Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 帳簿を読み取り中	express.reason.reading
+Computer offline	电脑离线	เครื่องออฟไลน์	端末オフライン	express.reason.offline
+Written	已写入	บันทึกแล้ว	書き込み済み	express.state.written
+Expense Account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	express.kind.account
+Input VAT	进项税	ภาษีซื้อ	仮払消費税	express.kind.vat
+Stock Account Group	存货科目组	กลุ่มบัญชีสินค้าคงเหลือ	在庫勘定グループ	express.kind.stockGroup
+Claim	抵扣	ขอคืน	控除	express.option.claim
+Expense	计入费用	บันทึกเป็นค่าใช้จ่าย	費用計上	express.option.expense
+Account Set	账套	ชุดบัญชี	帳簿
+Department	部门	แผนก	部門
+Credit	赊账	เงินเชื่อ	掛け
+Reason	原因	เหตุผล	理由
+Express Job	Express 写入	งานบันทึก Express	Express 書き込み
+Express Choices Needed	Express 待选项	รายการที่ต้องเลือกสำหรับ Express	Express の選択待ち
+Chosen By	选择人	ผู้เลือก	選択者

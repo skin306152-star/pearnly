@@ -22,6 +22,7 @@ A terminal needs a name,A terminal needs a name
 A warehouse must belong to a company,A warehouse must belong to a company
 A warehouse needs a name,A warehouse needs a name
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
+Account Set,Account Set
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
@@ -171,6 +172,8 @@ Choose the sheet to import,Choose the sheet to import
 Choose the supplier,Choose the supplier
 Choose the warehouse,Choose the warehouse
 Choose what to record,Choose what to record
+Chosen By,Chosen By
+Claim,Claim
 Clear,Clear
 Clear Link,Clear Link
 Clear cart,Clear cart
@@ -209,6 +212,7 @@ Company not found,Company not found
 Complete Order,Complete Order
 Complete Payment,Complete Payment
 Completed,Completed
+Computer offline,Computer offline
 Confirm,Confirm
 Confirm and record,Confirm and record
 Confirm opening stock,Confirm opening stock
@@ -251,6 +255,7 @@ Created when the draft is confirmed,Created when the draft is confirmed
 Created {0} product(s),Created {0} product(s)
 Created {0}; {1} row(s) were not saved — fix them and save again,Created {0}; {1} row(s) were not saved — fix them and save again
 Creation,Creation
+Credit,Credit
 Credit Note,Credit Note
 Currency,Currency
 Current,Current
@@ -283,6 +288,7 @@ Delete selected ({0}),Delete selected ({0})
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
+Department,Department
 Description,Description
 Details,Details
 Diff,Diff
@@ -372,6 +378,7 @@ Exchange Rate must be greater than zero,Exchange Rate must be greater than zero
 Expected Amount,Expected Amount
 Expected Cash,Expected Cash
 Expense,Expense
+Expense Account,Expense Account
 Expense Amount,Expense Amount
 Expense Count,Expense Count
 Expiry Date,Expiry Date
@@ -380,8 +387,10 @@ Export {0},Export {0}
 Exported {0} shifts,Exported {0} shifts
 Express,Express
 Express Account Set,Express Account Set
+Express Choices Needed,Express Choices Needed
 Express Code,Express Code
 Express Company,Express Company
+Express Job,Express Job
 Express No.,Express No.
 Express Note,Express Note
 Express Sent At,Express Sent At
@@ -451,6 +460,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,Inactive
 Initial Password,Initial Password
 Input Tax,Input Tax
+Input VAT,Input VAT
 Internal use,Internal use
 Invalid Currency,Invalid Currency
 Invalid Discount,Invalid Discount
@@ -556,9 +566,11 @@ New warehouse,New warehouse
 Next,Next
 Next Number,Next Number
 No,No
+No Express account set covers this date,No Express account set covers this date
 No Open Shift,No Open Shift
 No attachments,No attachments
 No company is available for this account,No company is available for this account
+No computer can write this account set,No computer can write this account set
 No item matches the scanned code {0},No item matches the scanned code {0}
 No items found. Scan barcode again.,No items found. Scan barcode again.
 No items in cart,No items in cart
@@ -758,7 +770,9 @@ Queued,Queued
 Quotation,Quotation
 Rate,Rate
 Reading,Reading
+Reading the Express account set,Reading the Express account set
 Ready to post,Ready to post
+Reason,Reason
 Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
 Receipt No,Receipt No
@@ -916,6 +930,7 @@ Start counting,Start counting
 Status,Status
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them","Still off: the stock tables land in the inventory batch, and posting must not silently skip them"
 Stock,Stock
+Stock Account Group,Stock Account Group
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
 Stock Token,Stock Token
@@ -1002,6 +1017,7 @@ The balance could not be checked right now. Please try again in a minute.,The ba
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
 The cashier is not enabled for this company,The cashier is not enabled for this company
+The company has no 13-digit tax ID,The company has no 13-digit tax ID
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
@@ -1178,6 +1194,7 @@ Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+Written,Written
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
 Yes,Yes
 You can redeem upto {0}.,You can redeem upto {0}.
@@ -1342,6 +1359,17 @@ erp.line.status.bound,Bound
 erp.line.status.unbound,Not bound
 erp.line.unbind,Unbind LINE
 erp.line.unbindConfirm,Unbind Pearnly ERP LINE?
+express.kind.account,Expense Account
+express.kind.stockGroup,Stock Account Group
+express.kind.vat,Input VAT
+express.option.claim,Claim
+express.option.expense,Expense
+express.reason.noBook,No Express account set covers this date
+express.reason.noWriter,No computer can write this account set
+express.reason.offline,Computer offline
+express.reason.reading,Reading the Express account set
+express.reason.taxMissing,The company has no 13-digit tax ID
+express.state.written,Written
 goods,goods
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"

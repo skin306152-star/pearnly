@@ -73,7 +73,10 @@
   "express_state",
   "express_docnum",
   "express_reason",
-  "express_sent_at"
+  "express_sent_at",
+  "express_job",
+  "express_book",
+  "express_needed"
  ],
  "fields": [
   {
@@ -510,11 +513,36 @@
    "read_only": 1,
    "hidden": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "express_job",
+   "fieldtype": "Data",
+   "label": "Express Job",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "express_book",
+   "fieldtype": "Data",
+   "label": "Express Account Set",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_needed",
+   "fieldtype": "Long Text",
+   "label": "Express Choices Needed",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-22 20:00:00.000000",
+ "modified": "2026-10-23 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Document",

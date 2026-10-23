@@ -123,6 +123,7 @@ An option in the ERP data report is invalid.,ERP データレポート内の選�
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
 Anchor Date,基準日
 Another active rule already uses this folder or a folder containing it.,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。
+Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
 Answered a reconciliation question,照合の質問に回答しました
 Answered a withholding tax question,源泉徴収税の質問に回答しました
@@ -1064,7 +1065,6 @@ New task,新規タスク
 Next Attempt At,次回再試行日時
 No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
 No ERP is ready to use,使用できるERPがありません
-No Express account set covers this date for this company,この会社にこの日付を含む Express 会計データがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account set of this company covers the document date.,この会社には書類の日付を含む会計データがありません。
@@ -1560,7 +1560,6 @@ Set reminder,リマインダー
 Set the POS export columns,POS エクスポートの列を設定しました
 Setting the POS export columns,POS エクスポートの列を設定しています
 Settings Json,設定データ（JSON）
-Several Express account sets cover this date for this company,この会社にこの日付を含む Express 会計データが複数あります
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",複数の科目に一致する明細があります。一度選ぶと同じファイルで照合し直します（再読み取りはしません）。
@@ -3311,8 +3310,6 @@ erp.target_projection_unknown_entity,ERP レポートに対応していないマ
 erp.target_projection_unknown_field_type,ERP レポートに対応していないフィールド型が含まれています。
 erp.target_projection_value_required,ERP データレポートに必須の値がありません。
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
-erp_gateway.account_set_missing,この会社にこの日付を含む Express 会計データがありません
-erp_gateway.account_set_several,この会社にこの日付を含む Express 会計データが複数あります
 excel,Excel
 failed,失敗
 held,送信連携待ち
@@ -3338,6 +3335,7 @@ intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のもので
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 intake.error.ACCOUNT_NOT_POSTABLE,この入金勘定は Express で記帳できません。別の勘定を選んでください
 intake.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
+intake.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
 intake.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します

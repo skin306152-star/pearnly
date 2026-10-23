@@ -123,6 +123,7 @@ An option in the ERP data report is invalid.,ตัวเลือกในร�
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
 Anchor Date,วันที่อ้างอิง
 Another active rule already uses this folder or a folder containing it.,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว
+Another computer is writing to this account set. It is sent automatically once it is done,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
 Answered a reconciliation question,ตอบคำถามการกระทบยอดแล้ว
 Answered a withholding tax question,ตอบคำถามภาษีหัก ณ ที่จ่ายแล้ว
@@ -1064,7 +1065,6 @@ New task,สร้างงานใหม่
 Next Attempt At,เวลาลองใหม่ครั้งถัดไป
 No CC Desktop credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
-No Express account set covers this date for this company,บริษัทนี้ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 No POS sales export headers were found in this file,ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
 No account set of this company covers the document date.,ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร
@@ -1560,7 +1560,6 @@ Set reminder,ตั้งการแจ้งเตือน
 Set the POS export columns,กำหนดคอลัมน์ไฟล์ส่งออก POS แล้ว
 Setting the POS export columns,กำลังกำหนดคอลัมน์ไฟล์ส่งออก POS
 Settings Json,ข้อมูลการตั้งค่า (JSON)
-Several Express account sets cover this date for this company,บริษัทนี้มีชุดบัญชี Express หลายชุดที่ครอบคลุมวันที่นี้
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",มีหลายบัญชีที่มีรายการตรงกับรายการเดินบัญชีนี้ เมื่อเลือกแล้ว ระบบจะกระทบยอดใหม่จากไฟล์เดิม (ไม่อ่านไฟล์ซ้ำ)
@@ -3311,8 +3310,6 @@ erp.target_projection_unknown_entity,รายงาน ERP มีประเ�
 erp.target_projection_unknown_field_type,รายงาน ERP มีประเภทฟิลด์ที่ไม่รองรับ
 erp.target_projection_value_required,รายงานข้อมูล ERP ขาดค่าที่จำเป็น
 erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
-erp_gateway.account_set_missing,บริษัทนี้ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
-erp_gateway.account_set_several,บริษัทนี้มีชุดบัญชี Express หลายชุดที่ครอบคลุมวันที่นี้
 excel,Excel
 failed,ล้มเหลว
 held,รอเชื่อมต่อการส่ง
@@ -3338,6 +3335,7 @@ intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลื
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 intake.error.ACCOUNT_NOT_POSTABLE,บัญชีรับเงินนี้บันทึกรายการใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
 intake.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
+intake.error.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
 intake.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ

@@ -2798,7 +2798,9 @@ class InterfaceLanguageTests(unittest.TestCase):
             for line in path.read_text(encoding="utf-8").splitlines():
                 if re.search(r"(?<![\w.])fetch\(\s*[`\"']/api/method/", line):
                     raw.append(f"{path.relative_to(src)}: {line.strip()}")
-        self.assertEqual(raw, ['lib/desktop.ts: const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {'])
+        # 登记这台电脑（Cowork 站点 / ERP 站点的共用机器通道，ADR-025）：回复里没有给人看的字
+        self.assertEqual(raw, ['lib/desktop.ts: const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {',
+                               'lib/desktop.ts: const res = await fetch("/api/method/pearnly_core.cc_desktop.api.register", {'])
 
 
 # ── 结果面板的 Word 预览（2026-10-13 教程第 3 条：CC 产出的 docx 只能下载）──────────────────────────────────────

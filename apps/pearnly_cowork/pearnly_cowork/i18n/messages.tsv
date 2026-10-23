@@ -1466,6 +1466,7 @@ POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express
 The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
+Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します	intake.error.ACCOUNT_WRITER_BUSY
 The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_SALES_DOCTYPE
@@ -2331,5 +2332,3 @@ As printed on the report	按报告原样保留	ตามที่พิมพ์
 1 means the ledger has this document number	1 表示总账中有该单号	1 หมายถึงพบเลขที่เอกสารนี้ในบัญชีแยกประเภท	1 は元帳にこの番号があること
 Up to six decimal places; empty actual quantity means not counted	最多 6 位小数；实盘数量为空表示未盘点	ทศนิยมไม่เกิน 6 ตำแหน่ง จำนวนนับจริงว่างหมายถึงยังไม่ได้นับ	小数点以下6桁まで。実数量が空欄の場合は未棚卸
 This warehouse is not in the Express account set	Express 账套中无此仓库	ไม่มีคลังสินค้านี้ในชุดบัญชี Express	この Express 会計データにこの倉庫はありません	intake.error.ERR_LOCATION
-No Express account set covers this date for this company	该公司无覆盖此日期的 Express 账套	บริษัทนี้ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้	この会社にこの日付を含む Express 会計データがありません	erp_gateway.account_set_missing
-Several Express account sets cover this date for this company	该公司有多份覆盖此日期的 Express 账套	บริษัทนี้มีชุดบัญชี Express หลายชุดที่ครอบคลุมวันที่นี้	この会社にこの日付を含む Express 会計データが複数あります	erp_gateway.account_set_several

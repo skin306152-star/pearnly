@@ -225,6 +225,8 @@
 				changes();
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
+			if (frappe.boot.pearnly_express && doc.express_state)
+				page.add_inner_button(__("Express"), () => p.express("Purchase Document", doc.name, reload));
 			// 付清之后不再给付款入口（用户 2026-09-23：「已付不可更改」）。
 			if (doc.payment_status !== "paid") page.set_primary_action(__("Payment"), () => u.payment(doc, reload));
 			page.add_menu_item(__("Amend"), () => go("amend", doc.name));

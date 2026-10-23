@@ -19,9 +19,8 @@ def _put(bootinfo, key, compute, default):
 
 
 def _express_linked():
-    from pearnly_erp_portal.express import gateway
-
-    return gateway.configured()
+    """这个站点有 CC 桌面版报过账套（ADR-025：接没接 Express 由数据定，不是开关）。"""
+    return bool(frappe.db.exists("Pearnly CC Book", {}))
 
 
 def boot_session(bootinfo):
@@ -37,5 +36,5 @@ def boot_session(bootinfo):
     _put(bootinfo, "pearnly_warehouse", lambda: companies.selling_warehouse() or "", "")
     # 个人信息页要不要出现「LINE」那一块：与绑定接口同一个能力码（团队管理里逐人勾选）。
     _put(bootinfo, "pearnly_line", lambda: guard.has("integration.read"), False)
-    # 这个站点接了事务所的 Express 账本：销售 / 采购列表多一列 Express 单号与状态
+    # 这个站点接了 Express 账本（CC 桌面版报过账套）：销售 / 采购列表多一列 Express 单号与状态
     _put(bootinfo, "pearnly_express", _express_linked, False)

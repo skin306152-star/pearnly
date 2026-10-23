@@ -1,7 +1,8 @@
-"""Express 主档与库存回读进 ERP（ERP 当前台、Express 当账本，2026-10-22）。
+"""Express 主档与库存回读进 ERP（ERP 当前台、Express 当账本，2026-10-22；10-23 起 CC 桌面版直连 ERP，ADR-025）。
 
-经 Cowork 网关请办公室电脑读这家公司现用账套的整套主档与各仓结存（按需请求 ``express_masters``），读好后在 ERP 里
-自动建档 / 更新：客户、供应商、商品（库存单位、售卖 / 进货单位、售价）、仓库（挂在这家公司下）。主档以 Express 为准：
+经共用机器通道请办公室电脑读这家公司现用账套的整套主档与各仓结存（按需请求 ``express_masters``，账套的公共资料：够得到它的
+电脑谁先来谁读），读好后在 ERP 里自动建档 / 更新：客户、供应商、商品（库存单位、售卖 / 进货单位、售价）、仓库（挂在这家公司下）；
+整份另存一份（`facts`）给准备写账载荷用。主档以 Express 为准：
 
 - 按「这家公司 + Express 编码」认档（``express_company`` + ``express_code``）：换了年度账套编码不变，不会重建一份；
   一个 ERP 租户挂几家公司，各自的档互不相认。``express_book`` 只记最近从哪份账套来。
@@ -10,17 +11,21 @@
 - Express 里有的字段完全照 Express 写（空也写），在 ERP 里不能改（`locks`）；ERP 自有字段（图片、分类等）不动。
 库存对齐成「Express 结存 + 还没写进 Express 的 ERP 单的变动」，差额记一笔调整流水（来源 ``express_sync``）。
 
-触发：每小时一次（:func:`sync_all`）、ERP 单写进 Express 后一次（`push._written`）、管理员在公司页手动一次（`api`）。
-电脑读一本账套一般十几秒：后台的两种在任务里等它读完（:data:`JOB_WAIT`），手动的在请求里最多等 :data:`api.WAIT` 秒；
-电脑离线 / 还没读完：这次什么都不改，下次再来。
+触发：每小时一次（:func:`sync_all`）、ERP 单写进 Express 后一次（`push.job_changed`）、管理员在公司页手动一次（`api`）、准备写账时
+这份账套还没读过一次（:func:`ensure`）。电脑读一本账套一般十几秒：后台的两种在任务里等它读完（:data:`JOB_WAIT`），手动的在请求
+里最多等 :data:`api.WAIT` 秒；电脑离线 / 还没读完：这次什么都不改，下次再来。
 """
 from decimal import Decimal
+import gzip
+import json
 import time
 
 import frappe
 from frappe.utils import now_datetime, nowdate
 
-from pearnly_erp_portal.express import contracts, gateway
+from pearnly_core.cc_desktop import requests
+
+from pearnly_erp_portal.express import contracts, facts, push, target
 from pearnly_erp_portal.inventory import contracts as stock_contracts
 from pearnly_erp_portal.inventory import stock
 
@@ -30,15 +35,16 @@ SUPPLIER = "ERP Supplier"
 PRODUCT = "ERP Product"
 WAREHOUSE = "ERP Warehouse"
 SYNC_REASON = "express_sync"
+KIND = "express_masters"
 TOL = Decimal("0.000001")
 JOB_WAIT = 180      # 后台同步等电脑读完的上限（秒）
 POLL_EVERY = 8
 
 
 def linked_companies():
-    """接了 Express 的公司：启用、税号是 13 位（事务所按税号认公司）。"""
+    """接了 Express 的公司：启用、CC 桌面版报过它的账套。"""
     rows = frappe.get_all(COMPANY, filters={"is_active": 1}, fields=["name", "tax_id", "branch"])
-    return [row for row in rows if contracts.tax13(row.tax_id)]
+    return [row for row in rows if contracts.tax13(row.tax_id) and push.linked(row.name)]
 
 
 def enqueue(company):
@@ -48,15 +54,13 @@ def enqueue(company):
 
 
 def sync_all():
-    if not gateway.configured():
-        return
     for row in linked_companies():
         enqueue(row.name)
 
 
 def sync(company, wait=0):
     """同步一家公司。电脑还在读时每隔几秒再问，最多等 ``wait`` 秒。
-    回 ``{"state": ready | reading | offline | outdated | unavailable | <网关原因码>, ...}``。"""
+    回 ``{"state": ready | reading | offline | outdated | <原因码>, ...}``。"""
     deadline = time.monotonic() + max(0, int(wait or 0))
     while True:
         result = _sync_once(company)
@@ -66,23 +70,46 @@ def sync(company, wait=0):
         time.sleep(POLL_EVERY)
 
 
+def _request_key(book):
+    return "erp_masters:" + book["key"]
+
+
+def _params(book):
+    # 位置领单时换成领取那台电脑的写法（`request_contracts.localize`）
+    return {"account_set": book["path"], "account_root": book.get("root") or ""}
+
+
+def ensure(company, book):
+    """准备写账时这份账套还没读过主档：请电脑读一次（已经在读、没有电脑能读都不建），读好了下一次准备就有。"""
+    if requests.find(KIND, _request_key(book)) is None and requests.waiting(KIND, book["key"]) is None:
+        requests.create(KIND, _request_key(book), _params(book), book_key=book["key"], actor=frappe.session.user)
+
+
 def _sync_once(company):
-    if not gateway.configured():
-        return {"state": "not_configured"}
     row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)
     if not row or not contracts.tax13(row.tax_id):
         return {"state": "company_tax_missing"}
+    book = target.current(row, nowdate())
+    if book is None:
+        return {"state": "account_set_missing"}
+    made = requests.find(KIND, _request_key(book))
+    if made is None:
+        waiting = requests.waiting(KIND, book["key"])
+        if waiting:  # 够得到这份账套的电脑都不在线，或 CC 桌面版太旧不认这种请求：不建，过一会儿再来
+            return {"state": "outdated" if waiting.get("reason") == "update_needed" else "offline"}
+        made = requests.create(KIND, _request_key(book), _params(book), book_key=book["key"],
+                               actor=frappe.session.user)
+    if made["status"] != "done":
+        return {"state": "reading"}
+    content, _meta = requests.result(made["request"])
+    requests.drop(made["request"])
     try:
-        result = gateway.call("masters", {"company": {"tax_id": row.tax_id, "branch": row.branch or ""},
-                                          "date": nowdate()}, timeout=gateway.MASTERS_TIMEOUT)
-    except gateway.Unavailable:
-        return {"state": "unavailable"}
-    if not result.get("ok"):
-        return {"state": str(result.get("code") or "failed")}
-    if result.get("state") != "ready" or not isinstance(result.get("data"), dict):
-        return {"state": str(result.get("state") or "reading")}
-    counts = apply(company, str(result.get("account_set") or ""), result["data"])
-    return {"state": "ready", "account_set": result.get("account_set"), "label": result.get("label"), **counts}
+        data = json.loads(gzip.decompress(content or b""))
+    except (OSError, ValueError):
+        return {"state": "masters_invalid"}
+    facts.save(book["key"], data)
+    counts = apply(company, book["label"], data)
+    return {"state": "ready", "account_set": book["key"], "label": book["label"], **counts}
 
 
 def apply(company, book, data):

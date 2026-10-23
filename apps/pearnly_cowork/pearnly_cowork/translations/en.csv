@@ -123,6 +123,7 @@ An option in the ERP data report is invalid.,An option in the ERP data report is
 An original file is already stored for this source.,An original file is already stored for this source.
 Anchor Date,Anchor Date
 Another active rule already uses this folder or a folder containing it.,Another active rule already uses this folder or a folder containing it.
+Another computer is writing to this account set. It is sent automatically once it is done,Another computer is writing to this account set. It is sent automatically once it is done
 Another push holds the writer lock.,Another push holds the writer lock.
 Answered a reconciliation question,Answered a reconciliation question
 Answered a withholding tax question,Answered a withholding tax question
@@ -1064,7 +1065,6 @@ New task,New task
 Next Attempt At,Next Attempt At
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
-No Express account set covers this date for this company,No Express account set covers this date for this company
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
 No account set of this company covers the document date.,No account set of this company covers the document date.
@@ -1560,7 +1560,6 @@ Set reminder,Set reminder
 Set the POS export columns,Set the POS export columns
 Setting the POS export columns,Setting the POS export columns
 Settings Json,Settings Json
-Several Express account sets cover this date for this company,Several Express account sets cover this date for this company
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.","Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
@@ -3311,8 +3310,6 @@ erp.target_projection_unknown_entity,The ERP report contains an unsupported mast
 erp.target_projection_unknown_field_type,The ERP report contains an unsupported field type.
 erp.target_projection_value_required,The ERP data report is missing a required value.
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
-erp_gateway.account_set_missing,No Express account set covers this date for this company
-erp_gateway.account_set_several,Several Express account sets cover this date for this company
 excel,excel
 failed,Failed
 held,held
@@ -3338,6 +3335,7 @@ intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another 
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 intake.error.ACCOUNT_NOT_POSTABLE,The receiving account cannot be posted to in Express. Choose another account
 intake.error.ACCOUNT_SET_UNREACHABLE,The account set cannot be reached right now. It will be sent automatically once connected.
+intake.error.ACCOUNT_WRITER_BUSY,Another computer is writing to this account set. It is sent automatically once it is done
 intake.error.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
 intake.error.BAD_SALES_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
 intake.error.CDX_REINDEX_FAILED,"Express could not index the invoice, so it was undone. It is retried automatically"

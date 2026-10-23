@@ -30,7 +30,6 @@ BATCH = 200
 SCAN = 1000
 TASK_HOOK = "cowork_push_task_histories"
 LINE_SOURCE = "cowork_line"
-GATEWAY_SOURCE = "erp_portal"  # 同 `contracts.history.GATEWAY_SOURCE`
 FIELDS = ["name", "owner", "source", "push_connection", "push_account_set", "record_version", "posting_kind",
           "edit_count", "creation"]
 
@@ -48,7 +47,6 @@ def candidates(now=None) -> list:
     now = frappe.utils.get_datetime(now) if now else frappe.utils.now_datetime()
     rows = frappe.get_all(HISTORY, filters={
         "intake_target": "express", "push_connection": ["is", "set"], "push_account_set": ["is", "set"],
-        "source": ["!=", GATEWAY_SOURCE],  # ERP 前台的单由网关自己推（`erp_gateway`），这里不碰
         "last_push_status": ["is", "not set"], "last_push_record": ["is", "not set"],
         "last_push_reason": ["is", "not set"], "auto_checked_at": ["is", "not set"],
         "creation": ["between", [now - timedelta(days=WINDOW_DAYS), now - timedelta(minutes=SETTLE_MINUTES)]]},
