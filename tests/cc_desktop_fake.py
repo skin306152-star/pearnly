@@ -163,6 +163,16 @@ def _match(row, filters):
     return True
 
 
+class _Flags(dict):
+    """同 Frappe 的 ``frappe.flags``：没设过的取出来是 None，也能按属性设。"""
+
+    def __getattr__(self, key):
+        return self.get(key)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+
 class _Row(dict):
     def __getattr__(self, key):
         return self.get(key)
@@ -289,7 +299,7 @@ def install():
     frappe.db = _DBApi()
     frappe.local = types.SimpleNamespace(site="testerp.localhost", message_log=[])
     frappe.session = types.SimpleNamespace(user="Guest")
-    frappe.flags = {}
+    frappe.flags = _Flags()
     frappe.get_hooks = lambda name: deepcopy(STATE.hooks.get(name) or {})
     frappe.get_attr = lambda path: STATE.attrs[path]
     frappe.generate_hash = lambda length=10: __import__("secrets").token_hex(length)[:length]

@@ -1,4 +1,5 @@
-"""ERP 页面的 Express 入口：单据上看写进 Express 的情况、要人拿主意的项在这里选一次（ADR-025）、管理员手动同步主档与库存。
+"""ERP 页面的 Express 入口：单据上看写进 Express 的情况、要人拿主意的项在这里选一次（ADR-025）、管理员手动发起主档与库存同步
+（后台落库）。
 
 权限都在服务端：看单据要有这类单据的查看权与这家公司；选、再写一次要有开单权；同步只给管理员。选的值只认这份账套里有的
 （主档、科目表、部门、存货科目组），选过记在这家公司名下（`choices`），之后同类自动套用。
@@ -16,20 +17,17 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import choices, contracts, facts, masters, prepare, push
 from pearnly_erp_portal.masters import company as companies
 
-WAIT = 30  # 电脑读一本账套一般十几秒：按钮在请求里等它读完，超了就回「读取中」，后台接着等
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write")}
 FIXED = {"payment": choice_rules.PAYMENT_VALUES, "vat": choice_rules.VAT_VALUES}
 
 
 @frappe.whitelist(methods=["POST"])
 def sync_company(company):
+    """公司页「同步 Express」：只发起读取并排后台任务，立刻回（落库在后台，做完推给本人，见 `masters.start`）。"""
     guard.require("team.manage")  # 只给管理员（ADMIN_CAPABILITIES）
     if not isinstance(company, str) or not frappe.db.exists(masters.COMPANY, company):
         frappe.throw(_("Company not found"), frappe.DoesNotExistError)
-    result = masters.sync(company, wait=WAIT)
-    if result.get("state") == "reading":
-        masters.enqueue(company)
-    return result
+    return masters.start(company)
 
 
 def _document(doctype, name, write=False):

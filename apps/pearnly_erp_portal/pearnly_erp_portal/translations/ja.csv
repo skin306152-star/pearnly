@@ -396,6 +396,8 @@ Express Note,Express メモ
 Express Sent At,Express 送信日時
 Express Status,Express 状態
 Express Stock Item,Express 在庫品
+Express Sync Note,Express 同期の理由
+Express Sync State,Express 同期状態
 Express Synced At,Express 同期日時
 External System Reference,外部システム参照
 Factor to Base Unit,基準単位への換算係数
@@ -981,6 +983,7 @@ Switching company...,会社を切り替えています…
 Sync Express,Express と同期
 Sync failed,同期に失敗しました
 Synced,同期しました
+Syncing,同期中
 System number,システム番号
 Tap the menu to start,下のメニューから始めてください
 Tax Amount,税額
@@ -1324,6 +1327,7 @@ company.syncExpress.offline,CC デスクトップが接続されていません
 company.syncExpress.outdated,CC デスクトップの更新が必要です
 company.syncExpress.reading,読み込み中
 company.syncExpress.ready,同期しました
+company.syncExpress.syncing,同期中
 company.taxHint,13桁。支店は5桁の支店番号を続けます
 company.terminalDefaultName,レジ 1
 company.terminalEdit,編集

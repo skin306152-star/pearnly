@@ -239,8 +239,39 @@
 			});
 		}
 
+		// ── Express 同步状态 ─────────────────────────────────────────────────────
+		const SYNC_STATES = ["reading", "syncing", "ready", "offline", "outdated"];
+		const sync_key = state => (SYNC_STATES.includes(state) ? state : "failed");
+		// 失败原因：认得的原因码给译文，其余（出错信息）原样
+		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook"};
+		const express_fields = express => [
+			{fieldtype: "Section Break", label: __("Express")},
+			{fieldname: "express_book", label: __("Account Set"), fieldtype: "Data", read_only: 1,
+				default: express.express_book || ""},
+			{fieldname: "express_synced_at", label: __("Express Synced At"), fieldtype: "Datetime", read_only: 1,
+				default: express.express_synced_at || ""},
+			{fieldtype: "Column Break"},
+			{fieldname: "express_sync_state", label: __("Status"), fieldtype: "Data", read_only: 1,
+				default: express.express_sync_state ? t(`company.syncExpress.${sync_key(express.express_sync_state)}`) : ""},
+			...(express.express_sync_note ? [{fieldname: "express_sync_note", label: __("Reason"), fieldtype: "Small Text",
+				read_only: 1, default: SYNC_NOTES[express.express_sync_note]
+					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : []),
+		];
+		// 后台同步做完推过来：提示结果，还在这一屏就重画（显示新的时间、状态、原因）
+		const watch_sync = (company, still_current) => {
+			const done = data => {
+				if (data?.company !== company) return;
+				frappe.realtime.off("pearnly_erp_express_sync", done);
+				const key = sync_key(data.state);
+				if (key === "ready") p.success(t("company.syncExpress.ready"));
+				else frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)), indicator: "orange"});
+				if (still_current?.()) show();
+			};
+			frappe.realtime.on("pearnly_erp_express_sync", done);
+		};
+
 		// ── 公司信息（点列表任意一行进来）────────────────────────────────────────
-		async function profile(name) {
+		async function profile(name, still_current) {
 			p.clear_page(page);
 			list = null;
 			const data = await p.call(api + "api_get_profile", name ? {name} : {});
@@ -303,6 +334,8 @@
 						{fieldname: "is_active", fieldtype: "Check", in_list_view: 1, default: 1,
 							label: t("company.col.status")},
 					]},
+				// 接了 Express：最近一次同步（后台落库，见 `express.masters._record`）的账套、时间、状态与失败原因，只读
+				...(data.express ? express_fields(data.express) : []),
 			]);
 			if (data.can_write) {
 				page.set_primary_action(t("company.save"), async () => {
@@ -337,20 +370,16 @@
 			} else {
 				page.clear_primary_action();
 			}
-			// 接了事务所 Express 账本：主档与库存按 Express 同步一次（服务端最多等 30 秒电脑读完）
+			// 接了事务所 Express 账本：主档与库存按 Express 同步一次。请求只发起读取、立刻回；读好与落库在后台，
+			// 做完服务端推给本人（`pearnly_erp_express_sync`），这一屏重画显示结果（10-23：在请求里落库大账套超时被杀）。
 			if (data.can_sync_express) {
+				const company = name || data.name;
 				page.add_inner_button(t("company.syncExpress"), async () => {
-					frappe.dom.freeze(t("company.syncExpress.reading"));
-					try {
-						const result = await p.call("pearnly_erp_portal.express.api.sync_company",
-							{company: name || data.name}, "POST");
-						if (result?.state === "ready") { p.success(t("company.syncExpress.ready")); return; }
-						const key = {reading: "reading", offline: "offline", outdated: "outdated"}[result?.state] || "failed";
-						frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)),
-							indicator: key === "reading" ? "blue" : "orange"});
-					} finally {
-						frappe.dom.unfreeze();
-					}
+					const result = await p.call("pearnly_erp_portal.express.api.sync_company", {company}, "POST");
+					const key = sync_key(result?.state);
+					frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)),
+						indicator: key === "reading" ? "blue" : "orange"});
+					if (key === "reading") watch_sync(company, still_current);
 				});
 			}
 			// 「设为当前公司」只在这一屏给（列表上不再放行内按钮）：写的是自己的用户默认值。
@@ -373,7 +402,7 @@
 				await create_page();
 				return;
 			}
-			await profile(segment);
+			await profile(segment, still_current);
 			if (!still_current()) return;
 		}});
 

@@ -396,6 +396,8 @@ Express Note,Express Note
 Express Sent At,Express Sent At
 Express Status,Express Status
 Express Stock Item,Express Stock Item
+Express Sync Note,Express Sync Note
+Express Sync State,Express Sync State
 Express Synced At,Express Synced At
 External System Reference,External System Reference
 Factor to Base Unit,Factor to Base Unit
@@ -981,6 +983,7 @@ Switching company...,Switching company...
 Sync Express,Sync Express
 Sync failed,Sync failed
 Synced,Synced
+Syncing,Syncing
 System number,System number
 Tap the menu to start,Tap the menu to start
 Tax Amount,Tax Amount
@@ -1324,6 +1327,7 @@ company.syncExpress.offline,CC Desktop not connected
 company.syncExpress.outdated,CC Desktop needs an update
 company.syncExpress.reading,Reading
 company.syncExpress.ready,Synced
+company.syncExpress.syncing,Syncing
 company.taxHint,13 digits; a branch adds its 5-digit branch number
 company.terminalDefaultName,Counter 1
 company.terminalEdit,Edit

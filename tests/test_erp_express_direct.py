@@ -289,6 +289,43 @@ class MasterSync(Base):
         doc.insert()
         return doc["name"]
 
+    def test_a_second_sync_reads_no_unchanged_record(self):
+        # 10-23 生产：逐条 get_doc 比对，几千条要几分钟。现有值一次取出，没变的行不读出、不保存
+        from unittest import mock
+        rows = [{"code": f"V{i:03d}", "name": f"ผู้ขาย {i}", "tax_id": "", "branch": "00000"} for i in range(30)]
+        self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 30)
+        with mock.patch.object(frappe, "get_doc", side_effect=AssertionError("unchanged rows must not be read")):
+            self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 0)
+        rows[3] = {**rows[3], "name": "ผู้ขาย ใหม่"}
+        self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 1)
+
+    def test_manual_sync_only_starts_and_the_job_records_what_happened(self):
+        # 手动同步：请求里只发起读取、排后台任务，不等不落库；任务做完（或出错）结果记在公司上并推给发起人
+        from unittest import mock
+        fake.STATE.db.table("ERP Company")["CO-1"] = {"name": "CO-1", "tax_id": OWN, "branch": "00012"}
+        frappe.session.user = "admin@x"
+        queued, pushed = [], []
+        book_row = {"key": "a" * 40, "path": PATH, "label": "T.9"}
+        made = {"request": "R1", "status": "done"}
+        with mock.patch.object(self.sync.target, "current", lambda row, day: book_row, create=True), \
+                mock.patch.object(self.sync, "requests", mock.Mock(find=lambda kind, key: made)), \
+                mock.patch.object(frappe, "enqueue", lambda *a, **kw: queued.append(kw), create=True):
+            self.assertEqual(self.sync.start("CO-1"), {"state": "reading", "book": book_row, "made": made})
+        self.assertEqual((queued[0]["company"], queued[0]["notify"]), ("CO-1", "admin@x"))  # 读好了也不在请求里落库
+        self.assertEqual(fake.STATE.db.table("ERP Company")["CO-1"]["express_sync_state"], "reading")
+        errors = []
+        with mock.patch.object(self.sync, "_sync_once", side_effect=RuntimeError("disk full")), \
+                mock.patch.object(frappe, "log_error", lambda **kw: errors.append(kw), create=True), \
+                mock.patch.object(frappe, "publish_realtime", lambda event, data, **kw: pushed.append((event, data, kw)),
+                                  create=True):
+            result = self.sync.sync("CO-1", notify="admin@x")
+        company = fake.STATE.db.table("ERP Company")["CO-1"]
+        self.assertEqual((result["state"], company["express_sync_state"]), ("failed", "failed"))
+        self.assertIn("disk full", company["express_sync_note"])  # 不静默：原因记在公司上、另记 Error Log
+        self.assertEqual(len(errors), 1)
+        self.assertEqual((pushed[0][0], pushed[0][1]["state"], pushed[0][2]["user"]),
+                         ("pearnly_erp_express_sync", "failed", "admin@x"))
+
     def test_a_chosen_book_read_by_the_computer_lands_when_preparing(self):
         # 10-23 第 3 轮：同期几份账套时人选的那份不是主档同步读的那份，读好了也没人落地，单据一直「正在读取」
         import gzip
@@ -307,6 +344,15 @@ class MasterSync(Base):
         self.assertEqual(facts.load(key)["suppliers"], SUPPLIERS)  # 账套资料落地，下一次准备就有
         self.assertEqual(dropped, ["R1"])
         self.assertEqual(fake.STATE.db.table("ERP Supplier"), {})  # 不是这家公司现用的那份：不落进 ERP 主档
+        # 是现用的那份：准备可能在网页请求里，这里只排后台任务落库
+        queued = []
+        with mock.patch.object(self.sync, "requests", done), \
+                mock.patch.object(self.sync.target, "current", lambda row, day: {"key": key}, create=True), \
+                mock.patch.object(frappe, "enqueue", lambda method, **kw: queued.append((method, kw)), create=True):
+            self.sync.ensure("CO-1", {"key": key, "label": "T.9", "path": PATH})
+        self.assertEqual([(method, kw["book_key"]) for method, kw in queued],
+                         [("pearnly_erp_portal.express.masters.land", key)])
+        self.assertEqual(fake.STATE.db.table("ERP Supplier"), {})
 
     def test_one_erp_supplier_is_claimed_once_and_a_spaced_code_is_taken_back(self):
         loose = self.supplier(supplier_name="ชาญ ฟู้ด", express_code="ชาญ ฟู้ด", express_company="CO-00127")

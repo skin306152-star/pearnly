@@ -396,6 +396,8 @@ Express Note,หมายเหตุ Express
 Express Sent At,ส่ง Express เมื่อ
 Express Status,สถานะ Express
 Express Stock Item,สินค้าคงคลัง Express
+Express Sync Note,เหตุผลการซิงค์ Express
+Express Sync State,สถานะการซิงค์ Express
 Express Synced At,ซิงค์ Express เมื่อ
 External System Reference,รหัสอ้างอิงระบบภายนอก
 Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐาน
@@ -981,6 +983,7 @@ Switching company...,กำลังสลับบริษัท…
 Sync Express,ซิงค์ Express
 Sync failed,ซิงค์ไม่สำเร็จ
 Synced,ซิงค์แล้ว
+Syncing,กำลังซิงค์
 System number,เลขที่เอกสาร
 Tap the menu to start,กรุณากดเมนูด้านล่างเพื่อเริ่มต้น
 Tax Amount,จำนวนภาษี
@@ -1324,6 +1327,7 @@ company.syncExpress.offline,CC เดสก์ท็อปไม่ได้เ�
 company.syncExpress.outdated,CC เดสก์ท็อปต้องอัปเดต
 company.syncExpress.reading,กำลังอ่าน
 company.syncExpress.ready,ซิงค์แล้ว
+company.syncExpress.syncing,กำลังซิงค์
 company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 company.terminalDefaultName,จุดขาย 1
 company.terminalEdit,แก้ไข

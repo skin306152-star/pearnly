@@ -1335,6 +1335,8 @@ Express Code	Express 编码	รหัส Express	Express コード
 Express Account Set	Express 账套	ชุดบัญชี Express	Express 帳簿
 Express Stock Item	Express 库存品	สินค้าคงคลัง Express	Express 在庫品
 Express Synced At	Express 同步时间	ซิงค์ Express เมื่อ	Express 同期日時
+Express Sync State	Express 同步状态	สถานะการซิงค์ Express	Express 同期状態
+Express Sync Note	Express 同步原因	เหตุผลการซิงค์ Express	Express 同期の理由
 Express Status	Express 状态	สถานะ Express	Express 状態
 Express No.	Express 单号	เลขที่ Express	Express 番号
 Express Note	Express 备注	หมายเหตุ Express	Express メモ
@@ -1345,6 +1347,7 @@ Reading	读取中	กำลังอ่าน	読み込み中	company.syncExpres
 CC Desktop not connected	CC 桌面版未连接	CC เดสก์ท็อปไม่ได้เชื่อมต่อ	CC デスクトップが接続されていません	company.syncExpress.offline
 CC Desktop needs an update	CC 桌面版需更新	CC เดสก์ท็อปต้องอัปเดต	CC デスクトップの更新が必要です	company.syncExpress.outdated
 Sync failed	同步失败	ซิงค์ไม่สำเร็จ	同期に失敗しました	company.syncExpress.failed
+Syncing	同步中	กำลังซิงค์	同期中	company.syncExpress.syncing
 Maintained in Express	由 Express 维护	จัดการใน Express	Express で管理
 Express Company	Express 公司	บริษัท Express	Express 会社
 The company has no 13-digit tax ID	公司没有 13 位税号	บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก	会社に 13 桁の納税者番号がありません	express.reason.taxMissing

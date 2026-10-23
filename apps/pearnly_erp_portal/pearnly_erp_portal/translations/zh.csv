@@ -396,6 +396,8 @@ Express Note,Express 备注
 Express Sent At,Express 发送时间
 Express Status,Express 状态
 Express Stock Item,Express 库存品
+Express Sync Note,Express 同步原因
+Express Sync State,Express 同步状态
 Express Synced At,Express 同步时间
 External System Reference,外部系统引用
 Factor to Base Unit,换算到库存单位的系数
@@ -981,6 +983,7 @@ Switching company...,正在切换公司…
 Sync Express,同步 Express
 Sync failed,同步失败
 Synced,已同步
+Syncing,同步中
 System number,单据编号
 Tap the menu to start,请点击下方菜单开始
 Tax Amount,税额
@@ -1324,6 +1327,7 @@ company.syncExpress.offline,CC 桌面版未连接
 company.syncExpress.outdated,CC 桌面版需更新
 company.syncExpress.reading,读取中
 company.syncExpress.ready,已同步
+company.syncExpress.syncing,同步中
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
 company.terminalDefaultName,收银台 1
 company.terminalEdit,编辑

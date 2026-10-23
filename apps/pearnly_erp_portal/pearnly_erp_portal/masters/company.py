@@ -335,6 +335,10 @@ def get_profile(name=None) -> dict:
     from pearnly_erp_portal.express import push as express_push
 
     payload["can_sync_express"] = guard.has("team.manage") and express_push.linked(doc.name)
+    if payload["can_sync_express"]:
+        # 同步在后台做：最近一次的账套、时间、状态与失败原因（`express.masters._record`）给这一屏显示
+        payload["express"] = {field: doc.get(field) for field in
+                              ("express_book", "express_synced_at", "express_sync_state", "express_sync_note")}
     return payload
 
 
