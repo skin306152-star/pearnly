@@ -358,14 +358,15 @@ class MasterSync(Base):
         # 10-24 测试机：Express 客户表里同一个编码两行，ERP 每同步一次多建一条（一家累积到 14 条）
         rows = [{"code": "C1", "name": "หนึ่ง", "tax_id": "", "branch": "00000"},
                 {"code": "C1", "name": "หนึ่ง (ซ้ำ)", "tax_id": "", "branch": "00000"},
-                {"code": "C2", "name": "สอง", "tax_id": "", "branch": "00000"}]
+                {"code": "C 2", "name": "สอง", "tax_id": "", "branch": "00000"},
+                {"code": "C\xa02", "name": "สอง (อีกรหัส)", "tax_id": "", "branch": "00000"}]  # 只差空格写法：两件
         old = self.supplier(supplier_name="หนึ่ง", express_code="C1", express_company="CO-1")
         extra = self.supplier(supplier_name="หนึ่ง", express_code="C1", express_company="CO-1")
         self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
         self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
         table = fake.STATE.db.table("ERP Supplier")
         active = sorted((row["express_code"], row["name"]) for row in table.values() if row.get("is_active"))
-        self.assertEqual([code for code, _name in active], ["C1", "C2"])
+        self.assertEqual([code for code, _name in active], ["C 2", "C1", "C\xa02"])
         self.assertIn(("C1", old), active)  # 认最早的那条，单据里引用的不变
         self.assertEqual(table[extra]["is_active"], 0)
 

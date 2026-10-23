@@ -414,11 +414,11 @@ def _mine(doctype, company, fields):
 
 
 def _first(seen, code):
-    """同一本账套里同一个编码只认第一行（Express 的表不管编码重不重；10-24 测试机：重的那行每次同步都多建一条档）。"""
-    key = _loose(code)
-    if key in seen:
+    """同一本账套里同一个编码只认第一行（Express 的表不管编码重不重；10-24 测试机：重的那行每次同步都多建一条档）。按原样比：
+    只差不换行空格 / 普通空格的是 Express 里两件不同的档（写单按原样认编码），不能并成一件。"""
+    if code in seen:
         return False
-    seen.add(key)
+    seen.add(code)
     return True
 
 
