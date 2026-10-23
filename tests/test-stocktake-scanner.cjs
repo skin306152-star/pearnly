@@ -198,3 +198,43 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   console.log('PASS decoder format propagation, numeric QR and mixed-format stability');
   console.log('PASS read-time feedback is silent (flash + vibrate only), mute stops the vibration, result sound is submit/error');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+// 扫码弹窗 `p.scan`（商品、单据选商品、收银台、选择框扫码共用）：Frappe 的 `set_df_property` 会重画 HTML 字段、
+// 换掉里面的 <video>。相机开了以后再改画面那一格，画面就接在被换掉的元素上——相机亮着、弹窗一片黑
+// （10-15 起所有浏览器都这样，10-23 用户截图 + 无头 Chrome 假摄像头复现）。这里按框架的重画行为模拟：
+// 读码器拿到的 <video> 必须就是最后留在弹窗里的那一个。
+(async () => {
+  const videos = [];
+  const make_video = () => { const v = { readyState: 2, play: async () => {}, srcObject: null }; videos.push(v); return v; };
+  let current = make_video();
+  const track = { stop() {}, getCapabilities: () => ({}) };
+  const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+  const $ = target => ({ find: () => ({ get: () => target.video(), addClass() {}, removeClass() {}, one() {} }),
+    empty() { return this; }, append() { return this; } });
+  class Dialog {
+    constructor({ fields }) {
+      this.fields_dict = {};
+      for (const f of fields) this.fields_dict[f.fieldname] = { df: { ...f }, $wrapper: { video: () => current, empty() {}, append() {} } };
+    }
+    show() {} hide() { this.onhide?.(); }
+    set_df_property(name, prop, value) {
+      this.fields_dict[name].df[prop] = value;
+      if (name === 'reader') current = make_video();   // 框架重画 HTML 字段：换一个新的 <video>
+    }
+  }
+  const p = {};
+  class Detector { static async getSupportedFormats() { return ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','codabar','qr_code']; }
+    async detect() { return []; } }
+  const window = { BarcodeDetector: Detector, isSecureContext: true, setTimeout: () => 0, clearTimeout() {},
+    location: { href: 'https://site.invalid/desk/pearnly-products' } };
+  vm.runInNewContext(source, { window, URL, $: host => host?.video ? $(host) : $({ video: () => current }),
+    navigator: { userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/155', mediaDevices: { getUserMedia: async () => stream, enumerateDevices: async () => [] } },
+    __: text => text,
+    frappe: { provide() {}, pearnly: p, utils: { play_sound() {}, icon: () => '' }, boot: { user: {} }, ui: { Dialog }, msgprint() {} } });
+  p.texts = async () => key => key;
+  await p.scan({ kind: 'all', on_result: () => {} });
+  await flush(); await flush();
+  const shown = current;
+  assert.ok(shown.srcObject === stream, 'the camera stream is on the <video> left in the dialog, not on a replaced one');
+  console.log('PASS the scan dialog shows its picture area before the camera opens, so the stream stays on the visible <video>');
+})().catch(error => { console.error(error); process.exitCode = 1; });

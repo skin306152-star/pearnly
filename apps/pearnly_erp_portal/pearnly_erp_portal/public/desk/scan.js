@@ -17,13 +17,17 @@ frappe.provide("frappe.pearnly");
 		d.onhide = () => { closed = true; scanner?.stop(); };
 		d.show();
 		const open = async () => {
+			// 画面要在交给读码器**之前**显示：`set_df_property` 会重画这个 HTML 字段、换掉里面的 <video>，
+			// 相机开了以后再改它，画面就接在被换掉的那个元素上——相机亮着、弹窗里一片空白、读不到码
+			// （10-15 改成"开了再显示"后所有浏览器都这样，10-23 无头 Chrome 假摄像头复现）。与盘点录入同一顺序。
+			d.set_df_property("reader", "hidden", false);
 			scanner = p.scan_reader({ host: d.fields_dict.reader.$wrapper, kind,
 				on_result: async (code, details) => { scanner.stop(); d.hide(); await on_result(code, details); },
 				// 打不开：画面收起，原因留在弹窗里；要去设置开权限的，切回来自动重开。
 				// 表单里的扫码不转 LIFF：转走会丢掉没保存的内容。
 				on_error: error => { d.set_df_property("reader", "hidden", true); p.scan_hint(d.fields_dict.hint.$wrapper, error, restart); },
 				on_waiting: reason => p.scan_hint(d.fields_dict.hint.$wrapper, reason, restart),
-				on_started: () => { d.set_df_property("reader", "hidden", false); d.fields_dict.hint.$wrapper.empty(); },
+				on_started: () => d.fields_dict.hint.$wrapper.empty(),
 			});
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner.has_torch());
