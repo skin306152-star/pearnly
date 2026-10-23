@@ -229,6 +229,35 @@ NOT_ENTRIES = {
 }
 
 
+class Kinds(unittest.TestCase):
+    """Claude 的单据种类 → 全平台票种（`tax_documents.claude_kinds`，Cowork 与 ERP 共用一张）。"""
+
+    def test_claude_kinds_become_platform_document_types(self):
+        from pearnly_core.tax_documents import claude_kinds, codes
+        both = {"seller_tax": GOOD_TAX, "buyer_tax": "0105534113625"}
+        self.assertEqual(claude_kinds.document_type("receipt_tax_invoice", both), codes.TAX_INVOICE)
+        self.assertEqual(claude_kinds.document_type("utility", both), codes.TAX_INVOICE)
+        self.assertEqual(claude_kinds.document_type("utility", {}), codes.RECEIPT)  # 没印卖方税号
+        self.assertEqual(claude_kinds.document_type("receipt_tax_invoice", {"seller_tax": GOOD_TAX, "price_mode": "inclusive"}),
+                         codes.SIMPLIFIED_TAX_INVOICE)
+        self.assertEqual(claude_kinds.document_type("fuel_receipt", {"seller_tax": GOOD_TAX}), codes.SIMPLIFIED_TAX_INVOICE)
+        self.assertEqual(claude_kinds.document_type("quotation", both), codes.OTHER)
+
+    def test_erp_takes_the_platform_type_so_a_tax_invoice_claims_input_vat(self):
+        import types
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/pearnly_erp_portal"))
+        sys.modules.setdefault("frappe", types.ModuleType("frappe"))
+        from pearnly_erp_portal.recognition import claude as erp_claude
+        from pearnly_core.tax_documents import rules as tax_rules
+        minburi = {"seller_tax": "0105534113625", "buyer_tax": GOOD_TAX, "buyer_name": "บริษัท ซินเซียร์ไอซ์ จำกัด",
+                   "subtotal": "16939.25", "vat": "1185.75", "total": "18125.00", "price_mode": "inclusive", "lines": []}
+        raw = erp_claude.to_raw({"doc_kind": "receipt_tax_invoice"}, minburi, "purchase")
+        kind, _basis = tax_rules.classify(raw["document_type"], raw.get("document_title"))
+        treatment = tax_rules.purchase_treatment(kind, vat=minburi["vat"], buyer_tax_id=minburi["buyer_tax"],
+                                                 buyer_name=minburi["buyer_name"])
+        self.assertTrue(treatment.claims_input_vat)  # 10-23 验收：原先成了「其他」，增值税记 0
+
+
 class EveryEntry(unittest.TestCase):
     def test_every_google_recognition_entry_checks_the_claude_route(self):
         """三个产品里调谷歌识别的每个入口都先看站点选的路线（ADR-022）；新加入口忘了接，这里就红。"""

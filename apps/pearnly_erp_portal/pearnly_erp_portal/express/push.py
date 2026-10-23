@@ -139,8 +139,10 @@ def send(doctype, name):
     else:
         _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
         payload = result["payload"]
-        job = jobs.enqueue(source_doctype=doctype, source_name=name,
-                           request_key=f"erp:{DIRECTIONS[doctype]}:{body['ref']}", actor=row.owner,
+        # 再写一次（`api.retry`）撤掉的那件占着原来的请求号：后面的按第几件编号
+        earlier = len(jobs.of_source(doctype, name))
+        key = f"erp:{DIRECTIONS[doctype]}:{body['ref']}" + (f"#{earlier + 1}" if earlier else "")
+        job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=key, actor=row.owner,
                            book_key=book["key"], payload=payload, payload_version=int(payload.get("payload_version") or 1),
                            label=body["number"])
         _set(doctype, name, {"express_job": job["job"]})

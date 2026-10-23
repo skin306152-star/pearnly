@@ -29,14 +29,15 @@ def flag(value, default=False):
     return default if value is None else value in (True, 1, "1", "true", "True")
 
 
-def _supplier(payload):
+def _supplier(payload, company=None):
     from pearnly_erp_portal.masters.selection import match_party
 
     key = payload.get("supplier")
     name = str(payload.get("supplier_name") or "").strip()
     if not key:
         key = match_party("supplier", name, tax_id=payload.get("supplier_tax_id"),
-                          branch_type=payload.get("supplier_branch_type"), branch_no=payload.get("supplier_branch_no"))
+                          branch_type=payload.get("supplier_branch_type"), branch_no=payload.get("supplier_branch_no"),
+                          company=company)
     if key:
         if not frappe.db.exists("ERP Supplier", key):
             frappe.throw(_("Supplier not found. Please select the supplier again."))
@@ -174,7 +175,7 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
             "status": ["!=", "void"]}, pluck="name")
         if any(key not in (name, amended_from) for key in duplicates):
             frappe.throw(_("Document already exists"))
-    supplier, supplier_name = _supplier(payload)
+    supplier, supplier_name = _supplier(payload, company)
     if payload.get("source") == "line":
         # LINE 录单没有选分类的地方：按这个供应商记住的分类补上空着的行（网页在识别时已预填，人可以改）。
         category_memory.fill(supplier, totals["lines"])
@@ -187,7 +188,7 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
     rows = []
     for row in totals["lines"]:
         row = purchase_items.resolve(dict(row), create=flag(payload.get("auto_create_product"), True),
-                                     currency_rate=rate)
+                                     currency_rate=rate, company=company)
         if flag(payload.get("update_stock"), True) and row["item_type"] == "goods" and not row.get("product"):
             frappe.throw(_("Please select an Item"))
         rows.append(positions.prepare(row, company=company))

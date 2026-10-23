@@ -26,6 +26,7 @@
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
 		state.party_choice = p.bind_entry_choice(form, {kind: "customer", context: "sales", reference: "customer", title: "buyer_name", editable,
+			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({party_type: row.party_type, address: row.address}),
 			on_clear: () => form.set_values({party_type: "anonymous", address: ""})});
 		const layout = u.continuous_layout(form, page);
@@ -43,7 +44,7 @@
 			// 内部来源与留底字段留在契约里，不作为商家可见的开关。
 			return {...Object.fromEntries(["source", "source_file", "image_sha256"]
 				.filter(key => doc[key] !== undefined).map(key => [key, doc[key]])),
-				source: state.source || doc.source || "web", ...values, lines};
+				source: state.source || doc.source || "web", ...state.ocr_buyer, ...values, lines};
 		};
 		const label_lines = () => state.lines.forEach((line, i) => {
 			// Preserve the framework's collapse indicator/listeners while changing text.
@@ -61,9 +62,12 @@
 			const line = {wrapper, section: outer.sections[0], ready: false};
 			line.form = p.layout(outer.fields_dict.item.$wrapper, u.line_fields(state, line, changes));
 			line.choice = p.bind_entry_choice(line.form, {kind: "product", context: "sales", reference: "product", title: "description", editable,
+				company: () => doc.company || frappe.boot.pearnly_company,
 				on_select: async item => {
+					// 单价只补空：识别读出 / 已填的单价不被商品默认价盖掉
 					await line.form.set_values({description: item.product_name, unit: item.base_unit || item.unit,
-					unit_price: item.price_set ? item.unit_price : 0, vat_applicable: item.vat_applicable ? 1 : 0,
+					unit_price: Number(line.form.get_value("unit_price")) || (item.price_set ? item.unit_price : 0),
+					vat_applicable: item.vat_applicable ? 1 : 0,
 					warehouse: frappe.boot.pearnly_warehouse || "", location: item.default_location || ""});
 				}, on_clear: () => Promise.resolve()});
 			line.form.sections.forEach(section => section.wrapper.addClass("px-0"));
@@ -171,8 +175,10 @@
 					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break", "Table"].includes(form.fields_dict[key].df.fieldtype));
 					await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
-					await form.set_value("customer", "");
+					// 客户按读出的买方税号由服务端预选（认不出就空着给人选）；税号 / 分店随提交带上，提交时再按它认或记进新客户
+					await form.set_value("customer", result.customer || "");
 					await state.party_choice.show();
+					state.ocr_buyer = {buyer_tax_id: result.buyer_tax_id || "", buyer_branch_no: result.buyer_branch_no || ""};
 					state.source = result.source;
 					state.ocr_hash = result.image_sha256;
 					if (result.lines) await state.set_lines(result.lines);

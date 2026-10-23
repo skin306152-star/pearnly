@@ -7,16 +7,11 @@ import mimetypes
 import time
 
 from pearnly_core.claude_ocr import client
-from pearnly_core.tax_documents import codes as tax_codes
+from pearnly_core.tax_documents import claude_kinds, codes as tax_codes
 from pearnly_cowork.ocr.results import UNREAD_STAGE
 from pearnly_cowork.ocr.schema import PipelineResult
 
 ENGINE = "claude_v1"
-# Claude 的单据种类 → Cowork 票种（共用码表）；不在表里的按「其他」。
-TYPES = {"tax_invoice": tax_codes.TAX_INVOICE, "receipt_tax_invoice": tax_codes.TAX_INVOICE, "debit_note": tax_codes.TAX_INVOICE,
-         "customs_import": tax_codes.TAX_INVOICE, "utility": tax_codes.TAX_INVOICE, "bill_invoice": tax_codes.TAX_INVOICE,
-         "receipt": tax_codes.RECEIPT, "credit_note": tax_codes.CREDIT_NOTE, "transfer_slip": tax_codes.PAYMENT_EVIDENCE,
-         "ecommerce_order": tax_codes.ORDER_EVIDENCE}
 # 选了「录 / 不录」由租户定的两类（10-07）：照常出票，交给存档时的单据口径决定。
 POLICY_KINDS = {"transfer_slip", "withholding_certificate"}
 BAHT = {"THB", "บาท", "฿", "BAHT"}
@@ -28,16 +23,6 @@ def _s(value):
 
 def _money(value):
     return client.claude_engine.rules.money(value)
-
-
-def _type(kind, doc):
-    if kind == "fuel_receipt":
-        return tax_codes.TAX_INVOICE if doc.get("seller_tax") and doc.get("buyer_tax") else tax_codes.SIMPLIFIED_TAX_INVOICE
-    if kind in ("tax_invoice", "receipt_tax_invoice", "bill_invoice", "utility") and not doc.get("seller_tax"):
-        return tax_codes.RECEIPT
-    if kind == "receipt_tax_invoice" and doc.get("price_mode") == "inclusive" and not doc.get("buyer_tax"):
-        return tax_codes.SIMPLIFIED_TAX_INVOICE
-    return TYPES.get(kind, tax_codes.OTHER)
 
 
 def _subtotal(doc):
@@ -52,7 +37,7 @@ def invoice(read, doc, copy):
     kind = read.get("doc_kind")
     currency = _s(doc.get("currency")).strip()
     return {
-        "document_type": _type(kind, doc), "is_not_invoice": read.get("entry") != "enter" and kind not in POLICY_KINDS,
+        "document_type": claude_kinds.document_type(kind, doc), "is_not_invoice": read.get("entry") != "enter" and kind not in POLICY_KINDS,
         "is_copy_or_duplicate": copy, "document_flag": "withholding_certificate" if kind == "withholding_certificate" else "",
         "invoice_number": doc.get("invoice_number"), "date": doc.get("date"), "date_raw": _s(doc.get("date_raw")),
         "seller_name": _s(doc.get("seller_name")), "seller_tax": _s(doc.get("seller_tax")), "seller_addr": _s(doc.get("seller_address")),

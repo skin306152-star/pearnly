@@ -123,6 +123,9 @@ class Prepare(Base):
         self.assertEqual(held["hold"], "choice_needed:account_set")
         needed, = held["needed"]
         self.assertEqual(sorted(option["code"] for option in needed["options"]), sorted([first, second]))
+        # 选项写明位置（同名的副本与真账只有位置不同）
+        self.assertEqual(sorted(option["name"] for option in needed["options"]),
+                         sorted(["นิภา · " + PATH, r"นิภา · C:\PearnlyExpress\70EXP\T9COPY"]))
         choices.remember(COMPANY["name"], needed["kind"], needed["subject"], second)
         result = self.prepare(doc())
         self.assertEqual(result["book"]["key"], second)
@@ -139,6 +142,19 @@ class Prepare(Base):
         choices.remember(COMPANY["name"], "account", needed["subject"], "52-08-00-00")
         payload = self.prepare(doc(items=service))["payload"]
         self.assertIn("52-08-00-00", [line["acc"] for line in payload["lines"] if line["side"] == "D"])
+
+    def test_a_line_code_no_longer_in_the_book_is_chosen_again(self):
+        key, = self.computer([book()])
+        self.masters(key)
+        body = doc()
+        body["items"][0].update(code="ICE\xa0OLD", name="น้ำแข็งซอง")  # ERP 商品上记的码，账套里已经没有
+        held = self.prepare(body)
+        self.assertEqual(held["hold"], "choice_needed:item")  # 不把认不出的码交给电脑
+        needed, = held["needed"]
+        choices.remember(COMPANY["name"], "item", needed["subject"], "ICE-01")
+        payload = self.prepare(body)["payload"]
+        self.assertEqual([item.get("loccod") for item in payload["items"]], ["02", "02"])
+        self.assertEqual(payload["items"][1]["code"], "ICE-02")
 
     def test_the_expense_accounts_come_first_without_hiding_the_rest(self):
         accounts = facts.reported({"facts": {"accounts": ACCOUNTS}})["reported_accounts"]
@@ -207,6 +223,110 @@ class ErpSide(unittest.TestCase):
         self.assertEqual(reported["reported_stock_acc_groups"], [])
         self.assertNotIn("reported_accounts", facts.reported({"customers": []}))  # 旧版没有科目表：不当成「没有科目」
         self.assertEqual(json.loads(json.dumps(facts.mapping({"facts": {"mapping": {**MAPPING, "x": "1"}}}))), MAPPING)
+
+
+class MasterSync(Base):
+    """主档落进 ERP（`express.masters`）：一条 ERP 档一次只给一行 Express 档；旧版读成普通空格的编码认回原来那条。"""
+
+    def setUp(self):
+        super().setUp()
+        import types
+        from unittest import mock
+        utils = types.ModuleType("frappe.utils")
+        utils.now_datetime = utils.nowdate = lambda: "2026-10-23"
+        stubs = {"frappe.utils": utils}
+        for name in ("pearnly_erp_portal.express.push", "pearnly_erp_portal.express.target",
+                     "pearnly_erp_portal.inventory", "pearnly_erp_portal.inventory.contracts",
+                     "pearnly_erp_portal.inventory.stock"):
+            stubs[name] = types.ModuleType(name)
+        patcher = mock.patch.dict(sys.modules, stubs)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sys.modules.pop("pearnly_erp_portal.express.masters", None)
+        self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.masters", None)
+        from pearnly_erp_portal.express import masters
+        self.sync = masters
+        frappe.clear_messages = lambda: None
+        frappe.log_error = lambda **kw: self.fail(kw)
+        frappe.get_traceback = lambda: ""
+        counter = iter(range(100, 999))
+
+        class Named:
+            def autoname(self, doc):
+                doc["name"] = doc.get("name") or f"SUP-{next(counter)}"
+
+            before_insert = validate = lambda self, doc: None
+
+        fake.STATE.controllers["ERP Supplier"] = Named()
+
+    def supplier(self, **values):
+        doc = frappe.get_doc({"doctype": "ERP Supplier", "is_active": 1, **values})
+        doc.insert()
+        return doc["name"]
+
+    def test_one_erp_supplier_is_claimed_once_and_a_spaced_code_is_taken_back(self):
+        loose = self.supplier(supplier_name="ชาญ ฟู้ด", express_code="ชาญ ฟู้ด", express_company="CO-00127")
+        free = self.supplier(supplier_name="วิริยะประกันภัย", tax_id="0107555000139", branch_type="head_office")
+        rows = [{"code": "ชาญ\xa0ฟู้ด", "name": "ชาญ ฟู้ด", "tax_id": "", "branch": "00000"},
+                {"code": "V002", "name": "วิริยะประกันภัย (ไม่ใช้)", "tax_id": "0107555000139", "branch": "00000"},
+                {"code": "V004", "name": "วิริยะประกันภัย", "tax_id": "0107555000139", "branch": "00000"}]
+        self.sync._parties("ERP Supplier", "CO-00127", "T.9", rows, self.sync._supplier_fields)
+        table = fake.STATE.db.table("ERP Supplier")
+        self.assertEqual(table[loose]["express_code"], "ชาญ\xa0ฟู้ด")  # 原来那条改成正确编码，不另建、不停用
+        self.assertEqual(table[loose]["is_active"], 1)
+        codes = sorted(row["express_code"] for row in table.values())
+        self.assertEqual(codes, sorted(["ชาญ\xa0ฟู้ด", "V002", "V004"]))  # V002 没被 V004 顶掉
+        self.assertEqual(table[free]["express_code"], "V002")
+
+
+class CompanyMasters(Base):
+    """识别 / 提交时认档（`masters.selection`）：本公司从 Express 同步来的优先，其次没挂 Express 的，别家公司的不认；
+    销售按读出的买方税号认客户（10-23 验收：客户、商品在 Express 里建了重复档）。"""
+
+    def setUp(self):
+        super().setUp()
+        from pearnly_erp_portal.masters import selection
+        self.selection = selection
+        counter = iter(range(100, 999))
+
+        class Named:
+            def autoname(self, doc):
+                doc["name"] = doc.get("name") or f"X-{next(counter)}"
+
+            before_insert = validate = lambda self, doc: None
+
+        for doctype in ("ERP Customer", "ERP Product"):
+            fake.STATE.controllers[doctype] = Named()
+
+    def row(self, doctype, **values):
+        doc = frappe.get_doc({"doctype": doctype, "is_active": 1, **values})
+        doc.insert()
+        return doc["name"]
+
+    def test_products_of_this_company_come_first_and_other_companies_are_not_taken(self):
+        mine = self.row("ERP Product", product_name="น้ำแข็งแพ็ค", express_code="น้ำแข็งแพ็ค", express_company="CO-00127")
+        loose = self.row("ERP Product", product_name="น้ำแข็งแพ็ค", code="PN00002")
+        self.row("ERP Product", product_name="น้ำแข็งแพ็ค", express_code="ICE-01", express_company="CO-00078")
+        self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค", "CO-00127"), (mine, 1))
+        self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค", "CO-00999"), (loose, 1))  # 没接 Express 的公司
+        self.assertEqual(self.selection.match_product("น้ำแข็งแพ็ค")[1], 3)  # 不给公司：照旧全认，交人选
+
+    def test_a_customer_is_found_by_the_buyer_tax_id_before_the_misread_name(self):
+        head = self.row("ERP Customer", customer_name="บิ๊กซี (สำนักงานใหญ่)", tax_id="0107536000633", branch_type="hq",
+                        express_code="BIG C", express_company="CO-00127")
+        self.row("ERP Customer", customer_name="บิ๊กซี สาขา 2", tax_id="0107536000633", branch_type="branch",
+                 branch_no="00002", express_code="BIG C2", express_company="CO-00127")
+        found = self.selection.match_party("customer", "กิจยาคีน", tax_id="0107536000633", branch_type="hq",
+                                           company="CO-00127", ambiguous="none")
+        self.assertEqual(found, head)
+        both = self.selection.match_party("customer", "x", tax_id="0107536000633", company="CO-00127", ambiguous="none")
+        self.assertIsNone(both)  # 几条都像：不预选，交人选
+
+    def test_buyer_tax_and_branch_from_the_reading(self):
+        from pearnly_erp_portal.sales import contracts as sales
+        self.assertEqual(sales.buyer_tax("0-1075-36000-63-3"), "0107536000633")
+        self.assertEqual(sales.buyer_tax("0107536000634"), "")  # 校验位不对不认
+        self.assertEqual((sales.branch_no("สาขา 12"), sales.branch_no(""), sales.branch_no("00000")), ("00012", None, "00000"))
 
 
 if __name__ == "__main__":

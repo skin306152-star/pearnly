@@ -13,15 +13,15 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.products import contracts, service
 
 
-def resolve(line, *, create=True):
+def resolve(line, *, create=True, company=None):
     guard.require("sales.write")
     name = line.get("product")
     if not name:
-        matches = frappe.get_all("ERP Product", filters={"product_name": line["description"],
-                                 "is_active": 1}, pluck="name", limit_page_length=2)
-        if len(matches) > 1:
+        from pearnly_erp_portal.masters.selection import match_product
+
+        name, found = match_product(line["description"], company)  # 这家公司该用的商品里认（别家 Express 的不认）
+        if found > 1:
             frappe.throw(_("Please select an Item"))
-        name = matches[0] if matches else None
     if not name and create:
         item = frappe.get_doc({"doctype": "ERP Product",
             "product_name": contracts.require_name(line["description"]),

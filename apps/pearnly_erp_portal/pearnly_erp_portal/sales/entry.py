@@ -94,13 +94,19 @@ def preview(payload):
 # ── 买方：销项的单据上就有买方块，客户主档可以有也可以没有 ──────────────────
 
 
-def _buyer(payload):
+def _buyer(payload, company=None):
     from pearnly_erp_portal.masters.selection import match_party
 
     key = payload.get("customer")
     name = str(payload.get("buyer_name") or "").strip()
+    # 识别读出的买方税号 / 分店（销售单本身不存，随提交带来）：先按税号认客户，认不出才按名称，新建时一并记下
+    tax = contracts.buyer_tax(payload.get("buyer_tax_id"))
+    branch = contracts.branch_no(payload.get("buyer_branch_no")) if tax else None
+    if not key and tax:
+        key = match_party("customer", name, tax_id=tax, branch_type="branch" if branch and branch != "00000" else "hq",
+                          branch_no=branch, company=company, ambiguous="none")
     if not key:
-        key = match_party("customer", name)
+        key = match_party("customer", name, company=company)
     if key:
         if not frappe.db.exists("ERP Customer", key):
             frappe.throw(_("Customer not found. Please select the customer again."))
@@ -121,8 +127,10 @@ def _buyer(payload):
     # 「未知买方」不建 —— 那不是一个真实客户。
     unknown = {_("Unknown buyer", lang=lang) for lang in ("en", "zh", "th", "ja")}
     if not key and party != "anonymous" and name not in unknown:
+        identity = {"tax_id": tax, "branch_type": "branch" if branch and branch != "00000" else "hq",
+                    "branch_no": branch if branch and branch != "00000" else None} if tax else {}
         key = frappe.get_doc({"doctype": "ERP Customer", "customer_name": name, "party_type": party,
-                              "address": payload.get("address"), "is_active": 1}).insert(ignore_permissions=True).name
+                              "address": payload.get("address"), "is_active": 1, **identity}).insert(ignore_permissions=True).name
     return key, name
 
 
@@ -181,7 +189,7 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
             "status": ["!=", contracts.VOID]}, pluck="name")
         if any(key != name for key in duplicates):
             frappe.throw(_("Document already exists"))
-    customer, buyer_name = _buyer(payload)
+    customer, buyer_name = _buyer(payload, company)
     rows = [_line_row(raw, computed, company=company) for raw, computed in zip(payload["lines"], totals["lines"])]
     collection = _collection(payload, kind, totals["grand_total"], day)
     source = payload.get("source") or doc.get("source") or "manual"
@@ -218,18 +226,18 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
     return {"name": doc.name, "status": doc.status, "system_no": doc.system_no}
 
 
-def _resolve_item(row):
-    """明细的物料：选了就核对，没选就按名称/编码/条码在主数据里找（**不自动建商品**）。
+def _resolve_item(row, company=None):
+    """明细的物料：选了就核对，没选就按名称在这家公司该用的商品里找（`selection.match_product`，**不自动建商品**）。
 
     旧线上销项明细的商品关联是可空的（"现填时可为空"），卖的东西没建档时明细照样能记，
     只是这一行不动库存 —— 要不要建档由物料岗位决定，销售不替它建。
     """
     if not row.get("product"):
-        matches = frappe.get_all("ERP Product", filters={"product_name": row["description"],
-            "is_active": 1}, pluck="name", limit_page_length=2)
-        if len(matches) > 1:
+        from pearnly_erp_portal.masters.selection import match_product
+
+        row["product"], found = match_product(row["description"], company)
+        if found > 1:
             frappe.throw(_("Several matches found. Please select a record."))
-        row["product"] = matches[0] if matches else None
     if row.get("product"):
         item = frappe.get_doc("ERP Product", row["product"])
         item.check_permission("read")
@@ -241,7 +249,7 @@ def _resolve_item(row):
 
 def _line_row(raw, computed, *, company=None):
     """明细行：只带这张单自己的字段（纯规则层算出来的是"金额"，不是行结构）。"""
-    row = _resolve_item(dict(raw))
+    row = _resolve_item(dict(raw), company)
     row["line_no"] = computed["line_no"]
     row["line_total"] = computed["line_total"]
     row["discount"] = computed["discount"]

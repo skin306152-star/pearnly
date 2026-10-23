@@ -3,7 +3,7 @@
 	const p = frappe.pearnly;
 	p.entry_choice_field = (label, editable) => ({fieldname: "entry_choice", label: __(label),
 		fieldtype: "Autocomplete", ignore_validation: true, options: [], read_only: !editable});
-	p.bind_entry_choice = (form, {kind, context, reference, title, editable, on_select, on_clear}) => {
+	p.bind_entry_choice = (form, {kind, context, reference, title, editable, on_select, on_clear, company}) => {
 		const control = form.fields_dict.entry_choice;
 		const doctype = {product: "ERP Product", supplier: "ERP Supplier", customer: "ERP Customer"}[kind];
 		const create_value = "pearnly_create__link_option";
@@ -92,7 +92,7 @@
 				const own = ++revision, text = control.$input.val();
 				const selected = form.get_value(reference) && text === form.get_value(title);
 				const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices",
-					{kind, context, txt: selected ? "" : text});
+					{kind, context, txt: selected ? "" : text, company: company?.() || undefined});
 				if (own !== revision || !control.$wrapper[0].isConnected || !control.$input.is(":focus")) return;
 				set_rows(rows); control.awesomplete.evaluate();
 			}, 180);
@@ -125,7 +125,7 @@
 				++revision;
 				return p.scan({kind: "all", on_result: async code => {
 					if (!current(own)) return;
-					const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices", {kind, context, txt: code, scan: 1});
+					const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices", {kind, context, txt: code, scan: 1, company: company?.() || undefined});
 					if (!current(own)) return;
 					++revision;
 					set_rows(rows);

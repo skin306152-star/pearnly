@@ -172,6 +172,17 @@ def _upsert(doctype, name, values):
         return 0
 
 
+def _claim(claimed, *finders):
+    """这一行 Express 档落到 ERP 哪一条：按编码、税号 + 分店、名称依次认（认到了就不再往下找）；一条 ERP 档一次同步只给
+    一行 Express 档，已被前面的行认走的跳过（否则两行认到同一条，后一行把前一行的编码改掉，前一行就丢了）。"""
+    for find in finders:
+        name = find()
+        if name and name not in claimed:
+            claimed.add(name)
+            return name
+    return None
+
+
 def _retire(doctype, names):
     """这家公司在 Express 里已经没有了的档：停用（同步自己写，不受锁）。"""
     changed = 0
@@ -188,8 +199,14 @@ def _mine(doctype, company, fields):
         if row.express_code and row.express_company in (company, None, ""):
             by_code.setdefault(row.express_code, row.name)
     ours = {row.express_code: row.name for row in rows if row.express_code and row.express_company == company}
+    for code, name in ours.items():  # 1.11.0 之前的 CC 把编码里的不换行空格读成了普通空格：照普通空格也认回原来那条
+        by_code.setdefault(_loose(code), name)
     free = [row for row in rows if not row.express_code]
     return by_code, ours, free
+
+
+def _loose(code):
+    return str(code or "").replace("\xa0", " ")
 
 
 # ── 客户 / 供应商 ─────────────────────────────────────────────────────────────
@@ -220,17 +237,16 @@ def _parties(doctype, company, book, rows, fields_of):
         if contracts.tax13(row.tax_id):
             free_tax.setdefault((row.tax_id, contracts.branch5(row.branch_no)), row.name)
         free_name.setdefault(str(row.get(name_field) or "").strip().casefold(), row.name)
-    changed, seen = 0, set()
+    changed, claimed = 0, set()
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
-        seen.add(item["code"])
         values = {**fields_of(item), "express_code": item["code"], "express_company": company,
                   "express_book": book[:140], "is_active": 1}
-        name = (by_code.get(item["code"])
-                or (free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None)
-                or free_name.pop(item["name"].casefold(), None))
+        name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
+                      lambda: free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None,
+                      lambda: free_name.pop(item["name"].casefold(), None))
         changed += _upsert(doctype, name, values)
-    return changed + _retire(doctype, [name for code, name in ours.items() if code not in seen])
+    return changed + _retire(doctype, [name for name in ours.values() if name not in claimed])
 
 
 # ── 商品 ─────────────────────────────────────────────────────────────────────
@@ -243,23 +259,22 @@ def _products(company, book, data):
     free_name = {}
     for row in free:
         free_name.setdefault(str(row.product_name or "").strip().casefold(), row.name)
-    taken = frappe.get_all(PRODUCT, fields=["name", "code", "barcode"], limit_page_length=0)
-    taken_codes = {row.code for row in taken if row.code}
+    taken = frappe.get_all(PRODUCT, fields=["name", "barcode"], filters={"barcode": ["is", "set"]}, limit_page_length=0)
     taken_barcodes = {row.barcode: row.name for row in taken if row.barcode}
-    changed, seen = 0, set()
+    changed, claimed = 0, set()
     for raw in contracts.rows(data.get("products")):
         item = contracts.product(raw, units)
-        seen.add(item["code"])
-        name = (by_code.get(item["code"]) or free_code.pop(item["code"], None)
-                or free_name.pop(item["name"].casefold(), None))
+        name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
+                      lambda: free_code.pop(item["code"], None),
+                      lambda: free_name.pop(item["name"].casefold(), None))
         values = {"product_name": item["name"], "base_unit": item["base_unit"], "unit": item["unit"],
                   "units": [{"unit_name": row["unit_name"], "factor": str(contracts.d(row["factor"]).normalize())}
                             for row in item["units"]],
                   "express_code": item["code"], "express_company": company, "express_book": book[:140],
                   "express_stock": int(item["stock"]), "is_active": 1}
-        if not name and item["code"] not in taken_codes:
+        if not name and not frappe.db.exists(PRODUCT, {"code": item["code"]}):
+            # 问库而不是在内存里比：唯一键按库的排序规则比（泰文声调符号等会被当成一样），内存逐字比会漏
             values["code"] = item["code"]
-            taken_codes.add(item["code"])
         # 售价、条码完全照 Express（空就清空；条码被别的商品占着时不写，免得撞唯一键）
         values.update(unit_price=float(item["price"] or 0), price_set=1 if item["price"] else 0)
         if not item["barcode"]:
@@ -267,7 +282,7 @@ def _products(company, book, data):
         elif taken_barcodes.get(item["barcode"], name) == name:
             values["barcode"] = item["barcode"]
         changed += _upsert(PRODUCT, name, values)
-    return changed + _retire(PRODUCT, [name for code, name in ours.items() if code not in seen])
+    return changed + _retire(PRODUCT, [name for name in ours.values() if name not in claimed])
 
 
 # ── 仓库与库存 ───────────────────────────────────────────────────────────────

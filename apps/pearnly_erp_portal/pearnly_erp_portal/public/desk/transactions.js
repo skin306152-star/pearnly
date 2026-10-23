@@ -44,6 +44,7 @@
 					description: item.label || "", default: item.current || "",
 					options: [{value: "", label: ""}, ...item.options.map(option => ({value: option.code,
 						label: EXPRESS_OPTIONS[option.code] ? __(EXPRESS_OPTIONS[option.code])
+							: item.kind === "account_set" ? option.name  // 账套的编码是内部键，只显示名称与位置
 							: [option.code, option.name].filter(Boolean).join(" · ")}))]};
 			}),
 		];

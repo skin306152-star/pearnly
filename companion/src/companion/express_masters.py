@@ -95,6 +95,12 @@ def whole(value) -> str:
     return str(int(_decimal(value).to_integral_value(rounding=ROUND_HALF_UP)))
 
 
+def _code(value) -> str:
+    """编码照 Express 原样（只去两头的空白）：泰文编码里常带不换行空格（\xa0），写账时 CC 按原样比对编码，换成普通空格
+    就认不出了（10-23 验收：冰块商品写账失败）。名称、地址仍用 ``express_read._text``（不换行空格当空格，便于显示与搜索）。"""
+    return "" if value is None else str(value).strip()
+
+
 def _address(rec, columns) -> str:
     get, text = express_read._get, express_read._text
     parts = [text(get(rec, columns, name)) for name in ("ADDR01", "ADDR02", "ADDR03", "ZIPCOD")]
@@ -105,7 +111,7 @@ def _party(code_field: str, name_field: str):
     get, text = express_read._get, express_read._text
 
     def pick(rec, columns, _gone):
-        code, name = text(get(rec, columns, code_field)), text(get(rec, columns, name_field))
+        code, name = _code(get(rec, columns, code_field)), text(get(rec, columns, name_field))
         if not code and not name:
             return None
         return {"code": code, "name": name, "tax_id": text(get(rec, columns, "TAXID")),
@@ -117,14 +123,14 @@ def _party(code_field: str, name_field: str):
 
 def _product(rec, columns, _gone):
     get, text = express_read._get, express_read._text
-    code, name = text(get(rec, columns, "STKCOD")), text(get(rec, columns, "STKDES"))
+    code, name = _code(get(rec, columns, "STKCOD")), text(get(rec, columns, "STKDES"))
     if not code and not name:
         return None
     return {"code": code, "name": name,
             "kind": "stock" if text(get(rec, columns, "STKTYP")) == "0" else "non_stock",
-            "group": text(get(rec, columns, "STKGRP")), "unit": text(get(rec, columns, "QUCOD")),
-            "sale_unit": text(get(rec, columns, "SQUCOD")), "sale_factor": number(get(rec, columns, "SFACTOR")),
-            "purchase_unit": text(get(rec, columns, "PQUCOD")),
+            "group": _code(get(rec, columns, "STKGRP")), "unit": _code(get(rec, columns, "QUCOD")),
+            "sale_unit": _code(get(rec, columns, "SQUCOD")), "sale_factor": number(get(rec, columns, "SFACTOR")),
+            "purchase_unit": _code(get(rec, columns, "PQUCOD")),
             "purchase_factor": number(get(rec, columns, "PFACTOR")),
             "prices": [number(get(rec, columns, slot)) for slot in PRICE_SLOTS],
             "barcode": text(get(rec, columns, "BARCOD")), "vatcod": text(get(rec, columns, "VATCOD")),
@@ -133,10 +139,10 @@ def _product(rec, columns, _gone):
 
 def _code_table(rec, columns, _gone):
     get, text = express_read._get, express_read._text
-    code = text(get(rec, columns, "TYPCOD"))
+    code = _code(get(rec, columns, "TYPCOD"))
     if not code:
         return None
-    return (text(get(rec, columns, "TABTYP")),
+    return (_code(get(rec, columns, "TABTYP")),
             {"code": code, "name": text(get(rec, columns, "TYPDES")) or text(get(rec, columns, "SHORTNAM"))})
 
 
@@ -145,7 +151,7 @@ def _stock(rec, columns, _gone):
     qty, value = _decimal(get(rec, columns, "LOCBAL")), _decimal(get(rec, columns, "LOCVAL"))
     if number(qty) == "0" and money(value) == "0.00":
         return None
-    return {"code": text(get(rec, columns, "STKCOD")), "loccod": text(get(rec, columns, "LOCCOD")),
+    return {"code": _code(get(rec, columns, "STKCOD")), "loccod": _code(get(rec, columns, "LOCCOD")),
             "qty": number(qty), "value": money(value)}
 
 
@@ -179,7 +185,7 @@ def collect(folder: Path) -> tuple:
     diag = {"rows": {}, "bad_rows": {}}
     get, text = express_read._get, express_read._text
     infos = express_read._rows(folder, "ISINFO", diag,
-                               lambda r, c, _g: {key: text(get(r, c, field)) for key, field in SETTINGS.items()})
+                               lambda r, c, _g: {key: _code(get(r, c, field)) for key, field in SETTINGS.items()})
     codes = express_read._rows(folder, "ISTAB", diag, _code_table)
     data = {
         "version": RESULT_VERSION,

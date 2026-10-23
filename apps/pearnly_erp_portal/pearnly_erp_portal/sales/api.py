@@ -115,10 +115,12 @@ def api_sales_export(params=None):
 def api_recognise_sales(attachments=None, document_name=None, progress_key=None):
     """排到后台读（`recognition.background`），页面按 ``progress_key`` 问 `api_recognise_progress` 拿进度与结果。"""
     from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.masters import company
     from pearnly_erp_portal.recognition import background
 
     guard.require("sales.write")
-    return background.start("sales", progress_key, attachments=frappe.parse_json(attachments), document_name=document_name)
+    return background.start("sales", progress_key, attachments=frappe.parse_json(attachments), document_name=document_name,
+                            company=company.active_company())
 
 
 @frappe.whitelist()

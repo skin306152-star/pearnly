@@ -19,6 +19,11 @@ def year_subject(day, book) -> str:
     return f"year:{start or str(day)[:4]}"
 
 
+def option_name(book) -> str:
+    """同期几份账套让人选时每一份怎么写：账套名 + 所在位置（同名的副本与真账只有位置不同，如 C 盘副本与 S 盘的年度文件夹）。"""
+    return " · ".join(part for part in (book.get("label"), book.get("path")) if part)
+
+
 def candidates(company_row, day) -> list:
     tax = contracts.tax13(company_row.get("tax_id"))
     if not tax:
@@ -40,7 +45,7 @@ def pick(company_row, day) -> dict:
         book = next((item for item in found if item["key"] == wanted), None)
         if book is None:
             return {"book": None, "reason": contracts.SEVERAL_BOOKS, "subject": subject,
-                    "options": [{"code": item["key"], "name": item["label"]} for item in found]}
+                    "options": [{"code": item["key"], "name": option_name(item)} for item in found]}
     if not book["writers"]:
         return {"book": book, "reason": contracts.NO_WRITER, "options": []}
     return {"book": book, "reason": "", "options": []}
@@ -60,4 +65,4 @@ def current(company_row, day) -> dict:
     return found[0]
 
 
-__all__ = ["candidates", "current", "pick", "year_subject"]
+__all__ = ["candidates", "current", "option_name", "pick", "year_subject"]

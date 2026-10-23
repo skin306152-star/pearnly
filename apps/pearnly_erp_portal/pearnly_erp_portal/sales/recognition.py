@@ -32,7 +32,7 @@ the document.'''.replace("POS_RULES", checks.POS_RULES)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"}
 
 
-def recognise(attachments, document_name=None, billing_reference=None, progress=None):
+def recognise(attachments, document_name=None, billing_reference=None, progress=None, company=None):
     guard.require("sales.write")
     from pearnly_core import ocr
 
@@ -77,8 +77,21 @@ def recognise(attachments, document_name=None, billing_reference=None, progress=
     # 同一文件里的其余单据（多页 / 一张图几张票）：LINE 各出一张卡；网页一次只填第一张。
     extras = [{**doc, "review": codes, "ocr_model": used}
               for doc, codes, used in documents[1:]]
-    return {**result, "source": contracts.SOURCE_OCR, "image_sha256": files.combined_hash(hashes),
-            "review": issues, "ocr_model": model, "additional": extras}
+    return {**result, "customer": _customer(result, company), "source": contracts.SOURCE_OCR,
+            "image_sha256": files.combined_hash(hashes), "review": issues, "ocr_model": model, "additional": extras}
+
+
+def _customer(result, company):
+    """按读出的买方税号（+ 分店）预选客户：只认这家公司该用的那一条（`selection.match_party`），认不出或几条都像就不选，
+    交人选；提交时服务端再按同样的税号认一遍（`entry._buyer`）。"""
+    tax = contracts.buyer_tax(result.get("buyer_tax_id"))
+    if not tax:
+        return None
+    from pearnly_erp_portal.masters.selection import match_party
+
+    branch = result.get("buyer_branch_no")
+    return match_party("customer", result.get("buyer_name"), tax_id=tax, company=company, ambiguous="none",
+                       branch_type="branch" if branch and branch != "00000" else "hq", branch_no=branch)
 
 
 def _structured(raw):
@@ -91,7 +104,8 @@ def _structured(raw):
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
     # 读成 12 位的税号：开头的 0 丢了，补回后过得了校验位才补（全平台同一规则，用户 2026-09-30）。
     result.update(seller_tax_id=repaired_tax_id(raw.get("seller_tax_id")),
-                  buyer_tax_id=repaired_tax_id(raw.get("buyer_tax_id")))
+                  buyer_tax_id=repaired_tax_id(raw.get("buyer_tax_id")),
+                  buyer_branch_no=contracts.branch_no(raw.get("buyer_branch")))
     # 票面日期由代码换算佛历（旧线上口径），换算不出才用模型给的。
     result["doc_date"] = dates.printed(raw.get("doc_date_raw")) or result.get("doc_date")
     result["additional_documents"] = raw.get("additional_documents")

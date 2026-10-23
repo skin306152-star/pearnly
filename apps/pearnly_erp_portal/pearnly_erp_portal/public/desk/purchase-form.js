@@ -41,6 +41,7 @@
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
 		state.party_choice = p.bind_entry_choice(form, {kind: "supplier", context: "purchase", reference: "supplier", title: "supplier_name", editable,
+			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({supplier_tax_id: row.tax_id, supplier_address: row.address,
 				supplier_branch_type: row.branch_type === "head" ? "head_office" : row.branch_type || "none",
 				supplier_branch_no: row.branch_no, supplier_branch_name: row.branch_name}),
@@ -79,9 +80,10 @@
 			const line = {wrapper, section: outer.sections[0], ready: false};
 			line.form = p.layout(outer.fields_dict.item.$wrapper, u.line_fields(state, line, changes));
 			line.choice = p.bind_entry_choice(line.form, {kind: "product", context: "purchase", reference: "product", title: "description", editable,
+				company: () => doc.company || frappe.boot.pearnly_company,
 				on_select: async item => {
 					await line.form.set_values({description: item.product_name, code: item.code, barcode: item.barcode,
-					unit: item.base_unit || item.unit, unit_price: item.default_cost || 0,
+					unit: item.base_unit || item.unit, unit_price: Number(line.form.get_value("unit_price")) || item.default_cost || 0,
 					vat_rate: item.vat_applicable ? defaults.settings.default_vat_rate : 0,
 					warehouse: frappe.boot.pearnly_warehouse || "", location: item.default_location || ""});
 					line.form.set_df_property("batch_no", "hidden", !item.track_batch);

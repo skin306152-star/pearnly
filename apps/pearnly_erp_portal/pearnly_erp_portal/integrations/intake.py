@@ -182,9 +182,9 @@ def run(intake, line_user_id, reply_token="", filename=""):
                                reply_token)
             return {"failed": "download_failed", "notified": True}
         try:
-            options = {"company": doc.company} if doc.direction == "purchase" else {}
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
-                                                          billing_reference="erp.line_intake:" + doc.name, **options)
+                                                          billing_reference="erp.line_intake:" + doc.name,
+                                                          company=doc.company)
         except frappe.ValidationError as exc:
             from pearnly_erp_portal.recognition import billing, policy
 
@@ -394,7 +394,8 @@ def submit(name, payload) -> dict:
         from pearnly_erp_portal.sales import entry
 
         if doc.item_kind == "goods":
-            payload["lines"] = [sale_items.resolve(dict(row)) for row in payload.get("lines") or []]
+            payload["lines"] = [sale_items.resolve(dict(row), company=payload.get("company"))
+                                for row in payload.get("lines") or []]
     return entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish, allow_duplicate=True)
 
 

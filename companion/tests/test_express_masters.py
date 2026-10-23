@@ -79,7 +79,8 @@ def books(tmp_path):
         {"CUSCOD": "C02", "CUSNAM": "ลบแล้ว"},
     ])
     _delete(acct / "ARMAS.DBF", 1)
-    _append(acct / "APMAS.DBF", [{"SUPCOD": "S001", "SUPNAM": "โรงน้ำแข็ง", "TAXID": "0105556012345"}])
+    # 编码里的不换行空格照原样给（写账按原样比对编码），名称里的当普通空格（10-23 验收）
+    _append(acct / "APMAS.DBF", [{"SUPCOD": "ชาญ\xa0ฟู้ด", "SUPNAM": "ชาญ\xa0ฟู้ด", "TAXID": "0105556012345"}])
     _append(acct / "ISTAB.DBF", [
         {"TABTYP": "21", "TYPCOD": "01", "SHORTNAM": "สนญ.", "TYPDES": "คลังสำนักงานใหญ่"},
         {"TABTYP": "21", "TYPCOD": "02", "SHORTNAM": "สาขา"},
@@ -130,7 +131,7 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y"}
     assert data["customers"] == [{"code": "C01", "name": "ร้านป้าแดง", "tax_id": "0105560000001", "branch": "00002",
                                   "address": "1 ถนนหนึ่ง เมือง 31000", "phone": "044-111111", "payterm": "30"}]
-    assert data["suppliers"] == [{"code": "S001", "name": "โรงน้ำแข็ง", "tax_id": "0105556012345", "branch": "00000",
+    assert data["suppliers"] == [{"code": "ชาญ\xa0ฟู้ด", "name": "ชาญ ฟู้ด", "tax_id": "0105556012345", "branch": "00000",
                                   "address": "", "phone": "", "payterm": "0"}]
     ice, freight = data["products"]
     assert ice == {"code": "P01", "name": "น้ำแข็งหลอด", "kind": "stock", "group": "ICE", "unit": "ถง",

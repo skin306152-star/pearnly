@@ -8,7 +8,7 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.products import contracts, service
 
 
-def resolve(line, *, create=True, currency_rate=1):
+def resolve(line, *, create=True, currency_rate=1, company=None):
     guard.require("purchase.write")
     if line.get("item_type", "goods") == "service":
         return line
@@ -20,11 +20,11 @@ def resolve(line, *, create=True, currency_rate=1):
                 if name:
                     break
     if not name:
-        matches = frappe.get_all("ERP Product", filters={"product_name": line["description"],
-                                 "is_active": 1}, pluck="name", limit_page_length=2)
-        if len(matches) > 1:
+        from pearnly_erp_portal.masters.selection import match_product
+
+        name, found = match_product(line["description"], company)  # 这家公司该用的商品里认（别家 Express 的不认）
+        if found > 1:
             frappe.throw(_("Please select an Item"))
-        name = matches[0] if matches else None
     if not name and create:
         product_name = contracts.require_name(line["description"])
         # 编码一律由本系统续号发（用户 2026-09-26：采购与销售同一条规则）。票面上印的是供应商

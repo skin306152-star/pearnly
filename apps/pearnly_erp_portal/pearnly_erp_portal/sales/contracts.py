@@ -289,6 +289,18 @@ def _merged_discount(header, discount_lines):
     return float((_d(header) + discount_lines).quantize(_CENT))
 
 
+def buyer_tax(value) -> str:
+    """识别读出的买方税号：13 位且过得了校验位才认（按它认客户、记进新客户），否则空串。"""
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits if len(digits) == 13 and checks.valid_tax_id(digits) else ""
+
+
+def branch_no(value) -> str | None:
+    """买方分店号：5 位（总店 ``00000``）；没印回 None。"""
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits[-5:].zfill(5) if digits else None
+
+
 def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = "") -> dict:
     """把识别结果归一成 `create_document` 的入参形状。缺什么就留空，不猜。"""
     payload = payload or {}

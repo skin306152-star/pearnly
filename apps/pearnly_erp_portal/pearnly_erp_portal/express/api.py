@@ -116,11 +116,20 @@ def answer(doctype, name, answers):
 
 @frappe.whitelist(methods=["POST"])
 def retry(doctype, name):
-    """转人工的写账再排一次（人看过、处理好了）。"""
+    """转人工的写账再写一次（人看过、处理好了）。电脑写失败会整笔回滚，所以按单据此刻的内容重新准备一件（重新取编码、
+    重新核记住的选择，不对的停下来在这里选），不拿原来那份载荷再试；只有结果不明的（可能已经写进去了）原样再排、钉在原来
+    那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
     job = jobs.find_by_name(row.express_job) if row.express_job else None
     if not job or job["status"] != "manual":
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    jobs.retry(job["job"])
-    frappe.db.commit()
+    if job["reason"] == jobs.LOST:
+        jobs.retry(job["job"])
+        frappe.db.commit()
+    else:
+        jobs.cancel(job["job"], "replaced")
+        frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_job": None, "express_reason": "",
+                                            "express_needed": None}, update_modified=False)
+        frappe.db.commit()
+        push.send(doctype, name)
     return _view(doctype, _document(doctype, name))

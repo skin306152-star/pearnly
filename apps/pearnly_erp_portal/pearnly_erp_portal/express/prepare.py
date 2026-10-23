@@ -52,6 +52,19 @@ def _needed_group(config, book):
              "options": [{"code": row["acccod"], "name": row.get("name") or ""} for row in groups], "current": ""}]
 
 
+def _current_codes(pages, config):
+    """明细行的存货码（ERP 商品上记的 Express 编码）这份账套里已经没有了（Express 改了 / 删了，ERP 还没同步）：去掉这个码，
+    交给写账规则按品名认，认不出就停下让人在 ERP 里选（不把认不出的码交给电脑，写一次失败一次）。没读到存货表时不核。"""
+    codes = {str(row.get("code") or "").strip() for row in config.get("reported_products") or []
+             if str(row.get("kind") or "stock") == "stock"}
+    if not codes:
+        return pages
+    for item in pages[0]["fields"]["items"]:
+        if item["posting_kind"] == "stock" and item["code"] and item["code"] not in codes:
+            item["code"] = ""
+    return pages
+
+
 def prepare(doc, company_row, ensure_masters):
     """``doc``：`push.document` 出的单；``company_row``：ERP 公司（name、tax_id、branch、company_name）；
     ``ensure_masters(company, book)``：这份账套还没读过主档时请电脑读（`masters.ensure`）。"""
@@ -71,7 +84,7 @@ def prepare(doc, company_row, ensure_masters):
         ensure_masters(company_row["name"], book)
         return {"hold": contracts.READING, "book": book}
     config = _config(book, data, company_row["name"])
-    pages = contracts.pages(doc)
+    pages = _current_codes(contracts.pages(doc), config)
     decision = choice_rules.resolve(pages[0]["fields"], direction=doc["direction"], posting_kind=None, config=config,
                                     remembered=choices.remembered(company_row["name"]))
     if decision["needed"]:
