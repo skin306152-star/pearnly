@@ -82,7 +82,8 @@ class TestConfigAndEntry(Base):
         identity = MagicMock()
         with patch.dict(sys.modules, {"pearnly_core.identity": identity}), \
                 patch("pearnly_core.identity", identity, create=True):
-            self.native.get_request_header.return_value = "Mozilla/5.0 Safari Line/14.9.0"
+            # LINE 里的网页都先转进 LIFF（见下一条），LINE 登录发生在 LIFF 里。
+            self.native.get_request_header.return_value = "Mozilla/5.0 Safari Line/14.9.0 LIFF"
             line_login.enter("/desk/x")
             identity.begin_login_via.assert_called_once_with("/desk/x", idp_hint=ALIAS)
 
@@ -92,11 +93,53 @@ class TestConfigAndEntry(Base):
             identity.begin_login_via.assert_not_called()
             self.assertEqual(self.native.local.response["location"], "/desk/x")
 
-            self.native.get_request_header.return_value = "Mozilla/5.0 Line/14.9.0"
+            self.native.get_request_header.return_value = "Mozilla/5.0 Line/14.9.0 LIFF"
             self.native.session.user = "owner@example.test"
             line_login.enter("https://evil.test")
             identity.begin_login_via.assert_not_called()
             self.assertEqual(self.native.local.response["location"], "/")
+
+    def test_plain_android_line_goes_to_liff_once(self):
+        """LINE 普通内置浏览器（安卓、iPhone）拿不到相机：入口先转本站 LIFF，记号在 `to` 里，回来不再转。"""
+        identity = MagicMock()
+        iab = ("Mozilla/5.0 (Linux; Android 16; SM-A166P; wv) AppleWebKit/537.36 Chrome/155.0 Mobile Safari/537.36 "
+               "Line/26.16.0/IAB")
+        hop = ("https://liff.line.me/2010411313-pBXFYD2S/api/method/pearnly_core.account.line_login.enter?to="
+               "%2Fdesk%2Fpearnly-products%3Fpearnly_liff%3D1")
+        with patch.dict(sys.modules, {"pearnly_core.identity": identity}), \
+                patch("pearnly_core.identity", identity, create=True):
+            iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari Line/26.16.0"
+            for agent in (iab, iphone):
+                self.native.get_request_header.return_value = agent
+                for user in ("Guest", "owner@example.test"):
+                    self.native.session.user = user
+                    line_login.enter("/desk/pearnly-products")
+                    self.assertEqual(self.native.local.response["location"], hop, (agent, user))
+            identity.begin_login_via.assert_not_called()
+
+            line_login.enter("/desk/x?a=1")
+            self.assertTrue(self.native.local.response["location"].endswith("to=%2Fdesk%2Fx%3Fa%3D1%26pearnly_liff%3D1"))
+
+            # 已经转过（LIFF 里回来，或 LINE 没接住这一跳）：去掉记号照常进，不再转。
+            line_login.enter("/desk/x?a=1&pearnly_liff=1")
+            self.assertEqual(self.native.local.response["location"], "/desk/x?a=1")
+            self.native.session.user = "Guest"
+            line_login.enter("/desk/pearnly-products?pearnly_liff=1")
+            identity.begin_login_via.assert_called_once_with("/desk/pearnly-products", idp_hint=ALIAS)
+
+            # LIFF 自己（安卓、iPhone）、手机浏览器、没配 LIFF 的站点：不转。
+            identity.reset_mock()
+            self.native.session.user = "owner@example.test"
+            for agent in (iab.replace("Line/26.16.0/IAB", "Line/26.16.0 LIFF"), iphone + " LIFF",
+                          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) Version/18.7 Mobile/15E148 Safari/604.1",
+                          "Mozilla/5.0 (Linux; Android 16) Chrome/155.0 Mobile Safari/537.36"):
+                self.native.get_request_header.return_value = agent
+                line_login.enter("/desk/pearnly-products")
+                self.assertEqual(self.native.local.response["location"], "/desk/pearnly-products", agent)
+            self.native.get_request_header.return_value = iab
+            self.native.conf["pearnly_line_liff_id"] = ""
+            line_login.enter("/desk/pearnly-products")
+            self.assertEqual(self.native.local.response["location"], "/desk/pearnly-products")
 
 
 class TestLoginSource(Base):

@@ -60,7 +60,7 @@ frappe.provide("frappe.pearnly");
 	// 在 LINE 普通内置浏览器里打不开相机：转到 LIFF 打开同一页（LINE 会弹原生相机授权）。转了返回 true。
 	// 只给没有未保存内容的页面用（盘点）；表单里的扫码转走会丢掉没保存的内容，那里只给原因。
 	p.scan_to_liff = keep_scanning => scan().to_liff(frappe.boot.pearnly_liff_id, keep_scanning);
-	// 安卓 LINE 普通内置浏览器：那里网页拿不到相机，要相机前就转（返回 true 表示已经转走）。
+	// LINE 普通内置浏览器（安卓、iPhone）：那里网页拿不到相机，要相机前就转（返回 true 表示已经转走）。LINE 链接的总入口已先转过，这里兜住别的来路。
 	p.scan_liff_first = keep_scanning => scan().plain_line() && p.scan_to_liff(keep_scanning);
 	// 上传器里的「拍照」（框架 `frappe.ui.Capture`）：手机上它调手机自己的相机应用，授权由系统 / LINE 原生处理；
 	// 电脑上它在网页里开相机，失败只弹一句笼统的话 —— 换成同一套第 ③ 步提示。其余行为与官方一致。

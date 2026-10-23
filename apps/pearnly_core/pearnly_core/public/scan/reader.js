@@ -22,10 +22,11 @@
 	const agent = () => (typeof navigator !== "undefined" && navigator.userAgent) || "";
 	const in_app = () => IN_APP.test(agent());
 	const in_line = () => /\bLine\//.test(agent());
-	// 安卓 LINE 的普通内置浏览器（聊天里点链接打开）：标识以 `Line/<版本>/IAB` 结尾；LIFF 是 `Line/<版本> LIFF`
-	// （2026-10-15 测试机访问日志，三星 A14、LINE 26.15.1）。前者里网页拿不到相机——LINE 有相机权限也一样，
-	// 画面一直黑着（同日实测）——所以一要相机就直接转 LIFF，不先去要、也不等。iPhone 上的 LINE 能用相机，不转。
-	const plain_line = () => /Android/i.test(agent()) && /\bLine\/[\d.]+\/IAB\b/.test(agent());
+	// LINE 的普通内置浏览器（聊天、菜单里点链接打开）：带 `Line/<版本>`、不带 `LIFF`（安卓结尾是 `/IAB`）；LIFF 是 `Line/<版本> LIFF`。
+	// 安卓上网页在里面永远拿不到相机（LINE 有相机权限也黑屏，2026-10-15 三星 A14 实测）；iPhone 上 10-15 只是推定能用、没有真机验过，
+	// 2026-10-23 用户 iPhone 实测也打不开。LIFF 里两边都会弹原生授权（iPhone：10-04 DMS 扫身份证真机；安卓：10-15）。
+	// 所以 LINE 里不在 LIFF 就一律先转 LIFF，不先去要、也不等。LINE 链接的总入口（`line_login.enter`）同一判断、进来就转。
+	const plain_line = () => /\bLine\/[\d.]+/.test(agent()) && !/\bLIFF\b/.test(agent());
 	// App 内置浏览器（LINE 等）里要相机：请求可能既不弹窗也不报错，一直挂着
 	// （2026-10-15 三星 A14：LINE 普通内置浏览器里点扫码没有任何反应）。等这么久还没开就交给页面处理。
 	const SLOW_MS = 5000;

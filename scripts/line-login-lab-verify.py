@@ -27,7 +27,8 @@ OWNER, STRANGER, OTHER = "owner@lab.test", "stranger@lab.test", "other@lab.test"
 SITE = "http://erp.lab:8000"
 SITE2 = "http://erp2.lab:8000"
 KC = "http://keycloak:8080"
-LINE_UA = "Mozilla/5.0 (iPhone) AppleWebKit Mobile Safari Line/14.9.0"
+# LINE 里的网页都经入口先转进 LIFF（2026-10-23），免密登录发生在 LIFF 里。
+LINE_UA = "Mozilla/5.0 (iPhone) AppleWebKit Mobile Safari Line/14.9.0 LIFF"
 m = runpy.run_path("/lab/scripts/production/configure-line-login.py")
 kc = m["Keycloak"](KC, "master", "lab-admin", "lab-admin-only")
 R = "/admin/realms/pearnly-business"

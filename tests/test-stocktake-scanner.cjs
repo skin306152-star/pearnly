@@ -161,15 +161,20 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     'https://liff.line.me/2000-abc/desk/pearnly-stock-count/C1?pearnly_liff=scan');
   assert.equal(hanging.p.scan_to_liff(true), false, 'already in LIFF: never bounce twice');
   assert.equal(fixture().p.scan_to_liff(), false, 'outside LINE nothing moves');
-  // 安卓 LINE 普通内置浏览器（`Line/<版本>/IAB`）拿不到相机：要相机前就转 LIFF；LIFF 里（`Line/<版本> LIFF`）照常开相机。
+  // LINE 普通内置浏览器（安卓 `Line/<版本>/IAB`、iPhone `Line/<版本>`）拿不到相机：要相机前就转 LIFF；LIFF 里（`Line/<版本> LIFF`）照常开相机。
   const iab = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; SM-A146P; wv) Chrome/106 Mobile Safari/537.36 Line/26.15.1/IAB' });
   assert.equal(iab.p.scan_liff_first(true), true);
   assert.equal(iab.window.location.href, 'https://liff.line.me/2000-abc/desk/pearnly-stock-count/C1?pearnly_liff=scan');
   assert.equal(iab.requests.length, 0, 'no camera request in a browser that can never get one');
   const liff = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; SM-A146P; wv) Chrome/106 Mobile Safari/537.36 Line/26.15.1 LIFF' });
   assert.equal(liff.p.scan_liff_first(true), false, 'inside LIFF the camera is used directly');
-  const iphone = fixture({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Safari Line/26.15.0' });
-  assert.equal(iphone.p.scan_liff_first(true), false, 'LINE on iPhone can use the camera');
+  const iphone = fixture({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) Mobile/15E148 Safari Line/26.16.0' });
+  assert.equal(iphone.p.scan_liff_first(true), true, 'LINE on iPhone goes to LIFF too (2026-10-23 real device)');
+  assert.equal(iphone.requests.length, 0);
+  const iphone_liff = fixture({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) Mobile/15E148 Safari Line/26.16.0 LIFF' });
+  assert.equal(iphone_liff.p.scan_liff_first(true), false, 'inside LIFF on iPhone the camera is used directly');
+  const safari = fixture({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) Version/18.7 Mobile/15E148 Safari/604.1' });
+  assert.equal(safari.p.scan_liff_first(true), false, 'Safari asks for the camera itself');
   // LIFF 里授权窗可能开着好一会儿（网页的、再到系统给 LINE 的）：不提前提示。
   const asking = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Chrome/106 Line/26.15.1 LIFF',
     acquire: () => new Promise(() => {}) });

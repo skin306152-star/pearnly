@@ -16,7 +16,8 @@ LINE 登录入口，会话仍由身份服务签发、照常登记。身份服务
 LINE Login 频道算出的别名（一个频道一个入口，见 `line_login_contract`）。
 """
 
-from urllib.parse import urlencode
+import re
+from urllib.parse import parse_qsl, quote, urlencode
 
 import frappe
 from frappe import _
@@ -66,7 +67,19 @@ def in_line_app() -> bool:
     return " Line/" in (frappe.get_request_header("User-Agent") or "")
 
 
+def in_line_browser() -> bool:
+    """LINE 的普通内置浏览器（聊天、菜单里点链接打开）：带 `Line/<版本>`、不带 `LIFF`（安卓结尾是 `/IAB`）。
+    这里面网页拿不到相机：安卓 LINE 有相机权限也黑屏（2026-10-15 三星 A14 实测），iPhone 2026-10-23 用户实测也打不开；
+    LIFF 里两边都弹原生授权。与读码器 `plain_line` 同一判断。"""
+    if not getattr(frappe.local, "request", None):
+        return False
+    agent = frappe.get_request_header("User-Agent") or ""
+    return bool(re.search(r"\bLine/[\d.]+", agent)) and not re.search(r"\bLIFF\b", agent)
+
+
 ENTER_METHOD = "pearnly_core.account.line_login.enter"
+# 转 LIFF 的记号放在 `to` 的值里：LINE 把深链交给 LIFF 时只保留第一个查询参数（2026-10-15 实测）。
+LIFF_MARK = "pearnly_liff"
 
 
 def entry_url(path: str) -> str:
@@ -75,10 +88,38 @@ def entry_url(path: str) -> str:
             + urlencode({"to": _local_path(path)}))
 
 
+def _split_mark(target: str) -> tuple:
+    """(去掉记号的站内地址, 是否带着记号)。"""
+    path, _, query = target.partition("?")
+    pairs = parse_qsl(query, keep_blank_values=True)
+    kept = [(key, value) for key, value in pairs if key != LIFF_MARK]
+    return (f"{path}?{urlencode(kept)}" if kept else path), len(kept) != len(pairs)
+
+
+def liff_hop(target: str) -> str:
+    """LINE 普通内置浏览器（安卓、iPhone）打开的入口先换成本站 LIFF 打开同一入口（LINE 会弹原生相机授权）。
+
+    2026-10-23 用户：LINE 里进 ERP 商品页扫码安卓、iPhone 都打不开相机 —— 10-15 只给安卓的盘点录入加了转 LIFF，
+    商品、单据选商品、收银台的扫码与拍照仍在普通内置浏览器里，iPhone 一处都没转。所有 LINE 链接都经这个入口，
+    在这里转一次，之后站内的任何页面都在 LIFF 里。带着记号回来的（已经转过）不再转，不会来回跳。
+    """
+    liff_id = str(frappe.conf.get("pearnly_line_liff_id") or "").strip()
+    if not liff_id or not in_line_browser():
+        return ""
+    sep = "&" if "?" in target else "?"
+    return (f"https://liff.line.me/{quote(liff_id, safe='')}/api/method/{ENTER_METHOD}?"
+            + urlencode({"to": f"{target}{sep}{LIFF_MARK}=1"}))
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def enter(to=None):
-    """LINE 卡片与菜单的链接入口：已登录直接去；LINE 里未登录走 LINE 登录；别处照常登录。"""
-    target = _local_path(to)
+    """LINE 卡片与菜单的链接入口：LINE 普通内置浏览器先转 LIFF；已登录直接去；LINE 里未登录走 LINE 登录；别处照常登录。"""
+    target, hopped = _split_mark(_local_path(to))
+    hop = "" if hopped else liff_hop(target)
+    if hop:
+        frappe.local.response["type"] = "redirect"
+        frappe.local.response["location"] = hop
+        return
     alias = enabled_alias()
     if frappe.session.user != "Guest" or not alias or not in_line_app():
         frappe.local.response["type"] = "redirect"

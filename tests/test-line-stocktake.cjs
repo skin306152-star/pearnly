@@ -162,12 +162,18 @@ function fixture(options = {}) {
   const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
   await taken.page.startCamera(() => {}); await flush();
   assert.equal(taken.element('toast').textContent, 'common.scan.busy');
-  // 请求一直挂着（LINE 普通内置浏览器）：5 秒后同样转 LIFF。
-  const hanging = fixture({acquire: () => new Promise(() => {})});
+  // iPhone 的 LINE 普通内置浏览器（`Line/<版本>`，没有 `/IAB`）同样先转 LIFF（2026-10-23 真机打不开）。
+  const iphone = fixture({userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) Mobile/15E148 Safari Line/26.16.0'});
+  iphone.page.setLiff('2000-abc');
+  await iphone.page.startCamera(() => {}); await flush();
+  assert.equal(iphone.page.location().href, 'https://liff.line.me/2000-abc/stocktake?pearnly_liff=1&count=1');
+  assert.equal(iphone.acquired(), 0);
+  // LIFF 里请求一直挂着（授权窗开着）：不转、不提前提示，继续等。
+  const hanging = fixture({userAgent: 'Mozilla/5.0 (Linux; Android 13; wv) Line/26.15.1 LIFF', acquire: () => new Promise(() => {})});
   hanging.page.setLiff('2000-abc');
   void hanging.page.startCamera(() => {}); await flush();
-  await hanging.tick();
-  assert.match(hanging.page.location().href, /^https:\/\/liff\.line\.me\/2000-abc\/stocktake\?/);
+  assert.equal(hanging.timers.size, 0, 'no hint timer inside LIFF');
+  assert.equal(hanging.page.location().href, 'https://synthetic.invalid/stocktake?count=1');
   console.log('PASS inside LINE a refused or hanging camera reopens the page in LIFF once (native camera prompt there); elsewhere it says why');
 
   const continuous = fixture();
