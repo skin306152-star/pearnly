@@ -398,10 +398,10 @@ class ProfileStore:
     def set_erp_roots(self, profile_id: str, roots) -> None:
         """ERP 成员：归这个 ERP 的 Express 数据根（整份换掉）。"""
         clean = tuple(dict.fromkeys(str(root).strip() for root in roots or () if str(root).strip()))
+        if not any(item.profile_id == profile_id for item in self._profiles):
+            raise ProfileStoreError("profile not found")
         profiles = [ProfileRecord(**{**asdict(item), "erp_roots": clean}) if item.profile_id == profile_id else item
                     for item in self._profiles]
-        if profiles == self._profiles:
-            raise ProfileStoreError("profile not found")
         self._write(self.global_settings, profiles)
         self._profiles = profiles
 

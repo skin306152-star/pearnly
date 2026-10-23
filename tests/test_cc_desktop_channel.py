@@ -137,6 +137,18 @@ class Register(Base):
         self.assertNotEqual(back["device"], made["device"])
 
 
+class Leave(Base):
+    def test_a_computer_that_leaves_takes_its_books_with_it(self):
+        # 10-23：断开后名单还留着，产品照它挑账套（只有这台离线电脑够得到）、建公司
+        made = self.register("staff@x", KEY_A)
+        context = self.context(made["device"], "staff@x")
+        self.report(context)
+        self.assertEqual(len(books.readable(made["device"])), 1)
+        self.assertEqual(devices.leave(context), {"status": "left"})
+        self.assertEqual(books.readable(made["device"]), {})
+        self.assertIsNone(frappe.db.get_value(documents.DEVICE, made["device"], "token_digest"))
+
+
 class Queue(Base):
     def setUp(self):
         super().setUp()

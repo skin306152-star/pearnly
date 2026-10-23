@@ -547,6 +547,15 @@ class AutoCompanies(Base):
         existing = [{"name": "CO-1", "tax_id": OWN, "branch": "00000"}]
         self.assertEqual(companies.missing(found, existing), [(OWN, "00012", "นิภา เอ็กเช้นจ์")])
 
+    def test_only_connected_computers_that_report_the_chosen_roots_count(self):
+        # 1.11.0 报整台电脑的账套、断开后名单还留着：照它们建会把事务所别的客户建进来
+        from pearnly_erp_portal.express import companies
+        devices = [{"name": "PCD-new", "token_digest": "x", "companion_version": "1.12.0"},
+                   {"name": "PCD-old", "token_digest": "x", "companion_version": "1.11.0"},
+                   {"name": "PCD-left", "token_digest": None, "companion_version": "1.12.3"},
+                   {"name": "PCD-retired", "token_digest": "x", "retired_at": "2026-10-23", "companion_version": "1.13.0"}]
+        self.assertEqual(companies.scoped(devices), ["PCD-new"])
+
 
 class MasterIsolation(unittest.TestCase):
     """主档按公司隔离（`masters.access`）：Express 同步来的档只在当前公司列得出，本地档各家都能用。"""

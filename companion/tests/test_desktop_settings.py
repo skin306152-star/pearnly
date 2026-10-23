@@ -518,3 +518,5 @@ def test_an_erp_member_picks_which_express_roots_belong_to_its_site(tmp_path, mo
     assert settings.set_erp_roots(erp, [r"S:\\EXP69", r"Z:\\ELSEWHERE"], "testerp.pearnly.com")["ok"] is True
     saved = {item.profile_id: item.erp_roots for item in ProfileStore.load(store.path, protector=_Protector()).profiles}
     assert saved == {cowork: (), erp: (r"S:\\EXP69",)}  # 只认这台电脑已授权的数据根
+    assert settings.set_erp_roots(erp, [], "testerp.pearnly.com")["ok"] is True  # 全关
+    assert settings.set_erp_roots(erp, [], "testerp.pearnly.com")["ok"] is True  # 已经是空的再关一次也行

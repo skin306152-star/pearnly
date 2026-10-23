@@ -10,3 +10,4 @@ pearnly_core.patches.v0_0_3_bind_code_index
 pearnly_core.patches.v0_0_4_site_default_currency
 pearnly_core.patches.v0_0_5_line_login_shared_entry
 pearnly_core.patches.v0_0_6_line_login_person
+pearnly_core.patches.v0_0_7_cc_desktop_left_books

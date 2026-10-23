@@ -121,10 +121,14 @@ def revalidate(context: Context) -> Context:
 
 
 def leave(context: Context) -> dict:
-    """电脑自己断开（CC 桌面版删掉这个成员）：只作废这把令牌，电脑行与登录记录留着。"""
+    """电脑自己断开（CC 桌面版删掉这个成员）：作废这把令牌、删掉它报的账套名单（再连上时心跳整份重报），电脑行与登录记录留着。
+    名单留着的话产品还会按它挑账套、建公司（10-23：断开的电脑名单里的账套被挑中，读主档一直「电脑离线」）。"""
+    from pearnly_core.cc_desktop import books
+
     doc = frappe.get_doc(DEVICE, context.device, for_update=True)
     doc.update({"token_digest": None, "last_seen_at": None})
     documents.persist(doc)
+    books.drop_device(context.device)
     return {"status": "left"}
 
 

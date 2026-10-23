@@ -5,15 +5,22 @@
 不做收银）；新建的每家排上主档同步（`masters.queue`，每分钟按顺序发起几家，读好了在后台落库）。哪些账套报给这个 ERP 由 CC 里
 这台电脑的 ERP 成员选（选了的 Express 数据根才报），见 docs/work/2026-10-23-erp-express-auto-companies.md。
 
+**只看还连着、按所选数据根报账套的电脑**（CC 桌面版 :data:`SCOPED_FROM` 起、令牌没作废、没退役）：1.11.0 报的是整台电脑的
+账套，电脑断开（`devices.leave`）后名单也还留着；照它们建会把事务所电脑上别的客户都建进这个 ERP。
+
 **没有有效 13 位税号的账套不建公司**：ERP 认账套（选账套、写单、同步）全靠税号 + 分店，没税号认不出归哪家，建了也写不进、
 同步不了；Express 里补上税号后下一次心跳就建。停用的公司不重建、不启用（人停的）。
 """
 import frappe
 
+from pearnly_core.cc_desktop.wire import request_contracts
+
 from pearnly_erp_portal.express import contracts
 
 COMPANY = "ERP Company"
 BOOK = "Pearnly CC Book"
+DEVICE = "Pearnly CC Device"
+SCOPED_FROM = "1.12.0"  # 起这一版 CC 桌面版的 ERP 成员只报人选的数据根里的账套（`worker.erp_scope`）
 COMMIT_EVERY = 20
 
 
@@ -41,9 +48,20 @@ def missing(found, companies) -> list:
     return [(tax, branch, name) for (tax, branch), name in sorted(found.items()) if (tax, branch) not in have]
 
 
+def scoped(devices) -> list:
+    """能据以建公司的电脑：令牌在用、没退役、CC 桌面版 :data:`SCOPED_FROM` 起。"""
+    return [row["name"] for row in devices if row.get("token_digest") and not row.get("retired_at")
+            and request_contracts.supports(row.get("companion_version"), SCOPED_FROM)]
+
+
 def ensure():
-    """（后台任务）按全部账套行补建公司，新建的排主档同步。回新建的公司。"""
-    rows = frappe.get_all(BOOK, fields=["company", "label", "tax_id", "branch", "period_end"], limit_page_length=0)
+    """（后台任务）按这些电脑报的账套补建公司，新建的排主档同步。回新建的公司。"""
+    devices = scoped(frappe.get_all(DEVICE, fields=["name", "token_digest", "retired_at", "companion_version"],
+                                    limit_page_length=0))
+    if not devices:
+        return []
+    rows = frappe.get_all(BOOK, filters={"device": ["in", devices]},
+                          fields=["company", "label", "tax_id", "branch", "period_end"], limit_page_length=0)
     companies = frappe.get_all(COMPANY, fields=["name", "tax_id", "branch"], limit_page_length=0)
     made = []
     for tax, branch, name in missing(groups(rows), companies):
