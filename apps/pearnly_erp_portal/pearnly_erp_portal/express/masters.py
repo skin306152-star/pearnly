@@ -80,9 +80,31 @@ def _params(book):
 
 
 def ensure(company, book):
-    """准备写账时这份账套还没读过主档：请电脑读一次（已经在读、没有电脑能读都不建），读好了下一次准备就有。"""
-    if requests.find(KIND, _request_key(book)) is None and requests.waiting(KIND, book["key"]) is None:
+    """准备写账时这份账套还没读过主档：请电脑读一次（已经在读、没有电脑能读都不建）；读好了就在这里落地（存账套资料，
+    是这家公司现用的那份再落进 ERP 主档），下一次准备就有。同期几份账套时人选的那份不一定是主档同步读的那份
+    （`target.current`），只靠同步落地会一直停在「正在读取」（10-23 验收第 3 轮）。"""
+    made = requests.find(KIND, _request_key(book))
+    if made is not None and made["status"] == "done":
+        _land(company, book, made)
+    elif made is None and requests.waiting(KIND, book["key"]) is None:
         requests.create(KIND, _request_key(book), _params(book), book_key=book["key"], actor=frappe.session.user)
+
+
+def _land(company, book, made):
+    """电脑读好的整套主档：存成这份账套的资料（`facts`），是这家公司现用的那份就落进 ERP 主档。回落了几条，或原因码。"""
+    content, _meta = requests.result(made["request"])
+    requests.drop(made["request"])
+    try:
+        data = json.loads(gzip.decompress(content or b""))
+    except (OSError, ValueError):
+        return {"state": "masters_invalid"}
+    facts.save(book["key"], data)
+    row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)
+    current = target.current(row, nowdate()) if row else None
+    if not current or current["key"] != book["key"]:
+        return {"state": "ready", "account_set": book["key"], "label": book["label"]}
+    counts = apply(company, book["label"], data)
+    return {"state": "ready", "account_set": book["key"], "label": book["label"], **counts}
 
 
 def _sync_once(company):
@@ -101,15 +123,7 @@ def _sync_once(company):
                                actor=frappe.session.user)
     if made["status"] != "done":
         return {"state": "reading"}
-    content, _meta = requests.result(made["request"])
-    requests.drop(made["request"])
-    try:
-        data = json.loads(gzip.decompress(content or b""))
-    except (OSError, ValueError):
-        return {"state": "masters_invalid"}
-    facts.save(book["key"], data)
-    counts = apply(company, book["label"], data)
-    return {"state": "ready", "account_set": book["key"], "label": book["label"], **counts}
+    return _land(company, book, made)
 
 
 def apply(company, book, data):

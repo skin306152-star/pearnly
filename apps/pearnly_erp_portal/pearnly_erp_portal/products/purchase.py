@@ -13,6 +13,7 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
     if line.get("item_type", "goods") == "service":
         return line
     name = line.get("product")
+    auto = not name  # 按品名 / 编码自动认的：单位跟商品走（`selection.own_unit`）
     if not name:
         for field in ("barcode", "code"):
             if line.get(field):
@@ -50,4 +51,8 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
             frappe.throw(_("Item is disabled"))
         line.update(product=name, code=item.code, barcode=item.barcode,
                     unit=line.get("unit") or item.base_unit or item.unit)
+        if auto:
+            from pearnly_erp_portal.masters.selection import own_unit
+
+            line["unit"] = own_unit(item, line["unit"])
     return line

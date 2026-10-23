@@ -178,3 +178,18 @@ def test_the_worker_reports_waiting_when_another_computer_writes(monkeypatch):
         outcome = worker._handle_dbf_task(types.SimpleNamespace(default_depcod="", ui_lang="en"), qc, task)
     assert outcome == "waiting_lock"
     assert [(item["error_code"], item["outcome"]) for item in acks] == [("ACCOUNT_WRITER_BUSY", "waiting_lock")]
+
+
+def test_an_unfit_stock_account_group_is_reported_for_a_choice():
+    # 10-23 验收第 3 轮：新建库存品挂的存货科目组过不了判据 → 单独回报码、直接转人工，产品端让人选一次组
+    from companion import dbf_writer, purchase_lines, stock_template
+
+    try:
+        try:
+            raise stock_template.InventoryAccountUnfit("ST01 不像存货科目")
+        except stock_template.InventoryAccountUnfit as cause:
+            raise purchase_lines.StockLineError(str(cause)) from cause
+    except purchase_lines.StockLineError as wrapped:
+        assert dbf_writer._error_code(wrapped) == stock_template.ERR_STOCK_GROUP == "STOCK_ACC_GROUP_UNFIT"
+    assert dbf_writer._error_code(purchase_lines.StockLineError("混行")) == dbf_writer.ERR_STOCK_IN
+    assert worker._outcome_for("STOCK_ACC_GROUP_UNFIT") == "needs_review"

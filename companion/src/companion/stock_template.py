@@ -49,6 +49,11 @@ _INVENTORY_WORDS = (
 )
 
 
+# 回报码(1.11.0):新建库存品挂的存货科目组过不了下面的判据 / 没配 —— 产品端据此让人选一次存货科目组(选过的再写时带
+# `stock_acccod`),不按普通写盘失败重试(结论一样)。
+ERR_STOCK_GROUP = "STOCK_ACC_GROUP_UNFIT"
+
+
 class InventoryAccountUnfit(Exception):
     """自动建库存档选中的存货科目不像存货科目 → 交会计,不静默建档。"""
 

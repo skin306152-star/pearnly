@@ -80,10 +80,14 @@ def _options(item, data):
 
 
 def _party_blocked(doctype, row, job):
-    """电脑以对方档为由拦下（疑似重复 / 同税号分店认不准，转人工）：要人选的那一项；其余情形回 []。"""
-    if not job or job["status"] != "manual" or ack_rules.error_code(job["reason"]) not in prepare.PARTY_CODES:
-        return []
-    return prepare.party_needed(push.document(doctype, row.name), push._company(row.company))
+    """电脑拦下、要在 ERP 里选一次才能再写的（转人工）：对方档（疑似重复 / 同税号分店认不准）、新建库存品的存货科目组。
+    回要人选的那一项；其余情形回 []（只能「重试」）。"""
+    code = ack_rules.error_code(job["reason"]) if job and job["status"] == "manual" else ""
+    if code in prepare.PARTY_CODES:
+        return prepare.party_needed(push.document(doctype, row.name), push._company(row.company))
+    if code in prepare.GROUP_CODES:
+        return prepare.group_needed(push.document(doctype, row.name), push._company(row.company))
+    return []
 
 
 def _view(doctype, row):

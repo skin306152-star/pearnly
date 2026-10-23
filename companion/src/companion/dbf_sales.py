@@ -30,6 +30,7 @@ from . import pos_journal
 from . import write_verify
 from . import stock_location
 from . import stock_sale
+from . import stock_template
 from . import cdx_reindex
 from .consistency import account_company_matches
 from .dbf_writer import (
@@ -381,6 +382,8 @@ def write_sale(
         code = (
             ERR_STOCK_NOT_FOUND
             if isinstance(e, stock_sale.StockItemNotFound)
+            else stock_template.ERR_STOCK_GROUP
+            if isinstance(e, stock_template.InventoryAccountUnfit)
             else (
                 e.args[1]
                 if (isinstance(e, _WriteError) and len(e.args) > 1)

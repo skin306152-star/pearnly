@@ -347,6 +347,7 @@ def _handle_dbf_task(
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
     """DBF 写错误码 → 云端 V3 outcome(细粒度状态)。未映射 → None(走默认 failed)。"""
+    from . import stock_template
     from .dbf_writer import ERR_INDEX, ERR_WAITING_LOCK
     from .dbf_sales import ERR_CUSTOMER_AMBIGUOUS, ERR_CUSTOMER_DUP
     from .dbf_writer import (
@@ -367,6 +368,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         ERR_FIELD_WIDTH: "needs_review",
         # 仓库码不在这套账的仓库代码表里:重试结论一样,要人改单或在 Express 建仓
         ERR_LOCATION: "needs_review",
+        # 新建库存品的存货科目组不合格 / 没配:要人选一次组(1.11.0)
+        stock_template.ERR_STOCK_GROUP: "needs_review",
     }.get(error_code or "")
 
 

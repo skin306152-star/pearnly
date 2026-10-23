@@ -3375,6 +3375,7 @@ intake.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามา
 intake.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 intake.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+intake.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 intake.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 intake.error.STOCK_ITEM_NOT_FOUND,สินค้าคงเหลือที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่

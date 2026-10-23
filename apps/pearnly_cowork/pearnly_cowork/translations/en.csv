@@ -3375,6 +3375,7 @@ intake.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the f
 intake.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+intake.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
 intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
 intake.error.STOCK_ITEM_NOT_FOUND,The chosen Express stock item no longer exists. Choose again
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again

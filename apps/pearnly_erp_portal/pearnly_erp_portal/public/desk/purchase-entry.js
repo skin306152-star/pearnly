@@ -4,7 +4,9 @@
 	const p = frappe.pearnly, u = p.purchase_ui;
 	u.entry_method = (state, layout) => {
 		const choose = state.editable && !state.doc.name && !state.intake && !state.amended_from;
-		state.entry_mode = choose ? "ocr" : "manual";
+		// LINE 菜单「手动录入」打开的新建页带 ?entry=manual：默认就是手动录入
+		const manual = new URLSearchParams(window.location.search).get("entry") === "manual";
+		state.entry_mode = choose && !manual ? "ocr" : "manual";
 		const choices = [];
 		const show_fields = () => !choose || state.entry_mode === "manual" || (state.entry_mode === "ocr" && Boolean(state.ocr_complete));
 		state.can_submit = () => !state.busy && !state.uploading && show_fields();

@@ -234,7 +234,8 @@ def _resolve_item(row, company=None):
     旧线上销项明细的商品关联是可空的（"现填时可为空"），卖的东西没建档时明细照样能记，
     只是这一行不动库存 —— 要不要建档由物料岗位决定，销售不替它建。
     """
-    if not row.get("product"):
+    auto = not row.get("product")
+    if auto:
         from pearnly_erp_portal.masters.selection import match_product
 
         row["product"], found = match_product(row["description"], company)
@@ -246,6 +247,10 @@ def _resolve_item(row, company=None):
         if not item.is_active:
             frappe.throw(_("Item is disabled"))
         row.setdefault("unit", item.base_unit or item.unit)
+        if auto:
+            from pearnly_erp_portal.masters.selection import own_unit
+
+            row["unit"] = own_unit(item, row.get("unit"))
     return row
 
 

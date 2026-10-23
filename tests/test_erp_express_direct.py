@@ -176,6 +176,18 @@ class Prepare(Base):
                                           "branch": "00000"}))["payload"]
         self.assertEqual(payload["supplier"]["code"], "B005")  # 照选的写
 
+    def test_an_unfit_stock_group_is_chosen_once_and_written_with_the_choice(self):
+        # 10-23 第 3 轮：电脑按账套里挂得最多的组建库存品被判据拦下 → 在 ERP 里从合格的组里选一次，再写时带上
+        from pearnly_erp_portal.express import prepare as P
+        key, = self.computer([book()])
+        groups = [{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True},
+                  {"code": "ST01", "desc": "อุปกรณ์", "inv_acc": "14-01-03-00", "fit": False}]
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": groups}})
+        needed, = P.group_needed(doc(), COMPANY)
+        self.assertEqual((needed["kind"], [option["code"] for option in needed["options"]]), ("stock_group", ["DM"]))
+        choices.remember(COMPANY["name"], needed["kind"], needed["subject"], "DM")
+        self.assertEqual(self.prepare(doc())["payload"]["stock_acccod"], "DM")
+
     def test_bad_documents_fail(self):
         key, = self.computer([book()])
         self.masters(key)
@@ -277,6 +289,25 @@ class MasterSync(Base):
         doc.insert()
         return doc["name"]
 
+    def test_a_chosen_book_read_by_the_computer_lands_when_preparing(self):
+        # 10-23 第 3 轮：同期几份账套时人选的那份不是主档同步读的那份，读好了也没人落地，单据一直「正在读取」
+        import gzip
+        import types
+        from unittest import mock
+        key = "af714e1f" + "0" * 32
+        data = {"version": 2, "customers": CUSTOMERS, "suppliers": SUPPLIERS, "products": PRODUCTS}
+        dropped = []
+        done = types.SimpleNamespace(find=lambda kind, request_key: {"request": "R1", "status": "done"},
+                                     result=lambda name: (gzip.compress(json.dumps(data).encode()), {}),
+                                     drop=dropped.append, waiting=lambda *a: None, create=lambda *a, **k: None)
+        fake.STATE.db.table("ERP Company")["CO-1"] = {"name": "CO-1", "tax_id": OWN, "branch": "00012"}
+        with mock.patch.object(self.sync, "requests", done), \
+                mock.patch.object(self.sync.target, "current", lambda row, day: {"key": "f" * 40}, create=True):
+            self.sync.ensure("CO-1", {"key": key, "label": "T.9", "path": PATH})
+        self.assertEqual(facts.load(key)["suppliers"], SUPPLIERS)  # 账套资料落地，下一次准备就有
+        self.assertEqual(dropped, ["R1"])
+        self.assertEqual(fake.STATE.db.table("ERP Supplier"), {})  # 不是这家公司现用的那份：不落进 ERP 主档
+
     def test_one_erp_supplier_is_claimed_once_and_a_spaced_code_is_taken_back(self):
         loose = self.supplier(supplier_name="ชาญ ฟู้ด", express_code="ชาญ ฟู้ด", express_company="CO-00127")
         free = self.supplier(supplier_name="วิริยะประกันภัย", tax_id="0107555000139", branch_type="head_office")
@@ -363,6 +394,14 @@ class CompanyMasters(Base):
         made = self.row("ERP Customer", customer_name="บริษัท เมเจอร์ โบว์ล กรุ๊ป จำกัด", tax_id=tax,
                         branch_type="branch", branch_no="00020")
         self.assertEqual(self.selection.unlinked_party("customer", tax, branch_type="branch", branch_no="00020"), made)
+
+    def test_an_auto_matched_product_takes_its_own_unit(self):
+        import types
+        ice = types.SimpleNamespace(base_unit="กิโลกรัม", unit="กิโลกรัม",
+                                    get=lambda key: [types.SimpleNamespace(unit_name="กระสอบ")])
+        self.assertEqual(self.selection.own_unit(ice, "ถุง"), "กิโลกรัม")  # 票面读的单位商品没有：用商品的
+        self.assertEqual(self.selection.own_unit(ice, "กระสอบ"), "กระสอบ")
+        self.assertEqual(self.selection.own_unit(ice, ""), "กิโลกรัม")
 
     def test_buyer_tax_and_branch_from_the_reading(self):
         from pearnly_erp_portal.sales import contracts as sales

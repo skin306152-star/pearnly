@@ -16,6 +16,7 @@ from pearnly_erp_portal.products import contracts, service
 def resolve(line, *, create=True, company=None):
     guard.require("sales.write")
     name = line.get("product")
+    auto = not name  # 按品名 / 编码自动认的：单位跟商品走（`selection.own_unit`）
     if not name:
         from pearnly_erp_portal.masters.selection import match_product
 
@@ -37,4 +38,8 @@ def resolve(line, *, create=True, company=None):
         if not item.is_active:
             frappe.throw(_("Item is disabled"))
         line.update(product=name, unit=line.get("unit") or item.base_unit or item.unit)
+        if auto:
+            from pearnly_erp_portal.masters.selection import own_unit
+
+            line["unit"] = own_unit(item, line["unit"])
     return line

@@ -3375,6 +3375,7 @@ intake.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+intake.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 intake.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
 intake.error.STOCK_ITEM_NOT_FOUND,所选的 Express 存货已不存在，请重新选择
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交

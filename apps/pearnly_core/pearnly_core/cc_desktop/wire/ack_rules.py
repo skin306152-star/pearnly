@@ -22,6 +22,8 @@ NEEDS_PERSON_CODES = frozenset({
     # POS 日汇总票的付款方式转账凭证（载荷 3）：账套没有可用的普通日记账单据簿 / 选的收款科目在 Express 里不能记账 /
     # `pos` 块小助手不收。
     "JOURNAL_BOOK_NOT_FOUND", "ACCOUNT_NOT_POSTABLE", "POS_INVALID",
+    # 新建库存品挂的存货科目组不合格 / 没配（CC 桌面版 1.11.0 起单独回报）：要人选一次组
+    "STOCK_ACC_GROUP_UNFIT",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

@@ -183,7 +183,7 @@ def _next(line_user_id, user, payload, reply_token):
 
         root = "pearnly-purchase" if payload["direction"] == "purchase" else "pearnly-sales"
         manual = {"type": "action", "action": {"type": "uri", "label": str(_("Enter manually"))[:20],
-                  "uri": line_login.entry_url(f"/desk/{root}/new")}}
+                  "uri": line_login.entry_url(f"/desk/{root}/new?entry=manual")}}
         return _ask(reply_token, _QUESTIONS[step](payload),
                     [_button(label, urlencode({"a": "erp", "s": step, "v": key})) for key, label in options]
                     + [manual])

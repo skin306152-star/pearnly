@@ -142,13 +142,13 @@ class Flow(Base):
         self.assertEqual((upload["label"], upload["data"]), ("Upload and recognise", "a=erp&s=entry&v=upload"))
         self.assertEqual(manual, {"type": "uri", "label": "Enter manually",
                                   "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter"
-                                         "?to=%2Fdesk%2Fpearnly-purchase%2Fnew"})
+                                         "?to=%2Fdesk%2Fpearnly-purchase%2Fnew%3Fentry%3Dmanual"})  # 新建页默认手动录入
         self.assertEqual(cancel["data"], "a=erp&s=cancel")
         with patch("pearnly_core.line_binding.user_of", return_value="seller"):
             self.roles["seller"] = {"sales.write", "integration.read"}
             self.tap({"data": "a=mode:sales"})
         self.assertEqual(self.buttons()[1]["uri"], "https://testerp.pearnly.com/api/method/"
-                         "pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-sales%2Fnew")
+                         "pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-sales%2Fnew%3Fentry%3Dmanual")
 
     def test_role_and_binding_are_checked_before_any_step(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):

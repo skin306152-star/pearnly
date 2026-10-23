@@ -90,6 +90,13 @@ def _in_use(kind, rows, name, title, company):
     return [row for row in rows if row["name"] == used[0]] if used else rows
 
 
+def own_unit(product_doc, unit):
+    """按品名自动认出的商品，明细的单位（票面读的）不是这个商品的单位时换成商品的基本单位 —— 与人在页面上选商品时
+    一样（`sales-form.js` / `purchase-form.js` 的 on_select）。人选了商品、填了单位的照旧按商品单位表核（不随手换算）。"""
+    names = {product_doc.base_unit, product_doc.unit, *(row.unit_name for row in product_doc.get("units") or [])}
+    return unit if unit and unit in names else (product_doc.base_unit or product_doc.unit or unit)
+
+
 def match_product(description, company=None):
     """明细行按品名认商品（没选商品时）：``(商品, 认出几条)``。按 :func:`for_company` 只在这家公司该用的商品里认；
     认出不止一条时商品给 None，调用方按各自口径处理（要人选）。"""

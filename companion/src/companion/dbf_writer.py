@@ -32,6 +32,7 @@ from . import fiscal_period
 from . import master_create
 from . import purchase_lines
 from . import stock_location
+from . import stock_template
 from . import write_verify
 from .consistency import account_company_matches
 from .write_result import DbfWriteResult  # noqa: F401  re-export · dbf_sales 与测试从本模块取
@@ -473,7 +474,9 @@ class _WriteError(Exception):
 def _error_code(e: Exception) -> str:
     """异常 → 云端错误码。入库路的失败单独给码,会计一眼知道是"库存"这步卡住而非写盘出错。"""
     if isinstance(e, purchase_lines.StockLineError):
-        return ERR_STOCK_IN
+        # 入库路新建库存品挂的存货科目组不合格:单独给码,产品端让人选一次组(见 stock_template.ERR_STOCK_GROUP)
+        return (stock_template.ERR_STOCK_GROUP if isinstance(e.__cause__, stock_template.InventoryAccountUnfit)
+                else ERR_STOCK_IN)
     if isinstance(e, _WriteError) and len(e.args) > 1:
         return e.args[1]
     return ERR_WRITE

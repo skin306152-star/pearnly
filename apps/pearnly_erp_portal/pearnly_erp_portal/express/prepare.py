@@ -70,6 +70,23 @@ PARTY_CODES = frozenset({"CUSTOMER_DUP_SUSPECTED", "SUPPLIER_DUP_SUSPECTED", "CU
                          "SUPPLIER_BRANCH_AMBIGUOUS"})
 
 
+# 电脑回报新建库存品挂的存货科目组不合格 / 没配：在 ERP 里选一次组（按账套记住，之后新建库存品都挂它）
+GROUP_CODES = frozenset({"STOCK_ACC_GROUP_UNFIT"})
+
+
+def group_needed(doc, company_row):
+    """被电脑以存货科目组为由拦下后让人选的那一项（``kind = stock_group``）：这份账套过了存货科目判据的组；没有合格的组
+    （要先在 Express 里配）或读不到账套资料回 []。"""
+    doc = contracts.checked(doc)
+    picked = target.pick(company_row, doc["date"])
+    book = picked.get("book")
+    data = facts.load(book["key"]) if book else None
+    if data is None:
+        return []
+    needed = _needed_group(_config(book, data, company_row["name"]), book)
+    return needed if needed[0]["options"] else []
+
+
 def party_needed(doc, company_row):
     """写进去被电脑以对方档为由拦下后，让人选的那一项（``kind = party``）：这份账套里同税号的对方档，没税号按名称相近的，
     都没有就整张对方档表。选的值按公司记住（与写账规则问对方档同一个归类键），再准备时照选的写。读不到账套资料回 []。"""
@@ -109,7 +126,9 @@ def prepare(doc, company_row, ensure_masters):
     book = picked["book"]
     data = facts.load(book["key"])
     if data is None:
-        ensure_masters(company_row["name"], book)
+        ensure_masters(company_row["name"], book)  # 读好了的在这里落地，这一次就接着准备
+        data = facts.load(book["key"])
+    if data is None:
         return {"hold": contracts.READING, "book": book}
     config = _config(book, data, company_row["name"])
     pages = _current_codes(contracts.pages(doc), config)
