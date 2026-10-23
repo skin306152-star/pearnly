@@ -354,6 +354,21 @@ class MasterSync(Base):
                          [("pearnly_erp_portal.express.masters.land", key)])
         self.assertEqual(fake.STATE.db.table("ERP Supplier"), {})
 
+    def test_a_code_twice_in_the_book_is_one_record_and_old_copies_are_retired(self):
+        # 10-24 测试机：Express 客户表里同一个编码两行，ERP 每同步一次多建一条（一家累积到 14 条）
+        rows = [{"code": "C1", "name": "หนึ่ง", "tax_id": "", "branch": "00000"},
+                {"code": "C1", "name": "หนึ่ง (ซ้ำ)", "tax_id": "", "branch": "00000"},
+                {"code": "C2", "name": "สอง", "tax_id": "", "branch": "00000"}]
+        old = self.supplier(supplier_name="หนึ่ง", express_code="C1", express_company="CO-1")
+        extra = self.supplier(supplier_name="หนึ่ง", express_code="C1", express_company="CO-1")
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        table = fake.STATE.db.table("ERP Supplier")
+        active = sorted((row["express_code"], row["name"]) for row in table.values() if row.get("is_active"))
+        self.assertEqual([code for code, _name in active], ["C1", "C2"])
+        self.assertIn(("C1", old), active)  # 认最早的那条，单据里引用的不变
+        self.assertEqual(table[extra]["is_active"], 0)
+
     def test_automatic_syncs_start_a_few_at_a_time_and_land_what_was_read(self):
         # 10-23：上百家公司自动建好后一起排同步。后台进程不空等电脑；同时只发起几家（电脑一本一本读，排多了等过领取时限）
         from unittest import mock

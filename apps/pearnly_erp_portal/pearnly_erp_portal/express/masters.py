@@ -397,19 +397,29 @@ def _retire(doctype, names, current=None):
 
 def _mine(doctype, company, fields):
     """ERP 现有的档：这家公司同步来的按编码认；没归属却带编码的（旧数据）按编码也认；其余是可认领的。``fields`` 是要比对的
-    字段，一次取出（:func:`_upsert` 据此跳过没变的行）。回 (按编码认, 这家公司的, 可认领的, ``{档名: 现有值}``)。"""
+    字段，一次取出（:func:`_upsert` 据此跳过没变的行）。回 (按编码认, 这家公司的全部档名（同编码多条的都在，没认领到的停用）,
+    可认领的, ``{档名: 现有值}``)。"""
     rows = frappe.get_all(doctype, fields=list(dict.fromkeys(["name", "express_code", "express_company", *fields])),
-                          limit_page_length=0)
+                          order_by="creation asc", limit_page_length=0)
     current = {row.name: row for row in rows}
     by_code = {}
-    for row in sorted(rows, key=lambda item: item.express_company != company):
+    for row in sorted(rows, key=lambda item: item.express_company != company):  # 同编码几条时认最早的那条
         if row.express_code and row.express_company in (company, None, ""):
             by_code.setdefault(row.express_code, row.name)
-    ours = {row.express_code: row.name for row in rows if row.express_code and row.express_company == company}
-    for code, name in ours.items():  # 1.11.0 之前的 CC 把编码里的不换行空格读成了普通空格：照普通空格也认回原来那条
-        by_code.setdefault(_loose(code), name)
+    mine = [row for row in rows if row.express_code and row.express_company == company]
+    for row in mine:  # 1.11.0 之前的 CC 把编码里的不换行空格读成了普通空格：照普通空格也认回原来那条
+        by_code.setdefault(_loose(row.express_code), row.name)
     free = [row for row in rows if not row.express_code]
-    return by_code, ours, free, current
+    return by_code, [row.name for row in mine], free, current
+
+
+def _first(seen, code):
+    """同一本账套里同一个编码只认第一行（Express 的表不管编码重不重；10-24 测试机：重的那行每次同步都多建一条档）。"""
+    key = _loose(code)
+    if key in seen:
+        return False
+    seen.add(key)
+    return True
 
 
 def _loose(code):
@@ -449,16 +459,18 @@ def _parties(doctype, company, book, rows, fields_of):
         if contracts.tax13(row.tax_id):
             free_tax.setdefault((row.tax_id, contracts.branch5(row.branch_no)), row.name)
         free_name.setdefault(str(row.get(name_field) or "").strip().casefold(), row.name)
-    changed, claimed = 0, set()
+    changed, claimed, seen = 0, set(), set()
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
+        if not _first(seen, item["code"]):
+            continue
         values = {**fields_of(item), "express_code": item["code"], "express_company": company,
                   "express_book": book[:140], "is_active": 1}
         name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
                       lambda: free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None,
                       lambda: free_name.pop(item["name"].casefold(), None))
         changed += _upsert(doctype, name, values, current.get(name))
-    return changed + _retire(doctype, [name for name in ours.values() if name not in claimed], current)
+    return changed + _retire(doctype, [name for name in ours if name not in claimed], current)
 
 
 # ── 商品 ─────────────────────────────────────────────────────────────────────
@@ -468,6 +480,8 @@ PRODUCT_FIELDS = ("code", "barcode", "product_name", "base_unit", "unit", "expre
 
 
 def _products(company, book, data):
+    from pearnly_erp_portal.products import service as products
+
     units = contracts.unit_names(data)
     by_code, ours, free, current = _mine(PRODUCT, company, PRODUCT_FIELDS)
     for row in frappe.get_all("ERP Product Unit", filters={"parenttype": PRODUCT},
@@ -482,11 +496,16 @@ def _products(company, book, data):
     free_name = {}
     for row in free:
         free_name.setdefault(str(row.product_name or "").strip().casefold(), row.name)
-    taken = frappe.get_all(PRODUCT, fields=["name", "barcode"], filters={"barcode": ["is", "set"]}, limit_page_length=0)
-    taken_barcodes = {row.barcode: row.name for row in taken if row.barcode}
-    changed, claimed = 0, set()
+    # 条码在这家公司看得到的范围里（本公司的档 + 本地档）不能重（`products.service.taken`）；同一本账套里两件同条码的
+    # （Express 允许）后一件不写条码，写过的随写随记
+    taken_barcodes = {row.barcode: row.name for row in frappe.get_all(
+        PRODUCT, fields=["name", "barcode", "express_company"], filters={"barcode": ["is", "set"]}, limit_page_length=0)
+        if row.barcode and (row.express_company or "") in ("", company)}
+    changed, claimed, seen = 0, set(), set()
     for raw in contracts.rows(data.get("products")):
         item = contracts.product(raw, units)
+        if not _first(seen, item["code"]):
+            continue
         name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
                       lambda: free_code.pop(item["code"], None),
                       lambda: free_name.pop(item["name"].casefold(), None))
@@ -495,8 +514,8 @@ def _products(company, book, data):
                             for row in item["units"]],
                   "express_code": item["code"], "express_company": company, "express_book": book[:140],
                   "express_stock": int(item["stock"]), "is_active": 1}
-        if not name and not frappe.db.exists(PRODUCT, {"code": item["code"]}):
-            # 问库而不是在内存里比：唯一键按库的排序规则比（泰文声调符号等会被当成一样），内存逐字比会漏
+        if not name and not products.taken("code", item["code"], owner=company):
+            # 问库而不是在内存里比：按库的排序规则比（泰文声调符号等会被当成一样），内存逐字比会漏
             values["code"] = item["code"]
         # 售价、条码完全照 Express（空就清空；条码被别的商品占着时不写，免得撞唯一键）
         values.update(unit_price=float(item["price"] or 0), price_set=1 if item["price"] else 0)
@@ -504,8 +523,9 @@ def _products(company, book, data):
             values["barcode"] = None
         elif taken_barcodes.get(item["barcode"], name) == name:
             values["barcode"] = item["barcode"]
+            taken_barcodes[item["barcode"]] = name or ("new", item["code"])
         changed += _upsert(PRODUCT, name, values, current.get(name))
-    return changed + _retire(PRODUCT, [name for name in ours.values() if name not in claimed], current)
+    return changed + _retire(PRODUCT, [name for name in ours if name not in claimed], current)
 
 
 # ── 仓库与库存 ───────────────────────────────────────────────────────────────

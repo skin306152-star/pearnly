@@ -108,18 +108,43 @@ def _flag(value) -> int:
     return 1 if value in (True, 1, "1", "true", "True", "on") else 0
 
 
-def _assert_unique(code, barcode, *, exclude: str | None = None) -> None:
-    """同租户内编码/条码唯一。站点本身就是租户边界，所以只需本站点内查重。"""
+def taken(field: str, value, *, owner: str | None = None, exclude: str | None = None) -> str | None:
+    """编码 / 条码在「看得到它的那家公司」范围内被哪件商品占着（2026-10-24 起不再全租户唯一）：一个租户挂几家公司，
+    各家从自己的 Express 同步商品（`express_company`），同一个国际条码在两家各有一件是常事。``owner`` 是这件商品所属的
+    公司（Express 同步来的）：本公司的档 + ERP 本地档里不能重；本地档（``owner`` 空）各家公司都看得到，全租户不能重。
+    按库的排序规则比（泰文声调符号、大小写、尾随空格按库认作一样）。"""
+    if field not in contracts.UNIQUE_FIELDS or not value:
+        return None
+    sql = f"select name from `tab{DOCTYPE}` where `{field}` = %s"
+    params = [value]
+    if exclude:
+        sql += " and name != %s"
+        params.append(exclude)
+    if owner:
+        sql += " and ifnull(express_company, '') in ('', %s)"
+        params.append(owner)
+    found = frappe.db.sql(sql + " limit 1", params)
+    return found[0][0] if found else None
+
+
+def find(field: str, value, company: str | None = None) -> str | None:
+    """按编码 / 条码认商品：只认这家公司的 Express 档与本地档（别家公司同码的不认），本公司的先。"""
+    if field not in contracts.UNIQUE_FIELDS or not value:
+        return None
+    if not company:
+        return frappe.db.get_value(DOCTYPE, {field: value, "express_company": ["is", "not set"]}, "name")
+    found = frappe.db.sql(f"""select name from `tab{DOCTYPE}` where `{field}` = %s
+        and ifnull(express_company, '') in ('', %s) order by ifnull(express_company, '') = '' limit 1""", (value, company))
+    return found[0][0] if found else None
+
+
+def _assert_unique(code, barcode, *, exclude: str | None = None, owner: str | None = None) -> None:
+    """编码 / 条码在看得到这件商品的范围内唯一（:func:`taken`）。"""
     for field, value, message in (
         ("code", code, CODE_EXISTS),
         ("barcode", barcode, BARCODE_EXISTS),
     ):
-        if not value:
-            continue
-        filters = {field: value}
-        if exclude:
-            filters["name"] = ["!=", exclude]
-        if frappe.db.exists(DOCTYPE, filters):
+        if taken(field, value, owner=owner, exclude=exclude):
             frappe.throw(_(message))
 
 
@@ -155,7 +180,7 @@ def _attach_image(image_url, product: str):
 def _allocate_code() -> str:
     """发下一个商品编码（旧线上 ERP 门户里编码是只读的，新平台同样不让手输）。
 
-    编码列自带唯一索引，并发撞号时报"编码已存在"，不靠这里的读-改-写保证唯一。
+    发号看全租户（本地档各家公司都看得到）；建档前 `_assert_unique` 再核一次。
     """
     codes = frappe.get_all(DOCTYPE, filters={"code": ["like", f"{contracts.CODE_PREFIX}%"]},
                            pluck="code", limit_page_length=0)
@@ -283,9 +308,11 @@ def find_product(value, exclude=None):
         if rows:
             return {**rows[0], "matched_by": field}
     # 售卖单位上的条码：先按条码拿到子表行，再把父商品过一遍权限与在架闸。
-    parent = frappe.db.get_value(UNIT_DOCTYPE, {"barcode": wanted}, "parent")
-    if parent:
-        rows = frappe.get_list(DOCTYPE, filters=base + [["name", "=", parent]], fields=fields,
+    # 几家公司各有一件挂同一个单位条码时，先取全部再过权限（按当前公司）
+    parents = frappe.get_all(UNIT_DOCTYPE, filters={"barcode": wanted, "parenttype": DOCTYPE}, pluck="parent",
+                             limit_page_length=20)
+    if parents:
+        rows = frappe.get_list(DOCTYPE, filters=base + [["name", "in", parents]], fields=fields,
                                limit_page_length=1)
         if rows:
             return {**rows[0], "matched_by": "unit_barcode"}
@@ -324,7 +351,7 @@ def update_product(name: str, **changes):
         frappe.throw(_(CODE_LOCKED))
     barcode = (_text(changes.get("barcode"), contracts.MAX_BARCODE)
                if "barcode" in changes else doc.barcode)
-    _assert_unique(doc.code, barcode, exclude=doc.name)
+    _assert_unique(doc.code, barcode, exclude=doc.name, owner=doc.get("express_company"))
 
     # 商品上的"默认仓"已经删掉（用户 2026-09-24："进货就进卖货那个仓" —— 进货那一侧改用
     # 收银台上配的仓，见 `warehouses.receiving`），只剩仓位这一栏还是商品级建议值。

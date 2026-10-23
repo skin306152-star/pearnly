@@ -17,7 +17,7 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
     if not name:
         for field in ("barcode", "code"):
             if line.get(field):
-                name = frappe.db.get_value("ERP Product", {field: line[field]}, "name")
+                name = service.find(field, line[field], company)  # 别家公司 Express 的同码商品不认
                 if name:
                     break
     if not name:

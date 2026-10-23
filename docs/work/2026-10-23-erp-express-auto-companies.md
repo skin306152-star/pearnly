@@ -85,6 +85,19 @@
 - 落库任务被部署 / 重启打断时公司会一直停在「同步中」，原来排队只认非排队 / 读取中 / 同步中，这家就再也排不上；改为「同步中」
   也可以再排（落库幂等，正在落的那件按任务号去重）。
 
+### 九、多家公司进同一个租户后的商品条码 / 编码、Express 里的重复编码（测试机实测时发现）
+
+- 商品表的编码、条码原来是全租户唯一索引。36 家公司同步后有 5 行商品因条码撞车整行建不出来（商品缺失）：一是同一本账套里
+  两件同条码（Express 允许；占用表只在开头取一次），二是别家公司已有同一国际条码。主档按公司隔离后，同一条码在两家各有一件
+  是常事，全租户唯一不对。
+- 修法：去掉这两个唯一索引（改普通索引，原生迁移按 DocType 改）；唯一性改在服务端按「看得到它的那家公司」判
+  （`products.service.taken`：Express 同步来的档在本公司档 + 本地档里不能重；本地档各家都看得到，全租户不能重）；按编码 / 条码
+  认商品只认本公司 + 本地档（`products.service.find`，采购自动认商品用）；扫码查商品本来就走带权限的列表（按当前公司），单位条码
+  改成先取全部再过权限；主档落库的条码占用表按这个范围算、随写随记。
+- Express 主档表不管编码重不重（测试机一家客户表 5006 行只有 4979 个编码），ERP 原来每同步一次给重的那行再建一条档、旧的也不停用
+  （一家的 `DM-ถุงพลาสติก` 已累积 14 条）。修法：同一本账套同一编码只认第一行，这家公司同编码的多余档同步时停用（认最早建的那条，
+  单据里引用的不变）。
+
 ## 改动登记
 
 | 位置 | 改动 |
@@ -94,6 +107,7 @@
 | Cowork | 只有请求表 `kind` 下拉多一项 `express_marks`（共用契约的种类表）、`intake.error.PERIOD_LOCKED` 词条；Cowork 不发这种请求、推送不带关账标记，行为不变 |
 | ERP `express` | `companies`（建公司）、`masters.queue` / `advance` / `check_marks` / `sync_all` 兜底 / `_profile`、`api.preflight`、`push.form_document`、`push` 转人工 / 准备停在要选时推 `pearnly_erp_express_needed`、`prepare` 载荷带 `respect_period_lock` |
 | ERP 主档 | `masters.access` 客户 / 供应商 / 商品的 `permission_query_conditions` 与 `has_permission`；`selection.api_choices` 默认当前公司 |
+| ERP 商品 | 编码、条码去掉全租户唯一索引（改普通索引）；`products.service.taken` / `find` 按公司范围判重、认商品；`purchase.resolve` 按公司认 |
 | ERP Company | 隐藏字段 `express_mark`；同步状态多「排队中」 |
 | ERP 页面 | 采购 / 销售提交前 `p.express_preflight`；实时推送弹出单据 Express 弹窗；关账原因译文；公司页「排队中」 |
 | 定时 | 每分钟 `masters.advance`、每 10 分钟 `masters.check_marks`、每小时 `sync_all`（只兜底） |
