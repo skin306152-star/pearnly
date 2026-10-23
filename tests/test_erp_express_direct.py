@@ -415,7 +415,7 @@ class MasterSync(Base):
             started.append(company)
             return {"state": "reading", "made": {"status": "requested"}}
 
-        with mock.patch.object(self.sync, "_request", request), \
+        with mock.patch.object(self.sync, "_request", request), mock.patch.object(self.sync, "OPEN_READS", 3), \
                 mock.patch.object(frappe, "enqueue", lambda method, **kw: queued.append(kw), create=True):
             self.sync.advance()
         self.assertEqual([(kw["company"], kw["wait"]) for kw in queued], [("CO-0", 0)])  # 读好的排落库，不再等

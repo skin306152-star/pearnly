@@ -55,7 +55,9 @@ EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{compa
 NOTIFY_KEY = "erp-express-sync-notify:"  # 缓存：哪几个人在等这家公司的同步结果
 # 记在公司上的同步状态（公司页显示）
 QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
-OPEN_READS = 3  # 自动同步同时在读的公司最多这么多（电脑一本一本读；排太多会等过领取时限而过期）
+# 自动同步同时在读的公司最多这么多：电脑一本一本读（大账套约 50 秒），6 本约 5 分钟，在 10 分钟领取时限内；3 家时电脑常空等
+# （10-24 实验栈 41 家重同步 60 分钟）
+OPEN_READS = 6
 
 
 def linked_companies():
@@ -207,7 +209,18 @@ def sync(company, wait=0, notify=None):
     frappe.db.commit()
     if result.get("state") != READING:
         _notify(company, result, notify)
+        _next()
     return result
+
+
+def _next():
+    """落完一家就接着推进（读好的排落库、空出的名额发起下一家），不等下一分钟的 :func:`advance`。"""
+    try:
+        advance()
+        frappe.db.commit()
+    except Exception:  # noqa: BLE001  推进出错不影响这一家的结果，下一分钟的定时任务照常再来
+        frappe.db.rollback()
+        frappe.log_error(title="ERP Express master sync advance failed", message=frappe.get_traceback()[-3000:])
 
 
 def _record(company, result):
@@ -283,6 +296,7 @@ def land(company, book_key, label):
     _record(company, result)
     frappe.db.commit()
     _notify(company, result)
+    _next()
     return result
 
 
