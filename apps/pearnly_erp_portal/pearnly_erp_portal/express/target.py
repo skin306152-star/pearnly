@@ -52,10 +52,15 @@ def pick(company_row, day) -> dict:
 
 
 def current(company_row, day) -> dict:
-    """主档同步读哪一份：今天该写的那份（同期两份时按选过的，没选过取写得进的第一份，读主档不必停下）。"""
+    """主档同步读哪一份：今天该写的那份（同期两份时按选过的，没选过取写得进的第一份，读主档不必停下）。还没有今年的账套
+    （只有往年的）就读会计期间最近的那份：主档按公司认，不因为没开今年的账套就读不到（10-24 测试机：按账套自动建的公司里
+    有只剩往年账套的）。"""
     found = candidates(company_row, day)
     if not found:
-        return None
+        tax = contracts.tax13(company_row.get("tax_id"))
+        every = books.for_company(tax, company_row.get("branch")) if tax else []
+        latest = max(every, key=lambda item: str(item.get("period_end") or ""), default=None)
+        return latest
     if len(found) > 1:
         wanted = choices.chosen(company_row["name"], choices.ACCOUNT_SET, year_subject(day, found[0]))
         chosen = next((item for item in found if item["key"] == wanted), None)

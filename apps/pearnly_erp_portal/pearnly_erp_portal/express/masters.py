@@ -65,9 +65,10 @@ def linked_companies():
 
 def queue(company):
     """自动同步排上号（新建的公司、主档有改动、写单后、每小时兜底）：只记「排队中」，由每分钟的 :func:`advance` 按顺序发起读取、
-    读好了排后台任务落库；不占着后台进程等电脑。已经在读 / 在落库的不动。"""
+    读好了排后台任务落库；不占着后台进程等电脑。已经排着 / 在读的不动；「同步中」的照样排（落库任务被部署、重启打断时会一直
+    停在同步中；落库幂等，正在落的那件按任务号去重，最多多读一遍）。"""
     state = frappe.db.get_value(COMPANY, company, "express_sync_state")
-    if state not in (QUEUED, READING, SYNCING):
+    if state not in (QUEUED, READING):
         _record(company, {"state": QUEUED})
 
 

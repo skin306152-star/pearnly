@@ -380,6 +380,9 @@ class MasterSync(Base):
                          ["reading", "reading", "reading", "queued", "queued"])
         self.sync.queue("CO-1")  # 已经在读的不打回排队
         self.assertEqual(table["CO-1"]["express_sync_state"], "reading")
+        table["CO-0"]["express_sync_state"] = "syncing"  # 落库被重启打断、一直停在同步中的：再排得上
+        self.sync.queue("CO-0")
+        self.assertEqual(table["CO-0"]["express_sync_state"], "queued")
 
     def test_only_a_changed_mark_or_a_new_book_starts_a_full_sync(self):
         # Express 主档有改动 ERP 自动跟上：每 10 分钟请电脑看一眼主档表的文件属性，变了 / 换了新年度账套才整套读
@@ -546,6 +549,15 @@ class AutoCompanies(Base):
         self.assertEqual(found, {(OWN, "00012"): "นิภา เอ็กเช้นจ์", (OWN, "00000"): "สาขาใหญ่"})  # 没有效税号的不建
         existing = [{"name": "CO-1", "tax_id": OWN, "branch": "00000"}]
         self.assertEqual(companies.missing(found, existing), [(OWN, "00012", "นิภา เอ็กเช้นจ์")])
+
+    def test_masters_are_read_from_the_latest_book_when_this_year_has_none(self):
+        # 10-24 测试机：按账套自动建的公司里有只剩往年账套的；主档按公司认，读最近一年的，不报「没有账套」
+        from pearnly_erp_portal.express import target
+        old, older = self.computer([book(path=PATH + "-68", uid="vsn:1/68", start="2025-01-01", end="2025-12-31"),
+                                    book(path=PATH + "-67", uid="vsn:1/67", start="2024-01-01", end="2024-12-31")])
+        self.assertEqual(target.current(COMPANY, "2026-10-23")["key"], old)
+        self.assertEqual(target.pick(COMPANY, "2026-10-23")["reason"], E.NO_BOOK)  # 今年的单照旧没有账套可写
+        self.assertEqual(target.current(COMPANY, "2024-05-01")["key"], older)
 
     def test_only_connected_computers_that_report_the_chosen_roots_count(self):
         # 1.11.0 报整台电脑的账套、断开后名单还留着：照它们建会把事务所别的客户建进来
