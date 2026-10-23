@@ -16,6 +16,7 @@ import frappe
 from pearnly_core.cc_desktop.wire import request_contracts
 
 from pearnly_erp_portal.express import contracts
+from pearnly_erp_portal.inventory import warehouses
 
 COMPANY = "ERP Company"
 BOOK = "Pearnly CC Book"
@@ -68,6 +69,8 @@ def ensure():
         doc = frappe.get_doc({"doctype": COMPANY, "company_name": name[:200], "tax_id": tax, "branch": branch,
                               "is_active": 1, "pos_enabled": 0})
         doc.insert(ignore_permissions=True)
+        # 先给一个仓（同开户建公司）：首次同步前就能开单；同步时这个仓按 Express 的主仓码认领（`masters._warehouses`）
+        warehouses.ensure_for_company(doc.name, "Main")
         made.append(doc.name)
         if len(made) % COMMIT_EVERY == 0:
             frappe.db.commit()

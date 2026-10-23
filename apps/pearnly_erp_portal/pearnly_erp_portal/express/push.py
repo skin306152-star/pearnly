@@ -124,14 +124,37 @@ def form_document(doctype, payload, company) -> dict:
                  "branch": payload.get("supplier_branch_no") or (row or {}).get("branch_no") or ""}
         paid = str(payload.get("is_paid") or 0) not in ("0", "False", "false", "")
         number, currency = payload.get("doc_no") or payload.get("system_no") or "-", payload.get("currency") or "THB"
-    lines = [frappe._dict({**line, "line_total": computed.get("line_total")})
-             for line, computed in zip(payload.get("lines") or [], totals.get("lines") or [])]
+    lines = []
+    for line, computed in zip(payload.get("lines") or [], totals.get("lines") or []):
+        line = frappe._dict({**line, "line_total": computed.get("line_total")})
+        goods = doctype == SALES or (line.get("item_type") or "goods") == "goods"
+        if goods and not line.get("product"):
+            line.product = _matched_product(line, company)  # 提交时同样按条码 / 编码 / 品名认（不建档）
+        lines.append(line)
+    out = _lines(doctype, frappe._dict({"lines": lines}))
+    if doctype == PURCHASE:
+        for line, item in zip(lines, out):
+            if (line.get("item_type") or "goods") == "goods" and not line.get("product"):
+                item["stock"] = True  # 认不到的货物行提交时自动建档入库：按库存品准备，不误问费用科目（10-24 审查）
     company_row = frappe.db.get_value(COMPANY, company, ["tax_id", "branch"], as_dict=True) or {}
     return contracts.document(ref="preflight", direction=DIRECTIONS[doctype], doc_date=str(payload.get("doc_date") or
                               frappe.utils.nowdate()), number=number, company=company_row, party=party, paid=paid,
                               has_vat=str(payload.get("has_vat", 1)) not in ("0", "False", "false", ""),
-                              total=totals.get("grand_total"), vat=totals.get("vat_amount"),
-                              lines=_lines(doctype, frappe._dict({"lines": lines})), currency=currency)
+                              total=totals.get("grand_total"), vat=totals.get("vat_amount"), lines=out,
+                              currency=currency)
+
+
+def _matched_product(line, company):
+    """没选商品的明细行：照提交时的认法（`products.purchase.resolve` / `products.sales.resolve`）认一件，认不出或不止一件回 None。"""
+    from pearnly_erp_portal.masters.selection import match_product
+    from pearnly_erp_portal.products import service
+
+    for field in ("barcode", "code"):
+        found = service.find(field, line.get(field), company)
+        if found:
+            return found
+    name, count = match_product(line.get("description") or "", company)
+    return name if count == 1 else None
 
 
 def document(doctype, name) -> dict:

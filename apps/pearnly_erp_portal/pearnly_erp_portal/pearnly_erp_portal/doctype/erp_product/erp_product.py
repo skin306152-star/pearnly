@@ -17,6 +17,9 @@ class ERPProduct(Document):
     def validate(self):
         express_locks.guard(self)
         self._validate_active_unit()
+        # 编码在「公司 + 编码」上唯一（库里的唯一索引兜并发：两处同时发号拿到同一个 P- 号时后一件存不进）；同一编码在
+        # 不同公司的 Express 档各有一件可以（2026-10-24 起编码不再全租户唯一，判重见 `products.service.taken`）
+        self.code_key = f"{self.express_company or ''}|{self.code}" if self.code else None
 
     def _validate_active_unit(self):
         """同一时间只能有一个默认销售单位，避免收银台取到两个价格。"""

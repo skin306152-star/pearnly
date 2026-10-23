@@ -61,7 +61,8 @@
 				dialog.onhide = () => { if (!picked) resolve(null); };
 			});
 			if (!answers) return false;
-			info = await p.call(api, {doctype, payload: JSON.stringify(payload), answers: JSON.stringify(answers)}, "POST");
+			info = await p.call(api, {doctype, payload: JSON.stringify(payload), answers: JSON.stringify(answers)}, "POST")
+				.catch(() => null);
 		}
 		return true;
 	};

@@ -8,6 +8,7 @@
  "field_order": [
   "product_name",
   "code",
+  "code_key",
   "barcode",
   "qr_payload",
   "column_break_price",
@@ -52,6 +53,16 @@
    "label": "Code",
    "length": 100,
    "search_index": 1
+  },
+  {
+   "fieldname": "code_key",
+   "fieldtype": "Data",
+   "label": "Code Key",
+   "length": 255,
+   "unique": 1,
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "barcode",
@@ -218,7 +229,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-24 10:00:00.000000",
+ "modified": "2026-10-24 11:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",

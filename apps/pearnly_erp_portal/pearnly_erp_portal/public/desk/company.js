@@ -258,15 +258,19 @@
 					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : []),
 		];
 		// 后台同步做完推过来：提示结果，还在这一屏就重画（显示新的时间、状态、原因）
+		const watching = {};  // 每家公司只挂一个监听（连点两次不弹两遍）
 		const watch_sync = (company, still_current) => {
+			if (watching[company]) frappe.realtime.off("pearnly_erp_express_sync", watching[company]);
 			const done = data => {
 				if (data?.company !== company) return;
 				frappe.realtime.off("pearnly_erp_express_sync", done);
+				delete watching[company];
 				const key = sync_key(data.state);
 				if (key === "ready") p.success(t("company.syncExpress.ready"));
 				else frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)), indicator: "orange"});
 				if (still_current?.()) show();
 			};
+			watching[company] = done;
 			frappe.realtime.on("pearnly_erp_express_sync", done);
 		};
 

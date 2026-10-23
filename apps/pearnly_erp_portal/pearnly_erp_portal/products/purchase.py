@@ -32,6 +32,9 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
         # 自己的货号，只拿来在上面匹配已有商品，不当成我们的商品编码。
         code = service._allocate_code()
         barcode = service._text(line.get("barcode"), contracts.MAX_BARCODE)
+        if barcode and service.taken("barcode", barcode):
+            # 自动建的是本地档（各家公司都看得到）：同一条码别家公司已有就不带条码建，不让整张单交不上（10-24 审查）
+            barcode = None
         service._assert_unique(code, barcode)
         item = frappe.get_doc({"doctype": "ERP Product", "product_name": product_name,
             "code": code, "barcode": barcode, "unit": line.get("unit"),

@@ -24,3 +24,5 @@ pearnly_erp_portal.patches.v1_9_username_login
 pearnly_erp_portal.patches.v1_10_menu_permissions
 # 已开通站点补默认公司（开通流程以前不建，mrerp 2026-09-30）。
 pearnly_erp_portal.patches.v1_11_default_company
+# 商品编码改成在「公司 + 编码」上唯一：补已有商品的 code_key（2026-10-24）
+pearnly_erp_portal.patches.v1_12_product_code_key

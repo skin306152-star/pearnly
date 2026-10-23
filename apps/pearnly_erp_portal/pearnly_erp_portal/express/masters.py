@@ -52,6 +52,7 @@ LAND_LIMIT = 3600   # 落库的上限（秒）：大账套首次落库的实测�
 COMMIT_EVERY = 500  # 落库每改这么多条提交一次（任务中途出错，已落的不丢；再同步一次幂等补齐）
 POLL_EVERY = 8
 EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{company, state, note}
+NOTIFY_KEY = "erp-express-sync-notify:"  # 缓存：哪几个人在等这家公司的同步结果
 # 记在公司上的同步状态（公司页显示）
 QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
 OPEN_READS = 3  # 自动同步同时在读的公司最多这么多（电脑一本一本读；排太多会等过领取时限而过期）
@@ -65,19 +66,34 @@ def linked_companies():
 
 def queue(company):
     """自动同步排上号（新建的公司、主档有改动、写单后、每小时兜底）：只记「排队中」，由每分钟的 :func:`advance` 按顺序发起读取、
-    读好了排后台任务落库；不占着后台进程等电脑。已经排着 / 在读的不动；「同步中」的照样排（落库任务被部署、重启打断时会一直
-    停在同步中；落库幂等，正在落的那件按任务号去重，最多多读一遍）。"""
+    读好了排后台任务落库；不占着后台进程等电脑。已经排着 / 在读 / 在落库的不动（落库被部署、重启打断的由 :func:`advance` 收回）。"""
     state = frappe.db.get_value(COMPANY, company, "express_sync_state")
-    if state not in (QUEUED, READING):
+    if state not in (QUEUED, READING, SYNCING):
         _record(company, {"state": QUEUED})
 
 
+def _job_id(name, company):
+    return f"erp-express-{name}:{frappe.local.site}:{company}"
+
+
+def _landing(company) -> bool:
+    """这家公司的同步 / 落库任务还排着或在跑。"""
+    from frappe.utils.background_jobs import is_job_enqueued
+
+    return any(is_job_enqueued(_job_id(name, company)) for name in ("sync", "land"))
+
+
 def advance():
-    """（每分钟）推进自动同步：在读的读好了就排后台任务落库（请求过期了重发）；在读的不满 :data:`OPEN_READS` 家就让排队最久的
-    几家发起读取（没同步过的先来）。没有排着的就一条查询。"""
-    rows = frappe.get_all(COMPANY, filters={"express_sync_state": ["in", [QUEUED, READING]], "is_active": 1},
+    """（每分钟）推进自动同步：在读的读好了就排后台任务落库（请求过期了重发，电脑读失败就记失败与原因）；在读的不满
+    :data:`OPEN_READS` 家就让排队最久的几家发起读取（没同步过的先来）；停在「同步中」、后台却已没有它的任务的（落库被部署、
+    重启打断）排回队里。没有要推进的就一条查询。"""
+    rows = frappe.get_all(COMPANY, filters={"express_sync_state": ["in", [QUEUED, READING, SYNCING]], "is_active": 1},
                           fields=["name", "express_sync_state"], order_by="express_synced_at asc, name asc",
                           limit_page_length=0)
+    for row in rows:
+        if row.express_sync_state == SYNCING and not _landing(row.name):
+            _record(row.name, {"state": QUEUED})
+            row.express_sync_state = QUEUED
     reading = 0
     for row in rows:
         if row.express_sync_state != READING:
@@ -92,7 +108,7 @@ def advance():
     for row in rows:
         if row.express_sync_state != QUEUED or reading >= OPEN_READS:
             continue
-        found = _request(row.name)
+        found = _request(row.name, fresh=True)
         _record(row.name, found)
         reading += found["state"] == READING
 
@@ -100,9 +116,22 @@ def advance():
 def enqueue(company, notify=None, wait=JOB_WAIT):
     """排一次后台同步（同一家公司排着的只留一件）。``notify``：做完推给这个用户（手动发起的）；``wait``：等电脑读完的上限
     （:func:`advance` 排的是已经读好的，不等）。"""
+    if notify:
+        # 记下要通知谁：自动同步那件已经排着时这件会按任务号去重掉，做完由那件一并推（10-24 审查）
+        frappe.cache.hset(NOTIFY_KEY + company, notify, 1)
     frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue="long", timeout=JOB_WAIT + LAND_LIMIT,
-                   enqueue_after_commit=True, job_id=f"erp-express-sync:{frappe.local.site}:{company}",
-                   deduplicate=True, company=company, wait=wait, notify=notify)
+                   enqueue_after_commit=True, job_id=_job_id("sync", company), deduplicate=True, company=company,
+                   wait=wait)
+
+
+def _notify(company, result, extra=None):
+    """手动发起过同步的人：推这次的结果（`company.js` 收到就提示并重画）。"""
+    users = set(frappe.cache.hkeys(NOTIFY_KEY + company) or []) | ({extra} if extra else set())
+    frappe.cache.delete_value(NOTIFY_KEY + company)
+    for user in users:
+        user = user.decode() if isinstance(user, bytes) else user
+        frappe.publish_realtime(EVENT, {"company": company, "state": result.get("state"), "note": result.get("note") or ""},
+                                user=user, after_commit=False)
 
 
 def sync_all():
@@ -150,7 +179,7 @@ def _mark(made):
 def start(company):
     """管理员在公司页点「同步 Express」：请求里只看能不能读、发起读取，不等电脑、不落库；读好、落库交后台任务（做完推给
     本人）。回 ``{"state": reading | offline | outdated | <原因码>}``。"""
-    result = _request(company)
+    result = _request(company, fresh=True)
     if result.get("state") == READING:
         _record(company, {"state": READING})
         enqueue(company, notify=frappe.session.user)
@@ -176,9 +205,8 @@ def sync(company, wait=0, notify=None):
         result = {"state": FAILED, "note": f"{type(error).__name__}: {error}"[:500]}
     _record(company, result)
     frappe.db.commit()
-    if notify:
-        frappe.publish_realtime(EVENT, {"company": company, "state": result.get("state"), "note": result.get("note") or ""},
-                                user=notify, after_commit=False)
+    if result.get("state") != READING:
+        _notify(company, result, notify)
     return result
 
 
@@ -230,7 +258,7 @@ def _land(company, book, made, inline=True):
         return {"state": READY, "account_set": book["key"], "label": book["label"]}
     if not inline:
         frappe.enqueue("pearnly_erp_portal.express.masters.land", queue="long", timeout=LAND_LIMIT,
-                       enqueue_after_commit=True, job_id=f"erp-express-land:{frappe.local.site}:{company}",
+                       enqueue_after_commit=True, job_id=_job_id("land", company),
                        deduplicate=True, company=company, book_key=book["key"], label=book["label"])
         return {"state": SYNCING, "account_set": book["key"], "label": book["label"]}
     _record(company, {"state": SYNCING})
@@ -254,11 +282,13 @@ def land(company, book_key, label):
         result = {"state": FAILED, "note": f"{type(error).__name__}: {error}"[:500]}
     _record(company, result)
     frappe.db.commit()
+    _notify(company, result)
     return result
 
 
-def _request(company):
-    """这家公司现用的那份账套读到哪一步了：没有请求就发起（够得到的电脑都不在线 / 太旧则不建）。回
+def _request(company, fresh=False):
+    """这家公司现用的那份账套读到哪一步了：没有请求就发起（够得到的电脑都不在线 / 太旧则不建）。上一件电脑读失败了：``fresh``
+    （新一轮同步）就重发，否则回失败原因码（不每分钟重发、不占着在读的名额）。回
     ``{"state": reading | done | offline | outdated | <原因码>, "book", "made"}``。"""
     row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)
     if not row or not contracts.tax13(row.tax_id):
@@ -267,6 +297,10 @@ def _request(company):
     if book is None:
         return {"state": "account_set_missing"}
     made = requests.find(KIND, _request_key(book))
+    if made is None and not fresh:
+        last = requests.latest(KIND, _request_key(book))
+        if last is not None and last["status"] == "failed":
+            return {"state": last.get("code") or "masters_failed"}
     if made is None:
         waiting = requests.waiting(KIND, book["key"])
         if waiting:  # 够得到这份账套的电脑都不在线，或 CC 桌面版太旧不认这种请求：不建，过一会儿再来
@@ -294,7 +328,9 @@ def apply(company, book, data):
     counts["products"] = _products(company, book, data)
     warehouses, counts["warehouses"] = _warehouses(company, book, data)
     counts["stock"] = _stock(company, warehouses, data.get("stock"))
-    values = {"express_book": book[:140], "express_synced_at": now_datetime(), "express_mark": data.get("mark") or None}
+    values = {"express_book": book[:140], "express_synced_at": now_datetime()}
+    if data.get("mark"):  # 旧版 CC 桌面版读的没有标记：不清掉原来的（清掉了下一轮看标记必不同，又整套读一遍）
+        values["express_mark"] = data["mark"]
     values.update(_profile(company, data.get("settings") or {}))
     frappe.db.set_value(COMPANY, company, values, update_modified=False)
     frappe.db.commit()
@@ -399,8 +435,7 @@ def _mine(doctype, company, fields):
     """ERP 现有的档：这家公司同步来的按编码认；没归属却带编码的（旧数据）按编码也认；其余是可认领的。``fields`` 是要比对的
     字段，一次取出（:func:`_upsert` 据此跳过没变的行）。回 (按编码认, 这家公司的全部档名（同编码多条的都在，没认领到的停用）,
     可认领的, ``{档名: 现有值}``)。"""
-    rows = frappe.get_all(doctype, fields=list(dict.fromkeys(["name", "express_code", "express_company", *fields])),
-                          order_by="creation asc", limit_page_length=0)
+    rows = _scoped(doctype, company, list(dict.fromkeys(["name", "express_code", "express_company", *fields])))
     current = {row.name: row for row in rows}
     by_code = {}
     for row in sorted(rows, key=lambda item: item.express_company != company):  # 同编码几条时认最早的那条
@@ -409,8 +444,19 @@ def _mine(doctype, company, fields):
     mine = [row for row in rows if row.express_code and row.express_company == company]
     for row in mine:  # 1.11.0 之前的 CC 把编码里的不换行空格读成了普通空格：照普通空格也认回原来那条
         by_code.setdefault(_loose(row.express_code), row.name)
-    free = [row for row in rows if not row.express_code]
+    # 没挂 Express 的本地档：只在租户只有一家公司时认领。几家公司时本地档各家共用，认领进一家就从别家的列表、选择里消失了
+    # （主档按公司隔离，10-24 审查），这时 Express 的档另建一条
+    single = len(frappe.get_all(COMPANY, filters={"is_active": 1}, limit_page_length=2)) <= 1
+    free = [row for row in rows if not row.express_code] if single else []
     return by_code, [row.name for row in mine], free, current
+
+
+def _scoped(doctype, company, fields):
+    """这家公司同步来的档 + 本地档（别家公司的对认档没用；上百家公司时不把全租户的档都读进来）。按建档先后。"""
+    rows = frappe.get_all(doctype, filters={"express_company": company}, fields=fields, order_by="creation asc",
+                          limit_page_length=0)
+    return rows + frappe.get_all(doctype, filters={"express_company": ["is", "not set"]}, fields=fields,
+                                 order_by="creation asc", limit_page_length=0)
 
 
 def _first(seen, code):
@@ -484,9 +530,11 @@ def _products(company, book, data):
 
     units = contracts.unit_names(data)
     by_code, ours, free, current = _mine(PRODUCT, company, PRODUCT_FIELDS)
-    for row in frappe.get_all("ERP Product Unit", filters={"parenttype": PRODUCT},
-                              fields=["parent", "unit_name", "factor_to_base"], order_by="parent asc, idx asc",
-                              limit_page_length=0):
+    for row in frappe.db.sql(f"""select unit.parent, unit.unit_name, unit.factor_to_base
+            from `tabERP Product Unit` unit join `tab{PRODUCT}` product on product.name = unit.parent
+            where unit.parenttype = %s and (product.express_company is null or product.express_company = ''
+                or product.express_company = %s)
+            order by unit.parent asc, unit.idx asc""", (PRODUCT, company), as_dict=True):
         if row.parent in current:  # 与 `_unit_rows` 同一写法，比对时与要写的单位表直接比
             current[row.parent].setdefault("units", []).append(
                 {"unit_name": row.unit_name, "factor": str(contracts.d(row.factor_to_base).normalize())})
@@ -498,9 +546,7 @@ def _products(company, book, data):
         free_name.setdefault(str(row.product_name or "").strip().casefold(), row.name)
     # 条码在这家公司看得到的范围里（本公司的档 + 本地档）不能重（`products.service.taken`）；同一本账套里两件同条码的
     # （Express 允许）后一件不写条码，写过的随写随记
-    taken_barcodes = {row.barcode: row.name for row in frappe.get_all(
-        PRODUCT, fields=["name", "barcode", "express_company"], filters={"barcode": ["is", "set"]}, limit_page_length=0)
-        if row.barcode and (row.express_company or "") in ("", company)}
+    taken_barcodes = {row.barcode: row.name for row in current.values() if row.barcode}
     changed, claimed, seen = 0, set(), set()
     for raw in contracts.rows(data.get("products")):
         item = contracts.product(raw, units)

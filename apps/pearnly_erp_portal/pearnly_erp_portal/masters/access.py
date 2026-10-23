@@ -89,8 +89,10 @@ def master_query(doctype, user=None):
         current = company.active_company(user)
     except frappe.PermissionError:
         current = None
-    local = f"ifnull(`tab{doctype}`.`express_company`, '') = ''"
-    return f"({local} or `tab{doctype}`.`express_company` = {frappe.db.escape(current)})" if current else local
+    # 不包 ifnull：`express_company` 上的索引才用得上（客户近 2 万条时列表、链接搜索不全表扫）
+    column = f"`tab{doctype}`.`express_company`"
+    local = f"{column} is null or {column} = ''"
+    return f"({local} or {column} = {frappe.db.escape(current)})" if current else f"({local})"
 
 
 def master_permission(doc, ptype="read", user=None, **kwargs):

@@ -48,6 +48,14 @@ def find(kind, request_key):
     return view if view["status"] in ("requested", "leased", "done") else None
 
 
+def latest(kind, request_key):
+    """同一请求号最近的那件，任何状态（含电脑读失败 ``failed`` / 没人领 ``expired``）；没有回 None。产品据此分清「还没发」和
+    「发了、电脑读失败」，失败的不再每次重发。"""
+    rows = frappe.get_all(REQUEST, filters={"request_key": request_key, "kind": kind}, fields=list(FIELDS),
+                          order_by="requested_at desc", limit=1)
+    return _view(rows[0]) if rows else None
+
+
 def waiting(kind, book_key, actor=None):
     """此刻没有电脑能做这件就说为什么（不建请求）：``missing``（发起人一台登录过 CC 的电脑都没有，非共享种类）、
     ``unreachable``（没有一台够得到这份账套）、``offline``（够得到的都关着）、``update_needed``（CC 桌面版太旧）。能做回 None。"""

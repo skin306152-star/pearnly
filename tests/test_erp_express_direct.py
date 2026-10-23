@@ -271,6 +271,20 @@ class MasterSync(Base):
         self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.masters", None)
         from pearnly_erp_portal.express import masters
         self.sync = masters
+        store = {}
+
+        class Cache:
+            def hset(self, name, key, value):
+                store.setdefault(name, {})[key] = value
+
+            def hkeys(self, name):
+                return list(store.get(name, {}))
+
+            def delete_value(self, name):
+                store.pop(name, None)
+
+        frappe.cache = Cache()
+        self.cache = store
         frappe.clear_messages = lambda: None
         frappe.log_error = lambda **kw: self.fail(kw)
         frappe.get_traceback = lambda: ""
@@ -311,14 +325,15 @@ class MasterSync(Base):
                 mock.patch.object(self.sync, "requests", mock.Mock(find=lambda kind, key: made)), \
                 mock.patch.object(frappe, "enqueue", lambda *a, **kw: queued.append(kw), create=True):
             self.assertEqual(self.sync.start("CO-1"), {"state": "reading", "book": book_row, "made": made})
-        self.assertEqual((queued[0]["company"], queued[0]["notify"]), ("CO-1", "admin@x"))  # 读好了也不在请求里落库
+        self.assertEqual(queued[0]["company"], "CO-1")  # 读好了也不在请求里落库
+        self.assertEqual(list(self.cache["erp-express-sync-notify:CO-1"]), ["admin@x"])  # 自动那件做完也推给本人
         self.assertEqual(fake.STATE.db.table("ERP Company")["CO-1"]["express_sync_state"], "reading")
         errors = []
         with mock.patch.object(self.sync, "_sync_once", side_effect=RuntimeError("disk full")), \
                 mock.patch.object(frappe, "log_error", lambda **kw: errors.append(kw), create=True), \
                 mock.patch.object(frappe, "publish_realtime", lambda event, data, **kw: pushed.append((event, data, kw)),
                                   create=True):
-            result = self.sync.sync("CO-1", notify="admin@x")
+            result = self.sync.sync("CO-1")
         company = fake.STATE.db.table("ERP Company")["CO-1"]
         self.assertEqual((result["state"], company["express_sync_state"]), ("failed", "failed"))
         self.assertIn("disk full", company["express_sync_note"])  # 不静默：原因记在公司上、另记 Error Log
@@ -354,6 +369,19 @@ class MasterSync(Base):
                          [("pearnly_erp_portal.express.masters.land", key)])
         self.assertEqual(fake.STATE.db.table("ERP Supplier"), {})
 
+    def test_local_records_are_claimed_only_when_the_tenant_has_one_company(self):
+        # 10-24 审查：几家公司时本地档认领进一家，就从别家的列表、选择里消失了
+        local = self.supplier(supplier_name="ปตท", tax_id="0107544000108", branch_type="head_office")
+        rows = [{"code": "P01", "name": "ปตท", "tax_id": "0107544000108", "branch": "00000"}]
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "is_active": 1}
+        table["CO-2"] = {"name": "CO-2", "is_active": 1}
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        suppliers = fake.STATE.db.table("ERP Supplier")
+        self.assertFalse(suppliers[local].get("express_company"))  # 本地档留给各家
+        self.assertEqual([row["express_code"] for row in suppliers.values() if row.get("express_company") == "CO-1"],
+                         ["P01"])
+
     def test_a_code_twice_in_the_book_is_one_record_and_old_copies_are_retired(self):
         # 10-24 测试机：Express 客户表里同一个编码两行，ERP 每同步一次多建一条（一家累积到 14 条）
         rows = [{"code": "C1", "name": "หนึ่ง", "tax_id": "", "branch": "00000"},
@@ -381,7 +409,7 @@ class MasterSync(Base):
         self.assertEqual({table[f"CO-{i}"]["express_sync_state"] for i in range(1, 6)}, {"queued"})
         started, queued = [], []
 
-        def request(company):
+        def request(company, fresh=False):
             if company == "CO-0":
                 return {"state": "reading", "made": {"status": "done"}}
             started.append(company)
@@ -396,9 +424,35 @@ class MasterSync(Base):
                          ["reading", "reading", "reading", "queued", "queued"])
         self.sync.queue("CO-1")  # 已经在读的不打回排队
         self.assertEqual(table["CO-1"]["express_sync_state"], "reading")
-        table["CO-0"]["express_sync_state"] = "syncing"  # 落库被重启打断、一直停在同步中的：再排得上
+        table["CO-0"]["express_sync_state"] = "syncing"  # 正在落库的：不打回排队（打断的由 advance 收回）
         self.sync.queue("CO-0")
-        self.assertEqual(table["CO-0"]["express_sync_state"], "queued")
+        self.assertEqual(table["CO-0"]["express_sync_state"], "syncing")
+
+    def test_a_failed_read_is_recorded_once_and_a_cut_off_landing_is_queued_again(self):
+        # 10-24 审查：电脑读失败的请求每分钟重发、一直算「读取中」占名额；落库被重启打断的一直停在「同步中」
+        import types
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "tax_id": OWN, "branch": "00012", "is_active": 1, "express_sync_state": "reading"}
+        table["CO-2"] = {"name": "CO-2", "tax_id": OWN, "branch": "00012", "is_active": 1, "express_sync_state": "syncing"}
+        table["CO-3"] = {"name": "CO-3", "tax_id": OWN, "branch": "00012", "is_active": 1, "express_sync_state": "syncing"}
+        made = []
+        stub = types.SimpleNamespace(find=lambda kind, key: None, waiting=lambda kind, key: None,
+                                     latest=lambda kind, key: {"status": "failed", "code": "account_tables_missing"},
+                                     create=lambda kind, key, params, **kw: made.append(key) or {"status": "requested"})
+        with mock.patch.object(self.sync, "requests", stub), \
+                mock.patch.object(self.sync, "_landing", lambda company: company == "CO-3"), \
+                mock.patch.object(self.sync.target, "current", lambda row, day: {"key": "k1", "path": PATH, "label": "T.9"},
+                                  create=True):
+            self.sync.advance()
+            self.assertEqual((table["CO-1"]["express_sync_state"], table["CO-1"]["express_sync_note"]),
+                             ("failed", "account_tables_missing"))  # 不重发，原因记在公司上
+            self.assertEqual(table["CO-2"]["express_sync_state"], "reading")  # 打断的收回、重新发起读取
+            self.assertEqual(table["CO-3"]["express_sync_state"], "syncing")  # 还在落的不动
+            self.assertEqual(made, ["erp_masters:k1"])
+            self.sync.queue("CO-1")  # 新一轮（每小时兜底 / 改动）照样重发
+            self.sync.advance()
+        self.assertEqual(table["CO-1"]["express_sync_state"], "reading")
 
     def test_only_a_changed_mark_or_a_new_book_starts_a_full_sync(self):
         # Express 主档有改动 ERP 自动跟上：每 10 分钟请电脑看一眼主档表的文件属性，变了 / 换了新年度账套才整套读
@@ -601,8 +655,8 @@ class MasterIsolation(unittest.TestCase):
 
     def test_lists_show_local_records_and_the_current_company_only(self):
         self.assertEqual(self.access.master_query("ERP Supplier", "staff@x"),
-                         "(ifnull(`tabERP Supplier`.`express_company`, '') = '' "
-                         "or `tabERP Supplier`.`express_company` = 'CO-A')")
+                         "(`tabERP Supplier`.`express_company` is null or `tabERP Supplier`.`express_company` = '' "
+                         "or `tabERP Supplier`.`express_company` = 'CO-A')")  # 不包 ifnull，索引用得上
         self.assertEqual(self.access.master_query("ERP Supplier", "Administrator"), "")
 
     def test_a_record_opens_for_a_company_the_user_may_use(self):
