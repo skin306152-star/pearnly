@@ -1,6 +1,6 @@
 # ERP 直连 CC 桌面版、写进 Express（不经 Cowork）施工记录（2026-10-23）
 
-- 状态：开发与测试机验收完成（第 4 轮复测全部通过，代码 `79c8b786`）；待用户同意后合入 main、部署（先服务端、后 CC 1.11.0 正式版）。
+- 状态：已上线（用户 10-23 同意）。main `3205521e`，生产镜像 `29404c6a`，CC 桌面版 1.11.0 正式版已发，见 [发布记录](2026-10-23-release-3205521e.md)。
 - 分支 `pearnly/erp-cc-direct-26da5a`，工作树 `.claude/worktrees/erp-cc-direct-26da5a`，基线 `2dca095a`（= origin/main；生产 `d92337b2`、
   镜像 `0ccdb2a0`、CC 1.10.0 正式版，见 [发布记录](2026-10-22-release-d92337b2.md)）。集成目标 `main`。
 - 架构决定：[ADR-025](../adr/0025-cc-desktop-direct-product-sites.md)。
