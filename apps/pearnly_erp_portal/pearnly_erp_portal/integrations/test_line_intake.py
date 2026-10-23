@@ -581,6 +581,18 @@ class Checks(unittest.TestCase):
         self.assertEqual((result["has_vat"], result["price_mode"]), (True, "inclusive"))
         self.assertEqual(recognition.review(result), [])
 
+    def test_a_document_without_item_lines_gets_one_line_from_its_printed_amounts(self):
+        # 10-23 验收：保险单只印了小计 / 增值税 / 合计、没有明细，卡片金额全是空。按票面税前额补一行服务。
+        from pearnly_erp_portal.purchasing import recognition as purchase
+
+        printed = {"subtotal": "32841.04", "vat": "2298.87", "total": "35139.91"}
+        result = purchase._structured({"printed": printed, "lines": [], "notes": "เบี้ยประกันภัยรถยนต์\nกรมธรรม์ 1",
+                                       "supplier_name": "วิริยะประกันภัย", "document_type": "tax_invoice",
+                                       "buyer_tax_id": "0105546015062", "has_vat": True})
+        self.assertEqual([(row["description"], row["qty"], row["unit_price"], row["item_type"], row.get("vat_rate"))
+                          for row in result["lines"]], [("เบี้ยประกันภัยรถยนต์", 1, 32841.04, "service", 7)])
+        self.assertEqual(purchase._structured({"printed": {}, "lines": [], "notes": "x"})["lines"], [])  # 没印金额不补
+
     def test_tax_ids_that_lost_the_leading_zero_are_restored_only_when_the_check_digit_agrees(self):
         # 用户 2026-09-30：识别出 12 位税号补回开头的 0，补完要过 MOD-11 校验位才补（与 Cowork 同一个共用函数）。
         from pearnly_erp_portal.purchasing import recognition as purchase

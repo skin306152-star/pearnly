@@ -9,10 +9,11 @@ import frappe
 from frappe import _
 
 from pearnly_core.cc_desktop import jobs
+from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, facts, masters, push
+from pearnly_erp_portal.express import choices, contracts, facts, masters, prepare, push
 from pearnly_erp_portal.masters import company as companies
 
 WAIT = 30  # 电脑读一本账套一般十几秒：按钮在请求里等它读完，超了就回「读取中」，后台接着等
@@ -56,7 +57,7 @@ def _options(item, data):
     if item.get("options"):
         rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or row.get("code") or "")}
                 for row in item["options"]]
-        if item["kind"] == "party":
+        if item["kind"] == "party" and not item.get("existing_only"):
             rows.append({"code": choice_rules.NEW, "name": ""})
         return rows
     reported = facts.reported(data)
@@ -73,14 +74,22 @@ def _options(item, data):
     return rows
 
 
+def _party_blocked(doctype, row, job):
+    """电脑以对方档为由拦下（疑似重复 / 同税号分店认不准，转人工）：要人选的那一项；其余情形回 []。"""
+    if not job or job["status"] != "manual" or ack_rules.error_code(job["reason"]) not in prepare.PARTY_CODES:
+        return []
+    return prepare.party_needed(push.document(doctype, row.name), push._company(row.company))
+
+
 def _view(doctype, row):
     data = facts.load(row.express_book) if row.express_book else None
-    needed = [{**item, "options": _options(item, data)} for item in _needed(row)] \
-        if row.express_state == contracts.HELD else []
     job = jobs.find_by_name(row.express_job) if row.express_job else None
+    blocked = _party_blocked(doctype, row, job)
+    needed = [{**item, "options": _options(item, data)} for item in (blocked or _needed(row))] \
+        if row.express_state == contracts.HELD else []
     return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_reason or "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
-            "can_retry": bool(job and job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1])}
+            "can_retry": bool(job and job["status"] == "manual" and not blocked) and guard.has(CAPABILITIES[doctype][1])}
 
 
 @frappe.whitelist()
@@ -92,13 +101,15 @@ def document_express(doctype, name):
 def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)
-    if row.express_state != contracts.HELD or row.express_job:
+    job = jobs.find_by_name(row.express_job) if row.express_job else None
+    blocked = _party_blocked(doctype, row, job)
+    if row.express_state != contracts.HELD or (row.express_job and not blocked):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, list) or not answers:
         frappe.throw(_("Invalid request"))
     data = facts.load(row.express_book) if row.express_book else None
-    needed = {(item["kind"], item["subject"]): item for item in _needed(row)}
+    needed = {(item["kind"], item["subject"]): item for item in (blocked or _needed(row))}
     for given in answers:
         if not isinstance(given, dict):
             frappe.throw(_("Invalid request"))
@@ -108,6 +119,10 @@ def answer(doctype, name, answers):
         if not item or value not in options:
             frappe.throw(_("Invalid request"))
         choices.remember(row.company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
+    if blocked:
+        jobs.cancel(job["job"], "replaced")  # 拦下的那件没写进去（整笔回滚）：撤掉，按选的对方档重新准备一件
+        frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_job": None},
+                            update_modified=False)
     frappe.db.set_value(doctype, name, {"express_reason": "", "express_needed": None}, update_modified=False)
     frappe.db.commit()
     push.send(doctype, name)

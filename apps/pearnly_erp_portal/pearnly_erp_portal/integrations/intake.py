@@ -301,8 +301,19 @@ def build_payload(doc, result=None) -> dict:
         # 散客：不建客户档案，不用票面买方信息。
         payload.pop("address", None)
         payload.update(buyer_name=_fallback_name("sales"), party_type="anonymous")
-    elif not payload.get("buyer_name"):
-        payload["buyer_name"] = _("Unknown buyer")
+    else:
+        if not payload.get("buyer_name"):
+            payload["buyer_name"] = _("Unknown buyer")
+        # 票面读出的买方税号 / 分店：按它预选客户（同网页识别 `sales.recognition._customer`），提交时再按它认或记进新客户
+        from pearnly_erp_portal.sales import contracts as sales_contracts
+        from pearnly_erp_portal.sales import recognition as sales_recognition
+
+        tax = sales_contracts.buyer_tax(result.get("buyer_tax_id"))
+        if tax:
+            payload.update(buyer_tax_id=tax, buyer_branch_no=result.get("buyer_branch_no") or "")
+            customer = sales_recognition._customer(result, doc.company)
+            if customer:
+                payload["customer"] = customer
     return payload
 
 

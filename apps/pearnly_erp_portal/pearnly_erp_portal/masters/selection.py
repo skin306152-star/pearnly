@@ -45,13 +45,36 @@ def match_party(kind, name, *, tax_id=None, branch_type=None, branch_no=None, co
         filters[title] = name
     else:
         return None
-    rows = for_company(frappe.get_all(doctype, filters=filters, fields=["name", "express_company"],
+    rows = for_company(frappe.get_all(doctype, filters=filters, fields=["name", "express_company", title],
                                       limit_page_length=50), company)
+    if len(rows) > 1:
+        rows = _in_use(kind, rows, name, title, company)
     if len(rows) > 1:
         if ambiguous == "none":
             return None
         frappe.throw(_("Several matches found. Please select a record."))
     return rows[0]["name"] if rows else None
+
+
+USED_BY = {"supplier": ("Purchase Document", "supplier"), "customer": ("ERP Sales Document", "customer")}
+
+
+def _plain(text):
+    return " ".join(str(text or "").replace("\xa0", " ").split()).casefold()
+
+
+def _in_use(kind, rows, name, title, company):
+    """同税号同分店有几条档（Express 里常见：旧档改名「ไม่ใช้」留着不删）时取哪条：名称完全相同的；否则这家公司
+    最近在单据上用过的那条（在用的）；都分不出就原样交回（交人选）。"""
+    same = [row for row in rows if name and _plain(row.get(title)) == _plain(name)]
+    if len(same) == 1:
+        return same
+    doctype, field = USED_BY[kind]
+    filters = {field: ["in", [row["name"] for row in rows]], "status": ["!=", "void"]}
+    if company:
+        filters["company"] = company
+    used = frappe.get_all(doctype, filters=filters, pluck=field, order_by="creation desc", limit_page_length=1)
+    return [row for row in rows if row["name"] == used[0]] if used else rows
 
 
 def match_product(description, company=None):

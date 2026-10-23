@@ -163,6 +163,19 @@ class Prepare(Base):
         self.assertEqual(codes[:2], ["52-08-00-00", "51-03-00-00"])
         self.assertEqual(facts.accounts_first([{"code": "52-01"}, {"code": "41-01"}], "sales|x")[0]["code"], "41-01")
 
+    def test_a_party_turned_away_by_the_computer_is_chosen_from_the_existing_records(self):
+        from pearnly_erp_portal.express import prepare as P
+        key, = self.computer([book()])
+        self.masters(key)
+        needed, = P.party_needed(doc(party={"code": "", "name": "BANGCHAK PETROLEUM", "tax_id": SUPPLIER, "branch": "00000"}),
+                                 COMPANY)
+        self.assertEqual((needed["kind"], needed["existing_only"]), ("party", True))
+        self.assertEqual([option["code"] for option in needed["options"]], ["B004", "B005"])  # 同税号的现成档
+        choices.remember(COMPANY["name"], "party", needed["subject"], "B005")
+        payload = self.prepare(doc(party={"code": "", "name": "BANGCHAK PETROLEUM", "tax_id": SUPPLIER,
+                                          "branch": "00000"}))["payload"]
+        self.assertEqual(payload["supplier"]["code"], "B005")  # 照选的写
+
     def test_bad_documents_fail(self):
         key, = self.computer([book()])
         self.masters(key)
@@ -321,6 +334,19 @@ class CompanyMasters(Base):
         self.assertEqual(found, head)
         both = self.selection.match_party("customer", "x", tax_id="0107536000633", company="CO-00127", ambiguous="none")
         self.assertIsNone(both)  # 几条都像：不预选，交人选
+
+    def test_of_several_records_with_one_tax_id_the_one_in_use_is_taken(self):
+        fake.STATE.controllers["ERP Supplier"] = fake.STATE.controllers["ERP Customer"]
+        fake.STATE.controllers["Purchase Document"] = fake.STATE.controllers["ERP Customer"]
+        tax = "0107555000139"
+        self.row("ERP Supplier", supplier_name="วิริยะประกันภัย (ไม่ใช้)", tax_id=tax, branch_type="head_office",
+                 express_code="V002", express_company="CO-00127")
+        used = self.row("ERP Supplier", supplier_name="วิริยะประกันภัย จำกัด มหาชน", tax_id=tax,
+                        branch_type="head_office", express_code="วิริยะ", express_company="CO-00127")
+        self.row("Purchase Document", supplier=used, company="CO-00127", status="submitted")
+        found = self.selection.match_party("supplier", "บริษัท วิริยะประกันภัย จำกัด (มหาชน)", tax_id=tax,
+                                           branch_type="head_office", company="CO-00127")
+        self.assertEqual(found, used)  # 名称都对不上：取这家公司最近在单据上用过的那条，不报「找到多个匹配结果」
 
     def test_buyer_tax_and_branch_from_the_reading(self):
         from pearnly_erp_portal.sales import contracts as sales

@@ -192,6 +192,8 @@ def _structured(raw):
     result = clean_result(raw)
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
+    if not result["lines"]:
+        result["lines"] = _printed_line(result)
     result["buyer_tax_id"] = raw.get("buyer_tax_id")
     # 读成 12 位的税号：开头的 0 丢了，补回后过得了校验位才补（全平台同一规则，用户 2026-09-30）。
     for key in ("supplier_tax_id", "buyer_tax_id"):
@@ -212,6 +214,23 @@ def _structured(raw):
         result["read_has_vat"] = result["has_vat"]
     _finish(result)
     return result
+
+
+def _printed_line(result):
+    """票面没印明细、只印了金额（保险单、部分账单）：按票面税前额记一行服务，金额才算得出、与票面一致
+    （10-23 验收：保险单小计 / 增值税 / 合计全是空）。品名取备注，没有就用供应商名。都没印金额就仍是空明细。"""
+    printed = result["printed"]
+    total, vat = checks.money(printed.get("total")), checks.money(printed.get("vat")) or 0
+    base = checks.money(printed.get("subtotal"))
+    if base is None and total is not None:
+        base = total - vat
+    if not base or base <= 0:
+        return []
+    name = str(result.get("notes") or result.get("supplier_name") or result.get("doc_no") or "").strip()
+    if not name:
+        return []
+    return [{"description": name.splitlines()[0][:140], "qty": 1, "unit_price": float(base), "item_type": "service",
+             **({"vat_rate": 7} if vat > 0 else {})}]
 
 
 def _finish(result):

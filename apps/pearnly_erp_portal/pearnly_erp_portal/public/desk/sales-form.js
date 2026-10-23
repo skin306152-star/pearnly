@@ -4,6 +4,8 @@
 	u.editor = async ({page, doc, defaults, editable, intake, still_current, reload, go}) => {
 		// `intake`：从 LINE 卡片进来、已经识别完 —— 不再问「上传识别 / 手动录入」，直接显示字段。
 		const state = {page, doc, defaults, editable, intake, can_write: frappe.model.can_write("ERP Sales Document"),
+			// 票面读出的买方税号 / 分店（LINE 卡片打开时随单据带来，网页识别时更新）：提交时服务端按它认客户
+			ocr_buyer: doc.buyer_tax_id ? {buyer_tax_id: doc.buyer_tax_id, buyer_branch_no: doc.buyer_branch_no || ""} : {},
 			attachments: (doc.attachments || []).map(row => ({...row})), request_id: frappe.utils.get_random(32),
 			form: null, lines: [], ready: false, busy: false, disposed: false, revision: 0};
 		const changes = frappe.utils.debounce(async () => {

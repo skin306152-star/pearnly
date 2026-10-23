@@ -65,6 +65,34 @@ def _current_codes(pages, config):
     return pages
 
 
+# 电脑回报这几种（对方档有疑似重复 / 同税号分店认不准）：重试结论一样，要在 ERP 里选一次现成的对方档
+PARTY_CODES = frozenset({"CUSTOMER_DUP_SUSPECTED", "SUPPLIER_DUP_SUSPECTED", "CUSTOMER_BRANCH_AMBIGUOUS",
+                         "SUPPLIER_BRANCH_AMBIGUOUS"})
+
+
+def party_needed(doc, company_row):
+    """写进去被电脑以对方档为由拦下后，让人选的那一项（``kind = party``）：这份账套里同税号的对方档，没税号按名称相近的，
+    都没有就整张对方档表。选的值按公司记住（与写账规则问对方档同一个归类键），再准备时照选的写。读不到账套资料回 []。"""
+    doc = contracts.checked(doc)
+    picked = target.pick(company_row, doc["date"])
+    data = facts.load(picked["book"]["key"]) if picked.get("book") else None
+    if data is None:
+        return []
+    party = doc["party"]
+    rows = facts.reported(data).get("reported_customers" if doc["direction"] == "sales" else "reported_suppliers") or []
+    tax, name = choice_rules.digits(party["tax_id"]), choice_rules.norm_name(party["name"])
+    same = [row for row in rows if len(tax) == 13 and choice_rules.digits(row.get("tax_id")) == tax]
+    if not same and name:
+        same = [row for row in rows if name in choice_rules.norm_name(row.get("name"))
+                or (choice_rules.norm_name(row.get("name")) or "\0") in name]
+    options = [{"code": row["code"], "name": row.get("name") or "", "branch": choice_rules.branch5(row.get("branch"))}
+               for row in (same or rows)[:2000]]
+    subject = choice_rules.party_subject(doc["direction"], party["tax_id"], party["branch"], party["name"])
+    # existing_only：只在现成的档里选（再建一个新档电脑会照样以疑似重复拦下）
+    return [{"kind": "party", "subject": subject, "label": party["name"], "options": options, "current": "",
+             "existing_only": True}]
+
+
 def prepare(doc, company_row, ensure_masters):
     """``doc``：`push.document` 出的单；``company_row``：ERP 公司（name、tax_id、branch、company_name）；
     ``ensure_masters(company, book)``：这份账套还没读过主档时请电脑读（`masters.ensure`）。"""

@@ -107,7 +107,8 @@ def _parties(doc, result):
                                               result.get("supplier_branch_name")),
                             "address": result.get("supplier_address")}
         return seller, ours
-    buyer = chosen or {"name": result.get("buyer_name") or _("Unknown buyer"),
+    buyer = chosen or {"name": result.get("buyer_name") or _("Unknown buyer"), "tax_id": result.get("buyer_tax_id"),
+                       "branch": result.get("buyer_branch_no"),
                        "address": result.get("buyer_address") or result.get("address")}
     return ours, buyer
 

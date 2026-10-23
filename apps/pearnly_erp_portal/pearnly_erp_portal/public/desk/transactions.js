@@ -40,12 +40,14 @@
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
 			...info.needed.map((item, index) => {
 				const kind = EXPRESS_KINDS[item.kind];
-				return {fieldtype: "Select", fieldname: `pick_${index}`, reqd: 1, label: __(kind?.[direction] || kind || item.kind),
-					description: item.label || "", default: item.current || "",
-					options: [{value: "", label: ""}, ...item.options.map(option => ({value: option.code,
-						label: EXPRESS_OPTIONS[option.code] ? __(EXPRESS_OPTIONS[option.code])
-							: item.kind === "account_set" ? option.name  // 账套的编码是内部键，只显示名称与位置
-							: [option.code, option.name].filter(Boolean).join(" · ")}))]};
+				const options = item.options.map(option => ({value: option.code,
+					label: EXPRESS_OPTIONS[option.code] ? __(EXPRESS_OPTIONS[option.code])
+						: item.kind === "account_set" ? option.name  // 账套的编码是内部键，只显示名称与位置
+						: [option.code, option.name, option.branch].filter(Boolean).join(" · ")}));
+				// 选项多（科目表、整张对方档表）用官方可输入搜索的下拉，少的用普通下拉
+				return {fieldtype: options.length > 20 ? "Autocomplete" : "Select", fieldname: `pick_${index}`, reqd: 1,
+					label: __(kind?.[direction] || kind || item.kind), description: item.label || "", default: item.current || "",
+					options: options.length > 20 ? options : [{value: "", label: ""}, ...options]};
 			}),
 		];
 		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
