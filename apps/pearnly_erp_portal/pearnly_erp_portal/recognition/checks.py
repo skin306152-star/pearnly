@@ -87,3 +87,12 @@ NOT_REREAD = frozenset({"tax_id_checksum", "negative", "same_tax_id"})
 def reread(issues) -> list:
     """值得让模型再读的问题（ADR-013）。"""
     return [code for code in hard(issues) if code not in NOT_REREAD]
+
+
+def issued_by(result, own_tax, own_branch) -> bool:
+    """这张单的卖方是不是本公司：卖方税号 = 本公司税号，分店相同或票上没印分店。"""
+    if len(own_tax or "") != 13 or "".join(ch for ch in str(result.get("supplier_tax_id") or "") if ch.isdigit()) != own_tax:
+        return False
+    kind, number = result.get("supplier_branch_type"), "".join(ch for ch in str(result.get("supplier_branch_no") or "") if ch.isdigit())
+    seller = "00000" if kind == "head_office" else number.zfill(5) if kind == "branch" and number else None
+    return seller is None or seller == (own_branch or "00000")

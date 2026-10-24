@@ -27,6 +27,7 @@ from pearnly_core.express_rules.push import common  # noqa: E402
 from pearnly_erp_portal.express import choices, contracts as E, facts, prepare  # noqa: E402
 
 OWN, SUPPLIER = "0105551234567", "0105536080112"
+OWN_TAX = "0105549038811"
 PATH = r"C:\PearnlyExpress\70EXP\T9NIEX12"
 MAPPING = {"revenue_acc": "41-01-00-00", "ar_acc": "11-03-01-00", "vat_output_acc": "21-04-01-00",
            "fallback_acc": "51-03-00-00", "ap_acc": "21-01-01-00", "vat_input_acc": "11-06-01-00"}
@@ -664,6 +665,22 @@ class MasterIsolation(unittest.TestCase):
         self.assertIsNone(allowed({"express_company": ""}, user="staff@x"))       # 本地档：照角色权限
         self.assertIsNone(allowed({"express_company": "CO-B"}, user="staff@x"))   # 能用的另一家：旧单的链接打得开
         self.assertFalse(allowed({"express_company": "CO-Z"}, user="staff@x"))
+
+
+class PurchaseFromOwnCompany(unittest.TestCase):
+    """采购页上传本公司开出的单据拒收（用户 10-24「采购页上传收据拒收」）：卖方税号 = 本公司、分店相同或没印分店。"""
+
+    def test_a_document_sold_by_this_company_is_not_a_purchase(self):
+        from pearnly_erp_portal.recognition import checks
+        ours = {"supplier_tax_id": "0105549038811", "supplier_branch_type": "head_office"}
+        self.assertTrue(checks.issued_by(ours, OWN_TAX, "00000"))
+        self.assertTrue(checks.issued_by({**ours, "supplier_branch_type": "none"}, OWN_TAX, "00012"))  # 没印分店也算
+        self.assertFalse(checks.issued_by({**ours, "supplier_branch_type": "branch", "supplier_branch_no": "12"},
+                                          OWN_TAX, "00000"))  # 本公司别的分店开来的：照常是进项
+        self.assertTrue(checks.issued_by({**ours, "supplier_branch_type": "branch", "supplier_branch_no": "12"},
+                                         OWN_TAX, "00012"))
+        self.assertFalse(checks.issued_by({**ours, "supplier_tax_id": SUPPLIER}, OWN_TAX, "00000"))
+        self.assertFalse(checks.issued_by(ours, "", "00000"))  # 公司没税号：判不出，不拒
 
 if __name__ == "__main__":
     unittest.main()

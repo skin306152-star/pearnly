@@ -1282,6 +1282,7 @@ Count stock on the web	在网页端清点库存	ตรวจนับสิน�
 ERP menu	ERP 菜单	เมนู ERP	ERPメニュー
 A tax ID failed its check digit	税号校验位错误	เลขประจำตัวผู้เสียภาษีมีหลักตรวจสอบไม่ถูกต้อง	税番号のチェックディジットが一致しません
 This is not a purchase or sales document	该文件不是采购或销售单据	ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย	これは仕入・売上の書類ではありません
+This document was issued by this company, not a purchase document	该文件由本公司开出，不是采购单据	เอกสารนี้ออกโดยบริษัทนี้ ไม่ใช่เอกสารซื้อ	この書類は自社が発行したもので、仕入書類ではありません
 Recognition is busy right now. Please try again in a minute.	识别服务繁忙，请一分钟后再试。	ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	読み取りが混み合っています。1 分後にもう一度お試しください。
 The recognition service did not answer in time. Please try again.	识别服务响应超时，请重试。	ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 This PDF has more than {0} pages	PDF 超过 {0} 页	PDF มีมากกว่า {0} หน้า	PDF が {0} ページを超えています

@@ -162,9 +162,17 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
 
     if not claude_ocr.uses_claude():  # Claude 路线不调谷歌 Vision 取原文核对（ADR-022）
         documents = _anchor_with_ocr(documents, images, company)
-    result, issues, model = documents[0]
-    if result.get("not_document"):
+    if documents[0][0].get("not_document"):
         frappe.throw(_("This is not a purchase or sales document"), policy.UnsupportedDocument)
+    # 卖方就是本公司（同税号同分店，票上没印分店也算）：本公司开出的收据 / 税票放进了采购页，不是采购单据（用户 10-24）。
+    # 一个文件里几张单的只去掉这几张；全是就整份拒收，不建单、不扣识别费
+    own_branch = re.sub(r"\D", "", str(frappe.db.get_value("ERP Company", company, "branch") or "")).zfill(5)[-5:] \
+        if company else ""
+    kept = [doc for doc in documents if not checks.issued_by(doc[0], own_tax, own_branch)]
+    if not kept:
+        frappe.throw(_("This document was issued by this company, not a purchase document"), policy.UnsupportedDocument)
+    documents = kept
+    result, issues, model = documents[0]
     if result.get("document_type") == tax_codes.CREDIT_NOTE:
         # 本系统没有采购退货 / 贷项单据：按普通采购入账会把钱的方向记反（语料实测贷项通知单全是负数）。
         frappe.throw(_("This is a credit note. Credit notes cannot be recorded as a purchase yet."),

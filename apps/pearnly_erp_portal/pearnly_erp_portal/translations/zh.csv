@@ -1081,6 +1081,7 @@ This document is no longer available,该单据已不可用
 This document is too large,文件过大
 This document is void,该单据已作废
 This document was already recorded,这张单据已经入账
+"This document was issued by this company, not a purchase document",该文件由本公司开出，不是采购单据
 This draft was already confirmed or discarded,该草稿已确认或已作废
 This entry changed underneath you; reload and try again,该单据已被修改，请刷新后重试
 This file holds {0} documents; only the first is filled in. Upload the others separately.,该文件包含 {0} 张单据，仅填入第一张，其余请分别上传。

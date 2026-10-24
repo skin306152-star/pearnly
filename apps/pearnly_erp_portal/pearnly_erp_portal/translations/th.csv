@@ -1081,6 +1081,7 @@ This document is no longer available,เอกสารนี้ไม่สา�
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This document is void,เอกสารนี้ถูกยกเลิกแล้ว
 This document was already recorded,เอกสารนี้บันทึกแล้ว
+"This document was issued by this company, not a purchase document",เอกสารนี้ออกโดยบริษัทนี้ ไม่ใช่เอกสารซื้อ
 This draft was already confirmed or discarded,แบบร่างนี้ถูกยืนยันหรือยกเลิกแล้ว
 This entry changed underneath you; reload and try again,เอกสารนี้ถูกแก้ไขแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
