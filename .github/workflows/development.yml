@@ -261,6 +261,16 @@ jobs:
           # PR：合并提交的第一个父提交就是 GitHub 实际合并到的 base（payload 里的 base.sha 可能已过时）；推 main：event.before
           COPY_GATE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
         run: python3 scripts/check-copy.py --report --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+      - name: Verify the shared-part impact gate lists every entry and rejects unregistered callers
+        run: python3 tests/test_check_impact.py
+      - name: List the entries to retest for changed shared parts (fails when a caller is not registered)
+        env:
+          IMPACT_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
+        run: python3 scripts/check-impact.py --markdown --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+      - name: Verify browser errors on product pages reach the site's error log
+        run: |
+          python3 tests/test_client_errors.py
+          node tests/test-desk-errors.cjs
       - name: Check frontend translation keys
         run: python3 scripts/check-frontend-i18n.py --strict
       - name: Check whitespace

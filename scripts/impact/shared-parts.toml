@@ -1,0 +1,1476 @@
+# 共用件连带回归登记表（scripts/check-impact.py 读；规则见 docs/development/verification.md「共用件连带回归闸门」）
+#
+# [[part]]：一个共用件。paths = 它自己的文件（glob）；markers = 调用方文件里一定会出现的字面串（子串匹配）；
+#   search = 反查调用方时扫哪些文件（默认 apps / frontend / companion / infrastructure）；entries = 改了它要实测的入口；
+#   not_entries = 引用了它但不算入口的文件（只转发、只是注释、加载声明），必须写原因。
+# [[entry]]：一个入口。check = auto（scripts/smoke 自动）/ manual（验收窗口按清单点）/ offline（离线用例覆盖）；
+#   files = 这个入口用到的调用方文件（反查出的调用方必须落在某个入口的 files 里，否则 CI 失败）；
+#   smoke / url / args / site = 自动冒烟的探针、地址、参数、测试租户（erp / cowork / dms）。
+# 新加调用方、新页面、新扫码 / 上传入口：同一提交里补进来。
+
+[[part]]
+id = "desk-shell"
+name = "产品外壳与页面注册（product.js、页面报错回传）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css", "apps/pearnly_core/pearnly_core/public/desk/errors.js", "apps/pearnly_core/pearnly_core/desk/client_errors.py"]
+markers = ["pearnly.register("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu"]
+
+[[part]]
+id = "desk-scan-core"
+name = "共用相机与读码器"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/scan.js", "apps/pearnly_core/pearnly_core/public/desk/scan.css", "apps/pearnly_core/pearnly_core/public/scan/reader.js", "apps/pearnly_core/pearnly_core/public/vendor/barcode-detector/**"]
+markers = [".scan_stage(", ".scan_reader(", ".scan_hint(", ".scan_liff_first(", ".scan_to_liff(", ".scan_failure(", ".scan_result_sound(", ".scan_supported(", "PearnlyScan", "scan/reader.js"]
+search = ["apps/**/*.js", "apps/**/*.html", "apps/**/hooks.py"]
+entries = ["erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.cashier.camera", "erp.cashier.scanner-gun", "erp.stock-count.entry.camera", "erp.line.stocktake.camera", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan", "erp.purchase.item-scan", "erp.sales.item-scan", "cowork.stocktake.entry.camera", "dms.liff.id-scan", "shared.upload.take-photo"]
+not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js），入口见本共用件全部扫码入口" }
+
+[[part]]
+id = "erp-scan-dialog"
+name = "ERP 扫码弹窗 p.scan 与选择框扫码按钮"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js"]
+markers = [".scan(", "scan_doctypes", ".scan_link(", "attach_scan_btn"]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.cashier.camera", "erp.cashier.scanner-gun", "erp.stock-count.entry.camera", "erp.line.stocktake.camera", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan", "erp.purchase.item-scan", "erp.sales.item-scan"]
+
+[[part]]
+id = "desk-link"
+name = "共用 Link 选择框（新建 / 打开留在产品内）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/link.js"]
+markers = ["take_create", "take_open", "link_editors", "open_link_record", "open_link_create", "watch_master_control"]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.intake", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan"]
+
+[[part]]
+id = "desk-select"
+name = "共用 Select 弹出选择"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/select.js"]
+markers = ["fieldtype: \"Select\"", "fieldtype: 'Select'"]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance"]
+
+[[part]]
+id = "desk-list"
+name = "共用列表（勾选、排序、筛选）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js"]
+markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance"]
+
+[[part]]
+id = "desk-home"
+name = "首页（三个产品共用）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/home.js"]
+markers = ["pearnly.home"]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.home", "cowork.page.home", "dms.page.home", "shared.home.topup-proof"]
+
+[[part]]
+id = "desk-sidebar"
+name = "侧栏顺序"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/sidebar.js"]
+markers = ["reorder_sidebar"]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["shared.sidebar-order"]
+
+[[part]]
+id = "desk-user"
+name = "我的资料（User 表单精简）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/user.js"]
+markers = ["\"public/desk/user.js\"", "public/desk/user-line.js"]
+search = ["apps/**/hooks.py"]
+entries = ["erp.user-profile", "cowork.user-profile"]
+not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "加载声明", "apps/pearnly_cowork/pearnly_cowork/hooks.py" = "加载声明" }
+
+[[part]]
+id = "desk-viewer"
+name = "原件查看器"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/viewer.js"]
+markers = [".document_viewer("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.purchase.viewer", "erp.sales.viewer", "cowork.intake.viewer", "erp.page.purchase", "erp.page.sales"]
+
+[[part]]
+id = "erp-entry-choice"
+name = "ERP 单据对方 / 物料选择"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js"]
+markers = [".bind_entry_choice(", ".entry_choice_field("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.purchase", "erp.page.sales", "erp.purchase.item-scan", "erp.sales.item-scan"]
+
+[[part]]
+id = "erp-transactions"
+name = "ERP 单据共用（仓库查询、明细、Express 预检）"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
+markers = [".warehouse_query", ".trade.", ".express_preflight(", ".terminal_query"]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts"]
+
+[[part]]
+id = "erp-originals"
+name = "ERP 上传原件识别"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
+markers = [".erp_upload_with("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.purchase.original-upload", "erp.sales.original-upload"]
+
+[[part]]
+id = "erp-company-menu"
+name = "ERP 公司切换与公司下拉"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-menu.js"]
+markers = [".header_menu_items", ".header_title", ".prepare_header_menu", ".switch_company(", ".refresh_company_context", ".company_name_of("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["erp.company-menu", "erp.page.company", "erp.page.team", "erp.page.warehouses"]
+
+[[part]]
+id = "upload-box"
+name = "上传框（FileUploader 精简、照片压缩）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
+markers = ["new frappe.ui.FileUploader", "\"Attach Image\"", ".shrink_photo("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["shared.home.topup-proof", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo"]
+
+[[part]]
+id = "cowork-intake-upload"
+name = "Cowork 录入上传"
+paths = ["apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js"]
+markers = [".intake_new(", ".intake_push_reason("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["cowork.intake.upload", "cowork.intake.viewer", "cowork.page.intake"]
+
+[[part]]
+id = "cowork-post-file"
+name = "Cowork 文件上传（对账、任务附件）"
+paths = ["apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"]
+markers = [".pick_files(", ".post_files(", ".upload_original("]
+search = ["apps/**/*.js", "apps/**/*.html"]
+entries = ["cowork.recon.upload", "cowork.work.attachments", "cowork.intake.upload"]
+
+[[part]]
+id = "dms-id-scan"
+name = "DMS 扫身份证（Vue LIFF）"
+paths = ["frontend/src/lib/id-scan.ts", "frontend/src/pages/dms/ScanPage.vue"]
+markers = ["lib/id-scan", "uploadScan(", "dms/scan"]
+search = ["frontend/src/**", "apps/**/*.html"]
+entries = ["dms.liff.id-scan"]
+
+[[part]]
+id = "line"
+name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
+paths = ["apps/pearnly_core/pearnly_core/line.py"]
+markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot"]
+
+[[part]]
+id = "line-session"
+name = "LINE 会话状态"
+paths = ["apps/pearnly_core/pearnly_core/line_session.py"]
+markers = ["pearnly_core.line_session", "import line_session", ", line_session", "line_session as store"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled"]
+
+[[part]]
+id = "line-binding"
+name = "LINE 绑定"
+paths = ["apps/pearnly_core/pearnly_core/line_binding.py"]
+markers = ["pearnly_core.line_binding", "import line_binding", ", line_binding", "pearnly_line_binding_changed"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.line.binding", "cowork.line.binding", "dms.line.binding", "shared.line.login"]
+
+[[part]]
+id = "cc-desktop"
+name = "CC 桌面版机器通道（cc_desktop）"
+paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
+markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "cowork.cc.channel"]
+not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
+
+[[part]]
+id = "express-rules"
+name = "Express 写账规则（express_rules）"
+paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
+markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.cc.write", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history"]
+not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
+
+[[part]]
+id = "exports"
+name = "下载与导出（文件名、后台导出）"
+paths = ["apps/pearnly_core/pearnly_core/exports/**"]
+markers = ["pearnly_core.exports", "pearnly_core import exports"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
+entries = ["erp.exports", "shared.exports", "cowork.exports", "control.topup-proof"]
+
+[[part]]
+id = "desk-navigation"
+name = "侧栏与菜单声明汇总"
+paths = ["apps/pearnly_core/pearnly_core/desk/navigation.py"]
+markers = ["pearnly_core.desk.navigation", "desk import navigation", "pearnly_navigation"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["shared.navigation", "shared.shell-gate"]
+
+[[part]]
+id = "desk-upload"
+name = "上传照片压缩配置"
+paths = ["apps/pearnly_core/pearnly_core/desk/upload.py"]
+markers = ["pearnly_core.desk.upload", "pearnly_shrink_photos", ".shrink_photo("]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
+entries = ["shared.upload.shrink-photo"]
+
+[[part]]
+id = "erp-masters-access"
+name = "ERP 主档按公司隔离（权限钩子）"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/access.py"]
+markers = ["masters.access", "masters import access"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.masters.scope", "erp.records.scope"]
+
+[[part]]
+id = "erp-masters-selection"
+name = "ERP 对方 / 物料认法（selection）"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py"]
+markers = ["masters.selection", "masters import selection"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
+entries = ["erp.entry.choices"]
+
+[[part]]
+id = "erp-products-lookup"
+name = "ERP 按码找商品（products.service / purchase / sales）"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
+markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
+entries = ["erp.entry.choices", "erp.products.new-dialog.scan", "erp.stock-in.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan"]
+not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到" }
+
+[[part]]
+id = "erp-count-code"
+name = "ERP 盘点按码认商品"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py"]
+markers = ["product_of_code", "inventory import count", "inventory.count"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.stock-count.code"]
+
+[[part]]
+id = "ocr"
+name = "识别（ocr / claude_ocr / 原件）"
+paths = ["apps/pearnly_core/pearnly_core/ocr.py", "apps/pearnly_core/pearnly_core/ocr_models/**", "apps/pearnly_core/pearnly_core/ocr_record.py", "apps/pearnly_core/pearnly_core/claude_ocr/**", "apps/pearnly_core/pearnly_core/originals/**"]
+markers = ["pearnly_core.ocr", "pearnly_core import ocr", "import billing_client, ocr", "pearnly_core.claude_ocr", "pearnly_core import claude_ocr", "pearnly_core.originals", "pearnly_core import originals"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
+entries = ["erp.ocr", "cowork.ocr", "dms.ocr.id-card", "shared.originals.download", "shared.ocr.pipeline"]
+
+[[part]]
+id = "login-session"
+name = "登录、会话与开通闸（identity / sessions / shell / account）"
+paths = ["apps/pearnly_core/pearnly_core/identity.py", "apps/pearnly_core/pearnly_core/sessions.py", "apps/pearnly_core/pearnly_core/shell.py", "apps/pearnly_core/pearnly_core/account/**", "apps/pearnly_core/pearnly_core/login_redirect.py"]
+markers = ["pearnly_core.identity", "pearnly_core import identity", "pearnly_core.sessions", "pearnly_core import sessions", "import password, sessions", "pearnly_core.shell", "pearnly_core import shell", "pearnly_core.account", "pearnly_core import account", "pearnly_core.login_redirect"]
+search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue"]
+entries = ["shared.login", "control.issue-and-entry", "shared.shell-gate", "shared.team.members", "shared.line.login"]
+not_entries = { "apps/pearnly_control/pearnly_control/patches/v0_0_1_line_login_secret_to_target.py" = "一次性迁移" }
+
+[[part]]
+id = "cc-assistant-settings"
+name = "CC 对话页设置页"
+paths = ["frontend/assistant/src/components/settings.tsx"]
+markers = ["from \"@/components/settings\"", "openSettings("]
+search = ["frontend/assistant/src/**"]
+entries = ["cc.settings.connection", "cc.desktop.bridge"]
+
+[[part]]
+id = "cc-desktop-bridge"
+name = "CC 对话页与桌面版的桥"
+paths = ["frontend/assistant/src/lib/desktop.ts", "companion/src/companion/tomo_bridge.py"]
+markers = ["from \"@/lib/desktop\"", "tomo_bridge"]
+search = ["frontend/assistant/src/**", "companion/src/**"]
+entries = ["cc.desktop.bridge", "cc.settings.connection"]
+
+[[part]]
+id = "cc-places-heartbeat"
+name = "CC 位置、成员记录与心跳"
+paths = ["companion/src/companion/express_places.py", "companion/src/companion/express_machine.py", "companion/src/companion/profile_store.py", "companion/src/companion/master_refresh.py"]
+markers = ["express_places", "express_machine", "profile_store", "master_refresh"]
+search = ["companion/src/**"]
+entries = ["cc.desktop.places", "cc.desktop.requests"]
+
+[[part]]
+id = "cc-request-worker"
+name = "CC 按需读取"
+paths = ["companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py"]
+markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch"]
+search = ["companion/src/**"]
+entries = ["cc.desktop.requests", "cc.desktop.places"]
+
+[[part]]
+id = "cc-dbf-write"
+name = "CC 写 Express（dbf 写入路径）"
+paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
+markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location"]
+search = ["companion/src/**"]
+entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write"]
+not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker" }
+
+[[entry]]
+id = "erp.page.home"
+product = "ERP"
+where = "pearnly-home"
+steps = "侧栏点「pearnly-home」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_home/pearnly_home.js", "apps/pearnly_core/pearnly_core/public/desk/home.js"]
+smoke = "page"
+url = "/desk/pearnly-home"
+site = "erp"
+
+[[entry]]
+id = "erp.page.products"
+product = "ERP"
+where = "pearnly-products"
+steps = "侧栏点「pearnly-products」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_products/pearnly_products.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js"]
+smoke = "page"
+url = "/desk/pearnly-products"
+site = "erp"
+
+[[entry]]
+id = "erp.page.inventory"
+product = "ERP"
+where = "pearnly-inventory"
+steps = "侧栏点「pearnly-inventory」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_inventory/pearnly_inventory.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/inventory.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-opening.js"]
+smoke = "page"
+url = "/desk/pearnly-inventory"
+site = "erp"
+
+[[entry]]
+id = "erp.page.stock-in"
+product = "ERP"
+where = "pearnly-stock-in"
+steps = "侧栏点「pearnly-stock-in」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_stock_in/pearnly_stock_in.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
+smoke = "page"
+url = "/desk/pearnly-stock-in"
+site = "erp"
+
+[[entry]]
+id = "erp.page.stock-out"
+product = "ERP"
+where = "pearnly-stock-out"
+steps = "侧栏点「pearnly-stock-out」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_stock_out/pearnly_stock_out.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
+smoke = "page"
+url = "/desk/pearnly-stock-out"
+site = "erp"
+
+[[entry]]
+id = "erp.page.stock-card"
+product = "ERP"
+where = "pearnly-stock-card"
+steps = "侧栏点「pearnly-stock-card」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_stock_card/pearnly_stock_card.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-card.js"]
+smoke = "page"
+url = "/desk/pearnly-stock-card"
+site = "erp"
+
+[[entry]]
+id = "erp.page.stock-count"
+product = "ERP"
+where = "pearnly-stock-count"
+steps = "侧栏点「pearnly-stock-count」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_stock_count/pearnly_stock_count.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js"]
+smoke = "page"
+url = "/desk/pearnly-stock-count"
+site = "erp"
+
+[[entry]]
+id = "erp.page.cashier"
+product = "ERP"
+where = "pearnly-cashier"
+steps = "侧栏点「pearnly-cashier」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_cashier/pearnly_cashier.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/cashier.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_controller.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_item_cart.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_item_details.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_item_selector.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_number_pad.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_past_order_list.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_past_order_summary.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_payment.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/onscan.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js"]
+smoke = "page"
+url = "/desk/pearnly-cashier"
+site = "erp"
+
+[[entry]]
+id = "erp.page.company"
+product = "ERP"
+where = "pearnly-company"
+steps = "侧栏点「pearnly-company」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_company/pearnly_company.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js"]
+smoke = "page"
+url = "/desk/pearnly-company"
+site = "erp"
+
+[[entry]]
+id = "erp.page.warehouses"
+product = "ERP"
+where = "pearnly-warehouses"
+steps = "侧栏点「pearnly-warehouses」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_warehouses/pearnly_warehouses.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js"]
+smoke = "page"
+url = "/desk/pearnly-warehouses"
+site = "erp"
+
+[[entry]]
+id = "erp.page.team"
+product = "ERP"
+where = "pearnly-team"
+steps = "侧栏点「pearnly-team」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_team/pearnly_team.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js"]
+smoke = "page"
+url = "/desk/pearnly-team"
+site = "erp"
+
+[[entry]]
+id = "erp.page.purchase"
+product = "ERP"
+where = "pearnly-purchase"
+steps = "侧栏点「pearnly-purchase」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_purchase/pearnly_purchase.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-layout.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-viewer.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
+smoke = "page"
+url = "/desk/pearnly-purchase"
+site = "erp"
+
+[[entry]]
+id = "erp.page.suppliers"
+product = "ERP"
+where = "pearnly-suppliers"
+steps = "侧栏点「pearnly-suppliers」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_suppliers/pearnly_suppliers.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/suppliers.js"]
+smoke = "page"
+url = "/desk/pearnly-suppliers"
+site = "erp"
+
+[[entry]]
+id = "erp.page.sales"
+product = "ERP"
+where = "pearnly-sales"
+steps = "侧栏点「pearnly-sales」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_sales/pearnly_sales.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-layout.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-viewer.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
+smoke = "page"
+url = "/desk/pearnly-sales"
+site = "erp"
+
+[[entry]]
+id = "erp.page.pos-receipts"
+product = "ERP"
+where = "pearnly-pos-receipts"
+steps = "侧栏点「pearnly-pos-receipts」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_pos_receipts/pearnly_pos_receipts.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-receipt.js"]
+smoke = "page"
+url = "/desk/pearnly-pos-receipts"
+site = "erp"
+
+[[entry]]
+id = "erp.page.pos-shifts"
+product = "ERP"
+where = "pearnly-pos-shifts"
+steps = "侧栏点「pearnly-pos-shifts」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_pos_shifts/pearnly_pos_shifts.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-shift.js"]
+smoke = "page"
+url = "/desk/pearnly-pos-shifts"
+site = "erp"
+
+[[entry]]
+id = "erp.page.clients"
+product = "ERP"
+where = "pearnly-clients"
+steps = "侧栏点「pearnly-clients」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_clients/pearnly_clients.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/clients.js"]
+smoke = "page"
+url = "/desk/pearnly-clients"
+site = "erp"
+
+[[entry]]
+id = "erp.page.tasks"
+product = "ERP"
+where = "pearnly-tasks"
+steps = "侧栏点「pearnly-tasks」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_tasks/pearnly_tasks.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/work.js"]
+smoke = "page"
+url = "/desk/pearnly-tasks"
+site = "erp"
+
+[[entry]]
+id = "cowork.page.home"
+product = "Cowork"
+where = "pearnly-home"
+steps = "侧栏点「pearnly-home」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_home/pearnly_home.js", "apps/pearnly_core/pearnly_core/public/desk/home.js"]
+smoke = "page"
+url = "/desk/pearnly-home"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.intake"
+product = "Cowork"
+where = "pearnly-intake"
+steps = "侧栏点「pearnly-intake」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/page/pearnly_intake/pearnly_intake.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/choice.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js"]
+smoke = "page"
+url = "/desk/pearnly-intake"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.recon-bank"
+product = "Cowork"
+where = "pearnly-recon-bank"
+steps = "侧栏点「pearnly-recon-bank」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/page/pearnly_recon_bank/pearnly_recon_bank.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"]
+smoke = "page"
+url = "/desk/pearnly-recon-bank"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.recon-income"
+product = "Cowork"
+where = "pearnly-recon-income"
+steps = "侧栏点「pearnly-recon-income」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/page/pearnly_recon_income/pearnly_recon_income.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"]
+smoke = "page"
+url = "/desk/pearnly-recon-income"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.recon-vat"
+product = "Cowork"
+where = "pearnly-recon-vat"
+steps = "侧栏点「pearnly-recon-vat」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/page/pearnly_recon_vat/pearnly_recon_vat.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"]
+smoke = "page"
+url = "/desk/pearnly-recon-vat"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.stocktake"
+product = "Cowork"
+where = "pearnly-stocktake"
+steps = "侧栏点「pearnly-stocktake」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_stocktake/pearnly_stocktake.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js"]
+smoke = "page"
+url = "/desk/pearnly-stocktake"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.work"
+product = "Cowork"
+where = "pearnly-work"
+steps = "侧栏点「pearnly-work」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/page/pearnly_work/pearnly_work.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js"]
+smoke = "page"
+url = "/desk/pearnly-work"
+site = "cowork"
+
+[[entry]]
+id = "cowork.page.team"
+product = "Cowork"
+where = "pearnly-team"
+steps = "侧栏点「pearnly-team」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_team/pearnly_team.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/team.js"]
+smoke = "page"
+url = "/desk/pearnly-team"
+site = "cowork"
+
+[[entry]]
+id = "dms.page.home"
+product = "DMS"
+where = "pearnly-home"
+steps = "侧栏点「pearnly-home」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_home/pearnly_home.js", "apps/pearnly_core/pearnly_core/public/desk/home.js"]
+smoke = "page"
+url = "/desk/pearnly-home"
+site = "dms"
+
+[[entry]]
+id = "dms.page.connect"
+product = "DMS"
+where = "pearnly-connect"
+steps = "侧栏点「pearnly-connect」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_dms/pearnly_dms/pearnly_dms/page/pearnly_connect/pearnly_connect.js", "apps/pearnly_dms/pearnly_dms/public/desk/connect.js"]
+smoke = "page"
+url = "/desk/pearnly-connect"
+site = "dms"
+
+[[entry]]
+id = "dms.page.records"
+product = "DMS"
+where = "pearnly-records"
+steps = "侧栏点「pearnly-records」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_dms/pearnly_dms/pearnly_dms/page/pearnly_records/pearnly_records.js", "apps/pearnly_dms/pearnly_dms/public/desk/records.js"]
+smoke = "page"
+url = "/desk/pearnly-records"
+site = "dms"
+
+[[entry]]
+id = "dms.page.roster"
+product = "DMS"
+where = "pearnly-roster"
+steps = "侧栏点「pearnly-roster」，页面里每个按钮 / 选择框 / 列表点一遍"
+expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
+check = "auto"
+files = ["apps/pearnly_dms/pearnly_dms/pearnly_dms/page/pearnly_roster/pearnly_roster.js", "apps/pearnly_dms/pearnly_dms/public/desk/roster.js"]
+smoke = "page"
+url = "/desk/pearnly-roster"
+site = "dms"
+
+[[entry]]
+id = "erp.page.never.buy-settings"
+product = "ERP"
+where = "pearnly-buy-settings"
+steps = "直接输入地址 /desk/pearnly-buy-settings"
+expect = "出框架原生无权限页（图 + 官方文案 + 回首页），不是空白页"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_buy_settings/pearnly_buy_settings.js"]
+smoke = "page"
+url = "/desk/pearnly-buy-settings"
+site = "erp"
+args = { "expect" = "not_permitted" }
+
+[[entry]]
+id = "erp.page.never.integrations"
+product = "ERP"
+where = "pearnly-integrations"
+steps = "直接输入地址 /desk/pearnly-integrations"
+expect = "出框架原生无权限页（图 + 官方文案 + 回首页），不是空白页"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_integrations/pearnly_integrations.js"]
+smoke = "page"
+url = "/desk/pearnly-integrations"
+site = "erp"
+args = { "expect" = "not_permitted" }
+
+[[entry]]
+id = "erp.page.never.push-logs"
+product = "ERP"
+where = "pearnly-push-logs"
+steps = "直接输入地址 /desk/pearnly-push-logs"
+expect = "出框架原生无权限页（图 + 官方文案 + 回首页），不是空白页"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_push_logs/pearnly_push_logs.js"]
+smoke = "page"
+url = "/desk/pearnly-push-logs"
+site = "erp"
+args = { "expect" = "not_permitted" }
+
+[[entry]]
+id = "erp.page.never.reconcile"
+product = "ERP"
+where = "pearnly-reconcile"
+steps = "直接输入地址 /desk/pearnly-reconcile"
+expect = "出框架原生无权限页（图 + 官方文案 + 回首页），不是空白页"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_reconcile/pearnly_reconcile.js"]
+smoke = "page"
+url = "/desk/pearnly-reconcile"
+site = "erp"
+args = { "expect" = "not_permitted" }
+
+[[entry]]
+id = "erp.page.never.guide"
+product = "ERP"
+where = "pearnly-guide"
+steps = "直接输入地址 /desk/pearnly-guide"
+expect = "出框架原生无权限页（图 + 官方文案 + 回首页），不是空白页"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_guide/pearnly_guide.js"]
+smoke = "page"
+url = "/desk/pearnly-guide"
+site = "erp"
+args = { "expect" = "not_permitted" }
+
+[[entry]]
+id = "erp.page.never.history"
+product = "ERP"
+where = "pearnly-history"
+steps = "直接输入地址 /desk/pearnly-history"
+expect = "出框架原生无权限页（图 + 官方文案 + 回首页），不是空白页"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_history/pearnly_history.js"]
+smoke = "page"
+url = "/desk/pearnly-history"
+site = "erp"
+args = { "expect" = "not_permitted" }
+
+[[entry]]
+id = "erp.report.stock-count-variance"
+product = "ERP"
+where = "盘点差异报表"
+steps = "/desk/query-report/ERP Stock Count Variance（没有页面内链接，直接输地址）"
+expect = "筛选框可用、出报表"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/erp_stock_count_variance.js", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/erp_stock_count_variance.py"]
+smoke = "page"
+url = "/desk/query-report/ERP%20Stock%20Count%20Variance"
+site = "erp"
+
+[[entry]]
+id = "shared.sidebar-order"
+product = "共用"
+where = "侧栏标题菜单"
+steps = "任一产品页 → 侧栏标题 → 侧栏顺序 → 拖动、保存、放弃"
+expect = "顺序生效，子项不重复"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
+
+[[entry]]
+id = "erp.user-profile"
+product = "ERP"
+where = "我的资料"
+steps = "左下角 → 我的资料（/desk/user/<我>）；LINE 绑定一栏"
+expect = "只剩资料字段，刷新后保留；LINE 绑定二维码显示"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/public/desk/user.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/user-line.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/line-binding.js"]
+smoke = "page"
+url = "/desk/user"
+site = "erp"
+
+[[entry]]
+id = "cowork.user-profile"
+product = "Cowork"
+where = "我的资料"
+steps = "左下角 → 我的资料；LINE 绑定一栏"
+expect = "同 ERP"
+check = "auto"
+files = ["apps/pearnly_core/pearnly_core/public/desk/user.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/user-line.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/line-binding.js"]
+smoke = "page"
+url = "/desk/user"
+site = "cowork"
+
+[[entry]]
+id = "erp.company-menu"
+product = "ERP"
+where = "侧栏标题 → 公司"
+steps = "任一 ERP 页 → 侧栏标题 → 公司；>10 家出搜索；切换"
+expect = "可滚动、能搜索（名称 / 税号）、同名带分店号，切换后刷新为该公司"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-menu.js", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js"]
+
+[[entry]]
+id = "erp.products.new-dialog.scan"
+product = "ERP"
+where = "pearnly-products 新建弹窗"
+steps = "物料 → 新建 → 编码格扫码图标（相机）；扫码枪在编码格回车"
+expect = "相机有画面、读出码填进编码格；已有的码提示已存在"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js"]
+smoke = "scan"
+url = "/desk/pearnly-products"
+site = "erp"
+args = { "code" = "2000000000008", "steps" = [{ "eval" = "frappe.pearnly.scan({kind:'all', on_result: c => window.__smoke_scan_result = c})", "wait" = 500 }] }
+
+[[entry]]
+id = "erp.products.new-page.scan"
+product = "ERP"
+where = "pearnly-products/new 表格"
+steps = "`/desk/pearnly-products/new` → 表格上方扫码按钮；表内扫码枪回车"
+expect = "每扫一个加一行；已有码提示"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js"]
+
+[[entry]]
+id = "erp.products.detail.barcode-scan"
+product = "ERP"
+where = "物料详情条码格"
+steps = "物料列表点本地商品 → 条码格扫码图标"
+expect = "填入条码；Express 同步来的商品不出扫码图标"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js"]
+
+[[entry]]
+id = "erp.cashier.camera"
+product = "ERP"
+where = "pearnly-cashier 搜索框相机"
+steps = "收银台 → 搜索框右侧相机"
+expect = "相机有画面，读出码填进搜索框，唯一匹配加入购物车"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js"]
+
+[[entry]]
+id = "erp.cashier.scanner-gun"
+product = "ERP"
+where = "pearnly-cashier 扫码枪"
+steps = "收银台直接用扫码枪扫"
+expect = "商品加入购物车"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/onscan.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/official-pos_item_selector.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js"]
+
+[[entry]]
+id = "erp.stock-count.entry.camera"
+product = "ERP"
+where = "pearnly-stock-count 录入弹窗"
+steps = "库存盘点 → 打开一份 → 录入 → 相机（安卓 LINE 内转 LIFF）"
+expect = "画面不黑、连续读码、认出盘点仓库所属公司的商品；保存成功"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js"]
+
+[[entry]]
+id = "erp.line.stocktake.camera"
+product = "ERP"
+where = "LINE 手机盘点 /stocktake"
+steps = "LINE → 盘点 → 扫码（真手机 LIFF）"
+expect = "LIFF 里相机打开并读码、拍凭证照片"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
+
+[[entry]]
+id = "erp.stock-in.item-scan"
+product = "ERP"
+where = "pearnly-stock-in 新建明细"
+steps = "入库 → 新建 → 明细物料格扫码图标；扫码枪回车"
+expect = "填入当前公司商品"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_core/pearnly_core/public/desk/link.js"]
+
+[[entry]]
+id = "erp.stock-out.item-scan"
+product = "ERP"
+where = "pearnly-stock-out 新建明细"
+steps = "出库 → 新建 → 明细物料格扫码图标；扫码枪回车"
+expect = "填入当前公司商品"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_core/pearnly_core/public/desk/link.js"]
+
+[[entry]]
+id = "erp.inventory.opening.item-scan"
+product = "ERP"
+where = "库存 → 录入期初"
+steps = "库存 → 录入期初 → 明细商品格扫码"
+expect = "填入当前公司商品"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-opening.js", "apps/pearnly_core/pearnly_core/public/desk/link.js"]
+
+[[entry]]
+id = "erp.purchase.item-scan"
+product = "ERP"
+where = "pearnly-purchase 新建明细"
+steps = "采购 → 新建 → 明细物料格扫码；扫码枪回车"
+expect = "只出当前公司 + 本地商品；扫码枪不会填错高亮项"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js"]
+
+[[entry]]
+id = "erp.sales.item-scan"
+product = "ERP"
+where = "pearnly-sales 新建明细"
+steps = "销售 → 新建 → 明细物料格扫码；扫码枪回车"
+expect = "同采购"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js"]
+
+[[entry]]
+id = "cowork.stocktake.entry.camera"
+product = "Cowork"
+where = "pearnly-stocktake 录入弹窗"
+steps = "库存盘点 → 打开一份 → 录入 → 相机"
+expect = "画面不黑、连续读码、保存成功（与 ERP 盘点同一套读码代码，必须全测）"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js"]
+
+[[entry]]
+id = "dms.liff.id-scan"
+product = "DMS"
+where = "LINE → 扫身份证（LIFF #/dms/scan）"
+steps = "DMS LINE → 扫证（真手机）"
+expect = "授权相机后出取景框，拍照上传后回到对话"
+check = "manual"
+files = ["frontend/src/pages/dms/ScanPage.vue", "frontend/src/lib/id-scan.ts", "frontend/src/lib/dms-editor.ts", "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html", "frontend/src/router.ts", "apps/pearnly_core/pearnly_core/www/pearnly-app.html"]
+
+[[entry]]
+id = "shared.upload.take-photo"
+product = "共用"
+where = "上传框「拍照」（电脑）"
+steps = "任一上传框（物料图片、充值凭证、盘点凭证）→ 拍照"
+expect = "电脑上相机打不开时给第 3 步提示，不是通用报错"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/scan.js"]
+
+[[entry]]
+id = "shared.home.topup-proof"
+product = "共用"
+where = "首页 → 充值 → 上传凭证"
+steps = "首页账本 → 充值 → 上传转账凭证"
+expect = "只剩「我的设备 / 相机」，上传成功"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/public/desk/home.js"]
+
+[[entry]]
+id = "erp.products.image-upload"
+product = "ERP"
+where = "物料图片"
+steps = "物料新建 / 详情 → 图片上传"
+expect = "上传成功、显示缩略图"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js"]
+
+[[entry]]
+id = "erp.inventory.opening-upload"
+product = "ERP"
+where = "期初导入"
+steps = "库存 → 录入期初 → 上传模板"
+expect = "按当前公司认商品，导入成功"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-opening.js"]
+
+[[entry]]
+id = "erp.stock-count.upload"
+product = "ERP"
+where = "盘点上传 / 凭证照片"
+steps = "库存盘点 → 上传表；录入里拍凭证"
+expect = "导入成功；凭证照片保存"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js"]
+
+[[entry]]
+id = "erp.purchase.original-upload"
+product = "ERP"
+where = "采购新建上传原件识别"
+steps = "采购 → 新建 → 上传原件"
+expect = "识别后填表（付费识别，冒烟不跑真识别）"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
+
+[[entry]]
+id = "erp.sales.original-upload"
+product = "ERP"
+where = "销售新建上传原件识别"
+steps = "销售 → 新建 → 上传原件"
+expect = "同采购"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
+
+[[entry]]
+id = "cowork.intake.upload"
+product = "Cowork"
+where = "pearnly-intake/new 上传"
+steps = "录入 → 新建 → 上传图片 / PDF"
+expect = "直传或经服务器上传成功、预览可缩放（付费识别冒烟不跑）"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake.js"]
+
+[[entry]]
+id = "cowork.stocktake.upload"
+product = "Cowork"
+where = "盘点上传 / 凭证照片"
+steps = "库存盘点 → 上传表；录入里拍凭证"
+expect = "导入成功；凭证照片保存"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js"]
+
+[[entry]]
+id = "cowork.recon.upload"
+product = "Cowork"
+where = "对账上传两边文件"
+steps = "银行 / 收入 / 销项税对账 → 上传两边"
+expect = "上传成功、开始对账"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"]
+
+[[entry]]
+id = "cowork.work.attachments"
+product = "Cowork"
+where = "任务管理附件"
+steps = "任务管理 → 卡片 → 附件上传"
+expect = "上传成功、可下载"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/work.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"]
+
+[[entry]]
+id = "erp.purchase.viewer"
+product = "ERP"
+where = "采购详情原件查看"
+steps = "采购详情 → 原件 → 缩放 / 拖动"
+expect = "原件可缩放拖动"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-viewer.js"]
+
+[[entry]]
+id = "erp.sales.viewer"
+product = "ERP"
+where = "销售详情原件查看"
+steps = "销售详情 → 原件 → 缩放 / 拖动"
+expect = "原件可缩放拖动"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-viewer.js"]
+
+[[entry]]
+id = "cowork.intake.viewer"
+product = "Cowork"
+where = "录入预览"
+steps = "录入 → 新建 → 上传后预览缩放"
+expect = "可缩放拖动"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js"]
+
+[[entry]]
+id = "erp.line.chat"
+product = "ERP"
+where = "LINE ERP-TEST 一对一"
+steps = "三星 adb：关注、绑定码、解绑词、富菜单 ซื้อ/ขาย、เมนู、1/2、每步快捷回复、打字找公司 / 供应商 / 客户 / 仓库、上传图片 / PDF、乱发文字"
+expect = "马上能回的不出三个点；慢的先出三个点、回复到达时消失、不出现在回复之后；回复与按钮同 main"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/binding.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py"]
+
+[[entry]]
+id = "erp.line.stocktake"
+product = "ERP"
+where = "LINE 手机盘点 /stocktake"
+steps = "LINE → 盘点（LIFF 登录）→ 扫码"
+expect = "登录成功、认盘点仓库所属公司的商品"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
+
+[[entry]]
+id = "cowork.line.chat"
+product = "Cowork"
+where = "LINE Cowork-test 一对一"
+steps = "三星 adb：关注、绑定、解绑、富菜单「发单据进 ERP」、旧菜单 ประสานงาน、เมนู、快捷回复、打字找账套 / 存货科目组、上传图片 / PDF"
+expect = "同 ERP"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/hooks.py", "apps/pearnly_cowork/pearnly_cowork/line/handlers.py", "apps/pearnly_cowork/pearnly_cowork/line/binding.py", "apps/pearnly_cowork/pearnly_cowork/line/flow.py", "apps/pearnly_cowork/pearnly_cowork/line/intake.py", "apps/pearnly_cowork/pearnly_cowork/line/menu.py", "apps/pearnly_cowork/pearnly_cowork/line/cards.py"]
+
+[[entry]]
+id = "dms.line.chat"
+product = "DMS"
+where = "LINE DMS 测试号一对一"
+steps = "关注、绑定 / 解绑、เริ่มใหม่、เมนู、菜单 1/2/5/6、拍身份证、订车逐问各按钮、查询、客户卡各按钮、LIFF 编辑回传"
+expect = "整个事件攒批一次发；慢处理时三个点后只来一次回复；查询「正在读取」照旧"
+check = "manual"
+files = ["apps/pearnly_dms/pearnly_dms/hooks.py", "apps/pearnly_dms/pearnly_dms/line/handlers.py", "apps/pearnly_dms/pearnly_dms/line/text_router.py", "apps/pearnly_dms/pearnly_dms/line/out.py", "apps/pearnly_dms/pearnly_dms/line/page_reply.py", "apps/pearnly_dms/pearnly_dms/line/identity.py", "apps/pearnly_dms/pearnly_dms/intake/flow.py", "apps/pearnly_dms/pearnly_dms/intake/scan.py", "apps/pearnly_dms/pearnly_dms/intake/review.py", "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py", "apps/pearnly_dms/pearnly_dms/menu/links.py", "apps/pearnly_dms/pearnly_dms/menu/menu_flow.py", "apps/pearnly_dms/pearnly_dms/i18n.py", "apps/pearnly_dms/pearnly_dms/editor/browser_api.py", "apps/pearnly_dms/pearnly_dms/editor/edit_link.py", "apps/pearnly_dms/pearnly_dms/editor/booking_edit.py", "apps/pearnly_dms/pearnly_dms/editor/customer_edit.py", "apps/pearnly_dms/pearnly_dms/records/push_log.py", "apps/pearnly_dms/pearnly_dms/booking/booking_attempt.py", "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py", "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py", "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_start.py", "apps/pearnly_dms/pearnly_dms/query/query_flow.py"]
+
+[[entry]]
+id = "dms.line.scheduled"
+product = "DMS"
+where = "定时：订车结果推送 / 中断恢复 / 查询回读"
+steps = "每 5 分钟 delivery.schedule_due、recovery.reconcile_due、claim_recovery.schedule_due、snapshot_sync.sweep_stale"
+expect = "订车完成员工只收到一条推送（retry_key 去重）；中断的草稿清掉或按 nonce 补发，不串单；查询读好推结果"
+check = "manual"
+files = ["apps/pearnly_dms/pearnly_dms/booking/delivery.py", "apps/pearnly_dms/pearnly_dms/booking/recovery.py", "apps/pearnly_dms/pearnly_dms/booking/claim_recovery.py", "apps/pearnly_dms/pearnly_dms/query/snapshot_sync.py"]
+
+[[entry]]
+id = "dms.roster.line-oa"
+product = "DMS"
+where = "pearnly-roster 公众号信息"
+steps = "人员页看本站公众号名称与二维码"
+expect = "正常显示"
+check = "manual"
+files = ["apps/pearnly_dms/pearnly_dms/operators/line_account.py", "apps/pearnly_dms/pearnly_dms/operators/roster.py"]
+
+[[entry]]
+id = "control.line.channel"
+product = "控制面"
+where = "LINE 频道保存 / 开户 / 接入指引页"
+steps = "后台保存 LINE 频道；开户；pearnly-line-guide；部署 site-step"
+expect = "webhook = https://<域名>/api/method/pearnly_core.line.webhook"
+check = "offline"
+files = ["apps/pearnly_control/pearnly_control/provisioning.py", "apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_line_channel/pearnly_line_channel.py", "apps/pearnly_control/pearnly_control/pearnly_control/page/pearnly_line_guide/pearnly_line_guide.js", "infrastructure/production/site-step.py", "apps/pearnly_control/pearnly_control/onboarding/line_ids.py"]
+
+[[entry]]
+id = "shared.desk.liff-boot"
+product = "共用"
+where = "安卓 LINE 内扫码转 LIFF"
+steps = "安卓 LINE 内打开 Desk 扫码"
+expect = "转到 LIFF 扫码（boot 里有 pearnly_liff_id）"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/desk/line_boot.py", "apps/pearnly_core/pearnly_core/public/desk/scan.js"]
+
+[[entry]]
+id = "erp.line.binding"
+product = "ERP"
+where = "团队页绑定码 / 解绑"
+steps = "团队页生成绑定码 → LINE 绑定；解绑词；删除 / 停用成员"
+expect = "解绑后再发消息提示未绑定"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/binding.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py", "apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py"]
+
+[[entry]]
+id = "cowork.line.binding"
+product = "Cowork"
+where = "团队页绑定码 / 解绑"
+steps = "同 ERP"
+expect = "同 ERP"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/line/binding.py", "apps/pearnly_cowork/pearnly_cowork/line/handlers.py", "apps/pearnly_cowork/pearnly_cowork/line/intake.py", "apps/pearnly_cowork/pearnly_cowork/line/menu.py", "apps/pearnly_cowork/pearnly_cowork/team/service.py"]
+
+[[entry]]
+id = "dms.line.binding"
+product = "DMS"
+where = "人员页绑定码 / 解绑 / 停用"
+steps = "人员页生成绑定码 → LINE 绑定；解绑；停用"
+expect = "绑定变化后富菜单重挂"
+check = "manual"
+files = ["apps/pearnly_dms/pearnly_dms/operators/roster.py", "apps/pearnly_dms/pearnly_dms/line/identity.py", "apps/pearnly_dms/pearnly_dms/line/handlers.py", "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py", "apps/pearnly_dms/pearnly_dms/editor/browser_api.py", "apps/pearnly_dms/pearnly_dms/editor/booking_edit.py", "apps/pearnly_dms/pearnly_dms/hooks.py"]
+
+[[entry]]
+id = "shared.line.login"
+product = "共用"
+where = "LINE 登录（绑定即登录）"
+steps = "解绑后打开 LIFF；每小时 line_login.reconcile"
+expect = "解绑后 LINE 会话吊销、LIFF 要重新登录"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/account/line_login.py", "apps/pearnly_core/pearnly_core/hooks.py"]
+
+[[entry]]
+id = "erp.cc.connect"
+product = "ERP"
+where = "CC 桌面版连接 ERP"
+steps = "测试机 CC 用 ERP 账号登录配对；心跳报账套；删成员 / 断开"
+expect = "按账套自动建公司、排主档同步；断开后清账套名单"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/desktop.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/target.py", "apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_cc_book/pearnly_cc_book.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_cc_device/pearnly_cc_device.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_cc_job/pearnly_cc_job.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_cc_request/pearnly_cc_request.py", "frontend/assistant/src/lib/desktop.ts", "companion/src/companion/channel.py"]
+
+[[entry]]
+id = "erp.cc.write"
+product = "ERP"
+where = "ERP 单据写 Express"
+steps = "接 Express 的公司采购 / 销售提交（网页手录、识别、LINE 编辑页）"
+expect = "预检缺选项当场弹框；写进 C 盘 T 账套并读回一致；关账回原因弹窗"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py"]
+smoke = "express"
+site = "erp"
+
+[[entry]]
+id = "erp.cc.masters"
+product = "ERP"
+where = "Express 主档同步"
+steps = "公司页「同步 Express」；定时 advance（每分钟）/ check_marks（10 分钟）/ sync_all（每小时）"
+expect = "主档、仓库、库存按 Express 对齐；改 Express 主档后约 20 分钟跟上"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
+
+[[entry]]
+id = "cowork.cc.channel"
+product = "Cowork"
+where = "Cowork 成员推送回执 / 按需请求 / 心跳"
+steps = "testcowork 推一张单；目录 / 科目 / 账套读取；心跳版本提示；文件夹录入"
+expect = "与 main 相同；写进 Express 读回一致"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py", "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py", "apps/pearnly_cowork/pearnly_cowork/companion/pool.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_heads.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_service.py", "apps/pearnly_cowork/pearnly_cowork/companion/transport.py", "apps/pearnly_cowork/pearnly_cowork/companion/devices.py", "apps/pearnly_cowork/pearnly_cowork/connections/member.py", "apps/pearnly_cowork/pearnly_cowork/connections/pool.py", "apps/pearnly_cowork/pearnly_cowork/connections/reports.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py"]
+smoke = "express"
+site = "cowork"
+
+[[entry]]
+id = "cowork.express.push"
+product = "Cowork"
+where = "Cowork 推送 Express（全部类型）"
+steps = "录入工作台 / 识别记录 → 推送：采购、销售、库存、存货科目组、付款、预检、回执；自动推送规则；POS 日汇总"
+expect = "照常写进 Express、读回一致"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/push/application/assess.py", "apps/pearnly_cowork/pearnly_cowork/push/application/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/application/service.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/rules.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/service.py", "apps/pearnly_cowork/pearnly_cowork/push/choices.py", "apps/pearnly_cowork/pearnly_cowork/push/export_actions.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/express/__init__.py", "apps/pearnly_cowork/pearnly_cowork/push/express/automation.py", "apps/pearnly_cowork/pearnly_cowork/push/express/company_choices.py", "apps/pearnly_cowork/pearnly_cowork/push/express/decide.py", "apps/pearnly_cowork/pearnly_cowork/push/express/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/native/completion.py", "apps/pearnly_cowork/pearnly_cowork/push/native/contracts.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py", "apps/pearnly_cowork/pearnly_cowork/targets/choices.py", "apps/pearnly_cowork/pearnly_cowork/targets/evidence.py", "apps/pearnly_cowork/pearnly_cowork/targets/freeze.py", "apps/pearnly_cowork/pearnly_cowork/targets/selection.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/follow.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/pos_import/contracts.py", "apps/pearnly_cowork/pearnly_cowork/pos_import/service.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py"]
+smoke = "express"
+site = "cowork"
+
+[[entry]]
+id = "cowork.mrerp.push"
+product = "Cowork"
+where = "推送 MR.ERP"
+steps = "MR.ERP 目标推一张；定时 runner.sweep（5 分钟）"
+expect = "写入成功"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/push/mrerp/routing.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/transport.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/lookups.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/purchase.py", "apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/sales_cash.py"]
+
+[[entry]]
+id = "cowork.companies"
+product = "Cowork"
+where = "公司主档页（记住的选择、规则、自动档、待办、月度账本、现用账套）"
+steps = "CC 对话页 → 公司 → 各栏"
+expect = "与 main 相同"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/companies/automation.py", "apps/pearnly_cowork/pearnly_cowork/companies/choices.py", "apps/pearnly_cowork/pearnly_cowork/companies/current_book.py", "apps/pearnly_cowork/pearnly_cowork/companies/exceptions.py", "apps/pearnly_cowork/pearnly_cowork/companies/identity.py", "apps/pearnly_cowork/pearnly_cowork/companies/ledger.py", "apps/pearnly_cowork/pearnly_cowork/companies/months.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py", "apps/pearnly_cowork/pearnly_cowork/companies/provider.py", "apps/pearnly_cowork/pearnly_cowork/companies/rules.py", "apps/pearnly_cowork/pearnly_cowork/companies/service.py", "apps/pearnly_cowork/pearnly_cowork/companies/tasks.py"]
+
+[[entry]]
+id = "cowork.connections"
+product = "Cowork"
+where = "连接 / 账套目录 / 主档读取"
+steps = "设置 → 连接；新建录入选账套；公司页刷新账套"
+expect = "账套能选、主档能读"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/connections/account_masters.py", "apps/pearnly_cowork/pearnly_cowork/connections/directory.py", "apps/pearnly_cowork/pearnly_cowork/connections/pool.py", "apps/pearnly_cowork/pearnly_cowork/connections/preparation.py", "apps/pearnly_cowork/pearnly_cowork/connections/refresh.py", "apps/pearnly_cowork/pearnly_cowork/connections/reports.py", "apps/pearnly_cowork/pearnly_cowork/connections/service.py", "apps/pearnly_cowork/pearnly_cowork/connections/snapshots.py", "apps/pearnly_cowork/pearnly_cowork/connections/state.py"]
+
+[[entry]]
+id = "cowork.history"
+product = "Cowork"
+where = "识别记录（查看、复核、重复、名称记忆）、Express 回读"
+steps = "识别记录页；月度账本「核对 Express 回读」"
+expect = "与 main 相同"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/history/api.py", "apps/pearnly_cowork/pearnly_cowork/history/document_policy.py", "apps/pearnly_cowork/pearnly_cowork/history/duplicates.py", "apps/pearnly_cowork/pearnly_cowork/history/names.py", "apps/pearnly_cowork/pearnly_cowork/history/recognition.py", "apps/pearnly_cowork/pearnly_cowork/history/review.py", "apps/pearnly_cowork/pearnly_cowork/history/storage.py", "apps/pearnly_cowork/pearnly_cowork/ocr/results.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/service.py", "apps/pearnly_cowork/pearnly_cowork/tax/sources.py", "apps/pearnly_cowork/pearnly_cowork/readback/history.py", "apps/pearnly_cowork/pearnly_cowork/readback/history_rules.py", "apps/pearnly_cowork/pearnly_cowork/readback/service.py"]
+
+[[entry]]
+id = "erp.exports"
+product = "ERP"
+where = "ERP 下载"
+steps = "班次导出、任务管理导出、采购 / 销售 / 库存导出、盘点导出 / 模板、期初模板、商品导入模板、收银小票"
+expect = "文件名中文 / 泰文不乱码，能打开"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/output.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py"]
+
+[[entry]]
+id = "shared.exports"
+product = "共用"
+where = "首页账本导出 / 大数据量后台导出 / CC 附件"
+steps = "首页 → 账本 → 导出明细（三产品各一次）；大量导出等提示后自动下载；CC 对话附件下载"
+expect = "文件名正确、能打开；1 小时后过期"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/billing_www.py", "apps/pearnly_core/pearnly_core/public/desk/home.js", "frontend/src/pages/HomePage.vue", "apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_export/pearnly_export.py", "apps/pearnly_core/pearnly_core/assistant/files.py"]
+
+[[entry]]
+id = "cowork.exports"
+product = "Cowork"
+where = "Cowork 下载"
+steps = "银行 / 收入对账、销项税核查导出；盘点导出 / 模板；任务管理导出；原件下载；工作台导出"
+expect = "文件名正确、能打开"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_service.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_service.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/vat_check_service.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/service.py", "apps/pearnly_cowork/pearnly_cowork/work/api.py", "apps/pearnly_cowork/pearnly_cowork/work/service.py", "apps/pearnly_cowork/pearnly_cowork/files/api.py", "apps/pearnly_cowork/pearnly_cowork/roundtrip/api.py"]
+
+[[entry]]
+id = "control.topup-proof"
+product = "控制面"
+where = "充值单查看转账凭证"
+steps = "后台 Pearnly Topup Request → 查看转账凭证"
+expect = "原名下载"
+check = "manual"
+files = ["apps/pearnly_control/pearnly_control/payments/topup.py"]
+
+[[entry]]
+id = "shared.navigation"
+product = "共用"
+where = "侧栏与菜单（三产品）"
+steps = "各产品侧栏分组 / 平铺项（ERP「任务管理」单独一项）、用户菜单、主档链接、个人排序、收银台页按公司显示、团队页菜单权限"
+expect = "与 main 相同"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/public/desk/sidebar.js", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/link.js", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_cowork/pearnly_cowork/hooks.py", "apps/pearnly_dms/pearnly_dms/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/nav.py", "apps/pearnly_core/pearnly_core/desk/permissions.py", "apps/pearnly_core/pearnly_core/billing_www.py", "apps/pearnly_core/pearnly_core/workspace.py", "apps/pearnly_core/pearnly_core/provisioning.py", "apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js", "apps/pearnly_cowork/pearnly_cowork/team/service.py"]
+
+[[entry]]
+id = "shared.upload.shrink-photo"
+product = "共用"
+where = "上传大照片自动压缩"
+steps = "Cowork 录入、ERP 采购 / 销售新建上传 >2400px 的手机照片"
+expect = "长边压到 2400、JPEG 0.92；PDF / 表格不动"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-entry.js"]
+
+[[entry]]
+id = "erp.masters.scope"
+product = "ERP"
+where = "主档按公司隔离"
+steps = "物料 / 客户 / 供应商列表、搜索、计数、Link 搜索、打开单条；切换公司前后各看"
+expect = "只出当前公司 + 本地；直接调别家被拒（需要已读权限 / 未找到），不是 403 白页"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/customers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/suppliers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py"]
+
+[[entry]]
+id = "erp.records.scope"
+product = "ERP"
+where = "单据 / 库存 / 收银按公司"
+steps = "收银台商品区、班次、终端；库存总览 / 库存卡 / 出入库 / 期初 / 盘点"
+expect = "只含当前公司"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/cashier/access.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/access.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count_state.py"]
+
+[[entry]]
+id = "erp.entry.choices"
+product = "ERP"
+where = "单据对方 / 物料选择与提交时按码认"
+steps = "采购 / 销售明细物料格、对方格打字或扫码；提交"
+expect = "只出当前公司 + 本地；提交按名称 / 编码认同一件，单位跟商品"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/category_memory.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
+
+[[entry]]
+id = "erp.stock-count.code"
+product = "ERP"
+where = "盘点按码认商品"
+steps = "盘点录入弹窗输码 / 扫码；上传导入；LINE 手机盘点"
+expect = "认盘点仓库所属公司的商品"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_stock_count/erp_stock_count.py", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_stock_count_entry/erp_stock_count_entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_stock_count_item/erp_stock_count_item.py", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/erp_stock_count_variance.py"]
+
+[[entry]]
+id = "erp.ocr"
+product = "ERP"
+where = "ERP 上传识别（网页 / LINE）"
+steps = "采购 / 销售上传识别；LINE 发图片 / PDF（付费识别，按小样本）"
+expect = "识别后预览 / 出卡片"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/recognition.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/preview.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/files.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/preview.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/files.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/policy.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/claude.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/originals.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/billing.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/progress.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py"]
+
+[[entry]]
+id = "cowork.ocr"
+product = "Cowork"
+where = "Cowork 录入识别 / 远端识别 / 对账识别"
+steps = "录入工作台上传识别；对账中心单据识别（付费识别，按小样本）"
+expect = "识别成功、结果入库"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/ocr/execution/claude.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/claude_documents.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/settings.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py", "apps/pearnly_cowork/pearnly_cowork/ocr/inputs_runtime/source.py", "apps/pearnly_cowork/pearnly_cowork/ocr/providers/core.py", "apps/pearnly_cowork/pearnly_cowork/files/service.py", "apps/pearnly_cowork/pearnly_cowork/files/api.py", "apps/pearnly_cowork/pearnly_cowork/files/guard.py", "apps/pearnly_cowork/pearnly_cowork/ocr/table_inputs/reader.py", "apps/pearnly_cowork/pearnly_cowork/roundtrip/parser.py", "apps/pearnly_cowork/pearnly_cowork/ocr/remote/app.py", "apps/pearnly_cowork/pearnly_cowork/ocr/remote/tasks.py", "apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py", "apps/pearnly_cowork/pearnly_cowork/ocr/remote/runner.py", "apps/pearnly_cowork/pearnly_cowork/ocr/remote/contract.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/document_ocr.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/invoice_ocr.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/storage.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py"]
+
+[[entry]]
+id = "dms.ocr.id-card"
+product = "DMS"
+where = "DMS 身份证识别"
+steps = "LINE 拍身份证 / LIFF 扫证"
+expect = "读出证件信息"
+check = "manual"
+files = ["apps/pearnly_dms/pearnly_dms/ocr/ocr_id_card.py", "apps/pearnly_dms/pearnly_dms/ocr/ocr_service.py", "apps/pearnly_dms/pearnly_dms/line/out.py"]
+
+[[entry]]
+id = "shared.ocr.pipeline"
+product = "共用"
+where = "识别队列、识别记录与识别服务部署"
+steps = "三产品各上传一张（付费识别，小样本）；部署后 claude-ocr 服务健康"
+expect = "排队、识别、记录、计费正常"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/execution/provider.py", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_ocr_record/pearnly_ocr_record.py", "infrastructure/claude-ocr/serve.py", "infrastructure/production/compose.yml"]
+
+[[entry]]
+id = "shared.originals.download"
+product = "共用"
+where = "原件图片 / 下载原件"
+steps = "ERP / Cowork 原件页图、「下载原件」"
+expect = "跳转并下载正确"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/hooks.py"]
+
+[[entry]]
+id = "shared.login"
+product = "共用"
+where = "登录 / 退出 / 改密码"
+steps = "OIDC 登录、退出（不出确认页）、改密码；CC 对话页登录"
+expect = "登录跳回原页；退出直接回登录；改密码后别的会话失效"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/login_redirect.py", "apps/pearnly_core/pearnly_core/www/assistant.py", "apps/pearnly_core/pearnly_core/www/pearnly-password.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/user.js", "apps/pearnly_core/pearnly_core/account/line_login.py", "apps/pearnly_core/pearnly_core/provisioning.py", "frontend/src/components/AccountMenu.vue", "frontend/assistant/src/assistant.tsx", "apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/password.py", "infrastructure/production/site-step.py"]
+
+[[entry]]
+id = "control.issue-and-entry"
+product = "控制面"
+where = "开户链接 / 号池 / 智能体入口"
+steps = "控制面开户、repool、fatcc.com 入口登录"
+expect = "与 main 相同"
+check = "manual"
+files = ["apps/pearnly_control/pearnly_control/provisioning.py", "apps/pearnly_control/pearnly_control/www/pearnly-issue.py", "apps/pearnly_control/pearnly_control/account/repool.py", "apps/pearnly_control/pearnly_control/assistant_entry/entry.py", "apps/pearnly_control/pearnly_control/assistant_entry/contracts.py", "apps/pearnly_control/pearnly_control/account/member_service.py"]
+
+[[entry]]
+id = "shared.shell-gate"
+product = "共用"
+where = "产品与功能开通闸"
+steps = "没买的功能 / 没权限的页面直接打开；CC 对话页功能清单"
+expect = "出原生无权限页；功能清单与购买一致"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/access/guard.py", "apps/pearnly_erp_portal/pearnly_erp_portal/access/setup.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/access.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/access.py", "apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py", "apps/pearnly_cowork/pearnly_cowork/access/scope.py", "apps/pearnly_cowork/pearnly_cowork/connections/access.py", "apps/pearnly_cowork/pearnly_cowork/connections/service.py", "apps/pearnly_cowork/pearnly_cowork/masters/push_inputs.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/recon_access.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/access.py", "apps/pearnly_cowork/pearnly_cowork/tax/access.py", "apps/pearnly_cowork/pearnly_cowork/team/service.py", "apps/pearnly_dms/pearnly_dms/editor/browser_api.py", "apps/pearnly_dms/pearnly_dms/records/access.py", "apps/pearnly_core/pearnly_core/desk/navigation.py", "apps/pearnly_core/pearnly_core/provisioning.py", "apps/pearnly_control/pearnly_control/provisioning.py", "frontend/src/lib/shell.ts", "frontend/assistant/src/lib/profile.ts"]
+
+[[entry]]
+id = "shared.team.members"
+product = "共用"
+where = "团队页建成员同步身份服务"
+steps = "ERP / Cowork 团队页新建成员、改语言"
+expect = "成员能登录；语言跟个人设置"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py", "apps/pearnly_cowork/pearnly_cowork/team/service.py", "apps/pearnly_control/pearnly_control/account/member_service.py", "apps/pearnly_core/pearnly_core/identity.py", "apps/pearnly_core/pearnly_core/www/assistant.py", "frontend/src/components/AccountMenu.vue", "frontend/assistant/src/i18n.ts", "frontend/assistant/src/lib/frappe.ts", "apps/pearnly_cowork/pearnly_cowork/line/cards.py", "apps/pearnly_cowork/pearnly_cowork/line/menu.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py", "apps/pearnly_control/pearnly_control/assistant_entry/contracts.py"]
+
+[[entry]]
+id = "cc.settings.connection"
+product = "CC"
+where = "对话页设置 → 常规 / 连接（浏览器与桌面版）"
+steps = "ERP / Cowork 对话页 → 齿轮 / 用户菜单「设置」/ Ctrl+, → 连接；电脑池列表、移除电脑"
+expect = "无报错、电脑列表能出来；桌面版多「此电脑」一栏"
+check = "auto"
+files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/lib/desktop.ts"]
+smoke = "page"
+url = "/assistant"
+site = "cowork"
+
+[[entry]]
+id = "cc.desktop.bridge"
+product = "CC"
+where = "桌面版「此电脑」→ 连接 / 系统"
+steps = "Windows 测试机 CC：公司行暂停 / 断开、重新查找、添加文件夹 / 移除位置、以前授权的文件夹、开机自启、保持唤醒、更新、日志；公司页「在电脑上选择文件夹」；登录后自动连接"
+expect = "每项生效；只剩一个位置时 × 灰"
+check = "manual"
+files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/settings.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/shortcut.tsx", "frontend/assistant/src/lib/back-stack.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/variant.ts", "companion/src/companion/tomo_bridge.py", "companion/src/companion/desktop_settings.py", "companion/src/companion/window_link.py", "companion/src/companion/window_main.py", "companion/src/companion/device_link.py", "companion/src/companion/folder_plan.py", "companion/src/companion/gui_tomo.py", "companion/src/companion/gui_tray.py", "companion/src/companion/pairing_flow.py"]
+
+[[entry]]
+id = "cc.desktop.places"
+product = "CC"
+where = "Express 位置与账套上报（两种成员）"
+steps = "测试机 CC：添加 / 移除位置、新建年度后重新读取、两个成员同扫一台服务器"
+expect = "只报位置下的账套，Cowork 与 ERP 两边一致"
+check = "manual"
+files = ["companion/src/companion/worker.py", "companion/src/companion/profile_store.py", "companion/src/companion/express_machine.py", "companion/src/companion/master_refresh.py", "companion/src/companion/desktop_settings.py", "companion/src/companion/pairing_flow.py", "companion/src/companion/projection_refresh.py", "companion/src/companion/config.py", "companion/src/companion/gui_tray.py", "companion/src/companion/health_check.py", "companion/src/companion/device_link.py", "companion/src/companion/main.py", "companion/src/companion/pairing.py", "companion/src/companion/account_probe.py", "companion/src/companion/multi_profile_worker.py", "companion/src/companion/queue_client.py", "companion/src/companion/tomo_bridge.py"]
+
+[[entry]]
+id = "cc.desktop.requests"
+product = "CC"
+where = "按需读取（账套回读、历史、文件夹、主档）"
+steps = "Cowork 月度账本「核对 Express 回读」；对话附件里的文件夹文件；ERP 公司页同步"
+expect = "读取完成、结果正确"
+check = "manual"
+files = ["companion/src/companion/gui_tray.py", "companion/src/companion/request_worker.py"]
+
+[[entry]]
+id = "cc.desktop.write"
+product = "CC"
+where = "写账（两种成员）"
+steps = "Cowork 推一张、ERP 推一张，写 C 盘 T 账套"
+expect = "写入成功、读回一致；旧版 CC 诚实拒收新载荷"
+check = "auto"
+files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_workers.py", "companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py"]
+smoke = "express"
+site = "erp"
