@@ -48,6 +48,8 @@ class OpeningReport(unittest.TestCase):
         sys.modules.update({"frappe": frappe, "frappe.utils": utils,
                             "pearnly_erp_portal.access": access, "pearnly_erp_portal.inventory": inventory})
         self.report = load("opening_report_service", DOMAIN / "report.py")
+        # 分组求和在库里由 frappe.qb 的 CASE 查询做（实验栈 30 万行核对过）；这里换成按逐笔流水独立算的对照实现
+        self.report._position_sums = self.position_sums
 
     def get_list(self, doctype, filters, fields, **kwargs):
         self.queries.append((doctype, filters, kwargs))
@@ -87,6 +89,27 @@ class OpeningReport(unittest.TestCase):
                 grouped[key] += row["qty_base"]
             return [{"product": p, "warehouse": w, "location": l, "qty": q} for (p, w, l), q in grouped.items()]
         return sorted(rows, key=lambda row: (str(row["posting_date"]), row["posting_time"], row["index"]))
+
+    def position_sums(self, query, date_from):
+        before = len(self.queries)
+        rows = self.report._movements(**query)
+        del self.queries[before:]  # 对照实现自己取的流水不算页面的查询
+        self.queries.append(("ERP Stock Movement", query, {"group_by": "product, warehouse, location"}))
+        out = {}
+        for row in rows:
+            key = (row["product"], row["warehouse"], row.get("location") or "")
+            sums = out.setdefault(key, dict.fromkeys(("carried", "period_in", "period_out", "init_all", "init_in"),
+                                                     Decimal(0)))
+            qty = Decimal(str(row["qty_base"]))
+            init = row.get("movement_type") == "opening" or row.get("ref_type") == "opening"
+            if str(row["posting_date"]) < date_from:
+                sums["carried"] += qty
+                continue
+            sums["period_in" if qty > 0 else "period_out"] += qty if qty else 0
+            if init:
+                sums["init_all"] += qty
+                sums["init_in"] += qty if qty > 0 else 0
+        return out
 
     def add(self, name, day, qty, cost=None, kind="stock_in", ref=None, warehouse="W1", location="", product="P1"):
         self.movements.append({"name": name, "product": product, "warehouse": warehouse, "location": location,

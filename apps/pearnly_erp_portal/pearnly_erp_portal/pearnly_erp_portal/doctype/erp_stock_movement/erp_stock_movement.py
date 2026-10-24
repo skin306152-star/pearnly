@@ -17,8 +17,11 @@ class ERPStockMovement(Document):
 # 没有索引时每次整表扫（验收 10-25：30 万行流水收发存默认页 6.3 秒、按数量排序 13.5 秒，裸 SQL 分组 2.2 秒）。
 # 随 migrate 由 Frappe 原生的 on_doctype_update 建（已有同名索引就跳过）；已有站点由补丁
 # `v1_13_stock_movement_indexes` 补建。
+# 第一条是覆盖索引：收发存的分组求和（`report._position_sums`）要的列全在里面，不回表（验收实测：30 万行
+# 全在条件内时普通索引用不上、整表扫，加上数量 / 类型 / 来源后 EXPLAIN 为 Using index，一次分组 0.95 秒）。
 INDEXES = {
-    "warehouse_product_location_date_index": ["warehouse", "product", "location", "posting_date"],
+    "warehouse_product_location_date_cover_index": ["warehouse", "product", "location", "posting_date", "qty_base",
+                                                    "movement_type", "ref_type"],
     "product_warehouse_date_index": ["product", "warehouse", "posting_date"],
 }
 

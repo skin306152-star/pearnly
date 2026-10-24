@@ -92,7 +92,7 @@
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py": 19,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count_live.py": 1,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py": 2,
- "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py": 3,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py": 2,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock.py": 6,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/warehouses.py": 2,
  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py": 9,

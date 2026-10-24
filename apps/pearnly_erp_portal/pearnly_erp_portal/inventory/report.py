@@ -6,9 +6,9 @@
 - **汇总按页算**（2026-10-25，大租户上万商品×仓库）：按商品 / 仓库 / 仓位排序（默认）时先取全部"商品×仓库×仓位"键
   （只有三列），排好切出这一页，只读这一页商品的流水去滚成本；按数量列排序必须先算出每一行，才整批算、再切片。
   两种都按键一次分组，不再每个键扫一遍全部流水、每行单查一次仓库名。
-- **按数量列排序**（10-25 验收 30 万行流水 13.5 秒）：期初 / 入 / 出 / 期末都是带符号数量的和，用原生 `get_list`
-  按键分组求和算出来排序（走权限、走流水表的组合索引），只把这一页商品的流水读进来滚成本。数量口径与逐笔滚存一致：
-  期初 = 截止起始日前的和 + 本期内的初始化；入 / 出 = 本期内非初始化的正 / 负数量；期末 = 截止日前全部的和。
+- **键与数量**（10-25 验收 30 万行流水：默认页 6.3 秒、按数量排序 13.5 秒）：一条分组查询（`_position_sums`，CASE 求和，
+  走流水表的覆盖索引）同时给出全部键和期初 / 入 / 出 / 期末数量；按数量列排序就按它排，只把这一页商品的流水读进来滚成本。
+  数量口径与逐笔滚存一致：期初 = 截止起始日前的和 + 本期内的初始化；入 / 出 = 本期内非初始化的正 / 负数量；期末 = 截止日前全部的和。
 """
 
 import frappe
@@ -86,15 +86,6 @@ def _movements(*, product=None, warehouse=None, location=None, date_to=None, pro
                 "ref_type", "ref_id", "doc_no", "reason"],
         order_by="posting_date asc, posting_time asc, creation asc", limit_page_length=0)
     return _exact_location(rows, filters, location)
-
-
-def _position_keys(**query) -> list[tuple]:
-    """全部"商品×仓库×仓位"键（只取三列、按键分组），不读流水明细。"""
-    filters = _filters(**query)
-    rows = frappe.get_list(MOVEMENT, filters=filters, fields=["product", "warehouse", "location"],
-                           group_by="product, warehouse, location", limit_page_length=0)
-    return sorted({(row["product"], row["warehouse"], row.get("location") or "")
-                   for row in _exact_location(rows, filters, query.get("location"))})
 
 
 def _warehouse_names(ids) -> dict:
@@ -228,39 +219,49 @@ def _as_list(filters) -> list:
     return [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
 
 
-def _quantity_sums(query, extra, or_filters=None) -> dict:
-    """按「商品 × 仓库 × 仓位」分组求 qty_base 的和（原生 get_list，走权限与索引）。"""
-    filters = _as_list(_filters(**query)) + extra
-    rows = frappe.get_list(MOVEMENT, filters=filters, or_filters=or_filters,  # bounded: 按键分组求和，一键一行（同汇总总行数）
-                           fields=["product", "warehouse", "location", {"SUM": "qty_base", "as": "qty"}],
-                           group_by="product, warehouse, location", order_by="product asc", limit_page_length=0)
+def _position_sums(query, date_from) -> dict:
+    """每个「商品 × 仓库 × 仓位」一行：截止起始日前的和、本期正 / 负数量的和、本期初始化的和（全部 / 正数）。
+
+    一条分组查询用 CASE 一次求完（验收 10-25：分 5 次分组要扫 5 遍 30 万行，4.6–4.8 秒）；键也从这里出。用 Frappe 原生的
+    `frappe.qb.get_query(..., ignore_permissions=False)` 生成带 DocType 权限与本页条件的查询，再加求和列；走流水表的覆盖索引
+    （`erp_stock_movement.INDEXES`）。初始化用「类型 = 期初 或 来源 = 期初」挑（来源为空时整个条件为假，不会被误算进去）。
+    """
+    from frappe.query_builder import Case
+    from frappe.query_builder.functions import Sum
+
+    filters = _as_list(_filters(**query))
+    table = frappe.qb.DocType(MOVEMENT)
+    period = table.posting_date >= date_from
+    initialization = (table.movement_type == contracts.OPENING) | (table.ref_type == "opening")
+
+    def total(condition, name):
+        return Sum(Case().when(condition, table.qty_base).else_(0)).as_(name)
+
+    sql = frappe.qb.get_query(MOVEMENT, fields=["product", "warehouse", "location"], filters=filters,
+                              group_by="product, warehouse, location", ignore_permissions=False).select(
+        total(table.posting_date < date_from, "carried"), total(period & (table.qty_base > 0), "period_in"),
+        total(period & (table.qty_base < 0), "period_out"), total(period & initialization, "init_all"),
+        total(period & initialization & (table.qty_base > 0), "init_in"))
     out: dict = {}
-    for row in _exact_location(rows, filters, query.get("location")):
+    for row in _exact_location(sql.run(as_dict=True), filters, query.get("location")):
         key = (row["product"], row["warehouse"], row.get("location") or "")
-        out[key] = out.get(key, contracts.d(0)) + contracts.d(row.get("qty") or 0)
+        sums = out.setdefault(key, {name: contracts.d(0) for name in ("carried", "period_in", "period_out", "init_all",
+                                                                        "init_in")})
+        for name in sums:
+            sums[name] += contracts.d(row.get(name) or 0)
     return out
 
 
-def _quantities(query, date_from) -> dict:
-    """每个键的期初 / 入 / 出 / 期末数量（口径同 `_project_position` 的数量部分）。
-
-    初始化行用「类型 = 期初 或 来源 = 期初」挑出来（等于判断，空值不会被误排除），本期非初始化 = 本期全部 − 本期初始化。
-    """
-    zero = contracts.d(0)
-    initialization = [["movement_type", "=", contracts.OPENING], ["ref_type", "=", "opening"]]
-    period = [["posting_date", ">=", date_from]]
-    carried = _quantity_sums(query, [["posting_date", "<", date_from]])
-    period_in = _quantity_sums(query, [*period, ["qty_base", ">", 0]])
-    period_out = _quantity_sums(query, [*period, ["qty_base", "<", 0]])
-    init_all = _quantity_sums(query, period, or_filters=initialization)
-    init_in = _quantity_sums(query, [*period, ["qty_base", ">", 0]], or_filters=initialization)
+def _quantities(sums) -> dict:
+    """每个键的期初 / 入 / 出 / 期末数量（口径同 `_project_position` 的数量部分）：
+    期初 = 起始日前的和 + 本期初始化；入 / 出 = 本期非初始化的正 / 负数量（本期全部 − 本期初始化）；期末 = 截止日前全部的和。"""
     out = {}
-    for key in {*carried, *period_in, *period_out}:
-        init_out = init_all.get(key, zero) - init_in.get(key, zero)
-        out[key] = {"opening_qty": float(carried.get(key, zero) + init_all.get(key, zero)),
-                    "in_qty": float(period_in.get(key, zero) - init_in.get(key, zero)),
-                    "out_qty": float(-(period_out.get(key, zero) - init_out)),
-                    "closing_qty": float(carried.get(key, zero) + period_in.get(key, zero) + period_out.get(key, zero))}
+    for key, value in sums.items():
+        init_out = value["init_all"] - value["init_in"]
+        out[key] = {"opening_qty": float(value["carried"] + value["init_all"]),
+                    "in_qty": float(value["period_in"] - value["init_in"]),
+                    "out_qty": float(-(value["period_out"] - init_out)),
+                    "closing_qty": float(value["carried"] + value["period_in"] + value["period_out"])}
     return out
 
 
@@ -275,14 +276,15 @@ def summary_page(*, date_from=None, date_to=None, product=None, warehouse=None, 
     query = {"product": product, "warehouse": warehouse, "location": location, "date_to": date_to,
              "conditions": conditions}
     visible = guard.cost_visible()
-    keys = _position_keys(**query)
+    sums = _position_sums(query, date_from)
+    keys = sorted(sums)
     sort_key = str(sort_by or "").strip()
     # 商品名只在按商品名排序或要整批算时取全部，其余只取这一页的
     names = _product_names({key[0] for key in keys}) if sort_key in SUMMARY_SORTS and sort_key not in (
         "warehouse_name", "location") else {}
     warehouse_names = _warehouse_names(key[1] for key in keys)
     if sort_key in SUMMARY_SORTS and sort_key not in KEY_SORTS:
-        quantities = _quantities(query, date_from)
+        quantities = _quantities(sums)
         ordered = listing.sort_rows([{"key": key, **quantities.get(key, {})} for key in keys],
                                     sort_key, sort_order, SUMMARY_SORTS)
         page = [row["key"] for row in ordered[start:start + limit]]
