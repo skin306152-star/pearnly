@@ -7,10 +7,14 @@ A confirmed document cannot be edited,確定済みの伝票は編集できませ
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
 A customer needs a name,顧客には名前が必要です
+A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
+A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
 A product needs a name,品目には名前が必要です
 A refund cannot be more than the original sale,返品は元の売上を超えられません
 A refund needs the original sale,返品には元の売上が必要です
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 A stock count needs a name,棚卸には名前が必要です
 A stock entry needs at least one line,入出庫伝票には少なくとも1行必要です
 A stored source file must carry its hash,保存したファイルにはハッシュが必要です
@@ -65,6 +69,7 @@ Amount Received,受取額
 Amounts,金額
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,匿名の買い手には税番号がなく、支店があるのは法人だけです
+Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
 Apply,適用
 Approval Status,承認状況
 Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
@@ -123,6 +128,8 @@ Buyer address,買い手住所
 Buyer branch,買い手支店
 Buyer tax ID,買い手税番号
 By Payment Method,支払方法別
+CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 CC Desktop needs an update,CC デスクトップの更新が必要です
 CC Desktop not connected,CC デスクトップが接続されていません
 Calculation Version,計算バージョン
@@ -167,6 +174,7 @@ Choose file,ファイルを選択
 Choose purchase or sales first,先に仕入か売上を選んでください
 Choose the company,会社を選んでください
 Choose the customer,顧客を選んでください
+Choose the inventory account group for this account set first.,先にこの帳簿の在庫勘定グループを選んでください。
 Choose the payment method,支払方法を選んでください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the supplier,仕入先を選んでください
@@ -400,6 +408,9 @@ Express Stock Item,Express 在庫品
 Express Sync Note,Express 同期の理由
 Express Sync State,Express 同期状態
 Express Synced At,Express 同期日時
+"Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
+"Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
+Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 External System Reference,外部システム参照
 Factor to Base Unit,基準単位への換算係数
 Failed,失敗
@@ -901,6 +912,8 @@ Service,サービス
 Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Setup Auto Email,自動メールを設定
+Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
+Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 Several matches found for {0}. Please select a record.,「{0}」に複数の候補があります。レコードを選択してください。
 Several matches found. Please select a record.,複数の候補があります。レコードを選択してください。
 Sheet,シート
@@ -1013,6 +1026,8 @@ That submission was already used for a different entry,この送信は別の明�
 That warehouse belongs to another company,この倉庫は別会社のものです
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
+The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
+The account set on this computer is not the registered one. Waiting for another computer.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
 The account you give customers for transfers,入金時に相手へ伝える口座
 The accounting period is closed in Express,会計期間は Express で締め済みです
 The amount is invalid,金額が無効です
@@ -1023,15 +1038,20 @@ The balance could not be checked right now. Please try again in a minute.,現在
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The cashier is not enabled for this company,この会社ではレジが有効になっていません
+The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
 The company has no 13-digit tax ID,会社に 13 桁の納税者番号がありません
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
+The customer is missing. Choose the customer and submit again.,顧客がありません。顧客を選択して再送信してください
 The discount exceeds the line amount,割引が行の金額を超えています
 The discount exceeds the total,割引が合計を超えています
+The document date is invalid. Correct it and submit again.,書類の日付が無効です。修正して再送信してください
 The file could not be saved. Please try again shortly.,ファイルを保存できませんでした。しばらくしてからもう一度お試しください
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
+The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
+The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
 The opening stock amount is too large,期首在庫金額が大きすぎます
 The opening stock file is too large,期首在庫ファイルが大きすぎます
 The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
@@ -1049,6 +1069,8 @@ The recognition service did not answer in time. Please try again.,読み取り�
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
+"The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
+The supplier is missing. Add it and submit again.,仕入先がありません。追加して再送信してください
 The total is invalid,合計が無効です
 The total is zero,合計がゼロです
 The value is not a number,数値ではありません
@@ -1072,6 +1094,7 @@ This channel is not open yet,このチャンネルはまだ開放していませ
 This code is already taken,このコードは既に使われています
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
+This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This device cannot scan,この端末ではスキャンできません
 This device has no camera to scan with,この端末にはスキャンに使えるカメラがありません
 This document cannot be recorded yet,この伝票はまだ記録できません
@@ -1080,11 +1103,13 @@ This document is already recorded: {0},この伝票は登録済みです: {0}
 This document is no longer available,この書類は利用できません
 This document is too large,この書類は大きすぎます
 This document is void,この伝票は無効です
+This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This document was already recorded,この書類は記録済みです
 "This document was issued by this company, not a purchase document",この書類は自社が発行したもので、仕入書類ではありません
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This file holds {0} documents; only the first is filled in. Upload the others separately.,このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
+This invoice has no lines. Add them and submit again.,この請求書には明細がありません。追加して再送信してください
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
@@ -1101,6 +1126,7 @@ This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit is not defined on the product,この単位はこの商品に定義されていません
@@ -1202,6 +1228,7 @@ Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
+Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written,書き込み済み
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
 Yes,はい
@@ -1369,6 +1396,64 @@ erp.line.status.bound,連携済み
 erp.line.status.unbound,未連携
 erp.line.unbind,LINE 連携を解除
 erp.line.unbindConfirm,Pearnly ERP LINE の連携を解除しますか？
+express.code.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+express.code.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
+express.code.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+express.code.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
+express.code.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+express.code.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
+express.code.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
+express.code.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
+express.code.CUSTOMER_BRANCH_AMBIGUOUS,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
+express.code.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
+express.code.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
+express.code.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
+express.code.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
+express.code.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+express.code.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
+express.code.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
+express.code.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
+express.code.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
+express.code.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
+express.code.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
+express.code.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
+express.code.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
+express.code.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+express.code.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+express.code.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
+express.code.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
+express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
+express.code.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
+express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+express.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
+express.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
+express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+express.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
+express.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+express.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
+express.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
+express.error.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
+express.error.CUSTOMER_BRANCH_AMBIGUOUS,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
+express.error.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
+express.error.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
+express.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
+express.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
+express.error.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
+express.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
+express.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
+express.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
+express.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
+express.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
+express.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
+express.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
+express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
+express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+express.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
+express.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
+express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
+express.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
+express.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.kind.account,費用勘定
 express.kind.stockGroup,在庫勘定グループ
 express.kind.vat,仮払消費税

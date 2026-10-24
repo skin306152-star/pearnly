@@ -7,10 +7,14 @@ A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
 A customer needs a name,A customer needs a name
+A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
+A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
 A product needs a name,A product needs a name
 A refund cannot be more than the original sale,A refund cannot be more than the original sale
 A refund needs the original sale,A refund needs the original sale
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 A stock count needs a name,A stock count needs a name
 A stock entry needs at least one line,A stock entry needs at least one line
 A stored source file must carry its hash,A stored source file must carry its hash
@@ -65,6 +69,7 @@ Amount Received,Amount Received
 Amounts,Amounts
 Anonymous,Anonymous
 Anonymous buyers get no tax id; only companies have branches,Anonymous buyers get no tax id; only companies have branches
+Another computer is writing to this account set. It is sent automatically once it is done,Another computer is writing to this account set. It is sent automatically once it is done
 Apply,Apply
 Approval Status,Approval Status
 Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
@@ -123,6 +128,8 @@ Buyer address,Buyer address
 Buyer branch,Buyer branch
 Buyer tax ID,Buyer tax ID
 By Payment Method,By Payment Method
+CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 CC Desktop needs an update,CC Desktop needs an update
 CC Desktop not connected,CC Desktop not connected
 Calculation Version,Calculation Version
@@ -167,6 +174,7 @@ Choose file,Choose file
 Choose purchase or sales first,Choose purchase or sales first
 Choose the company,Choose the company
 Choose the customer,Choose the customer
+Choose the inventory account group for this account set first.,Choose the inventory account group for this account set first.
 Choose the payment method,Choose the payment method
 Choose the sheet to import,Choose the sheet to import
 Choose the supplier,Choose the supplier
@@ -400,6 +408,9 @@ Express Stock Item,Express Stock Item
 Express Sync Note,Express Sync Note
 Express Sync State,Express Sync State
 Express Synced At,Express Synced At
+"Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
+"Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
+Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
 External System Reference,External System Reference
 Factor to Base Unit,Factor to Base Unit
 Failed,Failed
@@ -901,6 +912,8 @@ Service,Service
 Service or stock item?,Service or stock item?
 Set as current,Set as current
 Setup Auto Email,Setup Auto Email
+Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
+Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 Several matches found for {0}. Please select a record.,Several matches found for {0}. Please select a record.
 Several matches found. Please select a record.,Several matches found. Please select a record.
 Sheet,Sheet
@@ -1013,6 +1026,8 @@ That submission was already used for a different entry,That submission was alrea
 That warehouse belongs to another company,That warehouse belongs to another company
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
+The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
+The account set on this computer is not the registered one. Waiting for another computer.,The account set on this computer is not the registered one. Waiting for another computer.
 The account you give customers for transfers,The account you give customers for transfers
 The accounting period is closed in Express,The accounting period is closed in Express
 The amount is invalid,The amount is invalid
@@ -1023,15 +1038,20 @@ The balance could not be checked right now. Please try again in a minute.,The ba
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
 The cashier is not enabled for this company,The cashier is not enabled for this company
+The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
 The company has no 13-digit tax ID,The company has no 13-digit tax ID
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
+The customer is missing. Choose the customer and submit again.,The customer is missing. Choose the customer and submit again.
 The discount exceeds the line amount,The discount exceeds the line amount
 The discount exceeds the total,The discount exceeds the total
+The document date is invalid. Correct it and submit again.,The document date is invalid. Correct it and submit again.
 The file could not be saved. Please try again shortly.,The file could not be saved. Please try again shortly.
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
+The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
+The lines cannot be written to Express. Check them and submit again.,The lines cannot be written to Express. Check them and submit again.
 The opening stock amount is too large,The opening stock amount is too large
 The opening stock file is too large,The opening stock file is too large
 The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
@@ -1049,6 +1069,8 @@ The recognition service did not answer in time. Please try again.,The recognitio
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
+"The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
+The supplier is missing. Add it and submit again.,The supplier is missing. Add it and submit again.
 The total is invalid,The total is invalid
 The total is zero,The total is zero
 The value is not a number,The value is not a number
@@ -1072,6 +1094,7 @@ This channel is not open yet,This channel is not open yet
 This code is already taken,This code is already taken
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
+This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
 This device cannot scan,This device cannot scan
 This device has no camera to scan with,This device has no camera to scan with
 This document cannot be recorded yet,This document cannot be recorded yet
@@ -1080,11 +1103,13 @@ This document is already recorded: {0},This document is already recorded: {0}
 This document is no longer available,This document is no longer available
 This document is too large,This document is too large
 This document is void,This document is void
+This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
 This document was already recorded,This document was already recorded
 "This document was issued by this company, not a purchase document","This document was issued by this company, not a purchase document"
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This file holds {0} documents; only the first is filled in. Upload the others separately.,This file holds {0} documents; only the first is filled in. Upload the others separately.
+This invoice has no lines. Add them and submit again.,This invoice has no lines. Add them and submit again.
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:
@@ -1101,6 +1126,7 @@ This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
 This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
 This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product
@@ -1202,6 +1228,7 @@ Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written,Written
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
 Yes,Yes
@@ -1369,6 +1396,64 @@ erp.line.status.bound,Bound
 erp.line.status.unbound,Not bound
 erp.line.unbind,Unbind LINE
 erp.line.unbindConfirm,Unbind Pearnly ERP LINE?
+express.code.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
+express.code.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
+express.code.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
+express.code.ACCOUNT_SET_UNREACHABLE,The account set cannot be reached right now. It will be sent automatically once connected.
+express.code.ACCOUNT_WRITER_BUSY,Another computer is writing to this account set. It is sent automatically once it is done
+express.code.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
+express.code.BAD_SALES_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
+express.code.CDX_REINDEX_FAILED,"Express could not index the invoice, so it was undone. It is retried automatically"
+express.code.CUSTOMER_BRANCH_AMBIGUOUS,Several Express customers have this tax ID. Choose the customer and submit again
+express.code.CUSTOMER_DUP_SUSPECTED,"A similar customer already exists in Express. Choose it, or confirm this is a new customer"
+express.code.CUSTOMER_NOT_IN_ARMAS,This customer is not in Express and could not be created. Check the customer name and tax ID
+express.code.DBF_WRITE_FAILED,Writing to Express failed and was undone. It is retried automatically
+express.code.EMPTY_ITEMS,This invoice has no lines. Add them and submit again.
+express.code.ERR_ACCOUNT_UID_MISMATCH,The account set on this computer is not the registered one. Waiting for another computer.
+express.code.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
+express.code.INVALID_DOC_DATE,The document date is invalid. Correct it and submit again.
+express.code.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
+express.code.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
+express.code.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
+express.code.MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
+express.code.MISSING_REF_NO,The invoice number is missing. Add it and submit again.
+express.code.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
+express.code.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
+express.code.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+express.code.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
+express.code.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
+express.code.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
+express.code.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
+express.code.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+express.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
+express.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
+express.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
+express.error.ACCOUNT_SET_UNREACHABLE,The account set cannot be reached right now. It will be sent automatically once connected.
+express.error.ACCOUNT_WRITER_BUSY,Another computer is writing to this account set. It is sent automatically once it is done
+express.error.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
+express.error.BAD_SALES_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
+express.error.CDX_REINDEX_FAILED,"Express could not index the invoice, so it was undone. It is retried automatically"
+express.error.CUSTOMER_BRANCH_AMBIGUOUS,Several Express customers have this tax ID. Choose the customer and submit again
+express.error.CUSTOMER_DUP_SUSPECTED,"A similar customer already exists in Express. Choose it, or confirm this is a new customer"
+express.error.CUSTOMER_NOT_IN_ARMAS,This customer is not in Express and could not be created. Check the customer name and tax ID
+express.error.DBF_WRITE_FAILED,Writing to Express failed and was undone. It is retried automatically
+express.error.EMPTY_ITEMS,This invoice has no lines. Add them and submit again.
+express.error.ERR_ACCOUNT_UID_MISMATCH,The account set on this computer is not the registered one. Waiting for another computer.
+express.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
+express.error.INVALID_DOC_DATE,The document date is invalid. Correct it and submit again.
+express.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
+express.error.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
+express.error.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
+express.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
+express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit again.
+express.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
+express.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
+express.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+express.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
+express.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
+express.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
+express.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
+express.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 express.kind.account,Expense Account
 express.kind.stockGroup,Stock Account Group
 express.kind.vat,Input VAT

@@ -89,8 +89,10 @@
 		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
 		// CC 桌面版回报的「[错误码] 原文」：认得的码给译文（会计期间已关账等），其余原样
 		const code = (info.reason || "").match(/^\[([A-Z0-9_]+)\]/)?.[1];
+		// 其余电脑回报的码照 Cowork 同一套文案（`express.error.<码>`），没有译文的才原样
+		const coded = code && __(`express.error.${code}`) !== `express.error.${code}` ? `express.error.${code}` : "";
 		const reason = info.reason && !info.reason.startsWith("choice_needed")
-			? __(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || info.reason) : "";
+			? __(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || info.reason) : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",

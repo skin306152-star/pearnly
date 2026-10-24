@@ -170,12 +170,29 @@ class Prepare(Base):
         self.masters(key)
         needed, = P.party_needed(doc(party={"code": "", "name": "BANGCHAK PETROLEUM", "tax_id": SUPPLIER, "branch": "00000"}),
                                  COMPANY)
-        self.assertEqual((needed["kind"], needed["existing_only"]), ("party", True))
+        self.assertEqual(needed["kind"], "party")
+        self.assertNotIn("existing_only", needed)  # 现成档之外也能选新建（10-24 验收：真是新客户被误判时）
         self.assertEqual([option["code"] for option in needed["options"]], ["B004", "B005"])  # 同税号的现成档
         choices.remember(COMPANY["name"], "party", needed["subject"], "B005")
         payload = self.prepare(doc(party={"code": "", "name": "BANGCHAK PETROLEUM", "tax_id": SUPPLIER,
                                           "branch": "00000"}))["payload"]
-        self.assertEqual(payload["supplier"]["code"], "B005")  # 照选的写
+        # 照选的写，名称与税号用那条档登记的（10-24 验收：ISVAT 税号空、名称是手输的）
+        self.assertEqual((payload["supplier"]["code"], payload["supplier"]["name"], payload["supplier"]["tax_id"]),
+                         ("B005", "BANGCHAK (สาขา 2)", SUPPLIER))
+        choices.remember(COMPANY["name"], "party", needed["subject"], C.NEW)
+        payload = self.prepare(doc(party={"code": "", "name": "BANGCHAK PETROLEUM", "tax_id": SUPPLIER,
+                                          "branch": "00000"}))["payload"]
+        self.assertTrue(payload["supplier"]["confirmed_new"])  # 选新建：电脑不再按疑似重复拦
+
+    def test_a_chosen_existing_party_writes_its_registered_name_and_tax(self):
+        from pearnly_erp_portal.express import prepare as P
+        data = {"customers": [{"code": "CPMMMM338", "name": "สันติชัย ยี่สุ่น", "tax_id": "1769900186992", "branch": "00000"}]}
+        payload = {"direction": "sales", "customer": {"code": "CPMMMM338", "name": "สันติชัย ยี่สุ่น.", "tax_id": "",
+                                                      "customer_new": False}}
+        self.assertEqual(P.master_party(payload, data)["customer"], {"code": "CPMMMM338", "name": "สันติชัย ยี่สุ่น",
+                                                                     "tax_id": "1769900186992", "customer_new": False})
+        fresh = {"direction": "sales", "customer": {"code": "", "name": "ใหม่", "customer_new": True}}
+        self.assertEqual(P.master_party(fresh, data), fresh)  # 新建的不动
 
     def test_an_unfit_stock_group_is_chosen_once_and_written_with_the_choice(self):
         # 10-23 第 3 轮：电脑按账套里挂得最多的组建库存品被判据拦下 → 在 ERP 里从合格的组里选一次，再写时带上
@@ -285,6 +302,12 @@ class MasterSync(Base):
 
             def delete_value(self, name):
                 store.pop(name, None)
+
+            def get_value(self, name):
+                return store.get(name)
+
+            def set_value(self, name, value, expires_in_sec=None):
+                store[name] = value
 
         frappe.cache = Cache()
         self.cache = store
@@ -476,6 +499,7 @@ class MasterSync(Base):
             self.sync.advance()
             self.assertEqual([table[c]["express_sync_state"] for c in ("CO-1", "CO-2")], ["offline", "offline"])
             online["value"] = True
+            self.cache.pop("erp-express-offline-check", None)  # 隔了几分钟（缓存过期）
             self.sync.advance()
         self.assertEqual([table[c]["express_sync_state"] for c in ("CO-1", "CO-2")], ["reading", "reading"])
 

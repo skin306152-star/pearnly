@@ -7,10 +7,14 @@ A confirmed document cannot be edited,ไม่สามารถแก้ไข
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องเชื่อมโยงกับรายการที่สร้างจากฉบับร่างนั้น
 A customer needs a name,กรุณากรอกชื่อลูกค้า
+A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 A payment has to be approved before it counts as paid,การจ่ายเงินจะถือว่าชำระแล้วเมื่อได้รับการอนุมัติ
 A product needs a name,กรุณากรอกชื่อสินค้า
 A refund cannot be more than the original sale,ยอดคืนเงินต้องไม่เกินยอดของเอกสารขายต้นฉบับ
 A refund needs the original sale,การคืนเงินต้องระบุเอกสารขายต้นฉบับ
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer",มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 A stock count needs a name,กรุณากรอกชื่อเอกสารตรวจนับ
 A stock entry needs at least one line,เอกสารรับ-จ่ายสินค้าต้องมีรายการอย่างน้อย 1 รายการ
 A stored source file must carry its hash,ไฟล์ที่เก็บต้องมีค่าแฮช
@@ -65,6 +69,7 @@ Amount Received,รับชำระ
 Amounts,จำนวนเงิน
 Anonymous,ลูกค้าทั่วไป
 Anonymous buyers get no tax id; only companies have branches,ลูกค้าทั่วไปไม่มีเลขประจำตัวผู้เสียภาษี และมีเพียงบริษัทเท่านั้นที่มีสาขา
+Another computer is writing to this account set. It is sent automatically once it is done,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
 Apply,ใช้
 Approval Status,สถานะการอนุมัติ
 Are you sure you want to delete the attachment?,ต้องการลบไฟล์แนบนี้ใช่หรือไม่
@@ -123,6 +128,8 @@ Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
 By Payment Method,แยกตามวิธีรับเงิน
+CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 CC Desktop needs an update,CC เดสก์ท็อปต้องอัปเดต
 CC Desktop not connected,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 Calculation Version,เวอร์ชันการคำนวณ
@@ -167,6 +174,7 @@ Choose file,เลือกไฟล์
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
 Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
+Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 Choose the payment method,กรุณาเลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the supplier,กรุณาเลือกผู้จำหน่าย
@@ -400,6 +408,9 @@ Express Stock Item,สินค้าคงคลัง Express
 Express Sync Note,เหตุผลการซิงค์ Express
 Express Sync State,สถานะการซิงค์ Express
 Express Synced At,ซิงค์ Express เมื่อ
+"Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+"Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 External System Reference,รหัสอ้างอิงระบบภายนอก
 Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐาน
 Failed,ไม่สำเร็จ
@@ -901,6 +912,8 @@ Service,บริการ
 Service or stock item?,กรุณาเลือก บริการ หรือ สินค้าคงคลัง
 Set as current,ตั้งเป็นปัจจุบัน
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
+Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
+Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 Several matches found for {0}. Please select a record.,พบหลายรายการที่ตรงกับ「{0}」 กรุณาเลือกรายการ
 Several matches found. Please select a record.,พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ
 Sheet,ไฟล์
@@ -1013,6 +1026,8 @@ That submission was already used for a different entry,การส่งนี�
 That warehouse belongs to another company,คลังสินค้านี้เป็นของบริษัทอื่น
 The LINE account that sent the document,บัญชี LINE ที่ส่งเอกสารนี้
 The Revenue Department replied in an unreadable format,ไม่สามารถอ่านรูปแบบข้อมูลที่ได้รับจากกรมสรรพากรได้
+The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
+The account set on this computer is not the registered one. Waiting for another computer.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The accounting period is closed in Express,งวดบัญชีนี้ปิดแล้วใน Express
 The amount is invalid,จำนวนเงินไม่ถูกต้อง
@@ -1023,15 +1038,20 @@ The balance could not be checked right now. Please try again in a minute.,ไม
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)
 The cashier is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)
+The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 The company has no 13-digit tax ID,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
+The customer is missing. Choose the customer and submit again.,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 The discount exceeds the line amount,ส่วนลดเกินยอดของบรรทัด
 The discount exceeds the total,ส่วนลดเกินยอดรวม
+The document date is invalid. Correct it and submit again.,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 The file could not be saved. Please try again shortly.,บันทึกไฟล์ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
+The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
 The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
 The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามีขนาดใหญ่เกินไป ไม่สามารถรักษาความละเอียดทศนิยมได้
@@ -1049,6 +1069,8 @@ The recognition service did not answer in time. Please try again.,ระบบ�
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแปลงแล้ว กรุณาตรวจสอบผลต่างอีกครั้ง
+"The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
+The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 The total is invalid,ยอดรวมไม่ถูกต้อง
 The total is zero,ยอดรวมเป็นศูนย์
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
@@ -1072,6 +1094,7 @@ This channel is not open yet,ช่องทางนี้ยังไม่เ
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
+This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 This device cannot scan,อุปกรณ์นี้สแกนไม่ได้
 This device has no camera to scan with,อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้
 This document cannot be recorded yet,ยังไม่สามารถลงบัญชีเอกสารนี้ได้
@@ -1080,11 +1103,13 @@ This document is already recorded: {0},เอกสารนี้บันท�
 This document is no longer available,เอกสารนี้ไม่สามารถใช้งานได้แล้ว
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This document is void,เอกสารนี้ถูกยกเลิกแล้ว
+This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This document was already recorded,เอกสารนี้บันทึกแล้ว
 "This document was issued by this company, not a purchase document",เอกสารนี้ออกโดยบริษัทนี้ ไม่ใช่เอกสารซื้อ
 This draft was already confirmed or discarded,แบบร่างนี้ถูกยืนยันหรือยกเลิกแล้ว
 This entry changed underneath you; reload and try again,เอกสารนี้ถูกแก้ไขแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
+This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
@@ -1101,6 +1126,7 @@ This stock count is already posted,เอกสารตรวจนับนี
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This stock position already has stock movements; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
 This terminal already has an open shift,จุดขายนี้มีกะที่ยังเปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,จุดขายนี้ยังไม่ได้กำหนดคลังสินค้า กรุณาเลือกคลังสินค้าในการตั้งค่าจุดขาย
 This unit is not defined on the product,ไม่ได้กำหนดหน่วยนี้ไว้ในสินค้านี้
@@ -1202,6 +1228,7 @@ Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
+Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written,บันทึกแล้ว
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
 Yes,ใช่
@@ -1369,6 +1396,64 @@ erp.line.status.bound,ผูกบัญชีแล้ว
 erp.line.status.unbound,ยังไม่ได้ผูกบัญชี
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
+express.code.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+express.code.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
+express.code.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+express.code.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
+express.code.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
+express.code.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.code.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.code.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+express.code.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
+express.code.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
+express.code.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
+express.code.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+express.code.EMPTY_ITEMS,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
+express.code.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
+express.code.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+express.code.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.code.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.code.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.code.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.code.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+express.code.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+express.code.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
+express.code.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+express.code.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+express.code.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
+express.code.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
+express.code.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
+express.code.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
+express.code.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
+express.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
+express.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
+express.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+express.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
+express.error.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
+express.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+express.error.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
+express.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
+express.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
+express.error.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+express.error.EMPTY_ITEMS,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
+express.error.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
+express.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+express.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.error.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+express.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+express.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
+express.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+express.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+express.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
+express.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
+express.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
+express.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
+express.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
 express.kind.account,บัญชีค่าใช้จ่าย
 express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
 express.kind.vat,ภาษีซื้อ

@@ -7,10 +7,14 @@ A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须关联其生成的采购记录
 A confirmed draft must point at the record it created,已确认的草稿必须关联其生成的记录
 A customer needs a name,请填写客户名称
+A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
+A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
 A payment has to be approved before it counts as paid,付款经审批后方视为已付
 A product needs a name,请填写物料名称
 A refund cannot be more than the original sale,退款不能超过原始销售单
 A refund needs the original sale,退款必须指定原始销售单
+"A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express 中已存在相似客户，请选择该客户或确认为新客户
+"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 A stock count needs a name,请填写盘点单名称
 A stock entry needs at least one line,出入库单至少需要一行明细
 A stored source file must carry its hash,存档文件必须包含文件指纹
@@ -65,6 +69,7 @@ Amount Received,实收金额
 Amounts,金额
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,散客无税号；仅公司设有分支机构
+Another computer is writing to this account set. It is sent automatically once it is done,另一台电脑正在写入此账套，完成后将自动推送
 Apply,应用
 Approval Status,审批状态
 Are you sure you want to delete the attachment?,确定要删除该附件吗？
@@ -123,6 +128,8 @@ Buyer address,买方地址
 Buyer branch,买方分支机构
 Buyer tax ID,买方税号
 By Payment Method,按收款方式
+CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 CC Desktop needs an update,CC 桌面版需更新
 CC Desktop not connected,CC 桌面版未连接
 Calculation Version,计算版本
@@ -167,6 +174,7 @@ Choose file,选择文件
 Choose purchase or sales first,请先选择采购或销售
 Choose the company,选择公司
 Choose the customer,请选择客户
+Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
 Choose the payment method,请选择付款方式
 Choose the sheet to import,请先选择要导入的表格
 Choose the supplier,请选择供应商
@@ -400,6 +408,9 @@ Express Stock Item,Express 库存品
 Express Sync Note,Express 同步原因
 Express Sync State,Express 同步状态
 Express Synced At,Express 同步时间
+"Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，将自动重试
+"Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
+Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
 External System Reference,外部系统引用
 Factor to Base Unit,换算到库存单位的系数
 Failed,失败
@@ -901,6 +912,8 @@ Service,服务
 Service or stock item?,请选择服务或库存商品
 Set as current,设为当前
 Setup Auto Email,设置自动邮件
+Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
+Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 Several matches found for {0}. Please select a record.,「{0}」找到多个匹配结果，请选择一条记录。
 Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
 Sheet,表格文件
@@ -1013,6 +1026,8 @@ That submission was already used for a different entry,该提交已用于其他�
 That warehouse belongs to another company,该仓库属于其他公司
 The LINE account that sent the document,发送此文件的 LINE 账号
 The Revenue Department replied in an unreadable format,税务局返回的数据格式无法解析
+The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
+The account set on this computer is not the registered one. Waiting for another computer.,此电脑上的账套与登记的不一致，等待其他电脑
 The account you give customers for transfers,收款时给对方看的账号
 The accounting period is closed in Express,会计期间已在 Express 关账
 The amount is invalid,金额无效
@@ -1023,15 +1038,20 @@ The balance could not be checked right now. Please try again in a minute.,暂时
 The cart is empty,购物车为空
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
 The cashier is not enabled for this company,该公司未启用收银
+The chosen account set belongs to another company. Check the account set,所选账套属于其他公司，请核对账套
 The company has no 13-digit tax ID,公司没有 13 位税号
 The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
+The customer is missing. Choose the customer and submit again.,缺少客户，请选择客户后重新提交
 The discount exceeds the line amount,折扣超过该行金额
 The discount exceeds the total,折扣超过合计
+The document date is invalid. Correct it and submit again.,单据日期无效，请修改后重新提交
 The file could not be saved. Please try again shortly.,文件保存失败，请稍后重试
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
+The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
+The lines cannot be written to Express. Check them and submit again.,明细无法写入 Express，请核对后重新提交
 The opening stock amount is too large,期初库存金额过大
 The opening stock file is too large,期初库存文件过大
 The opening stock value is too large to preserve its decimal precision,期初数值过大，无法保持所需小数精度
@@ -1049,6 +1069,8 @@ The recognition service did not answer in time. Please try again.,识别服务�
 The row has no product code or barcode,该行缺少物料编码或条码
 The sheet needs a product name column,表格中必须包含物料名称列
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
+"The stock lines could not be posted. Check the items, quantities and prices",无法记录库存明细，请核对品名、数量和单价
+The supplier is missing. Add it and submit again.,缺少供应商，请补充后重新提交
 The total is invalid,合计无效
 The total is zero,合计为零
 The value is not a number,该值不是数字
@@ -1072,6 +1094,7 @@ This channel is not open yet,该通道尚未开放
 This code is already taken,该条码已被占用
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
 This counter sells for this company; stock leaves its warehouse,此收银台以该公司名义开单，并从该公司仓库出库
+This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
 This device cannot scan,这台设备不能扫码
 This device has no camera to scan with,当前设备没有可用的摄像头
 This document cannot be recorded yet,该单据暂无法入账
@@ -1080,11 +1103,13 @@ This document is already recorded: {0},该单据已录入：{0}
 This document is no longer available,该单据已不可用
 This document is too large,文件过大
 This document is void,该单据已作废
+This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This document was already recorded,这张单据已经入账
 "This document was issued by this company, not a purchase document",该文件由本公司开出，不是采购单据
 This draft was already confirmed or discarded,该草稿已确认或已作废
 This entry changed underneath you; reload and try again,该单据已被修改，请刷新后重试
 This file holds {0} documents; only the first is filled in. Upload the others separately.,该文件包含 {0} 张单据，仅填入第一张，其余请分别上传。
+This invoice has no lines. Add them and submit again.,此发票没有明细，请补充后重新提交
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
 This is not a purchase or sales document,该文件不是采购或销售单据
 This item is also stocked at:,该物料还存放于：
@@ -1101,6 +1126,7 @@ This stock count is already posted,该盘点单已过账
 This stock count is closed,该盘点已结束
 This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
 This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
+This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 This terminal already has an open shift,该收银台已有未交班的班次
 This terminal has no warehouse; set one in the terminal settings,该收银台未设置仓库，请在收银台设置中选择仓库
 This unit is not defined on the product,该单位未在此物料中定义
@@ -1202,6 +1228,7 @@ Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
+Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written,已写入
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
 Yes,是
@@ -1369,6 +1396,64 @@ erp.line.status.bound,已绑定
 erp.line.status.unbound,未绑定
 erp.line.unbind,解绑 LINE
 erp.line.unbindConfirm,确定要解绑 Pearnly ERP LINE 吗？
+express.code.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
+express.code.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
+express.code.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+express.code.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
+express.code.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
+express.code.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+express.code.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+express.code.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
+express.code.CUSTOMER_BRANCH_AMBIGUOUS,Express 中有多个客户使用此税号，请选择客户后重新提交
+express.code.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选择该客户或确认为新客户
+express.code.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
+express.code.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重试
+express.code.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
+express.code.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
+express.code.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
+express.code.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
+express.code.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
+express.code.INVALID_QUANTITY,明细数量无效，请修改后重新提交
+express.code.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+express.code.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
+express.code.MISSING_REF_NO,缺少发票号，请补充后重新提交
+express.code.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
+express.code.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
+express.code.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+express.code.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
+express.code.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
+express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
+express.code.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
+express.code.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+express.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
+express.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
+express.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+express.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
+express.error.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
+express.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+express.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+express.error.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
+express.error.CUSTOMER_BRANCH_AMBIGUOUS,Express 中有多个客户使用此税号，请选择客户后重新提交
+express.error.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选择该客户或确认为新客户
+express.error.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
+express.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重试
+express.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
+express.error.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
+express.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
+express.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
+express.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
+express.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
+express.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+express.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
+express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
+express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
+express.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
+express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+express.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
+express.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
+express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
+express.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
+express.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 express.kind.account,费用科目
 express.kind.stockGroup,存货科目组
 express.kind.vat,进项税

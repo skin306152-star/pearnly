@@ -53,6 +53,8 @@ COMMIT_EVERY = 500  # 落库每改这么多条提交一次（任务中途出错�
 POLL_EVERY = 8
 EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{company, state, note}
 NOTIFY_KEY = "erp-express-sync-notify:"  # 缓存：哪几个人在等这家公司的同步结果
+OFFLINE_CHECK_KEY = "erp-express-offline-check"
+OFFLINE_CHECK_EVERY = 240  # 秒
 # 记在公司上的同步状态（公司页显示）
 QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
 OFFLINE, OUTDATED = "offline", "outdated"
@@ -100,7 +102,11 @@ def advance():
                                             "is_active": 1},
                           fields=["name", "tax_id", "branch", "express_sync_state"],
                           order_by="express_synced_at asc, name asc", limit_page_length=0)
-    recheck = now_datetime().minute % 5 == 0  # 「未连接 / 要更新」的每 5 分钟看一次电脑回来没有（整夜关机时几十家）
+    # 「未连接 / 要更新」的隔几分钟看一次电脑回来没有（整夜关机时几十家）。按上次看的时间算：定时任务在后台进程忙时会推迟，
+    # 按「分钟数是 5 的倍数」常常错过（10-24 验收：电脑回来 9 分钟还显示未连接）
+    recheck = not frappe.cache.get_value(OFFLINE_CHECK_KEY)
+    if recheck:
+        frappe.cache.set_value(OFFLINE_CHECK_KEY, 1, expires_in_sec=OFFLINE_CHECK_EVERY)
     for row in rows:
         if row.express_sync_state == SYNCING and not _landing(row.name):
             _record(row.name, {"state": QUEUED})

@@ -105,9 +105,25 @@ def party_needed(doc, company_row):
     options = [{"code": row["code"], "name": row.get("name") or "", "branch": choice_rules.branch5(row.get("branch"))}
                for row in (same or rows)[:2000]]
     subject = choice_rules.party_subject(doc["direction"], party["tax_id"], party["branch"], party["name"])
-    # existing_only：只在现成的档里选（再建一个新档电脑会照样以疑似重复拦下）
-    return [{"kind": "party", "subject": subject, "label": party["name"], "options": options, "current": "",
-             "existing_only": True}]
+    # 现成的档之外也给「新建」：选了新建，写账规则带 confirmed_new，电脑不再按疑似重复拦（10-24 验收：真是新客户被误判时
+    # 只能挑错档）
+    return [{"kind": "party", "subject": subject, "label": party["name"], "options": options, "current": ""}]
+
+
+def master_party(payload, data):
+    """挂现成的 Express 对方档（给了编码、不新建）时，名称与税号用那条档登记的：税票报表（ISVAT）照它写（10-24 验收：选了
+    现成档后 ISVAT 的税号为空、名称是手输的）。读不到那条档就照原样。"""
+    side = "customer" if payload.get("direction") == "sales" else "supplier"
+    block = payload.get(side)
+    if not isinstance(block, dict) or not block.get("code") or block.get(f"{side}_new"):
+        return payload
+    rows = facts.reported(data).get(f"reported_{side}s") or []
+    row = next((item for item in rows if str(item.get("code") or "") == str(block["code"])), None)
+    if row is None:
+        return payload
+    tax = choice_rules.digits(row.get("tax_id"))
+    return {**payload, side: {**block, "name": row.get("name") or block.get("name"),
+                              **({"tax_id": tax} if len(tax) == 13 else {})}}
 
 
 def prepare(doc, company_row, ensure_masters):
@@ -146,7 +162,7 @@ def prepare(doc, company_row, ensure_masters):
     if prepared.disposition == "ready":
         # 单据日期所在的会计期在 Express 里已关账（上一年度账套常全年锁）：CC 桌面版不写、回 PERIOD_LOCKED，单据上显示原因
         # （用户 10-23）。Cowork 的推送不带这个标记，照旧。
-        return {"payload": {**prepared.payload, "respect_period_lock": True}, "book": book}
+        return {"payload": {**master_party(prepared.payload, data), "respect_period_lock": True}, "book": book}
     if prepared.reason == stock_acc_group.REASON_ACC_GROUP_REQUIRED:
         return {"hold": contracts.CHOICE + ":" + choices.STOCK_GROUP, "needed": _needed_group(config, book),
                 "book": book}
