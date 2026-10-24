@@ -200,3 +200,27 @@ NEGALLOW=N 库存不足停在「需要人工」；金样本先最大化用 S 盘
   用户打开 ERP 对话页登记只回「已登记」、不发新令牌（生产这台电脑 10-23 已有令牌）→ 永远卡在 401、不会自己恢复。同类：实验栈与生产共用域名和设备密钥；生产库从备份恢复后。
 - 要求（按类通用自愈）：对话页登记能换新（服务端在设备已有令牌、但 CC 报自己 401 时重新发令牌），或 CC 把这个成员标成需要换新、下次打开对话页自动换；Cowork 成员查同类问题；
   补回归用例「本地旧密钥 + 服务端已有令牌」。临时绕过：用户手动移除成员再重新登记。
+
+九.2 修法（代码已核，第一期做）：
+- 现状：CC 桌面版已有「这把密钥服务端不再用」的成员标记 `device_state`（`CC/config.py` 有它就不干活；对话页 `needsKey` 看到它就带 `rekey` 重新登记，服务端 `cc_desktop.devices.register`
+  收到 `rekey` 会重新发令牌）。但只有 Cowork 通道在「认电脑」回 `superseded / claimed_elsewhere` 时才打这个标记（`CC/device_link.py`）；**401（`KeyRejected`）故意不打**，
+  ERP 的 `pcc_` 成员根本不走「认电脑」。所以两种成员拿着服务端不认的旧密钥时都只会一直 401，对话页登记回 `exists`、不换新。
+- 改法（按类通用）：成员心跳 / 取任务连续收到 401（例如两轮、间隔 ≥ 1 分钟，避开偶发）→ CC 给这个成员打 `device_state = "rejected"`、停下这个成员的心跳与写账；对话页 `needsKey` 已认任何非空
+  `device_state` → 打开对话页时自动带 `rekey` 登记 → 服务端发新令牌 → 配对换上新密钥、标记清掉。Cowork 成员同样适用。服务端不用改（`rekey` 已只许登记人 / 管理员）。
+- 回归用例：CC 侧「本地旧密钥 + 服务端已有令牌」：连续 401 后成员带 `rejected`、不再干活；对话页侧 `needsKey` 为真时 `exists` 后再带 `rekey`；服务端 `rekey` 发新令牌、旧令牌即失效。
+
+### 九.3 第一期改动落点（代码已核，开工时以此为单）
+
+| 项 | 现状（文件） | 第一期改成 |
+|---|---|---|
+| 对齐目标 | `P/express/masters._pending` 只算 `ERP Sales Document` 与 `purchase` 两种 ref 的未写入单 | 所有库存流水来源都算：`stock_entry`（入库 / 出库 / 盘点 AD 单，`P/inventory/documents.py`）、`sale` / `refund`（收银台，`P/cashier/sales.py`）、作废的反向流水；每种单都有自己的 `express_state`，写进 Express 前一律算「未写入」 |
+| 对齐写到哪 | `masters._stock` 的 `apply_movement` 不带库位 → 记到空库位 | 记到这件货在这个仓的原库位（`positions` 的默认库位），不另起一行空库位 |
+| 对齐前核对 | 直接按 STLOC 抹 | 先核每件货 STLOC 合计 = STMAS 结存，不等的不抹 ERP 数、进差异清单（公司页 Express 区显示，只列不拦） |
+| 库存行的仓库码 | `P/express/contracts.document`：`loccod … if code`（只有建单时已挂 Express 编码的商品才带） | 库存行一律带仓库码；预检时才选定的现成物料、随单新建的物料也带 |
+| CC 维护 STLOC | `CC/stock_location.py`：一个 loccod 都没带的载荷不碰 STLOC；新建物料不建 STLOC 行 | 不论带没带仓库码都按实际写入的仓维护 STLOC（没带就是 MAINLOC），新建物料补 STLOC 行；**改的是 Cowork 也走的共用写账路径**：62 套离线回归（STLOC = BEGBAL + Σ期、STMAS = Σ STLOC、其它表逐字节）+ Cowork 全部推送类型回归 + 共用件连带回归闸门清单 |
+| 新增写入 | 只写 RR / HP / IV / HS | 收银台日汇总 HS、收银台退货 SR / CN、手工出入库 OU / JU、盘点 JU（单据簿按用途每套账问一次记住）；作废按样本定的原生做法 |
+| NEGALLOW=N | CC 不拦 | 写出库前按 Express 结存核，不够停在「需要人工」（新回报码，文案按规矩登记） |
+| 401 自愈 | 见九.2 | 见九.2 |
+| 存量差异 | — | 不改 Express 存量；62 套离线统计各账套 STLOC ≠ STMAS 的件数与金额写进本文；要修另出方案 |
+
+开工前置：共用件连带回归闸门（`pearnly/regression-safety-net`）合入；S 盘只读金样本（九.4，待白天 accserver 在线）补齐作废 / 退货 / 领用 / 调整的原生字段。
