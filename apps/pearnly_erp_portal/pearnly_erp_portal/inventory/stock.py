@@ -310,7 +310,8 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
         filters["location"] = positions.clean_location(location)
     # 原生筛选里「等于」以外的条件（页面 inventory.js 的仓库、仓位；数量走 qty_op）
     filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
-    filters += list_filters.conditions(conditions, {"warehouse": "warehouse", "location": "location"})
+    filters += list_filters.conditions(conditions, {
+        "warehouse": {"column": "warehouse", "link": ("ERP Warehouse", "warehouse_name")}, "location": "location"})
     rows = frappe.get_list(BALANCE, filters=filters,
                            fields=["name", "product", "warehouse", "location", "qty_on_hand", "unit_cost",
                                    "value", "cost_known"],

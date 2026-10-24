@@ -44,7 +44,8 @@ def query(params=None):
         filters.append(["Purchase Line", "category", "in", params["category"]])
     # 原生筛选里「等于 / 介于」以外的条件（页面 purchase.js 的 filter_fields）
     filters.extend(list_filters.conditions(params.get("conditions"), {
-        "doc_kind": "doc_kind", "payment_status": "payment_status", "supplier": "supplier", "status": "status",
+        "doc_kind": "doc_kind", "payment_status": "payment_status", "status": "status",
+        "supplier": {"column": "supplier", "link": ("ERP Supplier", "supplier_name")},
         "doc_date": datefield}))
     text = str(params.get("q") or "").strip()
     or_filters = [[field, "like", "%" + text + "%"] for field in

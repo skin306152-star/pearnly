@@ -246,6 +246,7 @@
 					search: filters.search.get_value() || undefined,
 					is_active: picked.is_active === undefined || picked.is_active === ""
 						? undefined : picked.is_active,
+					conditions: p.filter_conditions(list),
 				};
 			};
 

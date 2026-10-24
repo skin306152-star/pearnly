@@ -55,7 +55,9 @@ def _filters(*, product=None, warehouse=None, location=None, date_to=None, produ
     if date_to:
         filters["posting_date"] = ["<=", date_to]
     # 原生筛选里「等于」以外的条件（页面 stock-card.js 的仓库、商品）：同一列可能有两条，改成列表形式
-    extra = list_filters.conditions(conditions, {"warehouse": "warehouse", "product": "product"})
+    extra = list_filters.conditions(conditions, {
+        "warehouse": {"column": "warehouse", "link": ("ERP Warehouse", "warehouse_name")},
+        "product": {"column": "product", "link": ("ERP Product", "product_name")}})
     if extra:
         return [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] + extra
     return filters
