@@ -345,6 +345,19 @@ def _handle_dbf_task(
     return outcome  # waiting_lock 等 → 调用方据此设托盘状态(占用≠失败)
 
 
+def erp_scan_roots(cfg, authorized: list) -> list:
+    """心跳要扫的数据根：Cowork 成员扫全部授权的；ERP 成员只扫所选位置（``erp_roots``）下面的——反正只报这些（erp_scope）。
+    数据根是整台电脑一份（_adopt_machine_roots），ERP 成员也授权了局域网服务器上的年度，不筛的话同一台电脑会多扫一遍
+    没选的根（夜里还会去问关着的服务器）。授权本身不变：推送与按需读取照旧按全部授权的核对。"""
+    from . import channel
+    from .express_machine import under
+
+    if getattr(cfg, "channel", channel.COWORK) != channel.CORE:
+        return authorized
+    places = [root for root in (getattr(cfg, "erp_roots", None) or ()) if root]
+    return [root for root in authorized if any(under(str(root or ""), place) for place in places)]
+
+
 def erp_scope(cfg, rows: list) -> list:
     """ERP 成员（共用通道）只报归这个 ERP 的账套（1.12.0）：只报所选数据根（``erp_roots``）里的账套，选了哪些报哪些（用户 10-24：
     「只报 CC 里勾选的数据根」）。不再按同税号把别的年度文件夹带进来——白天局域网服务器上线后会把没选的 S 盘真账也报上去、
@@ -605,7 +618,7 @@ def _run_periodic(
                 cfg.account_dir or "",
                 now,
                 bool(refresh_request_id and refresh_scope == "endpoint"),
-                authorized,
+                erp_scan_roots(cfg, authorized),
                 # 配对时检测到的年度文件夹全部授权（网页第一步再选）：新建的年度文件夹也照样找进来，
                 # 只授权过一个年度的也一样（2026-10-08：原来只在授权多个、且有人点「重新读取」时才找）。
                 discover=True,

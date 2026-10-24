@@ -260,3 +260,12 @@ def test_a_year_folder_already_kept_by_one_member_only_is_added_to_the_others(tm
     again = ProfileStore.load(store.path, protector=_Protector())
     assert list(again.runtime_config(erp_id).authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
     assert list(again.runtime_config(cowork_id).authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
+
+
+def test_an_erp_member_scans_only_the_roots_under_its_ticked_places():
+    # 数据根整台电脑一份后 ERP 成员也授权了局域网服务器上的年度；心跳只扫勾选位置下面的（反正只报这些），不多扫一遍
+    authorized = [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\72EXP", r"\\Accserver\d$\ACCOUNT\ExpressI\63EXP"]
+    erp = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress",))
+    assert worker.erp_scan_roots(erp, authorized) == authorized[:2]
+    assert worker.erp_scan_roots(types.SimpleNamespace(channel=channel.CORE, erp_roots=()), authorized) == []
+    assert worker.erp_scan_roots(types.SimpleNamespace(channel=channel.COWORK), authorized) == authorized
