@@ -384,6 +384,7 @@
           try {
             const config = await (await fetch(API + 'api_line_stocktake_config')).json();
             csrf = (config.message || {}).csrf_token || '';
+            window.csrf_token = csrf;  // 报错回传（desk/errors.js）用同一个令牌
             const liff_id = (config.message || {}).liff_id || '';
             liffId = liff_id;
             let id_token = '';

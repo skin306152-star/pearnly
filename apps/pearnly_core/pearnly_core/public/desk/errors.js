@@ -7,22 +7,45 @@
 (() => {
 	const sent = new Set();
 	let budget = 10;
-	const send = (payload) => {
-		const key = [payload.message, payload.source, payload.line].join("|");
-		if (!budget || sent.has(key)) return;
-		sent.add(key);
-		budget -= 1;
+	const token = () => (window.frappe && window.frappe.csrf_token) || window.csrf_token || "";
+	// 被 CSRF 拒掉的（登录会话、页面还没拿到令牌：LINE 盘点页、LIFF 票据页的令牌是页面自己问接口要的）先留着，
+	// 页面拿到令牌后补发一次（每秒看一次，最多看 60 秒）。访客不校验 CSRF，第一次就收。
+	const waiting = [];
+	let watching = null;
+	const post = (body, retry) => {
 		try {
 			fetch("/api/method/pearnly_core.desk.client_errors.report", {
 				method: "POST",
 				credentials: "same-origin",
 				keepalive: true,
-				headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": (window.frappe && window.frappe.csrf_token) || window.csrf_token || "" },
-				body: JSON.stringify({ ...payload, route: location.pathname }),
+				headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": token() },
+				body,
+			}).then((response) => {
+				if (retry && (response.status === 400 || response.status === 403) && !token()) wait(body);
 			}).catch(() => {});
 		} catch (e) {
 			// 回传本身失败不影响页面
 		}
+	};
+	const wait = (body) => {
+		waiting.push(body);
+		if (watching) return;
+		let left = 60;
+		watching = setInterval(() => {
+			left -= 1;
+			if (!token() && left > 0) return;
+			clearInterval(watching);
+			watching = null;
+			if (token()) waiting.splice(0).forEach((item) => post(item, false));
+			else waiting.length = 0;
+		}, 1000);
+	};
+	const send = (payload) => {
+		const key = [payload.message, payload.source, payload.line].join("|");
+		if (!budget || sent.has(key)) return;
+		sent.add(key);
+		budget -= 1;
+		post(JSON.stringify({ ...payload, route: location.pathname }), true);
 	};
 	window.pearnlyReportError = (error, kind) => {
 		if (!(error instanceof Error)) return;

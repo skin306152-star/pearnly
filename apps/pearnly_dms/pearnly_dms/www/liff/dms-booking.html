@@ -225,6 +225,7 @@
           var config = await get("browser_config", {});
           CONFIG.liffId = (config && config.liff_id) || "";
           CONFIG.csrf = (config && config.csrf_token) || "";
+          window.csrf_token = CONFIG.csrf;
           var sent = false;
           if (CONFIG.liffId && window.liff) {
             try {
@@ -262,6 +263,7 @@
           var config = await get("browser_config", {});
           CONFIG.liffId = (config && config.liff_id) || "";
           CONFIG.csrf = (config && config.csrf_token) || "";
+          window.csrf_token = CONFIG.csrf;
           var payload = { draft: draft, editor: editor };
           if (CONFIG.liffId && window.liff) {
             // LINE 内：验一次身份（`liff.init` 只在这个 endpoint 路径下可用 —— 所以身份

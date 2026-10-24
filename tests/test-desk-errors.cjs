@@ -33,4 +33,21 @@ spaWindow.pearnlyReportError(new Error('render failed'), 'react');
 assert.equal(spaPosts.length, 1);
 assert.equal(spaPosts[0].options.headers['X-Frappe-CSRF-Token'], 'spa');
 assert.deepEqual([spaPosts[0].body.kind, spaPosts[0].body.message, spaPosts[0].body.route], ['react', 'render failed', '/pearnly-app/dms/editor']);
-console.log('desk errors: ok');
+// 登录会话、页面还没拿到令牌：服务端 CSRF 拒绝（400）→ 留着，页面拿到令牌后补发一次
+const retryPosts = [], timers = [], retryWindow = { addEventListener() {} };
+vm.runInNewContext(source, { window: retryWindow, Error, location: { pathname: '/stocktake' },
+  setInterval: fn => { timers.push(fn); return timers.length; }, clearInterval: () => { timers.length = 0; },
+  fetch: (url, options) => { retryPosts.push(options.headers['X-Frappe-CSRF-Token']);
+    return Promise.resolve({ status: options.headers['X-Frappe-CSRF-Token'] ? 200 : 400 }); } });
+retryWindow.pearnlyReportError(new Error('scan failed'), 'error');
+setImmediate(() => {
+  assert.deepEqual(retryPosts, ['']);
+  assert.equal(timers.length, 1);
+  timers[0]();
+  assert.deepEqual(retryPosts, [''], 'no token yet: keep waiting');
+  retryWindow.csrf_token = 'page-token';
+  timers[0]();
+  assert.deepEqual(retryPosts, ['', 'page-token']);
+  assert.equal(timers.length, 0);
+  console.log('desk errors: ok');
+});
