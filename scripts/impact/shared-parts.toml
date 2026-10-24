@@ -10,11 +10,20 @@
 
 [[part]]
 id = "desk-shell"
-name = "产品外壳与页面注册（product.js、页面报错回传）"
-paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css", "apps/pearnly_core/pearnly_core/public/desk/errors.js", "apps/pearnly_core/pearnly_core/desk/client_errors.py"]
+name = "产品外壳与页面注册（product.js）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css"]
 markers = ["pearnly.register("]
 search = ["apps/**/*.js", "apps/**/*.html"]
 entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu"]
+
+[[part]]
+id = "page-errors"
+name = "页面报错回传（Desk 页面与 LINE 单页、CC 对话页）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/errors.js", "apps/pearnly_core/pearnly_core/desk/client_errors.py"]
+markers = ["desk/errors.js", "pearnlyReportError"]
+search = ["apps/**/*.html", "apps/**/hooks.py", "frontend/**/*.ts", "frontend/**/*.tsx"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.line.stocktake", "dms.liff.id-scan", "shared.page-errors"]
+not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js 第一个），Desk 页面入口见本共用件 entries" }
 
 [[part]]
 id = "desk-scan-core"
@@ -1881,3 +1890,12 @@ steps = "首页账本"
 expect = "同上"
 check = "manual"
 files = ["frontend/src/pages/HomePage.vue"]
+
+[[entry]]
+id = "shared.page-errors"
+product = "共用"
+where = "页面报错回传（LINE 票据页、手机盘点页、CC 对话页）"
+steps = "在页面控制台执行 setTimeout(() => { throw new Error('smoke') })，CC 对话页再让一个组件抛错（错误边界接住）"
+expect = "本站 Error Log 出「Browser error: smoke」，同一条只记一次；LINE 里未登录打开的票据页也记"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/www/assistant.html", "frontend/src/main.ts", "frontend/assistant/src/components/error-boundary.tsx", "apps/pearnly_core/pearnly_core/www/pearnly-app.html", "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]

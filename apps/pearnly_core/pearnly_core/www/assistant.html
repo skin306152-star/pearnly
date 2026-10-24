@@ -2,7 +2,7 @@
      把 script / link 逐个 createElement 搬过来（innerHTML 塞的 script 不执行，见 pearnly-app.html 的说明）。
      图标与 manifest 的地址也带内容指纹（vite.config.ts 的 ccIcons），同样从产物搬，不在这里写死。
 
-     ⚠️ 本文件过 Jinja 渲染：正文（含注释）不能出现双层花括号，除了下面两处真要渲染的变量。
+     ⚠️ 本文件过 Jinja 渲染：正文（含注释）不能出现双层花括号，除了下面两处真要渲染的变量和报错回传脚本的地址（versioned_asset）。
      注释一律用 Jinja 注释，渲染时去掉，不发给浏览器（2026-10-12 用户在「查看源代码」里看到中文注释）。 #}
 <!doctype html>
 <html lang="{{ lang }}">
@@ -16,6 +16,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>CC</title>
+    <script src="{{ versioned_asset('pearnly_core', 'desk/errors.js') }}"></script>
     {# 启动画面：页面代码下载、运行之前就显示（主屏幕 app、安卓、桌面端启动时不再是一片空白）；
          React 第一次渲染会替换掉 #root 里的内容，它自然消失。猫与 frontend/assistant/src/brand/cc.svg 一致（tests/test_assistant.py 比对）。
          颜色同 globals.css 的 --cc-bg-app（设计系统表面 1：浅色 #fcfcfb、深色 #151515，电脑与手机同一个）。 #}

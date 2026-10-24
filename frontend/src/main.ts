@@ -13,6 +13,11 @@ import "./styles/tailwind.css";
 import "./styles/app.css";
 
 const app = createApp(App).use(router);
+// Vue 接住的组件报错不会再抛到 window：照常写控制台，并交给站点页面挂的报错回传（public/desk/errors.js）记进 Error Log。
+app.config.errorHandler = (error, _instance, info) => {
+  console.error(error, info);
+  (window as Window & { pearnlyReportError?: (error: unknown, kind: string) => void }).pearnlyReportError?.(error, "vue");
+};
 // 等**首个路由解析完**再挂载：`App.vue` 在 onMounted 里按路由判断"这是不是独立页"，
 // 首路由还没解析时 `route.meta` 是空的，独立页会去调一次 `shell.describe`（403）。
 // 那一声 403 不影响渲染，但会让人以为"没登录也能开这一页"是坏的。

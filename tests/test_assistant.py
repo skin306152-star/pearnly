@@ -2321,7 +2321,9 @@ class PageTests(unittest.TestCase):
     def test_jinja_page_only_renders_its_two_variables(self):
         html = (CORE / "www/assistant.html").read_text(encoding="utf-8")
         self.assertEqual(sorted(re.findall(r"\{\{\s*(\w+)\s*\}\}", html)), ["csrf_token", "lang"])
-        self.assertEqual(html.count("{{"), 2)
+        # 第三处是报错回传脚本的带指纹地址（hooks.jinja 的 versioned_asset，2026-10-25）
+        self.assertEqual(html.count("{{"), 3)
+        self.assertIn("{{ versioned_asset('pearnly_core', 'desk/errors.js') }}", html)
         self.assertNotIn("{%", html)
         # 注释用 Jinja 的 {# #}，渲染时去掉；HTML 注释会原样发给浏览器（查看源代码就能看到）
         self.assertNotIn("<!--", html)

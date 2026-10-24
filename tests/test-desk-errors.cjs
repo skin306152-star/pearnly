@@ -24,4 +24,13 @@ assert.deepEqual([posts[0].body.kind, posts[0].body.line, posts[0].body.route], 
 assert.equal(posts[1].body.kind, 'rejection');
 for (let n = 0; n < 20; n++) listeners.error({ message: `boom ${n}`, filename: 'a.js', lineno: n });
 assert.equal(posts.length, 10);
+// 前端单页：Vue / React 接住的报错经 window.pearnlyReportError 交过来；CSRF 取单页自己放的 window.csrf_token
+const spaPosts = [], spaWindow = { addEventListener() {}, csrf_token: 'spa' };
+vm.runInNewContext(source, { window: spaWindow, Error, location: { pathname: '/pearnly-app/dms/editor' },
+  fetch: (url, options) => { spaPosts.push({ options, body: JSON.parse(options.body) }); return Promise.resolve(); } });
+spaWindow.pearnlyReportError('not an error', 'vue');
+spaWindow.pearnlyReportError(new Error('render failed'), 'react');
+assert.equal(spaPosts.length, 1);
+assert.equal(spaPosts[0].options.headers['X-Frappe-CSRF-Token'], 'spa');
+assert.deepEqual([spaPosts[0].body.kind, spaPosts[0].body.message, spaPosts[0].body.route], ['react', 'render failed', '/pearnly-app/dms/editor']);
 console.log('desk errors: ok');

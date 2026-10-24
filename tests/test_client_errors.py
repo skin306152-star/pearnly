@@ -1,4 +1,4 @@
-"""页面 JS 报错回传（pearnly_core.desk.client_errors）：去个人信息、同一条一小时只记一次、按人 / 按站限频、未登录不收。"""
+"""页面 JS 报错回传（pearnly_core.desk.client_errors）：去个人信息、同一条一小时只记一次、按人 / 按站限频；访客只收 LINE 单页、按 IP 限频。"""
 import importlib
 import json
 import pathlib
@@ -28,6 +28,7 @@ def fake_frappe():
     frappe.logged = []
     frappe.log_error = lambda title, message: frappe.logged.append((title, json.loads(message)))
     frappe.whitelist = lambda **kw: (lambda fn: fn)
+    frappe.local = types.SimpleNamespace(request_ip="203.0.113.7")
     return frappe
 
 
@@ -59,12 +60,41 @@ class ClientErrors(unittest.TestCase):
             self.module.report(message=f"boom {n}", source="/assets/x.js", line=n + 2, route="/desk/pearnly-home")
         self.assertEqual(len(self.frappe.logged), self.module.PER_USER)
 
-    def test_guests_and_empty_reports_are_ignored(self):
+    def test_empty_reports_and_guests_outside_the_line_pages_are_ignored(self):
         self.assertEqual(self.module.report(message="", stack=""), {"ok": False})
         self.frappe.session.user = "Guest"
-        self.assertEqual(self.module.report(message="boom"), {"ok": False})
+        self.assertEqual(self.module.report(message="boom", route="/desk/pearnly-home"), {"ok": False})
+        self.assertEqual(self.module.report(message="boom", route="/assistant"), {"ok": False})
         self.assertEqual(self.frappe.logged, [])
 
+    def test_guests_on_the_line_pages_are_capped_per_address_and_together(self):
+        self.frappe.session.user = "Guest"
+        for n in range(15):
+            self.module.report(message=f"boom {n}", source="/assets/a.js", line=n, route="/pearnly-app/dms/editor")
+        self.assertEqual(len(self.frappe.logged), self.module.PER_GUEST_IP)
+        self.module.report(message="other", route="/liff/dms-booking")
+        self.assertEqual(len(self.frappe.logged), self.module.PER_GUEST_IP)
+        for n in range(200):
+            self.frappe.local.request_ip = f"198.51.100.{n}"
+            self.module.report(message=f"ip {n}", source="/assets/a.js", line=n, route="/stocktake")
+        self.assertEqual(len(self.frappe.logged), self.module.PER_GUEST_SITE)
+        self.frappe.session.user = "staff@x"
+        self.module.report(message="staff still counted", route="/desk/pearnly-home")
+        self.assertEqual(len(self.frappe.logged), self.module.PER_GUEST_SITE + 1)
+        self.frappe.local.request_ip = ""
+        self.frappe.session.user = "Guest"
+        self.assertEqual(self.module.report(message="no address", route="/stocktake")["ok"], False)
+
+    def test_the_line_pages_and_the_cc_page_load_the_reporter(self):
+        for page in ("apps/pearnly_core/pearnly_core/www/pearnly-app.html", "apps/pearnly_core/pearnly_core/www/assistant.html",
+                     "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html",
+                     "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"):
+            html = (ROOT / page).read_text()
+            tag = "versioned_asset('pearnly_core', 'desk/errors.js')"
+            self.assertIn(tag, html, page)
+            self.assertLess(html.index(tag), html.index("<script", html.index("<head")) + 200, page)
+        self.assertIn("pearnlyReportError", (ROOT / "frontend/src/main.ts").read_text())
+        self.assertIn("pearnlyReportError", (ROOT / "frontend/assistant/src/components/error-boundary.tsx").read_text())
 
 if __name__ == "__main__":
     unittest.main()
