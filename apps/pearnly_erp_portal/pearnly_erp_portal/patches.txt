@@ -26,3 +26,5 @@ pearnly_erp_portal.patches.v1_10_menu_permissions
 pearnly_erp_portal.patches.v1_11_default_company
 # 商品编码改成在「公司 + 编码」上唯一：补已有商品的 code_key（2026-10-24）
 pearnly_erp_portal.patches.v1_12_product_code_key
+# 已开通站点补「任务管理」功能码（看板，2026-10-23）。
+pearnly_erp_portal.patches.v1_12_tasks_feature

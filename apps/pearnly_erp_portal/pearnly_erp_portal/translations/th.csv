@@ -1,12 +1,22 @@
 1 = January,1 = มกราคม
+1 day before,ก่อน 1 วัน
+1 hour before,ก่อน 1 ชั่วโมง
 1-12; Thai companies commonly start in January,1–12 โดยทั่วไปบริษัทในประเทศไทยเริ่มต้นเดือนมกราคม
+10 minutes before,ก่อน 10 นาที
 13 digits; a branch adds its 5-digit branch number,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
+15 minutes before,ก่อน 15 นาที
+2 days before,ก่อน 2 วัน
+2 hours before,ก่อน 2 ชั่วโมง
+5 minutes before,ก่อน 5 นาที
+A board needs at least one admin,บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน
+A board needs at least one list,บอร์ดต้องมีรายการอย่างน้อยหนึ่งรายการ
 A company needs a name,กรุณากรอกชื่อบริษัท
 A company needs at least one warehouse,บริษัทต้องมีคลังสินค้าอย่างน้อย 1 แห่ง
 A confirmed document cannot be edited,ไม่สามารถแก้ไขเอกสารที่ยืนยันแล้วได้
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องเชื่อมโยงกับรายการที่สร้างจากฉบับร่างนั้น
 A customer needs a name,กรุณากรอกชื่อลูกค้า
+A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 A payment has to be approved before it counts as paid,การจ่ายเงินจะถือว่าชำระแล้วเมื่อได้รับการอนุมัติ
@@ -30,18 +40,28 @@ Account Set,ชุดบัญชี
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
+Add,เพิ่ม
 Add Column,เพิ่มคอลัมน์
 Add Discount,เพิ่มส่วนลด
 Add Employee,เพิ่มพนักงาน
 Add Order Discount,เพิ่มส่วนลดท้ายบิล
 Add User,เพิ่มผู้ใช้
 Add VAT,คำนวณ VAT
+Add a card,เพิ่มการ์ด
+Add a checklist,เพิ่มรายการตรวจสอบ
 Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
+Add a field,เพิ่มช่อง
+Add a link,เพิ่มลิงก์
+Add an item,เพิ่มรายการ
+Add another list,เพิ่มรายการอื่น
+Add label,เพิ่มป้ายกำกับ
+Add member,เพิ่มสมาชิก
 Add opening item,เพิ่มรายการ
 Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
 Add terminal,เพิ่มเครื่องขาย
+Add watcher,เพิ่มผู้ติดตาม
 Added {0},เพิ่ม {0} แล้ว
 Added: {0},เพิ่มแล้ว: {0}
 Additional,เพิ่มเติม
@@ -50,10 +70,12 @@ Additional Information,ข้อมูลเพิ่มเติม
 Additional Information updated successfully.,อัปเดตข้อมูลเพิ่มเติมแล้ว
 Address,ที่อยู่
 Address and notes,ที่อยู่และหมายเหตุ
+Admins only,เฉพาะผู้ดูแล
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,สินค้าทั้งหมด
 All companies,ทุกบริษัท
+All labels,ป้ายกำกับทั้งหมด
 All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
@@ -70,19 +92,32 @@ Amounts,จำนวนเงิน
 Anonymous,ลูกค้าทั่วไป
 Anonymous buyers get no tax id; only companies have branches,ลูกค้าทั่วไปไม่มีเลขประจำตัวผู้เสียภาษี และมีเพียงบริษัทเท่านั้นที่มีสาขา
 Another computer is writing to this account set. It is sent automatically once it is done,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
+Any due date,วันครบกำหนดทั้งหมด
 Apply,ใช้
 Approval Status,สถานะการอนุมัติ
+Archive,เก็บถาวร
+Archive all cards in this list,เก็บถาวรการ์ดทั้งหมดในรายการนี้
+Archive board,เก็บถาวรบอร์ด
+Archive this list,เก็บถาวรรายการนี้
+Archived at,เวลาที่เก็บถาวร
+Archived boards,บอร์ดที่เก็บถาวร
+Archived items,รายการที่เก็บถาวร
+Archived lists,รายการที่เก็บถาวร
 Are you sure you want to delete the attachment?,ต้องการลบไฟล์แนบนี้ใช่หรือไม่
 Are you sure you want to delete?,ต้องการลบใช่หรือไม่
 Area,พื้นที่
 As Of,ณ วันที่
+Assign to,มอบหมายให้
+Assigned to me,มอบหมายให้ฉัน
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป
+At time of due date,เมื่อถึงกำหนด
 Attach,แนบ
 Attachment,ไฟล์แนบ
 Attachment Type,ประเภทไฟล์แนบ
 Attachments,ไฟล์แนบ
 Auto Fetch Serial Numbers,ดึงหมายเลขเครื่องอัตโนมัติ
+Automation,ระบบอัตโนมัติ
 Available Qty,จำนวนที่ใช้ได้
 Average Unit Cost,ต้นทุนต่อหน่วยเฉลี่ย
 Average cost,ต้นทุนเฉลี่ย
@@ -104,6 +139,13 @@ Batch No,หมายเลขล็อต
 Bind this account first,กรุณาผูกบัญชี ERP ก่อนใช้งาน
 Binding code,รหัสผูกบัญชี
 Block Duplicate Documents,ป้องกันเอกสารซ้ำ
+Blue,น้ำเงิน
+Board,บอร์ด
+Board admin,ผู้ดูแลบอร์ด
+Board archived,เก็บถาวรบอร์ดแล้ว
+Board members,สมาชิกบอร์ด
+Board name,ชื่อบอร์ด
+Board settings,ตั้งค่าบอร์ด
 Book,บัญชี
 Book position,คลัง / ตำแหน่งตามบัญชี
 Book quantity,จำนวนตามบัญชี
@@ -133,6 +175,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop needs an update,CC เดสก์ท็อปต้องอัปเดต
 CC Desktop not connected,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 Calculation Version,เวอร์ชันการคำนวณ
+Calendar,ปฏิทิน
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
 Camera permission was refused; allow it and try again,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
 Cancel,ยกเลิก
@@ -144,6 +187,11 @@ Cancelled On,วันที่ยกเลิก
 Cancelled {0},ยกเลิก {0} รายการแล้ว
 Cannot reach the Revenue Department right now,ไม่สามารถเชื่อมต่อกรมสรรพากรได้ในขณะนี้
 Card,บัตร
+Card archived,เก็บถาวรแล้ว
+Card deleted,ลบแล้ว
+Card name (alphabetically),ชื่อการ์ด (ตามตัวอักษร)
+Card restored,กู้คืนแล้ว
+Card templates,เทมเพลตการ์ด
 Cart,ตะกร้า
 Cash,เงินสด
 Cash Amount,เงินสด
@@ -158,9 +206,15 @@ Category Name,ชื่อหมวดหมู่
 Change,เงินทอน
 Change Amount,เงินทอน
 Change Total,เงินทอนรวม
+Change cards on the work board,กรุณาแก้ไขการ์ดบนบอร์ดงาน
+Change cover,เปลี่ยนปก
+Change list color,เปลี่ยนสีรายการ
+Change members,เปลี่ยนสมาชิก
 Chart,แผนภูมิ
 Chart by,แผนภูมิแบ่งตาม
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
+Checkbox,ช่องทำเครื่องหมาย
+Checklist,รายการตรวจสอบ
 Checkout,ชำระเงิน
 Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / คำสั่งซื้อใหม่
 Cheque,เช็ค
@@ -169,6 +223,7 @@ Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
 Choose a local opening stock file,กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง
 Choose an existing product for opening stock,กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา
+Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
 Choose file,เลือกไฟล์
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
@@ -203,20 +258,26 @@ Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
 Code or barcode,รหัสหรือบาร์โค้ด
 Codes start at {0},รหัสเริ่มที่ {0}
+Collapse list,ย่อรายการ
 Collected {0},รับชำระแล้ว {0}
 Collection,การรับเงิน
 Collection Date,วันที่รับเงิน
 Collection Method,วิธีรับเงิน
 Collection Remarks,หมายเหตุการรับเงิน
 Collection Status,สถานะการรับเงิน
+Color,สี
 Colour Tag,ป้ายสี
 Columns,คอลัมน์
 Comes from the terminal; set it there if it is empty,มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน
+Comment,ความคิดเห็น
+Comments,ความคิดเห็น
+Comments and activity,ความคิดเห็นและกิจกรรม
 Companies,บริษัท
 Company,บริษัท
 Company details,ข้อมูลบริษัท
 Company name,ชื่อบริษัท
 Company not found,ไม่พบบริษัทนี้
+Complete,เสร็จ
 Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
@@ -231,6 +292,10 @@ Contact email,อีเมลติดต่อ
 Contact person,ผู้ติดต่อ
 Continuous counting,ตรวจนับต่อเนื่อง
 Conversion Factor,ตัวคูณแปลงหน่วย
+Copy card,คัดลอกการ์ด
+Copy link,คัดลอกลิงก์
+Copy list,คัดลอกรายการ
+Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 "Correct the marked rows, then preview again",กรุณาแก้ไขแถวที่มีข้อผิดพลาดแล้วตรวจสอบอีกครั้ง
 Cost,ต้นทุน
@@ -254,9 +319,15 @@ Counted by,ผู้ตรวจนับ
 Counted in total,รวมในยอดรวมแล้ว
 Counted quantity,จำนวนที่นับได้
 Counter 1,จุดขาย 1
+Cover,ปก
 Create,สร้าง
 Create New Item,สร้างสินค้าใหม่
 Create POS Opening Entry,สร้างรายการเปิดกะ
+Create a new label,สร้างป้ายกำกับใหม่
+Create a rule,สร้างกฎ
+Create board,สร้างบอร์ด
+Create card,สร้างการ์ด
+Create from template,สร้างจากเทมเพลต
 Created,สร้างเมื่อ
 Created when a sales draft is confirmed,สร้างเมื่อยืนยันฉบับร่างการขาย
 Created when the draft is confirmed,สร้างเมื่อยืนยันฉบับร่าง
@@ -268,6 +339,8 @@ Credit Note,ใบลดหนี้
 Currency,สกุลเงิน
 Current,ปัจจุบัน
 Custom,กำหนดเอง
+Custom fields,ช่องที่กำหนดเอง
+Custom fields saved,บันทึกช่องที่กำหนดเองแล้ว
 Customer,ลูกค้า
 Customer Name,ชื่อลูกค้า
 Customer Type,ประเภทลูกค้า
@@ -277,9 +350,15 @@ Customer is required,กรุณาระบุลูกค้า
 Customer not found,ไม่พบลูกค้า
 Customer not found. Please select the customer again.,ไม่พบลูกค้า กรุณาเลือกใหม่
 Customers,ลูกค้า
+Cyan,ฟ้า
+Daily,ทุกวัน
 Damaged / written off,ตัดชำรุด / เสียหาย
 Date,วันที่
 Date (BE),วันที่ พ.ศ.
+Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
+Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
+Dates,วันที่
+Days later,วันหลังจากนั้น
 Decided At,เวลาดำเนินการ
 Dedupe Key,คีย์กันซ้ำ
 Default,ค่าเริ่มต้น
@@ -293,6 +372,8 @@ Default WHT Rate for Services (%),อัตราภาษีหัก ณ ท�
 Default withholding for service documents,ภาษีหัก ณ ที่จ่ายเริ่มต้นสำหรับเอกสารงานบริการ
 Delete,ลบ
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
+Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted {0},ลบแล้ว {0}
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
@@ -320,6 +401,7 @@ Discount cannot be greater than 100%,ส่วนลดต้องไม่เ�
 Discount cannot be greater than 100%.,ส่วนลดต้องไม่เกิน 100%
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
 Discount percentage,เปอร์เซ็นต์ส่วนลด
+Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
 Document,เอกสาร
 Document No,เลขเอกสาร
 Document Number,เลขที่เอกสาร
@@ -336,11 +418,20 @@ Document summary · open details to review and post,สรุปเอกสา�
 Document total,ยอดรวมทั้งสิ้น
 Document type,ประเภทเอกสาร
 Documents,จำนวนเอกสาร
+Done list (cards moved here are complete),รายการเสร็จสิ้น (การ์ดที่ย้ายมาจะถือว่าเสร็จ)
 Download opening template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
 Download template,ดาวน์โหลดแบบฟอร์ม
 Draft,ฉบับร่าง
 Draft not found,ไม่พบรายการร่าง
+Dropdown,ดรอปดาวน์
+Due,ครบกำหนด
 Due Date,วันที่ครบกำหนด
+Due date,วันครบกำหนด
+Due later,ครบกำหนดภายหลัง
+Due this week,ครบกำหนดภายใน 7 วัน
+Due time,เวลาครบกำหนด
+Due today,ครบกำหนดวันนี้
+Due today or tomorrow,ครบกำหนดวันนี้หรือพรุ่งนี้
 ERP,ERP
 ERP Stock Count Variance,แดชบอร์ดผลต่างการตรวจนับ
 ERP menu,เมนู ERP
@@ -349,7 +440,10 @@ Each terminal sells from the warehouse named on it (use one of the warehouse nam
 Edit,แก้ไข
 Edit Cart,กลับไปที่ตะกร้า
 Edit Receipt,แก้ไขใบเสร็จ
+Edit card,แก้ไขการ์ด
+Edit dates,แก้ไขวันที่
 Edit in Full Page,แก้ไขในหน้าเต็ม
+Edit labels,แก้ไขป้ายกำกับ
 Editing {0} is not allowed as per POS Profile settings,ไม่อนุญาตให้แก้ไข {0} ตามการตั้งค่าจุดขาย
 Email,อีเมล
 Email Receipt,ส่งใบเสร็จทางอีเมล
@@ -361,6 +455,11 @@ Enable POS cashier,เปิดใช้เครื่องขาย POS
 Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
+Enter a board name,กรุณากรอกชื่อบอร์ด
+Enter a comment,กรุณากรอกความคิดเห็น
+Enter a field name,กรุณากรอกชื่อช่อง
+Enter a link that starts with http:// or https://,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
+Enter a number of days from 0 to 365,กรุณากรอกจำนวนวันระหว่าง 0 ถึง 365
 Enter a quantity,กรุณากรอกจำนวน
 Enter a tax ID first,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
@@ -369,6 +468,7 @@ Enter customer's email,กรอกอีเมลลูกค้า
 Enter customer's phone number,กรอกเบอร์โทรลูกค้า
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
 Enter discount percentage.,กรอกเปอร์เซ็นต์ส่วนลด
+Enter list name,กรอกชื่อรายการ
 Enter manually,กรอกเอง
 Enter opening stock,บันทึกสต็อกยกมา
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
@@ -391,6 +491,7 @@ Expense Amount,ยอดค่าใช้จ่าย
 Expense Count,จำนวนรายการค่าใช้จ่าย
 Expiry Date,วันหมดอายุ
 Export,ส่งออก
+Export Excel,ส่งออก Excel
 Export {0},ส่งออก {0} กะ
 Exported {0} shifts,ส่งออก {0} กะแล้ว
 Express,Express
@@ -416,6 +517,7 @@ Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐ
 Failed,ไม่สำเร็จ
 Fetched At,เวลาที่ดึงข้อมูล
 Fetched only {0} available serial numbers.,ดึงหมายเลขเครื่องที่ใช้ได้เพียง {0} รายการ
+Field name,ชื่อช่อง
 File,ไฟล์
 File Fingerprint,ค่าแฮชของไฟล์
 File Name,ชื่อไฟล์
@@ -452,9 +554,12 @@ Generated,สร้างแล้ว
 Generated automatically,สร้างอัตโนมัติ
 Goods,สินค้า
 Grand Total,ยอดรวมทั้งสิ้น
+Gray,เทา
+Green,เขียว
 Gross,ยอดขายรวม
 Head Office,สำนักงานใหญ่
 Hide Recent Orders,ซ่อนคำสั่งซื้อล่าสุด
+Hide details,ซ่อนรายละเอียด
 ID,รหัส
 Idempotency anchor for a whole request; a repeat submit is ignored,การส่งซ้ำจะถูกละเว้น
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,การส่งซ้ำจะได้รับใบเสร็จเดิม และจะไม่เรียกเก็บเงินซ้ำ
@@ -476,12 +581,19 @@ Inactive,ปิดใช้งาน
 Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
 Input VAT,ภาษีซื้อ
+Insert,แทรก
 Internal use,เบิกใช้ภายใน
 Invalid Currency,สกุลเงินไม่ถูกต้อง
 Invalid Discount,ส่วนลดไม่ถูกต้อง
 Invalid Return,การคืนสินค้าไม่ถูกต้อง
+Invalid checklist,รายการตรวจสอบไม่ถูกต้อง
+Invalid color,สีไม่ถูกต้อง
+Invalid date,วันที่ไม่ถูกต้อง
+Invalid field value,ค่าของช่องไม่ถูกต้อง
 Invalid file,ไฟล์ไม่ถูกต้อง
 Invalid payment amount,ยอดชำระเงินไม่ถูกต้อง
+Invalid request,คำขอไม่ถูกต้อง
+Invalid status,สถานะไม่ถูกต้อง
 Invalid value,ค่าไม่ถูกต้อง
 Invalid value: {0},ค่าไม่ถูกต้อง: {0}
 Invoice,ใบแจ้งหนี้
@@ -511,6 +623,7 @@ Items found at a different place,สินค้าที่พบคนละ�
 Items not found.,ไม่พบสินค้า
 "Items with a difference, largest first",สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
 Job Roles,สิทธิ์การใช้งาน
+Keep,คงไว้
 "Keep product IDs, codes and barcodes as text in the opening stock file",รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ
 LINE,LINE
 LINE Message,ข้อความ LINE
@@ -518,6 +631,9 @@ LINE User,ผู้ใช้ LINE
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
 LINE name,ชื่อ LINE
 LINE unbound,ยกเลิกการผูกบัญชี LINE แล้ว
+Label,ป้ายกำกับ
+Labels,ป้ายกำกับ
+Labels saved,บันทึกป้ายกำกับแล้ว
 Last Login,เข้าสู่ระบบล่าสุด
 Last Month,เดือนที่แล้ว
 Last Movement,ความเคลื่อนไหวล่าสุด
@@ -527,6 +643,7 @@ Last page,หน้าสุดท้าย
 Last transacted,ทำรายการล่าสุด
 Leave all unchecked to allow every company,หากไม่เลือก จะเห็นได้ทุกบริษัท
 Leave blank to use the default terminal,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
+Leave board,ออกจากบอร์ด
 "Legacy used head office / branch, with the branch number when it is a branch",ระบบเดิมใช้ สำนักงานใหญ่ / สาขา และระบุเลขสาขาเมื่อเป็นสาขา
 Light,ไฟแฟลช
 Line Amount,จำนวนเงินรายบรรทัด
@@ -536,7 +653,11 @@ Line Total,ยอดรวมบรรทัด
 Line prices include VAT,ราคาต่อรายการรวมภาษีมูลค่าเพิ่มแล้ว
 Lines,รายการ
 Lines in this shift,ใบเสร็จในกะนี้
+List,รายการ
 List Price,ราคาตั้ง
+List actions,การดำเนินการของรายการ
+List archived,เก็บถาวรรายการแล้ว
+List name,ชื่อรายการ
 Loading...,กำลังโหลด…
 Location,ที่ตั้ง
 "Lookup failed, please fill in manually",ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง
@@ -548,21 +669,35 @@ Loyalty Points,คะแนนสะสม
 Loyalty Program,โปรแกรมสะสมคะแนน
 Main,คลังหลัก
 Maintained in Express,จัดการใน Express
+Make template,ตั้งเป็นเทมเพลต
 Manual,ด้วยตนเอง
 Manual Entry,กรอกข้อมูลเอง
 Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
+Mark all as read,ทำเครื่องหมายว่าอ่านแล้วทั้งหมด
+Mark complete,ทำเครื่องหมายว่าเสร็จ
+Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
 Media Type,ประเภทไฟล์
+Member,สมาชิก
+Members,สมาชิก
+Members and observers,สมาชิกและผู้สังเกตการณ์
 Merge Items,รวมรายการ
 Method,วิธีชำระเงิน
+Mirror,มิเรอร์
 Mismatch,ไม่ตรงกัน
 Missing Values Required,ยังไม่ได้กรอกข้อมูลที่จำเป็น
 Mode of Payment,วิธีการชำระเงิน
 Modes of Payment,วิธีชำระเงิน
+Monthly,ทุกเดือน
 More Filters,ตัวกรองเพิ่มเติม
+Move,ย้าย
+Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
+Move list,ย้ายรายการ
+My cards,การ์ดของฉัน
 Name,ชื่อ
 Net,ยอดสุทธิ
 Net Total,ยอดรวมสุทธิ
 Net total - discount + VAT must equal the total,ยอดไม่ตรงกัน: ยอดก่อนภาษี − ส่วนลด + ภาษีมูลค่าเพิ่ม ต้องเท่ากับยอดรวม
+Never,ไม่ซ้ำ
 New,สร้างใหม่
 New Category,สร้างหมวดหมู่
 New Customer,เพิ่มลูกค้า
@@ -584,19 +719,24 @@ No,ลำดับ
 No Express account set covers this date,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
+No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
 No computer can write this account set,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
+No due date,ไม่มีวันครบกำหนด
 No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
 No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
 No items in cart,ยังไม่มีสินค้าในตะกร้า
 No items were read,ไม่พบรายการในเอกสาร
 No match for “{0}”,ไม่พบ “{0}”
+No members,ไม่มีสมาชิก
+No notifications,ไม่มีการแจ้งเตือน
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No product matches this code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No recent transactions found,ไม่พบธุรกรรมล่าสุด
 No stock count in progress,ไม่มีการตรวจนับที่กำลังดำเนินการ
+No templates yet,ยังไม่มีเทมเพลต
 No terminal yet,ยังไม่มีเครื่องขาย
 No warehouse is available for this company,บริษัทนี้ไม่มีคลังสินค้าที่ใช้งานได้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
@@ -615,8 +755,11 @@ Not permitted,ไม่ได้รับอนุญาต
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing counted yet,ยังไม่มีการนับ
+Notifications,การแจ้งเตือน
 Now sending {0} documents,กำลังส่งเอกสาร{0}
+Number,ตัวเลข
 OCR,อ่านเอกสาร (OCR)
+Observer,ผู้สังเกตการณ์
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งต้นทุน มูลค่าและต้นทุนต่อหน่วยจะเว้นว่างไว้
 On Hand,คงเหลือ
 Only Draft documents can be deleted,ลบได้เฉพาะเอกสารฉบับร่าง
@@ -626,6 +769,7 @@ Only a submitted document can be cancelled,ยกเลิกได้เฉพ�
 Only a submitted document can be voided,ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว
 Only an active count can be deleted,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 Only an image or a PDF can be recognised,รองรับการอ่านเฉพาะรูปภาพหรือ PDF
+Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้
 Only low or out of stock,เฉพาะใกล้หมดหรือหมด
 Only purchase documents can be sent in for now,ขณะนี้รับเฉพาะเอกสารจัดซื้อเท่านั้น
 Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
@@ -635,6 +779,7 @@ Open Form View,เปิดมุมมองฟอร์ม
 Open Shift,เปิดกะ
 Open a shift before selling,กรุณาเปิดกะก่อน
 Open a shift on the cashier page first.,กรุณาเปิดกะที่หน้าจุดขายก่อน
+Open card,เปิดการ์ด
 Open that product,เปิดสินค้ารายการนี้
 "Open this page from LINE, or sign in to the site first",กรุณาเปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน
 Opened At,เวลาเปิดกะ
@@ -661,6 +806,8 @@ Opening stock review,ตรวจสอบสต็อกยกมา
 Opening stock review is not configured,ไม่พบการตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแลระบบ
 Opening unit cost,ต้นทุนต่อหน่วยยกมา
 Opening value,มูลค่ายกมา
+Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
+Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
 Original Item and Location,สินค้าและตำแหน่งในบิลเดิม
 Original Line,บรรทัดเดิม
@@ -671,6 +818,7 @@ Outdated POS Opening Entry,รายการเปิดกะที่หม�
 Outstanding Amount,จำนวนเงินค้างชำระ
 Over,เกิน
 Over by {0},เงินเกิน {0}
+Overdue,เลยกำหนด
 POS Closed,ปิดจุดขายแล้ว
 POS Opening Entry Cancelled,ยกเลิกรายการเปิดกะแล้ว
 POS Opening Entry has been cancelled. Please refresh the page.,ยกเลิกรายการเปิดกะแล้ว กรุณารีเฟรชหน้า
@@ -688,6 +836,7 @@ Parent Item Group,กลุ่มสินค้าหลัก
 Partly Paid,ชำระบางส่วน
 Party,คู่ค้า
 Password updated,อัปเดตรหัสผ่านแล้ว
+Paste a link,วางลิงก์
 Pay,รับชำระ
 Payment,การชำระเงิน
 Payment Date,วันที่ชำระเงิน
@@ -713,6 +862,7 @@ Photos,รูปภาพ
 Pick a line first,กรุณาเลือกรายการก่อน
 Pick a warehouse,กรุณาเลือกคลังสินค้า
 "Pick quantity, discount or price first",กรุณาเลือกจำนวน ส่วนลด หรือราคาก่อน
+Pink,ชมพู
 Place,ตำแหน่ง
 Please add Mode of payments and opening balance details.,กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดเงินเปิดกะ
 Please select a field to edit from numpad,กรุณาเลือกช่องที่ต้องการแก้ไขจากแป้นตัวเลข
@@ -720,6 +870,7 @@ Please select an Item,กรุณาเลือกสินค้า
 Please upload a PDF or image,กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ
 Point of Sale,จุดขาย
 Point the camera at the barcode or QR code,กรุณาเล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์โค้ด
+Position,ตำแหน่ง
 Position Balance,คงเหลือในตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
 Post Stock On Confirm,ลงบัญชีสต็อกเมื่อยืนยัน
@@ -742,6 +893,7 @@ Price is not set for the item.,สินค้านี้ยังไม่ไ�
 Prices Include Tax,ราคารวมภาษี
 Print,พิมพ์
 Print Receipt,พิมพ์ใบเสร็จ
+Private,ส่วนตัว
 Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 Product ID,รหัสระบุสินค้า
@@ -767,6 +919,7 @@ Purchase Record,รายการจัดซื้อ
 Purchase Records,บันทึกการจัดซื้อ
 Purchase document not found,ไม่พบเอกสารจัดซื้อนี้
 Purchasing,จัดซื้อ
+Purple,ม่วง
 Purpose,วัตถุประสงค์
 QR Payload,ข้อมูล QR
 QR content,ข้อมูล QR
@@ -818,6 +971,8 @@ Record sales,บันทึกการขาย
 Recorded,บันทึกแล้ว
 Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
 Recount this product,ตรวจนับสินค้านี้ใหม่
+Recurring,การทำซ้ำ
+Red,แดง
 Redeem Loyalty Points,ใช้คะแนนสะสม
 Reference,อ้างอิง
 Reference Cost,ต้นทุนอ้างอิง
@@ -835,6 +990,9 @@ Remaining Amount,ยอดคงเหลือ
 Remark,หมายเหตุ
 Remarks,หมายเหตุ
 Remove,นำออก
+Remove color,ลบสี
+Remove mirror,ลบมิเรอร์
+Remove template,ยกเลิกเทมเพลต
 Replace the entered rows with the imported file?,ต้องการแทนที่รายการที่กรอกไว้ด้วยไฟล์นำเข้าใช่หรือไม่
 Request Hash,แฮชของคำขอ
 Request ID already exists,รหัสคำขอมีอยู่แล้ว
@@ -842,6 +1000,7 @@ Request id,รหัสคำขอ
 Requested By,ผู้ขอ
 Reset,รีเซ็ต
 Reset Password,ตั้งรหัสผ่านใหม่
+Restore,กู้คืน
 Retry,ลองใหม่
 Return,คืนสินค้า
 Return to stock,รับคืนเข้าคลัง
@@ -849,12 +1008,14 @@ Returned,คืนสินค้าแล้ว
 Reversal,กลับรายการ
 Review differences,ตรวจสอบผลต่าง
 Review document,ตรวจทานเอกสาร
+Role,บทบาท
 Rotate,หมุน
 Rounded Total,ยอดรวมหลังปัดเศษ
 Rounding Adjustment,การปรับปัดเศษ
 Row number,แถวที่
 Rows,จำนวนแถว
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ
+Rules saved,บันทึกกฎแล้ว
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · มูลค่า {1} · สต็อกต่ำ {2} · สินค้าหมด {3}
 Sale,ขาย
 Sale Price,ราคาขาย
@@ -882,6 +1043,7 @@ Search by invoice id or customer name,ค้นหาด้วยเลขที
 "Search by item code, serial number or barcode",ค้นหาด้วยรหัสสินค้า หมายเลขเครื่อง หรือบาร์โค้ด
 Search by name or phone,ค้นหาด้วยชื่อหรือโทรศัพท์
 Search by receipt number,ค้นหาด้วยเลขที่ใบเสร็จ
+Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 "Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
 Select Loyalty Program,เลือกโปรแกรมสะสมคะแนน
@@ -913,6 +1075,8 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,บริการ
 Service or stock item?,กรุณาเลือก บริการ หรือ สินค้าคงคลัง
 Set as current,ตั้งเป็นปัจจุบัน
+Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
+Set reminder,ตั้งการแจ้งเตือน
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
@@ -933,19 +1097,24 @@ Short,ขาด
 Short Name,ชื่อย่อ
 Short by {0},เงินขาด {0}
 Short name,ชื่อย่อ
+Show details,แสดงรายละเอียด
 Show disabled,แสดงที่ปิดใช้งาน
+Show on card,แสดงบนการ์ด
 Show only,แสดงเฉพาะ
 Show zero stock,แสดงของที่ไม่มีสต็อก
 Skipped {0} row(s); the first ones are listed above,ข้าม {0} แถว รายการแรกแสดงด้านบน
 Sold At,เวลาขาย
 Sold by,พนักงานเก็บเงิน
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ
+Someone else changed this card. Close it and open it again.,มีผู้ใช้อื่นแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
 Sort Order,ลำดับการจัดเรียง
+Sort by,เรียงตาม
 Source,แหล่งที่มา
 Source File,ไฟล์ต้นทาง
 Source File Record,ไฟล์ต้นฉบับ
 Split,แยก
 Start counting,เริ่มตรวจนับ
+Start date,วันเริ่ม
 Status,สถานะ
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",ยังปิดอยู่: ตารางสต็อกต้องเข้าเป็นชุดงานของฝ่ายสต็อก และการลงบัญชีห้ามข้ามไปเงียบ ๆ
 Stock,สต็อก
@@ -971,6 +1140,7 @@ Stock leaves this warehouse (must belong to the same company). Blank means the o
 Stock ledger,ดูบัญชีสต็อก
 Stock of {0} is now {1},สต๊อก {0} คงเหลือ {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,สินค้า {0} ในคลังสินค้า {1} มีไม่เพียงพอ ใช้ได้ {2} {3}
+Stop watching,เลิกติดตาม
 Stored here for now; document numbers still come from the numbering rules,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 Subcategory,หมวดหมู่ย่อย
 Submit,ยืนยัน
@@ -1001,7 +1171,9 @@ Sync failed,ซิงค์ไม่สำเร็จ
 Synced,ซิงค์แล้ว
 Syncing,กำลังซิงค์
 System number,เลขที่เอกสาร
+Table,ตาราง
 Tap the menu to start,กรุณากดเมนูด้านล่างเพื่อเริ่มต้น
+Task Management,จัดการงาน
 Tax Amount,จำนวนภาษี
 Tax Exclusive,ไม่รวมภาษี
 Tax ID,เลขประจำตัวผู้เสียภาษี
@@ -1013,10 +1185,15 @@ Tax Withholding Amount,ยอดภาษีหัก ณ ที่จ่าย
 Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่าย
 Taxes,ภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
+Team board,บอร์ดทีม
+Team visible,ทีมมองเห็นได้
+Template,เทมเพลต
 Terminal,จุดขาย
 Terminal name,ชื่อเครื่องขาย
 Terminal not found,ไม่พบจุดขายนี้
 Terminals,เครื่องขาย
+Text,ข้อความ
+Text is too long,ข้อความยาวเกินไป
 That code is not valid,รหัสผูกบัญชีไม่ถูกต้อง
 That file could not be read; please use the template,ไม่สามารถอ่านไฟล์นี้ได้ กรุณาใช้รูปแบบตามแบบฟอร์ม
 That file has no rows,ไฟล์นี้ไม่มีข้อมูล
@@ -1037,6 +1214,8 @@ The amount payable cannot be negative,ยอดที่ต้องชำระ
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The amount received is short,ยอดรับชำระไม่พอ
 The balance could not be checked right now. Please try again in a minute.,ไม่สามารถตรวจสอบยอดคงเหลือได้ในขณะนี้ กรุณาลองอีกครั้งในภายหลัง
+The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
+The card no longer exists,ไม่พบการ์ดนี้
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)
 The cashier is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)
@@ -1046,10 +1225,12 @@ The company on your documents,ข้อมูลบริษัทที่ใ�
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
 The customer is missing. Choose the customer and submit again.,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+The default board cannot be archived,ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้
 The discount exceeds the line amount,ส่วนลดเกินยอดของบรรทัด
 The discount exceeds the total,ส่วนลดเกินยอดรวม
 The document date is invalid. Correct it and submit again.,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 The file could not be saved. Please try again shortly.,บันทึกไฟล์ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
+The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
@@ -1070,6 +1251,7 @@ The recognition result needs checking. Please do not resend this document yet.,�
 The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
+The start date is after the due date,วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแปลงแล้ว กรุณาตรวจสอบผลต่างอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
@@ -1077,6 +1259,7 @@ The total is invalid,ยอดรวมไม่ถูกต้อง
 The total is zero,ยอดรวมเป็นศูนย์
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
+Then,ให้ทำ
 There are no lines,ไม่มีรายการ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
 There were errors while sending email. Please try again.,เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองอีกครั้ง
@@ -1087,6 +1270,7 @@ This PDF has more than {0} pages,PDF มีมากกว่า {0} หน้�
 This Quarter,ไตรมาสนี้
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
 This barcode already exists,บาร์โค้ดนี้มีอยู่แล้ว
+This board no longer exists,ไม่พบบอร์ดนี้
 This browser cannot scan with the camera,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง
 This browser cannot scan with the camera; use a scanner or type the code,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง กรุณาใช้เครื่องสแกนหรือพิมพ์รหัสเอง
 This card expires in {0} minutes,การ์ดนี้หมดอายุใน {0} นาที
@@ -1115,6 +1299,9 @@ This invoice has no lines. Add them and submit again.,เอกสารนี�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This label no longer exists,ไม่พบป้ายกำกับนี้
+This list no longer exists,ไม่พบรายการนี้
+This member cannot be assigned,ไม่สามารถมอบหมายให้สมาชิกนี้ได้
 This option is no longer current,ตัวเลือกนี้ใช้ไม่ได้แล้ว กรุณาเลือกตามขั้นตอนล่าสุด
 This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระเงินนี้
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
@@ -1137,7 +1324,10 @@ This warehouse belongs to the company above,คลังนี้อยู่ใ
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
 Time left {0},เหลือเวลา {0}
+Title,ชื่อ
 To Date,ถึงวันที่
+To do,รอดำเนินการ
+Too many items,รายการมากเกินไป
 Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
 Total,ยอดรวม
 Total Amount,จำนวนเงินรวม
@@ -1190,6 +1380,7 @@ Updated {0} product(s),อัปเดต {0} รายการแล้ว
 Updated {0} record(s),อัปเดต {0} รายการแล้ว
 Updated {0} supplier(s),อัปเดตผู้จำหน่าย {0} รายแล้ว
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คนแล้ว
+Upload,อัปโหลด
 Upload a document or enter it manually?,กรุณาเลือก อัปโหลดเอกสาร หรือ กรอกเอง
 "Upload a receipt, then review the recognized details.",อัปโหลดใบเสร็จรับเงิน แล้วตรวจทานและแก้ไขข้อมูลที่อ่านได้
 Upload a sheet,อัปโหลดไฟล์
@@ -1215,6 +1406,7 @@ VAT Rate %,อัตราภาษี %
 VAT applies,คิด VAT
 Value,มูลค่า
 Value Change,มูลค่าที่เปลี่ยนแปลง
+Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
 Void the payments before voiding the document,กรุณากลับรายการชำระเงินก่อนยกเลิกเอกสาร
@@ -1232,8 +1424,13 @@ Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
 Warehouses,คลังสินค้า
+Watch,ติดตาม
+Weekly,ทุกสัปดาห์
+When a card enters,เมื่อการ์ดเข้ารายการ
 "Which company this terminal belongs to, and which warehouse it sells from",บริษัทที่เป็นเจ้าของจุดขายนี้ และคลังสินค้าที่ใช้จ่ายสินค้าขาย
 Who bought this receipt; empty means a walk-in customer,ลูกค้าของใบเสร็จนี้ หากเว้นว่างไว้หมายถึงลูกค้าทั่วไป
+Who can add and remove members,สิทธิ์จัดการสมาชิก
+Who can comment,สิทธิ์แสดงความคิดเห็น
 With differences,มีผลต่าง
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
@@ -1242,7 +1439,10 @@ Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ท
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written,บันทึกแล้ว
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
+Yearly,ทุกปี
+Yellow,เหลือง
 Yes,ใช่
+You are watching this card,คุณกำลังติดตามการ์ดนี้
 You can redeem upto {0}.,ใช้คะแนนสะสมได้สูงสุด {0}
 You cannot redeem more than {0}.,ใช้คะแนนสะสมได้ไม่เกิน {0}
 You cannot submit empty order.,ไม่สามารถยืนยันคำสั่งซื้อที่ไม่มีรายการได้
@@ -1407,6 +1607,262 @@ erp.line.status.bound,ผูกบัญชีแล้ว
 erp.line.status.unbound,ยังไม่ได้ผูกบัญชี
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่
+erp.nav.work,จัดการงาน
+erp.work.activity.archive,{who} เก็บถาวรการ์ดนี้
+erp.work.activity.assign,{who} เพิ่ม {0} ในการ์ดนี้
+erp.work.activity.attach,{who} แนบไฟล์ {0}
+erp.work.activity.complete,{who} ทำเครื่องหมายว่าการ์ดนี้เสร็จแล้ว
+erp.work.activity.copy,"{who} คัดลอกการ์ดนี้จาก ""{0}"""
+erp.work.activity.create,{who} เพิ่มการ์ดนี้
+erp.work.activity.detach,{who} ลบไฟล์แนบ {0}
+erp.work.activity.due,{who} ตั้งวันครบกำหนดเป็น {0}
+erp.work.activity.hideDetails,ซ่อนรายละเอียด
+erp.work.activity.mirror,{who} มิเรอร์การ์ดนี้ไปที่ {0} แล้ว
+erp.work.activity.move,{who} ย้ายการ์ดนี้จาก {0} ไปยัง {1}
+erp.work.activity.noDue,ไม่มี
+erp.work.activity.repeat,{who} ทำการ์ดที่เกิดซ้ำนี้เสร็จแล้ว ครบกำหนดครั้งถัดไป: {0}
+erp.work.activity.restore,{who} กู้คืนการ์ดนี้
+erp.work.activity.rule,ระบบอัตโนมัติ ({who}): {0} {1}
+erp.work.activity.showDetails,แสดงรายละเอียด
+erp.work.activity.uncomplete,{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ
+erp.work.archived.at,เวลาที่เก็บถาวร
+erp.work.archived.boards,บอร์ดที่เก็บถาวร
+erp.work.archived.confirmDelete,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
+erp.work.archived.deleted,ลบแล้ว
+erp.work.archived.lists,รายการที่เก็บถาวร
+erp.work.archived.restore,กู้คืน
+erp.work.archived.restored,กู้คืนแล้ว
+erp.work.archived.title,รายการที่เก็บถาวร
+erp.work.board.add,เพิ่ม
+erp.work.board.addMember,เพิ่มสมาชิก
+erp.work.board.archive,เก็บถาวรบอร์ด
+erp.work.board.archived,เก็บถาวรบอร์ดแล้ว
+erp.work.board.commenting,สิทธิ์แสดงความคิดเห็น
+erp.work.board.commenting_disabled,ปิด
+erp.work.board.commenting_members,สมาชิก
+erp.work.board.commenting_observers,สมาชิกและผู้สังเกตการณ์
+erp.work.board.create,สร้างบอร์ด
+erp.work.board.default,บอร์ดทีม
+erp.work.board.label,บอร์ด
+erp.work.board.leave,ออกจากบอร์ด
+erp.work.board.memberManagement,สิทธิ์จัดการสมาชิก
+erp.work.board.memberManagement_admins,เฉพาะผู้ดูแล
+erp.work.board.memberManagement_members,สมาชิกทุกคน
+erp.work.board.members,สมาชิกบอร์ด
+erp.work.board.name,ชื่อบอร์ด
+erp.work.board.remove,นำออก
+erp.work.board.role,บทบาท
+erp.work.board.role_admin,ผู้ดูแลบอร์ด
+erp.work.board.role_member,สมาชิก
+erp.work.board.role_observer,ผู้สังเกตการณ์
+erp.work.board.settings,ตั้งค่าบอร์ด
+erp.work.board.visibility,การมองเห็น
+erp.work.board.visibility_private,ส่วนตัว
+erp.work.board.visibility_team,ทีมมองเห็นได้
+erp.work.card.add,เพิ่มการ์ด
+erp.work.card.archive,เก็บถาวร
+erp.work.card.archived,เก็บถาวรแล้ว
+erp.work.card.done,ทำเครื่องหมายว่าเสร็จ
+erp.work.card.placeholder,กรอกชื่อ
+erp.work.card.saved,บันทึกแล้ว
+erp.work.card.title,การ์ด
+erp.work.card.undone,ทำเครื่องหมายว่ายังไม่เสร็จ
+erp.work.checklist.add,เพิ่มรายการตรวจสอบ
+erp.work.checklist.addItem,เพิ่มรายการ
+erp.work.color.blue,น้ำเงิน
+erp.work.color.cyan,ฟ้า
+erp.work.color.gray,เทา
+erp.work.color.green,เขียว
+erp.work.color.orange,ส้ม
+erp.work.color.pink,ชมพู
+erp.work.color.purple,ม่วง
+erp.work.color.red,แดง
+erp.work.color.yellow,เหลือง
+erp.work.column.archiveAll,เก็บถาวรการ์ดทั้งหมดในรายการนี้
+erp.work.column.collapse,ย่อรายการ
+erp.work.column.color,เปลี่ยนสีรายการ
+erp.work.column.menu,การดำเนินการของรายการ
+erp.work.column.moveAll,ย้ายการ์ดทั้งหมดในรายการนี้
+erp.work.column.removeColor,ลบสี
+erp.work.column.sort,เรียงตาม
+erp.work.column.sort_created_asc,วันที่สร้าง (เก่าสุดก่อน)
+erp.work.column.sort_created_desc,วันที่สร้าง (ใหม่สุดก่อน)
+erp.work.column.sort_due,วันครบกำหนด
+erp.work.column.sort_title,ชื่อการ์ด (ตามตัวอักษร)
+erp.work.comment.label,ความคิดเห็น
+erp.work.comment.send,ส่ง
+erp.work.copy.create,สร้างการ์ด
+erp.work.copy.keep,คงไว้
+erp.work.copy.to,คัดลอกไปที่
+erp.work.cover.none,ไม่มี
+erp.work.error.board,ไม่พบบอร์ดนี้
+erp.work.error.board_rights,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้
+erp.work.error.board_title,กรุณากรอกชื่อบอร์ด
+erp.work.error.checklist,รายการตรวจสอบไม่ถูกต้อง
+erp.work.error.color,สีไม่ถูกต้อง
+erp.work.error.comment,กรุณากรอกความคิดเห็น
+erp.work.error.conflict,มีผู้ใช้อื่นแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
+erp.work.error.cover,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
+erp.work.error.date,วันที่ไม่ถูกต้อง
+erp.work.error.dedicated_api,กรุณาแก้ไขการ์ดบนบอร์ดงาน
+erp.work.error.default_board,ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้
+erp.work.error.field_options,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
+erp.work.error.field_title,กรุณากรอกชื่อช่อง
+erp.work.error.field_value,ค่าของช่องไม่ถูกต้อง
+erp.work.error.file,กรุณาเลือกไฟล์
+erp.work.error.file_size,ไฟล์ใหญ่เกิน 25 MB
+erp.work.error.label,ไม่พบป้ายกำกับนี้
+erp.work.error.last_admin,บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน
+erp.work.error.last_list,บอร์ดต้องมีรายการอย่างน้อยหนึ่งรายการ
+erp.work.error.link,กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
+erp.work.error.list,ไม่พบรายการนี้
+erp.work.error.member,ไม่สามารถมอบหมายให้สมาชิกนี้ได้
+erp.work.error.mirror,การ์ดอยู่ในรายการนั้นแล้ว
+erp.work.error.not_found,ไม่พบการ์ดนี้
+erp.work.error.request,คำขอไม่ถูกต้อง
+erp.work.error.rule_days,กรุณากรอกจำนวนวันระหว่าง 0 ถึง 365
+erp.work.error.start_after_due,วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด
+erp.work.error.status,สถานะไม่ถูกต้อง
+erp.work.error.title,กรุณากรอกชื่อ
+erp.work.error.too_long,ข้อความยาวเกินไป
+erp.work.error.too_many,รายการมากเกินไป
+erp.work.field.activity,ความคิดเห็นและกิจกรรม
+erp.work.field.attachments,ไฟล์แนบ
+erp.work.field.checklist,รายการตรวจสอบ
+erp.work.field.comments,ความคิดเห็น
+erp.work.field.completed,เสร็จ
+erp.work.field.cover,ปก
+erp.work.field.dates,วันที่
+erp.work.field.description,รายละเอียด
+erp.work.field.done,เสร็จ
+erp.work.field.due,วันครบกำหนด
+erp.work.field.dueTime,เวลาครบกำหนด
+erp.work.field.item,รายการ
+erp.work.field.labels,ป้ายกำกับ
+erp.work.field.list,รายการ
+erp.work.field.members,สมาชิก
+erp.work.field.reminder,ตั้งการแจ้งเตือน
+erp.work.field.repeat,การทำซ้ำ
+erp.work.field.start,วันเริ่ม
+erp.work.field.status,สถานะ
+erp.work.field.title,ชื่อ
+erp.work.fields.add,เพิ่มช่อง
+erp.work.fields.manage,ช่องที่กำหนดเอง
+erp.work.fields.name,ชื่อช่อง
+erp.work.fields.options,ตัวเลือก (บรรทัดละหนึ่งรายการ)
+erp.work.fields.saved,บันทึกช่องที่กำหนดเองแล้ว
+erp.work.fields.showOnCard,แสดงบนการ์ด
+erp.work.fields.type,ประเภท
+erp.work.fieldtype.checkbox,ช่องทำเครื่องหมาย
+erp.work.fieldtype.date,วันที่
+erp.work.fieldtype.number,ตัวเลข
+erp.work.fieldtype.select,ดรอปดาวน์
+erp.work.fieldtype.text,ข้อความ
+erp.work.file.insert,แทรก
+erp.work.file.link,เพิ่มลิงก์
+erp.work.file.text,ข้อความที่แสดง (ไม่บังคับ)
+erp.work.file.upload,อัปโหลด
+erp.work.file.url,วางลิงก์
+erp.work.filter.anyDue,วันครบกำหนดทั้งหมด
+erp.work.filter.anyLabel,ป้ายกำกับทั้งหมด
+erp.work.filter.anyMember,สมาชิกทั้งหมด
+erp.work.filter.due,ครบกำหนด
+erp.work.filter.keyword,ค้นหาการ์ด
+erp.work.filter.label,ป้ายกำกับ
+erp.work.filter.member,สมาชิก
+erp.work.filter.mine,มอบหมายให้ฉัน
+erp.work.filter.noDue,ไม่มีวันครบกำหนด
+erp.work.filter.noMember,ไม่มีสมาชิก
+erp.work.filter.overdue,เลยกำหนด
+erp.work.filter.soon,ครบกำหนดวันนี้หรือพรุ่งนี้
+erp.work.labels.add,สร้างป้ายกำกับใหม่
+erp.work.labels.color,สี
+erp.work.labels.manage,ป้ายกำกับ
+erp.work.labels.name,ชื่อ
+erp.work.labels.saved,บันทึกป้ายกำกับแล้ว
+erp.work.list.add,เพิ่มรายการอื่น
+erp.work.list.archive,เก็บถาวรรายการนี้
+erp.work.list.archived,เก็บถาวรรายการแล้ว
+erp.work.list.confirmDelete,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
+erp.work.list.copy,คัดลอกรายการ
+erp.work.list.doneList,รายการเสร็จสิ้น (การ์ดที่ย้ายมาจะถือว่าเสร็จ)
+erp.work.list.move,ย้ายรายการ
+erp.work.list.name,ชื่อรายการ
+erp.work.list.placeholder,กรอกชื่อรายการ
+erp.work.list.position,ตำแหน่ง
+erp.work.mine.done,เสร็จแล้ว
+erp.work.mine.empty,ยังไม่มีการ์ดที่มอบหมายให้คุณ
+erp.work.mine.later,ครบกำหนดภายหลัง
+erp.work.mine.none,ไม่มีวันครบกำหนด
+erp.work.mine.overdue,เลยกำหนด
+erp.work.mine.today,ครบกำหนดวันนี้
+erp.work.mine.week,ครบกำหนดภายใน 7 วัน
+erp.work.mirror.add,มิเรอร์
+erp.work.mirror.badge,มิเรอร์
+erp.work.mirror.remove,ลบมิเรอร์
+erp.work.notify.assign,"{0} เพิ่มคุณในการ์ด ""{1}"""
+erp.work.notify.comment,"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
+erp.work.notify.complete,"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
+erp.work.notify.due_soon,"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
+erp.work.notify.empty,ไม่มีการแจ้งเตือน
+erp.work.notify.mention,"{0} กล่าวถึงคุณในการ์ด ""{1}"""
+erp.work.notify.move,"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
+erp.work.notify.overdue,"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
+erp.work.notify.readAll,ทำเครื่องหมายว่าอ่านแล้วทั้งหมด
+erp.work.notify.reminder,"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
+erp.work.notify.title,การแจ้งเตือน
+erp.work.quick.copy,คัดลอกการ์ด
+erp.work.quick.cover,เปลี่ยนปก
+erp.work.quick.due,แก้ไขวันที่
+erp.work.quick.labels,แก้ไขป้ายกำกับ
+erp.work.quick.link,คัดลอกลิงก์
+erp.work.quick.members,เปลี่ยนสมาชิก
+erp.work.quick.move,ย้าย
+erp.work.quick.open,เปิดการ์ด
+erp.work.quick.title,แก้ไขการ์ด
+erp.work.quick.unwatch,เลิกติดตาม
+erp.work.quick.watch,ติดตาม
+erp.work.quick.watching,คุณกำลังติดตามการ์ดนี้
+erp.work.reminder.10m,ก่อน 10 นาที
+erp.work.reminder.15m,ก่อน 15 นาที
+erp.work.reminder.1d,ก่อน 1 วัน
+erp.work.reminder.1h,ก่อน 1 ชั่วโมง
+erp.work.reminder.2d,ก่อน 2 วัน
+erp.work.reminder.2h,ก่อน 2 ชั่วโมง
+erp.work.reminder.5m,ก่อน 5 นาที
+erp.work.reminder.at_due,เมื่อถึงกำหนด
+erp.work.reminder.none,ไม่มี
+erp.work.repeat.daily,ทุกวัน
+erp.work.repeat.monthly,ทุกเดือน
+erp.work.repeat.never,ไม่ซ้ำ
+erp.work.repeat.weekly,ทุกสัปดาห์
+erp.work.repeat.yearly,ทุกปี
+erp.work.rules.action_assign,มอบหมายให้
+erp.work.rules.action_complete,ทำเครื่องหมายว่าเสร็จ
+erp.work.rules.action_due_days,ตั้งวันครบกำหนดเป็นอีก N วัน
+erp.work.rules.action_label,เพิ่มป้ายกำกับ
+erp.work.rules.action_watch,เพิ่มผู้ติดตาม
+erp.work.rules.add,สร้างกฎ
+erp.work.rules.days,วันหลังจากนั้น
+erp.work.rules.enabled,เปิดใช้
+erp.work.rules.manage,ระบบอัตโนมัติ
+erp.work.rules.saved,บันทึกกฎแล้ว
+erp.work.rules.then,ให้ทำ
+erp.work.rules.when,เมื่อการ์ดเข้ารายการ
+erp.work.status.doing,กำลังทำ
+erp.work.status.done,เสร็จแล้ว
+erp.work.status.todo,รอดำเนินการ
+erp.work.table.export,ส่งออก Excel
+erp.work.template.badge,เทมเพลต
+erp.work.template.create,สร้างจากเทมเพลต
+erp.work.template.empty,ยังไม่มีเทมเพลต
+erp.work.template.set,ตั้งเป็นเทมเพลต
+erp.work.template.title,เทมเพลตการ์ด
+erp.work.template.unset,ยกเลิกเทมเพลต
+erp.work.view.board,บอร์ด
+erp.work.view.calendar,ปฏิทิน
+erp.work.view.mine,การ์ดของฉัน
+erp.work.view.table,ตาราง
 express.code.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 express.code.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -1484,6 +1940,7 @@ issued,ออกเอกสารแล้ว
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
 nav.stockCount,ตรวจนับสต็อก
+none,ไม่มี
 opening,ยอดยกมา
 paid,ชำระแล้ว
 pending_approval,รออนุมัติ
@@ -2023,6 +2480,28 @@ trade.warehouseHint,มาจากเครื่องขาย ถ้าว�
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว
+{0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
+{0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
+{0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
+{0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
+{0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
+{1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
+{1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
+{1} is overdue ({2}),"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
+{who} added this card,{who} เพิ่มการ์ดนี้
+{who} added {0} to this card,{who} เพิ่ม {0} ในการ์ดนี้
+{who} archived this card,{who} เก็บถาวรการ์ดนี้
+{who} attached {0},{who} แนบไฟล์ {0}
+{who} completed this recurring card; next due {0},{who} ทำการ์ดที่เกิดซ้ำนี้เสร็จแล้ว ครบกำหนดครั้งถัดไป: {0}
+{who} copied this card from {0},"{who} คัดลอกการ์ดนี้จาก ""{0}"""
+{who} marked this card complete,{who} ทำเครื่องหมายว่าการ์ดนี้เสร็จแล้ว
+{who} marked this card incomplete,{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ
+{who} mirrored this card to {0},{who} มิเรอร์การ์ดนี้ไปที่ {0} แล้ว
+{who} moved this card from {0} to {1},{who} ย้ายการ์ดนี้จาก {0} ไปยัง {1}
+{who} removed attachment {0},{who} ลบไฟล์แนบ {0}
+{who} restored this card,{who} กู้คืนการ์ดนี้
+{who} set the due date to {0},{who} ตั้งวันครบกำหนดเป็น {0}
+{who}'s automation: {0} {1},ระบบอัตโนมัติ ({who}): {0} {1}

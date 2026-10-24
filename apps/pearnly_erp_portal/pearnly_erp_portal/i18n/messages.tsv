@@ -1408,3 +1408,259 @@ Reason	原因	เหตุผล	理由
 Express Job	Express 写入	งานบันทึก Express	Express 書き込み
 Express Choices Needed	Express 待选项	รายการที่ต้องเลือกสำหรับ Express	Express の選択待ち
 Chosen By	选择人	ผู้เลือก	選択者
+Task Management	任务管理	จัดการงาน	タスク管理	erp.nav.work
+To do	待办	รอดำเนินการ	未着手	erp.work.status.todo
+In progress	进行中	กำลังทำ	進行中	erp.work.status.doing
+Done	已完成	เสร็จแล้ว	完了	erp.work.status.done
+Green	绿	เขียว	緑	erp.work.color.green
+Yellow	黄	เหลือง	黄	erp.work.color.yellow
+Orange	橙	ส้ม	橙	erp.work.color.orange
+Red	红	แดง	赤	erp.work.color.red
+Purple	紫	ม่วง	紫	erp.work.color.purple
+Blue	蓝	น้ำเงิน	青	erp.work.color.blue
+Cyan	青	ฟ้า	水色	erp.work.color.cyan
+Pink	粉	ชมพู	ピンク	erp.work.color.pink
+Gray	灰	เทา	グレー	erp.work.color.gray
+Add a card	添加卡片	เพิ่มการ์ด	カードを追加	erp.work.card.add
+Enter a title	输入标题	กรอกชื่อ	タイトルを入力	erp.work.card.placeholder
+Card	卡片	การ์ด	カード	erp.work.card.title
+Archive	归档	เก็บถาวร	アーカイブ	erp.work.card.archive
+Card archived	已归档	เก็บถาวรแล้ว	アーカイブしました	erp.work.card.archived
+Saved	已保存	บันทึกแล้ว	保存しました	erp.work.card.saved
+Title	标题	ชื่อ	タイトル	erp.work.field.title
+Status	状态	สถานะ	ステータス	erp.work.field.status
+Due date	到期日	วันครบกำหนด	期日	erp.work.field.due
+Members	成员	สมาชิก	メンバー	erp.work.field.members
+Labels	标签	ป้ายกำกับ	ラベル	erp.work.field.labels
+Description	描述	รายละเอียด	説明	erp.work.field.description
+Checklist	清单	รายการตรวจสอบ	チェックリスト	erp.work.field.checklist
+Item	项目	รายการ	項目	erp.work.field.item
+Done	完成	เสร็จ	完了	erp.work.field.done
+Attachments	附件	ไฟล์แนบ	添付ファイル	erp.work.field.attachments
+Comments	评论	ความคิดเห็น	コメント	erp.work.field.comments
+Comments and activity	评论和活动	ความคิดเห็นและกิจกรรม	コメントとアクティビティ	erp.work.field.activity
+Upload	上传	อัปโหลด	アップロード	erp.work.file.upload
+Comment	评论	ความคิดเห็น	コメント	erp.work.comment.label
+Send	发表	ส่ง	送信	erp.work.comment.send
+{who} added this card	{who} 添加了此卡片	{who} เพิ่มการ์ดนี้	{who} がこのカードを追加しました	erp.work.activity.create
+{who} moved this card from {0} to {1}	{who} 将此卡片从 {0} 移至 {1}	{who} ย้ายการ์ดนี้จาก {0} ไปยัง {1}	{who} がこのカードを{0}から{1}に移動しました	erp.work.activity.move
+{who} attached {0}	{who} 添加了附件 {0}	{who} แนบไฟล์ {0}	{who} が {0} を添付しました	erp.work.activity.attach
+{who} removed attachment {0}	{who} 删除了附件 {0}	{who} ลบไฟล์แนบ {0}	{who} が添付ファイル {0} を削除しました	erp.work.activity.detach
+{who} archived this card	{who} 归档了此卡片	{who} เก็บถาวรการ์ดนี้	{who} がこのカードをアーカイブしました	erp.work.activity.archive
+{who} restored this card	{who} 恢复了此卡片	{who} กู้คืนการ์ดนี้	{who} がこのカードを復元しました	erp.work.activity.restore
+{who} added {0} to this card	{who} 将 {0} 添加到此卡片	{who} เพิ่ม {0} ในการ์ดนี้	{who} がこのカードに {0} を追加しました	erp.work.activity.assign
+{who} set the due date to {0}	{who} 将到期日设为 {0}	{who} ตั้งวันครบกำหนดเป็น {0}	{who} が期日を {0} に設定しました	erp.work.activity.due
+none	无	ไม่มี	なし	erp.work.activity.noDue
+Search cards	搜索卡片	ค้นหาการ์ด	カードを検索	erp.work.filter.keyword
+Member	成员	สมาชิก	メンバー	erp.work.filter.member
+Label	标签	ป้ายกำกับ	ラベル	erp.work.filter.label
+Due	到期	ครบกำหนด	期日	erp.work.filter.due
+All members	全部成员	สมาชิกทั้งหมด	すべてのメンバー	erp.work.filter.anyMember
+Assigned to me	分配给我的	มอบหมายให้ฉัน	自分に割り当て	erp.work.filter.mine
+No members	无成员	ไม่มีสมาชิก	メンバーなし	erp.work.filter.noMember
+All labels	全部标签	ป้ายกำกับทั้งหมด	すべてのラベル	erp.work.filter.anyLabel
+Any due date	全部到期日	วันครบกำหนดทั้งหมด	すべての期日	erp.work.filter.anyDue
+Overdue	已过期	เลยกำหนด	期限切れ	erp.work.filter.overdue
+Due today or tomorrow	今明两天到期	ครบกำหนดวันนี้หรือพรุ่งนี้	今日か明日が期日	erp.work.filter.soon
+No due date	无到期日	ไม่มีวันครบกำหนด	期日なし	erp.work.filter.noDue
+Labels	标签	ป้ายกำกับ	ラベル	erp.work.labels.manage
+Name	名称	ชื่อ	名前	erp.work.labels.name
+Color	颜色	สี	色	erp.work.labels.color
+Labels saved	标签已保存	บันทึกป้ายกำกับแล้ว	ラベルを保存しました	erp.work.labels.saved
+Archived items	已归档的项目	รายการที่เก็บถาวร	アーカイブ済みアイテム	erp.work.archived.title
+Archived at	归档时间	เวลาที่เก็บถาวร	アーカイブ日時	erp.work.archived.at
+Restore	恢复	กู้คืน	復元	erp.work.archived.restore
+Card restored	已恢复	กู้คืนแล้ว	復元しました	erp.work.archived.restored
+Delete this card permanently? This cannot be undone.	确定要永久删除此卡片吗？删除后无法恢复。	ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้	このカードを完全に削除しますか？元に戻せません。	erp.work.archived.confirmDelete
+Card deleted	已删除	ลบแล้ว	削除しました	erp.work.archived.deleted
+Enter a title	请输入标题	กรุณากรอกชื่อ	タイトルを入力してください	erp.work.error.title
+Invalid status	状态无效	สถานะไม่ถูกต้อง	ステータスが無効です	erp.work.error.status
+Invalid color	颜色无效	สีไม่ถูกต้อง	色が無効です	erp.work.error.color
+Invalid checklist	清单无效	รายการตรวจสอบไม่ถูกต้อง	チェックリストが無効です	erp.work.error.checklist
+Enter a comment	请输入评论	กรุณากรอกความคิดเห็น	コメントを入力してください	erp.work.error.comment
+Someone else changed this card. Close it and open it again.	此卡片已被其他用户修改，请关闭后重新打开。	มีผู้ใช้อื่นแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่	このカードは他の人が変更しました。閉じて開き直してください	erp.work.error.conflict
+Invalid date	日期无效	วันที่ไม่ถูกต้อง	日付が無効です	erp.work.error.date
+Change cards on the work board	请在工作看板上修改卡片	กรุณาแก้ไขการ์ดบนบอร์ดงาน	作業ボードでカードを変更してください	erp.work.error.dedicated_api
+Choose a file	请选择文件	กรุณาเลือกไฟล์	ファイルを選択してください	erp.work.error.file
+The file is larger than 25 MB	文件超过 25 MB	ไฟล์ใหญ่เกิน 25 MB	ファイルが 25 MB を超えています	erp.work.error.file_size
+This label no longer exists	标签不存在	ไม่พบป้ายกำกับนี้	このラベルはもうありません	erp.work.error.label
+This member cannot be assigned	无法分配给此成员	ไม่สามารถมอบหมายให้สมาชิกนี้ได้	このメンバーには割り当てられません	erp.work.error.member
+The card no longer exists	卡片不存在	ไม่พบการ์ดนี้	カードはもうありません	erp.work.error.not_found
+Invalid request	请求无效	คำขอไม่ถูกต้อง	リクエストが無効です	erp.work.error.request
+Text is too long	内容过长	ข้อความยาวเกินไป	テキストが長すぎます	erp.work.error.too_long
+Too many items	项目过多	รายการมากเกินไป	項目が多すぎます	erp.work.error.too_many
+Mark complete	标记完成	ทำเครื่องหมายว่าเสร็จ	完了にする	erp.work.card.done
+Mark incomplete	标记未完成	ทำเครื่องหมายว่ายังไม่เสร็จ	未完了に戻す	erp.work.card.undone
+Collapse list	收起列表	ย่อรายการ	リストを折りたたむ	erp.work.column.collapse
+List actions	列表操作	การดำเนินการของรายการ	リストの操作	erp.work.column.menu
+Move all cards in this list	移动此列表中的所有卡片	ย้ายการ์ดทั้งหมดในรายการนี้	このリストのカードをすべて移動	erp.work.column.moveAll
+Sort by	排序依据	เรียงตาม	並べ替え	erp.work.column.sort
+Date created (newest first)	创建时间（最新优先）	วันที่สร้าง (ใหม่สุดก่อน)	作成日（新しい順）	erp.work.column.sort_created_desc
+Date created (oldest first)	创建时间（最早优先）	วันที่สร้าง (เก่าสุดก่อน)	作成日（古い順）	erp.work.column.sort_created_asc
+Due date	到期日	วันครบกำหนด	期日	erp.work.column.sort_due
+Card name (alphabetically)	卡片名称（按字母）	ชื่อการ์ด (ตามตัวอักษร)	カード名（アルファベット順）	erp.work.column.sort_title
+Create card	创建卡片	สร้างการ์ด	カードを作成	erp.work.copy.create
+Keep	保留	คงไว้	引き継ぐ	erp.work.copy.keep
+Copy to	复制到	คัดลอกไปที่	コピー先	erp.work.copy.to
+None	无	ไม่มี	なし	erp.work.cover.none
+Choose an image attached to this card	请选择此卡片的图片附件	กรุณาเลือกรูปภาพที่แนบในการ์ดนี้	このカードに添付した画像を選んでください	erp.work.error.cover
+Cover	封面	ปก	カバー	erp.work.field.cover
+No notifications	没有提醒	ไม่มีการแจ้งเตือน	通知はありません	erp.work.notify.empty
+Mark all as read	全部标为已读	ทำเครื่องหมายว่าอ่านแล้วทั้งหมด	すべて既読にする	erp.work.notify.readAll
+Notifications	提醒	การแจ้งเตือน	通知	erp.work.notify.title
+{0} added you to {1}	{0} 已将您添加到卡片「{1}」	{0} เพิ่มคุณในการ์ด "{1}"	{0} があなたを「{1}」に追加しました	erp.work.notify.assign
+{0} mentioned you on {1}	{0} 在卡片「{1}」中提及您	{0} กล่าวถึงคุณในการ์ด "{1}"	{0} が「{1}」であなたをメンションしました	erp.work.notify.mention
+{0} commented on {1}	{0} 评论了卡片「{1}」	{0} แสดงความคิดเห็นในการ์ด "{1}"	{0} が「{1}」にコメントしました	erp.work.notify.comment
+{0} moved {1} to {2}	{0} 将卡片「{1}」移至 {2}	{0} ย้ายการ์ด "{1}" ไปที่ {2}	{0} が「{1}」を{2}に移動しました	erp.work.notify.move
+{1} is due soon ({2})	卡片「{1}」即将到期（{2}）	การ์ด "{1}" ใกล้ครบกำหนด ({2})	「{1}」の期日が近づいています（{2}）	erp.work.notify.due_soon
+{1} is overdue ({2})	卡片「{1}」已过期（{2}）	การ์ด "{1}" เลยกำหนดแล้ว ({2})	「{1}」は期限切れです（{2}）	erp.work.notify.overdue
+{who} copied this card from {0}	{who} 从「{0}」复制了此卡片	{who} คัดลอกการ์ดนี้จาก "{0}"	{who} が「{0}」からこのカードをコピーしました	erp.work.activity.copy
+Open card	打开卡片	เปิดการ์ด	カードを開く	erp.work.quick.open
+Edit labels	修改标签	แก้ไขป้ายกำกับ	ラベルを編集	erp.work.quick.labels
+Change members	变更成员	เปลี่ยนสมาชิก	メンバーを変更	erp.work.quick.members
+Change cover	更改封面	เปลี่ยนปก	カバーを変更	erp.work.quick.cover
+Edit dates	编辑日期	แก้ไขวันที่	日付を編集	erp.work.quick.due
+Move	移动	ย้าย	移動	erp.work.quick.move
+Copy card	复制卡片	คัดลอกการ์ด	カードをコピー	erp.work.quick.copy
+Copy link	复制链接	คัดลอกลิงก์	リンクをコピー	erp.work.quick.link
+Edit card	编辑卡片	แก้ไขการ์ด	カードを編集	erp.work.quick.title
+Watch	关注	ติดตาม	ウォッチ	erp.work.quick.watch
+Stop watching	取消关注	เลิกติดตาม	ウォッチをやめる	erp.work.quick.unwatch
+You are watching this card	已关注此卡片	คุณกำลังติดตามการ์ดนี้	このカードをウォッチしています	erp.work.quick.watching
+Change list color	更改列表颜色	เปลี่ยนสีรายการ	リストの色を変更	erp.work.column.color
+Remove color	移除颜色	ลบสี	色を削除	erp.work.column.removeColor
+Archive all cards in this list	将此列表中的所有卡片归档	เก็บถาวรการ์ดทั้งหมดในรายการนี้	このリストのカードをすべてアーカイブ	erp.work.column.archiveAll
+Create a new label	新建标签	สร้างป้ายกำกับใหม่	新しいラベルを作成	erp.work.labels.add
+Archived lists	已归档的列表	รายการที่เก็บถาวร	アーカイブ済みリスト	erp.work.archived.lists
+Add a checklist	添加清单	เพิ่มรายการตรวจสอบ	チェックリストを追加	erp.work.checklist.add
+Add an item	添加项目	เพิ่มรายการ	項目を追加	erp.work.checklist.addItem
+A dropdown field needs at least one option	下拉字段至少需要一个选项	ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ	ドロップダウンには選択肢が1つ以上必要です	erp.work.error.field_options
+Enter a field name	请输入字段名称	กรุณากรอกชื่อช่อง	フィールド名を入力してください	erp.work.error.field_title
+Invalid field value	字段的值无效	ค่าของช่องไม่ถูกต้อง	フィールドの値が無効です	erp.work.error.field_value
+A board needs at least one list	看板至少需要保留一个列表	บอร์ดต้องมีรายการอย่างน้อยหนึ่งรายการ	ボードには少なくとも1つのリストが必要です	erp.work.error.last_list
+Enter a link that starts with http:// or https://	请输入以 http:// 或 https:// 开头的链接	กรุณาใส่ลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://	http:// または https:// で始まるリンクを入力してください	erp.work.error.link
+This list no longer exists	列表不存在	ไม่พบรายการนี้	このリストはもうありません	erp.work.error.list
+The card is already in that list	卡片已在该列表中	การ์ดอยู่ในรายการนั้นแล้ว	カードはすでにそのリストにあります	erp.work.error.mirror
+The start date is after the due date	开始日期不能晚于到期日	วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด	開始日が期日より後です	erp.work.error.start_after_due
+Complete	完成	เสร็จ	完了	erp.work.field.completed
+Dates	日期	วันที่	日付	erp.work.field.dates
+Due time	到期时间	เวลาครบกำหนด	期限時刻	erp.work.field.dueTime
+List	列表	รายการ	リスト	erp.work.field.list
+Set reminder	设置提醒	ตั้งการแจ้งเตือน	リマインダー	erp.work.field.reminder
+Recurring	重复性	การทำซ้ำ	繰り返し	erp.work.field.repeat
+Start date	开始日期	วันเริ่ม	開始日	erp.work.field.start
+Add a field	新建字段	เพิ่มช่อง	フィールドを追加	erp.work.fields.add
+Custom fields	自定义字段	ช่องที่กำหนดเอง	カスタムフィールド	erp.work.fields.manage
+Field name	字段名称	ชื่อช่อง	フィールド名	erp.work.fields.name
+Options (one per line)	选项（每行一个）	ตัวเลือก (บรรทัดละหนึ่งรายการ)	選択肢（1行に1つ）	erp.work.fields.options
+Custom fields saved	自定义字段已保存	บันทึกช่องที่กำหนดเองแล้ว	カスタムフィールドを保存しました	erp.work.fields.saved
+Show on card	显示在卡片正面	แสดงบนการ์ด	カードに表示	erp.work.fields.showOnCard
+Type	类型	ประเภท	種類	erp.work.fields.type
+Text	文本	ข้อความ	テキスト	erp.work.fieldtype.text
+Number	数字	ตัวเลข	数値	erp.work.fieldtype.number
+Date	日期	วันที่	日付	erp.work.fieldtype.date
+Checkbox	勾选	ช่องทำเครื่องหมาย	チェックボックス	erp.work.fieldtype.checkbox
+Dropdown	下拉	ดรอปดาวน์	ドロップダウン	erp.work.fieldtype.select
+Insert	插入	แทรก	挿入	erp.work.file.insert
+Add a link	添加链接	เพิ่มลิงก์	リンクを追加	erp.work.file.link
+Display text (optional)	显示文本（可选）	ข้อความที่แสดง (ไม่บังคับ)	表示テキスト（任意）	erp.work.file.text
+Paste a link	粘贴链接	วางลิงก์	リンクを貼り付け	erp.work.file.url
+Add another list	添加另一个列表	เพิ่มรายการอื่น	リストを追加	erp.work.list.add
+Archive this list	归档此列表	เก็บถาวรรายการนี้	このリストをアーカイブ	erp.work.list.archive
+List archived	列表已归档	เก็บถาวรรายการแล้ว	リストをアーカイブしました	erp.work.list.archived
+Delete this list and all its cards permanently? This cannot be undone.	确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。	ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้	このリストとすべてのカードを完全に削除しますか？元に戻せません。	erp.work.list.confirmDelete
+Copy list	复制列表	คัดลอกรายการ	リストをコピー	erp.work.list.copy
+Done list (cards moved here are complete)	完成列表（移入即完成）	รายการเสร็จสิ้น (การ์ดที่ย้ายมาจะถือว่าเสร็จ)	完了リスト（移動すると完了）	erp.work.list.doneList
+Move list	移动列表	ย้ายรายการ	リストを移動	erp.work.list.move
+List name	列表名称	ชื่อรายการ	リスト名	erp.work.list.name
+Enter list name	输入列表名称	กรอกชื่อรายการ	リスト名を入力	erp.work.list.placeholder
+Position	位置	ตำแหน่ง	位置	erp.work.list.position
+Mirror	镜像	มิเรอร์	ミラー	erp.work.mirror.add
+Mirror	镜像	มิเรอร์	ミラー	erp.work.mirror.badge
+Remove mirror	移除镜像	ลบมิเรอร์	ミラーを削除	erp.work.mirror.remove
+Template	模板	เทมเพลต	テンプレート	erp.work.template.badge
+Create from template	从模板创建	สร้างจากเทมเพลต	テンプレートから作成	erp.work.template.create
+No templates yet	暂无模板	ยังไม่มีเทมเพลต	テンプレートはまだありません	erp.work.template.empty
+Make template	设为模板	ตั้งเป็นเทมเพลต	テンプレートにする	erp.work.template.set
+Card templates	卡片模板	เทมเพลตการ์ด	カードテンプレート	erp.work.template.title
+Remove template	取消模板	ยกเลิกเทมเพลต	テンプレートを解除	erp.work.template.unset
+None	无	ไม่มี	なし	erp.work.reminder.none
+At time of due date	到期时	เมื่อถึงกำหนด	期限時	erp.work.reminder.at_due
+5 minutes before	5 分钟前	ก่อน 5 นาที	5分前	erp.work.reminder.5m
+10 minutes before	10 分钟前	ก่อน 10 นาที	10分前	erp.work.reminder.10m
+15 minutes before	15 分钟前	ก่อน 15 นาที	15分前	erp.work.reminder.15m
+1 hour before	1 小时前	ก่อน 1 ชั่วโมง	1時間前	erp.work.reminder.1h
+2 hours before	2 小时前	ก่อน 2 ชั่วโมง	2時間前	erp.work.reminder.2h
+1 day before	1 天前	ก่อน 1 วัน	1日前	erp.work.reminder.1d
+2 days before	2 天前	ก่อน 2 วัน	2日前	erp.work.reminder.2d
+Never	从不	ไม่ซ้ำ	なし	erp.work.repeat.never
+Daily	每天	ทุกวัน	毎日	erp.work.repeat.daily
+Weekly	每周	ทุกสัปดาห์	毎週	erp.work.repeat.weekly
+Monthly	每月	ทุกเดือน	毎月	erp.work.repeat.monthly
+Yearly	每年	ทุกปี	毎年	erp.work.repeat.yearly
+{0} completed {1}	{0} 完成了卡片「{1}」	{0} ทำการ์ด "{1}" เสร็จแล้ว	{0} が「{1}」を完了しました	erp.work.notify.complete
+{1} is due at {2}	卡片「{1}」将在 {2} 到期	การ์ด "{1}" จะครบกำหนดเมื่อ {2}	「{1}」の期限は {2} です	erp.work.notify.reminder
+{who} marked this card complete	{who} 将此卡片标记为已完成	{who} ทำเครื่องหมายว่าการ์ดนี้เสร็จแล้ว	{who} がこのカードを完了にしました	erp.work.activity.complete
+{who} marked this card incomplete	{who} 将此卡片标记为未完成	{who} ทำเครื่องหมายว่าการ์ดนี้ยังไม่เสร็จ	{who} がこのカードを未完了にしました	erp.work.activity.uncomplete
+{who} completed this recurring card; next due {0}	{who} 已完成此重复卡片，下次到期：{0}	{who} ทำการ์ดที่เกิดซ้ำนี้เสร็จแล้ว ครบกำหนดครั้งถัดไป: {0}	{who} が繰り返しカードを完了しました。次の期限は {0}	erp.work.activity.repeat
+{who} mirrored this card to {0}	{who} 已将此卡片镜像到 {0}	{who} มิเรอร์การ์ดนี้ไปที่ {0} แล้ว	{who} がこのカードを{0}にミラーしました	erp.work.activity.mirror
+Board	看板	บอร์ด	ボード	erp.work.view.board
+My cards	我的卡片	การ์ดของฉัน	自分のカード	erp.work.view.mine
+Calendar	日历	ปฏิทิน	カレンダー	erp.work.view.calendar
+Table	表格	ตาราง	テーブル	erp.work.view.table
+No cards are assigned to you	暂无分配给您的卡片	ยังไม่มีการ์ดที่มอบหมายให้คุณ	割り当てられたカードはありません	erp.work.mine.empty
+Overdue	已过期	เลยกำหนด	期限切れ	erp.work.mine.overdue
+Due today	今天到期	ครบกำหนดวันนี้	今日が期限	erp.work.mine.today
+Due this week	7 天内到期	ครบกำหนดภายใน 7 วัน	7日以内が期限	erp.work.mine.week
+Due later	以后到期	ครบกำหนดภายหลัง	それ以降	erp.work.mine.later
+No due date	无到期日	ไม่มีวันครบกำหนด	期日なし	erp.work.mine.none
+Completed	已完成	เสร็จแล้ว	完了	erp.work.mine.done
+Export Excel	导出 Excel	ส่งออก Excel	Excel に出力	erp.work.table.export
+Automation	自动化	ระบบอัตโนมัติ	自動化	erp.work.rules.manage
+Create a rule	新建规则	สร้างกฎ	ルールを作成	erp.work.rules.add
+Rules saved	规则已保存	บันทึกกฎแล้ว	ルールを保存しました	erp.work.rules.saved
+When a card enters	卡片进入列表时	เมื่อการ์ดเข้ารายการ	カードがリストに入ったとき	erp.work.rules.when
+Then	自动	ให้ทำ	実行	erp.work.rules.then
+Days later	天后	วันหลังจากนั้น	日後	erp.work.rules.days
+Enabled	启用	เปิดใช้	有効	erp.work.rules.enabled
+Assign to	分派给成员	มอบหมายให้	担当に追加	erp.work.rules.action_assign
+Add label	添加标签	เพิ่มป้ายกำกับ	ラベルを追加	erp.work.rules.action_label
+Set due date	到期日设为 N 天后	ตั้งวันครบกำหนดเป็นอีก N วัน	期日を N 日後に設定	erp.work.rules.action_due_days
+Mark complete	标记完成	ทำเครื่องหมายว่าเสร็จ	完了にする	erp.work.rules.action_complete
+Add watcher	添加关注人	เพิ่มผู้ติดตาม	ウォッチャーを追加	erp.work.rules.action_watch
+Hide details	隐藏详情	ซ่อนรายละเอียด	詳細を隠す	erp.work.activity.hideDetails
+Show details	显示详情	แสดงรายละเอียด	詳細を表示	erp.work.activity.showDetails
+{who}'s automation: {0} {1}	自动化（{who}）：{0} {1}	ระบบอัตโนมัติ ({who}): {0} {1}	自動化（{who}）：{0} {1}	erp.work.activity.rule
+Enter a number of days from 0 to 365	请输入 0 到 365 之间的天数	กรุณากรอกจำนวนวันระหว่าง 0 ถึง 365	日数は 0〜365 で入力してください	erp.work.error.rule_days
+Board	看板	บอร์ด	ボード	erp.work.board.label
+Create board	新建看板	สร้างบอร์ด	ボードを作成	erp.work.board.create
+Board settings	看板设置	ตั้งค่าบอร์ด	ボード設定	erp.work.board.settings
+Board members	看板成员	สมาชิกบอร์ด	ボードメンバー	erp.work.board.members
+Board name	看板名称	ชื่อบอร์ด	ボード名	erp.work.board.name
+Visibility	可见范围	การมองเห็น	公開範囲	erp.work.board.visibility
+Team visible	团队可见	ทีมมองเห็นได้	チームに公開	erp.work.board.visibility_team
+Private	私有	ส่วนตัว	非公開	erp.work.board.visibility_private
+Who can comment	评论权限	สิทธิ์แสดงความคิดเห็น	コメントできる人	erp.work.board.commenting
+Members	成员	สมาชิก	メンバー	erp.work.board.commenting_members
+Members and observers	成员和观察者	สมาชิกและผู้สังเกตการณ์	メンバーとオブザーバー	erp.work.board.commenting_observers
+Disabled	关闭	ปิด	無効	erp.work.board.commenting_disabled
+Who can add and remove members	成员管理权限	สิทธิ์จัดการสมาชิก	メンバーを追加・削除できる人	erp.work.board.memberManagement
+Admins only	仅管理员	เฉพาะผู้ดูแล	管理者のみ	erp.work.board.memberManagement_admins
+All members	所有成员	สมาชิกทุกคน	すべてのメンバー	erp.work.board.memberManagement_members
+Archive board	归档看板	เก็บถาวรบอร์ด	ボードをアーカイブ	erp.work.board.archive
+Board archived	看板已归档	เก็บถาวรบอร์ดแล้ว	ボードをアーカイブしました	erp.work.board.archived
+Add member	添加成员	เพิ่มสมาชิก	メンバーを追加	erp.work.board.addMember
+Role	角色	บทบาท	役割	erp.work.board.role
+Board admin	看板管理员	ผู้ดูแลบอร์ด	ボード管理者	erp.work.board.role_admin
+Member	成员	สมาชิก	メンバー	erp.work.board.role_member
+Observer	观察者	ผู้สังเกตการณ์	オブザーバー	erp.work.board.role_observer
+Add	添加	เพิ่ม	追加	erp.work.board.add
+Leave board	离开看板	ออกจากบอร์ด	ボードから退出	erp.work.board.leave
+Remove	移除	นำออก	外す	erp.work.board.remove
+Team board	团队看板	บอร์ดทีม	チームボード	erp.work.board.default
+Archived boards	已归档的看板	บอร์ดที่เก็บถาวร	アーカイブ済みボード	erp.work.archived.boards
+This board no longer exists	该看板不存在	ไม่พบบอร์ดนี้	このボードはもう存在しません	erp.work.error.board
+Enter a board name	请输入看板名称	กรุณากรอกชื่อบอร์ด	ボード名を入力してください	erp.work.error.board_title
+Only board admins can do this	仅看板管理员可执行此操作	เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้	ボード管理者のみ実行できます	erp.work.error.board_rights
+A board needs at least one admin	看板至少需要一位管理员	บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน	ボードには管理者が少なくとも1人必要です	erp.work.error.last_admin
+The default board cannot be archived	默认看板不能归档	ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้	既定のボードはアーカイブできません	erp.work.error.default_board

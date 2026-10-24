@@ -29,6 +29,8 @@ FEATURE_ROLES = {
     "sales": "ERP Sales",
     "clients": "ERP Sales",
     "cashier": "ERP Cashier",
+    # 任务管理（看板，2026-10-23 从 Cowork 复制）：开通时发给租户管理员；员工在团队管理里逐人勾「任务管理」菜单。
+    "tasks": "ERP Tasks",
 }
 
 # 能力 → 允许的功能码（可多个）。能力码属于 ERP 自己，不复用旧平台的
@@ -58,6 +60,8 @@ CAPABILITY_FEATURES = {
     # 按税号查泰国税务局的官方登记信息（建供应商/客户时带出抬头与地址）。
     # 采购与销售两侧都要用，所以两个岗位都给；收银不开票、不需要。
     "tax.lookup": ("purchase", "clients", "sales"),
+    # 用任务管理（进页面、调看板接口）。能看 / 改哪块看板再按看板成员与可见范围判（`work.access`）。
+    "tasks.use": ("tasks",),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。

@@ -320,6 +320,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/team.js"),
     versioned_asset("pearnly_erp_portal", "desk/company.js"),
     versioned_asset("pearnly_erp_portal", "desk/warehouses.js"),
+    versioned_asset("pearnly_erp_portal", "desk/work.js"),
 ]
 
 app_include_css = [
@@ -327,6 +328,7 @@ app_include_css = [
     versioned_asset("pearnly_erp_portal", "desk/sales.css"),
     versioned_asset("pearnly_erp_portal", "desk/pos/official-pos.css"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.css"),
+    versioned_asset("pearnly_erp_portal", "desk/work.css"),
 ]
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
@@ -347,7 +349,9 @@ scheduler_events = {
                            # 排着的 Express 主档同步：按顺序发起读取、读好了排后台任务落库（没有排着的就一条查询）
                            "pearnly_erp_portal.express.masters.advance"],
              # Express 主档有改动就跟上：请电脑看一眼主档表的文件属性，变了才整套同步（每家一件很轻的请求）
-             "*/10 * * * *": ["pearnly_erp_portal.express.masters.check_marks"]},
+             "*/10 * * * *": ["pearnly_erp_portal.express.masters.check_marks"],
+             # 任务管理：按卡片的提醒时间发到期提醒、到期后发一次过期提醒（同一到期时刻每人各一次）
+             "*/5 * * * *": ["pearnly_erp_portal.work.reminders.run"]},
 }
 
 # CC 桌面版直连 ERP（ADR-025）：员工用 ERP 账号在 CC 窗口里登录，这台电脑接上本站的共用机器通道，替他把单写进 Express。
@@ -366,7 +370,7 @@ boot_session = "pearnly_erp_portal.masters.boot.boot_session"
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
   "profile_label": "My Profile",
-  "permission_groups": [("General", ["pearnly-home"]),
+  "permission_groups": [("General", ["pearnly-home", "pearnly-tasks"]),
                         ("User Settings", ["user", "pearnly-team", "pearnly-company", "pearnly-warehouses"])],
   # 产品自己的**页面过滤器**（共用层只负责调）：收银台是公司级开关，这家公司没开收银，
   # 那三个收银页与收银岗位都不出现。见 `masters/nav.py` 与 ADR-009 的声明约定。
@@ -386,6 +390,8 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.posReceipts', 'pearnly-pos-receipts', 'receipt-text', 'cashier'),
             ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
             ('nav.erpClients', 'pearnly-clients', 'user', 'clients'),
+            # 任务管理（看板，2026-10-23 从 Cowork 复制）：侧栏里「销售系统」下方单独一项（见下面 groups）。
+            ('erp.nav.work', 'pearnly-tasks', 'square-kanban', 'tasks'),
             ('nav.company', 'pearnly-company', 'building-2', None),
             ('nav.warehouses', 'pearnly-warehouses', 'warehouse', None),
             ('nav.team', 'pearnly-team', 'users-round', None),
@@ -404,6 +410,7 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-cashier',
                 'pearnly-pos-receipts',
                 'pearnly-pos-shifts',
+                'pearnly-tasks',
                 'pearnly-team',
                 'pearnly-company',
                 'pearnly-warehouses'],
@@ -446,6 +453,8 @@ pearnly_navigation = [{'product': 'erp',
                'pearnly-pos-receipts',
                'pearnly-pos-shifts',
                'pearnly-clients']),
+             # 标题为 None：不是分组，是放在这个位置的单独一项（用户 2026-10-23："放在销售系统的下方"）。
+             (None, None, ['pearnly-tasks']),
              ('nav.group.master',
               'building-2',
               ['pearnly-integrations'])],
@@ -482,8 +491,11 @@ for _key in ("home", "profile"):
 # LINE 只在本人的「个人信息」里绑（用户 2026-09-25），所以勾了 LINE 的人一定进得去那一页。
 from pearnly_erp_portal.access import rules as _rules
 pearnly_navigation[0]["permissions"][_menu_permissions.route("profile")]["any_role"].append(_rules.LINE_ROLE)
-after_install = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply"]
-after_migrate = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply"]
+# 任务管理的默认看板（团队可见、默认三列）在装好 / 升级后建好。
+after_install = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply",
+                 "pearnly_erp_portal.work.service.ensure_on_migrate"]
+after_migrate = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply",
+                 "pearnly_erp_portal.work.service.ensure_on_migrate"]
 
 has_permission.update({
     "ERP Stock Entry": "pearnly_erp_portal.inventory.access.entry_permission",
@@ -509,7 +521,8 @@ permission_query_conditions.update({
     "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_list_query",
     "ERP POS Terminal": "pearnly_erp_portal.cashier.access.terminal_query",
 })
-doc_events = {"DocShare": {"validate": "pearnly_erp_portal.access.sharing.validate_share"}}
+doc_events = {"DocShare": {"validate": ["pearnly_erp_portal.access.sharing.validate_share",
+                                        "pearnly_erp_portal.work.access.reject_share"]}}
 for _doctype in ("ERP Warehouse", "ERP POS Terminal"):
     doc_events[_doctype] = {"before_validate": "pearnly_erp_portal.masters.access.validate_company_unchanged"}
 doc_events["ERP Stock Entry"] = {
@@ -520,3 +533,23 @@ doc_events["ERP Stock Opening"] = {
     _event: "pearnly_erp_portal.inventory.access.validate_opening_write"
     for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
 }
+
+# 任务管理（看板）：原生资源只读、只读得到能看的看板；写一律走 `work` 的专用接口（`work.documents` 写入闸）。
+# 卡片附件是原生 File：只给能看那块看板的人（别的文件不受影响）。
+for _doctype in ("ERP Work Board", "ERP Work Card", "ERP Work Label", "ERP Work Activity", "ERP Work Column",
+                 "ERP Work Field", "ERP Work Mirror", "ERP Work Rule"):
+    has_permission[_doctype] = "pearnly_erp_portal.work.access.has_permission"
+has_permission["ERP Work Notification"] = "pearnly_erp_portal.work.access.notification_permission"
+has_permission["File"] = "pearnly_erp_portal.work.access.file_permission"
+permission_query_conditions.update({
+    "ERP Work Board": "pearnly_erp_portal.work.access.board_query",
+    "ERP Work Card": "pearnly_erp_portal.work.access.card_query",
+    "ERP Work Label": "pearnly_erp_portal.work.access.label_query",
+    "ERP Work Activity": "pearnly_erp_portal.work.access.activity_query",
+    "ERP Work Notification": "pearnly_erp_portal.work.access.notification_query",
+    "ERP Work Column": "pearnly_erp_portal.work.access.column_query",
+    "ERP Work Field": "pearnly_erp_portal.work.access.field_query",
+    "ERP Work Mirror": "pearnly_erp_portal.work.access.mirror_query",
+    "ERP Work Rule": "pearnly_erp_portal.work.access.rule_query",
+    "File": "pearnly_erp_portal.work.access.file_query",
+})

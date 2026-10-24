@@ -1,12 +1,22 @@
 1 = January,1 = 一月
+1 day before,1 天前
+1 hour before,1 小时前
 1-12; Thai companies commonly start in January,1–12；泰国公司一般从 1 月开始
+10 minutes before,10 分钟前
 13 digits; a branch adds its 5-digit branch number,税号 13 位；有分店再带 5 位分店编号
+15 minutes before,15 分钟前
+2 days before,2 天前
+2 hours before,2 小时前
+5 minutes before,5 分钟前
+A board needs at least one admin,看板至少需要一位管理员
+A board needs at least one list,看板至少需要保留一个列表
 A company needs a name,请填写公司名称
 A company needs at least one warehouse,公司至少需要一个仓库
 A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须关联其生成的采购记录
 A confirmed draft must point at the record it created,已确认的草稿必须关联其生成的记录
 A customer needs a name,请填写客户名称
+A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
 A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
 A payment has to be approved before it counts as paid,付款经审批后方视为已付
@@ -30,18 +40,28 @@ Account Set,账套
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
+Add,添加
 Add Column,添加列
 Add Discount,添加折扣
 Add Employee,添加员工
 Add Order Discount,添加整单折扣
 Add User,添加用户
 Add VAT,计算增值税
+Add a card,添加卡片
+Add a checklist,添加清单
 Add a count,新增盘点记录
 Add a count — {0},新增盘点记录 — {0}
+Add a field,新建字段
+Add a link,添加链接
+Add an item,添加项目
+Add another list,添加另一个列表
+Add label,添加标签
+Add member,添加成员
 Add opening item,添加明细
 Add photos,添加照片
 Add row,添加明细
 Add terminal,新增收银台
+Add watcher,添加关注人
 Added {0},已添加 {0}
 Added: {0},已加入：{0}
 Additional,附加项
@@ -50,10 +70,12 @@ Additional Information,附加信息
 Additional Information updated successfully.,附加信息已更新
 Address,地址
 Address and notes,地址与备注
+Admins only,仅管理员
 Against Payment,关联付款
 All,全部
 All Items,所有物料
 All companies,全部公司
+All labels,全部标签
 All the items have been already returned.,所有物料都已退货
 Already exists,已存在
 Already received,该文件已接收
@@ -70,19 +92,32 @@ Amounts,金额
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,散客无税号；仅公司设有分支机构
 Another computer is writing to this account set. It is sent automatically once it is done,另一台电脑正在写入此账套，完成后将自动推送
+Any due date,全部到期日
 Apply,应用
 Approval Status,审批状态
+Archive,归档
+Archive all cards in this list,将此列表中的所有卡片归档
+Archive board,归档看板
+Archive this list,归档此列表
+Archived at,归档时间
+Archived boards,已归档的看板
+Archived items,已归档的项目
+Archived lists,已归档的列表
 Are you sure you want to delete the attachment?,确定要删除该附件吗？
 Are you sure you want to delete?,确定要删除吗？
 Area,区域
 As Of,截至
+Assign to,分派给成员
+Assigned to me,分配给我的
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每张单据最多 {0} 张照片
+At time of due date,到期时
 Attach,添加文件
 Attachment,附件
 Attachment Type,附件类型
 Attachments,附件
 Auto Fetch Serial Numbers,自动获取序列号
+Automation,自动化
 Available Qty,可用量
 Average Unit Cost,平均单位成本
 Average cost,平均成本
@@ -104,6 +139,13 @@ Batch No,批号
 Bind this account first,请先绑定 ERP 账号
 Binding code,绑定码
 Block Duplicate Documents,阻止重复单据
+Blue,蓝
+Board,看板
+Board admin,看板管理员
+Board archived,看板已归档
+Board members,看板成员
+Board name,看板名称
+Board settings,看板设置
 Book,账面
 Book position,账面仓库／仓位
 Book quantity,账面数量
@@ -133,6 +175,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop needs an update,CC 桌面版需更新
 CC Desktop not connected,CC 桌面版未连接
 Calculation Version,计算版本
+Calendar,日历
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。
 Camera permission was refused; allow it and try again,摄像头权限被拒绝，请允许后重试
 Cancel,取消
@@ -144,6 +187,11 @@ Cancelled On,取消时间
 Cancelled {0},已取消 {0} 条
 Cannot reach the Revenue Department right now,暂时无法连接税务局
 Card,银行卡
+Card archived,已归档
+Card deleted,已删除
+Card name (alphabetically),卡片名称（按字母）
+Card restored,已恢复
+Card templates,卡片模板
 Cart,购物车
 Cash,现金
 Cash Amount,现金
@@ -158,9 +206,15 @@ Category Name,分类名称
 Change,找零
 Change Amount,找零
 Change Total,找零合计
+Change cards on the work board,请在工作看板上修改卡片
+Change cover,更改封面
+Change list color,更改列表颜色
+Change members,变更成员
 Chart,图表
 Chart by,统计维度
 Check the opening stock row,请检查此期初明细
+Checkbox,勾选
+Checklist,清单
 Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
 Cheque,支票
@@ -169,6 +223,7 @@ Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
 Choose a local opening stock file,请选择本地期初库存文件
 Choose an existing product for opening stock,请选择已有的物料录入期初
+Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少勾选一个功能权限
 Choose file,选择文件
 Choose purchase or sales first,请先选择采购或销售
@@ -203,20 +258,26 @@ Code,编码
 Code expired,绑定码已过期
 Code or barcode,编码或条码
 Codes start at {0},编码从 {0} 开始
+Collapse list,收起列表
 Collected {0},已收款 {0}
 Collection,收款
 Collection Date,收款日期
 Collection Method,收款方式
 Collection Remarks,收款备注
 Collection Status,收款状态
+Color,颜色
 Colour Tag,颜色标记
 Columns,列
 Comes from the terminal; set it there if it is empty,来自收银台；这里空的话要先去收银台上配一个仓
+Comment,评论
+Comments,评论
+Comments and activity,评论和活动
 Companies,公司
 Company,公司
 Company details,公司信息
 Company name,公司名称
 Company not found,公司不存在
+Complete,完成
 Complete Order,完成订单
 Complete Payment,完成收款
 Completed,已完成
@@ -231,6 +292,10 @@ Contact email,联系邮箱
 Contact person,联系人
 Continuous counting,连续盘点
 Conversion Factor,换算系数
+Copy card,复制卡片
+Copy link,复制链接
+Copy list,复制列表
+Copy to,复制到
 Correct entry,修改记录
 "Correct the marked rows, then preview again",请修正明细中的错误，再重新预览
 Cost,成本
@@ -254,9 +319,15 @@ Counted by,盘点人
 Counted in total,计入合计
 Counted quantity,实盘数量
 Counter 1,收银台 1
+Cover,封面
 Create,创建
 Create New Item,创建新物料
 Create POS Opening Entry,新建开班记录
+Create a new label,新建标签
+Create a rule,新建规则
+Create board,新建看板
+Create card,创建卡片
+Create from template,从模板创建
 Created,创建时间
 Created when a sales draft is confirmed,销售草稿确认后生成
 Created when the draft is confirmed,草稿确认后生成
@@ -268,6 +339,8 @@ Credit Note,贷项通知单
 Currency,货币
 Current,当前
 Custom,自定义
+Custom fields,自定义字段
+Custom fields saved,自定义字段已保存
 Customer,客户
 Customer Name,客户名称
 Customer Type,客户类型
@@ -277,9 +350,15 @@ Customer is required,客户不能为空
 Customer not found,未找到客户
 Customer not found. Please select the customer again.,客户不存在，请重新选择客户。
 Customers,客户
+Cyan,青
+Daily,每天
 Damaged / written off,报损
 Date,日期
 Date (BE),日期（佛历）
+Date created (newest first),创建时间（最新优先）
+Date created (oldest first),创建时间（最早优先）
+Dates,日期
+Days later,天后
 Decided At,处理时间
 Dedupe Key,去重键
 Default,默认
@@ -293,6 +372,8 @@ Default WHT Rate for Services (%),服务类默认预扣税率（%）
 Default withholding for service documents,服务类单据默认的预扣税
 Delete,删除
 Delete selected ({0}),删除所选（{0}）
+Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
+Delete this list and all its cards permanently? This cannot be undone.,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 Deleted {0},已删除 {0}
 Deleted {0} stock counts,已删除 {0} 份盘点
@@ -320,6 +401,7 @@ Discount cannot be greater than 100%,折扣率不可超过 100%
 Discount cannot be greater than 100%.,折扣率不能超过 100%。
 Discount cannot exceed the amount,折扣不能超过金额
 Discount percentage,折扣百分比
+Display text (optional),显示文本（可选）
 Document,单据
 Document No,单据编号
 Document Number,单据编号
@@ -336,11 +418,20 @@ Document summary · open details to review and post,单据摘要 · 进入明细
 Document total,总金额
 Document type,单据类型
 Documents,单据数量
+Done list (cards moved here are complete),完成列表（移入即完成）
 Download opening template,下载期初模板
 Download template,下载模板
 Draft,草稿
 Draft not found,草稿不存在
+Dropdown,下拉
+Due,到期
 Due Date,到期日
+Due date,到期日
+Due later,以后到期
+Due this week,7 天内到期
+Due time,到期时间
+Due today,今天到期
+Due today or tomorrow,今明两天到期
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
 ERP menu,ERP 菜单
@@ -349,7 +440,10 @@ Each terminal sells from the warehouse named on it (use one of the warehouse nam
 Edit,编辑
 Edit Cart,返回购物车
 Edit Receipt,编辑收据
+Edit card,编辑卡片
+Edit dates,编辑日期
 Edit in Full Page,在完整页面编辑
+Edit labels,修改标签
 Editing {0} is not allowed as per POS Profile settings,按收银台配置，不允许修改 {0}
 Email,邮箱
 Email Receipt,邮件发送收据
@@ -361,6 +455,11 @@ Enable POS cashier,启用 POS 收银台
 Enable {0},启用 {0}
 Enable {0} selected,启用选中的 {0} 个
 Enabled,已启用
+Enter a board name,请输入看板名称
+Enter a comment,请输入评论
+Enter a field name,请输入字段名称
+Enter a link that starts with http:// or https://,请输入以 http:// 或 https:// 开头的链接
+Enter a number of days from 0 to 365,请输入 0 到 365 之间的天数
 Enter a quantity,请输入数量
 Enter a tax ID first,请先填写税号
 Enter a valid email,请填写正确的邮箱
@@ -369,6 +468,7 @@ Enter customer's email,输入客户邮箱
 Enter customer's phone number,输入客户电话
 Enter discount percentage,输入折扣百分比
 Enter discount percentage.,输入折扣百分比
+Enter list name,输入列表名称
 Enter manually,手动录入
 Enter opening stock,录入期初库存
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
@@ -391,6 +491,7 @@ Expense Amount,费用金额
 Expense Count,费用笔数
 Expiry Date,失效日期
 Export,导出
+Export Excel,导出 Excel
 Export {0},导出选中的 {0} 个班次
 Exported {0} shifts,已导出 {0} 个班次
 Express,Express
@@ -416,6 +517,7 @@ Factor to Base Unit,换算到库存单位的系数
 Failed,失败
 Fetched At,获取时间
 Fetched only {0} available serial numbers.,仅获取到 {0} 个可用序列号
+Field name,字段名称
 File,文件
 File Fingerprint,文件指纹
 File Name,文件名
@@ -452,9 +554,12 @@ Generated,已生成
 Generated automatically,自动生成
 Goods,货物
 Grand Total,总计
+Gray,灰
+Green,绿
 Gross,毛额
 Head Office,总部
 Hide Recent Orders,隐藏最近订单
+Hide details,隐藏详情
 ID,编号
 Idempotency anchor for a whole request; a repeat submit is ignored,重复提交将被忽略
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,重复提交将返回同一张小票，不会重复收款
@@ -476,12 +581,19 @@ Inactive,已停用
 Initial Password,初始密码
 Input Tax,进项税额
 Input VAT,进项税
+Insert,插入
 Internal use,内部领用
 Invalid Currency,币种无效
 Invalid Discount,无效折扣
 Invalid Return,无效退货
+Invalid checklist,清单无效
+Invalid color,颜色无效
+Invalid date,日期无效
+Invalid field value,字段的值无效
 Invalid file,无效文件
 Invalid payment amount,付款金额无效
+Invalid request,请求无效
+Invalid status,状态无效
 Invalid value,值无效
 Invalid value: {0},值无效：{0}
 Invoice,发票
@@ -511,6 +623,7 @@ Items found at a different place,位置不一样的商品
 Items not found.,未找到物料
 "Items with a difference, largest first",有差异的商品，差得最多的排在最前
 Job Roles,功能权限
+Keep,保留
 "Keep product IDs, codes and barcodes as text in the opening stock file",期初文件中的物料标识、编码和条码请使用文本格式
 LINE,LINE
 LINE Message,LINE 消息
@@ -518,6 +631,9 @@ LINE User,LINE 用户
 LINE is not enabled for this account,该账号未开通 LINE
 LINE name,LINE 名称
 LINE unbound,LINE 已解绑
+Label,标签
+Labels,标签
+Labels saved,标签已保存
 Last Login,最后登录
 Last Month,上个月
 Last Movement,最后一次流水
@@ -527,6 +643,7 @@ Last page,末页
 Last transacted,最近交易时间
 Leave all unchecked to allow every company,不勾选则可查看全部公司
 Leave blank to use the default terminal,留空使用默认收银台
+Leave board,离开看板
 "Legacy used head office / branch, with the branch number when it is a branch",旧系统用「总店 / 分支」，是分支时另带分支号
 Light,闪光灯
 Line Amount,行金额
@@ -536,7 +653,11 @@ Line Total,明细小计
 Line prices include VAT,明细单价已含增值税
 Lines,明细行
 Lines in this shift,当班小票
+List,列表
 List Price,标价
+List actions,列表操作
+List archived,列表已归档
+List name,列表名称
 Loading...,加载中…
 Location,地点
 "Lookup failed, please fill in manually",查询失败，请手动填写
@@ -548,21 +669,35 @@ Loyalty Points,忠诚度积分
 Loyalty Program,忠诚度计划
 Main,主仓
 Maintained in Express,由 Express 维护
+Make template,设为模板
 Manual,手动
 Manual Entry,手动录入
 Manually Set Amounts,手动设置金额
+Mark all as read,全部标为已读
+Mark complete,标记完成
+Mark incomplete,标记未完成
 Media Type,文件类型
+Member,成员
+Members,成员
+Members and observers,成员和观察者
 Merge Items,合并明细
 Method,付款方式
+Mirror,镜像
 Mismatch,不一致
 Missing Values Required,缺少必填项
 Mode of Payment,付款方式
 Modes of Payment,付款方式
+Monthly,每月
 More Filters,更多筛选条件
+Move,移动
+Move all cards in this list,移动此列表中的所有卡片
+Move list,移动列表
+My cards,我的卡片
 Name,名称
 Net,净额
 Net Total,净总计
 Net total - discount + VAT must equal the total,金额不一致：净总计 − 折扣 + 增值税必须等于总计
+Never,从不
 New,新建
 New Category,新建分类
 New Customer,新建客户
@@ -584,19 +719,24 @@ No,序号
 No Express account set covers this date,没有覆盖此日期的 Express 账套
 No Open Shift,尚未开班
 No attachments,无附件
+No cards are assigned to you,暂无分配给您的卡片
 No company is available for this account,此账号无可用公司
 No computer can write this account set,没有能写此账套的电脑
+No due date,无到期日
 No item matches the scanned code {0},未找到与扫描编码 {0} 匹配的物料
 No items found. Scan barcode again.,未找到物料，请重新扫码
 No items in cart,购物车为空
 No items were read,未识别到明细
 No match for “{0}”,没有找到「{0}」
+No members,无成员
+No notifications,没有提醒
 No product for this code: {0},未找到该编码对应的物料：{0}
 No product matches that code,未找到该编码对应的物料
 No product matches this code,未找到与该编号匹配的物料
 No receipts in this shift,当班暂无小票
 No recent transactions found,暂无最近交易
 No stock count in progress,无进行中的盘点
+No templates yet,暂无模板
 No terminal yet,还没有收银台
 No warehouse is available for this company,该公司无可用仓库
 No warehouse matches that name,该仓库名不存在
@@ -615,8 +755,11 @@ Not permitted,没有权限
 Note,备注
 Notes,备注
 Nothing counted yet,暂无盘点记录
+Notifications,提醒
 Now sending {0} documents,当前发送{0}单据
+Number,数字
 OCR,文字识别
+Observer,观察者
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,未勾选表示未设置成本，金额与单位成本留空
 On Hand,现有库存
 Only Draft documents can be deleted,只能删除草稿单据
@@ -626,6 +769,7 @@ Only a submitted document can be cancelled,只能作废已提交的单据
 Only a submitted document can be voided,仅可作废已提交的单据
 Only an active count can be deleted,仅可删除进行中的盘点
 Only an image or a PDF can be recognised,仅支持识别图片或 PDF
+Only board admins can do this,仅看板管理员可执行此操作
 Only low or out of stock,只看低库存或缺货
 Only purchase documents can be sent in for now,目前仅支持接收采购单据
 Only the checked features are visible to this employee,只勾选的功能，这个员工才看得到
@@ -635,6 +779,7 @@ Open Form View,打开表单视图
 Open Shift,开班
 Open a shift before selling,请先开班
 Open a shift on the cashier page first.,请先在收银台开班（旧页面那条路）
+Open card,打开卡片
 Open that product,打开该物料
 "Open this page from LINE, or sign in to the site first",请从 LINE 打开本页，或先登录站点
 Opened At,开班时间
@@ -661,6 +806,8 @@ Opening stock review,期初库存核对
 Opening stock review is not configured,期初核对配置缺失，请联系管理员
 Opening unit cost,期初成本单价
 Opening value,期初金额
+Options (one per line),选项（每行一个）
+Orange,橙
 Order Evidence,订单截图
 Original Item and Location,原单物料与仓位
 Original Line,原单明细行
@@ -671,6 +818,7 @@ Outdated POS Opening Entry,过期的开班记录
 Outstanding Amount,未付金额
 Over,多货
 Over by {0},长款 {0}
+Overdue,已过期
 POS Closed,收银台已关闭
 POS Opening Entry Cancelled,开班记录已作废
 POS Opening Entry has been cancelled. Please refresh the page.,开班记录已作废，请刷新页面
@@ -688,6 +836,7 @@ Parent Item Group,上级物料组
 Partly Paid,部分付款
 Party,往来单位
 Password updated,密码已更新
+Paste a link,粘贴链接
 Pay,收款
 Payment,付款
 Payment Date,付款日期
@@ -713,6 +862,7 @@ Photos,照片
 Pick a line first,请先选择一行
 Pick a warehouse,请选择仓库
 "Pick quantity, discount or price first",请先选择数量、折扣或单价
+Pink,粉
 Place,位置
 Please add Mode of payments and opening balance details.,请添加支付方式与开班余额明细
 Please select a field to edit from numpad,请先用键盘选择要修改的字段
@@ -720,6 +870,7 @@ Please select an Item,请选择物料
 Please upload a PDF or image,请上传 PDF 或图片
 Point of Sale,收银台
 Point the camera at the barcode or QR code,请将条码或二维码对准摄像头
+Position,位置
 Position Balance,该仓位结存
 Position differences,仓位差异
 Post Stock On Confirm,确认时过账库存
@@ -742,6 +893,7 @@ Price is not set for the item.,该物料未设置售价
 Prices Include Tax,价格含税
 Print,打印
 Print Receipt,打印收据
+Private,私有
 Product,产品
 Product / position / counted by / time,物料 / 仓位 / 盘点人 / 时间
 Product ID,物料标识
@@ -767,6 +919,7 @@ Purchase Record,采购记录
 Purchase Records,采购记录
 Purchase document not found,采购单不存在
 Purchasing,采购
+Purple,紫
 Purpose,用途
 QR Payload,QR 内容
 QR content,二维码内容
@@ -818,6 +971,8 @@ Record sales,销售录入
 Recorded,已入账
 Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，已跳过 {1} 行已录入明细
 Recount this product,重新盘点该物料
+Recurring,重复性
+Red,红
 Redeem Loyalty Points,抵扣忠诚度积分
 Reference,参考
 Reference Cost,参考成本
@@ -835,6 +990,9 @@ Remaining Amount,剩余金额
 Remark,备注
 Remarks,备注
 Remove,移除
+Remove color,移除颜色
+Remove mirror,移除镜像
+Remove template,取消模板
 Replace the entered rows with the imported file?,确定要用导入文件替换已填写的明细吗？
 Request Hash,请求哈希
 Request ID already exists,请求编号已存在
@@ -842,6 +1000,7 @@ Request id,请求 ID
 Requested By,申请人
 Reset,重置
 Reset Password,重置密码
+Restore,恢复
 Retry,重试
 Return,退货退款
 Return to stock,退库
@@ -849,12 +1008,14 @@ Returned,已退货
 Reversal,冲销
 Review differences,查看差异
 Review document,复核单据
+Role,角色
 Rotate,旋转
 Rounded Total,舍入后总计
 Rounding Adjustment,舍入调整
 Row number,行号
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",按物料编码匹配，未匹配时按条码匹配；重复导入的行将被覆盖。
+Rules saved,规则已保存
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}
 Sale,销售
 Sale Price,售价
@@ -882,6 +1043,7 @@ Search by invoice id or customer name,按单据编号或客户名称搜索
 "Search by item code, serial number or barcode",按物料号、序列号或条码搜索
 Search by name or phone,按名称或电话搜
 Search by receipt number,按小票编号搜索
+Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
 "Search name, code or barcode",搜索名称、编码或条码
 Select Loyalty Program,选择忠诚度计划
@@ -913,6 +1075,8 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,服务
 Service or stock item?,请选择服务或库存商品
 Set as current,设为当前
+Set due date,到期日设为 N 天后
+Set reminder,设置提醒
 Setup Auto Email,设置自动邮件
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
@@ -933,19 +1097,24 @@ Short,少货
 Short Name,简称
 Short by {0},短款 {0}
 Short name,简称
+Show details,显示详情
 Show disabled,显示已停用
+Show on card,显示在卡片正面
 Show only,仅显示
 Show zero stock,显示零库存
 Skipped {0} row(s); the first ones are listed above,已跳过 {0} 行，部分明细见上方
 Sold At,销售时间
 Sold by,收银员
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。
+Someone else changed this card. Close it and open it again.,此卡片已被其他用户修改，请关闭后重新打开。
 Sort Order,排序
+Sort by,排序依据
 Source,来源
 Source File,来源文件
 Source File Record,源文件记录
 Split,分拆
 Start counting,开始盘点
+Start date,开始日期
 Status,状态
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",仍然是关的：库存表要进库存那批，过账不能悄悄把它们跳过
 Stock,库存
@@ -971,6 +1140,7 @@ Stock leaves this warehouse (must belong to the same company). Blank means the o
 Stock ledger,查看流水
 Stock of {0} is now {1},{0} 的库存现为 {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}
+Stop watching,取消关注
 Stored here for now; document numbers still come from the numbering rules,先存着：单号仍按编号定义自动发
 Subcategory,子分类
 Submit,提交
@@ -1001,7 +1171,9 @@ Sync failed,同步失败
 Synced,已同步
 Syncing,同步中
 System number,单据编号
+Table,表格
 Tap the menu to start,请点击下方菜单开始
+Task Management,任务管理
 Tax Amount,税额
 Tax Exclusive,不含税
 Tax ID,税号
@@ -1013,10 +1185,15 @@ Tax Withholding Amount,预扣税额
 Tax Withholding Rate,预扣税率
 Taxes,税费
 Taxes and Charges,税费
+Team board,团队看板
+Team visible,团队可见
+Template,模板
 Terminal,收银台
 Terminal name,收银台名称
 Terminal not found,收银台不存在
 Terminals,收银台
+Text,文本
+Text is too long,内容过长
 That code is not valid,绑定码无效
 That file could not be read; please use the template,无法读取该文件，请使用模板格式
 That file has no rows,该文件没有数据行
@@ -1037,6 +1214,8 @@ The amount payable cannot be negative,应付金额不能为负数
 The amount received is less than the total,实收金额小于应收金额
 The amount received is short,实收金额不足
 The balance could not be checked right now. Please try again in a minute.,暂时无法查询余额，请稍后重试。
+The card is already in that list,卡片已在该列表中
+The card no longer exists,卡片不存在
 The cart is empty,购物车为空
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
 The cashier is not enabled for this company,该公司未启用收银
@@ -1046,10 +1225,12 @@ The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The customer is missing. Choose the customer and submit again.,缺少客户，请选择客户后重新提交
+The default board cannot be archived,默认看板不能归档
 The discount exceeds the line amount,折扣超过该行金额
 The discount exceeds the total,折扣超过合计
 The document date is invalid. Correct it and submit again.,单据日期无效，请修改后重新提交
 The file could not be saved. Please try again shortly.,文件保存失败，请稍后重试
+The file is larger than 25 MB,文件超过 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
 The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
@@ -1070,6 +1251,7 @@ The recognition result needs checking. Please do not resend this document yet.,�
 The recognition service did not answer in time. Please try again.,识别服务响应超时，请重试。
 The row has no product code or barcode,该行缺少物料编码或条码
 The sheet needs a product name column,表格中必须包含物料名称列
+The start date is after the due date,开始日期不能晚于到期日
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
 "The stock lines could not be posted. Check the items, quantities and prices",无法记录库存明细，请核对品名、数量和单价
 The supplier is missing. Add it and submit again.,缺少供应商，请补充后重新提交
@@ -1077,6 +1259,7 @@ The total is invalid,合计无效
 The total is zero,合计为零
 The value is not a number,该值不是数字
 The value must be zero or more,该值不能小于 0
+Then,自动
 There are no lines,缺少明细
 There is nothing to save,没有需要保存的内容
 There were errors while sending email. Please try again.,发送邮件时出错，请重试
@@ -1087,6 +1270,7 @@ This PDF has more than {0} pages,PDF 超过 {0} 页
 This Quarter,本季度
 This account cannot send documents,该账号无权发送单据
 This barcode already exists,该条码已存在
+This board no longer exists,该看板不存在
 This browser cannot scan with the camera,当前浏览器不支持摄像头扫码
 This browser cannot scan with the camera; use a scanner or type the code,当前浏览器不支持摄像头扫码，请使用扫码枪或手动输入
 This card expires in {0} minutes,本卡片 {0} 分钟内有效
@@ -1115,6 +1299,9 @@ This invoice has no lines. Add them and submit again.,此发票没有明细，�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
 This is not a purchase or sales document,该文件不是采购或销售单据
 This item is also stocked at:,该物料还存放于：
+This label no longer exists,标签不存在
+This list no longer exists,列表不存在
+This member cannot be assigned,无法分配给此成员
 This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
 This product code already exists,该物料编码已存在
@@ -1137,7 +1324,10 @@ This warehouse belongs to the company above,这个仓挂在上面那家公司名
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
 Time left {0},剩余 {0}
+Title,标题
 To Date,结束日期
+To do,待办
+Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
 Total,总计
 Total Amount,总金额
@@ -1190,6 +1380,7 @@ Updated {0} product(s),已更新 {0} 个物料
 Updated {0} record(s),已更新 {0} 条记录
 Updated {0} supplier(s),已更新 {0} 家供应商
 Updated {0} user(s),已更新 {0} 位用户
+Upload,上传
 Upload a document or enter it manually?,请选择上传识别或手动录入
 "Upload a receipt, then review the recognized details.",上传收据，识别后复核并修改。
 Upload a sheet,上传导入
@@ -1215,6 +1406,7 @@ VAT Rate %,税率%
 VAT applies,含 VAT
 Value,金额
 Value Change,金额变动
+Visibility,可见范围
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 Void the payments before voiding the document,作废单据前请先冲销付款
@@ -1232,8 +1424,13 @@ Warehouse,仓库
 Warehouse name,仓库名称
 Warehouse not found,未找到仓库
 Warehouses,仓库
+Watch,关注
+Weekly,每周
+When a card enters,卡片进入列表时
 "Which company this terminal belongs to, and which warehouse it sells from",收银台所属公司及出货仓库
 Who bought this receipt; empty means a walk-in customer,购买此小票的客户；留空表示散客
+Who can add and remove members,成员管理权限
+Who can comment,评论权限
 With differences,有差异
 Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
@@ -1242,7 +1439,10 @@ Withholding Tax must be greater than zero,预扣税额必须大于零
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written,已写入
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
+Yearly,每年
+Yellow,黄
 Yes,是
+You are watching this card,已关注此卡片
 You can redeem upto {0}.,最多可抵扣 {0}
 You cannot redeem more than {0}.,抵扣金额不能超过 {0}
 You cannot submit empty order.,无法提交空订单
@@ -1407,6 +1607,262 @@ erp.line.status.bound,已绑定
 erp.line.status.unbound,未绑定
 erp.line.unbind,解绑 LINE
 erp.line.unbindConfirm,确定要解绑 Pearnly ERP LINE 吗？
+erp.nav.work,任务管理
+erp.work.activity.archive,{who} 归档了此卡片
+erp.work.activity.assign,{who} 将 {0} 添加到此卡片
+erp.work.activity.attach,{who} 添加了附件 {0}
+erp.work.activity.complete,{who} 将此卡片标记为已完成
+erp.work.activity.copy,{who} 从「{0}」复制了此卡片
+erp.work.activity.create,{who} 添加了此卡片
+erp.work.activity.detach,{who} 删除了附件 {0}
+erp.work.activity.due,{who} 将到期日设为 {0}
+erp.work.activity.hideDetails,隐藏详情
+erp.work.activity.mirror,{who} 已将此卡片镜像到 {0}
+erp.work.activity.move,{who} 将此卡片从 {0} 移至 {1}
+erp.work.activity.noDue,无
+erp.work.activity.repeat,{who} 已完成此重复卡片，下次到期：{0}
+erp.work.activity.restore,{who} 恢复了此卡片
+erp.work.activity.rule,自动化（{who}）：{0} {1}
+erp.work.activity.showDetails,显示详情
+erp.work.activity.uncomplete,{who} 将此卡片标记为未完成
+erp.work.archived.at,归档时间
+erp.work.archived.boards,已归档的看板
+erp.work.archived.confirmDelete,确定要永久删除此卡片吗？删除后无法恢复。
+erp.work.archived.deleted,已删除
+erp.work.archived.lists,已归档的列表
+erp.work.archived.restore,恢复
+erp.work.archived.restored,已恢复
+erp.work.archived.title,已归档的项目
+erp.work.board.add,添加
+erp.work.board.addMember,添加成员
+erp.work.board.archive,归档看板
+erp.work.board.archived,看板已归档
+erp.work.board.commenting,评论权限
+erp.work.board.commenting_disabled,关闭
+erp.work.board.commenting_members,成员
+erp.work.board.commenting_observers,成员和观察者
+erp.work.board.create,新建看板
+erp.work.board.default,团队看板
+erp.work.board.label,看板
+erp.work.board.leave,离开看板
+erp.work.board.memberManagement,成员管理权限
+erp.work.board.memberManagement_admins,仅管理员
+erp.work.board.memberManagement_members,所有成员
+erp.work.board.members,看板成员
+erp.work.board.name,看板名称
+erp.work.board.remove,移除
+erp.work.board.role,角色
+erp.work.board.role_admin,看板管理员
+erp.work.board.role_member,成员
+erp.work.board.role_observer,观察者
+erp.work.board.settings,看板设置
+erp.work.board.visibility,可见范围
+erp.work.board.visibility_private,私有
+erp.work.board.visibility_team,团队可见
+erp.work.card.add,添加卡片
+erp.work.card.archive,归档
+erp.work.card.archived,已归档
+erp.work.card.done,标记完成
+erp.work.card.placeholder,输入标题
+erp.work.card.saved,已保存
+erp.work.card.title,卡片
+erp.work.card.undone,标记未完成
+erp.work.checklist.add,添加清单
+erp.work.checklist.addItem,添加项目
+erp.work.color.blue,蓝
+erp.work.color.cyan,青
+erp.work.color.gray,灰
+erp.work.color.green,绿
+erp.work.color.orange,橙
+erp.work.color.pink,粉
+erp.work.color.purple,紫
+erp.work.color.red,红
+erp.work.color.yellow,黄
+erp.work.column.archiveAll,将此列表中的所有卡片归档
+erp.work.column.collapse,收起列表
+erp.work.column.color,更改列表颜色
+erp.work.column.menu,列表操作
+erp.work.column.moveAll,移动此列表中的所有卡片
+erp.work.column.removeColor,移除颜色
+erp.work.column.sort,排序依据
+erp.work.column.sort_created_asc,创建时间（最早优先）
+erp.work.column.sort_created_desc,创建时间（最新优先）
+erp.work.column.sort_due,到期日
+erp.work.column.sort_title,卡片名称（按字母）
+erp.work.comment.label,评论
+erp.work.comment.send,发表
+erp.work.copy.create,创建卡片
+erp.work.copy.keep,保留
+erp.work.copy.to,复制到
+erp.work.cover.none,无
+erp.work.error.board,该看板不存在
+erp.work.error.board_rights,仅看板管理员可执行此操作
+erp.work.error.board_title,请输入看板名称
+erp.work.error.checklist,清单无效
+erp.work.error.color,颜色无效
+erp.work.error.comment,请输入评论
+erp.work.error.conflict,此卡片已被其他用户修改，请关闭后重新打开。
+erp.work.error.cover,请选择此卡片的图片附件
+erp.work.error.date,日期无效
+erp.work.error.dedicated_api,请在工作看板上修改卡片
+erp.work.error.default_board,默认看板不能归档
+erp.work.error.field_options,下拉字段至少需要一个选项
+erp.work.error.field_title,请输入字段名称
+erp.work.error.field_value,字段的值无效
+erp.work.error.file,请选择文件
+erp.work.error.file_size,文件超过 25 MB
+erp.work.error.label,标签不存在
+erp.work.error.last_admin,看板至少需要一位管理员
+erp.work.error.last_list,看板至少需要保留一个列表
+erp.work.error.link,请输入以 http:// 或 https:// 开头的链接
+erp.work.error.list,列表不存在
+erp.work.error.member,无法分配给此成员
+erp.work.error.mirror,卡片已在该列表中
+erp.work.error.not_found,卡片不存在
+erp.work.error.request,请求无效
+erp.work.error.rule_days,请输入 0 到 365 之间的天数
+erp.work.error.start_after_due,开始日期不能晚于到期日
+erp.work.error.status,状态无效
+erp.work.error.title,请输入标题
+erp.work.error.too_long,内容过长
+erp.work.error.too_many,项目过多
+erp.work.field.activity,评论和活动
+erp.work.field.attachments,附件
+erp.work.field.checklist,清单
+erp.work.field.comments,评论
+erp.work.field.completed,完成
+erp.work.field.cover,封面
+erp.work.field.dates,日期
+erp.work.field.description,描述
+erp.work.field.done,完成
+erp.work.field.due,到期日
+erp.work.field.dueTime,到期时间
+erp.work.field.item,项目
+erp.work.field.labels,标签
+erp.work.field.list,列表
+erp.work.field.members,成员
+erp.work.field.reminder,设置提醒
+erp.work.field.repeat,重复性
+erp.work.field.start,开始日期
+erp.work.field.status,状态
+erp.work.field.title,标题
+erp.work.fields.add,新建字段
+erp.work.fields.manage,自定义字段
+erp.work.fields.name,字段名称
+erp.work.fields.options,选项（每行一个）
+erp.work.fields.saved,自定义字段已保存
+erp.work.fields.showOnCard,显示在卡片正面
+erp.work.fields.type,类型
+erp.work.fieldtype.checkbox,勾选
+erp.work.fieldtype.date,日期
+erp.work.fieldtype.number,数字
+erp.work.fieldtype.select,下拉
+erp.work.fieldtype.text,文本
+erp.work.file.insert,插入
+erp.work.file.link,添加链接
+erp.work.file.text,显示文本（可选）
+erp.work.file.upload,上传
+erp.work.file.url,粘贴链接
+erp.work.filter.anyDue,全部到期日
+erp.work.filter.anyLabel,全部标签
+erp.work.filter.anyMember,全部成员
+erp.work.filter.due,到期
+erp.work.filter.keyword,搜索卡片
+erp.work.filter.label,标签
+erp.work.filter.member,成员
+erp.work.filter.mine,分配给我的
+erp.work.filter.noDue,无到期日
+erp.work.filter.noMember,无成员
+erp.work.filter.overdue,已过期
+erp.work.filter.soon,今明两天到期
+erp.work.labels.add,新建标签
+erp.work.labels.color,颜色
+erp.work.labels.manage,标签
+erp.work.labels.name,名称
+erp.work.labels.saved,标签已保存
+erp.work.list.add,添加另一个列表
+erp.work.list.archive,归档此列表
+erp.work.list.archived,列表已归档
+erp.work.list.confirmDelete,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
+erp.work.list.copy,复制列表
+erp.work.list.doneList,完成列表（移入即完成）
+erp.work.list.move,移动列表
+erp.work.list.name,列表名称
+erp.work.list.placeholder,输入列表名称
+erp.work.list.position,位置
+erp.work.mine.done,已完成
+erp.work.mine.empty,暂无分配给您的卡片
+erp.work.mine.later,以后到期
+erp.work.mine.none,无到期日
+erp.work.mine.overdue,已过期
+erp.work.mine.today,今天到期
+erp.work.mine.week,7 天内到期
+erp.work.mirror.add,镜像
+erp.work.mirror.badge,镜像
+erp.work.mirror.remove,移除镜像
+erp.work.notify.assign,{0} 已将您添加到卡片「{1}」
+erp.work.notify.comment,{0} 评论了卡片「{1}」
+erp.work.notify.complete,{0} 完成了卡片「{1}」
+erp.work.notify.due_soon,卡片「{1}」即将到期（{2}）
+erp.work.notify.empty,没有提醒
+erp.work.notify.mention,{0} 在卡片「{1}」中提及您
+erp.work.notify.move,{0} 将卡片「{1}」移至 {2}
+erp.work.notify.overdue,卡片「{1}」已过期（{2}）
+erp.work.notify.readAll,全部标为已读
+erp.work.notify.reminder,卡片「{1}」将在 {2} 到期
+erp.work.notify.title,提醒
+erp.work.quick.copy,复制卡片
+erp.work.quick.cover,更改封面
+erp.work.quick.due,编辑日期
+erp.work.quick.labels,修改标签
+erp.work.quick.link,复制链接
+erp.work.quick.members,变更成员
+erp.work.quick.move,移动
+erp.work.quick.open,打开卡片
+erp.work.quick.title,编辑卡片
+erp.work.quick.unwatch,取消关注
+erp.work.quick.watch,关注
+erp.work.quick.watching,已关注此卡片
+erp.work.reminder.10m,10 分钟前
+erp.work.reminder.15m,15 分钟前
+erp.work.reminder.1d,1 天前
+erp.work.reminder.1h,1 小时前
+erp.work.reminder.2d,2 天前
+erp.work.reminder.2h,2 小时前
+erp.work.reminder.5m,5 分钟前
+erp.work.reminder.at_due,到期时
+erp.work.reminder.none,无
+erp.work.repeat.daily,每天
+erp.work.repeat.monthly,每月
+erp.work.repeat.never,从不
+erp.work.repeat.weekly,每周
+erp.work.repeat.yearly,每年
+erp.work.rules.action_assign,分派给成员
+erp.work.rules.action_complete,标记完成
+erp.work.rules.action_due_days,到期日设为 N 天后
+erp.work.rules.action_label,添加标签
+erp.work.rules.action_watch,添加关注人
+erp.work.rules.add,新建规则
+erp.work.rules.days,天后
+erp.work.rules.enabled,启用
+erp.work.rules.manage,自动化
+erp.work.rules.saved,规则已保存
+erp.work.rules.then,自动
+erp.work.rules.when,卡片进入列表时
+erp.work.status.doing,进行中
+erp.work.status.done,已完成
+erp.work.status.todo,待办
+erp.work.table.export,导出 Excel
+erp.work.template.badge,模板
+erp.work.template.create,从模板创建
+erp.work.template.empty,暂无模板
+erp.work.template.set,设为模板
+erp.work.template.title,卡片模板
+erp.work.template.unset,取消模板
+erp.work.view.board,看板
+erp.work.view.calendar,日历
+erp.work.view.mine,我的卡片
+erp.work.view.table,表格
 express.code.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 express.code.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
@@ -1484,6 +1940,7 @@ issued,已开出
 nav.posReceipts,收银记录
 nav.posShifts,班次记录
 nav.stockCount,盘点
+none,无
 opening,期初
 paid,已付款
 pending_approval,待审批
@@ -2023,6 +2480,28 @@ trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一
 transfer,转账
 unpaid,未付款
 void,已作废
+{0} added you to {1},{0} 已将您添加到卡片「{1}」
+{0} commented on {1},{0} 评论了卡片「{1}」
+{0} completed {1},{0} 完成了卡片「{1}」
+{0} mentioned you on {1},{0} 在卡片「{1}」中提及您
 {0} more items,另有 {0} 项
+{0} moved {1} to {2},{0} 将卡片「{1}」移至 {2}
 {0} rows were not imported,{0} 行未导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
+{1} is due at {2},卡片「{1}」将在 {2} 到期
+{1} is due soon ({2}),卡片「{1}」即将到期（{2}）
+{1} is overdue ({2}),卡片「{1}」已过期（{2}）
+{who} added this card,{who} 添加了此卡片
+{who} added {0} to this card,{who} 将 {0} 添加到此卡片
+{who} archived this card,{who} 归档了此卡片
+{who} attached {0},{who} 添加了附件 {0}
+{who} completed this recurring card; next due {0},{who} 已完成此重复卡片，下次到期：{0}
+{who} copied this card from {0},{who} 从「{0}」复制了此卡片
+{who} marked this card complete,{who} 将此卡片标记为已完成
+{who} marked this card incomplete,{who} 将此卡片标记为未完成
+{who} mirrored this card to {0},{who} 已将此卡片镜像到 {0}
+{who} moved this card from {0} to {1},{who} 将此卡片从 {0} 移至 {1}
+{who} removed attachment {0},{who} 删除了附件 {0}
+{who} restored this card,{who} 恢复了此卡片
+{who} set the due date to {0},{who} 将到期日设为 {0}
+{who}'s automation: {0} {1},自动化（{who}）：{0} {1}

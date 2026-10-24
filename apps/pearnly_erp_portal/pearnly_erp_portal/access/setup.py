@@ -21,7 +21,7 @@ def sync_roles():
     for key, (_feature, _legacy, _caps, writable, readable) in menu.CATALOG.items():
         role = menu.role(key)
         _ensure_role(role)
-        lookup = ("ERP Company",) if key in ("home", "profile", "team") else dependencies
+        lookup = ("ERP Company",) if key in menu.NON_BUSINESS else dependencies
         for doctype in set(lookup + readable + writable):
             if frappe.db.exists("DocType", doctype):
                 _grant(doctype, role, write if doctype in writable else read)

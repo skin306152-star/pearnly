@@ -57,7 +57,8 @@ def role_catalog() -> list[dict]:
 
     spec = _declarations().get("erp") or {}
     labels = {route: label for label, route, _icon, _feature in spec.get("pages", [])}
-    groups = {route: label for label, _icon, routes in spec.get("groups", []) for route in routes}
+    # 侧栏里不带分组标题的单独一项（标题为 None，例如任务管理）在勾选框里归到 permission_groups 声明的那一组。
+    groups = {route: label for label, _icon, routes in spec.get("groups", []) if label for route in routes}
     labels["user"] = spec.get("profile_label", "My Profile")
     groups.update({route: label for label, routes in spec.get("permission_groups", []) for route in routes})
     allowed = set(assignable_roles())

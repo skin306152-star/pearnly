@@ -1,12 +1,22 @@
 1 = January,1 = January
+1 day before,1 day before
+1 hour before,1 hour before
 1-12; Thai companies commonly start in January,1-12; Thai companies commonly start in January
+10 minutes before,10 minutes before
 13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
+15 minutes before,15 minutes before
+2 days before,2 days before
+2 hours before,2 hours before
+5 minutes before,5 minutes before
+A board needs at least one admin,A board needs at least one admin
+A board needs at least one list,A board needs at least one list
 A company needs a name,A company needs a name
 A company needs at least one warehouse,A company needs at least one warehouse
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
 A customer needs a name,A customer needs a name
+A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
@@ -30,18 +40,28 @@ Account Set,Account Set
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
+Add,Add
 Add Column,Add Column
 Add Discount,Add Discount
 Add Employee,Add Employee
 Add Order Discount,Add Order Discount
 Add User,Add User
 Add VAT,Add VAT
+Add a card,Add a card
+Add a checklist,Add a checklist
 Add a count,Add a count
 Add a count — {0},Add a count — {0}
+Add a field,Add a field
+Add a link,Add a link
+Add an item,Add an item
+Add another list,Add another list
+Add label,Add label
+Add member,Add member
 Add opening item,Add opening item
 Add photos,Add photos
 Add row,Add row
 Add terminal,Add terminal
+Add watcher,Add watcher
 Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
@@ -50,10 +70,12 @@ Additional Information,Additional Information
 Additional Information updated successfully.,Additional Information updated successfully.
 Address,Address
 Address and notes,Address and notes
+Admins only,Admins only
 Against Payment,Against Payment
 All,All
 All Items,All Items
 All companies,All companies
+All labels,All labels
 All the items have been already returned.,All the items have been already returned.
 Already exists,Already exists
 Already received,Already received
@@ -70,19 +92,32 @@ Amounts,Amounts
 Anonymous,Anonymous
 Anonymous buyers get no tax id; only companies have branches,Anonymous buyers get no tax id; only companies have branches
 Another computer is writing to this account set. It is sent automatically once it is done,Another computer is writing to this account set. It is sent automatically once it is done
+Any due date,Any due date
 Apply,Apply
 Approval Status,Approval Status
+Archive,Archive
+Archive all cards in this list,Archive all cards in this list
+Archive board,Archive board
+Archive this list,Archive this list
+Archived at,Archived at
+Archived boards,Archived boards
+Archived items,Archived items
+Archived lists,Archived lists
 Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
 Are you sure you want to delete?,Are you sure you want to delete?
 Area,Area
 As Of,As Of
+Assign to,Assign to
+Assigned to me,Assigned to me
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
+At time of due date,At time of due date
 Attach,Attach
 Attachment,Attachment
 Attachment Type,Attachment Type
 Attachments,Attachments
 Auto Fetch Serial Numbers,Auto Fetch Serial Numbers
+Automation,Automation
 Available Qty,Available Qty
 Average Unit Cost,Average Unit Cost
 Average cost,Average cost
@@ -104,6 +139,13 @@ Batch No,Batch No
 Bind this account first,Bind this account first
 Binding code,Binding code
 Block Duplicate Documents,Block Duplicate Documents
+Blue,Blue
+Board,Board
+Board admin,Board admin
+Board archived,Board archived
+Board members,Board members
+Board name,Board name
+Board settings,Board settings
 Book,Book
 Book position,Book position
 Book quantity,Book quantity
@@ -133,6 +175,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop needs an update,CC Desktop needs an update
 CC Desktop not connected,CC Desktop not connected
 Calculation Version,Calculation Version
+Calendar,Calendar
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Camera permission was refused; allow it and try again,Camera permission was refused; allow it and try again
 Cancel,Cancel
@@ -144,6 +187,11 @@ Cancelled On,Cancelled On
 Cancelled {0},Cancelled {0}
 Cannot reach the Revenue Department right now,Cannot reach the Revenue Department right now
 Card,Card
+Card archived,Card archived
+Card deleted,Card deleted
+Card name (alphabetically),Card name (alphabetically)
+Card restored,Card restored
+Card templates,Card templates
 Cart,Cart
 Cash,Cash
 Cash Amount,Cash Amount
@@ -158,9 +206,15 @@ Category Name,Category Name
 Change,Change
 Change Amount,Change Amount
 Change Total,Change Total
+Change cards on the work board,Change cards on the work board
+Change cover,Change cover
+Change list color,Change list color
+Change members,Change members
 Chart,Chart
 Chart by,Chart by
 Check the opening stock row,Check the opening stock row
+Checkbox,Checkbox
+Checklist,Checklist
 Checkout,Checkout
 Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
 Cheque,Cheque
@@ -169,6 +223,7 @@ Choose a file,Choose a file
 Choose a file to import,Choose a file to import
 Choose a local opening stock file,Choose a local opening stock file
 Choose an existing product for opening stock,Choose an existing product for opening stock
+Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose file,Choose file
 Choose purchase or sales first,Choose purchase or sales first
@@ -203,20 +258,26 @@ Code,Code
 Code expired,Code expired
 Code or barcode,Code or barcode
 Codes start at {0},Codes start at {0}
+Collapse list,Collapse list
 Collected {0},Collected {0}
 Collection,Collection
 Collection Date,Collection Date
 Collection Method,Collection Method
 Collection Remarks,Collection Remarks
 Collection Status,Collection Status
+Color,Color
 Colour Tag,Colour Tag
 Columns,Columns
 Comes from the terminal; set it there if it is empty,Comes from the terminal; set it there if it is empty
+Comment,Comment
+Comments,Comments
+Comments and activity,Comments and activity
 Companies,Companies
 Company,Company
 Company details,Company details
 Company name,Company name
 Company not found,Company not found
+Complete,Complete
 Complete Order,Complete Order
 Complete Payment,Complete Payment
 Completed,Completed
@@ -231,6 +292,10 @@ Contact email,Contact email
 Contact person,Contact person
 Continuous counting,Continuous counting
 Conversion Factor,Conversion Factor
+Copy card,Copy card
+Copy link,Copy link
+Copy list,Copy list
+Copy to,Copy to
 Correct entry,Correct entry
 "Correct the marked rows, then preview again","Correct the marked rows, then preview again"
 Cost,Cost
@@ -254,9 +319,15 @@ Counted by,Counted by
 Counted in total,Counted in total
 Counted quantity,Counted quantity
 Counter 1,Counter 1
+Cover,Cover
 Create,Create
 Create New Item,Create New Item
 Create POS Opening Entry,Create POS Opening Entry
+Create a new label,Create a new label
+Create a rule,Create a rule
+Create board,Create board
+Create card,Create card
+Create from template,Create from template
 Created,Created
 Created when a sales draft is confirmed,Created when a sales draft is confirmed
 Created when the draft is confirmed,Created when the draft is confirmed
@@ -268,6 +339,8 @@ Credit Note,Credit Note
 Currency,Currency
 Current,Current
 Custom,Custom
+Custom fields,Custom fields
+Custom fields saved,Custom fields saved
 Customer,Customer
 Customer Name,Customer Name
 Customer Type,Customer Type
@@ -277,9 +350,15 @@ Customer is required,Customer is required
 Customer not found,Customer not found
 Customer not found. Please select the customer again.,Customer not found. Please select the customer again.
 Customers,Customers
+Cyan,Cyan
+Daily,Daily
 Damaged / written off,Damaged / written off
 Date,Date
 Date (BE),Date (BE)
+Date created (newest first),Date created (newest first)
+Date created (oldest first),Date created (oldest first)
+Dates,Dates
+Days later,Days later
 Decided At,Decided At
 Dedupe Key,Dedupe Key
 Default,Default
@@ -293,6 +372,8 @@ Default WHT Rate for Services (%),Default WHT Rate for Services (%)
 Default withholding for service documents,Default withholding for service documents
 Delete,Delete
 Delete selected ({0}),Delete selected ({0})
+Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
+Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
@@ -320,6 +401,7 @@ Discount cannot be greater than 100%,Discount cannot be greater than 100%
 Discount cannot be greater than 100%.,Discount cannot be greater than 100%.
 Discount cannot exceed the amount,Discount cannot exceed the amount
 Discount percentage,Discount percentage
+Display text (optional),Display text (optional)
 Document,Document
 Document No,Document No
 Document Number,Document Number
@@ -336,11 +418,20 @@ Document summary · open details to review and post,Document summary · open det
 Document total,Document total
 Document type,Document type
 Documents,Documents
+Done list (cards moved here are complete),Done list (cards moved here are complete)
 Download opening template,Download opening template
 Download template,Download template
 Draft,Draft
 Draft not found,Draft not found
+Dropdown,Dropdown
+Due,Due
 Due Date,Due Date
+Due date,Due date
+Due later,Due later
+Due this week,Due this week
+Due time,Due time
+Due today,Due today
+Due today or tomorrow,Due today or tomorrow
 ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
 ERP menu,ERP menu
@@ -349,7 +440,10 @@ Each terminal sells from the warehouse named on it (use one of the warehouse nam
 Edit,Edit
 Edit Cart,Edit Cart
 Edit Receipt,Edit Receipt
+Edit card,Edit card
+Edit dates,Edit dates
 Edit in Full Page,Edit in Full Page
+Edit labels,Edit labels
 Editing {0} is not allowed as per POS Profile settings,Editing {0} is not allowed as per POS Profile settings
 Email,Email
 Email Receipt,Email Receipt
@@ -361,6 +455,11 @@ Enable POS cashier,Enable POS cashier
 Enable {0},Enable {0}
 Enable {0} selected,Enable {0} selected
 Enabled,Enabled
+Enter a board name,Enter a board name
+Enter a comment,Enter a comment
+Enter a field name,Enter a field name
+Enter a link that starts with http:// or https://,Enter a link that starts with http:// or https://
+Enter a number of days from 0 to 365,Enter a number of days from 0 to 365
 Enter a quantity,Enter a quantity
 Enter a tax ID first,Enter a tax ID first
 Enter a valid email,Enter a valid email
@@ -369,6 +468,7 @@ Enter customer's email,Enter customer's email
 Enter customer's phone number,Enter customer's phone number
 Enter discount percentage,Enter discount percentage
 Enter discount percentage.,Enter discount percentage.
+Enter list name,Enter list name
 Enter manually,Enter manually
 Enter opening stock,Enter opening stock
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
@@ -391,6 +491,7 @@ Expense Amount,Expense Amount
 Expense Count,Expense Count
 Expiry Date,Expiry Date
 Export,Export
+Export Excel,Export Excel
 Export {0},Export {0}
 Exported {0} shifts,Exported {0} shifts
 Express,Express
@@ -416,6 +517,7 @@ Factor to Base Unit,Factor to Base Unit
 Failed,Failed
 Fetched At,Fetched At
 Fetched only {0} available serial numbers.,Fetched only {0} available serial numbers.
+Field name,Field name
 File,File
 File Fingerprint,File Fingerprint
 File Name,File Name
@@ -452,9 +554,12 @@ Generated,Generated
 Generated automatically,Generated automatically
 Goods,Goods
 Grand Total,Grand Total
+Gray,Gray
+Green,Green
 Gross,Gross
 Head Office,Head Office
 Hide Recent Orders,Hide Recent Orders
+Hide details,Hide details
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,Idempotency anchor for a whole request; a repeat submit is ignored
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,Idempotency anchor: a repeat submit returns the same sale instead of charging twice
@@ -476,12 +581,19 @@ Inactive,Inactive
 Initial Password,Initial Password
 Input Tax,Input Tax
 Input VAT,Input VAT
+Insert,Insert
 Internal use,Internal use
 Invalid Currency,Invalid Currency
 Invalid Discount,Invalid Discount
 Invalid Return,Invalid Return
+Invalid checklist,Invalid checklist
+Invalid color,Invalid color
+Invalid date,Invalid date
+Invalid field value,Invalid field value
 Invalid file,Invalid file
 Invalid payment amount,Invalid payment amount
+Invalid request,Invalid request
+Invalid status,Invalid status
 Invalid value,Invalid value
 Invalid value: {0},Invalid value: {0}
 Invoice,Invoice
@@ -511,6 +623,7 @@ Items found at a different place,Items found at a different place
 Items not found.,Items not found.
 "Items with a difference, largest first","Items with a difference, largest first"
 Job Roles,Job Roles
+Keep,Keep
 "Keep product IDs, codes and barcodes as text in the opening stock file","Keep product IDs, codes and barcodes as text in the opening stock file"
 LINE,LINE
 LINE Message,LINE Message
@@ -518,6 +631,9 @@ LINE User,LINE User
 LINE is not enabled for this account,LINE is not enabled for this account
 LINE name,LINE name
 LINE unbound,LINE unbound
+Label,Label
+Labels,Labels
+Labels saved,Labels saved
 Last Login,Last Login
 Last Month,Last Month
 Last Movement,Last Movement
@@ -527,6 +643,7 @@ Last page,Last page
 Last transacted,Last transacted
 Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
+Leave board,Leave board
 "Legacy used head office / branch, with the branch number when it is a branch","Legacy used head office / branch, with the branch number when it is a branch"
 Light,Light
 Line Amount,Line Amount
@@ -536,7 +653,11 @@ Line Total,Line Total
 Line prices include VAT,Line prices include VAT
 Lines,Lines
 Lines in this shift,Lines in this shift
+List,List
 List Price,List Price
+List actions,List actions
+List archived,List archived
+List name,List name
 Loading...,Loading...
 Location,Location
 "Lookup failed, please fill in manually","Lookup failed, please fill in manually"
@@ -548,21 +669,35 @@ Loyalty Points,Loyalty Points
 Loyalty Program,Loyalty Program
 Main,Main
 Maintained in Express,Maintained in Express
+Make template,Make template
 Manual,Manual
 Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
+Mark all as read,Mark all as read
+Mark complete,Mark complete
+Mark incomplete,Mark incomplete
 Media Type,Media Type
+Member,Member
+Members,Members
+Members and observers,Members and observers
 Merge Items,Merge Items
 Method,Method
+Mirror,Mirror
 Mismatch,Mismatch
 Missing Values Required,Missing Values Required
 Mode of Payment,Mode of Payment
 Modes of Payment,Modes of Payment
+Monthly,Monthly
 More Filters,More Filters
+Move,Move
+Move all cards in this list,Move all cards in this list
+Move list,Move list
+My cards,My cards
 Name,Name
 Net,Net
 Net Total,Net Total
 Net total - discount + VAT must equal the total,Net total - discount + VAT must equal the total
+Never,Never
 New,New
 New Category,New Category
 New Customer,New Customer
@@ -584,19 +719,24 @@ No,No
 No Express account set covers this date,No Express account set covers this date
 No Open Shift,No Open Shift
 No attachments,No attachments
+No cards are assigned to you,No cards are assigned to you
 No company is available for this account,No company is available for this account
 No computer can write this account set,No computer can write this account set
+No due date,No due date
 No item matches the scanned code {0},No item matches the scanned code {0}
 No items found. Scan barcode again.,No items found. Scan barcode again.
 No items in cart,No items in cart
 No items were read,No items were read
 No match for “{0}”,No match for “{0}”
+No members,No members
+No notifications,No notifications
 No product for this code: {0},No product for this code: {0}
 No product matches that code,No product matches that code
 No product matches this code,No product matches this code
 No receipts in this shift,No receipts in this shift
 No recent transactions found,No recent transactions found
 No stock count in progress,No stock count in progress
+No templates yet,No templates yet
 No terminal yet,No terminal yet
 No warehouse is available for this company,No warehouse is available for this company
 No warehouse matches that name,No warehouse matches that name
@@ -615,8 +755,11 @@ Not permitted,Not permitted
 Note,Note
 Notes,Notes
 Nothing counted yet,Nothing counted yet
+Notifications,Notifications
 Now sending {0} documents,Now sending {0} documents
+Number,Number
 OCR,OCR
+Observer,Observer
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero
 On Hand,On Hand
 Only Draft documents can be deleted,Only Draft documents can be deleted
@@ -626,6 +769,7 @@ Only a submitted document can be cancelled,Only a submitted document can be canc
 Only a submitted document can be voided,Only a submitted document can be voided
 Only an active count can be deleted,Only an active count can be deleted
 Only an image or a PDF can be recognised,Only an image or a PDF can be recognised
+Only board admins can do this,Only board admins can do this
 Only low or out of stock,Only low or out of stock
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Only the checked features are visible to this employee,Only the checked features are visible to this employee
@@ -635,6 +779,7 @@ Open Form View,Open Form View
 Open Shift,Open Shift
 Open a shift before selling,Open a shift before selling
 Open a shift on the cashier page first.,Open a shift on the cashier page first.
+Open card,Open card
 Open that product,Open that product
 "Open this page from LINE, or sign in to the site first","Open this page from LINE, or sign in to the site first"
 Opened At,Opened At
@@ -661,6 +806,8 @@ Opening stock review,Opening stock review
 Opening stock review is not configured,Opening stock review is not configured
 Opening unit cost,Opening unit cost
 Opening value,Opening value
+Options (one per line),Options (one per line)
+Orange,Orange
 Order Evidence,Order Evidence
 Original Item and Location,Original Item and Location
 Original Line,Original Line
@@ -671,6 +818,7 @@ Outdated POS Opening Entry,Outdated POS Opening Entry
 Outstanding Amount,Outstanding Amount
 Over,Over
 Over by {0},Over by {0}
+Overdue,Overdue
 POS Closed,POS Closed
 POS Opening Entry Cancelled,POS Opening Entry Cancelled
 POS Opening Entry has been cancelled. Please refresh the page.,POS Opening Entry has been cancelled. Please refresh the page.
@@ -688,6 +836,7 @@ Parent Item Group,Parent Item Group
 Partly Paid,Partly Paid
 Party,Party
 Password updated,Password updated
+Paste a link,Paste a link
 Pay,Pay
 Payment,Payment
 Payment Date,Payment Date
@@ -713,6 +862,7 @@ Photos,Photos
 Pick a line first,Pick a line first
 Pick a warehouse,Pick a warehouse
 "Pick quantity, discount or price first","Pick quantity, discount or price first"
+Pink,Pink
 Place,Place
 Please add Mode of payments and opening balance details.,Please add Mode of payments and opening balance details.
 Please select a field to edit from numpad,Please select a field to edit from numpad
@@ -720,6 +870,7 @@ Please select an Item,Please select an Item
 Please upload a PDF or image,Please upload a PDF or image
 Point of Sale,Point of Sale
 Point the camera at the barcode or QR code,Point the camera at the barcode or QR code
+Position,Position
 Position Balance,Position Balance
 Position differences,Position differences
 Post Stock On Confirm,Post Stock On Confirm
@@ -742,6 +893,7 @@ Price is not set for the item.,Price is not set for the item.
 Prices Include Tax,Prices Include Tax
 Print,Print
 Print Receipt,Print Receipt
+Private,Private
 Product,Product
 Product / position / counted by / time,Product / position / counted by / time
 Product ID,Product ID
@@ -767,6 +919,7 @@ Purchase Record,Purchase Record
 Purchase Records,Purchase Records
 Purchase document not found,Purchase document not found
 Purchasing,Purchasing
+Purple,Purple
 Purpose,Purpose
 QR Payload,QR Payload
 QR content,QR content
@@ -818,6 +971,8 @@ Record sales,Record sales
 Recorded,Recorded
 Recorded {0} opening row(s); skipped {1} already recorded row(s),Recorded {0} opening row(s); skipped {1} already recorded row(s)
 Recount this product,Recount this product
+Recurring,Recurring
+Red,Red
 Redeem Loyalty Points,Redeem Loyalty Points
 Reference,Reference
 Reference Cost,Reference Cost
@@ -835,6 +990,9 @@ Remaining Amount,Remaining Amount
 Remark,Remark
 Remarks,Remarks
 Remove,Remove
+Remove color,Remove color
+Remove mirror,Remove mirror
+Remove template,Remove template
 Replace the entered rows with the imported file?,Replace the entered rows with the imported file?
 Request Hash,Request Hash
 Request ID already exists,Request ID already exists
@@ -842,6 +1000,7 @@ Request id,Request id
 Requested By,Requested By
 Reset,Reset
 Reset Password,Reset Password
+Restore,Restore
 Retry,Retry
 Return,Return
 Return to stock,Return to stock
@@ -849,12 +1008,14 @@ Returned,Returned
 Reversal,Reversal
 Review differences,Review differences
 Review document,Review document
+Role,Role
 Rotate,Rotate
 Rounded Total,Rounded Total
 Rounding Adjustment,Rounding Adjustment
 Row number,Row number
 Rows,Rows
 "Rows are matched by product code, then barcode. Rows already imported are replaced.","Rows are matched by product code, then barcode. Rows already imported are replaced."
+Rules saved,Rules saved
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · Value {1} · Low {2} · Out {3}
 Sale,Sale
 Sale Price,Sale Price
@@ -882,6 +1043,7 @@ Search by invoice id or customer name,Search by invoice id or customer name
 "Search by item code, serial number or barcode","Search by item code, serial number or barcode"
 Search by name or phone,Search by name or phone
 Search by receipt number,Search by receipt number
+Search cards,Search cards
 Search name or barcode,Search name or barcode
 "Search name, code or barcode","Search name, code or barcode"
 Select Loyalty Program,Select Loyalty Program
@@ -913,6 +1075,8 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,Service
 Service or stock item?,Service or stock item?
 Set as current,Set as current
+Set due date,Set due date
+Set reminder,Set reminder
 Setup Auto Email,Setup Auto Email
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
@@ -933,19 +1097,24 @@ Short,Short
 Short Name,Short Name
 Short by {0},Short by {0}
 Short name,Short name
+Show details,Show details
 Show disabled,Show disabled
+Show on card,Show on card
 Show only,Show only
 Show zero stock,Show zero stock
 Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the first ones are listed above
 Sold At,Sold At
 Sold by,Sold by
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
+Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Sort Order,Sort Order
+Sort by,Sort by
 Source,Source
 Source File,Source File
 Source File Record,Source File Record
 Split,Split
 Start counting,Start counting
+Start date,Start date
 Status,Status
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them","Still off: the stock tables land in the inventory batch, and posting must not silently skip them"
 Stock,Stock
@@ -971,6 +1140,7 @@ Stock leaves this warehouse (must belong to the same company). Blank means the o
 Stock ledger,Stock ledger
 Stock of {0} is now {1},Stock of {0} is now {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.
+Stop watching,Stop watching
 Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
 Subcategory,Subcategory
 Submit,Submit
@@ -1001,7 +1171,9 @@ Sync failed,Sync failed
 Synced,Synced
 Syncing,Syncing
 System number,System number
+Table,Table
 Tap the menu to start,Tap the menu to start
+Task Management,Task Management
 Tax Amount,Tax Amount
 Tax Exclusive,Tax Exclusive
 Tax ID,Tax ID
@@ -1013,10 +1185,15 @@ Tax Withholding Amount,Tax Withholding Amount
 Tax Withholding Rate,Tax Withholding Rate
 Taxes,Taxes
 Taxes and Charges,Taxes and Charges
+Team board,Team board
+Team visible,Team visible
+Template,Template
 Terminal,Terminal
 Terminal name,Terminal name
 Terminal not found,Terminal not found
 Terminals,Terminals
+Text,Text
+Text is too long,Text is too long
 That code is not valid,That code is not valid
 That file could not be read; please use the template,That file could not be read; please use the template
 That file has no rows,That file has no rows
@@ -1037,6 +1214,8 @@ The amount payable cannot be negative,The amount payable cannot be negative
 The amount received is less than the total,The amount received is less than the total
 The amount received is short,The amount received is short
 The balance could not be checked right now. Please try again in a minute.,The balance could not be checked right now. Please try again in a minute.
+The card is already in that list,The card is already in that list
+The card no longer exists,The card no longer exists
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
 The cashier is not enabled for this company,The cashier is not enabled for this company
@@ -1046,10 +1225,12 @@ The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The customer is missing. Choose the customer and submit again.,The customer is missing. Choose the customer and submit again.
+The default board cannot be archived,The default board cannot be archived
 The discount exceeds the line amount,The discount exceeds the line amount
 The discount exceeds the total,The discount exceeds the total
 The document date is invalid. Correct it and submit again.,The document date is invalid. Correct it and submit again.
 The file could not be saved. Please try again shortly.,The file could not be saved. Please try again shortly.
+The file is larger than 25 MB,The file is larger than 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
@@ -1070,6 +1251,7 @@ The recognition result needs checking. Please do not resend this document yet.,T
 The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
+The start date is after the due date,The start date is after the due date
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The supplier is missing. Add it and submit again.,The supplier is missing. Add it and submit again.
@@ -1077,6 +1259,7 @@ The total is invalid,The total is invalid
 The total is zero,The total is zero
 The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
+Then,Then
 There are no lines,There are no lines
 There is nothing to save,There is nothing to save
 There were errors while sending email. Please try again.,There were errors while sending email. Please try again.
@@ -1087,6 +1270,7 @@ This PDF has more than {0} pages,This PDF has more than {0} pages
 This Quarter,This Quarter
 This account cannot send documents,This account cannot send documents
 This barcode already exists,This barcode already exists
+This board no longer exists,This board no longer exists
 This browser cannot scan with the camera,This browser cannot scan with the camera
 This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
 This card expires in {0} minutes,This card expires in {0} minutes
@@ -1115,6 +1299,9 @@ This invoice has no lines. Add them and submit again.,This invoice has no lines.
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:
+This label no longer exists,This label no longer exists
+This list no longer exists,This list no longer exists
+This member cannot be assigned,This member cannot be assigned
 This option is no longer current,This option is no longer current
 This payment method is not enabled for this company,This payment method is not enabled for this company
 This product code already exists,This product code already exists
@@ -1137,7 +1324,10 @@ This warehouse belongs to the company above,This warehouse belongs to the compan
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
 Time,Time
 Time left {0},Time left {0}
+Title,Title
 To Date,To Date
+To do,To do
+Too many items,Too many items
 Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
 Total,Total
 Total Amount,Total Amount
@@ -1190,6 +1380,7 @@ Updated {0} product(s),Updated {0} product(s)
 Updated {0} record(s),Updated {0} record(s)
 Updated {0} supplier(s),Updated {0} supplier(s)
 Updated {0} user(s),Updated {0} user(s)
+Upload,Upload
 Upload a document or enter it manually?,Upload a document or enter it manually?
 "Upload a receipt, then review the recognized details.","Upload a receipt, then review the recognized details."
 Upload a sheet,Upload a sheet
@@ -1215,6 +1406,7 @@ VAT Rate %,VAT Rate %
 VAT applies,VAT applies
 Value,Value
 Value Change,Value Change
+Visibility,Visibility
 Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
 Void the payments before voiding the document,Void the payments before voiding the document
@@ -1232,8 +1424,13 @@ Warehouse,Warehouse
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
 Warehouses,Warehouses
+Watch,Watch
+Weekly,Weekly
+When a card enters,When a card enters
 "Which company this terminal belongs to, and which warehouse it sells from","Which company this terminal belongs to, and which warehouse it sells from"
 Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
+Who can add and remove members,Who can add and remove members
+Who can comment,Who can comment
 With differences,With differences
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
@@ -1242,7 +1439,10 @@ Withholding Tax must be greater than zero,Withholding Tax must be greater than z
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written,Written
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
+Yearly,Yearly
+Yellow,Yellow
 Yes,Yes
+You are watching this card,You are watching this card
 You can redeem upto {0}.,You can redeem upto {0}.
 You cannot redeem more than {0}.,You cannot redeem more than {0}.
 You cannot submit empty order.,You cannot submit empty order.
@@ -1407,6 +1607,262 @@ erp.line.status.bound,Bound
 erp.line.status.unbound,Not bound
 erp.line.unbind,Unbind LINE
 erp.line.unbindConfirm,Unbind Pearnly ERP LINE?
+erp.nav.work,Task Management
+erp.work.activity.archive,{who} archived this card
+erp.work.activity.assign,{who} added {0} to this card
+erp.work.activity.attach,{who} attached {0}
+erp.work.activity.complete,{who} marked this card complete
+erp.work.activity.copy,{who} copied this card from {0}
+erp.work.activity.create,{who} added this card
+erp.work.activity.detach,{who} removed attachment {0}
+erp.work.activity.due,{who} set the due date to {0}
+erp.work.activity.hideDetails,Hide details
+erp.work.activity.mirror,{who} mirrored this card to {0}
+erp.work.activity.move,{who} moved this card from {0} to {1}
+erp.work.activity.noDue,none
+erp.work.activity.repeat,{who} completed this recurring card; next due {0}
+erp.work.activity.restore,{who} restored this card
+erp.work.activity.rule,{who}'s automation: {0} {1}
+erp.work.activity.showDetails,Show details
+erp.work.activity.uncomplete,{who} marked this card incomplete
+erp.work.archived.at,Archived at
+erp.work.archived.boards,Archived boards
+erp.work.archived.confirmDelete,Delete this card permanently? This cannot be undone.
+erp.work.archived.deleted,Card deleted
+erp.work.archived.lists,Archived lists
+erp.work.archived.restore,Restore
+erp.work.archived.restored,Card restored
+erp.work.archived.title,Archived items
+erp.work.board.add,Add
+erp.work.board.addMember,Add member
+erp.work.board.archive,Archive board
+erp.work.board.archived,Board archived
+erp.work.board.commenting,Who can comment
+erp.work.board.commenting_disabled,Disabled
+erp.work.board.commenting_members,Members
+erp.work.board.commenting_observers,Members and observers
+erp.work.board.create,Create board
+erp.work.board.default,Team board
+erp.work.board.label,Board
+erp.work.board.leave,Leave board
+erp.work.board.memberManagement,Who can add and remove members
+erp.work.board.memberManagement_admins,Admins only
+erp.work.board.memberManagement_members,All members
+erp.work.board.members,Board members
+erp.work.board.name,Board name
+erp.work.board.remove,Remove
+erp.work.board.role,Role
+erp.work.board.role_admin,Board admin
+erp.work.board.role_member,Member
+erp.work.board.role_observer,Observer
+erp.work.board.settings,Board settings
+erp.work.board.visibility,Visibility
+erp.work.board.visibility_private,Private
+erp.work.board.visibility_team,Team visible
+erp.work.card.add,Add a card
+erp.work.card.archive,Archive
+erp.work.card.archived,Card archived
+erp.work.card.done,Mark complete
+erp.work.card.placeholder,Enter a title
+erp.work.card.saved,Saved
+erp.work.card.title,Card
+erp.work.card.undone,Mark incomplete
+erp.work.checklist.add,Add a checklist
+erp.work.checklist.addItem,Add an item
+erp.work.color.blue,Blue
+erp.work.color.cyan,Cyan
+erp.work.color.gray,Gray
+erp.work.color.green,Green
+erp.work.color.orange,Orange
+erp.work.color.pink,Pink
+erp.work.color.purple,Purple
+erp.work.color.red,Red
+erp.work.color.yellow,Yellow
+erp.work.column.archiveAll,Archive all cards in this list
+erp.work.column.collapse,Collapse list
+erp.work.column.color,Change list color
+erp.work.column.menu,List actions
+erp.work.column.moveAll,Move all cards in this list
+erp.work.column.removeColor,Remove color
+erp.work.column.sort,Sort by
+erp.work.column.sort_created_asc,Date created (oldest first)
+erp.work.column.sort_created_desc,Date created (newest first)
+erp.work.column.sort_due,Due date
+erp.work.column.sort_title,Card name (alphabetically)
+erp.work.comment.label,Comment
+erp.work.comment.send,Send
+erp.work.copy.create,Create card
+erp.work.copy.keep,Keep
+erp.work.copy.to,Copy to
+erp.work.cover.none,None
+erp.work.error.board,This board no longer exists
+erp.work.error.board_rights,Only board admins can do this
+erp.work.error.board_title,Enter a board name
+erp.work.error.checklist,Invalid checklist
+erp.work.error.color,Invalid color
+erp.work.error.comment,Enter a comment
+erp.work.error.conflict,Someone else changed this card. Close it and open it again.
+erp.work.error.cover,Choose an image attached to this card
+erp.work.error.date,Invalid date
+erp.work.error.dedicated_api,Change cards on the work board
+erp.work.error.default_board,The default board cannot be archived
+erp.work.error.field_options,A dropdown field needs at least one option
+erp.work.error.field_title,Enter a field name
+erp.work.error.field_value,Invalid field value
+erp.work.error.file,Choose a file
+erp.work.error.file_size,The file is larger than 25 MB
+erp.work.error.label,This label no longer exists
+erp.work.error.last_admin,A board needs at least one admin
+erp.work.error.last_list,A board needs at least one list
+erp.work.error.link,Enter a link that starts with http:// or https://
+erp.work.error.list,This list no longer exists
+erp.work.error.member,This member cannot be assigned
+erp.work.error.mirror,The card is already in that list
+erp.work.error.not_found,The card no longer exists
+erp.work.error.request,Invalid request
+erp.work.error.rule_days,Enter a number of days from 0 to 365
+erp.work.error.start_after_due,The start date is after the due date
+erp.work.error.status,Invalid status
+erp.work.error.title,Enter a title
+erp.work.error.too_long,Text is too long
+erp.work.error.too_many,Too many items
+erp.work.field.activity,Comments and activity
+erp.work.field.attachments,Attachments
+erp.work.field.checklist,Checklist
+erp.work.field.comments,Comments
+erp.work.field.completed,Complete
+erp.work.field.cover,Cover
+erp.work.field.dates,Dates
+erp.work.field.description,Description
+erp.work.field.done,Done
+erp.work.field.due,Due date
+erp.work.field.dueTime,Due time
+erp.work.field.item,Item
+erp.work.field.labels,Labels
+erp.work.field.list,List
+erp.work.field.members,Members
+erp.work.field.reminder,Set reminder
+erp.work.field.repeat,Recurring
+erp.work.field.start,Start date
+erp.work.field.status,Status
+erp.work.field.title,Title
+erp.work.fields.add,Add a field
+erp.work.fields.manage,Custom fields
+erp.work.fields.name,Field name
+erp.work.fields.options,Options (one per line)
+erp.work.fields.saved,Custom fields saved
+erp.work.fields.showOnCard,Show on card
+erp.work.fields.type,Type
+erp.work.fieldtype.checkbox,Checkbox
+erp.work.fieldtype.date,Date
+erp.work.fieldtype.number,Number
+erp.work.fieldtype.select,Dropdown
+erp.work.fieldtype.text,Text
+erp.work.file.insert,Insert
+erp.work.file.link,Add a link
+erp.work.file.text,Display text (optional)
+erp.work.file.upload,Upload
+erp.work.file.url,Paste a link
+erp.work.filter.anyDue,Any due date
+erp.work.filter.anyLabel,All labels
+erp.work.filter.anyMember,All members
+erp.work.filter.due,Due
+erp.work.filter.keyword,Search cards
+erp.work.filter.label,Label
+erp.work.filter.member,Member
+erp.work.filter.mine,Assigned to me
+erp.work.filter.noDue,No due date
+erp.work.filter.noMember,No members
+erp.work.filter.overdue,Overdue
+erp.work.filter.soon,Due today or tomorrow
+erp.work.labels.add,Create a new label
+erp.work.labels.color,Color
+erp.work.labels.manage,Labels
+erp.work.labels.name,Name
+erp.work.labels.saved,Labels saved
+erp.work.list.add,Add another list
+erp.work.list.archive,Archive this list
+erp.work.list.archived,List archived
+erp.work.list.confirmDelete,Delete this list and all its cards permanently? This cannot be undone.
+erp.work.list.copy,Copy list
+erp.work.list.doneList,Done list (cards moved here are complete)
+erp.work.list.move,Move list
+erp.work.list.name,List name
+erp.work.list.placeholder,Enter list name
+erp.work.list.position,Position
+erp.work.mine.done,Completed
+erp.work.mine.empty,No cards are assigned to you
+erp.work.mine.later,Due later
+erp.work.mine.none,No due date
+erp.work.mine.overdue,Overdue
+erp.work.mine.today,Due today
+erp.work.mine.week,Due this week
+erp.work.mirror.add,Mirror
+erp.work.mirror.badge,Mirror
+erp.work.mirror.remove,Remove mirror
+erp.work.notify.assign,{0} added you to {1}
+erp.work.notify.comment,{0} commented on {1}
+erp.work.notify.complete,{0} completed {1}
+erp.work.notify.due_soon,{1} is due soon ({2})
+erp.work.notify.empty,No notifications
+erp.work.notify.mention,{0} mentioned you on {1}
+erp.work.notify.move,{0} moved {1} to {2}
+erp.work.notify.overdue,{1} is overdue ({2})
+erp.work.notify.readAll,Mark all as read
+erp.work.notify.reminder,{1} is due at {2}
+erp.work.notify.title,Notifications
+erp.work.quick.copy,Copy card
+erp.work.quick.cover,Change cover
+erp.work.quick.due,Edit dates
+erp.work.quick.labels,Edit labels
+erp.work.quick.link,Copy link
+erp.work.quick.members,Change members
+erp.work.quick.move,Move
+erp.work.quick.open,Open card
+erp.work.quick.title,Edit card
+erp.work.quick.unwatch,Stop watching
+erp.work.quick.watch,Watch
+erp.work.quick.watching,You are watching this card
+erp.work.reminder.10m,10 minutes before
+erp.work.reminder.15m,15 minutes before
+erp.work.reminder.1d,1 day before
+erp.work.reminder.1h,1 hour before
+erp.work.reminder.2d,2 days before
+erp.work.reminder.2h,2 hours before
+erp.work.reminder.5m,5 minutes before
+erp.work.reminder.at_due,At time of due date
+erp.work.reminder.none,None
+erp.work.repeat.daily,Daily
+erp.work.repeat.monthly,Monthly
+erp.work.repeat.never,Never
+erp.work.repeat.weekly,Weekly
+erp.work.repeat.yearly,Yearly
+erp.work.rules.action_assign,Assign to
+erp.work.rules.action_complete,Mark complete
+erp.work.rules.action_due_days,Set due date
+erp.work.rules.action_label,Add label
+erp.work.rules.action_watch,Add watcher
+erp.work.rules.add,Create a rule
+erp.work.rules.days,Days later
+erp.work.rules.enabled,Enabled
+erp.work.rules.manage,Automation
+erp.work.rules.saved,Rules saved
+erp.work.rules.then,Then
+erp.work.rules.when,When a card enters
+erp.work.status.doing,In progress
+erp.work.status.done,Done
+erp.work.status.todo,To do
+erp.work.table.export,Export Excel
+erp.work.template.badge,Template
+erp.work.template.create,Create from template
+erp.work.template.empty,No templates yet
+erp.work.template.set,Make template
+erp.work.template.title,Card templates
+erp.work.template.unset,Remove template
+erp.work.view.board,Board
+erp.work.view.calendar,Calendar
+erp.work.view.mine,My cards
+erp.work.view.table,Table
 express.code.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 express.code.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
@@ -1484,6 +1940,7 @@ issued,issued
 nav.posReceipts,Cashier Records
 nav.posShifts,Shift Records
 nav.stockCount,Stock count
+none,none
 opening,opening
 paid,paid
 pending_approval,pending_approval
@@ -2023,6 +2480,28 @@ trade.warehouseHint,Comes from the terminal; set it there if it is empty
 transfer,transfer
 unpaid,unpaid
 void,void
+{0} added you to {1},{0} added you to {1}
+{0} commented on {1},{0} commented on {1}
+{0} completed {1},{0} completed {1}
+{0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
+{0} moved {1} to {2},{0} moved {1} to {2}
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
+{1} is due at {2},{1} is due at {2}
+{1} is due soon ({2}),{1} is due soon ({2})
+{1} is overdue ({2}),{1} is overdue ({2})
+{who} added this card,{who} added this card
+{who} added {0} to this card,{who} added {0} to this card
+{who} archived this card,{who} archived this card
+{who} attached {0},{who} attached {0}
+{who} completed this recurring card; next due {0},{who} completed this recurring card; next due {0}
+{who} copied this card from {0},{who} copied this card from {0}
+{who} marked this card complete,{who} marked this card complete
+{who} marked this card incomplete,{who} marked this card incomplete
+{who} mirrored this card to {0},{who} mirrored this card to {0}
+{who} moved this card from {0} to {1},{who} moved this card from {0} to {1}
+{who} removed attachment {0},{who} removed attachment {0}
+{who} restored this card,{who} restored this card
+{who} set the due date to {0},{who} set the due date to {0}
+{who}'s automation: {0} {1},{who}'s automation: {0} {1}

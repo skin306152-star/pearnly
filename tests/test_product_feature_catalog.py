@@ -60,7 +60,7 @@ class CatalogContract(unittest.TestCase):
     def test_feature_counts_are_unchanged(self):
         self.assertEqual(
             {product: len(d["features"]) + 1 for product, d in DECLARATIONS.items()},
-            {"cowork": 10, "erp": 10, "dms": 6},
+            {"cowork": 10, "erp": 11, "dms": 6},
         )
 
     def test_cowork_codes_are_the_declared_set(self):
@@ -85,7 +85,9 @@ class CatalogContract(unittest.TestCase):
         self.assertEqual(enforcement[("erp", "clients")],
             ("ERP Sales", ["ERP Customer", "ERP Company"]))
         self.assertEqual(enforcement[("erp", "cashier")][0], "ERP Cashier")
-        self.assertEqual(len(enforcement), 13)
+        # 任务管理（2026-10-23）：看板几张表，岗位上一律只读（写走专用接口）
+        self.assertEqual(enforcement[("erp", "tasks")][0], "ERP Tasks")
+        self.assertEqual(len(enforcement), 14)
 
     def test_a_feature_without_a_role_does_not_pretend_to_have_one(self):
         for product, declaration in DECLARATIONS.items():

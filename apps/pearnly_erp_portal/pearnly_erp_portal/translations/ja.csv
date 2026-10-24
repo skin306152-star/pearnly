@@ -1,12 +1,22 @@
 1 = January,1 = 1月
+1 day before,1日前
+1 hour before,1時間前
 1-12; Thai companies commonly start in January,1〜12。タイ企業は1月開始が一般的です
+10 minutes before,10分前
 13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
+15 minutes before,15分前
+2 days before,2日前
+2 hours before,2時間前
+5 minutes before,5分前
+A board needs at least one admin,ボードには管理者が少なくとも1人必要です
+A board needs at least one list,ボードには少なくとも1つのリストが必要です
 A company needs a name,会社には名前が必要です
 A company needs at least one warehouse,会社には倉庫が 1 つ以上必要です
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
 A customer needs a name,顧客には名前が必要です
+A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
 A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
@@ -30,18 +40,28 @@ Account Set,帳簿
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
+Add,追加
 Add Column,列を追加
 Add Discount,割引を追加
 Add Employee,従業員を追加
 Add Order Discount,伝票割引を追加
 Add User,ユーザーを追加
 Add VAT,付加価値税を計算
+Add a card,カードを追加
+Add a checklist,チェックリストを追加
 Add a count,カウントを記録
 Add a count — {0},カウントを記録 — {0}
+Add a field,フィールドを追加
+Add a link,リンクを追加
+Add an item,項目を追加
+Add another list,リストを追加
+Add label,ラベルを追加
+Add member,メンバーを追加
 Add opening item,明細を追加
 Add photos,写真を追加
 Add row,明細を追加
 Add terminal,レジを追加
+Add watcher,ウォッチャーを追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional,追加
@@ -50,10 +70,12 @@ Additional Information,追加情報
 Additional Information updated successfully.,追加情報を更新しました
 Address,住所
 Address and notes,住所と備考
+Admins only,管理者のみ
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
 All companies,全社
+All labels,すべてのラベル
 All the items have been already returned.,すべての商品は返品済みです
 Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
@@ -70,19 +92,32 @@ Amounts,金額
 Anonymous,匿名
 Anonymous buyers get no tax id; only companies have branches,匿名の買い手には税番号がなく、支店があるのは法人だけです
 Another computer is writing to this account set. It is sent automatically once it is done,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
+Any due date,すべての期日
 Apply,適用
 Approval Status,承認状況
+Archive,アーカイブ
+Archive all cards in this list,このリストのカードをすべてアーカイブ
+Archive board,ボードをアーカイブ
+Archive this list,このリストをアーカイブ
+Archived at,アーカイブ日時
+Archived boards,アーカイブ済みボード
+Archived items,アーカイブ済みアイテム
+Archived lists,アーカイブ済みリスト
 Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
 Are you sure you want to delete?,削除しますか？
 Area,エリア
 As Of,基準日
+Assign to,担当に追加
+Assigned to me,自分に割り当て
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1 件あたり写真は最大 {0} 枚です
+At time of due date,期限時
 Attach,添付
 Attachment,添付ファイル
 Attachment Type,添付ファイルの種類
 Attachments,添付ファイル
 Auto Fetch Serial Numbers,シリアル番号を自動取得
+Automation,自動化
 Available Qty,利用可能在庫数
 Average Unit Cost,平均単価
 Average cost,平均原価
@@ -104,6 +139,13 @@ Batch No,バッチ番号
 Bind this account first,先に ERP アカウントを連携してください
 Binding code,連携コード
 Block Duplicate Documents,重複伝票をブロック
+Blue,青
+Board,ボード
+Board admin,ボード管理者
+Board archived,ボードをアーカイブしました
+Board members,ボードメンバー
+Board name,ボード名
+Board settings,ボード設定
 Book,帳簿
 Book position,帳簿上の倉庫・棚番
 Book quantity,帳簿数量
@@ -133,6 +175,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop needs an update,CC デスクトップの更新が必要です
 CC Desktop not connected,CC デスクトップが接続されていません
 Calculation Version,計算バージョン
+Calendar,カレンダー
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 Camera permission was refused; allow it and try again,カメラの許可が拒否されました。許可してから再試行してください
 Cancel,キャンセル
@@ -144,6 +187,11 @@ Cancelled On,取消日時
 Cancelled {0},{0}件をキャンセルしました
 Cannot reach the Revenue Department right now,現在、税務局に接続できません
 Card,カード
+Card archived,アーカイブしました
+Card deleted,削除しました
+Card name (alphabetically),カード名（アルファベット順）
+Card restored,復元しました
+Card templates,カードテンプレート
 Cart,カート
 Cash,現金
 Cash Amount,現金
@@ -158,9 +206,15 @@ Category Name,カテゴリ名
 Change,お釣り
 Change Amount,お釣り
 Change Total,お釣り合計
+Change cards on the work board,作業ボードでカードを変更してください
+Change cover,カバーを変更
+Change list color,リストの色を変更
+Change members,メンバーを変更
 Chart,グラフ
 Chart by,グラフの軸
 Check the opening stock row,この期首明細を確認してください
+Checkbox,チェックボックス
+Checklist,チェックリスト
 Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
 Cheque,小切手
@@ -169,6 +223,7 @@ Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
 Choose a local opening stock file,アップロード済みの期首在庫ファイルを選択してください
 Choose an existing product for opening stock,登録済みの商品を選択してください
+Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose file,ファイルを選択
 Choose purchase or sales first,先に仕入か売上を選んでください
@@ -203,20 +258,26 @@ Code,コード
 Code expired,コードの有効期限が切れました
 Code or barcode,コード・バーコード
 Codes start at {0},{0} から採番します
+Collapse list,リストを折りたたむ
 Collected {0},入金しました {0}
 Collection,入金
 Collection Date,入金日
 Collection Method,入金方法
 Collection Remarks,入金備考
 Collection Status,入金状況
+Color,色
 Colour Tag,カラータグ
 Columns,列
 Comes from the terminal; set it there if it is empty,レジの設定によります。空の場合はレジ側で倉庫を設定してください
+Comment,コメント
+Comments,コメント
+Comments and activity,コメントとアクティビティ
 Companies,会社
 Company,会社
 Company details,会社情報
 Company name,会社名
 Company not found,会社が見つかりません
+Complete,完了
 Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
@@ -231,6 +292,10 @@ Contact email,連絡先メール
 Contact person,担当者
 Continuous counting,連続棚卸
 Conversion Factor,換算係数
+Copy card,カードをコピー
+Copy link,リンクをコピー
+Copy list,リストをコピー
+Copy to,コピー先
 Correct entry,記録を修正
 "Correct the marked rows, then preview again",明細のエラーを修正して再確認してください
 Cost,原価
@@ -254,9 +319,15 @@ Counted by,担当者
 Counted in total,合計に含む
 Counted quantity,実地数量
 Counter 1,レジ 1
+Cover,カバー
 Create,作成
 Create New Item,新規品目作成
 Create POS Opening Entry,シフト開始を作成
+Create a new label,新しいラベルを作成
+Create a rule,ルールを作成
+Create board,ボードを作成
+Create card,カードを作成
+Create from template,テンプレートから作成
 Created,作成日時
 Created when a sales draft is confirmed,販売下書きの確定時に作成されます
 Created when the draft is confirmed,下書きの確定時に作成されます
@@ -268,6 +339,8 @@ Credit Note,返品・値引伝票
 Currency,通貨
 Current,現在
 Custom,カスタム
+Custom fields,カスタムフィールド
+Custom fields saved,カスタムフィールドを保存しました
 Customer,顧客
 Customer Name,顧客名
 Customer Type,顧客種類
@@ -277,9 +350,15 @@ Customer is required,顧客は必須です
 Customer not found,顧客が見つかりません
 Customer not found. Please select the customer again.,顧客が見つかりません。選択し直してください。
 Customers,顧客
+Cyan,水色
+Daily,毎日
 Damaged / written off,破損・廃棄
 Date,日付
 Date (BE),日付（仏暦）
+Date created (newest first),作成日（新しい順）
+Date created (oldest first),作成日（古い順）
+Dates,日付
+Days later,日後
 Decided At,判定日時
 Dedupe Key,重複防止キー
 Default,既定
@@ -293,6 +372,8 @@ Default WHT Rate for Services (%),サービス既定の源泉徴収率（%）
 Default withholding for service documents,サービス伝票の既定の源泉徴収
 Delete,削除
 Delete selected ({0}),選択を削除（{0}）
+Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
+Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0} 件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
@@ -320,6 +401,7 @@ Discount cannot be greater than 100%,割引率は 100% を超えられません
 Discount cannot be greater than 100%.,割引率は100%を超えられません
 Discount cannot exceed the amount,割引は金額を超えられません
 Discount percentage,割引率
+Display text (optional),表示テキスト（任意）
 Document,伝票
 Document No,伝票番号
 Document Number,伝票番号
@@ -336,11 +418,20 @@ Document summary · open details to review and post,書類の概要 · 明細画
 Document total,合計
 Document type,書類種類
 Documents,書類数
+Done list (cards moved here are complete),完了リスト（移動すると完了）
 Download opening template,期首在庫テンプレートをダウンロード
 Download template,テンプレートをダウンロード
 Draft,下書き
 Draft not found,下書きが見つかりません
+Dropdown,ドロップダウン
+Due,期日
 Due Date,支払期日
+Due date,期日
+Due later,それ以降
+Due this week,7日以内が期限
+Due time,期限時刻
+Due today,今日が期限
+Due today or tomorrow,今日か明日が期日
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 ERP menu,ERPメニュー
@@ -349,7 +440,10 @@ Each terminal sells from the warehouse named on it (use one of the warehouse nam
 Edit,編集
 Edit Cart,カートに戻る
 Edit Receipt,領収書を編集
+Edit card,カードを編集
+Edit dates,日付を編集
 Edit in Full Page,全画面で編集
+Edit labels,ラベルを編集
 Editing {0} is not allowed as per POS Profile settings,レジ設定により {0} は編集できません
 Email,メール
 Email Receipt,領収書をメール送信
@@ -361,6 +455,11 @@ Enable POS cashier,POS レジを有効にする
 Enable {0},{0}件を有効化
 Enable {0} selected,選択した{0}件を有効化
 Enabled,有効
+Enter a board name,ボード名を入力してください
+Enter a comment,コメントを入力してください
+Enter a field name,フィールド名を入力してください
+Enter a link that starts with http:// or https://,http:// または https:// で始まるリンクを入力してください
+Enter a number of days from 0 to 365,日数は 0〜365 で入力してください
 Enter a quantity,数量を入力してください
 Enter a tax ID first,先に納税者番号を入力してください
 Enter a valid email,正しいメールアドレスを入力してください
@@ -369,6 +468,7 @@ Enter customer's email,顧客のメールを入力
 Enter customer's phone number,顧客の電話番号を入力
 Enter discount percentage,割引率を入力
 Enter discount percentage.,割引率を入力してください
+Enter list name,リスト名を入力
 Enter manually,手入力
 Enter opening stock,期首在庫を登録
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
@@ -391,6 +491,7 @@ Expense Amount,経費金額
 Expense Count,経費件数
 Expiry Date,有効期限
 Export,エクスポート
+Export Excel,Excel に出力
 Export {0},{0}件をエクスポート
 Exported {0} shifts,{0}件のシフトを出力しました
 Express,Express
@@ -416,6 +517,7 @@ Factor to Base Unit,基準単位への換算係数
 Failed,失敗
 Fetched At,取得日時
 Fetched only {0} available serial numbers.,利用可能なシリアル番号を {0} 件だけ取得しました
+Field name,フィールド名
 File,ファイル
 File Fingerprint,ファイル指紋
 File Name,ファイル名
@@ -452,9 +554,12 @@ Generated,生成済み
 Generated automatically,自動生成
 Goods,商品
 Grand Total,税込合計
+Gray,グレー
+Green,緑
 Gross,売上総額
 Head Office,本店
 Hide Recent Orders,最近の会計を隠す
+Hide details,詳細を隠す
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,リクエスト全体の冪等アンカー。再送信は無視されます
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
@@ -476,12 +581,19 @@ Inactive,無効
 Initial Password,初期パスワード
 Input Tax,仕入税額
 Input VAT,仮払消費税
+Insert,挿入
 Internal use,社内使用
 Invalid Currency,通貨が無効です
 Invalid Discount,割引が無効です
 Invalid Return,無効な返品
+Invalid checklist,チェックリストが無効です
+Invalid color,色が無効です
+Invalid date,日付が無効です
+Invalid field value,フィールドの値が無効です
 Invalid file,無効なファイル
 Invalid payment amount,支払金額が無効です
+Invalid request,リクエストが無効です
+Invalid status,ステータスが無効です
 Invalid value,値が無効です
 Invalid value: {0},値が無効です: {0}
 Invoice,請求書
@@ -511,6 +623,7 @@ Items found at a different place,違う場所で見つかった商品
 Items not found.,商品が見つかりません
 "Items with a difference, largest first",差異のある商品（大きい順）
 Job Roles,機能権限
+Keep,引き継ぐ
 "Keep product IDs, codes and barcodes as text in the opening stock file",商品ID・コード・バーコードは文字列形式にしてください
 LINE,LINE
 LINE Message,LINEメッセージ
@@ -518,6 +631,9 @@ LINE User,LINEユーザー
 LINE is not enabled for this account,このアカウントは LINE が有効になっていません
 LINE name,LINE の名前
 LINE unbound,LINE の連携を解除しました
+Label,ラベル
+Labels,ラベル
+Labels saved,ラベルを保存しました
 Last Login,最終ログイン
 Last Month,先月
 Last Movement,最終の入出庫
@@ -527,6 +643,7 @@ Last page,最終ページ
 Last transacted,最終取引
 Leave all unchecked to allow every company,未チェックの場合は全社を許可します
 Leave blank to use the default terminal,空欄なら既定のレジを使います
+Leave board,ボードから退出
 "Legacy used head office / branch, with the branch number when it is a branch",旧システムは本店／支店を使い、支店の場合は支店番号を伴います
 Light,ライト
 Line Amount,行金額
@@ -536,7 +653,11 @@ Line Total,明細小計
 Line prices include VAT,明細単価は税込
 Lines,明細行
 Lines in this shift,このシフトのレシート
+List,リスト
 List Price,表示価格
+List actions,リストの操作
+List archived,リストをアーカイブしました
+List name,リスト名
 Loading...,読み込み中…
 Location,保管場所
 "Lookup failed, please fill in manually",照会に失敗しました。手入力してください
@@ -548,21 +669,35 @@ Loyalty Points,ロイヤルティポイント
 Loyalty Program,ロイヤルティプログラム
 Main,メイン倉庫
 Maintained in Express,Express で管理
+Make template,テンプレートにする
 Manual,手動入力
 Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
+Mark all as read,すべて既読にする
+Mark complete,完了にする
+Mark incomplete,未完了に戻す
 Media Type,メディア種別
+Member,メンバー
+Members,メンバー
+Members and observers,メンバーとオブザーバー
 Merge Items,明細統合
 Method,支払方法
+Mirror,ミラー
 Mismatch,不一致
 Missing Values Required,必須項目が未入力です
 Mode of Payment,支払方法
 Modes of Payment,支払方法
+Monthly,毎月
 More Filters,追加フィルタ
+Move,移動
+Move all cards in this list,このリストのカードをすべて移動
+Move list,リストを移動
+My cards,自分のカード
 Name,名前
 Net,純額
 Net Total,正味合計
 Net total - discount + VAT must equal the total,金額が合いません：税抜合計 − 割引 + 消費税 = 合計 にしてください
+Never,なし
 New,新規
 New Category,カテゴリ作成
 New Customer,顧客を追加
@@ -584,19 +719,24 @@ No,番号
 No Express account set covers this date,この日付を含む Express 帳簿がありません
 No Open Shift,未開店
 No attachments,添付ファイルなし
+No cards are assigned to you,割り当てられたカードはありません
 No company is available for this account,このアカウントで使える会社がありません
 No computer can write this account set,この帳簿に書き込める端末がありません
+No due date,期日なし
 No item matches the scanned code {0},スキャンしたコード {0} に一致する商品がありません
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
 No items in cart,カートに商品がありません
 No items were read,明細を読み取れませんでした
 No match for “{0}”,「{0}」は見つかりません
+No members,メンバーなし
+No notifications,通知はありません
 No product for this code: {0},このコードの商品が見つかりません: {0}
 No product matches that code,そのコードの商品が見つかりません
 No product matches this code,このコードに一致する商品がありません
 No receipts in this shift,このシフトのレシートはありません
 No recent transactions found,最近の取引はありません
 No stock count in progress,進行中の棚卸はありません
+No templates yet,テンプレートはまだありません
 No terminal yet,レジはまだありません
 No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
@@ -615,8 +755,11 @@ Not permitted,権限がありません
 Note,備考
 Notes,備考
 Nothing counted yet,まだ棚卸記録がありません
+Notifications,通知
 Now sending {0} documents,{0}の書類を送信中
+Number,数値
 OCR,文字認識
+Observer,オブザーバー
 Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,オフは原価が未確定であることを示し、金額と単価は 0 と推測せず空のままにします
 On Hand,現在庫
 Only Draft documents can be deleted,下書きの伝票のみ削除できます
@@ -626,6 +769,7 @@ Only a submitted document can be cancelled,確定済みの伝票のみ取消で�
 Only a submitted document can be voided,確定済みの伝票のみ取消できます
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only an image or a PDF can be recognised,画像または PDF のみ認識できます
+Only board admins can do this,ボード管理者のみ実行できます
 Only low or out of stock,在庫少・在庫切れのみ
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Only the checked features are visible to this employee,チェックした機能だけがこの従業員に表示されます
@@ -635,6 +779,7 @@ Open Form View,フォーム表示を開く
 Open Shift,シフト開始
 Open a shift before selling,販売前にシフトを開始してください
 Open a shift on the cashier page first.,先にレジでシフトを開始してください
+Open card,カードを開く
 Open that product,その商品を開く
 "Open this page from LINE, or sign in to the site first",このページは LINE から開くか、先にサイトへログインしてください
 Opened At,開始時刻
@@ -661,6 +806,8 @@ Opening stock review,期首在庫の確認
 Opening stock review is not configured,期首確認の設定がありません。管理者に連絡してください
 Opening unit cost,期首在庫単価
 Opening value,期首金額
+Options (one per line),選択肢（1行に1つ）
+Orange,橙
 Order Evidence,注文記録
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
@@ -671,6 +818,7 @@ Outdated POS Opening Entry,古いシフト開始
 Outstanding Amount,未払金額
 Over,過剰
 Over by {0},{0} 多い
+Overdue,期限切れ
 POS Closed,レジは閉店しました
 POS Opening Entry Cancelled,シフト開始を取消しました
 POS Opening Entry has been cancelled. Please refresh the page.,シフト開始は取消されました。ページを更新してください
@@ -688,6 +836,7 @@ Parent Item Group,親品目グループ
 Partly Paid,一部支払済み
 Party,取引先
 Password updated,パスワードを更新しました
+Paste a link,リンクを貼り付け
 Pay,会計
 Payment,支払
 Payment Date,支払日
@@ -713,6 +862,7 @@ Photos,写真
 Pick a line first,先に行を選んでください
 Pick a warehouse,倉庫を選択してください
 "Pick quantity, discount or price first",先に数量・割引・単価を選んでください
+Pink,ピンク
 Place,保管場所
 Please add Mode of payments and opening balance details.,支払方法と開始残高の明細を追加してください
 Please select a field to edit from numpad,テンキーから編集する項目を選択してください
@@ -720,6 +870,7 @@ Please select an Item,品目を選択してください
 Please upload a PDF or image,PDF または画像をアップロードしてください
 Point of Sale,レジ
 Point the camera at the barcode or QR code,カメラをバーコード・QR コードに向けてください
+Position,位置
 Position Balance,保管場所の残高
 Position differences,棚番の差異
 Post Stock On Confirm,確定時に在庫転記
@@ -742,6 +893,7 @@ Price is not set for the item.,この商品には価格が設定されていま�
 Prices Include Tax,税込価格
 Print,印刷
 Print Receipt,レシート印刷
+Private,非公開
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
 Product ID,商品ID
@@ -767,6 +919,7 @@ Purchase Record,仕入記録
 Purchase Records,仕入記録
 Purchase document not found,購買伝票が見つかりません
 Purchasing,購買
+Purple,紫
 Purpose,用途
 QR Payload,QR内容
 QR content,QR 内容
@@ -818,6 +971,8 @@ Record sales,売上入力
 Recorded,記録しました
 Recorded {0} opening row(s); skipped {1} already recorded row(s),期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
 Recount this product,この商品を再棚卸
+Recurring,繰り返し
+Red,赤
 Redeem Loyalty Points,ロイヤルティポイントを使う
 Reference,参照番号
 Reference Cost,参考原価
@@ -835,6 +990,9 @@ Remaining Amount,残り金額
 Remark,備考
 Remarks,備考
 Remove,削除
+Remove color,色を削除
+Remove mirror,ミラーを削除
+Remove template,テンプレートを解除
 Replace the entered rows with the imported file?,入力済みの明細を取込ファイルで置き換えますか？
 Request Hash,リクエストハッシュ
 Request ID already exists,リクエスト ID は既に存在します
@@ -842,6 +1000,7 @@ Request id,リクエストID
 Requested By,申請者
 Reset,リセット
 Reset Password,パスワードを再設定
+Restore,復元
 Retry,再試行
 Return,返品・返金
 Return to stock,戻り入庫
@@ -849,12 +1008,14 @@ Returned,返品済み
 Reversal,取消仕訳
 Review differences,差異を確認
 Review document,書類を確認
+Role,役割
 Rotate,回転
 Rounded Total,端数調整後合計
 Rounding Adjustment,丸め調整
 Row number,行番号
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
+Rules saved,ルールを保存しました
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
 Sale,販売
 Sale Price,販売価格
@@ -882,6 +1043,7 @@ Search by invoice id or customer name,伝票番号または顧客名で検索
 "Search by item code, serial number or barcode",商品コード・シリアル番号・バーコードで検索
 Search by name or phone,名前か電話で検索
 Search by receipt number,レシート番号で検索
+Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 "Search name, code or barcode",名前・コード・バーコードで検索
 Select Loyalty Program,ロイヤルティプログラムを選択
@@ -913,6 +1075,8 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,サービス
 Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
+Set due date,期日を N 日後に設定
+Set reminder,リマインダー
 Setup Auto Email,自動メールを設定
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
@@ -933,19 +1097,24 @@ Short,不足
 Short Name,略称
 Short by {0},{0} 不足
 Short name,略称
+Show details,詳細を表示
 Show disabled,無効も表示
+Show on card,カードに表示
 Show only,表示のみ
 Show zero stock,在庫 0 も表示
 Skipped {0} row(s); the first ones are listed above,{0}行をスキップしました（先頭のみ表示）
 Sold At,販売日時
 Sold by,担当者
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
+Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
 Sort Order,並び順
+Sort by,並べ替え
 Source,ソース
 Source File,元ファイル
 Source File Record,元ファイル記録
 Split,分割
 Start counting,棚卸を開始
+Start date,開始日
 Status,ステータス
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",まだオフです。在庫テーブルは在庫バッチに入る前提で、転記が黙って飛ばしてはいけません
 Stock,在庫
@@ -971,6 +1140,7 @@ Stock leaves this warehouse (must belong to the same company). Blank means the o
 Stock ledger,在庫の受け払いを開く
 Stock of {0} is now {1},{0} の在庫は {1} になりました
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
+Stop watching,ウォッチをやめる
 Stored here for now; document numbers still come from the numbering rules,いまは記録のみ。書類番号は採番ルールで発行します
 Subcategory,サブカテゴリ
 Submit,提出
@@ -1001,7 +1171,9 @@ Sync failed,同期に失敗しました
 Synced,同期しました
 Syncing,同期中
 System number,システム番号
+Table,テーブル
 Tap the menu to start,下のメニューから始めてください
+Task Management,タスク管理
 Tax Amount,税額
 Tax Exclusive,税抜
 Tax ID,納税者番号
@@ -1013,10 +1185,15 @@ Tax Withholding Amount,源泉徴収税額
 Tax Withholding Rate,源泉徴収税率
 Taxes,税
 Taxes and Charges,税金および諸費用
+Team board,チームボード
+Team visible,チームに公開
+Template,テンプレート
 Terminal,レジ
 Terminal name,レジ名
 Terminal not found,レジが見つかりません
 Terminals,レジ
+Text,テキスト
+Text is too long,テキストが長すぎます
 That code is not valid,コードが正しくありません
 That file could not be read; please use the template,このファイルは読み取れません。テンプレートをご利用ください
 That file has no rows,このファイルには行がありません
@@ -1037,6 +1214,8 @@ The amount payable cannot be negative,支払額はマイナスにできません
 The amount received is less than the total,受取額が合計に足りません
 The amount received is short,受取額が不足しています
 The balance could not be checked right now. Please try again in a minute.,現在残高を確認できません。1 分後にもう一度お試しください。
+The card is already in that list,カードはすでにそのリストにあります
+The card no longer exists,カードはもうありません
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The cashier is not enabled for this company,この会社ではレジが有効になっていません
@@ -1046,10 +1225,12 @@ The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
 The customer is missing. Choose the customer and submit again.,顧客がありません。顧客を選択して再送信してください
+The default board cannot be archived,既定のボードはアーカイブできません
 The discount exceeds the line amount,割引が行の金額を超えています
 The discount exceeds the total,割引が合計を超えています
 The document date is invalid. Correct it and submit again.,書類の日付が無効です。修正して再送信してください
 The file could not be saved. Please try again shortly.,ファイルを保存できませんでした。しばらくしてからもう一度お試しください
+The file is larger than 25 MB,ファイルが 25 MB を超えています
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
@@ -1070,6 +1251,7 @@ The recognition result needs checking. Please do not resend this document yet.,�
 The recognition service did not answer in time. Please try again.,読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
+The start date is after the due date,開始日が期日より後です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
 "The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
 The supplier is missing. Add it and submit again.,仕入先がありません。追加して再送信してください
@@ -1077,6 +1259,7 @@ The total is invalid,合計が無効です
 The total is zero,合計がゼロです
 The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
+Then,実行
 There are no lines,明細がありません
 There is nothing to save,保存する行がありません
 There were errors while sending email. Please try again.,メール送信中にエラーが発生しました。再試行してください
@@ -1087,6 +1270,7 @@ This PDF has more than {0} pages,PDF が {0} ページを超えています
 This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
 This barcode already exists,このバーコードは既に存在します
+This board no longer exists,このボードはもう存在しません
 This browser cannot scan with the camera,このブラウザーはカメラでスキャンできません
 This browser cannot scan with the camera; use a scanner or type the code,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 This card expires in {0} minutes,このカードは {0} 分で期限切れになります
@@ -1115,6 +1299,9 @@ This invoice has no lines. Add them and submit again.,この請求書には明�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
+This label no longer exists,このラベルはもうありません
+This list no longer exists,このリストはもうありません
+This member cannot be assigned,このメンバーには割り当てられません
 This option is no longer current,この選択肢は現在の手順ではありません
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
 This product code already exists,この品目コードは既に存在します
@@ -1137,7 +1324,10 @@ This warehouse belongs to the company above,この倉庫は上の会社に属し
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
 Time left {0},残り {0}
+Title,タイトル
 To Date,終了日
+To do,未着手
+Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。文字を追加して絞り込んでください
 Total,請求額
 Total Amount,合計金額
@@ -1190,6 +1380,7 @@ Updated {0} product(s),{0}件を更新しました
 Updated {0} record(s),{0}件を更新しました
 Updated {0} supplier(s),仕入先 {0}件を更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
+Upload,アップロード
 Upload a document or enter it manually?,書類をアップロードしますか、手入力しますか？
 "Upload a receipt, then review the recognized details.",領収書をアップロードし、読み取り結果を確認・修正します。
 Upload a sheet,取り込み
@@ -1215,6 +1406,7 @@ VAT Rate %,税率%
 VAT applies,VAT 対象
 Value,金額
 Value Change,金額変動
+Visibility,公開範囲
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 Void the payments before voiding the document,伝票を取り消す前に支払を取り消してください
@@ -1232,8 +1424,13 @@ Warehouse,倉庫
 Warehouse name,倉庫名
 Warehouse not found,倉庫が見つかりません
 Warehouses,倉庫
+Watch,ウォッチ
+Weekly,毎週
+When a card enters,カードがリストに入ったとき
 "Which company this terminal belongs to, and which warehouse it sells from",このレジがどの会社に属し、どの倉庫から販売するか
 Who bought this receipt; empty means a walk-in customer,このレシートの購入者。空欄は一般客（通りがかり）です
+Who can add and remove members,メンバーを追加・削除できる人
+Who can comment,コメントできる人
 With differences,差異あり
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
@@ -1242,7 +1439,10 @@ Withholding Tax must be greater than zero,源泉徴収税額はゼロより大�
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written,書き込み済み
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
+Yearly,毎年
+Yellow,黄
 Yes,はい
+You are watching this card,このカードをウォッチしています
 You can redeem upto {0}.,最大 {0} まで利用できます
 You cannot redeem more than {0}.,{0} を超えて利用できません
 You cannot submit empty order.,空の注文は送信できません
@@ -1407,6 +1607,262 @@ erp.line.status.bound,連携済み
 erp.line.status.unbound,未連携
 erp.line.unbind,LINE 連携を解除
 erp.line.unbindConfirm,Pearnly ERP LINE の連携を解除しますか？
+erp.nav.work,タスク管理
+erp.work.activity.archive,{who} がこのカードをアーカイブしました
+erp.work.activity.assign,{who} がこのカードに {0} を追加しました
+erp.work.activity.attach,{who} が {0} を添付しました
+erp.work.activity.complete,{who} がこのカードを完了にしました
+erp.work.activity.copy,{who} が「{0}」からこのカードをコピーしました
+erp.work.activity.create,{who} がこのカードを追加しました
+erp.work.activity.detach,{who} が添付ファイル {0} を削除しました
+erp.work.activity.due,{who} が期日を {0} に設定しました
+erp.work.activity.hideDetails,詳細を隠す
+erp.work.activity.mirror,{who} がこのカードを{0}にミラーしました
+erp.work.activity.move,{who} がこのカードを{0}から{1}に移動しました
+erp.work.activity.noDue,なし
+erp.work.activity.repeat,{who} が繰り返しカードを完了しました。次の期限は {0}
+erp.work.activity.restore,{who} がこのカードを復元しました
+erp.work.activity.rule,自動化（{who}）：{0} {1}
+erp.work.activity.showDetails,詳細を表示
+erp.work.activity.uncomplete,{who} がこのカードを未完了にしました
+erp.work.archived.at,アーカイブ日時
+erp.work.archived.boards,アーカイブ済みボード
+erp.work.archived.confirmDelete,このカードを完全に削除しますか？元に戻せません。
+erp.work.archived.deleted,削除しました
+erp.work.archived.lists,アーカイブ済みリスト
+erp.work.archived.restore,復元
+erp.work.archived.restored,復元しました
+erp.work.archived.title,アーカイブ済みアイテム
+erp.work.board.add,追加
+erp.work.board.addMember,メンバーを追加
+erp.work.board.archive,ボードをアーカイブ
+erp.work.board.archived,ボードをアーカイブしました
+erp.work.board.commenting,コメントできる人
+erp.work.board.commenting_disabled,無効
+erp.work.board.commenting_members,メンバー
+erp.work.board.commenting_observers,メンバーとオブザーバー
+erp.work.board.create,ボードを作成
+erp.work.board.default,チームボード
+erp.work.board.label,ボード
+erp.work.board.leave,ボードから退出
+erp.work.board.memberManagement,メンバーを追加・削除できる人
+erp.work.board.memberManagement_admins,管理者のみ
+erp.work.board.memberManagement_members,すべてのメンバー
+erp.work.board.members,ボードメンバー
+erp.work.board.name,ボード名
+erp.work.board.remove,外す
+erp.work.board.role,役割
+erp.work.board.role_admin,ボード管理者
+erp.work.board.role_member,メンバー
+erp.work.board.role_observer,オブザーバー
+erp.work.board.settings,ボード設定
+erp.work.board.visibility,公開範囲
+erp.work.board.visibility_private,非公開
+erp.work.board.visibility_team,チームに公開
+erp.work.card.add,カードを追加
+erp.work.card.archive,アーカイブ
+erp.work.card.archived,アーカイブしました
+erp.work.card.done,完了にする
+erp.work.card.placeholder,タイトルを入力
+erp.work.card.saved,保存しました
+erp.work.card.title,カード
+erp.work.card.undone,未完了に戻す
+erp.work.checklist.add,チェックリストを追加
+erp.work.checklist.addItem,項目を追加
+erp.work.color.blue,青
+erp.work.color.cyan,水色
+erp.work.color.gray,グレー
+erp.work.color.green,緑
+erp.work.color.orange,橙
+erp.work.color.pink,ピンク
+erp.work.color.purple,紫
+erp.work.color.red,赤
+erp.work.color.yellow,黄
+erp.work.column.archiveAll,このリストのカードをすべてアーカイブ
+erp.work.column.collapse,リストを折りたたむ
+erp.work.column.color,リストの色を変更
+erp.work.column.menu,リストの操作
+erp.work.column.moveAll,このリストのカードをすべて移動
+erp.work.column.removeColor,色を削除
+erp.work.column.sort,並べ替え
+erp.work.column.sort_created_asc,作成日（古い順）
+erp.work.column.sort_created_desc,作成日（新しい順）
+erp.work.column.sort_due,期日
+erp.work.column.sort_title,カード名（アルファベット順）
+erp.work.comment.label,コメント
+erp.work.comment.send,送信
+erp.work.copy.create,カードを作成
+erp.work.copy.keep,引き継ぐ
+erp.work.copy.to,コピー先
+erp.work.cover.none,なし
+erp.work.error.board,このボードはもう存在しません
+erp.work.error.board_rights,ボード管理者のみ実行できます
+erp.work.error.board_title,ボード名を入力してください
+erp.work.error.checklist,チェックリストが無効です
+erp.work.error.color,色が無効です
+erp.work.error.comment,コメントを入力してください
+erp.work.error.conflict,このカードは他の人が変更しました。閉じて開き直してください
+erp.work.error.cover,このカードに添付した画像を選んでください
+erp.work.error.date,日付が無効です
+erp.work.error.dedicated_api,作業ボードでカードを変更してください
+erp.work.error.default_board,既定のボードはアーカイブできません
+erp.work.error.field_options,ドロップダウンには選択肢が1つ以上必要です
+erp.work.error.field_title,フィールド名を入力してください
+erp.work.error.field_value,フィールドの値が無効です
+erp.work.error.file,ファイルを選択してください
+erp.work.error.file_size,ファイルが 25 MB を超えています
+erp.work.error.label,このラベルはもうありません
+erp.work.error.last_admin,ボードには管理者が少なくとも1人必要です
+erp.work.error.last_list,ボードには少なくとも1つのリストが必要です
+erp.work.error.link,http:// または https:// で始まるリンクを入力してください
+erp.work.error.list,このリストはもうありません
+erp.work.error.member,このメンバーには割り当てられません
+erp.work.error.mirror,カードはすでにそのリストにあります
+erp.work.error.not_found,カードはもうありません
+erp.work.error.request,リクエストが無効です
+erp.work.error.rule_days,日数は 0〜365 で入力してください
+erp.work.error.start_after_due,開始日が期日より後です
+erp.work.error.status,ステータスが無効です
+erp.work.error.title,タイトルを入力してください
+erp.work.error.too_long,テキストが長すぎます
+erp.work.error.too_many,項目が多すぎます
+erp.work.field.activity,コメントとアクティビティ
+erp.work.field.attachments,添付ファイル
+erp.work.field.checklist,チェックリスト
+erp.work.field.comments,コメント
+erp.work.field.completed,完了
+erp.work.field.cover,カバー
+erp.work.field.dates,日付
+erp.work.field.description,説明
+erp.work.field.done,完了
+erp.work.field.due,期日
+erp.work.field.dueTime,期限時刻
+erp.work.field.item,項目
+erp.work.field.labels,ラベル
+erp.work.field.list,リスト
+erp.work.field.members,メンバー
+erp.work.field.reminder,リマインダー
+erp.work.field.repeat,繰り返し
+erp.work.field.start,開始日
+erp.work.field.status,ステータス
+erp.work.field.title,タイトル
+erp.work.fields.add,フィールドを追加
+erp.work.fields.manage,カスタムフィールド
+erp.work.fields.name,フィールド名
+erp.work.fields.options,選択肢（1行に1つ）
+erp.work.fields.saved,カスタムフィールドを保存しました
+erp.work.fields.showOnCard,カードに表示
+erp.work.fields.type,種類
+erp.work.fieldtype.checkbox,チェックボックス
+erp.work.fieldtype.date,日付
+erp.work.fieldtype.number,数値
+erp.work.fieldtype.select,ドロップダウン
+erp.work.fieldtype.text,テキスト
+erp.work.file.insert,挿入
+erp.work.file.link,リンクを追加
+erp.work.file.text,表示テキスト（任意）
+erp.work.file.upload,アップロード
+erp.work.file.url,リンクを貼り付け
+erp.work.filter.anyDue,すべての期日
+erp.work.filter.anyLabel,すべてのラベル
+erp.work.filter.anyMember,すべてのメンバー
+erp.work.filter.due,期日
+erp.work.filter.keyword,カードを検索
+erp.work.filter.label,ラベル
+erp.work.filter.member,メンバー
+erp.work.filter.mine,自分に割り当て
+erp.work.filter.noDue,期日なし
+erp.work.filter.noMember,メンバーなし
+erp.work.filter.overdue,期限切れ
+erp.work.filter.soon,今日か明日が期日
+erp.work.labels.add,新しいラベルを作成
+erp.work.labels.color,色
+erp.work.labels.manage,ラベル
+erp.work.labels.name,名前
+erp.work.labels.saved,ラベルを保存しました
+erp.work.list.add,リストを追加
+erp.work.list.archive,このリストをアーカイブ
+erp.work.list.archived,リストをアーカイブしました
+erp.work.list.confirmDelete,このリストとすべてのカードを完全に削除しますか？元に戻せません。
+erp.work.list.copy,リストをコピー
+erp.work.list.doneList,完了リスト（移動すると完了）
+erp.work.list.move,リストを移動
+erp.work.list.name,リスト名
+erp.work.list.placeholder,リスト名を入力
+erp.work.list.position,位置
+erp.work.mine.done,完了
+erp.work.mine.empty,割り当てられたカードはありません
+erp.work.mine.later,それ以降
+erp.work.mine.none,期日なし
+erp.work.mine.overdue,期限切れ
+erp.work.mine.today,今日が期限
+erp.work.mine.week,7日以内が期限
+erp.work.mirror.add,ミラー
+erp.work.mirror.badge,ミラー
+erp.work.mirror.remove,ミラーを削除
+erp.work.notify.assign,{0} があなたを「{1}」に追加しました
+erp.work.notify.comment,{0} が「{1}」にコメントしました
+erp.work.notify.complete,{0} が「{1}」を完了しました
+erp.work.notify.due_soon,「{1}」の期日が近づいています（{2}）
+erp.work.notify.empty,通知はありません
+erp.work.notify.mention,{0} が「{1}」であなたをメンションしました
+erp.work.notify.move,{0} が「{1}」を{2}に移動しました
+erp.work.notify.overdue,「{1}」は期限切れです（{2}）
+erp.work.notify.readAll,すべて既読にする
+erp.work.notify.reminder,「{1}」の期限は {2} です
+erp.work.notify.title,通知
+erp.work.quick.copy,カードをコピー
+erp.work.quick.cover,カバーを変更
+erp.work.quick.due,日付を編集
+erp.work.quick.labels,ラベルを編集
+erp.work.quick.link,リンクをコピー
+erp.work.quick.members,メンバーを変更
+erp.work.quick.move,移動
+erp.work.quick.open,カードを開く
+erp.work.quick.title,カードを編集
+erp.work.quick.unwatch,ウォッチをやめる
+erp.work.quick.watch,ウォッチ
+erp.work.quick.watching,このカードをウォッチしています
+erp.work.reminder.10m,10分前
+erp.work.reminder.15m,15分前
+erp.work.reminder.1d,1日前
+erp.work.reminder.1h,1時間前
+erp.work.reminder.2d,2日前
+erp.work.reminder.2h,2時間前
+erp.work.reminder.5m,5分前
+erp.work.reminder.at_due,期限時
+erp.work.reminder.none,なし
+erp.work.repeat.daily,毎日
+erp.work.repeat.monthly,毎月
+erp.work.repeat.never,なし
+erp.work.repeat.weekly,毎週
+erp.work.repeat.yearly,毎年
+erp.work.rules.action_assign,担当に追加
+erp.work.rules.action_complete,完了にする
+erp.work.rules.action_due_days,期日を N 日後に設定
+erp.work.rules.action_label,ラベルを追加
+erp.work.rules.action_watch,ウォッチャーを追加
+erp.work.rules.add,ルールを作成
+erp.work.rules.days,日後
+erp.work.rules.enabled,有効
+erp.work.rules.manage,自動化
+erp.work.rules.saved,ルールを保存しました
+erp.work.rules.then,実行
+erp.work.rules.when,カードがリストに入ったとき
+erp.work.status.doing,進行中
+erp.work.status.done,完了
+erp.work.status.todo,未着手
+erp.work.table.export,Excel に出力
+erp.work.template.badge,テンプレート
+erp.work.template.create,テンプレートから作成
+erp.work.template.empty,テンプレートはまだありません
+erp.work.template.set,テンプレートにする
+erp.work.template.title,カードテンプレート
+erp.work.template.unset,テンプレートを解除
+erp.work.view.board,ボード
+erp.work.view.calendar,カレンダー
+erp.work.view.mine,自分のカード
+erp.work.view.table,テーブル
 express.code.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 express.code.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
@@ -1484,6 +1940,7 @@ issued,発行済み
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録
 nav.stockCount,棚卸
+none,なし
 opening,期首
 paid,支払済み
 pending_approval,承認待ち
@@ -2023,6 +2480,28 @@ trade.warehouseHint,レジの設定によります。空の場合はレジ側で
 transfer,振込
 unpaid,未払い
 void,取消済み
+{0} added you to {1},{0} があなたを「{1}」に追加しました
+{0} commented on {1},{0} が「{1}」にコメントしました
+{0} completed {1},{0} が「{1}」を完了しました
+{0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
+{0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
+{1} is due at {2},「{1}」の期限は {2} です
+{1} is due soon ({2}),「{1}」の期日が近づいています（{2}）
+{1} is overdue ({2}),「{1}」は期限切れです（{2}）
+{who} added this card,{who} がこのカードを追加しました
+{who} added {0} to this card,{who} がこのカードに {0} を追加しました
+{who} archived this card,{who} がこのカードをアーカイブしました
+{who} attached {0},{who} が {0} を添付しました
+{who} completed this recurring card; next due {0},{who} が繰り返しカードを完了しました。次の期限は {0}
+{who} copied this card from {0},{who} が「{0}」からこのカードをコピーしました
+{who} marked this card complete,{who} がこのカードを完了にしました
+{who} marked this card incomplete,{who} がこのカードを未完了にしました
+{who} mirrored this card to {0},{who} がこのカードを{0}にミラーしました
+{who} moved this card from {0} to {1},{who} がこのカードを{0}から{1}に移動しました
+{who} removed attachment {0},{who} が添付ファイル {0} を削除しました
+{who} restored this card,{who} がこのカードを復元しました
+{who} set the due date to {0},{who} が期日を {0} に設定しました
+{who}'s automation: {0} {1},自動化（{who}）：{0} {1}
