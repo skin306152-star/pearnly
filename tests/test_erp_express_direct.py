@@ -716,6 +716,46 @@ class MasterIsolation(unittest.TestCase):
         self.assertIs(allowed({"express_company": "CO-Z"}, user="staff@x"), False)
 
 
+class LinkParty(Base):
+    """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
+
+    def setUp(self):
+        super().setUp()
+        import types
+        from unittest import mock
+        utils = types.ModuleType("frappe.utils")
+        utils.now_datetime = utils.nowdate = lambda: "2026-10-24"
+        patcher = mock.patch.dict(sys.modules, {"frappe.utils": utils})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sys.modules.pop("pearnly_erp_portal.express.push", None)
+        self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.push", None)
+        from pearnly_erp_portal.express import push
+        self.push = push
+        self.docs = fake.STATE.db.table("ERP Sales Document")
+        self.parties = fake.STATE.db.table("ERP Customer")
+
+    def test_a_new_customer_takes_the_code_the_computer_used(self):
+        self.parties["CUS-1"] = {"name": "CUS-1", "customer_name": "ประกิจ", "express_company": "CO-1", "is_active": 1}
+        self.docs["SD-1"] = {"name": "SD-1", "customer": "CUS-1", "company": "CO-1"}
+        self.push.link_party("ERP Sales Document", "SD-1", "CO-1", "ป001")
+        self.assertEqual((self.parties["CUS-1"]["express_company"], self.parties["CUS-1"]["express_code"]), ("CO-1", "ป001"))
+
+    def test_a_chosen_existing_record_takes_over_and_the_throwaway_is_retired(self):
+        self.parties["CUS-1"] = {"name": "CUS-1", "customer_name": "สันติชัย.", "express_company": "CO-1", "is_active": 1}
+        self.parties["CUS-9"] = {"name": "CUS-9", "customer_name": "สันติชัย", "express_company": "CO-1",
+                                 "express_code": "CPMMMM338", "is_active": 1}
+        self.docs["SD-1"] = {"name": "SD-1", "customer": "CUS-1", "company": "CO-1"}
+        self.push.link_party("ERP Sales Document", "SD-1", "CO-1", "CPMMMM338")
+        self.assertEqual((self.docs["SD-1"]["customer"], self.parties["CUS-1"]["is_active"]), ("CUS-9", 0))
+
+    def test_a_local_record_other_companies_use_stays_shared(self):
+        self.parties["CUS-1"] = {"name": "CUS-1", "customer_name": "เงินสด", "is_active": 1}
+        self.docs["SD-1"] = {"name": "SD-1", "customer": "CUS-1", "company": "CO-1"}
+        self.docs["SD-2"] = {"name": "SD-2", "customer": "CUS-1", "company": "CO-2"}
+        self.push.link_party("ERP Sales Document", "SD-1", "CO-1", "C01")
+        self.assertFalse(self.parties["CUS-1"].get("express_code"))
+
 class PurchaseFromOwnCompany(unittest.TestCase):
     """采购页上传本公司开出的单据拒收（用户 10-24「采购页上传收据拒收」）：卖方税号 = 本公司、分店相同或没印分店。"""
 

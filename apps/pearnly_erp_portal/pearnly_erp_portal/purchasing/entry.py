@@ -69,7 +69,9 @@ def _supplier(payload, company=None):
         doc = frappe.get_doc({"doctype": "ERP Supplier", "supplier_name": name,
             "tax_id": payload.get("supplier_tax_id"), "branch_type": branch,
             "branch_no": payload.get("supplier_branch_no"), "branch_name": payload.get("supplier_branch_name"),
-            "address": payload.get("supplier_address"), "is_active": 1}).insert(ignore_permissions=True)
+            "address": payload.get("supplier_address"), "is_active": 1,
+            # 接了 Express 的公司：随单建的档先归这家公司（不对全租户各家都可见），写进去后挂上 Express 码（`push.link_party`）
+            "express_company": company if company and express_push.linked(company) else None}).insert(ignore_permissions=True)
         key = doc.name
     return key, name
 

@@ -245,6 +245,7 @@ def job_changed(view):
             state, values["express_docnum"]) and before.company:
         from pearnly_erp_portal.express import masters
 
+        link_party(doctype, name, before.company, view.get("party_code"))
         masters.queue(before.company)
     if view.get("status") == "manual" and _needs_choice(view.get("reason")):
         # 电脑写时才发现、要人在 ERP 里选一次的（疑似重复对方档、存货科目组不合格）：推给录入人，页面在线就直接弹出
@@ -260,7 +261,34 @@ NEEDED_EVENT = "pearnly_erp_express_needed"
 def _needs_choice(reason):
     from pearnly_core.cc_desktop.wire import ack_rules
 
-    return ack_rules.error_code(reason) in prepare.PARTY_CODES | prepare.GROUP_CODES
+    # 关账也弹出（只有原因、能重试；10-24 验收：页面不自动弹）
+    return ack_rules.error_code(reason) in prepare.PARTY_CODES | prepare.GROUP_CODES | {"PERIOD_LOCKED"}
+
+
+PARTIES = {SALES: ("ERP Customer", "customer"), PURCHASE: ("ERP Supplier", "supplier")}
+
+
+def link_party(doctype, name, company, code):
+    """写进 Express 后，把单上还没挂码的对方档挂上电脑实际用的码（10-24 验收：手输新客户写进去后，同步回来又多一条）：
+    这家公司已有挂这个码的档（选了现成档 / 同步先到）→ 单据改指那条，自动建的那条只这张单用过就停用；否则这条档只被这家
+    公司的单用过 → 挂上这家公司和这个码，之后主档同步按码认它、不另建。别家公司也用过的本地档不动（各家共用）。"""
+    party_doctype, field = PARTIES.get(doctype, (None, None))
+    code = str(code or "").strip()
+    current = frappe.db.get_value(doctype, name, field) if party_doctype and code and company else None
+    if not current:
+        return
+    row = frappe.db.get_value(party_doctype, current, ["express_code", "express_company"], as_dict=True)
+    if not row or row.express_code or (row.express_company or company) != company:
+        return
+    mapped = frappe.db.get_value(party_doctype, {"express_company": company, "express_code": code, "is_active": 1}, "name")
+    if mapped and mapped != current:
+        _set(doctype, name, {field: mapped})
+        if not frappe.get_all(doctype, filters={field: current, "name": ["!=", name]}, limit=1):
+            frappe.db.set_value(party_doctype, current, "is_active", 0, update_modified=False)
+        return
+    if frappe.get_all(doctype, filters={field: current, "company": ["!=", company]}, limit=1):
+        return
+    frappe.db.set_value(party_doctype, current, {"express_company": company, "express_code": code}, update_modified=False)
 
 
 def _queued_note(row):

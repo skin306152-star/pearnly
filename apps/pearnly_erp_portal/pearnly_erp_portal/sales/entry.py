@@ -134,8 +134,11 @@ def _buyer(payload, company=None):
     if not key and party != "anonymous" and name not in unknown:
         identity = {"tax_id": tax, "branch_type": "branch" if branch and branch != "00000" else "hq",
                     "branch_no": branch if branch and branch != "00000" else None} if tax else {}
+        # 接了 Express 的公司：随单建的档先归这家公司（不对全租户各家都可见），写进去后挂上 Express 码（`push.link_party`）
+        owner = company if company and express_push.linked(company) else None
         key = frappe.get_doc({"doctype": "ERP Customer", "customer_name": name, "party_type": party,
-                              "address": payload.get("address"), "is_active": 1, **identity}).insert(ignore_permissions=True).name
+                              "address": payload.get("address"), "is_active": 1, "express_company": owner,
+                              **identity}).insert(ignore_permissions=True).name
     return key, name
 
 

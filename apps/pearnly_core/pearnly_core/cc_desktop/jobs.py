@@ -33,7 +33,7 @@ STATUSES = (*OPEN, *DONE)
 HEAD_SCAN = 500
 FIELDS = ("name", "request_key", "source_doctype", "source_name", "label", "actor", "book_key", "payload_version",
           "status", "route_device", "attempt", "fence", "lease_device", "lease_expires_at", "last_device", "docnum",
-          "stage", "reason", "verify_state", "verify_json", "written_by_device", "written_at", "creation", "modified")
+          "stage", "reason", "verify_state", "verify_json", "written_by_device", "written_at", "meta_json", "creation", "modified")
 LOST = "cc_desktop.result_unknown"
 OUTDATED = "payload_version_outdated"
 
@@ -49,9 +49,13 @@ def view(row) -> dict:
     """一件写账给产品看的样子（不含载荷）。"""
     if row is None:
         return None
-    verify = {}
+    verify, meta = {}, {}
     try:
         verify = json.loads(row.get("verify_json") or "{}")
+    except ValueError:
+        pass
+    try:
+        meta = json.loads(row.get("meta_json") or "{}")
     except ValueError:
         pass
     return {"job": row.get("name"), "request_key": row.get("request_key"), "source_doctype": row.get("source_doctype"),
@@ -59,7 +63,9 @@ def view(row) -> dict:
             "status": row.get("status"), "docnum": row.get("docnum") or "", "stage": row.get("stage") or "",
             "reason": row.get("reason") or "", "verify_state": row.get("verify_state") or "", "verify": verify,
             "attempt": int(row.get("attempt") or 0), "device": row.get("written_by_device") or row.get("lease_device")
-            or row.get("route_device") or "", "written_at": row.get("written_at")}
+            or row.get("route_device") or "", "written_at": row.get("written_at"),
+            # 电脑写这张单实际用的客户 / 供应商码（新建的、复用的都报）：产品据此把单上的对方档挂上 Express 码
+            "party_code": str((meta if isinstance(meta, dict) else {}).get("party_code") or "")[:40]}
 
 
 def find(request_key) -> dict:
