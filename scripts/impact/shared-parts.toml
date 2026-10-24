@@ -22,7 +22,7 @@ name = "共用相机与读码器"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/scan.js", "apps/pearnly_core/pearnly_core/public/desk/scan.css", "apps/pearnly_core/pearnly_core/public/scan/reader.js", "apps/pearnly_core/pearnly_core/public/vendor/barcode-detector/**"]
 markers = [".scan_stage(", ".scan_reader(", ".scan_hint(", ".scan_liff_first(", ".scan_to_liff(", ".scan_failure(", ".scan_result_sound(", ".scan_supported(", "PearnlyScan", "scan/reader.js"]
 search = ["apps/**/*.js", "apps/**/*.html", "apps/**/hooks.py"]
-entries = ["erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.cashier.camera", "erp.cashier.scanner-gun", "erp.stock-count.entry.camera", "erp.line.stocktake.camera", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan", "erp.purchase.item-scan", "erp.sales.item-scan", "cowork.stocktake.entry.camera", "dms.liff.id-scan", "shared.upload.take-photo"]
+entries = ["erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.cashier.camera", "erp.cashier.scanner-gun", "erp.stock-count.entry.camera", "erp.line.stocktake.camera", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan", "erp.purchase.item-scan", "erp.sales.item-scan", "cowork.stocktake.entry.camera", "dms.liff.id-scan", "shared.upload.take-photo", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera"]
 not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明（app_include_js），入口见本共用件全部扫码入口" }
 
 [[part]]
@@ -128,7 +128,7 @@ name = "上传框（FileUploader 精简、照片压缩）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
 markers = ["new frappe.ui.FileUploader", "\"Attach Image\"", ".shrink_photo("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["shared.home.topup-proof", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo"]
+entries = ["shared.home.topup-proof", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload"]
 
 [[part]]
 id = "cowork-intake-upload"
@@ -160,7 +160,7 @@ name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
 paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera"]
 
 [[part]]
 id = "line-session"
@@ -193,7 +193,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history"]
+entries = ["erp.cc.write", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
 
 [[part]]
@@ -234,7 +234,7 @@ name = "ERP 对方 / 物料认法（selection）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py"]
 markers = ["masters.selection", "masters import selection"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.entry.choices"]
+entries = ["erp.entry.choices", "erp.cc.write", "erp.line.intake.submit", "erp.purchase.original-upload", "erp.sales.original-upload"]
 
 [[part]]
 id = "erp-products-lookup"
@@ -242,7 +242,7 @@ name = "ERP 按码找商品（products.service / purchase / sales）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
 markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan"]
+entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到" }
 
 [[part]]
@@ -1518,3 +1518,57 @@ files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_
 smoke = "express"
 site = "erp"
 args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
+
+[[entry]]
+id = "erp.line.stocktake.liff-camera"
+product = "ERP"
+where = "LINE 富菜单「盘点」→ LIFF 打开 pearnly-stock-count"
+steps = "ERP-TEST 富菜单「盘点」（安卓 LINE 普通内置浏览器会转 LIFF 并带 pearnly_liff=scan）→ 打开一份 → 开始盘点 → 相机"
+expect = "LIFF 弹原生相机授权后有画面、读出码，认盘点仓库所属公司的商品；刷新不再自动开相机"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py", "apps/pearnly_core/pearnly_core/account/line_login.py", "apps/pearnly_core/pearnly_core/public/desk/scan.js"]
+
+[[entry]]
+id = "cowork.line.stocktake.liff-camera"
+product = "Cowork"
+where = "LINE 富菜单「库存盘点」→ LIFF 打开 pearnly-stocktake"
+steps = "Cowork-test 富菜单「库存盘点」→ 打开一份 → 开始盘点 → 相机（安卓 LINE 内置浏览器转 LIFF 带 pearnly_liff=scan 自动开相机）"
+expect = "LIFF 弹原生相机授权后有画面、读出码；刷新不再自动开相机"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js", "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js", "apps/pearnly_cowork/pearnly_cowork/line/menu.py", "apps/pearnly_core/pearnly_core/account/line_login.py", "apps/pearnly_core/pearnly_core/public/desk/scan.js"]
+
+[[entry]]
+id = "erp.products.import-upload"
+product = "ERP"
+where = "物料 → Excel 导入"
+steps = "物料 → Excel 导入 → 选择文件（只收 .xlsx、≤5MB，本机文件、不给拍照）→ 导入"
+expect = "上传框正常、只收 xlsx，解析入库条数正确；下载模板正常"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js"]
+
+[[entry]]
+id = "erp.cashier.search"
+product = "ERP"
+where = "收银台搜索框（打字 / 扫码枪 / 相机共用的按码找商品）"
+steps = "收银台 → 搜索框打编码 / 条码；扫码枪扫；搜索结果唯一命中直接进车"
+expect = "按当前公司 + 本地认出同一件商品（cashier/counter.py → products.find_product）"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js"]
+
+[[entry]]
+id = "erp.line.intake.submit"
+product = "ERP"
+where = "LINE 采购 / 销售卡片确认、编辑页提交（按名称 / 编码认商品与对方）"
+steps = "ERP-TEST 上传单据 → 卡片确认，或「编辑」→ 提交"
+expect = "认当前公司的商品与供应商 / 客户，认不到自动建本地档；写进 Express"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
+
+[[entry]]
+id = "cowork.cc-chat.push"
+product = "Cowork"
+where = "CC 对话页推送（让 CC 推、待处理页、公司工具改选择）"
+steps = "CC 对话页（Cowork）上传单据后让 CC 推送 / 「待处理」页推送 / 让 CC 改记住的选择"
+expect = "照常写进 Express、读回一致；CC 说的与写入的一致"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py"]
