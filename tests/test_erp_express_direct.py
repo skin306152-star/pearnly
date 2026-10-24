@@ -783,5 +783,30 @@ class PurchaseFromOwnCompany(unittest.TestCase):
         self.assertFalse(checks.issued_by(ours, ""))  # 公司没税号：判不出，不拒
 
 
+
+class ServiceLinesTakeNoWarehouse(unittest.TestCase):
+    """10-24 验收问题 22：多仓、没有收银台的公司开费用单，关联了服务物料的行提交报「请选择仓库」，表单上又没有仓库栏。
+    服务 / 费用行不进出库，不取仓；货物行照旧按收银台 → 唯一仓 → 报错定仓。"""
+
+    def test_a_service_line_with_a_product_needs_no_warehouse(self):
+        from types import SimpleNamespace
+        from unittest import mock
+
+        from pearnly_erp_portal.inventory import positions
+
+        product = SimpleNamespace(is_active=1, default_location="")
+        with mock.patch.object(positions.frappe.db, "get_value", return_value=product), \
+                mock.patch.object(positions.warehouses, "receiving", side_effect=AssertionError("asked for a warehouse")):
+            line = positions.prepare({"product": "PRD-68362", "item_type": "service", "qty": 1}, company="CO-42069")
+        self.assertNotIn("warehouse", line)
+        self.assertEqual(positions.saved({"product": "PRD-68362", "item_type": "service"}, company="CO-42069"),
+                         {"warehouse": None, "location": ""})
+        with mock.patch.object(positions.frappe.db, "get_value", return_value=product), \
+                mock.patch.object(positions.warehouses, "receiving", return_value="WH-68368") as receiving:
+            goods = positions.prepare({"product": "PRD-1", "item_type": "goods", "qty": 1}, company="CO-42069")
+        self.assertEqual(goods["warehouse"], "WH-68368")
+        receiving.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

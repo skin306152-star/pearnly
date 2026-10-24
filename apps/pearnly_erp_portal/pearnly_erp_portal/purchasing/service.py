@@ -91,7 +91,8 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
     from pearnly_erp_portal.numbering import service as numbering
 
     company = companies.document_company(company)
-    lines = [positions.prepare(line, company=company) for line in lines]
+    lines = [positions.prepare({**line, "item_type": "service" if doc_kind == "service" else line.get("item_type", "goods")},
+                               company=company) for line in lines]
     has_vat = has_vat in (True, 1, "1", "true")
     config = settings.read_settings()
     supplier, supplier_name = _resolve_supplier(supplier, supplier_name)
@@ -271,7 +272,8 @@ def update_purchase(name, **changes):
         from pearnly_erp_portal.inventory import positions
 
         for index, line in enumerate(lines, start=1):
-            line = positions.prepare(line, company=doc.get("company"))
+            line = positions.prepare({**line, "item_type": "service" if doc.doc_kind == "service"
+                                      else line.get("item_type", "goods")}, company=doc.get("company"))
             doc.append("lines", {
                 "line_no": index,
                 "item_type": "service" if doc.doc_kind == "service" else line.get("item_type", "goods"),

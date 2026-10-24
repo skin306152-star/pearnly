@@ -29,6 +29,10 @@ def prepare(line, warehouse=None, *, company=None):
                                   as_dict=True)
     if not product or not product.is_active:
         frappe.throw(_("Product not found"))
+    if result.get("item_type") == "service":
+        # 服务 / 费用行不进出库，不取仓（10-24 验收问题 22：多仓、没有收银台的公司开费用单，关联了服务物料就报
+        # 「请选择仓库」，表单上又没有仓库栏）。行上写了仓照旧核过（上面）。
+        return result
     # 仓库必须是这家公司真实存在的仓（仓库属于公司）。
     # **商品上那个"默认仓"不再参与**（用户 2026-09-24："进货就进卖货那个仓"）：它会让
     # 进货落在一个仓、收银从另一个仓卖，两边数量与金额永远对不上（实测：`水` 在卖货仓
@@ -50,6 +54,8 @@ def saved(line, warehouse=None, *, company=None):
     value = line.get("warehouse") or warehouse
     if value and company and warehouses.company_of(value) != company:
         frappe.throw(_("Warehouse not found"))
+    if not value and line.get("item_type") == "service":
+        return {"warehouse": None, "location": clean_location(line.get("location"))}   # 服务行没有仓（见 prepare）
     return {"warehouse": value or warehouses.required(company=company),
             "location": clean_location(line.get("location"))}
 
