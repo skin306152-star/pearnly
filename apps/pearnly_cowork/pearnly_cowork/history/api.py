@@ -136,15 +136,16 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     if source_file:
         filters["source_file"] = str(source_file)
         order_by = "source_index asc, name asc"
-    # 原生筛选里「等于 / 介于」以外的条件（页面 intake.js 的 filter_fields）；同一列可能有两条，改成列表形式
+    elif sort_by in SORT_FIELDS:
+        order_by = "{0} {1}, name desc".format(
+            sort_by, "asc" if str(sort_order or "").lower().startswith("asc") else "desc")
+    # 原生筛选里「等于 / 介于」以外的条件（页面 intake.js 的 filter_fields）；同一列可能有两条，改成列表形式。
+    # 与上面的排序无关：排序照旧（验收 10-25：这里曾截走排序那一支，有条件时列头排序失效）
     from pearnly_core.desk import list_filters
 
     extra = list_filters.conditions(conditions, {"posting_kind": "posting_kind", "invoice_date": "invoice_date"})
     if extra:
         filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] + extra
-    elif sort_by in SORT_FIELDS:
-        order_by = "{0} {1}, name desc".format(
-            sort_by, "asc" if str(sort_order or "").lower().startswith("asc") else "desc")
     fields = ["name", "client", "source", "staged", "record_version", "invoice_no",
               "invoice_date", "seller_name", *storage.PARTY_FIELDS, "total_amount", "quality_status", "confidence",
               "filename", "page_count", "modified", "duplicate_check_status", "duplicate_level",
