@@ -61,3 +61,9 @@
     打了字没找到时照原样再列 / 再问。存货科目组正好 12 个也列按钮，超过 12 个才打字找。
   - ERP 选供应商 / 客户：本公司能选的都已在按钮里时不再带「输入…名称关键字查找」（`_more_parties`）。公司、仓库原本就按 ≤12 列按钮、>12 打字找，当前公司 / 上次用的仓给按钮。
   - 每档用例：`tests/test_line_search_and_loading.py::ErpChoiceTiers`、`tests/test_cowork_line_intake.py`（12 / 13 份账套、12 / 14 个科目组、找到 0 / ≤12 / >12、整串编号）。
+- 收尾核对（10-24 晚，验收第 3 项「自动建本地商品同步后会不会重复」测的那张单碰巧认到了 Express 现成物料，没走到要查的路径）：
+  认不到的货物行提交时建本地档 → CC 在 Express 里按品名找不到就新建存货（新 STKCOD）→ 几家公司的租户主档同步不认领本地档（本批改的）、
+  服务端也没存 CC 回执里逐行用的存货码 → 同步按新码另建一条同名档（同问题 13 的客户 / 供应商漏口）。修法同 `link_party`：
+  - 共用 `cc_desktop.jobs.acknowledge` 把回执 `line_modes` 里的 `seq / name / stkcod` 存进 meta 的 `line_codes`，`view` 交给产品；CC 不用改（1.12.0 本来就报）。
+  - ERP `express/push.link_products`：第一次写进去时，按序号且品名一致对上行，只被这张单用过的本地商品挂上这家公司和这个码；这家公司已有挂这个码的档时不动
+    （库存流水已记在本地档上，不改指）。用例 `tests/test_erp_express_direct.py::LinkProducts`、`tests/test_cc_desktop_channel.py`（逐行存货码）。
