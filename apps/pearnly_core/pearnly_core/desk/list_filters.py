@@ -5,7 +5,8 @@
 运算符由 Frappe 自己执行（参数化）。不在白名单的字段、不认识的运算符一律丢掉，不报错也不变成别的条件。
 
 Link 字段（库里存的是编号，如 `SUP-00012`）：弹层里人输入的「包含 / 不包含」是名称，白名单写成
-`{"column": 列, "link": (DocType, 名称字段)}`，按名称找出编号再换成「在…之中 / 不在…之中」（最多 `LINK_MATCHES` 个）。
+`{"column": 列, "link": (DocType, 名称字段)}`，条件换成 Frappe 原生的 `Link字段.名称字段`（16.33 的 `get_list` 走
+`qb_query`，过滤条件里的点号写法由框架 JOIN 对方表并检查该字段的读权限），命中多少都不截断。
 「等于 / 不等于 / 在…之中」原生选择框给的就是编号，照原样。
 
 `matches()` 给"不在库里、恒为某个值"的那一侧用（例如销售记录里的收银小票：恒为收据、已收款、来源收银），
@@ -18,16 +19,6 @@ from datetime import date, datetime
 
 OPERATORS = ("=", "!=", "like", "not like", "in", "not in", "is", ">", "<", ">=", "<=", "between", "timespan")
 MAX_CONDITIONS = 20
-LINK_MATCHES = 1000
-
-
-def _link_names(link, pattern) -> list:
-    import frappe
-
-    doctype, title = link
-    # 只用来缩小范围：主查询仍按 DocType 权限过滤
-    return frappe.get_all(doctype, filters={title: ["like", pattern]}, pluck="name",
-                          limit_page_length=LINK_MATCHES) or ["__none__"]
 
 
 def conditions(raw, allowed: dict) -> list[list]:
@@ -51,7 +42,7 @@ def conditions(raw, allowed: dict) -> list[list]:
         if link and operator in ("like", "not like"):
             if isinstance(value, (list, dict)) or not str(value or "").strip():
                 continue
-            out.append([column, "in" if operator == "like" else "not in", _link_names(link, str(value))])
+            out.append([f"{column}.{link[1]}", operator, value])
             if len(out) >= MAX_CONDITIONS:
                 break
             continue

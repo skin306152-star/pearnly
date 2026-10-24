@@ -35,22 +35,12 @@ class Conditions(unittest.TestCase):
         self.assertEqual(len(list_filters.conditions(many, ALLOWED)), list_filters.MAX_CONDITIONS)
 
     def test_contains_on_a_link_field_matches_the_name_people_type(self):
-        # 验收 10-25：采购「供应商 包含」按名称搜，库里存的是 SUP-xxxx
-        import types
-        from unittest.mock import patch
-
-        asked = []
-        frappe = types.ModuleType("frappe")
-        frappe.get_all = lambda doctype, filters, pluck, limit_page_length: asked.append((doctype, filters)) or (
-            ["SUP-00012", "SUP-00031"] if "ABC" in filters["supplier_name"][1] else [])
+        # 验收 10-25：采购「供应商 包含」按名称搜，库里存的是 SUP-xxxx；用框架原生的 Link 点号写法，不先取编号
         link = {"supplier": {"column": "supplier", "link": ("ERP Supplier", "supplier_name")}}
-        with patch.dict(sys.modules, {"frappe": frappe}):
-            out = list_filters.conditions('[["supplier","like","%ABC%"],["supplier","not like","%Nobody%"],'
-                                          '["supplier","!=","SUP-00099"],["supplier","like",""]]', link)
-        self.assertEqual(out, [["supplier", "in", ["SUP-00012", "SUP-00031"]], ["supplier", "not in", ["__none__"]],
-                               ["supplier", "!=", "SUP-00099"]])
-        self.assertEqual(asked, [("ERP Supplier", {"supplier_name": ["like", "%ABC%"]}),
-                                 ("ERP Supplier", {"supplier_name": ["like", "%Nobody%"]})])
+        out = list_filters.conditions('[["supplier","like","%ABC%"],["supplier","not like","%Nobody%"],'
+                                      '["supplier","!=","SUP-00099"],["supplier","like",""]]', link)
+        self.assertEqual(out, [["supplier.supplier_name", "like", "%ABC%"],
+                               ["supplier.supplier_name", "not like", "%Nobody%"], ["supplier", "!=", "SUP-00099"]])
 
     def test_constant_values_match_like_frappe(self):
         self.assertTrue(list_filters.matches("receipt", "!=", "invoice"))
