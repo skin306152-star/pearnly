@@ -761,15 +761,14 @@ class PurchaseFromOwnCompany(unittest.TestCase):
 
     def test_a_document_sold_by_this_company_is_not_a_purchase(self):
         from pearnly_erp_portal.recognition import checks
-        ours = {"supplier_tax_id": "0105549038811", "supplier_branch_type": "head_office"}
-        self.assertTrue(checks.issued_by(ours, OWN_TAX, "00000"))
-        self.assertTrue(checks.issued_by({**ours, "supplier_branch_type": "none"}, OWN_TAX, "00012"))  # 没印分店也算
-        self.assertFalse(checks.issued_by({**ours, "supplier_branch_type": "branch", "supplier_branch_no": "12"},
-                                          OWN_TAX, "00000"))  # 本公司别的分店开来的：照常是进项
-        self.assertTrue(checks.issued_by({**ours, "supplier_branch_type": "branch", "supplier_branch_no": "12"},
-                                         OWN_TAX, "00012"))
-        self.assertFalse(checks.issued_by({**ours, "supplier_tax_id": SUPPLIER}, OWN_TAX, "00000"))
-        self.assertFalse(checks.issued_by(ours, "", "00000"))  # 公司没税号：判不出，不拒
+        ours = {"supplier_tax_id": "0105549038811", "supplier_branch_type": "branch", "supplier_branch_no": "1",
+                "buyer_tax_id": "0105536080112"}
+        self.assertTrue(checks.issued_by(ours, OWN_TAX))  # 本公司 00001 分店开给第三方：仍是本公司开出的（10-24 验收）
+        self.assertTrue(checks.issued_by({**ours, "buyer_tax_id": ""}, OWN_TAX))  # 买方没税号的收据
+        self.assertFalse(checks.issued_by({**ours, "buyer_tax_id": OWN_TAX}, OWN_TAX))  # 分店之间调拨：照常是进项
+        self.assertFalse(checks.issued_by({**ours, "supplier_tax_id": SUPPLIER}, OWN_TAX))
+        self.assertFalse(checks.issued_by(ours, ""))  # 公司没税号：判不出，不拒
+
 
 if __name__ == "__main__":
     unittest.main()

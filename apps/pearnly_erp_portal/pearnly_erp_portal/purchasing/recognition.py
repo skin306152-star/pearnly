@@ -164,11 +164,9 @@ def recognise(attachments, document_name=None, billing_reference=None, company=N
         documents = _anchor_with_ocr(documents, images, company)
     if documents[0][0].get("not_document"):
         frappe.throw(_("This is not a purchase or sales document"), policy.UnsupportedDocument)
-    # 卖方就是本公司（同税号同分店，票上没印分店也算）：本公司开出的收据 / 税票放进了采购页，不是采购单据（用户 10-24）。
-    # 一个文件里几张单的只去掉这几张；全是就整份拒收，不建单、不扣识别费
-    own_branch = re.sub(r"\D", "", str(frappe.db.get_value("ERP Company", company, "branch") or "")).zfill(5)[-5:] \
-        if company else ""
-    kept = [doc for doc in documents if not checks.issued_by(doc[0], own_tax, own_branch)]
+    # 卖方就是本公司、买方不是本公司：本公司开出的收据 / 税票放进了采购页，不是采购单据（用户 10-24；买方也是本公司的是分店
+    # 之间调拨，照常是进项）。一个文件里几张单的只去掉这几张；全是就整份拒收，不建单、不扣识别费
+    kept = [doc for doc in documents if not checks.issued_by(doc[0], own_tax)]
     if not kept:
         frappe.throw(_("This document was issued by this company, not a purchase document"), policy.UnsupportedDocument)
     documents = kept

@@ -89,10 +89,10 @@ def reread(issues) -> list:
     return [code for code in hard(issues) if code not in NOT_REREAD]
 
 
-def issued_by(result, own_tax, own_branch) -> bool:
-    """这张单的卖方是不是本公司：卖方税号 = 本公司税号，分店相同或票上没印分店。"""
-    if len(own_tax or "") != 13 or "".join(ch for ch in str(result.get("supplier_tax_id") or "") if ch.isdigit()) != own_tax:
+def issued_by(result, own_tax, own_branch=None) -> bool:
+    """这张单是不是本公司开出去的：卖方税号 = 本公司税号，买方不是本公司（10-24 验收：本公司 00001 分店开给第三方的税票、
+    公司本身是 00000，按分店比会漏过）。买方也是本公司的是分店之间调拨，照常是进项。``own_branch`` 留着兼容，不再参与判断。"""
+    digits = lambda value: "".join(ch for ch in str(value or "") if ch.isdigit())  # noqa: E731
+    if len(own_tax or "") != 13 or digits(result.get("supplier_tax_id")) != own_tax:
         return False
-    kind, number = result.get("supplier_branch_type"), "".join(ch for ch in str(result.get("supplier_branch_no") or "") if ch.isdigit())
-    seller = "00000" if kind == "head_office" else number.zfill(5) if kind == "branch" and number else None
-    return seller is None or seller == (own_branch or "00000")
+    return digits(result.get("buyer_tax_id")) != own_tax
