@@ -43,7 +43,7 @@ barcode = importlib.util.module_from_spec(video_spec)
 video_spec.loader.exec_module(barcode)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
-READONLY_PROBES = {"page", "scan"}
+READONLY_PROBES = {"page", "scan", "find_product", "assistant"}
 CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py"}
 
 
@@ -186,7 +186,7 @@ def main(argv=None) -> int:
             url = f"https://{site}{entry.url}"
             raw = drive({"url": url, "cookie_domain": site, "sid": sessions[product][1], "probe": entry.smoke,
                          "args": {"code": barcode.TEST_CODE, **entry.args}, "video": str(video) if entry.smoke == "scan" else "",
-                         "wait_ms": 7000})
+                         "wait_ms": 7000, "wait_for": "none" if entry.smoke == "assistant" else "frappe"})
             state, why = verdict(raw)
             rows.append((entry, state, why))
             print(f"{state}  {entry.id}  {why}", file=sys.stderr)

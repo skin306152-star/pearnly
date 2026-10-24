@@ -1476,7 +1476,7 @@ steps = "ERP / Cowork 对话页 → 齿轮 / 用户菜单「设置」/ Ctrl+, �
 expect = "无报错、电脑列表能出来；桌面版多「此电脑」一栏"
 check = "auto"
 files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/lib/desktop.ts"]
-smoke = "page"
+smoke = "assistant"
 url = "/assistant"
 site = "cowork"
 

@@ -69,6 +69,14 @@ try {
   if (job.sid) await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: true }, sessionId);
   await send("Page.navigate", { url: job.url }, sessionId);
   await sleep(job.wait_ms || 6000);
+  // Desk 页面：再等到 frappe 就绪（最多 30 秒），慢一点的页面不误报；对话页等非 Desk 页面传 wait_for: "none"
+  if ((job.wait_for || "frappe") === "frappe") {
+    for (let i = 0; i < 60; i++) {
+      const ready = await send("Runtime.evaluate", { expression: "!!(window.frappe && frappe.boot && frappe.get_route && document.readyState === 'complete')", returnByValue: true }, sessionId);
+      if (ready.result?.value) break;
+      await sleep(500);
+    }
+  }
   const body = readFileSync(join(here, "probes", `${job.probe || "page"}.js`), "utf8");
   const expression = `(async (args) => {\n${body}\n})(${JSON.stringify(job.args || {})})`;
   const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, timeout: 90000 }, sessionId);
