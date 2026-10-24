@@ -246,6 +246,7 @@ def job_changed(view):
         from pearnly_erp_portal.express import masters
 
         link_party(doctype, name, before.company, view.get("party_code"))
+        link_products(doctype, name, before.company, view.get("line_codes"))
         masters.forget(view.get("book_key"))
         masters.queue(before.company)
     if view.get("status") == "manual" and _needs_choice(view.get("reason")):
@@ -290,6 +291,54 @@ def link_party(doctype, name, company, code):
     if frappe.get_all(doctype, filters={field: current, "company": ["!=", company]}, limit=1):
         return
     frappe.db.set_value(party_doctype, current, {"express_company": company, "express_code": code}, update_modified=False)
+
+
+LINES = {SALES: "ERP Sales Document Line", PURCHASE: "Purchase Line"}
+# 引用商品的表 → 哪一列说明「是这张单的」（None：只要引用就算别处用过）；结存跟着流水走，不另看
+PRODUCT_USES = {"Purchase Line": "parent", "ERP Sales Document Line": "parent", "ERP Sale Line": "parent",
+                "ERP Stock Entry Line": "parent", "ERP Stock Movement": "ref_id", "ERP Stock Count Entry": None,
+                "ERP Stock Count Item": None, "ERP Stock Opening": None}
+
+
+def link_products(doctype, name, company, codes):
+    """写进 Express 后，把这张单随单自动建的本地商品挂上电脑实际用的存货码（同 :func:`link_party`；10-24：认不到的货物行
+    提交时建本地档，电脑在 Express 里另建存货，几家公司的租户主档同步不认领本地档，会按新码再建一条同名档）。
+    只认领只被这张单用过的本地档；这家公司已有挂这个码的档时不动（库存流水已记在本地档上，不改指）。逐行按序号对上、
+    品名也一致才认。"""
+    if doctype not in LINES or not company or not isinstance(codes, list):
+        return
+    lines = frappe.get_all(LINES[doctype], filters={"parent": name, "parenttype": doctype},
+                           fields=["product", "description"], order_by="idx asc", limit_page_length=0)
+    for row in codes:
+        if not isinstance(row, dict):
+            continue
+        seq, code = row.get("seq"), str(row.get("code") or "").strip()
+        if not code or not isinstance(seq, int) or not 1 <= seq <= len(lines) or not lines[seq - 1].product:
+            continue
+        line = lines[seq - 1]
+        product = frappe.db.get_value("ERP Product", line.product, ["product_name", "express_code", "express_company"],
+                                      as_dict=True)
+        if not product or product.express_code or product.express_company:
+            continue
+        if str(row.get("name") or "").strip() not in {str(line.description or "").strip(),
+                                                      str(product.product_name or "").strip()}:
+            continue
+        if frappe.db.get_value("ERP Product", {"express_company": company, "express_code": code}, "name"):
+            continue
+        if _used_elsewhere(line.product, name):
+            continue
+        frappe.db.set_value("ERP Product", line.product, {"express_company": company, "express_code": code},
+                            update_modified=False)
+
+
+def _used_elsewhere(product, name):
+    for table, own in PRODUCT_USES.items():
+        filters = {"product": product}
+        if own:
+            filters[own] = ["!=", name]
+        if frappe.get_all(table, filters=filters, limit=1):
+            return True
+    return False
 
 
 def _queued_note(row):

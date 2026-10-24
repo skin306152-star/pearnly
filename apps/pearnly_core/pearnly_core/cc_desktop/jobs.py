@@ -65,7 +65,9 @@ def view(row) -> dict:
             "attempt": int(row.get("attempt") or 0), "device": row.get("written_by_device") or row.get("lease_device")
             or row.get("route_device") or "", "written_at": row.get("written_at"),
             # 电脑写这张单实际用的客户 / 供应商码（新建的、复用的都报）：产品据此把单上的对方档挂上 Express 码
-            "party_code": str((meta if isinstance(meta, dict) else {}).get("party_code") or "")[:40]}
+            "party_code": str((meta if isinstance(meta, dict) else {}).get("party_code") or "")[:40],
+            # 逐行实际用的存货码（{seq, name, code}）：产品据此把随单新建的本地商品挂上 Express 码
+            "line_codes": (meta.get("line_codes") if isinstance(meta, dict) else None) or []}
 
 
 def find(request_key) -> dict:
@@ -266,6 +268,17 @@ def _reply(doc, stage, replayed=False):
         "result_unknown": False, "reason": doc.reason or ""})
 
 
+def _stored_meta(request):
+    """回执的 meta 加上逐行回执里的存货码（CC 每行报 seq / name / stkcod，见 companion ``dbf_detail.line_mode``）。"""
+    meta = dict(request["meta"] or {})
+    codes = [{"seq": row["seq"], "name": str(row.get("name") or "")[:140], "code": str(row["stkcod"]).strip()[:40]}
+             for row in request["line_modes"] or []
+             if isinstance(row.get("seq"), int) and str(row.get("stkcod") or "").strip()]
+    if codes:
+        meta["line_codes"] = codes
+    return meta
+
+
 def acknowledge(context, body) -> dict:
     request = queue_contracts.ack_request(body)
     context = devices.revalidate(context)
@@ -287,7 +300,7 @@ def acknowledge(context, body) -> dict:
     transition = ack_rules.acknowledgement(branch="legacy", attempt=int(doc.attempt or 0), success=success,
                                            outcome=request["outcome"], error=request["error"])
     values = {"lease_device": None, "lease_expires_at": None, "writing_key": None, "stage": transition.stage,
-              "meta_json": json.dumps(request["meta"] or {}, ensure_ascii=False, sort_keys=True)[:200000]}
+              "meta_json": json.dumps(_stored_meta(request), ensure_ascii=False, sort_keys=True)[:200000]}
     if transition.status == "success":
         state, verify = _verify(request["meta"])
         values.update(status="success", docnum=str(request["express_docnum"] or "")[:40], reason="",

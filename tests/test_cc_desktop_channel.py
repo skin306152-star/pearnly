@@ -180,6 +180,14 @@ class Queue(Base):
                          ("success", "IV691023-001", "ok"))
         self.assertEqual(self.ack(self.office, job["job"]), {"ok": True, "status": "success", "idempotent": True})
 
+    def test_the_codes_each_line_used_reach_the_product(self):
+        job = self.enqueue()
+        self.lease(self.office)
+        self.ack(self.office, job["job"], line_modes=[
+            {"seq": 1, "name": "น้ำแข็ง", "mode": "stock_item", "stkcod": "ST-0099 ", "created": True},
+            {"seq": 2, "name": "ค่าขนส่ง", "mode": "direct_account", "stkcod": ""}])
+        self.assertEqual(self.changes[-1]["line_codes"], [{"seq": 1, "name": "น้ำแข็ง", "code": "ST-0099"}])
+
     def test_a_colleagues_computer_never_writes_my_job(self):
         other = self.register("other@x", KEY_B)
         colleague = self.context(other["device"], "other@x")

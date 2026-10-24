@@ -755,9 +755,7 @@ class MasterIsolation(unittest.TestCase):
         self.assertIs(allowed({"express_company": "CO-Z"}, user="staff@x"), False)
 
 
-class LinkParty(Base):
-    """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
-
+class PushModule(Base):
     def setUp(self):
         super().setUp()
         import types
@@ -771,6 +769,13 @@ class LinkParty(Base):
         self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.push", None)
         from pearnly_erp_portal.express import push
         self.push = push
+
+
+class LinkParty(PushModule):
+    """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
+
+    def setUp(self):
+        super().setUp()
         self.docs = fake.STATE.db.table("ERP Sales Document")
         self.parties = fake.STATE.db.table("ERP Customer")
 
@@ -794,6 +799,42 @@ class LinkParty(Base):
         self.docs["SD-2"] = {"name": "SD-2", "customer": "CUS-1", "company": "CO-2"}
         self.push.link_party("ERP Sales Document", "SD-1", "CO-1", "C01")
         self.assertFalse(self.parties["CUS-1"].get("express_code"))
+
+class LinkProducts(PushModule):
+    """写进 Express 后把随单自动建的本地商品挂上电脑实际用的存货码（10-24：几家公司的租户同步按新码又建一条同名档）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.products = fake.STATE.db.table("ERP Product")
+        self.lines = fake.STATE.db.table("Purchase Line")
+        self.products["PRD-1"] = {"name": "PRD-1", "product_name": "น้ำแข็งก้อน", "is_active": 1}
+        self.lines["L1"] = {"name": "L1", "parent": "PUR-1", "parenttype": "Purchase Document", "idx": 1,
+                            "product": None, "description": "ค่าขนส่ง"}
+        self.lines["L2"] = {"name": "L2", "parent": "PUR-1", "parenttype": "Purchase Document", "idx": 2,
+                            "product": "PRD-1", "description": "น้ำแข็งก้อน"}
+
+    def link(self, codes):
+        self.push.link_products("Purchase Document", "PUR-1", "CO-1", codes)
+        return self.products["PRD-1"].get("express_company"), self.products["PRD-1"].get("express_code")
+
+    def test_the_new_local_product_takes_the_code_the_computer_made(self):
+        self.assertEqual(self.link([{"seq": 1, "name": "ค่าขนส่ง", "code": "5330-02"},
+                                    {"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), ("CO-1", "ST-0099"))
+
+    def test_a_product_used_elsewhere_or_a_code_already_mapped_stays_as_it_is(self):
+        self.lines["L9"] = {"name": "L9", "parent": "PUR-2", "parenttype": "Purchase Document", "idx": 1,
+                            "product": "PRD-1", "description": "น้ำแข็งก้อน"}
+        self.assertEqual(self.link([{"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), (None, None))
+        self.lines.pop("L9")
+        self.products["PRD-9"] = {"name": "PRD-9", "product_name": "น้ำแข็ง", "express_company": "CO-1",
+                                  "express_code": "ST-0099", "is_active": 1}
+        self.assertEqual(self.link([{"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), (None, None))
+
+    def test_a_line_that_does_not_line_up_is_left_alone(self):
+        self.assertEqual(self.link([{"seq": 2, "name": "อื่น", "code": "ST-0099"}]), (None, None))
+        self.assertEqual(self.link([{"seq": 3, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), (None, None))
+        self.assertEqual(self.link(None), (None, None))
+
 
 class PurchaseFromOwnCompany(unittest.TestCase):
     """采购页上传本公司开出的单据拒收（用户 10-24「采购页上传收据拒收」）：卖方税号 = 本公司、分店相同或没印分店。"""
