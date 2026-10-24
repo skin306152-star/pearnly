@@ -69,3 +69,15 @@
     （库存流水已记在本地档上，不改指）。用例 `tests/test_erp_express_direct.py::LinkProducts`、`tests/test_cc_desktop_channel.py`（逐行存货码）。
   - 生产镜像 `29404c6a` 完整候选离线检查（`c4ad23d9`）：通过（CAND EXIT 0）。这一遍先发现 4ee7eac4 留下的用例缺口：`integrations/test_line_intake.py`
     的假数据库没答对方档条数（`_more_parties` 新查的），2 处报错；补上用例数据后通过，产品代码未改。本地全闸门（`4baaeffe`）通过。
+  - 验收复测（84d8ff9b）：选「新建」的 PUR-2026-167900 → HP691024-010（CC 新建 PN00002），本地档 PRD-167899 回执后挂上 CO-42069 / PN00002，同步后只有 1 条；
+    选现成物料的 PUR-2026-167904 → HP691024-011，本地档不动，与修前同。本轮回归（ERP / Cowork / DMS 三段 + 切回 ERP 补测）全部闭环。
+
+## 交付状态（10-24 晚）
+
+- 集成分支最终 `84d8ff9b`（代码最后一次改动 `c4ad23d9`）；GitHub Development checks 通过；Companion checks 最后一次在 `000a26d8`（之后没改 `companion/`）通过。
+- 本地全闸门（`4baaeffe`）、架构检查、生产镜像完整候选离线检查（`c4ad23d9`）通过；文案闸门之后没有新增 / 改动文案。
+- CC 桌面版 1.12.0 测试包（`000a26d8` 构建）已在测试机；正式版要在合入 main 后发布（载荷版本 5，旧版 CC 会诚实拒收按行科目拆的单）。
+- 未合入 main、未部署。测试机实验栈仍在 ERP（testerp / testcowork / testdms 三个域名都还指向测试机），收尾时 `lab-stop erp cowork dms` 切回线上。
+- 观察（不是本批引入，交主会话定）：ERP 的 bench 没设 `scheduler_tick_interval`，Frappe 默认 240 秒一拍，`masters.advance` / `push.poll` 写的「每分钟」实际约 4 分钟一次
+  （实验栈 15:32 / 15:36 / 15:40 / 15:44 才跑；写单后自动同步要等一到两拍，验收见到 4 分钟）。DMS 已按 ADR-014 设成 60 秒（`configure-dms-runtime.py`）；
+  ERP 照做要改生产运行配置，随部署一起做。
