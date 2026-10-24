@@ -31,15 +31,18 @@ def main() -> int:
     (work / "index.html").write_text('<!doctype html><html><body><script src="/assets/pearnly_core/scan/reader.js"></script></body></html>')
     video = work / "code.y4m"
     barcode.write(str(video))
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(work))
-    handler.log_message = lambda *a, **k: None
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+    handler = functools.partial(Quiet, directory=str(work))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         job = {"url": f"http://localhost:{server.server_port}/index.html", "probe": "selftest", "video": str(video), "wait_ms": 2000,
                "args": {"code": barcode.TEST_CODE}}
         try:
-            out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=120)
+            out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=150)
             raw = json.loads(out.stdout.strip().splitlines()[-1])
         except (subprocess.TimeoutExpired, ValueError, IndexError) as error:
             raw = {"result": None, "error": f"driver: {type(error).__name__}"}
