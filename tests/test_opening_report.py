@@ -56,20 +56,36 @@ class OpeningReport(unittest.TestCase):
             return [{"name": name, "product_name": "Product " + name if name != "P1" else "Product", "unit": "pcs",
                      "base_unit": "pcs"} for name in sorted(wanted)]
         self.assertEqual(doctype, "ERP Stock Movement")
-        rows = self.movements
-        for key, wanted in filters.items():
+        conditions = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] \
+            if isinstance(filters, dict) else filters
+
+        def holds(row, condition):
+            key, operation, value = condition
             if key == "location":
-                # Emulate a collation returning a superset of exact location names.
-                continue
-            if isinstance(wanted, list):
-                operation, value = wanted
-                if operation == "<=":
-                    rows = [row for row in rows if str(row[key]) <= value]
-                else:
-                    self.assertEqual(operation, "in")
-                    rows = [row for row in rows if row[key] in value]
-            else:
-                rows = [row for row in rows if row.get(key) == wanted]
+                return True  # Emulate a collation returning a superset of exact location names.
+            have = row.get(key)
+            have = str(have) if key == "posting_date" else have
+            if operation == "=":
+                return have == value
+            if operation == "!=":
+                return have != value
+            if operation == "in":
+                return have in value
+            if operation in ("<", "<=", ">", ">="):
+                return have is not None and {"<": have < value, "<=": have <= value, ">": have > value,
+                                             ">=": have >= value}[operation]
+            raise AssertionError(condition)
+
+        rows = [row for row in self.movements if all(holds(row, condition) for condition in conditions)]
+        if kwargs.get("or_filters"):
+            rows = [row for row in rows if any(holds(row, condition) for condition in kwargs["or_filters"])]
+        if any(isinstance(field, dict) for field in fields):
+            grouped = {}
+            for row in rows:
+                key = (row["product"], row["warehouse"], row.get("location") or "")
+                grouped.setdefault(key, 0)
+                grouped[key] += row["qty_base"]
+            return [{"product": p, "warehouse": w, "location": l, "qty": q} for (p, w, l), q in grouped.items()]
         return sorted(rows, key=lambda row: (str(row["posting_date"]), row["posting_time"], row["index"]))
 
     def add(self, name, day, qty, cost=None, kind="stock_in", ref=None, warehouse="W1", location="", product="P1"):
@@ -290,6 +306,31 @@ class OpeningReport(unittest.TestCase):
         self.assertEqual([row["product"] for row in unknown["items"]], ["P1", "P2", "P3"])
         self.assertEqual(len(self.report.summary_page(limit=10**6)["items"]), 3)
         self.assertEqual(self.report.summary_page(start=50)["items"], [])
+
+    def test_quantity_sort_sums_in_the_database_and_matches_the_rolled_report(self):
+        # 10-25 验收 30 万行：按数量排序不再把流水读进内存；分组求和的期初 / 入 / 出 / 期末与逐笔滚存完全一致
+        self.add("open-1", "2026-08-20", 10, 10, kind="opening", product="P1")
+        self.add("sale-1", "2026-08-25", -2, kind="sale_out", product="P1")
+        self.add("reopen-1", "2026-09-05", 4, 10, kind="adjust", ref="opening", product="P1")
+        self.add("buy-1", "2026-09-06", 7, 12, kind="purchase_in", product="P1")
+        self.add("out-1", "2026-09-07", -3, kind="sale_out", product="P1")
+        self.add("open-2", "2026-09-02", 20, 5, kind="opening", product="P2", warehouse="W2")
+        self.add("fix-2", "2026-09-03", -5, kind="opening", product="P2", warehouse="W2")
+        self.add("sale-2", "2026-09-04", -1, kind="sale_out", product="P2", warehouse="W2")
+        self.add("in-3", "2026-09-10", 1, 9, kind="stock_in", product="P3")
+        whole = {row["name"]: row for row in self.report.summary(date_from="2026-09-01", date_to="2026-09-24")}
+        for column in ("opening_qty", "in_qty", "out_qty", "closing_qty"):
+            for order in ("asc", "desc"):
+                self.queries.clear()
+                page = self.report.summary_page(date_from="2026-09-01", date_to="2026-09-24", sort_by=column,
+                                                sort_order=order, limit=10)
+                values = [row[column] for row in page["items"]]
+                self.assertEqual(values, sorted(values, reverse=order == "desc"), (column, order))
+                for row in page["items"]:
+                    self.assertEqual(row, whole[row["name"]], (column, row["product"]))
+                detail = [filters for doctype, filters, kwargs in self.queries
+                          if doctype == "ERP Stock Movement" and "group_by" not in kwargs]
+                self.assertEqual(len(detail), 1)  # 只读这一页商品的流水一次
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,8 @@ line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、expres
   SMOKE_PROD_HOST         生产 SSH 别名（pearnly），只在 --target production 用
   SMOKE_USER_ERP / _COWORK / _DMS   各测试租户冒烟用的账号（默认 Administrator）
   SMOKE_EXPRESS_USER      测试机 CC 上登录的 ERP 员工（Express 写入冒烟用；入口 args 里写了 user 时以它为准）
-  SMOKE_PAGE_LIMIT_MS     页面打开时限（默认 3000；入口 args 的 limit_ms 优先）：超过算不通过。大数据量要用 testerp 这种大账套跑
+  SMOKE_PAGE_LIMIT_MS     页面打开时限（默认 3000；入口 args 的 limit_ms 优先）：超过算不通过。大数据量要用 testerp 这种大账套跑，
+                          ERP 用 --company 指定大账套那家公司（造数见 scripts/smoke/seed_stock_load.py）
 """
 from __future__ import annotations
 
@@ -148,6 +149,7 @@ def main(argv=None) -> int:
     parser.add_argument("--part", action="append")
     parser.add_argument("--entry", action="append")
     parser.add_argument("--site", choices=sorted(SITES), help="只跑这个测试租户的入口（实验栈一次只起一个产品）")
+    parser.add_argument("--company", help="ERP 页面冒烟先把冒烟账号的当前公司切到这家（大账套跑打开时限），收尾还原")
     parser.add_argument("--out", help="结果 Markdown 写到这个文件")
     args = parser.parse_args(argv)
     if args.target == "production" and not args.readonly:
@@ -189,12 +191,14 @@ def main(argv=None) -> int:
                 continue
             if product not in sessions:
                 user = os.environ.get(f"SMOKE_USER_{product.upper()}", "Administrator")
-                output = remote.run(product, HERE / "session.py", site, user)
+                extra = ("company", args.company) if args.company and product == "erp" else ()
+                output = remote.run(product, HERE / "session.py", site, user, *extra)
                 sid = next((line.split()[1] for line in output.splitlines() if line.startswith("SID ")), "")
+                previous = next((line.split()[1] for line in output.splitlines() if line.startswith("PREV ")), None)
                 if not sid:
                     print(f"建会话失败（{site} {user}）：{output[-300:]}", file=sys.stderr)
                     return 2
-                sessions[product] = (user, sid)
+                sessions[product] = (user, sid, previous)
             url = f"https://{site}{entry.url}"
             raw = drive({"url": url, "cookie_domain": site, "sid": sessions[product][1], "probe": entry.smoke,
                          "args": {"code": barcode.TEST_CODE, **entry.args}, "video": str(video) if entry.smoke == "scan" else "",
@@ -204,8 +208,9 @@ def main(argv=None) -> int:
             rows.append((entry, state, why))
             print(f"{state}  {entry.id}  {why}", file=sys.stderr)
     finally:
-        for product, (user, sid) in sessions.items():
-            remote.run(product, HERE / "session.py", SITES[product], user, "drop", sid)
+        for product, (user, sid, previous) in sessions.items():
+            remote.run(product, HERE / "session.py", SITES[product], user, "drop", sid,
+                       *((previous,) if previous is not None else ()))
     lines = ["| 入口 | 产品 | 方式 | 结果 | 说明 |", "|---|---|---|---|---|"]
     for entry, state, why in rows:
         lines.append(f"| `{entry.id}` | {entry.product} | {entry.check}{('：' + entry.smoke) if entry.smoke else ''} | {state} | {why.replace('|', '/')} |")

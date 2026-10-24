@@ -28,3 +28,5 @@ pearnly_erp_portal.patches.v1_11_default_company
 pearnly_erp_portal.patches.v1_12_product_code_key
 # 已开通站点补「任务管理」功能码（看板，2026-10-23）。
 pearnly_erp_portal.patches.v1_12_tasks_feature
+# 库存流水按「仓库 + 商品 + 仓位 + 日期」「商品 + 仓库 + 日期」建索引：收发存大账套不再整表扫（2026-10-25）
+pearnly_erp_portal.patches.v1_13_stock_movement_indexes

@@ -6,6 +6,9 @@
 - **汇总按页算**（2026-10-25，大租户上万商品×仓库）：按商品 / 仓库 / 仓位排序（默认）时先取全部"商品×仓库×仓位"键
   （只有三列），排好切出这一页，只读这一页商品的流水去滚成本；按数量列排序必须先算出每一行，才整批算、再切片。
   两种都按键一次分组，不再每个键扫一遍全部流水、每行单查一次仓库名。
+- **按数量列排序**（10-25 验收 30 万行流水 13.5 秒）：期初 / 入 / 出 / 期末都是带符号数量的和，用原生 `get_list`
+  按键分组求和算出来排序（走权限、走流水表的组合索引），只把这一页商品的流水读进来滚成本。数量口径与逐笔滚存一致：
+  期初 = 截止起始日前的和 + 本期内的初始化；入 / 出 = 本期内非初始化的正 / 负数量；期末 = 截止日前全部的和。
 """
 
 import frappe
@@ -219,6 +222,48 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
                          warehouse_names=_warehouse_names(key[1] for key in keys))
 
 
+def _as_list(filters) -> list:
+    if isinstance(filters, list):
+        return list(filters)
+    return [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
+
+
+def _quantity_sums(query, extra, or_filters=None) -> dict:
+    """按「商品 × 仓库 × 仓位」分组求 qty_base 的和（原生 get_list，走权限与索引）。"""
+    filters = _as_list(_filters(**query)) + extra
+    rows = frappe.get_list(MOVEMENT, filters=filters, or_filters=or_filters,  # bounded: 按键分组求和，一键一行（同汇总总行数）
+                           fields=["product", "warehouse", "location", {"SUM": "qty_base", "as": "qty"}],
+                           group_by="product, warehouse, location", order_by="product asc", limit_page_length=0)
+    out: dict = {}
+    for row in _exact_location(rows, filters, query.get("location")):
+        key = (row["product"], row["warehouse"], row.get("location") or "")
+        out[key] = out.get(key, contracts.d(0)) + contracts.d(row.get("qty") or 0)
+    return out
+
+
+def _quantities(query, date_from) -> dict:
+    """每个键的期初 / 入 / 出 / 期末数量（口径同 `_project_position` 的数量部分）。
+
+    初始化行用「类型 = 期初 或 来源 = 期初」挑出来（等于判断，空值不会被误排除），本期非初始化 = 本期全部 − 本期初始化。
+    """
+    zero = contracts.d(0)
+    initialization = [["movement_type", "=", contracts.OPENING], ["ref_type", "=", "opening"]]
+    period = [["posting_date", ">=", date_from]]
+    carried = _quantity_sums(query, [["posting_date", "<", date_from]])
+    period_in = _quantity_sums(query, [*period, ["qty_base", ">", 0]])
+    period_out = _quantity_sums(query, [*period, ["qty_base", "<", 0]])
+    init_all = _quantity_sums(query, period, or_filters=initialization)
+    init_in = _quantity_sums(query, [*period, ["qty_base", ">", 0]], or_filters=initialization)
+    out = {}
+    for key in {*carried, *period_in, *period_out}:
+        init_out = init_all.get(key, zero) - init_in.get(key, zero)
+        out[key] = {"opening_qty": float(carried.get(key, zero) + init_all.get(key, zero)),
+                    "in_qty": float(period_in.get(key, zero) - init_in.get(key, zero)),
+                    "out_qty": float(-(period_out.get(key, zero) - init_out)),
+                    "closing_qty": float(carried.get(key, zero) + period_in.get(key, zero) + period_out.get(key, zero))}
+    return out
+
+
 def summary_page(*, date_from=None, date_to=None, product=None, warehouse=None, location=None,
                  start=0, limit=20, sort_by=None, sort_order=None, conditions=None) -> dict:
     """汇总列表的一页：`{"items": 这一页, "total": 全部行数}`，排序口径同 `listing.sort_rows`。"""
@@ -237,11 +282,13 @@ def summary_page(*, date_from=None, date_to=None, product=None, warehouse=None, 
         "warehouse_name", "location") else {}
     warehouse_names = _warehouse_names(key[1] for key in keys)
     if sort_key in SUMMARY_SORTS and sort_key not in KEY_SORTS:
-        movements = _movements(**query)
-        rows = _summary_rows(keys, movements, date_from=date_from, visible=visible, names=names,
-                             warehouse_names=warehouse_names)
-        rows = listing.sort_rows(rows, sort_key, sort_order, SUMMARY_SORTS)
-        return {"items": rows[start:start + limit], "total": len(rows)}
+        quantities = _quantities(query, date_from)
+        ordered = listing.sort_rows([{"key": key, **quantities.get(key, {})} for key in keys],
+                                    sort_key, sort_order, SUMMARY_SORTS)
+        page = [row["key"] for row in ordered[start:start + limit]]
+        movements = _movements(**query, products={key[0] for key in page}) if page else []
+        return {"items": _summary_rows(page, movements, date_from=date_from, visible=visible, names=names,
+                                       warehouse_names=warehouse_names), "total": len(keys)}
     labels = [{"key": key, "product_name": (names.get(key[0]) or {}).get("product_name"),
                "warehouse_name": warehouse_names.get(key[1]), "location": key[2]} for key in keys]
     page = [row["key"] for row in listing.sort_rows(labels, sort_key, sort_order, SUMMARY_SORTS)[start:start + limit]]
