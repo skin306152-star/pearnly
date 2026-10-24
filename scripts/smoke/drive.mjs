@@ -32,7 +32,7 @@ const send = (method, params = {}, sessionId) => {
 let output;
 try {
   let info;
-  for (let i = 0; i < 60 && !info; i++) {
+  for (let i = 0; i < 150 && !info; i++) {  // 最多等 30 秒：假摄像头文件要先读进来
     try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
   }
   if (!info) throw new Error(`Chrome did not start: ${chromePath}`);
