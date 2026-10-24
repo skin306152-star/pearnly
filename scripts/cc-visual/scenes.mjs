@@ -76,6 +76,17 @@ const DESKTOP_STATE = `if (window.tomoDesktop) { const s = ${JSON.stringify({
   const pin = (root) => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) if (n.data.includes(location.host)) n.data = n.data.split(location.host).join("cc.test"); };
   new MutationObserver(() => pin(document.body)).observe(document, { childList: true, subtree: true, characterData: true }); }`;
+// 这台电脑同时连着两个站点（本站 + 一个 ERP 站点，CC 桌面版 1.11.0 起成员带 site）：用户菜单里列出来切换（10-25）
+const TWO_SITES = `if (window.tomoDesktop) { const s = ${JSON.stringify({
+  window: { frameless: true, maximized: false }, connected: true, version: "1.12.1", site: "", express_roots: ["D:\\Express"],
+  autostart: true, keep_awake: true, keep_awake_on_battery: false, hotkey: true, update: { state: "idle", version: "" },
+  features: ["company_folders", "devices", "sites", "express_places"], legacy_roots: [],
+})}; s.members = [{ id: "M1", name: "Cowork", kind: "express", paused: false, status: "online", folders: null, site: location.host, channel: "cowork" },
+  { id: "M2", name: "ERP", kind: "express", paused: false, status: "online", folders: null, site: "erp.cc.test", channel: "core" }];
+  window.tomoDesktop.state = (cb) => cb(JSON.stringify(s));
+  const pin = (root) => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (n.data.includes(location.host)) n.data = n.data.split(location.host).join("cc.test"); };
+  new MutationObserver(() => pin(document.body)).observe(document, { childList: true, subtree: true, characterData: true }); }`;
 // 池里的两台电脑（设置「连接」/「此电脑 → 连接」下面的电脑列表）：一台在线可移除，一台离线、自动更新被 Windows 拦下
 const COMPUTERS = FAKE(["pearnly_cowork.folder_intake.api.computers", [
   { adapter: "express", device: "OFFICE-PC", online: true, version: "1.7.0", folders: [], id: "D1", can_remove: true },
@@ -214,6 +225,10 @@ export const SCENES = [
   S("settings-computer-menu", "/assistant?c=sesn_a1", both([...SETTINGS_WIDE, ["click", ".cc-modal nav button", 1], ["wait", 300], ["click", '.cc-modal main [aria-haspopup="menu"]', 0]],
     [...SETTINGS_NARROW, ["click", ".cc-modal nav button", 1], ["wait", 300], ["click", '.cc-modal main [aria-haspopup="menu"]', 0]]),
     { init: DESKTOP_STATE + COMPUTERS, expect: MENU }),
+
+  // 用户菜单列出这台电脑连着的站点（当前站点打勾，点另一个直接切过去，10-25）
+  S("user-menu-sites", "/assistant?c=sesn_a1", [["click", '[data-slot="cc-user-menu"]', 0], ["wait", 400]],
+    { envs: ["desktop", "desktop-narrow"], init: TWO_SITES, expect: '[data-slot="cc-site"]' }),
 
   // ── 其他 ──
   S("loading", "/assistant?c=sesn_a1", [], { before: [["hold", "pearnly_core.assistant.api.listing", 20000], ["hold", "pearnly_core.assistant.api.events", 20000]] }),
