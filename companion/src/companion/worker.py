@@ -486,11 +486,22 @@ def _remember_roots(cfg: CompanionConfig, authorized: list, found) -> None:
     _share_roots(cfg, added)
 
 
+def _store_of(cfg: CompanionConfig):
+    """这份配置读自的成员记录（ProfileStore 读出 / 存盘时挂上的 `_profile_store`；托盘线程复制配置、把存盘换成带「暂停」的包装后
+    也还在）。原来从 `_profile_save.__self__` 取，托盘包装成 lambda 后取不到，补数据根悄悄不做（10-24 验收：45395252 包 71EXP 补不进）。"""
+    store = getattr(cfg, "_profile_store", None)
+    if store is None or not hasattr(store, "profiles"):
+        log.warning("[heartbeat] 这个成员的配置不是从本机成员记录读出的，跳过数据根同步 · profile=%s",
+                    getattr(cfg, "profile_id", ""))
+        return None
+    return store
+
+
 def _share_roots(cfg: CompanionConfig, added: list) -> None:
     """把新年度文件夹写进同一台电脑上其余 Express 成员的记录（暂停的也写；只读文件夹的成员没有 Express 数据根，不写）。
-    用这份配置自己存盘走的那份成员记录（取任务线程的各成员共用一份），不另读文件。"""
-    store = getattr(getattr(cfg, "_profile_save", None), "__self__", None)
-    if store is None or not hasattr(store, "runtime_config"):
+    用这份配置读自的那份成员记录（取任务线程的各成员共用一份），不另读文件。"""
+    store = _store_of(cfg)
+    if store is None:
         return
     try:
         from .express_machine import express_members
@@ -517,9 +528,11 @@ def _adopt_machine_roots(cfg: CompanionConfig) -> None:
     if getattr(cfg, "kind", "express") == "folder":
         return  # 只读文件夹成员没有 Express 数据根
     authorized = list(getattr(cfg, "authorized_roots", None) or ())
-    store = getattr(getattr(cfg, "_profile_save", None), "__self__", None)
-    if not authorized or store is None or not hasattr(store, "profiles"):
+    if not authorized:
         return  # 还没配对（没有授权名单）不加
+    store = _store_of(cfg)
+    if store is None:
+        return
     try:
         from .express_machine import machine_roots
 

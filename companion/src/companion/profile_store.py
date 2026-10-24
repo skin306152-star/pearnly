@@ -308,6 +308,7 @@ class ProfileStore:
         cfg = CompanionConfig(**values)
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        object.__setattr__(cfg, "_profile_store", self)
         _stamp_globals(cfg, self.global_settings)
         return cfg
 
@@ -334,6 +335,7 @@ class ProfileStore:
         cfg.paired = False
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        object.__setattr__(cfg, "_profile_store", self)
         _stamp_globals(cfg, self.global_settings)
         return cfg
 
@@ -376,6 +378,7 @@ class ProfileStore:
             self.global_settings = global_settings
             object.__setattr__(cfg, "_source_path", self.path)
             object.__setattr__(cfg, "_profile_save", self.save_profile)
+            object.__setattr__(cfg, "_profile_store", self)
             return self.path
         record = self._record_from_runtime(cfg, self._protector, paused)
         profiles = list(self._profiles)
@@ -393,6 +396,7 @@ class ProfileStore:
         cfg.paused = record.paused
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        object.__setattr__(cfg, "_profile_store", self)
         return self.path
 
     def set_erp_roots(self, profile_id: str, roots) -> None:

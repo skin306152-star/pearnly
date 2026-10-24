@@ -326,3 +326,39 @@ def test_a_key_the_server_will_not_take_is_settled_then_every_thread_restarts(mo
     app._on_device_result("P1", "claimed_elsewhere")
 
     assert calls == [("settle", store, "P1", "claimed_elsewhere"), ("reload",), ("page",)]
+
+
+def test_members_inside_the_tray_worker_take_the_computers_data_roots(monkeypatch, tmp_path):
+    # 10-24 验收：托盘线程复制配置、把存盘换成带「暂停」的包装后，原来从存盘函数取成员记录取不到，71EXP 补不进 ERP 成员
+    import base64
+
+    from src.companion import worker as heartbeat
+    from src.companion.profile_store import ProfileStore
+
+    class Protector:
+        def protect(self, value):
+            return "t:" + base64.b64encode(value.encode()).decode()
+
+        def unprotect(self, value):
+            return base64.b64decode(value[2:]).decode()
+
+    gui_tray = _gui_tray_with_fake_qt(monkeypatch)
+    store = ProfileStore.load(tmp_path / "companion.json", protector=Protector())
+    ids = []
+    for token, site, roots in (("exp_endpoint-1_secret", "https://testcowork.pearnly.com",
+                                [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]),
+                               ("pcc_PCD-0123456789abcdef0123_" + "s" * 43, "https://testerp.pearnly.com",
+                                [r"C:\PearnlyExpress\70EXP"])):
+        cfg = store.new_runtime_config()
+        cfg.update(backend_url=site, bearer_token=token, account_dir=r"C:\PearnlyExpress\70EXP\T9",
+                   account_set=r"C:\PearnlyExpress\70EXP\T9", account_company="Acme", paired=True,
+                   express_root=r"C:\PearnlyExpress\70EXP", authorized_roots=roots)
+        store.save_profile(cfg)
+        ids.append(cfg.profile_id)
+    started = ProfileStore.load(store.path, protector=Protector())
+    tray = gui_tray.PollWorker(started.runtime_configs(include_paused=True))
+    erp = next(cfg for cfg in tray.configs if cfg.profile_id == ids[1])
+    heartbeat._adopt_machine_roots(erp)
+    assert list(erp.authorized_roots) == [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]
+    again = ProfileStore.load(store.path, protector=Protector())
+    assert list(again.runtime_config(ids[1]).authorized_roots) == [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]
