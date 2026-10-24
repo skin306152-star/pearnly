@@ -67,3 +67,5 @@
   - 共用 `cc_desktop.jobs.acknowledge` 把回执 `line_modes` 里的 `seq / name / stkcod` 存进 meta 的 `line_codes`，`view` 交给产品；CC 不用改（1.12.0 本来就报）。
   - ERP `express/push.link_products`：第一次写进去时，按序号且品名一致对上行，只被这张单用过的本地商品挂上这家公司和这个码；这家公司已有挂这个码的档时不动
     （库存流水已记在本地档上，不改指）。用例 `tests/test_erp_express_direct.py::LinkProducts`、`tests/test_cc_desktop_channel.py`（逐行存货码）。
+  - 生产镜像 `29404c6a` 完整候选离线检查（`c4ad23d9`）：通过（CAND EXIT 0）。这一遍先发现 4ee7eac4 留下的用例缺口：`integrations/test_line_intake.py`
+    的假数据库没答对方档条数（`_more_parties` 新查的），2 处报错；补上用例数据后通过，产品代码未改。本地全闸门（`4baaeffe`）通过。
