@@ -84,16 +84,32 @@ def _qty(value, *, field="Quantity") -> Decimal:
         frappe.throw(_("Invalid value: {0}").format(field))
 
 
-def product_of_code(code: str) -> dict | None:
-    """扫到的码 → 商品。编码/条码/二维码内容都认（与商品页扫码同一套）。"""
+def product_of_code(code: str, company: str | None = None) -> dict | None:
+    """扫到的码 → 商品。编码/条码/二维码内容都认（与商品页扫码同一套）。
+
+    给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档，这家的优先：编码、条码不再全租户唯一
+    （多家公司从各自 Express 同步，同码各一件），不分公司会扫到别家公司的那一件（10-24 集成核对）。"""
     wanted = str(code or "").strip()
     if not wanted:
         return None
     for field in ("code", "barcode", "qr_payload"):
-        row = frappe.db.get_value(PRODUCT, {field: wanted, "is_active": 1}, "*", as_dict=True)
-        if row:
-            return row
+        if not company:
+            row = frappe.db.get_value(PRODUCT, {field: wanted, "is_active": 1}, "*", as_dict=True)
+            if row:
+                return row
+            continue
+        rows = frappe.get_all(PRODUCT, filters={field: wanted, "is_active": 1}, fields=["*"], limit=50)
+        own = [row for row in rows if row.get("express_company") == company]
+        local = [row for row in rows if not row.get("express_company")]
+        if own or local:
+            return (own or local)[0]
     return None
+
+
+def count_company(count) -> str | None:
+    """这份盘点的仓库所属的公司（认商品按它分）。"""
+    warehouse = frappe.db.get_value(COUNT, count, "warehouse") if count else None
+    return frappe.db.get_value("ERP Warehouse", warehouse, "company") if warehouse else None
 
 
 # ── 任务 ────────────────────────────────────────────────────────────────────
@@ -150,8 +166,9 @@ def apply_import(*, count, rows) -> dict:
         frappe.throw(_(CLOSED))
     applied = counted = 0
     problems = []
+    company = count_company(task.name)
     for number, row in enumerate(rows, start=2):
-        product = _product_of_row(row)
+        product = _product_of_row(row, company)
         if not product:
             problems.append({"row": number, "reason": "code_not_found"})
             continue
@@ -175,10 +192,10 @@ def apply_import(*, count, rows) -> dict:
     return {"rows": applied, "counted": counted, "problems": problems}
 
 
-def _product_of_row(row) -> dict | None:
+def _product_of_row(row, company=None) -> dict | None:
     for code in ((row.get("product_code") or "").strip(), (row.get("barcode") or "").strip()):
         if code:
-            found = product_of_code(code)
+            found = product_of_code(code, company)
             if found:
                 return found
     return None
@@ -252,7 +269,7 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
     task = _get(count)
     if task.status != "Active":
         frappe.throw(_(CLOSED))
-    found = product_of_code(code) if code else None
+    found = product_of_code(code, count_company(count)) if code else None
     if not found and product:
         found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
     if not found:
@@ -691,7 +708,7 @@ def lookup_count(*, count, code=None, product=None):
     """
     guard.require("count.read")
     task = _get(count)
-    found = product_of_code(code) if code else frappe.db.get_value(
+    found = product_of_code(code, count_company(count)) if code else frappe.db.get_value(
         PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
@@ -755,7 +772,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
         actual_warehouse = warehouses.required(warehouse if warehouse is not None else row['warehouse'])
         actual_location = positions.clean_location(location if location is not None else row['location'])
     else:
-        found = product_of_code(code) if code else frappe.db.get_value(
+        found = product_of_code(code, count_company(count)) if code else frappe.db.get_value(
             PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
         if not found:
             frappe.throw(_(CODE_NOT_FOUND))

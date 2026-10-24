@@ -136,7 +136,7 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     只是登记，不写实盘（写 0 会被当成"数出来是 0"）。
     """
     as_ticket_user(ticket)
-    found = counts.product_of_code(code)
+    found = counts.product_of_code(code, counts.count_company(name))
     if not found:
         return {}
     rows = counts.rows_of_product(count=name, product=found["name"])

@@ -25,4 +25,12 @@
 | `scripts/check-architecture.py` | 通过（0 违规） |
 | `scripts/check-copy.py` | 0 拦截；新增 302、改动 0（已登记的 5 句在分支内）、标黄 232；清单见 `2026-10-24-erp-batch-integration-copy-report.md` |
 | 生产镜像 `29404c6a` 上完整 `ci-candidate-checks offline`（候选源码只读挂进镜像） | 通过（CAND EXIT 0） |
-| GitHub Development checks / Companion checks | 见推送后回读 |
+| GitHub Development checks / Companion checks（`2bba1236`） | 都通过 |
+
+## 集成核对中发现并修的（集成分支上的提交）
+
+- 本批取消了商品编码、条码的全租户唯一，但两处按码认商品没分公司：盘点扫码 / LINE 手机盘点 / 盘点导入用的 `inventory/count.product_of_code`
+  （按编码取第一条，可能取到别家公司的同码商品）；库存期初模板与导入 `inventory/opening_batch`（模板列全部公司的商品——实验栈 4.8 万件会超过
+  模板行数上限报错；导入时同码判「有歧义」）。改为按盘点 / 期初仓库所属公司只认这家 Express 的档和本地档（这家优先），模板只列这家 + 本地。
+  新增 `tests/test_erp_codes_per_company.py`（进候选离线检查）。改后本地全闸门与生产镜像完整候选离线检查再跑一遍都通过。
+- 受影响入口回归清单：`2026-10-24-erp-batch-regression-entries.md`（交验收窗口）。

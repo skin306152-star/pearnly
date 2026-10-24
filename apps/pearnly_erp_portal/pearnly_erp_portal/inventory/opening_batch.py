@@ -21,7 +21,7 @@ PRECISION_INVALID = "Opening quantity supports six decimal places and unit cost 
 ALREADY_INITIALIZED = "This stock position is already initialized; use a stock adjustment"
 HAS_HISTORY = "This stock position already has stock movements; use a stock adjustment"
 STALE_REVIEW = "Opening stock changed. Preview the rows again before submitting."
-PRODUCT_FIELDS = "name, product_name, code, barcode, base_unit, unit, is_active"
+PRODUCT_FIELDS = "name, product_name, code, barcode, base_unit, unit, is_active, express_company"
 FILE_ERRORS = {
     "file_too_large": "The opening stock file is too large",
     "file_invalid": "That file could not be read; please use the template",
@@ -106,12 +106,14 @@ def _catalog(rows, *, names=None):
                          keys, as_dict=True)
 
 
-def _product(row, catalog):
+def _product(row, catalog, company=None):
+    """只认这家公司 Express 的档和本地档（编码、条码不再全租户唯一，别家公司的同码商品不算歧义，10-24 集成核对）。"""
     matched = []
     for field, column in (("product", "name"), ("product_code", "code"), ("barcode", "barcode")):
         value = _text(row.get(field))
         if value:
-            candidates = [product for product in catalog if product.get(column) == value]
+            candidates = [product for product in catalog if product.get(column) == value
+                          and (not company or not product.get("express_company") or product.get("express_company") == company)]
             if len(candidates) != 1:
                 raise ValueError("Product not found or its identifiers are ambiguous")
             matched.append(candidates[0])
@@ -158,7 +160,7 @@ def _review(rows, context, catalog, *, current=False):
         try:
             if not isinstance(source, dict):
                 raise ValueError(INVALID_ROW)
-            product = _product(row, catalog)
+            product = _product(row, catalog, context.get("company"))
             unit = _text(product.base_unit or product.unit)
             if not unit or (_text(row.get("unit")) and _text(row["unit"]) != unit):
                 raise ValueError("Opening stock must use the product base unit")
@@ -281,8 +283,10 @@ def upsert_one(*, product, warehouse, as_of_date, qty, unit_cost=None, note=None
 
 def template(warehouse):
     require_batch_access()
-    _context(warehouse, nowdate())
+    context = _context(warehouse, nowdate())
+    # 只列这家公司 Express 的档和本地档（几十家公司各自同步来的商品不混进来，合起来还会超过模板行数上限）
     rows = frappe.get_all("ERP Product", filters={"is_active": 1},
+                          or_filters=[["express_company", "=", context["company"]], ["express_company", "is", "not set"]],
                           fields=["name", "product_name", "code", "barcode", "base_unit", "unit"], order_by="name", limit_page_length=opening_workbook.MAX_ROWS + 1)
     if len(rows) > opening_workbook.MAX_ROWS:
         frappe.throw(_("That file has too many rows"))
