@@ -227,7 +227,9 @@ export const SCENES = [
     { init: DESKTOP_STATE + COMPUTERS, expect: MENU }),
 
   // 用户菜单列出这台电脑连着的站点（当前站点打勾，点另一个直接切过去，10-25）
-  S("user-menu-sites", "/assistant?c=sesn_a1", [["click", '[data-slot="cc-user-menu"]', 0], ["wait", 400]],
+  // 窄屏侧栏收在抽屉里：先开抽屉再点头像（同 drawer-account）
+  S("user-menu-sites", "/assistant?c=sesn_a1", both([["click", '[data-slot="cc-user-menu"]', 0], ["wait", 400]],
+    [...DRAWER, ["click", ".cc-avatar", 0], ["wait", 400]]),
     { envs: ["desktop", "desktop-narrow"], init: TWO_SITES, expect: '[data-slot="cc-site"]' }),
 
   // ── 其他 ──
