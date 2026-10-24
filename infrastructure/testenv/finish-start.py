@@ -65,8 +65,9 @@ def configure() -> None:
     queues = {"ocr": OCR_QUEUE_TIMEOUT}
     if os.environ.get("TESTENV_GROUP", "dms") == "dms":
         queues["dms_sync"] = DMS_SYNC_QUEUE_TIMEOUT
-        # 与线上 DMS bench 同一口径（`scripts/production/configure-dms-runtime.py`，ADR-013）：
-        # 白天增量每分钟一轮，调度器必须每 60 秒看一次，否则测试机上实际是 240 秒一轮。
+    if os.environ.get("TESTENV_GROUP", "dms") in ("dms", "erp"):
+        # 与线上 DMS / ERP bench 同一口径（`scripts/production/configure-{dms,erp}-runtime.py`，ADR-013）：DMS 白天增量、
+        # ERP Express 主档同步推进与写账回读都按每分钟设计，调度器必须每 60 秒看一次，否则测试机上实际是 240 秒一轮。
         if data.get("scheduler_tick_interval") != 60:
             data["scheduler_tick_interval"] = 60
             changed.append("scheduler_tick_interval")

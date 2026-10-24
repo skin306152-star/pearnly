@@ -313,8 +313,8 @@ def main():
     regions = document_ai_regions(runtime)
     if regions:
         values["pearnly_document_ai_regions"] = regions
-    if group == "dms":
-        configure = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py")
+    if group in ("dms", "erp"):
+        configure = runpy.run_path(f"/opt/pearnly/deploy-src/scripts/production/configure-{group}-runtime.py")
         values = configure["configured"](values)
     if group == "cowork":
         # Cowork 发票识别只认显式配置（`pearnly_cowork.ocr.execution.settings`），开户从没写过，

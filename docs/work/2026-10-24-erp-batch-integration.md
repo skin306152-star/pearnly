@@ -81,3 +81,21 @@
 - 观察（不是本批引入，交主会话定）：ERP 的 bench 没设 `scheduler_tick_interval`，Frappe 默认 240 秒一拍，`masters.advance` / `push.poll` 写的「每分钟」实际约 4 分钟一次
   （实验栈 15:32 / 15:36 / 15:40 / 15:44 才跑；写单后自动同步要等一到两拍，验收见到 4 分钟）。DMS 已按 ADR-014 设成 60 秒（`configure-dms-runtime.py`）；
   ERP 照做要改生产运行配置，随部署一起做。
+
+## ERP 定时节拍改 60 秒（主会话 10-24 批准，随本次部署）
+
+- 改法同 DMS（ADR-013 / ADR-014）：新增 `scripts/production/configure-erp-runtime.py`（只写 `scheduler_tick_interval=60`），
+  `activate-product.sh` 激活 ERP 时、`site-step.py` 开 ERP 户时、测试机 `finish-start.py`（erp 组）都调用；Cowork 不变（仍 240 秒）。
+  用例 `scripts/production/test-erp-runtime.py`（进 CI）、`test-activate-product.py`（只有 ERP 激活调用、在迁移之前）。
+- 单拍负载（ERP bench 装 frappe / pearnly_core / pearnly_erp_portal；实验栈 3 小时 worker 日志，中位 / 最大）：
+
+| 每拍都跑的 | 耗时 |
+|---|---|
+| `express.masters.advance`（每分钟 cron，41 家公司） | 0.18 / 0.20 秒 |
+| `express.push.poll`（每分钟 cron） | 0.14 / 0.17 秒 |
+| `execution.work.sweep`（core，每分钟 cron） | 0.05 / 0.07 秒 |
+| Frappe「All」4 项：`monitor.flush`、`google_calendar.sync`、`email.queue.flush`、`retry_sending_emails` | 各 ≤ 0.06 秒 |
+
+  每站点每拍约 0.6 秒后台时间；生产 ERP bench 两个站点（mrerp、testerp）每分钟约 1.2 秒，可以接受。其余 cron（5 / 10 / 15 分钟）按自己的表达式跑，频率不变。
+- 实验栈验证（15:51 UTC 改，重启 scheduler）：`advance` / `poll` / `sweep` 在 15:52:00、15:53:43、15:54:43、15:55:43、15:56:00 各跑一次（约 1 分钟一拍）；
+  之后 Error Log 0、失败的 Scheduled Job Log 0、worker 日志无报错。

@@ -60,6 +60,9 @@ PEARNLY_IMAGE="$previous_image" "${compose[@]}" run --rm --no-deps "$product-web
 if [[ "$product" == dms ]]; then
   "${compose[@]}" run --rm --no-deps dms-web env/bin/python /opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py
 fi
+if [[ "$product" == erp ]]; then
+  "${compose[@]}" run --rm --no-deps erp-web env/bin/python /opt/pearnly/deploy-src/scripts/production/configure-erp-runtime.py
+fi
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all migrate
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all enable-scheduler
 "${compose[@]}" up -d --no-deps --force-recreate "$product-web" "${workers[@]}" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"

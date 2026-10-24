@@ -315,6 +315,21 @@ elif 'ps' in args:
                 self.assertFalse(any('dms-sync-worker' in row['args'] or
                     any('configure-dms-runtime.py' in arg for arg in row['args']) for row in trace))
 
+    def test_erp_tick_is_configured_before_migration_and_only_for_erp(self):
+        def configured(trace):
+            return [i for i, row in enumerate(trace) if any('configure-erp-runtime.py' in arg for arg in row['args'])]
+        result, trace = self.run_activation(product='erp')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        migrate = next(i for i, args in enumerate(calls) if 'migrate' in args)
+        self.assertEqual(len(configured(trace)), 1)
+        self.assertLess(configured(trace)[0], migrate)
+        for product in ('dms', 'cowork'):
+            with self.subTest(product=product):
+                result, trace = self.run_activation(product=product)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(configured(trace), [])
+
     def test_activation_pins_only_selected_product_and_preserves_other_versions(self):
         for product in ('erp', 'dms', 'cowork'):
             with self.subTest(product=product):

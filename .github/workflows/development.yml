@@ -73,6 +73,8 @@ jobs:
         run: python3 scripts/production/test-activate-product.py
       - name: Verify DMS bench runtime configuration
         run: python3 scripts/production/test-dms-runtime.py
+      - name: Verify ERP bench runtime configuration
+        run: python3 scripts/production/test-erp-runtime.py
       - name: Verify the daily offsite backup and restore drill contracts
         run: python3 scripts/production/test-offsite-backup.py
       - name: Verify the Windows helper and the server agree on endpoints, pairing code and downloads
