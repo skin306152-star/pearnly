@@ -1086,6 +1086,7 @@ No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
 No items were read,No items were read
+No match for “{0}”,No match for “{0}”
 No members,No members
 No new files,No new files
 No notifications,No notifications
@@ -2040,6 +2041,7 @@ Type,Type
 Type a few letters of the company or account set name to find it,Type a few letters of the company or account set name to find it
 Type of income paid,Type of income paid
 "Type or scan, then press Enter","Type or scan, then press Enter"
+Type the inventory account group name or account code to find it,Type the inventory account group name or account code to find it
 Unbind LINE,Unbind LINE
 Unbind Pearnly Cowork LINE?,Unbind Pearnly Cowork LINE?
 "Under 1,000 baht","Under 1,000 baht"

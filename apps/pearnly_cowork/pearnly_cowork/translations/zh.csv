@@ -1086,6 +1086,7 @@ No invoice could be read.,未识别到任何发票。
 No invoice summary found,未识别到摘要
 No invoice was found in this document.,此单据中未识别到发票。
 No items were read,未识别到明细
+No match for “{0}”,没有找到「{0}」
 No members,无成员
 No new files,没有新文件
 No notifications,没有提醒
@@ -2040,6 +2041,7 @@ Type,类型
 Type a few letters of the company or account set name to find it,输入公司名称或账套名称的关键字查找账套
 Type of income paid,所得类型
 "Type or scan, then press Enter",输入或扫码后按回车
+Type the inventory account group name or account code to find it,输入存货科目组名称或科目编号查找
 Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确定要解绑 Pearnly Cowork LINE 吗？
 "Under 1,000 baht","低于 1,000 泰铢"

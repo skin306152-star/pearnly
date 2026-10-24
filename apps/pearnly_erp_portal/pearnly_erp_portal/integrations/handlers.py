@@ -173,6 +173,8 @@ def _handle(event: dict) -> bool:
     if text.casefold() in line_flow.MENU_WORDS:
         line_flow.menu(bound, reply_token)
         return True
+    if line_flow.search(user_id, bound, text, reply_token):
+        return True  # 正停在选公司 / 供应商 / 客户 / 仓库：打的字是名称或编号
     direction = line_flow.DIRECTION_WORDS.get(text.casefold())
     if direction:
         line_flow.start(user_id, bound, direction, reply_token)

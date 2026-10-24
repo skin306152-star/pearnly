@@ -1359,6 +1359,13 @@ No computer can write this account set	没有能写此账套的电脑	ไม่�
 Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 帳簿を読み取り中	express.reason.reading
 Computer offline	电脑离线	เครื่องออฟไลน์	端末オフライン	express.reason.offline
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	express.reason.periodLocked
+Type the company name or number to find it	输入公司名称或编号查找	พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา	会社名または番号を入力して検索
+Type the supplier name or code to find it	输入供应商名称或编号查找	พิมพ์ชื่อหรือรหัสผู้จำหน่ายเพื่อค้นหา	仕入先名またはコードを入力して検索
+Type the customer name or code to find it	输入客户名称或编号查找	พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา	顧客名またはコードを入力して検索
+Type the warehouse name or code to find it	输入仓库名称或编号查找	พิมพ์ชื่อหรือรหัสคลังสินค้าเพื่อค้นหา	倉庫名またはコードを入力して検索
+No match for “{0}”	没有找到「{0}」	ไม่พบ “{0}”	「{0}」は見つかりません
+Found {0}. Tap the number to choose:	找到 {0} 个，请点击序号选择：	พบ {0} รายการ กรุณาแตะหมายเลขเพื่อเลือก:	{0} 件見つかりました。番号をタップして選択してください：
+Too many matches; type a few more letters to narrow it down	匹配结果过多，请输入更多关键字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。文字を追加して絞り込んでください
 Several Express customers have this tax ID. Choose the customer and submit again	Express 中有多个客户使用此税号，请选择客户后重新提交	มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่	Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください	express.error.CUSTOMER_BRANCH_AMBIGUOUS
 Several Express suppliers have this tax ID. Choose the supplier and submit again	Express 中有多个供应商使用此税号，请选择供应商后重新提交	มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่	Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください	express.error.SUPPLIER_BRANCH_AMBIGUOUS
 A similar customer already exists in Express. Choose it, or confirm this is a new customer	Express 中已存在相似客户，请选择该客户或确认为新客户	มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่	Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください	express.error.CUSTOMER_DUP_SUSPECTED

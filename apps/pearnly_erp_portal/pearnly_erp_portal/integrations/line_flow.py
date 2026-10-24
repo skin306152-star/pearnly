@@ -5,6 +5,11 @@
 **LINE 原生快捷回复按钮**问：公司 → 供应商（采购）/ 客户（销售）→ 已付 / 未付 →（已付）付款方式 →
 服务 / 库存商品 →（库存商品且默认仓定不下来时）仓库 → 提示上传 PDF 或图片。每一步末尾都有「取消」。
 
+公司、供应商 / 客户、仓库可能远多于一屏（快捷回复最多 13 个按钮，按账套自动建公司后一个租户几十家）：放得下就照旧列按钮；
+放不下就请用户打名称（模糊匹配）或编号（税号、公司编号、Express 编码，必须准确命中），从匹配结果里点序号（用户 10-24：
+「先让用户输入名称，然后系统模糊匹配，列出相匹配，或者输入编号必须命中」，同 Cowork 选账套 `connections/account_search`）。
+供应商 / 客户本来就列不全：除了按票面、一般供应商 / 散客和最近用过的几个，随时可以打字找。
+
 选择存在本人的 LINE 会话里（30 分钟），上传的每一张都按这组选择识别、各出一张预览卡。
 这里只管问与记；识别、预览卡、入账在 `intake`。权限全部按绑定的这个账号在服务端判。
 """
@@ -123,8 +128,10 @@ def answer(line_user_id, user, data, reply_token):
     if step != _pending(payload):
         return _text(reply_token, _("This option is no longer current"))
     options = {key for key, _label in _options(step, payload, user)}
-    if value not in options:
+    offered = set((payload.get("offered") or {}).get(step) or [])  # 打字找出来点的
+    if value not in options and value not in offered:
         return _text(reply_token, _("This option is no longer current"))
+    payload.pop("offered", None)
     if step == "entry":
         payload["entry"] = value
     elif step == "paid":
@@ -171,6 +178,8 @@ def _next(line_user_id, user, payload, reply_token):
         return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image") + "\n"
                      + _("For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."))
     options = _options(step, payload, user)
+    if step in SEARCHED and len(options) > MAX_CHOICES:
+        return _ask_search(reply_token, step, payload, user)
     if not options:
         # 公司下没有启用的仓库之类：说清楚，而不是给一排空按钮。
         line_session.clear_session(line_user_id)
@@ -192,7 +201,126 @@ def _next(line_user_id, user, payload, reply_token):
     question = _QUESTIONS[step](payload)
     if numbered:
         question += "\n" + "\n".join(f"{index}. {label}" for index, (_key, label) in enumerate(options, 1))
+    if step == "party":
+        question += "\n" + _SEARCH_PROMPTS["party"](payload)  # 列出的只是最近用过的几个：随时可以打字找
     _ask(reply_token, question, items)
+
+
+# ── 打字找（选项放不下一屏时）────────────────────────────────────────────────────
+
+SEARCHED = ("company", "party", "warehouse")
+# 结果最多列 11 个（按钮是序号），留一个给「取消」（同 Cowork）。
+MAX_RESULTS = MAX_CHOICES - 1
+_SEARCH_PROMPTS = {
+    "company": lambda p: _("Type the company name or number to find it"),
+    "party": lambda p: (_("Type the supplier name or code to find it") if p["direction"] == "purchase"
+                        else _("Type the customer name or code to find it")),
+    "warehouse": lambda p: _("Type the warehouse name or code to find it"),
+}
+
+
+def _ask_search(reply_token, step, payload, user, note=""):
+    """请用户打名称或编号；当前公司（选公司时）给一个按钮直接点。"""
+    lines = [note] if note else []
+    lines += [_QUESTIONS[step](payload), _SEARCH_PROMPTS[step](payload)]
+    items = []
+    if step == "company":
+        from pearnly_erp_portal.masters import company
+
+        try:
+            current = company.active_company(user)
+        except frappe.PermissionError:
+            current = None
+        if current:
+            label = frappe.db.get_value("ERP Company", current, "company_name") or current
+            items.append(_button(short_name(label), urlencode({"a": "erp", "s": step, "v": current})))
+    _ask(reply_token, "\n".join(lines), items)
+
+
+def search(line_user_id, user, text, reply_token) -> bool:
+    """会话停在公司 / 供应商 / 客户 / 仓库这一步时收到的文字＝名称或编号：编号准确命中就直接选上；名称按模糊匹配列出，按序号点。
+    不在这几步返回 False（交给菜单词等其余处理）。"""
+    payload = choices(line_user_id)
+    step = _pending(payload) if payload.get("direction") and payload.get("entry") == "upload" else ""
+    if step not in SEARCHED or not str(text or "").strip():
+        return False
+    exact, found = find(step, payload, user, text)
+    if exact:
+        payload[{"company": "company", "party": "party", "warehouse": "warehouse"}[step]] = exact
+        payload.pop("offered", None)
+        _next(line_user_id, user, payload, reply_token)
+        return True
+    if not found:
+        _save(line_user_id, payload)
+        _ask_search(reply_token, step, payload, user, note=_("No match for “{0}”").format(str(text).strip()[:40]))
+        return True
+    shown = found[:MAX_RESULTS]
+    payload["offered"] = {step: [key for key, _label in shown]}
+    _save(line_user_id, payload)
+    lines = [_("Found {0}. Tap the number to choose:").format(len(found))]
+    lines += [f"{index}. {label}" for index, (_key, label) in enumerate(shown, 1)]
+    if len(found) > len(shown):
+        lines.append(_("Too many matches; type a few more letters to narrow it down"))
+    items = [_button(f"{index}. {short_name(label)}", urlencode({"a": "erp", "s": step, "v": key}))
+             for index, (key, label) in enumerate(shown, 1)]
+    _ask(reply_token, "\n".join(lines), items)
+    return True
+
+
+def _fold(text) -> str:
+    """比对用：去掉通用的公司类型词、空白与标点，统一大小写（泰文不分大小写，照原样）。"""
+    return re.sub(r"[\s.,()\-_/]+", "", short_name(text)).casefold()
+
+
+def find(step, payload, user, text):
+    """``(准确命中的那一项或 None, [(值, 名称)] 模糊匹配)``。编号（税号、公司编号、Express 编码、仓库编码）要整串相同；
+    名称按去掉公司类型词、空白后包含关键词（几个词时每个词都要有）算，名称相同 / 开头相同的排前面。"""
+    wanted = str(text or "").strip()
+    digits = re.sub(r"\D", "", wanted)
+    rows = _searchable(step, payload, user, wanted)
+    exact = [(key, label) for key, label, codes in rows
+             if any(code and (code.casefold() == wanted.casefold() or (len(digits) == 13 and code == digits)) for code in codes)]
+    if len(exact) == 1:
+        return exact[0][0], []
+    if exact:
+        return None, exact  # 同一税号几家（不同分店）：列出来点
+    words = [_fold(word) for word in wanted.split() if _fold(word)] or [_fold(wanted)]
+    hits = []
+    for key, label, _codes in rows:
+        name = _fold(label)
+        if all(word in name for word in words):
+            hits.append(((name != _fold(wanted), not name.startswith(words[0]), len(name)), key, label))
+    hits.sort(key=lambda item: item[0])
+    return None, [(key, label) for _rank, key, label in hits]
+
+
+def _searchable(step, payload, user, text):
+    """``[(值, 名称, [编号…])]``：这一步能选的全部（供应商 / 客户按关键词先在库里筛一遍，主档几万条不全读）。"""
+    if step == "company":
+        from pearnly_erp_portal.masters import company
+
+        rows = frappe.get_all("ERP Company", filters={"name": ["in", company.allowed_companies(user) or [""]]},
+                              fields=["name", "company_name", "short_name", "tax_id", "branch"])
+        same = {}
+        for row in rows:
+            same[row.company_name] = same.get(row.company_name, 0) + 1
+        return [(row.name, (row.company_name or row.name) + (f" ({row.branch})" if same.get(row.company_name, 0) > 1
+                 and row.branch else ""), [row.name, row.short_name or "", row.tax_id or ""]) for row in rows]
+    if step == "warehouse":
+        rows = frappe.get_all("ERP Warehouse", filters={"company": payload["company"], "is_active": 1},
+                              fields=["name", "warehouse_name", "express_code"])
+        return [(row.name, row.warehouse_name or row.name, [row.express_code or ""]) for row in rows]
+    master, title = (("ERP Supplier", "supplier_name") if payload["direction"] == "purchase"
+                     else ("ERP Customer", "customer_name"))
+    like = "%" + "%".join(str(text or "").split()) + "%"
+    digits = re.sub(r"\D", "", str(text or ""))
+    rows = frappe.db.sql(f"""select name, `{title}` as label, express_code, tax_id from `tab{master}`
+        where is_active = 1 and (express_company is null or express_company = '' or express_company = %(company)s)
+          and (`{title}` like %(like)s or express_code = %(text)s or (%(digits)s != '' and tax_id = %(digits)s))
+        order by length(`{title}`) limit 200""",
+        {"company": payload["company"], "like": like, "text": str(text or "").strip(), "digits": digits if len(digits) == 13 else ""},
+        as_dict=True)
+    return [(row.name, row.label or row.name, [row.express_code or "", row.tax_id or ""]) for row in rows]
 
 
 def short_name(label) -> str:
@@ -250,10 +378,16 @@ def recent_parties(payload, limit):
         where company=%s and status!='void' and ifnull(`{field}`, '')!=''
         group by `{field}` order by max(modified) desc limit %s""",
         (payload["company"], limit), pluck=True)
-    names = [name for name in recent if frappe.db.get_value(master, name, "is_active")]
+    company = payload["company"]
+    usable = lambda name: (frappe.db.get_value(master, name, ["is_active", "express_company"], as_dict=True)  # noqa: E731
+                           or frappe._dict())
+    names = [name for name in recent if usable(name).is_active and (usable(name).express_company or company) == company]
     if len(names) < limit:
-        names += frappe.get_all(master, filters={"is_active": 1, "name": ["not in", names or [""]]},
-                                pluck="name", order_by="modified desc", limit_page_length=limit - len(names))
+        # 不够再补这家公司该用的启用主档（本公司 Express 的 + 本地档；别家公司的不列，主档按公司隔离）
+        names += frappe.db.sql(f"""select name from `tab{master}` where is_active = 1 and name not in %(names)s
+            and (express_company is null or express_company = '' or express_company = %(company)s)
+            order by modified desc limit %(limit)s""",
+            {"names": tuple(names) or ("",), "company": company, "limit": limit - len(names)}, pluck=True)
     labels = dict(frappe.get_all(master, filters={"name": ["in", names or [""]]},
                                  fields=["name", title], as_list=True))
     return [(name, labels.get(name) or name) for name in names]

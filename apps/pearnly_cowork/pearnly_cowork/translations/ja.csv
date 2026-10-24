@@ -1086,6 +1086,7 @@ No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
 No items were read,明細を読み取れませんでした
+No match for “{0}”,「{0}」は見つかりません
 No members,メンバーなし
 No new files,新しいファイルはありません
 No notifications,通知はありません
@@ -2040,6 +2041,7 @@ Type,種別
 Type a few letters of the company or account set name to find it,会社名または会計データ名の一部を入力して検索してください
 Type of income paid,支払った所得の種類
 "Type or scan, then press Enter",入力またはスキャンして Enter
+Type the inventory account group name or account code to find it,在庫勘定グループ名または勘定コードを入力して検索
 Unbind LINE,LINE 連携を解除
 Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？
 "Under 1,000 baht","1,000 バーツ未満"

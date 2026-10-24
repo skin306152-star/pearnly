@@ -439,6 +439,7 @@ Following fields have missing values:,ฟิลด์ต่อไปนี้ย
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",คำแนะนำในการถ่ายภาพ: กรุณาวางเอกสารให้ตรง ตัวอักษรหันขึ้นด้านบน และถ่ายให้เห็นครบทั้งแผ่น
 Foreigner,ชาวต่างชาติ
 Found,พบ
+Found {0}. Tap the number to choose:,พบ {0} รายการ กรุณาแตะหมายเลขเพื่อเลือก:
 Found: {0},พบข้อมูล: {0}
 "Free note kept with the collection record (who took the money, reference).",หมายเหตุของรายการรับเงิน (ผู้รับเงิน เลขที่อ้างอิง)
 From Date,จากวันที่
@@ -589,6 +590,7 @@ No item matches the scanned code {0},ไม่พบสินค้าที่�
 No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
 No items in cart,ยังไม่มีสินค้าในตะกร้า
 No items were read,ไม่พบรายการในเอกสาร
+No match for “{0}”,ไม่พบ “{0}”
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No product matches this code,ไม่พบสินค้าที่ตรงกับรหัสนี้
@@ -1136,6 +1138,7 @@ This warehouse belongs to the company above,คลังนี้อยู่ใ
 Time,เวลา
 Time left {0},เหลือเวลา {0}
 To Date,ถึงวันที่
+Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
 Total,ยอดรวม
 Total Amount,จำนวนเงินรวม
 Total Due,ยอดชำระ
@@ -1152,6 +1155,10 @@ Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Type,ประเภท
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
+Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
+Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา
+Type the supplier name or code to find it,พิมพ์ชื่อหรือรหัสผู้จำหน่ายเพื่อค้นหา
+Type the warehouse name or code to find it,พิมพ์ชื่อหรือรหัสคลังสินค้าเพื่อค้นหา
 UOM,หน่วยวัด
 Unable to load preview,ไม่สามารถโหลดตัวอย่างได้
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE

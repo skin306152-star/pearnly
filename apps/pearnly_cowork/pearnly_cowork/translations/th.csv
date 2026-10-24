@@ -1086,6 +1086,7 @@ No invoice could be read.,ไม่พบใบกำกับภาษีที
 No invoice summary found,ไม่พบข้อมูลสรุปจากการอ่าน
 No invoice was found in this document.,ไม่พบใบกำกับภาษีในเอกสารนี้
 No items were read,ไม่พบรายการ
+No match for “{0}”,ไม่พบ “{0}”
 No members,ไม่มีสมาชิก
 No new files,ไม่มีไฟล์ใหม่
 No notifications,ไม่มีการแจ้งเตือน
@@ -2040,6 +2041,7 @@ Type,ประเภท
 Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
 Type of income paid,ประเภทเงินได้พึงประเมินที่จ่าย
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
+Type the inventory account group name or account code to find it,พิมพ์ชื่อกลุ่มบัญชีสินค้าคงเหลือหรือรหัสบัญชีเพื่อค้นหา
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ต้องการยกเลิกการเชื่อมต่อ LINE ของ Pearnly Cowork ใช่หรือไม่
 "Under 1,000 baht","ต่ำกว่า 1,000 บาท"

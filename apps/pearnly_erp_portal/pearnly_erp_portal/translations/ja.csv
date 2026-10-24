@@ -439,6 +439,7 @@ Following fields have missing values:,次の項目が未入力です:
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 Foreigner,外国人
 Found,検出
+Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタップして選択してください：
 Found: {0},取得: {0}
 "Free note kept with the collection record (who took the money, reference).",入金記録に残す自由記入（受け取った人、参照番号）。
 From Date,開始日
@@ -589,6 +590,7 @@ No item matches the scanned code {0},スキャンしたコード {0} に一致�
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
 No items in cart,カートに商品がありません
 No items were read,明細を読み取れませんでした
+No match for “{0}”,「{0}」は見つかりません
 No product for this code: {0},このコードの商品が見つかりません: {0}
 No product matches that code,そのコードの商品が見つかりません
 No product matches this code,このコードに一致する商品がありません
@@ -1136,6 +1138,7 @@ This warehouse belongs to the company above,この倉庫は上の会社に属し
 Time,時刻
 Time left {0},残り {0}
 To Date,終了日
+Too many matches; type a few more letters to narrow it down,候補が多すぎます。文字を追加して絞り込んでください
 Total,請求額
 Total Amount,合計金額
 Total Due,請求額
@@ -1152,6 +1155,10 @@ Transaction type,取引区分
 Transfer,振込
 Type,種別
 Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
+Type the company name or number to find it,会社名または番号を入力して検索
+Type the customer name or code to find it,顧客名またはコードを入力して検索
+Type the supplier name or code to find it,仕入先名またはコードを入力して検索
+Type the warehouse name or code to find it,倉庫名またはコードを入力して検索
 UOM,単位
 Unable to load preview,プレビューを読み込めません
 Unbind LINE,LINE 連携を解除

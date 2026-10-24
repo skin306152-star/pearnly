@@ -439,6 +439,7 @@ Following fields have missing values:,Following fields have missing values:
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
 Foreigner,Foreigner
 Found,Found
+Found {0}. Tap the number to choose:,Found {0}. Tap the number to choose:
 Found: {0},Found: {0}
 "Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
 From Date,From Date
@@ -589,6 +590,7 @@ No item matches the scanned code {0},No item matches the scanned code {0}
 No items found. Scan barcode again.,No items found. Scan barcode again.
 No items in cart,No items in cart
 No items were read,No items were read
+No match for “{0}”,No match for “{0}”
 No product for this code: {0},No product for this code: {0}
 No product matches that code,No product matches that code
 No product matches this code,No product matches this code
@@ -1136,6 +1138,7 @@ This warehouse belongs to the company above,This warehouse belongs to the compan
 Time,Time
 Time left {0},Time left {0}
 To Date,To Date
+Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
 Total,Total
 Total Amount,Total Amount
 Total Due,Total Due
@@ -1152,6 +1155,10 @@ Transaction type,Transaction type
 Transfer,Transfer
 Type,Type
 Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new
+Type the company name or number to find it,Type the company name or number to find it
+Type the customer name or code to find it,Type the customer name or code to find it
+Type the supplier name or code to find it,Type the supplier name or code to find it
+Type the warehouse name or code to find it,Type the warehouse name or code to find it
 UOM,UOM
 Unable to load preview,Unable to load preview
 Unbind LINE,Unbind LINE

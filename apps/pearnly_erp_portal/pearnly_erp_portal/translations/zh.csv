@@ -439,6 +439,7 @@ Following fields have missing values:,以下字段缺少值：
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",拍摄提示：请将单据摆正，文字朝上，完整入镜。
 Foreigner,外国人
 Found,已找到
+Found {0}. Tap the number to choose:,找到 {0} 个，请点击序号选择：
 Found: {0},已查到：{0}
 "Free note kept with the collection record (who took the money, reference).",收款记录备注（收款人、参考号）。
 From Date,开始日期
@@ -589,6 +590,7 @@ No item matches the scanned code {0},未找到与扫描编码 {0} 匹配的物�
 No items found. Scan barcode again.,未找到物料，请重新扫码
 No items in cart,购物车为空
 No items were read,未识别到明细
+No match for “{0}”,没有找到「{0}」
 No product for this code: {0},未找到该编码对应的物料：{0}
 No product matches that code,未找到该编码对应的物料
 No product matches this code,未找到与该编号匹配的物料
@@ -1136,6 +1138,7 @@ This warehouse belongs to the company above,这个仓挂在上面那家公司名
 Time,时间
 Time left {0},剩余 {0}
 To Date,结束日期
+Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
 Total,总计
 Total Amount,总金额
 Total Due,应收金额
@@ -1152,6 +1155,10 @@ Transaction type,业务类型
 Transfer,转账
 Type,类型
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
+Type the company name or number to find it,输入公司名称或编号查找
+Type the customer name or code to find it,输入客户名称或编号查找
+Type the supplier name or code to find it,输入供应商名称或编号查找
+Type the warehouse name or code to find it,输入仓库名称或编号查找
 UOM,单位
 Unable to load preview,无法加载预览
 Unbind LINE,解绑 LINE

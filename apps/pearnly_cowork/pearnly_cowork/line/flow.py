@@ -10,7 +10,8 @@
     从匹配结果里点序号（`connections/account_search.py`）；另给「上次用的」一键选；目录里只有一份就直接选上；
   · 入账方式以第三方为准：MR.ERP 选付款（进项只有赊账），Express 选过账类型（服务 / 存货）；
   · Express 选了存货、这份账套有两个以上合格的存货科目组又没选过：点序号选一次存回账套（用户 2026-09-28，
-    与网页同一规则）；小助手还没读过这份账套、或组多到一屏点不完时这里不问，网页提交前再问；
+    与网页同一规则）；组多到一屏点不完时请用户打组名或科目编号找（用户 10-24）；小助手还没读过这份账套时这里不问，
+    网页提交前再问；
   · 识别后导出只选进项 / 销项。
 每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
 按钮只带序号，值存在会话里（账套键可能很长，postback 有 300 字上限）；只接受当前在问的那一步。
@@ -251,10 +252,13 @@ def _ask_account(line_user_id, payload, reply_token, note="") -> bool:
 
 
 def search(line_user_id, text, reply_token) -> bool:
-    """在「账套」这一步收到的文字＝关键词：列出匹配的账套，按序号点选。不在这一步返回 False。"""
+    """在「账套」这一步收到的文字＝关键词：列出匹配的账套，按序号点选；在「存货科目组」这一步（组多到一屏点不完时）同样。
+    不在这两步返回 False。"""
     from pearnly_cowork.connections import account_search
 
     payload = choices(line_user_id)
+    if payload.get("target") and _pending(payload) == STOCK_GROUP:
+        return _search_stock_group(line_user_id, payload, text, reply_token)
     if not payload.get("target") or _pending(payload) != "account":
         return False
     rows = _account_rows(payload)
@@ -313,15 +317,56 @@ def _ask_stock_group(line_user_id, payload, reply_token) -> bool:
     except frappe.ValidationError:
         view = {}
     groups = view.get("groups") or []
-    if not (view.get("known") and not view.get("chosen") and 2 <= len(groups) <= MAX_RESULTS):
+    if not (view.get("known") and not view.get("chosen") and len(groups) >= 2):
         payload[STOCK_GROUP] = ""
         return False
+    if len(groups) > MAX_RESULTS:
+        # 一屏点不完：请用户打组名或科目编号找（用户 10-24：凡是可能超过 12 个的都这样，原来这里跳过、留到网页再问）
+        payload["offered"] = {STOCK_GROUP: []}
+        _save(line_user_id, payload)
+        _ask(reply_token, _("Type the inventory account group name or account code to find it"), [])
+        return True
     payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in groups]}
     _save(line_user_id, payload)
     lines = [_("Choose the inventory account group for this account set. Tap the number:")]
     lines += [f"{index + 1}. {group['label']}" for index, group in enumerate(groups)]
     items = [_button(str(index + 1), urlencode({"a": "cowork", "s": STOCK_GROUP, "v": index}))
              for index in range(len(groups))]
+    _ask(reply_token, "\n".join(lines), items)
+    return True
+
+
+def _search_stock_group(line_user_id, payload, text, reply_token) -> bool:
+    """存货科目组打字找：科目编号整串相同就直接选上；组名包含关键词（几个词时每个都要有）的列出来按序号点。"""
+    from pearnly_cowork.connections import service
+
+    try:
+        groups = service.stock_acc_group(payload["connection"], payload["account_set_key"]).get("groups") or []
+    except frappe.ValidationError:
+        groups = []
+    wanted = str(text or "").strip()
+    exact = [group for group in groups if str(group.get("acccod") or "").casefold() == wanted.casefold()]
+    if len(exact) == 1:
+        _choose_stock_group(payload, exact[0]["acccod"])
+        payload[STOCK_GROUP] = exact[0]["acccod"]
+        payload.pop("offered", None)
+        _next(line_user_id, payload, reply_token)
+        return True
+    words = [word.casefold() for word in wanted.split()] or [wanted.casefold()]
+    found = exact or [group for group in groups if all(word in str(group.get("label") or "").casefold() for word in words)]
+    if not found:
+        _ask(reply_token, _("No match for “{0}”").format(wanted[:40]) + "\n"
+             + _("Type the inventory account group name or account code to find it"), [])
+        return True
+    shown = found[:MAX_RESULTS]
+    payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in shown]}
+    _save(line_user_id, payload)
+    lines = [_("Choose the inventory account group for this account set. Tap the number:")]
+    lines += [f"{index + 1}. {group['label']}" for index, group in enumerate(shown)]
+    if len(found) > len(shown):
+        lines.append(_("Too many matches; type a few more letters to narrow it down"))
+    items = [_button(str(index + 1), urlencode({"a": "cowork", "s": STOCK_GROUP, "v": index}))
+             for index in range(len(shown))]
     _ask(reply_token, "\n".join(lines), items)
     return True
 

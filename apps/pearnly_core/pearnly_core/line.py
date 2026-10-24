@@ -362,6 +362,7 @@ def _post_reply(reply_token: str, messages: list):
     """
     if mirroring():
         return bool(_mirror("reply", reply_token, messages)), 200, "mirror"
+    _feedback_settle()
     try:
         resp = _retry_unsent(lambda: requests.post(
             "https://api.line.me/v2/bot/message/reply",
@@ -393,6 +394,7 @@ def push(to: str, messages: list, *, retry_key: str = "") -> bool:
         return flush(retry_key=retry_key) if retry_key else True
     if mirroring():
         return _mirror("push", to, messages)
+    _feedback_settle(to)
     try:
         headers = _headers()
         if retry_key:
@@ -581,6 +583,80 @@ def start_loading_background(user_id: str, seconds: int = 30):
         return False
 
     return wait
+
+
+# ── 等结果时的"正在输入"（用户 2026-10-24：要等结果的消息都显示 LINE 官方三个点，立即能回的不显示） ──
+#
+# 统一在 webhook 这一层做，不靠各处理器逐个记得调用（逐处排查会漏）：每个一对一的消息 / 按钮事件
+# 开始处理时起一个计时，`FEEDBACK_DELAY` 秒内回了话就什么都不发；过了还没回，计时线程发一次
+# loading 请求。发回复 / 推送之前先等这次请求落地，免得三个点出现在回复之后。
+# 交给后台的活（识别）照旧在入队处自己叫 `start_loading`：webhook 返回之后的等待计时管不到。
+
+FEEDBACK_DELAY = 0.6
+FEEDBACK_SECONDS = 60
+FEEDBACK_EVENTS = ("message", "postback")
+
+
+def _feedback_begin(event: dict):
+    """给这个事件起"超时才显示三个点"的计时；不需要（群组、没渠道、本机镜像）返回 None。"""
+    source = event.get("source") or {}
+    user_id = source.get("userId") or ""
+    if event.get("type") not in FEEDBACK_EVENTS or source.get("type", "user") != "user" or not user_id:
+        return None
+    if not can_send() or mirroring():
+        return None
+    try:
+        headers = _headers()
+    except Exception:  # noqa: BLE001 —— 取不到令牌就不显示，不影响处理
+        return None
+    state = {"to": user_id, "lock": threading.Lock(), "settled": False, "sent": threading.Event(), "started": False}
+
+    def fire():
+        with state["lock"]:
+            if state["settled"]:
+                return
+            state["started"] = True
+        try:
+            requests.post(
+                "https://api.line.me/v2/bot/chat/loading/start",
+                headers=headers,
+                json={"chatId": user_id, "loadingSeconds": FEEDBACK_SECONDS},
+                timeout=(1, 1),
+            )
+        except requests.RequestException:
+            pass
+        finally:
+            state["sent"].set()
+
+    state["timer"] = threading.Timer(FEEDBACK_DELAY, fire)
+    state["timer"].daemon = True
+    state["timer"].start()
+    return state
+
+
+def _feedback_settle(to: str = "") -> None:
+    """要给这个人发消息了：没到时间就取消三个点；已经在发就等它落地（最多 3 秒），保证回复在三个点之后到。
+
+    `to` 是推送对象：推给别人（通知另一位成员）不算回了这个人。回覆令牌只属于发事件的人，不用传。"""
+    state = getattr(frappe.local, "pearnly_line_feedback", None)
+    if not state or (to and to != state["to"]):
+        return
+    with state["lock"]:
+        state["settled"] = True
+        started = state["started"]
+    state["timer"].cancel()
+    if started:
+        state["sent"].wait(3)
+
+
+def _dispatch_with_feedback(event: dict) -> bool:
+    state = _feedback_begin(event)
+    frappe.local.pearnly_line_feedback = state
+    try:
+        return _dispatch(event)
+    finally:
+        _feedback_settle()
+        frappe.local.pearnly_line_feedback = None
 
 
 def reply_sender(reply_token: str):
@@ -785,7 +861,7 @@ def webhook():
         if not _claim_event(event_id, source="line_webhook"):
             continue  # 重投的旧事件，跳过
         try:
-            handled = _dispatch(event)
+            handled = _dispatch_with_feedback(event)
             _finish_event(event_id, "done" if handled else "ignored")
         except Exception as e:
             frappe.log_error(
