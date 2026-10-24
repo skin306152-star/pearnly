@@ -38,8 +38,11 @@ def main() -> int:
     try:
         job = {"url": f"http://localhost:{server.server_port}/index.html", "probe": "selftest", "video": str(video), "wait_ms": 2000,
                "args": {"code": barcode.TEST_CODE}}
-        out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=120)
-        raw = json.loads(out.stdout.strip().splitlines()[-1])
+        try:
+            out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=120)
+            raw = json.loads(out.stdout.strip().splitlines()[-1])
+        except (subprocess.TimeoutExpired, ValueError, IndexError) as error:
+            raw = {"result": None, "error": f"driver: {type(error).__name__}"}
     finally:
         server.shutdown()
     result = raw.get("result") or {}
