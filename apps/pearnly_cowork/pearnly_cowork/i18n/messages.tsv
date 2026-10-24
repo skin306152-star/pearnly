@@ -1108,7 +1108,7 @@ Last used	上次使用	ที่ใช้ล่าสุด	前回使用
 No account set matches “{0}”	没有找到包含「{0}」的账套	ไม่พบชุดบัญชีที่ตรงกับ “{0}”	「{0}」に一致する会計データがありません
 Found {0}. Tap the number to choose:	找到 {0} 个账套，请点击序号选择：	พบ {0} ชุดบัญชี กรุณาแตะหมายเลขเพื่อเลือก:	{0} 件見つかりました。番号をタップして選択してください：
 Too many matches; type a few more letters to narrow it down	匹配结果过多，请输入更多关键字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。もう少し入力して絞り込んでください
-Type the inventory account group name or account code to find it	输入存货科目组名称或科目编号查找	พิมพ์ชื่อกลุ่มบัญชีสินค้าคงเหลือหรือรหัสบัญชีเพื่อค้นหา	在庫勘定グループ名または勘定コードを入力して検索
+Type a word from the inventory account group name to find it	输入存货科目组名称关键字查找	พิมพ์คำในชื่อกลุ่มบัญชีสินค้าคงเหลือเพื่อค้นหา	在庫勘定グループ名の一部を入力して検索
 No match for “{0}”	没有找到「{0}」	ไม่พบ “{0}”	「{0}」は見つかりません
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.	单据上的本方税号与所选账套不一致，请核对账套后重新发送。	เลขประจำตัวผู้เสียภาษีของกิจการบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่	書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.	单据日期不在所选账套的会计期间内，请核对年度后重新发送。	วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่	書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。

@@ -1154,6 +1154,10 @@ Track expiry,Track expiry
 Transaction type,Transaction type
 Transfer,Transfer
 Type,Type
+Type a word from the company name to find it,Type a word from the company name to find it
+Type a word from the customer name to find it,Type a word from the customer name to find it
+Type a word from the supplier name to find it,Type a word from the supplier name to find it
+Type a word from the warehouse name to find it,Type a word from the warehouse name to find it
 Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new
 Type the company name or number to find it,Type the company name or number to find it
 Type the customer name or code to find it,Type the customer name or code to find it

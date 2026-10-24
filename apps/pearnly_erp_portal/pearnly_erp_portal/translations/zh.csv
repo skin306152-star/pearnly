@@ -1154,6 +1154,10 @@ Track expiry,有效期管理
 Transaction type,业务类型
 Transfer,转账
 Type,类型
+Type a word from the company name to find it,输入公司名称关键字查找
+Type a word from the customer name to find it,输入客户名称关键字查找
+Type a word from the supplier name to find it,输入供应商名称关键字查找
+Type a word from the warehouse name to find it,输入仓库名称关键字查找
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
 Type the company name or number to find it,输入公司名称或编号查找
 Type the customer name or code to find it,输入客户名称或编号查找

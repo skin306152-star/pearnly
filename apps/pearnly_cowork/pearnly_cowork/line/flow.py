@@ -324,7 +324,7 @@ def _ask_stock_group(line_user_id, payload, reply_token) -> bool:
         # 一屏点不完：请用户打组名或科目编号找（用户 10-24：凡是可能超过 12 个的都这样，原来这里跳过、留到网页再问）
         payload["offered"] = {STOCK_GROUP: []}
         _save(line_user_id, payload)
-        _ask(reply_token, _("Type the inventory account group name or account code to find it"), [])
+        _ask(reply_token, _("Type a word from the inventory account group name to find it"), [])
         return True
     payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in groups]}
     _save(line_user_id, payload)
@@ -356,7 +356,7 @@ def _search_stock_group(line_user_id, payload, text, reply_token) -> bool:
     found = exact or [group for group in groups if all(word in str(group.get("label") or "").casefold() for word in words)]
     if not found:
         _ask(reply_token, _("No match for “{0}”").format(wanted[:40]) + "\n"
-             + _("Type the inventory account group name or account code to find it"), [])
+             + _("Type a word from the inventory account group name to find it"), [])
         return True
     shown = found[:MAX_RESULTS]
     payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in shown]}

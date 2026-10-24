@@ -1359,10 +1359,10 @@ No computer can write this account set	没有能写此账套的电脑	ไม่�
 Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 帳簿を読み取り中	express.reason.reading
 Computer offline	电脑离线	เครื่องออฟไลน์	端末オフライン	express.reason.offline
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	express.reason.periodLocked
-Type the company name or number to find it	输入公司名称或编号查找	พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา	会社名または番号を入力して検索
-Type the supplier name or code to find it	输入供应商名称或编号查找	พิมพ์ชื่อหรือรหัสผู้จำหน่ายเพื่อค้นหา	仕入先名またはコードを入力して検索
-Type the customer name or code to find it	输入客户名称或编号查找	พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา	顧客名またはコードを入力して検索
-Type the warehouse name or code to find it	输入仓库名称或编号查找	พิมพ์ชื่อหรือรหัสคลังสินค้าเพื่อค้นหา	倉庫名またはコードを入力して検索
+Type a word from the company name to find it	输入公司名称关键字查找	พิมพ์คำในชื่อบริษัทเพื่อค้นหา	会社名の一部を入力して検索
+Type a word from the supplier name to find it	输入供应商名称关键字查找	พิมพ์คำในชื่อผู้จำหน่ายเพื่อค้นหา	仕入先名の一部を入力して検索
+Type a word from the customer name to find it	输入客户名称关键字查找	พิมพ์คำในชื่อลูกค้าเพื่อค้นหา	顧客名の一部を入力して検索
+Type a word from the warehouse name to find it	输入仓库名称关键字查找	พิมพ์คำในชื่อคลังสินค้าเพื่อค้นหา	倉庫名の一部を入力して検索
 No match for “{0}”	没有找到「{0}」	ไม่พบ “{0}”	「{0}」は見つかりません
 Found {0}. Tap the number to choose:	找到 {0} 个，请点击序号选择：	พบ {0} รายการ กรุณาแตะหมายเลขเพื่อเลือก:	{0} 件見つかりました。番号をタップして選択してください：
 Too many matches; type a few more letters to narrow it down	匹配结果过多，请输入更多关键字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。文字を追加して絞り込んでください

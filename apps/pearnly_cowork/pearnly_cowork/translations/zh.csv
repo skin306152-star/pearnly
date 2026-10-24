@@ -2039,6 +2039,7 @@ Turn this scheduled task on? Files in the folder not processed yet are processed
 Turn this scheduled task on? Only files added to the folder from now on are processed.,确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。
 Type,类型
 Type a few letters of the company or account set name to find it,输入公司名称或账套名称的关键字查找账套
+Type a word from the inventory account group name to find it,输入存货科目组名称关键字查找
 Type of income paid,所得类型
 "Type or scan, then press Enter",输入或扫码后按回车
 Type the inventory account group name or account code to find it,输入存货科目组名称或科目编号查找

@@ -1154,6 +1154,10 @@ Track expiry,ติดตามวันหมดอายุ
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Type,ประเภท
+Type a word from the company name to find it,พิมพ์คำในชื่อบริษัทเพื่อค้นหา
+Type a word from the customer name to find it,พิมพ์คำในชื่อลูกค้าเพื่อค้นหา
+Type a word from the supplier name to find it,พิมพ์คำในชื่อผู้จำหน่ายเพื่อค้นหา
+Type a word from the warehouse name to find it,พิมพ์คำในชื่อคลังสินค้าเพื่อค้นหา
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
 Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา

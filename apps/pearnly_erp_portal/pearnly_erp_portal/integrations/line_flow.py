@@ -213,15 +213,16 @@ SEARCHED = ("company", "party", "warehouse")
 # 结果最多列 11 个（按钮是序号），留一个给「取消」（同 Cowork）。
 MAX_RESULTS = MAX_CHOICES - 1
 _SEARCH_PROMPTS = {
-    "company": lambda p: _("Type the company name or number to find it"),
-    "party": lambda p: (_("Type the supplier name or code to find it") if p["direction"] == "purchase"
-                        else _("Type the customer name or code to find it")),
-    "warehouse": lambda p: _("Type the warehouse name or code to find it"),
+    "company": lambda p: _("Type a word from the company name to find it"),
+    "party": lambda p: (_("Type a word from the supplier name to find it") if p["direction"] == "purchase"
+                        else _("Type a word from the customer name to find it")),
+    "warehouse": lambda p: _("Type a word from the warehouse name to find it"),
 }
 
 
 def _ask_search(reply_token, step, payload, user, note=""):
-    """请用户打名称或编号；当前公司（选公司时）、这个人上次在这家公司用的仓（选仓库时）给一个按钮直接点。"""
+    """请用户打名称里的关键字（用户 10-24：「先输入关键词再按匹配词列出内容」，提示里不要编号——谁知道编号；
+    整串编号照样认，只是不要求）；当前公司（选公司时）、这个人上次在这家公司用的仓（选仓库时）给一个按钮直接点。"""
     lines = [note] if note else []
     lines += [_QUESTIONS[step](payload), _SEARCH_PROMPTS[step](payload)]
     items = []

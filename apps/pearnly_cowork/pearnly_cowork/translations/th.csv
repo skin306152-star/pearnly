@@ -2039,6 +2039,7 @@ Turn this scheduled task on? Files in the folder not processed yet are processed
 Turn this scheduled task on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Type,ประเภท
 Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
+Type a word from the inventory account group name to find it,พิมพ์คำในชื่อกลุ่มบัญชีสินค้าคงเหลือเพื่อค้นหา
 Type of income paid,ประเภทเงินได้พึงประเมินที่จ่าย
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Type the inventory account group name or account code to find it,พิมพ์ชื่อกลุ่มบัญชีสินค้าคงเหลือหรือรหัสบัญชีเพื่อค้นหา
