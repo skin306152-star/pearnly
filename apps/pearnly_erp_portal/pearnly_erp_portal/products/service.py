@@ -149,9 +149,11 @@ def _assert_unique(code, barcode, *, exclude: str | None = None, owner: str | No
 
 
 def _get(name: str):
+    from pearnly_erp_portal.masters import access as master_access
+
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    return master_access.require_master(frappe.get_doc(DOCTYPE, name))
 
 
 def _attach_image(image_url, product: str):

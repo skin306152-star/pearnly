@@ -39,3 +39,7 @@
   - B（中）入库 / 出库物料格扫码枪丢码：`transactions.js` 的 `scan_by_code` 看到旧列表的高亮项就放行。改为回车一律先按码查，查不到才照原生回车选此刻高亮项。
   - C（中）同一浏览器网页登录着、打开手机盘点页后网页变成未登录：`line_mobile.as_ticket_user` 在已登录请求里 `frappe.set_user` 就地改了会话，请求结束框架写回缓存。改为票据上的人就是当前登录的人时不换；不是时换新会话对象、不写回（同 `cc_desktop.http_auth`）。
   - 实验栈内置浏览器真实按键复核（只填表不提交）：A 扫 8850187700031 填 ฉัตรอุบลม่วง 1กก.、打名称等下拉刷新后回车仍选高亮项；B 11020 + 回车填入编码 11020 的物料；C 打开 /stocktake 后 `get_logged_user` 仍是原账号。
+- 验收问题 23（中高，本批「服务端拒绝跨公司」的漏口）：门户自己的单条读写接口（商品打开 / 修改 / 停用 / 加单位、客户打开 / 修改、供应商修改）
+  自己 `frappe.get_doc`，不经 `has_permission`，只开了 CO-00001 的员工读到了别家公司的商品。新增 `masters.access.require_master`，
+  `products.service._get`、`masters.customers._get`、`purchasing.suppliers.update_supplier` 都过它；用例进 `tests/test_erp_codes_per_company.py`。
+  实验栈以该员工只读直调：别家的两件商品被拒、本地商品照常。

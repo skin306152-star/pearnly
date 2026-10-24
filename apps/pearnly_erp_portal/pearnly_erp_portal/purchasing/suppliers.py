@@ -68,7 +68,9 @@ def update_supplier(name, **changes):
     guard.require("suppliers.write")
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    doc = frappe.get_doc(DOCTYPE, name)
+    from pearnly_erp_portal.masters import access as master_access
+
+    doc = master_access.require_master(frappe.get_doc(DOCTYPE, name))
     if "supplier_name" in changes:
         cleaned = _clean(changes["supplier_name"])
         if not cleaned:

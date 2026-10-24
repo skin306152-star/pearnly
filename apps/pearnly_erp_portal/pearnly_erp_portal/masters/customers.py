@@ -17,9 +17,11 @@ LIST_FIELDS = ("name", "customer_name", "short_name", "party_type", "tax_id", "b
 
 
 def _get(name):
+    from pearnly_erp_portal.masters import access as master_access
+
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    return master_access.require_master(frappe.get_doc(DOCTYPE, name))
 
 
 def create_customer(**fields) -> dict:

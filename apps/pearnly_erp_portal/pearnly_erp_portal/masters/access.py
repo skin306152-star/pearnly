@@ -102,6 +102,14 @@ def master_permission(doc, ptype="read", user=None, **kwargs):
     return user == "Administrator" or not owner or company_allowed(owner, user)
 
 
+def require_master(doc, user=None):
+    """门户自己的单条读写接口（打开 / 修改 / 停用客户、供应商、商品）也按公司拦：别家公司 Express 的档不能读、不能改。
+    这些接口自己 `frappe.get_doc`，不经过 `has_permission`（10-24 验收问题 23：只开了 CO-00001 的员工读到了别家的商品）。"""
+    if not master_permission(doc, user=user):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return doc
+
+
 def customer_query(user=None):
     return master_query("ERP Customer", user)
 

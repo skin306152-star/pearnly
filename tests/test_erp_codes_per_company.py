@@ -43,5 +43,27 @@ class CodesAreReadPerCompany(unittest.TestCase):
 
 
 
+
+class MasterRecordsArePerCompany(unittest.TestCase):
+    """10-24 验收问题 23：门户自己的单条读写接口不经 has_permission，只开了 CO-00001 的员工读到、能改别家公司 Express 的档。"""
+
+    def test_another_companys_master_is_refused_and_local_or_own_pass(self):
+        from types import SimpleNamespace
+        from unittest import mock
+
+        import frappe
+        from pearnly_erp_portal.masters import access
+
+        doc = lambda owner: SimpleNamespace(get=lambda key, owner=owner: owner if key == "express_company" else None)  # noqa: E731
+        with mock.patch.object(access, "company_allowed", side_effect=lambda name, user=None: name == "CO-00001"), \
+                mock.patch.object(access, "_", side_effect=lambda text: text), \
+                mock.patch.object(access.frappe, "throw", side_effect=lambda message, exc=Exception: (_ for _ in ()).throw(exc(message))):
+            self.assertTrue(access.require_master(doc("CO-00001"), user="u@example.com"))
+            self.assertTrue(access.require_master(doc(""), user="u@example.com"))   # 本地档各家都能用
+            with self.assertRaises(frappe.PermissionError):
+                access.require_master(doc("CO-42088"), user="u@example.com")
+            self.assertTrue(access.require_master(doc("CO-42088"), user="Administrator"))
+
+
 if __name__ == "__main__":
     unittest.main()
