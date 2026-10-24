@@ -275,6 +275,37 @@ export function channelOf(product: string | undefined): string {
   return product === "erp" ? "core" : "cowork";
 }
 
+/** 这台电脑连着的各个站点（CC 桌面版 1.11.0 起成员带 site）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点，
+ *  CC 窗口里直接在它们之间切换（用户菜单，用户 10-25「不用先退出再登录；重新打开回到上次那个站点」——窗口记着上次的对话页）。 */
+export function connectedSites(state: Pick<DesktopState, "members"> | null | undefined): string[] {
+  const sites = (state?.members ?? []).map((m) => m.site ?? "").filter((site) => !!site);
+  return [...new Set(sites)].sort();
+}
+
+export function useConnectedSites(): string[] {
+  const [sites, setSites] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    let off = () => {};
+    void desktop().then(async (api) => {
+      if (!api || !alive) return;
+      const load = () => void api.state().then((state) => alive && setSites(connectedSites(state)));
+      load();
+      off = api.onChanged(load);
+    });
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+  return sites;
+}
+
+/** 切到这台电脑连着的另一个站点的对话页（那边登录过就直接进，会话各站点各自保存在窗口里）。 */
+export function openSite(site: string) {
+  if (site && site !== location.host) location.assign(`https://${site}/assistant`);
+}
+
 /** 连着本站的成员。旧桌面端（成员不带 site）所有成员同一个站点：站点就是本站才算。 */
 export function membersHere(state: Pick<DesktopState, "members" | "site">): DesktopMember[] {
   if (!state.members.some((m) => m.site)) return !state.site || state.site === location.host ? state.members : [];

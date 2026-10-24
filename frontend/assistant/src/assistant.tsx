@@ -80,7 +80,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { connectionDetail, showsReconnecting } from "@/lib/managed-agents/turn";
-import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
+import { openSettings, openSite, useAutoConnect, useConnectedSites, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { isBusy } from "@/lib/managed-agents/reducer";
 import type { SessionFile } from "@/lib/managed-agents/api";
@@ -193,6 +193,8 @@ function initials(profile: Profile) {
 // 用户菜单（同 Claude）：账号、设置、语言、帮助、了解更多、退出登录。外链都是宣传页上已有的页面。
 function UserMenu({ children }: { children: ReactNode }) {
   const profile = useProfile();
+  // CC 窗口里：这台电脑连着两个以上站点（Cowork + ERP）时，在这里直接切换（当前站点打勾），不用退出再登录
+  const sites = useConnectedSites();
   if (!profile) return null;
   return (
     <DropdownMenu.Root>
@@ -200,6 +202,17 @@ function UserMenu({ children }: { children: ReactNode }) {
       <DropdownMenu.Portal>
         <DropdownMenu.Content side="top" align="start" sideOffset={menuOffset()} className="cc-menu">
           <Marquee as="div" className="cc-menu-label truncate">{profile.user}</Marquee>
+          {sites.length > 1 && (
+            <>
+              {sites.map((site) => (
+                <DropdownMenu.Item key={site} className="cc-menu-item" data-slot="cc-site" onSelect={() => openSite(site)}>
+                  <Marquee className="min-w-0 flex-1 truncate">{site}</Marquee>
+                  {site === location.host && <CheckIcon />}
+                </DropdownMenu.Item>
+              ))}
+              <DropdownMenu.Separator className="cc-menu-sep" />
+            </>
+          )}
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
