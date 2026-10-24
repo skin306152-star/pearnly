@@ -75,6 +75,12 @@
 		dialog.show();
 		setTimeout(() => dialog.fields_dict.company.$input.trigger("focus"), 200);
 	}
+	// 同名的几家（同税号不同分店）在列表里带上分店号，分得出是哪家（10-24 验收）
+	p.company_name_of = (row, rows) => {
+		const name = row.company_name || row.name;
+		const same = rows.filter(item => (item.company_name || item.name) === name).length > 1;
+		return same && row.branch ? `${name} (${row.branch})` : name;
+	};
 	p.header_title = () => (frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_name;
 	p.switch_company = name => switch_company(name, false);
 
@@ -99,7 +105,7 @@
 			items: [...(rows.length > SEARCH_FROM ? [{name: "pearnly-company-search", label: __("Search"), icon: "search",
 				onClick: search_company}] : []),
 			...rows.map(row => ({name: "pearnly-company-" + row.name,
-				label: p.escape(row.company_name) + (row.is_current ? " ✓" : ""),
+				label: p.escape(p.company_name_of(row, rows)) + (row.is_current ? " ✓" : ""),
 				onClick: () => switch_company(row.name, row.is_current)}))]}];
 	};
 })();

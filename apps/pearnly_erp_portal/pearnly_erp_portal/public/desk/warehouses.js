@@ -108,7 +108,7 @@
 				{fieldname: "company", label: __("Company"), fieldtype: companies.length > 10 ? "Autocomplete" : "Select", reqd: 1,
 					read_only: !is_new, hidden: companies.length === 1 && is_new ? 1 : 0,
 					options: (frappe.boot.pearnly_companies || []).map(item => ({
-						value: item.name, label: [item.company_name || item.name, companies.length > 10 && item.tax_id]
+						value: item.name, label: [p.company_name_of(item, companies), companies.length > 10 && item.tax_id]
 							.filter(Boolean).join(" · ")})),
 					default: row?.company || frappe.boot.pearnly_company || (companies.length === 1 ? companies[0].name : "")},
 				f("warehouse_name", "company.field.warehouse", "Data",

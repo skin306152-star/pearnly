@@ -195,14 +195,14 @@ def test_an_unfit_stock_account_group_is_reported_for_a_choice():
     assert worker._outcome_for("STOCK_ACC_GROUP_UNFIT") == "needs_review"
 
 
-def test_an_erp_member_reports_only_the_chosen_roots_and_the_same_companies_in_other_years():
-    # 1.12.0：事务所电脑上别的客户不报进这个 ERP；所选公司别的年度文件夹里的账套要报（单据按日期写进对应年度、新年度自动接上）
+def test_an_erp_member_reports_only_the_chosen_roots():
+    # 1.12.0：选了哪些报哪些（用户 10-24）；同税号在没选的根里的账套也不报（白天服务器上线后会把 S 盘真账带进 ERP）
     rows = [{"root": r"S:\EXP69", "tax_id": "0105551234567", "path": r"S:\EXP69\NIPA"},
             {"root": r"S:\EXP68", "tax_id": "0105551234567", "path": r"S:\EXP68\NIPA"},
             {"root": r"S:\EXP69", "tax_id": "", "path": r"S:\EXP69\NOTAX"},
             {"root": r"S:\EXP68", "tax_id": "0105559999999", "path": r"S:\EXP68\OTHER"}]
     erp = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"s:\exp69",))
-    assert [row["path"] for row in worker.erp_scope(erp, rows)] == [r"S:\EXP69\NIPA", r"S:\EXP68\NIPA", r"S:\EXP69\NOTAX"]
+    assert [row["path"] for row in worker.erp_scope(erp, rows)] == [r"S:\EXP69\NIPA", r"S:\EXP69\NOTAX"]
     assert worker.erp_scope(types.SimpleNamespace(channel=channel.CORE, erp_roots=()), rows) == []  # 默认一份都不报
     assert worker.erp_scope(types.SimpleNamespace(channel=channel.COWORK), rows) == rows
     assert worker._outcome_for("PERIOD_LOCKED") == "needs_review"

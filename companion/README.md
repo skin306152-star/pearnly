@@ -95,7 +95,7 @@
 - 1.12.0（ERP 按 CC 所选的 Express 自动建公司与同步，`pearnly/erp-express-sync-background`，
   `docs/work/2026-10-23-erp-express-auto-companies.md`；**未发布**，要等服务端认 `express_marks` 与 `PERIOD_LOCKED` 的那一侧上线后再发）：
   - ERP 成员自己记「归这个 ERP 的 Express 数据根」（`profile_store.ProfileRecord.erp_roots`，设置页在 ERP 站点打开时每个数据根
-    一个开关，默认全关）：心跳只报这些根里的账套，加上这些公司（同税号）在别的年度文件夹里的账套（`worker.erp_scope`）；
+    一个开关，默认全关）：心跳只报这些根里的账套，选了哪些报哪些（`worker.erp_scope`；10-24 用户定，不再带同税号在没选的根里的账套）；
     Cowork 成员照旧整份报。
   - 按需请求新增只读 `express_marks`：现用账套主档几张表（ARMAS、APMAS、STMAS、ISTAB、STLOC、ISINFO）的大小与修改时间算出的
     变化标记（不读内容），ERP 每 10 分钟看一次、变了才整套读；`express_masters` 结果另带 `mark`，`settings` 另带地址、电话。

@@ -115,7 +115,7 @@
 			// 公司清单给编辑弹窗里的多选（含停用的：老单据还挂在上面）。
 			const rows = await p.call("pearnly_erp_portal.masters.api.api_list_companies",
 				{limit: 0});
-			data.companies = rows.map(row => ({label: row.company_name, value: row.name, tax_id: row.tax_id || ""}));
+			data.companies = rows.map(row => ({label: p.company_name_of(row, rows), value: row.name, tax_id: row.tax_id || ""}));
 		}
 
 		// **函数声明而不是 const**：列表那一列在构造时就会调它（`format` 在 `p.list()` 里立刻跑），

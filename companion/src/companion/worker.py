@@ -346,23 +346,16 @@ def _handle_dbf_task(
 
 
 def erp_scope(cfg, rows: list) -> list:
-    """ERP 成员（共用通道）只报归这个 ERP 的账套（1.12.0）：所选数据根（``erp_roots``）里的账套，加上这些公司（同税号）在这台
-    电脑别的年度文件夹里的账套 —— 单据按日期写进对应年度、新年度账套出现后自动接上，都要它们；同一台电脑上别的公司（如事务所
-    别的客户）不报进去。没选 = 一份都不报。Cowork 成员照旧整份报。"""
+    """ERP 成员（共用通道）只报归这个 ERP 的账套（1.12.0）：只报所选数据根（``erp_roots``）里的账套，选了哪些报哪些（用户 10-24：
+    「只报 CC 里勾选的数据根」）。不再按同税号把别的年度文件夹带进来——白天局域网服务器上线后会把没选的 S 盘真账也报上去、
+    在 ERP 里建出只有 S 盘账套的公司（10-24 验收）。没选 = 一份都不报。Cowork 成员照旧整份报。"""
     from . import channel
     from .express_machine import same_root
 
     if getattr(cfg, "channel", channel.COWORK) != channel.CORE:
         return rows
     scope = [root for root in (getattr(cfg, "erp_roots", None) or ()) if root]
-
-    def tax(row):
-        digits = "".join(ch for ch in str(row.get("tax_id") or "") if ch.isdigit())
-        return digits if len(digits) == 13 else ""
-
-    chosen = {id(row) for row in rows if any(same_root(str(row.get("root") or ""), root) for root in scope)}
-    companies = {tax(row) for row in rows if id(row) in chosen} - {""}
-    return [row for row in rows if id(row) in chosen or tax(row) in companies]
+    return [row for row in rows if any(same_root(str(row.get("root") or ""), root) for root in scope)]
 
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
