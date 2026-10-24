@@ -103,6 +103,22 @@ class Identity(unittest.TestCase):
         self.assertEqual((found.kind, found.rule, found.account_key, found.root_key),
                          ("match", 1, "s:\\2569\\book", "s:\\2569"))
 
+    def test_rule_1_own_admin_share_and_local_path_are_the_same_account_set(self):
+        # 10-25 主会话：同一本账套换了路径写法（自己的 C$ 共享 ↔ 本地路径、映射盘 ↔ UNC）要自动认回、不用人重选。
+        # 生产 ccdemo 实测：登记是 \\desktop-8brd5av\c$\account\70exp\demo01，CC 1.12 只扫位置后报 C:\ACCOUNT\70EXP\DEMO01，同一文件号认回
+        shared = R(r"\\desktop-8brd5av\c$\account\70exp\demo01", r"\\desktop-8brd5av\c$\account\70exp", uid="1416030b-000800000003b132")
+        local = decide(row(r"C:\ACCOUNT\70EXP\DEMO01", uid="1416030B-000800000003B132"), [shared], host="desktop-8brd5av")
+        self.assertEqual((local.kind, local.rule, local.account_key), ("match", 1, shared.account_key))
+        # 反过来：登记是本机路径，后来经共享写法报上来
+        mine = R(r"c:\account\70exp\demo01", r"c:\account\70exp", uid="1416030b-000800000003b132")
+        back = decide(row(r"\\DESKTOP-8BRD5AV\C$\ACCOUNT\70EXP\DEMO01", uid="1416030b-000800000003b132",
+                          share=r"\\DESKTOP-8BRD5AV\C$\ACCOUNT\70EXP\DEMO01"), [mine], host="desktop-8brd5av")
+        self.assertEqual((back.kind, back.rule, back.account_key), ("match", 1, mine.account_key))
+        # 映射盘 ↔ UNC
+        unc = decide(row(r"\\accserver\d$\account\70exp\test", uid="9eb765a9-000100000000c343"),
+                     [R(r"s:\account\70exp\test", r"s:\account\70exp", uid="9eb765a9-000100000000c343")])
+        self.assertEqual((unc.kind, unc.rule, unc.account_key), ("match", 1, r"s:\account\70exp\test"))
+
     def test_rule_2_same_network_place_with_the_same_content(self):
         registered = [R("s:\\2569\\book", "s:\\2569", location=self.SHARED, content_key=identity.content_key(TAX))]
         found = decide(row(r"Y:\2569\BOOK", share=r"\\192.168.1.5\EXP\2569\BOOK", uid="u-new", **TAX), registered)

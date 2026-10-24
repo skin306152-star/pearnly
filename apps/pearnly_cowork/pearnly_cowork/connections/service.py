@@ -224,7 +224,9 @@ def targets(name):
             _error("connection.snapshot_invalid")
         for row in model.parse(snapshot.body)["account_sets"]:
             attributes = row.get("attributes") or {}
-            safe = {key: attributes[key] for key in ("path", "root", "root_label", "writable", "company", "company_name", "row", "comidyear", "seldb")
+            # tax_id：LINE / 页面里打税号找账套要用（`account_search` 按它匹配；10-24 验收：原来这里没放行，打税号找不到）
+            safe = {key: attributes[key] for key in ("path", "root", "root_label", "writable", "company", "company_name", "tax_id", "row",
+                                                     "comidyear", "seldb")
                     if key in attributes}
             mapping = attributes.get("mapping")
             if isinstance(mapping, dict):

@@ -310,5 +310,16 @@ class Machine(unittest.TestCase):
         self.assertEqual(set(job), {"log_id", "history_id", "invoice_no", "payload", "attended"})
 
 
+class BookIdentity(unittest.TestCase):
+    def test_the_same_folder_reported_under_another_spelling_is_the_same_book(self):
+        # 10-25：同一本账套换了路径写法（自己的 C$ 共享 ↔ 本地路径、映射盘 ↔ UNC），ERP 公司选定的账套照样认得出：有文件号时只认文件号
+        uid = "1416030B-000800000003B132"
+        spellings = [r"C:\ACCOUNT\70EXP\DEMO01", r"\\DESKTOP-8BRD5AV\C$\account\70exp\demo01", r"S:\70EXP\DEMO01"]
+        keys = {contracts.book_key(contracts.book_identity(path, uid)) for path in spellings}
+        self.assertEqual(len(keys), 1)
+        # 没有文件号（旧版 CC）才按路径
+        self.assertNotEqual(contracts.book_identity(spellings[0]), contracts.book_identity(spellings[1]))
+
+
 if __name__ == "__main__":
     unittest.main()

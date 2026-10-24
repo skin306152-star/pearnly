@@ -348,6 +348,11 @@ class ConnectionReadLocks(unittest.TestCase):
         self.assertEqual(service.detail("CONN")["name"], "CONN")
         found = service.targets("CONN")
         self.assertEqual((found["refresh_status"], found["account_sets"][0]["source_id"]), ("succeeded", ACCOUNT))
+        # 打税号找账套（10-24 验收：目录没放行 tax_id，LINE 里打税号找不到）
+        from pearnly_cowork.connections import account_search
+
+        self.assertEqual(found["account_sets"][0]["attributes"]["tax_id"], "0105599210021")
+        self.assertEqual([row["value"] for row in account_search.search("express", found["account_sets"], "0105599210021")], [ACCOUNT])
         self.assertEqual(service.refresh_status("CONN", "REF")["status"], "succeeded")
         self.assertIn("groups", service.stock_acc_group("CONN", ACCOUNT))
         self.assertIn("defaults", service.mrerp_menu("MRERP", "1:2"))
