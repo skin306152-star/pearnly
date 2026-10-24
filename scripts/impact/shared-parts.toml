@@ -64,7 +64,7 @@ name = "共用列表（勾选、排序、筛选）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js", "apps/pearnly_core/pearnly_core/desk/list_filters.py"]
 markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values(", ".filter_conditions("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort"]
 
 [[part]]
 id = "desk-home"
@@ -1899,3 +1899,15 @@ steps = "在页面控制台执行 setTimeout(() => { throw new Error('smoke') })
 expect = "本站 Error Log 出「Browser error: smoke」，同一条只记一次；LINE 里未登录打开的票据页也记"
 check = "manual"
 files = ["apps/pearnly_core/pearnly_core/www/assistant.html", "frontend/src/main.ts", "frontend/assistant/src/components/error-boundary.tsx", "apps/pearnly_core/pearnly_core/www/pearnly-app.html", "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
+
+[[entry]]
+id = "erp.report.stock-summary-qty-sort"
+product = "ERP"
+where = "收发存汇总 · 按期末数量排序（接口计时）"
+steps = "以冒烟账号调 api_stock_summary_page（起始日 2026-01-01，按期末数量倒序，每页 20）；大账套用 run.py --company 指定那家公司"
+expect = "服务端 3 秒内（第一次算预热不计），返回这一页与总数"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py"]
+smoke = "api_time"
+site = "erp"
+args = { "method" = "pearnly_erp_portal.inventory.api.api_stock_summary_page", "kwargs" = { "date_from" = "2026-01-01", "sort_by" = "closing_qty", "sort_order" = "desc", "start" = 0, "limit" = 20 }, "limit_ms" = 3000 }

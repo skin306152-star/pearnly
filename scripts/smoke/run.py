@@ -47,7 +47,8 @@ video_spec.loader.exec_module(barcode)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
 READONLY_PROBES = {"page", "scan", "find_product", "assistant"}
-CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py", "cowork_express": "cowork_express_flow.py"}
+CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py", "cowork_express": "cowork_express_flow.py",
+                    "api_time": "api_time.py"}
 # 写 Express 的探针要用测试机 CC 上登录过的员工（CC 只领他的单）：入口 args 里写了 user 时以它为准
 EXPRESS_USERS = {"express": "SMOKE_EXPRESS_USER", "cowork_express": "SMOKE_COWORK_EXPRESS_USER"}
 
@@ -186,6 +187,8 @@ def main(argv=None) -> int:
                 params = dict(entry.args)
                 user = os.environ.get(EXPRESS_USERS.get(entry.smoke) or f"SMOKE_USER_{product.upper()}")
                 params.setdefault("user", user or "Administrator")
+                if entry.smoke == "api_time" and args.company and product == "erp":
+                    params.setdefault("company", args.company)  # 大账套那家公司（--company）
                 output = remote.run(product, HERE / CONTAINER_PROBES[entry.smoke], site, json.dumps(params, ensure_ascii=False))
                 last = [line for line in output.splitlines() if line.startswith("SMOKE ")]
                 result = json.loads(last[-1][6:]) if last else {"ok": False, "why": output[-300:]}
