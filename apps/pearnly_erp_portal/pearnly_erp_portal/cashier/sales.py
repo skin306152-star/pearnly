@@ -263,16 +263,15 @@ SORT_FIELDS = {
 }
 
 
-def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
-               status=None, q=None, limit=50, start=0, current_only=False,
-               sort_by=None, sort_order=None, conditions=None) -> list[dict]:
-    """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
+def _sale_query(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
+                status=None, q=None, current_only=False, conditions=None):
+    """列表与计数共用的一份条件；`current_only` 而当前没有开着的班时回 None（没有单）。"""
     if current_only:
         guard.require("cashier.read")
         from pearnly_erp_portal.cashier.shifts import current_shift
         active = current_shift()
         if not active:
-            return []
+            return None
         shift = active["shift"]["name"]
     else:
         guard.require("receipts.read")
@@ -293,17 +292,31 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
     or_filters = None
     if q:
         # 搜索框的口径（收银台「最近订单」那格写的是"按单据编号或客户名称搜索"）：
-        # 单号、内部单号，**以及客户抬头** —— 客户名不在本表上，先按名字取出那几家的编号再挂进来
-        # （`customer` 是 Link，列表里显示的是抬头，见 `_customer_names`）。
+        # 单号、内部单号，**以及客户抬头** —— 客户名不在本表上，用框架原生的 Link 点号条件 `customer.customer_name`
+        # （JOIN 客户表；原来先把名字命中的客户编号全取出来拼成一个大 IN，客户几万家时很慢，2026-10-25 排查）。
         term = f"%{q}%"
-        or_filters = [["receipt_no", "like", term], ["name", "like", term]]
-        customers = frappe.get_all("ERP Customer", filters={"customer_name": ["like", term]},
-                                   pluck="name", limit_page_length=0)
-        if customers:
-            or_filters.append(["customer", "in", customers])
+        or_filters = [["receipt_no", "like", term], ["name", "like", term], ["customer.customer_name", "like", term]]
     # 原生筛选里「等于 / 介于」以外的条件（页面 pos-receipts.js 的 filter_fields）
     filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
     filters += list_filters.conditions(conditions, {"sold_at": "sold_at", "sale_type": "sale_type", "status": "status"})
+    return filters, or_filters
+
+
+def count_sales(**query) -> int:
+    """收银小票列表的总数（同一份条件、同一道权限，数据库里数）。"""
+    found = _sale_query(**query)
+    return list_filters.count(DT, *found) if found else 0
+
+
+def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
+               status=None, q=None, limit=50, start=0, current_only=False,
+               sort_by=None, sort_order=None, conditions=None) -> list[dict]:
+    """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
+    found = _sale_query(shift=shift, cashier=cashier, date_from=date_from, date_to=date_to, sale_type=sale_type,
+                        status=status, q=q, current_only=current_only, conditions=conditions)
+    if not found:
+        return []
+    filters, or_filters = found
     rows = frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
                            order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "sold_at desc"),
                            limit_start=int(start),

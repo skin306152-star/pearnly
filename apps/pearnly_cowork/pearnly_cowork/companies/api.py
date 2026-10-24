@@ -129,8 +129,8 @@ def choice_promote(company, key, branch=None, period=None):
 
 
 @frappe.whitelist(methods=["GET"])
-def pending(company=None, limit=None):
-    return pending_items.pending(company or None, limit)
+def pending(company=None, limit=None, search=None):
+    return pending_items.pending(company or None, limit, search)
 
 
 @frappe.whitelist(methods=["GET"])

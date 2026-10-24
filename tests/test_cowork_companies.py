@@ -1455,6 +1455,38 @@ class PendingTests(unittest.TestCase):
         with self.assertRaises(frappe.PermissionError):
             pending.pending()
 
+    def test_pending_search_looks_through_every_pending_document_not_just_the_recent_ones(self):
+        # 2026-10-25 排查：页面原来只在已取回的前 200 张里搜；现在交服务端，库里按名称 / 单号 / 税号 / 文件名找全部命中
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
+        make()
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("h1", last_push_status="manual", last_push_reason="choice_needed:party", modified="2026-10-15 08:00"),
+            history("h2", last_push_reason="push.failed", seller_name="Siam Paper", modified="2026-10-15 07:00"),
+            history("old", last_push_reason="push.failed", invoice_no="IV-OLD-9", modified="2026-01-01 07:00"))}
+        recent = pending._candidates
+        asked = []
+
+        def candidates(*, permitted=True, limit=pending.PENDING_MAX, search=""):
+            asked.append(search)
+            if search:  # 库里按文字列筛出的命中（不在最近候选里）
+                return [row for row in recent() if row.name == "old"]
+            return [row for row in recent() if row.name != "old"]  # 最近的候选窗口里没有它
+
+        pending._candidates = candidates
+        try:
+            fresh_request()
+            found = pending.pending(search="IV-OLD")
+            self.assertEqual(([item["document"] for item in found["items"]], found["count"]), (["old"], 1))
+            fresh_request()
+            self.assertEqual([item["document"] for item in pending.pending(search="siam")["items"]], ["h2"])
+            fresh_request()
+            self.assertEqual([item["document"] for item in pending.pending()["items"]], ["h1", "h2"])
+        finally:
+            pending._candidates = recent
+        self.assertEqual(asked, ["", "IV-OLD", "", "siam", ""])
+        self.assertTrue(pending.matches({"reason_label": "Choose party", "amount": "1070.50"}, "1070"))
+        self.assertFalse(pending.matches({"invoice_no": "A"}, "zz"))
+
     def test_an_automatic_push_stopped_on_two_account_sets_for_the_date_is_switched_on_the_spot(self):
         """数字会计员第 3 期（用户 10-17）：自动推前判出多份同期账套（C 类，``book_many``）同「待选账套」：当场列这一组候选
         （同判档时 `automation.day_scope`），原因用定时任务「多于一份」那句；选一份的同时记成这家公司这一组现用的。"""

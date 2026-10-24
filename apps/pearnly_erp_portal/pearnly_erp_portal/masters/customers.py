@@ -3,6 +3,7 @@
 import frappe
 from frappe import _
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import contracts, tax_ids
 
@@ -61,7 +62,7 @@ def count_customers(*, q=None, include_inactive=False) -> int:
     """列表总数（页脚与「加载更多」用）：跟着权限（按公司隔离的权限钩子）走，同商品列表的计数。"""
     guard.require("customers.read")
     filters, or_filters = _filters(q, include_inactive)
-    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0))
+    return list_filters.count(DOCTYPE, filters, or_filters)
 
 
 def get_customer(name) -> dict:

@@ -11,6 +11,7 @@ import frappe
 from frappe import _
 from frappe.utils import now
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.cashier import contracts, terminals
 
@@ -271,8 +272,7 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
 
 def count_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None, names=None) -> int:
     guard.require("shifts.read")
-    return len(frappe.get_list(DT, filters=_shift_filters(terminal, cashier, status, date_from, date_to, names),
-                               pluck="name", limit_page_length=0))
+    return list_filters.count(DT, _shift_filters(terminal, cashier, status, date_from, date_to, names))
 
 
 def _shift_filters(terminal, cashier, status, date_from, date_to, names) -> dict:

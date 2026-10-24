@@ -70,16 +70,37 @@ def rows(params=None, *, start=0, limit=20, sort_by=None, sort_order=None):
         fields=list(FIELDS), distinct=True,
         order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, f"{datefield} desc, creation desc"),
         limit_start=max(0, int(start)), limit_page_length=max(0, int(limit)))
+    # 这一页的附件数、分类名一次查回（原来每行 3 次查询，2026-10-25 排查）
+    names = [row.name for row in result]
+    attachments, categories = {}, {}
+    if names:
+        for item in frappe.get_all("ERP Purchase Attachment", filters={"parent": ["in", names]},  # bounded: 这一页的单据
+                                   fields=["parent", {"COUNT": "name", "as": "n"}], group_by="parent", order_by=""):
+            attachments[item.parent] = item.n
+        for line in frappe.get_all("Purchase Line", filters={"parent": ["in", names]},  # bounded: 这一页的单据
+                                   fields=["parent", "category"], order_by="idx asc"):
+            if line.category:
+                categories.setdefault(line.parent, {})[line.category] = None
+    labels = dict(frappe.get_all("ERP Purchase Category",  # bounded: 这一页用到的分类
+        filters={"name": ["in", sorted({key for keys in categories.values() for key in keys}) or [""]]},
+        fields=["name", "category_name"], as_list=True))
     for row in result:
-        row["attachment_count"] = frappe.db.count("ERP Purchase Attachment", {"parent": row.name})
-        categories = frappe.get_all("Purchase Line", filters={"parent": row.name}, pluck="category")
-        row["categories"] = ", ".join(filter(None, [frappe.db.get_value("ERP Purchase Category", key, "category_name")
-                                                    for key in dict.fromkeys(categories) if key]))
+        row["attachment_count"] = int(attachments.get(row.name) or 0)
+        row["categories"] = ", ".join(filter(None, [labels.get(key) for key in categories.get(row.name, {})]))
     return result
 
 
+# 合计只用这几列。原来借 `rows(limit=0)` 取全部行，每行还另查附件数和分类（3 次查询 × 全部单据），每翻一页都跑一遍
+# （2026-10-25 排查）；合计按行舍入再累加，口径不能换成数据库求和，所以仍逐行算，但只取这几列、不做逐行附加查询。
+SUMMARY_FIELDS = ("name", "creation", "doc_date", "status", "fx_rate", "doc_kind", "grand_total", "vat_amount",
+                  "net_payable", "paid_amount", "supplier", "supplier_name")
+
+
 def overview(params=None):
-    data = rows(params, limit=0)
+    guard.require("purchase.read")
+    filters, or_filters, _datefield = query(params)
+    data = frappe.get_list("Purchase Document", filters=filters, or_filters=or_filters, fields=list(SUMMARY_FIELDS),
+                           distinct=True, limit_page_length=0)
     total = {key: Decimal(0) for key in ("purchase_total", "expense_total", "vat_creditable", "unpaid_total")}
     counts = {"purchase_count": 0, "expense_count": 0}
     suppliers = set()

@@ -135,8 +135,8 @@ def _pos_applies(params) -> bool:
     return True
 
 
-def _pos_rows(params=None, *, start=0, limit=20):
-    """收银小票 → 与销售记录同一形状的行。"""
+def _pos_query(params=None):
+    """收银小票那一侧的条件（列表与计数共用）。"""
     params = params or {}
     filters = _pos_scope()
     datefield = "creation" if params.get("date_basis") == "upload" else "sold_at"
@@ -156,6 +156,12 @@ def _pos_rows(params=None, *, start=0, limit=20):
     filters.extend(list_filters.conditions(params.get("conditions"), {"doc_date": datefield}))
     text = str(params.get("q") or "").strip()
     or_filters = [[field, "like", "%" + text + "%"] for field in ("receipt_no", "note")] if text else None
+    return filters, or_filters, datefield
+
+
+def _pos_rows(params=None, *, start=0, limit=20):
+    """收银小票 → 与销售记录同一形状的行。"""
+    filters, or_filters, datefield = _pos_query(params)
     data = frappe.get_all(POS, filters=filters, or_filters=or_filters, fields=list(POS_FIELDS),
                           order_by=f"{datefield} desc, creation desc",
                           limit_start=max(0, int(start)), limit_page_length=max(0, int(limit)))
@@ -245,7 +251,18 @@ def rows(params=None, *, start=0, limit=20, sort_by=None, sort_order=None):
 def page(params=None, *, start=0, limit=20, sort_by=None, sort_order=None) -> dict:
     """列表一页 + 命中总数（同一个查询，翻页与导出不会各算一份）。"""
     return {"items": rows(params, start=start, limit=limit, sort_by=sort_by, sort_order=sort_order),
-            "total": len(rows(params, limit=0))}
+            "total": total(params)}
+
+
+def total(params=None) -> int:
+    """命中总数：两侧各在数据库里数（原来把两侧整批取回来再数，2026-10-25 排查）。"""
+    guard.require("sales.read")
+    filters, or_filters, _datefield = query(params)
+    count = list_filters.count(DOCTYPE, filters, or_filters)
+    if _pos_applies(params):
+        pos_filters, pos_or, _ = _pos_query(params)
+        count += list_filters.count(POS, pos_filters, pos_or, ignore_permissions=True)  # 同 _pos_rows
+    return count
 
 
 def get(name) -> dict:

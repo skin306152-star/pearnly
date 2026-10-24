@@ -15,6 +15,7 @@
 import frappe
 from frappe import _
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import contracts, tax_ids
 
@@ -212,7 +213,7 @@ def list_companies(*, include_inactive=False, limit=50, start=0, sort_by=None, s
 def count_companies(*, include_inactive=False) -> int:
     guard.require("company.read")
     filters = {} if include_inactive else {"is_active": 1}
-    return len(frappe.get_list(DOCTYPE, filters=filters, pluck="name", limit_page_length=0))
+    return list_filters.count(DOCTYPE, filters)
 
 
 def create_company(*, company_name, warehouse_name=None, warehouses=None, terminals=None,

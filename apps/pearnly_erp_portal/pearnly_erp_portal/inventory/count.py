@@ -22,6 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
 from pearnly_erp_portal.inventory import stock as stock_service
@@ -344,8 +345,7 @@ def count_total(*, status=None) -> int:
     filters = dict(warehouses.scope_filter())
     if status:
         filters["status"] = status
-    return len(frappe.get_list(COUNT, filters=filters,
-                               pluck="name", limit_page_length=0))
+    return list_filters.count(COUNT, filters)
 
 
 def get_count(name: str) -> dict:

@@ -148,9 +148,13 @@ export const setChoice = (company: string, key: string, value: string, period = 
 export const promoteChoice = (company: string, key: string, period = "") =>
   postMethod(API + "choice_promote", { company, key, ...(period ? { period } : {}) });
 
-/** 待处理的单（company 不给 = 全部有权看的）。 */
-export function loadPending(company = "", limit = 200): Promise<PendingItem[]> {
-  return getMethod<PendingItem[] | { items?: PendingItem[] }>(API + "pending", { company: company || undefined, limit }).then((out) =>
+/** 待处理的单（company 不给 = 全部有权看的）；search 交给服务端在全部待处理里找（不是只在已取回的前 200 张里找）。 */
+export function loadPending(company = "", limit = 200, search = ""): Promise<PendingItem[]> {
+  return getMethod<PendingItem[] | { items?: PendingItem[] }>(API + "pending", {
+    company: company || undefined,
+    limit,
+    search: search.trim() || undefined,
+  }).then((out) =>
     Array.isArray(out) ? out : (out?.items ?? []),
   );
 }

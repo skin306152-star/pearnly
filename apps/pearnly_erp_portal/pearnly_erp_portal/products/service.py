@@ -331,8 +331,7 @@ def count_products(*, search=None, include_inactive=False, is_active=None, condi
     """
     guard.require("products.view")
     filters, or_filters = _filters(search, include_inactive, is_active, conditions)
-    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters,
-                               pluck="name", limit_page_length=0))
+    return list_filters.count(DOCTYPE, filters, or_filters)
 
 
 def get_product(name: str):

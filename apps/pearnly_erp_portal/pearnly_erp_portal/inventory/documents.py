@@ -4,6 +4,7 @@ import frappe
 from frappe import _
 from frappe.utils import now
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import access, contracts, positions, stock, warehouses
 from pearnly_erp_portal.numbering import service as numbering
@@ -118,8 +119,7 @@ SORT_FIELDS = {
 }
 
 
-def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
-                 limit=50, start=0, sort_by=None, sort_order=None):
+def _entry_filters(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None) -> dict:
     guard.require("stock.read")
     allowed = [key for key in ("in", "out") if guard.has("stock." + key)]
     if direction:
@@ -138,6 +138,19 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
         filters["status"] = status
     if date_from and date_to:
         filters["posting_date"] = ["between", [date_from, date_to]]
+    return filters
+
+
+def count_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None) -> int:
+    """出入库单列表的总数（与列表同一份筛选、同一道权限，数据库里数）。"""
+    return list_filters.count(DOCTYPE, _entry_filters(direction=direction, warehouse=warehouse, status=status,
+                                                      date_from=date_from, date_to=date_to))
+
+
+def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
+                 limit=50, start=0, sort_by=None, sort_order=None):
+    filters = _entry_filters(direction=direction, warehouse=warehouse, status=status, date_from=date_from,
+                             date_to=date_to)
     rows = frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
                            order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS,
                                                      "posting_date desc, creation desc"),

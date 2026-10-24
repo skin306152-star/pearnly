@@ -88,3 +88,17 @@ def matches(value, operator: str, wanted) -> bool:
     if operator == "is":
         return bool(text) if _text(wanted) == "set" else not text
     return True
+
+
+def count(doctype, filters=None, or_filters=None, *, ignore_permissions=False) -> int:
+    """列表总数：原生 `get_list` 的 COUNT 聚合（跟着 DocType 权限，计数在数据库里做，不把全部主键取回来再数）。
+
+    列表本身用 `get_all`（范围由自己的条件给）的，计数传 `ignore_permissions=True`，两边口径一致。
+    过滤条件里有子表（会 JOIN 出重复行）的不要用这个：框架的聚合没有 COUNT(DISTINCT)。
+    """
+    import frappe
+
+    read = frappe.get_all if ignore_permissions else frappe.get_list
+    rows = read(doctype, filters=filters, or_filters=or_filters,  # bounded: 聚合只回一行
+                fields=[{"COUNT": "name", "as": "total"}], order_by="", limit_page_length=0)
+    return int((rows[0].get("total") if rows else 0) or 0)

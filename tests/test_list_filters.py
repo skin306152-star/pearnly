@@ -42,6 +42,23 @@ class Conditions(unittest.TestCase):
         self.assertEqual(out, [["supplier.supplier_name", "like", "%ABC%"],
                                ["supplier.supplier_name", "not like", "%Nobody%"], ["supplier", "!=", "SUP-00099"]])
 
+    def test_count_is_one_aggregate_query_under_permissions(self):
+        import types
+        from unittest.mock import patch
+
+        calls = []
+        frappe = types.ModuleType("frappe")
+        frappe.get_list = lambda doctype, **kw: calls.append(("get_list", doctype, kw)) or [{"total": 73918}]
+        frappe.get_all = lambda doctype, **kw: calls.append(("get_all", doctype, kw)) or []
+        with patch.dict(sys.modules, {"frappe": frappe}):
+            self.assertEqual(list_filters.count("ERP Customer", [["company", "=", "CO-1"]], [["tax_id", "like", "%1%"]]),
+                             73918)
+            self.assertEqual(list_filters.count("ERP Sale", [], ignore_permissions=True), 0)
+        self.assertEqual(calls[0], ("get_list", "ERP Customer", {
+            "filters": [["company", "=", "CO-1"]], "or_filters": [["tax_id", "like", "%1%"]],
+            "fields": [{"COUNT": "name", "as": "total"}], "order_by": "", "limit_page_length": 0}))
+        self.assertEqual(calls[1][0], "get_all")
+
     def test_constant_values_match_like_frappe(self):
         self.assertTrue(list_filters.matches("receipt", "!=", "invoice"))
         self.assertFalse(list_filters.matches("receipt", "!=", "receipt"))

@@ -12,6 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import now, nowdate
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import contracts, settings
@@ -211,8 +212,7 @@ def purchase_total(*, supplier=None, supplier_name=None, status=None, kind=None,
     filters, or_filters = _purchase_query(
         supplier=supplier, supplier_name=supplier_name, status=status, kind=kind,
         unpaid=unpaid, q=q, date_from=date_from, date_to=date_to)
-    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, pluck="name",
-                               limit_page_length=0))
+    return list_filters.count(DOCTYPE, filters, or_filters)
 
 
 def _size(limit):

@@ -148,7 +148,9 @@ def api_sale_total(**kwargs):
     kwargs = _clean(kwargs)
     kwargs.pop("start", None)
     kwargs.pop("limit", None)
-    return len(sales.list_sales(**kwargs, limit=0))
+    kwargs.pop("sort_by", None)
+    kwargs.pop("sort_order", None)
+    return sales.count_sales(**kwargs)
 
 
 @frappe.whitelist()

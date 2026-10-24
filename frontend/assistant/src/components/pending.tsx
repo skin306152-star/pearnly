@@ -186,23 +186,32 @@ function useTitles(ids: readonly string[]): Record<string, string> {
   return { ...found, ...Object.fromEntries(projects.map((p) => [p.id, p.title])) };
 }
 
-/** 待处理单的列表状态（列表与会话栏卡共用）：读取，站点事件来了、回到前台重取，作答成功的当场拿掉。 */
-export function usePendingItems(company: string) {
+/** 待处理单的列表状态（列表与会话栏卡共用）：读取，站点事件来了、回到前台重取，作答成功的当场拿掉。
+ *  search（待处理页的搜索框）交给服务端找，停止输入 300 毫秒后再取；已取回的照旧当场按它筛（PendingItems）。 */
+export function usePendingItems(company: string, search = "") {
   const [items, setItems] = useState<PendingItem[] | null>(null);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState(search.trim());
+  useEffect(() => {
+    const next = search.trim();
+    const timer = window.setTimeout(() => setQuery(next), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
   const reload = useCallback(async () => {
     try {
-      setItems(await loadPending(company));
+      setItems(await loadPending(company, 200, query));
       setError("");
     } catch (e) {
       setItems((before) => before ?? []);
       setError(shownError(e));
     }
-  }, [company]);
+  }, [company, query]);
   useEffect(() => {
-    setItems(null);
     void reload();
   }, [reload]);
+  useEffect(() => {
+    setItems(null);
+  }, [company]);
   useLiveRefresh(reload, { events: PENDING_EVENTS });
   const done = useCallback((document: string) => {
     setItems((before) => (before ?? []).filter((i) => i.document !== document));
@@ -219,7 +228,7 @@ type PendingState = ReturnType<typeof usePendingItems>;
 
 /** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
 export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string }> = ({ company = "", embedded = false, search = "" }) => (
-  <PendingItems company={company} embedded={embedded} search={search} {...usePendingItems(company)} />
+  <PendingItems company={company} embedded={embedded} search={search} {...usePendingItems(company, search)} />
 );
 
 /** 列表本身（数据由 usePendingItems 给；会话栏卡先按月份筛过再交进来）。 */

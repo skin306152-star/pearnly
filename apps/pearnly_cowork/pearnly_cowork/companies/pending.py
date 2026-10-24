@@ -464,11 +464,23 @@ def _cutoff():
     return frappe.utils.now_datetime() - timedelta(minutes=SETTLE_MINUTES)
 
 
-def _candidates(*, permitted=True, limit=PENDING_MAX) -> list:
+# 待处理页的搜索在库里先按这几列筛（对方名称就是买 / 卖方名称之一），再按页面同一口径（`matches`）细判
+SEARCH_FIELDS = ("name", "invoice_no", "filename", "seller_name", "buyer_name", "seller_tax", "buyer_tax")
+
+
+def _candidates(*, permitted=True, limit=PENDING_MAX, search="") -> list:
     """可能要处理的单（库里粗筛，细判在 `classify`）：没推成功、也不在推的；且停下等人、有失败原因或选了推送去向。
-    `permitted`：按当前用户的录入列表权限取（`get_list`）；后台汇总不按人（`get_all`）。"""
+    `permitted`：按当前用户的录入列表权限取（`get_list`）；后台汇总不按人（`get_all`）。
+    `search`：只取这几列含这个词的（框架原生的嵌套 OR 条件），不是在最近 N 张里找。"""
     getter = frappe.get_list if permitted else frappe.get_all
-    return getter(HISTORY, filters={"last_push_status": ["not in", list(SETTLED)]},
+    filters = {"last_push_status": ["not in", list(SETTLED)]}
+    text = str(search or "").strip()[:140]
+    if text:
+        group = []
+        for field in SEARCH_FIELDS:
+            group += [[field, "like", f"%{text}%"], "or"]
+        filters = [["last_push_status", "not in", list(SETTLED)], group[:-1]]
+    return getter(HISTORY, filters=filters,
                   or_filters=[["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"],
                               ["intake_target", "in", list(TARGETS)]],
                   fields=FIELDS, order_by="modified desc, name desc", limit_page_length=limit)
@@ -546,17 +558,36 @@ def _attribution():
     return by_set, by_tax, {company: tax for tax, company in by_tax.items()}
 
 
-def pending(company=None, limit=None) -> dict:
-    """要人处理的单（当前用户看得到的），新 → 旧：`{"items": [...], "count": n}`；给了 `company` 只看这家。"""
+def matches(item, search) -> bool:
+    """页面搜索的口径（`frontend/assistant/src/components/pending.tsx` 的 matchesPending）：单号、对方、单据号、原因、金额、日期。"""
+    needle = str(search or "").strip().lower()
+    if not needle:
+        return True
+    parts = (item.get("invoice_no"), item.get("counterparty"), item.get("document"), item.get("reason_label"),
+             item.get("amount"), item.get("date"))
+    return needle in " ".join(str(part or "") for part in parts).lower()
+
+
+def pending(company=None, limit=None, search=None) -> dict:
+    """要人处理的单（当前用户看得到的），新 → 旧：`{"items": [...], "count": n}`；给了 `company` 只看这家。
+
+    `search`（待处理页的搜索框）：库里按单号 / 名称 / 税号 / 文件名先筛出全部命中的（原来页面只在已取回的前 200 张里找，
+    2026-10-25 排查），再与最近的候选一起按页面同一口径细判（原因、金额、日期这类算出来的字段只能细判）。"""
     scope.require_read()
     try:
         limit = max(1, min(int(limit or LIMIT_MAX), LIMIT_MAX))
     except (TypeError, ValueError):
         limit = LIMIT_MAX
     by_set, by_tax, tax_ids = _attribution()
-    items = _items(_candidates(), by_set, by_tax, tax_ids)
+    rows = _candidates()
+    if str(search or "").strip():
+        seen = {row.name for row in rows}
+        rows = rows + [row for row in _candidates(search=search) if row.name not in seen]
+        rows.sort(key=lambda row: (str(row.get("modified") or ""), row.name), reverse=True)  # 仍是新 → 旧
+    items = _items(rows, by_set, by_tax, tax_ids)
     if company:
         items = [item for item in items if item["company"] == company]
+    items = [item for item in items if matches(item, search)]
     return {"items": items[:limit], "count": len(items)}
 
 
