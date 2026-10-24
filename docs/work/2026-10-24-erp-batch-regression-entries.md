@@ -102,7 +102,8 @@ S 盘 / accserver 只读；写 Express 只写 `C:\PearnlyExpress`。LINE 用三�
 | 14 | 盘点上传导入 | 盘点 → 上传表（表里编码 / 条码） | 文件 | 按盘点仓库所属公司认（**本次修**）；别家公司同码不算 |
 | 15 | 识别 / LINE 采购按码认商品 | 采购上传识别后提交；LINE 采购卡片确认 | — | 认当前公司的那件；认不到自动建成**本地档**（不挂公司，各公司共用；10-24 更正，原写「建在当前公司」不对） |
 | 16 | Express 提交前预检 | 接 Express 的公司采购 / 销售点提交 | — | 按当前公司认商品 |
-| — | 共用读码器其它入口（本批没改，抽查确认不受影响） | Cowork 库存盘点扫码；DMS LIFF 扫身份证 | 共用 `scan.js` / `scan/reader.js` | 相机正常、读码正常 |
+| — | 共用读码器其它入口（本批没改，抽查确认不受影响） | Cowork 库存盘点扫码 | 共用 `scan.js` / `scan/reader.js` | 相机正常、读码正常 |
+| — | DMS LIFF 扫身份证（不走共用读码器，本批也没改前端，抽查） | DMS LIFF 扫证 | `frontend/` 的 `ScanPage.vue` / id-scan | 相机授权后进取景框 |
 
 ## 七 主档按公司隔离（`E/masters/access.py` 权限钩子 + `selection.py`）+ 期初
 
