@@ -98,7 +98,10 @@ def _key(
 
 
 def _sccomp_stamp(root: str) -> Optional[tuple]:
-    """登记表的(大小, 修改时间);读不到 / 所在服务器这会儿不在(退避期内不做网络读)回 None。"""
+    """登记表的(大小, 修改时间, 文件号);读不到 / 所在服务器这会儿不在(退避期内不做网络读)回 None。
+
+    文件号（系统给的 st_ino，拿不到时是 0）：同一个文件经映射盘和共享路径各见一次时相同，整个年度文件夹复制出来的
+    （大小、修改时间原样带过去）不同——原来只比大小和修改时间，复制出的新年度被当成已有那一个、找不进来（10-24 验收 72EXP）。"""
     from .scan_pace import GATE
 
     if not GATE.reachable(root):
@@ -109,7 +112,7 @@ def _sccomp_stamp(root: str) -> Optional[tuple]:
         stat = os.stat(sccomp_path(root))
     except OSError:
         return None
-    return (stat.st_size, stat.st_mtime_ns)
+    return (stat.st_size, stat.st_mtime_ns, int(getattr(stat, "st_ino", 0) or 0))
 
 
 def _signature(roots: list[str], account_dir: str, with_chart: bool) -> tuple:

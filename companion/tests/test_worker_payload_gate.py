@@ -639,9 +639,8 @@ def test_an_account_set_missing_on_this_pc_fails_for_a_person_to_fix():
     assert [(f["error_code"], f["outcome"]) for f in qc.failures] == [("NO_ACCOUNT_SELECTION", None)]
 
 
-def test_newly_found_year_folders_are_remembered_as_authorized(tmp_path, monkeypatch):
+def test_newly_found_year_folders_are_remembered_as_authorized(tmp_path):
     """「重新读取」找到的新年度文件夹记进授权名单,已有的不重复记。"""
-    monkeypatch.setattr(worker, "_FOUND_ROOTS", [])
     saved = []
 
     class Cfg:

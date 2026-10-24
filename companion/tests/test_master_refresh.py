@@ -281,3 +281,20 @@ def test_after_rescan_soon_an_earlier_snapshot_is_never_handed_out_again(monkeyp
     second = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A"))
     assert second[0]["account_sets"] == [{"path": "C:/books/A", "scan": 2}]
     assert scans == ["C:/books", "C:/books"]
+
+
+def test_a_year_folder_copied_from_another_is_found(monkeypatch, tmp_path):
+    """10-24 验收：整个 71EXP 复制成 72EXP，登记表大小、修改时间原样带过去；原来只比这两项，72EXP 被当成 71EXP 换了个路径而找不进来。
+    文件号不同就是另一份；同一个文件经两条路径见到（文件号相同）仍只算一次。"""
+    import os
+    import shutil
+
+    for name in ("71EXP", "72EXP"):
+        (tmp_path / name / "secure").mkdir(parents=True)
+    source = tmp_path / "71EXP" / "secure" / "SCCOMP.DBF"
+    source.write_bytes(b"x" * 64)
+    shutil.copy2(source, tmp_path / "72EXP" / "secure" / "SCCOMP.DBF")
+    monkeypatch.setattr(express_locate, "sccomp_path", lambda root: os.path.join(root, "secure", "SCCOMP.DBF"))
+    first, copy = (master_refresh._sccomp_stamp(str(tmp_path / name)) for name in ("71EXP", "72EXP"))
+    assert first[:2] == copy[:2] and first != copy
+    assert master_refresh._sccomp_stamp(str(tmp_path / "71EXP")) == first

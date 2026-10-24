@@ -223,10 +223,9 @@ def test_a_ticked_place_covers_the_year_folders_below_it_including_new_ones():
     assert [row["path"] for row in worker.erp_scope(only_year, rows)] == ["a"]  # 只开年度文件夹：只报它
 
 
-def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(tmp_path, monkeypatch):
+def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(tmp_path):
     # 10-24 验收问题 16：Cowork 成员「重新读取」找到 71EXP，勾了 C:\PearnlyExpress 的 ERP 成员也要有（数据根是整台电脑的）；
     # 每天的自动查找是同一条路（找新年度的计时整台电脑一份，哪个成员先扫到算哪个）
-    monkeypatch.setattr(worker, "_FOUND_ROOTS", [])
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
     cowork_id = _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
     erp_id = _member(store, ERP_TOKEN, "https://testerp.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
@@ -240,8 +239,24 @@ def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(
         cowork_id: [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"], erp_id: [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]}
     # ERP 成员手里的旧副本下一拍心跳前补上（不补的话它下次存盘会把记录里的 71EXP 盖掉）
     assert list(erp.authorized_roots) == [r"S:\\EXP68"]
-    worker._adopt_found_roots(erp)
+    worker._adopt_machine_roots(erp)
     assert list(erp.authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
     assert [row["path"] for row in worker.erp_scope(erp, [{"root": r"C:\PearnlyExpress\71EXP", "path": "T0HENG"}])] == ["T0HENG"]
     reloaded = ProfileStore.load(store.path, protector=_Protector())
     assert list(reloaded.runtime_config(erp_id).erp_roots) == [r"C:\PearnlyExpress"]
+
+
+def test_a_year_folder_already_kept_by_one_member_only_is_added_to_the_others(tmp_path):
+    # 10-24 复测：1.12.0 前找到的 71EXP 只记在 Cowork 成员里，已经分开的电脑也要补上（重启 CC 后照样补）
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    cowork_id = _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
+    erp_id = _member(store, ERP_TOKEN, "https://testerp.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
+    store.save_profile(store.runtime_config(cowork_id).update(authorized_roots=[r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]))
+    started = ProfileStore.load(store.path, protector=_Protector())  # 重启 CC
+    erp = started.runtime_config(erp_id)
+    worker._adopt_machine_roots(erp)
+    worker._adopt_machine_roots(erp)  # 再一拍不重复加
+    assert list(erp.authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
+    again = ProfileStore.load(store.path, protector=_Protector())
+    assert list(again.runtime_config(erp_id).authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
+    assert list(again.runtime_config(cowork_id).authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
