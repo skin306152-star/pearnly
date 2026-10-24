@@ -170,3 +170,45 @@ def test_the_thread_only_starts_for_paired_connections_and_stays_off_the_push_li
     assert not imported & {"watchdog", "worker", "gui_tray_workers", "account_lock", "multi_profile_worker",
                            "QueueClient", "PollWorker"}
     assert NEXT.endswith("request_api.next_request") and COMPLETE.endswith("request_api.complete_request")
+
+
+def test_server_errors_back_off_and_a_rejected_key_is_reported(monkeypatch):
+    # 10-24 测试机：实验栈关了、域名还指着它回 502，别的成员在干活时每轮马上再问，一秒几回。现在按次数退避（15 秒起翻倍）
+    import httpx
+
+    from companion import device_link
+
+    reported = []
+    monkeypatch.setattr(device_link.REJECTIONS, "rejected", lambda cfg: reported.append(cfg.bearer_token))
+    monkeypatch.setattr(device_link.REJECTIONS, "ok", lambda cfg: None)
+    response = httpx.Response(502, request=httpx.Request("POST", "https://a.pearnly.com/x"))
+
+    class Broken(FakeClient):
+        def next(self, body):
+            raise httpx.HTTPStatusError("502", request=response.request, response=response)
+
+    now = [1000.0]
+    worker = request_worker.RequestWorker(lambda: [_cfg()], client_factory=Broken(), timer=lambda: now[0])
+    waits = []
+
+    def wait(seconds):
+        waits.append(seconds)
+        now[0] += 1
+        if len(waits) >= 10:
+            worker._stop.set()
+        return worker._stop.is_set()
+
+    worker._stop.wait = wait
+    worker._loop()
+    key = request_worker._key(_cfg())
+    assert worker._failures[key] == 1 and worker._refused[key] == 1000.0 + 15   # 退避的 15 秒里只问了一次
+    assert [worker._back_off(key) for _ in range(6)] == [30, 60, 120, 240, 300, 300]
+
+    class Rejected(FakeClient):
+        def next(self, body):
+            raise Refused("on-demand request refused: 401", 401)
+
+    worker = request_worker.RequestWorker(lambda: [_cfg()], client_factory=Rejected(), timer=lambda: now[0])
+    worker._stop.wait = lambda seconds: worker._stop.set() or True
+    worker._loop()
+    assert reported == ["exp_CONN1_s"]

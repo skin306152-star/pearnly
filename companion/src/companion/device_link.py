@@ -45,8 +45,11 @@ ATTACHED = "attached"
 CLAIMED_ELSEWHERE = "claimed_elsewhere"
 LEFT = "left"
 SUPERSEDED = "superseded"
+# 心跳 / 取任务 / 文件夹同步连续收到 401（服务端不认这把密钥：实验栈与生产共用域名时拿着另一边发的、生产库从备份恢复后……）
+# → 本机把这个成员标成「密钥不能再用」，对话页打开时自动带 rekey 重新登记换新（10-25 主会话登记的缺陷：原来一直 401、不会自己恢复）
+STALE_KEY = "rejected"
 # 要人在对话页重新登记的两种：这个成员停用（不取任务、不同步、不领请求），直到换上新的密钥
-NEEDS_REGISTER = (SUPERSEDED, CLAIMED_ELSEWHERE)
+NEEDS_REGISTER = (SUPERSEDED, CLAIMED_ELSEWHERE, STALE_KEY)
 REJECTED = (401,)           # 这把密钥服务端不认：配对失效（见文件头），不是服务端旧版
 REFUSED = (403, 404)        # 服务端没有这两条方法（旧版）、总闸关着或连接停用
 OLD_SERVER_RETRY = 1800.0   # 旧服务端：半小时后再问一次（服务端可能已升级）
@@ -280,8 +283,55 @@ def settle(store, profile_id: str, status: str) -> str:
     return "marked"
 
 
+class Rejections:
+    """各成员连续收到 401 的记录：第一次 401 起至少 ``AFTER`` 秒、其间没成功过、又收到一次 401，才判这把密钥服务端不认
+    （避开部署重启、反代偶发的一次 401），交给 ``on_result(cfg, STALE_KEY)``（托盘 / 无界面入口照 ``settle`` 标上 device_state）。
+    同一把密钥只报一次；成功一次就清零。只记 ``pcc_`` / ``exp_`` 机器密钥的成员（MR.ERP 文件夹成员同样适用）。"""
+
+    AFTER = 60.0
+
+    def __init__(self, clock=time.monotonic, announcer=None) -> None:
+        self._clock = clock
+        self._announcer = announcer
+        self._lock = threading.Lock()
+        self._first: dict = {}     # 密钥 → 第一次 401 的时刻
+        self._reported: set = set()
+
+    def ok(self, cfg) -> None:
+        token = str(getattr(cfg, "bearer_token", "") or "")
+        with self._lock:
+            self._first.pop(token, None)
+
+    def rejected(self, cfg) -> bool:
+        """又收到一次 401；够条件、报出去了回 True。"""
+        token = str(getattr(cfg, "bearer_token", "") or "")
+        if not token or getattr(cfg, "device_state", ""):
+            return False
+        now = self._clock()
+        with self._lock:
+            first = self._first.setdefault(token, now)
+            if token in self._reported or now - first < self.AFTER:
+                return False
+            self._reported.add(token)
+            self._first.pop(token, None)
+        log.warning("这把密钥服务端一直不认（连续 401），标出来等对话页重新登记换新 · profile=%s", getattr(cfg, "profile_id", ""))
+        try:
+            cfg.device_state = STALE_KEY
+        except Exception:
+            pass
+        callback = getattr(self._announcer or ANNOUNCER, "on_result", None)
+        if callback is not None:
+            try:
+                callback(cfg, STALE_KEY)
+            except Exception:
+                log.exception("密钥不认的回调失败")
+        return True
+
+
 ANNOUNCER = Announcer()
+REJECTIONS = Rejections()
 
 __all__ = ["ANNOUNCER", "ATTACHED", "Announcer", "CLAIMED_ELSEWHERE", "HELLO", "KeyRejected", "LEAVE", "LEFT",
-           "NEEDS_REGISTER", "OldServer", "REFUSED", "REJECTED", "SUPERSEDED", "device_key", "hello", "hello_body", "identity",
+           "NEEDS_REGISTER", "OldServer", "REFUSED", "REJECTED", "REJECTIONS", "Rejections", "STALE_KEY", "SUPERSEDED",
+           "device_key", "hello", "hello_body", "identity",
            "leave", "settle_old_key", "new_device_key", "settle"]

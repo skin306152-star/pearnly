@@ -16,7 +16,7 @@ from typing import Callable, Optional
 
 from .config import CompanionConfig
 from .logger import activity, get_logger
-from . import projection_refresh, task_journal
+from . import device_link, projection_refresh, task_journal
 from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
@@ -745,8 +745,12 @@ def _run_periodic(
                 sum(1 for s in sets if s.get("writable")),
                 len(accts),
             )
+            device_link.REJECTIONS.ok(cfg)
         except Exception as e:
             log.warning("[heartbeat] 上报失败(忽略): %s", e)
+            # 服务端一直不认这把密钥（连续 401）：标出来，对话页打开时自动重新登记换新（device_link.Rejections）
+            if getattr(getattr(e, "response", None), "status_code", None) == 401:
+                device_link.REJECTIONS.rejected(cfg)
 
 
 # 连续 N 次心跳/拉取失败才判离线 —— 容忍部署重启(~20s)/ 瞬时网络闪断,

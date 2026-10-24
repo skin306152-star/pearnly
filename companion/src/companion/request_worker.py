@@ -24,7 +24,7 @@ from typing import Callable, Iterable, Optional
 
 import httpx
 
-from . import account_history, express_masters, express_read, folder_fetch
+from . import account_history, device_link, express_masters, express_read, folder_fetch
 from .config import member_active
 from .logger import get_logger
 from .queue_client import _device_name
@@ -48,6 +48,9 @@ RETRIES = 3
 OFFSET_CODE = "companion.on_demand_offset"
 # 服务端不认这两个接口（还没部署新版）、总闸关着或配对失效（401 / 403 / 404）：这条连接隔这么久再问，不每 15 秒刷日志。
 REFUSED_BACKOFF = 600
+# 网络断、服务端 5xx（部署重启、实验栈关了域名还指着它回 502）：这条连接按次数退避（15 秒起每次翻倍、最多 5 分钟），
+# 成功一次就清零。原来没有退避：别的成员在干活时每轮都会马上再问一次，一秒问几回（10-24 测试机日志）
+ERROR_BACKOFF = (15.0, 300.0)
 
 
 class RequestWorker:
@@ -61,6 +64,7 @@ class RequestWorker:
         self._timer = timer
         # 被拒的连接（{服务器 + 密钥前缀: 下次再问的时刻}）
         self._refused: dict = {}
+        self._failures: dict = {}   # 连接键 → 连续失败次数（ERROR_BACKOFF）
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._working = False
@@ -124,19 +128,34 @@ class RequestWorker:
                 try:
                     worked = self.round(cfg) or worked
                     self._refused.pop(key, None)
+                    self._failures.pop(key, None)
+                    device_link.REJECTIONS.ok(cfg)
                 except Refused as error:
                     self._refused[key] = self._timer() + REFUSED_BACKOFF
                     if error.rejected:
-                        # 配对失效（401）：等重新连接（托盘由心跳 / 文件夹同步提示），换了密钥就是另一个成员键，马上再问
+                        # 配对失效（401）：连续不认就标出来，对话页打开时自动重新登记换新（device_link.Rejections）；
+                        # 换了密钥就是另一个成员键，马上再问
                         log.info("按需请求：这把密钥服务端不认（已吊销或电脑已移除），等重新连接: %s", error)
+                        device_link.REJECTIONS.rejected(cfg)
                     else:
                         log.info("按需请求暂不可用（%s 秒后再问）: %s", REFUSED_BACKOFF, error)
                 except httpx.TransportError as error:
-                    log.info("按需请求连不上服务器: %s", type(error).__name__)
+                    log.info("按需请求连不上服务器（%s 秒后再问）: %s", self._back_off(key), type(error).__name__)
+                except httpx.HTTPStatusError as error:
+                    log.info("按需请求服务端出错 %s（%s 秒后再问）", error.response.status_code, self._back_off(key))
                 except Exception:
-                    log.exception("按需请求本轮失败")
+                    log.exception("按需请求本轮失败（%s 秒后再问）", self._back_off(key))
             if not worked:
                 self._stop.wait(self._idle)
+
+    def _back_off(self, key) -> int:
+        """这条连接又失败一次：按连续失败次数退避（ERROR_BACKOFF），回这次等几秒。"""
+        failures = self._failures.get(key, 0) + 1
+        self._failures[key] = failures
+        first, most = ERROR_BACKOFF
+        wait = min(most, first * 2 ** (failures - 1))
+        self._refused[key] = self._timer() + wait
+        return int(wait)
 
     # ── 一轮：领一件、做、交 ────────────────────────────────────────────────
 

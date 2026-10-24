@@ -36,7 +36,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
-from . import channel
+from . import channel, device_link
 from . import folder_plan as plan
 from . import update_block
 from .config import member_active
@@ -200,10 +200,14 @@ class FolderIntake:
                 try:
                     self.round(cfg, key)
                     self._status(cfg, "idle")
+                    device_link.REJECTIONS.ok(cfg)
                 except Refused as error:
                     log.info("文件夹录入本轮跳过: %s", error)
-                    # 配对失效（401）报 auth：托盘显示「连接已失效，请在设置中重新连接」（同 Express 成员心跳回 401）
+                    # 配对失效（401）报 auth：托盘显示「连接已失效，请在设置中重新连接」（同 Express 成员心跳回 401）；
+                    # 连续不认就标出来，对话页打开时自动重新登记换新（device_link.Rejections）
                     self._status(cfg, "auth" if error.rejected else "offline")
+                    if error.rejected:
+                        device_link.REJECTIONS.rejected(cfg)
                 except Exception:
                     log.exception("文件夹录入本轮失败")
                     self._status(cfg, "offline")

@@ -603,3 +603,28 @@ def test_finding_express_later_turns_a_read_only_pool_member_into_a_writer(tmp_p
     assert settings._use_roots(["S:\\2569\\EXP69"], "zh") == {"ok": True, "profiles_changed": True}
     # 只动 Express 池的那一个、用它原来的密钥；MR.ERP 成员与被说过不能再用的密钥都不动（断网时也不会把 MR.ERP 当 Express）
     assert ran == [("", store.profiles[0].profile_id, ["S:\\2569\\EXP69"])]
+
+
+def test_a_key_the_server_keeps_rejecting_is_marked_for_a_fresh_registration(tmp_path):
+    # 10-25：实验栈与生产共用域名，CC 拿着另一边发的密钥一直 401、不会自己恢复。连续 401（相隔至少一分钟、其间没成功过）
+    # 才标「密钥不能再用」，对话页打开时据此带 rekey 换新；偶发一次 401 或中间成功过都不标
+    clock, results = _Clock(), []
+    rejections = device_link.Rejections(clock=lambda: clock.now,
+                                        announcer=SimpleNamespace(on_result=lambda cfg, status: results.append((cfg.profile_id, status))))
+    cfg = SimpleNamespace(profile_id="P1", bearer_token="pcc_A_s", device_state="")
+    assert rejections.rejected(cfg) is False
+    clock.now = 30
+    assert rejections.rejected(cfg) is False          # 不到一分钟
+    rejections.ok(cfg)                                # 中间成功过：重新计
+    clock.now = 95
+    assert rejections.rejected(cfg) is False
+    clock.now = 160
+    assert rejections.rejected(cfg) is True
+    assert cfg.device_state == device_link.STALE_KEY and results == [("P1", "rejected")]
+    clock.now = 500
+    assert rejections.rejected(cfg) is False and len(results) == 1   # 只报一次
+    assert device_link.STALE_KEY in device_link.NEEDS_REGISTER
+    store = _store(tmp_path, ("pcc_A_s", "express"))
+    profile = store.profiles[0].profile_id
+    assert device_link.settle(_reload(store), profile, device_link.STALE_KEY) == "marked"
+    assert _reload(store).profiles[0].device_state == "rejected"     # 停用这个成员，等对话页重新登记（不删）
