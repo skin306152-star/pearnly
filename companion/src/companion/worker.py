@@ -350,12 +350,13 @@ def erp_scope(cfg, rows: list) -> list:
     「只报 CC 里勾选的数据根」）。不再按同税号把别的年度文件夹带进来——白天局域网服务器上线后会把没选的 S 盘真账也报上去、
     在 ERP 里建出只有 S 盘账套的公司（10-24 验收）。没选 = 一份都不报。Cowork 成员照旧整份报。"""
     from . import channel
-    from .express_machine import same_root
+    from .express_machine import under
 
     if getattr(cfg, "channel", channel.COWORK) != channel.CORE:
         return rows
+    # 勾的可以是年度文件夹，也可以是上一级位置（C:\PearnlyExpress）：位置下面以后新建的年度文件夹照样报（主会话 10-24）
     scope = [root for root in (getattr(cfg, "erp_roots", None) or ()) if root]
-    return [row for row in rows if any(same_root(str(row.get("root") or ""), root) for root in scope)]
+    return [row for row in rows if any(under(str(row.get("root") or ""), place) for place in scope)]
 
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:

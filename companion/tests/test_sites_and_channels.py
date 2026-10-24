@@ -206,3 +206,18 @@ def test_an_erp_member_reports_only_the_chosen_roots():
     assert worker.erp_scope(types.SimpleNamespace(channel=channel.CORE, erp_roots=()), rows) == []  # 默认一份都不报
     assert worker.erp_scope(types.SimpleNamespace(channel=channel.COWORK), rows) == rows
     assert worker._outcome_for("PERIOD_LOCKED") == "needs_review"
+
+
+def test_a_ticked_place_covers_the_year_folders_below_it_including_new_ones():
+    # 主会话 10-24：勾「C:\\PearnlyExpress」这一级，明年新建的 71EXP（心跳 discover 自动找进来）照样报；勾位置以外的不报
+    from companion.express_machine import erp_places, under
+
+    assert erp_places([r"C:\PearnlyExpress\70EXP", r"S:\2569\EXP69", r"\\accserver\d$\ACCOUNT\69EXP"]) == [
+        r"C:\PearnlyExpress", r"S:\2569", "S:\\", r"\\accserver\d$\ACCOUNT"]
+    assert under(r"C:\PearnlyExpress\71EXP", r"C:\PearnlyExpress") and not under(r"C:\PearnlyExpress2\71EXP", r"C:\PearnlyExpress")
+    rows = [{"root": r"C:\PearnlyExpress\70EXP", "path": "a"}, {"root": r"C:\PearnlyExpress\71EXP", "path": "b"},
+            {"root": r"S:\2569\EXP69", "path": "c"}]
+    erp = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress",))
+    assert [row["path"] for row in worker.erp_scope(erp, rows)] == ["a", "b"]
+    only_year = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress\70EXP",))
+    assert [row["path"] for row in worker.erp_scope(only_year, rows)] == ["a"]  # 只开年度文件夹：只报它

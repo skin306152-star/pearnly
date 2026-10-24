@@ -53,6 +53,29 @@ type Section = "general" | "connections" | "system";
 // 鼠标点按钮不拿焦点）就先回齿轮、齿轮不在再回用户菜单按钮（按这个先后，不按页面上的先后：用户菜单按钮排在齿轮前面）
 const SETTINGS_BACK = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'] as const;
 
+
+// ERP 能勾的：各年度文件夹，加上它们的上一级位置（上一级是年份数字目录的再加一级，如 S:\2569\EXP69 的 S:\）；同 CC 桌面版
+// `express_machine.erp_places`。按路径排，位置排在它下面的年度前
+const normPath = (path: string) => path.trim().replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+const samePath = (left: string, right: string) => !!left && normPath(left) === normPath(right);
+const underPath = (path: string, place: string) =>
+  samePath(path, place) || normPath(path).startsWith(normPath(place) + "\\");
+const parentPath = (path: string) => {
+  const head = path.replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "");
+  return /^[A-Za-z]:$/.test(head) ? head + "\\" : head;
+};
+function erpChoices(roots: string[]): string[] {
+  const places: string[] = [];
+  for (const root of roots) {
+    const parent = parentPath(root);
+    const name = parent.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "";
+    for (const place of [parent, ...(/^\d{2,4}$/.test(name) ? [parentPath(parent)] : [])]) {
+      if (place && !samePath(place, root) && !places.some((known) => samePath(known, place))) places.push(place);
+    }
+  }
+  return [...places, ...roots].sort((a, b) => normPath(a).localeCompare(normPath(b)));
+}
+
 export function Settings() {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<Section>("general");
@@ -504,29 +527,31 @@ function Connections({ api }: { api: Desktop }) {
         </Row>
       )}
 
-      {/* ERP 站点：这台电脑上哪些 Express 数据根归这个 ERP（CC 桌面版 1.12.0）。打开的根里的账套连同这些公司别的年度报给 ERP，
-          ERP 按它们自动建公司、同步主档；默认全关（同一台电脑连着事务所时不把别的客户报进来） */}
+      {/* ERP 站点：这台电脑上哪些 Express 数据归这个 ERP（CC 桌面版 1.12.0）。只报打开的那些里的账套（用户 10-24）：可以开某个
+          年度文件夹，也可以开它的上一级位置（以后新建的年度文件夹一并报）；ERP 按它们自动建公司、同步主档；默认全关 */}
       {product === "erp" && main?.channel === "core" && state.features?.includes(ERP_ROOTS) && roots.length > 0 && (
         <>
           <div className="mt-(--cc-settings-section-pt)">
             <Heading>{st.erpRoots}</Heading>
           </div>
-          {roots.map((root) => {
-            const picked = (main.erp_roots ?? []).includes(root);
+          {erpChoices(roots).map((path) => {
+            const chosen = main.erp_roots ?? [];
+            const picked = chosen.some((place) => samePath(place, path));
+            const covered = !picked && chosen.some((place) => underPath(path, place));
             return (
-              <div data-marquee-host="" key={root} className="cc-settings-row text-body">
+              <div data-marquee-host="" key={path} className="cc-settings-row text-body">
                 <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
-                <Marquee className="min-w-0 flex-1 truncate" title={root}>
-                  {root}
+                <Marquee className="min-w-0 flex-1 truncate" title={path}>
+                  {path}
                 </Marquee>
                 <Switch
-                  checked={picked}
-                  disabled={!!busy}
-                  label={root}
+                  checked={picked || covered}
+                  disabled={!!busy || covered}
+                  label={path}
                   onChange={(on) =>
                     void run("erp", "erp_roots", {
                       id: main.id,
-                      roots: on ? [...(main.erp_roots ?? []), root] : (main.erp_roots ?? []).filter((r) => r !== root),
+                      roots: on ? [...chosen, path] : chosen.filter((place) => !samePath(place, path)),
                     })
                   }
                 />

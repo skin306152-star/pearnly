@@ -24,7 +24,8 @@ from urllib.parse import urlsplit
 
 from . import autostart, channel, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
-from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
+from .express_machine import (apply_roots, detect_roots, erp_places, machine_roots, rescan_roots, roots_for_pick,
+                              same_root)
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore, ProfileStoreError
@@ -341,7 +342,8 @@ class DesktopSettings:
         if record is None or member_channel(record) != channel.CORE or member_site(record) != str(host or "").lower():
             return {"ok": False}
         machine = machine_roots(store)
-        picked = [root for root in machine if any(same_root(root, str(wanted or "")) for wanted in roots)]
+        allowed = [*machine, *erp_places(machine)]  # 年度文件夹，或它们的上一级位置
+        picked = [root for root in allowed if any(same_root(root, str(wanted or "")) for wanted in roots)]
         store.set_erp_roots(profile_id, picked)
         return {"ok": True, "profiles_changed": True}
 

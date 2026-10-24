@@ -36,6 +36,30 @@ def same_root(left, right) -> bool:
     return bool(left) and bool(right) and norm_root(left) == norm_root(right)
 
 
+def _parent(path: str) -> str:
+    head = ntpath.dirname(str(path or "").rstrip("\\/"))
+    return head + "\\" if re.fullmatch(r"[A-Za-z]:", head) else head
+
+
+def erp_places(roots: Iterable[str]) -> List[str]:
+    """ERP 成员能勾的「位置」（1.12.0，用户 10-24）：每个数据根的上一级；上一级是年份数字目录的（S:\\2569\\EXP69）再加一级。
+    勾了位置就覆盖它下面现有和以后新建的年度文件夹（新年度由心跳扫描 ``discover=True`` 自动找进来）。"""
+    places: List[str] = []
+    for root in roots or ():
+        parent = _parent(root)
+        found = [parent] + ([_parent(parent)] if re.fullmatch(r"\d{2,4}", ntpath.basename(parent.rstrip("\\")) or "") else [])
+        for place in found:
+            if place and place != root and not any(same_root(place, known) for known in places):
+                places.append(place)
+    return places
+
+
+def under(root, place) -> bool:
+    """``root`` 就是 ``place`` 或在它下面。"""
+    child, parent = norm_root(root), norm_root(place)
+    return bool(child) and bool(parent) and (child == parent or child.startswith(parent.rstrip("\\") + "\\"))
+
+
 def year_key(root: str) -> int:
     years = re.findall(r"\d{2}", Path(root).name)
     return max((int(year) for year in years), default=-1)
