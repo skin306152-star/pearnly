@@ -12,7 +12,9 @@ for (const step of args.steps || []) {
       el.click();
       out.steps.push({ click: step.click, found: true });
     } else if (step.eval) {
-      out.steps.push({ eval: step.eval, value: String(await (0, eval)(step.eval)).slice(0, 200) });
+      // 扫码函数可能返回一个读码器坏了就永远不结束的 Promise：最多等 3 秒，后面按「没见到画面」报，不靠整页超时
+      const value = await Promise.race([Promise.resolve((0, eval)(step.eval)), sleep(3000).then(() => "(仍在等待)")]);
+      out.steps.push({ eval: step.eval, value: String(value).slice(0, 200) });
     }
     await sleep(step.wait ?? 800);
   } catch (e) {
@@ -44,4 +46,5 @@ for (let i = 0; i < 120 && !(seen && code); i++) {
 out.picture = seen;
 out.code = code;
 out.ok = !!seen && !!code && String(code).includes(args.code);
+if (!out.ok) out.why = !seen ? "没见到可见的相机画面（<video> 没有尺寸 / 不可见 / 轨道不在播）" : "有画面但没读出测试码";
 return out;
