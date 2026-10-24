@@ -99,10 +99,12 @@ def company_options(user=None) -> list:
     user = user or frappe.session.user
     current = active_company(user)
     rows = frappe.get_all(DOCTYPE, {"name": ["in", allowed_companies(user)]},
-                          ["name", "company_name", "short_name"],
+                          ["name", "company_name", "short_name", "tax_id", "branch"],
                           order_by="is_default desc, company_name asc")
+    # 税号 + 分店给切换公司的搜索用（按账套自动建公司后一个租户几十家，10-24）
     return [{"name": row["name"], "company_name": row["company_name"] or row["name"],
-             "short_name": row["short_name"] or "", "is_current": row["name"] == current}
+             "short_name": row["short_name"] or "", "tax_id": row["tax_id"] or "", "branch": row["branch"] or "",
+             "is_current": row["name"] == current}
             for row in rows]
 
 

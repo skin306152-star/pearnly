@@ -115,7 +115,7 @@
 			// 公司清单给编辑弹窗里的多选（含停用的：老单据还挂在上面）。
 			const rows = await p.call("pearnly_erp_portal.masters.api.api_list_companies",
 				{limit: 0});
-			data.companies = rows.map(row => ({label: row.company_name, value: row.name}));
+			data.companies = rows.map(row => ({label: row.company_name, value: row.name, tax_id: row.tax_id || ""}));
 		}
 
 		// **函数声明而不是 const**：列表那一列在构造时就会调它（`format` 在 `p.list()` 里立刻跑），
@@ -169,6 +169,25 @@
 				options: (data.companies || []).map(row => ({ label: row.label, value: row.value,
 					checked: default_companies.includes(row.value) })) };
 		}
+		// 公司多了（按账套自动建公司后几十家）：勾选框上面一格原生搜索，按名称 / 税号只显示对得上的（勾选不变）
+		const many_companies = () => (data.companies || []).length > 10;
+		function company_search_field() {
+			return many_companies() ? [{ fieldtype: "Data", fieldname: "company_search", label: __("Search") }] : [];
+		}
+		function attach_company_search(form) {
+			const search = form.fields_dict.company_search;
+			if (!search) return;
+			const tax = Object.fromEntries((data.companies || []).map(row => [row.value, row.tax_id]));
+			// 挂在控件外层：外壳会把单行输入换成自动换行的 textarea（`pearnly-wrap-data`）
+			search.$wrapper.on("input", "input, textarea", event => {
+				const wanted = String($(event.target).val() || "").trim().toLowerCase();
+				form.fields_dict.companies.$wrapper.find(".checkbox").each((_index, box) => {
+					const value = $(box).find("input").attr("data-unit");
+					const text = `${box.innerText} ${tax[value] || ""}`.toLowerCase();
+					$(box).toggle(!wanted || text.includes(wanted));
+				});
+			});
+		}
 
 		function editor(row, full_page = false, initial = {}) {
 			const is_new = !row;
@@ -192,6 +211,7 @@
 				] : []),
 				...roles_fields(shown_roles, () => dialog),
 				{fieldtype: "Section Break"},
+				...company_search_field(),
 				companies_field(shown_companies),
 			];
 			for (const item of fields) {
@@ -243,6 +263,7 @@
 				});
 			}
 
+			attach_company_search(dialog);
 			permission_groups().forEach((group, index) => {
 				const parent = dialog.fields_dict["group_" + index];
 				parent.$wrapper.addClass("mb-0").find(".label-area").addClass("font-weight-bold");
