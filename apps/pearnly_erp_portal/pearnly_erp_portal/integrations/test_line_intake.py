@@ -26,7 +26,9 @@ class Base(unittest.TestCase):
         for module in (handlers, intake, line_flow):
             self.enterContext(patch.object(module, "_", _same))
         self.enterContext(patch.object(frappe, "session", SimpleNamespace(user="Guest"), create=True))
-        self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": None}), create=True))
+        # sql：这家公司能选的对方档条数（`line_flow._more_parties`），1 条 = 按钮里已列全
+        self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": None, "sql.return_value": [[1]]}),
+                                       create=True))
         self.enterContext(patch.object(frappe, "throw", side_effect=self.reject))
         self.enterContext(patch.object(frappe, "set_user", lambda user: setattr(frappe.session, "user", user)))
         self.enterContext(patch("pearnly_core.line.reply", side_effect=lambda token, messages: self.replies.append(messages) or True))
