@@ -221,3 +221,27 @@ def test_a_ticked_place_covers_the_year_folders_below_it_including_new_ones():
     assert [row["path"] for row in worker.erp_scope(erp, rows)] == ["a", "b"]
     only_year = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress\70EXP",))
     assert [row["path"] for row in worker.erp_scope(only_year, rows)] == ["a"]  # 只开年度文件夹：只报它
+
+
+def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(tmp_path, monkeypatch):
+    # 10-24 验收问题 16：Cowork 成员「重新读取」找到 71EXP，勾了 C:\PearnlyExpress 的 ERP 成员也要有（数据根是整台电脑的）；
+    # 每天的自动查找是同一条路（找新年度的计时整台电脑一份，哪个成员先扫到算哪个）
+    monkeypatch.setattr(worker, "_FOUND_ROOTS", [])
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    cowork_id = _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
+    erp_id = _member(store, ERP_TOKEN, "https://testerp.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
+    store.set_erp_roots(erp_id, [r"C:\PearnlyExpress"])
+    cowork, erp = store.runtime_config(cowork_id), store.runtime_config(erp_id)  # 取任务线程里各成员各持一份副本
+
+    worker._remember_roots(cowork, list(cowork.authorized_roots), [r"S:\EXP68", r"C:\PearnlyExpress\71EXP"])
+
+    again = ProfileStore.load(store.path, protector=_Protector())
+    assert {record.profile_id: list(record.authorized_roots) for record in again.profiles} == {
+        cowork_id: [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"], erp_id: [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]}
+    # ERP 成员手里的旧副本下一拍心跳前补上（不补的话它下次存盘会把记录里的 71EXP 盖掉）
+    assert list(erp.authorized_roots) == [r"S:\\EXP68"]
+    worker._adopt_found_roots(erp)
+    assert list(erp.authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
+    assert [row["path"] for row in worker.erp_scope(erp, [{"root": r"C:\PearnlyExpress\71EXP", "path": "T0HENG"}])] == ["T0HENG"]
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    assert list(reloaded.runtime_config(erp_id).erp_roots) == [r"C:\PearnlyExpress"]

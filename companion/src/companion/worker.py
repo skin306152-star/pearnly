@@ -469,15 +469,61 @@ def _sync_connection_identity(cfg: CompanionConfig, hb: dict) -> None:
         cfg.update(**changes).save()
 
 
+# 这次运行里找到的新年度文件夹（整台电脑的）：同一进程里别的成员下一拍心跳前补进自己的授权名单（_adopt_found_roots）。
+_FOUND_ROOTS: list = []
+
+
 def _remember_roots(cfg: CompanionConfig, authorized: list, found) -> None:
-    """「重新读取」找到的新年度文件夹记进授权名单:以后照常扫描,推送时也认。"""
+    """「重新读取」或每天自动查找找到的新年度文件夹记进授权名单:以后照常扫描,推送时也认。
+
+    数据根是整台电脑的（express_machine）：找到的写进这台电脑的全部 Express 成员，不只是这次扫描的那个成员。
+    原来只记进扫到它的成员，同一台电脑上勾了上一级位置的 ERP 成员就一直看不到新年度（10-24 验收问题 16：
+    Cowork 成员「重新读取」找到 71EXP，ERP 成员仍只有 70EXP；找新年度的 24 小时计时是整台电脑一份，每天自动查找也一样）。"""
     if not isinstance(found, list):
         return
     known = {_norm_path(root) for root in authorized}
     added = [str(root) for root in found if str(root or "").strip() and _norm_path(root) not in known]
-    if added:
-        cfg.update(authorized_roots=[*authorized, *added]).save()
-        log.info("[heartbeat] 新授权年度文件夹 %d 个", len(added))
+    if not added:
+        return
+    for root in added:
+        if not any(_norm_path(root) == _norm_path(item) for item in _FOUND_ROOTS):
+            _FOUND_ROOTS.append(root)
+    cfg.update(authorized_roots=[*authorized, *added]).save()
+    log.info("[heartbeat] 新授权年度文件夹 %d 个", len(added))
+    _share_roots(cfg, added)
+
+
+def _share_roots(cfg: CompanionConfig, added: list) -> None:
+    """把新年度文件夹写进同一台电脑上其余 Express 成员的记录（暂停的也写；只读文件夹的成员没有 Express 数据根，不写）。
+    用这份配置自己存盘走的那份成员记录（取任务线程的各成员共用一份），不另读文件。"""
+    store = getattr(getattr(cfg, "_profile_save", None), "__self__", None)
+    if store is None or not hasattr(store, "runtime_config"):
+        return
+    try:
+        from .express_machine import express_members
+
+        own = str(getattr(cfg, "profile_id", "") or "")
+        for record in express_members(store):
+            if record.profile_id == own:
+                continue
+            roots = list(record.authorized_roots or ())
+            missing = [root for root in added if not any(_norm_path(root) == _norm_path(item) for item in roots)]
+            if missing:
+                store.save_profile(store.runtime_config(record.profile_id).update(
+                    authorized_roots=[*roots, *missing]), paused=record.paused)
+    except Exception:
+        log.exception("[heartbeat] 新年度文件夹写进其余成员失败（同一进程里各成员下一拍心跳前照样补）")
+
+
+def _adopt_found_roots(cfg: CompanionConfig) -> None:
+    """同一进程里别的成员找到的新年度文件夹，这个成员手里的配置还没有就补上并存盘（各成员各持一份配置副本，
+    别的成员写进记录的，这份副本看不到；不补的话这份副本下次存盘会把它盖掉）。"""
+    authorized = list(getattr(cfg, "authorized_roots", None) or ())
+    if not _FOUND_ROOTS or not authorized or getattr(cfg, "kind", "express") == "folder":
+        return  # 只读文件夹成员没有 Express 数据根；还没有授权名单的（没配对）不加
+    missing = [root for root in _FOUND_ROOTS if not any(_norm_path(root) == _norm_path(item) for item in authorized)]
+    if missing:
+        cfg.update(authorized_roots=[*authorized, *missing]).save()
 
 
 def _offer_update(hb, on_update_available) -> None:
@@ -527,6 +573,7 @@ def _run_periodic(
             from .payload_contract import SUPPORTED_PAYLOAD_VERSIONS
             from .version import VERSION
 
+            _adopt_found_roots(cfg)
             root = cfg.resolved_express_root()
             authorized = list(getattr(cfg, "authorized_roots", None) or ())
             profile_id = str(getattr(cfg, "profile_id", "") or "")
