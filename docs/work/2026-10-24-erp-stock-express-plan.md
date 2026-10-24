@@ -69,7 +69,8 @@
 
 ## 四、现在的问题（按影响排）
 
-1. **同步抹掉没写进 Express 的动作**（接了 Express 的公司）：对齐目标只算「还没写进 Express 的采购 / 销售单」，收银台、出入库单、盘点、作废都不算 → 下次同步按 Express 结存记一笔 `express_sync` 调整，把这些数量调回去；调整还写到空库位，和原库位的结存分开（`P/express/masters.py:647-707`）。**推导结论，第一期先在实验栈实测确认**。
+1. **同步抹掉 ERP 的库存动作**（接了 Express 的公司）：对齐目标只算「还没写进 Express 的采购 / 销售单」，收银台、出入库单、盘点、作废都不算 → 下次同步按 Express 结存记一笔 `express_sync` 调整，把这些数量调回去；调整还写到空库位，和原库位的结存分开（`P/express/masters.py:647-707`）。
+   **10-25 实验栈实测属实，而且范围更大：已写进 Express 的采购也会被抹掉**（见九.1）。生产只读：真实租户 mrerp 没有电脑 / 账套接 Express，线上没有发生；第一期必须在任何真实客户接 ERP 之前上线。
 2. 已写进 Express 的单在 ERP 作废，Express 不跟（两边永久不一致）。
 3. 成本两套：ERP 移动均价、CC 移动均价、Express 按 COSMTD（F 占 81%），三者不保证一致；ERP 不回读 Express 成本。
 4. 没带仓库码的写入不维护 STLOC（Cowork 全部、ERP 新商品首单），按 STLOC 回读会少算。
@@ -162,3 +163,26 @@
 3. 作废已写进 Express 的单：写冲销单，还是 Express 侧作废（金样本出来后再定，先定原则：不改 Express 原单）。
 4. 金样本由谁在测试机上操作 Express 程序（前置条件）。
 5. NEGALLOW=N 的账套库存不足时停在「需要人工」是否可以。
+
+## 九、主会话 10-24 决定后的补充调研（10-25，只读 / 实验栈，不改代码）
+
+主会话审定第八节：成本与按仓数量以 Express 为准（ERP 回读单位成本与 STLOC）；分期一 → 二 → 三（二期 GR、SR / CN → RL → PD / PI）；作废不改 Express 原单（冲销还是 Express 侧作废按样本定）；
+NEGALLOW=N 库存不足停在「需要人工」；金样本先最大化用 S 盘只读样本；四.1 先实测；第一期动共用写账路径时 Cowork 全部推送类型进回归。
+
+### 九.1 四.1 实测（实验栈 testerp、main `d5b2c3c9` 同代码的镜像 `0d6bbeb8`，公司 CO-42069 ↔ C 盘 T9HENG15，测试机 CC 1.12.0）
+
+| 场景 | ERP 流水 | 同步后 | 结论 |
+|---|---|---|---|
+| 手工出库 1 件（IS2569-000001，PRD-167899 / Express PN00002，仓 01），不写 Express | 00:02:19 `stock_out` −1，结存 −1 | 00:02:37 同步记 `adjust` +1（`express_sync`），结存回 0 | **没写进 Express 的动作被抹掉：属实** |
+| 采购入库 3 件（PUR-2026-167900，新品，已写进 HP691024-010） | 22:39:04 `purchase_in` +3 | 22:39:25 同步记 `adjust` −3，结存 0；Express STMAS 结存 3 | **已写进 Express 的采购也被抹掉** |
+
+原因（逐层核过）：
+
+- 主档同步读的是 Express **STLOC**（`CC/express_masters.py` 的 `stock`：STLOC 的 LOCBAL），按「STLOC 结存 + 未写入单」对齐（`P/express/contracts.stock_targets`）。
+- ERP 给 CC 的载荷只在「建单时商品已挂 Express 编码」时才带仓库码（`P/express/contracts.document`：`loccod … if code`）。本地商品、随单新建的物料、预检时才选的现成 Express 物料，行上都没有仓库码 →
+  载荷是旧版（实验栈 PUR-2026-167900 版本 1、PUR-2026-167882 版本 2，`items` 里都没有 `loccod`）→ CC 不碰 STLOC（`CC/stock_location.py`「一个 loccod 都没带的载荷与以前逐字节相同」）。
+- C 盘 T9HENG15 只读核对：PN00002 STMAS 结存 3、**STLOC 没有这件货的行**；「1 -    -」STMAS 结存 128、STLOC 01 / 02 的 LOCBAL 都是 0（HP691024-004 的 125、-011 的 3 都只进了 STCRD / STMAS）。
+- 所以 Express 自己的分仓结存也和总结存对不上（Cowork 的推送从来不带仓库码，同样如此，即四.4）；ERP 以 STLOC 为准对齐时就把这些数量清掉。
+
+第一期最先修（方案不变，补两点）：对齐目标算全部未写入的库存单；**所有库存行都带仓库码、CC 不论有没有仓库码都按实际写入的仓维护 STLOC（含新建物料的 STLOC 行）**；
+对齐前先核「STLOC 合计 = STMAS 结存」，不一致的货不按 STLOC 抹 ERP 数，进差异清单。实验栈留下的测试单：STE-2026-167906（IS2569-000001）与两笔同步调整。
