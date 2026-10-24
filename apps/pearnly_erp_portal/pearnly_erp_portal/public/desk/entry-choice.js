@@ -13,7 +13,7 @@
 			arrow?.toggle(available);
 			$(control.input_area).toggleClass("pearnly-has-link-actions", available);
 		};
-		let choices = [], revision = 0, value_revision = 0, sync_revision = 0, applied = "", pending = Promise.resolve();
+		let choices = [], listed_for = null, revision = 0, value_revision = 0, sync_revision = 0, applied = "", pending = Promise.resolve();
 		// Search/focus refreshes must not cancel a valid scan. Only a changed value,
 		// a new scan, an OCR refill or a master refresh supersedes its result.
 		const current = own => own === value_revision && control.$wrapper[0].isConnected;
@@ -94,8 +94,34 @@
 				const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices",
 					{kind, context, txt: selected ? "" : text, company: company?.() || undefined});
 				if (own !== revision || !control.$wrapper[0].isConnected || !control.$input.is(":focus")) return;
+				listed_for = selected ? "" : text;
 				set_rows(rows); control.awesomplete.evaluate();
 			}, 180);
+			// 回车时下拉还是没按这串字刷新过的旧列表（扫码枪打完码立刻补回车、网慢时都会这样）：不认旧列表里高亮的那项，
+			// 按这串字查（物料按编码 / 条码 / 二维码 / 单位条码准确查，同扫码按钮）；只有一个就填上，否则只刷新下拉、不替人选
+			// （10-24 验收：扫一个条码填成了列表首项的另一件物料）。下拉已经是按这串字查出来的，照原生回车选高亮项。
+			control.input.addEventListener("keydown", event => {
+				if (event.key !== "Enter") return;
+				const text = String(control.$input.val() || "").trim();
+				const chosen = form.get_value(reference) && text === String(form.get_value(title) || "").trim();
+				if (!text || text === listed_for || chosen) return;
+				event.preventDefault(); event.stopImmediatePropagation();
+				const own = ++value_revision;
+				++revision;
+				control.awesomplete.close();
+				void p.call("pearnly_erp_portal.masters.selection.api_choices",
+					{kind, context, txt: text, scan: kind === "product" ? 1 : undefined, company: company?.() || undefined})
+					.then(async rows => {
+						if (!current(own)) return;
+						listed_for = text;
+						set_rows(rows);
+						if (rows.length === 1) {
+							await control.set_value(label(rows[0])); await sync();
+						} else if (control.$input.is(":focus")) {
+							control.awesomplete.evaluate();
+						}
+					});
+			}, true);
 			control.input.addEventListener("awesomplete-select", event => {
 				if (event.text?.value !== create_value) return;
 				event.preventDefault(); event.stopImmediatePropagation();
@@ -128,6 +154,7 @@
 					const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices", {kind, context, txt: code, scan: 1, company: company?.() || undefined});
 					if (!current(own)) return;
 					++revision;
+					listed_for = code;
 					set_rows(rows);
 					if (rows.length === 1) {
 						await control.set_value(label(rows[0])); await sync();

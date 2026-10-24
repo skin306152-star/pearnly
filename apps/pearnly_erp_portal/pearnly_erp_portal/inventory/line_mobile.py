@@ -83,7 +83,13 @@ def as_ticket_user(ticket=None) -> str:
     # 绑定还在不在：解绑之后票据立刻失效（票据本身不缓存权限）。
     if binding_user(payload.get("line_user_id") or "") != user:
         frappe.throw(_(NOT_BOUND), frappe.PermissionError)
-    frappe.set_user(user)
+    if frappe.session.user != user:
+        # 同一个浏览器里网页登录着、又打开了手机盘点页时，这些接口带着网页的登录会话进来：只这一次请求当票据上的人，
+        # 换一个新的会话对象、不写回网页的登录会话。`frappe.set_user` 是就地改会话，请求结束框架会把改过的会话写回缓存，
+        # 网页登录就成了未登录（10-24 验收）。同 `pearnly_core.cc_desktop.http_auth`。
+        frappe.local.session = frappe._dict(user="Guest", sid="Guest", data=frappe._dict())
+        frappe.local.session_obj = None
+        frappe.set_user(user)
     return user
 
 

@@ -328,23 +328,27 @@
 				relabel();
 			}
 			// 扫码枪：码打完立刻补一个回车。网慢时 Link 下拉的结果还没回来，回车什么也没选中，
-			// 离开这一格时框架又把「不是商品编号的这串码」清掉，这一行就丢了（录制问题 #18）。
-			// 所以回车时如果下拉里没有选中项，就按码直接查商品（编码 / 条码 / 二维码 / 单位条码，
-			// 与扫码查商品同一个接口），查到就填上。
+			// 离开这一格时框架又把「不是商品编号的这串码」清掉，这一行就丢了（录制问题 #18）；
+			// 下拉若还是获得焦点时那份默认列表，回车又会选中它高亮的另一件（10-24 验收）。
+			// 所以回车一律先按码查商品（编码 / 条码 / 二维码 / 单位条码，与扫码查商品同一个接口），查到就填上；
+			// 查不到才照原生回车选下拉里此刻高亮的那项（按名称打字选物料的用法不变）。
 			function scan_by_code(line) {
 				const control = line.form.fields_dict.product;
-				control.$input.on("keydown", event => {
+				control.input.addEventListener("keydown", event => {
 					if (event.key !== "Enter") return;
 					const code = String(control.$input.val() || "").trim();
-					const picked = control.awesomplete?.ul?.querySelector("[aria-selected='true']");
-					if (!code || picked) return;
-					event.preventDefault();
+					if (!code) return;
+					event.preventDefault(); event.stopImmediatePropagation();
+					const list = control.awesomplete;
 					void p.call("pearnly_erp_portal.products.service.api_find_product", {value: code}).then(found => {
-						if (found?.name && line.form.get_value("product") !== found.name) {
-							return line.form.set_value("product", found.name).then(() => control.awesomplete?.close());
+						if (found?.name) {
+							list?.close();
+							return line.form.get_value("product") === found.name ? null : line.form.set_value("product", found.name);
 						}
+						const picked = list?.ul?.querySelector("[aria-selected='true']");
+						if (picked) list.select(picked);
 					});
-				});
+				}, true);
 			}
 			function add(values = {}, collapse_previous = true) {
 				if (collapse_previous) lines.forEach(line => line.section.collapse(true));
