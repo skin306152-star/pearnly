@@ -144,6 +144,32 @@ class Prepare(Base):
         payload = self.prepare(doc(items=service))["payload"]
         self.assertIn("52-08-00-00", [line["acc"] for line in payload["lines"] if line["side"] == "D"])
 
+    def test_a_service_item_that_is_an_express_account_keeps_its_own_account(self):
+        # 10-24 验收问题 24：同一供应商记住了电费科目，再开一张维修费（明细认出 Express 费用类物料 5320-02），被记成了电费
+        key, = self.computer([book()])
+        self.masters(key, facts={"accounts": [*ACCOUNTS, *({"code": code, "name": code, "type": "5"}
+                                                           for code in ("53-30-02-00", "53-20-02-00"))],
+                                 "mapping": MAPPING, "catalog": {"isacc_candidates": []}})
+        repair = [{"name": "ค่าซ่อมแซมโกดัง", "code": "53-20-02-00", "unit": "", "qty": "1", "price": "200",
+                   "amount": "200.00", "loccod": "", "stock": False},
+                  {"name": "ค่าขนส่ง", "code": "", "unit": "", "qty": "1", "price": "100", "amount": "100.00",
+                   "loccod": "", "stock": False}]
+        held = self.prepare(doc(items=repair))
+        self.assertEqual(held["hold"], "choice_needed:account")   # 认不出物料的那一行照旧要选费用科目
+        needed, = held["needed"]
+        choices.remember(COMPANY["name"], "account", needed["subject"], "53-30-02-00")   # 这家记住的是电费
+        payload = self.prepare(doc(items=repair))["payload"]
+        debits = {line["acc"]: line["amount"] for line in payload["lines"] if line["side"] == "D"}
+        self.assertEqual((debits["53-20-02-00"], debits["53-30-02-00"]), ("200.00", "100.00"))   # 维修记维修，运费记记住的
+        self.assertEqual([(item["item_mode"], item.get("account")) for item in payload["items"]],
+                         [("direct_account", "53-20-02-00"), ("direct_account", None)])
+        only = self.prepare(doc(items=repair[:1], subtotal="200.00", vat="14.00", total="214.00"))
+        self.assertNotIn("hold", only, only)   # 都认出了：不问、不套用记住的电费
+        self.assertEqual([line["acc"] for line in only["payload"]["lines"] if line["side"] == "D"][0], "53-20-02-00")
+        sales = self.prepare(doc(direction="sales", paid=True, items=repair[:1], subtotal="200.00", vat="14.00",
+                                 total="214.00", party={"code": "C01", "name": "ร้านป้าแดง", "tax_id": "", "branch": ""}))
+        self.assertIn("53-20-02-00", [line["acc"] for line in sales["payload"]["lines"] if line["side"] == "C"])
+
     def test_a_line_code_no_longer_in_the_book_is_chosen_again(self):
         key, = self.computer([book()])
         self.masters(key)

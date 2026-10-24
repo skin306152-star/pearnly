@@ -225,6 +225,9 @@ PAYLOAD_VERSION = 1
 
 # 明细行带仓库码（``loccod``）的载荷：旧版小助手会静默写进主仓，用版本号让它诚实拒收（CC 桌面版按仓写入、维护 STLOC）
 LOCATION_PAYLOAD_VERSION = 4
+# 总账分录带角色（``role``，ERP 前台明细按行科目拆，费用 / 收入可以有几条）：旧版小助手按位置认分录会把第二条费用当进项税，
+# 用版本号让它诚实拒收（CC 桌面版 1.12.0 起按角色写）
+ROLE_PAYLOAD_VERSION = 5
 _STOCK_MODES = ("stock_item", "stock_sale")
 
 
@@ -239,8 +242,28 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, 2)
     if any(item.get("loccod") for item in lines):
         floor = max(floor, LOCATION_PAYLOAD_VERSION)
+    if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):
+        floor = max(floor, ROLE_PAYLOAD_VERSION)
     payload["payload_version"] = max(floor, int(payload.get("payload_version") or 0))
     return sanitize_payload_cp874(payload)
+
+
+def split_by_account(items, default_acc: str, base: Decimal, side: str, desc: str) -> Optional[List[Dict[str, str]]]:
+    """总账里收入（贷）或费用（借）那一边按行科目拆（10-24 验收问题 24：按供应商记住的费用科目盖掉了明细里认出的 Express 物料，
+    仓库维修记成了电费）：自带科目（`account`，ERP 前台给的）的行记到自己的科目，其余行记单据的科目；同科目合并、按出现顺序。
+    明细合计与税前额的分位差（明细已过对账闸）落最后一个科目，合计恒等于税前额；差得多回 None。"""
+    totals: Dict[str, Decimal] = {}
+    for item in items:
+        account = str(item.get("account") or "").strip() or default_acc
+        totals[account] = totals.get(account, Decimal("0")) + (_d(item.get("amount")) or Decimal("0"))
+    if not totals:
+        return None
+    gap = _q(base) - _q(sum(totals.values(), Decimal("0")))
+    if abs(gap) > Decimal("1"):
+        return None
+    last = list(totals)[-1]
+    totals[last] += gap
+    return [{"acc": account, "side": side, "amount": _s(amount), "desc": desc} for account, amount in totals.items()]
 
 
 def extract_line_items(
@@ -298,6 +321,10 @@ def extract_line_items(
             loccod = str(it.get("loccod") or "").strip()
             if loccod:
                 row["loccod"] = loccod[:4]
+        account = str(it.get("account") or "").strip()
+        if account:
+            # 来源已给出这一行自己的费用科目（ERP 前台：明细认出的 Express 费用类物料，编码就是科目）：照它记；OCR 的票没有这一键
+            row["account"] = account[:20]
         items.append(row)
 
     if incomplete or not items:

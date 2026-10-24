@@ -41,7 +41,10 @@ from pearnly_core.express_rules.push.posting_kind import (
 )
 from pearnly_core.express_rules.push.common import (
     ExpressMapResult,
+    ITEM_MODE_DIRECT,
     ITEM_MODE_NONSTOCK,
+    ITEMS_OK,
+    split_by_account,
     _d,
     _q,
     _s,
@@ -300,6 +303,17 @@ def build_express_sales_payload(
         total=total,
         item_mode=(lambda idx, _it: line_modes[idx]) if line_modes is not None else line_item_mode,
     )
+    if detail["status"] == ITEMS_OK and any(item.get("account") for item in detail["items"]):
+        # 行自带收入科目（ERP 前台认出的 Express 服务类物料，编码就是科目）：贷方按行科目拆，直接科目行 STKCOD = 它自己的科目
+        split = split_by_account(detail["items"], revenue_acc, base, "C", "รายได้จากการขาย")
+        if split is None:
+            return fail("entry_not_balanced")
+        # 收入分录可以有几条了：每条标上角色，小助手按角色写（没有 role 的旧载荷照旧按位置，1.12.0 起认 role）
+        lines = [{**lines[0], "role": "asset"}, *({**line, "role": "revenue"} for line in split),
+                 *({**line, "role": "output_vat"} for line in lines[2:])]
+        for item in detail["items"]:
+            if item.get("account") and item.get("item_mode") == ITEM_MODE_NONSTOCK:
+                item["item_mode"] = ITEM_MODE_DIRECT
 
     # 现销 HS / 赊销 IV:六级漏斗(common.payment_verdict)—— 人工裁决 > 票面显式字段 >
     # 票种语义(F3)> 银行佐证(F6)> 无信号默认赊销。销项 v1 不接供应商过账档案(档案锚是

@@ -34,7 +34,18 @@ def journal_rows(entry) -> List[GlRow]:
     """entry.lines → [(SEQIT, ACCNUM, TRNTYP, amount)]。
 
     lines 由 mapper 按 [采购(D), 进项税(D·若有), 应付(C)] 顺序产出;据此定角色/SEQIT。
+    带 ``role`` 的载荷(ERP 前台的明细按行科目拆,采购可以有几条,10-24)按角色定:purchase 几条都是采购 SEQIT,
+    input_vat / ap 各一条;没有 role 的旧载荷照旧按位置。
     """
+    if any(ln.get("role") for ln in entry.lines):
+        seqit = {"purchase": S.SEQIT["purchase"], "input_vat": S.SEQIT["input_vat"], "ap": S.SEQIT["ap"]}
+        rows: List[GlRow] = []
+        for ln in entry.lines:
+            role = str(ln.get("role") or "")
+            if role in seqit:
+                side = S.TRNTYP_CREDIT if role == "ap" else S.TRNTYP_DEBIT
+                rows.append((seqit[role], str(ln["acc"]), side, _d(ln["amount"])))
+        return rows
     debits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "D"]
     credits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "C"]
     rows: List[GlRow] = []

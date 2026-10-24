@@ -43,3 +43,15 @@
   自己 `frappe.get_doc`，不经 `has_permission`，只开了 CO-00001 的员工读到了别家公司的商品。新增 `masters.access.require_master`，
   `products.service._get`、`masters.customers._get`、`purchasing.suppliers.update_supplier` 都过它；用例进 `tests/test_erp_codes_per_company.py`。
   实验栈以该员工只读直调：别家的两件商品被拒、本地商品照常。
+- 验收问题 24（高，写错账）：同一供应商记住了「费用科目」（电费 5330-02）后，再开一张维修费单（明细认出 Express 费用类物料 5320-02，
+  Express 里这类条目 STKTYP=3、编码就是科目号），载荷仍按记住的电费科目记，STKCOD 与总账都成了 5330-02。修法（按类，采购与销售同）：
+  - ERP `express/prepare._own_accounts`：服务行认出的 Express 物料编码在这份账套的科目表里时，这一行带上自己的科目 `account`；服务行都有自己的科目时
+    不再问费用科目、也不套用按供应商记住的（`account_resolved`）。销项服务行同样带收入科目。
+  - 共用写账规则：`common.extract_line_items` 带下行的 `account`（OCR 的票没有这一键，Cowork 不变）；`common.split_by_account` 把费用（借）/ 收入（贷）
+    按行科目拆、同科目合并；`mapper` / `sales_mapper` 用它重排分录，行改直接科目行（STKCOD = 它自己的科目），分录标 `role`。
+  - 分录带 `role` 的载荷版本升到 5（`ROLE_PAYLOAD_VERSION`）：旧版 CC 按位置认分录会把第二条费用当进项税，用版本号让它诚实拒收；CC 1.12.0
+    `payload_contract` 认 5，`purchase_lines.journal_rows` / `dbf_sales._gl_rows` 有 role 时按角色写（费用 / 收入可以有几条），没有 role 照旧按位置。
+  - 用例：`tests/test_erp_express_direct.py`（记住电费后开维修 + 运费：维修记维修、运费记记住的；只有维修时不问；销项按收入科目拆）、
+    `companion/tests/test_payload_contract.py`（按角色写、旧载荷按位置）。实验栈对 PUR-2026-167878 只准备不写：借 5320-02 250、明细 5320-02、版本 5。
+  - 验收问的货物采购那对同科目借贷（1140-02 借 / 贷 1000）：不是 Express 原生记法，是 CC 存货重分类在「购货科目 = 存货科目」时写出的空对冲，余额不受影响；
+    这处会改到 Cowork 现有库存采购的写法，这批不动，并进出入库方案第一期配 62 套离线回归一起改。

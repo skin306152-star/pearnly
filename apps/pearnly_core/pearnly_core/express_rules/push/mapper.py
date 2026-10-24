@@ -65,6 +65,7 @@ from pearnly_core.express_rules.push.common import (
     ITEM_MODE_STOCK,
     ITEMS_OK,
     line_item_names,
+    split_by_account,
     payment_verdict_for,
     resolve_account,
     resolve_account_sourced,
@@ -93,6 +94,13 @@ from pearnly_core.express_rules.push.field_rules import lane_verdict
 # 镜像 MR.ERP 453 的通用 EXPENSE 物料先例(autocreate._provision_expense_item);
 # 供应商名不丢——GL 借方行 desc 已带卖方名。
 _EXPENSE_ITEM_NAME = "ค่าใช้จ่าย"
+
+
+def _own_accounts(items) -> List[str]:
+    """票面明细里每一行自带的费用科目（没有的是空串）；不是明细列表回空。"""
+    if not isinstance(items, list):
+        return []
+    return [str(item.get("account") or "").strip() if isinstance(item, dict) else "" for item in items]
 
 
 def _expense_detail(total: Decimal) -> Dict[str, Any]:
@@ -205,6 +213,10 @@ def build_express_payload(
     if choices.get("account"):
         # 来源细分（人这次选的 / 记过的 / 任务默认 / Express 历史，`choices.resolve` 与推送服务定）；没给的照旧记 choice
         purchase_acc, acc_source = str(choices["account"]), str(choices.get("account_from") or "choice")
+    own_accounts = _own_accounts(fields.get("items"))
+    if not purchase_acc and own_accounts and all(own_accounts):
+        # 每一行都自带费用科目（ERP 前台）：不用另找单据的费用科目
+        purchase_acc, acc_source = own_accounts[0], "item"
     if not purchase_acc:
         return fail("no_purchase_account")
     ap_acc = resolve_account(accounts, "accounts_payable", config.get("ap_acc"))
@@ -298,6 +310,13 @@ def build_express_payload(
             total=total,
             item_mode=(lambda idx, _it: line_modes[idx]) if line_modes is not None else item_mode,
         )
+    if detail["status"] == ITEMS_OK and any(item.get("account") for item in detail["items"]):
+        split = split_by_account(detail["items"], purchase_acc, base, "D", name or "ซื้อสินค้า/บริการ")
+        if split is None:
+            return fail("entry_not_balanced")
+        # 采购分录可以有几条了：每条标上角色，小助手按角色写（没有 role 的旧载荷照旧按位置，1.12.0 起认 role）
+        rest = [{**line, "role": "input_vat" if line["side"] == "D" else "ap"} for line in lines[1:]]
+        lines = [{**line, "role": "purchase"} for line in split] + rest
 
     # 现购 HP / 赊购 RR:六级漏斗(common.payment_verdict)—— 人工裁决 > 票面显式字段 >
     # 票种语义(F3)> 供应商过账档案(F4)> 银行佐证(F6)> config 默认(B2B 缺省 RR)。
@@ -352,12 +371,16 @@ def build_express_payload(
     if item_mode == ITEM_MODE_STOCK and stock_acccod:
         # 与销项同键同义:账套一件库存品都没有时,小助手靠它建 STKTYP=0(见 sales_mapper 同处)。
         payload["stock_acccod"] = stock_acccod
-    if choices.get("account"):
-        # 选定了费用科目:照会计的记法写直接科目行(STKCOD=科目),不按行建服务存货
-        # (2026-09-28 压测:85 张服务票按行建出 44 个服务存货、全落兜底科目)。
-        for item in payload["items"]:
-            if item.get("item_mode") == ITEM_MODE_NONSTOCK:
-                item["item_mode"] = ITEM_MODE_DIRECT
+    for item in payload["items"]:
+        if item.get("item_mode") != ITEM_MODE_NONSTOCK:
+            continue
+        if item.get("account"):
+            # 行自带费用科目（ERP 前台认出的 Express 费用类物料）：直接科目行，STKCOD = 它自己的科目（小助手按行取 account）
+            item["item_mode"] = ITEM_MODE_DIRECT
+        elif choices.get("account"):
+            # 选定了费用科目:照会计的记法写直接科目行(STKCOD=科目),不按行建服务存货
+            # (2026-09-28 压测:85 张服务票按行建出 44 个服务存货、全落兜底科目)。
+            item["item_mode"] = ITEM_MODE_DIRECT
     apply_to_payload(payload, choices)
     return ExpressMapResult(
         True, finalize_payload(attach_prior_docnum(payload, prior_docnum)), "ok"

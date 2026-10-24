@@ -106,7 +106,18 @@ def _gl_rows(entry: SalesEntry) -> List[Tuple[str, str, str, Decimal]]:
     """entry.lines → [(SEQIT, ACCNUM, TRNTYP, amount)]。
 
     lines 顺序 [借 资产(应收/现金), 贷 收入, 贷 销项税(若有)];借资产=2/贷收入=5/贷税=6。
+    带 ``role`` 的载荷(ERP 前台的明细按行科目拆,收入可以有几条,10-24)按角色定;没有 role 的旧载荷照旧按位置。
     """
+    if any(ln.get("role") for ln in entry.lines):
+        seqit = {"asset": S.SALES_SEQIT["asset"], "revenue": S.SALES_SEQIT["revenue"],
+                 "output_vat": S.SALES_SEQIT["output_vat"]}
+        out: List[Tuple[str, str, str, Decimal]] = []
+        for ln in entry.lines:
+            role = str(ln.get("role") or "")
+            if role in seqit:
+                side = S.TRNTYP_DEBIT if role == "asset" else S.TRNTYP_CREDIT
+                out.append((seqit[role], str(ln["acc"]), side, Decimal(str(ln["amount"]))))
+        return out
     debits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "D"]
     credits = [ln for ln in entry.lines if str(ln.get("side", "")).upper() == "C"]
     rows: List[Tuple[str, str, str, Decimal]] = []

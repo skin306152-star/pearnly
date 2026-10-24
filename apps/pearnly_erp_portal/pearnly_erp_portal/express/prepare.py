@@ -65,6 +65,18 @@ def _current_codes(pages, config):
     return pages
 
 
+def _own_accounts(pages, config) -> bool:
+    """服务行认出的 Express 物料，编码就是这份账套科目表里的科目（Express 里费用类条目常以科目号作编码，STKTYP=3）：这一行按它自己的
+    科目记（写账规则按行拆借方、直接科目行 STKCOD = 这个科目）。返回「服务行都有自己的科目」——那就不用再问费用科目、
+    也不套用按供应商记住的（10-24 验收问题 24：记住的电费科目盖掉了仓库维修）。"""
+    accounts = {str(row.get("code") or "").strip() for row in config.get("reported_accounts") or []}
+    service = [item for item in pages[0]["fields"]["items"] if item["posting_kind"] != "stock"]
+    for item in service:
+        if item["code"] and item["code"] in accounts:
+            item["account"] = item["code"]
+    return bool(service) and all(item.get("account") for item in service)
+
+
 # 电脑回报这几种（对方档有疑似重复 / 同税号分店认不准）：重试结论一样，要在 ERP 里选一次现成的对方档
 PARTY_CODES = frozenset({"CUSTOMER_DUP_SUSPECTED", "SUPPLIER_DUP_SUSPECTED", "CUSTOMER_BRANCH_AMBIGUOUS",
                          "SUPPLIER_BRANCH_AMBIGUOUS"})
@@ -148,8 +160,10 @@ def prepare(doc, company_row, ensure_masters):
         return {"hold": contracts.READING, "book": book}
     config = _config(book, data, company_row["name"])
     pages = _current_codes(contracts.pages(doc), config)
+    own = _own_accounts(pages, config)   # 销项的服务行同样按自己的收入科目记
     decision = choice_rules.resolve(pages[0]["fields"], direction=doc["direction"], posting_kind=None, config=config,
-                                    remembered=choices.remembered(company_row["name"]))
+                                    remembered=choices.remembered(company_row["name"]),
+                                    account_resolved=own and doc["direction"] == "purchase")
     if decision["needed"]:
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         return {"hold": contracts.CHOICE + ":" + kinds, "needed": decision["needed"], "book": book}
