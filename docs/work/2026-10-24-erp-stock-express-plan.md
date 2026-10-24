@@ -224,3 +224,19 @@ NEGALLOW=N 库存不足停在「需要人工」；金样本先最大化用 S 盘
 | 存量差异 | — | 不改 Express 存量；62 套离线统计各账套 STLOC ≠ STMAS 的件数与金额写进本文；要修另出方案 |
 
 开工前置：共用件连带回归闸门（`pearnly/regression-safety-net`）合入；S 盘只读金样本（九.4，待白天 accserver 在线）补齐作废 / 退货 / 领用 / 调整的原生字段。
+
+### 九.4 S 盘只读金样本（明天白天 accserver 在线时做，脚本已备好、在旧副本上试跑通过）
+
+- 选账套（从测试机真账旧副本语料 158 套按单据用量挑，旧副本的 `来源.txt` 记着 S 盘路径）：68POLYM（OU、JU 增 / 减、RL、SR、GR，ISPERPETUA=N 定期盘存）、68SKCHE 与 69SKCHE（PD、PI，同一家两年，
+  推断月结前后 XUNITPR 回填）、68NLTB（RL 1.07 万行、SR、GR、HS，NEGALLOW=N、LOC_COST=Y）、6907GIZ（RL、JU）、6907WNF（CN）、6902ASC（GR）、6819EXCP 与 68PAISAR（HP，找「现购转账」）。
+- 做法：以 skin3 身份在测试机（S 盘是 skin3 的映射）把这几本的 STTRN、STCRD、STLOC、STMAS、GLJNL / GLJNLIT、ISRUN、APTRN / ARTRN、ISINFO、ISTAB、APMAS / ARMAS、ISVAT、
+  APRCPIT / ARRCPIT、GLACC 只读复制到 `C:\PearnlyStress\_stock_sample_1025`（`shutil.copy2` 只读源文件）；再只读分析副本：每类各挑最早 1 张 + 最近 2 张原生单，拼出它在各表的全部非空字段；
+  作废单（DOCSTAT=C 等）每表最多 3 张；STLOC 合计与 STMAS 结存是否一致；销售出库 XUNITPR=0 按月分布；与语料旧副本同一行比 XUNITPR 前后变化（推断月结 / 计算成本是否回填）。
+- 旧副本试跑已看到的（68NLTB、68POLYM，只读）：作废标记在 APTRN / ARTRN 的 DOCSTAT（C = 作废，另有 M / R 用在收款类）；ISPERPETUA=N 的账套销售出库成本全是 0（定期盘存不结转）；
+  68NLTB（永续盘存）每月只有 3%–5% 的销售行成本为 0。STTRN 在旧副本里没有，要靠这次 S 盘复制。
+- 做完列「只读样本仍答不了、必须在 C 盘用 Express 程序录一张看前后变化」的最小清单（每条写为什么），交主会话请用户安排办公室的人录。
+
+### 九.5 并进成本项的已知现象（主会话 10-25 转验收）
+
+- 先卖后买（负库存）时，销售那张没有成本分录：CC 卖出时这件货无成本基础（零 / 负结存、也没有标准成本）就不结转 COGS（`CC/stock_sale.py` 的设计），之后进货也不回补那张销售的成本。
+  并进第一期（NEGALLOW=N 停在「需要人工」，不再产生这类单）与第三期（成本以 Express 为准：样本确认 Express 月结 / 计算成本会不会回填，会就回读，不会就由 CC 按 COSMTD 补结转）。
