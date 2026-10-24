@@ -11,6 +11,7 @@
 import json
 
 import frappe
+from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_core.cc_desktop import books, jobs
@@ -124,12 +125,19 @@ def form_document(doctype, payload, company) -> dict:
                  "branch": payload.get("supplier_branch_no") or (row or {}).get("branch_no") or ""}
         paid = str(payload.get("is_paid") or 0) not in ("0", "False", "false", "")
         number, currency = payload.get("doc_no") or payload.get("system_no") or "-", payload.get("currency") or "THB"
+    from pearnly_erp_portal.inventory import warehouses
+
+    stocked = str(payload.get("update_stock", 1)) not in ("0", "False", "false", "")
     lines = []
     for line, computed in zip(payload.get("lines") or [], totals.get("lines") or []):
         line = frappe._dict({**line, "line_total": computed.get("line_total")})
         goods = doctype == SALES or (line.get("item_type") or "goods") == "goods"
         if goods and not line.get("product"):
             line.product = _matched_product(line, company)  # 提交时同样按条码 / 编码 / 品名认（不建档）
+        if goods and stocked and (doctype == PURCHASE or line.product) and not warehouses.receiving(
+                line.get("warehouse"), company=company):
+            # 提交时也会这样拒（`positions.prepare`）：先报表单的错，别让人答完 Express 的选择又被打回（10-24 验收）
+            frappe.throw(_("Warehouse not found"))
         lines.append(line)
     out = _lines(doctype, frappe._dict({"lines": lines}))
     if doctype == PURCHASE:

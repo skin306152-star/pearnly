@@ -47,8 +47,15 @@
 		if (!frappe.boot.pearnly_express) return true;
 		const api = "pearnly_erp_portal.express.api.preflight";
 		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
-		// 预检本身出错不拦提交：提交后照常准备，要选的再弹出
-		let info = await p.call(api, {doctype, payload: JSON.stringify(payload)}, "POST").catch(() => null);
+		// 表单本身的错（缺仓库等，服务端已弹出原因）：不提交，同提交时一样被拒；网络 / 服务出错不拦，提交后照常准备、要选的再弹出
+		const shown = error => Boolean(error?._server_messages || error?.responseJSON?._server_messages);
+		let info;
+		try {
+			info = await p.call(api, {doctype, payload: JSON.stringify(payload)}, "POST");
+		} catch (error) {
+			if (shown(error)) return false;
+			info = null;
+		}
 		while (info?.needed?.length) {
 			const needed = info.needed;
 			const answers = await new Promise(resolve => {

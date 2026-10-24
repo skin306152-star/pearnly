@@ -383,6 +383,8 @@
 					const key = sync_key(result?.state);
 					frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)),
 						indicator: key === "reading" ? "blue" : "orange"});
+					// 状态栏当场换成这次的结果（不等做完 / 刷新才变；10-24 验收）
+					if (form?.fields_dict?.express_sync_state) form.set_value("express_sync_state", t(`company.syncExpress.${key}`));
 					if (key === "reading") watch_sync(company, still_current);
 				});
 			}

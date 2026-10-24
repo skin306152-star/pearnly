@@ -259,7 +259,9 @@ class MasterSync(Base):
         import types
         from unittest import mock
         utils = types.ModuleType("frappe.utils")
-        utils.now_datetime = utils.nowdate = lambda: "2026-10-23"
+        import datetime as dt
+        utils.nowdate = lambda: "2026-10-23"
+        utils.now_datetime = lambda: dt.datetime(2026, 10, 23, 12, 1)
         stubs = {"frappe.utils": utils}
         for name in ("pearnly_erp_portal.express.push", "pearnly_erp_portal.express.target",
                      "pearnly_erp_portal.inventory", "pearnly_erp_portal.inventory.contracts",
@@ -454,6 +456,28 @@ class MasterSync(Base):
             self.sync.queue("CO-1")  # 新一轮（每小时兜底 / 改动）照样重发
             self.sync.advance()
         self.assertEqual(table["CO-1"]["express_sync_state"], "reading")
+
+    def test_an_offline_company_is_queued_again_when_a_computer_is_back(self):
+        # 10-24 验收：读取中电脑下线一直「读取中」；电脑回来后一直显示「未连接」
+        import datetime as dt
+        import types
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "tax_id": OWN, "branch": "00012", "is_active": 1, "express_sync_state": "reading"}
+        table["CO-2"] = {"name": "CO-2", "tax_id": OWN, "branch": "00012", "is_active": 1, "express_sync_state": "offline"}
+        online = {"value": False}
+        stub = types.SimpleNamespace(find=lambda kind, key: {"status": "requested"}, latest=lambda kind, key: None,
+                                     waiting=lambda kind, key: None if online["value"] else {"reason": "offline"},
+                                     create=lambda *a, **kw: {"status": "requested"})
+        with mock.patch.object(self.sync, "requests", stub), \
+                mock.patch.object(self.sync, "now_datetime", lambda: dt.datetime(2026, 10, 24, 14, 25)), \
+                mock.patch.object(self.sync.target, "current", lambda row, day: {"key": "k1", "path": PATH, "label": "T.9"},
+                                  create=True):
+            self.sync.advance()
+            self.assertEqual([table[c]["express_sync_state"] for c in ("CO-1", "CO-2")], ["offline", "offline"])
+            online["value"] = True
+            self.sync.advance()
+        self.assertEqual([table[c]["express_sync_state"] for c in ("CO-1", "CO-2")], ["reading", "reading"])
 
     def test_only_a_changed_mark_or_a_new_book_starts_a_full_sync(self):
         # Express 主档有改动 ERP 自动跟上：每 10 分钟请电脑看一眼主档表的文件属性，变了 / 换了新年度账套才整套读

@@ -55,6 +55,7 @@ EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{compa
 NOTIFY_KEY = "erp-express-sync-notify:"  # 缓存：哪几个人在等这家公司的同步结果
 # 记在公司上的同步状态（公司页显示）
 QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
+OFFLINE, OUTDATED = "offline", "outdated"
 # 自动同步同时在读的公司最多这么多：电脑一本一本读（大账套约 50 秒），6 本约 5 分钟，在 10 分钟领取时限内；3 家时电脑常空等
 # （10-24 实验栈 41 家重同步 60 分钟）
 OPEN_READS = 6
@@ -74,6 +75,12 @@ def queue(company):
         _record(company, {"state": QUEUED})
 
 
+def _reachable(row) -> bool:
+    """这家公司现用的账套此刻有能读的电脑（在线、版本够）。"""
+    book = target.current(row, nowdate())
+    return book is not None and requests.waiting(KIND, book["key"]) is None
+
+
 def _job_id(name, company):
     return f"erp-express-{name}:{frappe.local.site}:{company}"
 
@@ -89,11 +96,17 @@ def advance():
     """（每分钟）推进自动同步：在读的读好了就排后台任务落库（请求过期了重发，电脑读失败就记失败与原因）；在读的不满
     :data:`OPEN_READS` 家就让排队最久的几家发起读取（没同步过的先来）；停在「同步中」、后台却已没有它的任务的（落库被部署、
     重启打断）排回队里。没有要推进的就一条查询。"""
-    rows = frappe.get_all(COMPANY, filters={"express_sync_state": ["in", [QUEUED, READING, SYNCING]], "is_active": 1},
-                          fields=["name", "express_sync_state"], order_by="express_synced_at asc, name asc",
-                          limit_page_length=0)
+    rows = frappe.get_all(COMPANY, filters={"express_sync_state": ["in", [QUEUED, READING, SYNCING, OFFLINE, OUTDATED]],
+                                            "is_active": 1},
+                          fields=["name", "tax_id", "branch", "express_sync_state"],
+                          order_by="express_synced_at asc, name asc", limit_page_length=0)
+    recheck = now_datetime().minute % 5 == 0  # 「未连接 / 要更新」的每 5 分钟看一次电脑回来没有（整夜关机时几十家）
     for row in rows:
         if row.express_sync_state == SYNCING and not _landing(row.name):
+            _record(row.name, {"state": QUEUED})
+            row.express_sync_state = QUEUED
+        elif row.express_sync_state in (OFFLINE, OUTDATED) and recheck and _reachable(row):
+            # 电脑回来了（或升级了）：排回队里，不等标记变化 / 一天兜底（10-24 验收：上线后还一直显示「未连接」）
             _record(row.name, {"state": QUEUED})
             row.express_sync_state = QUEUED
     reading = 0
@@ -105,6 +118,9 @@ def advance():
             _record(row.name, found)
         elif found["made"]["status"] == "done":
             enqueue(row.name, wait=0)
+        elif found["made"]["status"] == "requested" and (gone := requests.waiting(KIND, found["book"]["key"])):
+            # 发出去后够得到的电脑都下线了：说原因，不干等到领取时限（10 分钟）；电脑回来时上面那段会排回队里
+            _record(row.name, {"state": "outdated" if gone.get("reason") == "update_needed" else OFFLINE})
         else:
             reading += 1
     for row in rows:

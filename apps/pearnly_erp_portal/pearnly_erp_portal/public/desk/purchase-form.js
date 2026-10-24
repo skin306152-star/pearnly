@@ -93,7 +93,9 @@
 			line.form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));
 			line.form.sections[0].body.addClass("mt-0 pt-0");
 			state.lines.push(line);
-			await line.form.set_values({item_type: "goods", qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0, ...values});
+			// 类型「费用」的单：新明细默认服务类（10-24 验收：默认货物，提交时又要选仓库、对存货）
+			const item_type = form.get_value("doc_kind") === "expense" ? "service" : "goods";
+			await line.form.set_values({item_type, qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0, ...values});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
 			line.ready = true; line.section.collapse(false); changes();
@@ -118,6 +120,13 @@
 			...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), stock_posted_at: p.datetime_text(doc.stock_posted_at),
 			outstanding: Number(doc.net_payable || 0) - Number(doc.paid_amount || 0)});
 		await state.party_choice.show();
+		// 改成「费用」时，还没选商品的货物行一并改成服务类
+		form.fields_dict.doc_kind.df.onchange = () => {
+			if (form.get_value("doc_kind") !== "expense") return;
+			for (const line of state.lines) {
+				if (line.form.get_value("item_type") === "goods" && !line.form.get_value("product")) void line.form.set_value("item_type", "service");
+			}
+		};
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 		let attachment_list;
