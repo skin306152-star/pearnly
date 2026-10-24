@@ -11,7 +11,7 @@ import frappe
 from frappe import _
 from frappe.utils import now
 
-from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.cashier import contracts, terminals
 
 DT = "ERP Shift"
@@ -253,10 +253,29 @@ def close_shift(name, *, counted_cash=None, counted=None, note=None) -> dict:
             "counted_cash": float(counted_total), "cash_diff": float(diff), "summary": data}
 
 
+SHIFT_SORT = {field: field for field in ("name", "terminal", "cashier", "status", "opened_at", "closed_at",
+                                          "expected_cash", "counted_cash", "cash_diff")}
+
+
 def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None,
-                names=None, limit=50) -> list[dict]:
-    """班次列表。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
+                names=None, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
+    """班次列表（按页取、服务端排序）。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
     guard.require("shifts.read")
+    return frappe.get_list(
+        DT, filters=_shift_filters(terminal, cashier, status, date_from, date_to, names),
+        fields=["name", "terminal", "cashier", "status", "shift_seq", "opened_at", "closed_at",
+                "opening_float", "expected_cash", "counted_cash", "cash_diff"],
+        order_by=listing.order_by(sort_by, sort_order, SHIFT_SORT, "opened_at desc"),
+        limit_start=int(start or 0), limit_page_length=int(limit))
+
+
+def count_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None, names=None) -> int:
+    guard.require("shifts.read")
+    return len(frappe.get_list(DT, filters=_shift_filters(terminal, cashier, status, date_from, date_to, names),
+                               pluck="name", limit_page_length=0))
+
+
+def _shift_filters(terminal, cashier, status, date_from, date_to, names) -> dict:
     # 一租户多公司：只看当前公司那几台收银台上的班次（班次表本身没有仓库列）。
     filters: dict = dict(terminals.scope_filter())
     if not rules.record_scope(guard.current_roles()) == rules.ALL_RECORDS:
@@ -272,8 +291,4 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
         filters["status"] = status
     if date_from and date_to:
         filters["opened_at"] = ["between", [f"{date_from} 00:00:00", f"{date_to} 23:59:59"]]
-    return frappe.get_list(
-        DT, filters=filters,
-        fields=["name", "terminal", "cashier", "status", "shift_seq", "opened_at", "closed_at",
-                "opening_float", "expected_cash", "counted_cash", "cash_diff"],
-        order_by="opened_at desc", limit_page_length=int(limit))
+    return filters

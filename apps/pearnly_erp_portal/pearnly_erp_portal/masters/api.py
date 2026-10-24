@@ -22,6 +22,11 @@ def api_list_companies(**kwargs):
 
 
 @frappe.whitelist()
+def api_count_companies(**kwargs):
+    return company.count_companies(**_clean(kwargs))
+
+
+@frappe.whitelist()
 def api_company_context():
     """页面启动要的两件事：我能用哪些公司、当前是哪家（切换公司那颗按钮用）。"""
     return {"companies": company.company_options(), "current": company.active_company()}
@@ -104,6 +109,11 @@ def api_update_company(**kwargs):
 @frappe.whitelist()
 def api_list_customers(**kwargs):
     return customers.list_customers(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_count_customers(**kwargs):
+    return customers.count_customers(**_clean(kwargs))
 
 
 @frappe.whitelist()

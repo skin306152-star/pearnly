@@ -15,7 +15,7 @@
 import frappe
 from frappe import _
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import contracts, tax_ids
 
 DOCTYPE = "ERP Company"
@@ -197,12 +197,22 @@ def for_document(name) -> dict:
     return doc.as_dict()
 
 
-def list_companies(*, include_inactive=False, limit=50) -> list[dict]:
+# 公司按 Express 账套自动建（一个事务所可以有几百家）：列表页按页取、服务端排序
+COMPANY_SORT = {field: field for field in ("company_name", "short_name", "tax_id", "phone", "is_active")}
+
+
+def list_companies(*, include_inactive=False, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
     guard.require("company.read")
     filters = {} if include_inactive else {"is_active": 1}
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
-                           order_by="is_default desc, company_name asc",
-                           limit_page_length=int(limit))
+                           order_by=listing.order_by(sort_by, sort_order, COMPANY_SORT, "is_default desc, company_name asc"),
+                           limit_start=int(start or 0), limit_page_length=int(limit))
+
+
+def count_companies(*, include_inactive=False) -> int:
+    guard.require("company.read")
+    filters = {} if include_inactive else {"is_active": 1}
+    return len(frappe.get_list(DOCTYPE, filters=filters, pluck="name", limit_page_length=0))
 
 
 def create_company(*, company_name, warehouse_name=None, warehouses=None, terminals=None,

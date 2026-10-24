@@ -245,6 +245,11 @@ def api_list_suppliers(**kwargs):
     return suppliers.list_suppliers(**_clean(kwargs))
 
 
+@frappe.whitelist()
+def api_count_suppliers(**kwargs):
+    return suppliers.count_suppliers(**_clean(kwargs))
+
+
 @frappe.whitelist(methods=["POST"])
 def api_create_supplier(**kwargs):
     return suppliers.create_supplier(**_clean(kwargs))

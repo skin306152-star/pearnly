@@ -139,14 +139,16 @@
 			on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
-			// 列头点一下排序：一次取全，在本地排（同 core `p.sort_rows`）。
+			// 按页取、在服务端排序与搜索（名称 / 税号 / Express 编码 / 电话）：接了 Express 的公司供应商成千上万，
+			// 一次取全拖慢页面（10-25 testerp 1.76 万）。
 			sort_fields: ["supplier_name", "tax_id", "branch_type", "phone", "address", "is_active"],
-			load: async ({sort_by, sort_order}) => {
-				const rows = await p.call(api + "api_list_suppliers",
-					{q: search.get_value() || undefined, include_inactive: 1, limit: 0});
-				const items = p.sort_rows(rows, {sort_by, sort_order,
-					fields: ["supplier_name", "tax_id", "branch_type", "phone", "address", "is_active"]});
-				return {items, total: items.length};
+			load: async ({start, page_length, sort_by, sort_order}) => {
+				const query = {q: search.get_value() || undefined, include_inactive: 1};
+				const [items, total] = await Promise.all([
+					p.call(api + "api_list_suppliers", {...query, start, limit: page_length, sort_by, sort_order}),
+					p.call(api + "api_count_suppliers", query),
+				]);
+				return {items, total};
 			},
 			empty_action: can_write ? {label: t("supplier.new"), action: () => editor()} : null,
 		});
@@ -155,8 +157,10 @@
 		// 别处的选择框指过来时（`link.js` 的 one-shot）：新建 / 打开这条记录。
 		// **要在列表就绪之后**：按名字找行得先有行。
 		if (can_write) await p.take_create("pearnly-suppliers", "ERP Supplier", () => editor());
-		await p.take_open("pearnly-suppliers", "ERP Supplier", name => {
-			const row = (list.data || []).find(item => item.name === name);
+		await p.take_open("pearnly-suppliers", "ERP Supplier", async name => {
+			// 只取了一页：不在这一页的按名字取回来再打开
+			const row = (list.data || []).find(item => item.name === name)
+				|| await p.call("frappe.client.get", {doctype: "ERP Supplier", name});
 			if (row) editor(row);
 		});
 	};

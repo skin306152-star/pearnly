@@ -19,6 +19,7 @@ line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、expres
   SMOKE_PROD_HOST         生产 SSH 别名（pearnly），只在 --target production 用
   SMOKE_USER_ERP / _COWORK / _DMS   各测试租户冒烟用的账号（默认 Administrator）
   SMOKE_EXPRESS_USER      测试机 CC 上登录的 ERP 员工（Express 写入冒烟用；入口 args 里写了 user 时以它为准）
+  SMOKE_PAGE_LIMIT_MS     页面打开时限（默认 3000；入口 args 的 limit_ms 优先）：超过算不通过。大数据量要用 testerp 这种大账套跑
 """
 from __future__ import annotations
 
@@ -114,7 +115,11 @@ def drive(job: dict) -> dict:
         return {"result": None, "error": f"driver output: {out.stdout[-300:]} {out.stderr[-300:]}", "logs": []}
 
 
-def verdict(raw: dict) -> tuple[str, str]:
+PAGE_LIMIT_MS = int(os.environ.get("SMOKE_PAGE_LIMIT_MS", "3000"))
+
+
+def verdict(raw: dict, limit_ms: int | None = None) -> tuple[str, str]:
+    """limit_ms：页面打开时限（大数据量页面卡顿算不通过；驱动量到的 ready_ms = 导航开始到主区内容稳定）。"""
     result = raw.get("result") or {}
     exceptions = [log["text"] for log in raw.get("logs", []) if log.get("kind") == "exception"]
     if raw.get("error"):
@@ -123,6 +128,13 @@ def verdict(raw: dict) -> tuple[str, str]:
         return "不通过", "页面异常：" + exceptions[0][:200]
     if not result.get("ok"):
         return "不通过", json.dumps({k: v for k, v in result.items() if k != "ok"}, ensure_ascii=False)[:300]
+    if limit_ms:
+        ready = raw.get("ready_ms")
+        if ready is None:
+            return "不通过", f"页面主区 {limit_ms / 1000:g} 秒时限内外都没稳定下来"
+        if ready > limit_ms:
+            return "不通过", f"打开用了 {ready / 1000:.1f} 秒，超过 {limit_ms / 1000:g} 秒时限"
+        return "通过", f"{ready / 1000:.1f} 秒"
     return "通过", ""
 
 
@@ -187,7 +199,8 @@ def main(argv=None) -> int:
             raw = drive({"url": url, "cookie_domain": site, "sid": sessions[product][1], "probe": entry.smoke,
                          "args": {"code": barcode.TEST_CODE, **entry.args}, "video": str(video) if entry.smoke == "scan" else "",
                          "wait_ms": 7000, "wait_for": "none" if entry.smoke == "assistant" else "frappe"})
-            state, why = verdict(raw)
+            limit = int(entry.args.get("limit_ms", PAGE_LIMIT_MS)) if entry.smoke == "page" else None
+            state, why = verdict(raw, limit)
             rows.append((entry, state, why))
             print(f"{state}  {entry.id}  {why}", file=sys.stderr)
     finally:

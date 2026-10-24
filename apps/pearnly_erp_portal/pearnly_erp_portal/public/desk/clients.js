@@ -136,15 +136,16 @@
 			on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
-			// 列头点一下排序：这一页**一次取全**（没有分页），所以整套在手上直接排，
-			// 口径与服务端那几张一致（见 core `p.sort_rows`）。
+			// 按页取、在服务端排序与搜索（名称 / 简称 / 税号 / Express 编码 / 电话）：接了 Express 的公司客户动辄几万，
+			// 一次取全会把页面卡死（10-25 testerp 7.4 万）。
 			sort_fields: ["customer_name", "party_type", "tax_id", "contact_phone", "address", "is_active"],
-			load: async ({sort_by, sort_order}) => {
-				const rows = await p.call(api + "api_list_customers",
-					{q: search.get_value() || undefined, include_inactive: 1, limit: 0});
-				const items = p.sort_rows(rows, {sort_by, sort_order,
-					fields: ["customer_name", "party_type", "tax_id", "contact_phone", "address", "is_active"]});
-				return {items, total: items.length};
+			load: async ({start, page_length, sort_by, sort_order}) => {
+				const query = {q: search.get_value() || undefined, include_inactive: 1};
+				const [items, total] = await Promise.all([
+					p.call(api + "api_list_customers", {...query, start, limit: page_length, sort_by, sort_order}),
+					p.call(api + "api_count_customers", query),
+				]);
+				return {items, total};
 			},
 			empty_action: can_write ? {label: t("client.new"), action: () => editor()} : null,
 		});
@@ -153,8 +154,9 @@
 		// 别处的选择框指过来时（`link.js` 的 one-shot）：新建 / 打开这条记录。
 		// **要在列表就绪之后**：按名字找行得先有行。
 		if (can_write) await p.take_create("pearnly-clients", "ERP Customer", () => editor());
-		await p.take_open("pearnly-clients", "ERP Customer", name => {
-			const row = (list.data || []).find(item => item.name === name);
+		await p.take_open("pearnly-clients", "ERP Customer", async name => {
+			// 只取了一页：不在这一页的按名字取回来再打开
+			const row = (list.data || []).find(item => item.name === name) || await p.call(api + "api_get_customer", {name});
 			if (row) editor(row);
 		});
 	};

@@ -91,6 +91,11 @@ def api_list_shifts(**kwargs):
 
 
 @frappe.whitelist()
+def api_count_shifts(**kwargs):
+    return shifts.count_shifts(**_clean(kwargs))
+
+
+@frappe.whitelist()
 def api_shifts_export(names=None):
     """导出班次（交班记录页勾选的那几个；不给 names 就是整张列表）。
     小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""

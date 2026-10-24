@@ -3,7 +3,7 @@
 import frappe
 from frappe import _
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import tax_ids
 
 DOCTYPE = "ERP Supplier"
@@ -51,17 +51,30 @@ def create_supplier(*, supplier_name, tax_id=None, branch_type="head", branch_no
     return {"name": doc.name}
 
 
-def list_suppliers(*, q=None, include_inactive=False, limit=50) -> list[dict]:
+# 列表按页取（接了 Express 的公司供应商成千上万，一次取全拖慢页面，10-25 testerp 1.76 万）
+SEARCH_FIELDS = ("supplier_name", "tax_id", "express_code", "phone")
+SORT_FIELDS = {field: field for field in ("supplier_name", "tax_id", "branch_type", "phone", "address", "is_active")}
+
+
+def _filters(q, include_inactive):
+    return ([] if include_inactive else [["is_active", "=", 1]]), listing.search_or(q, SEARCH_FIELDS)
+
+
+def list_suppliers(*, q=None, include_inactive=False, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
     guard.require("suppliers.read")
-    filters: dict = {}
-    if not include_inactive:
-        filters["is_active"] = 1
-    if q:
-        filters["supplier_name"] = ["like", f"%{q}%"]
+    filters, or_filters = _filters(q, include_inactive)
     return frappe.get_list(
-        DOCTYPE, filters=filters, fields=list(FIELDS), order_by="supplier_name asc",
-        limit_page_length=int(limit),
+        DOCTYPE, filters=filters, or_filters=or_filters, fields=list(FIELDS),
+        order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "supplier_name asc"),
+        limit_start=int(start or 0), limit_page_length=int(limit),
     )
+
+
+def count_suppliers(*, q=None, include_inactive=False) -> int:
+    """列表总数（页脚与「加载更多」用）：跟着权限走，同商品列表的计数。"""
+    guard.require("suppliers.read")
+    filters, or_filters = _filters(q, include_inactive)
+    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0))
 
 
 def update_supplier(name, **changes):

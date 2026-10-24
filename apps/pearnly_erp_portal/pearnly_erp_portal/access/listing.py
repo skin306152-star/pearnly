@@ -24,6 +24,17 @@ def order_by(sort_by, sort_order, allowed: dict, default: str) -> str:
     return f"{field} {direction}"
 
 
+def search_or(q, fields) -> list | None:
+    """搜索词 → `or_filters`（几列任一包含即命中）；空词回 None。
+
+    几列必须一起进 `or_filters`：框架把 `filters` 与 `or_filters` 之间按 AND 组合，只把一列放进 or
+    等于要求「名称与税号同时包含」——商品列表的 `_filters` 有同一条说明。"""
+    text = str(q or "").strip()[:140]
+    if not text:
+        return None
+    return [[field, "like", f"%{text}%"] for field in fields]
+
+
 def sort_rows(rows: list, sort_by, sort_order, allowed: dict) -> list:
     """内存列表用（库存一览那种先算好整批、再切片分页的）。
 

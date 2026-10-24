@@ -3,7 +3,7 @@
 import frappe
 from frappe import _
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import contracts, tax_ids
 
 DOCTYPE = "ERP Customer"
@@ -40,15 +40,28 @@ def create_customer(**fields) -> dict:
     return {"name": doc.name}
 
 
-def list_customers(*, q=None, include_inactive=False, limit=50) -> list[dict]:
+# 列表按页取（接了 Express 的公司客户动辄几万，一次取全会把页面卡死，10-25 testerp 7.4 万）
+SEARCH_FIELDS = ("customer_name", "short_name", "tax_id", "express_code", "contact_phone")
+SORT_FIELDS = {field: field for field in ("customer_name", "party_type", "tax_id", "contact_phone", "address", "is_active")}
+
+
+def _filters(q, include_inactive):
+    return ([] if include_inactive else [["is_active", "=", 1]]), listing.search_or(q, SEARCH_FIELDS)
+
+
+def list_customers(*, q=None, include_inactive=False, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
     guard.require("customers.read")
-    filters: dict = {}
-    if not include_inactive:
-        filters["is_active"] = 1
-    if q:
-        filters["customer_name"] = ["like", f"%{q}%"]
-    return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
-                           order_by="customer_name asc", limit_page_length=int(limit))
+    filters, or_filters = _filters(q, include_inactive)
+    return frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
+                           order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "customer_name asc"),
+                           limit_start=int(start or 0), limit_page_length=int(limit))
+
+
+def count_customers(*, q=None, include_inactive=False) -> int:
+    """列表总数（页脚与「加载更多」用）：跟着权限（按公司隔离的权限钩子）走，同商品列表的计数。"""
+    guard.require("customers.read")
+    filters, or_filters = _filters(q, include_inactive)
+    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0))
 
 
 def get_customer(name) -> dict:

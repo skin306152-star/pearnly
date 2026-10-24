@@ -113,14 +113,15 @@
 							: t("company.status.inactive")),
 						cell_class: value => (Number(value) ? "" : "pearnly-payment-due")},
 				],
-				// 列头点一下排序：这一页一次取全（`limit: 0`），在本地排（同 core `p.sort_rows`）。
+				// 按页取、在服务端排序（公司按 Express 账套自动建，一个事务所可以有几百家）。
 				// "当前公司"那一列是按登录人的当前公司算出来的，排它等于排一个不存在于数据里的值，不列进来。
 				sort_fields: ["company_name", "short_name", "tax_id", "phone", "is_active"],
-				load: async ({sort_by, sort_order}) => {
-					const rows = await p.call(api + "api_list_companies", {include_inactive: 1, limit: 0});
-					const items = p.sort_rows(rows, {sort_by, sort_order,
-						fields: ["company_name", "short_name", "tax_id", "phone", "is_active"]});
-					return {items, total: items.length};
+				load: async ({start, page_length, sort_by, sort_order}) => {
+					const [items, total] = await Promise.all([
+						p.call(api + "api_list_companies", {include_inactive: 1, start, limit: page_length, sort_by, sort_order}),
+						p.call(api + "api_count_companies", {include_inactive: 1}),
+					]);
+					return {items, total};
 				},
 				// 单击任意一行 → 进这一家的**公司信息**（面包屑二级），行内不再放按钮。
 				on_open: row => frappe.set_route(root, row.name),

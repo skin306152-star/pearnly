@@ -67,20 +67,33 @@ try {
   await send("Page.enable", {}, sessionId);
   if (job.ua) await send("Emulation.setUserAgentOverride", { userAgent: job.ua }, sessionId);
   if (job.sid) await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: true }, sessionId);
+  const started = Date.now();
   await send("Page.navigate", { url: job.url }, sessionId);
-  await sleep(job.wait_ms || 6000);
-  // Desk 页面：再等到 frappe 就绪（最多 30 秒），慢一点的页面不误报；对话页等非 Desk 页面传 wait_for: "none"
+  // Desk 页面：轮询到 frappe 就绪、页面主区有内容且 0.6 秒不再变化，记下打开用时（ready_ms，大数据量页面的时限按它判）；
+  // 最多等 wait_ms + 30 秒。对话页等非 Desk 页面传 wait_for: "none"，照旧固定等 wait_ms。
+  let readyMs = null;
   if ((job.wait_for || "frappe") === "frappe") {
-    for (let i = 0; i < 60; i++) {
-      const ready = await send("Runtime.evaluate", { expression: "!!(window.frappe && frappe.boot && frappe.get_route && document.readyState === 'complete')", returnByValue: true }, sessionId);
-      if (ready.result?.value) break;
-      await sleep(500);
+    const probe = `(() => { if (!(window.frappe && frappe.boot && frappe.get_route && document.readyState === 'complete')) return -1;
+      const page = document.querySelector(".page-container[data-page-route]:not([style*='display: none'])") || document.querySelector(".page-container");
+      if (!page) return -1;
+      // 列表取数时框架的 BaseList.freeze 会露出 .freeze 遮罩：还在取数就不算打开
+      if ([...page.querySelectorAll(".freeze")].some((el) => el.offsetParent !== null)) return -1;
+      return (page.innerText || "").trim().length; })()`;
+    let last = -1, since = 0;
+    while (Date.now() - started < (job.wait_ms || 6000) + 30000) {
+      const now = (await send("Runtime.evaluate", { expression: probe, returnByValue: true }, sessionId)).result?.value ?? -1;
+      if (now > 20 && now === last) {
+        if (Date.now() - since >= 600) { readyMs = since - started; break; }
+      } else { last = now; since = Date.now(); }
+      await sleep(200);
     }
+  } else {
+    await sleep(job.wait_ms || 6000);
   }
   const body = readFileSync(join(here, "probes", `${job.probe || "page"}.js`), "utf8");
   const expression = `(async (args) => {\n${body}\n})(${JSON.stringify(job.args || {})})`;
   const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, timeout: 90000 }, sessionId);
-  output = { result: result.result?.value ?? null, error: result.exceptionDetails?.exception?.description || null, logs };
+  output = { result: result.result?.value ?? null, error: result.exceptionDetails?.exception?.description || null, logs, ready_ms: readyMs };
 } catch (error) {
   output = { result: null, error: `driver: ${error.message}`, logs };
 } finally {
