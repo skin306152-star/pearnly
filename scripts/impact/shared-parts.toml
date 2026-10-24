@@ -242,7 +242,7 @@ name = "ERP 按码找商品（products.service / purchase / sales）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
 markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.entry.choices", "erp.products.new-dialog.scan", "erp.stock-in.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan"]
+entries = ["erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到" }
 
 [[part]]
