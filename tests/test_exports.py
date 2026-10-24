@@ -136,6 +136,31 @@ class CoreExports(Harness):
         self.assertEqual((self.seen_count, self.seen_build), ({"task_id": "T-1"}, {"task_id": "T-1"}))
         self.assertEqual((self.queued, self.db.rows), ([], {}))
 
+    def test_chinese_and_thai_file_names_reach_the_browser_intact(self):
+        """框架把文件名按 latin-1 原样写进响应头（浏览器显示乱码）：共用钩子改写成 RFC 5987，ASCII 名字不动。"""
+        from urllib.parse import unquote
+
+        from frappe.utils.response import build_response
+
+        for name, kind in (("การจัดการงาน-2026-10-24.xlsx", "attachment"), ("任务管理-2026-10-24.xlsx", "attachment"),
+                           ("ใบกำกับภาษี.pdf", "inline")):
+            with self.subTest(name=name):
+                frappe.local.response = frappe._dict(type="download", filename=name, filecontent=b"PK",
+                                                     display_content_as=kind)
+                response = build_response("download")
+                service.encode_filename(response)
+                header = response.headers["Content-Disposition"]
+                self.assertTrue(header.isascii(), header)
+                self.assertTrue(header.startswith(f'{kind}; filename="'), header)
+                self.assertEqual(unquote(header.split("filename*=UTF-8''", 1)[1]), name)
+        frappe.local.response = frappe._dict(type="download", filename="sales.xlsx", filecontent=b"PK")
+        response = build_response("download")
+        before = response.headers["Content-Disposition"]
+        service.encode_filename(response)
+        self.assertEqual(response.headers["Content-Disposition"], before)
+        self.assertIn("pearnly_core.exports.service.encode_filename",
+                      importlib.import_module("pearnly_core.hooks").after_request)
+
     def test_the_threshold_comes_from_the_site(self):
         self.conf["pearnly_export_sync_rows"] = 2
         self.register(size=3)

@@ -766,15 +766,17 @@ frappe.provide("frappe.pearnly");
 	p.register = (name, prefix, title, render) => {
 		frappe.pages[name].on_page_show = () => p.restore_sidebar();
 		frappe.pages[name].on_page_load = async (wrapper) => {
+			if (!frappe.boot.pearnly_product || !frappe.boot.pearnly_pages?.includes(name)) {
+				// 没开这个页面的人直接打开：用框架原生的无权限页（图 + 官方文案 + 回首页），
+				// 原来只在标题旁写「无权限」、页面一片空白（ERP 任务管理复测 10-23）。
+				frappe.show_not_permitted(name);
+				return;
+			}
 			const page = frappe.ui.make_app_page({
 				parent: wrapper,
 				title: __(title),
 				single_column: true,
 			});
-			if (!frappe.boot.pearnly_product || !frappe.boot.pearnly_pages?.includes(name)) {
-				page.set_title_sub(__("Not Permitted"), "red");
-				return;
-			}
 			try {
 				const t = await p.texts(prefix);
 				await render(page, t, wrapper);

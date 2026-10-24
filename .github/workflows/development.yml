@@ -21,6 +21,8 @@ jobs:
         run: python3 tests/test_architecture_guard.py
       - name: Verify native Desk contracts
         run: python3 tests/test_native_desk_contract.py
+      - name: Download file names in Chinese or Thai are sent as RFC 5987 with an ASCII fallback
+        run: python3 tests/test_download_filenames.py
       - name: Keep each ERP boot item independent of the others
         run: python3 tests/test_erp_boot_items.py
       - name: Verify ERP purchase lines remember their category by supplier and item
