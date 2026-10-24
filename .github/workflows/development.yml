@@ -267,6 +267,10 @@ jobs:
         env:
           IMPACT_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
         run: python3 scripts/check-impact.py --markdown --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+      - name: Verify the shared scanner shows the camera picture and reads a test barcode in a real browser
+        env:
+          SMOKE_CHROME: /usr/bin/google-chrome
+        run: python3 scripts/smoke/selftest.py
       - name: Verify browser errors on product pages reach the site's error log
         run: |
           python3 tests/test_client_errors.py

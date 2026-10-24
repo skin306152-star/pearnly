@@ -160,7 +160,7 @@ name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
 paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot"]
 
 [[part]]
 id = "line-session"
@@ -168,7 +168,7 @@ name = "LINE 会话状态"
 paths = ["apps/pearnly_core/pearnly_core/line_session.py"]
 markers = ["pearnly_core.line_session", "import line_session", ", line_session", "line_session as store"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled"]
 
 [[part]]
 id = "line-binding"
@@ -1123,6 +1123,42 @@ check = "offline"
 files = ["apps/pearnly_control/pearnly_control/provisioning.py", "apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_line_channel/pearnly_line_channel.py", "apps/pearnly_control/pearnly_control/pearnly_control/page/pearnly_line_guide/pearnly_line_guide.js", "infrastructure/production/site-step.py", "apps/pearnly_control/pearnly_control/onboarding/line_ids.py"]
 
 [[entry]]
+id = "erp.line.webhook-sim"
+product = "ERP"
+where = "LINE 模拟 webhook（实验栈）"
+steps = "scripts/smoke/line_flow.py：เมนู、ซื้อ、ยกเลิก、乱打"
+expect = "每条都被处理、至少回一条、无异常；三个点不在回复之后"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py"]
+smoke = "line"
+site = "erp"
+args = { "product" = "erp" }
+
+[[entry]]
+id = "cowork.line.webhook-sim"
+product = "Cowork"
+where = "LINE 模拟 webhook（实验栈）"
+steps = "scripts/smoke/line_flow.py：เมนู、乱打"
+expect = "同 ERP"
+check = "auto"
+files = ["apps/pearnly_cowork/pearnly_cowork/line/handlers.py", "apps/pearnly_cowork/pearnly_cowork/line/flow.py", "apps/pearnly_cowork/pearnly_cowork/line/menu.py"]
+smoke = "line"
+site = "cowork"
+args = { "product" = "cowork" }
+
+[[entry]]
+id = "dms.line.webhook-sim"
+product = "DMS"
+where = "LINE 模拟 webhook（实验栈）"
+steps = "scripts/smoke/line_flow.py：เมนู、乱打"
+expect = "同 ERP（DMS 攒批一次发）"
+check = "auto"
+files = ["apps/pearnly_dms/pearnly_dms/line/handlers.py", "apps/pearnly_dms/pearnly_dms/line/text_router.py", "apps/pearnly_dms/pearnly_dms/line/out.py"]
+smoke = "line"
+site = "dms"
+args = { "product" = "dms" }
+
+[[entry]]
 id = "shared.desk.liff-boot"
 product = "共用"
 where = "安卓 LINE 内扫码转 LIFF"
@@ -1186,6 +1222,7 @@ check = "auto"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py"]
 smoke = "express"
 site = "erp"
+args = { "company" = "CO-42069", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
 
 [[entry]]
 id = "erp.cc.masters"
@@ -1201,22 +1238,18 @@ id = "cowork.cc.channel"
 product = "Cowork"
 where = "Cowork 成员推送回执 / 按需请求 / 心跳"
 steps = "testcowork 推一张单；目录 / 科目 / 账套读取；心跳版本提示；文件夹录入"
-expect = "与 main 相同；写进 Express 读回一致"
-check = "auto"
+expect = "与 main 相同；写进 Express 读回一致（Cowork 推送还没有自动冒烟，人工推一张）"
+check = "manual"
 files = ["apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py", "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py", "apps/pearnly_cowork/pearnly_cowork/companion/pool.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/queue_heads.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_api.py", "apps/pearnly_cowork/pearnly_cowork/companion/request_service.py", "apps/pearnly_cowork/pearnly_cowork/companion/transport.py", "apps/pearnly_cowork/pearnly_cowork/companion/devices.py", "apps/pearnly_cowork/pearnly_cowork/connections/member.py", "apps/pearnly_cowork/pearnly_cowork/connections/pool.py", "apps/pearnly_cowork/pearnly_cowork/connections/reports.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py"]
-smoke = "express"
-site = "cowork"
 
 [[entry]]
 id = "cowork.express.push"
 product = "Cowork"
 where = "Cowork 推送 Express（全部类型）"
 steps = "录入工作台 / 识别记录 → 推送：采购、销售、库存、存货科目组、付款、预检、回执；自动推送规则；POS 日汇总"
-expect = "照常写进 Express、读回一致"
-check = "auto"
+expect = "照常写进 Express、读回一致（Cowork 推送还没有自动冒烟，人工逐类型推）"
+check = "manual"
 files = ["apps/pearnly_cowork/pearnly_cowork/push/application/assess.py", "apps/pearnly_cowork/pearnly_cowork/push/application/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/application/service.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/rules.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/service.py", "apps/pearnly_cowork/pearnly_cowork/push/choices.py", "apps/pearnly_cowork/pearnly_cowork/push/export_actions.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/express/__init__.py", "apps/pearnly_cowork/pearnly_cowork/push/express/automation.py", "apps/pearnly_cowork/pearnly_cowork/push/express/company_choices.py", "apps/pearnly_cowork/pearnly_cowork/push/express/decide.py", "apps/pearnly_cowork/pearnly_cowork/push/express/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/native/completion.py", "apps/pearnly_cowork/pearnly_cowork/push/native/contracts.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py", "apps/pearnly_cowork/pearnly_cowork/targets/choices.py", "apps/pearnly_cowork/pearnly_cowork/targets/evidence.py", "apps/pearnly_cowork/pearnly_cowork/targets/freeze.py", "apps/pearnly_cowork/pearnly_cowork/targets/selection.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/follow.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/pos_import/contracts.py", "apps/pearnly_cowork/pearnly_cowork/pos_import/service.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py"]
-smoke = "express"
-site = "cowork"
 
 [[entry]]
 id = "cowork.mrerp.push"
@@ -1474,3 +1507,4 @@ check = "auto"
 files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_workers.py", "companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py"]
 smoke = "express"
 site = "erp"
+args = { "company" = "CO-42069", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
