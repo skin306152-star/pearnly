@@ -12,6 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import now, nowdate
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import contracts, positions, warehouses
 from pearnly_erp_portal.masters import company as companies
@@ -291,7 +292,7 @@ def _qty_matches(qty, op, value) -> bool:
 
 
 def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
-                   qty_op=None, qty_value=None) -> list[dict]:
+                   qty_op=None, qty_value=None, conditions=None) -> list[dict]:
     """在库一览的全部命中行。成本按岗位遮蔽：没有成本权限的岗位拿到空值，不是 0。
 
     `only_low` 只留低库存与缺货，并且**隐含带上零库存** —— 缺货就是结存 0，
@@ -307,6 +308,9 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
         filters.update(warehouses.scope_filter())
     if location is not None:
         filters["location"] = positions.clean_location(location)
+    # 原生筛选里「等于」以外的条件（页面 inventory.js 的仓库、仓位；数量走 qty_op）
+    filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
+    filters += list_filters.conditions(conditions, {"warehouse": "warehouse", "location": "location"})
     rows = frappe.get_list(BALANCE, filters=filters,
                            fields=["name", "product", "warehouse", "location", "qty_on_hand", "unit_cost",
                                    "value", "cost_known"],
@@ -378,10 +382,10 @@ SORT_FIELDS = {
 
 def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
                    qty_op=None, qty_value=None, start=0, limit=200,
-                   sort_by=None, sort_order=None) -> list[dict]:
+                   sort_by=None, sort_order=None, conditions=None) -> list[dict]:
     """在库一览（分页）。`limit=0` 表示不分页，整批给。"""
     rows = _overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
-                          only_low=only_low, qty_op=qty_op, qty_value=qty_value)
+                          only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions)
     rows = listing.sort_rows(rows, sort_by, sort_order, SORT_FIELDS)
     start = int(start or 0)
     if not limit:
@@ -390,10 +394,10 @@ def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False,
 
 
 def stock_count(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
-                qty_op=None, qty_value=None) -> int:
+                qty_op=None, qty_value=None, conditions=None) -> int:
     """与列表同一套筛选的命中行数（页脚"第 N 项/共 M 项"用）。"""
     return len(_overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
-                              only_low=only_low, qty_op=qty_op, qty_value=qty_value))
+                              only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions))
 
 
 def stock_totals(*, warehouse=None, q=None) -> dict:

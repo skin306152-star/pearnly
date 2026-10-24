@@ -96,7 +96,8 @@
 			const [from, to] = picked.sold_at || [];
 			return {q: search.get_value() || undefined,
 				date_from: from || undefined, date_to: to || undefined,
-				sale_type: picked.sale_type || undefined, status: picked.status || undefined};
+				sale_type: picked.sale_type || undefined, status: picked.status || undefined,
+				conditions: p.filter_conditions(list)};
 		};
 		list = p.list({ page, doctype: "ERP Sale", compact_columns: true,
 			// 本页支持的筛选条件（官方的字段下拉里只列这三个）。

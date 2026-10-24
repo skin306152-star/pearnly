@@ -24,7 +24,8 @@
 					doc_kind: picked.doc_kind || undefined,
 					payment_status: picked.payment_status || undefined,
 					supplier: picked.supplier || undefined,
-					status: picked.status || undefined};
+					status: picked.status || undefined,
+					conditions: p.filter_conditions(list)};
 			};
 			const primary = () => {
 				if (!live || !still_current()) return;

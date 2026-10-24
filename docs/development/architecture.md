@@ -206,7 +206,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 - **列表**：`p.list` 的 `load({start, page_length, sort_by, sort_order})` 交给服务端，服务端用 `frappe.get_list(limit_start, limit_page_length, order_by)` 加白名单排序（`access/listing.order_by`），总数单独计。不传 `limit: 0`，不在前端 `p.sort_rows` 后切页。必须先算出每一行才能排序的报表（收发存汇总按数量排序），服务端整批算完再切页，只把这一页交给前端。
 - **选择**：主档选择用原生 `ControlLink`（`search_link` / `get_query`，服务端带上限）。选项来自外部系统、不是 DocType 的，用 Autocomplete，上限由数据量定，并写明原因。
 - **搜索**：关键词交给服务端查。不在已经取回的前 N 条里搜。
-- **筛选**：用原生 FilterArea。条件下拉只列服务端实际认的条件（`list.js` 的 `PRODUCT_CONDITIONS`）。
+- **筛选**：用原生 FilterArea，运算符也照原生实现。「等于 / 介于」由 `p.filter_values` 翻成各页参数；其余运算符（不等于、包含、不包含、在…之中、大于、为空、时间段）由 `p.filter_conditions` 原样交给服务端，服务端按本页白名单交给 `frappe.get_list` 执行（`pearnly_core.desk.list_filters`）。不在库里的恒定值（如销售记录里的收银小票）用 `list_filters.matches` 按同一口径判断。
 - **导出**：走 `p.export_file`，由服务端生成文件，大的排后台。参数多时用 POST，不拼进网址。
 - **闸门**：`scripts/check-unbounded-queries.py`。服务端无上限查询，或前端 `limit: 0` / `p.sort_rows(`，按文件计数，超过 `scripts/unbounded-queries-baseline.json` 的基线就失败。基线只许减少。天然有界的（按单号、一张单的明细、固定的小字典）在那一行写 `# bounded: 原因`。冒烟的页面打开时限是 3 秒（`verification.md`「大数据量」）。
 

@@ -25,7 +25,7 @@
 | 1 | ERP 收发存汇总 `stock-card.js` + `inventory/report.py` | 一次取全；服务端每个键扫一遍全部流水，每行单查一次仓库名；前端排序后切页 | **已改**：新接口 `api_stock_summary_page`，服务端排序加分页。按商品 / 仓库 / 仓位排序（默认）时只读这一页商品的流水；按数量列排序时整批算一次（按键一次分组）再切页。仓库名一个仓库查一次，单品明细页同样处理。旧接口 `api_stock_summary` 保留 |
 | 2–4、8 | 客户 / 供应商 / 收银班次 / 公司 | `limit: 0` 一次取全 | 已在 `pearnly/large-lists` 改 |
 | 5 | 盘点明细（ERP / Cowork `stocktake.js`） | 整张盘点单全量；每次搜索都重建 DataTable | **保留**：整份快照是结束盘点时 `review_token` 校验的依据；DataTable 自带虚拟滚动，几千行可用。下一批可改为不重建、只刷新数据 |
-| 6 | 共用筛选 `list.js` `p.filter_values` | 只认「等于」和「介于」，其余条件（不等于、包含、大于）都被当成「等于」去查，结果是错的 | **已改**：声明了筛选字段的产品列表，条件下拉只列「等于 / 介于」（`PRODUCT_CONDITIONS`）。其它列表、表单里的过滤器保持官方全部条件 |
+| 6 | 共用筛选 `list.js` `p.filter_values` | 只认「等于」和「介于」，其余条件（不等于、包含、大于）都被当成「等于」去查，结果是错的 | **已改**（主会话 05:00 定：按原生运算符真正实现，不删选项）：新增 `p.filter_conditions` 与共用 `pearnly_core.desk.list_filters`，其余运算符原样交给 `frappe.get_list`。已接销售、采购、收银小票、库存一览（含导出）、收发存、Cowork 录入；商品页只有 Check 字段，原生本来只有「等于」。树形与其它 App 配进来的条件这些服务端不认，下拉不列 |
 | 7 | 共用 `select.js`（全站 Select 换成 Autocomplete） | 超过 99 个选项不打字就看不到 | **已改**：弹层长度跟选项数走（同原生 Select），显式 `max_items` 优先 |
 | 9 | 看板（两个产品 `work.js`） | 整块看板、归档全量，前端过滤 | **保留**：原生 KanbanView 不支持镜像卡、清单、多板。归档分页放下一批 |
 | 10 | 看板导出 | 卡片号拼进 GET 网址，上千张会超过网关的地址长度上限 | **已改**：改用 POST（服务端 GET / POST 都收） |
@@ -64,7 +64,8 @@
 
 - 本地用例：
   - `tests/test_opening_report.py`：14 项，新增两项。一项断言分页结果与整批算出的同一行完全一致、只读这一页商品的流水、一个仓库只查一次；另一项覆盖按名称 / 数量排序、未知排序字段、上限截断。
-  - `tests/test-desk-list-filter.cjs`：新增。
+  - `tests/test-desk-list-filter.cjs`：新增，覆盖条件下拉与两路拆分。
+  - `tests/test_list_filters.py`：新增。覆盖 !=、like、not like、in、not in、>=、介于、时间段、为空的成功用例，以及白名单与非法运算符丢弃。另有销售记录两项：条件进销售记录查询；收银小票是否列出按条件判断。
   - `tests/test-native-desk.cjs`：Select 选项数。
   - `tests/test_check_unbounded_queries.py`：新增。
 - **实验栈实测（testerp 大账套，收发存页 3 秒时限）、验收复核：未做**。电量不足，明早接着做。

@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 
 DOMAIN = Path(__file__).resolve().parents[1] / "apps/pearnly_erp_portal/pearnly_erp_portal/inventory"
+sys.path.insert(0, str(DOMAIN.parents[2] / "pearnly_core"))  # pearnly_core.desk.list_filters（纯函数）
 
 
 def load(name, path):

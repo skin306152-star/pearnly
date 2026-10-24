@@ -54,7 +54,7 @@ jobs:
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
-        run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py
+        run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded
         run: python3 tests/test_cowork_mrerp_masters.py
       - name: Exercise audited offline DMS contracts

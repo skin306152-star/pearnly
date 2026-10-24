@@ -16,6 +16,7 @@
 """
 import frappe
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.inventory import warehouses
 from pearnly_erp_portal.masters import company as companies
@@ -37,6 +38,11 @@ FIELDS = ("name", "system_no", "doc_date", "creation", "customer", "buyer_name",
           "summary", "doc_kind", "source", "status", "payment_status", "payment_method",
           "payment_date", "subtotal", "vat_amount", "grand_total", "paid_amount",
           "stock_posted_at", "express_state", "express_docnum")
+
+# 原生筛选里「等于 / 介于」以外的条件（不等于、包含、在…之中…）可用的字段（页面 sales.js 的 filter_fields）。
+CONDITION_FIELDS = ("doc_kind", "payment_status", "source")
+# 收银小票这三项恒定（收据、已收款、来源收银）：条件对它们按 list_filters.matches 判断要不要列收银单。
+POS_CONSTANTS = {"doc_kind": contracts.RECEIPT, "payment_status": PAYMENT_PAID, "source": SOURCE_POS}
 
 # 搜索只搜"人会在搜索框里打的字"：客户、我方单号、明细摘要、备注。
 SEARCH_FIELDS = ("buyer_name", "system_no", "summary", "note")
@@ -68,6 +74,8 @@ def query(params=None):
         end = str(frappe.utils.getdate(params["date_to"])) + (
             " 23:59:59.999999" if datefield == "creation" else "")
         filters.append([datefield, "<=", end])
+    filters.extend(list_filters.conditions(params.get("conditions"), {
+        **{field: field for field in CONDITION_FIELDS}, "doc_date": datefield}))
     text = str(params.get("q") or "").strip()
     or_filters = [[field, "like", "%" + text + "%"] for field in SEARCH_FIELDS] if text else None
     return filters, or_filters, datefield
@@ -115,6 +123,10 @@ def _pos_applies(params) -> bool:
         return False
     if params.get("group") == "unpaid":
         return False
+    for column, operator, value in list_filters.conditions(params.get("conditions"), {
+            field: field for field in CONDITION_FIELDS}):
+        if not list_filters.matches(POS_CONSTANTS[column], operator, value):
+            return False
     status = params.get("payment_status")
     if status:
         asked = {str(item) for item in (status if isinstance(status, (list, tuple)) else [status])}
@@ -141,6 +153,7 @@ def _pos_rows(params=None, *, start=0, limit=20):
     status = params.get("status")
     if status:
         filters.append(["status", "=", "completed" if status == contracts.SUBMITTED else status])
+    filters.extend(list_filters.conditions(params.get("conditions"), {"doc_date": datefield}))
     text = str(params.get("q") or "").strip()
     or_filters = [[field, "like", "%" + text + "%"] for field in ("receipt_no", "note")] if text else None
     data = frappe.get_all(POS, filters=filters, or_filters=or_filters, fields=list(POS_FIELDS),

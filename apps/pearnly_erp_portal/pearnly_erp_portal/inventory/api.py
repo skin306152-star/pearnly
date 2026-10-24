@@ -238,9 +238,9 @@ def _csv(rows) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None):
+def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None, conditions=None):
     return stock.stock_overview(warehouse=warehouse, q=q, include_zero=bool(include_zero),
-                                only_low=bool(only_low), limit=0)
+                                only_low=bool(only_low), limit=0, conditions=conditions)
 
 
 def stock_export_size(**kwargs):
@@ -259,7 +259,8 @@ def api_stock_export(**kwargs):
     from pearnly_core.exports import service as exports
 
     kwargs = _clean(kwargs)
-    args = {key: kwargs.get(key) for key in ("warehouse", "q", "include_zero", "only_low") if kwargs.get(key)}
+    args = {key: kwargs.get(key) for key in ("warehouse", "q", "include_zero", "only_low", "conditions")
+            if kwargs.get(key)}
     return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_export_size",
                            build="pearnly_erp_portal.inventory.api.stock_export_file", args=args,
                            filename="stock.csv", content_type="text/csv; charset=utf-8")

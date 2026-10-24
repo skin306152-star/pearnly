@@ -4,6 +4,7 @@ from decimal import Decimal
 import frappe
 from frappe import _
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import access, amounts
@@ -41,6 +42,10 @@ def query(params=None):
         filters.append([datefield, "<=", end])
     if params.get("category"):
         filters.append(["Purchase Line", "category", "in", params["category"]])
+    # 原生筛选里「等于 / 介于」以外的条件（页面 purchase.js 的 filter_fields）
+    filters.extend(list_filters.conditions(params.get("conditions"), {
+        "doc_kind": "doc_kind", "payment_status": "payment_status", "supplier": "supplier", "status": "status",
+        "doc_date": datefield}))
     text = str(params.get("q") or "").strip()
     or_filters = [[field, "like", "%" + text + "%"] for field in
                   ("supplier_name", "doc_no", "system_no", "summary")] if text else None

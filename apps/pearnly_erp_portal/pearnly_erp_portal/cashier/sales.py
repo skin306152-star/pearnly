@@ -16,6 +16,7 @@ import frappe
 from frappe import _
 from frappe.utils import now, nowdate
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.cashier import contracts, shifts, terminals
 from pearnly_erp_portal.inventory import positions, stock, warehouses
@@ -264,7 +265,7 @@ SORT_FIELDS = {
 
 def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
                status=None, q=None, limit=50, start=0, current_only=False,
-               sort_by=None, sort_order=None) -> list[dict]:
+               sort_by=None, sort_order=None, conditions=None) -> list[dict]:
     """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
     if current_only:
         guard.require("cashier.read")
@@ -300,6 +301,9 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
                                    pluck="name", limit_page_length=0)
         if customers:
             or_filters.append(["customer", "in", customers])
+    # 原生筛选里「等于 / 介于」以外的条件（页面 pos-receipts.js 的 filter_fields）
+    filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
+    filters += list_filters.conditions(conditions, {"sold_at": "sold_at", "sale_type": "sale_type", "status": "status"})
     rows = frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
                            order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "sold_at desc"),
                            limit_start=int(start),

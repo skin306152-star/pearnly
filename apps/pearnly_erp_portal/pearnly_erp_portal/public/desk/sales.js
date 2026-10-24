@@ -25,7 +25,8 @@
 					date_from: from || undefined, date_to: to || undefined,
 					doc_kind: picked.doc_kind || undefined,
 					payment_status: picked.payment_status || undefined,
-					source: picked.source || undefined};
+					source: picked.source || undefined,
+					conditions: p.filter_conditions(list)};
 			};
 			const primary = () => {
 				if (!live || !still_current()) return;

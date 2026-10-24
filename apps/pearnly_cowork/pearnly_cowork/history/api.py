@@ -91,7 +91,7 @@ PUSH_STATES = {"failed": [["last_push_status", "=", "manual"], ["last_push_reaso
 @frappe.whitelist()
 def workbench(staged=None, quality_status=None, posting_kind=None,
               date_from=None, date_to=None, start=0, limit=20, sort_by=None, sort_order=None, source_file=None,
-              push_state=None):
+              push_state=None, conditions=None):
     """录入工作台的队列：读本站点当前用户看得见的识别记录。
 
     界面上不出现账套（Cowork 不记账、只留记录），所以这里也不收这个参数、不回这个
@@ -136,6 +136,12 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     if source_file:
         filters["source_file"] = str(source_file)
         order_by = "source_index asc, name asc"
+    # 原生筛选里「等于 / 介于」以外的条件（页面 intake.js 的 filter_fields）；同一列可能有两条，改成列表形式
+    from pearnly_core.desk import list_filters
+
+    extra = list_filters.conditions(conditions, {"posting_kind": "posting_kind", "invoice_date": "invoice_date"})
+    if extra:
+        filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] + extra
     elif sort_by in SORT_FIELDS:
         order_by = "{0} {1}, name desc".format(
             sort_by, "asc" if str(sort_order or "").lower().startswith("asc") else "desc")
@@ -152,7 +158,8 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
                   reverse=not str(sort_order or "").lower().startswith("asc"))
         page = [row.name for row in rows[start:start + limit]]
         found = {row.name: row for row in frappe.get_list(storage.DOCTYPE,
-            filters={**filters, "name": ["in", page]}, fields=fields, limit_page_length=0)} if page else {}
+            filters=filters + [["name", "in", page]] if isinstance(filters, list) else {**filters, "name": ["in", page]},
+            fields=fields, limit_page_length=0)} if page else {}
         return {"items": [found[name] for name in page if name in found], "total": len(rows)}
     items = frappe.get_list(storage.DOCTYPE, filters=filters, or_filters=or_filters, fields=fields,
         order_by=order_by, limit_start=start, limit_page_length=limit)

@@ -61,8 +61,8 @@ entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page
 [[part]]
 id = "desk-list"
 name = "共用列表（勾选、排序、筛选）"
-paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js"]
-markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values("]
+paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js", "apps/pearnly_core/pearnly_core/desk/list_filters.py"]
+markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values(", ".filter_conditions("]
 search = ["apps/**/*.js", "apps/**/*.html"]
 entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance"]
 

@@ -91,6 +91,7 @@
 					date_from: from || undefined,
 					date_to: to || undefined,
 					push_state: push_filter.get_value() || undefined,
+					conditions: p.filter_conditions(list),
 				};
 			};
 			list = p.list({

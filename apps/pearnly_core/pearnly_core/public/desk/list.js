@@ -9,7 +9,7 @@
 	// （`field_select.js`：给了 `filter_fields` 就只加这几个）。**只对声明了 `filter_fields`
 	// 的列表生效**：别的列表、表单里的过滤器、其它 App 一概不动。
 	const NativeFilter = frappe.ui?.Filter;
-	const PRODUCT_CONDITIONS = ["=", "Between"];
+	const PRODUCT_CONDITIONS = ["=", "!=", "like", "not like", "in", "not in", "is", ">", "<", ">=", "<=", "Between", "Timespan"];
 	if (NativeFilter && !NativeFilter.pearnly_filter_fields) {
 		class Filter extends NativeFilter {
 			constructor(options) {
@@ -22,8 +22,8 @@
 					: null;
 				super(fields ? {...options, filter_fields: fields, pearnly_conditions: true} : options);
 			}
-			// 产品列表的服务端只认「等于」和日期「介于」（`p.filter_values` 交上去的是 `{字段: 值}`）：
-			// 条件下拉只列这两个，不让人选了「不等于 / 包含 / 大于」却按「等于」查（2026-10-25 排查）。
+			// 产品列表：条件下拉只列服务端照 Frappe 原生执行的那些（`pearnly_core.desk.list_filters.OPERATORS`）。
+			// 树形（descendants of…）与其它 App 配进来的条件这些列表的服务端不认，不列。
 			// 构造参数在 `set_conditions()` 之前已由官方 `$.extend(this, opts)` 放上 `pearnly_conditions`。
 			set_conditions() {
 				super.set_conditions();
@@ -38,15 +38,24 @@
 		Filter.pearnly_filter_fields = true;
 		frappe.ui.Filter = Filter;
 	}
-	// 官方原生筛选条件 → `{字段名: 值}`。`Between` 给 [从, 到]，其余给单值（`in` 给数组）。
+	// 官方原生筛选条件分两路交给服务端：「等于」与「介于」→ `p.filter_values` 的 `{字段名: 值}`（`Between` 给 [从, 到]），
+	// 各页照旧翻成自己的接口参数；其余运算符（不等于、包含、不包含、在…之中、大于…）→ `p.filter_conditions` 的
+	// `[字段, 运算符, 值]`，服务端按本页白名单交给 `frappe.get_list` 原样执行（`pearnly_core.desk.list_filters`）。
+	const plain = operator => ["=", "between"].includes(String(operator || "").toLowerCase());
 	p.filter_values = list => {
 		const out = {};
 		for (const [doctype, fieldname, operator, value] of (list?.filter_area?.get() || [])) {
-			if (!fieldname) continue;
-			out[fieldname] = String(operator || "").toLowerCase() === "between"
+			if (!fieldname || !plain(operator)) continue;
+			out[fieldname] = String(operator).toLowerCase() === "between"
 				&& Array.isArray(value) ? [value[0] || "", value[1] || value[0] || ""] : value;
 		}
 		return out;
+	};
+	p.filter_conditions = (list, skip = []) => {
+		const rows = (list?.filter_area?.get() || [])
+			.filter(([doctype, fieldname, operator]) => fieldname && !plain(operator) && !skip.includes(fieldname))
+			.map(([doctype, fieldname, operator, value]) => [fieldname, operator, value]);
+		return rows.length ? JSON.stringify(rows) : undefined;
 	};
 	class ProductList extends frappe.views.BaseList {
 		constructor(options) {

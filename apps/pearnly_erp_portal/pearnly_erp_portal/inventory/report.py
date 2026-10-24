@@ -12,6 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, nowdate
 
+from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import contracts, warehouses
 
@@ -38,7 +39,7 @@ def _date(value, default=None):
         frappe.throw(_(INVALID))
 
 
-def _filters(*, product=None, warehouse=None, location=None, date_to=None, products=None) -> dict:
+def _filters(*, product=None, warehouse=None, location=None, date_to=None, products=None, conditions=None):
     filters: dict = {}
     if product:
         filters["product"] = product
@@ -53,26 +54,33 @@ def _filters(*, product=None, warehouse=None, location=None, date_to=None, produ
         filters["location"] = str(location or "").strip()
     if date_to:
         filters["posting_date"] = ["<=", date_to]
+    # 原生筛选里「等于」以外的条件（页面 stock-card.js 的仓库、商品）：同一列可能有两条，改成列表形式
+    extra = list_filters.conditions(conditions, {"warehouse": "warehouse", "product": "product"})
+    if extra:
+        return [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] + extra
     return filters
 
 
-def _exact_location(rows, filters):
+def _exact_location(rows, filters, location=None):
     # MariaDB's default collation folds case/accents; position names hash the
     # exact location. Keep native permission filtering, then match that identity.
-    if "location" not in filters:
+    if location is None:
         return rows
-    return [row for row in rows if (row.get("location") or "") == filters["location"]]
+    wanted = str(location or "").strip()
+    return [row for row in rows if (row.get("location") or "") == wanted]
 
 
-def _movements(*, product=None, warehouse=None, location=None, date_to=None, products=None) -> list[dict]:
-    filters = _filters(product=product, warehouse=warehouse, location=location, date_to=date_to, products=products)
+def _movements(*, product=None, warehouse=None, location=None, date_to=None, products=None,
+               conditions=None) -> list[dict]:
+    filters = _filters(product=product, warehouse=warehouse, location=location, date_to=date_to, products=products,
+                       conditions=conditions)
     rows = frappe.get_list(
         MOVEMENT, filters=filters,
         fields=["name", "posting_date", "posting_time", "movement_type", "product",
                 "warehouse", "location", "qty", "unit", "qty_base", "unit_cost", "cost_known",
                 "ref_type", "ref_id", "doc_no", "reason"],
         order_by="posting_date asc, posting_time asc, creation asc", limit_page_length=0)
-    return _exact_location(rows, filters)
+    return _exact_location(rows, filters, location)
 
 
 def _position_keys(**query) -> list[tuple]:
@@ -81,7 +89,7 @@ def _position_keys(**query) -> list[tuple]:
     rows = frappe.get_list(MOVEMENT, filters=filters, fields=["product", "warehouse", "location"],
                            group_by="product, warehouse, location", limit_page_length=0)
     return sorted({(row["product"], row["warehouse"], row.get("location") or "")
-                   for row in _exact_location(rows, filters)})
+                   for row in _exact_location(rows, filters, query.get("location"))})
 
 
 def _warehouse_names(ids) -> dict:
@@ -210,14 +218,15 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
 
 
 def summary_page(*, date_from=None, date_to=None, product=None, warehouse=None, location=None,
-                 start=0, limit=20, sort_by=None, sort_order=None) -> dict:
+                 start=0, limit=20, sort_by=None, sort_order=None, conditions=None) -> dict:
     """汇总列表的一页：`{"items": 这一页, "total": 全部行数}`，排序口径同 `listing.sort_rows`。"""
     guard.require("report.read")
     date_from = _date(date_from)
     date_to = _date(date_to)
     start = max(int(start or 0), 0)
     limit = min(max(int(limit or 20), 1), PAGE_MAX)
-    query = {"product": product, "warehouse": warehouse, "location": location, "date_to": date_to}
+    query = {"product": product, "warehouse": warehouse, "location": location, "date_to": date_to,
+             "conditions": conditions}
     visible = guard.cost_visible()
     keys = _position_keys(**query)
     sort_key = str(sort_by or "").strip()

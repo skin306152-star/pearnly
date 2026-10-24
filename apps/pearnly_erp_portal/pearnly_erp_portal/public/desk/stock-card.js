@@ -223,7 +223,8 @@
 				const picked = p.filter_values(list);
 				return {date_from: fields.date_from.get_value() || undefined,
 					date_to: fields.date_to.get_value() || undefined,
-					warehouse: picked.warehouse || undefined, product: picked.product || undefined};
+					warehouse: picked.warehouse || undefined, product: picked.product || undefined,
+					conditions: p.filter_conditions(list)};
 			};
 			// 这是报表：每行是一个"商品×仓库×仓位"的收发汇总，没有可删的东西。选中一行时给的是
 			// 对应的那一步 —— 打开这条汇总背后的明细（**二级页面**，这个视图字段多）。

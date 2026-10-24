@@ -48,6 +48,7 @@
 				location: picked.location || undefined,
 				qty_op: qty[2] || undefined,
 				qty_value: qty[3] === undefined || qty[3] === "" ? undefined : qty[3],
+				conditions: p.filter_conditions(list, ["qty_on_hand"]),
 			};
 		};
 
