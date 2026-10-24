@@ -19,6 +19,7 @@ line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、expres
   SMOKE_PROD_HOST         生产 SSH 别名（pearnly），只在 --target production 用
   SMOKE_USER_ERP / _COWORK / _DMS   各测试租户冒烟用的账号（默认 Administrator）
   SMOKE_EXPRESS_USER      测试机 CC 上登录的 ERP 员工（Express 写入冒烟用；入口 args 里写了 user 时以它为准）
+  SMOKE_COWORK_EXPRESS_USER  测试机 CC 上登录的 Cowork 录入人（Cowork 推送写 Express 冒烟用，同上）
   SMOKE_PAGE_LIMIT_MS     页面打开时限（默认 3000；入口 args 的 limit_ms 优先）：超过算不通过。大数据量要用 testerp 这种大账套跑，
                           ERP 用 --company 指定大账套那家公司（造数见 scripts/smoke/seed_stock_load.py）
 """
@@ -46,7 +47,9 @@ video_spec.loader.exec_module(barcode)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
 READONLY_PROBES = {"page", "scan", "find_product", "assistant"}
-CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py"}
+CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py", "cowork_express": "cowork_express_flow.py"}
+# 写 Express 的探针要用测试机 CC 上登录过的员工（CC 只领他的单）：入口 args 里写了 user 时以它为准
+EXPRESS_USERS = {"express": "SMOKE_EXPRESS_USER", "cowork_express": "SMOKE_COWORK_EXPRESS_USER"}
 
 
 class Remote:
@@ -181,7 +184,7 @@ def main(argv=None) -> int:
                 continue
             if entry.smoke in CONTAINER_PROBES:
                 params = dict(entry.args)
-                user = os.environ.get("SMOKE_EXPRESS_USER") if entry.smoke == "express" else os.environ.get(f"SMOKE_USER_{product.upper()}")
+                user = os.environ.get(EXPRESS_USERS.get(entry.smoke) or f"SMOKE_USER_{product.upper()}")
                 params.setdefault("user", user or "Administrator")
                 output = remote.run(product, HERE / CONTAINER_PROBES[entry.smoke], site, json.dumps(params, ensure_ascii=False))
                 last = [line for line in output.splitlines() if line.startswith("SMOKE ")]
