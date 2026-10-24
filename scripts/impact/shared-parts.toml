@@ -242,7 +242,7 @@ name = "ERP 按码找商品（products.service / purchase / sales）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
 markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan"]
+entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到" }
 
 [[part]]
@@ -1367,6 +1367,18 @@ steps = "采购 / 销售明细物料格、对方格打字或扫码；提交"
 expect = "只出当前公司 + 本地；提交按名称 / 编码认同一件，单位跟商品"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/category_memory.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
+
+[[entry]]
+id = "erp.products.find-by-code"
+product = "ERP"
+where = "按码找商品接口（扫码、新建物料查重、出入库扫码共用）"
+steps = "自动：取一件在架商品，按编码 / 条码调 api_find_product"
+expect = "找回同一件商品"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
+smoke = "find_product"
+url = "/desk/pearnly-products"
+site = "erp"
 
 [[entry]]
 id = "erp.stock-count.code"
