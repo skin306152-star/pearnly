@@ -216,7 +216,20 @@
   - 删掉 1.12.0 加的 ERP 成员勾选（`erp_roots` 字段、`set_erp_roots`、桥的 `erp_roots`、设置页 ERP 一栏）；桥的功能标记 `erp_roots` 换成 `express_places`。
   - 同一份登记表经映射盘和共享路径各见一次的去重（`rank_roots` 的 `root_identity`、查找时的 `_sccomp_stamp`）都加系统文件号，整个复制出来的年度文件夹算另一份。
   - 问题 21（两个线程同时探测同一台服务器时，后来的那个把它判成不在、账套当空报）：`scan_pace.HostGate.reachable` 改为等那次探测的结果（88c026db）。
-- 待办：上线前在生产只读查一遍现有 Cowork 公司有没有正在用「位置外」账套的（主会话要求先列给它，不直接切）。
+- 生产只读核对（10-24，Cowork 网页容器里跑只读脚本，不写库、不进数据库容器、一次 SSH）：「正在用」= 公司选定的账套 + 近 90 天推送用过的账套；
+  位置 = 这条连接上各台电脑（未停用）主数据根换算出的位置。erpcowork 0 处；另两家共 6 处会落在位置外（未切，报主会话定）：
+
+  | 站点 | 账套 | 账套所在 | 换算后的位置 | 在用情况 |
+  |---|---|---|---|---|
+  | ccdemo | `\\pc-afa21e\c$\account\70exp\demo01` | `\\desktop-8brd5av\c$\account\70exp` | `C:\ACCOUNT`（DESKTOP-8BRD5AV） | 公司选定 ภูผาแก้ว；90 天推送 9 次（最近 10-20） |
+  | ccdemo | `…\70exp\demo02` | 同上 | 同上 | 公司选定 แก้วกานดา |
+  | ccdemo | `…\70exp\demo03` | 同上 | 同上 | 公司选定 ดาวเหนือ |
+  | ccdemo | `\\accserver\d$\account\70exp\test` | `\\accserver\d$\account\70exp` | 同上 | 90 天推送 35 次（最近 10-21） |
+  | testcowork | `\\192.168.0.212\pas212\2565\exp65\62tetrab` | `\\accserver\d$\account\65exp` | `C:\ACCOUNT`、`C:\PearnlyExpress` | 公司选定 TETRA TECH 分店 00001 |
+  | testcowork | `S:\2564\EXP64\65IMPEX` | `\\Accserver\d$\ACCOUNT\64EXP` | 同上 | 公司选定 อิมเพ็ก(กรุงเทพ) |
+
+  ccdemo 前三条：那台电脑经网络共享路径（`\\desktop-8brd5av\c$`，就是它自己的 C 盘）登记的账套，实际文件在位置 `C:\ACCOUNT` 里，
+  但按路径比在位置外；升级后 CC 改报 `C:\ACCOUNT\70EXP\DEMO0x`，这几家公司选定的旧路径对不上，要重选或由服务端按账套文件号认。
 
 ## 改动登记
 

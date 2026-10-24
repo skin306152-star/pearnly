@@ -44,7 +44,7 @@ def _supplier(payload, company=None):
         if not frappe.db.exists("ERP Supplier", key):
             frappe.throw(_("Supplier not found. Please select the supplier again."))
         doc = frappe.get_doc("ERP Supplier", key)
-        if doc.get("express_company") and company and doc.express_company != company:
+        if getattr(doc, "express_company", None) and company and doc.express_company != company:
             # 别家公司 Express 同步来的档不能挂在这家的单上（主档按公司隔离，服务端也拒；10-24 验收）
             frappe.throw(_("Supplier not found. Please select the supplier again."))
         if not doc.is_active:

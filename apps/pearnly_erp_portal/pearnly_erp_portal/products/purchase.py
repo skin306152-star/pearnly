@@ -50,7 +50,7 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
         name = item.name
     if name:
         item = frappe.get_doc("ERP Product", name)
-        if item.get("express_company") and company and item.express_company != company:
+        if getattr(item, "express_company", None) and company and item.express_company != company:
             frappe.throw(_("Product not found"))  # 别家公司 Express 的商品不能用在这家的单上（10-24 验收）
         if not item.is_active:
             frappe.throw(_("Item is disabled"))

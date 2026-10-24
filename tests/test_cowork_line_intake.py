@@ -170,15 +170,22 @@ class LineFlowTest(unittest.TestCase):
         self.assertTrue(self.last()["text"].endswith("the text the right way up and the whole page in frame."))
 
     def test_express_stock_does_not_ask_when_there_is_nothing_to_choose_here(self):
-        """选过、只有一个、小助手还没读过这份账套、组多到一屏点不完：LINE 不问（网页提交前再问）。"""
-        many = [{"acccod": f"S{i}", "label": f"S{i}"} for i in range(flow.MAX_RESULTS + 1)]
+        """选过、只有一个、小助手还没读过这份账套：LINE 不问（网页提交前再问）。"""
         two = [{"acccod": "SA", "label": "SA"}, {"acccod": "SB", "label": "SB"}]
         for view in ({"known": True, "groups": two, "chosen": "SA"}, {"known": True, "groups": two[:1], "chosen": None},
-                     {"known": False, "groups": [], "chosen": None}, {"known": True, "groups": many, "chosen": None}):
+                     {"known": False, "groups": [], "chosen": None}):
             self.stock_view = view
             self.express_stock()
             self.assertTrue(flow.ready(flow.choices("U1")), view)
         self.choose.assert_not_called()
+
+    def test_express_stock_with_more_groups_than_buttons_asks_to_type(self):
+        """用户 10-24：超出 LINE 一屏按钮的，先让人打名称关键字（或整串科目编号）找，不再跳过不问。"""
+        many = [{"acccod": f"S{i}", "label": f"S{i}"} for i in range(flow.MAX_RESULTS + 1)]
+        self.stock_view = {"known": True, "groups": many, "chosen": None}
+        self.express_stock()
+        self.assertFalse(flow.ready(flow.choices("U1")))
+        self.assertEqual(self.labels(), ["Cancel"])   # 不列按钮，问打字
 
     def test_mrerp_choice_does_not_ask_for_an_account_read(self):
         self.books = MRERP_BOOKS[:1]
