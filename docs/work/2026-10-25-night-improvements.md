@@ -69,3 +69,50 @@
   - `tests/test-native-desk.cjs`：Select 选项数。
   - `tests/test_check_unbounded_queries.py`：新增。
 - **实验栈实测（testerp 大账套，收发存页 3 秒时限）、验收复核：未做**。电量不足，明早接着做。
+
+## 10-25 约 05:40 暂停时的状态（本机电量到 10%，主会话通知暂停）
+
+已合入 main，一次合一个，每个都回读了远端 SHA：
+
+| 分支 | 合入后 main | 清理 |
+|---|---|---|
+| `pearnly/large-lists` | `92ca4366` | 工作树、本地分支、远端分支都已删除 |
+| `pearnly/cc-self-heal`（CC 1.12.1 代码） | `e93d3307` | 同上 |
+| `pearnly/book-identity-taxid` | `fce01cd0` | 同上 |
+
+远端 main = `fce01cd0`。
+
+还没合，已推送，串成一条链变基在 `fce01cd0` 上：
+
+| 分支 | 远端 SHA | 验收 | CI |
+|---|---|---|---|
+| `pearnly/cc-site-switch` | `fa924011` | 通过（窄屏场景已按意见修） | 暂停时在跑，明早看 |
+| `pearnly/safety-net-gaps` | `95c06b51` | 通过（5 处入口已按意见改） | 暂停时在跑，明早看 |
+| `pearnly/spa-errors` | `e4564e4b` | 上一版有 1 处不通过（登录会话上报因缺 CSRF 返回 400），已修，待复核 | 推送后未看 |
+| `pearnly/frappe-native-lists` | `118946c7` | 上一版有 2 处不通过（Link「包含」按编号匹配、物料页没接条件），已修，待复核 | 推送后未看 |
+
+- 链条最上面那个分支的本地全量闸门：123 步，无失败。
+- 合入顺序：cc-site-switch → safety-net-gaps → spa-errors → frappe-native-lists。每个都要 CI 绿、验收通过，再快进 main、回读。
+- 临时工作树 `.claude/worktrees/night-batch-check`（本地分支 `pearnly/night-batch-check`，没推送）：只用于今晚实验栈合并冒烟，没有独有成果。保留到上面四个分支都合入后删除。
+
+明早清单：
+
+1. 看上面四个分支的 CI，按顺序合 main；后两个先等验收复核新提交。
+2. CC 1.12.1 正式版发布：代码已在 main，今晚按口径没发，由主会话 / 用户决定。
+3. 第 7 项 Cowork 推送写 Express 自动冒烟：没做，要用测试机。
+4. 验收没测到的：
+   - 对话页打开时自动带 rekey 换新密钥：要人在 CC 窗口操作。
+   - Cowork 录入筛选、Cowork 看板导出：要起 Cowork 栈。
+   - Vue / React 错误边界上报：要换镜像。
+   - LINE 真机：三星手机 adb 掉线，要人插线。
+   - 大数据量下收发存的 3 秒时限：测试租户流水太少，证明不了。
+5. 冒烟建议：实验栈刚起时先预热一轮再计时（冷启动误报：供应商 6.5 秒、Cowork 首页 frappe is not defined）。
+6. 服务端剩余高风险项，排下一批：
+   - 用 len() 算总数。
+   - 在 Python 里逐行累加的汇总。
+   - 库存一览全量取回。
+   - CC 同步时整批取档。
+   - CC 待办只在前 200 条里搜。
+   - 盘点明细每次搜索都重建表格。
+   - 看板归档没有分页。
+7. 原有的：S 盘取样（accserver 白天在线）、库存方案评审、库存卡页偶发报错 `reading 'parent'`。
