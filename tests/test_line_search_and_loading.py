@@ -60,6 +60,18 @@ class ErpNoMatch(unittest.TestCase):
         again.assert_called_once_with(USER, "u@example.com", payload, "r", note="No match for “13”")
 
 
+class ErpLastWarehouse(unittest.TestCase):
+    def test_reads_the_line_intake_table_by_its_registered_name(self):
+        # 验收问题 20：表名写成 "ERP Line Intake"（实际 "ERP LINE Intake"），选「库存商品」后 LINE 没有回复
+        from pearnly_erp_portal.integrations import intake
+
+        with patch.object(line_flow.frappe, "get_all", return_value=["WH-1"]) as rows, \
+                patch.object(line_flow.frappe, "db", SimpleNamespace(
+                    get_value=lambda *args, **kwargs: SimpleNamespace(company="CO-1", is_active=1))):
+            self.assertEqual(line_flow._last_warehouse("CO-1", "u@example.com"), "WH-1")
+        self.assertEqual(rows.call_args.args[0], intake.DOCTYPE)
+
+
 class CoworkStockGroupSearch(unittest.TestCase):
     GROUPS = [{"acccod": "1150-01", "label": "สินค้าสำเร็จรูป"}, {"acccod": "1150-02", "label": "วัตถุดิบ"},
               {"acccod": "1150-03", "label": "สินค้าระหว่างทาง"}]

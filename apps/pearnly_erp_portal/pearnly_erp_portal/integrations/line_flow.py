@@ -245,7 +245,9 @@ def _ask_search(reply_token, step, payload, user, note=""):
 
 def _last_warehouse(company_name, user):
     """这个人上次在 LINE 给这家公司收单选的仓（还启用才给）。"""
-    for warehouse in frappe.get_all("ERP Line Intake", filters={"company": company_name, "sent_by": user,
+    from pearnly_erp_portal.integrations import intake  # intake 引用本模块：用到时才导入
+
+    for warehouse in frappe.get_all(intake.DOCTYPE, filters={"company": company_name, "sent_by": user,
                                                                "warehouse": ["is", "set"]},
                                     pluck="warehouse", order_by="creation desc", limit=5):
         row = frappe.db.get_value("ERP Warehouse", warehouse, ["company", "is_active"], as_dict=True)
