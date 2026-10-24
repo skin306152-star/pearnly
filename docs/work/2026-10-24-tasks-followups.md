@@ -89,4 +89,10 @@ ASCII 对照改用商品导入模板。
 
 ## 收工
 
-见交付时更新。
+| 收工结果 | 实际回读与处置 |
+| --- | --- |
+| 提交 | 修复 `ca079f1d`，记录另两笔文档提交；基于 `cecc475e`。未合入 main、未部署（不在本次授权内，等用户定批次） |
+| 远端 refs | `origin/pearnly/work-followups-d3d5bf` 已推送并回读一致；分支 CI（Development checks，run `40074910853`，提交 `15cbf2ea`）architecture-and-offline success；远端 main 未动 |
+| 工作树与分支 | 交接保留：工作树 `.claude/worktrees/work-followups-d3d5bf` 与分支 `pearnly/work-followups-d3d5bf`（本任务所有，未合入 main）。解除条件：用户定好批次、按「主线集成」合入 main 后删除工作树、本地与远端分支 |
+| 临时资源 | 本机实验室 `pearnly-followups-lab`（容器、库与站点卷、网络）已删并回读为 0；无头 Chrome 临时配置已清。脚本与截图留在 `~/pearnly-devtools/followups-lab/`（`compose.yml` + `work/init.py` 约 10 分钟重建三站点；`drive.mjs`、`run-b.sh`、`run-d.sh`、`a-*.js` 是页面实测脚本）。测试机未动 |
+| 余项 | ① 用户定上线批次 → 合入 main（共用层改动，合入前若 main 有新的 `pearnly_core` 提交，变基后重跑候选离线检查）→ 随批部署；② 已建成英文三列的现有 Cowork 租户不自动改名（需要的话另做一次性改名） |
