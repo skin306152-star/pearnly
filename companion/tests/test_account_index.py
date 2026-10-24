@@ -503,3 +503,35 @@ def test_entry_marks_ride_the_scan_and_a_restart_opens_no_journal(tmp_path, open
     reads.clear()
     third, _ = _complete(root, root / "A")
     assert reads == ["C"] and {row["code"]: row.get("entry_mark") for row in third["account_sets"]}["C"].endswith("/6")
+
+
+def test_two_threads_asking_about_the_same_server_share_one_answer():
+    """10-24 验收问题 21：两个成员同时扫同一台服务器，后来的那个看到「别人正在问」就当成不在、把那台上的账套全当空报上去。
+    现在等那次的结果：只问一次，两个都按「在」读。卡住不回的那一下仍按不在算。"""
+    import threading
+
+    calls = []
+
+    def slow(path):
+        calls.append(path)
+        time.sleep(0.3)
+        return True
+
+    gate = scan_pace.HostGate(slow, probe_seconds=2)
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(gate.reachable(r"\\accserver\d$\ACCOUNT\65EXP")))
+               for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    assert results == [True, True] and len(calls) == 1
+
+    stuck = scan_pace.HostGate(lambda path: time.sleep(1.0) or True, probe_seconds=0.2)
+    results.clear()
+    threads = [threading.Thread(target=lambda: results.append(stuck.reachable(r"\\nas\books\70EXP"))) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    assert results == [False, False]

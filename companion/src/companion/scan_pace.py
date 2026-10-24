@@ -143,6 +143,8 @@ class HostGate:
         self._fresh = fresh_seconds
         self._clock = clock
         self._lock = threading.Lock()
+        # 探测结束（放开 probing）时叫醒在等同一台服务器结果的线程
+        self._probed = threading.Condition(self._lock)
         self._hosts: Dict[str, _HostState] = {}
 
     def reachable(self, path, *, retry: bool = False) -> bool:
@@ -151,20 +153,30 @@ class HostGate:
         host = host_of(path, drive_type=self._drive_type)
         if not host:
             return True
-        now = self._clock()
         with self._lock:
             state = self._hosts.setdefault(host, _HostState())
-            if state.probing or (now < state.retry_at and not retry):
+            if state.probing:
+                # 别的线程正在问同一台：等它的结果（最多一次探测的时限），不当成「不在」。原来直接回 False、不留日志，
+                # 两个成员同时扫时后来的那个把这台服务器上的账套全当空、按完整清单报上去（10-24 验收问题 21：Cowork 685 → 461）。
+                self._probed.wait_for(lambda: not state.probing, self._probe_seconds)
+                if state.probing:
+                    return False  # 那一下卡住了：按不在算，它返回前不再问第二次
+                return not state.fails and self._clock() - state.ok_at < self._fresh
+            now = self._clock()
+            if now < state.retry_at and not retry:
                 return False
             if not state.fails and now - state.ok_at < self._fresh:
                 return True
             state.probing = True
-        ok = self._probe_limited(host, str(path))
+        ok, finished = self._probe_limited(host, str(path))
         with self._lock:
             if ok:
                 state.fails, state.retry_at, state.ok_at = 0, 0.0, self._clock()
             else:
                 self._failed(host, state)
+            if finished:  # 结果记好了才放开、叫醒在等的线程（卡住的那一下由它自己返回时放开）
+                state.probing = False
+                self._probed.notify_all()
         return ok
 
     def host(self, path) -> str:
@@ -186,8 +198,8 @@ class HostGate:
         state.ok_at = -1e18
         log.info("[accounts] 服务器 %s 读不到，%d 秒后再试（连续第 %d 次）", _label(host), int(delay), state.fails)
 
-    def _probe_limited(self, host: str, path: str) -> bool:
-        """在守护线程里问；超过 probe_seconds 不等它（它卡着期间 probing 一直为真，不会再问第二次）。"""
+    def _probe_limited(self, host: str, path: str) -> tuple:
+        """在守护线程里问 → ``(在不在, 按时问完了没有)``；超过 probe_seconds 不等它（它卡着期间 probing 一直为真，不会再问第二次）。"""
         result: dict = {}
         done = threading.Event()
 
@@ -203,6 +215,7 @@ class HostGate:
                     state = self._hosts.get(host)
                     if state is not None and result.get("late"):
                         state.probing = False
+                        self._probed.notify_all()
                 done.set()
 
         threading.Thread(target=run, name="pearnly-host-probe", daemon=True).start()
@@ -210,11 +223,9 @@ class HostGate:
         with self._lock:
             state = self._hosts.get(host)
             if result.get("finished"):
-                if state is not None:
-                    state.probing = False
-                return bool(result.get("ok"))
+                return bool(result.get("ok")), True
             result["late"] = True  # 卡住的那一下返回时才放开 probing（两边都在锁里判，不会漏放）
-        return False
+        return False, False
 
     def _reset_for_tests(self) -> None:
         with self._lock:
