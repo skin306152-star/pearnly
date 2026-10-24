@@ -80,7 +80,13 @@ def ensure_on_migrate():
     if frappe.conf.get("pearnly_product") != "cowork" or not frappe.db.table_exists(BOARD):
         return
     workspace = scope.ensure_site_workspace()
-    ensure_lists(default_board(workspace), workspace)
+    # 迁移命令按英文跑（`frappe.local.lang` 是 en），默认三列的名字要按站点语言取（ERP 同一份代码在 testerp 实测建成了 To do / In progress / Done）。
+    current = frappe.local.lang
+    frappe.local.lang = frappe.db.get_single_value("System Settings", "language") or current
+    try:
+        ensure_lists(default_board(workspace), workspace)
+    finally:
+        frappe.local.lang = current
 
 
 def open_board(board=None, right="view"):

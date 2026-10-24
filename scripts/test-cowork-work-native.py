@@ -60,6 +60,23 @@ def run():
     admin = user("work-admin@example.invalid", ["Desk User", "Cowork Admin"])
     outsider = user("work-outsider@example.invalid", ["Desk User", "Cowork Intake"])
 
+    # 默认看板的三列按站点语言取名：迁移命令按英文跑，新租户原来建成 To do / In progress / Done（ERP 同一份代码 10-23 实测）。
+    # 只在默认看板还没有卡片时演一遍（删掉三列 → 站点语言设泰文 → 按迁移时的英文跑 `ensure_on_migrate`），随最后回滚撤回。
+    from pearnly_cowork.access import scope
+    from pearnly_cowork.work import boards
+    default = boards.default_board(scope.ensure_site_workspace())
+    if frappe.db.exists(access.CARD, {"board": default}):
+        print("SKIP default lists in the site language: the default board already has cards")
+    else:
+        frappe.db.delete(access.COLUMN, {"board": default})
+        frappe.db.delete(access.LABEL, {"board": default})
+        frappe.db.set_single_value("System Settings", "language", "th")
+        frappe.local.lang = "en"
+        boards.ensure_on_migrate()
+        titles = frappe.get_all(access.COLUMN, filters={"board": default}, pluck="title", order_by="position asc")
+        assert titles == ["รอดำเนินการ", "กำลังทำ", "เสร็จแล้ว"], titles
+        assert frappe.local.lang == "en", "the command's language is put back"
+
     # 没勾「工作协调」的人什么都拿不到。
     frappe.set_user(outsider)
     expect_error("outsider board", service.board, error=frappe.PermissionError)
@@ -209,13 +226,32 @@ def run():
     image = next(row for row in image if row.file_name.startswith("cover"))
     service.update(a["name"], service.card(a["name"])["modified"], {"cover_file": image.name})
     assert service.summary(a["name"])["cover_url"]
+    opened = service.card(a["name"])["modified"]
     service.detach(a["name"], image.name)
-    assert not service.card(a["name"])["cover_file"]
+    fresh = service.card(a["name"])
+    assert not fresh["cover_file"]
+    # 删掉的是封面：服务端存了一次卡片，弹窗要接过新版本号（`work.js` 删附件后取 `card().modified`）才保存得了。
+    assert fresh["modified"] != opened
+    expect_error("stale after cover detach", service.update, a["name"], opened, {"title": "A cover gone"}, error=Invalid)
+    service.update(a["name"], fresh["modified"], {"title": a["title"]})
 
     # 关注、@、提醒：自己做的不提醒自己；只看得到自己的提醒；完成也提醒相关的人。
     NOTE = access.NOTIFICATION
-    service.watch(a["name"], True)
+    opened = service.card(a["name"])["modified"]
+    watched = service.watch(a["name"], True)
     assert service.summary(a["name"])["watching"]
+    # 弹窗里点「关注 / 取消关注」后接过 `watch` 回的版本号：取消关注 → 一次改成员和标签 → 保存，能存
+    # （原来弹窗仍拿着打开时的版本号，报「已被其他用户修改」，什么都没存）。
+    assert watched["modified"] != opened
+    expect_error("stale after watch", service.update, a["name"], opened, {"title": "A watched"}, error=Invalid)
+    kept = service.card(a["name"])
+    unwatched = service.watch(a["name"], False)
+    saved = service.update(a["name"], unwatched["modified"], {"assignees": [worker], "labels": []})
+    card = service.card(a["name"])
+    assert card["assignees"] == [worker] and card["labels"] == [] and not card["watching"], card
+    assert saved["modified"] == card["modified"]
+    service.update(a["name"], saved["modified"], {"assignees": kept["assignees"], "labels": kept["labels"]})
+    service.watch(a["name"], True)
     frappe.set_user(other)
     service.comment(a["name"], "@Work please check", [worker, outsider])
     frappe.set_user(worker)

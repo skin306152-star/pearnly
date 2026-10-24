@@ -388,8 +388,9 @@ scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"],
                     "hourly": ["pearnly_core.account.line_login.reconcile"],
                     "daily": ["pearnly_core.execution.work.prune_checkpoints"]}
 
-# 导出文件的下载响应不进缓存（与 Cowork 原件下载同一做法）。
-after_request = ["pearnly_core.exports.service.protect_response", "pearnly_core.cc_desktop.http_auth.after_request"]
+# 导出文件的下载响应不进缓存（与 Cowork 原件下载同一做法）；所有原生下载的中文 / 泰文文件名按 RFC 5987 写进响应头。
+after_request = ["pearnly_core.exports.service.protect_response", "pearnly_core.exports.service.encode_filename",
+                 "pearnly_core.cc_desktop.http_auth.after_request"]
 
 # LINE 绑定即登录：绑定变化 → 作废失效的 LINE 会话、同步身份服务里的关联（多产品共用）。
 pearnly_line_binding_changed = ["pearnly_core.account.line_login.binding_changed"]

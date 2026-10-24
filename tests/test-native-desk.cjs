@@ -131,6 +131,29 @@ for (const name of ['middle_name','last_name','username','roles','sb1','settings
 assert.deepEqual(refreshed, ['refresh_fields'], 'Layout is refreshed so first paint matches a later form refresh');
 console.log('PASS profile keeps visible fields with their real tab/section/column ancestors');
 
+// 没开某个页面的人直接打开：交给框架原生的无权限页（`frappe.show_not_permitted`），不建空白页面壳；
+// 开了的照常建页面、渲染（ERP 任务管理复测 10-23：原来只在标题旁写「无权限」、页面一片空白）。
+{
+  const shown = [], built = [], rendered = [];
+  frappe.show_not_permitted = name => shown.push(name);
+  frappe.ui.make_app_page = options => { built.push(options.title); return {set_title_sub() {}}; };
+  frappe.pearnly.texts = async () => (key => key);
+  frappe.pages = {'pearnly-tasks': {}, 'pearnly-home': {}};
+  frappe.pearnly.register('pearnly-tasks', 'work.', 'Tasks', async () => rendered.push('pearnly-tasks'));
+  frappe.pearnly.register('pearnly-home', 'home.', 'Home', async () => rendered.push('pearnly-home'));
+  (async () => {
+    await frappe.pages['pearnly-tasks'].on_page_load({});
+    assert.deepEqual(shown, ['pearnly-tasks'], 'A page outside the user\'s pages shows the native not-permitted page');
+    assert.deepEqual(built, [], 'No empty app page is built for a page the user may not open');
+    assert.deepEqual(rendered, []);
+    await frappe.pages['pearnly-home'].on_page_load({});
+    assert.deepEqual(shown, ['pearnly-tasks']);
+    assert.deepEqual(built, ['Home']);
+    assert.deepEqual(rendered, ['pearnly-home'], 'A permitted page still renders');
+    console.log('PASS a page the user may not open shows the native not-permitted page');
+  })().catch(error => { console.error(error); process.exit(1); });
+}
+
 // A Dialog receives a new set of value/label pairs after each product lookup.
 // Native Autocomplete refreshes data at creation, unlike native Select's refresh.
 class NativeAutocomplete {

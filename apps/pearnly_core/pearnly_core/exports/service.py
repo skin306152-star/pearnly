@@ -25,6 +25,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
+from pearnly_core.exports import disposition
+
 DOCTYPE = "Pearnly Export"
 EVENT = "pearnly_export"
 FOLDER = "pearnly-exports"
@@ -215,5 +217,23 @@ def protect_response(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
 
 
-__all__ = ["DEFAULT_SYNC_ROWS", "DOCTYPE", "EVENT", "deliver", "download", "enqueue", "failure_text", "own",
+DOWNLOAD_TYPES = frozenset({"download", "binary", "pdf"})
+
+
+def encode_filename(response):
+    """所有框架原生下载（三个产品的导出、原件、模板）：中文 / 泰文文件名改写成 RFC 5987 的响应头，别让浏览器解成乱码。
+
+    框架按 latin-1 原样写文件名；只含可打印 ASCII 的名字不动，其余按 ``disposition.header`` 重写（保留 attachment / inline）。
+    """
+    data = getattr(frappe.local, "response", None) or {}
+    name = data.get("filename")
+    current = response.headers.get("Content-Disposition")
+    if (data.get("type") not in DOWNLOAD_TYPES or not isinstance(name, str) or not current
+            or not disposition.needs_encoding(name)):
+        return
+    response.headers["Content-Disposition"] = disposition.header(current.split(";", 1)[0], name)
+
+
+__all__ = ["DEFAULT_SYNC_ROWS", "DOCTYPE", "DOWNLOAD_TYPES", "EVENT", "deliver", "download", "encode_filename", "enqueue",
+           "failure_text", "own",
            "respond", "run", "status", "sweep", "sync_rows"]
