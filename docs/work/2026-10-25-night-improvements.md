@@ -135,3 +135,17 @@
 - `tests/test_cowork_companies.py`：待办搜索能找到最近候选窗口外的单，并按页面口径细判。
 - 前端 `tsc` 通过。
 - 实验栈实测、验收复核：待做。
+
+## 10-25 白天：第 7 项 Cowork 推送写 Express 自动冒烟（分支 `pearnly/cowork-express-smoke`，叠在 `pearnly/server-heavy-queries` 上）
+
+- 脚本 `scripts/smoke/cowork_express_flow.py`，形状同 ERP 版 `express_flow.py`。在实验栈 Cowork 网页容器里跑，步骤：
+  - 用 `storage.create_recognized`（`source=manual`）造一张识别记录：不调模型、不扣费、不发 LINE，不设推送去向（自动推送扫描不会拿它）。
+  - 走正式路径：`choices_view` 预检 → `push.application.api.submit` → `companion.submission.confirm` 进 CC 队列。
+  - 等推送记录到 `success`，核单号、`verify_state=ok`、`meta.written`、`meta.index_requery`、没有重复跳过，以及实际写入路径在 C 盘。
+- 防护：
+  - 只认 Cowork 测试租户站点，推送开关要开着。
+  - 账套必须是 `C:\PearnlyExpress\` 下以 T 开头的：参数、冻结载荷、CC 回报的实际路径各核一次，冻结载荷不对就撤回准备。
+  - 这条连接上排着的单只要有一张不在 C 盘就拒跑。
+  - CC 不在线就不建单，报「没测到」。
+- `run.py`：探针 `cowork_express`，录入人取 `SMOKE_COWORK_EXPRESS_USER`（入口 args 的 user 优先）。
+- **还差**：实验栈上的连接名、T 账套、这份账套里已有选择记忆的供应商、在测试机 CC 上登录过的录入人，要上测试机确认。确认后把这些填进登记表 `cowork.express.push` 的 args 并改成 auto，跑通一次，再交验收。
