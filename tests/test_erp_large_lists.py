@@ -12,6 +12,8 @@ class PagedLists(unittest.TestCase):
 
         def get_list(doctype, **kwargs):
             calls.append((doctype, kwargs))
+            if {"COUNT": "name", "as": "total"} in (kwargs.get("fields") or []):
+                return [{"total": 3}]  # 计数在数据库里数（list_filters.count 的 COUNT 聚合）
             return ["N1", "N2", "N3"] if kwargs.get("pluck") else [{"name": "N1"}]
 
         patches = [mock.patch.object(module.frappe, "get_list", side_effect=get_list), mock.patch.object(module.guard, "require")]
