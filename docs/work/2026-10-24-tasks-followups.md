@@ -71,9 +71,11 @@ ASCII 对照改用商品导入模板。
 
 ### 闸门
 
-- 本地全闸门（`~/pearnly-devtools/gate.sh`，按 `development.yml` 全部步骤）：见交付时更新
-- 生产镜像完整候选离线检查（`cand-local.sh offline`，镜像 `29404c6a…`，挂本工作树）：见交付时更新
-- 分支 CI（Development checks）：见交付时更新
+- 本地全闸门（`~/pearnly-devtools/gate.sh`，按 `development.yml` 全部步骤，含新加的 `test_download_filenames.py`）：115 步全部 ok、0 失败
+- 生产镜像完整候选离线检查（`cand-local.sh offline`，镜像 `29404c6a…`，只读挂本工作树）：72 步，`LANE EXIT 0`；
+  `tests/test_exports.py` 17 项 OK（含新加的「中 / 泰文文件名经原生 `build_response` + 钩子」一项）
+- 共享提交钩子：架构检查 0 违规；文案闸门新增 0 · 改动 0
+- 分支 CI（Development checks）：推送后回读，结果见下方「收工」
 
 ## 界面文案
 
