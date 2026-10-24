@@ -199,6 +199,17 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 智能体对话页 `/assistant` 是第二个限定例外（[ADR-019](../adr/0019-assistant-foundation.md)）：React + assistant-ui，只在 `frontend/assistant/`，只服务这一个入口。
 
+### 列表、选择与搜索：先用 Frappe 原生的服务端分页（2026-10-25）
+
+接了 Express 的公司主档动辄几万条（testerp 客户 7.4 万、商品 4.8 万）。一次取全再在浏览器里排序、切页、过滤，大租户会卡死页面。
+
+- **列表**：`p.list` 的 `load({start, page_length, sort_by, sort_order})` 交给服务端，服务端用 `frappe.get_list(limit_start, limit_page_length, order_by)` 加白名单排序（`access/listing.order_by`），总数单独计。不传 `limit: 0`，不在前端 `p.sort_rows` 后切页。必须先算出每一行才能排序的报表（收发存汇总按数量排序），服务端整批算完再切页，只把这一页交给前端。
+- **选择**：主档选择用原生 `ControlLink`（`search_link` / `get_query`，服务端带上限）。选项来自外部系统、不是 DocType 的，用 Autocomplete，上限由数据量定，并写明原因。
+- **搜索**：关键词交给服务端查。不在已经取回的前 N 条里搜。
+- **筛选**：用原生 FilterArea。条件下拉只列服务端实际认的条件（`list.js` 的 `PRODUCT_CONDITIONS`）。
+- **导出**：走 `p.export_file`，由服务端生成文件，大的排后台。参数多时用 POST，不拼进网址。
+- **闸门**：`scripts/check-unbounded-queries.py`。服务端无上限查询，或前端 `limit: 0` / `p.sort_rows(`，按文件计数，超过 `scripts/unbounded-queries-baseline.json` 的基线就失败。基线只许减少。天然有界的（按单号、一张单的明细、固定的小字典）在那一行写 `# bounded: 原因`。冒烟的页面打开时限是 3 秒（`verification.md`「大数据量」）。
+
 ### 智能体底座（ADR-019，2026-10-10）
 
 `pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`engines` 是引擎目录（唯一登记处，纯数据）与适配器接口 `engines/base.py`，各厂商实现放 `engines/<code>.py`；`config` 读本站的引擎、模型、密钥与产品；`engine` 取当前适配器并缓存其远端资源；`definition` 从工具声明生成与厂商无关的智能体说明，共用说明不认识产品，产品的说话规矩经 `pearnly_assistant_guidance` 接在后面；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。`files` 把对话里的文件在本站私有目录留一份（用户上传；2026-10 起工具产出 `origin="tool"` 与产品从文件夹取来的 `origin="folder"` 也留），工具经 `attachment` 取用、经 `origin` 查来源，删对话时一起删。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。对话提醒 `notices` 与表 `Pearnly Assistant Notice` 也在 Core：产品只经 `notices.post` 发提醒（类型、标题、正文、手机推送有效期都由产品传入，共用层不认识产品的提醒类型）；提醒不写进引擎会话，事件 `pearnly.notice`（编号 `pnotice_` 开头）只在站点与对话页之间，用户下次发话时与当地日期合成批末唯一一条系统消息带给智能体；`sessions` 单向依赖 `notices`。手机 / 电脑浏览器推送：`webpush` 是纯加密与校验（RFC 8291 aes128gcm、RFC 8292 VAPID ES256，只用标准库和随基础镜像带的 cryptography）；`push` 管本站 VAPID 密钥（`Pearnly Assistant Push Key`，单例，私钥用密码字段）、设备订阅（`Pearnly Assistant Push Subscription`，按推送地址 sha256 唯一，同一设备换人登录时覆盖）和发送；推送地址只认 FCM、苹果、Mozilla、微软几家推送服务，不跟随跳转，只有 404/410 才删订阅。对话归在哪家（ADR-020）：会话表 `project` / `period` / `project_scope` / `project_noted`，`projects` 只认产品经 hooks `pearnly_assistant_projects` 声明的 provider（`KIND / PERIOD / SCOPE / allowed / view / context`），没有声明的产品 `kind = None`、一切照旧；`sessions` → `projects` → `sidebar` 单向依赖，实时事件 `pearnly.project` 逐人推；没挂对话的提醒可带 `view`（点开去哪一页）。产品不得在自己 App 里另起会话或直连模型厂商，共用层除适配器外不得出现厂商名、密钥格式或模型名；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。

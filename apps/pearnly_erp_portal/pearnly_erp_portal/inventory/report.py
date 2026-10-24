@@ -3,18 +3,25 @@
 - **期初**由同一份库存流水投影：初始化归入期初，不计本期收发；截止日之后的初始化不提前计入。
 - 初始化的历史修订仍按真实顺序滚动成本，再归入期初；不前移修订重算业务成交成本。
 - **成本未知就留空**：报表不会把没确立成本的结存写成 0，宁可为空也不给一个假数字。
+- **汇总按页算**（2026-10-25，大租户上万商品×仓库）：按商品 / 仓库 / 仓位排序（默认）时先取全部"商品×仓库×仓位"键
+  （只有三列），排好切出这一页，只读这一页商品的流水去滚成本；按数量列排序必须先算出每一行，才整批算、再切片。
+  两种都按键一次分组，不再每个键扫一遍全部流水、每行单查一次仓库名。
 """
 
 import frappe
 from frappe import _
 from frappe.utils import getdate, nowdate
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import contracts, warehouses
 
 MOVEMENT = "ERP Stock Movement"
 PRODUCT = "ERP Product"
 INVALID = "Invalid value"
+# 汇总列表列头排序的白名单（页面 stock-card.js 的 sort_fields）：前三列由键决定，可先分页再算
+KEY_SORTS = ("product_name", "warehouse_name", "location")
+SUMMARY_SORTS = {name: name for name in (*KEY_SORTS, "opening_qty", "in_qty", "out_qty", "closing_qty")}
+PAGE_MAX = 500
 
 
 def _date(value, default=None):
@@ -31,10 +38,12 @@ def _date(value, default=None):
         frappe.throw(_(INVALID))
 
 
-def _movements(*, product=None, warehouse=None, location=None, date_to=None) -> list[dict]:
+def _filters(*, product=None, warehouse=None, location=None, date_to=None, products=None) -> dict:
     filters: dict = {}
     if product:
         filters["product"] = product
+    elif products is not None:
+        filters["product"] = ["in", sorted(products) or ["__none__"]]
     if warehouse:
         filters["warehouse"] = warehouses.resolve(warehouse, create=False) or "__missing__"
     else:
@@ -44,17 +53,41 @@ def _movements(*, product=None, warehouse=None, location=None, date_to=None) -> 
         filters["location"] = str(location or "").strip()
     if date_to:
         filters["posting_date"] = ["<=", date_to]
+    return filters
+
+
+def _exact_location(rows, filters):
+    # MariaDB's default collation folds case/accents; position names hash the
+    # exact location. Keep native permission filtering, then match that identity.
+    if "location" not in filters:
+        return rows
+    return [row for row in rows if (row.get("location") or "") == filters["location"]]
+
+
+def _movements(*, product=None, warehouse=None, location=None, date_to=None, products=None) -> list[dict]:
+    filters = _filters(product=product, warehouse=warehouse, location=location, date_to=date_to, products=products)
     rows = frappe.get_list(
         MOVEMENT, filters=filters,
         fields=["name", "posting_date", "posting_time", "movement_type", "product",
                 "warehouse", "location", "qty", "unit", "qty_base", "unit_cost", "cost_known",
                 "ref_type", "ref_id", "doc_no", "reason"],
         order_by="posting_date asc, posting_time asc, creation asc", limit_page_length=0)
-    if location is not None:
-        # MariaDB's default collation folds case/accents; position names hash the
-        # exact location. Keep native permission filtering, then match that identity.
-        rows = [row for row in rows if (row.get("location") or "") == filters["location"]]
-    return rows
+    return _exact_location(rows, filters)
+
+
+def _position_keys(**query) -> list[tuple]:
+    """全部"商品×仓库×仓位"键（只取三列、按键分组），不读流水明细。"""
+    filters = _filters(**query)
+    rows = frappe.get_list(MOVEMENT, filters=filters, fields=["product", "warehouse", "location"],
+                           group_by="product, warehouse, location", limit_page_length=0)
+    return sorted({(row["product"], row["warehouse"], row.get("location") or "")
+                   for row in _exact_location(rows, filters)})
+
+
+def _warehouse_names(ids) -> dict:
+    # 一个仓库只查一次（原来每一行查一次）
+    return {warehouse_id: frappe.db.get_value("ERP Warehouse", warehouse_id, "warehouse_name")
+            for warehouse_id in set(ids)}
 
 
 def _product_names(products) -> dict:
@@ -136,22 +169,14 @@ def _aggregate(balances):
     return contracts.Balance(qty, value, unit)
 
 
-def summary(*, date_from=None, date_to=None, product=None, warehouse=None, location=None) -> list[dict]:
-    """按商品汇总：期初、本期入、本期出、期末。"""
-    guard.require("report.read")
-    date_from = _date(date_from)
-    date_to = _date(date_to)
-    visible = guard.cost_visible()
-    movements = _movements(product=product, warehouse=warehouse, location=location, date_to=date_to)
-
-    keys = sorted({(m["product"], m["warehouse"], m.get("location") or "") for m in movements})
-    names = _product_names({key[0] for key in keys})
+def _summary_rows(keys, movements, *, date_from, visible, names, warehouse_names) -> list[dict]:
+    grouped: dict = {}
+    for movement in movements:
+        key = (movement["product"], movement["warehouse"], movement.get("location") or "")
+        grouped.setdefault(key, []).append(dict(movement, posting_date=_date(movement["posting_date"])))
     rows = []
     for product_id, warehouse_id, location_id in keys:
-        relevant = [dict(m, posting_date=_date(m["posting_date"])) for m in movements
-                    if m["product"] == product_id and m["warehouse"] == warehouse_id
-                    and (m.get("location") or "") == location_id]
-        carried, final, period = _project_position(relevant, date_from)
+        carried, final, period = _project_position(grouped.get((product_id, warehouse_id, location_id), []), date_from)
 
         in_qty = sum((contracts.d(r["qty_base"]) for r in period
                       if contracts.d(r["qty_base"]) > 0), contracts.d(0))
@@ -160,7 +185,7 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
         rows.append({
             "product": product_id, "product_name": (names.get(product_id) or {}).get("product_name"),
             "warehouse": warehouse_id, "location": location_id,
-            "warehouse_name": frappe.db.get_value("ERP Warehouse", warehouse_id, "warehouse_name"),
+            "warehouse_name": warehouse_names.get(warehouse_id),
             "name": contracts.position_name("BAL", product_id, warehouse_id, location_id),
             "unit": (names.get(product_id) or {}).get("base_unit") or (names.get(product_id) or {}).get("unit"),
             "opening_qty": float(carried.qty), "in_qty": float(in_qty), "out_qty": float(out_qty),
@@ -170,6 +195,50 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
             "cost_known": final.unit is not None,
         })
     return rows
+
+
+def summary(*, date_from=None, date_to=None, product=None, warehouse=None, location=None) -> list[dict]:
+    """按商品汇总：期初、本期入、本期出、期末（整批，测试与内部核对用；页面走 summary_page）。"""
+    guard.require("report.read")
+    date_from = _date(date_from)
+    date_to = _date(date_to)
+    movements = _movements(product=product, warehouse=warehouse, location=location, date_to=date_to)
+    keys = sorted({(m["product"], m["warehouse"], m.get("location") or "") for m in movements})
+    return _summary_rows(keys, movements, date_from=date_from, visible=guard.cost_visible(),
+                         names=_product_names({key[0] for key in keys}),
+                         warehouse_names=_warehouse_names(key[1] for key in keys))
+
+
+def summary_page(*, date_from=None, date_to=None, product=None, warehouse=None, location=None,
+                 start=0, limit=20, sort_by=None, sort_order=None) -> dict:
+    """汇总列表的一页：`{"items": 这一页, "total": 全部行数}`，排序口径同 `listing.sort_rows`。"""
+    guard.require("report.read")
+    date_from = _date(date_from)
+    date_to = _date(date_to)
+    start = max(int(start or 0), 0)
+    limit = min(max(int(limit or 20), 1), PAGE_MAX)
+    query = {"product": product, "warehouse": warehouse, "location": location, "date_to": date_to}
+    visible = guard.cost_visible()
+    keys = _position_keys(**query)
+    sort_key = str(sort_by or "").strip()
+    # 商品名只在按商品名排序或要整批算时取全部，其余只取这一页的
+    names = _product_names({key[0] for key in keys}) if sort_key in SUMMARY_SORTS and sort_key not in (
+        "warehouse_name", "location") else {}
+    warehouse_names = _warehouse_names(key[1] for key in keys)
+    if sort_key in SUMMARY_SORTS and sort_key not in KEY_SORTS:
+        movements = _movements(**query)
+        rows = _summary_rows(keys, movements, date_from=date_from, visible=visible, names=names,
+                             warehouse_names=warehouse_names)
+        rows = listing.sort_rows(rows, sort_key, sort_order, SUMMARY_SORTS)
+        return {"items": rows[start:start + limit], "total": len(rows)}
+    labels = [{"key": key, "product_name": (names.get(key[0]) or {}).get("product_name"),
+               "warehouse_name": warehouse_names.get(key[1]), "location": key[2]} for key in keys]
+    page = [row["key"] for row in listing.sort_rows(labels, sort_key, sort_order, SUMMARY_SORTS)[start:start + limit]]
+    movements = _movements(**query, products={key[0] for key in page}) if page else []
+    names = names or _product_names({key[0] for key in page})
+    rows = _summary_rows(page, movements, date_from=date_from, visible=visible, names=names,
+                         warehouse_names=warehouse_names)
+    return {"items": rows, "total": len(keys)}
 
 
 def card(*, product, warehouse=None, location=None, date_from=None, date_to=None) -> dict:
@@ -192,6 +261,7 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
 
     names = _product_names({product})
     meta = names.get(product) or {}
+    warehouse_names = _warehouse_names(r["warehouse"] for r in rolled)
     return {
         "product": product, "product_name": meta.get("product_name"), "unit": meta.get("base_unit") or meta.get("unit"),
         "warehouse": warehouse, "location": location, "date_from": date_from, "date_to": date_to,
@@ -202,7 +272,7 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
                     "value": None if (not visible or carried.value is None) else float(carried.value)},
         "rows": [
             _public({"name": r["name"], "warehouse": r["warehouse"], "location": r.get("location") or "",
-                     "warehouse_name": frappe.db.get_value("ERP Warehouse", r["warehouse"], "warehouse_name"),
+                     "warehouse_name": warehouse_names.get(r["warehouse"]),
                      "date": r["posting_date"], "kind": r["movement_type"], "doc_no": r["doc_no"],
                      "desc": r["ref_id"] or r["reason"] or r["movement_type"],
                      "qty": float(r["qty_base"]), "unit_price": r["unit_price"],

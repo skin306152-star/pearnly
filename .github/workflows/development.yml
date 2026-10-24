@@ -53,6 +53,8 @@ jobs:
         run: python3 scripts/test-dms-customer-identity.py
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
+      - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
+        run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded
         run: python3 tests/test_cowork_mrerp_masters.py
       - name: Exercise audited offline DMS contracts
@@ -214,6 +216,8 @@ jobs:
         run: node tests/test-native-desk.cjs
       - name: Verify Desk list refresh (push first, timed fallback)
         run: node --test tests/test-desk-live.cjs
+      - name: Verify product list filters offer only the conditions their servers apply (equals, between)
+        run: node tests/test-desk-list-filter.cjs
       - name: Verify the Desk text cache
         run: node --test tests/test-desk-texts.cjs
       - name: Verify the narrow-screen breadcrumb menu lists each destination once

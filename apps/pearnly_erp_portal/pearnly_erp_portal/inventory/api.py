@@ -728,6 +728,12 @@ def api_stock_summary(**kwargs):
     return report.summary(**_clean(kwargs))
 
 
+@frappe.whitelist()
+def api_stock_summary_page(**kwargs):
+    # 收发存汇总列表一页（大租户只算这一页，report.summary_page）
+    return report.summary_page(**_clean(kwargs))
+
+
 @frappe.whitelist(methods=["POST"])
 def api_preview_stock_opening(warehouse, as_of_date, rows, note=None):
     return opening_batch.preview(warehouse=warehouse, as_of_date=as_of_date, rows=rows, note=note)

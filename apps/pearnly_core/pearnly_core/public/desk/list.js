@@ -9,6 +9,7 @@
 	// （`field_select.js`：给了 `filter_fields` 就只加这几个）。**只对声明了 `filter_fields`
 	// 的列表生效**：别的列表、表单里的过滤器、其它 App 一概不动。
 	const NativeFilter = frappe.ui?.Filter;
+	const PRODUCT_CONDITIONS = ["=", "Between"];
 	if (NativeFilter && !NativeFilter.pearnly_filter_fields) {
 		class Filter extends NativeFilter {
 			constructor(options) {
@@ -19,7 +20,19 @@
 				const fields = names?.length
 					? names.map(name => frappe.meta.get_docfield(options.doctype, name)).filter(Boolean)
 					: null;
-				super(fields ? {...options, filter_fields: fields} : options);
+				super(fields ? {...options, filter_fields: fields, pearnly_conditions: true} : options);
+			}
+			// 产品列表的服务端只认「等于」和日期「介于」（`p.filter_values` 交上去的是 `{字段: 值}`）：
+			// 条件下拉只列这两个，不让人选了「不等于 / 包含 / 大于」却按「等于」查（2026-10-25 排查）。
+			// 构造参数在 `set_conditions()` 之前已由官方 `$.extend(this, opts)` 放上 `pearnly_conditions`。
+			set_conditions() {
+				super.set_conditions();
+				if (this.pearnly_conditions) {
+					this.conditions = this.conditions.filter(([condition]) => PRODUCT_CONDITIONS.includes(condition));
+				}
+			}
+			set_conditions_from_config() {
+				if (!this.pearnly_conditions) super.set_conditions_from_config();
 			}
 		}
 		Filter.pearnly_filter_fields = true;

@@ -285,9 +285,11 @@ def export_file(names=None, board=None):
             "content": _run(service.export, names, board)}
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist(methods=["GET", "POST"])
 def export(names=None, board=None):
-    """下载工作簿；`names` 是逗号分隔的卡片号。小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``）。"""
+    """下载工作簿；`names` 是逗号分隔的卡片号。小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``）。
+
+    页面用 POST 交卡片号（2026-10-25：上千张卡拼进网址会超过网关的地址长度上限）；GET 留给旧页面。"""
     from pearnly_core.exports import service as exports
 
     args = {"names": [name for name in (names or "").split(",") if name] or None, "board": board or None}

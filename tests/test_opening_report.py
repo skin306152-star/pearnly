@@ -31,12 +31,15 @@ class OpeningReport(unittest.TestCase):
         frappe = ModuleType("frappe")
         frappe._ = lambda value: value
         frappe.get_list = self.get_list
-        frappe.db = SimpleNamespace(get_value=lambda doctype, name, field: "Warehouse " + name)
+        self.warehouse_lookups = []
+        frappe.db = SimpleNamespace(get_value=lambda doctype, name, field: self.warehouse_lookups.append(name)
+                                    or "Warehouse " + name)
         utils = ModuleType("frappe.utils")
         utils.getdate = lambda value: date.fromisoformat(str(value))
         utils.nowdate = lambda: "2026-09-24"
         access = ModuleType("pearnly_erp_portal.access")
         access.guard = SimpleNamespace(require=self.required.append, cost_visible=lambda: self.cost_visible)
+        access.listing = load("opening_report_listing", DOMAIN.parent / "access/listing.py")
         inventory = ModuleType("pearnly_erp_portal.inventory")
         inventory.contracts = self.contracts
         inventory.warehouses = SimpleNamespace(resolve=lambda value, **kwargs: value,
@@ -48,7 +51,9 @@ class OpeningReport(unittest.TestCase):
     def get_list(self, doctype, filters, fields, **kwargs):
         self.queries.append((doctype, filters, kwargs))
         if doctype == "ERP Product":
-            return [{"name": "P1", "product_name": "Product", "unit": "pcs", "base_unit": "pcs"}]
+            wanted = filters["name"][1]
+            return [{"name": name, "product_name": "Product " + name if name != "P1" else "Product", "unit": "pcs",
+                     "base_unit": "pcs"} for name in sorted(wanted)]
         self.assertEqual(doctype, "ERP Stock Movement")
         rows = self.movements
         for key, wanted in filters.items():
@@ -66,8 +71,8 @@ class OpeningReport(unittest.TestCase):
                 rows = [row for row in rows if row.get(key) == wanted]
         return sorted(rows, key=lambda row: (str(row["posting_date"]), row["posting_time"], row["index"]))
 
-    def add(self, name, day, qty, cost=None, kind="stock_in", ref=None, warehouse="W1", location=""):
-        self.movements.append({"name": name, "product": "P1", "warehouse": warehouse, "location": location,
+    def add(self, name, day, qty, cost=None, kind="stock_in", ref=None, warehouse="W1", location="", product="P1"):
+        self.movements.append({"name": name, "product": product, "warehouse": warehouse, "location": location,
             "posting_date": date.fromisoformat(day), "posting_time": "00:00:00", "index": len(self.movements),
             "movement_type": kind, "ref_type": ref, "ref_id": name + "-source", "doc_no": name,
             "qty": qty, "qty_base": qty, "unit": "pcs", "unit_cost": cost or 0,
@@ -252,6 +257,38 @@ class OpeningReport(unittest.TestCase):
         self.assertEqual(card["closing"]["unit_cost"], 33.33)
         self.assert_continuous(card)
 
+
+    def test_summary_page_reads_only_this_page_of_products_and_matches_the_whole_report(self):
+        # 2026-10-25 大租户：键先分页，只读这一页商品的流水；与整批算出的同一行完全一样
+        for n in range(1, 8):
+            self.add(f"in-{n}", "2026-09-02", n, 10, product=f"P{n}", warehouse="W1" if n % 2 else "W2")
+            self.add(f"out-{n}", "2026-09-03", -1, product=f"P{n}", warehouse="W1" if n % 2 else "W2")
+        whole = {row["name"]: row for row in self.report.summary(date_from="2026-09-01", date_to="2026-09-24")}
+        self.queries.clear()
+        self.warehouse_lookups.clear()
+        page = self.report.summary_page(date_from="2026-09-01", date_to="2026-09-24", start=2, limit=3)
+        self.assertEqual(page["total"], 7)
+        self.assertEqual([row["product"] for row in page["items"]], ["P3", "P4", "P5"])
+        for row in page["items"]:
+            self.assertEqual(row, whole[row["name"]])
+        detail = [filters for doctype, filters, kwargs in self.queries
+                  if doctype == "ERP Stock Movement" and "group_by" not in kwargs]
+        self.assertEqual(detail, [dict(detail[0], product=["in", ["P3", "P4", "P5"]])])
+        self.assertEqual(sorted(self.warehouse_lookups), ["W1", "W2"])  # 一个仓库查一次
+
+    def test_summary_page_sorts_by_names_and_quantities_like_the_list_helper(self):
+        for n, qty in ((1, 5), (2, 9), (3, 1)):
+            self.add(f"in-{n}", "2026-09-02", qty, 10, product=f"P{n}")
+        by_qty = self.report.summary_page(date_from="2026-09-01", date_to="2026-09-24", sort_by="closing_qty",
+                                          sort_order="desc", start=0, limit=2)
+        self.assertEqual(([row["product"] for row in by_qty["items"]], by_qty["total"]), (["P2", "P1"], 3))
+        by_name = self.report.summary_page(date_from="2026-09-01", date_to="2026-09-24", sort_by="product_name",
+                                           sort_order="desc", limit=1)
+        self.assertEqual([row["product"] for row in by_name["items"]], ["P3"])
+        unknown = self.report.summary_page(date_from="2026-09-01", date_to="2026-09-24", sort_by="name; drop", limit=5)
+        self.assertEqual([row["product"] for row in unknown["items"]], ["P1", "P2", "P3"])
+        self.assertEqual(len(self.report.summary_page(limit=10**6)["items"]), 3)
+        self.assertEqual(self.report.summary_page(start=50)["items"], [])
 
 if __name__ == "__main__":
     unittest.main()

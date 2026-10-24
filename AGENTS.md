@@ -61,6 +61,7 @@
 - 产品 Web 与管理后台统一使用锁定版本的原生 Frappe Desk：Page / Workspace Sidebar / FieldGroup / Dialog / Grid / DataTable / msgprint / show_alert，提示音遵守账户静音。品牌色仅改强调色，保留官方白底、深色文字与原生布局。禁止新增 Vue 产品壳；LINE 一次性票据编辑器保留 Frappe UI 的明确例外，身份页保持 Keycloak 原生流程与主题。见 ADR-005/007。
 - 品牌色接旧项目的颜色令牌；控件行为、尺寸、焦点和禁用态由官方组件负责。业务布局与协议可以定制，不能借“业务内容”重做通用 UI。
 - 扩展组件优先组合官方插槽；必须自定义时记录具体原因与验收范围。遵循 [UI 决策](docs/adr/0007-frontend-skin.md)，架构检查同时拦截通用控件回退。
+- 列表、选择、搜索、筛选、导出先用 Frappe 原生的服务端分页与搜索（`limit_start` / `limit_page_length`、`ControlLink` 的 `search_link` / `get_query`、FilterArea、`p.export_file`）。不一次取全后在浏览器里排序、切页、过滤。`scripts/check-unbounded-queries.py` 拦截新增的无上限查询，基线只许减少。见[架构](docs/development/architecture.md)「列表、选择与搜索」。
 
 - 官方组件不等于产品已具备该功能。增减产品入口前，在本任务记录列明用途、实现入口、所需配置/角色、点击去向和验证证据；仅有菜单、状态字段或占位页不算能力交付。
 - 产品导航同时受实际实现、购买功能和当前用户权限约束。没有承接的全局搜索、站内通知、平台管理等不随框架默认开放；检查首页、快捷键、个人页和窄屏入口，不能只隐藏一个图标。控制面单独核对，不跟随客户产品裁剪。

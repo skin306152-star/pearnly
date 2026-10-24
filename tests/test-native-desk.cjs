@@ -174,3 +174,15 @@ assert.equal(choice.display,'仓库 / B架');
 assert.equal(choice.validate('row-b'),'row-b');
 assert.equal(choice.validate('row-a'),'');
 console.log('PASS dynamic native Select refreshes labels and rejects the previous product choice');
+// 2026-10-25：原生 Select 列出全部选项，换成 Autocomplete 后默认只列 99 个；弹层长度跟选项数走，显式 max_items 优先
+choice.df.options = Array.from({length: 150}, (_, n) => ({value: `v${n}`, label: `L${n}`}));
+choice.set_formatted_input('v0');
+assert.equal(choice.awesomplete.maxItems, 150);
+choice.df.options = [{value: 'a', label: 'a'}, {value: 'b', label: 'b'}];
+choice.set_formatted_input('a');
+assert.equal(choice.awesomplete.maxItems, 99);
+choice.df.max_items = 1000;
+choice.df.options = [{value: 'a', label: 'a'}];
+choice.set_formatted_input('a');
+assert.equal(choice.awesomplete.maxItems, 1000);
+console.log('PASS a product Select lists every option like the native Select');

@@ -2,6 +2,13 @@
 (() => {
 	if (!frappe.boot.pearnly_product) return;
 	class ProductSelect extends frappe.ui.form.ControlAutocomplete {
+		// A native Select lists every option; native Autocomplete stops at 99 unless typed into.
+		// Keep the Select behaviour: the popup is as long as the option list (an explicit max_items still wins).
+		option_limit() {
+			const options = this.df.options;
+			const count = Array.isArray(options) ? options.length : String(options || "").split("\n").length;
+			return this.df.max_items || Math.max(99, count);
+		}
 		set_formatted_input(value) {
 			// Dialogs can replace options after lookup. Refresh the native autocomplete
 			// data before formatting, otherwise IDs appear and choices stay stale.
@@ -9,11 +16,13 @@
 			if (this.pearnly_options !== options) {
 				this.set_options();
 				this.pearnly_options = options;
+				if (this.awesomplete) this.awesomplete.maxItems = this.option_limit();
 			}
 			super.set_formatted_input(value);
 		}
 		get_awesomplete_settings() {
 			const settings = super.get_awesomplete_settings();
+			settings.maxItems = this.option_limit();
 			const filter = settings.filter;
 			const control = this;
 			settings.filter = function(item, input) {

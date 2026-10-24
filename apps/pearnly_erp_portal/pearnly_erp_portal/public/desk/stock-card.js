@@ -245,16 +245,11 @@
 				// 收发存七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
 				// 看下能不能放在一屏显示完整"）。窗口更宽时按下面的比例等比放宽。
 				compact_columns: true,
-				// 列头点一下排序：一次取全，排完再切这一页（同 core `p.sort_rows`）。
+				// 列头点一下排序：服务端排序、分页，只算这一页（大租户上万商品×仓库，2026-10-25）。
 				sort_fields: ["product_name", "warehouse_name", "location",
 					"opening_qty", "in_qty", "out_qty", "closing_qty"],
-				load: async ({ start, page_length, sort_by, sort_order }) => {
-					const rows = await p.call(api + "api_stock_summary", query());
-					const sorted = p.sort_rows(rows, { sort_by, sort_order,
-						fields: ["product_name", "warehouse_name", "location",
-							"opening_qty", "in_qty", "out_qty", "closing_qty"] });
-					return { items: sorted.slice(start, start + page_length), total: sorted.length };
-				},
+				load: ({ start, page_length, sort_by, sort_order }) => p.call(api + "api_stock_summary_page",
+					{ ...query(), start, limit: page_length, sort_by, sort_order }),
 				columns: [
 					{ fieldname: "product_name", width: 200, min_width: 168, label: t("trade.product") },
 					{ fieldname: "warehouse_name", width: 132, min_width: 110, label: t("trade.warehouse") },
