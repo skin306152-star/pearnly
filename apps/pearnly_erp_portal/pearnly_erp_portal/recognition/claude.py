@@ -51,7 +51,9 @@ def to_raw(read, doc, label):
         kind, number = _branch(doc.get("seller_branch"))
         raw.update(due_date=doc.get("due_date"), supplier_name=doc.get("seller_name"), supplier_tax_id=doc.get("seller_tax"),
                    supplier_branch_type=kind, supplier_branch_no=number, supplier_address=doc.get("seller_address"),
-                   currency=doc.get("currency"), has_vat=has_vat, price_mode=doc.get("price_mode"), notes=doc.get("notes"),
+                   # 不带共用格式的 notes：那一栏没有约束，模型写的是自己的识别说明（英文，「Form title… not transcribed」），
+                   # 带过来会显示在 LINE 卡片「备注」、进单据备注，票面没印明细时还会当成那一行的品名（10-24 验收问题 18）
+                   currency=doc.get("currency"), has_vat=has_vat, price_mode=doc.get("price_mode"),
                    wht_rate=_num(doc.get("wht_rate")), wht_amount=_num(doc.get("wht_amount")),
                    doc_kind="purchase_order" if read.get("doc_kind") == "purchase_order" else "purchase_invoice")
     else:

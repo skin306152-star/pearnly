@@ -165,7 +165,8 @@ def _pending(payload):
     return "upload"
 
 
-def _next(line_user_id, user, payload, reply_token):
+def _next(line_user_id, user, payload, reply_token, note=""):
+    """问下一步；``note``（打字找没找到时的那句）放在问题前面，按钮照这一步原来的给。"""
     step = _pending(payload)
     if step == "warehouse":
         default = _default_warehouse(payload["company"])
@@ -179,7 +180,7 @@ def _next(line_user_id, user, payload, reply_token):
                      + _("For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."))
     options = _options(step, payload, user)
     if step in SEARCHED and len(options) > MAX_CHOICES:
-        return _ask_search(reply_token, step, payload, user)
+        return _ask_search(reply_token, step, payload, user, note=note)
     if not options:
         # 公司下没有启用的仓库之类：说清楚，而不是给一排空按钮。
         line_session.clear_session(line_user_id)
@@ -198,7 +199,7 @@ def _next(line_user_id, user, payload, reply_token):
                     + [manual])
     items = [_button(f"{index}. {short_name(label)}" if numbered else label, urlencode({"a": "erp", "s": step, "v": key}))
              for index, (key, label) in enumerate(options, 1)]
-    question = _QUESTIONS[step](payload)
+    question = (note + "\n" if note else "") + _QUESTIONS[step](payload)
     if numbered:
         question += "\n" + "\n".join(f"{index}. {label}" for index, (_key, label) in enumerate(options, 1))
     if step == "party":
@@ -220,7 +221,7 @@ _SEARCH_PROMPTS = {
 
 
 def _ask_search(reply_token, step, payload, user, note=""):
-    """请用户打名称或编号；当前公司（选公司时）给一个按钮直接点。"""
+    """请用户打名称或编号；当前公司（选公司时）、这个人上次在这家公司用的仓（选仓库时）给一个按钮直接点。"""
     lines = [note] if note else []
     lines += [_QUESTIONS[step](payload), _SEARCH_PROMPTS[step](payload)]
     items = []
@@ -234,7 +235,23 @@ def _ask_search(reply_token, step, payload, user, note=""):
         if current:
             label = frappe.db.get_value("ERP Company", current, "company_name") or current
             items.append(_button(short_name(label), urlencode({"a": "erp", "s": step, "v": current})))
+    if step == "warehouse":
+        last = _last_warehouse(payload["company"], user)
+        if last:
+            label = frappe.db.get_value("ERP Warehouse", last, "warehouse_name") or last
+            items.append(_button(label, urlencode({"a": "erp", "s": step, "v": last})))
     _ask(reply_token, "\n".join(lines), items)
+
+
+def _last_warehouse(company_name, user):
+    """这个人上次在 LINE 给这家公司收单选的仓（还启用才给）。"""
+    for warehouse in frappe.get_all("ERP Line Intake", filters={"company": company_name, "sent_by": user,
+                                                               "warehouse": ["is", "set"]},
+                                    pluck="warehouse", order_by="creation desc", limit=5):
+        row = frappe.db.get_value("ERP Warehouse", warehouse, ["company", "is_active"], as_dict=True)
+        if row and row.company == company_name and row.is_active:
+            return warehouse
+    return None
 
 
 def search(line_user_id, user, text, reply_token) -> bool:
@@ -251,8 +268,8 @@ def search(line_user_id, user, text, reply_token) -> bool:
         _next(line_user_id, user, payload, reply_token)
         return True
     if not found:
-        _save(line_user_id, payload)
-        _ask_search(reply_token, step, payload, user, note=_("No match for “{0}”").format(str(text).strip()[:40]))
+        # 没找到：照这一步原来的问法与按钮再问一次（供应商 / 客户那几个最近用过的按钮还在，验收 10-24）
+        _next(line_user_id, user, payload, reply_token, note=_("No match for “{0}”").format(str(text).strip()[:40]))
         return True
     shown = found[:MAX_RESULTS]
     payload["offered"] = {step: [key for key, _label in shown]}

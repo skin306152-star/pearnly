@@ -47,6 +47,19 @@ class ErpFind(unittest.TestCase):
         self.assertEqual(self.find("CO-")[0], None)
 
 
+class ErpNoMatch(unittest.TestCase):
+    def test_no_match_asks_the_step_again_with_its_own_buttons(self):
+        # 验收 10-24：没找到后只剩「取消」，最近用过的供应商按钮没了；改为照这一步原来的问法与按钮再问
+        payload = {"direction": "purchase", "entry": "upload", "company": "CO-1"}
+        with patch.object(line_flow, "choices", return_value=payload), \
+                patch.object(line_flow, "_pending", return_value="party"), \
+                patch.object(line_flow, "find", return_value=(None, [])), \
+                patch.object(line_flow, "_", side_effect=lambda text: text), \
+                patch.object(line_flow, "_next") as again:
+            self.assertTrue(line_flow.search(USER, "u@example.com", "13", "r"))
+        again.assert_called_once_with(USER, "u@example.com", payload, "r", note="No match for “13”")
+
+
 class CoworkStockGroupSearch(unittest.TestCase):
     GROUPS = [{"acccod": "1150-01", "label": "สินค้าสำเร็จรูป"}, {"acccod": "1150-02", "label": "วัตถุดิบ"},
               {"acccod": "1150-03", "label": "สินค้าระหว่างทาง"}]

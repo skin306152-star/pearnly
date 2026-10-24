@@ -256,6 +256,10 @@ class Kinds(unittest.TestCase):
         treatment = tax_rules.purchase_treatment(kind, vat=minburi["vat"], buyer_tax_id=minburi["buyer_tax"],
                                                  buyer_name=minburi["buyer_name"])
         self.assertTrue(treatment.claims_input_vat)  # 10-23 验收：原先成了「其他」，增值税记 0
+        # 10-24 验收问题 18：共用格式 notes 是模型自写的英文识别说明，不进 ERP（卡片备注、单据备注、无明细时的品名）
+        noted = erp_claude.to_raw({"doc_kind": "receipt"}, {**minburi, "notes": "Form title: RECEIPT ORIGINAL… not transcribed"},
+                                  "purchase")
+        self.assertNotIn("notes", noted)
 
 
 class EveryEntry(unittest.TestCase):
