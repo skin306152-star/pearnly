@@ -39,3 +39,29 @@
 - Cowork 推送写 Express 还没有自动冒烟（入口标 manual）；LINE 真手机、付费识别、CC 桌面版原生界面按清单人工。
 - 前端 SPA（`frontend/` 的 LIFF 页、CC 对话页）的报错回传没接：这些页面有游客 / 票据会话，接入要另定限频与防滥用；Desk 三个产品已覆盖。
 - 未登记的共用件（调用方多、这一版没逐个登记）：`execution`（识别队列，75 个调用方）、`assistant`（CC 对话）、`tax_documents`、`transaction`、`provisioning`、`browser_text`、计费；后续改到它们时先补登记再改。
+
+## 五、交验收窗口：独立审登记表与复跑演练
+
+验收窗口**先不看本记录第三节的结论**，按下面自己做一遍，再和第三节对比：
+
+1. 独立出清单（不跑脚本）：在代码里自己找下面这些共用件的全部调用方和用户入口——扫码 / 相机（`public/desk/scan.js`、`public/scan/reader.js`、ERP `desk/scan.js`、`pos/onscan.js`）、
+   上传框（`product.js` 的 FileUploader 精简）、LINE（`line.py` / `line_session.py` / `line_binding.py`）、公司切换（`company-menu.js`）、按码找商品（`products/service.py` 的 `find_product`、
+   `masters/selection.py`、`inventory/count.py`）、`cc_desktop/`、`express_rules/`。和 `scripts/impact/shared-parts.toml` 对比，**登记表里没有的入口逐条报**（文件 + 用户怎么点到）。
+2. 跑检查：
+   ```
+   python3 scripts/check-impact.py                        # 登记表与代码一致（末行「登记表完整」），当前分支相对 main 命中哪些共用件
+   python3 scripts/check-impact.py --part desk-scan-core  # 列某个共用件的全部入口
+   python3 scripts/check-impact.py --files <文件> --markdown   # 假设只改这个文件，要测哪些入口（贴记录用）
+   python3 tests/test_check_impact.py                     # 闸门自己的用例
+   python3 scripts/smoke/selftest.py                      # 扫码共用件契约（本机 Chrome，SMOKE_CHROME 可指定）
+   ```
+3. 复跑演练（一次性分支，不推送）：照第三节三项各改一次——读码器去掉 `video.srcObject = stream`、`find_product` 开头 `return None`、新建一个调用 `frappe.pearnly.scan_reader(` 的 js 并 `git add`——
+   看 check-impact 的命中与列出的入口、`selftest.py` 是否失败；改回后是否通过。**再想一处第三节没演练过的共用件自己弄坏**，看能不能被列出来。
+4. 实验栈自动冒烟（开发窗口先 lab-start、live 上候选源码，测试机空闲由主会话确认）：
+   ```
+   python3 scripts/smoke/run.py --part desk-scan-core --part desk-shell --out /tmp/smoke.md     # 页面 + 扫码入口
+   python3 scripts/smoke/run.py --part line --out /tmp/smoke-line.md                           # LINE 模拟 webhook
+   SMOKE_EXPRESS_USER=<测试机 CC 上登录的 ERP 员工> python3 scripts/smoke/run.py --entry erp.cc.write   # ERP 写 C 盘
+   ```
+   带坏代码 live 上去再跑一遍，坏掉的入口要报「不通过」；改回后「通过」。结果表贴进本记录。
+5. 结论按入口写「通过 / 不通过 / 没测到（原因）」，补出来的入口同一批补进登记表（`check-impact.py` 跑通才算补完）。
