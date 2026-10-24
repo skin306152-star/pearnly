@@ -174,7 +174,7 @@ def collect_endpoint(
     now: float,
     force: bool,
     authorized_roots: list[str] | None = None,
-    discover: bool = False,
+    discover: tuple = (),
 ) -> tuple[Optional[dict], float, str]:
     from .master_refresh import refresh_error, request_master
 

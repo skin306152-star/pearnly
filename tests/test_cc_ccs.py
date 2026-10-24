@@ -1556,9 +1556,9 @@ class DialogsAndListsTests(unittest.TestCase):
 
     def test_settings_row_buttons_are_cc_row_btn(self):
         # V22（B4）：设置「此电脑 · 连接」与「连接」里手写的 28 图标钮（公司一行与电脑一行的「···」、以前授权的文件夹的 ×）换成 .cc-row-btn 24，
-        # 触屏点按区 44（cc-tap）
+        # 触屏点按区 44（cc-tap）；10-24 加「Express 位置」每行的 ×
         settings = self.read("components/settings.tsx")
-        self.assertEqual(settings.count('className="cc-row-btn cc-tap"'), 4)
+        self.assertEqual(settings.count('className="cc-row-btn cc-tap"'), 5)
         self.assertNotIn("size-7", settings)
 
     def test_one_breakpoint_for_the_task_form(self):

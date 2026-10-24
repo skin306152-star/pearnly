@@ -120,8 +120,8 @@ class CompanionConfig:
     # 成员连的通道（ADR-025）：cowork（Cowork 站点）/ core（共用机器通道，ERP 站点）。按密钥前缀定（channel.of_token），
     # 只记在成员上给设置页看；收发请求一律按密钥现判。
     channel: str = "cowork"
-    # ERP 成员：这台电脑上归这个 ERP 的 Express 数据根（1.12.0；空 = 一份都不报）。Cowork 成员不用。
-    erp_roots: tuple = ()
+    # 这台电脑的「Express 位置」（全局，express_places，用户 10-24）：只读这些盘 / 文件夹下的年度与账套，Cowork 与 ERP 共用
+    express_places: tuple = ()
 
     def resolved_express_root(self) -> Optional[str]:
         """探测账套用的数据根:显式 express_root 优先,否则取 account_dir 的父目录。"""

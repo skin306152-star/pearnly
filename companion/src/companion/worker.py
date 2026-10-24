@@ -345,31 +345,26 @@ def _handle_dbf_task(
     return outcome  # waiting_lock 等 → 调用方据此设托盘状态(占用≠失败)
 
 
-def erp_scan_roots(cfg, authorized: list) -> list:
-    """心跳要扫的数据根：Cowork 成员扫全部授权的；ERP 成员只扫所选位置（``erp_roots``）下面的——反正只报这些（erp_scope）。
-    数据根是整台电脑一份（_adopt_machine_roots），ERP 成员也授权了局域网服务器上的年度，不筛的话同一台电脑会多扫一遍
-    没选的根（夜里还会去问关着的服务器）。授权本身不变：推送与按需读取照旧按全部授权的核对。"""
-    from . import channel
-    from .express_machine import under
-
-    if getattr(cfg, "channel", channel.COWORK) != channel.CORE:
-        return authorized
-    places = [root for root in (getattr(cfg, "erp_roots", None) or ()) if root]
-    return [root for root in authorized if any(under(str(root or ""), place) for place in places)]
+def places_of(cfg) -> tuple:
+    """这台电脑的「Express 位置」（全局设置，express_places，用户 10-24）。"""
+    return tuple(place for place in (getattr(cfg, "express_places", None) or ()) if str(place or "").strip())
 
 
-def erp_scope(cfg, rows: list) -> list:
-    """ERP 成员（共用通道）只报归这个 ERP 的账套（1.12.0）：只报所选数据根（``erp_roots``）里的账套，选了哪些报哪些（用户 10-24：
-    「只报 CC 里勾选的数据根」）。不再按同税号把别的年度文件夹带进来——白天局域网服务器上线后会把没选的 S 盘真账也报上去、
-    在 ERP 里建出只有 S 盘账套的公司（10-24 验收）。没选 = 一份都不报。Cowork 成员照旧整份报。"""
-    from . import channel
-    from .express_machine import under
+def scan_roots(cfg, authorized: list) -> list:
+    """心跳要扫的数据根：只扫位置下面的（Cowork 与 ERP 成员一样；用户 10-24「我选择了c盘，就只扫描c盘的exp，别搞出s盘」）。
+    还没有位置清单（旧文件，profile_store 读的时候会按主数据根换算出来）时照旧扫全部授权的。"""
+    from .express_places import within
 
-    if getattr(cfg, "channel", channel.COWORK) != channel.CORE:
-        return rows
-    # 勾的可以是年度文件夹，也可以是上一级位置（C:\PearnlyExpress）：位置下面以后新建的年度文件夹照样报（主会话 10-24）
-    scope = [root for root in (getattr(cfg, "erp_roots", None) or ()) if root]
-    return [row for row in rows if any(under(str(row.get("root") or ""), place) for place in scope)]
+    places = places_of(cfg)
+    return [root for root in authorized if within(root, places)] if places else authorized
+
+
+def places_scope(cfg, rows: list) -> list:
+    """只报位置下面的账套（Cowork 与 ERP 成员一样）：成员记录里万一还留着位置外的数据根，也不报出去。"""
+    from .express_places import within
+
+    places = places_of(cfg)
+    return [row for row in rows if within(str(row.get("root") or ""), places)] if places else rows
 
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
@@ -490,8 +485,12 @@ def _remember_roots(cfg: CompanionConfig, authorized: list, found) -> None:
     Cowork 成员「重新读取」找到 71EXP，ERP 成员仍只有 70EXP；找新年度的 24 小时计时是整台电脑一份，每天自动查找也一样）。"""
     if not isinstance(found, list):
         return
+    from .express_places import within
+
     known = {_norm_path(root) for root in authorized}
-    added = [str(root) for root in found if str(root or "").strip() and _norm_path(root) not in known]
+    places = places_of(cfg)
+    added = [str(root) for root in found if str(root or "").strip() and _norm_path(root) not in known
+             and (not places or within(root, places))]
     if not added:
         return
     cfg.update(authorized_roots=[*authorized, *added]).save()
@@ -553,8 +552,12 @@ def _adopt_machine_roots(cfg: CompanionConfig) -> None:
     except Exception:
         log.exception("[heartbeat] 读这台电脑的数据根失败（忽略）")
         return
+    from .express_places import within
+
     own = [getattr(cfg, "express_root", "") or "", *authorized]
-    missing = [root for root in roots if not any(_norm_path(root) == _norm_path(item) for item in own if item)]
+    places = places_of(cfg)
+    missing = [root for root in roots if not any(_norm_path(root) == _norm_path(item) for item in own if item)
+               and (not places or within(root, places))]
     if missing:
         cfg.update(authorized_roots=[*authorized, *missing]).save()
         log.info("[heartbeat] 补上这台电脑其余成员的数据根 %d 个", len(missing))
@@ -618,10 +621,9 @@ def _run_periodic(
                 cfg.account_dir or "",
                 now,
                 bool(refresh_request_id and refresh_scope == "endpoint"),
-                erp_scan_roots(cfg, authorized),
-                # 配对时检测到的年度文件夹全部授权（网页第一步再选）：新建的年度文件夹也照样找进来，
-                # 只授权过一个年度的也一样（2026-10-08：原来只在授权多个、且有人点「重新读取」时才找）。
-                discover=True,
+                scan_roots(cfg, authorized),
+                # 新建的年度文件夹照样找进来，只在「Express 位置」下面找（用户 10-24：不再整台电脑、局域网去搜）
+                discover=places_of(cfg),
             )
             # 扫得慢时先交「进行中」快照（读完的数据根换成新的、其余沿用上次报的，master_refresh / merge_partial）：
             # 照常上报，但不算网页「重新读取」已完成、不存本机清单、不记新年度文件夹，等完整快照。
@@ -638,7 +640,7 @@ def _run_periodic(
             # 这次启动还没扫完（大数据根要几分钟）：账套先用本机存的上次清单、科目先用本机索引里上次的科目表
             # （load_account_sets）；本机没有科目表时不报（报「0 个」服务端会盖掉上一份，这期间要人选的科目没有选项，
             # 2026-09-28 真机复测）。头一次启动、本机也没有清单时账套照旧报空：不报的话服务端会把目录换成只剩所选的那一个。
-            known_sets = erp_scope(cfg, state.get("reported_account_sets") or [])
+            known_sets = places_scope(cfg, state.get("reported_account_sets") or [])
             known_accts = state.get("reported_accounts")
             sets = known_sets or []
             accts = known_accts or []

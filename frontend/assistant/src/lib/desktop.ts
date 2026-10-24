@@ -167,13 +167,14 @@ export type DesktopMember = {
   id: string; name: string; kind: string; paused: boolean; status: MemberStatus; folders: string[] | null; device_state?: string;
   // 这个成员连的站点与通道（CC 桌面版 1.11.0，features 含 sites，ADR-025）：cowork = Cowork 站点；core = 共用机器通道（ERP 站点）
   site?: string; channel?: string;
-  // ERP 成员：归这个 ERP 的 Express 数据根（CC 桌面版 1.12.0，features 含 erp_roots）；空 = 一份都不报
-  erp_roots?: string[];
 };
 export type DesktopState = {
   version: string;
   site: string; // 这台电脑连的公司（站点域名），没连是空
   express_roots: string[];
+  // 这台电脑的「Express 位置」（CC 桌面版 1.12.0，features 含 express_places，用户 10-24）：只读这些盘 / 文件夹下的 Express，
+  // Cowork 与 ERP 共用；设置里添加（add_place，原生选择框）/ 移除（remove_place）
+  express_places?: string[];
   members: DesktopMember[];
   autostart: boolean;
   keep_awake?: boolean; // CC 开着时保持电脑唤醒（companion keep_awake.py，1.7.0）；旧版桌面端没有这一项
@@ -266,8 +267,8 @@ export const COMPANY_FOLDERS = "company_folders";
 export const DEVICES = "devices";
 /** 每个成员带自己的站点与通道（CC 桌面版 1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点。 */
 export const SITES = "sites";
-/** ERP 成员选哪些 Express 数据根归这个 ERP（CC 桌面版 1.12.0，桥的 erp_roots 方法）：选了的根里的账套才报给 ERP。 */
-export const ERP_ROOTS = "erp_roots";
+/** 「Express 位置」清单（CC 桌面版 1.12.0，桥的 add_place / remove_place）：可以添加多个盘 / 文件夹，只读它们下面的 Express。 */
+export const EXPRESS_PLACES = "express_places";
 
 /** 这个产品的站点在桌面端里是哪种通道：ERP 走共用机器通道（core），其余是 Cowork。 */
 export function channelOf(product: string | undefined): string {

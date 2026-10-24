@@ -154,10 +154,13 @@ def test_forced_refresh_with_discovery_adds_new_year_folders_once(monkeypatch):
     """「重新读取」+ 全部授权:新建的年度文件夹也扫进来;同一份登记表换个路径看见的只算一次。"""
     stamps = {"C:/books": (1, 1), "E:/70EXP": (2, 2), r"\\server\books": (1, 1), "F:/empty": (3, 3)}
     monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root, **_kwargs: stamps.get(root))
+    from src.companion import express_machine
+
+    # 新年度只在「Express 位置」下面找（用户 10-24）
     monkeypatch.setattr(
-        express_locate,
-        "candidate_roots",
-        lambda: ["C:/books", r"\\server\books", "E:/70EXP", "F:/empty", "G:/missing"],
+        express_machine,
+        "places_roots",
+        lambda places: ["C:/books", r"\\server\books", "E:/70EXP", "F:/empty", "G:/missing"],
     )
     monkeypatch.setattr(
         express_locate, "sccomp_company_count", lambda root, **_kwargs: 0 if root == "F:/empty" else 5
@@ -166,7 +169,7 @@ def test_forced_refresh_with_discovery_adds_new_year_folders_once(monkeypatch):
         account_probe, "account_sets_payload", lambda root, **_kwargs: [{"path": f"{root}/A", "root": root}]
     )
 
-    kwargs = {"force": True, "account_sets_only": True, "discover": True}
+    kwargs = {"force": True, "account_sets_only": True, "discover": ("E:/",)}
     master_refresh.request_master("C:/books", "C:/books/A", **kwargs)
     result = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", **kwargs))
 
@@ -245,16 +248,18 @@ def test_a_full_rescan_also_looks_for_new_year_folders_without_anyone_clicking(m
     looked = []
     monkeypatch.setattr(master_refresh, "_WATCH_INTERVAL_S", 0.0)
     monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root, **_kwargs: (1, 1) if root != "E:/71EXP" else (2, 2))
-    monkeypatch.setattr(express_locate, "candidate_roots", lambda: looked.append(True) or ["E:/71EXP"])
+    from src.companion import express_machine
+
+    monkeypatch.setattr(express_machine, "places_roots", lambda places: looked.append(True) or ["E:/71EXP"])
     monkeypatch.setattr(express_locate, "sccomp_company_count", lambda root, **_kwargs: 5)
     monkeypatch.setattr(account_probe, "account_sets_payload", lambda root, **_kwargs: [{"path": f"{root}/A", "root": root}])
     monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
 
-    first = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", discover=True))
+    first = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", discover=("E:/",)))
     assert first[0]["roots"] == ["C:/books", "E:/71EXP"]
     assert looked == [True]
 
-    master_refresh.request_master("C:/books", "C:/books/A", newer_than=first[1], discover=True)
+    master_refresh.request_master("C:/books", "C:/books/A", newer_than=first[1], discover=("E:/",))
     time.sleep(0.1)
     assert looked == [True]  # 平时的变化检查不找
 

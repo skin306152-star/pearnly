@@ -54,7 +54,9 @@ def test_snapshot_lists_members_with_status_folders_and_the_machine_roots(tmp_pa
     assert snap["site"] == "testcowork.pearnly.com"
     assert snap["members"] == [{"id": member, "name": "owner@example.com", "site": "testcowork.pearnly.com",
                                 "channel": "cowork", "kind": "express", "paused": False,
-                                "status": "online", "device_state": "", "folders": [], "erp_roots": []}]
+                                "status": "online", "device_state": "", "folders": []}]
+    # 升级：没有位置清单的按主数据根换算出所在位置（用户 10-24「Express 位置」）
+    assert len(snap["express_places"]) == 1 and express_machine.under(r"S:\EXP69", snap["express_places"][0])
     assert snap["sites"] == ["testcowork.pearnly.com"]
     assert snap["device"] == {}  # 没注入设备密钥（旧桥 / 取不到）：空对象，页面按旧版处理
     assert snap["autostart"] is True and snap["hotkey"] is True
@@ -124,34 +126,60 @@ def test_start_with_windows_is_one_setting_and_never_touches_members(tmp_path, m
 
 
 def test_changing_the_express_folder_writes_every_member_and_asks_for_a_reload(tmp_path, monkeypatch):
+    # 旧设置页的「更换…」：位置换成选的这一个，旧位置下的年度不再要（用户 10-24「我选择了c盘，就只扫描c盘的exp」）
     store = _store(tmp_path, monkeypatch)
     applied = []
-    monkeypatch.setattr(desktop_settings, "roots_for_pick", lambda path: [path, r"T:\\EXP69"])
+    monkeypatch.setattr(desktop_settings, "places_roots", lambda places: [r"T:\EXP70", r"T:\EXP69"])
     monkeypatch.setattr(desktop_settings, "apply_roots",
                         lambda fresh, roots, offline=(): applied.append((fresh.path, roots)))
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: None)
 
-    result = _settings(store).change_roots(r"T:\\EXP70", "zh")
+    result = _settings(store).change_roots("T:/ACCOUNT", "zh")
 
     assert result == {"ok": True, "profiles_changed": True}   # 重启取任务线程由桥回到界面线程做
-    # 选到的排前面，原来已授权的（成员原有的 S: 年度）接在后面：合并、不覆盖
+    assert applied == [(store.path, [r"T:\EXP70", r"T:\EXP69"])]
     # 选的路径按 Windows 写法存（Qt 给的是正斜杠时也一样）
-    assert applied == [(store.path, [r"T:\EXP70", r"T:\\EXP69", r"S:\\EXP68", r"S:\\EXP69"])]
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.express_places == (r"T:\ACCOUNT",)
+
+
+def test_places_can_be_added_and_removed_and_the_last_one_stays(tmp_path, monkeypatch):
+    # 用户 10-24：「可以添加其它文件盘，不止可以选择一个目标」；移除后它下面的年度不再读、不再报
+    store = _store(tmp_path, monkeypatch)
+    settings = _settings(store)
+    first = settings.snapshot()["express_places"]
+    applied = []
+    monkeypatch.setattr(desktop_settings, "places_roots", lambda places: [r"T:\EXP70"])
+    monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots, offline=(): applied.append(roots))
+    monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: None)
+    places = lambda: list(ProfileStore.load(store.path, protector=_Protector()).global_settings.express_places)  # noqa: E731
+
+    assert settings.add_place(r"T:\ACCOUNT", "zh") == {"ok": True, "profiles_changed": True}
+    assert applied[-1] == [r"T:\EXP70", r"S:\\EXP68", r"S:\\EXP69"]   # 原来位置下的照旧
+    assert places() == [*first, r"T:\ACCOUNT"]
+    assert settings.add_place(r"T:\ACCOUNT\EXP70", "zh")["ok"] is True and places() == [*first, r"T:\ACCOUNT"]  # 已在里面
+
+    assert settings.remove_place(first[0], "zh") == {"ok": True, "profiles_changed": True}
+    assert applied[-1] == [r"T:\EXP70"] and places() == [r"T:\ACCOUNT"]
+    assert settings.remove_place(r"T:\ACCOUNT", "zh") == {"ok": False}   # 有 Express 成员时至少留一个
+    assert settings.remove_place(r"Z:\NOPE", "zh") == {"ok": False}
 
 
 def test_a_folder_that_is_not_express_changes_nothing(tmp_path, monkeypatch):
     store = _store(tmp_path, monkeypatch)
+    _settings(store).snapshot()   # 读一次：升级换算出位置清单（会写文件）
     before = store.path.read_bytes()
-    monkeypatch.setattr(desktop_settings, "roots_for_pick", lambda path: [])
+    monkeypatch.setattr(desktop_settings, "places_roots", lambda places: [])
 
-    result = _settings(store).change_roots(str(tmp_path), "zh")
-
-    assert result == {"ok": False, "message": t("express_not_found", "zh")}
+    assert _settings(store).change_roots(str(tmp_path), "zh") == {"ok": False, "message": t("express_not_found", "zh")}
+    assert _settings(store).add_place(str(tmp_path), "zh") == {"ok": False, "message": t("express_not_found", "zh")}
     assert store.path.read_bytes() == before
 
 
 def test_without_members_the_detected_express_is_used_for_the_first_pairing(tmp_path, monkeypatch):
+    # 第一次装：全机自动找一个 Express，取它所在的位置作默认（之后只在位置下面找）
     store = _store(tmp_path, monkeypatch, with_member=False)
-    monkeypatch.setattr(desktop_settings, "detect_roots", lambda _store: [r"S:\\EXP68"])
+    monkeypatch.setattr(desktop_settings, "default_places", lambda _store: ["S:\\"])
+    monkeypatch.setattr(express_machine, "places_roots", lambda places: [r"S:\\EXP68"])
     seen = {}
     monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: seen.update(roots=roots) or
                         SimpleNamespace(ok=True, error_key="", error_fmt={}))
@@ -159,6 +187,7 @@ def test_without_members_the_detected_express_is_used_for_the_first_pairing(tmp_
 
     assert settings.detect() == [r"S:\\EXP68"]
     assert settings.snapshot()["express_roots"] == [r"S:\\EXP68"]
+    assert settings.snapshot()["express_places"] == ["S:\\"]
     assert settings.pair(" exp_e_s@testcowork.pearnly.com ", "zh") == {"ok": True, "profiles_changed": True}
     assert seen["roots"] == [r"S:\\EXP68"]
 
@@ -307,13 +336,13 @@ def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path,
     applied, rescans = [], []
     monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: rescans.append(1))
     monkeypatch.setattr(desktop_settings, "rescan_roots",
-                        lambda fresh, previous: ([r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"], []))
+                        lambda fresh, places, previous: ([r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"], []))
     monkeypatch.setattr(desktop_settings, "apply_roots", lambda fresh, roots, offline=(): applied.append(roots))
     assert _settings(store).rescan("zh") == {"ok": True, "profiles_changed": True}
     assert applied == [[r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"]]
     # 之后账套清单整套重扫一遍（账套目录改名不改登记表，10-20 测试机）
     assert rescans == [1]
-    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh, previous: ([], []))
+    monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh, places, previous: ([], []))
     assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}
 
 
@@ -323,20 +352,20 @@ def test_find_again_keeps_the_folders_it_cannot_reach_right_now(tmp_path, monkey
     store = _store(tmp_path, monkeypatch)
     seen, rescans = {}, []
     monkeypatch.setattr(desktop_settings.master_refresh, "rescan_soon", lambda: rescans.append(1))
-    monkeypatch.setattr(express_machine, "detect_roots", lambda fresh, extra=(): [r"C:\\70EXP"])
+    monkeypatch.setattr(express_machine, "places_roots", lambda places: [r"S:\\EXP70"])   # 只在位置（S:）下面找
     monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: root == r"S:\\EXP69")
     monkeypatch.setattr(express_machine, "probe_account_sets",
                         lambda root, include_details=True: seen.setdefault("probed", []).append(root) or [])
     assert _settings(store).rescan("zh") == {"ok": True, "profiles_changed": True}
     cfg = ProfileStore.load(store.path, protector=_Protector()).runtime_configs()[0]
-    # 主根 S:\EXP68 这会儿访问不到：仍是主根、账套不换；S:\EXP69 确实没了才去掉；新找到的 C:\70EXP 加进来
+    # 主根 S:\EXP68 这会儿访问不到：仍是主根、账套不换；S:\EXP69 确实没了才去掉；新找到的 S:\EXP70 加进来
     assert (cfg.express_root, cfg.account_dir) == (r"S:\\EXP68", r"S:\\EXP68\\ACME")
-    assert sorted(cfg.authorized_roots) == sorted([r"S:\\EXP68", r"C:\\70EXP"])
-    assert seen["probed"] == [r"C:\\70EXP"]   # 访问不到的不去读登记表
+    assert sorted(cfg.authorized_roots) == sorted([r"S:\\EXP68", r"S:\\EXP70"])
+    assert seen["probed"] == [r"S:\\EXP70"]   # 访问不到的不去读登记表
     assert rescans == [1]
     # 一个都没找到（全在关着的服务器上）：什么都不改
     before = store.path.read_bytes()
-    monkeypatch.setattr(express_machine, "detect_roots", lambda fresh, extra=(): [])
+    monkeypatch.setattr(express_machine, "places_roots", lambda places: [])
     monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
     assert _settings(store).rescan("zh") == {"ok": True}
     assert store.path.read_bytes() == before and rescans == [1, 1]
@@ -351,16 +380,16 @@ def test_disconnecting_the_last_member_keeps_the_express_folders_for_the_next_co
     assert settings.disconnect(member) == {"ok": True, "left": True, "profiles_changed": True}
     assert settings.snapshot()["express_roots"] == [r"S:\\EXP68", r"S:\\EXP69"]
     asked, seen = [], {}
-    monkeypatch.setattr(express_machine, "detect_roots",
-                        lambda fresh, extra=(): asked.append(list(extra)) or [r"S:\\EXP68", r"C:\\70EXP"])
+    monkeypatch.setattr(express_machine, "places_roots",
+                        lambda places: asked.append(len(places)) or [r"S:\\EXP68", r"S:\\EXP70"])
     monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
     monkeypatch.setattr(pairing_flow, "run", lambda _store, code, roots, profile_id, lang: seen.update(roots=roots) or
                         SimpleNamespace(ok=True, error_key="", error_fmt={}))
     assert settings.pair(" exp_e_s@testcowork.pearnly.com ", "zh") == {"ok": True, "profiles_changed": True}
-    assert asked == [[r"S:\\EXP68", r"S:\\EXP69"]]
-    assert seen["roots"] == [r"S:\\EXP68", r"C:\\70EXP", r"S:\\EXP69"]
+    assert asked == [1]   # 只在原来的位置下面找（位置是整台电脑的，断开成员不丢）
+    assert seen["roots"] == [r"S:\\EXP68", r"S:\\EXP70", r"S:\\EXP69"]
     # 断开前授权的一个都找不到（全在关着的服务器上）：不拿它们去配对，先留着
-    monkeypatch.setattr(express_machine, "detect_roots", lambda fresh, extra=(): [])
+    monkeypatch.setattr(express_machine, "places_roots", lambda places: [])
     fresh = _settings(store)
     fresh._kept = [r"S:\\EXP68"]
     assert fresh.detect() == [] and fresh._kept == [r"S:\\EXP68"]
@@ -498,29 +527,3 @@ def test_an_old_worker_copy_saving_on_a_heartbeat_does_not_put_the_switches_back
     tray_cfg.update(ui_lang="zh").save()
     g = ProfileStore.load(store.path, protector=_Protector()).global_settings
     assert (g.ui_lang, g.keep_awake, g.autostart) == ("zh", False, False)
-
-
-def test_an_erp_member_picks_which_express_roots_belong_to_its_site(tmp_path, monkeypatch):
-    # 1.12.0：事务所电脑同时连 Cowork 和某个客户的 ERP，只有选了的数据根报给这个 ERP（默认一个都不报）
-    store = _store(tmp_path, monkeypatch)
-    cowork = store.profiles[0].profile_id
-    cfg = store.new_runtime_config()
-    cfg.update(backend_url="https://testerp.pearnly.com", bearer_token="pcc_PCD-0123456789abcdef0123_" + "s" * 43,
-               account_dir=r"S:\\EXP68\\ACME", account_set=r"S:\\EXP68\\ACME", account_company="Acme Co.",
-               express_root=r"S:\\EXP68", authorized_roots=[r"S:\\EXP68", r"S:\\EXP69"],
-               pearnly_account="staff@example.com", paired=True, ui_lang="zh")
-    store.save_profile(cfg)
-    erp = next(item.profile_id for item in ProfileStore.load(store.path, protector=_Protector()).profiles
-               if item.profile_id != cowork)
-    settings = _settings(store)
-    assert settings.set_erp_roots(erp, [r"S:\\EXP69", r"Z:\\ELSEWHERE"], "testcowork.pearnly.com") == {"ok": False}
-    assert settings.set_erp_roots(cowork, [r"S:\\EXP69"], "testcowork.pearnly.com") == {"ok": False}  # 不是 ERP 成员
-    assert settings.set_erp_roots(erp, [r"S:\\EXP69", r"Z:\\ELSEWHERE"], "testerp.pearnly.com")["ok"] is True
-    saved = {item.profile_id: item.erp_roots for item in ProfileStore.load(store.path, protector=_Protector()).profiles}
-    assert saved == {cowork: (), erp: (r"S:\\EXP69",)}  # 只认这台电脑已授权的数据根
-    assert settings.set_erp_roots(erp, [r"S:\\"], "testerp.pearnly.com")["ok"] is True  # 也能勾上一级位置
-    saved = {item.profile_id: item.erp_roots for item in ProfileStore.load(store.path, protector=_Protector()).profiles}
-    from companion.express_machine import same_root
-    assert len(saved[erp]) == 1 and same_root(saved[erp][0], "S:\\")  # 同一个文件夹（写法随平台的 ntpath 略有不同）
-    assert settings.set_erp_roots(erp, [], "testerp.pearnly.com")["ok"] is True  # 全关
-    assert settings.set_erp_roots(erp, [], "testerp.pearnly.com")["ok"] is True  # 已经是空的再关一次也行

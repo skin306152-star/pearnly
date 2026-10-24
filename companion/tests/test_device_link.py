@@ -570,7 +570,7 @@ def test_a_computer_without_express_joins_the_express_pool_as_a_read_only_member
     monkeypatch.setattr("src.companion.folder_client.FolderClient", _Folder)
     detected = []
     settings = DesktopSettings(load_store=lambda: _reload(store))
-    monkeypatch.setattr(desktop_settings, "detect_roots", lambda _store: detected.append(True) or [])
+    monkeypatch.setattr(desktop_settings, "default_places", lambda _store: detected.append(True) or [])
     assert settings.pair("exp_C1_pool@testcowork.pearnly.com", "zh") == {"ok": True, "profiles_changed": True}
     assert detected == [True]   # 先找过 Express，找不到才按只读成员加入
     record = _reload(store).profiles[0]

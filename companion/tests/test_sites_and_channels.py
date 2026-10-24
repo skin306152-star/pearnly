@@ -195,77 +195,86 @@ def test_an_unfit_stock_account_group_is_reported_for_a_choice():
     assert worker._outcome_for("STOCK_ACC_GROUP_UNFIT") == "needs_review"
 
 
-def test_an_erp_member_reports_only_the_chosen_roots():
-    # 1.12.0：选了哪些报哪些（用户 10-24）；同税号在没选的根里的账套也不报（白天服务器上线后会把 S 盘真账带进 ERP）
-    rows = [{"root": r"S:\EXP69", "tax_id": "0105551234567", "path": r"S:\EXP69\NIPA"},
-            {"root": r"S:\EXP68", "tax_id": "0105551234567", "path": r"S:\EXP68\NIPA"},
-            {"root": r"S:\EXP69", "tax_id": "", "path": r"S:\EXP69\NOTAX"},
-            {"root": r"S:\EXP68", "tax_id": "0105559999999", "path": r"S:\EXP68\OTHER"}]
-    erp = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"s:\exp69",))
-    assert [row["path"] for row in worker.erp_scope(erp, rows)] == [r"S:\EXP69\NIPA", r"S:\EXP69\NOTAX"]
-    assert worker.erp_scope(types.SimpleNamespace(channel=channel.CORE, erp_roots=()), rows) == []  # 默认一份都不报
-    assert worker.erp_scope(types.SimpleNamespace(channel=channel.COWORK), rows) == rows
+def test_both_members_report_only_the_books_under_the_express_places():
+    # 用户 10-24：「我选择了c盘，就只扫描c盘的exp，别搞出s盘」；Cowork 与 ERP 共用一份位置清单（LINE 走这两个系统）
+    rows = [{"root": r"C:\PearnlyExpress\70EXP", "path": "a"}, {"root": r"C:\PearnlyExpress\71EXP", "path": "b"},
+            {"root": r"S:\2569\EXP69", "path": "c"}, {"root": r"\\accserver\d$\ACCOUNT\69EXP", "path": "d"}]
+    for kind in (channel.CORE, channel.COWORK):
+        member = types.SimpleNamespace(channel=kind, express_places=(r"C:\PearnlyExpress",))
+        assert [row["path"] for row in worker.places_scope(member, rows)] == ["a", "b"]
+    two = types.SimpleNamespace(channel=channel.COWORK, express_places=(r"C:\PearnlyExpress", "S:\\"))
+    assert [row["path"] for row in worker.places_scope(two, rows)] == ["a", "b", "c"]   # 可以加几个位置
+    year = types.SimpleNamespace(channel=channel.CORE, express_places=(r"C:\PearnlyExpress\70EXP",))
+    assert [row["path"] for row in worker.places_scope(year, rows)] == ["a"]   # 位置就是某个年度：只读这一年
+    assert worker.places_scope(types.SimpleNamespace(), rows) == rows   # 还没有位置清单（旧文件读的时候会换算出来）
+    authorized = [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\72EXP", r"\\Accserver\d$\ACCOUNT\ExpressI\63EXP"]
+    assert worker.scan_roots(types.SimpleNamespace(express_places=(r"C:\PearnlyExpress",)), authorized) == authorized[:2]
     assert worker._outcome_for("PERIOD_LOCKED") == "needs_review"
 
 
-def test_a_ticked_place_covers_the_year_folders_below_it_including_new_ones():
-    # 主会话 10-24：勾「C:\\PearnlyExpress」这一级，明年新建的 71EXP（心跳 discover 自动找进来）照样报；勾位置以外的不报
-    from companion.express_machine import erp_places, under
+def test_a_place_is_where_a_year_folder_sits_and_inner_places_merge_into_outer():
+    from companion.express_places import merge, place_of, within
 
-    assert erp_places([r"C:\PearnlyExpress\70EXP", r"S:\2569\EXP69", r"\\accserver\d$\ACCOUNT\69EXP"]) == [
-        r"C:\PearnlyExpress", r"S:\2569", "S:\\", r"\\accserver\d$\ACCOUNT"]
-    assert under(r"C:\PearnlyExpress\71EXP", r"C:\PearnlyExpress") and not under(r"C:\PearnlyExpress2\71EXP", r"C:\PearnlyExpress")
-    rows = [{"root": r"C:\PearnlyExpress\70EXP", "path": "a"}, {"root": r"C:\PearnlyExpress\71EXP", "path": "b"},
-            {"root": r"S:\2569\EXP69", "path": "c"}]
-    erp = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress",))
-    assert [row["path"] for row in worker.erp_scope(erp, rows)] == ["a", "b"]
-    only_year = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress\70EXP",))
-    assert [row["path"] for row in worker.erp_scope(only_year, rows)] == ["a"]  # 只开年度文件夹：只报它
+    assert place_of(r"C:\PearnlyExpress\70EXP") == r"C:\PearnlyExpress"
+    assert place_of(r"S:\2569\EXP69") == "S:\\"   # 上一级是年份数字目录：再上一级（同位置的别的年份也在里面）
+    assert place_of(r"\\accserver\d$\ACCOUNT\69EXP") == r"\\accserver\d$\ACCOUNT"
+    assert within(r"C:\PearnlyExpress\71EXP", [r"C:\PearnlyExpress"]) and not within(r"C:\PearnlyExpress2\71EXP", [r"C:\PearnlyExpress"])
+    assert merge([r"C:\PearnlyExpress", "C:\\", r"c:\pearnlyexpress", "S:\\"]) == ["C:\\", "S:\\"]
+
+
+def _place_member(store, token, site, roots):
+    cfg = store.new_runtime_config()
+    cfg.update(backend_url=site, bearer_token=token, account_dir=r"C:\PearnlyExpress\70EXP\T9",
+               account_set=r"C:\PearnlyExpress\70EXP\T9", account_company="Acme", paired=True,
+               express_root=r"C:\PearnlyExpress\70EXP", authorized_roots=roots, pearnly_account="owner@example.com")
+    store.save_profile(cfg)
+    return cfg.profile_id
+
+
+def test_an_older_file_takes_the_place_of_each_members_main_root_and_drops_the_rest(tmp_path):
+    # 升级（用户 10-24）：原来授权的换算成所在位置保留；整台电脑、局域网搜进来、不在所选位置里的不再读、不再报
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    member = _place_member(store, COWORK_TOKEN, "https://testcowork.pearnly.com",
+                           [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP", r"S:\2569\EXP69",
+                            r"\\accserver\d$\ACCOUNT\69EXP"])
+    again = ProfileStore.load(store.path, protector=_Protector())
+    assert again.global_settings.express_places == (r"C:\PearnlyExpress",)
+    assert list(again.runtime_config(member).authorized_roots) == [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]
+    assert again.runtime_config(member).express_places == (r"C:\PearnlyExpress",)
 
 
 def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(tmp_path):
-    # 10-24 验收问题 16：Cowork 成员「重新读取」找到 71EXP，勾了 C:\PearnlyExpress 的 ERP 成员也要有（数据根是整台电脑的）；
-    # 每天的自动查找是同一条路（找新年度的计时整台电脑一份，哪个成员先扫到算哪个）
+    # 10-24 验收问题 16：Cowork 成员「重新读取」找到 71EXP，ERP 成员也要有（位置是整台电脑的）；位置外找到的不收
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
-    cowork_id = _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
-    erp_id = _member(store, ERP_TOKEN, "https://testerp.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
-    store.set_erp_roots(erp_id, [r"C:\PearnlyExpress"])
-    cowork, erp = store.runtime_config(cowork_id), store.runtime_config(erp_id)  # 取任务线程里各成员各持一份副本
+    cowork_id = _place_member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
+    erp_id = _place_member(store, ERP_TOKEN, "https://testerp.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
+    started = ProfileStore.load(store.path, protector=_Protector())   # 读的时候换算出位置 C:\PearnlyExpress
+    cowork, erp = started.runtime_config(cowork_id), started.runtime_config(erp_id)   # 取任务线程里各成员各持一份副本
 
     worker._remember_roots(cowork, list(cowork.authorized_roots), [r"S:\EXP68", r"C:\PearnlyExpress\71EXP"])
 
     again = ProfileStore.load(store.path, protector=_Protector())
-    assert {record.profile_id: list(record.authorized_roots) for record in again.profiles} == {
-        cowork_id: [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"], erp_id: [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]}
+    expected = [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]
+    assert {record.profile_id: list(record.authorized_roots) for record in again.profiles} == {cowork_id: expected,
+                                                                                              erp_id: expected}
     # ERP 成员手里的旧副本下一拍心跳前补上（不补的话它下次存盘会把记录里的 71EXP 盖掉）
-    assert list(erp.authorized_roots) == [r"S:\\EXP68"]
+    assert list(erp.authorized_roots) == [r"C:\PearnlyExpress\70EXP"]
     worker._adopt_machine_roots(erp)
-    assert list(erp.authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
-    assert [row["path"] for row in worker.erp_scope(erp, [{"root": r"C:\PearnlyExpress\71EXP", "path": "T0HENG"}])] == ["T0HENG"]
-    reloaded = ProfileStore.load(store.path, protector=_Protector())
-    assert list(reloaded.runtime_config(erp_id).erp_roots) == [r"C:\PearnlyExpress"]
+    assert list(erp.authorized_roots) == expected
 
 
 def test_a_year_folder_already_kept_by_one_member_only_is_added_to_the_others(tmp_path):
-    # 10-24 复测：1.12.0 前找到的 71EXP 只记在 Cowork 成员里，已经分开的电脑也要补上（重启 CC 后照样补）
+    # 10-24 复测：1.12.0 前找到的 71EXP 只记在 Cowork 成员里，已经分开的电脑也要补上（重启 CC 后照样补）；位置外的不补
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
-    cowork_id = _member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
-    erp_id = _member(store, ERP_TOKEN, "https://testerp.pearnly.com", account=r"C:\PearnlyExpress\70EXP\T9")
-    store.save_profile(store.runtime_config(cowork_id).update(authorized_roots=[r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]))
-    started = ProfileStore.load(store.path, protector=_Protector())  # 重启 CC
-    erp = started.runtime_config(erp_id)
+    _place_member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
+    erp_id = _place_member(store, ERP_TOKEN, "https://testerp.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
+    started = ProfileStore.load(store.path, protector=_Protector())
+    cowork_id = next(record.profile_id for record in started.profiles if record.profile_id != erp_id)
+    started.save_profile(started.runtime_config(cowork_id).update(
+        authorized_roots=[r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP", r"S:\EXP68"]))
+    erp = ProfileStore.load(store.path, protector=_Protector()).runtime_config(erp_id)   # 重启 CC
     worker._adopt_machine_roots(erp)
     worker._adopt_machine_roots(erp)  # 再一拍不重复加
-    assert list(erp.authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
+    assert list(erp.authorized_roots) == [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]
     again = ProfileStore.load(store.path, protector=_Protector())
-    assert list(again.runtime_config(erp_id).authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
-    assert list(again.runtime_config(cowork_id).authorized_roots) == [r"S:\\EXP68", r"C:\PearnlyExpress\71EXP"]
-
-
-def test_an_erp_member_scans_only_the_roots_under_its_ticked_places():
-    # 数据根整台电脑一份后 ERP 成员也授权了局域网服务器上的年度；心跳只扫勾选位置下面的（反正只报这些），不多扫一遍
-    authorized = [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\72EXP", r"\\Accserver\d$\ACCOUNT\ExpressI\63EXP"]
-    erp = types.SimpleNamespace(channel=channel.CORE, erp_roots=(r"C:\PearnlyExpress",))
-    assert worker.erp_scan_roots(erp, authorized) == authorized[:2]
-    assert worker.erp_scan_roots(types.SimpleNamespace(channel=channel.CORE, erp_roots=()), authorized) == []
-    assert worker.erp_scan_roots(types.SimpleNamespace(channel=channel.COWORK), authorized) == authorized
+    assert list(again.runtime_config(erp_id).authorized_roots) == [r"C:\PearnlyExpress\70EXP", r"C:\PearnlyExpress\71EXP"]

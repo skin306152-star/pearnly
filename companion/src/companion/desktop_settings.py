@@ -24,8 +24,8 @@ from urllib.parse import urlsplit
 
 from . import autostart, channel, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
-from .express_machine import (apply_roots, detect_roots, erp_places, machine_roots, rescan_roots, roots_for_pick,
-                              same_root)
+from .express_machine import (apply_roots, default_places, machine_roots, merge, offline_roots, places_roots,
+                              rescan_roots, same_root, within)
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore, ProfileStoreError
@@ -188,8 +188,6 @@ class DesktopSettings:
                 # superseded / claimed_elsewhere：这把密钥不再用，对话页据此重新登记（superseded 带 rekey）
                 "device_state": str(getattr(record, "device_state", "") or ""),
                 "folders": [row["path"] for row in folder_store.roots(key)] if key else None,
-                # ERP 成员：归这个 ERP 的 Express 数据根（1.12.0）
-                "erp_roots": list(getattr(record, "erp_roots", None) or ()),
             })
         try:
             update_state, update_version = self._update_status()
@@ -208,6 +206,8 @@ class DesktopSettings:
             # 这台电脑（设备密钥 + 电脑名）：对话页每次打开带它调 register（多台电脑，ADR-021）；旧版桥没有这一项
             "device": device,
             "express_roots": roots,
+            # 这台电脑的「Express 位置」（express_places，用户 10-24）：设置里添加 / 移除，只读这些下面的 Express
+            "express_places": list(store.global_settings.express_places),
             "members": members,
             "autostart": self._autostart(store),
             # CC 开着时保持电脑唤醒（默认开）/ 用电池时也保持（默认关，D8）（keep_awake.py）；旧版桥没有这两项，设置页据此不显示
@@ -240,16 +240,22 @@ class DesktopSettings:
             return bool(store.global_settings.autostart)
 
     def detect(self) -> list[str]:
-        """还没有成员时后台找一次 Express（读共享盘上的登记表较慢）。断开连接前授权过的（``_kept``）一并找；其中这会儿访问
-        不到的排在找到的后面、照旧授权（同「重新查找」）；一个都没找到时不拿它们去配对（配对要读得到账套），先留着。"""
+        """还没有成员时后台找一次 Express。还没添加过位置（第一次装）：全机 + 局域网自动找一个，取它所在的位置作默认
+        （express_machine.default_places，用户可移除、改）；之后只在位置下面找。断开连接前授权过的（``_kept``）在位置里的
+        一并算上，其中这会儿访问不到的照旧授权；一个都没找到时不拿它们去配对（配对要读得到账套），先留着。"""
         store = self._store()
         if store.profiles:
             return machine_roots(store)
-        if self._kept:
-            roots, kept = rescan_roots(store, self._kept)
-            self._detected = roots if len(roots) > len(kept) else []
-        else:
-            self._detected = list(detect_roots(store) or [])
+        places = list(store.global_settings.express_places)
+        if not places:
+            places = default_places(store)
+            if places:
+                store.set_places(places)
+        if not places:
+            self._detected = []
+            return self._detected
+        roots, kept = rescan_roots(store, places, self._kept)
+        self._detected = roots if len(roots) > len(kept) else []
         return self._detected
 
     # ── 写 ──
@@ -334,19 +340,6 @@ class DesktopSettings:
         """成员变了：重启取任务线程（只在界面线程调）。"""
         self._on_profiles_changed()
 
-    def set_erp_roots(self, profile_id: str, roots: list, host: str) -> dict:
-        """ERP 成员选哪些 Express 数据根归这个 ERP（1.12.0）：只认这台电脑已授权的数据根；只改连着 ``host``（本页站点）的
-        共用通道成员。心跳下一拍按新范围整份报，ERP 据此建公司、同步主档。"""
-        store = self._store()
-        record = next((item for item in store.profiles if item.profile_id == profile_id), None)
-        if record is None or member_channel(record) != channel.CORE or member_site(record) != str(host or "").lower():
-            return {"ok": False}
-        machine = machine_roots(store)
-        allowed = [*machine, *erp_places(machine)]  # 年度文件夹，或它们的上一级位置
-        picked = [root for root in allowed if any(same_root(root, str(wanted or "")) for wanted in roots)]
-        store.set_erp_roots(profile_id, picked)
-        return {"ok": True, "profiles_changed": True}
-
     def set_paused(self, profile_id: str, paused: bool) -> dict:
         self._store().set_paused(profile_id, bool(paused))
         self._on_profiles_changed()
@@ -424,30 +417,67 @@ class DesktopSettings:
         return {"ok": True}
 
     def change_roots(self, picked: str, lang: str) -> dict:
-        """（后台线程）「更换…」选的 Express 数据所在文件夹：有成员时同步到全部成员（服务端下次心跳拿到，不用重新配对）。"""
+        """（后台线程）旧设置页的「更换…」：位置换成选的这一个（express_places）。"""
+        return self.add_place(picked, lang, replace=True)
+
+    def add_place(self, picked: str, lang: str, *, replace: bool = False) -> dict:
+        """（后台线程）「添加文件夹…」选的盘 / 文件夹加进「Express 位置」（用户 10-24：可以添加多个，事务所 / 公司的 Express
+        可能放在几个盘上）。选的下面要找得到 Express 才加；加上后位置下面的全部年度写进每个成员（服务端下次心跳拿到）。"""
         began = time.monotonic()
-        found = roots_for_pick(ntpath.normpath(picked))  # Qt 给的是正斜杠，存成 Windows 写法
-        log.info("更换 Express 数据文件夹：找到 %d 个年度，用时 %.1f 秒", len(found), time.monotonic() - began)
-        # 选到的排前面，原来已授权的接在后面（合并、不覆盖）：心跳本来也会把同一位置的年度补回来，覆盖只会让
-        # 局域网上的年度空窗一两分钟、期间推送那些账套被拒（2026-10-10 测试机）。
-        current = machine_roots(self._store())
-        return self._use_roots(found and [*found, *(root for root in current
-                                                    if not any(same_root(root, new) for new in found))], lang)
+        picked = ntpath.normpath(str(picked or "").strip())  # Qt 给的是正斜杠，存成 Windows 写法
+        found = places_roots([picked]) if picked else []
+        log.info("添加 Express 位置：找到 %d 个年度，用时 %.1f 秒", len(found), time.monotonic() - began)
+        if not found:
+            return {"ok": False, "message": t("express_not_found", lang)}
+        store = self._store()
+        places = merge([picked] if replace else [*store.global_settings.express_places, picked])
+        current = [root for root in machine_roots(store) if within(root, places) and not within(root, [picked])]
+        return self._use_places(places, [*found, *current], lang)
+
+    def remove_place(self, path: str, lang: str) -> dict:
+        """（后台线程）从「Express 位置」移除一个：它下面的年度不再读、不再报。有 Express 成员时至少留一个（成员要有账套可用）。"""
+        store = self._store()
+        places = [place for place in store.global_settings.express_places if not same_root(place, path)]
+        express = any((getattr(r, "kind", "express") or "express") != "folder" for r in store.profiles)
+        if len(places) == len(store.global_settings.express_places) or (express and not places):
+            return {"ok": False}
+        if not express:
+            store.set_places(places)
+            self._detected = [root for root in (self._detected or []) if within(root, places)] or None
+            return {"ok": True}
+        roots = [root for root in machine_roots(store) if within(root, places)] or places_roots(places)
+        return self._use_places(places, roots, lang)
 
     def rescan(self, lang: str) -> dict:
-        """（后台线程）「重新查找」：全机 + 局域网再找一遍 Express，找到的全部授权（同「更换…」写到全部成员）；原来授权、
+        """（后台线程）「重新查找」：在「Express 位置」下面再找一遍（不再整台电脑、局域网去搜），找到的全部授权；原来授权、
         这次暂时访问不到的（夜里关着的服务器、没连上的网络盘）照旧保留，确实没了的才去掉（express_machine.rescan_roots）。
         之后账套清单整套重扫一遍（master_refresh.rescan_soon）：账套目录改名、挪走不改登记表，平时每分钟那一眼看不出来，
         不重扫就一直报旧的那一行（2026-10-20 测试机）。"""
         began = time.monotonic()
         store = self._store()
-        roots, kept = rescan_roots(store, machine_roots(store) or list(self._kept))
+        places = list(store.global_settings.express_places) or default_places(store)
+        if not places:
+            return {"ok": False, "message": t("express_not_found", lang)}
+        roots, kept = rescan_roots(store, places, machine_roots(store) or list(self._kept))
         log.info("重新查找 Express：找到 %d 个年度，暂时访问不到、保留授权 %d 个，用时 %.1f 秒",
                  len(roots) - len(kept), len(kept), time.monotonic() - began)
         if kept:
             log.info("暂时访问不到的数据根（保留授权，下次在线时照常扫描）：%s", kept)
+        if not store.global_settings.express_places and roots:
+            store.set_places(places)
         result = self._use_roots(roots, lang, offline=kept)
         if result.get("ok"):
+            master_refresh.rescan_soon()
+        return result
+
+    def _use_places(self, places: list, roots: list, lang: str) -> dict:
+        """记下新的位置清单，再把位置下面的年度写进每个成员；位置里原来授权、这次访问不到的照旧保留。"""
+        store = self._store()
+        previous = [root for root in machine_roots(store) if within(root, places)]
+        kept = offline_roots(roots, previous)
+        result = self._use_roots([*roots, *kept], lang, offline=kept)
+        if result.get("ok"):
+            self._store().set_places(places)
             master_refresh.rescan_soon()
         return result
 

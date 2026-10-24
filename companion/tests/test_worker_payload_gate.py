@@ -325,7 +325,7 @@ def test_endpoint_refresh_forces_account_scan_and_acknowledges_request():
         force=True,
         account_sets_only=True,
         authorized_roots=[],
-        discover=True,  # 2026-10-08：只授权一个年度也找新建的年度文件夹
+        discover=(),  # 新年度只在「Express 位置」下面找（用户 10-24）；这个配置没有位置清单
     )
     heartbeat = qc.health_calls[0]
     assert heartbeat["account_sets"][0]["path"] == cfg.account_dir

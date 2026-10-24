@@ -408,16 +408,18 @@ def test_restart_does_not_search_every_drive_again_within_a_day(tmp_path, opened
     """找新年度文件夹（整盘、共享盘深层查找）重启后不再马上做：距上次满 24 小时才做；网页「重新读取」照旧马上找。"""
     root = _data_root(tmp_path / "70EXP", ["A"])
     looked = []
-    monkeypatch.setattr(express_locate, "candidate_roots", lambda: looked.append(True) or [])
-    _complete(root, root / "A", discover=True)
+    from companion import express_machine
+
+    monkeypatch.setattr(express_machine, "places_roots", lambda places: looked.append(True) or [])
+    _complete(root, root / "A", discover=(str(tmp_path),))
     assert looked == [True]
 
     _restart()
-    _complete(root, root / "A", discover=True)
+    _complete(root, root / "A", discover=(str(tmp_path),))
     assert looked == [True]  # 重启后的第一遍：不整盘找
 
     _restart()
-    _complete(root, root / "A", discover=True, force=True, account_sets_only=True)
+    _complete(root, root / "A", discover=(str(tmp_path),), force=True, account_sets_only=True)
     assert looked == [True, True]  # 网页「重新读取」：马上找
 
 

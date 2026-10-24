@@ -127,14 +127,16 @@ def _signature(roots: list[str], account_dir: str, with_chart: bool) -> tuple:
     return tuple(stamps)
 
 
-def _discover(roots: list[str]) -> list[str]:
-    """重新找盘上的年度文件夹(新建的 70EXP 等);同一份登记表经映射盘和共享路径各见一次的只算一次。"""
-    from .express_locate import candidate_roots, sccomp_company_count
+def _discover(roots: list[str], places) -> list[str]:
+    """在「Express 位置」下面重新找年度文件夹(新建的 71EXP 等,express_places,用户 10-24:不再整台电脑、局域网去搜);
+    同一份登记表经映射盘和共享路径各见一次的只算一次。"""
+    from .express_locate import sccomp_company_count
+    from .express_machine import places_roots
 
     known = {_norm(root) for root in roots}
     stamps = {_sccomp_stamp(root) for root in roots} - {None}
     found = []
-    for candidate in candidate_roots():
+    for candidate in places_roots(places):
         root = str(candidate or "").strip().rstrip("\\/")
         stamp = _sccomp_stamp(root) if root else None
         if not root or _norm(root) in known or stamp is None or stamp in stamps:
@@ -196,13 +198,13 @@ def _scan(
     account_dir: str,
     account_sets_only: bool,
     authorized_roots: Optional[list[str]],
-    discover: bool = False,
+    discover: tuple = (),
     previous: Optional[tuple] = None,
     force: bool = False,
 ) -> None:
     """后台线程:`previous` 给了(平时的变化检查)就先比登记表,没变就不扫、不出新快照。
     整套重扫时先扫、先把结果交出去,再记登记表的修改时间 —— 够不到的共享盘读修改时间会卡好几秒,
-    不能让它拖住这次结果。`discover` 时距上次找新年度文件夹满 24 小时(或 `force`)才真去找。"""
+    不能让它拖住这次结果。`discover`(要在其下找新年度的位置)给了时,距上次找满 24 小时(或 `force`)才真去找。"""
     error = ""
     payload = None
     signature: Optional[tuple] = None
@@ -216,7 +218,7 @@ def _scan(
         locator = device_facts.Locator()  # 本机共享表、各盘符的映射这一遍只问一次
         roots = _roots(express_root, authorized_roots)
         if discover and (force or INDEX.discovery_due(time.time(), _DISCOVER_INTERVAL_S)):
-            roots += _discover(roots)
+            roots += _discover(roots, discover)
             INDEX.mark_discovered(time.time())
             looked = True
         if previous is not None:
@@ -293,12 +295,12 @@ def request_master(
     force: bool = False,
     account_sets_only: bool = False,
     authorized_roots: Optional[list[str]] = None,
-    discover: bool = False,
+    discover: tuple = (),
 ) -> tuple[Optional[Dict[str, Any]], float]:
     """Return one newer snapshot while DBF scans run off the poll lane.
 
     平时:每 `_WATCH_INTERVAL_S` 秒在后台比一次登记表,变了才重扫;`refresh_interval` 是兜底全扫间隔。
-    `force`(网页「重新读取」):立刻整套重扫;`discover` 同时重新找盘上的年度文件夹。
+    `force`(网页「重新读取」):立刻整套重扫;`discover`(「Express 位置」)给了就同时在这些位置下重新找年度文件夹。
     `account_sets_only` 只表示不读科目表(科目表跟着所选账套另行刷新)。
     """
     if not _norm(express_root) and not _norm(account_dir):
@@ -333,7 +335,7 @@ def request_master(
                 authorized_roots,
                 # 找新年度文件夹：网页「重新读取」时马上找；整套重扫时距上次满 24 小时才找（记在本机，重启不重找，
                 # 2026-10-18；原来每次启动都整盘找一遍）—— 新建的年度（如明年的 71EXP）不用等人去点（2026-10-08）。
-                bool(discover and (force or full)),
+                tuple(discover or ()) if (force or full) else (),
                 None if full else refresh.signature,
                 force,
             ),

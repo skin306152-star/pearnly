@@ -7,15 +7,19 @@ the runtime ``CompanionConfig`` objects handed to the scheduler.
 from __future__ import annotations
 
 import json
+import logging
+import ntpath
 import os
 import tempfile
 import threading
 import uuid
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 from typing import Optional
 
 from . import channel as channels
+
+log = logging.getLogger(__name__)
 from .config import CONFIG_FILE, CompanionConfig
 from .logger import get_logger
 from .token_protector import (
@@ -57,6 +61,8 @@ class GlobalSettings:
     keep_awake: bool = True
     keep_awake_on_battery: bool = False
     keep_awake_on_battery_set: bool = False
+    # 这台电脑的「Express 位置」（express_places，用户 10-24）：只读这些盘 / 文件夹下的 Express，Cowork 与 ERP 成员共用
+    express_places: tuple = ()
 
     @classmethod
     def from_config(cls, cfg: CompanionConfig) -> "GlobalSettings":
@@ -82,6 +88,9 @@ class GlobalSettings:
             values["keep_awake_on_battery"] = defaults.keep_awake_on_battery
         for name in ("keep_awake", "keep_awake_on_battery"):
             values[name] = bool(values[name])
+        places = values.get("express_places")
+        values["express_places"] = tuple(str(place).strip() for place in places if str(place).strip()) \
+            if isinstance(places, (list, tuple)) else ()
         return cls(**values)
 
 
@@ -122,10 +131,6 @@ class ProfileRecord:
     # 读的时候站点取全局设置里那一个（以前所有成员同一个站点），通道是 cowork。
     backend_url: str = ""
     channel: str = channels.COWORK
-    # ERP 成员（共用通道）：这台电脑上哪些 Express 数据根归这个 ERP（1.12.0，用户 10-23「CC 选了哪个盘，这个盘的数据同步到
-    # ERP」）。心跳只报这些根里的账套，ERP 按报来的账套自动建公司、同步主档；空 = 一份都不报（同一台电脑连着事务所的 Cowork 时，
-    # 不把事务所别的客户的账套报进这个 ERP）。Cowork 成员不用。
-    erp_roots: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ProfileRecord":
@@ -138,9 +143,6 @@ class ProfileRecord:
             )
         elif roots is not None and not isinstance(roots, tuple):
             clean["authorized_roots"] = ()
-        scope = clean.get("erp_roots")
-        clean["erp_roots"] = tuple(str(root).strip() for root in scope if str(root).strip()) \
-            if isinstance(scope, (list, tuple)) else ()
         try:
             record = cls(**clean)
         except TypeError as exc:
@@ -195,8 +197,11 @@ class ProfileStore:
             store = cls._from_versioned(target, raw, cipher)
             if raw.get("schema_version") != SCHEMA_VERSION:
                 store._write(store.global_settings, list(store.profiles))
+            store._settle_places()
             return store
-        return cls._migrate_flat(target, raw, original, cipher)
+        store = cls._migrate_flat(target, raw, original, cipher)
+        store._settle_places()
+        return store
 
     @classmethod
     def _from_versioned(
@@ -293,7 +298,6 @@ class ProfileStore:
             pool=bool(getattr(cfg, "pool", False)) and getattr(cfg, "kind", "") == "folder",
             backend_url=str(cfg.backend_url or ""),
             channel=channels.of_token(token),
-            erp_roots=tuple(str(root).strip() for root in (getattr(cfg, "erp_roots", None) or ()) if str(root).strip()),
         )
 
     def _runtime(self, record: ProfileRecord) -> CompanionConfig:
@@ -399,15 +403,34 @@ class ProfileStore:
         object.__setattr__(cfg, "_profile_store", self)
         return self.path
 
-    def set_erp_roots(self, profile_id: str, roots) -> None:
-        """ERP 成员：归这个 ERP 的 Express 数据根（整份换掉）。"""
-        clean = tuple(dict.fromkeys(str(root).strip() for root in roots or () if str(root).strip()))
-        if not any(item.profile_id == profile_id for item in self._profiles):
-            raise ProfileStoreError("profile not found")
-        profiles = [ProfileRecord(**{**asdict(item), "erp_roots": clean}) if item.profile_id == profile_id else item
-                    for item in self._profiles]
-        self._write(self.global_settings, profiles)
-        self._profiles = profiles
+    def set_places(self, places) -> None:
+        """这台电脑的「Express 位置」（整份换掉，express_places）。成员的数据根由调用方随后按新位置写（express_machine.apply_roots）。"""
+        from .express_places import merge
+
+        settings = replace(self.global_settings, express_places=tuple(merge(places)))
+        self._write(settings, self._profiles)
+        self.global_settings = settings
+
+    def _settle_places(self) -> None:
+        """升级（1.12.0 之前没有位置清单）：按各 Express 成员的主数据根换算出所在位置记下来；授权的数据根只留位置里的——
+        原来整台电脑、局域网自动搜进来、不在用户所选位置里的（别的盘、局域网服务器上的年度）不再读、不再报（用户 10-24）。
+        已有位置清单、没有 Express 成员（还没连过）的不动。"""
+        from .express_places import merge, place_of, within
+
+        if self.global_settings.express_places:
+            return
+        express = [record for record in self._profiles if record.kind != "folder"]
+        primaries = [record.express_root or ntpath.dirname(str(record.account_dir or "").rstrip("\\/")) for record in express]
+        places = tuple(merge(place_of(root) for root in primaries if root))
+        if not places:
+            return
+        profiles = [ProfileRecord(**{**asdict(record), "authorized_roots": tuple(
+                        root for root in record.authorized_roots if within(root, places))})
+                    if record.kind != "folder" else record for record in self._profiles]
+        settings = replace(self.global_settings, express_places=places)
+        self._write(settings, profiles)
+        self.global_settings, self._profiles = settings, profiles
+        log.info("Express 位置按原来的主数据根换算：%s", list(places))
 
     def set_paused(self, profile_id: str, paused: bool) -> None:
         found = False

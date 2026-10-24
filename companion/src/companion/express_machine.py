@@ -26,38 +26,8 @@ from .pairing import ACCOUNT_MAP_KEYS
 _DEFAULT_MIN_COMPANIES = 10
 
 
-def norm_root(path) -> str:
-    """同一个文件夹的不同写法算一个：Qt 选择窗口给的是 C:/a\\b 这种正斜杠（2026-10-10 测试机合并后多出一条重复）。"""
-    text = str(path or "").strip()
-    return ntpath.normpath(text).lower().rstrip("\\/") if text else ""
-
-
-def same_root(left, right) -> bool:
-    return bool(left) and bool(right) and norm_root(left) == norm_root(right)
-
-
-def _parent(path: str) -> str:
-    head = ntpath.dirname(str(path or "").rstrip("\\/"))
-    return head + "\\" if re.fullmatch(r"[A-Za-z]:", head) else head
-
-
-def erp_places(roots: Iterable[str]) -> List[str]:
-    """ERP 成员能勾的「位置」（1.12.0，用户 10-24）：每个数据根的上一级；上一级是年份数字目录的（S:\\2569\\EXP69）再加一级。
-    勾了位置就覆盖它下面现有和以后新建的年度文件夹（新年度由心跳扫描 ``discover=True`` 自动找进来）。"""
-    places: List[str] = []
-    for root in roots or ():
-        parent = _parent(root)
-        found = [parent] + ([_parent(parent)] if re.fullmatch(r"\d{2,4}", ntpath.basename(parent.rstrip("\\")) or "") else [])
-        for place in found:
-            if place and place != root and not any(same_root(place, known) for known in places):
-                places.append(place)
-    return places
-
-
-def under(root, place) -> bool:
-    """``root`` 就是 ``place`` 或在它下面。"""
-    child, parent = norm_root(root), norm_root(place)
-    return bool(child) and bool(parent) and (child == parent or child.startswith(parent.rstrip("\\") + "\\"))
+# 路径判断在 express_places（位置清单，用户 10-24），这里照旧能引用
+from .express_places import norm_root, same_root, under, within, place_of, merge  # noqa: E402,F401
 
 
 def year_key(root: str) -> int:
@@ -66,9 +36,11 @@ def year_key(root: str) -> int:
 
 
 def root_identity(root: str):
+    """同一份登记表（经映射盘和共享路径各见一次）只算一个；文件号（st_ino，拿不到是 0）不同的就是另一份——整个年度文件夹
+    复制出来的大小、修改时间都一样（10-24 验收 72EXP）。"""
     try:
         stat = sccomp_path(root).stat()
-        return "sig", stat.st_size, int(stat.st_mtime)
+        return "sig", stat.st_size, int(stat.st_mtime), int(getattr(stat, "st_ino", 0) or 0)
     except OSError:
         return "path", norm_root(root)
 
@@ -161,24 +133,6 @@ PICK_SECONDS = 60.0
 PICK_MAX_DIRS = 20000
 
 
-def roots_for_pick(path: str) -> List[str]:
-    """「更换…」选的文件夹 → 要授权的数据根。
-
-    选的就是某个年度的数据根：它放第一，同一位置下的其它年度一并授权（网页上再选年度 / 账套）。
-    选的是上层文件夹或盘符（如映射的共享盘）：往下找（同自动查找：认登记表不认名字、最多 3 层、限时），
-    找到的全部授权、默认年度放第一（2026-10-10 用户在测试机选 S 盘被拒）。都没有返回空。"""
-    if sccomp_company_count(path) > 0:
-        parent = str(Path(path).parent)
-        others = [root for root, _count in rank_roots(_scan_exp_roots([parent])) if not same_root(root, path)]
-        return [path, *others]
-    # 只做深层扫描（认登记表、任何名字、3 层内，已覆盖按 *EXP* 名字找的那一遍）：整体不超过 PICK_SECONDS。
-    ranked = rank_roots(_deep_scan([path], total_seconds=PICK_SECONDS, seconds=PICK_SECONDS, max_dirs=PICK_MAX_DIRS))
-    if not ranked:
-        return []
-    first = pick_default(ranked)
-    return [first, *(root for root, _count in ranked if not same_root(root, first))]
-
-
 def root_gone(root: str, asked: Optional[dict] = None) -> bool:
     """这个数据根确实没了：它所在的盘 / 共享此刻访问得到，文件夹却不在。服务器关着、网络盘没连上、盘符不在（拔掉的移动盘）
     都不算没了（只是暂时访问不到）；文件夹在、只是这次没读到登记表的也不算。所在服务器先限时问一次（scan_pace.GATE，
@@ -225,14 +179,46 @@ def offline_roots(found: Iterable[str], previous: Iterable[str], *, gone=None) -
     return kept
 
 
-def rescan_roots(store, previous: Optional[Iterable[str]] = None, *, gone=None):
-    """「重新查找」：全机 + 局域网再找一遍（同第一次连接时）→ ``(要授权的数据根, 其中暂时访问不到、照旧保留的)``。
+def places_roots(places: Iterable[str], *, seconds: float = PICK_SECONDS) -> List[str]:
+    """位置下面的全部年度文件夹（express_places，用户 10-24）：认登记表、任何名字、3 层内、限时（同「添加」时往下找）；
+    位置本身就是年度文件夹的就是它自己。所在服务器这会儿不在的位置跳过（不等）。默认年度排第一。"""
+    from .scan_pace import GATE
 
-    ``previous``：这台电脑原来授权的（默认是成员现在的；断开连接后重新连接时是断开前的）。找到的全部授权；原来授权、这次
-    没找到的，暂时访问不到就保留（:func:`offline_roots`），确实没了才去掉。原来的主数据根仍排第一（找得到，或只是暂时访问
-    不到：不因为它所在的服务器这会儿关着就把成员的账套换掉）。"""
+    places = merge(places)
+    found: List[str] = []
+    deep: List[str] = []
+    for place in places:
+        if not GATE.reachable(place):
+            continue
+        if sccomp_company_count(place) > 0:
+            found.append(place)
+        else:
+            deep.append(place)
+    if deep:
+        found += _scan_exp_roots(deep)
+        found += _deep_scan(deep, total_seconds=seconds, seconds=seconds, max_dirs=PICK_MAX_DIRS)
+    ranked = rank_roots(root for root in found if within(root, places))
+    if not ranked:
+        return []
+    first = pick_default(ranked)
+    return [first, *(root for root, _count in ranked if not same_root(root, first))]
+
+
+def default_places(store) -> List[str]:
+    """第一次装、还没添加过位置：自动找一个 Express（全机 + 局域网，同原来第一次连接），取它所在的位置作默认（用户可移除、改）。"""
+    roots = detect_roots(store)
+    return [place_of(roots[0])] if roots else []
+
+
+def rescan_roots(store, places: Iterable[str], previous: Optional[Iterable[str]] = None, *, gone=None):
+    """「重新查找」：在位置下面再找一遍 → ``(要授权的数据根, 其中暂时访问不到、照旧保留的)``（不再整台电脑、局域网去搜）。
+
+    ``previous``：这台电脑原来授权的（默认是成员现在的）。找到的全部授权；原来授权、还在位置里、这次没找到的，暂时访问不到
+    就保留（:func:`offline_roots`），确实没了才去掉；位置外的不留。原来的主数据根仍排第一（找得到，或只是暂时访问不到）。"""
+    places = merge(places)
     previous = machine_roots(store) if previous is None else list(previous)
-    found = detect_roots(store, previous)
+    previous = [root for root in previous if within(root, places)]
+    found = places_roots(places)
     kept = offline_roots(found, previous, gone=gone)
     roots = [*found, *kept]
     current = previous[:1]
