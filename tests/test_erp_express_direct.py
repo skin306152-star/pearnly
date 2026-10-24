@@ -503,6 +503,19 @@ class MasterSync(Base):
             self.sync.advance()
         self.assertEqual([table[c]["express_sync_state"] for c in ("CO-1", "CO-2")], ["reading", "reading"])
 
+    def test_a_read_from_before_a_write_is_dropped(self):
+        # 10-24 验收：写单后马上同步用了写单前读好的主档，把刚挂上码的客户停用了
+        import types
+        from unittest import mock
+        dropped = []
+        stub = types.SimpleNamespace(find=lambda kind, key: {"request": "R9", "status": "done"} if key == "erp_masters:k1" else None,
+                                     drop=dropped.append)
+        with mock.patch.object(self.sync, "requests", stub):
+            self.sync.forget("k1")
+            self.sync.forget("k2")
+            self.sync.forget("")
+        self.assertEqual(dropped, ["R9"])
+
     def test_only_a_changed_mark_or_a_new_book_starts_a_full_sync(self):
         # Express 主档有改动 ERP 自动跟上：每 10 分钟请电脑看一眼主档表的文件属性，变了 / 换了新年度账套才整套读
         import gzip

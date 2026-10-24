@@ -261,6 +261,14 @@ def _request_key(book):
     return "erp_masters:" + book["key"]
 
 
+def forget(book_key):
+    """这份账套刚写进一张单：读好了还没落库（或正在读）的整套主档是写单前的，作废，下次同步重新读（10-24 验收：写单后马上
+    点「同步 Express」用了旧读取，把刚挂上码的客户停用了）。"""
+    made = requests.find(KIND, "erp_masters:" + str(book_key or "")) if book_key else None
+    if made is not None:
+        requests.drop(made["request"])
+
+
 def _params(book):
     # 位置领单时换成领取那台电脑的写法（`request_contracts.localize`）
     return {"account_set": book["path"], "account_root": book.get("root") or ""}

@@ -246,6 +246,7 @@ def job_changed(view):
         from pearnly_erp_portal.express import masters
 
         link_party(doctype, name, before.company, view.get("party_code"))
+        masters.forget(view.get("book_key"))
         masters.queue(before.company)
     if view.get("status") == "manual" and _needs_choice(view.get("reason")):
         # 电脑写时才发现、要人在 ERP 里选一次的（疑似重复对方档、存货科目组不合格）：推给录入人，页面在线就直接弹出
