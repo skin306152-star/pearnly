@@ -1484,6 +1484,11 @@ class PendingTests(unittest.TestCase):
         finally:
             pending._candidates = recent
         self.assertEqual(asked, ["", "IV-OLD", "", "siam", ""])
+        # 真的 _candidates：先按搜索列取命中的单号，再与原条件一起取（不用框架不认的嵌套 OR 组，验收 10-25 实测 500）
+        fresh_request()
+        self.assertEqual([row.name for row in pending._candidates(search="Siam")], ["h2"])
+        self.assertEqual([row.name for row in pending._candidates(search="IV-OLD")], ["old"])
+        self.assertEqual(pending._candidates(search="nothing-zz"), [])
         self.assertTrue(pending.matches({"reason_label": "Choose party", "amount": "1070.50"}, "1070"))
         self.assertFalse(pending.matches({"invoice_no": "A"}, "zz"))
 

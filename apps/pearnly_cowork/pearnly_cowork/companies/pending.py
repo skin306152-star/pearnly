@@ -471,15 +471,18 @@ SEARCH_FIELDS = ("name", "invoice_no", "filename", "seller_name", "buyer_name", 
 def _candidates(*, permitted=True, limit=PENDING_MAX, search="") -> list:
     """可能要处理的单（库里粗筛，细判在 `classify`）：没推成功、也不在推的；且停下等人、有失败原因或选了推送去向。
     `permitted`：按当前用户的录入列表权限取（`get_list`）；后台汇总不按人（`get_all`）。
-    `search`：只取这几列含这个词的（框架原生的嵌套 OR 条件），不是在最近 N 张里找。"""
+    `search`：只取这几列含这个词的，不是在最近 N 张里找。框架一次查询只有一组 `or_filters`（16.33 的 `get_list` 不认过滤条件里
+    的嵌套 OR 组，验收 10-25 实测 500），所以先按搜索列取命中的单号，再与上面的条件一起取。"""
     getter = frappe.get_list if permitted else frappe.get_all
     filters = {"last_push_status": ["not in", list(SETTLED)]}
     text = str(search or "").strip()[:140]
     if text:
-        group = []
-        for field in SEARCH_FIELDS:
-            group += [[field, "like", f"%{text}%"], "or"]
-        filters = [["last_push_status", "not in", list(SETTLED)], group[:-1]]
+        hits = getter(HISTORY, filters=filters,  # bounded: 最多 limit 张
+                      or_filters=[[field, "like", f"%{text}%"] for field in SEARCH_FIELDS],
+                      pluck="name", order_by="modified desc, name desc", limit_page_length=limit)
+        if not hits:
+            return []
+        filters = {**filters, "name": ["in", hits]}
     return getter(HISTORY, filters=filters,
                   or_filters=[["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"],
                               ["intake_target", "in", list(TARGETS)]],
