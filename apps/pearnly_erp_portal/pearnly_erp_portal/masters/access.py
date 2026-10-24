@@ -98,9 +98,8 @@ def master_query(doctype, user=None):
 def master_permission(doc, ptype="read", user=None, **kwargs):
     user = user or frappe.session.user
     owner = doc.get("express_company") if not isinstance(doc, str) else None
-    if user == "Administrator" or not owner or company_allowed(owner, user):
-        return None  # 本地档、能用的公司的档：不另加判断，照角色权限
-    return False
+    # 锁定的 Frappe 版本里控制器只能收紧：回 True 不会越过角色权限，回 None 会被当成「不允许」（10-24 验收：销售选商品 403）
+    return user == "Administrator" or not owner or company_allowed(owner, user)
 
 
 def customer_query(user=None):

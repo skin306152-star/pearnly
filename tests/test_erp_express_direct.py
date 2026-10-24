@@ -686,9 +686,10 @@ class MasterIsolation(unittest.TestCase):
 
     def test_a_record_opens_for_a_company_the_user_may_use(self):
         allowed = self.access.master_permission
-        self.assertIsNone(allowed({"express_company": ""}, user="staff@x"))       # 本地档：照角色权限
-        self.assertIsNone(allowed({"express_company": "CO-B"}, user="staff@x"))   # 能用的另一家：旧单的链接打得开
-        self.assertFalse(allowed({"express_company": "CO-Z"}, user="staff@x"))
+        # 锁定版本的 Frappe 把钩子回 None 当成不允许（`has_controller_permissions`），放行要回 True
+        self.assertIs(allowed({"express_company": ""}, user="staff@x"), True)       # 本地档：照角色权限
+        self.assertIs(allowed({"express_company": "CO-B"}, user="staff@x"), True)   # 能用的另一家：旧单的链接打得开
+        self.assertIs(allowed({"express_company": "CO-Z"}, user="staff@x"), False)
 
 
 class PurchaseFromOwnCompany(unittest.TestCase):
