@@ -753,12 +753,10 @@ args = { "expect" = "not_permitted" }
 id = "erp.report.stock-count-variance"
 product = "ERP"
 where = "盘点差异报表"
-steps = "/desk/query-report/ERP Stock Count Variance（没有页面内链接，直接输地址）"
-expect = "筛选框可用、出报表"
-check = "auto"
+steps = "/desk/query-report/ERP Stock Count Variance（没有页面内链接，直接输地址，选一份盘点作筛选）"
+expect = "筛选框可用、出报表；不带筛选时框架会跳回盘点页（原生行为）"
+check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/erp_stock_count_variance.js", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/erp_stock_count_variance.py"]
-smoke = "page"
-url = "/desk/query-report/ERP%20Stock%20Count%20Variance"
 site = "erp"
 
 [[entry]]
@@ -814,7 +812,7 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "
 smoke = "scan"
 url = "/desk/pearnly-products"
 site = "erp"
-args = { "code" = "2000000000008", "steps" = [{ "eval" = "frappe.pearnly.scan({kind:'all', on_result: c => window.__smoke_scan_result = c})", "wait" = 500 }] }
+args = { "code" = "2000000000008", "steps" = [{ "eval" = "frappe.pearnly.scan({kind:'all', on_result: c => window.__smoke_scan_result = c})", "wait" = 0 }] }
 
 [[entry]]
 id = "erp.products.new-page.scan"
@@ -1222,7 +1220,7 @@ check = "auto"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py"]
 smoke = "express"
 site = "erp"
-args = { "company" = "CO-42069", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
+args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
 
 [[entry]]
 id = "erp.cc.masters"
@@ -1519,4 +1517,4 @@ check = "auto"
 files = ["companion/src/companion/worker.py", "companion/src/companion/gui_tray_workers.py", "companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py"]
 smoke = "express"
 site = "erp"
-args = { "company" = "CO-42069", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
+args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }

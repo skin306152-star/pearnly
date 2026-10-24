@@ -5,9 +5,12 @@
 
 只给测试租户用。
 """
+import base64
 import sys
 
 import frappe
+
+sys.argv = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in sys.argv]  # run.py 传参用 base64
 
 site, user = sys.argv[1], sys.argv[2]
 drop = sys.argv[4] if len(sys.argv) > 4 and sys.argv[3] == "drop" else ""

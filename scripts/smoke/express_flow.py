@@ -2,16 +2,19 @@
 
     env/bin/python /tmp/smoke-express_flow.py <站点> '<JSON 参数>'   # 末行打印 SMOKE {"ok": ..., ...}
 
-参数（登记表入口的 args）：user = 测试机 CC 上登录的员工；company = 公司（显式给，不改员工的当前公司）；
+参数（登记表入口的 args）：user = 测试机 CC 上登录的员工；company_tax = 公司税号（或 company = 公司编号；显式给，不改员工的当前公司）；
 party = 对方的 Express 编码；item = 物料的 Express 编码；loccod = 仓库码；kind = purchase | sales；wait = 最多等几秒（默认 240）。
 写入只到测试机 C:\\PearnlyExpress 的 T 账套（这家公司对应的账套由 CC 报来）；不碰 S 盘 / accserver。只给测试租户用。
 """
 import json
 import secrets
+import base64
 import sys
 import time
 
 import frappe
+
+sys.argv = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in sys.argv]  # run.py 传参用 base64
 
 site = sys.argv[1]
 params = json.loads(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2] else {}
@@ -19,7 +22,11 @@ frappe.init(site=site, sites_path="/home/frappe/frappe-bench/sites")
 frappe.connect()
 result = {"ok": False}
 try:
-    user, company = params["user"], params["company"]
+    user = params["user"]
+    # 公司按税号找（测试租户重新导入后公司编号会变，税号不变）；也可以直接给 company
+    company = params.get("company") or frappe.db.get_value("ERP Company", {"tax_id": params["company_tax"], "is_active": 1}, "name")
+    if not company:
+        raise SystemExit(f"test company missing: {params.get('company_tax')}")
     kind = params.get("kind", "purchase")
     frappe.set_user(user)
     product = frappe.db.get_value("ERP Product", {"express_code": params["item"], "express_company": company}, "name")
@@ -60,6 +67,7 @@ try:
         time.sleep(5)
     job = frappe.db.get_value("Pearnly CC Job", state.get("express_job"), ["status", "verify_state", "reason"], as_dict=True) if state.get("express_job") else None
     result.update(state=state, job=job)
+    result["summary"] = f"{posted['name']} → {state.get('express_docnum') or state.get('express_state')}（CC 读回 {(job or {}).get('verify_state') or '-'}）"
     result["ok"] = state.get("express_state") == "written" and bool(state.get("express_docnum")) and (job or {}).get("verify_state") in ("ok", "")
 finally:
     frappe.destroy()

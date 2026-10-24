@@ -14,7 +14,7 @@ for (const step of args.steps || []) {
     } else if (step.eval) {
       out.steps.push({ eval: step.eval, value: String(await (0, eval)(step.eval)).slice(0, 200) });
     }
-    await sleep(step.wait || 800);
+    await sleep(step.wait ?? 800);
   } catch (e) {
     return { ...out, ok: false, why: `step failed: ${e && e.message}` };
   }
@@ -30,11 +30,12 @@ const look = () => {
     live: !!(video.srcObject && video.srcObject.getTracks().length && video.srcObject.getTracks().every((t) => t.readyState === "live")) };
 };
 // 读到码后弹窗会关、画面跟着没了：边等边记「见过有画面」，读码结果看目标输入框
-for (let i = 0; i < 48 && !(seen && (code || !args.read_target)); i++) {
-  await sleep(250);
+for (let i = 0; i < 120 && !(seen && code); i++) {
+  await sleep(100);
   const now = look();
   if (now && now.w > 0 && now.shown && now.live) seen = seen || now;
   out.last_video = now || out.last_video || null;
+  if (!code && window.__smoke_scan_result) code = window.__smoke_scan_result;
   if (args.read_target) {
     const input = document.querySelector(args.read_target);
     if (input && String(input.value || "").includes(args.code)) code = input.value;
@@ -42,5 +43,5 @@ for (let i = 0; i < 48 && !(seen && (code || !args.read_target)); i++) {
 }
 out.picture = seen;
 out.code = code;
-out.ok = !!seen && (!args.read_target || !!code);
+out.ok = !!seen && !!code && String(code).includes(args.code);
 return out;

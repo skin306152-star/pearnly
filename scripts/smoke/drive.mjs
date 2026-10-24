@@ -47,7 +47,14 @@ try {
     }
     if (message.method === "Runtime.exceptionThrown") {
       const details = message.params.exceptionDetails;
-      logs.push({ kind: "exception", text: String(details.exception?.description || details.text).slice(0, 600) });
+      const frame = details.stackTrace?.callFrames?.[0];
+      const value = details.exception?.description || JSON.stringify(details.exception?.value ?? details.exception?.preview ?? null);
+      logs.push({ kind: "exception", text: `${details.text} ${value} ${frame ? `@ ${frame.url}:${frame.lineNumber + 1}` : ""}`.slice(0, 600) });
+    }
+    if (message.method === "Page.javascriptDialogOpening") {
+      // 原生 alert / confirm / beforeunload 会把页面卡住：记下来并关掉（记进 logs，汇总时算不通过）
+      logs.push({ kind: "exception", text: `native dialog: ${message.params.type} ${String(message.params.message).slice(0, 200)}` });
+      send("Page.handleJavaScriptDialog", { accept: true }, message.sessionId).catch(() => {});
     }
     if (message.method === "Runtime.consoleAPICalled" && message.params.type === "error") {
       logs.push({ kind: "console.error", text: message.params.args.map((a) => a.value ?? a.description).join(" ").slice(0, 400) });
@@ -57,6 +64,7 @@ try {
   const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
   await send("Runtime.enable", {}, sessionId);
   await send("Network.enable", {}, sessionId);
+  await send("Page.enable", {}, sessionId);
   if (job.ua) await send("Emulation.setUserAgentOverride", { userAgent: job.ua }, sessionId);
   if (job.sid) await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: true }, sessionId);
   await send("Page.navigate", { url: job.url }, sessionId);

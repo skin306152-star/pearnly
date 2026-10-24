@@ -3,12 +3,14 @@
 
     python3 scripts/smoke/make_barcode_video.py <输出.y4m> [码值，默认 TEST_CODE]
 
-纯标准库；码值固定（`TEST_CODE`），扫码入口读出它才算通过。文件约 1.4 MB，运行时生成，不进仓库。
+纯标准库；码值固定（`TEST_CODE`），扫码入口读出它才算通过。文件约 8 MB，运行时生成，不进仓库。
 """
 import sys
 
 TEST_CODE = "2000000000008"  # 200 开头是店内码段，不会撞真实商品
 WIDTH, HEIGHT, FRAMES = 640, 480, 3
+# 前 1.5 秒空白（10 帧 / 秒）再出条码：扫码弹窗读到码就关，探针要先在空白这段确认画面真的可见（10-23 黑屏事故：画面被换掉时读码可能照常）
+BLANK = 15
 L = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"]
 G = ["0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111"]
 R = ["1110010", "1100110", "1101100", "1000010", "1011100", "1001110", "1010000", "1000100", "1001000", "1110100"]
@@ -43,10 +45,16 @@ def frame(code: str) -> bytes:
     return b"FRAME\n" + luma + chroma + chroma
 
 
+def blank() -> bytes:
+    return b"FRAME\n" + bytes([235] * (WIDTH * HEIGHT)) + bytes([128] * (WIDTH // 2 * HEIGHT // 2 * 2))
+
+
 def write(path: str, code: str = TEST_CODE) -> None:
-    data = frame(code)
+    data, empty = frame(code), blank()
     with open(path, "wb") as handle:
         handle.write(f"YUV4MPEG2 W{WIDTH} H{HEIGHT} F10:1 Ip A1:1 C420jpeg\n".encode())
+        for _ in range(BLANK):
+            handle.write(empty)
         for _ in range(FRAMES):
             handle.write(data)
 

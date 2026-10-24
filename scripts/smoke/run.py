@@ -23,6 +23,7 @@ line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、expres
 from __future__ import annotations
 
 import argparse
+import base64
 import importlib.util
 import json
 import os
@@ -64,7 +65,8 @@ class Remote:
     def run(self, product: str, script: Path, *args: str, timeout=600) -> str:
         name = f"smoke-{script.name}"
         container = self.container(product)
-        quoted = " ".join("'" + a.replace("'", "'\\''") + "'" for a in args)
+        # 参数一律 base64（JSON 里的引号、泰文不经 shell 转义）；容器里的脚本见到 b64: 前缀就解开
+        quoted = " ".join("b64:" + base64.b64encode(a.encode("utf-8")).decode() for a in args)
         inner = (f"docker cp /tmp/{name} {container}:/tmp/{name} >/dev/null && "
                  f"docker exec {container} bash -c \"cd /home/frappe/frappe-bench/sites && ../env/bin/python /tmp/{name} {quoted}\" </dev/null 2>&1; "
                  f"docker exec {container} rm -f /tmp/{name} </dev/null; rm -f /tmp/{name}")
@@ -102,7 +104,10 @@ def select(args, parts, entries):
 
 
 def drive(job: dict) -> dict:
-    out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=180)
+    try:
+        out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=180)
+    except subprocess.TimeoutExpired:
+        return {"result": None, "error": "超时：页面 3 分钟内没跑完探针", "logs": []}
     try:
         return json.loads(out.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
@@ -130,6 +135,7 @@ def main(argv=None) -> int:
     parser.add_argument("--base", default="auto")
     parser.add_argument("--part", action="append")
     parser.add_argument("--entry", action="append")
+    parser.add_argument("--site", choices=sorted(SITES), help="只跑这个测试租户的入口（实验栈一次只起一个产品）")
     parser.add_argument("--out", help="结果 Markdown 写到这个文件")
     args = parser.parse_args(argv)
     if args.target == "production" and not args.readonly:
@@ -139,6 +145,8 @@ def main(argv=None) -> int:
         print("\n".join(errors), file=sys.stderr)
         return 2
     chosen = select(args, parts, entries)
+    if args.site:
+        chosen = [entry for entry in chosen if (entry.site or entry.product.lower()) == args.site]
     remote = Remote(args.target)
     workdir = Path(tempfile.mkdtemp(prefix="smoke-"))
     video = workdir / "code.y4m"
@@ -164,7 +172,8 @@ def main(argv=None) -> int:
                 output = remote.run(product, HERE / CONTAINER_PROBES[entry.smoke], site, json.dumps(params, ensure_ascii=False))
                 last = [line for line in output.splitlines() if line.startswith("SMOKE ")]
                 result = json.loads(last[-1][6:]) if last else {"ok": False, "why": output[-300:]}
-                rows.append((entry, "通过" if result.get("ok") else "不通过", "" if result.get("ok") else json.dumps(result, ensure_ascii=False)[:300]))
+                rows.append((entry, "通过" if result.get("ok") else "不通过",
+                             str(result.get("summary") or "")[:200] if result.get("ok") else json.dumps(result, ensure_ascii=False)[:300]))
                 continue
             if product not in sessions:
                 user = os.environ.get(f"SMOKE_USER_{product.upper()}", "Administrator")

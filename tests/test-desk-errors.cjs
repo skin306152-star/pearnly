@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/errors.js', 'utf8');
 const listeners = {}, posts = [];
 const window = { addEventListener: (name, fn) => { listeners[name] = fn; } };
-vm.runInNewContext(source, { window, location: { pathname: '/desk/pearnly-stock-count/STC-1' },
+vm.runInNewContext(source, { window, Error, location: { pathname: '/desk/pearnly-stock-count/STC-1' },
   frappe: { csrf_token: 'tok' },
   fetch: (url, options) => { posts.push({ url, options, body: JSON.parse(options.body) }); return Promise.resolve(); } });
 window.frappe = { csrf_token: 'tok' };
@@ -15,6 +15,7 @@ listeners.error({ message: 'p.scan is not a function', filename: '/assets/pearnl
 listeners.error({ message: 'p.scan is not a function', filename: '/assets/pearnly_core/desk/scan.js', lineno: 9, colno: 2 });
 listeners.error({});  // 图片等资源加载失败
 listeners.unhandledrejection({ reason: { exc_type: 'ValidationError', exc: '[]', message: 'x' } });
+listeners.unhandledrejection({ reason: 'Filter missing' });  // 框架的字符串拒绝（报表缺筛选）
 listeners.unhandledrejection({ reason: new Error('decode failed') });
 assert.equal(posts.length, 2);
 assert.equal(posts[0].url, '/api/method/pearnly_core.desk.client_errors.report');

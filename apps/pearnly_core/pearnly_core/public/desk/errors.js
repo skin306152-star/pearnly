@@ -35,8 +35,9 @@
 	});
 	window.addEventListener("unhandledrejection", (event) => {
 		const reason = event && event.reason;
-		// frappe.call 失败时框架已经弹原生提示、服务端已记日志；这里只收脚本自己的异常
-		if (!reason || (reason.exc_type && reason.exc)) return;
+		// 只收脚本自己抛的 Error（带堆栈）：frappe.call 失败（框架已提示、服务端已记）、框架拿字符串当流程控制的拒绝
+		// （如报表缺必填筛选时的 "Filter missing"）都不算
+		if (!(reason instanceof Error) || !reason.stack) return;
 		send({
 			kind: "rejection",
 			message: String((reason && reason.message) || reason || ""),

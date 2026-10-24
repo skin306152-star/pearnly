@@ -8,11 +8,14 @@
 - 收尾清掉模拟号的会话状态。只给测试租户用。
 """
 import json
+import base64
 import sys
 import time
 import types
 
 import frappe
+
+sys.argv = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in sys.argv]  # run.py 传参用 base64
 
 site = sys.argv[1]
 params = json.loads(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2] else {}
@@ -77,6 +80,7 @@ try:
         result["events"].append({"text": text, "handled": bool(handled), "replies": len(replies), "loading": len(loading),
                                  "late_loading": late_loading, "seconds": round(time.monotonic() - started, 2), "error": error,
                                  "first": json.dumps((replies[0]["json"] or {}).get("messages", [])[:1], ensure_ascii=False)[:160] if replies else ""})
+    result["summary"] = "、".join(f"{e['text']}→回{e['replies']}条{'（三个点）' if e['loading'] else ''}" for e in result["events"])
     result["ok"] = bool(result["events"]) and all(e["handled"] and e["replies"] and not e["error"] and not e["late_loading"]
                                                   for e in result["events"])
 finally:
