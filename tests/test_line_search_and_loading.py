@@ -47,6 +47,73 @@ class ErpFind(unittest.TestCase):
         self.assertEqual(self.find("CO-")[0], None)
 
 
+class ErpChoiceTiers(unittest.TestCase):
+    """用户 10-24：≤12 个直接列按钮、不出关键字提示；>12 个先打关键字；找到 ≤12 列序号，>12 请多打几个字，0 说没找到再问；
+    编号整串直接选上；当前公司 / 上次用的一开始就给按钮。"""
+
+    def setUp(self):
+        self.asked = []
+        self.enterContext(patch.object(line_flow, "_ask", side_effect=lambda token, text, items: self.asked.append((text, items))))
+        self.enterContext(patch.object(line_flow, "_save"))
+        self.enterContext(patch.object(line_flow, "_", side_effect=lambda text: text))
+
+    def companies(self, count):
+        return [(f"CO-{index}", f"Company {index}") for index in range(1, count + 1)]
+
+    def test_up_to_twelve_companies_are_buttons_without_a_word_prompt(self):
+        payload = {"direction": "purchase", "entry": "upload"}
+        with patch.object(line_flow, "_pending", return_value="company"), \
+                patch.object(line_flow, "_options", return_value=self.companies(12)), \
+                patch.object(line_flow, "_ask_search") as search:
+            line_flow._next(USER, "u@example.com", payload, "r")
+        search.assert_not_called()
+        text, items = self.asked[-1]
+        self.assertEqual(len(items), 12)
+        self.assertNotIn("Type a word", text)
+
+    def test_more_than_twelve_companies_ask_for_a_word(self):
+        payload = {"direction": "purchase", "entry": "upload"}
+        with patch.object(line_flow, "_pending", return_value="company"), \
+                patch.object(line_flow, "_options", return_value=self.companies(13)), \
+                patch.object(line_flow, "_ask_search") as search:
+            line_flow._next(USER, "u@example.com", payload, "r")
+        search.assert_called_once()
+
+    def run_search(self, found, exact=None):
+        payload = {"direction": "purchase", "entry": "upload"}
+        with patch.object(line_flow, "choices", return_value=payload), \
+                patch.object(line_flow, "_pending", return_value="company"), \
+                patch.object(line_flow, "find", return_value=(exact, found)), \
+                patch.object(line_flow, "_next") as again:
+            self.assertTrue(line_flow.search(USER, "u@example.com", "Company", "r"))
+        return payload, again
+
+    def test_typed_matches_up_to_twelve_are_listed_more_ask_for_more_letters(self):
+        self.run_search(self.companies(12))
+        text, items = self.asked[-1]
+        self.assertEqual(len(items), 12)
+        self.assertTrue(text.startswith("Found 12."))
+        self.run_search(self.companies(13))
+        self.assertEqual(self.asked[-1], ("Too many matches; type a few more letters to narrow it down", []))
+
+    def test_no_match_asks_again_and_an_exact_code_is_taken(self):
+        _payload, again = self.run_search([])
+        self.assertEqual(again.call_args.kwargs["note"], "No match for “Company”")
+        payload, again = self.run_search([], exact="CO-7")
+        self.assertEqual(payload["company"], "CO-7")
+        self.assertNotIn("note", again.call_args.kwargs)
+
+    def test_the_party_word_prompt_only_when_not_all_parties_are_buttons(self):
+        payload = {"direction": "purchase", "entry": "upload", "company": "CO-1"}
+        options = [("doc", "From the document"), ("fallback", "General supplier"), ("SUP-1", "One"), ("SUP-2", "Two")]
+        for more, expected in ((False, False), (True, True)):
+            with patch.object(line_flow, "_pending", return_value="party"), \
+                    patch.object(line_flow, "_options", return_value=options), \
+                    patch.object(line_flow, "_more_parties", return_value=more):
+                line_flow._next(USER, "u@example.com", payload, "r")
+            self.assertEqual("Type a word from the supplier name" in self.asked[-1][0], expected)
+
+
 class ErpNoMatch(unittest.TestCase):
     def test_no_match_asks_the_step_again_with_its_own_buttons(self):
         # 验收 10-24：没找到后只剩「取消」，最近用过的供应商按钮没了；改为照这一步原来的问法与按钮再问

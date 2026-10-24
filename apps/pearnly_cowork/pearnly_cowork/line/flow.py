@@ -194,8 +194,10 @@ def _empty(step, payload):
 
 # ── 账套：打字找 ────────────────────────────────────────────────────────────
 
-# 结果最多列 11 个（按钮是序号），留一个给「取消」。
-MAX_RESULTS = MAX_CHOICES - 1
+# LINE 选择的统一规则（用户 10-24，ERP 同）：选项不超过 12 个直接列按钮、不出关键字提示；超过 12 个先请用户打名称关键字
+# （提示里不提编号，整串编号照样认），再在当前账套里找：找到不超过 12 个列序号按钮，超过 12 个请多打几个字，没找到说没找到再问；
+# 上次用过的一开始就给按钮。按钮最多 12 个，另加「取消」。
+MAX_RESULTS = MAX_CHOICES
 
 
 def _account_rows(payload):
@@ -238,6 +240,15 @@ def _ask_account(line_user_id, payload, reply_token, note="") -> bool:
         payload.update(account_set_key=str(rows[0]["source_id"]), account_label=account_search.label(payload["target"], rows[0]))
         _prefetch_account(payload)
         return False
+    if len(rows) <= MAX_CHOICES:
+        # 不超过 12 份：直接列出来按序号点，不用打字（打了字没找到也照这样再列一次）
+        labels = [account_search.label(payload["target"], row) for row in rows]
+        _offer(line_user_id, payload, [str(row["source_id"]) for row in rows], labels)
+        lines = ([note] if note else []) + [_("Choose the company")]
+        lines += [f"{index + 1}. {label}" for index, label in enumerate(labels)]
+        _ask(reply_token, "\n".join(lines),
+             [_button(str(index + 1), urlencode({"a": "cowork", "s": "account", "v": index})) for index in range(len(rows))])
+        return True
     last = _last_used(payload, rows)
     last_label = next((account_search.label(payload["target"], row) for row in rows
                        if str(row.get("source_id")) == last), "")
@@ -266,14 +277,14 @@ def search(line_user_id, text, reply_token) -> bool:
     if not found:
         _ask_account(line_user_id, payload, reply_token, note=_("No account set matches “{0}”").format(text[:40]))
         return True
-    shown = found[:MAX_RESULTS]
-    _offer(line_user_id, payload, [row["value"] for row in shown], [row["label"] for row in shown])
+    if len(found) > MAX_RESULTS:
+        _ask(reply_token, _("Too many matches; type a few more letters to narrow it down"), [])
+        return True
+    _offer(line_user_id, payload, [row["value"] for row in found], [row["label"] for row in found])
     lines = [_("Found {0}. Tap the number to choose:").format(len(found))]
-    lines += [f"{index + 1}. {row['label']}" for index, row in enumerate(shown)]
-    if len(found) > len(shown):
-        lines.append(_("Too many matches; type a few more letters to narrow it down"))
+    lines += [f"{index + 1}. {row['label']}" for index, row in enumerate(found)]
     items = [_button(str(index + 1), urlencode({"a": "cowork", "s": "account", "v": index}))
-             for index in range(len(shown))]
+             for index in range(len(found))]
     _ask(reply_token, "\n".join(lines), items)
     return True
 
@@ -358,15 +369,15 @@ def _search_stock_group(line_user_id, payload, text, reply_token) -> bool:
         _ask(reply_token, _("No match for “{0}”").format(wanted[:40]) + "\n"
              + _("Type a word from the inventory account group name to find it"), [])
         return True
-    shown = found[:MAX_RESULTS]
-    payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in shown]}
+    if len(found) > MAX_RESULTS:
+        _ask(reply_token, _("Too many matches; type a few more letters to narrow it down"), [])
+        return True
+    payload["offered"] = {STOCK_GROUP: [group["acccod"] for group in found]}
     _save(line_user_id, payload)
     lines = [_("Choose the inventory account group for this account set. Tap the number:")]
-    lines += [f"{index + 1}. {group['label']}" for index, group in enumerate(shown)]
-    if len(found) > len(shown):
-        lines.append(_("Too many matches; type a few more letters to narrow it down"))
+    lines += [f"{index + 1}. {group['label']}" for index, group in enumerate(found)]
     items = [_button(str(index + 1), urlencode({"a": "cowork", "s": STOCK_GROUP, "v": index}))
-             for index in range(len(shown))]
+             for index in range(len(found))]
     _ask(reply_token, "\n".join(lines), items)
     return True
 

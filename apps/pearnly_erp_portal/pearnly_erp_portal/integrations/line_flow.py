@@ -202,7 +202,7 @@ def _next(line_user_id, user, payload, reply_token, note=""):
     question = (note + "\n" if note else "") + _QUESTIONS[step](payload)
     if numbered:
         question += "\n" + "\n".join(f"{index}. {label}" for index, (_key, label) in enumerate(options, 1))
-    if step == "party":
+    if step == "party" and _more_parties(payload, len(options) - 2):
         question += "\n" + _SEARCH_PROMPTS["party"](payload)  # 列出的只是最近用过的几个：随时可以打字找
     _ask(reply_token, question, items)
 
@@ -210,8 +210,10 @@ def _next(line_user_id, user, payload, reply_token, note=""):
 # ── 打字找（选项放不下一屏时）────────────────────────────────────────────────────
 
 SEARCHED = ("company", "party", "warehouse")
-# 结果最多列 11 个（按钮是序号），留一个给「取消」（同 Cowork）。
-MAX_RESULTS = MAX_CHOICES - 1
+# LINE 选择的统一规则（用户 10-24，Cowork 同）：选项不超过 12 个直接列按钮、不出关键字提示；超过 12 个先请用户打名称关键字
+# （提示里不提编号，整串编号照样认），再在当前公司里找：找到不超过 12 个列序号按钮，超过 12 个请多打几个字，没找到说没找到再问；
+# 当前公司、上次用过的一开始就给按钮。按钮最多 12 个，另加「取消」。
+MAX_RESULTS = MAX_CHOICES
 _SEARCH_PROMPTS = {
     "company": lambda p: _("Type a word from the company name to find it"),
     "party": lambda p: (_("Type a word from the supplier name to find it") if p["direction"] == "purchase"
@@ -274,15 +276,15 @@ def search(line_user_id, user, text, reply_token) -> bool:
         # 没找到：照这一步原来的问法与按钮再问一次（供应商 / 客户那几个最近用过的按钮还在，验收 10-24）
         _next(line_user_id, user, payload, reply_token, note=_("No match for “{0}”").format(str(text).strip()[:40]))
         return True
-    shown = found[:MAX_RESULTS]
-    payload["offered"] = {step: [key for key, _label in shown]}
+    if len(found) > MAX_RESULTS:
+        _ask(reply_token, _("Too many matches; type a few more letters to narrow it down"), [])
+        return True
+    payload["offered"] = {step: [key for key, _label in found]}
     _save(line_user_id, payload)
     lines = [_("Found {0}. Tap the number to choose:").format(len(found))]
-    lines += [f"{index}. {label}" for index, (_key, label) in enumerate(shown, 1)]
-    if len(found) > len(shown):
-        lines.append(_("Too many matches; type a few more letters to narrow it down"))
+    lines += [f"{index}. {label}" for index, (_key, label) in enumerate(found, 1)]
     items = [_button(f"{index}. {short_name(label)}", urlencode({"a": "erp", "s": step, "v": key}))
-             for index, (key, label) in enumerate(shown, 1)]
+             for index, (key, label) in enumerate(found, 1)]
     _ask(reply_token, "\n".join(lines), items)
     return True
 
@@ -386,6 +388,14 @@ def _options(step, payload, user):
                               fields=["name", "warehouse_name"], order_by="warehouse_name asc")
         return [(row.name, row.warehouse_name or row.name) for row in rows]
     return []
+
+
+def _more_parties(payload, shown) -> bool:
+    """这家公司能选的供应商 / 客户比按钮里列出的多（多了才提示打字找；不多就全在按钮里了）。"""
+    master = "ERP Supplier" if payload["direction"] == "purchase" else "ERP Customer"
+    count = frappe.db.sql(f"""select count(*) from `tab{master}` where is_active = 1
+        and (express_company is null or express_company = '' or express_company = %s)""", (payload["company"],))[0][0]
+    return int(count or 0) > shown
 
 
 def recent_parties(payload, limit):

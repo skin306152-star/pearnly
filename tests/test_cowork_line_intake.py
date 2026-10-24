@@ -83,16 +83,13 @@ class LineFlowTest(unittest.TestCase):
     def search(self, text):
         return flow.search("U1", text, "tok")
 
-    def test_mrerp_sales_types_a_word_then_picks_the_account_set(self):
-        """用户 2026-09-27：账套上传前由用户选；LINE 放不下全部账套，打几个字从匹配结果里点序号。"""
+    def test_mrerp_sales_picks_one_of_a_few_account_sets_by_number(self):
+        """用户 10-24：账套不超过 12 份直接列出来按序号点，不出关键字提示。"""
         flow.start("U1", "tok")
         self.tap("MR.ERP")
-        self.assertTrue(self.last()["text"].startswith("Type a few letters"))
-        self.assertEqual(self.labels(), ["Cancel"])
-        self.assertTrue(self.search("2568"))
-        self.assertIn("1. A · Alpha · 2568", self.last()["text"])
-        self.assertEqual(self.labels(), ["1", "Cancel"])
-        self.tap("1")
+        self.assertEqual(self.last()["text"].splitlines(), ["Choose the company", "1. A · Alpha · 2567", "2. A · Alpha · 2568"])
+        self.assertEqual(self.labels(), ["1", "2", "Cancel"])
+        self.tap("2")
         self.assertTrue(self.last()["text"].startswith("Purchase or sales?"))
         self.tap("intake.dir.sales")
         self.tap("Credit")
@@ -110,13 +107,33 @@ class LineFlowTest(unittest.TestCase):
         self.assertIn("No account set matches", self.last()["text"])
         self.assertNotIn("account_set_key", flow.choices("U1"))
 
-    def test_last_used_is_one_tap(self):
-        self.last_used = "15:1"
+    def many_books(self, count=13):
+        return [{"source_id": f"{index}:1", "label": f"25{index:02d}", "attributes": {"company": "A", "company_name": "Alpha"}}
+                for index in range(1, count + 1)]
+
+    def test_more_than_twelve_account_sets_ask_for_a_word_with_last_used_as_a_button(self):
+        """超过 12 份：先请用户打名称关键字（不提编号），上次用的一开始就给按钮。"""
+        self.books, self.last_used = self.many_books(), "3:1"
         flow.start("U1", "tok")
         self.tap("MR.ERP")
-        self.assertIn("Last used: A · Alpha · 2567", self.last()["text"])
+        self.assertTrue(self.last()["text"].startswith("Type a few letters of the company or account set name"))
+        self.assertIn("Last used: A · Alpha · 2503", self.last()["text"])
+        self.assertEqual(self.labels(), ["Last used", "Cancel"])
         self.tap("Last used")
-        self.assertEqual(flow.choices("U1")["account_set_key"], "15:1")
+        self.assertEqual(flow.choices("U1")["account_set_key"], "3:1")
+
+    def test_typed_matches_are_listed_up_to_twelve_more_ask_for_more_letters_none_asks_again(self):
+        self.books = self.many_books()
+        flow.start("U1", "tok")
+        self.tap("MR.ERP")
+        self.assertTrue(self.search("Alpha"))   # 13 份都匹配：请多打几个字，不列
+        self.assertEqual(self.last()["text"], "Too many matches; type a few more letters to narrow it down")
+        self.assertEqual(self.labels(), ["Cancel"])
+        self.assertTrue(self.search("251"))   # 2510–2513 → 4 份，列序号
+        self.assertEqual(self.labels(), ["1", "2", "3", "4", "Cancel"])
+        self.assertTrue(self.search("zzz"))
+        self.assertIn("No account set matches", self.last()["text"])
+        self.assertTrue(self.last()["text"].splitlines()[1].startswith("Type a few letters"))
 
     def test_a_single_account_set_is_taken_without_asking(self):
         self.books = MRERP_BOOKS[:1]
@@ -180,12 +197,23 @@ class LineFlowTest(unittest.TestCase):
         self.choose.assert_not_called()
 
     def test_express_stock_with_more_groups_than_buttons_asks_to_type(self):
-        """用户 10-24：超出 LINE 一屏按钮的，先让人打名称关键字（或整串科目编号）找，不再跳过不问。"""
-        many = [{"acccod": f"S{i}", "label": f"S{i}"} for i in range(flow.MAX_RESULTS + 1)]
+        """用户 10-24：超出 LINE 一屏按钮的（超过 12 个），先让人打名称关键字找；正好 12 个照样列按钮。"""
+        twelve = [{"acccod": f"S{i}", "label": f"S{i}"} for i in range(12)]
+        self.stock_view = {"known": True, "groups": twelve, "chosen": None}
+        self.express_stock()
+        self.assertEqual(self.labels(), [str(i) for i in range(1, 13)] + ["Cancel"])
+        many = [{"acccod": f"S{i}", "label": f"Stock {i}"} for i in range(14)]
         self.stock_view = {"known": True, "groups": many, "chosen": None}
         self.express_stock()
         self.assertFalse(flow.ready(flow.choices("U1")))
+        self.assertEqual(self.last()["text"], "Type a word from the inventory account group name to find it")
         self.assertEqual(self.labels(), ["Cancel"])   # 不列按钮，问打字
+        self.assertTrue(self.search("Stock"))   # 14 个都匹配：请多打几个字
+        self.assertEqual(self.last()["text"], "Too many matches; type a few more letters to narrow it down")
+        self.assertTrue(self.search("Stock 1"))   # Stock 1 / 10–13 → 5 个
+        self.assertEqual(self.labels(), ["1", "2", "3", "4", "5", "Cancel"])
+        self.assertTrue(self.search("S7"))   # 整串科目编号：直接选上
+        self.assertTrue(flow.ready(flow.choices("U1")))
 
     def test_mrerp_choice_does_not_ask_for_an_account_read(self):
         self.books = MRERP_BOOKS[:1]
