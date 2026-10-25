@@ -68,8 +68,10 @@ def reported(data) -> dict:
 
 def accounts_first(rows, subject) -> list:
     """要人选科目时的顺序：这一边最常用的大类在前（进项费用 5、销项收入 4），其余照旧跟在后面 —— 只排序不筛，进项也可能记
-    资产（同 Cowork 列整张科目表）。有 Express 科目类型（GROUP）按类型，没有按编号首位（同 Cowork `account_suggest.expense`）。"""
-    group = "4" if str(subject or "").startswith("sales|") else "5"
+    资产（同 Cowork 列整张科目表）；收银日汇总的收款科目（``pos|`` 开头）是资产 1 在前。有 Express 科目类型（GROUP）按类型，
+    没有按编号首位（同 Cowork `account_suggest.expense`）。"""
+    subject = str(subject or "")
+    group = "4" if subject.startswith("sales|") else "1" if subject.startswith("pos|") else "5"
 
     def first(row):
         kind = str(row.get("type") or "").strip()

@@ -1114,6 +1114,31 @@ class PosDaySummaries(Base):
         self.assertEqual(payload["pos"]["transfers"], [{"acc": "11-02-01-00", "amount": "100.00", "label": "พร้อมเพย์"}])
         self.assertEqual((payload["pos"]["first"], payload["pos"]["last"], payload["pos"]["count"]), ("R0001", "R0003", 3))
 
+    def test_the_reference_of_a_day_fits_express_with_erp_receipt_numbers(self):
+        """实验栈冒烟 10-25：ERP 收银票号 13 字（SI2569-000006），「首-尾」27 字超过 Express 参考号 15 字节被 CC 拦下；
+        日汇总改用共用约定的 `day_ref`（同 Cowork 的 POS 导入）。"""
+        import datetime
+        import inspect
+
+        from pearnly_core.express_rules.contracts import pos
+
+        day = datetime.date(2026, 10, 25)
+        self.assertEqual(pos.day_ref("SI2569-000006", "SI2569-000007", day), "SI2569-000006-7")
+        self.assertEqual(pos.day_ref("SI2569-000006", "SI2569-000006", day), "SI2569-000006")
+        self.assertEqual(pos.day_ref("SI2569-000006", "SI2569-000123", day), "ABB691025")
+        self.assertIn("pos_contract.day_ref(", inspect.getsource(self.pos_day.document))
+
+    def test_the_receiving_account_choice_lists_the_account_set_accounts_assets_first(self):
+        """实验栈冒烟 10-25：日汇总停在「选收款科目」时，ERP 弹窗那一项没有可选值（kind receipt 没对到科目表）。"""
+        from pearnly_erp_portal.express import api
+
+        key = self.computer([book()])[0]
+        self.masters(key)
+        item = {"kind": "receipt", "subject": "pos|พร้อมเพย์", "label": "พร้อมเพย์"}
+        options = api._options(item, facts.load(key))
+        self.assertEqual(sorted(row["code"] for row in options), sorted(row["code"] for row in ACCOUNTS))
+        self.assertTrue(options[0]["code"].startswith("1"), options[:3])
+
     def test_an_ordinary_sale_carries_no_day_facts(self):
         page = E.pages(E.checked(doc(direction="sales", paid=True)))[0]
         self.assertNotIn("_extraction_audit", page)

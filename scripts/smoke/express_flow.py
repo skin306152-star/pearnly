@@ -59,13 +59,20 @@ try:
             "unit_price": params.get("price", 10), "warehouse": warehouse}
     if kind in ("stock_out", "stock_in"):
         from pearnly_erp_portal.inventory import documents
+        from pearnly_erp_portal.masters import company as companies
 
         doctype = "ERP Stock Entry"
         direction = "out" if kind == "stock_out" else "in"
-        posted = documents.create_entry(direction=direction, posting_date=frappe.utils.today(), warehouse=warehouse,
-                                        lines=[{"product": product, "qty": 1, "unit_cost": params.get("price", 10)}],
-                                        purpose="internal_use" if direction == "out" else "other",
-                                        reason=f"SMOKE-{int(time.time())}", submit=True)
+        # 出入库单按员工的当前公司认仓（单据上没有公司栏）：只在这个进程里把当前公司指向要写的这家，不改员工设置
+        active = companies.active_company
+        companies.active_company = lambda user=None: company
+        try:
+            posted = documents.create_entry(direction=direction, posting_date=frappe.utils.today(), warehouse=warehouse,
+                                            lines=[{"product": product, "qty": 1, "unit_cost": params.get("price", 10)}],
+                                            purpose="internal_use" if direction == "out" else "other",
+                                            reason=f"SMOKE-{int(time.time())}", submit=True)
+        finally:
+            companies.active_company = active
     elif kind == "sales":
         from pearnly_erp_portal.sales import entry
 

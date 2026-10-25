@@ -111,7 +111,10 @@ def document(name, ref) -> dict:
         WHERE s.express_summary = %s AND p.method != %s GROUP BY p.method""", (name, CASH), as_dict=True)}
     payments = payments_of(total, paid)
     body = contracts.document(ref=ref, direction="sales", doc_date=str(summary.day),
-                              number=pos_contract.range_text(summary.first_receipt, summary.last_receipt),
+                              # 参考号写进 Express 的 YOUREF / 销项税 REFNUM（≤15 字节）：同 Cowork 的 POS 导入用共用约定的
+                              # `day_ref`（放不下就缩写，完整起止在 `pos` 里）；10-25 实验栈：「首-尾」27 字被 CC 拦下
+                              number=pos_contract.day_ref(summary.first_receipt, summary.last_receipt,
+                                                          frappe.utils.getdate(summary.day)),
                               company=company, party={"code": "", "name": CASH_PARTY}, paid=True, has_vat=vat > 0,
                               total=total, vat=vat, lines=lines)
     body["pos"] = {"first": summary.first_receipt, "last": summary.last_receipt, "count": int(summary.sales_count or 0),
