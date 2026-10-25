@@ -174,15 +174,6 @@ def rdocnum(against: str, seq) -> str:
     return f"{against}{seq.rjust(RDOCNUM_WIDTH - len(against))}"
 
 
-def _linked_seq(link: str, against: str):
-    """RDOCNUM 指向 ``against`` 时回原单行号，否则 None（单号后面只能是空格加数字，别的单号以它开头的不算）。"""
-    link = str(link or "").rstrip()
-    if not link.startswith(against):
-        return None
-    rest = link[len(against):].strip()
-    return rest if rest.isdigit() else None
-
-
 # ── 写前只读：原单 ─────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -238,17 +229,22 @@ def _origins(account_dir, against: str) -> List[_Origin]:
     return sorted(out, key=lambda row: (int(row.seq) if row.seq.isdigit() else 0, row.seq))
 
 
-def _returned(account_dir, against: str) -> Dict[str, Decimal]:
-    """以前的退货单已经退了原单各行多少（RDOCNUM 指向原单的退货行，库存单位）。表没有 RDOCNUM 一栏时当没退过。"""
+def _returned(account_dir, against: str, origins: List[_Origin]) -> Dict[str, Decimal]:
+    """以前的退货单已经退了原单各行多少（库存单位）。按原单真有的每一行拼出原生 RDOCNUM（:func:`rdocnum`）全等比较、物料码也要一样，
+    不按单号前缀认：单号长短不一时前缀会把别的单的行认成这张的（13 位单号第 51 行与 14 位单号第 1 行拼出来一样，验收 10-26）。
+    表没有 RDOCNUM 一栏时当没退过。"""
     table = _open(Path(account_dir), "STCRD", dbf.READ_ONLY)
     try:
         if "RDOCNUM" not in _fields(table):
             return {}
+        wanted = {rdocnum(against, row.seq): row for row in origins if row.seq}
         out: Dict[str, Decimal] = {}
         for r in S.live_rows(table):
-            seq = _linked_seq(r["RDOCNUM"], against) if _text(r, "POSOPR") == POSOPR else None
-            if seq is not None:
-                out[seq] = out.get(seq, Decimal(0)) + _dec(r["XTRNQTY"])
+            if _text(r, "POSOPR") != POSOPR:
+                continue
+            row = wanted.get(str(r["RDOCNUM"] or "").rstrip())
+            if row is not None and _text(r, "STKCOD") == row.stkcod:
+                out[row.seq] = out.get(row.seq, Decimal(0)) + _dec(r["XTRNQTY"])
         return out
     finally:
         table.close()
@@ -268,7 +264,7 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
     """每一行退货挂原单哪一行、成本多少（只读）。认不出 / 不够退抛 :class:`Refused`。"""
     against = entry.refund_against
     origins = _origins(account_dir, against)
-    used = _returned(account_dir, against)
+    used = _returned(account_dir, against, origins)
     main = account_rules.main_location(account_dir)
     grosses = _gross(items, Decimal(entry.total_amount))
     lines: List[_Line] = []

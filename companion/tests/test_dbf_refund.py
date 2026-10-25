@@ -270,13 +270,34 @@ def test_the_original_line_number_is_right_aligned_to_fifteen_like_native_expres
     assert all(len(dbf_refund.rdocnum(doc, seq)) == 15 for doc in ("HS0000039", "HS691025-001") for seq in (1, 9, 10, 99, 100))
 
 
+def _origin(seq, stkcod="ICE01"):
+    return dbf_refund._Origin(str(seq), stkcod, "01", Decimal(10), Decimal(100), Decimal(10))
+
+
 def test_earlier_returns_are_counted_per_original_line_from_ten_and_up(book):
     """以前的退货单按原单行号累计已退数量：第 10、100 行照样认；别的单号以它开头的不算。"""
-    seed(book, "STCRD", [{"DOCNUM": "SR0000005", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 1.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
-                         {"DOCNUM": "SR0000005", "SEQNUM": "2", "POSOPR": "2", "XTRNQTY": 2.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 100)},
-                         {"DOCNUM": "SR0000006", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 4.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
-                         {"DOCNUM": "SR0000007", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 9.0, "RDOCNUM": dbf_refund.rdocnum("HS00000391", 2)}])
-    assert dbf_refund._returned(book, "HS0000039") == {"12": Decimal("5"), "100": Decimal("2")}
+    seed(book, "STCRD", [{"DOCNUM": "SR0000005", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 1.0, "STKCOD": "ICE01",
+                          "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
+                         {"DOCNUM": "SR0000005", "SEQNUM": "2", "POSOPR": "2", "XTRNQTY": 2.0, "STKCOD": "ICE01",
+                          "RDOCNUM": dbf_refund.rdocnum("HS0000039", 100)},
+                         {"DOCNUM": "SR0000006", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 4.0, "STKCOD": "ICE01",
+                          "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
+                         {"DOCNUM": "SR0000007", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 9.0, "STKCOD": "ICE01",
+                          "RDOCNUM": dbf_refund.rdocnum("HS00000391", 2)}])
+    origins = [_origin(seq) for seq in (1, 2, 12, 100)]
+    assert dbf_refund._returned(book, "HS0000039", origins) == {"12": Decimal("5"), "100": Decimal("2")}
+
+
+def test_a_longer_original_number_is_not_read_as_a_line_of_a_shorter_one(book):
+    """验收 10-26：单号长短不一时不按前缀认。14 位单号第 1 行「HS000003912345」+「1」与 13 位单号第 51 行拼出来一样，
+    只认原单真有的行号、物料码也对得上的。"""
+    seed(book, "STCRD", [{"DOCNUM": "SR0000008", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 3.0, "STKCOD": "ICE02",
+                          "RDOCNUM": dbf_refund.rdocnum("HS000003912345", 1)},
+                         {"DOCNUM": "SR0000009", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 7.0, "STKCOD": "ICE01",
+                          "RDOCNUM": dbf_refund.rdocnum("HS00000391234", 5)}])
+    assert dbf_refund.rdocnum("HS000003912345", 1) == dbf_refund.rdocnum("HS00000391234", 51)
+    assert dbf_refund._returned(book, "HS00000391234", [_origin(5), _origin(51)]) == {"5": Decimal("7")}
+    assert dbf_refund._returned(book, "HS00000391234", [_origin(5)]) == {"5": Decimal("7")}  # 原单没有第 51 行
 
 
 def _sale_of(items, *, ref_no, total, base, vat):
@@ -304,7 +325,7 @@ def test_returning_line_twelve_of_a_twelve_line_sale_fits_fifteen_and_is_counted
     line = _rows(book, "STCRD", DOCNUM=res.docnum)
     assert len(line) == 1
     assert line[0]["RDOCNUM"] == "HS691025-002 12" and len(line[0]["RDOCNUM"]) == 15
-    assert dbf_refund._returned(book, sale.docnum) == {"12": Decimal("1")}
+    assert dbf_refund._returned(book, sale.docnum, dbf_refund._origins(book, sale.docnum)) == {"12": Decimal("1")}
     again = _write(book, {**copy.deepcopy(refund), "ref_no": "SI2569-000010"})  # 第 12 行只卖了 1 个、已退 1 个
     assert not again.ok and again.error_code == dbf_refund.ERR_EXCEEDS, again.error
 
