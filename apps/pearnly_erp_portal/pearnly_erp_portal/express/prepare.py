@@ -138,6 +138,15 @@ def master_party(payload, data):
                               **({"tax_id": tax} if len(tax) == 13 else {})}}
 
 
+def _receipts(doc):
+    """收银日汇总（B3a）里非现金的付款方式 ``[(归类键, 写法)]``：每一种要一个收款科目（共用写账规则 ``receipt``，按公司记住）。"""
+    from pearnly_core.express_rules.contracts import pos as pos_contract
+
+    pos = doc.get("pos") if isinstance(doc.get("pos"), dict) else {}
+    return [(pos_contract.method_subject(label), label) for label, _amount in pos.get("payments") or []
+            if not pos_contract.is_cash(label)]
+
+
 def prepare(doc, company_row, ensure_masters):
     """``doc``：`push.document` 出的单；``company_row``：ERP 公司（name、tax_id、branch、company_name）；
     ``ensure_masters(company, book)``：这份账套还没读过主档时请电脑读（`masters.ensure`）。"""
@@ -163,7 +172,7 @@ def prepare(doc, company_row, ensure_masters):
     own = _own_accounts(pages, config)   # 销项的服务行同样按自己的收入科目记
     decision = choice_rules.resolve(pages[0]["fields"], direction=doc["direction"], posting_kind=None, config=config,
                                     remembered=choices.remembered(company_row["name"]),
-                                    account_resolved=own and doc["direction"] == "purchase")
+                                    account_resolved=own and doc["direction"] == "purchase", receipts=_receipts(doc))
     if decision["needed"]:
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         return {"hold": contracts.CHOICE + ":" + kinds, "needed": decision["needed"], "book": book}

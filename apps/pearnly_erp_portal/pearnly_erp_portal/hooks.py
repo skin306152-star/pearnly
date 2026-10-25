@@ -351,7 +351,9 @@ scheduler_events = {
              # Express 主档有改动就跟上：请电脑看一眼主档表的文件属性，变了才整套同步（每家一件很轻的请求）
              "*/10 * * * *": ["pearnly_erp_portal.express.masters.check_marks"],
              # 任务管理：按卡片的提醒时间发到期提醒、到期后发一次过期提醒（同一到期时刻每人各一次）
-             "*/5 * * * *": ["pearnly_erp_portal.work.reminders.run"]},
+             "*/5 * * * *": ["pearnly_erp_portal.work.reminders.run"],
+             # 接了 Express 的公司：昨天及更早的收银小票按天合成现销日汇总写进 Express（出入库第一期 B3a）
+             "20 1 * * *": ["pearnly_erp_portal.express.pos_day.nightly"]},
 }
 
 # CC 桌面版直连 ERP（ADR-025）：员工用 ERP 账号在 CC 窗口里登录，这台电脑接上本站的共用机器通道，替他把单写进 Express。

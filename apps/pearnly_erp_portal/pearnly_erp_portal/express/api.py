@@ -18,7 +18,7 @@ from pearnly_erp_portal.express import choices, contracts, facts, masters, prepa
 from pearnly_erp_portal.masters import company as companies
 
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
-                push.STOCK: ("stock.read", "stock.write")}
+                push.STOCK: ("stock.read", "stock.write"), push.POS_DAY: ("cashier.read", "cashier.write")}
 FIXED = {"payment": choice_rules.PAYMENT_VALUES, "vat": choice_rules.VAT_VALUES}
 
 

@@ -531,6 +531,7 @@ Find,查询
 Find product,查找物料
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
+First Receipt,首张小票
 First warehouse of this company (more on the Warehouses page),公司的首个仓库（其他仓库可在「仓库」页面添加）
 Fiscal Year Starts In,会计年度起始月份
 Fiscal year start month,财年起月
@@ -637,6 +638,7 @@ Labels saved,标签已保存
 Last Login,最后登录
 Last Month,上个月
 Last Movement,最后一次流水
+Last Receipt,末张小票
 Last counted at,上次盘点时间
 Last counted by,上次盘点人
 Last page,末页
@@ -949,6 +951,7 @@ Receipt,收据
 Receipt No,小票号
 Receipt Status,小票状态
 Receipt {0} · Change {1},小票 {0} · 找零 {1}
+Receipts,小票张数
 Receive documents and add stock,收单并入库
 Received,入库数量
 Received Amount,已收金额
@@ -956,6 +959,7 @@ Received At,收到时间
 Received By,收款人
 "Received from LINE, then confirmed into a purchase record or discarded",接收自 LINE，确认后生成采购记录或予以丢弃
 Received; confirm it on the ERP page,已接收，请在 ERP 页面确认
+Receiving Account,收款科目
 Recent Orders,最近订单
 Recent Transactions,最近交易
 Recognition,识别
@@ -1928,6 +1932,7 @@ express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此�
 express.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 express.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 express.kind.account,费用科目
+express.kind.receipt,收款科目
 express.kind.stockGroup,存货科目组
 express.kind.vat,进项税
 express.option.claim,抵扣

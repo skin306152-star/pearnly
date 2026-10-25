@@ -52,7 +52,7 @@ METHOD_NOT_ENABLED = "This payment method is not enabled for this company"
 
 LIST_FIELDS = ("name", "receipt_no", "customer", "sold_at", "sale_type", "status", "shift",
                "terminal", "cashier", "warehouse", "return_against", "subtotal", "discount_total",
-               "vat_amount", "grand_total", "paid_total", "change_amount", "note")
+               "vat_amount", "grand_total", "paid_total", "change_amount", "note", "express_summary")
 
 
 def _customer(name) -> str:
@@ -323,8 +323,15 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
                            limit_page_length=int(limit))
     # 每行带上客户抬头（列表显示的是人看的名字，不是 `CUS-#####`）。
     names = _customer_names([row.get("customer") for row in rows])
+    # 接了 Express：这张小票所在的现销日汇总写进去了没有（列表「Express」一栏，出入库第一期 B3a）
+    summaries = {row.name: row for row in frappe.get_all(
+        "ERP POS Day Summary", filters={"name": ["in", [r.get("express_summary") for r in rows if r.get("express_summary")]
+                                                 or [""]]},
+        fields=["name", "express_state", "express_docnum"], limit_page_length=len(rows) or 1)}
     for row in rows:
         row["customer_name"] = names.get(row.get("customer"), "")
+        summary = summaries.get(row.get("express_summary")) or {}
+        row["express_state"], row["express_docnum"] = summary.get("express_state") or "", summary.get("express_docnum") or ""
     return rows
 
 

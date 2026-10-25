@@ -531,6 +531,7 @@ Find,Find
 Find product,Find product
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.
+First Receipt,First Receipt
 First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
 Fiscal Year Starts In,Fiscal Year Starts In
 Fiscal year start month,Fiscal year start month
@@ -637,6 +638,7 @@ Labels saved,Labels saved
 Last Login,Last Login
 Last Month,Last Month
 Last Movement,Last Movement
+Last Receipt,Last Receipt
 Last counted at,Last counted at
 Last counted by,Last counted by
 Last page,Last page
@@ -949,6 +951,7 @@ Receipt,Receipt
 Receipt No,Receipt No
 Receipt Status,Receipt Status
 Receipt {0} · Change {1},Receipt {0} · Change {1}
+Receipts,Receipts
 Receive documents and add stock,Receive documents and add stock
 Received,Received
 Received Amount,Received Amount
@@ -956,6 +959,7 @@ Received At,Received At
 Received By,Received By
 "Received from LINE, then confirmed into a purchase record or discarded","Received from LINE, then confirmed into a purchase record or discarded"
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
+Receiving Account,Receiving Account
 Recent Orders,Recent Orders
 Recent Transactions,Recent Transactions
 Recognition,Recognition
@@ -1928,6 +1932,7 @@ express.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax 
 express.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 express.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 express.kind.account,Expense Account
+express.kind.receipt,Receiving Account
 express.kind.stockGroup,Stock Account Group
 express.kind.vat,Input VAT
 express.option.claim,Claim

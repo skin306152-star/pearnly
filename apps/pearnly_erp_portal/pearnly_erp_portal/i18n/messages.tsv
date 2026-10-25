@@ -1212,6 +1212,9 @@ This stock position already has stock movements; use a stock adjustment	该物�
 This stock position is already initialized; use a stock adjustment	该物料在此仓位已录入期初，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品は期首登録済みです。在庫調整を使用してください
 Use a valid opening date that is not in the future	请填写有效的期初日期，不能晚于今天	กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้	本日以前の有効な期首日を入力してください
 Opening stock is read from Express	期初从 Express 读取	ยอดยกมาอ่านจาก Express	期首在庫は Express から読み込みます
+Receipts	小票张数	จำนวนใบเสร็จ	レシート枚数
+First Receipt	首张小票	ใบเสร็จแรก	最初のレシート
+Last Receipt	末张小票	ใบเสร็จสุดท้าย	最後のレシート
 Use an XLSX opening stock file	请使用 XLSX 格式的期初库存文件	กรุณาใช้ไฟล์สต็อกยกมารูปแบบ XLSX	XLSX形式の期首在庫ファイルを使用してください
 Use one worksheet for opening stock	期初库存文件只能包含一个工作表	ไฟล์สต็อกยกมาต้องมีแผ่นงานเพียงแผ่นเดียว	期首在庫ファイルのシートは1つにしてください
 Use unique opening stock columns, including a product identifier, quantity and unit cost	请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复	กรุณาใช้หัวตารางตามแบบฟอร์มยกมา โดยต้องมีรหัสระบุสินค้า จำนวน และต้นทุนต่อหน่วยเป็นอย่างน้อย และคอลัมน์ต้องไม่ซ้ำกัน	テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です
@@ -1402,6 +1405,7 @@ Express could not index the invoice, so it was undone. It is retried automatical
 The stock lines could not be posted. Check the items, quantities and prices	无法记录库存明细，请核对品名、数量和单价	ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย	在庫明細を記帳できません。品名・数量・単価を確認してください	express.error.STOCK_IN_FAILED
 Written	已写入	บันทึกแล้ว	書き込み済み	express.state.written
 Expense Account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	express.kind.account
+Receiving Account	收款科目	บัญชีรับเงิน	入金勘定	express.kind.receipt
 Input VAT	进项税	ภาษีซื้อ	仮払消費税	express.kind.vat
 Stock Account Group	存货科目组	กลุ่มบัญชีสินค้าคงเหลือ	在庫勘定グループ	express.kind.stockGroup
 Claim	抵扣	ขอคืน	控除	express.option.claim

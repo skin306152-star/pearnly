@@ -531,6 +531,7 @@ Find,ค้นหา
 Find product,ค้นหาสินค้า
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
+First Receipt,ใบเสร็จแรก
 First warehouse of this company (more on the Warehouses page),คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 Fiscal Year Starts In,เดือนที่เริ่มปีบัญชี
 Fiscal year start month,เดือนเริ่มปีบัญชี
@@ -637,6 +638,7 @@ Labels saved,บันทึกป้ายกำกับแล้ว
 Last Login,เข้าสู่ระบบล่าสุด
 Last Month,เดือนที่แล้ว
 Last Movement,ความเคลื่อนไหวล่าสุด
+Last Receipt,ใบเสร็จสุดท้าย
 Last counted at,ตรวจนับล่าสุดเมื่อ
 Last counted by,ผู้ตรวจนับล่าสุด
 Last page,หน้าสุดท้าย
@@ -949,6 +951,7 @@ Receipt,ใบเสร็จรับเงิน
 Receipt No,เลขที่ใบเสร็จ
 Receipt Status,สถานะใบเสร็จ
 Receipt {0} · Change {1},ใบเสร็จ {0} · เงินทอน {1}
+Receipts,จำนวนใบเสร็จ
 Receive documents and add stock,รับเอกสารและรับสินค้าเข้าสต็อก
 Received,รับเข้า
 Received Amount,จำนวนเงินที่ได้รับ
@@ -956,6 +959,7 @@ Received At,เวลาที่ได้รับ
 Received By,ผู้รับเงิน
 "Received from LINE, then confirmed into a purchase record or discarded",รับจาก LINE และสร้างเป็นรายการจัดซื้อเมื่อยืนยัน หรือทิ้ง
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
+Receiving Account,บัญชีรับเงิน
 Recent Orders,คำสั่งซื้อล่าสุด
 Recent Transactions,ธุรกรรมล่าสุด
 Recognition,การอ่านเอกสาร
@@ -1928,6 +1932,7 @@ express.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายห�
 express.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 express.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
 express.kind.account,บัญชีค่าใช้จ่าย
+express.kind.receipt,บัญชีรับเงิน
 express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
 express.kind.vat,ภาษีซื้อ
 express.option.claim,ขอคืน

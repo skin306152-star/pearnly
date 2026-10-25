@@ -531,6 +531,7 @@ Find,検索
 Find product,商品を検索
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
+First Receipt,最初のレシート
 First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
 Fiscal Year Starts In,会計年度の開始月
 Fiscal year start month,会計年度の開始月
@@ -637,6 +638,7 @@ Labels saved,ラベルを保存しました
 Last Login,最終ログイン
 Last Month,先月
 Last Movement,最終の入出庫
+Last Receipt,最後のレシート
 Last counted at,最終棚卸日時
 Last counted by,最終棚卸者
 Last page,最終ページ
@@ -949,6 +951,7 @@ Receipt,領収書
 Receipt No,レシート番号
 Receipt Status,レシート状態
 Receipt {0} · Change {1},レシート {0} · お釣り {1}
+Receipts,レシート枚数
 Receive documents and add stock,伝票を登録して入庫
 Received,入庫数量
 Received Amount,入金額
@@ -956,6 +959,7 @@ Received At,受信日時
 Received By,受領者
 "Received from LINE, then confirmed into a purchase record or discarded",LINEから受信し、仕入記録として確定するか破棄します
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
+Receiving Account,入金勘定
 Recent Orders,最近の会計
 Recent Transactions,最近の取引
 Recognition,読み取り
@@ -1928,6 +1932,7 @@ express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕�
 express.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.kind.account,費用勘定
+express.kind.receipt,入金勘定
 express.kind.stockGroup,在庫勘定グループ
 express.kind.vat,仮払消費税
 express.option.claim,控除

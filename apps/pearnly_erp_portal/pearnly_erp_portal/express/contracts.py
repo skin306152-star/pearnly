@@ -239,7 +239,17 @@ def pages(doc: dict) -> list:
                    "posting_kind": "stock" if item["stock"] else "service"}
                   for item in doc["items"]],
     }
-    return [{"page_index": 1, "fields": fields}]
+    page = {"page_index": 1, "fields": fields}
+    pos = doc.get("pos")
+    if isinstance(pos, dict):
+        # 收银日汇总（B3a）：当天票号起止、张数、各付款方式金额照共用约定写进主页面（`express_rules.contracts.pos`）
+        from decimal import Decimal as _Decimal
+
+        from pearnly_core.express_rules.contracts import pos as pos_contract
+
+        page["_extraction_audit"] = pos_contract.audit(pos["first"], pos["last"], pos["count"],
+                                                       [(label, _Decimal(str(amount))) for label, amount in pos["payments"]])
+    return [page]
 
 
 __all__ = ["CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",

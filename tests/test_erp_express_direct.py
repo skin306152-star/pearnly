@@ -900,7 +900,8 @@ class StockAlignment(MasterSync):
             ("purchase", "PUR-1", "P1", "W1", 10),          # 采购单已写进 Express：不算
             ("purchase", "PUR-2", "P1", "W1", 4),           # 采购单还没写：算
             ("ERP Sales Document", "SD-1", "P1", "W1", -3),  # 销售记录还没写：算
-            ("sale", "RCPT-1", "P1", "W1", -2),             # 收银小票：这一段不写进 Express，算
+            ("sale", "RCPT-1", "P1", "W1", -2),             # 收银小票还没进已写入的日汇总：算
+            ("sale", "RCPT-9", "P1", "W1", -5),             # 收银小票在已写进 Express 的日汇总里：不算（B3a）
             ("refund", "RCPT-2", "P1", "W1", 1),
             ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单还没写进 Express（B 段之前开的、没写成的）：算
             ("stock_entry", "SE-2", "P1", "W2", -4),         # 出入库单已写进 Express：不算
@@ -930,7 +931,16 @@ class StockAlignment(MasterSync):
             import types
             return [types.SimpleNamespace(**dict(zip(keys, k)), qty=v) for k, v in out.items()]
 
-        with mock.patch.object(sync.frappe, "get_all", side_effect=get_all):
+        import types
+        summarized = [types.SimpleNamespace(product="P1", warehouse="W1", qty=-5)]  # RCPT-9 的流水（日汇总已写入）
+
+        def sql(query, values=None, as_dict=False):
+            self.assertIn("tabERP POS Day Summary", query)
+            self.assertEqual(values["written"], ("written", "mismatch"))
+            return summarized
+
+        with mock.patch.object(sync.frappe, "get_all", side_effect=get_all), \
+                mock.patch.object(sync.frappe.db, "sql", side_effect=sql):
             pending = sync._pending("CO-1", {"ICE-01": "P1"}, {"01": "W1", "02": "W2"})
         self.assertEqual(pending, {("ICE-01", "01"): Decimal(4 - 3 - 2 + 1 - 10), ("ICE-01", "02"): Decimal(7 - 1 + 5)})
 
@@ -1064,6 +1074,49 @@ class StockEntries(Base):
         result = self.stock.prepare(self.body(), COMPANY, lambda company, chosen: None)
         self.assertIn("payload", result)
         self.assertNotIn("account", result["payload"])
+
+
+
+class PosDaySummaries(Base):
+    """出入库第一期 B3a：收银小票按天合成现销日汇总（载荷 3 的 POS 日汇总，共用约定 `express_rules.contracts.pos`）。"""
+
+    def setUp(self):
+        super().setUp()
+        from pearnly_erp_portal.express import pos_day
+        self.pos_day = pos_day
+
+    def day_doc(self, payments):
+        body = doc(direction="sales", paid=True, number="R0001-R0003",
+                   party={"code": "C01", "name": "ร้านป้าแดง", "tax_id": "", "branch": "00000"})
+        body["pos"] = {"first": "R0001", "last": "R0003", "count": 3, "payments": payments}
+        return body
+
+    def test_payments_take_the_change_off_cash_and_add_up_to_the_total(self):
+        D = Decimal
+        self.assertEqual(self.pos_day.payments_of(D("1070"), {"promptpay": D("300"), "card": D("0")}),
+                         [("เงินสด", D("770")), ("พร้อมเพย์", D("300"))])
+        self.assertEqual(self.pos_day.payments_of(D("500"), {}), [("เงินสด", D("500"))])
+        self.assertEqual(self.pos_day.payments_of(D("200"), {"transfer": D("200")}), [("โอนเงิน", D("200"))])
+
+    def test_the_page_carries_the_day_facts_and_each_non_cash_method_asks_for_its_account_once(self):
+        key = self.computer([book()])[0]
+        self.masters(key)
+        body = self.day_doc([["เงินสด", "221.00"], ["พร้อมเพย์", "100.00"]])
+        page = E.pages(E.checked(body))[0]
+        self.assertEqual(page["_extraction_audit"]["pos"]["count"], 3)
+        result = self.prepare(body)
+        self.assertEqual(result["hold"], E.CHOICE + ":receipt")
+        self.assertEqual(result["needed"][0]["label"], "พร้อมเพย์")
+        choices.remember(COMPANY["name"], "receipt", result["needed"][0]["subject"], "11-02-01-00", "")
+        result = self.prepare(body)
+        payload = result["payload"]
+        self.assertGreaterEqual(payload["payload_version"], 3)  # 带仓库码的明细是 4，CC 认 4 就认 3
+        self.assertEqual(payload["pos"]["transfers"], [{"acc": "11-02-01-00", "amount": "100.00", "label": "พร้อมเพย์"}])
+        self.assertEqual((payload["pos"]["first"], payload["pos"]["last"], payload["pos"]["count"]), ("R0001", "R0003", 3))
+
+    def test_an_ordinary_sale_carries_no_day_facts(self):
+        page = E.pages(E.checked(doc(direction="sales", paid=True)))[0]
+        self.assertNotIn("_extraction_audit", page)
 
 
 if __name__ == "__main__":

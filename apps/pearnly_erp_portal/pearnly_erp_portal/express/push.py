@@ -16,12 +16,13 @@ from frappe.utils import now_datetime
 
 from pearnly_core.cc_desktop import books, jobs
 
-from pearnly_erp_portal.express import contracts, prepare, stock_entry
+from pearnly_erp_portal.express import contracts, pos_day, prepare, stock_entry
 
 SALES = "ERP Sales Document"
 PURCHASE = "Purchase Document"
 STOCK = stock_entry.DOCTYPE  # 出入库单 / 盘点调整（载荷 6，出入库第一期 B 段）
-DIRECTIONS = {SALES: "sales", PURCHASE: "purchase", STOCK: "stock"}
+POS_DAY = pos_day.DOCTYPE  # 收银日汇总（载荷 3 的 POS 日汇总现销，B3a）
+DIRECTIONS = {SALES: "sales", PURCHASE: "purchase", STOCK: "stock", POS_DAY: "sales"}
 POLL_MAX = 100
 COMPANY = "ERP Company"
 
@@ -48,6 +49,8 @@ def _eligible(doctype, doc) -> bool:
         return False
     if doctype == STOCK:
         return stock_entry.eligible(doc) and linked(doc.get("company"))
+    if doctype == POS_DAY:
+        return linked(doc.get("company"))
     kinds = contracts.SALES_KINDS if doctype == SALES else contracts.PURCHASE_KINDS
     return (doc.get("doc_kind") or "") in kinds and linked(doc.get("company"))
 
@@ -57,6 +60,7 @@ def queue(doctype, name):
     if doctype not in DIRECTIONS:
         return
     fields = ["name", "status", "ref_type", "direction", "express_state"] if doctype == STOCK else \
+        ["name", "status", "company", "express_state"] if doctype == POS_DAY else \
         ["name", "status", "doc_kind", "company", "express_state"]
     doc = frappe.db.get_value(doctype, name, fields, as_dict=True)
     if doc and doctype == STOCK:
@@ -183,6 +187,8 @@ def document(doctype, name) -> dict:
     """这张 ERP 单交给写账规则的样子（`contracts.document`）；出入库单是库存单的样子（`stock_entry.document`）。"""
     if doctype == STOCK:
         return stock_entry.document(name, ref(name, frappe.db.get_value(STOCK, name, "creation")))
+    if doctype == POS_DAY:
+        return pos_day.document(name, ref(name, frappe.db.get_value(POS_DAY, name, "creation")))
     doc = frappe.get_doc(doctype, name)
     company = frappe.db.get_value(COMPANY, doc.company, ["tax_id", "branch"], as_dict=True) or {}
     if doctype == SALES:

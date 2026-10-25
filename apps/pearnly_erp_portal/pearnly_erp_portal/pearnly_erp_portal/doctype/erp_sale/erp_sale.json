@@ -28,7 +28,8 @@
   "payments",
   "client_uuid",
   "void_reason",
-  "note"
+  "note",
+  "express_summary"
  ],
  "fields": [
   {
@@ -189,11 +190,21 @@
    "fieldname": "note",
    "fieldtype": "Small Text",
    "label": "Note"
+  },
+  {
+   "fieldname": "express_summary",
+   "fieldtype": "Link",
+   "label": "Express Day Summary",
+   "options": "ERP POS Day Summary",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1,
+   "search_index": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-25 18:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sale",
  "owner": "Administrator",

@@ -1,0 +1,185 @@
+{
+ "actions": [],
+ "autoname": "format:PDS-{YYYY}-{#####}",
+ "creation": "2026-10-25 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "day",
+  "seq",
+  "status",
+  "column_break_head",
+  "sales_count",
+  "first_receipt",
+  "last_receipt",
+  "grand_total",
+  "vat_amount",
+  "express_section",
+  "express_state",
+  "express_docnum",
+  "express_reason",
+  "express_sent_at",
+  "express_job",
+  "express_book",
+  "express_needed"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "day",
+   "fieldtype": "Date",
+   "label": "Date",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "seq",
+   "fieldtype": "Int",
+   "label": "No.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "submitted",
+   "default": "submitted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_count",
+   "fieldtype": "Int",
+   "label": "Receipts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "first_receipt",
+   "fieldtype": "Data",
+   "label": "First Receipt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_receipt",
+   "fieldtype": "Data",
+   "label": "Last Receipt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vat_amount",
+   "fieldtype": "Currency",
+   "label": "VAT",
+   "read_only": 1
+  },
+  {
+   "fieldname": "express_section",
+   "fieldtype": "Section Break",
+   "label": "Express",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "express_state",
+   "fieldtype": "Select",
+   "label": "Express Status",
+   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "express_docnum",
+   "fieldtype": "Data",
+   "label": "Express No.",
+   "read_only": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "express_reason",
+   "fieldtype": "Small Text",
+   "label": "Express Note",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_sent_at",
+   "fieldtype": "Datetime",
+   "label": "Express Sent At",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_job",
+   "fieldtype": "Data",
+   "label": "Express Job",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "express_book",
+   "fieldtype": "Data",
+   "label": "Express Account Set",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_needed",
+   "fieldtype": "Long Text",
+   "label": "Express Choices Needed",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-25 18:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP POS Day Summary",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

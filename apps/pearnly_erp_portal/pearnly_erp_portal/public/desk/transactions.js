@@ -22,7 +22,7 @@
 	const EXPRESS_KINDS = {
 		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
-		stock_group: "express.kind.stockGroup",
+		stock_group: "express.kind.stockGroup", receipt: "express.kind.receipt",
 	};
 	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked", STOCK_INSUFFICIENT: "express.reason.stockInsufficient"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
@@ -183,6 +183,11 @@
 				fields.push({ fieldtype: "Button", fieldname: "void", label: t("trade.void"),
 					click: () => frappe.confirm(t("trade.voidConfirm"),
 						() => p.trade.act(dialog, () => actions.void(doc, dialog))) });
+			}
+			// 这张小票已合进现销日汇总（接了 Express，B3a）：看那张日汇总写进 Express 的情况（同采购 / 销售的弹窗）
+			if (doc.express_summary && frappe.boot.pearnly_express) {
+				fields.push({ fieldtype: "Button", fieldname: "express", label: __("Express"),
+					click: () => p.express("ERP POS Day Summary", doc.express_summary) });
 			}
 			dialog = p.dialog(doc.receipt_no, fields, t("trade.close"), async (_values, d) => d.hide());
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
