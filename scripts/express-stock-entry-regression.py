@@ -7,6 +7,7 @@
 - 写前 STMAS 结存等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0）；
 - 凭证：永续盘存账套每张有金额的单一张 JNLTYP 00 凭证、借贷平衡；定期盘存账套（ISPERPETUA = N）一张凭证都没有；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
+- 再倒着逐张作废（载荷 7，dbf_void）：单头标 C、明细不在，商品结存与各仓结存回到写前；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套 ISRUN 没有 OU / JU / TK 单别、没有库存品、默认科目不能记账的跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
 
@@ -42,11 +43,12 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    global dbf, S, D, account_rules, cdx_reindex, fiscal_period
+    global dbf, S, D, V, account_rules, cdx_reindex, fiscal_period
     import dbf  # noqa: F401
     from companion import account_rules, cdx_reindex, fiscal_period  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_stock as D  # noqa: F401
+    from companion import dbf_void as V  # noqa: F401
 
     global cdx_check, with_runner
     import express_cdx_check as cdx_check  # noqa: F401
@@ -153,6 +155,11 @@ def master_balance(acct, code):
             for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL", "MREMVAL")) if text(r["STKCOD"]) == code]
 
 
+def location_balances(acct, code):
+    return sorted((text(r["LOCCOD"]), Decimal(repr(float(r["LOCBAL"] or 0))))
+                  for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if text(r["STKCOD"]) == code)
+
+
 def check(acct: Path) -> dict:
     books = {kind: D.book_row(acct, kind) for kind in ("OU", "JU", "TK")}
     missing = [kind for kind, row in books.items() if row is None]
@@ -171,6 +178,8 @@ def check(acct: Path) -> dict:
     code = text(stock[0]["STKCOD"])
     before_balanced = balanced(acct, [code])[code] if has_stloc else None
     files_before = digests(acct)
+    balance_before = master_balance(acct, code)
+    locations_before = location_balances(acct, code) if has_stloc else None
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
     perpetual = text((account_rules._first(acct, "ISINFO") or {}).get("ISPERPETUA") or "Y").upper() != "N"
     first = calendar.periods[0]
@@ -199,6 +208,20 @@ def check(acct: Path) -> dict:
             return {"state": "fail", "why": f"{docnum}: journalled in a periodic account set"}
     if has_stloc and before_balanced and not balanced(acct, [code])[code]:
         return {"state": "fail", "why": f"STMAS != sum(STLOC) for {code} after writing"}
+    # 作废（载荷 7，dbf_void）：倒着逐张作废，单头标 C、明细不在、结存回到写前
+    for docnum, (doctype, qty) in reversed(list(zip(written, (("JU", 2), ("OU", 1), ("TK", -1))))):
+        void = {"payload_version": 7, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
+                "items": [{"code": code, "qty": str(qty)}]}
+        res = V.void_stock_entry(void, acct, selected_dir=str(acct), make_backup=False)
+        if not res.ok:
+            return {"state": "fail", "why": f"void {docnum} {res.error_code}: {res.error}"}
+        heads = [r for r in rows(acct, "STTRN", ("DOCNUM", "DOCSTAT")) if text(r["DOCNUM"]) == docnum]
+        if [text(r["DOCSTAT"]) for r in heads] != ["C"] or [r for r in rows(acct, "STCRD", ("DOCNUM",)) if text(r["DOCNUM"]) == docnum]:
+            return {"state": "fail", "why": f"void {docnum}: header {heads} or detail rows left"}
+    if master_balance(acct, code) != balance_before:
+        return {"state": "fail", "why": f"STMAS balance {master_balance(acct, code)} != {balance_before} after voiding"}
+    if has_stloc and location_balances(acct, code) != locations_before:
+        return {"state": "fail", "why": f"STLOC {location_balances(acct, code)} != {locations_before} after voiding"}
     index_problems = cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, written) if with_runner else []
     if index_problems:
         return {"state": "fail", "why": "; ".join(index_problems)}

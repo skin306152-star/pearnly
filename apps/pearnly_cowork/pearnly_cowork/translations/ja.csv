@@ -1942,7 +1942,9 @@ This delivery conflicts with the current task state.,この受領結果はタス
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 This document does not need this choice,この伝票ではこの選択は不要です
 This document format is not supported.,この文書形式には対応していません。
+This document is not in Express,この伝票は Express にありません
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
+This document was changed in Express. Check it in Express,この伝票は Express で変更されています。Express で確認してください
 This file cannot be read,このファイルは読み取れません
 This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
 "This file is a general ledger, not a bank statement. Put it on the ledger side.",このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置いてください。
@@ -3392,6 +3394,8 @@ intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入
 intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 intake.error.USER_ABORTED_BUSY,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
+intake.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
+intake.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 intake.error.account_not_in_chart,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 intake.error.account_set_not_allowed,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
 intake.error.agent_failed,CC デスクトップが書き込めませんでした。自動で再試行します

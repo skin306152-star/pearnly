@@ -1942,7 +1942,9 @@ This delivery conflicts with the current task state.,此回执与任务当前状
 This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,此单据属于其他分店，与所选账套不符。请选择该分店的账套后重新发送。
 This document does not need this choice,此单据无需选择是否录入
 This document format is not supported.,不支持此文档格式。
+This document is not in Express,Express 中找不到此单
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
+This document was changed in Express. Check it in Express,此单在 Express 中已被修改，请在 Express 中核对
 This file cannot be read,无法读取此文件
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
 "This file is a general ledger, not a bank statement. Put it on the ledger side.",此文件为总账而非银行账单，请放在总账一侧。
@@ -3392,6 +3394,8 @@ intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税
 intake.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 intake.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 intake.error.USER_ABORTED_BUSY,账套正被占用，已终止推送，请关闭 Express 后重新推送
+intake.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 Express 中核对
+intake.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
 intake.error.account_not_in_chart,所用科目不在 Express 科目表中，请检查科目设置
 intake.error.account_set_not_allowed,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 intake.error.agent_failed,CC 桌面版写入失败，将自动重试
