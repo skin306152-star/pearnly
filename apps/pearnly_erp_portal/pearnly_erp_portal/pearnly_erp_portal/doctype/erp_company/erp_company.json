@@ -26,6 +26,7 @@
   "express_section",
   "express_book",
   "express_synced_at",
+  "express_pos_from",
   "express_sync_state",
   "express_sync_note",
   "express_mark",
@@ -173,6 +174,13 @@
    "no_copy": 1
   },
   {
+   "fieldname": "express_pos_from",
+   "fieldtype": "Date",
+   "label": "Cashier Sales to Express From",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
    "fieldname": "express_sync_state",
    "fieldtype": "Data",
    "label": "Express Sync State",
@@ -205,7 +213,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-25 15:00:00.000000",
+ "modified": "2026-10-25 21:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,

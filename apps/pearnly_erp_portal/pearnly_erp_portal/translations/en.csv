@@ -200,6 +200,7 @@ Cash Difference,Cash Difference
 Cashier,Cashier
 Cashier (POS),Cashier (POS)
 Cashier Records,Cashier Records
+Cashier Sales to Express From,Cashier Sales to Express From
 "Cashier counter, shifts and the cashier's own sales","Cashier counter, shifts and the cashier's own sales"
 Category,Category
 Category Name,Category Name
@@ -1227,6 +1228,7 @@ The card no longer exists,The card no longer exists
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
 The cashier is not enabled for this company,The cashier is not enabled for this company
+The chosen account cannot be posted in Express. Choose another account,The chosen account cannot be posted in Express. Choose another account
 The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
 The company has no 13-digit tax ID,The company has no 13-digit tax ID
 The company on your documents,The company on your documents
@@ -1271,12 +1273,14 @@ Then,Then
 There are no lines,There are no lines
 There is nothing to save,There is nothing to save
 There were errors while sending email. Please try again.,There were errors while sending email. Please try again.
+This Express account set has no book for this kind of stock document. Set it up in Express,This Express account set has no book for this kind of stock document. Set it up in Express
 This LINE account is not bound to an ERP user,This LINE account is not bound to an ERP user
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.","This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
 This Month,This Month
 This PDF has more than {0} pages,This PDF has more than {0} pages
 This Quarter,This Quarter
 This account cannot send documents,This account cannot send documents
+This account set has no book for this kind of document. Set it up in Express,This account set has no book for this kind of document. Set it up in Express
 This barcode already exists,This barcode already exists
 This board no longer exists,This board no longer exists
 This browser cannot scan with the camera,This browser cannot scan with the camera
@@ -1307,6 +1311,7 @@ This invoice has no lines. Add them and submit again.,This invoice has no lines.
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:
+This item is not a stock item in Express. Choose another item,This item is not a stock item in Express. Choose another item
 This label no longer exists,This label no longer exists
 This list no longer exists,This list no longer exists
 This member cannot be assigned,This member cannot be assigned
@@ -1906,6 +1911,7 @@ express.code.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not
 express.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 express.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
+express.error.ACCOUNT_NOT_POSTABLE,The chosen account cannot be posted in Express. Choose another account
 express.error.ACCOUNT_SET_UNREACHABLE,The account set cannot be reached right now. It will be sent automatically once connected.
 express.error.ACCOUNT_WRITER_BUSY,Another computer is writing to this account set. It is sent automatically once it is done
 express.error.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
@@ -1922,6 +1928,7 @@ express.error.INVALID_DOC_DATE,The document date is invalid. Correct it and subm
 express.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
 express.error.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
 express.error.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
+express.error.JOURNAL_BOOK_NOT_FOUND,This account set has no book for this kind of document. Set it up in Express
 express.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
 express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit again.
 express.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
@@ -1930,6 +1937,7 @@ express.error.READBACK_VERIFY_FAILED,"Express did not read back what was written
 express.error.REINDEX_UNAVAILABLE,The Express index tool is missing on this computer. Reinstall CC Desktop
 express.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
 express.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
+express.error.STOCK_ITEM_NOT_FOUND,This item is not a stock item in Express. Choose another item
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
 express.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 express.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
@@ -1940,6 +1948,7 @@ express.kind.vat,Input VAT
 express.option.claim,Claim
 express.option.expense,Expense
 express.reason.noBook,No Express account set covers this date
+express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set
 express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express

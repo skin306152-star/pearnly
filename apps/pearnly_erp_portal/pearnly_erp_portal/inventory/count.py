@@ -357,6 +357,7 @@ def get_count(name: str) -> dict:
         "notes": doc.notes, "item_total": doc.item_total, "counted_total": doc.counted_total,
         "difference_total": doc.difference_total, "closed_at": doc.closed_at,
         "closed_by": doc.closed_by, "posted_at": doc.posted_at, "posted_by": doc.posted_by,
+        "express_state": doc.express_state, "express_docnum": doc.express_docnum,
     }
 
 
@@ -597,6 +598,10 @@ def post_count(name: str, review_token=None) -> dict:
     frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),
                         "closed_by": frappe.session.user, "posted_at": now(),
                         "posted_by": frappe.session.user}, update_modified=False)
+    # 接了 Express 的公司：整份盘点轧差写一张盘点调整 TK（出入库第一期 B2，验收 10-25）
+    from pearnly_erp_portal.express import push as express_push
+
+    express_push.queue(COUNT, name)
     count_live.changed(name)
     return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
 

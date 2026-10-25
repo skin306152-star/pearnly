@@ -905,7 +905,7 @@ class StockAlignment(MasterSync):
             ("refund", "RCPT-2", "P1", "W1", 1),
             ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单还没写进 Express（B 段之前开的、没写成的）：算
             ("stock_entry", "SE-2", "P1", "W2", -4),         # 出入库单已写进 Express：不算
-            ("count", "SC-2", "P1", "W1", 2),                # 盘点调整已写进 Express：不算
+            ("count", "SC-2", "P1", "W1", 2),                # 盘点生成的单，所在盘点已整份写进 Express：不算
             ("count", "SC-1", "P1", "W2", -1),               # 盘点调整：算
             ("void", "PUR-1", "P1", "W1", -10),              # 写进去之后作废的冲销：ERP 独有，算
             (None, None, "P1", "W2", 5),                     # 没有来源：算
@@ -913,11 +913,15 @@ class StockAlignment(MasterSync):
             ("opening", "OP-1", "P1", "W1", 50),             # 期初：不算
             ("sale", "RCPT-3", "P2", "W1", -6),              # 不是这家公司 Express 来的品：不管
         ]
-        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"], "ERP Stock Entry": ["SE-2", "SC-2"]}
+        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"], "ERP Stock Entry": ["SE-2"],
+                     "ERP Stock Count": ["STC-2"]}
 
         def get_all(doctype, filters=None, fields=None, pluck=None, group_by=None, **kw):
+            if doctype == "ERP Stock Entry" and isinstance(filters, dict) and filters.get("ref_type") == "count":
+                self.assertEqual(filters["ref_id"], ["in", ["STC-2"]])
+                return ["SC-2"]  # 已写进 Express 的那份盘点生成的单
             if doctype in open_docs:
-                if doctype == "ERP Stock Entry":
+                if doctype in ("ERP Stock Entry", "ERP Stock Count"):
                     self.assertEqual(filters["express_state"], ["in", ("written", "mismatch")])
                 return list(open_docs[doctype])
             rows = [dict(zip(("ref_type", "ref_id", "product", "warehouse", "qty"), m)) for m in moves]
@@ -1031,7 +1035,7 @@ class StockEntries(Base):
         Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
         doc = Doc(direction="out", ref_type="count", lines=lines, warehouse="W1", posting_date="2026-10-20",
                   doc_no="AD2569-000001", name="SE-1", reason="")
-        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "ICE-01"},
+        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "ICE-01", "base_unit": "ถุง"},
                   ("ERP Warehouse", "W1"): "01", ("ERP Warehouse", "W2"): "02"}
         with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
                 mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
@@ -1047,6 +1051,58 @@ class StockEntries(Base):
             body = self.stock.document("SE-1", "SE-1@x")
         self.assertEqual(body["doctype"], "JU")
         self.assertEqual([(line["qty"], line.get("unit_cost")) for line in body["lines"]], [("3", None), ("1", "12")])
+
+    def test_a_count_nets_its_entries_into_one_count_document(self):
+        """验收 10-25：盘点按库位逐笔开单（−100、+60、+40）原来各写一张 TK；现在整份盘点按「存货 × Express 仓」轧差写一张，净 0 不写。"""
+        import types
+        Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
+
+        def entry(name, direction, product, qty, location, cost=0):
+            line = types.SimpleNamespace(product=product, qty=qty, unit="ถุง", unit_cost=cost, warehouse=None, location=location)
+            return Doc(direction=direction, ref_type="count", lines=[line], warehouse="W1", posting_date="2026-10-25",
+                       doc_no=name, name=name, reason="")
+
+        docs = {"E1": entry("E1", "out", "P1", 100, "A"), "E2": entry("E2", "in", "P1", 60, "B", 10),
+                "E3": entry("E3", "in", "P1", 40, "C", 10), "E4": entry("E4", "out", "P2", 2, "A"),
+                "E5": entry("E5", "in", "P3", 3, "A", 8)}
+        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "ICE-01", "base_unit": "ถุง"},
+                  ("ERP Product", "P2"): {"product_name": "น้ำแข็งบด", "express_code": "ICE-02", "base_unit": "ถุง"},
+                  ("ERP Product", "P3"): {"product_name": "ถ่าน", "express_code": "CH-01", "base_unit": "ถุง"},
+                  ("ERP Warehouse", "W1"): "01",
+                  ("ERP Stock Count", "STC-1"): {"title": "ตรวจนับ ต.ค.", "warehouse": "W1"}}
+        rows = [types.SimpleNamespace(name=name, posting_date="2026-10-25") for name in docs]
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: docs[name], create=True), \
+                mock.patch.object(frappe, "get_all", lambda *a, **k: rows, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                  values.get((doctype, name))):
+            body = self.stock.count_document("STC-1", "STC-1@x")
+        self.assertEqual((body["doctype"], body["number"], body["remark"], body["loccod"]), ("TK", "STC-1", "ตรวจนับ ต.ค.", "01"))
+        self.assertEqual(body["lines"], [
+            {"code": "ICE-02", "name": "น้ำแข็งบด", "qty": "-2", "unit": "ถุง", "loccod": "01"},
+            {"code": "CH-01", "name": "ถ่าน", "qty": "3", "unit": "ถุง", "loccod": "01", "unit_cost": "8"}])
+
+    def test_a_pack_unit_is_written_in_the_stock_unit(self):
+        """验收 10-25：行上选「ลัง（= 12 ถุง）」时原来照 1 ลัง 写进 Express；现在换成 12 ถุง、单位成本除以 12。"""
+        import types
+        lines = [types.SimpleNamespace(product="P1", qty=3, unit="ลัง", unit_cost=120, warehouse=None)]
+        Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
+        doc = Doc(direction="in", ref_type=None, lines=lines, warehouse="W1", posting_date="2026-10-20",
+                  doc_no="IR2569-000001", name="SE-2", reason="")
+
+        def value(doctype, name, fields=None, as_dict=False):
+            if doctype == "ERP Product Unit":
+                return {"ลัง": 12.0}.get(name["unit_name"])
+            return {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "ICE-01", "base_unit": "ถุง"},
+                    ("ERP Warehouse", "W1"): "01"}.get((doctype, name))
+
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
+                mock.patch.object(frappe.db, "get_value", value):
+            body = self.stock.document("SE-2", "SE-2@x")
+            lines[0].unit = "แพ็ค"
+            with self.assertRaises(Exception):
+                self.stock.document("SE-2", "SE-2@x")  # 商品单位表里没有的单位：同 ERP 流水，报错不猜
+        self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "36", "unit": "ถุง", "loccod": "01",
+                                          "unit_cost": "10"}])
 
 
     def masters_with_books(self, key, stock_books):

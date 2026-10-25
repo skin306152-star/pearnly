@@ -30,3 +30,5 @@ pearnly_erp_portal.patches.v1_12_product_code_key
 pearnly_erp_portal.patches.v1_12_tasks_feature
 # 库存流水按「仓库 + 商品 + 仓位 + 日期（覆盖数量 / 类型 / 来源）」「商品 + 仓库 + 日期」建索引：收发存大账套不再整表扫（2026-10-25）
 pearnly_erp_portal.patches.v1_13_stock_movement_indexes
+# 收银日汇总起始日：已接 Express 的公司记成上线当天，之前的收银小票不补写（出入库第一期 B3a，验收 10-25）
+pearnly_erp_portal.patches.v1_14_pos_day_start

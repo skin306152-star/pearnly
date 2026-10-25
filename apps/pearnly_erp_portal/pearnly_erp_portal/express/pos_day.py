@@ -12,7 +12,7 @@ import frappe
 
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
-from pearnly_erp_portal.express import contracts
+from pearnly_erp_portal.express import contracts, stock_entry
 
 DOCTYPE = "ERP POS Day Summary"
 SALE = "ERP Sale"
@@ -22,8 +22,12 @@ LABELS = {CASH: "เงินสด", "promptpay": "พร้อมเพย์"
 CASH_PARTY = "เงินสด"
 DAYS_MAX = 62  # 一晚最多补几天（停机很久后回来，分几晚补完）
 
+# 只汇总公司「收银写 Express 起始日」（第一次接上 Express 那天；已接的公司由补丁记成上线当天）及以后的小票：之前的不补写
+# （会计可能已手录过、期间可能已关账；验收 10-25）。没有起始日的公司一张都不汇总。
 _SCOPE = """FROM `tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
-    WHERE w.company = %(company)s AND s.status = 'completed' AND s.sale_type = 'sale'"""
+    JOIN `tabERP Company` c ON c.name = w.company
+    WHERE w.company = %(company)s AND s.status = 'completed' AND s.sale_type = 'sale'
+    AND c.express_pos_from IS NOT NULL AND DATE(s.sold_at) >= c.express_pos_from"""
 
 
 def pending_days(company, before) -> list:
@@ -40,8 +44,10 @@ def summarize(company, day):
     doc = frappe.get_doc({"doctype": DOCTYPE, "company": company, "day": day, "seq": seq, "status": "submitted"})
     doc.insert(ignore_permissions=True)
     frappe.db.sql(f"""UPDATE `tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
+        JOIN `tabERP Company` c ON c.name = w.company
         SET s.express_summary = %(summary)s
         WHERE w.company = %(company)s AND s.status = 'completed' AND s.sale_type = 'sale'
+        AND c.express_pos_from IS NOT NULL AND DATE(s.sold_at) >= c.express_pos_from
         AND COALESCE(s.express_summary, '') = '' AND DATE(s.sold_at) = %(day)s""",
                   {"summary": doc.name, "company": company, "day": day})
     totals = frappe.db.sql("""SELECT COUNT(*) AS count, COALESCE(SUM(grand_total), 0) AS total,
@@ -90,20 +96,29 @@ def document(name, ref) -> dict:
     rows = frappe.db.sql("""SELECT l.product, l.warehouse, l.unit, SUM(l.qty) AS qty, SUM(l.line_total) AS amount
         FROM `tabERP Sale Line` l JOIN `tabERP Sale` s ON s.name = l.parent AND l.parenttype = 'ERP Sale'
         WHERE s.express_summary = %s GROUP BY l.product, l.warehouse, l.unit ORDER BY MIN(l.idx)""", (name,), as_dict=True)
-    products, warehouses, lines = {}, {}, []
+    products, warehouses, merged = {}, {}, {}
     for row in rows:
         product = products.get(row.product)
         if row.product and product is None:
             product = products[row.product] = frappe.db.get_value(
-                "ERP Product", row.product, ["product_name", "express_code", "express_stock"], as_dict=True) or {}
+                "ERP Product", row.product, ["product_name", "express_code", "express_stock", "base_unit", "unit"],
+                as_dict=True) or {}
         product = product or {}
         if row.warehouse and row.warehouse not in warehouses:
             warehouses[row.warehouse] = frappe.db.get_value("ERP Warehouse", row.warehouse, "express_code") or ""
         code = product.get("express_code") or ""
-        lines.append({"name": product.get("product_name") or code or "-", "code": code, "unit": row.unit,
-                      "qty": row.qty, "amount": row.amount,
-                      "stock": bool(product.get("express_stock")) if code else bool(row.product),
-                      "loccod": warehouses.get(row.warehouse, "")})
+        # 小票行可以是包装单位：同出入库单，换成库存单位的数量，同品同仓合成一行（验收 10-25 单位换算）
+        unit, factor = (stock_entry.base_unit(row.product, product, row.unit) if row.product
+                        else (row.unit, contracts.d(1)))
+        key = (row.product or row.unit, row.warehouse)
+        line = merged.setdefault(key, {"name": product.get("product_name") or code or "-", "code": code, "unit": unit,
+                                       "qty": contracts.d(0), "amount": contracts.d(0),
+                                       "stock": bool(product.get("express_stock")) if code else bool(row.product),
+                                       "loccod": warehouses.get(row.warehouse, "")})
+        line["qty"] += contracts.d(row.qty) * factor
+        line["amount"] += contracts.d(row.amount)
+    lines = [{**line, "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])}
+             for line in merged.values()]
     total, vat = contracts.d(summary.grand_total), contracts.d(summary.vat_amount)
     paid = {row.method: contracts.d(row.amount) for row in frappe.db.sql(
         """SELECT p.method, SUM(p.amount) AS amount FROM `tabERP Sale Payment` p

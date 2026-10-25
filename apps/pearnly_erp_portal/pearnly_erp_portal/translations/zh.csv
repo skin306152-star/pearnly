@@ -200,6 +200,7 @@ Cash Difference,现金差额
 Cashier,收银
 Cashier (POS),收银（POS）
 Cashier Records,收银记录
+Cashier Sales to Express From,收银写 Express 起始日
 "Cashier counter, shifts and the cashier's own sales",收银台、班次及收银员本人的销售
 Category,类别
 Category Name,分类名称
@@ -1227,6 +1228,7 @@ The card no longer exists,卡片不存在
 The cart is empty,购物车为空
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
 The cashier is not enabled for this company,该公司未启用收银
+The chosen account cannot be posted in Express. Choose another account,所选科目在 Express 中不能记账，请另选科目
 The chosen account set belongs to another company. Check the account set,所选账套属于其他公司，请核对账套
 The company has no 13-digit tax ID,公司没有 13 位税号
 The company on your documents,单据上用的本公司资料
@@ -1271,12 +1273,14 @@ Then,自动
 There are no lines,缺少明细
 There is nothing to save,没有需要保存的内容
 There were errors while sending email. Please try again.,发送邮件时出错，请重试
+This Express account set has no book for this kind of stock document. Set it up in Express,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 This LINE account is not bound to an ERP user,该 LINE 账号未绑定 ERP 用户
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",该 LINE 账号尚未绑定员工账号。请从 LINE 中打开，或先在网页登录。
 This Month,本月
 This PDF has more than {0} pages,PDF 超过 {0} 页
 This Quarter,本季度
 This account cannot send documents,该账号无权发送单据
+This account set has no book for this kind of document. Set it up in Express,此账套没有这种单据的单据簿，请在 Express 中设置
 This barcode already exists,该条码已存在
 This board no longer exists,该看板不存在
 This browser cannot scan with the camera,当前浏览器不支持摄像头扫码
@@ -1307,6 +1311,7 @@ This invoice has no lines. Add them and submit again.,此发票没有明细，�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
 This is not a purchase or sales document,该文件不是采购或销售单据
 This item is also stocked at:,该物料还存放于：
+This item is not a stock item in Express. Choose another item,此商品在 Express 中不是库存品，请另选商品
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
 This member cannot be assigned,无法分配给此成员
@@ -1906,6 +1911,7 @@ express.code.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创�
 express.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 express.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+express.error.ACCOUNT_NOT_POSTABLE,所选科目在 Express 中不能记账，请另选科目
 express.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
 express.error.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
 express.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
@@ -1922,6 +1928,7 @@ express.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 express.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
 express.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 express.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+express.error.JOURNAL_BOOK_NOT_FOUND,此账套没有这种单据的单据簿，请在 Express 中设置
 express.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
@@ -1930,6 +1937,7 @@ express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将�
 express.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 express.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 express.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
+express.error.STOCK_ITEM_NOT_FOUND,此商品在 Express 中不是库存品，请另选商品
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 express.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 express.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
@@ -1940,6 +1948,7 @@ express.kind.vat,进项税
 express.option.claim,抵扣
 express.option.expense,计入费用
 express.reason.noBook,没有覆盖此日期的 Express 账套
+express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑
 express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账

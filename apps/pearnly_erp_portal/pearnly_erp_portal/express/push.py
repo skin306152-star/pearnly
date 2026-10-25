@@ -22,7 +22,13 @@ SALES = "ERP Sales Document"
 PURCHASE = "Purchase Document"
 STOCK = stock_entry.DOCTYPE  # 出入库单 / 盘点调整（载荷 6，出入库第一期 B 段）
 POS_DAY = pos_day.DOCTYPE  # 收银日汇总（载荷 3 的 POS 日汇总现销，B3a）
-DIRECTIONS = {SALES: "sales", PURCHASE: "purchase", STOCK: "stock", POS_DAY: "sales"}
+COUNT = stock_entry.COUNT_DOCTYPE  # 已过账的盘点：整份轧差写一张盘点调整 TK（载荷 6，验收 10-25）
+DIRECTIONS = {SALES: "sales", PURCHASE: "purchase", STOCK: "stock", POS_DAY: "sales", COUNT: "stock"}
+READY = {COUNT: "Posted"}  # 单据「可以写了」的状态（其余是 submitted）
+
+
+def ready(doctype) -> str:
+    return READY.get(doctype, "submitted")
 POLL_MAX = 100
 COMPANY = "ERP Company"
 
@@ -39,17 +45,17 @@ def linked(company) -> bool:
 
 def company_of(doctype, name):
     """单据属于哪家公司：采购 / 销售单记在单上；出入库单按单头仓库的公司。"""
-    if doctype == STOCK:
-        return stock_entry.company_of(name)
+    if doctype in (STOCK, COUNT):
+        return stock_entry.company_of(name, doctype)
     return frappe.db.get_value(doctype, name, "company")
 
 
 def _eligible(doctype, doc) -> bool:
-    if doc.get("status") != "submitted":
+    if doc.get("status") != ready(doctype):
         return False
     if doctype == STOCK:
         return stock_entry.eligible(doc) and linked(doc.get("company"))
-    if doctype == POS_DAY:
+    if doctype in (POS_DAY, COUNT):
         return linked(doc.get("company"))
     kinds = contracts.SALES_KINDS if doctype == SALES else contracts.PURCHASE_KINDS
     return (doc.get("doc_kind") or "") in kinds and linked(doc.get("company"))
@@ -60,11 +66,12 @@ def queue(doctype, name):
     if doctype not in DIRECTIONS:
         return
     fields = ["name", "status", "ref_type", "direction", "express_state"] if doctype == STOCK else \
+        ["name", "status", "express_state"] if doctype == COUNT else \
         ["name", "status", "company", "express_state"] if doctype == POS_DAY else \
         ["name", "status", "doc_kind", "company", "express_state"]
     doc = frappe.db.get_value(doctype, name, fields, as_dict=True)
-    if doc and doctype == STOCK:
-        doc.company = stock_entry.company_of(name)
+    if doc and doctype in (STOCK, COUNT):
+        doc.company = stock_entry.company_of(name, doctype)
     if not doc or doc.express_state or not _eligible(doctype, doc):
         return
     frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_reason": ""},
@@ -189,6 +196,8 @@ def document(doctype, name) -> dict:
         return stock_entry.document(name, ref(name, frappe.db.get_value(STOCK, name, "creation")))
     if doctype == POS_DAY:
         return pos_day.document(name, ref(name, frappe.db.get_value(POS_DAY, name, "creation")))
+    if doctype == COUNT:
+        return stock_entry.count_document(name, ref(name, frappe.db.get_value(COUNT, name, "creation")))
     doc = frappe.get_doc(doctype, name)
     company = frappe.db.get_value(COMPANY, doc.company, ["tax_id", "branch"], as_dict=True) or {}
     if doctype == SALES:
@@ -212,13 +221,18 @@ def send(doctype, name):
         return
     row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "express_state",
                                               "express_job", "express_reason"], as_dict=True)
-    if not row or row.status != "submitted" or row.express_job or row.express_state not in contracts.OPEN_STATES:
+    if not row or row.status != ready(doctype) or row.express_job or row.express_state not in contracts.OPEN_STATES:
         return
     from pearnly_erp_portal.express import masters
 
     company = company_of(doctype, name)
     body = document(doctype, name)
-    prepared = stock_entry.prepare if doctype == STOCK else prepare.prepare
+    if doctype == COUNT and not body["lines"]:
+        # 整份盘点轧差后没有要调的（只有库位之间挪动）：Express 里什么都不用写
+        _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
+        frappe.db.commit()
+        return
+    prepared = stock_entry.prepare if doctype in (STOCK, COUNT) else prepare.prepare
     result = prepared(body, _company(company), masters.ensure)
     book = result.get("book") or {}
     if "failed" in result:
@@ -379,7 +393,7 @@ def poll():
     """每分钟：停下的单里会自己好的再准备一次；排队中还没交进队列的交一次；排队中的记下此刻为什么还没写。没有要看的就只是
     一条带索引的查询。"""
     for doctype in DIRECTIONS:
-        rows = frappe.get_all(doctype, filters={"express_state": ["in", contracts.OPEN_STATES], "status": "submitted"},
+        rows = frappe.get_all(doctype, filters={"express_state": ["in", contracts.OPEN_STATES], "status": ready(doctype)},
                               fields=["name", "owner", "express_state", "express_reason", "express_job", "express_book"],
                               order_by="modified asc", limit_page_length=POLL_MAX)
         for row in rows:

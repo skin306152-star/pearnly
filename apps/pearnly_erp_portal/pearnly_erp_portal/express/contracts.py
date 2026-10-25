@@ -28,6 +28,7 @@ OPEN_STATES = (QUEUED, HELD)
 # 停下的原因码（`express_reason`，页面按码出文案）
 NO_TAX = "express.company_tax_missing"
 NO_BOOK = "express.account_set_missing"
+NO_STOCK_BOOK = "express.stock_book_missing"  # 账套 ISRUN 没有这个库存单别（OU / JU / TK）
 SEVERAL_BOOKS = "express.account_set_several"
 NO_WRITER = "express.no_writer"
 READING = "express.masters_reading"

@@ -22,7 +22,9 @@ DOCTYPE = "ERP Stock Entry"
 PAYLOAD_VERSION = 6
 ISSUE, ADJUST, COUNT = "OU", "JU", "TK"
 COUNT_REF = "count"
-SKIPPED_REFS = ("purchase",)
+COUNT_DOCTYPE = "ERP Stock Count"
+# 采购自动入库：那张采购单已带库存行写进去；盘点生成的出入库单：按整份盘点轧差写一张 TK（`count_document`），不逐张写
+SKIPPED_REFS = ("purchase", COUNT_REF)
 ACCOUNT = "account"  # 要人选的那一项（与费用科目同一种，选项是这份账套的科目表）
 
 
@@ -30,8 +32,8 @@ def account_subject(doctype) -> str:
     return f"stock:{doctype}"
 
 
-def company_of(name):
-    warehouse = frappe.db.get_value(DOCTYPE, name, "warehouse") if name else None
+def company_of(name, doctype=DOCTYPE):
+    warehouse = frappe.db.get_value(doctype, name, "warehouse") if name else None
     return frappe.db.get_value("ERP Warehouse", warehouse, "company") if warehouse else None
 
 
@@ -52,6 +54,24 @@ def be_date(day) -> str:
     return f"{(day.year + 543) % 100:02d}{day.month:02d}{day.day:02d}"
 
 
+def _plain(value) -> str:
+    text = format(value.normalize(), "f")
+    return "0" if text in ("-0", "") else text
+
+
+def base_unit(product_name, product, unit):
+    """（库存单位, 行上单位到库存单位的换算率）。行上没写单位或就是库存单位 → 1；商品单位表里没有这个单位 → 报错（同 ERP 流水）。"""
+    base = str(product.get("base_unit") or product.get("unit") or "").strip()
+    unit = str(unit or "").strip()
+    if not unit or unit == base:
+        return base, contracts.d(1)
+    factor = frappe.db.get_value("ERP Product Unit", {"parent": product_name, "parenttype": "ERP Product", "unit_name": unit},
+                                 "factor_to_base")
+    if not factor or contracts.d(factor) <= 0:
+        frappe.throw(frappe._("Unit {0} is not defined on {1}").format(unit, product.get("product_name") or product_name))
+    return base, contracts.d(factor)
+
+
 def document(name, ref) -> dict:
     """这张出入库单交给电脑的样子（还没选账套）。``ref``：单据标识（`push.ref`）。"""
     doc = frappe.get_doc(DOCTYPE, name)
@@ -61,21 +81,61 @@ def document(name, ref) -> dict:
         product = products.get(line.product)
         if product is None:
             product = products[line.product] = frappe.db.get_value(
-                "ERP Product", line.product, ["product_name", "express_code"], as_dict=True) or {}
+                "ERP Product", line.product, ["product_name", "express_code", "base_unit", "unit"], as_dict=True) or {}
         warehouse = line.warehouse or doc.warehouse
         if warehouse and warehouse not in warehouses:
             warehouses[warehouse] = frappe.db.get_value("ERP Warehouse", warehouse, "express_code") or ""
-        qty = contracts.d(line.qty)
+        # 行上可以是包装单位（箱 = 12）：Express 库存单按库存单位写（CC 的 TFACTOR 是 1），所以这里换成库存单位的数量与单位成本，
+        # 与 ERP 流水同一个口径（`inventory.stock.resolve_factor`）；验收 10-25：原来照行上单位传，Express 只动 1、主档对齐成错数
+        base, factor = base_unit(line.product, product, line.unit)
+        qty = contracts.d(line.qty) * factor
         if doctype == COUNT and doc.direction == "out":
             qty = -qty
         item = {"code": product.get("express_code") or "", "name": product.get("product_name") or "",
-                "qty": str(qty), "unit": line.unit or "", "loccod": warehouses.get(warehouse, "")}
+                "qty": _plain(qty), "unit": base,
+                "loccod": warehouses.get(warehouse, "")}
         if qty > 0 and contracts.d(line.unit_cost) > 0:
-            item["unit_cost"] = str(contracts.d(line.unit_cost))
+            item["unit_cost"] = _plain((contracts.d(line.unit_cost) / factor).quantize(contracts.d("0.0001")))
         lines.append(item)
     return {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
             "number": doc.doc_no or doc.name, "remark": str(doc.reason or "").strip(),
             "loccod": warehouses.get(doc.warehouse, ""), "lines": lines}
+
+
+def count_document(name, ref) -> dict:
+    """一份已过账的盘点 → 一张多行盘点调整 TK（验收 10-25）：这份盘点生成的全部出入库单按「存货 × Express 仓」轧差（都换成库存单位），
+    库位之间挪动净 0 的不写；Express 不分库位，原来逐张写 TK 会把挪动写成毛额（不允许负库存的账套里减的被拦、加的照写）。
+    增加的行带单位成本（这份盘点里加进去的那几笔按数量加权）。"""
+    count = frappe.db.get_value(COUNT_DOCTYPE, name, ["title", "warehouse"], as_dict=True) or {}
+    entries = frappe.get_all(DOCTYPE, filters={"ref_type": COUNT_REF, "ref_id": name, "status": "submitted"},  # bounded: 一份盘点的单
+                             fields=["name", "posting_date"], order_by="creation asc", limit_page_length=0)
+    net = {}
+    for entry in entries:
+        for line in document(entry.name, ref)["lines"]:
+            key = (line["code"] or line["name"], line["loccod"])
+            slot = net.setdefault(key, {"code": line["code"], "name": line["name"], "unit": line["unit"],
+                                        "loccod": line["loccod"], "qty": contracts.d(0), "in_qty": contracts.d(0),
+                                        "in_value": contracts.d(0)})
+            qty = contracts.d(line["qty"])
+            slot["qty"] += qty
+            if qty > 0 and line.get("unit_cost"):
+                slot["in_qty"] += qty
+                slot["in_value"] += qty * contracts.d(line["unit_cost"])
+    lines = []
+    for slot in net.values():
+        if not slot["qty"]:
+            continue
+        item = {"code": slot["code"], "name": slot["name"], "qty": _plain(slot["qty"]), "unit": slot["unit"],
+                "loccod": slot["loccod"]}
+        if slot["qty"] > 0 and slot["in_qty"] > 0:
+            item["unit_cost"] = _plain((slot["in_value"] / slot["in_qty"]).quantize(contracts.d("0.0001")))
+        lines.append(item)
+    warehouse = count.get("warehouse")
+    return {"ref": ref, "direction": "stock", "doctype": COUNT,
+            "date": str(entries[0].posting_date) if entries else frappe.utils.nowdate(), "number": name,
+            "remark": str(count.get("title") or "").strip(),
+            "loccod": (frappe.db.get_value("ERP Warehouse", warehouse, "express_code") or "") if warehouse else "",
+            "lines": lines}
 
 
 def prepare(body, company_row, ensure_masters) -> dict:
@@ -98,6 +158,9 @@ def prepare(body, company_row, ensure_masters) -> dict:
     subject = account_subject(body["doctype"])
     account = choices.chosen(company_row["name"], ACCOUNT, subject)
     stock_books = (data.get("facts") or {}).get("stock_books") if isinstance(data, dict) else None
+    if isinstance(stock_books, dict) and stock_books and body["doctype"] not in stock_books:
+        # 这份账套没有这个单别的单据簿（ISRUN）：选科目也写不进去，直接停下说明（1.12.3 起 CC 桌面版才区分得出）
+        return {"hold": contracts.NO_STOCK_BOOK, "book": book}
     if not account and isinstance(stock_books, dict):
         postable = {str(row.get("code") or "").strip() for row in facts.reported(data).get("reported_accounts") or []}
         default = str(stock_books.get(body["doctype"]) or "").strip()
@@ -128,5 +191,5 @@ def form_body(payload) -> dict:
             "loccod": "", "lines": []}
 
 
-__all__ = ["ACCOUNT", "ADJUST", "COUNT", "DOCTYPE", "ISSUE", "account_subject", "company_of", "document", "eligible",
+__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "count_document", "ISSUE", "account_subject", "company_of", "document", "eligible",
            "form_body", "kind", "prepare"]

@@ -378,6 +378,9 @@ def apply(company, book, data):
     if data.get("mark"):  # 旧版 CC 桌面版读的没有标记：不清掉原来的（清掉了下一轮看标记必不同，又整套读一遍）
         values["express_mark"] = data["mark"]
     values.update(_profile(company, data.get("settings") or {}))
+    if not frappe.db.get_value(COMPANY, company, "express_pos_from"):
+        # 第一次接上 Express：收银日汇总只从这天起（之前的小票不补写，会计可能已手录过；验收 10-25）
+        values["express_pos_from"] = nowdate()
     frappe.db.set_value(COMPANY, company, values, update_modified=False)
     frappe.db.commit()
     return counts
@@ -659,6 +662,7 @@ def _warehouses(company, book, data):
 WRITTEN_SOURCES = {"ERP Sales Document": "ERP Sales Document", "purchase": "Purchase Document"}
 # 出入库单与盘点调整（出入库第一期 B 段起写进 Express）：只有已写进去的单不算；没写成的、B 段之前开的（状态是空的）照算
 STOCK_ENTRY_SOURCES = ("stock_entry", "count")
+STOCK_COUNT = "ERP Stock Count"
 STOCK_ENTRY = "ERP Stock Entry"
 WRITTEN_STATES = ("written", "mismatch")
 # 不算 ERP 自己的变动：同步调整本身、期初（Express 有自己的期初，接了 Express 的公司不在 ERP 录期初）
@@ -697,6 +701,13 @@ def _pending(company, products, warehouses):
     written = frappe.get_all(STOCK_ENTRY, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司已写进 Express 的单
                                                    "express_state": ["in", WRITTEN_STATES]},
                              pluck="name", limit_page_length=0)
+    # 盘点生成的出入库单不逐张写，整份盘点轧差写一张 TK：盘点写进去了，它生成的单就都算已写（验收 10-25）
+    counts = frappe.get_all(STOCK_COUNT, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司已写进 Express 的盘点
+                                                  "express_state": ["in", WRITTEN_STATES]},
+                            pluck="name", limit_page_length=0)
+    if counts:
+        written += frappe.get_all(STOCK_ENTRY, filters={"ref_type": "count", "ref_id": ["in", counts]},  # bounded: 这些盘点的单
+                                  pluck="name", limit_page_length=0)
     if written:
         for row in frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
                                   filters=scope + [["ref_type", "in", STOCK_ENTRY_SOURCES], ["ref_id", "in", written]],

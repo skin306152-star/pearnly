@@ -200,6 +200,7 @@ Cash Difference,現金差異
 Cashier,レジ
 Cashier (POS),レジ（POS）
 Cashier Records,レジ記録
+Cashier Sales to Express From,Express へのレジ売上の開始日
 "Cashier counter, shifts and the cashier's own sales",レジカウンター、シフト、レジ担当自身の売上
 Category,カテゴリ
 Category Name,カテゴリ名
@@ -1227,6 +1228,7 @@ The card no longer exists,カードはもうありません
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The cashier is not enabled for this company,この会社ではレジが有効になっていません
+The chosen account cannot be posted in Express. Choose another account,選んだ勘定は Express で記帳できません。別の勘定を選んでください
 The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
 The company has no 13-digit tax ID,会社に 13 桁の納税者番号がありません
 The company on your documents,書類に使う自社情報
@@ -1271,12 +1273,14 @@ Then,実行
 There are no lines,明細がありません
 There is nothing to save,保存する行がありません
 There were errors while sending email. Please try again.,メール送信中にエラーが発生しました。再試行してください
+This Express account set has no book for this kind of stock document. Set it up in Express,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 This LINE account is not bound to an ERP user,この LINE アカウントは ERP ユーザーに紐付いていません
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。
 This Month,今月
 This PDF has more than {0} pages,PDF が {0} ページを超えています
 This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
+This account set has no book for this kind of document. Set it up in Express,この帳簿にはこの種類の伝票帳がありません。Express で設定してください
 This barcode already exists,このバーコードは既に存在します
 This board no longer exists,このボードはもう存在しません
 This browser cannot scan with the camera,このブラウザーはカメラでスキャンできません
@@ -1307,6 +1311,7 @@ This invoice has no lines. Add them and submit again.,この請求書には明�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
+This item is not a stock item in Express. Choose another item,この品目は Express の在庫品目ではありません。別の品目を選んでください
 This label no longer exists,このラベルはもうありません
 This list no longer exists,このリストはもうありません
 This member cannot be assigned,このメンバーには割り当てられません
@@ -1906,6 +1911,7 @@ express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成�
 express.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 express.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+express.error.ACCOUNT_NOT_POSTABLE,選んだ勘定は Express で記帳できません。別の勘定を選んでください
 express.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
 express.error.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
 express.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
@@ -1922,6 +1928,7 @@ express.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再�
 express.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 express.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 express.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
+express.error.JOURNAL_BOOK_NOT_FOUND,この帳簿にはこの種類の伝票帳がありません。Express で設定してください
 express.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 express.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
@@ -1930,6 +1937,7 @@ express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に�
 express.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 express.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
 express.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
+express.error.STOCK_ITEM_NOT_FOUND,この品目は Express の在庫品目ではありません。別の品目を選んでください
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 express.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -1940,6 +1948,7 @@ express.kind.vat,仮払消費税
 express.option.claim,控除
 express.option.expense,費用計上
 express.reason.noBook,この日付を含む Express 帳簿がありません
+express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 express.reason.noWriter,この帳簿に書き込める端末がありません
 express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです

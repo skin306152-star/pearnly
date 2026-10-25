@@ -285,6 +285,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     total = Decimal(0)
     inventory: Dict[str, Decimal] = {}
     lines: List[Dict] = []
+    perpetual = _perpetual(account_dir)  # 定期盘存账套不过账，也就不查存货科目组（验收 10-25：缺组时原来报笼统的写盘失败）
     balances: Dict[str, Tuple[Decimal, Decimal]] = {}
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
@@ -312,7 +313,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             stock_sale.write_stmas_fields(account_dir, stkcod, {"MREMBAL": float(new_bal), "MREMVAL": float(new_val),
                                                                 "TOTBAL": float(new_bal), "TOTVAL": float(new_val)})
             total += signed_value
-            if value:
+            if value and perpetual:
                 inventory_account = stock_sale.stock_accounts(account_dir, match.get("acccod") or "")[0]
                 inventory[inventory_account] = inventory.get(inventory_account, Decimal(0)) + signed_value
             lines.append(dbf_detail.line_mode(seq, str(item.get("name") or ""), stkcod, mode=stock_sale.ITEM_MODE))

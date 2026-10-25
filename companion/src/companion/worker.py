@@ -403,6 +403,10 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "STOCK_INSUFFICIENT": "needs_review",
         # 正式包缺 Express 索引重建程序(10-25):重试结论一样,要重装 CC 桌面版
         "REINDEX_UNAVAILABLE": "needs_review",
+        # 库存单(载荷 6):账套没有这个单别的单据簿 / 科目不能记账 / 存货认不出,重试结论一样(验收 10-25)
+        "JOURNAL_BOOK_NOT_FOUND": "needs_review",
+        "ACCOUNT_NOT_POSTABLE": "needs_review",
+        "STOCK_ITEM_NOT_FOUND": "needs_review",
     }.get(error_code or "")
 
 

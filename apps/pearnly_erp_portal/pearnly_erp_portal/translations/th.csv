@@ -200,6 +200,7 @@ Cash Difference,ผลต่างเงินสด
 Cashier,เก็บเงิน
 Cashier (POS),ขายหน้าร้าน (POS)
 Cashier Records,บันทึกการรับเงิน
+Cashier Sales to Express From,เริ่มส่งยอดขายหน้าร้านเข้า Express ตั้งแต่
 "Cashier counter, shifts and the cashier's own sales",จุดขาย กะ และยอดขายของพนักงานเก็บเงินเอง
 Category,หมวดหมู่
 Category Name,ชื่อหมวดหมู่
@@ -1227,6 +1228,7 @@ The card no longer exists,ไม่พบการ์ดนี้
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)
 The cashier is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)
+The chosen account cannot be posted in Express. Choose another account,บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
 The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 The company has no 13-digit tax ID,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
@@ -1271,12 +1273,14 @@ Then,ให้ทำ
 There are no lines,ไม่มีรายการ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
 There were errors while sending email. Please try again.,เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองอีกครั้ง
+This Express account set has no book for this kind of stock document. Set it up in Express,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 This LINE account is not bound to an ERP user,บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
 This Month,เดือนนี้
 This PDF has more than {0} pages,PDF มีมากกว่า {0} หน้า
 This Quarter,ไตรมาสนี้
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
+This account set has no book for this kind of document. Set it up in Express,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
 This barcode already exists,บาร์โค้ดนี้มีอยู่แล้ว
 This board no longer exists,ไม่พบบอร์ดนี้
 This browser cannot scan with the camera,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง
@@ -1307,6 +1311,7 @@ This invoice has no lines. Add them and submit again.,เอกสารนี�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This item is not a stock item in Express. Choose another item,สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น
 This label no longer exists,ไม่พบป้ายกำกับนี้
 This list no longer exists,ไม่พบรายการนี้
 This member cannot be assigned,ไม่สามารถมอบหมายให้สมาชิกนี้ได้
@@ -1906,6 +1911,7 @@ express.code.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่าย
 express.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 express.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+express.error.ACCOUNT_NOT_POSTABLE,บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
 express.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
 express.error.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
 express.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
@@ -1922,6 +1928,7 @@ express.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถ�
 express.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 express.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+express.error.JOURNAL_BOOK_NOT_FOUND,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
 express.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 express.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
@@ -1930,6 +1937,7 @@ express.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจส�
 express.error.REINDEX_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
 express.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 express.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
+express.error.STOCK_ITEM_NOT_FOUND,สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 express.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 express.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
@@ -1940,6 +1948,7 @@ express.kind.vat,ภาษีซื้อ
 express.option.claim,ขอคืน
 express.option.expense,บันทึกเป็นค่าใช้จ่าย
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
+express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
 express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express

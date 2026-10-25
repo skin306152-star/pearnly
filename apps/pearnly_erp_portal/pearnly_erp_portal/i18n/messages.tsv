@@ -1674,3 +1674,8 @@ Only board admins can do this	仅看板管理员可执行此操作	เฉพา�
 A board needs at least one admin	看板至少需要一位管理员	บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน	ボードには管理者が少なくとも1人必要です	erp.work.error.last_admin
 The default board cannot be archived	默认看板不能归档	ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้	既定のボードはアーカイブできません	erp.work.error.default_board
 The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	express.error.REINDEX_UNAVAILABLE
+This Express account set has no book for this kind of stock document. Set it up in Express	此 Express 账套没有这种库存单的单据簿，请在 Express 中设置	ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express	この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください	express.reason.noStockBook
+This account set has no book for this kind of document. Set it up in Express	此账套没有这种单据的单据簿，请在 Express 中设置	ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express	この帳簿にはこの種類の伝票帳がありません。Express で設定してください	express.error.JOURNAL_BOOK_NOT_FOUND
+The chosen account cannot be posted in Express. Choose another account	所选科目在 Express 中不能记账，请另选科目	บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น	選んだ勘定は Express で記帳できません。別の勘定を選んでください	express.error.ACCOUNT_NOT_POSTABLE
+This item is not a stock item in Express. Choose another item	此商品在 Express 中不是库存品，请另选商品	สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น	この品目は Express の在庫品目ではありません。別の品目を選んでください	express.error.STOCK_ITEM_NOT_FOUND
+Cashier Sales to Express From	收银写 Express 起始日	เริ่มส่งยอดขายหน้าร้านเข้า Express ตั้งแต่	Express へのレジ売上の開始日

@@ -182,7 +182,9 @@ def _facts(folder: Path) -> dict:
         # 库存单（载荷 6）三个单别在 ISRUN 里的默认科目：ERP 据此判要不要先让人选一次科目（这一行没有或几行不同 → 空）
         from .dbf_stock import KINDS, book_row
 
-        facts["stock_books"] = {kind: (book_row(folder, kind) or {}).get("account", "") for kind in KINDS}
+        # 没有这个单别的单据簿就不报这个键（ERP 据此直接停下说明，不先让人白选一次科目；验收 10-25）
+        books = {kind: book_row(folder, kind) for kind in KINDS}
+        facts["stock_books"] = {kind: row.get("account", "") for kind, row in books.items() if row is not None}
     except Exception:
         log.info("单据簿读不出（没有 ISRUN？），这份不带库存单默认科目")
     try:

@@ -30,6 +30,8 @@ NEEDS_PERSON_CODES = frozenset({
     "STOCK_INSUFFICIENT",
     # 正式包里没有索引重建程序 / 跑不起来（1.12.3 起拒写，不再只改 DBF 让 Express 读到对不上的索引）：要人重装
     "REINDEX_UNAVAILABLE",
+    # 库存单（载荷 6）认不出 Express 的库存品：要人改单或在 Express 建品
+    "STOCK_ITEM_NOT_FOUND",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 
