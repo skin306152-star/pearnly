@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-VERSION = "1.12.2"
+VERSION = "1.12.3"
 
 
 def version_tuple(v: str) -> tuple:
