@@ -32,3 +32,5 @@ pearnly_erp_portal.patches.v1_12_tasks_feature
 pearnly_erp_portal.patches.v1_13_stock_movement_indexes
 # 收银日汇总起始日：已接 Express 的公司记成上线当天，之前的收银小票不补写（出入库第一期 B3a，验收 10-25）
 pearnly_erp_portal.patches.v1_14_pos_day_start
+# 收银小票逐行拆出税额：标价含税，增值税登记户回填（应收合计不变，主会话 10-25）
+pearnly_erp_portal.patches.v1_15_pos_receipt_vat

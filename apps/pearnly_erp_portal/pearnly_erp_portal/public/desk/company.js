@@ -27,9 +27,10 @@
 			({fieldname, label: t(label), fieldtype, ...options});
 		// 这一屏的字段清单。**空值也要发**：框架的 `form.get_values()` 把空串当"没有这个
 		// 字段"丢掉（`is_null("")` 为真），所以"清空一格再保存"照旧留着老值。
-		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "phone",
+		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
 			"contact_person", "contact_email", "promptpay_id", "address", "note", "pos_enabled"];
 		const POS_METHODS = ["cash", "card", "promptpay", "transfer"];
+		const VAT_OPTIONS = [{value: "", label: ""}, {value: "yes", label: __("express.option.yes")}, {value: "no", label: __("express.option.no")}];
 		// 收款方式的四个标签**用术语表里已有的词**（`Cash` / `Card` / `PromptPay Amount` /
 		// `Transfer`），不新造 company.method.* 那种词条。
 		const METHOD_LABELS = {cash: "Cash", card: "Card", promptpay: "PromptPay Amount",
@@ -59,6 +60,9 @@
 			try {
 				const result = await p.call(api + "api_lookup_tax", {tax_id, branch: 0}, "POST");
 				if (!result?.ok) {
+					if (result?.error === "not_vat_registered" && form.fields_dict.vat_registered) {
+						await form.set_value("vat_registered", "no");
+					}
 					frappe.msgprint(t(`company.lookup.${result?.error || "failed"}`)
 						|| t("company.lookup.failed"));
 					return;
@@ -68,6 +72,7 @@
 				await form.set_value("company_name", data.name || form.get_value("company_name") || "");
 				await form.set_value("address", data.address || form.get_value("address") || "");
 				if (Number(data.branch_no)) await form.set_value("branch", data.branch_no);
+				if (form.fields_dict.vat_registered) await form.set_value("vat_registered", "yes");  // 税务局 VAT 名录里查得到
 				p.success(t("company.lookup.found", data.name || data.tax_id || ""), null);  // 只是填进表单、还没保存：官方此时不出声
 			} finally {
 				frappe.dom.unfreeze();
@@ -175,6 +180,8 @@
 				f("lookup", "company.lookup.action", "Button", {click: () => lookup_tax(form)}),
 				{fieldtype: "Column Break"},
 				f("branch", "company.field.branch", "Data"),
+				// 增值税登记户（收银标价含税，登记户的小票逐行拆出税额）：税号查询带出，也可以手选
+				f("vat_registered", "company.field.vatRegistered", "Select", {options: VAT_OPTIONS}),
 				f("phone", "company.field.phone", "Data"),
 				{fieldtype: "Column Break"},
 				f("contact_person", "company.field.contactPerson", "Data"),
@@ -310,6 +317,8 @@
 				...(data.can_lookup ? [f("lookup", "company.lookup.action", "Button",
 					{click: () => lookup_tax(form)})] : []),
 				f("branch", "company.field.branch", "Data", {default: data.branch || "", ...ro}),
+				f("vat_registered", "company.field.vatRegistered", "Select",
+					{options: VAT_OPTIONS, default: data.vat_registered || "", ...ro}),
 				{fieldtype: "Column Break"},
 				f("phone", "company.field.phone", "Data", {default: data.phone || "", ...ro}),
 				f("contact_person", "company.field.contactPerson", "Data",

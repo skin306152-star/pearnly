@@ -18,7 +18,7 @@ from frappe.utils import now, nowdate
 
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
-from pearnly_erp_portal.cashier import contracts, shifts, terminals
+from pearnly_erp_portal.cashier import contracts, shifts, terminals, vat
 from pearnly_erp_portal.inventory import positions, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
@@ -179,6 +179,20 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     if rejected:
         frappe.throw(_(METHOD_NOT_ENABLED))
 
+    sale_lines = [
+        {"product": line.get("product"), "description": line.get("description"),
+         "qty": line["qty"], "unit": line.get("unit"),
+         "warehouse": line.get("warehouse"), "location": line.get("location", ""),
+         "unit_price": line["unit_price"], "discount": line.get("discount", 0),
+         "line_total": contracts.line_total(line["qty"], line["unit_price"], line.get("discount", 0))}
+        for line in lines
+    ]
+    vat_amount = totals["vat_amount"]
+    if not vat_amount:
+        # 标价含税（主会话 10-25）：增值税登记户逐行拆出税额存起来，应收合计、实收、找零不变
+        for line, value in zip(sale_lines, vat.sale_line_vats(terminal_doc.company, sale_lines, totals["discount_total"])):
+            line["vat_amount"] = value
+        vat_amount = sum((line["vat_amount"] for line in sale_lines), contracts.d(0))
     doc = frappe.get_doc({
         "doctype": DT,
         "customer": _customer(customer),
@@ -191,21 +205,13 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
         "warehouse": warehouse_id,
         "subtotal": totals["subtotal"],
         "discount_total": totals["discount_total"],
-        "vat_amount": totals["vat_amount"],
+        "vat_amount": vat_amount,
         "grand_total": totals["grand_total"],
         "paid_total": paid_total,
         "change_amount": change,
         "client_uuid": client_uuid,
         "note": note,
-        "lines": [
-            {"product": line.get("product"), "description": line.get("description"),
-             "qty": line["qty"], "unit": line.get("unit"),
-             "warehouse": line.get("warehouse"), "location": line.get("location", ""),
-             "unit_price": line["unit_price"], "discount": line.get("discount", 0),
-             "line_total": contracts.line_total(line["qty"], line["unit_price"],
-                                                line.get("discount", 0))}
-            for line in lines
-        ],
+        "lines": sale_lines,
         "payments": normalized,
     })
     doc.receipt_no = _receipt_no(doc)
@@ -213,7 +219,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     _move_stock(doc, direction="out")
     frappe.db.commit()
     return {"name": doc.name, "receipt_no": doc.receipt_no, "grand_total": float(doc.grand_total),
-            "change_amount": float(doc.change_amount or 0), "deduped": False}
+            "vat_amount": float(doc.vat_amount or 0), "change_amount": float(doc.change_amount or 0), "deduped": False}
 
 
 def _move_stock(doc, *, direction: str) -> dict | None:
@@ -429,6 +435,9 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
     if not wanted:
         frappe.throw(_(REFUND_TOO_MUCH))
 
+    # 退货的税额按原小票那一行比例算（主会话 10-25），合计照旧是退的行金额
+    for line, value in zip(wanted, vat.refund_line_vats(wanted)):
+        line["vat_amount"] = value
     try:
         totals = contracts.sale_totals(wanted, has_vat=False, vat_rate=0)
         normalized, paid_total, change = contracts.settle(payments or [], totals["grand_total"])
@@ -439,7 +448,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
         "doctype": DT, "sold_at": now(), "sale_type": contracts.REFUND, "status": "completed",
         "shift": original.shift, "terminal": original.terminal, "cashier": frappe.session.user,
         "warehouse": original.warehouse, "return_against": original.name,
-        "subtotal": totals["subtotal"], "vat_amount": totals["vat_amount"],
+        "subtotal": totals["subtotal"], "vat_amount": sum((line["vat_amount"] for line in wanted), contracts.d(0)),
         "grand_total": totals["grand_total"], "paid_total": paid_total, "change_amount": change,
         "client_uuid": client_uuid, "note": reason,
         "lines": [{"product": line["product"], "description": line.get("description"),
@@ -448,7 +457,8 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
                    "warehouse": line["warehouse"], "location": line["location"],
                    "unit_price": line["unit_price"], "discount": line.get("discount", 0),
                    "line_total": contracts.line_total(line["qty"], line["unit_price"],
-                                                      line.get("discount", 0))}
+                                                      line.get("discount", 0)),
+                   "vat_amount": line["vat_amount"]}
                   for line in wanted],
         "payments": normalized,
     })

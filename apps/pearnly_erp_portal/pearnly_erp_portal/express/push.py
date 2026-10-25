@@ -241,8 +241,11 @@ def send(doctype, name):
         _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
         frappe.db.commit()
         return
-    prepared = stock_entry.prepare if doctype in (STOCK, COUNT) else prepare.prepare
-    result = prepared(body, _company(company), masters.ensure)
+    if doctype == POS_DAY and "hold" in body:
+        result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
+    else:
+        prepared = stock_entry.prepare if doctype in (STOCK, COUNT) else prepare.prepare
+        result = prepared(body, _company(company), masters.ensure)
     book = result.get("book") or {}
     if "failed" in result:
         _set(doctype, name, {"express_state": contracts.FAILED, "express_reason": result["failed"][:500],

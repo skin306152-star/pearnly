@@ -607,6 +607,7 @@ Invoice Amount,Invoice Amount
 Invoice Status,Invoice Status
 Is Paid,Is Paid
 Is Reversal,Is Reversal
+Is this company VAT registered,Is this company VAT registered
 Issue documents and deduct stock,Issue documents and deduct stock
 Issued,Issued
 Item,Item
@@ -1426,6 +1427,7 @@ VAT Applicable,VAT Applicable
 VAT Applies,VAT Applies
 VAT Rate,VAT Rate
 VAT Rate %,VAT Rate %
+VAT Registered,VAT Registered
 VAT applies,VAT applies
 Value,Value
 Value Change,Value Change
@@ -1550,6 +1552,7 @@ company.field.shortName,Short name
 company.field.taxId,Tax ID
 company.field.terminalName,Terminal name
 company.field.terminalWarehouse,Selling warehouse
+company.field.vatRegistered,VAT Registered
 company.field.warehouse,Warehouse
 company.field.warehouseName,Warehouse name
 company.fiscalHint,1 = January
@@ -1958,8 +1961,11 @@ express.kind.account,Expense Account
 express.kind.receipt,Receiving Account
 express.kind.stockGroup,Stock Account Group
 express.kind.vat,Input VAT
+express.kind.vatRegistered,Is this company VAT registered
 express.option.claim,Claim
 express.option.expense,Expense
+express.option.no,No
+express.option.yes,Yes
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set

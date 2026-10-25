@@ -14,7 +14,7 @@ from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, facts, masters, prepare, push, stock_entry
+from pearnly_erp_portal.express import choices, contracts, facts, masters, pos_day, prepare, push, stock_entry
 from pearnly_erp_portal.masters import company as companies
 
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
@@ -184,6 +184,9 @@ def answer(doctype, name, answers):
         options = {option["code"]: option["name"] for option in _options(item, data)} if item else {}
         if not item or value not in options:
             frappe.throw(_("Invalid request"))
+        if item["kind"] == pos_day.VAT_REGISTERED:
+            companies.set_vat_registered(row.company, value)  # 公司属性，记在公司上（收银小票按它拆税额），不进 Express 选择
+            continue
         choices.remember(row.company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
     if blocked:
         jobs.cancel(job["job"], "replaced")  # 拦下的那件没写进去（整笔回滚）：撤掉，按选的对方档重新准备一件

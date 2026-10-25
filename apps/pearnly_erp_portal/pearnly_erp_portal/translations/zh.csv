@@ -607,6 +607,7 @@ Invoice Amount,发票金额
 Invoice Status,单据状态
 Is Paid,已付款
 Is Reversal,冲销
+Is this company VAT registered,该公司是增值税登记户吗
 Issue documents and deduct stock,开单并出库
 Issued,出库数量
 Item,物料
@@ -1426,6 +1427,7 @@ VAT Applicable,含 VAT
 VAT Applies,计增值税
 VAT Rate,增值税率
 VAT Rate %,税率%
+VAT Registered,增值税登记户
 VAT applies,含 VAT
 Value,金额
 Value Change,金额变动
@@ -1550,6 +1552,7 @@ company.field.shortName,简称
 company.field.taxId,税号
 company.field.terminalName,收银台名称
 company.field.terminalWarehouse,卖货的仓库
+company.field.vatRegistered,增值税登记户
 company.field.warehouse,仓库
 company.field.warehouseName,仓库名称
 company.fiscalHint,1 = 一月
@@ -1958,8 +1961,11 @@ express.kind.account,费用科目
 express.kind.receipt,收款科目
 express.kind.stockGroup,存货科目组
 express.kind.vat,进项税
+express.kind.vatRegistered,该公司是增值税登记户吗
 express.option.claim,抵扣
 express.option.expense,计入费用
+express.option.no,否
+express.option.yes,是
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑

@@ -808,6 +808,7 @@ frappe.provide("frappe.pearnly.pos_next");
 					}, "POST");
 					doc.name = result.name;
 					doc.receipt_no = result.receipt_no;
+					doc.vat_amount = flt(result.vat_amount);  // 服务端逐行拆出的税额（增值税登记户），汇总屏照它显示
 					// **那一声「完成订单」是"提交成功"带来的**：官方 `frm.savesubmit()` 成功后由
 					// frappe `form.js` 播 `submit`。我们换成了自己的落单接口，这一步同样自己补 ——
 					// 成功之后、绿条之前，与官方那是同一时刻。
@@ -1245,7 +1246,8 @@ frappe.provide("frappe.pearnly.pos_next");
 				}),
 				// 我们收银默认不开票（含税拆分在开票侧），所以这里通常没有税行。
 				taxes: vat ? [{ description: __("VAT"), tax_amount_after_discount_amount: vat }] : [],
-				net_total: flt(doc.subtotal ?? doc.net_total),
+				// 标价含税：拆出了税额（增值税登记户）时 Net Total 显示税前（合计 − 税额），合计不变
+				net_total: vat ? flt(doc.grand_total) - vat : flt(doc.subtotal ?? doc.net_total),
 				total_taxes_and_charges: vat,
 				discount_amount: flt(doc.discount_total ?? doc.discount_amount),
 				grand_total: flt(doc.grand_total),

@@ -26,7 +26,7 @@ INVALID = "Invalid value"
 
 # 「单号前缀」（doc_prefix）不在这里：编号规则是写死的（PE / SI / IR / IS / AD），这个字段从未接上，
 # 用户 2026-09-28 定为隐藏（录制问题 #15）。库里的列与旧值保留，不读不写。
-LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "phone",
+LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
                "contact_person", "contact_email", "promptpay_id",
                "fiscal_year_start_month", "is_default", "is_active", "pos_enabled",
                "address", "note")
@@ -36,6 +36,10 @@ LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "phone"
 # 泰国店里这四种就是常态，先给全、不需要的再勾掉。
 POS_PAYMENT_METHODS = ("cash", "card", "promptpay", "transfer")
 
+# 增值税登记户（主会话 10-25）：收银标价含税，登记户的小票逐行拆出税额（`cashier.vat`）。状态记在公司上：建公司 / 改税号时用
+# 税务局查过的结果（`rd` 缓存，查询按钮查过就有）；还不知道的，第一次写收银日汇总时在单据上问一次（Express 选一次卡片），记在这里。
+VAT_YES, VAT_NO = "yes", "no"
+VAT_STATES = (VAT_YES, VAT_NO)
 
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
@@ -468,10 +472,61 @@ def save_terminals(company=None, rows=None) -> dict:
 def update_company(name, **fields) -> dict:
     guard.require("company.manage")
     doc = _get(document_company(name))
+    before = doc.get("vat_registered") or ""
     _apply(doc, fields)
     doc.save()
+    if (doc.get("vat_registered") or "") != before:
+        _vat_changed(doc.name)
     frappe.db.commit()
     return {"name": doc.name}
+
+
+def _rd_vat(tax_id, branch, *, network=False) -> str:
+    """税务局的增值税登记状态：查到 VAT 登记 → yes；税号存在但没登记 → no；查不到、连不上 → 空（不猜）。
+    ``network`` 为假只看缓存（存公司时不让人等外部接口）。"""
+    from pearnly_core.revenue_department import service as core
+    from pearnly_erp_portal.masters import rd
+
+    if not str(tax_id or "").strip():
+        return ""
+    try:
+        branch_no = int(str(branch or "0").strip() or 0)
+    except ValueError:
+        branch_no = 0
+    result = rd.lookup(tax_id, branch_no) if network else \
+        core.lookup(tax_id, branch_no, cache=rd._DocTypeCache(), post=lambda url, body: None)
+    if result.get("ok"):
+        return VAT_YES
+    return VAT_NO if result.get("error") == "not_vat_registered" else ""
+
+
+def vat_registered(company, *, lookup=False) -> str:
+    """这家公司是不是增值税登记户：``yes`` / ``no`` / 空（还不知道）。公司上没记的按税务局查过的结果补记（``lookup`` 为真时
+    缓存没有就查一次税务局，后台用）。"""
+    row = frappe.db.get_value(DOCTYPE, company, ["vat_registered", "tax_id", "branch"], as_dict=True) if company else None
+    if not row:
+        return ""
+    if row.vat_registered in VAT_STATES:
+        return row.vat_registered
+    state = _rd_vat(row.tax_id, row.branch, network=lookup)
+    if state:
+        frappe.db.set_value(DOCTYPE, company, "vat_registered", state, update_modified=False)
+        _vat_changed(company)
+    return state
+
+
+def set_vat_registered(company, value) -> None:
+    """单据上的「选一次」答了（`express.api.answer`）：记在公司上，还没写进 Express 的小票按新状态重算税额。"""
+    if value not in VAT_STATES:
+        frappe.throw(_(INVALID))
+    frappe.db.set_value(DOCTYPE, company, "vat_registered", value, update_modified=False)
+    _vat_changed(company)
+
+
+def _vat_changed(company) -> None:
+    from pearnly_erp_portal.cashier import vat
+
+    vat.refresh_company(company)
 
 
 def update_profile(**fields) -> dict:
@@ -481,6 +536,7 @@ def update_profile(**fields) -> dict:
 
 
 def _apply(doc, fields) -> None:
+    tax_changed = "tax_id" in fields and str(fields.get("tax_id") or "").strip() != str(doc.get("tax_id") or "").strip()
     for field, limit in (("company_name", contracts.MAX_NAME), ("short_name", contracts.MAX_SHORT),
                          ("tax_id", contracts.MAX_TAX_ID), ("branch", contracts.MAX_CONTACT),
                          ("phone", contracts.MAX_PHONE), ("contact_person", contracts.MAX_CONTACT),
@@ -503,6 +559,13 @@ def _apply(doc, fields) -> None:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):
             frappe.throw(_("The fiscal year start month must be between 1 and 12"))
         doc.fiscal_year_start_month = int(fields["fiscal_year_start_month"])
+    chosen = str(fields.get("vat_registered") or "").strip()
+    if chosen and chosen not in VAT_STATES:
+        frappe.throw(_(INVALID))
+    if chosen:
+        doc.vat_registered = chosen
+    elif doc.get("tax_id") and (tax_changed or not doc.get("vat_registered")):
+        doc.vat_registered = _rd_vat(doc.tax_id, doc.get("branch"))  # 改了税号、或还没记：用税务局查过的结果（只看缓存）
     for field in ("is_default", "is_active"):
         if field in fields:
             doc.set(field, 1 if fields[field] in (True, 1, "1", "true") else 0)

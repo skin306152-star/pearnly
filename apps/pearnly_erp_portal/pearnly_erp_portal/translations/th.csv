@@ -607,6 +607,7 @@ Invoice Amount,ยอดตามใบแจ้งหนี้
 Invoice Status,สถานะเอกสาร
 Is Paid,ชำระแล้ว
 Is Reversal,กลับรายการ
+Is this company VAT registered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
 Issue documents and deduct stock,ออกเอกสารและตัดสินค้าออกจากสต็อก
 Issued,จ่ายออก
 Item,สินค้า
@@ -1426,6 +1427,7 @@ VAT Applicable,คิด VAT
 VAT Applies,คิด VAT
 VAT Rate,อัตราภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
+VAT Registered,จดทะเบียนภาษีมูลค่าเพิ่ม
 VAT applies,คิด VAT
 Value,มูลค่า
 Value Change,มูลค่าที่เปลี่ยนแปลง
@@ -1550,6 +1552,7 @@ company.field.shortName,ชื่อย่อ
 company.field.taxId,เลขประจำตัวผู้เสียภาษี
 company.field.terminalName,ชื่อเครื่องขาย
 company.field.terminalWarehouse,คลังที่ขาย
+company.field.vatRegistered,จดทะเบียนภาษีมูลค่าเพิ่ม
 company.field.warehouse,คลังสินค้า
 company.field.warehouseName,ชื่อคลัง
 company.fiscalHint,1 = มกราคม
@@ -1958,8 +1961,11 @@ express.kind.account,บัญชีค่าใช้จ่าย
 express.kind.receipt,บัญชีรับเงิน
 express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
 express.kind.vat,ภาษีซื้อ
+express.kind.vatRegistered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
 express.option.claim,ขอคืน
 express.option.expense,บันทึกเป็นค่าใช้จ่าย
+express.option.no,ไม่ใช่
+express.option.yes,ใช่
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้

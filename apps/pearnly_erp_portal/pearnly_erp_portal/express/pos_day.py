@@ -15,7 +15,9 @@ import frappe
 
 from pearnly_core.express_rules.contracts import pos as pos_contract
 
+from pearnly_erp_portal.cashier import vat as receipt_vat
 from pearnly_erp_portal.express import contracts, stock_entry
+from pearnly_erp_portal.masters import company as companies
 
 DOCTYPE = "ERP POS Day Summary"
 SALE = "ERP Sale"
@@ -26,6 +28,7 @@ CASH_PARTY = "เงินสด"
 DAYS_MAX = 62  # 一晚最多补几天（停机很久后回来，分几晚补完）
 
 NET_NEGATIVE = "express.pos_net_negative"  # 退货冲减后为负数（停下交人）
+VAT_REGISTERED = "vat_registered"  # 单据上问一次的那一项：这家公司是不是增值税登记户（记在公司上，`masters.company`）
 # 只汇总公司「收银写 Express 起始日」（第一次接上 Express 那天；已接的公司由补丁记成上线当天）及以后的小票：之前的不补写
 # （会计可能已手录过、期间可能已关账；验收 10-25）。没有起始日的公司一张都不汇总。销售小票，加上原单同一天卖的退货小票。
 # 自连接原单（o）而不是子查询：UPDATE 里子查询读同一张表 MariaDB 不一定认
@@ -100,12 +103,25 @@ def nightly():
 
 
 def document(name, ref) -> dict:
-    """这张日汇总交给写账规则的样子（同采购 / 销售的 `contracts.document`，另带 ``pos``）。"""
-    summary = frappe.db.get_value(DOCTYPE, name, ["company", "day", "grand_total", "vat_amount", "first_receipt",
-                                                  "last_receipt", "sales_count"], as_dict=True)
+    """这张日汇总交给写账规则的样子（同采购 / 销售的 `contracts.document`，另带 ``pos``）。
+
+    税额（主会话 10-25）：标价含税，增值税登记户的小票逐行拆出税额（`cashier.vat`），日汇总合计各行税额、明细按各行税前额交
+    （尾差由 `contracts.document` 落到税前）；还不知道这家公司是不是登记户（公司上没记、税务局也没查到）时停下，在单据上问一次。"""
+    summary = frappe.db.get_value(DOCTYPE, name, ["company", "day", "first_receipt", "last_receipt", "sales_count"],
+                                  as_dict=True)
+    if not companies.vat_registered(summary.company, lookup=True):
+        return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
+                "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
+                            "options": [{"code": companies.VAT_YES, "name": ""}, {"code": companies.VAT_NO, "name": ""}]}]}
+    receipt_vat.refresh(frappe.db.sql_list("SELECT name FROM `tabERP Sale` WHERE express_summary = %s", (name,)))
+    sums = frappe.db.sql(f"""SELECT COALESCE(SUM({_SIGN} * s.grand_total), 0) AS total,
+        COALESCE(SUM({_SIGN} * s.vat_amount), 0) AS vat FROM `tabERP Sale` s WHERE s.express_summary = %s""",
+                         (name,), as_dict=True)[0]
+    frappe.db.set_value(DOCTYPE, name, {"grand_total": sums.total, "vat_amount": sums.vat}, update_modified=False)
+    summary.grand_total, summary.vat_amount = sums.total, sums.vat
     company = frappe.db.get_value("ERP Company", summary.company, ["tax_id", "branch"], as_dict=True) or {}
     rows = frappe.db.sql(f"""SELECT l.product, l.warehouse, l.unit, SUM({_SIGN} * l.qty) AS qty,
-        SUM({_SIGN} * l.line_total) AS amount
+        SUM({_SIGN} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount
         FROM `tabERP Sale Line` l JOIN `tabERP Sale` s ON s.name = l.parent AND l.parenttype = 'ERP Sale'
         WHERE s.express_summary = %s GROUP BY l.product, l.warehouse, l.unit ORDER BY MIN(l.idx)""", (name,), as_dict=True)
     products, warehouses, merged = {}, {}, {}

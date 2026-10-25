@@ -1430,12 +1430,13 @@ class PosDaySummaries(Base):
         net = pos.net_day(D("20"), [("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))])  # 现金退款多过现金收款：现金可以为负
         self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
 
-    def summary_body(self, lines, paid, total):
-        """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`）。"""
+    def summary_body(self, lines, paid, total, vat="0", registered="yes"):
+        """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。"""
         import types
         D = Decimal
-        summary = types.SimpleNamespace(company="CO-1", day="2026-10-24", grand_total=total, vat_amount=0,
-                                        first_receipt="SI-1", last_receipt="SI-2", sales_count=2)
+        summary = types.SimpleNamespace(company="CO-1", day="2026-10-24", first_receipt="SI-1", last_receipt="SI-2",
+                                        sales_count=2)
+        refreshed = []
 
         def get_value(doctype, name, fields=None, as_dict=False):
             if doctype == self.pos_day.DOCTYPE:
@@ -1448,6 +1449,8 @@ class PosDaySummaries(Base):
 
         def sql(query, values=None, as_dict=False):
             self.assertIn("CASE WHEN s.sale_type = 'refund' THEN -1 ELSE 1 END", query)
+            if "s.vat_amount" in query:
+                return [types.SimpleNamespace(total=D(total), vat=D(vat))]
             if "tabERP Sale Payment" in query:
                 return [types.SimpleNamespace(method=method, amount=D(amount)) for method, amount in paid]
             return [types.SimpleNamespace(product=code, warehouse="W1", unit="ถุง", qty=D(qty), amount=D(amount))
@@ -1455,9 +1458,16 @@ class PosDaySummaries(Base):
 
         with mock.patch.object(frappe.db, "get_value", side_effect=get_value, create=True), \
                 mock.patch.object(frappe.db, "sql", side_effect=sql), \
+                mock.patch.object(frappe.db, "sql_list", lambda q, v: ["SI-1", "SI-2"], create=True), \
+                mock.patch.object(frappe.db, "set_value", lambda *a, **k: None), \
+                mock.patch.object(self.pos_day.companies, "vat_registered", lambda company, lookup=False: registered), \
+                mock.patch.object(self.pos_day.receipt_vat, "refresh", lambda names: refreshed.append(list(names))), \
                 mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
                                   create=True):
-            return self.pos_day.document("PDS-1", "PDS-1@x")
+            body = self.pos_day.document("PDS-1", "PDS-1@x")
+        if registered:
+            self.assertEqual(refreshed, [["SI-1", "SI-2"]])  # 写之前按公司此刻的状态重算小票税额
+        return body
 
     def test_same_day_refunds_net_into_the_day_summary(self):
         """主会话 10-25：同一天卖、同一天退的退货冲进当天日汇总。部分退照净额写；一天全退整张不写；退货的付款方式和原单不同
@@ -1477,6 +1487,40 @@ class PosDaySummaries(Base):
                          {"ref": "PDS-1@x", "items": [], "net_negative": True})
         # 晚到的同日退货单独成一张补单：整张为负 → 停下交人
         self.assertTrue(self.summary_body([("A", "-1", "-50")], [], "-50").get("net_negative"))
+
+    def test_receipts_split_vat_line_by_line_and_the_day_adds_the_lines_up(self):
+        """主会话 10-25：标价含税。增值税登记户按小票每一行拆（商品勾了「คิด VAT」才拆 7/107，免税为 0），整单折扣按行摊，
+        应收合计不变；退货按原行比例；日汇总合计各行税额、明细交税前；还不知道是不是登记户就停下问一次。"""
+        from pearnly_erp_portal.cashier import contracts as cashier
+        D = Decimal
+        # 含免税商品：107（应税）+ 50（免税）→ 只有应税那行 7
+        self.assertEqual(cashier.line_vats([D("107"), D("50")], [True, False]), [D("7.00"), D("0")])
+        # 整单折扣 15.70 按行金额摊：应税行摊 10.70 → (107 − 10.70) × 7/107 = 6.30
+        self.assertEqual(cashier.line_vats([D("107"), D("50")], [True, False], D("15.70")), [D("6.30"), D("0")])
+        self.assertEqual(cashier.included_vat(D("100")), D("6.54"))
+        # 退货按原行：原行 3 件税 21，退 1 件 → 7
+        self.assertEqual(cashier.refund_line_vat(D("21"), D("3"), D("1")), D("7.00"))
+        self.assertEqual(cashier.refund_line_vat(D("0"), D("3"), D("1")), D("0.00"))
+        # 日汇总：合计 157、税 7（各行之和），明细是各行税前额；带税写
+        body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7")
+        self.assertEqual((body["vat"], body["total"], body["has_vat"]), ("7.00", "157.00", True))
+        self.assertEqual([line["amount"] for line in body["items"]], ["100.00", "50.00"])
+        # 不是登记户：小票税额全是 0，日汇总不带税
+        body = self.summary_body([("A", "1", "107")], [], "107", vat="0", registered="no")
+        self.assertEqual((body["vat"], body["has_vat"]), ("0.00", False))
+        # 还不知道：停下，在单据上问一次「该公司是增值税登记户吗」
+        held = self.summary_body([("A", "1", "107")], [], "107", registered="")
+        self.assertEqual(held["hold"], "choice_needed:vat_registered")
+        self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["yes", "no"])
+
+    def test_a_non_vat_company_keeps_every_receipt_line_at_zero(self):
+        from pearnly_erp_portal.cashier import vat
+        lines = [{"product": "P1", "line_total": Decimal("107")}]
+        with mock.patch.object(vat.companies, "vat_registered", lambda company, lookup=False: "no"):
+            self.assertEqual(vat.sale_line_vats("CO-1", lines), [Decimal(0)])
+        with mock.patch.object(vat.companies, "vat_registered", lambda company, lookup=False: "yes"), \
+                mock.patch.object(vat, "_taxable", lambda products: {"P1": True}):
+            self.assertEqual(vat.sale_line_vats("CO-1", lines), [Decimal("7.00")])
 
     def test_an_ordinary_sale_carries_no_day_facts(self):
         page = E.pages(E.checked(doc(direction="sales", paid=True)))[0]

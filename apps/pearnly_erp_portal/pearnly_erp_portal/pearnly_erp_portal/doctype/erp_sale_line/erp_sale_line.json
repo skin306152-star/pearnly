@@ -11,6 +11,7 @@
   "unit_price",
   "discount",
   "line_total",
+  "vat_amount",
   "warehouse",
   "location",
   "original_line"
@@ -64,6 +65,12 @@
    "in_list_view": 1
   },
   {
+   "fieldname": "vat_amount",
+   "fieldtype": "Currency",
+   "label": "VAT",
+   "read_only": 1
+  },
+  {
    "fieldname": "warehouse",
    "fieldtype": "Link",
    "options": "ERP Warehouse",
@@ -84,7 +91,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-25 23:30:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sale Line",
  "owner": "Administrator",

@@ -607,6 +607,7 @@ Invoice Amount,請求金額
 Invoice Status,伝票ステータス
 Is Paid,支払済み
 Is Reversal,取消仕訳
+Is this company VAT registered,この会社は VAT 登録事業者ですか
 Issue documents and deduct stock,伝票を登録して出庫
 Issued,出庫数量
 Item,品目
@@ -1426,6 +1427,7 @@ VAT Applicable,VAT 対象
 VAT Applies,課税対象
 VAT Rate,付加価値税率
 VAT Rate %,税率%
+VAT Registered,VAT 登録事業者
 VAT applies,VAT 対象
 Value,金額
 Value Change,金額変動
@@ -1550,6 +1552,7 @@ company.field.shortName,略称
 company.field.taxId,納税者番号
 company.field.terminalName,レジ名
 company.field.terminalWarehouse,販売する倉庫
+company.field.vatRegistered,VAT 登録事業者
 company.field.warehouse,倉庫
 company.field.warehouseName,倉庫名
 company.fiscalHint,1 = 1月
@@ -1958,8 +1961,11 @@ express.kind.account,費用勘定
 express.kind.receipt,入金勘定
 express.kind.stockGroup,在庫勘定グループ
 express.kind.vat,仮払消費税
+express.kind.vatRegistered,この会社は VAT 登録事業者ですか
 express.option.claim,控除
 express.option.expense,費用計上
+express.option.no,いいえ
+express.option.yes,はい
 express.reason.noBook,この日付を含む Express 帳簿がありません
 express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 express.reason.noWriter,この帳簿に書き込める端末がありません

@@ -31,7 +31,7 @@ PAYMENT_PAID = "paid"
 
 # 收银小票取这几列就够拼出与销售记录一样的行。
 POS_FIELDS = ("name", "receipt_no", "sold_at", "creation", "sale_type", "status",
-              "grand_total", "paid_total", "change_amount", "shift", "terminal", "cashier",
+              "grand_total", "vat_amount", "paid_total", "change_amount", "shift", "terminal", "cashier",
               "note")
 
 FIELDS = ("name", "system_no", "doc_date", "creation", "customer", "buyer_name", "party_type",
@@ -180,7 +180,8 @@ def _pos_shape(row) -> dict:
         "doc_kind": contracts.RECEIPT, "source": SOURCE_POS,
         "status": contracts.SUBMITTED if completed else row.get("status"),
         "payment_status": PAYMENT_PAID, "payment_method": None, "payment_date": None,
-        "subtotal": None, "vat_amount": None, "grand_total": row.get("grand_total"),
+        # 税额是小票逐行拆出来的真实数（标价含税，增值税登记户才有，`cashier.vat`）
+        "subtotal": None, "vat_amount": row.get("vat_amount"), "grand_total": row.get("grand_total"),
         "paid_amount": row.get("paid_total"), "stock_posted_at": row.get("sold_at"),
         # 收银侧多出来的信息（销售记录的列不用，但小票弹窗与"来源=POS"要认）
         "pos_name": row.get("name"), "shift": row.get("shift"), "terminal": row.get("terminal"),

@@ -119,6 +119,32 @@ def line_total(qty, unit_price, discount=0) -> Decimal:
     return net
 
 
+INCLUDED_VAT_RATE = Decimal("7")  # 收银标价就是含税价：VAT 登记户逐行拆出 税额 = 含税额 × 7/107（主会话 10-25）
+
+
+def included_vat(amount, rate=INCLUDED_VAT_RATE) -> Decimal:
+    return q2(d(amount) * d(rate) / (Decimal("100") + d(rate)))
+
+
+def line_vats(totals, taxable, discount_total=0) -> list:
+    """一张收银小票逐行拆出的税额（标价含税，应收合计不变）：整单折扣按行金额摊到各行（尾差落最后一行），
+    每行含税净额 × 7/107；商品没勾「คิด VAT」的行为 0。公司不是 VAT 登记户时调用方整张给 0，不调这里。"""
+    totals = [d(value) for value in totals]
+    subtotal = sum(totals, Decimal("0"))
+    left = q2(discount_total)
+    out = []
+    for index, (total, flag) in enumerate(zip(totals, taxable)):
+        share = left if index == len(totals) - 1 else (q2(q2(discount_total) * total / subtotal) if subtotal else Decimal("0"))
+        left -= share
+        out.append(included_vat(total - share) if flag else Decimal("0"))
+    return out
+
+
+def refund_line_vat(original_vat, original_qty, qty) -> Decimal:
+    """退货行的税额按原小票那一行的税额、按退的数量比例算（主会话 10-25：退货按原行拆）。"""
+    return q2(d(original_vat) * d(qty) / d(original_qty)) if d(original_qty) else Decimal("0")
+
+
 def sale_totals(lines, *, discount_total=0, has_vat=True, vat_rate=7):
     """销售金额：小计 → 单据折扣 → VAT → 应收。行必须有正数量。"""
     if not lines:
