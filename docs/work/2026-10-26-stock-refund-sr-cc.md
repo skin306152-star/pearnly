@@ -107,7 +107,7 @@ ERP 交给写账规则的主页面：`_extraction_audit` 除 `pos` 外加 `refun
 | `python3 scripts/check-i18n.py --strict` | 退出码 0 |
 | `python3 scripts/i18n-build.py --check` | PASS |
 | `python3 scripts/check-copy.py` | 新增 7、改动 0、拦截 0、标黄 0 |
-| `.github/workflows/development.yml` 全部 python3 步骤 | 见第 7 节 |
+| `.github/workflows/development.yml` 全部 python3 步骤（105 条） | 104 过；1 条 `tests/test_assistant_ui.py` 失败：本工作树没装 `frontend/assistant/node_modules`（找不到 esbuild），本次没改前端 |
 
 新增文案清单（`check-copy.py --report` 第 2 节）：
 
