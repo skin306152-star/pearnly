@@ -347,6 +347,10 @@
 		}
 		async refresh() {
 			if (this.destroyed) return;
+			// 结果区还没建好（DocType 定义还在加载）时页面就要刷新（例如日期框给默认值触发 change → reload）：并进首次刷新，
+			// 它在建好后按当时的条件取数。原来照常往下走，`$result` 未定义先抛错、catch 里再抛一次，成了未处理的拒绝
+			// （库存卡页偶发 `reading 'parent'`，验收 10-25 从报错回传拿到的堆栈：toggle_result_area ← refresh）。
+			if (!this.$result) return this.ready;
 			const request = ++this.sequence;
 			const start = this.start, length = this.page_length;
 			this.freeze(true);

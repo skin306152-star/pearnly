@@ -46,3 +46,24 @@ assert.deepEqual(JSON.parse(p.filter_conditions(list, ['qty_on_hand'])), [
   ['supplier', '!=', 'SUP-1'], ['supplier', 'like', '%ABC%'], ['payment_status', 'not in', ['paid']]]);
 assert.equal(p.filter_conditions({ filter_area: { get: () => [['X', 'doc_kind', '=', 'a']] } }), undefined);
 console.log('desk list filter: ok');
+
+// 列表还在加载 DocType（结果区没建好）时页面就要刷新：并进首次刷新，不取数、不抛错（库存卡页偶发 reading 'parent'，验收 10-25）
+{
+  let release;
+  const loads = [];
+  const page = { main: { addClass() {} }, wrapper: { on() {} }, page_form: { find: () => ({ hide() {} }) } };
+  const listFrappe = { pearnly: {}, ui: {}, meta: {}, utils: { debounce: fn => fn },
+    model: { with_doctype: () => new Promise(resolve => { release = resolve; }) }, get_meta: () => ({ fields: [] }),
+    views: { BaseList: class { constructor(options) { Object.assign(this, options); } }, ListView: { prototype: {} } } };
+  vm.runInNewContext(source, { frappe: listFrappe, window: {}, $: () => ({ on() {} }), __: value => value });
+  const list = listFrappe.pearnly.list({ page, doctype: 'ERP Stock Movement', columns: [{ fieldname: 'product_name' }],
+    load: async () => { loads.push(1); return { items: [], total: 0 }; } });
+  let state = 'pending';
+  list.reload().then(() => { state = 'resolved'; }, error => { state = 'rejected: ' + error.message; });
+  setImmediate(() => {
+    assert.equal(state, 'pending', 'waits for the first refresh instead of failing');
+    assert.equal(loads.length, 0, 'no load before the result area exists');
+    assert.equal(list.$result, undefined);
+    console.log('desk list refresh before setup: ok');
+  });
+}
