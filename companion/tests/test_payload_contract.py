@@ -28,6 +28,7 @@ def test_supported_set_is_v1_to_v7_today():
     # v5(2026-10-24):总账分录带 `role`(ERP 前台明细按行科目拆,费用 / 收入可以有几条),明细行带 `account`
     # v6(2026-10-25):库存单 `direction = stock`(OU 领用 / JU 调整 / TK 盘点,出入库第一期 B 段)
     # v7(2026-10-25):明细行带 ERP 的包装单位换算率 `factor`,包装单位照 Express 原生记法写(stock_units)
+    # v8(2026-10-25):库存单 `action = void`(照 Express 原生作废原单,B 段 ①)
     assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7})
     assert check_payload_version({"payload_version": 5}) is None
     assert check_payload_version({"payload_version": 2}) is None

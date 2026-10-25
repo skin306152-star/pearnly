@@ -179,6 +179,7 @@ Calendar,カレンダー
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 Camera permission was refused; allow it and try again,カメラの許可が拒否されました。許可してから再試行してください
 Cancel,キャンセル
+Cancel in Express,Express で取消
 Cancel {0},{0}件をキャンセル
 Cancellation,取消
 Cancelled,取消済み
@@ -510,6 +511,9 @@ Express Stock Item,Express 在庫品
 Express Sync Note,Express 同期の理由
 Express Sync State,Express 同期状態
 Express Synced At,Express 同期日時
+Express Void,Express 取消
+Express Void Job,Express 取消ジョブ
+Express Void Reason,Express 取消の理由
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
 Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
@@ -1300,10 +1304,12 @@ This document cannot be recorded yet,この伝票はまだ記録できません
 This document has no content,この書類は中身がありません
 This document is already recorded: {0},この伝票は登録済みです: {0}
 This document is no longer available,この書類は利用できません
+This document is not in Express,この伝票は Express にありません
 This document is too large,この書類は大きすぎます
 This document is void,この伝票は無効です
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This document was already recorded,この書類は記録済みです
+This document was changed in Express. Check it in Express,この伝票は Express で変更されています。Express で確認してください
 "This document was issued by this company, not a purchase document",この書類は自社が発行したもので、仕入書類ではありません
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
@@ -1942,6 +1948,8 @@ express.error.STOCK_ITEM_NOT_FOUND,この品目は Express の在庫品目では
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 express.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+express.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
+express.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 express.kind.account,費用勘定
 express.kind.receipt,入金勘定
 express.kind.stockGroup,在庫勘定グループ
@@ -1959,6 +1967,7 @@ express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.state.written,書き込み済み
 express.summary.extra,追加分
+express.void,Express で取消
 goods,物品
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）

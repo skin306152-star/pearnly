@@ -184,6 +184,37 @@ def prepare(body, company_row, ensure_masters) -> dict:
     return {"payload": payload, "book": book}
 
 
+VOID_PAYLOAD_VERSION = 7
+VOID_REQUEST = "erp:void:stock:"  # 作废任务的请求号前缀（`push.job_changed` 据此把回执记到作废栏上）
+
+
+def void_payload(name, company_row) -> dict:
+    """作废一张已写进 Express 的出入库单（载荷 7，CC 桌面版 `dbf_void`，照 Express 原生作废原单）→ ``{"payload", "book"}`` 或
+    ``{"hold": 原因}``。账套就是写入时那一份（单据记的 ``express_book``）；逐行带存货码（电脑写入时回报的实际编码）、仓库码、数量，
+    电脑据此核原单还是写入时的样子，对不上转人工。"""
+    from pearnly_core.cc_desktop import jobs
+
+    doc = frappe.get_doc(DOCTYPE, name)
+    book = next((item for item in target.candidates(company_row, str(doc.posting_date))
+                 if item.get("key") == doc.express_book), None)
+    if not doc.express_docnum or not book:
+        return {"hold": contracts.NO_BOOK}
+    written = jobs.find_by_name(doc.express_job) if doc.express_job else None
+    codes = {int(row.get("seq") or 0): str(row.get("code") or "") for row in (written or {}).get("line_codes") or []
+             if isinstance(row, dict)}
+    body = document(name, "void")
+    items = [{"seq": seq, "code": codes.get(seq) or line["code"], "loccod": line["loccod"], "qty": line["qty"]}
+             for seq, line in enumerate(body["lines"], start=1)]
+    path = book["path"]
+    payload = {
+        "payload_version": VOID_PAYLOAD_VERSION, "direction": "stock", "action": "void", "doctype": body["doctype"],
+        "docnum": doc.express_docnum, "items": items,
+        "account_root": book.get("root") or "", "account_dir": path, "account_company": book.get("company") or "",
+        "account_set_row": 0, "account_set": wire_account_set(path, path), "respect_period_lock": True,
+    }
+    return {"payload": payload, "book": book}
+
+
 def form_body(payload) -> dict:
     """出入库单表单此刻的内容（还没存）→ :func:`prepare` 要的单（提交前问要人定的项用，`api.preflight`）。只看单别与日期：
     要问的只有科目，与明细无关。"""
@@ -193,5 +224,5 @@ def form_body(payload) -> dict:
             "loccod": "", "lines": []}
 
 
-__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "count_document", "ISSUE", "account_subject", "company_of", "document", "eligible",
-           "form_body", "kind", "prepare"]
+__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "ISSUE", "VOID_REQUEST", "account_subject", "company_of",
+           "count_document", "document", "eligible", "form_body", "kind", "prepare", "void_payload"]

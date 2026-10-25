@@ -36,9 +36,11 @@ def _document(doctype, name, write=False):
     if doctype not in CAPABILITIES or not isinstance(name, str):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     guard.require(CAPABILITIES[doctype][1 if write else 0])
-    row = frappe.db.get_value(doctype, name, ["name", "status", "express_state", "express_docnum",
-                                              "express_reason", "express_needed", "express_job", "express_book"],
-                              as_dict=True)
+    fields = ["name", "status", "express_state", "express_docnum", "express_reason", "express_needed", "express_job",
+              "express_book"]
+    if doctype == push.STOCK:
+        fields += ["express_void_state", "express_void_reason", "express_void_job"]  # 作废原单（B 段 ①，先只开出入库单）
+    row = frappe.db.get_value(doctype, name, fields, as_dict=True)
     if row:
         row.company = push.company_of(doctype, name)   # 出入库单没有公司栏，按仓库的公司
     if not row or row.company not in companies.allowed_companies():
@@ -100,6 +102,12 @@ def _view(doctype, row):
     blocked = _party_blocked(doctype, row, job)
     needed = [{**item, "options": _options(item, data)} for item in (blocked or _needed(row))] \
         if row.express_state == contracts.HELD else []
+    if row.get("express_void_state"):
+        # 已写进 Express、又在 ERP 作废的：看作废那一件（转人工的能重试，电脑重核原单再作废）
+        void_job = jobs.find_by_name(row.express_void_job) if row.express_void_job else None
+        return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_void_reason or "",
+                "void": row.express_void_state, "needed": [], "can_answer": False,
+                "can_retry": bool(void_job and void_job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1])}
     return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_reason or "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
             "can_retry": bool(job and job["status"] == "manual" and not blocked) and guard.has(CAPABILITIES[doctype][1])}
@@ -193,6 +201,15 @@ def retry(doctype, name):
     重新核记住的选择，不对的停下来在这里选），不拿原来那份载荷再试；只有结果不明的（可能已经写进去了）原样再排、钉在原来
     那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
+    if row.get("express_void_state"):
+        void_job = jobs.find_by_name(row.express_void_job) if row.express_void_job else None
+        if not void_job or void_job["status"] != "manual":
+            frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        jobs.retry(void_job["job"])  # 作废载荷不随单据变：原样再排，电脑先核原单再作废
+        frappe.db.set_value(doctype, name, {"express_void_state": contracts.QUEUED, "express_void_reason": ""},
+                            update_modified=False)
+        frappe.db.commit()
+        return _view(doctype, _document(doctype, name))
     job = jobs.find_by_name(row.express_job) if row.express_job else None
     if not job or job["status"] != "manual":
         frappe.throw(_("Not Permitted"), frappe.PermissionError)

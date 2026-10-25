@@ -179,6 +179,7 @@ Calendar,Calendar
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Camera permission was refused; allow it and try again,Camera permission was refused; allow it and try again
 Cancel,Cancel
+Cancel in Express,Cancel in Express
 Cancel {0},Cancel {0}
 Cancellation,Cancellation
 Cancelled,Cancelled
@@ -510,6 +511,9 @@ Express Stock Item,Express Stock Item
 Express Sync Note,Express Sync Note
 Express Sync State,Express Sync State
 Express Synced At,Express Synced At
+Express Void,Express Void
+Express Void Job,Express Void Job
+Express Void Reason,Express Void Reason
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
 Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
@@ -1300,10 +1304,12 @@ This document cannot be recorded yet,This document cannot be recorded yet
 This document has no content,This document has no content
 This document is already recorded: {0},This document is already recorded: {0}
 This document is no longer available,This document is no longer available
+This document is not in Express,This document is not in Express
 This document is too large,This document is too large
 This document is void,This document is void
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
 This document was already recorded,This document was already recorded
+This document was changed in Express. Check it in Express,This document was changed in Express. Check it in Express
 "This document was issued by this company, not a purchase document","This document was issued by this company, not a purchase document"
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
@@ -1942,6 +1948,8 @@ express.error.STOCK_ITEM_NOT_FOUND,This item is not a stock item in Express. Cho
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
 express.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 express.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+express.error.VOID_DOCUMENT_CHANGED,This document was changed in Express. Check it in Express
+express.error.VOID_DOCUMENT_NOT_FOUND,This document is not in Express
 express.kind.account,Expense Account
 express.kind.receipt,Receiving Account
 express.kind.stockGroup,Stock Account Group
@@ -1959,6 +1967,7 @@ express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
 express.state.written,Written
 express.summary.extra,Late receipts
+express.void,Cancel in Express
 goods,goods
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"

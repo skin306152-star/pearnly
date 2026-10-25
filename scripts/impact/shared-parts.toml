@@ -193,7 +193,7 @@ name = "CC 桌面版机器通道（cc_desktop）"
 paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
-entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "cowork.cc.channel"]
+entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法" }
 
 [[part]]
@@ -314,10 +314,10 @@ entries = ["cc.desktop.requests", "cc.desktop.places"]
 [[part]]
 id = "cc-dbf-write"
 name = "CC 写 Express（dbf 写入路径）"
-paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
-markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock"]
+paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_void.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
+markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock", "dbf_void"]
 search = ["companion/src/**"]
-entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day"]
+entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.stock-void", "erp.cc.pos-day"]
 not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row，只读），入口见 cc-request-worker" }
 
 [[part]]
@@ -1296,6 +1296,15 @@ steps = "接 Express 的公司收银卖几张（现金 + PromptPay），次日 0
 expect = "一家公司一天一张现销 HS 写进 C 盘 T 账套、读回一致；PromptPay 另记一张转账凭证，收款科目第一次弹窗选、之后自动带；作废小票、退货不进"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js"]
+
+[[entry]]
+id = "erp.cc.stock-void"
+product = "ERP"
+where = "ERP 作废已写进 Express 的出入库单"
+steps = "接 Express 的公司提交一张出库单 / 入库单、等写进 C 盘 T 账套，再在 ERP 作废；在 Express 里改过那张单后再作废一张"
+expect = "照 Express 原生作废原单：单头标 C、明细删除标记、凭证标 C 金额改空、各仓结存回滚；单据弹窗显示作废进度；改过的单停在人工（VOID_DOCUMENT_CHANGED）"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/stock_entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py", "companion/src/companion/dbf_void.py"]
 
 [[entry]]
 id = "erp.cc.stock-entry"

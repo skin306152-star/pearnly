@@ -195,7 +195,8 @@
 			let d;
 			const fields = entry_fields({ doc, doc_no, editable });
 			// 写进 Express 的情况（状态、单号、原因、再写一次）：采购 / 销售同一个弹窗
-			if (doc.status === "submitted" && doc.express_state && frappe.boot.pearnly_express) fields.push({
+			// 已写进 Express 后又作废的：同一个弹窗里看 Express 作废原单的结果（转人工的能重试）
+			if ((doc.status === "submitted" || doc.express_void_state) && doc.express_state && frappe.boot.pearnly_express) fields.push({
 				fieldtype: "Button", fieldname: "express", label: __("Express"),
 				click: () => p.express("ERP Stock Entry", name, () => list?.reload()) });
 			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button",

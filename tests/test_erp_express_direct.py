@@ -794,6 +794,53 @@ class PushModule(Base):
         self.push = push
 
 
+class StockVoid(PushModule):
+    """B 段 ①：已写进 Express 的出入库单在 ERP 作废 → 排一件作废原单；回执记在作废栏上，写入时的单号和状态不动。"""
+
+    def setUp(self):
+        super().setUp()
+        self.docs = fake.STATE.db.table("ERP Stock Entry")
+        self.enqueued = []
+
+        import datetime as dt
+        frappe.utils.get_datetime = lambda value: dt.datetime.fromisoformat(str(value))
+
+    def written(self, **extra):
+        self.docs["SE-1"] = {"name": "SE-1", "creation": "2026-10-25 10:00:00", "owner": "a@x", "express_state": "written",
+                             "express_docnum": "OU691025-001", "express_void_job": None, **extra}
+
+    def test_a_written_entry_queues_a_void_and_the_receipt_marks_it_cancelled(self):
+        from unittest import mock
+        from pearnly_erp_portal.express import stock_entry
+        self.written()
+        with mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(stock_entry, "void_payload",
+                                  lambda name, company: {"payload": {"payload_version": 7, "action": "void"}, "book": {"key": "BK"}}), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: self.enqueued.append(kw) or {"job": "J9"}):
+            self.push.void("ERP Stock Entry", "SE-1")
+            self.push.void("ERP Stock Entry", "SE-1")  # 已排过：不再排
+        self.assertEqual(len(self.enqueued), 1)
+        self.assertTrue(self.enqueued[0]["request_key"].startswith(stock_entry.VOID_REQUEST))
+        self.assertEqual((self.docs["SE-1"]["express_void_state"], self.docs["SE-1"]["express_void_job"]), ("queued", "J9"))
+        self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-1", "status": "success", "job": "J9",
+                               "request_key": self.enqueued[0]["request_key"], "docnum": "OU691025-001"})
+        self.assertEqual(self.docs["SE-1"]["express_void_state"], "voided")
+        self.assertEqual((self.docs["SE-1"]["express_state"], self.docs["SE-1"]["express_docnum"]), ("written", "OU691025-001"))
+        self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-1", "status": "manual", "job": "J9",
+                               "request_key": self.enqueued[0]["request_key"], "reason": "[VOID_DOCUMENT_CHANGED] x"})
+        self.assertEqual((self.docs["SE-1"]["express_void_state"], self.docs["SE-1"]["express_void_reason"]),
+                         ("held", "[VOID_DOCUMENT_CHANGED] x"))
+
+    def test_an_entry_never_written_is_only_voided_in_erp(self):
+        from unittest import mock
+        self.written(express_state="held", express_docnum="")
+        with mock.patch.object(self.push.jobs, "enqueue", lambda **kw: self.enqueued.append(kw) or {"job": "J9"}):
+            self.push.void("ERP Stock Entry", "SE-1")
+        self.assertEqual(self.enqueued, [])
+        self.assertFalse(self.docs["SE-1"].get("express_void_state"))
+
+
 class LinkParty(PushModule):
     """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
 
@@ -1129,6 +1176,33 @@ class StockEntries(Base):
         self.assertEqual(base["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "36", "unit": "ถุง", "loccod": "01",
                                           "unit_cost": "10"}])
 
+
+    def test_a_void_names_the_written_book_the_docnum_and_the_codes_the_computer_used(self):
+        """B 段 ①：作废已写进 Express 的出入库单 → 载荷 7（照 Express 原生作废原单），账套就是写入时那份，逐行带电脑实际用的码。"""
+        import types
+        from pearnly_core.cc_desktop import jobs
+
+        key = self.computer([book()])[0]
+        lines = [types.SimpleNamespace(product="P1", qty=2, unit="ถุง", unit_cost=0, warehouse=None)]
+        Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
+        doc = Doc(direction="out", ref_type=None, lines=lines, warehouse="W1", posting_date="2026-10-20",
+                  doc_no="IS2569-000001", name="SE-1", reason="", express_docnum="OU691020-001", express_book=key,
+                  express_job="J1")
+        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": ""}, ("ERP Warehouse", "W1"): "01"}
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                  values.get((doctype, name))), \
+                mock.patch.object(jobs, "find_by_name", lambda name: {"line_codes": [{"seq": 1, "code": "ICE-01"}]}):
+            result = self.stock.void_payload("SE-1", COMPANY)
+            doc.express_book = "another-book"
+            moved = self.stock.void_payload("SE-1", COMPANY)
+        payload = result["payload"]
+        self.assertEqual((payload["payload_version"], payload["action"], payload["doctype"], payload["docnum"]),
+                         (7, "void", "OU", "OU691020-001"))
+        self.assertEqual(payload["items"], [{"seq": 1, "code": "ICE-01", "loccod": "01", "qty": "2"}])
+        self.assertEqual(result["book"]["key"], key)
+        self.assertTrue(payload["respect_period_lock"])
+        self.assertEqual(moved, {"hold": E.NO_BOOK})  # 写入时那份账套不在了：不另找一份作废
 
     def masters_with_books(self, key, stock_books):
         self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": []},

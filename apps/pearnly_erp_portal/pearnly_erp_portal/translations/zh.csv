@@ -179,6 +179,7 @@ Calendar,日历
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。
 Camera permission was refused; allow it and try again,摄像头权限被拒绝，请允许后重试
 Cancel,取消
+Cancel in Express,Express 作废
 Cancel {0},取消选中的 {0} 条
 Cancellation,取消
 Cancelled,已取消
@@ -510,6 +511,9 @@ Express Stock Item,Express 库存品
 Express Sync Note,Express 同步原因
 Express Sync State,Express 同步状态
 Express Synced At,Express 同步时间
+Express Void,Express 作废
+Express Void Job,Express 作废任务
+Express Void Reason,Express 作废原因
 "Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，将自动重试
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
 Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
@@ -1300,10 +1304,12 @@ This document cannot be recorded yet,该单据暂无法入账
 This document has no content,文件内容为空
 This document is already recorded: {0},该单据已录入：{0}
 This document is no longer available,该单据已不可用
+This document is not in Express,Express 中找不到此单
 This document is too large,文件过大
 This document is void,该单据已作废
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This document was already recorded,这张单据已经入账
+This document was changed in Express. Check it in Express,此单在 Express 中已被修改，请在 Express 中核对
 "This document was issued by this company, not a purchase document",该文件由本公司开出，不是采购单据
 This draft was already confirmed or discarded,该草稿已确认或已作废
 This entry changed underneath you; reload and try again,该单据已被修改，请刷新后重试
@@ -1942,6 +1948,8 @@ express.error.STOCK_ITEM_NOT_FOUND,此商品在 Express 中不是库存品，请
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 express.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 express.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+express.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 Express 中核对
+express.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
 express.kind.account,费用科目
 express.kind.receipt,收款科目
 express.kind.stockGroup,存货科目组
@@ -1959,6 +1967,7 @@ express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
 express.state.written,已写入
 express.summary.extra,补单
+express.void,Express 作废
 goods,货物
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）

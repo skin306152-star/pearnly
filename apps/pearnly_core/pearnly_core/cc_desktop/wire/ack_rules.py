@@ -32,6 +32,8 @@ NEEDS_PERSON_CODES = frozenset({
     "REINDEX_UNAVAILABLE",
     # 库存单（载荷 6）认不出 Express 的库存品：要人改单或在 Express 建品
     "STOCK_ITEM_NOT_FOUND",
+    # 作废 ERP 写进去的库存单（载荷 7）：原单在 Express 里被改过 / 找不到，要人核对
+    "VOID_DOCUMENT_CHANGED", "VOID_DOCUMENT_NOT_FOUND",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

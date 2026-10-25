@@ -262,6 +262,39 @@ def send(doctype, name):
     frappe.db.commit()
 
 
+VOIDED = "voided"
+
+
+def void(doctype, name):
+    """作废一张已写进 Express 的单（作废事务里叫）：排一件「照 Express 原生作废原单」的写账（出入库第一期 B 段 ①，先只开出入库单）。
+    没写进去的单只在 ERP 作废，什么都不做；准备不了（账套不在了）记在作废栏上，人看到后处理。"""
+    if doctype != STOCK:
+        return
+    row = frappe.db.get_value(doctype, name, ["name", "creation", "owner", "express_state", "express_docnum",
+                                              "express_void_job"], as_dict=True)
+    if not row or row.express_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.express_docnum \
+            or row.express_void_job:
+        return
+    company = company_of(doctype, name)
+    result = stock_entry.void_payload(name, _company(company)) if company else {"hold": contracts.NO_BOOK}
+    if "hold" in result:
+        _set(doctype, name, {"express_void_state": contracts.HELD, "express_void_reason": result["hold"][:500]})
+        return
+    payload = result["payload"]
+    job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=stock_entry.VOID_REQUEST + ref(name, row.creation),
+                       actor=frappe.session.user or row.owner, book_key=result["book"]["key"], payload=payload,
+                       payload_version=int(payload["payload_version"]), label=row.express_docnum)
+    _set(doctype, name, {"express_void_state": contracts.QUEUED, "express_void_job": job["job"], "express_void_reason": ""})
+
+
+def _void_changed(view):
+    doctype, name = view.get("source_doctype"), view.get("source_name")
+    status = view.get("status")
+    state = VOIDED if status == "success" else contracts.QUEUED if status in ("queued", "leased") else contracts.HELD
+    _set(doctype, name, {"express_void_state": state, "express_void_job": view.get("job"),
+                         "express_void_reason": "" if state != contracts.HELD else str(view.get("reason") or "")[:500]})
+
+
 def _state(view):
     status = view.get("status")
     if status == "success":
@@ -277,6 +310,9 @@ def job_changed(view):
     """共用写账队列里这张单有了新状态（同一事务里叫）：记回单据；第一次写进去后排一次主档同步（库存按 Express 对齐）。"""
     doctype, name = view.get("source_doctype"), view.get("source_name")
     if doctype not in DIRECTIONS or not name or not frappe.db.exists(doctype, name):
+        return
+    if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
+        _void_changed(view)  # 作废那一件：记在作废栏上，写入时的单号与状态不动
         return
     before = frappe.db.get_value(doctype, name, ["express_state", "express_docnum"], as_dict=True)
     before.company = company_of(doctype, name)

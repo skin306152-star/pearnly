@@ -1680,3 +1680,9 @@ The chosen account cannot be posted in Express. Choose another account	所选科
 This item is not a stock item in Express. Choose another item	此商品在 Express 中不是库存品，请另选商品	สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น	この品目は Express の在庫品目ではありません。別の品目を選んでください	express.error.STOCK_ITEM_NOT_FOUND
 Cashier Sales to Express From	收银写 Express 起始日	เริ่มส่งยอดขายหน้าร้านเข้า Express ตั้งแต่	Express へのレジ売上の開始日
 Late receipts	补单	ใบเพิ่มเติม	追加分	express.summary.extra
+Cancel in Express	Express 作废	ยกเลิกใน Express	Express で取消	express.void
+Express Void	Express 作废	ยกเลิกใน Express	Express 取消
+Express Void Reason	Express 作废原因	เหตุผลการยกเลิกใน Express	Express 取消の理由
+Express Void Job	Express 作废任务	งานยกเลิกใน Express	Express 取消ジョブ
+This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	express.error.VOID_DOCUMENT_CHANGED
+This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	express.error.VOID_DOCUMENT_NOT_FOUND

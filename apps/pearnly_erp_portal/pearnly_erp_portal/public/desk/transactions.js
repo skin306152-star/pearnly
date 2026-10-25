@@ -103,6 +103,9 @@
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
 					failed: "Failed"}[info.state] || info.state)},
 			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
+			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
+			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
+				default: __({queued: "Queued", voided: "Cancelled", held: "Pending"}[info.void] || info.void)}] : []),
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
 			...needed_fields(info.needed, direction),
 		];

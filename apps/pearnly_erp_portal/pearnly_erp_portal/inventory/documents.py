@@ -17,7 +17,8 @@ BAD_TRANSITION = "This status change is not allowed"
 LOCKED = "A submitted entry cannot be changed"
 
 LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "supplier", "doc_no",
-               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at", "express_state", "express_docnum")
+               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at", "express_state", "express_docnum",
+               "express_void_state")
 
 # 用途（录制问题 #14：以前只有自由填写的备注）：入库是退库，出库是内部领用 / 报损；都可选「其他」或不填。
 PURPOSES = {"in": ("return", "other"), "out": ("internal_use", "damage", "other")}
@@ -288,5 +289,9 @@ def void_entry(name):
                             company=warehouses.company_of(doc.warehouse))
     doc.status = "void"
     access.write_entry(doc, "save")
+    # 已写进 Express 的：照 Express 原生作废原单（出入库第一期 B 段 ①）；没写进去的只在 ERP 作废
+    from pearnly_erp_portal.express import push as express_push
+
+    express_push.void(DOCTYPE, doc.name)
     frappe.db.commit()
     return {"name": doc.name, "status": doc.status}

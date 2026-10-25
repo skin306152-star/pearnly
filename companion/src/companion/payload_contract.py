@@ -23,7 +23,9 @@ from typing import Optional
 # 进项写,所以盖 6,旧版诚实拒收、派单只交给报过支持 6 的电脑。
 # 7:明细行可带来源（ERP）自己的包装单位换算率 ``factor``,且包装单位按 Express 主档的系数照原生记法写(TQUCOD / TFACTOR /
 # XTRNQTY = 数量 × 系数,stock_units)。旧版按 1 写,所以带 factor 的载荷盖 7,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7})
+# 8:作废 ERP 写进去的库存单(``direction = stock``、``action = void``,照 Express 原生作废原单;dbf_void)。旧版会把它当一张新的
+# 库存单写,所以盖 8,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

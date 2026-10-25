@@ -26,7 +26,10 @@
   "express_sent_at",
   "express_job",
   "express_book",
-  "express_needed"
+  "express_needed",
+  "express_void_state",
+  "express_void_reason",
+  "express_void_job"
  ],
  "fields": [
   {
@@ -187,11 +190,34 @@
    "read_only": 1,
    "hidden": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "express_void_state",
+   "fieldtype": "Select",
+   "label": "Express Void",
+   "options": "\nqueued\nvoided\nheld",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_void_reason",
+   "fieldtype": "Small Text",
+   "label": "Express Void Reason",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_void_job",
+   "fieldtype": "Data",
+   "label": "Express Void Job",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-25 16:00:00.000000",
+ "modified": "2026-10-25 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry",
  "owner": "Administrator",

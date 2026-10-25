@@ -47,6 +47,7 @@ KIND_PURCHASE = "purchase"
 KIND_SALE = "sale"
 KIND_ISSUE = "issue"    # 库存单领用（OU 类）：减，只记 LMOVDAT
 KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负，只记 LMOVDAT
+KIND_VOID = "void"      # 作废原单（dbf_void）：反向回滚，不动日期栏
 _DATE_FIELD = {KIND_PURCHASE: "LPURDAT", KIND_SALE: "LSELDAT"}
 _TOLERANCE = Decimal("0.000001")
 
@@ -146,6 +147,11 @@ def location_at(locations: Optional[List[Optional[str]]], index: int) -> Optiona
     return locations[index]
 
 
+def revert(item: Move) -> Move:
+    """作废原单（``dbf_void``）：同一品、同一仓、同一期桶的反向变动；Express 作废时不动日期栏（LMOVDAT 等）。"""
+    return Move(item.stkcod, item.loccod, -item.qty, -item.value, item.docdat, KIND_VOID)
+
+
 def move(row: dict, kind: str) -> Move:
     """刚写的一条 STCRD 库存行 → 它在 STLOC 上的变动（进货为正、销货为负，数量 XTRNQTY、货值 XTRNVAL）。"""
     sign = Decimal(-1) if kind in (KIND_SALE, KIND_ISSUE) else Decimal(1)
@@ -175,7 +181,7 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
             buckets = slot["buckets"]
             buckets[qty_field] = buckets.get(qty_field, Decimal(0)) + item.qty
             buckets[val_field] = buckets.get(val_field, Decimal(0)) + item.value
-        for field in ("LMOVDAT", _DATE_FIELD.get(item.kind)):
+        for field in (() if item.kind == KIND_VOID else ("LMOVDAT", _DATE_FIELD.get(item.kind))):
             if field and item.docdat and (slot["dates"].get(field) is None or item.docdat > slot["dates"][field]):
                 slot["dates"][field] = item.docdat
     classes = _stock_classes(account_dir, {key[0] for key in totals})
