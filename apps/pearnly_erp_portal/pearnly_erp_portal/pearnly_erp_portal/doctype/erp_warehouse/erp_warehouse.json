@@ -10,7 +10,9 @@
   "note",
   "express_section",
   "express_code",
-  "express_book"
+  "express_book",
+  "locations_section",
+  "locations"
  ],
  "fields": [
   {
@@ -63,6 +65,17 @@
    "read_only": 1,
    "hidden": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "locations_section",
+   "fieldtype": "Section Break",
+   "label": "Locations"
+  },
+  {
+   "fieldname": "locations",
+   "fieldtype": "Table",
+   "label": "Locations",
+   "options": "ERP Warehouse Location"
   }
  ],
  "index_web_pages_for_search": 0,

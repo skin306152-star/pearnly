@@ -19,6 +19,8 @@ A customer needs a name,顧客には名前が必要です
 A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
 A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
+A location that has been used cannot be removed,使用済みのロケーションは削除できません
+A location with stock cannot be turned off,在庫のあるロケーションは無効にできません
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
 A product needs a name,品目には名前が必要です
 A refund cannot be more than the original sale,返品は元の売上を超えられません
@@ -56,6 +58,7 @@ Add a link,リンクを追加
 Add an item,項目を追加
 Add another list,リストを追加
 Add label,ラベルを追加
+Add locations in stock,在庫のあるロケーションを追加
 Add member,メンバーを追加
 Add opening item,明細を追加
 Add photos,写真を追加
@@ -434,6 +437,7 @@ Due this week,7日以内が期限
 Due time,期限時刻
 Due today,今日が期限
 Due today or tomorrow,今日か明日が期日
+Duplicate location,ロケーションが重複しています
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 ERP menu,ERPメニュー
@@ -672,6 +676,7 @@ List archived,リストをアーカイブしました
 List name,リスト名
 Loading...,読み込み中…
 Location,保管場所
+Locations,ロケーション一覧
 "Lookup failed, please fill in manually",照会に失敗しました。手入力してください
 Low (≤{0}),在庫少（≤{0}）
 Low Stock Threshold,低在庫しきい値
@@ -1332,6 +1337,7 @@ This item is also stocked at:,この商品は他の場所にも在庫があり�
 This item is not a stock item in Express. Choose another item,この品目は Express の在庫品目ではありません。別の品目を選んでください
 This label no longer exists,このラベルはもうありません
 This list no longer exists,このリストはもうありません
+This location is not in the location list of this warehouse,このロケーションはこの倉庫のロケーション一覧にありません
 This member cannot be assigned,このメンバーには割り当てられません
 This option is no longer current,この選択肢は現在の手順ではありません
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
@@ -2222,6 +2228,8 @@ stock.count.voidPick,取消する記録を選択
 stock.countEntryVoid,この入出庫は棚卸から作られたため、単独で取り消せません
 stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
+stock.location.fromStock,在庫のあるロケーションを追加
+stock.location.list,ロケーション一覧
 stock.mobile.cameraOff,カメラを閉じる
 stock.mobile.codePlaceholder,コード・バーコード
 stock.mobile.find,検索

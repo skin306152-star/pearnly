@@ -9,6 +9,10 @@
 	});
 	// 收银台同理：属于公司、卖这家公司某个仓的货，所以下拉只列**当前公司**的收银台
 	// （别家的柜台选了会把货记到别人账上；服务端也会拒）。
+	// 库位格（第 5 项）：原生 Autocomplete，选项按这一行 / 这张单的仓库从服务端按输入取（`inventory.locations`）。
+	// 仓库没建库位清单时没有选项、照旧手输；建了清单就从清单选（服务端同样核）。
+	p.location_query = warehouse => doc => ({ query: "pearnly_erp_portal.inventory.locations.api_location_options",
+		params: { warehouse: (typeof warehouse === "function" ? warehouse(doc) : warehouse) || doc?.warehouse || frappe.boot.pearnly_warehouse || "" } });
 	p.terminal_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
@@ -247,7 +251,8 @@
 					// 仓库：官方原生 Link（不是自由填写），只列当前公司的仓库。
 					{ fieldtype: "Link", options: "ERP Warehouse", get_query: p.warehouse_query(), only_select: true,
 						fieldname: "warehouse", label: t("trade.warehouse"), in_list_view: 1, columns: 2 },
-					{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2 },
+					{ fieldtype: "Autocomplete", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2,
+						get_query: p.location_query() },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1, in_list_view: 1, columns: 1, formatter: value => p.number(value) },
 					{ fieldtype: "Currency", fieldname: price, options: "currency", formatter: value => p.money(value), label: t(cost ? "trade.cost" : "trade.price"), in_list_view: 1, columns: 2 },
 					{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
@@ -321,7 +326,8 @@
 					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
 						fieldname: "warehouse", label: t("trade.warehouse") },
 					{ fieldtype: "Column Break" },
-					{ fieldtype: "Data", fieldname: "location", label: t("trade.location") },
+					{ fieldtype: "Autocomplete", fieldname: "location", label: t("trade.location"),
+						get_query: p.location_query(() => head_warehouse()) },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1,
 						precision: 3, formatter: value => p.number(value) },
 					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit") },

@@ -118,6 +118,19 @@
 					{options: status_options(),
 						default: Number(row ? row.is_active : 1) ? t("company.status.active")
 							: t("company.status.inactive")}),
+				// 库位清单（第 5 项）：建了清单，这个仓的库位只能从清单选（服务端 `inventory.locations` / `positions.check`）；
+				// 没建清单照旧手输。有库存的库位不能停用，用过的不能删
+				...(is_new ? [] : [
+					{fieldtype: "Section Break", label: __("stock.location.list")},
+					{fieldtype: "Table", fieldname: "locations", label: __("stock.location.list"), in_place_edit: true, data: [],
+						fields: [
+							{fieldtype: "Data", fieldname: "location_name", label: __("Location"), reqd: 1, in_list_view: 1, columns: 5},
+							{fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: 1, in_list_view: 1, columns: 2},
+							{fieldtype: "Float", fieldname: "qty", label: __("Qty"), read_only: 1, in_list_view: 1, columns: 3},
+						]},
+					{fieldtype: "Button", fieldname: "from_stock", label: __("stock.location.fromStock"),
+						click: () => add_in_stock()},
+				]),
 			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
 				const saved = await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
 					is_new
@@ -126,11 +139,34 @@
 						: {name: row.name, warehouse_name: values.warehouse_name, note: values.note,
 							is_active: status_value(values.is_active)},
 					"POST");
+				if (!is_new && locations_loaded) {
+					await p.call(stock_api.replace("api.", "locations.") + "api_save_locations", {warehouse: row.name,
+						rows: (values.locations || []).map(item => ({location_name: item.location_name, is_active: item.is_active ? 1 : 0}))}, "POST");
+				}
 				dialog.hide();
 				p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
 				await inline?.on_saved?.({...row, ...values, ...saved});
 				await list?.reload();
 			});
+			let locations_loaded = false, in_stock = [];
+			const set_locations = data => {
+				const table = dialog.fields_dict.locations;
+				table.df.data = data.rows.map(item => ({...item, is_active: Number(item.is_active)}));
+				table.grid.refresh();
+				in_stock = data.in_stock;
+				dialog.set_df_property("from_stock", "hidden", !in_stock.length);
+				locations_loaded = true;
+			};
+			function add_in_stock() {
+				const table = dialog.fields_dict.locations;
+				const have = new Set((table.grid.get_data() || []).map(item => item.location_name));
+				for (const item of in_stock) if (!have.has(item.location_name)) table.df.data.push({...item, is_active: 1});
+				table.grid.refresh();
+				dialog.set_df_property("from_stock", "hidden", 1);
+			}
+			if (!is_new && can_manage()) {
+				void p.call(stock_api.replace("api.", "locations.") + "api_get_locations", {warehouse: row.name}).then(set_locations);
+			}
 			// 光标先放在仓库名（框架默认落在第一格，也就是公司那格，下拉一展开就盖住下面）。
 			const focus_name = () => dialog.fields_dict.warehouse_name?.$input?.trigger("focus");
 			dialog.$wrapper.one("shown.bs.modal", () => setTimeout(focus_name, 0));

@@ -813,6 +813,8 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
         product_id = row['product']
         actual_warehouse = warehouses.required(warehouse if warehouse is not None else row['warehouse'])
         actual_location = positions.clean_location(location if location is not None else row['location'])
+        if (actual_warehouse, actual_location) != (row['warehouse'], row['location'] or ''):
+            positions.check(actual_warehouse, actual_location)  # 记在账面那个位置照常（清单之前的旧库位也能盘）
     else:
         found = product_of_code(code, count_company(count)) if code else frappe.db.get_value(
             PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
@@ -820,7 +822,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
             frappe.throw(_(CODE_NOT_FOUND))
         product_id = found['name']
         actual_warehouse = warehouses.required(warehouse or task.warehouse)
-        actual_location = positions.clean_location(location)
+        actual_location = positions.check(actual_warehouse, location)
         item = _insert_item(count, found, actual_warehouse,
                             stock_service.current_balance(product_id, actual_warehouse, actual_location).qty,
                             actual_location)
@@ -869,7 +871,11 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
     if voided is not None:
         doc.voided = 1 if voided in (True, 1, "1", "true") else 0
     if location is not None:
+        place = warehouses.required(warehouse) if warehouse is not None else doc.warehouse
+        before = (doc.warehouse, doc.location or "")
         doc.location = positions.clean_location(location)
+        if (place, doc.location) != before:
+            positions.check(place, doc.location)
     if warehouse is not None:
         doc.warehouse = warehouses.required(warehouse)
     if note is not None:

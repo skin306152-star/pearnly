@@ -34,7 +34,8 @@
 			// 多人分区盘点：这件货在本次盘点里别人（或自己）已经记过的 —— 谁、在哪、多少，
 			// 免得同一架货被两个人各数一遍（用户 2026-10-15）。没有就不占地方。
 			{ fieldtype: "HTML", fieldname: "recorded", hidden: 1 },
-			{ fieldtype: "Data", fieldname: "location", label: w("actualLocation") },
+			{ fieldtype: "Autocomplete", fieldname: "location", label: w("actualLocation"),
+				get_query: p.location_query(() => d?.get_value("warehouse")) },
 			{ fieldtype: "Float", fieldname: "qty", label: w("entryQty"), precision: 3, reqd: 1 },
 			{ fieldtype: "Small Text", fieldname: "note", label: t("stock.count.note") },
 			{ fieldtype: "Section Break", fieldname: "photo_section", hidden: 1 },

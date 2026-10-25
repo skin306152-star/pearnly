@@ -168,7 +168,8 @@
 						}
 					} },
 				{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit"), read_only: 1 },
-				{ fieldtype: "Data", fieldname: "location", label: t("stock.count.location"), onchange: () => change("location") },
+				{ fieldtype: "Autocomplete", fieldname: "location", label: t("stock.count.location"), onchange: () => change("location"),
+					get_query: p.location_query(() => form?.get_value("warehouse")) },
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Data", fieldname: "qty", label: w("qty"), reqd: 1, onchange: () => change("qty") },
 				{ fieldtype: "Data", fieldname: "unit_cost", label: w("cost"), reqd: 1, onchange: () => change("unit_cost") },

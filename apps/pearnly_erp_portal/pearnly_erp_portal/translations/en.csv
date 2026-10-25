@@ -19,6 +19,8 @@ A customer needs a name,A customer needs a name
 A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
+A location that has been used cannot be removed,A location that has been used cannot be removed
+A location with stock cannot be turned off,A location with stock cannot be turned off
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
 A product needs a name,A product needs a name
 A refund cannot be more than the original sale,A refund cannot be more than the original sale
@@ -56,6 +58,7 @@ Add a link,Add a link
 Add an item,Add an item
 Add another list,Add another list
 Add label,Add label
+Add locations in stock,Add locations in stock
 Add member,Add member
 Add opening item,Add opening item
 Add photos,Add photos
@@ -434,6 +437,7 @@ Due this week,Due this week
 Due time,Due time
 Due today,Due today
 Due today or tomorrow,Due today or tomorrow
+Duplicate location,Duplicate location
 ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
 ERP menu,ERP menu
@@ -672,6 +676,7 @@ List archived,List archived
 List name,List name
 Loading...,Loading...
 Location,Location
+Locations,Locations
 "Lookup failed, please fill in manually","Lookup failed, please fill in manually"
 Low (≤{0}),Low (≤{0})
 Low Stock Threshold,Low Stock Threshold
@@ -1332,6 +1337,7 @@ This item is also stocked at:,This item is also stocked at:
 This item is not a stock item in Express. Choose another item,This item is not a stock item in Express. Choose another item
 This label no longer exists,This label no longer exists
 This list no longer exists,This list no longer exists
+This location is not in the location list of this warehouse,This location is not in the location list of this warehouse
 This member cannot be assigned,This member cannot be assigned
 This option is no longer current,This option is no longer current
 This payment method is not enabled for this company,This payment method is not enabled for this company
@@ -2222,6 +2228,8 @@ stock.count.voidPick,Select an entry to void
 stock.countEntryVoid,Entries from a stock count cannot be voided alone
 stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
+stock.location.fromStock,Add locations in stock
+stock.location.list,Locations
 stock.mobile.cameraOff,Close camera
 stock.mobile.codePlaceholder,Code or barcode
 stock.mobile.find,Find

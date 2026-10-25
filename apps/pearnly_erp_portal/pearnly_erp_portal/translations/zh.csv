@@ -19,6 +19,8 @@ A customer needs a name,请填写客户名称
 A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
 A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
+A location that has been used cannot be removed,已使用的库位不能删除
+A location with stock cannot be turned off,有库存的库位不能停用
 A payment has to be approved before it counts as paid,付款经审批后方视为已付
 A product needs a name,请填写物料名称
 A refund cannot be more than the original sale,退款不能超过原始销售单
@@ -56,6 +58,7 @@ Add a link,添加链接
 Add an item,添加项目
 Add another list,添加另一个列表
 Add label,添加标签
+Add locations in stock,带入有库存的库位
 Add member,添加成员
 Add opening item,添加明细
 Add photos,添加照片
@@ -434,6 +437,7 @@ Due this week,7 天内到期
 Due time,到期时间
 Due today,今天到期
 Due today or tomorrow,今明两天到期
+Duplicate location,库位重复
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
 ERP menu,ERP 菜单
@@ -672,6 +676,7 @@ List archived,列表已归档
 List name,列表名称
 Loading...,加载中…
 Location,地点
+Locations,库位清单
 "Lookup failed, please fill in manually",查询失败，请手动填写
 Low (≤{0}),低库存（≤{0}）
 Low Stock Threshold,低库存阈值
@@ -1332,6 +1337,7 @@ This item is also stocked at:,该物料还存放于：
 This item is not a stock item in Express. Choose another item,此商品在 Express 中不是库存品，请另选商品
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
+This location is not in the location list of this warehouse,库位不在此仓库的库位清单中
 This member cannot be assigned,无法分配给此成员
 This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
@@ -2222,6 +2228,8 @@ stock.count.voidPick,选择要撤销的记录
 stock.countEntryVoid,此单由盘点生成，不能单独作废
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
+stock.location.fromStock,带入有库存的库位
+stock.location.list,库位清单
 stock.mobile.cameraOff,关闭相机
 stock.mobile.codePlaceholder,编码或条码
 stock.mobile.find,查询

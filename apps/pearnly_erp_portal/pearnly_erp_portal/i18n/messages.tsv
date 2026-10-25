@@ -1706,3 +1706,10 @@ QR code content	二维码内容	ข้อมูลคิวอาร์โค้
 Unit barcode	单位条码	บาร์โค้ดหน่วย	単位バーコード	product.codeKind.unitBarcode
 This code is already in use	该码已被占用	รหัสนี้ถูกใช้แล้ว	このコードは使用されています
 Select the product	选择商品	เลือกสินค้า	商品を選択	product.scan.pick
+This location is not in the location list of this warehouse	库位不在此仓库的库位清单中	ตำแหน่งนี้ไม่อยู่ในรายการตำแหน่งของคลังนี้	このロケーションはこの倉庫のロケーション一覧にありません
+A location with stock cannot be turned off	有库存的库位不能停用	ตำแหน่งที่มีสต็อกปิดใช้งานไม่ได้	在庫のあるロケーションは無効にできません
+A location that has been used cannot be removed	已使用的库位不能删除	ตำแหน่งที่เคยใช้แล้วลบไม่ได้	使用済みのロケーションは削除できません
+Duplicate location	库位重复	ตำแหน่งซ้ำ	ロケーションが重複しています
+Locations	库位清单	รายการตำแหน่ง	ロケーション一覧
+Add locations in stock	带入有库存的库位	เพิ่มตำแหน่งที่มีสต็อก	在庫のあるロケーションを追加	stock.location.fromStock
+Locations	库位清单	รายการตำแหน่ง	ロケーション一覧	stock.location.list

@@ -39,6 +39,8 @@ jobs:
         run: python3 tests/test_erp_express_locks.py
       - name: ERP product internal code (typed for local products, the Express code for synced ones; scans, stocktake and the product template read it)
         run: python3 tests/test_erp_internal_code.py
+      - name: ERP warehouse location lists (listed locations only once a warehouse has a list, stocked locations stay on, used ones are kept)
+        run: python3 tests/test_erp_locations.py
       - name: ERP task management (boards copied from Cowork) keeps Cowork's board rights, refuses people without it and shows only their boards
         run: python3 tests/test_erp_work.py
       - name: Render the control-plane LINE setup guide with its screenshots
