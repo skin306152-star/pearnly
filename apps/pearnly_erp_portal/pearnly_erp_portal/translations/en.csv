@@ -769,6 +769,7 @@ Not enough stock in Express,Not enough stock in Express
 Not enough stock on hand,Not enough stock on hand
 Not found in the Revenue Department records,Not found in the Revenue Department records
 Not found on the document,Not found on the document
+Not in the list,Not in the list
 Not permitted,Not permitted
 Note,Note
 Notes,Notes
@@ -1362,6 +1363,7 @@ This terminal has no warehouse; set one in the terminal settings,This terminal h
 This unit is not defined on the product,This unit is not defined on the product
 This warehouse already exists,This warehouse already exists
 This warehouse belongs to the company above,This warehouse belongs to the company above
+This warehouse has no active location,This warehouse has no active location
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
 Time,Time
 Time left {0},Time left {0}
@@ -2230,6 +2232,7 @@ stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.location.fromStock,Add locations in stock
 stock.location.list,Locations
+stock.location.offList,Not in the list
 stock.mobile.cameraOff,Close camera
 stock.mobile.codePlaceholder,Code or barcode
 stock.mobile.find,Find

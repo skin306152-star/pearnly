@@ -769,6 +769,7 @@ Not enough stock in Express,สินค้าคงเหลือใน Expres
 Not enough stock on hand,สินค้าคงเหลือไม่เพียงพอ
 Not found in the Revenue Department records,ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร
 Not found on the document,ไม่ได้ระบุในเอกสาร
+Not in the list,ไม่อยู่ในรายการ
 Not permitted,ไม่ได้รับอนุญาต
 Note,หมายเหตุ
 Notes,หมายเหตุ
@@ -1362,6 +1363,7 @@ This terminal has no warehouse; set one in the terminal settings,จุดขา
 This unit is not defined on the product,ไม่ได้กำหนดหน่วยนี้ไว้ในสินค้านี้
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
 This warehouse belongs to the company above,คลังนี้อยู่ในบริษัทด้านบน
+This warehouse has no active location,คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
 Time left {0},เหลือเวลา {0}
@@ -2230,6 +2232,7 @@ stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
 stock.location.fromStock,เพิ่มตำแหน่งที่มีสต็อก
 stock.location.list,รายการตำแหน่ง
+stock.location.offList,ไม่อยู่ในรายการ
 stock.mobile.cameraOff,ปิดกล้อง
 stock.mobile.codePlaceholder,รหัสหรือบาร์โค้ด
 stock.mobile.find,ค้นหา

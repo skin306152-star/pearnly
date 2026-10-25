@@ -1713,3 +1713,5 @@ Duplicate location	库位重复	ตำแหน่งซ้ำ	ロケーショ�
 Locations	库位清单	รายการตำแหน่ง	ロケーション一覧
 Add locations in stock	带入有库存的库位	เพิ่มตำแหน่งที่มีสต็อก	在庫のあるロケーションを追加	stock.location.fromStock
 Locations	库位清单	รายการตำแหน่ง	ロケーション一覧	stock.location.list
+This warehouse has no active location	此仓库没有启用的库位	คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน	この倉庫には有効なロケーションがありません
+Not in the list	不在清单	ไม่อยู่ในรายการ	一覧にありません	stock.location.offList

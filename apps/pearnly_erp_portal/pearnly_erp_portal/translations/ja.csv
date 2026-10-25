@@ -769,6 +769,7 @@ Not enough stock in Express,Express の在庫が足りません
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
 Not found on the document,書類に記載がありません
+Not in the list,一覧にありません
 Not permitted,権限がありません
 Note,備考
 Notes,備考
@@ -1362,6 +1363,7 @@ This terminal has no warehouse; set one in the terminal settings,このレジに
 This unit is not defined on the product,この単位はこの商品に定義されていません
 This warehouse already exists,この倉庫は既に存在します
 This warehouse belongs to the company above,この倉庫は上の会社に属します
+This warehouse has no active location,この倉庫には有効なロケーションがありません
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
 Time left {0},残り {0}
@@ -2230,6 +2232,7 @@ stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
 stock.location.fromStock,在庫のあるロケーションを追加
 stock.location.list,ロケーション一覧
+stock.location.offList,一覧にありません
 stock.mobile.cameraOff,カメラを閉じる
 stock.mobile.codePlaceholder,コード・バーコード
 stock.mobile.find,検索

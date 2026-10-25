@@ -19,6 +19,7 @@ def clean_location(value):
 
 
 NOT_LISTED = "This location is not in the location list of this warehouse"
+NO_ACTIVE = "This warehouse has no active location"
 
 
 def has_list(warehouse) -> bool:
@@ -40,8 +41,12 @@ def check(warehouse, location):
     """库位清单（第 5 项）：仓库建了清单，库位就只能是清单里在用的；空库位（不分库位）照旧可以；没建清单的仓照旧手输。
     只在货**进**库位时核（库存流水 `stock.apply_movement`、盘点记到别处）：从清单之前的旧库位出货照常。"""
     location = clean_location(location)
-    if location and warehouse and has_list(warehouse) and location not in listed(warehouse):
-        frappe.throw(_(NOT_LISTED) + f": {location}")
+    if location and warehouse and has_list(warehouse):
+        names = listed(warehouse)
+        if not names:
+            frappe.throw(_(NO_ACTIVE))  # 建过清单但全部停用 = 没有可用库位，先启用一个（主会话 10-26）
+        if location not in names:
+            frappe.throw(_(NOT_LISTED) + f": {location}")
     return location
 
 

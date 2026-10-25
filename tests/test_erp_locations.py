@@ -77,8 +77,8 @@ class Locations(unittest.TestCase):
                 P.check("W1", value)
         self.assertEqual(P.check("W2", "anything"), "anything")  # 没建清单照旧手输
         self.lists["W3"] = [("A-01", 0)]
-        with self.assertRaisesRegex(Refused, "not in the location list"):
-            P.check("W3", "ZZZ")  # 清单全部停用 = 一个都不能用（验收 10-26），不是不限制
+        with self.assertRaisesRegex(Refused, "no active location"):
+            P.check("W3", "ZZZ")  # 清单全部停用 = 没有可用库位，先启用一个（主会话 10-26），不是不限制
 
     def test_saving_keeps_stocked_and_used_locations(self):
         with self.assertRaisesRegex(Refused, "with stock cannot be turned off"):
@@ -91,12 +91,13 @@ class Locations(unittest.TestCase):
             L.api_save_locations("W1", [{"location_name": "A-01"}, {"location_name": "A-02", "is_active": 0}])
         self.assertEqual(self.saved["W1"], [{"location_name": "A-01", "is_active": 1}, {"location_name": "A-02", "is_active": 0}])
 
-    def test_options_search_this_warehouse_list(self):
-        with mock.patch.object(L.frappe, "get_all", side_effect=lambda doctype, filters=None, **kw: (
-                self.assertEqual((filters["parent"], filters["is_active"], filters["location_name"]), ("W1", 1, ["like", "%A%"]))
-                or ["A-01", "A-02"])):
-            self.assertEqual(L.api_location_options("A", "W1"), ["A-01", "A-02"])
+    def test_options_list_this_warehouse_and_mark_old_stocked_places(self):
+        self.stock[("W1", "OLD-B")] = 2.0
+        options = L.api_location_options("", "W1")
+        self.assertEqual([row["value"] for row in options], ["A-01", "A-02", "OLD-B"])  # 有库存的旧库位也列出、标「不在清单」
+        self.assertEqual(options[-1]["label"], "OLD-B · stock.location.offList")
         self.assertEqual(L.api_location_options("A", None), [])
+        self.assertEqual(L.api_location_options("", "W2"), [])  # 没建清单：没有选项，照旧手输
 
 
 if __name__ == "__main__":

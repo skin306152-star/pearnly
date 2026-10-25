@@ -18,6 +18,7 @@ READ_CAPABILITIES = ("stock.read", "inventory.read", "purchase.read", "sales.rea
 HAS_STOCK = "A location with stock cannot be turned off"
 USED = "A location that has been used cannot be removed"
 DUPLICATE = "Duplicate location"
+OFF_LIST = "stock.location.offList"
 
 
 def _stock_at(warehouse) -> dict:
@@ -47,7 +48,13 @@ def api_location_options(txt="", warehouse=None, **kwargs):
     text = positions.clean_location(txt)
     if text:
         filters["location_name"] = ["like", f"%{text}%"]
-    return frappe.get_all(CHILD, filters=filters, pluck="location_name", order_by="idx asc", limit_page_length=50)
+    names = frappe.get_all(CHILD, filters=filters, pluck="location_name", order_by="idx asc", limit_page_length=50)
+    if not positions.has_list(warehouse):
+        return names
+    # 清单外、还有库存的旧库位照常能出库、能盘，也列出来，标「不在清单」（不能再往里入库，服务端核，主会话 10-26）
+    old = [name for name in _stock_at(warehouse) if name and name not in names and (not text or text in name)]
+    return [{"value": name, "label": name} for name in names] + \
+        [{"value": name, "label": f"{name} · {_(OFF_LIST)}"} for name in sorted(old)[:50]]
 
 
 @frappe.whitelist()
