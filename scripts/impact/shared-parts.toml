@@ -137,7 +137,7 @@ name = "上传框（FileUploader 精简、照片压缩）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
 markers = ["new frappe.ui.FileUploader", "\"Attach Image\"", ".shrink_photo("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["shared.home.topup-proof", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload"]
+entries = ["shared.home.topup-proof", "erp.page.company", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload"]
 
 [[part]]
 id = "cowork-intake-upload"

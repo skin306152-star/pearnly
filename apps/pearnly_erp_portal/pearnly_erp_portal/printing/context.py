@@ -89,8 +89,8 @@ def _supplier(name, fallback=None) -> dict:
 
 
 def _base(kind, doc, company, number, posting_date, remarks, void) -> dict:
-    titles = {ISSUE: ("ใบเบิกสินค้า", "GOODS ISSUE SLIP"), RECEIPT: ("ใบรับสินค้า", "GOODS RECEIPT NOTE")}[kind]
-    return {"kind": kind, "title_th": titles[0], "title_en": titles[1], "company": header(company),
+    # 单据标题（泰英）是样板版面的一部分，写在模板里（`templates/goods_*.html`）
+    return {"kind": kind, "company": header(company),
             "number": number or doc.name, "date": contracts.day(posting_date), "remarks": str(remarks or "").strip(),
             "void": bool(void)}
 

@@ -16,7 +16,7 @@
 {% for page in ctx.pages %}
 <div class="pp-page{{ ' pp-last' if loop.last else '' }}">
   {% if ctx.void %}<div class="pp-void">ยกเลิก / CANCELLED</div>{% endif %}
-  {{ head(ctx, loop.index, {"date": "วันที่"}) }}
+  {{ head(ctx, loop.index, {"title_th": "ใบเบิกสินค้า", "title_en": "GOODS ISSUE SLIP", "date": "วันที่"}) }}
   <table style="margin-top: 8.5px"><tr>
     <td class="pp-box" style="width: 51%"><table class="pp-f">
       {{ field("ฝ่ายที่เบิก") }}

@@ -57,7 +57,7 @@ class Rules(unittest.TestCase):
 @unittest.skipUnless(jinja2, "jinja2 not installed (runs in the candidate checks on the production image)")
 class Layout(unittest.TestCase):
     def issue(self, **over):
-        ctx = {"company": COMPANY, "title_th": "ใบเบิกสินค้า", "title_en": "GOODS ISSUE SLIP", "number": "IS-1",
+        ctx = {"company": COMPANY, "number": "IS-1",
                "date": "25/10/2026", "remarks": "เบิก", "void": False, "pages": C.pages(rows(2)), "page_count": 1,
                "warehouse": "Main", "purpose": C.issue_purpose("internal_use", "")}
         ctx.update(over)
@@ -79,7 +79,7 @@ class Layout(unittest.TestCase):
         self.assertIn(">13<", html)
 
     def test_the_receipt_note_fills_the_supplier_and_ticks_the_main_warehouse(self):
-        html = render("goods_receipt", company=COMPANY, title_th="ใบรับสินค้า", title_en="GOODS RECEIPT NOTE", number="IR-1",
+        html = render("goods_receipt", company=COMPANY, number="IR-1",
                       date="25/10/2026", remarks="", void=False, pages=C.pages(rows(1)), page_count=1, warehouse="Main",
                       supplier={"code": "S1", "name": "ผู้ขาย", "address": "ที่อยู่", "phone": "02", "email": "", "tax_id": "0105"},
                       warehouse_check=C.warehouse_check(True, "Main"))

@@ -71,7 +71,7 @@
     <div class="pp-co-line">{{ ctx.company.address | e }}</div>
     <div class="pp-co-line">{% if ctx.company.phone %}โทร. {{ ctx.company.phone | e }}{% endif %}{% if ctx.company.phone and ctx.company.email %}&nbsp;&nbsp;&nbsp;{% endif %}{% if ctx.company.email %}อีเมล: {{ ctx.company.email | e }}{% endif %}</div>
   </td>
-  <td class="pp-title"><div class="pp-title-th">{{ ctx.title_th }}</div><div class="pp-title-en">{{ ctx.title_en }}</div></td>
+  <td class="pp-title"><div class="pp-title-th">{{ labels.title_th }}</div><div class="pp-title-en">{{ labels.title_en }}</div></td>
   <td class="pp-meta"><table>
     <tr><td class="pp-k">เลขที่เอกสาร</td><td class="pp-c">:</td><td class="pp-v">{{ ctx.number | e }}</td></tr>
     <tr><td class="pp-k">{{ labels.date }}</td><td class="pp-c">:</td><td>{{ ctx.date }}</td></tr>
