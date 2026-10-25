@@ -14,9 +14,10 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from pearnly_core.cc_desktop import books, jobs
+from pearnly_core.cc_desktop import books, devices, jobs
 
 from pearnly_erp_portal.express import contracts, pos_day, prepare, stock_entry
+from pearnly_erp_portal.masters import company as companies
 
 SALES = "ERP Sales Document"
 PURCHASE = "Purchase Document"
@@ -263,8 +264,8 @@ def send(doctype, name):
         # 再写一次（`api.retry`）撤掉的那件占着原来的请求号：后面的按第几件编号
         earlier = len(jobs.of_source(doctype, name))
         key = f"erp:{DIRECTIONS[doctype]}:{body['ref']}" + (f"#{earlier + 1}" if earlier else "")
-        job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=key, actor=row.owner,
-                           book_key=book["key"], payload=payload, payload_version=int(payload.get("payload_version") or 1),
+        job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=key,
+                           actor=actor_of(doctype, row, book["key"]), book_key=book["key"], payload=payload, payload_version=int(payload.get("payload_version") or 1),
                            label=body["number"])
         _set(doctype, name, {"express_job": job["job"]})
     frappe.db.commit()
@@ -441,10 +442,26 @@ def _used_elsewhere(product, name):
     return False
 
 
-def _queued_note(row):
-    """排队中的单此刻为什么还没写（页面写原因，不改状态）：录入人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；他能写的
-    电脑都关着 → 离线；他的电脑都够不到这份账套 → 没有电脑能写。"""
-    found = jobs.writers(row.owner, row.express_book) if row.express_book else {"state": "ok"}
+def actor_of(doctype, row, book_key):
+    """写账作业归谁（ADR-021「谁的活谁的电脑做」，电脑只领自己登录过的人的单）：人开的单归开单人。收银日汇总是每晚系统合的，
+    建单人是 Administrator、名下没有电脑，原来一直排着领不走（10-25 实验栈）：归这家公司里在电脑上登录过 CC、电脑够得到这份账套
+    的员工（在线的电脑优先，同一台按名字排）。一个都没有就仍归建单人（页面写「CC 桌面版未连接」）。"""
+    if doctype != POS_DAY or jobs.writers(row.owner, book_key)["state"] in ("ok", "offline"):
+        return row.owner
+    company = company_of(doctype, row.name)
+    peers = devices.peers()
+    reach = [name for name in (books.reachers([book_key]) or {}).get(book_key) or () if name in peers]
+    for name in sorted(reach, key=lambda name: (not peers[name].online, name)):
+        for user in sorted(peers[name].users or ()):
+            if devices.issuer_valid(user) and company in companies.allowed_companies(user):
+                return user
+    return row.owner
+
+
+def _queued_note(doctype, row):
+    """排队中的单此刻为什么还没写（页面写原因，不改状态）：这件作业归的人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；
+    他能写的电脑都关着 → 离线；他的电脑都够不到这份账套 → 没有电脑能写。"""
+    found = jobs.writers(actor_of(doctype, row, row.express_book), row.express_book) if row.express_book else {"state": "ok"}
     return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE,
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 
@@ -461,7 +478,7 @@ def poll():
                                         or (row.express_reason or "") in contracts.RETRY_REASONS):
                 send(doctype, row.name)
             elif row.express_job and row.express_state == contracts.QUEUED:
-                note = _queued_note(row)
+                note = _queued_note(doctype, row)
                 if note != (row.express_reason or ""):
                     _set(doctype, row.name, {"express_reason": note})
         frappe.db.commit()

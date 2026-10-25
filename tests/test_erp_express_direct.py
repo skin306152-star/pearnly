@@ -910,6 +910,29 @@ class PosDaySend(PushModule):
                 self.push.send("ERP POS Day Summary", "PDS-1")
             self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
 
+class PosDayActor(PushModule):
+    """收银日汇总每晚由系统合（建单人 Administrator 名下没有电脑）：作业归这家公司里电脑够得到账套的员工，否则一直领不走（10-25 实验栈）。"""
+
+    def test_a_system_made_day_summary_goes_to_a_member_whose_computer_reaches_the_book(self):
+        import types
+        from unittest import mock
+        row = types.SimpleNamespace(name="PDS-1", owner="Administrator")
+        peers = {"PC-B": types.SimpleNamespace(users=frozenset({"zed@x", "bob@x"}), online=False),
+                 "PC-A": types.SimpleNamespace(users=frozenset({"amy@x"}), online=True),
+                 "PC-C": types.SimpleNamespace(users=frozenset({"cat@x"}), online=True)}
+        with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "missing", "devices": []}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push.devices, "peers", lambda: peers), \
+                mock.patch.object(self.push.books, "reachers", lambda keys: {"BK": ["PC-B", "PC-A"]}), \
+                mock.patch.object(self.push.devices, "issuer_valid", lambda user: True), \
+                mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"] if user != "amy@x" else []):
+            # 在线的 PC-A 上的 amy 没有这家公司 → 离线的 PC-B 上按名字排的 bob；PC-C 够不到账套不算
+            self.assertEqual(self.push.actor_of("ERP POS Day Summary", row, "BK"), "bob@x")
+            self.assertEqual(self.push.actor_of("ERP Stock Entry", row, "BK"), "Administrator")  # 人开的单归开单人
+        with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "ok", "devices": ["PC-A"]}):
+            self.assertEqual(self.push.actor_of("ERP POS Day Summary", types.SimpleNamespace(name="PDS-2", owner="amy@x"),
+                                                "BK"), "amy@x")
+
 class LinkParty(PushModule):
     """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
 
