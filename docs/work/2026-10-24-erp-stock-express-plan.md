@@ -314,10 +314,10 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
 | # | 分支 / 提交 | 内容 |
 |---|---|---|
 | ① | `pearnly/stock-a1-stloc` `9cef7f77` | 所有库存行带仓库码；CC 不论有没有仓库码都按实际写入的仓维护 STLOC，新建物料补 STLOC 行 |
-| ③ | `pearnly/stock-a3-negallow` `f9522f14`、`3af811ec` | NEGALLOW=N 的账套库存不足时整单不写，停在「需要人工」（`STOCK_INSUFFICIENT`）；这件品各仓合计 ≠ STMAS 结存（老账套 STLOC 偏少）时按全仓结存核，宁可少拦不误拦（主会话 10-25，验收提出；九.7 第 5 条核实前的口径） |
-| ② | `pearnly/stock-a2-sync` `5bf17dfd` | 同步对齐算上全部还没写进 Express 的 ERP 库存单、调整写回原库位；STLOC 合计 ≠ STMAS 的不抹 ERP 数，进公司页 Express 区差异清单（只列不拦） |
-| ⑤ | `pearnly/stock-a5-opening` `d5082619` | 接了 Express 的公司期初从 Express 读：服务端拒绝手录，前端不显示入口 |
-| ④ | `pearnly/cc-stale-roots` `ef85ab85`、`43d456fd`、`f1b97b28`（CC 1.12.2）、`3dfaa00b`（离线回归脚本） | CC 定数据根前先去掉确实没了的根：配对、重连、定时重扫三条路径 |
+| ③ | `pearnly/stock-a3-negallow` `f9522f14`、`3af811ec`、`4ad0636d` | NEGALLOW=N 的账套库存不足时整单不写，停在「需要人工」（`STOCK_INSUFFICIENT`）。只有行上带了仓库码、且这件品各仓合计 = STMAS 结存时按那个仓核；不带仓库码的行（Cowork 销项，验收实测 T9NIEX12 货在 02 仓被按主仓 01 误拦）和各仓对不上的品（老账套 STLOC 偏少）一律按全仓结存核，宁可少拦不误拦（主会话 10-25；九.7 第 5 条核实前的口径） |
+| ② | `pearnly/stock-a2-sync` `691f89b8` | 同步对齐算上全部还没写进 Express 的 ERP 库存单、调整写回原库位；STLOC 合计 ≠ STMAS 的不抹 ERP 数，进公司页 Express 区差异清单（只列不拦） |
+| ⑤ | `pearnly/stock-a5-opening` `3f492849` | 接了 Express 的公司期初从 Express 读：服务端拒绝手录，前端不显示入口 |
+| ④ | `pearnly/cc-stale-roots` `4e405f15`、`eff17d26`、`1bd7bdc6`（CC 1.12.2）、`dfc9ea31`（离线回归脚本） | CC 定数据根前先去掉确实没了的根：配对、重连、定时重扫三条路径 |
 
 **验证**
 
@@ -344,6 +344,8 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
 - 实验栈途中发现：lab-start Cowork 后 CC 的 Cowork 心跳仍打到线上 testcowork（办公室上游 DNS 缓存旧 IP，心跳连接一直连着线上），
   实验库判这台电脑不在线，`cowork.express.push` 被跳过；清 DNS 后重启 CC 即好。昨晚那次能过是因为导入后 3 分钟内就跑了冒烟（导入带来的 last_seen 还新鲜）。
   以后实验栈冒烟前先核实验库里电脑的 last_seen，再跑写入冒烟。
+- 待主会话定（不挡本段）：不带仓库码的库存销项现在照 ① 写进主仓。按全仓放行后，货在别的仓时主仓 LOCBAL 会变负（全仓不负）。
+  是继续写主仓，还是自动写进有货的仓，属于产品口径；Express 自己按哪个仓拦（九.7 第 5 条）核实后一起定。
 - 验收复核（10-25）提出、记给 B 段：② 的 `_pending` 把收银、出入库单、盘点、作废冲销按全部历史算成「ERP 独有」；B 段把 HS / OU / JU 等写进 Express 后，
   这些来源要按「这张单是否已写入」挪进 `WRITTEN_SOURCES`，否则会重复计算。① 之后有 STLOC 的账套每次推送（含服务类）多备份一份 STLOC，耗时验收在实验栈量。
 - **测试机 CC 现在是 1.12.2 测试包，不是正式版**；之后线上冒烟和平时都按这个版本跑，CC 正式版发布等主会话定。
