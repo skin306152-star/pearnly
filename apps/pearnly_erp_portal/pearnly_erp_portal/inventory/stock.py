@@ -135,8 +135,9 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     warehouse_doc = frappe.db.exists("ERP Warehouse", warehouse)
     if not warehouse_doc:
         frappe.throw(_("Warehouse not found"), frappe.DoesNotExistError)
-    if base_qty > 0 and ref_type != "void":
-        # 库位清单（第 5 项）：货进到哪个库位要在这个仓的清单里；从旧库位出货、作废冲回照常
+    if base_qty > 0 and ref_type not in ("void", "count", "express_sync"):
+        # 库位清单（第 5 项）：货进到哪个库位要在这个仓的清单里。从旧库位出货、作废冲回照常；盘点在记录时已经核过（记在账面
+        # 原位置照常）；Express 同步按 Express 的数对齐，不因库位清单停住（验收 10-26）
         positions.check(warehouse, location)
 
     balance = current_balance(product, warehouse, location)

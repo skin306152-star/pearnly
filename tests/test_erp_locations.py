@@ -52,8 +52,8 @@ class Locations(unittest.TestCase):
             doc.save = lambda ignore_permissions=False: None
             return doc
 
-        db = types.SimpleNamespace(exists=lambda doctype, filters: (filters["warehouse"], filters["location"]) in self.moved,
-                                   commit=lambda: None)
+        db = types.SimpleNamespace(exists=lambda doctype, filters: bool(self.lists.get(filters["parent"])) if doctype == L.CHILD
+                                   else (filters["warehouse"], filters["location"]) in self.moved, commit=lambda: None)
         for module in (L, P):
             for target, value in (("get_all", get_all), ("get_doc", get_doc), ("db", db), ("_", lambda text: text),
                                   ("throw", lambda message, *a: (_ for _ in ()).throw(Refused(message))),
@@ -76,6 +76,9 @@ class Locations(unittest.TestCase):
             with self.assertRaisesRegex(Refused, "not in the location list"):
                 P.check("W1", value)
         self.assertEqual(P.check("W2", "anything"), "anything")  # 没建清单照旧手输
+        self.lists["W3"] = [("A-01", 0)]
+        with self.assertRaisesRegex(Refused, "not in the location list"):
+            P.check("W3", "ZZZ")  # 清单全部停用 = 一个都不能用（验收 10-26），不是不限制
 
     def test_saving_keeps_stocked_and_used_locations(self):
         with self.assertRaisesRegex(Refused, "with stock cannot be turned off"):

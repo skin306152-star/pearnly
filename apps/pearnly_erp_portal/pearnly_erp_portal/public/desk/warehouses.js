@@ -105,7 +105,8 @@
 				// 新仓默认落在当前公司，可以改；改的那一侧只读（仓库属于公司，改归属等于换账）。
 				// 只有一家公司时直接带出、不摆出来（录制问题 #2：一开窗就展开的公司下拉盖住仓库名那一格）。
 				// 公司多了用可输入搜索的原生下拉（按名称 / 税号），少的照旧普通下拉
-				{fieldname: "company", label: __("Company"), fieldtype: companies.length > 10 ? "Autocomplete" : "Select", reqd: 1,
+				// 改已有仓库时公司只读：用普通下拉（只读的 Autocomplete 框架不建选项列表，取值校验会报错、公司变空，验收 10-26）
+				{fieldname: "company", label: __("Company"), fieldtype: companies.length > 10 && is_new ? "Autocomplete" : "Select", reqd: 1,
 					read_only: !is_new, hidden: companies.length === 1 && is_new ? 1 : 0,
 					options: (frappe.boot.pearnly_companies || []).map(item => ({
 						value: item.name, label: [p.company_name_of(item, companies), companies.length > 10 && item.tax_id]
@@ -121,10 +122,10 @@
 				// 库位清单（第 5 项）：建了清单，这个仓的库位只能从清单选（服务端 `inventory.locations` / `positions.check`）；
 				// 没建清单照旧手输。有库存的库位不能停用，用过的不能删
 				...(is_new ? [] : [
-					{fieldtype: "Section Break", label: __("stock.location.list")},
+					{fieldtype: "Section Break"},
 					{fieldtype: "Table", fieldname: "locations", label: __("stock.location.list"), in_place_edit: true, data: [],
 						fields: [
-							{fieldtype: "Data", fieldname: "location_name", label: __("Location"), reqd: 1, in_list_view: 1, columns: 5},
+							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 5},
 							{fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: 1, in_list_view: 1, columns: 2},
 							{fieldtype: "Float", fieldname: "qty", label: __("Qty"), read_only: 1, in_list_view: 1, columns: 3},
 						]},

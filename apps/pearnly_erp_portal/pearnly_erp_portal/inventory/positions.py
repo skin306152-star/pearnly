@@ -21,6 +21,12 @@ def clean_location(value):
 NOT_LISTED = "This location is not in the location list of this warehouse"
 
 
+def has_list(warehouse) -> bool:
+    """这个仓建了库位清单没有（停用的也算建了：全部停用 = 一个都不能用，验收 10-26）。"""
+    return bool(warehouse) and bool(frappe.db.exists("ERP Warehouse Location",
+                                                     {"parent": warehouse, "parenttype": "ERP Warehouse"}))
+
+
 def listed(warehouse) -> list:
     """这个仓的库位清单（在用的）；没建清单回空（库位照旧手输）。"""
     if not warehouse:
@@ -31,12 +37,11 @@ def listed(warehouse) -> list:
 
 
 def check(warehouse, location):
-    """库位清单（第 5 项）：仓库建了清单，库位就只能从清单选；空库位（不分库位）照旧可以；没建清单的仓照旧手输。"""
+    """库位清单（第 5 项）：仓库建了清单，库位就只能是清单里在用的；空库位（不分库位）照旧可以；没建清单的仓照旧手输。
+    只在货**进**库位时核（库存流水 `stock.apply_movement`、盘点记到别处）：从清单之前的旧库位出货照常。"""
     location = clean_location(location)
-    if location and warehouse:
-        names = listed(warehouse)
-        if names and location not in names:
-            frappe.throw(_(NOT_LISTED) + f": {location}")
+    if location and warehouse and has_list(warehouse) and location not in listed(warehouse):
+        frappe.throw(_(NOT_LISTED) + f": {location}")
     return location
 
 
@@ -67,10 +72,11 @@ def prepare(line, warehouse=None, *, company=None):
         frappe.throw(_("Warehouse not found"))
     result["warehouse"] = resolved
     location = clean_location(result["location"] if "location" in result else product.default_location)
-    # 商品上的建议库位不在这个仓的清单里时不硬塞（留空让人选）；单据上明写的必须在清单里
-    if "location" not in result and location and listed(resolved) and location not in listed(resolved):
+    # 商品上的建议库位不在这个仓的清单里时不硬塞（留空让人选）。单据上明写的不在这里核：这一行是进是出这里不知道，
+    # 进库位的核在库存流水（`stock.apply_movement`），从旧库位出货照常（验收 10-26）
+    if "location" not in result and location and has_list(resolved) and location not in listed(resolved):
         location = ""
-    result["location"] = check(resolved, location)
+    result["location"] = location
     return result
 
 
