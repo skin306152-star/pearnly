@@ -353,6 +353,7 @@ Choose the inventory account group for this account set first.,กรุณา�
 Choose the inventory account group for this account set. Tap the number:,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ (แตะหมายเลขเพื่อเลือก):
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the receiving account of each payment method,กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน
+Choose the sales returns account,กรุณาเลือกบัญชีรับคืนสินค้า
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
@@ -661,6 +662,7 @@ ERP records cannot be saved in Cowork.,ไม่สามารถบันท�
 Each invoice's result sheet is written to _Pearnly结果 for checking the next day.,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและเวอร์ชันของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
+Each returned line must be an Express stock item,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 Edit,แก้ไข
 Edit Count,จำนวนครั้งที่แก้ไข
 Edit History,ประวัติการแก้ไข
@@ -1823,6 +1825,8 @@ The lines cannot be written to Express. Check them and submit again.,ราย�
 The matching stock item is missing. Choose it and submit again.,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
 The opening and closing values are invalid.,ยอดยกมาและยอดยกไปไม่ถูกต้อง
 The option is not valid.,ตัวเลือกไม่ถูกต้อง
+The original cash sale is not in Express,ไม่พบใบขายเงินสดต้นฉบับใน Express
+The original cash sale was changed in Express,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
 The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
 The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
 The original document manifest is not ready.,ดัชนีเนื้อหาเอกสารต้นฉบับยังไม่พร้อมใช้งาน
@@ -1870,6 +1874,8 @@ The request to CC Desktop was not found.,ไม่พบคำขอถึง CC
 The requested page is not part of this invoice.,หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบกำกับภาษีนี้
 The result is not confirmed. Check in Express before sending again,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
 The result sheet is not ready yet.,ตารางผลยังไม่พร้อม
+The return is not in the expected form,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
+The returned quantity is more than the quantity sold,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
 The review workbook cannot be read. Check its format and content.,ไม่สามารถอ่านสมุดงานตรวจทานได้ กรุณาตรวจสอบรูปแบบและเนื้อหา
 The review workbook contains an invalid number.,สมุดงานตรวจทานมีค่าตัวเลขที่ไม่ถูกต้อง
 The review workbook contains no invoice rows to import.,สมุดงานตรวจทานไม่มีแถวใบกำกับภาษีให้นำเข้ากลับ
@@ -1967,6 +1973,7 @@ This is a withholding tax certificate (50 Tawi). Choose whether to enter it; eve
 This is set by the scheduled task's default handling. Change it in the task,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 This is taking too long. Check the list later.,การกระทบยอดใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:
+This item is not on the original cash sale,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ
 This label no longer exists,ไม่พบป้ายกำกับนี้
 This list no longer exists,ไม่พบรายการนี้
 This member cannot be assigned,ไม่สามารถมอบหมายให้สมาชิกนี้ได้
@@ -3385,6 +3392,11 @@ intake.error.PERIOD_LOCKED,งวดบัญชีนี้ปิดแล้�
 intake.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 intake.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+intake.error.REFUND_EXCEEDS_ORIGINAL,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
+intake.error.REFUND_INVALID,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
+intake.error.REFUND_LINE_NOT_FOUND,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ
+intake.error.REFUND_ORIGINAL_CHANGED,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
+intake.error.REFUND_ORIGINAL_NOT_FOUND,ไม่พบใบขายเงินสดต้นฉบับใน Express
 intake.error.REINDEX_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
 intake.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 intake.error.STOCK_INSUFFICIENT,สินค้าคงเหลือใน Express ไม่พอ
@@ -3432,6 +3444,8 @@ intake.error.pos_express_only,ยอดขายรายวันจาก POS 
 intake.error.pos_facts_invalid,ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.pos_payments_mismatch,ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.pos_receipt_account_missing,กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน
+intake.error.pos_refund_account_missing,กรุณาเลือกบัญชีรับคืนสินค้า
+intake.error.pos_refund_items_invalid,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
 intake.error.posting_needs_review,บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย
 intake.error.seller_buyer_same_tax,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่

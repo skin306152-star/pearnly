@@ -15,6 +15,12 @@
 
 退款按天冲减（:func:`net_day`，ERP 收银日汇总与 Cowork POS 导入同一处定）：同一天的退款冲进当天，净额为 0 的行不写，一天全退
 （全部为 0）不写，冲成负数停下交人。**已知差别**：Cowork 的导出表分不出原单日期，跨天的退款也冲进退款那天；ERP 跨天退货走退货单 SR。
+
+收银退货单 SR（ERP B3b，载荷 10）：主页面 ``_extraction_audit`` 除 ``pos`` 外另带 ``refund`` 块（:func:`refund_audit`）——
+``against`` = 原小票所在那张 HS 在 Express 里的单号（SR 的 SONUM）、``against_total`` = 原 HS 含税合计（IVCAMT）。
+金额、税额、明细、各付款方式都记正数（退回的数量、税前额与退给客户的钱）。推送写成 Express 原生退货单（服务器测试账套实录
+SR0000001）：借 退货科目（税前）、借 销项税 / 贷 现金，退现金 CNTYP 3、货回仓 RETSTK Y；退货科目按公司问一次（推送选择
+``refund``，归类键 :data:`REFUND_SUBJECT`）；非现金退款同 HS 另记转账凭证，方向相反（借 现金 / 贷 收款科目，收款科目沿用 HS 记住的）。
 """
 from __future__ import annotations
 
@@ -44,6 +50,17 @@ MISMATCH = "pos_payments_mismatch"
 ACCOUNT_MISSING = "pos_receipt_account_missing"
 FACTS_INVALID = "pos_facts_invalid"
 EXPRESS_ONLY = "pos_express_only"
+
+# 收银退货单 SR（B3b）：带 ``refund`` 块的载荷盖 10（旧版 CC 桌面版不认 SR，会当现销 HS 写成销售：诚实拒收）
+REFUND_KEY = "refund"
+REFUND_PAYLOAD_VERSION = 10
+REFUND_KIND = "refund"          # 推送选择：退货科目（借方，税前），按公司记住
+REFUND_SUBJECT = "pos_refund"   # 整家公司一个
+REFUND_CNTYP = 3                # Express ARTRN.CNTYP：退现金（实录 SR0000001）
+REFUND_RETSTK = "Y"             # STCRD.RETSTK：货回仓（收银退货都回仓）
+REFUND_AGAINST_MAX_BYTES = 12   # 原单号写进 ARTRN.SONUM，与 DOCNUM 同宽 C(12)
+REFUND_ACCOUNT_MISSING = "pos_refund_account_missing"
+REFUND_ITEMS_INVALID = "pos_refund_items_invalid"
 
 
 class PosFactsError(ValueError):
@@ -246,7 +263,48 @@ def net_day(gross, payments, items=None) -> NetDay | None:
     return NetDay(tuple(kept_paid), tuple(kept_lines))
 
 
+# ── 收银退货单 SR（B3b）────────────────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Refund:
+    against: str            # 原 HS 在 Express 里的单号
+    against_total: Decimal  # 原 HS 含税合计
+
+
+def refund_audit(against, against_total) -> dict:
+    """写进主页面 ``_extraction_audit`` 的退货块（与 :func:`audit` 并列）：原单号原样、原单合计存成两位小数串。"""
+    return {REFUND_KEY: {"against": str(against or "").strip(),
+                         "against_total": format(Decimal(str(against_total)).quantize(_CENT), "f")}}
+
+
+def refund_facts(page) -> Refund | None:
+    """主页面上的退货块；不是退货单回 None，形状不对抛 `PosFactsError`（原单号空 / 超过 12 字节、原单合计不是正的两位小数）。"""
+    block = ((page or {}).get("_extraction_audit") or {}).get(REFUND_KEY) if isinstance(page, dict) else None
+    if block is None:
+        return None
+    if not isinstance(block, dict) or not isinstance(block.get("against"), str):
+        raise PosFactsError(FACTS_INVALID)
+    against = block["against"].strip()
+    if not against or _bytes(against) > REFUND_AGAINST_MAX_BYTES:
+        raise PosFactsError(FACTS_INVALID)
+    total = _money(block.get("against_total"))
+    if total <= 0:
+        raise PosFactsError(FACTS_INVALID)
+    return Refund(against, total)
+
+
+def check_refund(found: Facts, total) -> str:
+    """退货单的付款方式：同 :func:`check`（之和恰好等于退款含税额、非现金不为负），另外现金也不能为负（退给客户的钱都是正数）。"""
+    problem = check(found, total)
+    if problem:
+        return problem
+    return MISMATCH if found.cash() < 0 else ""
+
+
 __all__ = ["ACCOUNT_MISSING", "AUDIT_KEY", "CASH_LABELS", "DAY_NOT_POSITIVE", "EXPRESS_ONLY", "FACTS_INVALID", "Facts",
            "ITEMS_NOT_POSITIVE", "MISMATCH", "NUMBER_MAX", "NetDay", "NetError", "PAYLOAD_VERSION", "PAYMENT_NEGATIVE", "Payment",
-           "PosFactsError", "RECEIPT_KIND", "REF_MAX_BYTES", "VERSION", "audit", "check", "day_ref", "facts", "is_cash",
-           "method_subject", "net_day", "norm_label", "number", "present", "range_text"]
+           "PosFactsError", "RECEIPT_KIND", "REFUND_ACCOUNT_MISSING", "REFUND_AGAINST_MAX_BYTES", "REFUND_CNTYP",
+           "REFUND_ITEMS_INVALID", "REFUND_KEY", "REFUND_KIND", "REFUND_PAYLOAD_VERSION", "REFUND_RETSTK", "REFUND_SUBJECT",
+           "REF_MAX_BYTES", "Refund", "VERSION", "audit", "check", "check_refund", "day_ref", "facts", "is_cash",
+           "method_subject", "net_day", "norm_label", "number", "present", "range_text", "refund_audit", "refund_facts"]

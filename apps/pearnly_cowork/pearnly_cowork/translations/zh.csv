@@ -353,6 +353,7 @@ Choose the inventory account group for this account set first.,请先为此账�
 Choose the inventory account group for this account set. Tap the number:,请为此账套选择存货科目组（点击序号选择）：
 Choose the payment method,选择付款方式
 Choose the receiving account of each payment method,请为每种付款方式选择收款科目
+Choose the sales returns account,请选择销货退回科目
 Choose the sheet to import,请先选择要导入的表格
 Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
@@ -661,6 +662,7 @@ ERP records cannot be saved in Cowork.,ERP 记录不能保存到 Cowork。
 Each invoice's result sheet is written to _Pearnly结果 for checking the next day.,每张发票的结果表格放在 _Pearnly结果，第二天核对。
 Each record must have a name and revision.,每条记录都必须提供标识和版本。
 Each record must have a valid name.,每条记录都必须提供有效标识。
+Each returned line must be an Express stock item,退货明细须为 Express 库存商品
 Edit,编辑
 Edit Count,修改次数
 Edit History,修改记录
@@ -1823,6 +1825,8 @@ The lines cannot be written to Express. Check them and submit again.,明细无�
 The matching stock item is missing. Choose it and submit again.,缺少对应存货，请选择后重新提交
 The opening and closing values are invalid.,期初期末数值无效。
 The option is not valid.,选项无效。
+The original cash sale is not in Express,Express 中没有原现销单
+The original cash sale was changed in Express,原现销单在 Express 中已被修改
 The original document manifest cannot be changed.,原件内容索引不能修改。
 The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
 The original document manifest is not ready.,原件内容索引尚未就绪。
@@ -1870,6 +1874,8 @@ The request to CC Desktop was not found.,找不到发给 CC 桌面版的请求�
 The requested page is not part of this invoice.,请求的页面不属于此发票。
 The result is not confirmed. Check in Express before sending again,结果未确认，请先在 Express 中核对，再决定是否重新推送
 The result sheet is not ready yet.,结果表格尚未生成。
+The return is not in the expected form,退货单数据格式不对
+The returned quantity is more than the quantity sold,退货数量超过原单销售数量
 The review workbook cannot be read. Check its format and content.,无法读取复核工作簿，请检查格式和内容。
 The review workbook contains an invalid number.,复核工作簿包含无效数值。
 The review workbook contains no invoice rows to import.,复核工作簿中没有可回导的发票行。
@@ -1967,6 +1973,7 @@ This is a withholding tax certificate (50 Tawi). Choose whether to enter it; eve
 This is set by the scheduled task's default handling. Change it in the task,此项由定时任务的默认处理决定，请在定时任务中修改
 This is taking too long. Check the list later.,对账耗时较长，请稍后在列表中查看。
 This item is also stocked at:,该物料在以下位置也有库存：
+This item is not on the original cash sale,原现销单上没有此商品
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
 This member cannot be assigned,无法分配给此成员
@@ -3385,6 +3392,11 @@ intake.error.PERIOD_LOCKED,会计期间已在 Express 关账
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+intake.error.REFUND_EXCEEDS_ORIGINAL,退货数量超过原单销售数量
+intake.error.REFUND_INVALID,退货单数据格式不对
+intake.error.REFUND_LINE_NOT_FOUND,原现销单上没有此商品
+intake.error.REFUND_ORIGINAL_CHANGED,原现销单在 Express 中已被修改
+intake.error.REFUND_ORIGINAL_NOT_FOUND,Express 中没有原现销单
 intake.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 intake.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 intake.error.STOCK_INSUFFICIENT,Express 库存不足
@@ -3432,6 +3444,8 @@ intake.error.pos_express_only,POS 日汇总只能推送到 Express
 intake.error.pos_facts_invalid,此单据的 POS 日汇总数据已损坏，请重新导入 POS 导出文件
 intake.error.pos_payments_mismatch,各付款方式之和与当天合计不符，请重新导入 POS 导出
 intake.error.pos_receipt_account_missing,请为每种付款方式选择收款科目
+intake.error.pos_refund_account_missing,请选择销货退回科目
+intake.error.pos_refund_items_invalid,退货明细须为 Express 库存商品
 intake.error.posting_kind_needed,请为此发票选择服务或存货后重新提交
 intake.error.posting_needs_review,本公司这类单据走库存还是记费用？
 intake.error.seller_buyer_same_tax,卖方和买方税号相同，请更正后重新提交

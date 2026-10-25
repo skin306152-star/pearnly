@@ -21,6 +21,10 @@
                  transfers:[{acc,amount,label}]} · 现销 HS 借现金,每种非现金付款方式小助手同一次写入另记一张
                  日记账凭证「借 收款科目 / 贷 现金」;单号自编,票号起止写进销项税摘要。cash = 当天现金净额
                  (可为负:现金退款多过现金收款),各转账 + cash = 本单含税额
+  refund         收银退货单 SR(载荷 10,`contracts/pos.py` 的 refund 块,ERP B3b):{against,against_total,cntyp:3,retstk:"Y"}
+                 · doctype SR,分录带 role:借 退货科目(refund,税前)+ 借 销项税(output_vat)= 贷 现金(cash,含税;小助手
+                 换成账套现金科目)· 明细全是带存货码的库存行(stock_sale),货回仓 · 同时带 pos 块(各数都是正数、cash 不为负),
+                 非现金退款的转账凭证小助手反向记「借 现金 / 贷 收款科目」。没有 refund 块的载荷与以前逐字节相同
 """
 
 from __future__ import annotations
@@ -148,6 +152,42 @@ def _pos_block(history: Dict[str, Any], total: Decimal, choices: Dict[str, Any])
         transfers.append({"acc": acc, "amount": _s(payment.amount), "label": payment.label})
     return {"first": found.first, "last": found.last, "count": found.count, "docnum": "auto",
             "cash": _s(found.cash()), "transfers": transfers}, ""
+
+
+def _refund_block(history: Dict[str, Any], pos: Optional[Dict[str, Any]], total: Decimal):
+    """收银退货单的 ``refund`` 块;不是退货单回 ``(None, "")``,形状 / 付款方式对不上回 ``(None, 原因码)``。
+
+    退货单必须同时是 POS 日汇总(有 ``pos`` 块):退给客户的现金不能为负。"""
+    page = primary_page(history.get("pages") or [])
+    try:
+        found = pos_contract.refund_facts(page)
+    except pos_contract.PosFactsError:
+        return None, pos_contract.FACTS_INVALID
+    if found is None:
+        return None, ""
+    if pos is None:
+        return None, pos_contract.FACTS_INVALID
+    problem = pos_contract.check_refund(pos_contract.facts(page), total)
+    if problem:
+        return None, problem
+    return {"against": found.against, "against_total": _s(found.against_total), "cntyp": pos_contract.REFUND_CNTYP,
+            "retstk": pos_contract.REFUND_RETSTK}, ""
+
+
+def _as_refund(payload: Dict[str, Any], refund: Dict[str, Any], *, refund_acc: str, vat_acc: str, cash_acc: str,
+               base: Decimal, vat: Decimal, total: Decimal, name: str) -> Optional[str]:
+    """把映射好的现销日汇总载荷改成 Express 原生退货单 SR(实录 SR0000001);明细不全是带码的库存行回原因码。"""
+    items = payload.get("items") or []
+    if (payload.get("items_status") != ITEMS_OK or not items
+            or any(item.get("item_mode") != ITEM_MODE_STOCK_SALE or not item.get("code") for item in items)):
+        return pos_contract.REFUND_ITEMS_INVALID
+    lines = [{"acc": refund_acc, "side": "D", "amount": _s(base), "desc": "ลดหนี้/รับคืน", "role": "refund"}]
+    if vat > 0:
+        lines.append({"acc": vat_acc, "side": "D", "amount": _s(vat), "desc": "ภาษีขาย", "role": "output_vat"})
+    lines.append({"acc": cash_acc, "side": "C", "amount": _s(total), "desc": name or CASH_CUSTOMER_NAME, "role": "cash"})
+    payload.update(doctype="SR", lines=lines, refund=refund, doctype_src="pos_refund")
+    payload["payload_version"] = max(pos_contract.REFUND_PAYLOAD_VERSION, int(payload.get("payload_version") or 1))
+    return None
 
 
 def build_express_sales_payload(
@@ -329,6 +369,12 @@ def build_express_sales_payload(
         return fail(pos_problem)
     if pos is not None:
         doctype = "HS"  # POS 日汇总一律现销:借现金,非现金部分由同一次写入的转账凭证转出
+    refund, refund_problem = _refund_block(history, pos, total)
+    if refund_problem:
+        return fail(refund_problem)
+    refund_acc = str(choices.get(pos_contract.REFUND_KIND) or "").strip() if refund is not None else ""
+    if refund is not None and not refund_acc:
+        return fail(pos_contract.REFUND_ACCOUNT_MISSING)
     pass  # Diagnostic logging belongs to the calling service.
     payload = {
         "direction": "sales",
@@ -360,6 +406,11 @@ def build_express_sales_payload(
     if pos is not None:
         payload["pos"] = pos
         payload["payload_version"] = max(pos_contract.PAYLOAD_VERSION, int(payload.get("payload_version") or 1))
+    if refund is not None:
+        problem = _as_refund(payload, refund, refund_acc=refund_acc, vat_acc=vat_acc if has_vat else "", cash_acc=ar_acc,
+                             base=base, vat=vat, total=total, name=name)
+        if problem:
+            return fail(problem, line_item_names(fields))
     if (effective_has_stock or line_item_mode == ITEM_MODE_STOCK_SALE) and stock_acccod:
         # 小助手建新库存主档时拿它填 STMAS.ACCCOD(→ISACC→存货资产 + 销货成本)。
         # 账里已有该品就用不上;定不下来就不发,别给老小助手塞没约定的空键。

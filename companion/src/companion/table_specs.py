@@ -60,7 +60,9 @@ TABLE_SPECS = {
         "FLGVAT C(1); CUSCOD C(10); VATRAT N(5,2); AMOUNT B; AFTDISC B; TOTAL B; "
         "NETVAL B; VATAMT B; NETAMT B; RCVAMT B; REMAMT B; CSHRCV B; IVCAMT B; "
         "DOCSTAT C(1); ORGNUM N(5,0); USERID C(8); DEPCOD C(4); DUEDAT D; "
-        "BILNUM C(15); NXTSEQ C(3); SRV_VATTYP C(1); CMPLAPP C(1); CMPLDAT D"
+        "BILNUM C(15); NXTSEQ C(3); SRV_VATTYP C(1); CMPLAPP C(1); CMPLDAT D; "
+        # 退货单 SR(RECTYP 5):CNTYP 退法(3 = 退现金)、SONUM 挂的原单号(实录 SR0000001;真表宽度待实录核对)
+        "CNTYP C(1); SONUM C(12)"
     ),
     # 真表 122 列:HS 现销 / IV 赊销 / DR 借项 / SR 退货 / RE 收款。
     "ARBAL": "CUSCOD C(10); BEGBAL B; "
@@ -77,7 +79,9 @@ TABLE_SPECS = {
         "DEPCOD C(4); POSOPR C(1); PEOPLE C(10); TRNQTY B; TQUCOD C(2); "
         "TFACTOR B; UNITPR B; DISC C(10); DISCAMT B; TRNVAL B; NETVAL B; "
         "XTRNQTY B; XUNITPR B; XTRNVAL B; XSALVAL B; STKDES C(50); "
-        "PHYBAL B; MREMBAL B; MREMVAL B; ACCNUMDR C(15); ACCNUMCR C(15)"
+        "PHYBAL B; MREMBAL B; MREMVAL B; ACCNUMDR C(15); ACCNUMCR C(15); "
+        # 退货单 SR 的明细行:RDOCNUM = 原单号补空格到 14 位 + 原单行号、RETSTK Y 货回仓、FLAG 2(实录 SR0000001;真表宽度待实录核对)
+        "RDOCNUM C(17); RETSTK C(1); FLAG C(1)"
     ),
     # 库存单单头（领用 OU / 调整 JU / 盘点 TK；真表 23 列，T9HENG15 10-25 读出的宽度）
     "STTRN": (
@@ -96,7 +100,9 @@ TABLE_SPECS = {
         "CUSCOD C(10); CUSTYP C(2); PRENAM C(15); CUSNAM C(60); "
         "ADDR01 C(50); ADDR02 C(50); ADDR03 C(30); ACCNUM C(15); "
         "TABPR C(1); TAXID C(15); ORGNUM N(5,0); USERID C(8); CREBY C(8); "
-        "CREDAT D; CHGDAT D; STATUS C(1)"
+        "CREDAT D; CHGDAT D; STATUS C(1); "
+        # 客户余额:Express 录退货单 SR 退现金时也冲减它(实录 SR0000001 160.5 → 60.5)
+        "BALANCE B"
     ),
     # 商品主档(ensure_item 克隆建档碰的列 + V2-b 卖库存扣减的余额列 + 负库存出货结转要的
     # 标准成本 STNPR;真表 70 列,合成只建用到的)。

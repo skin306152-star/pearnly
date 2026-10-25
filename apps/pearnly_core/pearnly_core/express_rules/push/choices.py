@@ -11,6 +11,8 @@
 - `department`：部门码（整份账套一个）。
 - `receipt`：POS 导出按天录的销售里，非现金的付款方式（转账、QR、刷卡、外卖平台）收进哪个银行 / 清算科目（按付款方式，
   2026-10-13）。每天按付款方式另记一张日记账凭证「借 这个科目 / 贷 现金」（`contracts/pos.py`）。
+- `refund`：收银退货单 SR 的退货科目（借方，税前；ERP B3b）。Express 实录 SR0000001 记在 41-02 一类「รับคืน / ลดหนี้」科目，
+  账套里查不到原生的取法（ISRUN / ISINFO 都没有这一栏），所以按公司问一次、记住（整家公司一个，归类键 ``pos_refund``）。
 
 选过的值在 Express 主档里已经没有（被删 / 改了）→ 当作没选过、重新问，不静默换别的。
 主档没报上来（旧版小助手）的那一类不拦，照旧由小助手按名匹配。
@@ -22,10 +24,13 @@ import unicodedata
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
+from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.push.payment import payment_written
 
 NEW = "__new__"
 KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
+# 只在 ERP 的收银退货单上出现的一类（不进 KINDS：Cowork 按 KINDS 存取、列出账套记忆，加进去会改 Cowork 现有输出）
+REFUND = pos_contract.REFUND_KIND
 PAYMENT_VALUES = ("cash", "credit")
 VAT_VALUES = ("claim", "expense")
 # 票面名称里的法人前后缀：比名称时去掉（「บมจ.」上市公司缩写压测里就没去掉，匹配不上 Big C 的档）。
@@ -106,7 +111,8 @@ def _expense_receipt(fields) -> bool:
 def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[str],
             config: Mapping[str, Any], remembered: Mapping[str, Mapping[str, str]],
             account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
-            receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None) -> Dict[str, Any]:
+            receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None,
+            refund: bool = False) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -117,6 +123,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     优先于账套里记过的，不写进账套记忆（用户 2026-10-08：规则的默认值只管自己的票）。对方档不在此列。
     `receipts`：POS 日汇总票里非现金的付款方式 `[(subject, label)]`（`contracts.pos`）；每一种要一个收款科目，
     记过的（且在科目表里）放进 `applied["receipts"]` `{subject: 科目}`，没有的要人选。
+    `refund`：这是收银退货单 SR（销项，`contracts.pos` 的 ``refund`` 块）：要一个退货科目，记过的（且在科目表里）放进
+    `applied["refund"]`，没有的要人选（整家公司一个）。不给（默认）与以前完全一样。
     `trace`：给了就就地记下「每一类用了哪几个归类键」`{kind: [subject | None]}`（None = 任务默认定的），
     `company_choices.decided_by` 据此说清按什么定的（第 2 期公司规则）；不给不记，结果不变。
     """
@@ -250,6 +258,16 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             used("receipt", subject)
         else:
             needed.append({"kind": "receipt", "subject": subject, "label": label, "current": value or ""})
+
+    # ── 收银退货单 SR：退货科目（整家公司一个）──
+    if refund and direction == "sales":
+        kind, subject = pos_contract.REFUND_KIND, pos_contract.REFUND_SUBJECT
+        value = chosen(kind, subject)
+        if value and (not accounts or value in _codes(accounts)):
+            applied[kind] = value
+            used(kind, subject)
+        else:
+            needed.append({"kind": kind, "subject": subject, "label": "", "current": value or ""})
     return {"applied": applied, "needed": needed}
 
 
@@ -297,5 +315,5 @@ def borrow_receipts(remembered: Dict[str, Dict[str, str]], receipts: Iterable, b
             mine[subject] = value
 
 
-__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
+__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "REFUND", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
            "party_subject", "resolve", "supplier_subject"]

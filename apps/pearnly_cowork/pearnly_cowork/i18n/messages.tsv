@@ -2341,3 +2341,10 @@ Express Index Tool	Express 索引程序	โปรแกรมดัชนี Exp
 The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	intake.error.REINDEX_UNAVAILABLE
 This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	intake.error.VOID_DOCUMENT_CHANGED
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	intake.error.VOID_DOCUMENT_NOT_FOUND
+The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	intake.error.REFUND_ORIGINAL_NOT_FOUND
+The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	intake.error.REFUND_ORIGINAL_CHANGED
+This item is not on the original cash sale	原现销单上没有此商品	ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ	元の現金売上にこの商品がありません	intake.error.REFUND_LINE_NOT_FOUND
+The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	intake.error.REFUND_EXCEEDS_ORIGINAL
+The return is not in the expected form	退货单数据格式不对	ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง	返品伝票のデータ形式が正しくありません	intake.error.REFUND_INVALID
+Choose the sales returns account	请选择销货退回科目	กรุณาเลือกบัญชีรับคืนสินค้า	売上返品勘定を選んでください	intake.error.pos_refund_account_missing
+Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	intake.error.pos_refund_items_invalid

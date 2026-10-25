@@ -34,6 +34,8 @@ NEEDS_PERSON_CODES = frozenset({
     "STOCK_ITEM_NOT_FOUND",
     # 作废 ERP 写进去的库存单（载荷 8）：原单在 Express 里被改过 / 找不到，要人核对
     "VOID_DOCUMENT_CHANGED", "VOID_DOCUMENT_NOT_FOUND",
+    # 收银退货单 SR（载荷 10，CC 桌面版 dbf_refund）：原单找不到 / 金额被改过 / 原单没有这一行 / 退得比原单多，要人核对
+    "REFUND_ORIGINAL_NOT_FOUND", "REFUND_ORIGINAL_CHANGED", "REFUND_LINE_NOT_FOUND", "REFUND_EXCEEDS_ORIGINAL",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

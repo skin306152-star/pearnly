@@ -10,6 +10,8 @@ Express 原生记法(2026-10-13 定):现销 HS 照常借现金(账套现金科�
 停下报 JOURNAL_BOOK_NOT_FOUND(不猜)。凭证本身(GLJNL.JNLTYP)仍记 '00' 普通日记账;计数器只动 GL/00 这一行
 (真账套里它是空的,Express 自己也不往里记数,空着就不动)。凭证号 = 单别 + 佛历年月日 + '-' + 当日序号(与销售单同一写法)。
 收款科目必须在科目表里且可记账(ACCTYP '0'),否则报 ACCOUNT_NOT_POSTABLE。
+
+收银退货单 SR(载荷 10,dbf_refund)退给客户的非现金部分方向相反(``reverse=True``):「借 现金 / 贷 收款科目」,其余写法一样。
 """
 
 from __future__ import annotations
@@ -136,9 +138,10 @@ def sizes(account_dir) -> Dict[str, int]:
 
 
 def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cash_acc: str,
-          transfers: Iterable[Dict], userid: str, depcod: str = "", departmental=frozenset()) -> List[Dict]:
-    """逐种付款方式记一张凭证「借 收款科目 / 贷 现金」(与销售单同一套开表、分录行与计数器写法);
-    返回 ``[{voucher, acc, amount}]``。"""
+          transfers: Iterable[Dict], userid: str, depcod: str = "", departmental=frozenset(),
+          reverse: bool = False) -> List[Dict]:
+    """逐种付款方式记一张凭证「借 收款科目 / 贷 现金」(与销售单同一套开表、分录行与计数器写法);``reverse`` 退货单反过来记
+    「借 现金 / 贷 收款科目」。返回 ``[{voucher, acc, amount}]``。"""
     written: List[Dict] = []
     gj = _open(Path(account_dir), "GLJNL", dbf.READ_WRITE)
     try:
@@ -154,9 +157,10 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
     gi = _open(Path(account_dir), "GLJNLIT", dbf.READ_WRITE)
     try:
         for item in written:
-            gi.append(_gl_line(item["voucher"], SEQIT_DEBIT, docdat, item["acc"], item["descrp"], S.TRNTYP_DEBIT,
+            debit, credit = (cash_acc, item["acc"]) if reverse else (item["acc"], cash_acc)
+            gi.append(_gl_line(item["voucher"], SEQIT_DEBIT, docdat, debit, item["descrp"], S.TRNTYP_DEBIT,
                                item["amount"], depcod, departmental))
-            gi.append(_gl_line(item["voucher"], SEQIT_CREDIT, docdat, cash_acc, item["descrp"], S.TRNTYP_CREDIT,
+            gi.append(_gl_line(item["voucher"], SEQIT_CREDIT, docdat, credit, item["descrp"], S.TRNTYP_CREDIT,
                                item["amount"], depcod, departmental))
     finally:
         gi.close()
@@ -169,8 +173,10 @@ def _day(value):
     return value.date() if hasattr(value, "date") and callable(value.date) else value
 
 
-def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int], docdat=None) -> List[str]:
-    """读回:每张凭证的表头在(普通日记账)、恰好两行分录、借收款科目 = 贷现金 = 这种方式的金额。不符抛写盘错误(回滚)。
+def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int], docdat=None,
+           reverse: bool = False) -> List[str]:
+    """读回:每张凭证的表头在(普通日记账)、恰好两行分录、借收款科目 = 贷现金 = 这种方式的金额(``reverse`` 退货单:借现金 =
+    贷收款科目)。不符抛写盘错误(回滚)。
 
     另回只报不回滚的不符(写完顺手核对,数字会计员第 3 期第 6 条,`write_verify`):凭证日期(表头与分录 VOUDAT)不是
     这张日汇总单的日期 → ``["pos_date"]``;都对回空表。"""
@@ -200,10 +206,11 @@ def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int
         rows = lines.get(voucher) or []
         debit = [(acc, amt) for side, acc, amt in rows if side == S.TRNTYP_DEBIT]
         credit = [(acc, amt) for side, acc, amt in rows if side != S.TRNTYP_DEBIT]
+        want_debit, want_credit = (cash_acc, item["acc"]) if reverse else (item["acc"], cash_acc)
         if (heads.get(voucher) != GENERAL_JOURNAL or len(rows) != 2
-                or debit != [(item["acc"], amount)] or credit != [(cash_acc, amount)]):
+                or debit != [(want_debit, amount)] or credit != [(want_credit, amount)]):
             raise _WriteError(
-                f"POS transfer voucher {voucher} not written as Dr {item['acc']} / Cr {cash_acc} {amount}",
+                f"POS transfer voucher {voucher} not written as Dr {want_debit} / Cr {want_credit} {amount}",
                 ERR_VERIFY,
                 {"kind": "readback_verify", "table": "GLJNLIT", "docnum": voucher, "expected_total": float(amount),
                  "rows": len(rows)},

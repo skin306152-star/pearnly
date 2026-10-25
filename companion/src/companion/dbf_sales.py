@@ -1,6 +1,6 @@
 """Express 账套 DBF 销项直写器(镜像 dbf_writer 采购)。
 
-一张赊销(IV)/现销(HS)写 6 表:ISRUN(增号)→ ARTRN(单头)→ ISVAT('S')(销项税)
+一张赊销(IV)/现销(HS)写 6 表(收银退货单 SR 由 write_sale 分流给 dbf_refund):ISRUN(增号)→ ARTRN(单头)→ ISVAT('S')(销项税)
 → GLJNL('03')+GLJNLIT(分录 Dr 应收/现金 = Cr 销售收入 + Cr 销项税)→ ARBAL(客户应收
 按月桶)。STCRD(存货出)本期非存货不碰(同采购延后)。
 
@@ -233,6 +233,12 @@ def write_sale(
     co_ok, co_reason = account_company_matches(account_dir, expected_company)
     if not co_ok:
         return DbfWriteResult(False, error_code=ERR_COMPANY, error=co_reason)
+    if entry.is_refund:
+        # 收银退货单 SR(载荷 10):挂原 HS、退现金、货回仓,另一条写路(dbf_refund);没有 refund 块的载荷不经过这里
+        from .dbf_refund import write_refund
+
+        return write_refund(payload, account_dir, entry, userid=userid, depcod=depcod, make_backup=make_backup,
+                            index_batch=index_batch)
     if not (entry.customer_code or entry.customer_name):
         return DbfWriteResult(
             False,

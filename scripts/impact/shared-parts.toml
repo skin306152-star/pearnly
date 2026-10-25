@@ -202,7 +202,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push"]
+entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
 
 [[part]]
@@ -314,10 +314,10 @@ entries = ["cc.desktop.requests", "cc.desktop.places"]
 [[part]]
 id = "cc-dbf-write"
 name = "CC 写 Express（dbf 写入路径）"
-paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_void.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
-markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock", "dbf_void"]
+paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_void.py", "companion/src/companion/dbf_refund.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
+markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock", "dbf_void", "dbf_refund"]
 search = ["companion/src/**"]
-entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.stock-void", "erp.cc.pos-day"]
+entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry", "erp.cc.stock-void", "erp.cc.pos-day", "erp.cc.pos-refund"]
 not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row，只读），入口见 cc-request-worker" }
 
 [[part]]
@@ -1314,6 +1314,15 @@ steps = "接 Express 的公司收银卖几张（现金 + PromptPay），当天�
 expect = "一家公司一天一张现销 HS 写进 C 盘 T 账套、读回一致；PromptPay 另记一张转账凭证，收款科目第一次弹窗选、之后自动带；作废小票不进；同一天的退货冲进当天（金额、数量、各付款方式按净额，净额为 0 的行不写），一天全退整张不写，冲成负数停在人工（当天退货冲减后为负数）；跨天的退货不进（等退货单 SR）；税额：增值税登记户按小票逐行拆（勾了「คิด VAT」的商品 7/107、免税商品 0），日汇总合计各行，非登记户为 0，公司没记登记状态时单据上问一次「该公司是增值税登记户吗」；收银汇总屏与销售记录 POS 行显示拆出的税额，合计不变"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/vat.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js"]
+
+[[entry]]
+id = "erp.cc.pos-refund"
+product = "ERP"
+where = "收银跨天退货写 Express 退货单 SR"
+steps = "接 Express 的公司收银卖一张（等当天日汇总 HS 写进 C 盘 T 账套），次日退其中一部分（现金退一张、PromptPay 退一张）；跑 express.pos_day.nightly 或等定时；收银记录页看退货小票的 Express 列与弹窗；在 Express 里改过原 HS 金额后再退一张；退得比原单多一张"
+expect = "按原 HS 分张写成 Express 原生退货单 SR（ARTRN RECTYP 5、CNTYP 3、SONUM = 原 HS、IVCAMT = 原单合计、RCVAMT = 退款）：借退货科目 / 借销项税 / 贷现金、借存货 / 贷成本，STCRD POSOPR 2、RETSTK Y、RDOCNUM 指原单行、成本按原单那一行，货回原仓（STMAS / STLOC），ISVAT RECTYP 5 正数，ARMAS.BALANCE 冲减；退货科目第一次弹窗选、之后自动带；PromptPay 退款另记一张「借现金 / 贷收款科目」凭证；原单找不到 / 金额被改过 / 没有这一行 / 退超停在人工（REFUND_*）；读回一致；旧版 CC 桌面版不接（载荷 10）"
+check = "manual"
+files = ["companion/src/companion/dbf_refund.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py"]
 
 [[entry]]
 id = "erp.cc.stock-void"

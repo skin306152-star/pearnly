@@ -27,7 +27,9 @@ from typing import Optional
 # 库存单写,所以盖 8,旧版诚实拒收。
 # 9:销项表头可带 ``vat_fields``(ISVAT 金额栏 → 金额,来源按自己的规则算好,例如混有免税商品的现销日汇总 AMT01 只记应税部分;
 # ERP 收银日汇总,主会话 10-26)。旧版按整张税前写 AMT01,所以带它的载荷盖 9,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9})
+# 10:收银退货单 SR(销项 ``doctype = SR`` 带 ``refund`` 块:退现金 CNTYP 3、货回仓 RETSTK Y、挂原 HS;ERP B3b,dbf_refund)。
+# 旧版不认 SR(单别校验拒收或当现销写成销售),所以盖 10,旧版诚实拒收、派单只交给报过支持 10 的电脑。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

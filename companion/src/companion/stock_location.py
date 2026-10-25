@@ -48,6 +48,7 @@ KIND_SALE = "sale"
 KIND_ISSUE = "issue"    # 库存单领用（OU 类）：减，只记 LMOVDAT
 KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负，只记 LMOVDAT
 KIND_VOID = "void"      # 作废原单（dbf_void）：反向回滚，不动日期栏
+KIND_RETURN = "return"  # 收银退货单 SR 货回仓（dbf_refund）：增，只记 LMOVDAT（实录 SR0000001 与原单同一天，LSELDAT 动没动看不出，不碰）
 _DATE_FIELD = {KIND_PURCHASE: "LPURDAT", KIND_SALE: "LSELDAT"}
 _TOLERANCE = Decimal("0.000001")
 

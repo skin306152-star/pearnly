@@ -30,6 +30,7 @@ from .purchase_adapter import (
 )
 
 PROVIDE_DOCTYPES = S.SALES_DOCTYPES  # ("IV", "HS")
+REFUND_DOCTYPE = "SR"  # 收银退货单(载荷 10):只在带 ``refund`` 块时认
 
 ERR_ACCOUNT_SET_NOT_ALLOWED = "ACCOUNT_SET_NOT_ALLOWED"
 ERR_BAD_DOCTYPE = "BAD_SALES_DOCTYPE"
@@ -40,12 +41,18 @@ ERR_AMOUNTS = "AMOUNTS_NOT_CONSISTENT"
 ERR_ENTRY_NOT_BALANCED = "ENTRY_NOT_BALANCED"
 ERR_ITEMS_INVALID = "ITEMS_INVALID"
 ERR_POS_INVALID = "POS_INVALID"
+ERR_REFUND_INVALID = "REFUND_INVALID"
 
 # POS 日汇总票(载荷 3 的 `pos` 块):票号起止各最长这么多字(云端 contracts/pos.NUMBER_MAX 按同一上限截)、
 # 最多这么多张付款方式转账凭证。
 _POS_NUMBER_MAX = 40
 _POS_TRANSFERS_MAX = 20
 _POS_LABEL_MAX = 50
+# 收银退货单(载荷 10 的 ``refund`` 块):原单号是 CC 写的现销 HS(ARTRN.SONUM 与 DOCNUM 同宽 C(12));退现金、货回仓。
+_REFUND_AGAINST_MAX = 12
+_REFUND_CNTYP = 3
+_REFUND_RETSTK = "Y"
+_REFUND_ROLES = ("refund", "output_vat", "cash")
 
 
 @dataclass
@@ -88,6 +95,10 @@ class SalesEntry:
     pos_transfers: List[Dict[str, Any]] = df(default_factory=list)
     # 载荷 9:销项税记录(ISVAT)要照写的金额栏(来源按规则算好,如混有免税商品时 AMT01 只记应税部分);空 = AMT01 记整张税前。
     vat_fields: Dict[str, str] = df(default_factory=dict)
+    # 载荷 10:收银退货单 SR(``refund`` 块)· 挂原 HS 单号(SONUM)与原单含税合计(IVCAMT)。见 dbf_refund。
+    is_refund: bool = False
+    refund_against: str = ""
+    refund_against_total: str = ""
 
 
 def validate_sales_payload(
@@ -105,10 +116,13 @@ def validate_sales_payload(
         )
 
     doctype = str(payload.get("doctype") or "").strip().upper()
-    if doctype not in PROVIDE_DOCTYPES:
+    refund = "refund" in payload
+    if doctype not in PROVIDE_DOCTYPES and not (refund and doctype == REFUND_DOCTYPE):
         return PayloadValidationResult(
             False, ERR_BAD_DOCTYPE, f"sales doctype must be one of {PROVIDE_DOCTYPES}"
         )
+    if refund and doctype != REFUND_DOCTYPE:
+        return PayloadValidationResult(False, ERR_REFUND_INVALID, "a refund must be an SR document")
 
     if not _valid_be_yymmdd(str(payload.get("docdate_be") or "").strip()):
         return PayloadValidationResult(
@@ -157,7 +171,58 @@ def validate_sales_payload(
         if pos_err is not None:
             return pos_err
 
+    if refund:
+        refund_err = _validate_refund(payload, base, vat, total)
+        if refund_err is not None:
+            return refund_err
+
     return PayloadValidationResult(True)
+
+
+def _validate_refund(payload: Dict[str, Any], base: Decimal, vat: Decimal, total: Decimal) -> PayloadValidationResult | None:
+    """收银退货单 SR 的 ``refund`` 块与它要求的单子样子:挂一张 CC 写的现销 HS(原单号 HS 开头、≤12 字节、原单合计为正)、
+    退现金(cntyp 3)、货回仓(retstk Y);同时是 POS 日汇总(``pos`` 块,退给客户的现金不为负);明细全是带存货码的库存行;
+    分录按角色恰好是 借 退货科目(税前)[+ 借 销项税] / 贷 现金(含税)。不达标 → 拒,一行不写。"""
+    block = payload.get("refund")
+
+    def bad(detail):
+        return PayloadValidationResult(False, ERR_REFUND_INVALID, detail)
+
+    if not isinstance(block, dict):
+        return bad("refund must be an object")
+    against = block.get("against")
+    if (not isinstance(against, str) or not against.strip().upper().startswith("HS")
+            or len(against.strip().encode("cp874", "replace")) > _REFUND_AGAINST_MAX):
+        return bad("refund against must be an HS document number of at most 12 bytes")
+    against_total = _d(block.get("against_total"))
+    if against_total is None or not against_total.is_finite() or against_total <= 0:
+        return bad("refund against_total invalid")
+    if block.get("cntyp") != _REFUND_CNTYP or block.get("retstk") != _REFUND_RETSTK:
+        return bad("only cash refunds with the goods back in stock are supported")
+    if "pos" not in payload:
+        return bad("a refund needs its pos block")
+    cash = _d((payload.get("pos") or {}).get("cash"))
+    if cash is None or cash < 0:
+        return bad("refund cash cannot be negative")
+    items = payload.get("items") or []
+    if str(payload.get("items_status") or "") != "ok" or not items:
+        return bad("a refund needs its stock lines")
+    for it in items:
+        qty, amount = _d((it or {}).get("qty")), _d((it or {}).get("amount"))
+        if (not str((it or {}).get("code") or "").strip() or str(it.get("item_mode") or "") != "stock_sale"
+                or qty is None or qty <= 0 or amount is None or amount < 0):
+            return bad("every refund line must be a stock line with an Express code")
+    lines = payload.get("lines") or []
+    roles = [str((ln or {}).get("role") or "") for ln in lines]
+    want = ["refund", "output_vat", "cash"] if vat > 0 else ["refund", "cash"]
+    if roles != want:
+        return bad(f"refund journal roles {roles} != {want}")
+    sides = {"refund": ("D", base), "output_vat": ("D", vat), "cash": ("C", total)}
+    for ln in lines:
+        side, amount = sides[str(ln["role"])]
+        if str(ln.get("side") or "").upper() != side or _d(ln.get("amount")) != amount or not str(ln.get("acc") or "").strip():
+            return bad(f"refund journal line {ln.get('role')} invalid")
+    return None
 
 
 _VAT_FIELD = re.compile(r"AMT\d{2}|AMTRAT\d")
@@ -187,8 +252,8 @@ def _validate_pos(payload: Dict[str, Any], doctype: str, total: Decimal) -> Payl
 
     if not isinstance(pos, dict):
         return bad("pos must be an object")
-    if doctype != "HS":
-        return bad("pos sales must be HS")
+    if doctype != (REFUND_DOCTYPE if "refund" in payload else "HS"):
+        return bad("pos sales must be HS (SR for a refund)")
     if pos.get("docnum") != "auto":
         return bad("pos docnum must be auto")
     for key in ("first", "last"):
@@ -266,7 +331,18 @@ def build_sales_entry(payload: Dict[str, Any]) -> SalesEntry:
         stock_acccod=str(payload.get("stock_acccod") or "").strip(),
         vat_fields={name: format(_q(_d(value)), "f") for name, value in (payload.get("vat_fields") or {}).items()},
         **_pos_fields(payload.get("pos")),
+        **_refund_fields(payload.get("refund")),
     )
+
+
+def _refund_fields(refund) -> Dict[str, Any]:
+    if not isinstance(refund, dict):
+        return {}
+    return {
+        "is_refund": True,
+        "refund_against": str(refund.get("against") or "").strip(),
+        "refund_against_total": format(_q(_d(refund.get("against_total")) or Decimal("0")), "f"),
+    }
 
 
 def _pos_fields(pos) -> Dict[str, Any]:
