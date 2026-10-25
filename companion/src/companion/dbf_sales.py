@@ -246,7 +246,7 @@ def write_sale(
     journal, journal_error, journal_reason = pos_journal.check(account_dir, entry.pos_transfers)
     if journal_error:
         return DbfWriteResult(False, error_code=journal_error, error=journal_reason)
-    # 载荷 4:逐行写进哪个仓(没带仓库码 → None,整条写路与以前逐字节相同)
+    # 逐行写进哪个仓、维护 STLOC(没带仓库码:账套有 STLOC 就按主仓记,没有 STLOC → None,整条写路不碰它)
     try:
         locations = stock_location.plan(account_dir, payload)
     except stock_location.LocationError as exc:

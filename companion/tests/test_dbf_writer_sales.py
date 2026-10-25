@@ -423,10 +423,10 @@ def test_detail_line_count_mismatch_rolls_back(datat, monkeypatch):
     # 读回校验:STCRD 行数与 NXTSEQ 不符 → 整单回滚(注入只写一行)。
     orig = WS._write_stcrd_detail
 
-    def _extra(account_dir, docnum, docdat, entry, depcod="", userid="BIT9"):
-        # 多写一行(STCRD=3),但 NXTSEQ/detail_n=2 → 读回行数不符 → 拒。
-        orig(account_dir, docnum, docdat, entry, depcod, userid=userid)
-        return orig(account_dir, docnum, docdat, entry, depcod=depcod, userid=userid)
+    def _extra(account_dir, docnum, docdat, entry, depcod="", userid="BIT9", **located):
+        # 多写一行(STCRD=3),但 NXTSEQ/detail_n=2 → 读回行数不符 → 拒。仓库与 STLOC 变动照转(出入库第一期起没带仓库码也维护 STLOC)
+        orig(account_dir, docnum, docdat, entry, depcod, userid=userid, **located)
+        return orig(account_dir, docnum, docdat, entry, depcod=depcod, userid=userid, **located)
 
     monkeypatch.setattr(WS, "_write_stcrd_detail", _extra)
     res = WS.write_sale(_sale_items(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=True)

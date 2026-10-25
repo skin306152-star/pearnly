@@ -95,8 +95,8 @@ def document(*, ref: str, direction: str, doc_date: str, number: str, company: d
                       "unit": str(line.get("unit") or "").strip()[:20], "qty": format(qty.normalize(), "f"),
                       "price": format((amount / qty).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP), "f"),
                       "amount": money(amount),
-                      # 仓库只给 Express 已有的存货（新品由小助手按名建档，写主仓）
-                      "loccod": str(line.get("loccod") or "").strip()[:4] if code else "",
+                      # 库存行一律带仓库码（出入库第一期，10-25）：随单新建的物料也按这一行的仓写、建 STLOC 行，不再落主仓
+                      "loccod": str(line.get("loccod") or "").strip()[:4] if line.get("stock") else "",
                       "stock": bool(line.get("stock"))})
     return {"version": VERSION, "ref": ref, "direction": direction, "date": str(doc_date)[:10],
             "number": str(number or "").strip()[:40],
@@ -209,8 +209,6 @@ def checked(doc: dict) -> dict:
         raise DocumentError("express.amount_invalid")
     for item in items:
         _amount(item.get("qty"), positive=True, code="express.items_invalid")
-        if item.get("stock") and not item.get("code") and item.get("loccod"):
-            raise DocumentError("express.items_invalid")
     if abs(sum((_amount(item.get("amount"), code="express.items_invalid") for item in items), Decimal(0))
            - subtotal) > _TOL:
         raise DocumentError("express.items_mismatch")

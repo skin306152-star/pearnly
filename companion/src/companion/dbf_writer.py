@@ -328,7 +328,7 @@ def write_purchase(
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
-    # 载荷 4:逐行写进哪个仓(没带仓库码 → None,整条写路与以前逐字节相同)
+    # 逐行写进哪个仓、维护 STLOC(没带仓库码:账套有 STLOC 就按主仓记,没有 STLOC → None,整条写路不碰它)
     try:
         locations = stock_location.plan(account_dir, payload)
     except stock_location.LocationError as exc:
@@ -726,19 +726,19 @@ def _reindex_or_defer(
 
 
 def _located(locations, moves=None) -> dict:
-    """载荷 4 才往下层传仓库与变动收集(``locations`` / ``moves``);没带仓库码的单调用与以前一字不差。"""
+    """要维护 STLOC 的单才往下层传仓库与变动收集(``locations`` / ``moves``);账套没有 STLOC 时调用与以前一字不差。"""
     if locations is None:
         return {}
     return {"locations": locations} if moves is None else {"locations": locations, "moves": moves}
 
 
 def stock_location_tables(locations) -> tuple:
-    """载荷 4 的单多备份 STLOC;没带仓库码的单不多备份(与以前相同)。"""
+    """要维护 STLOC 的单多备份 STLOC;账套没有 STLOC(``locations`` 是 None)不多备份。"""
     return S.LOCATION_TABLES if locations is not None else ()
 
 
 def record_locations(account_dir, moves, notes):
-    """载荷 4:把这张单的库存变动记进各仓结存 STLOC → (读回要核的终值, 合并后的 notes)。没带仓库码(moves 是 None)
+    """把这张单的库存变动记进各仓结存 STLOC → (读回要核的终值, 合并后的 notes)。账套没有 STLOC(moves 是 None)
     什么都不做、notes 原样。"""
     if moves is None:
         return {}, notes
@@ -750,7 +750,7 @@ def record_locations(account_dir, moves, notes):
 
 
 def verify_locations(account_dir, expected) -> None:
-    """载荷 4:读回 STLOC,不符按读回失败整单回滚。"""
+    """读回 STLOC,不符按读回失败整单回滚。"""
     try:
         stock_location.verify(account_dir, expected)
     except stock_location.LocationVerifyError as e:

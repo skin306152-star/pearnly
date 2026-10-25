@@ -269,10 +269,21 @@ class ErpSide(unittest.TestCase):
                                   "stock": True},
                                  {"name": "B", "code": "", "qty": 1, "amount": "107.00", "loccod": "02", "stock": False}])
         self.assertEqual([item["amount"] for item in body["items"]], ["200.00", "100.00"])
-        self.assertEqual(body["items"][1]["loccod"], "")  # 没有 Express 码的行不带仓库
+        self.assertEqual(body["items"][1]["loccod"], "")  # 非库存行不带仓库
         fields = E.pages(E.checked(body))[0]["fields"]
         self.assertEqual((fields["seller_tax"], fields["payment_status"], fields["items"][0]["posting_kind"]),
                          (OWN, "paid", "stock"))
+
+    def test_a_stock_line_without_an_express_code_still_names_its_warehouse(self):
+        # 出入库第一期（10-25）：随单新建的物料也按这一行的仓写、建 STLOC 行（原来不带仓库码、落主仓，核载荷还拒「无码带仓」）
+        body = E.document(ref="PD-00001", direction="purchase", doc_date="2026-10-20", number="PD-00001",
+                          company={"tax_id": OWN, "branch": ""}, party={"code": "S01", "name": "ผู้ขาย"},
+                          paid=False, has_vat=False, total="120.00", vat="0",
+                          lines=[{"name": "น้ำแข็งบด", "code": "", "qty": 6, "amount": "120.00", "loccod": "02",
+                                  "stock": True}])
+        self.assertEqual((body["items"][0]["code"], body["items"][0]["loccod"]), ("", "02"))
+        fields = E.pages(E.checked(body))[0]["fields"]
+        self.assertEqual((fields["items"][0]["loccod"], fields["items"][0]["posting_kind"]), ("02", "stock"))
 
     def test_master_rows_and_stock_targets(self):
         units = E.unit_names({"units": [{"code": "01", "name": "ชิ้น"}, {"code": "02", "name": "กล่อง"}]})

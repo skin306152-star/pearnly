@@ -4,7 +4,8 @@
 - 行上的 ``loccod`` 优先、表头的是行的默认；库存行写进那个仓，STLOC 照 Express 的记法记：LOCBAL 加减、期桶 QTY{期} /
   VAL{期}（ISPRD 财年期号）、最后进货 / 销货 / 变动日；没有那一行就照真表的样子新建；
 - 仓库码不在 ISTAB（TABTYP = 21）里、超宽、不是文字 → 整单不写，回 ERR_LOCATION，不回落主仓；
-- 一个 loccod 都没带的载荷与以前逐字节相同：不碰 STLOC、不多备份、不多重建索引；
+- 一个 loccod 都没带的载荷（Cowork 的推送）也按实际写入的仓（主仓）维护 STLOC、STLOC 进备份（出入库第一期，10-25）；
+  账套没有 STLOC 表时这种单照旧不碰；随单新建的物料补 STLOC 行；
 - STLOC 进备份：写到一半失败回滚时 STLOC 一起还原；写完读回不符整单回滚。
 """
 
@@ -183,31 +184,55 @@ def test_an_unknown_or_malformed_code_writes_nothing(acct, bad):
     assert _state(acct) == before
 
 
-def test_without_any_code_stloc_and_backup_and_reindex_are_untouched(acct, monkeypatch):
-    backed, reindexed = [], []
-    real_backup, real_reindex = W._backup, W._reindex_or_defer
+def test_without_any_code_the_main_warehouse_stloc_row_is_kept_like_express(acct, monkeypatch):
+    # 出入库第一期（10-25）：Cowork 的推送一个仓库码都不带，原来不碰 STLOC，Express 的各仓结存与 STCRD 对不上
+    backed = []
+    real_backup = W._backup
 
     def backup(account_dir, tables=None):
         backed.append(tables)
         return real_backup(account_dir, tables)
 
-    def reindex(*args, **kwargs):
-        reindexed.append(kwargs)
-        return real_reindex(*args, **kwargs)
-
     for module in (W, WS):
         monkeypatch.setattr(module, "_backup", backup)
-        monkeypatch.setattr(module, "_reindex_or_defer", reindex)
-    stloc = (acct / "STLOC.DBF").read_bytes()
     res = _buy(acct, _purchase([_item("ICE01", 10, 100.0, "stock_item")]), make_backup=True)
     assert res.ok, res.error
     sale = _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale")]), make_backup=True)
     assert sale.ok, sale.error
-    assert (acct / "STLOC.DBF").read_bytes() == stloc
-    assert backed == [S.PURCHASE_BACKUP_TABLES, S.SALES_BACKUP_TABLES]
-    assert reindexed == [{}, {}]  # 没多传一个参数
     assert {row["LOCCOD"].strip() for row in _rows(acct, "STCRD")} == {"01"}  # 主仓 ISINFO.MAINLOC
-    assert "stloc_bucket_not_written" not in (res.notes or {})
+    row = _stloc(acct, "ICE01", "01")
+    assert row["LOCBAL"] == 12.0 and row["QTY1"] == 10.0 and row["QTY3"] == -3.0  # 期初 5 + 10 − 3
+    assert row["LOCBAL"] == row["BEGBAL"] + sum(row[f"QTY{m}{s}"] for s in ("", "NY") for m in range(1, 13))
+    assert row["LPURDAT"] == dt.date(2026, 1, 15) and row["LSELDAT"] == dt.date(2026, 3, 20)
+    assert backed == [S.PURCHASE_BACKUP_TABLES + S.LOCATION_TABLES, S.SALES_BACKUP_TABLES + S.LOCATION_TABLES]
+    assert _stloc(acct, "ICE01", "02") is None
+
+
+def test_an_account_set_without_stloc_is_untouched_when_no_code_is_given(acct, monkeypatch):
+    (acct / "STLOC.DBF").unlink()
+    for extra in acct.glob("STLOC.*"):
+        extra.unlink()
+    backed = []
+    real_backup = W._backup
+    monkeypatch.setattr(W, "_backup", lambda account_dir, tables=None: backed.append(tables) or real_backup(
+        account_dir, tables))
+    res = _buy(acct, _purchase([_item("ICE01", 10, 100.0, "stock_item")]), make_backup=True)
+    assert res.ok, res.error
+    assert backed == [S.PURCHASE_BACKUP_TABLES]
+    assert not (acct / "STLOC.DBF").exists()
+
+
+def test_a_material_created_with_the_document_gets_its_stloc_row(acct):
+    item = {"name": "น้ำแข็งบด", "code": "", "qty": "6", "unit_price": "20", "amount": "120.00", "unit": "ถัง",
+            "item_mode": "stock_item", "loccod": "02"}
+    res = _buy(acct, _purchase([item]))
+    assert res.ok, res.error
+    card = _rows(acct, "STCRD", DOCNUM=res.docnum)
+    assert len(card) == 1 and card[0]["LOCCOD"].strip() == "02"
+    code = card[0]["STKCOD"].strip()
+    assert code and code not in ("ICE01", "ICE02")  # 随单新建的物料
+    row = _stloc(acct, code, "02")
+    assert row is not None and row["LOCBAL"] == 6.0 and row["STATUS"] == "A"
 
 
 def test_a_failure_after_stloc_was_written_restores_it(acct, monkeypatch):
@@ -256,8 +281,8 @@ def test_non_stock_lines_take_the_code_but_never_touch_stloc(acct):
 
 def test_the_plan_reads_only_the_warehouse_segment(acct):
     assert stock_location.warehouses(acct) == {"01": "คลังสำนักงานใหญ่", "02": "คลังสาขา"}
-    assert stock_location.plan(acct, {"items": [{}]}) is None
-    assert stock_location.plan(acct, {"loccod": "", "items": [{"loccod": None}]}) is None
+    assert stock_location.plan(acct, {"items": [{}]}) == [None]  # 没带仓库码：有 STLOC 就按主仓记
+    assert stock_location.plan(acct, {"loccod": "", "items": [{"loccod": None}, {}]}) == [None, None]
     assert stock_location.plan(acct, {"loccod": "02", "items": [{"loccod": " 01 "}, {}]}) == ["01", "02"]
     with pytest.raises(stock_location.LocationError):
         stock_location.plan(acct, {"items": [{"loccod": "ลต"}]})  # 单位码段（TABTYP 20）的码不是仓库
@@ -265,3 +290,4 @@ def test_the_plan_reads_only_the_warehouse_segment(acct):
     (acct / "STLOC.DBF").unlink()
     with pytest.raises(stock_location.LocationError):
         stock_location.plan(acct, {"loccod": "02"})
+    assert stock_location.plan(acct, {"items": [{}]}) is None  # 没有 STLOC、也没带仓库码：不维护

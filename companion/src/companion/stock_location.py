@@ -4,8 +4,11 @@ Express 自己的记法维护各仓结存 STLOC。
 
 **契约**：载荷 ``items[]`` 每行可带 ``loccod``（≤4 字的 Express 仓库码），表头 ``loccod`` 是行的默认；服务端给带了任意
 ``loccod`` 的载荷盖 ``payload_version = 4``。仓库码必须在代码表 ISTAB（TABTYP = 21）里，否则整单不写、回 ``ERR_LOCATION``，
-不回落主仓。行与表头都没带的行照旧写主仓 ISINFO.MAINLOC。**一个 ``loccod`` 都没带的载荷与以前逐字节相同**：不碰 STLOC、
-不多备份、不多重建索引（``requested`` 为假时本模块什么都不做）。
+不回落主仓。行与表头都没带的行照旧写主仓 ISINFO.MAINLOC。
+
+**不论带没带仓库码，账套有 STLOC 就按实际写入的仓维护**（出入库第一期，10-25）：原来一个 ``loccod`` 都没带的载荷（Cowork
+的推送全是）不碰 STLOC，于是 Express 的各仓结存与 STCRD 对不上（Express 自己录单时两边一起记）。现在照 Express 的记法记进
+主仓那一行，随单新建的物料补 STLOC 行。账套没有 STLOC 表（很老的账套）时没带仓库码的单照旧不碰；带了仓库码的照旧整单拒写。
 
 **STLOC 怎么记**（2026-10-22 用事务所 5 套真账只读核对：6902ASC、69SPP206（02 / 30 两仓都在动）、68BRTKCC、69ASIM、
 69MANAC7；不带符号未知的单别时 LOCBAL、QTY{期}、VAL{期} 三项与 STCRD 逐仓累计一致率 99.9%～100%，差的几行是人工改过的）：
@@ -114,10 +117,13 @@ def warehouses(account_dir) -> Dict[str, str]:
 
 
 def plan(account_dir, payload: dict) -> Optional[List[Optional[str]]]:
-    """每一行明细写进哪个仓（行的 ``loccod``，没有用表头的；都没有是 None = 主仓，同以前）。载荷一个仓库码都没带回 None
-    （整条写路照旧）。仓库码不合格或不在这套账的仓库代码表里抛 :class:`LocationError`（写前、动账套之前）。"""
+    """每一行明细写进哪个仓（行的 ``loccod``，没有用表头的；都没有是 None = 主仓，同以前）。载荷一个仓库码都没带时，账套有
+    STLOC 就每行都是 None（写主仓、照样维护 STLOC），没有 STLOC 回 None（这一套账不维护各仓结存）。仓库码不合格或不在这套账的
+    仓库代码表里抛 :class:`LocationError`（写前、动账套之前）。"""
     if not requested(payload):
-        return None
+        if not _file(account_dir, TABLE):
+            return None
+        return [None for _item in (payload or {}).get("items") or []]
     header = _code(payload.get("loccod"))
     items = [item if isinstance(item, dict) else {} for item in payload.get("items") or []]
     locations = [_code(item.get("loccod")) or header for item in items]
