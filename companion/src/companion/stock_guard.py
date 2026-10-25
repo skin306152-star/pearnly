@@ -6,12 +6,13 @@ CC 照写会把账写成 Express 不允许的负数。写前按 Express 结存�
 - 只核卖出库存品的行（``item_mode = stock_sale``），按写单时同一个找品函数（``stock_sale.find_stock_item``，只读）对到
   Express 的存货；对不到、要随单新建的物料不核（新建的品按设计标了允许负库存，``product_master``）；
 - 这件品自己标了允许负库存（``STMAS.NEGALLOW = 'Y'``）不核；
-- 结存：账套有 STLOC、且这件品各仓 ``LOCBAL`` 合计等于 ``STMAS.MREMBAL`` 时，按这一行写进的仓（行的仓库码，没有是主仓
-  ``ISINFO.MAINLOC``）的 ``LOCBAL``，那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
-- 各仓合计和 ``MREMBAL`` 对不上（老账套：1.12.2 之前 Cowork 推送不记 STLOC、建物料不补 STLOC 行）或没有 STLOC：按全仓
-  ``MREMBAL`` 核，同一件品各仓的行合起来（报出的仓记 :data:`ALL_LOCATIONS`）。宁可少拦，不误拦（主会话 10-25）；
-  这类品 ERP 同步时进公司页 Express 区的差异清单（``express.masters.stock_differences`` 同一个判据）。
-  Express 自己按仓还是按全仓拦（``ISINFO.LOC_COST`` / ``ANYLOC`` / ``CHKNEGLEV``）核实后再定对得上的那类怎么核。
+- 结存：行上**带了仓库码**、账套有 STLOC、且这件品各仓 ``LOCBAL`` 合计等于 ``STMAS.MREMBAL`` 时，按那个仓的 ``LOCBAL`` 核，
+  那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
+- 其余一律按全仓 ``MREMBAL`` 核，同一件品这些行合起来（报出的仓记 :data:`ALL_LOCATIONS`）：行上没带仓库码（不是人选的仓，写进主仓
+  ``ISINFO.MAINLOC``；Cowork 推送的销项都是这样，货在别的仓时按主仓核会一直卡在人工，验收 10-25 实测 T9NIEX12）、各仓合计和
+  ``MREMBAL`` 对不上（老账套：1.12.2 之前 Cowork 推送不记 STLOC、建物料不补 STLOC 行）、没有 STLOC。宁可少拦，不误拦（主会话 10-25）；
+  对不上的品 ERP 同步时进公司页 Express 区的差异清单（``express.masters.stock_differences`` 同一个判据）。
+  Express 自己按仓还是按全仓拦（``ISINFO.LOC_COST`` / ``ANYLOC`` / ``CHKNEGLEV``）在 C 盘核实后再定。
 """
 
 from __future__ import annotations
@@ -21,7 +22,6 @@ from typing import Dict, List, Optional, Tuple
 
 import dbf
 
-from . import account_rules
 from . import dbf_schema as S
 from . import stock_location
 from .logger import get_logger
@@ -60,7 +60,6 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
         return []
     from .stock_sale import StockItemNotFound, find_stock_item
 
-    main = account_rules.main_location(account_dir)
     need: Dict[Tuple[str, str], Decimal] = {}
     for index, item in enumerate(items or []):
         if not isinstance(item, dict) or (item.get("item_mode") or "").strip() != "stock_sale":
@@ -71,8 +70,9 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
             continue  # 码不在：写单时照旧停下交人重选
         if not found:
             continue
-        loccod = stock_location.location_at(locations, index) or main
-        key = (str(found["stkcod"]).strip(), loccod)
+        chosen = stock_location.location_at(locations, index)
+        code = str(found["stkcod"]).strip()
+        key = (code, chosen) if chosen else (code, ALL_LOCATIONS)
         need[key] = need.get(key, Decimal(0)) + Decimal(str(item.get("qty") or "1"))
     if not need:
         return []
@@ -96,7 +96,7 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
             log.info("各仓结存合计与 STMAS 不一致，按全仓结存核：%s", uneven)
     whole: Dict[Tuple[str, str], Decimal] = {}
     for key, qty in need.items():
-        if key[0] in by_location:
+        if key[0] in by_location and key[1] != ALL_LOCATIONS:
             whole[key] = qty
         else:
             merged = (key[0], ALL_LOCATIONS)
