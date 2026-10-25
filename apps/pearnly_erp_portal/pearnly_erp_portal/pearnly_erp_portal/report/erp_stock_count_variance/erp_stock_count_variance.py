@@ -59,6 +59,9 @@ def _columns() -> list:
          "fieldtype": "Data", "width": 170},
         {"label": _label("stock.count.countedAt"), "fieldname": "last_counted_at",
          "fieldtype": "Datetime", "width": 170},
+        # 按台管理的商品：这个仓位在库、这份盘点没扫到的台（没盘到的不自动改状态，人工处理，主会话 10-26）
+        {"label": _label("serial.notCountedUnits"), "fieldname": "uncounted_units",
+         "fieldtype": "Small Text", "width": 220},
     ]
     return columns
 
@@ -80,6 +83,7 @@ def _rows(name: str, only: str) -> list:
         items = [row for row in items if row["counted"] and flt(row["difference"], 3)]
     warehouses = {row["name"]: row["warehouse_name"] for row in frappe.get_list(
         "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
+    uncounted = _uncounted_units(name, items)
     out = []
     for row in items:
         counted = bool(row["counted"])
@@ -98,7 +102,30 @@ def _rows(name: str, only: str) -> list:
             "state": _state(row),
             "last_counted_by": row["last_counted_by"],
             "last_counted_at": row["last_counted_at"],
+            "uncounted_units": ", ".join(uncounted.get((row["product"], row["warehouse"], row["location"] or ""), [])),
         })
+    return out
+
+
+def _uncounted_units(name, items) -> dict:
+    """按台管理的商品：``{(商品, 仓, 库位): [这份盘点没扫到的在库台的主号]}``。"""
+    from pearnly_erp_portal.inventory import serials
+
+    tracked = serials.tracked(row["product"] for row in items)
+    if not tracked:
+        return {}
+    scanned = {"count": name, "voided": 0, "serial": ["is", "set"]}
+    seen = set(frappe.get_all("ERP Stock Count Entry", filters=scanned, pluck="serial", limit_page_length=0))  # bounded: 一份盘点扫到的台
+    out = {}
+    for row in items:
+        if row["product"] not in tracked:
+            continue
+        units = frappe.get_all(serials.DOCTYPE, filters={"product": row["product"], "warehouse": row["warehouse"],
+                                                        "status": serials.IN_STOCK},
+                               fields=["name", "serial_no", "location"], order_by="serial_no asc",
+                               limit_page_length=500)  # bounded: 一个仓一个车型的在库台
+        out[(row["product"], row["warehouse"], row["location"] or "")] = [
+            unit.serial_no for unit in units if unit.name not in seen and (unit.location or "") == (row["location"] or "")]
     return out
 
 
