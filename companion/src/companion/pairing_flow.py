@@ -6,6 +6,7 @@
 - Express → 用这台电脑的 Express 数据根读账套名单，定内部默认账套与科目（不让人选，账套由网页第一步选），
   再配对（连 Pearnly 校验密钥并上报账套）。
 - 更换配对码只换密钥：用这个成员自己原来的数据根，默认账套、人工改过的科目、授权年度都不变。
+- 两种都先去掉确实没了的数据根（express_machine.live_roots：所在盘 / 共享访问得到、文件夹却不在），暂时访问不到的照旧授权。
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from typing import List, Optional
 
 from . import pairing
 from .account_probe import probe_account_sets, probe_default_accounts
-from .express_machine import authorized_order, default_account, member_roots
+from .express_machine import authorized_order, default_account, live_roots, member_roots
 from .profile_store import ProfileStore, ProfileStoreError
 
 NEED_ROOTS = "browse_hint"  # Express 配对码、但这台电脑还没找到 Express 数据根
@@ -59,6 +60,8 @@ def run(store: ProfileStore, token: str, *, roots: List[str], profile_id: Option
     autostart = bool(getattr(store.global_settings, "autostart", True))
     if pairing.connection_kind(token, cfg) == "mrerp":
         return pairing.pair_folder(token=token, enable_autostart=autostart, lang=lang, config=cfg, profile_store=store)
+    # 新成员照抄这台电脑的数据根、换配对码沿用自己的：确实没了的先去掉（暂时访问不到的保留），主根没了就由下一个当主根
+    roots = live_roots(roots)
     if not roots:
         if profile_id is None or getattr(cfg, "kind", "express") == "folder":
             # 这台电脑没有 Express（多台电脑 ADR-021「无 Express 也能加入」）：加入事务所的 Express 池当只读文件夹的成员——

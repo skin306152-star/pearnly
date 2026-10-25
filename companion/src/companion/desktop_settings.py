@@ -24,8 +24,8 @@ from urllib.parse import urlsplit
 
 from . import autostart, channel, device_link, folder_store, master_refresh, pairing, pairing_flow
 from . import folder_plan as plan
-from .express_machine import (apply_roots, default_places, machine_roots, merge, offline_roots, places_roots,
-                              rescan_roots, same_root, within)
+from .express_machine import (apply_roots, default_places, gone_test, machine_roots, merge, offline_roots,
+                              places_roots, rescan_roots, same_root, within)
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore, ProfileStoreError
@@ -431,7 +431,9 @@ class DesktopSettings:
             return {"ok": False, "message": t("express_not_found", lang)}
         store = self._store()
         places = merge([picked] if replace else [*store.global_settings.express_places, picked])
-        current = [root for root in machine_roots(store) if within(root, places) and not within(root, [picked])]
+        gone = gone_test()   # 原来授权的照旧带上，确实没了的不带（同一次每台服务器只问一次）
+        current = [root for root in machine_roots(store) if within(root, places) and not within(root, [picked])
+                   and not gone(root)]
         return self._use_places(places, [*found, *current], lang)
 
     def remove_place(self, path: str, lang: str) -> dict:
@@ -445,7 +447,9 @@ class DesktopSettings:
             store.set_places(places)
             self._detected = [root for root in (self._detected or []) if within(root, places)] or None
             return {"ok": True}
-        roots = [root for root in machine_roots(store) if within(root, places)] or places_roots(places)
+        gone = gone_test()
+        roots = ([root for root in machine_roots(store) if within(root, places) and not gone(root)]
+                 or places_roots(places))
         return self._use_places(places, roots, lang)
 
     def rescan(self, lang: str) -> dict:

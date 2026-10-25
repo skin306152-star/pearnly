@@ -561,8 +561,46 @@ def _adopt_machine_roots(cfg: CompanionConfig) -> None:
     missing = [root for root in roots if not any(_norm_path(root) == _norm_path(item) for item in own if item)
                and (not places or within(root, places))]
     if missing:
+        # 别的成员手里的旧副本可能还带着已经没了的数据根（它自己下一次完整扫描时才去掉，_drop_gone_roots）：不补进来
+        from .express_machine import gone_test
+
+        gone = gone_test(wait=False)
+        missing = [root for root in missing if not gone(root)]
+    if missing:
         cfg.update(authorized_roots=[*authorized, *missing]).save()
         log.info("[heartbeat] 补上这台电脑其余成员的数据根 %d 个", len(missing))
+
+
+def _drop_gone_roots(cfg: CompanionConfig) -> None:
+    """账套清单整套扫完（完整快照）之后：成员记录里确实没了的数据根去掉并存盘（express_machine.prune_member：所在盘 / 共享
+    访问得到、文件夹却不在才算没了；服务器关着、网络盘没连上的照旧保留；主根没了换成剩下的第一个，一个都不剩不改）。
+
+    这个成员改自己的副本再存（同 _remember_roots）；同一台电脑其余 Express 成员的记录一并改（同 _share_roots，用取任务线程
+    共用的那份成员记录，不另读文件），它们手里的旧副本在各自下一次完整扫描时自己去掉，_adopt_machine_roots 也不再把没了的补回来。
+    只在完整快照之后做（启动后第一遍、登记表变了、每天兜底、网页「重新读取」），不每拍心跳去问；所在服务器在退避期内的不等。
+    测试机 10-25：71EXP、72EXP 早删了，原来只有手动「重新查找」才去掉，平时一直留在授权名单里。"""
+    if getattr(cfg, "kind", "express") == "folder" or not list(getattr(cfg, "authorized_roots", None) or ()):
+        return
+    try:
+        from .express_machine import express_members, prune_member
+
+        asked: dict = {}
+        updates = prune_member(cfg, asked, wait=False)
+        if updates:
+            cfg.update(**updates).save()
+            log.info("[heartbeat] 去掉已经不在的数据根，现在授权 %d 个", len(updates["authorized_roots"]))
+        store = getattr(cfg, "_profile_store", None)   # 不是从本机成员记录读出的配置（测试替身）只改自己
+        if store is None or not hasattr(store, "profiles"):
+            return
+        own = str(getattr(cfg, "profile_id", "") or "")
+        for record in express_members(store):
+            if record.profile_id == own:
+                continue
+            changes = prune_member(record, asked, wait=False)
+            if changes:
+                store.save_profile(store.runtime_config(record.profile_id).update(**changes), paused=record.paused)
+    except Exception:
+        log.exception("[heartbeat] 去掉已经不在的数据根失败（忽略，下一次完整扫描再试）")
 
 
 def _offer_update(hb, on_update_available) -> None:
@@ -633,6 +671,8 @@ def _run_periodic(
             if master is not None:
                 if complete:
                     _remember_roots(cfg, authorized, master.get("roots"))
+                    _drop_gone_roots(cfg)
+                    root = cfg.resolved_express_root()
                     authorized = list(getattr(cfg, "authorized_roots", None) or ())
                 projection_refresh.apply_endpoint_snapshot(
                     state, master, master_version

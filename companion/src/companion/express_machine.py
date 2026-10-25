@@ -21,7 +21,10 @@ from typing import Iterable, List, Optional
 
 from .account_probe import AccountSet, probe_account_sets, probe_default_accounts
 from .express_locate import _deep_scan, _scan_exp_roots, candidate_roots, sccomp_company_count, sccomp_path
+from .logger import get_logger
 from .pairing import ACCOUNT_MAP_KEYS
+
+log = get_logger(__name__)
 
 _DEFAULT_MIN_COMPANIES = 10
 
@@ -160,15 +163,70 @@ def root_gone(root: str, asked: Optional[dict] = None) -> bool:
         return False
 
 
+def gone_test(asked: Optional[dict] = None, *, wait: bool = True):
+    """一次查找用的「确实没了」判断（:func:`root_gone`，``asked`` 在这一次里共用：每台服务器只问一次）。
+
+    ``wait=False``：心跳里用（在取任务线程上，不能卡）：所在服务器在退避期内、这会儿问不通的不去等，按暂时访问不到算（保留）；
+    问得通的（本机盘、刚问过还新鲜的服务器）照 :func:`root_gone` 判。"""
+    from .scan_pace import GATE
+
+    asked = {} if asked is None else asked
+    quick: dict = {}
+
+    def gone(root) -> bool:
+        if not wait:
+            host = GATE.host(str(root or ""))
+            if host not in quick:
+                quick[host] = GATE.reachable(str(root or ""))
+            if not quick[host]:
+                return False
+        return root_gone(root, asked)
+
+    return gone
+
+
+def live_roots(roots: Iterable[str], asked: Optional[dict] = None, *, wait: bool = True, gone=None) -> List[str]:
+    """给成员定数据根（写 ``authorized_roots`` / ``express_root``）之前一律过这一道：确实没了的去掉（所在盘 / 共享访问得到、
+    文件夹却不在，:func:`root_gone`），暂时访问不到的保留，顺序不变（主根在前）。一个都不剩时原样交回：不把成员弄成没有数据根。
+    配对 / 换配对码（pairing_flow.run）、断开后重连（desktop_settings._kept 经 detect 再到配对）、心跳里的定时重扫
+    （worker._drop_gone_roots）都经这里（测试机 10-25：71EXP、72EXP 早删了，每次配对仍带着它们）。"""
+    roots = [str(root) for root in roots if str(root or "").strip()]
+    if gone is None:
+        gone = gone_test(asked, wait=wait)
+    left = [root for root in roots if not gone(root)]
+    if not left:
+        return roots
+    if len(left) < len(roots):
+        log.info("去掉已经不在的 Express 数据根：%s", [root for root in roots if root not in left])
+    return left
+
+
+def prune_member(record, asked: Optional[dict] = None, *, wait: bool = True, gone=None) -> dict:
+    """一个成员（成员记录或它的配置）里确实没了的数据根去掉 → 要改的字段；没有要改的回 ``{}``。
+
+    主数据根没了：按「主根在前」换成剩下的第一个（:func:`member_roots` 的顺序），程序路径跟着换（同 :func:`apply_roots`）；
+    一个都不剩时什么都不改（:func:`live_roots`）。账套、科目不在这里换。"""
+    roots = member_roots(record)
+    if len(roots) < 2:
+        return {}
+    left = live_roots(roots, asked, wait=wait, gone=gone)
+    if len(left) == len(roots):
+        return {}
+    authorized = [str(root) for root in (getattr(record, "authorized_roots", None) or ())
+                  if any(same_root(root, kept) for kept in left)] or list(left)
+    updates = {"authorized_roots": authorized}
+    if not any(same_root(roots[0], kept) for kept in left):
+        updates["express_root"] = left[0]
+        updates["express_exe"] = str(Path(left[0]) / "ExpressI.exe")
+    return updates
+
+
 def offline_roots(found: Iterable[str], previous: Iterable[str], *, gone=None) -> List[str]:
     """以前授权、这次没找到、又不是确实没了的数据根（暂时访问不到：夜里关着的服务器、没连上的网络盘）：保留授权，
     下次在线时心跳照常扫到它（扫描按服务器限时问、不在就跳过，见 scan_pace）。一次查找失败不删用户的授权（2026-10-20
     测试机：夜里 S 盘不在线时点「重新查找」，17 个授权只剩本机那 1 个）。"""
     if gone is None:
-        asked: dict = {}
-
-        def gone(root):
-            return root_gone(root, asked)
+        gone = gone_test()
     found = list(found)
     kept: List[str] = []
     for root in previous:
