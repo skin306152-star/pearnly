@@ -149,3 +149,12 @@
   - CC 不在线就不建单，报「没测到」。
 - `run.py`：探针 `cowork_express`，录入人取 `SMOKE_COWORK_EXPRESS_USER`（入口 args 的 user 优先）。
 - **还差**：实验栈上的连接名、T 账套、这份账套里已有选择记忆的供应商、在测试机 CC 上登录过的录入人，要上测试机确认。确认后把这些填进登记表 `cowork.express.push` 的 args 并改成 auto，跑通一次，再交验收。
+
+## 10-25 白天：验收复测后补的两处（分支 `pearnly/cowork-express-smoke`）
+
+- **ERP 写账派单**（验收发现，原有设计，本批之前就有）：同一份账套排在最前的单，如果录入人名下没有电脑能写，后面所有人的单都领不到（CC 一直在领，30 分钟 126 次全是空）。
+  - 已改：`cc_desktop.jobs._heads` 只在这台电脑能写的单里取每份账套的排头，即录入人在这台电脑上登录过 CC，或单钉在这台电脑上（`route_contracts.owns`）。条件放进 SQL，Python 里再核一遍，做法同 Cowork `companion.queue_heads`。
+  - 账套内的先后顺序变成「每台电脑自己的单」内先后，与 Cowork 一致。
+  - 用例 `test_a_job_nobody_can_write_does_not_hold_up_the_book`。
+  - 命中共用件 cc-desktop（4 个入口），要实验栈实测 ERP 写账。
+- **冒烟无权限页判断**：`probes/page.js` 原来按几种写死的文字认，中文界面的原生提示「抱歉，你不允许查看此页面。」认不出（`erp.page.never.*` 6 个入口误判）。现在用页面自己的 `__()` 取框架原生提示语在当前语言下的那一句来比，404 页同理。
