@@ -1293,9 +1293,9 @@ id = "erp.cc.pos-day"
 product = "ERP"
 where = "收银日汇总写 Express"
 steps = "接 Express 的公司收银卖几张（现金 + PromptPay），当天退其中几张（部分退、全退、退到别的付款方式）；另找一天卖一张当天全退；次日 01:20 定时或手动跑 express.pos_day.nightly；收银小票页看 Express 列与小票弹窗的「Express」"
-expect = "一家公司一天一张现销 HS 写进 C 盘 T 账套、读回一致；PromptPay 另记一张转账凭证，收款科目第一次弹窗选、之后自动带；作废小票不进；同一天的退货冲进当天（金额、数量、各付款方式按净额，净额为 0 的行不写），一天全退整张不写，冲成负数停在人工（当天退货冲减后为负数）；跨天的退货不进（等退货单 SR）"
+expect = "一家公司一天一张现销 HS 写进 C 盘 T 账套、读回一致；PromptPay 另记一张转账凭证，收款科目第一次弹窗选、之后自动带；作废小票不进；同一天的退货冲进当天（金额、数量、各付款方式按净额，净额为 0 的行不写），一天全退整张不写，冲成负数停在人工（当天退货冲减后为负数）；跨天的退货不进（等退货单 SR）；税额：增值税登记户按小票逐行拆（勾了「คิด VAT」的商品 7/107、免税商品 0），日汇总合计各行，非登记户为 0，公司没记登记状态时单据上问一次「该公司是增值税登记户吗」；收银汇总屏与销售记录 POS 行显示拆出的税额，合计不变"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/vat.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js"]
 
 [[entry]]
 id = "erp.cc.stock-void"
