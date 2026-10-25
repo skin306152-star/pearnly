@@ -1076,6 +1076,7 @@ Select item group,เลือกกลุ่มสินค้า
 Select one receipt to refund,คืนเงินได้ครั้งละหนึ่งใบเสร็จเท่านั้น
 Select one row to open its ledger,กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก
 Select the original sale line,กรุณาเลือกรายการจากบิลขายเดิม
+Select the product,เลือกสินค้า
 Sell,ขาย
 Seller,ชื่อผู้ขาย
 Seller address,ที่อยู่ผู้ขาย
@@ -2090,6 +2091,7 @@ product.scan.light,ไฟแฟลช
 product.scan.noCamera,อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้
 product.scan.notFound,ไม่พบสินค้าที่ตรงกับรหัส {0}
 product.scan.open,เปิดสินค้ารายการนี้
+product.scan.pick,เลือกสินค้า
 product.scan.taken,รหัสนี้ถูกใช้ไปแล้ว
 product.scan.takenBody,ถูกใช้กับ {0} (รหัส {1}) แล้ว
 product.scan.title,สแกนโค้ด

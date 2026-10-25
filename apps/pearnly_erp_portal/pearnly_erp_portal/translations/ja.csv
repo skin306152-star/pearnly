@@ -1076,6 +1076,7 @@ Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
 Select the original sale line,元の販売明細を選択してください
+Select the product,商品を選択
 Sell,売上
 Seller,売り手
 Seller address,売り手住所
@@ -2090,6 +2091,7 @@ product.scan.light,ライト
 product.scan.noCamera,この端末にはスキャンに使えるカメラがありません
 product.scan.notFound,スキャンしたコード {0} に一致する商品がありません
 product.scan.open,その商品を開く
+product.scan.pick,商品を選択
 product.scan.taken,このコードは既に使われています
 product.scan.takenBody,既に「{0}」(コード {1}) で使われています
 product.scan.title,コードをスキャン

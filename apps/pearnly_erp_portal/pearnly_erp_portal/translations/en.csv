@@ -1076,6 +1076,7 @@ Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
+Select the product,Select the product
 Sell,Sell
 Seller,Seller
 Seller address,Seller address
@@ -2090,6 +2091,7 @@ product.scan.light,Light
 product.scan.noCamera,This device has no camera to scan with
 product.scan.notFound,No item matches the scanned code {0}
 product.scan.open,Open that product
+product.scan.pick,Select the product
 product.scan.taken,This code is already taken
 product.scan.takenBody,Already used by {0} (code {1})
 product.scan.title,Scan a code

@@ -362,7 +362,13 @@
 					event.preventDefault(); event.stopImmediatePropagation();
 					const list = control.awesomplete;
 					void p.call("pearnly_erp_portal.products.service.api_find_product", {value: code}).then(async found => {
-						if (found?.ambiguous) found.name = await p.pick_product(found.candidates);  // 撞号：让人选一件
+						if (found?.ambiguous) {
+							// 撞号：让人选一件；关掉弹窗就什么都不填（不落回「选下拉高亮项」那条老路，验收 10-26）
+							list?.close();
+							const name = await p.pick_product(found.candidates);
+							if (name && line.form.get_value("product") !== name) await line.form.set_value("product", name);
+							return;
+						}
 						if (found?.name) {
 							list?.close();
 							return line.form.get_value("product") === found.name ? null : line.form.set_value("product", found.name);

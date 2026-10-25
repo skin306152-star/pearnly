@@ -1076,6 +1076,7 @@ Select item group,选择物料组
 Select one receipt to refund,每次只能对一张小票退款
 Select one row to open its ledger,请仅选择一行以查看流水
 Select the original sale line,请选择原单中的物料行
+Select the product,选择商品
 Sell,销售
 Seller,卖方名称
 Seller address,卖方地址
@@ -2090,6 +2091,7 @@ product.scan.light,闪光灯
 product.scan.noCamera,当前设备没有可用的摄像头
 product.scan.notFound,未找到与扫描编码 {0} 匹配的物料
 product.scan.open,打开该物料
+product.scan.pick,选择商品
 product.scan.taken,该条码已被占用
 product.scan.takenBody,已被「{0}」使用（编码 {1}）
 product.scan.title,扫码

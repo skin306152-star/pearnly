@@ -44,7 +44,7 @@ frappe.provide("frappe.pearnly");
 	// 同一个码命中几件商品（存量里撞了的码，`products.codes`）：原生弹窗列出来让人选一件，不默认挑一个。回选中的商品名，取消回 null。
 	p.pick_product = candidates => new Promise(resolve => {
 		let done = false;
-		const dialog = new frappe.ui.Dialog({ title: __("Select"), fields: [{ fieldtype: "Select", fieldname: "product",
+		const dialog = new frappe.ui.Dialog({ title: __("product.scan.pick"), fields: [{ fieldtype: "Select", fieldname: "product",
 			label: __("Item"), reqd: 1, options: candidates.map(row => ({ value: row.name,
 				label: [row.product_name || row.name, row.code, row.internal_code, row.barcode].filter(Boolean).join(" · ") })) }],
 			primary_action_label: __("Select"),
