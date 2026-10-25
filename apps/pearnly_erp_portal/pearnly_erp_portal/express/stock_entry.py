@@ -184,12 +184,12 @@ def prepare(body, company_row, ensure_masters) -> dict:
     return {"payload": payload, "book": book}
 
 
-VOID_PAYLOAD_VERSION = 7
+VOID_PAYLOAD_VERSION = 8
 VOID_REQUEST = "erp:void:stock:"  # 作废任务的请求号前缀（`push.job_changed` 据此把回执记到作废栏上）
 
 
 def void_payload(name, company_row) -> dict:
-    """作废一张已写进 Express 的出入库单（载荷 7，CC 桌面版 `dbf_void`，照 Express 原生作废原单）→ ``{"payload", "book"}`` 或
+    """作废一张已写进 Express 的出入库单（载荷 8，CC 桌面版 `dbf_void`，照 Express 原生作废原单）→ ``{"payload", "book"}`` 或
     ``{"hold": 原因}``。账套就是写入时那一份（单据记的 ``express_book``）；逐行带存货码（电脑写入时回报的实际编码）、仓库码、数量，
     电脑据此核原单还是写入时的样子，对不上转人工。"""
     from pearnly_core.cc_desktop import jobs

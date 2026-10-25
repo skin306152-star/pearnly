@@ -7,7 +7,7 @@
 - 写前 STMAS 结存等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0）；
 - 凭证：永续盘存账套每张有金额的单一张 JNLTYP 00 凭证、借贷平衡；定期盘存账套（ISPERPETUA = N）一张凭证都没有；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
-- 再倒着逐张作废（载荷 7，dbf_void）：单头标 C、明细不在，商品结存与各仓结存回到写前；
+- 再倒着逐张作废（载荷 8，dbf_void）：单头标 C、明细不在，商品结存与各仓结存回到写前；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套 ISRUN 没有 OU / JU / TK 单别、没有库存品、默认科目不能记账的跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
 
@@ -208,9 +208,9 @@ def check(acct: Path) -> dict:
             return {"state": "fail", "why": f"{docnum}: journalled in a periodic account set"}
     if has_stloc and before_balanced and not balanced(acct, [code])[code]:
         return {"state": "fail", "why": f"STMAS != sum(STLOC) for {code} after writing"}
-    # 作废（载荷 7，dbf_void）：倒着逐张作废，单头标 C、明细不在、结存回到写前
+    # 作废（载荷 8，dbf_void）：倒着逐张作废，单头标 C、明细不在、结存回到写前
     for docnum, (doctype, qty) in reversed(list(zip(written, (("JU", 2), ("OU", 1), ("TK", -1))))):
-        void = {"payload_version": 7, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
+        void = {"payload_version": 8, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
                 "items": [{"code": code, "qty": str(qty)}]}
         res = V.void_stock_entry(void, acct, selected_dir=str(acct), make_backup=False)
         if not res.ok:

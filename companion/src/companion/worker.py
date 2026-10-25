@@ -308,7 +308,7 @@ def _handle_dbf_task(
                     payload, st.account_dir, opening_stock=_opening_items(payload), **common
                 )
             elif direction == "stock" and payload.get("action") == "void":
-                # 作废 ERP 写进去的库存单(载荷 7,出入库第一期 B 段 ①):照 Express 原生作废原单
+                # 作废 ERP 写进去的库存单(载荷 8,出入库第一期 B 段 ①):照 Express 原生作废原单
                 from .dbf_void import void_stock_entry
 
                 res = void_stock_entry(payload, st.account_dir, **common)
@@ -412,7 +412,7 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "JOURNAL_BOOK_NOT_FOUND": "needs_review",
         "ACCOUNT_NOT_POSTABLE": "needs_review",
         "STOCK_ITEM_NOT_FOUND": "needs_review",
-        # 作废:原单在 Express 里被改过 / 找不到(载荷 7,dbf_void),重试结论一样,要人核对
+        # 作废:原单在 Express 里被改过 / 找不到(载荷 8,dbf_void),重试结论一样,要人核对
         "VOID_DOCUMENT_CHANGED": "needs_review",
         "VOID_DOCUMENT_NOT_FOUND": "needs_review",
     }.get(error_code or "")

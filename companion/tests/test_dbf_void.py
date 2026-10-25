@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""作废 ERP 写进 Express 的库存单（载荷 7，dbf_void；出入库第一期 B 段 ①）。
+"""作废 ERP 写进 Express 的库存单（载荷 8，dbf_void；出入库第一期 B 段 ①）。
 
 照 Express 原生作废（服务器测试账套实录 OU0000001）：单头留着标 C、货值清 0；明细打删除标记、NETVAL 记货值；凭证头标 C、分录金额改空；
 STLOC / STMAS 回滚、日期栏不动；ISRUN 不回退。原单被改过 → VOID_DOCUMENT_CHANGED；已作废 → 当作完成；关账 → PERIOD_LOCKED。
@@ -18,7 +18,7 @@ from test_stock_location import _rows, _state, _stloc, acct  # noqa: F401
 
 
 def _void(acct, docnum, doctype, items, **extra):
-    payload = {"payload_version": 7, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
+    payload = {"payload_version": 8, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
                "items": items, **extra}
     return dbf_void.void_stock_entry(payload, acct, selected_dir=str(acct), make_backup=extra.pop("make_backup", False))
 
@@ -101,8 +101,8 @@ def test_a_line_written_in_stock_units_with_the_erp_factor_still_matches(book):
     assert _void(book, res.docnum, "OU", [{"code": "ICE01", "qty": "1", "factor": "2"}]).ok
 
 
-def test_payload_seven_is_supported():
-    assert payload_contract.check_payload_version({"payload_version": 7}) is None
+def test_payload_eight_is_supported():
+    assert payload_contract.check_payload_version({"payload_version": 8}) is None
 
 
 def test_a_failure_after_writing_restores_every_table(book, monkeypatch):

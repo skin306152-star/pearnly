@@ -816,7 +816,7 @@ class StockVoid(PushModule):
         with mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
                 mock.patch.object(self.push, "_company", lambda name: COMPANY), \
                 mock.patch.object(stock_entry, "void_payload",
-                                  lambda name, company: {"payload": {"payload_version": 7, "action": "void"}, "book": {"key": "BK"}}), \
+                                  lambda name, company: {"payload": {"payload_version": 8, "action": "void"}, "book": {"key": "BK"}}), \
                 mock.patch.object(self.push.jobs, "enqueue", lambda **kw: self.enqueued.append(kw) or {"job": "J9"}):
             self.push.void("ERP Stock Entry", "SE-1")
             self.push.void("ERP Stock Entry", "SE-1")  # 已排过：不再排
@@ -1200,7 +1200,7 @@ class StockEntries(Base):
 
 
     def test_a_void_names_the_written_book_the_docnum_and_the_codes_the_computer_used(self):
-        """B 段 ①：作废已写进 Express 的出入库单 → 载荷 7（照 Express 原生作废原单），账套就是写入时那份，逐行带电脑实际用的码。"""
+        """B 段 ①：作废已写进 Express 的出入库单 → 载荷 8（照 Express 原生作废原单），账套就是写入时那份，逐行带电脑实际用的码。"""
         import types
         from pearnly_core.cc_desktop import jobs
 
@@ -1221,7 +1221,7 @@ class StockEntries(Base):
             moved = self.stock.void_payload("SE-1", COMPANY)
         payload = result["payload"]
         self.assertEqual((payload["payload_version"], payload["action"], payload["doctype"], payload["docnum"]),
-                         (7, "void", "OU", "OU691020-001"))
+                         (8, "void", "OU", "OU691020-001"))
         self.assertEqual(payload["items"], [{"seq": 1, "code": "ICE-01", "loccod": "01", "qty": "2"}])
         self.assertEqual(result["book"]["key"], key)
         self.assertTrue(payload["respect_period_lock"])
