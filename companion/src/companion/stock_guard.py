@@ -6,8 +6,12 @@ CC 照写会把账写成 Express 不允许的负数。写前按 Express 结存�
 - 只核卖出库存品的行（``item_mode = stock_sale``），按写单时同一个找品函数（``stock_sale.find_stock_item``，只读）对到
   Express 的存货；对不到、要随单新建的物料不核（新建的品按设计标了允许负库存，``product_master``）；
 - 这件品自己标了允许负库存（``STMAS.NEGALLOW = 'Y'``）不核；
-- 结存：账套有 STLOC 就按这一行写进的仓（行的仓库码，没有是主仓 ``ISINFO.MAINLOC``）的 ``LOCBAL``，那个仓还没有这件品的行
-  按 0；没有 STLOC 按全仓 ``STMAS.MREMBAL``。同一张单里同一件品同一个仓的几行合起来核。
+- 结存：账套有 STLOC、且这件品各仓 ``LOCBAL`` 合计等于 ``STMAS.MREMBAL`` 时，按这一行写进的仓（行的仓库码，没有是主仓
+  ``ISINFO.MAINLOC``）的 ``LOCBAL``，那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
+- 各仓合计和 ``MREMBAL`` 对不上（老账套：1.12.2 之前 Cowork 推送不记 STLOC、建物料不补 STLOC 行）或没有 STLOC：按全仓
+  ``MREMBAL`` 核，同一件品各仓的行合起来（报出的仓记 :data:`ALL_LOCATIONS`）。宁可少拦，不误拦（主会话 10-25）；
+  这类品 ERP 同步时进公司页 Express 区的差异清单（``express.masters.stock_differences`` 同一个判据）。
+  Express 自己按仓还是按全仓拦（``ISINFO.LOC_COST`` / ``ANYLOC`` / ``CHKNEGLEV``）核实后再定对得上的那类怎么核。
 """
 
 from __future__ import annotations
@@ -25,6 +29,8 @@ from .logger import get_logger
 log = get_logger(__name__)
 
 ERR_STOCK_INSUFFICIENT = "STOCK_INSUFFICIENT"
+ALL_LOCATIONS = "all"
+_SAME = Decimal("0.0001")
 _NO = "N"
 _YES = "Y"
 
@@ -73,16 +79,31 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     codes = {key[0] for key in need}
     allowed = {row["STKCOD"] for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW"))
                if row["STKCOD"] in codes and row["NEGALLOW"].upper() == _YES}
-    by_location = locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None
-    if by_location:
-        have = {(row["STKCOD"], row["LOCCOD"]): row["LOCBAL"]
-                for row in _table_rows(account_dir, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if row["STKCOD"] in codes}
-    else:
-        totals = {row["STKCOD"]: row["MREMBAL"]
-                  for row in _table_rows(account_dir, "STMAS", ("STKCOD", "MREMBAL")) if row["STKCOD"] in codes}
-        have = {key: totals.get(key[0], Decimal(0)) for key in need}
+    totals = {row["STKCOD"]: row["MREMBAL"]
+              for row in _table_rows(account_dir, "STMAS", ("STKCOD", "MREMBAL")) if row["STKCOD"] in codes}
+    have: Dict[Tuple[str, str], Decimal] = {}
+    by_location = set()
+    if locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None:
+        located = {(row["STKCOD"], row["LOCCOD"]): row["LOCBAL"]
+                   for row in _table_rows(account_dir, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if row["STKCOD"] in codes}
+        sums: Dict[str, Decimal] = {}
+        for (code, _loc), balance in located.items():
+            sums[code] = sums.get(code, Decimal(0)) + balance
+        by_location = {code for code in codes if abs(sums.get(code, Decimal(0)) - totals.get(code, Decimal(0))) < _SAME}
+        have.update({key: balance for key, balance in located.items() if key[0] in by_location})
+        uneven = sorted(codes - by_location)
+        if uneven:
+            log.info("各仓结存合计与 STMAS 不一致，按全仓结存核：%s", uneven)
+    whole: Dict[Tuple[str, str], Decimal] = {}
+    for key, qty in need.items():
+        if key[0] in by_location:
+            whole[key] = qty
+        else:
+            merged = (key[0], ALL_LOCATIONS)
+            whole[merged] = whole.get(merged, Decimal(0)) + qty
+            have[merged] = totals.get(key[0], Decimal(0))
     short = []
-    for key, qty in sorted(need.items()):
+    for key, qty in sorted(whole.items()):
         if key[0] in allowed:
             continue
         balance = have.get(key, Decimal(0))
@@ -103,4 +124,4 @@ def message(short: List[dict]) -> str:
         f"{item['stkcod']}@{item['loccod']} need {item['need']} have {item['have']}" for item in short)
 
 
-__all__ = ["ERR_STOCK_INSUFFICIENT", "message", "negative_allowed", "shortages"]
+__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "message", "negative_allowed", "shortages"]

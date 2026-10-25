@@ -3,7 +3,7 @@
 
 - ISINFO.NEGALLOW = N：卖超这件品在这个仓的结存（STLOC.LOCBAL；同单同品同仓合计）→ 整单不写，回 STOCK_INSUFFICIENT（转人工）；
 - 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）、随单新建的物料：照写；
-- 没有 STLOC 的老账套按全仓 STMAS.MREMBAL 核。
+- 没有 STLOC，或这件品各仓合计和 STMAS.MREMBAL 对不上（老账套 STLOC 偏少）：按全仓 STMAS.MREMBAL 核，宁可少拦不误拦。
 """
 
 from __future__ import annotations
@@ -85,4 +85,36 @@ def test_without_stloc_the_whole_stock_balance_is_used(acct):
         path.unlink()
     assert stock_guard.shortages(acct, [_item("ICE01", 5, 150.0, "stock_sale")], None) == []
     short = stock_guard.shortages(acct, [_item("ICE01", 6, 180.0, "stock_sale")], None)
-    assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "6", "have": "5"}]
+    assert short == [{"stkcod": "ICE01", "loccod": "all", "need": "6", "have": "5"}]
+
+
+def _set_stloc(acct, code, loc, **fields):
+    table = dbf.Table(str(acct / "STLOC.DBF"), codepage=S.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for rec in S.live_rows(table):
+            if str(rec["STKCOD"]).strip() == code and str(rec["LOCCOD"]).strip() == loc:
+                with rec as row:
+                    for name, value in fields.items():
+                        row[name] = value
+    finally:
+        table.close()
+
+
+def test_when_the_warehouses_hold_less_than_the_stock_balance_the_whole_balance_is_used(acct):
+    """老账套 STLOC 偏少（各仓 1，STMAS 结存 5）：按全仓 5 核，卖 4 照写，不误拦；卖 6 才拦。"""
+    _no_negative(acct)
+    _set_stloc(acct, "ICE01", "01", LOCBAL=1.0, BEGBAL=1.0)
+    assert stock_guard.shortages(acct, [_item("ICE01", 4, 120.0, "stock_sale")], [None]) == []
+    short = stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale"), _item("ICE01", 3, 90.0, "stock_sale", loccod="02")],
+                                  [None, "02"])
+    assert short == [{"stkcod": "ICE01", "loccod": "all", "need": "6", "have": "5"}]  # 两个仓的行合起来对全仓
+    res = _sell(acct, _sale([_item("ICE01", 4, 120.0, "stock_sale")]))
+    assert res.ok, res.error
+
+
+def test_when_the_warehouses_match_the_stock_balance_the_line_warehouse_is_used(acct):
+    """对得上（主仓 5 = 结存 5）：照按仓核，卖到 02 仓（没有这件品的行）就拦。"""
+    _no_negative(acct)
+    short = stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")], ["02"])
+    assert short == [{"stkcod": "ICE01", "loccod": "02", "need": "1", "have": "0"}]
