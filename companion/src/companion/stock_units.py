@@ -89,6 +89,12 @@ def resolve(account_dir, stkcod: str, unit: str, qty, given_factor=None) -> Unit
         return Units(code or unit, Decimal(1), qty, qty)
     stock_unit = str(master.get("QUCOD") or "").strip()
     if code and code == stock_unit:
+        # 行上就是库存单位：按 1 写。有的主档把销售 / 采购单位填成与库存单位同一个码、系数却不是 1（101 本 T 账套里 9 本，
+        # 例 T7BRTKCC 212-K7231341：QUCOD = SQUCOD、SFACTOR 30），码分不出是哪个单位，按库存单位写、记下来查
+        clash = [field for field, factor in _PACKS if str(master.get(field) or "").strip() == code
+                 and _dec(master.get(factor)) not in (0, 1)]
+        if clash:
+            log.warning("存货 %s 的包装单位 %s 与库存单位同码 %s 但系数不是 1，按库存单位写", stkcod, clash, code)
         return Units(code, Decimal(1), qty, qty)
     if code:
         for unit_field, factor_field in _PACKS:

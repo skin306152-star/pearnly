@@ -75,3 +75,10 @@ def test_the_negative_check_counts_the_pack_in_stock_units(acct):
     isinfo(acct, MAINLOC="01", NEGALLOW="N")
     short = stock_guard.shortages(acct, [{**_item("ICE01", 1, 30.0, "stock_sale", loccod="01"), "unit": "กล่อง"}], ["01"])
     assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "25", "have": "5"}]  # 1 กล่อง = 25 ถุง，只有 5
+
+
+def test_a_pack_with_the_stock_unit_code_is_written_as_the_stock_unit(acct):
+    """主档自相矛盾（销售单位与库存单位同码、系数 30，101 本 T 账套里有 9 本）：码分不出，按库存单位 1 写，不乘 30。"""
+    _packs(acct)
+    _set_item(acct, "ICE01", SQUCOD="ถง", SFACTOR=30.0)
+    assert stock_units.resolve(acct, "ICE01", "ถุง", "2") == stock_units.Units("ถง", Decimal(1), Decimal(2), Decimal(2))

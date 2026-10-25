@@ -110,7 +110,7 @@ def balanced(acct, codes):
 def pack_check(acct, has_stloc, docdate):
     """带包装单位（STMAS SQUCOD / PQUCOD / CQUCOD 系数不是 1）的库存品：用那个包装单位写一张调整 JU 1 个，核 STCRD 记成
     TFACTOR = 系数、XTRNQTY = 系数，商品结存与主仓结存都只多「1 × 系数」（验收 10-25：包装单位按 1 写）。没有这种品的账套不核。"""
-    fields = ("STKCOD", "STKTYP", "SQUCOD", "SFACTOR", "PQUCOD", "PFACTOR", "CQUCOD", "CFACTOR")
+    fields = ("STKCOD", "STKTYP", "QUCOD", "SQUCOD", "SFACTOR", "PQUCOD", "PFACTOR", "CQUCOD", "CFACTOR")
     units = {text(r["TYPCOD"]): text(r["TYPDES"]) for r in rows(acct, "ISTAB", ("TABTYP", "TYPCOD", "TYPDES"))
              if text(r["TABTYP"]) == "20"}
     for r in rows(acct, "STMAS", fields):
@@ -119,7 +119,8 @@ def pack_check(acct, has_stloc, docdate):
         for unit_field, factor_field in (("SQUCOD", "SFACTOR"), ("PQUCOD", "PFACTOR"), ("CQUCOD", "CFACTOR")):
             factor = Decimal(repr(float(r[factor_field] or 0)))
             code = text(r[unit_field])
-            if code and factor > 0 and factor != 1 and units.get(code):
+            # 包装单位与库存单位同码的（主档自相矛盾）按库存单位写，不在这里核（stock_units）
+            if code and factor > 0 and factor != 1 and units.get(code) and code != text(r["QUCOD"]):
                 stkcod = text(r["STKCOD"])
                 before = master_balance(acct, stkcod)
                 located_before = located(acct, stkcod) if has_stloc else 0
