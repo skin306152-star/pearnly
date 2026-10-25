@@ -425,6 +425,21 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 - **对 B3a 日汇总的影响（设计时要定）**：B3a 现在照 Cowork 线上 POS 导入的做法，非现金付款各写一张「借收款科目 / 贷现金」转账凭证；Express 原生是在 HS 上
   记收款类型（ARRCPCQ）。若收款端待测证实上面的推断，B3a 应改成原生写法，并且 Cowork 的 POS 导入是同一份共用规则，要一起评估（动 Cowork 线上行为）。
 
+**B 段复核修复（10-25 晚，验收复核 1874e658 的 3 个高危 + 中危；分支 `pearnly/stock-b3-pos`）**
+- 高危 1 收银日汇总起始日：ERP Company 新增只读 `express_pos_from`，第一次主档同步接上 Express 时记当天，已接的公司由补丁 `v1_14_pos_day_start` 记成上线当天；
+  只汇总起始日及以后的小票，之前的不自动补（日后真要补另做明确的手动操作）。
+- 高危 2 包装单位（主会话定：照 Express 原生记法）：CC 新增 `stock_units`，进货、销货（含日汇总 HS）、库存单 OU / JU / TK、负库存核对共用——行上单位是这件商品
+  STMAS 的 S / P / C 包装单位之一且系数不是 1 → TQUCOD = 包装单位码、TFACTOR = 系数、TRNQTY = 包装数量、XTRNQTY = 数量 × 系数、UNITPR = 每包价、
+  XUNITPR = 每个库存单位成本，结存按 XTRNQTY 动；认不出但 ERP 给了自己的换算率 `factor` → 换成库存单位写；都不是与以前一样。ERP 采购 / 销售 / 出入库 / 日汇总的行
+  带 `factor`，带了的载荷盖 6（旧版 CC 诚实拒收）。S 盘真账 6902ASC / 6907GIZ 只读核过原生记法。退货 SR 施工时同样走 `stock_units`。
+- 高危 3 盘点：盘点生成的出入库单不再逐张写；整份盘点（ERP Stock Count 加 express_* 栏，过账排队）按「存货 × Express 仓」轧差写一张多行 TK，净 0 不写；
+  同步对齐把已写盘点生成的单算已写；盘点页过账后有 Express 按钮。
+- 中危：runner 跑不起来按普通失败最多 3 次后转人工（服务端 MAX_ATTEMPTS，未改）；没有单据簿时 CC 不报这个单别、ERP 直接停下说明（不先让人选科目），
+  JOURNAL_BOOK_NOT_FOUND / ACCOUNT_NOT_POSTABLE / STOCK_ITEM_NOT_FOUND 转人工；定期盘存账套不查存货科目组；作废不回传在作废分支处理（已写的作废原单、排队的撤掉、
+  正在写的写完即作废、已进日汇总的小票不让作废改走退货）。
+- 低危未改、记着：ISRUN JNLTYP 为空时计数器不 +1；提交前弹窗用当前公司而不是单头仓库的公司；库存单载荷不带部门；主档索引失败无限重试（每批重试，不累积）。
+- 批次链（MREMBAL / LOTBAL / MLOTNUM / STKDES）与原生口径不同，放进剩余设计第 7 节第 5 条与成本方案一起定。
+
 **作废的写法（C 盘录单第 2 条在服务器测试账套实录，10-25 晚；主会话定：照 Express 原生作废原单，取代「写冲销单」）**
 - Express 原生作废（工具栏第 3 个按钮，一次确认，不要原因、不要密码）是在原单上作废：
   - 销项 IV：ARTRN 留行，DOCSTAT = C、金额清 0、CMPLAPP = Y；ISVAT 留行清 0、标 C；GLJNL 头标 C，GLJNLIT 金额清空；
