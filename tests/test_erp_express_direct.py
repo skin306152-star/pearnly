@@ -1457,6 +1457,24 @@ class PosDaySummaries(Base):
         self.assertEqual(payload["pos"]["transfers"], [{"acc": "11-02-01-00", "amount": "100.00", "label": "พร้อมเพย์"}])
         self.assertEqual((payload["pos"]["first"], payload["pos"]["last"], payload["pos"]["count"]), ("R0001", "R0003", 3))
 
+    def test_a_refund_summary_asks_for_the_returns_account_once_and_becomes_an_sr(self):
+        """B3b：退货日汇总交给共用写账规则：主页面带 refund 块（`pos_contract.refund_audit`），先问一次退货科目（按公司记住），
+        记住后出退货单 SR、挂原 HS，载荷第 10 版（旧版 CC 诚实拒收）。"""
+        key = self.computer([book()])[0]
+        self.masters(key)
+        body = self.day_doc([["เงินสด", "321.00"]])
+        body["refund"] = {"against": "HS0000039", "against_total": "500.00"}
+        page = E.pages(E.checked(body))[0]
+        self.assertEqual(page["_extraction_audit"]["refund"], {"against": "HS0000039", "against_total": "500.00"})
+        result = self.prepare(body)
+        self.assertEqual(result["hold"], E.CHOICE + ":refund")
+        choices.remember(COMPANY["name"], "refund", result["needed"][0]["subject"], ACCOUNTS[0]["code"], "")
+        payload = self.prepare(body)["payload"]
+        self.assertEqual(payload["doctype"], "SR")
+        self.assertEqual((payload["refund"]["against"], payload["refund"]["cntyp"], payload["refund"]["retstk"]),
+                         ("HS0000039", 3, "Y"))
+        self.assertGreaterEqual(payload["payload_version"], 10)
+
     def test_the_reference_of_a_day_fits_express_with_erp_receipt_numbers(self):
         """实验栈冒烟 10-25：ERP 收银票号 13 字（SI2569-000006），「首-尾」27 字超过 Express 参考号 15 字节被 CC 拦下；
         日汇总改用共用约定的 `day_ref`（同 Cowork 的 POS 导入）。"""

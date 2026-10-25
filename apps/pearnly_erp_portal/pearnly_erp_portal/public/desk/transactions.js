@@ -22,13 +22,14 @@
 		"express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
 		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
 		"express.stock_book_missing": "express.reason.noStockBook", "express.pos_net_negative": "express.reason.posNetNegative",
-		"express.pos_refund_waiting": "express.reason.refundWaiting",
+		"express.pos_refund_waiting": "express.reason.refundWaiting", "pos_refund_items_invalid": "express.reason.refundItems",
 		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
 	};
 	const EXPRESS_KINDS = {
 		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
 		stock_group: "express.kind.stockGroup", receipt: "express.kind.receipt", vat_registered: "express.kind.vatRegistered",
+		refund: "express.kind.refundAccount",
 	};
 	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked", STOCK_INSUFFICIENT: "express.reason.stockInsufficient"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",

@@ -172,7 +172,8 @@ def prepare(doc, company_row, ensure_masters):
     own = _own_accounts(pages, config)   # 销项的服务行同样按自己的收入科目记
     decision = choice_rules.resolve(pages[0]["fields"], direction=doc["direction"], posting_kind=None, config=config,
                                     remembered=choices.remembered(company_row["name"]),
-                                    account_resolved=own and doc["direction"] == "purchase", receipts=_receipts(doc))
+                                    account_resolved=own and doc["direction"] == "purchase", receipts=_receipts(doc),
+                                    refund=bool(doc.get("refund")))  # 收银退货单 SR：退货科目问一次、按公司记住
     if decision["needed"]:
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         return {"hold": contracts.CHOICE + ":" + kinds, "needed": decision["needed"], "book": book}

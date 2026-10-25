@@ -444,6 +444,7 @@ ERP,ERP
 ERP Stock Count Variance,แดชบอร์ดผลต่างการตรวจนับ
 ERP menu,เมนู ERP
 Each product and location may appear only once,สินค้าเดียวกันในตำแหน่งจัดเก็บเดียวกันระบุได้เพียงครั้งเดียว
+Each returned line must be an Express stock item,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 Edit,แก้ไข
 Edit Cart,กลับไปที่ตะกร้า
@@ -1063,6 +1064,7 @@ Sales,ขาย
 Sales Count,จำนวนรายการขาย
 Sales Document,เอกสารขาย
 Sales Records,บันทึกการขาย
+Sales returns account,บัญชีรับคืนสินค้า
 Save,บันทึก
 Save Draft,บันทึกฉบับร่าง
 Save and next,บันทึกและรายการถัดไป
@@ -1288,6 +1290,8 @@ The number of units does not match the quantity,จำนวนรายชิ�
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
 The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
 The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามีขนาดใหญ่เกินไป ไม่สามารถรักษาความละเอียดทศนิยมได้
+The original cash sale is not in Express,ไม่พบใบขายเงินสดต้นฉบับใน Express
+The original cash sale was changed in Express,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
 The payment details are invalid,ข้อมูลการชำระเงินไม่ถูกต้อง
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
@@ -1299,6 +1303,8 @@ The quantity on line {0} is invalid,จำนวนในบรรทัดท�
 The recognition queue is busy. Please send the document again shortly.,ระบบอ่านเอกสารมีคิวหนาแน่น กรุณาส่งเอกสารใหม่อีกครั้งในภายหลัง
 The recognition result needs checking. Please do not resend this document yet.,ผลการอ่านอยู่ระหว่างรอตรวจสอบ กรุณาอย่าส่งเอกสารนี้ซ้ำ
 The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง
+The return is not in the expected form,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
+The returned quantity is more than the quantity sold,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
 The sheet needs a unit number column and a warehouse column,ตารางต้องมีคอลัมน์หมายเลขและคอลัมน์คลัง
@@ -1359,6 +1365,7 @@ This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอ
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This item is not a stock item in Express. Choose another item,สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น
+This item is not on the original cash sale,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ
 This label no longer exists,ไม่พบป้ายกำกับนี้
 This list no longer exists,ไม่พบรายการนี้
 This location is not in the location list of this warehouse,ตำแหน่งนี้ไม่อยู่ในรายการตำแหน่งของคลังนี้
@@ -2005,6 +2012,11 @@ express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร
 express.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 express.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 express.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+express.error.REFUND_EXCEEDS_ORIGINAL,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
+express.error.REFUND_INVALID,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
+express.error.REFUND_LINE_NOT_FOUND,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ
+express.error.REFUND_ORIGINAL_CHANGED,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
+express.error.REFUND_ORIGINAL_NOT_FOUND,ไม่พบใบขายเงินสดต้นฉบับใน Express
 express.error.REINDEX_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
 express.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 express.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
@@ -2016,6 +2028,7 @@ express.error.VOID_DOCUMENT_CHANGED,เอกสารนี้ถูกแก�
 express.error.VOID_DOCUMENT_NOT_FOUND,ไม่พบเอกสารนี้ใน Express
 express.kind.account,บัญชีค่าใช้จ่าย
 express.kind.receipt,บัญชีรับเงิน
+express.kind.refundAccount,บัญชีรับคืนสินค้า
 express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
 express.kind.vat,ภาษีซื้อ
 express.kind.vatRegistered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
@@ -2030,6 +2043,7 @@ express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 express.reason.reading,กำลังอ่านชุดบัญชี Express
+express.reason.refundItems,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 express.reason.refundWaiting,รอบันทึกสรุปยอดขายรายวันต้นทาง
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}

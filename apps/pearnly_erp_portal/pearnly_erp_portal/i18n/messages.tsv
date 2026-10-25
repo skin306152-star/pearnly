@@ -1385,6 +1385,13 @@ A field is longer than Express allows. Shorten it and submit again	部分字段�
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	express.error.ACCOUNT_BUSY_LOCKED
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	express.error.ACCOUNT_SET_UNREACHABLE
 Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します	express.error.ACCOUNT_WRITER_BUSY
+Sales returns account	销货退回科目	บัญชีรับคืนสินค้า	売上返品勘定	express.kind.refundAccount
+Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	express.reason.refundItems
+The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	express.error.REFUND_ORIGINAL_NOT_FOUND
+The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	express.error.REFUND_ORIGINAL_CHANGED
+This item is not on the original cash sale	原现销单上没有此商品	ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ	元の現金売上にこの商品がありません	express.error.REFUND_LINE_NOT_FOUND
+The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	express.error.REFUND_EXCEEDS_ORIGINAL
+The return is not in the expected form	退货单数据格式不对	ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง	返品伝票のデータ形式が正しくありません	express.error.REFUND_INVALID
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	express.error.STOCK_ACC_GROUP_UNFIT
 The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	express.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_DOCTYPE

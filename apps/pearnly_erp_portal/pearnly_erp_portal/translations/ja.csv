@@ -444,6 +444,7 @@ ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 ERP menu,ERPメニュー
 Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
+Each returned line must be an Express stock item,返品明細は Express の在庫品である必要があります
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
 Edit,編集
 Edit Cart,カートに戻る
@@ -1063,6 +1064,7 @@ Sales,販売
 Sales Count,件数
 Sales Document,販売伝票
 Sales Records,売上記録
+Sales returns account,売上返品勘定
 Save,保存
 Save Draft,下書きを保存
 Save and next,保存して次へ
@@ -1288,6 +1290,8 @@ The number of units does not match the quantity,個体数が数量と一致し�
 The opening stock amount is too large,期首在庫金額が大きすぎます
 The opening stock file is too large,期首在庫ファイルが大きすぎます
 The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
+The original cash sale is not in Express,元の現金売上が Express にありません
+The original cash sale was changed in Express,元の現金売上が Express で変更されています
 The password must be at least {0} characters,パスワードは{0}文字以上にしてください
 The payment details are invalid,支払情報が無効です
 The payment is more than the net payable,支払金額が支払残高を超えています
@@ -1299,6 +1303,8 @@ The quantity on line {0} is invalid,{0} 行目の数量が無効です
 The recognition queue is busy. Please send the document again shortly.,読み取りが混み合っています。しばらくしてからもう一度送ってください
 The recognition result needs checking. Please do not resend this document yet.,読み取り結果の確認が必要です。まだ再送しないでください
 The recognition service did not answer in time. Please try again.,読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
+The return is not in the expected form,返品伝票のデータ形式が正しくありません
+The returned quantity is more than the quantity sold,返品数量が販売数量を超えています
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
 The sheet needs a unit number column and a warehouse column,番号列と倉庫列が必要です
@@ -1359,6 +1365,7 @@ This is a credit note. Credit notes cannot be recorded as a purchase yet.,これ
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This item is not a stock item in Express. Choose another item,この品目は Express の在庫品目ではありません。別の品目を選んでください
+This item is not on the original cash sale,元の現金売上にこの商品がありません
 This label no longer exists,このラベルはもうありません
 This list no longer exists,このリストはもうありません
 This location is not in the location list of this warehouse,このロケーションはこの倉庫のロケーション一覧にありません
@@ -2005,6 +2012,11 @@ express.error.MISSING_REF_NO,請求書番号がありません。追加して再
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+express.error.REFUND_EXCEEDS_ORIGINAL,返品数量が販売数量を超えています
+express.error.REFUND_INVALID,返品伝票のデータ形式が正しくありません
+express.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品がありません
+express.error.REFUND_ORIGINAL_CHANGED,元の現金売上が Express で変更されています
+express.error.REFUND_ORIGINAL_NOT_FOUND,元の現金売上が Express にありません
 express.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 express.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
 express.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
@@ -2016,6 +2028,7 @@ express.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されて�
 express.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 express.kind.account,費用勘定
 express.kind.receipt,入金勘定
+express.kind.refundAccount,売上返品勘定
 express.kind.stockGroup,在庫勘定グループ
 express.kind.vat,仮払消費税
 express.kind.vatRegistered,この会社は VAT 登録事業者ですか
@@ -2030,6 +2043,7 @@ express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.reading,Express 帳簿を読み取り中
+express.reason.refundItems,返品明細は Express の在庫品である必要があります
 express.reason.refundWaiting,元の日次集計の書き込み待ち
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}

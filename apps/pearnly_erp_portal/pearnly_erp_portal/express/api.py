@@ -71,13 +71,13 @@ def _options(item, data):
         return rows
     reported = facts.reported(data)
     accounts = reported.get("reported_accounts") or []
-    # 收银日汇总非现金付款方式的收款科目（kind receipt）也是从这份账套的科目表里选
+    # 收银日汇总非现金付款方式的收款科目（kind receipt）、收银退货单的退货科目（kind refund）也是从这份账套的科目表里选
     source = {"item": [row for row in reported.get("reported_products") or [] if row.get("kind", "stock") == "stock"],
-              "account": accounts, "receipt": accounts,
+              "account": accounts, "receipt": accounts, "refund": accounts,
               "department": reported.get("reported_departments") or []}.get(item["kind"])
     if source is None:
         return [{"code": code, "name": ""} for code in FIXED.get(item["kind"], ())]
-    if item["kind"] in ("account", "receipt"):
+    if item["kind"] in ("account", "receipt", "refund"):
         source = facts.accounts_first(source, item["subject"])
     rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or "")} for row in source]
     if item["kind"] == "item":

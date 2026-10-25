@@ -444,6 +444,7 @@ ERP,ERP
 ERP Stock Count Variance,盘点差异看板
 ERP menu,ERP 菜单
 Each product and location may appear only once,同一物料和仓位只能填写一次
+Each returned line must be an Express stock item,退货明细须为 Express 库存商品
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 Edit,编辑
 Edit Cart,返回购物车
@@ -1063,6 +1064,7 @@ Sales,销售
 Sales Count,销售笔数
 Sales Document,销售单据
 Sales Records,销售记录
+Sales returns account,销货退回科目
 Save,保存
 Save Draft,保存草稿
 Save and next,保存并下一项
@@ -1288,6 +1290,8 @@ The number of units does not match the quantity,台数与数量不符
 The opening stock amount is too large,期初库存金额过大
 The opening stock file is too large,期初库存文件过大
 The opening stock value is too large to preserve its decimal precision,期初数值过大，无法保持所需小数精度
+The original cash sale is not in Express,Express 中没有原现销单
+The original cash sale was changed in Express,原现销单在 Express 中已被修改
 The password must be at least {0} characters,密码至少 {0} 位
 The payment details are invalid,付款信息无效
 The payment is more than the net payable,付款金额超过应付金额
@@ -1299,6 +1303,8 @@ The quantity on line {0} is invalid,第 {0} 行数量无效
 The recognition queue is busy. Please send the document again shortly.,识别队列繁忙，请稍后重新发送
 The recognition result needs checking. Please do not resend this document yet.,识别结果待核对，请勿重复发送
 The recognition service did not answer in time. Please try again.,识别服务响应超时，请重试。
+The return is not in the expected form,退货单数据格式不对
+The returned quantity is more than the quantity sold,退货数量超过原单销售数量
 The row has no product code or barcode,该行缺少物料编码或条码
 The sheet needs a product name column,表格中必须包含物料名称列
 The sheet needs a unit number column and a warehouse column,表里需要号码列和仓库列
@@ -1359,6 +1365,7 @@ This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单
 This is not a purchase or sales document,该文件不是采购或销售单据
 This item is also stocked at:,该物料还存放于：
 This item is not a stock item in Express. Choose another item,此商品在 Express 中不是库存品，请另选商品
+This item is not on the original cash sale,原现销单上没有此商品
 This label no longer exists,标签不存在
 This list no longer exists,列表不存在
 This location is not in the location list of this warehouse,库位不在此仓库的库位清单中
@@ -2005,6 +2012,11 @@ express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 express.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+express.error.REFUND_EXCEEDS_ORIGINAL,退货数量超过原单销售数量
+express.error.REFUND_INVALID,退货单数据格式不对
+express.error.REFUND_LINE_NOT_FOUND,原现销单上没有此商品
+express.error.REFUND_ORIGINAL_CHANGED,原现销单在 Express 中已被修改
+express.error.REFUND_ORIGINAL_NOT_FOUND,Express 中没有原现销单
 express.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 express.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 express.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
@@ -2016,6 +2028,7 @@ express.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 E
 express.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
 express.kind.account,费用科目
 express.kind.receipt,收款科目
+express.kind.refundAccount,销货退回科目
 express.kind.stockGroup,存货科目组
 express.kind.vat,进项税
 express.kind.vatRegistered,该公司是增值税登记户吗
@@ -2030,6 +2043,7 @@ express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.posNetNegative,当天退货冲减后为负数
 express.reason.reading,正在读取 Express 账套
+express.reason.refundItems,退货明细须为 Express 库存商品
 express.reason.refundWaiting,等待原日汇总写入
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}

@@ -444,6 +444,7 @@ ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
 ERP menu,ERP menu
 Each product and location may appear only once,Each product and location may appear only once
+Each returned line must be an Express stock item,Each returned line must be an Express stock item
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
 Edit,Edit
 Edit Cart,Edit Cart
@@ -1063,6 +1064,7 @@ Sales,Sales
 Sales Count,Sales Count
 Sales Document,Sales Document
 Sales Records,Sales Records
+Sales returns account,Sales returns account
 Save,Save
 Save Draft,Save Draft
 Save and next,Save and next
@@ -1288,6 +1290,8 @@ The number of units does not match the quantity,The number of units does not mat
 The opening stock amount is too large,The opening stock amount is too large
 The opening stock file is too large,The opening stock file is too large
 The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
+The original cash sale is not in Express,The original cash sale is not in Express
+The original cash sale was changed in Express,The original cash sale was changed in Express
 The password must be at least {0} characters,The password must be at least {0} characters
 The payment details are invalid,The payment details are invalid
 The payment is more than the net payable,The payment is more than the net payable
@@ -1299,6 +1303,8 @@ The quantity on line {0} is invalid,The quantity on line {0} is invalid
 The recognition queue is busy. Please send the document again shortly.,The recognition queue is busy. Please send the document again shortly.
 The recognition result needs checking. Please do not resend this document yet.,The recognition result needs checking. Please do not resend this document yet.
 The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
+The return is not in the expected form,The return is not in the expected form
+The returned quantity is more than the quantity sold,The returned quantity is more than the quantity sold
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
 The sheet needs a unit number column and a warehouse column,The sheet needs a unit number column and a warehouse column
@@ -1359,6 +1365,7 @@ This is a credit note. Credit notes cannot be recorded as a purchase yet.,This i
 This is not a purchase or sales document,This is not a purchase or sales document
 This item is also stocked at:,This item is also stocked at:
 This item is not a stock item in Express. Choose another item,This item is not a stock item in Express. Choose another item
+This item is not on the original cash sale,This item is not on the original cash sale
 This label no longer exists,This label no longer exists
 This list no longer exists,This list no longer exists
 This location is not in the location list of this warehouse,This location is not in the location list of this warehouse
@@ -2005,6 +2012,11 @@ express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit ag
 express.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 express.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 express.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+express.error.REFUND_EXCEEDS_ORIGINAL,The returned quantity is more than the quantity sold
+express.error.REFUND_INVALID,The return is not in the expected form
+express.error.REFUND_LINE_NOT_FOUND,This item is not on the original cash sale
+express.error.REFUND_ORIGINAL_CHANGED,The original cash sale was changed in Express
+express.error.REFUND_ORIGINAL_NOT_FOUND,The original cash sale is not in Express
 express.error.REINDEX_UNAVAILABLE,The Express index tool is missing on this computer. Reinstall CC Desktop
 express.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
 express.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
@@ -2016,6 +2028,7 @@ express.error.VOID_DOCUMENT_CHANGED,This document was changed in Express. Check 
 express.error.VOID_DOCUMENT_NOT_FOUND,This document is not in Express
 express.kind.account,Expense Account
 express.kind.receipt,Receiving Account
+express.kind.refundAccount,Sales returns account
 express.kind.stockGroup,Stock Account Group
 express.kind.vat,Input VAT
 express.kind.vatRegistered,Is this company VAT registered
@@ -2030,6 +2043,7 @@ express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.posNetNegative,Refunds exceed sales for this day after netting
 express.reason.reading,Reading the Express account set
+express.reason.refundItems,Each returned line must be an Express stock item
 express.reason.refundWaiting,Waiting for the original day summary to be written
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
