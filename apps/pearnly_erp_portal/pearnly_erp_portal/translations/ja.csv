@@ -1938,6 +1938,7 @@ express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.reading,Express 帳簿を読み取り中
 express.reason.stockInsufficient,Express の在庫が足りません
+express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.state.written,書き込み済み
 goods,物品
@@ -2494,6 +2495,7 @@ void,取消済み
 {0} more items,ほか {0} 件
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} rows were not imported,{0} 行は取り込めませんでした
+"{0} · Warehouse {1}: need {2}, have {3}",{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}
 {1} is due at {2},「{1}」の期限は {2} です
 {1} is due soon ({2}),「{1}」の期日が近づいています（{2}）

@@ -1938,6 +1938,7 @@ express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.reading,Reading the Express account set
 express.reason.stockInsufficient,Not enough stock in Express
+express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
 express.state.written,Written
 goods,goods
@@ -2494,6 +2495,7 @@ void,void
 {0} more items,{0} more items
 {0} moved {1} to {2},{0} moved {1} to {2}
 {0} rows were not imported,{0} rows were not imported
+"{0} · Warehouse {1}: need {2}, have {3}","{0} · Warehouse {1}: need {2}, have {3}"
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
 {1} is due at {2},{1} is due at {2}
 {1} is due soon ({2}),{1} is due soon ({2})

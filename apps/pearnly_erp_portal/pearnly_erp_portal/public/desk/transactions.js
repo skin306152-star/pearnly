@@ -91,8 +91,12 @@
 		const code = (info.reason || "").match(/^\[([A-Z0-9_]+)\]/)?.[1];
 		// 其余电脑回报的码照 Cowork 同一套文案（`express.error.<码>`），没有译文的才原样
 		const coded = code && __(`express.error.${code}`) !== `express.error.${code}` ? `express.error.${code}` : "";
+		const shortages = code === "STOCK_INSUFFICIENT"
+			// 库存不足按仓列出（CC `stock_guard.message`：「物料@仓 need 要 have 有」；没有分仓结存的账套仓记 all）
+			? [...info.reason.matchAll(/(\S+)@(\S+) need (\S+) have (\S+)/g)].map(([, item, loc, need, have]) =>
+				__("express.reason.stockShort", [item, loc === "all" ? __("All") : loc, need, have])) : [];
 		const reason = info.reason && !info.reason.startsWith("choice_needed")
-			? __(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || info.reason) : "";
+			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || info.reason), ...shortages].join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",

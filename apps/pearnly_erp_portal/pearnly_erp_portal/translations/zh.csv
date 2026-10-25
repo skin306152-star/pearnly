@@ -1938,6 +1938,7 @@ express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.reading,正在读取 Express 账套
 express.reason.stockInsufficient,Express 库存不足
+express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
 express.state.written,已写入
 goods,货物
@@ -2494,6 +2495,7 @@ void,已作废
 {0} more items,另有 {0} 项
 {0} moved {1} to {2},{0} 将卡片「{1}」移至 {2}
 {0} rows were not imported,{0} 行未导入
+"{0} · Warehouse {1}: need {2}, have {3}",{0} · 仓 {1}：需要 {2}，现有 {3}
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}
 {1} is due at {2},卡片「{1}」将在 {2} 到期
 {1} is due soon ({2}),卡片「{1}」即将到期（{2}）

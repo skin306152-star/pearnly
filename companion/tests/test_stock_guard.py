@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """不允许负库存的账套写销货前核结存（出入库第一期，10-25；stock_guard）。
 
-- ISINFO.NEGALLOW = N：卖超结存 → 整单不写，回 STOCK_INSUFFICIENT（转人工）。行上带了仓库码且各仓对得上按那个仓的 STLOC.LOCBAL，
-  没带仓库码（Cowork 销项）按全仓 STMAS.MREMBAL；同单同品同仓合计；
+- ISINFO.NEGALLOW = N：卖超结存 → 整单不写，回 STOCK_INSUFFICIENT（转人工）。照 Express 按仓拦：每行按实际写入的仓（行上的仓库码，
+  没带就是主仓 MAINLOC）的 STLOC.LOCBAL 核，同单同品同仓合计；各仓合计和 STMAS.MREMBAL 对不上的老账也按 STLOC（主会话 10-25，
+  服务器测试账套实录）；
 - 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）、随单新建的物料：照写；
-- 没有 STLOC，或这件品各仓合计和 STMAS.MREMBAL 对不上（老账套 STLOC 偏少）：按全仓 STMAS.MREMBAL 核，宁可少拦不误拦。
+- 没有 STLOC：按全仓 STMAS.MREMBAL 核。
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ def test_selling_more_than_the_warehouse_holds_writes_nothing(acct):
     res = _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale"), _item("ICE01", 3, 90.0, "stock_sale")]),
                 make_backup=True)
     assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT == "STOCK_INSUFFICIENT"
-    assert "ICE01@all need 6 have 5" in res.error  # 没带仓库码：全仓结存 5，同单两行合计 6
+    assert "ICE01@01 need 6 have 5" in res.error  # 没带仓库码：写进主仓 01，按 01 仓的 5 核，同单两行合计 6
     assert _state(acct) == before
     assert worker._outcome_for(res.error_code) == "needs_review"
 
@@ -102,34 +103,35 @@ def _set_stloc(acct, code, loc, **fields):
         table.close()
 
 
-def test_when_the_warehouses_hold_less_than_the_stock_balance_the_whole_balance_is_used(acct):
-    """老账套 STLOC 偏少（各仓 1，STMAS 结存 5）：按全仓 5 核，卖 4 照写，不误拦；卖 6 才拦。"""
+def test_when_the_warehouses_hold_less_than_the_stock_balance_the_warehouse_still_decides(acct):
+    """老账套 STLOC 偏少（主仓 1，STMAS 结存 5）：Express 照 01 仓的 1 拦，我们也一样，卖 2 就拦；01 仓够才写。"""
     _no_negative(acct)
     _set_stloc(acct, "ICE01", "01", LOCBAL=1.0, BEGBAL=1.0)
-    assert stock_guard.shortages(acct, [_item("ICE01", 4, 120.0, "stock_sale")], [None]) == []
-    short = stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale"), _item("ICE01", 3, 90.0, "stock_sale", loccod="02")],
-                                  [None, "02"])
-    assert short == [{"stkcod": "ICE01", "loccod": "all", "need": "6", "have": "5"}]  # 两个仓的行合起来对全仓
-    res = _sell(acct, _sale([_item("ICE01", 4, 120.0, "stock_sale")]))
-    assert res.ok, res.error
+    short = stock_guard.shortages(acct, [_item("ICE01", 2, 60.0, "stock_sale")], [None])
+    assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "2", "have": "1"}]
+    short = stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale"), _item("ICE01", 1, 30.0, "stock_sale", loccod="01")],
+                                  [None, "01"])
+    assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "2", "have": "1"}]  # 没带仓库码的行与写明 01 的行同一个仓，合起来核
+    assert _sell(acct, _sale([_item("ICE01", 1, 30.0, "stock_sale")])).ok
 
 
-def test_when_the_warehouses_match_the_stock_balance_the_line_warehouse_is_used(acct):
-    """对得上（主仓 5 = 结存 5）：照按仓核，卖到 02 仓（没有这件品的行）就拦。"""
+def test_a_warehouse_without_a_row_for_the_item_holds_nothing(acct):
+    """主仓 5 = 结存 5，卖到 02 仓（没有这件品的行）按 0 拦。"""
     _no_negative(acct)
     short = stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")], ["02"])
     assert short == [{"stkcod": "ICE01", "loccod": "02", "need": "1", "have": "0"}]
 
 
-def test_a_line_without_a_warehouse_code_is_checked_against_the_whole_balance(acct):
-    """验收 10-25 T9NIEX12：货都在 02 仓、主仓 0（各仓合计 = 结存 4，对得上）。Cowork 销项不带仓库码：按全仓 4 核，卖 3 照写；
-    行上明确写 01 仓才按 01 仓的 0 核。"""
+def test_a_line_without_a_warehouse_code_is_checked_against_the_main_warehouse(acct):
+    """服务器测试账套实录同样的情形（货都在 02 仓、主仓 0）：Express 从 01 仓卖会拦。Cowork 销项不带仓库码、写进主仓 01，
+    按 01 仓的 0 核 → 停下转人工（回报写明 01 仓要 3 有 0）；行上写 02 仓才照写。"""
     _no_negative(acct)
     assert _buy(acct, _purchase([_item("ICE01", 4, 40.0, "stock_item")], loccod="02")).ok
     _set_stloc(acct, "ICE01", "01", LOCBAL=0.0, BEGBAL=0.0)
     _set_item(acct, "ICE01", MREMBAL=4.0, TOTBAL=4.0)
-    assert stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale")], [None]) == []
-    short = stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale", loccod="01")], ["01"])
-    assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "3", "have": "0"}]
-    res = _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale")]))
-    assert res.ok, res.error
+    before = _state(acct)
+    res = _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale")]), make_backup=True)
+    assert not res.ok and res.error_code == stock_guard.ERR_STOCK_INSUFFICIENT
+    assert "ICE01@01 need 3 have 0" in res.error
+    assert _state(acct) == before
+    assert _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale", loccod="02")])).ok

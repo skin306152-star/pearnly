@@ -1938,6 +1938,7 @@ express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.reading,กำลังอ่านชุดบัญชี Express
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
+express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 express.state.written,บันทึกแล้ว
 goods,สินค้า
@@ -2494,6 +2495,7 @@ void,ยกเลิกแล้ว
 {0} more items,และอีก {0} รายการ
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
+"{0} · Warehouse {1}: need {2}, have {3}",{0} · คลัง {1}: ต้องการ {2} มี {3}
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
 {1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
 {1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
