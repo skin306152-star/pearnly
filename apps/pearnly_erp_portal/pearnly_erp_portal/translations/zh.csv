@@ -800,6 +800,7 @@ Opening quantity and unit cost are required and must be non-negative,期初数�
 Opening quantity supports six decimal places and unit cost supports two,期初数量最多六位小数，成本单价最多两位小数
 Opening stock changed. Preview the rows again before submitting.,期初数据已变化，请重新预览核对后再入账。
 Opening stock files cannot contain formulas or error cells,期初文件不能包含公式或错误单元格，请粘贴为数值
+Opening stock is read from Express,期初从 Express 读取
 Opening stock item,期初明细
 Opening stock items,期初库存明细
 Opening stock must use the product base unit,期初库存必须使用物料的库存单位

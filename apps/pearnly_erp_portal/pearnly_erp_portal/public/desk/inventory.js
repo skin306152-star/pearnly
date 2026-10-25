@@ -18,7 +18,9 @@
 		const api = "pearnly_erp_portal.inventory.api.";
 		const root = "pearnly-inventory";
 		let list;
-		const can_open = () => frappe.boot.pearnly_pages?.includes("pearnly-stock-in");
+		// 接了 Express 的公司期初从 Express 读回（同步对齐），不给录期初的入口（服务端同样拒，出入库第一期）
+		const can_open = () => frappe.boot.pearnly_pages?.includes("pearnly-stock-in")
+			&& !(frappe.boot.pearnly_companies || []).find(row => row.is_current)?.express_linked;
 		async function show_list(current) {
 		page.set_title(__("nav.inventory"));
 		p.breadcrumbs({ label: __("nav.inventory"), route: p.subroute(root) });

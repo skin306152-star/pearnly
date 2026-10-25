@@ -1211,6 +1211,7 @@ The product identifiers refer to different products	该行的物料标识、编�
 This stock position already has stock movements; use a stock adjustment	该物料在此仓位已有出入库记录，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment	该物料在此仓位已录入期初，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品は期首登録済みです。在庫調整を使用してください
 Use a valid opening date that is not in the future	请填写有效的期初日期，不能晚于今天	กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้	本日以前の有効な期首日を入力してください
+Opening stock is read from Express	期初从 Express 读取	ยอดยกมาอ่านจาก Express	期首在庫は Express から読み込みます
 Use an XLSX opening stock file	请使用 XLSX 格式的期初库存文件	กรุณาใช้ไฟล์สต็อกยกมารูปแบบ XLSX	XLSX形式の期首在庫ファイルを使用してください
 Use one worksheet for opening stock	期初库存文件只能包含一个工作表	ไฟล์สต็อกยกมาต้องมีแผ่นงานเพียงแผ่นเดียว	期首在庫ファイルのシートは1つにしてください
 Use unique opening stock columns, including a product identifier, quantity and unit cost	请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复	กรุณาใช้หัวตารางตามแบบฟอร์มยกมา โดยต้องมีรหัสระบุสินค้า จำนวน และต้นทุนต่อหน่วยเป็นอย่างน้อย และคอลัมน์ต้องไม่ซ้ำกัน	テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です

@@ -800,6 +800,7 @@ Opening quantity and unit cost are required and must be non-negative,ต้อ�
 Opening quantity supports six decimal places and unit cost supports two,จำนวนยกมารองรับทศนิยมสูงสุด 6 ตำแหน่ง และต้นทุนต่อหน่วยสูงสุด 2 ตำแหน่ง
 Opening stock changed. Preview the rows again before submitting.,ข้อมูลยกมามีการเปลี่ยนแปลง กรุณาตรวจสอบอีกครั้งก่อนบันทึก
 Opening stock files cannot contain formulas or error cells,ไฟล์ยกมาต้องไม่มีสูตรหรือเซลล์ที่มีข้อผิดพลาด กรุณาวางแบบค่า
+Opening stock is read from Express,ยอดยกมาอ่านจาก Express
 Opening stock item,รายการยกมา
 Opening stock items,รายการสต็อกยกมา
 Opening stock must use the product base unit,สต็อกยกมาต้องใช้หน่วยฐานของสินค้า

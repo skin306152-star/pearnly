@@ -67,6 +67,11 @@ def _context(warehouse, as_of_date, *, current=False):
     except ValueError:
         frappe.throw(_("Use a valid opening date that is not in the future"))
     company = companies.active_company()
+    # 接了 Express 的公司：期初就是 Express 的（同步按 Express 的各仓结存对齐），不在 ERP 录（出入库第一期，10-25）
+    from pearnly_erp_portal.express import push as express_push
+
+    if express_push.linked(company):
+        frappe.throw(_("Opening stock is read from Express"), frappe.PermissionError)
     if not _text(warehouse):
         frappe.throw(_("Pick a warehouse"))
     if current:

@@ -103,10 +103,17 @@ def company_options(user=None) -> list:
                           ["name", "company_name", "short_name", "tax_id", "branch"],
                           order_by="is_default desc, company_name asc")
     # 税号 + 分店给切换公司的搜索用（按账套自动建公司后一个租户几十家，10-24）
-    return [{"name": row["name"], "company_name": row["company_name"] or row["name"],
-             "short_name": row["short_name"] or "", "tax_id": row["tax_id"] or "", "branch": row["branch"] or "",
-             "is_current": row["name"] == current}
-            for row in rows]
+    out = [{"name": row["name"], "company_name": row["company_name"] or row["name"],
+            "short_name": row["short_name"] or "", "tax_id": row["tax_id"] or "", "branch": row["branch"] or "",
+            "is_current": row["name"] == current}
+           for row in rows]
+    # 当前这家接没接 Express（只算当前这一家，不逐家查）：接了的期初从 Express 读回，库存页不给期初入口（出入库第一期）
+    from pearnly_erp_portal.express import push as express_push
+
+    for row in out:
+        if row["is_current"]:
+            row["express_linked"] = express_push.linked(row["name"])
+    return out
 
 
 def set_active_company(name, user=None) -> dict:

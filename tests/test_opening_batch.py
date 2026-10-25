@@ -73,9 +73,15 @@ class OpeningBatch(unittest.TestCase):
         inventory.warehouses = SimpleNamespace(required=self.warehouse)
         masters = ModuleType("pearnly_erp_portal.masters")
         masters.company = SimpleNamespace(active_company=lambda: "C1")
+        # 接了 Express 的公司不在 ERP 录期初（出入库第一期）：默认没接
+        self.express_linked = set()
+        express = ModuleType("pearnly_erp_portal.express")
+        express.push = SimpleNamespace(linked=lambda company: company in self.express_linked)
+        frappe.PermissionError = PermissionError
         modules = {"frappe": frappe, "frappe.utils": utils, "pearnly_core": core,
+                   "pearnly_erp_portal": ModuleType("pearnly_erp_portal"),
                    "pearnly_erp_portal.access": access, "pearnly_erp_portal.inventory": inventory,
-                   "pearnly_erp_portal.masters": masters}
+                   "pearnly_erp_portal.masters": masters, "pearnly_erp_portal.express": express}
         sys.modules.update(modules)
         self.service = load("opening_test_service", DOMAIN / "opening_batch.py")
         self.args = {"warehouse": "W1", "as_of_date": "2026-09-01", "note": "opening test",
@@ -183,6 +189,15 @@ class OpeningBatch(unittest.TestCase):
                 self.assertFalse(review["valid"])
                 self.assertIsNone(review["review_token"])
         self.assertTrue(self.preview(rows=[{"product": "P1", "qty": 0, "unit_cost": 0}])["valid"])
+
+    def test_a_company_linked_to_express_takes_its_opening_from_express(self):
+        # 出入库第一期（10-25）：期初就是 Express 的（同步按各仓结存对齐），ERP 里预览、提交、旧接口都拒，什么都不写
+        self.express_linked.add("C1")
+        for call in (lambda: self.service.preview(**self.args),
+                     lambda: self.service.upsert_one(product="P1", warehouse="W1", as_of_date="2026-09-01", qty="4")):
+            with self.assertRaisesRegex(ValueError, "Opening stock is read from Express"):
+                call()
+        self.assertEqual((self.state["openings"], self.state["movements"]), ([], []))
 
     def test_strict_date_and_active_company_warehouse(self):
         for value in ("2026-9-01", "2026-02-30", "2026-09-25", "", None):

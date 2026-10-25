@@ -800,6 +800,7 @@ Opening quantity and unit cost are required and must be non-negative,Opening qua
 Opening quantity supports six decimal places and unit cost supports two,Opening quantity supports six decimal places and unit cost supports two
 Opening stock changed. Preview the rows again before submitting.,Opening stock changed. Preview the rows again before submitting.
 Opening stock files cannot contain formulas or error cells,Opening stock files cannot contain formulas or error cells
+Opening stock is read from Express,Opening stock is read from Express
 Opening stock item,Opening stock item
 Opening stock items,Opening stock items
 Opening stock must use the product base unit,Opening stock must use the product base unit

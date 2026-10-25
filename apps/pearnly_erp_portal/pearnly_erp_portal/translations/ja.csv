@@ -800,6 +800,7 @@ Opening quantity and unit cost are required and must be non-negative,期首数�
 Opening quantity supports six decimal places and unit cost supports two,数量は小数6桁、単価は小数2桁まで入力できます
 Opening stock changed. Preview the rows again before submitting.,期首データが変更されました。再確認してから確定してください
 Opening stock files cannot contain formulas or error cells,数式やエラーのあるセルは使用できません。値として貼り付けてください
+Opening stock is read from Express,期首在庫は Express から読み込みます
 Opening stock item,期首明細
 Opening stock items,期首在庫明細
 Opening stock must use the product base unit,期首在庫は商品の基準単位で入力してください
