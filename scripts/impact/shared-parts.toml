@@ -40,7 +40,7 @@ name = "ERP 扫码弹窗 p.scan 与选择框扫码按钮"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js"]
 markers = [".scan(", "scan_doctypes", ".scan_link(", "attach_scan_btn"]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.cashier.camera", "erp.cashier.scanner-gun", "erp.stock-count.entry.camera", "erp.line.stocktake.camera", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan", "erp.purchase.item-scan", "erp.sales.item-scan"]
+entries = ["erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.cashier.camera", "erp.cashier.scanner-gun", "erp.stock-count.entry.camera", "erp.line.stocktake.camera", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan", "erp.purchase.item-scan", "erp.sales.item-scan", "erp.serials.dialog"]
 
 [[part]]
 id = "desk-link"
@@ -251,7 +251,7 @@ name = "ERP 按码找商品（products.service / purchase / sales）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
 markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit"]
+entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit", "erp.serials.dialog"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到" }
 
 [[part]]
@@ -367,7 +367,7 @@ name = "浏览器文案（browser_text）"
 paths = ["apps/pearnly_core/pearnly_core/browser_text.py"]
 markers = ["pearnly_core.browser_text", "pearnly_core import browser_text"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["shared.browser-text", "cowork.browser-text", "dms.browser-text", "erp.browser-text", "cc.browser-text"]
+entries = ["shared.browser-text", "cowork.browser-text", "dms.browser-text", "erp.browser-text", "cc.browser-text", "erp.serials.export"]
 
 [[part]]
 id = "billing"
@@ -1971,3 +1971,21 @@ steps = "造两件商品码相同（如一件的条码等于另一件的 Express
 expect = "列出两件让人选，选中的那件填进去；不默认挑一件；新建或修改时撞码被拒并报出商品与码的种类"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html", "apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py"]
+
+[[entry]]
+id = "erp.serials.dialog"
+product = "ERP"
+where = "按台管理：入库 / 出库 / 进货 / 销售收据 / 收银提交前的「登记车辆 / 选择车辆」弹窗"
+steps = "商品开按台 → 入库「其他」提交 → 逐行登记车架号（扫码填号）；出库、销售收据、收银完成订单 → 选在库的台（下拉搜索、扫码认台）；入库「退货」→ 选已售的台；取消弹窗"
+expect = "台数等于数量才提交；扫车身二维码认到台；选台下拉只出本公司这个车型的台；取消就不提交"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/serials.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py"]
+
+[[entry]]
+id = "erp.serials.export"
+product = "ERP"
+where = "商品 → 编辑 → 按台记录 / 按台期初登记"
+steps = "按台记录 → 导出；有库存的商品勾按台管理 → 下载模板 → 填号上传"
+expect = "导出与模板表头按站点语言（车：车架号 / 发动机号 / 颜色）；台数对上才开按台"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js"]
