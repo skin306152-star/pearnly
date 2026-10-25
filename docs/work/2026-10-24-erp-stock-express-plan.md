@@ -379,6 +379,22 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 - B3b 当天退货 SR（CNTYP 2、RETSTK Y，货回仓）：共用规则与 CC 都还不会写 SR；先从 S 盘只读补读 SR 的凭证与税记录写法（九.6 只读过
   字段），再做 CC 的 SR 写入与 ERP 侧。B3a 先上时，退货小票留在 ERP（同步对齐照算，不被抹）。
 
+**C 盘 Express 报 -330 的更正与「缺重建程序就拒写」（10-25 晚）**
+- 现象：10-25 下午 C 盘 Express 打开赊销单报「Error -330 Tag Name not Found ISRUN1」后退出。当时开发窗口判断是自己用仓库源码离线往 T9NIEXCP / T9HENG15
+  写备货单、没用重建程序（runner）、只改 DBF 不重建 CDX 造成的，并用安装版 runner 对改过的表补了 REINDEX。
+- **更正：这个判断不成立。** 专查窗口用内核文件跟踪实机确认，根因是 Express 自带的防拷贝授权：单据窗口按授权指纹决定要不要自动打开 .CDX，
+  `Serial.TXT` 签给 accserver，从 C 盘本机运行时不开；从没被 CC 写过的 T9GIZ 一样报错。离线写入只造成 DBF / CDX 时间不一致（已补 REINDEX）。
+- 后续：C 盘录单改到 accserver 的测试账套 `70EXP\test`（DATAT），由验收做（用户已批准）；C 盘 Express 等用户向厂商为测试机申请授权。
+  测试账套准备数据只用正式 CC 写入路径或 Express 本身，不再用仓库源码离线写（主会话 10-25）。
+- 仍然要做的兜底（主会话批准，分支 `pearnly/stock-b3-pos` `d7e12dd9`、CC 1.12.3 `a3d86456`）：
+  - 正式包缺 `cdx_reindex_runner.exe` 或重建失败时整单拒写、回滚，回报码 `REINDEX_UNAVAILABLE`，服务端按「要人处理」转人工（不烧重试）；
+    「只改 DBF」的回落只在开发 / 测试开关 `PEARNLY_ALLOW_DBF_REINDEX=1` 下保留（CC 单测默认打开）。
+  - 心跳报 `reindex_runner`（ok / missing / broken，启动后试跑一次 SEEK 并缓存），ERP / Cowork 的电脑记录上新增只读「Express 索引程序」可见。
+  - 写入路径核对：进货 / 销货（含日汇总转账凭证、新建客户 / 供应商 / 商品）都经 runner 重建改过的表（主档可批末重建，批末失败现在留到下一批，不再丢）；
+    出入库单原来缺「按 Express 索引回查」，已补按 STCRD3（DOCNUM+SEQNUM）回查。
+  - 离线回归脚本（`express-stock-entry-regression.py`、`express-stloc-regression.py`）加 `--runner`：给了就照正式 CC 重建，并核写过的表
+    「用 CDX 能打开、标签名和键表达式不变、打开时记录数等于 DBF、新单在 DOCNUM / VOUCHER 开头的标签里查得到」（`scripts/express_cdx_check.py`）。
+
 每项都按 A 段的做法：CC 写入（只写 C 盘 T 账套副本做离线回归）→ ERP 推送 → 同步对齐把这类来源挪进 `WRITTEN_SOURCES`（验收 10-25 提醒）→
 连带回归闸门 → 实验栈冒烟 → 验收复核 → 合入 main。部署随 A 段一起由主会话定。
 
