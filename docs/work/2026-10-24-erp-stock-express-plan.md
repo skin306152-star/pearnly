@@ -307,7 +307,9 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
    B 段领用 / 调整的成本先照销货用移动均价（`stock_sale` 现状），这一条核实后再定要不要改。
 4. **现购转账 HP 一张**（选一本有 BKMAS 的 T 账套）：确认 BKTRN 之外不再写别的表（APRCPCQ 等），以及 `CHQNUM`（样本是「SC」+ 单号）与
    `CHQSTAT=19` 是程序自动给的还是人填的。B 段「转账付款」等这一条。
-5. **退货 RETSTK=N 与减价 CNTYP=1 各一张**：看 STLOC / STMAS 动不动（样本里有这两种行，但没有能把它们和结存对上的账套）。
+5. **收银现金退款的退货单 SR 一张**（B3b 等这条；原「RETSTK=N / 减价」已由样本答清，见九.7c）：在允许负库存的 T 账套里，对现销客户
+   录一张「ใบลดหนี้/รับคืน」退 1 个、货回仓、**当场退现金**，看凭证是贷现金还是贷应收（样本里的退货都冲应收），以及要不要另录付款单。
+   原第 5 条（不回仓 / 只减价）：看 STLOC / STMAS 动不动（样本里有这两种行，但没有能把它们和结存对上的账套）。
    B 段收银退货只用 RETSTK=Y（货回仓），不等这一条；ERP 现在没有减价 / 不回仓的退货。
 6. （可选）**仓间调拨 RL 一张**：确认 STCRD 那一对 4 / 3 行与 REIMBURSE=`ฝ` 是什么意思。ERP 现在没有调拨单，不录不挡任何项。
 
@@ -328,6 +330,17 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
 - 明细 STCRD：领用 POSOPR=6、调整 POSOPR=8（数量可正可负），带 ACCNUMDR / ACCNUMCR、LOCCOD、TQUCOD / TFACTOR、TRNQTY / XTRNQTY、
   UNITPR / XUNITPR、TRNVAL / XTRNVAL、MREMBAL / MREMVAL；先进先出账套另带 MLOTNUM（领用指向被消耗的进货批次）、LOTBAL / LOTVAL / LUNITPR（收料批次）。
   CC 现在的销货不维护批次（金样本 HS580101-001，移动均价），B 段沿用；批次由 Express「计算成本」重排（第 3 条核实）。
+
+### 九.7c 退货单 SR 的写法（10-25 晚，读验收在测试机上从 S 盘只读拷出的副本 `C:\PearnlyStress\S盘副本\2569\EXP69\6907GIZ`）
+
+- 单头 ARTRN：RECTYP=5、CNTYP（样本 1 / 2 / 3 都有，与回不回仓无关）、SONUM = 原发票号、FLGVAT、CUSCOD、AMOUNT / AFTDISC / TOTAL（税前）、
+  VATAMT、NETAMT（含税）、NETVAL、RCVAMT = NETAMT、IVCAMT、CMPLAPP=Y、DOCSTAT=N、VATDAT / VATPRD、SRV_VATTYP=1。
+- 明细 STCRD：POSOPR=2、RDOCNUM = 原单号 + 行号、PEOPLE = 客户；**RETSTK=Y**（回仓）带 XTRNQTY / XUNITPR（成本）/ XTRNVAL 与写后结存
+  MREMBAL / MREMVAL（库存增加）；**RETSTK=N 不带这些库存字段，不动库存**（原 C 盘第 5 条的问题由此答清）。
+- 凭证：JNLTYP **03**（销售日记账），摘要「ลดหนี้/รับคืน + 客户名」（ISRUN 的 JNLEXP）；SEQIT 1 借收入（税前）、2 借销项税、3 贷应收（含税）、
+  回仓的另记 8 借存货 / 9 贷销货成本（成本）。
+- 税记录 ISVAT：VATREC=S、RECTYP=5、AMT01 / VAT01 记正数、REFNUM = 单号、DESCRP = 客户名、TAXID、PRENAM。
+- 样本里的退货都冲应收（赊销客户，ARRCPIT 里有收款单抵）；收银台当场退现金的写法样本答不了 → C 盘第 5 条。
 
 ### 九.9 第一期 B 段：样本已能定写法、先开工的项（10-25，主会话同意先开工）
 
