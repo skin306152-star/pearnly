@@ -89,7 +89,7 @@ class Base(unittest.TestCase):
 
 class Prepare(Base):
     def test_a_pack_unit_carries_the_erp_factor_and_needs_a_cc_desktop_that_knows_it(self):
-        """验收 10-25：包装单位按 1 写进 Express。ERP 单据行带上自己的换算率，载荷盖 6（旧版 CC 桌面版按 1 写，诚实拒收）。"""
+        """验收 10-25：包装单位按 1 写进 Express。ERP 单据行带上自己的换算率，载荷盖 7（1.12.3 测试包认 6 却没有换算，诚实拒收）。"""
         key, = self.computer([book()])
         self.masters(key)
         body = doc()
@@ -97,7 +97,7 @@ class Prepare(Base):
         payload = self.prepare(body)["payload"]
         self.assertEqual([(item.get("unit"), item.get("qty"), item.get("factor")) for item in payload["items"]],
                          [("ลัง", "1.00", "12.00"), ("ถุง", "5.00", None)])
-        self.assertEqual(payload["payload_version"], 6)
+        self.assertEqual(payload["payload_version"], 7)
 
     def test_purchase_and_sales_payloads_from_the_shared_rules(self):
         key, = self.computer([book()])

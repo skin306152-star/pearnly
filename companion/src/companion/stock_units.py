@@ -94,6 +94,9 @@ def resolve(account_dir, stkcod: str, unit: str, qty, given_factor=None) -> Unit
         for unit_field, factor_field in _PACKS:
             factor = _dec(master.get(factor_field))
             if str(master.get(unit_field) or "").strip() == code and factor > 0 and factor != 1:
+                if given > 0 and given != factor:
+                    # 主档不一致（例：ERP「箱 = 12」、Express「箱 = 10」）：照 Express 写，记下来查（验收 10-25）
+                    log.warning("存货 %s 单位 %r：ERP 换算率 %s 与 Express 系数 %s 不一致，按 Express 写", stkcod, unit, given, factor)
                 return Units(code, factor, qty, qty * factor)
     if given > 0 and given != 1:
         return Units(stock_unit or code or unit, Decimal(1), qty * given, qty * given)

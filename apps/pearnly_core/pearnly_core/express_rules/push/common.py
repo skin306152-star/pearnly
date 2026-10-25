@@ -228,9 +228,9 @@ LOCATION_PAYLOAD_VERSION = 4
 # 总账分录带角色（``role``，ERP 前台明细按行科目拆，费用 / 收入可以有几条）：旧版小助手按位置认分录会把第二条费用当进项税，
 # 用版本号让它诚实拒收（CC 桌面版 1.12.0 起按角色写）
 ROLE_PAYLOAD_VERSION = 5
-# 明细行带来源自己的包装单位换算率 `factor`（CC 桌面版 1.12.3 起按 Express 主档的包装单位照原生记法写，`stock_units`）：
-# 旧版按 1 写，所以带了它的载荷盖 6，旧版诚实拒收。
-FACTOR_PAYLOAD_VERSION = 6
+# 明细行带来源自己的包装单位换算率 `factor`（CC 桌面版 1.12.4 起按 Express 主档的包装单位照原生记法写，`stock_units`）：
+# 旧版按 1 写，所以带了它的载荷盖 7，旧版诚实拒收（1.12.3 测试包认 6 却没有换算，验收 10-25）。
+FACTOR_PAYLOAD_VERSION = 7
 _STOCK_MODES = ("stock_item", "stock_sale")
 
 

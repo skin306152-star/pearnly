@@ -21,7 +21,9 @@ from typing import Optional
 # 没带 loccod 的载荷与以前逐字节相同(见 stock_location)。
 # 6:库存单(``direction = stock``,单别 OU 领用 / JU 调整 / TK 盘点;出入库第一期 B 段,dbf_stock)。旧版不认这个方向,会把它当
 # 进项写,所以盖 6,旧版诚实拒收、派单只交给报过支持 6 的电脑。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6})
+# 7:明细行可带来源（ERP）自己的包装单位换算率 ``factor``,且包装单位按 Express 主档的系数照原生记法写(TQUCOD / TFACTOR /
+# XTRNQTY = 数量 × 系数,stock_units)。旧版按 1 写,所以带 factor 的载荷盖 7,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 
