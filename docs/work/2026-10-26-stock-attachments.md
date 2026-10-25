@@ -28,7 +28,12 @@
 
 - 单元：`tests/test_erp_stock_attachments.py`（本人上传才能挂、别人的 / 公开的 / 已挂过的拒、方向能力、10 个上限与建单前核、已提交不能删、作废不再加）。
 - 登记：`scripts/impact/shared-parts.toml` 新入口 `erp.stock-in.attach`、`erp.stock-out.attach`；`erp.stock-count.upload` 补盘点照片的新口径与文件。
-- 实验栈与手机实测见下（施工中补）。
+- 实验栈（10-26 02:46–02:52，挂 38cf8258 之后的工作树，REFRESH 导入，演示公司不接 Express）：建入库单带 2 个附件 → 2；已提交再加 1 → 3；
+  已提交删一个被拒；别人上传的文件被拒；加到 10 个、第 11 个报「Up to 10 attachments」；作废后再加被拒、原 10 个照能列出。
+  盘点照片：手机 base64 存上（实验栈没配原件层，走本机兜底）、别人的文件地址被拒、本人刚上传的挂上。
+- 修了一个原有问题：手机盘点照片的本机兜底原来用 `frappe.utils.file_manager.save_file`，Frappe 16 会把写好的图片按文本读回去再去 EXIF，
+  图片一律报 TypeError 存不上（实验栈复现）。线上 LINE 盘点拍照大概率一直存不上；改成带字节建 File（同 `recognition.originals` 的兜底）。
+- 没测到：网页上传框的实际点选 / 拍照（要登录浏览器，交验收）；原件层直传（实验栈没配原件层，走的是同一套 `erp-originals.js`，采购 / 销售在用）。
 
 ## 运维待办（主会话 10-26）
 

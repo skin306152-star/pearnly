@@ -665,7 +665,6 @@ def _save_photos(entry: str, values) -> int:
     import binascii
     import hashlib
 
-    from frappe.utils.file_manager import save_file
     from pearnly_core.execution.errors import Deferred
     from pearnly_core.originals import registered
 
@@ -699,8 +698,10 @@ def _save_photos(entry: str, values) -> int:
                     frappe.throw(_("The file could not be saved. Please try again shortly."))
                 if isinstance(stored, dict):
                     raise ValueError("photo rejected")
-                if stored is None:  # 这个站点没配原件层
-                    save_file(filename, raw, ENTRY, entry, is_private=1)
+                if stored is None:  # 这个站点没配原件层：带字节建私有 File（旧的 `file_manager.save_file` 在 Frappe 16
+                    # 会把写好的图片按文本读回去再去 EXIF，图片一律报错存不上；同 `recognition.originals.upload` 的兜底）
+                    frappe.get_doc({"doctype": "File", "file_name": filename, "content": raw, "is_private": 1,
+                                    "attached_to_doctype": ENTRY, "attached_to_name": entry}).insert(ignore_permissions=True)
         except (ValueError, binascii.Error):
             frappe.throw(_("That photo could not be read"))
         saved += 1
