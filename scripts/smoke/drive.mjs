@@ -78,7 +78,9 @@ try {
       if (!page) return -1;
       // 列表取数时框架的 BaseList.freeze 会露出 .freeze 遮罩：还在取数就不算打开
       if ([...page.querySelectorAll(".freeze")].some((el) => el.offsetParent !== null)) return -1;
-      return (page.innerText || "").trim().length; })()`;
+      // 框架原生的无权限页 / 404 页（show_message_page）字很少（中文无权限页主区 17 个字），认到它就按「有内容」算
+      const length = (page.innerText || "").trim().length;
+      return page.querySelector(".message-page-image, .message-page-icon") ? Math.max(length, 21) : length; })()`;
     let last = -1, since = 0;
     while (Date.now() - started < (job.wait_ms || 6000) + 30000) {
       const now = (await send("Runtime.evaluate", { expression: probe, returnByValue: true }, sessionId)).result?.value ?? -1;
