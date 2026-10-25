@@ -98,6 +98,8 @@ def document(*, ref: str, direction: str, doc_date: str, number: str, company: d
                       "amount": money(amount),
                       # 库存行一律带仓库码（出入库第一期，10-25）：随单新建的物料也按这一行的仓写、建 STLOC 行，不再落主仓
                       "loccod": str(line.get("loccod") or "").strip()[:4] if line.get("stock") else "",
+                      # 包装单位：ERP 商品单位表的换算率（CC 桌面版认不出 Express 主档的包装单位时按它换成库存单位）
+                      **({"factor": str(line["factor"])} if line.get("stock") and d(line.get("factor")) not in (0, 1) else {}),
                       "stock": bool(line.get("stock"))})
     return {"version": VERSION, "ref": ref, "direction": direction, "date": str(doc_date)[:10],
             "number": str(number or "").strip()[:40],
@@ -237,6 +239,7 @@ def pages(doc: dict) -> list:
         "party_code": party["code"],
         "items": [{"name": item["name"], "qty": item["qty"], "price": item["price"], "subtotal": item["amount"],
                    "unit": item["unit"], "code": item["code"], "loccod": item["loccod"],
+                   **({"factor": item["factor"]} if item.get("factor") else {}),
                    "posting_kind": "stock" if item["stock"] else "service"}
                   for item in doc["items"]],
     }

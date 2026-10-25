@@ -59,21 +59,25 @@ def _plain(value) -> str:
     return "0" if text in ("-0", "") else text
 
 
-def base_unit(product_name, product, unit):
-    """（库存单位, 行上单位到库存单位的换算率）。行上没写单位或就是库存单位 → 1；商品单位表里没有这个单位 → 报错（同 ERP 流水）。"""
+def base_unit(product_name, product, unit, strict=True):
+    """（库存单位, 行上单位到库存单位的换算率）。行上没写单位或就是库存单位 → 1；商品单位表里没有这个单位 → 报错（同 ERP 流水），
+    ``strict=False`` 回 1（采购 / 销售行的单位可以是票面上自由写的，换不了就照原样交给 CC，与以前相同）。"""
     base = str(product.get("base_unit") or product.get("unit") or "").strip()
     unit = str(unit or "").strip()
     if not unit or unit == base:
         return base, contracts.d(1)
     factor = frappe.db.get_value("ERP Product Unit", {"parent": product_name, "parenttype": "ERP Product", "unit_name": unit},
                                  "factor_to_base")
+    if (not factor or contracts.d(factor) <= 0) and not strict:
+        return base, contracts.d(1)
     if not factor or contracts.d(factor) <= 0:
         frappe.throw(frappe._("Unit {0} is not defined on {1}").format(unit, product.get("product_name") or product_name))
     return base, contracts.d(factor)
 
 
-def document(name, ref) -> dict:
-    """这张出入库单交给电脑的样子（还没选账套）。``ref``：单据标识（`push.ref`）。"""
+def document(name, ref, base=False) -> dict:
+    """这张出入库单交给电脑的样子（还没选账套）。``ref``：单据标识（`push.ref`）。行照行上的单位与数量交（另带 ERP 商品单位表的
+    换算率 ``factor``），CC 桌面版按 Express 主档的包装单位照原生记法写（`stock_units`）；``base=True`` 换成库存单位（盘点轧差用）。"""
     doc = frappe.get_doc(DOCTYPE, name)
     doctype = kind(doc)
     products, warehouses, lines = {}, {}, []
@@ -85,17 +89,19 @@ def document(name, ref) -> dict:
         warehouse = line.warehouse or doc.warehouse
         if warehouse and warehouse not in warehouses:
             warehouses[warehouse] = frappe.db.get_value("ERP Warehouse", warehouse, "express_code") or ""
-        # 行上可以是包装单位（箱 = 12）：Express 库存单按库存单位写（CC 的 TFACTOR 是 1），所以这里换成库存单位的数量与单位成本，
-        # 与 ERP 流水同一个口径（`inventory.stock.resolve_factor`）；验收 10-25：原来照行上单位传，Express 只动 1、主档对齐成错数
-        base, factor = base_unit(line.product, product, line.unit)
-        qty = contracts.d(line.qty) * factor
+        # 行上可以是包装单位（箱 = 12；验收 10-25：原来按 1 写进 Express）：照行上单位交，带上 ERP 的换算率，CC 按 Express 主档换
+        stock_unit, factor = base_unit(line.product, product, line.unit)
+        qty, unit, cost = contracts.d(line.qty), str(line.unit or "").strip() or stock_unit, contracts.d(line.unit_cost)
+        if base:
+            qty, unit, cost = qty * factor, stock_unit, cost / factor
         if doctype == COUNT and doc.direction == "out":
             qty = -qty
         item = {"code": product.get("express_code") or "", "name": product.get("product_name") or "",
-                "qty": _plain(qty), "unit": base,
-                "loccod": warehouses.get(warehouse, "")}
-        if qty > 0 and contracts.d(line.unit_cost) > 0:
-            item["unit_cost"] = _plain((contracts.d(line.unit_cost) / factor).quantize(contracts.d("0.0001")))
+                "qty": _plain(qty), "unit": unit, "loccod": warehouses.get(warehouse, "")}
+        if factor != 1 and not base:
+            item["factor"] = _plain(factor)
+        if qty > 0 and cost > 0:
+            item["unit_cost"] = _plain(cost.quantize(contracts.d("0.0001")))
         lines.append(item)
     return {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
             "number": doc.doc_no or doc.name, "remark": str(doc.reason or "").strip(),
@@ -105,31 +111,24 @@ def document(name, ref) -> dict:
 def count_document(name, ref) -> dict:
     """一份已过账的盘点 → 一张多行盘点调整 TK（验收 10-25）：这份盘点生成的全部出入库单按「存货 × Express 仓」轧差（都换成库存单位），
     库位之间挪动净 0 的不写；Express 不分库位，原来逐张写 TK 会把挪动写成毛额（不允许负库存的账套里减的被拦、加的照写）。
-    增加的行带单位成本（这份盘点里加进去的那几笔按数量加权）。"""
+    盘盈的行不带 ERP 的估值：接了 Express 的公司以 Express 成本为准，CC 桌面版按这本账套这件品的现有均价（没有就标准成本）取
+    （主会话 10-25；Express 自己的盘点调整怎么取价列进服务器测试账套待测）。"""
     count = frappe.db.get_value(COUNT_DOCTYPE, name, ["title", "warehouse"], as_dict=True) or {}
     entries = frappe.get_all(DOCTYPE, filters={"ref_type": COUNT_REF, "ref_id": name, "status": "submitted"},  # bounded: 一份盘点的单
                              fields=["name", "posting_date"], order_by="creation asc", limit_page_length=0)
     net = {}
     for entry in entries:
-        for line in document(entry.name, ref)["lines"]:
+        for line in document(entry.name, ref, base=True)["lines"]:
             key = (line["code"] or line["name"], line["loccod"])
             slot = net.setdefault(key, {"code": line["code"], "name": line["name"], "unit": line["unit"],
-                                        "loccod": line["loccod"], "qty": contracts.d(0), "in_qty": contracts.d(0),
-                                        "in_value": contracts.d(0)})
-            qty = contracts.d(line["qty"])
-            slot["qty"] += qty
-            if qty > 0 and line.get("unit_cost"):
-                slot["in_qty"] += qty
-                slot["in_value"] += qty * contracts.d(line["unit_cost"])
+                                        "loccod": line["loccod"], "qty": contracts.d(0)})
+            slot["qty"] += contracts.d(line["qty"])
     lines = []
     for slot in net.values():
         if not slot["qty"]:
             continue
-        item = {"code": slot["code"], "name": slot["name"], "qty": _plain(slot["qty"]), "unit": slot["unit"],
-                "loccod": slot["loccod"]}
-        if slot["qty"] > 0 and slot["in_qty"] > 0:
-            item["unit_cost"] = _plain((slot["in_value"] / slot["in_qty"]).quantize(contracts.d("0.0001")))
-        lines.append(item)
+        lines.append({"code": slot["code"], "name": slot["name"], "qty": _plain(slot["qty"]), "unit": slot["unit"],
+                      "loccod": slot["loccod"]})
     warehouse = count.get("warehouse")
     return {"ref": ref, "direction": "stock", "doctype": COUNT,
             "date": str(entries[0].posting_date) if entries else frappe.utils.nowdate(), "number": name,

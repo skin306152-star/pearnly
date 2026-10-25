@@ -88,6 +88,17 @@ class Base(unittest.TestCase):
 
 
 class Prepare(Base):
+    def test_a_pack_unit_carries_the_erp_factor_and_needs_a_cc_desktop_that_knows_it(self):
+        """验收 10-25：包装单位按 1 写进 Express。ERP 单据行带上自己的换算率，载荷盖 6（旧版 CC 桌面版按 1 写，诚实拒收）。"""
+        key, = self.computer([book()])
+        self.masters(key)
+        body = doc()
+        body["items"][0].update(unit="ลัง", qty="1", factor="12")
+        payload = self.prepare(body)["payload"]
+        self.assertEqual([(item.get("unit"), item.get("qty"), item.get("factor")) for item in payload["items"]],
+                         [("ลัง", "1.00", "12.00"), ("ถุง", "5.00", None)])
+        self.assertEqual(payload["payload_version"], 6)
+
     def test_purchase_and_sales_payloads_from_the_shared_rules(self):
         key, = self.computer([book()])
         self.masters(key)
@@ -1079,10 +1090,11 @@ class StockEntries(Base):
         self.assertEqual((body["doctype"], body["number"], body["remark"], body["loccod"]), ("TK", "STC-1", "ตรวจนับ ต.ค.", "01"))
         self.assertEqual(body["lines"], [
             {"code": "ICE-02", "name": "น้ำแข็งบด", "qty": "-2", "unit": "ถุง", "loccod": "01"},
-            {"code": "CH-01", "name": "ถ่าน", "qty": "3", "unit": "ถุง", "loccod": "01", "unit_cost": "8"}])
+            {"code": "CH-01", "name": "ถ่าน", "qty": "3", "unit": "ถุง", "loccod": "01"}])  # 盘盈不带 ERP 估值，按 Express 均价取
 
     def test_a_pack_unit_is_written_in_the_stock_unit(self):
-        """验收 10-25：行上选「ลัง（= 12 ถุง）」时原来照 1 ลัง 写进 Express；现在换成 12 ถุง、单位成本除以 12。"""
+        """验收 10-25：行上选「ลัง（= 12 ถุง）」时原来按 1 写进 Express；现在照行上单位交、带上 ERP 的换算率 12（CC 按 Express 主档的
+        包装单位照原生记法写，认不出时按它换成库存单位）；盘点轧差用的库存单位口径是 36 ถุง、单位成本 10。"""
         import types
         lines = [types.SimpleNamespace(product="P1", qty=3, unit="ลัง", unit_cost=120, warehouse=None)]
         Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
@@ -1098,10 +1110,13 @@ class StockEntries(Base):
         with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
                 mock.patch.object(frappe.db, "get_value", value):
             body = self.stock.document("SE-2", "SE-2@x")
+            base = self.stock.document("SE-2", "SE-2@x", base=True)
             lines[0].unit = "แพ็ค"
             with self.assertRaises(Exception):
                 self.stock.document("SE-2", "SE-2@x")  # 商品单位表里没有的单位：同 ERP 流水，报错不猜
-        self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "36", "unit": "ถุง", "loccod": "01",
+        self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "3", "unit": "ลัง", "loccod": "01",
+                                          "factor": "12", "unit_cost": "120"}])
+        self.assertEqual(base["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "36", "unit": "ถุง", "loccod": "01",
                                           "unit_cost": "10"}])
 
 
@@ -1194,6 +1209,45 @@ class PosDaySummaries(Base):
         options = api._options(item, facts.load(key))
         self.assertEqual(sorted(row["code"] for row in options), sorted(row["code"] for row in ACCOUNTS))
         self.assertTrue(options[0]["code"].startswith("1"), options[:3])
+
+    def test_a_receipt_is_in_at_most_one_summary_and_late_receipts_only_go_into_the_follow_up(self):
+        """主会话 10-25：同一张小票最多进一张汇总。同一批票重复触发汇总不生成第二张；晚到的离线票只进补单（seq 2）。"""
+        import types
+        receipts = [{"name": "S1", "day": "2026-10-24", "summary": "", "total": 20}, {"name": "S2", "day": "2026-10-24", "summary": "", "total": 30}]
+        made, deleted, queued = [], [], []
+
+        class Doc(dict):
+            __getattr__ = dict.get
+
+            def insert(self, ignore_permissions=False):
+                self["name"] = f"PDS-{len(made) + 1}"
+                made.append(self["name"])
+
+        def sql(query, values=None, as_dict=False):
+            if query.lstrip().startswith("UPDATE"):
+                for r in receipts:
+                    if not r["summary"] and r["day"] == values["day"]:
+                        r["summary"] = values["summary"]
+                return None
+            mine = [r for r in receipts if r["summary"] == values[0]]
+            return [types.SimpleNamespace(count=len(mine), total=sum(r["total"] for r in mine), vat=0)]
+
+        from pearnly_erp_portal.express import push as push_module
+        with mock.patch.object(frappe, "get_doc", lambda body: Doc(body), create=True), \
+                mock.patch.object(frappe.db, "count", lambda doctype, filters: len(made), create=True), \
+                mock.patch.object(frappe.db, "sql", side_effect=sql), \
+                mock.patch.object(frappe.db, "sql_list", lambda q, v: [r["name"] for r in receipts if r["summary"] == v[0]], create=True), \
+                mock.patch.object(frappe.db, "set_value", lambda *a, **k: None), \
+                mock.patch.object(frappe, "delete_doc", lambda doctype, name, **k: deleted.append(name), create=True), \
+                mock.patch.object(push_module, "queue", lambda doctype, name: queued.append(name)):
+            first = self.pos_day.summarize("CO-1", "2026-10-24")
+            again = self.pos_day.summarize("CO-1", "2026-10-24")  # 同一批票再触发：一张都不剩，不生成第二张
+            receipts.append({"name": "S3", "day": "2026-10-24", "summary": "", "total": 5})  # 晚到的离线票
+            late = self.pos_day.summarize("CO-1", "2026-10-24")
+        self.assertEqual((first, again, late), ("PDS-1", None, "PDS-3"))
+        self.assertEqual(deleted, ["PDS-2"])
+        self.assertEqual(queued, ["PDS-1", "PDS-3"])
+        self.assertEqual({r["name"]: r["summary"] for r in receipts}, {"S1": "PDS-1", "S2": "PDS-1", "S3": "PDS-3"})
 
     def test_an_ordinary_sale_carries_no_day_facts(self):
         page = E.pages(E.checked(doc(direction="sales", paid=True)))[0]

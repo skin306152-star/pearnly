@@ -228,6 +228,9 @@ LOCATION_PAYLOAD_VERSION = 4
 # 总账分录带角色（``role``，ERP 前台明细按行科目拆，费用 / 收入可以有几条）：旧版小助手按位置认分录会把第二条费用当进项税，
 # 用版本号让它诚实拒收（CC 桌面版 1.12.0 起按角色写）
 ROLE_PAYLOAD_VERSION = 5
+# 明细行带来源自己的包装单位换算率 `factor`（CC 桌面版 1.12.3 起按 Express 主档的包装单位照原生记法写，`stock_units`）：
+# 旧版按 1 写，所以带了它的载荷盖 6，旧版诚实拒收。
+FACTOR_PAYLOAD_VERSION = 6
 _STOCK_MODES = ("stock_item", "stock_sale")
 
 
@@ -242,6 +245,8 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, 2)
     if any(item.get("loccod") for item in lines):
         floor = max(floor, LOCATION_PAYLOAD_VERSION)
+    if any(item.get("factor") for item in lines):
+        floor = max(floor, FACTOR_PAYLOAD_VERSION)  # 旧版 CC 桌面版按 1 写包装单位：诚实拒收
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):
         floor = max(floor, ROLE_PAYLOAD_VERSION)
     payload["payload_version"] = max(floor, int(payload.get("payload_version") or 0))
@@ -321,6 +326,10 @@ def extract_line_items(
             loccod = str(it.get("loccod") or "").strip()
             if loccod:
                 row["loccod"] = loccod[:4]
+            factor = _d(it.get("factor"))
+            if factor is not None and factor > 0 and factor != 1:
+                # 来源（ERP）自己的包装单位换算率：CC 桌面版认不出 Express 主档的包装单位时按它换成库存单位（验收 10-25）
+                row["factor"] = _s(factor)
         account = str(it.get("account") or "").strip()
         if account:
             # 来源已给出这一行自己的费用科目（ERP 前台：明细认出的 Express 费用类物料，编码就是科目）：照它记；OCR 的票没有这一键

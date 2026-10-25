@@ -644,6 +644,7 @@ Last counted at,最終棚卸日時
 Last counted by,最終棚卸者
 Last page,最終ページ
 Last transacted,最終取引
+Late receipts,追加分
 Leave all unchecked to allow every company,未チェックの場合は全社を許可します
 Leave blank to use the default terminal,空欄なら既定のレジを使います
 Leave board,ボードから退出
@@ -1957,6 +1958,7 @@ express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.state.written,書き込み済み
+express.summary.extra,追加分
 goods,物品
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）

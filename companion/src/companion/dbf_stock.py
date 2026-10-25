@@ -36,6 +36,7 @@ from . import fiscal_period
 from . import stock_guard
 from . import stock_location
 from . import stock_sale
+from . import stock_units
 from .consistency import account_company_matches
 from .dbf_writer import (
     ERR_ACCOUNT_DIR,
@@ -291,22 +292,30 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     try:
         for seq, (item, match) in enumerate(zip(items, found), start=1):
             stkcod = match["stkcod"]
-            qty = _dec(item.get("qty"))
+            # 包装单位按 Express 主档系数换成库存单位动结存（stock_units；验收 10-25 实测「1 กล่อง = 25 เส้น」按 1 写）
+            units = stock_units.resolve(account_dir, stkcod, str(item.get("unit") or ""), _dec(item.get("qty")),
+                                        item.get("factor"))
+            qty = units.base_qty
             signed = -qty if kind == ISSUE else qty
             bal, val = balances.get(stkcod, (_dec(match["mrembal"]), _dec(match["mremval"])))
-            given = _dec(item.get("unit_cost"))
+            given = _dec(item.get("unit_cost")) / (units.base_qty / units.qty if units.qty else 1)  # 每包成本 → 每个库存单位
             unit_cost = given if (signed > 0 and given > 0) else _cost(account_dir, {**match, "mrembal": bal, "mremval": val})
             value = _q2(abs(qty) * unit_cost)
             signed_value = -value if signed < 0 else value
             new_bal, new_val = bal + signed, _q2(val + signed_value)
             balances[stkcod] = (new_bal, new_val)
-            unit = str(item.get("unit") or "")
+            unit = units.unit
+            trn = units.qty if kind == ISSUE else (units.qty if signed >= 0 else -abs(units.qty))
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_entry_row(
-                docnum, seq, docdat, stkcod, str(item.get("name") or ""), float(qty if kind == ISSUE else signed),
+                docnum, seq, docdat, stkcod, str(item.get("name") or ""), float(trn),
                 float(_q2(unit_cost) if unit_cost else 0), val=float(value if kind == ISSUE else signed_value),
                 rem_bal=float(new_bal), rem_val=float(new_val), posopr=posopr, unit=unit, depcod=depcod,
                 accnumdr=account if kind == ISSUE else "", accnumcr=account if kind != ISSUE else ""),
                 unit, stock_location.location_at(locations, seq - 1))
+            stock_units.stamp(row, units if kind != ISSUE else stock_units.Units(units.unit, units.factor, units.qty,
+                                                                                  abs(units.base_qty)))
+            if units.factor != 1:
+                row["UNITPR"] = float(_q2(unit_cost * units.factor))  # 交易单位（每包）的单价，同 Express 原生
             table.append(_filtered(table, row))
             if moves is not None:
                 moves.append(stock_location.move(row, move_kind))

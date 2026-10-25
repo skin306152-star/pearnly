@@ -40,6 +40,7 @@ from . import dbf_schema as S
 from . import product_master
 from . import stock_location
 from . import stock_lookup
+from . import stock_units
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -262,9 +263,12 @@ def write_stock_lines(
             item = find_stock_item(account_dir, name, str(it.get("code") or ""))
             if item and item["mrembal"] > 0:
                 # ① 复用(有正库存):真扣库存 + 移动均价结转 COGS
+                # 包装单位按 Express 主档系数换成库存单位动结存、算成本(stock_units;验收 10-25)
+                units = stock_units.resolve(account_dir, item["stkcod"], unit, qty, it.get("factor"))
+                base = float(units.base_qty)
                 avg = item["mremval"] / item["mrembal"]
-                cogs = _q2(qty * avg)
-                new_bal = item["mrembal"] - qty
+                cogs = _q2(base * avg)
+                new_bal = item["mrembal"] - base
                 new_val = _q2(item["mremval"] - cogs)
                 inv_acc, cogs_acc = stock_accounts(account_dir, item["acccod"])
                 row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
@@ -274,17 +278,17 @@ def write_stock_lines(
                         item["stkcod"],
                         party_code,
                         name,
-                        qty,
+                        float(units.qty),
                         unit_price,
                         amount,
                         avg_cost=_q2(avg),
                         cogs=cogs,
                         rem_bal=new_bal,
                         rem_val=new_val,
-                        unit=unit,
+                        unit=units.unit,
                         depcod=depcod,
-                    ), unit, stock_location.location_at(locations, seq - 1))
-                st.append(row)
+                    ), units.unit, stock_location.location_at(locations, seq - 1))
+                st.append(stock_units.stamp(row, units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
@@ -302,8 +306,10 @@ def write_stock_lines(
                     account_dir, item, name, unit=unit, userid=userid, acccod=acccod
                 )
                 cost = basis.unit_cost
-                cogs = _q2(qty * cost) if cost > 0 else 0.0
-                new_bal = basis.bal - qty
+                units = stock_units.resolve(account_dir, basis.stkcod, unit, qty, it.get("factor"))
+                base = float(units.base_qty)
+                cogs = _q2(base * cost) if cost > 0 else 0.0
+                new_bal = basis.bal - base
                 new_val = _q2(basis.val - cogs)
                 row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
@@ -312,17 +318,17 @@ def write_stock_lines(
                         basis.stkcod,
                         party_code,
                         name,
-                        qty,
+                        float(units.qty),
                         unit_price,
                         amount,
                         avg_cost=cost,
                         cogs=cogs,
                         rem_bal=new_bal,
                         rem_val=new_val,
-                        unit=unit,
+                        unit=units.unit,
                         depcod=depcod,
-                    ), unit, stock_location.location_at(locations, seq - 1))
-                st.append(row)
+                    ), units.unit, stock_location.location_at(locations, seq - 1))
+                st.append(stock_units.stamp(row, units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)

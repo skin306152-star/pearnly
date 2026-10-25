@@ -644,6 +644,7 @@ Last counted at,Last counted at
 Last counted by,Last counted by
 Last page,Last page
 Last transacted,Last transacted
+Late receipts,Late receipts
 Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
 Leave board,Leave board
@@ -1957,6 +1958,7 @@ express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
 express.state.written,Written
+express.summary.extra,Late receipts
 goods,goods
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"

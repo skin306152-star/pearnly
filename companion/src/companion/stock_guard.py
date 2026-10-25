@@ -28,6 +28,7 @@ import dbf
 from . import account_rules
 from . import dbf_schema as S
 from . import stock_location
+from . import stock_units
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -88,7 +89,9 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
         chosen = stock_location.location_at(locations, index)
         code = str(found["stkcod"]).strip()
         key = (code, chosen) if chosen else (code, ALL_LOCATIONS)
-        need[key] = need.get(key, Decimal(0)) + Decimal(str(item.get("qty") or "1"))
+        # 包装单位按 Express 主档系数换成库存单位再核（与写单同一个换法，stock_units）
+        units = stock_units.resolve(account_dir, code, str(item.get("unit") or ""), item.get("qty") or "1", item.get("factor"))
+        need[key] = need.get(key, Decimal(0)) + abs(units.base_qty)
     if not need:
         return []
     codes = {key[0] for key in need}

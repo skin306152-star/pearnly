@@ -644,6 +644,7 @@ Last counted at,上次盘点时间
 Last counted by,上次盘点人
 Last page,末页
 Last transacted,最近交易时间
+Late receipts,补单
 Leave all unchecked to allow every company,不勾选则可查看全部公司
 Leave blank to use the default terminal,留空使用默认收银台
 Leave board,离开看板
@@ -1957,6 +1958,7 @@ express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
 express.state.written,已写入
+express.summary.extra,补单
 goods,货物
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）

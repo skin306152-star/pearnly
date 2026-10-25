@@ -644,6 +644,7 @@ Last counted at,ตรวจนับล่าสุดเมื่อ
 Last counted by,ผู้ตรวจนับล่าสุด
 Last page,หน้าสุดท้าย
 Last transacted,ทำรายการล่าสุด
+Late receipts,ใบเพิ่มเติม
 Leave all unchecked to allow every company,หากไม่เลือก จะเห็นได้ทุกบริษัท
 Leave blank to use the default terminal,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
 Leave board,ออกจากบอร์ด
@@ -1957,6 +1958,7 @@ express.reason.stockInsufficient,สินค้าคงเหลือใน E
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 express.state.written,บันทึกแล้ว
+express.summary.extra,ใบเพิ่มเติม
 goods,สินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)

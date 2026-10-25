@@ -107,6 +107,51 @@ def balanced(acct, codes):
     return {code: master.get(code, Decimal(0)) == loc.get(code, Decimal(0)) for code in codes}
 
 
+def pack_check(acct, has_stloc, docdate):
+    """带包装单位（STMAS SQUCOD / PQUCOD / CQUCOD 系数不是 1）的库存品：用那个包装单位写一张调整 JU 1 个，核 STCRD 记成
+    TFACTOR = 系数、XTRNQTY = 系数，商品结存与主仓结存都只多「1 × 系数」（验收 10-25：包装单位按 1 写）。没有这种品的账套不核。"""
+    fields = ("STKCOD", "STKTYP", "SQUCOD", "SFACTOR", "PQUCOD", "PFACTOR", "CQUCOD", "CFACTOR")
+    units = {text(r["TYPCOD"]): text(r["TYPDES"]) for r in rows(acct, "ISTAB", ("TABTYP", "TYPCOD", "TYPDES"))
+             if text(r["TABTYP"]) == "20"}
+    for r in rows(acct, "STMAS", fields):
+        if text(r["STKTYP"]) != "0":
+            continue
+        for unit_field, factor_field in (("SQUCOD", "SFACTOR"), ("PQUCOD", "PFACTOR"), ("CQUCOD", "CFACTOR")):
+            factor = Decimal(repr(float(r[factor_field] or 0)))
+            code = text(r[unit_field])
+            if code and factor > 0 and factor != 1 and units.get(code):
+                stkcod = text(r["STKCOD"])
+                before = master_balance(acct, stkcod)
+                located_before = located(acct, stkcod) if has_stloc else 0
+                payload = {"payload_version": 6, "direction": "stock", "doctype": "JU", "docdate_be": docdate,
+                           "ref_no": "REG-PACK", "remark": "", "items": [{"code": stkcod, "name": "", "qty": "1",
+                                                                          "unit": units[code], "unit_cost": "10"}]}
+                res = D.write_stock_entry(payload, acct, selected_dir=str(acct), make_backup=False)
+                if not res.ok:
+                    return {"why": f"pack JU {stkcod} {res.error_code}: {res.error}"}
+                line = [x for x in rows(acct, "STCRD", ("DOCNUM", "TFACTOR", "XTRNQTY", "TRNQTY")) if text(x["DOCNUM"]) == res.docnum][0]
+                if (Decimal(repr(float(line["TFACTOR"]))), Decimal(repr(float(line["XTRNQTY"])))) != (factor, factor):
+                    return {"why": f"pack JU {stkcod}: TFACTOR {line['TFACTOR']} XTRNQTY {line['XTRNQTY']} != {factor}"}
+                after = master_balance(acct, stkcod)
+                if after[0][0] - before[0][0] != factor:
+                    return {"why": f"pack JU {stkcod}: STMAS {before} -> {after}, expected +{factor}"}
+                if has_stloc and located(acct, stkcod) - located_before != factor:
+                    return {"why": f"pack JU {stkcod}: STLOC {located_before} -> {located(acct, stkcod)}, expected +{factor}"}
+                return {"pack": {"item": stkcod, "unit": code, "factor": str(factor), "docnum": res.docnum}}
+    return {}
+
+
+def located(acct, code):
+    """这件品各仓结存合计（不带仓库码的行写主仓，一张单只动一个仓，所以合计的变化就是那个仓的变化）。"""
+    return sum((Decimal(repr(float(r["LOCBAL"] or 0))) for r in rows(acct, "STLOC", ("STKCOD", "LOCBAL"))
+                if text(r["STKCOD"]) == code), Decimal(0))
+
+
+def master_balance(acct, code):
+    return [(Decimal(repr(float(r["MREMBAL"] or 0))), Decimal(repr(float(r["MREMVAL"] or 0))))
+            for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL", "MREMVAL")) if text(r["STKCOD"]) == code]
+
+
 def check(acct: Path) -> dict:
     books = {kind: D.book_row(acct, kind) for kind in ("OU", "JU", "TK")}
     missing = [kind for kind, row in books.items() if row is None]
@@ -156,10 +201,13 @@ def check(acct: Path) -> dict:
     index_problems = cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, written) if with_runner else []
     if index_problems:
         return {"state": "fail", "why": "; ".join(index_problems)}
+    pack = pack_check(acct, has_stloc, docdate)
+    if pack.get("why"):
+        return {"state": "fail", "why": pack["why"]}
     changed = sorted(name for name, digest in digests(acct).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed: {changed}"}
-    return {"state": "ok", "docs": written, "perpetual": perpetual, "stloc": has_stloc, "was_balanced": before_balanced,
+    return {"state": "ok", "docs": written, "perpetual": perpetual, "stloc": has_stloc, "was_balanced": before_balanced, "pack": pack.get("pack"),
             "cdx_checked": sorted(index_before)}
 
 

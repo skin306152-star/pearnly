@@ -106,7 +106,8 @@ def _lines(doctype, doc):
         product = products.get(line.product)
         if line.product and product is None:
             product = products[line.product] = frappe.db.get_value(
-                "ERP Product", line.product, ["product_name", "express_code", "express_stock"], as_dict=True) or {}
+                "ERP Product", line.product, ["product_name", "express_code", "express_stock", "base_unit", "unit"],
+                as_dict=True) or {}
         product = product or {}
         if line.warehouse and line.warehouse not in warehouses:
             warehouses[line.warehouse] = frappe.db.get_value("ERP Warehouse", line.warehouse, "express_code") or ""
@@ -117,9 +118,12 @@ def _lines(doctype, doc):
             stock = (line.get("item_type") or "goods") == "goods" and bool(line.product)
         else:
             stock = bool(line.product)
+        # 包装单位（箱 = 12）：带上 ERP 商品单位表的换算率（CC 桌面版按 Express 主档的包装单位照原生记法写，认不出时按它换；验收 10-25）
+        factor = stock_entry.base_unit(line.product, product, line.unit, strict=False)[1] if stock and line.product else None
         out.append({"name": line.description or product.get("product_name") or code, "code": code, "unit": line.unit,
                     "qty": line.qty, "amount": line.line_total, "stock": stock,
-                    "loccod": warehouses.get(line.warehouse, "") if line.warehouse else ""})
+                    "loccod": warehouses.get(line.warehouse, "") if line.warehouse else "",
+                    **({"factor": factor} if factor and factor != 1 else {})})
     return out
 
 

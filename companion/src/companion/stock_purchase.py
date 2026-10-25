@@ -29,6 +29,7 @@ from . import dbf_schema as S
 from . import product_master
 from . import stock_location
 from . import stock_sale
+from . import stock_units
 from .dbf_detail import ITEM_MODE_STOCK  # item_mode 常量单一事实源在明细行路由那侧
 from .logger import get_logger
 
@@ -130,7 +131,9 @@ def write_stock_in_lines(
             # 起拿上一个商品的科目码去建档。这里要的是本商品档上实际挂的组。
             cur_bal, cur_val, item_acccod = _stmas_state(account_dir, stkcod)
             inv_acc, _cogs_acc = stock_sale.stock_accounts(account_dir, item_acccod)
-            new_bal = cur_bal + qty
+            # 包装单位按 Express 主档系数换成库存单位入库（stock_units；验收 10-25）
+            units = stock_units.resolve(account_dir, stkcod, unit, qty, it.get("factor"))
+            new_bal = cur_bal + units.base_qty
             new_val = _money(cur_val + amount)
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_in_row(
                     docnum,
@@ -139,17 +142,17 @@ def write_stock_in_lines(
                     stkcod,
                     party_code,
                     name,
-                    float(qty),
-                    float(_money(amount / qty)),
+                    float(units.qty),
+                    float(_money(amount / units.qty)),
                     val=float(amount),
                     rem_bal=float(new_bal),
                     rem_val=float(new_val),
-                    unit=unit,
+                    unit=units.unit,
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=S.STCRD_POSOPR_PURCHASE,
-                ), unit, stock_location.location_at(locations, seq - 1))
-            st.append(row)
+                ), units.unit, stock_location.location_at(locations, seq - 1))
+            st.append(stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))
             stock_sale.write_stmas_fields(

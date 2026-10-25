@@ -327,11 +327,12 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
     summaries = {row.name: row for row in frappe.get_all(
         "ERP POS Day Summary", filters={"name": ["in", [r.get("express_summary") for r in rows if r.get("express_summary")]
                                                  or [""]]},
-        fields=["name", "express_state", "express_docnum"], limit_page_length=len(rows) or 1)}
+        fields=["name", "express_state", "express_docnum", "seq"], limit_page_length=len(rows) or 1)}
     for row in rows:
         row["customer_name"] = names.get(row.get("customer"), "")
         summary = summaries.get(row.get("express_summary")) or {}
         row["express_state"], row["express_docnum"] = summary.get("express_state") or "", summary.get("express_docnum") or ""
+        row["express_extra"] = int(summary.get("seq") or 1) > 1  # 同一天第 2 张起是晚到小票的补单
     return rows
 
 

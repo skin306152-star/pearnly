@@ -107,15 +107,16 @@ def document(name, ref) -> dict:
         if row.warehouse and row.warehouse not in warehouses:
             warehouses[row.warehouse] = frappe.db.get_value("ERP Warehouse", row.warehouse, "express_code") or ""
         code = product.get("express_code") or ""
-        # 小票行可以是包装单位：同出入库单，换成库存单位的数量，同品同仓合成一行（验收 10-25 单位换算）
-        unit, factor = (stock_entry.base_unit(row.product, product, row.unit) if row.product
-                        else (row.unit, contracts.d(1)))
-        key = (row.product or row.unit, row.warehouse)
-        line = merged.setdefault(key, {"name": product.get("product_name") or code or "-", "code": code, "unit": unit,
+        # 小票行可以是包装单位：同出入库单照行上单位交、带 ERP 的换算率，CC 按 Express 主档的包装单位写（验收 10-25）
+        factor = stock_entry.base_unit(row.product, product, row.unit, strict=False)[1] if row.product else contracts.d(1)
+        key = (row.product or row.unit, row.warehouse, row.unit)
+        line = merged.setdefault(key, {"name": product.get("product_name") or code or "-", "code": code, "unit": row.unit,
                                        "qty": contracts.d(0), "amount": contracts.d(0),
                                        "stock": bool(product.get("express_stock")) if code else bool(row.product),
                                        "loccod": warehouses.get(row.warehouse, "")})
-        line["qty"] += contracts.d(row.qty) * factor
+        if factor != 1:
+            line["factor"] = stock_entry._plain(factor)
+        line["qty"] += contracts.d(row.qty)
         line["amount"] += contracts.d(row.amount)
     lines = [{**line, "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])}
              for line in merged.values()]

@@ -1679,3 +1679,4 @@ This account set has no book for this kind of document. Set it up in Express	此
 The chosen account cannot be posted in Express. Choose another account	所选科目在 Express 中不能记账，请另选科目	บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น	選んだ勘定は Express で記帳できません。別の勘定を選んでください	express.error.ACCOUNT_NOT_POSTABLE
 This item is not a stock item in Express. Choose another item	此商品在 Express 中不是库存品，请另选商品	สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น	この品目は Express の在庫品目ではありません。別の品目を選んでください	express.error.STOCK_ITEM_NOT_FOUND
 Cashier Sales to Express From	收银写 Express 起始日	เริ่มส่งยอดขายหน้าร้านเข้า Express ตั้งแต่	Express へのレジ売上の開始日
+Late receipts	补单	ใบเพิ่มเติม	追加分	express.summary.extra
