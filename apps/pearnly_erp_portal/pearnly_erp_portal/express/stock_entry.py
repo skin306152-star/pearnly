@@ -5,7 +5,11 @@
 - 账套照采购 / 销售同一条规则选（`target.pick`：税号 + 分店 + 日期，同期两份按选过的，没选过停下让人选一次）；账套资料还没读到时
   请电脑读（`masters.ensure`），读好了再准备。这类单没有对方、没有税，不走发票那套写账规则（`express_rules`），载荷在这里直接备：
   逐行存货码（ERP 商品记的 Express 编码，没有就交品名，电脑认不出整单停下）、单位、数量、仓库码（行上的仓，没有是单头的仓）、
-  入库的单位成本；科目由电脑用账套里这个单别的默认科目（ISRUN）。
+  入库的单位成本。
+- 科目：这家公司为这个单别选过科目就用选的（`choices`，与费用科目、存货科目组同一套记法，按公司记住）；没选过用账套里这个单别的
+  默认科目（ISRUN，CC 桌面版读主档时报来的 ``stock_books``）。默认科目没有、或不在这份账套可记账的科目里（10-25 离线回归：6 本
+  ASIAFC / TUCL 账套如此）→ 停下让人在提交时的弹窗里选一次（``account``，主题 ``stock:<单别>``）。旧版 CC 桌面版不报 ``stock_books``，
+  不核，照旧交给电脑用默认科目。
 - 公司：出入库单没有公司栏，按单头仓库的公司（仓库属于公司）。
 """
 import frappe
@@ -19,6 +23,11 @@ PAYLOAD_VERSION = 6
 ISSUE, ADJUST, COUNT = "OU", "JU", "TK"
 COUNT_REF = "count"
 SKIPPED_REFS = ("purchase",)
+ACCOUNT = "account"  # 要人选的那一项（与费用科目同一种，选项是这份账套的科目表）
+
+
+def account_subject(doctype) -> str:
+    return f"stock:{doctype}"
 
 
 def company_of(name):
@@ -80,10 +89,21 @@ def prepare(body, company_row, ensure_masters) -> dict:
     if picked["reason"]:
         return {"hold": picked["reason"], "book": picked.get("book")}
     book = picked["book"]
-    if facts.load(book["key"]) is None:
+    data = facts.load(book["key"])
+    if data is None:
         ensure_masters(company_row["name"], book)
-        if facts.load(book["key"]) is None:
+        data = facts.load(book["key"])
+        if data is None:
             return {"hold": contracts.READING, "book": book}
+    subject = account_subject(body["doctype"])
+    account = choices.chosen(company_row["name"], ACCOUNT, subject)
+    stock_books = (data.get("facts") or {}).get("stock_books") if isinstance(data, dict) else None
+    if not account and isinstance(stock_books, dict):
+        postable = {str(row.get("code") or "").strip() for row in facts.reported(data).get("reported_accounts") or []}
+        default = str(stock_books.get(body["doctype"]) or "").strip()
+        if not default or (postable and default not in postable):
+            return {"hold": contracts.CHOICE + ":" + ACCOUNT, "book": book,
+                    "needed": [{"kind": ACCOUNT, "subject": subject, "label": body["doctype"], "options": [], "current": ""}]}
     path = book["path"]
     payload = {
         "payload_version": PAYLOAD_VERSION, "direction": "stock", "doctype": body["doctype"],
@@ -94,7 +114,19 @@ def prepare(body, company_row, ensure_masters) -> dict:
         # 单据日期所在的会计期在 Express 里已关账：电脑不写、回 PERIOD_LOCKED（同采购 / 销售）
         "respect_period_lock": True,
     }
+    if account:
+        payload["account"] = account
     return {"payload": payload, "book": book}
 
 
-__all__ = ["COUNT", "DOCTYPE", "ISSUE", "ADJUST", "company_of", "document", "eligible", "kind", "prepare"]
+def form_body(payload) -> dict:
+    """出入库单表单此刻的内容（还没存）→ :func:`prepare` 要的单（提交前问要人定的项用，`api.preflight`）。只看单别与日期：
+    要问的只有科目，与明细无关。"""
+    direction = "out" if str(payload.get("direction") or "") == "out" else "in"
+    return {"ref": "preflight", "direction": "stock", "doctype": kind({"direction": direction}),
+            "date": str(payload.get("posting_date") or frappe.utils.nowdate()), "number": "-", "remark": "",
+            "loccod": "", "lines": []}
+
+
+__all__ = ["ACCOUNT", "ADJUST", "COUNT", "DOCTYPE", "ISSUE", "account_subject", "company_of", "document", "eligible",
+           "form_body", "kind", "prepare"]

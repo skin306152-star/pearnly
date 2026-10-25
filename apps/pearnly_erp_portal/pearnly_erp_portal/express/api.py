@@ -14,7 +14,7 @@ from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, facts, masters, prepare, push
+from pearnly_erp_portal.express import choices, contracts, facts, masters, prepare, push, stock_entry
 from pearnly_erp_portal.masters import company as companies
 
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
@@ -124,7 +124,10 @@ def preflight(doctype, payload, answers=None):
     company_row = push._company(company)
 
     def needed():
-        result = prepare.prepare(push.form_document(doctype, payload, company), company_row, masters.ensure)
+        if doctype == push.STOCK:  # 出入库单：只问库存单的科目（`stock_entry.prepare`）
+            result = stock_entry.prepare(stock_entry.form_body(payload), company_row, masters.ensure)
+        else:
+            result = prepare.prepare(push.form_document(doctype, payload, company), company_row, masters.ensure)
         if not str(result.get("hold") or "").startswith(contracts.CHOICE):
             return [], None
         book = result.get("book") or {}

@@ -46,7 +46,7 @@ from .request_contract import MAX_BYTES, RequestFailed, Result
 log = get_logger(__name__)
 
 RESULT_VERSION = 2
-TABLES = ("ISINFO", "ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "GLACC", "ISACC")
+TABLES = ("ISINFO", "ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "GLACC", "ISACC", "ISRUN")
 MAX_STOCK_GROUPS = 20
 # 至少要有其中一张才是一份 Express 账套
 REQUIRED_ANY = ("ISINFO", "STMAS")
@@ -178,6 +178,13 @@ def _facts(folder: Path) -> dict:
         facts["mapping"] = dict(account_probe.probe_default_accounts(folder) or {})
     except Exception:
         log.info("默认科目读不出，这份不带默认科目")
+    try:
+        # 库存单（载荷 6）三个单别在 ISRUN 里的默认科目：ERP 据此判要不要先让人选一次科目（这一行没有或几行不同 → 空）
+        from .dbf_stock import KINDS, book_row
+
+        facts["stock_books"] = {kind: (book_row(folder, kind) or {}).get("account", "") for kind in KINDS}
+    except Exception:
+        log.info("单据簿读不出（没有 ISRUN？），这份不带库存单默认科目")
     try:
         ranked = catalog_probe.probe_isacc_candidates(folder)
         facts["catalog"]["isacc_candidates"] = [row for row in ranked if row["fit"]][:MAX_STOCK_GROUPS]

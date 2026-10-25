@@ -318,7 +318,7 @@ paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_s
 markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock"]
 search = ["companion/src/**"]
 entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry"]
-not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker" }
+not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker", "companion/src/companion/express_masters.py" = "读主档只借用库存单单据簿的读法（dbf_stock.book_row，只读），入口见 cc-request-worker" }
 
 [[part]]
 id = "execution"

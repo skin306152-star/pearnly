@@ -1039,5 +1039,32 @@ class StockEntries(Base):
         self.assertEqual([(line["qty"], line.get("unit_cost")) for line in body["lines"]], [("3", None), ("1", "12")])
 
 
+    def masters_with_books(self, key, stock_books):
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": []},
+                                 "stock_books": stock_books})
+
+    def test_a_default_account_that_cannot_be_posted_is_chosen_once_per_company(self):
+        """10-25 离线回归：6 本账套（ASIAFC / TUCL）ISRUN 的默认科目不在科目表里 → 停下让人选一次科目，按公司记住。"""
+        key = self.computer([book()])[0]
+        self.masters_with_books(key, {"OU": "5320-03", "JU": "", "TK": "52-08-00-00"})
+        ensure = lambda company, chosen: None  # noqa: E731
+        for doctype in ("OU", "JU"):  # 不在科目表里 / 没有默认科目
+            result = self.stock.prepare(self.body(doctype=doctype), COMPANY, ensure)
+            self.assertEqual(result["hold"], E.CHOICE + ":account")
+            self.assertEqual(result["needed"][0]["subject"], f"stock:{doctype}")
+        result = self.stock.prepare(self.body(doctype="TK"), COMPANY, ensure)  # 默认科目能记账：不问、不带科目
+        self.assertNotIn("account", result["payload"])
+        choices.remember(COMPANY["name"], "account", "stock:OU", "52-08-00-00", "")
+        result = self.stock.prepare(self.body(doctype="OU"), COMPANY, ensure)
+        self.assertEqual(result["payload"]["account"], "52-08-00-00")
+
+    def test_an_older_cc_desktop_without_stock_books_is_not_asked(self):
+        key = self.computer([book()])[0]
+        self.masters(key)
+        result = self.stock.prepare(self.body(), COMPANY, lambda company, chosen: None)
+        self.assertIn("payload", result)
+        self.assertNotIn("account", result["payload"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -180,3 +180,12 @@ def test_the_worker_hands_a_stock_entry_to_the_stock_writer(monkeypatch, tmp_pat
     worker._handle_dbf_task(SimpleNamespace(default_depcod="", ui_lang="en"), queue,
                             SimpleNamespace(id="T-9", payload=_entry("OU", [_line("ICE01", 1)]), invoice_no="X"))
     assert seen == [("OU", str(tmp_path))] and acks == [("ok", "OU690320-001")]
+
+
+def test_the_master_read_reports_the_default_account_of_each_stock_book(book):
+    """读主档时一并报 OU / JU / TK 在 ISRUN 的默认科目（ERP 据此判要不要先让人选一次科目）。"""
+    from companion import express_masters
+
+    facts = express_masters._facts(book)
+    assert facts["stock_books"] == {"OU": ISSUE_ACC, "JU": OFFSET_ACC, "TK": OFFSET_ACC}
+    assert "ISRUN" in express_masters.TABLES

@@ -211,6 +211,8 @@
 					// 必填没填时它会展开那一段并返回 null —— 那就别提交。
 					const rows = lines ? lines.values() : values.lines;
 					if (rows === null) return;
+					// 接了 Express：这家公司这个单别的科目要人选一次时当场弹窗（同采购 / 销售提交前）；关掉弹窗不提交
+					if (!await p.express_preflight("ERP Stock Entry", { direction: doc.direction || direction, ...clean({ ...values, lines: rows }) })) return;
 					// 一次调用就建单/改单 + 过账；完了回列表，不停在这一页。
 					const result = await p.call(api + (name ? "api_update_stock_entry" : "api_create_stock_entry"), {
 						...(name ? { name } : { direction }), submit: 1, ...clean({ ...values, lines: rows }),
@@ -251,6 +253,7 @@
 		async function submit_new() {
 			const values = entry_values();
 			if (!values) return;
+			if (!await p.express_preflight("ERP Stock Entry", { direction, ...values })) return;
 			const result = await p.call(api + "api_create_stock_entry",
 				{ direction, submit: 1, ...values }, "POST");
 			await list?.reload();

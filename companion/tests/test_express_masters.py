@@ -125,8 +125,9 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
                           "units", "warehouses", "departments", "stock", "facts"]
     assert data["version"] == 2 and data["account_set"] == express_masters.express_read._norm(books.acct)
     # facts（ERP 直连后准备写账载荷用，ADR-025）：与心跳按账套上报同形状；ISINFO 没有默认科目列、没有存货科目组就给空
+    # 库存单三个单别的默认科目（出入库第一期 B 段）：这份合成账套没有 ISRUN，都给空
     assert data["facts"] == {"accounts": [{"code": "11-01-01-00", "name": "เงินสด", "type": "1"}], "mapping": {},
-                             "catalog": {"isacc_candidates": []}}
+                             "stock_books": {"OU": "", "JU": "", "TK": ""}, "catalog": {"isacc_candidates": []}}
     assert data["read_at"].endswith("Z")
     assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y", "address": "", "phone": ""}
     assert data["customers"] == [{"code": "C01", "name": "ร้านป้าแดง", "tax_id": "0105560000001", "branch": "00002",
