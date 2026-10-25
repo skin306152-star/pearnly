@@ -297,7 +297,12 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
 2. **退货 RETSTK=N 与减价 CNTYP=1 各一张**：看 STLOC / STMAS 动不动。样本里这两种行都有，但没有能把它们和结存对上的账套（跨年 BEGBAL 干扰）。
 3. **作废一张 OU（或 JU）和一张 IV**：样本只看到作废后的结果（单头留、明细删、IV 凭证删），看不到 STLOC / STMAS 是否回滚、库存单凭证是删还是标 C、单号会不会被再用。
 4. **现购转账 HP 一张**（选一本有 BKMAS 的 T 账套）：确认 BKTRN 之外不再写别的表（APRCPCQ 等），以及 `CHQNUM`（样本是「SC」+ 单号）与 `CHQSTAT=19` 是程序自动给的还是人填的。
-5. （可选）**仓间调拨 RL 一张**：确认 STCRD 那一对 4 / 3 行与 REIMBURSE=`ฝ` 是什么意思；不录就按样本写法（调出 4、调入 3、PEOPLE = 调入仓、不过账）。
+5. **负库存按仓还是按全仓拦**（主会话 10-25 加，验收提出）：在 NEGALLOW=N 的 T 账套里，让一件品只在 02 仓有货、01 主仓为 0（全仓 > 0），
+   用 Express 程序从 01 仓录一张销货，看拦不拦；再把 ISINFO.CHKNEGLEV 换 0 / 2 各录一次，顺带看 NEGAUTH。
+   只读样本答不了：6907GIZ（NEGALLOW=N、CHKNEGLEV=2、多仓）5289 条出库行写后全仓结存一次都没变负，说明至少按全仓拦；但 STCRD 只有全仓滚动结存
+   （MREMBAL），没有各仓的，按录入顺序重算各仓结存在单仓的对照账套 6819EXCP 上都对不上 MREMBAL（同一天里的先后复原不了），分仓口径判断不了。
+   68NLTB 另有 240 条出库后全仓变负，集中在 2021 年的收银单（HSPM 等），像是收银程序导入、没经过 Express 的检查。
+6. （可选）**仓间调拨 RL 一张**：确认 STCRD 那一对 4 / 3 行与 REIMBURSE=`ฝ` 是什么意思；不录就按样本写法（调出 4、调入 3、PEOPLE = 调入仓、不过账）。
 
 不需要录的（样本已答清）：OU / JU / PD / PI 的单头与明细字段、库存单过账科目与摘要、零金额与定期盘存不过账、SR / GR / CN 的字段、收银单结构、作废后的表面状态、HP 转账的 BKTRN 字段。
 库存调整单 JU / PI 的凭证摘要原文这次没抄下（副本已删），要的话 S 盘再只读取一次即可，不必录单。
@@ -309,10 +314,10 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
 | # | 分支 / 提交 | 内容 |
 |---|---|---|
 | ① | `pearnly/stock-a1-stloc` `9cef7f77` | 所有库存行带仓库码；CC 不论有没有仓库码都按实际写入的仓维护 STLOC，新建物料补 STLOC 行 |
-| ③ | `pearnly/stock-a3-negallow` `f9522f14` | NEGALLOW=N 的账套库存不足时整单不写，停在「需要人工」（`STOCK_INSUFFICIENT`） |
-| ② | `pearnly/stock-a2-sync` `9c4e67d8` | 同步对齐算上全部还没写进 Express 的 ERP 库存单、调整写回原库位；STLOC 合计 ≠ STMAS 的不抹 ERP 数，进公司页 Express 区差异清单（只列不拦） |
-| ⑤ | `pearnly/stock-a5-opening` `048d79e6` | 接了 Express 的公司期初从 Express 读：服务端拒绝手录，前端不显示入口 |
-| ④ | `pearnly/cc-stale-roots` `be813325`、`244e8cad`、`4e465c46`（CC 1.12.2）、`e3aedf33`（离线回归脚本） | CC 定数据根前先去掉确实没了的根：配对、重连、定时重扫三条路径 |
+| ③ | `pearnly/stock-a3-negallow` `f9522f14`、`3af811ec` | NEGALLOW=N 的账套库存不足时整单不写，停在「需要人工」（`STOCK_INSUFFICIENT`）；这件品各仓合计 ≠ STMAS 结存（老账套 STLOC 偏少）时按全仓结存核，宁可少拦不误拦（主会话 10-25，验收提出；九.7 第 5 条核实前的口径） |
+| ② | `pearnly/stock-a2-sync` `5bf17dfd` | 同步对齐算上全部还没写进 Express 的 ERP 库存单、调整写回原库位；STLOC 合计 ≠ STMAS 的不抹 ERP 数，进公司页 Express 区差异清单（只列不拦） |
+| ⑤ | `pearnly/stock-a5-opening` `d5082619` | 接了 Express 的公司期初从 Express 读：服务端拒绝手录，前端不显示入口 |
+| ④ | `pearnly/cc-stale-roots` `ef85ab85`、`43d456fd`、`f1b97b28`（CC 1.12.2）、`3dfaa00b`（离线回归脚本） | CC 定数据根前先去掉确实没了的根：配对、重连、定时重扫三条路径 |
 
 **验证**
 
@@ -339,6 +344,8 @@ DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
 - 实验栈途中发现：lab-start Cowork 后 CC 的 Cowork 心跳仍打到线上 testcowork（办公室上游 DNS 缓存旧 IP，心跳连接一直连着线上），
   实验库判这台电脑不在线，`cowork.express.push` 被跳过；清 DNS 后重启 CC 即好。昨晚那次能过是因为导入后 3 分钟内就跑了冒烟（导入带来的 last_seen 还新鲜）。
   以后实验栈冒烟前先核实验库里电脑的 last_seen，再跑写入冒烟。
+- 验收复核（10-25）提出、记给 B 段：② 的 `_pending` 把收银、出入库单、盘点、作废冲销按全部历史算成「ERP 独有」；B 段把 HS / OU / JU 等写进 Express 后，
+  这些来源要按「这张单是否已写入」挪进 `WRITTEN_SOURCES`，否则会重复计算。① 之后有 STLOC 的账套每次推送（含服务类）多备份一份 STLOC，耗时验收在实验栈量。
 - **测试机 CC 现在是 1.12.2 测试包，不是正式版**；之后线上冒烟和平时都按这个版本跑，CC 正式版发布等主会话定。
 
 ## 十、状态（10-25 白天）
