@@ -503,6 +503,37 @@ class MasterSync(Base):
         self.sync.queue("CO-0")
         self.assertEqual(table["CO-0"]["express_sync_state"], "syncing")
 
+    def test_stock_is_not_applied_when_a_write_landed_after_the_read_started(self):
+        """验收 10-26：读主档开始之后这份账套又有写账回执（写入或作废），读到的结存和 ERP 此刻不在同一时刻，套用会差那张单的数量。
+        这一轮库存不套用、再排一轮；主档照落。"""
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "is_active": 1, "express_sync_state": "reading", "express_pos_from": "2026-10-01"}
+        applied, receipts = [], []
+
+        def get_all(doctype, filters=None, limit=None, **kw):
+            self.assertEqual(doctype, "Pearnly CC Job")
+            self.assertEqual((filters["book_key"], filters["status"], filters["written_at"][0]), ("BK", "success", ">="))
+            return receipts
+
+        with mock.patch.object(frappe, "get_all", side_effect=get_all):
+            self.assertFalse(self.sync._stock_stale("BK", "2026-10-26 00:24:00"))
+            receipts.append("JOB-1")
+            self.assertTrue(self.sync._stock_stale("BK", "2026-10-26 00:24:00"))
+            self.assertFalse(self.sync._stock_stale("BK", ""))  # 没有读的时刻（旧数据）照旧套用
+        for stale, expected in ((True, "stale"), (False, 3)):
+            with mock.patch.object(self.sync, "_parties", lambda *a: 0), mock.patch.object(self.sync, "_products", lambda *a: 0), \
+                    mock.patch.object(self.sync, "_warehouses", lambda *a: ({}, 0)), \
+                    mock.patch.object(self.sync, "_stock", lambda *a: applied.append(1) or 3), \
+                    mock.patch.object(self.sync, "_profile", lambda *a: {}), \
+                    mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+                counts = self.sync.apply("CO-1", "T9", {"products": [], "stock": []}, stale=stale)
+            self.assertEqual(counts["stock"], expected)
+        self.assertEqual(applied, [1])
+        table["CO-1"]["express_sync_state"] = "ready"
+        self.sync._requeue_if_stale("CO-1", {"state": "ready", "stock": "stale"})  # 再排一轮，读写完之后的
+        self.assertEqual(table["CO-1"]["express_sync_state"], "queued")
+
     def test_a_failed_read_is_recorded_once_and_a_cut_off_landing_is_queued_again(self):
         # 10-24 审查：电脑读失败的请求每分钟重发、一直算「读取中」占名额；落库被重启打断的一直停在「同步中」
         import types

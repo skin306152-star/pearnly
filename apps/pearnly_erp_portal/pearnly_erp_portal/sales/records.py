@@ -219,7 +219,7 @@ def _sort_key(row):
 # 所以排任意字段时要把两侧整批取回来再排（默认顺序那条路才用"各取一页就够"的省法）。
 SORT_FIELDS = {
     "system_no": "system_no", "doc_date": "doc_date", "buyer_name": "buyer_name",
-    "grand_total": "grand_total", "doc_kind": "doc_kind", "source": "source",
+    "grand_total": "grand_total", "vat_amount": "vat_amount", "doc_kind": "doc_kind", "source": "source",
     "payment_status": "payment_status", "status": "status", "sold_at": "sold_at",
     "creation": "creation",
 }

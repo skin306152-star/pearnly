@@ -177,6 +177,9 @@
 				{ ...p.trade.lines(t, { readonly: true, data: doc.lines }), read_only: 1 },
 				{ fieldtype: "Currency", options: "currency", formatter: value => p.money(value),
 					fieldname: "total", label: t("trade.total"), read_only: 1, default: doc.grand_total },
+				// 标价含税：增值税登记户的小票逐行拆出的税额（合计已含，`cashier.vat`）
+				...(Number(doc.vat_amount) ? [{ fieldtype: "Currency", options: "currency", formatter: value => p.money(value),
+					fieldname: "vat", label: __("VAT"), read_only: 1, default: doc.vat_amount }] : []),
 			];
 			let dialog;
 			if (doc.sale_type === "sale" && actions.refund) {

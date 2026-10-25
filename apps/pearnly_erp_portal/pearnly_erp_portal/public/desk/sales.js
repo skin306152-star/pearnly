@@ -67,6 +67,8 @@
 					{fieldname: "buyer_name", width: 160, min_width: 96, label: __("Customer Name")},
 					{fieldname: "summary", width: 180, min_width: 96, label: __("Description")},
 					{fieldname: "grand_total", width: 108, min_width: 82, label: __("Grand Total"), format: value => p.money(value)},
+					// 税额：销售记录的 VAT；收银小票是逐行拆出的真实税额（标价含税，增值税登记户才有）
+					{fieldname: "vat_amount", width: 90, min_width: 64, label: __("VAT"), format: value => Number(value) ? p.money(value) : ""},
 					{fieldname: "doc_kind", width: 90, min_width: 66, label: __("Document Type"), format: u.label},
 					// 「来源」：手工录入 / 上传识别 / LINE / 收银。收银小票就靠这一列认出来
 					// （对齐 ERPNext 的 is_created_using_pos 标记）。

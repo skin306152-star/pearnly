@@ -2,7 +2,7 @@
 （`cashier.vat`），应收合计不变。状态未知的公司不动，等第一次写收银日汇总时问完再补；非登记户一律不拆（小票本来就是 0）。
 
 「已确认」= 公司上记着「是」，或税务局查询缓存里查得到 VAT 登记（只看缓存，迁移时不连外部接口；查到就记在公司上）。
-可以重跑，结果不变（第二次没有小票会变）。跑完打印影响的公司数和小票数，部署记录照抄。"""
+可以重跑，结果不变（第二次没有小票会变）。跑完按租户（站点）打印影响的公司数和小票数，部署记录按租户照抄，真实客户租户单列。"""
 import frappe
 
 
@@ -26,4 +26,4 @@ def execute():
         if changed:
             touched, receipts = touched + 1, receipts + changed
     frappe.db.commit()
-    print(f"v1_15_pos_receipt_vat: {touched} companies, {receipts} receipts")
+    print(f"v1_15_pos_receipt_vat: site {frappe.local.site}: {touched} companies, {receipts} receipts")

@@ -31,7 +31,7 @@ import time
 import frappe
 from frappe.utils import now_datetime, nowdate
 
-from pearnly_core.cc_desktop import requests
+from pearnly_core.cc_desktop import jobs, requests
 
 from pearnly_erp_portal.express import contracts, facts, push, target
 from pearnly_erp_portal.inventory import contracts as stock_contracts
@@ -228,6 +228,7 @@ def sync(company, wait=0, notify=None):
         frappe.log_error(title="ERP Express master sync failed", message=frappe.get_traceback()[-3000:])
         result = {"state": FAILED, "note": f"{type(error).__name__}: {error}"[:500]}
     _record(company, result)
+    _requeue_if_stale(company, result)
     frappe.db.commit()
     if result.get("state") != READING:
         _notify(company, result, notify)
@@ -299,18 +300,28 @@ def _land(company, book, made, inline=True):
     current = target.current(row, nowdate()) if row else None
     if not current or current["key"] != book["key"]:
         return {"state": READY, "account_set": book["key"], "label": book["label"]}
+    since = str(made.get("requested_at") or "")
     if not inline:
         frappe.enqueue("pearnly_erp_portal.express.masters.land", queue="long", timeout=LAND_LIMIT,
                        enqueue_after_commit=True, job_id=_job_id("land", company),
-                       deduplicate=True, company=company, book_key=book["key"], label=book["label"])
+                       deduplicate=True, company=company, book_key=book["key"], label=book["label"], since=since)
         return {"state": SYNCING, "account_set": book["key"], "label": book["label"]}
     _record(company, {"state": SYNCING})
     frappe.db.commit()  # 公司页看得到「落库中」
-    counts = apply(company, book["label"], data)
+    counts = apply(company, book["label"], data, stale=_stock_stale(book["key"], since))
     return {"state": READY, "account_set": book["key"], "label": book["label"], **counts}
 
 
-def land(company, book_key, label):
+def _stock_stale(book_key, since) -> bool:
+    """发起读主档之后，这份账套又有写账回执（写入或作废）：电脑读到的 Express 结存可能在那张单写进去之前，ERP 此刻已经按回执
+    算它「已进 Express」，两头不在同一时刻，套用会差那张单的数量、下一轮才纠正（验收 10-26：作废后自动同步把 8 扣成 7）。"""
+    if not book_key or not since:
+        return False
+    return bool(frappe.get_all(jobs.JOB, filters={"book_key": book_key, "status": "success",  # bounded: 有没有一件
+                                                  "written_at": [">=", since]}, limit=1))
+
+
+def land(company, book_key, label, since=""):
     """（后台任务）把已存的账套资料落进 ERP 主档（:func:`ensure` 读好后排的）。结果记在公司上，出错记 Error Log。"""
     try:
         data = facts.load(book_key)
@@ -318,16 +329,23 @@ def land(company, book_key, label):
             return {"state": "masters_invalid"}
         _record(company, {"state": SYNCING})
         frappe.db.commit()
-        result = {"state": READY, **apply(company, label, data)}
+        result = {"state": READY, **apply(company, label, data, stale=_stock_stale(book_key, since))}
     except Exception as error:  # noqa: BLE001
         frappe.db.rollback()
         frappe.log_error(title="ERP Express master sync failed", message=frappe.get_traceback()[-3000:])
         result = {"state": FAILED, "note": f"{type(error).__name__}: {error}"[:500]}
     _record(company, result)
+    _requeue_if_stale(company, result)
     frappe.db.commit()
     _notify(company, result)
     _next()
     return result
+
+
+def _requeue_if_stale(company, result) -> None:
+    """这一轮库存没套用（读完之后又有单写进去）：再排一轮，读一份写完之后的。"""
+    if result.get("stock") == STALE:
+        queue(company)
 
 
 def _request(company, fresh=False):
@@ -363,8 +381,12 @@ def _sync_once(company):
     return _land(company, found["book"], found["made"])
 
 
-def apply(company, book, data):
-    """把读好的整套主档落进 ERP（幂等：再落一次不改任何东西）。回各类新建 / 更新 / 停用的条数。"""
+STALE = "stale"  # 这一轮库存没套用：读完之后又有单写进去（`_stock_stale`）
+
+
+def apply(company, book, data, stale=False):
+    """把读好的整套主档落进 ERP（幂等：再落一次不改任何东西）。回各类新建 / 更新 / 停用的条数。``stale``：读完之后这份账套又有写账
+    回执，库存这一轮不套用（回 ``stock: stale``，调用方再排一轮），主档、仓库照落。"""
     frappe.flags.express_sync_written = 0
     counts = {}
     counts["customers"] = _parties(CUSTOMER, company, book, data.get("customers"), _customer_fields)
@@ -372,7 +394,7 @@ def apply(company, book, data):
     counts["products"] = _products(company, book, data)
     warehouses, counts["warehouses"] = _warehouses(company, book, data)
     differences = stock_differences(data.get("products"), data.get("stock"))
-    counts["stock"] = _stock(company, warehouses, data.get("stock"), differences)
+    counts["stock"] = STALE if stale else _stock(company, warehouses, data.get("stock"), differences)
     values = {"express_book": book[:140], "express_synced_at": now_datetime(),
               "express_stock_diffs": _differences_json(data.get("products"), differences)}
     if data.get("mark"):  # 旧版 CC 桌面版读的没有标记：不清掉原来的（清掉了下一轮看标记必不同，又整套读一遍）

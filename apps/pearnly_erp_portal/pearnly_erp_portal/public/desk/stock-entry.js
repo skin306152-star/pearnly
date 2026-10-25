@@ -71,8 +71,10 @@
 				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced,
 					data: doc.lines || [] })]),
 			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。
-			{ fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
-				options: [{ value: "", label: "" }, ...purpose_options()], default: doc.purpose || "" },
+			// 只读时官方 Select 显示的是原值（other / internal_use），已提交的单改用文字框显示译文
+			editable ? { fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
+				options: [{ value: "", label: "" }, ...purpose_options()], default: doc.purpose || "" }
+				: { fieldtype: "Data", fieldname: "purpose", label: __("stock.purpose.label"), default: purpose_label(doc.purpose) },
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
 				default: doc.reason },
 		].map(field => ({ ...field, read_only: editable ? 0 : 1 }))
