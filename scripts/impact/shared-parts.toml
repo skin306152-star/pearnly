@@ -56,7 +56,7 @@ name = "共用 Select 弹出选择"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/select.js"]
 markers = ["fieldtype: \"Select\"", "fieldtype: 'Select'"]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "erp.scan.pick-product"]
 
 [[part]]
 id = "desk-list"
@@ -1962,3 +1962,12 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py", "apps
 smoke = "api_time"
 site = "erp"
 args = { "method" = "pearnly_erp_portal.inventory.api.api_stock_summary_page", "kwargs" = { "date_from" = "2026-01-01", "sort_by" = "closing_qty", "sort_order" = "desc", "start" = 0, "limit" = 20 }, "limit_ms" = 3000 }
+
+[[entry]]
+id = "erp.scan.pick-product"
+product = "ERP"
+where = "扫码认商品撞号时的候选弹窗（码的命名空间，存量里撞了的码）"
+steps = "造两件商品码相同（如一件的条码等于另一件的 Express 编码）→ 入库明细扫码回车 / 物料选择框扫码 / 盘点录入扫码 / LINE 盘点扫码 / 收银查码"
+expect = "列出两件让人选，选中的那件填进去；不默认挑一件；新建或修改时撞码被拒并报出商品与码的种类"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html", "apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py"]
