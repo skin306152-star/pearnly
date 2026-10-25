@@ -1301,6 +1301,7 @@ This card expires in {0} minutes,การ์ดนี้หมดอายุ�
 This card has expired. Please upload the document again.,การ์ดหมดอายุแล้ว กรุณาอัปโหลดเอกสารใหม่
 This card is no longer valid,การ์ดนี้ใช้ไม่ได้แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
+This code is already in use,รหัสนี้ถูกใช้แล้ว
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
 This code is already used by {0} ({1}),รหัสนี้ใช้กับ {0} แล้ว ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้

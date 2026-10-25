@@ -1301,6 +1301,7 @@ This card expires in {0} minutes,このカードは {0} 分で期限切れにな
 This card has expired. Please upload the document again.,カードの期限が切れました。もう一度アップロードしてください
 This card is no longer valid,このカードは無効です
 This channel is not open yet,このチャンネルはまだ開放していません
+This code is already in use,このコードは使用されています
 This code is already taken,このコードは既に使われています
 This code is already used by {0} ({1}),このコードは {0} で使用されています（{1}）
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。

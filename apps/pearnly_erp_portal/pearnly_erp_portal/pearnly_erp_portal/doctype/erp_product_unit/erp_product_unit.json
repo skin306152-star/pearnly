@@ -32,7 +32,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Barcode",
-   "length": 100
+   "length": 100,
+   "search_index": 1
   },
   {
    "fieldname": "price",

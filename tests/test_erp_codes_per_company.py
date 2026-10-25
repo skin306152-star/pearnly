@@ -89,7 +89,8 @@ class InternalCodes(unittest.TestCase):
             value = params[0] if "u.barcode" not in query else params[1]
             field = query.split("p.`")[1].split("`")[0] if "p.`" in query else "unit_barcode"
             hit = held.get(value)
-            return [types.SimpleNamespace(name="PRD-X", product_name=hit[0])] if hit and hit[1] == field else []
+            return [types.SimpleNamespace(name="PRD-X", product_name=hit[0], express_company=hit[2] if len(hit) > 2 else "")] \
+                if hit and hit[1] == field else []
 
         class Refused(Exception):
             pass
@@ -116,6 +117,23 @@ class InternalCodes(unittest.TestCase):
         with self.assertRaisesRegex(Refused, "already used"):
             service._assert_unique(None, "IC-BAR-77")   # 条码撞别件的内部编码
         service._assert_unique(None, "4800000000001", internal="NEW-1")
+
+    def test_a_clash_with_another_companys_express_item_does_not_show_its_name(self):
+        """验收 10-26：本地商品查重是全租户范围，撞到别家公司从 Express 同步来的档时只说「已被占用」，不带那家的商品名。"""
+        from unittest import mock
+
+        from pearnly_erp_portal.products import codes, service
+
+        patches, Refused = self.held({"8851111111111": ("ของบริษัทอื่น", "barcode", "CO-00078"),
+                                      "8852222222222": ("ของเรา", "barcode", "CO-00001")})
+        for patch in patches + [mock.patch.object(codes, "_active_company", lambda: "CO-00001")]:
+            patch.start()
+            self.addCleanup(patch.stop)
+        with self.assertRaises(Refused) as raised:
+            service._assert_unique(None, "8851111111111")
+        self.assertEqual(str(raised.exception), "This code is already in use")
+        with self.assertRaisesRegex(Refused, "already used by"):
+            service._assert_unique(None, "8852222222222")
 
     def test_a_scan_that_hits_several_products_lists_them(self):
         """存量里撞了的码：扫码不默认挑一件，把候选交给页面让人选。"""

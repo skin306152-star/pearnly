@@ -20,6 +20,7 @@ KIND_LABELS = {"code": "product.codeKind.code", "internal_code": "product.codeKi
                "express_code": "product.codeKind.expressCode", "barcode": "product.codeKind.barcode",
                "qr_payload": "product.codeKind.qrPayload", UNIT_BARCODE: "product.codeKind.unitBarcode"}
 CLASH = "This code is already used by {0} ({1})"
+TAKEN = "This code is already in use"
 AMBIGUOUS = "Several matches found for {0}. Please select a record."
 
 
@@ -38,21 +39,37 @@ def holders(value, *, owner=None, exclude=None) -> list:
     extra = [exclude] if exclude else []
     out = []
     for field in FIELDS:
-        rows = frappe.db.sql(f"select p.name, p.product_name from `tab{PRODUCT}` p where p.`{field}` = %s{skip}{scope} limit 5",
+        rows = frappe.db.sql(f"select p.name, p.product_name, p.express_company from `tab{PRODUCT}` p where p.`{field}` = %s{skip}{scope} limit 5",
                              [value, *extra, *params], as_dict=True)
-        out += [{"product": row.name, "product_name": row.product_name, "kind": field} for row in rows]
-    rows = frappe.db.sql(f"""select p.name, p.product_name from `tab{UNIT}` u join `tab{PRODUCT}` p
+        out += [{"product": row.name, "product_name": row.product_name, "kind": field,
+                 "express_company": row.express_company or ""} for row in rows]
+    rows = frappe.db.sql(f"""select p.name, p.product_name, p.express_company from `tab{UNIT}` u join `tab{PRODUCT}` p
         on p.name = u.parent and u.parenttype = %s where u.barcode = %s{skip}{scope} limit 5""",
                          [PRODUCT, value, *extra, *params], as_dict=True)
-    out += [{"product": row.name, "product_name": row.product_name, "kind": UNIT_BARCODE} for row in rows]
+    out += [{"product": row.name, "product_name": row.product_name, "kind": UNIT_BARCODE,
+             "express_company": row.express_company or ""} for row in rows]
     return out
 
 
 def assert_free(value, *, owner=None, exclude=None):
-    """新建 / 修改商品的码之前核：撞了就拒，报出撞的那件商品与那种码。"""
+    """新建 / 修改商品的码之前核：撞了就拒，报出撞的那件商品与那种码。撞到的是别家公司从 Express 同步来的档（这个人平时看
+    不到那家的主档）只说「已被占用」，不带名称（验收 10-26）。"""
     found = holders(value, owner=owner, exclude=exclude)
-    if found:
-        frappe.throw(_(CLASH).format(found[0]["product_name"] or found[0]["product"], _(KIND_LABELS[found[0]["kind"]])))
+    if not found:
+        return
+    hit = found[0]
+    if hit["express_company"] and hit["express_company"] != (owner or _active_company()):
+        frappe.throw(_(TAKEN))
+    frappe.throw(_(CLASH).format(hit["product_name"] or hit["product"], _(KIND_LABELS[hit["kind"]])))
+
+
+def _active_company():
+    from pearnly_erp_portal.masters import company as companies
+
+    try:
+        return companies.active_company()
+    except Exception:  # noqa: BLE001 - 没有当前公司（后台任务）：一律按别家处理，不带名称
+        return None
 
 
 def candidates(value, company=None, *, active_only=True, exclude=None, rows_of=None) -> list:

@@ -1704,3 +1704,4 @@ Express code	Express 编码	รหัส Express	Express コード	product.codeK
 Barcode	条码	บาร์โค้ด	バーコード	product.codeKind.barcode
 QR code content	二维码内容	ข้อมูลคิวอาร์โค้ด	QRコード内容	product.codeKind.qrPayload
 Unit barcode	单位条码	บาร์โค้ดหน่วย	単位バーコード	product.codeKind.unitBarcode
+This code is already in use	该码已被占用	รหัสนี้ถูกใช้แล้ว	このコードは使用されています

@@ -1301,6 +1301,7 @@ This card expires in {0} minutes,This card expires in {0} minutes
 This card has expired. Please upload the document again.,This card has expired. Please upload the document again.
 This card is no longer valid,This card is no longer valid
 This channel is not open yet,This channel is not open yet
+This code is already in use,This code is already in use
 This code is already taken,This code is already taken
 This code is already used by {0} ({1}),This code is already used by {0} ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."

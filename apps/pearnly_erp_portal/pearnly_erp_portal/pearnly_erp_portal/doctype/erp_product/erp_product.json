@@ -84,7 +84,8 @@
    "fieldname": "qr_payload",
    "fieldtype": "Data",
    "label": "QR Payload",
-   "length": 500
+   "length": 500,
+   "search_index": 1
   },
   {
    "fieldname": "column_break_price",
