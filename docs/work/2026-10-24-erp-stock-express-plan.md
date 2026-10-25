@@ -379,6 +379,15 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 - B3b 当天退货 SR（CNTYP 2、RETSTK Y，货回仓）：共用规则与 CC 都还不会写 SR；先从 S 盘只读补读 SR 的凭证与税记录写法（九.6 只读过
   字段），再做 CC 的 SR 写入与 ERP 侧。B3a 先上时，退货小票留在 ERP（同步对齐照算，不被抹）。
 
+**A 段 ③ 改为照 Express 按仓拦（10-25 晚，C 盘录单第 1 条在服务器测试账套 `70EXP\test` 实录后；待 CHKNEGLEV=0 结果定稿）**
+- 实录（NEGALLOW=N、CHKNEGLEV=2）：Express 按仓硬拦，看那个仓的 STLOC，不看全仓合计；01 仓 0、02 仓 10 时从 01 仓卖 3 个被拦
+  （Message 4224「库存会变负」），拦的是那一行，不要密码 / 审批。原 ③「STLOC 对不上 / 没带仓库码就按全仓放行」会写出 Express 自己不允许的分仓负数。
+- 改法（分支 `pearnly/stock-guard-per-warehouse` `570b0535`，从 main 开）：NEGALLOW=N 且账套有 STLOC 时，每行按实际写入的仓（行上的仓库码，
+  没带就是主仓 MAINLOC）的 LOCBAL 核，不足整单不写、回 `STOCK_INSUFFICIENT`（回报写明「物料@仓 need 要 have 有」，转人工）；STLOC 与 STMAS
+  对不上的老账照样按 STLOC 核，ERP 同步时进公司页差异清单；没有 STLOC 的账套才按全仓 MREMBAL。ERP 的 Express 弹窗按仓列出「需要 / 现有」。
+- 影响：Cowork 推送的销项不带仓库码、写主仓；货在别的仓时会停在人工（Express 自己录也会被拦）。「不带仓库码的销项是否自动写进有货的仓」仍是待定的产品口径。
+- B1 出入库单（`dbf_stock` 也调 `stock_guard`）合入时随之按仓核。
+
 **C 盘 Express 报 -330 的更正与「缺重建程序就拒写」（10-25 晚）**
 - 现象：10-25 下午 C 盘 Express 打开赊销单报「Error -330 Tag Name not Found ISRUN1」后退出。当时开发窗口判断是自己用仓库源码离线往 T9NIEXCP / T9HENG15
   写备货单、没用重建程序（runner）、只改 DBF 不重建 CDX 造成的，并用安装版 runner 对改过的表补了 REINDEX。
