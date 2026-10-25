@@ -157,7 +157,7 @@
   - 内部编码：接了 Express 的公司 = Express 商品编码 STKCOD（回读、只读，并进 `P/express/locks.py`）；ERP 本地新建、手输了内部编码的商品，CC 第一次写 Express 时用它当 STKCOD（冲突停人工，不自动改码）；没接 Express 的公司手输，按公司唯一。
   - 车架号 / 发动机号 / 颜色：Express 商品主档没有这些字段，`ISSN` 表没人用、SERIAL 只有 15 位放不下 17 位车架号；S 盘惯例写在单据附加说明表 `ARTRNRM`（`DOCNUM + SEQNUM + REMARK C(50)`，挂在行下，进货销售共用）。CC 照惯例写，ERP 自有、不回读、不锁。
   - **`ARTRNRM` 的行号对应和打印位置未实测**，已放进 C 盘录单清单第 7 条（`docs/work/2026-10-25-express-c-drive-recording.md`），实测前不写代码。
-- CC 载荷：写 `ARTRNRM` 要在行结构加 `remarks`，并让 CC 用给定内部编码建 STKCOD → **升载荷版本**（出入库 B 段占用第 6 版，这里是第 7 版），旧版 CC 诚实拒收（`CC/payload_contract.py`）。
+- CC 载荷：写 `ARTRNRM` 要在行结构加 `remarks`，并让 CC 用给定内部编码建 STKCOD → **升载荷版本**（出入库 B 段占第 6 版、B 段剩余部分占第 7 版，这里是第 8 版），旧版 CC 诚实拒收（`CC/payload_contract.py`）。
 - Cowork：共用写账路径（`C/express_rules/push/`）加行说明，Cowork 推送全类型要回归；DMS 不涉及（`apps/pearnly_dms` 接品牌 DMS，和 ERP 无关）。
 
 ## 5. 隔离与权限
@@ -218,7 +218,7 @@
 
 0. 问岳父 + C 盘录单第 7 条实测（等人）。
 1. 内部编码（字段、唯一、Express 只读、扫码 / 搜索 / 盘点 / 两个模板、CC 用内部编码建码）：写代码约 3 小时，离线回归与实验栈逐入口约 2 小时。
-2. 按台管理（序列号 DocType、选台、作废回退、盘点按台、按台导入、CC 写 `ARTRNRM`，载荷第 7 版）：写代码约 5 小时，回归与端到端约 3 小时。
+2. 按台管理（序列号 DocType、选台、作废回退、盘点按台、按台导入、CC 写 `ARTRNRM`，载荷第 8 版）：写代码约 5 小时，回归与端到端约 3 小时。
 3. 库位（仓库子表、选库位、服务端校验）：约 2 小时。
 4. LINE 识别按台字段（拍标签识别需批准成本）：约 2 小时 + 小样本评测。
 依赖：0 → 1 → 2；3 独立；4 在 2 之后。打印评估里的单据模板要给按台商品在行下印号留位置（见打印评估）。
