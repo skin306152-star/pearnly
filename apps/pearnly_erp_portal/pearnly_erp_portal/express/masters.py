@@ -676,7 +676,8 @@ def _pending(company, products, warehouses):
     - 出入库单、盘点调整（B 段起写进 Express）：已写进去的单不算，其余照算；
     - 收银小票（B3a 起按天汇总写进 Express）：已写进去的日汇总里的小票不算，其余照算；
     - 其余来源（收银小票 / 退货、作废冲销 ``void``、没有来源的）还不写进 Express，一律算；
-      没写进去就作废的单，原始流水与冲销流水正好抵消；写进去之后作废的，冲销流水是 ERP 独有的；
+      没写进去就作废的单，原始流水与冲销流水正好抵消；写进去之后作废的，冲销流水是 ERP 独有的，
+      等 Express 里也作废完（出入库单 ``express_void_state`` = voided）就不算；
     - 同步调整本身、期初不算。
     原来只算采购单与销售记录两种，收银台卖出、出入库单的变动每次同步都被按 Express 的数抹掉。"""
     code_of = {name: code for code, name in products.items()}
@@ -711,6 +712,18 @@ def _pending(company, products, warehouses):
     if written:
         for row in frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
                                   filters=scope + [["ref_type", "in", STOCK_ENTRY_SOURCES], ["ref_id", "in", written]],
+                                  fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
+                                  group_by="product, warehouse", order_by="", limit_page_length=0):
+            key = (code_of.get(row.product), loc_of.get(row.warehouse))
+            if key[0] and key[1]:
+                pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
+    # 写进去之后又在 Express 作废完的单（B 段 ①）：原单与冲销流水在 Express 里都有了，冲销也不算（验收 10-25：否则同步时 ERP 被多加 / 多减一遍）。
+    # 作废还在排队、转了人工的，Express 里原单还在，冲销照算
+    voided = frappe.get_all(STOCK_ENTRY, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司在 Express 作废完的单
+                                                  "express_void_state": push.VOIDED}, pluck="name", limit_page_length=0)
+    if voided:
+        for row in frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
+                                  filters=scope + [["ref_type", "=", "void"], ["ref_id", "in", voided]],
                                   fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
                                   group_by="product, warehouse", order_by="", limit_page_length=0):
             key = (code_of.get(row.product), loc_of.get(row.warehouse))

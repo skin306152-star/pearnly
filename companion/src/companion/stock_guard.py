@@ -75,7 +75,6 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     要核的品都不缺时是空。"""
     from .stock_sale import StockItemNotFound, find_stock_item
 
-    book_checks = not negative_allowed(account_dir)
     need: Dict[Tuple[str, str], Decimal] = {}
     for index, item in enumerate(items or []):
         if not isinstance(item, dict) or (item.get("item_mode") or "").strip() != "stock_sale":
@@ -92,8 +91,15 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
         # 包装单位按 Express 主档系数换成库存单位再核（与写单同一个换法，stock_units）
         units = stock_units.resolve(account_dir, code, str(item.get("unit") or ""), item.get("qty") or "1", item.get("factor"))
         need[key] = need.get(key, Decimal(0)) + abs(units.base_qty)
+    return short_of(account_dir, need, locations is not None)
+
+
+def short_of(account_dir, need: Dict[Tuple[str, str], Decimal], located_lines: bool) -> List[dict]:
+    """按 Express 的负库存规则核一组要减掉的库存单位数量 ``{(存货码, 仓库码或 ALL_LOCATIONS): 数量}``：不够的 ``[{stkcod, loccod, need, have}]``。
+    ``located_lines`` = 这张单的行带仓库码（账套有 STLOC 时才按单个仓核）。写销货（:func:`shortages`）与作废入库 / 盘盈（``dbf_void``）同一口径。"""
     if not need:
         return []
+    book_checks = not negative_allowed(account_dir)
     codes = {key[0] for key in need}
     masters = {row["STKCOD"]: row for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW", "MREMBAL"))
                if row["STKCOD"] in codes}
@@ -103,7 +109,7 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     if not checked:
         return []
     totals = {code: (masters.get(code) or {}).get("MREMBAL", Decimal(0)) for code in checked}
-    has_stloc = locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None
+    has_stloc = located_lines and stock_location._file(account_dir, stock_location.TABLE) is not None
     level_by_warehouse = by_warehouse(account_dir)
     located: Dict[Tuple[str, str], Decimal] = {}
     if has_stloc:
@@ -146,4 +152,4 @@ def message(short: List[dict]) -> str:
         + (f" item {item['item']}" if item.get("item") else "") for item in short)
 
 
-__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "by_warehouse", "message", "negative_allowed", "shortages"]
+__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "by_warehouse", "message", "negative_allowed", "short_of", "shortages"]

@@ -284,6 +284,9 @@ def void_entry(name):
     guard.require("stock." + doc.direction)
     if doc.status != "submitted":
         frappe.throw(_(BAD_TRANSITION))
+    if doc.ref_type == "count" and frappe.db.get_value("ERP Stock Count", doc.ref_id, "express_state"):
+        # 盘点进了写 Express（整份盘点轧差写一张 TK，它生成的单不逐张写）：单独作废这张，Express 的 TK 不会跟着动（验收 10-25）
+        frappe.throw(_("stock.countEntryVoid"))
     stock.reverse_movements(ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,
                             client_uuid=f"stock-void:{doc.name}", reason=f"void of {doc.name}",
                             company=warehouses.company_of(doc.warehouse))

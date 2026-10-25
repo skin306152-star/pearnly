@@ -1334,6 +1334,7 @@ This shift is closed,This shift is closed
 This status change is not allowed,This status change is not allowed
 This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
+This stock entry comes from a stock count sent to Express. It cannot be voided on its own,This stock entry comes from a stock count sent to Express. It cannot be voided on its own
 This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
 This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
@@ -2187,6 +2188,7 @@ stock.count.title,Stock count — {0}
 stock.count.void,Void
 stock.count.voidConfirm,Void this count of {0}?
 stock.count.voidPick,Select an entry to void
+stock.countEntryVoid,This stock entry comes from a stock count sent to Express. It cannot be voided on its own
 stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.mobile.cameraOff,Close camera

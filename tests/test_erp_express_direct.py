@@ -862,6 +862,36 @@ class StockVoid(PushModule):
         self.assertEqual(self.enqueued, [])
         self.assertFalse(self.docs["SE-1"].get("express_void_state"))
 
+    def test_an_entry_from_a_count_sent_to_express_cannot_be_voided_on_its_own(self):
+        """盘点整份轧差写一张 TK，它生成的单不逐张写：盘点进了写 Express 就不让单独作废（验收 10-25），没进的照常作废。"""
+        from unittest import mock
+        import types
+        utils = sys.modules["frappe.utils"]
+        if not hasattr(utils, "now"):
+            utils.now = lambda: "2026-10-25 10:00:00"
+        from pearnly_erp_portal.inventory import documents
+        entry = types.SimpleNamespace(name="AD-1", status="submitted", direction="out", ref_type="count", ref_id="STC-1",
+                                      warehouse="W1")
+        reversed_ = []
+        for count_state, blocked in (("written", True), ("queued", True), (None, False)):
+            with mock.patch.object(documents.guard, "require", lambda *a, **k: None), \
+                    mock.patch.object(documents.frappe.db, "sql", lambda *a, **k: None, create=True), \
+                    mock.patch.object(documents, "_get", lambda name: entry), \
+                    mock.patch.object(documents.frappe.db, "get_value", lambda doctype, name, field: count_state, create=True), \
+                    mock.patch.object(documents.stock, "reverse_movements", lambda **kw: reversed_.append(kw["ref_id"])), \
+                    mock.patch.object(documents.warehouses, "company_of", lambda w: "CO-1"), \
+                    mock.patch.object(documents.access, "write_entry", lambda doc, action: None), \
+                    mock.patch.object(self.push, "void", lambda doctype, name: None), \
+                    mock.patch.object(documents.frappe.db, "commit", lambda: None, create=True):
+                entry.status = "submitted"
+                if blocked:
+                    with self.assertRaises(Exception) as raised:
+                        documents.void_entry("AD-1")
+                    self.assertIn("stock.countEntryVoid", str(raised.exception))
+                else:
+                    documents.void_entry("AD-1")
+        self.assertEqual(reversed_, ["AD-1"])
+
 
 class LinkParty(PushModule):
     """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
@@ -985,6 +1015,10 @@ class StockAlignment(MasterSync):
             ("refund", "RCPT-2", "P1", "W1", 1),
             ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单还没写进 Express（B 段之前开的、没写成的）：算
             ("stock_entry", "SE-2", "P1", "W2", -4),         # 出入库单已写进 Express：不算
+            ("stock_entry", "SE-3", "P1", "W2", -6),         # 已写进去、又在 Express 作废完的出入库单：原单不算
+            ("void", "SE-3", "P1", "W2", 6),                 # 它的冲销 Express 里也有了：不算（验收 10-25）
+            ("stock_entry", "SE-4", "P1", "W2", -2),         # 已写进去、作废还在排队：原单不算
+            ("void", "SE-4", "P1", "W2", 2),                 # 冲销 Express 里还没有：算
             ("count", "SC-2", "P1", "W1", 2),                # 盘点生成的单，所在盘点已整份写进 Express：不算
             ("count", "SC-1", "P1", "W2", -1),               # 盘点调整：算
             ("void", "PUR-1", "P1", "W1", -10),              # 写进去之后作废的冲销：ERP 独有，算
@@ -993,13 +1027,16 @@ class StockAlignment(MasterSync):
             ("opening", "OP-1", "P1", "W1", 50),             # 期初：不算
             ("sale", "RCPT-3", "P2", "W1", -6),              # 不是这家公司 Express 来的品：不管
         ]
-        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"], "ERP Stock Entry": ["SE-2"],
+        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"], "ERP Stock Entry": ["SE-2", "SE-3", "SE-4"],
                      "ERP Stock Count": ["STC-2"]}
 
         def get_all(doctype, filters=None, fields=None, pluck=None, group_by=None, **kw):
             if doctype == "ERP Stock Entry" and isinstance(filters, dict) and filters.get("ref_type") == "count":
                 self.assertEqual(filters["ref_id"], ["in", ["STC-2"]])
                 return ["SC-2"]  # 已写进 Express 的那份盘点生成的单
+            if doctype == "ERP Stock Entry" and isinstance(filters, dict) and "express_void_state" in filters:
+                self.assertEqual(filters["express_void_state"], "voided")
+                return ["SE-3"]  # 在 Express 作废完的单
             if doctype in open_docs:
                 if doctype in ("ERP Stock Entry", "ERP Stock Count"):
                     self.assertEqual(filters["express_state"], ["in", ("written", "mismatch")])
@@ -1026,7 +1063,7 @@ class StockAlignment(MasterSync):
         with mock.patch.object(sync.frappe, "get_all", side_effect=get_all), \
                 mock.patch.object(sync.frappe.db, "sql", side_effect=sql):
             pending = sync._pending("CO-1", {"ICE-01": "P1"}, {"01": "W1", "02": "W2"})
-        self.assertEqual(pending, {("ICE-01", "01"): Decimal(4 - 3 - 2 + 1 - 10), ("ICE-01", "02"): Decimal(7 - 1 + 5)})
+        self.assertEqual(pending, {("ICE-01", "01"): Decimal(4 - 3 - 2 + 1 - 10), ("ICE-01", "02"): Decimal(7 - 1 + 5 + 2)})
 
     def test_express_own_mismatch_is_listed_and_not_aligned(self):
         sync = self.sync

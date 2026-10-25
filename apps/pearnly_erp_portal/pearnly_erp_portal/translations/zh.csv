@@ -1334,6 +1334,7 @@ This shift is closed,该班次已交班
 This status change is not allowed,不允许此状态变更
 This stock count is already posted,该盘点单已过账
 This stock count is closed,该盘点已结束
+This stock entry comes from a stock count sent to Express. It cannot be voided on its own,此单由已写进 Express 的盘点生成，不能单独作废
 This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
 This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
@@ -2187,6 +2188,7 @@ stock.count.title,盘点 — {0}
 stock.count.void,撤销
 stock.count.voidConfirm,确定要撤销 {0} 的盘点记录吗？
 stock.count.voidPick,选择要撤销的记录
+stock.countEntryVoid,此单由已写进 Express 的盘点生成，不能单独作废
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.mobile.cameraOff,关闭相机

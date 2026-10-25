@@ -1334,6 +1334,7 @@ This shift is closed,このシフトは終了しています
 This status change is not allowed,このステータス変更は許可されていません
 This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
+This stock entry comes from a stock count sent to Express. It cannot be voided on its own,この入出庫は Express に送った棚卸から作られたため、単独で取り消せません
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -2187,6 +2188,7 @@ stock.count.title,棚卸 — {0}
 stock.count.void,取消
 stock.count.voidConfirm,この {0} の記録を取り消しますか？
 stock.count.voidPick,取消する記録を選択
+stock.countEntryVoid,この入出庫は Express に送った棚卸から作られたため、単独で取り消せません
 stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
 stock.mobile.cameraOff,カメラを閉じる

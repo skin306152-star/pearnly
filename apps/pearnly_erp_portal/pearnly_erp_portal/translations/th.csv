@@ -1334,6 +1334,7 @@ This shift is closed,กะนี้ปิดแล้ว
 This status change is not allowed,ไม่อนุญาตให้เปลี่ยนสถานะนี้
 This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
+This stock entry comes from a stock count sent to Express. It cannot be voided on its own,รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้
 This stock position already has stock movements; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
@@ -2187,6 +2188,7 @@ stock.count.title,ตรวจนับ — {0}
 stock.count.void,ยกเลิก
 stock.count.voidConfirm,ต้องการยกเลิกรายการนับของ {0} นี้ใช่หรือไม่
 stock.count.voidPick,เลือกรายการที่จะยกเลิก
+stock.countEntryVoid,รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้
 stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
 stock.mobile.cameraOff,ปิดกล้อง

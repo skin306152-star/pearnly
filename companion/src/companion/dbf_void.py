@@ -24,6 +24,7 @@ import dbf
 
 from . import dbf_schema as S
 from . import fiscal_period
+from . import stock_guard
 from . import stock_location
 from .consistency import account_company_matches
 from .dbf_stock import ISSUE, KINDS, _dec
@@ -92,7 +93,8 @@ def _lines(account_dir: Path, docnum: str) -> List[dict]:
     table = _open(account_dir, "STCRD", dbf.READ_ONLY)
     try:
         rows = [{"SEQNUM": _text(r, "SEQNUM"), "STKCOD": _text(r, "STKCOD"), "LOCCOD": _text(r, "LOCCOD"),
-                 "TRNQTY": _dec(r["TRNQTY"])} for r in S.live_rows(table) if _text(r, "DOCNUM") == docnum]
+                 "TRNQTY": _dec(r["TRNQTY"]), "XTRNQTY": _dec(r["XTRNQTY"])}
+                for r in S.live_rows(table) if _text(r, "DOCNUM") == docnum]
     finally:
         table.close()
     return sorted(rows, key=lambda row: int(row["SEQNUM"]) if row["SEQNUM"].isdigit() else 0)
@@ -115,6 +117,19 @@ def _differences(lines: List[dict], items: List[dict]) -> List[str]:
         if row["TRNQTY"] not in (qty, qty * factor):
             out.append(f"line {seq} TRNQTY {row['TRNQTY']} != {item.get('qty')}")
     return out
+
+
+def _shortages(account_dir: Path, lines: List[dict], kind: str) -> List[dict]:
+    """作废入库 / 盘盈（JU、TK 的正数行）会把结存减回去：照写销货的负库存规则核（``stock_guard.short_of``，验收 10-25）。
+    Express 原生作废 JU 时拦不拦还没实录（服务器测试账套第 8 条），先按写入同一口径拦下转人工，不写出 Express 不许的负数；领用 OU 作废是加回去，不核。"""
+    if kind == ISSUE:
+        return []
+    need: Dict[Tuple[str, str], Decimal] = {}
+    for row in lines:
+        if row["XTRNQTY"] > 0:
+            key = (row["STKCOD"], row["LOCCOD"] or stock_guard.ALL_LOCATIONS)
+            need[key] = need.get(key, Decimal(0)) + row["XTRNQTY"]
+    return stock_guard.short_of(account_dir, need, any(row["LOCCOD"] for row in lines))
 
 
 def void_stock_entry(
@@ -150,11 +165,15 @@ def void_stock_entry(
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {head['DOCDAT']} is locked in Express")
     wanted = S.STCRD_POSOPR_ISSUE if KINDS[doctype] == ISSUE else S.STCRD_POSOPR_ADJUST
-    differ = _differences(_lines(account_dir, docnum), payload["items"])
+    lines = _lines(account_dir, docnum)
+    differ = _differences(lines, payload["items"])
     if head["POSOPR"] != wanted:
         differ.insert(0, f"STTRN POSOPR {head['POSOPR']!r} != {wanted!r}")
     if differ:
         return DbfWriteResult(False, error_code=ERR_CHANGED, error=f"{docnum} changed in Express: " + "; ".join(differ[:5]))
+    short = _shortages(account_dir, lines, KINDS[doctype])
+    if short:
+        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     has_stloc = stock_location._file(account_dir, stock_location.TABLE) is not None
     clock.lap("checks")
     backup_dir = _backup(account_dir, TABLES + (S.LOCATION_TABLES if has_stloc else ())) if make_backup else None

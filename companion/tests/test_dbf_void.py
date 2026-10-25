@@ -124,3 +124,24 @@ def test_amounts_are_compared_to_the_written_quantity_sign(book):
     assert not _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "1"}]).ok
     assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "-1"}]).ok
     assert Decimal(str(_rows(book, "STMAS", STKCOD="ICE01")[0]["MREMBAL"])) == Decimal("5")
+
+
+def test_voiding_an_increase_that_would_go_negative_is_held_like_a_sale(book):
+    """作废入库 JU 会把结存减回去：账套不许负库存时照写销货同一口径核（验收 10-25），不够就整单不动、转人工。"""
+    from account_rules_fixture import isinfo
+    from companion import stock_guard
+
+    res = _write(book, _entry("JU", [_line("ICE01", 4, unit_cost="12")]))
+    assert res.ok, res.error
+    have = Decimal(str(_stloc(book, "ICE01", "01")["LOCBAL"]))
+    out = _write(book, _entry("OU", [_line("ICE01", int(have) - 1)]))  # 01 仓只剩 1，作废 JU 要减 4
+    assert out.ok, out.error
+    isinfo(book, MAINLOC="01", NEGALLOW="N", CHKNEGLEV="2")
+    before = _state(book)
+    held = _void(book, res.docnum, "JU", [{"code": "ICE01", "loccod": "01", "qty": "4"}])
+    assert not held.ok and held.error_code == stock_guard.ERR_STOCK_INSUFFICIENT
+    assert "ICE01@01 need 4 have 1" in held.error
+    assert _state(book) == before
+    assert worker._outcome_for(held.error_code) == "needs_review"
+    isinfo(book, MAINLOC="01", NEGALLOW="Y")  # 账套允许负库存：照作废
+    assert _void(book, res.docnum, "JU", [{"code": "ICE01", "loccod": "01", "qty": "4"}]).ok
