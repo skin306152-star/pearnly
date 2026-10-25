@@ -6,7 +6,8 @@
   各仓合计和 STMAS.MREMBAL 对不上的老账也按 STLOC；CHKNEGLEV 0 只按全仓 STMAS.MREMBAL 合计，允许单个仓变负；
 - 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）、随单新建的物料：照写；
 - 没有 STLOC：按全仓 STMAS.MREMBAL 核；
-- 商品级 STMAS.NEGALLOW 盖过账套（服务器测试账套 1-戊）：Y 不核，N 一律按仓核（账套 Y 也拦），空跟账套，A 先跟账套、回报标 item A。
+- 商品级 STMAS.NEGALLOW 盖过账套（服务器测试账套 1-戊、第 6 条）：Y 不核，N 当作账套不许负库存（按 CHKNEGLEV 按仓 / 全仓，账套 Y 也核），
+  空跟账套，A 先跟账套、回报标 item A。
 """
 
 from __future__ import annotations
@@ -181,12 +182,18 @@ def test_the_item_flag_overrides_the_book_setting(acct):
         assert stock_guard.shortages(acct, sale, ["02"]) == expected, (book, flag)
 
 
-def test_an_item_that_may_not_go_negative_is_checked_by_warehouse_even_at_level_zero(acct):
-    """账套 N + CHKNEGLEV 0 只看全仓合计，但商品标 N 时按仓拦（Express 4091「某商品某仓」）。"""
-    isinfo(acct, MAINLOC="01", NEGALLOW="N", CHKNEGLEV="0")
+def test_an_item_that_may_not_go_negative_follows_the_book_check_level(acct):
+    """服务器测试账套第 6 条：商品标 N 当作账套不许负库存，按账套 CHKNEGLEV 判——0 级看全仓合计（账套 Y / 0：01 仓 −2、全仓 7，卖 1 照存），
+    2 级看单仓（账套 Y / 2 同样情形录行就 4224）。"""
     _set_item(acct, "ICE01", NEGALLOW="N")
-    short = stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")], ["02"])
-    assert short == [{"stkcod": "ICE01", "loccod": "02", "need": "1", "have": "0"}]
+    for book in ("Y", "N"):
+        isinfo(acct, MAINLOC="01", NEGALLOW=book, CHKNEGLEV="0")
+        assert stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")], ["02"]) == [], book
+        short = stock_guard.shortages(acct, [_item("ICE01", 6, 30.0, "stock_sale", loccod="02")], ["02"])
+        assert short == [{"stkcod": "ICE01", "loccod": "all", "need": "6", "have": "5"}], book
+        isinfo(acct, MAINLOC="01", NEGALLOW=book, CHKNEGLEV="2")
+        short = stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")], ["02"])
+        assert short == [{"stkcod": "ICE01", "loccod": "02", "need": "1", "have": "0"}], book
 
 
 def test_an_item_marked_a_follows_the_book_and_is_named_in_the_report(acct):

@@ -5,9 +5,9 @@ Express 自己录单会拦库存不足，CC 照写会把账写成 Express 不允
 
 - 只核卖出库存品的行（``item_mode = stock_sale``），按写单时同一个找品函数（``stock_sale.find_stock_item``，只读）对到
   Express 的存货；对不到、要随单新建的物料不核（新建的品按设计标了允许负库存，``product_master``）；
-- 商品级「ส/คติดลบได้? [Y, N, A]」（``STMAS.NEGALLOW``）盖过账套设置（服务器测试账套 1-戊实录）：``Y`` 不核（Express 只弹 605 提醒、照存，
-  分仓可以变负）；``N`` 一律核、按仓（账套允许负库存也拦，Express 弹 4091 丢掉那一行）；空跟账套；``A`` 没测过，先跟账套，回报里标
-  ``item A``（待测）。
+- 商品级「ส/คติดลบได้? [Y, N, A]」（``STMAS.NEGALLOW``）盖过账套设置（服务器测试账套 1-戊、第 6 条实录）：``Y`` 不核（Express 只弹 605
+  提醒、照存，分仓可以变负）；``N`` 当作这件品「账套不许负库存」——账套允许负库存也核，按账套的 ``CHKNEGLEV`` 决定按仓（1 / 2）还是按全仓（0）；
+  空跟账套（账套允许负库存时不核，CHKNEGLEV 对它不起作用）；``A`` 没测过，先跟账套，回报里标 ``item A``（待测）。
 - 照 Express 自己拦单的办法（主会话 10-25 定稿，验收在服务器测试账套 ``70EXP\test`` 实录 CHKNEGLEV 三种取值，共享笔记「服务器test账套-录单结果」）：
   - ``ISINFO.CHKNEGLEV`` 是 1 或 2（空也按 2）且账套有 STLOC：按单个仓核。每行按**实际写入的仓**（行上的仓库码；没带就是主仓
     ``ISINFO.MAINLOC``，与写单同一条规则）的 ``LOCBAL`` 核，那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
@@ -95,7 +95,7 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     masters = {row["STKCOD"]: row for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW", "MREMBAL"))
                if row["STKCOD"] in codes}
     flags = {code: (masters.get(code) or {}).get("NEGALLOW", "").upper() for code in codes}
-    # 商品级「ส/คติดลบได้?」盖过账套设置（服务器测试账套 1-戊）：Y 不核；N 一律按仓核（账套允许负库存也拦）；空 / A 跟账套
+    # 商品级「ส/คติดลบได้?」盖过账套设置（服务器测试账套 1-戊、第 6 条）：Y 不核；N 当作账套不许负库存（按 CHKNEGLEV 按仓 / 全仓）；空 / A 跟账套
     checked = {code for code, flag in flags.items() if flag == _NO or (flag != _YES and book_checks)}
     if not checked:
         return []
@@ -112,7 +112,7 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     for (code, loc), qty in need.items():
         if code not in checked:
             continue
-        if has_stloc and (flags[code] == _NO or level_by_warehouse):
+        if has_stloc and level_by_warehouse:
             key = (code, main if loc == ALL_LOCATIONS else loc)  # 没带仓库码的行写进主仓，就按主仓核
             have[key] = located.get(key, Decimal(0))
         else:
