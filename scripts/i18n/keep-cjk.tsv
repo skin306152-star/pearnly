@@ -190,3 +190,4 @@ apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py	*	数据�
 apps/pearnly_cowork/pearnly_cowork/push/express/automation.py	*	数据：文字层里认作废 / 退货的泰文字样与泰文月名（找单据日期原文），按原字面比对票面，不进界面（分类结果只出原因码）
 apps/pearnly_core/pearnly_core/claude_ocr/spec.py	*	数据：Claude 识别提示词（英文，内含泰文票据与身份证字样），给模型看，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/execution/claude.py	บาท	数据：识别结果里的泰铢写法，按原字面认作本币，不进界面
+apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py	*	数据：写进 Express 的付款方式摘要（เงินสด / พร้อมเพย์ / บัตรเครดิต / โอนเงิน）与现销客户名 เงินสด，与会计在 Express 手录的写法一致，不进界面
