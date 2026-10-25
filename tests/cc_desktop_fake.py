@@ -262,6 +262,7 @@ class _DBApi:
             found = [row for row in rows if row.get("status") == "leased" and row.get("book_key") in values]
             found = list({row["book_key"]: row for row in found}.values())
         elif "status = 'queued' AND book_key IN" in text:
+            # 归这台写的条件（route_device / actor）由 jobs._heads 在 Python 里再核一遍，这里只按账套取
             found = [row for row in rows if row.get("status") == "queued" and row.get("book_key") in values]
         elif "status = 'requested' AND kind IN" in text:
             kinds_count = text.count("%s", text.index("kind IN"), text.index(") AND book_key"))

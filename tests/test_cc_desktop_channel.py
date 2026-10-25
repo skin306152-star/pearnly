@@ -197,6 +197,14 @@ class Queue(Base):
         self.assertEqual(len(self.lease(self.office)["jobs"]), 1)
         self.assertEqual(jobs.writers("boss@x", self.changes[-1]["book_key"])["state"], "missing")
 
+    def test_a_job_nobody_can_write_does_not_hold_up_the_book(self):
+        # 验收 10-25：排在最前的单录入人名下没有电脑（Administrator），同一份账套后面 staff 的单原来一直领不到
+        self.enqueue(actor="boss@x", name="SD-1")
+        mine = self.enqueue(actor="staff@x", name="SD-2")
+        leased = self.lease(self.office)["jobs"]
+        self.assertEqual([job["log_id"] for job in leased], [mine["job"]])
+        self.assertEqual(jobs.writers("boss@x", self.changes[-1]["book_key"])["state"], "missing")
+
     def test_one_job_per_account_set_at_a_time(self):
         self.register("staff@x", KEY_B)  # 第二台也是 staff 的
         second = self.register("staff@x", KEY_B)

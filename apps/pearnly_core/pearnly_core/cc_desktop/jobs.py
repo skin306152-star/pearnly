@@ -166,17 +166,23 @@ def _busy(device, moment):
         AND lease_expires_at > %s LIMIT 1""", (device, moment)))
 
 
-def _heads(keys):
-    """各份账套排在最前的那件（按交进来的先后）；有一件正在写的账套不算（等它写完）。"""
+def _heads(keys, device, peer):
+    """各份账套里**这台电脑能写的**排在最前的那件（按交进来的先后）；有一件正在写的账套不算（等它写完）。
+
+    只在归这台写的单里取排头（录入人在这台电脑上登录过 CC，或钉在这台电脑上的单；`route_contracts.owns`），同 Cowork
+    `companion.queue_heads`。验收 10-25：原来每份账套不分是谁的单只取最前一件，那件的录入人名下没有电脑时，同一份账套
+    后面所有人的单都领不到（CC 一直在领、30 分钟 126 次全是空）。"""
     marks = ", ".join(["%s"] * len(keys))
     taken = {row[0] for row in frappe.db.sql(f"""SELECT DISTINCT book_key FROM `tab{JOB}`
         WHERE status = 'leased' AND book_key IN ({marks})""", tuple(keys))}
+    users = sorted({user for user in peer.users or () if user})
+    mine = f"(route_device = %s OR (IFNULL(route_device, '') = ''{' AND actor IN (' + ', '.join(['%s'] * len(users)) + ')' if users else ''}))"
     rows = frappe.db.sql(f"""SELECT name, actor, book_key, payload_version, route_device FROM `tab{JOB}`
-        WHERE status = 'queued' AND book_key IN ({marks}) ORDER BY creation, name LIMIT {HEAD_SCAN}""",
-                         tuple(keys), as_dict=True)
+        WHERE status = 'queued' AND book_key IN ({marks}) AND {mine} ORDER BY creation, name LIMIT {HEAD_SCAN}""",
+                         (*keys, device, *users), as_dict=True)
     heads, seen = [], set(taken)
     for row in rows:  # 每份账套取第一条（同 `route_contracts.heads`，这里的键叫 book_key）
-        if row.book_key in seen:
+        if row.book_key in seen or not route_contracts.owns(device, peer, row.actor, row.route_device or ""):
             continue
         seen.add(row.book_key)
         heads.append(row)
@@ -189,12 +195,12 @@ def _claim(context, request, moment):
     reach = books.writable(context.device)
     if not reach:
         return []
-    heads = _heads(sorted(reach))
-    if not heads:
-        return []
     peers = devices.peers()
     me = peers.get(context.device) or route_contracts.Peer()
     peers[context.device] = me._replace(online=True)
+    heads = _heads(sorted(reach), context.device, me)
+    if not heads:
+        return []
     reachers = books.reachers([head.book_key for head in heads])
     for head in heads:
         job = route_contracts.Job(head.name, head.book_key, head.actor, int(head.payload_version or 1),
