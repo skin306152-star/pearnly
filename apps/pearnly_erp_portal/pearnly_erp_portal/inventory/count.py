@@ -608,6 +608,9 @@ def post_count(name: str, review_token=None) -> dict:
             operations.append((key, quantity, cost))
     for key, delta in sorted(changes.items()):
         operations.append((key, delta, valuation(key[0], key)))
+    # 按台：盘到的车原来在别处（别的仓，或这个仓里没盘的那一行）时，原处减 1；实际处的加 1 已在上面的行差异里
+    for key in _unit_sources(review["entries"], {(r["product"], r["warehouse"], r["location"] or "") for r in rows}):
+        operations.append((key, Decimal(-1), valuation(key[0], key)))
     # **盘点差异也开入库/出库单据**（用户 2026-09-23：这些编号要和商品库存、出入库、
     # 收发存每一笔记录联动；MR.ERP 的调整/盘点模块 `stktranmod` 同样是把带有自己编号的
     # 单据写进库存卡，旧线上盘点差异也发 IR/IS 号并落一张出入库单）。
@@ -641,6 +644,24 @@ def post_count(name: str, review_token=None) -> dict:
     express_push.queue(COUNT, name)
     count_live.changed(name)
     return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
+
+
+def _unit_sources(entries, counted_rows) -> list:
+    """盘到的车原来所在的 (商品, 仓, 库位)：车不在它被记下的地方、原处又不在这份盘点已盘的行里（那一行自己的差异会算）
+    → 要在原处减 1，数量与台数两边才对得上。一台一个。"""
+    from pearnly_erp_portal.inventory import serials
+
+    out = []
+    for entry in entries:
+        if entry.get("voided") or not entry.get("serial"):
+            continue
+        unit = frappe.db.get_value(serials.DOCTYPE, entry["serial"], ["product", "warehouse", "location", "status"], as_dict=True)
+        if not unit or unit.status != serials.IN_STOCK:
+            continue
+        source = (unit.product, unit.warehouse, unit.location or "")
+        if (unit.warehouse, unit.location or "") != (entry["warehouse"], entry.get("location") or "") and source not in counted_rows:
+            out.append(source)
+    return out
 
 
 def _move_counted_units(count, entries):
@@ -915,11 +936,9 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
                 frappe.throw(_(REQUEST_CONFLICT))
             return {"entry": seen['name'], "item": item, "qty": seen['qty'], "deduped": True}
     if unit:
-        # 按台：一台记一条、数量就是 1；同一份盘点里同一台不重复记；只认这份盘点仓里的台（别仓的车在那个仓盘，
-        # 否则过账时车记到这个仓、那个仓的账面数却没减，验收 10-26）
+        # 按台：一台记一条、数量就是 1；同一份盘点里同一台不重复记。别的仓 / 库位的车也能记在实际盘到的地方：
+        # 过账时原处减 1、实际处加 1，台跟着走（`_unit_sources`，主会话 10-26）
         quantity = Decimal(1)
-        if unit.warehouse != task.warehouse:
-            frappe.throw(_("This unit is not in stock in this warehouse") + f": {unit.serial_no}")
         if frappe.db.exists(ENTRY, {"count": count, "serial": unit.name, "voided": 0}):
             frappe.throw(_(UNIT_COUNTED) + f": {unit.serial_no}")
     token = _record_revision(count, product_id, stock_token)

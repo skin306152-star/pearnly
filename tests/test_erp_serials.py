@@ -172,7 +172,8 @@ class Serials(unittest.TestCase):
         asked = []
         with mock.patch.object(S.frappe, "get_all", side_effect=lambda doctype, filters=None, **kw: asked.append(filters) or []):
             S.lookup("QQQQQQQQQ00000001", "CO-1")
-            self.assertFalse(any("serial_tail" in filters for filters in asked))
+            # 17 位完整车架号只认完全一样的：不按末 8 位、也不按发动机号
+            self.assertFalse(any("serial_tail" in filters or "secondary_no" in filters for filters in asked))
             S.lookup("00000001", "CO-1")
             self.assertTrue(any(filters.get("serial_tail") == "00000001" for filters in asked))
 

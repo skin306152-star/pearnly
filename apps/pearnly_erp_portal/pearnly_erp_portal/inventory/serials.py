@@ -26,7 +26,7 @@ COUNT_REF = "count"
 OPENING_REF = "serial_opening"
 IN_TYPES = ("opening", "purchase_in", "stock_in")
 OUT_TYPES = ("sale_out", "stock_out")
-MAX_NO, MAX_COLOR, TAIL = 40, 60, 8
+MAX_NO, MAX_COLOR, TAIL, VIN_LENGTH = 40, 60, 8, 17
 KINDS = ("vehicle", "device")
 
 QTY_MISMATCH = "The number of units does not match the quantity"
@@ -193,8 +193,10 @@ def lookup(code, company, *, product=None, statuses=None, warehouse=None) -> lis
     if warehouse:
         base["warehouse"] = warehouse
     fields = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location", "out_ref"]
-    # 末 8 位只在输入的就是 8 位时认（验收 10-26：查一个不存在的完整车架号被末 8 位认成了别的车）
-    for extra in ({"serial_key": key(company, text)}, {"secondary_no": text}, {"serial_tail": text} if len(text) == TAIL else None):
+    # 17 位完整车架号只认完全一样的；末 8 位只在输入的就是 8 位时认；发动机号照旧全等（主会话 10-26）
+    full = len(text) == VIN_LENGTH
+    for extra in ({"serial_key": key(company, text)}, None if full else {"secondary_no": text},
+                  {"serial_tail": text} if len(text) == TAIL else None):
         if not extra:
             continue
         rows = frappe.get_all(DOCTYPE, filters={**base, **extra}, fields=fields, limit_page_length=20)
