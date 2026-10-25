@@ -366,3 +366,15 @@ def test_a_sale_without_pos_is_written_as_before_even_without_a_journal_book(dat
     assert (_rows(datat, "ISVAT")[0].DESCRP or "").strip() == "เงินสด"
     assert not (res.notes or {}).get("pos_vouchers")
     assert [(r.VOUCHER or "").strip() for r in _rows(datat, "GLJNL")] == ["IV69/00475"]
+
+
+def test_vat_fields_set_the_taxable_base_of_a_day_with_exempt_goods(datat):
+    """载荷 9(主会话 10-26):混有免税商品的现销日汇总,销项税记录的应税基数只记应税部分(来源按规则算好交 `vat_fields`),
+    税额照 vat_amount;账套里没有的栏不写。没带 `vat_fields` 的照旧记整张税前。"""
+    res = _write(datat, _pos_sale(payload_version=9, vat_fields={"AMT01": "1300.00", "AMTRAT9": "200.00"}))
+    assert res.ok, res.error
+    iv = _rows(datat, "ISVAT", DOCNUM="HS691013-001")[0]
+    assert (Decimal(str(iv.AMT01)), Decimal(str(iv.VAT01))) == (Decimal("1300.00"), Decimal("105.00"))
+    for bad in ({"VAT01": "1"}, {"AMT01": "1600.00"}, {"AMT01": "-1"}, {}):
+        out = _write(datat, _pos_sale(payload_version=9, vat_fields=bad, ref_no="B2610130010-9"))
+        assert not out.ok, bad

@@ -126,18 +126,23 @@ def included_vat(amount, rate=INCLUDED_VAT_RATE) -> Decimal:
     return q2(d(amount) * d(rate) / (Decimal("100") + d(rate)))
 
 
-def line_vats(totals, taxable, discount_total=0) -> list:
-    """一张收银小票逐行拆出的税额（标价含税，应收合计不变）：整单折扣按行金额摊到各行（尾差落最后一行），
-    每行含税净额 × 7/107；商品没勾「คิด VAT」的行为 0。公司不是 VAT 登记户时调用方整张给 0，不调这里。"""
+def line_nets(totals, discount_total=0) -> list:
+    """各行扣掉摊到的整单折扣后的含税净额：整单折扣按行金额摊（尾差落最后一行）。"""
     totals = [d(value) for value in totals]
     subtotal = sum(totals, Decimal("0"))
     left = q2(discount_total)
     out = []
-    for index, (total, flag) in enumerate(zip(totals, taxable)):
+    for index, total in enumerate(totals):
         share = left if index == len(totals) - 1 else (q2(q2(discount_total) * total / subtotal) if subtotal else Decimal("0"))
         left -= share
-        out.append(included_vat(total - share) if flag else Decimal("0"))
+        out.append(total - share)
     return out
+
+
+def line_vats(totals, taxable, discount_total=0) -> list:
+    """一张收银小票逐行拆出的税额（标价含税，应收合计不变）：每行含税净额（`line_nets`）× 7/107；
+    商品没勾「คิด VAT」的行为 0。公司不是 VAT 登记户时调用方整张给 0，不调这里。"""
+    return [included_vat(net) if flag else Decimal("0") for net, flag in zip(line_nets(totals, discount_total), taxable)]
 
 
 def refund_line_vat(original_vat, original_qty, qty) -> Decimal:

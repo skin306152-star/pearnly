@@ -242,6 +242,7 @@ def send(doctype, name):
         _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
         frappe.db.commit()
         return
+    vat_fields = body.pop("vat_fields", None) if doctype == POS_DAY else None
     if doctype == POS_DAY and "hold" in body:
         result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
     else:
@@ -261,6 +262,10 @@ def send(doctype, name):
     else:
         _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
         payload = result["payload"]
+        if vat_fields:
+            # 混有免税商品的现销日汇总：销项税记录的应税基数按 `pos_day` 的规则交（载荷 9，旧版 CC 诚实拒收）
+            payload = {**payload, "vat_fields": vat_fields,
+                       "payload_version": max(int(payload.get("payload_version") or 1), pos_day.VAT_FIELDS_PAYLOAD_VERSION)}
         # 再写一次（`api.retry`）撤掉的那件占着原来的请求号：后面的按第几件编号
         earlier = len(jobs.of_source(doctype, name))
         key = f"erp:{DIRECTIONS[doctype]}:{body['ref']}" + (f"#{earlier + 1}" if earlier else "")

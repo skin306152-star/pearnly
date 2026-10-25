@@ -11,6 +11,7 @@ tax_id,prename,customer_new} · vat_rate · base/vat/total · lines:借应收/�
 from __future__ import annotations
 
 from dataclasses import dataclass, field as df
+import re
 from decimal import Decimal
 from typing import Any, Dict, List
 
@@ -85,6 +86,8 @@ class SalesEntry:
     pos_last: str = ""
     pos_count: int = 0
     pos_transfers: List[Dict[str, Any]] = df(default_factory=list)
+    # 载荷 9:销项税记录(ISVAT)要照写的金额栏(来源按规则算好,如混有免税商品时 AMT01 只记应税部分);空 = AMT01 记整张税前。
+    vat_fields: Dict[str, str] = df(default_factory=dict)
 
 
 def validate_sales_payload(
@@ -144,12 +147,33 @@ def validate_sales_payload(
     if item_err is not None:
         return item_err
 
+    if "vat_fields" in payload:
+        fields_err = _validate_vat_fields(payload.get("vat_fields"), base)
+        if fields_err is not None:
+            return fields_err
+
     if "pos" in payload:
         pos_err = _validate_pos(payload, doctype, total)
         if pos_err is not None:
             return pos_err
 
     return PayloadValidationResult(True)
+
+
+_VAT_FIELD = re.compile(r"AMT\d{2}|AMTRAT\d")
+
+
+def _validate_vat_fields(fields, base: Decimal) -> PayloadValidationResult | None:
+    """``vat_fields``:只认 ISVAT 的金额栏(AMTnn / AMTRATn,税额栏照 vat_amount 写、不许改),金额 0 ≤ x ≤ 整张税前。"""
+    if not isinstance(fields, dict) or not fields:
+        return PayloadValidationResult(False, ERR_AMOUNTS, "vat_fields must be a non-empty object")
+    for name, value in fields.items():
+        amount = _d(value)
+        if not isinstance(name, str) or not _VAT_FIELD.fullmatch(name):
+            return PayloadValidationResult(False, ERR_AMOUNTS, f"vat_fields {name!r} is not an ISVAT amount column")
+        if amount is None or not amount.is_finite() or amount < 0 or amount > base:
+            return PayloadValidationResult(False, ERR_AMOUNTS, f"vat_fields {name} out of range")
+    return None
 
 
 def _validate_pos(payload: Dict[str, Any], doctype: str, total: Decimal) -> PayloadValidationResult | None:
@@ -240,6 +264,7 @@ def build_sales_entry(payload: Dict[str, Any]) -> SalesEntry:
         items_status=str(payload.get("items_status") or "empty").strip(),
         items_account=str(payload.get("items_account") or "").strip(),
         stock_acccod=str(payload.get("stock_acccod") or "").strip(),
+        vat_fields={name: format(_q(_d(value)), "f") for name, value in (payload.get("vat_fields") or {}).items()},
         **_pos_fields(payload.get("pos")),
     )
 

@@ -45,8 +45,9 @@ def _taxable(products) -> dict:
 CHUNK = 500
 
 
-def refresh(names) -> None:
-    """按各自公司此刻的状态重算这些小票的行税额与小票税额（先销售、后退货，退货要读原行重算后的税额）。合计不动。
+def refresh(names) -> int:
+    """按各自公司此刻的状态重算这些小票的行税额与小票税额（先销售、后退货，退货要读原行重算后的税额）。合计不动。回税额变了的张数
+    （重跑结果不变，第二次是 0）。
     按不含税价另加 VAT 开的小票（接口显式 has_vat，应收 ≠ 小计 − 折扣）税额是开单时算好的，不动。"""
     names = list(names)
     rows = []
@@ -56,6 +57,7 @@ def refresh(names) -> None:
                                        "vat_amount"], limit_page_length=0)
     rows.sort(key=lambda row: row.sale_type != "sale")
     company_of = {}
+    changed = 0
     for row in rows:
         if row.sale_type == "sale" and contracts.d(row.grand_total) != contracts.d(row.subtotal) - contracts.d(row.discount_total):
             continue
@@ -76,17 +78,34 @@ def refresh(names) -> None:
         total = sum(vats, contracts.d(0))
         if contracts.d(row.vat_amount) != total:
             frappe.db.set_value(SALE, row.name, "vat_amount", total, update_modified=False)
+            changed += 1
+    return changed
 
 
-def refresh_company(company) -> None:
+def exempt_total(names):
+    """这些小票里免税商品行（没勾「คิด VAT」）的净额合计（扣过摊到的整单折扣，退货记负数）：现销日汇总里混有免税商品时，
+    Express 销项税记录的应税基数要把这部分扣掉（`express.pos_day.vat_fields`）。"""
+    total = contracts.d(0)
+    rows = frappe.get_all(SALE, filters={"name": ["in", list(names) or [""]]},  # bounded: 一张日汇总里的小票
+                          fields=["name", "sale_type", "discount_total"], limit_page_length=0)
+    for row in rows:
+        lines = frappe.get_all(LINE, filters={"parent": row.name, "parenttype": SALE},  # bounded: 这张小票的行
+                               fields=["product", "line_total"], order_by="idx asc", limit_page_length=0)
+        taxable = _taxable([line.product for line in lines])
+        nets = contracts.line_nets([line.line_total for line in lines], row.discount_total or 0)
+        exempt = sum((net for line, net in zip(lines, nets) if not taxable.get(line.product, False)), contracts.d(0))
+        total += -exempt if row.sale_type == "refund" else exempt
+    return total
+
+
+def refresh_company(company) -> int:
     """公司状态定了或改了：这家公司还没写进 Express 的完成小票（没进日汇总的、日汇总还没写进去的）按新状态重算。"""
     names = frappe.db.sql_list("""SELECT s.name FROM `tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
         LEFT JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
         WHERE w.company = %s AND s.status = 'completed'
         AND (COALESCE(s.express_summary, '') = '' OR COALESCE(d.express_state, '') NOT IN ('written', 'mismatch'))""",
                                (company,))
-    if names:
-        refresh(names)
+    return refresh(names) if names else 0
 
 
-__all__ = ["refresh", "refresh_company", "refund_line_vats", "sale_line_vats"]
+__all__ = ["exempt_total", "refresh", "refresh_company", "refund_line_vats", "sale_line_vats"]

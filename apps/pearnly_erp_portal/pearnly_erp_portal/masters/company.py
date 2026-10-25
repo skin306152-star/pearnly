@@ -482,8 +482,8 @@ def update_company(name, **fields) -> dict:
 
 
 def _rd_vat(tax_id, branch, *, network=False) -> str:
-    """税务局的增值税登记状态：查到 VAT 登记 → yes；税号存在但没登记 → no；查不到、连不上 → 空（不猜）。
-    ``network`` 为假只看缓存（存公司时不让人等外部接口）。"""
+    """税务局的增值税登记状态：查到 VAT 登记 → yes；税号存在但没登记 → no；查不到、连不上、出错 → 空（不猜，走「问一次」）。
+    ``network`` 为假只看缓存（存公司时不让人等外部接口）；为真时每次请求超时 5 秒、重试 1 次（`revenue_department.service`）。"""
     from pearnly_core.revenue_department import service as core
     from pearnly_erp_portal.masters import rd
 
@@ -493,8 +493,12 @@ def _rd_vat(tax_id, branch, *, network=False) -> str:
         branch_no = int(str(branch or "0").strip() or 0)
     except ValueError:
         branch_no = 0
-    result = rd.lookup(tax_id, branch_no) if network else \
-        core.lookup(tax_id, branch_no, cache=rd._DocTypeCache(), post=lambda url, body: None)
+    try:
+        result = rd.lookup(tax_id, branch_no) if network else \
+            core.lookup(tax_id, branch_no, cache=rd._DocTypeCache(), post=lambda url, body: None)
+    except Exception:  # noqa: BLE001  查询出任何错都记成「未知」、走单据上问一次，不挡建公司、不挡写单（主会话 10-26）
+        frappe.log_error(title="ERP company VAT status lookup failed", message=frappe.get_traceback()[-2000:])
+        return ""
     if result.get("ok"):
         return VAT_YES
     return VAT_NO if result.get("error") == "not_vat_registered" else ""

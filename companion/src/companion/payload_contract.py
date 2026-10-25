@@ -25,7 +25,9 @@ from typing import Optional
 # XTRNQTY = 数量 × 系数,stock_units)。旧版按 1 写,所以带 factor 的载荷盖 7,旧版诚实拒收。
 # 8:作废 ERP 写进去的库存单(``direction = stock``、``action = void``,照 Express 原生作废原单;dbf_void)。旧版会把它当一张新的
 # 库存单写,所以盖 8,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8})
+# 9:销项表头可带 ``vat_fields``(ISVAT 金额栏 → 金额,来源按自己的规则算好,例如混有免税商品的现销日汇总 AMT01 只记应税部分;
+# ERP 收银日汇总,主会话 10-26)。旧版按整张税前写 AMT01,所以带它的载荷盖 9,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

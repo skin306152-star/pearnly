@@ -910,6 +910,30 @@ class PosDaySend(PushModule):
                 self.push.send("ERP POS Day Summary", "PDS-1")
             self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
 
+    def test_vat_fields_ride_on_the_payload_with_version_nine(self):
+        from unittest import mock
+        docs = fake.STATE.db.table("ERP POS Day Summary")
+        docs["PDS-1"] = {"name": "PDS-1", "creation": "2026-10-25 01:20:00", "status": "submitted", "owner": "a@x",
+                         "express_state": "queued", "express_job": None, "express_reason": ""}
+        body = {"ref": "PDS-1@x", "number": "SI-1-3", "items": [{"code": "A"}], "vat_fields": {"AMT01": "100.00"}}
+        seen, queued = [], []
+
+        def prepared(doc, company, ensure):
+            seen.append(dict(doc))
+            return {"payload": {"payload_version": 4, "doctype": "HS"}, "book": {"key": "BK"}}
+
+        with mock.patch.object(self.push, "document", lambda doctype, name: dict(body)), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(self.push.prepare, "prepare", side_effect=prepared), \
+                mock.patch.object(self.push, "actor_of", lambda doctype, row, book: "a@x"), \
+                mock.patch.object(self.push.jobs, "of_source", lambda doctype, name: []), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: queued.append(kw) or {"job": "J1"}), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            self.push.send("ERP POS Day Summary", "PDS-1")
+        self.assertNotIn("vat_fields", seen[0])  # 不交给共用写账规则，准备好后才放进载荷
+        self.assertEqual((queued[0]["payload"]["vat_fields"], queued[0]["payload_version"]), ({"AMT01": "100.00"}, 9))
+
 class PosDayActor(PushModule):
     """收银日汇总每晚由系统合（建单人 Administrator 名下没有电脑）：作业归这家公司里电脑够得到账套的员工，否则一直领不走（10-25 实验栈）。"""
 
@@ -1453,7 +1477,7 @@ class PosDaySummaries(Base):
         net = pos.net_day(D("20"), [("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))])  # 现金退款多过现金收款：现金可以为负
         self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
 
-    def summary_body(self, lines, paid, total, vat="0", registered="yes"):
+    def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0"):
         """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。"""
         import types
         D = Decimal
@@ -1485,6 +1509,7 @@ class PosDaySummaries(Base):
                 mock.patch.object(frappe.db, "set_value", lambda *a, **k: None), \
                 mock.patch.object(self.pos_day.companies, "vat_registered", lambda company, lookup=False: registered), \
                 mock.patch.object(self.pos_day.receipt_vat, "refresh", lambda names: refreshed.append(list(names))), \
+                mock.patch.object(self.pos_day.receipt_vat, "exempt_total", lambda names: D(exempt)), \
                 mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
                                   create=True):
             body = self.pos_day.document("PDS-1", "PDS-1@x")
@@ -1528,6 +1553,13 @@ class PosDaySummaries(Base):
         body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7")
         self.assertEqual((body["vat"], body["total"], body["has_vat"]), ("7.00", "157.00", True))
         self.assertEqual([line["amount"] for line in body["items"]], ["100.00", "50.00"])
+        self.assertNotIn("vat_fields", body)  # 交进来的行没有免税的：应税基数照整张税前
+        # 混有免税商品（免税行净额 50）：销项税记录的应税基数只记应税部分，免税部分按规则不记（主会话 10-26）
+        body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="50")
+        self.assertEqual(body["vat_fields"], {"AMT01": "100.00"})
+        with mock.patch.object(self.pos_day, "ISVAT_EXEMPT_FIELD", "AMTRAT0"):  # 实录后改规则：免税部分另记一栏
+            body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="50")
+        self.assertEqual(body["vat_fields"], {"AMT01": "100.00", "AMTRAT0": "50.00"})
         # 不是登记户：小票税额全是 0，日汇总不带税
         body = self.summary_body([("A", "1", "107")], [], "107", vat="0", registered="no")
         self.assertEqual((body["vat"], body["has_vat"]), ("0.00", False))
@@ -1535,6 +1567,26 @@ class PosDaySummaries(Base):
         held = self.summary_body([("A", "1", "107")], [], "107", registered="")
         self.assertEqual(held["hold"], "choice_needed:vat_registered")
         self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["yes", "no"])
+
+    def test_the_vat_status_comes_from_the_revenue_department_and_is_unknown_on_any_failure(self):
+        """主会话 10-26：查到 VAT 登记 → 是；税号存在没登记 → 否；连不上、查不到、出错都记「未知」，走单据上问一次，不挡建公司和写单。"""
+        import types
+        utils = sys.modules.setdefault("frappe.utils", types.ModuleType("frappe.utils"))  # 替身没有的两个工具补上（只读不改）
+        for name in ("add_days", "now_datetime"):
+            if not hasattr(utils, name):
+                setattr(utils, name, lambda *a: None)
+        from pearnly_core.revenue_department import service as core
+        from pearnly_erp_portal.masters import company as companies, rd
+        for result, state in (({"ok": True, "data": {}}, "yes"), ({"ok": False, "error": "not_vat_registered"}, "no"),
+                              ({"ok": False, "error": "rd_unreachable"}, ""), ({"ok": False, "error": "not_found"}, "")):
+            with mock.patch.object(core, "lookup", lambda *a, result=result, **k: result), \
+                    mock.patch.object(rd, "_DocTypeCache", lambda: None):
+                self.assertEqual(companies._rd_vat("0105545112901", "00000"), state)
+        with mock.patch.object(rd, "lookup", side_effect=TimeoutError("rd")), \
+                mock.patch.object(frappe, "log_error", lambda **k: None, create=True), \
+                mock.patch.object(frappe, "get_traceback", lambda: "tb", create=True):
+            self.assertEqual(companies._rd_vat("0105545112901", "00000", network=True), "")
+        self.assertEqual(companies._rd_vat("", "00000"), "")
 
     def test_a_non_vat_company_keeps_every_receipt_line_at_zero(self):
         from pearnly_erp_portal.cashier import vat

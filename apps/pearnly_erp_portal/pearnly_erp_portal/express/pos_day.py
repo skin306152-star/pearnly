@@ -28,6 +28,11 @@ CASH_PARTY = "เงินสด"
 DAYS_MAX = 62  # 一晚最多补几天（停机很久后回来，分几晚补完）
 
 NET_NEGATIVE = "express.pos_net_negative"  # 退货冲减后为负数（停下交人）
+# 一张现销里混有免税商品（主会话 10-26）：Express 销项税记录（ISVAT）的应税基数只记应税行的税前合计，免税部分记哪一栏由下面这条
+# 规则定（"" = 不记）。Express 原生对混合现销的记法待服务器测试账套实录后核对，改这里即可（CC 照载荷 `vat_fields` 写，不用发新版）。
+ISVAT_TAXABLE_FIELD = "AMT01"
+ISVAT_EXEMPT_FIELD = ""
+VAT_FIELDS_PAYLOAD_VERSION = 9  # 带 `vat_fields` 的载荷：旧版 CC 会按整张税前写应税基数，诚实拒收
 VAT_REGISTERED = "vat_registered"  # 单据上问一次的那一项：这家公司是不是增值税登记户（记在公司上，`masters.company`）
 # 只汇总公司「收银写 Express 起始日」（第一次接上 Express 那天；已接的公司由补丁记成上线当天）及以后的小票：之前的不补写
 # （会计可能已手录过、期间可能已关账；验收 10-25）。没有起始日的公司一张都不汇总。销售小票，加上原单同一天卖的退货小票。
@@ -113,7 +118,8 @@ def document(name, ref) -> dict:
         return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
                 "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
                             "options": [{"code": companies.VAT_YES, "name": ""}, {"code": companies.VAT_NO, "name": ""}]}]}
-    receipt_vat.refresh(frappe.db.sql_list("SELECT name FROM `tabERP Sale` WHERE express_summary = %s", (name,)))
+    receipts = frappe.db.sql_list("SELECT name FROM `tabERP Sale` WHERE express_summary = %s", (name,))
+    receipt_vat.refresh(receipts)
     sums = frappe.db.sql(f"""SELECT COALESCE(SUM({_SIGN} * s.grand_total), 0) AS total,
         COALESCE(SUM({_SIGN} * s.vat_amount), 0) AS vat FROM `tabERP Sale` s WHERE s.express_summary = %s""",
                          (name,), as_dict=True)[0]
@@ -168,9 +174,25 @@ def document(name, ref) -> dict:
                                                           frappe.utils.getdate(summary.day)),
                               company=company, party={"code": "", "name": CASH_PARTY}, paid=True, has_vat=vat > 0,
                               total=total, vat=vat, lines=lines)
+    if vat > 0:
+        fields = vat_fields(receipts, contracts.d(body["subtotal"]))
+        if fields:
+            body["vat_fields"] = fields
     body["pos"] = {"first": summary.first_receipt, "last": summary.last_receipt, "count": int(summary.sales_count or 0),
                    "payments": [[label, contracts.money(amount)] for label, amount in payments]}
     return body
+
+
+def vat_fields(receipts, base) -> dict:
+    """混有免税商品的现销日汇总写进 Express 销项税记录的金额栏（`ISVAT_TAXABLE_FIELD` / `ISVAT_EXEMPT_FIELD`）：
+    应税基数 = 税前合计 − 免税行净额；没有免税行回空（CC 照整张税前写，同以前）。"""
+    exempt = receipt_vat.exempt_total(receipts)
+    if exempt <= 0:
+        return {}
+    fields = {ISVAT_TAXABLE_FIELD: contracts.money(base - exempt)}
+    if ISVAT_EXEMPT_FIELD:
+        fields[ISVAT_EXEMPT_FIELD] = contracts.money(exempt)
+    return fields
 
 
 def payments_of(total, paid) -> list:
@@ -183,4 +205,5 @@ def payments_of(total, paid) -> list:
     return out
 
 
-__all__ = ["DOCTYPE", "LABELS", "NET_NEGATIVE", "document", "nightly", "payments_of", "pending_days", "receipt_range", "summarize"]
+__all__ = ["DOCTYPE", "ISVAT_EXEMPT_FIELD", "ISVAT_TAXABLE_FIELD", "LABELS", "NET_NEGATIVE", "VAT_FIELDS_PAYLOAD_VERSION",
+           "document", "nightly", "payments_of", "pending_days", "receipt_range", "summarize", "vat_fields"]

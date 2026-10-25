@@ -535,6 +535,11 @@ def _write_all(
     if has_vat:
         iv = _open(account_dir, "ISVAT", dbf.READ_WRITE)
         try:
+            columns = {f.upper() for f in iv.field_names}
+            # 载荷 9:来源按规则算好的金额栏(混有免税商品时 AMT01 只记应税部分);账套里没有的栏不写、记一笔
+            given = {name: _f(Decimal(value)) for name, value in entry.vat_fields.items() if name in columns}
+            if len(given) != len(entry.vat_fields):
+                log.warning("ISVAT 没有这些栏,不写: %s", sorted(set(entry.vat_fields) - set(given)))
             iv.append(
                 {
                     "VATREC": S.ISVAT_VATREC_OUTPUT,
@@ -554,7 +559,8 @@ def _write_all(
                     "DOCSTAT": "N",
                     "TAXID": entry.customer_tax_id,
                     "PRENAM": entry.customer_prename[:15],
-                    **({"ORGNUM": orgnum} if "ORGNUM" in {f.upper() for f in iv.field_names} else {}),
+                    **({"ORGNUM": orgnum} if "ORGNUM" in columns else {}),
+                    **given,
                 }
             )
         finally:

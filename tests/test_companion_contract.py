@@ -734,6 +734,15 @@ class PosPayload(unittest.TestCase):
         self.assertEqual(server, 3)
         self.assertIn(server, helper)
 
+    def test_the_vat_fields_version_and_key_match(self):
+        """载荷 9（ERP 收银日汇总混有免税商品，主会话 10-26）：服务端带 `vat_fields` 时盖的版本 CC 认得、键两边同名。"""
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
+        version = _literal(erp / "pos_day.py", "VAT_FIELDS_PAYLOAD_VERSION")
+        self.assertIn(version, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertTrue(quoted((erp / "push.py").read_text(encoding="utf-8"), "vat_fields"))
+        self.assertTrue(quoted((COMPANION / "sales_adapter.py").read_text(encoding="utf-8"), "vat_fields"))
+        self.assertEqual(_literal(erp / "pos_day.py", "ISVAT_TAXABLE_FIELD"), "AMT01")
+
     def test_the_pos_block_keys_match(self):
         mapper = (RULES / "sales_mapper.py").read_text(encoding="utf-8")
         adapter = (COMPANION / "sales_adapter.py").read_text(encoding="utf-8")
