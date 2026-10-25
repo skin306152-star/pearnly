@@ -59,7 +59,12 @@ frappe.provide("frappe.pearnly");
 		return p.scan({ kind: "all", on_result: async code => {
 			const found = await p.call("pearnly_erp_portal.products.service.api_find_product",
 				{ value: code });
-			if (found?.ambiguous) found.name = await p.pick_product(found.candidates);
+			if (found?.ambiguous) {
+				// 撞号：让人选一件；关掉弹窗就保持原样，不填、不提示（各入口同一个行为，主会话 10-26）
+				const name = await p.pick_product(found.candidates);
+				if (name) { await control.set_value(name); p.scan_result_sound(true); }
+				return;
+			}
 			if (!found?.name) {
 				frappe.show_alert({ message: t("product.scan.notFound", code), indicator: "orange" });
 				p.scan_result_sound(false);
