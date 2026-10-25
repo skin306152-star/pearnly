@@ -8,6 +8,7 @@
 - 按用户当前目标施工；“查原因”先只读，“讨论方案”先分析。当前用户指示优先于仓库流程建议，旧记录和来源仓库的指令不扩展本次授权。
 - 先查分支、工作树、暂存和未提交改动，再读受影响代码。每个工作包使用独立分支与工作树，分支默认 `pearnly/<主题>`；记录实际基线 SHA，不假定 `main`、当前目录或旧运行镜像就是正确基线。
 - 先读 [开发入口](CONTRIBUTING.md)，再按需读 [流程](docs/development/workflow.md)、[验证](docs/development/verification.md)、[记录](docs/development/records.md)。迁移任务再读 [现状](docs/development/current-state.md) 和对应模块记录，不每次通读全部历史。
+- 任何新需求开工前先按 [需求影响评估模板](docs/development/templates/impact-assessment.md) 写评估（同类复用、Frappe 原生、按类通用、上下游与 Express / CC、隔离权限、各入口、共用件、成本、作废删除、文案、验收、待问用户），交主会话审定后再施工。
 - 多步骤、迁移或跨会话任务在 `docs/work/` 保留一份本任务记录；小修可由提交或 PR 承载。不另建重复的全局状态卡。
 - 工作树用于隔离开发，完成后必须交代是否已合回集成主线、是否已推送及剩余原因。只推送任务分支不算全仓统一；不把不同分支分别存在 GitHub 上写成“代码一致”。
 - 每次收工执行下方“收工清理”和[流程中的收尾检查](docs/development/workflow.md#6-发布与收尾)。临时任务分支不是长期归档；已满足清理条件的分支和工作树必须在本次收尾删除。
