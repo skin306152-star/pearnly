@@ -379,6 +379,15 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 - B3b 当天退货 SR（CNTYP 2、RETSTK Y，货回仓）：共用规则与 CC 都还不会写 SR；先从 S 盘只读补读 SR 的凭证与税记录写法（九.6 只读过
   字段），再做 CC 的 SR 写入与 ERP 侧。B3a 先上时，退货小票留在 ERP（同步对齐照算，不被抹）。
 
+**作废的写法（C 盘录单第 2 条在服务器测试账套实录，10-25 晚；主会话定：照 Express 原生作废原单，取代「写冲销单」）**
+- Express 原生作废（工具栏第 3 个按钮，一次确认，不要原因、不要密码）是在原单上作废：
+  - 销项 IV：ARTRN 留行，DOCSTAT = C、金额清 0、CMPLAPP = Y；ISVAT 留行清 0、标 C；GLJNL 头标 C，GLJNLIT 金额清空；
+    STCRD 那行打删除标记（SEQNUM 改成 `@@@`）；STLOC / STMAS 回滚；ARMAS / ARBAL 余额减回（AP 端同理）。
+  - 领用 OU：STTRN 留行标 C、TRNVAL 清 0；GLJNL 标 C、GLJNLIT 清空；STCRD 删除标记；STLOC 回滚。
+  - ISRUN 计数器不回退，作废号不复用。
+- B 段作废的边界（待和第 3、4 条一起出设计）：只作废 ERP 自己写进去、Express 里还没被会计改过的单——先核原单仍是写入时的样子，对不上转人工；
+  原单所在期间已关账回 `PERIOD_LOCKED` 转人工。逐表的「作废后」字段值以副本 `C:\PearnlyStress\_srvtest_record\2a-* / 2b-*` 为准，设计时逐字段对。
+
 **A 段 ③ 改为照 Express 按仓拦（10-25 晚，C 盘录单第 1 条在服务器测试账套 `70EXP\test` 实录后；待 CHKNEGLEV=0 结果定稿）**
 - 实录（NEGALLOW=N、CHKNEGLEV=2）：Express 按仓硬拦，看那个仓的 STLOC，不看全仓合计；01 仓 0、02 仓 10 时从 01 仓卖 3 个被拦
   （Message 4224「库存会变负」），拦的是那一行，不要密码 / 审批。原 ③「STLOC 对不上 / 没带仓库码就按全仓放行」会写出 Express 自己不允许的分仓负数。
