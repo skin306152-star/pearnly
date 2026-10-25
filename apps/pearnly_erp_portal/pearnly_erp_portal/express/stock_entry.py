@@ -15,6 +15,7 @@
 import frappe
 
 from pearnly_core.express_rules.push.account_rules import wire_account_set
+from pearnly_core.express_rules.push.common import FACTOR_PAYLOAD_VERSION
 
 from pearnly_erp_portal.express import choices, contracts, facts, target
 
@@ -168,7 +169,9 @@ def prepare(body, company_row, ensure_masters) -> dict:
                     "needed": [{"kind": ACCOUNT, "subject": subject, "label": body["doctype"], "options": [], "current": ""}]}
     path = book["path"]
     payload = {
-        "payload_version": PAYLOAD_VERSION, "direction": "stock", "doctype": body["doctype"],
+        # 有包装单位的行（带 ERP 换算率）要 CC 桌面版 1.12.4 起才会照 Express 主档换算：盖 7，旧版诚实拒收（验收 10-25）
+        "payload_version": FACTOR_PAYLOAD_VERSION if any(line.get("factor") for line in body["lines"]) else PAYLOAD_VERSION,
+        "direction": "stock", "doctype": body["doctype"],
         "docdate_be": be_date(body["date"]), "ref_no": str(body["number"])[:15], "remark": body["remark"][:50],
         "loccod": body["loccod"], "items": body["lines"],
         "account_root": book.get("root") or "", "account_dir": path, "account_company": book.get("company") or "",

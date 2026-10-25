@@ -1063,6 +1063,16 @@ class StockEntries(Base):
         self.assertEqual(body["doctype"], "JU")
         self.assertEqual([(line["qty"], line.get("unit_cost")) for line in body["lines"]], [("3", None), ("1", "12")])
 
+    def test_a_stock_entry_with_a_pack_unit_needs_payload_seven(self):
+        """验收 10-25：出入库单自己拼载荷，包装单位的行带 factor 时原来仍盖 6，1.12.3 测试包会收下按 1 写。"""
+        key = self.computer([book()])[0]
+        self.masters(key)
+        body = self.body()
+        body["lines"][0].update(unit="ลัง", factor="12")
+        payload = self.stock.prepare(body, COMPANY, lambda company, chosen: None)["payload"]
+        self.assertEqual(payload["payload_version"], 7)
+        self.assertEqual(self.stock.prepare(self.body(), COMPANY, lambda company, chosen: None)["payload"]["payload_version"], 6)
+
     def test_a_count_nets_its_entries_into_one_count_document(self):
         """验收 10-25：盘点按库位逐笔开单（−100、+60、+40）原来各写一张 TK；现在整份盘点按「存货 × Express 仓」轧差写一张，净 0 不写。"""
         import types
