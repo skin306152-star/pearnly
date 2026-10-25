@@ -87,6 +87,13 @@ READ_CAPABILITIES = {
 def _can_read(doctype, user=None):
     from pearnly_core.shell import entitlements
 
+    if doctype in ("ERP Serial No", "ERP Serial Movement"):
+        # 按台记录：进货、销售、收银、出入库、盘点都要选台 / 看台，任一读权限都能看（仍按仓，`record_permission`）
+        from pearnly_erp_portal.inventory import serials
+
+        return bool((user or frappe.session.user) == "Administrator"
+                    or any(guard.has(capability, user) for capability in serials.READ_CAPABILITIES))
+
     feature = ("warehouses" if doctype in ("ERP Stock Balance", "ERP Serial No", "ERP Serial Movement") else
                "stockcard" if doctype in ("ERP Stock Movement", "ERP Stock Opening") else "stocktake")
     return bool((user or frappe.session.user) == "Administrator"

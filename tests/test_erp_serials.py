@@ -140,7 +140,7 @@ class Serials(unittest.TestCase):
                 ref_id="SAL-1", company="CO-1")
         with mock.patch.object(S.frappe, "get_all", side_effect=lambda doctype, filters=None, pluck=None, **kw:
                                [unit.name] if filters.get("out_ref") == "SAL-1" else []):
-            self.assertEqual(S.refund_picks("SAL-1", "CAR", 1), [{"serial": unit.name}])
+            self.assertEqual(S.refund_picks("SAL-1", "CAR", 1), [{"serial": unit.name}])  # 卖 1 退 1：自动取
             with self.assertRaises(Refused):
                 S.refund_picks("SAL-1", "CAR", 1, [{"serial": "SRL-OTHER"}])
         S.apply(lines=[self.line(1, [{"serial": unit.name}], warehouse="W2")], movement_type="stock_in",
@@ -148,6 +148,33 @@ class Serials(unittest.TestCase):
         self.assertEqual((unit.status, unit.warehouse), (S.IN_STOCK, "W2"))
         S.reverse("refund", "REF-1")
         self.assertEqual(unit.status, S.SOLD)
+
+    def test_voiding_an_issue_whose_unit_came_back_another_way_is_refused(self):
+        """验收 10-26：入 2 台 → 出 X → 入库「退货」收回 X → 作废出库单原来会成功（账面 3 台、实际 2 台）。出的台必须还是这张单出的。"""
+        unit = self.receive(["MP1TFR41JTG032993"])[0]
+        S.apply(lines=[self.line(1, [{"serial": unit.name}])], movement_type="stock_out", ref_type="stock_entry",
+                ref_id="STE-OUT", company="CO-1")
+        S.apply(lines=[self.line(1, [{"serial": unit.name}])], movement_type="stock_in", ref_type="stock_entry",
+                ref_id="STE-RET", company="CO-1")
+        with self.assertRaisesRegex(Refused, "sold or issued"):
+            S.reverse("stock_entry", "STE-OUT")
+        self.assertEqual(unit.status, S.IN_STOCK)
+
+    def test_a_partial_cashier_refund_must_say_which_units(self):
+        sold = ["SRL-1", "SRL-2"]
+        with mock.patch.object(S.frappe, "get_all", side_effect=lambda doctype, filters=None, pluck=None, **kw: sold):
+            with self.assertRaisesRegex(Refused, "does not match"):
+                S.refund_picks("SAL-1", "CAR", 1)  # 卖了 2 台退 1 台：要人选
+            self.assertEqual(S.refund_picks("SAL-1", "CAR", 2), [{"serial": "SRL-1"}, {"serial": "SRL-2"}])
+            self.assertEqual(S.refund_picks("SAL-1", "CAR", 1, [{"serial": "SRL-2"}]), [{"serial": "SRL-2"}])
+
+    def test_the_last_eight_only_match_when_eight_are_typed(self):
+        asked = []
+        with mock.patch.object(S.frappe, "get_all", side_effect=lambda doctype, filters=None, **kw: asked.append(filters) or []):
+            S.lookup("QQQQQQQQQ00000001", "CO-1")
+            self.assertFalse(any("serial_tail" in filters for filters in asked))
+            S.lookup("00000001", "CO-1")
+            self.assertTrue(any(filters.get("serial_tail") == "00000001" for filters in asked))
 
     def test_stocktake_documents_do_not_move_units(self):
         S.apply(lines=[self.line(3, [])], movement_type="stock_in", ref_type="count", ref_id="STC-1", company="CO-1")
@@ -157,9 +184,13 @@ class Serials(unittest.TestCase):
         product = Doc(self.db, {"doctype": "ERP Product", "name": "CAR", "track_serial": 0, "serial_kind": "vehicle"})
         self.db["ERP Product"] = {"CAR": product}
         warehouses = types.SimpleNamespace(required=lambda value: value, company_of=lambda value: "CO-1")
+        stock = types.SimpleNamespace(lock_products=lambda products: None)
+        package = sys.modules["pearnly_erp_portal.inventory"]
         with mock.patch.object(S, "stock_by_warehouse", lambda product, company=None: {"W1": 2.0}), \
-                mock.patch.dict(sys.modules, {"pearnly_erp_portal.inventory.warehouses": warehouses}), \
-                mock.patch("pearnly_erp_portal.inventory.warehouses", warehouses, create=True):
+                mock.patch.dict(sys.modules, {"pearnly_erp_portal.inventory.warehouses": warehouses,
+                                              "pearnly_erp_portal.inventory.stock": stock}), \
+                mock.patch.object(package, "warehouses", warehouses, create=True), \
+                mock.patch.object(package, "stock", stock, create=True):
             with self.assertRaisesRegex(Refused, "match the stock"):
                 S.turn_on("CAR", [{"serial_no": "A1", "warehouse": "W1"}])
             result = S.turn_on("CAR", [{"serial_no": "A1", "warehouse": "W1"}, {"serial_no": "A2", "warehouse": "W1"}])

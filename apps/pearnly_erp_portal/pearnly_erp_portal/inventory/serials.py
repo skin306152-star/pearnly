@@ -166,6 +166,9 @@ def reverse(ref_type, ref_id):
                 frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
             unit.update({"status": VOID, "serial_key": None})
         elif event.action == "out":
+            # 这台车现在必须还是这张单出的（验收 10-26：出库后又经入库「退货」收回，再作废出库单会多出一台）
+            if unit.status not in (SOLD, ISSUED) or unit.out_ref != ref_id:
+                frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
             unit.update({"status": IN_STOCK, "warehouse": event.warehouse, "location": event.location or "",
                          "out_ref_type": None, "out_ref": None, "out_date": None})
         elif event.action == "return":
@@ -190,7 +193,8 @@ def lookup(code, company, *, product=None, statuses=None, warehouse=None) -> lis
     if warehouse:
         base["warehouse"] = warehouse
     fields = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location", "out_ref"]
-    for extra in ({"serial_key": key(company, text)}, {"secondary_no": text}, {"serial_tail": text[-TAIL:]} if len(text) >= TAIL else None):
+    # 末 8 位只在输入的就是 8 位时认（验收 10-26：查一个不存在的完整车架号被末 8 位认成了别的车）
+    for extra in ({"serial_key": key(company, text)}, {"secondary_no": text}, {"serial_tail": text} if len(text) == TAIL else None):
         if not extra:
             continue
         rows = frappe.get_all(DOCTYPE, filters={**base, **extra}, fields=fields, limit_page_length=20)
@@ -218,9 +222,10 @@ def stock_by_warehouse(product, company=None) -> dict:
 def turn_on(product, units=None, kind=None):
     """开按台。没有库存的直接开；有库存的要随附按台期初登记 ``units``（``[{serial_no, secondary_no, color, warehouse, location}]``），
     每个仓登记的台数等于账面数才在同一个事务里开（主会话 10-26）。"""
-    from pearnly_erp_portal.inventory import warehouses
+    from pearnly_erp_portal.inventory import stock, warehouses
 
-    doc = frappe.get_doc(PRODUCT, product)
+    stock.lock_products([product])  # 与过账同一把锁：开按台期间这件商品不进出
+    doc = frappe.get_doc(PRODUCT, product, for_update=True)
     if kind and kind not in KINDS:
         frappe.throw(_("Invalid value"))
     if doc.track_serial:
@@ -272,7 +277,12 @@ def refund_picks(original, product, qty, picks=None) -> list:
     sold = frappe.get_all(DOCTYPE, filters={"out_ref": original, "product": product, "status": SOLD},  # bounded: 一张小票卖出的台
                           pluck="name", order_by="modified asc", limit_page_length=0)
     names = [str(entry.get("serial") if isinstance(entry, dict) else entry or "") for entry in (picks or [])]
-    names = [name for name in names if name] or sold[:int(frappe.utils.flt(qty))]
+    names = [name for name in names if name]
+    if not names:
+        # 没选：只有退的数量正好是原小票卖出的全部时才自动取；部分退要人选退哪几台，不默认挑（主会话 10-26）
+        if int(frappe.utils.flt(qty)) != len(sold):
+            frappe.throw(_(QTY_MISMATCH))
+        names = sold
     if any(name not in sold for name in names) or len(set(names)) != len(names):
         frappe.throw(_(NOT_FOUND))
     return [{"serial": name} for name in names]
@@ -313,10 +323,12 @@ __all__ = ["IN_STOCK", "ISSUED", "SOLD", "VOID", "apply", "line_serials", "looku
 
 # ── 接口（页面：认台、选台、按台记录列表、开 / 关按台、按台期初 Excel）──────────────────────
 
-READ_CAPABILITIES = ("inventory.read", "stock.read", "cashier.read", "sales.read", "purchase.read", "count.read")
+READ_CAPABILITIES = ("inventory.read", "stock.read", "cashier.read", "receipts.read", "sales.read", "purchase.read", "count.read",
+                     "products.view")
 LIST_FIELDS = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location",
                "in_ref_type", "in_ref", "in_date", "out_ref_type", "out_ref", "out_date"]
 STATUSES = (IN_STOCK, SOLD, ISSUED, VOID)
+RETURNABLE = "returnable"  # 退回能选的台：已售或已出库
 # 按台期初 Excel 的列：字段 → 界面词条（车 / 其他商品的叫法都认，模板按商品的号码种类出）
 WORKBOOK_FIELDS = ("serial_no", "secondary_no", "color", "warehouse", "location")
 PRIMARY_LABELS = {"vehicle": "serial.vehicle.primary", "device": "serial.device.primary"}
@@ -343,7 +355,7 @@ def _company(company=None):
 def api_lookup(code=None, product=None, warehouse=None, status=None, company=None):
     """扫到 / 手输的号 → 本公司的台（主号 → 副号 → 末 8 位；认出几台都列出来让人选）。"""
     _require_read()
-    statuses = [status] if status in STATUSES else None
+    statuses = [SOLD, ISSUED] if status == RETURNABLE else [status] if status in STATUSES else None
     return lookup(code, _company(company), product=product or None, statuses=statuses, warehouse=warehouse or None)
 
 
@@ -353,8 +365,9 @@ def search_units(doctype=None, txt="", searchfield=None, start=0, page_len=20, f
     只列本公司的台；搜主号、副号、颜色。"""
     _require_read()
     filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
-    conditions = {"company": _company(filters.get("company")), "status": filters.get("status") if filters.get("status") in STATUSES
-                  else IN_STOCK}
+    status = filters.get("status")
+    conditions = {"company": _company(filters.get("company")),
+                  "status": ["in", [SOLD, ISSUED]] if status == RETURNABLE else status if status in STATUSES else IN_STOCK}
     for field in ("product", "warehouse", "out_ref"):
         if filters.get(field):
             conditions[field] = filters[field]
@@ -420,9 +433,18 @@ def _require_manage():
 @frappe.whitelist()
 def api_opening_stock(product=None):
     """开按台之前看这件商品各仓的账面数：有数就要先按台期初登记。"""
+    from pearnly_erp_portal.masters import company as companies
+
     _require_manage()
-    return [{"warehouse": warehouse, "warehouse_name": frappe.db.get_value("ERP Warehouse", warehouse, "warehouse_name") or warehouse,
-             "qty": qty} for warehouse, qty in sorted(stock_by_warehouse(product).items())]
+    mine = set(companies.allowed_companies())
+    rows = []
+    for warehouse, qty in sorted(stock_by_warehouse(product).items()):
+        owner = frappe.db.get_value("ERP Warehouse", warehouse, ["warehouse_name", "company"], as_dict=True) or {}
+        # 别家公司的仓不报名称（这个人看不到那家）；开按台时那几个仓同样要登记，登记不了就开不了
+        rows.append({"warehouse": warehouse if owner.get("company") in mine else "",
+                     "warehouse_name": owner.get("warehouse_name") if owner.get("company") in mine else _("Not permitted"),
+                     "qty": qty})
+    return rows
 
 
 @frappe.whitelist(methods=["POST"])

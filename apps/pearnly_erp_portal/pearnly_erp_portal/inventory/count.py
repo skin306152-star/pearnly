@@ -915,8 +915,11 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
                 frappe.throw(_(REQUEST_CONFLICT))
             return {"entry": seen['name'], "item": item, "qty": seen['qty'], "deduped": True}
     if unit:
-        # 按台：一台记一条、数量就是 1；同一份盘点里同一台不重复记
+        # 按台：一台记一条、数量就是 1；同一份盘点里同一台不重复记；只认这份盘点仓里的台（别仓的车在那个仓盘，
+        # 否则过账时车记到这个仓、那个仓的账面数却没减，验收 10-26）
         quantity = Decimal(1)
+        if unit.warehouse != task.warehouse:
+            frappe.throw(_("This unit is not in stock in this warehouse") + f": {unit.serial_no}")
         if frappe.db.exists(ENTRY, {"count": count, "serial": unit.name, "voided": 0}):
             frappe.throw(_(UNIT_COUNTED) + f": {unit.serial_no}")
     token = _record_revision(count, product_id, stock_token)
@@ -953,6 +956,10 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
             frappe.throw(_(QUANTITY_REQUIRED))
         doc.qty = flt(quantity, 3)
     if voided is not None:
+        restoring = doc.voided and voided not in (True, 1, "1", "true")
+        if restoring and doc.get("serial") and frappe.db.exists(ENTRY, {"count": parent, "serial": doc.serial, "voided": 0,
+                                                                          "name": ["!=", doc.name]}):
+            frappe.throw(_(UNIT_COUNTED))  # 恢复作废的那条之前，这一台已经另记过了
         doc.voided = 1 if voided in (True, 1, "1", "true") else 0
     if location is not None:
         place = warehouses.required(warehouse) if warehouse is not None else doc.warehouse

@@ -79,8 +79,12 @@ frappe.provide("frappe.pearnly.pos_receipt");
 		fields.find(item => item.fieldname === "original_line").change = calculate;
 		fields.find(item => item.fieldname === "qty").change = calculate;
 		d = p.dialog(t("trade.refund"), fields, t("trade.refund"), async (values, dialog) => {
+			// 按台管理的商品：退哪几台（只列这张小票卖出的车，`p.serials`）；取消就不退
+			const product = (doc.lines || []).find(row => row.name === values.original_line)?.product;
+			const lines = [{ original_line: values.original_line, qty: values.qty, product }];
+			if (!await p.serials.collect(lines, { mode: "return", filters: { out_ref: doc.name } })) return;
 			await p.call(api + "api_refund_sale", { name: doc.name,
-				lines: [{ original_line: values.original_line, qty: values.qty }],
+				lines: lines.map(({ product: _product, ...line }) => line),
 				payments: [{ method: values.method, amount: values.amount }],
 				client_uuid: request }, "POST");
 			dialog.hide();

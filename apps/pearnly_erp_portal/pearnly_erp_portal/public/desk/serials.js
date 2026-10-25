@@ -31,7 +31,7 @@
 	function ask(line, item, mode, filters) {
 		const kind = kind_of(item), wanted = count_of(line);
 		const register = mode === "register";
-		const status = mode === "return" ? "sold" : "in_stock";
+		const status = mode === "return" ? "returnable" : "in_stock";
 		const existing = (line.serials || []).slice(0, wanted);
 		const rows = Array.from({ length: wanted }, (_v, index) => ({ ...(existing[index] || {}) }));
 		return new Promise(resolve => {
