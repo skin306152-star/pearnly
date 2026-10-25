@@ -23,6 +23,8 @@
 		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
 		"express.stock_book_missing": "express.reason.noStockBook", "express.pos_net_negative": "express.reason.posNetNegative",
 		"express.pos_refund_waiting": "express.reason.refundWaiting", "pos_refund_items_invalid": "express.reason.refundItems",
+		"express.pos_refund_cross_year": "express.reason.refundCrossYear",
+		"express.pos_refund_original_manual": "express.reason.refundOriginalManual",
 		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
 	};
 	const EXPRESS_KINDS = {
@@ -107,13 +109,21 @@
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
-					failed: "Failed"}[info.state] || info.state)},
+					failed: "Failed", handled: "express.state.handled"}[info.state] || info.state)},
 			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
 				default: __({queued: "Queued", voided: "Cancelled", held: "Pending"}[info.void] || info.void)}] : []),
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
 			...needed_fields(info.needed, direction),
+			// 收银日汇总 / 退货单停住时的出口：人在 Express 里手工处理好了，标一下就不再写（主会话 10-26）
+			...(info.can_mark_handled ? [{fieldtype: "Button", fieldname: "mark_handled", label: __("express.action.markHandled"),
+				click: () => frappe.confirm(__("express.action.markHandled"), async () => {
+					await p.call(api + "mark_handled", {doctype, name}, "POST");
+					p.success(__("express.state.handled"), "click");
+					cur_dialog?.hide();
+					await reload?.();
+				})}] : []),
 		];
 		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
 		p.dialog(__("Express"), fields, action, async (values, dialog) => {

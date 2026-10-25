@@ -108,9 +108,36 @@ def _view(doctype, row):
         return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_void_reason or "",
                 "void": row.express_void_state, "needed": [], "can_answer": False,
                 "can_retry": bool(void_job and void_job["status"] == "manual") and guard.has(CAPABILITIES[doctype][1])}
+    stuck = _pos_stuck(doctype, row, job)
     return {"state": row.express_state or "", "docnum": row.express_docnum or "", "reason": row.express_reason or "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
-            "can_retry": bool(job and job["status"] == "manual" and not blocked) and guard.has(CAPABILITIES[doctype][1])}
+            "can_retry": bool((job and job["status"] == "manual" and not blocked) or (stuck and not needed))
+            and guard.has(CAPABILITIES[doctype][1]),
+            # 收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的…）的出口：人标记「已在 Express 手工处理」（主会话 10-26）
+            "can_mark_handled": bool(stuck) and guard.has(CAPABILITIES[doctype][1])}
+
+
+def _pos_stuck(doctype, row, job) -> bool:
+    """收银日汇总 / 退货单是不是停住了（停下、失败，或电脑转了人工）：给「再写一次」「已在 Express 手工处理」两个出口。"""
+    if doctype != push.POS_DAY:
+        return False
+    return row.express_state in (contracts.HELD, contracts.FAILED) or bool(job and job["status"] == "manual")
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_handled(doctype, name):
+    """人在 Express 里手工处理好了这张收银日汇总 / 退货单：标「已在 Express 手工处理」，不再写；撤掉还挂着的写账件。库存对齐把它
+    当作已写进 Express（`masters.WRITTEN_STATES`）。"""
+    row = _document(doctype, name, write=True)
+    job = jobs.find_by_name(row.express_job) if row.express_job else None
+    if not _pos_stuck(doctype, row, job):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    if job and job["status"] not in ("done",):
+        jobs.cancel(job["job"], "replaced")
+    frappe.db.set_value(doctype, name, {"express_state": contracts.HANDLED, "express_reason": "", "express_needed": None,
+                                        "express_job": None}, update_modified=False)
+    frappe.db.commit()
+    return _view(doctype, _document(doctype, name))
 
 
 @frappe.whitelist()
@@ -214,6 +241,13 @@ def retry(doctype, name):
         frappe.db.commit()
         return _view(doctype, _document(doctype, name))
     job = jobs.find_by_name(row.express_job) if row.express_job else None
+    if doctype == push.POS_DAY and not job and row.express_state in (contracts.HELD, contracts.FAILED):
+        # 收银日汇总 / 退货单停下了（没交进队列）：按此刻的内容重新准备一次
+        frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_reason": "", "express_needed": None},
+                            update_modified=False)
+        frappe.db.commit()
+        push.send(doctype, name)
+        return _view(doctype, _document(doctype, name))
     if not job or job["status"] != "manual":
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     if job["reason"] == jobs.LOST:

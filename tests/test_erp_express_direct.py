@@ -1167,7 +1167,7 @@ class StockAlignment(MasterSync):
                 return ["SE-3"]  # 在 Express 作废完的单
             if doctype in open_docs:
                 if doctype in ("ERP Stock Entry", "ERP Stock Count"):
-                    self.assertEqual(filters["express_state"], ["in", ("written", "mismatch")])
+                    self.assertEqual(filters["express_state"], ["in", ("written", "mismatch", "handled")])
                 return list(open_docs[doctype])
             rows = [dict(zip(("ref_type", "ref_id", "product", "warehouse", "qty"), m)) for m in moves]
             for field, op, value in filters:
@@ -1185,7 +1185,7 @@ class StockAlignment(MasterSync):
 
         def sql(query, values=None, as_dict=False):
             self.assertIn("tabERP POS Day Summary", query)
-            self.assertEqual(values["written"], ("written", "mismatch"))
+            self.assertEqual(values["written"], ("written", "mismatch", "handled"))
             return summarized
 
         with mock.patch.object(sync.frappe, "get_all", side_effect=get_all), \
@@ -1565,7 +1565,8 @@ class PosDaySummaries(Base):
         net = pos.net_day(D("20"), [("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))])  # 现金退款多过现金收款：现金可以为负
         self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
 
-    def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0", kind=None, against=None):
+    def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0", kind=None, against=None,
+                     cross_year=False):
         """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。
         ``kind="SR"``：退货日汇总（照正数求和），``against`` 是原 HS 的 (Express 状态, Express 单号, 含税合计)。"""
         import types
@@ -1577,7 +1578,7 @@ class PosDaySummaries(Base):
         def get_value(doctype, name, fields=None, as_dict=False):
             if doctype == self.pos_day.DOCTYPE and name == "PDS-0":
                 state, docnum, grand = against
-                return types.SimpleNamespace(express_state=state, express_docnum=docnum, grand_total=D(grand))
+                return types.SimpleNamespace(express_state=state, express_docnum=docnum, grand_total=D(grand), day="2026-10-24")
             if doctype == self.pos_day.DOCTYPE:
                 return summary
             if doctype == "ERP Company":
@@ -1605,10 +1606,11 @@ class PosDaySummaries(Base):
                 mock.patch.object(self.pos_day.companies, "vat_registered", lambda company, lookup=False: registered), \
                 mock.patch.object(self.pos_day.receipt_vat, "refresh", lambda names: refreshed.append(list(names))), \
                 mock.patch.object(self.pos_day.receipt_vat, "exempt_total", lambda names: D(exempt)), \
+                mock.patch.object(self.pos_day, "_cross_year", lambda company, first, second: cross_year), \
                 mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
                                   create=True):
             body = self.pos_day.document("PDS-1", "PDS-1@x")
-        if registered and body.get("hold") != self.pos_day.REFUND_WAITING:
+        if registered and "hold" not in body:
             self.assertEqual(refreshed, [["SI-1", "SI-2"]])  # 写之前按公司此刻的状态重算小票税额
         return body
 
@@ -1643,6 +1645,18 @@ class PosDaySummaries(Base):
         self.assertEqual([(line["code"], line["qty"], line["amount"]) for line in body["items"]], [("A", "1", "93.46")])
         self.assertEqual(body["pos"]["payments"], [["เงินสด", "60.00"], ["พร้อมเพย์", "40.00"]])  # 退给客户的钱，正数
         self.assertEqual((body["total"], body["vat"]), ("100.00", "6.54"))
+
+    def test_a_refund_summary_matches_its_original_on_the_taxable_base_and_stops_on_open_questions(self):
+        """B3b 验收复核（主会话 10-26）：混有免税商品的退货单与原 HS 同一套规则只记应税部分（退货小票的免税净额 `exempt_total`
+        记负数，退货单里要照正数扣）；原 HS 与退货在不同年度账套时实录前停人工；原 HS 是人手工处理的，退货单也停下手工处理。"""
+        written = ("written", "HS0000039", "157")
+        body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="-50", kind="SR",
+                                 against=written)
+        self.assertEqual(body["vat_fields"], {"AMT01": "100.00"})  # 卖应税 107 + 免税 50 次日全退：SR 的应税基数 100，同原 HS
+        held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=written, cross_year=True)
+        self.assertEqual(held["hold"], "express.pos_refund_cross_year")
+        held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=("handled", "", "157"))
+        self.assertEqual(held["hold"], "express.pos_refund_original_manual")
 
     def test_refunds_after_the_day_summary_are_grouped_by_the_original_hs(self):
         """B3b：同一天卖、同一天退、原小票还没汇总的退货照旧并进 HS；原小票已进 HS 的退货（跨天的、晚到的）按 (退货那天, 原 HS)

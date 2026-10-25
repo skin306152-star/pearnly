@@ -29,7 +29,7 @@ CASH = "cash"
 LABELS = {CASH: "เงินสด", "promptpay": "พร้อมเพย์", "card": "บัตรเครดิต", "transfer": "โอนเงิน"}
 CASH_PARTY = "เงินสด"
 DAYS_MAX = 62  # 一晚最多补几天（停机很久后回来，分几晚补完）
-WRITTEN_STATES = ("written", "mismatch")  # 写进 Express 了（`masters.WRITTEN_STATES` 同一份）
+WRITTEN_STATES = ("written", "mismatch", "handled")  # 写进 Express 了（含人手工处理的；`masters.WRITTEN_STATES` 同一份）
 
 NET_NEGATIVE = "express.pos_net_negative"  # 退货冲减后为负数（停下交人）
 REFUND_WAITING = contracts.REFUND_WAITING  # 退货单的原 HS 还没写进 Express（等它写成再写，`push.poll` 每分钟再看）
@@ -96,8 +96,9 @@ def _summarize(company, day, kind, names, against=None):
     doc = frappe.get_doc({"doctype": DOCTYPE, "company": company, "day": day, "seq": seq, "status": "submitted",
                           "doc_kind": kind, "against": against})
     doc.insert(ignore_permissions=True)
-    frappe.db.sql("UPDATE `tabERP Sale` SET express_summary = %s WHERE name IN %s AND COALESCE(express_summary, '') = ''",
-                  (doc.name, tuple(names)))
+    # 再核一次完成状态：选出来之后被作废的小票不进（验收 10-26，毫秒级竞态）
+    frappe.db.sql("""UPDATE `tabERP Sale` SET express_summary = %s WHERE name IN %s AND COALESCE(express_summary, '') = ''
+        AND status = 'completed'""", (doc.name, tuple(names)))
     sign = _sign(kind)
     totals = frappe.db.sql(f"""SELECT COUNT(*) AS receipts, COALESCE(SUM(s.sale_type = %s), 0) AS count,
         COALESCE(SUM({sign} * s.grand_total), 0) AS total, COALESCE(SUM({sign} * s.vat_amount), 0) AS vat
@@ -114,6 +115,15 @@ def _summarize(company, day, kind, names, against=None):
 
     push.queue(DOCTYPE, doc.name)
     return doc.name
+
+
+def pending_refunds(company) -> int:
+    """这家公司还没写进 Express 的退货小票张数（「待写退货」，公司页 Express 区）：原小票已进日汇总、退货自己还没进写成的
+    退货单（没汇总、退货单在排队 / 等原日汇总 / 停下）。原小票在收银写 Express 起始日之前的不算（那些不写）。"""
+    return frappe.db.sql(f"""SELECT COUNT(*) {_REFUNDS.replace("AND COALESCE(s.express_summary, '') = ''", "")}
+        AND COALESCE(s.express_summary, '') != o.express_summary
+        AND NOT EXISTS (SELECT 1 FROM `tab{DOCTYPE}` d WHERE d.name = s.express_summary AND d.express_state IN %(written)s)""",
+                         {"company": company, "written": WRITTEN_STATES})[0][0]
 
 
 def _sign(kind) -> str:
@@ -162,10 +172,14 @@ def document(name, ref) -> dict:
     against = None
     if refund:
         # 退货单挂原 HS：原 HS 写进 Express 了才写（要它的 Express 单号；还在排队、停下、转人工的先等，`push.poll` 每分钟再看）
-        against = frappe.db.get_value(DOCTYPE, summary.against, ["express_state", "express_docnum", "grand_total"],
+        against = frappe.db.get_value(DOCTYPE, summary.against, ["express_state", "express_docnum", "grand_total", "day"],
                                       as_dict=True) if summary.against else None
+        if against and against.express_state == contracts.HANDLED:
+            return {"ref": ref, "hold": contracts.REFUND_ORIGINAL_MANUAL}
         if not against or against.express_state not in WRITTEN_STATES or not against.express_docnum:
             return {"ref": ref, "hold": REFUND_WAITING}
+        if _cross_year(summary.company, against.day, summary.day):
+            return {"ref": ref, "hold": contracts.REFUND_CROSS_YEAR}
     if not companies.vat_registered(summary.company, lookup=True):
         return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
                 "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
@@ -232,7 +246,8 @@ def document(name, ref) -> dict:
                               company=company, party={"code": "", "name": CASH_PARTY}, paid=True, has_vat=vat > 0,
                               total=total, vat=vat, lines=lines)
     if vat > 0:
-        fields = vat_fields(receipts, contracts.d(body["subtotal"]))
+        # 退货日汇总全是退货小票：免税净额照正数算（`exempt_total` 对退货记负数），与原 HS 同一套规则，两边应税基数对得上
+        fields = vat_fields(receipts, contracts.d(body["subtotal"]), sign=-1 if refund else 1)
         if fields:
             body["vat_fields"] = fields
     body["pos"] = {"first": summary.first_receipt, "last": summary.last_receipt, "count": int(summary.sales_count or 0),
@@ -243,10 +258,20 @@ def document(name, ref) -> dict:
     return body
 
 
-def vat_fields(receipts, base) -> dict:
-    """混有免税商品的现销日汇总写进 Express 销项税记录的金额栏（`ISVAT_TAXABLE_FIELD` / `ISVAT_EXEMPT_FIELD`）：
-    应税基数 = 税前合计 − 免税行净额；没有免税行回空（CC 照整张税前写，同以前）。"""
-    exempt = receipt_vat.exempt_total(receipts)
+def _cross_year(company, original_day, refund_day) -> bool:
+    """原 HS 与退货落在不同的账套（年度账套分开时）：Express 原生跨年退货的写法实录前先停人工（主会话 10-26）。"""
+    from pearnly_erp_portal.express import push, target
+
+    row = push._company(company)
+    first = (target.pick(row, str(original_day)).get("book") or {}).get("key")
+    second = (target.pick(row, str(refund_day)).get("book") or {}).get("key")
+    return bool(first and second and first != second)
+
+
+def vat_fields(receipts, base, sign=1) -> dict:
+    """混有免税商品的现销 / 退货日汇总写进 Express 销项税记录的金额栏（`ISVAT_TAXABLE_FIELD` / `ISVAT_EXEMPT_FIELD`）：
+    应税基数 = 税前合计 − 免税行净额；没有免税行回空（CC 照整张税前写，同以前）。``sign`` = -1：退货日汇总（全是退货）。"""
+    exempt = sign * receipt_vat.exempt_total(receipts)
     if exempt <= 0:
         return {}
     fields = {ISVAT_TAXABLE_FIELD: contracts.money(base - exempt)}
@@ -267,4 +292,4 @@ def payments_of(total, paid) -> list:
 
 __all__ = ["DOCTYPE", "HS", "ISVAT_EXEMPT_FIELD", "ISVAT_TAXABLE_FIELD", "LABELS", "NET_NEGATIVE", "REFUND_WAITING", "SR",
            "VAT_FIELDS_PAYLOAD_VERSION", "document", "nightly", "payments_of", "pending_days", "receipt_range", "refund_groups",
-           "summarize", "summarize_refunds", "vat_fields"]
+           "pending_refunds", "summarize", "summarize_refunds", "vat_fields"]

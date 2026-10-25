@@ -573,6 +573,7 @@ Grand Total,ยอดรวมทั้งสิ้น
 Gray,เทา
 Green,เขียว
 Gross,ยอดขายรวม
+Handled manually in Express,จัดการด้วยมือใน Express แล้ว
 Head Office,สำนักงานใหญ่
 Hide Recent Orders,ซ่อนคำสั่งซื้อล่าสุด
 Hide details,ซ่อนรายละเอียด
@@ -698,6 +699,7 @@ Manual,ด้วยตนเอง
 Manual Entry,กรอกข้อมูลเอง
 Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
 Mark all as read,ทำเครื่องหมายว่าอ่านแล้วทั้งหมด
+Mark as handled in Express,ทำเครื่องหมายว่าจัดการใน Express แล้ว
 Mark complete,ทำเครื่องหมายว่าเสร็จ
 Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
 Media Type,ประเภทไฟล์
@@ -838,6 +840,7 @@ Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
 Original Item and Location,สินค้าและตำแหน่งในบิลเดิม
 Original Line,บรรทัดเดิม
+Original and refund are in different account set years,ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี
 Other,อื่นๆ
 Out,จ่ายออก
 Out Date,วันที่จ่ายออก
@@ -1020,7 +1023,9 @@ Refund,คืนสินค้า/คืนเงิน
 Refund Amount,ยอดคืนเงิน
 Refund Count,จำนวนรายการคืนเงิน
 Refund Of,อ้างอิงใบเสร็จที่คืน
+Refund to write,รอบันทึกการคืน
 Refunds exceed sales for this day after netting,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
+Refunds to write,การคืนที่รอบันทึก
 Refuse a second document with the same supplier and document number,ปฏิเสธเอกสารซ้ำที่มีผู้จำหน่ายและเลขที่เอกสารเดียวกัน
 Register serial numbers,ลงทะเบียนหมายเลขซีเรียล
 Register vehicles,ลงทะเบียนรถ
@@ -1292,6 +1297,7 @@ The opening stock file is too large,ไฟล์สต็อกยกมาใ�
 The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามีขนาดใหญ่เกินไป ไม่สามารถรักษาความละเอียดทศนิยมได้
 The original cash sale is not in Express,ไม่พบใบขายเงินสดต้นฉบับใน Express
 The original cash sale was changed in Express,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
+The original day summary was handled manually in Express,สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
 The payment details are invalid,ข้อมูลการชำระเงินไม่ถูกต้อง
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
@@ -1957,6 +1963,7 @@ erp.work.view.board,บอร์ด
 erp.work.view.calendar,ปฏิทิน
 erp.work.view.mine,การ์ดของฉัน
 erp.work.view.table,ตาราง
+express.action.markHandled,ทำเครื่องหมายว่าจัดการใน Express แล้ว
 express.code.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 express.code.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -2036,6 +2043,7 @@ express.option.claim,ขอคืน
 express.option.expense,บันทึกเป็นค่าใช้จ่าย
 express.option.no,ไม่ใช่
 express.option.yes,ใช่
+express.pendingRefunds,การคืนที่รอบันทึก
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
@@ -2043,11 +2051,15 @@ express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 express.reason.reading,กำลังอ่านชุดบัญชี Express
+express.reason.refundCrossYear,ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี
 express.reason.refundItems,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
+express.reason.refundOriginalManual,สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว
 express.reason.refundWaiting,รอบันทึกสรุปยอดขายรายวันต้นทาง
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
+express.state.handled,จัดการด้วยมือใน Express แล้ว
+express.state.refundPending,รอบันทึกการคืน
 express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express

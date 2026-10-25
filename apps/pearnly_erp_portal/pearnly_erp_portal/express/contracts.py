@@ -22,6 +22,7 @@ CENT = Decimal("0.01")
 
 # ERP 单据上的 Express 状态（只按电脑的回执定：HTTP 成功、交进队列都不算写入）
 QUEUED, WRITTEN, MISMATCH, HELD, FAILED = "queued", "written", "mismatch", "held", "failed"
+HANDLED = "handled"  # 人标记「已在 Express 手工处理」（收银日汇总 / 退货日汇总停住时的出口，主会话 10-26）
 STATES = (QUEUED, WRITTEN, MISMATCH, HELD, FAILED)
 # 还没写进 Express 的状态（库存对齐把这些单的变动加回去；每分钟再看一次停下的）
 OPEN_STATES = (QUEUED, HELD)
@@ -35,6 +36,8 @@ READING = "express.masters_reading"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
 REFUND_WAITING = "express.pos_refund_waiting"  # 收银退货单的原 HS 还没写进 Express（`pos_day`）
+REFUND_CROSS_YEAR = "express.pos_refund_cross_year"  # 原 HS 与退货在不同年度账套：Express 原生跨年退货写法实录前停人工
+REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
 CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
 # 不自动重试

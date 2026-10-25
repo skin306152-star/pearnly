@@ -573,6 +573,7 @@ Grand Total,Grand Total
 Gray,Gray
 Green,Green
 Gross,Gross
+Handled manually in Express,Handled manually in Express
 Head Office,Head Office
 Hide Recent Orders,Hide Recent Orders
 Hide details,Hide details
@@ -698,6 +699,7 @@ Manual,Manual
 Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
 Mark all as read,Mark all as read
+Mark as handled in Express,Mark as handled in Express
 Mark complete,Mark complete
 Mark incomplete,Mark incomplete
 Media Type,Media Type
@@ -838,6 +840,7 @@ Orange,Orange
 Order Evidence,Order Evidence
 Original Item and Location,Original Item and Location
 Original Line,Original Line
+Original and refund are in different account set years,Original and refund are in different account set years
 Other,Other
 Out,Out
 Out Date,Out Date
@@ -1020,7 +1023,9 @@ Refund,Refund
 Refund Amount,Refund Amount
 Refund Count,Refund Count
 Refund Of,Refund Of
+Refund to write,Refund to write
 Refunds exceed sales for this day after netting,Refunds exceed sales for this day after netting
+Refunds to write,Refunds to write
 Refuse a second document with the same supplier and document number,Refuse a second document with the same supplier and document number
 Register serial numbers,Register serial numbers
 Register vehicles,Register vehicles
@@ -1292,6 +1297,7 @@ The opening stock file is too large,The opening stock file is too large
 The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
 The original cash sale is not in Express,The original cash sale is not in Express
 The original cash sale was changed in Express,The original cash sale was changed in Express
+The original day summary was handled manually in Express,The original day summary was handled manually in Express
 The password must be at least {0} characters,The password must be at least {0} characters
 The payment details are invalid,The payment details are invalid
 The payment is more than the net payable,The payment is more than the net payable
@@ -1957,6 +1963,7 @@ erp.work.view.board,Board
 erp.work.view.calendar,Calendar
 erp.work.view.mine,My cards
 erp.work.view.table,Table
+express.action.markHandled,Mark as handled in Express
 express.code.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 express.code.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
@@ -2036,6 +2043,7 @@ express.option.claim,Claim
 express.option.expense,Expense
 express.option.no,No
 express.option.yes,Yes
+express.pendingRefunds,Refunds to write
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set
@@ -2043,11 +2051,15 @@ express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.posNetNegative,Refunds exceed sales for this day after netting
 express.reason.reading,Reading the Express account set
+express.reason.refundCrossYear,Original and refund are in different account set years
 express.reason.refundItems,Each returned line must be an Express stock item
+express.reason.refundOriginalManual,The original day summary was handled manually in Express
 express.reason.refundWaiting,Waiting for the original day summary to be written
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
+express.state.handled,Handled manually in Express
+express.state.refundPending,Refund to write
 express.state.written,Written
 express.summary.extra,Late receipts
 express.void,Cancel in Express

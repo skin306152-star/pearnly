@@ -573,6 +573,7 @@ Grand Total,税込合計
 Gray,グレー
 Green,緑
 Gross,売上総額
+Handled manually in Express,Express で手動処理済み
 Head Office,本店
 Hide Recent Orders,最近の会計を隠す
 Hide details,詳細を隠す
@@ -698,6 +699,7 @@ Manual,手動入力
 Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
 Mark all as read,すべて既読にする
+Mark as handled in Express,Express で処理済みにする
 Mark complete,完了にする
 Mark incomplete,未完了に戻す
 Media Type,メディア種別
@@ -838,6 +840,7 @@ Orange,橙
 Order Evidence,注文記録
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
+Original and refund are in different account set years,元伝票と返品が別年度の帳簿にあります
 Other,その他
 Out,出庫
 Out Date,出庫日
@@ -1020,7 +1023,9 @@ Refund,返品・返金
 Refund Amount,返金額
 Refund Count,返品件数
 Refund Of,返金元レシート
+Refund to write,返品書き込み待ち
 Refunds exceed sales for this day after netting,この日は返品が売上を上回っています
+Refunds to write,書き込み待ちの返品
 Refuse a second document with the same supplier and document number,同じ仕入先・同じ伝票番号の2件目を拒否します
 Register serial numbers,シリアル番号を登録
 Register vehicles,車両を登録
@@ -1292,6 +1297,7 @@ The opening stock file is too large,期首在庫ファイルが大きすぎま�
 The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
 The original cash sale is not in Express,元の現金売上が Express にありません
 The original cash sale was changed in Express,元の現金売上が Express で変更されています
+The original day summary was handled manually in Express,元の日次集計は Express で手動処理済みです
 The password must be at least {0} characters,パスワードは{0}文字以上にしてください
 The payment details are invalid,支払情報が無効です
 The payment is more than the net payable,支払金額が支払残高を超えています
@@ -1957,6 +1963,7 @@ erp.work.view.board,ボード
 erp.work.view.calendar,カレンダー
 erp.work.view.mine,自分のカード
 erp.work.view.table,テーブル
+express.action.markHandled,Express で処理済みにする
 express.code.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 express.code.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
@@ -2036,6 +2043,7 @@ express.option.claim,控除
 express.option.expense,費用計上
 express.option.no,いいえ
 express.option.yes,はい
+express.pendingRefunds,書き込み待ちの返品
 express.reason.noBook,この日付を含む Express 帳簿がありません
 express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 express.reason.noWriter,この帳簿に書き込める端末がありません
@@ -2043,11 +2051,15 @@ express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.reading,Express 帳簿を読み取り中
+express.reason.refundCrossYear,元伝票と返品が別年度の帳簿にあります
 express.reason.refundItems,返品明細は Express の在庫品である必要があります
+express.reason.refundOriginalManual,元の日次集計は Express で手動処理済みです
 express.reason.refundWaiting,元の日次集計の書き込み待ち
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
+express.state.handled,Express で手動処理済み
+express.state.refundPending,返品書き込み待ち
 express.state.written,書き込み済み
 express.summary.extra,追加分
 express.void,Express で取消

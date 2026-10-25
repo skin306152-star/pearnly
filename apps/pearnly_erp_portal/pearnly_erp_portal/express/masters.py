@@ -689,7 +689,7 @@ WRITTEN_SOURCES = {"ERP Sales Document": "ERP Sales Document", "purchase": "Purc
 STOCK_ENTRY_SOURCES = ("stock_entry", "count")
 STOCK_COUNT = "ERP Stock Count"
 STOCK_ENTRY = "ERP Stock Entry"
-WRITTEN_STATES = ("written", "mismatch")
+WRITTEN_STATES = ("written", "mismatch", "handled")  # 含人标记「已在 Express 手工处理」的收银日汇总 / 退货单
 # 不算 ERP 自己的变动：同步调整本身、期初（Express 有自己的期初，接了 Express 的公司不在 ERP 录期初）
 NOT_ERP_MOVES = (SYNC_REASON, "opening")
 

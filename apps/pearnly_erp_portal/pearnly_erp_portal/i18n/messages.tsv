@@ -1700,6 +1700,12 @@ This receipt is in a daily summary. Refund it instead	此小票已计入收银�
 Entries from a stock count cannot be voided alone	此单由盘点生成，不能单独作废	รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้	この入出庫は棚卸から作られたため、単独で取り消せません	stock.countEntryVoid
 Refunds exceed sales for this day after netting	当天退货冲减后为负数	ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ	この日は返品が売上を上回っています	express.reason.posNetNegative
 Waiting for the original day summary to be written	等待原日汇总写入	รอบันทึกสรุปยอดขายรายวันต้นทาง	元の日次集計の書き込み待ち	express.reason.refundWaiting
+Original and refund are in different account set years	原单与退货在不同年度账套	ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี	元伝票と返品が別年度の帳簿にあります	express.reason.refundCrossYear
+The original day summary was handled manually in Express	原日汇总已在 Express 手工处理	สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว	元の日次集計は Express で手動処理済みです	express.reason.refundOriginalManual
+Handled manually in Express	已在 Express 手工处理	จัดการด้วยมือใน Express แล้ว	Express で手動処理済み	express.state.handled
+Mark as handled in Express	标记为已在 Express 手工处理	ทำเครื่องหมายว่าจัดการใน Express แล้ว	Express で処理済みにする	express.action.markHandled
+Refund to write	待写退货	รอบันทึกการคืน	返品書き込み待ち	express.state.refundPending
+Refunds to write	待写退货	การคืนที่รอบันทึก	書き込み待ちの返品	express.pendingRefunds
 Is this company VAT registered	该公司是增值税登记户吗	บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่	この会社は VAT 登録事業者ですか	express.kind.vatRegistered
 Yes	是	ใช่	はい	express.option.yes
 No	否	ไม่ใช่	いいえ	express.option.no

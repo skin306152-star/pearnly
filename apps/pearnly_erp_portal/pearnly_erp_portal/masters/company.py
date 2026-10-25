@@ -370,6 +370,10 @@ def get_profile(name=None) -> dict:
             payload["express"]["express_synced_at"] = frappe.utils.get_datetime(doc.express_synced_at).strftime("%Y-%m-%d %H:%M:%S")
         # Express 自己对不上的存货（全仓结存 ≠ 各仓合计，`express.masters.stock_differences`）：只列不拦
         payload["express"]["stock_differences"] = frappe.parse_json(doc.get("express_stock_diffs") or "[]") or []
+        # 还没写进 Express 的退货小票张数（「待写退货」：退货单在排队、等原日汇总写入或停下，B3b）
+        from pearnly_erp_portal.express import pos_day
+
+        payload["express"]["pending_refunds"] = pos_day.pending_refunds(doc.name)
     return payload
 
 

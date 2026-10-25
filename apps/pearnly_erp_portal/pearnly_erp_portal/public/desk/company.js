@@ -264,6 +264,9 @@
 			...(express.express_sync_note ? [{fieldname: "express_sync_note", label: __("Reason"), fieldtype: "Small Text",
 				read_only: 1, default: SYNC_NOTES[express.express_sync_note]
 					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : []),
+			// 还没写进 Express 的退货小票（退货单在排队、等原日汇总写入或停下）
+			...(express.pending_refunds ? [{fieldname: "express_pending_refunds", label: __("express.pendingRefunds"),
+				fieldtype: "Int", read_only: 1, default: express.pending_refunds}] : []),
 			// Express 自己对不上的存货（全仓结存 ≠ 各仓合计）：同步不按它抹 ERP 的数，这里只列不拦（出入库第一期）。
 			// 只读，用官方 DataTable（`p.table`，见 `show_stock_differences`），不用表格字段（会带勾选框和铅笔）
 			...((express.stock_differences || []).length ? [

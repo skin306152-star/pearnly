@@ -573,6 +573,7 @@ Grand Total,总计
 Gray,灰
 Green,绿
 Gross,毛额
+Handled manually in Express,已在 Express 手工处理
 Head Office,总部
 Hide Recent Orders,隐藏最近订单
 Hide details,隐藏详情
@@ -698,6 +699,7 @@ Manual,手动
 Manual Entry,手动录入
 Manually Set Amounts,手动设置金额
 Mark all as read,全部标为已读
+Mark as handled in Express,标记为已在 Express 手工处理
 Mark complete,标记完成
 Mark incomplete,标记未完成
 Media Type,文件类型
@@ -838,6 +840,7 @@ Orange,橙
 Order Evidence,订单截图
 Original Item and Location,原单物料与仓位
 Original Line,原单明细行
+Original and refund are in different account set years,原单与退货在不同年度账套
 Other,其他
 Out,出库
 Out Date,出库日期
@@ -1020,7 +1023,9 @@ Refund,退货退款
 Refund Amount,退款金额
 Refund Count,退款笔数
 Refund Of,对应的小票
+Refund to write,待写退货
 Refunds exceed sales for this day after netting,当天退货冲减后为负数
+Refunds to write,待写退货
 Refuse a second document with the same supplier and document number,拒绝供应商与单据编号均相同的重复单据
 Register serial numbers,登记序列号
 Register vehicles,登记车辆
@@ -1292,6 +1297,7 @@ The opening stock file is too large,期初库存文件过大
 The opening stock value is too large to preserve its decimal precision,期初数值过大，无法保持所需小数精度
 The original cash sale is not in Express,Express 中没有原现销单
 The original cash sale was changed in Express,原现销单在 Express 中已被修改
+The original day summary was handled manually in Express,原日汇总已在 Express 手工处理
 The password must be at least {0} characters,密码至少 {0} 位
 The payment details are invalid,付款信息无效
 The payment is more than the net payable,付款金额超过应付金额
@@ -1957,6 +1963,7 @@ erp.work.view.board,看板
 erp.work.view.calendar,日历
 erp.work.view.mine,我的卡片
 erp.work.view.table,表格
+express.action.markHandled,标记为已在 Express 手工处理
 express.code.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 express.code.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
@@ -2036,6 +2043,7 @@ express.option.claim,抵扣
 express.option.expense,计入费用
 express.option.no,否
 express.option.yes,是
+express.pendingRefunds,待写退货
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑
@@ -2043,11 +2051,15 @@ express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.posNetNegative,当天退货冲减后为负数
 express.reason.reading,正在读取 Express 账套
+express.reason.refundCrossYear,原单与退货在不同年度账套
 express.reason.refundItems,退货明细须为 Express 库存商品
+express.reason.refundOriginalManual,原日汇总已在 Express 手工处理
 express.reason.refundWaiting,等待原日汇总写入
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
+express.state.handled,已在 Express 手工处理
+express.state.refundPending,待写退货
 express.state.written,已写入
 express.summary.extra,补单
 express.void,Express 作废

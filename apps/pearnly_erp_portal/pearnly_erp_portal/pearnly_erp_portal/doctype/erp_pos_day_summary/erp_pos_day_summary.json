@@ -121,7 +121,7 @@
    "fieldname": "express_state",
    "fieldtype": "Select",
    "label": "Express Status",
-   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed",
+   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed\nhandled",
    "read_only": 1,
    "no_copy": 1,
    "in_standard_filter": 1
