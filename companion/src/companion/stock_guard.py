@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-"""不允许负库存的账套写销货前先核结存（出入库第一期，10-25）：``ISINFO.NEGALLOW = 'N'`` 时 Express 自己录单会拦库存不足，
-CC 照写会把账写成 Express 不允许的负数。写前按 Express 结存核，不够就整单不写、回 :data:`ERR_STOCK_INSUFFICIENT`
-（服务端转人工，单据上显示原因）。``NEGALLOW`` 不是 ``N`` 的账套照写（现状）。
+"""写销货前照 Express 的负库存规则先核结存（出入库第一期，10-25）：账套 ``ISINFO.NEGALLOW = 'N'`` 或商品标了不许负时
+Express 自己录单会拦库存不足，CC 照写会把账写成 Express 不允许的负数。写前按 Express 结存核，不够就整单不写、回 :data:`ERR_STOCK_INSUFFICIENT`
+（服务端转人工，单据上显示原因）。
 
 - 只核卖出库存品的行（``item_mode = stock_sale``），按写单时同一个找品函数（``stock_sale.find_stock_item``，只读）对到
   Express 的存货；对不到、要随单新建的物料不核（新建的品按设计标了允许负库存，``product_master``）；
-- 这件品自己标了允许负库存（``STMAS.NEGALLOW = 'Y'``）不核（当作账套设置之外的另一个开关；它会不会覆盖账套设置待验收在服务器测试账套补测）；
+- 商品级「ส/คติดลบได้? [Y, N, A]」（``STMAS.NEGALLOW``）盖过账套设置（服务器测试账套 1-戊实录）：``Y`` 不核（Express 只弹 605 提醒、照存，
+  分仓可以变负）；``N`` 一律核、按仓（账套允许负库存也拦，Express 弹 4091 丢掉那一行）；空跟账套；``A`` 没测过，先跟账套，回报里标
+  ``item A``（待测）。
 - 照 Express 自己拦单的办法（主会话 10-25 定稿，验收在服务器测试账套 ``70EXP\test`` 实录 CHKNEGLEV 三种取值，共享笔记「服务器test账套-录单结果」）：
   - ``ISINFO.CHKNEGLEV`` 是 1 或 2（空也按 2）且账套有 STLOC：按单个仓核。每行按**实际写入的仓**（行上的仓库码；没带就是主仓
     ``ISINFO.MAINLOC``，与写单同一条规则）的 ``LOCBAL`` 核，那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
@@ -35,6 +37,7 @@ ALL_LOCATIONS = "all"
 _SAME = Decimal("0.0001")
 _NO = "N"
 _YES = "Y"
+_ITEM_UNKNOWN = "A"
 
 
 def _table_rows(account_dir, name: str, fields: Tuple[str, ...]) -> List[dict]:
@@ -67,11 +70,11 @@ def by_warehouse(account_dir) -> bool:
 
 
 def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[str]]]) -> List[dict]:
-    """这张销货里库存不够的行（按品 × 仓合计）：``[{stkcod, loccod, need, have}]``；账套允许负库存时是空。"""
-    if negative_allowed(account_dir):
-        return []
+    """这张销货里库存不够的行（按品 × 仓合计）：``[{stkcod, loccod, need, have}]``（商品级标 A 的另带 ``"item": "A"``）；
+    要核的品都不缺时是空。"""
     from .stock_sale import StockItemNotFound, find_stock_item
 
+    book_checks = not negative_allowed(account_dir)
     need: Dict[Tuple[str, str], Decimal] = {}
     for index, item in enumerate(items or []):
         if not isinstance(item, dict) or (item.get("item_mode") or "").strip() != "stock_sale":
@@ -89,36 +92,43 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     if not need:
         return []
     codes = {key[0] for key in need}
-    allowed = {row["STKCOD"] for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW"))
-               if row["STKCOD"] in codes and row["NEGALLOW"].upper() == _YES}
-    totals = {row["STKCOD"]: row["MREMBAL"]
-              for row in _table_rows(account_dir, "STMAS", ("STKCOD", "MREMBAL")) if row["STKCOD"] in codes}
-    have: Dict[Tuple[str, str], Decimal] = {}
-    if (locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None
-            and by_warehouse(account_dir)):
-        main = account_rules.main_location(account_dir)
+    masters = {row["STKCOD"]: row for row in _table_rows(account_dir, "STMAS", ("STKCOD", "NEGALLOW", "MREMBAL"))
+               if row["STKCOD"] in codes}
+    flags = {code: (masters.get(code) or {}).get("NEGALLOW", "").upper() for code in codes}
+    # 商品级「ส/คติดลบได้?」盖过账套设置（服务器测试账套 1-戊）：Y 不核；N 一律按仓核（账套允许负库存也拦）；空 / A 跟账套
+    checked = {code for code, flag in flags.items() if flag == _NO or (flag != _YES and book_checks)}
+    if not checked:
+        return []
+    totals = {code: (masters.get(code) or {}).get("MREMBAL", Decimal(0)) for code in checked}
+    has_stloc = locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None
+    level_by_warehouse = by_warehouse(account_dir)
+    located: Dict[Tuple[str, str], Decimal] = {}
+    if has_stloc:
         located = {(row["STKCOD"], row["LOCCOD"]): row["LOCBAL"]
-                   for row in _table_rows(account_dir, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if row["STKCOD"] in codes}
-        whole: Dict[Tuple[str, str], Decimal] = {}
-        for (code, loc), qty in need.items():
-            key = (code, main if loc == ALL_LOCATIONS else loc)  # 没带仓库码的行写进主仓，就按主仓核
-            whole[key] = whole.get(key, Decimal(0)) + qty
-            have[key] = located.get(key, Decimal(0))
-    else:
-        whole = {}
-        for (code, _loc), qty in need.items():
-            key = (code, ALL_LOCATIONS)
-            whole[key] = whole.get(key, Decimal(0)) + qty
-            have[key] = totals.get(code, Decimal(0))
-    short = []
-    for key, qty in sorted(whole.items()):
-        if key[0] in allowed:
+                   for row in _table_rows(account_dir, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if row["STKCOD"] in checked}
+    main = account_rules.main_location(account_dir) if has_stloc else ""
+    wanted: Dict[Tuple[str, str], Decimal] = {}
+    have: Dict[Tuple[str, str], Decimal] = {}
+    for (code, loc), qty in need.items():
+        if code not in checked:
             continue
+        if has_stloc and (flags[code] == _NO or level_by_warehouse):
+            key = (code, main if loc == ALL_LOCATIONS else loc)  # 没带仓库码的行写进主仓，就按主仓核
+            have[key] = located.get(key, Decimal(0))
+        else:
+            key = (code, ALL_LOCATIONS)
+            have[key] = totals.get(code, Decimal(0))
+        wanted[key] = wanted.get(key, Decimal(0)) + qty
+    short = []
+    for key, qty in sorted(wanted.items()):
         balance = have.get(key, Decimal(0))
         if qty > balance:
-            short.append({"stkcod": key[0], "loccod": key[1], "need": _num(qty), "have": _num(balance)})
+            row = {"stkcod": key[0], "loccod": key[1], "need": _num(qty), "have": _num(balance)}
+            if flags[key[0]] == _ITEM_UNKNOWN:
+                row["item"] = _ITEM_UNKNOWN  # 商品级 A：含义没测过，先跟账套，回报里标出来（待测）
+            short.append(row)
     if short:
-        log.info("库存不足（账套不允许负库存），整单不写：%s", short)
+        log.info("库存不足（不允许负库存），整单不写：%s", short)
     return short
 
 
@@ -129,7 +139,8 @@ def _num(value: Decimal) -> str:
 
 def message(short: List[dict]) -> str:
     return "not enough stock in Express (negative stock not allowed): " + ", ".join(
-        f"{item['stkcod']}@{item['loccod']} need {item['need']} have {item['have']}" for item in short)
+        f"{item['stkcod']}@{item['loccod']} need {item['need']} have {item['have']}"
+        + (f" item {item['item']}" if item.get("item") else "") for item in short)
 
 
 __all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "by_warehouse", "message", "negative_allowed", "shortages"]

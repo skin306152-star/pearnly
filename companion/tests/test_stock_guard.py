@@ -5,7 +5,8 @@
   CHKNEGLEV 1 / 2（空按 2）按单个仓——每行按实际写入的仓（行上的仓库码，没带就是主仓 MAINLOC）的 STLOC.LOCBAL 核，同单同品同仓合计，
   各仓合计和 STMAS.MREMBAL 对不上的老账也按 STLOC；CHKNEGLEV 0 只按全仓 STMAS.MREMBAL 合计，允许单个仓变负；
 - 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）、随单新建的物料：照写；
-- 没有 STLOC：按全仓 STMAS.MREMBAL 核。
+- 没有 STLOC：按全仓 STMAS.MREMBAL 核；
+- 商品级 STMAS.NEGALLOW 盖过账套（服务器测试账套 1-戊）：Y 不核，N 一律按仓核（账套 Y 也拦），空跟账套，A 先跟账套、回报标 item A。
 """
 
 from __future__ import annotations
@@ -167,3 +168,40 @@ def test_negative_allowed_book_is_not_checked_at_any_level(acct):
     for level in ("0", "2"):
         isinfo(acct, MAINLOC="01", NEGALLOW="Y", CHKNEGLEV=level)
         assert stock_guard.shortages(acct, [_item("ICE01", 99, 90.0, "stock_sale")], [None]) == []
+
+
+def test_the_item_flag_overrides_the_book_setting(acct):
+    """商品级 Y / N / 空 × 账套 NEGALLOW Y / N（01 仓 5、02 仓 0）：从 02 仓卖 1 个。"""
+    sale = [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")]
+    blocked = [{"stkcod": "ICE01", "loccod": "02", "need": "1", "have": "0"}]
+    for book, flag, expected in (("N", "", blocked), ("N", "Y", []), ("N", "N", blocked),
+                                 ("Y", "", []), ("Y", "Y", []), ("Y", "N", blocked)):
+        isinfo(acct, MAINLOC="01", NEGALLOW=book, CHKNEGLEV="2")
+        _set_item(acct, "ICE01", NEGALLOW=flag)
+        assert stock_guard.shortages(acct, sale, ["02"]) == expected, (book, flag)
+
+
+def test_an_item_that_may_not_go_negative_is_checked_by_warehouse_even_at_level_zero(acct):
+    """账套 N + CHKNEGLEV 0 只看全仓合计，但商品标 N 时按仓拦（Express 4091「某商品某仓」）。"""
+    isinfo(acct, MAINLOC="01", NEGALLOW="N", CHKNEGLEV="0")
+    _set_item(acct, "ICE01", NEGALLOW="N")
+    short = stock_guard.shortages(acct, [_item("ICE01", 1, 30.0, "stock_sale", loccod="02")], ["02"])
+    assert short == [{"stkcod": "ICE01", "loccod": "02", "need": "1", "have": "0"}]
+
+
+def test_an_item_marked_a_follows_the_book_and_is_named_in_the_report(acct):
+    isinfo(acct, MAINLOC="01", NEGALLOW="Y", CHKNEGLEV="2")
+    _set_item(acct, "ICE01", NEGALLOW="A")
+    assert stock_guard.shortages(acct, [_item("ICE01", 9, 30.0, "stock_sale")], [None]) == []
+    isinfo(acct, MAINLOC="01", NEGALLOW="N", CHKNEGLEV="2")
+    short = stock_guard.shortages(acct, [_item("ICE01", 9, 30.0, "stock_sale")], [None])
+    assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "9", "have": "5", "item": "A"}]
+    assert stock_guard.message(short).endswith("ICE01@01 need 9 have 5 item A")
+
+
+def test_a_book_that_allows_negative_stock_writes_an_item_marked_no_only_when_it_is_there(acct):
+    isinfo(acct, MAINLOC="01", NEGALLOW="Y")
+    _set_item(acct, "ICE01", NEGALLOW="N")
+    res = _sell(acct, _sale([_item("ICE01", 6, 180.0, "stock_sale")]))
+    assert not res.ok and "ICE01@01 need 6 have 5" in res.error
+    assert _sell(acct, _sale([_item("ICE01", 5, 150.0, "stock_sale")])).ok
