@@ -164,3 +164,5 @@ pearnly_erp_portal:Type a word from the company name to find it	zh	输入公司�
 pearnly_erp_portal:Type a word from the supplier name to find it	zh	输入供应商名称关键字查找	2026-10-24	docs/work/2026-10-23-erp-express-auto-companies.md（用户 10-24 同意 5 句打字找提示）
 pearnly_erp_portal:Type a word from the customer name to find it	zh	输入客户名称关键字查找	2026-10-24	docs/work/2026-10-23-erp-express-auto-companies.md（用户 10-24 同意 5 句打字找提示）
 pearnly_erp_portal:Type a word from the warehouse name to find it	zh	输入仓库名称关键字查找	2026-10-24	docs/work/2026-10-23-erp-express-auto-companies.md（用户 10-24 同意 5 句打字找提示）
+pearnly_erp_portal:cashier.voidSummarized	zh	此小票已计入收银日汇总，请改用退货	2026-10-26	docs/work/2026-10-24-erp-stock-express-plan.md（用户 10-26 同意两处作废拦截文案）
+pearnly_erp_portal:stock.countEntryVoid	zh	此单由盘点生成，不能单独作废	2026-10-26	docs/work/2026-10-24-erp-stock-express-plan.md（用户 10-26 同意两处作废拦截文案）

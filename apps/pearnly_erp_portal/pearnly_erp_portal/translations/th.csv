@@ -479,6 +479,7 @@ Enter the user name,กรุณากรอกชื่อผู้ใช้
 Enter {0} amount,กรอกจำนวนเงิน {0}
 Enter {0} amount.,กรอกจำนวนเงิน {0}
 Entries,รายการ
+Entries from a stock count cannot be voided alone,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 Entries — {0},รายการ — {0}
 Entry Method,วิธีการบันทึก
 Excel file,ไฟล์ Excel
@@ -1328,6 +1329,7 @@ This option is no longer current,ตัวเลือกนี้ใช้ไ�
 This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระเงินนี้
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
 This receipt is in a daily summary sent to Express. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน
+This receipt is in a daily summary. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
 This sale is already voided,เอกสารขายนี้ถูกยกเลิกแล้ว
 This shift belongs to another cashier,กะนี้เป็นของพนักงานเก็บเงินคนอื่น
@@ -1337,6 +1339,7 @@ This status change is not allowed,ไม่อนุญาตให้เปล�
 This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้
+This stock entry comes from a stock count. It cannot be voided on its own,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 This stock position already has stock movements; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
@@ -1483,7 +1486,7 @@ adjust,ปรับปรุง
 branch,สาขา
 card,บัตร
 cash,เงินสด
-cashier.voidSummarized,ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน
+cashier.voidSummarized,ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน
 client.action.bulkDisable,ปิดใช้งาน {0}
 client.action.bulkEnable,เปิดใช้งาน {0}
 client.active,เปิดใช้งาน
@@ -2196,7 +2199,7 @@ stock.count.title,ตรวจนับ — {0}
 stock.count.void,ยกเลิก
 stock.count.voidConfirm,ต้องการยกเลิกรายการนับของ {0} นี้ใช่หรือไม่
 stock.count.voidPick,เลือกรายการที่จะยกเลิก
-stock.countEntryVoid,รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้
+stock.countEntryVoid,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
 stock.mobile.cameraOff,ปิดกล้อง

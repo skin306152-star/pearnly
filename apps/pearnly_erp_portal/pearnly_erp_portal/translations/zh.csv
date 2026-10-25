@@ -479,6 +479,7 @@ Enter the user name,请填写用户名
 Enter {0} amount,输入{0}金额
 Enter {0} amount.,输入 {0} 金额
 Entries,记录
+Entries from a stock count cannot be voided alone,此单由盘点生成，不能单独作废
 Entries — {0},记录 — {0}
 Entry Method,录入方式
 Excel file,Excel 文件
@@ -1328,6 +1329,7 @@ This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
 This product code already exists,该物料编码已存在
 This receipt is in a daily summary sent to Express. Refund it instead,此小票已计入写进 Express 的收银日汇总，请改用退货
+This receipt is in a daily summary. Refund it instead,此小票已计入收银日汇总，请改用退货
 This request was already recorded,该请求已记录
 This sale is already voided,该销售单已作废
 This shift belongs to another cashier,该班次属于其他收银员
@@ -1337,6 +1339,7 @@ This status change is not allowed,不允许此状态变更
 This stock count is already posted,该盘点单已过账
 This stock count is closed,该盘点已结束
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,此单由已写进 Express 的盘点生成，不能单独作废
+This stock entry comes from a stock count. It cannot be voided on its own,此单由盘点生成，不能单独作废
 This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
 This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
@@ -1483,7 +1486,7 @@ adjust,调整
 branch,分支机构
 card,银行卡
 cash,现金
-cashier.voidSummarized,此小票已计入写进 Express 的收银日汇总，请改用退货
+cashier.voidSummarized,此小票已计入收银日汇总，请改用退货
 client.action.bulkDisable,停用 {0}
 client.action.bulkEnable,启用 {0}
 client.active,已启用
@@ -2196,7 +2199,7 @@ stock.count.title,盘点 — {0}
 stock.count.void,撤销
 stock.count.voidConfirm,确定要撤销 {0} 的盘点记录吗？
 stock.count.voidPick,选择要撤销的记录
-stock.countEntryVoid,此单由已写进 Express 的盘点生成，不能单独作废
+stock.countEntryVoid,此单由盘点生成，不能单独作废
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.mobile.cameraOff,关闭相机

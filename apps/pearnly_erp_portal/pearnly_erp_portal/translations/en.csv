@@ -479,6 +479,7 @@ Enter the user name,Enter the user name
 Enter {0} amount,Enter {0} amount
 Enter {0} amount.,Enter {0} amount.
 Entries,Entries
+Entries from a stock count cannot be voided alone,Entries from a stock count cannot be voided alone
 Entries — {0},Entries — {0}
 Entry Method,Entry Method
 Excel file,Excel file
@@ -1328,6 +1329,7 @@ This option is no longer current,This option is no longer current
 This payment method is not enabled for this company,This payment method is not enabled for this company
 This product code already exists,This product code already exists
 This receipt is in a daily summary sent to Express. Refund it instead,This receipt is in a daily summary sent to Express. Refund it instead
+This receipt is in a daily summary. Refund it instead,This receipt is in a daily summary. Refund it instead
 This request was already recorded,This request was already recorded
 This sale is already voided,This sale is already voided
 This shift belongs to another cashier,This shift belongs to another cashier
@@ -1337,6 +1339,7 @@ This status change is not allowed,This status change is not allowed
 This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,This stock entry comes from a stock count sent to Express. It cannot be voided on its own
+This stock entry comes from a stock count. It cannot be voided on its own,This stock entry comes from a stock count. It cannot be voided on its own
 This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
 This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
@@ -1483,7 +1486,7 @@ adjust,adjust
 branch,branch
 card,card
 cash,cash
-cashier.voidSummarized,This receipt is in a daily summary sent to Express. Refund it instead
+cashier.voidSummarized,This receipt is in a daily summary. Refund it instead
 client.action.bulkDisable,Disable {0}
 client.action.bulkEnable,Enable {0}
 client.active,Active
@@ -2196,7 +2199,7 @@ stock.count.title,Stock count — {0}
 stock.count.void,Void
 stock.count.voidConfirm,Void this count of {0}?
 stock.count.voidPick,Select an entry to void
-stock.countEntryVoid,This stock entry comes from a stock count sent to Express. It cannot be voided on its own
+stock.countEntryVoid,Entries from a stock count cannot be voided alone
 stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.mobile.cameraOff,Close camera

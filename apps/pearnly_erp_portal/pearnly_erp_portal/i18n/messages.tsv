@@ -1686,8 +1686,8 @@ Express Void Reason	Express 作废原因	เหตุผลการยกเล
 Express Void Job	Express 作废任务	งานยกเลิกใน Express	Express 取消ジョブ
 This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	express.error.VOID_DOCUMENT_CHANGED
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	express.error.VOID_DOCUMENT_NOT_FOUND
-This receipt is in a daily summary sent to Express. Refund it instead	此小票已计入写进 Express 的收银日汇总，请改用退货	ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน	このレシートは Express に送った日次集計に入っています。返品にしてください	cashier.voidSummarized
-This stock entry comes from a stock count sent to Express. It cannot be voided on its own	此单由已写进 Express 的盘点生成，不能单独作废	รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้	この入出庫は Express に送った棚卸から作られたため、単独で取り消せません	stock.countEntryVoid
+This receipt is in a daily summary. Refund it instead	此小票已计入收银日汇总，请改用退货	ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน	このレシートは日次集計に入っています。返品にしてください	cashier.voidSummarized
+Entries from a stock count cannot be voided alone	此单由盘点生成，不能单独作废	รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้	この入出庫は棚卸から作られたため、単独で取り消せません	stock.countEntryVoid
 Refunds exceed sales for this day after netting	当天退货冲减后为负数	ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ	この日は返品が売上を上回っています	express.reason.posNetNegative
 Is this company VAT registered	该公司是增值税登记户吗	บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่	この会社は VAT 登録事業者ですか	express.kind.vatRegistered
 Yes	是	ใช่	はい	express.option.yes

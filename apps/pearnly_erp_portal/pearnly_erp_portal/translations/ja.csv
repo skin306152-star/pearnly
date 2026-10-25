@@ -479,6 +479,7 @@ Enter the user name,ユーザー名を入力してください
 Enter {0} amount,{0}の金額を入力
 Enter {0} amount.,{0} の金額を入力してください
 Entries,記録
+Entries from a stock count cannot be voided alone,この入出庫は棚卸から作られたため、単独で取り消せません
 Entries — {0},記録 — {0}
 Entry Method,入力方法
 Excel file,Excel ファイル
@@ -1328,6 +1329,7 @@ This option is no longer current,この選択肢は現在の手順ではあり�
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
 This product code already exists,この品目コードは既に存在します
 This receipt is in a daily summary sent to Express. Refund it instead,このレシートは Express に送った日次集計に入っています。返品にしてください
+This receipt is in a daily summary. Refund it instead,このレシートは日次集計に入っています。返品にしてください
 This request was already recorded,このリクエストは登録済みです
 This sale is already voided,この売上はすでに無効です
 This shift belongs to another cashier,このシフトは他のレジ担当のものです
@@ -1337,6 +1339,7 @@ This status change is not allowed,このステータス変更は許可されて�
 This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own,この入出庫は Express に送った棚卸から作られたため、単独で取り消せません
+This stock entry comes from a stock count. It cannot be voided on its own,この入出庫は棚卸から作られたため、単独で取り消せません
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -1483,7 +1486,7 @@ adjust,調整
 branch,支店
 card,カード
 cash,現金
-cashier.voidSummarized,このレシートは Express に送った日次集計に入っています。返品にしてください
+cashier.voidSummarized,このレシートは日次集計に入っています。返品にしてください
 client.action.bulkDisable,{0}件を無効化
 client.action.bulkEnable,{0}件を有効化
 client.active,正常
@@ -2196,7 +2199,7 @@ stock.count.title,棚卸 — {0}
 stock.count.void,取消
 stock.count.voidConfirm,この {0} の記録を取り消しますか？
 stock.count.voidPick,取消する記録を選択
-stock.countEntryVoid,この入出庫は Express に送った棚卸から作られたため、単独で取り消せません
+stock.countEntryVoid,この入出庫は棚卸から作られたため、単独で取り消せません
 stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
 stock.mobile.cameraOff,カメラを閉じる
