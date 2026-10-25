@@ -25,6 +25,7 @@ for name, value in (("nowdate", lambda: "2026-10-26"), ("flt", lambda v, *a: flo
 frappe.utils = utils
 
 from pearnly_erp_portal.inventory import serials as S  # noqa: E402
+from pearnly_erp_portal.products import codes  # noqa: E402
 
 
 class Refused(Exception):
@@ -88,6 +89,16 @@ class Serials(unittest.TestCase):
             patcher = mock.patch.object(S.frappe, target, value, create=True)
             patcher.start()
             self.addCleanup(patcher.stop)
+        self.held = {}  # 商品那边占着的码（码的命名空间替身）：{码: (商品名, 种类)}
+
+        def assert_free(value, owner=None, exclude=None):
+            self.assertEqual(owner, "CO-1")  # 只在登记这台的公司里算
+            if value in self.held:
+                raise Refused("This code is already used by {0} ({1})".format(*self.held[value]))
+
+        patcher = mock.patch.object(codes, "assert_free", assert_free)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         for target, value in (("tracked", lambda products: {p for p in products if p in self.tracked}),
                               ("_base_qty", lambda line: int(line["qty"]))):
             patcher = mock.patch.object(S, target, value)
@@ -113,6 +124,17 @@ class Serials(unittest.TestCase):
             self.receive(["mp1tfr41jtg032993"], ref="PUR-3")  # 同公司同号不分大小写
         S.apply(lines=[self.line(5, [], product="WATER")], movement_type="purchase_in", ref_type="purchase",
                 ref_id="PUR-4", company="CO-1")  # 不开按台的商品不经这里
+
+    def test_unit_numbers_share_the_product_code_namespace(self):
+        """主会话 10-26：车架号、发动机号与商品的码同一个命名空间，撞了商品的条码 / 编码就拒，报出那件商品与码的种类。"""
+        self.held = {"MP1TFR41JTG032995": ("น้ำดื่ม", "product.codeKind.barcode"), "E995": ("สินค้า A", "product.codeKind.code")}
+        with self.assertRaisesRegex(Refused, "already used by"):
+            self.receive(["MP1TFR41JTG032995"])
+        self.held = {"E996": ("สินค้า A", "product.codeKind.code")}
+        with self.assertRaisesRegex(Refused, "already used by"):
+            self.receive(["MP1TFR41JTG032996"])  # 发动机号 E996 撞了
+        self.held = {}
+        self.assertEqual(len(self.receive(["MP1TFR41JTG032997"])), 1)
 
     def test_selling_needs_a_unit_in_this_warehouse_and_voiding_puts_it_back(self):
         unit = self.receive(["MP1TFR41JTG032993"])[0]

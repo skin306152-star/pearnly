@@ -96,9 +96,15 @@ def register(*, product, company, warehouse, location, entry, ref_type, ref_id, 
         frappe.throw(_(QTY_MISMATCH))
     if frappe.db.exists(DOCTYPE, {"serial_key": key(company, serial_no)}):
         frappe.throw(_(DUPLICATE) + f": {serial_no}")
+    from pearnly_erp_portal.products import codes
+
+    secondary_no = clean(entry.get("secondary_no"), MAX_NO)
+    for number in (serial_no, secondary_no):  # 车架号、发动机号与商品的码同一个命名空间（主会话 10-26）
+        if number:
+            codes.assert_free(number, owner=company)
     unit = frappe.get_doc({"doctype": DOCTYPE, "product": product, "company": company, "serial_no": serial_no,
                            "serial_key": key(company, serial_no), "serial_tail": tail(serial_no),
-                           "secondary_no": clean(entry.get("secondary_no"), MAX_NO) or None,
+                           "secondary_no": secondary_no or None,
                            "color": clean(entry.get("color"), MAX_COLOR) or None, "status": IN_STOCK,
                            "warehouse": warehouse, "location": location or "", "in_ref_type": ref_type, "in_ref": ref_id,
                            "in_date": posting_date or nowdate()})

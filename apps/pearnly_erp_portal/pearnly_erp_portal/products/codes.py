@@ -1,8 +1,8 @@
 """扫码认商品的「码」共用一个命名空间（主会话 10-26，验收：内部编码填了别件商品的条码，三个入口都把那件顶掉了）。
 
 同一家公司看得到的商品里（本公司从 Express 同步来的档 + ERP 本地档；本地档各家公司都看得到），所有能拿来扫码认商品的码
-任意两个都不能撞：系统编码 ``code``、内部编码、Express 编码、条码、二维码内容、售卖单位条码（车辆按台的车架号、发动机号
-接进来后同样算）。同一件商品自己的几种码相同不算撞（Express 商品的系统编码常就是 Express 编码）。
+任意两个都不能撞：系统编码 ``code``、内部编码、Express 编码、条码、二维码内容、售卖单位条码，以及按台记录在用的主号与第二个号
+（车：车架号、发动机号；作废的台不占号；按台记录有公司，只在这家公司里算）。同一件商品自己的几种码相同不算撞（Express 商品的系统编码常就是 Express 编码）。
 
 - 新建 / 修改时由服务端拒：:func:`assert_free`，报出是和哪件商品的哪种码撞了；
 - 认码（扫码、手输、导入）：:func:`candidates` 收齐所有命中的商品，只有一件才认；几件就交给人选，不默认挑一个；
@@ -16,6 +16,8 @@ UNIT = "ERP Product Unit"
 # 认码查的列，按这个顺序报「怎么认到的」（`matched_by`）
 FIELDS = ("code", "internal_code", "express_code", "barcode", "qr_payload")
 UNIT_BARCODE = "unit_barcode"
+SERIAL = "ERP Serial No"
+SERIAL_FIELDS = {"serial_no": "primary", "secondary_no": "secondary"}
 KIND_LABELS = {"code": "product.codeKind.code", "internal_code": "product.codeKind.internalCode",
                "express_code": "product.codeKind.expressCode", "barcode": "product.codeKind.barcode",
                "qr_payload": "product.codeKind.qrPayload", UNIT_BARCODE: "product.codeKind.unitBarcode"}
@@ -48,6 +50,13 @@ def holders(value, *, owner=None, exclude=None) -> list:
                          [PRODUCT, value, *extra, *params], as_dict=True)
     out += [{"product": row.name, "product_name": row.product_name, "kind": UNIT_BARCODE,
              "express_company": row.express_company or ""} for row in rows]
+    serial_scope = " and s.company = %s" if owner else ""
+    for field, slot in SERIAL_FIELDS.items():
+        rows = frappe.db.sql(f"""select p.name, p.product_name, p.serial_kind, s.company from `tab{SERIAL}` s join `tab{PRODUCT}` p
+            on p.name = s.product where s.`{field}` = %s and ifnull(s.serial_key, '') != ''{skip}{serial_scope} limit 5""",
+                             [value, *extra, *([owner] if owner else [])], as_dict=True)
+        out += [{"product": row.name, "product_name": row.product_name, "kind": field, "express_company": row.company or "",
+                 "label": f"serial.{row.serial_kind if row.serial_kind == 'device' else 'vehicle'}.{slot}"} for row in rows]
     return out
 
 
@@ -60,7 +69,7 @@ def assert_free(value, *, owner=None, exclude=None):
     hit = found[0]
     if hit["express_company"] and hit["express_company"] != (owner or _active_company()):
         frappe.throw(_(TAKEN))
-    frappe.throw(_(CLASH).format(hit["product_name"] or hit["product"], _(KIND_LABELS[hit["kind"]])))
+    frappe.throw(_(CLASH).format(hit["product_name"] or hit["product"], _(hit.get("label") or KIND_LABELS[hit["kind"]])))
 
 
 def _active_company():
@@ -115,6 +124,9 @@ def clashes(company=None, limit=500) -> list:
                                f"where ifnull(`{field}`, '') != ''{where}" for field in FIELDS)
     union += (f" union all select u.barcode as value, u.parent as name, '{UNIT_BARCODE}' as kind from `tab{UNIT}` u "
               f"where u.parenttype = '{PRODUCT}' and ifnull(u.barcode, '') != ''")
+    serial_where = " and company = %(company)s" if company else ""
+    union += "".join(f" union all select `{field}` as value, product as name, '{field}' as kind from `tab{SERIAL}` "
+                     f"where ifnull(`{field}`, '') != '' and ifnull(serial_key, '') != ''{serial_where}" for field in SERIAL_FIELDS)
     groups = frappe.db.sql(f"""select c.value, group_concat(distinct concat(c.name, '|', c.kind) separator ',') as holders
         from ({union}) c group by c.value having count(distinct c.name) > 1 limit {int(limit)}""",
                            {"company": company}, as_dict=True)

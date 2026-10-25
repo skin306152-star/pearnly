@@ -87,10 +87,12 @@ class InternalCodes(unittest.TestCase):
 
         def sql(query, params, as_dict=False):
             value = params[0] if "u.barcode" not in query else params[1]
-            field = query.split("p.`")[1].split("`")[0] if "p.`" in query else "unit_barcode"
+            field = query.split("s.`")[1].split("`")[0] if "s.`" in query else \
+                query.split("p.`")[1].split("`")[0] if "p.`" in query else "unit_barcode"
             hit = held.get(value)
-            return [types.SimpleNamespace(name="PRD-X", product_name=hit[0], express_company=hit[2] if len(hit) > 2 else "")] \
-                if hit and hit[1] == field else []
+            owner = hit[2] if hit and len(hit) > 2 else ""
+            return [types.SimpleNamespace(name="PRD-X", product_name=hit[0], express_company=owner, company=owner,
+                                          serial_kind="vehicle")] if hit and hit[1] == field else []
 
         class Refused(Exception):
             pass
@@ -117,6 +119,24 @@ class InternalCodes(unittest.TestCase):
         with self.assertRaisesRegex(Refused, "already used"):
             service._assert_unique(None, "IC-BAR-77")   # 条码撞别件的内部编码
         service._assert_unique(None, "4800000000001", internal="NEW-1")
+
+    def test_chassis_and_engine_numbers_are_in_the_namespace(self):
+        """主会话 10-26：按台记录在用的车架号、发动机号也算，商品的条码 / 内部编码撞了就拒，报出车型与「车架号 / 发动机号」。"""
+        from unittest import mock
+
+        from pearnly_erp_portal.products import codes, service
+
+        patches, Refused = self.held({"MP1TFR41JTG032993": ("Toyota Hilux", "serial_no", "CO-00001"),
+                                      "1GD4801234": ("Toyota Hilux", "secondary_no", "CO-00001")})
+        for patch in patches + [mock.patch.object(codes, "_active_company", lambda: "CO-00001")]:
+            patch.start()
+            self.addCleanup(patch.stop)
+        for kwargs, label in (({"barcode": "MP1TFR41JTG032993"}, "serial.vehicle.primary"),
+                              ({"internal": "1GD4801234"}, "serial.vehicle.secondary")):
+            with self.assertRaises(Refused) as raised:
+                service._assert_unique(None, kwargs.get("barcode"), internal=kwargs.get("internal"))
+            self.assertIn(label, str(raised.exception))
+        self.assertEqual([hit["kind"] for hit in codes.holders("MP1TFR41JTG032993", owner="CO-00001")], ["serial_no"])
 
     def test_a_clash_with_another_companys_express_item_does_not_show_its_name(self):
         """验收 10-26：本地商品查重是全租户范围，撞到别家公司从 Express 同步来的档时只说「已被占用」，不带那家的商品名。"""
