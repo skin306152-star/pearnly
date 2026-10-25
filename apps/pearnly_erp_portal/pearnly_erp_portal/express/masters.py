@@ -674,7 +674,7 @@ def _pending(company, products, warehouses):
 
     - 采购单、销售记录的原始流水：单子还没写进 Express（不管后来有没有作废）就算；
     - 出入库单、盘点调整（B 段起写进 Express）：已写进去的单不算，其余照算；
-    - 收银小票（B3a 起按天汇总写进 Express）：已写进去的日汇总里的小票不算，其余照算；
+    - 收银小票（B3a 起按天汇总写进 Express）：已写进去的日汇总里的小票（含并进去的同日退货）不算，其余照算；
     - 其余来源（收银小票 / 退货、作废冲销 ``void``、没有来源的）还不写进 Express，一律算；
       没写进去就作废的单，原始流水与冲销流水正好抵消；写进去之后作废的，冲销流水是 ERP 独有的，
       等 Express 里也作废完（出入库单 ``express_void_state`` = voided）就不算；
@@ -729,10 +729,11 @@ def _pending(company, products, warehouses):
             key = (code_of.get(row.product), loc_of.get(row.warehouse))
             if key[0] and key[1]:
                 pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
-    # 收银小票（B3a）：已写进 Express 的日汇总里的小票不算（没汇总的、汇总了还没写进去的照算；退货小票这一段照算）
+    # 收银小票（B3a）：已写进 Express 的日汇总里的小票不算（没汇总的、汇总了还没写进去的照算）；并进日汇总的同日退货小票同样不算，
+    # 跨天的退货小票不进日汇总（等退货单 SR，B3b），照算
     for row in frappe.db.sql(f"""SELECT m.product, m.warehouse, SUM(m.qty_base) AS qty FROM `tab{stock.MOVEMENT}` m
             JOIN `tabERP Sale` s ON s.name = m.ref_id JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
-            WHERE m.ref_type = 'sale' AND d.company = %(company)s AND d.express_state IN %(written)s
+            WHERE m.ref_type IN ('sale', 'refund') AND d.company = %(company)s AND d.express_state IN %(written)s
             AND m.warehouse IN %(warehouses)s AND m.product IN %(products)s GROUP BY m.product, m.warehouse""",
                              {"company": company, "written": WRITTEN_STATES, "warehouses": tuple(loc_of),
                               "products": tuple(code_of)}, as_dict=True):

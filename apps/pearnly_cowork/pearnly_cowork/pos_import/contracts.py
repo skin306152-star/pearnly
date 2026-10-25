@@ -725,15 +725,6 @@ def days(found, *, vat_column: bool, with_items: bool = False) -> list:
         members = by_day[day]
         sales = sorted((r for r in members if r.meaning == "sale"), key=lambda r: natural_key(r.number))
         gross = sum((r.amount for r in members), Decimal("0"))
-        if not sales or gross <= 0:
-            raise PosError("pos.day_not_positive", day=day.isoformat())
-        if vat_column:
-            vat = sum((r.vat for r in members), Decimal("0"))
-            ceiling = (gross * _VAT_RATE / (100 + _VAT_RATE)).quantize(_CENT, rounding=ROUND_HALF_UP)
-            if vat < 0 or vat > ceiling + _CENT * len(members) + _CENT * 2:
-                raise PosError("pos.vat_out_of_range", day=day.isoformat())
-        else:
-            vat = (gross * _VAT_RATE / (100 + _VAT_RATE)).quantize(_CENT, rounding=ROUND_HALF_UP)
         payments: dict = {}
         labels: dict = {}
         for receipt in members:
@@ -743,27 +734,38 @@ def days(found, *, vat_column: bool, with_items: bool = False) -> list:
             if key not in labels or (cash and labels[key] == "Cash" and receipt.payment):
                 labels[key] = receipt.payment or "Cash"
             payments[key] = payments.get(key, Decimal("0")) + receipt.amount
-        paid = []
-        for key, amount in payments.items():
-            if amount == 0:
-                continue
-            if amount < 0 and not pos_contract.is_cash(labels[key]):
-                raise PosError("pos.payment_negative", day=day.isoformat(), payment=labels[key])
-            paid.append((labels[key], amount))
+        # 退款冲减走共用约定（ERP 收银日汇总同一个函数）：一天全退（全部为 0）这天不建票；冲成负数整份停下
+        try:
+            net = pos_contract.net_day(gross, [(labels[key], amount) for key, amount in payments.items()],
+                                       _merged_items(members, day) if with_items else None)
+        except pos_contract.NetError as error:
+            raise PosError(f"pos.{error.code}", day=day.isoformat(),
+                           **({"payment": error.label} if error.code == pos_contract.PAYMENT_NEGATIVE else {})) from error
+        if net is None:
+            continue
+        if not sales:
+            raise PosError("pos.day_not_positive", day=day.isoformat())
+        if vat_column:
+            vat = sum((r.vat for r in members), Decimal("0"))
+            ceiling = (gross * _VAT_RATE / (100 + _VAT_RATE)).quantize(_CENT, rounding=ROUND_HALF_UP)
+            if vat < 0 or vat > ceiling + _CENT * len(members) + _CENT * 2:
+                raise PosError("pos.vat_out_of_range", day=day.isoformat())
+        else:
+            vat = (gross * _VAT_RATE / (100 + _VAT_RATE)).quantize(_CENT, rounding=ROUND_HALF_UP)
+        paid = list(net.payments)
         if len(paid) > pos_contract.PAYMENTS_MAX:
             raise PosError("pos.too_many_payments", day=day.isoformat())
-        items = _items(members, gross, day) if with_items else []
+        items = _items(list(net.items), gross, day) if with_items else []
         result.append(Day(day, sales[0].number, sales[-1].number, len(sales),
                           sum(1 for r in members if r.meaning == "refund"), gross, vat, gross - vat, paid, items,
                           _row_ranges(line for r in members for line in r.rows)))
+    if not result:
+        raise PosError("pos.no_rows")
     return result
 
 
-def _items(members, gross, day) -> list:
-    """当天按商品（有编码按编码，没有按品名）汇总数量与含税金额；之和须等于当天含税合计。
-
-    赠品 / 免费加料（数量为正、金额为 0）照样作为 0 元明细出库（存货出库路径收 0 元行，成本照结转）；退款后数量为零或
-    负、或金额为负的才拦。0 元行排在前面：推送时把含税行摊成税前额，尾差落在最后一行（`push/express/common.py`）。"""
+def _merged_items(members, day) -> list:
+    """当天按商品（有编码按编码，没有按品名）合计数量与含税金额（退款行是负数，冲减在共用约定 `net_day`）。"""
     lines: dict = {}
     for receipt in members:
         if not receipt.lines:
@@ -775,9 +777,14 @@ def _items(members, gross, day) -> list:
             line = lines.setdefault(key, {"name": name or sku, "sku": sku, "qty": Decimal("0"), "amount": Decimal("0")})
             line["qty"] += qty
             line["amount"] += amount
-    kept = [line for line in lines.values() if line["qty"] != 0 or line["amount"] != 0]
-    if any(line["qty"] <= 0 or line["amount"] < 0 for line in kept):
-        raise PosError("pos.items_not_positive", day=day.isoformat())
+    return list(lines.values())
+
+
+def _items(kept, gross, day) -> list:
+    """冲减后的商品行（`_merged_items` → 共用约定 `net_day`），之和须等于当天含税合计。
+
+    赠品 / 免费加料（数量为正、金额为 0）照样作为 0 元明细出库（存货出库路径收 0 元行，成本照结转）；退款后数量为零或
+    负、或金额为负的在 `net_day` 拦下。0 元行排在前面：推送时把含税行摊成税前额，尾差落在最后一行（`push/express/common.py`）。"""
     kept.sort(key=lambda line: line["amount"] != 0)
     if sum((line["amount"] for line in kept), Decimal("0")) != gross:
         raise PosError("pos.items_mismatch", day=day.isoformat())

@@ -996,6 +996,7 @@ Refund,คืนสินค้า/คืนเงิน
 Refund Amount,ยอดคืนเงิน
 Refund Count,จำนวนรายการคืนเงิน
 Refund Of,อ้างอิงใบเสร็จที่คืน
+Refunds exceed sales for this day after netting,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 Refuse a second document with the same supplier and document number,ปฏิเสธเอกสารซ้ำที่มีผู้จำหน่ายและเลขที่เอกสารเดียวกัน
 Reload,โหลดใหม่
 Remaining Amount,ยอดคงเหลือ
@@ -1964,6 +1965,7 @@ express.reason.noStockBook,ชุดบัญชี Express นี้ไม่�
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
 express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
+express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 express.reason.reading,กำลังอ่านชุดบัญชี Express
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}

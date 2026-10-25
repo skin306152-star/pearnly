@@ -996,6 +996,7 @@ Refund,Refund
 Refund Amount,Refund Amount
 Refund Count,Refund Count
 Refund Of,Refund Of
+Refunds exceed sales for this day after netting,Refunds exceed sales for this day after netting
 Refuse a second document with the same supplier and document number,Refuse a second document with the same supplier and document number
 Reload,Reload
 Remaining Amount,Remaining Amount
@@ -1964,6 +1965,7 @@ express.reason.noStockBook,This Express account set has no book for this kind of
 express.reason.noWriter,No computer can write this account set
 express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express
+express.reason.posNetNegative,Refunds exceed sales for this day after netting
 express.reason.reading,Reading the Express account set
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"

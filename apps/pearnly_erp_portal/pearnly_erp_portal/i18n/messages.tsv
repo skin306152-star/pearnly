@@ -1688,3 +1688,4 @@ This document was changed in Express. Check it in Express	此单在 Express 中�
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	express.error.VOID_DOCUMENT_NOT_FOUND
 This receipt is in a daily summary sent to Express. Refund it instead	此小票已计入写进 Express 的收银日汇总，请改用退货	ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน	このレシートは Express に送った日次集計に入っています。返品にしてください	cashier.voidSummarized
 This stock entry comes from a stock count sent to Express. It cannot be voided on its own	此单由已写进 Express 的盘点生成，不能单独作废	รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้	この入出庫は Express に送った棚卸から作られたため、単独で取り消せません	stock.countEntryVoid
+Refunds exceed sales for this day after netting	当天退货冲减后为负数	ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ	この日は返品が売上を上回っています	express.reason.posNetNegative

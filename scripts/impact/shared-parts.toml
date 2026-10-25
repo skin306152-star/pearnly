@@ -1292,8 +1292,8 @@ args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    
 id = "erp.cc.pos-day"
 product = "ERP"
 where = "收银日汇总写 Express"
-steps = "接 Express 的公司收银卖几张（现金 + PromptPay），次日 01:20 定时或手动跑 express.pos_day.nightly；收银小票页看 Express 列与小票弹窗的「Express」"
-expect = "一家公司一天一张现销 HS 写进 C 盘 T 账套、读回一致；PromptPay 另记一张转账凭证，收款科目第一次弹窗选、之后自动带；作废小票、退货不进"
+steps = "接 Express 的公司收银卖几张（现金 + PromptPay），当天退其中几张（部分退、全退、退到别的付款方式）；另找一天卖一张当天全退；次日 01:20 定时或手动跑 express.pos_day.nightly；收银小票页看 Express 列与小票弹窗的「Express」"
+expect = "一家公司一天一张现销 HS 写进 C 盘 T 账套、读回一致；PromptPay 另记一张转账凭证，收款科目第一次弹窗选、之后自动带；作废小票不进；同一天的退货冲进当天（金额、数量、各付款方式按净额，净额为 0 的行不写），一天全退整张不写，冲成负数停在人工（当天退货冲减后为负数）；跨天的退货不进（等退货单 SR）"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js"]
 
@@ -1340,8 +1340,8 @@ files = ["apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py", "apps/pear
 id = "cowork.express.push"
 product = "Cowork"
 where = "Cowork 推送 Express（全部类型）"
-steps = "录入工作台 / 识别记录 → 推送：采购、销售、库存、存货科目组、付款、预检、回执；自动推送规则；POS 日汇总"
-expect = "照常写进 Express、读回一致。服务类进项票由自动冒烟 cowork_express_flow.py 写进测试机 C 盘 T 账套并核单号与 CC 读回；采购库存、销售、付款、POS 日汇总等其余类型仍人工逐类型推"
+steps = "录入工作台 / 识别记录 → 推送：采购、销售、库存、存货科目组、付款、预检、回执；自动推送规则；POS 日汇总（导入一份含当天全退那一天的收银导出）"
+expect = "照常写进 Express、读回一致。服务类进项票由自动冒烟 cowork_express_flow.py 写进测试机 C 盘 T 账套并核单号与 CC 读回；采购库存、销售、付款、POS 日汇总等其余类型仍人工逐类型推；POS 导入里一天全退（全部为 0）的那天不建票、其余天照建（10-25 起，原来整份报错）"
 check = "auto"
 files = ["apps/pearnly_cowork/pearnly_cowork/push/application/assess.py", "apps/pearnly_cowork/pearnly_cowork/push/application/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/application/service.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/rules.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/service.py", "apps/pearnly_cowork/pearnly_cowork/push/choices.py", "apps/pearnly_cowork/pearnly_cowork/push/export_actions.py", "apps/pearnly_cowork/pearnly_cowork/push/lifecycle.py", "apps/pearnly_cowork/pearnly_cowork/push/express/__init__.py", "apps/pearnly_cowork/pearnly_cowork/push/express/automation.py", "apps/pearnly_cowork/pearnly_cowork/push/express/company_choices.py", "apps/pearnly_cowork/pearnly_cowork/push/express/decide.py", "apps/pearnly_cowork/pearnly_cowork/push/express/goods_posting.py", "apps/pearnly_cowork/pearnly_cowork/push/native/completion.py", "apps/pearnly_cowork/pearnly_cowork/push/native/contracts.py", "apps/pearnly_cowork/pearnly_cowork/push/native/service.py", "apps/pearnly_cowork/pearnly_cowork/targets/choices.py", "apps/pearnly_cowork/pearnly_cowork/targets/evidence.py", "apps/pearnly_cowork/pearnly_cowork/targets/freeze.py", "apps/pearnly_cowork/pearnly_cowork/targets/selection.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/follow.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "apps/pearnly_cowork/pearnly_cowork/pos_import/contracts.py", "apps/pearnly_cowork/pearnly_cowork/pos_import/service.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/push/automation/clock.py"]
 smoke = "cowork_express"

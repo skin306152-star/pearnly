@@ -12,6 +12,9 @@
 另记一张普通日记账凭证「借 收款科目 / 贷 现金」，收款科目按付款方式问一次、记在这份账套（推送选择 ``receipt``，
 同一家公司别的年度账套记过、科目又在本账套科目表里的直接带出）。载荷带现金净额 ``cash``：小助手核「各转账 + 现金 =
 本单含税额」。只推 Express（推往别的 ERP 拦成 ``EXPRESS_ONLY``）。
+
+退款按天冲减（:func:`net_day`，ERP 收银日汇总与 Cowork POS 导入同一处定）：同一天的退款冲进当天，净额为 0 的行不写，一天全退
+（全部为 0）不写，冲成负数停下交人。**已知差别**：Cowork 的导出表分不出原单日期，跨天的退款也冲进退款那天；ERP 跨天退货走退货单 SR。
 """
 from __future__ import annotations
 
@@ -197,7 +200,53 @@ def check(found: Facts, total) -> str:
     return ""
 
 
-__all__ = ["ACCOUNT_MISSING", "AUDIT_KEY", "CASH_LABELS", "EXPRESS_ONLY", "FACTS_INVALID", "Facts", "MISMATCH",
-           "NUMBER_MAX", "PAYLOAD_VERSION", "Payment", "PosFactsError", "RECEIPT_KIND", "REF_MAX_BYTES", "VERSION",
-           "audit", "check", "day_ref", "facts", "is_cash", "method_subject", "norm_label", "number", "present",
-           "range_text"]
+# ── 按天冲减（主会话 10-25）：同一天的退款 / 退货冲进当天这张汇总，ERP 收银日汇总与 Cowork POS 导入都调这一个函数 ────────────
+# 已知差别（登记在案）：Cowork 读的收银机导出表里退款单不带原单日期，只能按**退款那天**冲；ERP 分得出原单哪天卖的，
+# 只冲同一天的退货，跨天退货另写退货单 SR（B3b），不进日汇总。
+DAY_NOT_POSITIVE = "day_not_positive"
+PAYMENT_NEGATIVE = "payment_negative"
+ITEMS_NOT_POSITIVE = "items_not_positive"
+
+
+class NetError(ValueError):
+    """冲完是负数：整张停下交人（不硬写），``code`` 是上面三种之一。"""
+
+    def __init__(self, code: str, label: str = ""):
+        super().__init__(code)
+        self.code, self.label = code, label
+
+
+@dataclass(frozen=True)
+class NetDay:
+    payments: tuple  # ((写法, 净额), ...)，净额为 0 的不在里面
+    items: tuple     # 调用方合好的商品行（dict，带 ``qty`` / ``amount``），净数量与净金额都是 0 的不在里面
+
+
+def net_day(gross, payments, items=None) -> NetDay | None:
+    """一天（销售为正、退款为负，调用方已按付款方式、按商品合好）冲减后的样子：
+
+    - 净额为 0 的付款方式、净数量和净金额都为 0 的商品行不写；
+    - **完全为 0**（当天净含税额、每种付款方式、每个商品行都是 0，一天全退）→ ``None``：这一天什么都不写；
+    - 只要有一项冲成负数就抛 :class:`NetError`：当天净额 ≤ 0、非现金付款方式净额为负（现金可以为负：现金退款多过现金收款）、
+      商品行净数量 ≤ 0 或净金额为负。``payments`` 是 ``[(写法, 金额)]``，``items`` 不给就不核商品。"""
+    gross = Decimal(str(gross))
+    paid = [(label, Decimal(str(amount))) for label, amount in payments]
+    lines = list(items or [])
+    kept_lines = [line for line in lines if Decimal(str(line["qty"])) != 0 or Decimal(str(line["amount"])) != 0]
+    kept_paid = [(label, amount) for label, amount in paid if amount != 0]
+    if gross == 0 and not kept_lines and not kept_paid:
+        return None
+    if gross <= 0:
+        raise NetError(DAY_NOT_POSITIVE)
+    for label, amount in kept_paid:
+        if amount < 0 and not is_cash(label):
+            raise NetError(PAYMENT_NEGATIVE, label)
+    if any(Decimal(str(line["qty"])) <= 0 or Decimal(str(line["amount"])) < 0 for line in kept_lines):
+        raise NetError(ITEMS_NOT_POSITIVE)
+    return NetDay(tuple(kept_paid), tuple(kept_lines))
+
+
+__all__ = ["ACCOUNT_MISSING", "AUDIT_KEY", "CASH_LABELS", "DAY_NOT_POSITIVE", "EXPRESS_ONLY", "FACTS_INVALID", "Facts",
+           "ITEMS_NOT_POSITIVE", "MISMATCH", "NUMBER_MAX", "NetDay", "NetError", "PAYLOAD_VERSION", "PAYMENT_NEGATIVE", "Payment",
+           "PosFactsError", "RECEIPT_KIND", "REF_MAX_BYTES", "VERSION", "audit", "check", "day_ref", "facts", "is_cash",
+           "method_subject", "net_day", "norm_label", "number", "present", "range_text"]

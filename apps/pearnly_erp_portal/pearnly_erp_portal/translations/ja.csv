@@ -996,6 +996,7 @@ Refund,返品・返金
 Refund Amount,返金額
 Refund Count,返品件数
 Refund Of,返金元レシート
+Refunds exceed sales for this day after netting,この日は返品が売上を上回っています
 Refuse a second document with the same supplier and document number,同じ仕入先・同じ伝票番号の2件目を拒否します
 Reload,再読み込み
 Remaining Amount,残り金額
@@ -1964,6 +1965,7 @@ express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝�
 express.reason.noWriter,この帳簿に書き込める端末がありません
 express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです
+express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.reading,Express 帳簿を読み取り中
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}

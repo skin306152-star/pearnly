@@ -996,6 +996,7 @@ Refund,退货退款
 Refund Amount,退款金额
 Refund Count,退款笔数
 Refund Of,对应的小票
+Refunds exceed sales for this day after netting,当天退货冲减后为负数
 Refuse a second document with the same supplier and document number,拒绝供应商与单据编号均相同的重复单据
 Reload,刷新
 Remaining Amount,剩余金额
@@ -1964,6 +1965,7 @@ express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿�
 express.reason.noWriter,没有能写此账套的电脑
 express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账
+express.reason.posNetNegative,当天退货冲减后为负数
 express.reason.reading,正在读取 Express 账套
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}

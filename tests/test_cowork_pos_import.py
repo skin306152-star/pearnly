@@ -351,6 +351,26 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, "pos.day_not_positive")
 
 
+    def test_refunds_net_into_their_day_and_a_fully_refunded_day_is_skipped(self):
+        """退款按天冲减走共用约定 `net_day`（主会话 10-25）：部分退照净额；一天全退（全部为 0）这天不建票，不再整份报错；
+        冲成负数照样停下；整份都全退了报没有销售。"""
+        layout = C.detect(self.HEADERS, [["2026-10-13", "1", "10.00", "QR"]]).layout
+        found, _voids = C.parse(self.HEADERS, [
+            ["2026-10-13", "1", "50.00", "Cash"], ["2026-10-13", "2", "-50.00", "Cash"],   # 全退：跳过
+            ["2026-10-14", "3", "100.00", "QR"], ["2026-10-14", "4", "20.00", "Cash"],
+            ["2026-10-14", "5", "-30.00", "QR"],                                           # 部分退、付款方式照退的那种冲
+        ], layout, anchor_year=2026)
+        self.assertEqual([(d.day.isoformat(), d.gross, d.payments) for d in found],
+                         [("2026-10-14", Decimal("90.00"), [("QR", Decimal("70.00")), ("Cash", Decimal("20.00"))])])
+        with self.assertRaises(C.PosError) as raised:
+            C.parse(self.HEADERS, [["2026-10-13", "1", "50.00", "Cash"], ["2026-10-13", "2", "-50.00", "Cash"]],
+                    layout, anchor_year=2026)
+        self.assertEqual(raised.exception.code, "pos.no_rows")
+        with self.assertRaises(C.PosError) as raised:  # 现金 +30、QR −30：合计 0 却不是全为 0 → 停下
+            C.parse(self.HEADERS, [["2026-10-13", "1", "30.00", "Cash"], ["2026-10-13", "2", "-30.00", "QR"]],
+                    layout, anchor_year=2026)
+        self.assertEqual(raised.exception.code, "pos.day_not_positive")
+
 class TotalRowTests(unittest.TestCase):
     """只有自己写着票号的行才是票；导出带的合计 / 小计行当核对数（2026-10-13 测试机：页脚合计行被当成上一张票的续行，
     每天销售翻倍，合计全算进上一张票的付款方式）。列结构照那份真实导出（标题行、页脚「รวม (ไม่รวมบิลยกเลิก)」）。"""

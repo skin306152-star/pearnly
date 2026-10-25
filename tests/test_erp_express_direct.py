@@ -893,6 +893,23 @@ class StockVoid(PushModule):
         self.assertEqual(reversed_, ["AD-1"])
 
 
+class PosDaySend(PushModule):
+    """同一天的退货冲减后（主会话 10-25）：一天全退什么都不写；冲成负数停下交人，原因 ``express.pos_net_negative``。"""
+
+    def test_an_empty_day_writes_nothing_and_a_negative_day_is_held(self):
+        from unittest import mock
+        docs = fake.STATE.db.table("ERP POS Day Summary")
+        for body, state, reason in (({"ref": "x", "items": [], "empty": True}, None, ""),
+                                    ({"ref": "x", "items": [], "net_negative": True}, "held", "express.pos_net_negative")):
+            docs["PDS-1"] = {"name": "PDS-1", "creation": "2026-10-25 01:20:00", "status": "submitted", "owner": "a@x",
+                             "express_state": "queued", "express_job": None, "express_reason": ""}
+            with mock.patch.object(self.push, "document", lambda doctype, name, body=body: body), \
+                    mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                    mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")), \
+                    mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+                self.push.send("ERP POS Day Summary", "PDS-1")
+            self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
+
 class LinkParty(PushModule):
     """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
 
@@ -1374,7 +1391,7 @@ class PosDaySummaries(Base):
                         r["summary"] = values["summary"]
                 return None
             mine = [r for r in receipts if r["summary"] == values[0]]
-            return [types.SimpleNamespace(count=len(mine), total=sum(r["total"] for r in mine), vat=0)]
+            return [types.SimpleNamespace(receipts=len(mine), count=len(mine), total=sum(r["total"] for r in mine), vat=0)]
 
         from pearnly_erp_portal.express import push as push_module
         with mock.patch.object(frappe, "get_doc", lambda body: Doc(body), create=True), \
@@ -1392,6 +1409,74 @@ class PosDaySummaries(Base):
         self.assertEqual(deleted, ["PDS-2"])
         self.assertEqual(queued, ["PDS-1", "PDS-3"])
         self.assertEqual({r["name"]: r["summary"] for r in receipts}, {"S1": "PDS-1", "S2": "PDS-1", "S3": "PDS-3"})
+
+    def test_net_day_drops_zero_rows_skips_a_fully_refunded_day_and_stops_on_negatives(self):
+        """共用约定 `net_day`（主会话 10-25，ERP 日汇总与 Cowork POS 导入同一处定）。"""
+        from pearnly_core.express_rules.contracts import pos
+        D = Decimal
+        net = pos.net_day(D("70"), [("เงินสด", D("70")), ("พร้อมเพย์", D("0"))],
+                          [{"code": "A", "qty": D("1"), "amount": D("70")}, {"code": "B", "qty": D("0"), "amount": D("0")}])
+        self.assertEqual((net.payments, [line["code"] for line in net.items]), ((("เงินสด", D("70")),), ["A"]))
+        self.assertIsNone(pos.net_day(D("0"), [("เงินสด", D("0"))], [{"qty": D("0"), "amount": D("0")}]))
+        for gross, paid, items, code in (
+                (D("-10"), [("เงินสด", D("-10"))], [], pos.DAY_NOT_POSITIVE),
+                (D("0"), [("เงินสด", D("30")), ("พร้อมเพย์", D("-30"))], [], pos.DAY_NOT_POSITIVE),
+                (D("50"), [("เงินสด", D("80")), ("พร้อมเพย์", D("-30"))], [], pos.PAYMENT_NEGATIVE),
+                (D("50"), [("เงินสด", D("50"))], [{"qty": D("-1"), "amount": D("0")}, {"qty": D("2"), "amount": D("50")}],
+                 pos.ITEMS_NOT_POSITIVE)):
+            with self.assertRaises(pos.NetError) as raised:
+                pos.net_day(gross, paid, items)
+            self.assertEqual(raised.exception.code, code)
+        net = pos.net_day(D("20"), [("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))])  # 现金退款多过现金收款：现金可以为负
+        self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
+
+    def summary_body(self, lines, paid, total):
+        """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`）。"""
+        import types
+        D = Decimal
+        summary = types.SimpleNamespace(company="CO-1", day="2026-10-24", grand_total=total, vat_amount=0,
+                                        first_receipt="SI-1", last_receipt="SI-2", sales_count=2)
+
+        def get_value(doctype, name, fields=None, as_dict=False):
+            if doctype == self.pos_day.DOCTYPE:
+                return summary
+            if doctype == "ERP Company":
+                return {"tax_id": OWN, "branch": "00012"}
+            if doctype == "ERP Product":
+                return {"product_name": name, "express_code": name, "express_stock": 1, "base_unit": "ถุง", "unit": "ถุง"}
+            return "01"
+
+        def sql(query, values=None, as_dict=False):
+            self.assertIn("CASE WHEN s.sale_type = 'refund' THEN -1 ELSE 1 END", query)
+            if "tabERP Sale Payment" in query:
+                return [types.SimpleNamespace(method=method, amount=D(amount)) for method, amount in paid]
+            return [types.SimpleNamespace(product=code, warehouse="W1", unit="ถุง", qty=D(qty), amount=D(amount))
+                    for code, qty, amount in lines]
+
+        with mock.patch.object(frappe.db, "get_value", side_effect=get_value, create=True), \
+                mock.patch.object(frappe.db, "sql", side_effect=sql), \
+                mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
+                                  create=True):
+            return self.pos_day.document("PDS-1", "PDS-1@x")
+
+    def test_same_day_refunds_net_into_the_day_summary(self):
+        """主会话 10-25：同一天卖、同一天退的退货冲进当天日汇总。部分退照净额写；一天全退整张不写；退货的付款方式和原单不同
+        时按方式各自冲（非现金冲成负数停下交人，现金可以为负）。"""
+        # 部分退：A 卖 3 退 1、B 全退（这一行不写）；PromptPay 收 100、退 0，现金 = 合计 − 非现金
+        body = self.summary_body([("A", "2", "60"), ("B", "0", "0")], [("promptpay", "40")], "60")
+        self.assertEqual([(line["code"], line["qty"], line["amount"]) for line in body["items"]], [("A", "2", "60.00")])
+        self.assertEqual(body["pos"]["payments"], [["เงินสด", "20.00"], ["พร้อมเพย์", "40.00"]])
+        self.assertEqual(body["pos"]["count"], 2)
+        # 一天全退：什么都不写（推送把它记成「不用写」）
+        self.assertEqual(self.summary_body([("A", "0", "0")], [("promptpay", "0")], "0"), {"ref": "PDS-1@x", "items": [], "empty": True})
+        # 原单 PromptPay、退货退现金：PromptPay 照收的、现金为负（合计为正就照写）
+        body = self.summary_body([("A", "1", "50")], [("promptpay", "100")], "50")
+        self.assertEqual(body["pos"]["payments"], [["เงินสด", "-50.00"], ["พร้อมเพย์", "100.00"]])
+        # 原单现金、退货退到 PromptPay：PromptPay 冲成负数 → 停下交人
+        self.assertEqual(self.summary_body([("A", "1", "50")], [("promptpay", "-50")], "50"),
+                         {"ref": "PDS-1@x", "items": [], "net_negative": True})
+        # 晚到的同日退货单独成一张补单：整张为负 → 停下交人
+        self.assertTrue(self.summary_body([("A", "-1", "-50")], [], "-50").get("net_negative"))
 
     def test_an_ordinary_sale_carries_no_day_facts(self):
         page = E.pages(E.checked(doc(direction="sales", paid=True)))[0]

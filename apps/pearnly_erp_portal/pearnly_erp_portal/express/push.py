@@ -231,8 +231,13 @@ def send(doctype, name):
 
     company = company_of(doctype, name)
     body = document(doctype, name)
-    if doctype == COUNT and not body["lines"]:
-        # 整份盘点轧差后没有要调的（只有库位之间挪动）：Express 里什么都不用写
+    if doctype == POS_DAY and body.get("net_negative"):
+        # 同一天的退货冲减后是负数（共用约定 `net_day`）：不硬写，停下交人
+        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": pos_day.NET_NEGATIVE, "express_needed": None})
+        frappe.db.commit()
+        return
+    if (doctype == COUNT and not body["lines"]) or (doctype == POS_DAY and body.get("empty")):
+        # 整份盘点轧差后没有要调的（只有库位之间挪动）、收银日一天全退（冲减后全部为 0）：Express 里什么都不用写
         _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
         frappe.db.commit()
         return
