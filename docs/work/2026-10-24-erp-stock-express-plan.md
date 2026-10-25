@@ -222,7 +222,7 @@ NEGALLOW=N 库存不足停在「需要人工」；金样本先最大化用 S 盘
 | NEGALLOW=N | CC 不拦 | 写出库前按 Express 结存核，不够停在「需要人工」（新回报码，文案按规矩登记） |
 | 401 自愈 | 见九.2 | **已上线**（10-25 生产 `08bfb419`，CC 1.12.1；线上 testerp 换新密钥验收通过） |
 | ERP 写入冒烟只写 C 盘 | `scripts/smoke/express_flow.py` 写到哪份账套全看 CC 给这家公司报的账套，测试机白天连上 accserver 时会把 S 盘同税号真账也报上来 | **已做**（分支 `pearnly/erp-smoke-guard`）：建单前这家公司报上来的账套必须全部是 `C:\PearnlyExpress\` 下以 T 开头的才建单，写完按单据的 `express_book` 再核实际路径（同 Cowork 版 `cowork_express_flow.py`）。第一期新增的出入库写入冒烟沿用这个检查 |
-| CC 旧授权目录 | CC 保存的授权数据根里有已经不存在的文件夹（测试机的 `C:\PearnlyExpress\71EXP` / `72EXP`），每次配对都报「暂时无法读取」 | 按位置清单口径：所在盘能访问、文件夹却不在时，自动去掉这条旧授权，不一直报。盘本身不可达（网络盘掉线、U 盘拔了）时照旧保留，等它回来。落点在 CC 的授权根检查（`companion/` 读取位置那段），随第一期一起发 CC |
+| CC 旧授权目录（按类缺陷） | 已核代码：`express_machine.root_gone`（所在盘能访问、文件夹却不在才算没了）只在用户手动触发的路径上用——「重新查找」、改位置、还没有成员时的自动查找（`desktop_settings` → `rescan_roots` / `offline_roots`）；平时的定时重扫只扫数据根下的账套，不删数据根；配对 / 重连走 `pairing_flow.run(roots=machine_roots(store) or _detected)`，新成员的 `authorized_roots` 直接照抄现有成员的并集（`pairing_flow.py:88`），断开后记下的 `_kept` 也不过 `root_gone`。所以已经没了的目录（测试机 `C:\PearnlyExpress\71EXP` / `72EXP`）不会自己清掉，还会被带进新成员，每次配对都报「暂时无法读取」 | 一处收口：配对、重连、定时重扫给成员定数据根前都过 `root_gone`（同一次查找共用 `asked`，每台服务器只问一次），确实没了的去掉；盘本身不可达（网络盘掉线、服务器关着、U 盘拔了）的照旧保留。补用例：断开再重连、新成员配对、定时重扫三条路径都不带回已经没了的目录，也都不丢暂时访问不到的。随第一期一起发 CC |
 | 存量差异 | — | 不改 Express 存量；62 套离线统计各账套 STLOC ≠ STMAS 的件数与金额写进本文；要修另出方案 |
 
 开工前置：共用件连带回归闸门（`pearnly/regression-safety-net`）合入；S 盘只读金样本（九.4，待白天 accserver 在线）补齐作废 / 退货 / 领用 / 调整的原生字段。
