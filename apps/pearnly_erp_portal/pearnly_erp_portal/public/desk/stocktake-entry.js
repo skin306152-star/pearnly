@@ -34,6 +34,8 @@
 			// 多人分区盘点：这件货在本次盘点里别人（或自己）已经记过的 —— 谁、在哪、多少，
 			// 免得同一架货被两个人各数一遍（用户 2026-10-15）。没有就不占地方。
 			{ fieldtype: "HTML", fieldname: "recorded", hidden: 1 },
+			// 按台管理的商品：这个仓在库的每一台、盘到了没有（一台一条，数量固定 1）
+			{ fieldtype: "HTML", fieldname: "units", hidden: 1 },
 			{ fieldtype: "Autocomplete", fieldname: "location", label: w("actualLocation"),
 				get_query: p.location_query(() => d?.get_value("warehouse")) },
 			{ fieldtype: "Float", fieldname: "qty", label: w("entryQty"), precision: 3, reqd: 1 },
@@ -58,7 +60,8 @@
 					if (entry) await p.call(api + "api_stock_count_edit_entry",
 						{ ...payload, entry: entry.name, version: entry.version }, "POST");
 					else await p.call(api + "api_stock_count_add_entry", { ...payload, count,
-						item: values.source_row || undefined, product: selected.name, request_id }, "POST");
+						item: values.source_row || undefined, product: selected.name, request_id,
+						serial: lookup.unit?.name || undefined }, "POST");
 					last_place = { warehouse: values.warehouse, location: values.location || "" };
 					p.success(t("stock.count.entrySaved"), "click");
 					photos.length = 0;
@@ -179,6 +182,22 @@
 			existing = await p.call(api + "api_stock_count_photos", { entry: entry.name });
 			render_photos();
 		}
+		function render_units() {
+			const rows = lookup?.units || [];
+			d.set_df_property("units", "hidden", !rows.length);
+			if (!rows.length) return;
+			const kind = lookup.product?.serial_kind === "device" ? "device" : "vehicle";
+			const counted = rows.filter(row => row.counted || row.name === lookup.unit?.name).length;
+			const wrapper = d.fields_dict.units.$wrapper.empty();
+			$(`<div class="text-muted small"></div>`).text(__("serial.progress", [counted, rows.length])).appendTo(wrapper);
+			// 原生 DataTable：这个仓在库的每一台，盘到的标出来
+			new frappe.DataTable($("<div>").appendTo(wrapper).get(0), { layout: "fluid", serialNoColumn: false,
+				columns: [kind === "device" ? __("serial.device.primary") : __("serial.vehicle.primary"),
+					kind === "device" ? __("serial.device.secondary") : __("serial.vehicle.secondary"), __("serial.color"), __("Status")]
+					.map(name => ({ name, editable: false })),
+				data: rows.map(row => [row.serial_no, row.secondary_no || "", row.color || "",
+					row.counted || row.name === lookup.unit?.name ? __("serial.counted") : __("serial.notCounted")]) });
+		}
 		async function choose_source() {
 			if (!lookup || !selected) return;
 			const source = lookup.rows.find(r => r.name === d.get_value("source_row"));
@@ -199,6 +218,13 @@
 					scanner?.resume();
 					return;
 				}
+				if (lookup.track_serial && !lookup.unit && !entry) {
+					// 按台管理的商品要扫车身上的号（车架号二维码），扫商品码认不出是哪一台
+					message(__("Count products tracked by unit one unit at a time"));
+					scanner?.resume();
+					if (code) p.scan_result_sound(false);
+					return;
+				}
 				selected = lookup.product;
 				request_id = crypto.randomUUID();
 				d.set_df_property("source_row", "options", lookup.rows.map(r => ({
@@ -216,8 +242,10 @@
 					await d.set_value("warehouse", last_place.warehouse);
 					await d.set_value("location", last_place.location);
 				}
-				await d.set_value("qty", entry ? entry.qty : "");
-				if (!entry) d.fields_dict.qty.$input.val("");
+				await d.set_value("qty", entry ? entry.qty : (lookup.unit ? 1 : ""));
+				if (!entry && !lookup.unit) d.fields_dict.qty.$input.val("");
+				d.set_df_property("qty", "read_only", lookup.track_serial ? 1 : 0);
+				render_units();
 				await d.set_value("note", entry?.note || "");
 				editor(true);
 				await load_photos();

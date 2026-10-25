@@ -217,6 +217,7 @@ Change list color,Change list color
 Change members,Change members
 Chart,Chart
 Chart by,Chart by
+Chassis No,Chassis No
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
 Checklist,Checklist
@@ -313,6 +314,7 @@ Could not store this document,Could not store this document
 Count at least one item before finishing,Count at least one item before finishing
 Count by,Count by
 Count closed,Count closed
+Count products tracked by unit one unit at a time,Count products tracked by unit one unit at a time
 Count saved,Count saved
 Count stock on the web,Count stock on the web
 Counted,Counted
@@ -461,6 +463,7 @@ Enable POS cashier,Enable POS cashier
 Enable {0},Enable {0}
 Enable {0} selected,Enable {0} selected
 Enabled,Enabled
+Engine No,Engine No
 Enter a board name,Enter a board name
 Enter a comment,Enter a comment
 Enter a field name,Enter a field name
@@ -585,6 +588,9 @@ Import result,Import result
 Imported {0} product(s),Imported {0} product(s)
 "Imported {0} rows, {1} with a counted quantity","Imported {0} rows, {1} with a counted quantity"
 In,In
+In Date,In Date
+In Reference,In Reference
+In Reference Type,In Reference Type
 In progress,In progress
 In stock,In stock
 In-stock,In-stock
@@ -833,6 +839,9 @@ Original Item and Location,Original Item and Location
 Original Line,Original Line
 Other,Other
 Out,Out
+Out Date,Out Date
+Out Reference,Out Reference
+Out Reference Type,Out Reference Type
 Out of stock,Out of stock
 Outdated POS Opening Entry,Outdated POS Opening Entry
 Outstanding Amount,Outstanding Amount
@@ -925,6 +934,7 @@ Product name,Product name
 Product not found,Product not found
 Product not found or its identifiers are ambiguous,Product not found or its identifiers are ambiguous
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
+Products tracked by unit change stock only through documents with units,Products tracked by unit change stock only through documents with units
 PromptPay,PromptPay
 PromptPay Amount,PromptPay Amount
 PromptPay ID,PromptPay ID
@@ -948,6 +958,7 @@ QR content,QR content
 Qty,Qty
 "Qty (base unit, signed)","Qty (base unit, signed)"
 Qty (entered unit),Qty (entered unit)
+Quantities of products tracked by unit must be whole numbers in the base unit,Quantities of products tracked by unit must be whole numbers in the base unit
 Quantity,Quantity
 Quantity Available,Quantity Available
 Quantity counted this time,Quantity counted this time
@@ -1010,6 +1021,8 @@ Refund Count,Refund Count
 Refund Of,Refund Of
 Refunds exceed sales for this day after netting,Refunds exceed sales for this day after netting
 Refuse a second document with the same supplier and document number,Refuse a second document with the same supplier and document number
+Register serial numbers,Register serial numbers
+Register vehicles,Register vehicles
 Reload,Reload
 Remaining Amount,Remaining Amount
 Remark,Remark
@@ -1031,6 +1044,7 @@ Return,Return
 Return to stock,Return to stock
 Returned,Returned
 Reversal,Reversal
+Reversed,Reversed
 Review differences,Review differences
 Review document,Review document
 Role,Role
@@ -1071,6 +1085,8 @@ Search by receipt number,Search by receipt number
 Search cards,Search cards
 Search name or barcode,Search name or barcode
 "Search name, code or barcode","Search name, code or barcode"
+Second No,Second No
+Secondary No,Secondary No
 Select Loyalty Program,Select Loyalty Program
 Select a Payment Method.,Select a Payment Method.
 Select a product for each stock item,Select a product for each stock item
@@ -1081,8 +1097,10 @@ Select an invoice to load summary data,Select an invoice to load summary data
 Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
+Select serial numbers,Select serial numbers
 Select the original sale line,Select the original sale line
 Select the product,Select the product
+Select vehicles,Select vehicles
 Sell,Sell
 Seller,Seller
 Seller address,Seller address
@@ -1096,6 +1114,7 @@ Send the code from the ERP page to bind,Send the code from the ERP page to bind
 Sender's LINE language when the document arrived,Sender's LINE language when the document arrived
 Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
 Sent By,Sent By
+Serial No,Serial No
 Serial No: {0} has already been transacted into another POS Invoice.,Serial No: {0} has already been transacted into another POS Invoice.
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.
 Service,Service
@@ -1129,6 +1148,7 @@ Show on card,Show on card
 Show only,Show only
 Show zero stock,Show zero stock
 Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the first ones are listed above
+Sold,Sold
 Sold At,Sold At
 Sold by,Sold by
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
@@ -1264,6 +1284,7 @@ The first row must be the column headings; the sheet needs at least a product na
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
 The lines cannot be written to Express. Check them and submit again.,The lines cannot be written to Express. Check them and submit again.
+The number of units does not match the quantity,The number of units does not match the quantity
 The opening stock amount is too large,The opening stock amount is too large
 The opening stock file is too large,The opening stock file is too large
 The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
@@ -1280,12 +1301,14 @@ The recognition result needs checking. Please do not resend this document yet.,T
 The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
+The sheet needs a unit number column and a warehouse column,The sheet needs a unit number column and a warehouse column
 The start date is after the due date,The start date is after the due date
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
 "The stock lines could not be posted. Check the items, quantities and prices","The stock lines could not be posted. Check the items, quantities and prices"
 The supplier is missing. Add it and submit again.,The supplier is missing. Add it and submit again.
 The total is invalid,The total is invalid
 The total is zero,The total is zero
+The units must match the stock of each warehouse,The units must match the stock of each warehouse
 The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
 Then,Then
@@ -1360,7 +1383,10 @@ This stock position is already initialized; use a stock adjustment,This stock po
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
+This unit has been counted,This unit has been counted
 This unit is not defined on the product,This unit is not defined on the product
+This unit is not in stock in this warehouse,This unit is not in stock in this warehouse
+This unit number is already registered,This unit number is already registered
 This warehouse already exists,This warehouse already exists
 This warehouse belongs to the company above,This warehouse belongs to the company above
 This warehouse has no active location,This warehouse has no active location
@@ -1383,7 +1409,9 @@ Total opening value,Total opening value
 Total · {0} row(s),Total · {0} row(s)
 Totals,Totals
 Track batches,Track batches
+Track by unit,Track by unit
 Track expiry,Track expiry
+Tracking by unit can only be turned off when every unit is sold or void,Tracking by unit can only be turned off when every unit is sold or void
 Transaction type,Transaction type
 Transfer,Transfer
 Type,Type
@@ -1406,7 +1434,13 @@ Unit Cost,Unit Cost
 Unit Cost (net of VAT),Unit Cost (net of VAT)
 Unit Price,Unit Price
 Unit barcode,Unit barcode
+Unit not found,Unit not found
+Unit number type,Unit number type
+Unit opening registration,Unit opening registration
 Unit {0} is not defined on {1},Unit {0} is not defined on {1}
+Units,Units
+Units already sold or issued cannot be voided with this document,Units already sold or issued cannot be voided with this document
+Units not counted,Units not counted
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
 Unpaid,Unpaid
@@ -1452,6 +1486,7 @@ VAT Registered,VAT Registered
 VAT applies,VAT applies
 Value,Value
 Value Change,Value Change
+Vehicle,Vehicle
 Visibility,Visibility
 Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
@@ -2114,6 +2149,29 @@ refund,refund
 sale,sale
 sale_out,sale_out
 sales,sales
+serial.color,Color
+serial.counted,Counted
+serial.device.pick,Select serial numbers
+serial.device.primary,Serial No
+serial.device.register,Register serial numbers
+serial.device.secondary,Second No
+serial.kind,Unit number type
+serial.kind.device,Other
+serial.kind.vehicle,Vehicle
+serial.notCounted,Not counted
+serial.notCountedUnits,Units not counted
+serial.opening,Unit opening registration
+serial.progress,{0} of {1} units
+serial.status.in_stock,In stock
+serial.status.issued,Issued
+serial.status.sold,Sold
+serial.status.void,Void
+serial.track,Track by unit
+serial.units,Units
+serial.vehicle.pick,Select vehicles
+serial.vehicle.primary,Chassis No
+serial.vehicle.register,Register vehicles
+serial.vehicle.secondary,Engine No
 service,service
 stock.action.count,Count
 stock.action.export,Export
@@ -2567,6 +2625,7 @@ void,void
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} more items,{0} more items
 {0} moved {1} to {2},{0} moved {1} to {2}
+{0} of {1} units,{0} of {1} units
 {0} rows were not imported,{0} rows were not imported
 "{0} · Warehouse {1}: need {2}, have {3}","{0} · Warehouse {1}: need {2}, have {3}"
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}

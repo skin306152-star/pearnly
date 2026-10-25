@@ -14,7 +14,7 @@ from pearnly_core.execution import state as pearnly_state
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import push as express_push
-from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.inventory import positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.sales import access, contracts, files
@@ -181,6 +181,7 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
         frappe.throw(_("A confirmed document cannot be edited"))
     company = companies.document_company(doc.get("company") if name else payload.get("company"))
     day = str(getdate(payload.get("doc_date") or nowdate()))
+    raw_lines = list(payload.get("lines") or []) if isinstance(payload.get("lines"), list) else []
     payload["lines"] = _lines(payload)
     totals = contracts.compute_totals(
         payload["lines"],
@@ -209,6 +210,9 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
     doc.set("lines", [])
     for row in rows:
         doc.append("lines", row)
+    # 按台管理的商品：这一行选中的台（页面随行交来，`inventory.serials`）
+    serials.set_doc_serials(doc, [{**row, "serials": (raw.get("serials") if isinstance(raw, dict) else None)}
+                                  for row, raw in zip(rows, raw_lines)])
     doc.update({"doc_kind": kind, "doc_date": day, "customer": customer, "buyer_name": buyer_name,
         "has_vat": int(flag(payload.get("has_vat"), True)), "vat_rate": _vat_rate(payload),
         "price_includes_vat": int(flag(payload.get("price_includes_vat"), False)),
@@ -295,7 +299,8 @@ def _post_stock(doc):
     """落定即出库。幂等锚 = 单据名；已经有留痕就不重复出。"""
     if doc.stock_posted_at or not contracts.should_post_stock(doc.doc_kind, doc.status):
         return
-    rows = [{"product": row.product, "qty": row.qty, "unit": row.unit,
+    units = serials.line_serials(doc)
+    rows = [{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
              **positions.saved(row, company=doc.get("company"))}
             for row in doc.lines if row.product]
     if not rows:

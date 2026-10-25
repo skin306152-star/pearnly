@@ -101,6 +101,46 @@ def product_of_code(code: str, company: str | None = None) -> dict | None:
     return frappe.db.get_value(PRODUCT, found[0]["name"], "*", as_dict=True) if found else None
 
 
+UNIT_BY_UNIT = "Count products tracked by unit one unit at a time"
+UNIT_COUNTED = "This unit has been counted"
+
+
+def unit_of_code(code, company):
+    """盘点扫到的号是不是一台在库的车（按台管理，`inventory.serials.lookup`）：认到唯一一台回它，认不到回 None，认出几台报错让人挑。"""
+    from pearnly_erp_portal.inventory import serials
+
+    units = serials.lookup(code, company, statuses=(serials.IN_STOCK,))
+    if len(units) > 1:
+        frappe.throw(_("Several matches found for {0}. Please select a record.").format(code))
+    return units[0] if units else None
+
+
+def _scanned(code, product, serial, company):
+    """录一条盘点之前认出 (商品, 台)：编码 / 条码认商品；认不到再按号认台。按台管理的商品必须认到台。"""
+    from pearnly_erp_portal.inventory import serials
+
+    unit = None
+    if serial:
+        unit = frappe.db.get_value(serials.DOCTYPE, {"name": serial, "company": company, "status": serials.IN_STOCK},
+                                   ["name", "product", "serial_no", "secondary_no", "color", "warehouse", "location"], as_dict=True)
+        if not unit:
+            frappe.throw(_(CODE_NOT_FOUND))
+    found = None
+    if not unit and code:
+        found = product_of_code(code, company)
+        if not found:
+            unit = unit_of_code(code, company)
+    if unit:
+        found = frappe.db.get_value(PRODUCT, {"name": unit.product, "is_active": 1}, "*", as_dict=True)
+    elif not found and product:
+        found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+    if not found:
+        frappe.throw(_(CODE_NOT_FOUND))
+    if found.get("track_serial") and not unit:
+        frappe.throw(_(UNIT_BY_UNIT))
+    return found, unit
+
+
 def count_company(count) -> str | None:
     """这份盘点的仓库所属的公司（认商品按它分）。"""
     warehouse = frappe.db.get_value(COUNT, count, "warehouse") if count else None
@@ -591,6 +631,7 @@ def post_count(name: str, review_token=None) -> dict:
             numbering_direction="stocktake")
         applied.append({"product": key[0], "warehouse": key[1], "location": key[2],
                         "delta": float(delta), "entry": created["name"], "doc_no": created["doc_no"]})
+    _move_counted_units(name, review["entries"])
     frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),
                         "closed_by": frappe.session.user, "posted_at": now(),
                         "posted_by": frappe.session.user}, update_modified=False)
@@ -600,6 +641,22 @@ def post_count(name: str, review_token=None) -> dict:
     express_push.queue(COUNT, name)
     count_live.changed(name)
     return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
+
+
+def _move_counted_units(count, entries):
+    """按台：盘到的台记在实际盘到的仓 / 库位（与数量的仓位调整同一次过账）；没盘到的台不动（主会话 10-26）。"""
+    from pearnly_erp_portal.inventory import serials
+
+    for entry in entries:
+        if entry.get("voided") or not entry.get("serial"):
+            continue
+        unit = frappe.get_doc(serials.DOCTYPE, entry["serial"], for_update=True)
+        place = (entry["warehouse"], entry.get("location") or "")
+        if unit.status != serials.IN_STOCK or (unit.warehouse, unit.location or "") == place:
+            continue
+        unit.update({"warehouse": place[0], "location": place[1]})
+        unit.save(ignore_permissions=True)
+        serials._event(unit, "count", serials.COUNT_REF, count, frappe.utils.nowdate())
 
 
 def delete_count(name: str) -> dict:
@@ -743,25 +800,45 @@ def lookup_count(*, count, code=None, product=None):
     """
     guard.require("count.read")
     task = _get(count)
+    company = count_company(count)
+    unit = None
     if code and not product:
-        matches = products_of_code(code, count_company(count))
+        matches = products_of_code(code, company)
         if len(matches) > 1:
             # 存量里撞了的码：几件都列出来让人选（再带 product 查一次），不默认挑一个
             return {"candidates": [{key: row.get(key) for key in ("name", "product_name", "code", "internal_code", "barcode",
                                                                   "matched_by")} for row in matches]}
-    found = product_of_code(code, count_company(count)) if code and not product else frappe.db.get_value(
+    found = product_of_code(code, company) if code and not product else frappe.db.get_value(
         PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+    if not found and code:
+        unit = unit_of_code(code, company)  # 按台管理：扫到的是车架号
+        found = frappe.db.get_value(PRODUCT, {"name": unit.product, "is_active": 1}, "*", as_dict=True) if unit else None
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
     rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]
-    return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit")},
+    return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit", "serial_kind")},
                         "code": product_contracts.count_code(found)},
             "rows": rows,
             "elsewhere": elsewhere_positions(found["name"],
                                              {(r["warehouse"], r["location"] or "") for r in rows}),
             "recorded": recorded_entries(count, [r["name"] for r in rows]),
             "stock_token": count_state.stock_token(found['name']),
-            "warehouse_name": _warehouse_label(task.warehouse)}
+            "warehouse_name": _warehouse_label(task.warehouse),
+            "track_serial": bool(found.get("track_serial")), "unit": dict(unit) if unit else None,
+            "units": units_here(count, found["name"]) if found.get("track_serial") else []}
+
+
+def units_here(count, product) -> list:
+    """按台管理的商品：这份盘点的仓里在库的台，标出这份盘点里盘到了没有（录入弹窗的车辆清单）。"""
+    from pearnly_erp_portal.inventory import serials
+
+    warehouse = frappe.db.get_value(COUNT, count, "warehouse")
+    counted = set(frappe.get_all(ENTRY, filters={"count": count, "product": product, "voided": 0,  # bounded: 一份盘点一个车型
+                                                 "serial": ["is", "set"]}, pluck="serial", limit_page_length=0))
+    rows = frappe.get_all(serials.DOCTYPE, filters={"product": product, "warehouse": warehouse, "status": serials.IN_STOCK},
+                          fields=["name", "serial_no", "secondary_no", "color", "location"],  # bounded: 一个仓一个车型的在库台
+                          order_by="serial_no asc", limit_page_length=500)
+    return [{**row, "counted": row.name in counted} for row in rows]
 
 
 def recorded_entries(count: str, items: list) -> list:
@@ -797,7 +874,7 @@ def elsewhere_positions(product_id: str, here: set) -> list:
 
 
 def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None, location=None,
-              note=None, request_id=None, photos=None, source="Desk", stock_token=None) -> dict:
+              note=None, request_id=None, photos=None, source="Desk", stock_token=None, serial=None) -> dict:
     """A record belongs to a book row; warehouse/location describe where it was found."""
     guard.require("count.write")
     photos = _store_photos(photos)  # 拿锁之前存好（原件层是网络上传）
@@ -806,20 +883,22 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
     quantity = _qty(qty)
     if quantity < 0:
         frappe.throw(_(QUANTITY_REQUIRED))
+    unit = None
     if item:
         row = _item(item)
         if row['count'] != count:
             frappe.throw(_(ITEM_NOT_FOUND))
         product_id = row['product']
+        if code or serial or frappe.db.get_value(PRODUCT, product_id, "track_serial"):
+            found, unit = _scanned(code, product_id, serial, count_company(count))
+            if found["name"] != product_id:
+                frappe.throw(_(CODE_NOT_FOUND))
         actual_warehouse = warehouses.required(warehouse if warehouse is not None else row['warehouse'])
         actual_location = positions.clean_location(location if location is not None else row['location'])
         if (actual_warehouse, actual_location) != (row['warehouse'], row['location'] or ''):
             positions.check(actual_warehouse, actual_location)  # 记在账面那个位置照常（清单之前的旧库位也能盘）
     else:
-        found = product_of_code(code, count_company(count)) if code else frappe.db.get_value(
-            PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
-        if not found:
-            frappe.throw(_(CODE_NOT_FOUND))
+        found, unit = _scanned(code, product, serial, count_company(count))
         product_id = found['name']
         actual_warehouse = warehouses.required(warehouse or task.warehouse)
         actual_location = positions.check(actual_warehouse, location)
@@ -835,6 +914,11 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
                     count, item, actual_warehouse, actual_location, flt(quantity, 3), note or ''):
                 frappe.throw(_(REQUEST_CONFLICT))
             return {"entry": seen['name'], "item": item, "qty": seen['qty'], "deduped": True}
+    if unit:
+        # 按台：一台记一条、数量就是 1；同一份盘点里同一台不重复记
+        quantity = Decimal(1)
+        if frappe.db.exists(ENTRY, {"count": count, "serial": unit.name, "voided": 0}):
+            frappe.throw(_(UNIT_COUNTED) + f": {unit.serial_no}")
     token = _record_revision(count, product_id, stock_token)
     if not row['counted']:
         basis = stock_service.current_balance(product_id, row['warehouse'], row['location'])
@@ -844,7 +928,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
                                         "stock_token": token}, update_modified=False)
     entry = frappe.get_doc({"doctype": ENTRY, "count": count, "item": item, "product": product_id,
         "warehouse": actual_warehouse, "location": actual_location, "qty": flt(quantity, 3),
-        "request_id": request_id, "note": note, "source": source,
+        "request_id": request_id, "note": note, "source": source, "serial": unit.name if unit else None,
         "counted_by": frappe.session.user, "counted_at": now(), "version": 1})
     count_state.write_document(entry, "insert")
     _save_photos(entry.name, photos)
@@ -865,7 +949,7 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
         _record_revision(parent, doc.product, stock_token)
     if qty is not None:
         quantity = _qty(qty)
-        if quantity < 0:
+        if quantity < 0 or (doc.get("serial") and quantity != 1):
             frappe.throw(_(QUANTITY_REQUIRED))
         doc.qty = flt(quantity, 3)
     if voided is not None:
@@ -914,7 +998,7 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
     result = frappe.get_list(
         ENTRY, filters=filters,
         fields=["name", "item", "product", "warehouse", "location", "qty", "voided", "version",
-                "photo_total", "note", "counted_by", "counted_at", "source"],
+                "photo_total", "note", "counted_by", "counted_at", "source", "serial"],
         order_by="counted_at desc, name desc",
         limit_start=int(start or 0), limit_page_length=_size(limit),
     )
@@ -922,7 +1006,10 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
     items = {row.name: row for row in frappe.get_list(
         ITEM, filters={"count": count}, fields=["name", "product_name", "code", "unit",
                                                "warehouse", "location"], limit_page_length=0)}
-    return [dict(row, warehouse_name=_warehouse_label(row.warehouse),
+    numbers = dict(frappe.get_all("ERP Serial No", filters={"name": ["in", [r.serial for r in result if r.serial] or [""]]},
+                                  fields=["name", "serial_no"], as_list=True,  # bounded: 这一页记录上的台
+                                  limit_page_length=len(result) or 1))
+    return [dict(row, warehouse_name=_warehouse_label(row.warehouse), serial_no=numbers.get(row.serial) or "",
                  product_name=items[row.item].product_name, code=items[row.item].code,
                  unit=items[row.item].unit,
                  book_warehouse_name=_warehouse_label(items[row.item].warehouse),

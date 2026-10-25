@@ -352,8 +352,11 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
     if receive_stock in (True, 1, "1", "true") and any(
             not row.product and (row.item_type or "goods") == "goods" for row in doc.lines):
         frappe.throw(_("Select a product for each stock item"))
+    from pearnly_erp_portal.inventory import serials
+
+    units = serials.line_serials(doc)
     lines = [
-        {"product": row.product, "qty": row.qty, "unit": row.unit,
+        {"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
          "unit_cost": _line_net_cost(row), **positions.saved(row, company=doc.get("company"))}
         for row in doc.get("lines") or []
         if row.get("product") and (row.item_type or "goods") == "goods"

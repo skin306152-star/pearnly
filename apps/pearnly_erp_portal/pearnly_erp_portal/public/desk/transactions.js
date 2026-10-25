@@ -280,7 +280,7 @@
 				&& (String(row.product || "").trim() || String(row.description || "").trim()));
 			return kept.map(row => Object.fromEntries([
 				"product", "warehouse", "location", "description", "qty", "unit", "unit_price",
-				"unit_cost", "discount", "vat_rate", "original_line",
+				"unit_cost", "discount", "vat_rate", "original_line", "serials",
 			].filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 		},
 		// ── 明细：逐条摊开（入库/出库的录入**不用表格**）───────────────────────────

@@ -19,7 +19,7 @@ from frappe.utils import now, nowdate
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.cashier import contracts, shifts, terminals, vat
-from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.inventory import positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 
@@ -127,7 +127,7 @@ def _stock_lines(lines) -> list[dict]:
         if not product:
             frappe.throw(_("Product not found"), frappe.DoesNotExistError)
         out.append({"product": product["name"], "qty": line["qty"],
-                    "unit": line.get("unit") or product["unit"],
+                    "unit": line.get("unit") or product["unit"], "serials": line.get("serials") or [],
                     "warehouse": line.get("warehouse"), "location": line.get("location", "")})
     return out
 
@@ -214,6 +214,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
         "lines": sale_lines,
         "payments": normalized,
     })
+    serials.set_doc_serials(doc, lines)  # 按台管理的商品：这一行卖出的台（`inventory.serials`）
     doc.receipt_no = _receipt_no(doc)
     doc.insert(ignore_permissions=True)
     _move_stock(doc, direction="out")
@@ -226,7 +227,8 @@ def _move_stock(doc, *, direction: str) -> dict | None:
     """动库存。销售出库、退货入库；幂等锚是单据名，重复调用不会扣两次。"""
     from pearnly_erp_portal.inventory import stock
 
-    lines = _stock_lines([{"product": row.product, "qty": row.qty, "unit": row.unit,
+    units = serials.line_serials(doc)
+    lines = _stock_lines([{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
                           **positions.saved(row, doc.warehouse)}
                           for row in doc.get("lines") or []])
     if not lines:
@@ -431,7 +433,8 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
         wanted.append({"product": source.product, "qty": quantity, "unit": source.unit,
                        "unit_price": source.unit_price, "description": source.description,
                        "discount": contracts.d(source.discount) * quantity / contracts.d(source.qty),
-                       "original_line": source.name, **positions.saved(source, original.warehouse)})
+                       "original_line": source.name, **positions.saved(source, original.warehouse),
+                       "serials": serials.refund_picks(original.name, source.product, quantity, line.get("serials"))})
     if not wanted:
         frappe.throw(_(REFUND_TOO_MUCH))
 
@@ -462,6 +465,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
                   for line in wanted],
         "payments": normalized,
     })
+    serials.set_doc_serials(doc, wanted)
     doc.receipt_no = _receipt_no(doc)
     doc.insert(ignore_permissions=True)
     _move_stock(doc, direction="in")

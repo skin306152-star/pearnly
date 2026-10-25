@@ -185,6 +185,9 @@
 				for (const line of state.lines) await line.choice.sync();
 				const values = state.values(); if (!values) return;
 				values.lines = u.clean_lines(values.lines);
+				// 按台管理的商品：入库的进货逐行登记车辆（`p.serials`；取消就不提交）
+				if (Number(values.update_stock ?? 1) && !(await p.serials.collect(
+					values.lines.filter(row => (row.item_type || "goods") === "goods"), {mode: "register"}))) return;
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
 				values.attachments = state.attachments.filter(row => !row.intake && (!amended_from || !(doc.attachments || []).some(old => old.file === row.file)));

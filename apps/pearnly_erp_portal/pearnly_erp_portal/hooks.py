@@ -278,6 +278,7 @@ doctype_js = {"User": "public/desk/user-line.js"}
 
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/serials.js"),
     versioned_asset("pearnly_erp_portal", "desk/line-binding.js"),
     versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
     versioned_asset("pearnly_erp_portal", "desk/entry-choice.js"),
@@ -509,7 +510,7 @@ has_permission.update({
 })
 permission_query_conditions["ERP Stock Entry"] = "pearnly_erp_portal.inventory.access.entry_query"
 for _doctype in ("ERP Stock Balance", "ERP Stock Movement", "ERP Stock Opening", "ERP Stock Count",
-                 "ERP Stock Count Item", "ERP Stock Count Entry"):
+                 "ERP Stock Count Item", "ERP Stock Count Entry", "ERP Serial No", "ERP Serial Movement"):
     has_permission[_doctype] = "pearnly_erp_portal.inventory.access.record_permission"
     permission_query_conditions[_doctype] = "pearnly_erp_portal.inventory.access.record_query"
 for _doctype in ("ERP Sale", "ERP Shift"):

@@ -44,6 +44,7 @@
   "attachments",
   "section_lines",
   "lines",
+  "serials",
   "express_section",
   "express_state",
   "express_docnum",
@@ -310,6 +311,12 @@
    "fieldtype": "Table",
    "label": "Items",
    "options": "ERP Sales Document Line"
+  },
+  {
+   "fieldname": "serials",
+   "fieldtype": "Table",
+   "label": "Units",
+   "options": "ERP Line Serial"
   },
   {
    "fieldname": "express_section",

@@ -78,13 +78,16 @@ READ_CAPABILITIES = {
     "ERP Stock Count": "count.read",
     "ERP Stock Count Item": "count.read",
     "ERP Stock Count Entry": "count.read",
+    # 按台记录与按台流水（`inventory.serials`）：同在库一览的读权限，按仓
+    "ERP Serial No": "inventory.read",
+    "ERP Serial Movement": "inventory.read",
 }
 
 
 def _can_read(doctype, user=None):
     from pearnly_core.shell import entitlements
 
-    feature = ("warehouses" if doctype == "ERP Stock Balance" else
+    feature = ("warehouses" if doctype in ("ERP Stock Balance", "ERP Serial No", "ERP Serial Movement") else
                "stockcard" if doctype in ("ERP Stock Movement", "ERP Stock Opening") else "stocktake")
     return bool((user or frappe.session.user) == "Administrator"
                 or (feature in entitlements() and guard.has(READ_CAPABILITIES[doctype], user)))

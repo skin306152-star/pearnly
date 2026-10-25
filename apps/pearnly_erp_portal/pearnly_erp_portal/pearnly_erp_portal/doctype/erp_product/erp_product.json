@@ -24,6 +24,8 @@
   "min_stock",
   "track_batch",
   "track_expiry",
+  "track_serial",
+  "serial_kind",
   "default_cost",
   "column_break_stock",
   "is_active",
@@ -159,6 +161,20 @@
    "fieldtype": "Check",
    "label": "Track expiry",
    "default": "0"
+  },
+  {
+   "fieldname": "track_serial",
+   "fieldtype": "Check",
+   "label": "Track by unit",
+   "default": "0"
+  },
+  {
+   "fieldname": "serial_kind",
+   "fieldtype": "Select",
+   "label": "Unit number type",
+   "options": "vehicle\ndevice",
+   "default": "vehicle",
+   "depends_on": "track_serial"
   },
   {
    "fieldname": "default_cost",

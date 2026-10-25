@@ -12,6 +12,7 @@
   "doc_no",
   "status",
   "lines",
+  "serials",
   "purpose",
   "reason",
   "section_ref",
@@ -85,6 +86,12 @@
    "fieldtype": "Table",
    "label": "Lines",
    "options": "ERP Stock Entry Line"
+  },
+  {
+   "fieldname": "serials",
+   "fieldtype": "Table",
+   "label": "Units",
+   "options": "ERP Line Serial"
   },
   {
    "fieldname": "purpose",

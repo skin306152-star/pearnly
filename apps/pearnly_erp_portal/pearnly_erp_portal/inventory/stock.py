@@ -204,6 +204,11 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
     lock_products([line["product"] for line in lines])
     if client_uuid and frappe.db.exists(MOVEMENT, {"client_uuid": client_uuid}):
         return {"movements": [], "updated": [], "deduped": True}
+    # 按台管理的商品：台数核对、登记 / 收回 / 出台（行上的 `serials`；不开按台的商品不经这里）
+    from pearnly_erp_portal.inventory import serials
+
+    serials.apply(lines=lines, movement_type=movement_type, ref_type=ref_type, ref_id=ref_id, company=company,
+                  posting_date=posting_date)
 
     movements, updated = [], []
     for index, line in enumerate(lines):
@@ -260,6 +265,9 @@ def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None, company=Non
     用户 2026-09-23 报"单号在收发存显示得不对"就是这一处：**同一个单据的冲销行，
     号要和原单一样**，否则报表上那笔冲销认不出是谁。
     """
+    from pearnly_erp_portal.inventory import serials
+
+    serials.reverse(ref_type, ref_id)  # 这张单动过的台先回退（卖出的台拦住进货作废）
     rows = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id},
                           fields=["name", "product", "warehouse", "location", "qty_base", "doc_no"],
                           order_by="creation asc", limit_page_length=0)

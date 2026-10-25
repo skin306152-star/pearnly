@@ -1,0 +1,118 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "serial",
+  "product",
+  "company",
+  "warehouse",
+  "location",
+  "action",
+  "prev_status",
+  "ref_type",
+  "ref_id",
+  "posting_date",
+  "reversed"
+ ],
+ "fields": [
+  {
+   "fieldname": "serial",
+   "fieldtype": "Link",
+   "label": "Serial No",
+   "options": "ERP Serial No",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "ERP Product",
+   "search_index": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse",
+   "search_index": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "length": 140
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Select",
+   "label": "Action",
+   "options": "in\nout\nreturn\nopening\ncount"
+  },
+  {
+   "fieldname": "prev_status",
+   "fieldtype": "Data",
+   "label": "Previous Status",
+   "length": 20
+  },
+  {
+   "fieldname": "ref_type",
+   "fieldtype": "Data",
+   "label": "Reference Type",
+   "length": 80,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ref_id",
+   "fieldtype": "Data",
+   "label": "Reference",
+   "length": 140,
+   "search_index": 1
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date"
+  },
+  {
+   "fieldname": "reversed",
+   "fieldtype": "Check",
+   "label": "Reversed",
+   "default": "0"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-26 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Serial Movement",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "track_changes": 1,
+ "autoname": "format:SRM-{YYYY}-{#######}",
+ "naming_rule": "Expression"
+}

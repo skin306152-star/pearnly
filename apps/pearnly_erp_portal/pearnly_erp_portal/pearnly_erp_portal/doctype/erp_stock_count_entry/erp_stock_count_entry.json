@@ -8,6 +8,7 @@
   "count",
   "item",
   "product",
+  "serial",
   "warehouse",
   "location",
   "column_break_qty",
@@ -43,6 +44,13 @@
    "label": "Product",
    "options": "ERP Product",
    "reqd": 1
+  },
+  {
+   "fieldname": "serial",
+   "fieldtype": "Link",
+   "label": "Serial No",
+   "options": "ERP Serial No",
+   "search_index": 1
   },
   {
    "fieldname": "warehouse",

@@ -217,6 +217,7 @@ Change list color,เปลี่ยนสีรายการ
 Change members,เปลี่ยนสมาชิก
 Chart,แผนภูมิ
 Chart by,แผนภูมิแบ่งตาม
+Chassis No,เลขตัวถัง
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
 Checklist,รายการตรวจสอบ
@@ -313,6 +314,7 @@ Could not store this document,บันทึกเอกสารไม่ส�
 Count at least one item before finishing,กรุณาตรวจนับอย่างน้อยหนึ่งรายการก่อนสิ้นสุดการตรวจนับ
 Count by,วิธีตรวจนับ
 Count closed,ปิดการตรวจนับแล้ว
+Count products tracked by unit one unit at a time,สินค้าที่ติดตามรายชิ้นให้นับทีละชิ้น
 Count saved,บันทึกแล้ว
 Count stock on the web,ตรวจนับสินค้าผ่านหน้าเว็บ
 Counted,นับแล้ว
@@ -461,6 +463,7 @@ Enable POS cashier,เปิดใช้เครื่องขาย POS
 Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
+Engine No,เลขเครื่องยนต์
 Enter a board name,กรุณากรอกชื่อบอร์ด
 Enter a comment,กรุณากรอกความคิดเห็น
 Enter a field name,กรุณากรอกชื่อช่อง
@@ -585,6 +588,9 @@ Import result,ผลการนำเข้า
 Imported {0} product(s),นำเข้า {0} รายการแล้ว
 "Imported {0} rows, {1} with a counted quantity",นำเข้าแล้ว {0} แถว โดยมี {1} แถวที่มีจำนวนที่นับได้
 In,รับเข้า
+In Date,วันที่รับเข้า
+In Reference,เอกสารรับเข้า
+In Reference Type,ประเภทเอกสารรับเข้า
 In progress,กำลังดำเนินการ
 In stock,มีสินค้า
 In-stock,ตรวจนับในคลัง
@@ -833,6 +839,9 @@ Original Item and Location,สินค้าและตำแหน่งใ�
 Original Line,บรรทัดเดิม
 Other,อื่นๆ
 Out,จ่ายออก
+Out Date,วันที่จ่ายออก
+Out Reference,เอกสารจ่ายออก
+Out Reference Type,ประเภทเอกสารจ่ายออก
 Out of stock,สินค้าหมด
 Outdated POS Opening Entry,รายการเปิดกะที่หมดอายุ
 Outstanding Amount,จำนวนเงินค้างชำระ
@@ -925,6 +934,7 @@ Product name,ชื่อสินค้า
 Product not found,ไม่พบสินค้า
 Product not found or its identifiers are ambiguous,ไม่พบสินค้า หรือรหัส/บาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ
 Product not found. Check the code and try again.,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
+Products tracked by unit change stock only through documents with units,สินค้าที่ติดตามรายชิ้นเปลี่ยนสต็อกได้ผ่านเอกสารที่ระบุรายชิ้นเท่านั้น
 PromptPay,พร้อมเพย์
 PromptPay Amount,พร้อมเพย์
 PromptPay ID,รหัสพร้อมเพย์
@@ -948,6 +958,7 @@ QR content,ข้อมูล QR
 Qty,จำนวน
 "Qty (base unit, signed)",จำนวน (หน่วยฐาน มีเครื่องหมาย)
 Qty (entered unit),จำนวน (หน่วยที่กรอก)
+Quantities of products tracked by unit must be whole numbers in the base unit,สินค้าที่ติดตามรายชิ้นต้องระบุจำนวนเต็มในหน่วยฐาน
 Quantity,จำนวน
 Quantity Available,จำนวนคงเหลือ
 Quantity counted this time,จำนวนที่นับครั้งนี้
@@ -1010,6 +1021,8 @@ Refund Count,จำนวนรายการคืนเงิน
 Refund Of,อ้างอิงใบเสร็จที่คืน
 Refunds exceed sales for this day after netting,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 Refuse a second document with the same supplier and document number,ปฏิเสธเอกสารซ้ำที่มีผู้จำหน่ายและเลขที่เอกสารเดียวกัน
+Register serial numbers,ลงทะเบียนหมายเลขซีเรียล
+Register vehicles,ลงทะเบียนรถ
 Reload,โหลดใหม่
 Remaining Amount,ยอดคงเหลือ
 Remark,หมายเหตุ
@@ -1031,6 +1044,7 @@ Return,คืนสินค้า
 Return to stock,รับคืนเข้าคลัง
 Returned,คืนสินค้าแล้ว
 Reversal,กลับรายการ
+Reversed,กลับรายการแล้ว
 Review differences,ตรวจสอบผลต่าง
 Review document,ตรวจทานเอกสาร
 Role,บทบาท
@@ -1071,6 +1085,8 @@ Search by receipt number,ค้นหาด้วยเลขที่ใบเ�
 Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 "Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
+Second No,หมายเลขที่สอง
+Secondary No,หมายเลขรอง
 Select Loyalty Program,เลือกโปรแกรมสะสมคะแนน
 Select a Payment Method.,กรุณาเลือกวิธีชำระเงิน
 Select a product for each stock item,กรุณาเลือกสินค้าสำหรับแต่ละรายการ
@@ -1081,8 +1097,10 @@ Select an invoice to load summary data,เลือกเอกสารเพ�
 Select item group,เลือกกลุ่มสินค้า
 Select one receipt to refund,คืนเงินได้ครั้งละหนึ่งใบเสร็จเท่านั้น
 Select one row to open its ledger,กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก
+Select serial numbers,เลือกหมายเลขซีเรียล
 Select the original sale line,กรุณาเลือกรายการจากบิลขายเดิม
 Select the product,เลือกสินค้า
+Select vehicles,เลือกรถ
 Sell,ขาย
 Seller,ชื่อผู้ขาย
 Seller address,ที่อยู่ผู้ขาย
@@ -1096,6 +1114,7 @@ Send the code from the ERP page to bind,กรุณาส่งรหัสผ�
 Sender's LINE language when the document arrived,ภาษา LINE ของผู้ส่งเมื่อได้รับเอกสาร
 Sending the same file twice must not create two drafts,การส่งไฟล์เดิมซ้ำจะไม่สร้างฉบับร่างซ้ำ
 Sent By,ผู้ส่ง
+Serial No,หมายเลขซีเรียล
 Serial No: {0} has already been transacted into another POS Invoice.,หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,สินค้า {0} ในคลังสินค้า {1} ไม่มีหมายเลขเครื่องที่ใช้ได้ กรุณาเปลี่ยนคลังสินค้า
 Service,บริการ
@@ -1129,6 +1148,7 @@ Show on card,แสดงบนการ์ด
 Show only,แสดงเฉพาะ
 Show zero stock,แสดงของที่ไม่มีสต็อก
 Skipped {0} row(s); the first ones are listed above,ข้าม {0} แถว รายการแรกแสดงด้านบน
+Sold,ขายแล้ว
 Sold At,เวลาขาย
 Sold by,พนักงานเก็บเงิน
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ
@@ -1264,6 +1284,7 @@ The first row must be the column headings; the sheet needs at least a product na
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+The number of units does not match the quantity,จำนวนรายชิ้นไม่ตรงกับจำนวน
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
 The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
 The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามีขนาดใหญ่เกินไป ไม่สามารถรักษาความละเอียดทศนิยมได้
@@ -1280,12 +1301,14 @@ The recognition result needs checking. Please do not resend this document yet.,�
 The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
+The sheet needs a unit number column and a warehouse column,ตารางต้องมีคอลัมน์หมายเลขและคอลัมน์คลัง
 The start date is after the due date,วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแปลงแล้ว กรุณาตรวจสอบผลต่างอีกครั้ง
 "The stock lines could not be posted. Check the items, quantities and prices",ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 The supplier is missing. Add it and submit again.,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 The total is invalid,ยอดรวมไม่ถูกต้อง
 The total is zero,ยอดรวมเป็นศูนย์
+The units must match the stock of each warehouse,จำนวนรายชิ้นต้องเท่ากับยอดคงคลังของแต่ละคลัง
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
 Then,ให้ทำ
@@ -1360,7 +1383,10 @@ This stock position is already initialized; use a stock adjustment,สินค�
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
 This terminal already has an open shift,จุดขายนี้มีกะที่ยังเปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,จุดขายนี้ยังไม่ได้กำหนดคลังสินค้า กรุณาเลือกคลังสินค้าในการตั้งค่าจุดขาย
+This unit has been counted,รายการนี้นับแล้ว
 This unit is not defined on the product,ไม่ได้กำหนดหน่วยนี้ไว้ในสินค้านี้
+This unit is not in stock in this warehouse,รายการนี้ไม่มีในคลังนี้
+This unit number is already registered,หมายเลขนี้ลงทะเบียนแล้ว
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
 This warehouse belongs to the company above,คลังนี้อยู่ในบริษัทด้านบน
 This warehouse has no active location,คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน
@@ -1383,7 +1409,9 @@ Total opening value,มูลค่ายกมารวม
 Total · {0} row(s),รวม · {0} รายการ
 Totals,ยอดรวม
 Track batches,ติดตามล็อต
+Track by unit,ติดตามรายชิ้น
 Track expiry,ติดตามวันหมดอายุ
+Tracking by unit can only be turned off when every unit is sold or void,ปิดการติดตามรายชิ้นได้เมื่อทุกรายการขายแล้วหรือยกเลิกแล้วเท่านั้น
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
 Type,ประเภท
@@ -1406,7 +1434,13 @@ Unit Cost,ต้นทุนต่อหน่วย
 Unit Cost (net of VAT),ต้นทุนต่อหน่วย (ไม่รวม VAT)
 Unit Price,ราคาต่อหน่วย
 Unit barcode,บาร์โค้ดหน่วย
+Unit not found,ไม่พบรายการนี้
+Unit number type,ประเภทหมายเลข
+Unit opening registration,ลงทะเบียนยอดยกมารายชิ้น
 Unit {0} is not defined on {1},ไม่ได้กำหนดหน่วย「{0}」ไว้ในสินค้า「{1}」
+Units,รายการรายชิ้น
+Units already sold or issued cannot be voided with this document,รายชิ้นที่ขายหรือจ่ายออกแล้วยกเลิกพร้อมเอกสารนี้ไม่ได้
+Units not counted,รายชิ้นที่ยังไม่นับ
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ไม่ทราบทิศทางของเอกสาร
 Unpaid,ยังไม่ได้ชำระ
@@ -1452,6 +1486,7 @@ VAT Registered,จดทะเบียนภาษีมูลค่าเพ�
 VAT applies,คิด VAT
 Value,มูลค่า
 Value Change,มูลค่าที่เปลี่ยนแปลง
+Vehicle,รถยนต์
 Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
@@ -2114,6 +2149,29 @@ refund,คืนสินค้า
 sale,ขาย
 sale_out,จ่ายออกจากการขาย
 sales,ขาย
+serial.color,สี
+serial.counted,นับแล้ว
+serial.device.pick,เลือกหมายเลขซีเรียล
+serial.device.primary,หมายเลขซีเรียล
+serial.device.register,ลงทะเบียนหมายเลขซีเรียล
+serial.device.secondary,หมายเลขที่สอง
+serial.kind,ประเภทหมายเลข
+serial.kind.device,อื่นๆ
+serial.kind.vehicle,รถยนต์
+serial.notCounted,ยังไม่นับ
+serial.notCountedUnits,รายชิ้นที่ยังไม่นับ
+serial.opening,ลงทะเบียนยอดยกมารายชิ้น
+serial.progress,{0} / {1} รายการ
+serial.status.in_stock,คงคลัง
+serial.status.issued,จ่ายออกแล้ว
+serial.status.sold,ขายแล้ว
+serial.status.void,ยกเลิก
+serial.track,ติดตามรายชิ้น
+serial.units,รายชิ้น
+serial.vehicle.pick,เลือกรถ
+serial.vehicle.primary,เลขตัวถัง
+serial.vehicle.register,ลงทะเบียนรถ
+serial.vehicle.secondary,เลขเครื่องยนต์
 service,บริการ
 stock.action.count,ตรวจนับ
 stock.action.export,ส่งออก
@@ -2567,6 +2625,7 @@ void,ยกเลิกแล้ว
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
+{0} of {1} units,{0} / {1} รายการ
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 "{0} · Warehouse {1}: need {2}, have {3}",{0} · คลัง {1}: ต้องการ {2} มี {3}
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}

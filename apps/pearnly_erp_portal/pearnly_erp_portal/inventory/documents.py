@@ -6,7 +6,7 @@ from frappe.utils import now
 
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
-from pearnly_erp_portal.inventory import access, contracts, positions, stock, warehouses
+from pearnly_erp_portal.inventory import access, contracts, positions, serials, stock, warehouses
 from pearnly_erp_portal.numbering import service as numbering
 
 DOCTYPE = "ERP Stock Entry"
@@ -98,6 +98,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
             "warehouse": line["warehouse"], "location": line["location"],
         } for line in lines],
     })
+    serials.set_doc_serials(doc, lines)  # 按台管理的商品：这一行登记 / 选中的台（`inventory.serials`）
     access.write_entry(doc, "insert")
     # 直接过账：与建单在同一个事务里（中途失败整笔回滚，不会剩一张草稿）。
     if _posting_now(submit):
@@ -189,9 +190,10 @@ def get_entry(name):
     guard.require("stock." + doc.direction)
     company = warehouses.company_of(doc.warehouse)
     data = _shown_reasons([{field: doc.get(field) for field in LIST_FIELDS}])[0]
+    units = serials.line_serials(doc)
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
-         "unit_cost": row.unit_cost, "batch_no": row.batch_no,
+         "unit_cost": row.unit_cost, "batch_no": row.batch_no, "serials": units.get(row.idx, []),
          **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []
     ]
@@ -223,6 +225,7 @@ def update_entry(name, **changes):
                 "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),
                 "warehouse": line["warehouse"], "location": line["location"],
             })
+        serials.set_doc_serials(doc, lines)
     access.write_entry(doc, "save")
     if _posting_now(submit):
         _post(doc)
@@ -245,9 +248,10 @@ def _post(doc) -> dict:
     """
     movement_type = _movement_type(doc)
     company = warehouses.company_of(doc.warehouse)
+    units = serials.line_serials(doc)
     result = stock.apply_lines(
         warehouse=doc.warehouse, movement_type=movement_type,
-        lines=[{"product": row.product, "qty": row.qty, "unit": row.unit,
+        lines=[{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
                 "unit_cost": row.unit_cost, **positions.saved(row, doc.warehouse, company=company)} for row in doc.lines],
         posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry",
         ref_id=doc.name, doc_no=doc.doc_no, reason=doc.reason,

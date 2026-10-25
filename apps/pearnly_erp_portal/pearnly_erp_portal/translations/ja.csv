@@ -217,6 +217,7 @@ Change list color,リストの色を変更
 Change members,メンバーを変更
 Chart,グラフ
 Chart by,グラフの軸
+Chassis No,車台番号
 Check the opening stock row,この期首明細を確認してください
 Checkbox,チェックボックス
 Checklist,チェックリスト
@@ -313,6 +314,7 @@ Could not store this document,書類を保存できませんでした。再送�
 Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
 Count by,棚卸方法
 Count closed,棚卸を終了しました
+Count products tracked by unit one unit at a time,個体管理の商品は1台ずつ棚卸してください
 Count saved,保存しました
 Count stock on the web,Webで在庫を数える
 Counted,棚卸済み
@@ -461,6 +463,7 @@ Enable POS cashier,POS レジを有効にする
 Enable {0},{0}件を有効化
 Enable {0} selected,選択した{0}件を有効化
 Enabled,有効
+Engine No,エンジン番号
 Enter a board name,ボード名を入力してください
 Enter a comment,コメントを入力してください
 Enter a field name,フィールド名を入力してください
@@ -585,6 +588,9 @@ Import result,取り込み結果
 Imported {0} product(s),{0}件を取り込みました
 "Imported {0} rows, {1} with a counted quantity",{0} 行を取り込みました（うち {1} 行に実地数量）
 In,入库
+In Date,入庫日
+In Reference,入庫伝票
+In Reference Type,入庫伝票種別
 In progress,進行中
 In stock,在庫あり
 In-stock,在庫棚卸
@@ -833,6 +839,9 @@ Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
 Other,その他
 Out,出庫
+Out Date,出庫日
+Out Reference,出庫伝票
+Out Reference Type,出庫伝票種別
 Out of stock,在庫切れ
 Outdated POS Opening Entry,古いシフト開始
 Outstanding Amount,未払金額
@@ -925,6 +934,7 @@ Product name,商品名
 Product not found,商品が見つかりません
 Product not found or its identifiers are ambiguous,商品が見つからないか、コードが一意ではありません
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
+Products tracked by unit change stock only through documents with units,個体管理の商品は個体を指定した伝票でのみ在庫を変更できます
 PromptPay,PromptPay
 PromptPay Amount,PromptPay
 PromptPay ID,PromptPay ID
@@ -948,6 +958,7 @@ QR content,QR 内容
 Qty,数量
 "Qty (base unit, signed)",数量（基準単位・符号付き）
 Qty (entered unit),数量（入力単位）
+Quantities of products tracked by unit must be whole numbers in the base unit,個体管理の商品は基本単位の整数で入力してください
 Quantity,数量
 Quantity Available,在庫数
 Quantity counted this time,今回の実地数量
@@ -1010,6 +1021,8 @@ Refund Count,返品件数
 Refund Of,返金元レシート
 Refunds exceed sales for this day after netting,この日は返品が売上を上回っています
 Refuse a second document with the same supplier and document number,同じ仕入先・同じ伝票番号の2件目を拒否します
+Register serial numbers,シリアル番号を登録
+Register vehicles,車両を登録
 Reload,再読み込み
 Remaining Amount,残り金額
 Remark,備考
@@ -1031,6 +1044,7 @@ Return,返品・返金
 Return to stock,戻り入庫
 Returned,返品済み
 Reversal,取消仕訳
+Reversed,取消済み
 Review differences,差異を確認
 Review document,書類を確認
 Role,役割
@@ -1071,6 +1085,8 @@ Search by receipt number,レシート番号で検索
 Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 "Search name, code or barcode",名前・コード・バーコードで検索
+Second No,第二番号
+Secondary No,副番号
 Select Loyalty Program,ロイヤルティプログラムを選択
 Select a Payment Method.,支払方法を選択してください
 Select a product for each stock item,各在庫明細の商品を選択してください
@@ -1081,8 +1097,10 @@ Select an invoice to load summary data,伝票を選択すると概要が表示�
 Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
+Select serial numbers,シリアル番号を選択
 Select the original sale line,元の販売明細を選択してください
 Select the product,商品を選択
+Select vehicles,車両を選択
 Sell,売上
 Seller,売り手
 Seller address,売り手住所
@@ -1096,6 +1114,7 @@ Send the code from the ERP page to bind,ERP 画面のコードを送信して連
 Sender's LINE language when the document arrived,書類受信時の送信者の LINE 言語
 Sending the same file twice must not create two drafts,同じファイルを2回送っても下書きを2件作らない
 Sent By,送信者
+Serial No,シリアル番号
 Serial No: {0} has already been transacted into another POS Invoice.,シリアル番号 {0} は他のレジ伝票で使用済みです
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
 Service,サービス
@@ -1129,6 +1148,7 @@ Show on card,カードに表示
 Show only,表示のみ
 Show zero stock,在庫 0 も表示
 Skipped {0} row(s); the first ones are listed above,{0}行をスキップしました（先頭のみ表示）
+Sold,販売済み
 Sold At,販売日時
 Sold by,担当者
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
@@ -1264,6 +1284,7 @@ The first row must be the column headings; the sheet needs at least a product na
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
 The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
+The number of units does not match the quantity,個体数が数量と一致しません
 The opening stock amount is too large,期首在庫金額が大きすぎます
 The opening stock file is too large,期首在庫ファイルが大きすぎます
 The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
@@ -1280,12 +1301,14 @@ The recognition result needs checking. Please do not resend this document yet.,�
 The recognition service did not answer in time. Please try again.,読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
+The sheet needs a unit number column and a warehouse column,番号列と倉庫列が必要です
 The start date is after the due date,開始日が期日より後です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
 "The stock lines could not be posted. Check the items, quantities and prices",在庫明細を記帳できません。品名・数量・単価を確認してください
 The supplier is missing. Add it and submit again.,仕入先がありません。追加して再送信してください
 The total is invalid,合計が無効です
 The total is zero,合計がゼロです
+The units must match the stock of each warehouse,個体数は各倉庫の帳簿数と一致する必要があります
 The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
 Then,実行
@@ -1360,7 +1383,10 @@ This stock position is already initialized; use a stock adjustment,この保管�
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
+This unit has been counted,この個体は棚卸済みです
 This unit is not defined on the product,この単位はこの商品に定義されていません
+This unit is not in stock in this warehouse,この個体はこの倉庫に在庫がありません
+This unit number is already registered,この番号は登録済みです
 This warehouse already exists,この倉庫は既に存在します
 This warehouse belongs to the company above,この倉庫は上の会社に属します
 This warehouse has no active location,この倉庫には有効なロケーションがありません
@@ -1383,7 +1409,9 @@ Total opening value,期首金額合計
 Total · {0} row(s),合計 · {0} 明細
 Totals,合計
 Track batches,ロット管理
+Track by unit,個体管理
 Track expiry,有効期限管理
+Tracking by unit can only be turned off when every unit is sold or void,すべての個体が販売済みまたは無効の場合のみ個体管理を解除できます
 Transaction type,取引区分
 Transfer,振込
 Type,種別
@@ -1406,7 +1434,13 @@ Unit Cost,単位原価
 Unit Cost (net of VAT),単価（VAT除く）
 Unit Price,単価
 Unit barcode,単位バーコード
+Unit not found,該当する個体がありません
+Unit number type,番号の種類
+Unit opening registration,個体の期首登録
 Unit {0} is not defined on {1},単位「{0}」は「{1}」に定義されていません
+Units,個体明細
+Units already sold or issued cannot be voided with this document,販売済みまたは出庫済みの個体はこの伝票と一緒に取り消せません
+Units not counted,未棚卸の個体
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
 Unpaid,未払
@@ -1452,6 +1486,7 @@ VAT Registered,VAT 登録事業者
 VAT applies,VAT 対象
 Value,金額
 Value Change,金額変動
+Vehicle,車両
 Visibility,公開範囲
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
@@ -2114,6 +2149,29 @@ refund,返品
 sale,販売
 sale_out,販売出庫
 sales,売上
+serial.color,色
+serial.counted,棚卸済み
+serial.device.pick,シリアル番号を選択
+serial.device.primary,シリアル番号
+serial.device.register,シリアル番号を登録
+serial.device.secondary,第二番号
+serial.kind,番号の種類
+serial.kind.device,その他
+serial.kind.vehicle,車両
+serial.notCounted,未棚卸
+serial.notCountedUnits,未棚卸の個体
+serial.opening,個体の期首登録
+serial.progress,{0} / {1} 台
+serial.status.in_stock,在庫
+serial.status.issued,出庫済み
+serial.status.sold,販売済み
+serial.status.void,無効
+serial.track,個体管理
+serial.units,個体
+serial.vehicle.pick,車両を選択
+serial.vehicle.primary,車台番号
+serial.vehicle.register,車両を登録
+serial.vehicle.secondary,エンジン番号
 service,サービス
 stock.action.count,棚卸
 stock.action.export,エクスポート
@@ -2567,6 +2625,7 @@ void,取消済み
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
+{0} of {1} units,{0} / {1} 台
 {0} rows were not imported,{0} 行は取り込めませんでした
 "{0} · Warehouse {1}: need {2}, have {3}",{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}

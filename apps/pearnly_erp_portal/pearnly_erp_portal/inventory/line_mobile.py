@@ -142,8 +142,10 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     只是登记，不写实盘（写 0 会被当成"数出来是 0"）。
     """
     as_ticket_user(ticket)
-    matches = counts.products_of_code(code, counts.count_company(name))
+    company = counts.count_company(name)
+    matches = counts.products_of_code(code, company)
     chosen_product = kwargs.get("product")
+    unit = None
     if chosen_product:
         # 员工从候选里点了一件：只认这个码命中的那几件之一
         matches = [row for row in matches if row["name"] == chosen_product]
@@ -151,6 +153,9 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
         # 存量里撞了的码：列出来让员工点选（页面再带选中的商品查一次），不默认挑一个
         return {"candidates": [{"name": row["name"], "product_name": row.get("product_name"), "code": row.get("code")}
                                for row in matches]}
+    elif not matches:
+        unit = counts.unit_of_code(code, company)  # 按台管理：扫到的是车身标签上的车架号
+        matches = [{"name": unit.product}] if unit else []
     if not matches:
         return {}
     found = {"name": matches[0]["name"]}
@@ -161,7 +166,7 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     if not rows:
         return {}
     chosen = rows[0]
-    return {"item": chosen, "rows": rows,
+    return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None,
             "entries": counts.list_entries(count=name, item=chosen["name"], limit=5)}
 
 

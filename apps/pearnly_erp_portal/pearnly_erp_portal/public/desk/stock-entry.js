@@ -109,6 +109,10 @@
 			return lines;
 		}
 
+		// 按台管理的商品提交前逐行登记 / 选台（`p.serials`）：出库选这个仓在库的台，入库「退货」收回已售的台，其余入库登记新台
+		const units = (lines_, values, way) => p.serials.collect(lines_, way === "out"
+			? { mode: "pick", filters: { warehouse: values.warehouse } }
+			: { mode: values.purpose === "return" ? "return" : "register" });
 		const clean = values => ({ posting_date: values.posting_date,
 			warehouse: values.warehouse, purpose: values.purpose || "", reason: values.reason,
 			lines: p.trade.clean(values.lines) });
@@ -289,6 +293,7 @@
 					// 必填没填时它会展开那一段并返回 null —— 那就别提交。
 					const rows = lines ? lines.values() : values.lines;
 					if (rows === null) return;
+					if (!await units(rows, values, doc.direction || direction)) return;
 					// 接了 Express：这家公司这个单别的科目要人选一次时当场弹窗（同采购 / 销售提交前）；关掉弹窗不提交
 					if (!await p.express_preflight("ERP Stock Entry", { direction: doc.direction || direction, ...clean({ ...values, lines: rows }) })) return;
 					// 一次调用就建单/改单 + 过账；完了回列表，不停在这一页。
@@ -337,6 +342,7 @@
 		async function submit_new() {
 			const values = entry_values();
 			if (!values) return;
+			if (!await units(values.lines, values, direction)) return;
 			if (!await p.express_preflight("ERP Stock Entry", { direction, ...values })) return;
 			const result = await p.call(api + "api_create_stock_entry",
 				{ direction, submit: 1, ...values, attachments: page_files?.names() || [] }, "POST");

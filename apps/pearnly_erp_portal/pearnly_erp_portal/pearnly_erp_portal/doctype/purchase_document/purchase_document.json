@@ -31,6 +31,7 @@
   "net_payable",
   "section_lines",
   "lines",
+  "serials",
   "section_state",
   "approval_status",
   "source",
@@ -250,6 +251,12 @@
    "label": "Items",
    "options": "Purchase Line",
    "reqd": 1
+  },
+  {
+   "fieldname": "serials",
+   "fieldtype": "Table",
+   "label": "Units",
+   "options": "ERP Line Serial"
   },
   {
    "fieldname": "section_state",

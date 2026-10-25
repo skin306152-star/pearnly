@@ -1,0 +1,67 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "line_no",
+  "product",
+  "serial",
+  "serial_no",
+  "secondary_no",
+  "color"
+ ],
+ "fields": [
+  {
+   "fieldname": "line_no",
+   "fieldtype": "Int",
+   "label": "Line No",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "ERP Product",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "serial",
+   "fieldtype": "Link",
+   "label": "Serial No",
+   "options": "ERP Serial No"
+  },
+  {
+   "fieldname": "serial_no",
+   "fieldtype": "Data",
+   "label": "Serial No",
+   "length": 40,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "secondary_no",
+   "fieldtype": "Data",
+   "label": "Secondary No",
+   "length": 40,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Color",
+   "length": 60,
+   "in_list_view": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-26 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Line Serial",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1,
+ "permissions": []
+}

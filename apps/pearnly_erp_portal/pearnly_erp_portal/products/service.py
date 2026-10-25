@@ -48,7 +48,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry", "default_location", "express_code", "internal_code",
+    "track_batch", "track_expiry", "default_location", "express_code", "internal_code", "track_serial", "serial_kind",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）；列表搜索同一套再加名称。
@@ -217,7 +217,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category_id=None, track_batch=None, track_expiry=None,
-                   default_location=None, internal_code=None):
+                   default_location=None, internal_code=None, serial_kind=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
@@ -249,6 +249,8 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "track_expiry": _flag(track_expiry),
         "is_active": 1,
         "default_location": _text(default_location, 140),
+        # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
+        "serial_kind": serial_kind if serial_kind in ("vehicle", "device") else "vehicle",
     })
     doc.insert()
     _attach_image(doc.image_url, doc.name)
@@ -396,6 +398,8 @@ def update_product(name: str, **changes):
     for field in ("track_batch", "track_expiry"):
         if field in changes:
             doc.set(field, _flag(changes[field]))
+    if changes.get("serial_kind") in ("vehicle", "device"):
+        doc.serial_kind = changes["serial_kind"]
     if "product_name" in changes:
         try:
             doc.product_name = contracts.require_name(changes["product_name"])

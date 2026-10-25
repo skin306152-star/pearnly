@@ -9,7 +9,7 @@ from pearnly_core.execution import state as pearnly_state
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import push as express_push
-from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.inventory import positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.products import purchase as purchase_items
@@ -165,6 +165,7 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
     if original and original.get("company") and original.company != company:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     day = str(getdate(payload.get("doc_date") or nowdate()))
+    raw_lines = list(payload.get("lines") or []) if isinstance(payload.get("lines"), list) else []
     payload["lines"] = _lines(payload)
     totals = _calculate(payload)
     if payload.get("currency", "THB") not in ("THB", "USD", "EUR", "CNY", "JPY", "SGD"):
@@ -217,6 +218,9 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
         "amount_override": int(flag(payload.get("amount_override"))),
         "discount_total": totals["discount_total"], "rounding": totals["rounding"],
         "summary": ", ".join(row["description"] for row in rows), "lines": rows})
+    # 按台管理的商品：这一行登记的台（页面随行交来，`inventory.serials`）；商品按认出 / 新建后的那件记
+    serials.set_doc_serials(doc, [{**row, "serials": (raw.get("serials") if isinstance(raw, dict) else None)}
+                                  for row, raw in zip(rows, raw_lines)])
     for key in ("subtotal", "discount", "vat", "grand"):
         doc.set("override_" + key, payload.get("override_" + key, 0))
     if doc.payment_method not in METHODS:
@@ -229,7 +233,8 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
     doc.save()
     category_memory.learn(supplier, doc.lines)
     if doc.update_stock:
-        goods = [{"product": row.product, "qty": row.qty, "unit": row.unit,
+        units = serials.line_serials(doc)
+        goods = [{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
                   "unit_cost": amounts.decimal(row.line_total) / amounts.decimal(row.qty) * rate,
                   **positions.saved(row, company=company)} for row in doc.lines if row.item_type == "goods" and row.product]
         if goods:

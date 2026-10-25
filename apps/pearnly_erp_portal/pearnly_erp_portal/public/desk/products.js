@@ -128,6 +128,11 @@
 					default: value("track_batch", 0) },
 				{ fieldtype: "Check", fieldname: "track_expiry",
 					label: t("product.field.trackExpiry"), default: value("track_expiry", 0) },
+				// 按台管理（车辆按台，主会话 10-26）：有库存时打开要先按台期初登记（`open_serial_opening`）
+				{ fieldtype: "Check", fieldname: "track_serial", label: __("serial.track"), default: value("track_serial", 0) },
+				{ fieldtype: "Select", fieldname: "serial_kind", label: __("serial.kind"), depends_on: "eval:doc.track_serial",
+					options: [{ value: "vehicle", label: __("serial.kind.vehicle") }, { value: "device", label: __("serial.kind.device") }],
+					default: value("serial_kind", "vehicle") },
 				{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
 					default: value("vat_applicable", 1) },
 				{ fieldtype: "Column Break" },
@@ -204,7 +209,93 @@
 			// `code_value` 只是界面上那一格的名字，服务端没有这个参数；
 			// 落库的两列由 `code_changes` 拆好，这里把它摘掉。
 			delete out.code_value;
+			// 开 / 关按台不走保存商品的接口（`toggle_serial`）
+			delete out.track_serial;
 			return out;
+		}
+
+		// ── 按台管理 ────────────────────────────────────────────────────────────
+		const SERIALS = "pearnly_erp_portal.inventory.serials.";
+
+		// 开 / 关按台：没有库存直接开；有库存先按台期初登记（每个仓登记的台数等于账面数，同一个事务里开）。
+		// 回 false = 没开成（期初登记弹窗关掉了），调用方别关商品弹窗。
+		async function toggle_serial(name, before, after, kind) {
+			if (Boolean(Number(before)) === Boolean(Number(after))) return true;
+			if (!Number(after)) {
+				await p.call(SERIALS + "api_turn_off", { product: name }, "POST");
+				return true;
+			}
+			const stock = await p.call(SERIALS + "api_opening_stock", { product: name });
+			if (!stock.length) {
+				await p.call(SERIALS + "api_turn_on", { product: name, kind }, "POST");
+				return true;
+			}
+			return open_serial_opening(name, kind, stock);
+		}
+
+		function open_serial_opening(name, kind, stock) {
+			return new Promise(resolve => {
+				let file_url = "", done = false;
+				const dialog = p.dialog(__("serial.opening"), [
+					{ fieldtype: "HTML", fieldname: "stock" },
+					{ fieldtype: "Button", fieldname: "template", label: t("product.import.template"), click: () => {
+						window.location.assign(`/api/method/${SERIALS}api_opening_template?product=${encodeURIComponent(name)}`);
+					} },
+					{ fieldtype: "Button", fieldname: "pick", label: t("product.import.pick"), click: () => {
+						new frappe.ui.FileUploader({ allow_multiple: false, allow_web_link: false, allow_google_drive: false,
+							allow_take_photo: false, disable_file_browser: true, allow_toggle_private: false,
+							make_attachments_public: false, restrictions: { allowed_file_types: [".xlsx"], max_file_size: 5 * 1024 * 1024 },
+							on_success: file => { file_url = file.file_url; dialog.set_value("file_name", file.file_name); } });
+					} },
+					{ fieldtype: "Data", fieldname: "file_name", label: t("product.field.importFile"), read_only: 1 },
+				], t("product.action.submit"), async (_values, d) => {
+					if (!file_url) { frappe.msgprint(__("Choose a file to import")); return; }
+					const result = await p.call(SERIALS + "api_turn_on_from_file", { product: name, file_url, kind }, "POST");
+					done = true;
+					d.hide();
+					p.success(`${__("serial.track")} · ${result.registered}`, "click");
+					resolve(true);
+				});
+				dialog.onhide = () => { if (!done) resolve(false); };
+				// 各仓账面数（原生 DataTable）：按台期初每个仓要登记这么多台
+				new frappe.DataTable(dialog.fields_dict.stock.$wrapper.get(0), { layout: "fluid", serialNoColumn: false,
+					columns: [{ name: t("product.col.place"), editable: false }, { name: __("Qty"), editable: false, align: "right" }],
+					data: stock.map(row => [row.warehouse_name, p.number(row.qty)]) });
+			});
+		}
+
+		// 这件商品的每一台：原生列表（服务端分页、搜号码），可导出
+		function open_units(item) {
+			const dialog = p.dialog(`${__("serial.units")} · ${item.product_name}`, [
+				{ fieldtype: "Select", fieldname: "status", label: __("Status"), options: [{ value: "", label: "" },
+					...["in_stock", "sold", "issued", "void"].map(value => ({ value, label: __(`serial.status.${value}`) }))],
+					change: () => units?.reload() },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Data", fieldname: "q", label: __("Search"), change: () => units?.reload() },
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "HTML", fieldname: "units" },
+			], __("Export"), () => {
+				const query = new URLSearchParams({ product: item.name, status: dialog.get_value("status") || "", q: dialog.get_value("q") || "" });
+				window.location.assign(`/api/method/${SERIALS}api_export_units?${query}`);
+			});
+			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
+			const query = () => ({ product: item.name, status: dialog.get_value("status") || "", q: dialog.get_value("q") || "" });
+			const units = p.list({ page, container: dialog.fields_dict.units.$wrapper, compact_columns: true, selectable: false, doctype: "ERP Serial No",
+				load: async ({ start, page_length }) => {
+					const [items, total] = await Promise.all([
+						p.call(SERIALS + "api_list_units", { ...query(), start, limit: page_length }),
+						p.call(SERIALS + "api_count_units", query()),
+					]);
+					return { items, total };
+				},
+				columns: [
+					{ fieldname: "serial_no", label: p.serials.label(item, "primary"), width: 180 },
+					{ fieldname: "secondary_no", label: p.serials.label(item, "secondary"), width: 140 },
+					{ fieldname: "color", label: __("serial.color"), width: 90 },
+					{ fieldname: "status", label: __("Status"), width: 90, format: value => __(`serial.status.${value}`) },
+					{ fieldname: "location", label: t("product.col.place"), width: 120 },
+					{ fieldname: "out_ref", label: __("Out Reference"), width: 150 },
+				] });
 		}
 
 		// ── 列表 ────────────────────────────────────────────────────────────────
@@ -335,6 +426,7 @@
 				async (values, d) => {
 					const saved = await p.call(api + "api_create_product",
 						normalize({ ...values, ...code_changes(state, values) }), "POST");
+					await toggle_serial(saved.name, 0, values.track_serial, values.serial_kind);
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
 					await inline?.on_saved?.({...values, ...saved});
@@ -565,6 +657,7 @@
 					await p.call(api + "api_update_product",
 						{ name: existing.name, ...normalize({ ...values, ...code_changes(state, values) }) },
 						"POST");
+					if (!await toggle_serial(existing.name, existing.track_serial, values.track_serial, values.serial_kind)) return;
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
 					await inline?.on_saved?.({...existing, ...values});
@@ -572,6 +665,8 @@
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
+			// 按台管理的商品：看这件的每一台（服务端分页）
+			if (existing.track_serial) dialog.add_custom_action(__("serial.units"), () => open_units(existing));
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
 			if (can_write && !existing.express_code) attach_scan_icon(dialog, state, existing.name);  // 条码只认 Express
 			// 由 Express 同步来的档：Express 里有的栏位只认 Express（服务端 `express.locks` 同一份清单兜底）

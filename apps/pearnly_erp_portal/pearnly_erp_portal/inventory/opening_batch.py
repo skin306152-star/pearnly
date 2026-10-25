@@ -21,7 +21,8 @@ PRECISION_INVALID = "Opening quantity supports six decimal places and unit cost 
 ALREADY_INITIALIZED = "This stock position is already initialized; use a stock adjustment"
 HAS_HISTORY = "This stock position already has stock movements; use a stock adjustment"
 STALE_REVIEW = "Opening stock changed. Preview the rows again before submitting."
-PRODUCT_FIELDS = "name, product_name, code, internal_code, express_code, barcode, base_unit, unit, is_active, express_company"
+TRACKED = "Products tracked by unit change stock only through documents with units"
+PRODUCT_FIELDS = "name, product_name, code, internal_code, express_code, barcode, base_unit, unit, is_active, express_company, track_serial"
 FILE_ERRORS = {
     "file_too_large": "The opening stock file is too large",
     "file_invalid": "That file could not be read; please use the template",
@@ -138,6 +139,8 @@ def _product(row, catalog, company=None):
     product = matched[0]
     if not product.is_active:
         raise ValueError("Product is disabled")
+    if product.get("track_serial"):
+        raise ValueError(TRACKED)  # 按台管理的商品期初走「按台期初登记」（`inventory.serials.turn_on`）
     return product
 
 

@@ -24,6 +24,7 @@
   "change_amount",
   "section_lines",
   "lines",
+  "serials",
   "section_payments",
   "payments",
   "client_uuid",
@@ -161,6 +162,12 @@
    "fieldtype": "Table",
    "label": "Lines",
    "options": "ERP Sale Line"
+  },
+  {
+   "fieldname": "serials",
+   "fieldtype": "Table",
+   "label": "Units",
+   "options": "ERP Line Serial"
   },
   {
    "fieldname": "section_payments",

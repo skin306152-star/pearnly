@@ -1,0 +1,187 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "product",
+  "company",
+  "serial_no",
+  "serial_key",
+  "secondary_no",
+  "serial_tail",
+  "color",
+  "column_break_state",
+  "status",
+  "warehouse",
+  "location",
+  "in_ref_type",
+  "in_ref",
+  "in_date",
+  "out_ref_type",
+  "out_ref",
+  "out_date",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "ERP Product",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "serial_no",
+   "fieldtype": "Data",
+   "label": "Serial No",
+   "length": 40,
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "serial_key",
+   "fieldtype": "Data",
+   "label": "Serial Key",
+   "length": 140,
+   "unique": 1,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "secondary_no",
+   "fieldtype": "Data",
+   "label": "Secondary No",
+   "length": 40,
+   "search_index": 1
+  },
+  {
+   "fieldname": "serial_tail",
+   "fieldtype": "Data",
+   "label": "Serial Tail",
+   "length": 8,
+   "search_index": 1,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Color",
+   "length": 60
+  },
+  {
+   "fieldname": "column_break_state",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "in_stock\nsold\nissued\nvoid",
+   "default": "in_stock",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse",
+   "search_index": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "length": 140
+  },
+  {
+   "fieldname": "in_ref_type",
+   "fieldtype": "Data",
+   "label": "In Reference Type",
+   "length": 80,
+   "read_only": 1
+  },
+  {
+   "fieldname": "in_ref",
+   "fieldtype": "Data",
+   "label": "In Reference",
+   "length": 140,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "in_date",
+   "fieldtype": "Date",
+   "label": "In Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "out_ref_type",
+   "fieldtype": "Data",
+   "label": "Out Reference Type",
+   "length": 80,
+   "read_only": 1
+  },
+  {
+   "fieldname": "out_ref",
+   "fieldtype": "Data",
+   "label": "Out Reference",
+   "length": 140,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "out_date",
+   "fieldtype": "Date",
+   "label": "Out Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-26 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Serial No",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "track_changes": 1,
+ "autoname": "format:SRL-{YYYY}-{#####}",
+ "naming_rule": "Expression",
+ "title_field": "serial_no",
+ "show_title_field_in_link": 0,
+ "search_fields": "serial_no,secondary_no,serial_tail,color"
+}
