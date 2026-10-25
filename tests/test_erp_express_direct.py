@@ -998,6 +998,48 @@ class PosDaySend(PushModule):
         self.assertNotIn("vat_fields", seen[0])  # 不交给共用写账规则，准备好后才放进载荷
         self.assertEqual((queued[0]["payload"]["vat_fields"], queued[0]["payload_version"]), ({"AMT01": "100.00"}, 9))
 
+class PosDayExits(PushModule):
+    """B3b 验收复核（主会话 10-26）：收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的、电脑转人工）不能永远卡着：
+    「再写一次」按此刻内容重新准备，「已在 Express 手工处理」标 handled、撤掉挂着的写账件；没停住的单不给这两个出口。"""
+
+    def run_exit(self, action, row, job=None):
+        import types
+        from unittest import mock
+
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        from pearnly_erp_portal.express import api
+        writes, cancelled, sent = {}, [], []
+        doc = types.SimpleNamespace(name="PDS-1", express_job="J1" if job else None, express_void_state=None,
+                                    get=lambda key: None, **row)
+        with mock.patch.object(api, "_document", lambda doctype, name, write=False: doc), \
+                mock.patch.object(api, "_view", lambda doctype, row: "view"), \
+                mock.patch.object(api.jobs, "find_by_name", lambda name: job), \
+                mock.patch.object(api.jobs, "cancel", lambda name, reason: cancelled.append((name, reason))), \
+                mock.patch.object(api.push, "send", lambda doctype, name: sent.append(name)), \
+                mock.patch.object(frappe.db, "set_value", lambda doctype, name, values, update_modified=False:
+                                  writes.update(values), create=True), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            getattr(api, action)("ERP POS Day Summary", "PDS-1")
+        return writes, cancelled, sent
+
+    def test_a_held_summary_can_be_retried_or_marked_handled(self):
+        writes, cancelled, sent = self.run_exit("retry", {"express_state": "held"})
+        self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 按此刻内容重新准备
+        writes, cancelled, sent = self.run_exit("mark_handled", {"express_state": "held"})
+        self.assertEqual((writes["express_state"], writes["express_job"], cancelled, sent), ("handled", None, [], []))
+        job = {"job": "J1", "status": "manual", "reason": "x"}
+        writes, cancelled, _sent = self.run_exit("mark_handled", {"express_state": "queued"}, job)  # 电脑转了人工
+        self.assertEqual((writes["express_state"], cancelled), ("handled", [("J1", "replaced")]))
+
+    def test_a_summary_that_is_not_stuck_gets_no_exit(self):
+        for row, job in (({"express_state": "written"}, None), ({"express_state": "queued"}, {"job": "J1", "status": "leased"})):
+            with self.assertRaises(Exception):
+                self.run_exit("mark_handled", row, job)
+
+
 class PosDayActor(PushModule):
     """收银日汇总每晚由系统合（建单人 Administrator 名下没有电脑）：作业归这家公司里电脑够得到账套的员工，否则一直领不走（10-25 实验栈）。"""
 
