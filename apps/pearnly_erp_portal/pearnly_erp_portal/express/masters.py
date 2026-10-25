@@ -754,8 +754,8 @@ def _pending(company, products, warehouses):
             key = (code_of.get(row.product), loc_of.get(row.warehouse))
             if key[0] and key[1]:
                 pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
-    # 收银小票（B3a）：已写进 Express 的日汇总里的小票不算（没汇总的、汇总了还没写进去的照算）；并进日汇总的同日退货小票同样不算，
-    # 跨天的退货小票不进日汇总（等退货单 SR，B3b），照算
+    # 收银小票（B3a）：已写进 Express 的日汇总里的小票不算（没汇总的、汇总了还没写进去的照算）；并进日汇总的同日退货小票同样不算；
+    # 写进退货单 SR 的退货小票（B3b，同一个 DocType）也不算，还没写的照算
     for row in frappe.db.sql(f"""SELECT m.product, m.warehouse, SUM(m.qty_base) AS qty FROM `tab{stock.MOVEMENT}` m
             JOIN `tabERP Sale` s ON s.name = m.ref_id JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
             WHERE m.ref_type IN ('sale', 'refund') AND d.company = %(company)s AND d.express_state IN %(written)s

@@ -3,9 +3,12 @@
 
 - 每晚（`nightly`）把这家公司前几天还没汇总的完成小票按销售日合成「收银日汇总」（:data:`DOCTYPE`），小票记它属于哪张
   （ERP Sale.express_summary）；离线晚到的同日小票下一晚另补一张（序号 +1）。作废的不进。
-- 退货（主会话 10-25）：**同一天**卖、同一天退的退货小票并进当天这张，冲减走共用约定 ``pos_contract.net_day``（与 Cowork 同一处定）：
-  净额为 0 的行与付款方式不写，一天全退（全部为 0）整张不写，冲成负数停下交人（``express.pos_net_negative``）；跨天的退货不进，
-  另写退货单 SR（B3b）。
+- 退货（主会话 10-25）：**同一天**卖、同一天退、原小票还没汇总的退货小票并进当天这张，冲减走共用约定 ``pos_contract.net_day``
+  （与 Cowork 同一处定）：净额为 0 的行与付款方式不写，一天全退（全部为 0）整张不写，冲成负数停下交人（``express.pos_net_negative``）。
+- 退货单 SR（B3b，10-26）：原小票已经进了某张 HS 之后才来的退货（跨天的，或同一天晚到的）不再冲 HS，每晚按「退货那天 × 原小票所在的
+  HS」合成一张退货日汇总（同一个 DocType，``doc_kind`` = SR、``against`` = 原 HS；SR 的原单号只能挂一张原单，所以按原 HS 分张），
+  写成 Express 原生的退货单：退现金、货回仓、挂原 HS（Express 单号与合计交给写账规则，``refund`` 块）。原 HS 还没写进 Express 时先等
+  （``express.pos_refund_waiting``，每分钟再看），写进去了自动接着写。原小票在「收银写 Express 起始日」之前（没进过 HS）的退货不写。
 - 日汇总交给写账队列同采购 / 销售（`push`）：明细按品 × 仓 × 单位汇总，金额按含税合计摊成税前（`contracts.document`）；
   当天票号起止、张数、各付款方式金额作为 POS 事实（HS 借现金，PromptPay / 刷卡 / 转账各记一张「借 收款科目 / 贷 现金」，
   收款科目按付款方式问一次、按公司记住，共用写账规则 ``receipt``）。现销客户照名称「เงินสด」交给写账规则认，认不准就问一次。
@@ -26,8 +29,11 @@ CASH = "cash"
 LABELS = {CASH: "เงินสด", "promptpay": "พร้อมเพย์", "card": "บัตรเครดิต", "transfer": "โอนเงิน"}
 CASH_PARTY = "เงินสด"
 DAYS_MAX = 62  # 一晚最多补几天（停机很久后回来，分几晚补完）
+WRITTEN_STATES = ("written", "mismatch")  # 写进 Express 了（`masters.WRITTEN_STATES` 同一份）
 
 NET_NEGATIVE = "express.pos_net_negative"  # 退货冲减后为负数（停下交人）
+REFUND_WAITING = contracts.REFUND_WAITING  # 退货单的原 HS 还没写进 Express（等它写成再写，`push.poll` 每分钟再看）
+HS, SR = "HS", "SR"  # 日汇总的单别：现销日汇总 / 退货日汇总
 # 一张现销里混有免税商品（主会话 10-26）：Express 销项税记录（ISVAT）的应税基数只记应税行的税前合计，免税部分记哪一栏由下面这条
 # 规则定（"" = 不记）。Express 原生对混合现销的记法待服务器测试账套实录后核对，改这里即可（CC 照载荷 `vat_fields` 写，不用发新版）。
 ISVAT_TAXABLE_FIELD = "AMT01"
@@ -40,9 +46,13 @@ VAT_REGISTERED = "vat_registered"  # 单据上问一次的那一项：这家公�
 _TABLES = """`tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
     JOIN `tabERP Company` c ON c.name = w.company LEFT JOIN `tabERP Sale` o ON o.name = s.return_against"""
 _RECEIPTS = """w.company = %(company)s AND s.status = 'completed'
-    AND (s.sale_type = 'sale' OR (s.sale_type = 'refund' AND DATE(o.sold_at) = DATE(s.sold_at)))
+    AND (s.sale_type = 'sale' OR (s.sale_type = 'refund' AND DATE(o.sold_at) = DATE(s.sold_at)
+                                  AND COALESCE(o.express_summary, '') = ''))
     AND c.express_pos_from IS NOT NULL AND DATE(s.sold_at) >= c.express_pos_from"""
 _SCOPE = f"FROM {_TABLES} WHERE {_RECEIPTS}"
+# 退货单 SR 收的退货小票：原小票已经进了某张日汇总（HS），退货自己还没汇总
+_REFUNDS = f"""FROM {_TABLES} WHERE w.company = %(company)s AND s.status = 'completed' AND s.sale_type = 'refund'
+    AND COALESCE(s.express_summary, '') = '' AND COALESCE(o.express_summary, '') != ''"""
 # 退货小票上的数量、金额、收款都是正数：并进日汇总时记负数
 _SIGN = "(CASE WHEN s.sale_type = 'refund' THEN -1 ELSE 1 END)"
 
@@ -57,17 +67,42 @@ def pending_days(company, before) -> list:
 
 def summarize(company, day):
     """把这家公司 ``day`` 还没汇总的完成小票合成一张日汇总并排进写账队列 → 日汇总名；一张都没有回 None。"""
-    seq = frappe.db.count(DOCTYPE, {"company": company, "day": day}) + 1
-    doc = frappe.get_doc({"doctype": DOCTYPE, "company": company, "day": day, "seq": seq, "status": "submitted"})
+    # 先选再改（不在一条 UPDATE 里自连接判断原小票汇总了没有：原小票同一句里也在改，MariaDB 读到哪个值不确定）
+    names = frappe.db.sql_list(f"""SELECT s.name {_SCOPE} AND COALESCE(s.express_summary, '') = ''
+        AND DATE(s.sold_at) = %(day)s""", {"company": company, "day": day})
+    return _summarize(company, day, HS, names)
+
+
+def refund_groups(company, before) -> list:
+    """这家公司 ``before`` 之前还没写退货单的退货小票按 (退货那天, 原 HS) 分成几组（早的在前，最多 :data:`DAYS_MAX` 组）。"""
+    return frappe.db.sql(f"""SELECT DATE(s.sold_at) AS day, o.express_summary AS against {_REFUNDS}
+        AND s.sold_at < %(before)s GROUP BY DATE(s.sold_at), o.express_summary ORDER BY day, against LIMIT {DAYS_MAX}""",
+                         {"company": company, "before": before}, as_dict=True)
+
+
+def summarize_refunds(company, day, against):
+    """把这家公司 ``day`` 退的、原小票在 ``against``（HS）里的退货小票合成一张退货日汇总并排进写账队列 → 名；没有回 None。"""
+    names = frappe.db.sql_list(f"""SELECT s.name {_REFUNDS} AND DATE(s.sold_at) = %(day)s AND o.express_summary = %(against)s""",
+                               {"company": company, "day": day, "against": against})
+    return _summarize(company, day, SR, names, against=against)
+
+
+def _summarize(company, day, kind, names, against=None):
+    if not names:
+        return None
+    # 加单别之前建的日汇总单别是空的，都是 HS
+    seq = frappe.db.sql(f"""SELECT COUNT(*) FROM `tab{DOCTYPE}` WHERE company = %s AND day = %s
+        AND COALESCE(NULLIF(doc_kind, ''), %s) = %s""", (company, day, HS, kind))[0][0] + 1
+    doc = frappe.get_doc({"doctype": DOCTYPE, "company": company, "day": day, "seq": seq, "status": "submitted",
+                          "doc_kind": kind, "against": against})
     doc.insert(ignore_permissions=True)
-    frappe.db.sql(f"""UPDATE {_TABLES}
-        SET s.express_summary = %(summary)s
-        WHERE {_RECEIPTS}
-        AND COALESCE(s.express_summary, '') = '' AND DATE(s.sold_at) = %(day)s""",
-                  {"summary": doc.name, "company": company, "day": day})
-    totals = frappe.db.sql(f"""SELECT COUNT(*) AS receipts, COALESCE(SUM(s.sale_type = 'sale'), 0) AS count,
-        COALESCE(SUM({_SIGN} * s.grand_total), 0) AS total, COALESCE(SUM({_SIGN} * s.vat_amount), 0) AS vat
-        FROM `tabERP Sale` s WHERE s.express_summary = %s""", (doc.name,), as_dict=True)[0]
+    frappe.db.sql("UPDATE `tabERP Sale` SET express_summary = %s WHERE name IN %s AND COALESCE(express_summary, '') = ''",
+                  (doc.name, tuple(names)))
+    sign = _sign(kind)
+    totals = frappe.db.sql(f"""SELECT COUNT(*) AS receipts, COALESCE(SUM(s.sale_type = %s), 0) AS count,
+        COALESCE(SUM({sign} * s.grand_total), 0) AS total, COALESCE(SUM({sign} * s.vat_amount), 0) AS vat
+        FROM `tabERP Sale` s WHERE s.express_summary = %s""", ("refund" if kind == SR else "sale", doc.name),
+                           as_dict=True)[0]
     if not totals.receipts:
         frappe.delete_doc(DOCTYPE, doc.name, ignore_permissions=True, force=True)
         return None
@@ -79,6 +114,11 @@ def summarize(company, day):
 
     push.queue(DOCTYPE, doc.name)
     return doc.name
+
+
+def _sign(kind) -> str:
+    """金额符号：现销日汇总里退货小票记负数；退货日汇总里全是退货小票，照正数记（退了多少）。"""
+    return "1" if kind == SR else _SIGN
 
 
 def _natural(value):
@@ -105,6 +145,10 @@ def nightly():
         for day in pending_days(company.name, today):
             summarize(company.name, day)
             frappe.db.commit()
+        # 现销日汇总合完再合退货单：同一天卖、同一天退、原小票还没汇总的退货已经并进 HS，剩下的才是要写 SR 的
+        for group in refund_groups(company.name, today):
+            summarize_refunds(company.name, group.day, group.against)
+            frappe.db.commit()
 
 
 def document(name, ref) -> dict:
@@ -112,22 +156,31 @@ def document(name, ref) -> dict:
 
     税额（主会话 10-25）：标价含税，增值税登记户的小票逐行拆出税额（`cashier.vat`），日汇总合计各行税额、明细按各行税前额交
     （尾差由 `contracts.document` 落到税前）；还不知道这家公司是不是登记户（公司上没记、税务局也没查到）时停下，在单据上问一次。"""
-    summary = frappe.db.get_value(DOCTYPE, name, ["company", "day", "first_receipt", "last_receipt", "sales_count"],
-                                  as_dict=True)
+    summary = frappe.db.get_value(DOCTYPE, name, ["company", "day", "first_receipt", "last_receipt", "sales_count",
+                                                  "doc_kind", "against"], as_dict=True)
+    refund = (summary.doc_kind or HS) == SR
+    against = None
+    if refund:
+        # 退货单挂原 HS：原 HS 写进 Express 了才写（要它的 Express 单号；还在排队、停下、转人工的先等，`push.poll` 每分钟再看）
+        against = frappe.db.get_value(DOCTYPE, summary.against, ["express_state", "express_docnum", "grand_total"],
+                                      as_dict=True) if summary.against else None
+        if not against or against.express_state not in WRITTEN_STATES or not against.express_docnum:
+            return {"ref": ref, "hold": REFUND_WAITING}
     if not companies.vat_registered(summary.company, lookup=True):
         return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
                 "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
                             "options": [{"code": companies.VAT_YES, "name": ""}, {"code": companies.VAT_NO, "name": ""}]}]}
     receipts = frappe.db.sql_list("SELECT name FROM `tabERP Sale` WHERE express_summary = %s", (name,))
     receipt_vat.refresh(receipts)
-    sums = frappe.db.sql(f"""SELECT COALESCE(SUM({_SIGN} * s.grand_total), 0) AS total,
-        COALESCE(SUM({_SIGN} * s.vat_amount), 0) AS vat FROM `tabERP Sale` s WHERE s.express_summary = %s""",
+    sign = _sign(SR if refund else HS)
+    sums = frappe.db.sql(f"""SELECT COALESCE(SUM({sign} * s.grand_total), 0) AS total,
+        COALESCE(SUM({sign} * s.vat_amount), 0) AS vat FROM `tabERP Sale` s WHERE s.express_summary = %s""",
                          (name,), as_dict=True)[0]
     frappe.db.set_value(DOCTYPE, name, {"grand_total": sums.total, "vat_amount": sums.vat}, update_modified=False)
     summary.grand_total, summary.vat_amount = sums.total, sums.vat
     company = frappe.db.get_value("ERP Company", summary.company, ["tax_id", "branch"], as_dict=True) or {}
-    rows = frappe.db.sql(f"""SELECT l.product, l.warehouse, l.unit, SUM({_SIGN} * l.qty) AS qty,
-        SUM({_SIGN} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount
+    rows = frappe.db.sql(f"""SELECT l.product, l.warehouse, l.unit, SUM({sign} * l.qty) AS qty,
+        SUM({sign} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount
         FROM `tabERP Sale Line` l JOIN `tabERP Sale` s ON s.name = l.parent AND l.parenttype = 'ERP Sale'
         WHERE s.express_summary = %s GROUP BY l.product, l.warehouse, l.unit ORDER BY MIN(l.idx)""", (name,), as_dict=True)
     products, warehouses, merged = {}, {}, {}
@@ -154,19 +207,23 @@ def document(name, ref) -> dict:
         line["amount"] += contracts.d(row.amount)
     total, vat = contracts.d(summary.grand_total), contracts.d(summary.vat_amount)
     paid = {row.method: contracts.d(row.amount) for row in frappe.db.sql(
-        f"""SELECT p.method, SUM({_SIGN} * p.amount) AS amount FROM `tabERP Sale Payment` p
+        f"""SELECT p.method, SUM({sign} * p.amount) AS amount FROM `tabERP Sale Payment` p
         JOIN `tabERP Sale` s ON s.name = p.parent AND p.parenttype = 'ERP Sale'
         WHERE s.express_summary = %s AND p.method != %s GROUP BY p.method""", (name, CASH), as_dict=True)}
-    # 同一天的退货冲减（共用约定，与 Cowork 同一处定）：全部为 0 整张不写，冲成负数停下交人
-    try:
-        net = pos_contract.net_day(total, payments_of(total, paid), list(merged.values()))
-    except pos_contract.NetError:
-        return {"ref": ref, "items": [], "net_negative": True}
-    if net is None:
-        return {"ref": ref, "items": [], "empty": True}
-    payments = list(net.payments)
+    if refund:
+        # 退货单：全是退货小票、照正数记（退回的数量、税前额与退给客户的钱），不冲减
+        payments, items = payments_of(total, paid), [line for line in merged.values() if line["qty"] or line["amount"]]
+    else:
+        # 同一天的退货冲减（共用约定，与 Cowork 同一处定）：全部为 0 整张不写，冲成负数停下交人
+        try:
+            net = pos_contract.net_day(total, payments_of(total, paid), list(merged.values()))
+        except pos_contract.NetError:
+            return {"ref": ref, "items": [], "net_negative": True}
+        if net is None:
+            return {"ref": ref, "items": [], "empty": True}
+        payments, items = list(net.payments), net.items
     lines = [{**line, "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])}
-             for line in net.items]
+             for line in items]
     body = contracts.document(ref=ref, direction="sales", doc_date=str(summary.day),
                               # 参考号写进 Express 的 YOUREF / 销项税 REFNUM（≤15 字节）：同 Cowork 的 POS 导入用共用约定的
                               # `day_ref`（放不下就缩写，完整起止在 `pos` 里）；10-25 实验栈：「首-尾」27 字被 CC 拦下
@@ -180,6 +237,9 @@ def document(name, ref) -> dict:
             body["vat_fields"] = fields
     body["pos"] = {"first": summary.first_receipt, "last": summary.last_receipt, "count": int(summary.sales_count or 0),
                    "payments": [[label, contracts.money(amount)] for label, amount in payments]}
+    if refund:
+        # 挂原 HS：Express 单号（SONUM）与原单含税合计（IVCAMT），写账规则据此出退货单 SR（退现金、货回仓）
+        body["refund"] = {"against": against.express_docnum, "against_total": contracts.money(against.grand_total)}
     return body
 
 
@@ -205,5 +265,6 @@ def payments_of(total, paid) -> list:
     return out
 
 
-__all__ = ["DOCTYPE", "ISVAT_EXEMPT_FIELD", "ISVAT_TAXABLE_FIELD", "LABELS", "NET_NEGATIVE", "VAT_FIELDS_PAYLOAD_VERSION",
-           "document", "nightly", "payments_of", "pending_days", "receipt_range", "summarize", "vat_fields"]
+__all__ = ["DOCTYPE", "HS", "ISVAT_EXEMPT_FIELD", "ISVAT_TAXABLE_FIELD", "LABELS", "NET_NEGATIVE", "REFUND_WAITING", "SR",
+           "VAT_FIELDS_PAYLOAD_VERSION", "document", "nightly", "payments_of", "pending_days", "receipt_range", "refund_groups",
+           "summarize", "summarize_refunds", "vat_fields"]

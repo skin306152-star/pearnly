@@ -1500,6 +1500,7 @@ Voided,取消済み
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
 WHT amount,源泉税額
+Waiting for the original day summary to be written,元の日次集計の書き込み待ち
 Walk-in customer,一般客
 Warehouse,倉庫
 Warehouse name,倉庫名
@@ -2029,6 +2030,7 @@ express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.reading,Express 帳簿を読み取り中
+express.reason.refundWaiting,元の日次集計の書き込み待ち
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません

@@ -22,6 +22,7 @@
 		"express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
 		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
 		"express.stock_book_missing": "express.reason.noStockBook", "express.pos_net_negative": "express.reason.posNetNegative",
+		"express.pos_refund_waiting": "express.reason.refundWaiting",
 		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline",
 	};
 	const EXPRESS_KINDS = {

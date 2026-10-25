@@ -1500,6 +1500,7 @@ Voided,Voided
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
 WHT amount,WHT amount
+Waiting for the original day summary to be written,Waiting for the original day summary to be written
 Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse name,Warehouse name
@@ -2029,6 +2030,7 @@ express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.posNetNegative,Refunds exceed sales for this day after netting
 express.reason.reading,Reading the Express account set
+express.reason.refundWaiting,Waiting for the original day summary to be written
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID

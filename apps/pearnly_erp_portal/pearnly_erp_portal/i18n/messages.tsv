@@ -1692,6 +1692,7 @@ This document is not in Express	Express 中找不到此单	ไม่พบเอ
 This receipt is in a daily summary. Refund it instead	此小票已计入收银日汇总，请改用退货	ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน	このレシートは日次集計に入っています。返品にしてください	cashier.voidSummarized
 Entries from a stock count cannot be voided alone	此单由盘点生成，不能单独作废	รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้	この入出庫は棚卸から作られたため、単独で取り消せません	stock.countEntryVoid
 Refunds exceed sales for this day after netting	当天退货冲减后为负数	ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ	この日は返品が売上を上回っています	express.reason.posNetNegative
+Waiting for the original day summary to be written	等待原日汇总写入	รอบันทึกสรุปยอดขายรายวันต้นทาง	元の日次集計の書き込み待ち	express.reason.refundWaiting
 Is this company VAT registered	该公司是增值税登记户吗	บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่	この会社は VAT 登録事業者ですか	express.kind.vatRegistered
 Yes	是	ใช่	はい	express.option.yes
 No	否	ไม่ใช่	いいえ	express.option.no

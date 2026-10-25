@@ -1498,17 +1498,23 @@ class PosDaySummaries(Base):
         def sql(query, values=None, as_dict=False):
             if query.lstrip().startswith("UPDATE"):
                 for r in receipts:
-                    if not r["summary"] and r["day"] == values["day"]:
-                        r["summary"] = values["summary"]
+                    if not r["summary"] and r["name"] in values[1]:
+                        r["summary"] = values[0]
                 return None
-            mine = [r for r in receipts if r["summary"] == values[0]]
+            if "COUNT(*) FROM" in query:  # 这家公司这天这个单别已经有几张（补单序号）
+                return [[len(made)]]
+            mine = [r for r in receipts if r["summary"] == values[1]]
             return [types.SimpleNamespace(receipts=len(mine), count=len(mine), total=sum(r["total"] for r in mine), vat=0)]
+
+        def sql_list(query, values):
+            if isinstance(values, dict):  # 选这天还没汇总的票
+                return [r["name"] for r in receipts if not r["summary"] and r["day"] == values["day"]]
+            return [r["name"] for r in receipts if r["summary"] == values[0]]
 
         from pearnly_erp_portal.express import push as push_module
         with mock.patch.object(frappe, "get_doc", lambda body: Doc(body), create=True), \
-                mock.patch.object(frappe.db, "count", lambda doctype, filters: len(made), create=True), \
                 mock.patch.object(frappe.db, "sql", side_effect=sql), \
-                mock.patch.object(frappe.db, "sql_list", lambda q, v: [r["name"] for r in receipts if r["summary"] == v[0]], create=True), \
+                mock.patch.object(frappe.db, "sql_list", side_effect=sql_list, create=True), \
                 mock.patch.object(frappe.db, "set_value", lambda *a, **k: None), \
                 mock.patch.object(frappe, "delete_doc", lambda doctype, name, **k: deleted.append(name), create=True), \
                 mock.patch.object(push_module, "queue", lambda doctype, name: queued.append(name)):
@@ -1516,10 +1522,10 @@ class PosDaySummaries(Base):
             again = self.pos_day.summarize("CO-1", "2026-10-24")  # 同一批票再触发：一张都不剩，不生成第二张
             receipts.append({"name": "S3", "day": "2026-10-24", "summary": "", "total": 5})  # 晚到的离线票
             late = self.pos_day.summarize("CO-1", "2026-10-24")
-        self.assertEqual((first, again, late), ("PDS-1", None, "PDS-3"))
-        self.assertEqual(deleted, ["PDS-2"])
-        self.assertEqual(queued, ["PDS-1", "PDS-3"])
-        self.assertEqual({r["name"]: r["summary"] for r in receipts}, {"S1": "PDS-1", "S2": "PDS-1", "S3": "PDS-3"})
+        self.assertEqual((first, again, late), ("PDS-1", None, "PDS-2"))  # 一张都不剩时不建空单
+        self.assertEqual(deleted, [])
+        self.assertEqual(queued, ["PDS-1", "PDS-2"])
+        self.assertEqual({r["name"]: r["summary"] for r in receipts}, {"S1": "PDS-1", "S2": "PDS-1", "S3": "PDS-2"})
 
     def test_net_day_drops_zero_rows_skips_a_fully_refunded_day_and_stops_on_negatives(self):
         """共用约定 `net_day`（主会话 10-25，ERP 日汇总与 Cowork POS 导入同一处定）。"""
@@ -1541,15 +1547,19 @@ class PosDaySummaries(Base):
         net = pos.net_day(D("20"), [("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))])  # 现金退款多过现金收款：现金可以为负
         self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
 
-    def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0"):
-        """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。"""
+    def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0", kind=None, against=None):
+        """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。
+        ``kind="SR"``：退货日汇总（照正数求和），``against`` 是原 HS 的 (Express 状态, Express 单号, 含税合计)。"""
         import types
         D = Decimal
         summary = types.SimpleNamespace(company="CO-1", day="2026-10-24", first_receipt="SI-1", last_receipt="SI-2",
-                                        sales_count=2)
+                                        sales_count=2, doc_kind=kind, against="PDS-0" if against else None)
         refreshed = []
 
         def get_value(doctype, name, fields=None, as_dict=False):
+            if doctype == self.pos_day.DOCTYPE and name == "PDS-0":
+                state, docnum, grand = against
+                return types.SimpleNamespace(express_state=state, express_docnum=docnum, grand_total=D(grand))
             if doctype == self.pos_day.DOCTYPE:
                 return summary
             if doctype == "ERP Company":
@@ -1559,7 +1569,10 @@ class PosDaySummaries(Base):
             return "01"
 
         def sql(query, values=None, as_dict=False):
-            self.assertIn("CASE WHEN s.sale_type = 'refund' THEN -1 ELSE 1 END", query)
+            if kind == "SR":  # 退货日汇总全是退货小票，照正数求和
+                self.assertNotIn("CASE WHEN", query)
+            else:
+                self.assertIn("CASE WHEN s.sale_type = 'refund' THEN -1 ELSE 1 END", query)
             if "s.vat_amount" in query:
                 return [types.SimpleNamespace(total=D(total), vat=D(vat))]
             if "tabERP Sale Payment" in query:
@@ -1577,7 +1590,7 @@ class PosDaySummaries(Base):
                 mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
                                   create=True):
             body = self.pos_day.document("PDS-1", "PDS-1@x")
-        if registered:
+        if registered and body.get("hold") != self.pos_day.REFUND_WAITING:
             self.assertEqual(refreshed, [["SI-1", "SI-2"]])  # 写之前按公司此刻的状态重算小票税额
         return body
 
@@ -1599,6 +1612,49 @@ class PosDaySummaries(Base):
                          {"ref": "PDS-1@x", "items": [], "net_negative": True})
         # 晚到的同日退货单独成一张补单：整张为负 → 停下交人
         self.assertTrue(self.summary_body([("A", "-1", "-50")], [], "-50").get("net_negative"))
+
+    def test_a_refund_after_the_day_summary_becomes_a_credit_note_against_that_hs(self):
+        """B3b（10-26）：原小票已进 HS 之后的退货写成退货单 SR：照正数记，挂原 HS 的 Express 单号与合计；原 HS 还没写进
+        Express 先等（每分钟再看）。"""
+        waiting = self.summary_body([("A", "1", "93.46")], [], "100", vat="6.54", kind="SR", against=("queued", "", "200"))
+        self.assertEqual(waiting, {"ref": "PDS-1@x", "hold": "express.pos_refund_waiting"})
+        self.assertIn("express.pos_refund_waiting", E.RETRY_REASONS)
+        body = self.summary_body([("A", "1", "93.46")], [("promptpay", "40")], "100", vat="6.54", kind="SR",
+                                 against=("written", "HS0000039", "200"))
+        self.assertEqual(body["refund"], {"against": "HS0000039", "against_total": "200.00"})
+        self.assertEqual([(line["code"], line["qty"], line["amount"]) for line in body["items"]], [("A", "1", "93.46")])
+        self.assertEqual(body["pos"]["payments"], [["เงินสด", "60.00"], ["พร้อมเพย์", "40.00"]])  # 退给客户的钱，正数
+        self.assertEqual((body["total"], body["vat"]), ("100.00", "6.54"))
+
+    def test_refunds_after_the_day_summary_are_grouped_by_the_original_hs(self):
+        """B3b：同一天卖、同一天退、原小票还没汇总的退货照旧并进 HS；原小票已进 HS 的退货（跨天的、晚到的）按 (退货那天, 原 HS)
+        合成退货日汇总（单别 SR、挂原 HS），SR 的原单号只能挂一张原单。"""
+        import inspect
+        source = inspect.getsource(self.pos_day)
+        self.assertIn("AND COALESCE(o.express_summary, '') = ''))", source)  # 并进 HS 的同日退货：原小票还没汇总
+        self.assertIn("COALESCE(o.express_summary, '') != ''", source)  # 进 SR 的：原小票已在某张 HS
+        self.assertIn("GROUP BY DATE(s.sold_at), o.express_summary", source)
+        made, queued = [], []
+
+        class Doc(dict):
+            __getattr__ = dict.get
+
+            def insert(self, ignore_permissions=False):
+                self["name"] = f"PDS-{len(made) + 1}"
+                made.append(dict(self))
+
+        import types
+        from pearnly_erp_portal.express import push as push_module
+        with mock.patch.object(frappe, "get_doc", lambda body: Doc(body), create=True), \
+                mock.patch.object(frappe.db, "sql", side_effect=lambda q, v=None, as_dict=False: (
+                    [[0]] if "COUNT(*) FROM" in q else None if q.lstrip().startswith("UPDATE") else
+                    [types.SimpleNamespace(receipts=2, count=2, total=150, vat=0)])), \
+                mock.patch.object(frappe.db, "sql_list", lambda q, v: ["R1", "R2"], create=True), \
+                mock.patch.object(frappe.db, "set_value", lambda *a, **k: None), \
+                mock.patch.object(push_module, "queue", lambda doctype, name: queued.append(name)):
+            name = self.pos_day.summarize_refunds("CO-1", "2026-10-25", "PDS-7")
+        self.assertEqual((made[0]["doc_kind"], made[0]["against"], made[0]["day"]), ("SR", "PDS-7", "2026-10-25"))
+        self.assertEqual(queued, [name])
 
     def test_receipts_split_vat_line_by_line_and_the_day_adds_the_lines_up(self):
         """主会话 10-25：标价含税。增值税登记户按小票每一行拆（商品勾了「คิด VAT」才拆 7/107，免税为 0），整单折扣按行摊，

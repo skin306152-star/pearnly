@@ -9,6 +9,8 @@
   "day",
   "seq",
   "status",
+  "doc_kind",
+  "against",
   "column_break_head",
   "sales_count",
   "first_receipt",
@@ -57,6 +59,23 @@
    "options": "submitted",
    "default": "submitted",
    "read_only": 1
+  },
+  {
+   "default": "HS",
+   "fieldname": "doc_kind",
+   "fieldtype": "Data",
+   "label": "Type",
+   "length": 4,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "against",
+   "fieldtype": "Link",
+   "label": "Against",
+   "options": "ERP POS Day Summary",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "column_break_head",

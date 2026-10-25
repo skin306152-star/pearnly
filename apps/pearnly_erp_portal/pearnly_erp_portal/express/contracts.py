@@ -34,9 +34,11 @@ NO_WRITER = "express.no_writer"
 READING = "express.masters_reading"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
+REFUND_WAITING = "express.pos_refund_waiting"  # 收银退货单的原 HS 还没写进 Express（`pos_day`）
 CHOICE = "choice_needed"
-# 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC）：每分钟再试；要人选的、单据本身不对的不自动重试
-RETRY_REASONS = (NO_BOOK, NO_WRITER, READING)
+# 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
+# 不自动重试
+RETRY_REASONS = (NO_BOOK, NO_WRITER, READING, REFUND_WAITING)
 # 这几种采购单是真进货 / 费用，推进 Express；采购订单只是订单，不推
 PURCHASE_KINDS = ("purchase_invoice", "expense", "goods", "service")
 SALES_KINDS = ("receipt",)
@@ -253,6 +255,10 @@ def pages(doc: dict) -> list:
 
         page["_extraction_audit"] = pos_contract.audit(pos["first"], pos["last"], pos["count"],
                                                        [(label, _Decimal(str(amount))) for label, amount in pos["payments"]])
+        refund = doc.get("refund")
+        if isinstance(refund, dict):
+            # 收银退货单（B3b）：挂原 HS 的 Express 单号与原单含税合计，写账规则据此出退货单 SR
+            page["_extraction_audit"].update(pos_contract.refund_audit(refund["against"], refund["against_total"]))
     return [page]
 
 

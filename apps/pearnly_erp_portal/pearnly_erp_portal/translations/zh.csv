@@ -1500,6 +1500,7 @@ Voided,已作废
 Voided {0},已作废 {0} 张
 "Voided, not in the total",已撤销，不计入合计
 WHT amount,预扣税额
+Waiting for the original day summary to be written,等待原日汇总写入
 Walk-in customer,散客
 Warehouse,仓库
 Warehouse name,仓库名称
@@ -2029,6 +2030,7 @@ express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.posNetNegative,当天退货冲减后为负数
 express.reason.reading,正在读取 Express 账套
+express.reason.refundWaiting,等待原日汇总写入
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号

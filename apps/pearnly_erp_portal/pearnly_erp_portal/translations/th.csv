@@ -1500,6 +1500,7 @@ Voided,ยกเลิกแล้ว
 Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 WHT amount,จำนวนภาษีหัก ณ ที่จ่าย
+Waiting for the original day summary to be written,รอบันทึกสรุปยอดขายรายวันต้นทาง
 Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
@@ -2029,6 +2030,7 @@ express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 express.reason.reading,กำลังอ่านชุดบัญชี Express
+express.reason.refundWaiting,รอบันทึกสรุปยอดขายรายวันต้นทาง
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
