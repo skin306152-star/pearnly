@@ -129,7 +129,7 @@
 					format: value => p.money(value) },
 				{ fieldname: "shift", width: 140, min_width: 96, label: t("trade.shiftNo") },
 				// 接了 Express：所在现销日汇总的 Express 单号，没写进去显示状态（同采购 / 销售列表）
-				...(frappe.boot.pearnly_express ? [{ fieldname: "express_docnum", width: 110, min_width: 76,
+				...(frappe.boot.pearnly_express ? [{ fieldname: "express_docnum", width: 170, min_width: 120,
 					label: __("Express"), format: (value, row) => (value || (row.express_state ? __({ queued: "Queued",
 						written: "express.state.written", mismatch: "Mismatch", held: "Pending", failed: "Failed" }[row.express_state]
 						|| row.express_state) : "")) + (row.express_extra ? ` · ${__("express.summary.extra")}` : "") }] : []),
