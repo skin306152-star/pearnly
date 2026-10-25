@@ -5,7 +5,7 @@
 
 - 单头 ARTRN：RECTYP 5、CNTYP 3（退现金）、SONUM = 原单号、FLGVAT 1、AMOUNT / AFTDISC / TOTAL / NETAMT = 含税、NETVAL = 税前、
   VATAMT、RCVAMT = 含税（退了的钱）、IVCAMT = 原单含税合计、CMPLAPP Y、DOCSTAT N、NXTSEQ = 行数；
-- 明细 STCRD：POSOPR 2、FLAG 2、RETSTK Y、PEOPLE = 客户、RDOCNUM = 原单号左对齐补空格到 14 位 + 原单行号（实录「HS0000039     1」）、
+- 明细 STCRD：POSOPR 2、FLAG 2、RETSTK Y、PEOPLE = 客户、RDOCNUM = 原单号左对齐、原单行号右对齐到第 15 位（实录「HS0000039     1」，S 盘副本「IV5801890    12」）、
   TRNQTY / UNITPR / TRNVAL 按交易单位记**含税**（SR 是 Express 原生单，照原生写；CC 写 HS 时这几栏记税前）、NETVAL / XSALVAL = 税前、
   XTRNQTY = 库存单位数量、XUNITPR / XTRNVAL = 原单那一行的成本（对应原生「按原批次」）、MREMBAL / MREMVAL = 写后结存（同 CC 现有库存
   写法；先进先出批次链 MLOTNUM / LOTBAL 不写，由 Express「计算成本」重排）；
@@ -77,7 +77,7 @@ POSOPR = "2"            # STCRD：退货
 FLAG = "2"
 RETSTK = "Y"            # 货回仓
 ORIGINAL_RECTYP = "1"   # 原单：现销 HS
-RDOCNUM_PAD = 14        # RDOCNUM：原单号左对齐补空格到 14 位，后接原单行号
+RDOCNUM_WIDTH = 15      # RDOCNUM C(15)：原单号左对齐、原单行号右对齐到第 15 位，中间补空格（S 盘副本 1039 本实测）
 SEQIT = {"refund": "1", "output_vat": "2", "cash": "3"}
 SEQIT_INVENTORY, SEQIT_COGS = "8", "9"
 DESCRIPTION = "ลดหนี้/รับคืน"
@@ -159,8 +159,20 @@ def _fit(text: str, width: int) -> str:
 
 
 def rdocnum(against: str, seq) -> str:
-    """原单号左对齐补空格到 14 位 + 原单行号（实录「HS0000039     1」；行号多位时照接在后面，待实录核对）。"""
-    return f"{against.ljust(RDOCNUM_PAD)}{str(seq).strip()}"
+    """原单号左对齐、原单行号右对齐到第 15 位，中间补空格：「HS0000039     1」「IV5801890    12」「RR2016055   100」。
+    10-26 在测试机 S 盘副本（1039 本账套、STCRD 约 300 万行退货 / 引用行）读到的原生写法，各种单号长度、1–3 位行号都是这一个规律
+    （单号 14 位时行号紧贴在后面）。实录 SR0000001 的「HS0000039     1」同一写法。"""
+    seq = str(seq).strip()
+    return f"{against}{seq.rjust(RDOCNUM_WIDTH - len(against))}"
+
+
+def _linked_seq(link: str, against: str):
+    """RDOCNUM 指向 ``against`` 时回原单行号，否则 None（单号后面只能是空格加数字，别的单号以它开头的不算）。"""
+    link = str(link or "").rstrip()
+    if not link.startswith(against):
+        return None
+    rest = link[len(against):].strip()
+    return rest if rest.isdigit() else None
 
 
 # ── 写前只读：原单 ─────────────────────────────────────────────────────────────────────────────────────
@@ -203,12 +215,10 @@ def _returned(account_dir, against: str) -> Dict[str, Decimal]:
     try:
         if "RDOCNUM" not in _fields(table):
             return {}
-        head = against.ljust(RDOCNUM_PAD)
         out: Dict[str, Decimal] = {}
         for r in S.live_rows(table):
-            link = str(r["RDOCNUM"] or "")
-            if _text(r, "POSOPR") == POSOPR and link.startswith(head) and link[:RDOCNUM_PAD].strip() == against:
-                seq = link[RDOCNUM_PAD:].strip()
+            seq = _linked_seq(r["RDOCNUM"], against) if _text(r, "POSOPR") == POSOPR else None
+            if seq is not None:
                 out[seq] = out.get(seq, Decimal(0)) + _dec(r["XTRNQTY"])
         return out
     finally:

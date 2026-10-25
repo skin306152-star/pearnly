@@ -250,3 +250,23 @@ def test_refusals_need_a_person_and_ordinary_sales_never_reach_the_refund_writer
         res = _write(book, _sale(qty=1, total="100.00", base="93.46", vat="6.54"))
     assert res.ok, res.error
     assert res.docnum.startswith("HS")
+
+
+def test_the_original_line_number_is_right_aligned_to_fifteen_like_native_express():
+    """RDOCNUM C(15)：原单号左对齐、原单行号右对齐到第 15 位（10-26 测试机 S 盘副本 1039 本账套读到的原生写法；
+    验收：原来「补到 14 位再接行号」从第 10 行起多出一位）。"""
+    assert dbf_refund.rdocnum("HS0000039", 1) == "HS0000039     1"   # 实录 SR0000001
+    assert dbf_refund.rdocnum("IV5801890", 12) == "IV5801890    12"  # S 盘副本原生 SR
+    assert dbf_refund.rdocnum("RR2016055", 100) == "RR2016055   100"
+    assert dbf_refund.rdocnum("HS691025-001", 10) == "HS691025-001 10"
+    assert dbf_refund.rdocnum("HS691025-001", 100) == "HS691025-001100"
+    assert all(len(dbf_refund.rdocnum(doc, seq)) == 15 for doc in ("HS0000039", "HS691025-001") for seq in (1, 9, 10, 99, 100))
+
+
+def test_earlier_returns_are_counted_per_original_line_from_ten_and_up(book):
+    """以前的退货单按原单行号累计已退数量：第 10、100 行照样认；别的单号以它开头的不算。"""
+    seed(book, "STCRD", [{"DOCNUM": "SR0000005", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 1.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
+                         {"DOCNUM": "SR0000005", "SEQNUM": "2", "POSOPR": "2", "XTRNQTY": 2.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 100)},
+                         {"DOCNUM": "SR0000006", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 4.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
+                         {"DOCNUM": "SR0000007", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 9.0, "RDOCNUM": dbf_refund.rdocnum("HS00000391", 2)}])
+    assert dbf_refund._returned(book, "HS0000039") == {"12": Decimal("5"), "100": Decimal("2")}
