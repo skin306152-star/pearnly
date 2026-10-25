@@ -1011,7 +1011,8 @@ class PosDayExits(PushModule):
                             ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
             setattr(utils, name, getattr(utils, name, value))
         from pearnly_erp_portal.express import api
-        writes, cancelled, sent = {}, [], []
+        writes, cancelled, sent, comments = {}, [], [], []
+        self.comments = comments
         doc = types.SimpleNamespace(name="PDS-1", express_job="J1" if job else None, express_void_state=None,
                                     get=lambda key: None, **row)
         with mock.patch.object(api, "_document", lambda doctype, name, write=False: doc), \
@@ -1021,6 +1022,8 @@ class PosDayExits(PushModule):
                 mock.patch.object(api.push, "send", lambda doctype, name: sent.append(name)), \
                 mock.patch.object(frappe.db, "set_value", lambda doctype, name, values, update_modified=False:
                                   writes.update(values), create=True), \
+                mock.patch.object(frappe, "get_doc", lambda doctype, name: types.SimpleNamespace(
+                    add_comment=lambda kind, text: comments.append((kind, text))), create=True), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             getattr(api, action)("ERP POS Day Summary", "PDS-1")
         return writes, cancelled, sent
@@ -1030,6 +1033,10 @@ class PosDayExits(PushModule):
         self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 按此刻内容重新准备
         writes, cancelled, sent = self.run_exit("mark_handled", {"express_state": "held"})
         self.assertEqual((writes["express_state"], writes["express_job"], cancelled, sent), ("handled", None, [], []))
+        self.assertEqual(self.comments, [("Info", "express.state.handled")])  # 时间线留一条：谁、什么时候标的
+        cancelled_job = {"job": "J0", "status": "cancelled", "reason": "replaced"}
+        writes, _cancelled, sent = self.run_exit("retry", {"express_state": "failed"}, cancelled_job)
+        self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 写账件已撤销的失败单也能再写一次
         job = {"job": "J1", "status": "manual", "reason": "x"}
         writes, cancelled, _sent = self.run_exit("mark_handled", {"express_state": "queued"}, job)  # 电脑转了人工
         self.assertEqual((writes["express_state"], cancelled), ("handled", [("J1", "replaced")]))

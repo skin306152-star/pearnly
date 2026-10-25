@@ -99,12 +99,15 @@ def exempt_total(names):
 
 
 def refresh_company(company) -> int:
-    """公司状态定了或改了：这家公司还没写进 Express 的完成小票（没进日汇总的、日汇总还没写进去的）按新状态重算。"""
+    """公司状态定了或改了：这家公司还没写进 Express 的完成小票（没进日汇总的、日汇总还没写进去的）按新状态重算。
+    写进去了的（含人标记「已在 Express 手工处理」的）不动：跟 `express.masters.WRITTEN_STATES` 同一口径。"""
+    from pearnly_erp_portal.express.masters import WRITTEN_STATES
+
     names = frappe.db.sql_list("""SELECT s.name FROM `tabERP Sale` s JOIN `tabERP Warehouse` w ON w.name = s.warehouse
         LEFT JOIN `tabERP POS Day Summary` d ON d.name = s.express_summary
         WHERE w.company = %s AND s.status = 'completed'
-        AND (COALESCE(s.express_summary, '') = '' OR COALESCE(d.express_state, '') NOT IN ('written', 'mismatch'))""",
-                               (company,))
+        AND (COALESCE(s.express_summary, '') = '' OR COALESCE(d.express_state, '') NOT IN %s)""",
+                               (company, WRITTEN_STATES))
     return refresh(names) if names else 0
 
 
