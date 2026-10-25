@@ -5,14 +5,15 @@ CC 照写会把账写成 Express 不允许的负数。写前按 Express 结存�
 
 - 只核卖出库存品的行（``item_mode = stock_sale``），按写单时同一个找品函数（``stock_sale.find_stock_item``，只读）对到
   Express 的存货；对不到、要随单新建的物料不核（新建的品按设计标了允许负库存，``product_master``）；
-- 这件品自己标了允许负库存（``STMAS.NEGALLOW = 'Y'``）不核；
-- 结存**照 Express 自己拦单的办法按仓核**（主会话 10-25，C 盘录单第 1 条在服务器测试账套实录：NEGALLOW = N 时 Express 看那个仓的
-  STLOC，不看全仓合计；01 仓 0、02 仓 10，从 01 仓卖 3 个照样被拦，拦的是那一行，不要密码）：账套有 STLOC 时，每行按**实际写入的仓**
-  （行上的仓库码；没带就是主仓 ``ISINFO.MAINLOC``，与写单同一条规则）的 ``LOCBAL`` 核，那个仓还没有这件品的行按 0；同一张单里同一件品
-  同一个仓的几行合起来核。各仓合计和 ``STMAS.MREMBAL`` 对不上的老账照样按 STLOC 核（Express 也这么拦），ERP 同步时这件品进公司页
-  Express 区的差异清单（``express.masters.stock_differences``），提示去 Express 里修。原来「对不上 / 没带仓库码就按全仓放行」会写出
-  Express 自己不允许的分仓负数，已去掉。
-- 账套没有 STLOC（不分仓记结存）才按全仓 ``MREMBAL`` 核（报出的仓记 :data:`ALL_LOCATIONS`）。
+- 这件品自己标了允许负库存（``STMAS.NEGALLOW = 'Y'``）不核（当作账套设置之外的另一个开关；它会不会覆盖账套设置待验收在服务器测试账套补测）；
+- 照 Express 自己拦单的办法（主会话 10-25 定稿，验收在服务器测试账套 ``70EXP\test`` 实录 CHKNEGLEV 三种取值，共享笔记「服务器test账套-录单结果」）：
+  - ``ISINFO.CHKNEGLEV`` 是 1 或 2（空也按 2）且账套有 STLOC：按单个仓核。每行按**实际写入的仓**（行上的仓库码；没带就是主仓
+    ``ISINFO.MAINLOC``，与写单同一条规则）的 ``LOCBAL`` 核，那个仓还没有这件品的行按 0；同一张单里同一件品同一个仓的几行合起来核。
+    Express 录行时就拦那一行（Message 4224）；ERP 不能写出半张单，所以整单停在人工。不看全仓合计。
+  - ``CHKNEGLEV = 0``，或账套没有 STLOC：不按仓核，同一件品全单合起来按全仓 ``STMAS.MREMBAL`` 核（报出的仓记 :data:`ALL_LOCATIONS`）；
+    合计够就照写，允许单个仓变负（Express 保存时才查全仓合计，Message 4091，01 仓照样存成 −3）。
+  - 各仓合计和 ``MREMBAL`` 对不上的老账照上面的规则核（原来「对不上就按全仓放行」会写出 Express 自己不允许的分仓负数，已去掉），
+    ERP 同步时这件品进公司页 Express 区的差异清单（``express.masters.stock_differences``），提示去 Express 里修。
 """
 
 from __future__ import annotations
@@ -55,6 +56,16 @@ def negative_allowed(account_dir) -> bool:
     return not rows or rows[0]["NEGALLOW"].upper() != _NO
 
 
+def by_warehouse(account_dir) -> bool:
+    """Express 按单个仓拦（``ISINFO.CHKNEGLEV`` 1 / 2，空按 2）还是只查全仓合计（0）。"""
+    rows = _table_rows(account_dir, "ISINFO", ("CHKNEGLEV",))
+    level = rows[0]["CHKNEGLEV"] if rows else ""
+    try:
+        return not level or Decimal(level) != 0  # 真账里是字符 "0" / "1" / "2"，数字型也认
+    except ArithmeticError:
+        return True
+
+
 def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[str]]]) -> List[dict]:
     """这张销货里库存不够的行（按品 × 仓合计）：``[{stkcod, loccod, need, have}]``；账套允许负库存时是空。"""
     if negative_allowed(account_dir):
@@ -83,7 +94,8 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
     totals = {row["STKCOD"]: row["MREMBAL"]
               for row in _table_rows(account_dir, "STMAS", ("STKCOD", "MREMBAL")) if row["STKCOD"] in codes}
     have: Dict[Tuple[str, str], Decimal] = {}
-    if locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None:
+    if (locations is not None and stock_location._file(account_dir, stock_location.TABLE) is not None
+            and by_warehouse(account_dir)):
         main = account_rules.main_location(account_dir)
         located = {(row["STKCOD"], row["LOCCOD"]): row["LOCBAL"]
                    for row in _table_rows(account_dir, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if row["STKCOD"] in codes}
@@ -120,4 +132,4 @@ def message(short: List[dict]) -> str:
         f"{item['stkcod']}@{item['loccod']} need {item['need']} have {item['have']}" for item in short)
 
 
-__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "message", "negative_allowed", "shortages"]
+__all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "by_warehouse", "message", "negative_allowed", "shortages"]

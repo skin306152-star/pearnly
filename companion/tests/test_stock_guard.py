@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """不允许负库存的账套写销货前核结存（出入库第一期，10-25；stock_guard）。
 
-- ISINFO.NEGALLOW = N：卖超结存 → 整单不写，回 STOCK_INSUFFICIENT（转人工）。照 Express 按仓拦：每行按实际写入的仓（行上的仓库码，
-  没带就是主仓 MAINLOC）的 STLOC.LOCBAL 核，同单同品同仓合计；各仓合计和 STMAS.MREMBAL 对不上的老账也按 STLOC（主会话 10-25，
-  服务器测试账套实录）；
+- ISINFO.NEGALLOW = N：卖超结存 → 整单不写，回 STOCK_INSUFFICIENT（转人工）。照 Express（服务器测试账套实录，主会话 10-25 定稿）：
+  CHKNEGLEV 1 / 2（空按 2）按单个仓——每行按实际写入的仓（行上的仓库码，没带就是主仓 MAINLOC）的 STLOC.LOCBAL 核，同单同品同仓合计，
+  各仓合计和 STMAS.MREMBAL 对不上的老账也按 STLOC；CHKNEGLEV 0 只按全仓 STMAS.MREMBAL 合计，允许单个仓变负；
 - 够卖、这件品自己标了允许负库存（STMAS.NEGALLOW = Y）、账套允许负库存（NEGALLOW ≠ N）、随单新建的物料：照写；
 - 没有 STLOC：按全仓 STMAS.MREMBAL 核。
 """
@@ -135,3 +135,35 @@ def test_a_line_without_a_warehouse_code_is_checked_against_the_main_warehouse(a
     assert "ICE01@01 need 3 have 0" in res.error
     assert _state(acct) == before
     assert _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale", loccod="02")])).ok
+
+
+def test_level_zero_checks_only_the_whole_balance_and_lets_a_warehouse_go_negative(acct):
+    """CHKNEGLEV = 0（服务器测试账套 1-乙）：01 仓 0、02 仓 4、全仓 4，从 01 仓卖 3 照写，01 仓变 −3；卖到合计超过全仓才拦。"""
+    isinfo(acct, MAINLOC="01", NEGALLOW="N", CHKNEGLEV="0")
+    assert _buy(acct, _purchase([_item("ICE01", 4, 40.0, "stock_item")], loccod="02")).ok
+    _set_stloc(acct, "ICE01", "01", LOCBAL=0.0, BEGBAL=0.0)
+    _set_item(acct, "ICE01", MREMBAL=4.0, TOTBAL=4.0)
+    assert stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale")], [None]) == []
+    short = stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale"), _item("ICE01", 2, 60.0, "stock_sale", loccod="02")],
+                                  [None, "02"])
+    assert short == [{"stkcod": "ICE01", "loccod": "all", "need": "5", "have": "4"}]  # 两个仓的行合起来对全仓
+    res = _sell(acct, _sale([_item("ICE01", 3, 90.0, "stock_sale")]))
+    assert res.ok, res.error
+    assert _stloc(acct, "ICE01", "01")["LOCBAL"] == -3.0
+
+
+def test_levels_one_and_two_check_the_single_warehouse(acct):
+    """CHKNEGLEV = 1 与 2（服务器测试账套 1-甲 / 1-丙 / 1-丁）：同样的货，从 01 仓卖 3 被拦，不看全仓合计。"""
+    for level in ("1", "2", ""):
+        isinfo(acct, MAINLOC="01", NEGALLOW="N", CHKNEGLEV=level)
+        _set_stloc(acct, "ICE01", "01", LOCBAL=0.0, BEGBAL=0.0)
+        _set_item(acct, "ICE01", MREMBAL=4.0, TOTBAL=4.0)
+        short = stock_guard.shortages(acct, [_item("ICE01", 3, 90.0, "stock_sale")], [None])
+        assert short == [{"stkcod": "ICE01", "loccod": "01", "need": "3", "have": "0"}], level
+        assert stock_guard.by_warehouse(acct)
+
+
+def test_negative_allowed_book_is_not_checked_at_any_level(acct):
+    for level in ("0", "2"):
+        isinfo(acct, MAINLOC="01", NEGALLOW="Y", CHKNEGLEV=level)
+        assert stock_guard.shortages(acct, [_item("ICE01", 99, 90.0, "stock_sale")], [None]) == []
