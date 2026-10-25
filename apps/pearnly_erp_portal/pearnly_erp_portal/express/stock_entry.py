@@ -203,7 +203,8 @@ def void_payload(name, company_row) -> dict:
     codes = {int(row.get("seq") or 0): str(row.get("code") or "") for row in (written or {}).get("line_codes") or []
              if isinstance(row, dict)}
     body = document(name, "void")
-    items = [{"seq": seq, "code": codes.get(seq) or line["code"], "loccod": line["loccod"], "qty": line["qty"]}
+    items = [{"seq": seq, "code": codes.get(seq) or line["code"], "loccod": line["loccod"], "qty": line["qty"],
+              **({"factor": line["factor"]} if line.get("factor") else {})}
              for seq, line in enumerate(body["lines"], start=1)]
     path = book["path"]
     payload = {

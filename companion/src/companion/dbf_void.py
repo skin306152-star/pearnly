@@ -110,7 +110,9 @@ def _differences(lines: List[dict], items: List[dict]) -> List[str]:
             out.append(f"line {seq} STKCOD {row['STKCOD']!r} != {code!r}")
         if loccod and row["LOCCOD"] != loccod:
             out.append(f"line {seq} LOCCOD {row['LOCCOD']!r} != {loccod!r}")
-        if row["TRNQTY"] != _dec(item.get("qty")):
+        qty, factor = _dec(item.get("qty")), _dec(item.get("factor")) or Decimal(1)
+        # 写入时认不出 Express 包装单位、按 ERP 换算率换成库存单位写的行，TRNQTY 是「数量 × 换算率」（stock_units）
+        if row["TRNQTY"] not in (qty, qty * factor):
             out.append(f"line {seq} TRNQTY {row['TRNQTY']} != {item.get('qty')}")
     return out
 

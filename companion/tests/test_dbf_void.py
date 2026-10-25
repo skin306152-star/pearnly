@@ -93,6 +93,14 @@ def test_a_locked_period_is_not_touched(book, monkeypatch):
     assert not out.ok and out.error_code == "PERIOD_LOCKED"
 
 
+def test_a_line_written_in_stock_units_with_the_erp_factor_still_matches(book):
+    """ERP 的包装单位不是 Express 的：写入时按 ERP 换算率换成库存单位（TRNQTY = 数量 × 换算率），作废核原单照样认得出。"""
+    res = _write(book, _entry("OU", [{"code": "ICE01", "name": "ICE01", "qty": "1", "unit": "แพ็ค", "factor": "2"}]))
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["TRNQTY"] == 2.0
+    assert _void(book, res.docnum, "OU", [{"code": "ICE01", "qty": "1", "factor": "2"}]).ok
+
+
 def test_payload_seven_is_supported():
     assert payload_contract.check_payload_version({"payload_version": 7}) is None
 
