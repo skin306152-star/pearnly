@@ -541,6 +541,22 @@ def update_profile(**fields) -> dict:
     return update_company(ensure_default(), **fields)
 
 
+LOGO_TYPES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
+
+
+def _attach_logo(doc, url) -> None:
+    rows = frappe.get_all("File", filters={"file_url": url}, fields=["name", "owner", "file_name", "is_folder",
+                          "attached_to_doctype", "attached_to_name"], limit_page_length=5)
+    mine = [row for row in rows if not row.is_folder and str(row.file_name or url).lower().endswith(LOGO_TYPES) and (
+        (row.attached_to_doctype == "ERP Company" and row.attached_to_name == doc.name)
+        or (row.owner == frappe.session.user and not row.attached_to_doctype and not row.attached_to_name))]
+    if not mine:
+        frappe.throw(_(INVALID))
+    if mine[0].attached_to_doctype != "ERP Company":
+        frappe.db.set_value("File", mine[0].name, {"attached_to_doctype": "ERP Company", "attached_to_name": doc.name,
+                                                   "attached_to_field": "logo"})
+
+
 def _apply(doc, fields) -> None:
     tax_changed = "tax_id" in fields and str(fields.get("tax_id") or "").strip() != str(doc.get("tax_id") or "").strip()
     for field, limit in (("company_name", contracts.MAX_NAME), ("short_name", contracts.MAX_SHORT),
@@ -562,10 +578,11 @@ def _apply(doc, fields) -> None:
             tax_ids.require_valid(value, previous=doc.get("tax_id"), thai_required=True)
         doc.set(field, value)
     if "logo" in fields:
-        # 单据打印抬头的 Logo：只认这个站点里已上传的文件（Attach Image 传上来的地址），空 = 用 App 自带的 PEARNLY
+        # 单据打印抬头的 Logo，空 = 用 App 自带的 PEARNLY。只认图片，且是已挂在这家公司 Logo 上的，或本人刚上传、还没挂到别处的
+        # （挂上这家公司，读权限跟着公司走）；别人的、挂在别的单据上的私有文件一律拒（验收 10-26：否则打印时会把它嵌出来）
         logo = str(fields.get("logo") or "").strip()
-        if logo and not frappe.db.exists("File", {"file_url": logo}):
-            frappe.throw(_(INVALID))
+        if logo:
+            _attach_logo(doc, logo)
         doc.logo = logo
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):

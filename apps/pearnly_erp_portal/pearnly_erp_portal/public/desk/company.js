@@ -316,7 +316,8 @@
 				f("short_name", "company.field.shortName", "Data",
 					{default: data.short_name || "", ...ro}),
 				f("tax_id", "company.field.taxId", "Data", {default: data.tax_id || "", ...ro}),
-				...(data.can_lookup ? [f("lookup", "company.lookup.action", "Button",
+				// 接了 Express 的公司名称、地址以 Express 为准：不给按税号查税务局回填
+				...(data.can_lookup && !data.express_locked ? [f("lookup", "company.lookup.action", "Button",
 					{click: () => lookup_tax(form)})] : []),
 				f("branch", "company.field.branch", "Data", {default: data.branch || "", ...ro}),
 				f("vat_registered", "company.field.vatRegistered", "Select",

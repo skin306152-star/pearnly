@@ -9,8 +9,8 @@
   {"key": "po", "th": "จำนวนตามใบสั่งซื้อ", "en": "PO Qty", "width": "9%", "cls": "pp-r"},
   {"key": "do", "th": "จำนวนตามใบส่งของ", "en": "DO Qty", "width": "9.5%", "cls": "pp-r"},
   {"key": "qty", "th": "จำนวนที่รับ", "en": "Receive Qty", "width": "9%", "cls": "pp-r"},
-  {"key": "price", "th": "ราคาต่อหน่วย", "en": "Unit Price (THB)", "width": "9.5%", "cls": "pp-r"},
-  {"key": "amount", "th": "จำนวนเงิน", "en": "Amount (THB)", "width": "9.5%", "cls": "pp-r"},
+  {"key": "price", "th": "ราคาต่อหน่วย", "en": "Unit Price (" ~ (ctx.currency or "THB") ~ ")", "width": "9.5%", "cls": "pp-r"},
+  {"key": "amount", "th": "จำนวนเงิน", "en": "Amount (" ~ (ctx.currency or "THB") ~ ")", "width": "9.5%", "cls": "pp-r"},
   {"key": "remark", "th": "หมายเหตุ", "en": "Remarks", "width": "13.5%"},
 ] %}
 <div class="pp">

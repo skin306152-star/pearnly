@@ -24,11 +24,14 @@ FONT_WEIGHTS = {400: "Regular", 700: "Bold"}  # 字体文件 `<家族>-<字重>.
 
 
 def pearnly_print_context(doc) -> dict:
-    if doc.doctype == STOCK:
-        return _stock(doc)
-    if doc.doctype == PURCHASE:
-        return _purchase(doc)
-    frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+    """只打库里已有、当前用户读得到的单：按名字从库里重新取一遍再算。原生打印接口（`printview.get_html_and_style`）收得下
+    页面传来的整份单据 JSON，不重取的话伪造一张单、填上别家公司的供应商，就能把对方的税号印出来（验收 10-26）。"""
+    if doc.doctype not in (STOCK, PURCHASE) or not doc.name or not frappe.db.exists(doc.doctype, doc.name):
+        frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+    doc = frappe.get_doc(doc.doctype, doc.name)
+    if not doc.has_permission("read"):
+        frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+    return _stock(doc) if doc.doctype == STOCK else _purchase(doc)
 
 
 def _data_uri(content: bytes, name: str) -> str:
@@ -55,10 +58,12 @@ def fonts_css() -> str:
     return "\n".join(faces)
 
 
-def logo(company_row) -> str:
+def logo(company_row, company=None) -> str:
     url = str(company_row.get("logo") or "").strip()
-    if url:
-        file_name = frappe.db.get_value("File", {"file_url": url}, "name")
+    if url and company:
+        # 只认挂在这家公司 Logo 上的文件（`masters.company._attach_logo` 挂的），不按地址去读别处的私有文件
+        file_name = frappe.db.get_value("File", {"file_url": url, "attached_to_doctype": "ERP Company",
+                                                 "attached_to_name": company}, "name")
         if file_name:
             try:
                 # 按路径读原始字节（`File.get_content()` 遇到能按 UTF-8 解码的内容会回字符串）
@@ -75,7 +80,7 @@ def header(company) -> dict:
                               as_dict=True) if company else None
     row = row or frappe._dict()
     return {"name": row.company_name or "", "address": " ".join(str(row.address or "").split()),
-            "phone": row.phone or "", "email": row.contact_email or "", "logo": logo(row)}
+            "phone": row.phone or "", "email": row.contact_email or "", "logo": logo(row, company)}
 
 
 def _products(names) -> dict:
@@ -114,7 +119,7 @@ def _base(kind, doc, company, number, posting_date, remarks, void) -> dict:
     # 单据标题（泰英）是样板版面的一部分，写在模板里（`templates/goods_*.html`）
     return {"kind": kind, "company": header(company), "fonts_css": fonts_css(),
             "number": number or doc.name, "date": contracts.day(posting_date), "remarks": str(remarks or "").strip(),
-            "void": bool(void)}
+            "void": bool(void), "currency": "THB"}
 
 
 def _stock(doc) -> dict:
@@ -148,9 +153,12 @@ def _purchase(doc) -> dict:
     stock_lines = [line for line in doc.lines if (line.item_type or "goods") == "goods"]
     for line in stock_lines:
         product = products.get(line.product) or {}
+        # 单价按行金额 ÷ 数量（有行折扣时与金额对得上；单据币种原样，表头写单据币种）
+        qty = contracts.d(line.qty)
+        price = contracts.d(line.line_total) / qty if qty else contracts.d(line.unit_price)
         rows.append({"code": _code(product) or line.code or "", "name": product.get("product_name") or line.description or "",
                      "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
-                     "price": contracts.money(line.unit_price),
+                     "price": contracts.money(price),
                      "amount": contracts.money(line.line_total)})
     warehouse_id = next((line.warehouse for line in stock_lines if line.warehouse), "")
     warehouse = frappe.db.get_value("ERP Warehouse", warehouse_id, "warehouse_name") if warehouse_id else ""
@@ -158,7 +166,8 @@ def _purchase(doc) -> dict:
     ctx.update(pages=contracts.pages(rows), warehouse=warehouse or "",
                supplier=_supplier(doc.supplier, {"name": doc.supplier_name, "tax_id": doc.supplier_tax_id,
                                                  "address": doc.supplier_address}),
-               warehouse_check=contracts.warehouse_check(_is_main(warehouse_id, doc.company), warehouse or ""))
+               warehouse_check=contracts.warehouse_check(_is_main(warehouse_id, doc.company), warehouse or ""),
+               currency=str(doc.currency or "THB").strip().upper() or "THB")
     ctx["page_count"] = len(ctx["pages"])
     return ctx
 
