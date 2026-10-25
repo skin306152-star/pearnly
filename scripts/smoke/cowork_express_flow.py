@@ -66,22 +66,22 @@ try:
     if conn.adapter != "express":
         raise SystemExit(f"refuse: {conn.name} is not an Express connection")
     queued = frappe.get_all(PUSH, filters={"connection": conn.name, "status": ["in", ["pending", "leased"]]},
-                            fields=["name", "account_set_key"], limit_page_length=200)
-    outside = [row.name for row in queued if not c_drive_t_book(row.account_set_key)]
+                            fields=["name", "account_key"], limit_page_length=200)
+    outside = [row.name for row in queued if not c_drive_t_book(row.account_key)]
     if outside:
         raise SystemExit(f"refuse: records queued outside C drive on this connection: {outside[:5]}")
     state = pool.state(conn.name, account_set, user=user)
     if not (state.get("writers_known") and state.get("online")):
         result.update(skipped=True, why=f"CC not online for this book: {state}")
         raise SystemExit(0)
-    ahead = [row.name for row in queued if str(row.account_set_key or "").casefold() == account_set.casefold()]
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+
+    wanted = normalize_express_account_key(account_set)
+    ahead = [row.name for row in queued if normalize_express_account_key(row.account_key) == wanted]
 
     loaded = connections.read_for_push(conn.name, conn.workspace, conn.client, lock=True)
     rows = (loaded.evidence.snapshot or {}).get("account_sets") or []
     rows = json.loads(rows) if isinstance(rows, str) else rows
-    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
-
-    wanted = normalize_express_account_key(account_set)
     row = next((item for item in rows if isinstance(item, dict)
                 and normalize_express_account_key(item.get("source_id")) == wanted), None)
     if not row:

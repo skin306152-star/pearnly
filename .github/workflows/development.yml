@@ -274,7 +274,7 @@ jobs:
       - name: Verify the shared scanner shows the camera picture and reads a test barcode in a real browser
         env:
           SMOKE_CHROME: /usr/bin/google-chrome
-        run: python3 scripts/smoke/selftest.py
+        run: python3 scripts/smoke/selftest.py && python3 tests/test_smoke_flow_fields.py
       - name: Verify browser errors on product pages reach the site's error log
         run: |
           python3 tests/test_client_errors.py
