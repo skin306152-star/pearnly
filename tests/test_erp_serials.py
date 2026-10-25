@@ -233,5 +233,34 @@ class Serials(unittest.TestCase):
                                                3: [{"serial": "SRL-9", "serial_no": "", "secondary_no": "", "color": ""}]})
 
 
+
+class SerialRoles(unittest.TestCase):
+    def test_every_role_that_reads_products_or_stock_reads_and_exports_units(self):
+        """验收 10-26：只带老岗位角色（开户时的 ERP Stock / ERP Products …）或管理员的账号打不开按台记录。能读商品或库存的
+        角色新旧两套都给读与导出（行仍按公司与仓过滤），迁移时补，已有站点生效。"""
+        sys.modules.setdefault("pearnly_core.provisioning", types.ModuleType("pearnly_core.provisioning"))
+        provisioning = sys.modules["pearnly_core.provisioning"]
+        for name in ("_ensure_role", "_grant"):
+            setattr(provisioning, name, getattr(provisioning, name, lambda *a, **k: None))
+        sharing = types.ModuleType("pearnly_erp_portal.access.sharing")
+        sharing.remove_legacy_shares = lambda: None
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.access.sharing": sharing}):
+            from pearnly_erp_portal.access import menu, setup
+
+            grants = {}
+            db = types.SimpleNamespace(delete=lambda *a, **k: None, exists=lambda *a, **k: True)
+            with mock.patch.object(setup, "_grant", lambda doctype, role, perms, permlevel=0: grants.__setitem__((doctype, role), perms)), \
+                    mock.patch.object(setup, "_ensure_role", lambda role: None), \
+                    mock.patch.object(setup.frappe, "db", db, create=True), \
+                    mock.patch.object(setup.frappe, "clear_cache", lambda: None, create=True):
+                setup.sync_roles()
+        for role in ("ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier", "ERP Admin",
+                     menu.role("inventory"), menu.role("stock-card"), menu.role("pos-receipts")):
+            for doctype in menu.SERIALS:
+                self.assertTrue(grants[(doctype, role)].get("read") and grants[(doctype, role)].get("export"), (doctype, role))
+        self.assertNotIn(("ERP Serial No", "ERP Tasks"), grants)
+        self.assertNotIn(("ERP Serial No", menu.role("tasks")), grants)
+
+
 if __name__ == "__main__":
     unittest.main()

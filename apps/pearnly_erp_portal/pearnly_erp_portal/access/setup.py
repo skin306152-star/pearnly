@@ -27,13 +27,15 @@ def sync_roles():
                 _grant(doctype, role, write if doctype in writable else read)
         if key in ("inventory", "stock-in", "stock-out", "stock-card", "stock-count", "warehouses"):
             _grant("ERP Stock Count Item", role, {"read": 1}, permlevel=1)
-    # 按台记录是后加的表：开户时的老岗位角色与管理员拿不到，按 features.json 同一口径在这里补只读，已有站点迁移即生效。
-    legacy = {legacy for _f, legacy, _c, _w, readable in menu.CATALOG.values() if set(menu.SERIALS) <= set(readable)}
-    for role in sorted(legacy | {rules.ADMIN_ROLE}):
+    # 按台记录：能读商品或库存的角色新旧两套都给读与导出（行仍按公司与仓过滤，`inventory.access.record_query`）。
+    # 后加的表开户时老岗位角色与管理员拿不到，按 features.json 同一口径在这里补，已有站点迁移即生效。
+    holders = {(menu.role(key), legacy) for key, (_f, legacy, _c, _w, readable) in menu.CATALOG.items()
+               if set(menu.SERIALS) <= set(readable)}
+    for role in sorted({name for pair in holders for name in pair} | {rules.ADMIN_ROLE}):
         _ensure_role(role)
         for doctype in menu.SERIALS:
             if frappe.db.exists("DocType", doctype):
-                _grant(doctype, role, read)
+                _grant(doctype, role, {**read, "report": 1, "export": 1})
     # LINE 开关就是这个角色（团队管理逐人勾选），不带任何单据权限。
     _ensure_role(rules.LINE_ROLE)
     from pearnly_erp_portal.access.sharing import remove_legacy_shares
