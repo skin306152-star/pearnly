@@ -39,7 +39,9 @@ def logo(company_row) -> str:
         file_name = frappe.db.get_value("File", {"file_url": url}, "name")
         if file_name:
             try:
-                return _data_uri(frappe.get_doc("File", file_name).get_content(), url)
+                # 按路径读原始字节（`File.get_content()` 遇到能按 UTF-8 解码的内容会回字符串）
+                with open(frappe.get_doc("File", file_name).get_full_path(), "rb") as handle:
+                    return _data_uri(handle.read(), url)
             except (OSError, frappe.DoesNotExistError):
                 pass  # 文件丢了：回落 PEARNLY，不让整张单打不出来
     with open(frappe.get_app_path("pearnly_erp_portal", *DEFAULT_LOGO), "rb") as handle:
@@ -59,7 +61,7 @@ def _products(names) -> dict:
     if not names:
         return {}
     return {row.name: row for row in frappe.get_all("ERP Product", filters={"name": ["in", names]},  # bounded: 这张单的商品
-                                                    fields=["name", "product_name", "code", "express_code"],
+                                                    fields=["name", "product_name", "code", "express_code", "unit"],
                                                     limit_page_length=0)}
 
 
@@ -100,8 +102,9 @@ def _stock(doc) -> dict:
     for line in doc.lines:
         product = products.get(line.product) or {}
         cost = contracts.d(line.unit_cost)
-        rows.append({"code": _code(product), "name": product.get("product_name") or "", "unit": line.unit or "",
-                     "qty": contracts.qty(line.qty), "price": contracts.money(cost) if cost is not None else "",
+        rows.append({"code": _code(product), "name": product.get("product_name") or "",
+                     "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
+                     "price": contracts.money(cost) if cost is not None else "",
                      "amount": contracts.money(cost * contracts.d(line.qty)) if cost is not None else ""})
     kind = ISSUE if doc.direction == "out" else RECEIPT
     ctx = _base(kind, doc, company, doc.doc_no, doc.posting_date, doc.reason, doc.status == "void")
@@ -124,7 +127,8 @@ def _purchase(doc) -> dict:
     for line in stock_lines:
         product = products.get(line.product) or {}
         rows.append({"code": _code(product) or line.code or "", "name": product.get("product_name") or line.description or "",
-                     "unit": line.unit or "", "qty": contracts.qty(line.qty), "price": contracts.money(line.unit_price),
+                     "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
+                     "price": contracts.money(line.unit_price),
                      "amount": contracts.money(line.line_total)})
     warehouse_id = next((line.warehouse for line in stock_lines if line.warehouse), "")
     warehouse = frappe.db.get_value("ERP Warehouse", warehouse_id, "warehouse_name") if warehouse_id else ""

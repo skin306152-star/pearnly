@@ -18,41 +18,41 @@
 <div class="pp-page{{ ' pp-last' if loop.last else '' }}">
   {% if ctx.void %}<div class="pp-void">ยกเลิก / CANCELLED</div>{% endif %}
   {{ head(ctx, loop.index, {"date": "วันที่รับสินค้า"}) }}
-  <table style="margin-top: 10px"><tr>
-    <td style="width: 48%; border: 1px solid #cfe1d4; border-radius: 6.5px">
+  <table style="margin-top: 8.5px"><tr>
+    <td style="width: 48%; border: 1px solid #cfe1d4; border-radius: 5.5px">
       <div class="pp-box-title">ข้อมูลผู้ขาย / Supplier</div>
       <div class="pp-box-body"><table class="pp-f pp-fw">
         {{ field("รหัสผู้ขาย", ctx.supplier.code) }}
         {{ field("ชื่อผู้ขาย", ctx.supplier.name) }}
-        <tr><td class="pp-k">ที่อยู่</td><td class="pp-c">:</td><td><div class="pp-line" style="min-height: 33.5px">{{ ctx.supplier.address | e }}</div></td></tr>
+        <tr><td class="pp-k">ที่อยู่</td><td class="pp-c">:</td><td><div class="pp-line" style="min-height: 29px">{{ ctx.supplier.address | e }}</div></td></tr>
         {{ field("โทรศัพท์", ctx.supplier.phone) }}
         {{ field("อีเมล", ctx.supplier.email) }}
         {{ field("เลขประจำตัวผู้เสียภาษี", ctx.supplier.tax_id) }}
       </table></div>
     </td>
     <td class="pp-gap"></td>
-    <td style="border: 1px solid #cfe1d4; border-radius: 6.5px">
+    <td style="border: 1px solid #cfe1d4; border-radius: 5.5px">
       <div class="pp-box-title">ข้อมูลการรับสินค้า</div>
       <div class="pp-box-body"><table class="pp-f pp-fw">
         <tr><td class="pp-k">ใบสั่งซื้อ (PO No.)</td><td class="pp-c">:</td><td><div class="pp-line"></div></td>
-            <td style="width: 125.5px; padding-left: 15.5px">วันที่ตามใบสั่งซื้อ</td><td class="pp-c">:</td><td style="width: 101px"><div class="pp-line"></div></td></tr>
+            <td style="width: 109px; padding-left: 13.5px !important">วันที่ตามใบสั่งซื้อ</td><td class="pp-c">:</td><td style="width: 88px"><div class="pp-line"></div></td></tr>
         <tr><td class="pp-k">ใบส่งของ (DO No.)</td><td class="pp-c">:</td><td><div class="pp-line"></div></td>
-            <td style="padding-left: 15.5px">วันที่ตามใบส่งของ</td><td class="pp-c">:</td><td><div class="pp-line"></div></td></tr>
-        <tr><td class="pp-k">คลังสินค้า</td><td class="pp-c">:</td><td colspan="4">
+            <td style="padding-left: 13.5px !important">วันที่ตามใบส่งของ</td><td class="pp-c">:</td><td><div class="pp-line"></div></td></tr>
+        <tr><td class="pp-k">คลังสินค้า</td><td class="pp-c">:</td><td class="pp-opts" colspan="4">
           <span class="pp-opt">{{ cb(ctx.warehouse_check.main) }}คลังหลัก</span>
           <span class="pp-opt">{{ cb(false) }}คลัง 1</span>
           <span class="pp-opt">{{ cb(false) }}คลัง 2</span>
           <span class="pp-opt">{{ cb(false) }}คลัง 3</span>
-          <span class="pp-opt">{{ cb(ctx.warehouse_check.other) }}อื่นๆ <span class="pp-dots" style="width: 112px">{{ ctx.warehouse_check.other_text | e }}</span></span>
+          <span class="pp-opt">{{ cb(ctx.warehouse_check.other) }}อื่นๆ <span class="pp-dots" style="width: 58px">{{ ctx.warehouse_check.other_text | e }}</span></span>
         </td></tr>
         <tr><td class="pp-k">สถานที่รับสินค้า</td><td class="pp-c">:</td><td colspan="4"><div class="pp-line"></div></td></tr>
         <tr><td class="pp-k">ผู้รับสินค้า</td><td class="pp-c">:</td><td><div class="pp-line"></div></td>
-            <td style="padding-left: 15.5px">แผนก</td><td class="pp-c">:</td><td><div class="pp-line"></div></td></tr>
-        <tr><td class="pp-k">วิธีการขนส่ง</td><td class="pp-c">:</td><td colspan="4">
+            <td style="padding-left: 13.5px !important">แผนก</td><td class="pp-c">:</td><td><div class="pp-line"></div></td></tr>
+        <tr><td class="pp-k">วิธีการขนส่ง</td><td class="pp-c">:</td><td class="pp-opts" colspan="4">
           <span class="pp-opt">{{ cb(false) }}รถบริษัท</span>
           <span class="pp-opt">{{ cb(false) }}ผู้ขายจัดส่ง</span>
           <span class="pp-opt">{{ cb(false) }}ขนส่งเอกชน</span>
-          <span class="pp-opt">{{ cb(false) }}อื่นๆ <span class="pp-dots" style="width: 112px"></span></span>
+          <span class="pp-opt">{{ cb(false) }}อื่นๆ <span class="pp-dots" style="width: 58px"></span></span>
         </td></tr>
         <tr><td class="pp-k">หมายเหตุเบื้องต้น</td><td class="pp-c">:</td><td colspan="4"><div class="pp-line"></div></td></tr>
       </table></div>
@@ -61,7 +61,7 @@
   {{ items(page, columns, (loop.index - 1) * 10) }}
   <table class="pp-foot"><tr>
     <td style="width: 36%"><div class="pp-remark"><div class="pp-remark-title">หมายเหตุเพิ่มเติม <span>/ Remarks</span></div>
-      <div class="pp-remark-body">{% if loop.last and ctx.remarks %}{{ ctx.remarks | e }}{% else %}<div class="pp-line" style="margin-top: 11px"></div><div class="pp-line" style="margin-top: 13.5px"></div><div class="pp-line" style="margin-top: 13.5px"></div>{% endif %}</div></div></td>
+      <div class="pp-remark-body">{% if loop.last and ctx.remarks %}{{ ctx.remarks | e }}{% else %}<div class="pp-line" style="margin-top: 9.5px"></div><div class="pp-line" style="margin-top: 11.5px"></div><div class="pp-line" style="margin-top: 11.5px"></div>{% endif %}</div></div></td>
     <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้รับสินค้า", "Received by") }}</td>
     <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้ตรวจสอบ", "Checked by") }}</td>
     <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้อนุมัติ", "Approved by") }}</td>
