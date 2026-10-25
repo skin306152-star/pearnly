@@ -118,12 +118,12 @@
 			...needed_fields(info.needed, direction),
 			// 收银日汇总 / 退货单停住时的出口：人在 Express 里手工处理好了，标一下就不再写（主会话 10-26）
 			...(info.can_mark_handled ? [{fieldtype: "Button", fieldname: "mark_handled", label: __("express.action.markHandled"),
-				click: () => frappe.confirm(__("express.action.markHandled"), async () => {
-					await p.call(api + "mark_handled", {doctype, name}, "POST");
+				click: () => frappe.prompt([{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), reqd: 1}], async values => {
+					await p.call(api + "mark_handled", {doctype, name, reason: values.reason}, "POST");
 					p.success(__("express.state.handled"), "click");
 					cur_dialog?.hide();
 					await reload?.();
-				})}] : []),
+				}, __("express.action.markHandled"))}] : []),
 		];
 		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
 		p.dialog(__("Express"), fields, action, async (values, dialog) => {

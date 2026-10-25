@@ -126,10 +126,13 @@ def _pos_stuck(doctype, row, job) -> bool:
 
 
 @frappe.whitelist(methods=["POST"])
-def mark_handled(doctype, name):
+def mark_handled(doctype, name, reason=None):
     """人在 Express 里手工处理好了这张收银日汇总 / 退货单：标「已在 Express 手工处理」，不再写；撤掉还挂着的写账件。库存对齐把它
     当作已写进 Express（`masters.WRITTEN_STATES`）。"""
     row = _document(doctype, name, write=True)
+    reason = " ".join(str(reason or "").split())[:500]
+    if not reason:
+        frappe.throw(_("Reason"), frappe.MandatoryError)
     job = jobs.find_by_name(row.express_job) if row.express_job else None
     if not _pos_stuck(doctype, row, job):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
@@ -137,8 +140,8 @@ def mark_handled(doctype, name):
         jobs.cancel(job["job"], "replaced")
     frappe.db.set_value(doctype, name, {"express_state": contracts.HANDLED, "express_reason": "", "express_needed": None,
                                         "express_job": None}, update_modified=False)
-    # 审计：谁、什么时候标的（单据时间线里原生的一条记录；标错了在 Express 里核对后照实处理，不另做撤销）
-    frappe.get_doc(doctype, name).add_comment("Info", _("express.state.handled"))
+    # 审计：谁、什么时候标的、原因（单据时间线里原生的一条评论，带标记人和时间；标错了在 Express 里核对后照实处理，不另做撤销）
+    frappe.get_doc(doctype, name).add_comment("Comment", f"{_('express.state.handled')}: {reason}")
     frappe.db.commit()
     return _view(doctype, _document(doctype, name))
 

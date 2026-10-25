@@ -1002,7 +1002,7 @@ class PosDayExits(PushModule):
     """B3b 验收复核（主会话 10-26）：收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的、电脑转人工）不能永远卡着：
     「再写一次」按此刻内容重新准备，「已在 Express 手工处理」标 handled、撤掉挂着的写账件；没停住的单不给这两个出口。"""
 
-    def run_exit(self, action, row, job=None):
+    def run_exit(self, action, row, job=None, reason="ปิดใน Express แล้ว"):
         import types
         from unittest import mock
 
@@ -1025,7 +1025,7 @@ class PosDayExits(PushModule):
                 mock.patch.object(frappe, "get_doc", lambda doctype, name: types.SimpleNamespace(
                     add_comment=lambda kind, text: comments.append((kind, text))), create=True), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
-            getattr(api, action)("ERP POS Day Summary", "PDS-1")
+            getattr(api, action)("ERP POS Day Summary", "PDS-1", **({"reason": reason} if action == "mark_handled" else {}))
         return writes, cancelled, sent
 
     def test_a_held_summary_can_be_retried_or_marked_handled(self):
@@ -1033,7 +1033,9 @@ class PosDayExits(PushModule):
         self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 按此刻内容重新准备
         writes, cancelled, sent = self.run_exit("mark_handled", {"express_state": "held"})
         self.assertEqual((writes["express_state"], writes["express_job"], cancelled, sent), ("handled", None, [], []))
-        self.assertEqual(self.comments, [("Info", "express.state.handled")])  # 时间线留一条：谁、什么时候标的
+        self.assertEqual(self.comments, [("Comment", "express.state.handled: ปิดใน Express แล้ว")])  # 时间线留一条：谁、何时、原因
+        with self.assertRaises(Exception):
+            self.run_exit("mark_handled", {"express_state": "held"}, reason="  ")  # 不写原因不能标
         cancelled_job = {"job": "J0", "status": "cancelled", "reason": "replaced"}
         writes, _cancelled, sent = self.run_exit("retry", {"express_state": "failed"}, cancelled_job)
         self.assertEqual((writes["express_state"], sent), ("queued", ["PDS-1"]))  # 写账件已撤销的失败单也能再写一次
