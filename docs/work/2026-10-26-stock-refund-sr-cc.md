@@ -150,3 +150,66 @@ ERP 交给写账规则的主页面：`_extraction_audit` 除 `pos` 外加 `refun
 1039 本账套、STCRD 里约 300 万行带 RDOCNUM 的退货 / 引用行）只读扫了一遍：RDOCNUM 一律 C(15)，**原单号左对齐、原单行号右对齐到第 15 位，
 中间补空格**（如 `HS0000039     1`、`IV5801890    12`、单号 10 位 + 3 位行号 `…   100`；单号 14 位时行号紧贴）。`dbf_refund.rdocnum` 照此改，
 读已退数量按「单号后面只能是空格加数字」认行号。补用例：1 / 12 / 100 行的写法与已退数量累计。CC 全量测试 1175 过。
+
+## 复核后三项（10-26，分支 `pearnly/stock-refund-sr-cc2`，基线 `1285cee6`）
+
+主会话 10-26 定的口径，验收复核见 `B3b-SR-df3416f6-复核.md` 高 1、中 3、中 5。RDOCNUM 拼法（`dbf_refund.rdocnum`）不再动。
+
+1. **合成表宽度**：`table_specs.py` 的 STCRD `RDOCNUM` 由 C(17) 改 C(15)（真表宽度），注释改成原生写法。补用例：原单 12 行、退第 12 行，
+   写出的 RDOCNUM 是 `HS691025-002 12`、正好 15 位，读回已退数量按第 12 行认到，再退回 `REFUND_EXCEEDS_ORIGINAL`。
+2. **退货里有非库存品**（服务、费用）：按行区分。
+   - 共用规则 `sales_mapper._as_refund`：去掉「明细必须全是库存行」。库存行（`stock_sale`）照旧要存货码；非库存行（`non_stock_item` /
+     `direct_account`）照收。借方同 HS 的贷方按行科目拆（`split_by_account`）：带科目的非库存行（ERP 认出的 Express 服务类物料）借它自己的科目，
+     其余（库存行、没带科目的非库存行）借退货科目；只有一个科目时仍是原来那一条分录（全库存行的载荷与改动前相同）。
+     `pos_refund_items_invalid` 只剩「明细不可信（没对上 / 空）、库存行没存货码、行模式认不出」；它的文案要跟着改，属于改已有文案，
+     **待用户确认**（见下方「待确认的文案改动」），本次没改。
+     非库存行总有退货科目可记，所以没有新增「非库存行没有科目」的原因码。
+   - CC `sales_adapter._validate_refund`：认三种行模式；借 退货科目可以有几条（角色都是 `refund`），合计 = 税前。
+   - CC `dbf_refund`：非库存行不写 STCRD / STLOC / STMAS / 成本凭证，只进单头金额、销项税和凭证（分录照载荷）；STCRD 行号、NXTSEQ 只数库存行，
+     全是非库存行时 NXTSEQ 同 HS 表头模式记 1；逐行回执按载荷行号列全部行（非库存行标 `non_stock_item` / `direct_account`）。非库存行不核原单。
+   - 没有 `refund` 块的载荷逐字节不变（`OrdinaryPayloadTests` 的 SHA-256 照过）。
+3. **换电脑重写只出一张（幂等）**：`dbf_refund.existing` 写前只读找 ARTRN 里 RECTYP 5、没作废、SONUM = 原单号、YOUREF = 载荷 `ref_no`、
+   DOCDAT = 本次日期、NETAMT = 本次含税合计（±0.01）的那张；有就回它的单号、一行不写，`DbfWriteResult(skipped=True)` → 回执
+   `written: false` / `duplicate_skipped: true`（同 `task_journal` 重发的写法）。放在核原单之前（已写那张已算进已退数量，再核会误报退超）。
+   ARTRN 没有 SONUM 一栏的老账套认不出、照常写。补用例：同一载荷两台电脑（不同 `task_journal` 目录）各写一次、写完没来得及记本机记录就断电后
+   重领、回执丢失后服务器重发同一任务 + ERP 原样再交一个新任务，都只出一张 SR；同一载荷直接再写回同一单号且账套文件逐字节不变；
+   另一张退货汇总 / 另一天照写；已作废的旧 SR 不算。
+
+### 测试（本机 macOS，Python 3.11 venv 照 `companion.yml` 装 `requirements-build.txt`，winrt 装不上已略）
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd companion && python -m pytest -q -p no:cacheprovider tests` | 1188 过、42 跳过、0 失败 |
+| 其中 `tests/test_dbf_refund.py` | 42 过 |
+| `python3 tests/test_express_rules_pos_refund.py` | 10 过 |
+| `python3 tests/test_companion_contract.py` | 77 过 |
+| `python3 tests/test_check_impact.py` | 过 |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/check-i18n.py --strict` / `python3 scripts/i18n-build.py --check` | 退出码 0 / PASS |
+| `python3 scripts/check-copy.py` | 拦截 0（提交钩子按暂存快照对基线 1285cee6：新增 0、改动 0） |
+
+### 给 ERP 侧
+
+- 没有新增原因码。`pos_refund_items_invalid` 含义变窄（不再因为有服务 / 费用行停下），Cowork 的 `intake.error.pos_refund_items_invalid`
+  与 ERP 的 `express.reason.refundItems`（现在都是「退货明细须为 Express 库存商品」）要一起改，等用户确认下面的清单。
+- 回执里 `meta.duplicate_skipped = true`、`written = false`、单号是已写的那张：ERP 按「已写入」处理即可（同 HS 的任务重发）。
+
+### 待确认的文案改动（改已有文案，用户同意后登记 `scripts/i18n/copy-approved.tsv`，出处写本记录路径）
+
+| 键 | 现在 | 建议 |
+| --- | --- | --- |
+| `intake.error.pos_refund_items_invalid`（Cowork） | 退货明细须为 Express 库存商品 / Each returned line must be an Express stock item | 退货明细不完整 / The returned lines are incomplete（泰 รายการรับคืนไม่ครบถ้วน、日 返品明細が不完全です） |
+| `express.reason.refundItems`（ERP，ERP 窗口改） | 退货明细须为 Express 库存商品 | 同上 |
+
+提交钩子（`check-copy`）已按规则拦下这条改动，本次撤回、保留原文；原文在「有服务 / 费用行」时已不会出现，只在明细不完整或库存行没码时出现，
+字面不准确但不会误导人去删服务行之外的操作。
+
+### 限制 / 与口径的出入
+
+- **HS 本身不支持库存与非库存混在一张**：`dbf_sales._write_all` 遇到混行抛 `STOCK_ITEM_NOT_FOUND`（「V1 不支持」），所以收银日汇总里同时有
+  库存品和服务费的那天，原 HS 现在就写不进去，对应的 SR 会一直等原单。SR 这边已经按行区分，HS 的混行是另一项（未改，不在本次范围）。
+- HS 写非库存行时会写 STCRD（非库存主档 / 直接科目行，`dbf_detail`），SR 按口径不写；SR 单头金额含非库存行而 STCRD 只有库存行，
+  Express 打开这种 SR 是否正常、「已退」怎么显示要实录。
+- 判重按 NETAMT ±0.01、YOUREF 去尾空格比对；ERP 要保证同一张退货汇总重交时 `ref_no`、日期、金额不变。
+- 只有合成账套用例；C 盘 T 账套、实验栈、测试机都没跑（本次边界不碰）。共用件影响清单（`check-impact.py`）里的入口这次都「没测到」，
+  原因同上，留第 ③ 步。

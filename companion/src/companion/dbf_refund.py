@@ -14,7 +14,13 @@
   ACCNUM00），成本回冲 借 存货（SEQIT 8）/ 贷 销货成本（SEQIT 9）；摘要「ลดหนี้/รับคืน + 客户名」；
 - 销项税 ISVAT：VATREC S、RECTYP 5、AMT01 / VAT01 正数、REFNUM = SR 自己的单号（混有免税商品时金额栏照载荷 ``vat_fields``，同 HS）；
 - ISRUN SR 计数 +1；ARBAL 的 SR 月桶加、ARMAS.BALANCE 减（实录现象：退现金也冲减客户余额，照做不修正）；
-- 退款里非现金的部分：同 HS 另记普通日记账凭证，方向相反「借 现金 / 贷 收款科目」（``pos_journal`` ``reverse``）。
+- 退款里非现金的部分：同 HS 另记普通日记账凭证，方向相反「借 现金 / 贷 收款科目」（``pos_journal`` ``reverse``）；
+- 非库存行（服务、费用：``non_stock_item`` / ``direct_account``）只记金额与总账（载荷的借方分录已按行科目拆好），不写 STCRD / STLOC /
+  STMAS / 成本凭证；明细行号、NXTSEQ 只数库存行。
+
+换电脑重写、回执丢失后重发、重领任务都不能写出两张：写前按这张退货汇总的唯一引用找 ARTRN 里已写的 SR（RECTYP 5、没作废、SONUM = 原单号、
+YOUREF = 载荷参考号（ERP 日汇总票号区间）、DOCDAT = 本次日期、NETAMT = 本次含税合计），有就回那张的单号（``skipped``：回执
+``written: false`` / ``duplicate_skipped: true``，同 ``task_journal`` 的写法），一行不写。HS 不查重（用户定），SR 有现成的判重依据。
 
 单号：SR + 佛历年月日 + '-' + 当日序号（同 CC 写的其他单）。写前只读找原单：ARTRN 里这张现销 HS（RECTYP 1、没作废）找不到 →
 ``REFUND_ORIGINAL_NOT_FOUND``；含税合计与 ERP 记的对不上（在 Express 里被改过）→ ``REFUND_ORIGINAL_CHANGED``；每一行按存货码 + 仓库在
@@ -87,6 +93,7 @@ ERR_LINE_NOT_FOUND = "REFUND_LINE_NOT_FOUND"
 ERR_EXCEEDS = "REFUND_EXCEEDS_ORIGINAL"
 ERR_STOCK_ITEM = "STOCK_ITEM_NOT_FOUND"
 REFUSALS = (ERR_ORIGINAL_NOT_FOUND, ERR_ORIGINAL_CHANGED, ERR_LINE_NOT_FOUND, ERR_EXCEEDS)
+STOCK_MODE = stock_sale.ITEM_MODE   # 库存行；其余（non_stock_item / direct_account）只记金额与总账
 _CENT = Decimal("0.01")
 _TOLERANCE = Decimal("0.01")
 _VERIFY_TABLES = ("ARTRN", "STCRD", "GLJNLIT", "ISVAT")
@@ -112,7 +119,7 @@ class _Origin:
 
 @dataclass(frozen=True)
 class _Line:
-    seq: int
+    seq: int             # STCRD 行号（只数库存行）
     item: Dict[str, Any]
     stkcod: str
     loccod: str
@@ -123,6 +130,7 @@ class _Line:
     net: Decimal         # 本行税前额
     rdocnum: str
     accounts: Tuple[str, str]  # (存货科目, 销货成本科目)；成本为 0 时空
+    number: int = 0      # 载荷里第几行（逐行回执按它排）
 
 
 def _q2(value) -> Decimal:
@@ -194,6 +202,27 @@ def original(account_dir, against: str, against_total: Decimal) -> str:
     return _text(rows[0], "CUSCOD")
 
 
+def existing(account_dir, entry, docdat) -> Optional[Tuple[str, str]]:
+    """这张退货汇总以前写过的 SR → (单号, 客户码)；没写过 None（只读）。
+
+    唯一引用：RECTYP 5、没作废、SONUM = 原单号、YOUREF = 载荷参考号（ERP 日汇总票号区间）、DOCDAT = 本次日期、NETAMT = 本次含税合计。
+    换电脑重写（另一台的 ``task_journal`` 没记过）、回执丢失后 ERP 重发、重领任务都靠它不写第二张。表没有 SONUM 一栏（老账套，写 SR 时
+    也写不进原单号）时认不出，照常写。"""
+    table = _open(Path(account_dir), "ARTRN", dbf.READ_ONLY)
+    try:
+        if "SONUM" not in _fields(table):
+            return None
+        total, ref = Decimal(entry.total_amount), str(entry.ref_no or "").strip()
+        for r in S.live_rows(table):
+            if (_text(r, "RECTYP") == RECTYP and _text(r, "DOCSTAT") != "C" and _text(r, "SONUM") == entry.refund_against
+                    and _text(r, "YOUREF") == ref and r["DOCDAT"] == docdat
+                    and abs(_dec(r["NETAMT"]) - total) <= _TOLERANCE):
+                return _text(r, "DOCNUM"), _text(r, "CUSCOD")
+        return None
+    finally:
+        table.close()
+
+
 def _origins(account_dir, against: str) -> List[_Origin]:
     table = _open(Path(account_dir), "STCRD", dbf.READ_ONLY)
     try:
@@ -244,6 +273,8 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
     grosses = _gross(items, Decimal(entry.total_amount))
     lines: List[_Line] = []
     for index, item in enumerate(items):
+        if str(item.get("item_mode") or "") != STOCK_MODE:
+            continue  # 非库存行：只记金额与总账（分录在载荷里），不挂原单、不回仓
         code = str(item.get("code") or "").strip()
         loccod = stock_location.location_at(locations, index) or str(item.get("loccod") or "").strip() or main
         try:
@@ -270,8 +301,8 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
                 accounts = stock_sale.stock_accounts(account_dir, master.get("acccod") or "")
             except stock_sale.StockItemNotFound as exc:
                 raise Refused(ERR_STOCK_ITEM, f"line {index + 1}: {exc}") from exc
-        lines.append(_Line(index + 1, item, code, loccod, units, pick.unit_cost, cost, grosses[index],
-                           _dec(item.get("amount")), rdocnum(against, pick.seq), accounts))
+        lines.append(_Line(len(lines) + 1, item, code, loccod, units, pick.unit_cost, cost, grosses[index],
+                           _dec(item.get("amount")), rdocnum(against, pick.seq), accounts, index + 1))
     return lines
 
 
@@ -285,6 +316,14 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
 
     clock = StepClock("refund")
     account_dir = Path(account_dir)
+    docdate_be = str(payload["docdate_be"])
+    docdat = S.be_yymmdd_to_greg(docdate_be)
+    # 写过了（换电脑 / 回执丢失后重发 / 重领任务）：回那张的单号，一行不写。放在核原单之前：已写的那张已经算进「已退数量」，
+    # 再核一遍会误报退超
+    done = existing(account_dir, entry, docdat)
+    if done is not None:
+        log.info("refund %s already written as %s, not written again", entry.ref_no, done[0])
+        return DbfWriteResult(True, docnum=done[0], skipped=True, party_code=done[1])
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
@@ -295,8 +334,6 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
         locations = stock_location.plan(account_dir, payload)
     except stock_location.LocationError as exc:
         return DbfWriteResult(False, error_code=ERR_LOCATION, error=str(exc))
-    docdate_be = str(payload["docdate_be"])
-    docdat = S.be_yymmdd_to_greg(docdate_be)
     if payload.get("respect_period_lock") and fiscal_period.locked(account_dir, docdat):
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
@@ -374,7 +411,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
             "NETVAL": netval, "VATAMT": _f(vat), "NETAMT": netamt, "RCVAMT": netamt, "REMAMT": 0.0, "CSHRCV": 0.0,
             "IVCAMT": _f(entry.refund_against_total), "DOCSTAT": "N", "USERID": userid,
             "CNTYP": CNTYP_CASH, "SONUM": entry.refund_against,
-            **audit_fields(docdat, depcod, has_vat, orgnum), "NXTSEQ": str(len(lines))}))
+            **audit_fields(docdat, depcod, has_vat, orgnum), **({"NXTSEQ": str(len(lines))} if lines else {})}))  # 全是非库存行：同 HS 表头模式
     finally:
         head.close()
 
@@ -406,10 +443,16 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
                                                                      "TOTBAL": float(new_bal), "TOTVAL": float(new_val)})
             if line.cost:
                 cogs[line.accounts] = cogs.get(line.accounts, Decimal(0)) + line.cost
-            line_modes.append(dbf_detail.line_mode(line.seq, str(item.get("name") or ""), line.stkcod,
+            line_modes.append(dbf_detail.line_mode(line.number, str(item.get("name") or ""), line.stkcod,
                                                    mode=stock_sale.ITEM_MODE))
     finally:
         table.close()
+    for index, item in enumerate(entry.items):
+        mode = str(item.get("item_mode") or "")
+        if mode != STOCK_MODE:
+            line_modes.append(dbf_detail.line_mode(index + 1, str(item.get("name") or ""),
+                                                   str(item.get("account") or item.get("code") or ""), mode=mode))
+    line_modes.sort(key=lambda row: row["seq"])
 
     if has_vat:
         tax = _open(account_dir, "ISVAT", dbf.READ_WRITE)
@@ -476,7 +519,7 @@ def _reduce_balance(account_dir, cuscod: str, total: Decimal) -> None:
 
 
 def _verify(account_dir, docnum: str, entry, line_count: int, gl_rows, since: Dict[str, int]) -> None:
-    """读回：单头一行（RECTYP 5、含税合计、行数）、明细行数（POSOPR 2）、凭证与要写的一致且借贷平衡、有税时销项税在。
+    """读回：单头一行（RECTYP 5、含税合计、库存行数；全是非库存行时同 HS 表头模式记 1）、明细行数（POSOPR 2）、凭证与要写的一致且借贷平衡、有税时销项税在。
     不符抛写盘错误（回滚）。只看这次追加的行。"""
     total = Decimal(entry.total_amount)
 
@@ -494,7 +537,7 @@ def _verify(account_dir, docnum: str, entry, line_count: int, gl_rows, since: Di
 
     heads = [r for r in appended("ARTRN") if str(r["DOCNUM"] or "").strip() == docnum]
     if (len(heads) != 1 or str(heads[0]["RECTYP"]).strip() != RECTYP or abs(_dec(heads[0]["NETAMT"]) - total) > _TOLERANCE
-            or str(heads[0]["NXTSEQ"] or "").strip() != str(line_count)):
+            or str(heads[0]["NXTSEQ"] or "").strip() != str(line_count or 1)):
         fail(f"header rows {heads!r}", "ARTRN")
     rows = [r for r in appended("STCRD") if str(r["DOCNUM"] or "").strip() == docnum]
     if len(rows) != line_count or any(str(r["POSOPR"]).strip() != POSOPR for r in rows):
@@ -514,4 +557,4 @@ def _verify(account_dir, docnum: str, entry, line_count: int, gl_rows, since: Di
 
 
 __all__ = ["ERR_EXCEEDS", "ERR_LINE_NOT_FOUND", "ERR_ORIGINAL_CHANGED", "ERR_ORIGINAL_NOT_FOUND", "PREFIX", "REFUSALS",
-           "Refused", "original", "plan", "rdocnum", "write_refund"]
+           "Refused", "STOCK_MODE", "existing", "original", "plan", "rdocnum", "write_refund"]

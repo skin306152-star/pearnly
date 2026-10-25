@@ -53,6 +53,9 @@ _REFUND_AGAINST_MAX = 12
 _REFUND_CNTYP = 3
 _REFUND_RETSTK = "Y"
 _REFUND_ROLES = ("refund", "output_vat", "cash")
+_REFUND_STOCK_MODE = "stock_sale"
+# 非库存行(服务、费用):只记金额与总账,不写 STCRD / STLOC / STMAS / 成本凭证(10-26)
+_REFUND_ITEM_MODES = (_REFUND_STOCK_MODE, "non_stock_item", "direct_account")
 
 
 @dataclass
@@ -181,8 +184,8 @@ def validate_sales_payload(
 
 def _validate_refund(payload: Dict[str, Any], base: Decimal, vat: Decimal, total: Decimal) -> PayloadValidationResult | None:
     """收银退货单 SR 的 ``refund`` 块与它要求的单子样子:挂一张 CC 写的现销 HS(原单号 HS 开头、≤12 字节、原单合计为正)、
-    退现金(cntyp 3)、货回仓(retstk Y);同时是 POS 日汇总(``pos`` 块,退给客户的现金不为负);明细全是带存货码的库存行;
-    分录按角色恰好是 借 退货科目(税前)[+ 借 销项税] / 贷 现金(含税)。不达标 → 拒,一行不写。"""
+    退现金(cntyp 3)、货回仓(retstk Y);同时是 POS 日汇总(``pos`` 块,退给客户的现金不为负);库存行带存货码,非库存行只记金额;
+    分录按角色恰好是 借 退货科目(一条或按行科目几条,合计税前)[+ 借 销项税] / 贷 现金(含税)。不达标 → 拒,一行不写。"""
     block = payload.get("refund")
 
     def bad(detail):
@@ -206,22 +209,32 @@ def _validate_refund(payload: Dict[str, Any], base: Decimal, vat: Decimal, total
         return bad("refund cash cannot be negative")
     items = payload.get("items") or []
     if str(payload.get("items_status") or "") != "ok" or not items:
-        return bad("a refund needs its stock lines")
+        return bad("a refund needs its lines")
     for it in items:
-        qty, amount = _d((it or {}).get("qty")), _d((it or {}).get("amount"))
-        if (not str((it or {}).get("code") or "").strip() or str(it.get("item_mode") or "") != "stock_sale"
-                or qty is None or qty <= 0 or amount is None or amount < 0):
-            return bad("every refund line must be a stock line with an Express code")
+        it = it if isinstance(it, dict) else {}
+        mode = str(it.get("item_mode") or "")
+        qty, amount = _d(it.get("qty")), _d(it.get("amount"))
+        if mode not in _REFUND_ITEM_MODES or qty is None or qty <= 0 or amount is None or amount < 0:
+            return bad("every refund line must be a stock line or a non-stock line with a quantity and an amount")
+        if mode == _REFUND_STOCK_MODE and not str(it.get("code") or "").strip():
+            return bad("every stock line of a refund needs an Express code")
     lines = payload.get("lines") or []
     roles = [str((ln or {}).get("role") or "") for ln in lines]
-    want = ["refund", "output_vat", "cash"] if vat > 0 else ["refund", "cash"]
+    debits = len(roles) - (2 if vat > 0 else 1)
+    want = ["refund"] * max(debits, 1) + (["output_vat", "cash"] if vat > 0 else ["cash"])
     if roles != want:
         return bad(f"refund journal roles {roles} != {want}")
-    sides = {"refund": ("D", base), "output_vat": ("D", vat), "cash": ("C", total)}
+    # 借 退货科目可以有几条(带科目的非库存行借它自己的科目,同 HS 的收入按行科目拆),合计 = 税前
+    sides = {"refund": "D", "output_vat": "D", "cash": "C"}
+    amounts = {"output_vat": vat, "cash": total}
     for ln in lines:
-        side, amount = sides[str(ln["role"])]
-        if str(ln.get("side") or "").upper() != side or _d(ln.get("amount")) != amount or not str(ln.get("acc") or "").strip():
+        role = str(ln["role"])
+        amount = _d(ln.get("amount"))
+        if (str(ln.get("side") or "").upper() != sides[role] or amount is None or amount < 0
+                or (role in amounts and amount != amounts[role]) or not str(ln.get("acc") or "").strip()):
             return bad(f"refund journal line {ln.get('role')} invalid")
+    if sum((_d(ln.get("amount")) for ln in lines if ln["role"] == "refund"), Decimal(0)) != base:
+        return bad("refund journal lines do not add up to the amount before tax")
     return None
 
 

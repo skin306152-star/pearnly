@@ -2,7 +2,8 @@
 
 覆盖：``refund`` 块的写法与形状核对、退货的付款方式（现金也不能为负）、映射成 Express 原生退货单（实录 SR0000001：
 借 退货科目 93.46 + 借 销项税 6.54 / 贷 现金 100，CNTYP 3、货回仓）、退货科目按公司问一次（推送选择 ``refund``）、
-明细不全是带码的库存行 / 没选退货科目 / 没有 POS 块时停下，以及**没有 refund 块的载荷与改动前逐字节相同**（基线 main d8d42e6f）。
+非库存行（服务、费用）只记金额与总账、带科目的借它自己的科目（10-26），明细不可信 / 库存行没码 / 没选退货科目 / 没有 POS 块时停下，
+以及**没有 refund 块的载荷与改动前逐字节相同**（基线 main d8d42e6f）。
 """
 import json
 import sys
@@ -120,10 +121,36 @@ class RefundMappingTests(unittest.TestCase):
         self.assertEqual([line["role"] for line in payload["lines"]], ["refund", "cash"])
         self.assertEqual(payload["vat_rate"], 0.0)
 
+    def test_non_stock_lines_only_post_their_amount_and_an_own_account_is_kept(self):
+        """退货里有服务、费用（非库存行）：同 HS 只记金额与总账；带科目的（ERP 认出的 Express 服务类物料）借它自己的科目，其余借退货科目。"""
+        items = [
+            {"name": "น้ำดื่ม 600 มล.", "qty": "1", "price": "60.00", "subtotal": "60.00", "unit": "ขวด", "code": "500310",
+             "loccod": "01", "posting_kind": "stock"},
+            {"name": "ค่าบริการ", "qty": "1", "price": "13.46", "subtotal": "13.46", "posting_kind": "service"},
+            {"name": "ค่าติดตั้ง", "qty": "1", "price": "20.00", "subtotal": "20.00", "posting_kind": "service",
+             "account": "41-03-00-00"},
+        ]
+        result = _map(_page(items=items))
+        self.assertTrue(result.ok, result.reason)
+        payload = result.payload
+        self.assertEqual([item["item_mode"] for item in payload["items"]], ["stock_sale", "non_stock_item", "direct_account"])
+        self.assertEqual(payload["lines"], [
+            {"acc": REFUND_ACC, "side": "D", "amount": "73.46", "desc": "ลดหนี้/รับคืน", "role": "refund"},
+            {"acc": "41-03-00-00", "side": "D", "amount": "20.00", "desc": "ลดหนี้/รับคืน", "role": "refund"},
+            {"acc": "11-05-04-02", "side": "D", "amount": "6.54", "desc": "ภาษีขาย", "role": "output_vat"},
+            {"acc": "11-01-01-00", "side": "C", "amount": "100.00", "desc": "เงินสด", "role": "cash"},
+        ])
+        service = [{"name": "ค่าบริการ", "qty": "1", "price": "93.46", "subtotal": "93.46", "posting_kind": "service"}]
+        only = _map(_page(items=service))
+        self.assertTrue(only.ok, only.reason)
+        self.assertEqual(only.payload["lines"][0], {"acc": REFUND_ACC, "side": "D", "amount": "93.46",
+                                                    "desc": "ลดหนี้/รับคืน", "role": "refund"})
+        self.assertEqual(only.payload["items"][0]["item_mode"], "non_stock_item")
+
     def test_what_stops_a_refund(self):
         self.assertEqual(_map(_page(), choices={}).reason, P.REFUND_ACCOUNT_MISSING)
-        service = [{"name": "ค่าบริการ", "qty": "1", "price": "93.46", "subtotal": "93.46", "posting_kind": "service"}]
-        self.assertEqual(_map(_page(items=service)).reason, P.REFUND_ITEMS_INVALID)
+        unreadable = [{"name": "", "qty": "1", "price": "93.46", "subtotal": "93.46", "posting_kind": "service"}]
+        self.assertEqual(_map(_page(items=unreadable)).reason, P.REFUND_ITEMS_INVALID)  # 明细不可信
         no_code = [{"name": "น้ำดื่ม", "qty": "1", "price": "93.46", "subtotal": "93.46", "posting_kind": "stock"}]
         self.assertEqual(_map(_page(items=no_code)).reason, P.REFUND_ITEMS_INVALID)
         self.assertEqual(_map(_page(items=[])).reason, P.REFUND_ITEMS_INVALID)

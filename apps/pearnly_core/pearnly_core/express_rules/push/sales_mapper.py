@@ -23,7 +23,8 @@
                  (可为负:现金退款多过现金收款),各转账 + cash = 本单含税额
   refund         收银退货单 SR(载荷 10,`contracts/pos.py` 的 refund 块,ERP B3b):{against,against_total,cntyp:3,retstk:"Y"}
                  · doctype SR,分录带 role:借 退货科目(refund,税前)+ 借 销项税(output_vat)= 贷 现金(cash,含税;小助手
-                 换成账套现金科目)· 明细全是带存货码的库存行(stock_sale),货回仓 · 同时带 pos 块(各数都是正数、cash 不为负),
+                 换成账套现金科目)· 库存行(stock_sale)必须带存货码,货回仓;非库存行(服务、费用)只记金额与总账,
+                 带科目的(ERP 认出的 Express 服务类物料)借它自己的科目、其余借退货科目 · 同时带 pos 块(各数都是正数、cash 不为负),
                  非现金退款的转账凭证小助手反向记「借 现金 / 贷 收款科目」。没有 refund 块的载荷与以前逐字节相同
 """
 
@@ -174,14 +175,33 @@ def _refund_block(history: Dict[str, Any], pos: Optional[Dict[str, Any]], total:
             "retstk": pos_contract.REFUND_RETSTK}, ""
 
 
+_REFUND_ITEM_MODES = (ITEM_MODE_STOCK_SALE, ITEM_MODE_NONSTOCK, ITEM_MODE_DIRECT)
+_REFUND_DESC = "ลดหนี้/รับคืน"
+
+
 def _as_refund(payload: Dict[str, Any], refund: Dict[str, Any], *, refund_acc: str, vat_acc: str, cash_acc: str,
                base: Decimal, vat: Decimal, total: Decimal, name: str) -> Optional[str]:
-    """把映射好的现销日汇总载荷改成 Express 原生退货单 SR(实录 SR0000001);明细不全是带码的库存行回原因码。"""
+    """把映射好的现销日汇总载荷改成 Express 原生退货单 SR(实录 SR0000001)。
+
+    按行区分:库存行(stock_sale)要带存货码,货回仓;非库存行(服务、费用,同 HS 的 non_stock_item / direct_account)只记金额与总账。
+    借方同 HS 的贷方按行科目拆(``split_by_account``):带科目的非库存行借它自己的科目,其余借退货科目。明细不可信(没对上 / 空)、
+    库存行没码、行模式认不出时回原因码。"""
     items = payload.get("items") or []
-    if (payload.get("items_status") != ITEMS_OK or not items
-            or any(item.get("item_mode") != ITEM_MODE_STOCK_SALE or not item.get("code") for item in items)):
+    if payload.get("items_status") != ITEMS_OK or not items:
         return pos_contract.REFUND_ITEMS_INVALID
-    lines = [{"acc": refund_acc, "side": "D", "amount": _s(base), "desc": "ลดหนี้/รับคืน", "role": "refund"}]
+    for item in items:
+        mode = item.get("item_mode")
+        if mode not in _REFUND_ITEM_MODES or (mode == ITEM_MODE_STOCK_SALE and not item.get("code")):
+            return pos_contract.REFUND_ITEMS_INVALID
+    own = [{**item, "account": "" if item.get("item_mode") == ITEM_MODE_STOCK_SALE else item.get("account") or ""}
+           for item in items]
+    if any(item["account"] for item in own):
+        split = split_by_account(own, refund_acc, base, "D", _REFUND_DESC)
+        if split is None:
+            return pos_contract.REFUND_ITEMS_INVALID
+        lines = [{**line, "role": "refund"} for line in split]
+    else:
+        lines = [{"acc": refund_acc, "side": "D", "amount": _s(base), "desc": _REFUND_DESC, "role": "refund"}]
     if vat > 0:
         lines.append({"acc": vat_acc, "side": "D", "amount": _s(vat), "desc": "ภาษีขาย", "role": "output_vat"})
     lines.append({"acc": cash_acc, "side": "C", "amount": _s(total), "desc": name or CASH_CUSTOMER_NAME, "role": "cash"})

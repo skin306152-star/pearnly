@@ -2,16 +2,19 @@
 """收银退货单 SR 写进 Express（载荷 10，dbf_refund；ERP B3b）。合成账套，先用 CC 自己的现销日汇总写法写一张原单 HS，再退货。
 
 逐字段对照服务器测试账套实录 SR0000001（挂 HS0000039，退 1 个、100 含税，退现金）：ARTRN（RECTYP 5、CNTYP 3、SONUM、IVCAMT、RCVAMT、
-CMPLAPP）、STCRD（POSOPR 2、FLAG 2、RETSTK Y、RDOCNUM「原单号补空格到 14 位 + 行号」、含税的 UNITPR / TRNVAL、税前的 NETVAL / XSALVAL、
+CMPLAPP）、STCRD（POSOPR 2、FLAG 2、RETSTK Y、RDOCNUM C(15)「原单号左对齐、行号右对齐到第 15 位」、含税的 UNITPR / TRNVAL、税前的 NETVAL / XSALVAL、
 原单那一行的成本）、STMAS / STLOC 回仓、凭证 JNLTYP 03（借退货 1 / 借销项税 2 / 贷现金 3、借存货 8 / 贷成本 9）、ISVAT（RECTYP 5 正数、
 REFNUM = SR 单号）、ISRUN SR +1、ARBAL SR 桶、ARMAS.BALANCE 冲减。另覆盖：非现金退款的反向转账凭证、部分退后再退、四种拒收与
-存货认不出时一行不写、读回不符整单回滚、载荷校验与旧版 CC 桌面版拒收。
+存货认不出时一行不写、读回不符整单回滚、载荷校验与旧版 CC 桌面版拒收；原单第 12 行的 RDOCNUM 正好 15 位、已退数量认得到；
+非库存行（服务、费用）只记金额与总账；同一张退货汇总换电脑 / 重领任务 / 回执丢失后重发只写一张（写前按 SONUM + YOUREF + DOCDAT + NETAMT 判重）。
 """
 
 from __future__ import annotations
 
+import copy
 import datetime as dt
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest import mock
 
 import dbf
@@ -25,6 +28,7 @@ from companion import payload_contract
 from test_stock_location import COGS_ACC, INVENTORY_ACC, _no_runner, _rows, _state, _stloc, acct  # noqa: F401
 
 CASH, QR_ACC, REFUND_ACC, REVENUE, OUTPUT_VAT = "11-01-01-00", "11-02-01-01", "41-02-00-00", "41-01-00-00", "11-05-04-02"
+SERVICE_ACC = "41-03-00-00"  # Express 服务类物料（编码就是科目，ERP 前台按行带 account）
 CUSTOMER = "เงินสด"
 
 
@@ -32,7 +36,7 @@ CUSTOMER = "เงินสด"
 def book(acct):
     isinfo(acct, MAINLOC="01", ACCNUM00=CASH, ISPERPETUA="Y")
     glacc(acct, (CASH, "เงินสด"), (QR_ACC, "ธนาคาร QR"), (REFUND_ACC, "รับคืน/ลดหนี้"), (REVENUE, "รายได้"),
-          (OUTPUT_VAT, "ภาษีขาย"))
+          (OUTPUT_VAT, "ภาษีขาย"), (SERVICE_ACC, "รายได้ค่าบริการ"))
     seed(acct, "ISRUN", [{"DOCTYP": "HS", "PREFIX": "HS", "DOCNUM": "0000039", "JNLTYP": "03"},
                          {"DOCTYP": "SR", "PREFIX": "SR", "DOCNUM": "0000001", "JNLTYP": "03"},
                          {"DOCTYP": "GL", "DOCCOD": "00", "PREFIX": "JV", "DOCNUM": "", "JNLTYP": ""}])
@@ -161,12 +165,12 @@ def test_a_non_cash_refund_writes_a_reversed_transfer_voucher(book):
 
 def test_a_second_refund_counts_what_was_already_returned(book):
     assert _write(book, _refund()).ok
-    second = _write(book, _refund())
-    assert second.ok, second.error
+    second = _write(book, _refund(ref_no="SI2569-000010"))  # 另一张退货汇总（票号区间不同）
+    assert second.ok and not second.skipped, second.error
     assert second.docnum == "SR691026-002"
     assert _rows(book, "STCRD", DOCNUM=second.docnum)[0]["RDOCNUM"].rstrip() == "HS691025-001  1"
     before = _state(book)
-    third = _write(book, _refund())  # 原单卖 2、已退 2
+    third = _write(book, _refund(ref_no="SI2569-000011"))  # 原单卖 2、已退 2
     assert not third.ok and third.error_code == dbf_refund.ERR_EXCEEDS
     assert _state(book) == before
 
@@ -219,7 +223,10 @@ def test_a_failed_readback_rolls_everything_back(book):
     lambda p: p["refund"].update(retstk="N"),                        # 只支持货回仓
     lambda p: p.pop("pos"),
     lambda p: p["items"][0].pop("code"),                             # 明细必须带存货码
-    lambda p: p["items"][0].update(item_mode="non_stock_item"),
+    lambda p: p["items"][0].update(item_mode="stock_item"),          # 行模式认不出（进货的库存行）
+    lambda p: p["items"][0].update(qty="0"),
+    lambda p: p["lines"][0].update(acc=""),
+    lambda p: p["lines"].insert(0, {"acc": SERVICE_ACC, "side": "D", "amount": "1.00", "role": "refund"}),  # 借方合计 ≠ 税前
     lambda p: p.update(items_status="empty"),
     lambda p: p["lines"].reverse(),                                  # 分录角色顺序
     lambda p: p["lines"][0].update(amount="90.00", side="D"),
@@ -270,3 +277,186 @@ def test_earlier_returns_are_counted_per_original_line_from_ten_and_up(book):
                          {"DOCNUM": "SR0000006", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 4.0, "RDOCNUM": dbf_refund.rdocnum("HS0000039", 12)},
                          {"DOCNUM": "SR0000007", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 9.0, "RDOCNUM": dbf_refund.rdocnum("HS00000391", 2)}])
     assert dbf_refund._returned(book, "HS0000039") == {"12": Decimal("5"), "100": Decimal("2")}
+
+
+def _sale_of(items, *, ref_no, total, base, vat):
+    """原单：收银日汇总现销 HS（CC 现有写法），明细照给的行。"""
+    sale = _sale(total=total, base=base, vat=vat)
+    sale.update(ref_no=ref_no, items=items)
+    sale["pos"].update(first=ref_no, last=ref_no, cash=total)
+    return sale
+
+
+def test_returning_line_twelve_of_a_twelve_line_sale_fits_fifteen_and_is_counted_afterwards(book):
+    """原单 12 行、退第 12 行：RDOCNUM 正好 15 位（合成表同真表 C(15)），读回时已退数量按第 12 行认得到、再退就退超。"""
+    items = [{"name": "น้ำแข็งก้อน", "code": "ICE02", "qty": "1", "unit_price": "10.00", "amount": "10.00", "unit": "ถัง",
+              "item_mode": "stock_sale", "loccod": "01"} for _ in range(11)]
+    items.append({"name": "น้ำแข็งหลอด", "code": "ICE01", "qty": "1", "unit_price": "10.00", "amount": "10.00",
+                  "unit": "ถัง", "item_mode": "stock_sale", "loccod": "01"})
+    sale = _write(book, _sale_of(items, ref_no="SI2569-000002", total="128.40", base="120.00", vat="8.40"))
+    assert sale.ok, sale.error
+    assert sale.docnum == "HS691025-002"
+    assert sorted(int(row["SEQNUM"]) for row in _rows(book, "STCRD", DOCNUM=sale.docnum))[-1] == 12
+
+    refund = _refund(qty="1", total="10.70", base="10.00", vat="0.70", against=sale.docnum, against_total="128.40")
+    res = _write(book, refund)
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)
+    assert len(line) == 1
+    assert line[0]["RDOCNUM"] == "HS691025-002 12" and len(line[0]["RDOCNUM"]) == 15
+    assert dbf_refund._returned(book, sale.docnum) == {"12": Decimal("1")}
+    again = _write(book, {**copy.deepcopy(refund), "ref_no": "SI2569-000010"})  # 第 12 行只卖了 1 个、已退 1 个
+    assert not again.ok and again.error_code == dbf_refund.ERR_EXCEEDS, again.error
+
+
+def _mixed():
+    """退货里混有非库存行：ICE01 退 1 个（库存）+ 服务费（非库存，没带科目 → 借退货科目）+ 安装费（服务类物料，带自己的科目）。"""
+    payload = _refund(total="174.90", base="163.46", vat="11.44")
+    payload["items"] += [
+        {"name": "ค่าบริการ", "qty": "1", "unit_price": "50.00", "amount": "50.00", "unit": "", "item_mode": "non_stock_item"},
+        {"name": "ค่าติดตั้ง", "qty": "1", "unit_price": "20.00", "amount": "20.00", "unit": "", "item_mode": "direct_account",
+         "account": SERVICE_ACC},
+    ]
+    payload["lines"][:1] = [
+        {"acc": REFUND_ACC, "side": "D", "amount": "143.46", "desc": "ลดหนี้/รับคืน", "role": "refund"},
+        {"acc": SERVICE_ACC, "side": "D", "amount": "20.00", "desc": "ลดหนี้/รับคืน", "role": "refund"},
+    ]
+    return payload
+
+
+def test_non_stock_lines_of_a_refund_only_post_their_amount(book):
+    master_before = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    res = _write(book, _mixed())
+    assert res.ok, res.error
+    head = _rows(book, "ARTRN", DOCNUM=res.docnum)[0]
+    assert (head["NETAMT"], head["NETVAL"], head["VATAMT"]) == (174.9, 163.46, 11.44)
+    assert head["NXTSEQ"].strip() == "1"  # 只数库存行
+    lines = _rows(book, "STCRD", DOCNUM=res.docnum)
+    assert [(row["SEQNUM"].strip(), row["STKCOD"].strip()) for row in lines] == [("1", "ICE01")]
+    master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    assert (master["MREMBAL"], master["MREMVAL"]) == (master_before["MREMBAL"] + 1, master_before["MREMVAL"] + 10)
+    assert _journal(book, res.docnum) == sorted([
+        ("1", REFUND_ACC, "0", Decimal("143.46")), ("1", SERVICE_ACC, "0", Decimal("20.00")),
+        ("2", OUTPUT_VAT, "0", Decimal("11.44")), ("3", CASH, "1", Decimal("174.90")),
+        ("8", INVENTORY_ACC, "0", Decimal("10.00")), ("9", COGS_ACC, "1", Decimal("10.00"))])
+    assert _rows(book, "ISVAT", DOCNUM=res.docnum)[0]["AMT01"] == 163.46
+    assert [(mode["seq"], mode["mode"]) for mode in res.line_modes] == [
+        (1, "stock_sale"), (2, "non_stock_item"), (3, "direct_account")]
+
+
+def test_a_refund_of_only_non_stock_lines_leaves_the_stock_alone(book):
+    payload = _refund(total="53.50", base="50.00", vat="3.50")
+    payload["items"] = [{"name": "ค่าบริการ", "qty": "1", "unit_price": "50.00", "amount": "50.00", "unit": "",
+                         "item_mode": "non_stock_item"}]
+    stock_before = (_rows(book, "STMAS", STKCOD="ICE01"), _stloc(book, "ICE01", "01"))
+    res = _write(book, payload)
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum) == []
+    assert (_rows(book, "STMAS", STKCOD="ICE01"), _stloc(book, "ICE01", "01")) == stock_before
+    assert _journal(book, res.docnum) == sorted([
+        ("1", REFUND_ACC, "0", Decimal("50.00")), ("2", OUTPUT_VAT, "0", Decimal("3.50")), ("3", CASH, "1", Decimal("53.50"))])
+    assert _rows(book, "ARTRN", DOCNUM=res.docnum)[0]["NXTSEQ"].strip() == "1"  # 同 HS 表头模式
+
+
+# ── 换电脑 / 重领任务 / 回执丢失：只写一张 ─────────────────────────────────────────────────────────────
+
+
+def _srs(book):
+    return [row["DOCNUM"].strip() for row in _rows(book, "ARTRN", RECTYP="5", SONUM="HS691025-001")]
+
+
+def test_the_same_refund_written_again_returns_the_one_already_there(book):
+    first = _write(book, _refund())
+    assert first.ok and first.written
+    before = _state(book)
+    again = _write(book, _refund(), make_backup=True)
+    assert again.ok and again.skipped and not again.written, again.error
+    assert (again.docnum, again.party_code) == (first.docnum, CUSTOMER)
+    assert _state(book) == before
+    assert _srs(book) == [first.docnum]
+
+
+@pytest.mark.parametrize("change", [
+    lambda p: p.update(ref_no="SI2569-000010"),        # 另一张退货汇总
+    lambda p: p.update(docdate_be="691027"),           # 另一天
+])
+def test_a_different_refund_is_written(book, change):
+    first = _write(book, _refund())
+    payload = _refund()
+    change(payload)
+    second = _write(book, payload)
+    assert second.ok and second.written, second.error
+    assert second.docnum != first.docnum and len(_srs(book)) == 2
+
+
+def test_a_voided_earlier_refund_does_not_count(book):
+    first = _write(book, _refund())
+    t = dbf.Table(str(book / "ARTRN.DBF"), codepage="cp874")
+    t.open(dbf.READ_WRITE)
+    try:
+        for row in t:
+            if (row["DOCNUM"] or "").strip() == first.docnum:
+                with row as rec:
+                    rec["DOCSTAT"] = "C"
+    finally:
+        t.close()
+    second = _write(book, _refund())
+    assert second.ok and second.written and second.docnum != first.docnum
+
+
+class _Queue:
+    """推送队列的回执口；``lose`` = 回执没送到服务器（断网 / 关机）。"""
+
+    def __init__(self, lose=False):
+        self.acks, self.lose = [], lose
+
+    def ack_success(self, task_id, extracted_invoice_no=None, line_modes=None, meta=None):
+        self.acks.append(("ok", extracted_invoice_no, meta))
+        return not self.lose
+
+    def ack_failure(self, task_id, error, error_code=None, outcome=None, meta=None):
+        self.acks.append(("failed", error_code, error))
+        return not self.lose
+
+
+def _deliver(monkeypatch, book, journal_dir, task_id, payload, *, lose_receipt=False):
+    """CC 桌面版收到一个推送任务（worker 真流程：本机已写记录 → 找账套 → 写 → 回执）；``journal_dir`` 是这台电脑的本机记录目录。"""
+    from companion import task_journal, worker
+
+    journal_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(task_journal, "FILE", journal_dir / "written_tasks.json")
+    monkeypatch.setattr(worker, "_task_settings", lambda cfg, p: SimpleNamespace(
+        account_dir=str(book), account_set="DATAT", account_company="", has_selection=lambda: True))
+    queue = _Queue(lose=lose_receipt)
+    worker._handle_dbf_task(SimpleNamespace(default_depcod="", ui_lang="en"), queue,
+                            SimpleNamespace(id=task_id, payload=copy.deepcopy(payload), invoice_no="SI2569-000009"))
+    return queue.acks[-1]
+
+
+def test_two_computers_writing_the_same_refund_task_make_one_sr(book, tmp_path, monkeypatch):
+    first = _deliver(monkeypatch, book, tmp_path / "pc-a", "ERP-PUSH-1", _refund())
+    second = _deliver(monkeypatch, book, tmp_path / "pc-b", "ERP-PUSH-1", _refund())  # 另一台：本机记录里没有它
+    assert first[0] == second[0] == "ok", (first, second)
+    assert first[1] == second[1] == "SR691026-001"
+    assert first[2]["written"] is True and second[2]["written"] is False and second[2]["duplicate_skipped"] is True
+    assert _srs(book) == ["SR691026-001"]
+
+
+def test_a_reclaimed_task_after_a_crash_before_the_journal_was_saved_makes_one_sr(book, tmp_path, monkeypatch):
+    from companion import task_journal
+
+    with mock.patch.object(task_journal, "remember", lambda *a, **kw: None):  # 写完、记本机记录前断电
+        first = _deliver(monkeypatch, book, tmp_path / "pc-a", "ERP-PUSH-1", _refund())
+    again = _deliver(monkeypatch, book, tmp_path / "pc-a", "ERP-PUSH-1", _refund())  # 租约到期、同一台重领
+    assert first[:2] == again[:2] == ("ok", "SR691026-001")
+    assert again[2]["duplicate_skipped"] is True
+    assert _srs(book) == ["SR691026-001"]
+
+
+def test_a_lost_receipt_then_the_same_payload_again_makes_one_sr(book, tmp_path, monkeypatch):
+    first = _deliver(monkeypatch, book, tmp_path / "pc-a", "ERP-PUSH-1", _refund(), lose_receipt=True)
+    resent = _deliver(monkeypatch, book, tmp_path / "pc-a", "ERP-PUSH-1", _refund())  # 服务器重发同一个任务
+    pushed = _deliver(monkeypatch, book, tmp_path / "pc-b", "ERP-PUSH-2", _refund())  # ERP 原样再交一次（新任务、另一台）
+    assert first[1] == resent[1] == pushed[1] == "SR691026-001"
+    assert resent[2]["duplicate_skipped"] is True and pushed[2]["duplicate_skipped"] is True
+    assert _srs(book) == ["SR691026-001"]

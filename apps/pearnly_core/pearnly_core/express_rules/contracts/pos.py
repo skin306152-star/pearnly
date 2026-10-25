@@ -19,7 +19,7 @@
 收银退货单 SR（ERP B3b，载荷 10）：主页面 ``_extraction_audit`` 除 ``pos`` 外另带 ``refund`` 块（:func:`refund_audit`）——
 ``against`` = 原小票所在那张 HS 在 Express 里的单号（SR 的 SONUM）、``against_total`` = 原 HS 含税合计（IVCAMT）。
 金额、税额、明细、各付款方式都记正数（退回的数量、税前额与退给客户的钱）。推送写成 Express 原生退货单（服务器测试账套实录
-SR0000001）：借 退货科目（税前）、借 销项税 / 贷 现金，退现金 CNTYP 3、货回仓 RETSTK Y；退货科目按公司问一次（推送选择
+SR0000001）：借 退货科目（税前）、借 销项税 / 贷 现金，退现金 CNTYP 3、库存行货回仓 RETSTK Y，非库存行（服务、费用）只记金额与总账；退货科目按公司问一次（推送选择
 ``refund``，归类键 :data:`REFUND_SUBJECT`）；非现金退款同 HS 另记转账凭证，方向相反（借 现金 / 贷 收款科目，收款科目沿用 HS 记住的）。
 """
 from __future__ import annotations
@@ -60,7 +60,7 @@ REFUND_CNTYP = 3                # Express ARTRN.CNTYP：退现金（实录 SR000
 REFUND_RETSTK = "Y"             # STCRD.RETSTK：货回仓（收银退货都回仓）
 REFUND_AGAINST_MAX_BYTES = 12   # 原单号写进 ARTRN.SONUM，与 DOCNUM 同宽 C(12)
 REFUND_ACCOUNT_MISSING = "pos_refund_account_missing"
-REFUND_ITEMS_INVALID = "pos_refund_items_invalid"
+REFUND_ITEMS_INVALID = "pos_refund_items_invalid"  # 明细不可信（没对上 / 空）、库存行没存货码、行模式认不出；非库存行照收
 
 
 class PosFactsError(ValueError):

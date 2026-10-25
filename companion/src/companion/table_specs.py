@@ -80,8 +80,9 @@ TABLE_SPECS = {
         "TFACTOR B; UNITPR B; DISC C(10); DISCAMT B; TRNVAL B; NETVAL B; "
         "XTRNQTY B; XUNITPR B; XTRNVAL B; XSALVAL B; STKDES C(50); "
         "PHYBAL B; MREMBAL B; MREMVAL B; ACCNUMDR C(15); ACCNUMCR C(15); "
-        # 退货单 SR 的明细行:RDOCNUM = 原单号补空格到 14 位 + 原单行号、RETSTK Y 货回仓、FLAG 2(实录 SR0000001;真表宽度待实录核对)
-        "RDOCNUM C(17); RETSTK C(1); FLAG C(1)"
+        # 退货单 SR 的明细行:RDOCNUM C(15) = 原单号左对齐、原单行号右对齐到第 15 位、中间补空格(原生写法:实录 SR0000001「HS0000039     1」,
+        # 测试机 S 盘副本 1039 本与 T 账套真表都是 C(15)),RETSTK Y 货回仓、FLAG 2
+        "RDOCNUM C(15); RETSTK C(1); FLAG C(1)"
     ),
     # 库存单单头（领用 OU / 调整 JU / 盘点 TK；真表 23 列，T9HENG15 10-25 读出的宽度）
     "STTRN": (
