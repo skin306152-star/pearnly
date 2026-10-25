@@ -1325,6 +1325,7 @@ This member cannot be assigned,无法分配给此成员
 This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
 This product code already exists,该物料编码已存在
+This receipt is in a daily summary sent to Express. Refund it instead,此小票已计入写进 Express 的收银日汇总，请改用退货
 This request was already recorded,该请求已记录
 This sale is already voided,该销售单已作废
 This shift belongs to another cashier,该班次属于其他收银员
@@ -1478,6 +1479,7 @@ adjust,调整
 branch,分支机构
 card,银行卡
 cash,现金
+cashier.voidSummarized,此小票已计入写进 Express 的收银日汇总，请改用退货
 client.action.bulkDisable,停用 {0}
 client.action.bulkEnable,启用 {0}
 client.active,已启用

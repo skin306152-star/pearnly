@@ -832,6 +832,28 @@ class StockVoid(PushModule):
         self.assertEqual((self.docs["SE-1"]["express_void_state"], self.docs["SE-1"]["express_void_reason"]),
                          ("held", "[VOID_DOCUMENT_CHANGED] x"))
 
+    def test_voiding_before_the_computer_wrote_it_cancels_the_queued_job(self):
+        from unittest import mock
+        self.written(express_state="queued", express_docnum="", express_job="J1")
+        cancelled = []
+        with mock.patch.object(self.push.jobs, "find_by_name", lambda name: {"job": name, "status": "queued"}), \
+                mock.patch.object(self.push.jobs, "cancel", lambda name, reason: cancelled.append((name, reason))):
+            self.push.void("ERP Stock Entry", "SE-1")
+        self.assertEqual(cancelled, [("J1", "voided")])
+        self.assertEqual((self.docs["SE-1"]["express_state"], self.docs["SE-1"]["express_job"]), (None, None))
+
+    def test_a_write_that_lands_after_the_void_is_voided_at_once(self):
+        """电脑正在写（领走了撤不了）时 ERP 作废：写完的回执一到就排作废原单。"""
+        from unittest import mock
+        self.written(express_state="queued", express_docnum="", express_job="J1", status="void")
+        calls = []
+        with mock.patch.object(self.push, "void", lambda doctype, name: calls.append(name)), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: None):
+            self.push.job_changed({"source_doctype": "ERP Stock Entry", "source_name": "SE-1", "status": "success",
+                                   "job": "J1", "request_key": "erp:stock:SE-1@x", "docnum": "OU691025-002"})
+        self.assertEqual(calls, ["SE-1"])
+        self.assertEqual(self.docs["SE-1"]["express_docnum"], "OU691025-002")
+
     def test_an_entry_never_written_is_only_voided_in_erp(self):
         from unittest import mock
         self.written(express_state="held", express_docnum="")
@@ -1188,7 +1210,8 @@ class StockEntries(Base):
         doc = Doc(direction="out", ref_type=None, lines=lines, warehouse="W1", posting_date="2026-10-20",
                   doc_no="IS2569-000001", name="SE-1", reason="", express_docnum="OU691020-001", express_book=key,
                   express_job="J1")
-        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": ""}, ("ERP Warehouse", "W1"): "01"}
+        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "", "base_unit": "ถุง"},
+                  ("ERP Warehouse", "W1"): "01"}
         with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
                 mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
                                   values.get((doctype, name))), \

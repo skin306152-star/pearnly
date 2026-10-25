@@ -1325,6 +1325,7 @@ This member cannot be assigned,ไม่สามารถมอบหมาย�
 This option is no longer current,ตัวเลือกนี้ใช้ไม่ได้แล้ว กรุณาเลือกตามขั้นตอนล่าสุด
 This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระเงินนี้
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
+This receipt is in a daily summary sent to Express. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
 This sale is already voided,เอกสารขายนี้ถูกยกเลิกแล้ว
 This shift belongs to another cashier,กะนี้เป็นของพนักงานเก็บเงินคนอื่น
@@ -1478,6 +1479,7 @@ adjust,ปรับปรุง
 branch,สาขา
 card,บัตร
 cash,เงินสด
+cashier.voidSummarized,ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน
 client.action.bulkDisable,ปิดใช้งาน {0}
 client.action.bulkEnable,เปิดใช้งาน {0}
 client.active,เปิดใช้งาน

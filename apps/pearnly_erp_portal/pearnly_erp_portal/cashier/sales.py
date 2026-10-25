@@ -472,6 +472,9 @@ def void_sale(name, *, reason=None) -> dict:
         frappe.throw(_(ALREADY_VOID))
     if frappe.db.exists(DT, {"return_against": doc.name, "status": "completed"}):
         frappe.throw(_("Void the refunds first"))
+    if (doc.get("express_summary") or "") and frappe.db.get_value("ERP POS Day Summary", doc.express_summary, "express_state"):
+        # 已合进写 Express 的收银日汇总：作废会让 Express 的现销对不上；走退货（出入库第一期 B3b 起记成当天的退货单）
+        frappe.throw(_("cashier.voidSummarized"))
     stock.reverse_movements(ref_type="sale" if doc.sale_type == contracts.SALE else "refund",
                             ref_id=doc.name, client_uuid=f"sale-void:{doc.name}", reason=reason)
     doc.status = "void"

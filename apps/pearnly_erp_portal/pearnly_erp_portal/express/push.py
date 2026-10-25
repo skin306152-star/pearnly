@@ -271,9 +271,18 @@ def void(doctype, name):
     if doctype != STOCK:
         return
     row = frappe.db.get_value(doctype, name, ["name", "creation", "owner", "express_state", "express_docnum",
-                                              "express_void_job"], as_dict=True)
-    if not row or row.express_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.express_docnum \
-            or row.express_void_job:
+                                              "express_job", "express_void_job"], as_dict=True)
+    if not row or row.express_void_job:
+        return
+    if row.express_state in contracts.OPEN_STATES:
+        # 还没写进去：排队中的写账撤掉（电脑正在写的撤不了，写完回执到了再作废，见 `job_changed`；验收 10-25）
+        job = jobs.find_by_name(row.express_job) if row.express_job else None
+        if job and job["status"] in ("queued", "manual"):
+            jobs.cancel(job["job"], "voided")
+        if not job or job["status"] in ("queued", "manual"):
+            _set(doctype, name, {"express_state": None, "express_job": None, "express_reason": "", "express_needed": None})
+        return
+    if row.express_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.express_docnum:
         return
     company = company_of(doctype, name)
     result = stock_entry.void_payload(name, _company(company)) if company else {"hold": contracts.NO_BOOK}
@@ -320,6 +329,9 @@ def job_changed(view):
     values = {"express_state": state, "express_job": view.get("job"), "express_docnum": view.get("docnum") or "",
               "express_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED) else str(view.get("reason") or "")[:500]}
     _set(doctype, name, values)
+    if doctype == STOCK and state in (contracts.WRITTEN, contracts.MISMATCH) and \
+            frappe.db.get_value(doctype, name, "status") == "void":
+        void(doctype, name)  # 电脑写的时候 ERP 这边已作废：写完立刻照 Express 原生作废原单
     if state in (contracts.WRITTEN, contracts.MISMATCH) and (before.express_state, before.express_docnum or "") != (
             state, values["express_docnum"]) and before.company:
         from pearnly_erp_portal.express import masters

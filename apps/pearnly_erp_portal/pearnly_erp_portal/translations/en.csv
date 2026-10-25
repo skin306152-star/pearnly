@@ -1325,6 +1325,7 @@ This member cannot be assigned,This member cannot be assigned
 This option is no longer current,This option is no longer current
 This payment method is not enabled for this company,This payment method is not enabled for this company
 This product code already exists,This product code already exists
+This receipt is in a daily summary sent to Express. Refund it instead,This receipt is in a daily summary sent to Express. Refund it instead
 This request was already recorded,This request was already recorded
 This sale is already voided,This sale is already voided
 This shift belongs to another cashier,This shift belongs to another cashier
@@ -1478,6 +1479,7 @@ adjust,adjust
 branch,branch
 card,card
 cash,cash
+cashier.voidSummarized,This receipt is in a daily summary sent to Express. Refund it instead
 client.action.bulkDisable,Disable {0}
 client.action.bulkEnable,Enable {0}
 client.active,Active

@@ -1325,6 +1325,7 @@ This member cannot be assigned,このメンバーには割り当てられませ�
 This option is no longer current,この選択肢は現在の手順ではありません
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
 This product code already exists,この品目コードは既に存在します
+This receipt is in a daily summary sent to Express. Refund it instead,このレシートは Express に送った日次集計に入っています。返品にしてください
 This request was already recorded,このリクエストは登録済みです
 This sale is already voided,この売上はすでに無効です
 This shift belongs to another cashier,このシフトは他のレジ担当のものです
@@ -1478,6 +1479,7 @@ adjust,調整
 branch,支店
 card,カード
 cash,現金
+cashier.voidSummarized,このレシートは Express に送った日次集計に入っています。返品にしてください
 client.action.bulkDisable,{0}件を無効化
 client.action.bulkEnable,{0}件を有効化
 client.active,正常
