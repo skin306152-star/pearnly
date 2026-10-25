@@ -1697,3 +1697,10 @@ Yes	是	ใช่	はい	express.option.yes
 No	否	ไม่ใช่	いいえ	express.option.no
 VAT Registered	增值税登记户	จดทะเบียนภาษีมูลค่าเพิ่ม	VAT 登録事業者	company.field.vatRegistered
 Up to {0} attachments	最多 {0} 个附件	แนบได้สูงสุด {0} ไฟล์	添付は {0} 件まで	stock.attachmentLimit
+This code is already used by {0} ({1})	该码已被 {0} 使用（{1}）	รหัสนี้ใช้กับ {0} แล้ว ({1})	このコードは {0} で使用されています（{1}）
+Product code	系统编码	รหัสสินค้า	品目コード	product.codeKind.code
+Internal code	内部编码	รหัสภายใน	社内コード	product.codeKind.internalCode
+Express code	Express 编码	รหัส Express	Express コード	product.codeKind.expressCode
+Barcode	条码	บาร์โค้ด	バーコード	product.codeKind.barcode
+QR code content	二维码内容	ข้อมูลคิวอาร์โค้ด	QRコード内容	product.codeKind.qrPayload
+Unit barcode	单位条码	บาร์โค้ดหน่วย	単位バーコード	product.codeKind.unitBarcode

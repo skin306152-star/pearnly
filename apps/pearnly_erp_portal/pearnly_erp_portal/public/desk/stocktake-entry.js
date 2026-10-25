@@ -190,6 +190,14 @@
 			try {
 				lookup = await p.call(api + "api_stock_count_lookup", { count, code: code || undefined, product });
 				if (closed) return;
+				if (lookup.candidates) {
+					// 同一个码命中几件商品（存量里撞了的码）：让人选一件再查，不默认挑一个
+					busy = false;
+					const picked = await p.pick_product(lookup.candidates);
+					if (picked) return match(null, picked);
+					scanner?.resume();
+					return;
+				}
 				selected = lookup.product;
 				request_id = crypto.randomUUID();
 				d.set_df_property("source_row", "options", lookup.rows.map(r => ({

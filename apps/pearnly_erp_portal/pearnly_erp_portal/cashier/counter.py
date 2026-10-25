@@ -70,8 +70,8 @@ def lookup(value, *, terminal=None) -> dict:
     """
     guard.require("cashier.read")
     found = products.find_product(value)
-    if not found:
-        return {}
+    if not found or found.get("ambiguous"):
+        return found or {}  # 存量里撞了的码：候选交给页面让人选
     warehouse = warehouse_for(terminal)
     return {**found, "warehouse": warehouse,
             "qty_on_hand": round(_on_hand(warehouse, [found["name"]]).get(found["name"], 0.0), 6)}

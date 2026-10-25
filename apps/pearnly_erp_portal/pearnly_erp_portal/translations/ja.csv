@@ -515,6 +515,7 @@ Express Synced At,Express 同期日時
 Express Void,Express 取消
 Express Void Job,Express 取消ジョブ
 Express Void Reason,Express 取消の理由
+Express code,Express コード
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
 Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
@@ -912,6 +913,7 @@ Product / position / counted by / time,商品・位置・担当者・日時
 Product ID,商品ID
 Product Name,商品名
 Product Ref,商品の外部参照
+Product code,品目コード
 Product is disabled,商品は無効になっています
 Product name,商品名
 Product not found,商品が見つかりません
@@ -935,6 +937,7 @@ Purchasing,購買
 Purple,紫
 Purpose,用途
 QR Payload,QR内容
+QR code content,QRコード内容
 QR content,QR 内容
 Qty,数量
 "Qty (base unit, signed)",数量（基準単位・符号付き）
@@ -1299,6 +1302,7 @@ This card has expired. Please upload the document again.,カードの期限が�
 This card is no longer valid,このカードは無効です
 This channel is not open yet,このチャンネルはまだ開放していません
 This code is already taken,このコードは既に使われています
+This code is already used by {0} ({1}),このコードは {0} で使用されています（{1}）
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -1391,6 +1395,7 @@ Unit,単位
 Unit Cost,単位原価
 Unit Cost (net of VAT),単価（VAT除く）
 Unit Price,単価
+Unit barcode,単位バーコード
 Unit {0} is not defined on {1},単位「{0}」は「{1}」に定義されていません
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
@@ -2011,6 +2016,12 @@ product.action.scan,スキャン
 product.action.submit,確定
 product.active,正常
 product.cell.notSet,未設定
+product.codeKind.barcode,バーコード
+product.codeKind.code,品目コード
+product.codeKind.expressCode,Express コード
+product.codeKind.internalCode,社内コード
+product.codeKind.qrPayload,QRコード内容
+product.codeKind.unitBarcode,単位バーコード
 product.col.avgCost,平均原価
 product.col.barcode,バーコード
 product.col.code,コード

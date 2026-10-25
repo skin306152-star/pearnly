@@ -515,6 +515,7 @@ Express Synced At,Express Synced At
 Express Void,Express Void
 Express Void Job,Express Void Job
 Express Void Reason,Express Void Reason
+Express code,Express code
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
 Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
@@ -912,6 +913,7 @@ Product / position / counted by / time,Product / position / counted by / time
 Product ID,Product ID
 Product Name,Product Name
 Product Ref,Product Ref
+Product code,Product code
 Product is disabled,Product is disabled
 Product name,Product name
 Product not found,Product not found
@@ -935,6 +937,7 @@ Purchasing,Purchasing
 Purple,Purple
 Purpose,Purpose
 QR Payload,QR Payload
+QR code content,QR code content
 QR content,QR content
 Qty,Qty
 "Qty (base unit, signed)","Qty (base unit, signed)"
@@ -1299,6 +1302,7 @@ This card has expired. Please upload the document again.,This card has expired. 
 This card is no longer valid,This card is no longer valid
 This channel is not open yet,This channel is not open yet
 This code is already taken,This code is already taken
+This code is already used by {0} ({1}),This code is already used by {0} ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
@@ -1391,6 +1395,7 @@ Unit,Unit
 Unit Cost,Unit Cost
 Unit Cost (net of VAT),Unit Cost (net of VAT)
 Unit Price,Unit Price
+Unit barcode,Unit barcode
 Unit {0} is not defined on {1},Unit {0} is not defined on {1}
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
@@ -2011,6 +2016,12 @@ product.action.scan,Scan
 product.action.submit,Submit
 product.active,Active
 product.cell.notSet,Not set
+product.codeKind.barcode,Barcode
+product.codeKind.code,Product code
+product.codeKind.expressCode,Express code
+product.codeKind.internalCode,Internal code
+product.codeKind.qrPayload,QR code content
+product.codeKind.unitBarcode,Unit barcode
 product.col.avgCost,Average cost
 product.col.barcode,Barcode
 product.col.code,Code

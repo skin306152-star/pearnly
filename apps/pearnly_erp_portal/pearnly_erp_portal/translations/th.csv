@@ -515,6 +515,7 @@ Express Synced At,ซิงค์ Express เมื่อ
 Express Void,ยกเลิกใน Express
 Express Void Job,งานยกเลิกใน Express
 Express Void Reason,เหตุผลการยกเลิกใน Express
+Express code,รหัส Express
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
@@ -912,6 +913,7 @@ Product / position / counted by / time,สินค้า / ตำแหน่�
 Product ID,รหัสระบุสินค้า
 Product Name,ชื่อสินค้า
 Product Ref,รหัสอ้างอิงสินค้า
+Product code,รหัสสินค้า
 Product is disabled,สินค้าถูกปิดใช้งาน
 Product name,ชื่อสินค้า
 Product not found,ไม่พบสินค้า
@@ -935,6 +937,7 @@ Purchasing,จัดซื้อ
 Purple,ม่วง
 Purpose,วัตถุประสงค์
 QR Payload,ข้อมูล QR
+QR code content,ข้อมูลคิวอาร์โค้ด
 QR content,ข้อมูล QR
 Qty,จำนวน
 "Qty (base unit, signed)",จำนวน (หน่วยฐาน มีเครื่องหมาย)
@@ -1299,6 +1302,7 @@ This card has expired. Please upload the document again.,การ์ดหม�
 This card is no longer valid,การ์ดนี้ใช้ไม่ได้แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
+This code is already used by {0} ({1}),รหัสนี้ใช้กับ {0} แล้ว ({1})
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
@@ -1391,6 +1395,7 @@ Unit,หน่วย
 Unit Cost,ต้นทุนต่อหน่วย
 Unit Cost (net of VAT),ต้นทุนต่อหน่วย (ไม่รวม VAT)
 Unit Price,ราคาต่อหน่วย
+Unit barcode,บาร์โค้ดหน่วย
 Unit {0} is not defined on {1},ไม่ได้กำหนดหน่วย「{0}」ไว้ในสินค้า「{1}」
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ไม่ทราบทิศทางของเอกสาร
@@ -2011,6 +2016,12 @@ product.action.scan,สแกน
 product.action.submit,ยืนยัน
 product.active,เปิดใช้งาน
 product.cell.notSet,ยังไม่ได้ตั้งค่า
+product.codeKind.barcode,บาร์โค้ด
+product.codeKind.code,รหัสสินค้า
+product.codeKind.expressCode,รหัส Express
+product.codeKind.internalCode,รหัสภายใน
+product.codeKind.qrPayload,ข้อมูลคิวอาร์โค้ด
+product.codeKind.unitBarcode,บาร์โค้ดหน่วย
 product.col.avgCost,ต้นทุนเฉลี่ย
 product.col.barcode,บาร์โค้ด
 product.col.code,รหัส

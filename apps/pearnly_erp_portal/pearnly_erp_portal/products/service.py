@@ -9,7 +9,7 @@ from frappe import _
 from pearnly_core import browser_text
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
-from pearnly_erp_portal.products import contracts, workbook
+from pearnly_erp_portal.products import codes, contracts, workbook
 
 DOCTYPE = "ERP Product"
 UNIT_DOCTYPE = "ERP Product Unit"
@@ -141,19 +141,13 @@ def find(field: str, value, company: str | None = None) -> str | None:
     return found[0][0] if found else None
 
 
-def _assert_unique(code, barcode, *, exclude: str | None = None, owner: str | None = None, internal=None) -> None:
-    """编码 / 条码 / 内部编码在看得到这件商品的范围内唯一（:func:`taken`）。"""
-    for field, value, message in (
-        ("code", code, CODE_EXISTS),
-        ("barcode", barcode, BARCODE_EXISTS),
-        ("internal_code", internal, INTERNAL_CODE_EXISTS),
-    ):
-        if taken(field, value, owner=owner, exclude=exclude):
-            frappe.throw(_(message))
-    # 内部编码只有 ERP 本地建的商品手输（各家公司都看得到），也不能与哪家公司从 Express 同步来的商品编码撞：扫码认商品
-    # 时两件都认得到就分不清
-    if internal and taken("express_code", internal, exclude=exclude):
-        frappe.throw(_(INTERNAL_CODE_EXISTS))
+def _assert_unique(code, barcode, *, exclude: str | None = None, owner: str | None = None, internal=None,
+                   qr=None) -> None:
+    """扫码认商品的码共用一个命名空间（`products.codes`，主会话 10-26）：系统编码 / 内部编码 / 条码 / 二维码内容在看得到这件
+    商品的范围里，不能与别件商品的任何一种码撞（含 Express 编码、售卖单位条码）；撞了报出是哪件商品的哪种码。"""
+    for value in (code, internal, barcode, qr):
+        if value:
+            codes.assert_free(value, owner=owner, exclude=exclude)
 
 
 def _internal(value):
@@ -196,9 +190,16 @@ def _allocate_code() -> str:
 
     发号看全租户（本地档各家公司都看得到）；建档前 `_assert_unique` 再核一次。
     """
-    codes = frappe.get_all(DOCTYPE, filters={"code": ["like", f"{contracts.CODE_PREFIX}%"]},
-                           pluck="code", limit_page_length=0)
-    return contracts.next_code(codes)
+    used = frappe.get_all(DOCTYPE, filters={"code": ["like", f"{contracts.CODE_PREFIX}%"]},
+                          pluck="code", limit_page_length=0)
+    candidate = contracts.next_code(used)
+    # 号被别件商品的其他码占着（比如有人把内部编码填成了下一个 P- 号）就往后跳，码的命名空间不撞（`products.codes`）
+    for _attempt in range(100):
+        if not codes.holders(candidate):
+            break
+        used.append(candidate)
+        candidate = contracts.next_code(used)
+    return candidate
 
 
 def next_code_preview() -> dict:
@@ -226,7 +227,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     code = _text(code, contracts.MAX_CODE) or _allocate_code()
     barcode = _text(barcode, contracts.MAX_BARCODE)
     internal_code = _internal(internal_code)
-    _assert_unique(code, barcode, internal=internal_code)
+    _assert_unique(code, barcode, internal=internal_code, qr=_text(qr_payload, contracts.MAX_QR))
 
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
@@ -308,32 +309,22 @@ def list_products(*, search=None, include_inactive=False, is_active=None, limit=
 def find_product(value, exclude=None):
     """扫到一个码，先看它已经属于谁 —— 撞码**当场**说，别等填完表保存才报错。
 
-    查四处：编码、条码、二维码内容，以及售卖单位上的条码（箱码/瓶码常挂在单位上）。
-    只认在架商品（停用品的码可以用，与旧线上"先下架再占码"一个意思）。查不到回空字典。
+    查系统编码、内部编码、Express 编码、条码、二维码内容和售卖单位上的条码（`products.codes`，跟着权限与当前公司）；
+    只认在架商品（停用品的码可以用）。命中一件回它（带 ``matched_by``）；命中几件（存量里撞了的码）回
+    ``{"ambiguous": 1, "candidates": [...]}`` 交给人选，不默认挑一个；查不到回空字典。
     """
     guard.require("products.view")
     wanted = str(value or "").strip()
     if not wanted:
         return {}
-    fields = ["name", "product_name", "code", "internal_code", "express_code", "barcode"]
-    base = [["is_active", "=", 1]]
-    if exclude:
-        base.append(["name", "!=", exclude])
-    for field in LOOKUP_FIELDS:
-        rows = frappe.get_list(DOCTYPE, filters=base + [[field, "=", wanted]], fields=fields,
-                               limit_page_length=1)
-        if rows:
-            return {**rows[0], "matched_by": field}
-    # 售卖单位上的条码：先按条码拿到子表行，再把父商品过一遍权限与在架闸。
-    # 几家公司各有一件挂同一个单位条码时，先取全部再过权限（按当前公司）
-    parents = frappe.get_all(UNIT_DOCTYPE, filters={"barcode": wanted, "parenttype": DOCTYPE}, pluck="parent",
-                             limit_page_length=20)
-    if parents:
-        rows = frappe.get_list(DOCTYPE, filters=base + [["name", "in", parents]], fields=fields,
-                               limit_page_length=1)
-        if rows:
-            return {**rows[0], "matched_by": "unit_barcode"}
-    return {}
+    found = codes.candidates(wanted, exclude=exclude or None,
+                             rows_of=lambda filters, fields: frappe.get_list(DOCTYPE, filters=filters, fields=fields,
+                                                                            limit_page_length=20))
+    keep = ("name", "product_name", "code", "internal_code", "express_code", "barcode", "matched_by")
+    rows = [{key: row.get(key) for key in keep} for row in found]
+    if len(rows) > 1:
+        return {"ambiguous": 1, "candidates": rows}
+    return rows[0] if rows else {}
 
 
 def count_products(*, search=None, include_inactive=False, is_active=None, conditions=None) -> int:
@@ -372,8 +363,9 @@ def update_product(name: str, **changes):
             doc.internal_code, doc.express_code):
         changes.pop("internal_code")
     internal = _internal(changes["internal_code"]) if "internal_code" in changes else doc.internal_code
-    _assert_unique(doc.code, barcode, exclude=doc.name, owner=doc.get("express_company"),
-                   internal=internal if internal != doc.internal_code else None)
+    qr = _text(changes.get("qr_payload"), contracts.MAX_QR) if "qr_payload" in changes else None
+    _assert_unique(None, barcode if barcode != doc.barcode else None, exclude=doc.name, owner=doc.get("express_company"),
+                   internal=internal if internal != doc.internal_code else None, qr=qr if qr != doc.qr_payload else None)
     if "internal_code" in changes:
         doc.internal_code = internal
 
@@ -453,6 +445,7 @@ def add_unit(name: str, *, unit_name, factor_to_base, barcode=None, price=None,
         for row in doc.get("units") or []:
             if row.barcode == barcode:
                 frappe.throw(_(BARCODE_EXISTS))
+        codes.assert_free(barcode, owner=doc.get("express_company"), exclude=doc.name)  # 码的命名空间（`products.codes`）
     if is_default_sell in (True, 1, "1", "true"):
         for row in doc.get("units") or []:
             row.is_default_sell = 0

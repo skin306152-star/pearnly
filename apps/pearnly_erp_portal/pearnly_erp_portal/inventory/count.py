@@ -85,26 +85,20 @@ def _qty(value, *, field="Quantity") -> Decimal:
         frappe.throw(_("Invalid value: {0}").format(field))
 
 
-def product_of_code(code: str, company: str | None = None) -> dict | None:
-    """扫到的码 → 商品。编码/内部编码/条码/二维码内容都认（与商品页扫码同一套，`products.contracts.LOOKUP_FIELDS`）。
+def products_of_code(code: str, company: str | None = None) -> list:
+    """扫到的码 → 命中的商品（码的命名空间，`products.codes`）：系统编码 / 内部编码 / Express 编码 / 条码 / 二维码内容 /
+    售卖单位条码都认。给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档。"""
+    from pearnly_erp_portal.products import codes
 
-    给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档，这家的优先：编码、条码不再全租户唯一
-    （多家公司从各自 Express 同步，同码各一件），不分公司会扫到别家公司的那一件（10-24 集成核对）。"""
-    wanted = str(code or "").strip()
-    if not wanted:
-        return None
-    for field in product_contracts.LOOKUP_FIELDS:
-        if not company:
-            row = frappe.db.get_value(PRODUCT, {field: wanted, "is_active": 1}, "*", as_dict=True)
-            if row:
-                return row
-            continue
-        rows = frappe.get_all(PRODUCT, filters={field: wanted, "is_active": 1}, fields=["*"], limit=50)
-        own = [row for row in rows if row.get("express_company") == company]
-        local = [row for row in rows if not row.get("express_company")]
-        if own or local:
-            return (own or local)[0]
-    return None
+    return codes.candidates(code, company)
+
+
+def product_of_code(code: str, company: str | None = None) -> dict | None:
+    """扫到的码 → 那一件商品；认不到回 None；命中几件（存量里撞了的码）报错让人挑，不默认挑一个（主会话 10-26）。"""
+    found = products_of_code(code, company)
+    if len(found) > 1:
+        frappe.throw(_("Several matches found for {0}. Please select a record.").format(str(code).strip()))
+    return frappe.db.get_value(PRODUCT, found[0]["name"], "*", as_dict=True) if found else None
 
 
 def count_company(count) -> str | None:
@@ -194,11 +188,12 @@ def apply_import(*, count, rows) -> dict:
 
 
 def _product_of_row(row, company=None) -> dict | None:
+    """导入的一行认商品：编码一列认不准（撞号几件）就当认不到，交回问题清单，不默认挑一件。"""
     for code in ((row.get("product_code") or "").strip(), (row.get("barcode") or "").strip()):
         if code:
-            found = product_of_code(code, company)
-            if found:
-                return found
+            found = products_of_code(code, company)
+            if len(found) == 1:
+                return frappe.db.get_value(PRODUCT, found[0]["name"], "*", as_dict=True)
     return None
 
 
@@ -748,7 +743,13 @@ def lookup_count(*, count, code=None, product=None):
     """
     guard.require("count.read")
     task = _get(count)
-    found = product_of_code(code, count_company(count)) if code else frappe.db.get_value(
+    if code and not product:
+        matches = products_of_code(code, count_company(count))
+        if len(matches) > 1:
+            # 存量里撞了的码：几件都列出来让人选（再带 product 查一次），不默认挑一个
+            return {"candidates": [{key: row.get(key) for key in ("name", "product_name", "code", "internal_code", "barcode",
+                                                                  "matched_by")} for row in matches]}
+    found = product_of_code(code, count_company(count)) if code and not product else frappe.db.get_value(
         PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))

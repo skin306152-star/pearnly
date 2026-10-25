@@ -303,12 +303,13 @@
           return (Math.round(parsed * 1000) / 1000).toString();
         }
 
-        async function lookup(code) {
+        async function lookup(code, product) {
           const taskName = task?.name;
           if (!taskName) return;
           try {
-            const result = await call('api_line_stocktake_lookup', { name: taskName, code: code });
+            const result = await call('api_line_stocktake_lookup', { name: taskName, code: code, product: product || '' });
             if (task?.name !== taskName) return;
+            if (result && result.candidates) { choose(code, result.candidates); return; }
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
             last = result;
             render(result);
@@ -317,6 +318,19 @@
           } catch (error) {
             say(error.message, true);
           }
+        }
+
+        // 同一个码命中几件商品（存量里撞了的码）：列出来让员工点一件，不默认挑一个
+        function choose(code, candidates) {
+          const card = document.getElementById('code')?.closest('.card');
+          if (!card) return;
+          let box = document.getElementById('choices');
+          if (!box) { box = document.createElement('div'); box.id = 'choices'; card.appendChild(box); }
+          box.innerHTML = candidates.map((row, index) => '<div class="row"><button data-choice="' + index + '">'
+            + esc(row.product_name || row.name) + (row.code ? ' · ' + esc(row.code) : '') + '</button></div>').join('');
+          box.querySelectorAll('[data-choice]').forEach((button) => {
+            button.onclick = () => { box.innerHTML = ''; lookup(code, candidates[Number(button.dataset.choice)].name); };
+          });
         }
 
         function bindForm(item, rows) {

@@ -140,8 +140,9 @@
 		// 扫到的码已经是别人的：**当场**说，并给一条"去改那一条"的出路。
 		// 旧线上也是当场拦（撞码拖到保存才报，会让人白填一整张表）。
 		async function flag_taken(code, self_name, on_open) {
-			const taken = await p.call(api + "api_find_product",
+			const found = await p.call(api + "api_find_product",
 				{ value: code, exclude: self_name || "" });
+			const taken = found?.ambiguous ? found.candidates[0] : found;  // 撞了几件：报第一件就够（这个码已被占用）
 			if (!taken || !taken.name) return false;
 			frappe.msgprint({
 				title: t("product.scan.taken"),

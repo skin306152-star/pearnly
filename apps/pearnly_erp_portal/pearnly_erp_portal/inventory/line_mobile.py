@@ -142,12 +142,21 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     只是登记，不写实盘（写 0 会被当成"数出来是 0"）。
     """
     as_ticket_user(ticket)
-    found = counts.product_of_code(code, counts.count_company(name))
-    if not found:
+    matches = counts.products_of_code(code, counts.count_company(name))
+    chosen_product = kwargs.get("product")
+    if chosen_product:
+        # 员工从候选里点了一件：只认这个码命中的那几件之一
+        matches = [row for row in matches if row["name"] == chosen_product]
+    elif len(matches) > 1:
+        # 存量里撞了的码：列出来让员工点选（页面再带选中的商品查一次），不默认挑一个
+        return {"candidates": [{"name": row["name"], "product_name": row.get("product_name"), "code": row.get("code")}
+                               for row in matches]}
+    if not matches:
         return {}
+    found = {"name": matches[0]["name"]}
     rows = counts.rows_of_product(count=name, product=found["name"])
     if not rows:
-        registered = counts.ensure_item(count=name, code=code)
+        registered = counts.ensure_item(count=name, product=found["name"])
         rows = counts.rows_of_product(count=name, product=found["name"]) or [registered]
     if not rows:
         return {}

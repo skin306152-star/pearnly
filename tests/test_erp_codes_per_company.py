@@ -22,12 +22,24 @@ class CodesAreReadPerCompany(unittest.TestCase):
             field, value = next((key, val) for key, val in filters.items() if key != "is_active")
             return [row for row in self.ROWS if row.get(field) == value]
 
-        with mock.patch.object(count.frappe, "get_all", side_effect=get_all):
-            self.assertEqual(count.product_of_code("A001", "CO-A")["name"], "PRD-A")
-            self.assertEqual(count.product_of_code("A001", "CO-C")["name"], "PRD-L")   # 这家没有：认本地档
+        def get_value(doctype, name, fields=None, as_dict=False):
+            return {"name": name}
+
+        def throw(message, *a):
+            raise ValueError(message)
+
+        with mock.patch.object(count.frappe, "get_all", side_effect=get_all), \
+                mock.patch.object(count.frappe, "db", __import__("types").SimpleNamespace(get_value=get_value)), \
+                mock.patch.object(count, "_", lambda text: text), mock.patch.object(count.frappe, "throw", side_effect=throw):
+            # 本公司的档与本地档同码（码的命名空间撞了，主会话 10-26）：不默认挑一件，报错让人挑；候选里两件都在
+            with self.assertRaisesRegex(ValueError, "Several matches"):
+                count.product_of_code("A001", "CO-A")
+            self.assertEqual({row["name"] for row in count.products_of_code("A001", "CO-A")}, {"PRD-A", "PRD-L"})
+            self.assertEqual(count.product_of_code("A001", "CO-C")["name"], "PRD-L")   # 这家只看得到本地档
             self.assertIsNone(count.product_of_code("ZZZ", "CO-A"))
         only_other = [self.ROWS[0]]
-        with mock.patch.object(count.frappe, "get_all", return_value=only_other):
+        with mock.patch.object(count.frappe, "get_all", side_effect=lambda doctype, filters=None, **kw:
+                               only_other if doctype == "ERP Product" else []):
             self.assertIsNone(count.product_of_code("A001", "CO-A"))   # 只有别家公司的：不认
 
     def test_opening_rows_ignore_other_companies_with_the_same_code(self):
@@ -60,28 +72,65 @@ class InternalCodes(unittest.TestCase):
             field, value = next((key, val) for key, val in filters.items() if key != "is_active")
             return [row for row in rows if row.get(field) == value]
 
-        with mock.patch.object(count.frappe, "get_all", side_effect=get_all):
+        db = __import__("types").SimpleNamespace(get_value=lambda doctype, name, fields=None, as_dict=False: {"name": name})
+        with mock.patch.object(count.frappe, "get_all", side_effect=get_all), mock.patch.object(count.frappe, "db", db):
             self.assertEqual(count.product_of_code("A-01", "CO-A")["name"], "PRD-L")
             self.assertEqual(count.product_of_code("STK-9", "CO-A")["name"], "PRD-A")
             self.assertIsNone(count.product_of_code("STK-9", "CO-B"))   # 别家公司的 Express 编码不认
 
-    def test_a_typed_internal_code_must_be_free_of_other_internal_and_express_codes(self):
+    def held(self, held):
+        """码的命名空间（`products.codes`）替身：``held`` = {码: (商品名, 种类)}。"""
+        import types
         from unittest import mock
 
-        from pearnly_erp_portal.products import service
+        from pearnly_erp_portal.products import codes
+
+        def sql(query, params, as_dict=False):
+            value = params[0] if "u.barcode" not in query else params[1]
+            field = query.split("p.`")[1].split("`")[0] if "p.`" in query else "unit_barcode"
+            hit = held.get(value)
+            return [types.SimpleNamespace(name="PRD-X", product_name=hit[0])] if hit and hit[1] == field else []
 
         class Refused(Exception):
             pass
 
-        taken = {("internal_code", "A-01"): "PRD-L", ("express_code", "STK-9"): "PRD-A"}
-        with mock.patch.object(service, "taken", side_effect=lambda field, value, **kw: taken.get((field, value))), \
-                mock.patch.object(service, "_", side_effect=lambda text: text), \
-                mock.patch.object(service.frappe, "throw", side_effect=lambda message, *a: (_ for _ in ()).throw(Refused(message))):
-            for code in ("A-01", "STK-9"):
-                with self.assertRaisesRegex(Refused, "internal code"):
-                    service._assert_unique("P-000009", None, internal=code)
-            service._assert_unique("P-000009", None, internal="B-02")
-            service._assert_unique("P-000009", None, internal=None)
+        return [mock.patch.object(codes.frappe, "db", types.SimpleNamespace(sql=sql)),
+                mock.patch.object(codes, "_", side_effect=lambda text: text),
+                mock.patch.object(codes.frappe, "throw", side_effect=lambda message, *a: (_ for _ in ()).throw(Refused(message)))], Refused
+
+    def test_every_scannable_code_shares_one_namespace(self):
+        """主会话 10-26（验收：内部编码填了饮料的条码，收银 / 入库 / 盘点扫码都把饮料顶掉了）：内部编码撞条码、条码撞内部编码、
+        撞系统编码 / 单位条码都拒，报出是哪件商品的哪种码。"""
+        from pearnly_erp_portal.products import service
+
+        patches, Refused = self.held({"8858998583485": ("น้ำดื่ม", "barcode"), "IC-BAR-77": ("สินค้า A", "internal_code"),
+                                      "P-000003": ("น้ำดื่ม", "code"), "BOX-12": ("น้ำดื่ม", "unit_barcode")})
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        for kwargs, kind in (({"internal": "8858998583485"}, "product.codeKind.barcode"),
+                             ({"internal": "P-000003"}, "product.codeKind.code"),
+                             ({"internal": "BOX-12"}, "product.codeKind.unitBarcode")):
+            with self.assertRaisesRegex(Refused, "already used"):
+                service._assert_unique(None, None, **kwargs)
+        with self.assertRaisesRegex(Refused, "already used"):
+            service._assert_unique(None, "IC-BAR-77")   # 条码撞别件的内部编码
+        service._assert_unique(None, "4800000000001", internal="NEW-1")
+
+    def test_a_scan_that_hits_several_products_lists_them(self):
+        """存量里撞了的码：扫码不默认挑一件，把候选交给页面让人选。"""
+        from unittest import mock
+
+        from pearnly_erp_portal.products import service
+
+        rows = {"barcode": [{"name": "PRD-1", "product_name": "A", "express_company": ""}],
+                "internal_code": [{"name": "PRD-2", "product_name": "B", "express_company": ""}]}
+        get_list = lambda doctype, filters=None, fields=None, **kw: rows.get(next(k for k in filters if k != "is_active"), [])  # noqa: E731
+        with mock.patch.object(service.guard, "require", lambda capability: None), \
+                mock.patch.object(service.frappe, "get_list", side_effect=get_list), \
+                mock.patch.object(service.codes.frappe, "get_all", side_effect=lambda *a, **k: []):
+            found = service.find_product("8858998583485")
+        self.assertEqual((found["ambiguous"], [row["name"] for row in found["candidates"]]), (1, ["PRD-2", "PRD-1"]))  # 按认码顺序：内部编码先于条码
 
 
 class MasterRecordsArePerCompany(unittest.TestCase):

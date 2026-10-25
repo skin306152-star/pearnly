@@ -41,6 +41,17 @@ frappe.provide("frappe.pearnly");
 	// 扫到一个码 → 用**主数据那条查接口**（编码/条码/二维码/售卖单位条码四路）查它是哪条物料
 	// → 填进选择框 → 该字段自己的 `onchange` 把说明/单位/单价/仓库/地点带出来。
 	// 查不到就照实说（橙色提示 + 出错音），不静默。
+	// 同一个码命中几件商品（存量里撞了的码，`products.codes`）：原生弹窗列出来让人选一件，不默认挑一个。回选中的商品名，取消回 null。
+	p.pick_product = candidates => new Promise(resolve => {
+		let done = false;
+		const dialog = new frappe.ui.Dialog({ title: __("Select"), fields: [{ fieldtype: "Select", fieldname: "product",
+			label: __("Item"), reqd: 1, options: candidates.map(row => ({ value: row.name,
+				label: [row.product_name || row.name, row.code, row.internal_code, row.barcode].filter(Boolean).join(" · ") })) }],
+			primary_action_label: __("Select"),
+			primary_action(values) { done = true; dialog.hide(); resolve(values.product); } });
+		dialog.onhide = () => { if (!done) resolve(null); };
+		dialog.show();
+	});
 	p.scan_doctypes = ["ERP Product"];
 	p.scan_link = async control => {
 		const t = await p.texts("product.");
@@ -48,6 +59,7 @@ frappe.provide("frappe.pearnly");
 		return p.scan({ kind: "all", on_result: async code => {
 			const found = await p.call("pearnly_erp_portal.products.service.api_find_product",
 				{ value: code });
+			if (found?.ambiguous) found.name = await p.pick_product(found.candidates);
 			if (!found?.name) {
 				frappe.show_alert({ message: t("product.scan.notFound", code), indicator: "orange" });
 				p.scan_result_sound(false);
