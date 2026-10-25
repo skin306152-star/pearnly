@@ -355,6 +355,8 @@ def get_profile(name=None) -> dict:
         if doc.get("express_synced_at"):
             # 原生日期时间控件只认到秒：带微秒的值会弹「必须采用格式」（10-24 测试机）
             payload["express"]["express_synced_at"] = frappe.utils.get_datetime(doc.express_synced_at).strftime("%Y-%m-%d %H:%M:%S")
+        # Express 自己对不上的存货（全仓结存 ≠ 各仓合计，`express.masters.stock_differences`）：只列不拦
+        payload["express"]["stock_differences"] = frappe.parse_json(doc.get("express_stock_diffs") or "[]") or []
     return payload
 
 

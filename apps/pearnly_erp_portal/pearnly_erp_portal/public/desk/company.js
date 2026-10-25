@@ -257,6 +257,21 @@
 			...(express.express_sync_note ? [{fieldname: "express_sync_note", label: __("Reason"), fieldtype: "Small Text",
 				read_only: 1, default: SYNC_NOTES[express.express_sync_note]
 					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : []),
+			// Express 自己对不上的存货（全仓结存 ≠ 各仓合计）：同步不按它抹 ERP 的数，这里只列不拦（出入库第一期）。原生表格、只读
+			...((express.stock_differences || []).length ? [
+				{fieldtype: "Section Break", label: t("company.express.stockDifferences")},
+				{fieldtype: "Table", fieldname: "express_stock_differences", label: "", read_only: 1,
+					cannot_add_rows: 1, cannot_delete_rows: 1, in_place_edit: 0,
+					data: express.stock_differences.map(row => ({item_code: row.code, item_name: row.name,
+						locations: row.locations, balance: row.balance})),
+					fields: [
+						{fieldname: "item_code", fieldtype: "Data", read_only: 1, in_list_view: 1, label: __("Item Code")},
+						{fieldname: "item_name", fieldtype: "Data", read_only: 1, in_list_view: 1, label: __("Item Name")},
+						{fieldname: "locations", fieldtype: "Float", read_only: 1, in_list_view: 1,
+							label: t("company.express.locationsTotal")},
+						{fieldname: "balance", fieldtype: "Float", read_only: 1, in_list_view: 1, label: __("Balance")},
+					]},
+			] : []),
 		];
 		// 后台同步做完推过来：提示结果，还在这一屏就重画（显示新的时间、状态、原因）
 		const watching = {};  // 每家公司只挂一个监听（连点两次不弹两遍）

@@ -1133,6 +1133,7 @@ Stock count not found,Stock count not found
 "Stock count tasks, staff entries and variance posting","Stock count tasks, staff entries and variance posting"
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
+Stock differences in Express,Stock differences in Express
 Stock entry not found,Stock entry not found
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
@@ -1425,6 +1426,7 @@ Warehouse,Warehouse
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
 Warehouses,Warehouses
+Warehouses total,Warehouses total
 Watch,Watch
 Weekly,Weekly
 When a card enters,When a card enters
@@ -1508,6 +1510,8 @@ company.col.warehouse,Warehouse name
 company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
 company.enable,Enable
+company.express.locationsTotal,Warehouses total
+company.express.stockDifferences,Stock differences in Express
 company.field.address,Address
 company.field.branch,Branch
 company.field.company,Company

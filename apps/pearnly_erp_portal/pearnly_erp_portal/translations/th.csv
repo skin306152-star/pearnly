@@ -1133,6 +1133,7 @@ Stock count not found,ไม่พบการตรวจนับ
 "Stock count tasks, staff entries and variance posting",งานตรวจนับ การบันทึกของพนักงาน และการลงบัญชีผลต่าง
 Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
+Stock differences in Express,สต็อกใน Express ไม่ตรงกัน
 Stock entry not found,ไม่พบเอกสารรับ-จ่ายสินค้านี้
 Stock is counted in this unit; leave it empty to use the selling unit,ใช้หน่วยนี้ในการนับสต็อก หากเว้นว่างจะใช้หน่วยเดียวกับหน่วยขาย
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,สต็อกคำนวณตามหน่วยนี้ หน่วยอื่นจะแปลงเป็นหน่วยนี้ หากเว้นว่างไว้จะใช้หน่วยขาย
@@ -1425,6 +1426,7 @@ Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
 Warehouses,คลังสินค้า
+Warehouses total,รวมทุกคลัง
 Watch,ติดตาม
 Weekly,ทุกสัปดาห์
 When a card enters,เมื่อการ์ดเข้ารายการ
@@ -1508,6 +1510,8 @@ company.col.warehouse,ชื่อคลังสินค้า
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 company.enable,เปิดใช้งาน
+company.express.locationsTotal,รวมทุกคลัง
+company.express.stockDifferences,สต็อกใน Express ไม่ตรงกัน
 company.field.address,ที่อยู่
 company.field.branch,สาขา
 company.field.company,บริษัท

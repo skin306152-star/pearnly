@@ -13,6 +13,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "tests"), str(ROOT / "apps/pearnly_core"), str(ROOT / "apps/pearnly_erp_portal")]
@@ -886,6 +887,70 @@ class ServiceLinesTakeNoWarehouse(unittest.TestCase):
         receiving.assert_called_once()
 
 
+
+
+class StockAlignment(MasterSync):
+    """出入库第一期（10-25）：对齐目标算全部还没进 Express 的 ERP 变动；调整写回原库位；Express 自己对不上的存货不抹、进差异清单。"""
+
+    def test_pending_counts_every_erp_move_not_yet_in_express(self):
+        sync = self.sync
+        sync.stock.MOVEMENT = "ERP Stock Movement"
+        moves = [
+            # (ref_type, ref_id, product, warehouse, qty)
+            ("purchase", "PUR-1", "P1", "W1", 10),          # 采购单已写进 Express：不算
+            ("purchase", "PUR-2", "P1", "W1", 4),           # 采购单还没写：算
+            ("ERP Sales Document", "SD-1", "P1", "W1", -3),  # 销售记录还没写：算
+            ("sale", "RCPT-1", "P1", "W1", -2),             # 收银小票：这一段不写进 Express，算
+            ("refund", "RCPT-2", "P1", "W1", 1),
+            ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单：算
+            ("count", "SC-1", "P1", "W2", -1),               # 盘点调整：算
+            ("void", "PUR-1", "P1", "W1", -10),              # 写进去之后作废的冲销：ERP 独有，算
+            (None, None, "P1", "W2", 5),                     # 没有来源：算
+            ("express_sync", None, "P1", "W1", 99),          # 同步调整本身：不算
+            ("opening", "OP-1", "P1", "W1", 50),             # 期初：不算
+            ("sale", "RCPT-3", "P2", "W1", -6),              # 不是这家公司 Express 来的品：不管
+        ]
+        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"]}
+
+        def get_all(doctype, filters=None, fields=None, pluck=None, group_by=None, **kw):
+            if doctype in open_docs:
+                return list(open_docs[doctype])
+            rows = [dict(zip(("ref_type", "ref_id", "product", "warehouse", "qty"), m)) for m in moves]
+            for field, op, value in filters:
+                rows = [r for r in rows if (r[field] in value if op == "in" else r[field] == value)]
+            keys = [part.strip() for part in group_by.split(",")]
+            out = {}
+            for r in rows:
+                k = tuple(r[f] for f in keys)
+                out[k] = out.get(k, 0) + r["qty"]
+            import types
+            return [types.SimpleNamespace(**dict(zip(keys, k)), qty=v) for k, v in out.items()]
+
+        with mock.patch.object(sync.frappe, "get_all", side_effect=get_all):
+            pending = sync._pending("CO-1", {"ICE-01": "P1"}, {"01": "W1", "02": "W2"})
+        self.assertEqual(pending, {("ICE-01", "01"): Decimal(4 - 3 - 2 + 1 - 10), ("ICE-01", "02"): Decimal(7 - 1 + 5)})
+
+    def test_express_own_mismatch_is_listed_and_not_aligned(self):
+        sync = self.sync
+        products = [{"code": "ICE-01", "name": "น้ำแข็ง", "kind": "stock", "balance": "12"},
+                    {"code": "ICE-02", "name": "น้ำแข็งบด", "kind": "stock", "balance": "5"},
+                    {"code": "FEE", "name": "ค่าส่ง", "kind": "non_stock", "balance": "3"},
+                    {"code": "OLD", "name": "รุ่นเก่า", "kind": "stock"}]  # 旧版 CC 桌面版不交 balance：不核
+        stock = [{"code": "ICE-01", "loccod": "01", "qty": "7"}, {"code": "ICE-01", "loccod": "02", "qty": "5"},
+                 {"code": "ICE-02", "loccod": "01", "qty": "3"}, {"code": "OLD", "loccod": "01", "qty": "9"}]
+        diffs = sync.stock_differences(products, stock)
+        self.assertEqual(diffs, {"ICE-02": (Decimal(3), Decimal(5))})
+        self.assertEqual(json.loads(sync._differences_json(products, diffs)),
+                         [{"code": "ICE-02", "name": "น้ำแข็งบด", "locations": "3", "balance": "5"}])
+        self.assertIsNone(sync._differences_json(products, {}))
+
+    def test_adjustments_go_back_to_the_goods_own_place(self):
+        place = self.sync._place
+        present = {("P1", "W1"): {"A-01"}, ("P2", "W1"): {"A-01", "B-02"}}
+        self.assertEqual(place("P1", "W1", "SHELF-9", present), "SHELF-9")  # 默认库位优先
+        self.assertEqual(place("P1", "W1", "", present), "A-01")             # 这个仓里只有一个库位
+        self.assertEqual(place("P2", "W1", "", present), "")                # 几个库位又没设默认：空库位
+        self.assertEqual(place("P3", "W1", "", present), "")
 
 if __name__ == "__main__":
     unittest.main()

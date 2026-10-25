@@ -371,14 +371,25 @@ def apply(company, book, data):
     counts["suppliers"] = _parties(SUPPLIER, company, book, data.get("suppliers"), _supplier_fields)
     counts["products"] = _products(company, book, data)
     warehouses, counts["warehouses"] = _warehouses(company, book, data)
-    counts["stock"] = _stock(company, warehouses, data.get("stock"))
-    values = {"express_book": book[:140], "express_synced_at": now_datetime()}
+    differences = stock_differences(data.get("products"), data.get("stock"))
+    counts["stock"] = _stock(company, warehouses, data.get("stock"), differences)
+    values = {"express_book": book[:140], "express_synced_at": now_datetime(),
+              "express_stock_diffs": _differences_json(data.get("products"), differences)}
     if data.get("mark"):  # 旧版 CC 桌面版读的没有标记：不清掉原来的（清掉了下一轮看标记必不同，又整套读一遍）
         values["express_mark"] = data["mark"]
     values.update(_profile(company, data.get("settings") or {}))
     frappe.db.set_value(COMPANY, company, values, update_modified=False)
     frappe.db.commit()
     return counts
+
+
+def _differences_json(products, differences):
+    """公司页 Express 区的差异清单（只列不拦）：``[{code, name, locations, balance}]``，没有差异是空。"""
+    if not differences:
+        return None
+    names = {str(row.get("code") or "").strip(): str(row.get("name") or "") for row in products or [] if isinstance(row, dict)}
+    return json.dumps([{"code": code, "name": names.get(code, ""), "locations": str(total), "balance": str(balance)}
+                       for code, (total, balance) in sorted(differences.items())][:500], ensure_ascii=False)
 
 
 def _profile(company, settings):
@@ -644,43 +655,95 @@ def _warehouses(company, book, data):
     return {code: name for code, name in found.items() if name}, changed
 
 
+# 写进 Express 的单（采购、销售记录）：它们的原始流水在单子写进去之前算「还没进 Express」，写进去之后不算
+WRITTEN_SOURCES = {"ERP Sales Document": "ERP Sales Document", "purchase": "Purchase Document"}
+# 不算 ERP 自己的变动：同步调整本身、期初（Express 有自己的期初，接了 Express 的公司不在 ERP 录期初）
+NOT_ERP_MOVES = (SYNC_REASON, "opening")
+
+
 def _pending(company, products, warehouses):
-    """还没写进 Express 的 ERP 单已经过了的库存变动：``{(存货码, 仓库码): 带符号基本单位数量}``。"""
-    refs = []
-    for doctype, ref_type in (("ERP Sales Document", "ERP Sales Document"), ("Purchase Document", "purchase")):
-        names = frappe.get_all(doctype, filters={"company": company, "status": "submitted",
-                                                 "express_state": ["in", contracts.OPEN_STATES]},
-                               pluck="name", limit_page_length=0)
-        refs.extend((ref_type, name) for name in names)
-    if not refs:
-        return {}
+    """还没进 Express 的 ERP 库存变动：``{(存货码, 仓库码): 带符号基本单位数量}``（出入库第一期，10-25）。
+
+    - 采购单、销售记录的原始流水：单子还没写进 Express（不管后来有没有作废）就算；
+    - 其余来源（收银小票 / 退货、出入库单、盘点调整、作废冲销 ``void``、没有来源的）这一段都不写进 Express，一律算；
+      没写进去就作废的单，原始流水与冲销流水正好抵消；写进去之后作废的，冲销流水是 ERP 独有的；
+    - 同步调整本身、期初不算。
+    原来只算采购单与销售记录两种，收银台卖出、出入库单的变动每次同步都被按 Express 的数抹掉。"""
     code_of = {name: code for code, name in products.items()}
     loc_of = {name: code for code, name in warehouses.items()}
+    if not code_of or not loc_of:
+        return {}
     pending = {}
-    for ref_type in {ref for ref, _ in refs}:
-        ids = [name for ref, name in refs if ref == ref_type]
-        for row in frappe.get_all(stock.MOVEMENT, filters={"ref_type": ref_type, "ref_id": ["in", ids]},
-                                  fields=["product", "warehouse", "qty_base"], limit_page_length=0):
+
+    def add(rows):
+        for row in rows:
             key = (code_of.get(row.product), loc_of.get(row.warehouse))
             if key[0] and key[1]:
-                pending[key] = pending.get(key, Decimal(0)) + contracts.d(row.qty_base)
+                pending[key] = pending.get(key, Decimal(0)) + contracts.d(row.qty)
+
+    scope = [["warehouse", "in", list(loc_of)], ["product", "in", list(code_of)]]
+    # 按品 × 仓 × 来源类型在库里求和，再在这里排除不算的类型（空来源照算；不靠「不在」条件处理空值）
+    for row in frappe.get_all(stock.MOVEMENT, filters=scope,  # bounded: 按品 × 仓 × 来源类型分组求和
+                              fields=["product", "warehouse", "ref_type", {"SUM": "qty_base", "as": "qty"}],
+                              group_by="product, warehouse, ref_type", order_by="", limit_page_length=0):
+        if (row.ref_type or "") not in NOT_ERP_MOVES and (row.ref_type or "") not in WRITTEN_SOURCES:
+            add([row])
+    for ref_type, doctype in WRITTEN_SOURCES.items():
+        open_docs = frappe.get_all(doctype, filters={"company": company, "express_state": ["in", contracts.OPEN_STATES]},
+                                   pluck="name", limit_page_length=0)  # bounded: 还没写进 Express 的单
+        if open_docs:
+            add(frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
+                               filters=scope + [["ref_type", "=", ref_type], ["ref_id", "in", open_docs]],
+                               fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
+                               group_by="product, warehouse", order_by="", limit_page_length=0))
     return pending
 
 
-def _stock(company, warehouses, stock_rows):
-    """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水。回调整的笔数。
-    只认这家公司同步来的库存品（编码在公司内唯一）。"""
+def stock_differences(products, stock_rows) -> dict:
+    """Express 自己对不上的存货：全仓结存 STMAS.MREMBAL ≠ 各仓 STLOC 合计 → ``{存货码: (各仓合计, 全仓结存)}``。
+    这种存货 ERP 不按 Express 抹（抹到哪个仓都不对），进公司页的差异清单（只列不拦）。旧版 CC 桌面版不交 ``balance``，不核。"""
+    per_location = {}
+    for row in stock_rows or []:
+        if isinstance(row, dict) and str(row.get("code") or "").strip():
+            code = str(row["code"]).strip()
+            per_location[code] = per_location.get(code, Decimal(0)) + contracts.d(row.get("qty"))
+    out = {}
+    for row in products or []:
+        if not isinstance(row, dict) or row.get("kind") != "stock" or row.get("balance") in (None, ""):
+            continue
+        code = str(row.get("code") or "").strip()
+        total, balance = per_location.get(code, Decimal(0)), contracts.d(row["balance"])
+        if code and abs(total - balance) > TOL:
+            out[code] = (total, balance)
+    return out
+
+
+def _place(product, warehouse, default_location, present):
+    """调整写在哪个库位：这件货的默认库位；没设默认、这个仓里又只有一个库位的就用那一个；都没有才是空库位（不另起一行空库位）。"""
+    if default_location:
+        return default_location
+    places = sorted(present.get((product, warehouse), set()))
+    return places[0] if len(places) == 1 else ""
+
+
+def _stock(company, warehouses, stock_rows, differences=None):
+    """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水，写在这件货在这个仓的原库位。回调整的笔数。
+    只认这家公司同步来的库存品（编码在公司内唯一）。``differences``（:func:`stock_differences`）里的存货 Express 自己对不上，
+    不动 ERP 的数。"""
     if not warehouses:
         return 0
-    products = {row.express_code: row.name for row in frappe.get_all(
-        PRODUCT, filters={"express_company": company, "express_code": ["is", "set"], "express_stock": 1},
-        fields=["name", "express_code"], order_by="creation asc", limit_page_length=0)}
+    rows = frappe.get_all(PRODUCT, filters={"express_company": company, "express_code": ["is", "set"], "express_stock": 1},
+                          fields=["name", "express_code", "default_location"], order_by="creation asc", limit_page_length=0)
+    products = {row.express_code: row.name for row in rows}
+    defaults = {row.name: str(row.default_location or "").strip() for row in rows}
+    skipped = {products[code] for code in (differences or {}) if code in products}
     targets = contracts.stock_targets(stock_rows, _pending(company, products, warehouses))
-    current = {}
+    current, present = {}, {}
     for row in frappe.get_all(stock.BALANCE, filters={"warehouse": ["in", list(warehouses.values())]},
-                              fields=["product", "warehouse", "qty_on_hand"], limit_page_length=0):
+                              fields=["product", "warehouse", "location", "qty_on_hand"], limit_page_length=0):
         key = (row.product, row.warehouse)
         current[key] = current.get(key, Decimal(0)) + contracts.d(row.qty_on_hand)
+        present.setdefault(key, set()).add(str(row.location or "").strip())
     wanted = {}
     for (code, loccod), qty in targets.items():
         if code in products and loccod in warehouses:
@@ -689,6 +752,7 @@ def _stock(company, warehouses, stock_rows):
     for key in current:
         if key[0] in linked and key not in wanted:
             wanted[key] = Decimal(0)  # Express 里这个仓已经没有了
+    wanted = {key: qty for key, qty in wanted.items() if key[0] not in skipped}
     stamp = now_datetime().strftime("%Y%m%d%H%M%S")
     moved = 0
     for (product, warehouse), qty in wanted.items():
@@ -698,6 +762,7 @@ def _stock(company, warehouses, stock_rows):
         try:
             stock.apply_movement(product=product, warehouse=warehouse, movement_type=stock_contracts.ADJUST,
                                  qty=float(delta), posting_date=nowdate(), ref_type=SYNC_REASON, reason=SYNC_REASON,
+                                 location=_place(product, warehouse, defaults.get(product), present),
                                  client_uuid=f"{SYNC_REASON}:{stamp}:{product}:{warehouse}"[:140],
                                  internal=True, allow_inactive=True, company=company)
             moved += 1

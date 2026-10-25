@@ -1133,6 +1133,7 @@ Stock count not found,未找到盘点
 "Stock count tasks, staff entries and variance posting",盘点任务、员工录入与差异过账
 Stock count template,盘点表模板
 Stock count workbench,盘点工作台
+Stock differences in Express,Express 库存不一致
 Stock entry not found,出入库单不存在
 Stock is counted in this unit; leave it empty to use the selling unit,库存按此单位计量；留空则与销售单位相同
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,库存按此单位计量，其他单位换算为此单位。留空则使用销售单位。
@@ -1425,6 +1426,7 @@ Warehouse,仓库
 Warehouse name,仓库名称
 Warehouse not found,未找到仓库
 Warehouses,仓库
+Warehouses total,各仓合计
 Watch,关注
 Weekly,每周
 When a card enters,卡片进入列表时
@@ -1508,6 +1510,8 @@ company.col.warehouse,仓库名称
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发
 company.enable,启用
+company.express.locationsTotal,各仓合计
+company.express.stockDifferences,Express 库存不一致
 company.field.address,地址
 company.field.branch,分支机构
 company.field.company,公司

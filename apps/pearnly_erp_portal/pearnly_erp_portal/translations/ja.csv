@@ -1133,6 +1133,7 @@ Stock count not found,棚卸が見つかりません
 "Stock count tasks, staff entries and variance posting",棚卸タスク、担当者入力、差異の転記
 Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
+Stock differences in Express,Express の在庫が一致しません
 Stock entry not found,入出庫伝票が見つかりません
 Stock is counted in this unit; leave it empty to use the selling unit,在庫はこの単位で数えます。空欄なら販売単位と同じ
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
@@ -1425,6 +1426,7 @@ Warehouse,倉庫
 Warehouse name,倉庫名
 Warehouse not found,倉庫が見つかりません
 Warehouses,倉庫
+Warehouses total,倉庫合計
 Watch,ウォッチ
 Weekly,毎週
 When a card enters,カードがリストに入ったとき
@@ -1508,6 +1510,8 @@ company.col.warehouse,倉庫名
 company.disable,無効にする
 company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します
 company.enable,有効にする
+company.express.locationsTotal,倉庫合計
+company.express.stockDifferences,Express の在庫が一致しません
 company.field.address,住所
 company.field.branch,支店
 company.field.company,会社

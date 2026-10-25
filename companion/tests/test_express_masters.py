@@ -68,7 +68,7 @@ def books(tmp_path):
     _table(acct / "STMAS.DBF", S.TABLE_SPECS["STMAS"] + "; " + _STMAS_EXTRA, [
         {"STKCOD": "P01", "STKDES": "น้ำแข็งหลอด", "STKTYP": "0", "STKGRP": "ICE", "QUCOD": "ถง", "SQUCOD": "ถง",
          "SFACTOR": 1.0, "PQUCOD": "กล", "PFACTOR": 12.0, "SELLPR1": 0.1 + 0.2, "SELLPR2": 35.5, "SELLPR5": 1.23456789,
-         "BARCOD": "8850001", "VATCOD": "1", "NEGALLOW": "N"},
+         "BARCOD": "8850001", "VATCOD": "1", "NEGALLOW": "N", "MREMBAL": 0.1 + 0.2},
         {"STKCOD": "S01", "STKDES": "ค่าขนส่ง", "STKTYP": "4"},
         {"STKCOD": "OLD", "STKDES": "ลบแล้ว", "STKTYP": "0"},
     ])
@@ -137,7 +137,7 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     assert ice == {"code": "P01", "name": "น้ำแข็งหลอด", "kind": "stock", "group": "ICE", "unit": "ถง",
                    "sale_unit": "ถง", "sale_factor": "1", "purchase_unit": "กล", "purchase_factor": "12",
                    "prices": ["0.3", "35.5", "0", "0", "1.234568"], "barcode": "8850001", "vatcod": "1",
-                   "negallow": "N"}
+                   "negallow": "N", "balance": "0.3"}  # 全仓结存（出入库第一期：服务端核 STMAS = Σ STLOC）
     # 合成表没有的列（BARCOD 等在 S01 那行是空）照样给键
     assert freight["kind"] == "non_stock" and freight["barcode"] == "" and freight["prices"] == ["0"] * 5
     assert {row["code"] for row in data["units"]} == {code for code, _s, _d in _synth_account.ISTAB_UNITS}

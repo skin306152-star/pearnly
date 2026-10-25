@@ -28,7 +28,8 @@
   "express_synced_at",
   "express_sync_state",
   "express_sync_note",
-  "express_mark"
+  "express_mark",
+  "express_stock_diffs"
  ],
  "fields": [
   {
@@ -192,11 +193,19 @@
    "hidden": 1,
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "express_stock_diffs",
+   "fieldtype": "Long Text",
+   "label": "Express Stock Differences",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-24 09:00:00.000000",
+ "modified": "2026-10-25 15:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,
