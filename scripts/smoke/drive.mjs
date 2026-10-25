@@ -78,9 +78,12 @@ try {
       if (!page) return -1;
       // 列表取数时框架的 BaseList.freeze 会露出 .freeze 遮罩：还在取数就不算打开
       if ([...page.querySelectorAll(".freeze")].some((el) => el.offsetParent !== null)) return -1;
-      // 框架原生的无权限页 / 404 页（show_message_page）字很少（中文无权限页主区 17 个字），认到它就按「有内容」算
+      // 框架原生的无权限页 / 404 页（show_message_page）与列表空状态（.no-result「没有可显示的内容」）字很少，
+      // 认到它们就按「有内容」算（10-25 线上冒烟：中文无权限页 17 个字、当前公司没有收银数据的空列表都被误判没打开）
       const length = (page.innerText || "").trim().length;
-      return page.querySelector(".message-page-image, .message-page-icon") ? Math.max(length, 21) : length; })()`;
+      const native = page.querySelector(".message-page-image, .message-page-icon")
+        || [...page.querySelectorAll(".no-result")].some((el) => el.offsetParent !== null);
+      return native ? Math.max(length, 21) : length; })()`;
     let last = -1, since = 0;
     while (Date.now() - started < (job.wait_ms || 6000) + 30000) {
       const now = (await send("Runtime.evaluate", { expression: probe, returnByValue: true }, sessionId)).result?.value ?? -1;

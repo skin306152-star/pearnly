@@ -13,5 +13,7 @@ const notPermitted = (messagePage && head.includes(say("Sorry! You are not permi
 const notFound = (messagePage && head.includes(say("Sorry! I could not find what you were looking for.")))
   || /Page .* not found|Not Found/.test(head);
 const want = args.expect || "content";
-const ok = want === "not_permitted" ? notPermitted : (!notPermitted && !notFound && text.length > 20);
-return { ok, route, not_permitted: notPermitted, not_found: notFound, chars: text.length, user: frappe.session && frappe.session.user };
+// 列表的原生空状态（「没有可显示的内容」）是打开成功的一种：冒烟账号当前公司没有这类数据时字很少（10-25 线上冒烟）
+const empty = !!(page && [...page.querySelectorAll(".no-result")].some((el) => el.offsetParent !== null));
+const ok = want === "not_permitted" ? notPermitted : (!notPermitted && !notFound && (text.length > 20 || empty));
+return { ok, route, not_permitted: notPermitted, not_found: notFound, empty, chars: text.length, user: frappe.session && frappe.session.user };
