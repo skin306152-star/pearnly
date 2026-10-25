@@ -5,6 +5,9 @@
 参数（登记表入口的 args）：user = 测试机 CC 上登录的员工；company_tax = 公司税号（或 company = 公司编号；显式给，不改员工的当前公司）；
 party = 对方的 Express 编码；item = 物料的 Express 编码；loccod = 仓库码；kind = purchase | sales；wait = 最多等几秒（默认 240）。
 写入只到测试机 C:\\PearnlyExpress 的 T 账套（这家公司对应的账套由 CC 报来）；不碰 S 盘 / accserver。只给测试租户用。
+防护（同 Cowork 版 `cowork_express_flow.py`，验收 10-25 建议）：写到哪份账套由 CC 给这家公司报的账套决定，测试机白天连上 accserver 时
+会把 S 盘同税号的真账也报上来。所以建单前这家公司报上来的账套必须**全部**是 C:\\PearnlyExpress\\ 下以 T 开头的，否则不建单；
+写完再按单据记下的账套核一次实际路径。
 """
 import json
 import secrets
@@ -15,6 +18,14 @@ import time
 import frappe
 
 sys.argv = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in sys.argv]  # run.py 传参用 base64
+
+ROOT = "c:\\pearnlyexpress\\"
+
+
+def c_drive_t_book(path) -> bool:
+    text = str(path or "").strip().replace("/", "\\").casefold()
+    return text.startswith(ROOT) and text.rstrip("\\").rsplit("\\", 1)[-1].startswith("t")
+
 
 site = sys.argv[1]
 params = json.loads(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2] else {}
@@ -27,6 +38,16 @@ try:
     company = params.get("company") or frappe.db.get_value("ERP Company", {"tax_id": params["company_tax"], "is_active": 1}, "name")
     if not company:
         raise SystemExit(f"test company missing: {params.get('company_tax')}")
+    from pearnly_core.cc_desktop import books
+    from pearnly_core.execution.replay import TEST_SITES
+
+    if not TEST_SITES.fullmatch(site):
+        raise SystemExit(f"refuse: {site} is not a test tenant")
+    tax_id, branch = frappe.db.get_value("ERP Company", company, ["tax_id", "branch"]) or ("", "")
+    candidates = books.for_company(tax_id, branch)
+    outside = [item.get("path") for item in candidates if not c_drive_t_book(item.get("path"))]
+    if not candidates or outside:
+        raise SystemExit(f"refuse: {company} has books outside C:\\PearnlyExpress T books: {outside[:5] or 'none reported'}")
     kind = params.get("kind", "purchase")
     frappe.set_user(user)
     product = frappe.db.get_value("ERP Product", {"express_code": params["item"], "express_company": company}, "name")
@@ -66,9 +87,15 @@ try:
             break
         time.sleep(5)
     job = frappe.db.get_value("Pearnly CC Job", state.get("express_job"), ["status", "verify_state", "reason"], as_dict=True) if state.get("express_job") else None
+    book_key = frappe.db.get_value(doctype, posted["name"], "express_book")
+    written = [row.path for row in frappe.get_all(books.BOOK, filters={"book_key": book_key}, fields=["path"])] if book_key else []
+    result["book_paths"] = written
     result.update(state=state, job=job)
     result["summary"] = f"{posted['name']} → {state.get('express_docnum') or state.get('express_state')}（CC 读回 {(job or {}).get('verify_state') or '-'}）"
-    result["ok"] = state.get("express_state") == "written" and bool(state.get("express_docnum")) and (job or {}).get("verify_state") in ("ok", "")
+    result["ok"] = (state.get("express_state") == "written" and bool(state.get("express_docnum"))
+                    and (job or {}).get("verify_state") in ("ok", "") and bool(written) and all(map(c_drive_t_book, written)))
+except SystemExit as stop:
+    result["why"] = str(stop)
 finally:
     frappe.destroy()
 print("SMOKE " + json.dumps(result, ensure_ascii=False, default=str))
