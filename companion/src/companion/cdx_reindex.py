@@ -84,7 +84,8 @@ def dbf_fallback_allowed() -> bool:
 
 
 def runner_status() -> str:
-    """心跳报给服务端的「重建程序在不在、能不能跑」：``ok`` / ``missing`` / ``broken``（跑一次空回查不出结果）。
+    """心跳报给服务端的「重建程序在不在、能不能跑」：``ok`` / ``missing`` / ``broken``。在临时目录建一张一列的空表让它列标签，
+    打开了（``used=.T.``）才算能跑——表不存在时程序走 Harbour 默认错误处理直接退出，不写 ``error=``（10-25 测试机实测）。
     每次启动只试跑一次（缓存），不每拍心跳都起进程。"""
     if "value" in _status_cache:
         return _status_cache["value"]
@@ -92,9 +93,14 @@ def runner_status() -> str:
         value = "missing"
     else:
         try:
+            import dbf
+
             with tempfile.TemporaryDirectory() as folder:
-                out = _run("SEEK", Path(folder), "PEARNLY_PROBE")
-            value = "ok" if ("seek_found=" in out or "error=" in out) else "broken"
+                table = dbf.Table(str(Path(folder) / "PROBE.DBF"), "PROBE C(1)", dbf_type="db3")
+                table.open(dbf.READ_WRITE)
+                table.close()
+                out = _run("TAGS", Path(folder), "PROBE")
+            value = "ok" if "used=.T." in out else "broken"
         except Exception:  # noqa: BLE001  起不来、超时都算不能跑
             value = "broken"
     _status_cache["value"] = value

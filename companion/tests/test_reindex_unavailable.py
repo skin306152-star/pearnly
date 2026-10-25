@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from companion import cdx_reindex, worker
 from companion import dbf_writer as W
 from test_dbf_stock import _entry, _line, _write, book  # noqa: F401
@@ -44,8 +46,23 @@ def test_a_runner_that_does_not_answer_is_broken(monkeypatch):
     monkeypatch.setattr(cdx_reindex, "_run", lambda *a, **k: "")
     assert cdx_reindex.runner_status() == "broken"
     monkeypatch.setattr(cdx_reindex, "_status_cache", {})
-    monkeypatch.setattr(cdx_reindex, "_run", lambda *a, **k: "error=table not found")
+    # 表打不开时程序直接退出、只写第一行（10-25 测试机实测），不能当成能跑
+    monkeypatch.setattr(cdx_reindex, "_run", lambda *a, **k: "action=TAGS table=PROBE tag=x\n")
+    assert cdx_reindex.runner_status() == "broken"
+
+
+def test_the_probe_opens_a_real_table_and_needs_it_opened(monkeypatch):
+    seen = []
+
+    def run(action, folder, table, *rest):
+        seen.append((action, table, sorted(p.name for p in Path(folder).iterdir())))
+        return "action=TAGS table=PROBE tag=x\nused=.T. ordcount=0 records=0\n"
+
+    monkeypatch.setattr(cdx_reindex, "_status_cache", {})
+    monkeypatch.setattr(cdx_reindex, "runner_available", lambda: True)
+    monkeypatch.setattr(cdx_reindex, "_run", run)
     assert cdx_reindex.runner_status() == "ok"
+    assert seen == [("TAGS", "PROBE", ["PROBE.DBF"])]
 
 
 def test_a_failed_batch_reindex_is_kept_for_the_next_batch(monkeypatch):
