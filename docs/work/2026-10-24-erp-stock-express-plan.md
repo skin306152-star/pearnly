@@ -387,6 +387,20 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
   - ISRUN 计数器不回退，作废号不复用。
 - B 段作废的边界（待和第 3、4 条一起出设计）：只作废 ERP 自己写进去、Express 里还没被会计改过的单——先核原单仍是写入时的样子，对不上转人工；
   原单所在期间已关账回 `PERIOD_LOCKED` 转人工。逐表的「作废后」字段值以副本 `C:\PearnlyStress\_srvtest_record\2a-* / 2b-*` 为准，设计时逐字段对。
+- 逐字段比对（开发窗口只读比副本 `2a-after → 2b-iv → 2b-after`；只列变了的字段）：
+
+  | 表 | IV0000031（赊销，作废） | OU0000001（领用，作废） |
+  | --- | --- | --- |
+  | 单头 | ARTRN：DOCSTAT N→C；AMOUNT / AFTDISC / TOTAL / NETVAL 5→0，VATAMT 0.35→0，NETAMT / REMAMT 5.35→0；CMPLAPP N→Y；CMPLDAT 空→作废当天；NXTSEQ 1→空 | STTRN：DOCSTAT N→C；TRNVAL 9→0；NXTSEQ 1→空 |
+  | ISVAT | 留行：DOCSTAT N→C；AMT01 5→0；VAT01 0.35→0 | — |
+  | GLJNL | 头 DOCSTAT N→C | 头 DOCSTAT N→C |
+  | GLJNLIT | 5 行都留，AMOUNT 改成空（null，不是 0） | 2 行都留，AMOUNT 改成空 |
+  | STCRD | 打删除标记；SEQNUM 1→`@@@`；TRNVAL 5→0 | 打删除标记；SEQNUM 不变；NETVAL 0→9（与 IV 不同，设计时照实写） |
+  | STLOC | 那个仓 LOCBAL 7→8、期桶 QTY12NY 7→8、VAL12NY 31.5→36 | LOCBAL 8→10、QTY12NY、VAL12NY 36→45 |
+  | STMAS | TOTBAL / MREMBAL 7→8，TOTVAL / MREMVAL 31.5→36 | TOTBAL / MREMBAL 8→10，TOTVAL / MREMVAL 36→45 |
+  | 对方余额 | ARMAS.BALANCE 165.85→160.5；ARBAL 当月桶 IV12NY 同样减回 | — |
+  | ISRUN | 不变（不回退） | 不变 |
+
 
 **A 段 ③ 改为照 Express 按仓拦（10-25 晚，C 盘录单第 1 条在服务器测试账套 `70EXP\test` 实录后；待 CHKNEGLEV=0 结果定稿）**
 - 实录（NEGALLOW=N、CHKNEGLEV=2）：Express 按仓硬拦，看那个仓的 STLOC，不看全仓合计；01 仓 0、02 仓 10 时从 01 仓卖 3 个被拦
