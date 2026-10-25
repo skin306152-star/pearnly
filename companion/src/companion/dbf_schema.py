@@ -98,6 +98,9 @@ STCRD_POSOPR = "9"  # gold 实写值(过账操作位)· 销货 IV 行
 # IV 行 2645/2645 为 "9"。此前采购也写 "9"(只照一张销货样本定的)。期初行未核实,照旧 "9"。
 STCRD_POSOPR_PURCHASE = "0"
 STCRD_DEFAULT_LOCCOD = "01"
+# 库存单（STTRN，出入库第一期 B 段）：领用 OU 类 6、调整 JU 类 8（数量可正可负，S 盘 10-25 样本）
+STCRD_POSOPR_ISSUE = "6"
+STCRD_POSOPR_ADJUST = "8"
 # 小助手写入的录入人(USERID / CREBY,C(8))。以前写 BIT9 —— 那是测试机所在事务所的真人账号,别的事务所没有这个人,
 # 在本所又把推送记到一个真人名下。Express 打开账套不拿单据上的用户名去比对用户表(真实账套里大多数单据的录入人
 # 都不在本机用户表,照常打开;2026-10-08 核对),所以写一个固定的、看得出是 Pearnly 写的名字。
@@ -327,6 +330,53 @@ def stcrd_stock_in_row(
     row["MREMBAL"] = float(rem_bal)  # 入库后库存结存(库存签名 → 真动库存)
     row["MREMVAL"] = float(rem_val)
     return row
+
+
+def stcrd_stock_entry_row(
+    docnum: str,
+    seqnum: int,
+    docdat,
+    stkcod: str,
+    name: str,
+    qty: float,
+    unit_cost: float,
+    *,
+    val: float,
+    rem_bal: float,
+    rem_val: float,
+    posopr: str,
+    unit: str = "",
+    loccod: str = STCRD_DEFAULT_LOCCOD,
+    depcod: str = "",
+    accnumdr: str = "",
+    accnumcr: str = "",
+) -> dict:
+    """一条库存单（STTRN）的 STCRD 明细行（S 盘 10-25 样本 6907GIZ / 69SKCHE）：领用 POSOPR=6、数量为正、带 ACCNUMDR；
+    调整 POSOPR=8、数量与货值带正负号、带 ACCNUMCR。UNITPR / XUNITPR = 单位成本，TRNVAL / XTRNVAL = 本行货值，
+    MREMBAL / MREMVAL = 写后结存（库存签名，Express 认作真动库存）。没有对方（PEOPLE 空）、没有售价（XSALVAL 0）。"""
+    return {
+        "STKCOD": stkcod,
+        "LOCCOD": loccod,
+        "DOCNUM": docnum,
+        "SEQNUM": str(seqnum),
+        "DOCDAT": docdat,
+        "DEPCOD": depcod,
+        "POSOPR": posopr,
+        "TRNQTY": float(qty),
+        "TQUCOD": unit_to_tqucod(unit),
+        "TFACTOR": 1.0,
+        "UNITPR": float(unit_cost),
+        "TRNVAL": float(val),
+        "NETVAL": float(val) if posopr == STCRD_POSOPR_ADJUST else 0.0,
+        "XTRNQTY": float(qty),
+        "XUNITPR": float(unit_cost),
+        "XTRNVAL": float(val),
+        "MREMBAL": float(rem_bal),
+        "MREMVAL": float(rem_val),
+        "ACCNUMDR": accnumdr,
+        "ACCNUMCR": accnumcr,
+        "STKDES": (name or "")[:50],
+    }
 
 
 def stcrd_opening_row(

@@ -17,7 +17,7 @@ BAD_TRANSITION = "This status change is not allowed"
 LOCKED = "A submitted entry cannot be changed"
 
 LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "supplier", "doc_no",
-               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at")
+               "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at", "express_state", "express_docnum")
 
 # 用途（录制问题 #14：以前只有自由填写的备注）：入库是退库，出库是内部领用 / 报损；都可选「其他」或不填。
 PURPOSES = {"in": ("return", "other"), "out": ("internal_use", "damage", "other")}
@@ -255,6 +255,10 @@ def _post(doc) -> dict:
     doc.status = "submitted"
     doc.submitted_at = now()
     access.write_entry(doc, "save")
+    # 接了 Express 的公司：提交后写进事务所的账本（出库 → 领用 OU、入库 → 调整 JU、盘点 → TK；采购自动入库不写，见 express.stock_entry）
+    from pearnly_erp_portal.express import push as express_push
+
+    express_push.queue(DOCTYPE, doc.name)
     return result
 
 

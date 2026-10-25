@@ -3,7 +3,8 @@
     env/bin/python /tmp/smoke-express_flow.py <站点> '<JSON 参数>'   # 末行打印 SMOKE {"ok": ..., ...}
 
 参数（登记表入口的 args）：user = 测试机 CC 上登录的员工；company_tax = 公司税号（或 company = 公司编号；显式给，不改员工的当前公司）；
-party = 对方的 Express 编码；item = 物料的 Express 编码；loccod = 仓库码；kind = purchase | sales；wait = 最多等几秒（默认 240）。
+party = 对方的 Express 编码；item = 物料的 Express 编码；loccod = 仓库码；kind = purchase | sales | stock_out | stock_in
+（出入库单，写成 Express 领用 OU / 调整 JU，出入库第一期 B 段）；wait = 最多等几秒（默认 240）。
 写入只到测试机 C:\\PearnlyExpress 的 T 账套（这家公司对应的账套由 CC 报来）；不碰 S 盘 / accserver。只给测试租户用。
 防护（同 Cowork 版 `cowork_express_flow.py`，验收 10-25 建议）：写到哪份账套由 CC 给这家公司报的账套决定，测试机白天连上 accserver 时
 会把 S 盘同税号的真账也报上来。所以建单前这家公司报上来的账套必须**全部**是 C:\\PearnlyExpress\\ 下以 T 开头的，否则不建单；
@@ -56,7 +57,16 @@ try:
         raise SystemExit(f"test data missing: product {params['item']} / warehouse {params.get('loccod')} in {company}")
     line = {"product": product, "description": frappe.db.get_value("ERP Product", product, "product_name"), "qty": 1,
             "unit_price": params.get("price", 10), "warehouse": warehouse}
-    if kind == "sales":
+    if kind in ("stock_out", "stock_in"):
+        from pearnly_erp_portal.inventory import documents
+
+        doctype = "ERP Stock Entry"
+        direction = "out" if kind == "stock_out" else "in"
+        posted = documents.create_entry(direction=direction, posting_date=frappe.utils.today(), warehouse=warehouse,
+                                        lines=[{"product": product, "qty": 1, "unit_cost": params.get("price", 10)}],
+                                        purpose="internal_use" if direction == "out" else "other",
+                                        reason=f"SMOKE-{int(time.time())}", submit=True)
+    elif kind == "sales":
         from pearnly_erp_portal.sales import entry
 
         doctype = "ERP Sales Document"
@@ -71,7 +81,8 @@ try:
         payload = {"doc_kind": "purchase_invoice", "company": company, "supplier": party, "doc_no": f"SMOKE-{int(time.time())}",
                    "doc_date": frappe.utils.today(), "has_vat": 1, "price_mode": "exclusive", "is_paid": 1,
                    "lines": [{**line, "item_type": "goods"}]}
-    posted = entry.post(payload, request_id=f"smoke-{secrets.token_hex(6)}")
+    if kind not in ("stock_out", "stock_in"):
+        posted = entry.post(payload, request_id=f"smoke-{secrets.token_hex(6)}")
     frappe.db.commit()
     result["doc"] = posted.get("name")
     from pearnly_erp_portal.express import push

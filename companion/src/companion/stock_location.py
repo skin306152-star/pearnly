@@ -45,6 +45,8 @@ WAREHOUSE_TABTYP = "21"
 LOCCOD_MAX = 4
 KIND_PURCHASE = "purchase"
 KIND_SALE = "sale"
+KIND_ISSUE = "issue"    # 库存单领用（OU 类）：减，只记 LMOVDAT
+KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负，只记 LMOVDAT
 _DATE_FIELD = {KIND_PURCHASE: "LPURDAT", KIND_SALE: "LSELDAT"}
 _TOLERANCE = Decimal("0.000001")
 
@@ -146,7 +148,7 @@ def location_at(locations: Optional[List[Optional[str]]], index: int) -> Optiona
 
 def move(row: dict, kind: str) -> Move:
     """刚写的一条 STCRD 库存行 → 它在 STLOC 上的变动（进货为正、销货为负，数量 XTRNQTY、货值 XTRNVAL）。"""
-    sign = Decimal(-1) if kind == KIND_SALE else Decimal(1)
+    sign = Decimal(-1) if kind in (KIND_SALE, KIND_ISSUE) else Decimal(1)
     return Move(str(row["STKCOD"]).strip(), str(row["LOCCOD"]).strip(), sign * _dec(row.get("XTRNQTY")),
                 sign * _dec(row.get("XTRNVAL")), row.get("DOCDAT"), kind)
 

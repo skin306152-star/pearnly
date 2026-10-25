@@ -657,6 +657,10 @@ def _warehouses(company, book, data):
 
 # 写进 Express 的单（采购、销售记录）：它们的原始流水在单子写进去之前算「还没进 Express」，写进去之后不算
 WRITTEN_SOURCES = {"ERP Sales Document": "ERP Sales Document", "purchase": "Purchase Document"}
+# 出入库单与盘点调整（出入库第一期 B 段起写进 Express）：只有已写进去的单不算；没写成的、B 段之前开的（状态是空的）照算
+STOCK_ENTRY_SOURCES = ("stock_entry", "count")
+STOCK_ENTRY = "ERP Stock Entry"
+WRITTEN_STATES = ("written", "mismatch")
 # 不算 ERP 自己的变动：同步调整本身、期初（Express 有自己的期初，接了 Express 的公司不在 ERP 录期初）
 NOT_ERP_MOVES = (SYNC_REASON, "opening")
 
@@ -665,7 +669,8 @@ def _pending(company, products, warehouses):
     """还没进 Express 的 ERP 库存变动：``{(存货码, 仓库码): 带符号基本单位数量}``（出入库第一期，10-25）。
 
     - 采购单、销售记录的原始流水：单子还没写进 Express（不管后来有没有作废）就算；
-    - 其余来源（收银小票 / 退货、出入库单、盘点调整、作废冲销 ``void``、没有来源的）这一段都不写进 Express，一律算；
+    - 出入库单、盘点调整（B 段起写进 Express）：已写进去的单不算，其余照算；
+    - 其余来源（收银小票 / 退货、作废冲销 ``void``、没有来源的）还不写进 Express，一律算；
       没写进去就作废的单，原始流水与冲销流水正好抵消；写进去之后作废的，冲销流水是 ERP 独有的；
     - 同步调整本身、期初不算。
     原来只算采购单与销售记录两种，收银台卖出、出入库单的变动每次同步都被按 Express 的数抹掉。"""
@@ -688,6 +693,17 @@ def _pending(company, products, warehouses):
                               group_by="product, warehouse, ref_type", order_by="", limit_page_length=0):
         if (row.ref_type or "") not in NOT_ERP_MOVES and (row.ref_type or "") not in WRITTEN_SOURCES:
             add([row])
+    written = frappe.get_all(STOCK_ENTRY, filters={"warehouse": ["in", list(loc_of)],  # bounded: 这家公司已写进 Express 的单
+                                                   "express_state": ["in", WRITTEN_STATES]},
+                             pluck="name", limit_page_length=0)
+    if written:
+        for row in frappe.get_all(stock.MOVEMENT,  # bounded: 按品 × 仓分组求和
+                                  filters=scope + [["ref_type", "in", STOCK_ENTRY_SOURCES], ["ref_id", "in", written]],
+                                  fields=["product", "warehouse", {"SUM": "qty_base", "as": "qty"}],
+                                  group_by="product, warehouse", order_by="", limit_page_length=0):
+            key = (code_of.get(row.product), loc_of.get(row.warehouse))
+            if key[0] and key[1]:
+                pending[key] = pending.get(key, Decimal(0)) - contracts.d(row.qty)
     for ref_type, doctype in WRITTEN_SOURCES.items():
         open_docs = frappe.get_all(doctype, filters={"company": company, "express_state": ["in", contracts.OPEN_STATES]},
                                    pluck="name", limit_page_length=0)  # bounded: 还没写进 Express 的单

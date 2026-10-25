@@ -18,15 +18,16 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 6}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 7}) == ERR_PAYLOAD_VERSION
 
 
-def test_supported_set_is_v1_to_v5_today():
+def test_supported_set_is_v1_to_v6_today():
     # v2(2026-09-28):明细 `code`(选定的存货按码落账)+ 单头 `depcod`(部门码)
     # v3(2026-10-13):POS 日汇总票的 `pos` 块(自编单号、票号起止、付款方式转账凭证)
     # v4(2026-10-22):明细行 / 表头 `loccod`(Express 仓库码,写进指定仓并维护 STLOC)
     # v5(2026-10-24):总账分录带 `role`(ERP 前台明细按行科目拆,费用 / 收入可以有几条),明细行带 `account`
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5})
+    # v6(2026-10-25):库存单 `direction = stock`(OU 领用 / JU 调整 / TK 盘点,出入库第一期 B 段)
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6})
     assert check_payload_version({"payload_version": 5}) is None
     assert check_payload_version({"payload_version": 2}) is None
     assert check_payload_version({"payload_version": 3}) is None

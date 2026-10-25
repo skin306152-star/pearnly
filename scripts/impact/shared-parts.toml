@@ -202,7 +202,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push"]
+entries = ["erp.cc.write", "erp.cc.stock-entry", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移" }
 
 [[part]]
@@ -314,10 +314,10 @@ entries = ["cc.desktop.requests", "cc.desktop.places"]
 [[part]]
 id = "cc-dbf-write"
 name = "CC 写 Express（dbf 写入路径）"
-paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
-markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard"]
+paths = ["companion/src/companion/dbf_writer.py", "companion/src/companion/dbf_sales.py", "companion/src/companion/dbf_detail.py", "companion/src/companion/pos_journal.py", "companion/src/companion/master_create.py", "companion/src/companion/product_master.py", "companion/src/companion/stock_purchase.py", "companion/src/companion/stock_sale.py", "companion/src/companion/write_verify.py", "companion/src/companion/account_write_lock.py", "companion/src/companion/purchase_adapter.py", "companion/src/companion/sales_adapter.py", "companion/src/companion/purchase_lines.py", "companion/src/companion/stock_location.py", "companion/src/companion/stock_guard.py", "companion/src/companion/dbf_stock.py", "companion/src/companion/dbf_fields.py", "companion/src/companion/dbf_schema.py", "companion/src/companion/payload_contract.py", "companion/src/companion/unit_code.py", "companion/src/companion/write_result.py"]
+markers = ["dbf_writer", "dbf_sales", "dbf_detail", "pos_journal", "master_create", "product_master", "stock_purchase", "stock_sale", "write_verify", "account_write_lock", "purchase_lines", "stock_location", "stock_guard", "dbf_stock"]
 search = ["companion/src/**"]
-entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write"]
+entries = ["cc.desktop.write", "cowork.cc.channel", "erp.cc.write", "erp.cc.stock-entry"]
 not_entries = { "companion/src/companion/express_read.py" = "读路径只借用写入的字段常量，入口见 cc-request-worker" }
 
 [[part]]
@@ -1287,6 +1287,18 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pea
 smoke = "express"
 site = "erp"
 args = { "company_tax" = "0105545112901", "party" = "ก-002", "item" = "1 -    -", "loccod" = "01", "kind" = "purchase" }
+
+[[entry]]
+id = "erp.cc.stock-entry"
+product = "ERP"
+where = "ERP 出入库单写 Express"
+steps = "接 Express 的公司提交出库单 / 入库单 / 盘点调整"
+expect = "出库写成领用 OU、入库写成调整 JU、盘点写成 TK，写进 C 盘 T 账套并读回一致；单据上显示 Express 单号；采购自动入库不写"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/stock_entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py", "companion/src/companion/dbf_stock.py"]
+smoke = "express"
+site = "erp"
+args = { "company_tax" = "0105545112901", "item" = "1 -    -", "loccod" = "01", "kind" = "stock_out" }
 
 [[entry]]
 id = "erp.cc.masters"

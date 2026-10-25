@@ -16,11 +16,12 @@ from frappe.utils import now_datetime
 
 from pearnly_core.cc_desktop import books, jobs
 
-from pearnly_erp_portal.express import contracts, prepare
+from pearnly_erp_portal.express import contracts, prepare, stock_entry
 
 SALES = "ERP Sales Document"
 PURCHASE = "Purchase Document"
-DIRECTIONS = {SALES: "sales", PURCHASE: "purchase"}
+STOCK = stock_entry.DOCTYPE  # 出入库单 / 盘点调整（载荷 6，出入库第一期 B 段）
+DIRECTIONS = {SALES: "sales", PURCHASE: "purchase", STOCK: "stock"}
 POLL_MAX = 100
 COMPANY = "ERP Company"
 
@@ -35,9 +36,18 @@ def linked(company) -> bool:
     return bool(row and contracts.tax13(row.tax_id) and books.for_company(row.tax_id, row.branch))
 
 
+def company_of(doctype, name):
+    """单据属于哪家公司：采购 / 销售单记在单上；出入库单按单头仓库的公司。"""
+    if doctype == STOCK:
+        return stock_entry.company_of(name)
+    return frappe.db.get_value(doctype, name, "company")
+
+
 def _eligible(doctype, doc) -> bool:
     if doc.get("status") != "submitted":
         return False
+    if doctype == STOCK:
+        return stock_entry.eligible(doc) and linked(doc.get("company"))
     kinds = contracts.SALES_KINDS if doctype == SALES else contracts.PURCHASE_KINDS
     return (doc.get("doc_kind") or "") in kinds and linked(doc.get("company"))
 
@@ -46,7 +56,11 @@ def queue(doctype, name):
     """提交事务里调（`post` 的 ``finalize`` 之后、提交之前）：该写就标「排队中」并排提交后的准备；不该写什么都不做。"""
     if doctype not in DIRECTIONS:
         return
-    doc = frappe.db.get_value(doctype, name, ["name", "status", "doc_kind", "company", "express_state"], as_dict=True)
+    fields = ["name", "status", "ref_type", "direction", "express_state"] if doctype == STOCK else \
+        ["name", "status", "doc_kind", "company", "express_state"]
+    doc = frappe.db.get_value(doctype, name, fields, as_dict=True)
+    if doc and doctype == STOCK:
+        doc.company = stock_entry.company_of(name)
     if not doc or doc.express_state or not _eligible(doctype, doc):
         return
     frappe.db.set_value(doctype, name, {"express_state": contracts.QUEUED, "express_reason": ""},
@@ -166,7 +180,9 @@ def _matched_product(line, company):
 
 
 def document(doctype, name) -> dict:
-    """这张 ERP 单交给写账规则的样子（`contracts.document`）。"""
+    """这张 ERP 单交给写账规则的样子（`contracts.document`）；出入库单是库存单的样子（`stock_entry.document`）。"""
+    if doctype == STOCK:
+        return stock_entry.document(name, ref(name, frappe.db.get_value(STOCK, name, "creation")))
     doc = frappe.get_doc(doctype, name)
     company = frappe.db.get_value(COMPANY, doc.company, ["tax_id", "branch"], as_dict=True) or {}
     if doctype == SALES:
@@ -188,14 +204,16 @@ def send(doctype, name):
     """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。"""
     if doctype not in DIRECTIONS:
         return
-    row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "company", "owner", "express_state",
-                                              "express_job", "doc_kind", "express_reason"], as_dict=True)
+    row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "express_state",
+                                              "express_job", "express_reason"], as_dict=True)
     if not row or row.status != "submitted" or row.express_job or row.express_state not in contracts.OPEN_STATES:
         return
     from pearnly_erp_portal.express import masters
 
+    company = company_of(doctype, name)
     body = document(doctype, name)
-    result = prepare.prepare(body, _company(row.company), masters.ensure)
+    prepared = stock_entry.prepare if doctype == STOCK else prepare.prepare
+    result = prepared(body, _company(company), masters.ensure)
     book = result.get("book") or {}
     if "failed" in result:
         _set(doctype, name, {"express_state": contracts.FAILED, "express_reason": result["failed"][:500],
@@ -236,7 +254,8 @@ def job_changed(view):
     doctype, name = view.get("source_doctype"), view.get("source_name")
     if doctype not in DIRECTIONS or not name or not frappe.db.exists(doctype, name):
         return
-    before = frappe.db.get_value(doctype, name, ["express_state", "express_docnum", "company"], as_dict=True)
+    before = frappe.db.get_value(doctype, name, ["express_state", "express_docnum"], as_dict=True)
+    before.company = company_of(doctype, name)
     state = _state(view)
     values = {"express_state": state, "express_job": view.get("job"), "express_docnum": view.get("docnum") or "",
               "express_reason": "" if state in (contracts.WRITTEN, contracts.QUEUED) else str(view.get("reason") or "")[:500]}

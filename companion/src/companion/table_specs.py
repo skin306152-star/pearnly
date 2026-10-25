@@ -54,7 +54,7 @@ TABLE_SPECS = {
     # 错位(BANKREC 真账反证:Express 原生 HP 单精确落 HP 桶、RR 桶为 0)。
     "APBAL": "SUPCOD C(10); BEGBAL B; "
     + "; ".join(_months(g) for g in ("HP", "RR", "CP", "GR", "PS")),
-    "ISRUN": "DOCTYP C(2); DOCCOD C(2); PREFIX C(2); DOCNUM C(10); JNLTYP C(2)",
+    "ISRUN": "DOCTYP C(2); DOCCOD C(2); PREFIX C(2); DOCNUM C(10); JNLTYP C(2); ACCNUM01 C(15); ACCNUM02 C(15)",
     "ARTRN": (
         "RECTYP C(1); DOCNUM C(12); DOCDAT D; YOUREF C(30); VATPRD D; VATDAT D; "
         "FLGVAT C(1); CUSCOD C(10); VATRAT N(5,2); AMOUNT B; AFTDISC B; TOTAL B; "
@@ -77,7 +77,13 @@ TABLE_SPECS = {
         "DEPCOD C(4); POSOPR C(1); PEOPLE C(10); TRNQTY B; TQUCOD C(2); "
         "TFACTOR B; UNITPR B; DISC C(10); DISCAMT B; TRNVAL B; NETVAL B; "
         "XTRNQTY B; XUNITPR B; XTRNVAL B; XSALVAL B; STKDES C(50); "
-        "PHYBAL B; MREMBAL B; MREMVAL B"
+        "PHYBAL B; MREMBAL B; MREMVAL B; ACCNUMDR C(15); ACCNUMCR C(15)"
+    ),
+    # 库存单单头（领用 OU / 调整 JU / 盘点 TK；真表 23 列，T9HENG15 10-25 读出的宽度）
+    "STTRN": (
+        "DOCNUM C(12); DOCDAT D; POSOPR C(1); PEOPLE C(10); REMARK C(50); LOCCOD C(4); TRNVAL B; "
+        "REFNUM C(15); NXTSEQ C(3); ACCNUMDR C(15); ACCNUMCR C(15); DEPCOD C(4); POSTGL C(1); "
+        "DOCSTAT C(1); USERID C(8); CHGDAT D"
     ),
     # 主档(自动建档写的列;真表 36/39 列,合成只建建档器要碰的)
     "APMAS": (

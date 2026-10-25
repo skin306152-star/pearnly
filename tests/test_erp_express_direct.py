@@ -902,7 +902,9 @@ class StockAlignment(MasterSync):
             ("ERP Sales Document", "SD-1", "P1", "W1", -3),  # 销售记录还没写：算
             ("sale", "RCPT-1", "P1", "W1", -2),             # 收银小票：这一段不写进 Express，算
             ("refund", "RCPT-2", "P1", "W1", 1),
-            ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单：算
+            ("stock_entry", "SE-1", "P1", "W2", 7),          # 出入库单还没写进 Express（B 段之前开的、没写成的）：算
+            ("stock_entry", "SE-2", "P1", "W2", -4),         # 出入库单已写进 Express：不算
+            ("count", "SC-2", "P1", "W1", 2),                # 盘点调整已写进 Express：不算
             ("count", "SC-1", "P1", "W2", -1),               # 盘点调整：算
             ("void", "PUR-1", "P1", "W1", -10),              # 写进去之后作废的冲销：ERP 独有，算
             (None, None, "P1", "W2", 5),                     # 没有来源：算
@@ -910,10 +912,12 @@ class StockAlignment(MasterSync):
             ("opening", "OP-1", "P1", "W1", 50),             # 期初：不算
             ("sale", "RCPT-3", "P2", "W1", -6),              # 不是这家公司 Express 来的品：不管
         ]
-        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"]}
+        open_docs = {"Purchase Document": ["PUR-2"], "ERP Sales Document": ["SD-1"], "ERP Stock Entry": ["SE-2", "SC-2"]}
 
         def get_all(doctype, filters=None, fields=None, pluck=None, group_by=None, **kw):
             if doctype in open_docs:
+                if doctype == "ERP Stock Entry":
+                    self.assertEqual(filters["express_state"], ["in", ("written", "mismatch")])
                 return list(open_docs[doctype])
             rows = [dict(zip(("ref_type", "ref_id", "product", "warehouse", "qty"), m)) for m in moves]
             for field, op, value in filters:
@@ -951,6 +955,89 @@ class StockAlignment(MasterSync):
         self.assertEqual(place("P1", "W1", "", present), "A-01")             # 这个仓里只有一个库位
         self.assertEqual(place("P2", "W1", "", present), "")                # 几个库位又没设默认：空库位
         self.assertEqual(place("P3", "W1", "", present), "")
+
+
+class StockEntries(Base):
+    """出入库第一期 B 段：出入库单 / 盘点调整 → Express 库存单（载荷 6，CC 桌面版 dbf_stock）。"""
+
+    def setUp(self):
+        super().setUp()
+        import types
+        utils = types.ModuleType("frappe.utils")
+        utils.now_datetime = utils.nowdate = lambda: "2026-10-24"
+        import datetime as dt
+        utils.getdate = lambda value: dt.date.fromisoformat(str(value)[:10])
+        patcher = mock.patch.dict(sys.modules, {"frappe.utils": utils})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        frappe.utils = utils
+        from pearnly_erp_portal.express import stock_entry
+        self.stock = stock_entry
+
+    def body(self, **override):
+        body = {"ref": "SE-0001@20261020101010000000", "direction": "stock", "doctype": "OU", "date": "2026-10-20",
+                "number": "IS2569-000001", "remark": "เบิกใช้ในสำนักงาน", "loccod": "01",
+                "lines": [{"code": "ICE-01", "name": "น้ำแข็งแพ็ค", "qty": "2", "unit": "ถุง", "loccod": "02"}]}
+        body.update(override)
+        return body
+
+    def test_kinds_and_what_is_not_written(self):
+        kind, eligible = self.stock.kind, self.stock.eligible
+        self.assertEqual(kind({"direction": "out"}), "OU")
+        self.assertEqual(kind({"direction": "in"}), "JU")
+        self.assertEqual(kind({"direction": "out", "ref_type": "count"}), "TK")
+        self.assertTrue(eligible({"status": "submitted", "ref_type": None}))
+        self.assertFalse(eligible({"status": "submitted", "ref_type": "purchase"}))  # 采购自动入库：采购单已写进去
+        self.assertFalse(eligible({"status": "draft"}))
+        self.assertEqual(self.stock.be_date("2026-10-20"), "691020")
+
+    def test_a_ready_payload_names_the_book_the_lines_and_the_version(self):
+        key = self.computer([book()])[0]
+        self.masters(key)
+        result = self.stock.prepare(self.body(), COMPANY, lambda company, chosen: self.reads.append(chosen["key"]))
+        payload = result["payload"]
+        self.assertEqual((payload["payload_version"], payload["direction"], payload["doctype"]), (6, "stock", "OU"))
+        self.assertEqual((payload["docdate_be"], payload["ref_no"], payload["remark"]), ("691020", "IS2569-000001",
+                                                                                         "เบิกใช้ในสำนักงาน"))
+        self.assertEqual(payload["account_dir"], PATH)
+        self.assertEqual(payload["account_set"], PATH)
+        self.assertEqual(payload["items"], self.body()["lines"])
+        self.assertTrue(payload["respect_period_lock"])
+        self.assertEqual(result["book"]["key"], key)
+
+    def test_holds_until_the_masters_are_read_and_asks_once_between_two_books(self):
+        key = self.computer([book()])[0]
+        result = self.stock.prepare(self.body(), COMPANY, lambda company, chosen: self.reads.append(chosen["key"]))
+        self.assertEqual(result["hold"], E.READING)
+        self.assertEqual(self.reads, [key])
+        self.computer([book(), book(path=r"S:\2569\EXP69\69NIEX12", uid="vsn:9/9")])
+        result = self.stock.prepare(self.body(), COMPANY, lambda company, chosen: None)
+        self.assertEqual(result["hold"], E.CHOICE + ":" + choices.ACCOUNT_SET)
+
+    def test_document_signs_count_issues_and_passes_the_cost_of_increases(self):
+        import types
+        lines = [types.SimpleNamespace(product="P1", qty=3, unit="ถุง", unit_cost=0, warehouse=None),
+                 types.SimpleNamespace(product="P1", qty=1, unit="ถุง", unit_cost=12, warehouse="W2")]
+        Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
+        doc = Doc(direction="out", ref_type="count", lines=lines, warehouse="W1", posting_date="2026-10-20",
+                  doc_no="AD2569-000001", name="SE-1", reason="")
+        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "ICE-01"},
+                  ("ERP Warehouse", "W1"): "01", ("ERP Warehouse", "W2"): "02"}
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                  values.get((doctype, name))):
+            body = self.stock.document("SE-1", "SE-1@x")
+        self.assertEqual(body["doctype"], "TK")
+        self.assertEqual([(line["qty"], line["loccod"], line.get("unit_cost")) for line in body["lines"]],
+                         [("-3", "01", None), ("-1", "02", None)])  # 盘点出库：数量记负，减少的不带成本
+        doc.direction, doc.ref_type = "in", None
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                  values.get((doctype, name))):
+            body = self.stock.document("SE-1", "SE-1@x")
+        self.assertEqual(body["doctype"], "JU")
+        self.assertEqual([(line["qty"], line.get("unit_cost")) for line in body["lines"]], [("3", None), ("1", "12")])
+
 
 if __name__ == "__main__":
     unittest.main()

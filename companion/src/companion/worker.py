@@ -307,6 +307,11 @@ def _handle_dbf_task(
                 res = write_sale(
                     payload, st.account_dir, opening_stock=_opening_items(payload), **common
                 )
+            elif direction == "stock":
+                # 库存单(载荷 6,出入库第一期 B 段):领用 OU / 调整 JU / 盘点 TK
+                from .dbf_stock import write_stock_entry
+
+                res = write_stock_entry(payload, st.account_dir, **common)
             else:
                 res = write_purchase(payload, st.account_dir, **common)
     except Busy:
@@ -407,7 +412,7 @@ def _push_meta(res, direction: str, account_dir: str) -> dict:
 
     m = {
         "companion_version": VERSION,
-        "doc_type": "sales" if direction == "sales" else "purchase",
+        "doc_type": direction if direction in ("sales", "stock") else "purchase",
         "account_dir": str(account_dir or ""),
     }
     # 配置里的路径若会被系统改写落点(UNC 少反斜杠→写进本机 C: 影子目录),上报真实落点。

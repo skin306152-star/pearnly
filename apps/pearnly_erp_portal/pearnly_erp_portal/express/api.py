@@ -17,7 +17,8 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import choices, contracts, facts, masters, prepare, push
 from pearnly_erp_portal.masters import company as companies
 
-CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write")}
+CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
+                push.STOCK: ("stock.read", "stock.write")}
 FIXED = {"payment": choice_rules.PAYMENT_VALUES, "vat": choice_rules.VAT_VALUES}
 
 
@@ -34,9 +35,11 @@ def _document(doctype, name, write=False):
     if doctype not in CAPABILITIES or not isinstance(name, str):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     guard.require(CAPABILITIES[doctype][1 if write else 0])
-    row = frappe.db.get_value(doctype, name, ["name", "company", "status", "express_state", "express_docnum",
+    row = frappe.db.get_value(doctype, name, ["name", "status", "express_state", "express_docnum",
                                               "express_reason", "express_needed", "express_job", "express_book"],
                               as_dict=True)
+    if row:
+        row.company = push.company_of(doctype, name)   # 出入库单没有公司栏，按仓库的公司
     if not row or row.company not in companies.allowed_companies():
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     return row

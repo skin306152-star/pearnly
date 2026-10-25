@@ -19,7 +19,9 @@ from typing import Optional
 # 4:明细行 / 表头可带 `loccod`(Express 仓库码,行上的优先,表头是行的默认):库存行写进那个仓并维护各仓结存 STLOC,
 # 仓库码不在这套账的仓库代码表里整单失败(ERR_LOCATION,不回落主仓)。旧版会静默写主仓,所以带了它的载荷盖 4。
 # 没带 loccod 的载荷与以前逐字节相同(见 stock_location)。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5})
+# 6:库存单(``direction = stock``,单别 OU 领用 / JU 调整 / TK 盘点;出入库第一期 B 段,dbf_stock)。旧版不认这个方向,会把它当
+# 进项写,所以盖 6,旧版诚实拒收、派单只交给报过支持 6 的电脑。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

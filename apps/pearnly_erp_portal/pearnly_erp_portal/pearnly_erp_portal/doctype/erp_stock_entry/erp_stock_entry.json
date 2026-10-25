@@ -18,7 +18,15 @@
   "ref_type",
   "ref_id",
   "dedupe_key",
-  "submitted_at"
+  "submitted_at",
+  "express_section",
+  "express_state",
+  "express_docnum",
+  "express_reason",
+  "express_sent_at",
+  "express_job",
+  "express_book",
+  "express_needed"
  ],
  "fields": [
   {
@@ -115,11 +123,75 @@
    "fieldtype": "Datetime",
    "label": "Submitted At",
    "read_only": 1
+  },
+  {
+   "fieldname": "express_section",
+   "fieldtype": "Section Break",
+   "label": "Express",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "express_state",
+   "fieldtype": "Select",
+   "label": "Express Status",
+   "options": "\nqueued\nwritten\nmismatch\nheld\nfailed",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "express_docnum",
+   "fieldtype": "Data",
+   "label": "Express No.",
+   "read_only": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "express_reason",
+   "fieldtype": "Small Text",
+   "label": "Express Note",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_sent_at",
+   "fieldtype": "Datetime",
+   "label": "Express Sent At",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_job",
+   "fieldtype": "Data",
+   "label": "Express Job",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "express_book",
+   "fieldtype": "Data",
+   "label": "Express Account Set",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "express_needed",
+   "fieldtype": "Long Text",
+   "label": "Express Choices Needed",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-25 16:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry",
  "owner": "Administrator",

@@ -27,6 +27,8 @@
 		const canWrite = frappe.model.can_write("ERP Stock Entry");
 		const url = (...parts) => p.subroute(root, ...parts);
 		const title_new = () => t(direction === "in" ? "trade.newIn" : "trade.newOut");
+		const express_label = state => state ? __({ queued: "Queued", written: "express.state.written", mismatch: "Mismatch",
+			held: "Pending", failed: "Failed" }[state] || state) : "";
 		// 出库不填单价：旧线上出库单是按**结存成本**计价的（`contracts.issue()`），
 		// 单价那一格在界面上只读、由服务端在过账时算，所以这里不给人填 —— 但**只锁那一格**，
 		// 商品行本身要能加能改。
@@ -174,6 +176,9 @@
 					// 备注前面带上用途（五列一屏放得下，不另占一列）。
 					{ fieldname: "reason", width: 210, min_width: 150, label: t("trade.note"),
 						format: (value, row) => [purpose_label(row?.purpose), value].filter(Boolean).join(" · ") },
+					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态（同采购 / 销售列表）
+					...(frappe.boot.pearnly_express ? [{ fieldname: "express_docnum", width: 110, min_width: 76,
+						label: __("Express"), format: (value, row) => value || express_label(row?.express_state) }] : []),
 				],
 			});
 			restore_new();
@@ -189,6 +194,10 @@
 			const doc_no = await doc_no_default(doc, posting_date);
 			let d;
 			const fields = entry_fields({ doc, doc_no, editable });
+			// 写进 Express 的情况（状态、单号、原因、再写一次）：采购 / 销售同一个弹窗
+			if (doc.status === "submitted" && doc.express_state && frappe.boot.pearnly_express) fields.push({
+				fieldtype: "Button", fieldname: "express", label: __("Express"),
+				click: () => p.express("ERP Stock Entry", name, () => list?.reload()) });
 			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button",
 				fieldname: "void", label: t("trade.void"),
 				click: () => frappe.confirm(t("trade.voidConfirm"), () => p.trade.act(d, async () => {
