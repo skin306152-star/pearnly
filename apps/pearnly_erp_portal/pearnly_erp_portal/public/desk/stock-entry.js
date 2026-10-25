@@ -201,13 +201,17 @@
 			if ((doc.status === "submitted" || doc.express_void_state) && doc.express_state && frappe.boot.pearnly_express) fields.push({
 				fieldtype: "Button", fieldname: "express", label: __("Express"),
 				click: () => p.express("ERP Stock Entry", name, () => list?.reload()) });
+			// 已提交 / 已作废的单能打印：出库 → 领料单、入库 → 收货单（作废单带「已作废」水印）
+			if (name && doc.status !== "draft") fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
+				click: () => p.trade.print("ERP Stock Entry", name,
+					doc.direction === "out" ? "Pearnly Goods Issue Slip" : "Pearnly Goods Receipt Note") });
 			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button",
 				fieldname: "void", label: t("trade.void"),
 				click: () => frappe.confirm(t("trade.voidConfirm"), () => p.trade.act(d, async () => {
 					await p.call(api + "api_void_stock_entry", { name }, "POST");
 					d.hide(); await list.reload(); await editor(name);
 				})) });
-			d = p.dialog(name || title_new(), fields, editable ? t("trade.action.submit") : t("trade.close"),
+			d = p.dialog(name ? (doc.doc_no || name) : title_new(), fields, editable ? t("trade.action.submit") : t("trade.close"),
 				async (values, dialog) => {
 					if (!editable) { dialog.hide(); return; }
 					// 明细不在弹窗的 `get_values()` 里（它们是逐条的小表单），单独取；

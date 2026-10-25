@@ -12,6 +12,9 @@ from frappe.model.document import Document
 
 class ERPCompany(Document):
     def validate(self):
+        from pearnly_erp_portal.express import locks
+
+        locks.guard(self)  # 接了 Express 的公司：名称、地址、电话以 Express 为准
         month = int(self.fiscal_year_start_month or 1)
         if not 1 <= month <= 12:
             frappe.throw(_("The fiscal year start month must be between 1 and 12"))

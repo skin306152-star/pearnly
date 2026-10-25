@@ -78,6 +78,9 @@ app_license = "mit"
 # Jinja
 # ----------
 
+# 单据打印（领料单 / 收货单，`printing`）：Print Format 里用 `pearnly_print_context(doc)` 取抬头、明细、勾选
+jinja = {"methods": ["pearnly_erp_portal.printing.context.pearnly_print_context"]}
+
 # add methods and filters to jinja environment
 # jinja = {
 # 	"methods": "pearnly_erp_portal.utils.jinja_methods",

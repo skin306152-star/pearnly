@@ -18,6 +18,8 @@ LOCKED = {
                     "express_code", "express_stock", "express_company", "express_book"),
     "ERP Warehouse": ("warehouse_name", "company", "is_active", "express_code", "express_book"),
 }
+# 接了 Express 的公司（有 express_book）：抬头的名称、地址、电话以 Express 账套为准，同步时覆盖（主会话 10-26，打印抬头取自这里）
+COMPANY_LOCKED = ("company_name", "address", "phone")
 MESSAGE = "Maintained in Express"
 
 
@@ -33,6 +35,10 @@ def guard(doc):
     if doc.is_new() or doc.flags.express_sync:
         return
     before = doc.get_doc_before_save()
+    if before is not None and doc.doctype == "ERP Company":
+        if before.get("express_book") and any(not _same(before.get(f), doc.get(f)) for f in COMPANY_LOCKED):
+            frappe.throw(_(MESSAGE))
+        return
     if before is None or not before.get("express_code"):
         return
     changed = [field for field in LOCKED.get(doc.doctype, ()) if not _same(before.get(field), doc.get(field))]

@@ -29,6 +29,8 @@ jobs:
         run: python3 tests/test_erp_category_memory.py
       - name: ERP front desk to Express ledger, CC Desktop direct (payload from the shared rules, holds, pinned codes)
         run: python3 tests/test_erp_express_direct.py
+      - name: ERP printing follows the issue slip and receipt note templates (rules here, layout in the candidate checks)
+        run: python3 tests/test_erp_printing.py
       - name: CC Desktop shared machine channel (register, routing, writer lock, receipts, on-demand requests)
         run: python3 tests/test_cc_desktop_channel.py
       - name: ERP master records synced from Express keep their identity fields

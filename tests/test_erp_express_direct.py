@@ -637,12 +637,45 @@ class MasterSync(Base):
             self.sync.sync_all()
         self.assertEqual([table[f"CO-{i}"].get("express_sync_state") for i in (1, 2, 3)], [None, "queued", "queued"])
 
-    def test_an_empty_company_address_and_phone_come_from_the_book(self):
+    def test_the_company_name_address_and_phone_follow_the_book(self):
+        """主会话 10-26：接了 Express 的公司，名称、地址、电话以 Express 为准（打印抬头取自这里），同步时覆盖；账套里空的不动。"""
         table = fake.STATE.db.table("ERP Company")
-        table["CO-1"] = {"name": "CO-1", "address": "", "phone": "02-111"}
+        table["CO-1"] = {"name": "CO-1", "company_name": "นิภา", "address": "", "phone": "02-111"}
         settings = {"address": "99 ถ.สุขุมวิท กรุงเทพฯ", "phone": "02-999"}
-        self.assertEqual(self.sync._profile("CO-1", settings), {"address": "99 ถ.สุขุมวิท กรุงเทพฯ"})  # 人填过的不动
+        self.assertEqual(self.sync._profile("CO-1", settings, "นิภา เอ็กเช้นจ์"),
+                         {"company_name": "นิภา เอ็กเช้นจ์", "address": "99 ถ.สุขุมวิท กรุงเทพฯ", "phone": "02-999"})
         self.assertEqual(self.sync._profile("CO-1", {}), {})
+        table["CO-1"].update(address="99 ถ.สุขุมวิท กรุงเทพฯ", phone="02-999")
+        self.assertEqual(self.sync._profile("CO-1", settings, "นิภา"), {})  # 一样的不重写
+
+    def test_a_linked_company_keeps_its_express_name_address_and_phone(self):
+        """主会话 10-26：接了 Express 的公司（有 express_book）在 ERP 里改名称、地址、电话被拦；没接的照常改；同步自己写入放行。"""
+        from pearnly_erp_portal.express import locks
+
+        class Doc(dict):
+            doctype = "ERP Company"
+            flags = None
+
+            def __init__(self, before, **now):
+                super().__init__(now)
+                self.before = before
+                self.flags = type("F", (), {"express_sync": False})()
+
+            def get(self, key, default=None):
+                return dict.get(self, key, default)
+
+            def is_new(self):
+                return False
+
+            def get_doc_before_save(self):
+                return self.before
+
+        linked = {"express_book": "BK", "company_name": "นิภา", "address": "A", "phone": "1", "logo": ""}
+        with self.assertRaises(Exception):
+            locks.guard(Doc(linked, **{**linked, "company_name": "แก้ชื่อ"}))
+        locks.guard(Doc(linked, **{**linked, "logo": "/private/files/logo.png"}))  # Logo 不是 Express 的字段：照常改
+        local = {"express_book": "", "company_name": "นิภา", "address": "A", "phone": "1"}
+        locks.guard(Doc(local, **{**local, "company_name": "แก้ชื่อ"}))  # 没接 Express：照常改
 
     def test_one_erp_supplier_is_claimed_once_and_a_spaced_code_is_taken_back(self):
         loose = self.supplier(supplier_name="ชาญ ฟู้ด", express_code="ชาญ ฟู้ด", express_company="CO-00127")

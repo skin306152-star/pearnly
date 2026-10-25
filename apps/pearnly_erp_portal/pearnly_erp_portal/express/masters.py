@@ -304,11 +304,12 @@ def _land(company, book, made, inline=True):
     if not inline:
         frappe.enqueue("pearnly_erp_portal.express.masters.land", queue="long", timeout=LAND_LIMIT,
                        enqueue_after_commit=True, job_id=_job_id("land", company),
-                       deduplicate=True, company=company, book_key=book["key"], label=book["label"], since=since)
+                       deduplicate=True, company=company, book_key=book["key"], label=book["label"], since=since,
+                       company_name=book.get("company") or "")
         return {"state": SYNCING, "account_set": book["key"], "label": book["label"]}
     _record(company, {"state": SYNCING})
     frappe.db.commit()  # 公司页看得到「落库中」
-    counts = apply(company, book["label"], data, stale=_stock_stale(book["key"], since))
+    counts = apply(company, book["label"], data, stale=_stock_stale(book["key"], since), company_name=book.get("company") or "")
     return {"state": READY, "account_set": book["key"], "label": book["label"], **counts}
 
 
@@ -321,7 +322,7 @@ def _stock_stale(book_key, since) -> bool:
                                                   "written_at": [">=", since]}, limit=1))
 
 
-def land(company, book_key, label, since=""):
+def land(company, book_key, label, since="", company_name=""):
     """（后台任务）把已存的账套资料落进 ERP 主档（:func:`ensure` 读好后排的）。结果记在公司上，出错记 Error Log。"""
     try:
         data = facts.load(book_key)
@@ -329,7 +330,7 @@ def land(company, book_key, label, since=""):
             return {"state": "masters_invalid"}
         _record(company, {"state": SYNCING})
         frappe.db.commit()
-        result = {"state": READY, **apply(company, label, data, stale=_stock_stale(book_key, since))}
+        result = {"state": READY, **apply(company, label, data, stale=_stock_stale(book_key, since), company_name=company_name)}
     except Exception as error:  # noqa: BLE001
         frappe.db.rollback()
         frappe.log_error(title="ERP Express master sync failed", message=frappe.get_traceback()[-3000:])
@@ -384,7 +385,7 @@ def _sync_once(company):
 STALE = "stale"  # 这一轮库存没套用：读完之后又有单写进去（`_stock_stale`）
 
 
-def apply(company, book, data, stale=False):
+def apply(company, book, data, stale=False, company_name=""):
     """把读好的整套主档落进 ERP（幂等：再落一次不改任何东西）。回各类新建 / 更新 / 停用的条数。``stale``：读完之后这份账套又有写账
     回执，库存这一轮不套用（回 ``stock: stale``，调用方再排一轮），主档、仓库照落。"""
     frappe.flags.express_sync_written = 0
@@ -399,7 +400,7 @@ def apply(company, book, data, stale=False):
               "express_stock_diffs": _differences_json(data.get("products"), differences)}
     if data.get("mark"):  # 旧版 CC 桌面版读的没有标记：不清掉原来的（清掉了下一轮看标记必不同，又整套读一遍）
         values["express_mark"] = data["mark"]
-    values.update(_profile(company, data.get("settings") or {}))
+    values.update(_profile(company, data.get("settings") or {}, company_name))
     if not frappe.db.get_value(COMPANY, company, "express_pos_from"):
         # 第一次接上 Express：收银日汇总只从这天起（之前的小票不补写，会计可能已手录过；验收 10-25）
         values["express_pos_from"] = nowdate()
@@ -417,11 +418,13 @@ def _differences_json(products, differences):
                        for code, (total, balance) in sorted(differences.items())][:500], ensure_ascii=False)
 
 
-def _profile(company, settings):
-    """公司没填的地址、电话取账套设置里登记的（自动建的公司第一次同步时填上）；填过的不动（人改的为准）。"""
-    have = frappe.db.get_value(COMPANY, company, ["address", "phone"], as_dict=True) or {}
-    found = {"address": str(settings.get("address") or "").strip(), "phone": str(settings.get("phone") or "").strip()[:50]}
-    return {field: value for field, value in found.items() if value and not (have.get(field) or "").strip()}
+def _profile(company, settings, company_name=""):
+    """公司的名称、地址、电话以 Express 为准（主会话 10-26：映射回来的字段 ERP 一律只读，打印抬头取自这里；`locks.COMPANY_LOCKED`）：
+    账套里有的就覆盖（名称取电脑报的账套公司名，地址、电话取账套设置 ISINFO）；账套里是空的不动 ERP 现有的。"""
+    have = frappe.db.get_value(COMPANY, company, ["company_name", "address", "phone"], as_dict=True) or {}
+    found = {"company_name": str(company_name or "").strip()[:200], "address": str(settings.get("address") or "").strip(),
+             "phone": str(settings.get("phone") or "").strip()[:50]}
+    return {field: value for field, value in found.items() if value and value != (have.get(field) or "").strip()}
 
 
 # ── 写入 ─────────────────────────────────────────────────────────────────────

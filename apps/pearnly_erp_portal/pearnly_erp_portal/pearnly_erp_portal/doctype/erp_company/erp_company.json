@@ -14,6 +14,7 @@
   "contact_person",
   "contact_email",
   "promptpay_id",
+  "logo",
   "section_docs",
   "doc_prefix",
   "fiscal_year_start_month",
@@ -96,6 +97,11 @@
    "fieldtype": "Data",
    "label": "PromptPay ID",
    "length": 50
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
   },
   {
    "fieldname": "section_docs",
@@ -220,7 +226,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-25 23:30:00.000000",
+ "modified": "2026-10-26 03:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,

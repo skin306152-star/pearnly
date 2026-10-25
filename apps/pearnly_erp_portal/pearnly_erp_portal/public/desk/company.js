@@ -28,7 +28,7 @@
 		// 这一屏的字段清单。**空值也要发**：框架的 `form.get_values()` 把空串当"没有这个
 		// 字段"丢掉（`is_null("")` 为真），所以"清空一格再保存"照旧留着老值。
 		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
-			"contact_person", "contact_email", "promptpay_id", "address", "note", "pos_enabled"];
+			"contact_person", "contact_email", "promptpay_id", "logo", "address", "note", "pos_enabled"];
 		const POS_METHODS = ["cash", "card", "promptpay", "transfer"];
 		const VAT_OPTIONS = [{value: "", label: ""}, {value: "yes", label: __("express.option.yes")}, {value: "no", label: __("express.option.no")}];
 		// 收款方式的四个标签**用术语表里已有的词**（`Cash` / `Card` / `PromptPay Amount` /
@@ -304,13 +304,15 @@
 			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
 				trail: [{label: data.company_name || name || "", route: ""}]});
 			const ro = {read_only: !data.can_write};
+			// 接了 Express 的公司：名称、地址、电话以 Express 账套为准（同步时覆盖，打印抬头取自这里；`express.locks.COMPANY_LOCKED`）
+			const locked = {read_only: !data.can_write || Boolean(data.express_locked)};
 			// 建公司时配的那套（收银台）在这里能改：判据是服务端的 `company.manage`
 			// （见 `api_get_profile` 的 `can_manage_pos`）。
 			const can_edit_pos = Boolean(data.can_manage_pos) && Boolean(data.can_write);
 			form = p.layout(page.main, [
 				{fieldtype: "Section Break", label: t("company.section.basic")},
 				f("company_name", "company.field.name", "Data",
-					{reqd: 1, default: data.company_name || "", ...ro}),
+					{reqd: 1, default: data.company_name || "", ...locked}),
 				f("short_name", "company.field.shortName", "Data",
 					{default: data.short_name || "", ...ro}),
 				f("tax_id", "company.field.taxId", "Data", {default: data.tax_id || "", ...ro}),
@@ -320,16 +322,18 @@
 				f("vat_registered", "company.field.vatRegistered", "Select",
 					{options: VAT_OPTIONS, default: data.vat_registered || "", ...ro}),
 				{fieldtype: "Column Break"},
-				f("phone", "company.field.phone", "Data", {default: data.phone || "", ...ro}),
+				f("phone", "company.field.phone", "Data", {default: data.phone || "", ...locked}),
 				f("contact_person", "company.field.contactPerson", "Data",
 					{default: data.contact_person || "", ...ro}),
 				f("contact_email", "company.field.contactEmail", "Data",
 					{options: "Email", default: data.contact_email || "", ...ro}),
 				f("promptpay_id", "company.field.promptpay", "Data",
 					{default: data.promptpay_id || "", ...ro}),
+				// 单据打印抬头的 Logo（没传就用 App 自带的 PEARNLY，`printing.header`）
+				{fieldname: "logo", label: __("Logo"), fieldtype: "Attach Image", default: data.logo || "", ...ro},
 				{fieldtype: "Section Break", label: t("company.section.address")},
 				f("address", "company.field.address", "Small Text",
-					{default: data.address || "", ...ro}),
+					{default: data.address || "", ...locked}),
 				{fieldtype: "Column Break"},
 				f("note", "company.field.note", "Small Text", {default: data.note || "", ...ro}),
 				// ── 收银：开关 + 收哪几种钱 + 这家公司的收银台清单 ────────────────

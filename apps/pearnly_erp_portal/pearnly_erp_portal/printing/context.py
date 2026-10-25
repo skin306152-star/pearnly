@@ -1,0 +1,140 @@
+"""按单据取打印要的数（Jinja 方法 `pearnly_print_context`，在 Print Format 里 `{% set ctx = pearnly_print_context(doc) %}`）。
+
+- 出库单 → 领料单（ใบเบิกสินค้า / GOODS ISSUE SLIP）；入库单、带入库的采购单 → 收货单（ใบรับสินค้า / GOODS RECEIPT NOTE）。
+- 抬头按**单据所属公司**取（出入库单按仓库的公司，采购单按单上的公司），不读当前用户的默认公司：名称、地址、电话、邮箱、Logo。
+  接了 Express 的公司名称 / 地址 / 电话同步时以 Express 为准（`express.locks.COMPANY_LOCKED`）。没传 Logo 用 App 自带的 PEARNLY。
+  Logo 内嵌成 data URI：PDF 生成器（wkhtmltopdf）拿不到私有文件地址。
+- ERP 没有的栏位（领用部门、领用人、申请数、PO / DO 号、运输方式、签字……）一律留空线，不拿建单人之类冒充（打印评估第 4 节）。
+- 作废的单照样能打，版面上加「已作废」水印（只在作废单上出现）。
+"""
+import base64
+import mimetypes
+
+import frappe
+
+from pearnly_erp_portal.printing import contracts
+
+STOCK = "ERP Stock Entry"
+PURCHASE = "Purchase Document"
+ISSUE, RECEIPT = "issue", "receipt"
+DEFAULT_LOGO = ("public", "images", "print", "pearnly-logo.png")
+
+
+def pearnly_print_context(doc) -> dict:
+    if doc.doctype == STOCK:
+        return _stock(doc)
+    if doc.doctype == PURCHASE:
+        return _purchase(doc)
+    frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+
+
+def _data_uri(content: bytes, name: str) -> str:
+    mime = mimetypes.guess_type(name)[0] or "image/png"
+    return f"data:{mime};base64,{base64.b64encode(content).decode()}"
+
+
+def logo(company_row) -> str:
+    url = str(company_row.get("logo") or "").strip()
+    if url:
+        file_name = frappe.db.get_value("File", {"file_url": url}, "name")
+        if file_name:
+            try:
+                return _data_uri(frappe.get_doc("File", file_name).get_content(), url)
+            except (OSError, frappe.DoesNotExistError):
+                pass  # 文件丢了：回落 PEARNLY，不让整张单打不出来
+    with open(frappe.get_app_path("pearnly_erp_portal", *DEFAULT_LOGO), "rb") as handle:
+        return _data_uri(handle.read(), DEFAULT_LOGO[-1])
+
+
+def header(company) -> dict:
+    row = frappe.db.get_value("ERP Company", company, ["company_name", "address", "phone", "contact_email", "logo"],
+                              as_dict=True) if company else None
+    row = row or frappe._dict()
+    return {"name": row.company_name or "", "address": " ".join(str(row.address or "").split()),
+            "phone": row.phone or "", "email": row.contact_email or "", "logo": logo(row)}
+
+
+def _products(names) -> dict:
+    names = sorted({name for name in names if name})
+    if not names:
+        return {}
+    return {row.name: row for row in frappe.get_all("ERP Product", filters={"name": ["in", names]},  # bounded: 这张单的商品
+                                                    fields=["name", "product_name", "code", "express_code"],
+                                                    limit_page_length=0)}
+
+
+def _code(product) -> str:
+    return (product or {}).get("express_code") or (product or {}).get("code") or ""
+
+
+def _is_main(warehouse, company) -> bool:
+    """主仓 = 这家公司最先建的那个仓（开户自带；接了 Express 的公司第一次同步时它被认作 Express 主仓，`masters._warehouses`）。"""
+    if not warehouse or not company:
+        return False
+    first = frappe.get_all("ERP Warehouse", filters={"company": company}, pluck="name",  # bounded: 最早一个
+                           order_by="creation asc", limit=1)
+    return bool(first) and first[0] == warehouse
+
+
+def _supplier(name, fallback=None) -> dict:
+    fallback = fallback or {}
+    row = frappe.db.get_value("ERP Supplier", name, ["supplier_name", "tax_id", "address", "phone", "express_code"],
+                              as_dict=True) if name else None
+    row = row or frappe._dict()
+    return {"code": row.express_code or "", "name": fallback.get("name") or row.supplier_name or "",
+            "address": " ".join(str(fallback.get("address") or row.address or "").split()),
+            "phone": row.phone or "", "email": "", "tax_id": fallback.get("tax_id") or row.tax_id or ""}
+
+
+def _base(kind, doc, company, number, posting_date, remarks, void) -> dict:
+    titles = {ISSUE: ("ใบเบิกสินค้า", "GOODS ISSUE SLIP"), RECEIPT: ("ใบรับสินค้า", "GOODS RECEIPT NOTE")}[kind]
+    return {"kind": kind, "title_th": titles[0], "title_en": titles[1], "company": header(company),
+            "number": number or doc.name, "date": contracts.day(posting_date), "remarks": str(remarks or "").strip(),
+            "void": bool(void)}
+
+
+def _stock(doc) -> dict:
+    company = frappe.db.get_value("ERP Warehouse", doc.warehouse, "company")
+    products = _products(line.product for line in doc.lines)
+    rows = []
+    for line in doc.lines:
+        product = products.get(line.product) or {}
+        cost = contracts.d(line.unit_cost)
+        rows.append({"code": _code(product), "name": product.get("product_name") or "", "unit": line.unit or "",
+                     "qty": contracts.qty(line.qty), "price": contracts.money(cost) if cost is not None else "",
+                     "amount": contracts.money(cost * contracts.d(line.qty)) if cost is not None else ""})
+    kind = ISSUE if doc.direction == "out" else RECEIPT
+    ctx = _base(kind, doc, company, doc.doc_no, doc.posting_date, doc.reason, doc.status == "void")
+    warehouse = frappe.db.get_value("ERP Warehouse", doc.warehouse, "warehouse_name") or ""
+    ctx.update(pages=contracts.pages(rows), warehouse=warehouse)
+    if kind == ISSUE:
+        ctx["purpose"] = contracts.issue_purpose(doc.purpose, doc.reason)
+    else:
+        ctx["supplier"] = _supplier(doc.supplier)
+        ctx["warehouse_check"] = contracts.warehouse_check(_is_main(doc.warehouse, company), warehouse)
+    ctx["page_count"] = len(ctx["pages"])
+    return ctx
+
+
+def _purchase(doc) -> dict:
+    """带入库的采购单打成收货单：供应商取单上的名称 / 税号 / 地址；对方单号不冒充送货单号（DO No. 留空，主会话 10-26）。"""
+    products = _products(line.product for line in doc.lines)
+    rows = []
+    stock_lines = [line for line in doc.lines if (line.item_type or "goods") == "goods"]
+    for line in stock_lines:
+        product = products.get(line.product) or {}
+        rows.append({"code": _code(product) or line.code or "", "name": product.get("product_name") or line.description or "",
+                     "unit": line.unit or "", "qty": contracts.qty(line.qty), "price": contracts.money(line.unit_price),
+                     "amount": contracts.money(line.line_total)})
+    warehouse_id = next((line.warehouse for line in stock_lines if line.warehouse), "")
+    warehouse = frappe.db.get_value("ERP Warehouse", warehouse_id, "warehouse_name") if warehouse_id else ""
+    ctx = _base(RECEIPT, doc, doc.company, doc.system_no, doc.doc_date, doc.notes, doc.status == "void")
+    ctx.update(pages=contracts.pages(rows), warehouse=warehouse or "",
+               supplier=_supplier(doc.supplier, {"name": doc.supplier_name, "tax_id": doc.supplier_tax_id,
+                                                 "address": doc.supplier_address}),
+               warehouse_check=contracts.warehouse_check(_is_main(warehouse_id, doc.company), warehouse or ""))
+    ctx["page_count"] = len(ctx["pages"])
+    return ctx
+
+
+__all__ = ["header", "logo", "pearnly_print_context"]

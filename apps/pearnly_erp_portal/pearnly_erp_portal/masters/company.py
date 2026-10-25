@@ -27,7 +27,7 @@ INVALID = "Invalid value"
 # 「单号前缀」（doc_prefix）不在这里：编号规则是写死的（PE / SI / IR / IS / AD），这个字段从未接上，
 # 用户 2026-09-28 定为隐藏（录制问题 #15）。库里的列与旧值保留，不读不写。
 LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
-               "contact_person", "contact_email", "promptpay_id",
+               "contact_person", "contact_email", "promptpay_id", "logo",
                "fiscal_year_start_month", "is_default", "is_active", "pos_enabled",
                "address", "note")
 
@@ -348,6 +348,8 @@ def get_profile(name=None) -> dict:
     doc = _get(document_company(name))
     payload = {field: doc.get(field) for field in LIST_FIELDS}
     payload["can_write"] = guard.has("company.manage")
+    # 接了 Express 的公司：名称、地址、电话以 Express 为准，页面只读（服务端由 `express.locks` 拦）
+    payload["express_locked"] = bool(doc.get("express_book"))
     payload["can_lookup"] = guard.has("tax.lookup")
     # 收银那一节：这家公司收哪几种钱、有哪几台收银台、以及"能不能改"。
     # 收发银台的管理判据放在**公司**这一侧（`company.manage`）—— 建公司时就要配，
@@ -559,6 +561,12 @@ def _apply(doc, fields) -> None:
         if field == "tax_id":
             tax_ids.require_valid(value, previous=doc.get("tax_id"), thai_required=True)
         doc.set(field, value)
+    if "logo" in fields:
+        # 单据打印抬头的 Logo：只认这个站点里已上传的文件（Attach Image 传上来的地址），空 = 用 App 自带的 PEARNLY
+        logo = str(fields.get("logo") or "").strip()
+        if logo and not frappe.db.exists("File", {"file_url": logo}):
+            frappe.throw(_(INVALID))
+        doc.logo = logo
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):
             frappe.throw(_("The fiscal year start month must be between 1 and 12"))

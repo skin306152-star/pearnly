@@ -1,0 +1,103 @@
+{#- 领料单 / 收货单共用的版面零件（岳父样板 1:1，A4 横向，每页 10 行）。
+    排版只用表格：PDF 生成器 wkhtmltopdf 0.12（老 WebKit）不认 flex / grid。泰文字体用镜像自带的 Loma。 -#}
+{% macro styles() -%}
+<style>
+@page { size: A4 landscape; margin: 7mm; }
+.print-format { orientation: Landscape; margin-top: 7mm; margin-bottom: 7mm; margin-left: 7mm; margin-right: 7mm; padding: 0 !important; max-width: none !important; }
+.pp { font-family: "Loma", "FreeSerif", sans-serif; color: #24332b; font-size: 12.5px; line-height: 1.35; }
+.pp-page { position: relative; page-break-after: always; }
+.pp-page.pp-last { page-break-after: auto; }
+.pp table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.pp td, .pp th { vertical-align: top; padding: 0; }
+.pp-head td { vertical-align: middle; }
+.pp-logo { width: 257.5px; padding-right: 24px; }
+.pp-logo img { width: 257.5px; height: auto; display: block; }
+.pp-co-name { font-size: 17px; font-weight: bold; color: #1f4f33; margin-bottom: 3.5px; }
+.pp-co-line { font-size: 12.5px; color: #2f6b45; }
+.pp-title { width: 246.5px; background: #1d6a3b; color: #fff; text-align: center; border-radius: 6px 0 0 6px; padding: 15.5px 6.5px !important; }
+.pp-title-th { font-size: 30.5px; font-weight: bold; line-height: 1.15; }
+.pp-title-en { font-size: 14px; letter-spacing: 0.6px; margin-top: 4.5px; }
+.pp-meta { width: 286px; background: #e6f2e9; border-radius: 0 6px 6px 0; padding: 8px 13.5px !important; }
+.pp-meta td { padding: 3.5px 0; font-size: 12.5px; }
+.pp-meta .pp-k { width: 92px; color: #2b3d33; font-weight: bold; }
+.pp-meta .pp-c { width: 15.5px; }
+.pp-meta .pp-v { font-weight: bold; font-size: 13.5px; }
+.pp-box { border: 1px solid #cfe1d4; border-radius: 6px; padding: 8px 13.5px 6.5px !important; }
+.pp-box-title { background: #e6f2e9; font-weight: bold; color: #1f4f33; padding: 4.5px 13.5px !important; border-radius: 6px 6px 0 0; border-bottom: 1px solid #cfe1d4; }
+.pp-box-body { padding: 5.5px 13.5px 6.5px !important; }
+.pp-gap { width: 11px; }
+.pp-sign-cell { width: 14.5%; }
+.pp-f td { padding: 4.5px 0; white-space: nowrap; }
+.pp-f .pp-k { width: 110px; }
+.pp-fw .pp-k { width: 150px; }
+.pp-f .pp-c { width: 13.5px; }
+.pp-line { border-bottom: 1px dotted #9ab4a2; min-height: 15.5px; white-space: normal; }
+.pp-cb { display: inline-block; width: 11px; height: 11px; border: 1px solid #5f7d69; border-radius: 2px; vertical-align: -2px; margin-right: 4.5px; text-align: center; font-size: 11px; line-height: 11px; color: #1d6a3b; font-weight: bold; }
+.pp-opt { margin-right: 15.5px; white-space: nowrap; }
+.pp-items { margin-top: 9px; border: 1px solid #cfe1d4; border-radius: 6px; }
+.pp-items th { background: #dcefe1; color: #1f4f33; font-weight: bold; text-align: center; padding: 5.5px 3px !important; border-left: 1px solid #cfe1d4; font-size: 12.5px; white-space: nowrap; }
+.pp-items th:first-child { border-left: 0; border-radius: 6px 0 0 0; }
+.pp-items th:last-child { border-radius: 0 6px 0 0; }
+.pp-items th small { display: block; font-weight: normal; color: #3c5a47; font-size: 11px; }
+.pp-items td { height: 32px; vertical-align: middle; padding: 0 5.5px !important; border-left: 1px solid #e3eee6; border-top: 1px solid #e3eee6; }
+.pp-items td:first-child { border-left: 0; text-align: center; }
+.pp-items tr.pp-alt td { background: #f4f9f5; }
+.pp-r { text-align: right; }
+.pp-c-txt { text-align: center; }
+.pp-foot { margin-top: 9px; }
+.pp-remark { border: 1px solid #cfe1d4; border-radius: 6px; }
+.pp-remark-title { background: #e6f2e9; padding: 4.5px 13.5px !important; border-radius: 6px 6px 0 0; font-weight: bold; color: #1f4f33; }
+.pp-remark-title span { font-weight: normal; }
+.pp-remark-body { height: 137px; padding: 6.5px 13.5px !important; white-space: pre-wrap; }
+.pp-sign { border: 1px solid #cfe1d4; border-radius: 6px; text-align: center; }
+.pp-sign-title { background: #e6f2e9; padding: 4.5px 4.5px !important; border-radius: 6px 6px 0 0; font-weight: bold; color: #1f4f33; }
+.pp-sign-title small { display: block; font-weight: normal; color: #3c5a47; font-size: 11px; }
+.pp-sign-body { height: 113px; padding: 27px 13.5px 0 !important; text-align: left; font-size: 11.5px; }
+.pp-sign-body div { margin-bottom: 13.5px; white-space: nowrap; }
+.pp-dots { display: inline-block; border-bottom: 1px dotted #9ab4a2; width: 78%; height: 12.5px; }
+.pp-void { position: absolute; top: 257.5px; left: 0; width: 100%; text-align: center; font-size: 96.5px; font-weight: bold; color: rgba(200, 30, 30, 0.18); -webkit-transform: rotate(-18deg); transform: rotate(-18deg); z-index: 5; letter-spacing: 6.5px; }
+</style>
+{%- endmacro %}
+
+{% macro cb(checked) -%}<span class="pp-cb">{% if checked %}&#10003;{% endif %}</span>{%- endmacro %}
+
+{% macro head(ctx, page_no, labels) -%}
+<table class="pp-head"><tr>
+  <td class="pp-logo"><img src="{{ ctx.company.logo }}" alt=""></td>
+  <td style="padding-left: 12px">
+    <div class="pp-co-name">{{ ctx.company.name | e }}</div>
+    <div class="pp-co-line">{{ ctx.company.address | e }}</div>
+    <div class="pp-co-line">{% if ctx.company.phone %}โทร. {{ ctx.company.phone | e }}{% endif %}{% if ctx.company.phone and ctx.company.email %}&nbsp;&nbsp;&nbsp;{% endif %}{% if ctx.company.email %}อีเมล: {{ ctx.company.email | e }}{% endif %}</div>
+  </td>
+  <td class="pp-title"><div class="pp-title-th">{{ ctx.title_th }}</div><div class="pp-title-en">{{ ctx.title_en }}</div></td>
+  <td class="pp-meta"><table>
+    <tr><td class="pp-k">เลขที่เอกสาร</td><td class="pp-c">:</td><td class="pp-v">{{ ctx.number | e }}</td></tr>
+    <tr><td class="pp-k">{{ labels.date }}</td><td class="pp-c">:</td><td>{{ ctx.date }}</td></tr>
+    <tr><td class="pp-k">หน้า</td><td class="pp-c">:</td><td>{{ page_no }} / {{ ctx.page_count }}</td></tr>
+  </table></td>
+</tr></table>
+{%- endmacro %}
+
+{% macro field(label, value="", extra="") -%}
+<tr><td class="pp-k">{{ label }}</td><td class="pp-c">:</td><td><div class="pp-line">{{ value | e }}{{ extra }}</div></td></tr>
+{%- endmacro %}
+
+{% macro items(rows, columns, offset) -%}
+<div class="pp-items"><table>
+  <tr>{% for col in columns %}<th style="width: {{ col.width }}">{{ col.th }}<small>{{ col.en }}</small></th>{% endfor %}</tr>
+  {% for row in rows %}{% set n = offset + loop.index %}
+  <tr class="{{ 'pp-alt' if loop.index is even else '' }}">
+    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}</td>{% endif %}{% endfor %}
+  </tr>
+  {% endfor %}
+</table></div>
+{%- endmacro %}
+
+{% macro remarks(title_th, text) -%}
+<div class="pp-remark"><div class="pp-remark-title">{{ title_th }} <span>/ Remarks</span></div><div class="pp-remark-body">{{ text | e }}</div></div>
+{%- endmacro %}
+
+{% macro sign(th, en) -%}
+<div class="pp-sign"><div class="pp-sign-title">{{ th }}<small>{{ en }}</small></div>
+<div class="pp-sign-body"><div><span class="pp-dots" style="width: 100%"></span></div><div>( <span class="pp-dots"></span> )</div><div>วันที่ <span class="pp-dots"></span></div></div></div>
+{%- endmacro %}

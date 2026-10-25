@@ -1,0 +1,55 @@
+{#- 领料单 ใบเบิกสินค้า / GOODS ISSUE SLIP：岳父样板 17 1:1（出库单）。数据见 `printing.context`。 -#}
+{% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, cb, items, remarks, sign %}
+{{ styles() }}
+{% set columns = [
+  {"key": "no", "th": "ลำดับ", "en": "No.", "width": "5%"},
+  {"key": "code", "th": "รหัสสินค้า", "en": "Item Code", "width": "11%"},
+  {"key": "name", "th": "รายละเอียดสินค้า", "en": "Item Description", "width": "20%"},
+  {"key": "unit", "th": "หน่วยนับ", "en": "Unit", "width": "7%", "cls": "pp-c-txt"},
+  {"key": "request", "th": "จำนวนที่ขอเบิก", "en": "Request Qty", "width": "9%", "cls": "pp-r"},
+  {"key": "qty", "th": "จำนวนที่จ่าย", "en": "Issue Qty", "width": "9%", "cls": "pp-r"},
+  {"key": "price", "th": "ราคา/หน่วย", "en": "Unit Price", "width": "9%", "cls": "pp-r"},
+  {"key": "amount", "th": "รวมเงิน", "en": "Amount (THB)", "width": "12%", "cls": "pp-r"},
+  {"key": "remark", "th": "หมายเหตุ", "en": "Remarks", "width": "18%"},
+] %}
+<div class="pp">
+{% for page in ctx.pages %}
+<div class="pp-page{{ ' pp-last' if loop.last else '' }}">
+  {% if ctx.void %}<div class="pp-void">ยกเลิก / CANCELLED</div>{% endif %}
+  {{ head(ctx, loop.index, {"date": "วันที่"}) }}
+  <table style="margin-top: 10px"><tr>
+    <td class="pp-box" style="width: 50%"><table class="pp-f">
+      {{ field("ฝ่ายที่เบิก") }}
+      {{ field("ผู้เบิก") }}
+      {{ field("แผนก") }}
+      <tr><td class="pp-k">วัตถุประสงค์</td><td class="pp-c">:</td><td>
+        <span class="pp-opt">{{ cb(ctx.purpose.checked.internal) }}ใช้งานภายใน</span>
+        <span class="pp-opt">{{ cb(ctx.purpose.checked.production) }}ผลิตสินค้า</span>
+        <span class="pp-opt">{{ cb(ctx.purpose.checked.sales) }}ขาย/จัดส่งลูกค้า</span>
+        <span class="pp-opt">{{ cb(ctx.purpose.checked.other) }}อื่นๆ <span class="pp-dots" style="width: 101px">{{ ctx.purpose.other_text | e }}</span></span>
+      </td></tr>
+    </table></td>
+    <td class="pp-gap"></td>
+    <td class="pp-box"><table class="pp-f">
+      {{ field("คลังสินค้า", ctx.warehouse) }}
+      {{ field("สถานที่จัดส่ง") }}
+      <tr><td class="pp-k">อ้างอิงเอกสาร</td><td class="pp-c">:</td><td>
+        <span class="pp-opt">{{ cb(false) }}ใบสั่งผลิต (MO)</span>
+        <span class="pp-opt">{{ cb(false) }}ใบสั่งขาย (SO)</span>
+        <span class="pp-opt">{{ cb(false) }}ใบขอเบิก</span>
+        <span class="pp-opt">{{ cb(false) }}อื่นๆ <span class="pp-dots" style="width: 89.5px"></span></span>
+      </td></tr>
+      {{ field("เลขที่อ้างอิง") }}
+    </table></td>
+  </tr></table>
+  {{ items(page, columns, (loop.index - 1) * 10) }}
+  <table class="pp-foot"><tr>
+    <td style="width: 40%">{{ remarks("หมายเหตุ", ctx.remarks if loop.last else "") }}</td>
+    <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้เบิก", "Requested by") }}</td>
+    <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้อนุมัติ", "Approved by") }}</td>
+    <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้จ่ายสินค้า", "Issued by") }}</td>
+    <td class="pp-gap"></td><td class="pp-sign-cell">{{ sign("ผู้รับสินค้า", "Received by") }}</td>
+  </tr></table>
+</div>
+{% endfor %}
+</div>
