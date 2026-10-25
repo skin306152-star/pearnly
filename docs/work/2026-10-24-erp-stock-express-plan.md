@@ -379,6 +379,22 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 - B3b 当天退货 SR（CNTYP 2、RETSTK Y，货回仓）：共用规则与 CC 都还不会写 SR；先从 S 盘只读补读 SR 的凭证与税记录写法（九.6 只读过
   字段），再做 CC 的 SR 写入与 ERP 侧。B3a 先上时，退货小票留在 ERP（同步对齐照算，不被抹）。
 
+**现销退货、当场退现金的写法（C 盘录单第 5 条在服务器测试账套实录，10-25 晚；开发窗口只读比对副本 `5a-before → 5a-after`）**
+- 原单 HS0000039（现销，500310 × 2 @100 含税）；SR 在「การเงิน → รับเงิน → ใบลดหนี้/รับคืนสินค้า」，挂原单、按行选退货回仓 Y / 只减价 N、回哪个仓、退几个；
+  保存时二选一「จ่ายคืนเป็นเงินสด」（退现金）/「เก็บไว้หักตอนรับชำระหนี้」（留着抵下次收款）。录了退现金 SR0000001（退 1 个，100 含税）。
+- 落库（只列新增 / 变了的）：
+  - ARTRN 新行：RECTYP 5、CNTYP **3**、SONUM = 原单号、FLGVAT 1、AMOUNT / AFTDISC / TOTAL / NETAMT 100、VATAMT 6.54、NETVAL 93.46、**RCVAMT 100**、
+    **IVCAMT 200**（原单金额）、CMPLAPP Y、CMPLDAT 当天、DOCSTAT N、SRV_VATTYP 1；
+  - 凭证 JNLTYP 03（描述「ลดหนี้/รับคืน + 客户名」）：借 41-02-00-00 退货 93.46（SEQIT 1）、借销项税 11-05-04-02 6.54（SEQIT 2）、**贷现金 11-01-01-00 100**（SEQIT 3，
+    不挂应收）；借存货 11-04-04-00 4.5（SEQIT 8）、贷成本 51-01-00-00 4.5（SEQIT 9）；
+  - STCRD 新行：POSOPR 2、FLAG 2、RETSTK Y、**RDOCNUM = 原单号补空格到 14 位 + 行号**（`HS0000039     1`）、TRNQTY 1、UNITPR / TRNVAL 100、XTRNQTY 1、
+    XUNITPR / XTRNVAL 4.5（按原批次成本）、XSALVAL / NETVAL 93.46、MLOTNUM = 原批次、MREMBAL / MREMVAL 10 / 45、LOTBAL 1 / LOTVAL 4.5；
+    另有一行旧 STCRD（rec119）的 MLOTNUM 改成 `202610252SR0000001     1`、MREMBAL / MREMVAL 10→11 / 45→49.5（Express 维护的批次 / 结存链，设计时逐行核是哪一行）；
+  - STLOC 01 +1（LOCBAL、QTY12NY、VAL12NY）；STMAS TOTBAL / MREMBAL +1、金额 +4.5、MLOTNUM 改指 SR 批次；
+  - ISVAT 新行：VATREC S、RECTYP 5、AMT01 93.46、VAT01 6.54（正数）、REFNUM = SR 单号、PRENAM；ISRUN SR 计数 +1；
+  - **现象（照原样做，不修正）**：退现金也冲减客户余额——ARMAS.BALANCE 160.5→60.5、ARBAL.SR12NY 0→100，但应收科目凭证没动。
+- 待测：「只减价 N」（不回仓）的行、「留着抵下次收款」（CNTYP 应是 2、挂应收）两种；现销 HS 收转账（第 4 条收款端推断）。
+
 **现购用转账付款的写法（C 盘录单第 4 条在服务器测试账套实录，10-25 晚；开发窗口只读比对副本 `4a-before → 4a-cash → 4a-after`）**
 - 默认：现购 HP 保存时不弹付款框，全额记现金——APTRN.CSHPAY = 1070、RCVAMT / PAYAMT = 1070、CMPLAPP = Y；凭证 JNLTYP 04：借存货 / 费用 1000、
   借进项税 70、贷现金 11-01-01-00 1070。
