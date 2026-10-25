@@ -6,11 +6,12 @@
 - 三张单都写成，单头 STTRN 一行、明细 STCRD 行数与单据一致；
 - 写前 STMAS 结存等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0）；
 - 凭证：永续盘存账套每张有金额的单一张 JNLTYP 00 凭证、借贷平衡；定期盘存账套（ISPERPETUA = N）一张凭证都没有；
-- 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）。
+- 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
+- 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套 ISRUN 没有 OU / JU / TK 单别、没有库存品、默认科目不能记账的跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
 
     python3 scripts/express-stock-entry-regression.py --source C:\\PearnlyExpress\\70EXP --pattern "T*" --work C:\\PearnlyStress\\_stock_reg \\
-        --companion <仓库>\\companion\\src --out result.jsonl
+        --companion <仓库>\\companion\\src --out result.jsonl [--runner C:\\Users\\skin3\\AppData\\Local\\Programs\\CC\\cdx_reindex_runner.exe]
 只给测试机 C 盘的 T 账套（或其他测试副本）用。
 """
 from __future__ import annotations
@@ -37,15 +38,19 @@ def main(argv=None) -> int:
     parser.add_argument("--companion", required=True, help="companion/src 目录")
     parser.add_argument("--out", required=True)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--runner", default="", help="已安装 CC 的 cdx_reindex_runner.exe：给了就重建索引并核 CDX 与 DBF 一致")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     global dbf, S, D, account_rules, cdx_reindex, fiscal_period
     import dbf  # noqa: F401
     from companion import account_rules, cdx_reindex, fiscal_period  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_stock as D  # noqa: F401
 
-    cdx_reindex.runner_available = lambda: False  # 不重建 Express 索引（只核表内容）
+    global cdx_check, with_runner
+    import express_cdx_check as cdx_check  # noqa: F401
+    with_runner = cdx_check.use_runner(cdx_reindex, args.runner)
     books = sorted(path for path in Path(args.source).iterdir() if path.is_dir() and fnmatch.fnmatch(path.name, args.pattern))
     if args.limit:
         books = books[:args.limit]
@@ -120,6 +125,7 @@ def check(acct: Path) -> dict:
     code = text(stock[0]["STKCOD"])
     before_balanced = balanced(acct, [code])[code] if has_stloc else None
     files_before = digests(acct)
+    index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
     perpetual = text((account_rules._first(acct, "ISINFO") or {}).get("ISPERPETUA") or "Y").upper() != "N"
     first = calendar.periods[0]
     day = first.beg + dt.timedelta(days=min(14, (first.end - first.beg).days))
@@ -147,10 +153,14 @@ def check(acct: Path) -> dict:
             return {"state": "fail", "why": f"{docnum}: journalled in a periodic account set"}
     if has_stloc and before_balanced and not balanced(acct, [code])[code]:
         return {"state": "fail", "why": f"STMAS != sum(STLOC) for {code} after writing"}
+    index_problems = cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, written) if with_runner else []
+    if index_problems:
+        return {"state": "fail", "why": "; ".join(index_problems)}
     changed = sorted(name for name, digest in digests(acct).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed: {changed}"}
-    return {"state": "ok", "docs": written, "perpetual": perpetual, "stloc": has_stloc, "was_balanced": before_balanced}
+    return {"state": "ok", "docs": written, "perpetual": perpetual, "stloc": has_stloc, "was_balanced": before_balanced,
+            "cdx_checked": sorted(index_before)}
 
 
 if __name__ == "__main__":

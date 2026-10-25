@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dbf
 
 from . import account_rules
+from . import cdx_reindex
 from . import dbf_detail
 from . import dbf_schema as S
 from . import fiscal_period
@@ -53,6 +54,7 @@ from .dbf_writer import (
     _open,
     _reindex,
     _restore,
+    _verify_index,
     record_locations,
     stock_location_tables,
     verify_locations,
@@ -252,6 +254,9 @@ def write_stock_entry(
         _verify(account_dir, docnum, len(lines), total, posted)
         verify_locations(account_dir, stloc_expected)
         clock.lap("verify")
+        # 同进货 / 销货：按 Express 自己的明细索引（DOCNUM+SEQNUM）回查到这张单，Express 才看得到
+        _verify_index(account_dir, cdx_reindex.TAG_STCRD_DOC, docnum)
+        clock.lap("index_check")
         _discard_backup(backup_dir)
         clock.log(docnum, "ok")
         return DbfWriteResult(True, docnum=docnum, line_modes=lines, notes=notes)

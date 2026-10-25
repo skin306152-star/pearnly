@@ -933,3 +933,4 @@ The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面�
 The CC Desktop request is invalid.	CC 桌面版请求无效。	คำขอของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのリクエストが無効です。	cc_desktop.request_invalid
 The Express write is invalid.	Express 写入内容无效。	ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง	Express への書き込み内容が無効です。	cc_desktop.job_invalid
 This Express write is in progress.	此 Express 写入正在进行中。	กำลังบันทึกลง Express อยู่	この Express への書き込みは処理中です。	cc_desktop.job_busy
+Express Index Tool	Express 索引程序	โปรแกรมดัชนี Express	Express インデックスツール

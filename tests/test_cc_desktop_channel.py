@@ -215,6 +215,19 @@ class Queue(Base):
         self.assertEqual(len(self.lease(self.office)["jobs"]), 1)
         self.assertEqual(self.lease(pc2)["jobs"], [])  # 同一份账套正在写：等它写完
 
+    def test_the_heartbeat_records_whether_the_index_tool_runs(self):
+        devices.record_report(self.office, runner="broken")
+        self.assertEqual(frappe.db.get_value(documents.DEVICE, self.office.device, "reindex_runner"), "broken")
+        devices.record_report(self.office, runner="whatever")  # 不认的值不写
+        self.assertEqual(frappe.db.get_value(documents.DEVICE, self.office.device, "reindex_runner"), "broken")
+
+    def test_a_missing_index_tool_goes_to_a_person(self):
+        job = self.enqueue()
+        self.lease(self.office)
+        reply = self.ack(self.office, job["job"], result="failed", express_docnum=None,
+                         error="[REINDEX_UNAVAILABLE] runner missing")
+        self.assertEqual(reply["status"], "manual")
+
     def test_failures_waiting_and_manual(self):
         job = self.enqueue()
         self.lease(self.office)

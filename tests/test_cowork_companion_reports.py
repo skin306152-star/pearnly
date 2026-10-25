@@ -145,6 +145,13 @@ class CompanionReportTests(unittest.TestCase):
         self.assertEqual(plan.patch["agent_device_name"], "d" * 60)
         self.assertEqual(plan.observations[0]["collector"]["adapter_version"], "v" * 21)
 
+    def test_the_index_tool_state_is_kept_only_when_it_changes(self):
+        # CC 桌面版 1.12.3 起报索引重建程序在不在 / 能不能跑；旧版不带保留上次，乱写的不收
+        self.assertEqual(plan_report({"reindex_runner": "missing"}, {"reindex_runner": "ok"}, NOW).patch["reindex_runner"],
+                         "missing")
+        for value, previous in (("ok", {"reindex_runner": "ok"}), ("gone", {}), (None, {"reindex_runner": "ok"})):
+            self.assertNotIn("reindex_runner", plan_report({"reindex_runner": value}, previous, NOW).patch)
+
     def test_raw_limits_do_not_truncate_projection_input(self):
         plan = plan_report({"account_sets": [{"code": str(i)} for i in range(51)],
                             "accounts": [{"code": str(i)} for i in range(3001)]}, {}, NOW)

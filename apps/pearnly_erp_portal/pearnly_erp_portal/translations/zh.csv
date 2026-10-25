@@ -1210,6 +1210,7 @@ That photo could not be read,无法识别该照片
 That row is not part of this stock count,该行不属于此盘点
 That submission was already used for a different entry,该提交已用于其他单据
 That warehouse belongs to another company,该仓库属于其他公司
+The Express index tool is missing on this computer. Reinstall CC Desktop,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 The LINE account that sent the document,发送此文件的 LINE 账号
 The Revenue Department replied in an unreadable format,税务局返回的数据格式无法解析
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
@@ -1926,6 +1927,7 @@ express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 express.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+express.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 express.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 express.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交

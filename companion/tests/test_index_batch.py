@@ -62,4 +62,5 @@ def test_flush_swallows_reindex_error(monkeypatch):
     b = CR.IndexBatch()
     b.add("/acc/a", ("STMAS",))
     b.flush()  # 不得抛(只记日志)——已记账绝不因可见性回滚
-    assert b._pending == {}  # 失败也清空,不无限累积(下批/夜间 PACK 兜)
+    # 失败留到下一批再重建(10-25:原来清空,主档索引与数据一直对不上);按账套存表名集合,不会无限累积
+    assert b._pending == {"/acc/a": {"STMAS"}}

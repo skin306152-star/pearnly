@@ -735,6 +735,7 @@ Exporting a reconciliation,Exporting a reconciliation
 Exporting a stock count,Exporting a stock count
 Exporting the review workbook,Exporting the review workbook
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+Express Index Tool,Express Index Tool
 Express PC,Express PC
 Express Root,Express Root
 Express Root Key,Express Root Key
@@ -1715,6 +1716,7 @@ The ERP report observation time is invalid.,The ERP report observation time is i
 The ERP report refresh status is invalid.,The ERP report refresh status is invalid.
 The ERP report uses an unsupported system type.,The ERP report uses an unsupported system type.
 The ERP target context is inconsistent.,The ERP target context is inconsistent.
+The Express index tool is missing on this computer. Reinstall CC Desktop,The Express index tool is missing on this computer. Reinstall CC Desktop
 The MR.ERP import page shows no menu (setup incomplete or no permission).,The MR.ERP import page shows no menu (setup incomplete or no permission).
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.
 The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
@@ -3381,6 +3383,7 @@ intake.error.PERIOD_LOCKED,The accounting period is closed in Express
 intake.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+intake.error.REINDEX_UNAVAILABLE,The Express index tool is missing on this computer. Reinstall CC Desktop
 intake.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
 intake.error.STOCK_INSUFFICIENT,Not enough stock in Express
 intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"

@@ -16,7 +16,7 @@ from typing import Callable, Optional
 
 from .config import CompanionConfig
 from .logger import activity, get_logger
-from . import device_link, projection_refresh, task_journal
+from . import cdx_reindex, device_link, projection_refresh, task_journal
 from .queue_client import QueueClient, QueueClientConfig
 
 log = get_logger(__name__)
@@ -401,6 +401,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "PERIOD_LOCKED": "needs_review",
         # 账套不允许负库存、库存不够(出入库第一期,stock_guard):重试结论一样,要人补货或改单
         "STOCK_INSUFFICIENT": "needs_review",
+        # 正式包缺 Express 索引重建程序(10-25):重试结论一样,要重装 CC 桌面版
+        "REINDEX_UNAVAILABLE": "needs_review",
     }.get(error_code or "")
 
 
@@ -768,6 +770,8 @@ def _run_periodic(
                 catalog=catalog,
                 companion_version=VERSION,
                 max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
+                # Express 索引重建程序在不在、能不能跑(10-25;缺了写单会拒写转人工,服务端电脑记录里看得到)
+                reindex_runner=cdx_reindex.runner_status(),
                 # 自动更新被 Windows 拦下（版本 + 时刻）；没被拦报 None，云端据此清掉旧值（update_block.py）
                 update_blocked=update_block.reported(),
                 **refresh_fields,

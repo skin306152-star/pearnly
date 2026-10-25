@@ -132,14 +132,17 @@ def leave(context: Context) -> dict:
     return {"status": "left"}
 
 
-def record_report(context: Context, *, version=None, payload_version=None, offline=False, full=False):
-    """心跳报到：版本、最高载荷版本、最近报到时间（报离线就清掉，马上算离线）；收到整份名单就不再要求整份重报。"""
+def record_report(context: Context, *, version=None, payload_version=None, offline=False, full=False, runner=None):
+    """心跳报到：版本、最高载荷版本、索引重建程序在不在 / 能不能跑、最近报到时间（报离线就清掉，马上算离线）；
+    收到整份名单就不再要求整份重报。"""
     doc = frappe.get_doc(DEVICE, context.device, for_update=True)
     values = {"last_seen_at": None if offline else now()}
     if isinstance(version, str) and version.strip() and len(version.strip()) <= 20:
         values["companion_version"] = version.strip()
     if type(payload_version) is int and payload_version >= 1:
         values["max_payload_version"] = payload_version
+    if runner in contracts.RUNNER_STATES:
+        values["reindex_runner"] = runner
     if full:
         values["full_report_due"] = 0
     doc.update(values)

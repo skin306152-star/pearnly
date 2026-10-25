@@ -604,7 +604,8 @@ class Schema(unittest.TestCase):
         self.assertEqual(doc["name"], "Cowork CC Desktop Device")
         self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "signed_in_users", "label",
                                        "secret_digest", "companion_version", "max_payload_version", "selection_json",
-                                       "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids"})
+                                       "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids",
+                                       "reindex_runner"})
         self.assertEqual(fields["secret_digest"]["unique"], 1)
         self.assertEqual(fields["secret_digest"].get("reqd", 0), 0)  # 补丁建的旧电脑留空，等认领
         self.assertEqual(doc["field_order"], [f["fieldname"] for f in doc["fields"]])
@@ -1297,6 +1298,10 @@ class HeartbeatComputer(Base):
         self.assertEqual(STORE[DEVICE][made["device"]]["label"], "ACC-01")
         devices.record_report(old, self.express, types.SimpleNamespace(offline=False, patch={"agent_device_name": "OLD-PC"}))
         self.assertEqual(STORE[DEVICE][old]["label"], "OLD-PC")
+        # 索引重建程序的状态记在电脑行上，心跳的 previous 带回去（只有变了才进补丁）
+        self.assertTrue(devices.record_report(made["device"], self.express,
+                                              types.SimpleNamespace(offline=False, patch={"reindex_runner": "missing"})))
+        self.assertEqual(devices.state(made["device"], self.express)["reindex_runner"], "missing")
 
     def test_selection_is_kept_per_connection(self):
         """第 2 批审查 7：同一台电脑服务两条 Express 连接（erpcowork）：两条的所选、映射各存各的，不互改。"""

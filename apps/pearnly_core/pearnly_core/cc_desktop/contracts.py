@@ -32,6 +32,8 @@ _ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ONLINE_SECONDS = 180
 # 一台电脑最多登记这么多份账套（事务所的数据根里常有几百份；多了截掉，按「能写的在前」）
 MAX_BOOKS = 2000
+# CC 桌面版心跳报的索引重建程序（cdx_reindex_runner.exe）状态：在且能跑 / 包里没有 / 在但跑不起来（缺了就拒写转人工）
+RUNNER_STATES = frozenset(("ok", "missing", "broken"))
 MAPPING_KEYS = ("revenue_acc", "ar_acc", "vat_output_acc", "fallback_acc", "ap_acc", "vat_input_acc")
 
 
@@ -209,7 +211,7 @@ def expires(now: datetime, seconds: int) -> datetime:
     return now + timedelta(seconds=seconds)
 
 
-__all__ = ["ChannelError", "MAPPING_KEYS", "MAX_BOOKS", "ONLINE_SECONDS", "TOKEN_PREFIX", "book_identity", "book_key",
+__all__ = ["ChannelError", "MAPPING_KEYS", "MAX_BOOKS", "ONLINE_SECONDS", "RUNNER_STATES", "TOKEN_PREFIX", "book_identity", "book_key",
            "books", "device_digest", "device_key", "digest_matches", "expires", "fingerprint", "flag",
            "new_device_name", "new_token", "online", "parse_token", "same_book", "text", "token_digest", "users",
            "wire_flag", "with_user"]

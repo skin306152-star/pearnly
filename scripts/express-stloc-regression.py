@@ -5,7 +5,8 @@
 2 个），就是 Cowork 推送的样子 → 核：
 - 主仓（ISINFO.MAINLOC）那一行 LOCBAL 先 +5 再 −2，期桶 QTY{期} 同样增减，最后进货 / 销货 / 变动日记上；
 - STLOC 其他行一行不变；没被写的表逐字节不变（写入集合 = 进货 / 销货备份表 + STLOC，另有索引文件）；
-- 写前这件品 STMAS.MREMBAL 等于各仓 LOCBAL 合计的，写后仍相等（Express 的「STMAS = Σ STLOC」）。
+- 写前这件品 STMAS.MREMBAL 等于各仓 LOCBAL 合计的，写后仍相等（Express 的「STMAS = Σ STLOC」）；
+- 给了 ``--runner``：照正式 CC 重建索引，并核写过的表 CDX 与 DBF 一致（``express_cdx_check``）。
 源账套只读（只 copytree 出来）；工作副本用完删掉。不连网络、不碰服务器。
 
     python3 scripts/express-stloc-regression.py --source C:\\PearnlyExpress\\70EXP --pattern "T*" --work C:\\PearnlyStress\\_stloc_reg \\
@@ -34,8 +35,10 @@ def main(argv=None) -> int:
     parser.add_argument("--companion", required=True, help="companion/src 目录")
     parser.add_argument("--out", required=True)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--runner", default="", help="已安装 CC 的 cdx_reindex_runner.exe：给了就重建索引并核 CDX 与 DBF 一致")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     global dbf, S, W, WS, fiscal_period, account_probe, cdx_reindex
     import dbf  # noqa: F401
     from companion import account_probe, cdx_reindex, fiscal_period  # noqa: F401
@@ -43,7 +46,9 @@ def main(argv=None) -> int:
     from companion import dbf_sales as WS  # noqa: F401
     from companion import dbf_writer as W  # noqa: F401
 
-    cdx_reindex.runner_available = lambda: False  # 不重建 Express 索引（只核表内容）
+    global cdx_check, with_runner
+    import express_cdx_check as cdx_check  # noqa: F401
+    with_runner = cdx_check.use_runner(cdx_reindex, args.runner)
     books = sorted(path for path in Path(args.source).iterdir() if path.is_dir() and fnmatch.fnmatch(path.name, args.pattern))
     if args.limit:
         books = books[:args.limit]
@@ -161,6 +166,8 @@ def check(acct: Path) -> dict:
     total_before = sum(Decimal(repr(float(r.get("LOCBAL") or 0))) for r in sums_before.values())
     master_before = Decimal(repr(float(pick["MREMBAL"] or 0)))
     files_before = digests(acct)
+    touched = {*S.PURCHASE_BACKUP_TABLES, *S.SALES_BACKUP_TABLES, *S.LOCATION_TABLES}
+    index_before = cdx_check.snapshot(cdx_reindex, acct, touched) if with_runner else {}
 
     purchase = payload("RR", be(day), "PO-STLOC", accounts, name, code, 5, Decimal("50.00"), supplier=suppliers[0])
     res = W.write_purchase(purchase, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
@@ -204,6 +211,8 @@ def check(acct: Path) -> dict:
     untouched = [name for name in files_before if name not in written and files_after.get(name) != files_before[name]]
     if untouched:
         problems.append(f"tables outside the write set changed: {untouched[:5]}")
+    if with_runner:
+        problems.extend(cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, [res.docnum, res2.docnum]))
     master_after = [r for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL")) if r["STKCOD"] == code]
     total_after = sum(Decimal(repr(float(r.get("LOCBAL") or 0))) for k, r in after.items() if k[0] == code)
     consistent_before = abs(master_before - total_before) < Decimal("0.0001")
@@ -211,7 +220,8 @@ def check(acct: Path) -> dict:
         if abs(Decimal(repr(float(master_after[0]["MREMBAL"] or 0))) - total_after) >= Decimal("0.0001"):
             problems.append(f"STMAS {master_after[0]['MREMBAL']} != sum STLOC {total_after} after write (was equal)")
     return {"state": "fail" if problems else "ok", "why": "; ".join(problems), "item": code, "main": main,
-            "stmas_equal_before": consistent_before, "docnums": [res.docnum, res2.docnum]}
+            "stmas_equal_before": consistent_before, "docnums": [res.docnum, res2.docnum],
+            "cdx_checked": sorted(index_before)}
 
 
 def payload(doctype, docdate, ref, accounts, name, code, qty, amount, *, supplier=None, customer=None):

@@ -15,6 +15,7 @@
   "signed_in_users",
   "companion_version",
   "max_payload_version",
+  "reindex_runner",
   "last_seen_at",
   "full_report_due",
   "retired_at",
@@ -91,6 +92,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "reindex_runner",
+   "fieldtype": "Data",
+   "label": "Express Index Tool",
+   "read_only": 1,
+   "length": 20
+  },
+  {
    "fieldname": "last_seen_at",
    "fieldtype": "Datetime",
    "label": "Last Seen At",
@@ -119,7 +127,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 00:00:00.000000",
+ "modified": "2026-10-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly CC Device",

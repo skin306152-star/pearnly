@@ -735,6 +735,7 @@ Exporting a reconciliation,กำลังส่งออกผลการก�
 Exporting a stock count,กำลังส่งออกผลต่างการตรวจนับ
 Exporting the review workbook,กำลังส่งออกสมุดงานตรวจทาน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
+Express Index Tool,โปรแกรมดัชนี Express
 Express PC,เครื่อง Express
 Express Root,โฟลเดอร์โปรแกรม Express
 Express Root Key,คีย์โฟลเดอร์โปรแกรม Express
@@ -1715,6 +1716,7 @@ The ERP report observation time is invalid.,เวลาเก็บข้อม
 The ERP report refresh status is invalid.,สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง
 The ERP report uses an unsupported system type.,รายงาน ERP ใช้ประเภทระบบที่ไม่รองรับ
 The ERP target context is inconsistent.,บริบทของปลายทาง ERP ไม่สอดคล้องกัน
+The Express index tool is missing on this computer. Reinstall CC Desktop,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
 The MR.ERP import page shows no menu (setup incomplete or no permission).,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,การตั้งค่าเมนูใน MR.ERP เปลี่ยนไป (เมนูที่เลือกไม่มีแล้วหรือไม่ได้เชื่อมโยงสมุดรายวัน) กรุณาเลือกใหม่
 The OCR connection changed after this task was accepted.,การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้
@@ -3381,6 +3383,7 @@ intake.error.PERIOD_LOCKED,งวดบัญชีนี้ปิดแล้�
 intake.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 intake.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+intake.error.REINDEX_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
 intake.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 intake.error.STOCK_INSUFFICIENT,สินค้าคงเหลือใน Express ไม่พอ
 intake.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย

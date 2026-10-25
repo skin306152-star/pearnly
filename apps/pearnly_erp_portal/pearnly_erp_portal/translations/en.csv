@@ -1210,6 +1210,7 @@ That photo could not be read,That photo could not be read
 That row is not part of this stock count,That row is not part of this stock count
 That submission was already used for a different entry,That submission was already used for a different entry
 That warehouse belongs to another company,That warehouse belongs to another company
+The Express index tool is missing on this computer. Reinstall CC Desktop,The Express index tool is missing on this computer. Reinstall CC Desktop
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
 The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
@@ -1926,6 +1927,7 @@ express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit ag
 express.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 express.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 express.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+express.error.REINDEX_UNAVAILABLE,The Express index tool is missing on this computer. Reinstall CC Desktop
 express.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
 express.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again

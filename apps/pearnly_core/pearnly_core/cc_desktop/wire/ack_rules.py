@@ -28,6 +28,8 @@ NEEDS_PERSON_CODES = frozenset({
     "PERIOD_LOCKED",
     # 账套不允许负库存（ISINFO.NEGALLOW = N）、写销货时库存不够（出入库第一期，CC 桌面版 stock_guard）
     "STOCK_INSUFFICIENT",
+    # 正式包里没有索引重建程序 / 跑不起来（1.12.3 起拒写，不再只改 DBF 让 Express 读到对不上的索引）：要人重装
+    "REINDEX_UNAVAILABLE",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

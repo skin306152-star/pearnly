@@ -1210,6 +1210,7 @@ That photo could not be read,この写真を読み取れません
 That row is not part of this stock count,この行はこの棚卸に含まれていません
 That submission was already used for a different entry,この送信は別の明細で使用済みです
 That warehouse belongs to another company,この倉庫は別会社のものです
+The Express index tool is missing on this computer. Reinstall CC Desktop,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
@@ -1926,6 +1927,7 @@ express.error.MISSING_REF_NO,請求書番号がありません。追加して再
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+express.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 express.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
 express.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください

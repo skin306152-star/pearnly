@@ -361,7 +361,7 @@ def _row(device):
         return None
     return frappe.db.get_value(DOCTYPE, device, ['name', 'workspace', 'secret_digest', 'label', 'host_names',
                                                  'companion_version', 'max_payload_version', 'selection_json',
-                                                 'retired_at'], as_dict=True)
+                                                 'retired_at', 'reindex_runner'], as_dict=True)
 
 
 def _selections(row):
@@ -386,6 +386,8 @@ def state(device, connection):
         result['companion_version'] = row.companion_version
     if int(row.max_payload_version or 0) >= 1:
         result['max_payload_version'] = int(row.max_payload_version)
+    if row.reindex_runner:
+        result['reindex_runner'] = row.reindex_runner
     return result
 
 
@@ -426,6 +428,8 @@ def record_report(device, connection, plan):
     if plan.patch.get('max_payload_version') and int(plan.patch['max_payload_version']) != int(
             row.max_payload_version or 0):
         values['max_payload_version'] = int(plan.patch['max_payload_version'])
+    if plan.patch.get('reindex_runner') and plan.patch['reindex_runner'] != (row.reindex_runner or ''):
+        values['reindex_runner'] = plan.patch['reindex_runner']
     name = str(plan.patch.get('agent_device_name') or '').strip()
     if name and not row.secret_digest and name != (row.label or ''):
         values['label'] = name[:device_contracts.MAX_NAME]  # 新版的电脑名由 device_hello 报

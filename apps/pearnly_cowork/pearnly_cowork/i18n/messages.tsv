@@ -2337,3 +2337,5 @@ As printed on the report	按报告原样保留	ตามที่พิมพ์
 1 means the ledger has this document number	1 表示总账中有该单号	1 หมายถึงพบเลขที่เอกสารนี้ในบัญชีแยกประเภท	1 は元帳にこの番号があること
 Up to six decimal places; empty actual quantity means not counted	最多 6 位小数；实盘数量为空表示未盘点	ทศนิยมไม่เกิน 6 ตำแหน่ง จำนวนนับจริงว่างหมายถึงยังไม่ได้นับ	小数点以下6桁まで。実数量が空欄の場合は未棚卸
 This warehouse is not in the Express account set	Express 账套中无此仓库	ไม่มีคลังสินค้านี้ในชุดบัญชี Express	この Express 会計データにこの倉庫はありません	intake.error.ERR_LOCATION
+Express Index Tool	Express 索引程序	โปรแกรมดัชนี Express	Express インデックスツール
+The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	intake.error.REINDEX_UNAVAILABLE

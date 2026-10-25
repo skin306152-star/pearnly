@@ -118,6 +118,7 @@ class QueueClient:
         offline: bool = False,
         account_sets_unchanged: bool = False,
         update_blocked: object = _NOT_SENT,
+        reindex_runner: Optional[str] = None,
     ) -> dict:
         """心跳 · 上报探测到的账套列表 + 科目表 + 录入方式 + **客户所选账套**(供 FE 选/镜像)· 返回连接状态。
 
@@ -155,6 +156,8 @@ class QueueClient:
             body["max_payload_version"] = max_payload_version
         if update_blocked is not _NOT_SENT:
             body["update_blocked"] = update_blocked
+        if reindex_runner:
+            body["reindex_runner"] = reindex_runner  # ok / missing / broken(cdx_reindex.runner_status)
         if master_refresh_request_id:
             body["master_refresh_request_id"] = str(master_refresh_request_id)
         if master_refresh_scope:

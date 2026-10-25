@@ -13,13 +13,14 @@ PACK 兜),不报错。runner 在但失败/超时 → 抛 CdxReindexError,调用�
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Tuple
 
 from .logger import get_logger
 
@@ -72,6 +73,34 @@ def runner_available() -> bool:
     return runner_path().is_file()
 
 
+# 只改 DBF、不重建 CDX 的回落只给开发 / 测试（合成表没有 Express 结构化 CDX）：正式包缺重建程序或重建失败时整单拒写、
+# 转人工（``REINDEX_UNAVAILABLE``）。10-25 测试机：用仓库源码离线写真 T 账套走了回落，Express 开单据报 -330 后退出。
+DBF_FALLBACK_ENV = "PEARNLY_ALLOW_DBF_REINDEX"
+_status_cache: dict = {}
+
+
+def dbf_fallback_allowed() -> bool:
+    return os.environ.get(DBF_FALLBACK_ENV) == "1"
+
+
+def runner_status() -> str:
+    """心跳报给服务端的「重建程序在不在、能不能跑」：``ok`` / ``missing`` / ``broken``（跑一次空回查不出结果）。
+    每次启动只试跑一次（缓存），不每拍心跳都起进程。"""
+    if "value" in _status_cache:
+        return _status_cache["value"]
+    if not runner_available():
+        value = "missing"
+    else:
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                out = _run("SEEK", Path(folder), "PEARNLY_PROBE")
+            value = "ok" if ("seek_found=" in out or "error=" in out) else "broken"
+        except Exception:  # noqa: BLE001  起不来、超时都算不能跑
+            value = "broken"
+    _status_cache["value"] = value
+    return value
+
+
 def _run(action: str, account_dir: Path, table: str, tag: str = "x", key: str = "x") -> str:
     """调 runner 一次,返回它写进本地临时 log 的文本(cp874 容错解码)。
 
@@ -117,6 +146,20 @@ def reindex(account_dir: Path, tables: Iterable[str]) -> None:
             if any(tok in low for tok in _BUSY_TOKENS):
                 raise CdxBusyError(f"REINDEX {t} 账套被占用: {err}")
             raise CdxReindexError(f"REINDEX {t} failed: {err}")
+
+
+def tags(account_dir: Path, table: str) -> Tuple[int, Tuple[Tuple[str, str], ...]]:
+    """用 Express 的 CDX 打开表：返回（打开时看到的记录数，（标签名，键表达式）列表）。打不开（CDX 与 DBF 对不上等）抛
+    CdxReindexError。离线回归据此核「写完后标签没变、索引能打开」。"""
+    out = _run("TAGS", Path(account_dir), table)
+    err = _runner_error(out)
+    if err:
+        raise CdxReindexError(f"TAGS {table} failed: {err}")
+    m = re.search(r"records=(\d+)", out)
+    if not m:
+        raise CdxReindexError(f"TAGS {table}: no record count in {out.strip()[:200]}")
+    found = tuple((name.strip(), key.strip()) for name, key in re.findall(r"^ord \d+ name=(\S*) key=(.*)$", out, re.MULTILINE))
+    return int(m.group(1)), found
 
 
 def seek(account_dir: Path, table: str, tag: str, key: str) -> SeekResult:
@@ -168,8 +211,11 @@ class IndexBatch:
             try:
                 reindex(Path(d), tuple(sorted(tables)))
             except Exception:
+                # 留着下一批再重建（10-25：原来失败就丢，主档索引与数据一直对不上，Express 查商品会出错）；
+                # 还没重建的账套随领取请求的 ``index_pending`` 报给服务端（pending_dirs）
+                self.add(d, tables)
                 log.warning(
-                    "[batch-index] 主档批量重建失败(已记账·可查性延后到下批/夜间PACK): %s",
+                    "[batch-index] 主档批量重建失败,留到下一批再重建: %s",
                     d,
                     exc_info=True,
                 )

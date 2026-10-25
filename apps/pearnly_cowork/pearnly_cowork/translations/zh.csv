@@ -735,6 +735,7 @@ Exporting a reconciliation,正在导出对账结果
 Exporting a stock count,正在导出盘点差异
 Exporting the review workbook,正在导出复核工作簿
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
+Express Index Tool,Express 索引程序
 Express PC,Express 电脑
 Express Root,Express 程序目录
 Express Root Key,Express 程序目录键
@@ -1715,6 +1716,7 @@ The ERP report observation time is invalid.,ERP 报告的采集时间无效。
 The ERP report refresh status is invalid.,ERP 报告的刷新状态无效。
 The ERP report uses an unsupported system type.,ERP 报告使用了不支持的系统类型。
 The ERP target context is inconsistent.,ERP 目标上下文不一致。
+The Express index tool is missing on this computer. Reinstall CC Desktop,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 The MR.ERP import page shows no menu (setup incomplete or no permission).,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP 菜单设置已变更（所选菜单不存在或未关联日记账），请重新选择。
 The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
@@ -3381,6 +3383,7 @@ intake.error.PERIOD_LOCKED,会计期间已在 Express 关账
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+intake.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 intake.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 intake.error.STOCK_INSUFFICIENT,Express 库存不足
 intake.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价

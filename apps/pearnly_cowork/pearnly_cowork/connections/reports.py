@@ -278,11 +278,12 @@ CACHE_KEYS = frozenset((
     "reported_products", "reported_customers", "reported_suppliers", "reported_departments",
     "catalog_seen_at", "catalog_fingerprint",
     "reported_stock_acc_groups", "stock_acc_groups_seen_at", "max_payload_version",
-    "companion_version", "agent_device_name", "agent_last_seen_at",
+    "companion_version", "agent_device_name", "agent_last_seen_at", "reindex_runner",
     # 自动更新被 Windows 拦下（`desktop_update`，教程问题第 1 条）：只在变了时进补丁，上报记录不为它每拍重写
     desktop_update.KEY,
 ))
 PATCH_KEYS = SELECTED_KEYS | MAPPING_KEYS | CACHE_KEYS
+RUNNER_STATES = frozenset(("ok", "missing", "broken"))
 
 
 class ReportError(ValueError):
@@ -372,6 +373,9 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
         version = str(body.get("companion_version") or "").strip()
         if version and len(version) <= 20:
             patch["companion_version"] = version
+    # 索引重建程序在不在 / 能不能跑（1.12.3 起报；缺了就拒写转人工）：旧版不带，保留上次
+    if body.get("reindex_runner") in RUNNER_STATES and previous.get("reindex_runner") != body["reindex_runner"]:
+        patch["reindex_runner"] = body["reindex_runner"]
     # 旧版 CC 桌面版不带这个键：保留上次的值；带了（含 null = 没被拦）就以这次为准，变了才写。
     if desktop_update.KEY in body:
         blocked = desktop_update.parse(body.get(desktop_update.KEY))

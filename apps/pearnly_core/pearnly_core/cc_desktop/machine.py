@@ -36,7 +36,7 @@ def _heartbeat(context, body):
     payload_version = body.get("max_payload_version")
     due = devices.record_report(context, version=version if isinstance(version, str) else None,
                                 payload_version=payload_version if type(payload_version) is int else None,
-                                offline=offline, full=full)
+                                offline=offline, full=full, runner=body.get("reindex_runner"))
     # 给托盘显示「连的是谁」（CC 桌面版 `_sync_connection_identity`）：电脑编号、站点、令牌的签发人
     reply = {"ok": True, "connection": {"endpoint_id": context.device, "endpoint_name": frappe.local.site,
                                         "pearnly_account": context.issuer}}

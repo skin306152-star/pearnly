@@ -1673,3 +1673,4 @@ Enter a board name	请输入看板名称	กรุณากรอกชื่อ
 Only board admins can do this	仅看板管理员可执行此操作	เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้	ボード管理者のみ実行できます	erp.work.error.board_rights
 A board needs at least one admin	看板至少需要一位管理员	บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน	ボードには管理者が少なくとも1人必要です	erp.work.error.last_admin
 The default board cannot be archived	默认看板不能归档	ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้	既定のボードはアーカイブできません	erp.work.error.default_board
+The Express index tool is missing on this computer. Reinstall CC Desktop	此电脑缺少 Express 索引程序，请重新安装 CC 桌面版	คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่	このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください	express.error.REINDEX_UNAVAILABLE

@@ -61,6 +61,7 @@ ERR_FIELD_WIDTH = "FIELD_TOO_LONG"
 ERR_WRITE = "DBF_WRITE_FAILED"
 ERR_VERIFY = "READBACK_VERIFY_FAILED"
 ERR_INDEX = "CDX_REINDEX_FAILED"  # CDX 重建/索引回查失败 → 回滚,Express 查不到
+ERR_REINDEX_UNAVAILABLE = "REINDEX_UNAVAILABLE"  # 正式包缺 cdx_reindex_runner → 不写、转人工(10-25)
 ERR_WAITING_LOCK = "ACCOUNT_BUSY_LOCKED"  # Express 占用账套 → 回滚,稍后自动重试(非失败)
 ERR_SUPPLIER_DUP = "SUPPLIER_DUP_SUSPECTED"  # 疑似重复供应商 → 不建,转人工确认
 ERR_SUPPLIER_AMBIGUOUS = "SUPPLIER_BRANCH_AMBIGUOUS"  # 同税号多分店档定不出唯一 → 转人工
@@ -696,7 +697,10 @@ def _reindex(account_dir: Path, tables=S.WRITE_TABLES) -> None:
         except cdx_reindex.CdxReindexError as e:
             raise _WriteError(str(e), ERR_INDEX) from e
         return
-    log.warning("cdx_reindex_runner 不在,回落 dbf reindex(CDX 靠 PACK 兜)")
+    if not cdx_reindex.dbf_fallback_allowed():
+        # 正式包缺重建程序：不写（只改 DBF 不重建 CDX，Express 开单据报 -330 后退出，10-25），整单回滚、转人工
+        raise _WriteError(f"cdx_reindex_runner missing: {cdx_reindex.runner_path()}", ERR_REINDEX_UNAVAILABLE)
+    log.warning("cdx_reindex_runner 不在,回落 dbf reindex(仅开发 / 测试开关 %s=1)", cdx_reindex.DBF_FALLBACK_ENV)
     for name in tables:
         t = _open(account_dir, name, dbf.READ_WRITE)
         try:

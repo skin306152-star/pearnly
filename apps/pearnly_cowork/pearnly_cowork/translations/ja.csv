@@ -735,6 +735,7 @@ Exporting a reconciliation,照合結果を書き出しています
 Exporting a stock count,棚卸差異を書き出しています
 Exporting the review workbook,確認用ワークブックを書き出しています
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
+Express Index Tool,Express インデックスツール
 Express PC,Express の PC
 Express Root,Express プログラムフォルダー
 Express Root Key,Express プログラムフォルダーキー
@@ -1715,6 +1716,7 @@ The ERP report observation time is invalid.,ERP レポートの収集日時が�
 The ERP report refresh status is invalid.,ERP レポートの更新状態が無効です。
 The ERP report uses an unsupported system type.,ERP レポートに対応していないシステム種別が指定されています。
 The ERP target context is inconsistent.,ERP送信先の情報が一致しません。
+The Express index tool is missing on this computer. Reinstall CC Desktop,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 The MR.ERP import page shows no menu (setup incomplete or no permission).,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to a journal. Choose again.,MR.ERP のメニュー設定が変わりました（選択したメニューがないか、仕訳帳に連携されていません）。選び直してください。
 The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
@@ -3381,6 +3383,7 @@ intake.error.PERIOD_LOCKED,会計期間は Express で締め済みです
 intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+intake.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 intake.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
 intake.error.STOCK_INSUFFICIENT,Express の在庫が足りません
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください

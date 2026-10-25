@@ -22,6 +22,9 @@ from _lab_target import lab_acct  # noqa: E402,F401
 @pytest.fixture(autouse=True)
 def _disable_cdx_runner(monkeypatch):
     monkeypatch.setattr(cdx_reindex, "runner_available", lambda: False)
+    # 合成表没有 Express 结构化 CDX：测试打开「只改 DBF」的开发开关（正式包缺 runner 会拒写，见 test_reindex_unavailable）
+    monkeypatch.setenv(cdx_reindex.DBF_FALLBACK_ENV, "1")
+    monkeypatch.setattr(cdx_reindex, "_status_cache", {"value": "ok"})
 
 
 @pytest.fixture(autouse=True)
