@@ -748,6 +748,7 @@ Not Available,无货
 Not Posted,未记入库存
 Not bound,未绑定
 Not counted,未盘点
+Not enough stock in Express,Express 库存不足
 Not enough stock on hand,库存不足
 Not found in the Revenue Department records,税务局未查到该税号的登记信息
 Not found on the document,票面未载明
@@ -1931,6 +1932,7 @@ express.reason.noWriter,没有能写此账套的电脑
 express.reason.offline,电脑离线
 express.reason.periodLocked,会计期间已在 Express 关账
 express.reason.reading,正在读取 Express 账套
+express.reason.stockInsufficient,Express 库存不足
 express.reason.taxMissing,公司没有 13 位税号
 express.state.written,已写入
 goods,货物

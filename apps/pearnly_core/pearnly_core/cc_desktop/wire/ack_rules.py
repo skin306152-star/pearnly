@@ -26,6 +26,8 @@ NEEDS_PERSON_CODES = frozenset({
     "STOCK_ACC_GROUP_UNFIT",
     # ERP 的单写进 Express 已关账的会计期（1.12.0，只有带 respect_period_lock 的载荷会回）
     "PERIOD_LOCKED",
+    # 账套不允许负库存（ISINFO.NEGALLOW = N）、写销货时库存不够（出入库第一期，CC 桌面版 stock_guard）
+    "STOCK_INSUFFICIENT",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

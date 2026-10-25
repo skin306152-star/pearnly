@@ -748,6 +748,7 @@ Not Available,在庫なし
 Not Posted,未計上
 Not bound,未連携
 Not counted,未棚卸
+Not enough stock in Express,Express の在庫が足りません
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
 Not found on the document,書類に記載がありません
@@ -1931,6 +1932,7 @@ express.reason.noWriter,この帳簿に書き込める端末がありません
 express.reason.offline,端末オフライン
 express.reason.periodLocked,会計期間は Express で締め済みです
 express.reason.reading,Express 帳簿を読み取り中
+express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.state.written,書き込み済み
 goods,物品

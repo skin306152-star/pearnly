@@ -748,6 +748,7 @@ Not Available,สินค้าหมด
 Not Posted,ยังไม่บันทึกสต็อก
 Not bound,ยังไม่ได้ผูกบัญชี
 Not counted,ยังไม่นับ
+Not enough stock in Express,สินค้าคงเหลือใน Express ไม่พอ
 Not enough stock on hand,สินค้าคงเหลือไม่เพียงพอ
 Not found in the Revenue Department records,ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร
 Not found on the document,ไม่ได้ระบุในเอกสาร
@@ -1931,6 +1932,7 @@ express.reason.noWriter,ไม่มีเครื่องที่บัน�
 express.reason.offline,เครื่องออฟไลน์
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
 express.reason.reading,กำลังอ่านชุดบัญชี Express
+express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 express.state.written,บันทึกแล้ว
 goods,สินค้า

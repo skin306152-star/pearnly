@@ -1116,6 +1116,7 @@ Not an invoice file,請求書以外
 Not bound,未連携
 Not card deposits net of fee,カード手数料控除後ではない
 Not counted,未棚卸
+Not enough stock in Express,Express の在庫が足りません
 Not entered,入力しない
 Not found,見つかりません
 Not included,未計上
@@ -3381,6 +3382,7 @@ intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
 intake.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
+intake.error.STOCK_INSUFFICIENT,Express の在庫が足りません
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
 intake.error.STOCK_ITEM_NOT_FOUND,選んだ Express の在庫品目はもうありません。選び直してください
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください

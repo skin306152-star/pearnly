@@ -24,7 +24,7 @@
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
 		stock_group: "express.kind.stockGroup",
 	};
-	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked"};
+	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked", STOCK_INSUFFICIENT: "express.reason.stockInsufficient"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
 		__new__: "New"};
 	// 要人定的那几项 → 原生下拉（单据上的 Express 弹窗与提交前问共用）

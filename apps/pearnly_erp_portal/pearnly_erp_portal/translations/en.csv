@@ -748,6 +748,7 @@ Not Available,Not Available
 Not Posted,Not Posted
 Not bound,Not bound
 Not counted,Not counted
+Not enough stock in Express,Not enough stock in Express
 Not enough stock on hand,Not enough stock on hand
 Not found in the Revenue Department records,Not found in the Revenue Department records
 Not found on the document,Not found on the document
@@ -1931,6 +1932,7 @@ express.reason.noWriter,No computer can write this account set
 express.reason.offline,Computer offline
 express.reason.periodLocked,The accounting period is closed in Express
 express.reason.reading,Reading the Express account set
+express.reason.stockInsufficient,Not enough stock in Express
 express.reason.taxMissing,The company has no 13-digit tax ID
 express.state.written,Written
 goods,goods

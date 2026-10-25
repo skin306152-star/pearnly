@@ -394,6 +394,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         stock_template.ERR_STOCK_GROUP: "needs_review",
         # ERP 的单写进已关账的会计期:重试结论一样(1.12.0)
         "PERIOD_LOCKED": "needs_review",
+        # 账套不允许负库存、库存不够(出入库第一期,stock_guard):重试结论一样,要人补货或改单
+        "STOCK_INSUFFICIENT": "needs_review",
     }.get(error_code or "")
 
 

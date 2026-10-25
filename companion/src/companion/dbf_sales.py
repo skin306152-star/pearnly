@@ -28,7 +28,7 @@ from . import fiscal_period
 from . import master_create
 from . import pos_journal
 from . import write_verify
-from . import stock_location
+from . import stock_guard, stock_location
 from . import stock_sale
 from . import stock_template
 from . import cdx_reindex
@@ -259,6 +259,10 @@ def write_sale(
     if payload.get("respect_period_lock") and fiscal_period.locked(account_dir, docdat):
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
+    # 账套不允许负库存(ISINFO.NEGALLOW = N):库存不够就整单不写,转人工(出入库第一期,10-25;stock_guard)
+    short = stock_guard.shortages(account_dir, payload.get("items") or [], locations)
+    if short:
+        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
     vatprd = S.be_yymmdd_to_greg(payload.get("vat_period_be") or docdate_be)
     base = Decimal(entry.base_amount)
     vat = Decimal(entry.vat_amount)
