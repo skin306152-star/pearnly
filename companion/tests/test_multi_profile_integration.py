@@ -332,8 +332,12 @@ def test_members_inside_the_tray_worker_take_the_computers_data_roots(monkeypatc
     # 10-24 验收：托盘线程复制配置、把存盘换成带「暂停」的包装后，原来从存盘函数取成员记录取不到，71EXP 补不进 ERP 成员
     import base64
 
+    from src.companion import express_machine
     from src.companion import worker as heartbeat
     from src.companion.profile_store import ProfileStore
+
+    # 假路径（C:\PearnlyExpress\71EXP）在 Windows 上 C 盘在、文件夹不在，会被当成确实没了；这里测的是补数据根
+    monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
 
     class Protector:
         def protect(self, value):

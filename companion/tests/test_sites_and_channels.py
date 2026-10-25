@@ -16,7 +16,7 @@ from unittest import mock
 
 import pytest
 
-from companion import channel, desktop_settings, pairing, worker
+from companion import channel, desktop_settings, express_machine, pairing, worker
 from companion.account_write_lock import Busy, held, LOCK_NAME
 from companion.desktop_settings import DesktopSettings
 from companion.profile_store import ProfileStore, ProfileStoreError
@@ -243,8 +243,10 @@ def test_an_older_file_takes_the_place_of_each_members_main_root_and_drops_the_r
     assert again.runtime_config(member).express_places == (r"C:\PearnlyExpress",)
 
 
-def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(tmp_path):
+def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(tmp_path, monkeypatch):
     # 10-24 验收问题 16：Cowork 成员「重新读取」找到 71EXP，ERP 成员也要有（位置是整台电脑的）；位置外找到的不收
+    # 假路径（C:\PearnlyExpress\71EXP）在 Windows 上 C 盘在、文件夹不在，会被当成确实没了；这里测的是补数据根
+    monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
     cowork_id = _place_member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
     erp_id = _place_member(store, ERP_TOKEN, "https://testerp.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
@@ -263,8 +265,10 @@ def test_a_year_folder_found_by_one_member_reaches_every_member_on_the_computer(
     assert list(erp.authorized_roots) == expected
 
 
-def test_a_year_folder_already_kept_by_one_member_only_is_added_to_the_others(tmp_path):
+def test_a_year_folder_already_kept_by_one_member_only_is_added_to_the_others(tmp_path, monkeypatch):
     # 10-24 复测：1.12.0 前找到的 71EXP 只记在 Cowork 成员里，已经分开的电脑也要补上（重启 CC 后照样补）；位置外的不补
+    # 假路径（C:\PearnlyExpress\71EXP）在 Windows 上 C 盘在、文件夹不在，会被当成确实没了；这里测的是补数据根
+    monkeypatch.setattr(express_machine, "root_gone", lambda root, asked=None: False)
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
     _place_member(store, COWORK_TOKEN, "https://testcowork.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
     erp_id = _place_member(store, ERP_TOKEN, "https://testerp.pearnly.com", [r"C:\PearnlyExpress\70EXP"])
