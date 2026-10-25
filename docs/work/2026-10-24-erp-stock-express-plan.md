@@ -227,7 +227,7 @@ NEGALLOW=N 库存不足停在「需要人工」；金样本先最大化用 S 盘
 
 开工前置：共用件连带回归闸门（`pearnly/regression-safety-net`）合入；S 盘只读金样本（九.4，待白天 accserver 在线）补齐作废 / 退货 / 领用 / 调整的原生字段。
 
-### 九.4 S 盘只读金样本（明天白天 accserver 在线时做，脚本已备好、在旧副本上试跑通过）
+### 九.4 S 盘只读金样本（计划；10-25 下午已做，结果见九.6）
 
 - 选账套（从测试机真账旧副本语料 158 套按单据用量挑，旧副本的 `来源.txt` 记着 S 盘路径）：68POLYM（OU、JU 增 / 减、RL、SR、GR，ISPERPETUA=N 定期盘存）、68SKCHE 与 69SKCHE（PD、PI，同一家两年，
   推断月结前后 XUNITPR 回填）、68NLTB（RL 1.07 万行、SR、GR、HS，NEGALLOW=N、LOC_COST=Y）、6907GIZ（RL、JU）、6907WNF（CN）、6902ASC（GR）、6819EXCP 与 68PAISAR（HP，找「现购转账」）。
@@ -243,7 +243,107 @@ NEGALLOW=N 库存不足停在「需要人工」；金样本先最大化用 S 盘
 - 先卖后买（负库存）时，销售那张没有成本分录：CC 卖出时这件货无成本基础（零 / 负结存、也没有标准成本）就不结转 COGS（`CC/stock_sale.py` 的设计），之后进货也不回补那张销售的成本。
   并进第一期（NEGALLOW=N 停在「需要人工」，不再产生这类单）与第三期（成本以 Express 为准：样本确认 Express 月结 / 计算成本会不会回填，会就回读，不会就由 CC 按 COSMTD 补结转）。
 
+### 九.6 S 盘只读金样本结果（10-25 下午，用户确认服务器在线后做）
+
+- 做法：以 skin3 身份一次性计划任务，把 9 本账套的出入库相关表 `shutil.copy2` 只读复制到测试机 `C:\PearnlyStress\_stock_sample_1025`（55 秒，约 645 MB），
+  另补 6907GIZ 的 BKMAS / BKTRN / BKTRNIT；之后只读分析副本，**做完副本已删**。没写 S 盘 / accserver，没起实验栈，没动 CC。
+- 9 本：68POLYM、68SKCHE、69SKCHE、68NLTB、6907GIZ、6907WNF、6902ASC、6819EXCP、68PAISAR。COSMTD 全是 `F`；NEGALLOW=N 的有 68NLTB、68PAISAR、6907GIZ；
+  ISPERPETUA=N（定期盘存）的有 68POLYM、6902ASC、6907WNF。
+- **STLOC 合计 = STMAS 结存**：9 本里 7 本完全一致，68POLYM 4878 件里差 1 件、6907WNF 159 件里差 1 件（都是负数 / 零结存的旧件）。
+  和 C 盘 T 账套一样，存量差异少，第一期的「差异只列不拦」够用。
+
+**库存单（STTRN + STCRD）**
+
+| 类 | STTRN | STCRD | 过账（GLJNL） |
+|---|---|---|---|
+| OU / XS / XC / ED / OR / ZZ / PD 及 68PAISAR 的 PA、PB、PC… 领用 / 发料 | POSOPR=6；`ACCNUMDR` = 费用 / 在制科目；LOCCOD；REMARK；TRNVAL | 每行 POSOPR=6，TRNQTY / XTRNQTY、XUNITPR、XTRNVAL、MREMBAL / MREMVAL（写后结存），ACCNUMDR 同单头 | 一张 **JNLTYP=00** 普通日记账，VOUCHER = 单号，摘要「จ่ายสินค้าภายใน + 单号」；借 STTRN.ACCNUMDR，贷存货科目（PD 按物料分到多个存货科目） |
+| JU / PI / JG / CARR 调整 / 收料 | POSOPR=8（CARR 为 5）；`ACCNUMCR` = 对方科目；JU 数量可正可负 | 行 POSOPR=8（另有 POSOPR=1），带 LOTBAL / LOTVAL / LUNITPR / VALCHG | 同上，借存货、贷 STTRN.ACCNUMCR（JU 为负时方向相反） |
+| RL 仓间调拨 | POSOPR=4；LOCCOD = 调出仓，PEOPLE = 调入仓 | 每件一对：POSOPR=4（调出）+ POSOPR=3（调入）；部分行 REIMBURSE=`ฝ` | **不过账**（6907GIZ 258 张 0 张过账）；68NLTB 只有「ปรับต้นทุนโดยโปรแกรม」（程序调成本）那几张有凭证 |
+
+- **过账金额跟 STCRD 的 XTRNVAL 走，不跟 STTRN.TRNVAL 走**：69SKCHE `PD690630-001` STTRN.TRNVAL 343,848.49，STCRD 合计与 GL 都是 344,670.13。
+  同一本账套 08-29 的旧副本到 10-23 的这份之间，4 行 PD 的 XUNITPR 被改写（193.696 → 195.531 等），说明 Express 重算成本会改写 STCRD 与凭证，不改 STTRN.TRNVAL。
+- **零金额的库存单不过账**（6907GIZ 的 OU、JU、JG，68PAISAR 的 AT、OR 没过账的都是 TRNVAL=0）。**定期盘存账套的库存单一律不过账**（68POLYM 的 OU 2595 张、JU 115 张、RL 206 张在 GLJNL 里 0 张）。
+- STTRN.POSTGL 在所有样本里都是空，过账与否看 GLJNL 有没有同号凭证。
+- 用 STCRD 按 POSOPR 方向（0 / 1 / 2 / 3 / 5 / 8 加，4 / 6 / 7 / 9 减）重算各仓结存：69SKCHE 3725 行与 STLOC.LOCBAL 全部一致，方向判定无误；
+  跨年的账套（6907GIZ、68NLTB）有出入，是 BEGBAL 只含本年度起点，不影响方向结论。
+
+**销售 / 采购的退与改**
+
+| 类 | 单头 | STCRD |
+|---|---|---|
+| SR / CN / EC / SE（ลดหนี้、退货） | ARTRN RECTYP=5，CNTYP=1 / 2 / 3，SONUM、YOUREF，ISVAT VATREC=S | POSOPR=2；`RETSTK`=Y（退回仓）/ N / 空；RDOCNUM = 原单号 + 行号（CNTYP=3 时为 `AVGPR`，不挂原单）；CNTYP=1 的行 XTRNVAL 多为 0 |
+| GR（采购退货） | APTRN RECTYP=5，DNTYP=2，PONUM = 原进货单，ISVAT VATREC=P | POSOPR=7；RETSTK=Y / N；RDOCNUM = 原 RR + 行号 |
+| DX*（เพิ่มหนี้ 加价单） | ARTRN RECTYP=4，CNTYP=2 | POSOPR=`=`，服务料号，不动库存 |
+
+**作废**：DOCSTAT=C 的单（IV、RR、RL、IC、RN…）**单头保留、STCRD 明细删掉**，IV / RR 的凭证也删掉；ISVAT 那一行保留并标 C。
+DOCSTAT=M / R 只出现在收付款单（PS、RE），不是作废。
+
+**收银（HS / HSP / HSPB / HSPO / HSPM / HH）**：一张收据一张单，ARTRN RECTYP=1（现销），STCRD POSOPR=9，和 IV（RECTYP=3）只差 RECTYP；
+68NLTB 各分店 / 各台用不同前缀。样本里没有 Express 原生的「日汇总」单——收银日汇总写成什么样是产品决定（一天一张 HS、客户用现销客户），不需要样本。
+
+**现购转账（HP）**：现金付的 APTRN 记 `CSHPAY`，凭证贷现金科目（1111）；转账付的 APTRN 记 `CHQPAY` 与 `CHQPAS`，凭证贷银行科目（6907GIZ 为 1112-07），
+同时 BKTRN 写一行：`BKTRNTYP=bP`、`BNKACC`（对应 BKMAS 的账户，C5 → 1112-07）、`VOUCHER` = HP 单号、`CHQNUM` = 「SC」+ 单号、`CHQDAT` / `GETDAT` = 单据日、
+`CHQSTAT=19`、`JNLTRNTYP=1`、`CUSCOD` / `NAME` = 供应商、AMOUNT / NETAMT。6907GIZ 的 HP 里 389 张现金、161 张转账、其余混合（含预扣税 2132-02）。
+
+**成本（XUNITPR）**：定期盘存账套销售行 XUNITPR 全是 0；永续盘存的 68NLTB 每月 2%–8% 的销售行是 0；69SKCHE 1–6 月 0 张为零、7 月 48 / 127、8 月 86 / 163 为零，
+08-29 → 10-23 之间这些零没有被补上（只改写了 6 月 PD 那 4 行）。说明「计算成本」是人手动按月跑的，没跑的月份销售成本一直是 0——见九.7 第 1 条。
+
+### 九.7 只读样本答不了、必须在 C 盘 T 账套用 Express 程序录一张看前后的最小清单（交主会话审）
+
+每条都要在测试机 `C:\PearnlyExpress` 的 T 账套里由人用 Express 程序操作一次，我们录前后各复制一份比对全部表（只读比对，写入的是 T 账套）。
+
+1. **跑一次「计算成本」（ประมวลผลต้นทุน）**：选一本有 XUNITPR=0 销售行的 T 账套（先由 CC 写一张先卖后买的单造出来）。要看它会不会补上销售行的 XUNITPR / XTRNVAL、
+   改不改 IV 与库存单的凭证金额、动不动 STTRN.TRNVAL。决定第三期成本是「回读 Express」还是「CC 自己按 COSMTD 补结转」。只读样本只看到它改写了 PD，看不到零值是否被补。
+2. **退货 RETSTK=N 与减价 CNTYP=1 各一张**：看 STLOC / STMAS 动不动。样本里这两种行都有，但没有能把它们和结存对上的账套（跨年 BEGBAL 干扰）。
+3. **作废一张 OU（或 JU）和一张 IV**：样本只看到作废后的结果（单头留、明细删、IV 凭证删），看不到 STLOC / STMAS 是否回滚、库存单凭证是删还是标 C、单号会不会被再用。
+4. **现购转账 HP 一张**（选一本有 BKMAS 的 T 账套）：确认 BKTRN 之外不再写别的表（APRCPCQ 等），以及 `CHQNUM`（样本是「SC」+ 单号）与 `CHQSTAT=19` 是程序自动给的还是人填的。
+5. （可选）**仓间调拨 RL 一张**：确认 STCRD 那一对 4 / 3 行与 REIMBURSE=`ฝ` 是什么意思；不录就按样本写法（调出 4、调入 3、PEOPLE = 调入仓、不过账）。
+
+不需要录的（样本已答清）：OU / JU / PD / PI 的单头与明细字段、库存单过账科目与摘要、零金额与定期盘存不过账、SR / GR / CN 的字段、收银单结构、作废后的表面状态、HP 转账的 BKTRN 字段。
+库存调整单 JU / PI 的凭证摘要原文这次没抄下（副本已删），要的话 S 盘再只读取一次即可，不必录单。
+
+### 九.8 第一期 A 段交付（10-25）
+
+五个分支，按 ①→③→②→⑤→④ 一条线叠起来，均已推送、CI（Development checks）全绿，**未合入 main**，等验收复核：
+
+| # | 分支 / 提交 | 内容 |
+|---|---|---|
+| ① | `pearnly/stock-a1-stloc` `9cef7f77` | 所有库存行带仓库码；CC 不论有没有仓库码都按实际写入的仓维护 STLOC，新建物料补 STLOC 行 |
+| ③ | `pearnly/stock-a3-negallow` `f9522f14` | NEGALLOW=N 的账套库存不足时整单不写，停在「需要人工」（`STOCK_INSUFFICIENT`） |
+| ② | `pearnly/stock-a2-sync` `9c4e67d8` | 同步对齐算上全部还没写进 Express 的 ERP 库存单、调整写回原库位；STLOC 合计 ≠ STMAS 的不抹 ERP 数，进公司页 Express 区差异清单（只列不拦） |
+| ⑤ | `pearnly/stock-a5-opening` `048d79e6` | 接了 Express 的公司期初从 Express 读：服务端拒绝手录，前端不显示入口 |
+| ④ | `pearnly/cc-stale-roots` `be813325`、`244e8cad`、`4e465c46`（CC 1.12.2）、`e3aedf33`（离线回归脚本） | CC 定数据根前先去掉确实没了的根：配对、重连、定时重扫三条路径 |
+
+**验证**
+
+- 本机：链尾全闸门通过（123 项）；候选离线车道（镜像 `29404c6a`）通过；CC 全量 1096 过、42 跳过（macOS）；ERP 直连测试 65 过；期初测试 19 过；check-copy 新增 5 条无拦截。
+- 101 本 C 盘 T 账套 STLOC 离线回归（`scripts/express-stloc-regression.py`，测试机，链尾 CC 代码，只写副本）：85 过 / 0 不过 / 16 跳过（15 本没有库存品、1 本没有 STLOC）。
+- NEGALLOW 离线实测（测试机，T 账套副本）：T9NIEXCP / T9GIZ / T8NLT 超量卖回 `STOCK_INSUFFICIENT`、文件逐字节不变；先进 5 再卖 1 正常写入；NEGALLOW=Y 的 T9HENG15 超量照写。
+- 实验栈（ERP、Cowork 都从生产重新导入，令牌与线上一致；镜像线上 `fb1037ad` + 链尾源码；测试机 CC 1.12.2 测试包，构建 run 40169743502）：
+
+| 入口 | 结果 |
+|---|---|
+| `erp.page.inventory` / `stock-in` / `stock-out` / `stock-card` / `stock-count` / `purchase` / `sales` / `pos-receipts` | 通过（1.5–2.4 秒） |
+| `erp.page.company` | 首次 3.4 秒超 3 秒时限（重新导入后冷启动，同批 clients、tasks 也超）；连跑 3 次 1.5–1.6 秒，通过 |
+| `erp.products.find-by-code` | 通过 |
+| `erp.cc.write` / `cc.desktop.write` | 通过：PUR-2026-140407 → HP691025-024、PUR-2026-140409 → HP691025-025，写进 C 盘 T9HENG15、CC 读回一致；STLOC 01 仓最后进货日更新到 10-25 |
+| `erp.cc.masters` | 通过：CO-00106（T9HENG15）同步 8 秒落完、再落不改任何东西；差异清单列出 3 件（「1 -    -」各仓 25 / 结存 153，PN00001、PN00002 各仓 0 / 结存 3——旧版建物料不补 STLOC 的存量） |
+| 期初入口（⑤） | 通过：CO-00106 手录期初被拒「Opening stock is read from Express」 |
+| `cowork.cc.channel` / `cowork.express.push` | 通过：SMOKE-1792912382 → HP691025-003 写进 T9NIEXCP、读回一致（服务类推送，不带库存行；不带仓库码的库存路径由 101 本离线回归覆盖） |
+| `cc.desktop.places`（④ 定时重扫） | 通过：装 1.12.2 后两个成员的授权数据根从 70 / 71 / 72EXP 三个自动减到 70EXP 一个（71EXP、72EXP 早已删掉，正是 10-25 测试机的现象） |
+| Cowork 其余页面与 LINE 模拟 | 通过（11 项） |
+| `erp.cc.connect`、`cc.desktop.bridge`、配对路径（④） | 没测到：要在测试机重新配对 / 点桌面版界面，会顶掉测试机现有成员；由 `test_stale_roots.py` 10 个用例覆盖，交验收按需真机点 |
+| `cc.desktop.requests` | ERP 同步用到的按需读取通过；Cowork 月度账本回读没测到（本批未改） |
+| `erp.company-menu`、`erp.stock-in.item-scan`、`erp.stock-out.item-scan`、`erp.entry.choices`、`erp.browser-text` | 没测到：清单因同目录文件被列入，本批没改这些代码路径；`check-copy` 已过 |
+
+- 实验栈途中发现：lab-start Cowork 后 CC 的 Cowork 心跳仍打到线上 testcowork（办公室上游 DNS 缓存旧 IP，心跳连接一直连着线上），
+  实验库判这台电脑不在线，`cowork.express.push` 被跳过；清 DNS 后重启 CC 即好。昨晚那次能过是因为导入后 3 分钟内就跑了冒烟（导入带来的 last_seen 还新鲜）。
+  以后实验栈冒烟前先核实验库里电脑的 last_seen，再跑写入冒烟。
+- **测试机 CC 现在是 1.12.2 测试包，不是正式版**；之后线上冒烟和平时都按这个版本跑，CC 正式版发布等主会话定。
+
 ## 十、状态（10-25 白天）
+
+- 10-25 下午：S 盘只读金样本做完（九.6），C 盘最小录单清单见九.7，第一期 A 段五个分支已推送、CI 全绿、实验栈冒烟通过（九.8），等验收复核后合入 main；部署由主会话定。
 
 - 10-25 生产已部署 `08bfb419`（发布记录 `docs/work/2026-10-25-release-08bfb419.md`），含 401 自愈、ERP 写账派单修复、收发存索引；第一期其余项未开工。
 - S 盘只读金样本（九.4）10-25 没做成：S 盘服务器 `192.168.0.212` 与 accserver 周日没开机（445 端口不通）；脚本已能以 skin3 身份跑，开机后照计划做。
