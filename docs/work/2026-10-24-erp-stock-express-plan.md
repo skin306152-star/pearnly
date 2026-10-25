@@ -341,6 +341,19 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 | — | 转账付款（现购转账 HP） | — | 等第 4 条 |
 | — | 不回仓退货、减价 | — | 等第 5 条（ERP 现在没有） |
 
+**B1 + B2 进度（10-25 晚，分支 `pearnly/stock-b1-issue`，未合入）**：出入库单与盘点调整同一个 DocType（ERP Stock Entry），一起做了：
+出库 → OU、入库 → JU、盘点生成的单（`ref_type = count`）→ TK（出库那张数量记负），采购自动入库（`ref_type = purchase`）不写。
+- CC：`dbf_stock.write_stock_entry`（载荷 6，旧版诚实拒收）；单号 = 单别 + 佛历年月日 + 当日序号；科目默认 ISRUN 那一行，必须可记账；
+  减少的行照 ③ 核负库存；成本移动均价（增加的用 ERP 给的单位成本）；凭证照九.7b；写前备份、读回不符整单回滚。CC 用例 14 个、全量 1112 过。
+- ERP：提交即排队（`inventory.documents._post` → `express.push.queue`）；载荷在 `express.stock_entry` 直接备（账套选法同采购 / 销售）；
+  单据加 Express 状态字段，列表多一列 Express、已提交单据的弹窗有「Express」按钮（同采购 / 销售弹窗，无新文案）；
+  同步对齐：出入库单 / 盘点调整只有已写进 Express（written / mismatch）的不算，B1 之前开的、没写成的照算。ERP 用例 69 过。
+- 离线回归（`scripts/express-stock-entry-regression.py`，101 本 C 盘 T 账套副本，先 JU +2、再 OU 1、再 TK −1）：79 过；1 本（T9GIS）
+  在盘点那张被正确拦下（这件品原本结存 −1，账套不允许负库存）；跳过 21 本：15 本没有库存品、6 本（ASIAFC / TUCL）ISRUN 的默认科目
+  不在科目表里——这类账套推出库单会停在「需要人工」（`ACCOUNT_NOT_POSTABLE`），ERP 现在没有在单据上选科目的入口，要么在 Express
+  改单据簿默认科目，要么后续加「选一次科目」（同费用科目）。
+- 冒烟：新入口 `erp.cc.stock-entry`（`scripts/smoke/express_flow.py` 的 kind = stock_out / stock_in），待实验栈跑。
+
 每项都按 A 段的做法：CC 写入（只写 C 盘 T 账套副本做离线回归）→ ERP 推送 → 同步对齐把这类来源挪进 `WRITTEN_SOURCES`（验收 10-25 提醒）→
 连带回归闸门 → 实验栈冒烟 → 验收复核 → 合入 main。部署随 A 段一起由主会话定。
 
