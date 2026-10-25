@@ -652,12 +652,22 @@ def _recount_item(item_name: str, count_name: str) -> None:
     count_live.changed(count_name)
 
 
+PHOTO_BYTES = 4 * 1024 * 1024  # 手机盘点页先在浏览器里压缩（长边 2400、JPEG 0.92，同采购上传），压完的一张远小于它
+
+
 def _save_photos(entry: str, values) -> int:
-    """照片挂到这条记录上（最多 5 张）。手机端给 base64，桌面端给已上传的 file_url。"""
+    """照片挂到这条记录上（最多 5 张），与库存单附件同一套（主会话 10-26）：
+
+    - 桌面端给已上传的 ``file_url``（上传框按原件层存，`recognition.originals` 方向 ``stock_count``）：只认本人刚上传、私有、
+      没挂过别处的 File（原来按地址谁的都挂）；
+    - 手机盘点页给 base64（页面已压缩）：交原件层存（选了 Claude 存甲骨文），站点没配原件层照旧存本机私有文件。"""
     import base64
     import binascii
+    import hashlib
 
     from frappe.utils.file_manager import save_file
+    from pearnly_core.execution.errors import Deferred
+    from pearnly_core.originals import registered
 
     values = [value for value in (values or []) if str(value or "").strip()]
     if not values:
@@ -670,18 +680,27 @@ def _save_photos(entry: str, values) -> int:
         text = str(value).strip()
         try:
             if text.startswith("/") or text.startswith("http"):
-                name = frappe.db.get_value("File", {"file_url": text}, "name",
-                                           order_by="creation desc")
+                name = frappe.db.get_value("File", {"file_url": text, "owner": frappe.session.user, "is_private": 1,
+                                                   "attached_to_name": ["is", "not set"]}, "name", order_by="creation desc")
                 if not name:
                     frappe.throw(_("That photo could not be read"))
                 frappe.db.set_value("File", name, {"attached_to_doctype": ENTRY,
                                                    "attached_to_name": entry})
             else:
                 raw = base64.b64decode(text, validate=True)
-                if not raw or len(raw) > 1024 * 1024:
+                if not raw or len(raw) > PHOTO_BYTES:
                     raise ValueError("photo too large")
-                save_file(f"stocktake-{entry}-{existing + saved + 1}.jpg", raw, ENTRY, entry,
-                          is_private=1)
+                filename = f"stocktake-{entry}-{existing + saved + 1}.jpg"
+                seed = f"{frappe.local.site}|{frappe.session.user}|stock_count|{entry}|{hashlib.sha256(raw).hexdigest()}"
+                try:
+                    stored = registered.put("ERO-" + hashlib.sha256(seed.encode()).hexdigest()[:48], filename, raw,
+                                            attached_to_doctype=ENTRY, attached_to_name=entry)
+                except Deferred:
+                    frappe.throw(_("The file could not be saved. Please try again shortly."))
+                if isinstance(stored, dict):
+                    raise ValueError("photo rejected")
+                if stored is None:  # 这个站点没配原件层
+                    save_file(filename, raw, ENTRY, entry, is_private=1)
         except (ValueError, binascii.Error):
             frappe.throw(_("That photo could not be read"))
         saved += 1

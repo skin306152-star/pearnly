@@ -1397,6 +1397,7 @@ Unticked: cost not set.,チェックなし：原価未設定。
 "Unticked: no cashier pages, role or permissions for this company",チェックなし：この会社ではレジ画面・ロール・権限を使用しません
 Unticked: price not set (not ฿0).,チェックなし：価格未設定（฿0 ではありません）。
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
+Up to {0} attachments,添付は {0} 件まで
 Update Additional Information,追加情報を更新
 Update Stock,在庫更新
 Updated,更新しました
@@ -2093,6 +2094,7 @@ stock.action.export,エクスポート
 stock.action.ledger,在庫の受け払いを開く
 stock.action.ledgerSingle,明細は1行ずつ開きます
 stock.action.reload,再読み込み
+stock.attachmentLimit,添付は {0} 件まで
 stock.board.by,グラフの軸
 stock.board.freezeColumn,列を固定
 stock.board.only,表示のみ

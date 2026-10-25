@@ -121,7 +121,7 @@ name = "ERP 上传原件识别"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
 markers = [".erp_upload_with("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.purchase.original-upload", "erp.sales.original-upload"]
+entries = ["erp.purchase.original-upload", "erp.sales.original-upload", "erp.stock-in.attach", "erp.stock-out.attach", "erp.stock-count.upload"]
 
 [[part]]
 id = "erp-company-menu"
@@ -138,6 +138,7 @@ paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
 markers = ["new frappe.ui.FileUploader", "\"Attach Image\"", ".shrink_photo("]
 search = ["apps/**/*.js", "apps/**/*.html"]
 entries = ["shared.home.topup-proof", "erp.page.company", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload"]
+entries = ["shared.home.topup-proof", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload", "erp.stock-in.attach", "erp.stock-out.attach"]
 
 [[part]]
 id = "cowork-intake-upload"
@@ -227,7 +228,7 @@ name = "上传照片压缩配置"
 paths = ["apps/pearnly_core/pearnly_core/desk/upload.py"]
 markers = ["pearnly_core.desk.upload", "pearnly_shrink_photos", ".shrink_photo("]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["shared.upload.shrink-photo"]
+entries = ["shared.upload.shrink-photo", "erp.stock-in.attach", "erp.stock-out.attach", "erp.stock-count.upload"]
 
 [[part]]
 id = "erp-masters-access"
@@ -268,7 +269,7 @@ name = "识别（ocr / claude_ocr / 原件）"
 paths = ["apps/pearnly_core/pearnly_core/ocr.py", "apps/pearnly_core/pearnly_core/ocr_models/**", "apps/pearnly_core/pearnly_core/ocr_record.py", "apps/pearnly_core/pearnly_core/claude_ocr/**", "apps/pearnly_core/pearnly_core/originals/**"]
 markers = ["pearnly_core.ocr", "pearnly_core import ocr", "import billing_client, ocr", "pearnly_core.claude_ocr", "pearnly_core import claude_ocr", "pearnly_core.originals", "pearnly_core import originals"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.ocr", "cowork.ocr", "dms.ocr.id-card", "shared.originals.download", "shared.ocr.pipeline"]
+entries = ["erp.ocr", "cowork.ocr", "dms.ocr.id-card", "shared.originals.download", "shared.ocr.pipeline", "erp.stock-count.upload", "erp.stock-in.attach", "erp.stock-out.attach"]
 
 [[part]]
 id = "login-session"
@@ -326,7 +327,7 @@ name = "识别队列与后台执行（execution）"
 paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push"]
+entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload"]
 
 [[part]]
 id = "assistant"
@@ -1037,10 +1038,28 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-opening.j
 id = "erp.stock-count.upload"
 product = "ERP"
 where = "盘点上传 / 凭证照片"
-steps = "库存盘点 → 上传表；录入里拍凭证"
-expect = "导入成功；凭证照片保存"
+steps = "库存盘点 → 上传表；录入里拍凭证（电脑选图 / 拍照，手机 LINE 盘点页拍照）"
+expect = "导入成功；凭证照片先压缩、存进统一原件层（本机只留登记）、挂到这条记录，最多 5 张；别人上传的文件挂不上"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py"]
+
+[[entry]]
+id = "erp.stock-in.attach"
+product = "ERP"
+where = "入库单附件（图片、PDF、拍照）"
+steps = "入库 → 新建（弹窗或整页）→ 附件区「Attach」选图 / 拍照 / PDF → 提交；打开已提交的单再加一张；草稿删一张"
+expect = "照片先压缩、存进统一原件层，挂到单上能打开；已提交只能加不能删，作废的单不再加；每张单最多 10 个；别人上传的文件挂不上"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/attachments.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/originals.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
+
+[[entry]]
+id = "erp.stock-out.attach"
+product = "ERP"
+where = "出库单附件（图片、PDF、拍照）"
+steps = "出库 → 新建（弹窗或整页）→ 附件区「Attach」选图 / 拍照 / PDF → 提交；打开已提交的单再加一张"
+expect = "同入库单附件；只有出库能力的岗位能往出库单挂"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/attachments.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/originals.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"]
 
 [[entry]]
 id = "erp.purchase.original-upload"

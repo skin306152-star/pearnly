@@ -1693,3 +1693,4 @@ Is this company VAT registered	该公司是增值税登记户吗	บริษั
 Yes	是	ใช่	はい	express.option.yes
 No	否	ไม่ใช่	いいえ	express.option.no
 VAT Registered	增值税登记户	จดทะเบียนภาษีมูลค่าเพิ่ม	VAT 登録事業者	company.field.vatRegistered
+Up to {0} attachments	最多 {0} 个附件	แนบได้สูงสุด {0} ไฟล์	添付は {0} 件まで	stock.attachmentLimit

@@ -1397,6 +1397,7 @@ Unticked: cost not set.,หากไม่ได้เลือก หมาย�
 "Unticked: no cashier pages, role or permissions for this company",หากไม่เลือก บริษัทนี้จะไม่มีหน้าแคชเชียร์ บทบาท และสิทธิ์
 Unticked: price not set (not ฿0).,หากไม่ได้เลือก หมายถึงยังไม่ได้ตั้งราคา (ไม่ใช่ราคา ฿0)
 Up to 5 photos per entry; take a photo or choose from the gallery.,บันทึกได้ไม่เกิน 5 รูปต่อรายการ โดยถ่ายรูปหรือเลือกจากอัลบั้ม
+Up to {0} attachments,แนบได้สูงสุด {0} ไฟล์
 Update Additional Information,อัปเดตข้อมูลเพิ่มเติม
 Update Stock,อัปเดตสต็อก
 Updated,อัปเดตแล้ว
@@ -2093,6 +2094,7 @@ stock.action.export,ส่งออก
 stock.action.ledger,ดูบัญชีสต็อก
 stock.action.ledgerSingle,กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก
 stock.action.reload,โหลดใหม่
+stock.attachmentLimit,แนบได้สูงสุด {0} ไฟล์
 stock.board.by,แผนภูมิแบ่งตาม
 stock.board.freezeColumn,ตรึงคอลัมน์
 stock.board.only,แสดงเฉพาะ

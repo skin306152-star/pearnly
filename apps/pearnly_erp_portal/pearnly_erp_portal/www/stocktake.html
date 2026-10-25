@@ -361,11 +361,27 @@
           };
         }
 
-        function toBase64(file) {
+        // 照片先压缩再传（与网页端上传同一套：转正、长边超过 2400 缩到 2400、JPEG 0.92；服务端存进统一原件层）
+        async function shrink(file) {
+          try {
+            const bitmap = await createImageBitmap(file, {imageOrientation: 'from-image'});
+            const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(bitmap.width * scale);
+            canvas.height = Math.round(bitmap.height * scale);
+            canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+            return blob || file;
+          } catch (error) {
+            return file;  // 读不出的格式照原样传，服务端会转（iPhone 照片）
+          }
+        }
+        async function toBase64(file) {
+          const small = await shrink(file);
           return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(small);
           });
         }
 

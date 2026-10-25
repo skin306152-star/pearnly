@@ -1,10 +1,10 @@
-"""采购 / 销售单据原件的上传（ADR-024 统一原件层）：网页上传附件不再走 Frappe 原生 ``upload_file`` 存本机，按租户路线存原件层
+"""采购 / 销售单据原件、库存单附件、盘点照片的上传（ADR-024 统一原件层）：网页上传附件不再走 Frappe 原生 ``upload_file`` 存本机，按租户路线存原件层
 （选了 Claude → 甲骨文、谷歌租户 → 谷歌存储），本机只留登记 File（``pearnly_core.originals.registered``）；之后挂附件、识别、
 预览、下载都照旧按 File 名。
 
 - 直传：``begin`` 签一个上传地址，浏览器把原件直接 PUT 到存放处，``finish`` 请存放处读一遍（类型、页数、sha256）后登记。
 - 经服务器（iPhone 照片要先转 JPEG、站点没配原件层）：``upload`` 收 multipart，交原件层存；没配原件层照旧建本机私有 File。
-- 原件 id ``ERO-`` + 48 位十六进制，由「站点 + 本人 + 采购 / 销售 + 页面给的幂等键」算出：同一份重试不会存两份，别人猜不出。
+- 原件 id ``ERO-`` + 48 位十六进制，由「站点 + 本人 + 方向（采购 / 销售 / 入库 / 出库 / 盘点）+ 页面给的幂等键」算出：同一份重试不会存两份，别人猜不出。
 """
 import hashlib
 import re
@@ -16,7 +16,9 @@ from pearnly_core.originals.rules import IMAGE_EXTENSIONS, file_extension
 
 from pearnly_erp_portal.access import guard
 
-CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write"}
+# 库存单附件（入库 / 出库）、盘点照片（主会话 10-26）同一套上传：按方向要各自的开单能力
+CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write", "stock_in": "stock.in", "stock_out": "stock.out",
+              "stock_count": "count.write"}
 KINDS = {**{suffix: "image" for suffix in IMAGE_EXTENSIONS}, ".pdf": "pdf"}
 MAX_BYTES = 20 * 1024 * 1024  # 与页面上传框的上限一致
 KEY = re.compile(r"[A-Za-z0-9-]{8,64}")

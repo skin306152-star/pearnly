@@ -1397,6 +1397,7 @@ Unticked: cost not set.,未勾选表示尚未设置成本。
 "Unticked: no cashier pages, role or permissions for this company",未勾选则该公司不开放收银功能
 Unticked: price not set (not ฿0).,未勾选表示尚未设置价格（并非 ฿0）。
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
+Up to {0} attachments,最多 {0} 个附件
 Update Additional Information,更新附加信息
 Update Stock,更新库存
 Updated,已更新
@@ -2093,6 +2094,7 @@ stock.action.export,导出
 stock.action.ledger,查看流水
 stock.action.ledgerSingle,请仅选择一行以查看流水
 stock.action.reload,刷新
+stock.attachmentLimit,最多 {0} 个附件
 stock.board.by,统计维度
 stock.board.freezeColumn,冻结列
 stock.board.only,仅显示

@@ -1,11 +1,14 @@
-/* 采购 / 销售附件原件的上传（ADR-024 统一原件层；服务端 `pearnly_erp_portal.recognition.originals`）。
+/* 采购 / 销售附件、库存单附件、盘点照片原件的上传（ADR-024 统一原件层；服务端 `pearnly_erp_portal.recognition.originals`）。
  * 上传框仍是官方 `frappe.ui.FileUploader`（拍照、多选、进度都照旧），只把「传到哪」换掉：按租户路线存原件层——
  * 能直传就由浏览器直接 PUT 到存放处（甲骨文 / 谷歌存储），不经过我们服务器；iPhone 照片、没配原件层的站点经服务器传。
  * 回复与原生上传的 File 一样有 `name / file_url / file_name`，之后挂附件、识别照旧。 */
 (() => {
 	const p = frappe.pearnly;
-	const API = {purchase: "pearnly_erp_portal.purchasing.api.api_purchase_upload",
-		sales: "pearnly_erp_portal.sales.api.api_sale_upload"};
+	// 库存单附件（入库 / 出库）、盘点照片同一套（主会话 10-26）：同一个接口，另带 `direction`（in / out / count）
+	const STOCK = "pearnly_erp_portal.inventory.api.api_stock_upload";
+	const API = {purchase: ["pearnly_erp_portal.purchasing.api.api_purchase_upload"],
+		sales: ["pearnly_erp_portal.sales.api.api_sale_upload"],
+		stock_in: [STOCK, "in"], stock_out: [STOCK, "out"], stock_count: [STOCK, "count"]};
 	const new_key = () => (crypto?.randomUUID ? crypto.randomUUID()
 		: `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 14)}`);
 
@@ -18,14 +21,16 @@
 	};
 
 	p.erp_upload_original = async (file, direction) => {
-		const method = API[direction], request_key = new_key();
-		const meta = () => new URLSearchParams({filename: file.name, byte_size: String(file.size), request_key});
+		const [method, extra] = API[direction], request_key = new_key();
+		const meta = () => new URLSearchParams({filename: file.name, byte_size: String(file.size), request_key,
+			...(extra ? {direction: extra} : {})});
 		const begun = await post(`${method}_begin`, meta());
 		if (begun.done) return begun.done;
 		if (!begun.direct) {
 			const body = new FormData();
 			body.append("file", file, file.name);
 			body.append("request_key", request_key);
+			if (extra) body.append("direction", extra);
 			return post(method, body);
 		}
 		const put = await fetch(begun.url, {method: "PUT", body: file, headers: begun.headers});

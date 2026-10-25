@@ -116,22 +116,33 @@
 			d.get_primary_btn().toggle(show);
 		}
 		// ── 照片 ────────────────────────────────────────────────────────────────
-		// 原生上传器（`frappe.ui.FileUploader`）：多选、可选拍照，默认存成私有文件；
-		// 这里只收集 `file_url`，提交时由服务端把 File 挂到这条记录上（`counts._save_photos`）。
+		// 原生上传器（`frappe.ui.FileUploader`）：多选、可选拍照。与库存单附件同一套（主会话 10-26）：照片先压缩，
+		// 传到统一原件层（`erp-originals.js`，方向 stock_count），本机只留登记；这里只收集 `file_url`，提交时由服务端
+		// 把本人刚上传的 File 挂到这条记录上（`counts._save_photos`）。
 		function pick_photos() {
 			const left = PHOTO_MAX - existing.length - photos.length;
 			if (left <= 0) { frappe.msgprint(w("photoLimit")); return; }
-			new frappe.ui.FileUploader({
+			const on_success = file => {
+				if (!file?.file_url) return;
+				if (existing.length + photos.length >= PHOTO_MAX) { frappe.msgprint(w("photoLimit")); return; }
+				photos.push({ url: file.file_url, name: file.file_name || String(file.file_url).split("/").pop() });
+				render_photos();
+			};
+			const uploader = new frappe.ui.FileUploader({
 				allow_multiple: true,
 				allow_take_photo: true,
 				allow_toggle_private: false,
+				make_attachments_public: false,
 				restrictions: { allowed_file_types: ["image/*"] },
-				on_success: file => {
-					if (!file?.file_url) return;
-					if (existing.length + photos.length >= PHOTO_MAX) { frappe.msgprint(w("photoLimit")); return; }
-					photos.push({ url: file.file_url, name: file.file_name || String(file.file_url).split("/").pop() });
-					render_photos();
-				},
+				on_success,
+			});
+			p.erp_upload_with(uploader, "stock_count", on_success, async () => {
+				for (const item of uploader.uploader.files) {
+					if (!item.file_obj || item.shrunk) continue;
+					const smaller = await p.shrink_photo(item.file_obj);
+					if (smaller !== item.file_obj) Object.assign(item, { file_obj: smaller, name: smaller.name });
+					item.shrunk = true;
+				}
 			});
 		}
 		function render_photos() {

@@ -5,6 +5,7 @@ from frappe import _
 from frappe.utils import flt
 
 from pearnly_erp_portal.inventory import (
+    attachments,
     count as counts,
     documents,
     openings,
@@ -67,8 +68,15 @@ def api_create_stock_entry(**kwargs):
     guard.require("stock." + str(kwargs.get("direction")))
     kwargs.pop("numbering_direction", None)
     kwargs.pop("commit", None)
-    _json_args(kwargs, "lines")
-    return documents.create_entry(**_clean(kwargs))
+    _json_args(kwargs, "lines", "attachments")
+    kwargs = _clean(kwargs)
+    # 新建时先选好的附件（已传到原件层的登记 File）：建单前先核，建好后挂上（`inventory.attachments`）
+    files = attachments.check(kwargs.pop("attachments", None))
+    result = documents.create_entry(**kwargs)
+    if files:
+        attachments.bind(documents._get(result["name"]), files)
+        frappe.db.commit()
+    return result
 
 
 @frappe.whitelist()
@@ -93,10 +101,62 @@ def api_get_stock_entry(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_update_stock_entry(**kwargs):
-    _json_args(kwargs, "lines")
+    _json_args(kwargs, "lines", "attachments")
     kwargs = _clean(kwargs)
     name = kwargs.pop("name", None)
-    return documents.update_entry(name, **kwargs)
+    files = kwargs.pop("attachments", None)
+    result = documents.update_entry(name, **kwargs)
+    if files:
+        attachments.add(name, files)
+    return result
+
+
+# ── 出入库单附件（统一原件层；`inventory.attachments`）─────────────────────────────
+_UPLOAD_DIRECTIONS = {"in": "stock_in", "out": "stock_out", "count": "stock_count"}
+
+
+def _upload_direction(direction):
+    if direction not in _UPLOAD_DIRECTIONS:
+        frappe.throw(_("Invalid value"))
+    return _UPLOAD_DIRECTIONS[direction]
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_upload_begin(direction, filename, byte_size, request_key):
+    """附件 / 盘点照片原件直传第一步（`recognition.originals`）；``direction`` = in / out / count。"""
+    from pearnly_erp_portal.recognition import originals
+
+    return originals.begin(_upload_direction(direction), filename, byte_size, request_key)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_upload_finish(direction, filename, byte_size, request_key):
+    from pearnly_erp_portal.recognition import originals
+
+    return originals.finish(_upload_direction(direction), filename, byte_size, request_key)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_upload(direction, request_key):
+    """经服务器上传一份（iPhone 照片、站点没配原件层）。"""
+    from pearnly_erp_portal.recognition import originals
+
+    return originals.upload(_upload_direction(direction), request_key)
+
+
+@frappe.whitelist()
+def api_stock_entry_files(name):
+    return attachments.files(name)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_add_stock_entry_files(name, files):
+    return attachments.add(name, frappe.parse_json(files) if isinstance(files, str) else files)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_remove_stock_entry_file(name, file):
+    return attachments.remove(name, file)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -35,7 +35,7 @@
 		const priced = direction === "in";
 		// 弹窗点「全屏编辑」时把已填的值带进二级页面（两边在同一个闭包里，不必写进 URL）。
 		let carry = null;
-		let list, form, lines = null, head = null;
+		let list, form, lines = null, head = null, page_files = null;
 
 		// 单据号的那一格：新建时把**当前要发的号**显示出来（只读预览，不占号）—— 号由系统发、
 		// 不给改，但要看得见（旧系统 mrerp 的表单也是把号填进只读输入框）。
@@ -118,6 +118,76 @@
 			label: __(`stock.purpose.${value}`) }));
 		const purpose_label = value => (value ? __(`stock.purpose.${value}`) : "");
 
+		// ── 附件：入库 / 出库附图片、PDF 或当场拍照（岳父 10-25，`inventory.attachments`）─────────────────────
+		// 上传框是官方 FileUploader（拍照、多选），照片先压缩，传到统一原件层（`erp-originals.js`）。新建 / 草稿时选的先挂在
+		// 页面上、提交时一起挂到单；已提交的单选了就挂上，只能加不能删；作废的单不再加。每张单最多 10 个（服务端同样拦）。
+		const ATTACH_MAX = 10;
+		const attachment_fields = can_attach => [
+			{ fieldtype: "Section Break", label: __("Attachments") },
+			{ fieldtype: "HTML", fieldname: "attachment_list" },
+			...(can_attach ? [{ fieldtype: "Button", fieldname: "attach", label: __("Attach") }] : []),
+		];
+		function attachments_area(target, { name = null, status = "draft", can_attach = false } = {}) {
+			let kept = [], pending = [], file_list = null;
+			const live = Boolean(name) && status !== "draft";
+			const render = async () => {
+				file_list?.destroy?.();
+				const host = target.fields_dict.attachment_list?.$wrapper;
+				if (!host) return;
+				const rows = [...kept.map(row => ({ ...row, kept: 1 })), ...pending];
+				if (!rows.length) { host.empty(); return; }
+				file_list = p.list({ page, container: host, compact_columns: true, selectable: false, doctype: "File",
+					load: async () => ({ items: rows, total: rows.length }),
+					on_open: row => window.open(row.file_url, "_blank", "noopener,noreferrer"),
+					columns: [{ fieldname: "file_name", label: __("File Name"), width: 260, min_width: 120 }],
+					row_actions: row => (!can_attach || (row.kept && live)) ? [] : [{ id: "delete", label: __("Delete"),
+						action: () => frappe.confirm(__("Are you sure you want to delete the attachment?"), async () => {
+							if (row.kept) kept = await p.call(api + "api_remove_stock_entry_file", { name, file: row.name }, "POST");
+							else {
+								await frappe.call({ method: "frappe.client.delete", args: { doctype: "File", name: row.name }, type: "POST" });
+								pending = pending.filter(item => item.name !== row.name);
+							}
+							frappe.utils.play_sound("delete");
+							await render();
+						}) }] });
+				await file_list.ready;
+				file_list.$paging_area.hide();
+			};
+			const on_success = async file => {
+				if (!file?.name) return;
+				if (live) kept = await p.call(api + "api_add_stock_entry_files", { name, files: [file.name] }, "POST");
+				else if (!pending.some(row => row.name === file.name)) {
+					pending.push({ name: file.name, file_url: file.file_url, file_name: file.file_name });
+				}
+				await render();
+			};
+			const pick = () => {
+				if (kept.length + pending.length >= ATTACH_MAX) { frappe.msgprint(__("stock.attachmentLimit", [ATTACH_MAX])); return; }
+				const uploader = new frappe.ui.FileUploader({ allow_multiple: true, allow_web_link: false, allow_google_drive: false,
+					disable_file_browser: true, allow_take_photo: true, allow_toggle_private: false, make_attachments_public: false,
+					allow_toggle_optimize: false, on_success,
+					restrictions: { allowed_file_types: ["image/*", ".pdf"], max_file_size: 20 * 1024 * 1024 } });
+				p.erp_upload_with(uploader, direction === "out" ? "stock_out" : "stock_in", on_success, async () => {
+					for (const item of uploader.uploader.files) {
+						if (!item.file_obj || item.shrunk) continue;
+						const smaller = await p.shrink_photo(item.file_obj);
+						if (smaller !== item.file_obj) Object.assign(item, { file_obj: smaller, name: smaller.name });
+						item.shrunk = true;
+					}
+				});
+			};
+			if (target.fields_dict.attach) target.fields_dict.attach.df.click = pick;
+			return {
+				async load() {
+					if (name) kept = await p.call(api + "api_stock_entry_files", { name });
+					await render();
+				},
+				names: () => pending.map(row => row.name),
+				carry: () => pending.slice(),
+				restore(rows) { pending = (rows || []).slice(); },
+			};
+		}
+
 		function entry_values() {
 			const values = form.get_values();
 			if (!values) return null;
@@ -195,7 +265,8 @@
 			const posting_date = doc.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default(doc, posting_date);
 			let d;
-			const fields = entry_fields({ doc, doc_no, editable });
+			const can_attach = canWrite && doc.status !== "void";
+			const fields = [...entry_fields({ doc, doc_no, editable }), ...attachment_fields(can_attach)];
 			// 写进 Express 的情况（状态、单号、原因、再写一次）：采购 / 销售同一个弹窗
 			// 已写进 Express 后又作废的：同一个弹窗里看 Express 作废原单的结果（转人工的能重试）
 			if ((doc.status === "submitted" || doc.express_void_state) && doc.express_state && frappe.boot.pearnly_express) fields.push({
@@ -223,19 +294,22 @@
 					// 一次调用就建单/改单 + 过账；完了回列表，不停在这一页。
 					const result = await p.call(api + (name ? "api_update_stock_entry" : "api_create_stock_entry"), {
 						...(name ? { name } : { direction }), submit: 1, ...clean({ ...values, lines: rows }),
+						attachments: files.names(),
 					}, "POST");
 					dialog.hide();
 					p.success(t("trade.notice.submitted", result.doc_no || ""));
 					await list?.reload();
 				});
 			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
+			const files = attachments_area(d, { name, status: doc.status || "draft", can_attach });
+			await files.load();
 			// 明细：录入时是**逐条摊开**的（见 `mount_lines`）。
 			if (editable) mount_lines(d.fields_dict.lines.$wrapper, doc.lines || null, d);
 			// 只有新建（或还没提交的草稿）才摊成整页；已提交的单据点开就是看。
 			if (editable) {
 				// 搬到整页去改：明细也一起带走（这里**不校验**，过去了再改）。
 				p.edit_all(d, t("trade.action.fullPage"), url(SECOND), values => {
-					carry = { ...values, lines: lines ? lines.values({ check: false }) : values.lines };
+					carry = { ...values, lines: lines ? lines.values({ check: false }) : values.lines, attachments: files.carry() };
 				});
 			}
 		}
@@ -252,8 +326,11 @@
 			const posting_date = values.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default({}, posting_date);
 			if (frappe.get_route()[0] !== root) return;
-			form = p.layout(page.main, entry_fields({ doc: values, doc_no, editable: true, data }));
+			form = p.layout(page.main, [...entry_fields({ doc: values, doc_no, editable: true, data }), ...attachment_fields(true)]);
 			mount_lines(form.fields_dict.lines.$wrapper, data, form);
+			page_files = attachments_area(form, { can_attach: true });
+			page_files.restore(values.attachments);
+			await page_files.load();
 			page.set_primary_action(t("trade.action.submit"), () => void submit_new());
 		}
 
@@ -262,7 +339,7 @@
 			if (!values) return;
 			if (!await p.express_preflight("ERP Stock Entry", { direction, ...values })) return;
 			const result = await p.call(api + "api_create_stock_entry",
-				{ direction, submit: 1, ...values }, "POST");
+				{ direction, submit: 1, ...values, attachments: page_files?.names() || [] }, "POST");
 			await list?.reload();
 			p.success(t("trade.notice.submitted", result.doc_no || ""));
 			// 提交完回列表，不在编辑页停留。
@@ -273,7 +350,7 @@
 
 		async function render(rest) {
 			p.clear_page(page);
-			list = null; form = null; lines = null; head = null;
+			list = null; form = null; lines = null; head = null; page_files = null;
 			if (!rest.length) { open_list(); return; }
 			if (rest[0] !== SECOND || !canWrite) { p.redirect_up(root); return; }
 			await open_new();
