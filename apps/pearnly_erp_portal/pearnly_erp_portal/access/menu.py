@@ -9,7 +9,7 @@ CATALOG = {
     "inventory": ("warehouses", "ERP Stock", ("inventory.read",), (), ("ERP Stock Balance", *SERIALS)),
     "stock-in": ("warehouses", "ERP Stock", ("stock.in",), ("ERP Stock Entry",), SERIALS),
     "stock-out": ("warehouses", "ERP Stock", ("stock.out",), ("ERP Stock Entry",), SERIALS),
-    "stock-card": ("stockcard", "ERP Stock", ("report.read", "report.write"), ("ERP Stock Opening",), ("ERP Stock Movement",)),
+    "stock-card": ("stockcard", "ERP Stock", ("report.read", "report.write"), ("ERP Stock Opening",), ("ERP Stock Movement", *SERIALS)),
     "stock-count": ("stocktake", "ERP Stock", ("count.read", "count.write"),
                     ("ERP Stock Count", "ERP Stock Count Item", "ERP Stock Count Entry"), SERIALS),
     "purchase": ("purchase", "ERP Purchase", ("purchase.read", "purchase.write"),

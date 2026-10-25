@@ -26,10 +26,14 @@
       "doctypes": [
         "ERP Product",
         "ERP Product Unit",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
       "read_only": [
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ]
     },
     {
@@ -45,11 +49,15 @@
         "ERP Stock Entry Line",
         "ERP Stock Movement",
         "ERP Stock Balance",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
       "read_only": [
         "ERP Product",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ]
     },
     {
@@ -60,10 +68,14 @@
       "role": "ERP Stock",
       "doctypes": [
         "ERP Stock Opening",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
       "read_only": [
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ]
     },
     {
@@ -75,9 +87,14 @@
       "doctypes": [
         "ERP Stock Count",
         "ERP Stock Count Item",
-        "ERP Stock Count Entry"
+        "ERP Stock Count Entry",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
-      "read_only": []
+      "read_only": [
+        "ERP Serial No",
+        "ERP Serial Movement"
+      ]
     },
     {
       "code": "purchase",
@@ -95,11 +112,15 @@
         "ERP LINE Intake",
         "ERP Purchase Category",
         "ERP Purchase Attachment",
-        "ERP Purchase Payment"
+        "ERP Purchase Payment",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
       "read_only": [
         "ERP Product",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ]
     },
     {
@@ -114,11 +135,15 @@
         "ERP Sales Attachment",
         "ERP Product",
         "ERP Company",
-        "ERP LINE Intake"
+        "ERP LINE Intake",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
       "read_only": [
         "ERP Product",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ]
     },
     {
@@ -149,12 +174,16 @@
         "ERP Sale Line",
         "ERP Sale Payment",
         "ERP Customer",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ],
       "read_only": [
         "ERP Product",
         "ERP Customer",
-        "ERP Company"
+        "ERP Company",
+        "ERP Serial No",
+        "ERP Serial Movement"
       ]
     },
     {

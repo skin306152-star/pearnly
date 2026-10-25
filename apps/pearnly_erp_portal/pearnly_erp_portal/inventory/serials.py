@@ -326,7 +326,7 @@ __all__ = ["IN_STOCK", "ISSUED", "SOLD", "VOID", "apply", "line_serials", "looku
 # ── 接口（页面：认台、选台、按台记录列表、开 / 关按台、按台期初 Excel）──────────────────────
 
 READ_CAPABILITIES = ("inventory.read", "stock.read", "cashier.read", "receipts.read", "sales.read", "purchase.read", "count.read",
-                     "products.view")
+                     "products.view", "report.read")
 LIST_FIELDS = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location",
                "in_ref_type", "in_ref", "in_date", "out_ref_type", "out_ref", "out_date"]
 STATUSES = (IN_STOCK, SOLD, ISSUED, VOID)
