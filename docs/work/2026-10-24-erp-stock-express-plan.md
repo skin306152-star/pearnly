@@ -379,6 +379,22 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 - B3b 当天退货 SR（CNTYP 2、RETSTK Y，货回仓）：共用规则与 CC 都还不会写 SR；先从 S 盘只读补读 SR 的凭证与税记录写法（九.6 只读过
   字段），再做 CC 的 SR 写入与 ERP 侧。B3a 先上时，退货小票留在 ERP（同步对齐照算，不被抹）。
 
+**现购用转账付款的写法（C 盘录单第 4 条在服务器测试账套实录，10-25 晚；开发窗口只读比对副本 `4a-before → 4a-cash → 4a-after`）**
+- 默认：现购 HP 保存时不弹付款框，全额记现金——APTRN.CSHPAY = 1070、RCVAMT / PAYAMT = 1070、CMPLAPP = Y；凭证 JNLTYP 04：借存货 / 费用 1000、
+  借进项税 70、贷现金 11-01-01-00 1070。
+- 改成转账（付款页「ชำระโดยอื่นๆ」选付款类型）后只多改这些：
+  - 新增 **APRCPCQ** 一行：`RCPNUM = 单号`、`CHQNUM = 付款类型前缀 + 单号`（TA + HP0000006 = TAHP0000006）、`PAYAMT = 金额`；
+  - APTRN：CSHPAY → 0，CHQPAY、CHQPAS → 金额；
+  - 凭证：贷现金那行打删除标记，新增一行贷付款类型的科目（TA → 11-01-03-03），SEQIT 5；**BKTRN 不写**；
+  - 现象：APTRN.ADVNUM 被 Express 自己写成「AE」（金额 0），不照抄。Express 改单时还会追加几行带删除标记的临时凭证行，不照抄。
+- **付款类型清单就在 ISRUN 里**：`DOCTYP = ZP`（付款）一行一种，`PREFIX` 是类型码（QP 支票、TS、TN 转账、CN、KT、TA、MD…），`ACCNUM01` 是对应科目，
+  `POSDES` 是名称。所以「按公司选一次 Express 付款类型」的选项直接读这本账套 ISRUN 的 ZP 行（CC 主档读回已读 ISRUN，加读 ZP 即可）。
+- 收款端对照（推断，**待测**）：同一张 ISRUN 有 `DOCTYP = ZR`（收款类型：QR 支票、CH 现金、TR 转账、VS 刷卡、TX 被扣税…，同样 PREFIX + ACCNUM01；这本的 TR 没配科目），
+  且有 **ARRCPCQ**（RCPNUM、CHQNUM、RCVAMT）表，结构与 APRCPCQ 对称。推断现销 HS 收转账 = ARRCPCQ 一行（CHQNUM = 收款类型前缀 + 单号）+ ARTRN 现金栏改支票栏 +
+  凭证借收款类型科目。列进 C 盘（服务器测试账套）待测：录一张现销、收款改成 TR / VS，比对落库。
+- **对 B3a 日汇总的影响（设计时要定）**：B3a 现在照 Cowork 线上 POS 导入的做法，非现金付款各写一张「借收款科目 / 贷现金」转账凭证；Express 原生是在 HS 上
+  记收款类型（ARRCPCQ）。若收款端待测证实上面的推断，B3a 应改成原生写法，并且 Cowork 的 POS 导入是同一份共用规则，要一起评估（动 Cowork 线上行为）。
+
 **作废的写法（C 盘录单第 2 条在服务器测试账套实录，10-25 晚；主会话定：照 Express 原生作废原单，取代「写冲销单」）**
 - Express 原生作废（工具栏第 3 个按钮，一次确认，不要原因、不要密码）是在原单上作废：
   - 销项 IV：ARTRN 留行，DOCSTAT = C、金额清 0、CMPLAPP = Y；ISVAT 留行清 0、标 C；GLJNL 头标 C，GLJNLIT 金额清空；
