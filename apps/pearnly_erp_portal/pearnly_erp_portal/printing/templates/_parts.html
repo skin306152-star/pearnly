@@ -1,10 +1,11 @@
 {#- 领料单 / 收货单共用的版面零件（岳父样板 1:1，A4 横向，每页 10 行）。
     排版只用表格：PDF 生成器 wkhtmltopdf 0.12（老 WebKit）不认 flex / grid。泰文字体用镜像自带的 Loma。 -#}
-{% macro styles() -%}
+{% macro styles(fonts_css="") -%}
 <style>
+{{ fonts_css }}
 @page { size: A4 landscape; margin: 6mm; }
 .print-format { orientation: Landscape; margin-top: 6mm; margin-bottom: 5mm; margin-left: 7mm; margin-right: 7mm; padding: 0 !important; max-width: none !important; }
-.print-format .pp { font-family: "Loma", "FreeSerif", sans-serif; color: #24332b; font-size: 11px; line-height: 1.35; }
+.print-format .pp { font-family: "PearnlyPrint", "Loma", "FreeSerif", sans-serif; color: #24332b; font-size: 11px; line-height: 1.35; }
 .print-format .pp-page { position: relative; page-break-after: always; }
 .print-format .pp-page.pp-last { page-break-after: auto; }
 .print-format .pp table { border-collapse: separate; border-spacing: 0; width: 100%; }

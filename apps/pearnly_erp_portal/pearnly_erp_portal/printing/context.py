@@ -17,7 +17,10 @@ from pearnly_erp_portal.printing import contracts
 STOCK = "ERP Stock Entry"
 PURCHASE = "Purchase Document"
 ISSUE, RECEIPT = "issue", "receipt"
-DEFAULT_LOGO = ("public", "images", "print", "pearnly-logo.png")
+DEFAULT_LOGO = ("public", "images", "print", "pearnly-logo.svg")  # 正式品牌包（2026-09-05 定稿）的横版矢量 lockup
+FONT_DIR = ("public", "fonts", "print")
+FONT_FAMILY = "PearnlyPrint"
+FONT_WEIGHTS = {400: "Regular", 700: "Bold"}  # 字体文件 `<家族>-<字重>.ttf`，有哪个嵌哪个
 
 
 def pearnly_print_context(doc) -> dict:
@@ -29,8 +32,27 @@ def pearnly_print_context(doc) -> dict:
 
 
 def _data_uri(content: bytes, name: str) -> str:
-    mime = mimetypes.guess_type(name)[0] or "image/png"
+    mime = "image/svg+xml" if name.lower().endswith(".svg") else mimetypes.guess_type(name)[0] or "image/png"
     return f"data:{mime};base64,{base64.b64encode(content).decode()}"
+
+
+def fonts_css() -> str:
+    """打印用的泰文字体（随 App 分发的开源字体，`public/fonts/print`）内嵌成 ``@font-face``：PDF 生成器关着本机文件访问、
+    也不一定连得上站点自己，内嵌最稳。目录里没有字体文件时回空串（版面退回镜像自带的 Loma）。"""
+    import os
+
+    folder = frappe.get_app_path("pearnly_erp_portal", *FONT_DIR)
+    names = sorted(name for name in os.listdir(folder) if name.lower().endswith(".ttf")) if os.path.isdir(folder) else []
+    faces = []
+    for weight, style in FONT_WEIGHTS.items():
+        found = next((name for name in names if name.rsplit(".", 1)[0].endswith("-" + style)), None)
+        if not found:
+            continue
+        with open(os.path.join(folder, found), "rb") as handle:
+            data = base64.b64encode(handle.read()).decode()
+        faces.append(f'@font-face {{ font-family: "{FONT_FAMILY}"; font-weight: {weight}; font-style: normal; '
+                     f'src: url(data:font/ttf;base64,{data}) format("truetype"); }}')
+    return "\n".join(faces)
 
 
 def logo(company_row) -> str:
@@ -90,7 +112,7 @@ def _supplier(name, fallback=None) -> dict:
 
 def _base(kind, doc, company, number, posting_date, remarks, void) -> dict:
     # 单据标题（泰英）是样板版面的一部分，写在模板里（`templates/goods_*.html`）
-    return {"kind": kind, "company": header(company),
+    return {"kind": kind, "company": header(company), "fonts_css": fonts_css(),
             "number": number or doc.name, "date": contracts.day(posting_date), "remarks": str(remarks or "").strip(),
             "void": bool(void)}
 

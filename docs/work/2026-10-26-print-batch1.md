@@ -28,8 +28,13 @@
   `validate_print_permission` 是「读或打印任一就放行」。「收银员打不开打印收据」在权限层面复现不出来，所以不给各岗位加 print 位
   （不无谓放宽权限）。用户若再遇到，要现场看是哪一步（弹窗被拦、打开的是默认格式之类）。
 - **抬头不用 Letter Head**：样板的抬头和标题框、单号框在同一行，并且每页重复；整条抬头直接放在 Print Format 里逐页画，打印时 `no_letterhead=1`。
-- **字体**：泰文用生产镜像自带的 Loma（样板的字体镜像里没有，要换字体需另装字体文件）。
-- **Logo**：从样板图裁出（274×86 像素），打印偏软；有原始高清图再替换 `public/images/print/pearnly-logo.png`。
+- **字体**（主会话 10-26）：开源授权（SIL OFL 1.1）的泰文字体随 App 放在 `public/fonts/print/`（`<家族>-Regular.ttf` / `-Bold.ttf`），
+  `printing/context.py` 的 `fonts_css` 内嵌成 `@font-face`（PDF 生成器不读本机文件、也不一定连得上站点，内嵌最稳），不改镜像；
+  目录空着就退回镜像自带的 Loma。样板是无圈头泰文（认作 Prompt），本机没有，下载要用户同意，等主会话答复；现先放 Sarabun（同为 Cadson Demak、OFL，
+  授权写在字体文件自带的元数据里），PDF 里实际嵌入 Sarabun-Regular / Bold，泰文上下标（ผู้、ที่、ค้า、จ่าย）300 dpi 看位置正确；
+  勾号 ✓ Sarabun 没有，落到 DejaVu。Frappe 出 PDF 时会用 cssutils 解析样式，内嵌两份字体后页面约 26 万字符，解析约 1 秒（amd64 模拟下测）。
+- **Logo**（主会话 10-26）：改用正式品牌包的横版矢量 lockup（`pearnly-erp/assets/branding/pearnly-v1/pearnly-lockup.svg`，2026-09-05 定稿，
+  与官网图标同一个 P），放 `public/images/print/pearnly-logo.svg`，以 `image/svg+xml` 内嵌，打印不失真；样板裁图已删。
 
 ## 验证
 

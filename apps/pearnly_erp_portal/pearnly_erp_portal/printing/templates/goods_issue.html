@@ -1,6 +1,6 @@
 {#- 领料单 ใบเบิกสินค้า / GOODS ISSUE SLIP：岳父样板 17 1:1（出库单）。数据见 `printing.context`。 -#}
 {% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, cb, items, remarks, sign %}
-{{ styles() }}
+{{ styles(ctx.fonts_css) }}
 {% set columns = [
   {"key": "no", "th": "ลำดับ", "en": "No.", "width": "5%"},
   {"key": "code", "th": "รหัสสินค้า", "en": "Item Code", "width": "11%"},

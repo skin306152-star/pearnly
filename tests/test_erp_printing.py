@@ -38,6 +38,16 @@ class Rules(unittest.TestCase):
         self.assertEqual([len(page) for page in pages], [10, 10])
         self.assertEqual(pages[1][2]["no"], 13)
         self.assertIsNone(pages[1][3])
+
+    def test_the_bundled_print_font_and_logo_ship_with_the_app(self):
+        # 打印字体随 App 分发（开源授权），`context.fonts_css` 按 `<家族>-Regular/Bold.ttf` 找；Logo 用正式品牌包的矢量 lockup
+        public = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public"
+        fonts = sorted(path.name for path in (public / "fonts/print").glob("*.ttf"))
+        self.assertTrue(any(name.endswith("-Regular.ttf") for name in fonts), fonts)
+        self.assertTrue(any(name.endswith("-Bold.ttf") for name in fonts), fonts)
+        for name in fonts:
+            self.assertIn(b"Open Font License", (public / "fonts/print" / name).read_bytes())
+        self.assertIn(b"<svg", (public / "images/print/pearnly-logo.svg").read_bytes()[:200])
         self.assertEqual(C.pages([]), [[None] * 10])
 
     def test_numbers_and_dates_print_like_the_template(self):
@@ -71,6 +81,7 @@ class Layout(unittest.TestCase):
         self.assertEqual(html.count("&#10003;"), 1)  # 只勾「ใช้งานภายใน」
         self.assertNotIn("CANCELLED", html)
         self.assertIn("CANCELLED", self.issue(void=True))
+        self.assertIn("@font-face", self.issue(fonts_css="@font-face {}"))
 
     def test_more_than_ten_lines_continue_on_the_next_page(self):
         html = self.issue(pages=C.pages(rows(13)), page_count=2)

@@ -1,6 +1,6 @@
 {#- 收货单 ใบรับสินค้า / GOODS RECEIPT NOTE：岳父样板 18 1:1（入库单、带入库的采购单）。数据见 `printing.context`。 -#}
 {% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, cb, items, sign %}
-{{ styles() }}
+{{ styles(ctx.fonts_css) }}
 {% set columns = [
   {"key": "no", "th": "ลำดับ", "en": "No.", "width": "4.5%"},
   {"key": "code", "th": "รหัสสินค้า", "en": "Item Code", "width": "10%"},
