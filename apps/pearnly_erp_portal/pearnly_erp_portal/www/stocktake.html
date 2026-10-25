@@ -58,6 +58,8 @@
         const CORE = '/api/method/pearnly_core.browser_text.browser_text';
         const app = document.getElementById('app');
         const toast = document.getElementById('toast');
+        // 盘点状态（Active / Closed）按词条显示，同网页盘点（`stocktake.js`）
+        const statusText = (status) => t(status === 'Active' ? 'stock.count.statusActive' : 'stock.count.statusClosed');
         let texts = {}, t = (key, ...args) => {
           const text = texts[key] || key;
           return args.length ? text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? '')) : text;
@@ -208,7 +210,7 @@
           app.innerHTML = '<div class="card"><div class="muted">' + esc(t('stock.mobile.pickTask'))
             + '</div>' + tasks.map((row) => '<div class="row task">'
               + '<div><b>' + esc(row.title) + '</b><div class="muted">'
-              + esc(t('stock.count.headline', row.status, row.counted_total, row.item_total,
+              + esc(t('stock.count.headline', statusText(row.status), row.counted_total, row.item_total,
                 row.difference_total)) + '</div></div>'
               + '<button data-task="' + esc(row.name) + '">' + esc(t('stock.mobile.open'))
               + '</button></div>').join('') + '</div>';
@@ -231,7 +233,7 @@
             + '<div class="card"><div class="row" style="justify-content:space-between">'
             + '<b>' + esc(task.title || task.name) + '</b>'
             + '<button id="back">' + esc(t('stock.count.back')) + '</button></div>'
-            + '<div class="muted">' + esc(t('stock.count.headline', task.status, task.counted_total,
+            + '<div class="muted">' + esc(t('stock.count.headline', statusText(task.status), task.counted_total,
                 task.item_total, task.difference_total)) + '</div></div>'
             + '<div class="card"><div class="row">'
             + '<button id="scan" class="primary wide">' + esc(t('stock.mobile.scan')) + '</button></div>'

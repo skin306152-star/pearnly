@@ -104,7 +104,9 @@ def api_update_stock_entry(**kwargs):
     _json_args(kwargs, "lines", "attachments")
     kwargs = _clean(kwargs)
     name = kwargs.pop("name", None)
+    # 附件先核再改单（验收 10-26：原来改单提交之后才挂，挂不上时单已改好、文件没挂上）
     files = kwargs.pop("attachments", None)
+    files = attachments.check(files, attachments._entry(name, write=True)) if files else None
     result = documents.update_entry(name, **kwargs)
     if files:
         attachments.add(name, files)

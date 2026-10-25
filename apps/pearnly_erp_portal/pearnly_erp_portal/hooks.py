@@ -530,6 +530,8 @@ doc_events = {"DocShare": {"validate": ["pearnly_erp_portal.access.sharing.valid
                                         "pearnly_erp_portal.work.access.reject_share"]}}
 for _doctype in ("ERP Warehouse", "ERP POS Terminal"):
     doc_events[_doctype] = {"before_validate": "pearnly_erp_portal.masters.access.validate_company_unchanged"}
+# 库存单附件：已提交 / 作废的单附件删不掉、挪不走；往库存单上挂文件只走产品接口（`inventory.attachments`）
+doc_events["File"] = {_event: "pearnly_erp_portal.inventory.attachments.guard_file" for _event in ("validate", "on_trash")}
 doc_events["ERP Stock Entry"] = {
     _event: "pearnly_erp_portal.inventory.access.validate_entry_write"
     for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")

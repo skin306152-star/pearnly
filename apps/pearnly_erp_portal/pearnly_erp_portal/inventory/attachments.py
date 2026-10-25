@@ -52,12 +52,13 @@ def _owned(file_name, doc=None):
     return file, same
 
 
-def check(file_names, existing=0) -> list:
-    """建单前先核：每份都能挂、总数不过上限（建了单才发现挂不上会留下没附件的单）。"""
+def check(file_names, doc=None) -> list:
+    """建单 / 改草稿之前先核：每份都能挂、总数不过上限（单据改好了才发现挂不上，会留下没挂上的文件）。"""
     names = [name for name in dict.fromkeys(file_names or []) if name]
+    have = {row.name for row in _attached(doc.name)} if doc is not None else set()
     for name in names:
-        _owned(name)
-    if existing + len(names) > LIMIT:
+        _owned(name, doc)
+    if len(have | set(names)) > LIMIT:
         frappe.throw(_(LIMIT_ERROR).format(LIMIT))
     return names
 
@@ -96,4 +97,30 @@ def remove(name, file_name) -> list:
     return files(name)
 
 
-__all__ = ["LIMIT", "add", "bind", "check", "files", "remove"]
+def _status(name):
+    return frappe.db.get_value(DOCTYPE, name, "status") if name else None
+
+
+def guard_file(doc, method=None):
+    """File 的原生钩子（validate / on_trash）：「已提交只能加不能删」不能只拦产品自己的接口（验收 10-26：上传者用
+    ``frappe.client.delete`` 真删掉了已提交单的附件，用 ``set_value`` 把附件挪到了别的单）。
+
+    - 挂在已提交 / 作废库存单上的附件：删不掉、挪不走；
+    - 往库存单上挂文件只走本模块（`bind` 用 ``db_set``，不经这个钩子）：原生上传 / 改挂到库存单上的一律拒，免得绕开上限与归属核对。
+    草稿单的附件照常可删（`remove`，以及删草稿单时框架连带删）。"""
+    before = None if doc.is_new() else doc.get_doc_before_save()
+    old = (before.attached_to_doctype, before.attached_to_name) if before else (None, None)
+    if method == "on_trash":
+        if doc.attached_to_doctype == DOCTYPE and _status(doc.attached_to_name) not in (None, "draft"):
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+        return
+    new = (doc.attached_to_doctype, doc.attached_to_name)
+    if new == old:
+        return
+    if old[0] == DOCTYPE and _status(old[1]) not in (None, "draft"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    if new[0] == DOCTYPE and new[1]:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+__all__ = ["LIMIT", "add", "bind", "check", "files", "guard_file", "remove"]

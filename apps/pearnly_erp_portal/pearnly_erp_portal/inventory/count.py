@@ -655,61 +655,75 @@ def _recount_item(item_name: str, count_name: str) -> None:
 PHOTO_BYTES = 4 * 1024 * 1024  # 手机盘点页先在浏览器里压缩（长边 2400、JPEG 0.92，同采购上传），压完的一张远小于它
 
 
-def _save_photos(entry: str, values) -> int:
-    """照片挂到这条记录上（最多 5 张），与库存单附件同一套（主会话 10-26）：
+FILE_URL = r"/(private/)?files/\S+"  # 本站文件地址；其余按照片数据（base64，可带 data: 头）认
 
-    - 桌面端给已上传的 ``file_url``（上传框按原件层存，`recognition.originals` 方向 ``stock_count``）：只认本人刚上传、私有、
-      没挂过别处的 File（原来按地址谁的都挂）；
-    - 手机盘点页给 base64（页面已压缩）：交原件层存（选了 Claude 存甲骨文），站点没配原件层照旧存本机私有文件。"""
+
+def _store_photos(values) -> list:
+    """盘点照片先存好、回登记 File 名（还没挂到记录上）。在拿盘点锁**之前**调：交原件层是网络上传，不能压在数据库锁里（验收 10-26）。
+
+    - 桌面端给已上传的地址（上传框按原件层存，`recognition.originals` 方向 ``stock_count``）：只认本人刚上传、私有、没挂过别处的 File；
+    - 手机盘点页给照片数据（页面已压缩成 JPEG）：交原件层存，站点没配原件层照旧存本机私有文件。
+    地址只认本站文件地址的样子：JPEG 的 base64 固定以「/9j/」开头，按首字符「/」猜会把照片当成地址（验收 10-26 实测一律存不上）。"""
     import base64
     import binascii
     import hashlib
+    import re
 
     from pearnly_core.execution.errors import Deferred
     from pearnly_core.originals import registered
 
-    values = [value for value in (values or []) if str(value or "").strip()]
-    if not values:
-        return 0
-    existing = frappe.db.count("File", {"attached_to_doctype": ENTRY, "attached_to_name": entry})
-    if existing + len(values) > PHOTO_LIMIT:
+    values = [str(value).strip() for value in (values or []) if str(value or "").strip()]
+    if len(values) > PHOTO_LIMIT:
         frappe.throw(_(PHOTO_LIMIT_ERROR).format(PHOTO_LIMIT))
-    saved = 0
-    for value in values:
-        text = str(value).strip()
+    names = []
+    for text in values:
         try:
-            if text.startswith("/") or text.startswith("http"):
+            if re.fullmatch(FILE_URL, text):
                 name = frappe.db.get_value("File", {"file_url": text, "owner": frappe.session.user, "is_private": 1,
                                                    "attached_to_name": ["is", "not set"]}, "name", order_by="creation desc")
                 if not name:
                     frappe.throw(_("That photo could not be read"))
-                frappe.db.set_value("File", name, {"attached_to_doctype": ENTRY,
-                                                   "attached_to_name": entry})
-            else:
-                raw = base64.b64decode(text, validate=True)
-                if not raw or len(raw) > PHOTO_BYTES:
-                    raise ValueError("photo too large")
-                filename = f"stocktake-{entry}-{existing + saved + 1}.jpg"
-                seed = f"{frappe.local.site}|{frappe.session.user}|stock_count|{entry}|{hashlib.sha256(raw).hexdigest()}"
-                try:
-                    stored = registered.put("ERO-" + hashlib.sha256(seed.encode()).hexdigest()[:48], filename, raw,
-                                            attached_to_doctype=ENTRY, attached_to_name=entry)
-                except Deferred:
-                    frappe.throw(_("The file could not be saved. Please try again shortly."))
-                if isinstance(stored, dict):
-                    raise ValueError("photo rejected")
-                if stored is None:  # 这个站点没配原件层：带字节建私有 File（旧的 `file_manager.save_file` 在 Frappe 16
-                    # 会把写好的图片按文本读回去再去 EXIF，图片一律报错存不上；同 `recognition.originals.upload` 的兜底）
-                    frappe.get_doc({"doctype": "File", "file_name": filename, "content": raw, "is_private": 1,
-                                    "attached_to_doctype": ENTRY, "attached_to_name": entry}).insert(ignore_permissions=True)
+                names.append(name)
+                continue
+            if text.startswith("data:"):
+                text = text.split(",", 1)[1] if "," in text else ""
+            raw = base64.b64decode(text, validate=True)
+            if not raw or len(raw) > PHOTO_BYTES:
+                raise ValueError("photo too large")
+            digest = hashlib.sha256(raw).hexdigest()
+            filename = f"stocktake-{digest[:12]}.jpg"
+            seed = f"{frappe.local.site}|{frappe.session.user}|stock_count|{digest}"
+            try:
+                stored = registered.put("ERO-" + hashlib.sha256(seed.encode()).hexdigest()[:48], filename, raw)
+            except Deferred:
+                frappe.throw(_("The file could not be saved. Please try again shortly."))
+            if isinstance(stored, dict):
+                raise ValueError("photo rejected")
+            if stored is None:  # 这个站点没配原件层：带字节建私有 File（旧的 `file_manager.save_file` 在 Frappe 16
+                # 会把写好的图片按文本读回去再去 EXIF，图片一律报错存不上；同 `recognition.originals.upload` 的兜底）
+                stored = frappe.get_doc({"doctype": "File", "file_name": filename, "content": raw,
+                                         "is_private": 1}).insert(ignore_permissions=True)
+            names.append(stored.name)
         except (ValueError, binascii.Error):
             frappe.throw(_("That photo could not be read"))
-        saved += 1
+    return names
+
+
+def _save_photos(entry: str, names) -> int:
+    """把 :func:`_store_photos` 存好的照片挂到这条记录上（最多 5 张，与库存单附件同一套，主会话 10-26）。在盘点锁里调。"""
+    names = [name for name in dict.fromkeys(names or []) if name]
+    if not names:
+        return 0
+    existing = frappe.db.count("File", {"attached_to_doctype": ENTRY, "attached_to_name": entry})
+    if existing + len(names) > PHOTO_LIMIT:
+        frappe.throw(_(PHOTO_LIMIT_ERROR).format(PHOTO_LIMIT))
+    for name in names:
+        frappe.db.set_value("File", name, {"attached_to_doctype": ENTRY, "attached_to_name": entry})
     frappe.db.set_value(ENTRY, entry, "photo_total",
                         frappe.db.count("File", {"attached_to_doctype": ENTRY,
                                                  "attached_to_name": entry}),
                         update_modified=False)
-    return saved
+    return len(names)
 
 
 def _record_revision(task, product, token=None):
@@ -784,6 +798,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
               note=None, request_id=None, photos=None, source="Desk", stock_token=None) -> dict:
     """A record belongs to a book row; warehouse/location describe where it was found."""
     guard.require("count.write")
+    photos = _store_photos(photos)  # 拿锁之前存好（原件层是网络上传）
     count_state.lock_task(count)
     task = _get(count)
     quantity = _qty(qty)
@@ -836,6 +851,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
 def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, location=None,
                warehouse=None, note=None, stock_token=None) -> dict:
     guard.require("count.write")
+    photos = _store_photos(photos)  # 拿锁之前存好（原件层是网络上传）
     parent = frappe.db.get_value(ENTRY, entry, "count")
     count_state.lock_task(parent)
     doc = frappe.get_doc(ENTRY, entry)

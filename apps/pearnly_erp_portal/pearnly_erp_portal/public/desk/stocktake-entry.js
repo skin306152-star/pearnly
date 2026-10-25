@@ -131,6 +131,9 @@
 			const uploader = new frappe.ui.FileUploader({
 				allow_multiple: true,
 				allow_take_photo: true,
+				allow_web_link: false,
+				allow_google_drive: false,
+				disable_file_browser: true,
 				allow_toggle_private: false,
 				make_attachments_public: false,
 				restrictions: { allowed_file_types: ["image/*"] },
