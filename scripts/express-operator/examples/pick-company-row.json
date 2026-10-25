@@ -1,0 +1,1 @@
+[{"do":"activate"},{"do":"wait","ms":400},{"do":"click","x":541,"y":436},{"do":"wait","ms":800},{"do":"shot","name":"s2"}]

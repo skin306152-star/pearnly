@@ -1,0 +1,1 @@
+[{"do":"activate"},{"do":"wait","ms":400},{"do":"click","x":188,"y":267},{"do":"wait","ms":1000},{"do":"click","x":550,"y":557},{"do":"wait","ms":400},{"do":"keys","text":"{HOME}+{END}"},{"do":"keys","text":"0"},{"do":"wait","ms":500},{"do":"shot","name":"s32"}]

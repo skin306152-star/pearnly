@@ -1,0 +1,1 @@
+[{"do":"activate"},{"do":"wait","ms":400},{"do":"keys","text":"{ENTER}"},{"do":"wait","ms":800},{"do":"click","x":506,"y":391},{"do":"wait","ms":400},{"do":"paste","text":"ทดสอบยกเลิก"},{"do":"wait","ms":500},{"do":"click","x":314,"y":512},{"do":"wait","ms":600},{"do":"keys","text":"500310"},{"do":"keys","text":"{ENTER}"},{"do":"wait","ms":1500},{"do":"shot","name":"s81"}]
