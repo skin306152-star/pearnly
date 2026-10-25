@@ -266,12 +266,13 @@
 
 		// 这件商品的每一台：原生列表（服务端分页、搜号码），可导出
 		function open_units(item) {
+			// 搜索栏放第一个：弹窗打开时原生焦点落在它上面，不会落到状态下拉、把列表挡住（验收 10-26）
 			const dialog = p.dialog(`${__("serial.units")} · ${item.product_name}`, [
+				{ fieldtype: "Data", fieldname: "q", label: __("Search"), change: () => units?.reload() },
+				{ fieldtype: "Column Break" },
 				{ fieldtype: "Select", fieldname: "status", label: __("Status"), options: [{ value: "", label: "" },
 					...["in_stock", "sold", "issued", "void"].map(value => ({ value, label: __(`serial.status.${value}`) }))],
 					change: () => units?.reload() },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Data", fieldname: "q", label: __("Search"), change: () => units?.reload() },
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "HTML", fieldname: "units" },
 			], __("Export"), () => {
