@@ -82,6 +82,11 @@ class Locks(unittest.TestCase):
         with self.assertRaises(Refused):
             self.guard(Doc("ERP Product", {**before, "unit_price": 35}, before=before))
         self.guard(Doc("ERP Product", {**before, "image_url": "/files/ice.jpg", "min_stock": 5}, before=before))
+        # 内部编码：Express 来的商品就是 Express 编码，不能另填（主会话 10-26）
+        with self.assertRaises(Refused):
+            self.guard(Doc("ERP Product", {**before, "internal_code": "ICE-01"}, before=before))
+        local = Doc("ERP Product", {"product_name": "A", "express_code": "", "internal_code": "A1"})
+        self.guard(Doc("ERP Product", {**local, "internal_code": "A2"}, before=local))
 
 
 if __name__ == "__main__":

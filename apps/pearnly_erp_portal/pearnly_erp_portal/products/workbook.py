@@ -21,6 +21,7 @@ from pearnly_erp_portal.products import contracts
 FIELD_LABELS = (
     ("product_name", "product.field.name"),
     ("code", "product.field.code"),
+    ("internal_code", "product.field.internalCode"),  # 内部编码（主会话 10-26）
     # 界面上一格放条码与二维码（用户 2026-09-22 口径），模板与导出跟着走一格；
     # 老表里的两列仍然认（见 LEGACY_ALIASES），只是新模板不再分两列。
     ("code_value", "product.field.codeValue"),
@@ -51,6 +52,10 @@ LEGACY_ALIASES = {
     "รหัสสินค้า": "code",
     "编码": "code",
     "货号": "code",
+    "internal_code": "internal_code",
+    "internal code": "internal_code",
+    "รหัสภายใน": "internal_code",
+    "内部编码": "internal_code",
     "barcode": "barcode",
     "บาร์โค้ด": "barcode",
     "条码": "barcode",
@@ -109,7 +114,7 @@ def template_headers(label_of) -> list:
     """模板表头：界面上那几句，按站点语言给。"""
     return [label_of(key) for _field, key in FIELD_LABELS]
 
-TEXT_FIELDS = ("product_name", "code", "code_value",
+TEXT_FIELDS = ("product_name", "code", "internal_code", "code_value",
                "unit", "base_unit", "image_url", "default_location")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry")

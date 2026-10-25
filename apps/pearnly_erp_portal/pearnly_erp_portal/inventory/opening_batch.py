@@ -21,7 +21,7 @@ PRECISION_INVALID = "Opening quantity supports six decimal places and unit cost 
 ALREADY_INITIALIZED = "This stock position is already initialized; use a stock adjustment"
 HAS_HISTORY = "This stock position already has stock movements; use a stock adjustment"
 STALE_REVIEW = "Opening stock changed. Preview the rows again before submitting."
-PRODUCT_FIELDS = "name, product_name, code, barcode, base_unit, unit, is_active, express_company"
+PRODUCT_FIELDS = "name, product_name, code, internal_code, express_code, barcode, base_unit, unit, is_active, express_company"
 FILE_ERRORS = {
     "file_too_large": "The opening stock file is too large",
     "file_invalid": "That file could not be read; please use the template",
@@ -103,8 +103,10 @@ def _catalog(rows, *, names=None):
                              {"names": tuple(sorted(names))}, as_dict=True)
     keys = {field: tuple(sorted({_text(row.get(field)) for row in rows if isinstance(row, dict) and _text(row.get(field))}))
             for field in ("product", "product_code", "barcode")}
+    # 编码一列认系统编码，也认内部编码（主会话 10-26；Express 商品的内部编码就是 Express 编码）
     clauses = [column + " in %(" + field + ")s" for field, column in
-               (("product", "name"), ("product_code", "code"), ("barcode", "barcode")) if keys[field]]
+               (("product", "name"), ("product_code", "code"), ("product_code", "internal_code"),
+                ("product_code", "express_code"), ("barcode", "barcode")) if keys[field]]
     if not clauses:
         return []
     return frappe.db.sql("select " + PRODUCT_FIELDS + " from `tabERP Product` where " + " or ".join(clauses),
@@ -114,11 +116,18 @@ def _catalog(rows, *, names=None):
 def _product(row, catalog, company=None):
     """只认这家公司 Express 的档和本地档（编码、条码不再全租户唯一，别家公司的同码商品不算歧义，10-24 集成核对）。"""
     matched = []
-    for field, column in (("product", "name"), ("product_code", "code"), ("barcode", "barcode")):
+    for field, columns in (("product", ("name",)), ("product_code", ("code", "internal_code", "express_code")),
+                           ("barcode", ("barcode",))):
         value = _text(row.get(field))
         if value:
-            candidates = [product for product in catalog if product.get(column) == value
-                          and (not company or not product.get("express_company") or product.get("express_company") == company)]
+            # 编码一列：系统编码对上的先认，对不上再认内部编码（同一件商品两样都对上不算歧义）
+            candidates = []
+            for column in columns:
+                candidates = list({product.name: product for product in catalog if product.get(column) == value
+                                   and (not company or not product.get("express_company")
+                                        or product.get("express_company") == company)}.values())
+                if candidates:
+                    break
             if len(candidates) != 1:
                 raise ValueError("Product not found or its identifiers are ambiguous")
             matched.append(candidates[0])

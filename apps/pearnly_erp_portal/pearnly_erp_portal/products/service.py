@@ -35,6 +35,7 @@ ROW_ERRORS = {
 }
 CODE_EXISTS = "This product code already exists"
 BARCODE_EXISTS = "This barcode already exists"
+INTERNAL_CODE_EXISTS = "This internal code already exists"
 CODE_LOCKED = "The product code cannot be changed"
 NOT_FOUND = "Product not found"
 INVALID_VALUE = "Invalid value"
@@ -47,11 +48,12 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry", "default_location", "express_code",
+    "track_batch", "track_expiry", "default_location", "express_code", "internal_code",
 )
 
-# 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）。
-LOOKUP_FIELDS = ("code", "barcode", "qr_payload")
+# 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）；列表搜索同一套再加名称。
+LOOKUP_FIELDS = contracts.LOOKUP_FIELDS
+SEARCH_FIELDS = ("product_name", *LOOKUP_FIELDS)
 
 
 def _mask(rows):
@@ -114,7 +116,7 @@ def taken(field: str, value, *, owner: str | None = None, exclude: str | None = 
     各家从自己的 Express 同步商品（`express_company`），同一个国际条码在两家各有一件是常事。``owner`` 是这件商品所属的
     公司（Express 同步来的）：本公司的档 + ERP 本地档里不能重；本地档（``owner`` 空）各家公司都看得到，全租户不能重。
     按库的排序规则比（泰文声调符号、大小写、尾随空格按库认作一样）。"""
-    if field not in contracts.UNIQUE_FIELDS or not value:
+    if field not in (*contracts.UNIQUE_FIELDS, "express_code") or not value:
         return None
     sql = f"select name from `tab{DOCTYPE}` where `{field}` = %s"
     params = [value]
@@ -139,14 +141,23 @@ def find(field: str, value, company: str | None = None) -> str | None:
     return found[0][0] if found else None
 
 
-def _assert_unique(code, barcode, *, exclude: str | None = None, owner: str | None = None) -> None:
-    """编码 / 条码在看得到这件商品的范围内唯一（:func:`taken`）。"""
+def _assert_unique(code, barcode, *, exclude: str | None = None, owner: str | None = None, internal=None) -> None:
+    """编码 / 条码 / 内部编码在看得到这件商品的范围内唯一（:func:`taken`）。"""
     for field, value, message in (
         ("code", code, CODE_EXISTS),
         ("barcode", barcode, BARCODE_EXISTS),
+        ("internal_code", internal, INTERNAL_CODE_EXISTS),
     ):
         if taken(field, value, owner=owner, exclude=exclude):
             frappe.throw(_(message))
+    # 内部编码只有 ERP 本地建的商品手输（各家公司都看得到），也不能与哪家公司从 Express 同步来的商品编码撞：扫码认商品
+    # 时两件都认得到就分不清
+    if internal and taken("express_code", internal, exclude=exclude):
+        frappe.throw(_(INTERNAL_CODE_EXISTS))
+
+
+def _internal(value):
+    return _text(value, contracts.MAX_INTERNAL_CODE) or None
 
 
 def _get(name: str):
@@ -205,7 +216,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category_id=None, track_batch=None, track_expiry=None,
-                   default_location=None):
+                   default_location=None, internal_code=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
@@ -214,12 +225,14 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     # 编码留空就发一个（导入的表里带码时照收）—— 与旧线上 ERP 门户的 `prepare()` 同一条规则。
     code = _text(code, contracts.MAX_CODE) or _allocate_code()
     barcode = _text(barcode, contracts.MAX_BARCODE)
-    _assert_unique(code, barcode)
+    internal_code = _internal(internal_code)
+    _assert_unique(code, barcode, internal=internal_code)
 
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
         "product_name": product_name,
         "code": code,
+        "internal_code": internal_code,
         "barcode": barcode,
         "qr_payload": _text(qr_payload, contracts.MAX_QR),
         "unit": _text(unit, contracts.MAX_UNIT),
@@ -260,8 +273,7 @@ def _filters(search=None, include_inactive=False, is_active=None, conditions=Non
         filters.append(["is_active", "=", 1 if int(is_active) else 0])
     elif not include_inactive and not filters:
         filters.append(["is_active", "=", 1])
-    or_filters = ([[field, "like", f"%{search}%"]
-                   for field in ("product_name", "code", "barcode", "qr_payload")]
+    or_filters = ([[field, "like", f"%{search}%"] for field in SEARCH_FIELDS]
                   if search else None)
     return filters, or_filters
 
@@ -271,6 +283,7 @@ def _filters(search=None, include_inactive=False, is_active=None, conditions=Non
 SORT_FIELDS = {
     "product_name": "product_name",
     "code": "code",
+    "internal_code": "internal_code",
     "barcode": "barcode",
     "unit": "unit",
     "unit_price": "unit_price",
@@ -302,7 +315,7 @@ def find_product(value, exclude=None):
     wanted = str(value or "").strip()
     if not wanted:
         return {}
-    fields = ["name", "product_name", "code", "barcode"]
+    fields = ["name", "product_name", "code", "internal_code", "express_code", "barcode"]
     base = [["is_active", "=", 1]]
     if exclude:
         base.append(["name", "!=", exclude])
@@ -354,7 +367,15 @@ def update_product(name: str, **changes):
         frappe.throw(_(CODE_LOCKED))
     barcode = (_text(changes.get("barcode"), contracts.MAX_BARCODE)
                if "barcode" in changes else doc.barcode)
-    _assert_unique(doc.code, barcode, exclude=doc.name, owner=doc.get("express_company"))
+    # 内部编码：从 Express 来的商品就是 Express 编码，改不了（`express.locks` 拦）；页面原样带回来的不算改。本地商品可改
+    if "internal_code" in changes and doc.express_code and _internal(changes["internal_code"]) in (
+            doc.internal_code, doc.express_code):
+        changes.pop("internal_code")
+    internal = _internal(changes["internal_code"]) if "internal_code" in changes else doc.internal_code
+    _assert_unique(doc.code, barcode, exclude=doc.name, owner=doc.get("express_company"),
+                   internal=internal if internal != doc.internal_code else None)
+    if "internal_code" in changes:
+        doc.internal_code = internal
 
     # 商品上的"默认仓"已经删掉（用户 2026-09-24："进货就进卖货那个仓" —— 进货那一侧改用
     # 收银台上配的仓，见 `warehouses.receiving`），只剩仓位这一栏还是商品级建议值。

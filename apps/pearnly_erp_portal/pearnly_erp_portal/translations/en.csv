@@ -589,6 +589,7 @@ Initial Password,Initial Password
 Input Tax,Input Tax
 Input VAT,Input VAT
 Insert,Insert
+Internal code,Internal code
 Internal use,Internal use
 Invalid Currency,Invalid Currency
 Invalid Discount,Invalid Discount
@@ -1317,6 +1318,7 @@ This document was changed in Express. Check it in Express,This document was chan
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This file holds {0} documents; only the first is filled in. Upload the others separately.,This file holds {0} documents; only the first is filled in. Upload the others separately.
+This internal code already exists,This internal code already exists
 This invoice has no lines. Add them and submit again.,This invoice has no lines. Add them and submit again.
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is not a purchase or sales document,This is not a purchase or sales document
@@ -2014,6 +2016,7 @@ product.col.barcode,Barcode
 product.col.code,Code
 product.col.codeValue,Barcode / QR code
 product.col.cost,Reference cost
+product.col.internalCode,Internal code
 product.col.name,Product
 product.col.place,Place
 product.col.price,Price
@@ -2031,6 +2034,7 @@ product.field.cost,Reference cost
 product.field.defaultLocation,Default Location
 product.field.image,Image URL
 product.field.importFile,Excel file
+product.field.internalCode,Internal code
 product.field.locationHint,Used for new documents only. Each location keeps its own stock.
 product.field.minStock,Low stock alert
 product.field.name,Product name

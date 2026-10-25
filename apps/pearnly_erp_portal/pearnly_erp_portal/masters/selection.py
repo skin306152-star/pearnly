@@ -6,12 +6,12 @@ from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.masters import company as companies
 
 KINDS = {
-    "product": ("ERP Product", "product_name", ("code", "barcode", "qr_payload")),
+    "product": ("ERP Product", "product_name", ("code", "internal_code", "express_code", "barcode", "qr_payload")),
     "supplier": ("ERP Supplier", "supplier_name", ("express_code", "tax_id", "name")),
     "customer": ("ERP Customer", "customer_name", ("express_code", "tax_id", "name")),
 }
 FIELDS = {
-    "product": ("name", "product_name", "code", "barcode", "qr_payload", "base_unit", "unit",
+    "product": ("name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "base_unit", "unit",
                 "unit_price", "price_set", "default_cost", "vat_applicable", "default_location",
                 "track_batch", "track_expiry"),
     "supplier": ("name", "supplier_name", "express_code", "tax_id", "branch_type", "branch_no", "branch_name", "address"),

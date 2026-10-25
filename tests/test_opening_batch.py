@@ -106,8 +106,9 @@ class OpeningBatch(unittest.TestCase):
         if "tabERP Product" in query:
             if "names" in parameters:
                 return [p for p in self.products if p.name in parameters["names"]]
-            return [p for p in self.products if any(p.get(column) in parameters[field] for field, column in
-                    (("product", "name"), ("product_code", "code"), ("barcode", "barcode")))]
+            return [p for p in self.products if any(p.get(column) in parameters.get(field, ()) for field, column in
+                    (("product", "name"), ("product_code", "code"), ("product_code", "internal_code"),
+                     ("product_code", "express_code"), ("barcode", "barcode")))]
         if "tabERP Warehouse" in query:
             return [Row(name="W1", company="C1", is_active=1)] if parameters[0] == "W1" else []
         state = self.state if "for update" in query or self.old_snapshot is None else self.old_snapshot
@@ -226,6 +227,15 @@ class OpeningBatch(unittest.TestCase):
         review = self.preview()
         self.assertEqual(review["rows"][0]["product"], "P1")
         self.assertEqual(self.submit(review, rows=[{**review["rows"][0], "qty": 4.0, "unit_cost": 10.0}])["created"], 1)
+
+    def test_the_code_column_also_takes_the_internal_code(self):
+        # 编码一列认系统编码，也认内部编码（主会话 10-26）；系统编码对上的优先，不与别件的内部编码算歧义
+        self.products[0].internal_code = "A-01"
+        self.products[1].internal_code = "code-P1"
+        self.args["rows"] = [{"product_code": "A-01", "qty": "4", "unit_cost": "10"}]
+        self.assertEqual(self.preview()["rows"][0]["product"], "P1")
+        self.args["rows"] = [{"product_code": "code-P1", "qty": "4", "unit_cost": "10"}]
+        self.assertEqual(self.preview()["rows"][0]["product"], "P1")
 
     def test_location_queries_use_exact_bytes_like_position_identity(self):
         rows = [{**self.args["rows"][0], "location": location} for location in ("Rack-A", "rack-a", "e", "é")]

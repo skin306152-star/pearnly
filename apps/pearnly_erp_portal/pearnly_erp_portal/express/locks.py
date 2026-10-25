@@ -14,7 +14,7 @@ LOCKED = {
                      "is_active", "express_code", "express_company", "express_book"),
     "ERP Supplier": ("supplier_name", "tax_id", "branch_type", "branch_no", "address", "phone", "is_active",
                      "express_code", "express_company", "express_book"),
-    "ERP Product": ("product_name", "code", "barcode", "base_unit", "unit", "unit_price", "price_set", "is_active",
+    "ERP Product": ("product_name", "code", "internal_code", "barcode", "base_unit", "unit", "unit_price", "price_set", "is_active",
                     "express_code", "express_stock", "express_company", "express_book"),
     "ERP Warehouse": ("warehouse_name", "company", "is_active", "express_code", "express_book"),
 }

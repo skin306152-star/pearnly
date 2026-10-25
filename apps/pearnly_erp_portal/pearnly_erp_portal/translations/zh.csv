@@ -589,6 +589,7 @@ Initial Password,初始密码
 Input Tax,进项税额
 Input VAT,进项税
 Insert,插入
+Internal code,内部编码
 Internal use,内部领用
 Invalid Currency,币种无效
 Invalid Discount,无效折扣
@@ -1317,6 +1318,7 @@ This document was changed in Express. Check it in Express,此单在 Express 中�
 This draft was already confirmed or discarded,该草稿已确认或已作废
 This entry changed underneath you; reload and try again,该单据已被修改，请刷新后重试
 This file holds {0} documents; only the first is filled in. Upload the others separately.,该文件包含 {0} 张单据，仅填入第一张，其余请分别上传。
+This internal code already exists,该内部编码已存在
 This invoice has no lines. Add them and submit again.,此发票没有明细，请补充后重新提交
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
 This is not a purchase or sales document,该文件不是采购或销售单据
@@ -2014,6 +2016,7 @@ product.col.barcode,条码
 product.col.code,编码
 product.col.codeValue,条码/二维码
 product.col.cost,参考成本
+product.col.internalCode,内部编码
 product.col.name,物料
 product.col.place,位置
 product.col.price,售价
@@ -2031,6 +2034,7 @@ product.field.cost,参考成本
 product.field.defaultLocation,默认仓位
 product.field.image,图片地址
 product.field.importFile,Excel 文件
+product.field.internalCode,内部编码
 product.field.locationHint,仅作为新单据的默认值，各仓位库存单独计算。
 product.field.minStock,低库存提醒
 product.field.name,物料名称

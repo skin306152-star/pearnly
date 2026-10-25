@@ -97,6 +97,9 @@
 				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
 					read_only: 1, description: t("product.field.codeAuto"),
 					default: value("code") || preview_code },
+				// 内部编码（主会话 10-26）：本地商品手输、扫码搜索盘点都认；Express 来的商品就是 Express 编码（只读）
+				{ fieldtype: "Data", fieldname: "internal_code", label: t("product.field.internalCode"),
+					length: 20, default: value("internal_code") || existing.express_code || "" },
 				{ fieldtype: "Data", fieldname: "code_value", label: t("product.field.codeValue"),
 					// 上限跟服务端二维码那一列（500）对齐：合并后这一格是录入二维码的唯一入口，
 					// 用 Data 的默认 140 会让长二维码内容粘贴不进来。
@@ -267,7 +270,7 @@
 				// 空态用原生那一页（图标 + 按钮），按钮就是这颗"新建商品"。
 				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
-				sort_fields: ["product_name", "code", "barcode", "unit", "unit_price",
+				sort_fields: ["product_name", "code", "internal_code", "barcode", "unit", "unit_price",
 					"default_cost", "place", "is_active"],
 				load: async ({ start, page_length, sort_by, sort_order }) => {
 					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
@@ -281,6 +284,8 @@
 				columns: [
 					{ fieldname: "product_name", width: 184, min_width: 160, label: t("product.col.name") },
 					{ fieldname: "code", width: 88, min_width: 78, label: t("product.col.code") },
+					{ fieldname: "internal_code", width: 96, min_width: 80, label: t("product.col.internalCode"),
+						format: (_value, row) => row.internal_code || row.express_code || "" },
 					// 条码与二维码在界面上是同一格：哪个有值就显示哪个，列名跟表单一致。
 					{ fieldname: "barcode", width: 136, min_width: 104, label: t("product.col.codeValue"),
 						format: (_value, row) => row.barcode || row.qr_payload || "" },
@@ -570,7 +575,7 @@
 			if (can_write && !existing.express_code) attach_scan_icon(dialog, state, existing.name);  // 条码只认 Express
 			// 由 Express 同步来的档：Express 里有的栏位只认 Express（服务端 `express.locks` 同一份清单兜底）
 			if (existing?.express_code) {
-				["product_name", "code", "code_value", "barcode", "base_unit", "unit", "unit_price", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
+				["product_name", "code", "internal_code", "code_value", "barcode", "base_unit", "unit", "unit_price", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
 			}
 			return dialog;
 		}

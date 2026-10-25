@@ -589,6 +589,7 @@ Initial Password,初期パスワード
 Input Tax,仕入税額
 Input VAT,仮払消費税
 Insert,挿入
+Internal code,社内コード
 Internal use,社内使用
 Invalid Currency,通貨が無効です
 Invalid Discount,割引が無効です
@@ -1317,6 +1318,7 @@ This document was changed in Express. Check it in Express,この伝票は Expres
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This file holds {0} documents; only the first is filled in. Upload the others separately.,このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
+This internal code already exists,この社内コードは既に存在します
 This invoice has no lines. Add them and submit again.,この請求書には明細がありません。追加して再送信してください
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
@@ -2014,6 +2016,7 @@ product.col.barcode,バーコード
 product.col.code,コード
 product.col.codeValue,バーコード / QRコード
 product.col.cost,参考原価
+product.col.internalCode,社内コード
 product.col.name,商品
 product.col.place,保管場所
 product.col.price,価格
@@ -2031,6 +2034,7 @@ product.field.cost,参考原価
 product.field.defaultLocation,既定の保管場所
 product.field.image,画像 URL
 product.field.importFile,Excel ファイル
+product.field.internalCode,社内コード
 product.field.locationHint,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
 product.field.minStock,低在庫アラート
 product.field.name,商品名

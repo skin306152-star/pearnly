@@ -23,6 +23,7 @@ Unknown direction	未知的方向	ไม่ทราบทิศทางขอ�
 Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な買い手
 Product name	物料名称	ชื่อสินค้า	商品名	product.field.name
 Code	编码	รหัส	コード	product.field.code
+Internal code	内部编码	รหัสภายใน	社内コード	product.field.internalCode
 Barcode	条码	บาร์โค้ด	バーコード	product.field.barcode
 Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	product.field.codeValue
 Unit	单位	หน่วย	単位	product.field.unit
@@ -46,6 +47,7 @@ Saved {0}	已保存 {0}	บันทึก {0} แล้ว	{0} を保存しま�
 Updated {0}	已更新 {0}	อัปเดต {0} แล้ว	{0} を更新しました	product.notice.toggled
 Enable	启用	เปิดใช้งาน	有効化	product.action.enable
 Code	编码	รหัส	コード	product.col.code
+Internal code	内部编码	รหัสภายใน	社内コード	product.col.internalCode
 Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	product.col.codeValue
 Unit	单位	หน่วย	単位	product.col.unit
 Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
@@ -1147,6 +1149,7 @@ Stock entry not found	出入库单不存在	ไม่พบเอกสารร
 That submission was already used for a different entry	该提交已用于其他单据	การส่งนี้ถูกใช้กับเอกสารอื่นแล้ว	この送信は別の明細で使用済みです
 This LINE account is not bound to an ERP user	该 LINE 账号未绑定 ERP 用户	บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP	この LINE アカウントは ERP ユーザーに紐付いていません
 This barcode already exists	该条码已存在	บาร์โค้ดนี้มีอยู่แล้ว	このバーコードは既に存在します
+This internal code already exists	该内部编码已存在	รหัสภายในนี้มีอยู่แล้ว	この社内コードは既に存在します
 This document is already recorded: {0}	该单据已录入：{0}	เอกสารนี้บันทึกแล้ว: {0}	この伝票は登録済みです: {0}
 This document is void	该单据已作废	เอกสารนี้ถูกยกเลิกแล้ว	この伝票は無効です
 This entry changed underneath you; reload and try again	该单据已被修改，请刷新后重试	เอกสารนี้ถูกแก้ไขแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง	この明細は他で変更されました。再読み込みしてやり直してください

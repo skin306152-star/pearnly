@@ -8,6 +8,7 @@
  "field_order": [
   "product_name",
   "code",
+  "internal_code",
   "code_key",
   "barcode",
   "qr_payload",
@@ -53,6 +54,13 @@
    "label": "Code",
    "length": 100,
    "search_index": 1
+  },
+  {
+   "fieldname": "internal_code",
+   "fieldtype": "Data",
+   "label": "Internal code",
+   "length": 20,
+   "unique": 1
   },
   {
    "fieldname": "code_key",
@@ -259,6 +267,6 @@
  "states": [],
  "track_changes": 1,
  "title_field": "product_name",
- "search_fields": "product_name,code,barcode,qr_payload",
+ "search_fields": "product_name,code,internal_code,barcode,qr_payload",
  "show_title_field_in_link": 1
 }

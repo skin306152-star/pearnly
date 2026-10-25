@@ -44,6 +44,46 @@ class CodesAreReadPerCompany(unittest.TestCase):
 
 
 
+class InternalCodes(unittest.TestCase):
+    """内部编码（主会话 10-26）：扫码认得到；本地商品手输、全租户不能重，也不能与哪家公司的 Express 编码撞；Express 来的
+    商品就是 Express 编码，页面原样带回来不算改。"""
+
+    def test_a_scan_finds_the_internal_code_and_the_express_code(self):
+        from unittest import mock
+
+        from pearnly_erp_portal.inventory import count
+
+        rows = [{"name": "PRD-L", "code": "P-000001", "internal_code": "A-01", "express_company": "", "is_active": 1},
+                {"name": "PRD-A", "code": "P-000002", "express_code": "STK-9", "express_company": "CO-A", "is_active": 1}]
+
+        def get_all(doctype, filters=None, **kwargs):
+            field, value = next((key, val) for key, val in filters.items() if key != "is_active")
+            return [row for row in rows if row.get(field) == value]
+
+        with mock.patch.object(count.frappe, "get_all", side_effect=get_all):
+            self.assertEqual(count.product_of_code("A-01", "CO-A")["name"], "PRD-L")
+            self.assertEqual(count.product_of_code("STK-9", "CO-A")["name"], "PRD-A")
+            self.assertIsNone(count.product_of_code("STK-9", "CO-B"))   # 别家公司的 Express 编码不认
+
+    def test_a_typed_internal_code_must_be_free_of_other_internal_and_express_codes(self):
+        from unittest import mock
+
+        from pearnly_erp_portal.products import service
+
+        class Refused(Exception):
+            pass
+
+        taken = {("internal_code", "A-01"): "PRD-L", ("express_code", "STK-9"): "PRD-A"}
+        with mock.patch.object(service, "taken", side_effect=lambda field, value, **kw: taken.get((field, value))), \
+                mock.patch.object(service, "_", side_effect=lambda text: text), \
+                mock.patch.object(service.frappe, "throw", side_effect=lambda message, *a: (_ for _ in ()).throw(Refused(message))):
+            for code in ("A-01", "STK-9"):
+                with self.assertRaisesRegex(Refused, "internal code"):
+                    service._assert_unique("P-000009", None, internal=code)
+            service._assert_unique("P-000009", None, internal="B-02")
+            service._assert_unique("P-000009", None, internal=None)
+
+
 class MasterRecordsArePerCompany(unittest.TestCase):
     """10-24 验收问题 23：门户自己的单条读写接口不经 has_permission，只开了 CO-00001 的员工读到、能改别家公司 Express 的档。"""
 

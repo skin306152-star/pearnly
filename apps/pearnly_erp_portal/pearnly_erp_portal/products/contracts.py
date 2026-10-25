@@ -10,6 +10,7 @@ from decimal import Decimal, InvalidOperation
 # 与旧线上相同的长度上限。
 MAX_NAME = 300
 MAX_CODE = 100
+MAX_INTERNAL_CODE = 20  # 内部编码（主会话 10-26：先定 20 位）
 MAX_BARCODE = 100
 MAX_QR = 500
 MAX_UNIT = 50
@@ -21,7 +22,10 @@ MAX_IMAGE_URL = 1000
 COST_FIELDS = ("default_cost", "cost_set")
 
 # 条码/编码唯一性：同一租户内不能重复。旧线上是三条唯一索引，撞哪个报哪个。
-UNIQUE_FIELDS = ("code", "barcode")
+UNIQUE_FIELDS = ("code", "barcode", "internal_code")
+# 扫到 / 手输一个码认商品查的列，按顺序：系统编码、内部编码（本地商品手输的；Express 商品认 Express 编码，主会话 10-26）、
+# 条码、二维码内容。商品页、收银台、盘点、库存搜索同一套
+LOOKUP_FIELDS = ("code", "internal_code", "express_code", "barcode", "qr_payload")
 
 # 界面与表格上的"码"是一格（用户 2026-09-22 口径）：条码与二维码内容合并显示，
 # 落库仍旧线上那两列。这一格该写哪一列由**内容形状**决定 —— 条码是短 ASCII
@@ -38,6 +42,17 @@ def code_field(value) -> str:
     if not text:
         return "barcode"
     return "barcode" if BARCODE_SHAPE.match(text) else "qr_payload"
+
+
+def internal_code(row) -> str:
+    """商品的「内部编码」（主会话 10-26）：ERP 本地建的商品是手输的那个；从 Express 同步来的就是 Express 商品编码（只读）。
+    系统编码 ``code`` 照旧由系统发、不改。"""
+    return str((row or {}).get("internal_code") or (row or {}).get("express_code") or "")
+
+
+def count_code(row) -> str:
+    """盘点表「编码」那一格显示什么：内部编码，没有就用系统编码。"""
+    return internal_code(row) or str((row or {}).get("code") or "")
 
 
 def shown_code(row) -> str:

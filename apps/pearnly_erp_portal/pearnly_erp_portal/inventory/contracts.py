@@ -45,7 +45,7 @@ SIGNED_TYPES = (ADJUST, COUNT)
 
 # 库存页搜索框写的是「按名称或条码搜」：名称、编码、条码、二维码内容任一包含关键字就算命中，
 # 与商品列表的搜索（`products.service._filters`）同一口径。扫码枪给的是完整的码，包含也就命中。
-SEARCH_FIELDS = ("product_name", "code", "barcode", "qr_payload")
+SEARCH_FIELDS = ("product_name", "code", "internal_code", "express_code", "barcode", "qr_payload")
 
 
 def product_matches(product, query) -> bool:

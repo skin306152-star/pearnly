@@ -318,7 +318,8 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
                            order_by="modified desc", limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
         PRODUCT, filters={"name": ["in", [r["product"] for r in rows]] or [""]},
-        fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit", "min_stock",
+        fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit",
+                "base_unit", "min_stock",
                 "is_active"],
         limit_page_length=0)}
     # 售卖单位上的条码（箱码 / 瓶码常挂在单位上）：扫到它也要找到这件商品（与扫码查商品同一口径）。

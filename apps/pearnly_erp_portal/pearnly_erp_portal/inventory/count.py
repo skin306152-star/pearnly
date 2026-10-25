@@ -86,14 +86,14 @@ def _qty(value, *, field="Quantity") -> Decimal:
 
 
 def product_of_code(code: str, company: str | None = None) -> dict | None:
-    """扫到的码 → 商品。编码/条码/二维码内容都认（与商品页扫码同一套）。
+    """扫到的码 → 商品。编码/内部编码/条码/二维码内容都认（与商品页扫码同一套，`products.contracts.LOOKUP_FIELDS`）。
 
     给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档，这家的优先：编码、条码不再全租户唯一
     （多家公司从各自 Express 同步，同码各一件），不分公司会扫到别家公司的那一件（10-24 集成核对）。"""
     wanted = str(code or "").strip()
     if not wanted:
         return None
-    for field in ("code", "barcode", "qr_payload"):
+    for field in product_contracts.LOOKUP_FIELDS:
         if not company:
             row = frappe.db.get_value(PRODUCT, {field: wanted, "is_active": 1}, "*", as_dict=True)
             if row:
@@ -137,7 +137,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     products = {p["name"]: p for p in frappe.get_list(
         PRODUCT, filters={"is_active": 1, "name": ["in", [r["product"] for r in rows] or [""]]},
         # 要带二维码内容：只有二维码的商品，盘点表「条码 / 二维码」那一格才不空（录制问题 #23）。
-        fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit"],
+        fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit"],
         limit_page_length=0)}
     created = 0
     for row in rows:
@@ -226,7 +226,8 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
         return existing
     doc = frappe.get_doc({
         "doctype": ITEM, "count": count, "product": product["name"],
-        "product_name": product.get("product_name"), "code": product.get("code"),
+        # 「编码」显示内部编码（主会话 10-26），没有就用系统编码
+        "product_name": product.get("product_name"), "code": product_contracts.count_code(product) or None,
         # 商品那边的"码"是一格（条码与二维码合并）：只有二维码的商品，盘点表这一列
         # 也要带上它，否则盘点员拿着这张表扫不出来（匹配那侧本来就三列一起查）。
         "barcode": product_contracts.shown_code(product) or None,
@@ -380,7 +381,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
                                fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {row["name"]: row for row in frappe.get_list(
         PRODUCT, filters={"is_active": 1},
-        fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit"],
+        fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit"],
         limit_page_length=0)}
     label = _warehouse_label(warehouse)
     present = {row["product"] for row in balances}
@@ -392,7 +393,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
         if not product:
             continue
         out.append({
-            "product_code": product["code"], "product_name": product["product_name"],
+            "product_code": product_contracts.count_code(product), "product_name": product["product_name"],
             "barcode": product_contracts.shown_code(product),
             "unit": product["base_unit"] or product["unit"],
             "book_qty": flt(balance["qty_on_hand"], 3), "counted_qty": None,
@@ -752,8 +753,8 @@ def lookup_count(*, count, code=None, product=None):
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
     rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]
-    return {"product": {key: found.get(key) for key in
-                        ("name", "product_name", "code", "barcode", "base_unit", "unit")},
+    return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit")},
+                        "code": product_contracts.count_code(found)},
             "rows": rows,
             "elsewhere": elsewhere_positions(found["name"],
                                              {(r["warehouse"], r["location"] or "") for r in rows}),

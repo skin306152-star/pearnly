@@ -589,6 +589,7 @@ Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
 Input VAT,ภาษีซื้อ
 Insert,แทรก
+Internal code,รหัสภายใน
 Internal use,เบิกใช้ภายใน
 Invalid Currency,สกุลเงินไม่ถูกต้อง
 Invalid Discount,ส่วนลดไม่ถูกต้อง
@@ -1317,6 +1318,7 @@ This document was changed in Express. Check it in Express,เอกสารน�
 This draft was already confirmed or discarded,แบบร่างนี้ถูกยืนยันหรือยกเลิกแล้ว
 This entry changed underneath you; reload and try again,เอกสารนี้ถูกแก้ไขแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
 This file holds {0} documents; only the first is filled in. Upload the others separately.,ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน
+This internal code already exists,รหัสภายในนี้มีอยู่แล้ว
 This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
@@ -2014,6 +2016,7 @@ product.col.barcode,บาร์โค้ด
 product.col.code,รหัส
 product.col.codeValue,บาร์โค้ด / คิวอาร์โค้ด
 product.col.cost,ต้นทุนอ้างอิง
+product.col.internalCode,รหัสภายใน
 product.col.name,สินค้า
 product.col.place,ตำแหน่ง
 product.col.price,ราคา
@@ -2031,6 +2034,7 @@ product.field.cost,ต้นทุนอ้างอิง
 product.field.defaultLocation,ตำแหน่งเริ่มต้น
 product.field.image,URL รูปภาพ
 product.field.importFile,ไฟล์ Excel
+product.field.internalCode,รหัสภายใน
 product.field.locationHint,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
 product.field.minStock,แจ้งเตือนสต็อกต่ำ
 product.field.name,ชื่อสินค้า
