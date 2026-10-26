@@ -3,8 +3,8 @@
 
 对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码依次写一张调整（JU，+2 个、给单位成本）、一张领用（OU，1 个）、
 一张盘点（TK，−1 个）、一张盘盈（TK，+1 个）→ 核：
-- 盘点 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；先进先出账套盘盈单价取主仓最近一次进货那一批的成本
-  （挂不上记 0），有那一批就挂上（RDOCNUM / MLOTNUM）；
+- 盘点 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；盘盈单价取主仓最近一次进货那一批的成本并挂上
+  （RDOCNUM / MLOTNUM），挂不上的先进先出账套记 0；
 - 四张单都写成，单头 STTRN 一行、明细 STCRD 行数与单据一致；
 - 写前 STMAS 结存等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0）；
 - 凭证：永续盘存账套每张有金额的单一张 JNLTYP 00 凭证、借贷平衡；定期盘存账套（ISPERPETUA = N）一张凭证都没有；
@@ -177,8 +177,8 @@ def latest_receipt(acct, code):
 
 
 def count_gain(acct, docnum, lot):
-    """盘盈 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；先进先出账套单价取最近一次进货那一批的成本、挂不上记 0，
-    有那一批就挂上（RDOCNUM / MLOTNUM）。不符回原因。"""
+    """盘盈 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；单价取最近一次进货那一批的成本并挂上（RDOCNUM / MLOTNUM），
+    挂不上的先进先出账套记 0。不符回原因。"""
     from companion import dbf_refund
 
     line = [r for r in rows(acct, "STCRD", ("DOCNUM", "POSOPR", "FLAG", "XUNITPR", "RDOCNUM", "MLOTNUM", "PHYBAL"))
@@ -190,7 +190,8 @@ def count_gain(acct, docnum, lot):
         return f"TK {docnum}: FLAG {line['FLAG']!r}"
     fifo = text((account_rules._first(acct, "ISINFO") or {}).get("COSMTD")).upper() == "F"
     cost = Decimal(repr(float(line["XUNITPR"] or 0))).quantize(Decimal("0.01"))
-    if fifo and cost != (lot[0].quantize(Decimal("0.01")) if lot else Decimal("0.00")):
+    want = lot[0].quantize(Decimal("0.01")) if lot else Decimal("0.00") if fifo else None  # 平均成本账套挂不上批次：商品均价（待核）
+    if want is not None and cost != want:
         return f"TK {docnum}: unit cost {cost} != lot {lot}"
     if lot and line["RDOCNUM"] is not None and str(line["RDOCNUM"] or "").rstrip() != dbf_refund.rdocnum(lot[1], lot[2]):
         return f"TK {docnum}: RDOCNUM {line['RDOCNUM']!r} != lot {lot[1]} {lot[2]}"

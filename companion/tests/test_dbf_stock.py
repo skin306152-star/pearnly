@@ -144,22 +144,19 @@ def test_a_count_gain_without_a_lot_in_a_fifo_book_is_costed_at_zero(book):
     assert _journal(book, res.docnum) == ([], [])
 
 
-def test_a_count_gain_in_an_average_cost_book_takes_the_warehouse_average_for_now(book):
-    """主会话 10-26：平均成本账套 S 盘样本没有定论，先按这个仓此刻的均价（STLOC 货值 ÷ 结存，待核）；有进货也挂那一批。"""
-    table = __import__("dbf").Table(str(book / "STLOC.DBF"), codepage=__import__("companion.dbf_schema").dbf_schema.CODEPAGE)
-    table.open(__import__("dbf").READ_WRITE)
-    try:
-        for rec in table:
-            if rec.STKCOD.strip() == "ICE01":
-                with rec as fields:
-                    fields["BEGVAL"] = 60.0  # 这个仓 5 个值 60（均价 12），商品主档的均价是 10
-    finally:
-        table.close()
+def test_a_count_gain_in_an_average_cost_book_takes_the_lot_cost_or_the_product_average(book):
+    """平均成本账套：挂得上批次也取那一批的成本（实录 TK0000001 是平均成本账套，单价 45 = 批成本，不是 02 仓均价 50；S 盘 96 行对 9 行）；
+    挂不上按商品均价（待核）。"""
     _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
     res = _write(book, _entry("TK", [_line("ICE01", 2)]))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["UNITPR"], line["XTRNVAL"], line["RDOCNUM"]) == (12.0, 24.0, "RR0000010     1")
+    assert (line["UNITPR"], line["XTRNVAL"], line["RDOCNUM"]) == (45.0, 90.0, "RR0000010     1")
+    other = _write(book, _entry("TK", [_line("ICE01", 1)], loccod="02"))
+    assert other.ok, other.error
+    line = _rows(book, "STCRD", DOCNUM=other.docnum)[0]
+    assert (line["UNITPR"], line["RDOCNUM"].strip()) == (20.0, "")  # 02 仓没有进货：商品均价（5 个 50 + 盘盈 2 个 90）/ 7 = 20
+    assert _stloc(book, "ICE01", "02")["TAKDAT"] == dt.date(2026, 3, 20)  # 盘点日记在 STLOC.TAKDAT
 
 
 def test_a_periodic_account_set_or_a_zero_value_entry_is_not_journalled(book):
