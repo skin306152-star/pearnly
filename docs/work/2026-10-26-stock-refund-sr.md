@@ -98,5 +98,15 @@ AMTRAT0 = 免税金额；ARTRN.AMTRAT0 = 免税金额、NETVAL = 应税税前 + 
 
 - 已改：`pos_day.ISVAT_EXEMPT_FIELD = "AMTRAT0"`（现销日汇总与退货单同一条规则），CC 照载荷 `vat_fields` 写进 ISVAT，1.12.5 / 1.12.6 都认 AMTRATn，
   不发新 CC。逐行 VAT 没开的账套照同一写法：免税销售额在销项税报表里本就单列，AMT01 只记应税部分才对得上税额。
-- 待下一版 CC（这次不发）：ARTRN.AMTRAT0 写免税金额、NETVAL 照原生；STCRD 免税行 VATCOD = '0'；整张免税的单 FLGVAT 2 并照样写
-  ISVAT（AMT01 0、AMTRAT0 全额）。要 ERP 在载荷明细上标免税行（`vat_exempt` 已经带到 CC，退货单已用来摊含税额）。
+- 主会话 10-26 追加：ARTRN 与 STCRD 也照原生写，HS 与 SR 两边，进 1.12.6 的下一个测试包（不动已验收的测试包 b）：
+  - ERP：只在增值税登记户的单里标免税行（`vat_exempt`，这一行没拆出税额），非登记户不标；整张都是免税的也带金额栏（AMT01 0、AMTRAT0 全额）。
+  - CC：免税行 STCRD.VATCOD '0'、NETVAL = TRNVAL（`dbf_fields.exempt_line`，库存行、非库存行、退货行三处）；ARTRN.AMTRAT0 记免税金额；
+    带了金额栏的整张免税单照样写销项税记录（税额 0）。老账套没有这些栏的不写。合成表 STCRD 补 VATCOD、ARTRN 补 AMTRAT0（真表都有）。
+  - 账套没开逐行 VAT（ISINFO.VAT_INITEM 不是 Y，Express 自己整张计税）而单里有免税商品：按公司问一次「免税商品写法」——
+    「按商品免税拆开写（建议）」/「照账套现在的设置整张计税」，记在这家公司的 Express 选择里复用。CC 读主档时回报 `facts.vat_initem`
+    （1.12.6 测试包 c 起）；旧版没有这一项的当开了逐行 VAT（拆开写）。选「整张计税」：不带金额栏、明细不标免税，应税基数照整张税前
+    （税额仍是收银小票逐行拆出的实数）。
+  - 新增文案 3 条（`express.kind.exemptMode`、`express.option.exemptSplit`、`express.option.exemptWhole`，选项原文由主会话给定）；
+    文案闸门拦截 0、标黄 1（R-PAREN：「（建议）」照主会话原文保留）。
+- VAT_INITEM 分布（测试机只读统计）：S 盘副本 1047 本——空 929、Y 115、N 3；C 盘 70EXP 103 本——空 91、Y 12（T7ASC、T7ASIM、T7NLT67C、
+  T7SANGJT、T8ASC 等）。大多数账套没开逐行 VAT，第一次遇到免税商品会问一次。
