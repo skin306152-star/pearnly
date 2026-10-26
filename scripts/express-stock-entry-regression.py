@@ -164,15 +164,16 @@ def location_balances(acct, code):
                   for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if text(r["STKCOD"]) == code)
 
 
-def latest_receipt(acct, code):
-    """这件品主仓最近一次进货那一行（STCRD POSOPR 0、数量为正，按日期取最后的）→ (成本, 单号, 行号, 日期)；没有回 None。"""
+def latest_receipt(acct, code, day=None):
+    """这件品主仓最近一次进货那一行（STCRD POSOPR 0、数量为正、日期不晚于盘点日 ``day``，按日期取最后的）→ (成本, 单号, 行号, 日期)；
+    没有回 None。"""
     main = account_rules.main_location(acct)
     found = None
     for r in rows(acct, "STCRD", ("STKCOD", "LOCCOD", "POSOPR", "XTRNQTY", "XTRNVAL", "DOCNUM", "SEQNUM", "DOCDAT")):
         if text(r["STKCOD"]) != code or text(r["POSOPR"]) != "0" or (text(r["LOCCOD"]) or main) != main:
             continue
         qty = Decimal(repr(float(r["XTRNQTY"] or 0)))
-        if qty > 0 and r["DOCDAT"] and (found is None or r["DOCDAT"] >= found[3]):
+        if qty > 0 and r["DOCDAT"] and (day is None or r["DOCDAT"] <= day) and (found is None or r["DOCDAT"] >= found[3]):
             found = (Decimal(repr(float(r["XTRNVAL"] or 0))) / qty, text(r["DOCNUM"]), str(r["SEQNUM"] or "").ljust(3)[:3], r["DOCDAT"])
     return found
 
@@ -226,7 +227,7 @@ def check(acct: Path) -> dict:
     written = []
     # 先入后出：不允许负库存的账套（NEGALLOW = N）里结存为 0 的品先领用会被正确拦下（stock_guard）
     steps = (("JU", 2, {"unit_cost": "15"}), ("OU", 1, {}), ("TK", -1, {}), ("TK", 1, {"unit_cost": "99"}))
-    lot = latest_receipt(acct, code)
+    lot = latest_receipt(acct, code, day)
     for doctype, qty, extra in steps:
         payload = {"payload_version": 6, "direction": "stock", "doctype": doctype, "docdate_be": docdate,
                    "ref_no": f"REG-{doctype}", "remark": "", "items": [{"code": code, "name": "", "qty": str(qty), **extra}]}
