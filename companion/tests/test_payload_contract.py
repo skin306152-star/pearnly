@@ -18,10 +18,10 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 11}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 12}) == ERR_PAYLOAD_VERSION
 
 
-def test_supported_set_is_v1_to_v10_today():
+def test_supported_set_is_v1_to_v11_today():
     # v2(2026-09-28):明细 `code`(选定的存货按码落账)+ 单头 `depcod`(部门码)
     # v3(2026-10-13):POS 日汇总票的 `pos` 块(自编单号、票号起止、付款方式转账凭证)
     # v4(2026-10-22):明细行 / 表头 `loccod`(Express 仓库码,写进指定仓并维护 STLOC)
@@ -31,8 +31,9 @@ def test_supported_set_is_v1_to_v10_today():
     # v8(2026-10-25):库存单 `action = void`(照 Express 原生作废原单,B 段 ①)
     # v9(2026-10-26):销项表头 `vat_fields`(ISVAT 金额栏照写,混有免税商品时 AMT01 只记应税部分)
     # v10(2026-10-26):收银退货单 SR(销项 `doctype = SR` 带 `refund` 块,挂原 HS、退现金、货回仓;dbf_refund)
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-    assert check_payload_version({"payload_version": 10}) is None
+    # v11(2026-10-26):明细免税行标记 `vat_exempt`、退货块 `cross_year`(实录第 10 条、B3b 实录点 ②)
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+    assert check_payload_version({"payload_version": 11}) is None
     assert check_payload_version({"payload_version": 5}) is None
     assert check_payload_version({"payload_version": 2}) is None
     assert check_payload_version({"payload_version": 3}) is None
