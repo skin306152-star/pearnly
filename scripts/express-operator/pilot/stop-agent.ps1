@@ -4,5 +4,6 @@ $name = "PearnlyXpPilotAgent"
 Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
 Remove-Item "$Work\agent.token" -ErrorAction SilentlyContinue
+Start-Sleep 2
 $left = Get-NetTCPConnection -LocalPort 18765 -State Listen -ErrorAction SilentlyContinue
 "stopped listening=$([bool]$left)"

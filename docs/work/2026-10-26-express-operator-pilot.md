@@ -98,7 +98,8 @@
 | 离线自检（不连电脑、不调 API） | **25 项全过** | `python3 -m pilot.selftest` |
 | API 请求格式 | API 接受（只用免费的数 token 接口，没花钱） | 见附录 C |
 | 「授权一次、自动登录」雏形 | 已写，没演示 | `cc_login.py`，见附录 E |
-| 笔记本上装 Python 和 pywinauto | 已报主会话，等批准 | — |
+| 笔记本上装 Python 和 pywinauto | **已装**（用户同意）：Python 3.13.17（SHA256 与 python.org 一致，签名有效：Python Software Foundation）装在 C:\Python313；pywinauto 0.6.9、pywin32 312、comtypes 1.4.17、six 1.17.0（PyPI 官方） | `pip list` |
+| 代理在 acct 桌面会话里起停、读状态 | **通过**：Win32 焦点、UIA 焦点都读得到（当时前台是桌面）；前台不是 Express 时按键被守卫拒绝 | 10-26 连通自检 |
 | S 盘副本客户分档 | 已完成（2568 全年，40 家；另对照 2026 年 1–5 月，量一致） | `s_stats.py`、本机 `s_stats/客户分档.md` |
 | 在 Express 上真跑 | 没做 | — |
 
@@ -170,7 +171,7 @@
 
 ## 附录 G：真跑前要主会话 / 用户安排的
 
-1. 批准在 rec-laptop 装 Python 3.13.17（python.org）和 pywinauto 0.6.9、pywin32 312、comtypes 1.4.17、six 1.17.0（PyPI 官方）。
+1. ~~批准装 Python 和 pywinauto 等~~（10-26 用户已同意，已装）。
 2. 用户在 rec-laptop 的 acct 桌面：打开一次 `\\accserver\d$\ACCOUNT\70EXP` 输服务器凭据（d$ 是管理共享），再登录服务器版 Express；
    进公司前截图确认是「บริษัท Pearnly จำกัด」。
 3. 69EXP\test 的主档（供应商、客户、非库存品）够不够：代理起来后先只读查；不够的话怎么建需批准。
@@ -183,5 +184,6 @@
 |---|---|---|---|
 | 10-26 | 本机 | 离线自检；数 token 接口核对请求格式（免费） | 0 |
 | 10-26 | rec-laptop | 只读查了登录用户、计划任务、有没有 Python（ssh macadmin，没改任何东西） | 0 |
+| 10-26 | rec-laptop | 装 Python 3.13.17 + 4 个包（见附录 B）；建 C:\XpPilot（代码、下载的安装包 dl\）；计划任务 PearnlyXpPilotAgent 起停一次做连通自检，已停 | 0 |
 | 10-26 | 甲骨文 | 只读拷了识别结果和语料答案到本机 `~/pearnly-devtools/xp-pilot/corpus/` | 0 |
 | 10-26 | 测试机 | 只读统计 S 盘副本（SSH 后台无窗口，已在占用表登记并释放；只留 `C:\PearnlyStress\_xp_pilot\s_stats\pilot\` 三个脚本） | 0 |
