@@ -214,12 +214,20 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
         payload = _purchase("PO-7201", "150.00", "7.00", "157.00", 10, 10)
         payload["doctype"] = "HP"
         payload["items"] = [_item(10, 10, "100.00", "stock_item"), {**_item(5, 10, "50.00", "stock_item"), "vat_exempt": True}]
+        payload["vat_fields"] = {"AMT01": "100.00", "AMTRAT0": "50.00"}
         res = self._buy(payload)
         self.assertTrue(res.ok, res.error)
         rows = sorted(self._rows("STCRD", DOCNUM=res.docnum), key=lambda row: row.SEQNUM.strip())
         self.assertEqual([(Decimal(str(row.TRNVAL)), Decimal(str(row.NETVAL))) for row in rows],
                          [(Decimal("107"), Decimal("100")), (Decimal("50"), Decimal("50"))])
         self.assertEqual([(row.VATCOD or "").strip() for row in rows], ["", "0"])
+        # 进项税记录 AMT01 只记应税部分、免税部分记 AMTRAT0，单头同记（同原生 HP67012204；主会话 10-26 要求本批做完）
+        vat = self._rows("ISVAT", DOCNUM=res.docnum)[0]
+        self.assertEqual((Decimal(str(vat.AMT01)), Decimal(str(vat.VAT01)), Decimal(str(vat.AMTRAT0))),
+                         (Decimal("100"), Decimal("7"), Decimal("50")))
+        self.assertEqual(Decimal(str(self._rows("APTRN", DOCNUM=res.docnum)[0].AMTRAT0)), Decimal("50"))
+        bad = {**payload, "ref_no": "PO-7202", "vat_fields": {"VAT01": "1"}}
+        self.assertFalse(self._buy(bad).ok)  # 只认金额栏，税额栏照 vat_amount
 
     def test_two_receipts_then_sale_carries_real_cogs(self):
         """进 100@฿10 + 100@฿14 → 200 件 / ฿2400 / 均价 ฿12;卖 50 件 → COGS ฿600、结存 150 件 / ฿1800。

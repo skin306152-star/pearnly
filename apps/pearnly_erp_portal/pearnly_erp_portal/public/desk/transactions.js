@@ -267,7 +267,8 @@
 					// 仓库：官方原生 Link（不是自由填写），只列当前公司的仓库。
 					{ fieldtype: "Link", options: "ERP Warehouse", get_query: p.warehouse_query(), only_select: true,
 						fieldname: "warehouse", label: t("trade.warehouse"), in_list_view: 1, columns: 2 },
-					{ fieldtype: "Autocomplete", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2,
+					// 只读的表（已提交的单、小票详情）用原生只读文字：只读的 Autocomplete 不建选项列表，赋值时框架校验会报错
+					{ fieldtype: readonly ? "Data" : "Autocomplete", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2,
 						get_query: p.location_query() },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1, in_list_view: 1, columns: 1, formatter: value => p.number(value) },
 					{ fieldtype: "Currency", fieldname: price, options: "currency", formatter: value => p.money(value), label: t(cost ? "trade.cost" : "trade.price"), in_list_view: 1, columns: 2 },

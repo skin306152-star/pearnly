@@ -103,6 +103,8 @@ class PurchaseEntry:
     supplier_address: str = ""
     # 分店号(5 位,如 00018;空=未提供)。连锁供应商同税号多档时的匹配判据 + 新建档落 ORGNUM。
     supplier_branch: str = ""
+    # 来源按规则算好的进项税记录金额栏(混合税率的采购:AMT01 只记应税部分、免税部分记 AMTRAT0,同原生;空 = 照整张税前)
+    vat_fields: Dict[str, str] = df(default_factory=dict)
     # 存货科目组(ISACC ACCCOD)· 与销项同名同义:账套零库存品时建 STKTYP=0 全靠它。
     stock_acccod: str = ""
     # 会计在复核时选了「新建供应商档」(载荷 supplier.confirmed_new):不再按税号 / 名称找旧档、
@@ -214,7 +216,28 @@ def validate_purchase_payload(
     if item_err is not None:
         return item_err
 
+    if "vat_fields" in payload:
+        fields_err = _validate_vat_fields(payload.get("vat_fields"), base)
+        if fields_err is not None:
+            return fields_err
+
     return PayloadValidationResult(True)
+
+
+_VAT_FIELD = re.compile(r"AMT\d{2}|AMTRAT\d")
+
+
+def _validate_vat_fields(fields, base: Decimal) -> Optional[PayloadValidationResult]:
+    """``vat_fields``(进项 / 销项共用):只认 ISVAT 的金额栏(AMTnn / AMTRATn,税额栏照 vat_amount 写、不许改),金额 0 ≤ x ≤ 整张税前。"""
+    if not isinstance(fields, dict) or not fields:
+        return PayloadValidationResult(False, ERR_AMOUNTS, "vat_fields must be a non-empty object")
+    for name, value in fields.items():
+        amount = _d(value)
+        if not isinstance(name, str) or not _VAT_FIELD.fullmatch(name):
+            return PayloadValidationResult(False, ERR_AMOUNTS, f"vat_fields {name!r} is not an ISVAT amount column")
+        if amount is None or not amount.is_finite() or amount < 0 or amount > base:
+            return PayloadValidationResult(False, ERR_AMOUNTS, f"vat_fields {name} out of range")
+    return None
 
 
 def _validate_items(payload: Dict[str, Any]) -> Optional[PayloadValidationResult]:
@@ -285,6 +308,7 @@ def build_purchase_entry(payload: Dict[str, Any]) -> PurchaseEntry:
         items=list(payload.get("items") or []),
         items_status=str(payload.get("items_status") or "empty").strip(),
         items_account=str(payload.get("items_account") or "").strip(),
+        vat_fields={name: format(_q(_d(value)), "f") for name, value in (payload.get("vat_fields") or {}).items()},
     )
 
 

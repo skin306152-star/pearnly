@@ -11,7 +11,6 @@ tax_id,prename,customer_new} · vat_rate · base/vat/total · lines:借应收/�
 from __future__ import annotations
 
 from dataclasses import dataclass, field as df
-import re
 from decimal import Decimal
 from typing import Any, Dict, List
 
@@ -24,6 +23,7 @@ from .purchase_adapter import (
     _lines_balance,
     _q,
     _valid_be_yymmdd,
+    _validate_vat_fields,
     _vat_rate_str,
     be_date_to_express,
     be_period_to_express,
@@ -237,22 +237,6 @@ def _validate_refund(payload: Dict[str, Any], base: Decimal, vat: Decimal, total
             return bad(f"refund journal line {ln.get('role')} invalid")
     if sum((_d(ln.get("amount")) for ln in lines if ln["role"] == "refund"), Decimal(0)) != base:
         return bad("refund journal lines do not add up to the amount before tax")
-    return None
-
-
-_VAT_FIELD = re.compile(r"AMT\d{2}|AMTRAT\d")
-
-
-def _validate_vat_fields(fields, base: Decimal) -> PayloadValidationResult | None:
-    """``vat_fields``:只认 ISVAT 的金额栏(AMTnn / AMTRATn,税额栏照 vat_amount 写、不许改),金额 0 ≤ x ≤ 整张税前。"""
-    if not isinstance(fields, dict) or not fields:
-        return PayloadValidationResult(False, ERR_AMOUNTS, "vat_fields must be a non-empty object")
-    for name, value in fields.items():
-        amount = _d(value)
-        if not isinstance(name, str) or not _VAT_FIELD.fullmatch(name):
-            return PayloadValidationResult(False, ERR_AMOUNTS, f"vat_fields {name!r} is not an ISVAT amount column")
-        if amount is None or not amount.is_finite() or amount < 0 or amount > base:
-            return PayloadValidationResult(False, ERR_AMOUNTS, f"vat_fields {name} out of range")
     return None
 
 

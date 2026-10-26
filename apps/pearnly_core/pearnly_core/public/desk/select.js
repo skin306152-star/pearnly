@@ -1,7 +1,17 @@
 /* Product selects use Frappe's searchable popup, not the browser's built-in select menu. */
 (() => {
 	if (!frappe.boot.pearnly_product) return;
-	class ProductSelect extends frappe.ui.form.ControlAutocomplete {
+	// A read-only native Autocomplete never builds its input, so it has no option list (awesomplete);
+	// the framework's validate still reads that list and a set_value on it throws, stopping the page
+	// (2026-10-26: the location field of a submitted document). Read-only has no options to check against:
+	// keep the value. Fields that can be read-only still use a read-only Data field.
+	class ProductAutocomplete extends frappe.ui.form.ControlAutocomplete {
+		validate(value) {
+			return this.awesomplete ? super.validate(value) : value;
+		}
+	}
+	frappe.ui.form.ControlAutocomplete = ProductAutocomplete;
+	class ProductSelect extends ProductAutocomplete {
 		// A native Select lists every option; native Autocomplete stops at 99 unless typed into.
 		// Keep the Select behaviour: the popup is as long as the option list (an explicit max_items still wins).
 		option_limit() {
@@ -46,10 +56,6 @@
 				return li;
 			};
 			return settings;
-		}
-		validate(value) {
-			// Read-only controls have no input widget; defaults still pass through validation.
-			return this.awesomplete ? super.validate(value) : value;
 		}
 		make_input() {
 			super.make_input();

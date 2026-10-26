@@ -63,7 +63,10 @@
 			// 仓库：官方原生 Link，只列当前公司的仓库（不是自由填写）。
 			f("warehouse", "Warehouse", "Link",
 				{options: "ERP Warehouse", get_query: p.warehouse_query()}),
-			f("location", "Location", "Autocomplete", {get_query: p.location_query(() => line.form?.get_value("warehouse"))}),
+			// 库位：能改时原生 Autocomplete（按仓库从服务端取清单）；只读（已提交 / 作废）用原生只读文字——只读的 Autocomplete 不建选项列表，
+			// 给它赋值时框架校验会报错、打断整页（10-26 打印窗口发现）
+			f("location", "Location", state.editable ? "Autocomplete" : "Data",
+				{get_query: p.location_query(() => line.form?.get_value("warehouse"))}),
 			// 批号/失效日期：默认收起，选了"管批次 / 管有效期"的物料才由 onchange 露出来。
 			f("batch_no", "Batch No", "Data", {hidden: 1}),
 			f("expiry_date", "Expiry Date", "Date", {hidden: 1}),

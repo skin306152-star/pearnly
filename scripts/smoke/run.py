@@ -49,7 +49,7 @@ reaper = importlib.util.module_from_spec(reaper_spec)
 reaper_spec.loader.exec_module(reaper)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
-READONLY_PROBES = {"page", "scan", "find_product", "assistant"}
+READONLY_PROBES = {"page", "scan", "find_product", "assistant", "doc_detail"}
 CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py", "cowork_express": "cowork_express_flow.py",
                     "api_time": "api_time.py"}
 # 写 Express 的探针要用测试机 CC 上登录过的员工（CC 只领他的单）：入口 args 里写了 user 时以它为准
@@ -135,6 +135,8 @@ def verdict(raw: dict, limit_ms: int | None = None) -> tuple[str, str]:
         return "不通过", str(raw["error"])[:200]
     if exceptions:
         return "不通过", "页面异常：" + exceptions[0][:200]
+    if result.get("skip"):
+        return "没测到", str(result.get("why") or "")[:200]  # 详情页探针：测试租户里没有这种状态的单
     if not result.get("ok"):
         return "不通过", json.dumps({k: v for k, v in result.items() if k != "ok"}, ensure_ascii=False)[:300]
     if limit_ms:
@@ -159,7 +161,10 @@ def main(argv=None) -> int:
     parser.add_argument("--site", choices=sorted(SITES), help="只跑这个测试租户的入口（实验栈一次只起一个产品）")
     parser.add_argument("--company", help="ERP 页面冒烟先把冒烟账号的当前公司切到这家（大账套跑打开时限），收尾还原")
     parser.add_argument("--out", help="结果 Markdown 写到这个文件")
+    parser.add_argument("--shots", help="浏览器探针跑完后各存一张截图到这个目录（留证）")
     args = parser.parse_args(argv)
+    if args.shots:
+        Path(args.shots).mkdir(parents=True, exist_ok=True)
     if args.target == "production" and not args.readonly:
         parser.error("线上只跑只读子集：加 --readonly")
     parts, entries, errors = impact.load()
@@ -216,7 +221,8 @@ def main(argv=None) -> int:
             url = f"https://{site}{entry.url}"
             raw = drive({"url": url, "cookie_domain": site, "sid": sessions[product][1], "probe": entry.smoke,
                          "args": {"code": barcode.TEST_CODE, **entry.args}, "video": str(video) if entry.smoke == "scan" else "",
-                         "wait_ms": 7000, "wait_for": "none" if entry.smoke == "assistant" else "frappe"})
+                         "wait_ms": 7000, "wait_for": "none" if entry.smoke == "assistant" else "frappe",
+                         **({"screenshot": str(Path(args.shots).resolve() / f"{entry.id}.png")} if args.shots else {})})
             limit = int(entry.args.get("limit_ms", PAGE_LIMIT_MS)) if entry.smoke == "page" else None
             state, why = verdict(raw, limit)
             rows.append((entry, state, why))

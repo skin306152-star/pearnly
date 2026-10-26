@@ -878,6 +878,10 @@ class MixedRatePurchase(PushModule):
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0)], [False, False])  # 整张无税：不标
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(7, 7)], [False, False])
         self.assertEqual(common.finalize_payload({"items": [{"name": "A", "vat_exempt": True}]})["payload_version"], 11)
+        # 进项税记录：AMT01 只记应税部分、免税部分记 AMTRAT0（同原生 HP67012204）；没有免税行不带
+        body = {"subtotal": "150.00", "items": [{"amount": "100.00"}, {"amount": "50.00", "vat_exempt": True}]}
+        self.assertEqual(self.push.vat_fields(body), {"AMT01": "100.00", "AMTRAT0": "50.00"})
+        self.assertEqual(self.push.vat_fields({"subtotal": "150.00", "items": [{"amount": "150.00"}]}), {})
 
 
 class StockVoid(PushModule):

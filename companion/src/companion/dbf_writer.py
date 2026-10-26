@@ -575,6 +575,9 @@ def _write_all(
                 "NETVAL": netval,
                 "VATAMT": _f(vat),
                 "NETAMT": netamt,
+                # 免税部分（载荷 `vat_fields` 的 AMTRAT0）：单头同进项税记录也记一份（原生 HP67012204）；老账套没有这一栏不写
+                **({"AMTRAT0": _f(Decimal(entry.vat_fields["AMTRAT0"]))}
+                   if "AMTRAT0" in entry.vat_fields and "AMTRAT0" in {f.upper() for f in ap.field_names} else {}),
                 "REMAMT": 0.0 if paid else netamt,
                 "PAYAMT": netamt if paid else 0.0,
                 "CSHPAY": netamt if paid else 0.0,
@@ -620,6 +623,9 @@ def _write_all(
                     "TAXID": entry.supplier_tax_id,
                     "PRENAM": entry.supplier_prename[:15],
                     **_vat_branch(iv, orgnum),
+                    # 来源按规则算好的金额栏(混合税率:AMT01 只记应税部分、免税部分记 AMTRAT0,同原生 HP67012204);账套没有的栏不写
+                    **{name: _f(Decimal(value)) for name, value in entry.vat_fields.items()
+                       if name in {f.upper() for f in iv.field_names}},
                 }
             )
         finally:

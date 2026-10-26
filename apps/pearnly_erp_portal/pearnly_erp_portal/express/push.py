@@ -218,10 +218,24 @@ def document(doctype, name) -> dict:
     else:
         number, paid = doc.doc_no or doc.system_no, bool(doc.is_paid) or doc.payment_status == "paid"
         currency = doc.currency or "THB"
-    return contracts.document(ref=ref(doc.name, doc.creation), direction=DIRECTIONS[doctype],
+    body = contracts.document(ref=ref(doc.name, doc.creation), direction=DIRECTIONS[doctype],
                               doc_date=str(doc.doc_date), number=number,
                               company=company, party=_party(doctype, doc), paid=paid, has_vat=bool(doc.has_vat),
                               total=doc.grand_total, vat=doc.vat_amount, lines=_lines(doctype, doc), currency=currency)
+    fields = vat_fields(body)
+    if fields:
+        body["vat_fields"] = fields
+    return body
+
+
+def vat_fields(body) -> dict:
+    """混合税率的采购（0 税率的行标了免税，见 :func:`_lines`）：进项税记录 AMT01 只记应税部分、免税部分记 AMTRAT0（单头同记），
+    同原生（S 盘副本 HP67012204：AMT01 383.18 = 税前 410.18 − 免税 27）。没有免税行回空（照整张税前记）。"""
+    exempt = sum((contracts.d(item["amount"]) for item in body.get("items") or [] if item.get("vat_exempt")), contracts.d(0))
+    if exempt <= 0:
+        return {}
+    return {pos_day.ISVAT_TAXABLE_FIELD: contracts.money(contracts.d(body["subtotal"]) - exempt),
+            pos_day.ISVAT_EXEMPT_FIELD: contracts.money(exempt)}
 
 
 def _set(doctype, name, values):
@@ -250,7 +264,7 @@ def send(doctype, name):
         _set(doctype, name, {"express_state": None, "express_reason": "", "express_needed": None})
         frappe.db.commit()
         return
-    vat_fields = body.pop("vat_fields", None) if doctype == POS_DAY else None
+    vat_fields = body.pop("vat_fields", None)
     if doctype == POS_DAY and "hold" in body:
         result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
     else:
@@ -271,7 +285,7 @@ def send(doctype, name):
         _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
         payload = result["payload"]
         if vat_fields:
-            # 混有免税商品的现销日汇总：销项税记录的应税基数按 `pos_day` 的规则交（载荷 9，旧版 CC 诚实拒收）
+            # 混有免税商品的现销日汇总 / 混合税率的采购：税记录的应税基数按规则交（载荷 9，旧版 CC 诚实拒收）
             payload = {**payload, "vat_fields": vat_fields,
                        "payload_version": max(int(payload.get("payload_version") or 1), pos_day.VAT_FIELDS_PAYLOAD_VERSION)}
         # 再写一次（`api.retry`）撤掉的那件占着原来的请求号：后面的按第几件编号

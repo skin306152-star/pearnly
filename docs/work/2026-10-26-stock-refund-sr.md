@@ -267,3 +267,38 @@ ISVAT、GLJNL 没有这类字段。改法：`dbf_schema.append_native`（原 `ap
   其中一个是别的窗口 16:41 跑相机自检留下的），别的窗口可能还在用旧脚本跑，没有一并删；各窗口合入本批后各自手工清一次。
 - 实写读回：测试机现由验收窗口录服务器版 Express 原生样本，暂不能起实验栈；ERP 混合税率现购的实验栈实写待测试机空出后补（CC 写法有用例与
   e2 实测的免税行写法覆盖）。
+
+## 测试包 e3（主会话 10-26 追加三项，用户要求不带问题上线）
+
+### ① 混合税率现购的进项税记录分出免税额
+
+- 原生依据（S 盘副本只读统计，2568–2569 年 ISVAT 进项 66.5 万行）：进项税记录带 AMTRAT0 的单，现购 HP 价含税 314 张、价不含税 754 张，
+  赊购 RR / RN 等 1,100 多张。例 6808GIZE 的 HP67012204：APTRN AMOUNT 437、NETVAL 410.18、VATAMT 26.82、**AMTRAT0 27**；ISVAT
+  **AMT01 383.18**（= 税前 410.18 − 免税 27）、VAT01 26.82、**AMTRAT0 27**。与销项（实录第 10 条）同一口径。
+- 修：ERP 采购推送有免税行时带 `vat_fields`（AMT01 = 税前 − 免税行合计、AMTRAT0 = 免税行合计，`express/push.vat_fields`），
+  `send` 对所有单据同样处理 `vat_fields`；CC 采购写入 APTRN.AMTRAT0、ISVAT 照 `vat_fields` 写金额栏（`dbf_writer`），
+  金额栏校验挪到 `purchase_adapter._validate_vat_fields` 进项 / 销项共用；合成表 APTRN 补 AMTRAT0。
+- 用例：ERP `MixedRatePurchase`（vat_fields 100 / 50、没有免税行不带）；CC 混合税率现购（ISVAT AMT01 100、VAT01 7、AMTRAT0 50，
+  APTRN.AMTRAT0 50；税额栏不许改）；契约用例核 CC 侧金额栏校验在 purchase_adapter。
+
+### ② 采购 / 销售明细的库位格只读时报错（96034aa0 引入，打印窗口发现）
+
+- 原因（Frappe 16.33.0 `ControlAutocomplete.validate` 直接读 `this.awesomplete._list`）：只读的 Autocomplete 不建输入框、没有 awesomplete，
+  已提交 / 作废单据的详情页里 `add_line` 的 `set_values` 给库位格赋值就抛 TypeError，编辑器中断，之后的 Express 按钮、收款、取消菜单都出不来。
+- 结构性修两层：
+  - 字段定义：能变成只读的格按能不能改选控件——采购 / 销售明细（`sales-fields.js`、`purchase-fields.js` 按 `state.editable`）、
+    只读明细表（`transactions.js` 的 `lines(readonly)`，已提交的出入库单、小票详情）只读时用原生只读文字（Data）；
+  - 共用层（`select.js`）给原生 Autocomplete 加同 ProductSelect 一样的只读不核：没有选项列表（只读）时值照原样，不再抛错。
+- 按类全仓查 11 处 Autocomplete：仓库对话框的公司格早已按 is_new 选控件；明细物料 / 对方格（entry-choice）带 ignore_validation；
+  其余是始终可编辑的对话框（期初录入、盘点录入、出入库单编辑器、Express 要人选、切换公司、Cowork 推送前选）。
+- 防再犯：`tests/test-desk-readonly-controls.cjs`（进 CI）逐处扫产品 Desk 脚本里的 Autocomplete 格：要么按能不能改选控件、要么带
+  ignore_validation、要么登记为始终可编辑并写明原因，另核共用层保护还在；`tests/test-native-desk.cjs` 的原生 Autocomplete 桩照 Frappe
+  读 awesomplete 列表，加只读赋值不报错、可编辑仍校验的用例（去掉保护即复现线上 TypeError）。
+
+### ③ 冒烟为什么没拦住、补什么
+
+- 原因：自动冒烟的页面入口只打开列表页（`/desk/pearnly-sales` 等），从没打开过已提交 / 作废单据的详情页，回归出在详情页。
+- 补：新探针 `scripts/smoke/probes/doc_detail.js`——在列表页找这一类最新的一张某状态的单、点开（销售 / 采购走路由，出入库单点列表行开弹窗），
+  等预期的按钮 / 菜单项出现，页面异常一律不通过，没有这种状态的单记「没测到」；登记表加 8 个入口（销售 / 采购 × 草稿 / 已提交 / 作废，
+  已提交入库单、作废出库单），挂到 desk-shell、page-errors、desk-select、desk-list、erp-transactions（销售 / 采购另挂 desk-viewer、
+  erp-entry-choice）；`run.py --shots <目录>` 每个浏览器探针跑完存一张截图留证。

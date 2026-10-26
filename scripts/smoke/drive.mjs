@@ -118,6 +118,11 @@ try {
   const expression = `(async (args) => {\n${body}\n})(${JSON.stringify(job.args || {})})`;
   const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, timeout: 90000 }, sessionId);
   output = { result: result.result?.value ?? null, error: result.exceptionDetails?.exception?.description || null, logs, ready_ms: readyMs };
+  if (job.screenshot) {  // 留证：探针跑完后的页面截图（run.py --shots）
+    await sleep(500);
+    const shot = await send("Page.captureScreenshot", { format: "png" }, sessionId);
+    writeFileSync(job.screenshot, Buffer.from(shot.data, "base64"));
+  }
 } catch (error) {
   output = { result: null, error: `driver: ${error.message}`, logs };
 } finally {

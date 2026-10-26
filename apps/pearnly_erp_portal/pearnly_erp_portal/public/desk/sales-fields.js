@@ -49,7 +49,10 @@
 			// 仓库：官方原生 Link，只列当前公司的仓库（不是自由填写）。
 			f("warehouse", "Warehouse", "Link",
 				{options: "ERP Warehouse", get_query: p.warehouse_query()}),
-			f("location", "Location", "Autocomplete", {get_query: p.location_query(() => line.form?.get_value("warehouse"))}),
+			// 库位：能改时原生 Autocomplete（按仓库从服务端取清单）；只读（已提交 / 作废）用原生只读文字——只读的 Autocomplete 不建选项列表，
+			// 给它赋值时框架校验会报错、打断整页（10-26 打印窗口发现）
+			f("location", "Location", state.editable ? "Autocomplete" : "Data",
+				{get_query: p.location_query(() => line.form?.get_value("warehouse"))}),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,

@@ -157,9 +157,10 @@ console.log('PASS profile keeps visible fields with their real tab/section/colum
 // A Dialog receives a new set of value/label pairs after each product lookup.
 // Native Autocomplete refreshes data at creation, unlike native Select's refresh.
 class NativeAutocomplete {
-  set_options() { this._data = this.df.options; }
+  set_options() { this._data = this.df.options; if (this.awesomplete) this.awesomplete._list = this._data; }
   set_formatted_input(value) { this.display = this._data?.find(row => row.value === value)?.label || value; }
-  validate(value) { return this._data.some(row => row.value === value) ? value : ''; }
+  // Frappe 16.33.0 ControlAutocomplete.validate reads the awesomplete list directly (it throws when there is none).
+  validate(value) { const list = this.awesomplete._list.map(row => row.value); return !list.length || list.includes(value) ? value : ''; }
 }
 const selectFrappe = {boot:{pearnly_product:'erp'},ui:{form:{ControlAutocomplete:NativeAutocomplete}}};
 vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/select.js','utf8'), {frappe:selectFrappe});
@@ -174,6 +175,19 @@ assert.equal(choice.display,'仓库 / B架');
 assert.equal(choice.validate('row-b'),'row-b');
 assert.equal(choice.validate('row-a'),'');
 console.log('PASS dynamic native Select refreshes labels and rejects the previous product choice');
+// 2026-10-26：只读的原生 Autocomplete 不建输入框，没有选项列表；给它赋值（已提交单据的库位格）不能报错打断整页
+const readonlyAuto = new selectFrappe.ui.form.ControlAutocomplete();
+readonlyAuto.df = {fieldtype: 'Autocomplete', read_only: 1};
+assert.equal(readonlyAuto.validate('A-01'), 'A-01', 'A read-only Autocomplete keeps its value');
+const readonlySelect = new selectFrappe.ui.form.ControlSelect();
+readonlySelect.df = {options: [{value: 'x', label: 'x'}], read_only: 1};
+assert.equal(readonlySelect.validate('x'), 'x', 'A read-only product Select keeps its value');
+const liveAuto = new selectFrappe.ui.form.ControlAutocomplete();
+liveAuto.df = {options: [{value: 'A-01', label: 'A-01'}]};
+liveAuto.awesomplete = {};
+liveAuto.set_options();
+assert.equal(liveAuto.validate('Z-99'), '', 'An editable Autocomplete still checks its list');
+console.log('PASS a read-only Autocomplete keeps its value instead of throwing');
 // 2026-10-25：原生 Select 列出全部选项，换成 Autocomplete 后默认只列 99 个；弹层长度跟选项数走，显式 max_items 优先
 choice.df.options = Array.from({length: 150}, (_, n) => ({value: `v${n}`, label: `L${n}`}));
 choice.set_formatted_input('v0');
