@@ -231,7 +231,7 @@ def _trade_rows(doc, *, units=True) -> list:
 
 
 def _totals(rows) -> list:
-    """合计区：``[(标签键, 金额, 必印)]`` → ``[{key, value}]``；值为 0 或空的可选项不印。泰英标签在模板 `_labels.html`。"""
+    """合计区：``[(标签键, 金额, 必印)]`` → ``[{key, value}]``；不是必印的项，金额为 0 或空就不印。泰英标签在模板 `_labels.html`。"""
     out = []
     for key, value, always in rows:
         if always or contracts.d(value):
@@ -253,10 +253,12 @@ def _order(doc) -> dict:
                         doc.company),
         info=[("required_date", contracts.day(doc.due_date)), ("ref_no", doc.doc_no or ""),
               ("requested_by", doc.requester or ""), ("payment_terms", "")],
+        # 预扣税不为 0 才印「预扣税」与「应付净额」两行
         totals=_totals([("subtotal", doc.subtotal, True), ("discount", doc.discount_total, False),
                         ("vat", doc.vat_amount, bool(doc.has_vat)), ("rounding", doc.rounding, False),
-                        ("grand_total", doc.grand_total, True), ("wht", doc.wht_amount, False),
-                        ("net_payable", doc.net_payable, bool(contracts.d(doc.wht_amount)))]),
+                        ("grand_total", doc.grand_total, True)]
+                       + ([("wht", doc.wht_amount, True), ("net_payable", doc.net_payable, True)]
+                          if contracts.d(doc.wht_amount) else [])),
         signs=["prepared", "approved", "supplier_ack"])
     ctx["page_count"] = len(ctx["pages"])
     return ctx

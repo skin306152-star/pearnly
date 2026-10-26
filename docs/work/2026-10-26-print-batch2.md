@@ -43,14 +43,17 @@
 
 | 场景 | 结果 |
 | --- | --- |
-| 框架原生 `frappe.get_print` 出 PDF：采购订单、报价单、销售单（没接 Express）、销售单（接了 Express，样张脚本里把 `linked` 换真）、收银小票、退货小票、交班小结、点数表、结果表 | 九份都是一页；嵌入字体 Prompt-Regular / Prompt-Bold；热敏两份 PDF 纸宽 80.1 mm（长 182 / 235 mm，一张不分页），盘点 A4 竖 |
+| 框架原生 `frappe.get_print` 出 PDF：采购订单、报价单、销售单（没接 Express）、销售单（接了 Express，样张脚本里把 `linked` 换真）、收银小票、退货小票、交班小结、点数表、结果表 | 九份都是一页；嵌入字体 Prompt-Regular / Prompt-Bold；热敏两份 PDF 纸宽 80.1 mm（一张不分页），盘点 A4 竖 |
+| 样张数据（主会话 10-26 核：报价单 6,206.50 − 100.00 + 427.46 应为 6,533.96，初版样张印 6,533.95） | 查清是初版样张直接写库造数、各自舍入不自洽（库里存的就是 6,533.95），模板照印存着的数。采购订单、报价单、销售单、收银小票、退货、交班改走系统真实建单接口重出（`purchasing.entry.post`、`sales.entry.post`、`cashier.sales.create_sale` / `refund`、`cashier.shifts.open_shift` / `close_shift`，金额、税、单号都由系统算 / 发）：报价单合计 6,533.96、采购订单 10,696.26、小票 573.00、退货 48.50、交班实点 1,514.50，PDF 里印的与库里存的逐一相同。盘点两张没有金额，仍是直接造的明细。按台商品车号行由单元测试覆盖（系统建单要先登记车辆，这批样张没带） |
+| 报价单编号 | 系统给报价单也走销售方向发号（`sales/entry.py` `numbering.allocate(direction="sales")` → `SI`，`numbering/contracts.py` `SALES = "SI"`），与销售单共用一个计数；模板印的是单上的 `system_no`，没拿错字段 |
+| 采购订单合计行 | 初版没有预扣税也印了「ยอดชำระสุทธิ / Net Payable」：已改成预扣税不为 0 才印预扣税、应付净额两行（`test_erp_print_security.py` 新增「合计只抄单上存的数」） |
 | 版面逐张看 | 采购订单印供应商税号 + 「สำนักงานใหญ่」、需要日期、对方单号、申请人，合计含折扣 / VAT；销售单印客户税号 + 「สาขา 00003」、车号行（เลขตัวถัง / เลขเครื่อง / สี）在第 2 行下；接 Express 的标题 ใบส่งของ / DELIVERY NOTE 并印 Express 单号，没接的 ใบเสร็จรับเงิน / RECEIPT；全部不含「ใบกำกับภาษี」；小票页眉只有公司抬头（含分店、税号），无感谢语；退货小票印原单号与原因；点数表没有账面数列，结果表有账面 / 实点 / 差异 |
 | 浏览器直打热敏（Chrome 打印，纸宽 80 mm） | 小票、交班各一页，文字最右到 76.2 mm，不截边（`browser-print-80mm-pos-receipt.png`） |
 | 逐入口点「打印」（无头 Chrome，拦下打开的地址） | 采购订单 → `format=Pearnly Purchase Order`；销售单、报价单 → `Pearnly Sales Document`；小票查看器 → `Pearnly POS Receipt`；收银台「打印收据」（`p.pos_receipt.print`）→ 同格式且 `trigger_print=1`；交班记录（已交班）→ `Pearnly Shift Summary`；盘点进行中 / 已过账 → `Pearnly Stock Count`。出入库单弹窗（第一批入口）本批没改 |
 | 原生打印预览 `/printview` 截图 | 八张都正常出版面（`preview-*.png`）。改模板后网页进程要重启才换新模板（实验栈 `bench serve --noreload` 实测，旧进程报 417）；部署本来就重启进程 |
 | 非管理员越权（两个收银员账号，角色 ERP Menu cashier / pos-receipts） | 收银员 1 打自己的小票成功；收银员 2 打同一张被 `PermissionError` 拒 |
 | `tests/test_erp_printing.py`（生产镜像） | 14 项 OK（新增：标题不含税票、分店写法、车号行、盲盘、热敏纸长；贸易单据 / 小票 / 退货 / 交班 / 点数表与结果表渲染） |
-| `tests/test_erp_print_security.py`（生产镜像） | 7 项 OK（新增：四种单读不到拒打、采购订单格式只给采购订单、开着的班不打、别家公司的客户档不读、别的收银台的原单号不印） |
+| `tests/test_erp_print_security.py`（生产镜像） | 8 项 OK（新增：四种单读不到拒打、采购订单格式只给采购订单、开着的班不打、别家公司的客户档不读、别的收银台的原单号不印） |
 | `scripts/check-impact.py` | 登记表完整（46 个共用件、169 个入口）；命中 `erp-transactions`（9 个入口）、`erp-printing`（6 个入口） |
 
 **连带回归说明**：`erp-printing` 的 6 个打印入口上面逐个点过。`erp-transactions` 本批只在小票查看器里加了一颗按钮（`receipt_view`），
