@@ -41,6 +41,7 @@ from . import account_rules
 from . import cdx_reindex
 from . import dbf_detail
 from .dbf_fields import EXEMPT_VATCOD
+from .consistency import account_company_matches, read_company
 from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
@@ -317,20 +318,43 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
     return lines
 
 
-def customer_from(book, cuscod: str) -> Dict[str, Any]:
-    """跨年退货：从原年度账套（``book``，ERP 给的原 HS 所在位置）只读取出这个客户档，余额清零（新年度从 0 起）。取不到抛 :class:`Refused`
+# 复制客户档时照新写的规矩填、不沿用原年度的旧值：余额从 0 起，最近开票 / 收款日空着，建档 / 修改日记这一天、操作员记 CC 桌面版
+_COPY_ZERO = ("BALANCE",)
+_COPY_CLEAR = ("LASIVC", "LASRCV", "LASPAY")
+_COPY_TODAY = ("CREDAT", "CHGDAT")
+_COPY_USER = ("USERID", "CREBY")
+
+
+def customer_from(book, cuscod: str, account_dir=None, *, today=None, userid: str = S.PEARNLY_USERID) -> Dict[str, Any]:
+    """跨年退货：从原年度账套（``book``，ERP 给的原 HS 所在位置）只读取出这个客户档。原年度账套必须是同一家公司（ISINFO 公司名同
+    ``account_dir`` 的，复核 10-26：不信任载荷给的位置）；余额清零、日期与操作员照新写的规矩填。取不到抛 :class:`Refused`
     （``REFUND_CUSTOMER_NOT_COPIED``，转人工）。"""
     path = Path(str(book or ""))
     if not str(book or "").strip() or not (path / "ARMAS.DBF").is_file():
         raise Refused(ERR_CUSTOMER_NOT_COPIED, f"customer {cuscod!r} is not in this account set and the original year {book!r} cannot be read")
+    if account_dir is not None:
+        try:
+            company = read_company(account_dir)
+        except Exception:  # noqa: BLE001 - 读不到当前账套的公司名：不复制
+            company = ""
+        same, why = account_company_matches(path, company) if company else (False, "no company name in this account set")
+        if not same:
+            raise Refused(ERR_CUSTOMER_NOT_COPIED, f"the original year {book!r} is not the same company: {why}")
     table = _open(path, "ARMAS", dbf.READ_ONLY)
     try:
         for rec in S.live_rows(table):
             if str(rec["CUSCOD"] or "").strip() == cuscod:
                 row = {name: rec[name] for name in table.field_names}
                 for name in row:
-                    if name.upper() == "BALANCE":
+                    upper = name.upper()
+                    if upper in _COPY_ZERO:
                         row[name] = 0.0
+                    elif upper in _COPY_CLEAR:
+                        row[name] = None
+                    elif upper in _COPY_TODAY and today is not None:
+                        row[name] = today
+                    elif upper in _COPY_USER:
+                        row[name] = userid
                 return row
     finally:
         table.close()
@@ -411,7 +435,7 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
             # 原单在上一年度的账套：照原生挂原单号与原单合计（ERP 记的），对方用载荷给的（现金客户），明细挂「AVGPR」
             cuscod = entry.customer_code
             if not master_create._code_exists(account_dir, "ARMAS", "CUSCOD", cuscod):
-                copied = customer_from(entry.refund_against_book, cuscod)
+                copied = customer_from(entry.refund_against_book, cuscod, account_dir, today=docdat, userid=userid)
             lines = plan_cross_year(account_dir, entry, list(entry.items), locations)
         else:
             cuscod = original(account_dir, entry.refund_against, Decimal(entry.refund_against_total))

@@ -472,6 +472,19 @@ def test_a_cross_year_refund_copies_the_cash_customer_from_the_original_year(boo
     before = _state(book)
     failed = _write(book, copy.deepcopy(refund))
     assert (failed.ok, failed.error_code) == (False, dbf_refund.ERR_CUSTOMER_NOT_COPIED) and _state(book) == before
+    other = tmp_path / "T8OTHER"   # 别家公司的账套：不复制（复核 10-26：载荷给的位置要核是不是同一家公司）
+    shutil.copytree(last_year, other)
+    import dbf as _dbf
+    info = _dbf.Table(str(other / "ISINFO.DBF"), codepage=dbf_schema.CODEPAGE)
+    info.open(_dbf.READ_WRITE)
+    try:
+        for rec in info:
+            with rec as fields:
+                fields["THINAM"] = "OTHER CO"
+    finally:
+        info.close()
+    refund["refund"]["against_book"] = str(other)
+    assert _write(book, copy.deepcopy(refund)).error_code == dbf_refund.ERR_CUSTOMER_NOT_COPIED and _state(book) == before
     refund["refund"]["against_book"] = str(last_year)
     res = _write(book, refund)
     assert res.ok, res.error

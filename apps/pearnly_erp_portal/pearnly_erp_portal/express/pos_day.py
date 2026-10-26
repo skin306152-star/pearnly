@@ -255,7 +255,9 @@ def document(name, ref) -> dict:
                     "needed": [{"kind": EXEMPT_MODE, "subject": "company", "label": "",
                                 "options": [{"code": EXEMPT_SPLIT, "name": ""}, {"code": EXEMPT_WHOLE, "name": ""}]}]}
         exempt = mode == EXEMPT_SPLIT
-        if mode == EXEMPT_WHOLE:
+        # 整张计税只管混有应税商品的单：全是免税商品（小票一分税都没拆出来）的一天照免税写、税额 0，同原生对全免税的单不计税
+        # （验收复核测试包 d 10-26）
+        if mode == EXEMPT_WHOLE and vat > 0:
             # 照账套现在的设置整张计税（主会话 10-26 选 A）：同 Express 没开逐行 VAT 的账套，整张按含税价倒算税额（合计 × 7/107），
             # 税前 = 合计 − 税额，销项税记录、凭证跟着这个；与收银小票逐行拆出的税额不同，日汇总上标明（`vat_whole_document`）
             from pearnly_erp_portal.cashier import contracts as cashier

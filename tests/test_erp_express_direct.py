@@ -1787,6 +1787,10 @@ class PosDaySummaries(Base):
         self.assertNotIn("vat_fields", body)
         self.assertFalse(any(item.get("vat_exempt") for item in body["items"]))
         self.assertEqual((body["vat"], body["total"], body["subtotal"]), ("10.27", "157.00", "146.73"))
+        # 整张计税下全是免税商品的一天：不倒算出税，照免税写（原生对全免税的单不计税）
+        body = self.summary_body([("B", "1", "50", "0")], [], "50", vat="0", exempt="50", exempt_mode="whole")
+        self.assertEqual((body["vat"], body["has_vat"]), ("0.00", False))
+        self.assertNotIn("vat_fields", body)
         # 整张都是免税的（登记户）：也带金额栏，AMT01 0、AMTRAT0 全额（同原生 SR002100392），CC 桌面版照样写销项税记录
         body = self.summary_body([("B", "1", "50", "0")], [], "50", vat="0", exempt="50")
         self.assertEqual((body["vat_fields"], body["has_vat"]), ({"AMT01": "0.00", "AMTRAT0": "50.00"}, False))
