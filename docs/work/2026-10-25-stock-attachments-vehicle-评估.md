@@ -157,6 +157,10 @@
   - 内部编码：接了 Express 的公司 = Express 商品编码 STKCOD（回读、只读，并进 `P/express/locks.py`）；ERP 本地新建、手输了内部编码的商品，CC 第一次写 Express 时用它当 STKCOD（冲突停人工，不自动改码）；没接 Express 的公司手输，按公司唯一。
   - 车架号 / 发动机号 / 颜色：Express 商品主档没有这些字段，`ISSN` 表没人用、SERIAL 只有 15 位放不下 17 位车架号；S 盘惯例写在单据附加说明表 `ARTRNRM`（`DOCNUM + SEQNUM + REMARK C(50)`，挂在行下，进货销售共用）。CC 照惯例写，ERP 自有、不回读、不锁。
   - **`ARTRNRM` 的行号对应和打印位置未实测**，已放进 C 盘录单清单第 7 条（`docs/work/2026-10-25-express-c-drive-recording.md`），实测前不写代码。
+  - **10-26 S 盘副本只读统计的结论（验收实录第 11 条，主会话转达）**：`SEQNUM` 是「@1 / @2」的是整张单的说明；写成明细行号（右对齐 3 位，
+    同 `STCRD.SEQNUM`）的是挂在那一行下面的说明，一行可以有多条，按记录顺序排。作废单：整单说明照留，行说明全部打删除标记；删整张单时
+    说明一起删。打印位置没录到，记为待测，车辆写 Express 那一层开工时再录。那一层照这个写法做（行号走 `dbf_schema.append_stcrd` 同样的
+    右对齐按字节写），**这批不施工**。
 - CC 载荷：写 `ARTRNRM` 要在行结构加 `remarks`，并让 CC 用给定内部编码建 STKCOD → **升载荷版本**（出入库 B 段占第 6 版、B 段剩余部分占第 7 版，这里是第 8 版），旧版 CC 诚实拒收（`CC/payload_contract.py`）。
 - Cowork：共用写账路径（`C/express_rules/push/`）加行说明，Cowork 推送全类型要回归；DMS 不涉及（`apps/pearnly_dms` 接品牌 DMS，和 ERP 无关）。
 
