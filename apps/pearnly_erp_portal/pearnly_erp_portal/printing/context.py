@@ -231,37 +231,33 @@ def _trade_rows(doc, *, units=True) -> list:
 
 
 def _totals(rows) -> list:
-    """合计区：``[(泰 / 英标签, 金额)]``，值为 0 或空的可选项不印（`None` 表示必印）。"""
+    """合计区：``[(标签键, 金额, 必印)]`` → ``[{key, value}]``；值为 0 或空的可选项不印。泰英标签在模板 `_labels.html`。"""
     out = []
-    for label, value, always in rows:
+    for key, value, always in rows:
         if always or contracts.d(value):
-            out.append({"label": label, "value": contracts.money(value or 0)})
+            out.append({"key": key, "value": contracts.money(value or 0)})
     return out
 
 
 def _order(doc) -> dict:
-    """采购订单 ใบสั่งซื้อ / PURCHASE ORDER：只给 doc_kind = purchase_order 的单。"""
+    """采购订单：只给 doc_kind = purchase_order 的单。"""
     if doc.doc_kind != "purchase_order":
         _refuse()
     rows = _trade_rows(doc)
     ctx = _base(ORDER, doc, doc.company, doc.system_no, doc.doc_date, doc.notes, doc.status == "void")
     ctx.update(
-        title=("ใบสั่งซื้อ", "PURCHASE ORDER"), pages=contracts.pages(rows), currency=_currency(doc),
+        title="order", pages=contracts.pages(rows), currency=_currency(doc),
         party=_supplier(doc.supplier, {"name": doc.supplier_name, "tax_id": doc.supplier_tax_id,
                                        "address": doc.supplier_address,
                                        "branch": contracts.branch_text(doc.supplier_branch_type, doc.supplier_branch_no)},
                         doc.company),
-        info=[("วันที่ต้องการสินค้า", "Required Date", contracts.day(doc.due_date)),
-              ("เลขที่อ้างอิง", "Ref. No.", doc.doc_no or ""),
-              ("ผู้ขอซื้อ", "Requested by", doc.requester or ""),
-              ("เงื่อนไขการชำระเงิน", "Payment Terms", "")],
-        totals=_totals([("รวมเงิน / Subtotal", doc.subtotal, True), ("ส่วนลด / Discount", doc.discount_total, False),
-                        ("ภาษีมูลค่าเพิ่ม / VAT", doc.vat_amount, bool(doc.has_vat)),
-                        ("ปัดเศษ / Rounding", doc.rounding, False),
-                        ("จำนวนเงินรวมทั้งสิ้น / Grand Total", doc.grand_total, True),
-                        ("หัก ณ ที่จ่าย / Withholding Tax", doc.wht_amount, False),
-                        ("ยอดชำระสุทธิ / Net Payable", doc.net_payable, bool(contracts.d(doc.wht_amount)))]),
-        signs=[("ผู้จัดทำ", "Prepared by"), ("ผู้อนุมัติ", "Approved by"), ("ผู้ขายยืนยัน", "Supplier Acknowledged")])
+        info=[("required_date", contracts.day(doc.due_date)), ("ref_no", doc.doc_no or ""),
+              ("requested_by", doc.requester or ""), ("payment_terms", "")],
+        totals=_totals([("subtotal", doc.subtotal, True), ("discount", doc.discount_total, False),
+                        ("vat", doc.vat_amount, bool(doc.has_vat)), ("rounding", doc.rounding, False),
+                        ("grand_total", doc.grand_total, True), ("wht", doc.wht_amount, False),
+                        ("net_payable", doc.net_payable, bool(contracts.d(doc.wht_amount)))]),
+        signs=["prepared", "approved", "supplier_ack"])
     ctx["page_count"] = len(ctx["pages"])
     return ctx
 
@@ -287,22 +283,19 @@ def _sales(doc, kind=None) -> dict:
     linked = (not quotation) and push.linked(doc.company)
     rows = _trade_rows(doc, units=not quotation)
     ctx = _base(doc.doc_kind, doc, doc.company, doc.system_no, doc.doc_date, doc.note, doc.status == "void")
-    info = [("ยืนราคาถึง", "Valid Until", ""), ("เงื่อนไขการชำระเงิน", "Payment Terms", "")] if quotation else [
-        ("เลขที่เอกสาร Express", "Express No.", doc.express_docnum or "") if linked else None,
-        ("วิธีชำระเงิน", "Payment", contracts.payment_label(doc.payment_method) if doc.payment_method else ""),
-        ("วันที่ชำระ", "Paid Date", contracts.day(doc.payment_date)),
-        ("ยอดที่ชำระแล้ว", "Paid Amount", contracts.money(doc.paid_amount) if contracts.d(doc.paid_amount) else "")]
-    vat_label = "ภาษีมูลค่าเพิ่ม (รวมในราคาแล้ว) / VAT included" if doc.price_includes_vat else "ภาษีมูลค่าเพิ่ม / VAT"
+    # 信息框：值是付款方式时标 `method`，模板按付款方式标签表印
+    info = [("valid_until", ""), ("payment_terms", "")] if quotation else [
+        ("express_no", doc.express_docnum or "") if linked else None,
+        ("payment", {"method": doc.payment_method} if doc.payment_method else ""),
+        ("paid_date", contracts.day(doc.payment_date)),
+        ("paid_amount", contracts.money(doc.paid_amount) if contracts.d(doc.paid_amount) else "")]
     ctx.update(
         title=contracts.sales_title(doc.doc_kind, linked), pages=contracts.pages(rows), currency="THB",
         party=_customer(doc), info=[item for item in info if item],
-        totals=_totals([("รวมเงิน / Subtotal", doc.subtotal, True),
-                        ("ส่วนลดท้ายบิล / Discount", doc.header_discount, False),
-                        (vat_label, doc.vat_amount, bool(doc.has_vat)),
-                        ("จำนวนเงินรวมทั้งสิ้น / Grand Total", doc.grand_total, True)]),
-        signs=([("ผู้เสนอราคา", "Quoted by"), ("ผู้อนุมัติ", "Approved by"), ("ผู้สั่งซื้อ / ลูกค้า", "Accepted by")]
-               if quotation else
-               [("ผู้ส่งสินค้า", "Delivered by"), ("ผู้รับสินค้า", "Received by"), ("ผู้รับเงิน", "Collected by")]))
+        totals=_totals([("subtotal", doc.subtotal, True), ("header_discount", doc.header_discount, False),
+                        ("vat_included" if doc.price_includes_vat else "vat", doc.vat_amount, bool(doc.has_vat)),
+                        ("grand_total", doc.grand_total, True)]),
+        signs=["quoted", "approved", "accepted"] if quotation else ["delivered", "received", "collected"])
     ctx["page_count"] = len(ctx["pages"])
     return ctx
 
@@ -316,7 +309,7 @@ def _user_name(user) -> str:
 
 
 def _sale(doc, kind=None) -> dict:
-    """收银小票（热敏 80 mm）：销售印「ใบเสร็จรับเงิน」，退货印「ใบรับคืนสินค้า」并印原单号与原因；公司按收银台。"""
+    """收银小票（热敏 80 mm）：销售打收据、退货打退货单并印原单号与原因（标题见 `contracts.pos_title`）；公司按收银台。"""
     terminal = _terminal(doc.terminal)
     products = _products(line.product for line in doc.lines)
     units = _units(doc)
@@ -335,16 +328,14 @@ def _sale(doc, kind=None) -> dict:
         # 原单要同一收银台、当前用户读得到才印单号
         if source.terminal == doc.terminal and source.has_permission("read"):
             original = source.receipt_no or ""
-    payments = [{"label": contracts.payment_label(row.method), "amount": contracts.money(row.amount)}
-                for row in doc.get("payments") or []]
+    payments = [{"method": row.method, "amount": contracts.money(row.amount)} for row in doc.get("payments") or []]
     ctx = _base("pos", doc, terminal.company, doc.receipt_no, doc.sold_at, doc.note if refund else "",
                 doc.status == "void")
     ctx.update(thermal=True, title=contracts.pos_title(doc.sale_type), rows=rows, refund=refund, original=original,
                time=str(doc.sold_at or "")[11:16], terminal=terminal.terminal_name or "",
                cashier=_user_name(doc.cashier), payments=payments,
-               totals=_totals([("รวมเงิน / Subtotal", doc.subtotal, True),
-                               ("ส่วนลด / Discount", doc.discount_total, False),
-                               ("รวมทั้งสิ้น / Total", doc.grand_total, True)]),
+               totals=_totals([("subtotal", doc.subtotal, True), ("discount", doc.discount_total, False),
+                               ("pos_total", doc.grand_total, True)]),
                vat=contracts.money(doc.vat_amount) if contracts.d(doc.vat_amount) else "",
                change=contracts.money(doc.change_amount) if contracts.d(doc.change_amount) else "",
                paper_mm=contracts.thermal_height_mm(len(rows) + sum(len(row["sub"]) for row in rows),
@@ -360,23 +351,21 @@ def _shift(doc, kind=None) -> dict:
         _refuse()
     terminal = _terminal(doc.terminal)
     data = shifts.summary(doc.name, own_only=False)
-    balances = [{"label": contracts.payment_label(row.method), "expected": contracts.money(row.expected_amount),
+    balances = [{"method": row.method, "expected": contracts.money(row.expected_amount),
                  "counted": contracts.money(row.counted_amount), "difference": contracts.money(row.difference)}
                 for row in doc.get("balances") or []]
-    methods = [{"label": contracts.payment_label(method), "value": contracts.money(amount)}
+    methods = [{"method": method, "value": contracts.money(amount)}
                for method, amount in (data.get("by_method") or {}).items()]
     ctx = _base("shift", doc, terminal.company, f"{terminal.terminal_name or doc.terminal} #{doc.shift_seq or ''}",
                 doc.closed_at, doc.note, False)
-    ctx.update(thermal=True, title=("สรุปการปิดกะ", "SHIFT SUMMARY"), terminal=terminal.terminal_name or "",
+    ctx.update(thermal=True, title="shift", terminal=terminal.terminal_name or "",
                cashier=_user_name(doc.cashier), opened=_stamp(doc.opened_at), closed=_stamp(doc.closed_at),
                counts={"sales": data.get("sales_count", 0), "refunds": data.get("refund_count", 0)},
-               totals=_totals([("ยอดขาย / Sales", data.get("gross"), True), ("คืนสินค้า / Refunds", data.get("refunded"), True),
-                               ("ยอดสุทธิ / Net", data.get("net"), True)]),
+               totals=_totals([("sales", data.get("gross"), True), ("refunds", data.get("refunded"), True),
+                               ("net", data.get("net"), True)]),
                methods=methods, balances=balances,
-               cash=_totals([("เงินทอนตั้งต้น / Opening Float", doc.opening_float, True),
-                             ("เงินสดที่ควรมี / Expected Cash", doc.expected_cash, True),
-                             ("เงินสดที่นับได้ / Counted Cash", doc.counted_cash, True),
-                             ("ส่วนต่าง / Difference", doc.cash_diff, True)]),
+               cash=_totals([("opening_float", doc.opening_float, True), ("expected_cash", doc.expected_cash, True),
+                             ("counted_cash", doc.counted_cash, True), ("difference", doc.cash_diff, True)]),
                paper_mm=contracts.thermal_height_mm(len(methods) + 2 * len(balances), 14))
     return ctx
 
@@ -403,8 +392,7 @@ def _count(doc, kind=None) -> dict:
         rows.append(row)
     ctx = _base("count", doc, company, doc.name, doc.posted_at or doc.closed_at or doc.creation, doc.notes, False)
     warehouse = frappe.db.get_value("ERP Warehouse", doc.warehouse, "warehouse_name") or ""
-    ctx.update(mode=mode, title=("ใบตรวจนับสินค้า", "STOCK COUNT SHEET") if mode == "sheet" else
-               ("ผลการตรวจนับ", "STOCK COUNT RESULT"),
+    ctx.update(mode=mode, title="count_sheet" if mode == "sheet" else "count_result",
                pages=contracts.pages(rows, contracts.COUNT_ROWS_PER_PAGE), warehouse=warehouse,
                count_title=doc.title or "", item_total=len(rows),
                counted_total=sum(1 for item in items if item.counted),

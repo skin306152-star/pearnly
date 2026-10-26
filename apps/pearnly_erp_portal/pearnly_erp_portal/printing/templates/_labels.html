@@ -1,0 +1,71 @@
+{#- 第二批单据（采购订单、报价 / 销售单、收银小票、交班小结、盘点）的泰英文字：取数层（`printing.context`）只给键，文字都在这里。
+    税票口径写死（主会话 10-26）：任何标题都不是税票（ERP 不开税票，用户 09-23）。 -#}
+{% set TITLES = {
+  "order": ("ใบสั่งซื้อ", "PURCHASE ORDER"),
+  "quotation": ("ใบเสนอราคา", "QUOTATION"),
+  "delivery": ("ใบส่งของ", "DELIVERY NOTE"),
+  "receipt": ("ใบเสร็จรับเงิน", "RECEIPT"),
+  "pos_sale": ("ใบเสร็จรับเงิน", "RECEIPT"),
+  "pos_refund": ("ใบรับคืนสินค้า", "RETURN RECEIPT"),
+  "shift": ("สรุปการปิดกะ", "SHIFT SUMMARY"),
+  "count_sheet": ("ใบตรวจนับสินค้า", "STOCK COUNT SHEET"),
+  "count_result": ("ผลการตรวจนับ", "STOCK COUNT RESULT"),
+} %}
+{% set INFO = {
+  "required_date": "วันที่ต้องการสินค้า (Required Date)",
+  "ref_no": "เลขที่อ้างอิง (Ref. No.)",
+  "requested_by": "ผู้ขอซื้อ (Requested by)",
+  "payment_terms": "เงื่อนไขการชำระเงิน (Payment Terms)",
+  "valid_until": "ยืนราคาถึง (Valid Until)",
+  "express_no": "เลขที่เอกสาร Express (Express No.)",
+  "payment": "วิธีชำระเงิน (Payment)",
+  "paid_date": "วันที่ชำระ (Paid Date)",
+  "paid_amount": "ยอดที่ชำระแล้ว (Paid Amount)",
+} %}
+{% set TOTALS = {
+  "subtotal": "รวมเงิน / Subtotal",
+  "discount": "ส่วนลด / Discount",
+  "header_discount": "ส่วนลดท้ายบิล / Discount",
+  "vat": "ภาษีมูลค่าเพิ่ม / VAT",
+  "vat_included": "ภาษีมูลค่าเพิ่ม (รวมในราคาแล้ว) / VAT included",
+  "rounding": "ปัดเศษ / Rounding",
+  "grand_total": "จำนวนเงินรวมทั้งสิ้น / Grand Total",
+  "wht": "หัก ณ ที่จ่าย / Withholding Tax",
+  "net_payable": "ยอดชำระสุทธิ / Net Payable",
+  "pos_total": "รวมทั้งสิ้น / Total",
+  "sales": "ยอดขาย / Sales",
+  "refunds": "คืนสินค้า / Refunds",
+  "net": "ยอดสุทธิ / Net",
+  "opening_float": "เงินทอนตั้งต้น / Opening Float",
+  "expected_cash": "เงินสดที่ควรมี / Expected Cash",
+  "counted_cash": "เงินสดที่นับได้ / Counted Cash",
+  "difference": "ส่วนต่าง / Difference",
+} %}
+{% set STRONG = ["grand_total", "net_payable", "pos_total", "net"] %}
+{% set SIGNS = {
+  "prepared": ("ผู้จัดทำ", "Prepared by"),
+  "approved": ("ผู้อนุมัติ", "Approved by"),
+  "supplier_ack": ("ผู้ขายยืนยัน", "Supplier Acknowledged"),
+  "quoted": ("ผู้เสนอราคา", "Quoted by"),
+  "accepted": ("ผู้สั่งซื้อ / ลูกค้า", "Accepted by"),
+  "delivered": ("ผู้ส่งสินค้า", "Delivered by"),
+  "received": ("ผู้รับสินค้า", "Received by"),
+  "collected": ("ผู้รับเงิน", "Collected by"),
+} %}
+{% set PAYMENTS = {
+  "cash": "เงินสด / Cash", "promptpay": "พร้อมเพย์ / PromptPay", "card": "บัตร / Card", "transfer": "โอนเงิน / Transfer",
+  "bank": "ธนาคาร / Bank", "cheque": "เช็ค / Cheque", "other": "อื่นๆ / Other",
+} %}
+
+{% macro payment(method) -%}{{ PAYMENTS.get(method, method) }}{%- endmacro %}
+
+{% macro value(item) -%}{% if item is mapping and item.method %}{{ payment(item.method) }}{% else %}{{ item | e }}{% endif %}{%- endmacro %}
+
+{% macro branch(b) -%}{% if b and b.head %}สำนักงานใหญ่{% elif b and b.no %}สาขา {{ b.no | e }}{% endif %}{%- endmacro %}
+
+{% macro vehicle(unit) -%}
+{%- set sep = joiner("&nbsp;&nbsp;") -%}
+{%- if unit.serial_no %}{{ sep() }}เลขตัวถัง {{ unit.serial_no | e }}{% endif -%}
+{%- if unit.secondary_no %}{{ sep() }}เลขเครื่อง {{ unit.secondary_no | e }}{% endif -%}
+{%- if unit.color %}{{ sep() }}สี {{ unit.color | e }}{% endif -%}
+{%- endmacro %}

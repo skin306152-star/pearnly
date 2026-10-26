@@ -1,6 +1,7 @@
 {#- 热敏 80 mm：收银小票（销售 / 退货）与交班小结（主会话 10-26 审定）。浏览器直打热敏为主，存 PDF 作存档：
     PDF 生成器要固定页高，`.print-format` 上的 page-width / page-height 由 Frappe 读出交给 wkhtmltopdf（`ctx.paper_mm` 按行数估）。
     页眉只印公司抬头资料，不加感谢语；小票印「ใบเสร็จรับเงิน」，不印简易税票。 -#}
+{% from "pearnly_erp_portal/printing/templates/_labels.html" import TITLES, TOTALS, STRONG, branch, payment, vehicle %}
 <style>
 {{ ctx.fonts_css }}
 @page { margin: 0; }
@@ -25,18 +26,18 @@
 <div class="tp-c">
   {% if company.logo %}<div class="tp-logo"><img src="{{ company.logo }}" alt=""></div>{% endif %}
   <div class="tp-name">{{ company.name | e }}</div>
-  {% if company.branch %}<div>{{ company.branch | e }}</div>{% endif %}
+  {% if company.branch %}<div>{{ branch(company.branch) }}</div>{% endif %}
   {% if company.address %}<div>{{ company.address | e }}</div>{% endif %}
   {% if company.phone %}<div>โทร. {{ company.phone | e }}</div>{% endif %}
   {% if company.tax_id %}<div>เลขประจำตัวผู้เสียภาษี {{ company.tax_id | e }}</div>{% endif %}
 </div>
 {%- endmacro %}
 {% macro rows_of(items) -%}
-<table>{% for row in items %}<tr><td>{{ row.label }}</td><td class="tp-r">{{ row.value }}</td></tr>{% endfor %}</table>
+<table>{% for row in items %}<tr class="{{ 'tp-strong' if row.key in STRONG else '' }}"><td>{{ TOTALS[row.key] if row.key else payment(row.method) }}</td><td class="tp-r">{{ row.value }}</td></tr>{% endfor %}</table>
 {%- endmacro %}
 <div class="tp">
   {{ company_block(ctx.company) }}
-  <div class="tp-title"><b>{{ ctx.title[0] }}</b><br>{{ ctx.title[1] }}</div>
+  <div class="tp-title"><b>{{ TITLES[ctx.title][0] }}</b><br>{{ TITLES[ctx.title][1] }}</div>
   {% if ctx.void %}<div class="tp-void">ยกเลิก / CANCELLED</div>{% endif %}
   {% if ctx.kind == "pos" %}
   <table>
@@ -52,18 +53,18 @@
     <tr><td colspan="2">{{ row.name | e }}</td></tr>
     <tr><td style="padding-left: 6px !important">{{ row.qty }} {{ row.unit | e }} x {{ row.price }}</td><td class="tp-r">{{ row.amount }}</td></tr>
     {% if row.discount %}<tr><td class="tp-sub">ส่วนลด / Discount</td><td class="tp-r">-{{ row.discount }}</td></tr>{% endif %}
-    {% for line in row.sub %}<tr><td colspan="2" class="tp-sub">{{ line | e }}</td></tr>{% endfor %}
+    {% for unit in row.sub %}<tr><td colspan="2" class="tp-sub">{{ vehicle(unit) }}</td></tr>{% endfor %}
     {% endfor %}
   </table>
   <div class="tp-hr"></div>
   <table>
-    {% for row in ctx.totals %}<tr class="{{ 'tp-strong' if loop.last else '' }}"><td>{{ row.label }}</td><td class="tp-r">{{ row.value }}</td></tr>{% endfor %}
+    {% for row in ctx.totals %}<tr class="{{ 'tp-strong' if row.key in STRONG else '' }}"><td>{{ TOTALS[row.key] }}</td><td class="tp-r">{{ row.value }}</td></tr>{% endfor %}
     {% if ctx.vat %}<tr><td class="tp-sub">ราคารวมภาษีมูลค่าเพิ่มแล้ว / VAT included</td><td class="tp-r">{{ ctx.vat }}</td></tr>{% endif %}
   </table>
   {% if ctx.payments %}
   <div class="tp-hr"></div>
   <table>
-    {% for row in ctx.payments %}<tr><td>{{ row.label }}</td><td class="tp-r">{{ row.amount }}</td></tr>{% endfor %}
+    {% for row in ctx.payments %}<tr><td>{{ payment(row.method) }}</td><td class="tp-r">{{ row.amount }}</td></tr>{% endfor %}
     {% if ctx.change %}<tr><td>เงินทอน / Change</td><td class="tp-r">{{ ctx.change }}</td></tr>{% endif %}
   </table>
   {% endif %}
@@ -86,7 +87,7 @@
   <div class="tp-hr"></div>
   <table>
     <tr><td></td><td class="tp-r">ควรมี / Exp.</td><td class="tp-r">นับได้ / Cnt.</td><td class="tp-r">ต่าง / Diff.</td></tr>
-    {% for row in ctx.balances %}<tr><td>{{ row.label.split(" / ")[0] }}</td><td class="tp-r">{{ row.expected }}</td><td class="tp-r">{{ row.counted }}</td><td class="tp-r">{{ row.difference }}</td></tr>{% endfor %}
+    {% for row in ctx.balances %}<tr><td>{{ payment(row.method).split(" / ")[0] }}</td><td class="tp-r">{{ row.expected }}</td><td class="tp-r">{{ row.counted }}</td><td class="tp-r">{{ row.difference }}</td></tr>{% endfor %}
   </table>
   {% endif %}
   {% if ctx.remarks %}<div class="tp-hr"></div><div>หมายเหตุ / Note: {{ ctx.remarks | e }}</div>{% endif %}

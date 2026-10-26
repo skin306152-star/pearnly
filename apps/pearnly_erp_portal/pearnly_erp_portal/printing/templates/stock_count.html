@@ -1,6 +1,7 @@
 {#- 盘点（A4 竖，第一批同风格；主会话 10-26 审定）：进行中打点数表（盲盘，不印账面数，「实点」栏空着手写）；
     结束 / 过账后打结果表（账面 / 实点 / 差异）。每页 22 行。 -#}
 {% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, items, sign %}
+{% from "pearnly_erp_portal/printing/templates/_labels.html" import TITLES %}
 {{ styles(ctx.fonts_css, portrait=true) }}
 {% set result = ctx.mode == "result" %}
 {% if result %}
@@ -28,7 +29,7 @@
 <div class="pp pp-portrait">
 {% for page in ctx.pages %}
 <div class="pp-page{{ ' pp-last' if loop.last else '' }}">
-  {{ head(ctx, loop.index, {"title_th": ctx.title[0], "title_en": ctx.title[1], "date": "วันที่"}) }}
+  {{ head(ctx, loop.index, {"title_th": TITLES[ctx.title][0], "title_en": TITLES[ctx.title][1], "date": "วันที่"}) }}
   <table style="margin-top: 8.5px"><tr>
     <td style="border: 1px solid #cfe1d4; border-radius: 5.5px">
       <div class="pp-box-title">ข้อมูลการตรวจนับ / Count</div>

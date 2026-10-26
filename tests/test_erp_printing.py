@@ -127,28 +127,27 @@ class Layout(unittest.TestCase):
 
 
 class SecondBatchRules(unittest.TestCase):
-    """第二批（主会话 10-26 §12 定）：税票口径写死、分店写法、车号行、盲盘、热敏纸长。"""
+    """第二批（主会话 10-26 §12 定）：税票口径写死、分店写法、车号行、盲盘、热敏纸长。取数层只给键，泰英文字在 `_labels.html`。"""
 
     def test_titles_never_claim_a_tax_invoice(self):
-        self.assertEqual(C.sales_title("quotation", True), ("ใบเสนอราคา", "QUOTATION"))
-        self.assertEqual(C.sales_title("receipt", True), ("ใบส่งของ", "DELIVERY NOTE"))  # 接了 Express：税票在 Express 出
-        self.assertEqual(C.sales_title("receipt", False), ("ใบเสร็จรับเงิน", "RECEIPT"))
-        self.assertEqual(C.pos_title("sale"), ("ใบเสร็จรับเงิน", "RECEIPT"))  # 不印简易税票
-        self.assertEqual(C.pos_title("refund"), ("ใบรับคืนสินค้า", "RETURN RECEIPT"))  # 不叫贷项单
-        for title in [*C.SALES_TITLES.values(), *C.POS_TITLES.values()]:
-            self.assertNotIn("ใบกำกับภาษี", title[0])
+        self.assertEqual((C.sales_title("quotation", True), C.sales_title("receipt", True), C.sales_title("receipt", False)),
+                         ("quotation", "delivery", "receipt"))  # 接了 Express：税票在 Express 出，ERP 打送货单
+        self.assertEqual((C.pos_title("sale"), C.pos_title("refund")), ("pos_sale", "pos_refund"))
+        labels = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/printing/templates/_labels.html").read_text(encoding="utf-8")
+        self.assertNotIn("ใบกำกับภาษี", labels)
+        for key in C.TITLE_KEYS:
+            self.assertIn(f'"{key}": (', labels)
 
     def test_branches_vehicles_and_count_modes(self):
         self.assertEqual((C.branch_text("head_office"), C.branch_text("hq"), C.branch_text("branch", "00003"),
-                          C.branch_text("", "")), ("สำนักงานใหญ่", "สำนักงานใหญ่", "สาขา 00003", ""))
+                          C.branch_text("", "")), ({"head": True}, {"head": True}, {"no": "00003"}, {}))
         self.assertEqual((C.company_branch("0"), C.company_branch("2"), C.company_branch("")),
-                         ("สำนักงานใหญ่", "สาขา 00002", ""))
+                         ({"head": True}, {"no": "00002"}, {}))
         self.assertEqual(C.vehicle_lines([{"serial_no": "MR1", "secondary_no": "", "color": "แดง"}, {"serial_no": ""}]),
-                         ["เลขตัวถัง MR1  สี แดง"])
+                         [{"serial_no": "MR1", "secondary_no": "", "color": "แดง"}])
         self.assertEqual((C.count_mode("Active"), C.count_mode("Posted"), C.count_mode("Closed")),
                          ("sheet", "result", "result"))
         self.assertLess(C.thermal_height_mm(3, 2), C.thermal_height_mm(30, 2))
-        self.assertEqual(C.payment_label("cash"), "เงินสด / Cash")
 
 
 @unittest.skipIf(jinja2 is None, "jinja2 not installed")
@@ -156,69 +155,74 @@ class SecondBatchLayouts(unittest.TestCase):
     def trade(self, **over):
         ctx = {"kind": "receipt", "company": COMPANY, "number": "SI-1", "date": "26/10/2026", "remarks": "ส่งของ",
                "void": False, "currency": "THB", "title": C.sales_title("receipt", False),
-               "pages": C.pages([{**rows(1)[0], "discount": "", "sub": ["เลขตัวถัง MR1"]}]), "page_count": 1,
-               "party": {"code": "", "name": "ลูกค้า", "address": "ที่อยู่", "phone": "02", "tax_id": "0105", "branch": "สาขา 00003"},
-               "info": [("วิธีชำระเงิน", "Payment", "เงินสด / Cash")],
-               "totals": [{"label": "รวมเงิน / Subtotal", "value": "1.00"}, {"label": "จำนวนเงินรวมทั้งสิ้น / Grand Total", "value": "1.07"}],
-               "signs": [("ผู้ส่งสินค้า", "Delivered by"), ("ผู้รับสินค้า", "Received by"), ("ผู้รับเงิน", "Collected by")]}
+               "pages": C.pages([{**rows(1)[0], "discount": "", "sub": [{"serial_no": "MR1", "secondary_no": "E9", "color": ""}]}]),
+               "page_count": 1,
+               "party": {"code": "", "name": "ลูกค้า", "address": "ที่อยู่", "phone": "02", "tax_id": "0105", "branch": {"no": "00003"}},
+               "info": [("payment", {"method": "cash"}), ("paid_date", "26/10/2026")],
+               "totals": [{"key": "subtotal", "value": "1.00"}, {"key": "grand_total", "value": "1.07"}],
+               "signs": ["delivered", "received", "collected"]}
         ctx.update(over)
         return render("trade", **ctx)
 
     def test_sales_slip_prints_customer_tax_id_branch_vehicle_and_totals(self):
         html = self.trade()
         for text in ("ใบเสร็จรับเงิน", "RECEIPT", "ข้อมูลลูกค้า / Customer", "0105", "สาขา 00003", "เลขตัวถัง MR1",
-                     "Grand Total", "1.07", "ผู้รับเงิน", "SI-1"):
+                     "เลขเครื่อง E9", "เงินสด / Cash", "จำนวนเงินรวมทั้งสิ้น / Grand Total", "1.07", "ผู้รับเงิน", "SI-1"):
             self.assertIn(text, html)
         self.assertNotIn("ใบกำกับภาษี", html)
-        self.assertIn("ข้อมูลผู้ขาย / Supplier", self.trade(kind="order", title=("ใบสั่งซื้อ", "PURCHASE ORDER")))
+        self.assertIn("ใบส่งของ", self.trade(title="delivery"))
+        order = self.trade(kind="order", title="order", signs=["prepared", "approved", "supplier_ack"])
+        for text in ("ข้อมูลผู้ขาย / Supplier", "ใบสั่งซื้อ", "PURCHASE ORDER", "Supplier Acknowledged"):
+            self.assertIn(text, order)
         self.assertIn("CANCELLED", self.trade(void=True))
 
     def thermal(self, **over):
-        ctx = {"kind": "pos", "company": {**COMPANY, "branch": "สำนักงานใหญ่", "tax_id": "0115"}, "fonts_css": "",
+        ctx = {"kind": "pos", "company": {**COMPANY, "branch": {"head": True}, "tax_id": "0115"}, "fonts_css": "",
                "number": "SI-9", "date": "26/10/2026", "time": "10:42", "terminal": "หน้าร้าน 1", "cashier": "A",
                "void": False, "title": C.pos_title("sale"), "refund": False, "original": "", "remarks": "",
                "rows": [{"name": "สินค้า", "qty": "2", "unit": "ชิ้น", "price": "10.00", "discount": "", "amount": "20.00",
                          "sub": []}],
-               "totals": [{"label": "รวมทั้งสิ้น / Total", "value": "20.00"}], "vat": "1.31",
-               "payments": [{"label": "เงินสด / Cash", "amount": "100.00"}], "change": "80.00", "paper_mm": 150}
+               "totals": [{"key": "pos_total", "value": "20.00"}], "vat": "1.31",
+               "payments": [{"method": "cash", "amount": "100.00"}], "change": "80.00", "paper_mm": 150}
         ctx.update(over)
         return render("thermal", **ctx)
 
     def test_pos_receipt_and_return_are_80mm_and_not_tax_invoices(self):
         html = self.thermal()
-        for text in ("page-width: 80mm", "page-height: 150mm", "ใบเสร็จรับเงิน", "SI-9", "เลขประจำตัวผู้เสียภาษี 0115",
-                     "เงินทอน / Change", "80.00", "1.31"):
+        for text in ("page-width: 80mm", "page-height: 150mm", "ใบเสร็จรับเงิน", "SI-9", "สำนักงานใหญ่",
+                     "เลขประจำตัวผู้เสียภาษี 0115", "เงินสด / Cash", "เงินทอน / Change", "80.00", "1.31"):
             self.assertIn(text, html)
         self.assertNotIn("ใบกำกับภาษี", html)
         self.assertNotIn("ขอบคุณ", html)  # 页眉页脚只印公司抬头资料，不加感谢语（§12-7）
         returned = self.thermal(refund=True, title=C.pos_title("refund"), original="SI-8", remarks="ชำรุด")
-        for text in ("ใบรับคืนสินค้า", "SI-8", "ชำรุด"):
+        for text in ("ใบรับคืนสินค้า", "RETURN RECEIPT", "SI-8", "ชำรุด"):
             self.assertIn(text, returned)
 
     def test_shift_summary(self):
-        html = self.thermal(kind="shift", title=("สรุปการปิดกะ", "SHIFT SUMMARY"), opened="26/10/2026 08:00",
-                            closed="26/10/2026 17:05", counts={"sales": 3, "refunds": 1},
-                            totals=[{"label": "ยอดสุทธิ / Net", "value": "476.00"}],
-                            methods=[{"label": "เงินสด / Cash", "value": "903.00"}],
-                            cash=[{"label": "ส่วนต่าง / Difference", "value": "-10.00"}],
-                            balances=[{"label": "เงินสด / Cash", "expected": "1,890.50", "counted": "1,880.50",
+        html = self.thermal(kind="shift", title="shift", opened="26/10/2026 08:00", closed="26/10/2026 17:05",
+                            counts={"sales": 3, "refunds": 1}, totals=[{"key": "net", "value": "476.00"}],
+                            methods=[{"method": "cash", "value": "903.00"}],
+                            cash=[{"key": "difference", "value": "-10.00"}],
+                            balances=[{"method": "promptpay", "expected": "1,890.50", "counted": "1,880.50",
                                        "difference": "-10.00"}])
-        for text in ("สรุปการปิดกะ", "476.00", "903.00", "1,880.50", "-10.00", "ผู้ตรวจสอบ"):
+        for text in ("สรุปการปิดกะ", "ยอดสุทธิ / Net", "476.00", "เงินสด / Cash", "903.00", "ส่วนต่าง / Difference",
+                     "พร้อมเพย์", "1,880.50", "ผู้ตรวจสอบ"):
             self.assertIn(text, html)
 
     def count(self, mode, rows_):
         return render("stock_count", company=COMPANY, number="STC-1", date="26/10/2026", remarks="", fonts_css="",
-                      mode=mode, title=("ใบตรวจนับสินค้า", "STOCK COUNT SHEET"), warehouse="คลังหลัก", count_title="ต.ค.",
-                      item_total=len(rows_), counted_total=0, difference_total=0,
+                      mode=mode, title="count_sheet" if mode == "sheet" else "count_result", warehouse="คลังหลัก",
+                      count_title="ต.ค.", item_total=len(rows_), counted_total=0, difference_total=0,
                       pages=C.pages(rows_, C.COUNT_ROWS_PER_PAGE), page_count=1)
 
     def test_count_sheet_is_blind_and_the_result_shows_book_counted_difference(self):
         sheet = self.count("sheet", [{"code": "P1", "name": "สินค้า", "unit": "ชิ้น", "location": "A-01"}])
         self.assertNotIn("Book Qty", sheet)  # 盲盘：点数表不印账面数（§12-5）
+        self.assertIn("ใบตรวจนับสินค้า", sheet)
         self.assertIn("A4 portrait", sheet)
         result = self.count("result", [{"code": "P1", "name": "สินค้า", "unit": "ชิ้น", "location": "A-01", "book": "6",
                                         "counted": "4", "difference": "-2"}])
-        for text in ("Book Qty", "Counted", "Difference", ">-2<"):
+        for text in ("ผลการตรวจนับ", "Book Qty", "Counted", "Difference", ">-2<"):
             self.assertIn(text, result)
         self.assertEqual(self.count("sheet", [{"code": f"P{i}"} for i in range(30)]).count('class="pp-page'), 2)
 

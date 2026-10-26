@@ -21,7 +21,9 @@
 | 盘点（`ERP Stock Count`） | Pearnly Stock Count | `printing/templates/stock_count.html`，A4 竖、每页 22 行 | 盘点详情「Print」：进行中打点数表，结束后打结果表 |
 
 - 取数 `printing/context.py`：`pearnly_print_context(doc, kind)` 按单据类型分派（第一批两种 + 本批四种）；纯规则在 `printing/contracts.py`
-  （标题、付款方式、分店写法、车号行、盲盘 / 结果、热敏纸长）。公共零件 `_parts.html` 加竖版、行下印车号、合计框。
+  （标题键、分店、车号行、盲盘 / 结果、热敏纸长）。Python 只给键，泰英文字（标题、信息栏、合计项、签字栏、付款方式、分店、车号）
+  集中在 `printing/templates/_labels.html`（`check-i18n --strict` 不许 Python 里出现给人看的泰文，第一批也是文字在模板）。
+  公共零件 `_parts.html` 加竖版、行下印车号、合计框。
 - 抬头公司：采购 / 销售单按单上的公司，小票 / 交班按收银台的公司，盘点按仓库的公司；热敏抬头另印分店（公司分店号 0 = สำนักงานใหญ่）与税号。
 - 按台商品（车辆）：采购订单、销售单、小票在该行下印 เลขตัวถัง / เลขเครื่อง / สี（单上 `serials`，按行号对应）；报价单不印（还没选台）。
 - 热敏：`.print-format` 上声明 `page-width: 80mm`、按行数估的 `page-height`，Frappe 交给 wkhtmltopdf，PDF 一张不分页；浏览器打印按纸宽 100% 排。
@@ -45,7 +47,7 @@
 | 版面逐张看 | 采购订单印供应商税号 + 「สำนักงานใหญ่」、需要日期、对方单号、申请人，合计含折扣 / VAT；销售单印客户税号 + 「สาขา 00003」、车号行（เลขตัวถัง / เลขเครื่อง / สี）在第 2 行下；接 Express 的标题 ใบส่งของ / DELIVERY NOTE 并印 Express 单号，没接的 ใบเสร็จรับเงิน / RECEIPT；全部不含「ใบกำกับภาษี」；小票页眉只有公司抬头（含分店、税号），无感谢语；退货小票印原单号与原因；点数表没有账面数列，结果表有账面 / 实点 / 差异 |
 | 浏览器直打热敏（Chrome 打印，纸宽 80 mm） | 小票、交班各一页，文字最右到 76.2 mm，不截边（`browser-print-80mm-pos-receipt.png`） |
 | 逐入口点「打印」（无头 Chrome，拦下打开的地址） | 采购订单 → `format=Pearnly Purchase Order`；销售单、报价单 → `Pearnly Sales Document`；小票查看器 → `Pearnly POS Receipt`；收银台「打印收据」（`p.pos_receipt.print`）→ 同格式且 `trigger_print=1`；交班记录（已交班）→ `Pearnly Shift Summary`；盘点进行中 / 已过账 → `Pearnly Stock Count`。出入库单弹窗（第一批入口）本批没改 |
-| 原生打印预览 `/printview` 截图 | 八张都正常出版面（`preview-*.png`） |
+| 原生打印预览 `/printview` 截图 | 八张都正常出版面（`preview-*.png`）。改模板后网页进程要重启才换新模板（实验栈 `bench serve --noreload` 实测，旧进程报 417）；部署本来就重启进程 |
 | 非管理员越权（两个收银员账号，角色 ERP Menu cashier / pos-receipts） | 收银员 1 打自己的小票成功；收银员 2 打同一张被 `PermissionError` 拒 |
 | `tests/test_erp_printing.py`（生产镜像） | 14 项 OK（新增：标题不含税票、分店写法、车号行、盲盘、热敏纸长；贸易单据 / 小票 / 退货 / 交班 / 点数表与结果表渲染） |
 | `tests/test_erp_print_security.py`（生产镜像） | 7 项 OK（新增：四种单读不到拒打、采购订单格式只给采购订单、开着的班不打、别家公司的客户档不读、别的收银台的原单号不印） |

@@ -1,5 +1,6 @@
 {#- A4 单据共用的版面零件（领料单 / 收货单照岳父样板 1:1，第二批同风格；A4 横向每页 10 行，盘点表 A4 竖向）。
     排版只用表格：PDF 生成器 wkhtmltopdf 0.12（老 WebKit）不认 flex / grid。泰文字体内嵌 Prompt（`printing.context.fonts_css`）。 -#}
+{% from "pearnly_erp_portal/printing/templates/_labels.html" import STRONG, TOTALS, vehicle %}
 {% macro styles(fonts_css="", portrait=false) -%}
 <style>
 {{ fonts_css }}
@@ -102,7 +103,7 @@
   <tr>{% for col in columns %}<th style="width: {{ col.width }}">{{ col.th }}<small>{{ col.en }}</small></th>{% endfor %}</tr>
   {% for row in rows %}{% set n = offset + loop.index %}
   <tr class="{{ 'pp-alt' if loop.index is even else '' }}">
-    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}{% if row and col.key == "name" %}{% for line in row.get("sub") or [] %}<div class="pp-sub">{{ line | e }}</div>{% endfor %}{% endif %}</td>{% endif %}{% endfor %}
+    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}{% if row and col.key == "name" %}{% for unit in row.get("sub") or [] %}<div class="pp-sub">{{ vehicle(unit) }}</div>{% endfor %}{% endif %}</td>{% endif %}{% endfor %}
   </tr>
   {% endfor %}
 </table></div>
@@ -114,7 +115,7 @@
 
 {% macro totals(rows) -%}
 <div class="pp-totals"><table>
-  {% for row in rows %}<tr class="{{ 'pp-grand' if loop.last or 'Grand' in row.label or 'Net Payable' in row.label else '' }}"><td>{{ row.label }}</td><td class="pp-r">{{ row.value }}</td></tr>{% endfor %}
+  {% for row in rows %}<tr class="{{ 'pp-grand' if row.key in STRONG else '' }}"><td>{{ TOTALS[row.key] }}</td><td class="pp-r">{{ row.value }}</td></tr>{% endfor %}
 </table></div>
 {%- endmacro %}
 

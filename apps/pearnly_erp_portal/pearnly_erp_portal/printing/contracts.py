@@ -71,63 +71,50 @@ def warehouse_check(is_main: bool, name: str) -> dict:
 
 COUNT_ROWS_PER_PAGE = 22  # 盘点表 A4 竖版每页行数
 
-# 单据标题（泰 / 英）。销售单：接了 Express 的公司正式税票在 Express 出，ERP 打送货单；没接的打非税收据（主会话 10-26 定，写死）
+# 单据标题、栏位、付款方式的泰英文字都在模板 `templates/_labels.html`，这里只给键。
+# 销售单：接了 Express 的公司正式税票在 Express 出，ERP 打送货单；没接的打非税收据（主会话 10-26 定，写死）。
 QUOTATION, RECEIPT_KIND = "quotation", "receipt"
-SALES_TITLES = {"quotation": ("ใบเสนอราคา", "QUOTATION"), "delivery": ("ใบส่งของ", "DELIVERY NOTE"),
-                "receipt": ("ใบเสร็จรับเงิน", "RECEIPT")}
-POS_TITLES = {"sale": ("ใบเสร็จรับเงิน", "RECEIPT"), "refund": ("ใบรับคืนสินค้า", "RETURN RECEIPT")}
-PAYMENT_LABELS = {"cash": "เงินสด / Cash", "promptpay": "พร้อมเพย์ / PromptPay", "card": "บัตร / Card",
-                  "transfer": "โอนเงิน / Transfer", "bank": "ธนาคาร / Bank", "cheque": "เช็ค / Cheque",
-                  "other": "อื่นๆ / Other"}
+TITLE_KEYS = ("order", "quotation", "delivery", "receipt", "pos_sale", "pos_refund", "shift", "count_sheet",
+              "count_result")
 BRANCH_HEAD = ("head_office", "hq", "head")
 
 
-def sales_title(doc_kind: str, linked: bool) -> tuple:
-    """报价单打报价单；销售单接了 Express 打「ใบส่งของ / DELIVERY NOTE」，没接打「ใบเสร็จรับเงิน / RECEIPT」。"""
+def sales_title(doc_kind: str, linked: bool) -> str:
+    """报价单打报价单；销售单接了 Express 打送货单（`delivery`），没接打收据（`receipt`）。"""
     if doc_kind == QUOTATION:
-        return SALES_TITLES["quotation"]
-    return SALES_TITLES["delivery" if linked else "receipt"]
+        return "quotation"
+    return "delivery" if linked else "receipt"
 
 
-def pos_title(sale_type: str) -> tuple:
-    """收银小票印「ใบเสร็จรับเงิน」，不印简易税票；退货印「ใบรับคืนสินค้า」，不叫贷项单。"""
-    return POS_TITLES["refund" if sale_type == "refund" else "sale"]
+def pos_title(sale_type: str) -> str:
+    """收银小票打收据，不打简易税票；退货打退货单（`pos_refund`），不叫贷项单。"""
+    return "pos_refund" if sale_type == "refund" else "pos_sale"
 
 
-def payment_label(method: str) -> str:
-    return PAYMENT_LABELS.get(str(method or ""), str(method or ""))
-
-
-def branch_text(branch_type: str, branch_no: str = "") -> str:
-    """总部 / 分店写法：总部「สำนักงานใหญ่」，分店「สาขา 00001」；没登记留空。"""
+def branch_text(branch_type: str, branch_no: str = "") -> dict:
+    """总部 / 分店：``{"head": True}`` / ``{"no": "00001"}``；没登记回空（模板据此印「总部」或「分店 号」）。"""
     kind, number = str(branch_type or ""), str(branch_no or "").strip()
     if kind in BRANCH_HEAD:
-        return "สำนักงานใหญ่"
+        return {"head": True}
     if kind == "branch":
-        return f"สาขา {number}".strip()
-    return ""
+        return {"no": number}
+    return {}
 
 
-def company_branch(branch) -> str:
-    """公司抬头的总部 / 分店：分店号 0（或没填）印「สำนักงานใหญ่」，其余「สาขา 00002」；公司档上的分店号是数字串。"""
+def company_branch(branch) -> dict:
+    """公司抬头的总部 / 分店：公司档上的分店号是数字串，0 = 总部，其余补成 5 位。"""
     text = str(branch or "").strip()
     if not text:
-        return ""
+        return {}
     if text.isdigit():
-        return "สำนักงานใหญ่" if int(text) == 0 else f"สาขา {int(text):05d}"
-    return f"สาขา {text}"
+        return {"head": True} if int(text) == 0 else {"no": f"{int(text):05d}"}
+    return {"no": text}
 
 
 def vehicle_lines(units: list) -> list:
-    """按台商品（车辆）行下印的号码：车架号 / 发动机号 / 颜色，一台一行，没填的项不印。"""
-    lines = []
-    for unit in units or []:
-        parts = [f"{label} {value}" for label, value in (("เลขตัวถัง", unit.get("serial_no")),
-                                                         ("เลขเครื่อง", unit.get("secondary_no")),
-                                                         ("สี", unit.get("color"))) if str(value or "").strip()]
-        if parts:
-            lines.append("  ".join(parts))
-    return lines
+    """按台商品（车辆）行下印的号码：一台一行（车架号 / 发动机号 / 颜色），全空的不印。"""
+    return [{key: str(unit.get(key) or "").strip() for key in ("serial_no", "secondary_no", "color")}
+            for unit in units or [] if any(str(unit.get(key) or "").strip() for key in ("serial_no", "secondary_no", "color"))]
 
 
 def count_mode(status: str) -> str:
@@ -140,6 +127,6 @@ def thermal_height_mm(item_lines: int, extra_lines: int = 0) -> int:
     return int(120 + 9 * max(int(item_lines), 0) + 5 * max(int(extra_lines), 0))
 
 
-__all__ = ["BRANCH_HEAD", "COUNT_ROWS_PER_PAGE", "ISSUE_PURPOSES", "PAYMENT_LABELS", "POS_TITLES", "ROWS_PER_PAGE",
-           "SALES_TITLES", "branch_text", "company_branch", "count_mode", "day", "issue_purpose", "money", "pages", "payment_label",
-           "pos_title", "qty", "sales_title", "thermal_height_mm", "vehicle_lines", "warehouse_check"]
+__all__ = ["BRANCH_HEAD", "COUNT_ROWS_PER_PAGE", "ISSUE_PURPOSES", "ROWS_PER_PAGE", "TITLE_KEYS", "branch_text",
+           "company_branch", "count_mode", "day", "issue_purpose", "money", "pages", "pos_title", "qty", "sales_title",
+           "thermal_height_mm", "vehicle_lines", "warehouse_check"]
