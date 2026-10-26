@@ -1,0 +1,47 @@
+# 回归基线实验室（页面入口快照 / 接口权限矩阵用）：任务自有的一次性实验室，自带库与 Redis、不挂共享卷、不连外网；
+# 本机跑时只开回环口（REGRESSION_LAB_PORT，默认 18771），CI 里不开端口。产品代码挂被测工作树（只读）。
+# 起：docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait
+# 建站与角色账号：docker compose -p pearnly-regression-lab -f … exec -T bench env/bin/python /workspace/scripts/regression/lab_init.py
+name: pearnly-regression-lab
+services:
+  db:
+    image: mariadb:11.8
+    mem_limit: 1g
+    environment:
+      MARIADB_ROOT_PASSWORD: regression-lab-only
+    command: [--innodb-buffer-pool-size=256M, --max-connections=120, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
+    volumes: [db:/var/lib/mysql]
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+  redis:
+    image: redis:6.2-alpine
+    mem_limit: 160m
+    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, noeviction]
+  bench:
+    # 本机默认取线上同版镜像（arm64 Mac 上按 amd64 跑）；CI 传候选镜像
+    image: ${PEARNLY_REGRESSION_LAB_IMAGE:-ghcr.io/skin306152-star/pearnly/frappe@sha256:fb1037adfa97d292ab81c3a6dc51ec4a0b4b533556cda6f6ce7e7e4577a43d79}
+    platform: linux/amd64
+    mem_limit: 3g
+    command: [bench, serve, --port, "8000", --noreload]
+    working_dir: /home/frappe/frappe-bench
+    environment:
+      PEARNLY_REGRESSION_LAB: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    ports: ["127.0.0.1:${REGRESSION_LAB_PORT:-18771}:8000"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - ${PEARNLY_REGRESSION_SRC:-../..}/apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+      - ${PEARNLY_REGRESSION_SRC:-../..}/apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      - ${PEARNLY_REGRESSION_SRC:-../..}/apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro
+      - ${PEARNLY_REGRESSION_SRC:-../..}/apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+      - ${PEARNLY_REGRESSION_SRC:-../..}/apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+      - ../../scripts:/workspace/scripts:ro
+volumes:
+  db:
+  sites:
