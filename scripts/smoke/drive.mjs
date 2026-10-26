@@ -20,6 +20,23 @@ const chrome = spawn(chromePath, [
   ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : []),
   "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank",
 ], { stdio: "ignore" });
+// 不管正常结束、出错、被 SIGINT / SIGTERM / SIGHUP 打断还是超时，都关掉 Chrome、删临时 profile（主会话 10-26：留下过孤儿 Chrome）
+let cleaned = false;
+const cleanup = () => {
+  if (cleaned) return;
+  cleaned = true;
+  try { chrome.kill("SIGKILL"); } catch { /* 已经退了 */ }
+  try { rmSync(profile, { recursive: true, force: true }); } catch { /* 临时目录删不掉不影响结果 */ }
+};
+process.on("exit", cleanup);
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { cleanup(); process.exit(128); });
+// 自己的总时限比 run.py 的 3 分钟短：到点先收尾、回超时，不等外面来杀
+const deadline = setTimeout(() => {
+  cleanup();
+  console.log(JSON.stringify({ result: null, error: "driver: deadline", logs: [] }));
+  process.exit(0);
+}, Number(job.deadline_ms || 170000));
+deadline.unref();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const logs = [];
 let ws, seq = 0;
@@ -102,8 +119,7 @@ try {
 } catch (error) {
   output = { result: null, error: `driver: ${error.message}`, logs };
 } finally {
-  chrome.kill("SIGKILL");
-  try { rmSync(profile, { recursive: true, force: true }); } catch { /* 临时目录删不掉不影响结果 */ }
+  cleanup();
 }
 console.log(JSON.stringify(output));
 process.exit(0);

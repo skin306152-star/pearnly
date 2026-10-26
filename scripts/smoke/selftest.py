@@ -22,6 +22,9 @@ ROOT = HERE.parent.parent
 spec = importlib.util.spec_from_file_location("make_barcode_video", HERE / "make_barcode_video.py")
 barcode = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(barcode)
+reaper_spec = importlib.util.spec_from_file_location("chrome_reaper", HERE / "chrome_reaper.py")
+reaper = importlib.util.module_from_spec(reaper_spec)
+reaper_spec.loader.exec_module(reaper)
 
 
 def main() -> int:
@@ -42,12 +45,14 @@ def main() -> int:
         job = {"url": f"http://localhost:{server.server_port}/index.html", "probe": "selftest", "video": str(video), "wait_ms": 2000,
                "args": {"code": barcode.TEST_CODE}}
         try:
-            out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=150)
-            raw = json.loads(out.stdout.strip().splitlines()[-1])
+            # 同 run.py：驱动整组跑，超时 / 被打断连 Chrome 一起收掉（chrome_reaper）
+            _code, stdout, _stderr = reaper.run_driver(["node", str(HERE / "drive.mjs"), json.dumps(job)], timeout=150)
+            raw = json.loads(stdout.strip().splitlines()[-1])
         except (subprocess.TimeoutExpired, ValueError, IndexError) as error:
             raw = {"result": None, "error": f"driver: {type(error).__name__}"}
     finally:
         server.shutdown()
+        __import__("shutil").rmtree(work, ignore_errors=True)   # 测试页与条码视频的临时目录
     result = raw.get("result") or {}
     print(json.dumps(raw, ensure_ascii=False))
     if raw.get("error") or not result.get("ok"):

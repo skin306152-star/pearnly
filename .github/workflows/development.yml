@@ -287,6 +287,8 @@ jobs:
         env:
           SMOKE_CHROME: /usr/bin/google-chrome
         run: python3 scripts/smoke/selftest.py && python3 tests/test_smoke_flow_fields.py
+      - name: Smoke runs leave no headless Chrome or temporary profile behind, even when the driver times out or is interrupted
+        run: python3 tests/test_smoke_chrome_cleanup.py
       - name: Verify browser errors on product pages reach the site's error log
         run: |
           python3 tests/test_client_errors.py

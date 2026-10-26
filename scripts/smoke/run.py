@@ -44,6 +44,9 @@ spec.loader.exec_module(impact)
 video_spec = importlib.util.spec_from_file_location("make_barcode_video", HERE / "make_barcode_video.py")
 barcode = importlib.util.module_from_spec(video_spec)
 video_spec.loader.exec_module(barcode)
+reaper_spec = importlib.util.spec_from_file_location("chrome_reaper", HERE / "chrome_reaper.py")
+reaper = importlib.util.module_from_spec(reaper_spec)
+reaper_spec.loader.exec_module(reaper)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
 READONLY_PROBES = {"page", "scan", "find_product", "assistant"}
@@ -110,14 +113,15 @@ def select(args, parts, entries):
 
 
 def drive(job: dict) -> dict:
+    # 驱动放进单独的进程组：超时、出错、被打断都连它开的 Chrome 一起收掉（chrome_reaper；以前超时直接杀 node，Chrome 成了孤儿）
     try:
-        out = subprocess.run(["node", str(HERE / "drive.mjs"), json.dumps(job)], capture_output=True, text=True, timeout=180)
+        _code, stdout, stderr = reaper.run_driver(["node", str(HERE / "drive.mjs"), json.dumps(job)], timeout=180)
     except subprocess.TimeoutExpired:
         return {"result": None, "error": "超时：页面 3 分钟内没跑完探针", "logs": []}
     try:
-        return json.loads(out.stdout.strip().splitlines()[-1])
+        return json.loads(stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
-        return {"result": None, "error": f"driver output: {out.stdout[-300:]} {out.stderr[-300:]}", "logs": []}
+        return {"result": None, "error": f"driver output: {stdout[-300:]} {stderr[-300:]}", "logs": []}
 
 
 PAGE_LIMIT_MS = int(os.environ.get("SMOKE_PAGE_LIMIT_MS", "3000"))
@@ -166,7 +170,11 @@ def main(argv=None) -> int:
     if args.site:
         chosen = [entry for entry in chosen if (entry.site or entry.product.lower()) == args.site]
     remote = Remote(args.target)
-    workdir = Path(tempfile.mkdtemp(prefix="smoke-"))
+    reaper.exit_on_signals()
+    swept = reaper.reap_orphans()   # 以前被打断留下的孤儿 Chrome 与旧临时 profile（只认冒烟自己这一类）
+    if swept["killed"] or swept["removed"]:
+        print(f"清掉以前冒烟留下的 Chrome {len(swept['killed'])} 个、临时目录 {len(swept['removed'])} 个", file=sys.stderr)
+    workdir = Path(tempfile.mkdtemp(prefix=reaper.PROFILE_PREFIX))
     video = workdir / "code.y4m"
     barcode.write(str(video))
     sessions, rows = {}, []
@@ -217,6 +225,7 @@ def main(argv=None) -> int:
         for product, (user, sid, previous) in sessions.items():
             remote.run(product, HERE / "session.py", SITES[product], user, "drop", sid,
                        *((previous,) if previous is not None else ()))
+        __import__("shutil").rmtree(workdir, ignore_errors=True)   # 测试条码视频的临时目录
     lines = ["| 入口 | 产品 | 方式 | 结果 | 说明 |", "|---|---|---|---|---|"]
     for entry, state, why in rows:
         lines.append(f"| `{entry.id}` | {entry.product} | {entry.check}{('：' + entry.smoke) if entry.smoke else ''} | {state} | {why.replace('|', '/')} |")

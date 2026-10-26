@@ -42,7 +42,7 @@ const cleanUp = () => {
   for (const dir of PROFILES) try { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch {}
   PROFILES.clear();
 };
-process.on("exit", killAll);
+process.on("exit", cleanUp);
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { cleanUp(); process.exit(130); });
 process.on("uncaughtException", (error) => { cleanUp(); console.error(error); process.exit(1); });
 process.on("unhandledRejection", (error) => { cleanUp(); console.error(error); process.exit(1); });
