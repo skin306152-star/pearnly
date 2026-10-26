@@ -302,3 +302,21 @@ ISVAT、GLJNL 没有这类字段。改法：`dbf_schema.append_native`（原 `ap
   等预期的按钮 / 菜单项出现，页面异常一律不通过，没有这种状态的单记「没测到」；登记表加 8 个入口（销售 / 采购 × 草稿 / 已提交 / 作废，
   已提交入库单、作废出库单），挂到 desk-shell、page-errors、desk-select、desk-list、erp-transactions（销售 / 采购另挂 desk-viewer、
   erp-entry-choice）；`run.py --shots <目录>` 每个浏览器探针跑完存一张截图留证。
+
+### 测试包 e3（pearnly/isvat-exempt ad21fcb0）核对（10-26 17:20–19:30）
+
+- CC 全量 1222 项；闸门 131 项；候选离线检查通过；分支 Development checks 通过（ad21fcb0）；CC 测试包 run 40316484328，SHA256 bae8fdbd…。
+- 101 本离线回归：RR / IV 85 / 0 / 16，`--cash` 现购 HP / 现销 HS 85 / 0 / 16，退货单 80 / 0 / 21。
+- 实验栈（REFRESH 后 CO-00106 = T9HENG15 那家）：
+  - 混合税率现购：HP691026-011（59c09ac3 + e2）明细对、进项税还没分；HP691026-013（ad21fcb0 + e3）APTRN.AMTRAT0 50，ISVAT AMT01 100 /
+    VAT01 7 / AMTRAT0 50，明细 107 / 100、50 / 50（VATCOD '0'），凭证平衡；载荷第 11 版、免税行带标记。
+    HP691026-012 是 e2 收的同样载荷（不认采购的 vat_fields，照整张税前记）——e2 只装过测试机，没发过。
+  - 详情页冒烟（`--company CO-00106`，实验库里先造了草稿 / 作废的销售、采购单与作废出库单、已提交销售单与入库单，明细带库位 A-01）：
+    8 个入口全过；同一批入口在**修前代码**（临时换回四个 JS、testenv live）上，已提交的销售 / 采购详情页不通过，页面异常正是线上那句
+    `TypeError: Cannot read properties of undefined (reading '_list')`——冒烟现在拦得住。截图 8 张（修后）+ 8 张（修前）留在开发窗口。
+  - ERP 自动冒烟（`--diff`，46 个入口）：通过 34、不通过 2、没测到 10（manual）。不通过的两项与本批无关：收银台页在 CO-00106 不通过是
+    这家公司在 REFRESH 后的实验库里没开收银（弹「这家公司还没开收银」），默认公司下同一入口通过（1.4 秒）；「按码找商品」照旧是
+    实验库 PN00003 两家同码。
+  - Cowork 推送冒烟：第一次 CC 刚重启、还没在 Cowork 报上线（跳过「CC not online」），等上线后重跑 SMOKE-1793017282 → T9NIEXCP
+    HP691026-005，CC 读回 ok。
+- 收尾：lab-stop erp、cowork，定时任务恢复；DNS 已清，三域名 → 107.155.65.74；容器 0；CC 以 skin3 重启，心跳 101 / 133；测试机 CC 现为测试包 e3。
