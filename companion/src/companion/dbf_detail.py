@@ -177,7 +177,7 @@ def write_stcrd_detail(
                 if eff_mode == "non_stock_item"
                 else S.stcrd_detail_row
             )
-            t.append(dbf_fields.exempt_line(
+            S.append_stcrd(t, dbf_fields.exempt_line(
                 account_rules.localize_stcrd(account_dir, builder(
                     docnum,
                     seq,

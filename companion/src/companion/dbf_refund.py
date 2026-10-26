@@ -238,7 +238,10 @@ def _returned(account_dir, against: str, origins: List[_Origin]) -> Dict[str, De
     try:
         if "RDOCNUM" not in _fields(table):
             return {}
+        # Express 拼 RDOCNUM 是「原单号 C(12) + 原单 SEQNUM 原样」：原生 / 新写的明细行号右对齐，存量 CC 单是左对齐，两种都认
+        # （验收 10-26：Express 里对着 CC 日汇总手工录的退货是「HS690705-0011␣␣」）
         wanted = {rdocnum(against, row.seq): row for row in origins if row.seq}
+        wanted.update({f"{against:<12}{row.seq:<3}".rstrip(): row for row in origins if row.seq})
         out: Dict[str, Decimal] = {}
         for r in S.live_rows(table):
             if _text(r, "POSOPR") != POSOPR:
@@ -436,7 +439,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
             balances[line.stkcod] = (new_bal, new_val)
             unitpr = _q2(line.gross / units.qty) if units.qty else line.gross
             row = account_rules.localize_stcrd(account_dir, {
-                "STKCOD": line.stkcod, "DOCNUM": docnum, "SEQNUM": str(line.seq), "DOCDAT": docdat, "REFNUM": "",
+                "STKCOD": line.stkcod, "DOCNUM": docnum, "SEQNUM": S.seqnum_text(line.seq), "DOCDAT": docdat, "REFNUM": "",
                 "DEPCOD": depcod, "POSOPR": POSOPR, "PEOPLE": cuscod, "TRNQTY": float(units.qty),
                 "UNITPR": float(unitpr), "DISCAMT": 0.0, "TRNVAL": float(line.gross), "NETVAL": float(line.net),
                 "XUNITPR": float(_q2(line.unit_cost)), "XTRNVAL": float(line.cost), "XSALVAL": float(line.net),
@@ -445,7 +448,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
                 **({"VATCOD": EXEMPT_VATCOD} if item.get("vat_exempt") else {}),  # 免税行（含税额就是税前额，`_gross`）
             }, units.unit, line.loccod)
             stock_units.stamp(row, units)
-            table.append(_filtered(table, row))
+            S.append_stcrd(table, _filtered(table, row))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_RETURN))
             stock_sale.write_stmas_fields(account_dir, line.stkcod, {"MREMBAL": float(new_bal), "MREMVAL": float(new_val),

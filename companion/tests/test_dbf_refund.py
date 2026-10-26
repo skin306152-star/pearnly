@@ -370,6 +370,43 @@ def test_an_exempt_line_takes_no_share_of_the_vat_in_its_gross_amount():
     assert dbf_refund._gross([taxable], Decimal("107.00")) == [Decimal("107.00")]
 
 
+def test_an_express_refund_against_an_old_cc_summary_is_counted_with_the_left_aligned_line(book):
+    """验收 10-26 B3b 实录点 ①：Express 拼 RDOCNUM 是「原单号 C(12) + 原单 SEQNUM 原样」，存量 CC 日汇总的行号左对齐，Express 里对着它
+    手工录的退货是「HS690705-0011␣␣」。已退数量两种写法都认（新写的明细照原生右对齐）。"""
+    seed(book, "STCRD", [{"DOCNUM": "SR0000002", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 1.0, "STKCOD": "ICE01",
+                          "RDOCNUM": "HS690705-0011"},
+                         {"DOCNUM": "SR0000003", "SEQNUM": "1", "POSOPR": "2", "XTRNQTY": 2.0, "STKCOD": "ICE01",
+                          "RDOCNUM": dbf_refund.rdocnum("HS690705-001", 1)}])
+    assert dbf_refund._returned(book, "HS690705-001", [_origin(1)]) == {"1": Decimal("3")}
+
+
+def test_new_detail_lines_are_numbered_right_aligned_like_native_express(book):
+    """新写的明细 SEQNUM 照 Express 原生右对齐（"  1"），Express 对着 CC 的单录退货时拼出的 RDOCNUM 与原生单一样。"""
+    import dbf
+    from companion import dbf_schema
+
+    table = dbf.Table(str(book / "STCRD.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_ONLY)
+    try:
+        raw = [str(rec.SEQNUM) for rec in table if str(rec.DOCNUM).strip() == "HS691025-001"]
+    finally:
+        table.close()
+    assert raw == ["  1"]
+
+
+def test_a_line_without_a_unit_takes_the_stock_unit_of_the_product(book):
+    """验收 10-26 B3b 实录点 ①：CC 写的 HS 明细单位空着，Express 录退货时要人手补选单位、倍数默认 0（不改成 1 就报 13）。
+    行上没单位（ERP 收银小票）时用这件品主档的库存单位、倍数 1。"""
+    sale = _sale(qty=1, total="100.00", base="93.46", vat="6.54")
+    sale["items"][0]["unit"] = ""
+    sale.update(ref_no="SI2569-000011")
+    res = _write(book, sale)
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    assert line["TQUCOD"].strip() == master["QUCOD"].strip() != "" and line["TFACTOR"] == 1.0
+
+
 def _sale_of(items, *, ref_no, total, base, vat):
     """原单：收银日汇总现销 HS（CC 现有写法），明细照给的行。"""
     sale = _sale(total=total, base=base, vat=vat)

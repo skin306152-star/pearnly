@@ -36,7 +36,7 @@ _OPENING_GOLD = {
     "STKCOD": "PN00001",
     "LOCCOD": "01",
     "DOCNUM": "OB260601-001",
-    "SEQNUM": "1",
+    "SEQNUM": "  1",  # 照 Express 原生右对齐（验收 10-26），追加时由 append_stcrd 按字节写
     "DOCDAT": dt.date(2026, 6, 1),
     # REFNUM 显式写起后:采购行带供应商票号,期初行没有对手方票 → 恒空串(与不写这一列
     # 落盘等价,DBF 字符列默认就是空白),期初口径未变。

@@ -181,5 +181,16 @@ def common_type(account_dir, table: str, field: str, fallback: str = "00") -> st
 def localize_stcrd(account_dir, row: dict, unit: str, location: Optional[str] = None) -> dict:
     """存货卡片行：单位码查这套账自己的单位表（解析不出留空），仓库用主仓。"""
     row["TQUCOD"] = unit_code.resolve(account_dir, unit) if unit else ""
+    if not row["TQUCOD"] and row.get("STKCOD"):
+        # 行上没单位（ERP 收银小票、非库存的服务）：用这件品主档的库存单位、倍数 1。单位空着 Express 录退货时要人手补选、
+        # 倍数默认 0，不改成 1 就报 13（验收 10-26 B3b 实录点 ①）
+        from . import stock_units
+
+        master = stock_units._master(account_dir, str(row["STKCOD"]).strip())
+        code = str((master or {}).get("QUCOD") or "").strip()
+        if code:
+            row["TQUCOD"] = code
+            if not row.get("TFACTOR"):
+                row["TFACTOR"] = 1.0
     row["LOCCOD"] = location if location is not None else main_location(account_dir)
     return row

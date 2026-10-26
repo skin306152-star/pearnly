@@ -164,10 +164,10 @@ def _fifo(account_dir) -> bool:
     return str((account_rules._first(account_dir, "ISINFO") or {}).get("COSMTD") or "").strip().upper() == "F"
 
 
-def _lots(account_dir, keys) -> Dict[Tuple[str, str], Tuple[Decimal, str, int, Any]]:
+def _lots(account_dir, keys) -> Dict[Tuple[str, str], Tuple[Decimal, str, str, Any]]:
     """盘盈挂的那一批（实录第 9 条）：各 (商品, 仓) 最近一次进货的那一行（STCRD POSOPR 0、数量为正，按日期取最后的）
-    → (每个库存单位的成本, 原单号, 原单行号, 日期)。仓库码空的旧行算主仓。"""
-    out: Dict[Tuple[str, str], Tuple[Decimal, str, int, Any]] = {}
+    → (每个库存单位的成本, 原单号, 原单行号（存的原样 3 位）, 日期)。仓库码空的旧行算主仓。"""
+    out: Dict[Tuple[str, str], Tuple[Decimal, str, str, Any]] = {}
     if not keys:
         return out
     main = account_rules.main_location(account_dir)
@@ -180,9 +180,9 @@ def _lots(account_dir, keys) -> Dict[Tuple[str, str], Tuple[Decimal, str, int, A
             qty = _dec(rec.XTRNQTY)
             if key not in keys or qty <= 0 or not rec.DOCDAT:
                 continue
-            seq = (rec.SEQNUM or "").strip()
             if key not in out or rec.DOCDAT >= out[key][3]:
-                out[key] = (_dec(rec.XTRNVAL) / qty, (rec.DOCNUM or "").strip(), int(seq) if seq.isdigit() else 0, rec.DOCDAT)
+                # 行号照存的原样（Express 拼 RDOCNUM 是「单号 C(12) + SEQNUM 原样 C(3)」，存量 CC 单是左对齐）
+                out[key] = (_dec(rec.XTRNVAL) / qty, (rec.DOCNUM or "").strip(), str(rec.SEQNUM or "").ljust(3)[:3], rec.DOCDAT)
     finally:
         table.close()
     return out
@@ -417,22 +417,18 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 row.update({"FLAG": S.STCRD_FLAG_COUNT, "PHYBAL": float(place_qty + signed), "MREMBAL": float(bal),
                             "MREMVAL": float(val), "ACCNUMCR": "", "STKDES": "", "NETVAL": float(signed_value)})
                 if lot:
-                    from .dbf_refund import rdocnum
-
-                    link = rdocnum(lot[1], lot[2])
+                    link = f"{lot[1]:<12}{lot[2]}"
                     row.update({"RDOCNUM": link, "MLOTNUM": f"{lot[3]:%Y%m%d}{S.STCRD_POSOPR_PURCHASE}{link}",
                                 "LOTBAL": float(qty), "LOTVAL": float(value), "LUNITPR": float(_q2(unit_cost))})
-            table.append(_filtered(table, row))
+            S.append_stcrd(table, _filtered(table, row))
             if moves is not None:
                 moves.append(stock_location.move(row, move_kind))
             master = {"MREMBAL": float(new_bal), "MREMVAL": float(new_val), "TOTBAL": float(new_bal), "TOTVAL": float(new_val)}
             if count:
                 # 原生盘点：主档的最后变动日记这一天，盘盈那一行成了这件品最新的一批（MLOTNUM = 日期 + ':' + 单号行号）
-                from .dbf_refund import rdocnum
-
                 master["LASUPD"] = docdat
                 if signed > 0:
-                    master["MLOTNUM"] = f"{docdat:%Y%m%d}{S.STCRD_POSOPR_COUNT}{rdocnum(docnum, seq)}"
+                    master["MLOTNUM"] = f"{docdat:%Y%m%d}{S.STCRD_POSOPR_COUNT}{docnum:<12}{S.seqnum_text(seq)}"
                 master = {key: value for key, value in master.items() if key in _stmas_fields(account_dir)}
             stock_sale.write_stmas_fields(account_dir, stkcod, master)
             total += signed_value

@@ -137,6 +137,29 @@ _UNIT_MAP = {
 }
 
 
+def seqnum_text(seq) -> str:
+    """STCRD.SEQNUM C(3)：照 Express 原生右对齐（"  1"）。Express 拼退货的 RDOCNUM 是「原单号 C(12) + 原单 SEQNUM 原样」，
+    以前 CC 写左对齐（"1  "），Express 对着 CC 的单录退货时拼出来的是「HS690705-0011  」（验收 10-26 B3b 实录点 ①）。"""
+    return str(seq).strip().rjust(3)
+
+
+def append_stcrd(table, row: dict) -> None:
+    """往 STCRD 追加一行。dbf 库写字符栏会去掉两头空格（"  1" 存成 "1  "），SEQNUM 要照 Express 原生右对齐，追加后按字节补写这一栏。"""
+    from array import array
+
+    from dbf.constants import LENGTH, START
+
+    table.append(row)
+    name = next((field for field in table.field_names if field.upper() == "SEQNUM"), None)
+    if name is None or row.get("SEQNUM") is None:
+        return
+    record = table[-1]
+    fielddef = record._meta[name]
+    start, length = fielddef[START], fielddef[LENGTH]
+    record._data[start:start + length] = array("B", str(row["SEQNUM"]).strip().rjust(length)[:length].encode("ascii"))
+    record._update_disk()
+
+
 def unit_to_tqucod(unit: str) -> str:
     """OCR 单位 → Express TQUCOD(2 字符)。未识别返回 ''(留空,不乱填无效码)。"""
     return _UNIT_MAP.get((unit or "").strip().lower(), "")
@@ -171,7 +194,7 @@ def stcrd_detail_row(
         "STKCOD": account_code,
         "LOCCOD": loccod,
         "DOCNUM": docnum,
-        "SEQNUM": str(seqnum),
+        "SEQNUM": seqnum_text(seqnum),
         "DOCDAT": docdat,
         "REFNUM": (ref_no or "")[:15],
         "DEPCOD": depcod,
@@ -361,7 +384,7 @@ def stcrd_stock_entry_row(
         "STKCOD": stkcod,
         "LOCCOD": loccod,
         "DOCNUM": docnum,
-        "SEQNUM": str(seqnum),
+        "SEQNUM": seqnum_text(seqnum),
         "DOCDAT": docdat,
         "DEPCOD": depcod,
         "POSOPR": posopr,

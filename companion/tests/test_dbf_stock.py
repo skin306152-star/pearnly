@@ -111,10 +111,26 @@ def test_a_count_with_both_signs_nets_the_journal_per_inventory_account(book):
     assert _stloc(book, "ICE02", "01")["LOCBAL"] == 2.0
 
 
-def _receipt(acct, docnum, day, qty, value, code="ICE01", loc="01", seq="1"):
+def _receipt(acct, docnum, day, qty, value, code="ICE01", loc="01", seq="  1"):
     """账里一行进货（STCRD POSOPR 0）：盘盈要挂的那一批。"""
-    seed(acct, "STCRD", [{"STKCOD": code, "LOCCOD": loc, "DOCNUM": docnum, "SEQNUM": seq, "DOCDAT": day, "POSOPR": "0",
-                          "TRNQTY": float(qty), "XTRNQTY": float(qty), "XTRNVAL": float(value)}])
+    import dbf
+    from companion import dbf_schema
+
+    table = dbf.Table(str(acct / "STCRD.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:  # 原生进货行的行号右对齐（"  1"）；``seq`` 给左对齐的 "1  " 时照样按字节写，模拟存量 CC 单
+        dbf_schema.append_stcrd(table, {"STKCOD": code, "LOCCOD": loc, "DOCNUM": docnum, "SEQNUM": "1", "DOCDAT": day,
+                                        "POSOPR": "0", "TRNQTY": float(qty), "XTRNQTY": float(qty), "XTRNVAL": float(value)})
+        if seq != "  1":
+            from array import array
+            from dbf.constants import LENGTH, START
+
+            record = table[-1]
+            fielddef = record._meta["SEQNUM"]
+            record._data[fielddef[START]:fielddef[START] + fielddef[LENGTH]] = array("B", seq.encode("ascii"))
+            record._update_disk()
+    finally:
+        table.close()
 
 
 def test_a_count_gain_in_a_fifo_book_takes_the_cost_of_the_latest_receipt_and_links_that_lot(book):
@@ -132,6 +148,15 @@ def test_a_count_gain_in_a_fifo_book_takes_the_cost_of_the_latest_receipt_and_li
     assert (line["LOTBAL"], line["LOTVAL"], line["LUNITPR"], line["PHYBAL"]) == (15.0, 675.0, 45.0, 20.0)
     _heads, lines = _journal(book, res.docnum)
     assert lines == [("0", INVENTORY_ACC, Decimal("675.00"), "1"), ("1", OFFSET_ACC, Decimal("675.00"), "1")]
+
+
+def test_a_count_gain_linked_to_an_old_cc_receipt_spells_its_line_number_as_stored(book):
+    """验收 10-26：Express 拼 RDOCNUM 是「单号 C(12) + SEQNUM 原样」，存量 CC 单的行号是左对齐 "1  "，挂那一批时照存的原样拼。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    _receipt(book, "RR690301-001", dt.date(2026, 3, 1), 10, 400, seq="1  ")
+    res = _write(book, _entry("TK", [_line("ICE01", 1)]))
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["RDOCNUM"].rstrip() == "RR690301-0011"
 
 
 def test_a_count_gain_without_a_lot_in_a_fifo_book_is_costed_at_zero(book):

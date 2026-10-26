@@ -152,7 +152,7 @@ def write_stock_in_lines(
                     ref_no=ref_no,
                     posopr=S.STCRD_POSOPR_PURCHASE,
                 ), units.unit, stock_location.location_at(locations, seq - 1))
-            st.append(stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
+            S.append_stcrd(st, stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))
             stock_sale.write_stmas_fields(

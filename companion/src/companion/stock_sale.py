@@ -290,7 +290,7 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                st.append(stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
+                S.append_stcrd(st, stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
@@ -330,7 +330,7 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                st.append(stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
+                S.append_stcrd(st, stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)
@@ -465,8 +465,8 @@ def set_opening_stock(
                 )
                 continue
             docnum = f"OB{d.strftime('%y%m%d')}-{seq:03d}"  # 期初单(OB=opening balance)
-            st.append(
-                account_rules.localize_stcrd(account_dir, S.stcrd_opening_row(
+            S.append_stcrd(
+                st, account_rules.localize_stcrd(account_dir, S.stcrd_opening_row(
                     docnum,
                     seq,
                     d,
