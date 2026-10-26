@@ -23,6 +23,12 @@ def _num(value) -> Decimal:
     return money(value or 0)
 
 
+def _qty(value) -> str:
+    """数量按数值比，显示成普通写法（5、2.5，不出 5E+1）。"""
+    text = f"{Decimal(str(value or 0)):f}"
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def _day(value):
     if isinstance(value, dt.datetime):
         return value.date()
@@ -44,6 +50,33 @@ def find_new_doc(draft: Draft, new_rows: Dict[str, List[Dict]]) -> Dict:
         return {"head": None, "extra_heads": []}
     real = [r for r in heads if _num(r.get("NETAMT")) != 0] or heads
     return {"head": real[-1], "extra_heads": [_text(r.get("DOCNUM")) for r in heads if r is not real[-1]]}
+
+
+def _ref(value) -> str:
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def compare_answer(draft: Draft, new_rows: Dict[str, List[Dict]]) -> Dict:
+    """端到端准确率：录进 Express 的单和标准答案（会计手录）比表头。答案只在这里用，不当草稿单输入。
+
+    比日期（挪进试点账套期间后的同一天）、对方单号（只比字母数字，Express 的单号栏 15 字）、税前 / 税 / 含税。
+    对方码不比：试点账套的主档是换过的，挂没挂对对方要在真账套里才看得出。"""
+    head = find_new_doc(draft, new_rows)["head"]
+    a = draft.answer
+    if head is None:
+        return {"ok": False, "diffs": [{"field": "head", "want": "有单", "got": "没找到新单"}]}
+    diffs = []
+    pairs = [("date", a.get("date"), (_day(head.get("DOCDAT")) or "").__str__()),
+             ("ref", _ref(a.get("ref"))[:15], _ref(head.get(draft.spec["ref"]))),
+             ("net", _num(a.get("net")), _num(head.get("NETVAL"))),
+             ("vat", _num(a.get("vat")), _num(head.get("VATAMT"))),
+             ("total", _num(a.get("total")), _num(head.get("NETAMT")))]
+    for name, want, got in pairs:
+        if want in (None, "") or (name != "date" and a.get(name) in (None, "")):
+            continue
+        if str(want) != str(got):
+            diffs.append({"field": name, "want": str(want), "got": str(got)})
+    return {"ok": not diffs, "diffs": diffs}
 
 
 def compare(draft: Draft, new_rows: Dict[str, List[Dict]]) -> Dict:
@@ -79,7 +112,7 @@ def compare(draft: Draft, new_rows: Dict[str, List[Dict]]) -> Dict:
         check(f"line{index}.item", line.item_code, _text(got.get("STKCOD")))
         if line.loc:
             check(f"line{index}.loc", line.loc, _text(got.get("LOCCOD")))
-        check(f"line{index}.qty", Decimal(line.qty).normalize(), Decimal(str(got.get("TRNQTY") or 0)).normalize())
+        check(f"line{index}.qty", _qty(line.qty), _qty(got.get("TRNQTY")))
         check(f"line{index}.price", money(line.unit_price), _num(got.get("UNITPR")))
         check(f"line{index}.amount", line.amount, _num(got.get("TRNVAL")))
 

@@ -126,24 +126,48 @@ class Compare(unittest.TestCase):
 
 
 class EngineOnFake(unittest.TestCase):
-    def test_happy_path_visible_dialogs(self):
+    def test_happy_path_no_screenshots(self):
         recs, sim, claude, _ = run_docs(samples())
         for r in recs:
             self.assertTrue(r["readback_ok"], r)
             self.assertTrue(r["first_try"], r)
+            self.assertEqual(r["shots_ai"], 0, r["layers"])  # 第 2、3 层全判断得了，一张截图都不给 AI
+            self.assertGreater(r["layers"]["win32"], 0)
+            self.assertGreater(r["layers"]["dbf"], 0)
+            self.assertEqual(r["calls"], 0)
         iv = next(r for r in recs if r["doc_type"] == "IV")
         self.assertIn("4079", [e.get("name") for e in iv["events"] if e["kind"] == "dialog"])
-        self.assertTrue(all(c.startswith("check:claude-haiku") for c in claude.calls))
         self.assertEqual([r["docnum"] for r in recs], ["RR0000001", "HP0000001", "IV0000001", "HS0000001"])
 
-    def test_hidden_dialogs_need_ai(self):
+    def test_uia_layer(self):
+        recs, _, _, _ = run_docs(samples()[:1], readable="uia")
+        self.assertTrue(recs[0]["readback_ok"])
+        self.assertGreater(recs[0]["layers"]["uia"], 0)
+        self.assertEqual(recs[0]["shots_ai"], 0)
+
+    def test_hidden_dialog_caught_by_cell_read(self):
         recs, _, claude, _ = run_docs(samples(), dialogs_visible=False)
         self.assertTrue(all(r["readback_ok"] for r in recs))
         iv = next(r for r in recs if r["doc_type"] == "IV")
         self.assertFalse(iv["first_try"])
+        # 4079 藏在后面时焦点在弹窗里、格子读不到 → 保存前截一次图 → Haiku 补上单价
+        self.assertEqual(iv["fallbacks"][0]["where"], "before_save")
         self.assertEqual(iv["fallbacks"][0]["resolved_by"], pricing.HAIKU)
-        self.assertIn(f"cu:{pricing.HAIKU}", claude.calls)
         self.assertNotIn(f"cu:{pricing.OPUS}", claude.calls)
+
+    def test_unreadable_cells_fall_back_to_one_presave_screenshot(self):
+        recs, _, _, _ = run_docs(samples(), dialogs_visible=False, readable="none")
+        self.assertTrue(all(r["readback_ok"] for r in recs), [r["diffs"] for r in recs])
+        rr = recs[0]
+        self.assertEqual(rr["layers"].get("vision"), 1)  # 只在保存前看一眼
+        iv = next(r for r in recs if r["doc_type"] == "IV")
+        self.assertEqual(iv["fallbacks"][0]["where"], "before_save")
+
+    def test_typo_caught_by_cell_read(self):
+        d = Draft("TYPO", "IV", "2026-10-22", "5001", [Line("501780", "5", "10.00")])
+        recs, _, _, _ = run_docs([d], inject={"typo_qty:TYPO": "50"})
+        self.assertTrue(recs[0]["readback_ok"], recs[0])
+        self.assertEqual(recs[0]["fallbacks"][0]["where"], "line1")
 
     def test_unknown_dialog_then_escalate_to_opus(self):
         d = samples()[0]
@@ -151,13 +175,13 @@ class EngineOnFake(unittest.TestCase):
         r = recs[0]
         self.assertTrue(r["readback_ok"], r)
         self.assertEqual(r["fallbacks"][0]["resolved_by"], pricing.OPUS)
-        self.assertIn("不认识的弹窗", r["fallbacks"][0]["problem"])
+        self.assertIn("认不出的弹窗", r["fallbacks"][0]["problem"])
         self.assertIn(f"cu:{pricing.OPUS}", claude.calls)
 
     def test_opus_fixed_uses_only_opus(self):
         recs, _, claude, _ = run_docs(samples(), mode="opus_fixed", dialogs_visible=False)
         self.assertTrue(all(r["readback_ok"] for r in recs))
-        self.assertTrue(all(pricing.OPUS in c for c in claude.calls))
+        self.assertTrue(claude.calls and all(pricing.OPUS in c for c in claude.calls))
 
     def test_vision(self):
         recs, _, claude, _ = run_docs(samples(), mode="opus_vision")
@@ -165,6 +189,7 @@ class EngineOnFake(unittest.TestCase):
             self.assertTrue(r["readback_ok"], r)
             self.assertEqual(r["checkpoints"], 0)
             self.assertGreater(r["cu_turns"], 4)
+            self.assertGreater(r["shots_ai"], 4)
 
     def test_smb_crash_stops(self):
         d = samples()[2]
@@ -181,19 +206,31 @@ class EngineOnFake(unittest.TestCase):
 
     def test_readback_catches_what_checks_missed(self):
         d = Draft("TYPO", "IV", "2026-10-22", "5001", [Line("501780", "5", "10.00")])
-        recs, _, _, _ = run_docs([d], inject={"typo_qty:TYPO": "50"}, blind=True)
+        recs, _, _, _ = run_docs([d], inject={"typo_qty:TYPO": "50"}, blind=True, readable="none")
         r = recs[0]
         self.assertFalse(r["readback_ok"])
         self.assertIn("line1.qty", {x["field"] for x in r["diffs"]})
 
+    def test_answer_and_total_cost(self):
+        ok = Draft("A1", "RR", "2026-10-20", "P001", [Line("SV01", "1", "1000.00")], ref_no="IV-77",
+                   ocr_usd="0.0063", answer={"date": "2026-10-20", "ref": "IV-77", "net": "1000", "vat": "70",
+                                             "total": "1070"})
+        bad = Draft("A2", "RR", "2026-10-20", "P001", [Line("SV01", "1", "1000.00")], ref_no="IV-78",
+                    answer={"date": "2026-10-20", "ref": "IV-78", "net": "1100", "vat": "77", "total": "1177"})
+        recs, _, _, _ = run_docs([ok, bad])
+        self.assertTrue(recs[0]["answer_ok"])
+        self.assertEqual(recs[0]["usd_total"], "0.0063")
+        self.assertFalse(recs[1]["answer_ok"])
+        self.assertEqual({d["field"] for d in recs[1]["answer_diffs"]}, {"net", "vat", "total"})
+
     def test_budget_stop(self):
         tmp = Path(tempfile.mkdtemp())
         led = Ledger(tmp / "l.jsonl", hard_cap=Decimal("0.000001"))
-        recs, _, _, _ = run_docs(samples()[:1], ledger=led)
+        recs, _, _, _ = run_docs(samples()[:1], ledger=led, readable="none")
         self.assertEqual(recs[0]["outcome"], "budget")
 
     def test_costs_are_recorded(self):
-        recs, _, _, led = run_docs(samples())
+        recs, _, _, led = run_docs(samples(), dialogs_visible=False, readable="none")
         total = sum(Decimal(r["usd"]) for r in recs)
         self.assertEqual(total, led.total)
         self.assertTrue(all(r["calls"] == r["checkpoints"] + r["cu_turns"] for r in recs))

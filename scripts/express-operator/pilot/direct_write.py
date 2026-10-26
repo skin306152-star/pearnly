@@ -1,9 +1,9 @@
 """第 ④ 种方式（基准，不花钱）：同一批草稿单用现有 CC 直接写入代码写进试点账套的**本机副本**，计时并用同一把尺子读回核对。
 
-只写 C:\\PearnlyStress\\_xp_pilot\\copies\\ 下的副本（副本由执行代理的 copy_book 从 69EXP\\test 只读拷来），不碰服务器上的账套。
+只写工作目录 copies 下的副本（副本由执行代理的 copy_book 从 69EXP\\test 只读拷来），不碰服务器上的账套。
 在测试机上跑（要 companion 源码和 dbf 包，和 scripts/express-*-regression.py 同样的环境）：
 
-    python -m pilot.direct_write --book C:\\PearnlyStress\\_xp_pilot\\copies\\direct-1026 --drafts drafts.jsonl \\
+    python -m pilot.direct_write --book C:\\XpPilot\\copies\\direct-1026 --drafts drafts.jsonl \\
         --companion <仓库>\\companion\\src --out direct-results.jsonl
 """
 from __future__ import annotations
@@ -71,8 +71,9 @@ def main(argv=None) -> int:
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
     book = Path(args.book)
-    if "_xp_pilot\\copies\\" not in str(book).lower().replace("/", "\\"):
-        raise SystemExit("只写 C:\\PearnlyStress\\_xp_pilot\\copies 下的副本")
+    copies = (Path(__file__).resolve().parent.parent / "copies").resolve()
+    if copies not in book.resolve().parents:
+        raise SystemExit(f"只写 {copies} 下的副本")
     sys.path.insert(0, args.companion)
     from companion import account_probe
     from companion import dbf_sales as WS

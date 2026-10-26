@@ -1,66 +1,327 @@
 {
-  "_说明": "固定流程（标准流程）：坐标是 1920×1080、单据窗口最大化后的屏幕像素。verified=true 的来自操作手册实录（70EXP\\test，Express 1.0.1.94）；false 的是照同类单据推的，第一次真跑前用 calibrate 对着空白单据截图定一次。键的写法同 .NET SendKeys。",
-  "screen": [1920, 1080],
+  "_说明": "固定流程（标准流程），键盘优先：表头靠新建后的落点和回车跳格，明细靠回车走格，泰文走剪贴板 + Shift+Insert。坐标只在没有快捷键的工具栏命令、以及 reach=click 的格子用（1920×1080、单据窗口最大化后的屏幕像素）；verified=true 的来自操作手册实录（70EXP\\test，Express 1.0.1.94），false 的第一次真跑前用 probe / calibrate 定。",
+  "screen": [
+    1920,
+    1080
+  ],
   "anchors": {
-    "toolbar.new": {"xy": [35, 103], "verified": true},
-    "toolbar.edit": {"xy": [80, 103], "verified": true},
-    "toolbar.cancel": {"xy": [229, 103], "verified": true},
-    "toolbar.save": {"xy": [274, 103], "verified": true},
-    "IV.party": {"xy": [209, 189], "verified": true},
-    "IV.grid": {"xy": [209, 491], "verified": true},
-    "IV.docdate": {"xy": null, "verified": false, "label": "วันที่"},
-    "HS.party": {"xy": [209, 189], "verified": false, "label": "รหัสลูกค้า"},
-    "HS.grid": {"xy": [209, 491], "verified": false, "label": "明细第一行品码格"},
-    "HS.docdate": {"xy": null, "verified": false, "label": "วันที่"},
-    "RR.party": {"xy": [209, 189], "verified": false, "label": "รหัสผู้จำหน่าย"},
-    "RR.grid": {"xy": [209, 491], "verified": false, "label": "明细第一行品码格"},
-    "RR.docdate": {"xy": null, "verified": false, "label": "วันที่"},
-    "RR.billno": {"xy": null, "verified": false, "label": "เลขที่บิล"},
-    "RR.billdate": {"xy": null, "verified": false, "label": "ลงวันที่"},
-    "HP.party": {"xy": [209, 189], "verified": false, "label": "รหัสผู้จำหน่าย"},
-    "HP.grid": {"xy": [209, 491], "verified": false, "label": "明细第一行品码格"},
-    "HP.docdate": {"xy": null, "verified": false, "label": "วันที่"},
-    "HP.billno": {"xy": null, "verified": false, "label": "เลขที่บิล"},
-    "HP.billdate": {"xy": null, "verified": false, "label": "ลงวันที่"}
+    "toolbar.new": {
+      "xy": [
+        35,
+        103
+      ],
+      "verified": true
+    },
+    "toolbar.edit": {
+      "xy": [
+        80,
+        103
+      ],
+      "verified": true
+    },
+    "toolbar.cancel": {
+      "xy": [
+        229,
+        103
+      ],
+      "verified": true
+    },
+    "toolbar.save": {
+      "xy": [
+        274,
+        103
+      ],
+      "verified": true
+    },
+    "IV.party": {
+      "xy": [
+        209,
+        189
+      ],
+      "verified": true
+    },
+    "IV.grid": {
+      "xy": [
+        209,
+        491
+      ],
+      "verified": true
+    },
+    "IV.docdate": {
+      "xy": null,
+      "verified": false,
+      "label": "วันที่"
+    },
+    "HS.party": {
+      "xy": [
+        209,
+        189
+      ],
+      "verified": false,
+      "label": "รหัสลูกค้า"
+    },
+    "HS.grid": {
+      "xy": [
+        209,
+        491
+      ],
+      "verified": false,
+      "label": "明细第一行品码格"
+    },
+    "HS.docdate": {
+      "xy": null,
+      "verified": false,
+      "label": "วันที่"
+    },
+    "RR.party": {
+      "xy": [
+        209,
+        189
+      ],
+      "verified": false,
+      "label": "รหัสผู้จำหน่าย"
+    },
+    "RR.grid": {
+      "xy": [
+        209,
+        491
+      ],
+      "verified": false,
+      "label": "明细第一行品码格"
+    },
+    "RR.docdate": {
+      "xy": null,
+      "verified": false,
+      "label": "วันที่"
+    },
+    "RR.billno": {
+      "xy": null,
+      "verified": false,
+      "label": "เลขที่บิล"
+    },
+    "RR.billdate": {
+      "xy": null,
+      "verified": false,
+      "label": "ลงวันที่"
+    },
+    "HP.party": {
+      "xy": [
+        209,
+        189
+      ],
+      "verified": false,
+      "label": "รหัสผู้จำหน่าย"
+    },
+    "HP.grid": {
+      "xy": [
+        209,
+        491
+      ],
+      "verified": false,
+      "label": "明细第一行品码格"
+    },
+    "HP.docdate": {
+      "xy": null,
+      "verified": false,
+      "label": "วันที่"
+    },
+    "HP.billno": {
+      "xy": null,
+      "verified": false,
+      "label": "เลขที่บิล"
+    },
+    "HP.billdate": {
+      "xy": null,
+      "verified": false,
+      "label": "ลงวันที่"
+    }
   },
   "menus": {
-    "RR": ["%1", "4"],
-    "HP": ["%1", "2", "1"],
-    "IV": ["%2", "4"],
-    "HS": ["%2", "2", "1"]
+    "RR": [
+      "%1",
+      "4"
+    ],
+    "HP": [
+      "%1",
+      "2",
+      "1"
+    ],
+    "IV": [
+      "%2",
+      "4"
+    ],
+    "HS": [
+      "%2",
+      "2",
+      "1"
+    ]
   },
   "form_open_ms": 6500,
   "header": {
-    "RR": ["party", "docdate", "billno", "billdate"],
-    "HP": ["party", "docdate", "billno", "billdate"],
-    "IV": ["party", "docdate"],
-    "HS": ["party", "docdate"]
+    "RR": [
+      "party",
+      "docdate",
+      "billno",
+      "billdate"
+    ],
+    "HP": [
+      "party",
+      "docdate",
+      "billno",
+      "billdate"
+    ],
+    "IV": [
+      "party",
+      "docdate"
+    ],
+    "HS": [
+      "party",
+      "docdate"
+    ]
   },
   "header_fields": {
-    "party": {"value": "{party}", "after": "{ENTER}", "wait_ms": 1500},
-    "docdate": {"value": "{date}", "select_all": true, "after": "{ENTER}", "wait_ms": 400},
-    "billno": {"value": "{ref}", "select_all": true, "after": "{ENTER}", "wait_ms": 400, "skip_if_empty": true},
-    "billdate": {"value": "{date}", "select_all": true, "after": "{ENTER}", "wait_ms": 400}
+    "party": {
+      "value": "{party}",
+      "after": "{ENTER}",
+      "wait_ms": 1500,
+      "reach": "after_new"
+    },
+    "docdate": {
+      "value": "{date}",
+      "select_all": true,
+      "after": "{ENTER}",
+      "wait_ms": 400,
+      "reach": "enter"
+    },
+    "billno": {
+      "value": "{ref}",
+      "select_all": true,
+      "after": "{ENTER}",
+      "wait_ms": 400,
+      "skip_if_empty": true,
+      "reach": "enter"
+    },
+    "billdate": {
+      "value": "{date}",
+      "select_all": true,
+      "after": "{ENTER}",
+      "wait_ms": 400,
+      "reach": "enter"
+    }
   },
   "line": [
-    {"op": "type", "text": "{item}"},
-    {"op": "keys", "text": "{ENTER}", "wait_ms": 1200},
-    {"op": "loc"},
-    {"op": "type", "text": "{qty}"},
-    {"op": "keys", "text": "{ENTER}", "wait_ms": 900},
-    {"op": "expect_dialog", "name": "unit", "keys": "{ENTER}", "wait_ms": 700},
-    {"op": "type", "text": "{price}"},
-    {"op": "keys", "text": "{ENTER}{ENTER}{ENTER}", "wait_ms": 800}
+    {
+      "op": "type",
+      "text": "{item}"
+    },
+    {
+      "op": "keys",
+      "text": "{ENTER}",
+      "wait_ms": 1200
+    },
+    {
+      "op": "loc"
+    },
+    {
+      "op": "type",
+      "text": "{qty}"
+    },
+    {
+      "op": "keys",
+      "text": "{ENTER}",
+      "wait_ms": 900
+    },
+    {
+      "op": "expect_dialog",
+      "name": "unit",
+      "keys": "{ENTER}",
+      "wait_ms": 700
+    },
+    {
+      "op": "type",
+      "text": "{price}"
+    },
+    {
+      "op": "keys",
+      "text": "{ENTER}{ENTER}{ENTER}",
+      "wait_ms": 800
+    }
   ],
-  "after_lines": [{"op": "keys", "text": "{ESC}", "wait_ms": 600}],
+  "after_lines": [
+    {
+      "op": "keys",
+      "text": "{ESC}",
+      "wait_ms": 600
+    }
+  ],
   "save_wait_ms": 2800,
   "dialogs": [
-    {"name": "unit", "match": "หน่วยนับ", "auto": false},
-    {"name": "4079", "match": "\\b4079\\b", "auto": true, "keys": "{ENTER}"},
-    {"name": "4107", "match": "\\b4107\\b", "auto": true, "keys": "{ENTER}"},
-    {"name": "605", "match": "\\b605\\b", "auto": true, "keys": "{ENTER}"},
-    {"name": "40", "match": "Message\\D{0,3}40\\b", "auto": true, "keys": "{ENTER}"},
-    {"name": "neg_stock", "match": "\\b4224\\b|\\b4091\\b", "auto": true, "outcome": "blocked"},
-    {"name": "smb", "match": "-70\\b|90621|Reading File", "auto": true, "outcome": "crash"}
-  ]
+    {
+      "name": "unit",
+      "match": "หน่วยนับ",
+      "auto": false
+    },
+    {
+      "name": "4079",
+      "match": "\\b4079\\b",
+      "auto": true,
+      "keys": "{ENTER}"
+    },
+    {
+      "name": "4107",
+      "match": "\\b4107\\b",
+      "auto": true,
+      "keys": "{ENTER}"
+    },
+    {
+      "name": "605",
+      "match": "\\b605\\b",
+      "auto": true,
+      "keys": "{ENTER}"
+    },
+    {
+      "name": "40",
+      "match": "Message\\D{0,3}40\\b",
+      "auto": true,
+      "keys": "{ENTER}"
+    },
+    {
+      "name": "neg_stock",
+      "match": "\\b4224\\b|\\b4091\\b",
+      "auto": true,
+      "outcome": "blocked"
+    },
+    {
+      "name": "smb",
+      "match": "-70\\b|90621|Reading File",
+      "auto": true,
+      "outcome": "crash"
+    }
+  ],
+  "navigation": "keys",
+  "commands": {
+    "new": {
+      "keys": null,
+      "xy": [
+        35,
+        103
+      ],
+      "verified": true,
+      "_待查": "找快捷键（探测菜单 / 工具提示）"
+    },
+    "save": {
+      "keys": null,
+      "xy": [
+        274,
+        103
+      ],
+      "verified": true,
+      "_待查": "找快捷键"
+    }
+  },
+  "to_grid": {
+    "reach": "click",
+    "keys": "",
+    "_说明": "表头最后一格回车后落不落到明细第一格待实测；落得到就改 reach=enter"
+  }
 }

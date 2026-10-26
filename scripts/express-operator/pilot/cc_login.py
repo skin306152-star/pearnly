@@ -8,7 +8,7 @@
    回 ``{"ok": true}`` 或失败原因。调用方（包括 Claude）拿不到用户名和密码。
 3. ``forget`` 删掉这条凭据。
 
-登录窗口的样子（标题、要不要先点用户名格）写在 C:\\PearnlyStress\\_xp_pilot\\login.json，第一次由人对着画面定一次：
+登录窗口的样子（标题、要不要先点用户名格）写在工作目录的 login.json，第一次由人对着画面定一次：
 ``{"title_contains": "...", "user_click": [x, y] 或 null, "after_ms": 3000}``（坐标相对登录窗口左上角）。
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 DEFAULT_TARGET = "Pearnly CC/Express/accserver"
-CONFIG = Path(r"C:\PearnlyStress\_xp_pilot\login.json")
+CONFIG = Path(__file__).resolve().parent.parent / "login.json"
 CRED_TYPE_GENERIC, CRED_PERSIST_LOCAL_MACHINE = 1, 2
 
 if sys.platform == "win32":

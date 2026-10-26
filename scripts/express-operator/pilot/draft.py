@@ -48,8 +48,10 @@ class Draft:
     remark: str = ""  # 泰文备注（走剪贴板粘贴）
     vat_rate: str = "7"
     vat_included: bool = False  # 单价是否含税（现销 HS 默认「1-รวม VAT」）
-    expected: Dict[str, str] = field(default_factory=dict)  # 标准答案给的 net / vat / total；空则按行算
+    expected: Dict[str, str] = field(default_factory=dict)  # 草稿单自己的 net / vat / total（识别读到的）；空则按行算
     source: Dict[str, str] = field(default_factory=dict)
+    ocr_usd: str = "0"  # 识别段花费（产品识别这一份的实际花费）
+    answer: Dict[str, str] = field(default_factory=dict)  # 标准答案（会计在 Express 手录的）：只用来核对，不当输入
 
     def __post_init__(self):
         if self.doc_type not in DOC_TYPES:

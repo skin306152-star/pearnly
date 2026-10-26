@@ -76,13 +76,16 @@ def main(argv=None) -> int:
     p.add_argument("--types", default="", help="只跑这些单种，逗号分隔，如 RR,IV")
     p.add_argument("--run", default="", help="结果目录名（默认 模式-日期）")
     p.add_argument("--book", default=BOOK)
-    p.add_argument("--no-line-checks", action="store_true", help="每行录完不截图核对（只在表头、保存前后核对）")
+    p.add_argument("--presave", default="auto", choices=["auto", "always", "never"],
+                   help="保存前截图给 AI 核对：auto = 本张有格子读不到才看；always / never")
     p.add_argument("--ack", action="store_true", help="主会话已收到满 10 美元的报告，继续")
     p.add_argument("--hard-cap", default=str(HARD_CAP))
     p.add_argument("--company-confirmed", action="store_true")
     p.add_argument("--fake", action="store_true", help="离线模拟器 + 假模型（不连测试机、不花钱）")
     p.add_argument("--fake-hidden-dialogs", action="store_true")
+    p.add_argument("--fake-readable", default="win32", choices=["win32", "uia", "none"])
     p.add_argument("--ledger", default="")
+    p.add_argument("--probe", default="", help="只探测不录：存 Win32 / pywinauto win32 / uia 三种读法在当前画面读到的东西，参数是名字")
     args = p.parse_args(argv)
 
     flows = json.loads((HERE / "flows.json").read_text(encoding="utf-8"))
@@ -108,12 +111,24 @@ def main(argv=None) -> int:
 
     if args.fake:
         from .fake_express import FakeClaude, FakeExpress
-        agent = FakeExpress(flows, dialogs_visible=not args.fake_hidden_dialogs)
+        agent = FakeExpress(flows, dialogs_visible=not args.fake_hidden_dialogs, readable=args.fake_readable)
         claude = FakeClaude(agent)
         return _loop(args, flows, drafts, agent, claude, ledger, run_dir, results)
 
     from .agent_client import AgentClient, Tunnel, remote_token
     from .models import Claude
+    if args.probe:
+        with Tunnel():
+            agent = AgentClient(remote_token(), timeout=180)
+            reply = agent.act([{"do": "activate"}, {"do": "wait", "ms": 500}, {"do": "probe"}, {"do": "state"}])
+        out = RUNS / "probe"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / f"{args.probe}.json").write_text(json.dumps(reply, ensure_ascii=False, indent=1), encoding="utf-8")
+        trees = reply["results"][2].get("trees", {})
+        for name, t in trees.items():
+            print(name, {k: t.get(k) for k in ("ms", "count", "with_text", "error")})
+        print("焦点（Win32 / UIA）：", reply["results"][3].get("focus"), reply["results"][3].get("uia"))
+        return 0
     claude = Claude(load_key())
     with Tunnel():
         agent = AgentClient(remote_token())
@@ -122,8 +137,7 @@ def main(argv=None) -> int:
 
 
 def _loop(args, flows, drafts, agent, claude, ledger, run_dir, results) -> int:
-    eng = E.Engine(agent, claude, ledger, flows, args.book, args.mode, run_dir,
-                   lines_checkpoint=not args.no_line_checks)
+    eng = E.Engine(agent, claude, ledger, flows, args.book, args.mode, run_dir, presave_check=args.presave)
     skip = done_ids(results)
     codes = {"need_human": 20, "crash": 30, "budget": 40}
     for d in drafts:
@@ -137,8 +151,9 @@ def _loop(args, flows, drafts, agent, claude, ledger, run_dir, results) -> int:
         with results.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         mark = "✓" if rec["readback_ok"] else "✗"
-        print(f"{mark} {d.doc_id} {d.doc_type} {rec['outcome']} {rec['seconds']}s ${rec['usd']} "
-              f"接手 {len(rec['fallbacks'])} 单号 {rec['docnum'] or '-'}"
+        print(f"{mark} {d.doc_id} {d.doc_type} {rec['outcome']} {rec['seconds']}s 代录 ${rec['usd']} 合计 ${rec['usd_total']} "
+              f"截图给AI {rec['shots_ai']} 接手 {len(rec['fallbacks'])} 单号 {rec['docnum'] or '-'}"
+              + (f" 对答案 {'✓' if rec['answer_ok'] else '✗'}" if 'answer_ok' in rec else "")
               + (f" 卡在 {rec['stuck_at']}" if rec["stuck_at"] else "")
               + (f" 差异 {rec['diffs']}" if rec["diffs"] else ""))
         if rec["outcome"] in codes:

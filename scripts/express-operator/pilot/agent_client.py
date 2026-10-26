@@ -8,9 +8,9 @@ import time
 import urllib.request
 from typing import Dict, List, Optional
 
-HOST = "lenovo-office-lan"
+HOST = "rec-laptop"  # 10-26 起试点改用录制笔记本（专给试点用）
 PORT = 18765
-REMOTE_WORK = "C:/PearnlyStress/_xp_pilot"
+REMOTE_WORK = r"C:\XpPilot"
 
 
 class AgentClient:
@@ -58,7 +58,7 @@ class Tunnel:
 
 
 def remote_token(host: str = HOST) -> str:
-    out = subprocess.run(["ssh", host, f"Get-Content {REMOTE_WORK}/agent.token"], capture_output=True, text=True,
+    out = subprocess.run(["ssh", host, f"type {REMOTE_WORK}\\agent.token"], capture_output=True, text=True,
                          timeout=30, stdin=subprocess.DEVNULL)
     token = out.stdout.strip()
     if not token:

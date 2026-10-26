@@ -51,10 +51,11 @@ def _tokens(spec: str) -> List[str]:
 
 class FakeExpress:
     def __init__(self, flows: Dict, *, dialogs_visible: bool = True, inject: Optional[Dict] = None,
-                 vat_inclusive=("HS",)):
+                 vat_inclusive=("HS",), readable: str = "win32"):
         self.flows = flows
         self.anchors = {k: tuple(a["xy"]) for k, a in flows["anchors"].items() if a.get("xy")}
         self.dialogs_visible = dialogs_visible
+        self.readable = readable  # 焦点格内容从哪读得到：win32 / uia / none
         self.inject = inject or {}  # {"party:P002": {...弹窗}, "crash_on_save:5001": True, "block_item:X": True, "typo_qty:DOCID": "50"}
         self.vat_inclusive = vat_inclusive
         self.menu: List[str] = []
@@ -102,6 +103,17 @@ class FakeExpress:
             return gross
         return gross + money(gross * Decimal("0.07"))
 
+    def focus_value(self) -> str:
+        if self.dialogs or self.focus is None:
+            return ""
+        if self.focus[0] == "head":
+            return self.head.get(self.focus[1], "")
+        _, row, col = self.focus
+        return self.grid[row].get(col, "") if row < len(self.grid) else ""
+
+    def title(self) -> str:
+        return f"Express - {self.form}" if self.form else "Express"
+
     # ── 输入 ───────────────────────────────────────────────────────────────
     def _header_order(self) -> List[str]:
         return self.flows["header"][self.form]
@@ -122,7 +134,7 @@ class FakeExpress:
                 self.grid.append({})
             cell = self.grid[row]
             if col == "qty" and f"typo_qty:{self.current_doc_id}" in self.inject:
-                text = self.inject[f"typo_qty:{self.current_doc_id}"]
+                text = self.inject.pop(f"typo_qty:{self.current_doc_id}")
             cell[col] = text if self.select_all else cell.get(col, "") + text
         self.select_all = False
 
@@ -303,6 +315,11 @@ class FakeExpress:
                              if k in (a.get("tables") or self.book)}}
         if op == "windows":
             return {"windows": self.windows()}
+        if op == "state":
+            value = self.focus_value()
+            return {"fg": {"title": self.title()}, "windows": self.windows(),
+                    "focus": {"text": value if self.readable == "win32" else ""},
+                    "uia": {"value": value if self.readable == "uia" else ""}}
         raise RuntimeError(f"假代理不认识 {op}")
 
     def act(self, actions: List[Dict], windows: bool = True) -> Dict:
@@ -321,6 +338,7 @@ class FakeExpress:
         out = {"results": results, "ms": 1}
         if windows:
             out["windows"] = self.windows()
+            out["fg"] = {"title": self.title(), "exe": "ExpressI.exe"}
         return out
 
 
@@ -360,11 +378,8 @@ class FakeClaude:
             for col, want in (("item", line.item_code), ("qty", line.qty), ("price", line.unit_price)):
                 if rows[i].get(col) != want:
                     x, y = s.cell_xy(i, col)
-                    returns = len(GRID_COLS) - GRID_COLS.index(col)  # 回车到下一行品码格，流程才能接着录
                     return [{"name": "left_click", "input": {"coordinate": [x / 1.5, y / 1.5]}},
-                            {"name": "type", "input": {"text": want}},
-                            {"name": "key", "input": {"text": "Return", "repeat": returns}},
-                            {"name": "screenshot", "input": {}}]
+                            {"name": "type", "input": {"text": want}}, {"name": "screenshot", "input": {}}]
         return None
 
     def checkpoint(self, model, png, prompt, expect):

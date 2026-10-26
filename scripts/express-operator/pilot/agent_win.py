@@ -3,11 +3,11 @@
 本机执行器经 ssh 端口转发连过来，一次发一批动作（POST /act），代理按顺序做、遇错即停，回每个动作的结果和当前 Express 窗口清单。
 只用标准库。规矩（写死在代码里，不靠调用方自觉）：
 - 每次按键 / 点击前核前台进程是 ExpressI.exe；点击还要核落点所在的顶层窗口也属于 ExpressI，否则拒绝（不把键打进别的程序）；
-- 读账套只许读白名单（试点账套 \\\\accserver\\d$\\account\\69EXP\\test，和本机 C:\\PearnlyStress\\_xp_pilot 下的副本），先拷到临时目录再读；
+- 读账套只许读白名单（试点账套 \\\\accserver\\d$\\account\\69EXP\\test，和工作目录 copies 下的副本），先拷到临时目录再读；
 - 启动程序只许白名单里的服务器版 Express；
 - 不收、不存、不记密码：自动登录只调 cc_login（从 Windows 凭据管理器取、直接填进 Express 登录框），回结果只有成败。
 
-    pythonw -m pilot.agent_win            （工作目录 C:\\PearnlyStress\\_xp_pilot，令牌在 agent.token）
+    pythonw -m pilot.agent_win            （在工作目录下跑，如 C:\\XpPilot；令牌在 agent.token）
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from typing import Dict, List, Optional
 
 from . import dbfread
 
-WORK = Path(os.environ.get("XP_PILOT_WORK", r"C:\PearnlyStress\_xp_pilot"))
+WORK = Path(__file__).resolve().parent.parent  # 代码放在 <工作目录>\pilot\，令牌、日志、副本都在工作目录
 PORT = int(os.environ.get("XP_PILOT_PORT", "18765"))
 PROCESS = "expressi.exe"
 BOOKS = [r"\\accserver\d$\account\69exp\test"]  # 试点账套（主会话 10-26 指定），只读
@@ -135,6 +135,7 @@ if IS_WIN:
         _fields_ = [("type", W.DWORD), ("u", _U)]
 
     user32.SendInput.argtypes = [W.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
+    user32.GetGUIThreadInfo.argtypes = [W.DWORD, ctypes.c_void_p]
 
     EnumProc = ctypes.WINFUNCTYPE(W.BOOL, HWND, W.LPARAM)
     user32.EnumWindows.argtypes = [EnumProc, W.LPARAM]
@@ -238,6 +239,54 @@ def guard_point(x: int, y: int) -> None:
     root = user32.GetAncestor(user32.WindowFromPoint(W.POINT(int(x), int(y))), 2)  # GA_ROOT
     if not is_express(root):
         raise Refused(f"落点 ({x},{y}) 不在 Express 窗口上，已拒绝")
+
+
+def _focus_info() -> Dict:
+    """第 2 层（Win32，不截图）：前台线程的焦点控件、光标位置。VFP 表单里的格子多半不是独立窗口，读不到就回空。"""
+    class GUITHREADINFO(ctypes.Structure):
+        _fields_ = [("cbSize", W.DWORD), ("flags", W.DWORD), ("hwndActive", HWND), ("hwndFocus", HWND),
+                    ("hwndCapture", HWND), ("hwndMenuOwner", HWND), ("hwndMoveSize", HWND), ("hwndCaret", HWND),
+                    ("rcCaret", W.RECT)]
+
+    fg = user32.GetForegroundWindow()
+    tid = user32.GetWindowThreadProcessId(fg, None)
+    info = GUITHREADINFO(cbSize=ctypes.sizeof(GUITHREADINFO))
+    if not user32.GetGUIThreadInfo(tid, ctypes.byref(info)):
+        return {}
+    focus = info.hwndFocus
+    out = {"hwnd": int(focus or 0), "cls": _cls(focus) if focus else "", "text": _gettext(focus) if focus else "",
+           "caret": [info.rcCaret.left, info.rcCaret.top] if info.hwndCaret else None,
+           "is_fg": bool(focus) and int(focus) == int(fg or 0)}
+    return out
+
+
+def _uia_focus() -> Dict:
+    """第 2 层（UI Automation，经 pywinauto uia 后端）：焦点元素的名称 / 值 / 类型，另读 MSAA 旧属性（VFP 只可能从这里露值）。
+    没装 pywinauto 就回空。"""
+    try:
+        from pywinauto.controls.uiawrapper import UIAWrapper
+        from pywinauto.uia_defines import IUIA
+        from pywinauto.uia_element_info import UIAElementInfo
+    except Exception:  # noqa: BLE001
+        return {}
+    try:
+        info = UIAElementInfo(IUIA().iuia.GetFocusedElement())
+        out = {"name": info.name or "", "type": info.control_type or "", "cls": info.class_name or "",
+               "pid": info.process_id}
+        try:
+            legacy = UIAWrapper(info).legacy_properties()
+            out.update({"value": str(legacy.get("Value") or ""), "legacy_name": str(legacy.get("Name") or ""),
+                        "role": legacy.get("Role")})
+        except Exception:  # noqa: BLE001
+            out["value"] = ""
+        return out
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def state() -> Dict:
+    """一次读全第 2 层能读到的：前台、Express 顶层窗口和文字、焦点控件（Win32 与 UIA）。"""
+    return {"fg": foreground(), "windows": windows(), "focus": _focus_info(), "uia": _uia_focus()}
 
 
 def main_window():
@@ -559,7 +608,7 @@ def book_rows(book: str, since: Dict[str, int], tables=None) -> Dict[str, List[D
 
 
 def copy_book(book: str, name: str) -> Dict:
-    """把试点账套整本只读拷到 C:\\PearnlyStress\\_xp_pilot\\copies\\<name>（给第 ④ 种直接写入当基准用）。"""
+    """把试点账套整本只读拷到 <工作目录>\\copies\\<name>（给第 ④ 种直接写入当基准用）。"""
     root = _book(book)
     if not name.replace("-", "").replace("_", "").isalnum():
         raise Refused("副本名只许字母数字和 - _")
@@ -590,6 +639,11 @@ def do(a: Dict) -> Dict:
         return {"pong": True, "screen": screen_size(), "fg": foreground()}
     if op == "windows":
         return {"windows": windows(), "fg": foreground()}
+    if op == "state":
+        return state()
+    if op == "probe":
+        from . import probe_ui
+        return probe_ui.dump(a.get("depth", 6), a.get("limit", 400))
     if op == "activate":
         return activate()
     if op == "maximize_main":
