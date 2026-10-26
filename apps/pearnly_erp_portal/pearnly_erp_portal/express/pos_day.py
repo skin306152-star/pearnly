@@ -194,7 +194,7 @@ def document(name, ref) -> dict:
     summary.grand_total, summary.vat_amount = sums.total, sums.vat
     company = frappe.db.get_value("ERP Company", summary.company, ["tax_id", "branch"], as_dict=True) or {}
     rows = frappe.db.sql(f"""SELECT l.product, l.warehouse, l.unit, SUM({sign} * l.qty) AS qty,
-        SUM({sign} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount
+        SUM({sign} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount, SUM(ABS(COALESCE(l.vat_amount, 0))) AS vat
         FROM `tabERP Sale Line` l JOIN `tabERP Sale` s ON s.name = l.parent AND l.parenttype = 'ERP Sale'
         WHERE s.express_summary = %s GROUP BY l.product, l.warehouse, l.unit ORDER BY MIN(l.idx)""", (name,), as_dict=True)
     products, warehouses, merged = {}, {}, {}
@@ -219,6 +219,8 @@ def document(name, ref) -> dict:
             line["factor"] = stock_entry._plain(factor)
         line["qty"] += contracts.d(row.qty)
         line["amount"] += contracts.d(row.amount)
+        # 这一行没拆出税额（免税商品）：CC 桌面版摊各行含税额时不摊税给它（退货单明细的含税额，验收实测 10-26）
+        line["vat_exempt"] = line.get("vat_exempt", True) and not contracts.d(row.vat)
     total, vat = contracts.d(summary.grand_total), contracts.d(summary.vat_amount)
     paid = {row.method: contracts.d(row.amount) for row in frappe.db.sql(
         f"""SELECT p.method, SUM({sign} * p.amount) AS amount FROM `tabERP Sale Payment` p

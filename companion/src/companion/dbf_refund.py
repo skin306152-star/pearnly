@@ -251,13 +251,22 @@ def _returned(account_dir, against: str, origins: List[_Origin]) -> Dict[str, De
 
 
 def _gross(items: List[Dict[str, Any]], total: Decimal) -> List[Decimal]:
-    """各行含税额：按税前额占比分摊单据含税合计，尾差落最后一行，合计恒等于含税合计（载荷只带各行税前额）。"""
+    """各行含税额：免税行（``vat_exempt``）含税额就是税前额；含税合计减去它们后按税前额占比摊给其余行，尾差落最后一个应税行，
+    合计恒等于含税合计（载荷只带各行税前额。验收实测 10-26：应税 100 + 免税 50 退货，原来按占比摊成 104.67 / 52.33）。
+    全是免税行时照占比摊（合计里本来就没有税）。"""
     nets = [_dec(item.get("amount")) for item in items]
-    whole = sum(nets, Decimal(0))
-    if whole <= 0:
-        return [Decimal(0)] * (len(items) - 1) + [total]
-    out = [_q2(net * total / whole) for net in nets[:-1]]
-    return out + [total - sum(out, Decimal(0))]
+    exempt = {index for index, item in enumerate(items) if item.get("vat_exempt")}
+    if len(exempt) == len(items):
+        exempt = set()
+    out: List[Decimal] = [nets[index] if index in exempt else Decimal(0) for index in range(len(items))]
+    taxable = [index for index in range(len(items)) if index not in exempt]
+    rest = total - sum((nets[index] for index in exempt), Decimal(0))
+    whole = sum((nets[index] for index in taxable), Decimal(0))
+    if whole > 0:
+        for index in taxable[:-1]:
+            out[index] = _q2(nets[index] * rest / whole)
+    out[taxable[-1]] = rest - sum((out[index] for index in taxable[:-1]), Decimal(0))
+    return out
 
 
 def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Line]:

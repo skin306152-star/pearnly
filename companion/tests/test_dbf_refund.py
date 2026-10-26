@@ -300,6 +300,17 @@ def test_a_longer_original_number_is_not_read_as_a_line_of_a_shorter_one(book):
     assert dbf_refund._returned(book, "HS00000391234", [_origin(5)]) == {"5": Decimal("7")}  # 原单没有第 51 行
 
 
+def test_an_exempt_line_takes_no_share_of_the_vat_in_its_gross_amount():
+    """实验栈实测 10-26：应税 100 + 免税 50 退货、含税 157，原来按税前额占比摊成 104.67 / 52.33；免税行含税额就是税前额。"""
+    taxable = {"amount": "100.00"}
+    exempt = {"amount": "50.00", "vat_exempt": True}
+    assert dbf_refund._gross([taxable, exempt], Decimal("157.00")) == [Decimal("107.00"), Decimal("50.00")]
+    assert dbf_refund._gross([exempt, taxable, {"amount": "50.00"}], Decimal("210.50")) == [
+        Decimal("50.00"), Decimal("107.00"), Decimal("53.50")]
+    assert dbf_refund._gross([{**exempt}, {**exempt, "amount": "30.00"}], Decimal("80.00")) == [Decimal("50.00"), Decimal("30.00")]
+    assert dbf_refund._gross([taxable], Decimal("107.00")) == [Decimal("107.00")]
+
+
 def _sale_of(items, *, ref_no, total, base, vat):
     """原单：收银日汇总现销 HS（CC 现有写法），明细照给的行。"""
     sale = _sale(total=total, base=base, vat=vat)

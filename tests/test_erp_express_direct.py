@@ -1647,8 +1647,9 @@ class PosDaySummaries(Base):
                 return [types.SimpleNamespace(total=D(total), vat=D(vat))]
             if "tabERP Sale Payment" in query:
                 return [types.SimpleNamespace(method=method, amount=D(amount)) for method, amount in paid]
-            return [types.SimpleNamespace(product=code, warehouse="W1", unit="ถุง", qty=D(qty), amount=D(amount))
-                    for code, qty, amount in lines]
+            return [types.SimpleNamespace(product=line[0], warehouse="W1", unit="ถุง", qty=D(line[1]), amount=D(line[2]),
+                                          vat=D(line[3] if len(line) > 3 else "1"))  # 第 4 项是这行拆出的税额，"0" = 免税
+                    for line in lines]
 
         with mock.patch.object(frappe.db, "get_value", side_effect=get_value, create=True), \
                 mock.patch.object(frappe.db, "sql", side_effect=sql), \
@@ -1701,9 +1702,11 @@ class PosDaySummaries(Base):
         """B3b 验收复核（主会话 10-26）：混有免税商品的退货单与原 HS 同一套规则只记应税部分（退货小票的免税净额 `exempt_total`
         记负数，退货单里要照正数扣）；原 HS 与退货在不同年度账套时实录前停人工；原 HS 是人手工处理的，退货单也停下手工处理。"""
         written = ("written", "HS0000039", "157")
-        body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="-50", kind="SR",
+        body = self.summary_body([("A", "1", "100"), ("B", "1", "50", "0")], [], "157", vat="7", exempt="-50", kind="SR",
                                  against=written)
         self.assertEqual(body["vat_fields"], {"AMT01": "100.00"})  # 卖应税 107 + 免税 50 次日全退：SR 的应税基数 100，同原 HS
+        # 免税行标出来，CC 桌面版摊各行含税额时不摊税给它（实验栈实测 10-26：原来摊成 104.67 / 52.33）
+        self.assertEqual([bool(item.get("vat_exempt")) for item in body["items"]], [False, True])
         held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=written, cross_year=True)
         self.assertEqual(held["hold"], "express.pos_refund_cross_year")
         held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=("handled", "", "157"))

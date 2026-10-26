@@ -330,6 +330,9 @@ def extract_line_items(
             if factor is not None and factor > 0 and factor != 1:
                 # 来源（ERP）自己的包装单位换算率：CC 桌面版认不出 Express 主档的包装单位时按它换成库存单位（验收 10-25）
                 row["factor"] = _s(factor)
+        if it.get("vat_exempt"):
+            # 来源标的免税行（ERP 收银日汇总 / 退货单）：CC 桌面版摊各行含税额时不摊税给它
+            row["vat_exempt"] = True
         account = str(it.get("account") or "").strip()
         if account:
             # 来源已给出这一行自己的费用科目（ERP 前台：明细认出的 Express 费用类物料，编码就是科目）：照它记；OCR 的票没有这一键

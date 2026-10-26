@@ -121,6 +121,16 @@ class RefundMappingTests(unittest.TestCase):
         self.assertEqual([line["role"] for line in payload["lines"]], ["refund", "cash"])
         self.assertEqual(payload["vat_rate"], 0.0)
 
+    def test_an_exempt_line_keeps_its_flag_for_cc_desktop(self):
+        """实验栈实测 10-26：应税 100 + 免税 50 的退货，CC 桌面版按占比摊各行含税额摊成 104.67 / 52.33。ERP 标的免税行原样带进
+        载荷，CC 桌面版摊含税额时不摊税给它。"""
+        items = [{"name": "น้ำดื่ม", "qty": "1", "price": "100.00", "subtotal": "100.00", "unit": "ขวด", "code": "500310",
+                  "loccod": "01", "posting_kind": "stock"},
+                 {"name": "ผักสด", "qty": "1", "price": "50.00", "subtotal": "50.00", "unit": "กก.", "code": "500311",
+                  "loccod": "01", "posting_kind": "stock", "vat_exempt": True}]
+        payload = _map(_page(total="157.00", vat="7.00", subtotal="150.00", items=items)).payload
+        self.assertEqual([bool(item.get("vat_exempt")) for item in payload["items"]], [False, True])
+
     def test_non_stock_lines_only_post_their_amount_and_an_own_account_is_kept(self):
         """退货里有服务、费用（非库存行）：同 HS 只记金额与总账；带科目的（ERP 认出的 Express 服务类物料）借它自己的科目，其余借退货科目。"""
         items = [
