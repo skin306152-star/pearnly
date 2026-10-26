@@ -2,6 +2,7 @@
 """CC 写收银跨天退货单 SR（载荷 10，dbf_refund，B3b）的真账副本离线回归（10-26）。
 
 对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码先写一张现销日汇总 HS（卖 2 个），次日写一张挂这张 HS 的退货单 SR（退 1 个）→ 核：
+- 有销项税科目的账套 HS 是混合免税（同一件品一行应税、一行免税）：免税行 VATCOD '0'、ARTRN / ISVAT 的 AMTRAT0 记免税、AMT01 只记应税；
 - HS、SR 都写成；SR 的 ARTRN 一行（RECTYP 5、SONUM = 原 HS），STCRD 一行（RDOCNUM = 原单号左对齐、行号右对齐到 15 位，RETSTK Y）；
 - 商品结存：卖 2 退 1，写完比写前少 1；有 STLOC 的，写前 STMAS 等于各仓合计的品写后仍相等；
 - SR 的凭证借贷平衡；有销项税的账套 ISVAT 记了这张 SR；
@@ -168,18 +169,26 @@ def money(base, rate):
 
 
 def sale_payload(acct, day, code, customer, cash, revenue, vat_acc, rate):
+    """有销项税科目的账套：同一件品两行，一行应税、一行免税（实录第 10 条的混合现销），税只算应税那 100；没有的照整张不含税卖 2 个。"""
     base, vat, total = money("200.00", rate)
+    if rate:
+        _base, vat, _total = money("100.00", rate)
+        total = format(Decimal(base) + Decimal(vat), "f")
     lines = [{"acc": cash, "side": "D", "amount": total, "desc": customer},
              {"acc": revenue, "side": "C", "amount": base, "desc": "รายได้จากการขาย"}]
     if rate:
         lines.append({"acc": vat_acc, "side": "C", "amount": vat, "desc": "ภาษีขาย"})
-    return {"payload_version": 4, "direction": "sales", "doctype": "HS", "account_set": acct.name, "docdate_be": be(day),
+    loccod = account_rules.main_location(acct)
+    items = ([{**item_of(acct, code), "qty": "1", "unit_price": "100.00", "amount": "100.00", "item_mode": "stock_sale", "loccod": loccod},
+              {**item_of(acct, code), "qty": "1", "unit_price": "100.00", "amount": "100.00", "item_mode": "stock_sale", "loccod": loccod,
+               "vat_exempt": True}] if rate else
+             [{**item_of(acct, code), "qty": "2", "unit_price": "100.00", "amount": base, "item_mode": "stock_sale", "loccod": loccod}])
+    return {"payload_version": 9 if rate else 4, "direction": "sales", "doctype": "HS", "account_set": acct.name, "docdate_be": be(day),
             "vat_period_be": be(day)[:4] + "01", "ref_no": "REG-SI-000001",
             "customer": {"code": customer, "name": customer, "tax_id": "", "prename": "", "customer_new": False},
             "vat_rate": float(rate), "base_amount": base, "vat_amount": vat, "total_amount": total, "lines": lines,
-            "items": [{**item_of(acct, code), "qty": "2", "unit_price": "100.00", "amount": base,
-                       "item_mode": "stock_sale", "loccod": account_rules.main_location(acct)}],
-            "items_status": "ok", "items_account": revenue,
+            "items": items, "items_status": "ok", "items_account": revenue,
+            **({"vat_fields": {"AMT01": "100.00", "AMTRAT0": "100.00"}} if rate else {}),
             "pos": {"first": "REG-SI-000001", "last": "REG-SI-000001", "count": 1, "docnum": "auto", "cash": total, "transfers": []}}
 
 
@@ -241,6 +250,17 @@ def check(acct: Path) -> dict:
     if not sale.ok:
         return {"state": "fail", "why": f"HS {sale.error_code}: {sale.error}"}
     hs_total = text(next(r["NETAMT"] for r in rows(acct, "ARTRN", ("DOCNUM", "NETAMT")) if text(r["DOCNUM"]) == sale.docnum))
+    if rate:
+        # 混合免税（实录第 10 条）：免税那行 VATCOD '0'、单头与销项税记录 AMTRAT0 记免税 100、AMT01 只记应税 100；老账套没有这些栏不核
+        detail = [r for r in rows(acct, "STCRD", ("DOCNUM", "SEQNUM", "VATCOD")) if text(r["DOCNUM"]) == sale.docnum]
+        if detail and detail[0]["VATCOD"] is not None and [text(r["VATCOD"]) for r in sorted(detail, key=lambda r: int(text(r["SEQNUM"]) or 0))] != ["", "0"]:
+            return {"state": "fail", "why": f"HS VATCOD {[(r['SEQNUM'], r['VATCOD']) for r in detail]}"}
+        head = [r for r in rows(acct, "ARTRN", ("DOCNUM", "AMTRAT0")) if text(r["DOCNUM"]) == sale.docnum][0]
+        if head["AMTRAT0"] is not None and dec(head["AMTRAT0"]) != 100:
+            return {"state": "fail", "why": f"HS ARTRN.AMTRAT0 {head['AMTRAT0']}"}
+        tax = [r for r in rows(acct, "ISVAT", ("DOCNUM", "AMT01", "AMTRAT0")) if text(r["DOCNUM"]) == sale.docnum]
+        if not tax or dec(tax[0]["AMT01"]) != 100 or (tax[0]["AMTRAT0"] is not None and dec(tax[0]["AMTRAT0"]) != 100):
+            return {"state": "fail", "why": f"HS ISVAT {tax}"}
     refund = refund_payload(acct, day + dt.timedelta(days=1), code, customer, cash, revenue, vat_acc, rate, sale.docnum,
                             format(dec(hs_total), "f"))
     sr = write(acct, refund)
