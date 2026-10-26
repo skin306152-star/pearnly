@@ -37,6 +37,7 @@ A tax ID failed its check digit,税番号のチェックディジットが一致
 A terminal needs a name,レジには名前が必要です
 A warehouse must belong to a company,倉庫は必ず会社に属します
 A warehouse needs a name,倉庫には名前が必要です
+A warehouse with stock cannot be turned off,在庫のある倉庫は無効にできません
 Abbreviated Tax Invoice,簡易税務請求書
 Account Set,帳簿
 Actual position,実際の棚番
@@ -843,6 +844,7 @@ Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
 Original and refund are in different account set years,元伝票と返品が別年度の帳簿にあります
 Other,その他
+Other companies have unregistered stock,他の会社に未登録の在庫があります
 Out,出庫
 Out Date,出庫日
 Out Reference,出庫伝票
@@ -1260,6 +1262,7 @@ That photo could not be read,この写真を読み取れません
 That row is not part of this stock count,この行はこの棚卸に含まれていません
 That submission was already used for a different entry,この送信は別の明細で使用済みです
 That warehouse belongs to another company,この倉庫は別会社のものです
+That warehouse is turned off,この倉庫は無効です
 The Express index tool is missing on this computer. Reinstall CC Desktop,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
@@ -1327,6 +1330,7 @@ The total is zero,合計がゼロです
 The units must match the stock of each warehouse,個体数は各倉庫の帳簿数と一致する必要があります
 The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
+The warehouse has no matching Express warehouse,この倉庫に対応する Express の倉庫がありません
 Then,実行
 There are no lines,明細がありません
 There is nothing to save,保存する行がありません
@@ -2067,6 +2071,7 @@ express.reason.refundWaiting,元の日次集計の書き込み待ち
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
+express.reason.warehouseUnmapped,この倉庫に対応する Express の倉庫がありません
 express.state.handled,Express で手動処理済み
 express.state.refundPending,返品書き込み待ち
 express.state.written,書き込み済み

@@ -1035,6 +1035,32 @@ class PosDaySend(PushModule):
         self.assertNotIn("vat_fields", seen[0])  # 不交给共用写账规则，准备好后才放进载荷
         self.assertEqual((queued[0]["payload"]["vat_fields"], queued[0]["payload_version"]), ({"AMT01": "100.00"}, 9))
 
+class UnmappedWarehouse(PushModule):
+    """多仓闭环 P0（G15）：单上的仓在 Express 里没有对应仓库（主档同步读过、仍没有仓库码）：不写进 Express 主仓，停下交人
+    ``express.warehouse_unmapped``；主档还没读到时照旧先等读（读到才知道有没有码）。"""
+
+    def test_a_warehouse_without_an_express_code_is_held_after_the_masters_are_read(self):
+        from unittest import mock
+        self.assertEqual(E.unmapped({"WH-1": "01", "WH-2": "", "WH-3": None, "": ""}), ["WH-2", "WH-3"])
+        docs = fake.STATE.db.table("ERP POS Day Summary")
+        body = {"ref": "PDS-1@x", "number": "SI-1-3", "items": [{"code": "A"}], "unmapped_warehouses": ["WH-2"]}
+        for prepared, state, reason in (({"hold": E.READING, "book": {"key": "BK"}}, "held", E.READING),
+                                        ({"payload": {"payload_version": 4}, "book": {"key": "BK"}}, "held", E.WAREHOUSE_UNMAPPED)):
+            docs["PDS-1"] = {"name": "PDS-1", "creation": "2026-10-25 01:20:00", "status": "submitted", "owner": "a@x",
+                             "express_state": "queued", "express_job": None, "express_reason": ""}
+            seen = []
+            with mock.patch.object(self.push, "document", lambda doctype, name: dict(body)), \
+                    mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                    mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                    mock.patch.object(self.push.prepare, "prepare", lambda doc, company, ensure, result=prepared: seen.append(doc) or result), \
+                    mock.patch.object(self.push.jobs, "enqueue", side_effect=AssertionError("must not queue")), \
+                    mock.patch.object(frappe, "publish_realtime", lambda *a, **k: None, create=True), \
+                    mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+                self.push.send("ERP POS Day Summary", "PDS-1")
+            self.assertNotIn("unmapped_warehouses", seen[0])  # 不交给共用写账规则
+            self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
+
+
 class PosDayExits(PushModule):
     """B3b 验收复核（主会话 10-26）：收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的、电脑转人工）不能永远卡着：
     「再写一次」按此刻内容重新准备，「已在 Express 手工处理」标 handled、撤掉挂着的写账件；没停住的单不给这两个出口。"""
@@ -1384,6 +1410,14 @@ class StockEntries(Base):
             body = self.stock.document("SE-1", "SE-1@x")
         self.assertEqual(body["doctype"], "JU")
         self.assertEqual([(line["qty"], line.get("unit_cost")) for line in body["lines"]], [("3", None), ("1", "12")])
+        self.assertNotIn("unmapped_warehouses", body)
+        # 多仓闭环 P0（G15）：行上的仓在 Express 里没有仓库码 → 列出来，`push.send` 停下交人，不写进 Express 主仓
+        values[("ERP Warehouse", "W2")] = ""
+        with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                  values.get((doctype, name))):
+            body = self.stock.document("SE-1", "SE-1@x")
+        self.assertEqual(body["unmapped_warehouses"], ["W2"])
 
     def test_a_stock_entry_with_a_pack_unit_needs_payload_seven(self):
         """验收 10-25：出入库单自己拼载荷，包装单位的行带 factor 时原来仍盖 6，1.12.3 测试包会收下按 1 写。"""

@@ -222,7 +222,7 @@ def document(name, ref) -> dict:
         line = merged.setdefault(key, {"name": product.get("product_name") or code or "-", "code": code, "unit": row.unit,
                                        "qty": contracts.d(0), "amount": contracts.d(0), "gross": contracts.d(0),
                                        "stock": bool(product.get("express_stock")) if code else bool(row.product),
-                                       "loccod": warehouses.get(row.warehouse, "")})
+                                       "warehouse": row.warehouse or "", "loccod": warehouses.get(row.warehouse, "")})
         if factor != 1:
             line["factor"] = stock_entry._plain(factor)
         line["qty"] += contracts.d(row.qty)
@@ -296,6 +296,9 @@ def document(name, ref) -> dict:
         fields = vat_fields(receipts, contracts.d(body["subtotal"]), sign=-1 if refund else 1)
         if fields:
             body["vat_fields"] = fields
+    missing = contracts.unmapped({line["warehouse"]: line["loccod"] for line in items if line["stock"] and line["warehouse"]})
+    if missing:
+        body["unmapped_warehouses"] = missing  # Express 里没有对应仓库的仓：`push.send` 停下交人（G15）
     frappe.db.set_value(DOCTYPE, name, "vat_whole_document", 1 if whole else 0, update_modified=False)
     body["pos"] = {"first": summary.first_receipt, "last": summary.last_receipt, "count": int(summary.sales_count or 0),
                    "payments": [[label, contracts.money(amount)] for label, amount in payments]}

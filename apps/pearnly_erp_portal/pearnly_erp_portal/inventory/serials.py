@@ -36,6 +36,8 @@ NOT_FOUND = "Unit not found"
 NOT_IN_STOCK = "This unit is not in stock in this warehouse"
 LEFT_ALREADY = "Units already sold or issued cannot be voided with this document"
 OPENING_MISMATCH = "The units must match the stock of each warehouse"
+# 打开按台时别家公司（这个人看不到的）还有没登记的账面：不露那家与仓的名称、数量，合成这一句（主会话 10-26，G17）
+OTHER_COMPANIES = "Other companies have unregistered stock"
 CANNOT_TURN_OFF = "Tracking by unit can only be turned off when every unit is sold or void"
 
 
@@ -247,7 +249,7 @@ def turn_on(product, units=None, kind=None):
         unit["warehouse"] = warehouse
     if any(qty < 0 or abs(qty - round(qty)) > 1e-9 for qty in on_hand.values()) or \
             {w: int(round(q)) for w, q in on_hand.items()} != counted:
-        frappe.throw(_(OPENING_MISMATCH))
+        frappe.throw(_shortfall(on_hand, counted), title=_(OPENING_MISMATCH))
     today, seen = nowdate(), set()
     for unit in units:
         company = warehouses.company_of(unit["warehouse"])
@@ -263,6 +265,39 @@ def turn_on(product, units=None, kind=None):
         doc.serial_kind = kind
     doc.save()
     return {"name": product, "track_serial": 1, "registered": len(units)}
+
+
+def _visible(warehouses):
+    """``{仓: (仓名, 公司名)}``：这个人能用的公司的仓；别家的不在里面（按台是商品级开关，共用商品各公司都有账，主会话 10-26）。"""
+    from pearnly_erp_portal.masters import company as companies
+
+    mine = set(companies.allowed_companies())
+    out = {}
+    for warehouse in warehouses:
+        row = frappe.db.get_value("ERP Warehouse", warehouse, ["warehouse_name", "company"], as_dict=True) or {}
+        if row.get("company") in mine:
+            out[warehouse] = (row.get("warehouse_name") or warehouse,
+                              frappe.db.get_value("ERP Company", row["company"], "company_name") or row["company"])
+    return out
+
+
+def _shortfall(on_hand, counted) -> str:
+    """开不了按台时说清楚差在哪：看得到的仓逐个列「仓 · 公司：已登记 / 账面」，看不到的公司只合成一句，不露名称与数量（G17）。"""
+    places = set(on_hand) | set(counted)
+    visible = _visible(places)
+    lines, hidden = [], False
+    for warehouse in sorted(places, key=lambda name: visible.get(name, (name, ""))):
+        stock, done = on_hand.get(warehouse, 0), counted.get(warehouse, 0)
+        if abs(stock - done) <= 1e-9:
+            continue
+        if warehouse not in visible:
+            hidden = True
+            continue
+        name, company = visible[warehouse]
+        lines.append(f"{frappe.utils.escape_html(name)} · {frappe.utils.escape_html(company)}: {done} / {frappe.utils.flt(stock, 3):g}")
+    if hidden:
+        lines.append(_(OTHER_COMPANIES))
+    return "<br>".join(lines) or _(OPENING_MISMATCH)
 
 
 def turn_off(product):
@@ -441,17 +476,14 @@ def _require_manage():
 @frappe.whitelist()
 def api_opening_stock(product=None):
     """开按台之前看这件商品各仓的账面数：有数就要先按台期初登记。"""
-    from pearnly_erp_portal.masters import company as companies
-
     _require_manage()
-    mine = set(companies.allowed_companies())
-    rows = []
-    for warehouse, qty in sorted(stock_by_warehouse(product).items()):
-        owner = frappe.db.get_value("ERP Warehouse", warehouse, ["warehouse_name", "company"], as_dict=True) or {}
-        # 别家公司的仓不报名称（这个人看不到那家）；开按台时那几个仓同样要登记，登记不了就开不了
-        rows.append({"warehouse": warehouse if owner.get("company") in mine else "",
-                     "warehouse_name": owner.get("warehouse_name") if owner.get("company") in mine else _("Not permitted"),
-                     "qty": qty})
+    on_hand = stock_by_warehouse(product)
+    visible = _visible(on_hand)
+    rows = [{"warehouse": warehouse, "warehouse_name": f"{visible[warehouse][0]} · {visible[warehouse][1]}", "qty": qty}
+            for warehouse, qty in sorted(on_hand.items(), key=lambda item: visible.get(item[0], ("", ""))) if warehouse in visible]
+    if len(rows) < len(on_hand):
+        # 别家公司（这个人看不到的）还有账面：不露名称与数量，合成一行；开按台时那几个仓同样要登记，由有权限的人处理（G17）
+        rows.append({"warehouse": "", "warehouse_name": _(OTHER_COMPANIES), "qty": None})
     return rows
 
 
@@ -509,8 +541,12 @@ def api_opening_template(product=None):
     book = openpyxl.Workbook()
     sheet = book.active
     sheet.append([labels[field] for field in WORKBOOK_FIELDS])
-    for warehouse, qty in sorted(stock_by_warehouse(product).items()):
-        name = frappe.db.get_value("ERP Warehouse", warehouse, "warehouse_name") or warehouse
+    on_hand = stock_by_warehouse(product)
+    visible = _visible(on_hand)  # 只给这个人看得到的公司的仓留行，别家的仓名不进模板（G17）
+    for warehouse, qty in sorted(on_hand.items(), key=lambda item: visible.get(item[0], ("", ""))):
+        if warehouse not in visible:
+            continue
+        name = visible[warehouse][0]
         for _index in range(min(int(round(qty)), MAX_IMPORT)):
             sheet.append(["", "", "", name, ""])
     for column in "ABCDE":
@@ -523,7 +559,7 @@ def api_opening_template(product=None):
 
 
 def parse_workbook(data) -> list:
-    """按台期初 Excel → ``[{serial_no, secondary_no, color, warehouse, location}]``（仓库按名称或编号认）。"""
+    """按台期初 Excel → ``[{serial_no, secondary_no, color, warehouse, location}]``（仓库按名称或编号，开按台时在本公司里认）。"""
     import io
 
     import openpyxl
@@ -544,8 +580,9 @@ def parse_workbook(data) -> list:
                   if columns.get(index) and cell not in (None, "")}
         if not values.get("serial_no"):
             continue
-        warehouse = values.get("warehouse") or ""
-        values["warehouse"] = frappe.db.get_value("ERP Warehouse", {"warehouse_name": warehouse}, "name") or warehouse
+        # 仓库名原样交给开按台时的 `warehouses.required`（按名称或编号、只在本公司里认）；这里不再按名称跨公司先找一遍——
+        # 两家都叫 Main 时会取到别家的仓，随后被拒成「找不到仓库」（G17，多仓闭环 P0）
+        values["warehouse"] = values.get("warehouse") or ""
         out.append(values)
         if len(out) > MAX_IMPORT:
             frappe.throw(_("That file has too many rows"))

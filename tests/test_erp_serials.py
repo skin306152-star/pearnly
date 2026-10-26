@@ -85,7 +85,7 @@ class Serials(unittest.TestCase):
             if isinstance(filters, dict) else filters in self.db.get(doctype, {}),
             set_value=lambda doctype, name, field, value, update_modified=False: self.db[doctype][name].__setitem__(field, value))
         for target, value in (("get_all", get_all), ("get_doc", get_doc), ("db", db), ("_", lambda text: text),
-                              ("throw", lambda message, *a: (_ for _ in ()).throw(Refused(message)))):
+                              ("throw", lambda message, *a, title=None: (_ for _ in ()).throw(Refused(f"{title or ''} {message}")))):
             patcher = mock.patch.object(S.frappe, target, value, create=True)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -210,17 +210,51 @@ class Serials(unittest.TestCase):
         stock = types.SimpleNamespace(lock_products=lambda products: None)
         package = sys.modules["pearnly_erp_portal.inventory"]
         with mock.patch.object(S, "stock_by_warehouse", lambda product, company=None: {"W1": 2.0}), \
+                mock.patch.object(S, "_visible", lambda places: {"W1": ("Main", "นิภา")}), \
+                mock.patch.object(S.frappe.utils, "escape_html", lambda text: text, create=True), \
                 mock.patch.dict(sys.modules, {"pearnly_erp_portal.inventory.warehouses": warehouses,
                                               "pearnly_erp_portal.inventory.stock": stock}), \
                 mock.patch.object(package, "warehouses", warehouses, create=True), \
                 mock.patch.object(package, "stock", stock, create=True):
-            with self.assertRaisesRegex(Refused, "match the stock"):
+            with self.assertRaisesRegex(Refused, "match the stock.*Main · นิภา: 1 / 2"):
                 S.turn_on("CAR", [{"serial_no": "A1", "warehouse": "W1"}])
             result = S.turn_on("CAR", [{"serial_no": "A1", "warehouse": "W1"}, {"serial_no": "A2", "warehouse": "W1"}])
         self.assertEqual((result["registered"], product.track_serial), (2, 1))
         with mock.patch.object(S, "stock_by_warehouse", lambda product, company=None: {"W1": 2.0}):
             with self.assertRaisesRegex(Refused, "turned off"):
                 S.turn_off("CAR")
+
+    def test_other_companies_stock_is_named_only_to_people_who_can_see_it(self):
+        """G17（主会话 10-26）：按台是商品级开关，开之前各公司的账面都要登记（口径不改）；看得到的仓逐个列「仓 · 公司：已登记 / 账面」，
+        看不到的公司不露名称与数量，合成一句「其他公司还有未登记的库存」。打开按台前的各仓账面表与期初模板同样不列别家的仓。"""
+        visible = {"W1": ("Main", "นิภา")}
+        with mock.patch.object(S, "_visible", lambda places: {k: v for k, v in visible.items() if k in places}), \
+                mock.patch.object(S.frappe.utils, "escape_html", lambda text: text, create=True):
+            message = S._shortfall({"W1": 2.0, "OTHER": 3.0}, {"W1": 2})
+            self.assertEqual(message, "Other companies have unregistered stock")  # W1 已对上不列；别家只一句、不露 OTHER 与 3
+            message = S._shortfall({"W1": 2.0, "OTHER": 3.0}, {"W1": 1})
+            self.assertEqual(message.split("<br>"), ["Main · นิภา: 1 / 2", "Other companies have unregistered stock"])
+            with mock.patch.object(S, "stock_by_warehouse", lambda product, company=None: {"W1": 2.0, "OTHER": 3.0}), \
+                    mock.patch.object(S, "_require_manage", lambda: None):
+                rows = S.api_opening_stock("CAR")
+        self.assertEqual(rows, [{"warehouse": "W1", "warehouse_name": "Main · นิภา", "qty": 2.0},
+                                {"warehouse": "", "warehouse_name": "Other companies have unregistered stock", "qty": None}])
+
+    def test_the_opening_sheet_leaves_the_warehouse_to_this_company(self):
+        """G17（多仓闭环 P0）：期初 Excel 的仓库名不再按名称跨公司先找一遍（两家都叫 Main 时取到别家的仓、随后被拒），
+        原样交给开按台时的 `warehouses.required`，在本公司里按名称或编号认。"""
+        sheet = [("serial_no", "secondary_no", "color", "warehouse", "location"), ("A1", "", "", "Main", "A-01")]
+        workbook = types.SimpleNamespace(active=types.SimpleNamespace(iter_rows=lambda values_only: iter(sheet)))
+        openpyxl = types.SimpleNamespace(load_workbook=lambda data, read_only, data_only: workbook)
+
+        def get_value(doctype, filters, *a, **k):
+            raise AssertionError(f"looked up {doctype} {filters} across companies")
+
+        with mock.patch.dict(sys.modules, {"openpyxl": openpyxl}), \
+                mock.patch.object(S.frappe.db, "get_value", get_value, create=True), \
+                mock.patch.object(S, "_aliases", lambda: {field: field for field in S.WORKBOOK_FIELDS}):
+            rows = S.parse_workbook(b"xlsx")
+        self.assertEqual([(row["serial_no"], row["warehouse"], row["location"]) for row in rows], [("A1", "Main", "A-01")])
 
     def test_document_units_are_kept_by_line_number(self):
         doc = types.SimpleNamespace(rows=[])

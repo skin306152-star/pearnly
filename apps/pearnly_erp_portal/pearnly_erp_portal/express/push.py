@@ -125,7 +125,7 @@ def _lines(doctype, doc):
         # 包装单位（箱 = 12）：带上 ERP 商品单位表的换算率（CC 桌面版按 Express 主档的包装单位照原生记法写，认不出时按它换；验收 10-25）
         factor = stock_entry.base_unit(line.product, product, line.unit, strict=False)[1] if stock and line.product else None
         out.append({"name": line.description or product.get("product_name") or code, "code": code, "unit": line.unit,
-                    "qty": line.qty, "amount": line.line_total, "stock": stock,
+                    "qty": line.qty, "amount": line.line_total, "stock": stock, "warehouse": line.warehouse or "",
                     "loccod": warehouses.get(line.warehouse, "") if line.warehouse else "",
                     **({"factor": factor} if factor and factor != 1 else {}),
                     **({"vat_exempt": True} if exempt_rates and not _rate(line) > 0 else {})})
@@ -218,10 +218,14 @@ def document(doctype, name) -> dict:
     else:
         number, paid = doc.doc_no or doc.system_no, bool(doc.is_paid) or doc.payment_status == "paid"
         currency = doc.currency or "THB"
+    lines = _lines(doctype, doc)
     body = contracts.document(ref=ref(doc.name, doc.creation), direction=DIRECTIONS[doctype],
                               doc_date=str(doc.doc_date), number=number,
                               company=company, party=_party(doctype, doc), paid=paid, has_vat=bool(doc.has_vat),
-                              total=doc.grand_total, vat=doc.vat_amount, lines=_lines(doctype, doc), currency=currency)
+                              total=doc.grand_total, vat=doc.vat_amount, lines=lines, currency=currency)
+    missing = contracts.unmapped({line["warehouse"]: line["loccod"] for line in lines if line["stock"] and line["warehouse"]})
+    if missing:
+        body["unmapped_warehouses"] = missing
     if any(item.get("vat_exempt") for item in body["items"]):
         fields = vat_fields(body, _exempt_base(doc))
         if fields:
@@ -278,6 +282,7 @@ def send(doctype, name):
         frappe.db.commit()
         return
     vat_fields = body.pop("vat_fields", None)
+    unmapped = body.pop("unmapped_warehouses", None)
     if doctype == POS_DAY and "hold" in body:
         result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
     else:
@@ -294,6 +299,11 @@ def send(doctype, name):
         if result["hold"].startswith(contracts.CHOICE) and result["hold"] != (row.express_reason or ""):
             # 提交时还问不了（主档那时还没读到），读到后才发现要人选：同样主动弹出，只在要问的变了时推一次
             frappe.publish_realtime(NEEDED_EVENT, {"doctype": doctype, "name": name}, user=row.owner, after_commit=True)
+    elif unmapped:
+        # 单上的仓在 Express 里没有对应的仓库（主档同步已读过、仍没有码）：不写进 Express 主仓，停下交人（G15）；
+        # 在 Express 建好同名仓库、主档同步认领后「再写一次」，或在 Express 里手工处理后标记已处理
+        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": contracts.WAREHOUSE_UNMAPPED,
+                             "express_book": book.get("key") or None, "express_needed": None})
     else:
         _set(doctype, name, {"express_book": book["key"], "express_needed": None, "express_sent_at": now_datetime()})
         payload = result["payload"]

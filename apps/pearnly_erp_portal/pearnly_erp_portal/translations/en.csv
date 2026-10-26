@@ -37,6 +37,7 @@ A tax ID failed its check digit,A tax ID failed its check digit
 A terminal needs a name,A terminal needs a name
 A warehouse must belong to a company,A warehouse must belong to a company
 A warehouse needs a name,A warehouse needs a name
+A warehouse with stock cannot be turned off,A warehouse with stock cannot be turned off
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Account Set,Account Set
 Actual position,Actual position
@@ -843,6 +844,7 @@ Original Item and Location,Original Item and Location
 Original Line,Original Line
 Original and refund are in different account set years,Original and refund are in different account set years
 Other,Other
+Other companies have unregistered stock,Other companies have unregistered stock
 Out,Out
 Out Date,Out Date
 Out Reference,Out Reference
@@ -1260,6 +1262,7 @@ That photo could not be read,That photo could not be read
 That row is not part of this stock count,That row is not part of this stock count
 That submission was already used for a different entry,That submission was already used for a different entry
 That warehouse belongs to another company,That warehouse belongs to another company
+That warehouse is turned off,That warehouse is turned off
 The Express index tool is missing on this computer. Reinstall CC Desktop,The Express index tool is missing on this computer. Reinstall CC Desktop
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
@@ -1327,6 +1330,7 @@ The total is zero,The total is zero
 The units must match the stock of each warehouse,The units must match the stock of each warehouse
 The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
+The warehouse has no matching Express warehouse,The warehouse has no matching Express warehouse
 Then,Then
 There are no lines,There are no lines
 There is nothing to save,There is nothing to save
@@ -2067,6 +2071,7 @@ express.reason.refundWaiting,Waiting for the original day summary to be written
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
+express.reason.warehouseUnmapped,The warehouse has no matching Express warehouse
 express.state.handled,Handled manually in Express
 express.state.refundPending,Refund to write
 express.state.written,Written

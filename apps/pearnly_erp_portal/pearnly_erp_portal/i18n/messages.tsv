@@ -1706,6 +1706,7 @@ Entries from a stock count cannot be voided alone	此单由盘点生成，不能
 Refunds exceed sales for this day after netting	当天退货冲减后为负数	ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ	この日は返品が売上を上回っています	express.reason.posNetNegative
 Waiting for the original day summary to be written	等待原日汇总写入	รอบันทึกสรุปยอดขายรายวันต้นทาง	元の日次集計の書き込み待ち	express.reason.refundWaiting
 Original and refund are in different account set years	原单与退货在不同年度账套	ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี	元伝票と返品が別年度の帳簿にあります	express.reason.refundCrossYear
+The warehouse has no matching Express warehouse	仓库在 Express 里没有对应的仓库	คลังนี้ไม่มีคลังที่ตรงกันใน Express	この倉庫に対応する Express の倉庫がありません	express.reason.warehouseUnmapped
 The original day summary was handled manually in Express	原日汇总已在 Express 手工处理	สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว	元の日次集計は Express で手動処理済みです	express.reason.refundOriginalManual
 Handled manually in Express	已在 Express 手工处理	จัดการด้วยมือใน Express แล้ว	Express で手動処理済み	express.state.handled
 Mark as handled in Express	标记为已在 Express 手工处理	ทำเครื่องหมายว่าจัดการใน Express แล้ว	Express で処理済みにする	express.action.markHandled
@@ -1727,6 +1728,8 @@ This code is already in use	该码已被占用	รหัสนี้ถูกใ
 Select the product	选择商品	เลือกสินค้า	商品を選択	product.scan.pick
 This location is not in the location list of this warehouse	库位不在此仓库的库位清单中	ตำแหน่งนี้ไม่อยู่ในรายการตำแหน่งของคลังนี้	このロケーションはこの倉庫のロケーション一覧にありません
 A location with stock cannot be turned off	有库存的库位不能停用	ตำแหน่งที่มีสต็อกปิดใช้งานไม่ได้	在庫のあるロケーションは無効にできません
+A warehouse with stock cannot be turned off	有库存的仓库不能停用	คลังที่มีสต็อกปิดใช้งานไม่ได้	在庫のある倉庫は無効にできません
+That warehouse is turned off	该仓库已停用	คลังนี้ปิดใช้งานแล้ว	この倉庫は無効です
 A location that has been used cannot be removed	已使用的库位不能删除	ตำแหน่งที่เคยใช้แล้วลบไม่ได้	使用済みのロケーションは削除できません
 Duplicate location	库位重复	ตำแหน่งซ้ำ	ロケーションが重複しています
 Locations	库位清单	รายการตำแหน่ง	ロケーション一覧
@@ -1752,6 +1755,7 @@ Unit not found	该台不存在	ไม่พบรายการนี้	該当
 This unit is not in stock in this warehouse	该台不在此仓库存中	รายการนี้ไม่มีในคลังนี้	この個体はこの倉庫に在庫がありません
 Units already sold or issued cannot be voided with this document	已售或已出库的台不能随单作废	รายชิ้นที่ขายหรือจ่ายออกแล้วยกเลิกพร้อมเอกสารนี้ไม่ได้	販売済みまたは出庫済みの個体はこの伝票と一緒に取り消せません
 The units must match the stock of each warehouse	台数须与各仓账面数相等	จำนวนรายชิ้นต้องเท่ากับยอดคงคลังของแต่ละคลัง	個体数は各倉庫の帳簿数と一致する必要があります
+Other companies have unregistered stock	其他公司还有未登记的库存	บริษัทอื่นยังมีสต็อกที่ยังไม่ได้ลงทะเบียน	他の会社に未登録の在庫があります
 Tracking by unit can only be turned off when every unit is sold or void	全部台已售或作废后才能关闭按台管理	ปิดการติดตามรายชิ้นได้เมื่อทุกรายการขายแล้วหรือยกเลิกแล้วเท่านั้น	すべての個体が販売済みまたは無効の場合のみ個体管理を解除できます
 Products tracked by unit change stock only through documents with units	按台管理的商品只能经带台的单据变动库存	สินค้าที่ติดตามรายชิ้นเปลี่ยนสต็อกได้ผ่านเอกสารที่ระบุรายชิ้นเท่านั้น	個体管理の商品は個体を指定した伝票でのみ在庫を変更できます
 Count products tracked by unit one unit at a time	按台管理的商品逐台扫码盘点	สินค้าที่ติดตามรายชิ้นให้นับทีละชิ้น	個体管理の商品は1台ずつ棚卸してください

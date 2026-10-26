@@ -25,6 +25,8 @@ FIELDS = ("name", "warehouse_name", "company", "is_active", "note", "express_cod
 WAREHOUSE_REQUIRED = "Pick a warehouse"
 # 建仓必须挂在某家公司名下（用户 2026-09-24："没有绑定公司不可以建仓库"）。
 COMPANY_REQUIRED = "A warehouse must belong to a company"
+HAS_STOCK = "A warehouse with stock cannot be turned off"
+INACTIVE = "That warehouse is turned off"
 
 
 def company_of(name) -> str:
@@ -200,7 +202,14 @@ def update_warehouse(name, **changes) -> dict:
             frappe.throw(_(NAME_REQUIRED))
         doc.warehouse_name = cleaned
     if "is_active" in changes:
-        doc.is_active = 1 if changes["is_active"] in (True, 1, "1", "true") else 0
+        active = 1 if changes["is_active"] in (True, 1, "1", "true") else 0
+        if doc.is_active and not active:
+            # 同库位停用（`locations.save_locations`）：仓里还有货就不能停，停了货就看不见、也卖不出去（G16）
+            from pearnly_erp_portal.inventory import locations
+
+            if locations._stock_at(doc.name):
+                frappe.throw(_(HAS_STOCK))
+        doc.is_active = active
     if "note" in changes:
         doc.note = changes["note"]
     doc.save()

@@ -99,6 +99,55 @@ class Locations(unittest.TestCase):
         self.assertEqual(L.api_location_options("A", None), [])
         self.assertEqual(L.api_location_options("", "W2"), [])  # 没建清单：没有选项，照旧手输
 
+    def test_a_warehouse_with_stock_cannot_be_turned_off(self):
+        """G16（多仓闭环 P0）：同库位停用，仓里还有货就不能停；没货的照停；只改名不核。"""
+        W = L.warehouses
+        docs = {name: types.SimpleNamespace(name=name, is_active=1, warehouse_name=name, note=None, save=lambda: None)
+                for name in ("W1", "W2")}
+        for target, value in (("get_doc", lambda doctype, name: docs[name]),
+                              ("db", types.SimpleNamespace(exists=lambda doctype, name: name in docs, commit=lambda: None))):
+            patcher = mock.patch.object(W.frappe, target, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(W.guard, "require", lambda capability: None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        with self.assertRaisesRegex(Refused, "warehouse with stock cannot be turned off"):
+            W.update_warehouse("W1", is_active=0)
+        self.assertEqual(docs["W1"].is_active, 1)
+        W.update_warehouse("W1", warehouse_name="W1 new")  # 不停用就不核库存
+        W.update_warehouse("W2", is_active=0)  # 没有货：照停
+        self.assertEqual(docs["W2"].is_active, 0)
+
+    def test_a_cash_register_binds_only_an_active_warehouse(self):
+        """G16：收银台只能绑启用着的仓；仓后来停用了，旧收银台不换仓照样能存（改名等）。"""
+        from pearnly_erp_portal.pearnly_erp_portal.doctype.erp_pos_terminal import erp_pos_terminal as T
+
+        rows = {"W1": ("CO-1", 1), "OFF": ("CO-1", 0)}
+        patcher = mock.patch.object(T.frappe, "db", types.SimpleNamespace(
+            get_value=lambda doctype, name, fields: rows.get(name)), create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for target, value in (("_", lambda text: text), ("throw", lambda message, *a: (_ for _ in ()).throw(Refused(message))),
+                              ("get_all", lambda *a, **k: [])):
+            patcher = mock.patch.object(T.frappe, target, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        def terminal(warehouse, new=True, changed=True):
+            doc = T.ERPPOSTerminal.__new__(T.ERPPOSTerminal)
+            doc.__dict__.update(warehouse=warehouse, company="CO-1", is_default=0, name="T1")
+            doc.is_new = lambda: new
+            doc.has_value_changed = lambda field: changed
+            return doc
+
+        terminal("W1").validate()
+        with self.assertRaisesRegex(Refused, "turned off"):
+            terminal("OFF").validate()
+        with self.assertRaisesRegex(Refused, "turned off"):
+            terminal("OFF", new=False, changed=True).validate()
+        terminal("OFF", new=False, changed=False).validate()  # 仓后来停用：没换仓的旧收银台照样能存
+
 
 if __name__ == "__main__":
     unittest.main()

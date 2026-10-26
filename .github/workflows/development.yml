@@ -228,6 +228,8 @@ jobs:
         run: node tests/test-native-desk.cjs
       - name: Verify Autocomplete fields that can be read-only use a read-only control
         run: node tests/test-desk-readonly-controls.cjs
+      - name: Verify script report Select filters keep fixed values
+        run: node tests/test-report-select-values.cjs
       - name: Verify Desk list refresh (push first, timed fallback)
         run: node --test tests/test-desk-live.cjs
       - name: Verify product list filters offer only the conditions their servers apply (equals, between)

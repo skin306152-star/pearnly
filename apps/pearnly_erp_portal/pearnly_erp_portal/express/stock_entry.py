@@ -104,9 +104,15 @@ def document(name, ref, base=False) -> dict:
         if qty > 0 and cost > 0:
             item["unit_cost"] = _plain(cost.quantize(contracts.d("0.0001")))
         lines.append(item)
-    return {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
+    if doc.warehouse and doc.warehouse not in warehouses:
+        warehouses[doc.warehouse] = frappe.db.get_value("ERP Warehouse", doc.warehouse, "express_code") or ""
+    body = {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
             "number": doc.doc_no or doc.name, "remark": str(doc.reason or "").strip(),
             "loccod": warehouses.get(doc.warehouse, ""), "lines": lines}
+    missing = contracts.unmapped(warehouses)
+    if missing:
+        body["unmapped_warehouses"] = missing  # Express 里没有对应仓库的仓：`push.send` 停下交人（G15）
+    return body
 
 
 def count_document(name, ref) -> dict:
@@ -117,9 +123,11 @@ def count_document(name, ref) -> dict:
     count = frappe.db.get_value(COUNT_DOCTYPE, name, ["title", "warehouse"], as_dict=True) or {}
     entries = frappe.get_all(DOCTYPE, filters={"ref_type": COUNT_REF, "ref_id": name, "status": "submitted"},  # bounded: 一份盘点的单
                              fields=["name", "posting_date"], order_by="creation asc", limit_page_length=0)
-    net = {}
+    net, missing = {}, set()
     for entry in entries:
-        for line in document(entry.name, ref, base=True)["lines"]:
+        part = document(entry.name, ref, base=True)
+        missing.update(part.get("unmapped_warehouses") or [])
+        for line in part["lines"]:
             key = (line["code"] or line["name"], line["loccod"])
             slot = net.setdefault(key, {"code": line["code"], "name": line["name"], "unit": line["unit"],
                                         "loccod": line["loccod"], "qty": contracts.d(0)})
@@ -131,11 +139,14 @@ def count_document(name, ref) -> dict:
         lines.append({"code": slot["code"], "name": slot["name"], "qty": _plain(slot["qty"]), "unit": slot["unit"],
                       "loccod": slot["loccod"]})
     warehouse = count.get("warehouse")
-    return {"ref": ref, "direction": "stock", "doctype": COUNT,
+    loccod = (frappe.db.get_value("ERP Warehouse", warehouse, "express_code") or "") if warehouse else ""
+    missing.update(contracts.unmapped({warehouse: loccod}))
+    body = {"ref": ref, "direction": "stock", "doctype": COUNT,
             "date": str(entries[0].posting_date) if entries else frappe.utils.nowdate(), "number": name,
-            "remark": str(count.get("title") or "").strip(),
-            "loccod": (frappe.db.get_value("ERP Warehouse", warehouse, "express_code") or "") if warehouse else "",
-            "lines": lines}
+            "remark": str(count.get("title") or "").strip(), "loccod": loccod, "lines": lines}
+    if missing:
+        body["unmapped_warehouses"] = sorted(missing)
+    return body
 
 
 def prepare(body, company_row, ensure_masters) -> dict:

@@ -75,25 +75,26 @@ frappe.query_reports[report_name] = {
 			fieldname: "only",
 			label: __("stock.board.only"),
 			fieldtype: "Select",
-			options: [__("stock.count.filter.all"), __("stock.count.countedRows"),
-				__("stock.count.rowUncounted"), __("stock.count.rowDifference")],
+			// 官方 Select 的值 / 显示分开：交给服务端的是固定值（counted / uncounted / differences），显示跟界面语言
+			// （原来选项就是译文，服务端按英文值比永远不命中，等于不筛，G13）
+			options: [{value: "", label: __("stock.count.filter.all")}, {value: "counted", label: __("stock.count.countedRows")},
+				{value: "uncounted", label: __("stock.count.rowUncounted")}, {value: "differences", label: __("stock.count.rowDifference")}],
 		},
 		{
 			fieldname: "chart_by",
 			label: __("stock.board.by"),
 			fieldtype: "Select",
-			default: __("stock.board.shelf"),
-			options: [__("stock.col.name"), __("stock.col.warehouse"), __("stock.board.shelf")],
+			default: "location",
+			options: [{value: "product_name", label: __("stock.col.name")}, {value: "warehouse_name", label: __("stock.col.warehouse")},
+				{value: "location", label: __("stock.board.shelf")}],
 		},
 	],
 
 	// 看板要的是"哪个商品/哪个仓库/哪个货架差得最多" —— 条形取差异最大的前 12 个，
 	// 账面与实盘两条并排。全量行数拉不开看，表格在下面。
 	get_chart_data(columns, data) {
-		const by = frappe.query_report.get_filter_value("chart_by") || __("stock.board.shelf");
-		const field = by === __("stock.col.name")
-			? "product_name"
-			: (by === __("stock.col.warehouse") ? "warehouse_name" : "location");
+		const by = frappe.query_report.get_filter_value("chart_by");
+		const field = ["product_name", "warehouse_name"].includes(by) ? by : "location";
 		const groups = new Map();
 		for (const row of data || []) {
 			if (!row.counted) continue;

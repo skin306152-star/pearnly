@@ -37,6 +37,8 @@ NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
 REFUND_WAITING = "express.pos_refund_waiting"  # 收银退货单的原 HS 还没写进 Express（`pos_day`）
 REFUND_CROSS_YEAR = "express.pos_refund_cross_year"  # 原 HS 与退货在不同年度账套：Express 原生跨年退货写法实录前停人工
+# ERP 仓库没有对应的 Express 仓库（没有仓库码）：以前不带码、CC 桌面版静默写进 Express 主仓；改为停下交人（多仓闭环 P0，G15）
+WAREHOUSE_UNMAPPED = "express.warehouse_unmapped"
 REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
 CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
@@ -53,6 +55,11 @@ def d(value) -> Decimal:
     except (InvalidOperation, ValueError):
         return Decimal(0)
     return amount if amount.is_finite() else Decimal(0)
+
+
+def unmapped(codes) -> list:
+    """``{ERP 仓库: Express 仓库码}`` 里没有码的那些仓（排好序；空仓名不算）。"""
+    return sorted(name for name, code in (codes or {}).items() if name and not str(code or "").strip())
 
 
 def money(value: Decimal) -> str:
@@ -271,6 +278,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER",
-           "OFFLINE", "OPEN_STATES", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS",
+           "OFFLINE", "OPEN_STATES", "WAREHOUSE_UNMAPPED", "unmapped", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names"]

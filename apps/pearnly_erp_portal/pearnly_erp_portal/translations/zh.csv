@@ -37,6 +37,7 @@ A tax ID failed its check digit,税号校验位错误
 A terminal needs a name,请填写收银台名称
 A warehouse must belong to a company,仓库必须隶属于公司
 A warehouse needs a name,请填写仓库名称
+A warehouse with stock cannot be turned off,有库存的仓库不能停用
 Abbreviated Tax Invoice,简式税务发票
 Account Set,账套
 Actual position,实际仓位
@@ -843,6 +844,7 @@ Original Item and Location,原单物料与仓位
 Original Line,原单明细行
 Original and refund are in different account set years,原单与退货在不同年度账套
 Other,其他
+Other companies have unregistered stock,其他公司还有未登记的库存
 Out,出库
 Out Date,出库日期
 Out Reference,出库单据
@@ -1260,6 +1262,7 @@ That photo could not be read,无法识别该照片
 That row is not part of this stock count,该行不属于此盘点
 That submission was already used for a different entry,该提交已用于其他单据
 That warehouse belongs to another company,该仓库属于其他公司
+That warehouse is turned off,该仓库已停用
 The Express index tool is missing on this computer. Reinstall CC Desktop,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
 The LINE account that sent the document,发送此文件的 LINE 账号
 The Revenue Department replied in an unreadable format,税务局返回的数据格式无法解析
@@ -1327,6 +1330,7 @@ The total is zero,合计为零
 The units must match the stock of each warehouse,台数须与各仓账面数相等
 The value is not a number,该值不是数字
 The value must be zero or more,该值不能小于 0
+The warehouse has no matching Express warehouse,仓库在 Express 里没有对应的仓库
 Then,自动
 There are no lines,缺少明细
 There is nothing to save,没有需要保存的内容
@@ -2067,6 +2071,7 @@ express.reason.refundWaiting,等待原日汇总写入
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
+express.reason.warehouseUnmapped,仓库在 Express 里没有对应的仓库
 express.state.handled,已在 Express 手工处理
 express.state.refundPending,待写退货
 express.state.written,已写入

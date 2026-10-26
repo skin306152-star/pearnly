@@ -260,7 +260,7 @@
 				// 各仓账面数（原生 DataTable）：按台期初每个仓要登记这么多台
 				new frappe.DataTable(dialog.fields_dict.stock.$wrapper.get(0), { layout: "fluid", serialNoColumn: false,
 					columns: [{ name: t("product.col.place"), editable: false }, { name: __("Qty"), editable: false, align: "right" }],
-					data: stock.map(row => [row.warehouse_name, p.number(row.qty)]) });
+					data: stock.map(row => [row.warehouse_name, row.qty == null ? "" : p.number(row.qty)]) });
 			});
 		}
 
