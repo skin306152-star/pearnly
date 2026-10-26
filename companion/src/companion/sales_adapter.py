@@ -102,6 +102,7 @@ class SalesEntry:
     is_refund: bool = False
     refund_against: str = ""
     refund_against_total: str = ""
+    refund_cross_year: bool = False  # 原单在上一年度的账套（这本里没有）：照原生挂「AVGPR」、按平均成本回冲（B3b 实录点 ②）
 
 
 def validate_sales_payload(
@@ -354,6 +355,7 @@ def _refund_fields(refund) -> Dict[str, Any]:
     return {
         "is_refund": True,
         "refund_against": str(refund.get("against") or "").strip(),
+        "refund_cross_year": refund.get("cross_year") is True,
         "refund_against_total": format(_q(_d(refund.get("against_total")) or Decimal("0")), "f"),
     }
 

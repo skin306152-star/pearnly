@@ -748,6 +748,9 @@ class PosPayload(unittest.TestCase):
         # 逐行 VAT 设置（ISINFO.VAT_INITEM）：CC 读主档的 facts 与 ERP 读的键同名
         self.assertTrue(quoted((COMPANION / "express_masters.py").read_text(encoding="utf-8"), "vat_initem"))
         self.assertTrue(quoted((erp / "facts.py").read_text(encoding="utf-8"), "vat_initem"))
+        # 跨年退货标记：共用写账规则出、CC 认，键同名（B3b 实录点 ②）
+        self.assertTrue(quoted((RULES / "sales_mapper.py").read_text(encoding="utf-8"), "cross_year"))
+        self.assertTrue(quoted((COMPANION / "sales_adapter.py").read_text(encoding="utf-8"), "cross_year"))
         # 免税行标记：ERP 合同、共用写账规则、CC 三处同名
         for path in (erp / "contracts.py", RULES / "common.py", COMPANION / "dbf_fields.py"):
             self.assertTrue(quoted(path.read_text(encoding="utf-8"), "vat_exempt"), path)

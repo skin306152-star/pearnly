@@ -111,6 +111,24 @@ def resolve(account_dir, stkcod: str, unit: str, qty, given_factor=None) -> Unit
     return Units(stock_unit or code or unit, Decimal(1), qty, qty)
 
 
+def _master_lot(account_dir, stkcod: str) -> str:
+    """这件品主档上记的最新一批（STMAS.MLOTNUM）；没有这一栏或空回 ''。"""
+    path = Path(account_dir) / "STMAS.DBF"
+    if not stkcod or not path.is_file():
+        return ""
+    table = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    table.open(dbf.READ_ONLY)
+    try:
+        if "MLOTNUM" not in {name.upper() for name in table.field_names}:
+            return ""
+        for rec in S.live_rows(table):
+            if _text(rec, "STKCOD") == stkcod:
+                return str(rec["MLOTNUM"] or "")
+    finally:
+        table.close()
+    return ""
+
+
 def stamp(row: dict, units: Units, base_cost=None) -> dict:
     """把 :func:`resolve` 的结果写进一条刚建好的 STCRD 行：TFACTOR、XTRNQTY（库存单位），给了 ``base_cost`` 再写 XUNITPR（每个库存单位的成本）。
     TRNQTY / UNITPR / TRNVAL 由行的建法按交易单位写（调用方传 ``units.qty`` 与每包的价）。"""

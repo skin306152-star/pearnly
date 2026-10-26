@@ -407,6 +407,24 @@ def test_a_line_without_a_unit_takes_the_stock_unit_of_the_product(book):
     assert line["TQUCOD"].strip() == master["QUCOD"].strip() != "" and line["TFACTOR"] == 1.0
 
 
+def test_a_cross_year_refund_links_avgpr_and_returns_the_goods_at_the_average_cost(book):
+    """B3b 实录点 ②（S 盘 4,079 张原生 SR 挂本账套里没有的原单）：原单在上一年度的账套时照原生写——SONUM 原单号、IVCAMT 原单合计
+    （ERP 记的），明细 RDOCNUM「AVGPR」、货回仓、按这件品此刻的平均成本回冲；不核原单、不核已退数量。没标跨年的照旧找不到原单就拒。"""
+    master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    average = Decimal(str(master["MREMVAL"])) / Decimal(str(master["MREMBAL"]))
+    refund = _refund(against="HS681231-007", against_total="535.00")
+    assert _write(book, copy.deepcopy(refund)).error_code == dbf_refund.ERR_ORIGINAL_NOT_FOUND
+    refund["refund"]["cross_year"] = True
+    res = _write(book, refund)
+    assert res.ok, res.error
+    head = _rows(book, "ARTRN", DOCNUM=res.docnum)[0]
+    assert (head["SONUM"].strip(), Decimal(str(head["IVCAMT"])), head["CUSCOD"].strip()) == ("HS681231-007", Decimal("535"), CUSTOMER)
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["RDOCNUM"].strip(), line["RETSTK"].strip(), line["POSOPR"].strip()) == ("AVGPR", "Y", "2")
+    assert Decimal(str(line["XUNITPR"])).quantize(Decimal("0.01")) == average.quantize(Decimal("0.01"))
+    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MREMBAL"] == master["MREMBAL"] + 1
+
+
 def _sale_of(items, *, ref_no, total, base, vat):
     """原单：收银日汇总现销 HS（CC 现有写法），明细照给的行。"""
     sale = _sale(total=total, base=base, vat=vat)

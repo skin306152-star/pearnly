@@ -132,6 +132,7 @@ class _Line:
     rdocnum: str
     accounts: Tuple[str, str]  # (存货科目, 销货成本科目)；成本为 0 时空
     number: int = 0      # 载荷里第几行（逐行回执按它排）
+    mlotnum: str = ""    # 跨年退货挂本账套现有的一批（原生 AVGPR 行），否则空
 
 
 def _q2(value) -> Decimal:
@@ -315,6 +316,43 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
     return lines
 
 
+AVERAGE_LINK = "AVGPR"  # 原单不在本账套（跨年）时明细的 RDOCNUM：Express 原生按平均成本回冲（S 盘 1,019 行，全部回仓、全部有成本）
+
+
+def plan_cross_year(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Line]:
+    """原单在上一年度的账套（这本里没有）：照 Express 原生（B3b 实录点 ②）每行挂「AVGPR」、货回仓、按这件品此刻的平均成本回冲
+    （没货按标准成本，再没有记 0），MLOTNUM 挂本账套现有的最新一批（STMAS.MLOTNUM）；不核原单、不核已退数量。"""
+    main = account_rules.main_location(account_dir)
+    grosses = _gross(items, Decimal(entry.total_amount))
+    lines: List[_Line] = []
+    for index, item in enumerate(items):
+        if str(item.get("item_mode") or "") != STOCK_MODE:
+            continue
+        code = str(item.get("code") or "").strip()
+        loccod = stock_location.location_at(locations, index) or str(item.get("loccod") or "").strip() or main
+        try:
+            master = stock_sale.find_stock_item(account_dir, str(item.get("name") or ""), code)
+        except stock_sale.StockItemNotFound as exc:
+            raise Refused(ERR_STOCK_ITEM, f"line {index + 1}: {exc}") from exc
+        if not master:
+            raise Refused(ERR_STOCK_ITEM, f"line {index + 1}: {code!r} is not a stock item in Express")
+        units = stock_units.resolve(account_dir, code, str(item.get("unit") or ""), _dec(item.get("qty")),
+                                    item.get("factor"))
+        bal, val = _dec(master["mrembal"]), _dec(master["mremval"])
+        unit_cost = val / bal if bal > 0 else _dec(stock_sale.standard_cost(account_dir, code))
+        cost = _q2(units.base_qty * unit_cost)
+        accounts = ("", "")
+        if cost:
+            try:
+                accounts = stock_sale.stock_accounts(account_dir, master.get("acccod") or "")
+            except stock_sale.StockItemNotFound as exc:
+                raise Refused(ERR_STOCK_ITEM, f"line {index + 1}: {exc}") from exc
+        lot = str((stock_units._master_lot(account_dir, code) or "")).rstrip()
+        lines.append(_Line(len(lines) + 1, item, code, loccod, units, unit_cost, cost, grosses[index],
+                           _dec(item.get("amount")), AVERAGE_LINK, accounts, index + 1, lot))
+    return lines
+
+
 # ── 写 ──────────────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -347,8 +385,13 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
     try:
-        cuscod = original(account_dir, entry.refund_against, Decimal(entry.refund_against_total))
-        lines = plan(account_dir, entry, list(entry.items), locations)
+        if entry.refund_cross_year:
+            # 原单在上一年度的账套：照原生挂原单号与原单合计（ERP 记的），对方用载荷给的（现金客户），明细挂「AVGPR」
+            cuscod = entry.customer_code
+            lines = plan_cross_year(account_dir, entry, list(entry.items), locations)
+        else:
+            cuscod = original(account_dir, entry.refund_against, Decimal(entry.refund_against_total))
+            lines = plan(account_dir, entry, list(entry.items), locations)
     except Refused as exc:
         return DbfWriteResult(False, error_code=exc.code, error=str(exc))
     clock.lap("checks")
@@ -444,7 +487,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
                 "UNITPR": float(unitpr), "DISCAMT": 0.0, "TRNVAL": float(line.gross), "NETVAL": float(line.net),
                 "XUNITPR": float(_q2(line.unit_cost)), "XTRNVAL": float(line.cost), "XSALVAL": float(line.net),
                 "STKDES": str(item.get("name") or "")[:50], "MREMBAL": float(new_bal), "MREMVAL": float(new_val),
-                "RDOCNUM": line.rdocnum, "RETSTK": RETSTK, "FLAG": FLAG,
+                "RDOCNUM": line.rdocnum, "RETSTK": RETSTK, "FLAG": FLAG, **({"MLOTNUM": line.mlotnum} if line.mlotnum else {}),
                 **({"VATCOD": EXEMPT_VATCOD} if item.get("vat_exempt") else {}),  # 免税行（含税额就是税前额，`_gross`）
             }, units.unit, line.loccod)
             stock_units.stamp(row, units)

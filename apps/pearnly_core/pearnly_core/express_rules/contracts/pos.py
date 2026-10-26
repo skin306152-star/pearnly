@@ -270,12 +270,15 @@ def net_day(gross, payments, items=None) -> NetDay | None:
 class Refund:
     against: str            # 原 HS 在 Express 里的单号
     against_total: Decimal  # 原 HS 含税合计
+    cross_year: bool = False  # 原 HS 在上一年度的账套（这本里没有）：照 Express 原生挂「AVGPR」、按平均成本回冲
 
 
-def refund_audit(against, against_total) -> dict:
-    """写进主页面 ``_extraction_audit`` 的退货块（与 :func:`audit` 并列）：原单号原样、原单合计存成两位小数串。"""
+def refund_audit(against, against_total, cross_year=False) -> dict:
+    """写进主页面 ``_extraction_audit`` 的退货块（与 :func:`audit` 并列）：原单号原样、原单合计存成两位小数串；
+    原单在上一年度的账套时另带 ``cross_year``（B3b 实录点 ②：S 盘 4,079 张原生 SR 挂本账套里没有的原单）。"""
     return {REFUND_KEY: {"against": str(against or "").strip(),
-                         "against_total": format(Decimal(str(against_total)).quantize(_CENT), "f")}}
+                         "against_total": format(Decimal(str(against_total)).quantize(_CENT), "f"),
+                         **({"cross_year": True} if cross_year else {})}}
 
 
 def refund_facts(page) -> Refund | None:
@@ -291,7 +294,7 @@ def refund_facts(page) -> Refund | None:
     total = _money(block.get("against_total"))
     if total <= 0:
         raise PosFactsError(FACTS_INVALID)
-    return Refund(against, total)
+    return Refund(against, total, block.get("cross_year") is True)
 
 
 def check_refund(found: Facts, total) -> str:

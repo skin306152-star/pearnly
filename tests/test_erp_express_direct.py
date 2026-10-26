@@ -1708,8 +1708,10 @@ class PosDaySummaries(Base):
         self.assertEqual(body["vat_fields"], {"AMT01": "100.00", "AMTRAT0": "50.00"})  # 卖应税 107 + 免税 50 次日全退：SR 同原 HS
         # 免税行标出来，CC 桌面版摊各行含税额时不摊税给它（实验栈实测 10-26：原来摊成 104.67 / 52.33）
         self.assertEqual([bool(item.get("vat_exempt")) for item in body["items"]], [False, True])
-        held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=written, cross_year=True)
-        self.assertEqual(held["hold"], "express.pos_refund_cross_year")
+        # 原 HS 在上一年度的账套：不停人工，照 Express 原生写（主会话 10-26，B3b 实录点 ②），退货块标 cross_year
+        body = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=written, cross_year=True)
+        self.assertNotIn("hold", body)
+        self.assertEqual(body["refund"], {"against": "HS0000039", "against_total": "157.00", "cross_year": True})
         held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=("handled", "", "157"))
         self.assertEqual(held["hold"], "express.pos_refund_original_manual")
 

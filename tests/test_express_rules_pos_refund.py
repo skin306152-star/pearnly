@@ -121,6 +121,15 @@ class RefundMappingTests(unittest.TestCase):
         self.assertEqual([line["role"] for line in payload["lines"]], ["refund", "cash"])
         self.assertEqual(payload["vat_rate"], 0.0)
 
+    def test_a_cross_year_refund_carries_its_flag_to_cc_desktop(self):
+        """B3b 实录点 ②：原 HS 在上一年度的账套时退货块标 ``cross_year``，CC 桌面版照 Express 原生挂「AVGPR」、按平均成本回冲。"""
+        page = _page()
+        page["_extraction_audit"].update(P.refund_audit("HS0000039", "200.00", True))
+        payload = _map(page).payload
+        self.assertEqual(payload["refund"]["cross_year"], True)
+        self.assertNotIn("cross_year", _map(_page()).payload["refund"])
+        self.assertEqual(P.refund_facts(page).cross_year, True)
+
     def test_an_exempt_line_keeps_its_flag_for_cc_desktop(self):
         """实验栈实测 10-26：应税 100 + 免税 50 的退货，CC 桌面版按占比摊各行含税额摊成 104.67 / 52.33。ERP 标的免税行原样带进
         载荷，CC 桌面版摊含税额时不摊税给它。"""

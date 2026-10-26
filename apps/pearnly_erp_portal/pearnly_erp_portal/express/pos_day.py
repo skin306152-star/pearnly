@@ -183,8 +183,9 @@ def document(name, ref) -> dict:
             return {"ref": ref, "hold": contracts.REFUND_ORIGINAL_MANUAL}
         if not against or against.express_state not in WRITTEN_STATES or not against.express_docnum:
             return {"ref": ref, "hold": REFUND_WAITING}
-        if _cross_year(summary.company, against.day, summary.day):
-            return {"ref": ref, "hold": contracts.REFUND_CROSS_YEAR}
+        # 原 HS 在上一年度的账套（年度账套分开）：照 Express 原生写进退货那天的账套，挂原单号与原单合计、明细「AVGPR」按平均成本回冲
+        # （B3b 实录点 ②，S 盘 4,079 张原生 SR 如此；主会话 10-26 定不再停人工）
+        cross_year = _cross_year(summary.company, against.day, summary.day)
     if not companies.vat_registered(summary.company, lookup=True):
         return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
                 "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
@@ -271,7 +272,8 @@ def document(name, ref) -> dict:
                    "payments": [[label, contracts.money(amount)] for label, amount in payments]}
     if refund:
         # 挂原 HS：Express 单号（SONUM）与原单含税合计（IVCAMT），写账规则据此出退货单 SR（退现金、货回仓）
-        body["refund"] = {"against": against.express_docnum, "against_total": contracts.money(against.grand_total)}
+        body["refund"] = {"against": against.express_docnum, "against_total": contracts.money(against.grand_total),
+                          **({"cross_year": True} if cross_year else {})}
     return body
 
 

@@ -264,7 +264,8 @@ def pages(doc: dict) -> list:
         refund = doc.get("refund")
         if isinstance(refund, dict):
             # 收银退货单（B3b）：挂原 HS 的 Express 单号与原单含税合计，写账规则据此出退货单 SR
-            page["_extraction_audit"].update(pos_contract.refund_audit(refund["against"], refund["against_total"]))
+            page["_extraction_audit"].update(pos_contract.refund_audit(refund["against"], refund["against_total"],
+                                                                       refund.get("cross_year") is True))
     return [page]
 
 

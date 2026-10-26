@@ -172,7 +172,7 @@ def _refund_block(history: Dict[str, Any], pos: Optional[Dict[str, Any]], total:
     if problem:
         return None, problem
     return {"against": found.against, "against_total": _s(found.against_total), "cntyp": pos_contract.REFUND_CNTYP,
-            "retstk": pos_contract.REFUND_RETSTK}, ""
+            "retstk": pos_contract.REFUND_RETSTK, **({"cross_year": True} if found.cross_year else {})}, ""
 
 
 _REFUND_ITEM_MODES = (ITEM_MODE_STOCK_SALE, ITEM_MODE_NONSTOCK, ITEM_MODE_DIRECT)
