@@ -34,7 +34,9 @@ PROCESS = "expressi.exe"
 # 试点账套（主会话 10-26 指定），只读。同一个目录两种写法：普通共享 ACCOUNT（rec-laptop 的 aksar 映射的就是它）和 d$ 管理共享
 BOOKS = [r"\\accserver\account\69exp\test", r"\\accserver\d$\account\69exp\test"]
 COPY_ROOT = str(WORK / "copies").lower()  # 第 ④ 种方式的本机副本
-EXES = [r"\\accserver\account\70exp\expressi.exe", r"\\accserver\d$\account\70exp\expressi.exe"]
+# 服务器版 Express。公司列表（secure\SCCOMP）按程序目录走，试点公司「9.บริษัท Pearnly จำกัด」在 69EXP 那套的列表里（路径 TEST = 69EXP\test），
+# 70EXP 那套列表里的 TEST 是验收在用的 70EXP\test，不能开。两套是同一个程序文件（10-26 核对）。
+EXES = [r"\\accserver\account\69exp\expressi.exe", r"\\accserver\d$\account\69exp\expressi.exe"]
 BOOK_TABLES = ("APTRN", "ARTRN", "STCRD", "ISVAT", "GLJNL", "GLJNLIT", "ISRUN", "APMAS", "ARMAS", "STMAS", "STLOC")
 SHOT_SIZE = (1280, 720)  # 截图缩到这么大再给模型（1920×1080 屏），坐标由调用方按比例换回
 
