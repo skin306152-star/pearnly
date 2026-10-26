@@ -1704,7 +1704,7 @@ class PosDaySummaries(Base):
         written = ("written", "HS0000039", "157")
         body = self.summary_body([("A", "1", "100"), ("B", "1", "50", "0")], [], "157", vat="7", exempt="-50", kind="SR",
                                  against=written)
-        self.assertEqual(body["vat_fields"], {"AMT01": "100.00"})  # 卖应税 107 + 免税 50 次日全退：SR 的应税基数 100，同原 HS
+        self.assertEqual(body["vat_fields"], {"AMT01": "100.00", "AMTRAT0": "50.00"})  # 卖应税 107 + 免税 50 次日全退：SR 同原 HS
         # 免税行标出来，CC 桌面版摊各行含税额时不摊税给它（实验栈实测 10-26：原来摊成 104.67 / 52.33）
         self.assertEqual([bool(item.get("vat_exempt")) for item in body["items"]], [False, True])
         held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=written, cross_year=True)
@@ -1760,11 +1760,8 @@ class PosDaySummaries(Base):
         self.assertEqual((body["vat"], body["total"], body["has_vat"]), ("7.00", "157.00", True))
         self.assertEqual([line["amount"] for line in body["items"]], ["100.00", "50.00"])
         self.assertNotIn("vat_fields", body)  # 交进来的行没有免税的：应税基数照整张税前
-        # 混有免税商品（免税行净额 50）：销项税记录的应税基数只记应税部分，免税部分按规则不记（主会话 10-26）
+        # 混有免税商品（免税行净额 50）：销项税记录 AMT01 只记应税部分，免税部分记 AMTRAT0（验收实录第 10 条，Express 原生写法）
         body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="50")
-        self.assertEqual(body["vat_fields"], {"AMT01": "100.00"})
-        with mock.patch.object(self.pos_day, "ISVAT_EXEMPT_FIELD", "AMTRAT0"):  # 实录后改规则：免税部分另记一栏
-            body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="50")
         self.assertEqual(body["vat_fields"], {"AMT01": "100.00", "AMTRAT0": "50.00"})
         # 不是登记户：小票税额全是 0，日汇总不带税
         body = self.summary_body([("A", "1", "107")], [], "107", vat="0", registered="no")

@@ -742,6 +742,9 @@ class PosPayload(unittest.TestCase):
         self.assertTrue(quoted((erp / "push.py").read_text(encoding="utf-8"), "vat_fields"))
         self.assertTrue(quoted((COMPANION / "sales_adapter.py").read_text(encoding="utf-8"), "vat_fields"))
         self.assertEqual(_literal(erp / "pos_day.py", "ISVAT_TAXABLE_FIELD"), "AMT01")
+        # 免税部分记 AMTRAT0（验收实录第 10 条）：CC 认的金额栏是 AMTnn / AMTRATn，旧版照样写
+        self.assertEqual(_literal(erp / "pos_day.py", "ISVAT_EXEMPT_FIELD"), "AMTRAT0")
+        self.assertIn("AMTRAT", (COMPANION / "sales_adapter.py").read_text(encoding="utf-8"))
 
     def test_the_pos_block_keys_match(self):
         mapper = (RULES / "sales_mapper.py").read_text(encoding="utf-8")

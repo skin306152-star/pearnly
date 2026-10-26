@@ -89,3 +89,14 @@ B3a 里晚到的同日退货（原小票已进 HS）不再冲成负数停下，�
   出库 OU691026-006、CC 写入 HP691026-002 都过；「按码找商品」不过：实验库两家公司各自从 Express 同步来的商品同用 PN00003，
   冒烟账号 Administrator 两家都看得到，返回候选（main 上编码空间那批的既有行为，与本分支无关，另报）。
 - Cowork 推送冒烟（实验栈 cowork 挂本分支，共用写账规则有改动）：SMOKE-1792976783 → T9NIEXCP HP691026-001，CC 读回 ok。
+
+## 实录第 10 条：混合免税的原生写法（10-26，验收「服务器test账套-录单结果.md」第 10 条）
+
+S 盘副本里 Express 原生写的单（6412NLT 的 HH2200117，ISINFO.VAT_INITEM = Y）：ISVAT AMT01 = 应税税前、VAT01 = 税额、
+AMTRAT0 = 免税金额；ARTRN.AMTRAT0 = 免税金额、NETVAL = 应税税前 + 免税；STCRD 免税行 VATCOD = '0'、NETVAL = TRNVAL。
+整张免税的退货 SR002100392：FLGVAT 2、AMT01 0、AMTRAT0 = 全额、明细 VATCOD 都是 '0'。
+
+- 已改：`pos_day.ISVAT_EXEMPT_FIELD = "AMTRAT0"`（现销日汇总与退货单同一条规则），CC 照载荷 `vat_fields` 写进 ISVAT，1.12.5 / 1.12.6 都认 AMTRATn，
+  不发新 CC。逐行 VAT 没开的账套照同一写法：免税销售额在销项税报表里本就单列，AMT01 只记应税部分才对得上税额。
+- 待下一版 CC（这次不发）：ARTRN.AMTRAT0 写免税金额、NETVAL 照原生；STCRD 免税行 VATCOD = '0'；整张免税的单 FLGVAT 2 并照样写
+  ISVAT（AMT01 0、AMTRAT0 全额）。要 ERP 在载荷明细上标免税行（`vat_exempt` 已经带到 CC，退货单已用来摊含税额）。

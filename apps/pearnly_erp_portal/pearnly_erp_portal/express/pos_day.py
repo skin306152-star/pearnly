@@ -34,10 +34,12 @@ WRITTEN_STATES = ("written", "mismatch", "handled")  # 写进 Express 了（含�
 NET_NEGATIVE = "express.pos_net_negative"  # 退货冲减后为负数（停下交人）
 REFUND_WAITING = contracts.REFUND_WAITING  # 退货单的原 HS 还没写进 Express（等它写成再写，`push.poll` 每分钟再看）
 HS, SR = "HS", "SR"  # 日汇总的单别：现销日汇总 / 退货日汇总
-# 一张现销里混有免税商品（主会话 10-26）：Express 销项税记录（ISVAT）的应税基数只记应税行的税前合计，免税部分记哪一栏由下面这条
-# 规则定（"" = 不记）。Express 原生对混合现销的记法待服务器测试账套实录后核对，改这里即可（CC 照载荷 `vat_fields` 写，不用发新版）。
+# 一张现销里混有免税商品（主会话 10-26）：Express 销项税记录（ISVAT）AMT01 只记应税行的税前合计，免税部分记 AMTRAT0。
+# 依据 S 盘副本里 Express 原生写的单（验收 10-26 实录第 10 条：6412NLT 的 HH2200117 AMT01 28734.07 / AMTRAT0 1146，
+# 整张免税的退货 SR002100392 AMT01 0 / AMTRAT0 6220.56）。逐行 VAT 没开的账套照同一写法：免税销售额在销项税报表里本就单列。
+# CC 照载荷 `vat_fields` 写，不用发新版。
 ISVAT_TAXABLE_FIELD = "AMT01"
-ISVAT_EXEMPT_FIELD = ""
+ISVAT_EXEMPT_FIELD = "AMTRAT0"
 VAT_FIELDS_PAYLOAD_VERSION = 9  # 带 `vat_fields` 的载荷：旧版 CC 会按整张税前写应税基数，诚实拒收
 VAT_REGISTERED = "vat_registered"  # 单据上问一次的那一项：这家公司是不是增值税登记户（记在公司上，`masters.company`）
 # 只汇总公司「收银写 Express 起始日」（第一次接上 Express 那天；已接的公司由补丁记成上线当天）及以后的小票：之前的不补写
