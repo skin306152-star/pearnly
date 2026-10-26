@@ -1746,6 +1746,7 @@ The buyer on these invoices is this company: {0},以下发票的买方为本公�
 The camera could not start,摄像头无法启动
 The card is already in that list,卡片已在该列表中
 The card no longer exists,卡片不存在
+The cash customer could not be copied from the original year,原年度账套的现金客户档没能复制过来
 The chosen Express stock item no longer exists. Choose again,所选的 Express 存货已不存在，请重新选择
 The chosen account set belongs to another company. Check the account set,所选账套属于其他公司，请核对账套
 The chosen value is not in this account set. Choose again,所选项不在此账套中，请重新选择
@@ -3392,6 +3393,7 @@ intake.error.PERIOD_LOCKED,会计期间已在 Express 关账
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+intake.error.REFUND_CUSTOMER_NOT_COPIED,原年度账套的现金客户档没能复制过来
 intake.error.REFUND_EXCEEDS_ORIGINAL,退货数量超过原单销售数量
 intake.error.REFUND_INVALID,退货单数据格式不对
 intake.error.REFUND_LINE_NOT_FOUND,原现销单上没有此商品

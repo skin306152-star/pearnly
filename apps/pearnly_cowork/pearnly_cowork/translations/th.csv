@@ -1746,6 +1746,7 @@ The buyer on these invoices is this company: {0},ผู้ซื้อในใ�
 The camera could not start,ไม่สามารถเปิดกล้องได้
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่พบการ์ดนี้
+The cash customer could not be copied from the original year,คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้
 The chosen Express stock item no longer exists. Choose again,สินค้าคงเหลือที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่
 The chosen account set belongs to another company. Check the account set,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 The chosen value is not in this account set. Choose again,รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่
@@ -3392,6 +3393,7 @@ intake.error.PERIOD_LOCKED,งวดบัญชีนี้ปิดแล้�
 intake.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 intake.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+intake.error.REFUND_CUSTOMER_NOT_COPIED,คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้
 intake.error.REFUND_EXCEEDS_ORIGINAL,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
 intake.error.REFUND_INVALID,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
 intake.error.REFUND_LINE_NOT_FOUND,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ

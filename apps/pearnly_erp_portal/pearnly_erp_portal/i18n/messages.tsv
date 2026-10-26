@@ -1349,6 +1349,7 @@ Express Mark	Express 标记	เครื่องหมาย Express	Express �
 Express Status	Express 状态	สถานะ Express	Express 状態
 Express No.	Express 单号	เลขที่ Express	Express 番号
 Express Note	Express 备注	หมายเหตุ Express	Express メモ
+Whole document taxed	按账套设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	帳簿の設定どおり全体に課税
 Express Sent At	Express 发送时间	ส่ง Express เมื่อ	Express 送信日時
 Sync Express	同步 Express	ซิงค์ Express	Express と同期	company.syncExpress
 Synced	已同步	ซิงค์แล้ว	同期しました	company.syncExpress.ready
@@ -1391,6 +1392,7 @@ Split exempt items (recommended)	按商品免税拆开写（建议）	แยก�
 Tax the whole document as the account set does	照账套现在的设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	帳簿の設定どおり全体に課税	express.option.exemptWhole
 Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	express.reason.refundItems
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	express.error.REFUND_ORIGINAL_NOT_FOUND
+The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の帳簿から現金顧客を複製できません	express.error.REFUND_CUSTOMER_NOT_COPIED
 The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	express.error.REFUND_ORIGINAL_CHANGED
 This item is not on the original cash sale	原现销单上没有此商品	ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ	元の現金売上にこの商品がありません	express.error.REFUND_LINE_NOT_FOUND
 The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	express.error.REFUND_EXCEEDS_ORIGINAL

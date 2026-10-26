@@ -274,14 +274,16 @@ class Refund:
     against: str            # 原 HS 在 Express 里的单号
     against_total: Decimal  # 原 HS 含税合计
     cross_year: bool = False  # 原 HS 在上一年度的账套（这本里没有）：照 Express 原生挂「AVGPR」、按平均成本回冲
+    against_book: str = ""    # 跨年时原 HS 所在的账套位置：新年度账套没有现金客户档时从这里复制（同 Express 年度结转）
 
 
-def refund_audit(against, against_total, cross_year=False) -> dict:
+def refund_audit(against, against_total, cross_year=False, against_book="") -> dict:
     """写进主页面 ``_extraction_audit`` 的退货块（与 :func:`audit` 并列）：原单号原样、原单合计存成两位小数串；
     原单在上一年度的账套时另带 ``cross_year``（B3b 实录点 ②：S 盘 4,079 张原生 SR 挂本账套里没有的原单）。"""
     return {REFUND_KEY: {"against": str(against or "").strip(),
                          "against_total": format(Decimal(str(against_total)).quantize(_CENT), "f"),
-                         **({"cross_year": True} if cross_year else {})}}
+                         **({"cross_year": True} if cross_year else {}),
+                         **({"against_book": str(against_book)} if cross_year and against_book else {})}}
 
 
 def refund_facts(page) -> Refund | None:
@@ -297,7 +299,8 @@ def refund_facts(page) -> Refund | None:
     total = _money(block.get("against_total"))
     if total <= 0:
         raise PosFactsError(FACTS_INVALID)
-    return Refund(against, total, block.get("cross_year") is True)
+    book = block.get("against_book")
+    return Refund(against, total, block.get("cross_year") is True, book.strip() if isinstance(book, str) else "")
 
 
 def check_refund(found: Facts, total) -> str:

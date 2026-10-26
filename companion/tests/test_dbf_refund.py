@@ -448,13 +448,16 @@ def test_a_cross_year_refund_links_avgpr_and_returns_the_goods_at_the_average_co
     assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MREMBAL"] == master["MREMBAL"] + 1
 
 
-def test_a_cross_year_refund_creates_the_cash_customer_a_new_year_book_does_not_have_yet(book):
-    """复核 10-26：新年度账套可能还没有现金客户档，跨年退货单同现销 HS 先建，CUSCOD 不指向不存在的客户。"""
+def test_a_cross_year_refund_copies_the_cash_customer_from_the_original_year(book, tmp_path):
+    """主会话 10-26：新年度账套还没有现金客户档时，照 Express 年度结转从原年度账套复制过来再写（余额从 0 起）；原年度账套读不到、
+    里面也没有这个客户档就停下转人工（REFUND_CUSTOMER_NOT_COPIED），一行不写。"""
+    import shutil
+
     import dbf
     from companion import dbf_schema
 
-    isinfo(book, MAINLOC="01", ACCNUM00=CASH, ACCNUM02=QR_ACC, ISPERPETUA="Y")  # 建客户档要账套默认应收科目（真账套都有）
-
+    last_year = tmp_path / "T8LAST"
+    shutil.copytree(book, last_year)   # 原年度账套：有现金客户档（余额 160.5）
     table = dbf.Table(str(book / "ARMAS.DBF"), codepage=dbf_schema.CODEPAGE)
     table.open(dbf.READ_WRITE)
     try:
@@ -465,10 +468,16 @@ def test_a_cross_year_refund_creates_the_cash_customer_a_new_year_book_does_not_
     finally:
         table.close()
     refund = _refund(against="HS681231-007", against_total="535.00")
-    refund["refund"]["cross_year"] = True
+    refund["refund"].update(cross_year=True, against_book=str(tmp_path / "MISSING"))
+    before = _state(book)
+    failed = _write(book, copy.deepcopy(refund))
+    assert (failed.ok, failed.error_code) == (False, dbf_refund.ERR_CUSTOMER_NOT_COPIED) and _state(book) == before
+    refund["refund"]["against_book"] = str(last_year)
     res = _write(book, refund)
     assert res.ok, res.error
-    assert res.created_party is True and [row["CUSCOD"].strip() for row in _rows(book, "ARMAS", CUSCOD=CUSTOMER)] == [CUSTOMER]
+    copied = _rows(book, "ARMAS", CUSCOD=CUSTOMER)
+    assert res.created_party is True and len(copied) == 1
+    assert Decimal(str(copied[0]["BALANCE"])) == Decimal("-100.00")   # 从 0 起，再被这张退货单冲减 100
 
 
 def _sale_of(items, *, ref_no, total, base, vat):

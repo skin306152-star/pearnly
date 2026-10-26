@@ -1275,6 +1275,7 @@ The balance could not be checked right now. Please try again in a minute.,The ba
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
 The cart is empty,The cart is empty
+The cash customer could not be copied from the original year,The cash customer could not be copied from the original year
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
 The cashier is not enabled for this company,The cashier is not enabled for this company
 The chosen account cannot be posted in Express. Choose another account,The chosen account cannot be posted in Express. Choose another account
@@ -1530,6 +1531,7 @@ When a card enters,When a card enters
 Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
 Who can add and remove members,Who can add and remove members
 Who can comment,Who can comment
+Whole document taxed,Whole document taxed
 With differences,With differences
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
@@ -2022,6 +2024,7 @@ express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit ag
 express.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 express.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 express.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+express.error.REFUND_CUSTOMER_NOT_COPIED,The cash customer could not be copied from the original year
 express.error.REFUND_EXCEEDS_ORIGINAL,The returned quantity is more than the quantity sold
 express.error.REFUND_INVALID,The return is not in the expected form
 express.error.REFUND_LINE_NOT_FOUND,This item is not on the original cash sale

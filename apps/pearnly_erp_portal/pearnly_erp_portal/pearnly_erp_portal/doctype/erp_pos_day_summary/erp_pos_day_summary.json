@@ -21,6 +21,7 @@
   "express_state",
   "express_docnum",
   "express_reason",
+  "vat_whole_document",
   "express_sent_at",
   "express_job",
   "express_book",
@@ -143,6 +144,13 @@
    "no_copy": 1
   },
   {
+   "default": "0",
+   "fieldname": "vat_whole_document",
+   "fieldtype": "Check",
+   "label": "Whole document taxed",
+   "read_only": 1
+  },
+  {
    "fieldname": "express_sent_at",
    "fieldtype": "Datetime",
    "label": "Express Sent At",
@@ -178,7 +186,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-25 18:00:00.000000",
+ "modified": "2026-10-26 18:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP POS Day Summary",
  "naming_rule": "Expression",

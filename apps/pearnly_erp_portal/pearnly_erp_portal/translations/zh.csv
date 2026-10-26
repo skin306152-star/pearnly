@@ -1275,6 +1275,7 @@ The balance could not be checked right now. Please try again in a minute.,暂时
 The card is already in that list,卡片已在该列表中
 The card no longer exists,卡片不存在
 The cart is empty,购物车为空
+The cash customer could not be copied from the original year,原年度账套的现金客户档没能复制过来
 The cashier assets did not load (official-*.js).,收银台资源加载失败（official-*.js）
 The cashier is not enabled for this company,该公司未启用收银
 The chosen account cannot be posted in Express. Choose another account,所选科目在 Express 中不能记账，请另选科目
@@ -1530,6 +1531,7 @@ When a card enters,卡片进入列表时
 Who bought this receipt; empty means a walk-in customer,购买此小票的客户；留空表示散客
 Who can add and remove members,成员管理权限
 Who can comment,评论权限
+Whole document taxed,按账套设置整张计税
 With differences,有差异
 Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
@@ -2022,6 +2024,7 @@ express.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 express.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 express.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 express.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
+express.error.REFUND_CUSTOMER_NOT_COPIED,原年度账套的现金客户档没能复制过来
 express.error.REFUND_EXCEEDS_ORIGINAL,退货数量超过原单销售数量
 express.error.REFUND_INVALID,退货单数据格式不对
 express.error.REFUND_LINE_NOT_FOUND,原现销单上没有此商品

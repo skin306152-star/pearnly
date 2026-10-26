@@ -1746,6 +1746,7 @@ The buyer on these invoices is this company: {0},次の請求書の買い手は�
 The camera could not start,カメラを起動できません
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
+The cash customer could not be copied from the original year,前年度の帳簿から現金顧客を複製できません
 The chosen Express stock item no longer exists. Choose again,選んだ Express の在庫品目はもうありません。選び直してください
 The chosen account set belongs to another company. Check the account set,選んだ帳簿は別の会社のものです。帳簿を確認してください
 The chosen value is not in this account set. Choose again,選んだ値はこの帳簿にありません。選び直してください
@@ -3392,6 +3393,7 @@ intake.error.PERIOD_LOCKED,会計期間は Express で締め済みです
 intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+intake.error.REFUND_CUSTOMER_NOT_COPIED,前年度の帳簿から現金顧客を複製できません
 intake.error.REFUND_EXCEEDS_ORIGINAL,返品数量が販売数量を超えています
 intake.error.REFUND_INVALID,返品伝票のデータ形式が正しくありません
 intake.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品がありません

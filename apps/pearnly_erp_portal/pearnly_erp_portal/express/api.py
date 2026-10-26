@@ -40,6 +40,8 @@ def _document(doctype, name, write=False):
               "express_book"]
     if doctype == push.STOCK:
         fields += ["express_void_state", "express_void_reason", "express_void_job"]  # 作废原单（B 段 ①，先只开出入库单）
+    if doctype == push.POS_DAY:
+        fields += ["vat_whole_document"]  # 按账套设置整张计税（主会话 10-26）：Express 弹窗标明
     row = frappe.db.get_value(doctype, name, fields, as_dict=True)
     if row:
         row.company = push.company_of(doctype, name)   # 出入库单没有公司栏，按仓库的公司
@@ -115,7 +117,8 @@ def _view(doctype, row):
                               or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))
             and guard.has(CAPABILITIES[doctype][1]),
             # 收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的…）的出口：人标记「已在 Express 手工处理」（主会话 10-26）
-            "can_mark_handled": bool(stuck) and guard.has(CAPABILITIES[doctype][1])}
+            "can_mark_handled": bool(stuck) and guard.has(CAPABILITIES[doctype][1]),
+            "vat_whole": bool(row.get("vat_whole_document"))}
 
 
 def _pos_stuck(doctype, row, job) -> bool:

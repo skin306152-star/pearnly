@@ -93,6 +93,7 @@ ERR_ORIGINAL_CHANGED = "REFUND_ORIGINAL_CHANGED"
 ERR_LINE_NOT_FOUND = "REFUND_LINE_NOT_FOUND"
 ERR_EXCEEDS = "REFUND_EXCEEDS_ORIGINAL"
 ERR_STOCK_ITEM = "STOCK_ITEM_NOT_FOUND"
+ERR_CUSTOMER_NOT_COPIED = "REFUND_CUSTOMER_NOT_COPIED"
 REFUSALS = (ERR_ORIGINAL_NOT_FOUND, ERR_ORIGINAL_CHANGED, ERR_LINE_NOT_FOUND, ERR_EXCEEDS)
 STOCK_MODE = stock_sale.ITEM_MODE   # 库存行；其余（non_stock_item / direct_account）只记金额与总账
 _CENT = Decimal("0.01")
@@ -316,6 +317,26 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
     return lines
 
 
+def customer_from(book, cuscod: str) -> Dict[str, Any]:
+    """跨年退货：从原年度账套（``book``，ERP 给的原 HS 所在位置）只读取出这个客户档，余额清零（新年度从 0 起）。取不到抛 :class:`Refused`
+    （``REFUND_CUSTOMER_NOT_COPIED``，转人工）。"""
+    path = Path(str(book or ""))
+    if not str(book or "").strip() or not (path / "ARMAS.DBF").is_file():
+        raise Refused(ERR_CUSTOMER_NOT_COPIED, f"customer {cuscod!r} is not in this account set and the original year {book!r} cannot be read")
+    table = _open(path, "ARMAS", dbf.READ_ONLY)
+    try:
+        for rec in S.live_rows(table):
+            if str(rec["CUSCOD"] or "").strip() == cuscod:
+                row = {name: rec[name] for name in table.field_names}
+                for name in row:
+                    if name.upper() == "BALANCE":
+                        row[name] = 0.0
+                return row
+    finally:
+        table.close()
+    raise Refused(ERR_CUSTOMER_NOT_COPIED, f"customer {cuscod!r} is in neither this account set nor the original year {book!r}")
+
+
 AVERAGE_LINK = "AVGPR"  # 原单不在本账套（跨年）时明细的 RDOCNUM：Express 原生按平均成本回冲（S 盘 1,019 行，全部回仓、全部有成本）
 
 
@@ -385,9 +406,12 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
     try:
+        copied = None
         if entry.refund_cross_year:
             # 原单在上一年度的账套：照原生挂原单号与原单合计（ERP 记的），对方用载荷给的（现金客户），明细挂「AVGPR」
             cuscod = entry.customer_code
+            if not master_create._code_exists(account_dir, "ARMAS", "CUSCOD", cuscod):
+                copied = customer_from(entry.refund_against_book, cuscod)
             lines = plan_cross_year(account_dir, entry, list(entry.items), locations)
         else:
             cuscod = original(account_dir, entry.refund_against, Decimal(entry.refund_against_total))
@@ -403,11 +427,14 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
     try:
         since = _table_sizes(account_dir)
         journal_since = pos_journal.sizes(account_dir) if journal else {}
-        if entry.refund_cross_year:
-            # 新年度账套可能还没有现金客户档：同现销 HS 先确保有（复核 10-26：原来 CUSCOD 指向不存在的客户、ARBAL 多出一行没人对应的）
-            existed = master_create._code_exists(account_dir, "ARMAS", "CUSCOD", cuscod)
-            cuscod = master_create.ensure_customer(account_dir, entry, created_date=docdat, userid=userid)
-            created = not existed
+        if copied is not None:
+            # 新年度账套还没有这个客户档：照 Express 年度结转，从原年度账套复制过来再写（主会话 10-26；余额从 0 起，退货单再冲减）
+            customers = _open(account_dir, "ARMAS", dbf.READ_WRITE)
+            try:
+                customers.append(_filtered(customers, copied))
+            finally:
+                customers.close()
+            created = True
         vatprd = S.be_yymmdd_to_greg(payload.get("vat_period_be") or docdate_be)
         docnum, gl_rows, cash_acc, line_modes = _write_all(account_dir, entry, cuscod, lines, docdate_be, docdat,
                                                            vatprd, userid=userid, depcod=depcod, moves=moves)

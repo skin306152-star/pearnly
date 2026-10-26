@@ -1275,6 +1275,7 @@ The balance could not be checked right now. Please try again in a minute.,現在
 The card is already in that list,カードはすでにそのリストにあります
 The card no longer exists,カードはもうありません
 The cart is empty,カートは空です
+The cash customer could not be copied from the original year,前年度の帳簿から現金顧客を複製できません
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The cashier is not enabled for this company,この会社ではレジが有効になっていません
 The chosen account cannot be posted in Express. Choose another account,選んだ勘定は Express で記帳できません。別の勘定を選んでください
@@ -1530,6 +1531,7 @@ When a card enters,カードがリストに入ったとき
 Who bought this receipt; empty means a walk-in customer,このレシートの購入者。空欄は一般客（通りがかり）です
 Who can add and remove members,メンバーを追加・削除できる人
 Who can comment,コメントできる人
+Whole document taxed,帳簿の設定どおり全体に課税
 With differences,差異あり
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
@@ -2022,6 +2024,7 @@ express.error.MISSING_REF_NO,請求書番号がありません。追加して再
 express.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 express.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 express.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
+express.error.REFUND_CUSTOMER_NOT_COPIED,前年度の帳簿から現金顧客を複製できません
 express.error.REFUND_EXCEEDS_ORIGINAL,返品数量が販売数量を超えています
 express.error.REFUND_INVALID,返品伝票のデータ形式が正しくありません
 express.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品がありません

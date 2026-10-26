@@ -198,6 +198,8 @@ def test_without_stloc_the_count_physical_balance_is_the_product_balance(book):
     res = _write(book, _entry("TK", [_line("ICE01", 2)]))
     assert res.ok, res.error
     assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["PHYBAL"] == 7.0   # 主档 5 + 2
+    assert not (book / "STLOC.DBF").exists()   # 照原生只动商品主档，不新建分仓表
+    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MREMBAL"] == 7.0
 
 
 def test_a_count_gain_without_a_lot_in_a_fifo_book_is_costed_at_zero(book):

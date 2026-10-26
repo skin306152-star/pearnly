@@ -116,6 +116,9 @@
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
 				default: __({queued: "Queued", voided: "Cancelled", held: "Pending"}[info.void] || info.void)}] : []),
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
+			// 按账套设置整张计税（账套没开逐行 VAT、公司选了整张计税）：税额与收银小票逐行拆出的不同，标明
+			...(info.vat_whole ? [{fieldtype: "Check", fieldname: "vat_whole", label: __("Whole document taxed"),
+				read_only: 1, default: 1}] : []),
 			...needed_fields(info.needed, direction),
 			// 收银日汇总 / 退货单停住时的出口：人在 Express 里手工处理好了，标一下就不再写（主会话 10-26）
 			...(info.can_mark_handled ? [{fieldtype: "Button", fieldname: "mark_handled", label: __("express.action.markHandled"),

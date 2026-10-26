@@ -417,6 +417,7 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "VOID_DOCUMENT_NOT_FOUND": "needs_review",
         # 收银退货单 SR(载荷 10,dbf_refund):原单找不到 / 金额在 Express 里被改过 / 原单没有这一行 / 退得比原单多,重试结论一样
         "REFUND_ORIGINAL_NOT_FOUND": "needs_review",
+        "REFUND_CUSTOMER_NOT_COPIED": "needs_review",
         "REFUND_ORIGINAL_CHANGED": "needs_review",
         "REFUND_LINE_NOT_FOUND": "needs_review",
         "REFUND_EXCEEDS_ORIGINAL": "needs_review",

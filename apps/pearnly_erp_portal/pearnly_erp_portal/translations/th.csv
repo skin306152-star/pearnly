@@ -1275,6 +1275,7 @@ The balance could not be checked right now. Please try again in a minute.,ไม
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่พบการ์ดนี้
 The cart is empty,ตะกร้าว่างเปล่า
+The cash customer could not be copied from the original year,คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้
 The cashier assets did not load (official-*.js).,ไม่สามารถโหลดไฟล์ของหน้าจุดขายได้ (official-*.js)
 The cashier is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้งานขายหน้าร้าน (POS)
 The chosen account cannot be posted in Express. Choose another account,บัญชีที่เลือกบันทึกใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
@@ -1530,6 +1531,7 @@ When a card enters,เมื่อการ์ดเข้ารายการ
 Who bought this receipt; empty means a walk-in customer,ลูกค้าของใบเสร็จนี้ หากเว้นว่างไว้หมายถึงลูกค้าทั่วไป
 Who can add and remove members,สิทธิ์จัดการสมาชิก
 Who can comment,สิทธิ์แสดงความคิดเห็น
+Whole document taxed,คิดภาษีทั้งใบตามชุดบัญชี
 With differences,มีผลต่าง
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
@@ -2022,6 +2024,7 @@ express.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร
 express.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
 express.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 express.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+express.error.REFUND_CUSTOMER_NOT_COPIED,คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้
 express.error.REFUND_EXCEEDS_ORIGINAL,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
 express.error.REFUND_INVALID,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
 express.error.REFUND_LINE_NOT_FOUND,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ

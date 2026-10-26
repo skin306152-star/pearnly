@@ -36,6 +36,8 @@ NEEDS_PERSON_CODES = frozenset({
     "VOID_DOCUMENT_CHANGED", "VOID_DOCUMENT_NOT_FOUND",
     # 收银退货单 SR（载荷 10，CC 桌面版 dbf_refund）：原单找不到 / 金额被改过 / 原单没有这一行 / 退得比原单多，要人核对
     "REFUND_ORIGINAL_NOT_FOUND", "REFUND_ORIGINAL_CHANGED", "REFUND_LINE_NOT_FOUND", "REFUND_EXCEEDS_ORIGINAL",
+    # 跨年退货单：新年度账套没有现金客户档、也没能从原年度账套复制过来（主会话 10-26），要人处理
+    "REFUND_CUSTOMER_NOT_COPIED",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

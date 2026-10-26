@@ -1660,6 +1660,7 @@ class PosDaySummaries(Base):
                 mock.patch.object(self.pos_day.receipt_vat, "exempt_total", lambda names: D(exempt)), \
                 mock.patch.object(self.pos_day, "_cross_year", lambda company, first, second: cross_year), \
                 mock.patch.object(self.pos_day, "_exempt_mode", lambda company, day: exempt_mode), \
+                mock.patch.object(self.pos_day, "_book_path", lambda company, day: r"C:\Books\T8ACME"), \
                 mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
                                   create=True):
             body = self.pos_day.document("PDS-1", "PDS-1@x")
@@ -1711,7 +1712,9 @@ class PosDaySummaries(Base):
         # 原 HS 在上一年度的账套：不停人工，照 Express 原生写（主会话 10-26，B3b 实录点 ②），退货块标 cross_year
         body = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=written, cross_year=True)
         self.assertNotIn("hold", body)
-        self.assertEqual(body["refund"], {"against": "HS0000039", "against_total": "157.00", "cross_year": True})
+        # 带原 HS 所在的账套位置：新年度账套没有现金客户档时 CC 桌面版从这里复制（同 Express 年度结转）
+        self.assertEqual(body["refund"], {"against": "HS0000039", "against_total": "157.00", "cross_year": True,
+                                          "against_book": r"C:\Books\T8ACME"})
         held = self.summary_body([("A", "1", "100")], [], "107", vat="7", kind="SR", against=("handled", "", "157"))
         self.assertEqual(held["hold"], "express.pos_refund_original_manual")
 
@@ -1778,10 +1781,12 @@ class PosDaySummaries(Base):
         held = self.summary_body(mixed, [], "157", vat="7", exempt="50", exempt_mode=None)
         self.assertEqual(held["hold"], "choice_needed:exempt_mode")
         self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["split", "whole"])
-        # 选了照账套整张计税：不拆，应税基数照整张税前、明细不标免税
+        # 选了照账套整张计税（主会话 10-26 选 A）：同 Express 没开逐行 VAT 的账套，整张按含税价倒算 157 × 7/107 = 10.27、税前 146.73
+        # （原生 HS0000041），合计不变；不拆、明细不标免税
         body = self.summary_body(mixed, [], "157", vat="7", exempt="50", exempt_mode="whole")
         self.assertNotIn("vat_fields", body)
         self.assertFalse(any(item.get("vat_exempt") for item in body["items"]))
+        self.assertEqual((body["vat"], body["total"], body["subtotal"]), ("10.27", "157.00", "146.73"))
         # 整张都是免税的（登记户）：也带金额栏，AMT01 0、AMTRAT0 全额（同原生 SR002100392），CC 桌面版照样写销项税记录
         body = self.summary_body([("B", "1", "50", "0")], [], "50", vat="0", exempt="50")
         self.assertEqual((body["vat_fields"], body["has_vat"]), ({"AMT01": "0.00", "AMTRAT0": "50.00"}, False))

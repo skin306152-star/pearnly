@@ -1746,6 +1746,7 @@ The buyer on these invoices is this company: {0},The buyer on these invoices is 
 The camera could not start,The camera could not start
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
+The cash customer could not be copied from the original year,The cash customer could not be copied from the original year
 The chosen Express stock item no longer exists. Choose again,The chosen Express stock item no longer exists. Choose again
 The chosen account set belongs to another company. Check the account set,The chosen account set belongs to another company. Check the account set
 The chosen value is not in this account set. Choose again,The chosen value is not in this account set. Choose again
@@ -3392,6 +3393,7 @@ intake.error.PERIOD_LOCKED,The accounting period is closed in Express
 intake.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
+intake.error.REFUND_CUSTOMER_NOT_COPIED,The cash customer could not be copied from the original year
 intake.error.REFUND_EXCEEDS_ORIGINAL,The returned quantity is more than the quantity sold
 intake.error.REFUND_INVALID,The return is not in the expected form
 intake.error.REFUND_LINE_NOT_FOUND,This item is not on the original cash sale

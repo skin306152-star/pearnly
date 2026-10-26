@@ -186,6 +186,7 @@ def document(name, ref) -> dict:
         # 原 HS 在上一年度的账套（年度账套分开）：照 Express 原生写进退货那天的账套，挂原单号与原单合计、明细「AVGPR」按平均成本回冲
         # （B3b 实录点 ②，S 盘 4,079 张原生 SR 如此；主会话 10-26 定不再停人工）
         cross_year = _cross_year(summary.company, against.day, summary.day)
+        against_book = _book_path(summary.company, against.day) if cross_year else ""
     if not companies.vat_registered(summary.company, lookup=True):
         return {"ref": ref, "hold": f"{contracts.CHOICE}:{VAT_REGISTERED}",
                 "needed": [{"kind": VAT_REGISTERED, "subject": "company", "label": "",
@@ -246,6 +247,7 @@ def document(name, ref) -> dict:
         payments, items = list(net.payments), net.items
     # 免税行（这一行没拆出税额）只在增值税登记户的单里标：ISVAT AMT01 只记应税部分、免税部分记 AMTRAT0，明细免税行 VATCOD '0'
     exempt = companies.vat_registered(summary.company) == companies.VAT_YES and any(line.get("vat_exempt") for line in items)
+    whole = False
     if exempt:
         mode = _exempt_mode(summary.company, summary.day)
         if not mode:
@@ -253,6 +255,13 @@ def document(name, ref) -> dict:
                     "needed": [{"kind": EXEMPT_MODE, "subject": "company", "label": "",
                                 "options": [{"code": EXEMPT_SPLIT, "name": ""}, {"code": EXEMPT_WHOLE, "name": ""}]}]}
         exempt = mode == EXEMPT_SPLIT
+        if mode == EXEMPT_WHOLE:
+            # 照账套现在的设置整张计税（主会话 10-26 选 A）：同 Express 没开逐行 VAT 的账套，整张按含税价倒算税额（合计 × 7/107），
+            # 税前 = 合计 − 税额，销项税记录、凭证跟着这个；与收银小票逐行拆出的税额不同，日汇总上标明（`vat_whole_document`）
+            from pearnly_erp_portal.cashier import contracts as cashier
+
+            vat = cashier.included_vat(total)
+            whole = True
     lines = [{**{key: value for key, value in line.items() if key != "vat_exempt" or exempt},
               "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])} for line in items]
     if exempt:
@@ -278,12 +287,13 @@ def document(name, ref) -> dict:
         fields = vat_fields(receipts, contracts.d(body["subtotal"]), sign=-1 if refund else 1)
         if fields:
             body["vat_fields"] = fields
+    frappe.db.set_value(DOCTYPE, name, "vat_whole_document", 1 if whole else 0, update_modified=False)
     body["pos"] = {"first": summary.first_receipt, "last": summary.last_receipt, "count": int(summary.sales_count or 0),
                    "payments": [[label, contracts.money(amount)] for label, amount in payments]}
     if refund:
         # 挂原 HS：Express 单号（SONUM）与原单含税合计（IVCAMT），写账规则据此出退货单 SR（退现金、货回仓）
         body["refund"] = {"against": against.express_docnum, "against_total": contracts.money(against.grand_total),
-                          **({"cross_year": True} if cross_year else {})}
+                          **({"cross_year": True, "against_book": against_book} if cross_year else {})}
     return body
 
 
@@ -295,6 +305,13 @@ def _cross_year(company, original_day, refund_day) -> bool:
     first = (target.pick(row, str(original_day)).get("book") or {}).get("key")
     second = (target.pick(row, str(refund_day)).get("book") or {}).get("key")
     return bool(first and second and first != second)
+
+
+def _book_path(company, day) -> str:
+    """这一天该写的账套所在位置（跨年退货：新年度账套没有现金客户档时 CC 桌面版从原年度这本复制）。"""
+    from pearnly_erp_portal.express import push, target
+
+    return str((target.pick(push._company(company), str(day)).get("book") or {}).get("path") or "")
 
 
 def _exempt_mode(company, day):

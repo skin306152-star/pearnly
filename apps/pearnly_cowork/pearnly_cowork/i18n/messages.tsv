@@ -2342,6 +2342,7 @@ The Express index tool is missing on this computer. Reinstall CC Desktop	此电�
 This document was changed in Express. Check it in Express	此单在 Express 中已被修改，请在 Express 中核对	เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express	この伝票は Express で変更されています。Express で確認してください	intake.error.VOID_DOCUMENT_CHANGED
 This document is not in Express	Express 中找不到此单	ไม่พบเอกสารนี้ใน Express	この伝票は Express にありません	intake.error.VOID_DOCUMENT_NOT_FOUND
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	intake.error.REFUND_ORIGINAL_NOT_FOUND
+The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の帳簿から現金顧客を複製できません	intake.error.REFUND_CUSTOMER_NOT_COPIED
 The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	intake.error.REFUND_ORIGINAL_CHANGED
 This item is not on the original cash sale	原现销单上没有此商品	ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ	元の現金売上にこの商品がありません	intake.error.REFUND_LINE_NOT_FOUND
 The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	intake.error.REFUND_EXCEEDS_ORIGINAL
