@@ -33,20 +33,8 @@ class PurchaseDocument(Document):
         if (self.get("calculation_version") or 0) >= 2:
             from pearnly_erp_portal.purchasing import amounts
 
-            override = None
-            if self.amount_override:
-                override = {key: self.get("override_" + slot) for key, slot in
-                            (("subtotal", "subtotal"), ("discount_total", "discount"),
-                             ("vat_amount", "vat"), ("grand_total", "grand"))}
             try:
-                totals = amounts.calculate([row.as_dict() for row in self.lines],
-                    has_vat=bool(self.has_vat), price_mode=self.price_mode or "exclusive",
-                    discount_total=self.discount_total, rounding=self.rounding,
-                    amount_override=override,
-                    # 旧版本的单据保持原算法（保存时金额不变）：版本 3 起整单折扣先于 VAT，
-                    # 版本 4 起含税票的 VAT 从含税合计反算。
-                    discount_before_vat=self.calculation_version >= amounts.DISCOUNT_BEFORE_VAT,
-                    vat_from_total=self.calculation_version >= amounts.INCLUSIVE_VAT_FROM_TOTAL)
+                totals = amounts.for_document(self)
             except (ValueError, KeyError) as exc:
                 frappe.throw(_(str(exc)))
             for row, result in zip(self.lines, totals.pop("lines")):

@@ -64,6 +64,9 @@ def _inclusive_from_total(rows, discount):
             rows[index]["line_total"] = net
         for index, share in zip(group, _allocate(group_vat, [gross[index] - shares[index] for index in group])):
             rows[index]["vat_amount"] = share
+        # 各行扣了整单折扣后的计税基数（同一组不含税额按折后含税额分摊）：进项税记录按税率分栏用（免税行 → AMTRAT0）
+        for index, base in zip(group, _allocate(after - group_vat, [gross[index] - shares[index] for index in group])):
+            rows[index]["vat_base"] = base
         subtotal += net_before
         exclusive_discount += net_before - (after - group_vat)
         vat += group_vat
@@ -71,6 +74,21 @@ def _inclusive_from_total(rows, discount):
         row["wht_amount"] = money(row["line_total"] * row["wht_rate"] / 100)
         wht += row["wht_amount"]
     return subtotal, exclusive_discount, vat, wht
+
+
+def for_document(doc):
+    """一张已存的采购单按它自己的计算版本重算（同 `PurchaseDocument._recompute`）：保存时用、推送 Express 时取各行计税基数也用。"""
+    override = None
+    if doc.get("amount_override"):
+        override = {key: doc.get("override_" + slot) for key, slot in
+                    (("subtotal", "subtotal"), ("discount_total", "discount"),
+                     ("vat_amount", "vat"), ("grand_total", "grand"))}
+    version = doc.get("calculation_version") or 0
+    return calculate([dict(row) if isinstance(row, dict) else row.as_dict() for row in doc.get("lines") or []],
+                     has_vat=bool(doc.get("has_vat")), price_mode=doc.get("price_mode") or "exclusive",
+                     discount_total=doc.get("discount_total"), rounding=doc.get("rounding"), amount_override=override,
+                     # 旧版本的单据保持原算法（保存时金额不变）：版本 3 起整单折扣先于 VAT，版本 4 起含税票的 VAT 从含税合计反算。
+                     discount_before_vat=version >= DISCOUNT_BEFORE_VAT, vat_from_total=version >= INCLUSIVE_VAT_FROM_TOTAL)
 
 
 def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
@@ -97,7 +115,9 @@ def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
         wht += line_wht
         normalized.append({**line, "line_no": index, "qty": qty, "unit_price": price,
                            "discount": discount, "line_total": net, "vat_rate": vat_rate,
-                           "wht_rate": wht_rate, "vat_amount": line_vat, "wht_amount": line_wht})
+                           "wht_rate": wht_rate, "vat_amount": line_vat, "wht_amount": line_wht,
+                           # 计税基数：整单折扣在 VAT 之后（旧版本单据）时就是这一行的不含税额；折扣先于 VAT 时下面改成折后的
+                           "vat_base": net})
     discount = money(decimal(discount_total))
     adjustment = money(rounding)
     exclusive_discount = discount
@@ -115,6 +135,7 @@ def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
                 raise ValueError("Discount cannot exceed the amount")
             exclusive_discount += exclusive
             bases.append(row["line_total"] - exclusive)
+            row["vat_base"] = bases[-1]
         # VAT 按整单（同税率一组）算一次再取整，与票面一致 —— 进项税要与供应商税票分毫不差；
         # 逐行取整再相加，明细多时会差几分（MR.ERP 不含税票也是整单一次，`allform.js:718`）。
         # 各行的 VAT 按基数分摊，尾差落在该税率最后一行。

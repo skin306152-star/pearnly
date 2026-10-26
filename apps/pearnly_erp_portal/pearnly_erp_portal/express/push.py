@@ -222,16 +222,29 @@ def document(doctype, name) -> dict:
                               doc_date=str(doc.doc_date), number=number,
                               company=company, party=_party(doctype, doc), paid=paid, has_vat=bool(doc.has_vat),
                               total=doc.grand_total, vat=doc.vat_amount, lines=_lines(doctype, doc), currency=currency)
-    fields = vat_fields(body)
-    if fields:
-        body["vat_fields"] = fields
+    if any(item.get("vat_exempt") for item in body["items"]):
+        fields = vat_fields(body, _exempt_base(doc))
+        if fields:
+            body["vat_fields"] = fields
     return body
 
 
-def vat_fields(body) -> dict:
+def _exempt_base(doc):
+    """采购单 0 税率各行扣了整单折扣后的计税基数之和（按这张单自己的计算版本重算，`amounts.for_document`；验收复核 e3：
+    明细的 line_total 是整单折扣分摊前的，与扣了折扣的税前合计口径不同）。很早的单（计算版本 1）没有整单折扣先于 VAT，照行金额。"""
+    if (doc.get("calculation_version") or 0) >= 2:
+        from pearnly_erp_portal.purchasing import amounts
+
+        rows = amounts.for_document(doc)["lines"]
+        return sum((contracts.d(row["vat_base"]) for row in rows if not contracts.d(row["vat_rate"]) > 0), contracts.d(0))
+    return sum((contracts.d(line.line_total) for line in doc.lines if not _rate(line) > 0), contracts.d(0))
+
+
+def vat_fields(body, exempt) -> dict:
     """混合税率的采购（0 税率的行标了免税，见 :func:`_lines`）：进项税记录 AMT01 只记应税部分、免税部分记 AMTRAT0（单头同记），
-    同原生（S 盘副本 HP67012204：AMT01 383.18 = 税前 410.18 − 免税 27）。没有免税行回空（照整张税前记）。"""
-    exempt = sum((contracts.d(item["amount"]) for item in body.get("items") or [] if item.get("vat_exempt")), contracts.d(0))
+    同原生（S 盘副本 HP67012204：AMT01 383.18 = 税前 410.18 − 免税 27）。``exempt`` = 免税行扣了整单折扣后的税前额；
+    AMT01 = 整张税前 − 它（两栏相加恒等于税前合计）。没有免税额回空（照整张税前记）。"""
+    exempt = contracts.d(exempt)
     if exempt <= 0:
         return {}
     return {pos_day.ISVAT_TAXABLE_FIELD: contracts.money(contracts.d(body["subtotal"]) - exempt),

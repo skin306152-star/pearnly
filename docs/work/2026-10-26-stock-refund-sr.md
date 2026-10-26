@@ -320,3 +320,33 @@ ISVAT、GLJNL 没有这类字段。改法：`dbf_schema.append_native`（原 `ap
   - Cowork 推送冒烟：第一次 CC 刚重启、还没在 Cowork 报上线（跳过「CC not online」），等上线后重跑 SMOKE-1793017282 → T9NIEXCP
     HP691026-005，CC 读回 ok。
 - 收尾：lab-stop erp、cowork，定时任务恢复；DNS 已清，三域名 → 107.155.65.74；容器 0；CC 以 skin3 重启，心跳 101 / 133；测试机 CC 现为测试包 e3。
+
+## 验收复核 e3 后的修正（10-26 19:00–19:40）
+
+- 【中】混合税率 + 整单折扣的采购：免税额原来用明细的 line_total（整单折扣分摊前），与扣了折扣的税前合计口径不同（应税 100 + 免税 50、
+  折扣 15 → 写成 AMT01 85 / AMTRAT0 50，应 90 / 45）。修：`purchasing/amounts.calculate` 给每行记折后的计税基数 `vat_base`（三种算法各自记：
+  旧版折扣在 VAT 之后 = 行不含税额；版本 3 = 折后基数；版本 4 含税票 = 同组折后不含税额按折后含税额分摊）；新 `amounts.for_document(doc)`
+  按单据自己的计算版本重算（`PurchaseDocument._recompute` 也改用它，算法不变）；推送取 0 税率各行的 `vat_base` 之和作免税额，
+  AMT01 = 税前合计 − 免税额（两栏相加恒等于税前）。计算版本 1 的很早的单照行金额。
+  用例：`test_purchase_amounts`（不含税 / 含税票 + 整单折扣基数 90 / 45、两栏相加 = 合计 − 税额、旧版基数不变、按版本重算）；
+  ERP `MixedRatePurchase`（90 / 45、AMT01 × 7% = 6.30；换回折前口径即失败）。
+- 实写读回（实验栈，CC 测试包 e3，CC 代码本次没改）：HP691026-016（应税 100 + 免税 50、整单折扣 15）APTRN.AMTRAT0 45；ISVAT AMT01 90 /
+  VAT01 6.30 / AMTRAT0 45；明细 96.30 / 90、45 / 45（VATCOD '0'）；凭证平衡。
+
+### 共用件连带回归：select.js 等改动的人工入口（`--diff` 46 个入口里的 10 个 manual）
+
+共用层这次的改动对可编辑的 Autocomplete 行为零变化：保护只在「没有选项列表」（只读、没建输入框）时生效，有列表的照原样走框架校验；
+明细物料 / 对方格（entry-choice）带 ignore_validation，框架在读列表之前就返回，也不经过保护。
+
+| 入口 | 结果 | 依据 |
+|---|---|---|
+| erp.cc.pos-day | 通过 | 实验栈 HS691024-015（混合免税，问一次答拆开写）写进、读回：明细 321 / 300、50 / 50（VATCOD '0'），ISVAT 300 / 21 / 50，凭证平衡 |
+| erp.cc.pos-refund | 通过 | SR691025-007 挂 HS691024-015：明细含税 107 / 50，RDOCNUM 指原单行，ISVAT 100 / 7 / 50，凭证平衡 |
+| erp.cc.stock-void | 通过 | 冒烟出库单 OU691026-012 写进后在 ERP 作废，Express 原生作废完成（voided） |
+| erp.report.stock-count-variance | 没测到（报表本身） | 直接开报表地址按原设计转到盘点工作台（旧书签进同一工作台）；探针记到的 "Filter missing" 是框架缺必填筛选时拿字符串当流程控制的拒绝（errors.js 已注明不算错）；盘点工作台页 erp.page.stock-count 在 `--diff` 自动冒烟里通过。本批没改这张报表和它的筛选（原生 Link） |
+| erp.scan.pick-product | 没测到（不受影响） | 撞号候选弹窗在扫码认商品之后，用原生 Dialog / Select（ProductSelect 的行为本批只是把同样的只读保护挪到共用父类，可编辑时不变）；需要造撞号数据，交验收按清单点 |
+| erp.stock-in.item-scan / erp.stock-out.item-scan / erp.purchase.item-scan / erp.sales.item-scan | 没测到（不受影响） | 新建明细时物料格是可编辑的 entry-choice（ignore_validation），校验不经过保护；扫码相机链路本批没改；交验收按清单点 |
+| erp.entry.choices | 没测到（不受影响） | 同上：对方 / 物料格可编辑、ignore_validation；提交时按码认在服务端，本批没改 |
+
+另：ERP 自动冒烟 `--diff` 46 个入口里自动的 36 个：34 过，2 个不通过与本批无关（收银台在 CO-00106 没开收银、默认公司下通过；按码找商品是
+实验库 PN00003 同码）。

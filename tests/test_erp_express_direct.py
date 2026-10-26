@@ -858,15 +858,17 @@ class PushModule(Base):
         self.push = push
 
 
+class Row(dict):
+    """单据 / 明细行的替身：属性和 `.get` 都能取（同 Frappe Document）。"""
+    __getattr__ = dict.get
+
+
 class MixedRatePurchase(PushModule):
     """验收复核测试包 e2（10-26）：采购单逐行定税率，有的行 0。0 税率的行标免税，CC 桌面版写价含税的现购时不摊税给它（原生 107 / 50、
     免税行 VATCOD '0'）；载荷盖 11，旧版 CC 诚实拒收。整张无税的单不标。"""
 
     def lines(self, *rates):
         import types
-
-        class Row(dict):
-            __getattr__ = dict.get
 
         doc = types.SimpleNamespace(lines=[Row(product=None, warehouse=None, description=f"L{index}", unit="ถุง", qty=1,
                                                line_total=100, vat_rate=rate, item_type="service")
@@ -878,10 +880,19 @@ class MixedRatePurchase(PushModule):
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0)], [False, False])  # 整张无税：不标
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(7, 7)], [False, False])
         self.assertEqual(common.finalize_payload({"items": [{"name": "A", "vat_exempt": True}]})["payload_version"], 11)
-        # 进项税记录：AMT01 只记应税部分、免税部分记 AMTRAT0（同原生 HP67012204）；没有免税行不带
-        body = {"subtotal": "150.00", "items": [{"amount": "100.00"}, {"amount": "50.00", "vat_exempt": True}]}
-        self.assertEqual(self.push.vat_fields(body), {"AMT01": "100.00", "AMTRAT0": "50.00"})
-        self.assertEqual(self.push.vat_fields({"subtotal": "150.00", "items": [{"amount": "150.00"}]}), {})
+        # 进项税记录：AMT01 只记应税部分、免税部分记 AMTRAT0（同原生 HP67012204）；没有免税额不带
+        self.assertEqual(self.push.vat_fields({"subtotal": "150.00"}, Decimal("50")), {"AMT01": "100.00", "AMTRAT0": "50.00"})
+        self.assertEqual(self.push.vat_fields({"subtotal": "150.00"}, Decimal("0")), {})
+        # 有整单折扣（验收复核 e3）：免税额取折后的计税基数——应税 100 + 免税 50、整单折扣 15 → 税前 135、税 6.30；
+        # AMT01 90、AMTRAT0 45（两栏相加 = 税前，AMT01 × 7% = 税额）；原来按折前行额算成 85 / 50
+        doc = Row(calculation_version=4, has_vat=1, price_mode="exclusive", discount_total=15, rounding=0,
+                  lines=[Row(qty=1, unit_price=100, vat_rate=7, line_total=100), Row(qty=1, unit_price=50, vat_rate=0, line_total=50)])
+        fields = self.push.vat_fields({"subtotal": "135.00"}, self.push._exempt_base(doc))
+        self.assertEqual(fields, {"AMT01": "90.00", "AMTRAT0": "45.00"})
+        self.assertEqual(Decimal(fields["AMT01"]) + Decimal(fields["AMTRAT0"]), Decimal("135.00"))
+        self.assertEqual((Decimal(fields["AMT01"]) * Decimal("0.07")).quantize(Decimal("0.01")), Decimal("6.30"))
+        old = Row(calculation_version=1, lines=[Row(line_total=100, vat_rate=7), Row(line_total=50, vat_rate=0)])
+        self.assertEqual(self.push._exempt_base(old), Decimal("50"))  # 很早的单：照行金额
 
 
 class StockVoid(PushModule):

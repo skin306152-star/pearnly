@@ -100,6 +100,33 @@ class PurchaseAmounts(unittest.TestCase):
             a.calculate(lines, price_mode='inclusive', discount_total=7501, discount_before_vat=True,
                         vat_from_total=True)
 
+    def test_each_line_keeps_its_tax_base_after_the_bill_discount(self):
+        """验收复核 e3（10-26）：混合税率 + 整单折扣，进项税记录按税率分栏要用各行**折后**的计税基数（免税行 → AMTRAT0）：
+        应税 100 + 免税 50、整单折扣 15 → 基数 90 / 45，税 6.30 = 90 × 7%，两栏相加 = 折后税前 135。"""
+        lines = [{'qty': 1, 'unit_price': 100, 'vat_rate': 7}, {'qty': 1, 'unit_price': 50, 'vat_rate': 0}]
+        result = a.calculate(lines, discount_total=15, discount_before_vat=True, vat_from_total=True)
+        self.assertEqual([row['vat_base'] for row in result['lines']], [Decimal('90.00'), Decimal('45.00')])
+        self.assertEqual(result['vat_amount'], Decimal('6.30'))
+        self.assertEqual(sum(row['vat_base'] for row in result['lines']), result['grand_total'] - result['vat_amount'])
+        # 含税票（版本 4，VAT 从含税合计反算）：107 + 50、整单折扣 15.70（含税）按含税额摊 → 应税组折后含税 96.30、基数 90.00，
+        # 免税组 45.00；两栏相加 = 合计 − 税额（折后税前），应税基数 × 7% = 税额
+        inclusive = [{'qty': 1, 'unit_price': 107, 'vat_rate': 7}, {'qty': 1, 'unit_price': 50, 'vat_rate': 0}]
+        result = a.calculate(inclusive, price_mode='inclusive', discount_total='15.70', discount_before_vat=True, vat_from_total=True)
+        bases = [row['vat_base'] for row in result['lines']]
+        self.assertEqual(bases, [Decimal('90.00'), Decimal('45.00')])
+        self.assertEqual(sum(bases), result['grand_total'] - result['vat_amount'])
+        self.assertEqual(result['vat_amount'], Decimal('6.30'))
+        # 旧版本（整单折扣在 VAT 之后）：基数就是行的不含税额
+        result = a.calculate(lines, discount_total=15)
+        self.assertEqual([row['vat_base'] for row in result['lines']], [Decimal('100.00'), Decimal('50.00')])
+
+    def test_a_saved_document_recalculates_with_its_own_version(self):
+        doc = {'calculation_version': 4, 'has_vat': 1, 'price_mode': 'exclusive', 'discount_total': 15, 'rounding': 0,
+               'lines': [{'qty': 1, 'unit_price': 100, 'vat_rate': 7}, {'qty': 1, 'unit_price': 50, 'vat_rate': 0}]}
+        result = a.for_document(doc)
+        self.assertEqual([row['vat_base'] for row in result['lines']], [Decimal('90.00'), Decimal('45.00')])
+        self.assertEqual(a.for_document({**doc, 'calculation_version': 2})['vat_amount'], Decimal('7.00'))  # 旧版：折扣在 VAT 之后
+
     def test_version_3_discount_cannot_exceed_the_amount(self):
         with self.assertRaises(ValueError):
             a.calculate([{'qty': 1, 'unit_price': 100, 'vat_rate': 7}], discount_total=101,
