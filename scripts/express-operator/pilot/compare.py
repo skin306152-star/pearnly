@@ -60,7 +60,8 @@ def compare_answer(draft: Draft, new_rows: Dict[str, List[Dict]]) -> Dict:
     """端到端准确率：录进 Express 的单和标准答案（会计手录）比表头。答案只在这里用，不当草稿单输入。
 
     比日期（挪进试点账套期间后的同一天）、对方单号（只比字母数字，Express 的单号栏 15 字）、税前 / 税 / 含税。
-    对方码不比：试点账套的主档是换过的，挂没挂对对方要在真账套里才看得出。"""
+    对方码不比：试点账套的主档是换过的，挂没挂对对方要在真账套里才看得出。
+    销售单（IV / HS）不比单号：销项答案的「对方单号」是这家公司自己的发票号，试点账套的单号由 Express 自动编，两者本来就不同。"""
     head = find_new_doc(draft, new_rows)["head"]
     a = draft.answer
     if head is None:
@@ -72,6 +73,8 @@ def compare_answer(draft: Draft, new_rows: Dict[str, List[Dict]]) -> Dict:
              ("vat", _num(a.get("vat")), _num(head.get("VATAMT"))),
              ("total", _num(a.get("total")), _num(head.get("NETAMT")))]
     for name, want, got in pairs:
+        if name == "ref" and draft.spec["side"] == "sales":
+            continue
         if want in (None, "") or (name != "date" and a.get(name) in (None, "")):
             continue
         if str(want) != str(got):

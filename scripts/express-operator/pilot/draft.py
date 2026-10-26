@@ -97,7 +97,7 @@ class Draft:
 def load(path: Path) -> List[Draft]:
     """一行一张草稿单（JSONL）。"""
     out = []
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
+    for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
         if line.strip():
             out.append(Draft(**json.loads(line)))
     return out

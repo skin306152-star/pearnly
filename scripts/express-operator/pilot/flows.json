@@ -1,260 +1,11 @@
 {
-  "_说明": "固定流程（标准流程），键盘优先：表头靠新建后的落点和回车跳格，明细靠回车走格，泰文走剪贴板 + Shift+Insert。坐标只在没有快捷键的工具栏命令、以及 reach=click 的格子用（1920×1080、单据窗口最大化后的屏幕像素）；verified=true 的来自操作手册实录（70EXP\\test，Express 1.0.1.94），false 的第一次真跑前用 probe / calibrate 定。",
+  "_说明": "固定流程（10-26 在 rec-laptop、服务器 69EXP 程序、试点账套 69EXP\\test 上实测，Express 1.0.1.94，MFC 程序）。键盘优先：工具栏命令发命令号（不靠坐标）；表头按回车跳格，每格用焦点句柄对到左边的标签，只填 values 里的格；明细表格（MFCGridCtrl）回车进不去，按表格控件位置 + 偏移点进第一行品码格（偏移按 100% 缩放写）；单位框里回车是跳格，要按框里的「ตกลง」；Esc 会把半张单直接存掉，流程里不用 Esc。verified=false 的单种还没实测。",
   "screen": [
     1920,
     1080
   ],
-  "anchors": {
-    "toolbar.new": {
-      "xy": [
-        35,
-        103
-      ],
-      "verified": true
-    },
-    "toolbar.edit": {
-      "xy": [
-        80,
-        103
-      ],
-      "verified": true
-    },
-    "toolbar.cancel": {
-      "xy": [
-        229,
-        103
-      ],
-      "verified": true
-    },
-    "toolbar.save": {
-      "xy": [
-        274,
-        103
-      ],
-      "verified": true
-    },
-    "IV.party": {
-      "xy": [
-        209,
-        189
-      ],
-      "verified": true
-    },
-    "IV.grid": {
-      "xy": [
-        209,
-        491
-      ],
-      "verified": true
-    },
-    "IV.docdate": {
-      "xy": null,
-      "verified": false,
-      "label": "วันที่"
-    },
-    "HS.party": {
-      "xy": [
-        209,
-        189
-      ],
-      "verified": false,
-      "label": "รหัสลูกค้า"
-    },
-    "HS.grid": {
-      "xy": [
-        209,
-        491
-      ],
-      "verified": false,
-      "label": "明细第一行品码格"
-    },
-    "HS.docdate": {
-      "xy": null,
-      "verified": false,
-      "label": "วันที่"
-    },
-    "RR.party": {
-      "xy": [
-        209,
-        189
-      ],
-      "verified": false,
-      "label": "รหัสผู้จำหน่าย"
-    },
-    "RR.grid": {
-      "xy": [
-        209,
-        491
-      ],
-      "verified": false,
-      "label": "明细第一行品码格"
-    },
-    "RR.docdate": {
-      "xy": null,
-      "verified": false,
-      "label": "วันที่"
-    },
-    "RR.billno": {
-      "xy": null,
-      "verified": false,
-      "label": "เลขที่บิล"
-    },
-    "RR.billdate": {
-      "xy": null,
-      "verified": false,
-      "label": "ลงวันที่"
-    },
-    "HP.party": {
-      "xy": [
-        209,
-        189
-      ],
-      "verified": false,
-      "label": "รหัสผู้จำหน่าย"
-    },
-    "HP.grid": {
-      "xy": [
-        209,
-        491
-      ],
-      "verified": false,
-      "label": "明细第一行品码格"
-    },
-    "HP.docdate": {
-      "xy": null,
-      "verified": false,
-      "label": "วันที่"
-    },
-    "HP.billno": {
-      "xy": null,
-      "verified": false,
-      "label": "เลขที่บิล"
-    },
-    "HP.billdate": {
-      "xy": null,
-      "verified": false,
-      "label": "ลงวันที่"
-    }
-  },
-  "menus": {
-    "RR": [
-      "%1",
-      "4"
-    ],
-    "HP": [
-      "%1",
-      "2",
-      "1"
-    ],
-    "IV": [
-      "%2",
-      "4"
-    ],
-    "HS": [
-      "%2",
-      "2",
-      "1"
-    ]
-  },
   "form_open_ms": 6500,
-  "header": {
-    "RR": [
-      "party",
-      "docdate",
-      "billno",
-      "billdate"
-    ],
-    "HP": [
-      "party",
-      "docdate",
-      "billno",
-      "billdate"
-    ],
-    "IV": [
-      "party",
-      "docdate"
-    ],
-    "HS": [
-      "party",
-      "docdate"
-    ]
-  },
-  "header_fields": {
-    "party": {
-      "value": "{party}",
-      "after": "{ENTER}",
-      "wait_ms": 1500,
-      "reach": "after_new"
-    },
-    "docdate": {
-      "value": "{date}",
-      "select_all": true,
-      "after": "{ENTER}",
-      "wait_ms": 400,
-      "reach": "enter"
-    },
-    "billno": {
-      "value": "{ref}",
-      "select_all": true,
-      "after": "{ENTER}",
-      "wait_ms": 400,
-      "skip_if_empty": true,
-      "reach": "enter"
-    },
-    "billdate": {
-      "value": "{date}",
-      "select_all": true,
-      "after": "{ENTER}",
-      "wait_ms": 400,
-      "reach": "enter"
-    }
-  },
-  "line": [
-    {
-      "op": "type",
-      "text": "{item}"
-    },
-    {
-      "op": "keys",
-      "text": "{ENTER}",
-      "wait_ms": 1200
-    },
-    {
-      "op": "loc"
-    },
-    {
-      "op": "type",
-      "text": "{qty}"
-    },
-    {
-      "op": "keys",
-      "text": "{ENTER}",
-      "wait_ms": 900
-    },
-    {
-      "op": "expect_dialog",
-      "name": "unit",
-      "keys": "{ENTER}",
-      "wait_ms": 700
-    },
-    {
-      "op": "type",
-      "text": "{price}"
-    },
-    {
-      "op": "keys",
-      "text": "{ENTER}{ENTER}{ENTER}",
-      "wait_ms": 800
-    }
-  ],
-  "after_lines": [
-    {
-      "op": "keys",
-      "text": "{ESC}",
-      "wait_ms": 600
-    }
-  ],
-  "save_wait_ms": 2800,
+  "save_wait_ms": 2500,
   "dialogs": [
     {
       "name": "unit",
@@ -262,28 +13,36 @@
       "auto": false
     },
     {
+      "name": "dup_ref",
+      "match": "\\b1029\\b",
+      "auto": true,
+      "button": "ตกลง",
+      "_说明": "对方单号已存在：Express 只提醒，照录（产品口径「推送不查重不拦」）；记一笔提醒"
+    },
+    {
+      "name": "4108",
+      "match": "\\b4108\\b",
+      "auto": true,
+      "button": "ตกลง",
+      "_说明": "这个对方没有买卖记录，程序带入最近一次价格：只是提醒，流程随后会全选再打单价"
+    },
+    {
       "name": "4079",
       "match": "\\b4079\\b",
       "auto": true,
-      "keys": "{ENTER}"
+      "button": "ตกลง"
     },
     {
       "name": "4107",
       "match": "\\b4107\\b",
       "auto": true,
-      "keys": "{ENTER}"
+      "button": "ตกลง"
     },
     {
       "name": "605",
       "match": "\\b605\\b",
       "auto": true,
-      "keys": "{ENTER}"
-    },
-    {
-      "name": "40",
-      "match": "Message\\D{0,3}40\\b",
-      "auto": true,
-      "keys": "{ENTER}"
+      "button": "ตกลง"
     },
     {
       "name": "neg_stock",
@@ -298,30 +57,150 @@
       "outcome": "crash"
     }
   ],
-  "navigation": "keys",
   "commands": {
-    "new": {
-      "keys": null,
-      "xy": [
-        35,
-        103
-      ],
+    "new": 53504,
+    "edit": 53505,
+    "void": 53515,
+    "delete": 53506,
+    "cancel": 53512,
+    "save": 53507
+  },
+  "forms": {
+    "RR": {
       "verified": true,
-      "_待查": "找快捷键（探测菜单 / 工具提示）"
+      "menu": [
+        "%1",
+        "4",
+        "1"
+      ],
+      "title": "RR - ซื้อเงินเชื่อ",
+      "price_type": "2 - แยก VAT",
+      "header": {
+        "values": {
+          "วันที่": "date",
+          "ผู้จำหน่าย": "party",
+          "เลขที่บิล": "ref",
+          "ลวท.": "date",
+          "ประเภทราคา": "vat_mode"
+        },
+        "stop_after": "ประเภทราคา",
+        "dates": [
+          "วันที่",
+          "ลวท."
+        ],
+        "wait_ms": 350
+      },
+      "grid_offset": [
+        112,
+        30
+      ],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {
+        "net": "จำนวนเงิน",
+        "vat": "%",
+        "total": "จำนวนเงินรวมทั้งสิ้น"
+      },
+      "docnum_label": "เลขที่ใบรับสินค้า"
     },
-    "save": {
-      "keys": null,
-      "xy": [
-        274,
-        103
-      ],
+    "HP": {
       "verified": true,
-      "_待查": "找快捷键"
+      "menu": [
+        "%1",
+        "2"
+      ],
+      "title": "HP - ซื้อเงินสด",
+      "header": {
+        "values": {
+          "วันที่": "date",
+          "ผู้จำหน่าย": "party",
+          "เลขที่บิล": "ref",
+          "ลวท.": "date",
+          "ประเภทราคา": "vat_mode"
+        },
+        "stop_after": "ประเภทราคา",
+        "dates": [
+          "วันที่",
+          "ลวท."
+        ],
+        "wait_ms": 350
+      },
+      "grid_offset": [
+        112,
+        30
+      ],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {
+        "net": "จำนวนเงิน",
+        "vat": "%",
+        "total": "จำนวนเงินรวมทั้งสิ้น"
+      },
+      "docnum_label": "เลขที่ใบซื้อสด"
+    },
+    "IV": {
+      "verified": true,
+      "menu": [
+        "%2",
+        "4"
+      ],
+      "title": "IV - ขายเงินเชื่อ",
+      "price_type": "2 - แยก VAT",
+      "header": {
+        "values": {
+          "วันที่": "date",
+          "รหัสลูกค้า": "party",
+          "ประเภทราคา": "vat_mode"
+        },
+        "stop_after": "ประเภทราคา",
+        "dates": [
+          "วันที่"
+        ],
+        "wait_ms": 350
+      },
+      "grid_offset": [
+        112,
+        30
+      ],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {
+        "net": "จำนวนเงิน",
+        "vat": "%",
+        "total": "จำนวนเงินรวมทั้งสิ้น"
+      },
+      "docnum_label": "เลขที่เอกสาร"
+    },
+    "HS": {
+      "verified": true,
+      "menu": [
+        "%2",
+        "2"
+      ],
+      "title": "HS - ขายเงินสด",
+      "price_type": "1 - รวม VAT",
+      "header": {
+        "values": {
+          "วันที่": "date",
+          "รหัสลูกค้า": "party",
+          "ประเภทราคา": "vat_mode"
+        },
+        "stop_after": "ประเภทราคา",
+        "dates": [
+          "วันที่"
+        ],
+        "wait_ms": 350
+      },
+      "grid_offset": [
+        112,
+        30
+      ],
+      "unit_dialog": "หน่วยนับ",
+      "totals": {
+        "vat": "%",
+        "total": "จำนวนเงินรวมทั้งสิ้น"
+      },
+      "docnum_label": "บิลเงินสด#",
+      "_说明": "含税价（1 - รวม VAT）的单子，底部「จำนวนเงิน」显示含税金额，所以只比税额和含税合计；录到明细时 Express 就先写一张金额 0 的单头占号，保存时才填金额"
     }
   },
-  "to_grid": {
-    "reach": "click",
-    "keys": "",
-    "_说明": "表头最后一格回车后落不落到明细第一格待实测；落得到就改 reach=enter"
-  }
+  "_菜单": "菜单要先单独按一下 Alt 激活菜单栏再按数字（单据窗口开着时 Alt+数字 是单据窗口自己的快捷键，会弹 Message#.40）",
+  "_价格类型": "价格类型跟着对方主档走（10-26 实测供应商 FPB 默认含税），所以表头一路走到「ประเภทราคา」，按草稿单明确选 2（不含税）或 1（含税）再录明细"
 }

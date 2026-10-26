@@ -167,9 +167,12 @@ def build(root: Path, results: Path, m: Dict) -> List[Draft]:
             stats["对上答案"] += 1
         else:
             stats["没对上答案（只测操作，不算准确率）"] += 1
+        # 现销 HS 照 Express 默认「1 - รวม VAT」按含税单价录（会计录现销的习惯）；其余按不含税单价
+        incl = kind == "HS"
+        price = money(tot if (incl and tot is not None) else sub + vat if incl else sub)
         out.append(Draft(
             doc_id=f"{kind}-{r['id']}", doc_type=kind, date=date, party_code=_pick(pool, counter),
-            lines=[Line(item_code=_pick(items, f"{own}/{kind}"), qty="1", unit_price=str(money(sub)))],
+            lines=[Line(item_code=_pick(items, f"{own}/{kind}"), qty="1", unit_price=str(price))], vat_included=incl,
             ref_no=num(inv.get("invoice_number"))[:15] if kind in ("RR", "HP") else "",
             ocr_usd=str(r.get("usd") or 0), answer=answer,
             source={"corpus_id": r["id"], "company": meta.get("公司", ""), "doc_kind": r.get("doc_kind") or "",

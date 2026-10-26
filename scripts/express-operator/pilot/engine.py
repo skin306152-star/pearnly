@@ -56,7 +56,8 @@ class Unexpected(Exception):
 
 
 def _norm(text: str) -> str:
-    return re.sub(r"[\s,]", "", str(text or "")).upper()
+    # Express 把码里的不换行空格显示成「•」（10-26 实测客户码「นาย ทดสอบ」），核对时当成同一个字符
+    return re.sub(r"[\s,\u2022\u00a0]", "", str(text or "")).upper()
 
 
 def same(want: str, seen: str) -> bool:
@@ -88,6 +89,9 @@ class Engine:
         self.rec: Dict = {}
         self.draft: Optional[Draft] = None
         self._unread = 0
+        self._line_recovered = False
+        self.form_spec: Dict = {}
+        self.labels: Dict[int, str] = {}
 
     # ── 记录 ────────────────────────────────────────────────────────────────
     def _event(self, kind: str, **data) -> None:
@@ -166,7 +170,8 @@ class Engine:
             if rule.get("outcome") == "blocked":
                 raise Blocked(self._text(w)[:200])
             self._event("dialog", name=rule["name"], how="win32")
-            self.act([{"do": "keys", "text": rule["keys"]}, {"do": "wait", "ms": 600}])
+            press = {"do": "dialog_button", "text": rule["button"]} if rule.get("button") else {"do": "keys", "text": rule["keys"]}
+            self.act([press, {"do": "wait", "ms": 600}])
         raise Unexpected("弹窗关不掉")
 
     def screenshot(self, name: str, for_ai: bool = True) -> str:
@@ -240,7 +245,7 @@ class Engine:
             return f"单号还是 {answer['docnum_seen']}，没存上"
         return ""
 
-    def _recover(self, where: str, problem: str, expect_text: str, expect: Dict) -> None:
+    def _recover(self, where: str, problem: str, expect_text: str, expect: Dict, reverify=None) -> None:
         entry = {"where": where, "problem": problem[:200], "resolved_by": ""}
         self.rec["fallbacks"].append(entry)
         if not self.mode["chain"]:
@@ -254,9 +259,16 @@ class Engine:
             self._event("fallback", where=where, model=model, status=status, note=note[:200])
             if status == "need_human":
                 raise NeedHuman(where, note)
-            if status == "resolved" and self.checkpoint(f"{where}.verify", expect_text, expect, recover=False):
-                entry["resolved_by"] = model
-                return
+            if status == "resolved":
+                # 复核先用第 2 层（不截图），判断不了才截图给模型
+                ok = reverify() if reverify else None
+                if ok is None:
+                    ok = self.checkpoint(f"{where}.verify", expect_text, expect, recover=False)
+                if ok:
+                    entry["resolved_by"] = model
+                    if where.startswith("line"):
+                        self._line_recovered = True
+                    return
         raise NeedHuman(where, f"AI 接手后仍不对：{problem}")
 
     def cu_loop(self, model: str, goal: str, max_turns: int, effort: str, purpose: str) -> Tuple[str, str]:
@@ -383,11 +395,7 @@ class Engine:
             if rule and rule.get("outcome") == "blocked":
                 raise Blocked(self._text(w)[:200])
 
-    # ── 固定流程 ────────────────────────────────────────────────────────────
-    def _anchor(self, name: str) -> Optional[List[int]]:
-        a = self.flows["anchors"].get(name)
-        return a["xy"] if a and a.get("xy") else None
-
+    # ── 固定流程（按 10-26 在 69EXP\test 上实测的录法）──────────────────────
     def step(self, where: str, actions: List[Dict], expect_text: str, expect: Dict) -> None:
         try:
             try:
@@ -402,41 +410,225 @@ class Engine:
         except Unexpected as e:
             self._recover(where, str(e), expect_text, expect)
 
-    def _command(self, name: str) -> List[Dict]:
-        """工具栏命令（新建 / 保存）：有快捷键用快捷键（第 1 层），没有才点坐标。"""
-        spec = self.flows["commands"][name]
-        if spec.get("keys"):
-            return [{"do": "keys", "text": spec["keys"]}]
-        x, y = spec["xy"]
-        return [{"do": "click", "x": x, "y": y}]
+    def command(self, name: str) -> Dict:
+        """工具栏命令（新建 / 保存 / 取消 / 作废）：给主窗口发命令号，不靠坐标（第 1 层：等同按按钮）。"""
+        self._layer("keys")
+        return self.act([{"do": "command", "cmd": self.flows["commands"][name]}, {"do": "wait", "ms": 300}])
 
-    def _reach(self, how: str, anchor: str) -> List[Dict]:
-        """到某一格：键盘方式靠上一格的回车跳过来（不动作）；click 方式点坐标。"""
-        if how == "click" or self.flows.get("navigation") == "click":
-            xy = self._anchor(anchor)
-            if xy:
-                return [{"do": "click", "x": xy[0], "y": xy[1]}, {"do": "wait", "ms": 250}]
-        return []
+    def state(self) -> Dict:
+        st = self.act([{"do": "state"}], windows=False)["results"][0]
+        self.windows = st.get("windows", self.windows)
+        self._health()
+        return st
+
+    def toolbar_on(self) -> set:
+        r = self.act([{"do": "toolbar"}], windows=False)["results"][0]
+        return {b["cmd"] for b in r["buttons"] if b["enabled"]}
+
+    def field_map(self) -> Dict[int, Dict]:
+        r = self.act([{"do": "fields"}], windows=False)["results"][0]
+        return {f["hwnd"]: f for f in r["fields"]}
+
+    def _value_seen(self, label: str, value: str, seen: str) -> bool:
+        if self.form_spec["header"]["values"].get(label) == "vat_mode":
+            return seen.strip().startswith(value)
+        if label in self.form_spec["header"].get("dates", []):
+            return re.sub(r"\D", "", seen) == self.draft.date.replace("-", "")
+        return same(value, seen)
 
     def ensure_form(self, doc_type: str) -> None:
-        if self.form == doc_type:
+        spec = self.flows["forms"][doc_type]
+        self.form_spec = spec
+        fg = (self.act([{"do": "activate"}, {"do": "wait", "ms": 300}]).get("fg") or {}).get("title", "")
+        if self.form == doc_type and spec["title"] in fg:
             return
-        name = DOC_NAMES[doc_type]
-        before_title = self.act([{"do": "activate"}, {"do": "wait", "ms": 300}, {"do": "us_layout"}]).get("fg") or {}
-        acts = []
-        for k in self.flows["menus"][doc_type]:
-            acts += [{"do": "keys", "text": k}, {"do": "wait", "ms": 350}]
-        acts.append({"do": "wait", "ms": self.flows["form_open_ms"]})
-        reply = self.act(acts)
-        self.form = doc_type
-        self._event("form_open", doc_type=doc_type, windows=[(w["title"], w["cls"]) for w in self.windows])
-        title_changed = (reply.get("fg") or {}).get("title") not in (None, before_title.get("title"))
-        if title_changed:  # 前台标题变了 = 单据窗口开了（第 2 层，不截图）
+        # 一次只开一种单据窗口：每个单据窗口各带一条工具栏，开着几个时读不准哪条（10-26 实测）。Ctrl+F4 关掉当前的
+        for _ in range(6):
+            if "[" not in fg:
+                break
+            reply = self.act([{"do": "key", "text": "ctrl+F4"}, {"do": "wait", "ms": 1200}])
+            if any("1312" in w.get("title", "") for w in self.windows):
+                self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 1000}])
+            fg = (self.act([{"do": "wait", "ms": 100}]).get("fg") or {}).get("title", "")
+        acts = [{"do": "us_layout"}, {"do": "key", "text": "alt"}, {"do": "wait", "ms": 300}]  # 先单独按 Alt 激活菜单栏
+        for k in spec["menu"]:
+            acts += [{"do": "keys", "text": k.lstrip("%")}, {"do": "wait", "ms": 400}]
+        reply = self.act(acts + [{"do": "wait", "ms": self.flows["form_open_ms"]}])
+        title = (reply.get("fg") or {}).get("title", "")
+        self._event("form_open", doc_type=doc_type, title=title[:80])
+        if spec["title"] in title:
             self._layer("win32")
         else:
-            self.checkpoint("form_open", f"已打开「{name}」单据窗口并最大化，处于浏览状态（没有在新建 / 编辑），没有弹窗。",
-                            {"form": doc_type})
+            self.checkpoint("form_open", f"已打开「{spec['title']}」单据窗口，处于浏览状态，没有弹窗。", {"form": doc_type})
+        self.form = doc_type
         self.baseline = {w["hwnd"] for w in self.windows}
+        self.labels = {}
+
+    def walk_header(self, header_text: str) -> None:
+        """表头：每按一次回车读焦点落在哪一格（句柄 → 标签），要填的格先全选再打，打完读回核对，填到 stop_after 那一格为止。"""
+        d, spec = self.draft, self.form_spec["header"]
+        values = {label: {"date": d.date_be, "party": d.party_code, "ref": d.ref_no,
+                          "vat_mode": "1" if d.vat_included else "2"}[key]
+                  for label, key in spec["values"].items()}
+        hdr = {"stage": "header"}
+        for _ in range(30):
+            st = self.state()
+            self._auto_dialogs()
+            focus = st.get("focus") or {}
+            if focus.get("hwnd") not in self.labels:
+                self.labels.update({h: f["label"] for h, f in self.field_map().items()})
+            label = self.labels.get(focus.get("hwnd"), "")
+            if not label:
+                self._recover("header", f"焦点不在表头的格子上（{focus.get('cls')}）", header_text, hdr)
+                return
+            self._layer("win32")
+            value = values.get(label)
+            if value:
+                # 下拉框（价格类型）只打首字选项，不按 Home / End（会跳到第一 / 最后一项）
+                select = [] if focus.get("cls") == "ComboBox" else [{"do": "keys", "text": "{HOME}+{END}"}]
+                self.step(f"header.{label}", select + [{"do": "type", "text": value}, {"do": "wait", "ms": 200}],
+                          header_text, hdr)
+                layer, seen = self.seen(self.state())
+                if layer == "none":
+                    self._layer("unreadable")
+                    self._unread += 1
+                elif self._value_seen(label, value, seen):
+                    self._layer(layer)
+                else:
+                    self._event("mismatch", where=label, want=value, seen=seen[:60])
+                    self._recover(f"header.{label}", f"「{label}」里是「{seen.strip()[:40]}」，应为「{value}」", header_text, hdr)
+            self.step(f"header.{label}", [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": spec.get("wait_ms", 350)}],
+                      header_text, hdr)
+            if label == spec["stop_after"]:
+                return
+        self._recover("header", "回车 30 次还没走到表头最后一格", header_text, hdr)
+
+    def _cell(self) -> Dict:
+        st = self.state()
+        self._auto_dialogs()
+        return st.get("focus") or {}
+
+    def _type_cell(self, where: str, value: str, line_text: str) -> Dict:
+        self.step(where, [{"do": "keys", "text": "{HOME}+{END}"}, {"do": "type", "text": value}, {"do": "wait", "ms": 200}],
+                  line_text, {"stage": "line"})
+        st = self.state()
+        self._auto_dialogs()
+        layer, seen = self.seen(st)
+        if layer == "none":
+            self._layer("unreadable")
+            self._unread += 1
+        elif same(value, seen):
+            self._layer(layer)
+        else:
+            self._event("mismatch", where=where, want=value, seen=seen[:60])
+            self._recover(where, f"格子里是「{seen.strip()[:40]}」，应为「{value}」", line_text, {"stage": "line"})
+        return st.get("focus") or {}
+
+    @staticmethod
+    def seen(st: Dict) -> Tuple[str, str]:
+        """焦点格的内容：先 Win32（WM_GETTEXT），读不到再 UI Automation 的值；都读不到回 ("none", "")。"""
+        text = (st.get("focus") or {}).get("text") or ""
+        if text.strip():
+            return "win32", text
+        value = (st.get("uia") or {}).get("value") or ""
+        if value.strip():
+            return "uia", value
+        return "none", ""
+
+    def enter_lines(self) -> None:
+        d, spec = self.draft, self.form_spec
+        for index, line in enumerate(d.lines, start=1):
+            where = f"line{index}"
+            # AI 接手某一行时的目标：把这一行录完整、光标停在下一行品码格；接手后这一行剩下的固定步骤跳过
+            text = (f"明细第 {index} 行已录完整：品码 {line.item_code}、仓 {line.loc or '默认'}、数量 {line.qty}、"
+                    f"单价 {line.unit_price}；光标停在下一行（第 {index + 1} 行）的品码格，这一格是空的；没有弹窗；不要保存。")
+            self._line_recovered = False
+            if index == 1:
+                self.step(where, [{"do": "grid_click", "offset": spec["grid_offset"]}, {"do": "wait", "ms": 400}], text,
+                          {"stage": "line"})
+            start = self._cell().get("rect") or [0, 0, 0, 0]
+            ops = [lambda: self._type_cell(f"{where}.item", line.item_code, text),
+                   lambda: self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 1000}], text,
+                                     {"stage": "line"}),
+                   lambda: line.loc and self._type_cell(f"{where}.loc", line.loc, text),
+                   lambda: self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 400}], text,
+                                     {"stage": "line"}),
+                   lambda: self._type_cell(f"{where}.qty", line.qty, text),
+                   lambda: self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 900}], text,
+                                     {"stage": "line"}),
+                   lambda: self.close_unit_dialog(where, text),
+                   lambda: self._type_cell(f"{where}.price", line.unit_price, text)]
+            for op in ops:
+                op()
+                if self._line_recovered:
+                    break
+            if self._line_recovered:
+                continue
+            # 单价之后回车走完这一行：焦点回到下一行的品码格（同一列、往下一行）为止，每步认弹窗
+            for _ in range(6):
+                self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 400}], text, {"stage": "line"})
+                rect = self._cell().get("rect") or [0, 0, 0, 0]
+                if abs(rect[0] - start[0]) < 8 and rect[1] > start[1] + 5:
+                    self._layer("win32")
+                    break
+            else:
+                self._recover(where, "这一行回车走不到下一行", text, {"stage": "line"})
+
+    def close_unit_dialog(self, where: str, text: str) -> None:
+        """单位框：Express 的框里回车是跳格不是确定（10-26 实测），所以按框里的「ตกลง」。"""
+        name = self.form_spec["unit_dialog"]
+        hit = [w for w in self.windows if name in self._text(w)]
+        if not hit:
+            st = self.state()
+            hit = [w for w in st.get("windows", []) if name in self._text(w)]
+        if not hit:
+            return  # 有的商品不弹单位框
+        self._layer("win32")
+        self.step(where, [{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 600}], text, {"stage": "line"})
+
+    def saved_check(self, T: str) -> str:
+        """第 2 层确认存上：单号格已是正式号（前缀 + 数字，不含 NEW）。存上了回单号，否则回空串。
+        账套文件头的行数要过一阵才刷新（10-26 实测），不拿它当判据；DBF 留到最后逐字段核对。"""
+        docnum = self.docnum_text()
+        ok = docnum.upper().startswith(T) and "NEW" not in docnum.upper() and re.search(r"\d", docnum)
+        return docnum if ok and not self.in_edit() else ""
+
+    def in_edit(self) -> bool:
+        """编辑 / 新建中：「保存」亮着（一次只开一个单据窗口，工具栏读得准），或单号格含 NEW。
+        赊销单新建后单号格先只显示「IV」，录了客户才变成 IV**NEW**（10-26 实测），所以两样看一样即可。"""
+        return self.flows["commands"]["save"] in self.toolbar_on() or "NEW" in self.docnum_text().upper()
+
+    def docnum_text(self) -> str:
+        box = [f for f in self.field_map().values() if f["label"] == self.form_spec["docnum_label"]]
+        return box[0]["text"].strip() if box else ""
+
+    def check_totals(self, before_text: str) -> bool:
+        """保存前读底部合计（不截图）：税前、税、含税都和草稿单对上才存。读不到才截图。"""
+        want = self.draft.totals()
+        boxes = {}
+        for f in self.field_map().values():
+            if f["label"]:
+                boxes.setdefault(f["label"], []).append(f)
+        problems, read = [], 0
+        for key, label in self.form_spec["totals"].items():
+            cands = sorted(boxes.get(label, []), key=lambda f: f["rect"][0])
+            if not cands:
+                continue
+            seen = re.sub(r"[^\d.\-]", "", cands[-1]["text"])  # 同一行有比率和金额两格时取最右的金额格
+            if not seen:
+                continue
+            read += 1
+            if Decimal(seen) != want[key]:
+                problems.append(f"{label} 是 {seen}，应为 {want[key]}")
+        if read and not problems:
+            self._layer("win32")
+            return False
+        if problems:
+            self._recover("before_save", "；".join(problems), before_text, {"stage": "before_save", "total": str(want["total"])})
+        else:
+            self.checkpoint("before_save", before_text, {"stage": "before_save", "lines": len(self.draft.lines),
+                                                         "total": str(want["total"])})
+        return True  # 已经看过一眼了
 
     def _fmt(self, text: str, line=None) -> str:
         d = self.draft
@@ -446,88 +638,73 @@ class Engine:
         return text.format(**values)
 
     def run_fixed(self) -> None:
-        d, f = self.draft, self.flows
+        d = self.draft
         T, name = d.doc_type, DOC_NAMES[d.doc_type]
         self.ensure_form(T)
-        self.act([{"do": "activate"}, {"do": "us_layout"}])
-        header_text = (f"正在新建一张{name}（单号显示 {T}NEW），表头对方码 {d.party_code}、日期 {d.date_be}"
-                       + (f"、对方单号 {d.ref_no}" if d.ref_no else "") + "，明细还是空的，没有弹窗。")
-        hdr = {"stage": "header"}
-        self.step("new", self._command("new") + [{"do": "wait", "ms": 1500}], header_text, hdr)
-        for field in f["header"][T]:
-            spec = f["header_fields"][field]
-            value = self._fmt(spec["value"])
-            if spec.get("skip_if_empty") and not value:
-                continue
-            acts = self._reach(spec.get("reach", "enter"), f"{T}.{field}")
-            if spec.get("select_all"):
-                acts.append({"do": "keys", "text": "{HOME}+{END}"})
-            acts.append({"do": "type", "text": value})
-            self.step(f"header.{field}", acts, header_text, hdr)
-            self.verify_typed(f"header.{field}", value, header_text, hdr)
-            self.step(f"header.{field}", [{"do": "keys", "text": spec["after"]}, {"do": "wait", "ms": spec["wait_ms"]}],
-                      header_text, hdr)
-        grid = f["to_grid"]
-        acts = self._reach(grid["reach"], f"{T}.grid") + ([{"do": "keys", "text": grid["keys"]}] if grid.get("keys")
-                                                          and grid["reach"] != "click" else [])
-        if acts:
-            self.step("to_grid", acts + [{"do": "wait", "ms": 400}], header_text, hdr)
-        for index, line in enumerate(d.lines, start=1):
-            line_text = (f"明细已录到第 {index} 行：品码 {line.item_code}、数量 {line.qty}、单价 {line.unit_price}；"
-                         f"光标在下一行的品码格，没有弹窗。")
-            for op in f["line"]:
-                self._line_op(op, line, f"line{index}", line_text)
-        for op in f["after_lines"]:
-            self.step("after_lines", [{"do": "keys", "text": op["text"]}, {"do": "wait", "ms": op["wait_ms"]}],
-                      "明细录完，空行已退掉", {"stage": "lines_done"})
+        cmds = self.flows["commands"]
+        header_text = (f"正在新建一张{name}（单号显示 {T}**NEW**），表头对方码 {d.party_code}、日期 {d.date_be}"
+                       + (f"、对方单号 {d.ref_no}" if d.ref_no else "") + "，没有弹窗。")
+        self.command("new")
+        self.act([{"do": "wait", "ms": 1200}])
+        if self.in_edit():
+            self._layer("win32")  # 「保存」亮了，或单号格变成「前缀**NEW**」= 进了新建状态
+        else:
+            self._recover("new", "点新建后没进新建状态", header_text, {"stage": "header"})
+        self.walk_header(header_text)
+        self.enter_lines()
         totals = d.totals()
-        if self.presave_check == "always" or (self.presave_check == "auto" and self._unread):
-            self.checkpoint("before_save",
-                            f"新建中的{name}，明细共 {len(d.lines)} 行，含税合计 {totals['total']}，没有弹窗，还没保存。",
-                            {"stage": "before_save", "lines": len(d.lines), "total": str(totals["total"])})
-        saved_text = f"刚保存的{name}已有正式单号（不再是 {T}NEW），没有弹窗。"
-        head = d.spec["head"]
-        before = self.act([{"do": "book_counts", "book": self.book}], windows=False)["results"][0]["counts"]
-        self.step("save", self._command("save") + [{"do": "wait", "ms": f["save_wait_ms"]}], saved_text,
-                  {"stage": "saved", "saved": True})
-        after = self.act([{"do": "book_counts", "book": self.book}], windows=False)["results"][0]["counts"]
-        if after.get(head, 0) > before.get(head, 0):
-            self._layer("dbf")
+        before_text = f"新建中的{name}，明细共 {len(d.lines)} 行，含税合计 {totals['total']}，没有弹窗，还没保存。"
+        looked = self.check_totals(before_text)
+        if not looked and (self._unread and self.presave_check == "auto" or self.presave_check == "always"):
+            self.checkpoint("before_save", before_text, {"stage": "before_save", "lines": len(d.lines),
+                                                         "total": str(totals["total"])})
+        saved_text = f"单号栏是正式单号（{T} 后面跟数字，不含 NEW），没有弹窗。"
+        self.command("save")
+        self.act([{"do": "wait", "ms": self.flows["save_wait_ms"]}])
+        try:
+            self._auto_dialogs()
+        except Unexpected as e:
+            self._recover("save", str(e), saved_text, {"stage": "saved", "saved": True},
+                          reverify=lambda: self.saved_check(T) or None)
+        saved = False
+        for _ in range(8):
+            saved = self.saved_check(T)
+            if saved:
+                break
+            self.act([{"do": "wait", "ms": 600}], windows=False)
+            self._auto_dialogs()
+        docnum = saved or ""
+        if saved:
+            self._layer("win32")
+            self._event("saved", docnum=docnum)
         else:
             self.checkpoint("after_save", saved_text, {"stage": "saved", "saved": True})
         if self.evidence:
             self.screenshot("saved", for_ai=False)
 
-    def _line_op(self, op: Dict, line, where: str, line_text: str) -> None:
-        expect = {"stage": "line"}
-        kind = op["op"]
-        if kind == "type":
-            value = self._fmt(op["text"], line)
-            self.step(where, [{"do": "type", "text": value}], line_text, expect)
-            self.verify_typed(where, value, line_text, expect)
-        elif kind == "keys":
-            self.step(where, [{"do": "keys", "text": op["text"]}, {"do": "wait", "ms": op.get("wait_ms", 300)}],
-                      line_text, expect)
-        elif kind == "loc":
-            if line.loc:
-                self.step(where, [{"do": "keys", "text": "{HOME}+{END}"}, {"do": "type", "text": line.loc}],
-                          line_text, expect)
-                self.verify_typed(where, line.loc, line_text, expect)
-            self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 400}], line_text, expect)
-        elif kind == "expect_dialog":
-            found = [w for w in self._dialogs() if (self._match(w) or {}).get("name") == op["name"]]
-            if found:
-                self.dialogs_visible = True
-                self._layer("win32")
-            elif self.dialogs_visible:
-                self._recover(where, f"该出的「{op['name']}」框没出现", line_text, expect)
-                return
-            else:
-                self.dialogs_visible = False if self.dialogs_visible is None else self.dialogs_visible
-            self.step(where, [{"do": "keys", "text": op["keys"]}, {"do": "wait", "ms": op.get("wait_ms", 500)}],
-                      line_text, expect)
-        else:
-            raise ValueError(f"流程里不认识的步骤 {kind}")
+    def abandon(self) -> None:
+        """单据被业务规则拦下：关掉弹窗、整张取消（不存）。取消也要读「1312 确认取消」框按「ตกลง」，不用 Esc（Esc 会存）。"""
+        try:
+            for w in self._dialogs():
+                if "ตกลง" in " ".join(w.get("texts", [])).replace("&", ""):
+                    self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 600}])
+            if self.in_edit():
+                self.command("cancel")
+                self.act([{"do": "wait", "ms": 900}])
+                if any("1312" in w.get("title", "") for w in self.windows):
+                    self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 900}])
+            # 已有明细时 Express 的「取消」会直接存档（10-26 实测 RR0000010）：存了就用作废命令作废，单号作废不复用
+            docnum = self.saved_check(self.draft.doc_type)
+            if docnum:
+                self.command("void")
+                self.act([{"do": "wait", "ms": 1000}])
+                if any("ยกเลิกเอกสาร" in " ".join(w.get("texts", [])) for w in self._dialogs()):
+                    self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 1500}])
+                self._event("voided", docnum=docnum)
+            self._event("abandon", ok=not self.in_edit())
+        except Exception as e:  # noqa: BLE001
+            self._event("abandon", ok=False, error=str(e)[:200])
+            self.form = None
 
     def run_vision(self) -> None:
         model, turns, effort = self.mode["vision"]
@@ -562,6 +739,7 @@ class Engine:
             outcome, self.rec["human"], self.rec["stuck_at"] = "need_human", 1, f"{e.where}: {e.why}"[:300]
         except Blocked as e:
             outcome, self.rec["blocked"], self.rec["stuck_at"] = "blocked", True, str(e)[:300]
+            self.abandon()
         except Crash as e:
             outcome, self.rec["crashed"], self.rec["stuck_at"] = "crash", True, str(e)[:300]
         except BudgetStop as e:

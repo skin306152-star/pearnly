@@ -1,7 +1,14 @@
-"""离线自检用：假 Express（实现和测试机代理同一个 act 接口）+ 假模型（按模拟器状态回答，回同样形状的响应）。
+"""离线自检用：假 Express（实现和执行代理同一个 act 接口）+ 假模型（按模拟器状态回答，回同样形状的响应）。
 
-不是 Express 的仿真，只模拟执行器要面对的几件事：菜单开单据窗、点工具栏、表头回车跳格、明细格顺序、
-单位框、4079、陌生弹窗、弹窗是否是独立窗口、负库存拦截、-70 崩溃、保存写账。用来验证执行器的流程、接手、记账、核对逻辑。
+按 10-26 在 69EXP\\test 上实测的录法，模拟执行器要面对的事（不是 Express 的仿真）：
+- 菜单：先单独按 Alt 再按数字；单据窗口开着时 Alt+数字 弹 Message#.40；Ctrl+F4 关单据窗口；
+- 工具栏命令号（新建 53504 / 保存 53507 / 取消 53512 / 作废 53515）；编辑中「保存」才亮；
+- 表头按回车逐格跳（标签顺序照实测）；单号格新建后是「前缀**NEW**」（赊销 / 现销先只显示前缀，录了客户才带 NEW）；
+  日期打「日/月/佛历两位年」，格子里读出来是「公历 yyyymmdd」；对方码不存在回车弹选择框；
+  价格类型是下拉框，录了对方后跟对方主档变（inject「incl_party:X」= 这家默认含税）；
+- 明细表格回车进不去，要 grid_click；单位框里回车是跳到「倍数」格（打字会进倍数格），要按「ตกลง」；
+- 已有明细时按 Esc 或「取消」会直接存档（陷阱）；保存后单号变正式号；
+- 弹窗：单位框、4079 / 4108（提醒）、1029（对方单号已存在，提醒）、陌生弹窗、4224（负库存拦）、-70（崩）。
 """
 from __future__ import annotations
 
@@ -15,16 +22,30 @@ from typing import Dict, List, Optional
 
 from .draft import Draft, money
 
+NEW, SAVE, CANCEL, VOID = 53504, 53507, 53512, 53515
 GRID_COLS = ["item", "loc", "qty", "price", "disc", "amount"]
-CELL_W, ROW_H = 120, 22
+HEADERS = {
+    "RR": ["แผนก", "เลขที่ใบรับสินค้า", "วันที่", "ผู้จำหน่าย", "Bill be", "สาขา#", "อ้างถึงใบสั่งซื้อ", "เลขที่บิล", "ลวท.",
+           "หมายเหตุ", "เครดิต", "ครบกำหนด", "ขนส่งโดย", "ประเภทราคา"],
+    "HP": ["แผนก", "เลขที่ใบซื้อสด", "วันที่", "ผู้จำหน่าย", "Bill be", "สาขา#", "อ้างถึงใบสั่งซื้อ", "เลขที่บิล", "ลวท.",
+           "หมายเหตุ", "ขนส่งโดย", "ประเภทราคา"],
+    "IV": ["แผนก", "เลขที่เอกสาร", "วันที่", "รหัสลูกค้า", "Bill to", "สาขา#", "ใบสั่งขาย", "อ้างอิง", "เครดิต", "ครบกำหนด",
+           "พนักงานขาย", "เขตการขาย", "ขนส่งโดย", "ประเภทราคา"],
+    "HS": ["แผนก", "บิลเงินสด#", "วันที่", "รหัสลูกค้า", "Bill to", "สาขา#", "ใบสั่งขาย", "พนักงานขาย", "เขตการขาย",
+           "ขนส่งโดย", "อ้างอิง", "ประเภทราคา"],
+}
+PARTY = {"RR": "ผู้จำหน่าย", "HP": "ผู้จำหน่าย", "IV": "รหัสลูกค้า", "HS": "รหัสลูกค้า"}
+DATES = {"วันที่", "ลวท."}
+PRICE = "ประเภทราคา"
+PRICE_TEXT = {"1": "1 - รวม VAT", "2": "2 - แยก VAT"}
+TOOLBAR_XY = {NEW: (35, 103), SAVE: (274, 103), CANCEL: (229, 103)}  # 全程看图时模型点的位置（屏幕坐标）
 
 
 def tiny_png() -> str:
     def chunk(tag, data):
         return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-    raw = zlib.compress(b"\0\xff\xff\xff")
     png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
-           + chunk(b"IDAT", raw) + chunk(b"IEND", b""))
+           + chunk(b"IDAT", zlib.compress(b"\0\xff\xff\xff")) + chunk(b"IEND", b""))
     return base64.b64encode(png).decode()
 
 
@@ -49,21 +70,28 @@ def _tokens(spec: str) -> List[str]:
     return out
 
 
+def _date_text(typed: str) -> str:
+    try:
+        d, m, y = typed.strip().split("/")
+        return dt.date(int(y) + 2500 - 543, int(m), int(d)).strftime("%Y%m%d")
+    except (ValueError, TypeError):
+        return typed
+
+
 class FakeExpress:
     def __init__(self, flows: Dict, *, dialogs_visible: bool = True, inject: Optional[Dict] = None,
-                 vat_inclusive=("HS",), readable: str = "win32"):
+                 readable: str = "win32", parties=("P001", "P002", "LEA", "เรือน001", "5001", "CASH", "นาย\xa0ทดสอบ")):
         self.flows = flows
-        self.anchors = {k: tuple(a["xy"]) for k, a in flows["anchors"].items() if a.get("xy")}
         self.dialogs_visible = dialogs_visible
         self.readable = readable  # 焦点格内容从哪读得到：win32 / uia / none
-        self.inject = inject or {}  # {"party:P002": {...弹窗}, "crash_on_save:5001": True, "block_item:X": True, "typo_qty:DOCID": "50"}
-        self.vat_inclusive = vat_inclusive
-        self.menu: List[str] = []
+        self.inject = inject or {}
+        self.parties = set(parties)
+        self.menu_active, self.menu = False, []
         self.form: Optional[str] = None
         self.editing = False
         self.head: Dict[str, str] = {}
         self.grid: List[Dict[str, str]] = []
-        self.focus = None
+        self.focus = None  # ("head", 标签) / ("grid", 行, 列) / ("unit", 格)
         self.select_all = False
         self.dialogs: List[Dict] = []
         self.hwnd_seq = 500
@@ -71,63 +99,100 @@ class FakeExpress:
         self.sold = set()
         self.counters: Dict[str, int] = {}
         self.book: Dict[str, List[Dict]] = {"APTRN": [], "ARTRN": [], "STCRD": [], "ISVAT": []}
-        self.last_docnum = ""
+        self.refs = set()
         self.cursor = [0, 0]
         self.current_doc_id = ""
+        self.unit_mult = "1.000"
+        self.trap_saves = 0  # 被 Esc / 取消直接存档的次数
 
     # ── 画面 ───────────────────────────────────────────────────────────────
-    def dialog(self, name: str, text: str, after=None) -> None:
+    def title(self) -> str:
+        if self.dialogs:
+            return self.dialogs[-1]["title"]
+        if self.form:
+            name = self.flows["forms"][self.form]["title"]
+            return f"Express Accounting - {name} - [{name}]"
+        return "Express Accounting"
+
+    def dialog(self, name: str, title: str, text: str, buttons=("ตกลง",), after=None) -> None:
         self.hwnd_seq += 1
-        self.dialogs.append({"hwnd": self.hwnd_seq, "name": name, "text": text, "after": after})
+        self.dialogs.append({"hwnd": self.hwnd_seq, "name": name, "title": title, "text": text, "buttons": list(buttons),
+                             "after": after})
 
     def windows(self) -> List[Dict]:
         if not self.alive:
             return []
-        out = [{"hwnd": 100, "title": "Express Accounting", "cls": "ExpressMain", "rect": [0, 0, 1920, 1040],
+        out = [{"hwnd": 100, "title": "Express Accounting", "cls": "Afx:400000:8", "rect": [0, 0, 1920, 1040],
                 "owned": False, "texts": []}]
         if self.dialogs_visible:
-            out += [{"hwnd": d["hwnd"], "title": "Message", "cls": "#32770", "rect": [700, 400, 1200, 560],
-                     "owned": True, "texts": [d["text"]]} for d in self.dialogs]
+            out += [{"hwnd": d["hwnd"], "title": d["title"], "cls": "#32770", "rect": [700, 400, 1200, 560],
+                     "owned": True, "texts": [d["text"]] + ["&" + b for b in d["buttons"]]} for d in self.dialogs]
         return out
 
-    def cell_xy(self, row: int, col: str) -> List[int]:
-        gx, gy = self.anchors[f"{self.form}.grid"]
-        return [gx + GRID_COLS.index(col) * CELL_W, gy + row * ROW_H]
+    def labels(self) -> List[str]:
+        return HEADERS[self.form] if self.form else []
+
+    def docnum_label(self) -> str:
+        return self.flows["forms"][self.form]["docnum_label"]
+
+    def incl(self) -> bool:
+        return self.head.get(PRICE, "").startswith("1")
 
     def complete_rows(self) -> List[Dict]:
         return [r for r in self.grid if r.get("item") and r.get("qty") and r.get("price")]
 
-    def total(self) -> Decimal:
+    def totals(self) -> Dict[str, Decimal]:
         gross = sum((money(Decimal(r["qty"]) * Decimal(r["price"])) for r in self.complete_rows()), Decimal(0))
-        if self.form in self.vat_inclusive:
-            return gross
-        return gross + money(gross * Decimal("0.07"))
+        if self.incl():
+            vat = money(gross * 7 / Decimal(107))
+            return {"net": gross - vat, "vat": vat, "total": gross, "shown": gross}
+        vat = money(gross * Decimal("0.07"))
+        return {"net": gross, "vat": vat, "total": gross + vat, "shown": gross}
 
-    def focus_value(self) -> str:
-        if self.dialogs or self.focus is None:
-            return ""
+    def fields(self) -> List[Dict]:
+        out = []
+        for i, label in enumerate(self.labels()):
+            out.append({"hwnd": 1000 + i, "cls": "ComboBox" if label == PRICE else "Edit",
+                        "rect": [200, 100 + i * 30, 360, 128 + i * 30], "text": self.head.get(label, ""), "label": label})
+        if self.form:
+            t = self.totals()
+            for j, (label, key) in enumerate((("จำนวนเงิน", "shown"), ("%", "vat"), ("จำนวนเงินรวมทั้งสิ้น", "total"))):
+                out.append({"hwnd": 2000 + j, "cls": "Edit", "rect": [1694, 800 + j * 34, 1852, 832 + j * 34],
+                            "text": f"{t[key]:.2f}", "label": label})
+        return out
+
+    def focus_info(self) -> Dict:
+        if self.dialogs:
+            unit = self.focus and self.focus[0] == "unit"
+            return {"hwnd": self.dialogs[-1]["hwnd"] + 1, "cls": "Edit", "text": self.unit_mult if unit else "",
+                    "rect": [800, 450, 900, 480]}
+        if self.focus is None:
+            return {"hwnd": 0, "cls": "", "text": "", "rect": None}
         if self.focus[0] == "head":
-            return self.head.get(self.focus[1], "")
+            i = self.labels().index(self.focus[1])
+            return {"hwnd": 1000 + i, "cls": "ComboBox" if self.focus[1] == PRICE else "Edit",
+                    "text": self.head.get(self.focus[1], ""), "rect": [200, 100 + i * 30, 360, 128 + i * 30]}
         _, row, col = self.focus
-        return self.grid[row].get(col, "") if row < len(self.grid) else ""
-
-    def title(self) -> str:
-        return f"Express - {self.form}" if self.form else "Express"
+        cell = self.grid[row].get(col, "") if row < len(self.grid) else ""
+        x = 100 + GRID_COLS.index(col) * 150
+        return {"hwnd": 5000, "cls": "Edit", "text": cell, "rect": [x, 470 + row * 30, x + 140, 498 + row * 30]}
 
     # ── 输入 ───────────────────────────────────────────────────────────────
-    def _header_order(self) -> List[str]:
-        return self.flows["header"][self.form]
-
-    def _set_focus(self, focus) -> None:
-        self.focus = focus
-        self.select_all = True
-
     def _type(self, text: str) -> None:
-        if self.dialogs or self.focus is None:
-            return  # 有弹窗时字被吞掉
+        if self.dialogs:
+            if self.dialogs[-1]["name"] == "unit" and self.focus == ("unit", "mult"):
+                self.unit_mult = text  # 单位框里打字进「倍数」格（实测陷阱）
+            return
+        if self.focus is None:
+            return
         if self.focus[0] == "head":
-            key = self.focus[1]
-            self.head[key] = text if self.select_all else self.head.get(key, "") + text
+            label = self.focus[1]
+            if label == PRICE:
+                self.head[label] = PRICE_TEXT.get(text[:1], self.head.get(label, ""))
+            elif label in DATES and self.select_all:
+                self.head[label] = _date_text(text)
+            else:
+                self.head[label] = ("" if self.select_all else self.head.get(label, "")) + text
         else:
             _, row, col = self.focus
             while len(self.grid) <= row:
@@ -138,42 +203,67 @@ class FakeExpress:
             cell[col] = text if self.select_all else cell.get(col, "") + text
         self.select_all = False
 
+    def _set_focus(self, focus) -> None:
+        self.focus = focus
+        self.select_all = False
+
     def _enter(self) -> None:
         if self.dialogs:
-            d = self.dialogs.pop()
-            if d.get("after"):
-                d["after"]()
+            d = self.dialogs[-1]
+            if d["name"] == "unit":  # 单位框：回车跳到「倍数」格，不关框
+                self.focus, self.select_all = ("unit", "mult"), True
+                return
+            if d["name"] != "picker":
+                self._press(d, d["buttons"][0])
             return
         if self.focus is None:
             return
         if self.focus[0] == "head":
-            order = self._header_order()
-            key = self.focus[1]
-            spec = f"party:{self.head.get('party', '')}"
-            if key == "party" and spec in self.inject:
-                info = self.inject.pop(spec)
-                self.dialog("unknown", info["text"])
-            nxt = order.index(key) + 1 if key in order else len(order)
+            label = self.focus[1]
+            order = self.labels()
+            if label == PARTY[self.form]:
+                code = self.head.get(label, "").strip()
+                if f"party:{code}" in self.inject:
+                    self.dialog("unknown", "ExpressI", self.inject.pop(f"party:{code}")["text"])
+                if code not in self.parties:
+                    self.dialog("picker", "", "ค้นหา", buttons=("ตกลง", "ยกเลิก", "เพิ่ม <Alt+&A>", "เรียงใหม่ <Tab>"))
+                    return
+                if f"incl_party:{code}" in self.inject:
+                    self.head[PRICE] = PRICE_TEXT["1"]  # 价格类型跟着对方主档变
+                if self.form in ("IV", "HS"):
+                    self.head[self.docnum_label()] = f"{self.form}**NEW**"
+            if label == "เลขที่บิล":
+                ref = self.head.get(label, "").strip()
+                if ref and ref in self.refs:
+                    self.dialog("1029", "Message#. 1029", f"รหัส '{ref}' นี้มีอยู่แล้ว")
+            nxt = order.index(label) + 1
             self._set_focus(("head", order[nxt]) if nxt < len(order) else None)
             return
         _, row, col = self.focus
-        cell = self.grid[row]
+        cell = self.grid[row] if row < len(self.grid) else {}
         if col == "item":
             if f"block_item:{cell.get('item')}" in self.inject:
-                self.dialog("neg", "Message#4224 ยอดคงเหลือของสินค้าติดลบ")
+                self.dialog("neg", "Message#. 4224", "ยอดคงเหลือของสินค้าติดลบ")
             cell.setdefault("loc", "01")
             self._set_focus(("grid", row, "loc"))
         elif col == "loc":
             self._set_focus(("grid", row, "qty"))
         elif col == "qty":
             def after_unit():
-                key = (self.head.get("party"), cell.get("item"))
-                if self.form in ("IV", "HS") and key not in self.sold:
-                    self.sold.add(key)
-                    self.dialog("4079", "Message#4079 ลูกค้ารายนี้ไม่เคยซื้อสินค้านี้ กรุณาระบุราคา")
-            self.dialog("unit", "ป้อนหน่วยนับที่ขาย / ซื้อ", after=after_unit)
-            self._set_focus(("grid", row, "price"))
+                party = self.head.get(PARTY[self.form], "")
+                if self.form in ("IV", "HS") and (party, cell.get("item")) not in self.sold:
+                    self.sold.add((party, cell.get("item")))
+                    self.dialog("4079", "Message#. 4079", "ลูกค้ารายนี้ไม่เคยซื้อสินค้านี้")
+                if f"warn4108:{party}" in self.inject:
+                    self.dialog("4108", "Message#. 4108", "คำเตือน! ไม่มีประวัติการซื้อจากผู้จำหน่ายรายนี้")
+            self.unit_mult = "1.000"
+            self.dialog("unit", "ป้อนหน่วยนับที่ซื้อ", "หน่วยย่อยนับเป็น", buttons=("ตกลง", "ยกเลิก"), after=after_unit)
+            self.dialogs[-1]["row"] = row
+            self.focus = ("grid", row, "price")
         elif col == "price":
+            if Decimal(cell.get("price") or 0) == 0:
+                self.dialog("free", "ExpressI", "ไม่ได้ป้อนราคา... เป็นรายการแถมใช่หรือไม่?", buttons=("ป้อนใหม่", "ของแถม"))
+                return
             self._set_focus(("grid", row, "disc"))
         elif col == "disc":
             self._set_focus(("grid", row, "amount"))
@@ -181,32 +271,46 @@ class FakeExpress:
             self.grid.append({})
             self._set_focus(("grid", row + 1, "item"))
 
-    def _esc(self) -> None:
-        if self.dialogs:
-            self.dialogs.pop()
-            return
-        if self.focus and self.focus[0] == "grid":
-            row = self.focus[1]
-            if row < len(self.grid) and not any(self.grid[row].get(c) for c in ("item", "qty", "price")):
-                self.grid.pop(row)
-                self.focus = None
+    def _press(self, d: Dict, button: str) -> None:
+        self.dialogs.remove(d)
+        if d["name"] == "unit":
+            if button == "ตกลง" and d.get("after"):
+                d["after"]()
+            self.focus, self.select_all = ("grid", d.get("row", 0), "price"), True
+        elif d["name"] == "1312" and button == "ตกลง":
+            self.editing, self.head, self.grid, self.focus = False, {}, [], None
+        elif d["name"] == "void" and button == "ตกลง":
+            self._void()
+        elif d["name"] == "smb":
+            self.alive = False
 
-    def _key(self, token: str) -> None:
-        if token.startswith("%") and len(token) == 2:
-            self.menu = [token]
-            return
-        if self.menu and len(token) == 1 and token.isdigit():
-            self.menu.append(token)
-            for doc_type, path in self.flows["menus"].items():
-                if self.menu == path:
-                    self.form, self.editing, self.menu = doc_type, False, []
-            return
-        self.menu = []
+    def _trap_save(self) -> None:
+        """实测陷阱：已有明细时按 Esc 或「取消」会直接存档。"""
+        self.trap_saves += 1
+        self._save()
+
+    def _key_token(self, token: str) -> None:
         name = token.lstrip("+^%")
+        if self.menu_active and len(name) == 1 and name.isalnum():
+            self.menu.append(name)
+            for doc_type, spec in self.flows["forms"].items():
+                if self.menu == [k.lstrip("%") for k in spec["menu"]]:
+                    self.form, self.editing, self.menu_active, self.menu = doc_type, False, False, []
+                    self.head, self.grid, self.focus = {}, [], None
+            return
+        if token.startswith("%") and len(token) == 2:
+            if self.form:
+                self.dialog("40", "Message#. 40", "กรุณาสร้างแบบฟอร์มจากต้นฉบับ")  # 单据窗口开着时 Alt+数字 是窗口快捷键
+            else:
+                self.menu_active, self.menu = True, [name]
+            return
         if name == "{ENTER}":
             self._enter()
         elif name == "{ESC}":
-            self._esc()
+            if self.dialogs:
+                self.dialogs.pop()
+            elif self.editing and self.grid:
+                self._trap_save()
         elif name in ("{HOME}", "{END}"):
             self.select_all = True
         elif name == "{TAB}":
@@ -214,91 +318,150 @@ class FakeExpress:
         elif len(name) == 1:
             self._type(name)
 
-    def _click(self, x: int, y: int) -> None:
+    def _command(self, cmd: int) -> None:
         if self.dialogs:
             return
-        hit = None
-        for name, (ax, ay) in self.anchors.items():
-            if abs(ax - x) <= 15 and abs(ay - y) <= 10:
-                if name.startswith("toolbar.") or name.startswith(f"{self.form}."):
-                    hit = name
-                    break
-        if hit == "toolbar.new" and self.form and not self.editing:
-            self.editing, self.head, self.grid, self.focus = True, {}, [], ("head", "party")
-        elif hit == "toolbar.save" and self.editing:
+        if cmd == NEW and self.form and not self.editing:
+            self.editing, self.grid = True, []
+            self.head = {label: "" for label in self.labels()}
+            self.head["วันที่"] = "20261026"
+            self.head[self.docnum_label()] = self.form if self.form in ("IV", "HS") else f"{self.form}**NEW**"
+            self.head[PRICE] = PRICE_TEXT["1"] if self.form == "HS" else PRICE_TEXT["2"]
+            self._set_focus(("head", "แผนก"))
+        elif cmd == SAVE and self.editing:
             self._save()
-        elif hit == "toolbar.cancel":
-            self.editing, self.focus = False, None
-        elif hit and hit.endswith(".grid") and self.editing:
-            self._set_focus(("grid", 0, "item"))
-        elif hit and self.editing:
-            self._set_focus(("head", hit.split(".", 1)[1]))
-        elif self.editing and self.form:
-            gx, gy = self.anchors[f"{self.form}.grid"]
-            col, row = round((x - gx) / CELL_W), round((y - gy) / ROW_H)
-            if 0 <= col < len(GRID_COLS) and 0 <= row <= len(self.grid):
-                self._set_focus(("grid", row, GRID_COLS[col]))
+        elif cmd == CANCEL and self.editing:
+            if self.complete_rows():
+                self._trap_save()
+            else:
+                self.dialog("1312", "Message#. 1312", "กรุณายืนยัน เพื่อยกเลิกการเพิ่มหรือแก้ไข", buttons=("ตกลง", "ยกเลิก"))
+        elif cmd == VOID and not self.editing and self.head.get(self.docnum_label() if self.form else "", "")[2:].isdigit():
+            self.dialog("void", "ExpressI", "กรุณาเลือกตกลง เพื่อยืนยันให้ยกเลิกเอกสาร", buttons=("ตกลง", "ยกเลิก"))
 
     def _save(self) -> None:
-        party = self.head.get("party", "")
+        party = self.head.get(PARTY[self.form], "").strip()
         if f"crash_on_save:{party}" in self.inject:
-            self.dialog("smb", r"Error -70 (90621) Reading File \\ACCSERVER\D$\ACCOUNT\69EXP\TEST\STMAS.CDX")
+            self.dialog("smb", "ExpressI", r"Error -70 (90621) Reading File \\ACCSERVER\ACCOUNT\69EXP\TEST\STMAS.CDX")
             return
         rows = self.complete_rows()
-        if not party or not rows:
-            self.dialog("unknown", "กรุณาระบุข้อมูลให้ครบ")
-            return
         T = self.form
         self.counters[T] = self.counters.get(T, 0) + 1
         docnum = f"{T}{self.counters[T]:07d}"
-        d, m, y = self.head.get("docdate", "01/01/69").split("/")
-        day = dt.date(int(y) + 2500 - 543, int(m), int(d))
-        gross = sum((money(Decimal(r["qty"]) * Decimal(r["price"])) for r in rows), Decimal(0))
-        if T in self.vat_inclusive:
-            vat = money(gross * Decimal(7) / Decimal(107))
-            net, total = gross - vat, gross
-        else:
-            vat = money(gross * Decimal("0.07"))
-            net, total = gross, gross + vat
-        head_table = "APTRN" if T in ("RR", "HP") else "ARTRN"
-        party_col, ref_col = ("SUPCOD", "REFNUM") if head_table == "APTRN" else ("CUSCOD", "YOUREF")
-        self.book[head_table].append({"_row": len(self.book[head_table]), "_del": False, "DOCNUM": docnum,
-                                      "DOCDAT": day.isoformat(), party_col: party,
-                                      ref_col: self.head.get("billno", ""), "NETVAL": float(net),
-                                      "VATAMT": float(vat), "NETAMT": float(total)})
+        dd = self.head.get("วันที่", "20261026")
+        day = dt.date(int(dd[:4]), int(dd[4:6]), int(dd[6:8])) if dd.isdigit() and len(dd) == 8 else dt.date(2026, 1, 1)
+        t = self.totals()
+        table = "APTRN" if T in ("RR", "HP") else "ARTRN"
+        party_col, ref_col = ("SUPCOD", "REFNUM") if table == "APTRN" else ("CUSCOD", "YOUREF")
+        ref = self.head.get("เลขที่บิล", "").strip()
+        self.refs.add(ref)
+        self.book[table].append({"_row": len(self.book[table]), "_del": False, "DOCNUM": docnum, "DOCSTAT": "N",
+                                 "DOCDAT": day.isoformat(), party_col: party, ref_col: ref, "NETVAL": float(t["net"]),
+                                 "VATAMT": float(t["vat"]), "NETAMT": float(t["total"])})
         for i, r in enumerate(rows, start=1):
-            self.book["STCRD"].append({"_row": len(self.book["STCRD"]), "_del": False, "DOCNUM": docnum,
-                                       "SEQNUM": str(i), "STKCOD": r["item"], "LOCCOD": r.get("loc", "01"),
-                                       "TRNQTY": float(r["qty"]), "UNITPR": float(r["price"]),
+            self.book["STCRD"].append({"_row": len(self.book["STCRD"]), "_del": False, "DOCNUM": docnum, "SEQNUM": str(i),
+                                       "STKCOD": r["item"], "LOCCOD": r.get("loc", "01"), "TRNQTY": float(r["qty"]),
+                                       "UNITPR": float(r["price"]),
                                        "TRNVAL": float(money(Decimal(r["qty"]) * Decimal(r["price"])))})
-        self.book["ISVAT"].append({"_row": len(self.book["ISVAT"]), "_del": False, "DOCNUM": docnum,
-                                   "AMT01": float(net), "VAT01": float(vat)})
-        self.editing, self.focus, self.last_docnum = False, None, docnum
+        if rows:
+            self.book["ISVAT"].append({"_row": len(self.book["ISVAT"]), "_del": False, "DOCNUM": docnum,
+                                       "AMT01": float(t["net"]), "VAT01": float(t["vat"])})
+        self.head[self.docnum_label()] = docnum
+        self.editing, self.focus = False, None
+
+    def _void(self) -> None:
+        docnum = self.head.get(self.docnum_label(), "")
+        for table in ("APTRN", "ARTRN"):
+            for r in self.book[table]:
+                if r["DOCNUM"] == docnum:
+                    r.update({"DOCSTAT": "C", "NETVAL": 0.0, "VATAMT": 0.0, "NETAMT": 0.0})
+        for r in self.book["STCRD"] + self.book["ISVAT"]:
+            if r["DOCNUM"] == docnum:
+                r["_del"] = True
+
+    def _click(self, x: int, y: int) -> None:
+        if self.dialogs:
+            return
+        for cmd, (cx, cy) in TOOLBAR_XY.items():
+            if abs(cx - x) <= 15 and abs(cy - y) <= 12:
+                self._command(cmd)
+                return
+        if not self.editing:
+            return
+        for f in self.fields():
+            x0, y0, x1, y1 = f["rect"]
+            if x0 <= x <= x1 and y0 <= y <= y1 and f["label"] in self.labels():
+                self._set_focus(("head", f["label"]))
+                return
 
     # ── 代理接口 ───────────────────────────────────────────────────────────
     def do(self, a: Dict) -> Dict:
         op = a["do"]
         if not self.alive:
             raise RuntimeError("Express 没在运行")
-        if op in ("activate", "us_layout", "wait", "maximize_main", "move", "mouse", "hold", "scroll", "drag"):
+        if op in ("us_layout", "wait", "maximize_main", "move", "mouse", "hold", "scroll", "drag"):
             return {}
+        if op == "activate":
+            return {"title": self.title(), "fg": {"title": self.title(), "exe": "ExpressI.exe"}}
         if op == "keys":
             for t in _tokens(a["text"]):
-                self._key(t)
+                self._key_token(t)
             return {}
         if op == "key":
             names = {"return": "{ENTER}", "enter": "{ENTER}", "escape": "{ESC}", "tab": "{TAB}", "home": "{HOME}",
                      "end": "{END}"}
-            parts = a["text"].lower().split("+")
+            text = a["text"].lower()
             for _ in range(int(a.get("repeat", 1))):
-                if parts[0] == "alt" and len(parts) == 2:
-                    self._key("%" + parts[1])
+                if text == "alt":
+                    self.menu_active, self.menu = True, []
+                elif text == "ctrl+f4":
+                    if self.editing and self.complete_rows():
+                        self._trap_save()
+                    elif self.editing:
+                        self.dialog("1312", "Message#. 1312", "กรุณายืนยัน เพื่อยกเลิกการเพิ่มหรือแก้ไข",
+                                    buttons=("ตกลง", "ยกเลิก"))
+                    else:
+                        self.form = None
                 else:
-                    self._key(names.get(parts[-1], parts[-1]))
+                    self._key_token(names.get(text.split("+")[-1], text.split("+")[-1]))
             return {}
         if op in ("type", "paste"):
             self._type(a["text"])
             return {}
+        if op == "command":
+            if a["cmd"] == SAVE and not self.editing:
+                raise RuntimeError("命令现在是灰的")
+            self._command(a["cmd"])
+            return {"cmd": a["cmd"]}
+        if op == "toolbar":
+            on = {NEW, CANCEL} | ({SAVE} if self.editing else {VOID})
+            return {"buttons": [{"i": i, "cmd": c, "enabled": c in on, "rect": [0, 0, 0, 0], "text": "", "sep": False}
+                                for i, c in enumerate((NEW, 53505, VOID, 53506, CANCEL, SAVE))], "tips": []}
+        if op == "fields":
+            out = self.fields()
+            if self.readable == "none":  # 读不到字的模式：格子、合计都读不到（标签还在）
+                out = [dict(f, text="") for f in out]
+            return {"fields": out}
+        if op == "state":
+            f = self.focus_info()
+            seen = f["text"]
+            if self.readable != "win32":
+                f = dict(f, text="")
+            return {"fg": {"title": self.title(), "exe": "ExpressI.exe"}, "windows": self.windows(), "focus": f,
+                    "uia": {"value": seen if self.readable == "uia" else ""}}
+        if op == "grid_click":
+            if self.editing and not self.dialogs:
+                if not self.grid:
+                    self.grid.append({})
+                self._set_focus(("grid", 0, "item"))
+            return {"xy": [210, 471]}
+        if op == "dialog_button":
+            if not self.dialogs:
+                raise RuntimeError("没有弹窗")
+            d = self.dialogs[-1]
+            if a["text"] not in d["buttons"]:
+                raise RuntimeError(f"弹窗里没有「{a['text']}」")
+            self._press(d, a["text"])
+            return {"pressed": a["text"]}
         if op == "click":
             self.cursor = [a["x"], a["y"]]
             self._click(a["x"], a["y"])
@@ -315,11 +478,6 @@ class FakeExpress:
                              if k in (a.get("tables") or self.book)}}
         if op == "windows":
             return {"windows": self.windows()}
-        if op == "state":
-            value = self.focus_value()
-            return {"fg": {"title": self.title()}, "windows": self.windows(),
-                    "focus": {"text": value if self.readable == "win32" else ""},
-                    "uia": {"value": value if self.readable == "uia" else ""}}
         raise RuntimeError(f"假代理不认识 {op}")
 
     def act(self, actions: List[Dict], windows: bool = True) -> Dict:
@@ -333,8 +491,6 @@ class FakeExpress:
             except Exception as e:  # noqa: BLE001
                 failed = True
                 results.append({"ok": False, "error": str(e)})
-        if any(d["name"] == "smb" for d in self.dialogs):
-            pass
         out = {"results": results, "ms": 1}
         if windows:
             out["windows"] = self.windows()
@@ -360,36 +516,56 @@ class _Resp:
 
 class FakeClaude:
     """按模拟器真实状态回答。``haiku_gives_up=True`` 时 Haiku 接手一律 escalate（测升级到 Opus）；
-    ``blind=True`` 时核对一律说「相符」（测读回能不能查出录错）。"""
+    ``blind=True`` 时截图核对一律说「相符」（测读回能不能查出录错）。
+    接手时直接把模拟器改成草稿单的样子（模型具体怎么点不是这里要测的；要测的是执行器的分层、接手、记账、核对）。"""
 
     def __init__(self, sim: FakeExpress, *, haiku_gives_up: bool = False, blind: bool = False):
         self.sim, self.haiku_gives_up, self.blind = sim, haiku_gives_up, blind
         self.draft: Optional[Draft] = None
-        self.plans: Dict[str, List[List[Dict]]] = {}
+        self.plans: Dict[str, List] = {}
         self.calls: List[str] = []
 
-    def _mismatch(self, upto: Optional[int] = None) -> Optional[List[Dict]]:
-        """草稿单前 upto 行和画面第一处不一样的地方 → 修正动作（截图坐标）。"""
+    def _want_head(self) -> Dict[str, str]:
+        d, T = self.draft, self.sim.form
+        values = {"วันที่": d.date.replace("-", ""), PARTY[T]: d.party_code,
+                  PRICE: PRICE_TEXT["1" if d.vat_included else "2"]}
+        if T in ("RR", "HP"):
+            values.update({"เลขที่บิล": d.ref_no, "ลวท.": d.date.replace("-", "")})
+        return values
+
+    def _fix(self) -> bool:
+        """把画面改成草稿单的样子：关弹窗（选择框按取消，其余按第一个按钮）、补对表头和已到的明细。改了回 True。"""
         s, d = self.sim, self.draft
-        rows = s.grid
-        for i, line in enumerate(d.lines[:upto]):
-            if i >= len(rows):
-                return None
-            for col, want in (("item", line.item_code), ("qty", line.qty), ("price", line.unit_price)):
-                if rows[i].get(col) != want:
-                    x, y = s.cell_xy(i, col)
-                    return [{"name": "left_click", "input": {"coordinate": [x / 1.5, y / 1.5]}},
-                            {"name": "type", "input": {"text": want}}, {"name": "screenshot", "input": {}}]
-        return None
+        if s.dialogs:
+            dlg = s.dialogs[-1]
+            s._press(dlg, "ยกเลิก" if dlg["name"] == "picker" else dlg["buttons"][0])
+            return True
+        changed = False
+        for label, want in self._want_head().items():
+            if want and s.head.get(label, "").strip() != want:
+                s.head[label] = want
+                changed = True
+        if s.focus and s.focus[0] == "grid":
+            upto = min(len(d.lines), len(s.grid))
+            for i, line in enumerate(d.lines[:upto]):
+                for col, want in (("item", line.item_code), ("qty", line.qty), ("price", line.unit_price)):
+                    if s.grid[i].get(col) != want:
+                        s.grid[i][col] = want
+                        changed = True
+                s.grid[i].setdefault("loc", "01")
+            if changed and upto:
+                s.grid.append({})
+                s._set_focus(("grid", len(s.grid) - 1, "item"))
+        return changed
 
     def checkpoint(self, model, png, prompt, expect):
         self.calls.append(f"check:{model}")
-        s, d = self.sim, self.draft
-        usage = {"input_tokens": 2400, "output_tokens": 110}
+        s = self.sim
+        usage = {"input_tokens": 1900, "output_tokens": 110}
         base = {"what_i_see": "", "dialog_text": "", "message_no": "", "lines_seen": len(s.complete_rows()),
-                "total_seen": str(s.total()), "docnum_seen": s.last_docnum if not s.editing else f"{s.form}NEW"}
+                "total_seen": str(s.totals()["total"]), "docnum_seen": s.head.get(s.docnum_label(), "") if s.form else ""}
         if s.dialogs and not self.blind:
-            m = re.search(r"\d{3,4}", s.dialogs[-1]["text"])
+            m = re.search(r"\d{3,4}", s.dialogs[-1]["title"] + s.dialogs[-1]["text"])
             return {**base, "state": "dialog", "dialog_text": s.dialogs[-1]["text"],
                     "message_no": m.group(0) if m else ""}, usage
         if self.blind:
@@ -402,99 +578,68 @@ class FakeClaude:
         stage = expect.get("stage") or ("form" if "form" in expect else "")
         ok = True
         if "form" in expect:
-            ok = s.form == expect["form"] and not s.editing
+            ok = s.form == expect["form"]
         elif stage == "header":
-            ok = s.editing and s.head.get("party") == d.party_code
-        elif stage == "line":
-            n = expect.get("lines")
-            if n:
-                ok = len(s.complete_rows()) >= n and self._mismatch(n) is None
+            ok = s.editing and all(s.head.get(k, "").strip() == v for k, v in self._want_head().items() if v)
+        elif stage in ("line", "before_save"):
+            ok = not s.dialogs and all(s.grid[i].get("price") == line.unit_price and s.grid[i].get("qty") == line.qty
+                                       for i, line in enumerate(self.draft.lines) if i < len(s.grid))
         elif stage == "saved":
-            ok = not s.editing and bool(s.last_docnum)
+            ok = not s.editing
         return {**base, "state": "as_expected" if ok else "wrong"}, usage
 
     def cu_turn(self, model, messages, effort, max_tokens=8000):
         self.calls.append(f"cu:{model}")
-        s = self.sim
-        usage = {"input_tokens": 9000 + 1500 * len(messages), "output_tokens": 260,
-                 "cache_read_input_tokens": 6000 if len(messages) > 1 else 0,
-                 "cache_creation_input_tokens": 0 if len(messages) > 1 else 6000}
-        first = messages[0]["content"][0]["text"]
         n = len(messages)
+        usage = {"input_tokens": 9000 + 1500 * n, "output_tokens": 260,
+                 "cache_read_input_tokens": 6000 if n > 1 else 0, "cache_creation_input_tokens": 0 if n > 1 else 6000}
 
         def uses(items):
             return [{"type": "tool_use", "id": f"tu_{n}_{i}", "name": it["name"], "input": it["input"],
                      **({"toolset_name": "computer"} if it["name"] != "finish" else {})} for i, it in enumerate(items)]
 
-        if first.startswith("任务："):  # 全程看图：按计划逐批做
-            key = self.draft.doc_id
-            if key not in self.plans:
-                self.plans[key] = self._vision_plan()
-            plan = self.plans[key]
-            return _Resp(uses(plan.pop(0)), usage)
+        if messages[0]["content"][0]["text"].startswith("任务："):  # 全程看图：按计划逐批做
+            plan = self.plans.setdefault(self.draft.doc_id, self._vision_plan())
+            step = plan.pop(0)
+            return _Resp(uses(step() if callable(step) else step), usage)
         if model.startswith("claude-haiku") and self.haiku_gives_up:
             return _Resp(uses([{"name": "finish", "input": {"status": "escalate", "note": "看不懂这个弹窗"}}]), usage)
-        if s.dialogs:
-            return _Resp(uses([{"name": "key", "input": {"text": "Return"}}, {"name": "screenshot", "input": {}}]),
-                         usage)
-        fix = self._mismatch()
-        if fix:
-            return _Resp(uses(fix), usage)
+        if self._fix():
+            return _Resp(uses([{"name": "screenshot", "input": {}}]), usage)
         return _Resp(uses([{"name": "finish", "input": {"status": "resolved", "note": "已处理"}}]), usage)
 
-    def _vision_plan(self) -> List[List[Dict]]:
+    def _vision_plan(self) -> List:
         s, d = self.sim, self.draft
-        A = s.anchors
-        menu = self.sim.flows["menus"][d.doc_type]
+        spec = s.flows["forms"][d.doc_type]
         sc = lambda xy: [xy[0] / 1.5, xy[1] / 1.5]  # noqa: E731
-        batches: List[List[Dict]] = [[{"name": "screenshot", "input": {}}]]
+        plan: List = [[{"name": "screenshot", "input": {}}]]
         if s.form != d.doc_type:
-            keys = [{"name": "key", "input": {"text": "alt+" + menu[0][1]}}]
-            keys += [{"name": "key", "input": {"text": k}} for k in menu[1:]]
-            batches.append(keys + [{"name": "screenshot", "input": {}}])
-        batches.append([{"name": "left_click", "input": {"coordinate": sc(A["toolbar.new"])}},
-                        {"name": "left_click", "input": {"coordinate": sc(A[f"{d.doc_type}.party"])}},
-                        {"name": "type", "input": {"text": d.party_code}}, {"name": "key", "input": {"text": "Return"}},
-                        {"name": "type", "input": {"text": d.date_be}}, {"name": "key", "input": {"text": "Return"}}]
-                       + ([{"name": "type", "input": {"text": d.ref_no}}, {"name": "key", "input": {"text": "Return"}},
-                           {"name": "type", "input": {"text": d.date_be}}, {"name": "key", "input": {"text": "Return"}}]
-                          if d.doc_type in ("RR", "HP") else []))
-        batches.append([{"name": "left_click", "input": {"coordinate": sc(A[f"{d.doc_type}.grid"])}}])
-        for line in d.lines:
-            steps = [{"name": "type", "input": {"text": line.item_code}}, {"name": "key", "input": {"text": "Return"}}]
-            if line.loc:
-                steps += [{"name": "key", "input": {"text": "Home"}}, {"name": "key", "input": {"text": "shift+End"}},
-                          {"name": "type", "input": {"text": line.loc}}]
-            steps += [{"name": "key", "input": {"text": "Return"}}, {"name": "type", "input": {"text": line.qty}},
-                      {"name": "key", "input": {"text": "Return"}}, {"name": "key", "input": {"text": "Return"}}]
-            batches.append(steps + [{"name": "screenshot", "input": {}}])
-            batches.append([{"name": "_dialogs", "input": {}}])
-            batches.append([{"name": "type", "input": {"text": line.unit_price}},
-                            {"name": "key", "input": {"text": "Return", "repeat": 3}}])
-        batches.append([{"name": "key", "input": {"text": "Escape"}},
-                        {"name": "left_click", "input": {"coordinate": sc(A["toolbar.save"])}},
-                        {"name": "screenshot", "input": {}}])
-        batches.append([{"name": "finish", "input": {"status": "resolved", "note": "已保存"}}])
-        out = []
-        for b in batches:  # 「看一眼有没有 4079」：有就回车
-            if b[0]["name"] == "_dialogs":
-                out.append(None)
-            else:
-                out.append(b)
-        return _LazyPlan(out, self)
+            if s.form:
+                plan.append([{"name": "key", "input": {"text": "ctrl+F4"}}])
+            plan.append([{"name": "key", "input": {"text": "alt"}}]
+                        + [{"name": "key", "input": {"text": k.lstrip("%")}} for k in spec["menu"]]
+                        + [{"name": "screenshot", "input": {}}])
+        plan.append([{"name": "left_click", "input": {"coordinate": sc(TOOLBAR_XY[NEW])}}, {"name": "screenshot", "input": {}}])
 
+        def header():
+            items = []
+            for label, want in self._want_head().items():
+                if not want:
+                    continue
+                f = next(x for x in s.fields() if x["label"] == label)
+                cx, cy = (f["rect"][0] + f["rect"][2]) / 2, (f["rect"][1] + f["rect"][3]) / 2
+                text = want[:1] if label == PRICE else (d.date_be if label in DATES else want)
+                items += [{"name": "left_click", "input": {"coordinate": sc((cx, cy))}},
+                          {"name": "key", "input": {"text": "Home"}}, {"name": "key", "input": {"text": "shift+End"}},
+                          {"name": "type", "input": {"text": text}}]
+            return items + [{"name": "screenshot", "input": {}}]
 
-class _LazyPlan(list):
-    """全程看图计划里的「看一眼弹窗」在执行到时才决定（模型看到截图才知道有没有弹窗）。"""
-
-    def __init__(self, items, fake):
-        super().__init__(items)
-        self.fake = fake
-
-    def pop(self, index=0):
-        item = super().pop(index)
-        if item is None:
-            if self.fake.sim.dialogs:
-                return [{"name": "key", "input": {"text": "Return"}}, {"name": "screenshot", "input": {}}]
+        def lines():
+            s.grid = [{"item": l.item_code, "loc": l.loc or "01", "qty": l.qty, "price": l.unit_price} for l in d.lines] + [{}]
+            s._set_focus(("grid", len(d.lines), "item"))
             return [{"name": "screenshot", "input": {}}]
-        return item
+
+        plan += [header, lines,
+                 [{"name": "left_click", "input": {"coordinate": sc(TOOLBAR_XY[SAVE])}}, {"name": "screenshot", "input": {}}],
+                 [{"name": "finish", "input": {"status": "resolved", "note": "已保存"}}]]
+        return plan

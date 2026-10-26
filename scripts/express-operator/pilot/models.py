@@ -51,6 +51,7 @@ CHECK_SCHEMA = {
 
 CHECK_SYSTEM = """你在核对泰国会计软件 Express（Windows 老式界面，泰文）当前画面是否符合期望。只看图说事实，不猜。
 - 有弹窗（消息框、选择框）就回 state=dialog，dialog_text 抄弹窗文字，message_no 填消息号（如 4079，没有就空）。
+- 只按「期望」那一句核对；草稿单只是参考。期望没提到的部分（例如还没轮到的明细、还没保存）不算不符。
 - 画面和期望不符回 wrong；看不清回 unsure；相符回 as_expected。
 - lines_seen：明细表格里已有内容的行数（不算空行）；total_seen：画面上的含税合计（看不到就空）；
   docnum_seen：单号栏的内容（如 RRNEW 或 RR0000012，看不到就空）。what_i_see 用一句中文。"""
@@ -73,7 +74,9 @@ Express 操作要点（实录）：
 
 安全规矩（必须遵守）：
 - 只操作 Express。不点 Express 以外的任何东西，不关 Express，不按 Alt+F4，不切换账套 / 公司，不进设置。
-- 看到 -70、Error、Reading File 之类报错框：什么都别点，立刻 finish(need_human)。
+- 看到「Error -70 … Reading File」这种网络读文件错误框：什么都别点，立刻 finish(need_human)。
+  注意别和普通提示框混淆：标题是「Message#. 70」、内容「วันที่ไม่อยู่ในงวด」（日期不在会计期间）是普通校验提示，按 ตกลง 后把日期改对即可。
+- 改格子内容时先全选（Home 再 Shift+End）再输入，不要在原有内容中间插字。
 - 在某些状态下按 Esc 或「取消」会直接保存半张单：不确定时先截图看清再按。
 - 除非任务里说要保存，否则不要点保存。不要重复保存同一张单。
 - 做完（或确认做不到）一定调用 finish。"""

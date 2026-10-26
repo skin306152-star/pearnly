@@ -258,6 +258,7 @@ def _focus_info() -> Dict:
         return {}
     focus = info.hwndFocus
     out = {"hwnd": int(focus or 0), "cls": _cls(focus) if focus else "", "text": _gettext(focus) if focus else "",
+           "rect": _rect(focus) if focus else None,
            "caret": [info.rcCaret.left, info.rcCaret.top] if info.hwndCaret else None,
            "is_fg": bool(focus) and int(focus) == int(fg or 0)}
     return out
@@ -307,6 +308,8 @@ def activate() -> Dict:
     if not w:
         raise Refused("没有 Express 窗口")
     hwnd = HWND(w["hwnd"])
+    if foreground()["exe"].lower() == PROCESS and not user32.IsIconic(hwnd):
+        return {"title": w["title"], "fg": foreground(), "already": True}  # 已在前台：不按 Alt（Alt 会收起展开的菜单）
     if user32.IsIconic(hwnd):
         user32.ShowWindow(hwnd, 9)
     _key_event(VK["ALT"], False)  # 按一下 Alt 才允许本进程把别的窗口拉到前台
@@ -330,8 +333,13 @@ def _send(inputs: List) -> None:
     user32.SendInput(len(inputs), arr, ctypes.sizeof(INPUT))
 
 
+# 这些键要带「扩展键」标记，否则 Windows 当成小键盘键：NumLock 开着时 Home 打出 7、Insert 打出 0（10-26 实测踩到）
+EXTENDED = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E}
+
+
 def _key_event(vk: int, up: bool) -> None:
-    _send([INPUT(1, _U(ki=KEYBDINPUT(vk, 0, KEYEVENTF_KEYUP if up else 0, 0, 0)))])
+    flags = (KEYEVENTF_KEYUP if up else 0) | (0x1 if vk in EXTENDED else 0)
+    _send([INPUT(1, _U(ki=KEYBDINPUT(vk, 0, flags, 0, 0)))])
 
 
 def _tap(vk: int, mods=()) -> None:
@@ -610,6 +618,170 @@ def book_rows(book: str, since: Dict[str, int], tables=None) -> Dict[str, List[D
     return out
 
 
+def _toolbar():
+    from pywinauto import Desktop
+    main = main_window()
+    if not main:
+        raise Refused("没有 Express 窗口")
+    bars = [b for b in Desktop(backend="win32").window(handle=main["hwnd"]).wrapper_object().descendants(
+        class_name="ToolbarWindow32") if b.is_visible()]
+    if not bars:
+        raise Refused("看不到工具栏")
+    return max(bars, key=lambda b: b.button_count())  # 开着几张单据窗口时有几条，取看得见、按钮最多的那条
+
+
+def _tb_screen_rect(tb, b) -> List[int]:
+    r = b.rectangle()  # 工具栏内部坐标 → 屏幕坐标
+    pt = W.POINT(0, 0)
+    user32.ClientToScreen(HWND(tb.handle), ctypes.byref(pt))
+    return [r.left + pt.x, r.top + pt.y, r.right + pt.x, r.bottom + pt.y]
+
+
+def toolbar() -> Dict:
+    """工具栏按钮清单（第 2 层：按钮位置、能不能点、提示文字都由系统接口现取，不写死坐标）。"""
+    tb = _toolbar()
+    tips = []
+    try:
+        tips = tb.tip_texts()
+    except Exception:  # noqa: BLE001
+        pass
+    out = []
+    for i in range(tb.button_count()):
+        b = tb.button(i)
+        r = _tb_screen_rect(tb, b)
+        out.append({"i": i, "rect": r, "enabled": bool(b.is_enabled()),
+                    "text": b.info.text or "", "cmd": int(b.info.idCommand),
+                    "sep": bool(b.info.fsStyle & 1)})
+    return {"buttons": out, "tips": tips}
+
+
+def command(cmd: int) -> Dict:
+    """工具栏 / 菜单命令：给 Express 主窗口发 WM_COMMAND（和点那个按钮一样走 Express 自己的命令处理，不改程序、不靠坐标）。
+    先核前台是 Express，且这个命令在工具栏上现在是可点的（灰的不发）。"""
+    guard()
+    tb = _toolbar()
+    hits = [tb.button(i) for i in range(tb.button_count()) if int(tb.button(i).info.idCommand) == int(cmd)]
+    if hits and not hits[0].is_enabled():
+        raise Refused(f"命令 {cmd} 现在是灰的")
+    main = main_window()
+    user32.PostMessageW(HWND(main["hwnd"]), 0x0111, int(cmd), 0)
+    return {"cmd": int(cmd)}
+
+
+def toolbar_click(index: Optional[int] = None, cmd: Optional[int] = None) -> Dict:
+    """按坐标点工具栏按钮。注意：显示缩放不是 100% 时坐标会偏（10-26 rec-laptop 150% 实测点偏），优先用 command。"""
+    tb = _toolbar()
+    if cmd is not None:
+        found = [i for i in range(tb.button_count()) if int(tb.button(i).info.idCommand) == int(cmd)]
+        if not found:
+            raise Refused(f"工具栏上没有命令 {cmd}")
+        index = found[0]
+    b = tb.button(int(index))
+    if not b.is_enabled():
+        raise Refused(f"工具栏第 {index} 个按钮现在点不了")
+    left, top, right, bottom = _tb_screen_rect(_toolbar(), b)
+    x, y = (left + right) // 2, (top + bottom) // 2
+    click(x, y)
+    return {"xy": [x, y]}
+
+
+def active_form():
+    """当前激活的单据窗口（MDI 子窗口）：开着几张单据窗口时只看这一张。"""
+    main = main_window()
+    if not main:
+        raise Refused("没有 Express 窗口")
+    found = []
+
+    def child(ch, _):
+        if _cls(ch) == "MDIClient":
+            found.append(ch)
+        return True
+
+    user32.EnumChildWindows(HWND(main["hwnd"]), EnumProc(child), 0)
+    if found:
+        res = ctypes.c_size_t()
+        user32.SendMessageTimeoutW(found[0], 0x0229, 0, 0, 0x2, 500, ctypes.byref(res))  # WM_MDIGETACTIVE
+        if res.value:
+            return HWND(res.value)
+    return HWND(main["hwnd"])
+
+
+def fields() -> Dict:
+    """当前单据窗口里所有可见输入格（Edit / ComboBox）：句柄、位置、内容，和左边同一行最近的标签文字。
+    执行器用它把「焦点在哪个句柄」翻成「焦点在哪一格」，也用它读底部合计。"""
+    form = active_form()
+    statics, inputs = [], []
+
+    def child(ch, _):
+        if not user32.IsWindowVisible(ch):
+            return True
+        c = _cls(ch)
+        if c == "Static":
+            t = _gettext(ch).strip()
+            if t:
+                statics.append((t, _rect(ch)))
+        elif c in ("Edit", "ComboBox"):
+            inputs.append({"hwnd": int(ch), "cls": c, "rect": _rect(ch), "text": _gettext(ch)})
+        return True
+
+    user32.EnumChildWindows(form, EnumProc(child), 0)
+    for f in inputs:
+        x0, y0, x1, y1 = f["rect"]
+        best = None
+        for t, (lx0, ly0, lx1, ly1) in statics:
+            if abs((ly0 + ly1) / 2 - (y0 + y1) / 2) < 16 and lx1 <= x0 + 5:
+                if best is None or x0 - lx1 < best[0]:
+                    best = (x0 - lx1, t)
+        f["label"] = best[1] if best else ""
+    return {"fields": inputs}
+
+
+def dialog_button(text: str) -> Dict:
+    """按 Express 弹窗里文字为 text 的按钮（去掉 & 后全等）：找可见的 Express 对话框，给那个按钮发 BM_CLICK。
+    按钮文字从系统接口读，不靠坐标，也不靠默认按钮是哪个（10-26 实测：作废确认框里回车按到的不是「ตกลง」）。"""
+    guard()
+    found = []
+    for w in windows():
+        if w["cls"] != "#32770":
+            continue
+
+        def child(ch, _):
+            if _cls(ch) == "Button" and user32.IsWindowVisible(ch) and _gettext(ch).replace("&", "").strip() == text:
+                found.append(ch)
+            return True
+
+        user32.EnumChildWindows(HWND(w["hwnd"]), EnumProc(child), 0)
+    if len(found) > 1:  # 叠着几个弹窗：只按最上面（前台）那个弹窗里的
+        fg = user32.GetForegroundWindow()
+        top = [b for b in found if int(user32.GetAncestor(b, 2) or 0) == int(fg or 0)]
+        found = top
+    if len(found) != 1:
+        raise Refused(f"弹窗里找到 {len(found)} 个「{text}」按钮")
+    user32.PostMessageW(found[0], 0x00F5, 0, 0)  # BM_CLICK
+    return {"pressed": text}
+
+
+def grid_click(offset=(112, 30)) -> Dict:
+    """点当前单据窗口里可见的明细表格（MFCGridCtrl）的某一格：位置 = 表格控件实际位置 + 格子在表格里的偏移
+    （偏移按 100% 缩放写，乘系统缩放比例；默认是第一行的品码格）。表格本身不是一格一个窗口，只能这样进。"""
+    guard()
+    grids = []
+
+    def child(ch, _):
+        if user32.IsWindowVisible(ch) and _cls(ch) == "MFCGridCtrl":
+            grids.append(_rect(ch))
+        return True
+
+    user32.EnumChildWindows(active_form(), EnumProc(child), 0)
+    if not grids:
+        raise Refused("没有可见的明细表格")
+    left, top, right, bottom = max(grids, key=lambda r: (r[2] - r[0]) * (r[3] - r[1]))
+    scale = user32.GetDpiForSystem() / 96
+    x, y = int(left + offset[0] * scale), int(top + offset[1] * scale)
+    click(x, y)
+    return {"xy": [x, y], "grid": [left, top, right, bottom], "scale": scale}
+
+
 def copy_book(book: str, name: str) -> Dict:
     """把试点账套整本只读拷到 <工作目录>\\copies\\<name>（给第 ④ 种直接写入当基准用）。"""
     root = _book(book)
@@ -711,6 +883,18 @@ def do(a: Dict) -> Dict:
         return {"counts": book_counts(a["book"])}
     if op == "book_rows":
         return {"rows": book_rows(a["book"], a.get("since", {}), a.get("tables"))}
+    if op == "toolbar":
+        return toolbar()
+    if op == "fields":
+        return fields()
+    if op == "dialog_button":
+        return dialog_button(a["text"])
+    if op == "grid_click":
+        return grid_click(a.get("offset", (112, 30)))
+    if op == "command":
+        return command(a["cmd"])
+    if op == "toolbar_click":
+        return toolbar_click(a.get("index"), a.get("cmd"))
     if op == "copy_book":
         return copy_book(a["book"], a["name"])
     if op == "launch":
