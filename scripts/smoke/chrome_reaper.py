@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 PROFILE_PREFIX = "smoke-"
+OTHER_PREFIXES = ("scan-selftest-",)  # 相机自检的临时目录（以前也没删，本机攒了 118 个）
 STALE_SECONDS = 3600
 _PROFILE = re.compile(r"--user-data-dir=(\S*/" + PROFILE_PREFIX + r"[^\s/]+)")
 
@@ -64,7 +65,7 @@ def reap_orphans(root: Path | None = None, *, stale_seconds: int = STALE_SECONDS
             busy.add(profile.name)  # 正在跑的冒烟还在用
     removed = []
     cutoff = time.time() - stale_seconds
-    for path in root.glob(PROFILE_PREFIX + "*"):
+    for path in (found for prefix in (PROFILE_PREFIX, *OTHER_PREFIXES) for found in root.glob(prefix + "*")):
         try:
             if path.is_dir() and path.name not in busy and path.stat().st_mtime < cutoff:
                 shutil.rmtree(path, ignore_errors=True)

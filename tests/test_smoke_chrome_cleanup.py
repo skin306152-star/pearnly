@@ -96,10 +96,11 @@ class SmokeChromeCleanup(unittest.TestCase):
                                     f"--user-data-dir={self.tmp / 'profile-other'} & echo $! > {other_pidfile}"], check=True)
         orphan, other = wait_for(self.pidfile), wait_for(other_pidfile)
         self.addCleanup(lambda: alive(other) and os.kill(other, signal.SIGKILL))
-        old, new = self.tmp / "smoke-old", self.tmp / "smoke-new"
-        old.mkdir(), new.mkdir()
+        old, new, selftest = self.tmp / "smoke-old", self.tmp / "smoke-new", self.tmp / "scan-selftest-old"
+        old.mkdir(), new.mkdir(), selftest.mkdir()
         past = time.time() - 2 * 3600
         os.utime(old, (past, past))
+        os.utime(selftest, (past, past))
         time.sleep(0.3)
         swept = reaper.reap_orphans(self.tmp)
         time.sleep(0.3)
@@ -107,6 +108,7 @@ class SmokeChromeCleanup(unittest.TestCase):
         self.assertFalse(alive(orphan))
         self.assertTrue(alive(other))
         self.assertIn("smoke-old", swept["removed"])
+        self.assertIn("scan-selftest-old", swept["removed"])
         self.assertTrue(new.exists())
 
 
