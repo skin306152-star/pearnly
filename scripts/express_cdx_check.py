@@ -4,7 +4,8 @@
 CDX 标签，写完核：
 - 用 Express 的 CDX 还能打开（-330「Tag Name not Found」这类对不上会在这里报出来），标签名和键表达式一个不少、没变；
 - 打开时看到的记录数等于 DBF 里的记录数；
-- 新单在每个以 DOCNUM / VOUCHER 开头的标签里都查得到（Express 靠这些标签找单）。
+- 新单在每个以 DOCNUM / VOUCHER 开头的标签里都查得到（Express 靠这些标签找单）；键与前面标签重复、或账里原有的单
+  也查不到的标签是带筛选条件的（如 GLJNL5），不核。
 没给 ``--runner`` 只核表内容：打开开发 / 测试开关走「只改 DBF」的回落（正式 CC 没有重建程序会拒写）。
 """
 from __future__ import annotations
@@ -56,9 +57,17 @@ def problems(cdx_reindex, dbf, schema, acct: Path, before: dict, docnums) -> lis
             t.close()
         if records != count:
             found.append(f"{table} CDX sees {records} records, DBF has {count}")
+        seen = set()
         for name, expression in tags_after:
             match = _LOOKUP.match(expression.upper())
+            duplicate = expression.upper() in seen
+            seen.add(expression.upper())
             if not match or match.group(1) not in values:
+                continue
+            # 带筛选条件的标签不拿来核新单：键与前面的标签一样（GLJNL5 与 GLJNL1 都是 VOUCHER，只多一个 FOR），或账里原有的单
+            # 也查不到（10-26 测试机实测：T8BAKEL 里 Express 自己录的已过账凭证同样不在 GLJNL5）
+            others = sorted(value for value in values[match.group(1)] if value and value not in docnums)[:3]
+            if duplicate or (others and not any(cdx_reindex.seek(acct, table, name, value).found for value in others)):
                 continue
             for docnum in docnums:
                 if docnum in values[match.group(1)] and not cdx_reindex.seek(acct, table, name, docnum).found:

@@ -137,14 +137,20 @@ def sellable(acct, has_stloc, day):
                                                             and dec(x["LOCBAL"]) >= 2
                                                             for x in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")))):
             return code, ""
+    code = text(stock[0]["STKCOD"])
+    why = top_up(acct, code, day)
+    return (None, why) if why else (code, "")
+
+
+def top_up(acct, code, day):
+    """用调整 JU 给这件品垫 2 个；没有 JU 单别或科目不能记账时回原因。"""
     row = D.book_row(acct, "JU")
     if row is None or not account_rules.postable_account(acct, row["account"]):
-        return None, "no item with stock and no postable JU book to add some"
-    code = text(stock[0]["STKCOD"])
+        return "no item with stock and no postable JU book to add some"
     res = D.write_stock_entry({"payload_version": 6, "direction": "stock", "doctype": "JU", "docdate_be": be(day), "ref_no": "REG-SR-JU",
                                "remark": "", "items": [{"code": code, "name": "", "qty": "2", "unit_cost": "10"}]},
                               acct, selected_dir=str(acct), make_backup=False)
-    return (code, "") if res.ok else (None, f"JU to add stock {res.error_code}: {res.error}")
+    return "" if res.ok else f"JU to add stock {res.error_code}: {res.error}"
 
 
 def item_of(acct, code):
@@ -224,6 +230,14 @@ def check(acct: Path) -> dict:
     files_before = digests(acct)
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
     sale = write(acct, sale_payload(acct, day, code, customer, cash, revenue, vat_acc, rate))
+    if not sale.ok and sale.error_code == "STOCK_INSUFFICIENT":
+        # 主档结存与库存守卫算的数对不上的账套（T9GIS）：先垫 2 个再卖
+        why = top_up(acct, code, day)
+        if why:
+            return {"state": "skip", "why": f"stock guard refused the sale and {why}"}
+        balance_before = master_balance(acct, code)
+        was_balanced = has_stloc and balance_before == located(acct, code)
+        sale = write(acct, sale_payload(acct, day, code, customer, cash, revenue, vat_acc, rate))
     if not sale.ok:
         return {"state": "fail", "why": f"HS {sale.error_code}: {sale.error}"}
     hs_total = text(next(r["NETAMT"] for r in rows(acct, "ARTRN", ("DOCNUM", "NETAMT")) if text(r["DOCNUM"]) == sale.docnum))
