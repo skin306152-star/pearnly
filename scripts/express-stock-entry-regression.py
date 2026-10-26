@@ -171,16 +171,13 @@ def latest_receipt(acct, code):
             continue
         qty = Decimal(repr(float(r["XTRNQTY"] or 0)))
         if qty > 0 and r["DOCDAT"] and (found is None or r["DOCDAT"] >= found[3]):
-            seq = text(r["SEQNUM"])
-            found = (Decimal(repr(float(r["XTRNVAL"] or 0))) / qty, text(r["DOCNUM"]), int(seq) if seq.isdigit() else 0, r["DOCDAT"])
+            found = (Decimal(repr(float(r["XTRNVAL"] or 0))) / qty, text(r["DOCNUM"]), str(r["SEQNUM"] or "").ljust(3)[:3], r["DOCDAT"])
     return found
 
 
 def count_gain(acct, docnum, lot):
     """盘盈 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；单价取最近一次进货那一批的成本并挂上（RDOCNUM / MLOTNUM），
     挂不上的先进先出账套记 0。不符回原因。"""
-    from companion import dbf_refund
-
     line = [r for r in rows(acct, "STCRD", ("DOCNUM", "POSOPR", "FLAG", "XUNITPR", "RDOCNUM", "MLOTNUM", "PHYBAL"))
             if text(r["DOCNUM"]) == docnum][0]
     head = [r for r in rows(acct, "STTRN", ("DOCNUM", "POSOPR", "TRNVAL")) if text(r["DOCNUM"]) == docnum][0]
@@ -193,7 +190,8 @@ def count_gain(acct, docnum, lot):
     want = lot[0].quantize(Decimal("0.01")) if lot else Decimal("0.00") if fifo else None  # 平均成本账套挂不上批次：商品均价（待核）
     if want is not None and cost != want:
         return f"TK {docnum}: unit cost {cost} != lot {lot}"
-    if lot and line["RDOCNUM"] is not None and str(line["RDOCNUM"] or "").rstrip() != dbf_refund.rdocnum(lot[1], lot[2]):
+    # Express 拼 RDOCNUM 是「单号 C(12) + 行号原样 C(3)」（存量 CC 单的行号左对齐）
+    if lot and line["RDOCNUM"] is not None and str(line["RDOCNUM"] or "").rstrip() != f"{lot[1]:<12}{lot[2]}".rstrip():
         return f"TK {docnum}: RDOCNUM {line['RDOCNUM']!r} != lot {lot[1]} {lot[2]}"
     return ""
 
