@@ -118,7 +118,9 @@ def masters(rows: Dict[str, List[Dict]]) -> Dict:
         for k, v in r.items():
             if re.fullmatch(r"(BEG|END)\d+", k) and v:
                 dates.append(str(v)[:10])
-    return {"suppliers": codes("APMAS", "SUPCOD"), "customers": codes("ARMAS", "CUSCOD"),
+    # 有税单据只对到主档税率 7% 的对方（10-26 实测：主档税率 0 的供应商，Express 按 0% 算税）
+    vat7 = lambda r: float(r.get("VATRAT") or 0) == 7.0  # noqa: E731
+    return {"suppliers": codes("APMAS", "SUPCOD", vat7), "customers": codes("ARMAS", "CUSCOD"),
             "services": codes("STMAS", "STKCOD", lambda r: str(r.get("STKTYP") or "").strip() not in ("0", "")),
             "stock": codes("STMAS", "STKCOD", lambda r: str(r.get("STKTYP") or "").strip() in ("0", "")),
             "period": {"beg": min(dates), "end": max(dates)} if dates else {}}

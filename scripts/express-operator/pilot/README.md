@@ -3,8 +3,12 @@
 验证「CC 套壳 Claude，真实打开 Express，按单据一张张录入」：成本、速度、准确率、顺不顺、卡在哪。
 报告见 `docs/work/2026-10-26-express-operator-pilot.md`。
 
-**试点电脑**：10-26 起改用录制笔记本 `rec-laptop`（DESKTOP-8BRD5AV，专给试点用），桌面会话是本地账户 acct；
-工作目录 `C:\XpPilot`。不再占办公室测试机。
+**试点电脑**：10-26 起改用录制笔记本 `rec-laptop`（DESKTOP-8BRD5AV，专给试点用），在用户本人的 Windows 账户 aksar 会话里跑
+（aksar 已映射 `\\accserver\ACCOUNT`，不用输服务器密码）；工作目录 `C:\XpPilot`。Express 用服务器上 **69EXP** 那套
+（试点公司只在它的公司列表里），账套 `\\accserver\ACCOUNT\69EXP\test`。
+
+**实测录法**（细节见 `flows.json` 和报告附录 D、F）：工具栏按命令号发；菜单先单独按 Alt 再按数字；表头按回车走、按标签填；
+明细点进表格（grid_click）；单位框按「ตกลง」；价格类型按草稿单选；录到明细后 Express 已占号写账，放弃只能作废；不用 Esc。
 
 **做法（主会话 10-26 定）**：
 - 识别走产品本身、单据只看一次：草稿单 = 产品正式识别的结果（`ocr_drafts.py`）；标准答案只用来核对，不当输入。
@@ -34,14 +38,16 @@ run_pilot.py ─ engine.py ─ models.py ──API──> Claude（Haiku 5.5 / O
 | `corpus.py` | （备用）从答案账套原表取多行单，只用来测「行数多了操作要多久」，不算准确率 |
 | `probe_ui.py` | 第 2 层实测：原生 Win32、pywinauto win32 后端、uia 后端各能从 Express 画面读到什么（`run_pilot --probe 名字`） |
 | `s_stats.py` | 在测试机上只读统计 S 盘副本：每家客户每月单据量和种类（报告主结论的客户分档） |
-| `flows.json` | 固定流程：菜单键、工具栏和各格坐标（标了哪些已实录核实）、明细按键顺序、弹窗规则 |
+| `flows.json` | 固定流程（10-26 实测）：工具栏命令号、各单种菜单、表头要填的标签和走到哪格为止、明细表格偏移、底部合计标签、弹窗规则 |
 | `engine.py` | 执行器：键盘固定流程 → 每格打完读焦点格核对、每步读窗口清单认弹窗 → 保存后看 DBF 行数 → 读不到才截图给 AI → 出意外按「Haiku → Opus」接手 → 读回核对草稿单和标准答案 |
 | `models.py` | 调 API：画面核对（结构化 JSON）、电脑操作循环（`computer_toolset_20260801`，服务端清旧截图，自动缓存） |
 | `compare.py` | 读回核对：对方码、日期、对方单号、税前 / 税 / 含税、每行品码 / 仓 / 数量 / 单价 / 金额、ISVAT |
 | `pricing.py` / `ledger.py` | 按 usage 换算美元；硬上限 90 美元；每满 10 美元停下报主会话 |
 | `direct_write.py` | 第 ④ 种基准：同一批草稿单用现有 CC 直接写入代码写进**本机副本**，同一把尺子核对 |
 | `report.py` | 汇总成报告表格（每张成本、用时、对错、接手、每月推算） |
-| `calibrate.py` | 第一次真跑前：Opus 对着空白单据截图找各格坐标，画标记给人确认 |
+| `calibrate.py` | （备用）Opus 对着空白单据截图找各格坐标；实测后流程不靠坐标，没用上 |
+| `console.py` | 手动给代理发一批动作、拉回截图（选公司这类一次性准备步骤） |
+| `open_share.py` | 桌面快捷方式用：请 Windows 自己弹服务器凭据框（rec-laptop 改在 aksar 会话后没用上） |
 | `cc_login.py` | 「授权一次、以后自动登录」雏形：用户本人存一次 → 凭据管理器 → 程序填 |
 | `fake_express.py` / `selftest.py` | 离线模拟器和自检（不连测试机、不花钱） |
 | `start-agent.ps1` / `stop-agent.ps1` / `deploy.sh` | 测试机上起停代理；推代码 |

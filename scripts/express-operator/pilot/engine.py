@@ -701,6 +701,7 @@ class Engine:
                 if any("ยกเลิกเอกสาร" in " ".join(w.get("texts", [])) for w in self._dialogs()):
                     self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 1500}])
                 self._event("voided", docnum=docnum)
+                self.rec.setdefault("voided", []).append(docnum)
             self._event("abandon", ok=not self.in_edit())
         except Exception as e:  # noqa: BLE001
             self._event("abandon", ok=False, error=str(e)[:200])
