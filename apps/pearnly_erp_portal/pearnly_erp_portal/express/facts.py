@@ -80,6 +80,14 @@ def accounts_first(rows, subject) -> list:
     return sorted(rows, key=lambda row: not first(row))
 
 
+def vat_initem(data):
+    """CC 桌面版 1.12.6 测试包 c 起结果里带这份账套 ISINFO.VAT_INITEM（开了逐行 VAT 是 Y）；旧版没有这一项回 None。"""
+    facts = data.get("facts") if isinstance(data, dict) and isinstance(data.get("facts"), dict) else {}
+    if "vat_initem" not in facts:
+        return None
+    return str(facts.get("vat_initem") or "").strip().upper()
+
+
 def mapping(data) -> dict:
     """1.11.0 起结果里另带这份账套 ISINFO 的 6 个默认科目（心跳的账套行也带，这里是读主档那一刻的）。"""
     facts = data.get("facts") if isinstance(data, dict) and isinstance(data.get("facts"), dict) else {}

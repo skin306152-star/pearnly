@@ -494,6 +494,7 @@ Excel file,Excel ファイル
 Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
 Exchange Rate must be greater than zero,為替レートはゼロより大きい値にしてください
+Exempt items,免税品の記帳
 Expected Amount,あるべき金額
 Expected Cash,現金予定額
 Expense,経費
@@ -1166,6 +1167,7 @@ Source,ソース
 Source File,元ファイル
 Source File Record,元ファイル記録
 Split,分割
+Split exempt items (recommended),免税品を分けて記帳（推奨）
 Start counting,棚卸を開始
 Start date,開始日
 Status,ステータス
@@ -1237,6 +1239,7 @@ Tax Inclusive,税込
 Tax Invoice,税務請求書
 Tax Withholding Amount,源泉徴収税額
 Tax Withholding Rate,源泉徴収税率
+Tax the whole document as the account set does,帳簿の設定どおり全体に課税
 Taxes,税
 Taxes and Charges,税金および諸費用
 Team board,チームボード
@@ -2034,12 +2037,15 @@ express.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成
 express.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
 express.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
 express.kind.account,費用勘定
+express.kind.exemptMode,免税品の記帳
 express.kind.receipt,入金勘定
 express.kind.refundAccount,売上返品勘定
 express.kind.stockGroup,在庫勘定グループ
 express.kind.vat,仮払消費税
 express.kind.vatRegistered,この会社は VAT 登録事業者ですか
 express.option.claim,控除
+express.option.exemptSplit,免税品を分けて記帳（推奨）
+express.option.exemptWhole,帳簿の設定どおり全体に課税
 express.option.expense,費用計上
 express.option.no,いいえ
 express.option.yes,はい

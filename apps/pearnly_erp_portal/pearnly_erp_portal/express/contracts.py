@@ -105,8 +105,8 @@ def document(*, ref: str, direction: str, doc_date: str, number: str, company: d
                       "loccod": str(line.get("loccod") or "").strip()[:4] if line.get("stock") else "",
                       # 包装单位：ERP 商品单位表的换算率（CC 桌面版认不出 Express 主档的包装单位时按它换成库存单位）
                       **({"factor": str(line["factor"])} if line.get("stock") and d(line.get("factor")) not in (0, 1) else {}),
-                      # 免税行（收银日汇总 / 退货单在有税的单里标）：CC 桌面版摊含税额时不摊税给它
-                      **({"vat_exempt": True} if line.get("vat_exempt") and has_vat and vat > 0 else {}),
+                      # 免税行（收银日汇总 / 退货单在增值税登记户的单里标）：CC 桌面版不摊税给它、明细记 VATCOD '0'
+                      **({"vat_exempt": True} if line.get("vat_exempt") else {}),
                       "stock": bool(line.get("stock"))})
     return {"version": VERSION, "ref": ref, "direction": direction, "date": str(doc_date)[:10],
             "number": str(number or "").strip()[:40],

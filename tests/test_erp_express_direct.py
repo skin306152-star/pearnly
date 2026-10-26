@@ -1617,7 +1617,7 @@ class PosDaySummaries(Base):
         self.assertEqual(net.payments, (("เงินสด", D("-80")), ("พร้อมเพย์", D("100"))))
 
     def summary_body(self, lines, paid, total, vat="0", registered="yes", exempt="0", kind=None, against=None,
-                     cross_year=False):
+                     cross_year=False, exempt_mode="split"):
         """同一天的退货并进日汇总后 `pos_day.document` 的结果（行与收款已按退货记负数求和，见 `_SIGN`；行金额是税前）。
         ``kind="SR"``：退货日汇总（照正数求和），``against`` 是原 HS 的 (Express 状态, Express 单号, 含税合计)。"""
         import types
@@ -1659,6 +1659,7 @@ class PosDaySummaries(Base):
                 mock.patch.object(self.pos_day.receipt_vat, "refresh", lambda names: refreshed.append(list(names))), \
                 mock.patch.object(self.pos_day.receipt_vat, "exempt_total", lambda names: D(exempt)), \
                 mock.patch.object(self.pos_day, "_cross_year", lambda company, first, second: cross_year), \
+                mock.patch.object(self.pos_day, "_exempt_mode", lambda company, day: exempt_mode), \
                 mock.patch.object(frappe, "utils", types.SimpleNamespace(getdate=lambda value: __import__("datetime").date(2026, 10, 24)),
                                   create=True):
             body = self.pos_day.document("PDS-1", "PDS-1@x")
@@ -1760,16 +1761,48 @@ class PosDaySummaries(Base):
         self.assertEqual((body["vat"], body["total"], body["has_vat"]), ("7.00", "157.00", True))
         self.assertEqual([line["amount"] for line in body["items"]], ["100.00", "50.00"])
         self.assertNotIn("vat_fields", body)  # 交进来的行没有免税的：应税基数照整张税前
-        # 混有免税商品（免税行净额 50）：销项税记录 AMT01 只记应税部分，免税部分记 AMTRAT0（验收实录第 10 条，Express 原生写法）
-        body = self.summary_body([("A", "1", "100"), ("B", "1", "50")], [], "157", vat="7", exempt="50")
+        # 混有免税商品（免税行净额 50）：销项税记录 AMT01 只记应税部分，免税部分记 AMTRAT0（验收实录第 10 条，Express 原生写法）；
+        # 免税行标出来，CC 桌面版明细记 VATCOD '0'、单头记 AMTRAT0
+        mixed = [("A", "1", "100"), ("B", "1", "50", "0")]
+        body = self.summary_body(mixed, [], "157", vat="7", exempt="50")
         self.assertEqual(body["vat_fields"], {"AMT01": "100.00", "AMTRAT0": "50.00"})
+        self.assertEqual([bool(item.get("vat_exempt")) for item in body["items"]], [False, True])
+        # 账套没开逐行 VAT、这家公司还没定：停下问一次（按商品免税拆开写 / 照账套整张计税），记住复用
+        held = self.summary_body(mixed, [], "157", vat="7", exempt="50", exempt_mode=None)
+        self.assertEqual(held["hold"], "choice_needed:exempt_mode")
+        self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["split", "whole"])
+        # 选了照账套整张计税：不拆，应税基数照整张税前、明细不标免税
+        body = self.summary_body(mixed, [], "157", vat="7", exempt="50", exempt_mode="whole")
+        self.assertNotIn("vat_fields", body)
+        self.assertFalse(any(item.get("vat_exempt") for item in body["items"]))
+        # 整张都是免税的（登记户）：也带金额栏，AMT01 0、AMTRAT0 全额（同原生 SR002100392），CC 桌面版照样写销项税记录
+        body = self.summary_body([("B", "1", "50", "0")], [], "50", vat="0", exempt="50")
+        self.assertEqual((body["vat_fields"], body["has_vat"]), ({"AMT01": "0.00", "AMTRAT0": "50.00"}, False))
         # 不是登记户：小票税额全是 0，日汇总不带税
-        body = self.summary_body([("A", "1", "107")], [], "107", vat="0", registered="no")
+        body = self.summary_body([("A", "1", "107", "0")], [], "107", vat="0", registered="no")
         self.assertEqual((body["vat"], body["has_vat"]), ("0.00", False))
+        self.assertNotIn("vat_fields", body)  # 非登记户：没有免税这回事，不标
+        self.assertFalse(any(item.get("vat_exempt") for item in body["items"]))
         # 还不知道：停下，在单据上问一次「该公司是增值税登记户吗」
         held = self.summary_body([("A", "1", "107")], [], "107", registered="")
         self.assertEqual(held["hold"], "choice_needed:vat_registered")
         self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["yes", "no"])
+
+    def test_the_exempt_mode_follows_the_book_and_is_asked_once_when_line_vat_is_off(self):
+        """主会话 10-26：账套开了逐行 VAT（ISINFO.VAT_INITEM = Y）或电脑还没回报这一项（旧版 CC）→ 拆开写；没开的按公司问一次、记住复用。"""
+        import types
+        from pearnly_erp_portal.express import choices, facts, push, target
+        remembered = {}
+        for initem, chosen, want in ((None, None, "split"), ("Y", None, "split"), ("", None, None), ("N", "whole", "whole"),
+                                     ("", "split", "split")):
+            remembered.clear()
+            if chosen:
+                remembered[("CO-1", "exempt_mode", "company")] = chosen
+            with mock.patch.object(push, "_company", lambda name: types.SimpleNamespace(name=name), create=True), \
+                    mock.patch.object(target, "pick", lambda row, day: {"book": {"key": "BK"}}), \
+                    mock.patch.object(facts, "load", lambda key: {"facts": {} if initem is None else {"vat_initem": initem}}), \
+                    mock.patch.object(choices, "chosen", lambda company, kind, subject: remembered.get((company, kind, subject), "")):
+                self.assertEqual(self.pos_day._exempt_mode("CO-1", "2026-10-24") or None, want, (initem, chosen))
 
     def test_the_vat_status_comes_from_the_revenue_department_and_is_unknown_on_any_failure(self):
         """主会话 10-26：查到 VAT 登记 → 是；税号存在没登记 → 否；连不上、查不到、出错都记「未知」，走单据上问一次，不挡建公司和写单。"""

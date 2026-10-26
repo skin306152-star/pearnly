@@ -41,6 +41,9 @@ HS, SR = "HS", "SR"  # 日汇总的单别：现销日汇总 / 退货日汇总
 ISVAT_TAXABLE_FIELD = "AMT01"
 ISVAT_EXEMPT_FIELD = "AMTRAT0"
 VAT_FIELDS_PAYLOAD_VERSION = 9  # 带 `vat_fields` 的载荷：旧版 CC 会按整张税前写应税基数，诚实拒收
+# 账套没开逐行 VAT（ISINFO.VAT_INITEM 不是 Y，Express 自己整张计税）而单里有免税商品：按公司问一次怎么写、记住复用（主会话 10-26）
+EXEMPT_MODE = "exempt_mode"
+EXEMPT_SPLIT, EXEMPT_WHOLE = "split", "whole"  # 按商品免税拆开写（建议）/ 照账套现在的设置整张计税
 VAT_REGISTERED = "vat_registered"  # 单据上问一次的那一项：这家公司是不是增值税登记户（记在公司上，`masters.company`）
 # 只汇总公司「收银写 Express 起始日」（第一次接上 Express 那天；已接的公司由补丁记成上线当天）及以后的小票：之前的不补写
 # （会计可能已手录过、期间可能已关账；验收 10-25）。没有起始日的公司一张都不汇总。销售小票，加上原单同一天卖的退货小票。
@@ -240,8 +243,17 @@ def document(name, ref) -> dict:
         if net is None:
             return {"ref": ref, "items": [], "empty": True}
         payments, items = list(net.payments), net.items
-    lines = [{**line, "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])}
-             for line in items]
+    # 免税行（这一行没拆出税额）只在增值税登记户的单里标：ISVAT AMT01 只记应税部分、免税部分记 AMTRAT0，明细免税行 VATCOD '0'
+    exempt = companies.vat_registered(summary.company) == companies.VAT_YES and any(line.get("vat_exempt") for line in items)
+    if exempt:
+        mode = _exempt_mode(summary.company, summary.day)
+        if not mode:
+            return {"ref": ref, "hold": f"{contracts.CHOICE}:{EXEMPT_MODE}",
+                    "needed": [{"kind": EXEMPT_MODE, "subject": "company", "label": "",
+                                "options": [{"code": EXEMPT_SPLIT, "name": ""}, {"code": EXEMPT_WHOLE, "name": ""}]}]}
+        exempt = mode == EXEMPT_SPLIT
+    lines = [{**{key: value for key, value in line.items() if key != "vat_exempt" or exempt},
+              "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])} for line in items]
     body = contracts.document(ref=ref, direction="sales", doc_date=str(summary.day),
                               # 参考号写进 Express 的 YOUREF / 销项税 REFNUM（≤15 字节）：同 Cowork 的 POS 导入用共用约定的
                               # `day_ref`（放不下就缩写，完整起止在 `pos` 里）；10-25 实验栈：「首-尾」27 字被 CC 拦下
@@ -249,8 +261,9 @@ def document(name, ref) -> dict:
                                                           frappe.utils.getdate(summary.day)),
                               company=company, party={"code": "", "name": CASH_PARTY}, paid=True, has_vat=vat > 0,
                               total=total, vat=vat, lines=lines)
-    if vat > 0:
-        # 退货日汇总全是退货小票：免税净额照正数算（`exempt_total` 对退货记负数），与原 HS 同一套规则，两边应税基数对得上
+    if exempt:
+        # 退货日汇总全是退货小票：免税净额照正数算（`exempt_total` 对退货记负数），与原 HS 同一套规则，两边应税基数对得上。
+        # 整张都是免税的也带（AMT01 0、AMTRAT0 全额，同原生 SR002100392），CC 桌面版照样写销项税记录
         fields = vat_fields(receipts, contracts.d(body["subtotal"]), sign=-1 if refund else 1)
         if fields:
             body["vat_fields"] = fields
@@ -270,6 +283,16 @@ def _cross_year(company, original_day, refund_day) -> bool:
     first = (target.pick(row, str(original_day)).get("book") or {}).get("key")
     second = (target.pick(row, str(refund_day)).get("book") or {}).get("key")
     return bool(first and second and first != second)
+
+
+def _exempt_mode(company, day):
+    """单里有免税商品时怎么写：账套开了逐行 VAT（或电脑还没回报这一项）拆开写；没开的按公司问一次、记住复用（没问过回空）。"""
+    from pearnly_erp_portal.express import choices, facts, push, target
+
+    book = (target.pick(push._company(company), str(day)).get("book") or {}).get("key")
+    if not book or facts.vat_initem(facts.load(book)) in (None, "Y"):
+        return EXEMPT_SPLIT
+    return choices.chosen(company, EXEMPT_MODE, "company")
 
 
 def vat_fields(receipts, base, sign=1) -> dict:
@@ -294,6 +317,6 @@ def payments_of(total, paid) -> list:
     return out
 
 
-__all__ = ["DOCTYPE", "HS", "ISVAT_EXEMPT_FIELD", "ISVAT_TAXABLE_FIELD", "LABELS", "NET_NEGATIVE", "REFUND_WAITING", "SR",
+__all__ = ["DOCTYPE", "HS", "EXEMPT_MODE", "ISVAT_EXEMPT_FIELD", "ISVAT_TAXABLE_FIELD", "LABELS", "NET_NEGATIVE", "REFUND_WAITING", "SR",
            "VAT_FIELDS_PAYLOAD_VERSION", "document", "nightly", "payments_of", "pending_days", "receipt_range", "refund_groups",
            "pending_refunds", "summarize", "summarize_refunds", "vat_fields"]

@@ -494,6 +494,7 @@ Excel file,ไฟล์ Excel
 Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
 Exchange Rate must be greater than zero,อัตราแลกเปลี่ยนต้องมากกว่าศูนย์
+Exempt items,สินค้ายกเว้นภาษี
 Expected Amount,ยอดที่ควรมี
 Expected Cash,เงินสดที่ควรมี
 Expense,ค่าใช้จ่าย
@@ -1166,6 +1167,7 @@ Source,แหล่งที่มา
 Source File,ไฟล์ต้นทาง
 Source File Record,ไฟล์ต้นฉบับ
 Split,แยก
+Split exempt items (recommended),แยกสินค้ายกเว้นภาษี (แนะนำ)
 Start counting,เริ่มตรวจนับ
 Start date,วันเริ่ม
 Status,สถานะ
@@ -1237,6 +1239,7 @@ Tax Inclusive,รวมภาษี
 Tax Invoice,ใบกำกับภาษี
 Tax Withholding Amount,ยอดภาษีหัก ณ ที่จ่าย
 Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่าย
+Tax the whole document as the account set does,คิดภาษีทั้งใบตามชุดบัญชี
 Taxes,ภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
 Team board,บอร์ดทีม
@@ -2034,12 +2037,15 @@ express.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่า�
 express.error.VOID_DOCUMENT_CHANGED,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 express.error.VOID_DOCUMENT_NOT_FOUND,ไม่พบเอกสารนี้ใน Express
 express.kind.account,บัญชีค่าใช้จ่าย
+express.kind.exemptMode,สินค้ายกเว้นภาษี
 express.kind.receipt,บัญชีรับเงิน
 express.kind.refundAccount,บัญชีรับคืนสินค้า
 express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
 express.kind.vat,ภาษีซื้อ
 express.kind.vatRegistered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
 express.option.claim,ขอคืน
+express.option.exemptSplit,แยกสินค้ายกเว้นภาษี (แนะนำ)
+express.option.exemptWhole,คิดภาษีทั้งใบตามชุดบัญชี
 express.option.expense,บันทึกเป็นค่าใช้จ่าย
 express.option.no,ไม่ใช่
 express.option.yes,ใช่

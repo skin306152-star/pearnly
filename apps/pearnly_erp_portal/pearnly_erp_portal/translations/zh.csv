@@ -494,6 +494,7 @@ Excel file,Excel 文件
 Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
 Exchange Rate must be greater than zero,汇率必须大于零
+Exempt items,免税商品写法
 Expected Amount,预期金额
 Expected Cash,应有现金
 Expense,费用
@@ -1166,6 +1167,7 @@ Source,来源
 Source File,来源文件
 Source File Record,源文件记录
 Split,分拆
+Split exempt items (recommended),按商品免税拆开写（建议）
 Start counting,开始盘点
 Start date,开始日期
 Status,状态
@@ -1237,6 +1239,7 @@ Tax Inclusive,含税
 Tax Invoice,税务发票
 Tax Withholding Amount,预扣税额
 Tax Withholding Rate,预扣税率
+Tax the whole document as the account set does,照账套现在的设置整张计税
 Taxes,税费
 Taxes and Charges,税费
 Team board,团队看板
@@ -2034,12 +2037,15 @@ express.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创
 express.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 Express 中核对
 express.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
 express.kind.account,费用科目
+express.kind.exemptMode,免税商品写法
 express.kind.receipt,收款科目
 express.kind.refundAccount,销货退回科目
 express.kind.stockGroup,存货科目组
 express.kind.vat,进项税
 express.kind.vatRegistered,该公司是增值税登记户吗
 express.option.claim,抵扣
+express.option.exemptSplit,按商品免税拆开写（建议）
+express.option.exemptWhole,照账套现在的设置整张计税
 express.option.expense,计入费用
 express.option.no,否
 express.option.yes,是

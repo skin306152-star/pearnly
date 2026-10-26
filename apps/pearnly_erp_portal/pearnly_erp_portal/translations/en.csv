@@ -494,6 +494,7 @@ Excel file,Excel file
 Exchange Rate,Exchange Rate
 Exchange Rate is required,Exchange Rate is required
 Exchange Rate must be greater than zero,Exchange Rate must be greater than zero
+Exempt items,Exempt items
 Expected Amount,Expected Amount
 Expected Cash,Expected Cash
 Expense,Expense
@@ -1166,6 +1167,7 @@ Source,Source
 Source File,Source File
 Source File Record,Source File Record
 Split,Split
+Split exempt items (recommended),Split exempt items (recommended)
 Start counting,Start counting
 Start date,Start date
 Status,Status
@@ -1237,6 +1239,7 @@ Tax Inclusive,Tax Inclusive
 Tax Invoice,Tax Invoice
 Tax Withholding Amount,Tax Withholding Amount
 Tax Withholding Rate,Tax Withholding Rate
+Tax the whole document as the account set does,Tax the whole document as the account set does
 Taxes,Taxes
 Taxes and Charges,Taxes and Charges
 Team board,Team board
@@ -2034,12 +2037,15 @@ express.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could no
 express.error.VOID_DOCUMENT_CHANGED,This document was changed in Express. Check it in Express
 express.error.VOID_DOCUMENT_NOT_FOUND,This document is not in Express
 express.kind.account,Expense Account
+express.kind.exemptMode,Exempt items
 express.kind.receipt,Receiving Account
 express.kind.refundAccount,Sales returns account
 express.kind.stockGroup,Stock Account Group
 express.kind.vat,Input VAT
 express.kind.vatRegistered,Is this company VAT registered
 express.option.claim,Claim
+express.option.exemptSplit,Split exempt items (recommended)
+express.option.exemptWhole,Tax the whole document as the account set does
 express.option.expense,Expense
 express.option.no,No
 express.option.yes,Yes

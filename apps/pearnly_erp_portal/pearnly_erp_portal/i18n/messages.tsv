@@ -1386,6 +1386,9 @@ Express has this account set open. It is sent automatically once Express is clos
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	express.error.ACCOUNT_SET_UNREACHABLE
 Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します	express.error.ACCOUNT_WRITER_BUSY
 Sales returns account	销货退回科目	บัญชีรับคืนสินค้า	売上返品勘定	express.kind.refundAccount
+Exempt items	免税商品写法	สินค้ายกเว้นภาษี	免税品の記帳	express.kind.exemptMode
+Split exempt items (recommended)	按商品免税拆开写（建议）	แยกสินค้ายกเว้นภาษี (แนะนำ)	免税品を分けて記帳（推奨）	express.option.exemptSplit
+Tax the whole document as the account set does	照账套现在的设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	帳簿の設定どおり全体に課税	express.option.exemptWhole
 Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	express.reason.refundItems
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	express.error.REFUND_ORIGINAL_NOT_FOUND
 The original cash sale was changed in Express	原现销单在 Express 中已被修改	ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว	元の現金売上が Express で変更されています	express.error.REFUND_ORIGINAL_CHANGED
