@@ -858,6 +858,28 @@ class PushModule(Base):
         self.push = push
 
 
+class MixedRatePurchase(PushModule):
+    """验收复核测试包 e2（10-26）：采购单逐行定税率，有的行 0。0 税率的行标免税，CC 桌面版写价含税的现购时不摊税给它（原生 107 / 50、
+    免税行 VATCOD '0'）；载荷盖 11，旧版 CC 诚实拒收。整张无税的单不标。"""
+
+    def lines(self, *rates):
+        import types
+
+        class Row(dict):
+            __getattr__ = dict.get
+
+        doc = types.SimpleNamespace(lines=[Row(product=None, warehouse=None, description=f"L{index}", unit="ถุง", qty=1,
+                                               line_total=100, vat_rate=rate, item_type="service")
+                                           for index, rate in enumerate(rates)])
+        return self.push._lines(self.push.PURCHASE, doc)
+
+    def test_zero_rate_lines_of_a_taxed_purchase_are_marked_exempt(self):
+        self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(7, 0)], [False, True])
+        self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0)], [False, False])  # 整张无税：不标
+        self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(7, 7)], [False, False])
+        self.assertEqual(common.finalize_payload({"items": [{"name": "A", "vat_exempt": True}]})["payload_version"], 11)
+
+
 class StockVoid(PushModule):
     """B 段 ①：已写进 Express 的出入库单在 ERP 作废 → 排一件作废原单；回执记在作废栏上，写入时的单号和状态不动。"""
 

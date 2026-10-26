@@ -103,6 +103,9 @@ def _party(doctype, doc):
 
 def _lines(doctype, doc):
     products, warehouses, out = {}, {}, []
+    # 混合税率的采购单（逐行税率，有的行 0）：0 税率的行标免税，CC 桌面版写价含税的现购时不摊税给它、明细记 VATCOD '0'
+    # （验收复核测试包 e2 10-26；同收银日汇总的免税行）。整张无税的不标
+    exempt_rates = doctype == PURCHASE and any(_rate(line) > 0 for line in doc.lines)
     for line in doc.lines:
         product = products.get(line.product)
         if line.product and product is None:
@@ -124,8 +127,13 @@ def _lines(doctype, doc):
         out.append({"name": line.description or product.get("product_name") or code, "code": code, "unit": line.unit,
                     "qty": line.qty, "amount": line.line_total, "stock": stock,
                     "loccod": warehouses.get(line.warehouse, "") if line.warehouse else "",
-                    **({"factor": factor} if factor and factor != 1 else {})})
+                    **({"factor": factor} if factor and factor != 1 else {}),
+                    **({"vat_exempt": True} if exempt_rates and not _rate(line) > 0 else {})})
     return out
+
+
+def _rate(line):
+    return contracts.d(line.get("vat_rate") or 0)
 
 
 def form_document(doctype, payload, company) -> dict:

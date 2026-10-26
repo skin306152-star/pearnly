@@ -27,6 +27,7 @@ from pearnly_core.express_rules.push.payment import (  # noqa: F401,E402
     payment_verdict_for,
 )
 
+from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.contracts.line_items import TOLERANCE as _ITEMS_TOL, matched_target
 from pearnly_core.express_rules.push.primitives import _d, parse_invoice_date
 from pearnly_core.express_rules.push.written_check import clean as clean_verify
@@ -247,6 +248,8 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, LOCATION_PAYLOAD_VERSION)
     if any(item.get("factor") for item in lines):
         floor = max(floor, FACTOR_PAYLOAD_VERSION)  # 旧版 CC 桌面版按 1 写包装单位：诚实拒收
+    if any(item.get("vat_exempt") for item in lines):
+        floor = max(floor, pos_contract.NATIVE_EXEMPT_PAYLOAD_VERSION)  # 免税行标记（收银日汇总、混合税率的采购）：旧版不认，诚实拒收
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):
         floor = max(floor, ROLE_PAYLOAD_VERSION)
     payload["payload_version"] = max(floor, int(payload.get("payload_version") or 0))
@@ -331,7 +334,7 @@ def extract_line_items(
                 # 来源（ERP）自己的包装单位换算率：CC 桌面版认不出 Express 主档的包装单位时按它换成库存单位（验收 10-25）
                 row["factor"] = _s(factor)
         if it.get("vat_exempt"):
-            # 来源标的免税行（ERP 收银日汇总 / 退货单）：CC 桌面版摊各行含税额时不摊税给它
+            # 来源标的免税行（ERP 收银日汇总 / 退货单、混合税率采购单的 0 税率行）：CC 桌面版摊各行含税额时不摊税给它
             row["vat_exempt"] = True
         account = str(it.get("account") or "").strip()
         if account:

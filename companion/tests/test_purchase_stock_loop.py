@@ -208,6 +208,19 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
         self.assertEqual(line(credit.docnum)[:3], (Decimal("14"), Decimal("1400"), Decimal("1400")))
         self.assertEqual(line(sale.docnum)[:3], (Decimal("20"), Decimal("1000"), Decimal("1000")))
 
+    def test_a_mixed_rate_cash_purchase_keeps_the_exempt_line_at_its_own_amount(self):
+        """验收复核测试包 e2（10-26）：现购应税 100（税 7）+ 免税 50（ERP 标 vat_exempt），含税 157：明细含税 107 / 50，免税行
+        VATCOD '0'、NETVAL = TRNVAL（原来按税前占比摊成 104.67 / 52.33）。"""
+        payload = _purchase("PO-7201", "150.00", "7.00", "157.00", 10, 10)
+        payload["doctype"] = "HP"
+        payload["items"] = [_item(10, 10, "100.00", "stock_item"), {**_item(5, 10, "50.00", "stock_item"), "vat_exempt": True}]
+        res = self._buy(payload)
+        self.assertTrue(res.ok, res.error)
+        rows = sorted(self._rows("STCRD", DOCNUM=res.docnum), key=lambda row: row.SEQNUM.strip())
+        self.assertEqual([(Decimal(str(row.TRNVAL)), Decimal(str(row.NETVAL))) for row in rows],
+                         [(Decimal("107"), Decimal("100")), (Decimal("50"), Decimal("50"))])
+        self.assertEqual([(row.VATCOD or "").strip() for row in rows], ["", "0"])
+
     def test_two_receipts_then_sale_carries_real_cogs(self):
         """进 100@฿10 + 100@฿14 → 200 件 / ฿2400 / 均价 ฿12;卖 50 件 → COGS ฿600、结存 150 件 / ฿1800。
 
