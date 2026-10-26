@@ -184,6 +184,7 @@
 |---|---|---|---|
 | 10-26 | 本机 | 离线自检；数 token 接口核对请求格式（免费） | 0 |
 | 10-26 | rec-laptop | 只读查了登录用户、计划任务、有没有 Python（ssh macadmin，没改任何东西） | 0 |
+| 10-26 | rec-laptop | acct 桌面放「1-打开服务器文件夹」（pythonw 跑 `open_share.py`：调 Windows 自带的网络凭据框，连上后打开 `\\Accserver\d$\ACCOUNT\70EXP`；脚本不读不存凭据）和「2-登录服务器Express」（目标 `\\Accserver\d$\ACCOUNT\70EXP\ExpressI.exe`，不是 C 盘那套）；为截凭据框的样子触发过一次，凭据框留在桌面等用户填。带参数启动资源管理器那两次没弹框、退回「文档」，多开的 3 个资源管理器进程已关 | 0 |
 | 10-26 | rec-laptop | 装 Python 3.13.17 + 4 个包（见附录 B）；建 C:\XpPilot（代码、下载的安装包 dl\）；计划任务 PearnlyXpPilotAgent 起停一次做连通自检，已停 | 0 |
 | 10-26 | 甲骨文 | 只读拷了识别结果和语料答案到本机 `~/pearnly-devtools/xp-pilot/corpus/` | 0 |
 | 10-26 | 测试机 | 只读统计 S 盘副本（SSH 后台无窗口，已在占用表登记并释放；只留 `C:\PearnlyStress\_xp_pilot\s_stats\pilot\` 三个脚本） | 0 |
