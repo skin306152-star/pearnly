@@ -92,16 +92,74 @@ def test_an_increase_uses_the_given_cost_and_journals_inventory_against_the_offs
 
 
 def test_a_count_with_both_signs_nets_the_journal_per_inventory_account(book):
-    res = _write(book, _entry("TK", [_line("ICE01", -1), _line("ICE02", 2)]))
+    """盘点调整 TK 照 Express 原生（实录第 9 条 TK0000001）：POSOPR ':'、FLAG 5、MREMBAL / MREMVAL 写前结存、PHYBAL 写后这个仓的结存、
+    没有对方科目与品名；单头货值 0、没有参考号与对方科目；凭证摘要「ตรวจนับสินค้า + 单号」。"""
+    res = _write(book, _entry("TK", [_line("ICE01", -1), _line("ICE02", 2)], remark="นับสต็อก"))
     assert res.ok, res.error
     assert res.docnum.startswith("TK690320-")
     rows = {row["STKCOD"].strip(): row for row in _rows(book, "STCRD", DOCNUM=res.docnum)}
-    assert rows["ICE01"]["TRNQTY"] == -1.0 and rows["ICE01"]["XTRNVAL"] == -10.0 and rows["ICE01"]["MREMBAL"] == 4.0
-    assert rows["ICE02"]["TRNQTY"] == 2.0 and rows["ICE02"]["XTRNVAL"] == 0.0  # 没货、没标准成本：数量照记、货值 0
-    assert _rows(book, "STTRN", DOCNUM=res.docnum)[0]["TRNVAL"] == -10.0
-    _heads, lines = _journal(book, res.docnum)
+    ice01, ice02 = rows["ICE01"], rows["ICE02"]
+    assert (ice01["POSOPR"], ice01["FLAG"].strip(), ice01["TRNQTY"], ice01["XTRNVAL"]) == (":", "5", -1.0, -10.0)
+    assert (ice01["MREMBAL"], ice01["MREMVAL"], ice01["PHYBAL"]) == (5.0, 50.0, 4.0)  # 写前结存 5 / 50，这个仓写后 4
+    assert (ice01["ACCNUMCR"].strip(), ice01["STKDES"].strip(), ice01["MLOTNUM"].strip()) == ("", "", "")
+    assert ice02["TRNQTY"] == 2.0 and ice02["XTRNVAL"] == 0.0 and ice02["PHYBAL"] == 2.0  # 没货、没批次、没均价：数量照记、货值 0
+    head = _rows(book, "STTRN", DOCNUM=res.docnum)[0]
+    assert (head["POSOPR"], head["TRNVAL"], head["REFNUM"].strip(), head["ACCNUMCR"].strip()) == (":", 0.0, "", "")
+    heads, lines = _journal(book, res.docnum)
+    assert heads[0]["DESCRP"].strip() == f"ตรวจนับสินค้า {res.docnum}"  # 原生摘要，不用备注
     assert lines == [("0", OFFSET_ACC, Decimal("10.00"), "1"), ("1", INVENTORY_ACC, Decimal("10.00"), "1")]
     assert _stloc(book, "ICE02", "01")["LOCBAL"] == 2.0
+
+
+def _receipt(acct, docnum, day, qty, value, code="ICE01", loc="01", seq="1"):
+    """账里一行进货（STCRD POSOPR 0）：盘盈要挂的那一批。"""
+    seed(acct, "STCRD", [{"STKCOD": code, "LOCCOD": loc, "DOCNUM": docnum, "SEQNUM": seq, "DOCDAT": day, "POSOPR": "0",
+                          "TRNQTY": float(qty), "XTRNQTY": float(qty), "XTRNVAL": float(value)}])
+
+
+def test_a_count_gain_in_a_fifo_book_takes_the_cost_of_the_latest_receipt_and_links_that_lot(book):
+    """实录第 9 条：先进先出账套的盘盈单价取这个仓最近一次进货那一批的成本（S 盘 2,836 行），MLOTNUM / RDOCNUM 指向那一行，
+    不取载荷给的单价；别的仓的进货不算。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
+    _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
+    _receipt(book, "RR0000011", dt.date(2026, 3, 9), 10, 600, loc="02")
+    res = _write(book, _entry("TK", [_line("ICE01", 15, unit_cost="99")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["UNITPR"], line["XUNITPR"], line["XTRNVAL"], line["NETVAL"]) == (45.0, 45.0, 675.0, 675.0)
+    assert (line["RDOCNUM"], line["MLOTNUM"].strip()) == ("RR0000010     1", "202603050RR0000010     1")
+    assert (line["LOTBAL"], line["LOTVAL"], line["LUNITPR"], line["PHYBAL"]) == (15.0, 675.0, 45.0, 20.0)
+    _heads, lines = _journal(book, res.docnum)
+    assert lines == [("0", INVENTORY_ACC, Decimal("675.00"), "1"), ("1", OFFSET_ACC, Decimal("675.00"), "1")]
+
+
+def test_a_count_gain_without_a_lot_in_a_fifo_book_is_costed_at_zero(book):
+    """实录第 9 条：挂不上批次的盘盈 Express 记 0 成本（6412NLT TK2000001），以后靠「计算成本」重排；零金额不过账。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    res = _write(book, _entry("TK", [_line("ICE01", 3, unit_cost="12")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["UNITPR"], line["XTRNVAL"], line["MLOTNUM"].strip()) == (0.0, 0.0, "")
+    assert _journal(book, res.docnum) == ([], [])
+
+
+def test_a_count_gain_in_an_average_cost_book_takes_the_warehouse_average_for_now(book):
+    """主会话 10-26：平均成本账套 S 盘样本没有定论，先按这个仓此刻的均价（STLOC 货值 ÷ 结存，待核）；有进货也挂那一批。"""
+    table = __import__("dbf").Table(str(book / "STLOC.DBF"), codepage=__import__("companion.dbf_schema").dbf_schema.CODEPAGE)
+    table.open(__import__("dbf").READ_WRITE)
+    try:
+        for rec in table:
+            if rec.STKCOD.strip() == "ICE01":
+                with rec as fields:
+                    fields["BEGVAL"] = 60.0  # 这个仓 5 个值 60（均价 12），商品主档的均价是 10
+    finally:
+        table.close()
+    _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
+    res = _write(book, _entry("TK", [_line("ICE01", 2)]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["UNITPR"], line["XTRNVAL"], line["RDOCNUM"]) == (12.0, 24.0, "RR0000010     1")
 
 
 def test_a_periodic_account_set_or_a_zero_value_entry_is_not_journalled(book):

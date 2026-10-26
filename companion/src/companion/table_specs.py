@@ -87,7 +87,9 @@ TABLE_SPECS = {
         # 测试机 S 盘副本 1039 本与 T 账套真表都是 C(15)),RETSTK Y 货回仓、FLAG 2
         "RDOCNUM C(15); RETSTK C(1); FLAG C(1); "
         # VATCOD:商品 VAT 类型(真表有;实录第 10 条,免税行记 '0'、应税行空)
-        "VATCOD C(1)"
+        "VATCOD C(1); "
+        # 批次(真表有;实录第 9 条盘点 TK 的盘盈挂最近一次进货那一批:MLOTNUM = 日期 + POSOPR + RDOCNUM)
+        "MLOTNUM C(24); LOTBAL B; LOTVAL B; LUNITPR B"
     ),
     # 库存单单头（领用 OU / 调整 JU / 盘点 TK；真表 23 列，T9HENG15 10-25 读出的宽度）
     "STTRN": (

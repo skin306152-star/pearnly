@@ -27,7 +27,7 @@ from . import fiscal_period
 from . import stock_guard
 from . import stock_location
 from .consistency import account_company_matches
-from .dbf_stock import ISSUE, KINDS, _dec
+from .dbf_stock import COUNT, ISSUE, KINDS, _dec
 from .dbf_writer import (
     ERR_LOCATION,
     DbfWriteResult,
@@ -164,7 +164,8 @@ def void_stock_entry(
     if payload.get("respect_period_lock") and head["DOCDAT"] and fiscal_period.locked(account_dir, head["DOCDAT"]):
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {head['DOCDAT']} is locked in Express")
-    wanted = S.STCRD_POSOPR_ISSUE if KINDS[doctype] == ISSUE else S.STCRD_POSOPR_ADJUST
+    wanted = (S.STCRD_POSOPR_ISSUE if KINDS[doctype] == ISSUE else S.STCRD_POSOPR_COUNT if doctype == COUNT
+              else S.STCRD_POSOPR_ADJUST)
     lines = _lines(account_dir, docnum)
     differ = _differences(lines, payload["items"])
     if head["POSOPR"] != wanted:

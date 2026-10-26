@@ -2,8 +2,10 @@
 """CC 写库存单（载荷 6：领用 OU / 调整 JU / 盘点 TK，dbf_stock）的真账副本离线回归（出入库第一期 B 段，10-25）。
 
 对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码依次写一张调整（JU，+2 个、给单位成本）、一张领用（OU，1 个）、
-一张盘点（TK，−1 个）→ 核：
-- 三张单都写成，单头 STTRN 一行、明细 STCRD 行数与单据一致；
+一张盘点（TK，−1 个）、一张盘盈（TK，+1 个）→ 核：
+- 盘点 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；先进先出账套盘盈单价取主仓最近一次进货那一批的成本
+  （挂不上记 0），有那一批就挂上（RDOCNUM / MLOTNUM）；
+- 四张单都写成，单头 STTRN 一行、明细 STCRD 行数与单据一致；
 - 写前 STMAS 结存等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0）；
 - 凭证：永续盘存账套每张有金额的单一张 JNLTYP 00 凭证、借贷平衡；定期盘存账套（ISPERPETUA = N）一张凭证都没有；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
@@ -160,6 +162,41 @@ def location_balances(acct, code):
                   for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL")) if text(r["STKCOD"]) == code)
 
 
+def latest_receipt(acct, code):
+    """这件品主仓最近一次进货那一行（STCRD POSOPR 0、数量为正，按日期取最后的）→ (成本, 单号, 行号, 日期)；没有回 None。"""
+    main = account_rules.main_location(acct)
+    found = None
+    for r in rows(acct, "STCRD", ("STKCOD", "LOCCOD", "POSOPR", "XTRNQTY", "XTRNVAL", "DOCNUM", "SEQNUM", "DOCDAT")):
+        if text(r["STKCOD"]) != code or text(r["POSOPR"]) != "0" or (text(r["LOCCOD"]) or main) != main:
+            continue
+        qty = Decimal(repr(float(r["XTRNQTY"] or 0)))
+        if qty > 0 and r["DOCDAT"] and (found is None or r["DOCDAT"] >= found[3]):
+            seq = text(r["SEQNUM"])
+            found = (Decimal(repr(float(r["XTRNVAL"] or 0))) / qty, text(r["DOCNUM"]), int(seq) if seq.isdigit() else 0, r["DOCDAT"])
+    return found
+
+
+def count_gain(acct, docnum, lot):
+    """盘盈 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；先进先出账套单价取最近一次进货那一批的成本、挂不上记 0，
+    有那一批就挂上（RDOCNUM / MLOTNUM）。不符回原因。"""
+    from companion import dbf_refund
+
+    line = [r for r in rows(acct, "STCRD", ("DOCNUM", "POSOPR", "FLAG", "XUNITPR", "RDOCNUM", "MLOTNUM", "PHYBAL"))
+            if text(r["DOCNUM"]) == docnum][0]
+    head = [r for r in rows(acct, "STTRN", ("DOCNUM", "POSOPR", "TRNVAL")) if text(r["DOCNUM"]) == docnum][0]
+    if text(line["POSOPR"]) != ":" or text(head["POSOPR"]) != ":" or Decimal(repr(float(head["TRNVAL"] or 0))) != 0:
+        return f"TK {docnum}: POSOPR {line['POSOPR']!r} / {head['POSOPR']!r}, header TRNVAL {head['TRNVAL']}"
+    if line["FLAG"] is not None and text(line["FLAG"]) != "5":
+        return f"TK {docnum}: FLAG {line['FLAG']!r}"
+    fifo = text((account_rules._first(acct, "ISINFO") or {}).get("COSMTD")).upper() == "F"
+    cost = Decimal(repr(float(line["XUNITPR"] or 0))).quantize(Decimal("0.01"))
+    if fifo and cost != (lot[0].quantize(Decimal("0.01")) if lot else Decimal("0.00")):
+        return f"TK {docnum}: unit cost {cost} != lot {lot}"
+    if lot and line["RDOCNUM"] is not None and str(line["RDOCNUM"] or "").rstrip() != dbf_refund.rdocnum(lot[1], lot[2]):
+        return f"TK {docnum}: RDOCNUM {line['RDOCNUM']!r} != lot {lot[1]} {lot[2]}"
+    return ""
+
+
 def check(acct: Path) -> dict:
     books = {kind: D.book_row(acct, kind) for kind in ("OU", "JU", "TK")}
     missing = [kind for kind, row in books.items() if row is None]
@@ -187,7 +224,9 @@ def check(acct: Path) -> dict:
     docdate = f"{(day.year + 543) % 100:02d}{day.month:02d}{day.day:02d}"
     written = []
     # 先入后出：不允许负库存的账套（NEGALLOW = N）里结存为 0 的品先领用会被正确拦下（stock_guard）
-    for doctype, qty, extra in (("JU", 2, {"unit_cost": "15"}), ("OU", 1, {}), ("TK", -1, {})):
+    steps = (("JU", 2, {"unit_cost": "15"}), ("OU", 1, {}), ("TK", -1, {}), ("TK", 1, {"unit_cost": "99"}))
+    lot = latest_receipt(acct, code)
+    for doctype, qty, extra in steps:
         payload = {"payload_version": 6, "direction": "stock", "doctype": doctype, "docdate_be": docdate,
                    "ref_no": f"REG-{doctype}", "remark": "", "items": [{"code": code, "name": "", "qty": str(qty), **extra}]}
         res = D.write_stock_entry(payload, acct, selected_dir=str(acct), make_backup=False)
@@ -209,7 +248,10 @@ def check(acct: Path) -> dict:
     if has_stloc and before_balanced and not balanced(acct, [code])[code]:
         return {"state": "fail", "why": f"STMAS != sum(STLOC) for {code} after writing"}
     # 作废（载荷 8，dbf_void）：倒着逐张作废，单头标 C、明细不在、结存回到写前
-    for docnum, (doctype, qty) in reversed(list(zip(written, (("JU", 2), ("OU", 1), ("TK", -1))))):
+    gain = count_gain(acct, written[-1], lot)
+    if gain:
+        return {"state": "fail", "why": gain}
+    for docnum, (doctype, qty) in reversed(list(zip(written, [(step[0], step[1]) for step in steps]))):
         void = {"payload_version": 8, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
                 "items": [{"code": code, "qty": str(qty)}]}
         res = V.void_stock_entry(void, acct, selected_dir=str(acct), make_backup=False)

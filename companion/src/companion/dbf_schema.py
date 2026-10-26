@@ -101,6 +101,9 @@ STCRD_DEFAULT_LOCCOD = "01"
 # 库存单（STTRN，出入库第一期 B 段）：领用 OU 类 6、调整 JU 类 8（数量可正可负，S 盘 10-25 样本）
 STCRD_POSOPR_ISSUE = "6"
 STCRD_POSOPR_ADJUST = "8"
+# 盘点调整 TK：Express 原生「ปรับปรุงยอดสินค้าตามที่ตรวจนับ」写 POSOPR ':'、FLAG 5（实录第 9 条 TK0000001）
+STCRD_POSOPR_COUNT = ":"
+STCRD_FLAG_COUNT = "5"
 # 小助手写入的录入人(USERID / CREBY,C(8))。以前写 BIT9 —— 那是测试机所在事务所的真人账号,别的事务所没有这个人,
 # 在本所又把推送记到一个真人名下。Express 打开账套不拿单据上的用户名去比对用户表(真实账套里大多数单据的录入人
 # 都不在本机用户表,照常打开;2026-10-08 核对),所以写一个固定的、看得出是 Pearnly 写的名字。
