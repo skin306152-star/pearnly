@@ -290,7 +290,7 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                S.append_stcrd(st, stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
+                S.append_stcrd(st, stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
@@ -330,7 +330,7 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                S.append_stcrd(st, stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
+                S.append_stcrd(st, stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)

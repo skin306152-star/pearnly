@@ -216,3 +216,15 @@ ISVAT、GLJNL 没有这类字段。改法：`dbf_schema.append_native`（原 `ap
   建档 / 修改日记写入日，其余日期（最近开票、收款等）空着，余额 0、状态 A、操作员记 CC 桌面版。
   测试机 C 盘真账只读核对（`cross_year_copy_check.py`，41 家公司、T7 / T8 / T9 年度账套）：同公司早年度 → 晚年度复制 77 对全对；
   晚 → 早、同年度（如 T7GISP / T8GISS 都从 2024 起）、别家公司拒绝 124 次全对。
+- 价含税单的明细单价（主会话转试点窗口发现，10-26 只读核对）：S 盘副本 286 本，现销 HS（FLGVAT 1）32 万行 98% 明细 UNITPR / TRNVAL
+  记含税、NETVAL 记税前（TRNVAL ≈ NETVAL × 1.07）；赊销 IV（FLGVAT 2）TRNVAL = NETVAL；进货侧同样（现购 HP FLGVAT 1 含税、赊购 RR 税前）。
+  原生 SR 实录（SR0000001：UNITPR / TRNVAL 100、NETVAL 93.46）也是这样。CC 以前写 HS / HP 单头 FLGVAT 1、明细却记税前（实验栈
+  HS691022-002 读回 UNITPR = TRNVAL = NETVAL = 97.82），与原生不一致。修：
+  - CC：价含税的单（FLGVAT 1）把含税合计按各行税前占比摊成各行含税额（免税行含税额 = 税前额，同退货单原来的算法，挪到
+    `dbf_fields.line_grosses` 共用），明细 UNITPR / TRNVAL 记含税、NETVAL / XSALVAL 照税前、成本 XUNITPR / XTRNVAL 照税前
+    （`dbf_fields.inclusive_items` / `priced_line`，现销 `dbf_sales`、现购 `dbf_writer → purchase_lines`、库存行 `stock_sale` /
+    `stock_purchase`、非库存行 `dbf_detail` 同一处）；赊单、无税单不变。
+  - ERP 整张计税：各行税前按收银小票含税额摊（含税额 × 100/107，同 Express 没开逐行 VAT 的账套），CC 摊回的含税额就是小票含税额
+    （以前按小票税前摊，免税商品的行被多分了整张税前）。
+  - 真账回归共用检查 `express_native_detail_check` 加核：价含税单应税行 TRNVAL ≈ NETVAL × 1.07、免税行与其余单 TRNVAL = NETVAL；
+    `express-stloc-regression.py --cash` 写现购 HP / 现销 HS 跑同一套核对。

@@ -2,7 +2,8 @@
 
 - 行号 SEQNUM C(3) 右对齐（"  1"；Express 拼 RDOCNUM 是「单号 C(12) + SEQNUM 原样」，以前 CC 写左对齐）；单头 NXTSEQ、凭证 SEQIT
   同样右对齐；
-- 单位 TQUCOD 不空、倍数 TFACTOR > 0（单位空着 Express 录退货要人手补选、倍数 0 报 13）。
+- 单位 TQUCOD 不空、倍数 TFACTOR > 0（单位空着 Express 录退货要人手补选、倍数 0 报 13）；
+- 金额跟单头价格口径：价含税（FLGVAT 1）应税行 TRNVAL 记含税，其余 TRNVAL = NETVAL。
 另统计这本账套里原生明细（不是这次写的）的行号写法，作对照。
 """
 from __future__ import annotations
@@ -29,6 +30,34 @@ def problems(dbf, schema, acct: Path, docnums) -> list:
                 found.append(f"{docnum} line {seq.strip()} TQUCOD empty")
             if "TFACTOR" in names and not float(rec.TFACTOR or 0) > 0:
                 found.append(f"{docnum} line {seq.strip()} TFACTOR {rec.TFACTOR}")
+    finally:
+        table.close()
+    # 明细金额跟单头的价格口径（S 盘副本 286 本，10-26）：价含税（FLGVAT 1，现销 HS / 现购 HP / 退货 SR）应税行 TRNVAL ≈ NETVAL × 1.07、
+    # 免税行（VATCOD '0'）TRNVAL = NETVAL；价不含税 / 无税（赊单、FLGVAT 2 / 0）TRNVAL = NETVAL
+    flags = {}
+    for name in ("ARTRN", "APTRN"):
+        path = Path(acct) / f"{name}.DBF"
+        if path.is_file():
+            table = dbf.Table(str(path), codepage=schema.CODEPAGE, unicode_errors=schema.UNICODE_ERRORS)
+            table.open(dbf.READ_ONLY)
+            try:
+                flags.update({str(rec.DOCNUM or "").strip(): str(rec.FLGVAT or "").strip()
+                              for rec in schema.live_rows(table) if str(rec.DOCNUM or "").strip() in wanted})
+            finally:
+                table.close()
+    table = dbf.Table(str(Path(acct) / "STCRD.DBF"), codepage=schema.CODEPAGE, unicode_errors=schema.UNICODE_ERRORS)
+    table.open(dbf.READ_ONLY)
+    try:
+        names = {name.upper() for name in table.field_names}
+        for rec in schema.live_rows(table):
+            docnum = str(rec.DOCNUM or "").strip()
+            if docnum not in flags:
+                continue
+            gross, net = float(rec.TRNVAL or 0), float(rec.NETVAL or 0)
+            exempt = "VATCOD" in names and str(rec.VATCOD or "").strip() == "0"
+            want = net * 1.07 if flags[docnum] == "1" and not exempt else net
+            if abs(gross - want) > 0.05:
+                found.append(f"{docnum} line {str(rec.SEQNUM).strip()} FLGVAT {flags[docnum]!r} TRNVAL {gross} NETVAL {net}")
     finally:
         table.close()
     # 单头「下一行号」与凭证行号也照原生右对齐（ARTRN / APTRN / STTRN.NXTSEQ C(3)、GLJNLIT.SEQIT C(2)，S 盘副本 121 本，10-26）

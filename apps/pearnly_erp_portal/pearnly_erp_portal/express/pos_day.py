@@ -201,7 +201,8 @@ def document(name, ref) -> dict:
     summary.grand_total, summary.vat_amount = sums.total, sums.vat
     company = frappe.db.get_value("ERP Company", summary.company, ["tax_id", "branch"], as_dict=True) or {}
     rows = frappe.db.sql(f"""SELECT l.product, l.warehouse, l.unit, SUM({sign} * l.qty) AS qty,
-        SUM({sign} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount, SUM(ABS(COALESCE(l.vat_amount, 0))) AS vat
+        SUM({sign} * (l.line_total - COALESCE(l.vat_amount, 0))) AS amount, SUM(ABS(COALESCE(l.vat_amount, 0))) AS vat,
+        SUM({sign} * l.line_total) AS gross
         FROM `tabERP Sale Line` l JOIN `tabERP Sale` s ON s.name = l.parent AND l.parenttype = 'ERP Sale'
         WHERE s.express_summary = %s GROUP BY l.product, l.warehouse, l.unit ORDER BY MIN(l.idx)""", (name,), as_dict=True)
     products, warehouses, merged = {}, {}, {}
@@ -219,13 +220,14 @@ def document(name, ref) -> dict:
         factor = stock_entry.base_unit(row.product, product, row.unit, strict=False)[1] if row.product else contracts.d(1)
         key = (row.product or row.unit, row.warehouse, row.unit)
         line = merged.setdefault(key, {"name": product.get("product_name") or code or "-", "code": code, "unit": row.unit,
-                                       "qty": contracts.d(0), "amount": contracts.d(0),
+                                       "qty": contracts.d(0), "amount": contracts.d(0), "gross": contracts.d(0),
                                        "stock": bool(product.get("express_stock")) if code else bool(row.product),
                                        "loccod": warehouses.get(row.warehouse, "")})
         if factor != 1:
             line["factor"] = stock_entry._plain(factor)
         line["qty"] += contracts.d(row.qty)
         line["amount"] += contracts.d(row.amount)
+        line["gross"] += contracts.d(row.gross)
         # 这一行没拆出税额（免税商品）：CC 桌面版摊各行含税额时不摊税给它（退货单明细的含税额，验收实测 10-26）
         line["vat_exempt"] = line.get("vat_exempt", True) and not contracts.d(row.vat)
     total, vat = contracts.d(summary.grand_total), contracts.d(summary.vat_amount)
@@ -264,8 +266,13 @@ def document(name, ref) -> dict:
 
             vat = cashier.included_vat(total)
             whole = True
-    lines = [{**{key: value for key, value in line.items() if key != "vat_exempt" or exempt},
+    lines = [{**{key: value for key, value in line.items() if key != "gross" and (key != "vat_exempt" or exempt)},
               "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])} for line in items]
+    if whole:
+        # 整张计税各行税前 = 含税额 × 100/107（同 Express 没开逐行 VAT 的账套）：按各行含税额摊整张税前，免税商品也照含税价算；
+        # CC 桌面版再按税前占比摊回各行含税额就是收银小票的含税额（价含税的单明细记含税，主会话 10-26 转试点窗口发现）
+        for line, amount in zip(lines, contracts.spread([contracts.d(line["gross"]) for line in items], total - vat)):
+            line["amount"] = contracts.money(amount)
     if exempt:
         # 免税行与应税行分两组各自摊到税前合计（复核 10-26：有整单折扣时统一按比例摊，免税行明细 44.79 而 AMTRAT0 是收银小票按含税额
         # 摊折扣的 45.00）：免税组合计 = 收银小票的免税净额（同 `vat_fields` 的 AMTRAT0），应税组摊其余，明细与销项税记录对得上

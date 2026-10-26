@@ -25,6 +25,7 @@ import dbf
 
 from . import account_rules
 from . import dbf_detail
+from . import dbf_fields
 from . import dbf_schema as S
 from . import product_master
 from . import stock_location
@@ -105,6 +106,7 @@ def write_stock_in_lines(
     st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     st.open(dbf.READ_WRITE)
     try:
+        st_fields = {name.upper() for name in st.field_names}
         for seq, it in enumerate(items, start=1):
             name = str(it.get("name") or "")
             qty = Decimal(str(it.get("qty") or "0"))
@@ -152,6 +154,7 @@ def write_stock_in_lines(
                     ref_no=ref_no,
                     posopr=S.STCRD_POSOPR_PURCHASE,
                 ), units.unit, stock_location.location_at(locations, seq - 1))
+            row = dbf_fields.priced_line(row, it, st_fields)  # 现购 HP 价含税：UNITPR / TRNVAL 记含税，成本照税前
             S.append_stcrd(st, stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))

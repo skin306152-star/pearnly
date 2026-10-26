@@ -8,8 +8,8 @@ dbf_writer 再导出本模块符号,dbf_sales 仍从 dbf_writer 取(import 路�
 """
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import Any, Dict
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Dict, List
 
 
 def _f(v: Any) -> float:
@@ -46,6 +46,53 @@ def exempt_line(row: Dict[str, Any], item, fields) -> Dict[str, Any]:
         if "TRNVAL" in row:
             row["NETVAL"] = row["TRNVAL"]
     return row
+
+
+def _q2(value) -> Decimal:
+    return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def line_grosses(items, total) -> List[Decimal]:
+    """各行含税额：免税行（``vat_exempt``）含税额就是税前额；含税合计减去它们后按税前额占比摊给其余行，尾差落最后一个应税行，
+    合计恒等于含税合计（载荷只带各行税前额。验收实测 10-26：应税 100 + 免税 50 退货，原来按占比摊成 104.67 / 52.33）。
+    全是免税行时照占比摊（合计里本来就没有税）。"""
+    total = Decimal(str(total))
+    nets = [Decimal(str(item.get("amount") or "0")) for item in items]
+    exempt = {index for index, item in enumerate(items) if item.get("vat_exempt")}
+    if len(exempt) == len(items):
+        exempt = set()
+    out: List[Decimal] = [nets[index] if index in exempt else Decimal(0) for index in range(len(items))]
+    taxable = [index for index in range(len(items)) if index not in exempt]
+    rest = total - sum((nets[index] for index in exempt), Decimal(0))
+    whole = sum((nets[index] for index in taxable), Decimal(0))
+    if whole > 0:
+        for index in taxable[:-1]:
+            out[index] = _q2(nets[index] * rest / whole)
+    out[taxable[-1]] = rest - sum((out[index] for index in taxable[:-1]), Decimal(0))
+    return out
+
+
+GROSS_KEY = "_gross"  # 价含税单（FLGVAT '1'）明细行的含税额，:func:`inclusive_items` 算好、:func:`priced_line` 写进 STCRD
+
+
+def inclusive_items(items, flgvat: str, total) -> list:
+    """价含税的单（现销 HS、现购 HP，FLGVAT '1'）：照 Express 原生，明细 UNITPR / TRNVAL 记含税、NETVAL 记税前（S 盘副本 286 本
+    HS 32 万行 98% 如此，HP 同样；FLGVAT '2' 的赊销 / 赊购 TRNVAL = NETVAL，10-26 主会话转试点窗口发现）。给各行带上含税额
+    （:func:`line_grosses`），其余单原样返回。"""
+    if flgvat != "1" or not items:
+        return list(items or [])
+    return [{**item, GROSS_KEY: gross} for item, gross in zip(items, line_grosses(items, total))]
+
+
+def priced_line(row: Dict[str, Any], item, fields) -> Dict[str, Any]:
+    """一条刚建好的明细行按单据的价格口径落：带含税额的（:func:`inclusive_items`）UNITPR / TRNVAL 记含税（UNITPR 按交易单位数量）、
+    NETVAL 不动；再按 :func:`exempt_line` 标免税行。"""
+    gross = item.get(GROSS_KEY)
+    if gross is not None:
+        qty = Decimal(str(row.get("TRNQTY") or 0))
+        row["TRNVAL"] = float(gross)
+        row["UNITPR"] = float(_q2(gross / qty)) if qty else float(gross)
+    return exempt_line(row, item, fields)
 
 
 def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0, duedat=None) -> Dict[str, Any]:

@@ -39,6 +39,7 @@ from .write_result import DbfWriteResult  # noqa: F401  re-export · dbf_sales �
 from .dbf_fields import (
     _f,
     amount_fields,
+    inclusive_items,
     audit_fields,
 )  # noqa: F401  抽出·再导出供 dbf_sales 复用
 from .dbf_schema import account_dir_allowed  # noqa: F401  re-export · 逻辑在 dbf_schema
@@ -595,6 +596,7 @@ def _write_all(
     if write_detail:
         line_modes, reclass = purchase_lines.write_detail(
             account_dir, docnum, docdat, entry, gl_rows, depcod=depcod, userid=userid,
+            items=inclusive_items(entry.items, flgvat, total),  # 现购价含税：明细记含税（同原生）
             **_located(locations, moves),
         )
         gl_rows += [] if periodic else reclass

@@ -60,6 +60,7 @@ from .dbf_writer import (
     _verify_index,
     _WriteError,
     amount_fields,
+    inclusive_items,
     audit_fields,
 )
 from .logger import get_logger
@@ -519,10 +520,11 @@ def _write_all(
     line_modes = []
     cogs_rows = []  # V2-b:卖库存品的 COGS 分录(借成本/贷存货),接在 asset/rev/vat 之后
     if write_detail:
+        items = inclusive_items(entry.items, flgvat, total)  # 现销价含税：明细 UNITPR / TRNVAL 记含税（同原生）
         stock_items = [
-            it for it in entry.items if str(it.get("item_mode") or "") == "stock_sale"
+            it for it in items if str(it.get("item_mode") or "") == "stock_sale"
         ]
-        if stock_items and len(stock_items) != len(entry.items):
+        if stock_items and len(stock_items) != len(items):
             # 一单里库存品与非库存混行:SEQNUM 会撞 + 部分扣库存,V1 不静默处理 → 交会计。
             raise _WriteError("混合库存+非库存明细行(V1 不支持)", ERR_STOCK_NOT_FOUND)
         if stock_items:
@@ -530,7 +532,7 @@ def _write_all(
                 account_dir,
                 docnum,
                 docdat,
-                entry.items,
+                items,
                 entry.customer_code,
                 depcod=depcod,
                 userid=userid,
@@ -539,7 +541,7 @@ def _write_all(
             )
         else:
             line_modes = _write_stcrd_detail(
-                account_dir, docnum, docdat, entry, depcod, userid=userid, **_located(locations)
+                account_dir, docnum, docdat, entry, depcod, userid=userid, items=items, **_located(locations)
             )
 
     if has_vat:
@@ -612,14 +614,15 @@ def _write_all(
 
 
 def _write_stcrd_detail(
-    account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID, locations=None
+    account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID, locations=None,
+    items=None,
 ):
-    """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。"""
+    """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。``items`` 不给用 ``entry.items``。"""
     return dbf_detail.write_stcrd_detail(
         account_dir,
         docnum,
         docdat,
-        entry.items,
+        entry.items if items is None else items,
         entry.customer_code,
         entry.items_account,
         depcod=depcod,

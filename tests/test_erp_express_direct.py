@@ -1648,7 +1648,8 @@ class PosDaySummaries(Base):
             if "tabERP Sale Payment" in query:
                 return [types.SimpleNamespace(method=method, amount=D(amount)) for method, amount in paid]
             return [types.SimpleNamespace(product=line[0], warehouse="W1", unit="ถุง", qty=D(line[1]), amount=D(line[2]),
-                                          vat=D(line[3] if len(line) > 3 else "1"))  # 第 4 项是这行拆出的税额，"0" = 免税
+                                          vat=D(line[3] if len(line) > 3 else "1"),  # 第 4 项是这行拆出的税额，"0" = 免税
+                                          gross=D(line[2]) + D(line[3] if len(line) > 3 else "1"))
                     for line in lines]
 
         with mock.patch.object(frappe.db, "get_value", side_effect=get_value, create=True), \
@@ -1783,10 +1784,12 @@ class PosDaySummaries(Base):
         self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["split", "whole"])
         # 选了照账套整张计税（主会话 10-26 选 A）：同 Express 没开逐行 VAT 的账套，整张按含税价倒算 157 × 7/107 = 10.27、税前 146.73
         # （原生 HS0000041），合计不变；不拆、明细不标免税
-        body = self.summary_body(mixed, [], "157", vat="7", exempt="50", exempt_mode="whole")
+        body = self.summary_body([("A", "1", "100", "7"), ("B", "1", "50", "0")], [], "157", vat="7", exempt="50", exempt_mode="whole")
         self.assertNotIn("vat_fields", body)
         self.assertFalse(any(item.get("vat_exempt") for item in body["items"]))
         self.assertEqual((body["vat"], body["total"], body["subtotal"]), ("10.27", "157.00", "146.73"))
+        # 各行税前 = 收银小票含税额 107 / 50 × 100/107（同原生整张计税），CC 桌面版摊回的含税额就是 107 / 50
+        self.assertEqual([line["amount"] for line in body["items"]], ["100.00", "46.73"])
         # 整张计税下全是免税商品的一天：不倒算出税，照免税写（原生对全免税的单不计税）
         body = self.summary_body([("B", "1", "50", "0")], [], "50", vat="0", exempt="50", exempt_mode="whole")
         self.assertEqual((body["vat"], body["has_vat"]), ("0.00", False))

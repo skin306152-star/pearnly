@@ -76,19 +76,21 @@ def write_detail(
     userid: str = S.PEARNLY_USERID,
     locations: Optional[List[Optional[str]]] = None,
     moves: Optional[list] = None,
+    items: Optional[list] = None,
 ) -> Tuple[List[dict], List[GlRow]]:
     """写本单明细行,返回 (逐行 mode 结果, 要追加的重分类分录行)。
 
     混行(库存 + 非库存)拒收:两条路的 STCRD SEQNUM 都从 1 起会撞,且只有一半货真进库存,
-    V1 不静默处理 → 交会计拆单。
+    V1 不静默处理 → 交会计拆单。``items``：调用方按单据价格口径备好的明细（价含税的带含税额），不给用 ``entry.items``。
     """
-    stock_items = [it for it in entry.items if _mode(it) == dbf_detail.ITEM_MODE_STOCK]
+    items = entry.items if items is None else items
+    stock_items = [it for it in items if _mode(it) == dbf_detail.ITEM_MODE_STOCK]
     if not stock_items:
         line_modes = dbf_detail.write_stcrd_detail(
             account_dir,
             docnum,
             docdat,
-            entry.items,
+            items,
             entry.supplier_code,
             entry.items_account,
             depcod=depcod,
@@ -98,7 +100,7 @@ def write_detail(
             **({"locations": locations} if locations is not None else {}),
         )
         return line_modes, []
-    if len(stock_items) != len(entry.items):
+    if len(stock_items) != len(items):
         raise StockLineError("混合库存+非库存明细行(V1 不支持)")
 
     try:
@@ -106,7 +108,7 @@ def write_detail(
             account_dir,
             docnum,
             docdat,
-            entry.items,
+            items,
             entry.supplier_code,
             depcod=depcod,
             acccod=getattr(entry, "stock_acccod", ""),

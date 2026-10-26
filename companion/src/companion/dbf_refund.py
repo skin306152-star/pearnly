@@ -6,7 +6,7 @@
 - 单头 ARTRN：RECTYP 5、CNTYP 3（退现金）、SONUM = 原单号、FLGVAT 1、AMOUNT / AFTDISC / TOTAL / NETAMT = 含税、NETVAL = 税前、
   VATAMT、RCVAMT = 含税（退了的钱）、IVCAMT = 原单含税合计、CMPLAPP Y、DOCSTAT N、NXTSEQ = 行数；
 - 明细 STCRD：POSOPR 2、FLAG 2、RETSTK Y、PEOPLE = 客户、RDOCNUM = 原单号左对齐、原单行号右对齐到第 15 位（实录「HS0000039     1」，S 盘副本「IV5801890    12」）、
-  TRNQTY / UNITPR / TRNVAL 按交易单位记**含税**（SR 是 Express 原生单，照原生写；CC 写 HS 时这几栏记税前）、NETVAL / XSALVAL = 税前、
+  TRNQTY / UNITPR / TRNVAL 按交易单位记**含税**（同 Express 原生价含税的单，CC 写的 HS / HP 也是）、NETVAL / XSALVAL = 税前、
   XTRNQTY = 库存单位数量、XUNITPR / XTRNVAL = 原单那一行的成本（对应原生「按原批次」）、MREMBAL / MREMVAL = 写后结存（同 CC 现有库存
   写法；先进先出批次链 MLOTNUM / LOTBAL 不写，由 Express「计算成本」重排）；
 - 主档 STMAS 结存加回、各仓 STLOC 退货回仓（只记 LMOVDAT）；
@@ -41,6 +41,7 @@ import dbf
 from . import account_rules
 from . import cdx_reindex
 from . import dbf_detail
+from . import dbf_fields
 from .dbf_fields import EXEMPT_VATCOD
 from .consistency import account_company_matches, read_company
 from . import dbf_schema as S
@@ -258,23 +259,7 @@ def _returned(account_dir, against: str, origins: List[_Origin]) -> Dict[str, De
         table.close()
 
 
-def _gross(items: List[Dict[str, Any]], total: Decimal) -> List[Decimal]:
-    """各行含税额：免税行（``vat_exempt``）含税额就是税前额；含税合计减去它们后按税前额占比摊给其余行，尾差落最后一个应税行，
-    合计恒等于含税合计（载荷只带各行税前额。验收实测 10-26：应税 100 + 免税 50 退货，原来按占比摊成 104.67 / 52.33）。
-    全是免税行时照占比摊（合计里本来就没有税）。"""
-    nets = [_dec(item.get("amount")) for item in items]
-    exempt = {index for index, item in enumerate(items) if item.get("vat_exempt")}
-    if len(exempt) == len(items):
-        exempt = set()
-    out: List[Decimal] = [nets[index] if index in exempt else Decimal(0) for index in range(len(items))]
-    taxable = [index for index in range(len(items)) if index not in exempt]
-    rest = total - sum((nets[index] for index in exempt), Decimal(0))
-    whole = sum((nets[index] for index in taxable), Decimal(0))
-    if whole > 0:
-        for index in taxable[:-1]:
-            out[index] = _q2(nets[index] * rest / whole)
-    out[taxable[-1]] = rest - sum((out[index] for index in taxable[:-1]), Decimal(0))
-    return out
+_gross = dbf_fields.line_grosses  # 各行含税额（同 HS / HP 的价含税明细，见 dbf_fields）
 
 
 def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Line]:

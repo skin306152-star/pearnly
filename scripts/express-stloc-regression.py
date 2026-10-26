@@ -2,7 +2,7 @@
 """CC 写 Express 后 STLOC（各仓结存）的真账副本离线回归（出入库第一期，10-25）。
 
 对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码写一张**不带仓库码**的进货（RR，库存品 5 个）和一张销货（IV，
-2 个），就是 Cowork 推送的样子 → 核：
+2 个），就是 Cowork 推送的样子（``--cash``：现购 HP / 现销 HS，价含税）→ 核：
 - 主仓（ISINFO.MAINLOC）那一行 LOCBAL 先 +5 再 −2，期桶 QTY{期} 同样增减，最后进货 / 销货 / 变动日记上；
 - 新写的明细照 Express 原生记法：SEQNUM 右对齐、TQUCOD 不空、TFACTOR > 0（同账套原生明细的行号写法一并统计）；
 - STLOC 其他行一行不变；没被写的表逐字节不变（写入集合 = 进货 / 销货备份表 + STLOC，另有索引文件）；
@@ -27,6 +27,8 @@ import traceback
 from decimal import Decimal
 from pathlib import Path
 
+CASH = False  # --cash：写现购 HP / 现销 HS
+
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
@@ -37,7 +39,10 @@ def main(argv=None) -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--runner", default="", help="已安装 CC 的 cdx_reindex_runner.exe：给了就重建索引并核 CDX 与 DBF 一致")
+    parser.add_argument("--cash", action="store_true", help="写现购 HP / 现销 HS（价含税，FLGVAT 1）代替赊购 RR / 赊销 IV")
     args = parser.parse_args(argv)
+    global CASH
+    CASH = args.cash
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     global dbf, S, W, WS, fiscal_period, account_probe, cdx_reindex
@@ -136,7 +141,7 @@ def be(day: dt.date) -> str:
 def check(acct: Path) -> dict:
     if not (acct / "STLOC.DBF").is_file():
         return {"state": "skip", "why": "no STLOC"}
-    info = rows(acct, "ISINFO", ("MAINLOC",))
+    info = rows(acct, "ISINFO", ("MAINLOC", "ACCNUM00"))
     main = (info[0]["MAINLOC"] if info else "") or ""
     if not main:
         return {"state": "skip", "why": "no ISINFO.MAINLOC"}
@@ -144,6 +149,8 @@ def check(acct: Path) -> dict:
     if not calendar:
         return {"state": "skip", "why": "no ISPRD"}
     accounts = account_probe.probe_default_accounts(acct)
+    if CASH:  # 现购 / 现销记现金：账套默认现金科目 ISINFO.ACCNUM00
+        accounts["ap_acc"] = accounts["ar_acc"] = str((info[0].get("ACCNUM00") if info else "") or "").strip()
     need = ("ap_acc", "vat_input_acc", "fallback_acc", "ar_acc", "revenue_acc", "vat_output_acc")
     if any(not accounts.get(name) for name in need):
         return {"state": "skip", "why": f"default accounts missing: {[n for n in need if not accounts.get(n)]}"}
@@ -172,11 +179,11 @@ def check(acct: Path) -> dict:
     touched = {*S.PURCHASE_BACKUP_TABLES, *S.SALES_BACKUP_TABLES, *S.LOCATION_TABLES}
     index_before = cdx_check.snapshot(cdx_reindex, acct, touched) if with_runner else {}
 
-    purchase = payload("RR", be(day), "PO-STLOC", accounts, name, code, 5, Decimal("50.00"), supplier=suppliers[0])
+    purchase = payload("HP" if CASH else "RR", be(day), "PO-STLOC", accounts, name, code, 5, Decimal("50.00"), supplier=suppliers[0])
     res = W.write_purchase(purchase, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
     if not res.ok:
         return {"state": "fail", "why": f"purchase {res.error_code}: {res.error}"}
-    sale = payload("IV", be(day), "IV-STLOC", accounts, name, code, 2, Decimal("40.00"), customer=customers[0])
+    sale = payload("HS" if CASH else "IV", be(day), "IV-STLOC", accounts, name, code, 2, Decimal("40.00"), customer=customers[0])
     res2 = WS.write_sale(sale, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
     if not res2.ok:
         return {"state": "fail", "why": f"sale {res2.error_code}: {res2.error}"}
@@ -234,11 +241,11 @@ def payload(doctype, docdate, ref, accounts, name, code, qty, amount, *, supplie
     vat = (amount * Decimal("0.07")).quantize(Decimal("0.01"))
     total = amount + vat
     item = {"name": name[:50], "code": code, "qty": str(qty), "unit_price": str(amount / qty), "amount": f"{amount:.2f}",
-            "unit": "", "item_mode": "stock_item" if doctype == "RR" else "stock_sale"}
+            "unit": "", "item_mode": "stock_item" if doctype in ("RR", "HP") else "stock_sale"}
     base = {"doctype": doctype, "account_set": "DATAT", "docdate_be": docdate, "vat_period_be": docdate[:4] + "01",
             "ref_no": ref, "vat_rate": 7.0, "base_amount": f"{amount:.2f}", "vat_amount": f"{vat:.2f}",
             "total_amount": f"{total:.2f}", "items": [item], "items_status": "ok"}
-    if doctype == "RR":
+    if doctype in ("RR", "HP"):
         base.update({"supplier": {"code": supplier, "name": "", "tax_id": "", "prename": "", "supplier_new": False},
                      "lines": [{"acc": accounts["fallback_acc"], "side": "D", "amount": f"{amount:.2f}", "desc": "ซื้อ"},
                                {"acc": accounts["vat_input_acc"], "side": "D", "amount": f"{vat:.2f}", "desc": "ภาษีซื้อ"},

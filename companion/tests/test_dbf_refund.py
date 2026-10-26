@@ -335,6 +335,9 @@ def test_a_mixed_sale_and_its_refund_write_exempt_lines_like_native_express(book
     lines = {row["STKCOD"].strip(): row for row in _rows(book, "STCRD", DOCNUM=sale.docnum)}
     assert (lines["ICE01"]["VATCOD"].strip(), lines["ICE02"]["VATCOD"].strip()) == ("", "0")
     assert lines["ICE02"]["NETVAL"] == lines["ICE02"]["TRNVAL"]
+    # 现销价含税（FLGVAT 1）：明细 UNITPR / TRNVAL 记含税、NETVAL 记税前，同原生（S 盘副本 HS 32 万行 98%；10-26 试点窗口发现）
+    assert [tuple(Decimal(str(lines[code][field])) for field in ("UNITPR", "TRNVAL", "NETVAL")) for code in ("ICE01", "ICE02")] == [
+        (Decimal("107"), Decimal("107"), Decimal("100")), (Decimal("50"), Decimal("50"), Decimal("50"))]
     assert Decimal(str(_rows(book, "ARTRN", DOCNUM=sale.docnum)[0]["AMTRAT0"])) == Decimal("50")
     vat = _rows(book, "ISVAT", DOCNUM=sale.docnum)[0]
     assert (Decimal(str(vat["AMT01"])), Decimal(str(vat["AMTRAT0"])), Decimal(str(vat["VAT01"]))) == (

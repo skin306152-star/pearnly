@@ -190,6 +190,24 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
             total += amt if (r.TRNTYP or "").strip() == S.TRNTYP_DEBIT else -amt
         return total
 
+    def test_cash_documents_record_vat_inclusive_line_prices_like_native_express(self):
+        """价含税的现购 HP（FLGVAT 1）明细 UNITPR / TRNVAL 记含税、NETVAL 记税前，成本照税前；赊购 RR、赊销 IV（FLGVAT 2）
+        TRNVAL = NETVAL 税前（S 盘副本 286 本：HS / HP 价含税 98% 如此，赊单全是税前；10-26 试点窗口发现）。"""
+        cash = self._buy({**_purchase("PO-7101", "1000.00", "70.00", "1070.00", 100, 10), "doctype": "HP"})
+        self.assertTrue(cash.ok, cash.error)
+        credit = self._buy(_purchase("PO-7102", "1400.00", "98.00", "1498.00", 100, 14))
+        self.assertTrue(credit.ok, credit.error)
+        sale = self._sell(_sale(50, 20, "1000.00", "70.00", "1070.00"))
+        self.assertTrue(sale.ok, sale.error)
+
+        def line(docnum):
+            row = self._rows("STCRD", DOCNUM=docnum)[0]
+            return tuple(Decimal(str(row[name])) for name in ("UNITPR", "TRNVAL", "NETVAL", "XUNITPR", "XTRNVAL"))
+
+        self.assertEqual(line(cash.docnum), (Decimal("10.70"), Decimal("1070"), Decimal("1000"), Decimal("10"), Decimal("1000")))
+        self.assertEqual(line(credit.docnum)[:3], (Decimal("14"), Decimal("1400"), Decimal("1400")))
+        self.assertEqual(line(sale.docnum)[:3], (Decimal("20"), Decimal("1000"), Decimal("1000")))
+
     def test_two_receipts_then_sale_carries_real_cogs(self):
         """进 100@฿10 + 100@฿14 → 200 件 / ฿2400 / 均价 ฿12;卖 50 件 → COGS ฿600、结存 150 件 / ฿1800。
 
