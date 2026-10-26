@@ -122,7 +122,7 @@ name = "ERP 单据共用（仓库查询、明细、Express 预检）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
 markers = [".warehouse_query", ".trade.", ".express_preflight(", ".terminal_query"]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
+entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts"]
 
 [[part]]
 id = "erp-originals"
@@ -244,7 +244,16 @@ name = "ERP 主档按公司隔离（权限钩子）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/access.py"]
 markers = ["masters.access", "masters import access"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.masters.scope", "erp.records.scope"]
+entries = ["erp.masters.scope", "erp.records.scope", "erp.print.purchase", "erp.print.sales"]
+
+[[part]]
+id = "erp-printing"
+name = "ERP 单据打印（标准 Print Format、printing 取数与版面、p.trade.print；打印第一、二批）"
+paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/printing/**", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/print_format/**", "apps/pearnly_erp_portal/pearnly_erp_portal/public/fonts/print/**", "apps/pearnly_erp_portal/pearnly_erp_portal/public/images/print/**"]
+markers = [".trade.print(", "pos_receipt.print(", "pearnly_print_context"]
+search = ["apps/**/*.js", "apps/**/*.html", "apps/**/hooks.py"]
+entries = ["erp.print.stock-entry", "erp.print.purchase", "erp.print.sales", "erp.print.pos-receipt", "erp.print.pos-shift", "erp.print.stock-count"]
+not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "Jinja 方法登记（jinja.methods），入口见本共用件 entries", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js" = "p.trade.print 定义处与小票查看器的打印按钮，入口 erp.print.pos-receipt" }
 
 [[part]]
 id = "erp-masters-selection"
@@ -2120,3 +2129,57 @@ steps = "三产品各用租户管理员、普通员工、带 System Manager 的�
 expect = "页头只有登记过的入口（data-pearnly-declared），个人页只有「保存」，不出原生「权限」「创建用户电子邮件」「密码」和「…」菜单；全局快捷键只有声明的 Ctrl+S；本人保存个人页角色不变；业务账号加 System Manager 被拒"
 check = "manual"
 files = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/desk/navigation.py", "apps/pearnly_core/pearnly_core/provisioning.py", "scripts/smoke/probes/page.js", "scripts/check-entries.py"]
+
+[[entry]]
+id = "erp.print.stock-entry"
+product = "ERP"
+where = "出入库单弹窗「打印」（已提交 / 已作废）"
+steps = "入库 / 出库 → 打开一张已提交的单 → 打印 → 原生打印预览；存 PDF"
+expect = "出库打领料单、入库打收货单（岳父样板 1:1），A4 横一页，泰文字体 Prompt；作废单带水印；读不到的单拒打"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
+
+[[entry]]
+id = "erp.print.purchase"
+product = "ERP"
+where = "采购单详情菜单「打印」"
+steps = "采购 → 入了库的采购单 → 打印（收货单）；采购订单 → 打印（ใบสั่งซื้อ）"
+expect = "入了库的打收货单、采购订单打采购订单，A4 横一页；供应商档只读本单公司或共用档"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
+
+[[entry]]
+id = "erp.print.sales"
+product = "ERP"
+where = "销售单详情菜单「打印」（报价单 / 销售单，非收银来源）"
+steps = "销售 → 已提交的报价单 / 销售单 → 打印"
+expect = "报价单打 ใบเสนอราคา；销售单接 Express 打 ใบส่งของ + Express 单号，没接打 ใบเสร็จรับเงิน；不印税票字样；客户税号、分店只取本单公司或共用档"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
+
+[[entry]]
+id = "erp.print.pos-receipt"
+product = "ERP"
+where = "收银台「打印收据」、收银记录小票查看器「打印」"
+steps = "收银台结账后打印收据；收银记录 → 点一张小票 → 打印；退货小票同样打"
+expect = "热敏 80 mm 一张：销售 ใบเสร็จรับเงิน、退货 ใบรับคืนสินค้า（印原单号），不印简易税票、不加感谢语；浏览器直打，PDF 一页"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-receipt.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
+
+[[entry]]
+id = "erp.print.pos-shift"
+product = "ERP"
+where = "交班记录 → 已交班的汇总弹窗「打印」"
+steps = "交班记录 → 点一个已交班的班次 → 打印"
+expect = "热敏 80 mm 交班小结一张（笔数、销售 / 退货 / 净额、按付款方式、现金应有 / 实点 / 差异）；开着的班不出打印"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
+
+[[entry]]
+id = "erp.print.stock-count"
+product = "ERP"
+where = "库存盘点详情「打印」"
+steps = "盘点 → 进行中的一份 → 打印（点数表）；已过账的一份 → 打印（结果表）"
+expect = "A4 竖：点数表不印账面数（盲盘），结果表印账面 / 实点 / 差异；每页 22 行续页"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]

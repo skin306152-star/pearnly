@@ -1,0 +1,98 @@
+{#- 热敏 80 mm：收银小票（销售 / 退货）与交班小结（主会话 10-26 审定）。浏览器直打热敏为主，存 PDF 作存档：
+    PDF 生成器要固定页高，`.print-format` 上的 page-width / page-height 由 Frappe 读出交给 wkhtmltopdf（`ctx.paper_mm` 按行数估）。
+    页眉只印公司抬头资料，不加感谢语；小票印「ใบเสร็จรับเงิน」，不印简易税票。 -#}
+<style>
+{{ ctx.fonts_css }}
+@page { margin: 0; }
+.print-format { page-width: 80mm; page-height: {{ ctx.paper_mm }}mm; margin-top: 3mm; margin-bottom: 3mm; margin-left: 4mm; margin-right: 4mm; padding: 0 !important; max-width: none !important; }
+.print-format .tp { width: 100%; font-family: "PearnlyPrint", "Loma", "FreeSerif", sans-serif; color: #111; font-size: 10.5px; line-height: 1.35; }
+.print-format .tp table { width: 100%; border-collapse: collapse; }
+.print-format .tp td { padding: 1px 0 !important; vertical-align: top !important; }
+.print-format .tp-c { text-align: center; }
+.print-format .tp-r { text-align: right; white-space: nowrap; }
+.print-format .tp-logo img { max-width: 34mm; max-height: 12mm; }
+.print-format .tp-name { font-size: 12.5px; font-weight: bold; }
+.print-format .tp-title { margin: 5px 0 3px; padding: 3px 0; border-top: 1px solid #111; border-bottom: 1px solid #111; text-align: center; }
+.print-format .tp-title b { font-size: 14px; }
+.print-format .tp-hr { border-top: 1px dashed #555; margin: 4px 0; }
+.print-format .tp-sub { font-size: 9.5px; color: #333; padding-left: 6px; }
+.print-format .tp-strong td { font-weight: bold; font-size: 12px; }
+.print-format .tp-void { text-align: center; font-weight: bold; font-size: 13px; border: 1.5px solid #111; padding: 2px 0; margin: 4px 0; letter-spacing: 1px; }
+.print-format .tp-sign { margin-top: 18px; }
+@media screen { .print-format { width: 80mm !important; min-height: 0 !important; padding: 4mm !important; } }
+</style>
+{% macro company_block(company) -%}
+<div class="tp-c">
+  {% if company.logo %}<div class="tp-logo"><img src="{{ company.logo }}" alt=""></div>{% endif %}
+  <div class="tp-name">{{ company.name | e }}</div>
+  {% if company.branch %}<div>{{ company.branch | e }}</div>{% endif %}
+  {% if company.address %}<div>{{ company.address | e }}</div>{% endif %}
+  {% if company.phone %}<div>โทร. {{ company.phone | e }}</div>{% endif %}
+  {% if company.tax_id %}<div>เลขประจำตัวผู้เสียภาษี {{ company.tax_id | e }}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% macro rows_of(items) -%}
+<table>{% for row in items %}<tr><td>{{ row.label }}</td><td class="tp-r">{{ row.value }}</td></tr>{% endfor %}</table>
+{%- endmacro %}
+<div class="tp">
+  {{ company_block(ctx.company) }}
+  <div class="tp-title"><b>{{ ctx.title[0] }}</b><br>{{ ctx.title[1] }}</div>
+  {% if ctx.void %}<div class="tp-void">ยกเลิก / CANCELLED</div>{% endif %}
+  {% if ctx.kind == "pos" %}
+  <table>
+    <tr><td>เลขที่ / No.</td><td class="tp-r">{{ ctx.number | e }}</td></tr>
+    <tr><td>วันที่ / Date</td><td class="tp-r">{{ ctx.date }} {{ ctx.time }}</td></tr>
+    {% if ctx.terminal %}<tr><td>เครื่อง / POS</td><td class="tp-r">{{ ctx.terminal | e }}</td></tr>{% endif %}
+    {% if ctx.cashier %}<tr><td>พนักงาน / Cashier</td><td class="tp-r">{{ ctx.cashier | e }}</td></tr>{% endif %}
+    {% if ctx.refund %}<tr><td>อ้างอิงใบเสร็จเดิม / Ref.</td><td class="tp-r">{{ ctx.original | e }}</td></tr>{% endif %}
+  </table>
+  <div class="tp-hr"></div>
+  <table>
+    {% for row in ctx.rows %}
+    <tr><td colspan="2">{{ row.name | e }}</td></tr>
+    <tr><td style="padding-left: 6px !important">{{ row.qty }} {{ row.unit | e }} x {{ row.price }}</td><td class="tp-r">{{ row.amount }}</td></tr>
+    {% if row.discount %}<tr><td class="tp-sub">ส่วนลด / Discount</td><td class="tp-r">-{{ row.discount }}</td></tr>{% endif %}
+    {% for line in row.sub %}<tr><td colspan="2" class="tp-sub">{{ line | e }}</td></tr>{% endfor %}
+    {% endfor %}
+  </table>
+  <div class="tp-hr"></div>
+  <table>
+    {% for row in ctx.totals %}<tr class="{{ 'tp-strong' if loop.last else '' }}"><td>{{ row.label }}</td><td class="tp-r">{{ row.value }}</td></tr>{% endfor %}
+    {% if ctx.vat %}<tr><td class="tp-sub">ราคารวมภาษีมูลค่าเพิ่มแล้ว / VAT included</td><td class="tp-r">{{ ctx.vat }}</td></tr>{% endif %}
+  </table>
+  {% if ctx.payments %}
+  <div class="tp-hr"></div>
+  <table>
+    {% for row in ctx.payments %}<tr><td>{{ row.label }}</td><td class="tp-r">{{ row.amount }}</td></tr>{% endfor %}
+    {% if ctx.change %}<tr><td>เงินทอน / Change</td><td class="tp-r">{{ ctx.change }}</td></tr>{% endif %}
+  </table>
+  {% endif %}
+  {% if ctx.refund and ctx.remarks %}<div class="tp-hr"></div><div>เหตุผล / Reason: {{ ctx.remarks | e }}</div>{% endif %}
+  {% else %}
+  <table>
+    <tr><td>เครื่อง / POS</td><td class="tp-r">{{ ctx.number | e }}</td></tr>
+    <tr><td>พนักงาน / Cashier</td><td class="tp-r">{{ ctx.cashier | e }}</td></tr>
+    <tr><td>เปิดกะ / Opened</td><td class="tp-r">{{ ctx.opened }}</td></tr>
+    <tr><td>ปิดกะ / Closed</td><td class="tp-r">{{ ctx.closed }}</td></tr>
+    <tr><td>จำนวนบิลขาย / Sales</td><td class="tp-r">{{ ctx.counts.sales }}</td></tr>
+    <tr><td>จำนวนบิลคืน / Refunds</td><td class="tp-r">{{ ctx.counts.refunds }}</td></tr>
+  </table>
+  <div class="tp-hr"></div>
+  {{ rows_of(ctx.totals) }}
+  {% if ctx.methods %}<div class="tp-hr"></div>{{ rows_of(ctx.methods) }}{% endif %}
+  <div class="tp-hr"></div>
+  {{ rows_of(ctx.cash) }}
+  {% if ctx.balances %}
+  <div class="tp-hr"></div>
+  <table>
+    <tr><td></td><td class="tp-r">ควรมี / Exp.</td><td class="tp-r">นับได้ / Cnt.</td><td class="tp-r">ต่าง / Diff.</td></tr>
+    {% for row in ctx.balances %}<tr><td>{{ row.label.split(" / ")[0] }}</td><td class="tp-r">{{ row.expected }}</td><td class="tp-r">{{ row.counted }}</td><td class="tp-r">{{ row.difference }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+  {% if ctx.remarks %}<div class="tp-hr"></div><div>หมายเหตุ / Note: {{ ctx.remarks | e }}</div>{% endif %}
+  <table class="tp-sign"><tr>
+    <td class="tp-c">..........................<br>พนักงานเก็บเงิน<br>Cashier</td>
+    <td class="tp-c">..........................<br>ผู้ตรวจสอบ<br>Checked by</td>
+  </tr></table>
+  {% endif %}
+</div>

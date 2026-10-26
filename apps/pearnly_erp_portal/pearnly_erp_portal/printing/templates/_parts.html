@@ -1,10 +1,10 @@
-{#- 领料单 / 收货单共用的版面零件（岳父样板 1:1，A4 横向，每页 10 行）。
-    排版只用表格：PDF 生成器 wkhtmltopdf 0.12（老 WebKit）不认 flex / grid。泰文字体用镜像自带的 Loma。 -#}
-{% macro styles(fonts_css="") -%}
+{#- A4 单据共用的版面零件（领料单 / 收货单照岳父样板 1:1，第二批同风格；A4 横向每页 10 行，盘点表 A4 竖向）。
+    排版只用表格：PDF 生成器 wkhtmltopdf 0.12（老 WebKit）不认 flex / grid。泰文字体内嵌 Prompt（`printing.context.fonts_css`）。 -#}
+{% macro styles(fonts_css="", portrait=false) -%}
 <style>
 {{ fonts_css }}
-@page { size: A4 landscape; margin: 6mm; }
-.print-format { orientation: Landscape; margin-top: 6mm; margin-bottom: 5mm; margin-left: 7mm; margin-right: 7mm; padding: 0 !important; max-width: none !important; }
+@page { size: A4 {{ "portrait" if portrait else "landscape" }}; margin: 6mm; }
+.print-format { orientation: {{ "Portrait" if portrait else "Landscape" }}; margin-top: 6mm; margin-bottom: 5mm; margin-left: 7mm; margin-right: 7mm; padding: 0 !important; max-width: none !important; }
 .print-format .pp { font-family: "PearnlyPrint", "Loma", "FreeSerif", sans-serif; color: #24332b; font-size: 11px; line-height: 1.35; }
 .print-format .pp-page { position: relative; page-break-after: always; }
 .print-format .pp-page.pp-last { page-break-after: auto; }
@@ -31,6 +31,7 @@
 .print-format .pp-f td { padding: 3px 0 !important; white-space: nowrap; }
 .print-format .pp-f .pp-k { width: 86px; }
 .print-format .pp-fw .pp-k { width: 120px; }
+.print-format .pp-fdoc .pp-k { width: 205px; }
 .print-format .pp-f .pp-c { width: 11.5px; }
 .print-format .pp-line { border-bottom: 1px dotted #9ab4a2; min-height: 13.5px; white-space: normal; }
 .print-format .pp-cb { display: inline-block; width: 9.5px; height: 9.5px; border: 1px solid #5f7d69; border-radius: 2px; vertical-align: -2px !important; margin-right: 4px; text-align: center; font-size: 9.5px; line-height: 9.5px; color: #1d6a3b; font-weight: bold; }
@@ -58,7 +59,18 @@
 .print-format .pp-sign-body div { margin-bottom: 10px; white-space: nowrap; }
 .print-format .pp-dots { display: inline-block; border-bottom: 1px dotted #9ab4a2; width: 78%; height: 11px; }
 .print-format .pp-void { position: absolute; top: 224px; left: 0; width: 100%; text-align: center; font-size: 84px; font-weight: bold; color: rgba(200, 30, 30, 0.18); -webkit-transform: rotate(-18deg); transform: rotate(-18deg); z-index: 5; letter-spacing: 5.5px; }
-@media screen { .print-format { max-width: 11.69in !important; min-height: 8.27in !important; padding: 0.3in !important; } }
+.print-format .pp-sub { font-size: 9.5px; color: #3c5a47; line-height: 1.25; }
+.print-format .pp-totals { border: 1px solid #cfe1d4; border-radius: 6px; }
+.print-format .pp-totals td { padding: 4px 9.5px !important; border-top: 1px solid #e3eee6; white-space: nowrap; }
+.print-format .pp-totals tr:first-child td { border-top: 0; }
+.print-format .pp-totals tr.pp-grand td { background: #e6f2e9; font-weight: bold; color: #1f4f33; }
+.print-format .pp-portrait td.pp-logo { width: 150px; padding-right: 10px !important; }
+.print-format .pp-portrait .pp-logo img { width: 150px; }
+.print-format .pp-portrait td.pp-title { width: 168px; }
+.print-format .pp-portrait .pp-title-th { font-size: 22px; }
+.print-format .pp-portrait td.pp-meta { width: 190px; }
+.print-format .pp-portrait .pp-items td { height: 26px; }
+@media screen { .print-format { max-width: {{ "8.27in" if portrait else "11.69in" }} !important; min-height: {{ "11.69in" if portrait else "8.27in" }} !important; padding: 0.3in !important; } }
 </style>
 {%- endmacro %}
 
@@ -90,7 +102,7 @@
   <tr>{% for col in columns %}<th style="width: {{ col.width }}">{{ col.th }}<small>{{ col.en }}</small></th>{% endfor %}</tr>
   {% for row in rows %}{% set n = offset + loop.index %}
   <tr class="{{ 'pp-alt' if loop.index is even else '' }}">
-    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}</td>{% endif %}{% endfor %}
+    {% for col in columns %}{% if col.key == "no" %}<td>{{ n }}</td>{% else %}<td class="{{ col.cls or '' }}">{{ (row.get(col.key, "") if row else "") | e }}{% if row and col.key == "name" %}{% for line in row.get("sub") or [] %}<div class="pp-sub">{{ line | e }}</div>{% endfor %}{% endif %}</td>{% endif %}{% endfor %}
   </tr>
   {% endfor %}
 </table></div>
@@ -98,6 +110,12 @@
 
 {% macro remarks(title_th, text) -%}
 <div class="pp-remark"><div class="pp-remark-title">{{ title_th }} <span>/ Remarks</span></div><div class="pp-remark-body">{{ text | e }}</div></div>
+{%- endmacro %}
+
+{% macro totals(rows) -%}
+<div class="pp-totals"><table>
+  {% for row in rows %}<tr class="{{ 'pp-grand' if loop.last or 'Grand' in row.label or 'Net Payable' in row.label else '' }}"><td>{{ row.label }}</td><td class="pp-r">{{ row.value }}</td></tr>{% endfor %}
+</table></div>
 {%- endmacro %}
 
 {% macro sign(th, en) -%}

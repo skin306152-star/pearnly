@@ -6,7 +6,7 @@
  * 所以挪到共用层，两边调同一份。
  *
  * 三件事的**产品口径**（都不是官方那套）：
- *   · 打印收据 = 框架原生打印视图（`/printview`，我们自己的小票模板还没做，先开原生那份）；
+ *   · 打印收据 = 框架原生打印视图（`/printview`）开我们的热敏 80 mm 小票格式（打印第二批，`Pearnly POS Receipt`）；
  *   · 退货退款 = 我们的 `api_refund_sale`（按原单行 + 数量退，钱按方式退）；
  *   · 作废     = 我们的 `api_void_sale`，那一声用 `cancel`（官方"取消"也是这一声）。
  *
@@ -43,7 +43,8 @@ frappe.provide("frappe.pearnly.pos_receipt");
 	function print(doc) {
 		if (!doc || !doc.name) return;
 		const url = "/printview?doctype=" + encodeURIComponent(doc.doctype || "ERP Sale")
-			+ "&name=" + encodeURIComponent(doc.name) + "&trigger_print=1";
+			+ "&name=" + encodeURIComponent(doc.name) + "&format=" + encodeURIComponent("Pearnly POS Receipt")
+			+ "&no_letterhead=1&trigger_print=1";
 		window.open(url, "_blank", "noopener,noreferrer");
 	}
 

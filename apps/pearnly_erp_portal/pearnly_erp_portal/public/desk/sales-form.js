@@ -223,6 +223,10 @@
 					dialog.hide(); p.success(__("Cancelled"), "cancel"); await reload();
 				}));
 		}
+		// 报价单 / 销售单打印（打印第二批）：标题按税票口径由版面定（接 Express 打送货单，没接打收据，都不印税票字样）；
+		// 收银来源的单在销售记录页开的是小票查看器，按小票打。
+		if (doc.name && ["submitted", "void"].includes(doc.status) && doc.source !== "pos")
+			page.add_menu_item(__("Print"), () => p.trade.print("ERP Sales Document", doc.name, "Pearnly Sales Document"));
 		await refresh_files();
 		state.ready = true; state.sync_entry();
 		if (editable) changes();

@@ -198,6 +198,8 @@
 			headline();
 			// 进行中的任务只留结束盘点 + 右边那颗开始盘点（用户 2026-09-22 口径；10-07 起所有界面不放刷新按钮）。
 			// 已结束的是只读态 —— 之前定过"结束后只可查看和导出"，所以那一档只留导出。
+			// 打印（打印第二批）：进行中打点数表（盲盘，不印账面数），结束后打结果表
+			page.add_inner_button(__("Print"), () => p.trade.print("ERP Stock Count", name, "Pearnly Stock Count"));
 			if (active()) {
 				page.set_primary_action(t("stock.count.start"), () => entry_form(null, true));
 				page.add_inner_button(t("stock.count.close"), finish);

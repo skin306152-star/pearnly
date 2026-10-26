@@ -60,6 +60,9 @@
 				...method_fields.flatMap((field, index) => index === 2 ? [{ fieldtype: "Column Break" }, field] : [field]),
 				// 不再加一节标题：下面只有一格，写"差额"两遍反而像两件事。
 				amount("cash_diff", t("trade.diff"), diff),
+				// 已交班的打印交班小结（热敏 80 mm，打印第二批）
+				...(row.status === "closed" ? [{ fieldtype: "Button", fieldname: "print", label: __("Print"),
+					click: () => p.trade.print("ERP Shift", row.name, "Pearnly Shift Summary") }] : []),
 			], t("trade.close"), async (_values, d) => d.hide());
 			// 差额不为 0 就标红（与列表、交班弹窗同一个红）。
 			dialog.fields_dict.cash_diff?.$wrapper

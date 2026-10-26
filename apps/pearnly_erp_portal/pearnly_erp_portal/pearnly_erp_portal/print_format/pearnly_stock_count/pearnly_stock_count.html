@@ -1,0 +1,3 @@
+{#- 标准 Print Format：盘点（A4 竖），版面在 printing/templates，数据在 printing/context（第二批，主会话 10-26 审定）。 -#}
+{% set ctx = pearnly_print_context(doc) %}
+{% include "pearnly_erp_portal/printing/templates/stock_count.html" %}

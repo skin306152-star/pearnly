@@ -1,0 +1,59 @@
+{#- 盘点（A4 竖，第一批同风格；主会话 10-26 审定）：进行中打点数表（盲盘，不印账面数，「实点」栏空着手写）；
+    结束 / 过账后打结果表（账面 / 实点 / 差异）。每页 22 行。 -#}
+{% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, items, sign %}
+{{ styles(ctx.fonts_css, portrait=true) }}
+{% set result = ctx.mode == "result" %}
+{% if result %}
+{% set columns = [
+  {"key": "no", "th": "ลำดับ", "en": "No.", "width": "6%"},
+  {"key": "code", "th": "รหัสสินค้า", "en": "Item Code", "width": "14%"},
+  {"key": "name", "th": "รายละเอียดสินค้า", "en": "Item Description", "width": "30%"},
+  {"key": "unit", "th": "หน่วยนับ", "en": "Unit", "width": "8%", "cls": "pp-c-txt"},
+  {"key": "location", "th": "ตำแหน่ง", "en": "Location", "width": "12%"},
+  {"key": "book", "th": "ยอดตามบัญชี", "en": "Book Qty", "width": "10%", "cls": "pp-r"},
+  {"key": "counted", "th": "นับได้จริง", "en": "Counted", "width": "10%", "cls": "pp-r"},
+  {"key": "difference", "th": "ผลต่าง", "en": "Difference", "width": "10%", "cls": "pp-r"},
+] %}
+{% else %}
+{% set columns = [
+  {"key": "no", "th": "ลำดับ", "en": "No.", "width": "6%"},
+  {"key": "code", "th": "รหัสสินค้า", "en": "Item Code", "width": "14%"},
+  {"key": "name", "th": "รายละเอียดสินค้า", "en": "Item Description", "width": "34%"},
+  {"key": "unit", "th": "หน่วยนับ", "en": "Unit", "width": "8%", "cls": "pp-c-txt"},
+  {"key": "location", "th": "ตำแหน่ง", "en": "Location", "width": "12%"},
+  {"key": "counted", "th": "นับได้จริง", "en": "Counted", "width": "12%", "cls": "pp-r"},
+  {"key": "remark", "th": "หมายเหตุ", "en": "Remarks", "width": "14%"},
+] %}
+{% endif %}
+<div class="pp pp-portrait">
+{% for page in ctx.pages %}
+<div class="pp-page{{ ' pp-last' if loop.last else '' }}">
+  {{ head(ctx, loop.index, {"title_th": ctx.title[0], "title_en": ctx.title[1], "date": "วันที่"}) }}
+  <table style="margin-top: 8.5px"><tr>
+    <td style="border: 1px solid #cfe1d4; border-radius: 5.5px">
+      <div class="pp-box-title">ข้อมูลการตรวจนับ / Count</div>
+      <div class="pp-box-body"><table class="pp-f pp-fw">
+        <tr><td class="pp-k">คลังสินค้า</td><td class="pp-c">:</td><td><div class="pp-line">{{ ctx.warehouse | e }}</div></td>
+            <td style="width: 96px; padding-left: 13.5px !important">รายการทั้งหมด</td><td class="pp-c">:</td><td style="width: 70px"><div class="pp-line">{{ ctx.item_total }}</div></td></tr>
+        <tr><td class="pp-k">ชื่อรอบตรวจนับ</td><td class="pp-c">:</td><td><div class="pp-line">{{ ctx.count_title | e }}</div></td>
+            {% if result %}<td style="padding-left: 13.5px !important">นับแล้ว</td><td class="pp-c">:</td><td><div class="pp-line">{{ ctx.counted_total }}</div></td>
+            {% else %}<td style="padding-left: 13.5px !important">วันที่ตรวจนับ</td><td class="pp-c">:</td><td><div class="pp-line"></div></td>{% endif %}</tr>
+        <tr><td class="pp-k">ผู้ตรวจนับ</td><td class="pp-c">:</td><td><div class="pp-line"></div></td>
+            {% if result %}<td style="padding-left: 13.5px !important">มีผลต่าง</td><td class="pp-c">:</td><td><div class="pp-line">{{ ctx.difference_total }}</div></td>
+            {% else %}<td style="padding-left: 13.5px !important">แผนก</td><td class="pp-c">:</td><td><div class="pp-line"></div></td>{% endif %}</tr>
+      </table></div>
+    </td>
+  </tr></table>
+  {{ items(page, columns, (loop.index - 1) * 22) }}
+  {% if loop.last %}
+  <table class="pp-foot"><tr>
+    <td style="width: 34%"><div class="pp-remark"><div class="pp-remark-title">หมายเหตุ <span>/ Remarks</span></div>
+      <div class="pp-remark-body">{{ ctx.remarks | e }}</div></div></td>
+    <td class="pp-gap"></td><td class="pp-sign-cell" style="width: 21%">{{ sign("ผู้ตรวจนับ", "Counted by") }}</td>
+    <td class="pp-gap"></td><td class="pp-sign-cell" style="width: 21%">{{ sign("ผู้ตรวจสอบ", "Checked by") }}</td>
+    <td class="pp-gap"></td><td class="pp-sign-cell" style="width: 21%">{{ sign("ผู้อนุมัติ", "Approved by") }}</td>
+  </tr></table>
+  {% endif %}
+</div>
+{% endfor %}
+</div>

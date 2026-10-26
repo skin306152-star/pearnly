@@ -263,6 +263,9 @@
 		// 入了库的采购单能打印成收货单（同入库单的版面，岳父样板 1:1；作废单带「已作废」水印）
 		if (doc.name && doc.stock_posted_at && ["submitted", "void"].includes(doc.status))
 			page.add_menu_item(__("Print"), () => p.trade.print("Purchase Document", doc.name, "Pearnly Purchase Goods Receipt"));
+		// 采购订单打印成 ใบสั่งซื้อ / PURCHASE ORDER（打印第二批，第一批同风格）
+		else if (doc.name && doc.doc_kind === "purchase_order" && ["submitted", "void"].includes(doc.status))
+			page.add_menu_item(__("Print"), () => p.trade.print("Purchase Document", doc.name, "Pearnly Purchase Order"));
 		await refresh_files();
 		state.ready = true; state.sync_entry();
 		if (editable) changes();

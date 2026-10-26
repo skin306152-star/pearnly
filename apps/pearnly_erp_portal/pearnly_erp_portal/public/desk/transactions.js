@@ -217,6 +217,9 @@
 					click: () => frappe.confirm(t("trade.voidConfirm"),
 						() => p.trade.act(dialog, () => actions.void(doc, dialog))) });
 			}
+			// 打印小票（热敏 80 mm；退货打退货小票，作废带「已作废」）：打印第二批
+			fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
+				click: () => p.trade.print("ERP Sale", name, "Pearnly POS Receipt") });
 			// 这张小票已合进现销日汇总（接了 Express，B3a）：看那张日汇总写进 Express 的情况（同采购 / 销售的弹窗）
 			if (doc.express_summary && frappe.boot.pearnly_express) {
 				fields.push({ fieldtype: "Button", fieldname: "express", label: __("Express"),
