@@ -4,7 +4,7 @@
 // 页面上的未捕获异常、console.error 都收进 logs；探针本身不判异常，汇总时一律算不通过。
 // Chrome 路径：环境变量 SMOKE_CHROME，默认 macOS 的 Google Chrome。Node 22 起自带 WebSocket / fetch，不需要 Playwright。
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,8 @@ const job = JSON.parse(process.argv[2] || "{}");
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9300 + Math.floor(Math.random() * 600);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "smoke-"));
+// 本次运行的标记：profile 里记下自己的进程号。以后的冒烟启动时只清「标记的进程已经结束」的（chrome_reaper），不按进程名或父进程猜
+writeFileSync(join(profile, ".owner-pid"), String(process.pid));
 const chrome = spawn(chromePath, [
   "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream",

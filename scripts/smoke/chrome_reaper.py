@@ -5,8 +5,8 @@
 
 - :func:`run_driver`：驱动放进单独的进程组（新会话，Chrome 跟着在组里），超时、出错、被打断都整组先 SIGTERM（给驱动收尾、删 profile
   的机会）再 SIGKILL；
-- :func:`reap_orphans`：启动时清掉以前留下的——只认自己这一类：命令行带 ``--headless`` 且 ``--user-data-dir`` 是临时目录下的
-  ``smoke-*``、父进程已经不是冒烟驱动（多为 1）的 Chrome；临时目录下 1 小时以前的 ``smoke-*`` 目录（还被进程用着的不删）。
+- :func:`reap_orphans`：启动时清掉以前留下的——只认运行标记：每次运行在自己的临时目录里记下进程号（drive.mjs 的 profile、冒烟与
+  自检的工作目录），标记的那次运行已经结束的才结掉它的 Chrome、删它的目录；没有标记、或那次运行还在跑的一律不碰。
 """
 from __future__ import annotations
 
@@ -16,12 +16,10 @@ import shutil
 import signal
 import subprocess
 import tempfile
-import time
 from pathlib import Path
 
 PROFILE_PREFIX = "smoke-"
 OTHER_PREFIXES = ("scan-selftest-",)  # 相机自检的临时目录（以前也没删，本机攒了 118 个）
-STALE_SECONDS = 3600
 OWNER_FILE = ".owner-pid"  # 冒烟 / 自检自己的工作目录里记下进程号：跑超过 1 小时也不会被别的窗口启动时清掉（验收 10-26）
 _PROFILE = re.compile(r"--user-data-dir=(\S*/" + PROFILE_PREFIX + r"[^\s/]+)")
 
@@ -39,57 +37,49 @@ def _processes():
             yield int(parts[0]), int(parts[1]), parts[2]
 
 
-def reap_orphans(root: Path | None = None, *, stale_seconds: int = STALE_SECONDS) -> dict:
-    """清掉以前冒烟留下的孤儿 Chrome 与旧临时 profile → ``{"killed": [pid], "removed": [目录名]}``。"""
+def _owner_alive(path: Path):
+    """目录里的运行标记（:data:`OWNER_FILE`）：标记的进程还在 → True，已经结束 → False，没有标记 → None（不是本工具这次机制留下的，不碰）。"""
+    try:
+        pid = int((Path(path) / OWNER_FILE).read_text().strip())
+    except (OSError, ValueError):
+        return None
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def reap_orphans(root: Path | None = None) -> dict:
+    """清掉以前冒烟留下的 → ``{"killed": [pid], "removed": [目录名]}``。只认运行标记（主会话 10-26）：用临时目录下 ``smoke-*`` profile、
+    profile 里标记的那次运行已经结束的 Chrome（主进程、GPU 等子进程一样）结掉；标记过、那次运行已经结束、也没有进程在用的目录删掉。
+    没有标记的、标记的运行还在跑的，一律不碰（别的窗口正在跑的冒烟、跑超过 1 小时的冒烟都不受影响）。"""
     root = Path(root or temp_root()).resolve()
     killed, busy = [], set()
-    table = list(_processes())
-    commands = {pid: command for pid, _ppid, command in table}
-    for pid, ppid, command in table:
+    for pid, _ppid, command in list(_processes()):
         found = _PROFILE.search(command)
         if not found:
             continue
         profile = Path(found.group(1))
         try:
-            mine = profile.resolve().parent == root
+            if profile.resolve().parent != root:
+                continue
         except OSError:
-            mine = False
-        if not mine:
             continue
-        # 只认进程树的根：Chrome 的 GPU 等子进程命令行里也带 --headless 与同一个 profile，它的父进程是 Chrome 主进程（带同一个
-        # profile）——那是别人正在跑的冒烟，不是孤儿（验收 10-26 实测会误杀另一个窗口的冒烟）
-        parent = commands.get(ppid, "")
-        if found.group(1) in parent:
-            busy.add(profile.name)
-            continue
-        # 孤儿：根进程的父进程已不是冒烟驱动（macOS 上被 1 号进程接管，Linux 上也可能被别的收养进程接走）
-        if "--headless" in command and (ppid == 1 or "drive.mjs" not in parent):
+        if _owner_alive(profile) is False:
             try:
                 os.kill(pid, signal.SIGKILL)
                 killed.append(pid)
             except ProcessLookupError:
                 pass
         else:
-            busy.add(profile.name)  # 正在跑的冒烟还在用
+            busy.add(profile.name)
     removed = []
-    cutoff = time.time() - stale_seconds
-
-    def owned(path: Path) -> bool:
-        try:
-            pid = int((path / OWNER_FILE).read_text().strip())
-        except (OSError, ValueError):
-            return False
-        try:
-            os.kill(pid, 0)
-            return True
-        except ProcessLookupError:
-            return False
-        except PermissionError:
-            return True
-
     for path in (found for prefix in (PROFILE_PREFIX, *OTHER_PREFIXES) for found in root.glob(prefix + "*")):
         try:
-            if path.is_dir() and path.name not in busy and not owned(path) and path.stat().st_mtime < cutoff:
+            if path.is_dir() and path.name not in busy and _owner_alive(path) is False:
                 shutil.rmtree(path, ignore_errors=True)
                 removed.append(path.name)
         except OSError:

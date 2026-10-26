@@ -12,6 +12,7 @@ REFNUM = SR 单号）、ISRUN SR +1、ARBAL SR 桶、ARMAS.BALANCE 冲减。另�
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 import datetime as dt
 from decimal import Decimal
 from types import SimpleNamespace
@@ -457,7 +458,17 @@ def test_a_cross_year_refund_copies_the_cash_customer_from_the_original_year(boo
     from companion import dbf_schema
 
     last_year = tmp_path / "T8LAST"
-    shutil.copytree(book, last_year)   # 原年度账套：有现金客户档（余额 160.5）
+    shutil.copytree(book, last_year)   # 原年度账套：有现金客户档（余额 160.5）；会计期间早一年
+    real_load = dbf_refund.fiscal_period.load
+
+    def load(path):
+        calendar = real_load(path)
+        if calendar and Path(path).name in ("T8LAST", "T8OTHER"):
+            return SimpleNamespace(periods=[SimpleNamespace(beg=calendar.periods[0].beg.replace(year=calendar.periods[0].beg.year - 1))])
+        return calendar
+
+    patcher = mock.patch.object(dbf_refund.fiscal_period, "load", load)
+    patcher.start()
     table = dbf.Table(str(book / "ARMAS.DBF"), codepage=dbf_schema.CODEPAGE)
     table.open(dbf.READ_WRITE)
     try:
@@ -489,7 +500,15 @@ def test_a_cross_year_refund_copies_the_cash_customer_from_the_original_year(boo
     res = _write(book, refund)
     assert res.ok, res.error
     copied = _rows(book, "ARMAS", CUSCOD=CUSTOMER)
+    patcher.stop()
     assert res.created_party is True and len(copied) == 1
+    # 不是更早年度的（同一年度的另一本）不复制
+    assert dbf_refund.customer_from(last_year, CUSTOMER) and True
+    try:
+        dbf_refund.customer_from(last_year, CUSTOMER, book)
+        raise AssertionError("same year copied")
+    except dbf_refund.Refused as exc:
+        assert exc.code == dbf_refund.ERR_CUSTOMER_NOT_COPIED
     assert Decimal(str(copied[0]["BALANCE"])) == Decimal("-100.00")   # 从 0 起，再被这张退货单冲减 100
 
 

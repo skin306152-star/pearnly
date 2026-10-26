@@ -3,7 +3,8 @@
 用一个假 Chrome（记下自己的 pid、一直睡）代替真的跑 ``scripts/smoke/drive.mjs``：
 - 驱动超时：run_driver 整组收掉，假 Chrome 不在、临时 profile 删掉；
 - 驱动中途被 SIGTERM 打断：它自己关掉 Chrome、删 profile；
-- 启动时的孤儿清理只清冒烟自己这一类（--headless + 临时目录下的 smoke-* profile、父进程已是 1），删 1 小时以前的 smoke-* 目录。
+- 启动时的清理只认运行标记（profile / 工作目录里记的进程号）：那次运行已经结束的才结掉它的 Chrome、删它的目录，还在跑的、没有标记的
+  一律不碰（主会话 10-26：别按进程名或父进程缺失猜）。
 没有 node 时跳过。
 """
 import importlib.util
@@ -85,61 +86,55 @@ class SmokeChromeCleanup(unittest.TestCase):
         self.assertFalse(alive(pid), "fake Chrome left running after the driver was interrupted")
         self.assertEqual(self.profiles(), [])
 
-    def test_the_startup_sweep_leaves_another_running_smoke_alone(self):
-        """验收 10-26：别的窗口正在跑的冒烟——驱动（drive.mjs）下的 Chrome 主进程，和它的 GPU 子进程（命令行也带 --headless 与同一个
-        profile，父进程是 Chrome 主进程）——一个都不能杀。"""
-        live = self.tmp / "smoke-live"
-        live.mkdir()
-        tree = self.tmp / "tree.pids"
-        child = (f"import subprocess, sys, time; "
-                 f"subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)', '--headless=new', '--type=gpu-process', "
-                 f"'--user-data-dir={live}']); time.sleep(60)")
-        root = (f"import subprocess, sys, time; "
-                f"p = subprocess.Popen([sys.executable, '-c', {child!r}, '--headless=new', '--user-data-dir={live}']); "
-                f"open({str(tree)!r}, 'w').write(str(p.pid)); time.sleep(60)")
-        script = self.tmp / "drive.mjs"   # 假驱动：脚本名就是 drive.mjs
-        script.write_text(root)
-        driver = subprocess.Popen([sys.executable, str(script)])
-        try:
-            chrome = wait_for(tree)
-            time.sleep(0.5)
-            swept = reaper.reap_orphans(self.tmp)
-            self.assertEqual(swept["killed"], [])
-            self.assertTrue(alive(chrome))
-            self.assertTrue(live.exists())
-        finally:
-            subprocess.run(["pkill", "-f", f"--user-data-dir={live}"], check=False)
-            driver.kill()
+    def _gone_pid(self):
+        """一个已经结束的进程号：当作以前那次冒烟（已经退出）的运行标记。"""
+        proc = subprocess.Popen([sys.executable, "-c", "pass"])
+        proc.wait()
+        return proc.pid
 
-    def test_the_startup_sweep_only_takes_smoke_orphans_and_old_profiles(self):
-        orphan_dir = self.tmp / "smoke-orphan"
-        orphan_dir.mkdir()
-        other_pidfile = self.tmp / "other.pid"
-        # 孤儿：外壳退出后父进程变成 1，命令行带 --headless 与 smoke-* profile；对照：不是 smoke-* profile 的不碰
-        subprocess.run(["sh", "-c", f"{sys.executable} -c 'import time; time.sleep(120)' --headless=new "
-                                    f"--user-data-dir={orphan_dir} & echo $! > {self.pidfile}"], check=True)
-        subprocess.run(["sh", "-c", f"{sys.executable} -c 'import time; time.sleep(120)' --headless=new "
-                                    f"--user-data-dir={self.tmp / 'profile-other'} & echo $! > {other_pidfile}"], check=True)
-        orphan, other = wait_for(self.pidfile), wait_for(other_pidfile)
-        self.addCleanup(lambda: alive(other) and os.kill(other, signal.SIGKILL))
-        old, new, selftest = self.tmp / "smoke-old", self.tmp / "smoke-new", self.tmp / "scan-selftest-old"
-        running = self.tmp / "smoke-running-long"   # 另一个窗口跑了 2 小时还没完的冒烟：目录里记着它的进程号（这里用本进程）
-        old.mkdir(), new.mkdir(), selftest.mkdir(), running.mkdir()
-        reaper.claim(running)
-        past = time.time() - 2 * 3600
-        for path in (old, selftest, running):
-            os.utime(path, (past, past))
+    def _chrome(self, profile, *flags):
+        """假 Chrome（命令行带 --headless 与这个 profile），外壳退出后父进程不是驱动。回它的进程号。"""
+        pidfile = self.tmp / f"{profile.name}-{len(flags)}.pid"
+        subprocess.run(["sh", "-c", f"{sys.executable} -c 'import time; time.sleep(120)' --headless=new {' '.join(flags)} "
+                                    f"--user-data-dir={profile} & echo $! > {pidfile}"], check=True)
+        pid = wait_for(pidfile)
+        self.addCleanup(lambda: alive(pid) and os.kill(pid, signal.SIGKILL))
+        return pid
+
+    def test_the_startup_sweep_takes_only_chrome_and_directories_of_runs_that_have_ended(self):
+        """主会话 10-26：只认运行标记——profile 里记的那次运行已经结束的，主进程与 GPU 子进程都结掉、目录删掉；那次运行还在跑的
+        （别的窗口、跑超过 1 小时的冒烟）、没有标记的，一律不碰；不按进程名或父进程缺失猜。"""
+        ended, running, unmarked = self.tmp / "smoke-ended", self.tmp / "smoke-running", self.tmp / "smoke-unmarked"
+        for path in (ended, running, unmarked):
+            path.mkdir()
+        (ended / reaper.OWNER_FILE).write_text(str(self._gone_pid()))
+        reaper.claim(running)   # 还在跑：标记是本进程
+        dead_root, dead_gpu = self._chrome(ended), self._chrome(ended, "--type=gpu-process")
+        live_root, live_gpu = self._chrome(running), self._chrome(running, "--type=gpu-process")
+        stranger = self._chrome(unmarked)
+        workdir_ended, workdir_running = self.tmp / "scan-selftest-ended", self.tmp / "smoke-work-running"
+        workdir_ended.mkdir(), workdir_running.mkdir()
+        (workdir_ended / reaper.OWNER_FILE).write_text(str(self._gone_pid()))
+        reaper.claim(workdir_running)
         time.sleep(0.3)
         swept = reaper.reap_orphans(self.tmp)
         time.sleep(0.3)
-        self.assertIn(orphan, swept["killed"])
-        self.assertFalse(alive(orphan))
-        self.assertTrue(alive(other))
-        self.assertIn("smoke-old", swept["removed"])
-        self.assertIn("scan-selftest-old", swept["removed"])
-        self.assertTrue(running.exists())   # 还在跑的不删
-        self.assertTrue(new.exists())
+        self.assertEqual(sorted(swept["killed"]), sorted([dead_root, dead_gpu]))
+        self.assertFalse(alive(dead_root) or alive(dead_gpu))
+        self.assertTrue(alive(live_root) and alive(live_gpu) and alive(stranger))
+        self.assertEqual(sorted(swept["removed"]), ["scan-selftest-ended", "smoke-ended"])
+        self.assertTrue(running.exists() and unmarked.exists() and workdir_running.exists())
 
+    def test_the_driver_marks_its_profile_with_its_own_pid(self):
+        proc = subprocess.Popen(["node", str(ROOT / "scripts/smoke/drive.mjs"), '{"url": "about:blank"}'], env=self.env,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        try:
+            wait_for(self.pidfile)
+            (profile,) = self.tmp.glob("smoke-*")
+            self.assertEqual(int((profile / reaper.OWNER_FILE).read_text()), proc.pid)
+        finally:
+            proc.send_signal(signal.SIGTERM)
+            proc.wait(10)
 
 if __name__ == "__main__":
     unittest.main()

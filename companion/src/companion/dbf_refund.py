@@ -30,6 +30,7 @@ YOUREF = 载荷参考号（ERP 日汇总票号区间）、DOCDAT = 本次日期�
 
 from __future__ import annotations
 
+import datetime as _dt
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -318,9 +319,9 @@ def plan(account_dir, entry, items: List[Dict[str, Any]], locations) -> List[_Li
     return lines
 
 
-# 复制客户档时照新写的规矩填、不沿用原年度的旧值：余额从 0 起，最近开票 / 收款日空着，建档 / 修改日记这一天、操作员记 CC 桌面版
+# 复制客户档时照新建客户档的规则重设（`master_create.ensure_customer`），不沿用原年度的旧值：余额从 0 起，建档 / 修改日记这一天、其余
+# 日期类字段一律空着，操作员记 CC 桌面版，状态 A
 _COPY_ZERO = ("BALANCE",)
-_COPY_CLEAR = ("LASIVC", "LASRCV", "LASPAY")
 _COPY_TODAY = ("CREDAT", "CHGDAT")
 _COPY_USER = ("USERID", "CREBY")
 
@@ -340,21 +341,27 @@ def customer_from(book, cuscod: str, account_dir=None, *, today=None, userid: st
         same, why = account_company_matches(path, company) if company else (False, "no company name in this account set")
         if not same:
             raise Refused(ERR_CUSTOMER_NOT_COPIED, f"the original year {book!r} is not the same company: {why}")
+        # 还得是更早的年度：那本账套的会计期间起始早于这本（复核 10-26）
+        before, this = fiscal_period.load(path), fiscal_period.load(account_dir)
+        if not before or not this or not before.periods[0].beg < this.periods[0].beg:
+            raise Refused(ERR_CUSTOMER_NOT_COPIED, f"the original year {book!r} is not an earlier year of this account set")
     table = _open(path, "ARMAS", dbf.READ_ONLY)
     try:
         for rec in S.live_rows(table):
             if str(rec["CUSCOD"] or "").strip() == cuscod:
                 row = {name: rec[name] for name in table.field_names}
-                for name in row:
+                for name, value in list(row.items()):
                     upper = name.upper()
                     if upper in _COPY_ZERO:
                         row[name] = 0.0
-                    elif upper in _COPY_CLEAR:
-                        row[name] = None
-                    elif upper in _COPY_TODAY and today is not None:
+                    elif upper in _COPY_TODAY:
                         row[name] = today
                     elif upper in _COPY_USER:
                         row[name] = userid
+                    elif upper == "STATUS":
+                        row[name] = "A"
+                    elif isinstance(value, (_dt.date, _dt.datetime)):
+                        row[name] = None   # 最近开票 / 收款等日期：新建档时空着
                 return row
     finally:
         table.close()
