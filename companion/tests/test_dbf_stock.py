@@ -179,6 +179,27 @@ def test_a_count_gain_linked_to_an_old_cc_receipt_spells_its_line_number_as_stor
     assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["RDOCNUM"].rstrip() == "RR690301-0011"
 
 
+def test_a_count_gain_ignores_receipts_after_the_count_day(book):
+    """复核 10-26：任务积压后再写，盘盈只挂盘点那天以前（含当天）进的那一批，不挂之后才进的。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
+    _receipt(book, "RR0000012", dt.date(2026, 3, 25), 10, 900)   # 盘点日 3 月 20 日之后
+    res = _write(book, _entry("TK", [_line("ICE01", 1)]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["RDOCNUM"].strip(), line["XUNITPR"]) == ("RR0000010     1", 45.0)
+
+
+def test_without_stloc_the_count_physical_balance_is_the_product_balance(book):
+    """复核 10-26：账套没有 STLOC（不分仓）时，盘点明细的 PHYBAL 记商品主档写后的结存，不是只记变动量。"""
+    for name in ("STLOC.DBF", "STLOC.CDX"):
+        if (book / name).exists():
+            (book / name).unlink()
+    res = _write(book, _entry("TK", [_line("ICE01", 2)]))
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["PHYBAL"] == 7.0   # 主档 5 + 2
+
+
 def test_a_count_gain_without_a_lot_in_a_fifo_book_is_costed_at_zero(book):
     """实录第 9 条：挂不上批次的盘盈 Express 记 0 成本（6412NLT TK2000001），以后靠「计算成本」重排；零金额不过账。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")

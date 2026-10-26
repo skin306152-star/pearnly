@@ -448,6 +448,29 @@ def test_a_cross_year_refund_links_avgpr_and_returns_the_goods_at_the_average_co
     assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MREMBAL"] == master["MREMBAL"] + 1
 
 
+def test_a_cross_year_refund_creates_the_cash_customer_a_new_year_book_does_not_have_yet(book):
+    """复核 10-26：新年度账套可能还没有现金客户档，跨年退货单同现销 HS 先建，CUSCOD 不指向不存在的客户。"""
+    import dbf
+    from companion import dbf_schema
+
+    isinfo(book, MAINLOC="01", ACCNUM00=CASH, ACCNUM02=QR_ACC, ISPERPETUA="Y")  # 建客户档要账套默认应收科目（真账套都有）
+
+    table = dbf.Table(str(book / "ARMAS.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for rec in table:
+            if str(rec.CUSCOD).strip() == CUSTOMER:
+                dbf.delete(rec)
+        table.pack()
+    finally:
+        table.close()
+    refund = _refund(against="HS681231-007", against_total="535.00")
+    refund["refund"]["cross_year"] = True
+    res = _write(book, refund)
+    assert res.ok, res.error
+    assert res.created_party is True and [row["CUSCOD"].strip() for row in _rows(book, "ARMAS", CUSCOD=CUSTOMER)] == [CUSTOMER]
+
+
 def _sale_of(items, *, ref_no, total, base, vat):
     """原单：收银日汇总现销 HS（CC 现有写法），明细照给的行。"""
     sale = _sale(total=total, base=base, vat=vat)

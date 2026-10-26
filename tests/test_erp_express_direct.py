@@ -1769,6 +1769,11 @@ class PosDaySummaries(Base):
         body = self.summary_body(mixed, [], "157", vat="7", exempt="50")
         self.assertEqual(body["vat_fields"], {"AMT01": "100.00", "AMTRAT0": "50.00"})
         self.assertEqual([bool(item.get("vat_exempt")) for item in body["items"]], [False, True])
+        # 有整单折扣（复核 10-26）：应税 107 + 免税 50、折 15.70，收银小票按含税额摊折扣，免税净额 45.00、税 6.30；明细两组各自摊，
+        # 免税行 45.00 = AMTRAT0、应税行 90.00 = AMT01（原来统一按比例摊成 44.79 / 90.21，与销项税记录对不上）
+        body = self.summary_body([("A", "1", "100.70"), ("B", "1", "50", "0")], [], "141.30", vat="6.30", exempt="45.00")
+        self.assertEqual([line["amount"] for line in body["items"]], ["90.00", "45.00"])
+        self.assertEqual(body["vat_fields"], {"AMT01": "90.00", "AMTRAT0": "45.00"})
         # 账套没开逐行 VAT、这家公司还没定：停下问一次（按商品免税拆开写 / 照账套整张计税），记住复用
         held = self.summary_body(mixed, [], "157", vat="7", exempt="50", exempt_mode=None)
         self.assertEqual(held["hold"], "choice_needed:exempt_mode")

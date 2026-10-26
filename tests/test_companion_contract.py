@@ -748,6 +748,9 @@ class PosPayload(unittest.TestCase):
         # 逐行 VAT 设置（ISINFO.VAT_INITEM）：CC 读主档的 facts 与 ERP 读的键同名
         self.assertTrue(quoted((COMPANION / "express_masters.py").read_text(encoding="utf-8"), "vat_initem"))
         self.assertTrue(quoted((erp / "facts.py").read_text(encoding="utf-8"), "vat_initem"))
+        # 免税行 / 跨年退货的载荷盖 11，CC 认得（复核 10-26）
+        self.assertIn(_literal(ROOT / "apps/pearnly_core/pearnly_core/express_rules/contracts/pos.py", "NATIVE_EXEMPT_PAYLOAD_VERSION"),
+                      _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
         # 跨年退货标记：共用写账规则出、CC 认，键同名（B3b 实录点 ②）
         self.assertTrue(quoted((RULES / "sales_mapper.py").read_text(encoding="utf-8"), "cross_year"))
         self.assertTrue(quoted((COMPANION / "sales_adapter.py").read_text(encoding="utf-8"), "cross_year"))

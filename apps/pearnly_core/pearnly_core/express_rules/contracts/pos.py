@@ -54,6 +54,9 @@ EXPRESS_ONLY = "pos_express_only"
 # 收银退货单 SR（B3b）：带 ``refund`` 块的载荷盖 10（旧版 CC 桌面版不认 SR，会当现销 HS 写成销售：诚实拒收）
 REFUND_KEY = "refund"
 REFUND_PAYLOAD_VERSION = 10
+# 明细带免税行标记（``vat_exempt``：VATCOD '0'、单头 AMTRAT0、整张免税照样写销项税记录），或跨年退货单（``refund.cross_year``：挂 AVGPR）：
+# 旧版 CC 桌面版不认（免税行照应税写、跨年的找不到原单报错），盖 11，旧版诚实拒收、派单只交给报过支持 11 的电脑（复核 10-26）
+NATIVE_EXEMPT_PAYLOAD_VERSION = 11
 REFUND_KIND = "refund"          # 推送选择：退货科目（借方，税前），按公司记住
 REFUND_SUBJECT = "pos_refund"   # 整家公司一个
 REFUND_CNTYP = 3                # Express ARTRN.CNTYP：退现金（实录 SR0000001）

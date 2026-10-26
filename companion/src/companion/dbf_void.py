@@ -166,6 +166,8 @@ def void_stock_entry(
                               error=f"accounting period of {head['DOCDAT']} is locked in Express")
     wanted = (S.STCRD_POSOPR_ISSUE if KINDS[doctype] == ISSUE else S.STCRD_POSOPR_COUNT if doctype == COUNT
               else S.STCRD_POSOPR_ADJUST)
+    if doctype == COUNT and head["POSOPR"] == S.STCRD_POSOPR_ADJUST:
+        wanted = S.STCRD_POSOPR_ADJUST  # 改写法之前写的盘点单（POSOPR 8）照样能作废
     lines = _lines(account_dir, docnum)
     differ = _differences(lines, payload["items"])
     if head["POSOPR"] != wanted:

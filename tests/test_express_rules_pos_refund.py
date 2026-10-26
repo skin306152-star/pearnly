@@ -126,7 +126,7 @@ class RefundMappingTests(unittest.TestCase):
         page = _page()
         page["_extraction_audit"].update(P.refund_audit("HS0000039", "200.00", True))
         payload = _map(page).payload
-        self.assertEqual(payload["refund"]["cross_year"], True)
+        self.assertEqual((payload["refund"]["cross_year"], payload["payload_version"]), (True, 11))  # 旧版 CC 诚实拒收
         self.assertNotIn("cross_year", _map(_page()).payload["refund"])
         self.assertEqual(P.refund_facts(page).cross_year, True)
 
@@ -139,6 +139,7 @@ class RefundMappingTests(unittest.TestCase):
                   "loccod": "01", "posting_kind": "stock", "vat_exempt": True}]
         payload = _map(_page(total="157.00", vat="7.00", subtotal="150.00", items=items)).payload
         self.assertEqual([bool(item.get("vat_exempt")) for item in payload["items"]], [False, True])
+        self.assertEqual(payload["payload_version"], 11)  # 旧版 CC 免税行照应税写：诚实拒收
 
     def test_non_stock_lines_only_post_their_amount_and_an_own_account_is_kept(self):
         """退货里有服务、费用（非库存行）：同 HS 只记金额与总账；带科目的（ERP 认出的 Express 服务类物料）借它自己的科目，其余借退货科目。"""

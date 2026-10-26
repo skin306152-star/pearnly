@@ -164,9 +164,10 @@ def _fifo(account_dir) -> bool:
     return str((account_rules._first(account_dir, "ISINFO") or {}).get("COSMTD") or "").strip().upper() == "F"
 
 
-def _lots(account_dir, keys) -> Dict[Tuple[str, str], Tuple[Decimal, str, str, Any]]:
+def _lots(account_dir, keys, docdat=None) -> Dict[Tuple[str, str], Tuple[Decimal, str, str, Any]]:
     """盘盈挂的那一批（实录第 9 条）：各 (商品, 仓) 最近一次进货的那一行（STCRD POSOPR 0、数量为正，按日期取最后的）
-    → (每个库存单位的成本, 原单号, 原单行号（存的原样 3 位）, 日期)。仓库码空的旧行算主仓。"""
+    → (每个库存单位的成本, 原单号, 原单行号（存的原样 3 位）, 日期)。仓库码空的旧行算主仓。``docdat`` 给了只认不晚于盘点那天的进货
+    （复核 10-26：任务积压后再写，不挂到盘点之后才进的那一批）。"""
     out: Dict[Tuple[str, str], Tuple[Decimal, str, str, Any]] = {}
     if not keys:
         return out
@@ -178,7 +179,7 @@ def _lots(account_dir, keys) -> Dict[Tuple[str, str], Tuple[Decimal, str, str, A
                 continue
             key = ((rec.STKCOD or "").strip(), (rec.LOCCOD or "").strip() or main)
             qty = _dec(rec.XTRNQTY)
-            if key not in keys or qty <= 0 or not rec.DOCDAT:
+            if key not in keys or qty <= 0 or not rec.DOCDAT or (docdat is not None and rec.DOCDAT > docdat):
                 continue
             if key not in out or rec.DOCDAT >= out[key][3]:
                 # 行号照存的原样（Express 拼 RDOCNUM 是「单号 C(12) + SEQNUM 原样 C(3)」，存量 CC 单是左对齐）
@@ -375,7 +376,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     main = account_rules.main_location(account_dir)
     places = [(match["stkcod"], stock_location.location_at(locations, index) or main) for index, match in enumerate(found)]
     gains = {place for place, item in zip(places, items) if _dec(item.get("qty")) > 0}
-    lots = _lots(account_dir, gains) if count else {}
+    lots = _lots(account_dir, gains, docdat) if count else {}
+    has_stloc = stock_location._file(account_dir, stock_location.TABLE) is not None
     located = _location_states(account_dir, set(places)) if count else {}
     fifo = count and _fifo(account_dir)
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
@@ -414,7 +416,9 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 place_qty, place_val = located.get(place, (Decimal(0), Decimal(0)))
                 located[place] = (place_qty + signed, place_val + signed_value)
                 # 原生：MREMBAL / MREMVAL 是写前结存，FLAG 5，PHYBAL 写后这个仓的结存，没有对方科目与品名
-                row.update({"FLAG": S.STCRD_FLAG_COUNT, "PHYBAL": float(place_qty + signed), "MREMBAL": float(bal),
+                # PHYBAL：这个仓写后的结存；账套没有 STLOC（不分仓）时就是商品主档写后的结存（复核 10-26）
+                row.update({"FLAG": S.STCRD_FLAG_COUNT, "PHYBAL": float(place_qty + signed if has_stloc else new_bal),
+                            "MREMBAL": float(bal),
                             "MREMVAL": float(val), "ACCNUMCR": "", "STKDES": "", "NETVAL": float(signed_value)})
                 if lot:
                     link = f"{lot[1]:<12}{lot[2]}"

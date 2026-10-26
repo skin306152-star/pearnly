@@ -431,6 +431,8 @@ def build_express_sales_payload(
                              base=base, vat=vat, total=total, name=name)
         if problem:
             return fail(problem, line_item_names(fields))
+    if any(item.get("vat_exempt") for item in payload.get("items") or []) or (refund or {}).get("cross_year"):
+        payload["payload_version"] = max(pos_contract.NATIVE_EXEMPT_PAYLOAD_VERSION, int(payload.get("payload_version") or 1))
     if (effective_has_stock or line_item_mode == ITEM_MODE_STOCK_SALE) and stock_acccod:
         # 小助手建新库存主档时拿它填 STMAS.ACCCOD(→ISACC→存货资产 + 销货成本)。
         # 账里已有该品就用不上;定不下来就不发,别给老小助手塞没约定的空键。

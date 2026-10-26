@@ -399,9 +399,15 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
+    created = False
     try:
         since = _table_sizes(account_dir)
         journal_since = pos_journal.sizes(account_dir) if journal else {}
+        if entry.refund_cross_year:
+            # 新年度账套可能还没有现金客户档：同现销 HS 先确保有（复核 10-26：原来 CUSCOD 指向不存在的客户、ARBAL 多出一行没人对应的）
+            existed = master_create._code_exists(account_dir, "ARMAS", "CUSCOD", cuscod)
+            cuscod = master_create.ensure_customer(account_dir, entry, created_date=docdat, userid=userid)
+            created = not existed
         vatprd = S.be_yymmdd_to_greg(payload.get("vat_period_be") or docdate_be)
         docnum, gl_rows, cash_acc, line_modes = _write_all(account_dir, entry, cuscod, lines, docdate_be, docdat,
                                                            vatprd, userid=userid, depcod=depcod, moves=moves)
@@ -429,7 +435,7 @@ def write_refund(payload: Dict[str, Any], account_dir, entry, *, userid: str = S
         clock.lap("index_check")
         _discard_backup(backup_dir)
         clock.log(docnum, "ok")
-        return DbfWriteResult(True, docnum=docnum, party_code=cuscod, line_modes=line_modes, notes=notes)
+        return DbfWriteResult(True, docnum=docnum, party_code=cuscod, line_modes=line_modes, notes=notes, created_party=created)
     except Exception as exc:  # 任何失败 → 回滚还原
         clock.lap("failed_step")
         if backup_dir:

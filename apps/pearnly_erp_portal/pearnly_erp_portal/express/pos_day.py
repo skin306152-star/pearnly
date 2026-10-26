@@ -255,6 +255,16 @@ def document(name, ref) -> dict:
         exempt = mode == EXEMPT_SPLIT
     lines = [{**{key: value for key, value in line.items() if key != "vat_exempt" or exempt},
               "qty": stock_entry._plain(line["qty"]), "amount": contracts.money(line["amount"])} for line in items]
+    if exempt:
+        # 免税行与应税行分两组各自摊到税前合计（复核 10-26：有整单折扣时统一按比例摊，免税行明细 44.79 而 AMTRAT0 是收银小票按含税额
+        # 摊折扣的 45.00）：免税组合计 = 收银小票的免税净额（同 `vat_fields` 的 AMTRAT0），应税组摊其余，明细与销项税记录对得上
+        exempt_net = (-1 if refund else 1) * receipt_vat.exempt_total(receipts)
+        base = contracts.d(total) - contracts.d(vat)
+        groups = ([index for index, line in enumerate(lines) if line.get("vat_exempt")],
+                  [index for index, line in enumerate(lines) if not line.get("vat_exempt")])
+        for indexes, target in zip(groups, (exempt_net, base - exempt_net)):
+            for index, amount in zip(indexes, contracts.spread([contracts.d(lines[i]["amount"]) for i in indexes], target)):
+                lines[index]["amount"] = contracts.money(amount)
     body = contracts.document(ref=ref, direction="sales", doc_date=str(summary.day),
                               # 参考号写进 Express 的 YOUREF / 销项税 REFNUM（≤15 字节）：同 Cowork 的 POS 导入用共用约定的
                               # `day_ref`（放不下就缩写，完整起止在 `pos` 里）；10-25 实验栈：「首-尾」27 字被 CC 拦下
