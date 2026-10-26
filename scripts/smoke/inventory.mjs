@@ -88,13 +88,32 @@ try {
     seen.add(path);
     logs.length = 0;
     const started = Date.now();
-    await send("Page.navigate", { url: origin + path }, sessionId);
+    // 第一页整页打开（取 boot），之后在页内换路由（frappe.router.push_state）：不重载框架，一页从十几秒降到一两秒；
+    // 弹窗 / 菜单不跨页残留（每页先按 Esc、关掉打开的弹窗）
+    const before = (await send("Runtime.evaluate", { expression: "location.pathname", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value || "";
+    const booted = (await send("Runtime.evaluate", { expression: "!!(window.frappe && frappe.router && frappe.boot)", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
+    if (booted && job.spa !== false) {
+      // 换路由前给当前所有页面容器打标记：换完如果露出来的还是带标记的旧容器，说明新页没渲染出来（多是无权限的框架路由），记「没打开」
+      await send("Runtime.evaluate", { expression: `document.querySelectorAll(".page-container").forEach((el) => { el.dataset.invOld = "1"; })` }, sessionId).catch(() => {});
+      await send("Runtime.evaluate", { expression: `(() => { document.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", bubbles: true}));
+        (window.cur_dialog && cur_dialog.hide && cur_dialog.hide()); frappe.router.push_state(${JSON.stringify(path)}); })()` }, sessionId).catch(() => {});
+    } else {
+      await send("Page.navigate", { url: origin + path }, sessionId);
+    }
     let last = -1, since = Date.now(), readyMs = null;
-    while (Date.now() - started < 20000) {
-      const now = (await send("Runtime.evaluate", { expression: ready, returnByValue: true }, sessionId).catch(() => ({})))?.result?.value ?? -1;
+    const want = path.split("?")[0];
+    // 页内换路由时最多等 8 秒：没权限的框架路由（getpage 403）页面根本不出来，等满了记「打不开」
+    const limit = booted && job.spa !== false ? 8000 : 20000;
+    while (Date.now() - started < limit) {
+      const now = (await send("Runtime.evaluate", { expression: `(location.pathname.replace(/\\/+$/, "") === ${JSON.stringify(want)} || location.pathname !== ${JSON.stringify(before)} || ${!booted}) ? ${ready} : -1`, returnByValue: true }, sessionId).catch(() => ({})))?.result?.value ?? -1;
       if (now > 20 && now === last) { if (Date.now() - since >= 800) { readyMs = since - started; break; } }
       else { last = now; since = Date.now(); }
       await sleep(200);
+    }
+    const stale = booted && job.spa !== false && (await send("Runtime.evaluate", { expression: `(() => { const page = document.querySelector(".page-container[data-page-route]:not([style*='display: none'])") || document.querySelector(".page-container"); return !!(page && page.dataset.invOld); })()`, returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
+    if (stale) {
+      console.log(JSON.stringify({ path, final: null, ready_ms: null, error: null, logs: [...logs], inventory: null, not_rendered: true }));
+      continue;
     }
     const expression = `(async (args) => {\n${probeBody}\n})({})`;
     const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, timeout: 30000 }, sessionId).catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));

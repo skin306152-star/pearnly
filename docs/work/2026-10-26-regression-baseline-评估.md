@@ -175,3 +175,20 @@
 ## 附录 B：第 1 步「漏出入口清单」
 
 见同目录 `2026-10-26-regression-baseline-漏出入口.md`（快照自动产出）。
+
+## 暂停点（10-26 20:10，用户指示全部窗口就地暂停）
+
+- 方案已审定（主会话 10-26：快照所有差异都挡合入，放行只能在同一提交里改基线并在任务记录写明原因，多出的框架入口不许进基线；匿名接口逐个写明理由；全量跑候选检查、本机跑受影响部分 + 核心集）。
+- 第 1 步「17 个岗位快照」跑到：ERP 管理员（116 页，其中 43 页没渲染出来 = 打不开）、DMS 管理员（59 页）已完成；Cowork 管理员跑到一半中止；其余 14 个岗位未跑。
+  结果文件留在 `~/pearnly-devtools/regression-baseline/2026-10-26/`（`lab-erp.jsonl`、`lab-dms.jsonl`，另有线上 Administrator 只读快照 `prod-*-admin.jsonl`）。
+- 初步发现（ERP 管理员，租户管理员同等角色，非系统管理员）：声明外能打开的页面 49 个——全部 ERP 业务表的原生列表（带「添加」「报表视图 / 看板视图 / 数据面板视图」等框架菜单）、待办、文件、联系人、备注、事件、通知日志、模块定义表单、工作区、报表列表、用户列表；全局入口：应用切换菜单的「网站 / 显示 / 刷新 / 侧栏排序」，快捷键全局搜索、Awesomebar、控制台（shift+t）、换主题、清缓存。
+- 本机回归实验室已 `down`（容器删除、站点与库的数据卷保留，明天 `up` 即回来）；没有后台进程；线上三个测试租户没有遗留的 Administrator 会话（20:09 只读核对）；测试机本任务未占用。
+- 工具状态：`inventory.mjs` 已改为整页登录一次、之后页内换路由（每页 1–2 秒），换路由没渲染出来的页记 `not_rendered`（不再误记成上一页）；实验室站点改用正式开户同一套 `finalize_site` / `ensure_feature_roles`。
+
+**明天第一步**：`docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait`，接着按下面三条命令把剩下的 15 个岗位跑完（三产品并行，估 40–60 分钟），再用 `scripts/regression/leaks.py` 出逐岗位漏出清单报主会话；然后把框架项语义码对照表发 work-followups，开始 B 的生成器。
+
+```
+python3 scripts/smoke/inventory.py --target local --product erp --doctypes --max-pages 140 --user products=products@erp.regression --user stock=stock@erp.regression --user purchase=purchase@erp.regression --user sales=sales@erp.regression --user cashier=cashier@erp.regression --user tasks=tasks@erp.regression --user none=none@erp.regression --out <输出>
+python3 scripts/smoke/inventory.py --target local --product cowork --doctypes --max-pages 140 --user admin=admin@cowork.regression --user intake=intake@cowork.regression --user recon=recon@cowork.regression --user stocktake=stocktake@cowork.regression --user work=work@cowork.regression --user none=none@cowork.regression --out <输出>
+python3 scripts/smoke/inventory.py --target local --product dms --doctypes --max-pages 80 --user operator=operator@dms.regression --user none=none@dms.regression --out <输出>
+```
