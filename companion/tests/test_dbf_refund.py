@@ -394,6 +394,29 @@ def test_new_detail_lines_are_numbered_right_aligned_like_native_express(book):
     assert raw == ["  1"]
 
 
+def _raw(acct, table, field, key, value):
+    """原样读一栏（dbf 库读字符栏保留前导空格），用来核行号类字段的对齐。"""
+    import dbf
+    from companion import dbf_schema
+
+    t = dbf.Table(str(acct / f"{table}.DBF"), codepage=dbf_schema.CODEPAGE)
+    t.open(dbf.READ_ONLY)
+    try:
+        return [str(getattr(rec, field)) for rec in t if str(getattr(rec, key)).strip() == value]
+    finally:
+        t.close()
+
+
+def test_every_line_number_field_is_right_aligned_like_native_express(book):
+    """主会话 10-26：行号 / 序号 / 下一行号类字段照原生右对齐（S 盘副本 121 本：GLJNLIT.SEQIT C(2)、ARTRN.NXTSEQ C(3) 几乎全是右对齐）。"""
+    res = _write(book, _refund())
+    assert res.ok, res.error
+    for docnum in ("HS691025-001", res.docnum):
+        assert _raw(book, "ARTRN", "NXTSEQ", "DOCNUM", docnum) == ["  1"]
+        seqits = _raw(book, "GLJNLIT", "SEQIT", "VOUCHER", docnum)
+        assert seqits and all(value == value.strip().rjust(2) for value in seqits), seqits
+
+
 def test_a_line_without_a_unit_takes_the_stock_unit_of_the_product(book):
     """验收 10-26 B3b 实录点 ①：CC 写的 HS 明细单位空着，Express 录退货时要人手补选单位、倍数默认 0（不改成 1 就报 13）。
     行上没单位（ERP 收银小票）时用这件品主档的库存单位、倍数 1。"""

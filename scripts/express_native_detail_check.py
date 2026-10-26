@@ -1,6 +1,7 @@
 """真账副本离线回归共用：CC 新写的存货明细（STCRD）是不是照 Express 原生的记法（10-26，验收 B3b 实录点 ①）。
 
-- 行号 SEQNUM C(3) 右对齐（"  1"；Express 拼 RDOCNUM 是「单号 C(12) + SEQNUM 原样」，以前 CC 写左对齐）；
+- 行号 SEQNUM C(3) 右对齐（"  1"；Express 拼 RDOCNUM 是「单号 C(12) + SEQNUM 原样」，以前 CC 写左对齐）；单头 NXTSEQ、凭证 SEQIT
+  同样右对齐；
 - 单位 TQUCOD 不空、倍数 TFACTOR > 0（单位空着 Express 录退货要人手补选、倍数 0 报 13）。
 另统计这本账套里原生明细（不是这次写的）的行号写法，作对照。
 """
@@ -30,6 +31,24 @@ def problems(dbf, schema, acct: Path, docnums) -> list:
                 found.append(f"{docnum} line {seq.strip()} TFACTOR {rec.TFACTOR}")
     finally:
         table.close()
+    # 单头「下一行号」与凭证行号也照原生右对齐（ARTRN / APTRN / STTRN.NXTSEQ C(3)、GLJNLIT.SEQIT C(2)，S 盘副本 121 本，10-26）
+    for name, key, field in (("ARTRN", "DOCNUM", "NXTSEQ"), ("APTRN", "DOCNUM", "NXTSEQ"), ("STTRN", "DOCNUM", "NXTSEQ"),
+                             ("GLJNLIT", "VOUCHER", "SEQIT")):
+        path = Path(acct) / f"{name}.DBF"
+        if not path.is_file():
+            continue
+        table = dbf.Table(str(path), codepage=schema.CODEPAGE, unicode_errors=schema.UNICODE_ERRORS)
+        table.open(dbf.READ_ONLY)
+        try:
+            if field not in {f.upper() for f in table.field_names}:
+                continue
+            for rec in schema.live_rows(table):
+                if str(getattr(rec, key) or "").strip() in wanted:
+                    value = str(getattr(rec, field) or "")
+                    if value.strip() and value != value.strip().rjust(len(value)):
+                        found.append(f"{name}.{field} {value!r} of {str(getattr(rec, key)).strip()} not right aligned")
+        finally:
+            table.close()
     return found
 
 

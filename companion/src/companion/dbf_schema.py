@@ -143,21 +143,33 @@ def seqnum_text(seq) -> str:
     return str(seq).strip().rjust(3)
 
 
-def append_stcrd(table, row: dict) -> None:
-    """往 STCRD 追加一行。dbf 库写字符栏会去掉两头空格（"  1" 存成 "1  "），SEQNUM 要照 Express 原生右对齐，追加后按字节补写这一栏。"""
+# 行号 / 序号 / 下一行号类字段：Express 原生一律按字段宽度右对齐（S 盘副本 121 本只读扫：STCRD.SEQNUM C(3)、GLJNLIT.SEQIT C(2)、
+# ARTRN / APTRN / STTRN.NXTSEQ C(3) 等几乎全是右对齐，10-26）。ARTRNRM.SEQNUM C(8) 另有写法（「@1」/ 行号右对齐 3 位），写它时另定。
+RIGHT_ALIGNED_FIELDS = ("SEQNUM", "SEQIT", "NXTSEQ")
+
+
+def append_native(table, row: dict) -> None:
+    """往 Express 表追加一行，行号类字段（:data:`RIGHT_ALIGNED_FIELDS`）照原生右对齐。dbf 库写字符栏会去掉两头空格（"  1" 存成 "1  "），
+    追加后按字节补写这几栏。"""
     from array import array
 
     from dbf.constants import LENGTH, START
 
     table.append(row)
-    name = next((field for field in table.field_names if field.upper() == "SEQNUM"), None)
-    if name is None or row.get("SEQNUM") is None:
+    given = {key.upper(): value for key, value in row.items() if key.upper() in RIGHT_ALIGNED_FIELDS and value is not None}
+    names = {field.upper(): field for field in table.field_names}
+    wanted = [(names[key], str(value).strip()) for key, value in given.items() if key in names and str(value).strip()]
+    if not wanted:
         return
     record = table[-1]
-    fielddef = record._meta[name]
-    start, length = fielddef[START], fielddef[LENGTH]
-    record._data[start:start + length] = array("B", str(row["SEQNUM"]).strip().rjust(length)[:length].encode("ascii"))
+    for name, text in wanted:
+        fielddef = record._meta[name]
+        start, length = fielddef[START], fielddef[LENGTH]
+        record._data[start:start + length] = array("B", text.rjust(length)[:length].encode("ascii"))
     record._update_disk()
+
+
+append_stcrd = append_native  # STCRD 明细（以前的名字）
 
 
 def unit_to_tqucod(unit: str) -> str:

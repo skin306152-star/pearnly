@@ -158,9 +158,9 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
     try:
         for item in written:
             debit, credit = (cash_acc, item["acc"]) if reverse else (item["acc"], cash_acc)
-            gi.append(_gl_line(item["voucher"], SEQIT_DEBIT, docdat, debit, item["descrp"], S.TRNTYP_DEBIT,
+            S.append_native(gi, _gl_line(item["voucher"], SEQIT_DEBIT, docdat, debit, item["descrp"], S.TRNTYP_DEBIT,
                                item["amount"], depcod, departmental))
-            gi.append(_gl_line(item["voucher"], SEQIT_CREDIT, docdat, credit, item["descrp"], S.TRNTYP_CREDIT,
+            S.append_native(gi, _gl_line(item["voucher"], SEQIT_CREDIT, docdat, credit, item["descrp"], S.TRNTYP_CREDIT,
                                item["amount"], depcod, departmental))
     finally:
         gi.close()

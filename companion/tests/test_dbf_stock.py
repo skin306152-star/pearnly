@@ -111,6 +111,26 @@ def test_a_count_with_both_signs_nets_the_journal_per_inventory_account(book):
     assert _stloc(book, "ICE02", "01")["LOCBAL"] == 2.0
 
 
+def test_the_header_and_journal_line_numbers_are_right_aligned_like_native_express(book):
+    """主会话 10-26：STTRN.NXTSEQ C(3)、GLJNLIT.SEQIT C(2) 照原生右对齐（追加后按字节写，dbf 库会去掉前导空格）。"""
+    import dbf
+    from companion import dbf_schema
+
+    res = _write(book, _entry("JU", [_line("ICE01", 4, unit_cost="12")]))
+    assert res.ok, res.error
+
+    def raw(table, field, key):
+        t = dbf.Table(str(book / f"{table}.DBF"), codepage=dbf_schema.CODEPAGE)
+        t.open(dbf.READ_ONLY)
+        try:
+            return [str(getattr(rec, field)) for rec in t if str(getattr(rec, key)).strip() == res.docnum]
+        finally:
+            t.close()
+
+    assert raw("STTRN", "NXTSEQ", "DOCNUM") == ["  1"] and raw("STCRD", "SEQNUM", "DOCNUM") == ["  1"]
+    assert raw("GLJNLIT", "SEQIT", "VOUCHER") == [" 1", " 1"]
+
+
 def _receipt(acct, docnum, day, qty, value, code="ICE01", loc="01", seq="  1"):
     """账里一行进货（STCRD POSOPR 0）：盘盈要挂的那一批。"""
     import dbf

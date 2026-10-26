@@ -441,7 +441,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     head = _open(account_dir, "STTRN", dbf.READ_WRITE)
     try:
         header_value = -total if kind == ISSUE else total
-        head.append(_filtered(head, {
+        S.append_native(head, _filtered(head, {
             "DOCNUM": docnum, "DOCDAT": docdat, "POSOPR": posopr, "REMARK": remark,
             # 盘点调整 TK 原生单头：货值 0、没有参考号与对方科目（实录第 9 条 TK0000001）
             "LOCCOD": header_loc or main, "TRNVAL": 0.0 if count else float(header_value),
@@ -480,7 +480,7 @@ def _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, 
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
         for side, acc, amount in rows:
-            entries.append(_filtered(entries, _gl_line(docnum, SEQIT, docdat, acc, descrp, side, _q2(amount), depcod,
+            S.append_native(entries, _filtered(entries, _gl_line(docnum, SEQIT, docdat, acc, descrp, side, _q2(amount), depcod,
                                                        departmental)))
     finally:
         entries.close()

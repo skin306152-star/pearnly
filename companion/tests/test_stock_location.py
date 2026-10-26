@@ -132,6 +132,24 @@ def _stloc(acct, code, loc):
     return rows[0] if rows else None
 
 
+def test_purchase_line_numbers_are_right_aligned_like_native_express(acct):
+    """主会话 10-26：进货的 APTRN.NXTSEQ、STCRD.SEQNUM、GLJNLIT.SEQIT 照原生右对齐（S 盘副本 121 本几乎全是右对齐）。"""
+    res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item"), _item("ICE02", 1, 5.0, "stock_item")]))
+    assert res.ok, res.error
+
+    def raw(table, field, key):
+        t = dbf.Table(str(acct / f"{table}.DBF"), codepage=S.CODEPAGE)
+        t.open(dbf.READ_ONLY)
+        try:
+            return [str(getattr(rec, field)) for rec in t if str(getattr(rec, key)).strip() == res.docnum]
+        finally:
+            t.close()
+
+    assert raw("APTRN", "NXTSEQ", "DOCNUM") == ["  2"]
+    assert sorted(raw("STCRD", "SEQNUM", "DOCNUM")) == ["  1", "  2"]
+    assert all(value == value.strip().rjust(2) for value in raw("GLJNLIT", "SEQIT", "VOUCHER"))
+
+
 def test_a_purchase_goes_into_the_named_warehouse_and_starts_its_stloc_row(acct):
     res = _buy(acct, _purchase([_item("ICE01", 100, 1000.0, "stock_item")], loccod="02"))
     assert res.ok, res.error

@@ -457,7 +457,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
     head = _open(account_dir, "ARTRN", dbf.READ_WRITE)
     try:
         docnum = _next_docnum(head, PREFIX, docdate_be)
-        head.append(_filtered(head, {
+        S.append_native(head, _filtered(head, {
             "RECTYP": RECTYP, "DOCNUM": docnum, "DOCDAT": docdat, "YOUREF": entry.ref_no, "FLGVAT": flgvat,
             "CUSCOD": cuscod, "VATRAT": float(entry.vat_rate), "AMOUNT": amount, "AFTDISC": aftdisc, "TOTAL": total_,
             "NETVAL": netval, "VATAMT": _f(vat), "NETAMT": netamt, "RCVAMT": netamt, "REMAMT": 0.0, "CSHRCV": 0.0,
@@ -543,7 +543,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
         for seqit, acc, side, value in gl_rows:
-            entries.append(_filtered(entries, _gl_line(docnum, seqit, docdat, acc, descrp, side, value, depcod,
+            S.append_native(entries, _filtered(entries, _gl_line(docnum, seqit, docdat, acc, descrp, side, value, depcod,
                                                        departmental)))
     finally:
         entries.close()

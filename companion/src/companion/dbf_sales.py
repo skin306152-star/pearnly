@@ -484,7 +484,7 @@ def _write_all(
         docnum = (_next_docnum(ar, prefix, docdate_be) if entry.is_pos
                   else _sales_docnum(ar, prefix, docdate_be, entry.ref_no))
         # 销项 ARTRN.VATPRD 真单恒空(税期记在 ISVAT);CSHRCV/IVCAMT 现销=含税·赊销=0。
-        ar.append(
+        S.append_native(ar, 
             {
                 "RECTYP": S.SALES_RECTYP[prefix],
                 "DOCNUM": docnum,
@@ -600,7 +600,7 @@ def _write_all(
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
         for seqit, accnum, trntyp, amt in gl_rows:
-            gi.append(
+            S.append_native(gi, 
                 _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
             )
     finally:
