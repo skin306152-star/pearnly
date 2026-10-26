@@ -54,6 +54,8 @@ def main(argv=None) -> int:
 
     global cdx_check, with_runner
     import express_cdx_check as cdx_check  # noqa: F401
+    global native_check
+    import express_native_detail_check as native_check  # noqa: F401
     with_runner = cdx_check.use_runner(cdx_reindex, args.runner)
     books = sorted(path for path in Path(args.source).iterdir() if path.is_dir() and fnmatch.fnmatch(path.name, args.pattern))
     if args.limit:
@@ -250,6 +252,9 @@ def check(acct: Path) -> dict:
     gain = count_gain(acct, written[-1], lot)
     if gain:
         return {"state": "fail", "why": gain}
+    detail = native_check.problems(dbf, S, acct, written)  # 明细照原生记法：行号右对齐、单位与倍数（10-26）
+    if detail:
+        return {"state": "fail", "why": "; ".join(detail[:5])}
     for docnum, (doctype, qty) in reversed(list(zip(written, [(step[0], step[1]) for step in steps]))):
         void = {"payload_version": 8, "direction": "stock", "action": "void", "doctype": doctype, "docnum": docnum,
                 "items": [{"code": code, "qty": str(qty)}]}

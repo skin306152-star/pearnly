@@ -145,6 +145,17 @@ def root_gone(root: str, asked: Optional[dict] = None) -> bool:
     text = str(root or "").strip()
     if not text:
         return False
+    # 同一次查找里同一个根只判一次：定时重扫按成员逐个判，服务器在两个成员之间掉线时不会一个去掉、一个保留（10-26 用例）
+    key = ("root", text.replace("/", "\\").rstrip("\\").lower())
+    if asked is not None and key in asked:
+        return asked[key]
+    gone = _root_gone(text, asked, GATE)
+    if asked is not None:
+        asked[key] = gone
+    return gone
+
+
+def _root_gone(text: str, asked: Optional[dict], GATE) -> bool:
     host = GATE.host(text)
     if asked is None or host not in asked:
         reachable = GATE.reachable(text, retry=True)

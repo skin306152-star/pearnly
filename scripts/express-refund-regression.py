@@ -52,6 +52,8 @@ def main(argv=None) -> int:
     WRITE_SET = set(S.SALES_BACKUP_TABLES) | set(S.MASTER_EXTRA_TABLES) | set(S.LOCATION_TABLES) | {"STTRN", "ARMAS"}
     global cdx_check, with_runner
     import express_cdx_check as cdx_check  # noqa: F401
+    global native_check
+    import express_native_detail_check as native_check  # noqa: F401
     with_runner = cdx_check.use_runner(cdx_reindex, args.runner)
     books = sorted(path for path in Path(args.source).iterdir() if path.is_dir() and fnmatch.fnmatch(path.name, args.pattern))
     if args.limit:
@@ -295,6 +297,9 @@ def check(acct: Path) -> dict:
     touched = sorted(name for name, digest in digests(acct, only_outside=False).items() if all_before.get(name) != digest)
     if touched:
         return {"state": "fail", "why": f"the repeat or the refused refund changed {touched}"}
+    detail = native_check.problems(dbf, S, acct, [sale.docnum, sr.docnum])  # 明细照原生记法：行号右对齐、单位与倍数（10-26）
+    if detail:
+        return {"state": "fail", "why": "; ".join(detail[:5])}
     index_problems = cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, [sale.docnum, sr.docnum]) if with_runner else []
     if index_problems:
         return {"state": "fail", "why": "; ".join(index_problems)}
