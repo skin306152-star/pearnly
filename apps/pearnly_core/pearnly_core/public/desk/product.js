@@ -777,6 +777,8 @@ frappe.provide("frappe.pearnly");
 				title: __(title),
 				single_column: true,
 			});
+			// 自己的页面：页头按钮由本页代码加，不过原生按钮白名单（`desk/actions.js`）
+			page.pearnly_owned = true;
 			try {
 				const t = await p.texts(prefix);
 				await render(page, t, wrapper);

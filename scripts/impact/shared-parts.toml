@@ -83,6 +83,15 @@ search = ["apps/**/*.js", "apps/**/*.html"]
 entries = ["shared.sidebar-order"]
 
 [[part]]
+id = "desk-head-actions"
+name = "产品页页头按钮白名单（desk/actions.js + 各产品 pearnly_native_actions + 产品站点账号角色规则）"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py"]
+markers = ["desk/actions.js", "pearnly_native_actions", "pearnly_owned", "guard_user_roles", "pearnly_grant_system_manager"]
+search = ["apps/**/*.js", "apps/**/hooks.py", "apps/**/*.py"]
+entries = ["shared.page-head-declared", "erp.user-profile", "cowork.user-profile", "erp.report.stock-count-variance"]
+not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明、个人页白名单与 User validate 钩子登记，入口见 shared.page-head-declared", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "盘点差异报表的白名单声明，入口 erp.report.stock-count-variance", "apps/pearnly_core/pearnly_core/desk/navigation.py" = "把各 App 的白名单汇进启动数据，入口见 shared.page-head-declared", "apps/pearnly_core/pearnly_core/provisioning.py" = "开户新建账号举旗放行临时 System Manager，入口见 shared.page-head-declared" }
+
+[[part]]
 id = "desk-user"
 name = "我的资料（User 表单精简）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/user.js"]
@@ -2102,3 +2111,12 @@ steps = "按台记录 → 导出；有库存的商品勾按台管理 → 下载�
 expect = "导出与模板表头按站点语言（车：车架号 / 发动机号 / 颜色）；台数对上才开按台"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js"]
+
+[[entry]]
+id = "shared.page-head-declared"
+product = "共用"
+where = "三产品所有产品页、个人页、ERP 盘点差异报表的页头（右上角按钮、菜单、下拉、图标）"
+steps = "三产品各用租户管理员、普通员工、带 System Manager 的管理员登录，逐页打开（自动冒烟的 page 探针每页都核）；个人页改一项保存；在站点上给业务账号加 System Manager"
+expect = "页头只有登记过的按钮（data-pearnly-declared），个人页只有「保存」，不出原生「权限」「创建用户电子邮件」「密码」；本人保存个人页角色不变；业务账号加 System Manager 被拒"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/desk/navigation.py", "apps/pearnly_core/pearnly_core/provisioning.py", "scripts/smoke/probes/page.js"]

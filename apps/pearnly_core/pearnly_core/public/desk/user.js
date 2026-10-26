@@ -70,11 +70,8 @@ frappe.ui.form.on("User", {
         // 右侧栏、仪表盘、菜单由 product.css 按这个类从第一帧起就不显示（原先在 refresh 里才隐藏）。
         frm.$wrapper.addClass("pearnly-account-profile");
         pearnlyProfileHideEarly(frm);
-        // 原生「密码 → 重置密码」由我们的「修改密码」取代（refresh 里也会摘掉）。原生脚本在它自己的
-        // refresh 里加这颗按钮、中间还有一次异步，所以会先露出来再被摘掉；这里直接不让它加上。
-        const add = frm.add_custom_button.bind(frm);
-        frm.add_custom_button = (label, click, group) =>
-            label === __("Reset Password") && group === __("Password") ? null : add(label, click, group);
+        // 原生加的按钮（「密码」「权限」「创建用户电子邮件」……）由页头白名单统一拦（`desk/actions.js`，
+        // 个人页只声明了「保存」）；我们的「修改密码」是表单里的字段按钮，不在页头。
     },
     refresh(frm) {
         if (!frappe.boot.pearnly_product) return;
@@ -103,7 +100,6 @@ frappe.ui.form.on("User", {
         frm.page.sidebar.hide();
         frm.dashboard.hide();
         frm.page.clear_icons();
-        frm.remove_custom_button(__("Reset Password"), __("Password"));
         frm.$wrapper.find(".pearnly-password-action").remove();
         if (frappe.app.sidebar.sidebar_title !== frappe.boot.pearnly_sidebar) {
             frappe.app.sidebar.setup(frappe.boot.pearnly_sidebar);

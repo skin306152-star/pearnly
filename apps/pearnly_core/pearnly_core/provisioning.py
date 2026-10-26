@@ -58,10 +58,13 @@ def ensure_local_user(email: str, full_name: str, subject: str,
                       role: str = "System Manager") -> dict:
     """建本地账号并绑定身份。幂等。
 
-    三条合同约束：
+    四条合同约束：
     1. **不按邮箱合并到已有账号**（P1.04）：已存在就复用，不再新建；
     2. **不给本地密码**：业务用户只走统一身份登录，不允许本地密码旁路；
-    3. 已经绑过的身份不重复绑，视为成功（重跑开通不会卡在这一步）。
+    3. 已经绑过的身份不重复绑，视为成功（重跑开通不会卡在这一步）；
+    4. ``role`` 只在**新建**账号时给（开户第一步的临时 System Manager，随后「设角色」一步拿走）。已有账号只绑身份、
+       不加角色：2026-10-20 testcowork 换号池时 `bind_user` 对已有管理员重跑这里，把 System Manager 加了回去，
+       个人页于是露出框架原生的「权限」「创建用户电子邮件」（10-26 用户报）。
     """
     email = (email or "").strip().lower()
     if not email:
@@ -86,8 +89,13 @@ def ensure_local_user(email: str, full_name: str, subject: str,
     else:
         user = frappe.get_doc("User", email)
 
-    if role and role not in [r.role for r in user.roles]:
-        user.add_roles(role)
+    if role and created == "created" and role not in [r.role for r in user.roles]:
+        # 开户新建账号时的临时框架角色：放行 `desk.permissions.guard_user_roles`（产品站点不许给业务账号 System Manager）
+        frappe.flags.pearnly_grant_system_manager = True
+        try:
+            user.add_roles(role)
+        finally:
+            frappe.flags.pearnly_grant_system_manager = False
 
     bound = "already"
     existing = frappe.db.exists(

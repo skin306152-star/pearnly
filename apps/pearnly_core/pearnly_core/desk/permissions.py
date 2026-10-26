@@ -21,6 +21,28 @@ def restrict_platform_permissions():
     frappe.clear_cache()
 
 
+FRAMEWORK_ADMIN = "System Manager"
+
+
+def guard_user_roles(doc, method=None):
+    """产品站点上账号角色的两条硬规则（User ``validate``）：
+
+    - 业务账号不许被加上 System Manager（框架超管：能看用户权限、建邮件账户、改系统设置……产品没有承接这些）。
+      只有开户新建账号那一刻（`provisioning.ensure_local_user` 举旗）放行，随后「设角色」一步拿走；
+    - 本人保存自己的个人页不能改动自己的角色：原生「角色编辑器」在个人页上不显示，但有编辑 User 权限的人保存时
+      它会按自己的勾选重写角色表（10-26 testcowork 管理员保存个人页丢了 Desk User）。角色只在团队管理里改。
+    """
+    if not frappe.conf.get("pearnly_product") or doc.name in ("Administrator", "Guest") or doc.is_new():
+        return
+    before = doc.get_doc_before_save()
+    held = {row.role for row in (before.roles if before else [])}
+    wanted = {row.role for row in doc.roles}
+    if FRAMEWORK_ADMIN in wanted - held and not frappe.flags.get("pearnly_grant_system_manager"):
+        frappe.throw(frappe._("Not permitted"), frappe.PermissionError)
+    if before and frappe.session.user == doc.name and wanted != held:
+        doc.set("roles", [{"role": row.role} for row in before.roles])
+
+
 def user_permission(doc, user=None, permission_type=None):
     """Customer account settings are self-service; the roster owns LINE identities."""
     user = user or frappe.session.user

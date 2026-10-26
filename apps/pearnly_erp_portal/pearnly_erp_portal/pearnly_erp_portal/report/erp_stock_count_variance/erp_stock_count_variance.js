@@ -31,31 +31,12 @@
 		}
 	}
 
-	function trim_menu(report) {
-		if (frappe.get_route()[0] !== "query-report"
-			|| frappe.get_route()[1] !== report_name || report.report_name !== report_name) return;
-		const page = report.page;
-		const drop = [__("Edit"), __("Print"), __("PDF"), __("Setup Auto Email"),
-			__("Add Column"), __("User Permission")];
-		page.menu.find("li").each(function () {
-			const label = $(this).find(".menu-item-label").text().trim();
-			if (drop.includes(label)) $(this).remove();
-		});
-		const actions = page.menu.find("a.dropdown-item");
-		// Refresh 是原生 visible-xs 项；桌面已有刷新图标，不能留下空的三个点。
-		// 菜单关闭时父容器不可见，不能用 :visible；读取操作自身的原生断点样式。
-		// show_menu/hide_menu 不留下会影响其他报表的响应式 class。
-		if (actions.toArray().some((action) => getComputedStyle(action).display !== "none")) {
-			page.show_menu();
-		}
-		else page.hide_menu();
-	}
-
 frappe.query_reports[report_name] = {
 	after_refresh(report) {
 		// 列头菜单与产品里其它表格一致：只留排序（见 core `p.table_menu`）。
 		frappe.pearnly.table_menu(report.datatable);
-		trim_menu(report);
+		// 页头菜单只留「导出」：原生的编辑、打印、PDF、自动邮件、加列、用户权限等由页头白名单拦
+		// （`pearnly_native_actions`，core `desk/actions.js`），这里不再逐项删。
 	},
 
 	filters: [

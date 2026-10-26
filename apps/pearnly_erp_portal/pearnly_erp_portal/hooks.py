@@ -81,6 +81,9 @@ app_license = "mit"
 # 单据打印（领料单 / 收货单，`printing`）：Print Format 里用 `pearnly_print_context(doc)` 取抬头、明细、勾选
 jinja = {"methods": ["pearnly_erp_portal.printing.context.pearnly_print_context"]}
 
+# 框架原生视图页头按钮白名单（core `desk/actions.js`）：盘点差异报表只留「导出」，其余原生菜单、图标、操作按钮不显示。
+pearnly_native_actions = {"query-report/ERP Stock Count Variance": ["Export"]}
+
 # add methods and filters to jinja environment
 # jinja = {
 # 	"methods": "pearnly_erp_portal.utils.jinja_methods",

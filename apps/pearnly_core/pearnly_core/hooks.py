@@ -192,6 +192,8 @@ doc_events = {
         "onload": "pearnly_core.account.profile.load_details",
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
         "on_update": "pearnly_core.desk.permissions.sync_profile_share",
+        # 产品站点：业务账号不许加 System Manager；本人保存个人页不能改自己的角色（`desk.permissions`）
+        "validate": "pearnly_core.desk.permissions.guard_user_roles",
     },
     # iPhone 照片（HEIC）上传时转成 JPEG 再存，三个产品的原生上传都经过这里（`desk/heic.py`）。
     "File": {
@@ -336,7 +338,7 @@ boot_session = [
 extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.desk.boot_messages.extend_bootinfo"]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`errors.js` 最先（页面报错回传，后面的组件出错也抓得到）；`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
-app_include_js = [versioned_asset("pearnly_core", "desk/errors.js"), versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]
+app_include_js = [versioned_asset("pearnly_core", "desk/errors.js"), versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/actions.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]
 
 # 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
 # （`frappe/www/desk.html` 遍历 `hooks["sounds"]`），`frappe.utils.play_sound(name)` 取的就是
@@ -364,6 +366,10 @@ after_migrate = [
 
 # Keep the native user form; do not add a second account settings page.
 doctype_js = {"User": "public/desk/user.js"}
+
+# 框架原生视图页头按钮白名单（`desk/actions.js`，键 = 页面路由前两段）：没声明的原生按钮、菜单项、图标一律不显示。
+# 个人页只留「保存」——原生的「权限」「密码」「创建用户电子邮件」等产品都没有承接（10-26）。各产品在自己的 hooks 里声明自己的。
+pearnly_native_actions = {"Form/User": ["Save"]}
 
 # Product account preferences never expose the framework user directory.
 # 导出任务只给本人看（见 ``pearnly_core.exports``）。
