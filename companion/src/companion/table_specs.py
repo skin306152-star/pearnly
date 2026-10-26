@@ -39,7 +39,8 @@ TABLE_SPECS = {
     ),
     "ISVAT": (
         "VATREC C(1); RECTYP C(1); VATPRD D; VATDAT D; DOCDAT D; DOCNUM C(12); "
-        "REFNUM C(15); DESCRP C(60); AMT01 B; VAT01 B; DOCSTAT C(1); "
+        # AMTRAT0:免税金额(真表有,实录第 10 条:混合免税的现销 / 退货单免税部分记这一栏)
+        "REFNUM C(15); DESCRP C(60); AMT01 B; VAT01 B; AMTRAT0 B; DOCSTAT C(1); "
         "TAXID C(15); ORGNUM N(5,0); PRENAM C(15)"
     ),
     "GLJNL": (

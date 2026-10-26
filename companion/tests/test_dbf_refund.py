@@ -300,6 +300,15 @@ def test_a_longer_original_number_is_not_read_as_a_line_of_a_shorter_one(book):
     assert dbf_refund._returned(book, "HS00000391234", [_origin(5)]) == {"5": Decimal("7")}  # 原单没有第 51 行
 
 
+def test_the_exempt_part_of_a_refund_goes_into_amtrat0(book):
+    """实录第 10 条（Express 原生写法）：混有免税商品的退货单，销项税记录 AMT01 只记应税部分、免税部分记 AMTRAT0，照载荷 ``vat_fields``。"""
+    res = _write(book, _refund(vat_fields={"AMT01": "60.00", "AMTRAT0": "33.46"}))
+    assert res.ok, res.error
+    vat = _rows(book, "ISVAT", DOCNUM=res.docnum)[0]
+    assert (Decimal(str(vat["AMT01"])), Decimal(str(vat["AMTRAT0"])), Decimal(str(vat["VAT01"]))) == (
+        Decimal("60.00"), Decimal("33.46"), Decimal("6.54"))
+
+
 def test_an_exempt_line_takes_no_share_of_the_vat_in_its_gross_amount():
     """实验栈实测 10-26：应税 100 + 免税 50 退货、含税 157，原来按税前额占比摊成 104.67 / 52.33；免税行含税额就是税前额。"""
     taxable = {"amount": "100.00"}
