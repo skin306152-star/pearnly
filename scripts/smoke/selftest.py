@@ -29,7 +29,7 @@ reaper_spec.loader.exec_module(reaper)
 
 def main() -> int:
     reaper.reap_orphans()   # 以前被打断留下的孤儿 Chrome 与旧临时目录
-    work = Path(tempfile.mkdtemp(prefix="scan-selftest-"))
+    work = reaper.claim(Path(tempfile.mkdtemp(prefix="scan-selftest-")))
     (work / "assets").mkdir()
     (work / "assets" / "pearnly_core").symlink_to(ROOT / "apps" / "pearnly_core" / "pearnly_core" / "public")
     (work / "index.html").write_text('<!doctype html><html><body><script src="/assets/pearnly_core/scan/reader.js"></script></body></html>')

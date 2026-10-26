@@ -174,7 +174,7 @@ def main(argv=None) -> int:
     swept = reaper.reap_orphans()   # 以前被打断留下的孤儿 Chrome 与旧临时 profile（只认冒烟自己这一类）
     if swept["killed"] or swept["removed"]:
         print(f"清掉以前冒烟留下的 Chrome {len(swept['killed'])} 个、临时目录 {len(swept['removed'])} 个", file=sys.stderr)
-    workdir = Path(tempfile.mkdtemp(prefix=reaper.PROFILE_PREFIX))
+    workdir = reaper.claim(Path(tempfile.mkdtemp(prefix=reaper.PROFILE_PREFIX)))
     video = workdir / "code.y4m"
     barcode.write(str(video))
     sessions, rows = {}, []

@@ -85,6 +85,32 @@ class SmokeChromeCleanup(unittest.TestCase):
         self.assertFalse(alive(pid), "fake Chrome left running after the driver was interrupted")
         self.assertEqual(self.profiles(), [])
 
+    def test_the_startup_sweep_leaves_another_running_smoke_alone(self):
+        """验收 10-26：别的窗口正在跑的冒烟——驱动（drive.mjs）下的 Chrome 主进程，和它的 GPU 子进程（命令行也带 --headless 与同一个
+        profile，父进程是 Chrome 主进程）——一个都不能杀。"""
+        live = self.tmp / "smoke-live"
+        live.mkdir()
+        tree = self.tmp / "tree.pids"
+        child = (f"import subprocess, sys, time; "
+                 f"subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)', '--headless=new', '--type=gpu-process', "
+                 f"'--user-data-dir={live}']); time.sleep(60)")
+        root = (f"import subprocess, sys, time; "
+                f"p = subprocess.Popen([sys.executable, '-c', {child!r}, '--headless=new', '--user-data-dir={live}']); "
+                f"open({str(tree)!r}, 'w').write(str(p.pid)); time.sleep(60)")
+        script = self.tmp / "drive.mjs"   # 假驱动：脚本名就是 drive.mjs
+        script.write_text(root)
+        driver = subprocess.Popen([sys.executable, str(script)])
+        try:
+            chrome = wait_for(tree)
+            time.sleep(0.5)
+            swept = reaper.reap_orphans(self.tmp)
+            self.assertEqual(swept["killed"], [])
+            self.assertTrue(alive(chrome))
+            self.assertTrue(live.exists())
+        finally:
+            subprocess.run(["pkill", "-f", f"--user-data-dir={live}"], check=False)
+            driver.kill()
+
     def test_the_startup_sweep_only_takes_smoke_orphans_and_old_profiles(self):
         orphan_dir = self.tmp / "smoke-orphan"
         orphan_dir.mkdir()
@@ -97,10 +123,12 @@ class SmokeChromeCleanup(unittest.TestCase):
         orphan, other = wait_for(self.pidfile), wait_for(other_pidfile)
         self.addCleanup(lambda: alive(other) and os.kill(other, signal.SIGKILL))
         old, new, selftest = self.tmp / "smoke-old", self.tmp / "smoke-new", self.tmp / "scan-selftest-old"
-        old.mkdir(), new.mkdir(), selftest.mkdir()
+        running = self.tmp / "smoke-running-long"   # 另一个窗口跑了 2 小时还没完的冒烟：目录里记着它的进程号（这里用本进程）
+        old.mkdir(), new.mkdir(), selftest.mkdir(), running.mkdir()
+        reaper.claim(running)
         past = time.time() - 2 * 3600
-        os.utime(old, (past, past))
-        os.utime(selftest, (past, past))
+        for path in (old, selftest, running):
+            os.utime(path, (past, past))
         time.sleep(0.3)
         swept = reaper.reap_orphans(self.tmp)
         time.sleep(0.3)
@@ -109,6 +137,7 @@ class SmokeChromeCleanup(unittest.TestCase):
         self.assertTrue(alive(other))
         self.assertIn("smoke-old", swept["removed"])
         self.assertIn("scan-selftest-old", swept["removed"])
+        self.assertTrue(running.exists())   # 还在跑的不删
         self.assertTrue(new.exists())
 
 

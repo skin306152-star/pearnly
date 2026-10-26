@@ -22,6 +22,7 @@ from pathlib import Path
 PROFILE_PREFIX = "smoke-"
 OTHER_PREFIXES = ("scan-selftest-",)  # 相机自检的临时目录（以前也没删，本机攒了 118 个）
 STALE_SECONDS = 3600
+OWNER_FILE = ".owner-pid"  # 冒烟 / 自检自己的工作目录里记下进程号：跑超过 1 小时也不会被别的窗口启动时清掉（验收 10-26）
 _PROFILE = re.compile(r"--user-data-dir=(\S*/" + PROFILE_PREFIX + r"[^\s/]+)")
 
 
@@ -30,7 +31,8 @@ def temp_root() -> Path:
 
 
 def _processes():
-    out = subprocess.run(["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True, check=False).stdout
+    # -ww：命令行不截断（长的会把 --user-data-dir、drive.mjs 截掉，误判父子关系）
+    out = subprocess.run(["ps", "-axww", "-o", "pid=,ppid=,command="], capture_output=True, text=True, check=False).stdout
     for line in out.splitlines():
         parts = line.strip().split(None, 2)
         if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
@@ -54,8 +56,14 @@ def reap_orphans(root: Path | None = None, *, stale_seconds: int = STALE_SECONDS
             mine = False
         if not mine:
             continue
-        # 孤儿：父进程已不是冒烟驱动（macOS 上被 1 号进程接管，Linux 上也可能被别的收养进程接走）
-        if "--headless" in command and (ppid == 1 or "drive.mjs" not in commands.get(ppid, "")):
+        # 只认进程树的根：Chrome 的 GPU 等子进程命令行里也带 --headless 与同一个 profile，它的父进程是 Chrome 主进程（带同一个
+        # profile）——那是别人正在跑的冒烟，不是孤儿（验收 10-26 实测会误杀另一个窗口的冒烟）
+        parent = commands.get(ppid, "")
+        if found.group(1) in parent:
+            busy.add(profile.name)
+            continue
+        # 孤儿：根进程的父进程已不是冒烟驱动（macOS 上被 1 号进程接管，Linux 上也可能被别的收养进程接走）
+        if "--headless" in command and (ppid == 1 or "drive.mjs" not in parent):
             try:
                 os.kill(pid, signal.SIGKILL)
                 killed.append(pid)
@@ -65,14 +73,34 @@ def reap_orphans(root: Path | None = None, *, stale_seconds: int = STALE_SECONDS
             busy.add(profile.name)  # 正在跑的冒烟还在用
     removed = []
     cutoff = time.time() - stale_seconds
+
+    def owned(path: Path) -> bool:
+        try:
+            pid = int((path / OWNER_FILE).read_text().strip())
+        except (OSError, ValueError):
+            return False
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+
     for path in (found for prefix in (PROFILE_PREFIX, *OTHER_PREFIXES) for found in root.glob(prefix + "*")):
         try:
-            if path.is_dir() and path.name not in busy and path.stat().st_mtime < cutoff:
+            if path.is_dir() and path.name not in busy and not owned(path) and path.stat().st_mtime < cutoff:
                 shutil.rmtree(path, ignore_errors=True)
                 removed.append(path.name)
         except OSError:
             continue
     return {"killed": killed, "removed": removed}
+
+
+def claim(path: Path) -> Path:
+    """在自己的工作目录里记下进程号（:data:`OWNER_FILE`）：清理时还活着的就不删。"""
+    Path(path, OWNER_FILE).write_text(str(os.getpid()))
+    return Path(path)
 
 
 def _end_group(proc: subprocess.Popen, grace: float = 3.0) -> None:
@@ -120,4 +148,4 @@ def exit_on_signals() -> None:
         signal.signal(sig, stop)
 
 
-__all__ = ["PROFILE_PREFIX", "exit_on_signals", "reap_orphans", "run_driver", "temp_root"]
+__all__ = ["PROFILE_PREFIX", "claim", "exit_on_signals", "reap_orphans", "run_driver", "temp_root"]
