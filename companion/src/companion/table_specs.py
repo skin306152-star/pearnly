@@ -63,7 +63,9 @@ TABLE_SPECS = {
         "DOCSTAT C(1); ORGNUM N(5,0); USERID C(8); DEPCOD C(4); DUEDAT D; "
         "BILNUM C(15); NXTSEQ C(3); SRV_VATTYP C(1); CMPLAPP C(1); CMPLDAT D; "
         # 退货单 SR(RECTYP 5):CNTYP 退法(3 = 退现金)、SONUM 挂的原单号(实录 SR0000001;真表宽度待实录核对)
-        "CNTYP C(1); SONUM C(12)"
+        "CNTYP C(1); SONUM C(12); "
+        # AMTRAT0:免税金额(真表有;实录第 10 条,混合免税的现销 / 退货单单头同销项税记录也记)
+        "AMTRAT0 B"
     ),
     # 真表 122 列:HS 现销 / IV 赊销 / DR 借项 / SR 退货 / RE 收款。
     "ARBAL": "CUSCOD C(10); BEGBAL B; "
@@ -83,7 +85,9 @@ TABLE_SPECS = {
         "PHYBAL B; MREMBAL B; MREMVAL B; ACCNUMDR C(15); ACCNUMCR C(15); "
         # 退货单 SR 的明细行:RDOCNUM C(15) = 原单号左对齐、原单行号右对齐到第 15 位、中间补空格(原生写法:实录 SR0000001「HS0000039     1」,
         # 测试机 S 盘副本 1039 本与 T 账套真表都是 C(15)),RETSTK Y 货回仓、FLAG 2
-        "RDOCNUM C(15); RETSTK C(1); FLAG C(1)"
+        "RDOCNUM C(15); RETSTK C(1); FLAG C(1); "
+        # VATCOD:商品 VAT 类型(真表有;实录第 10 条,免税行记 '0'、应税行空)
+        "VATCOD C(1)"
     ),
     # 库存单单头（领用 OU / 调整 JU / 盘点 TK；真表 23 列，T9HENG15 10-25 读出的宽度）
     "STTRN": (

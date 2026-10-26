@@ -21,6 +21,7 @@ from typing import List, Optional
 import dbf
 
 from . import account_rules
+from . import dbf_fields
 from . import dbf_schema as S
 from . import product_master
 from . import stock_location
@@ -158,6 +159,7 @@ def write_stcrd_detail(
     line_modes: List[dict] = []
     location = account_rules.main_location(account_dir)
     t = _open(account_dir, "STCRD", dbf.READ_WRITE)
+    fields = {name.upper() for name in t.field_names}
     try:
         for seq, it in enumerate(items, start=1):
             qty = float(Decimal(str(it.get("qty") or "1")))
@@ -175,7 +177,7 @@ def write_stcrd_detail(
                 if eff_mode == "non_stock_item"
                 else S.stcrd_detail_row
             )
-            t.append(
+            t.append(dbf_fields.exempt_line(
                 account_rules.localize_stcrd(account_dir, builder(
                     docnum,
                     seq,
@@ -190,7 +192,7 @@ def write_stcrd_detail(
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=posopr,
-                ), unit, stock_location.location_at(locations, seq - 1) or location)
+                ), unit, stock_location.location_at(locations, seq - 1) or location), it, fields)
             )
             line_modes.append(
                 line_mode(

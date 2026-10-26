@@ -179,6 +179,15 @@ def _facts(folder: Path) -> dict:
     except Exception:
         log.info("默认科目读不出，这份不带默认科目")
     try:
+        # 账套开没开逐行 VAT（ISINFO.VAT_INITEM = Y）：开了的免税商品按行记，没开的 ERP 按公司问一次怎么写（实录第 10 条）
+        from .account_rules import _first
+
+        info = _first(folder, "ISINFO")
+        if info is not None:
+            facts["vat_initem"] = str(info.get("VAT_INITEM") or "").strip().upper()
+    except Exception:
+        log.info("账套设置读不出，这份不带逐行 VAT 设置")
+    try:
         # 库存单（载荷 6）三个单别在 ISRUN 里的默认科目：ERP 据此判要不要先让人选一次科目（这一行没有或几行不同 → 空）
         from .dbf_stock import KINDS, book_row
 

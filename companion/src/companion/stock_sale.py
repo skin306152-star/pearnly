@@ -35,6 +35,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 import dbf
 
 from . import account_rules
+from . import dbf_fields
 from . import dbf_detail
 from . import dbf_schema as S
 from . import product_master
@@ -253,6 +254,7 @@ def write_stock_lines(
     cogs_by_pair: Dict[Tuple[str, str], Decimal] = {}
     st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
     st.open(dbf.READ_WRITE)
+    st_fields = {field.upper() for field in st.field_names}
     try:
         for seq, it in enumerate(items, start=1):
             name = str(it.get("name") or "")
@@ -288,7 +290,7 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                st.append(stock_units.stamp(row, units))
+                st.append(stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, item["stkcod"], new_bal, new_val)
@@ -328,7 +330,7 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                st.append(stock_units.stamp(row, units))
+                st.append(stock_units.stamp(dbf_fields.exempt_line(row, it, st_fields), units))
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 _reduce_stmas(account_dir, basis.stkcod, new_bal, new_val)

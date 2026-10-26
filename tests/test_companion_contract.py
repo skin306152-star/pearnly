@@ -745,6 +745,12 @@ class PosPayload(unittest.TestCase):
         # 免税部分记 AMTRAT0（验收实录第 10 条）：CC 认的金额栏是 AMTnn / AMTRATn，旧版照样写
         self.assertEqual(_literal(erp / "pos_day.py", "ISVAT_EXEMPT_FIELD"), "AMTRAT0")
         self.assertIn("AMTRAT", (COMPANION / "sales_adapter.py").read_text(encoding="utf-8"))
+        # 逐行 VAT 设置（ISINFO.VAT_INITEM）：CC 读主档的 facts 与 ERP 读的键同名
+        self.assertTrue(quoted((COMPANION / "express_masters.py").read_text(encoding="utf-8"), "vat_initem"))
+        self.assertTrue(quoted((erp / "facts.py").read_text(encoding="utf-8"), "vat_initem"))
+        # 免税行标记：ERP 合同、共用写账规则、CC 三处同名
+        for path in (erp / "contracts.py", RULES / "common.py", COMPANION / "dbf_fields.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "vat_exempt"), path)
 
     def test_the_pos_block_keys_match(self):
         mapper = (RULES / "sales_mapper.py").read_text(encoding="utf-8")

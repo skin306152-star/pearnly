@@ -126,8 +126,9 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     assert data["version"] == 2 and data["account_set"] == express_masters.express_read._norm(books.acct)
     # facts（ERP 直连后准备写账载荷用，ADR-025）：与心跳按账套上报同形状；ISINFO 没有默认科目列、没有存货科目组就给空
     # 库存单三个单别的默认科目（出入库第一期 B 段）：这份合成账套没有 ISRUN，都给空
+    # 逐行 VAT（ISINFO.VAT_INITEM）：这份合成账套的 ISINFO 没有这一栏 = 没开（空）
     assert data["facts"] == {"accounts": [{"code": "11-01-01-00", "name": "เงินสด", "type": "1"}], "mapping": {},
-                             "stock_books": {}, "catalog": {"isacc_candidates": []}}
+                             "vat_initem": "", "stock_books": {}, "catalog": {"isacc_candidates": []}}
     assert data["read_at"].endswith("Z")
     assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y", "address": "", "phone": ""}
     assert data["customers"] == [{"code": "C01", "name": "ร้านป้าแดง", "tax_id": "0105560000001", "branch": "00002",
@@ -238,6 +239,14 @@ def test_the_mark_changes_only_when_a_master_table_changes(books):
     assert express_masters.mark(books.acct) != first
     assert "express_marks" in KINDS and MAX_BYTES["express_marks"] < MAX_BYTES["express_masters"]
     assert request_worker.HANDLERS["express_marks"] is express_masters.read_marks
+
+
+def test_the_facts_say_whether_the_book_records_vat_by_line(books):
+    """实录第 10 条：账套开了逐行 VAT（ISINFO.VAT_INITEM = Y）的免税商品按行记；ERP 据此决定要不要按公司问一次怎么写。"""
+    _table(books.acct / "ISINFO.DBF", _ISINFO + "; VAT_INITEM C(1)", [{"THINAM": "ดาวเหนือ", "MAINLOC": "01", "NEGALLOW": "Y",
+                                                                       "COSMTD": "F", "USEDEP": "Y", "VAT_INITEM": "Y"}])
+    _result, data = _read(books)
+    assert data["facts"]["vat_initem"] == "Y"
 
 
 def test_the_book_settings_carry_the_company_address_and_phone(books):

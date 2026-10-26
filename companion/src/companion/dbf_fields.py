@@ -34,6 +34,20 @@ def amount_fields(is_cash: bool, has_vat: bool, base, vat, total):
     return "2", b, b, b, b, t
 
 
+EXEMPT_VATCOD = "0"  # Express 商品「ประเภท VAT」：ได้รับยกเว้นVAT = '0'，อัตราปกติ = '1'，ไม่ระบุ = 空
+
+
+def exempt_line(row: Dict[str, Any], item, fields) -> Dict[str, Any]:
+    """来源标的免税行（``vat_exempt``，ERP 增值税登记户的收银日汇总 / 退货单）：照 Express 原生明细记 VATCOD '0'、NETVAL = TRNVAL
+    （免税行不拆税；验收实录第 10 条，S 盘副本 6412NLT 的 HH2200117）。``fields`` 是 STCRD 的栏名（大写），老账套没有 VATCOD 栏不写。"""
+    if item.get("vat_exempt"):
+        if "VATCOD" in fields:
+            row["VATCOD"] = EXEMPT_VATCOD
+        if "TRNVAL" in row:
+            row["NETVAL"] = row["TRNVAL"]
+    return row
+
+
 def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0, duedat=None) -> Dict[str, Any]:
     """Express GUI 录入时自动填、外部直写**必须补**的"审核/单据"字段。
 

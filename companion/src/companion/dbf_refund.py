@@ -40,6 +40,7 @@ import dbf
 from . import account_rules
 from . import cdx_reindex
 from . import dbf_detail
+from .dbf_fields import EXEMPT_VATCOD
 from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
@@ -399,7 +400,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
                depcod: str, moves) -> Tuple[str, List[Tuple[str, str, str, Decimal]], str, List[Dict]]:
     """单头、明细、主档结存、销项税、凭证、计数器 → (单号, 写下的分录 [(SEQIT, 科目, 借贷, 金额)], 现金科目, 逐行回执)。"""
     base, vat, total = Decimal(entry.base_amount), Decimal(entry.vat_amount), Decimal(entry.total_amount)
-    has_vat = vat > 0
+    has_vat = vat > 0 or bool(entry.vat_fields)  # 整张免税的退货单也写销项税记录（AMT01 0、AMTRAT0 全额，同原生 SR002100392）
     book = account_rules.book(account_dir, PREFIX)
     jnltyp = book.get("JNLTYP") or S.JNLTYP_SALES
     depcod = depcod or book.get("DEPCOD", "")
@@ -416,6 +417,8 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
             "NETVAL": netval, "VATAMT": _f(vat), "NETAMT": netamt, "RCVAMT": netamt, "REMAMT": 0.0, "CSHRCV": 0.0,
             "IVCAMT": _f(entry.refund_against_total), "DOCSTAT": "N", "USERID": userid,
             "CNTYP": CNTYP_CASH, "SONUM": entry.refund_against,
+            # 免税部分（载荷 `vat_fields` 的 AMTRAT0）：单头同销项税记录也记一份（Express 原生，实录第 10 条）
+            **({"AMTRAT0": _f(Decimal(entry.vat_fields["AMTRAT0"]))} if "AMTRAT0" in entry.vat_fields else {}),
             **audit_fields(docdat, depcod, has_vat, orgnum), **({"NXTSEQ": str(len(lines))} if lines else {})}))  # 全是非库存行：同 HS 表头模式
     finally:
         head.close()
@@ -439,6 +442,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
                 "XUNITPR": float(_q2(line.unit_cost)), "XTRNVAL": float(line.cost), "XSALVAL": float(line.net),
                 "STKDES": str(item.get("name") or "")[:50], "MREMBAL": float(new_bal), "MREMVAL": float(new_val),
                 "RDOCNUM": line.rdocnum, "RETSTK": RETSTK, "FLAG": FLAG,
+                **({"VATCOD": EXEMPT_VATCOD} if item.get("vat_exempt") else {}),  # 免税行（含税额就是税前额，`_gross`）
             }, units.unit, line.loccod)
             stock_units.stamp(row, units)
             table.append(_filtered(table, row))
@@ -555,7 +559,7 @@ def _verify(account_dir, docnum: str, entry, line_count: int, gl_rows, since: Di
     credit = sum((amount for _seq, _acc, side, amount in got if side != S.TRNTYP_DEBIT), Decimal(0))
     if debit != credit:
         fail(f"journal not balanced {debit} / {credit}", "GLJNLIT")
-    if Decimal(entry.vat_amount) > 0 and not any(
+    if (Decimal(entry.vat_amount) > 0 or entry.vat_fields) and not any(
             str(r["DOCNUM"] or "").strip() == docnum and str(r["VATREC"]).strip() == S.ISVAT_VATREC_OUTPUT
             for r in appended("ISVAT")):
         fail("output VAT row missing", "ISVAT")

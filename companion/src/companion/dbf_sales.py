@@ -273,7 +273,8 @@ def write_sale(
     base = Decimal(entry.base_amount)
     vat = Decimal(entry.vat_amount)
     total = Decimal(entry.total_amount)
-    has_vat = vat > 0
+    # 整张免税的单（ERP 增值税登记户、全是免税商品）带 `vat_fields`（AMT01 0、AMTRAT0 全额）：照原生也写销项税记录（实录第 10 条）
+    has_vat = vat > 0 or bool(entry.vat_fields)
 
     # 不查重:账套里已有同号 / 同票的单照写(用户 2026-09-30、2026-10-08:Express 手工录入也不拦重复)。
     try:
@@ -498,6 +499,9 @@ def _write_all(
                 "NETVAL": netval,
                 "VATAMT": _f(vat),
                 "NETAMT": netamt,
+                # 免税部分（载荷 `vat_fields` 的 AMTRAT0）：单头同销项税记录也记一份（Express 原生，实录第 10 条）；老账套没有这一栏不写
+                **({"AMTRAT0": _f(Decimal(entry.vat_fields["AMTRAT0"]))}
+                   if "AMTRAT0" in entry.vat_fields and "AMTRAT0" in {f.upper() for f in ar.field_names} else {}),
                 "RCVAMT": netamt if cash else 0.0,
                 "REMAMT": 0.0 if cash else netamt,
                 "CSHRCV": netamt if cash else 0.0,

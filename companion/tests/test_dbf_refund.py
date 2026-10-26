@@ -309,6 +309,56 @@ def test_the_exempt_part_of_a_refund_goes_into_amtrat0(book):
         Decimal("60.00"), Decimal("33.46"), Decimal("6.54"))
 
 
+def _mixed_sale(*, exempt_only=False):
+    """登记户的现销日汇总混有免税商品（实录第 10 条，原生 HH2200117 的口径）：ICE01 应税 100 + ICE02 免税 50，含税 157；
+    ``exempt_only``：整张都是免税的 ICE02 50（AMT01 0、AMTRAT0 全额）。"""
+    ice = {"name": "น้ำแข็งก้อน", "code": "ICE02", "qty": "1", "unit_price": "50.00", "amount": "50.00", "unit": "ถัง",
+           "item_mode": "stock_sale", "loccod": "01", "vat_exempt": True}
+    if exempt_only:
+        sale = _sale_of([ice], ref_no="SI2569-000003", total="50.00", base="50.00", vat="0.00")
+        sale.update(payload_version=9, vat_rate=0.0, vat_fields={"AMT01": "0.00", "AMTRAT0": "50.00"})
+        sale["lines"] = [line for line in sale["lines"] if line["acc"] != OUTPUT_VAT]
+        return sale
+    taxable = {"name": "น้ำแข็งหลอด", "code": "ICE01", "qty": "1", "unit_price": "100.00", "amount": "100.00", "unit": "ถัง",
+               "item_mode": "stock_sale", "loccod": "01"}
+    sale = _sale_of([taxable, ice], ref_no="SI2569-000002", total="157.00", base="150.00", vat="7.00")
+    sale.update(payload_version=9, vat_fields={"AMT01": "100.00", "AMTRAT0": "50.00"})
+    return sale
+
+
+def test_a_mixed_sale_and_its_refund_write_exempt_lines_like_native_express(book):
+    """实录第 10 条（S 盘副本 6412NLT 的 HH2200117）：免税行 STCRD.VATCOD '0'、NETVAL = TRNVAL，应税行 VATCOD 空；ARTRN.AMTRAT0 与
+    ISVAT.AMTRAT0 记免税金额、ISVAT.AMT01 只记应税部分。退货单 SR 同一口径。"""
+    sale = _write(book, _mixed_sale())
+    assert sale.ok, sale.error
+    lines = {row["STKCOD"].strip(): row for row in _rows(book, "STCRD", DOCNUM=sale.docnum)}
+    assert (lines["ICE01"]["VATCOD"].strip(), lines["ICE02"]["VATCOD"].strip()) == ("", "0")
+    assert lines["ICE02"]["NETVAL"] == lines["ICE02"]["TRNVAL"]
+    assert Decimal(str(_rows(book, "ARTRN", DOCNUM=sale.docnum)[0]["AMTRAT0"])) == Decimal("50")
+    vat = _rows(book, "ISVAT", DOCNUM=sale.docnum)[0]
+    assert (Decimal(str(vat["AMT01"])), Decimal(str(vat["AMTRAT0"])), Decimal(str(vat["VAT01"]))) == (
+        Decimal("100"), Decimal("50"), Decimal("7"))
+    refund = _refund(total="157.00", base="150.00", vat="7.00", against=sale.docnum, against_total="157.00",
+                     vat_fields={"AMT01": "100.00", "AMTRAT0": "50.00"})
+    refund["items"] = [{**item, "unit_price": item["amount"]} for item in _mixed_sale()["items"]]
+    res = _write(book, refund)
+    assert res.ok, res.error
+    returned = {row["STKCOD"].strip(): row for row in _rows(book, "STCRD", DOCNUM=res.docnum)}
+    assert (returned["ICE01"]["VATCOD"].strip(), returned["ICE02"]["VATCOD"].strip()) == ("", "0")
+    assert (Decimal(str(returned["ICE01"]["TRNVAL"])), Decimal(str(returned["ICE02"]["TRNVAL"]))) == (Decimal("107"), Decimal("50"))
+    assert Decimal(str(_rows(book, "ARTRN", DOCNUM=res.docnum)[0]["AMTRAT0"])) == Decimal("50")
+
+
+def test_a_fully_exempt_sale_still_writes_its_output_vat_record(book):
+    """实录第 10 条（整张免税的 SR002100392）：登记户整张都是免税商品，照样写销项税记录：AMT01 0、AMTRAT0 全额、税额 0。"""
+    res = _write(book, _mixed_sale(exempt_only=True))
+    assert res.ok, res.error
+    vat = _rows(book, "ISVAT", DOCNUM=res.docnum)
+    assert [(Decimal(str(row["AMT01"])), Decimal(str(row["AMTRAT0"])), Decimal(str(row["VAT01"]))) for row in vat] == [
+        (Decimal("0"), Decimal("50"), Decimal("0"))]
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["VATCOD"].strip() == "0"
+
+
 def test_an_exempt_line_takes_no_share_of_the_vat_in_its_gross_amount():
     """实验栈实测 10-26：应税 100 + 免税 50 退货、含税 157，原来按税前额占比摊成 104.67 / 52.33；免税行含税额就是税前额。"""
     taxable = {"amount": "100.00"}
