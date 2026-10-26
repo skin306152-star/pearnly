@@ -619,3 +619,23 @@ ERP 这边要写进 Express 的库存单据只有三类（没有独立的销售�
 英文 / 泰文 / 日文同步：This receipt is in a daily summary. Refund it instead / ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน /
 このレシートは日次集計に入っています。返品にしてください；Entries from a stock count cannot be voided alone / รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้ /
 この入出庫は棚卸から作られたため、単独で取り消せません。
+
+## 十二、盘点调整 TK 照 Express 原生（实录第 9 条，10-26，pearnly/isvat-exempt）
+
+依据：验收在服务器 test 账套用 Express 原生「ปรับปรุงยอดสินค้าตามที่ตรวจนับ」录的 TK0000001（02 仓 501780 盘盈 15，副本
+`C:\PearnlyStress\_srvtest_record\9-before / 9-after`），加 S 盘副本原生 TK 盘盈行的统计（先进先出 2,836 行单价 = 挂的那一批的成本，
+平均成本 96 行如此、9 行只等于均价、375 行都对不上）。
+
+- 明细 STCRD：POSOPR ':'、FLAG 5；盘盈不取载荷的单价，挂这个仓最近一次进货那一行（POSOPR 0、数量为正、日期最后）：RDOCNUM = 原单号
+  左对齐行号右对齐到 15 位，MLOTNUM = 进货日期 yyyymmdd + '0' + RDOCNUM，单价取那一批的成本，LOTBAL / LOTVAL / LUNITPR 记本行；
+  挂不上批次的先进先出账套记 0 成本（同原生 6412NLT TK2000001），平均成本账套按商品均价（**待核**：S 盘样本与实录都没覆盖到）。
+  MREMBAL / MREMVAL 记写前结存、PHYBAL 记写后这个仓的结存、NETVAL = 货值，没有对方科目与品名。盘亏行照旧按移动均价、不挂批次。
+- 单头 STTRN：POSOPR ':'、货值 0、没有参考号（REFNUM 空）与对方科目。
+- 凭证：日记账取 ISRUN 里 TK 那一行（领用 / 调整照旧 00），摘要「ตรวจนับสินค้า + 单号」（不用备注），借存货 / 贷 ISRUN.TK.ACCNUM02。
+- 主档 STMAS：LASUPD 记盘点日，盘盈那一行成为最新一批（MLOTNUM = 日期 + ':' + 单号行号）；STLOC.TAKDAT 记盘点日。
+- 作废认 TK 的 POSOPR ':'。不写 STTAK（那是 Express 自己盘点流程的工作表，写了会挡用户同一天在 Express 里再盘，原生提示 2656）。
+- 逐字段对照（测试机离线：拷 9-before，用本分支的 CC 写同样一张，与 9-after 的 TK0000001 比）：STTRN / STCRD / GLJNL / GLJNLIT /
+  STLOC / STMAS 每个字段一致，只差两类：单号格式（CC 统一自编 TK691026-001）与行号补位（原生 SEQNUM / NXTSEQ / SEQIT 右对齐 "  1"，
+  CC 所有单据一贯写 "1"，Express 照常认，要统一改另立一项）。
+- 补用例：`companion/tests/test_dbf_stock.py` 盘点原生字段、先进先出挂批次 / 挂不上记 0、平均成本挂批次 / 按商品均价；
+  101 本离线回归 `scripts/express-stock-entry-regression.py` 加一张盘盈 TK（核 POSOPR / FLAG / 单头货值 / 批次与单价）。
