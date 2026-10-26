@@ -228,3 +228,25 @@ ISVAT、GLJNL 没有这类字段。改法：`dbf_schema.append_native`（原 `ap
     （以前按小票税前摊，免税商品的行被多分了整张税前）。
   - 真账回归共用检查 `express_native_detail_check` 加核：价含税单应税行 TRNVAL ≈ NETVAL × 1.07、免税行与其余单 TRNVAL = NETVAL；
     `express-stloc-regression.py --cash` 写现购 HP / 现销 HS 跑同一套核对。
+
+## CC 测试包 e2（pearnly/isvat-exempt d1d49292）上线前核对（10-26 15:00–16:42）
+
+- 相对测试包 d（836cceb5）的差异：冒烟清理只认运行标记；整张计税全免税的一天不计税、全应税不问、各行税前按小票含税额摊；跨年复制客户档
+  核同公司与更早年度、日期照新建；价含税的现销 HS / 现购 HP 明细 UNITPR / TRNVAL 记含税（见上一节）。中间出过测试包 e（015ae359，
+  只差价含税明细一项），已被 e2 取代。
+- CC 全量 1221 项；ERP 用例 106 项；闸门 130 项；候选离线检查通过；分支 Development checks 通过（d1d49292）。
+- 101 本离线回归（加核明细金额口径）：RR / IV 85 / 0 / 16；`--cash` 现购 HP / 现销 HS 85 / 0 / 16；库存单 79 / 1 / 21（T9GIS 守卫拦负库存，
+  同前）；退货单 80 / 0 / 21。跨年复制客户档真账只读核对：复制 77 对、拒绝 124 次，全对。
+- 实验栈 erp（REFRESH）挂 d1d49292、CC 测试包 e2：T9HENG15 写
+  - HS691022-004（整张计税，应税 107 + 免税商品 50）：先问「免税商品写法」答整张计税；税 10.27、税前 146.73、日汇总标整张计税；明细
+    UNITPR / TRNVAL 107 / 50、NETVAL 100 / 46.73；ISVAT AMT01 146.73、VAT01 10.27；
+  - HS691023-002（只卖免税品 50）：不再问、税 0、FLGVAT 0、不标；
+  - HS691024-013（3 × 107 + 50，整张计税）明细 UNITPR 107 / TRNVAL 321 / NETVAL 300、50 / 50 / 46.73；SR691025-006 挂它，明细含税 107 / 50；
+  - TK691026-006（盘盈挂 HP691026-008 批成本 10）；ERP 自动冒烟 HP691026-009 明细 UNITPR / TRNVAL 10.70、NETVAL 10、成本 10；
+    OU691026-010 再在 ERP 作废，Express 原生作废完成；
+  - 行号 / NXTSEQ / SEQIT 全右对齐；凭证全部借贷平衡。ERP 自动冒烟 11 过（「按码找商品」照旧是实验库 PN00003 两家同码的既有问题）。
+- 实验栈 cowork 推送冒烟 SMOKE-1793007644 → T9NIEXCP HP691026-004，CC 读回 ok。
+- 共用件连带回归（`check-impact`，命中 cc-dbf-write 7 个入口）：cc.desktop.write 通过（ERP / Cowork 各推一张）；cowork.cc.channel 通过（推送冒烟，
+  心跳 101 / 133）；erp.cc.write 通过；erp.cc.stock-entry 通过；erp.cc.stock-void 通过（OU691026-010 作废）；erp.cc.pos-day 通过（上面三张 HS）；
+  erp.cc.pos-refund 通过（SR691025-006）。没测到：旧版 CC 拒收新载荷（本批没改载荷版本）。
+- 收尾：lab-stop erp、cowork，定时任务恢复；DNS 已清，三域名 → 107.155.65.74；容器 0；CC 以 skin3 重启，心跳 101 / 133。
