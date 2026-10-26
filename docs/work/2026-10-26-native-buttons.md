@@ -99,3 +99,23 @@ testcowork 的 `pearnlyai@gmail.com` 现在仍带 System Manager、少了 Desk U
 
 - 原生表单级快捷键（例如新建）不经页头接口，不在白名单里；业务账号没有 System Manager 后，对应服务端权限照样拦。
 - 不部署、不合 main；合入前跑生产镜像完整候选离线检查（见下方闸门）。
+
+## 暂停点（10-26 晚，用户指示全部窗口就地暂停）
+
+- 分支 `pearnly/native-buttons-whitelist`：`de4c9cbd`（生产缺陷修复：开户只给新建账号临时 System Manager、业务账号加 System Manager 一律拒、
+  本人保存个人页不改角色、页头白名单）+ `9c2e2a7b`（A 节声明化：`pearnly_navigation` 的 actions / shortcuts、`check-entries.py`、快捷键白名单）
+  都已推送。闸门：`de4c9cbd` 本地全闸门 130 步、候选离线 72 步都过；`9c2e2a7b` 本地全闸门 131 步过，**候选离线没跑完**（暂停时停掉）。
+  基线仍是 `4561884f`，**没变基**到新 main `1dabbd06`。
+- 主会话已定：应用切换的「网站」「显示」「刷新」照用户 09-20 口径保留（不算漏出），要告诉验收窗口把这三项移进基线——**还没发**。
+- 生产 testcowork `pearnlyai@gmail.com` 角色修复（用户已同意，只限这一个账号）：**没开始**。
+- 其他租户是否受同一缺陷影响：六站点 System Manager 已只读查过（只有 pearnlyai 一个）；六站点 Desk User、10-20 之后其他换池 / 绑定是否加过角色，**还没查**。
+- 本机实验栈 `pearnly-native-lab` 容器已收（`docker compose down`，数据卷保留，`~/pearnly-devtools/native-lab/` 里 `docker compose up -d` 后
+  重起 `bench serve` 即可续用）。
+
+明天第一步（按顺序）：
+1. 变基到最新 `origin/main`（≥ `1dabbd06`），重跑本地全闸门 + 候选离线，推送，看分支 CI；
+2. 告诉验收窗口「网站 / 显示 / 刷新」移进基线；
+3. 生产 pearnlyai 角色修复：执行前只读回读角色表 → 按开户单用正式入口重跑「设角色」（不手改库、不进 mariadb 容器）→ 回读角色表、
+   确认个人页没有那两个按钮、账号能登录；
+4. 六站点只读查 Desk User 缺失与 10-20 之后的换池 / 绑定记录，结论报主会话（不顺手改）；
+5. 交验收复核差异，过了按主线集成先合 native-buttons。
