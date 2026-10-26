@@ -22,6 +22,7 @@
 | `dbf_zero_cost_sales.py` | 测试机 | 列成本为 0 的销售出库行 |
 | `express_set_isinfo.py` | 测试机（会话用户） | **会写账套**：改 ISINFO 字段，只用于获准的测试账套、且 Express 没开时；首选在 Express 设置画面里改 |
 | `examples/*.json` | — | 动作清单样例（选公司行、赊销录一行、改库存设置、剪贴板贴泰文备注） |
+| `pilot/` | 本机 + 测试机 | 10-26「CC 代录 Express」试点执行器（固定流程 + AI 兜底 + 读回核对 + 记账），见 `pilot/README.md` |
 
 ## 动作清单格式
 ```json
