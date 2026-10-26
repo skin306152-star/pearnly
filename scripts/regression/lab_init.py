@@ -70,7 +70,7 @@ def main(only):
             (sites / site / ".installed").write_text("1")
         bench("--site", site, "migrate")
         users = json.dumps(ROLES[product])
-        subprocess.run(["env/bin/python", "/workspace/scripts/regression/lab_users.py", site, product, users], check=True)
+        subprocess.run(["../env/bin/python", "/workspace/scripts/regression/lab_users.py", site, product, users], check=True, cwd="sites")
         print("READY", site, flush=True)
 
 

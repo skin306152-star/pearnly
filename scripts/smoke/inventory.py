@@ -77,7 +77,7 @@ def main(argv=None) -> int:
     if args.target == "local":
         site = f"{args.product}.regression.localhost"
         remote = Local()
-        base = f"http://{site}:{os.environ.get('REGRESSION_LAB_PORT', '18771')}"
+        base = f"http://{site}:{int(os.environ.get('REGRESSION_LAB_PORT', '18771')) + ['erp', 'cowork', 'dms'].index(args.product)}"
     else:
         site = run.SITES[args.product]
         remote = run.Remote(args.target)

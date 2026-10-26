@@ -25,7 +25,8 @@ services:
     image: ${PEARNLY_REGRESSION_LAB_IMAGE:-ghcr.io/skin306152-star/pearnly/frappe@sha256:fb1037adfa97d292ab81c3a6dc51ec4a0b4b533556cda6f6ce7e7e4577a43d79}
     platform: linux/amd64
     mem_limit: 3g
-    command: [bench, serve, --port, "8000", --noreload]
+    # 每个产品站点一个网页进程（各占一核，本机 amd64 模拟时并行快 3 倍）：8000 ERP、8001 Cowork、8002 DMS（站点按 Host 认，三个口都能开任一站点）
+    command: [bash, -lc, "for p in 8000 8001 8002; do bench serve --port $$p --noreload & done; wait"]
     working_dir: /home/frappe/frappe-bench
     environment:
       PEARNLY_REGRESSION_LAB: "1"
@@ -33,7 +34,7 @@ services:
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}
-    ports: ["127.0.0.1:${REGRESSION_LAB_PORT:-18771}:8000"]
+    ports: ["127.0.0.1:${REGRESSION_LAB_PORT:-18771}:8000", "127.0.0.1:18772:8001", "127.0.0.1:18773:8002"]
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - ${PEARNLY_REGRESSION_SRC:-../..}/apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro

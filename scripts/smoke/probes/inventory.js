@@ -81,7 +81,8 @@ const open = async (el) => {
   return found;
 };
 out.app_menu = await open(document.querySelector(".body-sidebar .sidebar-header"));
+// 侧栏底部的用户头像：Frappe 16 点它直接进个人页（不是下拉），只记它在、去哪，不点
 const userEl = [...document.querySelectorAll(".body-sidebar-bottom a, .body-sidebar-bottom .btn, .body-sidebar-bottom [data-toggle], .body-sidebar .sidebar-user, .navbar .avatar")]
   .filter(visible).find((el) => (el.innerText || "").includes(frappe.session.user) || el.querySelector(".avatar"));
-out.user_menu = await open(userEl);
+out.user_menu = userEl ? [`${text(userEl)} → ${(userEl.closest("a[href]") && userEl.closest("a[href]").getAttribute("href")) || "(点击跳转)"}`] : [];
 return { ok: true, ...out };
