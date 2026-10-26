@@ -190,3 +190,23 @@
 | 10-26 | 测试机 | 只读统计 S 盘副本（客户分档）；「直接写入」基准写在自己建的 69EXP\test 副本里，做完已删、占用表已登记释放 | 0 |
 | 10-26 | rec-laptop | 装 Python 3.13.17（SHA256 与官网一致、签名有效）+ pywinauto 0.6.9、pywin32 312、comtypes 1.4.17、six 1.17.0；C:\XpPilot 放代码；计划任务 PearnlyXpPilotAgent 以 aksar 交互身份跑代理；aksar 桌面放「登录服务器Express」；acct 桌面曾放的两个快捷方式已删 | 0 |
 | 10-26 | rec-laptop / 69EXP\test | 真跑：主推 88 张（含调试）、Opus 3 张、全程看图 2 张、多行 4 张、放弃实验 4 张 | **0.61 美元** |
+
+### I.1 收尾与保留项（10-26，按主会话要求）
+
+已做：
+- rec-laptop 上的 Express **已正常退出**（向主窗口发标准「关闭窗口」消息，等同点右上角关闭；当时笔记本是锁屏，键盘不可用；关之前单据在浏览状态，没有弹框；进程 0 个），不占服务器授权名额。
+- 测试机上试点留下的东西已全部删除（直接写入副本、CC 源码、试点代码、结果、`C:\PearnlyStress\_xp_pilot\s_stats` 脚本），占用表已登记释放。
+
+保留（解除条件都是：**用户决定是否产品化之后**；决定不做就按下表删掉）：
+
+| 保留项 | 位置 | 用途 | 解除 / 清理 |
+|---|---|---|---|
+| 试点分支 | `pearnly/express-operator-pilot-6bffe4`（本机工作树 + GitHub） | 产品化依据：执行器、实测流程（flows.json）、报告 | 产品化完成或决定不做后删分支和工作树 |
+| 代码与工作目录 | rec-laptop `C:\XpPilot`（`pilot\` 代码、`dl\` 安装包和一次性脚本） | 产品化时在同一台电脑上复测 | 删整个目录 |
+| Python 与包 | rec-laptop `C:\Python313`（Python 3.13.17 + pywinauto 0.6.9、pywin32 312、comtypes 1.4.17、six 1.17.0） | 跑执行代理 | 「应用和功能」里卸载 Python 3.13.17 |
+| 计划任务 | rec-laptop `PearnlyXpPilotAgent`（以 aksar 交互身份跑代理），**已禁用** | 复测时启用即可（`start-agent.ps1` 会重建并启用） | `Unregister-ScheduledTask PearnlyXpPilotAgent` |
+| 桌面快捷方式 | rec-laptop aksar 桌面（OneDrive\Desktop）「登录服务器Express」→ `\\accserver\ACCOUNT\69EXP\ExpressI.exe` | 用户登录试点用的 Express | 删快捷方式 |
+| 试点账套里的单据 | `\\accserver\ACCOUNT\69EXP\test`：试点录入的 RR / HP / IV / HS（含作废 7 张） | 试点证据；账套本来就是专给试点用的 | 由用户决定是否清空这本试点账套 |
+| 本机数据 | `~/pearnly-devtools/xp-pilot/`（花费账本、每张结果和截图、识别结果和语料答案副本、S 盘统计、Python 虚拟环境） | 报告依据、产品化时复用 | 删整个目录（含公司数据，不进仓库） |
+
+rec-laptop 上原有、不是试点建的：acct 账户和它桌面的 CC / Chrome、计划任务 RecAgent / RecKeepAwake、`C:\RecSetup`，都没动。

@@ -782,6 +782,32 @@ def grid_click(offset=(112, 30)) -> Dict:
     return {"xy": [x, y], "grid": [left, top, right, bottom], "scale": scale}
 
 
+def close_express(confirm: str = "") -> Dict:
+    """收尾用：让 Express 正常退出（给主窗口发 WM_CLOSE，等同点右上角关闭；锁屏时键盘用不了也能发）。
+    只发给 ExpressI 的窗口；confirm 非空时，只在 Express 弹窗的文字里含 confirm 时才按它的「ตกลง / ใช่」。"""
+    if confirm:
+        for w in windows():
+            if w["cls"] == "#32770" and confirm in " ".join(w["texts"]):
+                for want in ("ตกลง", "ใช่", "Yes", "OK"):
+                    hits = []
+
+                    def child(ch, _):
+                        if _cls(ch) == "Button" and _gettext(ch).replace("&", "").strip() == want:
+                            hits.append(ch)
+                        return True
+
+                    user32.EnumChildWindows(HWND(w["hwnd"]), EnumProc(child), 0)
+                    if hits:
+                        user32.PostMessageW(hits[0], 0x00F5, 0, 0)
+                        return {"pressed": want, "dialog": w["texts"][:3]}
+        raise Refused(f"没有含「{confirm}」的 Express 弹窗")
+    main = main_window()
+    if not main:
+        return {"closed": True, "note": "Express 已经不在了"}
+    user32.PostMessageW(HWND(main["hwnd"]), 0x0010, 0, 0)  # WM_CLOSE
+    return {"sent": "WM_CLOSE"}
+
+
 def copy_book(book: str, name: str) -> Dict:
     """把试点账套整本只读拷到 <工作目录>\\copies\\<name>（给第 ④ 种直接写入当基准用）。"""
     root = _book(book)
@@ -895,6 +921,8 @@ def do(a: Dict) -> Dict:
         return command(a["cmd"])
     if op == "toolbar_click":
         return toolbar_click(a.get("index"), a.get("cmd"))
+    if op == "close_express":
+        return close_express(a.get("confirm", ""))
     if op == "copy_book":
         return copy_book(a["book"], a["name"])
     if op == "launch":
