@@ -22,7 +22,7 @@ from . import engine as E
 from .ledger import DEFAULT_PATH, HARD_CAP, Ledger
 
 HERE = Path(__file__).resolve().parent
-BOOK = r"\\accserver\d$\account\69EXP\test"
+BOOK = r"\\accserver\ACCOUNT\69EXP\test"  # rec-laptop 上 aksar 映射的普通共享；测试机上用 --book 给 d$ 写法
 RUNS = Path.home() / "pearnly-devtools" / "xp-pilot" / "runs"
 KEY_FILES = [Path.home() / ".config" / "pearnly-claude-ocr" / "runtime.env",
              Path.home() / ".config" / "pearnly-claude-ocr" / "runtime.env.bak-20261022-124749"]

@@ -62,7 +62,8 @@
 ### A.3 试点电脑与账套
 
 - 录制笔记本 rec-laptop（DESKTOP-8BRD5AV），10-26 起专给试点用；桌面登录的是本地账户 acct。不占办公室测试机。
-- Express 只用服务器上有授权的那套（`\\Accserver\d$\ACCOUNT\70EXP\ExpressI.exe`），由用户本人登录。
+- Express 只用服务器上有授权的那套，由用户本人登录。rec-laptop 上用户本人的账号 aksar 已映射 P: → `\\accserver\ACCOUNT`（普通共享），
+  所以走 `\\accserver\ACCOUNT\70EXP\ExpressI.exe`，不用 d$ 管理共享、用户不用输服务器密码（10-26 只读核查；acct 访问不到，待用户以 aksar 登录后确认）。
 - 账套只用 `\\accserver\d$\account\69EXP\test`（บริษัท Pearnly จำกัด）；程序里写死白名单，别的路径一律拒读。
 
 ### A.4 代录怎么做：四层，能不截图就不截图（主会话 10-26 定）
@@ -185,6 +186,7 @@
 | 10-26 | 本机 | 离线自检；数 token 接口核对请求格式（免费） | 0 |
 | 10-26 | rec-laptop | 只读查了登录用户、计划任务、有没有 Python（ssh macadmin，没改任何东西） | 0 |
 | 10-26 | rec-laptop | acct 桌面放「1-打开服务器文件夹」（pythonw 跑 `open_share.py`：调 Windows 自带的网络凭据框，连上后打开 `\\Accserver\d$\ACCOUNT\70EXP`；脚本不读不存凭据）和「2-登录服务器Express」（目标 `\\Accserver\d$\ACCOUNT\70EXP\ExpressI.exe`，不是 C 盘那套）；为截凭据框的样子触发过一次，凭据框留在桌面等用户填。带参数启动资源管理器那两次没弹框、退回「文档」，多开的 3 个资源管理器进程已关 | 0 |
+| 10-26 | rec-laptop | 只读核查网络映射：aksar 有 S: → \\192.168.0.212\pas212、P: → \\accserver\ACCOUNT；acct 两个都访问不到、只存了测试机一条凭据（只看条目名）。aksar 的注册表临时只读挂载后已卸下。关掉了之前开着的凭据框（用户没输过东西），删了相关计划任务 | 0 |
 | 10-26 | rec-laptop | 装 Python 3.13.17 + 4 个包（见附录 B）；建 C:\XpPilot（代码、下载的安装包 dl\）；计划任务 PearnlyXpPilotAgent 起停一次做连通自检，已停 | 0 |
 | 10-26 | 甲骨文 | 只读拷了识别结果和语料答案到本机 `~/pearnly-devtools/xp-pilot/corpus/` | 0 |
 | 10-26 | 测试机 | 只读统计 S 盘副本（SSH 后台无窗口，已在占用表登记并释放；只留 `C:\PearnlyStress\_xp_pilot\s_stats\pilot\` 三个脚本） | 0 |

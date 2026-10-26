@@ -31,9 +31,10 @@ from . import dbfread
 WORK = Path(__file__).resolve().parent.parent  # 代码放在 <工作目录>\pilot\，令牌、日志、副本都在工作目录
 PORT = int(os.environ.get("XP_PILOT_PORT", "18765"))
 PROCESS = "expressi.exe"
-BOOKS = [r"\\accserver\d$\account\69exp\test"]  # 试点账套（主会话 10-26 指定），只读
+# 试点账套（主会话 10-26 指定），只读。同一个目录两种写法：普通共享 ACCOUNT（rec-laptop 的 aksar 映射的就是它）和 d$ 管理共享
+BOOKS = [r"\\accserver\account\69exp\test", r"\\accserver\d$\account\69exp\test"]
 COPY_ROOT = str(WORK / "copies").lower()  # 第 ④ 种方式的本机副本
-EXES = [r"\\accserver\d$\account\70exp\expressi.exe"]
+EXES = [r"\\accserver\account\70exp\expressi.exe", r"\\accserver\d$\account\70exp\expressi.exe"]
 BOOK_TABLES = ("APTRN", "ARTRN", "STCRD", "ISVAT", "GLJNL", "GLJNLIT", "ISRUN", "APMAS", "ARMAS", "STMAS", "STLOC")
 SHOT_SIZE = (1280, 720)  # 截图缩到这么大再给模型（1920×1080 屏），坐标由调用方按比例换回
 
