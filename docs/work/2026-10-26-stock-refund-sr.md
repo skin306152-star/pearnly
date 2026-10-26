@@ -110,3 +110,15 @@ AMTRAT0 = 免税金额；ARTRN.AMTRAT0 = 免税金额、NETVAL = 应税税前 + 
     文案闸门拦截 0、标黄 1（R-PAREN：「（建议）」照主会话原文保留）。
 - VAT_INITEM 分布（测试机只读统计）：S 盘副本 1047 本——空 929、Y 115、N 3；C 盘 70EXP 103 本——空 91、Y 12（T7ASC、T7ASIM、T7NLT67C、
   T7SANGJT、T8ASC 等）。大多数账套没开逐行 VAT，第一次遇到免税商品会问一次。
+
+## B3b 实录点 ①（10-26，验收「服务器test账套-录单结果.md」）与两处修正
+
+- SR 挂 CC 自编的日汇总单号：Express 认（服务器 test 账套录 SR0000002 挂 HS690705-001，自动带出原单金额 214、列出原单明细；SONUM / CNTYP 3 /
+  IVCAMT 照原生）。
+- 修 1（中高）：CC 写的 STCRD.SEQNUM 原来左对齐「1␣␣」，Express 原生右对齐「␣␣1」；Express 拼 RDOCNUM 是「原单号 C(12) + 原单 SEQNUM 原样」，
+  所以对着存量 CC 单录的退货是「HS690705-0011␣␣」，原来的已退数量认不出、可能退超。dbf 库写字符栏会去掉两头空格，右对齐写不进去：
+  新增 `dbf_schema.append_stcrd`，追加后按字节补写 SEQNUM，所有写 STCRD 的地方（销货库存行 / 非库存行、进货、期初、退货、库存单）都走它。
+  已退数量两种写法都认；盘点 TK 挂批次的 RDOCNUM 照那一行存的行号原样拼。单头 NXTSEQ、凭证 SEQIT 也是同样的左右之差，Express 照常认、
+  不影响挂单，所有单据一起改另立一项。
+- 修 2（中）：CC 写的 HS 明细单位 TQUCOD 空着（ERP 收银小票、非库存服务没单位），Express 录退货时要人手补选、倍数默认 0、不改成 1 报 13。
+  `account_rules.localize_stcrd`：行上单位解析不出时用这件品主档的库存单位、倍数 1。
