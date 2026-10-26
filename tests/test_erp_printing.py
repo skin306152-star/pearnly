@@ -32,6 +32,30 @@ def rows(count):
             for i in range(1, count + 1)]
 
 
+class FontSurvivesThePdfPipeline(unittest.TestCase):
+    """Frappe 出 PDF 前用 `scrub_urls` 展开地址，会给「冒号后紧跟 url(」补 ` !important`；补在 @font-face 的 src 上字体就作废、
+    回落 Loma（10-26 实测）。内嵌字体的 src 要原样过这一步。要 Frappe：生产镜像里跑（候选检查），开发检查跳过。"""
+
+    def test_the_embedded_font_src_is_left_valid(self):
+        try:
+            import frappe
+            from frappe.utils import data
+        except ImportError:
+            self.skipTest("Frappe not installed")
+        from unittest import mock
+
+        from pearnly_erp_portal.printing import context
+
+        with mock.patch.object(data, "get_url", lambda *args, **kwargs: "https://erp.example"), \
+                mock.patch.object(context.frappe, "get_app_path",
+                                  lambda app, *parts: str(ROOT / "apps" / app / app / pathlib.Path(*parts))):
+            css = context.fonts_css()
+            scrubbed = frappe.utils.scrub_urls(css)
+        self.assertEqual(css.count("url(data:font/ttf;base64,"), 2)  # Regular + Bold
+        self.assertEqual(scrubbed, css)
+        self.assertNotIn("!important", scrubbed)
+
+
 class Rules(unittest.TestCase):
     def test_pages_hold_ten_rows_each_and_fill_the_blank_slots(self):
         pages = C.pages(rows(13))

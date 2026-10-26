@@ -65,6 +65,31 @@
 Logo 用正式矢量 lockup（主会话定，不用样板里的猫图）。越权两处在实验栈复核：伪造单据 JSON 报 Not Permitted、同名伪造只印库里那份；
 别处的私有图拒收、本人刚传的收下并挂到公司，打印不读没挂到公司的地址。
 
+## 字体换 Prompt（10-26，分支 `pearnly/print-batch2`，基线 main `4561884f`）
+
+用户 10-26「同意下载」。只从 Google Fonts 官方仓库取模板用到的两个字重，放独立空目录核对后拷进 `public/fonts/print/`，Sarabun 删掉（不留两套）：
+
+| 文件 | 来源（固定到 google/fonts 提交 `f7879ff0`，`ofl/prompt` 目录最新一次提交） | 大小 | SHA256 |
+| --- | --- | --- | --- |
+| `Prompt-Regular.ttf` | `https://raw.githubusercontent.com/google/fonts/f7879ff04d7e2b3f3d4ad93ddffb20a35dff4271/ofl/prompt/Prompt-Regular.ttf` | 168,932 | `dbd497803cec3caffbc6b7f599ca6fed8beea0ed7e0ad1e098130c5ebbc4fd42` |
+| `Prompt-Bold.ttf` | 同目录 `Prompt-Bold.ttf` | 178,804 | `02813ca4f93c1df27e271f10fef3db6e34e66751ae1f4a3ed82ae06cb20150ea` |
+| `OFL.txt` | 同目录 `OFL.txt`（SIL OFL 1.1，Copyright 2015 Cadson Demak） | 4,452 | `1d08c63944e639bbfe8a1b81e3c6a63836806c126b3573b9cda0db83fd27ffe9` |
+
+两份字体都是 TrueType、`fsType` 0（可嵌入），字体名表里带 OFL 授权全文（`tests/test_erp_printing.py` 原有检查照过）。
+
+**更正（原判断 → 新证据 → 当前结论）**：上面「与评估的出入」写「PDF 里实际嵌入 Sarabun」——走框架原生 `get_print(as_pdf=True)` 重出
+并读 PDF 字体表，第一批留在共享笔记的领料单 / 收货单 PDF 实际嵌的是 **Loma**，内嵌字体没生效。原因：Frappe 出 PDF 前的 `scrub_urls`
+给「冒号后紧跟 `url(`」的写法补 ` !important`（给背景图的变通），补在 `@font-face` 的 `src` 上整条作废，wkhtmltopdf 回落镜像自带 Loma
+（同一份 HTML 不经这一步直接喂 wkhtmltopdf 就是内嵌字体，第一批的判断应是这样看的）。修法：`printing/context.py` 的 `fonts_css` 把
+`src:` 后换行再写 `url(...)`，不落进那条匹配；`tests/test_erp_printing.py` 加「内嵌字体的 src 原样过 `scrub_urls`」（要 Frappe，生产镜像里跑，
+已登记候选检查）。
+
+**样张**（本机一次性实验栈 `pearnly-print-lab`，线上同一镜像 `fb1037ad…`、挂本分支，框架原生 `frappe.get_print` 出 PDF，10 行满表、第 10 行长品名折两行）：
+领料单、收货单、采购单收货单、作废领料单四张都是一页、无溢出；PDF 嵌入字体 `Prompt-Regular`、`Prompt-Bold`（勾号 ✓ 仍落到 DejaVuSans-Bold，
+Prompt 没有这个字）；300 dpi 看泰文上下标（ผู้、ที่、ค้า、จ่าย、น้ำ、ม้วน、คู่）位置正确，见 `2026-10-26-print-batch1/prompt-issue-zoom-300dpi.png`。
+上一节列的 `issue-compare.png`、`receipt-compare.png`、`purchase-compare.png`、`void-watermark.png` 已换成 Prompt 版。与样板相比，版面高度矮一截
+是第一批原有的（A4 横版与样板图比例不同），换字体没有改动版面。
+
 ## 待确认 / 下一步
 
 - 样张交主会话转用户和岳父确认，确认后收尾（过闸门、交验收、合入）。

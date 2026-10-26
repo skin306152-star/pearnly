@@ -53,8 +53,10 @@ def fonts_css() -> str:
             continue
         with open(os.path.join(folder, found), "rb") as handle:
             data = base64.b64encode(handle.read()).decode()
-        faces.append(f'@font-face {{ font-family: "{FONT_FAMILY}"; font-weight: {weight}; font-style: normal; '
-                     f'src: url(data:font/ttf;base64,{data}) format("truetype"); }}')
+        # `src:` 后换行再写 `url(...)`：Frappe 出 PDF 前的 `scrub_urls` 给「冒号后紧跟 url(」的写法补 ` !important`
+        # （给背景图的变通），补在 @font-face 的 src 上整条作废、字体回落 Loma（10-26 实测，第一批的 PDF 也是 Loma）。
+        faces.append(f'@font-face {{ font-family: "{FONT_FAMILY}"; font-weight: {weight}; font-style: normal;\n'
+                     f'  src:\n    url(data:font/ttf;base64,{data}) format("truetype"); }}')
     return "\n".join(faces)
 
 
