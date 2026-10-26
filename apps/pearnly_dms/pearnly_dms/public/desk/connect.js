@@ -18,7 +18,7 @@
 			page.clear_menu();
 			if (ep) {
 				page.set_primary_action(acct("dms.connect.acct.writeAdd"), editWriteAccounts);
-				page.set_secondary_action(
+				page.set_secondary_action( // entry: dms.connect.acct.readChange, dms.connect.acct.readAdd
 					acct(accounts.read ? "dms.connect.acct.readChange" : "dms.connect.acct.readAdd"),
 					editReadAccount,
 				);

@@ -163,6 +163,7 @@
 				p.breadcrumbs({ label: __("nav.team"), route: p.subroute(root), trail: [{ label: title }] });
 				dialog = p.layout(page.main, fields);
 				let busy = false;
+				// entry: cowork.team.new, Save
 				const button = locked ? null : page.set_primary_action(label, async () => {
 					const values = dialog.get_values();
 					if (!values || busy) return;

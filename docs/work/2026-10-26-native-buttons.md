@@ -31,12 +31,10 @@
 - 产品站点上 `frappe.ui.Page` 加按钮的入口（`add_inner_button`、`add_button`、`add_menu_item`、`add_custom_menu_item`、`add_action_item`、
   `add_actions_menu_item`、`add_custom_button_group`、`add_action_icon`、`set_primary_action`、`set_secondary_action`）都先过白名单：
   - 我们自己注册的页面（`p.register` 建的，打 `page.pearnly_owned`）照常加；
-  - 框架原生视图（表单、列表、报表、工作区）只放行各 App 在 `hooks.py` 的 `pearnly_native_actions` 里声明过的（键 = 当前路由前两段），
+  - 框架原生视图（表单、列表、报表、工作区）只放行产品声明里该路由列出的（键 = 当前路由前两段），
     没声明的根本不加。分组按钮按组名判（「权限」整组不出）。菜单项不加，它带的快捷键也就不注册。
   - 放行的都打 `data-pearnly-declared`，冒烟据此判。
-- 声明：core `{"Form/User": ["Save"]}`（个人页只留保存）；ERP `{"query-report/ERP Stock Count Variance": ["Export"]}`
-  （盘点差异报表原来用黑名单删了编辑、打印、PDF 等几项，改成白名单只留导出，删掉黑名单那段）。启动数据 `boot.pearnly_native_actions` 由
-  `desk/navigation.native_actions()` 汇总。
+- 声明见下节（对齐 A 节后放在各产品 `pearnly_navigation`）。盘点差异报表原来用黑名单删了编辑、打印、PDF 等几项，改成白名单只留导出，删掉黑名单那段。
 - `user.js` 里专门摘「重置密码」的两段删掉（白名单已覆盖）。
 
 **服务端**（`pearnly_core/desk/permissions.guard_user_roles`，User `validate`，只在产品站点）
@@ -46,6 +44,22 @@
 - 本人保存自己的个人页不能改动自己的角色（隐藏的原生角色编辑器不能再重写角色表）。团队管理改别人的角色照常；管理员本来就不能在团队管理里改自己。
 
 **开户**（`pearnly_core/provisioning.ensure_local_user`）：`role` 只在新建账号时给；已有账号只绑身份、不加角色（堵住 10-20 那条路）。
+
+## 对齐回归方案 A 节（主会话 10-26 审定，`pearnly/regression-baseline` 5ac67715 评估 13.2）
+
+- **声明只有一份**：各产品 `hooks.py` 的 `pearnly_navigation` 里加 `actions`（每页页头允许的入口，语义码）与 `shortcuts`（允许的全局快捷键）。
+  原先单独的 `pearnly_native_actions` 撤掉。启动数据下发 `boot.pearnly_page_actions` / `boot.pearnly_shortcuts`（`navigation.head_entries`）。
+  - 我们自己的页面：代码里加的每个页头入口都要在所属产品的 `actions` 里（`"*"` = 各页共用，如勾选后的批量操作 `selection`）；
+  - 框架原生视图：`"Form/User": ["Save"]`（三产品）、`"query-report/ERP Stock Count Variance": ["Export"]`（ERP）；没列的一律不加；
+  - `shortcuts: ['ctrl+s']`：其余原生全局快捷键（Ctrl+K 搜索栏、Ctrl+G 全局搜索、Shift+/ 快捷键表、Shift+Ctrl+R 清缓存重载、Shift+T 控制台、
+    Shift+Ctrl+G 换主题、Ctrl+/ 侧栏、原生表单的 Ctrl+P 打印等）加载时注销、之后也不注册；挂在我们自己页面上的（收银台官方组件）照常。
+- **静态检查** `scripts/check-entries.py`（进 Development checks）：扫 JS 里页头接收者（`page`、`this.page`、`frm`…）上的
+  add_custom_button / add_menu_item / set_primary_action / set_secondary_action / add_inner_button / add_action_item / add_actions_menu_item /
+  add_button，取标签的语义码（包装函数里的字面量），标签是变量 / 模板串的在同一行或上一行写 `// entry: 码`；码不在所属产品声明里就失败。
+  存量用 `--generate` 一次生成（能从登记表对上页面的放那页，对不上的放 `"*"`），现在 107 个调用点、136 个声明码对齐。
+- 「…」菜单（打印 / 邮件 / 改名 / 删除 / 复制 / 新建用户）是原生表单往页头菜单加的项，走同一白名单，个人页一个都不加。
+- **待主会话定**：应用切换（公司标题下拉）里的「网站」「显示」「刷新」是用户 09-20 明确要求保留的（`2026-09-20-ssdnodes-migration.md`
+  第 197、291 行），本分支没动；若要去掉需用户推翻原口径。
 
 ## 防再犯
 
@@ -68,7 +82,8 @@
 | 以 Administrator 给业务账号加 System Manager | 被拒（PermissionError） |
 | 带 System Manager 的管理员改「静音」后保存个人页 | 新代码：角色不变；main：丢了 Desk User（复现 10-26 生产记录） |
 | 开户：新建账号 → 设角色 → 重绑已有账号 | 新建后临时有 System Manager；设角色后变成 Cowork Admin / Intake / Tax Filing / Desk User；重绑不再加回 |
-| 离线测试 | `test_tenant_framework_roles.py` 5 项、`test-native-actions.cjs` 通过；`test-native-desk.cjs` 通过 |
+| 对齐 A 节后重跑（声明改读 `pearnly_navigation`、加快捷键白名单） | 9 组 77 页页头 0 个未声明入口，个人页只有「保存」；三产品每组注册的全局快捷键只有 Ctrl+S（另有框架基础导航 Esc / 回车 / Ctrl+↑↓，不走快捷键注册）。注：改了启动数据后要清缓存（部署时迁移会清），实验栈手动 `bench clear-cache` |
+| 离线测试 | `test_tenant_framework_roles.py` 5 项、`test-native-actions.cjs`（含快捷键）、`check-entries.py`、`test-native-desk.cjs`、`test_native_desk_contract.py` 通过 |
 
 连带回归（`check-impact`）：`desk-shell`、`desk-head-actions`、`desk-user`、`desk-navigation` 的页面入口由上面逐页巡检覆盖；
 `provisioning` 三个入口由开户三步实测覆盖；`upload-box` 15 个入口**没测到**——上传框代码也在 `product.js`，本次对 `product.js` 只改了

@@ -329,4 +329,17 @@ pearnly_navigation = [{'product': 'dms',
   'available': ['pearnly-home', 'pearnly-connect', 'pearnly-records', 'pearnly-roster'],
   'permissions': {'pearnly-connect': {'any_role': ['DMS Admin', 'System Manager']},
                   'pearnly-records': {'any_role': ['DMS Admin', 'System Manager']},
-                  'pearnly-roster': {'any_role': ['DMS Admin', 'System Manager']}}}]
+                  'pearnly-roster': {'any_role': ['DMS Admin', 'System Manager']}},
+  # 页头入口声明（回归方案 A 节，10-26）：每页页头允许出现的入口（语义码）。我们自己的页面由 scripts/check-entries.py 核对代码里
+  # 加的每个按钮都在这里；框架原生视图（Form/User、报表）运行时只放行这里列的（core desk/actions.js）；"*" 是各页共用的。
+  'actions': {
+    "*": ["selection"],
+    "pearnly-connect": ["dms.connect.acct.writeAdd", "dms.connect.acct.readChange", "dms.connect.acct.readAdd"],
+    "pearnly-home": ["home.ledger.export", "home.topup", "home.plans.title", "Delete", "home.billing"],
+    "pearnly-records": ["Delete"],
+    "pearnly-roster": ["roster.add", "roster.delete"],
+    "Form/User": ["Save"],
+  },
+  # 允许的全局快捷键：Ctrl+S 保存 / 主按钮。其余原生全局快捷键（搜索栏、全局搜索、快捷键表、清缓存重载、控制台、换主题……）不注册；
+  # 挂在我们自己页面上的（收银台）照常。
+  'shortcuts': ['ctrl+s']}]

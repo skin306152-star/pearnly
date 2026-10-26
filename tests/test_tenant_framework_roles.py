@@ -5,7 +5,7 @@
   （10-20 换池给 testcowork 管理员加回了 System Manager）；
 - 产品站点上业务账号不许被加上 System Manager（只有开户新建那一刻举旗放行）；
 - 本人保存个人页不能改动自己的角色（隐藏的原生角色编辑器重写角色表，10-26 丢了 Desk User）；
-- 原生视图按钮白名单按 App 声明合并（`navigation.native_actions`）。
+- 页头入口与快捷键白名单只读产品 `pearnly_navigation` 的声明（`navigation.head_entries`）。
 
 离线跑：frappe 换成假的，不连站点。
 """
@@ -131,14 +131,16 @@ class EnsureLocalUser(unittest.TestCase):
         self.assertEqual((result["created"], added), ("exists", []))
 
 
-class NativeActions(unittest.TestCase):
-    def test_hooks_merge_into_one_whitelist(self):
+class HeadEntries(unittest.TestCase):
+    def test_the_product_declaration_is_the_single_source(self):
         from pearnly_core.desk import navigation
 
-        hooks = {"Form/User": [["Save"]], "query-report/ERP Stock Count Variance": [["Export"], ["Export"]]}
-        with mock.patch.object(navigation.frappe, "get_hooks", lambda name: hooks):
-            self.assertEqual(navigation.native_actions(),
-                             {"Form/User": ["Save"], "query-report/ERP Stock Count Variance": ["Export"]})
+        declared = {"cowork": {"product": "cowork", "actions": {"Form/User": ["Save"], "*": ["selection"]},
+                               "shortcuts": ["ctrl+s"]}}
+        with mock.patch.object(navigation, "_declarations", lambda: declared):
+            self.assertEqual(navigation.head_entries("cowork"),
+                             ({"Form/User": ["Save"], "*": ["selection"]}, ["ctrl+s"]))
+            self.assertEqual(navigation.head_entries("erp"), ({}, []))  # 没声明 = 一个都不放
 
 
 if __name__ == "__main__":

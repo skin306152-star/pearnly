@@ -81,9 +81,6 @@ app_license = "mit"
 # 单据打印（领料单 / 收货单，`printing`）：Print Format 里用 `pearnly_print_context(doc)` 取抬头、明细、勾选
 jinja = {"methods": ["pearnly_erp_portal.printing.context.pearnly_print_context"]}
 
-# 框架原生视图页头按钮白名单（core `desk/actions.js`）：盘点差异报表只留「导出」，其余原生菜单、图标、操作按钮不显示。
-pearnly_native_actions = {"query-report/ERP Stock Count Variance": ["Export"]}
-
 # add methods and filters to jinja environment
 # jinja = {
 # 	"methods": "pearnly_erp_portal.utils.jinja_methods",
@@ -486,7 +483,32 @@ pearnly_navigation = [{'product': 'erp',
   # 所以它排在「个人信息」上面，团队管理仍排在下面。
   'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
                 {'route': 'pearnly-warehouses', 'before_profile': True},
-                'pearnly-team']}]
+                'pearnly-team'],
+  # 页头入口声明（回归方案 A 节，10-26）：每页页头允许出现的入口（语义码）。我们自己的页面由 scripts/check-entries.py 核对代码里
+  # 加的每个按钮都在这里；框架原生视图（Form/User、报表）运行时只放行这里列的（core desk/actions.js）；"*" 是各页共用的。
+  'actions': {
+    "*": ["selection"],
+    "pearnly-cashier": ["trade.closeShift", "trade.openShift", "trade.newInvoice", "trade.recentOrders"],
+    "pearnly-clients": ["client.new"],
+    "pearnly-company": ["company.new", "Cancel", "company.save", "company.syncExpress", "company.setCurrent"],
+    "pearnly-home": ["home.ledger.export", "home.topup", "home.plans.title", "Delete", "home.billing"],
+    "pearnly-inventory": ["stock.action.export", "stock.opening.title", "preview", "Cancel", "submit", "Edit"],
+    "pearnly-products": ["product.action.new", "product.action.import", "product.action.submit"],
+    "pearnly-purchase": ["Submit", "Express", "Payment", "Amend", "Cancel", "substitute_receipt", "wht_cert", "Print", "New", "Delete", "Export"],
+    "pearnly-sales": ["Submit", "Express", "Collection", "Cancel", "New", "Delete", "Export"],
+    "pearnly-stock-count": ["stock.count.new", "stock.count.start", "stock.count.close", "stock.action.export", "Express"],
+    "pearnly-stock-in": ["trade.newIn", "trade.newOut", "trade.action.submit"],
+    "pearnly-stock-out": ["trade.newIn", "trade.newOut", "trade.action.submit"],
+    "pearnly-suppliers": ["supplier.new"],
+    "pearnly-tasks": ["erp.work.notify.title", "erp.work.board.create", "erp.work.board.settings", "erp.work.labels.manage", "erp.work.fields.manage", "erp.work.rules.manage", "erp.work.board.members", "erp.work.archived.title"],
+    "pearnly-team": ["team.new", "Save", "Cancel"],
+    "pearnly-warehouses": ["company.newWarehouse"],
+    "Form/User": ["Save"],
+    "query-report/ERP Stock Count Variance": ["Export"],
+  },
+  # 允许的全局快捷键：Ctrl+S 保存 / 主按钮。其余原生全局快捷键（搜索栏、全局搜索、快捷键表、清缓存重载、控制台、换主题……）不注册；
+  # 挂在我们自己页面上的（收银台）照常。
+  'shortcuts': ['ctrl+s']}]
 
 # Product-owned leaf roles; lookup reads never decide which management menu is visible.
 from pearnly_erp_portal.access import menu as _menu_permissions

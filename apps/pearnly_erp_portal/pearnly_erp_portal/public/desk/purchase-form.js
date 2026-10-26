@@ -252,7 +252,7 @@
 					dialog.hide(); p.success(__("Cancelled"), "cancel"); await reload();
 				}));
 			for (const kind of ["substitute_receipt", ...(Number(doc.wht_amount) > 0 ? ["wht_cert"] : [])]) {
-				page.add_menu_item(u.label(kind), () => act(async () => {
+				page.add_menu_item(u.label(kind), () => act(async () => { // entry: substitute_receipt, wht_cert
 					const file = await u.call("api_purchase_voucher", {name: doc.name, kind}, true);
 					if (!state.attachments.some(row => row.file === file.file)) state.attachments.push({...file, kind, generated: 1,
 						file_name: decodeURIComponent(file.file_url.split("/").pop())});

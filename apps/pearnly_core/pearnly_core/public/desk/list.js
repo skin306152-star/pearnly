@@ -468,6 +468,7 @@
 		function paint() {
 			const rows = rows_now();
 			if (!rows.length) return empty ? empty() : page.clear_primary_action();
+			// entry: selection （勾选后的批量操作，文字由各页调用方给，如「导出选中的 N 项」）
 			page.set_primary_action(label(rows), () => void execute());
 			if (!page.btn_primary) return;
 			const blocked = rows.filter(row => !eligible(row, rows));

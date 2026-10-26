@@ -540,7 +540,24 @@ pearnly_navigation = [{'product': 'cowork',
                   'pearnly-team': {'any_role': ['Cowork Admin']},
                   # 个人信息：勾了「个人信息」或「LINE」的人都进得去（LINE 在个人信息里绑）。
                   'user': {'any_role': ['Cowork Profile', 'Cowork LINE', 'Cowork Admin']}},
-  'user_menu': ['pearnly-team']}]
+  'user_menu': ['pearnly-team'],
+  # 页头入口声明（回归方案 A 节，10-26）：每页页头允许出现的入口（语义码）。我们自己的页面由 scripts/check-entries.py 核对代码里
+  # 加的每个按钮都在这里；框架原生视图（Form/User、报表）运行时只放行这里列的（core desk/actions.js）；"*" 是各页共用的。
+  'actions': {
+    "*": ["selection"],
+    "pearnly-home": ["home.ledger.export", "home.topup", "home.plans.title", "Delete", "home.billing"],
+    "pearnly-intake": ["cowork.folder.new", "Export", "Submit", "Save", "intake.action.new"],
+    "pearnly-recon-bank": ["cowork.recon.new", "cowork.recon.presets", "cowork.recon.running", "cowork.recon.start", "Cancel", "cowork.recon.live.back", "Save", "cowork.recon.export", "cowork.recon.questions"],
+    "pearnly-recon-income": ["cowork.recon.new", "cowork.recon.presets", "cowork.recon.running", "cowork.recon.start", "Cancel", "cowork.recon.live.back", "Save", "cowork.recon.export", "cowork.recon.questions"],
+    "pearnly-recon-vat": ["cowork.recon.new", "cowork.recon.presets", "cowork.recon.running", "cowork.recon.start", "Cancel", "cowork.recon.live.back", "Save", "cowork.recon.export", "cowork.recon.questions"],
+    "pearnly-stocktake": ["cowork.stock.count.new", "cowork.stock.count.start", "cowork.stock.count.close", "cowork.stock.action.export"],
+    "pearnly-team": ["cowork.team.new", "Save", "Cancel"],
+    "pearnly-work": ["cowork.work.notify.title", "cowork.work.board.create", "cowork.work.board.settings", "cowork.work.labels.manage", "cowork.work.fields.manage", "cowork.work.rules.manage", "cowork.work.board.members", "cowork.work.archived.title"],
+    "Form/User": ["Save"],
+  },
+  # 允许的全局快捷键：Ctrl+S 保存 / 主按钮。其余原生全局快捷键（搜索栏、全局搜索、快捷键表、清缓存重载、控制台、换主题……）不注册；
+  # 挂在我们自己页面上的（收银台）照常。
+  'shortcuts': ['ctrl+s']}]
 
 # 团队管理 / 个人信息 / LINE 三个没有 DocType 挂着的角色，装好、升级后确保存在；
 # 站点内部那一份归属（Cowork 不做公司隔离）也一并确保存在。

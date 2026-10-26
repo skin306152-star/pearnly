@@ -367,10 +367,6 @@ after_migrate = [
 # Keep the native user form; do not add a second account settings page.
 doctype_js = {"User": "public/desk/user.js"}
 
-# 框架原生视图页头按钮白名单（`desk/actions.js`，键 = 页面路由前两段）：没声明的原生按钮、菜单项、图标一律不显示。
-# 个人页只留「保存」——原生的「权限」「密码」「创建用户电子邮件」等产品都没有承接（10-26）。各产品在自己的 hooks 里声明自己的。
-pearnly_native_actions = {"Form/User": ["Save"]}
-
 # Product account preferences never expose the framework user directory.
 # 导出任务只给本人看（见 ``pearnly_core.exports``）。
 has_permission = {"User": "pearnly_core.desk.permissions.user_permission",

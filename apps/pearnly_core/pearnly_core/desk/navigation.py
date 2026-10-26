@@ -298,17 +298,12 @@ def _group_item(label: str, icon: str) -> dict:
             "collapsible": 1, "keep_closed": 0}
 
 
-def native_actions():
-    """各已装 App 在 `hooks.py` 声明的原生视图按钮白名单 ``{"Form/User": ["Save"], ...}``（没声明的视图一个都不放）。
-    字典形的钩子框架已按键合并成「键 → 各 App 的值列表」（`frappe.append_hook`）。"""
-    hooks = frappe.get_hooks("pearnly_native_actions") or {}
-    merged = {}
-    for view, labels in (hooks.items() if isinstance(hooks, dict) else []):
-        flat = []
-        for label in labels or []:
-            flat += label if isinstance(label, list) else [label]
-        merged[str(view)] = list(dict.fromkeys(str(label) for label in flat if label))
-    return merged
+def head_entries(product):
+    """产品声明的页头入口（`pearnly_navigation` 的 ``actions``）与允许的全局快捷键（``shortcuts``）。
+    外壳白名单（`desk/actions.js`）、静态检查（`scripts/check-entries.py`）、页面快照三处读同一份。"""
+    entry = _declarations().get(product) or {}
+    actions = {str(page): [str(code) for code in codes or []] for page, codes in (entry.get("actions") or {}).items()}
+    return actions, [str(key) for key in entry.get("shortcuts") or []]
 
 
 def extend_boot(boot):
@@ -327,8 +322,8 @@ def extend_boot(boot):
     # 左下角用户菜单里产品自己那几项（已按"能进"筛过），外壳只负责画。
     boot.pearnly_user_menu = user_menu(product)
     boot.pearnly_profile_allowed = _can_open_page(product, "user")
-    # 框架原生视图（表单、列表、报表）页头只放行各产品声明过的按钮（`desk/actions.js`）
-    boot.pearnly_native_actions = native_actions()
+    # 页头入口与全局快捷键白名单（产品在 `pearnly_navigation` 声明；`desk/actions.js` 运行时拦框架默认入口）
+    boot.pearnly_page_actions, boot.pearnly_shortcuts = head_entries(product)
     boot.pearnly_landing_url = entry_route(product)
     # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，
     # 页面路由的准入判据用它，不能跟着少）。

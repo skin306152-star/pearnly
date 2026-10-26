@@ -84,12 +84,12 @@ entries = ["shared.sidebar-order"]
 
 [[part]]
 id = "desk-head-actions"
-name = "产品页页头按钮白名单（desk/actions.js + 各产品 pearnly_native_actions + 产品站点账号角色规则）"
-paths = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py"]
-markers = ["desk/actions.js", "pearnly_native_actions", "pearnly_owned", "guard_user_roles", "pearnly_grant_system_manager"]
+name = "页头入口与快捷键白名单（desk/actions.js + 各产品 pearnly_navigation 的 actions / shortcuts + check-entries）与产品站点账号角色规则"
+paths = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py", "scripts/check-entries.py"]
+markers = ["desk/actions.js", "pearnly_page_actions", "pearnly_shortcuts", "pearnly_owned", "guard_user_roles", "pearnly_grant_system_manager"]
 search = ["apps/**/*.js", "apps/**/hooks.py", "apps/**/*.py"]
 entries = ["shared.page-head-declared", "erp.user-profile", "cowork.user-profile", "erp.report.stock-count-variance"]
-not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明、个人页白名单与 User validate 钩子登记，入口见 shared.page-head-declared", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "盘点差异报表的白名单声明，入口 erp.report.stock-count-variance", "apps/pearnly_core/pearnly_core/desk/navigation.py" = "把各 App 的白名单汇进启动数据，入口见 shared.page-head-declared", "apps/pearnly_core/pearnly_core/provisioning.py" = "开户新建账号举旗放行临时 System Manager，入口见 shared.page-head-declared" }
+not_entries = { "apps/pearnly_core/pearnly_core/hooks.py" = "加载声明与 User validate 钩子登记，入口见 shared.page-head-declared", "apps/pearnly_core/pearnly_core/desk/navigation.py" = "把产品声明的 actions / shortcuts 放进启动数据，入口见 shared.page-head-declared", "apps/pearnly_core/pearnly_core/provisioning.py" = "开户新建账号举旗放行临时 System Manager，入口见 shared.page-head-declared", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py" = "ERP 的页头入口与快捷键声明（pearnly_navigation actions / shortcuts），入口见 shared.page-head-declared 与 erp.report.stock-count-variance", "apps/pearnly_cowork/pearnly_cowork/hooks.py" = "Cowork 的页头入口与快捷键声明，入口见 shared.page-head-declared", "apps/pearnly_dms/pearnly_dms/hooks.py" = "DMS 的页头入口与快捷键声明，入口见 shared.page-head-declared" }
 
 [[part]]
 id = "desk-user"
@@ -2116,7 +2116,7 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py", "app
 id = "shared.page-head-declared"
 product = "共用"
 where = "三产品所有产品页、个人页、ERP 盘点差异报表的页头（右上角按钮、菜单、下拉、图标）"
-steps = "三产品各用租户管理员、普通员工、带 System Manager 的管理员登录，逐页打开（自动冒烟的 page 探针每页都核）；个人页改一项保存；在站点上给业务账号加 System Manager"
-expect = "页头只有登记过的按钮（data-pearnly-declared），个人页只有「保存」，不出原生「权限」「创建用户电子邮件」「密码」；本人保存个人页角色不变；业务账号加 System Manager 被拒"
+steps = "三产品各用租户管理员、普通员工、带 System Manager 的管理员登录，逐页打开（自动冒烟的 page 探针每页都核）；按 Ctrl+K / Ctrl+G / Shift+/ / Shift+T / Shift+Ctrl+G；个人页改一项保存；在站点上给业务账号加 System Manager"
+expect = "页头只有登记过的入口（data-pearnly-declared），个人页只有「保存」，不出原生「权限」「创建用户电子邮件」「密码」和「…」菜单；全局快捷键只有声明的 Ctrl+S；本人保存个人页角色不变；业务账号加 System Manager 被拒"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/desk/navigation.py", "apps/pearnly_core/pearnly_core/provisioning.py", "scripts/smoke/probes/page.js"]
+files = ["apps/pearnly_core/pearnly_core/public/desk/actions.js", "apps/pearnly_core/pearnly_core/desk/permissions.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/desk/navigation.py", "apps/pearnly_core/pearnly_core/provisioning.py", "scripts/smoke/probes/page.js", "scripts/check-entries.py"]
