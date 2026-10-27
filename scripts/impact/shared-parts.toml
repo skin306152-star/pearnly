@@ -360,7 +360,7 @@ name = "税务单据共用规则（tax_documents）"
 paths = ["apps/pearnly_core/pearnly_core/tax_documents/**"]
 markers = ["pearnly_core.tax_documents", "pearnly_core import tax_documents"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push"]
+entries = ["shared.tax-documents", "cowork.tax-documents", "erp.tax-documents", "erp.cc.write", "cowork.express.push", "shared.claude-ocr.self-check"]
 
 [[part]]
 id = "transaction"
@@ -1901,6 +1901,15 @@ steps = "新建对话、发消息、附件、切会话、侧栏排序"
 expect = "照常、无报错"
 check = "manual"
 files = ["frontend/assistant/src/components/document-view.tsx", "frontend/assistant/src/lib/frappe.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/managed-agents/activity.ts", "frontend/assistant/src/lib/managed-agents/api.ts", "frontend/assistant/src/lib/managed-agents/events.ts", "frontend/assistant/src/lib/managed-agents/list-sync.ts", "frontend/assistant/src/lib/managed-agents/realtime.ts", "frontend/assistant/src/lib/managed-agents/reducer.ts", "frontend/assistant/src/lib/managed-agents/session-controller.ts", "frontend/assistant/src/lib/managed-agents/sidebar-order.ts", "frontend/assistant/src/lib/managed-agents/sidebar-view.ts", "frontend/assistant/src/lib/prefs-sync.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/tool-labels.ts", "frontend/assistant/vite.config.ts", "apps/pearnly_core/pearnly_core/assistant/sessions.py"]
+
+[[entry]]
+id = "shared.claude-ocr.self-check"
+product = "共用"
+where = "Claude 识别发票类的自检（要不要请 Opus 重读、两次读法怎么合并）"
+steps = "金标回放基准：scripts/claude-ocr/gate.py --replay 新旧策略 + 原打分工具逐格比、replay_report.py 看升级率与每页成本；部署后三产品各上传一张（付费小样本）"
+expect = "「原来对、改后错」为 0；升级率与每页成本照实记进任务记录；上传照常排队、识别、记录"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/claude_ocr/consistency.py"]
 
 [[entry]]
 id = "shared.tax-documents"

@@ -152,7 +152,15 @@ B 层不是「谷歌的识别规则」：它核对的是会计恒等式（各行
 
 ### 共用件与检查
 
-- `check-impact.py`（`pearnly_core/claude_ocr/*`）：命中 `shared.ocr.pipeline` 等识别入口，人工项为三产品各上传一张（付费小样本）；
-  部署后在测试租户做（见第 11 节真机一条），这里记「没测到（要部署后在测试租户付费上传）」。
+- `check-impact.py`：命中共用件 `ocr`；`consistency.py` 引用 `tax_documents`，新登记入口 `shared.claude-ocr.self-check`。
+
+| 入口 | 结果 |
+| --- | --- |
+| `shared.claude-ocr.self-check` | 通过：金标回放基准逐格比，「原来对、改后错」0，升级率与成本见上表 |
+| `shared.ocr.pipeline` | 没测到（要部署后三产品各付费上传一张；离线只验证了引擎单元测试与候选离线车道） |
+| `erp.ocr` | 没测到（同上；ERP 换算在闸门容器缺 werkzeug，没跑通，部署后在 testerp 上传 LI-00029 原件核对） |
+| `cowork.ocr` | 没测到（部署后付费小样本；回放走的就是 Cowork 正式代码 `claude.recognize` → `prepare_history_batch`，549 份 0 出错） |
+| `dms.ocr.id-card` | 没测到（身份证走 `id_card`，本次合并与收尾只对发票类生效；`tests/test_claude_ocr_rules.py` 身份证用例原样通过） |
+| `shared.originals.download`、`erp.stock-count.upload`、`erp.stock-in.attach`、`erp.stock-out.attach` | 没测到（与本次改动无代码交集，是共用件 `ocr` 整体命中带出的入口） |
 - 单元：`tests/test_claude_ocr_consistency.py`（16 条，进 Development checks）、`tests/test_claude_ocr_rules.py`（23 条，原样通过）。
 - 候选离线车道：生产镜像 fb1037ad 挂工作树源码完整跑 `ci-candidate-checks.sh offline`，结果记在提交说明。
