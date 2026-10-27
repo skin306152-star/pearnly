@@ -10,10 +10,12 @@ const latest = async (status) => (await frappe.db.get_list(args.doctype, { filte
 const [first, second] = [await latest(args.first), await latest(args.second)];
 if (!first || !second) return { ok: false, skip: true, why: `no ${!first ? args.first : args.second} ${args.doctype}` };
 const visibleText = (el) => (el.innerText || el.textContent || "").trim();
+// 只算在用的入口：按钮要显示着（框架清主按钮只是加 hide，文字还在）；「⋯」菜单项没展开时不显示，看它没被 hide 收起
+const live = (el) => (el.classList.contains("dropdown-item") ? !el.closest(".hide") : Boolean(el.offsetParent));
 const head = () => {
   const page = document.querySelector(".page-container[data-page-route]:not([style*='display: none'])") || document;
   return [...new Set([...page.querySelectorAll(".page-actions .primary-action, .page-actions .btn, .page-actions .dropdown-item")]
-    .map(visibleText).filter(Boolean))];
+    .filter(live).map(visibleText).filter(Boolean))];
 };
 const want = (args.expect || []).map((label) => say(label));
 const gone = (args.absent || []).map((label) => say(label));
