@@ -244,3 +244,38 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
 ### 按类查的建议
 
 同类 = 「`@frappe.whitelist()` 接口里直接 `frappe.get_all` / `frappe.db.get_all` / `frappe.db.sql` 回数据、函数体里没有任何守卫」。矩阵已能自动找出「无守卫正常返回」的那一类，修完后矩阵里这类必须只剩「本人数据 / 公开信息」的登记项（做法同匿名接口登记表），新增无守卫接口 CI 失败。
+
+## 10-27 下午：工具修正与复跑
+
+### 工具修正（上面上午的数字要按此重看）
+
+- **快照盲区**：上午用「露出来的页面容器是不是旧的」判断「没打开」。我们自己的产品页会复用已有容器，所以大部分产品页被误记成没打开：ERP 352 次产品页访问里，只有 25 次拿到内容。
+  改按框架每次换页都发的 `page-change` 计数判断；探针另记「露出来的是哪个页面容器 / 是不是原生列表或表单」（`view`），可选每页截图（`SMOKE_SHOTS`）。
+  `leaks.py` 判「打开了」改看露出来的是不是框架原生视图；读被测源码的声明（`PEARNLY_REGRESSION_SRC`）；放行声明的框架路由和本人个人页。
+- **ERP 岗位账号**：上午的 ERP 岗位账号用的是旧粗角色（`ERP Purchase` 等），不是团队管理真实发的 `ERP Menu <菜单>` 角色，上面 ERP 的逐岗位数字偏低。
+  `lab_init.py` 已改成真实岗位；`lab_seed_erp.py` 走 `team.set_member_roles` 改岗位，只开 A 公司。
+- **实验室 PDF**：容器里解析站点名（compose `extra_hosts`）；站点 `host_name` 带容器端口。
+- 新夹具 / 检查：
+  - `lab_seed_erp.py`：两家公司，各类单据走正式接口建，A 的单由本人开；
+  - `print_check.py`：按岗位开打印页和 PDF；
+  - `lab_check_p1.py`：多仓 P1 服务端；
+  - `ui_steps.mjs`：页面里按步骤执行。
+
+### 复核结论（都在本机回归实验室，镜像 fb1037ad）
+
+| 对象 | 结论 | 要点 |
+|---|---|---|
+| 无守卫接口修复 b139d19d（已合 main 0e2a827e） | 通过 | 4 个无守卫入口已删；矩阵 5354 格只剩登记项；`sample-verify-foundation.py` 改调 `test_connection` 已在 main |
+| native-buttons a162b649（已合 main f3ab95b5） | 通过 | 页头入口全部有登记；快捷键只剩 Ctrl+S；个人页只剩「保存」 |
+| 打印第二批 bfb4b033 → ab823298（已合 main） | 通过 | 8 岗位 × 17 张单的打印矩阵；拒打 403；两页补「Print」声明；check-entries 改成按页核 |
+| native-routes 9a7f343d → 957aaed2（= 6c8860b9） | 0 漏出，通过 | 17 岗位，ERP 904、Cowork 858、DMS 252 页次；声明外能打开的地址 0；没声明的 pearnly- 地址都回本岗位首页 |
+| 多仓 P1 a3db0b6e | 2 条应修 | 销售 / 出库单头库位不按清单核，可从不存在的库位出货（实测 ZZ-99 变 -1）；`requeue_unmapped` 不按公司筛、只取全站最早 100 张，会漏推。另 4 条建议，见给开发窗口的结论 |
+
+数据：`~/pearnly-devtools/regression-baseline/2026-10-27/{unguarded-fix,print,routes,routes2,p1}/`。
+
+### 待办
+
+- 过期的页面测试（`tests/test_stock_opening_ui.js`、`test-stock-entry.cjs`、`test-product-multi.cjs`、`test-product-scan.cjs`）：都是测试桩缺新全局（`frappe.boot.pearnly_express`、`frappe.model` 下的结构、`p.location_query`），起不来，没有一条业务断言在跑。
+  这几页正是多仓 P1 要改的，等 P1 合入 main 后在 main 上修桩、接进 CI。实验室在库用例（`erp-pos-lab-inventory / purchasing / sales-verify`、`erp-data-flow-lab-verify`）同时逐个判断，修或删，并写明原因。
+- Cowork 39 张表收紧之后，用接口矩阵复测 Cowork（get_list 当守卫的前提）。
+- B 第二步：inconclusive 接口补夹具（现在有两家公司的业务夹具了）。

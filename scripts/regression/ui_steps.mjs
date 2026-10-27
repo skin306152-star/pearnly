@@ -1,0 +1,80 @@
+// 页面操作步骤驱动（回归实验室复核用）：一个无头 Chrome 带会话打开起始页，按顺序在页面里执行若干段 JS（可 await），
+// 每步输出一行 JSON（步骤名、返回值、这一步里的页面报错），可选截图。不点真实鼠标，步骤里直接调框架 / 产品的同一套函数。
+// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, shots, steps: [{name, js, wait_ms, shot}]}
+// 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
+import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const job = JSON.parse(process.argv[2] || "{}");
+const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const port = 9900 + Math.floor(Math.random() * 90);
+const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "steps-"));
+const chrome = spawn(chromePath, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  ...(process.env.SMOKE_CHROME_RULES ? [`--host-resolver-rules=${process.env.SMOKE_CHROME_RULES}`] : []),
+  "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank"], { stdio: "ignore" });
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const logs = [];
+let ws, seq = 0;
+const pending = new Map();
+const send = (method, params = {}, sessionId) => {
+  const message = { id: ++seq, method, params, ...(sessionId ? { sessionId } : {}) };
+  ws.send(JSON.stringify(message));
+  return new Promise((resolve, reject) => pending.set(message.id, { resolve, reject }));
+};
+try {
+  let info;
+  for (let i = 0; i < 150 && !info; i++) {
+    try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
+  }
+  ws = new WebSocket(info.webSocketDebuggerUrl);
+  await new Promise((resolve) => ws.addEventListener("open", resolve));
+  ws.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    if (message.id && pending.has(message.id)) {
+      const { resolve, reject } = pending.get(message.id);
+      pending.delete(message.id);
+      message.error ? reject(new Error(JSON.stringify(message.error))) : resolve(message.result);
+    }
+    if (message.method === "Runtime.exceptionThrown") {
+      const details = message.params.exceptionDetails;
+      logs.push(`${details.text} ${details.exception?.description || ""}`.slice(0, 300));
+    }
+    if (message.method === "Page.javascriptDialogOpening") {
+      logs.push(`native dialog: ${message.params.type} ${String(message.params.message).slice(0, 200)}`);
+      send("Page.handleJavaScriptDialog", { accept: false }, message.sessionId).catch(() => {});
+    }
+  });
+  const { targetId } = await send("Target.createTarget", { url: "about:blank" });
+  const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+  await send("Runtime.enable", {}, sessionId);
+  await send("Page.enable", {}, sessionId);
+  await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: false }, sessionId);
+  await send("Page.navigate", { url: new URL(job.start || "/desk", job.base).href }, sessionId);
+  for (let i = 0; i < 100; i++) {
+    const ok = (await send("Runtime.evaluate", { expression: "!!(window.frappe && frappe.boot && frappe.router && document.readyState === 'complete' && window.frappe.pearnly)", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
+    if (ok) break;
+    await sleep(300);
+  }
+  await sleep(1500);
+  for (const [index, step] of (job.steps || []).entries()) {
+    logs.length = 0;
+    const result = await send("Runtime.evaluate", { expression: `(async () => { const p = frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId)
+      .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
+    if (step.wait_ms) await sleep(step.wait_ms);
+    if (step.shot && job.shots) {
+      const shot = await send("Page.captureScreenshot", { format: "png" }, sessionId).catch(() => null);
+      if (shot?.data) writeFileSync(join(job.shots, `${index + 1}-${step.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}.png`), Buffer.from(shot.data, "base64"));
+    }
+    console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
+      error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs] }));
+  }
+} catch (error) {
+  console.log(JSON.stringify({ error: `driver: ${error.message}` }));
+} finally {
+  try { ws?.close(); } catch {}
+  chrome.kill("SIGKILL");
+  await sleep(300);
+  rmSync(profile, { recursive: true, force: true });
+}
