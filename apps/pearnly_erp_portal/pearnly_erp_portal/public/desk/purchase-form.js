@@ -42,7 +42,7 @@
 		const form = state.form;
 		// 单头「仓库 + 库位」：改了它，还跟着它的明细行一起换（`p.place`）
 		state.place = p.place.track(form, () => state.lines.map(line => ({get: key => line.form.get_value(key),
-			set: values => line.form.set_values(values)})));
+			set: values => line.form.set_values(values)})), {live: false});
 		state.party_choice = p.bind_entry_choice(form, {kind: "supplier", context: "purchase", reference: "supplier", title: "supplier_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({supplier_tax_id: row.tax_id, supplier_address: row.address,
@@ -127,6 +127,7 @@
 			payment_method: "cash", discount_total: 0, rounding: 0, amount_override: 0, source: "web",
 			...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), ...place, stock_posted_at: p.datetime_text(doc.stock_posted_at),
 			outstanding: Number(doc.net_payable || 0) - Number(doc.paid_amount || 0)});
+		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();
 		// 改成「费用」时，还没选商品的货物行一并改成服务类
 		form.fields_dict.doc_kind.df.onchange = () => {

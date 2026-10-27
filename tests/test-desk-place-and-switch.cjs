@@ -103,6 +103,21 @@ test('单头控件：换仓清空单头库位，行跟着走；同值不重复�
   assert.deepEqual(lines[0].value, { warehouse: 'WH-2', location: '' });
 });
 
+test('打开已有的单：整批填单头时不跟（不把刚填进来的库位当成换仓清掉），sync 之后人改才跟', async () => {
+  const { p } = load();
+  const values = { warehouse: '', location: '' };
+  const form = { get_value: key => values[key], set_value: async (key, value) => { values[key] = value; } };
+  const lines = rows([{ warehouse: 'WH-1', location: 'A1' }]);
+  const place = p.place.track(form, () => lines, { live: false });
+  Object.assign(values, { warehouse: 'WH-1', location: 'A1' });
+  await place.changed('warehouse');
+  assert.deepEqual({ ...values }, { warehouse: 'WH-1', location: 'A1' });
+  place.sync();
+  values.location = 'A2';
+  await place.changed('location');
+  assert.equal(lines[0].value.location, 'A2');
+});
+
 test('打开老单：单上没有单头时，有货的行都在同一个仓（库位）就当单头；各在各的仓就空着', () => {
   const { p } = load();
   assert.deepEqual({ ...p.place.of({ warehouse: 'WH-3', location: 'C' }) }, { warehouse: 'WH-3', location: 'C' });

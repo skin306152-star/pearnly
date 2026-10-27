@@ -50,12 +50,15 @@
 			}
 		},
 		// 单头两格接到明细行：`form` 是单头所在的表单，`rows()` 回此刻的明细行（[{get, set}]）。两格的 onchange 调 `changed(格名)`；
-		// 换了仓，单头库位清空（库位清单按仓）。
-		track(form, rows) {
+		// 换了仓，单头库位清空（库位清单按仓）。`live: false`：表单还要整批填值（打开已有的单），填完调 `sync()` 才开始跟——
+		// 否则填值时触发的 onchange 会把刚填进来的单头库位当成「换了仓」清掉。
+		track(form, rows, { live = true } = {}) {
 			const read = () => ({ warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "" });
-			let last = read();
+			let last = read(), started = live;
 			return {
+				sync() { last = read(); started = true; },
 				async changed(key) {
+					if (!started) return;
 					const now = read();
 					if (key === "warehouse" && now.warehouse !== last.warehouse) now.location = "";
 					if (now.warehouse === last.warehouse && now.location === last.location) return;

@@ -29,7 +29,7 @@
 		const form = state.form;
 		// 单头「仓库 + 库位」：改了它，还跟着它的明细行一起换（`p.place`）
 		state.place = p.place.track(form, () => state.lines.map(line => ({get: key => line.form.get_value(key),
-			set: values => line.form.set_values(values)})));
+			set: values => line.form.set_values(values)})), {live: false});
 		state.party_choice = p.bind_entry_choice(form, {kind: "customer", context: "sales", reference: "customer", title: "buyer_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({party_type: row.party_type, address: row.address}),
@@ -105,6 +105,7 @@
 			payment_method: "cash", payment_date: frappe.datetime.get_today(), header_discount: 0,
 			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), ...place,
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});
+		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
