@@ -230,7 +230,7 @@ def main():
         def _single(company_name):
             frappe.set_user(BUYER)
             company.set_active_company(company_name)
-            sole = frappe.db.get_value("ERP Warehouse", {"company": company_name})
+            sole = frappe.db.get_value("ERP Warehouse", {"company": company_name, "is_active": 1})
             lines = [{"product": product, "item_type": "goods", "description": "สินค้าหลายคลัง", "qty": 1, "unit": "ชิ้น", "unit_price": 20}]
             name = purchase.post({"company": company_name, "supplier": supplier, "doc_date": "2026-10-27", "currency": "THB", "fx_rate": 1,
                                   "has_vat": 0, "doc_kind": "purchase_invoice", "update_stock": 1, "doc_no": f"P1S-{uuid.uuid4().hex[:6]}",
