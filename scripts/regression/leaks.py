@@ -71,5 +71,36 @@ def main(paths: list[str]) -> None:
             print(f"| `{final}` | {'、'.join(buttons)} | {'、'.join(menu)} | {'、'.join(side)} | {'、'.join(footer)} |")
 
 
+def matrix(paths: list[str]) -> None:
+    """按产品汇成一张「声明外能打开的地址 × 岗位」表（✓ = 这个岗位能打开），外加各岗位在我们自己页面上看到的页头按钮 / 菜单。"""
+    rows = [json.loads(line) for path in paths for line in open(path, encoding="utf-8") if line.strip()]
+    by_product = defaultdict(list)
+    for row in rows:
+        by_product[row["product"]].append(row)
+    for product, items in by_product.items():
+        ours = declared(product)
+        roles = list(dict.fromkeys(row["role"] for row in items))
+        opened = defaultdict(set)
+        for row in items:
+            inv = row.get("inventory") or {}
+            if not inv or inv.get("not_permitted"):
+                continue
+            final = (row.get("final") or row["path"]).split("?")[0]
+            route = route_of(final)
+            if not route or route in ours:
+                continue
+            parts = final.strip("/").split("/")
+            # 具体记录（某个人、某张单）归成「<记录>」：同一类表单只算一个入口
+            key = "/".join(parts[:2]) + ("/<记录>" if len(parts) > 2 else "")
+            opened[key].add(row["role"])
+        print(f"\n## {product}：声明外能打开的地址 × 岗位（共 {len(opened)} 个地址）\n")
+        print("| 地址 | " + " | ".join(roles) + " |\n|---|" + "---|" * len(roles))
+        for key in sorted(opened, key=lambda k: (-len(opened[k]), k)):
+            print(f"| `/{key}` | " + " | ".join("✓" if role in opened[key] else "" for role in roles) + " |")
+
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    if sys.argv[1:2] == ["--matrix"]:
+        matrix(sys.argv[2:])
+    else:
+        main(sys.argv[1:])
