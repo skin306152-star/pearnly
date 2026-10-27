@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import sys
+import urllib.parse
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+# 声明取被测的那份源码（回归实验室挂的 PEARNLY_REGRESSION_SRC），没给就取本仓
+ROOT = Path(os.environ.get("PEARNLY_REGRESSION_SRC") or Path(__file__).resolve().parents[2])
 APPS = {"erp": "pearnly_erp_portal", "cowork": "pearnly_cowork", "dms": "pearnly_dms"}
 
 
@@ -24,7 +27,16 @@ def declared(product: str) -> set[str]:
                 and any(getattr(t, "id", None) == "pearnly_navigation" for t in n.targets))
     entry = ast.literal_eval(node.value)[0]
     routes = {page[1] for page in entry["pages"]} | set(entry.get("available") or [])
-    return routes
+    # 产品声明里放行的框架路由（`routes`，前两段，如 `query-report/ERP Stock Count Variance`）
+    return routes | set(entry.get("routes") or [])
+
+
+def allowed(path: str, ours: set[str], account: str) -> bool:
+    """这个地址算不算产品承接：声明的页面、声明放行的框架路由（前两段）、本人的个人页。"""
+    parts = [urllib.parse.unquote(p) for p in path.split("?")[0].split("/") if p][1:]
+    if not parts or parts[0] in ours or "/".join(parts[:2]) in ours:
+        return True
+    return parts[:2] == ["user", account] and len(parts) == 2
 
 
 def route_of(path: str) -> str:
@@ -52,7 +64,7 @@ def main(paths: list[str]) -> None:
                 globals_["顶栏搜索框"].add("出现")
             final = row.get("final") or row["path"]
             route = route_of(final)
-            if inv.get("not_permitted") or route in ours or route == "":
+            if inv.get("not_permitted") or allowed(final, ours, row.get("account", "")):
                 continue
             if route_of(row["path"]) != route and route in ours:
                 continue  # 被跳回到我们的页
@@ -86,8 +98,7 @@ def matrix(paths: list[str]) -> None:
             if not inv or inv.get("not_permitted"):
                 continue
             final = (row.get("final") or row["path"]).split("?")[0]
-            route = route_of(final)
-            if not route or route in ours:
+            if allowed(final, ours, row.get("account", "")):
                 continue
             parts = final.strip("/").split("/")
             # 具体记录（某个人、某张单）归成「<记录>」：同一类表单只算一个入口
