@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import frappe
+import requests
 
 from pearnly_core import line, line_binding
 from pearnly_dms import i18n
@@ -42,17 +43,23 @@ class UserRejected(RuntimeError):
     """LINE 说这个用户 ID 本身无效（例如部署回读留下的假身份）：重试也不会好。"""
 
 
+# 新频道第一次发布要建全部菜单并逐张传图（ERP 28 套约 85 次 LINE 请求）：2026-10-27 polymer 开户用了约 145 秒，
+# 超过原来 120 秒的锁，锁先过期、释放时 LockNotOwnedError，整步记失败。锁要盖住最慢的首次发布；
+# 同一次发布共用一个连接，省掉每次请求重新握手（服务器到 LINE 的握手是慢的那段）。
+PUBLISH_LOCK_SECONDS = 900
+
+
 def key(language, variant) -> str:
     return f"{language}:{variant}"
 
 
-def _request(method, path, *, body=None, image=None, missing_ok=False):
+def _request(method, path, *, body=None, image=None, missing_ok=False, session=None):
     if not line.can_send():
         raise RuntimeError("LINE channel unavailable")
     # 走 `line.request`：令牌不进本层变量，网络错误不带 requests 内部各层，错误日志里就没有令牌。
     origin = "https://api-data.line.me" if image is not None else "https://api.line.me"
     response = line.request(method, origin + "/v2/bot/" + path, json=body, data=image, timeout=20,
-                            headers={"Content-Type": "image/png"} if image is not None else None)
+                            headers={"Content-Type": "image/png"} if image is not None else None, session=session)
     if response.status_code == 404 and missing_ok:
         return {}
     if response.status_code == 400 and path.startswith("user/") and "'userId'" in response.text:
@@ -64,7 +71,7 @@ def _request(method, path, *, body=None, image=None, missing_ok=False):
     return response.json() if response.content else {}
 
 
-def _has_image(menu_id):
+def _has_image(menu_id, session=None):
     """这个菜单现在有没有图片。LINE 没有"是否已上传"的字段，只能读一次内容：200 = 有。
 
     为什么必须问一次：LINE 拒绝对**已经有图片**的菜单再次上传
@@ -75,7 +82,7 @@ def _has_image(menu_id):
     if not line.can_send():
         raise RuntimeError("LINE channel unavailable")
     response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
-                            + "/content", timeout=20)
+                            + "/content", timeout=20, session=session)
     return response.status_code == 200
 
 
@@ -123,8 +130,9 @@ def publish():
     from frappe.installer import update_site_config
 
     cache = _state_store()
-    with cache.lock(cache.make_key("pearnly:dms:publish-menu"), timeout=120, blocking_timeout=5):
-        existing = {item["name"]: item["richMenuId"] for item in _request("GET", "richmenu/list").get("richmenus", [])}
+    with cache.lock(cache.make_key("pearnly:dms:publish-menu"), timeout=PUBLISH_LOCK_SECONDS,
+                    blocking_timeout=5), requests.Session() as http:
+        existing = {item["name"]: item["richMenuId"] for item in _request("GET", "richmenu/list", session=http).get("richmenus", [])}
         result = {}
         for language in LANGUAGES:
             for variant in VARIANTS:
@@ -134,14 +142,14 @@ def publish():
                 body["name"] = f"pearnly-dms-{language}-{variant}-{revision}"
                 menu_id = existing.get(body["name"])
                 if not menu_id:
-                    menu_id = _request("POST", "richmenu", body=body)["richMenuId"]
+                    menu_id = _request("POST", "richmenu", body=body, session=http)["richMenuId"]
                 # 只有确实没有图才传（新菜单，或上一次跑到一半的补传）；已经有图就直接跳过。
-                if not _has_image(menu_id):
-                    _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image)
+                if not _has_image(menu_id, session=http):
+                    _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image, session=http)
                 result[key(language, variant)] = menu_id
         # 兼容旧键：旧代码与状态回读仍按 `basic` / `query` 取泰文那两套。
         result["basic"], result["query"] = result[key("th", "basic")], result[key("th", "query")]
-        _request("POST", "user/all/richmenu/" + result["basic"])
+        _request("POST", "user/all/richmenu/" + result["basic"], session=http)
         update_site_config(CONFIG, result)
         frappe.conf[CONFIG] = result
         reconcile()

@@ -24,6 +24,7 @@ offline_py() { run docker run --rm --network none --entrypoint "$PY" "$@"; }
 offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_cloud_onboarding.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_channel_setup.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_menu_publish_lock.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_core_line_token.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_search_and_loading.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_codes_per_company.py

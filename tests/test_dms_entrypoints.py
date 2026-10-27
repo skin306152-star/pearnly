@@ -128,6 +128,7 @@ class RichMenuPublish(unittest.TestCase):
              patch.object(rich_menu, "_state_store", lambda: Cache()), \
              patch.object(rich_menu, "reconcile"), \
              patch.object(rich_menu.line.requests, "request", side_effect=request), \
+             patch.object(rich_menu.line.requests.Session, "request", side_effect=request), \
              patch("frappe.installer.update_site_config"):
             rich_menu.publish()
             first = len([call for call in calls if call[0] == "image"])

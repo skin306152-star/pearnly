@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import frappe
+import requests
 from frappe import _
 from pearnly_core.execution import state as pearnly_state
 
@@ -39,17 +40,23 @@ STOCKTAKE_ROUTE = "/desk/pearnly-stock-count"
 _APPLIED = "pearnly:erp:line-menu:"
 
 
+# 新频道第一次发布要建全部菜单并逐张传图（ERP 28 套约 85 次 LINE 请求）：2026-10-27 polymer 开户用了约 145 秒，
+# 超过原来 120 秒的锁，锁先过期、释放时 LockNotOwnedError，整步记失败。锁要盖住最慢的首次发布；
+# 同一次发布共用一个连接，省掉每次请求重新握手（服务器到 LINE 的握手是慢的那段）。
+PUBLISH_LOCK_SECONDS = 900
+
+
 def key(language, variant) -> str:
     return f"{language}:{variant}"
 
 
-def _request(method, path, *, body=None, image=None, missing_ok=False):
+def _request(method, path, *, body=None, image=None, missing_ok=False, session=None):
     if not line.can_send():
         raise RuntimeError("LINE channel unavailable")
     # 走 `line.request`：令牌不进本层变量，网络错误不带 requests 内部各层，错误日志里就没有令牌。
     origin = "https://api-data.line.me" if image is not None else "https://api.line.me"
     response = line.request(method, origin + "/v2/bot/" + path, json=body, data=image, timeout=20,
-                            headers={"Content-Type": "image/png"} if image is not None else None)
+                            headers={"Content-Type": "image/png"} if image is not None else None, session=session)
     if response.status_code == 404 and missing_ok:
         return {}
     if response.status_code != 200:
@@ -97,11 +104,11 @@ def _image(variant, language) -> bytes:
     return out.getvalue()
 
 
-def _has_image(menu_id) -> bool:
+def _has_image(menu_id, session=None) -> bool:
     if not line.can_send():
         raise RuntimeError("LINE channel unavailable")
     response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
-                            + "/content", timeout=20)
+                            + "/content", timeout=20, session=session)
     return response.status_code == 200
 
 
@@ -113,17 +120,18 @@ def publish() -> dict:
     from frappe.installer import update_site_config
 
     cache = pearnly_state.store()
-    with cache.lock(cache.make_key("pearnly:erp:publish-menu"), timeout=120, blocking_timeout=5):
+    with cache.lock(cache.make_key("pearnly:erp:publish-menu"), timeout=PUBLISH_LOCK_SECONDS,
+                    blocking_timeout=5), requests.Session() as http:
         existing = {item["name"]: item["richMenuId"]
-                    for item in _request("GET", "richmenu/list").get("richmenus", [])}
+                    for item in _request("GET", "richmenu/list", session=http).get("richmenus", [])}
         result = {}
         for language, variant in itertools.product(LANGUAGES, VARIANTS):
             body, image = payload(variant, language), _image(variant, language)
             revision = hashlib.sha256(json.dumps(body, sort_keys=True).encode() + image).hexdigest()[:12]
             body["name"] = f"pearnly-erp-{language}-{variant.replace('+', '-')}-{revision}"[:300]
-            menu_id = existing.get(body["name"]) or _request("POST", "richmenu", body=body)["richMenuId"]
-            if not _has_image(menu_id):
-                _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image)
+            menu_id = existing.get(body["name"]) or _request("POST", "richmenu", body=body, session=http)["richMenuId"]
+            if not _has_image(menu_id, session=http):
+                _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image, session=http)
             result[key(language, variant)] = menu_id
         update_site_config(CONFIG, result)
         frappe.conf[CONFIG] = result
