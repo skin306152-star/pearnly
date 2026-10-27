@@ -133,6 +133,10 @@ class Locations(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.assertEqual(P.header("W1", " A-01 "), {"warehouse": "W1", "location": "A-01"})
         self.assertEqual(P.header("", "A-01"), {"warehouse": None, "location": ""})
+        # 单头库位是人明写的：进出都按清单核（验收复核 P1：销售单头写 ZZ-99 从不存在的库位出了货）；没建清单的仓照旧手输
+        with self.assertRaisesRegex(Refused, "not in the location list"):
+            P.header("W1", "ZZ-99")
+        self.assertEqual(P.header("W2", "anything"), {"warehouse": "W2", "location": "anything"})
         line = {"product": "P-1", "item_type": "goods"}
         self.assertEqual(P.prepare(line, "W1", location="A-01"), {**line, "warehouse": "W1", "location": "A-01"})
         self.assertEqual(P.prepare({**line, "location": "B"}, "W1", location="A-01")["location"], "B")

@@ -226,8 +226,9 @@
 				{ fieldtype: "Link", fieldname: "warehouse", options: "ERP Warehouse", label: __("stock.col.warehouse"),
 					get_query: p.warehouse_query(), only_select: true, reqd: 1, in_list_view: 1, columns: 3, default: warehouse || "" },
 				{ fieldtype: "Data", fieldname: "location", label: __("stock.count.location"), in_list_view: 1, columns: 2 },
-				{ fieldtype: "Float", fieldname: "qty", label: __("stock.opening.qty"), in_list_view: 1, columns: 2 },
-				{ fieldtype: "Currency", fieldname: "unit_cost", options: "THB", label: __("stock.opening.cost"), in_list_view: 1, columns: 2 },
+				// 数量、成本都必填（同期初页；服务端没有成本就整件不建，验收复核 P1）
+				{ fieldtype: "Float", fieldname: "qty", label: __("stock.opening.qty"), reqd: 1, in_list_view: 1, columns: 2 },
+				{ fieldtype: "Currency", fieldname: "unit_cost", options: "THB", label: __("stock.opening.cost"), reqd: 1, in_list_view: 1, columns: 2 },
 			] },
 		];
 		const opening_rows = rows => (rows || []).filter(row => Number(row.qty) > 0)

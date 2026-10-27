@@ -521,14 +521,24 @@ def _queued_note(doctype, row):
 def requeue_unmapped(company) -> int:
     """这家公司停在「仓库在 Express 里没有对应的仓库」的单重新排队（下一分钟 :func:`poll` 再交）：主档同步认领了新仓库码、
     或在 ERP 给仓选了 Express 仓之后叫（验收复核 P0，多仓闭环 P1）。仍没有码的，再交时照样停下。回重排的张数。"""
+    from pearnly_erp_portal.inventory import warehouses
+
     count = 0
     for doctype in DIRECTIONS:
-        for name in frappe.get_all(doctype, filters={"express_state": contracts.HELD,  # bounded: 停在这个原因上的单
-                                                     "express_reason": contracts.WAREHOUSE_UNMAPPED},
-                                   pluck="name", order_by="modified asc", limit_page_length=POLL_MAX):
-            if company_of(doctype, name) == company:
+        # 公司条件放进查询（验收复核 P1：先取最早的 100 张再逐张判公司，别家停着 100 张以上时这家一张都轮不到）；
+        # 只重排还能写的单（作废的停单不改成排队中）；一批改完就不再命中，取到空为止
+        mine = ({"warehouse": ["in", warehouses.names_of(company) or [""]]} if doctype in (STOCK, COUNT)
+                else {"company": company})
+        filters = {"express_state": contracts.HELD, "express_reason": contracts.WAREHOUSE_UNMAPPED,
+                   "status": ready(doctype), **mine}
+        while True:
+            names = frappe.get_all(doctype, filters=filters, pluck="name",  # bounded: 一批 POLL_MAX，改完不再命中
+                                   order_by="modified asc", limit_page_length=POLL_MAX)
+            for name in names:
                 _set(doctype, name, {"express_state": contracts.QUEUED, "express_reason": ""})
-                count += 1
+            count += len(names)
+            if len(names) < POLL_MAX:
+                break
     return count
 
 

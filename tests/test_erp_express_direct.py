@@ -1061,18 +1061,32 @@ class UnmappedWarehouse(PushModule):
             self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
 
     def test_unmapped_documents_go_back_to_the_queue_when_the_company_is_synced(self):
-        """验收复核 P0（多仓闭环 P1）：主档同步之后（可能刚认领了新仓库码），这家公司停在 warehouse_unmapped 的单重新排队，
-        下一分钟 `poll` 再交（仍没码再停）；别家公司、别的原因停下的不动。"""
+        """验收复核 P0 / P1（多仓闭环 P1）：主档同步之后（可能刚认领了新仓库码），这家公司停在 warehouse_unmapped 的单重新排队，
+        下一分钟 `poll` 再交（仍没码再停）；别家公司、别的原因、已作废的不动。公司条件在查询里：别家停着 100 张以上更早的单，
+        这家照样排得上（原来先取最早的 100 张再逐张判公司，会漏）；超过一批的取到空为止。出入库单按仓所属公司。"""
         from unittest import mock
         docs = fake.STATE.db.table("ERP POS Day Summary")
-        docs["PDS-1"] = {"name": "PDS-1", "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
-        docs["PDS-2"] = {"name": "PDS-2", "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
-        docs["PDS-3"] = {"name": "PDS-3", "express_state": "held", "express_reason": E.READING}
-        owners = {"PDS-1": "CO-1", "PDS-2": "CO-2", "PDS-3": "CO-1"}
-        with mock.patch.object(self.push, "company_of", lambda doctype, name: owners.get(name)):
-            self.assertEqual(self.push.requeue_unmapped("CO-1"), 1)
-        self.assertEqual([(docs[name]["express_state"], docs[name]["express_reason"]) for name in ("PDS-1", "PDS-2", "PDS-3")],
-                         [("queued", ""), ("held", E.WAREHOUSE_UNMAPPED), ("held", E.READING)])
+        for index in range(130):  # 别家更早停着的一大批
+            docs[f"OTHER-{index}"] = {"name": f"OTHER-{index}", "company": "CO-2", "status": "submitted", "modified": f"2026-10-01 {index:05d}",
+                                      "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+        for index in range(105):  # 这家超过一批
+            docs[f"MINE-{index}"] = {"name": f"MINE-{index}", "company": "CO-1", "status": "submitted", "modified": f"2026-10-20 {index:05d}",
+                                     "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+        docs["READING"] = {"name": "READING", "company": "CO-1", "status": "submitted", "express_state": "held", "express_reason": E.READING}
+        docs["VOID"] = {"name": "VOID", "company": "CO-1", "status": "void", "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+        entries = fake.STATE.db.table("ERP Stock Entry")
+        entries["STE-1"] = {"name": "STE-1", "warehouse": "WH-1", "status": "submitted", "express_state": "held",
+                            "express_reason": E.WAREHOUSE_UNMAPPED}
+        entries["STE-2"] = {"name": "STE-2", "warehouse": "WH-9", "status": "submitted", "express_state": "held",
+                            "express_reason": E.WAREHOUSE_UNMAPPED}
+        from pearnly_erp_portal.inventory import warehouses
+        with mock.patch.object(warehouses, "names_of", lambda company=None, include_inactive=True: ["WH-1"] if company == "CO-1" else ["WH-9"]):
+            self.assertEqual(self.push.requeue_unmapped("CO-1"), 106)
+        state = lambda table, name: (table[name]["express_state"], table[name]["express_reason"])
+        self.assertTrue(all(state(docs, f"MINE-{index}") == ("queued", "") for index in range(105)))
+        self.assertTrue(all(state(docs, f"OTHER-{index}") == ("held", E.WAREHOUSE_UNMAPPED) for index in range(130)))
+        self.assertEqual([state(docs, "READING"), state(docs, "VOID"), state(entries, "STE-1"), state(entries, "STE-2")],
+                         [("held", E.READING), ("held", E.WAREHOUSE_UNMAPPED), ("queued", ""), ("held", E.WAREHOUSE_UNMAPPED)])
 
 
 class PosDayExits(PushModule):

@@ -51,9 +51,11 @@ def check(warehouse, location):
 
 
 def header(warehouse=None, location=None, *, company=None) -> dict:
-    """单头「仓库 + 库位」（多仓闭环 P1）：写在单上、给明细行当默认。仓要是这家公司启用的仓；没写仓时库位也不留。"""
+    """单头「仓库 + 库位」（多仓闭环 P1）：写在单上、给明细行当默认。仓要是这家公司启用的仓；没写仓时库位也不留。
+    单头库位是人这一次明写的，进出都按这个仓的清单核（验收复核 P1：销售 / 出库单头写了清单外的库位会从不存在的库位出货）；
+    行上带着的旧库位照旧放行（`check` 只管进库位）。"""
     warehouse = warehouses.required(warehouse, company=company) if str(warehouse or "").strip() else None
-    return {"warehouse": warehouse, "location": clean_location(location) if warehouse else ""}
+    return {"warehouse": warehouse, "location": check(warehouse, location) if warehouse else ""}
 
 
 def prepare(line, warehouse=None, *, company=None, location=None):

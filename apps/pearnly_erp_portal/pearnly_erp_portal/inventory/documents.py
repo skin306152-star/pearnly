@@ -216,12 +216,16 @@ def update_entry(name, **changes):
     # `doc_no` 不在可改字段里：号是发出去的，改它等于让历史流水对不上单据。
     if "purpose" in changes:
         doc.purpose = _purpose(doc.direction, changes["purpose"])
+    before = doc.warehouse
     for field in ("posting_date", "warehouse", "supplier", "reason",
                   "ref_type", "ref_id"):
         if field in changes:
             doc.set(field, warehouses.required(changes[field], company=company) if field == "warehouse" else changes[field])
     if "location" in changes or "warehouse" in changes:
-        doc.location = positions.header(doc.warehouse, changes.get("location", doc.get("location")), company=company)["location"]
+        # 换了仓又没给库位：旧仓的单头库位不带过去（验收复核 P1）
+        moved = "warehouse" in changes and "location" not in changes and doc.warehouse != before
+        doc.location = positions.header(doc.warehouse, "" if moved else changes.get("location", doc.get("location")),
+                                        company=company)["location"]
     if "lines" in changes:
         lines = _business_lines(changes["lines"])
         doc.lines = []

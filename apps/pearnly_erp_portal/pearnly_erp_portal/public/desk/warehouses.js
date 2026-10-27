@@ -184,6 +184,10 @@
 		}
 
 		if (inline) {
+			// 别处仓库选择框点「新建」（原地弹窗）：接了 Express 的公司不开新建表单，直接说服务端那同一句（验收复核 P1：原来填完一张表才被拒）。
+			// 回的是原生消息框（同样是对话框，调用方等它关）
+			if (!inline.name && p.express_company())
+				return frappe.msgprint(__("Create the warehouse in Express, then use Sync Express on the company page"));
 			const row = inline.name ? await p.call("frappe.client.get", {doctype: "ERP Warehouse", name: inline.name}) : null;
 			const dialog = editor(row);
 			if (!can_manage()) {
