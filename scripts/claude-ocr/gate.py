@@ -125,6 +125,73 @@ def _recording_read(kind, files, own_tax=None, text=None):
 client.read = _recording_read
 
 
+# ── 回放基准（2026-10-27，票面自洽表）：每份存 Haiku 首读与 Opus 重读，之后任何升级策略都离线回放、不再付费 ──────────
+# ``--record DIR``：每次发票类读法都读两遍（Haiku 无提示；Opus 带「现行自检 ∪ 自洽表全部检查」的提示），存成 DIR/<编号>#<次序>.json，
+# 再按 ``--escalation`` 选一份交给产品代码（打分看的是这一份）。``--replay DIR``：不调模型，按 ``--escalation`` 从存档里选。
+# 策略：``legacy`` = 改动前的硬性自检；``current`` = 现在代码里的（硬性自检 + ``consistency.POLICY``）；
+# 也可以直接写检查代码，逗号分隔（硬性自检 + 这几条），例如 ``line_math,lines_vs_document``。
+
+from pearnly_core.claude_ocr import consistency, engine as claude_engine, rules as claude_rules  # noqa: E402
+
+_real_run = claude_engine.run
+REPLAY = {"dir": None, "record": False, "policy": "current", "spent": 0.0}
+
+
+def _policy_why(read, pages, policy):
+    if policy == "legacy":
+        return claude_rules._voucher_basics(read, pages)
+    if policy == "current":
+        return claude_rules.voucher_problems(read, pages)
+    return claude_rules.voucher_problems(read, pages, policy=tuple(code for code in policy.split(",") if code))
+
+
+def _choose(rec, policy, own_tax):
+    """按策略决定这份用 Haiku 还是 Opus 的读法（与 ``engine.run`` 同一口径：自检不过、Opus 有结果就用 Opus 的）。"""
+    import copy
+
+    haiku, opus = copy.deepcopy(rec["haiku"]), copy.deepcopy(rec["opus"])
+    claude_rules.fix_own_tax(haiku, own_tax)
+    why = _policy_why(haiku, rec["pages"], policy)
+    stages = [rec["haiku_stage"]]
+    read = haiku
+    if why:
+        stages.append(rec["opus_stage"])
+        if opus is not None:
+            claude_rules.fix_own_tax(opus, own_tax)
+            read = opus if policy == "legacy" else claude_engine.combine(haiku, opus, why)  # 改动前是整份换成 Opus 的
+    result = {"read": read, "stages": stages, "escalated": len(stages) > 1, "why": why,
+              "usd": round(sum(s.get("usd") or 0 for s in stages), 6), "seconds": round(sum(s.get("seconds") or 0 for s in stages), 2)}
+    if policy != "legacy":  # 改动前没有收尾这一步
+        result.update(claude_engine.finish(read, rec["pages"], escalated=len(stages) > 1))
+    return result
+
+
+def _replay_run(api, kind, images, own_tax=None, text=None):
+    if kind != "voucher":
+        return _real_run(api, kind, images, own_tax, text)
+    images = list(images)[:claude_engine.MAX_PAGES]
+    count = getattr(_local, "calls", 0)
+    _local.calls = count + 1
+    path = Path(REPLAY["dir"]) / f"{getattr(_local, 'key', 'unknown')}#{count}.json"
+    if path.exists():
+        rec = json.loads(path.read_text())
+    elif not REPLAY["record"]:
+        raise RuntimeError(f"no recording for {path.name}")
+    else:
+        haiku, first = claude_engine._call(api, claude_engine.HAIKU, kind, images, "", text)
+        hints = list(dict.fromkeys(claude_rules._voucher_basics(haiku, len(images))
+                                   + [line for _code, line in consistency.findings(haiku)]))
+        hint = ("An automated first reading of this document failed these checks: " + "; ".join(hints[:12])
+                + ". Re-read those fields on the document with extra care; keep exactly what is printed.") if hints else ""
+        opus, second = claude_engine._call(api, claude_engine.OPUS, kind, images, hint, text)
+        rec = {"pages": len(images), "haiku": haiku, "haiku_stage": first, "opus": opus, "opus_stage": second,
+               "hints": hints, "own_tax": own_tax}
+        path.write_text(json.dumps(rec, ensure_ascii=False))
+        with LOCK:
+            REPLAY["spent"] += (first.get("usd") or 0) + (second.get("usd") or 0)
+    return _choose(rec, REPLAY["policy"], own_tax)
+
+
 def _pages(path, content):
     if path.suffix.lower() == ".pdf":
         import pymupdf
@@ -214,7 +281,9 @@ def invoice_sets():
     listing = [r["编号"] for r in csv.DictReader(open(CORPUS / "express/list.tsv", encoding="utf-8"), delimiter="\t")]
     return {"test": [(k, CORPUS / "originals" / rows[k]["路径"]) for k in sorted(gold)],
             "sm": [(p.stem, p) for p in sorted((CORPUS / "sm/raw").iterdir())],
-            "ex": [(k, express[k]) for k in listing if k in express]}
+            "ex": [(k, express[k]) for k in listing if k in express],
+            # 生产上漏过自检的真实原件（不进金标打分，只录读法给 tests/fixtures/claude-ocr/consistency-cases.json）
+            "cases": [(p.stem, p) for p in sorted((CORPUS / "cases").iterdir())] if (CORPUS / "cases").is_dir() else []}
 
 
 def invoices(args):
@@ -224,18 +293,26 @@ def invoices(args):
     if args.ids:
         wanted = set(args.ids.split(","))
         items = [item for item in items if item[0] in wanted]
-    name, erp_name = f"{args.set}-prod-cowork.jsonl", f"{args.set}-prod-erp.jsonl"
+    name, erp_name = f"{args.set}-{args.name}-cowork.jsonl", f"{args.set}-{args.name}-erp.jsonl"
     done, spent = _spent(name)
     budget = {"spent": spent}
+    if args.record or args.replay:
+        REPLAY.update(dir=args.record or args.replay, record=bool(args.record), policy=args.escalation)
+        Path(REPLAY["dir"]).mkdir(parents=True, exist_ok=True)
+        claude_engine.run = _replay_run
+        if args.replay:
+            if not os.environ.get("PEARNLY_ANTHROPIC_API_KEY", "").strip():
+                os.environ["PEARNLY_ANTHROPIC_API_KEY"] = "replay-only"  # 回放不调模型；直连客户端建得起来就行
 
     def one(entry):
         key, path = entry
         with LOCK:
-            if budget["spent"] >= args.cap:
+            if budget["spent"] >= args.cap or REPLAY["spent"] >= args.cap:
                 return
         content = path.read_bytes()
         pages = _pages(path, content)
         seen().clear()
+        _local.key, _local.calls = key, 0
         started = time.monotonic()
         try:
             read, error = cowork_read(content, path.name, pages, args.year), None
@@ -263,7 +340,7 @@ def invoices(args):
 
     with ThreadPoolExecutor(args.workers) as pool:
         list(pool.map(one, [item for item in items if item[0] not in done]))
-    print(json.dumps({"set": args.set, "usd": round(budget["spent"], 4)}))
+    print(json.dumps({"set": args.set, "usd": round(budget["spent"], 4), "recording_usd": round(REPLAY["spent"], 4)}))
 
 
 # ── 对账三类文档：原件 → 对账的正式入口 ──────────────────────────────────────────────────────────────────────
@@ -375,12 +452,16 @@ def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
     one = sub.add_parser("invoices")
-    one.add_argument("--set", choices=("test", "sm", "ex"), required=True)
+    one.add_argument("--set", choices=("test", "sm", "ex", "cases"), required=True)
     one.add_argument("--ids")
     one.add_argument("--year", type=int, default=2026)
     one.add_argument("--cap", type=float, default=3.0)
     one.add_argument("--workers", type=int, default=6)
     one.add_argument("--policy", choices=("skip", "none"), default="skip")
+    one.add_argument("--name", default="prod", help="结果文件名中间那段：<set>-<name>-cowork.jsonl / -erp.jsonl")
+    one.add_argument("--record", help="回放基准目录：读两遍（Haiku、Opus）存下")
+    one.add_argument("--replay", help="回放基准目录：不调模型，按 --escalation 选读法")
+    one.add_argument("--escalation", default="current", help="legacy | current | 检查代码逗号分隔")
     two = sub.add_parser("recon")
     two.add_argument("--list", required=True)
     two.add_argument("--cap", type=float, default=3.0)

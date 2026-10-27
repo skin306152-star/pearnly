@@ -3,6 +3,7 @@
 # （python 3.14 + 生产镜像同版本依赖）里跑；读法经本机 claude-ocr 服务（127.0.0.1:8443，同一份令牌与证书指纹）——
 # 与生产同一条路。语料与结果都在那台的 /opt/pearnly-claude-eval（不放这台 Mac）。
 # 用法：bash scripts/claude-ocr/run-gate.sh invoices --set test --cap 3 [--workers 6]
+#       GATE_DIRECT_KEY_FILE=<甲骨文上的密钥文件> bash scripts/claude-ocr/run-gate.sh invoices --set test --name rec --record /runs/replay --cap 40
 #       bash scripts/claude-ocr/run-gate.sh recon --list /corpus/recon/list.tsv --cap 3
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -20,9 +21,14 @@ set -euo pipefail
 umask 077
 env=\$(mktemp)
 trap 'rm -f \$env' EXIT
-. /opt/pearnly-claude-ocr/secrets/env
-pin=\$(openssl x509 -in /opt/pearnly-claude-ocr/secrets/cert.pem -noout -fingerprint -sha256 | cut -d= -f2 | tr -d : | tr A-F a-f)
-printf 'PEARNLY_CLAUDE_OCR_URL=https://127.0.0.1:8443\nPEARNLY_CLAUDE_OCR_TOKEN=%s\nPEARNLY_CLAUDE_OCR_CERT_SHA256=%s\n' "\$CLAUDE_OCR_TOKEN" "\$pin" > \$env
+if [[ -n "${GATE_DIRECT_KEY_FILE:-}" ]]; then
+  # 专项评测用指定的密钥直连 Anthropic（同一份引擎与提示词，不经 claude-ocr 服务，不花生产那把密钥的额度）
+  printf 'PEARNLY_ANTHROPIC_API_KEY=%s\n' "\$(tr -d '\n' < ${GATE_DIRECT_KEY_FILE:-/dev/null})" > \$env
+else
+  . /opt/pearnly-claude-ocr/secrets/env
+  pin=\$(openssl x509 -in /opt/pearnly-claude-ocr/secrets/cert.pem -noout -fingerprint -sha256 | cut -d= -f2 | tr -d : | tr A-F a-f)
+  printf 'PEARNLY_CLAUDE_OCR_URL=https://127.0.0.1:8443\nPEARNLY_CLAUDE_OCR_TOKEN=%s\nPEARNLY_CLAUDE_OCR_CERT_SHA256=%s\n' "\$CLAUDE_OCR_TOKEN" "\$pin" > \$env
+fi
 install -d -m 755 /opt/pearnly-claude-eval/runs-prod && chown ubuntu /opt/pearnly-claude-eval/runs-prod
 docker run --rm --network host --memory 2g --env-file \$env -e PYTHONUNBUFFERED=1 \
   -v /opt/pearnly-claude-gate/src:/src:ro -v /opt/pearnly-claude-eval/corpus:/corpus:ro \

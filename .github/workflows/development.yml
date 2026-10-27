@@ -67,6 +67,8 @@ jobs:
         run: python3 tests/test_queue_targets.py
       - name: Verify Claude recognition route rules and escalation (ADR-022)
         run: python3 tests/test_claude_ocr_rules.py
+      - name: Verify the Claude self-check consistency table and its recorded real misses
+        run: python3 tests/test_claude_ocr_consistency.py
       - name: Verify DMS queue and reply-token call contracts
         run: python3 scripts/test-dms-call-contracts.py
       - name: Verify exact DMS customer identity before automatic writes

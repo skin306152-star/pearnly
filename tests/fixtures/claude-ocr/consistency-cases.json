@@ -1,0 +1,270 @@
+{
+ "cases": [
+  {
+   "id": "LI-00029",
+   "source": "mrerp LINE 录入 LI-00029，นิวเบสท์ (ปทุมธานี) 税票 HS002600133，2026-10-27 原件在甲骨文 corpus/cases/li-00029.jpg",
+   "printed_truth": "各行实付 96/96/99/99/48/48/49/49/120/120/0（含税价，赠品 3 件 0 元），小计 770.09、税 53.91、合计 824.00；香皂每件折扣 4",
+   "haiku": {
+    "entry": "enter",
+    "documents": [
+     {
+      "invoice_number": "HS002600133",
+      "date": "2026-10-23",
+      "subtotal": "770.09",
+      "discount": "8.00",
+      "vat": "53.91",
+      "total": "824.00",
+      "price_mode": null,
+      "wht_amount": null,
+      "lines": [
+       {
+        "description": "เทสโต บาร์บีคิวเมกซ์ 42n. RC 1x6x6",
+        "code": "CS9670013B",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "576.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "96.00"
+       },
+       {
+        "description": "เทสโต สาหร่ายญี่ปุ่น 40n (1X6x6) FC",
+        "code": "CS9671023",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "576.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "96.00"
+       },
+       {
+        "description": "โตโซะ รสผมกล่อม 56 ก.1X6X6",
+        "code": "CS9613101",
+        "qty": "1",
+        "unit": "BAG",
+        "unit_price": "594.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "99.00"
+       },
+       {
+        "description": "โตโซะ คอร์นชีส 56 ก.1X6X6",
+        "code": "CS9613501",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "594.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "99.00"
+       },
+       {
+        "description": "ปาร์ตี้ ดารามเม 48 กรัม (1x8x3)",
+        "code": "CS9603108B",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "384.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "48.00"
+       },
+       {
+        "description": "ปาร์ตี้ ครองแคระ 48 กรัม (1x8x3)",
+        "code": "CS9610346B",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "384.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "48.00"
+       },
+       {
+        "description": "สบู่เพรอท ทพทกษานานาพรรณ 105n. 1x24x4",
+        "code": "CSPB2131000RL",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "1272.00",
+        "discount": "4.00",
+        "discount_percent": "4.00",
+        "amount": "53.00"
+       },
+       {
+        "description": "สบู่แพรอท ทานาคา 105n. 1x24x4",
+        "code": "CSPB2132200RL",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "1272.00",
+        "discount": "4.00",
+        "discount_percent": "4.00",
+        "amount": "53.00"
+       },
+       {
+        "description": "แพรอท เบอร์รี่ สแปเชช 450มล. 1+1 PP 1X12",
+        "code": "CSPB22346001A",
+        "qty": "1",
+        "unit": "BT",
+        "unit_price": "1440.01",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "120.00"
+       },
+       {
+        "description": "แพรอท กุหลาบ 450มล 1+1 (1X12) NP",
+        "code": "CSPB2237401NP",
+        "qty": "1",
+        "unit": "SET",
+        "unit_price": "1440.01",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "120.00"
+       },
+       {
+        "description": "เบลล์น้ำยาล้างจาน 400มล กลิ่นมะนาว P1x36",
+        "code": "CSBE43131",
+        "qty": "3",
+        "unit": "PC",
+        "unit_price": null,
+        "discount": null,
+        "discount_percent": null,
+        "amount": "0.00"
+       }
+      ]
+     }
+    ]
+   },
+   "opus": {
+    "entry": "enter",
+    "documents": [
+     {
+      "invoice_number": "HS002600133",
+      "date": "2026-10-23",
+      "subtotal": "770.09",
+      "discount": "0.00",
+      "vat": "53.91",
+      "total": "824.00",
+      "price_mode": "exclusive",
+      "wht_amount": null,
+      "lines": [
+       {
+        "description": "เทสโต บาร์บีคิวแมกซ์ 42ก. RC 1x6x6",
+        "code": "CS9670013B",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "96.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "96.00"
+       },
+       {
+        "description": "เทสโต สาหร่ายญี่ปุ่น 40ก (1X6x6) FC",
+        "code": "CS9671023",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "96.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "96.00"
+       },
+       {
+        "description": "โดโซะ รสกลมกล่อม 56 ก.1X6X6",
+        "code": "CS9613101",
+        "qty": "1",
+        "unit": "BAG",
+        "unit_price": "99.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "99.00"
+       },
+       {
+        "description": "โดโซะ คอร์นชีส 56 ก.1X6X6",
+        "code": "CS9613501",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "99.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "99.00"
+       },
+       {
+        "description": "ปาร์ตี้ คาราเมล 48 กรัม (1x8x3)",
+        "code": "CS9603108B",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "48.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "48.00"
+       },
+       {
+        "description": "ปาร์ตี้ กรองแครง 48 กรัม (1x8x3)",
+        "code": "CS9610346B",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "48.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "48.00"
+       },
+       {
+        "description": "สบู่แพรอทพฤกษานานาพรรณ 105ก. 1x24x4",
+        "code": "CSPB2131000RL",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "53.00",
+        "discount": "4.00",
+        "discount_percent": null,
+        "amount": "49.00"
+       },
+       {
+        "description": "สบู่แพรอท ทานาคา 105ก. 1x24x4",
+        "code": "CSPB2132200RL",
+        "qty": "1",
+        "unit": "PAC",
+        "unit_price": "53.00",
+        "discount": "4.00",
+        "discount_percent": null,
+        "amount": "49.00"
+       },
+       {
+        "description": "แพรอท เบอร์รี่ สแปลช 450มล. 1+1 PP 1X12",
+        "code": "CSPB22346001A",
+        "qty": "1",
+        "unit": "BT",
+        "unit_price": "120.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "120.00"
+       },
+       {
+        "description": "แพรอท กุหลาบ 450มล 1+1 (1X12) NP",
+        "code": "CSPB2237401NP",
+        "qty": "1",
+        "unit": "SET",
+        "unit_price": "120.00",
+        "discount": null,
+        "discount_percent": null,
+        "amount": "120.00"
+       },
+       {
+        "description": "เบลล์น้ำยาล้างจาน 400มล กลิ่นมะนาว P1x36",
+        "code": "CSBE43131",
+        "qty": "3",
+        "unit": "PC",
+        "unit_price": null,
+        "discount": null,
+        "discount_percent": null,
+        "amount": "0.00"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "haiku_escalates": [
+     "line_math"
+    ],
+    "opus_passes": true,
+    "settled_price_mode": "inclusive"
+   }
+  }
+ ]
+}

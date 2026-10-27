@@ -1,6 +1,8 @@
 """硬性自检（ADR-022，10-17 评测定）：决定 Haiku 的结果能不能直接用，还是交 Opus 重读。不按模型自标的「不确定」升级。"""
 from decimal import Decimal, InvalidOperation
 
+from pearnly_core.claude_ocr import consistency
+
 
 def digits(value):
     return "".join(c for c in str(value or "") if c.isdigit())
@@ -36,8 +38,15 @@ def fix_own_tax(read, own_tax):
     return fixed
 
 
-def voucher_problems(read, pages):
-    """返回要交 Opus 的原因（空 = 直接用）。"""
+def voucher_problems(read, pages, policy=None):
+    """返回要交 Opus 的原因（空 = 直接用）：下面几条硬性自检，加票面自洽表（``consistency``，按 ``policy`` 选哪几条升级）。"""
+    found = _voucher_basics(read, pages)
+    if not read or found == ["no_result"]:
+        return found
+    return found + consistency.problems(read, consistency.POLICY if policy is None else policy)
+
+
+def _voucher_basics(read, pages):
     if not read:
         return ["no_result"]
     if read.get("entry") != "enter":
