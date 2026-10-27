@@ -154,6 +154,9 @@ testcowork 的 `pearnlyai@gmail.com` 现在仍带 System Manager、少了 Desk U
 - ERP 带 System Manager 的管理员那一条「盘点差异报表 → 盘点页」是报表不带筛选时框架自己跳回盘点页（登记表里写明的原生行为），不是外壳拦。
 - 每个账号只剩全局快捷键 `ctrl+s`。
 - 浏览器日志里的未处理异常都是首页的计费接口（实验栈没有计费服务）每次进首页报一次，和路由无关。
+- `scripts/check-entries.py` 改为**按页核对**（验收 10-27 复核打印第二批发现：销售详情、盘点页新加的「打印」只在采购页声明过，按产品汇总没拦住）：
+  文件属于哪几页按共用件登记表（`url = "/desk/pearnly-…"` 入口的 `files`）定，码必须在那一页或 `*` 的声明里；不属于任何页的共用助手只认 `*`。
+  存量 107 个调用点按页全部对上；`tests/test_check_entries.py` 进 CI。打印第二批变基时按页补登记。
 - `tests/test-native-actions.cjs` 补路由两道的用例（放行 / 换首页 / 不解析 / 个人页未开放 / 已在首页不循环 / Administrator）；`tests/test_tenant_framework_roles.py` 跟上声明多一项。
 
 ## 暂停点（10-26 晚，用户指示全部窗口就地暂停；下列各步已于 10-27 做完）

@@ -13,8 +13,10 @@
 本检查扫 `apps/**/public/desk/**/*.js`、`apps/**/page/**/*.js`、报表 JS 里加页头入口的调用
 （add_custom_button / add_menu_item / set_primary_action / set_secondary_action / add_inner_button / add_action_item /
 add_actions_menu_item / add_button），取第一个参数的语义码（`t("x.y")`、`__("Export")`、`w("..")`、`term("..")` 里的字面量）；
-标签是变量、模板串的，要在同一行或上一行写 `// entry: 码1, 码2` 说明会出现哪些码。码不在所属产品声明里（core 的文件：在任一产品
-声明里）就失败。`actions` 里的框架视图键（不是 `pearnly-*`、`*`）必须也在 `routes` 里——路由打不开，页头码就是空声明；
+标签是变量、模板串的，要在同一行或上一行写 `// entry: 码1, 码2` 说明会出现哪些码。**按页核对**：文件属于哪几页按共用件登记表
+（`scripts/impact/shared-parts.toml` 里 `url = "/desk/pearnly-…"` 的入口的 `files`）定，码必须在那一页（或 `*`）的声明里——
+只在别的页声明过不算（10-27 验收：打印第二批销售详情、盘点页的「打印」只在别页登记过，按产品汇总没拦住）。登记表里不属于任何页的文件
+（共用助手）只认 `*`。`actions` 里的框架视图键（不是 `pearnly-*`、`*`）必须也在 `routes` 里——路由打不开，页头码就是空声明；
 本人个人页 `Form/User` 由外壳单独放行，不进 `routes`。
 
     python3 scripts/check-entries.py              # 检查（CI）
@@ -125,25 +127,29 @@ def page_routes() -> dict:
     return routes
 
 
-def declared_codes(declared: dict, product: str | None) -> set:
-    products = [product] if product else list(declared)
-    return {code for name in products for codes in (declared.get(name) or {}).get("actions", {}).values()
-            for code in codes}
+def page_codes(declared: dict, product: str, page: str) -> set:
+    """某产品某页能用的码：该页声明 + 全产品共用 `*`。"""
+    actions = (declared.get(product) or {}).get("actions", {})
+    return set(actions.get(page) or []) | set(actions.get("*") or [])
 
 
 def check() -> int:
     declared = declarations()
+    routes = page_routes()
     problems = []
     for call in calls():
         if not call["codes"]:
             problems.append(f"{call['file']}:{call['line']}: {call['call']}({call['argument']}…) 标签认不出语义码，"
                             f"在同一行或上一行写 `// entry: 码`")
             continue
-        known = declared_codes(declared, call["product"])
+        products = [call["product"]] if call["product"] else list(declared)
+        pages = sorted((owner, page) for owner, page in routes.get(call["file"]) or set() if owner in products)
+        targets = pages or [(product, "*") for product in products]
         for code in call["codes"]:
-            if code not in known:
-                where = f"{call['product']} 的" if call["product"] else "任一产品的"
-                problems.append(f"{call['file']}:{call['line']}: 「{code}」不在{where} pearnly_navigation actions 里")
+            for product, page in targets:
+                if code not in page_codes(declared, product, page):
+                    where = f"{product} 的「{page}」" if page != "*" else f"{product} 的 \"*\"（文件不属于登记表里任何一页）"
+                    problems.append(f"{call['file']}:{call['line']}: 「{code}」不在 {where}声明里")
     for product, item in declared.items():
         for route in item["routes"]:
             if route.count("/") != 1 or route.startswith("pearnly-"):
