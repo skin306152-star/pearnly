@@ -566,6 +566,9 @@ doc_events["ERP Stock Opening"] = {
     _event: "pearnly_erp_portal.inventory.access.validate_opening_write"
     for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
 }
+# 打印：拒打在原生打印渲染前判（`printing.context.before_print`），打印页 / PDF 回 403 而不是模板出错的 417
+for _doctype in ("ERP Stock Entry", "Purchase Document", "ERP Sales Document", "ERP Sale", "ERP Shift", "ERP Stock Count"):
+    doc_events.setdefault(_doctype, {})["before_print"] = "pearnly_erp_portal.printing.context.before_print"
 
 # 任务管理（看板）：原生资源只读、只读得到能看的看板；写一律走 `work` 的专用接口（`work.documents` 写入闸）。
 # 卡片附件是原生 File：只给能看那块看板的人（别的文件不受影响）。

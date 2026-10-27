@@ -70,6 +70,28 @@ class PrintOnlyStoredReadableDocuments(unittest.TestCase):
                 context.pearnly_print_context(types.SimpleNamespace(doctype=doctype, name="X-1"))
 
 
+    def test_refusals_happen_before_the_native_print_renders(self):
+        """拒打在原生打印渲染前（`before_print`）判，打印页 / PDF 回 403，不是模板出错的 417（验收 10-27）。"""
+        import frappe
+
+        from pearnly_erp_portal.printing import context
+
+        invoice = types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1", doc_kind="purchase_invoice",
+                                        has_permission=lambda ptype: True)
+        exists, get_doc = self.stored(invoice)
+        for form in ({"format": "Pearnly Purchase Order"}, {"print_format": "Pearnly Purchase Order"}):
+            with exists, get_doc, mock.patch.object(context.frappe, "form_dict", form), self.assertRaises(frappe.PermissionError):
+                context.before_print(types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1"), "before_print", {})
+        with exists, get_doc, mock.patch.object(context.frappe, "form_dict", {"format": "Pearnly Purchase Goods Receipt"}):
+            context.before_print(types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1"), "before_print", {})
+        shift = types.SimpleNamespace(doctype=context.SHIFT, name="SHIFT-1", status="open", has_permission=lambda ptype: True)
+        exists, get_doc = self.stored(shift)
+        with exists, get_doc, mock.patch.object(context.frappe, "form_dict", {}), self.assertRaises(frappe.PermissionError):
+            context.before_print(types.SimpleNamespace(doctype=context.SHIFT, name="SHIFT-1"), "before_print", {})
+        from pearnly_erp_portal import hooks
+        for doctype in context.PRINTABLE:
+            self.assertEqual(hooks.doc_events[doctype]["before_print"], "pearnly_erp_portal.printing.context.before_print")
+
     def test_the_stored_copy_is_what_gets_printed(self):
         from pearnly_erp_portal.printing import context
 

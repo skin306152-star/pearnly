@@ -27,6 +27,7 @@ COUNT = "ERP Stock Count"
 COUNT_ITEM = "ERP Stock Count Item"
 ISSUE, RECEIPT = "issue", "receipt"
 ORDER = "order"  # 采购订单格式（`Pearnly Purchase Order`）调用时带的 kind
+FORMAT_KINDS = {"Pearnly Purchase Order": ORDER}  # 同一类单据两种格式时，格式名 → kind（与模板里传的一致）
 DEFAULT_LOGO = ("public", "images", "print", "pearnly-logo.svg")  # 正式品牌包（2026-09-05 定稿）的横版矢量 lockup
 FONT_DIR = ("public", "fonts", "print")
 FONT_FAMILY = "PearnlyPrint"
@@ -37,12 +38,28 @@ def pearnly_print_context(doc, kind=None) -> dict:
     """只打库里已有、当前用户读得到的单：按名字从库里重新取一遍再算。原生打印接口（`printview.get_html_and_style`）收得下
     页面传来的整份单据 JSON，不重取的话伪造一张单、填上别家公司的供应商，就能把对方的税号印出来（验收 10-26）。
     ``kind``：同一类单据有两种格式时由 Print Format 指定（采购单：收货单 / 采购订单）。"""
+    doc = _admit(doc, kind)
+    return _printer(doc.doctype)(doc, kind)
+
+
+def before_print(doc, method=None, *args, **kwargs):
+    """原生打印渲染前先拒（`printview.get_rendered_template` 渲染前调 `before_print`）：拒打在模板里才抛的话，
+    框架按模板出错回 417（验收 10-27）；这里抛权限错，打印页 / PDF 回 403。格式名取请求参数（打印页 `format`、
+    `get_html_and_style` 的 `print_format`）。"""
+    form = frappe.form_dict or {}
+    _admit(doc, FORMAT_KINDS.get(form.get("format") or form.get("print_format")))
+
+
+def _admit(doc, kind=None):
+    """能打才回库里那一份：单在库里、当前用户读得到；采购订单格式只给采购订单；交班小结只给已交班的。"""
     if doc.doctype not in PRINTABLE or not doc.name or not frappe.db.exists(doc.doctype, doc.name):
         _refuse()
     doc = frappe.get_doc(doc.doctype, doc.name)
     if not doc.has_permission("read"):
         _refuse()
-    return _printer(doc.doctype)(doc, kind)
+    if (kind == ORDER and getattr(doc, "doc_kind", None) != "purchase_order") or (doc.doctype == SHIFT and doc.status != "closed"):
+        _refuse()
+    return doc
 
 
 def _refuse():
@@ -240,9 +257,7 @@ def _totals(rows) -> list:
 
 
 def _order(doc) -> dict:
-    """采购订单：只给 doc_kind = purchase_order 的单。"""
-    if doc.doc_kind != "purchase_order":
-        _refuse()
+    """采购订单：只给 doc_kind = purchase_order 的单（`_admit` 已核）。"""
     rows = _trade_rows(doc)
     ctx = _base(ORDER, doc, doc.company, doc.system_no, doc.doc_date, doc.notes, doc.status == "void")
     ctx.update(
@@ -346,11 +361,9 @@ def _sale(doc, kind=None) -> dict:
 
 
 def _shift(doc, kind=None) -> dict:
-    """交班小结（热敏 80 mm）：只打已交班的；汇总数用收银台同一份 `shifts.summary`（权限已由读权限核过）。"""
+    """交班小结（热敏 80 mm）：只打已交班的（`_admit` 已核）；汇总数用收银台同一份 `shifts.summary`（权限已由读权限核过）。"""
     from pearnly_erp_portal.cashier import shifts
 
-    if doc.status != "closed":
-        _refuse()
     terminal = _terminal(doc.terminal)
     data = shifts.summary(doc.name, own_only=False)
     balances = [{"method": row.method, "expected": contracts.money(row.expected_amount),
@@ -410,4 +423,4 @@ def _printer(doctype):
     return {STOCK: _stock, PURCHASE: _purchase, SALES: _sales, SALE: _sale, SHIFT: _shift, COUNT: _count}[doctype]
 
 
-__all__ = ["header", "logo", "pearnly_print_context"]
+__all__ = ["before_print", "header", "logo", "pearnly_print_context"]

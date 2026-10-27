@@ -95,3 +95,13 @@
 - 本分支改为叠在 `pearnly/native-buttons-whitelist`（a162b649）之上（它先合入 main），在 ERP `pearnly_navigation` 的 `actions` 两页补「Print」；
   按页核对版检查对本分支 110 个调用点无漏登记。
 
+## 验收复核（10-27，bfb4b033 通过）后的两条小改
+
+- 拒打改在原生打印渲染前判：`printing/context.py` 抽出 `_admit`（单在库里、读得到；采购订单格式只给采购订单；交班小结只给已交班的），
+  模板取数和新挂的 `before_print`（六类可打单据的 `doc_events`，`printview.get_rendered_template` 渲染前调）共用；格式名取请求参数
+  `format` / `print_format`。以前这两类拒打在模板里抛，框架按模板出错回 417。实验站点：采购订单格式打采购发票（打印页、PDF 接口）、
+  开着的班打交班小结都回 403；采购订单格式打采购订单、收货单格式打采购发票、已交班的交班小结照常 200。`test_erp_print_security.py` 加一条（9 项）。
+- `_labels.html` 的 `payment(method)` 找不到名称原样输出时加 `| e`。
+
+验收提的两条存量问题（不在本批）：盘点页在页内切单不清页头菜单；采购岗打开同事的采购单详情页面空白（没出无权限页）。已报主会话。
+

@@ -57,7 +57,7 @@
   "bank": "ธนาคาร / Bank", "cheque": "เช็ค / Cheque", "other": "อื่นๆ / Other",
 } %}
 
-{% macro payment(method) -%}{{ PAYMENTS.get(method, method) }}{%- endmacro %}
+{% macro payment(method) -%}{{ PAYMENTS.get(method, method) | e }}{%- endmacro %}
 
 {% macro value(item) -%}{% if item is mapping and item.method %}{{ payment(item.method) }}{% else %}{{ item | e }}{% endif %}{%- endmacro %}
 
