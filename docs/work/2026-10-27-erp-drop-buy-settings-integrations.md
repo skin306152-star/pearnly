@@ -15,7 +15,7 @@
 | 东西 | 谁在用 | 处理 |
 | --- | --- | --- |
 | `ERP Purchase Settings`（单例）与 `purchasing/settings.py` 的 `read_settings` | 采购建单读默认值：`dedupe_block`（`service.py`、`entry.py` 拦重复对方单号）、`auto_stock_in`（`service.py` 自动入库）、`base_currency`（`entry.py` 外币要汇率）、默认税率 / 账期等（`service.py`），采购页启动数据（`api.py` 第 45 行）；core 补丁 `v0_0_4_site_default_currency` 读 `base_currency`；`access/menu.py` 把它列进采购岗位能读的主档 | **保留**（采购流程在用） |
-| `purchasing/api.py` 的 `api_get_settings` / `api_update_settings`（兼容入口 `purchase.py` 同名转出） | 全仓没有前端或其它代码调用（两页从没实现，也没调过它们）；`update_settings` 服务函数被实验脚本 `scripts/erp-pos-lab-*-verify.py` 用来切自动入库 | **保留，列给主会话定**：删了以后改采购默认值就只剩后台 |
+| `purchasing/api.py` 的 `api_get_settings` / `api_update_settings`（兼容入口 `purchase.py` 同名转出） | 全仓没有前端或其它代码调用（两页从没实现，也没调过它们）；`update_settings` 服务函数被实验脚本 `scripts/erp-pos-lab-*-verify.py` 用来切自动入库 | **删**（主会话 10-27 定：不留无人用的白名单接口；现在本来就没有界面能改，删了对用户没变化）。服务函数 `get_settings` / `update_settings` 留着（读取函数与实验脚本在用） |
 | 词条 `nav.purchaseSettings`（「采购设置」） | 只有这页和旧 Vue 对照代码的侧栏清单（`frontend/src/lib/nav.ts`，路由不进这些页面） | 删：术语表一行 + 四种语言翻译包里的键行与英文原文行（生成脚本不删已有行，手工删） |
 | 词条 `nav.integrations`（「集成」） | 旧 Vue 对照代码 Cowork 那组仍引用 | 保留 |
 | 词条 `nav.group.master`（「主数据」） | ERP 侧栏「主数据」组只装集成这一页，组随之删；但同一行的英文原文「Master Data」被 Cowork `features.json` 的功能标签用 | 保留 |
@@ -34,7 +34,7 @@
 
 | # | 问题 | 我的建议 | 不定的影响 |
 | --- | --- | --- | --- |
-| 1 | 采购默认值（默认税率、自动入库、拦重复单号、默认账期、本位币）以后在哪改 | 保留两个接口；需要时在「公司」页加一块，不单独设页 | 删接口则只能后台改 |
+| 1 | 采购默认值（默认税率、自动入库、拦重复单号、默认账期、本位币）以后在哪改 | 主会话已定：两个接口删掉，以后真要在公司页改再按需求做 | 现在只能后台改（删前也一样，没有界面） |
 
 ## 改了什么
 
@@ -43,6 +43,7 @@
 - 旧书签映射（`www/pearnly-app.html`）去掉两项；旧 Vue 对照侧栏清单（`frontend/src/lib/nav.ts`）去掉 ERP 的两项；一次性实验校验脚本
   `scripts/cowork-preparation-upgrade-verify.py` 的页面名单去掉两项。
 - 词条 `nav.purchaseSettings` 从术语表与四种语言翻译包删除。
+- 删没有调用方的白名单接口 `purchasing.api.api_get_settings` / `api_update_settings` 与兼容入口 `purchase.py` 里的同名转出（主会话 10-27 定）。
 - 共用件登记表删 `erp.page.never.buy-settings` / `erp.page.never.integrations` 两个入口。
 - **顺带修（上一批 native-routes 的连带）**：登记表里另外 4 个「从不开放」的 ERP 入口（推送记录、对账、指南、历史）原来预期「原生无权限页」，
   native-routes（6c8860b9）之后外壳把它们换成首页，自动冒烟会判不通过。冒烟 page 探针加 `expect = "home"`（停在本账号的产品首页），

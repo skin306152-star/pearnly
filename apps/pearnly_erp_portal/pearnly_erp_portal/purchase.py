@@ -10,7 +10,6 @@ from pearnly_erp_portal.purchasing import service
 from pearnly_erp_portal.purchasing.api import (
     api_create_purchase,
     api_get_purchase,
-    api_get_settings,
     api_list_purchases,
     api_list_suppliers,
     api_pay_purchase,
@@ -19,7 +18,6 @@ from pearnly_erp_portal.purchasing.api import (
     api_submit_purchase,
     api_summary,
     api_update_purchase,
-    api_update_settings,
     api_void_purchase,
     api_create_supplier,
     api_update_supplier,

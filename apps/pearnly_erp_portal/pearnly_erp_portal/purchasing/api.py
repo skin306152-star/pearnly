@@ -259,16 +259,3 @@ def api_create_supplier(**kwargs):
 def api_update_supplier(**kwargs):
     kwargs = _clean(kwargs)
     return suppliers.update_supplier(kwargs.pop("name", None), **kwargs)
-
-
-# ── 采购设置 ────────────────────────────────────────────────────────────────
-
-
-@frappe.whitelist()
-def api_get_settings(**kwargs):
-    return settings.get_settings()
-
-
-@frappe.whitelist(methods=["POST"])
-def api_update_settings(**kwargs):
-    return settings.update_settings(**_clean(kwargs))
