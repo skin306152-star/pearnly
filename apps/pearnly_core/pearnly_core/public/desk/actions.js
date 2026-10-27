@@ -3,7 +3,7 @@
  * 声明只有一份：各产品 `hooks.py` 里 `pearnly_navigation` 的 `routes`（除我们自己的页面外允许打开的框架视图）、
  * `actions`（每页允许的页头入口，语义码）与 `shortcuts`（允许的全局快捷键），经启动数据下发为
  * `boot.pearnly_routes` / `boot.pearnly_page_actions` / `boot.pearnly_shortcuts`。三处读它：
- *   · 这里（运行时）：路由先过白名单——我们自己的页面（`pearnly-*`）、本人个人页、声明过的框架视图（按标准路由前两段，
+ *   · 这里（运行时）：路由先过白名单——本产品声明且已实现的页面（`boot.pearnly_product_pages`；能不能进由页面自己判）、本人个人页、声明过的框架视图（按标准路由前两段，
  *     如 `query-report/ERP Stock Count Variance`）照常打开；其余框架路由（联系人、数据面板、文件、报表、工作区、
  *     各 DocType 原生列表 / 表单、别人的用户页……）不渲染，原地换成产品首页。
  *   · 这里（运行时）：产品站点上 `frappe.ui.Page` 加页头按钮 / 菜单项 / 下拉 / 图标的入口都先过白名单——
@@ -26,16 +26,18 @@
 	const router = frappe.router;
 	if (router?.route && router?.render) {
 		const declared = () => frappe.boot.pearnly_routes || [];
+		// 不按 `pearnly-` 前缀认：框架里也有以它开头的 DocType 地址（`/desk/pearnly-ocr-work`，验收 10-27）
+		const own_page = head => (frappe.boot.pearnly_product_pages || []).includes(head);
 		const profile_allowed = () => frappe.boot.pearnly_profile_allowed !== false;
 		const own_profile = route => route[0] === "Form" && route[1] === "User" && route[2] === frappe.session.user;
 		const allowed_route = (route = []) => {
 			const head = String(route[0] || "");
-			if (!head || head.startsWith("pearnly-")) return true;
+			if (!head || own_page(head)) return true;
 			if (own_profile(route)) return profile_allowed();
 			return declared().includes(route.slice(0, 2).join("/"));
 		};
 		// 原始地址第一段：`query-report/<报表>` 原样，`Form/<表>` / `List/<表>` 是表名的 slug（`/desk/user/<账号>`）
-		const allowed_head = head => !head || head.startsWith("pearnly-") || (head === "user" && profile_allowed())
+		const allowed_head = head => !head || own_page(head) || (head === "user" && profile_allowed())
 			|| declared().some(item => {
 				const [view, name] = item.split("/");
 				return head === (["Form", "List", "Tree", "Report"].includes(view) ? router.slug(name) : view);

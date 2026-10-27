@@ -36,6 +36,12 @@ def pages(product):
     return [tuple(item) for item in (_declarations().get(product) or {}).get("pages") or []]
 
 
+def product_pages(product):
+    """本产品声明且已实现的页面路由（不看当前账号能不能进）。"""
+    available = available_pages(product)
+    return [route for _, route, _, _feature in pages(product) if route in available]
+
+
 def available_pages(product):
     """Only pages that are implemented are offered; the rest keep their ownership."""
     return set((_declarations().get(product) or {}).get("available") or [])
@@ -325,6 +331,9 @@ def extend_boot(boot):
     boot.pearnly_profile_allowed = _can_open_page(product, "user")
     # 路由、页头入口与全局快捷键白名单（产品在 `pearnly_navigation` 声明；`desk/actions.js` 运行时拦框架默认入口）
     boot.pearnly_page_actions, boot.pearnly_shortcuts, boot.pearnly_routes = head_entries(product)
+    # 外壳路由白名单认的「本产品页面」：声明且已实现的（能不能进由各页自己判，没开的出原生无权限页）。
+    # 不按路由前缀认：框架里也有同样前缀的 DocType 地址。
+    boot.pearnly_product_pages = product_pages(product)
     boot.pearnly_landing_url = entry_route(product)
     # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，
     # 页面路由的准入判据用它，不能跟着少）。

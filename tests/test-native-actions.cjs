@@ -43,7 +43,8 @@ const router = { current_route: [], sub_path: '', render() { rendered.push(this.
   route() { parsed.push(this.sub_path); }, get_sub_path() { return this.sub_path; },
   slug: name => name.toLowerCase().replace(/ /g, '-') };
 const frappe = { boot: { pearnly_product: 'cowork', pearnly_page_actions: { 'Form/User': ['Save'], '*': ['selection'] },
-  pearnly_shortcuts: ['ctrl+s'], pearnly_routes: ['query-report/Stock Variance'], pearnly_landing_url: '/desk/pearnly-intake' },
+  pearnly_shortcuts: ['ctrl+s'], pearnly_routes: ['query-report/Stock Variance'], pearnly_landing_url: '/desk/pearnly-intake',
+    pearnly_product_pages: ['pearnly-sales', 'pearnly-intake'] },
   session: { user: 'a@b.co' }, route_flags: {}, router, set_route: target => routed.push([target, frappe.route_flags.replace_route]),
   ui: { Page, keys }, get_route: () => route };
 const window = { location: { pathname: '/desk/contact' } };
@@ -54,8 +55,8 @@ vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/a
 const enter = path => { router.sub_path = path; frappe.route_flags = {}; router.route(); };
 for (const path of ['pearnly-sales/SD-1', 'user/a@b.co', 'query-report/Stock Variance', '']) enter(path);
 assert.deepEqual(parsed, ['pearnly-sales/SD-1', 'user/a@b.co', 'query-report/Stock Variance', ''], 'Allowed heads go on to parsing');
-for (const path of ['address', 'list-filter/x', 'contact', 'home', 'cowork-push-record', 'app/todo']) enter(path);
-assert.equal(parsed.length, 4, 'Other heads never reach the parser');
+for (const path of ['address', 'list-filter/x', 'contact', 'home', 'cowork-push-record', 'app/todo', 'pearnly-ocr-work', 'pearnly-cashier']) enter(path);
+assert.equal(parsed.length, 4, 'Other heads never reach the parser, framework DocTypes named pearnly-* and undeclared shared pages included');
 assert.deepEqual(routed.at(-1), ['pearnly-intake', true]);
 routed.length = 0;
 
@@ -68,11 +69,12 @@ visit('');
 assert.deepEqual(rendered, ['pearnly-sales/SD-1', 'Form/User/a@b.co', 'query-report/Stock Variance', ''],
   'Our pages, the own profile, declared framework views and home render');
 for (const blocked of [['List', 'Contact', 'List'], ['Form', 'User', 'other@b.co'], ['List', 'User', 'List'], ['Workspaces', 'Home'],
-  ['List', 'Cowork Push Record', 'List'], ['query-report', 'General Ledger'], ['dashboard-view', 'X'], ['Form', 'Module Def', 'Core']])
+  ['List', 'Cowork Push Record', 'List'], ['query-report', 'General Ledger'], ['dashboard-view', 'X'], ['Form', 'Module Def', 'Core'],
+  ['List', 'Pearnly OCR Work', 'List'], ['pearnly-cashier']])
   visit(...blocked);
 assert.equal(rendered.length, 4, 'Undeclared framework routes never render');
 assert.deepEqual(routed.at(-1), ['pearnly-intake', true], 'They are replaced by the product landing page');
-assert.equal(routed.length, 8);
+assert.equal(routed.length, 10);
 frappe.boot.pearnly_profile_allowed = false;
 visit('Form', 'User', 'a@b.co');
 assert.equal(rendered.length, 4, 'The own profile closes when the product does not grant it');

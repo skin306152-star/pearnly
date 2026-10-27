@@ -142,6 +142,14 @@ class HeadEntries(unittest.TestCase):
                              ({"Form/User": ["Save"], "*": ["selection"]}, ["ctrl+s"], ["query-report/X"]))
             self.assertEqual(navigation.head_entries("erp"), ({}, [], []))  # 没声明 = 一个都不放
 
+    def test_product_pages_are_the_declared_implemented_ones(self):
+        from pearnly_core.desk import navigation
+
+        declared = {"cowork": {"pages": [["a", "pearnly-intake", "i", ""], ["b", "pearnly-soon", "i", ""]],
+                               "available": ["pearnly-intake", "pearnly-cashier"]}}
+        with mock.patch.object(navigation, "_declarations", lambda: declared):
+            self.assertEqual(navigation.product_pages("cowork"), ["pearnly-intake"])  # 没实现的、没声明的共用页都不算
+
 
 if __name__ == "__main__":
     unittest.main()
