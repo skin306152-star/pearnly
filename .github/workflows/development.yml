@@ -23,6 +23,8 @@ jobs:
         run: python3 tests/test_native_desk_contract.py
       - name: Every whitelisted endpoint reaches a guard or is registered as own data or public
         run: python3 tests/test_unguarded_endpoints.py
+      - name: The endpoints found without a permission check stay closed
+        run: python3 tests/test_endpoint_guard_fixes.py
       - name: Download file names in Chinese or Thai are sent as RFC 5987 with an ASCII fallback
         run: python3 tests/test_download_filenames.py
       - name: Keep each ERP boot item independent of the others
