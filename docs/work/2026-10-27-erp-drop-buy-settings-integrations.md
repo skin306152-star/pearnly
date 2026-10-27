@@ -40,7 +40,7 @@
 
 - 删 core 页面目录 `page/pearnly_buy_settings`、`page/pearnly_integrations`；core 补丁删站点上的两条 Page 记录。
 - ERP `pearnly_navigation`：`pages` 去掉两项；采购组只剩采购记录、供应商；「主数据」组（只有集成）整组删。
-- 旧书签映射（`www/pearnly-app.html`）去掉两项；旧 Vue 对照侧栏清单（`frontend/src/lib/nav.ts`）去掉 ERP 的两项；一次性实验校验脚本
+- 旧书签映射（`www/pearnly-app.html`）去掉两项；旧 Vue 对照侧栏清单（`frontend/src/lib/nav.ts`）去掉 ERP 的两项，图标表（`icons.ts`）去掉 `/purchase-settings`（验收 10-27 指出）；一次性实验校验脚本
   `scripts/cowork-preparation-upgrade-verify.py` 的页面名单去掉两项。
 - 词条 `nav.purchaseSettings` 从术语表与四种语言翻译包删除。
 - 删没有调用方的白名单接口 `purchasing.api.api_get_settings` / `api_update_settings` 与兼容入口 `purchase.py` 里的同名转出（主会话 10-27 定）。
@@ -69,3 +69,11 @@
 | `shared.page-head-declared` 页头与框架路由 | 通过（两页地址换首页；页头声明 `check-entries` 110 个调用点无漏登记） |
 | `erp.provisioning` 开户后初始化 | 部分：实验站点按 install-app + migrate 建，菜单与页面齐；没走控制面正式开户（本批不改开户步骤） |
 | `erp.line.chat`、`erp.cc.connect`、`erp.masters.scope`、`erp.execution`、`dms.liff.id-scan`、`shared.page-errors` | 没测到：只因改到 `hooks.py` / core 被列出，本批只动 `pearnly_navigation` 的页面声明与两张占位页，不涉及这些链路 |
+
+## 验收复核（10-27，8bd92357 通过）
+
+- 补丁三站点执行、两页记录与角色行删除；侧栏、两个地址、旧书签、三个接口（回「方法不存在」）都符合预期；部署完成后再合。
+- 顺手：旧 Vue 图标表里 `/purchase-settings` 一条与它独用的图标引用删掉（`/integrations` 那条 Cowork 旧侧栏还在用，保留）。
+- 验收提的「白名单换首页时控制台多一条 Uncaught (in promise) Object」：实验站点抓了被拒的原因，全是页面数据接口的失败响应
+  （首页的计费接口「计费服务暂不可用」——实验栈没有计费服务；产品页数据接口无权限），没有一条来自路由本身。被换回首页的次数里几乎都有，
+  是因为落到首页就会调计费接口。生产有计费服务，不会出现；路由不改。

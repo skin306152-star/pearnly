@@ -21,7 +21,6 @@ import IconStockOut from "~icons/lucide/package-minus";
 import IconStockCard from "~icons/lucide/table-2";
 import IconPurchase from "~icons/lucide/shopping-cart";
 import IconSuppliers from "~icons/lucide/truck";
-import IconSettings from "~icons/lucide/settings-2";
 import IconSales from "~icons/lucide/receipt";
 import IconRecords from "~icons/lucide/list";
 import IconRoster from "~icons/lucide/id-card";
@@ -47,7 +46,6 @@ const BY_ROUTE: Record<string, Component> = {
   "/stock-card": IconStockCard,
   "/purchase": IconPurchase,
   "/suppliers": IconSuppliers,
-  "/purchase-settings": IconSettings,
   "/sales": IconSales,
   "/records": IconRecords,
   "/roster": IconRoster,
