@@ -36,6 +36,7 @@ DOCS = {
     "pos_sale_b": ("ERP Sale", "Pearnly POS Receipt", "ใบเสร็จรับเงิน"),
     "shift_a": ("ERP Shift", "Pearnly Shift Summary", ""),
     "shift_b": ("ERP Shift", "Pearnly Shift Summary", ""),
+    "shift_open_a": ("ERP Shift", "Pearnly Shift Summary", ""),  # 开着的班：应拒
     "count_open_a": ("ERP Stock Count", "Pearnly Stock Count", ""),
     "count_posted_a": ("ERP Stock Count", "Pearnly Stock Count", ""),
 }
@@ -72,6 +73,8 @@ def main(fixture: str) -> None:
                     if line.startswith("SID ")), "")
         try:
             for key, (doctype, fmt, title) in DOCS.items():
+                if key not in names:
+                    continue
                 query = urllib.parse.urlencode({"doctype": doctype, "name": names[key], "format": fmt, "no_letterhead": 1})
                 status, body = fetch(f"/printview?{query}", sid)
                 html = classify(status, body, title)

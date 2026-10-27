@@ -88,4 +88,9 @@ out.app_menu = await open(document.querySelector(".body-sidebar .sidebar-header"
 const userEl = [...document.querySelectorAll(".body-sidebar-bottom a, .body-sidebar-bottom .btn, .body-sidebar-bottom [data-toggle], .body-sidebar .sidebar-user, .navbar .avatar")]
   .filter(visible).find((el) => (el.innerText || "").includes(frappe.session.user) || el.querySelector(".avatar"));
 out.user_menu = userEl ? [`${text(userEl)} → ${(userEl.closest("a[href]") && userEl.closest("a[href]").getAttribute("href")) || "(点击跳转)"}`] : [];
+// 实际渲染的是什么：框架路由、露出来的页面容器、是不是原生列表 / 表单（以及列表行数），判漏出时按它看，不只看地址
+const shown = frappe.container?.page || null;
+out.view = { route: frappe.get_route ? frappe.get_route() : [], container: shown?.dataset?.pageRoute || shown?.id || "",
+  list: !!shown?.querySelector(".frappe-list"), rows: shown ? shown.querySelectorAll(".list-row-container, .list-row").length : 0,
+  form: !!shown?.querySelector(".form-layout") };
 return { ok: true, ...out };

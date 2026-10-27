@@ -39,6 +39,16 @@ def allowed(path: str, ours: set[str], account: str) -> bool:
     return parts[:2] == ["user", account] and len(parts) == 2
 
 
+def framework_view(inv: dict, ours: set[str]) -> bool | None:
+    """探针记下的「露出来的页面容器」是不是框架原生视图：是 → 真漏出；容器是我们的页或没有容器（地址变了、页面没换，
+    或弹了无权限框）→ 不算漏出，另列「没回首页」。旧快照没有这一项时回 None，按地址判。"""
+    view = inv.get("view")
+    if not view:
+        return None
+    container = view.get("container") or ""
+    return bool(container) and container not in ours
+
+
 def route_of(path: str) -> str:
     parts = [p for p in path.split("?")[0].split("/") if p]
     return parts[1] if len(parts) > 1 else ""
@@ -93,12 +103,16 @@ def matrix(paths: list[str]) -> None:
         ours = declared(product)
         roles = list(dict.fromkeys(row["role"] for row in items))
         opened = defaultdict(set)
+        stuck = defaultdict(set)
         for row in items:
             inv = row.get("inventory") or {}
             if not inv or inv.get("not_permitted"):
                 continue
             final = (row.get("final") or row["path"]).split("?")[0]
             if allowed(final, ours, row.get("account", "")):
+                continue
+            if framework_view(inv, ours) is False:
+                stuck[final].add(row["role"])
                 continue
             parts = final.strip("/").split("/")
             # 具体记录（某个人、某张单）归成「<记录>」：同一类表单只算一个入口
@@ -108,6 +122,10 @@ def matrix(paths: list[str]) -> None:
         print("| 地址 | " + " | ".join(roles) + " |\n|---|" + "---|" * len(roles))
         for key in sorted(opened, key=lambda k: (-len(opened[k]), k)):
             print(f"| `/{key}` | " + " | ".join("✓" if role in opened[key] else "" for role in roles) + " |")
+        if stuck:
+            print(f"\n没漏出、但也没回首页的未声明地址（露出来的仍是我们的页或空白 / 无权限框）：")
+            for key in sorted(stuck):
+                print(f"- `{key}`：{'、'.join(sorted(stuck[key]))}")
 
 
 if __name__ == "__main__":

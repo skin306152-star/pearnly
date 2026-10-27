@@ -3,7 +3,7 @@
 //   crawl：顺着每页侧栏 / 顶栏下拉 / 主区里的站内 /desk、/app 链接继续打开（只读，不点按钮），最多 max_pages 页。
 // Chrome 路径：环境变量 SMOKE_CHROME，默认 macOS 的 Google Chrome。Node 22 起自带 WebSocket / fetch，不需要 Playwright。
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -121,6 +121,11 @@ try {
     const expression = `(async (args) => {\n${probeBody}\n})({})`;
     const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, timeout: 30000 }, sessionId).catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
     const value = result.result?.value ?? null;
+    // 可选：每页存一张截图（SMOKE_SHOTS=<目录>），判「露出来的是什么」时人看
+    if (process.env.SMOKE_SHOTS) {
+      const shot = await send("Page.captureScreenshot", { format: "png" }, sessionId).catch(() => null);
+      if (shot?.data) writeFileSync(join(process.env.SMOKE_SHOTS, `${seen.size}-${path.replace(/[^\w.-]+/g, "_").slice(0, 80)}.png`), Buffer.from(shot.data, "base64"));
+    }
     const finalUrl = (await send("Runtime.evaluate", { expression: "location.pathname + location.search", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
     console.log(JSON.stringify({ path, final: finalUrl, ready_ms: readyMs, error: result.exceptionDetails?.exception?.description || null, logs: [...logs], inventory: value }));
     if (job.crawl && value) {
