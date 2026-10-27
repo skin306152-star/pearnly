@@ -89,7 +89,27 @@
 `provisioning` 三个入口由开户三步实测覆盖；`upload-box` 15 个入口**没测到**——上传框代码也在 `product.js`，本次对 `product.js` 只改了
 `p.register` 一行（给自有页面打标记），上传走弹窗不走页头。
 
-## 生产数据（未做，需用户授权）
+## 生产数据修复（10-27 已做，用户同意，经主会话；只限 testcowork `pearnlyai@gmail.com`）
+
+- 入口：本机控制面用换池同一个 `pearnly_control.account.repool._queue` 把开户单 `PR-2026-0288` 的 `DEP-2026-0289:set_roles` 排回待执行
+  （载荷按当前目录 `api_reapply_payloads` 重算，与开户时逐字相同：管理员 Cowork Admin、基础 Desk User、功能 Cowork Intake），
+  本机常驻开通执行器 11:58 跑完（「Cloud step verified」），站点上走 `provisioning.ensure_feature_roles`。不手改库、不进数据库容器。
+  执行前控制面没有任何别的待执行步骤。
+- 执行前预核：这次要写的三条表权限（Cowork Admin × User / Contact、Cowork Intake × Intake Record）与站点现有的逐字段相同，重跑只改角色。
+- 回读：执行前 Cowork Admin、Cowork Intake、System Manager → 执行后 Cowork Admin、Cowork Intake、Desk User；修改历史 10-27 13:28（站点时间）
+  Administrator 拿走 System Manager、补回 Desk User；三条表权限不变；两个原生按钮的条件（User 表 permlevel ≥ 1 可写、能建 Email Account）
+  对这个账号都是 0，生产旧代码下个人页也不会再出这两个按钮。账号启用、System User。没有它的登录凭据、也不给真实账号建会话，
+  「能正常登录使用」请用户刷新 / 重登确认。
+
+## 同一缺陷的影响面（10-27 只读核对）
+
+- 生产全部 7 个业务站点（testcowork、erpcowork、ccdemo、testerp、mrerp、testdms、ris）：现在没有业务账号带 System Manager，没有启用账号缺 Desk User。
+- 10-19 以来 User 角色增删（`tabVersion`）：testcowork 三条（10-20 加 System Manager、10-26 丢 Desk User、10-27 修复）；ccdemo 10-20 新开户
+  两条（建号临时加 System Manager，14 秒后「设角色」拿走，正常开户流程）；其余站点没有。
+- 控制面 10-19 以来跑过的 `bind_user` / `set_roles`：只有 testcowork 换池（`bind_user`，没跟 `set_roles`——就是这次的缺口）与 ccdemo 开户
+  （`bind_user` 后紧跟 `set_roles`）。
+
+## 生产数据（原记录：未做，需用户授权——已于 10-27 完成，见上）
 
 testcowork 的 `pearnlyai@gmail.com` 现在仍带 System Manager、少了 Desk User。部署本分支后按钮会被白名单藏住，但角色本身要改回：
 拿走 System Manager、补回 Desk User（生产写操作，等用户同意；做法：web 容器里 `bench --site testcowork.pearnly.com execute` 调
