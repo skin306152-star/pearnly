@@ -66,6 +66,12 @@
 - 验收低优先 2：按台期初模板只列当前公司的仓（开按台时仓名在当前公司里认），不留别家同名的歧义行；几家公司都有账的商品开不起按台，
   记入「按公司开按台」后续项。
 
+服务端检查（6c92f4e8）：用例 test_erp_locations / test_opening_batch / test_erp_serials / test_erp_express_direct 全过；候选离线检查通过
+（第一次 137 是本机同时跑着别的窗口的实验栈、进程被杀，重跑通过）。**合入前还要跑本地 ERP 实验室（`pearnly-erp-pos-lab`，
+`infrastructure/compose/erp-pos-lab.yml`）的在库用例**：`erp-opening-lab-verify.py`（含新加的「建商品带期初、期初表仓库列」）、
+`erp-pos-lab-inventory-verify.py`、`erp-pos-lab-purchasing-verify.py`、`erp-pos-lab-sales-verify.py`、`erp-entry-lab-verify.py`、
+`erp-data-flow-lab-verify.py`——服务端不再兜底会碰到依赖卖货仓的老流程，离线检查不跑这些。
+
 前端待做（等 native-buttons、打印第二批合入）：采购 / 销售 / 出入库 / 期初 / 盘点的单头「仓库 + 库位」共用控件（行继承、可展开逐行改，
 选商品不再动行仓、库位只在商品建议库位属于该仓清单时预填）、删 `frappe.boot.pearnly_warehouse`、建商品对话框 / 整页 / Excel 的期初网格、
 期初页的仓库列、仓库页对接 Express 的公司隐藏「新建」；新按钮 / 控件按 `data-pearnly-action` 声明登记。
