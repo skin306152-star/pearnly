@@ -60,7 +60,7 @@ try {
   await sleep(1500);
   for (const [index, step] of (job.steps || []).entries()) {
     logs.length = 0;
-    const result = await send("Runtime.evaluate", { expression: `(async () => { const p = frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId)
+    const result = await send("Runtime.evaluate", { expression: `(async () => { const p = window.frappe && frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId)
       .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
     if (step.wait_ms) await sleep(step.wait_ms);
     if (step.shot && job.shots) {

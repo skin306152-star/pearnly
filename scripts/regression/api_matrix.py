@@ -100,7 +100,7 @@ def placeholders(cmd):
 
 
 # 守卫：本仓的 require / guard / deny 一类，框架的权限检查（frappe/permissions.py、get_list 的按权限拼条件 db_query.py）
-GUARD_NAME = __import__("re").compile(r"(^|_)(require|guard|has_permission|only_for|check|allowed|deny|permitted|can_|match_conditions)")
+GUARD_NAME = __import__("re").compile(r"(^|_)(require|guard|has_permission|only_for|check|allowed|deny|permitted|can_|match_conditions)|^has$")
 
 
 def _guard_tracer(seen):
