@@ -123,6 +123,11 @@
 			f("currency", "Currency", "Select", {options: "THB\nUSD\nEUR\nCNY\nJPY\nSGD", reqd: 1}), col(),
 			f("fx_rate", "Exchange Rate", "Float", {reqd: 1, precision: 6, depends_on: `eval:doc.currency !== '${state.defaults.settings.base_currency}'`}),
 			f("price_mode", "Prices Include Tax", "Select", {options: u.options(["exclusive", "inclusive"])}),
+			// 单头「仓库 + 库位」（多仓闭环 P1）：明细行跟着它，逐行可在「附加信息」里改
+			u.section("", {fieldname: "place_section"}),
+			...p.place.fields({labels: {warehouse: __("Warehouse"), location: __("Location")}, editable,
+				current: () => state.form?.get_value("warehouse"), onchange: key => state.place?.changed(key)})
+				.flatMap((field, index) => index ? [col(), field] : [field]),
 			u.section(""), f("lines", "Items", "HTML"),
 			f("add_line", "Add row", "Button", {hidden: !editable, click: () => state.add_line?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),

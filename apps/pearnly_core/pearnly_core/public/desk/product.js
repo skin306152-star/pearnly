@@ -783,6 +783,7 @@ frappe.provide("frappe.pearnly");
 				const t = await p.texts(prefix);
 				await render(page, t, wrapper);
 			} catch (error) {
+				if (p.not_permitted(error)) return;
 				console.error(error);
 				page.set_title_sub(__("Unable to load this page. Please reload."), "red");
 			}
@@ -806,7 +807,11 @@ frappe.provide("frappe.pearnly");
 			const route = frappe.get_route();
 			if (route[0] !== root) return;
 			const request = ++sequence;
-			await render(rest_of(route, root), () => request === sequence);
+			try {
+				await render(rest_of(route, root), () => request === sequence);
+			} catch (error) {
+				if (request !== sequence || !p.not_permitted(error)) throw error;
+			}
 		};
 		wrapper.on_page_show = () => { p.restore_sidebar(); void show(); };
 		$(wrapper).on("hide", () => { ++sequence; });
@@ -832,12 +837,33 @@ frappe.provide("frappe.pearnly");
 	p.clear_page = (page) => {
 		page.page_form.detach();
 		page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
-		page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
-		// 右上角那排图标也要清（每进一次列表就会重加一遍，不清就越堆越多）。用原生 `clear_icons()`。
-		page.clear_icons?.();
+		page.clear_fields(); page.fields_dict = {};
 		page.hide_form();
-		page.clear_primary_action(); page.clear_indicator();
+		p.clear_actions(page); page.clear_indicator();
 	};
+	// 页头入口全部清掉，再由新的那一态按自己的状态重加（页内从一条记录切到另一条也走这里）。
+	// 原生 `add_inner_button` 同时往「⋯」菜单里加一项给窄屏用，`clear_inner_toolbar()` 只清工具栏、不清菜单——
+	// 只清工具栏时，上一张单的「导出」「结束盘点」会留在菜单里（验收 10-27：盘点页页内切单）。
+	// 右上角那排图标也要清（每进一次列表就会重加一遍，不清就越堆越多）。
+	p.clear_actions = (page) => {
+		page.clear_inner_toolbar(); page.clear_menu();
+		page.clear_primary_action(); page.clear_secondary_action?.();
+		page.clear_custom_actions?.(); page.clear_icons?.();
+	};
+	// 服务端拒绝读取（无权限）：换成框架原生的无权限页（图 + 官方文案 + 回首页），不留白屏、不抛未处理的错。
+	// 用单独的消息页：`show_not_permitted(本页名)` 会把本页的整个容器换掉，回列表时页面就没了。
+	// 原生请求层已对 403 弹过「没有权限」（关掉回上一页）；这里收起它，留在无权限页上。回 false = 不是无权限，调用方照常抛出。
+	p.not_permitted = (error) => {
+		const type = error?.responseJSON?.exc_type || error?.exc_type || "";
+		if (error?.status !== 403 && type !== "PermissionError") return false;
+		if (frappe.msg_dialog?.display) { frappe.msg_dialog.custom_onhide = null; frappe.msg_dialog.hide(); }
+		frappe.show_not_permitted("pearnly-not-permitted");
+		return true;
+	};
+	// 自己按路由重绘的页面（不走 `p.routed_page` 的）用它包住那一次重绘：无权限换成原生无权限页，其余照常抛出。
+	p.guard_route = (task) => Promise.resolve(task).catch(error => {
+		if (!p.not_permitted(error)) throw error;
+	});
 
 	// 多级面包屑：原生 Custom crumb 只画一个节点。这里把整条路径交给框架自己渲染
 	// （存在 `breadcrumbs.all` 里，重绘、返回、刷新都能复原），而不是临时插 DOM；窄屏

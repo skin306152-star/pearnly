@@ -76,6 +76,49 @@
 选商品不再动行仓、库位只在商品建议库位属于该仓清单时预填）、删 `frappe.boot.pearnly_warehouse`、建商品对话框 / 整页 / Excel 的期初网格、
 期初页的仓库列、仓库页对接 Express 的公司隐藏「新建」；新按钮 / 控件按 `data-pearnly-action` 声明登记。
 
+### P1 前端（10-27，native-buttons、打印第二批合入后变基到 ab823298 开工）
+
+- **单头「仓库 + 库位」共用控件**（`transactions.js` 的 `p.place`）：采购、销售、入库、出库同一套——仓库 Link（当前公司启用的仓）、
+  库位 Autocomplete（按这个仓的清单）。新单按 `warehouses.api_prefill` 预填（本人上次 → 卖货仓（只给进货类）→ 唯一仓 → 空 = 必须选）；
+  改单头：还跟着单头的行一起换（行上仓空着或等于旧单头仓的换仓并取新单头库位；同仓里库位空着或等于旧单头库位的换库位），
+  逐行在「附加信息」里改过的行不动；换仓时单头库位清空。选商品**不再改行仓、不再硬塞商品建议库位**（服务端 `positions.prepare` 只在
+  建议库位属于该仓清单时补）。老单没有单头时从明细推出（有货的行同仓 / 同库位才当单头）。
+- **单头存在单上**：`Purchase Document` / `ERP Sales Document` 加 `warehouse`、`location`，`ERP Stock Entry` 加 `location`（仓原来就有）。
+  服务端 `positions.header()` 核仓属于本公司且启用；`positions.prepare(line, 单头仓, location=单头库位)`：行上没写仓的用单头仓，没写库位、
+  又落在单头仓的用单头库位（单头写了就不拿商品建议库位顶掉）。LINE / 识别收单不带单头时照旧按行。**打印窗口要的字段名**：采购 / 销售单
+  `warehouse`（Link ERP Warehouse）+ `location`（Data）；出入库单 `warehouse` + `location`。
+- 盘点新建弹窗、期初页表头仓：同样按 `api_prefill`（`count` / `opening`）预填。期初页每行加「仓库」（空着 = 表头仓；Excel 导入认出的仓名
+  换成仓）。期初与盘点**不加单头库位**：期初行本来就逐行写库位；盘点范围按库位是 P3 的事。
+- 删掉启动数据 `frappe.boot.pearnly_warehouse`（`masters/boot.py` 与全部前端用法；登录时算一次、切公司不跟）。
+- **建商品带期初**：新建弹窗加可折叠「期初库存」网格（仓 / 库位 / 数量 / 成本，多行），整页每行在展开里带一组期初；交
+  `create_product(opening=…)`，与商品同一事务。只给能录期初的人、接 Express 的公司不出现（`p.express_company()`，服务端同样拒）。
+  **Excel 不另加期初列**：商品导入表照旧只建商品，期初走库存页期初表（已有 Excel、现在带仓库列），避免两份期初表格式。
+- **仓库页**：接 Express 的公司不出「新建」（主按钮、空列表、别处选择框点「新建」跳来的都不出；跳来的说服务端同一句「请在 Express 中建仓库，
+  再在公司页点「同步 Express」」）。
+- 新增文案只有一条：`product.field.opening`「期初库存」（四语）。没有新的页头按钮（单头两格、期初网格都是表单字段），`hooks.py` actions 不变。
+
+### 两条存量缺陷（验收 10-27，主会话并入 P1，按类修）
+
+1. **页内切换记录不清页头菜单**。根因：原生 `page.add_inner_button` 同时往「⋯」菜单加一项（窄屏用，`hidden-xl`），`clear_inner_toolbar()`
+   只清工具栏、不清菜单；盘点页切单时只清了工具栏和主按钮，上一张的「导出」「结束盘点」留在菜单里。修：core `p.clear_actions(page)`
+   一次清工具栏、菜单、主 / 次按钮、自定义按钮、图标；`p.clear_page` 走它；ERP 盘点、Cowork 盘点、Cowork 对账三个自己清页头的页面改用它
+   （其余产品页都走 `p.clear_page`，已覆盖）。
+2. **无权限打开详情页白屏**。根因：详情接口 403 抛进路由重绘，没人接，页面停在空白、控制台 `Uncaught (in promise)`。修：core
+   `p.not_permitted(error)` 认出 403 / `PermissionError` → 收起请求层那个关掉会跳回上一页的弹窗 → 换成框架原生无权限页
+   （`frappe.show_not_permitted("pearnly-not-permitted")`，单独的消息页，不毁掉本页容器）；`p.routed_page`、`p.register` 的首次渲染、
+   自己按路由重绘的页面（`p.guard_route`）都接上；其它错误照常抛出。
+- 测试：`tests/test-desk-place-and-switch.cjs`（接进 CI）：清页头范围、无权限页与不吞别的错、`p.place` 跟随规则、老单推单头、预填走接口、
+  按类静态扫描（不再有只清工具栏不清菜单的写法、自建路由页都包 `guard_route`、前端不再读 `pearnly_warehouse`）。
+  `test_erp_locations` 加单头仓 / 库位给行当默认。
+- 冒烟基线：新探针 `record_switch`（打开 A 状态再页内切到 B 状态，页头 + 菜单与 B 一致、无 A 的残留）、`not_permitted`（受限账号打开别人
+  建的单：原生无权限页、无未捕获错误；受限账号由 `SMOKE_USER_ERP_LIMITED` 给，没配记「没测到」；单号由 `scripts/smoke/pick_doc.py`
+  在容器里只读挑）。登记入口：`erp.stock-count.switch.*` 两条、`erp.purchase.detail.not-permitted`、`erp.sales.detail.not-permitted`（auto），
+  `cowork.stocktake.switch`、`erp.place.header`、`erp.products.new-dialog.opening`、`erp.inventory.opening.row-warehouse`、
+  `erp.warehouses.express-new-hidden`（manual）。
+
+旁见（不在本任务范围，记作后续项）：`tests/test_stock_opening_ui.js`、`tests/test-stock-entry.cjs`、`tests/test-product-multi.cjs`、
+`tests/test-product-scan.cjs` 在改动前（变基后的 HEAD）就全部失败，也不在 CI 里——是过期的页面测试，要么修要么删。
+
 ## 暂停点（10-26 晚，用户指示全部窗口就地暂停；10-27 已按此继续）
 
 - P0 六项代码与用例都已写完并提交在本分支（G13、G16 两项、G17 两项、G15），本地用例全过；闸门（132 项）跑在 G17 提示改动之前的内容上，

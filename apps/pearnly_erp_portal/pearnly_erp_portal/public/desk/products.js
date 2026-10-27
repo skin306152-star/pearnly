@@ -211,8 +211,27 @@
 			delete out.code_value;
 			// 开 / 关按台不走保存商品的接口（`toggle_serial`）
 			delete out.track_serial;
+			// 期初库存网格 → 服务端 `create_product(opening=…)`：只交有数量的行（与商品同一事务建，多仓闭环 P1 G1）
+			if (out.opening) out.opening = opening_rows(out.opening);
 			return out;
 		}
+
+		// ── 建商品顺手放期初（多仓闭环 P1 G1）──────────────────────────────────
+		// 能录期初的人才出现（同库存页「录入期初库存」入口）；接了 Express 的公司期初从 Express 读回，不出现（服务端同样拒）。
+		const can_open = () => Boolean(frappe.boot.pearnly_pages?.includes("pearnly-stock-in")) && !p.express_company();
+		// 一件商品放进几个仓 / 库位：原生 Grid，仓库默认按 `warehouses.prefill` 预填
+		const opening_grid = warehouse => [
+			{ fieldtype: "Section Break", label: t("product.field.opening"), collapsible: 1, collapsed: 1 },
+			{ fieldtype: "Table", fieldname: "opening", label: t("product.field.opening"), data: [], fields: [
+				{ fieldtype: "Link", fieldname: "warehouse", options: "ERP Warehouse", label: __("stock.col.warehouse"),
+					get_query: p.warehouse_query(), only_select: true, reqd: 1, in_list_view: 1, columns: 3, default: warehouse || "" },
+				{ fieldtype: "Data", fieldname: "location", label: __("stock.count.location"), in_list_view: 1, columns: 2 },
+				{ fieldtype: "Float", fieldname: "qty", label: __("stock.opening.qty"), in_list_view: 1, columns: 2 },
+				{ fieldtype: "Currency", fieldname: "unit_cost", options: "THB", label: __("stock.opening.cost"), in_list_view: 1, columns: 2 },
+			] },
+		];
+		const opening_rows = rows => (rows || []).filter(row => Number(row.qty) > 0)
+			.map(row => ({ warehouse: row.warehouse, location: row.location || "", qty: row.qty, unit_cost: row.unit_cost }));
 
 		// ── 按台管理 ────────────────────────────────────────────────────────────
 		const SERIALS = "pearnly_erp_portal.inventory.serials.";
@@ -420,9 +439,10 @@
 		async function open_quick() {
 			const preview_code = (await p.call(api + "api_next_product_code")).code;
 			const { fields, state } = product_fields({product_name: inline?.initial || ""}, preview_code);
+			const opening = can_open() ? opening_grid(await p.place.prefill("opening")) : [];
 			const dialog = p.dialog(
 				t("product.action.new"),
-				fields,
+				[...fields, ...opening],
 				t("product.action.submit"),
 				async (values, d) => {
 					const saved = await p.call(api + "api_create_product",
@@ -438,7 +458,10 @@
 			attach_scan_icon(dialog, state, null);
 			// 左下角那颗"全屏编辑"（官方插槽）：要批量建、或者字段在弹窗里挤，就进二级页面。
 			if (!inline) p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
-				carry = { ...values, __scanned: state.scanned };
+				// 期初网格的第一行带到整页那一行的期初格（整页一行一个位置）
+				const [first] = opening_rows(values.opening);
+				carry = { ...values, __scanned: state.scanned, ...(first ? { opening_warehouse: first.warehouse,
+					opening_location: first.location, opening_qty: first.qty, opening_cost: first.unit_cost } : {}) };
 			});
 			return dialog;
 		}
@@ -455,6 +478,7 @@
 		// "列超限"模式（横向滚动），右侧的列会被切在可视区外 —— 用户看到的就是"后面的字段
 		// 都看不到了"。所以只留最常用的四列，其余（单位/库存单位/默认仓库/默认仓位/参考成本/
 		// 分类/低库存/批次/有效期/VAT/图片）都在行展开里。
+		let opening_warehouse = "";
 		const grid_fields = () => [
 			{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
 				reqd: 1, in_list_view: 1, columns: 3 },
@@ -483,6 +507,14 @@
 				columns: 1 },
 			{ fieldtype: "Attach Image", fieldname: "image_url", label: t("product.field.image"),
 				columns: 2 },
+			// 期初库存（多仓闭环 P1 G1）：一行一个位置，在行展开里；要放进几个仓用弹窗的期初网格或库存页的期初表
+			...(can_open() ? [
+				{ fieldtype: "Link", fieldname: "opening_warehouse", options: "ERP Warehouse", label: __("stock.col.warehouse"),
+					get_query: p.warehouse_query(), only_select: true, columns: 2, default: opening_warehouse },
+				{ fieldtype: "Data", fieldname: "opening_location", label: __("stock.count.location"), columns: 2 },
+				{ fieldtype: "Float", fieldname: "opening_qty", label: __("stock.opening.qty"), columns: 2 },
+				{ fieldtype: "Currency", fieldname: "opening_cost", options: "THB", label: __("stock.opening.cost"), columns: 2 },
+			] : []),
 		];
 
 		async function open_new() {
@@ -492,6 +524,7 @@
 			carry = null;
 			// 编码由服务端在入库那一刻发；这里只是把"本次从哪个号开始"写进提示给人看。
 			const start_code = (await p.call(api + "api_next_product_code")).code;
+			if (can_open()) opening_warehouse = await p.place.prefill("opening");
 			form = p.layout(page.main, [
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "Table", fieldname: "products", label: t("product.new.lines"),
@@ -549,6 +582,8 @@
 				vat_applicable: row.vat_applicable,
 				image_url: row.image_url,
 				...code_payload(row.code_value, row.__scanned),
+				...(Number(row.opening_qty) > 0 ? { opening: opening_rows([{ warehouse: row.opening_warehouse,
+					location: row.opening_location, qty: row.opening_qty, unit_cost: row.opening_cost }]) } : {}),
 			});
 
 			async function submit_all() {

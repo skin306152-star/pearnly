@@ -830,6 +830,7 @@ Opening quantity,期初数量
 Opening quantity already recorded in stock,已记入库存的期初数量
 Opening quantity and unit cost are required and must be non-negative,期初数量和成本单价必填，且不能小于零
 Opening quantity supports six decimal places and unit cost supports two,期初数量最多六位小数，成本单价最多两位小数
+Opening stock,期初库存
 Opening stock changed. Preview the rows again before submitting.,期初数据已变化，请重新预览核对后再入账。
 Opening stock files cannot contain formulas or error cells,期初文件不能包含公式或错误单元格，请粘贴为数值
 Opening stock is read from Express,期初从 Express 读取
@@ -2140,6 +2141,7 @@ product.field.minStock,低库存提醒
 product.field.name,物料名称
 product.field.nameEn,英文名
 product.field.nameZh,中文名
+product.field.opening,期初库存
 product.field.price,售价
 product.field.qr,二维码内容
 product.field.search,搜索名称或条码

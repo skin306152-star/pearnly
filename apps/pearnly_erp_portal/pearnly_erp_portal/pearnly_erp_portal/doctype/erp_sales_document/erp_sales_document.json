@@ -10,6 +10,8 @@
   "source",
   "system_no",
   "doc_date",
+  "warehouse",
+  "location",
   "customer",
   "column_break_buyer",
   "buyer_name",
@@ -97,6 +99,17 @@
    "default": "Today",
    "reqd": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
   },
   {
    "fieldname": "system_no",
@@ -385,7 +398,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 12:00:00.000000",
+ "modified": "2026-10-27 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sales Document",
  "owner": "Administrator",

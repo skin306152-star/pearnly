@@ -88,6 +88,10 @@
 			f("party_type", "trade.buyerType", "Select", {options: u.options(["company", "person", "foreign", "anonymous"])}), col(),
 			f("address", "Address", "Small Text"),
 			u.section("Items", {fieldname: "items_section"}),
+			// 单头「仓库 + 库位」（多仓闭环 P1）：明细行跟着它，逐行可在「附加信息」里改
+			...p.place.fields({labels: {warehouse: __("Warehouse"), location: __("Location")}, editable,
+				current: () => state.form?.get_value("warehouse"), onchange: key => state.place?.changed(key)})
+				.flatMap((field, index) => index ? [col(), field] : [field]),
 			u.section(""), f("lines", "Items", "HTML"),
 			f("add_line", "purchase.action.addLine", "Button", {hidden: !editable, click: () => state.add_line?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),

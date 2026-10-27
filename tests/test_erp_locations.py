@@ -119,6 +119,28 @@ class Locations(unittest.TestCase):
         W.update_warehouse("W2", is_active=0)  # 没有货：照停
         self.assertEqual(docs["W2"].is_active, 0)
 
+    def test_the_header_warehouse_and_location_lead_the_lines(self):
+        """多仓闭环 P1 单头「仓库 + 库位」：行上没写仓的用单头仓；没写库位、又在单头仓的用单头库位（单头写的不再拿商品建议库位
+        顶掉）；行上明写的照旧；换到别的仓的行取商品建议库位（不在那个仓清单里就留空）。没写单头仓时库位也不留。"""
+        product = types.SimpleNamespace(is_active=1, default_location="A-02")
+        for target, value in (("receiving", lambda value, company=None: value or "W1"),
+                              ("required", lambda value, company=None: value)):
+            patcher = mock.patch.object(P.warehouses, target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(P.frappe.db, "get_value", lambda *a, **k: product, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.assertEqual(P.header("W1", " A-01 "), {"warehouse": "W1", "location": "A-01"})
+        self.assertEqual(P.header("", "A-01"), {"warehouse": None, "location": ""})
+        line = {"product": "P-1", "item_type": "goods"}
+        self.assertEqual(P.prepare(line, "W1", location="A-01"), {**line, "warehouse": "W1", "location": "A-01"})
+        self.assertEqual(P.prepare({**line, "location": "B"}, "W1", location="A-01")["location"], "B")
+        self.assertEqual(P.prepare(line, "W1")["location"], "A-02")  # 单头没写库位：商品建议库位（在清单里）
+        self.assertEqual(P.prepare({**line, "warehouse": "W2"}, "W1", location="A-01"), {**line, "warehouse": "W2", "location": "A-02"})
+        product.default_location = "Z-99"
+        self.assertEqual(P.prepare(line, "W1")["location"], "")  # 建议库位不在 W1 清单：留空让人选
+
     def test_a_cash_register_binds_only_an_active_warehouse(self):
         """G16：收银台只能绑启用着的仓；仓后来停用了，旧收银台不换仓照样能存（改名等）。"""
         from pearnly_erp_portal.pearnly_erp_portal.doctype.erp_pos_terminal import erp_pos_terminal as T

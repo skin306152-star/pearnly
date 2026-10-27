@@ -58,11 +58,11 @@
 			// 仓库用**官方原生**的 Link 到 `ERP Warehouse`（用户 2026-09-23："我说用官方原生，
 			// 这是第四遍了"）：下拉里只列**当前公司**的仓库；没找到时 Link 自己会带
 			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
-			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
-				label: t("trade.warehouse"), default: doc.warehouse, reqd: 1,
-				get_query: p.warehouse_query(), only_select: true,
-				// 表头一改，每一行里那格镜像跟着改（行里的仓库是**同一个**仓库，只是也显示在行里）。
-				onchange: () => sync_lines_warehouse() },
+			// 单头「仓库 + 库位」（多仓闭环 P1，采购 / 销售 / 期初 / 盘点同一套 `p.place`）：表头一改，每一行里那格仓库镜像跟着改，
+			// 库位还跟着表头的行一起换。
+			...p.place.fields({ labels: { warehouse: t("trade.warehouse"), location: t("trade.location") }, editable, reqd: true,
+				warehouse: doc.warehouse, location: doc.location, current: () => head?.fields_dict?.warehouse?.get_value(),
+				onchange: key => place?.changed(key) }),
 			...(editable
 				// 明细的宿主（HTML 格）与"添加明细"那颗官方按钮：真正的控件由 `mount_lines` 建。
 				? [{ fieldtype: "HTML", fieldname: "lines" },
@@ -81,31 +81,19 @@
 			// 单据号永远是只读的（上面那次 map 会把它放开）。
 			.map(field => (field.fieldname === "doc_no" ? { ...field, read_only: 1 } : field));
 
-		// 行里的「仓库」= 表头那一个（镜像，只读）。所以：
-		//   · 表头变了 → 每一行跟着变（`sync_lines_warehouse`）；
-		//   · 选物料时，**这家公司卖货的那个仓**建议给表头（只在表头还空着时填，不覆盖用户
-		//     选的）。商品上那个"默认仓"已经删掉 —— 进货与卖货得是同一个仓，数量与金额
-		//     才对得上（用户 2026-09-24）。
-		function sync_lines_warehouse() {
-			lines?.set_warehouse(head?.fields_dict?.warehouse?.get_value() || "");
-		}
-		function suggest_warehouse(name) {
-			const control = head?.fields_dict?.warehouse;
-			if (!name || !control) return;
-			if (String(control.get_value() || "").trim()) return;
-			void control.set_value(name);
-			sync_lines_warehouse();
-		}
-
+		// 行里的「仓库」= 表头那一个（镜像，只读）；表头的仓库 / 库位一变，行跟着变（`p.place.track` → `lines.follow`）。
+		// 新单的仓按服务端 `warehouses.prefill` 预填（本人上次 → 卖货仓（只给入库）→ 唯一仓 → 空 = 必须选），选物料不再改它。
+		let place = null;
 		// 把逐条明细挂到某一处（弹窗 / 整页），并把实例记在闭包上（按钮、取值、搬家都要用）。
 		function mount_lines(container, rows, target) {
 			head = target;
+			const value = key => head?.fields_dict?.[key]?.get_value() || "";
 			lines = p.trade.lines_editor(t, { cost: true, locked_price: !priced, data: rows || [],
-				suggest_warehouse, warehouse: () => head?.fields_dict?.warehouse?.get_value() || "" });
+				warehouse: () => value("warehouse"), location: () => value("location") });
+			place = p.place.track(head, () => lines.rows());
 			container.empty().append(lines.host);
 			const initial = (rows && rows.length) ? rows : [{ qty: 1 }];
 			initial.forEach(row => lines.add(row));
-			sync_lines_warehouse();
 			return lines;
 		}
 
@@ -114,7 +102,7 @@
 			? { mode: "pick", filters: { warehouse: values.warehouse } }
 			: { mode: values.purpose === "return" ? "return" : "register" });
 		const clean = values => ({ posting_date: values.posting_date,
-			warehouse: values.warehouse, purpose: values.purpose || "", reason: values.reason,
+			warehouse: values.warehouse, location: values.location || "", purpose: values.purpose || "", reason: values.reason,
 			lines: p.trade.clean(values.lines) });
 		const PURPOSES = { in: ["return", "other"], out: ["internal_use", "damage", "other"] };
 		// 这页的 `t` 只加载 `trade.` 前缀；用途的词条走原生 `__()`（键名词条同样认得）。
@@ -266,6 +254,7 @@
 			const doc = name ? await p.call(api + "api_get_stock_entry", { name }) : {};
 			// 草稿（含老数据留下的）可以提交；已提交/已作废只能看。
 			const editable = canWrite && (!name || doc.status === "draft");
+			if (editable && !doc.warehouse) doc.warehouse = await p.place.prefill(`stock_${direction}`);
 			const posting_date = doc.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default(doc, posting_date);
 			let d;
@@ -326,6 +315,7 @@
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
 			carry = null;
+			if (!values.warehouse) values.warehouse = await p.place.prefill(`stock_${direction}`);
 			// 带过来的明细行（弹窗里已经填好的那些）原样铺成逐条的小表单。
 			const data = (values.lines?.length ? values.lines : null) || [{ qty: 1 }];
 			const posting_date = values.posting_date || frappe.datetime.get_today();

@@ -254,6 +254,8 @@ jobs:
         run: node --test tests/test-desk-texts.cjs
       - name: Verify the narrow-screen breadcrumb menu lists each destination once
         run: node --test tests/test-desk-breadcrumbs.cjs
+      - name: Verify switching records clears the page head menu, refused detail pages show the native not permitted page, and the header warehouse leads the lines
+        run: node --test tests/test-desk-place-and-switch.cjs
       - name: Verify every page uses the official Frappe sound for each kind of action
         run: node --test tests/test-desk-sounds.cjs
       - name: Verify long text fields wrap in product forms

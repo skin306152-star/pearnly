@@ -193,17 +193,20 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
                     "status": ["!=", "void"]}, pluck="name")
         if any(key not in (name, amended_from) for key in duplicates):
             frappe.throw(_("Supplier Invoice No already exists"))
+    # 单头「仓库 + 库位」（多仓闭环 P1）：存在单上，行上没写的用它（LINE / 识别收单不带单头时照旧按行）
+    place = positions.header(payload.get("warehouse"), payload.get("location"), company=company)
     rows = []
     for row in totals["lines"]:
         row = purchase_items.resolve(dict(row), create=flag(payload.get("auto_create_product"), True),
                                      currency_rate=rate, company=company)
         if flag(payload.get("update_stock"), True) and row["item_type"] == "goods" and not row.get("product"):
             frappe.throw(_("Please select an Item"))
-        rows.append(positions.prepare(row, company=company))
+        rows.append(positions.prepare(row, place["warehouse"], company=company, location=place["location"]))
     if original:
         _cancel(original, _("Amended"))
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
     doc.company = company
+    doc.update(place)
     doc.update({"doc_kind": kind, "doc_date": day, "supplier": supplier, "supplier_name": supplier_name,
         "currency": payload.get("currency") or "THB", "fx_rate": rate,
         "system_no": doc.get("system_no") or numbering.allocate(direction="purchase", on=day,

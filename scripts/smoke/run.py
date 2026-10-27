@@ -18,6 +18,7 @@ line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、expres
   SMOKE_LAB_HOST          测试机 SSH 别名（lenovo-office-lan）；SMOKE_LAB_TEMP Windows 临时目录；SMOKE_LAB_WSL 发行版名
   SMOKE_PROD_HOST         生产 SSH 别名（pearnly），只在 --target production 用
   SMOKE_USER_ERP / _COWORK / _DMS   各测试租户冒烟用的账号（默认 Administrator）
+  SMOKE_USER_ERP_LIMITED 等          受限账号（只有某一岗位、看不到别人的单；入口 args 写 "as" = "limited" 的用它，没配记「没测到」）
   SMOKE_EXPRESS_USER      测试机 CC 上登录的 ERP 员工（Express 写入冒烟用；入口 args 里写了 user 时以它为准）
   SMOKE_COWORK_EXPRESS_USER  测试机 CC 上登录的 Cowork 录入人（Cowork 推送写 Express 冒烟用，同上）
   SMOKE_PAGE_LIMIT_MS     页面打开时限（默认 3000；入口 args 的 limit_ms 优先）：超过算不通过。大数据量要用 testerp 这种大账套跑，
@@ -49,7 +50,7 @@ reaper = importlib.util.module_from_spec(reaper_spec)
 reaper_spec.loader.exec_module(reaper)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
-READONLY_PROBES = {"page", "scan", "find_product", "assistant", "doc_detail"}
+READONLY_PROBES = {"page", "scan", "find_product", "assistant", "doc_detail", "record_switch", "not_permitted"}
 CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py", "cowork_express": "cowork_express_flow.py",
                     "api_time": "api_time.py"}
 # 写 Express 的探针要用测试机 CC 上登录过的员工（CC 只领他的单）：入口 args 里写了 user 时以它为准
@@ -208,19 +209,33 @@ def main(argv=None) -> int:
                 rows.append((entry, "通过" if result.get("ok") else "不通过",
                              str(result.get("summary") or "")[:200] if result.get("ok") else json.dumps(result, ensure_ascii=False)[:300]))
                 continue
-            if product not in sessions:
-                user = os.environ.get(f"SMOKE_USER_{product.upper()}", "Administrator")
-                extra = ("company", args.company) if args.company and product == "erp" else ()
+            # 受限账号（`"as" = "limited"`）：只有某一岗位、看不到别人的单的账号；没配就不测
+            limited = entry.args.get("as") == "limited"
+            user = os.environ.get(f"SMOKE_USER_{product.upper()}{'_LIMITED' if limited else ''}", "" if limited else "Administrator")
+            if not user:
+                rows.append((entry, "没测到", f"没配受限账号 SMOKE_USER_{product.upper()}_LIMITED"))
+                continue
+            probe_args = {"code": barcode.TEST_CODE, **entry.args}
+            if entry.smoke == "not_permitted":
+                output = remote.run(product, HERE / "pick_doc.py", site, entry.args["doctype"], user)
+                name = next((line[5:].strip() for line in output.splitlines() if line.startswith("NAME ")), "")
+                if not name:
+                    rows.append((entry, "没测到", f"没有别人建的 {entry.args['doctype']}"))
+                    continue
+                probe_args["name"] = name
+            key = (product, user)
+            if key not in sessions:
+                extra = ("company", args.company) if args.company and product == "erp" and not limited else ()
                 output = remote.run(product, HERE / "session.py", site, user, *extra)
                 sid = next((line.split()[1] for line in output.splitlines() if line.startswith("SID ")), "")
                 previous = next((line.split()[1] for line in output.splitlines() if line.startswith("PREV ")), None)
                 if not sid:
                     print(f"建会话失败（{site} {user}）：{output[-300:]}", file=sys.stderr)
                     return 2
-                sessions[product] = (user, sid, previous)
+                sessions[key] = (user, sid, previous)
             url = f"https://{site}{entry.url}"
-            raw = drive({"url": url, "cookie_domain": site, "sid": sessions[product][1], "probe": entry.smoke,
-                         "args": {"code": barcode.TEST_CODE, **entry.args}, "video": str(video) if entry.smoke == "scan" else "",
+            raw = drive({"url": url, "cookie_domain": site, "sid": sessions[key][1], "probe": entry.smoke,
+                         "args": probe_args, "video": str(video) if entry.smoke == "scan" else "",
                          "wait_ms": 7000, "wait_for": "none" if entry.smoke == "assistant" else "frappe",
                          **({"screenshot": str(Path(args.shots).resolve() / f"{entry.id}.png")} if args.shots else {})})
             limit = int(entry.args.get("limit_ms", PAGE_LIMIT_MS)) if entry.smoke == "page" else None
@@ -228,7 +243,7 @@ def main(argv=None) -> int:
             rows.append((entry, state, why))
             print(f"{state}  {entry.id}  {why}", file=sys.stderr)
     finally:
-        for product, (user, sid, previous) in sessions.items():
+        for (product, _user), (user, sid, previous) in sessions.items():
             remote.run(product, HERE / "session.py", SITES[product], user, "drop", sid,
                        *((previous,) if previous is not None else ()))
         __import__("shutil").rmtree(workdir, ignore_errors=True)   # 测试条码视频的临时目录

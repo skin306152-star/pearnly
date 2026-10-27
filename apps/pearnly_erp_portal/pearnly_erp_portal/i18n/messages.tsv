@@ -70,6 +70,7 @@ The sheet needs a product name column	表格中必须包含物料名称列	ต�
 The first row must be the column headings; the sheet needs at least a product name column	第一行须为表头，且表格中至少包含物料名称列	แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์	1行目は見出し行です。少なくとも商品名の列が必要です	product.import.hint
 QR content	二维码内容	ข้อมูล QR	QR 内容	product.field.qr
 Image URL	图片地址	URL รูปภาพ	画像 URL	product.field.image
+Opening stock	期初库存	สต็อกยกมา	期首在庫	product.field.opening
 The product code cannot be changed	物料编码不可修改	ไม่สามารถแก้ไขรหัสสินค้าได้	商品コードは変更できません	product.error.codeLocked
 Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	product.field.codeAuto
 Choose file	选择文件	เลือกไฟล์	ファイルを選択	product.import.pick

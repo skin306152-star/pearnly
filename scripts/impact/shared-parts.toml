@@ -14,7 +14,7 @@ name = "产品外壳与页面注册（product.js）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css"]
 markers = ["pearnly.register("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.page.never.push-logs", "erp.page.never.reconcile", "erp.page.never.guide", "erp.page.never.history", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.never.buy-settings", "erp.page.never.integrations", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch"]
 
 [[part]]
 id = "page-errors"
@@ -120,9 +120,9 @@ entries = ["erp.page.purchase", "erp.page.sales", "erp.purchase.item-scan", "erp
 id = "erp-transactions"
 name = "ERP 单据共用（仓库查询、明细、Express 预检）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
-markers = [".warehouse_query", ".trade.", ".express_preflight(", ".terminal_query"]
+markers = [".warehouse_query", ".trade.", ".express_preflight(", ".terminal_query", ".place.", ".express_company("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts"]
+entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts", "erp.place.header", "erp.products.new-dialog.opening", "erp.inventory.opening.row-warehouse", "erp.warehouses.express-new-hidden"]
 
 [[part]]
 id = "erp-originals"
@@ -2166,3 +2166,100 @@ steps = "盘点 → 进行中的一份 → 打印（点数表）；已过账的�
 expect = "A4 竖：点数表不印账面数（盲盘），结果表印账面 / 实点 / 差异；每页 22 行续页"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
+
+[[entry]]
+id = "erp.stock-count.switch.posted-to-active"
+product = "ERP"
+where = "库存盘点详情：页内从已过账的一份切到进行中的一份"
+steps = "打开最新一份已过账的盘点 → 同一页里切到最新一份进行中的盘点"
+expect = "页头与「⋯」菜单只有进行中该有的（结束盘点），没有上一份留下的「导出」；控制台无报错（验收 10-27）"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_core/pearnly_core/public/desk/product.js"]
+smoke = "record_switch"
+url = "/desk/pearnly-stock-count"
+args = { "doctype" = "ERP Stock Count", "root" = "pearnly-stock-count", "first" = "Posted", "second" = "Active", "expect" = ["stock.count.close"], "absent" = ["stock.action.export"] }
+site = "erp"
+
+[[entry]]
+id = "erp.stock-count.switch.active-to-posted"
+product = "ERP"
+where = "库存盘点详情：页内从进行中的一份切到已过账的一份"
+steps = "打开最新一份进行中的盘点 → 同一页里切到最新一份已过账的盘点"
+expect = "页头与「⋯」菜单只有已过账该有的（导出），没有上一份留下的「结束盘点」；控制台无报错（验收 10-27）"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js", "apps/pearnly_core/pearnly_core/public/desk/product.js"]
+smoke = "record_switch"
+url = "/desk/pearnly-stock-count"
+args = { "doctype" = "ERP Stock Count", "root" = "pearnly-stock-count", "first" = "Active", "second" = "Posted", "expect" = ["stock.action.export"], "absent" = ["stock.count.close"] }
+site = "erp"
+
+[[entry]]
+id = "erp.purchase.detail.not-permitted"
+product = "ERP"
+where = "采购单详情：看不到别人单的采购岗打开同事的单"
+steps = "受限账号（只有采购岗）直接打开 /desk/pearnly-purchase/<别人建的单>"
+expect = "框架原生无权限页（图 + 官方文案 + 回首页），不白屏，控制台无未捕获错误（验收 10-27）"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js", "apps/pearnly_core/pearnly_core/public/desk/product.js"]
+smoke = "not_permitted"
+url = "/desk/pearnly-purchase"
+args = { "doctype" = "Purchase Document", "root" = "pearnly-purchase", "as" = "limited" }
+site = "erp"
+
+[[entry]]
+id = "erp.sales.detail.not-permitted"
+product = "ERP"
+where = "销售单详情：看不到别人单的销售岗打开同事的单"
+steps = "受限账号（只有销售岗）直接打开 /desk/pearnly-sales/<别人建的单>"
+expect = "框架原生无权限页，不白屏，控制台无未捕获错误（验收 10-27）"
+check = "auto"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js", "apps/pearnly_core/pearnly_core/public/desk/product.js"]
+smoke = "not_permitted"
+url = "/desk/pearnly-sales"
+args = { "doctype" = "ERP Sales Document", "root" = "pearnly-sales", "as" = "limited" }
+site = "erp"
+
+[[entry]]
+id = "cowork.stocktake.switch"
+product = "Cowork"
+where = "Cowork 盘点详情：页内从一份切到另一份（进行中 ↔ 已结束）"
+steps = "盘点 → 打开一份已结束的 → 同一页切到进行中的；再反过来"
+expect = "页头与「⋯」菜单只有当前这份状态该有的入口，没有上一份留下的；控制台无报错"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js", "apps/pearnly_core/pearnly_core/public/desk/product.js"]
+
+[[entry]]
+id = "erp.place.header"
+product = "ERP"
+where = "采购 / 销售 / 入库 / 出库单头「仓库 + 库位」（多仓闭环 P1）"
+steps = "多仓公司新建采购单：单头仓库已预填（本人上次 → 卖货仓 → 唯一仓 → 空）；换单头仓 → 明细行跟着换、单头库位清空；逐行改过的行不跟；选商品不改行仓；提交后详情单头显示所选仓与库位；销售、入库、出库同样走一遍；多仓公司单头不选仓提交被拒"
+expect = "货落到单头（或逐行改过的）仓与库位；不再落登录时的卖货仓；切公司后新建单按新公司预填"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/positions.py"]
+
+[[entry]]
+id = "erp.products.new-dialog.opening"
+product = "ERP"
+where = "物料 → 新建弹窗 / 整页的「期初库存」（多仓闭环 P1 G1）"
+steps = "新建商品，期初库存填两行（两个仓，各带库位、数量、成本）→ 提交；整页一行带期初；接 Express 的公司不出现这一节"
+expect = "商品与期初同一事务建成（库存一览两个仓各有数、收发存有 OPN）；任何一行不成整件商品都不建；库位不在该仓清单被拒"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py"]
+
+[[entry]]
+id = "erp.inventory.opening.row-warehouse"
+product = "ERP"
+where = "库存 → 录入期初：每行「仓库」（多仓闭环 P1 G5）"
+steps = "表头仓已预填；两行各选不同的仓（一行空着 = 表头仓）→ 预览 → 提交；Excel 带仓库列导入"
+expect = "各行落到各自的仓；库位在预览就按这一行的仓的清单核"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-opening.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py"]
+
+[[entry]]
+id = "erp.warehouses.express-new-hidden"
+product = "ERP"
+where = "仓库页：当前公司接了 Express"
+steps = "切到接了 Express 的公司 → 仓库页；别处仓库选择框点「新建」跳过来"
+expect = "没有「新建」按钮、空列表也不出新建；跳过来的说「请在 Express 中建仓库，再在公司页点「同步 Express」」；没接 Express 的公司照旧能新建"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/warehouses.py"]

@@ -31,9 +31,7 @@ def boot_session(bootinfo):
 
     _put(bootinfo, "pearnly_companies", companies.company_options, [])
     _put(bootinfo, "pearnly_company", companies.active_company, "")
-    # 「这家公司卖货的那个仓」：进货/出入库那些表单的仓库建议值用它（原来取的是商品上
-    # 那个遗留的"默认仓"，会让进货落在一个仓、收银从另一个仓卖）。没有收银台时是空串。
-    _put(bootinfo, "pearnly_warehouse", lambda: companies.selling_warehouse() or "", "")
+    # 单据的仓库建议不在启动数据里（登录时算一次，切公司不跟）：各表单建单时问 `warehouses.api_prefill`（多仓闭环 P1）。
     # 个人信息页要不要出现「LINE」那一块：与绑定接口同一个能力码（团队管理里逐人勾选）。
     _put(bootinfo, "pearnly_line", lambda: guard.has("integration.read"), False)
     # 这个站点接了 Express 账本（CC 桌面版报过账套）：销售 / 采购列表多一列 Express 单号与状态

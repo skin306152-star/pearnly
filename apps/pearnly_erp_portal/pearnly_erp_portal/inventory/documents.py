@@ -63,7 +63,7 @@ def _business_lines(lines) -> list:
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
                  reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False,
-                 commit=True, numbering_direction=None, purpose=None):
+                 commit=True, numbering_direction=None, purpose=None, location=None):
     """建一张入库/出库单据；`submit=True` 时同一事务里过账。
 
     `commit=True`（默认）在建单/过账后提交事务。**盘点过账**要"整批一个事务"，
@@ -83,7 +83,9 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     company = warehouses.company_of(warehouse)
     if not ref_type:  # 人建的出入库单（盘点轧差、采购入库等系统单不算）：下次预填本人上次选的仓（多仓闭环 P1，问 2）
         warehouses.remember("stock_" + direction, warehouse, company)
-    lines = [positions.prepare(line, warehouse, company=company) for line in _business_lines(lines)]
+    # 单头库位（多仓闭环 P1 单头「仓库 + 库位」）：行上没写库位的用它
+    location = positions.header(warehouse, location, company=company)["location"]
+    lines = [positions.prepare(line, warehouse, company=company, location=location) for line in _business_lines(lines)]
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
     # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
@@ -91,7 +93,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
                                 exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"doc_no": value})))
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,
-        "warehouse": warehouse, "supplier": supplier, "doc_no": doc_no, "reason": reason,
+        "warehouse": warehouse, "location": location, "supplier": supplier, "doc_no": doc_no, "reason": reason,
         "purpose": _purpose(direction, purpose),
         "ref_type": ref_type, "ref_id": ref_id, "dedupe_key": dedupe_key, "status": "draft",
         "lines": [{
@@ -192,6 +194,7 @@ def get_entry(name):
     guard.require("stock." + doc.direction)
     company = warehouses.company_of(doc.warehouse)
     data = _shown_reasons([{field: doc.get(field) for field in LIST_FIELDS}])[0]
+    data["location"] = doc.get("location") or ""
     units = serials.line_serials(doc)
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
@@ -217,11 +220,13 @@ def update_entry(name, **changes):
                   "ref_type", "ref_id"):
         if field in changes:
             doc.set(field, warehouses.required(changes[field], company=company) if field == "warehouse" else changes[field])
+    if "location" in changes or "warehouse" in changes:
+        doc.location = positions.header(doc.warehouse, changes.get("location", doc.get("location")), company=company)["location"]
     if "lines" in changes:
         lines = _business_lines(changes["lines"])
         doc.lines = []
         for line in lines:
-            line = positions.prepare(line, doc.warehouse, company=company)
+            line = positions.prepare(line, doc.warehouse, company=company, location=doc.get("location"))
             doc.append("lines", {
                 "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
                 "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),

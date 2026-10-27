@@ -11,10 +11,11 @@
 		let form, pagination, busy = false, reviewed = null, revision = 0, page_index = 0;
 		const page_size = 20, lines = [], visible = [], review_rows = new Map();
 		const back = () => p.redirect_up(root);
-		const input_names = ["product", "product_code", "barcode", "unit", "location", "qty", "unit_cost"];
+		// `warehouse`：这一行放进哪个仓（空着 = 表头的仓，多仓闭环 P1：一张期初表可以分几个仓）
+		const input_names = ["product", "product_code", "barcode", "unit", "warehouse", "location", "qty", "unit_cost"];
 		const text_value = value => String(value ?? "");
-		const header_values = { warehouse: frappe.boot.pearnly_warehouse || "",
-			as_of_date: frappe.datetime.get_today(), note: "" };
+		// 表头仓按服务端 `warehouses.prefill` 预填（本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选），页面建好后填进去
+		const header_values = { warehouse: "", as_of_date: frappe.datetime.get_today(), note: "" };
 		const header_change = key => () => {
 			if (!form || !active()) return;
 			const value = form.get_value(key);
@@ -168,8 +169,10 @@
 						}
 					} },
 				{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit"), read_only: 1 },
+				{ fieldtype: "Link", fieldname: "warehouse", label: t("stock.col.warehouse"), options: "ERP Warehouse",
+					get_query: p.warehouse_query(), only_select: true, onchange: () => change("warehouse") },
 				{ fieldtype: "Autocomplete", fieldname: "location", label: t("stock.count.location"), onchange: () => change("location"),
-					get_query: p.location_query(() => form?.get_value("warehouse")) },
+					get_query: p.location_query(() => view.form?.get_value("warehouse") || form?.get_value("warehouse")) },
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Data", fieldname: "qty", label: w("qty"), reqd: 1, onchange: () => change("qty") },
 				{ fieldtype: "Data", fieldname: "unit_cost", label: w("cost"), reqd: 1, onchange: () => change("unit_cost") },
@@ -251,7 +254,8 @@
 								const matched = new Map(normalized.rows.map(row => [row.row_number, row]));
 								rows = rows.map((row, index) => {
 									const resolved = matched.get(row.row_number ?? index + 1);
-									return resolved && !resolved.error ? { ...row, product: resolved.product,
+									// 表里的仓库列写的是仓名或编号：认出来的换成仓（行上的仓库格只收仓）
+									return resolved && !resolved.error ? { ...row, product: resolved.product, warehouse: resolved.warehouse || row.warehouse,
 										product_name: resolved.product_name, code: resolved.code, unit: row.unit || resolved.unit } : row;
 								});
 							}
@@ -294,6 +298,9 @@
 			{ fieldtype: "Currency", fieldname: "total_value", label: w("total"), read_only: 1, hidden: 1 },
 		]);
 		add_line();
+		void p.place.prefill("opening").then(warehouse => {
+			if (warehouse && active() && !form.get_value("warehouse")) void form.set_value("warehouse", warehouse);
+		});
 		page.set_primary_action(w("preview"), preview);
 		page.set_secondary_action(__("Cancel"), back);
 		// Reuse the installed Frappe paginator without constructing a tabular Grid.

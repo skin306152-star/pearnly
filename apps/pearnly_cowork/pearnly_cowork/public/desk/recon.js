@@ -126,8 +126,8 @@
 			list = null;
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
-			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
-			page.hide_form(); page.clear_primary_action(); page.clear_secondary_action(); page.clear_indicator();
+			page.clear_fields(); page.fields_dict = {};
+			page.hide_form(); p.clear_actions(page); page.clear_indicator();
 		}
 
 		// ── 列表 ──────────────────────────────────────────────────────────────
@@ -954,7 +954,7 @@
 			else { current = route[1]; await show_result(current); }
 		}
 
-		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
+		wrapper.on_page_show = () => { p.restore_sidebar(); void p.guard_route(show_route()); };
 		$(wrapper).on("hide", () => { ++sequence; live?.stop(); });
 		await show_route();
 	};

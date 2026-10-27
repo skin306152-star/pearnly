@@ -830,6 +830,7 @@ Opening quantity,จำนวนยกมา
 Opening quantity already recorded in stock,จำนวนยกมาที่บันทึกในสต็อกแล้ว
 Opening quantity and unit cost are required and must be non-negative,ต้องระบุจำนวนและต้นทุนต่อหน่วยยกมาเป็นค่าที่ไม่ติดลบ
 Opening quantity supports six decimal places and unit cost supports two,จำนวนยกมารองรับทศนิยมสูงสุด 6 ตำแหน่ง และต้นทุนต่อหน่วยสูงสุด 2 ตำแหน่ง
+Opening stock,สต็อกยกมา
 Opening stock changed. Preview the rows again before submitting.,ข้อมูลยกมามีการเปลี่ยนแปลง กรุณาตรวจสอบอีกครั้งก่อนบันทึก
 Opening stock files cannot contain formulas or error cells,ไฟล์ยกมาต้องไม่มีสูตรหรือเซลล์ที่มีข้อผิดพลาด กรุณาวางแบบค่า
 Opening stock is read from Express,ยอดยกมาอ่านจาก Express
@@ -2140,6 +2141,7 @@ product.field.minStock,แจ้งเตือนสต็อกต่ำ
 product.field.name,ชื่อสินค้า
 product.field.nameEn,ชื่อภาษาอังกฤษ
 product.field.nameZh,ชื่อภาษาจีน
+product.field.opening,สต็อกยกมา
 product.field.price,ราคาขาย
 product.field.qr,ข้อมูล QR
 product.field.search,ค้นหาชื่อหรือบาร์โค้ด

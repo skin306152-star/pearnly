@@ -27,6 +27,9 @@
 		}, 400);
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
+		// 单头「仓库 + 库位」：改了它，还跟着它的明细行一起换（`p.place`）
+		state.place = p.place.track(form, () => state.lines.map(line => ({get: key => line.form.get_value(key),
+			set: values => line.form.set_values(values)})));
 		state.party_choice = p.bind_entry_choice(form, {kind: "customer", context: "sales", reference: "customer", title: "buyer_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({party_type: row.party_type, address: row.address}),
@@ -69,14 +72,15 @@
 					// 单价只补空：识别读出 / 已填的单价不被商品默认价盖掉
 					await line.form.set_values({description: item.product_name, unit: item.base_unit || item.unit,
 					unit_price: Number(line.form.get_value("unit_price")) || (item.price_set ? item.unit_price : 0),
-					vat_applicable: item.vat_applicable ? 1 : 0,
-					warehouse: frappe.boot.pearnly_warehouse || "", location: item.default_location || ""});
+					vat_applicable: item.vat_applicable ? 1 : 0});
+					// 仓与库位跟单头，选商品不改（商品的建议库位只在属于这个仓的清单时由服务端补，多仓闭环 P1）
 				}, on_clear: () => Promise.resolve()});
 			line.form.sections.forEach(section => section.wrapper.addClass("px-0"));
 			line.form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));
 			line.form.sections[0].body.addClass("mt-0 pt-0");
 			state.lines.push(line);
-			await line.form.set_values({qty: 1, unit_price: 0, discount: 0, vat_applicable: 1, ...values});
+			await line.form.set_values({qty: 1, unit_price: 0, discount: 0, vat_applicable: 1,
+				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
 			line.ready = true; line.section.collapse(false); changes();
@@ -92,10 +96,14 @@
 			for (const row of values) await state.add_line(row, false);
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
+		// 单头仓：单上有就用；新单按 `warehouses.prefill` 预填（本人上次 → 唯一仓 → 空 = 必须选）
+		const place = p.place.of(doc);
+		if (editable && !place.warehouse) place.warehouse = await p.place.prefill("sales", {company: doc.company});
+		if (!still_current() || state.disposed) return () => {state.disposed = true; cleanup_entry(); layout.destroy();};
 		await form.set_values({system_no: defaults.system_no, doc_kind: "receipt", doc_date: frappe.datetime.get_today(),
 			party_type: "person", has_vat: 1, price_includes_vat: 0, vat_rate: defaults.default_vat_rate || 7, is_paid: 1,
 			payment_method: "cash", payment_date: frappe.datetime.get_today(), header_discount: 0,
-			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")),
+			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), ...place,
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});
 		await state.party_choice.show();
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);

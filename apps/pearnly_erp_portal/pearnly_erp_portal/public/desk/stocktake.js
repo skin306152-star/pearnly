@@ -71,9 +71,9 @@
 			// Page owns the native filter row inside main; retain it across routes.
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
-			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
+			page.clear_fields(); page.fields_dict = {};
 			page.hide_form();
-			page.clear_primary_action(); page.clear_indicator();
+			p.clear_actions(page); page.clear_indicator();
 		}
 		async function show_route() {
 			const route = frappe.get_route();
@@ -193,7 +193,7 @@
 			if (request !== refresh_sequence || count !== name || frappe.get_route()[0] !== root) return;
 			state = result;
 			p.stockCountBreadcrumbs({ name, title: state.task.title });
-			page.clear_inner_toolbar(); page.clear_primary_action();
+			p.clear_actions(page);  // 页内切单：连「⋯」菜单里的旧按钮一起清（验收 10-27）
 			await scope_options();
 			headline();
 			// 进行中的任务只留结束盘点 + 右边那颗开始盘点（用户 2026-09-22 口径；10-07 起所有界面不放刷新按钮）。
@@ -545,6 +545,10 @@
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
+			// 仓库按服务端 `warehouses.prefill` 预填（本人上次 → 唯一仓 → 空 = 必须选，多仓闭环 P1）
+			void p.place.prefill("count").then(warehouse => {
+				if (warehouse && dialog.display && !dialog.get_value("warehouse")) void dialog.set_value("warehouse", warehouse);
+			});
 
 			// 只有"上传导入"才需要文件与模版两件事，选"盘点在库"时收起来。
 			function toggle_import() {
@@ -593,7 +597,7 @@
 		$(window).off("resize.pearnlyStocktake").on("resize.pearnlyStocktake", frappe.utils.debounce(() => {
 			if (state && count && frappe.get_route()[0] === root && screen() !== shown_screen) void render_data();
 		}, 200));
-		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
+		wrapper.on_page_show = () => { p.restore_sidebar(); void p.guard_route(show_route()); };
 		$(wrapper).on("hide", () => { ++sequence; ++refresh_sequence; table?.destroy(); table = null; });
 		await show_route();
 	};

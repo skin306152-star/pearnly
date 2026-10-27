@@ -830,6 +830,7 @@ Opening quantity,期首数量
 Opening quantity already recorded in stock,在庫に記録済みの期首数量
 Opening quantity and unit cost are required and must be non-negative,期首数量と単価は必須です。0以上で入力してください
 Opening quantity supports six decimal places and unit cost supports two,数量は小数6桁、単価は小数2桁まで入力できます
+Opening stock,期首在庫
 Opening stock changed. Preview the rows again before submitting.,期首データが変更されました。再確認してから確定してください
 Opening stock files cannot contain formulas or error cells,数式やエラーのあるセルは使用できません。値として貼り付けてください
 Opening stock is read from Express,期首在庫は Express から読み込みます
@@ -2140,6 +2141,7 @@ product.field.minStock,低在庫アラート
 product.field.name,商品名
 product.field.nameEn,英語名
 product.field.nameZh,中国語名
+product.field.opening,期首在庫
 product.field.price,販売価格
 product.field.qr,QR 内容
 product.field.search,名前・バーコードで検索

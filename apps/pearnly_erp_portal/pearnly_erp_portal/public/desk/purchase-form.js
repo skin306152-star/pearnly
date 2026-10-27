@@ -40,6 +40,9 @@
 		}, 400);
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
+		// 单头「仓库 + 库位」：改了它，还跟着它的明细行一起换（`p.place`）
+		state.place = p.place.track(form, () => state.lines.map(line => ({get: key => line.form.get_value(key),
+			set: values => line.form.set_values(values)})));
 		state.party_choice = p.bind_entry_choice(form, {kind: "supplier", context: "purchase", reference: "supplier", title: "supplier_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({supplier_tax_id: row.tax_id, supplier_address: row.address,
@@ -84,8 +87,8 @@
 				on_select: async item => {
 					await line.form.set_values({description: item.product_name, code: item.code, barcode: item.barcode,
 					unit: item.base_unit || item.unit, unit_price: Number(line.form.get_value("unit_price")) || item.default_cost || 0,
-					vat_rate: item.vat_applicable ? defaults.settings.default_vat_rate : 0,
-					warehouse: frappe.boot.pearnly_warehouse || "", location: item.default_location || ""});
+					vat_rate: item.vat_applicable ? defaults.settings.default_vat_rate : 0});
+					// 仓与库位跟单头，选商品不改（商品的建议库位只在属于这个仓的清单时由服务端补，多仓闭环 P1）
 					line.form.set_df_property("batch_no", "hidden", !item.track_batch);
 					line.form.set_df_property("expiry_date", "hidden", !item.track_expiry);
 				}, on_clear: () => line.form.set_values({code: "", barcode: ""})});
@@ -95,7 +98,8 @@
 			state.lines.push(line);
 			// 类型「费用」的单：新明细默认服务类（10-24 验收：默认货物，提交时又要选仓库、对存货）
 			const item_type = form.get_value("doc_kind") === "expense" ? "service" : "goods";
-			await line.form.set_values({item_type, qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0, ...values});
+			await line.form.set_values({item_type, qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0,
+				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
 			line.ready = true; line.section.collapse(false); changes();
@@ -112,12 +116,16 @@
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
 		const today = frappe.datetime.get_today();
+		// 单头仓：单上有就用；新单按 `warehouses.prefill` 预填（本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选）
+		const place = p.place.of(doc);
+		if (editable && !place.warehouse) place.warehouse = await p.place.prefill("purchase", {company: doc.company});
+		if (!still_current() || state.disposed) return () => {state.disposed = true; cleanup_entry(); layout.destroy();};
 		await form.set_values({system_no: defaults.system_no, doc_kind: "purchase_invoice",
 			doc_date: today, due_date: frappe.datetime.add_days(today, defaults.settings.default_due_days || 0),
 			supplier_branch_type: "none", currency: defaults.settings.base_currency || "THB", fx_rate: 1,
 			has_vat: 1, price_mode: "exclusive", is_paid: 1, update_stock: 1, auto_create_product: 1,
 			payment_method: "cash", discount_total: 0, rounding: 0, amount_override: 0, source: "web",
-			...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), stock_posted_at: p.datetime_text(doc.stock_posted_at),
+			...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), ...place, stock_posted_at: p.datetime_text(doc.stock_posted_at),
 			outstanding: Number(doc.net_payable || 0) - Number(doc.paid_amount || 0)});
 		await state.party_choice.show();
 		// 改成「费用」时，还没选商品的货物行一并改成服务类

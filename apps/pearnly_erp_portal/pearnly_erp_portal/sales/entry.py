@@ -199,13 +199,16 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
         if any(key != name for key in duplicates):
             frappe.throw(_("Document already exists"))
     customer, buyer_name = _buyer(payload, company)
-    rows = [_line_row(raw, computed, company=company) for raw, computed in zip(payload["lines"], totals["lines"])]
+    # 单头「仓库 + 库位」（多仓闭环 P1）：存在单上，行上没写的用它
+    place = positions.header(payload.get("warehouse"), payload.get("location"), company=company)
+    rows = [_line_row(raw, computed, company=company, place=place) for raw, computed in zip(payload["lines"], totals["lines"])]
     collection = _collection(payload, kind, totals["grand_total"], day)
     source = payload.get("source") or doc.get("source") or "manual"
     doc.update({key: payload[key] for key in HEAD_FIELDS if key in payload})
     doc.source = source
     # 一租户多公司：单据挂公司（没给就是当前公司）。
     doc.company = company
+    doc.update(place)
     # 明细必须是子表文档：直接塞 dict 列表，控制器里的 `line.description` 会拿到 dict。
     doc.set("lines", [])
     for row in rows:
@@ -266,7 +269,7 @@ def _resolve_item(row, company=None):
     return row
 
 
-def _line_row(raw, computed, *, company=None):
+def _line_row(raw, computed, *, company=None, place=None):
     """明细行：只带这张单自己的字段（纯规则层算出来的是"金额"，不是行结构）。"""
     row = _resolve_item(dict(raw), company)
     row["line_no"] = computed["line_no"]
@@ -274,7 +277,8 @@ def _line_row(raw, computed, *, company=None):
     row["discount"] = computed["discount"]
     row["discount_pct"] = computed.get("discount_pct")
     row["vat_applicable"] = int(bool(computed["vat_applicable"]))
-    return positions.prepare(row, company=company)
+    place = place or {}
+    return positions.prepare(row, place.get("warehouse"), company=company, location=place.get("location"))
 
 
 def _collection(payload, kind, grand_total, day):

@@ -19,6 +19,9 @@
 		const f = (fieldname, label, fieldtype = "Data", options = {}) =>
 			({fieldname, label: t(label), fieldtype, ...options});
 		const can_manage = () => Boolean(frappe.model.can_write("ERP Warehouse"));
+		// 接了 Express 的公司：仓库跟 Express 一一对应，在 Express 里建好、公司页「同步 Express」后自动出现——这里不给「新建」
+		// （服务端 `create_warehouse` 同样拒，多仓闭环 P1）
+		const can_create = () => can_manage() && !p.express_company();
 		let list = null, selection = null;
 
 		async function paint() {
@@ -72,7 +75,7 @@
 						fields: ["warehouse_name", "company_name", "note", "is_active"]});
 					return {items, total: items.length};
 				},
-				empty_action: can_manage()
+				empty_action: can_create()
 					? {label: t("company.newWarehouse"), action: () => editor(null)} : null});
 			restore_new();
 			await list.ready;
@@ -80,7 +83,9 @@
 			// 点右边那颗箭头（打开这条记录）开它自己的弹窗。**必须在列表就绪之后** ——
 			// 要按名字找到那一行（`list.data`），早于加载就什么都找不到。
 			if (can_manage()) {
-				await p.take_create("pearnly-warehouses", "ERP Warehouse", () => editor(null));
+				// 别处选择框点「新建」过来：接了 Express 的公司说在 Express 里建（与服务端同一句）
+				await p.take_create("pearnly-warehouses", "ERP Warehouse", () => (can_create() ? editor(null)
+					: frappe.msgprint(__("Create the warehouse in Express, then use Sync Express on the company page"))));
 				await p.take_open("pearnly-warehouses", "ERP Warehouse", name => {
 					const row = (list.data || []).find(item => item.name === name);
 					if (row) editor(row);
@@ -89,7 +94,7 @@
 		}
 
 		function restore_new() {
-			if (!can_manage()) return page.clear_primary_action();
+			if (!can_create()) return page.clear_primary_action();
 			page.set_primary_action(t("company.newWarehouse"), () => editor(null));
 		}
 

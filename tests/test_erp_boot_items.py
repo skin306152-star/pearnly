@@ -42,8 +42,9 @@ class ErpBootItems(unittest.TestCase):
     def test_all_items_present_when_everything_works(self):
         boot = Boot()
         self.namespace["boot_session"](boot)
+        # 没有 `pearnly_warehouse`：单据的仓库建议改由各表单问 `warehouses.api_prefill`（多仓闭环 P1）
         self.assertEqual(boot, {"pearnly_companies": [{"name": "CO-00001"}], "pearnly_company": "CO-00001",
-                                "pearnly_warehouse": "WH-1", "pearnly_line": True, "pearnly_express": True})
+                                "pearnly_line": True, "pearnly_express": True})
         self.frappe.log_error.assert_not_called()
 
     def test_tenant_without_company_still_gets_line(self):
@@ -54,9 +55,8 @@ class ErpBootItems(unittest.TestCase):
         boot = Boot()
         self.namespace["boot_session"](boot)
         self.assertEqual(boot["pearnly_line"], True)
-        self.assertEqual((boot["pearnly_companies"], boot["pearnly_company"], boot["pearnly_warehouse"]),
-                         ([], "", ""))
-        self.assertEqual(self.frappe.log_error.call_count, 3)
+        self.assertEqual((boot["pearnly_companies"], boot["pearnly_company"]), ([], ""))
+        self.assertEqual(self.frappe.log_error.call_count, 2)
 
     def test_line_check_failure_defaults_to_hidden(self):
         self.guard.has.side_effect = RuntimeError("fixture")

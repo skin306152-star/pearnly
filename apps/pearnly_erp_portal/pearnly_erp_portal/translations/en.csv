@@ -830,6 +830,7 @@ Opening quantity,Opening quantity
 Opening quantity already recorded in stock,Opening quantity already recorded in stock
 Opening quantity and unit cost are required and must be non-negative,Opening quantity and unit cost are required and must be non-negative
 Opening quantity supports six decimal places and unit cost supports two,Opening quantity supports six decimal places and unit cost supports two
+Opening stock,Opening stock
 Opening stock changed. Preview the rows again before submitting.,Opening stock changed. Preview the rows again before submitting.
 Opening stock files cannot contain formulas or error cells,Opening stock files cannot contain formulas or error cells
 Opening stock is read from Express,Opening stock is read from Express
@@ -2140,6 +2141,7 @@ product.field.minStock,Low stock alert
 product.field.name,Product name
 product.field.nameEn,English name
 product.field.nameZh,Chinese name
+product.field.opening,Opening stock
 product.field.price,Selling price
 product.field.qr,QR content
 product.field.search,Search name or barcode

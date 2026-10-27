@@ -12,7 +12,72 @@
 	// 库位格（第 5 项）：原生 Autocomplete，选项按这一行 / 这张单的仓库从服务端按输入取（`inventory.locations`）。
 	// 仓库没建库位清单时没有选项、照旧手输；建了清单就从清单选（服务端同样核）。
 	p.location_query = warehouse => doc => ({ query: "pearnly_erp_portal.inventory.locations.api_location_options",
-		params: { warehouse: (typeof warehouse === "function" ? warehouse(doc) : warehouse) || doc?.warehouse || frappe.boot.pearnly_warehouse || "" } });
+		params: { warehouse: (typeof warehouse === "function" ? warehouse(doc) : warehouse) || doc?.warehouse || "" } });
+	// 单头「仓库 + 库位」（多仓闭环 P1，G2–G4）：采购、销售、出入库、期初、盘点同一套。
+	// 仓库按服务端 `warehouses.prefill` 预填（来源 → 本人上次 → 卖货仓（只给进货类）→ 唯一启用仓 → 空 = 必须选），
+	// 看得见、可改；服务端不再替人猜。明细行跟着单头走，逐行改过的不动（`p.place.follow`）。
+	p.place = {
+		async prefill(kind, { company, context } = {}) {
+			const result = await p.call("pearnly_erp_portal.inventory.warehouses.api_prefill",
+				{ kind, company: company || frappe.boot.pearnly_company || "", context: context || "" });
+			return result?.warehouse || "";
+		},
+		// 两格官方控件：仓库 Link（只列当前公司启用的仓）、库位（能改时 Autocomplete，按这个仓的清单取；只读时文字）
+		// `current()`：单头仓库此刻的值（库位清单按它取）
+		fields({ labels, editable = true, reqd = false, warehouse, location, current, onchange, depends_on } = {}) {
+			return [
+				{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse", label: labels.warehouse,
+					get_query: p.warehouse_query(), only_select: true, reqd: reqd ? 1 : 0, default: warehouse || "",
+					read_only: editable ? 0 : 1, depends_on, onchange: () => onchange?.("warehouse") },
+				{ fieldtype: editable ? "Autocomplete" : "Data", fieldname: "location", label: labels.location,
+					default: location || "", read_only: editable ? 0 : 1, depends_on,
+					get_query: p.location_query(() => current?.()), onchange: () => onchange?.("location") },
+			];
+		},
+		// 单头从 `before` 换成 `after`（{warehouse, location}）：还跟着单头的明细行一起换——行上的仓空着或等于旧单头仓的换仓；
+		// 换了仓的行库位跟新单头，没换仓的行库位空着或等于旧单头库位的才跟。`rows`：[{get(key), set(values)}]。
+		follow(rows, before, after) {
+			const same = (a, b) => String(a || "") === String(b || "");
+			for (const row of rows) {
+				const changes = {};
+				const moves = !same(before.warehouse, after.warehouse)
+					&& (!row.get("warehouse") || same(row.get("warehouse"), before.warehouse));
+				if (moves) Object.assign(changes, { warehouse: after.warehouse || "", location: after.location || "" });
+				else if (same(row.get("warehouse") || after.warehouse, after.warehouse)
+					&& (!row.get("location") || same(row.get("location"), before.location)))
+					changes.location = after.location || "";
+				if (Object.keys(changes).length) row.set(changes);
+			}
+		},
+		// 单头两格接到明细行：`form` 是单头所在的表单，`rows()` 回此刻的明细行（[{get, set}]）。两格的 onchange 调 `changed(格名)`；
+		// 换了仓，单头库位清空（库位清单按仓）。
+		track(form, rows) {
+			const read = () => ({ warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "" });
+			let last = read();
+			return {
+				async changed(key) {
+					const now = read();
+					if (key === "warehouse" && now.warehouse !== last.warehouse) now.location = "";
+					if (now.warehouse === last.warehouse && now.location === last.location) return;
+					const before = last;
+					last = now;
+					p.place.follow(rows(), before, now);
+					if (key === "warehouse" && read().location) await form.set_value("location", "");
+				},
+			};
+		},
+		// 打开已有的单：单上记了单头就用它；老单没有单头时，明细里有货的行都在同一个仓（库位）就当单头
+		of(doc) {
+			if (doc?.warehouse) return { warehouse: doc.warehouse, location: doc.location || "" };
+			const rows = (doc?.lines || []).filter(row => row.warehouse);
+			const one = key => (rows.length && rows.every(row => (row[key] || "") === (rows[0][key] || "")) ? rows[0][key] || "" : "");
+			const warehouse = one("warehouse");
+			return { warehouse, location: warehouse ? one("location") : "" };
+		},
+	};
+	// 当前公司接了 Express（启动数据里当前那家带 `express_linked`）：仓库由 Express 主档同步来、期初从 Express 读回，
+	// ERP 里不给新建仓、不录期初（服务端同样拒，多仓闭环 P1）
+	p.express_company = () => Boolean((frappe.boot.pearnly_companies || []).find(row => row.is_current)?.express_linked);
 	p.terminal_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
@@ -260,11 +325,8 @@
 							if (!selected || readonly) return;
 							const item = await p.call("pearnly_erp_portal.products.service.api_get_product", { name: selected });
 							if (row.product !== selected) return;
+							// 选商品不动这一行的仓与库位（多仓闭环 P1：仓跟单头；商品的建议库位只在属于这个仓的清单时由服务端补）
 							Object.assign(row, { description: item.product_name, unit: item.unit || item.base_unit,
-								// 仓库取**这家公司卖货的那个仓**（进货与卖货同一个仓，库存与金额才对得上）；
-								// 商品上那个遗留的"默认仓"已经删掉，不再参与。
-								warehouse: frappe.boot.pearnly_warehouse || "",
-								location: item.default_location || "",
 								[price]: cost ? item.default_cost : item.unit_price });
 							this.grid_row.refresh();
 						} },
@@ -315,9 +377,8 @@
 		// 用户 2026-09-23 先指出"仓库重复了"，接着说"去掉了后把上面那个加进去。出入库同步"——
 		// 也就是行里要看得到仓库（一眼知道这行进哪个仓），但它跟表头是**同一件事**：只读显示，
 		// 表头一变所有行跟着变。服务端口径也是这样（`inventory/positions.py::prepare`：
-		// `line.warehouse || doc.warehouse`，两个都没写才落"这家公司卖货的那个仓"）。
-		lines_editor(t, { cost = false, locked_price = false, data = [],
-			suggest_warehouse, warehouse } = {}) {
+		// `line.warehouse || doc.warehouse`，两个都没写时只认「这家公司只有一个仓」，多仓报错让人选，多仓闭环 P1）。
+		lines_editor(t, { cost = false, locked_price = false, data = [], warehouse, location } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
 			const host = $("<div class='pearnly-line-editor'></div>");
 			const lines = [];
@@ -325,6 +386,8 @@
 			const any = value => String(value ?? "").trim();
 			// 表头那个仓库的现值（由调用方给；行里的镜像和新建的行都用它）。
 			const head_warehouse = () => (typeof warehouse === "function" ? warehouse() || "" : "");
+			// 表头库位（多仓闭环 P1 单头「仓库 + 库位」）：新行默认用它，行上可以改。
+			const head_location = () => (typeof location === "function" ? location() || "" : "");
 			function line_fields(line) {
 				return [
 					{ fieldtype: "Link", options: "ERP Product", fieldname: "product", label: t("trade.product"),
@@ -336,12 +399,10 @@
 								{name: selected});
 							if (line.form.get_value("product") !== selected) return;
 							// 售价取主数据里"设过的"那个价（没设过就别替商家宣布免费）；成本直接取主档成本。
+							// 仓与库位跟表头（多仓闭环 P1）：选商品不改；表头没写库位时，商品的建议库位由服务端按这个仓的清单补
 							await line.form.set_values({ description: item.product_name,
-								unit: item.unit || item.base_unit, location: item.default_location || "",
+								unit: item.unit || item.base_unit,
 								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
-							// 仓库**建议**给表头那一个 = 这家公司卖货的那个仓（只在它还空着时
-							// 填，不覆盖用户选的）。商品上那个遗留的"默认仓"已经删掉。
-							suggest_warehouse?.(frappe.boot.pearnly_warehouse);
 						} },
 					// 仓库：表头的镜像（只读）。放在物料下面 —— 这一行进哪个仓，一眼看得到。
 					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
@@ -420,7 +481,8 @@
 				relabel();
 				// 先铺值再放开 onchange：初始化时别把"带出来的"值又算一遍。
 				// 行里的仓库永远是**表头那一个**（旧行自带的仓库不覆盖它 —— 那是老表格的遗留）。
-				void line.form.set_values({ qty: 1, currency: "THB", ...values, warehouse: head_warehouse() }).then(() => {
+				void line.form.set_values({ qty: 1, currency: "THB", ...(values.location === undefined ? { location: head_location() } : {}),
+					...values, warehouse: head_warehouse() }).then(() => {
 					line.ready = true;
 					// 只有**最后那一条**默认展开：铺一叠草稿行时不会一串全开着（前面几条在
 					// `add` 开头就收起来了；这里判"还是不是最后一条"，避免异步回来时又展开）。
@@ -430,9 +492,9 @@
 			}
 			return {
 				host, add, lines,
-				// 表头那个仓库变了：所有行跟着变（行里那格是它的镜像，不是第二个源）。
-				set_warehouse(name) {
-					lines.forEach(line => line.form.set_value("warehouse", name || ""));
+				// 交给 `p.place.track`：表头的仓库 / 库位一变，行里的仓库跟着变（那格是表头的镜像），库位还跟着表头的行一起换。
+				rows() {
+					return lines.map(line => ({ get: key => line.form.get_value(key), set: values => line.form.set_values(values) }));
 				},
 				// 交回明细：默认**校验**（必填没填会就地标红并展开那一段，同时返回 null 让调用方别提交）；
 				// `check: false` 是"搬家"（弹窗→整页）用的，只取值不拦人。

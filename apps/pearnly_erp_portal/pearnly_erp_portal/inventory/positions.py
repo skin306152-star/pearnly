@@ -50,7 +50,15 @@ def check(warehouse, location):
     return location
 
 
-def prepare(line, warehouse=None, *, company=None):
+def header(warehouse=None, location=None, *, company=None) -> dict:
+    """单头「仓库 + 库位」（多仓闭环 P1）：写在单上、给明细行当默认。仓要是这家公司启用的仓；没写仓时库位也不留。"""
+    warehouse = warehouses.required(warehouse, company=company) if str(warehouse or "").strip() else None
+    return {"warehouse": warehouse, "location": clean_location(location) if warehouse else ""}
+
+
+def prepare(line, warehouse=None, *, company=None, location=None):
+    """明细行定仓与库位。``warehouse`` / ``location``：单头的（行上没写仓的用单头仓；行上没写库位、又落在单头仓的用单头库位，
+    再没有才是商品的建议库位）。"""
     result = dict(line)
     if result.get("warehouse"):
         result["warehouse"] = warehouses.required(result["warehouse"], company=company)
@@ -75,10 +83,11 @@ def prepare(line, warehouse=None, *, company=None):
     if not resolved:
         frappe.throw(_("Warehouse not found"))
     result["warehouse"] = resolved
-    location = clean_location(result["location"] if "location" in result else product.default_location)
-    # 商品上的建议库位不在这个仓的清单里时不硬塞（留空让人选）。单据上明写的不在这里核：这一行是进是出这里不知道，
+    from_header = "location" not in result and bool(clean_location(location)) and resolved == warehouse
+    location = clean_location(result["location"] if "location" in result else location if from_header else product.default_location)
+    # 商品上的建议库位不在这个仓的清单里时不硬塞（留空让人选）。单据上明写的（行上或单头）不在这里核：这一行是进是出这里不知道，
     # 进库位的核在库存流水（`stock.apply_movement`），从旧库位出货照常（验收 10-26）
-    if "location" not in result and location and has_list(resolved) and location not in listed(resolved):
+    if "location" not in result and not from_header and location and has_list(resolved) and location not in listed(resolved):
         location = ""
     result["location"] = location
     return result
