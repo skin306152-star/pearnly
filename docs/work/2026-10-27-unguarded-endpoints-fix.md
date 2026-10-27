@@ -38,4 +38,18 @@
 
 ## 检查
 
-见下方提交后的闸门 / 候选离线检查 / 复现记录。
+- 本地同名闸门 134 项全过；分支 Development checks 见合入记录。候选离线检查两次被系统杀掉（137，本机同时跑着回归实验室的 17 岗位快照，
+  内存不够），实验室空下来后重跑。
+- 验收窗口在回归实验室复核（b139d19d）：复现脚本（DMS 站点、只有 Desk User 的账号）`push_log.api_list`、`endpoints.api_list_endpoints`
+  都回「Failed to get method」；三产品接口矩阵 5,354 格与改前 5,402 格逐格比对：删掉的 4 个接口消失，`api_next_stock_entry_number`
+  只有库存岗与管理员放行、其余 7 个岗位与 Guest 被拒，别的接口没有变坏；「无守卫正常返回」的全部在登记表里（下面第 2 条除外）；
+  在临时副本里故意加一个用 `get_all` 的无守卫接口，`test_unguarded_endpoints` 失败并点名，改成 `get_list` 就过。
+- 验收要改的 1 处已改：`scripts/sample-verify-foundation.py` 改调 `endpoints.test_connection`；全仓（apps / frontend / companion /
+  scripts）再搜旧名只剩 `endpoints.py` 里的说明注释。
+
+验收记下的不阻塞项：
+1. `pearnly_core.password.refuse_on_native_account`：静态检查把直接抛权限错算守卫，矩阵在没配 `pearnly_native_account` 的站点上看到
+   「无守卫正常返回」（不回数据，无害）——口径说明写进登记表抬头注释，不作为登记项（登记了反而被「已有守卫」那条判失败）。
+2. 静态检查把 `get_list` 算守卫，前提是 DocType 权限本身收紧：Cowork 还有 39 张表给 All / Guest 读权限，work-followups 收紧那批合入后
+   由验收用矩阵对 Cowork 复测。
+3. 控制面 `line_admin` 两个接口实验室没有控制面站点，只有单元测试覆盖（别人拒、运维照常）。

@@ -1,6 +1,8 @@
 # 没有守卫的白名单接口登记（回归基线 B 的接口权限矩阵 + 静态检查 `tests/endpoint_guards.py`，主会话 10-27 定）。
 # 只许两类：own = 只读写**本人**的数据（按当前登录人过滤 / 键里带本人）；public = 公开信息（产品清单、服务是否可用、界面文案、公钥）。
 # 新增没有守卫的接口 CI 失败：要么加守卫，要么确属这两类、在这里登记并写明理由（走评审）。匿名接口另见 guest_endpoints.toml。
+# 口径说明：`pearnly_core.password.refuse_on_native_account` 直接抛权限错，静态检查算它有守卫、不在这里登记；站点没配
+# pearnly_native_account 时它什么都不拦、也不回数据，接口权限矩阵在这种站点上会看到「无守卫正常返回」——属公开（public），不是缺陷。
 
 [[endpoint]]
 method = "pearnly_core.assistant.api.push_key"

@@ -84,7 +84,7 @@ def main():
         frappe.db.commit()
 
         # 测试连接必须是**诚实**的：不谎报"连上了"
-        probe = endpoints.api_test_connection(ep.name)
+        probe = endpoints.test_connection(ep.name)  # 对外入口 10-27 删了（无守卫），服务端函数照旧
         # 说明文案是**翻译过**的（msgid 是英文，见 docs/i18n.md），所以这里比的是
         # 「同一个 msgid 在本站点语言下的译文」，不是写死的中文 —— 写死中文的检查
         # 在英文站点上必然失败（服务端文案改英文 msgid 之后就一直是 FAIL）。
