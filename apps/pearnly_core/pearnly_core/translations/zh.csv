@@ -525,7 +525,6 @@ Purchase order created: {0},采购单已创建：{0}
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
 Purchases (confirmed and above),进项合计（已确认及以上）
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
-Purchasing Settings,采购设置
 Push,推送
 Push Channel,推送渠道
 Push Log,推送日志
@@ -1161,7 +1160,6 @@ nav.inventory,库存
 nav.masterData,主数据
 nav.products,物料
 nav.purchase,采购记录
-nav.purchaseSettings,采购设置
 nav.pushLogs,推送日志
 nav.reconcile,对账中心
 nav.records,推送记录

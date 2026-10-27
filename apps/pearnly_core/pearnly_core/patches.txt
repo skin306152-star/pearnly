@@ -11,3 +11,4 @@ pearnly_core.patches.v0_0_4_site_default_currency
 pearnly_core.patches.v0_0_5_line_login_shared_entry
 pearnly_core.patches.v0_0_6_line_login_person
 pearnly_core.patches.v0_0_7_cc_desktop_left_books
+pearnly_core.patches.v0_0_8_drop_buy_settings_integrations_pages

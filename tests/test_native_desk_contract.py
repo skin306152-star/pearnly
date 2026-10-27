@@ -37,8 +37,8 @@ class NativeDeskContract(unittest.TestCase):
         # **仓库**从公司页里拿出来单独成页（"仓库单独拿出，放在公司下方，仓库做成单独页"）。
         # Cowork 8 项（用户 2026-09-26）：录入工作台、三个对账中心、库存盘点、工作协调 + 首页、团队管理；
         # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。
-        # ERP 2026-10-23 加任务管理（看板，从 Cowork 复制），20 项。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,20])
+        # ERP 2026-10-23 加任务管理（看板，从 Cowork 复制），20 项；2026-10-27 删「采购设置」「集成」两页（用户：「是不要的」），18 项。
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,18])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -167,8 +167,9 @@ class ProductNavigationAccess(unittest.TestCase):
         self.assertEqual(self.namespace['available_pages']('cowork'), set())
         groups = self.namespace['navigation_groups']('erp')
         # 标题为 None 的不是分组：任务管理按平铺项放在「销售系统」下方（2026-10-23）。
+        # 「主数据」组只装「集成」一页，2026-10-27 随它一起删。
         self.assertEqual([g[0] for g in groups], ['nav.group.goodsStock', 'nav.group.purchasing',
-                                                 'nav.group.sales', None, 'nav.group.master'])
+                                                 'nav.group.sales', None])
         boot = self.boot()
         boot.workspace_sidebar_item = {'pearnly erp': {'items': [
             {'link_to': route} for route in self.namespace['available_pages']('erp')]}}

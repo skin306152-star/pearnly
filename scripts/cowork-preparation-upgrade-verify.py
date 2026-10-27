@@ -47,8 +47,8 @@ try:
         current = {r.name: {k: str(v) if hasattr(v, 'isoformat') else v for k,v in r.items()} for r in role_rows}
         changed = [name for name in set(previous) | set(current) if previous.get(name) != current.get(name)]
         parents = {str((previous.get(name) or current[name]).get('parent')) for name in changed}
-        page_names = {'pearnly-company', 'pearnly-suppliers', 'pearnly-buy-settings', 'pearnly-guide',
-            'pearnly-inventory', 'pearnly-products', 'pearnly-sales', 'pearnly-integrations',
+        page_names = {'pearnly-company', 'pearnly-suppliers', 'pearnly-guide',
+            'pearnly-inventory', 'pearnly-products', 'pearnly-sales',
             'pearnly-stock-in', 'pearnly-push-logs', 'pearnly-work', 'pearnly-clients',
             'pearnly-home', 'pearnly-stock-out', 'pearnly-reconcile', 'pearnly-team',
             'pearnly-intake', 'pearnly-stocktake', 'pearnly-history', 'pearnly-stock-card'}

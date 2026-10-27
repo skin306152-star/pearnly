@@ -424,7 +424,6 @@ Stock Card Report	收发存报表	รายงานรับ-จ่าย-ค�
 Purchasing	采购系统	ระบบจัดซื้อ	購買	nav.erpPurchase
 Purchase Records	采购记录	บันทึกการจัดซื้อ	購買記録	nav.purchase
 Suppliers	供应商	ผู้จำหน่าย	仕入先	nav.suppliers
-Purchasing Settings	采购设置	ตั้งค่าการจัดซื้อ	購買設定	nav.purchaseSettings
 Sales	销售系统	ระบบขาย	販売	nav.erpSales
 Sales Records	销售记录	บันทึกการขาย	販売記録	nav.sales
 Customers	客户	ลูกค้า	顧客	nav.erpClients

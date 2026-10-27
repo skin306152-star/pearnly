@@ -523,7 +523,6 @@ Purchase order created: {0},Purchase order created: {0}
 "Purchase records, suppliers and purchasing settings","Purchase records, suppliers and purchasing settings"
 Purchases (confirmed and above),Purchases (confirmed and above)
 Purchasing (Records / Suppliers / Settings),Purchasing (Records / Suppliers / Settings)
-Purchasing Settings,Purchasing Settings
 Push,Push
 Push Channel,Push Channel
 Push Log,Push Log
@@ -1159,7 +1158,6 @@ nav.inventory,Stock
 nav.masterData,Master Data
 nav.products,Products
 nav.purchase,Purchase Records
-nav.purchaseSettings,Purchasing Settings
 nav.pushLogs,Push Log
 nav.reconcile,Reconciliation
 nav.records,Push Records

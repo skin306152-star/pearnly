@@ -1,5 +1,5 @@
 // 页面能打开：路由到了、不是无权限页 / 404、主区有内容、页头只有登记过的按钮；页面上的未捕获异常由驱动收进 logs（有就不通过）。
-// args: {expect: "content" | "not_permitted"}（默认 content）
+// args: {expect: "content" | "not_permitted" | "home"}（默认 content；home = 被外壳路由白名单换成了本账号的产品首页）
 const route = frappe.get_route ? frappe.get_route() : [];
 const page = document.querySelector(".page-container[data-page-route]:not([style*='display: none'])") || document.querySelector(".page-container");
 const text = (page && page.innerText || "").trim();
@@ -24,6 +24,10 @@ const stray = pageHead ? [...pageHead.querySelectorAll(".page-actions button, .p
 const want = args.expect || "content";
 // 列表的原生空状态（「没有可显示的内容」）是打开成功的一种：冒烟账号当前公司没有这类数据时字很少（10-25 线上冒烟）
 const empty = !!(page && [...page.querySelectorAll(".no-result")].some((el) => el.offsetParent !== null));
-const ok = want === "not_permitted" ? notPermitted : (!notPermitted && !notFound && (text.length > 20 || empty) && !stray.length);
-return { ok, route, not_permitted: notPermitted, not_found: notFound, empty, chars: text.length, stray_buttons: stray,
+// 产品没声明的页面 / 框架地址：外壳（core `desk/actions.js`）不渲染、换成本账号的首页（10-27 起）
+const landing = String(frappe.boot && frappe.boot.pearnly_landing_url || "").replace(/^\/desk\/?/, "");
+const atHome = !!landing && decodeURIComponent(location.pathname.replace(/^\/desk\/?/, "")) === decodeURIComponent(landing);
+const ok = want === "not_permitted" ? notPermitted : want === "home" ? atHome
+  : (!notPermitted && !notFound && (text.length > 20 || empty) && !stray.length);
+return { ok, route, at_home: atHome, not_permitted: notPermitted, not_found: notFound, empty, chars: text.length, stray_buttons: stray,
   user: frappe.session && frappe.session.user };

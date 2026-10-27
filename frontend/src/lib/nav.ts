@@ -71,7 +71,6 @@ const NAV: Record<string, NavEntry[]> = {
       items: [
         { key: "nav.purchase", route: "/purchase", feature: "purchase" },
         { key: "nav.suppliers", route: "/suppliers", feature: "purchase" },
-        { key: "nav.purchaseSettings", route: "/purchase-settings", feature: "purchase" },
       ],
     },
     {
@@ -86,7 +85,6 @@ const NAV: Record<string, NavEntry[]> = {
       items: [
         { key: "nav.company", route: "/company" },
         { key: "nav.team", route: "/team" },
-        { key: "nav.integrations", route: "/integrations" },
       ],
     },
   ],

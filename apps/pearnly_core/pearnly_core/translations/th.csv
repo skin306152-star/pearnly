@@ -525,7 +525,6 @@ Purchase order created: {0},สร้างเอกสารซื้อแล�
 "Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้จำหน่าย และการตั้งค่าจัดซื้อ
 Purchases (confirmed and above),ยอดรวมซื้อ (สถานะยืนยันแล้วขึ้นไป)
 Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้จำหน่าย/ตั้งค่า)
-Purchasing Settings,ตั้งค่าการจัดซื้อ
 Push,การส่ง
 Push Channel,ช่องทางส่ง
 Push Log,บันทึกการส่งข้อมูล
@@ -1161,7 +1160,6 @@ nav.inventory,สต็อก
 nav.masterData,ข้อมูลหลัก
 nav.products,สินค้า
 nav.purchase,บันทึกการจัดซื้อ
-nav.purchaseSettings,ตั้งค่าการจัดซื้อ
 nav.pushLogs,บันทึกการส่งข้อมูล
 nav.reconcile,ศูนย์กระทบยอด
 nav.records,บันทึกการส่ง
