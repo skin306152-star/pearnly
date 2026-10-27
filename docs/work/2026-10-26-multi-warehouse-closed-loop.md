@@ -135,7 +135,21 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 | 新建商品弹窗 | — | 有「期初库存」网格，新行仓预填 WH-00034 |
 | 期初页 | — | 表头仓预填一店仓库，每行仓库格空着 = 表头仓 |
 | 建商品带两个仓期初（服务端） | — | WH-00034 5 件、WH-00044/A2 3 件；库位 ZZ 不在清单 → 整件商品不建 |
-| 接 Express 的公司仓库页不出「新建」 | — | 没测到：实验站点没有 Express 账套（`express_linked` 由真账套决定）；前端判据有单测，服务端拒有 P1 服务端用例 |
+| 接 Express 的公司（主会话 10-27 要求合入前必须测到，见下节） | — | 通过：页面不出「新建仓库」、接口拒、文案对、同步落新仓 |
+
+**接 Express 的公司（10-27 补测）**：实验站点按正式方式标成已接——公司更新接口设 13 位税号 + 分店，再走 CC 桌面版心跳报账套名单的
+同一入口 `pearnly_core.cc_desktop.books.replace`（假路径、假电脑），`express.push.linked()` 从否变是，启动数据当前公司带 `express_linked`。
+夹具做成脚本 `scripts/erp-express-linked-lab-fixture.py <站点> <公司名> <管理员>`（只在 ERP / POS 实验室或回归实验室容器、`*.localhost`
+站点上跑；每家公司一个过校验位的合成税号、一台假电脑），回归实验室可直接重放。结果（ERP 预览二店 CO-00036；夹具四店 / 五店重放同样通过）：
+
+| 项 | 结果 |
+|---|---|
+| 仓库页（当前公司 = 接了 Express 的二店） | 页头没有「新建仓库」，列表是同步来的仓；对照一店（没接）有「新建仓库」 |
+| 直接调 `api_create_warehouse`（带 company） | 二店 HTTP 417「请在 Express 中建仓库，再在公司页点「同步 Express」」（英文 Create the warehouse in Express, then use Sync Express on the company page）；一店 200 照常建 |
+| 公司页「同步 Express」（`masters.start`） | 没有在线电脑：回 `offline`，不落库 |
+| 离线夹具代替电脑读回的主档 → 读回后落库的同一个函数 `masters.apply` | 原有的仓认作 Express 主仓 01；Express 新建的仓 02 出现在 ERP（启用），仓库页列出 |
+
+没测的一处：别处仓库选择框点「新建」跳到仓库页时弹同一句提示（`p.take_create` 一次性路由），代码路径与页头判据同一个 `p.express_company()`。
 
 在库用例（Site B）：`erp-opening-lab-verify`、`erp-entry-lab-verify` 通过。`erp-pos-lab-inventory / purchasing / sales-verify` 与
 `erp-data-flow-lab-verify` 在**改动前的 ab823298 上同样失败**（同一实验栈切源码对比：采购用例两边问题项完全相同的 7 项；库存用例调了已删的
