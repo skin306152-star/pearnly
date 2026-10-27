@@ -169,6 +169,8 @@ def form_document(doctype, payload, company) -> dict:
     lines = []
     for line, computed in zip(payload.get("lines") or [], totals.get("lines") or []):
         line = frappe._dict({**line, "line_total": computed.get("line_total")})
+        if not line.get("warehouse") and payload.get("warehouse"):
+            line.warehouse = payload.get("warehouse")  # 单头仓给行上没写的（同提交时 `positions.prepare`，多仓闭环 P1）
         goods = doctype == SALES or (line.get("item_type") or "goods") == "goods"
         if goods and not line.get("product"):
             line.product = _matched_product(line, company)  # 提交时同样按条码 / 编码 / 品名认（不建档）
