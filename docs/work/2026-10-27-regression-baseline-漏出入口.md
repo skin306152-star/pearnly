@@ -279,3 +279,22 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
   这几页正是多仓 P1 要改的，等 P1 合入 main 后在 main 上修桩、接进 CI。实验室在库用例（`erp-pos-lab-inventory / purchasing / sales-verify`、`erp-data-flow-lab-verify`）同时逐个判断，修或删，并写明原因。
 - Cowork 39 张表收紧之后，用接口矩阵复测 Cowork（get_list 当守卫的前提）。
 - B 第二步：inconclusive 接口补夹具（现在有两家公司的业务夹具了）。
+
+## 10-27 晚：部署前最终验收（结论：可部署）
+
+范围：main 6c8860b9 跑全套。在它之上只做差异复核加受影响入口实测的有：5afc3755（LINE 菜单发布锁、开户单占位邮箱）、team-placeholder-email f9517a09、ocr-self-check-lines 29d7280c。
+环境：本机回归实验室，镜像 fb1037ad。数据：`~/pearnly-devtools/regression-baseline/2026-10-27/predeploy/`。
+
+| 项 | 结果 |
+|---|---|
+| ① 17 岗位页面快照（6c8860b9） | 声明外能打开的地址：三产品都是 0；没声明的 pearnly- 地址都回本岗位首页；页头入口 ERP 1657、Cowork 42、DMS 5，全部有登记、有码；全局快捷键只剩 Ctrl+S；个人页只有「保存」。ERP 那一路中途网页进程被实验室 3G 内存上限杀掉（`oom_kill 1`，实验室容量问题），重启后补跑 tasks / none，落地页和上一轮逐个一致 |
+| ② 三产品接口权限矩阵（6c8860b9） | 5354 格；无守卫正常返回只剩登记的本人 / 公开项，外加无害的 `refuse_on_native_account`；`locations.api_location_options` 是追踪器漏认 `guard.has` 造成的误报（已补进追踪器） |
+| ③ 角色卫生（生产只读，8 个业务站点，含新开的 polymer） | 全部通过：除 Administrator 外没人带 System Manager，业务账号都有 Desk User；8 个站点「初始设置」都已完成（f9517a09 的设置未完成放行在生产上不会触发） |
+| ④ 关键业务流（6c8860b9） | 正式接口走一遍：采购入库、采购订单、报价、销售、作废、收银开班 / 卖 / 退 / 交班（现金差 0）、盘点开 / 点 / 过账，状态都对；打印矩阵 128 格与已通过那轮逐格一致；多仓 P0 四条断言都过 |
+| 5afc3755 | 菜单发布：ERP、Cowork 85 次请求，DMS 26 次，全部同一个连接，锁都是 900 秒；绑定码发码 → 用码 → 绑上 → 解绑三产品都过；团队新建成员、普通岗位新建被拒；LINE webhook 模拟三产品 × 管理员 / 员工 6 组全过；`test_line_menu_publish_lock` 2/2、`test_cloud_onboarding` 22/22 |
+| team-placeholder-email f9517a09 | ERP / Cowork 各 5 条：留空生成 `<登录名>.<前缀>@pearnly.com`、手填转小写、两种非法邮箱被拒、撞名被拒；`test_team_placeholder_email` 3/3；`test-native-actions.cjs` 通过 |
+| ocr-self-check 29d7280c | 代码复核：无明细不升级；price_mode 只在一边对上且税额大于 0 时由数字定；combine 只替换被点名字段和 Haiku 没读出的字段，其余情况整份用 Opus 的。单元：consistency 16/16、rules 23/23、products 通过。在甲骨文用 549 份录制读法离线重放（不付费），升级率、每页成本、最终仍不自洽，与记录逐项一致 |
+
+发现（不是这批引入的，不阻塞）：**采购订单会入库**。采购表单对所有类型都发 `update_stock: 1`，服务端默认也是入库，所以选「采购订单」提交就把货记进库存。这段代码是 09-22 的 28f13cf3，线上一直如此。实验室里三张采购订单各入了 3 件。要用户定口径。
+
+没测到：真 LINE 手机端（菜单真建出、相机 LIFF）、控制面站点、真 Express、付费识别（部署后在 testerp 上传 LI-00029 核一次）、窄屏。

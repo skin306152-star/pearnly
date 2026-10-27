@@ -58,6 +58,7 @@ def main():
         admin = f"admin@{domain}"
         calls, locks = [], []
         line.can_send = lambda *args, **kwargs: True
+        line.liff_id = lambda: "2000000000-regression"  # DMS 菜单的账户按钮要 LIFF 深链：实验站点没开通，给一个假的
         line.request = lambda method, url, *, headers=None, session=None, **kwargs: (
             calls.append({"method": method, "url": url.split("/v2/bot/")[-1][:40], "session": id(session) if session else None})
             or Response(url, method))
@@ -90,7 +91,8 @@ def main():
             fake = "U" + uuid.uuid4().hex
             code = line_binding.generate_bind_code(employee, 10)
             frappe.db.commit()
-            line_binding.consume_bind_code(str(code.get("code")), line_user_id=fake)
+            consumed = line_binding.consume_bind_code(str(code.get("code")), line_user_id=fake)
+            line_binding.bind(fake, consumed["user"], "regression")  # 同 webhook 处理器：用码成功后绑上
             frappe.db.commit()
             bound = line_binding.user_of(fake)
             line_binding.unbind(fake)
