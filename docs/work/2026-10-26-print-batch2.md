@@ -61,8 +61,8 @@
 
 **发现的 main 回归（不在本批范围，已报主会话）**：`96034aa0`（10-26 仓库库位清单）把采购 / 销售明细「库位」改成原生 Autocomplete；
 已提交 / 作废单的详情页只读，只读的 Autocomplete 不建下拉，`add_line` 赋值时 `ControlAutocomplete.validate` 读 `awesomplete._list` 报错，
-详情页后面的 Express、收款、取消和本批的打印菜单都出不来。生产 `08bfb419` 不含这个提交。实验里用只在测试浏览器生效的垫片
-（`print-lab/shim-autocomplete.js`）绕过，验证打印菜单本身；代码未改。
+详情页后面的 Express、收款、取消和本批的打印菜单都出不来。生产 `08bfb419` 不含这个提交。当时实验里用只在测试浏览器生效的垫片
+（`print-lab/shim-autocomplete.js`）绕过；main 已由 `ad21fcb0` 修复，10-27 变基后去掉垫片复测（见下节）。
 
 ## 待办
 
@@ -70,11 +70,20 @@
 - 多仓闭环 P1 定了单头仓库字段，模板补印仓库（主会话通知）。
 - 真热敏打印机实测（测试机若有，动之前先问主会话）。
 
-## 暂停点（10-26 晚，用户指示全部窗口就地暂停）
+## 变基后复测（10-27）
 
-- 分支 `pearnly/print-batch2` 推到 `4ce40243`（本地全闸门 129 步、分支 CI 绿）。基线仍是 `4561884f`，**没变基**。
-- 主会话通知：新 main `1dabbd06` 已含库位 Autocomplete 只读回归的修复。
-- 本机实验栈 `pearnly-print-lab` 容器已收（数据卷保留，`~/pearnly-devtools/print-lab/` 里 `docker compose up -d` 后重起 `bench serve` 续用）。
+- 分支变基到 `origin/main` `1dabbd06`（含库位只读 Autocomplete 回归的修复 `ad21fcb0`）；唯一冲突在 `scripts/impact/shared-parts.toml`
+  `erp-transactions` 的入口清单：保留 main 新增的详情页入口，再加本批的 `erp.page.pos-shifts`。
+- 实验栈 `pearnly-print-lab` 重起（迁移、清缓存、`bench serve`），**不加任何垫片**，无头 Chrome 逐张打开详情页，记页头按钮、点「Print」拦下打开的地址、再截打印页。
+  草稿 / 作废单是补建的：采购草稿走正式 `purchasing.service.create_purchase`；销售草稿只有 LINE 流程会产生，实验站点里复制已提交单改成草稿；
+  作废一律走正式 `entry.cancel`（脚本 `print-lab/work/seed4_states.py`，`print-lab/run-details.sh`）。
 
-明天第一步：变基到最新 `origin/main`（≥ `1dabbd06`）→ 去掉测试垫片（不加 `PRELOAD`）实测采购 / 销售详情页打印入口（草稿 / 已提交 / 已作废三种）→
-全闸门 + 推送 + 分支 CI → 交验收复核差异。合入顺序：先 native-buttons，再本分支。
+| 详情页 | 草稿 | 已提交 | 已作废 |
+| --- | --- | --- | --- |
+| 采购订单（未入库） | 无「Print」（页头 Submit / Actions） | `Pearnly Purchase Order` | `Pearnly Purchase Order`，带「ยกเลิก / CANCELLED」水印（`detail-void-purchase-order.png`） |
+| 采购发票（已入库） | 无「Print」 | `Pearnly Purchase Goods Receipt`（第一批收货单） | 同左，带水印 |
+| 销售单（非收银来源） | 无「Print」 | `Pearnly Sales Document` | 同左，带水印（`detail-void-sales.png`） |
+| 报价单 | 无「Print」 | `Pearnly Sales Document` | 同左，带水印 |
+
+- 12 种组合与 `purchase-form.js` / `sales-form.js` 的条件一致，页面没有报错（只有实验栈没起 socket.io 的连接提示）。
+- 入了库的采购订单（实验库里 `PUR-2026-00201`）开的是收货单格式：评估第 108 行审定「入了库的照旧开收货单」，符合口径。
