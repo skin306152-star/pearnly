@@ -87,3 +87,11 @@
 
 - 12 种组合与 `purchase-form.js` / `sales-form.js` 的条件一致，页面没有报错（只有实验栈没起 socket.io 的连接提示）。
 - 入了库的采购订单（实验库里 `PUR-2026-00201`）开的是收货单格式：评估第 108 行审定「入了库的照旧开收货单」，符合口径。
+
+## 页头入口按页登记（10-27 验收复核）
+
+- 验收复核发现：本批在销售详情（`pearnly-sales`）、盘点（`pearnly-stock-count`）新加的「Print」没登记进这两页的声明；当时 `check-entries` 按整个产品汇总，
+  「Print」在采购页登记过就放过了。检查已在 `pearnly/native-routes` 改成按页核对（同一工具在两页各报一处）。
+- 本分支改为叠在 `pearnly/native-buttons-whitelist`（a162b649）之上（它先合入 main），在 ERP `pearnly_navigation` 的 `actions` 两页补「Print」；
+  按页核对版检查对本分支 110 个调用点无漏登记。
+
