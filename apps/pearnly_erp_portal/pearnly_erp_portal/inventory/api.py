@@ -89,6 +89,9 @@ def api_next_stock_entry_number(**kwargs):
     """表单上显示"当前要发的单据号"（只读预览，不占号）—— MR.ERP 的表单也是这样把号
     填进只读输入框给用户看的。"""
     kwargs = _clean(kwargs)
+    # 只给能开出入库单的人（原来没有守卫，任何登录账号能看到各类单据的流水号，10-27 回归基线 B）
+    if not any(guard.has(capability) for capability in ("stock.in", "stock.out", "count.write")):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     return {"doc_no": numbering.preview(direction=kwargs.get("direction"),
                                         on=kwargs.get("posting_date"))}
 

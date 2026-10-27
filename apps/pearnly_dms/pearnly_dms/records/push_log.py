@@ -197,27 +197,9 @@ def status_of(reference_doctype: str, reference_name: str) -> dict:
     }
 
 
-@frappe.whitelist()
-def api_list(**kwargs):
-    kwargs.pop("cmd", None)
-    limit = int(kwargs.pop("limit", 50) or 50)
-    filters = {k: v for k, v in kwargs.items() if v not in (None, "")}
-    return frappe.get_all(
-        LOG,
-        filters=filters,
-        fields=[
-            "name", "status", "endpoint", "trigger", "reference_doctype",
-            "reference_name", "business_key", "http_status", "attempt",
-            "retry_count", "error_msg", "creation",
-        ],
-        order_by="creation desc",
-        limit_page_length=limit,
-    )
-
-
-@frappe.whitelist()
-def api_status(reference_doctype: str, reference_name: str):
-    return status_of(reference_doctype, reference_name)
+# 原来这里有两个对外接口 `api_list` / `api_status`（照老产品搬来、仓库里没有任何调用方）：不核权限、筛选原样取请求，任何登录账号
+# 都能列出全部推送记录（含身份证号、报错里的客户手机号）。10-27 回归基线 B 的接口权限矩阵查出，删掉对外入口；推送记录页走 DMS 自己的
+# `query.records.list_records`（按花名册权限），状态查询在服务端直接调 :func:`status_of`。
 
 
 def line_mirror(*, kind: str, target: str, messages: list) -> str:

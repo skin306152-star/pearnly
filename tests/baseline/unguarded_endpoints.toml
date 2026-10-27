@@ -1,0 +1,83 @@
+# 没有守卫的白名单接口登记（回归基线 B 的接口权限矩阵 + 静态检查 `tests/endpoint_guards.py`，主会话 10-27 定）。
+# 只许两类：own = 只读写**本人**的数据（按当前登录人过滤 / 键里带本人）；public = 公开信息（产品清单、服务是否可用、界面文案、公钥）。
+# 新增没有守卫的接口 CI 失败：要么加守卫，要么确属这两类、在这里登记并写明理由（走评审）。匿名接口另见 guest_endpoints.toml。
+
+[[endpoint]]
+method = "pearnly_core.assistant.api.push_key"
+kind = "public"
+reason = "手机网页推送的公钥（VAPID public key），本来就要发给浏览器"
+
+[[endpoint]]
+method = "pearnly_core.assistant.api.push_unsubscribe"
+kind = "own"
+reason = "只删当前登录人的这条推送订阅（push.unsubscribe 按 user 过滤）"
+
+[[endpoint]]
+method = "pearnly_core.assistant.api.tool_labels"
+kind = "public"
+reason = "CC 工具的界面文案"
+
+[[endpoint]]
+method = "pearnly_core.assistant.api.tool_steps"
+kind = "public"
+reason = "CC 工具步骤的界面文案"
+
+[[endpoint]]
+method = "pearnly_core.identity.begin_password_change"
+kind = "own"
+reason = "当前登录人发起改自己的密码（跳身份服务），未登录拒"
+
+[[endpoint]]
+method = "pearnly_core.identity.sign_out"
+kind = "own"
+reason = "结束当前登录人自己的会话"
+
+[[endpoint]]
+method = "pearnly_core.manifest.describe"
+kind = "public"
+reason = "本站装了哪些产品（界面骨架用），不含业务数据"
+
+[[endpoint]]
+method = "pearnly_core.ocr.api_status"
+kind = "public"
+reason = "识别服务是否可用"
+
+[[endpoint]]
+method = "pearnly_core.sessions.logout_here"
+kind = "own"
+reason = "结束当前登录人在本站的这个会话"
+
+[[endpoint]]
+method = "pearnly_core.sessions.my_sessions"
+kind = "own"
+reason = "当前登录人自己的活跃会话（按 user 过滤），未登录拒"
+
+[[endpoint]]
+method = "pearnly_cowork.folder_intake.api.terms"
+kind = "public"
+reason = "文件夹录入页的界面文案"
+
+[[endpoint]]
+method = "pearnly_cowork.recon_center.api.active"
+kind = "own"
+reason = "当前登录人自己进行中的对账（progress.active 按 session.user）"
+
+[[endpoint]]
+method = "pearnly_cowork.recon_center.api.status"
+kind = "own"
+reason = "对账任务状态只回发起人本人的（jobs.status 核 current.user == session.user）"
+
+[[endpoint]]
+method = "pearnly_dms.ocr.ocr_id_card.api_status"
+kind = "public"
+reason = "身份证识别服务是否可用"
+
+[[endpoint]]
+method = "pearnly_erp_portal.purchasing.api.api_recognise_progress"
+kind = "own"
+reason = "本人发起的那次识别进度（键里带 session.user）"
+
+[[endpoint]]
+method = "pearnly_erp_portal.sales.api.api_recognise_progress"
+kind = "own"
+reason = "本人发起的那次识别进度（键里带 session.user）"

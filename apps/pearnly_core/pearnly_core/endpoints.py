@@ -155,14 +155,12 @@ def mark_used(name: str, status: str) -> None:
     frappe.db.commit()
 
 
-@frappe.whitelist()
-def api_list_endpoints(adapter: str | None = None, owner_user: str | None = None):
-    """给界面用。**不含凭据**。"""
-    return {"items": list_for(adapter, owner_user=owner_user)}
+# 原来这里有对外接口 `api_list_endpoints`（任何登录账号拿外部连接清单：地址、登录名、管理员登录名，``owner_user`` 还能指定别人）
+# 与 `api_test_connection`（不核权限读连接）：照老产品搬来、仓库里没有调用方，各产品的连接页走自己的接口（DMS
+# `pearnly_dms.connections.api`）。10-27 回归基线 B 查出，删掉对外入口；`list_for` / `test_connection` 留给服务端内部用。
 
 
-@frappe.whitelist(methods=["POST"])
-def api_test_connection(name: str):
+def test_connection(name: str):
     """测试连接。
 
     ⚠️ **现在是诚实的占位**：真正的连通性测试要对端配合（老产品调

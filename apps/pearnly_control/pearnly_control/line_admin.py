@@ -15,11 +15,21 @@ from frappe import _
 CHANNEL = "Pearnly LINE Channel"
 
 
+
+def _require_operator() -> str:
+    """控制面运维（System Manager）；同开户 / 拆除的守卫（`issues._require_operator`）。"""
+    from pearnly_control.issues import _require_operator as guard
+
+    return guard()
+
+
 @frappe.whitelist(methods=["POST"])
 def upsert_channel(deployment: str, channel_id: str = "", channel_secret: str = "",
                    channel_access_token: str = "", liff_id: str = "",
                    status: str = "active") -> dict:
-    """建或更新某个部署的 LINE 渠道。幂等：同一部署只有一条。"""
+    """建或更新某个部署的 LINE 渠道。幂等：同一部署只有一条。只给控制面的运维（System Manager，同开户 / 拆除）——
+    原来没有守卫，控制面上任何登录账号都能改写别家的渠道密钥（10-27 回归基线 B）。"""
+    _require_operator()
     if not frappe.db.exists("Pearnly Deployment", deployment):
         frappe.throw(_("No such deployment: {0}").format(deployment))
 
@@ -59,7 +69,8 @@ def upsert_channel(deployment: str, channel_id: str = "", channel_secret: str = 
 
 @frappe.whitelist()
 def webhook_url_of(deployment: str) -> str:
-    """该部署的 webhook 地址（填到 LINE 后台的那个）。"""
+    """该部署的 webhook 地址（填到 LINE 后台的那个）。只给控制面的运维（同 :func:`upsert_channel`）。"""
+    _require_operator()
     name = frappe.db.get_value(CHANNEL, {"deployment": deployment}, "name")
     if not name:
         return ""
