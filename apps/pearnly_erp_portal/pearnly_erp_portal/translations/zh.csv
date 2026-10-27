@@ -336,6 +336,9 @@ Create a rule,新建规则
 Create board,新建看板
 Create card,创建卡片
 Create from template,从模板创建
+Create the warehouse in Express,请在 Express 中建仓库
+"Create the warehouse in Express, then use Sync Express on the company page",请在 Express 中建仓库，再在公司页点「同步 Express」
+Create the warehouse in Express. It is added here at the next sync,请在 Express 中建仓库，下次同步后自动出现
 Created,创建时间
 Created when a sales draft is confirmed,销售草稿确认后生成
 Created when the draft is confirmed,草稿确认后生成

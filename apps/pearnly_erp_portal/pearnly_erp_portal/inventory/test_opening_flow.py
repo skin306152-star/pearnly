@@ -239,3 +239,28 @@ class OpeningFlow(unittest.TestCase):
         self.assertEqual(self.post(payload)["skipped"], 4)
         for index, location in enumerate(locations):
             self.assertEqual(stock.current_balance(self.product, self.a["warehouse"], location).qty, index + 1)
+
+    def test_a_product_created_with_opening_stock_and_a_sheet_with_a_warehouse_column(self):
+        """多仓闭环 P1（G1、G5）：建商品时顺手放期初（两个仓），与商品同一事务、照「每个位置只初始化一次」；任何一行不成整件商品
+        不建。期初表每行可写自己的仓（空着 = 表头的仓），别家公司的仓记成这一行的错。"""
+        from pearnly_erp_portal.inventory import warehouses
+
+        second = warehouses.create_warehouse(warehouse_name=self.prefix + " second", company=self.a["name"])["name"]
+        made = products.create_product(product_name=self.prefix + " with opening", code=self.prefix + "-op", unit="pcs",
+                                       opening=[{"warehouse": self.a["warehouse"], "location": self.place, "qty": "3", "unit_cost": "10"},
+                                                {"warehouse": second, "location": "", "qty": "2", "unit_cost": "10"},
+                                                {"warehouse": second, "location": "", "qty": ""}])["name"]
+        self.assertEqual(stock.current_balance(made, self.a["warehouse"], self.place).qty, 3)
+        self.assertEqual(stock.current_balance(made, second, "").qty, 2)
+        code = self.prefix + "-bad"
+        with self.assertRaises(frappe.ValidationError):
+            products.create_product(product_name=self.prefix + " bad", code=code, unit="pcs",
+                                    opening=[{"warehouse": self.b["warehouse"], "qty": "1", "unit_cost": "1"}])
+        frappe.db.rollback()
+        self.assertFalse(frappe.db.exists("ERP Product", {"code": code}))  # 期初不成：商品也没建
+        sheet = api.api_preview_stock_opening(**self.payload(rows=[
+            {"product": self.other, "location": self.place, "qty": "1", "unit_cost": "1"},
+            {"product": self.other, "warehouse": second, "location": self.place, "qty": "1", "unit_cost": "1"},
+            {"product": self.other, "warehouse": self.b["warehouse"], "qty": "1", "unit_cost": "1"}]))
+        self.assertEqual([row["status"] for row in sheet["rows"]], ["ready", "ready", "error"])
+        self.assertEqual([row.get("warehouse") for row in sheet["rows"][:2]], [self.a["warehouse"], second])

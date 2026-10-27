@@ -148,6 +148,64 @@ class Locations(unittest.TestCase):
             terminal("OFF", new=False, changed=True).validate()
         terminal("OFF", new=False, changed=False).validate()  # 仓后来停用：没换仓的旧收银台照样能存
 
+    def test_prefill_suggests_a_warehouse_and_the_server_no_longer_guesses(self):
+        """多仓闭环 P1（主会话 10-26 问 1 / 问 2）：建议顺序 来源 → 本人上次（人 + 单据类型 + 公司）→ 卖货仓（只给进货类）→
+        唯一启用仓 → 空（必须选）；只建议本公司启用的仓；服务端 receiving() 不再落卖货仓。"""
+        W = L.warehouses
+        active = {"CO-1": ["W1", "W2", "SHOP"], "CO-2": ["X1"]}
+        defaults = {}
+        patches = [
+            mock.patch.object(W, "names_of", lambda company=None, include_inactive=True: active.get(company, [])),
+            mock.patch.object(W.companies, "document_company", lambda company=None: company or "CO-1"),
+            mock.patch.object(W.companies, "selling_warehouse", lambda company=None: "SHOP" if company == "CO-1" else None),
+            mock.patch.object(W.frappe, "defaults", types.SimpleNamespace(
+                get_user_default=lambda key, user=None: defaults.get(key),
+                set_user_default=lambda key, value, user=None: defaults.__setitem__(key, value)), create=True),
+        ]
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.assertEqual(W.prefill("purchase", "CO-1"), {"warehouse": "SHOP", "reason": "selling"})
+        self.assertEqual(W.prefill("sales", "CO-1"), {"warehouse": "", "reason": ""})  # 出货类不给卖货仓，多仓必须选
+        self.assertEqual(W.prefill("sales", "CO-1", context="W2"), {"warehouse": "W2", "reason": "context"})
+        self.assertEqual(W.prefill("sales", "CO-1", context="X1")["reason"], "")  # 别家公司的仓不当来源
+        W.remember("purchase", "W1", "CO-1")
+        self.assertEqual(W.prefill("purchase", "CO-1"), {"warehouse": "W1", "reason": "last"})
+        self.assertEqual(W.prefill("stock_in", "CO-1")["reason"], "selling")  # 按单据类型分开记
+        active["CO-1"].remove("W1")  # 上次那个仓停用了：不再建议
+        self.assertEqual(W.prefill("purchase", "CO-1")["warehouse"], "SHOP")
+        self.assertEqual(W.prefill("sales", "CO-2"), {"warehouse": "X1", "reason": "sole"})
+        with self.assertRaisesRegex(Refused, "Invalid value"):
+            W.prefill("anything", "CO-1")
+        calls = []
+        with mock.patch.object(W, "required", lambda value=None, company=None: calls.append(value) or "OK"):
+            self.assertEqual(W.receiving(None, company="CO-1"), "OK")
+        self.assertEqual(calls, [None])  # 没写仓：照 required()，不再落卖货仓
+
+    def test_a_company_linked_to_express_takes_its_warehouses_from_express(self):
+        """多仓闭环 P1（G15）：接了 Express 的公司仓库跟 Express 一一对应（主档同步按仓库码建 / 认领），ERP 里不新建——
+        新建的 Express 没有，单据写不进去；没接的公司照常建。"""
+        W = L.warehouses
+        push = types.SimpleNamespace(linked=lambda company: company == "CO-X")
+        express = types.ModuleType("pearnly_erp_portal.express")
+        express.push = push
+        inserted = []
+        for target, value in (("get_doc", lambda values: types.SimpleNamespace(insert=lambda: inserted.append(values), name="WH-NEW")),
+                              ("db", types.SimpleNamespace(exists=lambda doctype, filters: False, commit=lambda: None))):
+            patcher = mock.patch.object(W.frappe, target, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for patcher in (mock.patch.object(W.guard, "require", lambda capability: None),
+                        mock.patch.object(W.companies, "document_company", lambda company=None: company),
+                        mock.patch.dict(sys.modules, {"pearnly_erp_portal.express": express,
+                                                      "pearnly_erp_portal.express.push": push})):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        with self.assertRaisesRegex(Refused, "Create the warehouse in Express, then use Sync Express"):
+            W.create_warehouse(warehouse_name="New", company="CO-X")
+        self.assertEqual(W.create_warehouse(warehouse_name="New", company="CO-1"), {"name": "WH-NEW"})
+        self.assertEqual([row["company"] for row in inserted], ["CO-1"])
+
 
 if __name__ == "__main__":
     unittest.main()

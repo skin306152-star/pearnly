@@ -267,6 +267,10 @@ def turn_on(product, units=None, kind=None):
     return {"name": product, "track_serial": 1, "registered": len(units)}
 
 
+def names_of_company(company) -> list:
+    return frappe.get_all("ERP Warehouse", filters={"company": company}, pluck="name", limit_page_length=0)  # bounded: 一家公司的仓
+
+
 def _visible(warehouses):
     """``{仓: (仓名, 公司名)}``：这个人能用的公司的仓；别家的不在里面（按台是商品级开关，共用商品各公司都有账，主会话 10-26）。"""
     from pearnly_erp_portal.masters import company as companies
@@ -541,8 +545,13 @@ def api_opening_template(product=None):
     book = openpyxl.Workbook()
     sheet = book.active
     sheet.append([labels[field] for field in WORKBOOK_FIELDS])
-    on_hand = stock_by_warehouse(product)
-    visible = _visible(on_hand)  # 只给这个人看得到的公司的仓留行，别家的仓名不进模板（G17）
+    from pearnly_erp_portal.masters import company as companies
+
+    # 只给当前公司的仓留行（开按台时仓名在当前公司里认，别家的仓名不进模板、也不留同名的歧义行；验收复核 P0 低优先 2）。
+    # 一件商品在几家公司都有账时按台开不起来是开按台的口径（商品级开关），按公司开按台记为后续项
+    mine = set(names_of_company(companies.active_company()))
+    on_hand = {warehouse: qty for warehouse, qty in stock_by_warehouse(product).items() if warehouse in mine}
+    visible = _visible(on_hand)
     for warehouse, qty in sorted(on_hand.items(), key=lambda item: visible.get(item[0], ("", ""))):
         if warehouse not in visible:
             continue

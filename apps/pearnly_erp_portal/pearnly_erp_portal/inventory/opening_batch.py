@@ -12,7 +12,7 @@ from frappe.utils import nowdate
 
 from pearnly_core import browser_text
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import access, contracts, opening_workbook, stock, warehouses
+from pearnly_erp_portal.inventory import access, contracts, opening_workbook, positions, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 
 INVALID_ROW = "Check the opening stock row"
@@ -146,7 +146,7 @@ def _product(row, catalog, company=None):
 
 def _position(row, context, *, current):
     suffix = " for update" if current else ""
-    parameters = (row["product"], context["warehouse"], row["location"])
+    parameters = (row["product"], row["warehouse"], row["location"])
     openings = frappe.db.sql(
         "select name, as_of_date, qty, unit_cost, posted_qty from `tabERP Stock Opening` where product=%s and warehouse=%s and binary coalesce(location, '')=binary %s" + suffix,
         parameters, as_dict=True)
@@ -168,10 +168,38 @@ def _position(row, context, *, current):
     return "ready"
 
 
+def _row_warehouse(value, context, *, current):
+    """这一行的仓：空着用表头的仓；写了就按名称或编号在这家公司里认（启用的）；提交时（``current``）锁住再读一次。"""
+    if not _text(value) or _text(value) == context["warehouse"]:
+        return context["warehouse"]
+    if not current:
+        try:
+            return warehouses.required(_text(value), company=context["company"])
+        except Exception:  # noqa: BLE001 - 认不到的仓记成这一行的错，整批预览照常出
+            frappe.clear_messages()
+            raise ValueError("Warehouse not found") from None
+    name = warehouses.required(_text(value), company=context["company"])
+    rows = frappe.db.sql("select name, company, is_active from `tabERP Warehouse` where name=%s for update", (name,), as_dict=True)
+    if not rows or rows[0].company != context["company"] or not rows[0].is_active:
+        raise ValueError("Warehouse not found")
+    return name
+
+
+def _row_location(warehouse, location):
+    """库位按这个仓的清单核（`positions.check`，预览就核，原来提交才整批失败，G5）；不在清单记成这一行的错。"""
+    try:
+        return positions.check(warehouse, location)
+    except ValueError:
+        raise
+    except Exception as error:  # noqa: BLE001 - frappe.throw 的校验错：整批预览照常出，错误落在这一行
+        frappe.clear_messages()
+        raise ValueError(str(error)) from None
+
+
 def _review(rows, context, catalog, *, current=False):
     output, seen = [], {}
     for number, source in enumerate(rows, 1):
-        row = {key: source.get(key) for key in ("product", "product_code", "barcode", "unit", "location", "qty", "unit_cost")} if isinstance(source, dict) else {}
+        row = {key: source.get(key) for key in ("product", "product_code", "barcode", "unit", "warehouse", "location", "qty", "unit_cost")} if isinstance(source, dict) else {}
         row.update(row_number=source.get("row_number", number) if isinstance(source, dict) else number,
                    product_name="", code="", amount=None, status="error", error="")
         try:
@@ -184,9 +212,12 @@ def _review(rows, context, catalog, *, current=False):
             location = _text(row.get("location"))
             if len(location) > 140:
                 raise ValueError(INVALID_ROW)
+            # 每行可写自己的仓（期初表的仓库列，多仓闭环 P1 G5）：空着 = 表头的仓；只认这家公司启用的仓；库位按这个仓的清单核
+            warehouse = _row_warehouse(row.get("warehouse"), context, current=current)
+            location = _row_location(warehouse, location)
             row.update(product=product.name, product_name=product.product_name, code=product.code or "",
-                       unit=unit, location=location)
-            identity = (product.name, location)
+                       unit=unit, warehouse=warehouse, location=location)
+            identity = (product.name, warehouse, location)
             if identity in seen:
                 previous = seen[identity]
                 previous.update(status="error", error=_("Each product and location may appear only once"))
@@ -210,7 +241,7 @@ def _token(rows, context, note):
         frappe.throw(_("Opening stock review is not configured"))
     payload = {**context, "site": frappe.local.site, "user": frappe.session.user, "note": _text(note),
                "rows": [{key: format(row[key], "f") if key in ("qty", "unit_cost") else row[key]
-                         for key in ("product", "unit", "location", "qty", "unit_cost")} for row in rows]}
+                         for key in ("product", "unit", "warehouse", "location", "qty", "unit_cost")} for row in rows]}
     return hmac.new(str(secret).encode(), json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(), hashlib.sha256).hexdigest()
 
 
@@ -255,17 +286,17 @@ def _submit(*, warehouse, as_of_date, rows, note, review_token=None, legacy=Fals
     created, skipped, names = 0, 0, []
     try:
         for row in reviewed:
-            name = contracts.position_name("OPN", row["product"], context["warehouse"], row["location"])
+            name = contracts.position_name("OPN", row["product"], row["warehouse"], row["location"])
             names.append(name)
             if row["status"] == "skipped":
                 skipped += 1
                 continue
             doc = frappe.get_doc({"doctype": "ERP Stock Opening", "product": row["product"],
-                                  "warehouse": context["warehouse"], "location": row["location"],
+                                  "warehouse": row["warehouse"], "location": row["location"],
                                   "as_of_date": context["as_of_date"], "qty": row["qty"], "posted_qty": row["qty"],
                                   "unit_cost": row["unit_cost"], "note": _text(note)})
             access.write_opening(doc, "insert")
-            stock.apply_movement(product=row["product"], warehouse=context["warehouse"], location=row["location"],
+            stock.apply_movement(product=row["product"], warehouse=row["warehouse"], location=row["location"],
                                  movement_type=contracts.OPENING, qty=row["qty"], unit=row["unit"], unit_cost=row["unit_cost"],
                                  posting_date=context["as_of_date"], posting_time="00:00:00", ref_type="opening", ref_id=doc.name,
                                  reason="opening stock", client_uuid="opening:" + hashlib.sha256(name.encode()).hexdigest(),
@@ -286,7 +317,9 @@ def _submit(*, warehouse, as_of_date, rows, note, review_token=None, legacy=Fals
 
 def submit(*, warehouse, as_of_date, rows, review_token, note=None):
     require_batch_access()
-    return _submit(warehouse=warehouse, as_of_date=as_of_date, rows=rows, note=note, review_token=review_token)
+    result = _submit(warehouse=warehouse, as_of_date=as_of_date, rows=rows, note=note, review_token=review_token)
+    warehouses.remember("opening", warehouse)  # 下次预填本人上次选的仓（多仓闭环 P1，问 2）
+    return result
 
 
 def upsert_one(*, product, warehouse, as_of_date, qty, unit_cost=None, note=None, location=""):
@@ -296,6 +329,13 @@ def upsert_one(*, product, warehouse, as_of_date, qty, unit_cost=None, note=None
                      rows=[{"product": product, "location": location, "qty": qty, "unit_cost": unit_cost}],
                      note=note, legacy=True)
     return {"name": result["openings"][0], "qty": float(contracts.d(qty)), "unit_cost": float(contracts.d(unit_cost))}
+
+
+def with_product(product, *, warehouse, rows, note=None):
+    """建商品时顺手放的期初（多仓闭环 P1 G1，`products.service.create_product`）：今天、这个仓、这几行；不提交事务，由建商品的
+    调用方与商品一起提交；任何一行不成就抛（整件商品不建）。"""
+    return _submit(warehouse=warehouse, as_of_date=nowdate(),
+                   rows=[{**row, "product": product} for row in rows], note=note, legacy=True)
 
 
 def template(warehouse):
@@ -308,7 +348,8 @@ def template(warehouse):
     if len(rows) > opening_workbook.MAX_ROWS:
         frappe.throw(_("That file has too many rows"))
     values = [{"product": row.name, "product_name": row.product_name, "product_code": row.code,
-               "barcode": row.barcode, "unit": row.base_unit or row.unit, "location": "", "qty": None, "unit_cost": None} for row in rows]
+               "barcode": row.barcode, "unit": row.base_unit or row.unit, "warehouse": "", "location": "", "qty": None, "unit_cost": None}
+              for row in rows]
     return opening_workbook.build_bytes([browser_text.label(key) for _, key in opening_workbook.FIELD_LABELS], values)
 
 

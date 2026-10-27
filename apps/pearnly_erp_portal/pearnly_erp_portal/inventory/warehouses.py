@@ -26,6 +26,8 @@ WAREHOUSE_REQUIRED = "Pick a warehouse"
 # 建仓必须挂在某家公司名下（用户 2026-09-24："没有绑定公司不可以建仓库"）。
 COMPANY_REQUIRED = "A warehouse must belong to a company"
 HAS_STOCK = "A warehouse with stock cannot be turned off"
+# 接了 Express 的公司：仓库跟 Express 一一对应（主档同步按仓库码建 / 认领）；ERP 里新建的仓 Express 没有，单据写不进去（多仓闭环 P1，G15）
+EXPRESS_FIRST = "Create the warehouse in Express, then use Sync Express on the company page"  # 同步后自动出现（主会话 10-27：写明下一步）
 INACTIVE = "That warehouse is turned off"
 
 
@@ -104,20 +106,73 @@ def required(value=None, *, company=None) -> str:
 
 
 def receiving(value=None, *, company=None) -> str:
-    """**单据收发用哪个仓**：单据上明确的仓 → 这家公司**卖货的那个仓** → 唯一的仓 → 报错。
+    """**单据收发用哪个仓**：单据上明确的仓；没写时只认「这家公司只有一个启用仓」，多个就报错让人选（同 `required()`）。
 
-    比 `required()` 多中间那一步，是因为"进货"和"卖货"必须是同一个仓，库存的数量与金额
-    才连得上（用户 2026-09-24："进货就进卖货那个仓"）。卖货仓在收银台上写着，见
-    `masters.company.selling_warehouse`；没有收银台（或几台指向不同的仓）就退回原来那条
-    "唯一的仓 / 报错"，不替谁猜一个。
+    以前没写时落「卖货的那个仓」——那是服务端替人猜，多仓公司里货会静默落到收银台的仓（多仓闭环 G3，主会话 10-26 问 1：
+    **预填**卖货仓、看得见可改，**服务端不兜底**）。卖货仓现在只作建议，由 :func:`prefill` 给界面和自动渠道
+    （LINE / 识别收单）在建单时写到单上。
     """
-    if str(value or "").strip():
-        return required(value, company=company)
+    return required(value, company=company)
+
+
+# 预填（多仓闭环 P1，G2–G4，主会话 10-26 问 1 / 问 2）：界面与自动渠道建单时建议一个仓，写在单上、看得见可改；服务端不再兜底。
+PREFILL_CONTEXT, PREFILL_LAST, PREFILL_SELLING, PREFILL_SOLE = "context", "last", "selling", "sole"
+INBOUND = ("purchase", "stock_in", "opening")  # 进货类：卖货仓只给它们当建议（问 1：进货就进卖货那个仓）
+KINDS = INBOUND + ("sales", "stock_out", "count", "transfer")
+LAST_KEY = "pearnly_last_warehouse"  # Frappe 原生 user default：{"单据类型:公司": 仓}（问 2：按人 + 单据类型 + 公司记）
+
+
+def _last_choices(user=None) -> dict:
+    import json
+
+    try:
+        value = json.loads(frappe.defaults.get_user_default(LAST_KEY, user=user) or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def prefill(kind, company=None, context=None) -> dict:
+    """建议用哪个仓 → ``{"warehouse": 仓或空, "reason": 理由}``：来源（收银台 / 来源单据给的 ``context``）→ 本人上次在这家公司
+    这种单据选的 → 卖货仓（只给进货类）→ 这家公司唯一的启用仓 → 空（必须选）。只建议启用着的本公司仓；不是公司默认仓。"""
+    if kind not in KINDS:
+        frappe.throw(_("Invalid value"))
     company = companies.document_company(company)
-    shop = companies.selling_warehouse(company)
-    if shop and frappe.db.get_value(DOCTYPE, shop, "is_active"):
-        return shop
-    return required(None, company=company)
+    active = set(names_of(company, include_inactive=False))
+    if context and context in active:
+        return {"warehouse": context, "reason": PREFILL_CONTEXT}
+    last = _last_choices().get(f"{kind}:{company}")
+    if last in active:
+        return {"warehouse": last, "reason": PREFILL_LAST}
+    if kind in INBOUND:
+        shop = companies.selling_warehouse(company)
+        if shop in active:
+            return {"warehouse": shop, "reason": PREFILL_SELLING}
+    if len(active) == 1:
+        return {"warehouse": next(iter(active)), "reason": PREFILL_SOLE}
+    return {"warehouse": "", "reason": ""}
+
+
+def remember(kind, warehouse, company=None) -> None:
+    """记下本人在这家公司这种单据上选的仓（只作下次预填）。"""
+    import json
+
+    if kind not in KINDS or not warehouse:
+        return
+    company = companies.document_company(company)
+    choices = _last_choices()
+    if choices.get(f"{kind}:{company}") == warehouse:
+        return
+    choices[f"{kind}:{company}"] = warehouse
+    frappe.defaults.set_user_default(LAST_KEY, json.dumps(choices, separators=(",", ":")))
+
+
+@frappe.whitelist()
+def api_prefill(kind=None, company=None, context=None):
+    """界面建单时取建议仓（采购、销售、出入库、期初、盘点同一个）。"""
+    if not any(guard.has(capability) for capability in ("stock.read", "purchase.read", "sales.read", "count.read")):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return prefill(kind, company=company, context=context)
 
 
 def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True) -> dict:
@@ -132,6 +187,10 @@ def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True)
     name = (warehouse_name or "").strip()
     if not name:
         frappe.throw(_(NAME_REQUIRED))
+    from pearnly_erp_portal.express import push as express_push
+
+    if express_push.linked(company):
+        frappe.throw(_(EXPRESS_FIRST))
     if frappe.db.exists(DOCTYPE, {"warehouse_name": name, "company": company}):
         frappe.throw(_("This warehouse already exists"))
     doc = frappe.get_doc({"doctype": DOCTYPE, "warehouse_name": name, "company": company,

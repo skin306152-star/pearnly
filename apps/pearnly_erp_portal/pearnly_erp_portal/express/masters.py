@@ -394,6 +394,8 @@ def apply(company, book, data, stale=False, company_name=""):
     counts["suppliers"] = _parties(SUPPLIER, company, book, data.get("suppliers"), _supplier_fields)
     counts["products"] = _products(company, book, data)
     warehouses, counts["warehouses"] = _warehouses(company, book, data)
+    # 仓库码可能刚补上（Express 建了同名仓、这次认领）：停在「仓库在 Express 里没有对应的仓库」的单重新排队
+    counts["requeued"] = push.requeue_unmapped(company)
     differences = stock_differences(data.get("products"), data.get("stock"))
     counts["stock"] = STALE if stale else _stock(company, warehouses, data.get("stock"), differences)
     values = {"express_book": book[:140], "express_synced_at": now_datetime(),

@@ -58,6 +58,7 @@ class OpeningBatch(unittest.TestCase):
         frappe.get_doc = lambda values: Row(values)
         frappe.get_all = lambda *args, **kwargs: self.products
         frappe.parse_json = __import__("json").loads
+        frappe.clear_messages = lambda: None
         frappe.db = SimpleNamespace(sql=self.sql, savepoint=self.savepoint, rollback=self.rollback)
         utils = ModuleType("frappe.utils")
         utils.nowdate = lambda: "2026-09-24"
@@ -70,7 +71,9 @@ class OpeningBatch(unittest.TestCase):
         inventory.opening_workbook = workbook
         inventory.access = SimpleNamespace(write_opening=self.write_opening)
         inventory.stock = SimpleNamespace(lock_products=self.lock_products, apply_movement=self.apply_movement)
-        inventory.warehouses = SimpleNamespace(required=self.warehouse)
+        inventory.warehouses = SimpleNamespace(required=self.warehouse, remember=lambda kind, warehouse, company=None: None)
+        # 库位清单（`positions.check`）：W3 建了清单只有 A-01，其余仓不限
+        inventory.positions = SimpleNamespace(check=self.check_location)
         masters = ModuleType("pearnly_erp_portal.masters")
         masters.company = SimpleNamespace(active_company=lambda: "C1")
         # 接了 Express 的公司不在 ERP 录期初（出入库第一期）：默认没接
@@ -97,9 +100,18 @@ class OpeningBatch(unittest.TestCase):
             raise PermissionError(capability)
 
     def warehouse(self, value, company=None):
-        if value != "W1" or company != "C1":
+        # 本公司启用的仓：W1、W3（按名称「Shop」也认 W3）；W2 / X1 是别家的或停用的，认不到
+        resolved = {"W1": "W1", "W3": "W3", "Shop": "W3"}.get(value)
+        if not resolved or company != "C1":
             raise ValueError("Warehouse not found")
-        return value
+        return resolved
+
+    @staticmethod
+    def check_location(warehouse, location):
+        location = str(location or "").strip()
+        if warehouse == "W3" and location and location != "A-01":
+            raise RuntimeError("This location is not in the location list of the warehouse: " + location)
+        return location
 
     def sql(self, query, parameters=None, as_dict=False):
         self.queries.append(query)
@@ -110,7 +122,7 @@ class OpeningBatch(unittest.TestCase):
                     (("product", "name"), ("product_code", "code"), ("product_code", "internal_code"),
                      ("product_code", "express_code"), ("barcode", "barcode")))]
         if "tabERP Warehouse" in query:
-            return [Row(name="W1", company="C1", is_active=1)] if parameters[0] == "W1" else []
+            return [Row(name=parameters[0], company="C1", is_active=1)] if parameters[0] in ("W1", "W3") else []
         state = self.state if "for update" in query or self.old_snapshot is None else self.old_snapshot
         table = next(key for key, text in (("openings", "Opening"), ("movements", "Movement"), ("balances", "Balance")) if "tabERP Stock " + text in query)
         return [row for row in state[table] if (row.product, row.warehouse, row.location or "") == tuple(parameters)]
@@ -350,6 +362,23 @@ class OpeningBatch(unittest.TestCase):
         with self.assertRaises(error_type):
             self.submit()
         self.assertFalse(self.state["openings"])
+
+    def test_each_row_can_name_its_own_warehouse_and_the_preview_checks_its_locations(self):
+        """多仓闭环 P1（G5）：期初表加仓库列，空着 = 表头的仓，写了按名称或编号在本公司里认；同一件商品不同仓各算一个位置；
+        库位按这一行的仓的清单在预览就核（原来提交才整批失败）；别家 / 认不到的仓记成这一行的错。"""
+        rows = [{"product": "P1", "qty": "4", "unit_cost": "10"},
+                {"product": "P1", "warehouse": "Shop", "location": "A-01", "qty": "2", "unit_cost": "10"},
+                {"product": "P1", "warehouse": "W3", "location": "B-09", "qty": "1", "unit_cost": "10"},
+                {"product": "P1", "warehouse": "X1", "qty": "1", "unit_cost": "10"}]
+        result = self.preview(rows=rows)
+        self.assertEqual([(row["warehouse"] if row["status"] != "error" else None, row["status"]) for row in result["rows"]],
+                         [("W1", "ready"), ("W3", "ready"), (None, "error"), (None, "error")])
+        self.assertIn("location list", result["rows"][2]["error"])
+        self.assertIn("Warehouse not found", result["rows"][3]["error"])
+        self.assertFalse(result["valid"])
+        done = self.submit(rows=rows[:2])
+        self.assertEqual(done["created"], 2)
+        self.assertEqual(sorted((row.warehouse, row.location or "") for row in self.state["openings"]), [("W1", ""), ("W3", "A-01")])
 
     def test_file_permission_and_remote_url_are_checked_before_reading(self):
         with self.assertRaisesRegex(ValueError, "local"):

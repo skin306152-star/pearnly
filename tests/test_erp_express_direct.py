@@ -1060,6 +1060,20 @@ class UnmappedWarehouse(PushModule):
             self.assertNotIn("unmapped_warehouses", seen[0])  # 不交给共用写账规则
             self.assertEqual((docs["PDS-1"]["express_state"], docs["PDS-1"]["express_reason"]), (state, reason))
 
+    def test_unmapped_documents_go_back_to_the_queue_when_the_company_is_synced(self):
+        """验收复核 P0（多仓闭环 P1）：主档同步之后（可能刚认领了新仓库码），这家公司停在 warehouse_unmapped 的单重新排队，
+        下一分钟 `poll` 再交（仍没码再停）；别家公司、别的原因停下的不动。"""
+        from unittest import mock
+        docs = fake.STATE.db.table("ERP POS Day Summary")
+        docs["PDS-1"] = {"name": "PDS-1", "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+        docs["PDS-2"] = {"name": "PDS-2", "express_state": "held", "express_reason": E.WAREHOUSE_UNMAPPED}
+        docs["PDS-3"] = {"name": "PDS-3", "express_state": "held", "express_reason": E.READING}
+        owners = {"PDS-1": "CO-1", "PDS-2": "CO-2", "PDS-3": "CO-1"}
+        with mock.patch.object(self.push, "company_of", lambda doctype, name: owners.get(name)):
+            self.assertEqual(self.push.requeue_unmapped("CO-1"), 1)
+        self.assertEqual([(docs[name]["express_state"], docs[name]["express_reason"]) for name in ("PDS-1", "PDS-2", "PDS-3")],
+                         [("queued", ""), ("held", E.WAREHOUSE_UNMAPPED), ("held", E.READING)])
+
 
 class PosDayExits(PushModule):
     """B3b 验收复核（主会话 10-26）：收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的、电脑转人工）不能永远卡着：

@@ -161,6 +161,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     if not name:
         frappe.throw(_(TITLE_REQUIRED))
     warehouse = warehouses.required(warehouse)
+    warehouses.remember("count", warehouse)  # 下次建盘点预填本人上次选的仓（多仓闭环 P1，问 2）
     doc = frappe.get_doc({"doctype": COUNT, "title": name, "warehouse": warehouse,
                           "notes": notes, "status": "Active"})
     count_state.write_document(doc, "insert")

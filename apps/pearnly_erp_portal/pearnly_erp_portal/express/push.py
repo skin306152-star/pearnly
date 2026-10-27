@@ -516,6 +516,20 @@ def _queued_note(doctype, row):
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 
 
+def requeue_unmapped(company) -> int:
+    """这家公司停在「仓库在 Express 里没有对应的仓库」的单重新排队（下一分钟 :func:`poll` 再交）：主档同步认领了新仓库码、
+    或在 ERP 给仓选了 Express 仓之后叫（验收复核 P0，多仓闭环 P1）。仍没有码的，再交时照样停下。回重排的张数。"""
+    count = 0
+    for doctype in DIRECTIONS:
+        for name in frappe.get_all(doctype, filters={"express_state": contracts.HELD,  # bounded: 停在这个原因上的单
+                                                     "express_reason": contracts.WAREHOUSE_UNMAPPED},
+                                   pluck="name", order_by="modified asc", limit_page_length=POLL_MAX):
+            if company_of(doctype, name) == company:
+                _set(doctype, name, {"express_state": contracts.QUEUED, "express_reason": ""})
+                count += 1
+    return count
+
+
 def poll():
     """每分钟：停下的单里会自己好的再准备一次；排队中还没交进队列的交一次；排队中的记下此刻为什么还没写。没有要看的就只是
     一条带索引的查询。"""

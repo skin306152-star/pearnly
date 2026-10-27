@@ -39,6 +39,37 @@
   - erp.cc.pos-day / erp.cc.pos-refund：日汇总只多列无码仓，仓有码时不触发（单测覆盖）；测试包 e 刚实测过；
   - erp.cc.stock-void、erp.entry.choices、扫码 / 图片 / 导入、serials.export、差异报表页：本期没改这些路径，不受影响。
 
+## P0 合入（10-27）
+
+验收复核通过，合入 main 5c866e1c；已通知代录窗口变基（`send` 里停下交人的分支挪进它抽出的函数，代录单同样受约束）。
+验收的两条低优先意见并入 P1（见下）。
+
+## P1（分支 `pearnly/multi-warehouse-p1`，叠在 P0 上）
+
+主会话排定：native-buttons、打印第二批改 purchase-form / sales-form / stock-entry / stocktake / transactions.js，先合；P1 先做服务端，
+前端等那两个合入后变基再做。**服务端「不再兜底」必须与前端预填一起上线**（否则现有前端在多仓公司里建单被拒），P1 整期一起合。
+
+服务端已做：
+- `warehouses.prefill(kind, company, context)` + `api_prefill`：来源（收银台 / 来源单据）→ 本人上次（Frappe 原生 user default
+  `pearnly_last_warehouse`，按「单据类型:公司」记，问 2）→ 卖货仓（只给进货类：采购、入库、期初，问 1）→ 唯一启用仓 → 空（必须选）；
+  `remember()` 在采购 / 销售过账、人建的出入库单、期初提交、建盘点时记。`receiving()` 收敛到 `required()`：没写仓且多仓就拒，不落卖货仓。
+- 期初表加仓库列（空着 = 表头仓，按名称或编号在本公司里认，提交时锁住重读）；同一件商品不同仓各算一个位置；库位在预览就按这一行的仓的
+  清单核（原来提交才整批失败）；审核签名带上仓。
+- 建商品带期初：`create_product(opening=[{warehouse, location, qty, unit_cost}])`，商品与期初同一事务（`opening_batch.with_product`，
+  同一套「每个位置只初始化一次」），任何一行不成整件商品不建；接 Express 的公司期初服务照样拒。
+- 接 Express 公司的仓：方案写的是「建 / 改仓时必选一个 Express 仓」。核代码发现主档同步本来就按 Express 仓库码给**每个** Express
+  仓建 / 认领一个 ERP 仓（同名的无码仓会被认领）——ERP 里新建的仓一定是 Express 没有的，也没有剩下可选的 Express 仓。所以落成：
+  接 Express 的公司**不在 ERP 新建仓**，拒「请在 Express 中建仓库」，同步后自动出现（同方案「清单里没有 → 提示先在 Express 建、
+  同步后再选」的意图）。
+- 验收低优先 1：停在 `warehouse_unmapped` 的单，主档同步（`masters.apply`，可能刚认领了新仓库码）之后这家公司的这类单自动重排，
+  下一分钟 `poll` 再交，仍没码再停（`push.requeue_unmapped`，`push.py` 新增函数，不在 `send` 里）。
+- 验收低优先 2：按台期初模板只列当前公司的仓（开按台时仓名在当前公司里认），不留别家同名的歧义行；几家公司都有账的商品开不起按台，
+  记入「按公司开按台」后续项。
+
+前端待做（等 native-buttons、打印第二批合入）：采购 / 销售 / 出入库 / 期初 / 盘点的单头「仓库 + 库位」共用控件（行继承、可展开逐行改，
+选商品不再动行仓、库位只在商品建议库位属于该仓清单时预填）、删 `frappe.boot.pearnly_warehouse`、建商品对话框 / 整页 / Excel 的期初网格、
+期初页的仓库列、仓库页对接 Express 的公司隐藏「新建」；新按钮 / 控件按 `data-pearnly-action` 声明登记。
+
 ## 暂停点（10-26 晚，用户指示全部窗口就地暂停；10-27 已按此继续）
 
 - P0 六项代码与用例都已写完并提交在本分支（G13、G16 两项、G17 两项、G15），本地用例全过；闸门（132 项）跑在 G17 提示改动之前的内容上，

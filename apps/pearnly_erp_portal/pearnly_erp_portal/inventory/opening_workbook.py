@@ -11,6 +11,8 @@ FIELD_LABELS = (
     ("product_name", "stock.col.name"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
+    # 仓库列（多仓闭环 P1 G5）：空着 = 页面上选的那个仓；一份表可以分几个仓
+    ("warehouse", "stock.col.warehouse"),
     ("location", "stock.count.location"),
     ("qty", "stock.opening.qty"),
     ("unit_cost", "stock.opening.cost"),

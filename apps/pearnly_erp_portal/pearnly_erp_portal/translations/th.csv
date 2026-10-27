@@ -336,6 +336,9 @@ Create a rule,สร้างกฎ
 Create board,สร้างบอร์ด
 Create card,สร้างการ์ด
 Create from template,สร้างจากเทมเพลต
+Create the warehouse in Express,สร้างคลังใน Express
+"Create the warehouse in Express, then use Sync Express on the company page",สร้างคลังใน Express แล้วกด「ซิงค์ Express」ที่หน้าบริษัท
+Create the warehouse in Express. It is added here at the next sync,สร้างคลังใน Express แล้วคลังจะปรากฏที่นี่หลังซิงก์ครั้งถัดไป
 Created,สร้างเมื่อ
 Created when a sales draft is confirmed,สร้างเมื่อยืนยันฉบับร่างการขาย
 Created when the draft is confirmed,สร้างเมื่อยืนยันฉบับร่าง

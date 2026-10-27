@@ -78,9 +78,11 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
         frappe.throw(_("Direction must be in or out"))
     # 顺序要紧：**先把这张单的仓定死，再铺行** —— 行上没写仓时跟着单据走，
     # 不会各行一个仓（以前 `prepare` 会回落商品的"默认仓"，单据与行就会各说各话）。
-    # 单据也没写仓时落"这家公司卖货的那个仓"（见 `warehouses.receiving`）。
+    # 单据也没写仓时只认「这家公司只有一个仓」，多个仓报错让人选（`warehouses.receiving`，多仓闭环 P1 不再落卖货仓）。
     warehouse = warehouses.receiving(warehouse)
     company = warehouses.company_of(warehouse)
+    if not ref_type:  # 人建的出入库单（盘点轧差、采购入库等系统单不算）：下次预填本人上次选的仓（多仓闭环 P1，问 2）
+        warehouses.remember("stock_" + direction, warehouse, company)
     lines = [positions.prepare(line, warehouse, company=company) for line in _business_lines(lines)]
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。

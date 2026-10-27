@@ -1729,6 +1729,7 @@ This location is not in the location list of this warehouse	库位不在此仓�
 A location with stock cannot be turned off	有库存的库位不能停用	ตำแหน่งที่มีสต็อกปิดใช้งานไม่ได้	在庫のあるロケーションは無効にできません
 A warehouse with stock cannot be turned off	有库存的仓库不能停用	คลังที่มีสต็อกปิดใช้งานไม่ได้	在庫のある倉庫は無効にできません
 That warehouse is turned off	该仓库已停用	คลังนี้ปิดใช้งานแล้ว	この倉庫は無効です
+Create the warehouse in Express, then use Sync Express on the company page	请在 Express 中建仓库，再在公司页点「同步 Express」	สร้างคลังใน Express แล้วกด「ซิงค์ Express」ที่หน้าบริษัท	Express で倉庫を作成し、会社ページで「Express と同期」を押してください
 A location that has been used cannot be removed	已使用的库位不能删除	ตำแหน่งที่เคยใช้แล้วลบไม่ได้	使用済みのロケーションは削除できません
 Duplicate location	库位重复	ตำแหน่งซ้ำ	ロケーションが重複しています
 Locations	库位清单	รายการตำแหน่ง	ロケーション一覧

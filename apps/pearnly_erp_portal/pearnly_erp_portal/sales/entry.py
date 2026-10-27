@@ -305,10 +305,11 @@ def _post_stock(doc):
             for row in doc.lines if row.product]
     if not rows:
         return
-    # 出库仓来自**这张单上明确的仓**（每行已经由 `positions.saved()` 定过）；行上也没写时落
-    # **这家公司卖货的那个仓** —— 货从店里出，与收银台是同一个仓（见 `warehouses.receiving`）。
-    stock.apply_lines(warehouse=warehouses.receiving(rows[0].get("warehouse"),
-                                                     company=doc.get("company")),
+    # 出库仓来自**这张单上明确的仓**（每行已经由 `positions.saved()` 定过）；行上没写时只认「这家公司只有一个仓」，
+    # 多个仓报错让人选（`warehouses.receiving`，服务端不再落卖货仓，多仓闭环 P1）。
+    place = warehouses.receiving(rows[0].get("warehouse"), company=doc.get("company"))
+    warehouses.remember("sales", place, doc.get("company"))  # 下次预填本人上次选的仓（多仓闭环 P1，问 2）
+    stock.apply_lines(warehouse=place,
                       movement_type="sale_out", lines=rows,
                       posting_date=doc.doc_date, ref_type=DOCTYPE, ref_id=doc.name,
                       doc_no=doc.system_no, internal=True, client_uuid="sales-doc:" + doc.name,

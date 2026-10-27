@@ -365,9 +365,8 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
     if not lines:
         return None
     result = stock.apply_lines(
-        # 与 `purchasing/entry.py` 同一口径：入库仓来自**这张单上明确的仓**
-        # （每行已经由 `positions.saved()` 定过）；行上也没写时落**这家公司卖货的那个仓**，
-        # 没有收银台才退回"唯一仓/报错"（见 `warehouses.receiving`）。
+        # 与 `purchasing/entry.py` 同一口径：入库仓来自**这张单上明确的仓**（每行已经由 `positions.saved()` 定过）；
+        # 行上没写时只认「这家公司只有一个仓」，多个仓报错让人选（`warehouses.receiving`，多仓闭环 P1）。
         warehouse=warehouses.receiving(lines[0].get("warehouse"), company=doc.get("company")),
         movement_type="purchase_in", lines=lines,
         posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,

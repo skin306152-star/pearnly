@@ -69,8 +69,7 @@ def prepare(line, warehouse=None, *, company=None):
     # **商品上那个"默认仓"不再参与**（用户 2026-09-24："进货就进卖货那个仓"）：它会让
     # 进货落在一个仓、收银从另一个仓卖，两边数量与金额永远对不上（实测：`水` 在卖货仓
     # 一路负库存、成本立不起来，收发存金额列一直是空的）。
-    # 行上没写、单据上也没写时，落"这家公司卖货的那个仓"（`warehouses.receiving`，
-    # 没有收银台才退回"唯一的仓 / 报错"）。
+    # 行上没写、单据上也没写时只认「这家公司只有一个仓」，多个仓报错让人选（`warehouses.receiving`，多仓闭环 P1）。
     wanted = result.get("warehouse") or warehouse
     resolved = warehouses.receiving(wanted, company=company)
     if not resolved:

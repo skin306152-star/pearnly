@@ -238,10 +238,11 @@ def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=
                   "unit_cost": amounts.decimal(row.line_total) / amounts.decimal(row.qty) * rate,
                   **positions.saved(row, company=company)} for row in doc.lines if row.item_type == "goods" and row.product]
         if goods:
-            # 入库到**这张采购单上明确的仓**：明细行给了仓就用它（采购表单有那一格），
-            # 行上也没写时落**这家公司卖货的那个仓**（用户 2026-09-24："进货就进卖货那个仓"），
-            # 没有收银台才退回"这家公司只有一个仓"，多个仓直接报错让你去选。
-            stock.apply_lines(warehouse=warehouses.receiving(goods[0].get("warehouse"), company=company),
+            # 入库到**这张采购单上明确的仓**（界面按 `warehouses.prefill` 预填、看得见可改）；行上没写时只认
+            # 「这家公司只有一个仓」，多个仓报错让人选——服务端不再落卖货仓（多仓闭环 P1，问 1）。
+            place = warehouses.receiving(goods[0].get("warehouse"), company=company)
+            warehouses.remember("purchase", place, company)  # 下次预填本人上次选的仓（多仓闭环 P1，问 2）
+            stock.apply_lines(warehouse=place,
                               movement_type="purchase_in", lines=goods,
                 posting_date=day, ref_type="purchase", ref_id=doc.name, doc_no=doc.system_no,
                 client_uuid="purchase-in:" + doc.name, internal=True, company=company)

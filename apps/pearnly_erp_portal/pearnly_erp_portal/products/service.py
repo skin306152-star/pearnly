@@ -217,8 +217,12 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category_id=None, track_batch=None, track_expiry=None,
-                   default_location=None, internal_code=None, serial_kind=None):
+                   default_location=None, internal_code=None, serial_kind=None, opening=None):
+    """建一件商品。``opening``（可选，多仓闭环 P1 G1）：建好顺手放期初 ``[{warehouse, location, qty, unit_cost}]``，与商品
+    同一个事务写（复用期初服务 `opening_batch`，同一套「每个位置只初始化一次」的规矩）；任何一行不成整件商品都不建。
+    接了 Express 的公司期初读 Express，不在这里录（期初服务照样拒）。"""
     guard.require("products.manage")
+    opening = _opening_rows(opening)
     try:
         product_name = contracts.require_name(product_name)
     except ValueError:
@@ -254,8 +258,30 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     })
     doc.insert()
     _attach_image(doc.image_url, doc.name)
+    if opening:
+        from pearnly_erp_portal.inventory import opening_batch
+
+        opening_batch.require_batch_access()
+        for warehouse, rows in opening.items():
+            opening_batch.with_product(doc.name, warehouse=warehouse, rows=rows)
     frappe.db.commit()
     return {"name": doc.name}
+
+
+def _opening_rows(value) -> dict:
+    """建商品时的期初网格 → ``{仓: [{location, qty, unit_cost}]}``（空行不算；数量 / 成本的校验交给期初服务）。"""
+    if isinstance(value, str):
+        value = frappe.parse_json(value) if value.strip() else []
+    out = {}
+    for row in value or []:
+        if not isinstance(row, dict) or str(row.get("qty") or "").strip() in ("", "0"):
+            continue
+        warehouse = _text(row.get("warehouse"), 140)
+        if not warehouse:
+            frappe.throw(_("Pick a warehouse"))
+        out.setdefault(warehouse, []).append({"location": _text(row.get("location"), 140), "qty": row.get("qty"),
+                                              "unit_cost": row.get("unit_cost")})
+    return out
 
 
 def _filters(search=None, include_inactive=False, is_active=None, conditions=None):

@@ -336,6 +336,9 @@ Create a rule,ルールを作成
 Create board,ボードを作成
 Create card,カードを作成
 Create from template,テンプレートから作成
+Create the warehouse in Express,Express で倉庫を作成してください
+"Create the warehouse in Express, then use Sync Express on the company page",Express で倉庫を作成し、会社ページで「Express と同期」を押してください
+Create the warehouse in Express. It is added here at the next sync,Express で倉庫を作成してください。次回の同期でここに追加されます
 Created,作成日時
 Created when a sales draft is confirmed,販売下書きの確定時に作成されます
 Created when the draft is confirmed,下書きの確定時に作成されます
