@@ -94,6 +94,12 @@ Cowork `v0_0_26_internal_tables_no_native_read`（内部表不再给 All / Guest
   polymer 跳过 → 照激活脚本后半段原样完成。续做脚本第一次跑时补丁核对写得太宽（把 Frappe 自身补丁也算进去）、第二次站点列表混入容器启动输出，
   都在迁移前停下、没有改动数据，第三次跑通。
 - **polymer**：这次只差迁移收尾建默认看板，表结构与补丁已迁好、维护已关；它还没发布域名、不对外服务。由「Line Bot 创建与配置」窗口点「重试开通」配好功能后再迁移一次补上。
+  - 00:07（曼谷）Line Bot 窗口重试开通完成（set_workspace、publish_site、mark_active；功能 11 项、LINE 已配、按台两张表与任务看板表都在），但重试只补失败步骤、不跑迁移，
+    默认看板仍是 0。
+  - 00:13（曼谷，17:13 UTC）主会话批准后，只在 polymer 上执行 `bench --site polymer.pearnly.com execute pearnly_erp_portal.work.service.ensure_on_migrate`
+    （ERP 网页容器，不重启、不进维护）。回读：默认看板 1 个；列 3 列按站点语言（รอดำเนินการ / กำลังทำ / เสร็จแล้ว，最后一列是完成列表）；标签 6 个；
+    00:00 之后 Error Log 0。Administrator 临时会话打开 `/desk/pearnly-tasks` 正常、无报错、页头无多余按钮（新站点第一次打开 7.1 秒），会话用完即删。
+  - gize（ISS-2026-0316）在控制面仍是草稿（从未发号），不是重试的事；Line Bot 窗口等用户确认用户名后再发号。
 - **根因修复列为 10-28 第一项（今晚不改）**：迁移收尾钩子遇到功能未配置的站点跳过并记日志、不得中断整个迁移；激活脚本对未完成开户的站点单独处理。
 
 ## 回读（16:43–16:53 UTC）
@@ -132,7 +138,7 @@ Cowork `v0_0_26_internal_tables_no_native_read`（内部表不再给 All / Guest
 ## 没验证 / 后续
 
 - **10-28 第一项**：迁移收尾钩子（`work.ensure_on_migrate` 及同类 after_migrate）对功能未配置的站点跳过并记日志、不中断迁移；激活脚本对未完成开户的站点单独处理。
-- polymer（ISS-2026-0312）、gize（ISS-2026-0316）「重试开通」：已通知 Line Bot 窗口；polymer 要补一次迁移把默认看板建出来。
+- polymer（ISS-2026-0312）已开通、默认看板已补（见「中断」一节）；gize（ISS-2026-0316）仍是草稿，等用户确认后由 Line Bot 窗口发号。
 - LI-00029（mrerp LINE 录入单价读成整箱价）核对：Line Bot 窗口做。
 - 多仓闭环 P1（`pearnly/multi-warehouse-p1` 84e489c6，验收复核通过）不在这一批，等主会话安排变基合入、随下一批上线。
 - fatcc.com `/login` 与 ping 403 是否与部署前一致：没比对，下次部署前先记一次。
