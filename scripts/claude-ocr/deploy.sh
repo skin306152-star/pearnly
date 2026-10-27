@@ -17,7 +17,9 @@ secrets=0; [[ "${1:-}" == "--secrets" ]] && secrets=1
 # 构建目录 app/：只带纯计算的包（不带 Frappe 相关模块），包入口文件置空，免得导入整个产品。
 stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/app/pearnly_core/originals"
-cp -R "$root/apps/pearnly_core/pearnly_core/claude_ocr" "$root/apps/pearnly_core/pearnly_core/ocr_models" "$stage/app/pearnly_core/"
+# claude_ocr 用到的共用层纯计算包都要带上（tests/test_claude_ocr_deploy_bundle.py 按 import 核对）：票面自洽表用 tax_documents 的金额规则
+cp -R "$root/apps/pearnly_core/pearnly_core/claude_ocr" "$root/apps/pearnly_core/pearnly_core/ocr_models" \
+  "$root/apps/pearnly_core/pearnly_core/tax_documents" "$stage/app/pearnly_core/"
 # 原件层（ADR-024）只带纯计算的部分：文件规则、核对与预览渲染、签名、原件服务（站点侧调用要 Frappe，这台不用）
 for f in __init__ rules checks links server; do cp "$root/apps/pearnly_core/pearnly_core/originals/$f.py" "$stage/app/pearnly_core/originals/"; done
 : > "$stage/app/pearnly_core/__init__.py"
