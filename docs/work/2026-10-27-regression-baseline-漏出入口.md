@@ -298,3 +298,24 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
 发现（不是这批引入的，不阻塞）：**采购订单会入库**。采购表单对所有类型都发 `update_stock: 1`，服务端默认也是入库，所以选「采购订单」提交就把货记进库存。这段代码是 09-22 的 28f13cf3，线上一直如此。实验室里三张采购订单各入了 3 件。要用户定口径。
 
 没测到：真 LINE 手机端（菜单真建出、相机 LIFF）、控制面站点、真 Express、付费识别（部署后在 testerp 上传 LI-00029 核一次）、窄屏。
+
+## 暂停点（10-27 晚，主会话：部署后各窗口就地暂停，明天继续）
+
+- 分支 `pearnly/regression-baseline` 已推送，远端 b8129751：本地闸门 139 步全过；分支 CI 结果明天先看，红了本窗口处理。
+- 本机回归实验室（compose project `pearnly-regression-lab`）已停止，数据卷保留，站点与夹具还在。明天 `docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d` 起，用 `PEARNLY_REGRESSION_SRC=<被测工作树>` 换代码，换完迁移。
+  实验室里挂代码用的临时工作树（src-main / src-p1 / src-tpe / src-drop）都已删除，要用时从对应 SHA 重新 `git worktree add --detach`。没有本窗口的后台进程。
+- 实验室已知限制：bench 容器只有 3G 内存，17 岗位并行跑时 ERP 网页进程会被杀一次（`oom_kill`），跑完要按 `docs/work/` 的方法补跑那一路；没有计费服务，首页每次都报一条计费 417，「页面报错」检查要排除它，或者接一个计费桩。
+
+### 明天第一步（按顺序）
+
+1. 看 b8129751 的 Development checks。
+2. 多仓 P1（84e489c6，复核已过）合入 main 之后，在 main 上修过期的页面测试并接进 CI：`tests/test_stock_opening_ui.js`、`test-stock-entry.cjs`、`test-product-multi.cjs`、`test-product-scan.cjs`，都是测试桩缺新全局，起不来。
+   实验室在库用例 `erp-pos-lab-inventory / purchasing / sales-verify`、`erp-data-flow-lab-verify` 逐个判断，修好接 CI，或者删掉并写明原因，不靠扩大忽略过关。
+3. 删「采购设置 / 集成」两页（cfde29cd，复核已过）：合入前如果又变基，复核一次差异。
+4. 部署后验证项（gize 开户「配置 LINE 频道」、testerp 上传 LI-00029）：部署窗口叫我再做。
+5. 回归方案剩余：C 节基线落文件并比对；Cowork 39 张表收紧后用接口矩阵复测；B 第二步给 inconclusive 接口补夹具；实验室接计费桩。
+6. 「采购订单会入库」：等主会话给用户口径。
+
+### 保留项
+
+- `pearnly/stock-count-unknown-assess` 与临时工作树 `scratchpad/rv-assess`：多仓与盘点未知码的评估（10-26 本窗口），等主会话 / 开发窗口用完评估再删；明天复核时一并确认。
