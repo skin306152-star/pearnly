@@ -7,7 +7,8 @@
  *     框架原生视图（表单、列表、报表、工作区）只放行声明里该路由（当前路由前两段，如 `Form/User`）列出的，其余根本不加。
  *     全局快捷键：挂在我们自己页面上的照常，其余只留声明过的（搜索栏、全局搜索、快捷键表、清缓存重载、控制台、换主题……都不注册）。
  *   · `scripts/check-entries.py`（CI）、页面快照比对（回归方案 C 节）。
- * 放行的页头入口都带 `data-pearnly-declared`，冒烟据此判「页头只有登记过的按钮」。
+ * 放行的页头入口都带 `data-pearnly-declared`，冒烟据此判「页头只有登记过的按钮」；能对上声明的再带 `data-pearnly-action=<码>`，
+ * 页面快照按码存、按码比对（三种界面语言共用一份基线，与验收窗口 10-26 对齐）。
  * 起因：10-26 testcowork 管理员账号带上了 System Manager，个人页露出原生「权限」「创建用户电子邮件」（原来只摘了「重置密码」）。
  */
 (() => {
@@ -17,15 +18,20 @@
 
 	// 当前路由的前两段：`Form/User`、`query-report/ERP Stock Count Variance`
 	// （原生表单的页容器只记 doctype，不能拿它判；切走之后才到的按钮按新路由判，宁可不加）
-	const key_of = () => (frappe.get_route?.() || []).slice(0, 2).join("/");
-	const declared = label => {
+	const route = () => frappe.get_route?.() || [];
+	const key_of = () => route().slice(0, 2).join("/");
+	// 标签对上的声明码（没对上回空串）
+	const code_of = label => {
 		const actions = frappe.boot.pearnly_page_actions || {};
-		const allowed = [...(actions[key_of()] || []), ...(actions["*"] || [])];
+		// 原生视图按前两段（`Form/User`）；我们自己的详情页（`pearnly-sales/SD-1`）退到第一段找
+		const allowed = [...(actions[key_of()] || actions[route()[0]] || []), ...(actions["*"] || [])];
 		const text = String(label ?? "").trim();
-		return allowed.some(code => code === text || __(code) === text);
+		return allowed.find(code => code === text || __(code) === text) || "";
 	};
-	const mark = element => {
-		if (element?.jquery) element.add(element.find("a, button")).attr(MARK, "1");
+	const mark = (element, code) => {
+		if (!element?.jquery) return element;
+		const targets = element.add(element.find("a, button")).attr(MARK, "1");
+		if (code) targets.attr("data-pearnly-action", code);
 		return element;
 	};
 	// 包一层：自己的页面、或声明过的入口照原生加并打标记；否则不加，回一个空的 jQuery（调用方照样能链式调用）
@@ -33,7 +39,8 @@
 		const native = Page[method];
 		if (typeof native !== "function") return;
 		Page[method] = function (...args) {
-			if (this.pearnly_owned || declared(label_of(args))) return mark(native.apply(this, args));
+			const code = code_of(label_of(args));
+			if (this.pearnly_owned || code) return mark(native.apply(this, args), code);
 			return $();
 		};
 	};

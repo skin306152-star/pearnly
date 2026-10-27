@@ -41,7 +41,9 @@ vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/a
   { frappe, $, __: text => ({ Save: 'บันทึก' })[text] || text });
 
 const profile = new Page('Form/User/a@b.co', undefined);
-assert.equal(profile.set_primary_action('บันทึก').attr('data-pearnly-declared'), '1', 'Declared Save (translated) is added and marked');
+const save = profile.set_primary_action('บันทึก');
+assert.equal(save.attr('data-pearnly-declared'), '1', 'Declared Save (translated) is added and marked');
+assert.equal(save.attr('data-pearnly-action'), 'Save', 'The matched declaration code is stamped for the page snapshots');
 assert.equal(profile.add_inner_button('Set User Permissions', () => {}, 'Permissions').length, 0, 'Native Permissions group is not added');
 assert.equal(profile.add_inner_button('Create User Email', () => {}).length, 0);
 assert.equal(profile.add_inner_button('Reset Password', () => {}, 'Password').length, 0);
@@ -58,6 +60,7 @@ const own = new Page('pearnly-sales', true);
 const button = own.add_inner_button('Whatever we add', () => {});
 assert.equal(button.attr('data-pearnly-declared'), '1', 'Our own pages keep their buttons, marked for the smoke check');
 assert.equal(button.find().attr('data-pearnly-declared'), '1');
+assert.equal(button.attr('data-pearnly-action'), undefined, 'An own button whose label matches no code keeps only the declared mark');
 assert.equal(report.add_menu_item('selection').attr('data-pearnly-declared'), '1', 'Entries declared under "*" are allowed on every page');
 
 // 全局快捷键：加载时已注册的没声明的注销（全局搜索、控制台），Ctrl+S 留着；之后注册的同样过白名单
