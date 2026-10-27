@@ -508,7 +508,10 @@ pearnly_navigation = [{'product': 'erp',
   },
   # 允许的全局快捷键：Ctrl+S 保存 / 主按钮。其余原生全局快捷键（搜索栏、全局搜索、快捷键表、清缓存重载、控制台、换主题……）不注册；
   # 挂在我们自己页面上的（收银台）照常。
-  'shortcuts': ['ctrl+s']}]
+  'shortcuts': ['ctrl+s'],
+  # 除我们自己的页面（pearnly-*）与本人个人页外允许打开的框架视图（标准路由前两段）；其余框架路由外壳换成首页。
+  # 盘点差异看板是原生报表页（从盘点详情进）。
+  'routes': ['query-report/ERP Stock Count Variance']}]
 
 # Product-owned leaf roles; lookup reads never decide which management menu is visible.
 from pearnly_erp_portal.access import menu as _menu_permissions

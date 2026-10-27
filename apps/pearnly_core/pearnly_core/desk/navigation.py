@@ -299,11 +299,12 @@ def _group_item(label: str, icon: str) -> dict:
 
 
 def head_entries(product):
-    """产品声明的页头入口（`pearnly_navigation` 的 ``actions``）与允许的全局快捷键（``shortcuts``）。
+    """产品声明的框架路由（`pearnly_navigation` 的 ``routes``）、页头入口（``actions``）与允许的全局快捷键（``shortcuts``）。
     外壳白名单（`desk/actions.js`）、静态检查（`scripts/check-entries.py`）、页面快照三处读同一份。"""
     entry = _declarations().get(product) or {}
     actions = {str(page): [str(code) for code in codes or []] for page, codes in (entry.get("actions") or {}).items()}
-    return actions, [str(key) for key in entry.get("shortcuts") or []]
+    return (actions, [str(key) for key in entry.get("shortcuts") or []],
+            [str(route) for route in entry.get("routes") or []])
 
 
 def extend_boot(boot):
@@ -322,8 +323,8 @@ def extend_boot(boot):
     # 左下角用户菜单里产品自己那几项（已按"能进"筛过），外壳只负责画。
     boot.pearnly_user_menu = user_menu(product)
     boot.pearnly_profile_allowed = _can_open_page(product, "user")
-    # 页头入口与全局快捷键白名单（产品在 `pearnly_navigation` 声明；`desk/actions.js` 运行时拦框架默认入口）
-    boot.pearnly_page_actions, boot.pearnly_shortcuts = head_entries(product)
+    # 路由、页头入口与全局快捷键白名单（产品在 `pearnly_navigation` 声明；`desk/actions.js` 运行时拦框架默认入口）
+    boot.pearnly_page_actions, boot.pearnly_shortcuts, boot.pearnly_routes = head_entries(product)
     boot.pearnly_landing_url = entry_route(product)
     # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，
     # 页面路由的准入判据用它，不能跟着少）。

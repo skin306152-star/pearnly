@@ -21,8 +21,8 @@ def native_permission(doc=None, ptype=None, user=None, **kwargs):
 
 def native_query(user=None):
     # Raise rather than return 1=0: native DocShare adds an outer OR fallback.
-    # The schema's All/Guest read ensures this hook is reached: Frappe 16's query
-    # engine otherwise returns a shares-only query before consulting hooks.
+    # No role reads this table (10-27): Frappe 16 answers from DocShare alone, and shares are rejected and purged
+    # (`reject_share`, patch v0_0_26); this hook still denies whoever does hold a role read (Administrator).
     frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 

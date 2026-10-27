@@ -8,12 +8,14 @@
                 "Form/User": ["Save"],                       # 框架原生视图：只有这里列的才放行（运行时拦）
                 "*": [...]}                                  # 全产品共用的页头入口（共用弹窗 / 助手函数加的）
     'shortcuts': ["ctrl+s"],                                 # 允许的全局快捷键（其余原生快捷键运行时注销）
+    'routes': ["query-report/ERP Stock Count Variance"],     # 我们页面与本人个人页之外允许打开的框架视图（其余换成首页）
 
 本检查扫 `apps/**/public/desk/**/*.js`、`apps/**/page/**/*.js`、报表 JS 里加页头入口的调用
 （add_custom_button / add_menu_item / set_primary_action / set_secondary_action / add_inner_button / add_action_item /
 add_actions_menu_item / add_button），取第一个参数的语义码（`t("x.y")`、`__("Export")`、`w("..")`、`term("..")` 里的字面量）；
 标签是变量、模板串的，要在同一行或上一行写 `// entry: 码1, 码2` 说明会出现哪些码。码不在所属产品声明里（core 的文件：在任一产品
-声明里）就失败。
+声明里）就失败。`actions` 里的框架视图键（不是 `pearnly-*`、`*`）必须也在 `routes` 里——路由打不开，页头码就是空声明；
+本人个人页 `Form/User` 由外壳单独放行，不进 `routes`。
 
     python3 scripts/check-entries.py              # 检查（CI）
     python3 scripts/check-entries.py --generate   # 按存量调用生成各产品 actions（只增不减，打印 JSON，人工并进 hooks）
@@ -40,6 +42,8 @@ LITERAL = re.compile(r"""^\s*[\w$.]+\(\s*(["'])(.+?)\1""")
 NOTE = re.compile(r"//\s*entry:\s*(.+)$")
 # 不扫的：上游原样搬来的官方 POS 组件（在我们注册的收银页里，按钮由上游组件自己加，收银页整体登记）、控制面
 SKIP = ("official-pos", "/pearnly_control/", "node_modules")
+# 本人个人页：外壳按「路由第三段是本人」单独放行（`desk/actions.js`）
+PROFILE = "Form/User"
 
 
 def declarations() -> dict:
@@ -50,7 +54,8 @@ def declarations() -> dict:
         for node in tree.body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "pearnly_navigation" for t in node.targets):
                 entry = ast.literal_eval(node.value)[0]
-                found[product] = {"actions": entry.get("actions") or {}, "shortcuts": entry.get("shortcuts") or []}
+                found[product] = {"actions": entry.get("actions") or {}, "shortcuts": entry.get("shortcuts") or [],
+                                  "routes": entry.get("routes") or []}
     return found
 
 
@@ -139,6 +144,13 @@ def check() -> int:
             if code not in known:
                 where = f"{call['product']} 的" if call["product"] else "任一产品的"
                 problems.append(f"{call['file']}:{call['line']}: 「{code}」不在{where} pearnly_navigation actions 里")
+    for product, item in declared.items():
+        for route in item["routes"]:
+            if route.count("/") != 1 or route.startswith("pearnly-"):
+                problems.append(f"{product} routes「{route}」要写成框架标准路由的前两段（如 `query-report/<报表>`）")
+        for key in item["actions"]:
+            if key != "*" and not key.startswith("pearnly-") and key != PROFILE and key not in item["routes"]:
+                problems.append(f"{product} actions「{key}」是框架视图，也要登记进 routes（否则路由被外壳换成首页）")
     for problem in problems:
         print(problem)
     if problems:

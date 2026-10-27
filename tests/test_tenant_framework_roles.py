@@ -5,7 +5,7 @@
   （10-20 换池给 testcowork 管理员加回了 System Manager）；
 - 产品站点上业务账号不许被加上 System Manager（只有开户新建那一刻举旗放行）；
 - 本人保存个人页不能改动自己的角色（隐藏的原生角色编辑器重写角色表，10-26 丢了 Desk User）；
-- 页头入口与快捷键白名单只读产品 `pearnly_navigation` 的声明（`navigation.head_entries`）。
+- 路由、页头入口与快捷键白名单只读产品 `pearnly_navigation` 的声明（`navigation.head_entries`）。
 
 离线跑：frappe 换成假的，不连站点。
 """
@@ -136,11 +136,11 @@ class HeadEntries(unittest.TestCase):
         from pearnly_core.desk import navigation
 
         declared = {"cowork": {"product": "cowork", "actions": {"Form/User": ["Save"], "*": ["selection"]},
-                               "shortcuts": ["ctrl+s"]}}
+                               "shortcuts": ["ctrl+s"], "routes": ["query-report/X"]}}
         with mock.patch.object(navigation, "_declarations", lambda: declared):
             self.assertEqual(navigation.head_entries("cowork"),
-                             ({"Form/User": ["Save"], "*": ["selection"]}, ["ctrl+s"]))
-            self.assertEqual(navigation.head_entries("erp"), ({}, []))  # 没声明 = 一个都不放
+                             ({"Form/User": ["Save"], "*": ["selection"]}, ["ctrl+s"], ["query-report/X"]))
+            self.assertEqual(navigation.head_entries("erp"), ({}, [], []))  # 没声明 = 一个都不放
 
 
 if __name__ == "__main__":

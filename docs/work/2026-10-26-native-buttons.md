@@ -120,7 +120,43 @@ testcowork 的 `pearnlyai@gmail.com` 现在仍带 System Manager、少了 Desk U
 - 原生表单级快捷键（例如新建）不经页头接口，不在白名单里；业务账号没有 System Manager 后，对应服务端权限照样拦。
 - 不部署、不合 main；合入前跑生产镜像完整候选离线检查（见下方闸门）。
 
-## 暂停点（10-26 晚，用户指示全部窗口就地暂停）
+## B. 路由白名单与服务端收紧（10-27，主会话审定，验收 17 岗位漏出清单 `pearnly/regression-baseline` 81f3a32f）
+
+分支 `pearnly/native-routes`，叠在 `pearnly/native-buttons-whitelist` 之上（它合入 main 后变基）。
+
+| 审定项 | 做法 |
+| --- | --- |
+| 1 路由白名单 | 外壳 `desk/actions.js` 两道：`frappe.router.route` 一进来按原始地址第一段判（不放行的连解析都不做——解析先拉 DocType 定义，没权限的在那里抛错、走不到渲染）；解析成标准路由后、`render` 前按前两段精确判。放行：我们自己的页面 `pearnly-*`、本人个人页（`Form/User/<本人>`，且产品给了个人页）、产品 `pearnly_navigation` 新增的 `routes` 声明（ERP：`query-report/ERP Stock Count Variance`；Cowork、DMS：空）。其余（联系人、数据面板、事件、文件、模块定义、备注、通知日志、报表、待办、网站、工作区、各 DocType 原生列表 / 表单、`/desk/user` 列表、别人的用户页……）不渲染，替换历史换成产品首页。Administrator 照原生。`check-entries.py` 加一条：`actions` 里的框架视图键必须也在 `routes` |
+| 2 服务端收紧 | Cowork 39 张内部表 DocType JSON 去掉 All / Guest 读（`permissions: []`，`modified` 前推，迁移重载）。原来给 All / Guest 读是为了让框架查询走到我们的拒绝钩子：Frappe 16 没有角色读权限时只按共享记录（DocShare）出列表、不问钩子（`model/db_query.py` `build_match_conditions`）。所以同批加补丁 `v0_0_26_internal_tables_no_native_read`：本产品里没有任何角色可读的非子表，清掉存量共享（新建共享早被 `reject_share` 拦住）；两处代码注释同步。实验站点：业务管理员 `frappe.get_list` 这几张表 → PermissionError，`has_permission(read)` → False |
+| 2 用户列表 | 服务端 `user_query` 本来就只回本人记录，个人页靠本人共享打开；收 Desk User 对 User 的 select 也挡不住列表外壳（有本人共享就能开），所以不在接口上加特判：`/desk/user` 列表与别人的用户页由第 1 项换成首页，数据层面业务岗位只拿得到自己 |
+| 2 其余业务表 | 实验站点逐张核：ERP 32 / Cowork 66 / DMS 1 张业务可读表，除下面 9 张外都有记录级钩子（`has_permission` / `permission_query_conditions`）。没有钩子的：ERP Purchase Category、ERP LINE Intake、ERP Purchase Settings、Cowork Product、Cowork Buyer Memory、Intake Record、Pearnly ERP Endpoint（DMS Admin，ERP / Cowork / DMS 三站点都在）。都是本岗位功能自己读的表，我们页面的接口可能依赖这份读权限，这批不动；原生外壳由第 1 项挡住，数据层面交接口矩阵（回归方案 B）逐张核 |
+| 3 全局快捷键 | native-buttons 已做：加载时注册的未声明快捷键注销，之后注册的过白名单。实验站点每个账号只剩 `ctrl+s`（另有框架对话框用的 escape / enter / ctrl+上下，不是全局入口） |
+| 4 应用切换六项 | 不动 |
+
+### 验证（本机实验栈，线上同版镜像 fb1037ad + 本分支源码）
+
+无头 Chrome 逐账号：先直接输 `/desk/contact` 进站，再逐个打开产品页（`boot.pearnly_pages`）、本人个人页、声明的框架视图，
+然后打开 21 个框架地址（联系人、数据面板、事件、文件、模块定义、备注、通知日志、报表、待办、网站、工作区、用户列表、别人的用户页、新建用户、
+数据面板视图、报表视图、总账报表、打印页、工作区首页……）和该账号启动数据里**所有能读的 DocType**（`boot.user.can_read`）的原生地址，记最后停在哪。
+
+| 账号 | 产品页等照常打开 | 换成首页 | 漏出 | 首次直接进 `/desk/contact` |
+| --- | --- | --- | --- | --- |
+| ERP 管理员 | 17 | 69（其中能读的 DocType 59） | 0 | 换成首页 |
+| ERP 员工（多岗位） | 8 | 85（其中能读的 DocType 75） | 0 | 换成首页 |
+| ERP 无岗位（只有 Desk User） | 1 | 57（其中能读的 DocType 46） | 0 | 换成首页 |
+| ERP 带 System Manager 的管理员 | 16（另 1 条见下） | 227（其中能读的 DocType 217） | 0 | 换成首页 |
+| Cowork 管理员 | 8 | 82（其中能读的 DocType 72） | 0 | 换成首页 |
+| Cowork 员工（多岗位） | 6 | 79（其中能读的 DocType 69） | 0 | 换成首页 |
+| Cowork 无岗位（只有 Desk User） | 1 | 57（其中能读的 DocType 46） | 0 | 换成首页 |
+| DMS 管理员 | 5 | 58（其中能读的 DocType 48） | 0 | 换成首页 |
+| DMS 员工（多岗位） | 2 | 57（其中能读的 DocType 47） | 0 | 换成首页 |
+
+- ERP 带 System Manager 的管理员那一条「盘点差异报表 → 盘点页」是报表不带筛选时框架自己跳回盘点页（登记表里写明的原生行为），不是外壳拦。
+- 每个账号只剩全局快捷键 `ctrl+s`。
+- 浏览器日志里的未处理异常都是首页的计费接口（实验栈没有计费服务）每次进首页报一次，和路由无关。
+- `tests/test-native-actions.cjs` 补路由两道的用例（放行 / 换首页 / 不解析 / 个人页未开放 / 已在首页不循环 / Administrator）；`tests/test_tenant_framework_roles.py` 跟上声明多一项。
+
+## 暂停点（10-26 晚，用户指示全部窗口就地暂停；下列各步已于 10-27 做完）
 
 - 分支 `pearnly/native-buttons-whitelist`：`de4c9cbd`（生产缺陷修复：开户只给新建账号临时 System Manager、业务账号加 System Manager 一律拒、
   本人保存个人页不改角色、页头白名单）+ `9c2e2a7b`（A 节声明化：`pearnly_navigation` 的 actions / shortcuts、`check-entries.py`、快捷键白名单）

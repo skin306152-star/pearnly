@@ -1,4 +1,5 @@
-// 产品页页头入口与全局快捷键白名单（core `desk/actions.js`，声明在各产品 `pearnly_navigation` 的 actions / shortcuts）：
+// 产品站点的路由、页头入口与全局快捷键白名单（core `desk/actions.js`，声明在各产品 `pearnly_navigation` 的 routes / actions / shortcuts）：
+// 我们自己的页面、本人个人页、声明过的框架视图照常渲染，其余框架路由不画、换成首页（10-27 验收 17 岗位漏出清单后加）；
 // 自己的页面照常加并打标记；框架原生视图只放行声明过的，没声明的（个人页的「权限」「创建用户电子邮件」「密码」……）根本不加；
 // 全局快捷键只留声明过的和挂在我们自己页面上的。10-26 testcowork 个人页露出原生按钮后加的。
 const assert = require('node:assert/strict');
@@ -35,10 +36,54 @@ const keys = {
   off(key) { delete handlers[key]; },
   add_shortcut(options) { (handlers[options.shortcut] = handlers[options.shortcut] || []).push(options.description); return 'added'; },
 };
+const rendered = [];
+const routed = [];
+const parsed = [];
+const router = { current_route: [], sub_path: '', render() { rendered.push(this.current_route.join('/')); },
+  route() { parsed.push(this.sub_path); }, get_sub_path() { return this.sub_path; },
+  slug: name => name.toLowerCase().replace(/ /g, '-') };
 const frappe = { boot: { pearnly_product: 'cowork', pearnly_page_actions: { 'Form/User': ['Save'], '*': ['selection'] },
-  pearnly_shortcuts: ['ctrl+s'] }, ui: { Page, keys }, get_route: () => route };
+  pearnly_shortcuts: ['ctrl+s'], pearnly_routes: ['query-report/Stock Variance'], pearnly_landing_url: '/desk/pearnly-intake' },
+  session: { user: 'a@b.co' }, route_flags: {}, router, set_route: target => routed.push([target, frappe.route_flags.replace_route]),
+  ui: { Page, keys }, get_route: () => route };
+const window = { location: { pathname: '/desk/contact' } };
 vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/actions.js', 'utf8'),
-  { frappe, $, __: text => ({ Save: 'บันทึก' })[text] || text });
+  { frappe, $, window, __: text => ({ Save: 'บันทึก' })[text] || text });
+
+// 路由第一道：原始地址第一段不放行的连解析都不做（解析会先拉 DocType 定义，没权限的在那里就抛错、走不到渲染）
+const enter = path => { router.sub_path = path; frappe.route_flags = {}; router.route(); };
+for (const path of ['pearnly-sales/SD-1', 'user/a@b.co', 'query-report/Stock Variance', '']) enter(path);
+assert.deepEqual(parsed, ['pearnly-sales/SD-1', 'user/a@b.co', 'query-report/Stock Variance', ''], 'Allowed heads go on to parsing');
+for (const path of ['address', 'list-filter/x', 'contact', 'home', 'cowork-push-record', 'app/todo']) enter(path);
+assert.equal(parsed.length, 4, 'Other heads never reach the parser');
+assert.deepEqual(routed.at(-1), ['pearnly-intake', true]);
+routed.length = 0;
+
+// 第二道：解析成标准路由后渲染前按前两段精确判，不放行的换成首页（替换历史）
+const visit = (...current) => { router.current_route = current; frappe.route_flags = {}; router.render(); };
+visit('pearnly-sales', 'SD-1');
+visit('Form', 'User', 'a@b.co');
+visit('query-report', 'Stock Variance');
+visit('');
+assert.deepEqual(rendered, ['pearnly-sales/SD-1', 'Form/User/a@b.co', 'query-report/Stock Variance', ''],
+  'Our pages, the own profile, declared framework views and home render');
+for (const blocked of [['List', 'Contact', 'List'], ['Form', 'User', 'other@b.co'], ['List', 'User', 'List'], ['Workspaces', 'Home'],
+  ['List', 'Cowork Push Record', 'List'], ['query-report', 'General Ledger'], ['dashboard-view', 'X'], ['Form', 'Module Def', 'Core']])
+  visit(...blocked);
+assert.equal(rendered.length, 4, 'Undeclared framework routes never render');
+assert.deepEqual(routed.at(-1), ['pearnly-intake', true], 'They are replaced by the product landing page');
+assert.equal(routed.length, 8);
+frappe.boot.pearnly_profile_allowed = false;
+visit('Form', 'User', 'a@b.co');
+assert.equal(rendered.length, 4, 'The own profile closes when the product does not grant it');
+window.location.pathname = '/desk/pearnly-intake';
+visit('List', 'Contact', 'List');
+assert.equal(rendered.length, 5, 'Already on the landing page: render instead of looping');
+window.location.pathname = '/desk/contact';
+frappe.session.user = 'Administrator';
+visit('List', 'Contact', 'List');
+assert.equal(rendered.length, 6, 'Administrator keeps the framework desk');
+frappe.session.user = 'a@b.co';
 
 const profile = new Page('Form/User/a@b.co', undefined);
 const save = profile.set_primary_action('บันทึก');
@@ -69,4 +114,4 @@ assert.deepEqual(keys.standard_shortcuts.map(item => item.shortcut), ['ctrl+s'])
 assert.equal(keys.add_shortcut({ shortcut: 'shift+ctrl+g', description: 'theme' }), undefined, 'Theme switch is not registered');
 assert.equal(keys.add_shortcut({ shortcut: 'ctrl+i', description: 'POS item', page: own }), 'added', 'Shortcuts on our own pages stay');
 assert.equal(keys.add_shortcut({ shortcut: 'ctrl+p', description: 'print', page: profile }), undefined, 'Native form shortcuts are dropped');
-console.log('PASS product page heads only show declared entries; undeclared native buttons and global shortcuts are never added');
+console.log('PASS product sites only open declared routes; page heads only show declared entries; undeclared native buttons and global shortcuts are never added');
