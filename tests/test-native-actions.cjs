@@ -43,7 +43,7 @@ const router = { current_route: [], sub_path: '', render() { rendered.push(this.
   route() { parsed.push(this.sub_path); }, get_sub_path() { return this.sub_path; },
   slug: name => name.toLowerCase().replace(/ /g, '-') };
 const frappe = { boot: { pearnly_product: 'cowork', pearnly_page_actions: { 'Form/User': ['Save'], '*': ['selection'] },
-  pearnly_shortcuts: ['ctrl+s'], pearnly_routes: ['query-report/Stock Variance'], pearnly_landing_url: '/desk/pearnly-intake',
+  setup_complete: 1, pearnly_shortcuts: ['ctrl+s'], pearnly_routes: ['query-report/Stock Variance'], pearnly_landing_url: '/desk/pearnly-intake',
     pearnly_product_pages: ['pearnly-sales', 'pearnly-intake'] },
   session: { user: 'a@b.co' }, route_flags: {}, router, set_route: target => routed.push([target, frappe.route_flags.replace_route]),
   ui: { Page, keys }, get_route: () => route };
@@ -86,6 +86,16 @@ frappe.session.user = 'Administrator';
 visit('List', 'Contact', 'List');
 assert.equal(rendered.length, 6, 'Administrator keeps the framework desk');
 frappe.session.user = 'a@b.co';
+// 初始设置没完成：框架要跳设置向导，外壳整个放行（不然两边来回跳到栈溢出）
+frappe.boot.setup_complete = 0;
+const before = [parsed.length, rendered.length, routed.length];
+enter('setup-wizard/0');
+visit('setup-wizard', '0');
+assert.deepEqual([parsed.length, rendered.length, routed.length], [before[0] + 1, before[1] + 1, before[2]],
+  'With setup unfinished the setup wizard is parsed and rendered, nothing is replaced');
+frappe.boot.setup_complete = 1;
+enter('setup-wizard/0');
+assert.equal(parsed.length, before[0] + 1, 'Once setup is complete the wizard route is replaced again');
 
 const profile = new Page('Form/User/a@b.co', undefined);
 const save = profile.set_primary_action('บันทึก');

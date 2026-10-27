@@ -23,6 +23,8 @@
 	// 路由：两道。`route()` 一进来先按原始地址的第一段判（不放行的连解析都不做——解析会先拉 DocType 定义，
 	// 没权限的在那里就抛错，走不到渲染）；解析成标准路由后渲染前再按前两段精确判（`render`）。不放行的不画、
 	// 换成首页（替换历史，不留回退）。Administrator 是框架超管（服务端同样放过它），照原生。
+	// 站点「初始设置」没完成时整个放行：框架会强制跳设置向导，白名单再换回首页，两边来回跳到栈溢出（10-27 实验站点撞到）。
+	// 开户收尾 `provisioning.finalize_site` 在绑管理员、发布域名之前就把它置好，正常租户碰不到这条。
 	const router = frappe.router;
 	if (router?.route && router?.render) {
 		const declared = () => frappe.boot.pearnly_routes || [];
@@ -43,7 +45,8 @@
 				return head === (["Form", "List", "Tree", "Report"].includes(view) ? router.slug(name) : view);
 			});
 		const landing = () => String(frappe.boot.pearnly_landing_url || "/desk/pearnly-home");
-		const exempt = () => frappe.session.user === "Administrator" || window.location.pathname === landing();
+		const exempt = () => !frappe.boot.setup_complete || frappe.session.user === "Administrator"
+			|| window.location.pathname === landing();
 		const to_landing = () => {
 			frappe.route_flags.replace_route = true;
 			frappe.set_route(landing().replace(/^\/desk\/?/, ""));
