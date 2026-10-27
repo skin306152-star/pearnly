@@ -116,8 +116,35 @@
   `cowork.stocktake.switch`、`erp.place.header`、`erp.products.new-dialog.opening`、`erp.inventory.opening.row-warehouse`、
   `erp.warehouses.express-new-hidden`（manual）。
 
+### P1 本机实验栈实测（10-27，compose 项目 `pearnly-p1-lab` = erp-pos-lab + erp-entry-preview，只挂本工作树，Frappe 16.33.0）
+
+Site A（预览合成数据）造数：ERP 预览一店 CO-00033 主仓 WH-00034、二号仓 WH-00044（库位清单 A1 / A2）；盘点 STC-00045（置为已过账）、
+STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器用 `scripts/smoke/drive.mjs`（本机无头 Chrome + 会话 cookie）。
+
+| 场景 | 改动前（ab823298） | P1 |
+|---|---|---|
+| 盘点页 已过账 → 进行中（`record_switch`） | 不通过：残留「导出」 | 通过：打印、结束盘点、开始盘点 |
+| 盘点页 进行中 → 已过账 | 不通过：残留「结束盘点」 | 通过：打印、导出 |
+| 只有采购岗的账号打开别人的采购单（`not_permitted`） | 不通过：白屏 + `Uncaught (in promise)`（product.js:810） | 通过：原生无权限页 `pearnly-not-permitted`，控制台无报错 |
+| 新建采购单：单头预填 → 改单头仓 → 填单头库位 | — | 预填卖货仓（一店仓库）；换二号仓后明细跟着换、单头库位清空；单头库位 A1 后明细 A1 |
+| 服务端：采购单头二号仓 A1、明细不写仓 | — | 单头存 WH-00044 / A1，明细 WH-00044 / A1，二号仓 A1 入 3 件 |
+| 多仓公司单头、明细都不写仓 | — | 拒「Pick a warehouse」 |
+| 再建采购单的预填 | — | WH-00044（reason last） |
+| 销售单头二号仓 A1 | — | 单头与明细一致 |
+| 入库单头二号仓 A2 / 单头库位不在清单 ZZ | — | 明细 A2、详情接口回 location A2 / 拒「不在库位清单」 |
+| 新建商品弹窗 | — | 有「期初库存」网格，新行仓预填 WH-00034 |
+| 期初页 | — | 表头仓预填一店仓库，每行仓库格空着 = 表头仓 |
+| 建商品带两个仓期初（服务端） | — | WH-00034 5 件、WH-00044/A2 3 件；库位 ZZ 不在清单 → 整件商品不建 |
+| 接 Express 的公司仓库页不出「新建」 | — | 没测到：实验站点没有 Express 账套（`express_linked` 由真账套决定）；前端判据有单测，服务端拒有 P1 服务端用例 |
+
+在库用例（Site B）：`erp-opening-lab-verify`、`erp-entry-lab-verify` 通过。`erp-pos-lab-inventory / purchasing / sales-verify` 与
+`erp-data-flow-lab-verify` 在**改动前的 ab823298 上同样失败**（同一实验栈切源码对比：采购用例两边问题项完全相同的 7 项；库存用例调了已删的
+`create_entry(doc_no=…)`；销售用例依赖的 owner 账号被前一套删掉；数据流用例调了 09-24 就删掉的 `create_product(default_warehouse=…)`）——
+都是脚本过期，不是本次引起的，记入后续项。
+
 旁见（不在本任务范围，记作后续项）：`tests/test_stock_opening_ui.js`、`tests/test-stock-entry.cjs`、`tests/test-product-multi.cjs`、
-`tests/test-product-scan.cjs` 在改动前（变基后的 HEAD）就全部失败，也不在 CI 里——是过期的页面测试，要么修要么删。
+`tests/test-product-scan.cjs` 在改动前（变基后的 HEAD）就全部失败，也不在 CI 里——是过期的页面测试，要么修要么删；
+上表四套实验室在库用例同样过期。
 
 ## 暂停点（10-26 晚，用户指示全部窗口就地暂停；10-27 已按此继续）
 
