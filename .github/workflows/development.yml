@@ -35,6 +35,8 @@ jobs:
         run: python3 tests/test_check_entries.py && python3 scripts/check-entries.py
       - name: Team members added without an email get <login name>.<site prefix>@pearnly.com, a typed email must be valid
         run: python3 tests/test_team_placeholder_email.py
+      - name: Every guest endpoint is registered with its reason and guard
+        run: python3 tests/test_guest_endpoints.py
       - name: Download file names in Chinese or Thai are sent as RFC 5987 with an ASCII fallback
         run: python3 tests/test_download_filenames.py
       - name: Keep each ERP boot item independent of the others

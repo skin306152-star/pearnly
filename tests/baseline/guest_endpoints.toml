@@ -1,0 +1,172 @@
+# 允许匿名调用的白名单接口登记（回归基线 B，主会话 10-26 定：逐个写明理由，没登记的判失败）。
+# reason = 为什么必须匿名；guard = 匿名进来后靠什么认人 / 限定只做这件事。改动走评审：新增匿名接口必须先在这里登记。
+
+[[guest]]
+method = "pearnly_core.line.webhook"
+reason = "LINE 平台推送事件，发件方不是登录用户"
+guard = "LINE 签名验签（X-Line-Signature）"
+
+[[guest]]
+method = "pearnly_core.browser_text.browser_text"
+reason = "LINE / LIFF 页面开局取四语文案，此时还没登录"
+guard = "只读公开文案，不碰业务数据"
+
+[[guest]]
+method = "pearnly_core.identity.begin_login"
+reason = "统一登录入口：未登录才需要"
+guard = "只发起 OIDC 跳转，不返回数据"
+
+[[guest]]
+method = "pearnly_core.identity.callback"
+reason = "统一登录回调：身份服务带 code / state 回来时还没有会话"
+guard = "OIDC state 与 code 校验"
+
+[[guest]]
+method = "pearnly_core.identity.backchannel_logout"
+reason = "身份服务的后台登出通知"
+guard = "签名的 logout token（OIDC back-channel）"
+
+[[guest]]
+method = "pearnly_core.assistant.webhook.receive"
+reason = "智能体引擎的事件回调，发件方不是登录用户"
+guard = "共享密钥签名校验（verify_webhook），未配密钥只回 not_configured"
+
+[[guest]]
+method = "pearnly_core.assistant.api.service_worker"
+reason = "对话页的 Service Worker 脚本，浏览器在登录前就会取"
+guard = "只回静态脚本，不碰数据"
+
+[[guest]]
+method = "pearnly_core.desk.client_errors.report"
+reason = "LINE 票据页等未登录页面的报错回传"
+guard = "未登录只收 GUEST_ROUTES 页面的报错，限流、去重"
+
+[[guest]]
+method = "pearnly_core.account.line_login.enter"
+reason = "LINE 卡片与菜单的链接入口，打开时可能还没登录"
+guard = "只做跳转（LIFF / LINE 登录 / 统一登录），不返回数据"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_config"
+reason = "手机盘点页开局取 LIFF id 与 csrf 令牌"
+guard = "只回公开配置"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_auth"
+reason = "LIFF 身份换盘点票据"
+guard = "LINE id_token 校验，或本站已登录账号自己的绑定"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_tasks"
+reason = "手机盘点：列可盘的盘点单"
+guard = "盘点票据（as_ticket_user）"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_task"
+reason = "手机盘点：一份盘点的头部与最近记录"
+guard = "盘点票据（as_ticket_user）"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_lookup"
+reason = "手机盘点：按码查本盘点里的行"
+guard = "盘点票据（as_ticket_user）"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_add"
+reason = "手机盘点：记一笔（带 request_id 幂等）"
+guard = "盘点票据（as_ticket_user）"
+
+[[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_undo"
+reason = "手机盘点：撤销一笔"
+guard = "盘点票据（as_ticket_user）"
+
+[[guest]]
+method = "pearnly_cowork.ocr.remote.callback.receive"
+reason = "Cloud Run 识别服务的结果回调，发件方不是登录用户"
+guard = "服务身份令牌校验（verify：回调地址 + 调用方）"
+
+[[guest]]
+method = "pearnly_dms.account.api.authenticate"
+reason = "LINE 里打开 DMS 账户页：LIFF 身份换账户票据"
+guard = "LINE id_token 校验"
+
+[[guest]]
+method = "pearnly_dms.account.api.credentials"
+reason = "DMS 账户页取自己的登录名（不回密码）"
+guard = "账户票据"
+
+[[guest]]
+method = "pearnly_dms.account.api.save_credentials"
+reason = "DMS 账户页改自己的 DMS 密码"
+guard = "账户票据；用户名不许改"
+
+[[guest]]
+method = "pearnly_dms.account.api.portal_ticket"
+reason = "DMS 账户页换一张 60 秒的门户票"
+guard = "账户票据"
+
+[[guest]]
+method = "pearnly_dms.account.api.open_portal"
+reason = "用门户票打开 DMS 门户（一次性）"
+guard = "一次性门户票（60 秒、用后即删、加锁）"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_config"
+reason = "LINE 编辑页开局：站点有没有配 LIFF"
+guard = "只回公开配置"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_auth"
+reason = "LINE 编辑页：LIFF 身份换编辑票据"
+guard = "LINE id_token 校验"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_draft"
+reason = "订车编辑器首屏数据"
+guard = "编辑票据 + nonce"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_paints"
+reason = "订车编辑器：车型的颜色选项"
+guard = "编辑票据 + nonce"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_geo"
+reason = "编辑器地址级联"
+guard = "编辑票据 + nonce"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_save"
+reason = "编辑器保存草稿并把新卡发回 LINE"
+guard = "编辑票据 + nonce（服务端换新 nonce）"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_page_deliver"
+reason = "编辑页发不了消息时把卡推播回聊天"
+guard = "编辑票据"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_review"
+reason = "修改页首屏"
+guard = "编辑票据"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_review_save"
+reason = "修改页保存，排队改单"
+guard = "编辑票据"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_scan"
+reason = "扫描页上传身份证照片"
+guard = "编辑票据"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_scan_start"
+reason = "扫描页发不了消息时直接开始识别"
+guard = "编辑票据"
+
+[[guest]]
+method = "pearnly_dms.editor.browser_api.browser_text"
+reason = "LINE 编辑页开局取四语文案"
+guard = "只读公开文案"

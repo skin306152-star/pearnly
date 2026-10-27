@@ -193,3 +193,54 @@
 | `/desk/module-def` |  | ✓ | ✓ |
 | `/desk/module-def/<记录>` |  | ✓ | ✓ |
 | `/desk/pearnly-erp-endpoint` | ✓ |  |  |
+
+## B 接口权限矩阵的发现（10-27）
+
+工具：`scripts/regression/api_matrix.py`（回归实验室站点内，按岗位账号 + Guest 走框架正式入口 `frappe.handler.execute_cmd`，
+必填参数给占位值；每次调用回滚、对外网络断开、不发后台任务；同时记下调用过程中有没有调到守卫函数）。
+规模：DMS 113 个接口 × 4 个账号，ERP 312 × 9，Cowork 306 × 7，共 5,402 次调用，三产品合计约 2 分钟。
+结果：`~/pearnly-devtools/regression-baseline/2026-10-27/api-*.jsonl`。
+
+「只有 Desk User、没有任何业务角色的账号」调用后**一个守卫都没调到就正常返回**的接口（三产品合计，去重）：
+
+| 接口 | 结论 |
+|---|---|
+| `pearnly_dms.records.push_log.api_list` | **缺陷**：`frappe.get_all` 不核权限、筛选条件原样取自请求，任何登录账号都能列出全部 DMS 推送记录 |
+| `pearnly_core.endpoints.api_list_endpoints` | **缺陷**：任何登录账号都能拿到外部连接清单（地址、登录名、管理员登录名），`owner_user` 还能指定成别人 |
+| `pearnly_dms.records.push_log.api_status` | 同类：按 `reference_doctype` / `reference_name` 查推送状态，没有守卫（只回状态，风险低，随第一条一起改） |
+| `pearnly_core.sessions.my_sessions` / `pearnly_core.assistant.api.push_unsubscribe` / `pearnly_cowork.recon_center.api.active` / `pearnly_erp_portal.purchasing.api.api_recognise_progress` / `pearnly_erp_portal.sales.api.api_recognise_progress` | 只读写**本人**的数据（会话、推送订阅、本人的对账任务、按「本人 + 号」存的识别进度），不算缺陷 |
+| `pearnly_core.manifest.describe` / `pearnly_core.ocr.api_status` / `pearnly_dms.ocr.ocr_id_card.api_status` / `pearnly_core.password.refuse_on_native_account` | 只回产品清单 / 服务是否可用 / 固定拒绝，不含业务数据 |
+
+另有「测不出」的（占位参数在守卫之前就解析失败，DMS 12、ERP 61、Cowork 23 个）：要业务夹具（造真数据、带真参数）补，进 B 的第二步。
+
+### 缺陷 1：`pearnly_dms.records.push_log.api_list`
+
+- 位置：`apps/pearnly_dms/pearnly_dms/records/push_log.py` 的 `api_list(**kwargs)`（`@frappe.whitelist()`，没有 `allow_guest`）。
+- 调用：`POST /api/method/pearnly_dms.records.push_log.api_list`，参数可空；`limit` 与任意字段筛选（如 `status=failed`、`endpoint=…`）原样进 `frappe.get_all`。
+- 返回：推送记录逐条的 `name, status, endpoint, trigger, reference_doctype, reference_name, business_key, http_status, attempt, retry_count, error_msg, creation`。
+  实验室复现拿到：`business_key` = `ID***`（身份证号作业务键）、`error_msg` = `DM***`（含客户手机号的报错原文）。
+- 谁能调：DMS 站点任何登录账号（实验室实测：只有 Desk User 的账号、DMS 操作员账号都拿到）。
+- 应有：按推送记录页的口径只给 DMS 管理员（或有「推送记录」功能的岗位），并用 `frappe.get_list`（核 DocType 权限）而不是 `get_all`；筛选字段收白名单。
+
+### 缺陷 2：`pearnly_core.endpoints.api_list_endpoints`
+
+- 位置：`apps/pearnly_core/pearnly_core/endpoints.py` 的 `api_list_endpoints(adapter=None, owner_user=None)` → `list_for`（`frappe.get_all`）。
+- 调用：`POST /api/method/pearnly_core.endpoints.api_list_endpoints`，参数可空；`owner_user=<任意账号>` 可列出别人的私有连接。
+- 返回：`name, label, adapter, owner_user, system_url, enabled, is_default, auto_push, last_used_at, last_status, success_count, failure_count, username, admin_username, has_credential, usable`（不含密码）。
+  实验室复现拿到：`system_url` = `ht***`、`username` = `dm***`、`admin_username` = `dm***`。
+- 谁能调：装了 pearnly_core 的三个产品站点上任何登录账号（DMS 实测；ERP、Cowork 的矩阵里同样无守卫正常返回）。
+- 应有：连接页的口径（DMS「连接」页只给 DMS 管理员）；`owner_user` 只能是本人或管理员指定。
+
+### 复现步骤（本机回归实验室）
+
+```
+docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait
+docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
+  ../env/bin/python /workspace/scripts/regression/repro_unguarded.py dms.regression.localhost none@dms.regression
+```
+
+脚本以 Administrator 造一条假连接（`https://dms.example.test`，登录名 `dms_login_demo`）和一条推送记录，再用只有 Desk User 的账号调两个接口，打印拿到的条数、字段与打码后的值；跑完回滚。
+
+### 按类查的建议
+
+同类 = 「`@frappe.whitelist()` 接口里直接 `frappe.get_all` / `frappe.db.get_all` / `frappe.db.sql` 回数据、函数体里没有任何守卫」。矩阵已能自动找出「无守卫正常返回」的那一类，修完后矩阵里这类必须只剩「本人数据 / 公开信息」的登记项（做法同匿名接口登记表），新增无守卫接口 CI 失败。
