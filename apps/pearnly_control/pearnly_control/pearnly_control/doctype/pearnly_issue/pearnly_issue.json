@@ -68,8 +68,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Email",
-   "options": "Email",
-   "reqd": 1
+   "options": "Email"
   },
   {
    "fieldname": "column_break_head",
@@ -206,7 +205,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-18 21:30:00.000000",
+ "modified": "2026-10-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Issue",

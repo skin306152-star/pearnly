@@ -34,6 +34,11 @@ from pearnly_control.onboarding.line_ids import clean_credential, incomplete, no
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+# 邮箱留空时补成「第一行产品的前缀@pearnly.com」（用户 2026-10-27）：很多租户没有邮箱。
+# 这不是真邮箱：pearnly.com 的收信在 Cloudflare 邮件转发，catch-all 转到开户人邮箱，
+# 只用来兜底收「忘记密码」这类信。固定用 pearnly.com，那是转发所在的域，不跟着开户目标走。
+PLACEHOLDER_MAIL_DOMAIN = "pearnly.com"
+
 # 域名前缀：一层标签。只允许小写字母、数字、短横线，首尾不能是短横线。
 # 用户 2026-09-17 定的规则：开通时只填前缀，系统补成「前缀.pearnly.com」。
 PREFIX_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
@@ -50,6 +55,8 @@ RESERVED_PREFIXES = {
     "keycloak", "auth", "sso", "id", "login", "account", "accounts", "console",
     "control", "desk", "dev", "test", "staging", "stage", "demo", "sandbox",
     "pearnly", "cowork", "erp", "dms", "internal", "monitor", "grafana", "work", "ai", "testai",
+    # 官方发信地址 hello@pearnly.com：前缀会变成租户的占位邮箱，不能撞上
+    "hello",
 }
 
 
@@ -63,12 +70,14 @@ class PearnlyIssue(Document):
             self.target = require_cloud_target(self.target)
         self._validate_account()
         self._validate_apps()
+        self._fill_placeholder_email()
         self._summarize_features()
 
     # ── 基础信息 ──────────────────────────────────────────────
     def _validate_account(self):
         self.account_email = (self.account_email or "").strip().lower()
-        if not EMAIL_RE.match(self.account_email):
+        # 留空等产品行校验完再补（见 _fill_placeholder_email）；填了就必须是合法邮箱
+        if self.account_email and not EMAIL_RE.match(self.account_email):
             frappe.throw(_("Invalid email"))
         self.account_username = (self.account_username or "").strip()
         if not USERNAME_RE.match(self.account_username):
@@ -81,6 +90,15 @@ class PearnlyIssue(Document):
         self.tenant_name = (self.tenant_name or "").strip()
         if not self.tenant_name:
             frappe.throw(_("Company name is required"))
+
+    def _fill_placeholder_email(self):
+        """邮箱留空 → 第一行产品的前缀@pearnly.com。
+
+        前缀在 _validate_apps 里已归一并跨单查重，所以生成的地址也唯一；
+        各身份池里已有同名邮箱时，照旧由开户那一步拒绝，不合并账号。
+        """
+        if not self.account_email:
+            self.account_email = f"{self.apps[0].domain_prefix}@{PLACEHOLDER_MAIL_DOMAIN}"
 
     # ── 产品与域名 ────────────────────────────────────────────
     def _validate_apps(self):

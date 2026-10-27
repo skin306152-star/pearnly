@@ -133,7 +133,8 @@ class CloudOnly(unittest.TestCase):
         from pearnly_control.pearnly_control.doctype.pearnly_issue.pearnly_issue import PearnlyIssue
         # 开户单另有智能体设置（ADR-019，`onboarding.assistant`）：这里三项都空，即不开通
         doc = SimpleNamespace(target="local", status="draft", is_new=lambda: True,
-                              _validate_account=Mock(), _validate_apps=Mock(), _summarize_features=Mock(),
+                              _validate_account=Mock(), _validate_apps=Mock(), _fill_placeholder_email=Mock(),
+                              _summarize_features=Mock(),
                               assistant_engine="", assistant_model="", assistant_api_key="",
                               flags=SimpleNamespace(), has_value_changed=lambda field: False)
         with self.assertRaises(Rejected): PearnlyIssue.validate(doc)
@@ -159,6 +160,57 @@ class CloudOnly(unittest.TestCase):
         with patch.object(frappe, "get_all", return_value=[]) as query:
             issues.list_targets()
             self.assertEqual(query.call_args.kwargs["filters"], {"name": ["in", ["cloud"]]})
+
+
+class PlaceholderEmail(unittest.TestCase):
+    """邮箱留空 → 第一行产品的前缀@pearnly.com（用户 2026-10-27）。"""
+
+    def setUp(self):
+        from pearnly_control.pearnly_control.doctype.pearnly_issue import pearnly_issue
+        self.mod = pearnly_issue
+        self.db = Mock()
+        self.db.get_value.return_value = None
+        for attribute, value in {"db": self.db, "throw": Mock(side_effect=Rejected), "_": lambda x: x}.items():
+            p = patch.object(frappe, attribute, value, create=True)
+            p.start(); self.addCleanup(p.stop)
+        for attribute, value in {"_": lambda x: x, "base_domain": lambda target=None: "pearnly.com"}.items():
+            p = patch.object(pearnly_issue, attribute, value); p.start(); self.addCleanup(p.stop)
+
+    def doc(self, email, prefixes=("polymer",)):
+        rows = [SimpleNamespace(app=app, domain_prefix=prefix, line_liff_id="", line_channel_id="",
+                                line_channel_secret="", line_access_token="")
+                for app, prefix in zip(("erp", "cowork", "dms"), prefixes)]
+        return SimpleNamespace(account_email=email, account_username="polymerpearnly", account_password="300441",
+                               tenant_name="Polymer", target="cloud", name="ISS-NEW", apps=rows,
+                               is_new=lambda: True, status="draft", _validate_line_credentials=Mock())
+
+    def validate(self, doc):
+        Issue = self.mod.PearnlyIssue
+        Issue._validate_account(doc)
+        Issue._validate_apps(doc)
+        Issue._fill_placeholder_email(doc)
+        return doc
+
+    def test_blank_email_uses_first_product_prefix(self):
+        self.assertEqual(self.validate(self.doc("  ")).account_email, "polymer@pearnly.com")
+        self.assertEqual(self.validate(self.doc(None, ("Gize", "gize-cw"))).account_email, "gize@pearnly.com")
+
+    def test_given_email_is_kept(self):
+        self.assertEqual(self.validate(self.doc(" Boss@Example.com ")).account_email, "boss@example.com")
+
+    def test_malformed_email_still_rejected(self):
+        with self.assertRaises(Rejected):
+            self.validate(self.doc("not-an-email"))
+
+    def test_official_sender_prefix_is_reserved(self):
+        with self.assertRaises(Rejected):
+            self.validate(self.doc("", ("hello",)))
+
+    def test_no_product_row_does_not_build_half_an_address(self):
+        doc = self.doc("", ())
+        with self.assertRaises(Rejected):
+            self.validate(doc)
+        self.assertEqual(doc.account_email, "")
 
 
 if __name__ == "__main__":
