@@ -34,6 +34,8 @@ services:
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}
+    # 站点名在容器里指回本机：PDF（wkhtmltopdf）按站点地址回取页面里的字体 / 图片，解析不了就整张 PDF 失败
+    extra_hosts: ["erp.regression.localhost:127.0.0.1", "cowork.regression.localhost:127.0.0.1", "dms.regression.localhost:127.0.0.1"]
     ports: ["127.0.0.1:${REGRESSION_LAB_PORT:-18771}:8000", "127.0.0.1:18772:8001", "127.0.0.1:18773:8002"]
     volumes:
       - sites:/home/frappe/frappe-bench/sites

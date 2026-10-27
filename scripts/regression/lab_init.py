@@ -16,8 +16,14 @@ SITES = {"erp.regression.localhost": ("erp", "pearnly_erp_portal"),
 # 岗位账号：产品 → {岗位名: 角色}（与开通 / 团队管理发的角色同名；管理员 = 产品管理员 + 全部功能角色）
 ROLES = {
     "erp": {"admin": ["ERP Admin", "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier", "ERP Tasks"],
-            "products": ["ERP Products"], "stock": ["ERP Stock"], "purchase": ["ERP Purchase"], "sales": ["ERP Sales"],
-            "cashier": ["ERP Cashier"], "tasks": ["ERP Tasks"], "none": []},
+            # 员工岗位照团队管理真实发的「ERP Menu <菜单>」角色（`team.service.set_member_roles`）；旧的粗角色只给管理员
+            "products": ["ERP Menu products", "ERP Menu profile"],
+            "stock": ["ERP Menu inventory", "ERP Menu stock-in", "ERP Menu stock-out", "ERP Menu stock-card",
+                      "ERP Menu stock-count", "ERP Menu warehouses", "ERP Menu profile"],
+            "purchase": ["ERP Menu purchase", "ERP Menu suppliers", "ERP Menu profile"],
+            "sales": ["ERP Menu sales", "ERP Menu clients", "ERP Menu profile"],
+            "cashier": ["ERP Menu cashier", "ERP Menu pos-receipts", "ERP Menu pos-shifts", "ERP Menu profile"],
+            "tasks": ["ERP Menu tasks", "ERP Menu profile"], "none": []},
     "cowork": {"admin": ["Cowork Admin", "Cowork Intake", "Cowork Bank Reconciliation", "Cowork Income Reconciliation",
                          "Cowork VAT Check", "Cowork Tax Filing", "Cowork Stocktake", "Cowork Work", "Cowork Profile", "Cowork LINE"],
                "intake": ["Cowork Intake", "Cowork Profile"], "recon": ["Cowork Bank Reconciliation", "Cowork Income Reconciliation",
@@ -63,7 +69,9 @@ def main(only):
         features = json.loads(Path(f"apps/{app}/{app}/features.json").read_text())["features"]
         site_config.update(pearnly_product=product, pause_scheduler=1, disable_scheduler=1, mute_emails=1,
                            pearnly_features=["home_subscription", *[item["code"] for item in features]],
-                           pearnly_company_name="Regression Lab", developer_mode=0, allow_tests=True)
+                           pearnly_company_name="Regression Lab", developer_mode=0, allow_tests=True,
+                           # 服务端自己拼的地址（PDF 回取字体 / 图片）走容器里的网页口；浏览器那边只用相对地址
+                           host_name=f"http://{site}:8000")
         site_file.write_text(json.dumps(site_config, indent=2) + "\n")
         if not (sites / site / ".installed").exists():
             bench("--site", site, "install-app", "pearnly_core", app)

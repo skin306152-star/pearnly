@@ -93,8 +93,11 @@ try {
     const before = (await send("Runtime.evaluate", { expression: "location.pathname", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value || "";
     const booted = (await send("Runtime.evaluate", { expression: "!!(window.frappe && frappe.router && frappe.boot)", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
     if (booted && job.spa !== false) {
-      // 换路由前给当前所有页面容器打标记：换完如果露出来的还是带标记的旧容器，说明新页没渲染出来（多是无权限的框架路由），记「没打开」
-      await send("Runtime.evaluate", { expression: `document.querySelectorAll(".page-container").forEach((el) => { el.dataset.invOld = "1"; })` }, sessionId).catch(() => {});
+      // 换路由前记下框架的换页次数（`frappe.views.Container.change_to` 每次换页都发 page-change，复用已建的页面容器也发）：
+      // 换完次数没变，说明新页没渲染出来（多是无权限的框架路由 getpage 403），记「没打开」。
+      // 不能按「露出来的是不是旧容器」判：我们自己的产品页会复用已建的容器，旧做法把它们误记成没打开（10-27）
+      await send("Runtime.evaluate", { expression: `(() => { if (!window.__invHooked) { window.__invHooked = true; window.__invChanges = 0;
+        $(document).on("page-change", () => { window.__invChanges += 1; }); } window.__invBefore = window.__invChanges; })()` }, sessionId).catch(() => {});
       await send("Runtime.evaluate", { expression: `(() => { document.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", bubbles: true}));
         (window.cur_dialog && cur_dialog.hide && cur_dialog.hide()); frappe.router.push_state(${JSON.stringify(path)}); })()` }, sessionId).catch(() => {});
     } else {
@@ -110,7 +113,7 @@ try {
       else { last = now; since = Date.now(); }
       await sleep(200);
     }
-    const stale = booted && job.spa !== false && (await send("Runtime.evaluate", { expression: `(() => { const page = document.querySelector(".page-container[data-page-route]:not([style*='display: none'])") || document.querySelector(".page-container"); return !!(page && page.dataset.invOld); })()`, returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
+    const stale = booted && job.spa !== false && (await send("Runtime.evaluate", { expression: "window.__invChanges === window.__invBefore", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
     if (stale) {
       console.log(JSON.stringify({ path, final: null, ready_ms: null, error: null, logs: [...logs], inventory: null, not_rendered: true }));
       continue;

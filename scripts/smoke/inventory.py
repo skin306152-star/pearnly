@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -68,6 +69,8 @@ def main(argv=None) -> int:
     parser.add_argument("--doctypes", action="store_true", help="另把本产品全部 DocType 的列表页加进来（直达地址也是入口）")
     parser.add_argument("--product", required=True, choices=sorted(LAB_PORTS))
     parser.add_argument("--user", action="append", required=True, help="角色名=账号，可多个")
+    parser.add_argument("--page", action="append", default=[], help="另加的地址（如某张单的详情页），可多个")
+    parser.add_argument("--pages-only", action="store_true", help="只跑 --page 给的地址，不带登记表与框架默认地址")
     parser.add_argument("--max-pages", type=int, default=80)
     parser.add_argument("--out", required=True)
     args = parser.parse_args(argv)
@@ -82,20 +85,26 @@ def main(argv=None) -> int:
         site = run.SITES[args.product]
         remote = run.Remote(args.target)
         base = f"https://{site}" if args.target == "production" else f"http://{site}:{LAB_PORTS[args.product]}"
-    targets = pages(args.product)
+    targets = [] if args.pages_only else pages(args.product)
+    targets += args.page
     if args.doctypes:
         targets += [f"/desk/{slug}" for slug in remote.doctypes(args.product, site)]
     with open(args.out, "w", encoding="utf-8") as out:
         for spec_ in args.user:
             role, user = spec_.split("=", 1)
-            output = remote.run(args.product, HERE / "session.py", site, user)
-            sid = next((line.split()[1] for line in output.splitlines() if line.startswith("SID ")), "")
+            # 几个产品并行跑时建会话偶尔撞上库忙、什么都没回：再试两次再算失败
+            for _attempt in range(3):
+                output = remote.run(args.product, HERE / "session.py", site, user)
+                sid = next((line.split()[1] for line in output.splitlines() if line.startswith("SID ")), "")
+                if sid:
+                    break
+                time.sleep(5)
             if not sid:
                 print(f"建会话失败（{site} {user}）：{output[-300:]}", file=sys.stderr)
                 return 2
             try:
                 job = {"base": base, "pages": targets + ([f"/desk/user/{user}"] if user != "Administrator" else ["/desk/user/Administrator"]), "cookie_domain": site, "sid": sid, "secure": args.target == "production",
-                       "crawl": True, "max_pages": args.max_pages}
+                       "crawl": not args.pages_only, "max_pages": args.max_pages}
                 if args.target == "lab":
                     os.environ.setdefault("SMOKE_CHROME_RULES", f"MAP {site} 127.0.0.1")
                 proc = subprocess.run(["node", str(HERE / "inventory.mjs"), json.dumps(job)], capture_output=True, text=True,

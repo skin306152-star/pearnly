@@ -6,10 +6,13 @@ const visible = (el) => !!el && el.offsetParent !== null && getComputedStyle(el)
 const text = (el) => (el.innerText || el.textContent || el.getAttribute("title") || el.getAttribute("aria-label") || "")
   .replace(/\s+/g, " ").trim().slice(0, 80);
 const hiddenByClass = (el) => !!el.closest(".hide, .hidden, [hidden], [style*='display: none']");
+// declared / action：外壳白名单放行的元素带 data-pearnly-declared、能对上声明码的带 data-pearnly-action（基线按码比）
 const items = (root, selector) => root ? [...root.querySelectorAll(selector)].map((el) => ({
   text: text(el), visible: visible(el) || (!hiddenByClass(el) && !!el.closest(".dropdown-menu")),
   href: el.getAttribute("href") || undefined,
   data: el.getAttribute("data-label") || el.getAttribute("data-name") || undefined,
+  declared: !!el.closest("[data-pearnly-declared]") || undefined,
+  action: (el.closest("[data-pearnly-action]") && el.closest("[data-pearnly-action]").getAttribute("data-pearnly-action")) || undefined,
 })).filter((row) => row.text || row.data) : [];
 const page = document.querySelector(".page-container[data-page-route]:not([style*='display: none'])") || document.querySelector(".page-container");
 const head = page && page.querySelector(".page-head");
