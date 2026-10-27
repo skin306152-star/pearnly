@@ -16,6 +16,8 @@ import re
 import frappe
 from frappe import _
 
+from pearnly_core.account import placeholder_email
+
 from pearnly_cowork.access import menu
 
 NOT_PERMITTED = "Not permitted"
@@ -192,11 +194,17 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
     """添加用户：用户名（英文数字，可登录）+ 邮箱 + 初始密码 + 勾选的功能权限。"""
     require_admin()
     email = (email or "").strip().lower()
-    if "@" not in email:
+    # 邮箱可以不填（用户 2026-10-27）：留空补成 `<登录名>.<本站前缀>@pearnly.com`；填了就必须是合法邮箱
+    if email and not placeholder_email.valid(email):
         frappe.throw(_(EMAIL_REQUIRED))
+    username = _clean_username(username)
+    if not email:
+        email = placeholder_email.for_user(username)
+        # 生成的地址已被别的账号占了：照旧拒绝、不合并，让管理员换个登录名
+        if frappe.db.exists("User", email):
+            frappe.throw(_(USERNAME_TAKEN).format(username))
     if frappe.db.exists("User", email):
         frappe.throw(_(ALREADY_EXISTS))
-    username = _clean_username(username)
     wanted = _clean_roles(roles)
     secret = _clean_password(password)
     if frappe.conf.get("pearnly_native_account") and not _identity_configured():

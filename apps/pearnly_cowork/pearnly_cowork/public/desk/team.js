@@ -126,7 +126,7 @@
 				field("username", __("Username"), "Data",
 					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
 				field("email", t("cowork.team.email"), "Data",
-					{ options: "Email", reqd: 1, read_only: is_new ? 0 : 1, default: row?.email || "" }),
+					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [
 					{ fieldtype: "Column Break" },
 					field("password", t("cowork.team.password"), "Password", { reqd: 1 }),

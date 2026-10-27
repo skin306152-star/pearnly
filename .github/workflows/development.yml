@@ -29,6 +29,8 @@ jobs:
         run: python3 tests/test_tenant_framework_roles.py && node tests/test-native-actions.cjs
       - name: Every page-head entry our code adds is declared on its own page in its product's pearnly_navigation actions
         run: python3 tests/test_check_entries.py && python3 scripts/check-entries.py
+      - name: Team members added without an email get <login name>.<site prefix>@pearnly.com, a typed email must be valid
+        run: python3 tests/test_team_placeholder_email.py
       - name: Download file names in Chinese or Thai are sent as RFC 5987 with an ASCII fallback
         run: python3 tests/test_download_filenames.py
       - name: Keep each ERP boot item independent of the others

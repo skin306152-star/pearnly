@@ -203,7 +203,7 @@
 				field("username", "Username", "Data",
 					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
 				field("email", "team.email", "Data",
-					{ options: "Email", reqd: 1, read_only: is_new ? 0 : 1, default: row?.email || "" }),
+					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [
 					// 密码不设任何规则（长度、字符都不限），所以这里没有说明句。
 					{ fieldtype: "Column Break" },
