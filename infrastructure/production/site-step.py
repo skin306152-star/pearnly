@@ -473,8 +473,10 @@ def main():
         from pearnly_core.provisioning import ensure_feature_roles
         ensure_feature_roles(json.dumps(p), admin_user=p["admin_user"])
     elif action == "set_workspace":
-        from pearnly_core.provisioning import ensure_product_workspace
+        from pearnly_core.provisioning import ensure_product_workspace, run_site_initializers
         ensure_product_workspace(json.dumps(p))
+        # 新开户不走 migrate：功能清单写好之后，把迁移收尾里才建的默认数据（任务看板等）在这里建好（10-28）；重试这一步同样补上
+        print(f"SITE_INITIALIZERS {json.dumps(run_site_initializers())}")
     elif action == "verify_site":
         if group == "dms":
             assert frappe.conf.get("workers", {}).get("dms_sync", {}).get("timeout") == 420

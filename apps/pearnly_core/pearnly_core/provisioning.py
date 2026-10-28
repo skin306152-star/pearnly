@@ -468,6 +468,8 @@ def ensure_product_workspace(spec_json: str) -> dict:
         from frappe.installer import update_site_config
 
         update_site_config("pearnly_features", codes)
+        # 同一进程里紧接着跑的初始化（`run_site_initializers`，按已购功能建默认数据）要看得到：只写文件，本进程的 conf 还是旧的
+        frappe.conf["pearnly_features"] = codes
 
     # 工作区名字记到站点配置里。为什么不能靠 module 反查：工作区的 module 必须为空
     # （否则 migrate 会删掉它，见上面的长注释），而 `site_product_workspace()`
@@ -503,6 +505,22 @@ def ensure_product_workspace(spec_json: str) -> dict:
         "features": codes,
         "landing": landed,
     }
+
+
+def run_site_initializers() -> list:
+    """开户收尾：把本仓各应用 `after_migrate` 登记的初始化在这个新站点跑一次，回跑了哪些。
+
+    新开户不走 migrate（见 `finalize_site` 里的说明），只在迁移收尾里建的默认数据（任务管理的默认看板与三列、
+    ERP / Cowork 的角色同步、登录设置、导航与站点图标……）新站点上原来一样都没有，要等下一次部署迁移或第一次打开页面兜底
+    （2026-10-28 polymer、gize 开户后默认看板都是 0）。这些钩子本来就每次迁移都跑、可以重跑；要靠已购功能的（ERP 任务看板）
+    在功能写进站点之后才建，所以放在开户 `set_workspace` 写完功能清单之后跑。只跑本仓应用（`pearnly_*`）登记的，不跑框架自己的。"""
+    done = []
+    for app in [name for name in frappe.get_installed_apps() if name.startswith("pearnly_")]:
+        for path in frappe.get_hooks("after_migrate", app_name=app) or []:
+            frappe.get_attr(path)()
+            done.append(path)
+    frappe.db.commit()
+    return done
 
 
 def _clear_desktop_caches() -> None:

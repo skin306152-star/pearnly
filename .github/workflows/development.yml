@@ -111,6 +111,8 @@ jobs:
         run: python3 scripts/production/test-site-step-purge.py
       - name: Verify which identity pool a site may sign in to (old Cowork sites move and roll back)
         run: python3 scripts/production/test-site-step-oidc.py
+      - name: Verify a new tenant runs the after migrate initializers once its features are written
+        run: python3 tests/test_site_initializers.py
       - name: Verify production memory admission budgets
         run: python3 scripts/check-production-capacity.py
       - name: Verify drained product activation and failure boundary

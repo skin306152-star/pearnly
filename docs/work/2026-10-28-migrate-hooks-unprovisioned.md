@@ -35,6 +35,14 @@
 
 - 激活脚本只做了离线替身测试（生产编排在实验室跑不了）；下一次生产部署时看 `unfinished-sites-*.txt` 与各站点迁移输出。
 
-## 相关但不在本次
+## 补充：开户收尾跑同一套初始化（主会话 10-28 按类要求）
 
-- 新开户不走 migrate（`provisioning.finalize_site` 注释）：新租户的默认任务看板要等第一次打开任务管理页或下一次部署迁移才建。polymer 已在 10-28 00:13 单站补过。
+新开户不走 migrate（`provisioning.finalize_site` 注释），只在迁移收尾里建的默认数据新站点原来都缺（polymer、gize 开户后默认看板都是 0，10-28 各单站补过）。
+   - core `pearnly_core.provisioning.run_site_initializers()`：把本仓各应用（`pearnly_*`）`after_migrate` 登记的初始化按应用、按登记顺序跑一次，
+     不跑框架自己的；回跑了哪些。全仓查过：只在迁移里建的默认数据就是这份清单——core 的导航、站点图标与名称、个人页字段、会话时长、隐藏报错堆栈；
+     ERP 的角色同步、登录设置、任务看板；Cowork 的角色同步、站点归属、任务看板。它们本来每次迁移都跑、可以重跑。
+   - 开户 `set_workspace`（写已购功能清单的那一步）之后紧接着跑，输出 `SITE_INITIALIZERS [...]`；重试这一步同样补上。
+     `ensure_product_workspace` 写完功能清单同时更新本进程的 `frappe.conf`（只写文件的话，同一进程里按功能建的看板看不到）。
+   - 实验室：全新站点 `half2.localhost`（只设产品 erp、没有功能）→ 同一进程里 `ensure_product_workspace(功能 11 项)` + `run_site_initializers()`：
+     跑了 9 个初始化，默认看板 1 个、列 3 列、标签 6 个；再跑一次仍是 1 个看板。
+   - `tests/test_site_initializers.py`（进 CI）：只跑 pearnly_* 的 after_migrate、按顺序；`set_workspace` 先写功能后跑初始化；功能清单同步进 conf。
