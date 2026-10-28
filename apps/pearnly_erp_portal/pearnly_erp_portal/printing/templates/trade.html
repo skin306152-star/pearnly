@@ -1,9 +1,8 @@
-{#- 采购订单 / 报价单 / 销售单（A4 横，第一批同风格；无样板，主会话 10-26 审定）。标题、对方、合计、签字栏由 `printing.context` 给。
+{#- 报价单 / 销售单（A4 横，第一批同风格；无样板，主会话 10-26 审定）。标题、对方、合计、签字栏由 `printing.context` 给。
     不印「ใบกำกับภาษี」：ERP 不开税票（用户 09-23）。 -#}
 {% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, items, totals, sign %}
 {% from "pearnly_erp_portal/printing/templates/_labels.html" import TITLES, INFO, SIGNS, branch, value %}
 {{ styles(ctx.fonts_css) }}
-{% set supplier_side = ctx.kind == "order" %}
 {% set columns = [
   {"key": "no", "th": "ลำดับ", "en": "No.", "width": "4.5%"},
   {"key": "code", "th": "รหัสสินค้า", "en": "Item Code", "width": "11%"},
@@ -21,10 +20,10 @@
   {{ head(ctx, loop.index, {"title_th": TITLES[ctx.title][0], "title_en": TITLES[ctx.title][1], "date": "วันที่"}) }}
   <table style="margin-top: 8.5px"><tr>
     <td style="width: 55%; border: 1px solid #cfe1d4; border-radius: 5.5px">
-      <div class="pp-box-title">{{ "ข้อมูลผู้ขาย / Supplier" if supplier_side else "ข้อมูลลูกค้า / Customer" }}</div>
+      <div class="pp-box-title">ข้อมูลลูกค้า / Customer</div>
       <div class="pp-box-body"><table class="pp-f pp-fw">
-        {{ field("รหัสผู้ขาย" if supplier_side else "รหัสลูกค้า", ctx.party.code) }}
-        {{ field("ชื่อผู้ขาย" if supplier_side else "ชื่อลูกค้า", ctx.party.name) }}
+        {{ field("รหัสลูกค้า", ctx.party.code) }}
+        {{ field("ชื่อลูกค้า", ctx.party.name) }}
         <tr><td class="pp-k">ที่อยู่</td><td class="pp-c">:</td><td><div class="pp-line" style="min-height: 29px">{{ ctx.party.address | e }}</div></td></tr>
         {{ field("โทรศัพท์", ctx.party.phone) }}
         <tr><td class="pp-k">เลขประจำตัวผู้เสียภาษี</td><td class="pp-c">:</td><td><div class="pp-line">{{ ctx.party.tax_id | e }}{% if ctx.party.branch %}&nbsp;&nbsp;&nbsp;{{ branch(ctx.party.branch) }}{% endif %}</div></td></tr>

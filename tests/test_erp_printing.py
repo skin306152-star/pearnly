@@ -171,9 +171,7 @@ class SecondBatchLayouts(unittest.TestCase):
             self.assertIn(text, html)
         self.assertNotIn("ใบกำกับภาษี", html)
         self.assertIn("ใบส่งของ", self.trade(title="delivery"))
-        order = self.trade(kind="order", title="order", signs=["prepared", "approved", "supplier_ack"])
-        for text in ("ข้อมูลผู้ขาย / Supplier", "ใบสั่งซื้อ", "PURCHASE ORDER", "Supplier Acknowledged"):
-            self.assertIn(text, order)
+        self.assertNotIn("order", C.TITLE_KEYS)  # 采购订单 10-28 删掉（用户：「采购订单删掉吧」）
         self.assertIn("CANCELLED", self.trade(void=True))
 
     def thermal(self, **over):

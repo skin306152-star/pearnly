@@ -49,16 +49,11 @@ class PrintOnlyStoredReadableDocuments(unittest.TestCase):
         return mock.patch.object(context.frappe, "db", types.SimpleNamespace(exists=lambda doctype, name: True)), \
             mock.patch.object(context.frappe, "get_doc", lambda doctype, name: doc)
 
-    def test_the_purchase_order_format_prints_only_purchase_orders_and_only_closed_shifts_print(self):
+    def test_only_closed_shifts_print(self):
         import frappe
 
         from pearnly_erp_portal.printing import context
 
-        invoice = types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1", doc_kind="purchase_invoice",
-                                        has_permission=lambda ptype: True)
-        exists, get_doc = self.stored(invoice)
-        with exists, get_doc, self.assertRaises(frappe.PermissionError):
-            context.pearnly_print_context(types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1"), "order")
         shift = types.SimpleNamespace(doctype=context.SHIFT, name="SHIFT-1", status="open", has_permission=lambda ptype: True)
         exists, get_doc = self.stored(shift)
         with exists, get_doc, self.assertRaises(frappe.PermissionError):
@@ -79,14 +74,11 @@ class PrintOnlyStoredReadableDocuments(unittest.TestCase):
         invoice = types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1", doc_kind="purchase_invoice",
                                         has_permission=lambda ptype: True)
         exists, get_doc = self.stored(invoice)
-        for form in ({"format": "Pearnly Purchase Order"}, {"print_format": "Pearnly Purchase Order"}):
-            with exists, get_doc, mock.patch.object(context.frappe, "form_dict", form), self.assertRaises(frappe.PermissionError):
-                context.before_print(types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1"), "before_print", {})
-        with exists, get_doc, mock.patch.object(context.frappe, "form_dict", {"format": "Pearnly Purchase Goods Receipt"}):
+        with exists, get_doc:
             context.before_print(types.SimpleNamespace(doctype=context.PURCHASE, name="PUR-1"), "before_print", {})
         shift = types.SimpleNamespace(doctype=context.SHIFT, name="SHIFT-1", status="open", has_permission=lambda ptype: True)
         exists, get_doc = self.stored(shift)
-        with exists, get_doc, mock.patch.object(context.frappe, "form_dict", {}), self.assertRaises(frappe.PermissionError):
+        with exists, get_doc, self.assertRaises(frappe.PermissionError):
             context.before_print(types.SimpleNamespace(doctype=context.SHIFT, name="SHIFT-1"), "before_print", {})
         from pearnly_erp_portal import hooks
         for doctype in context.PRINTABLE:
@@ -137,30 +129,6 @@ class CustomersAndSuppliersStayInsideTheCompany(unittest.TestCase):
                 mock.patch.object(context, "fonts_css", lambda: ""), \
                 mock.patch.object(context, "_products", lambda names: {}):
             self.assertEqual(context._sale(refund)["original"], "")  # 别的收银台的原单不印号
-
-class PrintedAmountsAreTheStoredOnes(unittest.TestCase):
-    """模板只印单上存的金额、不自己算（主会话 10-26 核样张）；采购订单没有预扣税就不印预扣税、应付净额两行。"""
-
-    def order(self, wht):
-        import frappe
-
-        from pearnly_erp_portal.printing import context
-
-        doc = frappe._dict(doc_kind="purchase_order", company="CO-1", system_no="PE-1", doc_date="2026-10-26", notes="",
-                           status="submitted", currency="THB", supplier=None, supplier_name="S", supplier_tax_id="",
-                           supplier_address="", supplier_branch_type="", supplier_branch_no="", due_date=None, doc_no="",
-                           requester="", subtotal=9996.5, discount_total=0, vat_amount=699.76, has_vat=1, rounding=0,
-                           grand_total=10696.26, wht_amount=wht, net_payable=10696.26 - wht, lines=[])
-        with mock.patch.object(context, "_base", lambda *args: {}), \
-                mock.patch.object(context, "_supplier", lambda *args: {}), \
-                mock.patch.object(context, "_trade_rows", lambda doc: []):
-            return context._order(doc)["totals"]
-
-    def test_totals_are_copied_from_the_document(self):
-        self.assertEqual(self.order(0), [{"key": "subtotal", "value": "9,996.50"}, {"key": "vat", "value": "699.76"},
-                                         {"key": "grand_total", "value": "10,696.26"}])
-        self.assertEqual([row["key"] for row in self.order(299.9)][-2:], ["wht", "net_payable"])
-
 
 class CompanyLogoIsOwnedByTheCompany(unittest.TestCase):
     def logo(self, rows, user="u@example.com"):

@@ -6,8 +6,9 @@
   Logo 内嵌成 data URI：PDF 生成器（wkhtmltopdf）拿不到私有文件地址。
 - ERP 没有的栏位（领用部门、领用人、申请数、PO / DO 号、运输方式、签字……）一律留空线，不拿建单人之类冒充（打印评估第 4 节）。
 - 作废的单照样能打，版面上加「已作废」水印（只在作废单上出现）。
-- 第二批（主会话 10-26 审定，`docs/work/2026-10-26-print-batch2-评估.md`）：采购订单、报价单 / 销售单（A4 横，同第一批风格）、
-  收银小票（含退货）与交班小结（热敏 80 mm）、盘点（进行中打点数表、结束后打结果表，A4 竖）。抬头公司：采购 / 销售单按单上的公司，
+- 第二批（主会话 10-26 审定，`docs/work/2026-10-26-print-batch2-评估.md`）：报价单 / 销售单（A4 横，同第一批风格）、
+  收银小票（含退货）与交班小结（热敏 80 mm）、盘点（进行中打点数表、结束后打结果表，A4 竖）。采购订单 10-28 随单据类型删掉
+  （用户：「采购订单删掉吧」）。抬头公司：采购 / 销售单按单上的公司，
   小票 / 交班按收银台的公司，盘点按仓库的公司。客户 / 供应商档只在属于本单公司或是共用档时读（编码、电话、税号、分店），
   否则只印单上自己存的名称 / 地址。
 """
@@ -26,38 +27,33 @@ SHIFT = "ERP Shift"
 COUNT = "ERP Stock Count"
 COUNT_ITEM = "ERP Stock Count Item"
 ISSUE, RECEIPT = "issue", "receipt"
-ORDER = "order"  # 采购订单格式（`Pearnly Purchase Order`）调用时带的 kind
-FORMAT_KINDS = {"Pearnly Purchase Order": ORDER}  # 同一类单据两种格式时，格式名 → kind（与模板里传的一致）
 DEFAULT_LOGO = ("public", "images", "print", "pearnly-logo.svg")  # 正式品牌包（2026-09-05 定稿）的横版矢量 lockup
 FONT_DIR = ("public", "fonts", "print")
 FONT_FAMILY = "PearnlyPrint"
 FONT_WEIGHTS = {400: "Regular", 700: "Bold"}  # 字体文件 `<家族>-<字重>.ttf`，有哪个嵌哪个
 
 
-def pearnly_print_context(doc, kind=None) -> dict:
+def pearnly_print_context(doc) -> dict:
     """只打库里已有、当前用户读得到的单：按名字从库里重新取一遍再算。原生打印接口（`printview.get_html_and_style`）收得下
-    页面传来的整份单据 JSON，不重取的话伪造一张单、填上别家公司的供应商，就能把对方的税号印出来（验收 10-26）。
-    ``kind``：同一类单据有两种格式时由 Print Format 指定（采购单：收货单 / 采购订单）。"""
-    doc = _admit(doc, kind)
-    return _printer(doc.doctype)(doc, kind)
+    页面传来的整份单据 JSON，不重取的话伪造一张单、填上别家公司的供应商，就能把对方的税号印出来（验收 10-26）。"""
+    doc = _admit(doc)
+    return _printer(doc.doctype)(doc)
 
 
 def before_print(doc, method=None, *args, **kwargs):
     """原生打印渲染前先拒（`printview.get_rendered_template` 渲染前调 `before_print`）：拒打在模板里才抛的话，
-    框架按模板出错回 417（验收 10-27）；这里抛权限错，打印页 / PDF 回 403。格式名取请求参数（打印页 `format`、
-    `get_html_and_style` 的 `print_format`）。"""
-    form = frappe.form_dict or {}
-    _admit(doc, FORMAT_KINDS.get(form.get("format") or form.get("print_format")))
+    框架按模板出错回 417（验收 10-27）；这里抛权限错，打印页 / PDF 回 403。"""
+    _admit(doc)
 
 
-def _admit(doc, kind=None):
-    """能打才回库里那一份：单在库里、当前用户读得到；采购订单格式只给采购订单；交班小结只给已交班的。"""
+def _admit(doc):
+    """能打才回库里那一份：单在库里、当前用户读得到；交班小结只给已交班的。"""
     if doc.doctype not in PRINTABLE or not doc.name or not frappe.db.exists(doc.doctype, doc.name):
         _refuse()
     doc = frappe.get_doc(doc.doctype, doc.name)
     if not doc.has_permission("read"):
         _refuse()
-    if (kind == ORDER and getattr(doc, "doc_kind", None) != "purchase_order") or (doc.doctype == SHIFT and doc.status != "closed"):
+    if doc.doctype == SHIFT and doc.status != "closed":
         _refuse()
     return doc
 
@@ -168,7 +164,7 @@ def _base(kind, doc, company, number, posting_date, remarks, void) -> dict:
             "void": bool(void), "currency": "THB"}
 
 
-def _stock(doc, kind=None) -> dict:
+def _stock(doc) -> dict:
     company = frappe.db.get_value("ERP Warehouse", doc.warehouse, "company")
     products = _products(line.product for line in doc.lines)
     rows = []
@@ -192,11 +188,8 @@ def _stock(doc, kind=None) -> dict:
     return ctx
 
 
-def _purchase(doc, kind=None) -> dict:
-    """带入库的采购单打成收货单：供应商取单上的名称 / 税号 / 地址；对方单号不冒充送货单号（DO No. 留空，主会话 10-26）。
-    ``kind = order``（`Pearnly Purchase Order` 格式）只给采购订单打采购订单。"""
-    if kind == ORDER:
-        return _order(doc)
+def _purchase(doc) -> dict:
+    """带入库的采购单打成收货单：供应商取单上的名称 / 税号 / 地址；对方单号不冒充送货单号（DO No. 留空，主会话 10-26）。"""
     products = _products(line.product for line in doc.lines)
     rows = []
     stock_lines = [line for line in doc.lines if (line.item_type or "goods") == "goods"]
@@ -256,29 +249,6 @@ def _totals(rows) -> list:
     return out
 
 
-def _order(doc) -> dict:
-    """采购订单：只给 doc_kind = purchase_order 的单（`_admit` 已核）。"""
-    rows = _trade_rows(doc)
-    ctx = _base(ORDER, doc, doc.company, doc.system_no, doc.doc_date, doc.notes, doc.status == "void")
-    ctx.update(
-        title="order", pages=contracts.pages(rows), currency=_currency(doc),
-        party=_supplier(doc.supplier, {"name": doc.supplier_name, "tax_id": doc.supplier_tax_id,
-                                       "address": doc.supplier_address,
-                                       "branch": contracts.branch_text(doc.supplier_branch_type, doc.supplier_branch_no)},
-                        doc.company),
-        info=[("required_date", contracts.day(doc.due_date)), ("ref_no", doc.doc_no or ""),
-              ("requested_by", doc.requester or ""), ("payment_terms", "")],
-        # 预扣税不为 0 才印「预扣税」与「应付净额」两行
-        totals=_totals([("subtotal", doc.subtotal, True), ("discount", doc.discount_total, False),
-                        ("vat", doc.vat_amount, bool(doc.has_vat)), ("rounding", doc.rounding, False),
-                        ("grand_total", doc.grand_total, True)]
-                       + ([("wht", doc.wht_amount, True), ("net_payable", doc.net_payable, True)]
-                          if contracts.d(doc.wht_amount) else [])),
-        signs=["prepared", "approved", "supplier_ack"])
-    ctx["page_count"] = len(ctx["pages"])
-    return ctx
-
-
 def _currency(doc) -> str:
     return str(doc.get("currency") or "THB").strip().upper() or "THB"
 
@@ -292,7 +262,7 @@ def _customer(doc) -> dict:
             "tax_id": row.tax_id or "", "branch": contracts.branch_text(row.branch_type, row.branch_no)}
 
 
-def _sales(doc, kind=None) -> dict:
+def _sales(doc) -> dict:
     """报价单 / 销售单。销售单标题按税票口径写死：接了 Express 打送货单（并印 Express 单号），没接打非税收据。"""
     from pearnly_erp_portal.express import push
 
@@ -325,7 +295,7 @@ def _user_name(user) -> str:
     return (frappe.db.get_value("User", user, "full_name") or user or "") if user else ""
 
 
-def _sale(doc, kind=None) -> dict:
+def _sale(doc) -> dict:
     """收银小票（热敏 80 mm）：销售打收据、退货打退货单并印原单号与原因（标题见 `contracts.pos_title`）；公司按收银台。"""
     terminal = _terminal(doc.terminal)
     products = _products(line.product for line in doc.lines)
@@ -360,7 +330,7 @@ def _sale(doc, kind=None) -> dict:
     return ctx
 
 
-def _shift(doc, kind=None) -> dict:
+def _shift(doc) -> dict:
     """交班小结（热敏 80 mm）：只打已交班的（`_admit` 已核）；汇总数用收银台同一份 `shifts.summary`（权限已由读权限核过）。"""
     from pearnly_erp_portal.cashier import shifts
 
@@ -389,7 +359,7 @@ def _stamp(value) -> str:
     return f"{contracts.day(value)} {str(value)[11:16]}".strip() if value else ""
 
 
-def _count(doc, kind=None) -> dict:
+def _count(doc) -> dict:
     """盘点：进行中打点数表（盲盘，不印账面数）；结束 / 过账后打结果表（账面 / 实点 / 差异）。明细是独立表，
     读权限已在盘点单上核过（`inventory.access`），这里只按本单取。"""
     company = frappe.db.get_value("ERP Warehouse", doc.warehouse, "company")

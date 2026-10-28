@@ -86,7 +86,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Document Type",
-   "options": "purchase_invoice\npurchase_order\nexpense\ngoods\nservice",
+   "options": "purchase_invoice\nexpense\ngoods\nservice",
    "reqd": 1
   },
   {
@@ -549,7 +549,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-23 12:00:00.000000",
+ "modified": "2026-10-28 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Document",

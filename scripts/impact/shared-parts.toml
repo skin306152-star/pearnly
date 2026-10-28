@@ -2126,8 +2126,8 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js"
 id = "erp.print.purchase"
 product = "ERP"
 where = "采购单详情菜单「打印」"
-steps = "采购 → 入了库的采购单 → 打印（收货单）；采购订单 → 打印（ใบสั่งซื้อ）"
-expect = "入了库的打收货单、采购订单打采购订单，A4 横一页；供应商档只读本单公司或共用档"
+steps = "采购 → 入了库的采购单 → 打印（收货单）；没入库的采购单详情菜单里没有「打印」"
+expect = "入了库的打收货单，A4 横一页；供应商档只读本单公司或共用档（采购订单 10-28 已删，没有采购订单格式）"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py"]
 

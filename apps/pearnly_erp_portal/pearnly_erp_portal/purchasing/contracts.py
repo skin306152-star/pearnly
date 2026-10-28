@@ -13,6 +13,15 @@ DRAFT = "draft"
 SUBMITTED = "submitted"
 VOID = "void"
 
+# 不再有「采购订单」（用户 2026-10-28：「采购订单删掉吧」；采购单就是「已付款 + 货已到」的进货单，没有先下单流程）。
+# 旧调用方（识别结果、LINE / CC 桌面版、旧接口）仍传 purchase_order 时，落地成这一种，不报错。
+RETIRED_KINDS = {"purchase_order": "purchase_invoice"}
+
+
+def landing_kind(kind):
+    return RETIRED_KINDS.get(kind, kind)
+
+
 UNPAID = "unpaid"
 PARTIAL = "partial"
 PAID = "paid"

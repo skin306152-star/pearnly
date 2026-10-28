@@ -11,7 +11,7 @@ from pearnly_erp_portal.purchasing import access, amounts, records
 ENUM_FIELDS = {"doc_kind", "status", "payment_status", "supplier_branch_type",
                "price_mode", "payment_method", "method", "source", "item_type", "kind", "approval_status"}
 ENUM_LABELS = {
-    "purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order", "expense": "Expense",
+    "purchase_invoice": "Purchase Invoice", "expense": "Expense",
     "goods": "Goods", "service": "Service", "tax_invoice": "Tax Invoice",
     "simple_tax_receipt": "Abbreviated Tax Invoice", "receipt": "Receipt",
     "substitute_receipt": "Substitute Receipt", "other": "Other", "head_office": "Head Office",

@@ -44,7 +44,7 @@ CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试；要人选的、单据本身不对的
 # 不自动重试
 RETRY_REASONS = (NO_BOOK, NO_WRITER, READING, REFUND_WAITING)
-# 这几种采购单是真进货 / 费用，推进 Express；采购订单只是订单，不推
+# 这几种采购单是真进货 / 费用，推进 Express（采购订单 10-28 已删，见 `purchasing.contracts.RETIRED_KINDS`）
 PURCHASE_KINDS = ("purchase_invoice", "expense", "goods", "service")
 SALES_KINDS = ("receipt",)
 

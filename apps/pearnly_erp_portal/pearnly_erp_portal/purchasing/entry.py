@@ -15,7 +15,7 @@ from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.products import purchase as purchase_items
 from pearnly_erp_portal.purchasing import access, amounts, category_memory, contracts, files, settings
 
-KINDS = {"purchase_invoice", "purchase_order", "expense", "goods", "service"}
+KINDS = {"purchase_invoice", "expense", "goods", "service"}
 METHODS = {"cash", "transfer", "promptpay", "bank", "cheque", "other"}
 HEAD_FIELDS = ("doc_no", "due_date", "currency", "fx_rate", "supplier_tax_id", "supplier_branch_type",
                "supplier_branch_no", "supplier_branch_name", "supplier_address", "requester",
@@ -149,7 +149,7 @@ def post(payload, *, request_id, name=None, amended_from=None, finalize=None, al
 
 
 def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=False):
-    kind = payload.get("doc_kind") or "purchase_invoice"
+    kind = contracts.landing_kind(payload.get("doc_kind")) or "purchase_invoice"
     if kind not in KINDS:
         frappe.throw(_("Invalid value"))
     doc = access.get_document(name, write=True, lock=True) if name else frappe.new_doc("Purchase Document")

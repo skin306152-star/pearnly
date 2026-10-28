@@ -1,3 +1,0 @@
-{#- 标准 Print Format：采购订单 / 报价单 / 销售单（A4 横），版面在 printing/templates，数据在 printing/context（第二批，主会话 10-26 审定）。 -#}
-{% set ctx = pearnly_print_context(doc, "order") %}
-{% include "pearnly_erp_portal/printing/templates/trade.html" %}

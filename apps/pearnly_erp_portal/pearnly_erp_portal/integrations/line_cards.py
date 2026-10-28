@@ -21,7 +21,7 @@ from pearnly_erp_portal.integrations import line_flow
 from pearnly_core.tax_documents import codes as tax_codes
 
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
-DOC_KINDS = {"purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order",
+DOC_KINDS = {"purchase_invoice": "Purchase Invoice",
              "expense": "Expense", "receipt": "Receipt", "quotation": "Quotation"}
 # 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细按实际大小列，放不下的报「还有 N 项」。
 # 实测一行泰文商品约 570 字节，40 行就到 32.5 KB（09-26）；留一点余量。

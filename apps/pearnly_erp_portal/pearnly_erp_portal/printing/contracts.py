@@ -1,6 +1,6 @@
 """单据打印的纯规则（不依赖框架、不做 IO）：版面照岳父样板 1:1，每页 10 行，ERP 没有的栏位留空线手写，不冒充。
 
-第二批（采购订单、报价单、销售单、收银小票、交班小结、盘点表，主会话 10-26 审定）没有样板，照第一批同风格；税票口径写死：
+第二批（报价单、销售单、收银小票、交班小结、盘点表，主会话 10-26 审定；采购订单 10-28 删掉）没有样板，照第一批同风格；税票口径写死：
 ERP 不开税票（用户 09-23），任何模板都不印「ใบกำกับภาษี」。"""
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ COUNT_ROWS_PER_PAGE = 22  # 盘点表 A4 竖版每页行数
 # 单据标题、栏位、付款方式的泰英文字都在模板 `templates/_labels.html`，这里只给键。
 # 销售单：接了 Express 的公司正式税票在 Express 出，ERP 打送货单；没接的打非税收据（主会话 10-26 定，写死）。
 QUOTATION, RECEIPT_KIND = "quotation", "receipt"
-TITLE_KEYS = ("order", "quotation", "delivery", "receipt", "pos_sale", "pos_refund", "shift", "count_sheet",
+TITLE_KEYS = ("quotation", "delivery", "receipt", "pos_sale", "pos_refund", "shift", "count_sheet",
               "count_result")
 BRANCH_HEAD = ("head_office", "hq", "head")
 

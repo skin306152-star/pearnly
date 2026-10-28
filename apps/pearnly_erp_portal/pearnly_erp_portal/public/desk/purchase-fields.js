@@ -6,7 +6,7 @@
 	u.labels = {
 		express_queued: __("Queued"), express_held: __("Pending"), express_failed: __("Failed"),
 		express_mismatch: __("Mismatch"),
-		purchase_invoice: __("Purchase Invoice"), purchase_order: __("Purchase Order"), expense: __("Expense"),
+		purchase_invoice: __("Purchase Invoice"), expense: __("Expense"),
 		goods: __("Goods"), service: __("Service"), tax_invoice: __("Tax Invoice"),
 		simple_tax_receipt: __("Abbreviated Tax Invoice"), receipt: __("Receipt"),
 		substitute_receipt: __("Substitute Receipt"), other: __("Other"),
@@ -95,7 +95,7 @@
 			f("doc_date", "Posting Date", "Date", {reqd: 1}),
 			f("doc_no", "Supplier Invoice No"),
 			col(),
-			f("doc_kind", "Type", "Select", {options: u.options(["purchase_invoice", "purchase_order", "expense", ...(doc.doc_kind === "goods" || doc.doc_kind === "service" ? [doc.doc_kind] : [])]), reqd: 1}),
+			f("doc_kind", "Type", "Select", {options: u.options(["purchase_invoice", "expense", ...(doc.doc_kind === "goods" || doc.doc_kind === "service" ? [doc.doc_kind] : [])]), reqd: 1}),
 			f("is_paid", "Is Paid", "Check", {hidden: !editable}),
 			f("payment_status", "Payment Status", "Select", {hidden: editable, read_only: 1, options: u.options(["unpaid", "partial", "paid"])}),
 			f("payment_method", "Mode of Payment", "Select", {options: u.options(["cash", "transfer", "promptpay", "bank", "cheque", "other"]), depends_on: "eval:doc.is_paid"}),

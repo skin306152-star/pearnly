@@ -34,3 +34,5 @@ pearnly_erp_portal.patches.v1_13_stock_movement_indexes
 pearnly_erp_portal.patches.v1_14_pos_day_start
 # 收银小票逐行拆出税额：标价含税，增值税登记户回填（应收合计不变，主会话 10-25）
 pearnly_erp_portal.patches.v1_15_pos_receipt_vat
+# 采购单不再有「采购订单」：已有的单改成进货单，打印格式记录删掉（用户 10-28）
+pearnly_erp_portal.patches.v1_16_retire_purchase_order

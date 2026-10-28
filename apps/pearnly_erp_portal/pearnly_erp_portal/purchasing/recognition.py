@@ -8,7 +8,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.purchasing import files
+from pearnly_erp_portal.purchasing import contracts, files
 from pearnly_erp_portal.recognition import billing, checks, dates, originals, policy
 from pearnly_core.originals import registered
 from pearnly_core.tax_documents import amounts as doc_amounts, codes as tax_codes, rules as tax_rules
@@ -71,6 +71,9 @@ NON_CLAIMABLE_VAT = "non_claimable_vat"
 def clean_result(raw):
     """OCR is document content, never trusted master IDs, company IDs or posting flags."""
     result = {key: raw[key] for key in HEADER_FIELDS if key in raw}
+    if "doc_kind" in result:
+        # 提示词不改（识别改动要过金标闸门）：读出「采购订单」也落成进货单（用户 2026-10-28 删了采购订单）
+        result["doc_kind"] = contracts.landing_kind(result["doc_kind"])
     result["lines"] = []
     discount_lines = Decimal(0)
     for raw_row in raw.get("lines", []):

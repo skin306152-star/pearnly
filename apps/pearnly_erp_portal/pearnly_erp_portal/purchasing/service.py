@@ -87,6 +87,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
     guard.require("purchase.write")
     if not isinstance(lines, list) or not lines:
         frappe.throw(_(LINES_REQUIRED))
+    doc_kind = contracts.landing_kind(doc_kind)
 
     from pearnly_erp_portal.inventory import positions
     from pearnly_erp_portal.numbering import service as numbering
@@ -261,7 +262,7 @@ def update_purchase(name, **changes):
         if field in changes:
             doc.set(field, changes[field])
     if "doc_kind" in changes:
-        doc.doc_kind = changes["doc_kind"]
+        doc.doc_kind = contracts.landing_kind(changes["doc_kind"])
     if "has_vat" in changes:
         doc.has_vat = 1 if changes["has_vat"] in (True, 1, "1", "true") else 0
     if "lines" in changes:
