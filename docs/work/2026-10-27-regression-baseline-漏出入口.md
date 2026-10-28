@@ -339,3 +339,26 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
   - 其余无守卫项都在登记表里，外加无害的 `refuse_on_native_account`。
   - Cowork 那 39 张表的复测：部署前那轮（6c8860b9，已含收紧）的矩阵就是收紧之后的结果，没有新的无守卫返回。
   - 剩下 99 个 inconclusive：多是要真实单号 / 记录名的接口（DoesNotExist、业务校验在守卫之前），要按接口补「别人的单 / 别家公司的单」夹具，排在后面做。
+
+## 暂停点（10-28，主会话：额度将用完，除扫码热修外原地暂停）
+
+- 分支 `pearnly/regression-baseline`：远端 fd951068（已过 CI 的最后推送是 f55013a4；92e0183f、fd951068 推后 CI 结果待看）。本条记录只提交在本地，没推送。
+- 本机回归实验室已停（数据卷保留，计费控制面站点 `control.regression.localhost` 在卷里）；挂代码用的临时工作树都已删，没有本窗口的后台进程。
+- 今天做完的：
+  - 页面入口基线落文件并接 CI（`tests/baseline/page-entries/`、`scripts/regression/baseline.py`）；
+  - 实验室接计费（`lab_billing.py`）；
+  - 接口矩阵第二版（inconclusive 139→99）；
+  - 甲骨文不明容器查清（守望每分钟探测容器）；
+  - 删采购订单（1911f716 / ccf056c2）复核通过；
+  - 岳父操作说明截图（桌面「岳父操作说明-2026-10-28」）。
+- 收到、还没开始的复核（开发窗口 erp-cc-direct 交来，随下一批部署）：
+  - A：`pearnly/migrate-hooks-unprovisioned` c0b15594。没开完户的站点迁移跳过已购功能的收尾；activate-product.sh 逐站迁移，未开户站点失败只告警；开户收尾跑 run_site_initializers。
+  - B：`pearnly/control-issue-lang` 23130e00。发号时语言为空补站点语言，失败分支记 Error Log。
+  - 恢复后先做这两个：A 在实验室新建半开户站点复现；B 跑 test_cloud_onboarding。
+- 主会话 10-28 派的四道闸，已暂停、未开工：
+  1. 吞错闸门：产品 JS 的 catch 必须重抛或上报；
+  2. 两套固定数据：新开户照 polymer、老数据照 mrerp；
+  3. 入口到流程用例的登记表，CI 按改动文件跑流程；
+  4. 部署闸：流程套件为绿才激活，部署后回读前端错误回传条数。
+  起因是 polymer 手机盘点扫码查到商品却出不来录入框（`stocktake-entry.js` 的 match() 把异常吞成「找不到商品」）。恢复后按主会话顺序做，注意别和 C 盘 Express、work-followups 两个窗口改同一文件。
+- 原排的过期页面测试修复：仍等多仓 P1 合入。
