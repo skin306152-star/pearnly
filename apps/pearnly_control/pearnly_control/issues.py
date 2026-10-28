@@ -178,6 +178,11 @@ def issue_from_doc(issue_name: str) -> dict:
 
 
 def _activate(doc, operator: str, *, target_name: str) -> dict:
+    # 命令行 / 执行器入口（`bench console`、`bench execute`）没有请求，`frappe.local.lang` 是空的：保存单据时 Frappe 生成修改记录、
+    # 格式化日期字段，`frappe.locale.get_locale_value` 在语言为空时抛 UnboundLocalError（10-28 控制台给 gize 发号踩过）。
+    # 网页按钮的请求里已经设好，这里只补空的。
+    if not getattr(frappe.local, "lang", None):
+        frappe.local.lang = frappe.db.get_single_value("System Settings", "language") or "en"
     with pearnly_state.store().lock(pearnly_state.store().make_key(f"pearnly:issue:{doc.name}"), timeout=120, blocking_timeout=2):
         doc.reload()
         if identity_pools.issued(doc):
@@ -252,6 +257,9 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         doc.reload()
         doc.status = "failed"
         doc.save(ignore_permissions=True)
+        # 原因留在 Error Log 里（原来只剩一个 failed，单子上和日志里都看不到为什么，10-28 gize 发号）
+        frappe.log_error(title=f"Issue {doc.name} failed", message=frappe.get_traceback()[-3000:],
+                         reference_doctype=ISSUE, reference_name=doc.name)
         frappe.db.commit()
         raise
 

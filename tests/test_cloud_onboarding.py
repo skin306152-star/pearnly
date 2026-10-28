@@ -78,6 +78,43 @@ class CloudOnly(unittest.TestCase):
             identity.assert_called_once_with("cloud", "erp")
             activate.assert_called_once_with(doc, "Administrator", target_name="cloud")
 
+    def test_command_line_issue_sets_the_site_language_before_saving(self):
+        """10-28：控制台调发号时 `frappe.local.lang` 是空的，保存单据格式化日期字段时 Frappe locale 抛 UnboundLocalError。"""
+        doc = Mock(name="doc"); doc.name = "ISSUE"
+        lock = Mock(); lock.__enter__ = Mock(return_value=None); lock.__exit__ = Mock(return_value=False)
+        store = Mock(); store.lock.return_value = lock
+        self.db.get_single_value.return_value = "th"
+        with patch.object(frappe, "local", SimpleNamespace(lang=None), create=True), \
+             patch.object(issues.pearnly_state, "store", return_value=store), \
+             patch.object(issues.identity_pools, "issued", return_value=False), \
+             patch.object(issues, "_activate_locked", side_effect=lambda *a, **k: {"lang": frappe.local.lang}):
+            self.assertEqual(issues._activate(doc, "Administrator", target_name="cloud"), {"lang": "th"})
+        with patch.object(frappe, "local", SimpleNamespace(lang="zh"), create=True), \
+             patch.object(issues.pearnly_state, "store", return_value=store), \
+             patch.object(issues.identity_pools, "issued", return_value=False), \
+             patch.object(issues, "_activate_locked", side_effect=lambda *a, **k: {"lang": frappe.local.lang}):
+            self.assertEqual(issues._activate(doc, "Administrator", target_name="cloud"), {"lang": "zh"})  # 请求里设好的不动
+
+    def test_a_failed_issue_leaves_its_reason_in_the_error_log(self):
+        """失败分支删掉这次建的身份、置 failed、照旧抛出，并把原因记进 Error Log（原来什么都不留）。"""
+        client = Mock(); client.find_user_id_by_email.return_value = None; client.create_user.return_value = "SUB-1"
+        doc = Mock(); doc.name = "ISSUE"; doc.apps = [SimpleNamespace(app="dms")]
+        doc.account_email, doc.account_username, doc.tenant_name = "u@example.test", "user", "Tenant"
+        doc.get_password.return_value = "fake"
+        with patch.object(issues, "require_cloud_target", return_value="cloud"), \
+             patch.object(issues.kc, "client_for_target", return_value=(client, "cloud")), \
+             patch.object(issues.identity_pools, "subject_field", return_value="identity_subject"), \
+             patch.object(issues, "_find_or_create_tenant", side_effect=RuntimeError("boom")), \
+             patch.object(frappe, "log_error", create=True) as logged, \
+             patch.object(frappe, "get_traceback", return_value="Traceback ... boom", create=True):
+            with self.assertRaises(RuntimeError):
+                issues._activate_locked(doc, "Administrator", target_name="cloud")
+        client.delete_user.assert_called_once_with("SUB-1")
+        self.assertEqual(doc.status, "failed")
+        logged.assert_called_once()
+        self.assertEqual(logged.call_args.kwargs["title"], "Issue ISSUE failed")
+        self.assertIn("boom", logged.call_args.kwargs["message"])
+
     def test_historical_local_result_is_readable_without_identity_calls(self):
         doc = SimpleNamespace(status="issued", identity_subject="existing", target="local")
         with patch.object(frappe, "get_doc", return_value=doc), patch.object(issues, "_result", return_value={"existing": True}), patch.object(issues.kc, "client_for_target") as identity:
