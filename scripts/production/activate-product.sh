@@ -63,7 +63,26 @@ fi
 if [[ "$product" == erp ]]; then
   "${compose[@]}" run --rm --no-deps erp-web env/bin/python /opt/pearnly/deploy-src/scripts/production/configure-erp-runtime.py
 fi
-"${compose[@]}" run --rm --no-deps "$product-web" bench --site all migrate
+# 逐站迁移（2026-10-28 发布 fcb65cca：`--site all migrate` 在一个开户卡在半路的新租户上中断，已开户的站点跟着停在维护里约 10 分钟）。
+# 开户没做完的站点（站点配置里还没有 `pearnly_features`，那是开户 `set_workspace` 才写的）迁移失败：告警、记进清单留给开户重试，
+# 不挡其它站点；已开户的站点迁移失败照旧整次激活失败（停在维护、不放开流量、不起旧 worker）。
+unfinished() {
+  "${compose[@]}" run --rm --no-deps -T "$product-web" sh -c "cd /home/frappe/frappe-bench/sites && python3 -c 'import json, sys; sys.exit(0 if not json.load(open(\"$1/site_config.json\")).get(\"pearnly_features\") else 1)'"
+}
+sites=$("${compose[@]}" run --rm --no-deps -T "$product-web" sh -c 'cd /home/frappe/frappe-bench/sites && for d in */; do [ -f "$d/site_config.json" ] && echo "${d%/}"; done' \
+  | tr -d '\r' | grep -E '^[a-z0-9-]+(\.[a-z0-9-]+)+$' || true)
+[[ -n "$sites" ]] || { printf 'No %s sites found to migrate.\n' "$product" >&2; false; }
+: > "/opt/pearnly/state/unfinished-sites-$product.txt"
+for site in $sites; do
+  if "${compose[@]}" run --rm --no-deps "$product-web" bench --site "$site" migrate; then continue; fi
+  if unfinished "$site"; then
+    printf '%s: provisioning is unfinished and its migration failed; kept for the provisioning retry, other sites continue.\n' "$site" >&2
+    printf '%s\n' "$site" >> "/opt/pearnly/state/unfinished-sites-$product.txt"
+    continue
+  fi
+  printf '%s: migration failed.\n' "$site" >&2
+  false
+done
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all enable-scheduler
 "${compose[@]}" up -d --no-deps --force-recreate "$product-web" "${workers[@]}" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
 # Pin only this product. Keep the legacy shared record unchanged for products

@@ -84,7 +84,8 @@ class DeployToolingMatch(unittest.TestCase):
 
 class Activation(unittest.TestCase):
     def run_activation(self, failure='', source_file=SOURCE, product='dms', records=None, themes=('pearnly', 'pearnly-ai'),
-                       themes_record=None, containers=None):
+                       themes_record=None, containers=None, sites=('a.example.test', 'b.example.test'), unfinished=(),
+                       fail_site=''):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = source_file.read_text().replace('/opt/pearnly', str(root))
@@ -112,6 +113,17 @@ args = sys.argv[1:]
 with open(os.environ['TRACE'], 'a') as f:
     f.write(json.dumps({'args': args, 'image': os.environ.get('PEARNLY_IMAGE'),
                         'program': os.path.basename(sys.argv[0])})+'\\n')
+joined = ' '.join(args)
+# 产品的站点清单（逐站迁移先列站点）与「开户没做完」（站点配置里没有 pearnly_features）
+if 'site_config.json' in joined and 'for d in' in joined:
+    print('Linking fresh assets to volume...')  # 容器启动时的输出不能混进站点清单（10-28 续做脚本踩过）
+    print(os.environ.get('FAKE_SITES', ''))
+    sys.exit(0)
+if 'pearnly_features' in joined:
+    unfinished = [s for s in os.environ.get('FAKE_UNFINISHED', '').split() if s]
+    sys.exit(0 if any(s + '/site_config.json' in joined for s in unfinished) else 1)
+if os.environ.get('FAIL_SITE') and 'migrate' in args and os.environ['FAIL_SITE'] in args:
+    sys.exit(7)
 if os.environ.get('FAIL_AT') and os.environ['FAIL_AT'] in args:
     sys.exit(7)
 # 宿主上现有的维护类容器：{名字: {"labels": "role/group", "top": "进程列表"}}；不在里面的名字按「没有这个容器」处理
@@ -150,10 +162,13 @@ elif 'ps' in args:
             source = source.replace('python3 "$root/scripts/production/check-deploy-image.py"', 'true')
             script.write_text(source)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
-                       TRACE=str(root/'trace'), FAIL_AT=failure, FAKE_CONTAINERS=json.dumps(containers or {}))
+                       TRACE=str(root/'trace'), FAIL_AT=failure, FAKE_CONTAINERS=json.dumps(containers or {}),
+                       FAKE_SITES='\n'.join(sites), FAKE_UNFINISHED=' '.join(unfinished), FAIL_SITE=fail_site)
             result = subprocess.run(['bash', str(script), IMAGE, product], env=env,
                                     text=True, capture_output=True, timeout=10)
             trace = [json.loads(line) for line in (root/'trace').read_text().splitlines()]
+            listed = root / f'state/unfinished-sites-{product}.txt'
+            self.unfinished_listed = listed.read_text().split() if listed.exists() else None
             self.records_after = {path.name: path.read_bytes() for path in (root / 'deploy').glob('active-image*.json')}
             self.record_temporaries = list((root / 'deploy').glob('.active-image-*'))
             record = root / 'state/keycloak-themes.sha256'
@@ -167,7 +182,8 @@ elif 'ps' in args:
         find = lambda text: next(i for i, call in enumerate(calls) if text in call)
         self.assertLess(find('set-maintenance-mode on'), find('stop -t 130'))
         self.assertLess(find('stop -t 660'), find('backup --with-files'))
-        self.assertLess(find('backup --with-files'), find('bench --site all migrate'))
+        self.assertLess(find('backup --with-files'), find('bench --site a.example.test migrate'))
+        self.assertLess(find('bench --site a.example.test migrate'), find('bench --site b.example.test migrate'))
         self.assertEqual(trace[find('backup --with-files')]['image'], 'sha256:old-running-image')
         self.assertLess(find('enable-scheduler'), find('up -d'))
         self.assertLess(find('up -d'), find('set-maintenance-mode off'))
@@ -278,6 +294,34 @@ elif 'ps' in args:
         calls = [' '.join(row['args']) for row in trace]
         self.assertFalse(any('set-maintenance-mode off' in call or 'up -d' in call for call in calls))
         self.assertFalse(any('start' in row['args'] for row in trace))
+
+    def test_unfinished_site_migration_failure_does_not_stop_other_sites(self):
+        """10-28 发布：开户卡在半路的新租户（站点配置里还没有 pearnly_features）迁移失败，不能拖着已开户的站点停在维护里。"""
+        sites = ('a.example.test', 'half.example.test', 'c.example.test')
+        result, trace = self.run_activation(product='erp', sites=sites, unfinished=('half.example.test',), fail_site='half.example.test')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        for site in sites:
+            self.assertTrue(any(f'bench --site {site} migrate' in call for call in calls), site)
+        self.assertTrue(any('up -d' in call for call in calls))
+        self.assertTrue(any('set-maintenance-mode off' in call for call in calls))
+        self.assertIn('half.example.test: provisioning is unfinished', result.stderr)
+        self.assertEqual(self.unfinished_listed, ['half.example.test'])
+
+    def test_provisioned_site_migration_failure_still_stops_the_activation(self):
+        sites = ('a.example.test', 'b.example.test', 'c.example.test')
+        result, trace = self.run_activation(product='erp', sites=sites, fail_site='b.example.test')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('b.example.test: migration failed', result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        self.assertFalse(any('c.example.test migrate' in call for call in calls))
+        self.assertFalse(any('set-maintenance-mode off' in call or 'up -d' in call for call in calls))
+
+    def test_no_sites_listed_stops_before_reopening(self):
+        result, trace = self.run_activation(sites=())
+        self.assertNotEqual(result.returncode, 0)
+        calls = [' '.join(row['args']) for row in trace]
+        self.assertFalse(any('set-maintenance-mode off' in call for call in calls))
 
     def test_backup_failure_cannot_start_migration(self):
         result, trace = self.run_activation('backup')

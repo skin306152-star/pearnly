@@ -36,6 +36,17 @@ def entitlements() -> list:
     return [str(code) for code in raw if code]
 
 
+def migration_skip(hook: str, reason: str) -> None:
+    """迁移收尾钩子（after_migrate）在这个站点跳过：记一行日志并打到迁移输出，不抛错、不中断迁移。
+
+    用在要靠已购功能的初始化上：开户卡在半路的新租户还没有 `pearnly_features`（开户 `set_workspace` 才写），
+    钩子一抛错，`bench --site all migrate` 整条就停了（2026-10-28 发布 fcb65cca：polymer 让已开户的站点停在维护里约 10 分钟）。
+    跳过的初始化要有兜底：功能配好后的下一次迁移、或第一次打开那一页时补上。"""
+    message = f"skip {hook} on {getattr(frappe.local, 'site', '')}: {reason}"
+    print(message)
+    frappe.logger("pearnly.migrate").info(message)
+
+
 @frappe.whitelist()
 def describe() -> dict:
     """给前端用：这个壳是谁、买了什么、写操作要带的 csrf。"""

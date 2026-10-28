@@ -284,6 +284,44 @@ class Access(unittest.TestCase):
         self.assertEqual(self.access.editors("default"), self.access.team_users())
 
 
+class MigrateHook(Access):
+    """10-28 发布 fcb65cca：开户卡在半路的新租户（站点配置里还没有 pearnly_features）迁移时，建默认看板被权利检查拒、
+    整条 `bench --site all migrate` 中断。没买「任务管理」的站点跳过并记日志，不抛错；买了的照旧建。"""
+
+    def run_hook(self, features):
+        from unittest import mock
+
+        self.frappe.conf["pearnly_features"] = features
+        self.frappe.db.table_exists = lambda doctype: True
+        skipped = []
+        sys.modules["pearnly_core.shell"].migration_skip = lambda hook, reason: skipped.append((hook, reason))
+        model, document = types.ModuleType("frappe.model"), types.ModuleType("frappe.model.document")
+        document.Document = type("Document", (), {})
+        stubs = {"frappe.model": model, "frappe.model.document": document}
+        saved = {name: sys.modules.get(name) for name in stubs}
+        sys.modules.update(stubs)
+        self.addCleanup(lambda: [sys.modules.pop(name) if value is None else sys.modules.__setitem__(name, value)
+                                 for name, value in saved.items()])
+        from pearnly_erp_portal.work import boards
+        with mock.patch.object(boards, "default_board", side_effect=AssertionError("must not build")) if not features \
+                else mock.patch.object(boards, "default_board", return_value="B1"), \
+                mock.patch.object(boards, "ensure_lists") as lists:
+            self.frappe.local.lang = "en"
+            self.frappe.db.get_single_value = lambda doctype, field: "th"
+            boards.ensure_on_migrate()
+        return skipped, lists
+
+    def test_a_half_provisioned_site_is_skipped_with_a_log_line(self):
+        skipped, lists = self.run_hook([])
+        self.assertEqual(skipped, [("pearnly_erp_portal.work.ensure_on_migrate", "feature tasks is not configured on this site")])
+        lists.assert_not_called()
+
+    def test_a_site_with_tasks_still_gets_its_default_board(self):
+        skipped, lists = self.run_hook(["tasks"])
+        self.assertEqual(skipped, [])
+        lists.assert_called_once_with("B1")
+
+
 class Declarations(unittest.TestCase):
     def test_sidebar_item_sits_below_the_sales_group(self):
         nav = _declaration()

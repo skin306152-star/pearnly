@@ -78,6 +78,13 @@ def ensure_on_migrate():
     """装好 / 升级后建好默认看板和默认三列（名字用站点语言；只在 ERP 业务站点做）。"""
     if frappe.conf.get("pearnly_product") != "erp" or not frappe.db.table_exists(BOARD):
         return
+    if not access.entitled():
+        # 没买「任务管理」、或开户还没写功能清单（半开户的新租户）：建看板会被权利检查拒、中断整条迁移（10-28 发布）。
+        # 跳过；功能配好后的下一次迁移、或第一次打开任务管理页（`open_board` → `default_board`）时建好。
+        from pearnly_core.shell import migration_skip
+
+        migration_skip("pearnly_erp_portal.work.ensure_on_migrate", "feature tasks is not configured on this site")
+        return
     # 迁移命令按英文跑（`frappe.local.lang` 是 en），默认三列的名字要按站点语言取（testerp 实测建成了 To do / In progress / Done）。
     current = frappe.local.lang
     frappe.local.lang = frappe.db.get_single_value("System Settings", "language") or current
