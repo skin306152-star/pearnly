@@ -58,6 +58,9 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
       # 交给测试机之前先照用户的用法启动一遍打出来的程序（同 Companion checks；packaging/smoke_launch.py）
       - name: Launch the packaged CC the way people do
+        # 测试机的 runner 是没有桌面的系统服务，「第二次启动交给已在跑的那份」在那里走不通；这一步只在 GitHub 的机器上跑，
+        # 正式发布（companion-release.yml，GitHub 的机器）发布前也跑同一步
+        if: runner.environment == 'github-hosted'
         run: python packaging/smoke_launch.py dist/companion/companion.exe
       # Microsoft Store 用的 MSIX（教程问题第 1 条：智能应用控制拦没签名的安装包，商店审核后由微软重新签名）。
       # 每次都打一遍（MakeAppx 校验清单与引用的文件）；包标识取仓库变量（照抄 Partner Center「产品标识」），没设时用占位值、
