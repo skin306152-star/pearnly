@@ -96,7 +96,9 @@ class Runner(unittest.TestCase):
         self.assertFalse(locked)
 
     def test_waits_for_memory_before_each_product(self):
-        result, trace, status, log, _ = self.run_runner(memory=(5000, 6000, 30000))
+        # The sampler and the 'free before' line read memory too (at most 2 reads before the first wait check),
+        # so hand out four low readings: the first wait check always sees one of them.
+        result, trace, status, log, _ = self.run_runner(memory=(5000, 5000, 5000, 5000, 30000))
         self.assertEqual(status, 'ok', log)
         self.assertRegex(log, r'available \d+ MB < 8192, waiting')
 
