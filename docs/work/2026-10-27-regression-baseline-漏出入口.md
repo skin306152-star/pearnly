@@ -331,3 +331,5 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
 - 规矩（主会话 10-26）：有差异就不能合入；唯一过法是在同一提交里改基线（`--write --merge` 并入新快照，或手改那一格），并在本记录写原因。不许把多出来的框架入口写进基线。
 - CI：`tests/test_page_baseline.py` 核基线文件合法、全部码都已声明、快捷键只有 Ctrl+S、比对规矩按约定判。快照本身要实验室，不在 GitHub 上跑：合入改页面的分支前，在回归实验室跑一轮快照再 `--compare`。
 - 待并入：删「采购设置 / 集成」两页（cfde29cd）合入时，ERP 这两个地址的状态不变（都是 home），不用改基线。
+- 实验室接计费（10-28）：`scripts/regression/lab_billing.py` 在同一 bench 里建本地控制面站点 `control.regression.localhost`（装 pearnly_control），给三个产品站点各开测试租户，各记 1000 泰铢本地测试余额（走正式审核函数），发按产品限定的服务令牌，并把产品站点的计费配置指过去。
+  接上后首页的计费接口回数据；被换回首页、我们自己的页，控制台都不再出那条「Uncaught (in promise)」，页面快照的「页面报错」能用了。`lab_init.py` 的陌生站点检查放行这个控制面站点。

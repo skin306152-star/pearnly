@@ -13,6 +13,7 @@ PASSWORD = "regression-lab-only"
 SITES = {"erp.regression.localhost": ("erp", "pearnly_erp_portal"),
          "cowork.regression.localhost": ("cowork", "pearnly_cowork"),
          "dms.regression.localhost": ("dms", "pearnly_dms")}
+CONTROL = "control.regression.localhost"  # 实验室自己的计费控制面（`lab_billing.py` 建），不是产品站点
 # 岗位账号：产品 → {岗位名: 角色}（与开通 / 团队管理发的角色同名；管理员 = 产品管理员 + 全部功能角色）
 ROLES = {
     "erp": {"admin": ["ERP Admin", "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier", "ERP Tasks"],
@@ -46,7 +47,7 @@ def main(only):
         raise SystemExit("Requires the task-owned regression laboratory")
     sites = Path("sites")
     existing = {p.parent.name for p in sites.glob("*/site_config.json")}
-    if existing - set(SITES):
+    if existing - set(SITES) - {CONTROL}:
         raise SystemExit("Refusing a foreign Site volume")
     config_file = sites / "common_site_config.json"
     config = json.loads(config_file.read_text() or "{}") if config_file.exists() else {}
