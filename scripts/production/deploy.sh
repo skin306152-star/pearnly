@@ -230,7 +230,8 @@ else
   tail -n +$((shown + 1)) \$L 2>/dev/null
 fi
 echo \"__STATUS \$(cat \$T 2>/dev/null)\"" </dev/null; echo "__SSHRC $?")
-  if [[ "$rc" == 0 && -n "$status" && "$status" != running* ]]; then break; fi
+  # 连接正常结束说明服务器那头的部署进程已经退出（或根本没有），按状态文件判定
+  [[ "$rc" != 0 ]] || break
   [[ $attempt -lt 5 ]] || stop "看进度的连接断了 5 次" "部署还在服务器上照常跑，不受本机断线影响" \
     "稍后：scripts/production/deploy.sh --attach"
   say "  连接断了（${status:-状态未知}），$RECONNECT 秒后重新接上"
@@ -259,6 +260,11 @@ case "$status" in
     stop "激活 $product 失败，停在原地（之后的产品没动）" \
       "不自动回滚；$product 可能还在维护模式，日志 $REMOTE_STATE/activate-$product-$short.log" \
       "迁移前备份在各站点 private/backups/；回退做法见上一次发布记录的「回退」一节" ;;
+  running*)
+    stop "服务器上的部署进程已经不在，状态停在「${status#running }」（被中断）" \
+      "不自动回滚；只读看 $REMOTE_STATE/deploy-$short.log 与对应产品日志，确认该产品是否还在维护模式再决定" ;;
+  "")
+    stop "服务器上没有 $short 这次部署的状态" "没启动过，或部署的不是远端 main 当前提交；只读看 $REMOTE_STATE/ 下的 deploy-*.status" ;;
   *)
-    stop "部署状态：${status:-读不到}" "只读看 $REMOTE_STATE/deploy-$short.log 再决定" ;;
+    stop "部署状态：${status}" "只读看 $REMOTE_STATE/deploy-$short.log 再决定" ;;
 esac

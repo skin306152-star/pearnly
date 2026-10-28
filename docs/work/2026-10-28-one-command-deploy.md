@@ -116,10 +116,10 @@ scripts/production/deploy.sh
 
 ## 验证
 
-- `python3 scripts/production/test-deploy-run.py`（已接进 Development checks）19 项离线测试：假 docker / free / gh / ssh，不连任何外部。
+- `python3 scripts/production/test-deploy-run.py`（已接进 Development checks）21 项离线测试：假 docker / free / gh / ssh，不连任何外部。
   覆盖：成功时的顺序与每道检查、revision 不对在动手前停、服务器端脚本不是镜像那份就停、某产品失败后面不动且释放锁、等内存、内存回不来不激活、
   已有部署在跑不碰、残留锁接管；回读各项问题都会报、维护期被拒的定时任务不算问题；本机驱动的调用顺序、构建 / 候选检查 / 放镜像失败都停在生产之前、
-  续跑参数、生产机忙、产品失败只报告不回滚、`--attach` 只读。
+  续跑参数、生产机忙、产品失败只报告不回滚、断线重连从已看到的行之后接着看、服务器进程被中断时停下报告、`--attach` 只读。
 - 真实 GitHub 上只读核对了脚本用的查询（找运行、读步骤结论、下载 digest 产物）在 40540609323 上的结果。
 
 ## 限制

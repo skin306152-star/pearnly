@@ -214,7 +214,7 @@ class Driver(unittest.TestCase):
     """deploy.sh with fake git / gh / ssh: the order of calls and where it stops."""
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
-                   busy_server=False):
+                   busy_server=False, attach_failures=0):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -250,7 +250,10 @@ esac
             stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
 case "$*" in
   *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
-  *"tail -n"*) echo "== start"; echo "== DEPLOY DONE"; echo "__STATUS {remote_status}" ;;
+  *"tail -n"*)
+    n=$(cat "{root}/attach-count" 2>/dev/null || echo 0); echo $((n + 1)) > "{root}/attach-count"
+    if [ "$n" -lt {attach_failures} ]; then echo "== start"; exit 255; fi
+    echo "== DEPLOY DONE"; echo "__STATUS {remote_status}" ;;
 esac
 ''')
             env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}',
@@ -316,6 +319,21 @@ esac
         self.assertIn('激活 cowork 失败', result.stderr)
         self.assertIn('不自动回滚', result.stderr)
         self.assertFalse([c for c in calls if 'activate' in c and 'ssh' in c and 'rollback' in c])
+
+    def test_lost_connection_reattaches_without_repeating_lines(self):
+        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', attach_failures=2)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.kinds(calls), ['ssh start', 'ssh attach', 'ssh attach', 'ssh attach'])
+        attaches = [c for c in calls if c.startswith('ssh') and 'tail -n' in c]
+        self.assertIn('tail -n +1 ', attaches[0])
+        self.assertIn('tail -n +2 ', attaches[1])
+        self.assertIn('tail -n +3 ', attaches[2])
+
+    def test_interrupted_server_run_stops_with_guidance(self):
+        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', remote_status='running dms')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('部署进程已经不在', result.stderr)
+        self.assertEqual(self.kinds(calls), ['ssh start', 'ssh attach'])
 
     def test_attach_only_reads(self):
         result, calls = self.run_driver('--attach')
