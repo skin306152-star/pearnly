@@ -210,9 +210,17 @@
 				if (code) p.scan_result_sound(true);
 			} catch (error) {
 				selected = null;
-				message(w("lookupFailed"));
-				if (!error?._server_messages && !error?.responseJSON) console.error(error);
-				scanner?.resume();
+				// 服务端明确不认（417：查不到这个码）才说"找不到"；网络断、服务端出错、这页自己的脚本错都只说查找失败，
+				// 错误照记，不冒充"找不到"。读码器跳过这个码：镜头还对着它就不再反复查（换个码或手动点查找再试）。
+				const refused = error?.status === 417;
+				// 417 时服务端那句已经弹成原生提示框，这里只写进弹窗；查找失败没人提示过，再浮动提示一次
+				// （相机开着时弹窗里那一行在画面下面，手机上看不到）。
+				if (refused) message(w("lookupFailed"));
+				else { message(w("lookupError")); frappe.show_alert({ message: w("lookupError"), indicator: "orange" }); }
+				// 这页自己的脚本错交给统一的前端报错（服务端的错服务端自己记）。
+				if (!refused) console.error(error);
+				if (!error?.status) window.pearnlyReportError?.(error, "stocktake-lookup");
+				scanner?.resume(code);
 				if (code) p.scan_result_sound(false);
 			} finally { busy = false; }
 		}

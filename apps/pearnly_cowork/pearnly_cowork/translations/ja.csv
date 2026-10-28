@@ -996,6 +996,8 @@ Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
 Lookup Key,検索キー
+Lookup failed,検索できませんでした
+Lookup failed. Try again.,検索できませんでした。もう一度お試しください。
 MR.ERP Company,MR.ERP 会社
 MR.ERP Import Menu Options Seen,取得済みの MR.ERP 取込メニュー
 MR.ERP Import Menu per Account Set,会計データ別 MR.ERP 取込メニュー
@@ -2805,6 +2807,7 @@ cowork.stock.workbench.entryQty,今回の実地数量
 cowork.stock.workbench.find,商品を検索
 cowork.stock.workbench.finishConfirm,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件で、終了後は閲覧とエクスポートのみ可能です。
 cowork.stock.workbench.locationDiff,棚番の差異
+cowork.stock.workbench.lookupError,検索できませんでした
 cowork.stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
 cowork.stock.workbench.needsRecount,在庫変動・再棚卸
 cowork.stock.workbench.nextReady,保存しました。次の商品を読み取ってください。

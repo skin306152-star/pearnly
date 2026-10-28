@@ -250,3 +250,24 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.ok(shown.srcObject === stream, 'the camera stream is on the <video> left in the dialog, not on a replaced one');
   console.log('PASS the scan dialog shows its picture area before the camera opens, so the stream stays on the visible <video>');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+// 页面刚说"这个码不行"（按台管理没登记、服务端不认、查找出错）：`resume(code)` 接着读但跳过这个码——
+// 镜头还对着它就不再交回去（10-28 polymer：同一个码每秒被查十几次），读到别的码才放开。
+(async () => {
+  let seen = 'TC001167';
+  const f = fixture({ decode: () => [{ rawValue: seen, format: 'qr_code' }] });
+  await f.reader.start(); await flush();
+  await f.tick(); await f.tick();
+  assert.deepEqual(f.result, ['TC001167']);
+  f.reader.resume('TC001167');
+  for (let i = 0; i < 6; i++) await f.tick();
+  assert.deepEqual(f.result, ['TC001167'], 'the skipped code is not handed back while it stays in view');
+  seen = 'P-000099';
+  await f.tick(); await f.tick();
+  assert.deepEqual(f.result, ['TC001167', 'P-000099'], 'another code is read as usual');
+  f.reader.resume();
+  seen = 'TC001167';
+  await f.tick(); await f.tick();
+  assert.deepEqual(f.result, ['TC001167', 'P-000099', 'TC001167'], 'after another code the first one can be read again');
+  console.log('PASS resume(code) skips the code the page just turned down until another code is read');
+})().catch(error => { console.error(error); process.exitCode = 1; });

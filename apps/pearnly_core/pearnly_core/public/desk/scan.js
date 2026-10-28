@@ -75,6 +75,6 @@ frappe.provide("frappe.pearnly");
 		const reader = scan().reader({ video: $(host).find("video").get(0), kind, on_result, on_error, on_waiting, on_started,
 			on_detected: () => p.scan_feedback(host),
 			on_play_blocked: play => stage().one("click", play) });
-		return { ...reader, resume() { reader.resume(); stage().removeClass("pearnly-scan-done"); } };
+		return { ...reader, resume(skip_code) { reader.resume(skip_code); stage().removeClass("pearnly-scan-done"); } };
 	};
 })();

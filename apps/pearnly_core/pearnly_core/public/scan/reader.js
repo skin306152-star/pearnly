@@ -102,13 +102,14 @@
 	}
 
 	// `video`：页面自己的 <video>。`on_result(code, {format, kind})` 读到一个确认过的码（读码随即暂停，
-	// 页面要么 `resume()` 接着读，要么 `stop()`）；`on_detected()` 是"读到了"那一刻（给页面闪一下）；
+	// 页面要么 `resume()` 接着读，要么 `stop()`；`resume(code)` 接着读但先**跳过这个码**——页面刚说它不行，
+	// 镜头还对着它就不再交回去，读到别的码才放开，免得同一个码被反复读、反复查）；`on_detected()` 是"读到了"那一刻（给页面闪一下）；
 	// `on_play_blocked()` 浏览器拦了自动播放（页面让人点一下画面再 `play()`）；`on_error(error)` 打不开。
 	// `on_waiting(reason)`：App 内置浏览器里相机 5 秒还没开（请求被挂着），读码器继续等，页面决定怎么办
 	// （盘点页在 LINE 里转 LIFF）；`on_started()`：相机真的开了。
 	function reader({ video, kind = "all", on_result, on_error, on_detected, on_play_blocked, on_waiting, on_started }) {
 		let stream, decode, timer, stopped = false, paused = false, detecting = false;
-		let candidate = "", candidate_format = "", hits = 0;
+		let candidate = "", candidate_format = "", hits = 0, skip = "";
 		const stop = () => {
 			stopped = true; window.clearTimeout(timer);
 			stream?.getTracks().forEach(track => track.stop()); stream = null;
@@ -130,8 +131,10 @@
 					const result = await decode.detect(video);
 					if (stopped || paused) return;
 					// QR content is exact text: internal whitespace must not be stripped.
-					const code = String(result[0]?.rawValue || "").trim();
+					let code = String(result[0]?.rawValue || "").trim();
 					const format = result[0]?.format || "";
+					if (code && code === skip) code = "";
+					else if (code) skip = "";
 					hits = code && code === candidate && format === candidate_format ? hits + 1 : (code ? 1 : 0);
 					candidate = code; candidate_format = format;
 					if (code && hits >= 2) {
@@ -170,7 +173,7 @@
 				} catch (error) { window.clearTimeout(slow); stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },
-			resume() { candidate = ""; candidate_format = ""; hits = 0; paused = false; },
+			resume(skip_code = "") { candidate = ""; candidate_format = ""; hits = 0; skip = String(skip_code || "").trim(); paused = false; },
 			has_torch() { return Boolean(stream?.getVideoTracks?.()[0]?.getCapabilities?.().torch); },
 			async torch(on) {
 				const track = stream?.getVideoTracks?.()[0];

@@ -690,7 +690,9 @@ List name,列表名称
 Loading...,加载中…
 Location,地点
 Locations,库位清单
+Lookup failed,查找失败
 "Lookup failed, please fill in manually",查询失败，请手动填写
+Lookup failed. Try again.,查找失败，请重试。
 Low (≤{0}),低库存（≤{0}）
 Low Stock Threshold,低库存阈值
 Low stock,低库存
@@ -769,6 +771,7 @@ No recent transactions found,暂无最近交易
 No stock count in progress,无进行中的盘点
 No templates yet,暂无模板
 No terminal yet,还没有收银台
+No units of this product are registered in this warehouse,此仓库未登记该商品的台
 No warehouse is available for this company,该公司无可用仓库
 No warehouse matches that name,该仓库名不存在
 Non-cash payment cannot exceed the amount due,非现金付款不能超过应付金额
@@ -2401,6 +2404,7 @@ stock.workbench.entryQty,本次实盘数量
 stock.workbench.find,查找物料
 stock.workbench.finishConfirm,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
 stock.workbench.locationDiff,仓位差异
+stock.workbench.lookupError,查找失败
 stock.workbench.lookupFailed,未找到物料，请核对编码后重试。
 stock.workbench.needsRecount,库存已变动，需重新盘点
 stock.workbench.nextReady,已保存，请扫描下一项。

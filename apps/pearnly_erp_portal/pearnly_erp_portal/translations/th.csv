@@ -690,7 +690,9 @@ List name,ชื่อรายการ
 Loading...,กำลังโหลด…
 Location,ที่ตั้ง
 Locations,รายการตำแหน่ง
+Lookup failed,ค้นหาไม่สำเร็จ
 "Lookup failed, please fill in manually",ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง
+Lookup failed. Try again.,ค้นหาไม่สำเร็จ กรุณาลองอีกครั้ง
 Low (≤{0}),สต็อกต่ำ (≤{0})
 Low Stock Threshold,เกณฑ์สต็อกต่ำ
 Low stock,สต็อกต่ำ
@@ -769,6 +771,7 @@ No recent transactions found,ไม่พบธุรกรรมล่าสุ
 No stock count in progress,ไม่มีการตรวจนับที่กำลังดำเนินการ
 No templates yet,ยังไม่มีเทมเพลต
 No terminal yet,ยังไม่มีเครื่องขาย
+No units of this product are registered in this warehouse,คลังนี้ยังไม่มีชิ้นที่ลงทะเบียนของสินค้านี้
 No warehouse is available for this company,บริษัทนี้ไม่มีคลังสินค้าที่ใช้งานได้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 Non-cash payment cannot exceed the amount due,การชำระที่ไม่ใช่เงินสดต้องไม่เกินยอดที่ต้องชำระ
@@ -2401,6 +2404,7 @@ stock.workbench.entryQty,จำนวนที่นับครั้งนี�
 stock.workbench.find,ค้นหาสินค้า
 stock.workbench.finishConfirm,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
 stock.workbench.locationDiff,ผลต่างตำแหน่ง
+stock.workbench.lookupError,ค้นหาไม่สำเร็จ
 stock.workbench.lookupFailed,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
 stock.workbench.needsRecount,สต็อกเปลี่ยนแปลงแล้ว ต้องตรวจนับใหม่
 stock.workbench.nextReady,บันทึกแล้ว กรุณาสแกนรายการถัดไป

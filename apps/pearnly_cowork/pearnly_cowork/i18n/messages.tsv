@@ -806,6 +806,7 @@ Position differences	仓位差异	ผลต่างตำแหน่ง	棚番
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	cowork.stock.workbench.lookupFailed
 Stock changed; recount	库存已变动，需重新盘点	สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่	在庫変動・再棚卸	cowork.stock.workbench.needsRecount
 Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว กรุณาสแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	cowork.stock.workbench.nextReady
+Lookup failed	查找失败	ค้นหาไม่สำเร็จ	検索できませんでした	cowork.stock.workbench.lookupError
 Up to 5 photos per entry; take a photo or choose from the gallery.	每条记录最多 5 张照片，可以拍照或从相册选择。	แต่ละรายการแนบรูปได้ไม่เกิน 5 รูป โดยถ่ายรูปหรือเลือกจากอัลบั้ม	1記録につき写真は5枚まで。撮影またはアルバムから選択できます。	cowork.stock.workbench.photoHint
 At most 5 photos per entry	每条记录最多 5 张照片	แต่ละรายการแนบรูปได้ไม่เกิน 5 รูป	1記録につき写真は5枚までです	cowork.stock.workbench.photoLimit
 Photos	照片	รูปภาพ	写真	cowork.stock.workbench.photos

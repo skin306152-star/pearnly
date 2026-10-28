@@ -85,6 +85,9 @@
 			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
 		});
 		function message(text) { d.fields_dict.message.$wrapper.empty().append($("<p class='text-muted'>").text(text)); }
+		// 没认出来：除了写在弹窗里，再用原生浮动提示说一遍——相机开着时弹窗里那一行在画面下面，手机上看不到
+		// （10-28 polymer 的人只看到"扫了没反应"）。
+		function miss(text) { message(text); frappe.show_alert({ message: text, indicator: "orange" }); }
 		// 「这件货还在别处」：`lookup.elsewhere` 是服务端给的"别的仓/仓位还有多少"。
 		// 有就摆出来，没有就不占地方（用户 2026-09-23："盘点时不提示'这件货的账在别处'"）。
 		function render_elsewhere() {
@@ -215,13 +218,15 @@
 					busy = false;
 					const picked = await p.pick_product(lookup.candidates);
 					if (picked) return match(null, picked);
-					scanner?.resume();
+					scanner?.resume(code);
 					return;
 				}
 				if (lookup.track_serial && !lookup.unit && !entry) {
-					// 按台管理的商品要扫车身上的号（车架号二维码），扫商品码认不出是哪一台
-					message(__("Count products tracked by unit one unit at a time"));
-					scanner?.resume();
+					// 按台管理的商品要扫这一台自己的号（车架号 / 设备号），扫商品码认不出是哪一台。说清是哪件商品；
+					// 这个仓一台都没登记时也照实说（10-28 polymer：商品勾了按台管理、一台没登记，人只看到扫不出东西）。
+					miss([lookup.product?.product_name, __("Count products tracked by unit one unit at a time"),
+						lookup.units?.length ? "" : __("No units of this product are registered in this warehouse")].filter(Boolean).join(" · "));
+					scanner?.resume(code);
 					if (code) p.scan_result_sound(false);
 					return;
 				}
@@ -257,9 +262,15 @@
 				if (code) p.scan_result_sound(true);
 			} catch (error) {
 				selected = null;
-				message(w("lookupFailed"));
-				if (!error?._server_messages && !error?.responseJSON) console.error(error);
-				scanner?.resume();
+				// 服务端明确不认（417：查不到这个码）才说"找不到"；网络断、服务端出错、这页自己的脚本错都只说查找失败，
+				// 错误照记，不冒充"找不到"。读码器跳过这个码：镜头还对着它就不再反复查（换个码或手动点查找再试）。
+				const refused = error?.status === 417;
+				// 417 时服务端那句已经弹成原生提示框，这里只写进弹窗；查找失败没人提示过，再浮动提示一次。
+				if (refused) message(w("lookupFailed")); else miss(w("lookupError"));
+				// 这页自己的脚本错交给统一的前端报错（服务端的错服务端自己记）。
+				if (!refused) console.error(error);
+				if (!error?.status) window.pearnlyReportError?.(error, "stocktake-lookup");
+				scanner?.resume(code);
 				if (code) p.scan_result_sound(false);
 			} finally { busy = false; }
 		}

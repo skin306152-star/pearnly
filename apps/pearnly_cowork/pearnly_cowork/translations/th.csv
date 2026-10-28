@@ -996,6 +996,8 @@ Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
 Lookup Key,คีย์ค้นหา
+Lookup failed,ค้นหาไม่สำเร็จ
+Lookup failed. Try again.,ค้นหาไม่สำเร็จ กรุณาลองอีกครั้ง
 MR.ERP Company,บริษัท MR.ERP
 MR.ERP Import Menu Options Seen,เมนูนำเข้า MR.ERP ที่พบ
 MR.ERP Import Menu per Account Set,เมนูนำเข้า MR.ERP ของแต่ละชุดบัญชี
@@ -2805,6 +2807,7 @@ cowork.stock.workbench.entryQty,จำนวนที่นับครั้ง
 cowork.stock.workbench.find,ค้นหาสินค้า
 cowork.stock.workbench.finishConfirm,ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น
 cowork.stock.workbench.locationDiff,ผลต่างตำแหน่ง
+cowork.stock.workbench.lookupError,ค้นหาไม่สำเร็จ
 cowork.stock.workbench.lookupFailed,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
 cowork.stock.workbench.needsRecount,สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่
 cowork.stock.workbench.nextReady,บันทึกแล้ว กรุณาสแกนรายการถัดไป

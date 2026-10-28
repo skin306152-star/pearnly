@@ -996,6 +996,8 @@ Lock Key,Lock Key
 Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
 Lookup Key,Lookup Key
+Lookup failed,Lookup failed
+Lookup failed. Try again.,Lookup failed. Try again.
 MR.ERP Company,MR.ERP Company
 MR.ERP Import Menu Options Seen,MR.ERP Import Menu Options Seen
 MR.ERP Import Menu per Account Set,MR.ERP Import Menu per Account Set
@@ -2805,6 +2807,7 @@ cowork.stock.workbench.entryQty,Quantity counted this time
 cowork.stock.workbench.find,Find product
 cowork.stock.workbench.finishConfirm,"Finish this count? {0} counted, {1} uncounted; the task becomes read-only."
 cowork.stock.workbench.locationDiff,Position differences
+cowork.stock.workbench.lookupError,Lookup failed
 cowork.stock.workbench.lookupFailed,Product not found. Check the code and try again.
 cowork.stock.workbench.needsRecount,Stock changed; recount
 cowork.stock.workbench.nextReady,Saved. Scan the next item.

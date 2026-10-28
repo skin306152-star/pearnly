@@ -690,7 +690,9 @@ List name,リスト名
 Loading...,読み込み中…
 Location,保管場所
 Locations,ロケーション一覧
+Lookup failed,検索できませんでした
 "Lookup failed, please fill in manually",照会に失敗しました。手入力してください
+Lookup failed. Try again.,検索できませんでした。もう一度お試しください。
 Low (≤{0}),在庫少（≤{0}）
 Low Stock Threshold,低在庫しきい値
 Low stock,在庫少
@@ -769,6 +771,7 @@ No recent transactions found,最近の取引はありません
 No stock count in progress,進行中の棚卸はありません
 No templates yet,テンプレートはまだありません
 No terminal yet,レジはまだありません
+No units of this product are registered in this warehouse,この倉庫にこの商品の登録済み個体はありません
 No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
 Non-cash payment cannot exceed the amount due,現金以外の支払いは支払額を超えられません
@@ -2401,6 +2404,7 @@ stock.workbench.entryQty,今回の実地数量
 stock.workbench.find,商品を検索
 stock.workbench.finishConfirm,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
 stock.workbench.locationDiff,棚番の差異
+stock.workbench.lookupError,検索できませんでした
 stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
 stock.workbench.needsRecount,在庫変動・再棚卸
 stock.workbench.nextReady,保存しました。次の商品を読み取ってください。

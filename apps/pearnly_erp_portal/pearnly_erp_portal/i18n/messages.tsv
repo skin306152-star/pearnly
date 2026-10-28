@@ -389,6 +389,7 @@ Save and next	保存并下一项	บันทึกและรายการ�
 Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	stock.workbench.review
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
 Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว กรุณาสแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
+Lookup failed	查找失败	ค้นหาไม่สำเร็จ	検索できませんでした	stock.workbench.lookupError
 Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	stock.workbench.locationDiff
 Quantity differences	数量差异	ผลต่างจำนวน	数量差異	stock.workbench.quantityDiff
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。	สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
@@ -1760,6 +1761,7 @@ Other companies have unregistered stock	其他公司还有未登记的库存	บ
 Tracking by unit can only be turned off when every unit is sold or void	全部台已售或作废后才能关闭按台管理	ปิดการติดตามรายชิ้นได้เมื่อทุกรายการขายแล้วหรือยกเลิกแล้วเท่านั้น	すべての個体が販売済みまたは無効の場合のみ個体管理を解除できます
 Products tracked by unit change stock only through documents with units	按台管理的商品只能经带台的单据变动库存	สินค้าที่ติดตามรายชิ้นเปลี่ยนสต็อกได้ผ่านเอกสารที่ระบุรายชิ้นเท่านั้น	個体管理の商品は個体を指定した伝票でのみ在庫を変更できます
 Count products tracked by unit one unit at a time	按台管理的商品逐台扫码盘点	สินค้าที่ติดตามรายชิ้นให้นับทีละชิ้น	個体管理の商品は1台ずつ棚卸してください
+No units of this product are registered in this warehouse	此仓库未登记该商品的台	คลังนี้ยังไม่มีชิ้นที่ลงทะเบียนของสินค้านี้	この倉庫にこの商品の登録済み個体はありません
 This unit has been counted	该台已盘	รายการนี้นับแล้ว	この個体は棚卸済みです
 Chassis No	车架号	เลขตัวถัง	車台番号	serial.vehicle.primary
 Engine No	发动机号	เลขเครื่องยนต์	エンジン番号	serial.vehicle.secondary

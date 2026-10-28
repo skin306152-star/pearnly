@@ -690,7 +690,9 @@ List name,List name
 Loading...,Loading...
 Location,Location
 Locations,Locations
+Lookup failed,Lookup failed
 "Lookup failed, please fill in manually","Lookup failed, please fill in manually"
+Lookup failed. Try again.,Lookup failed. Try again.
 Low (≤{0}),Low (≤{0})
 Low Stock Threshold,Low Stock Threshold
 Low stock,Low stock
@@ -769,6 +771,7 @@ No recent transactions found,No recent transactions found
 No stock count in progress,No stock count in progress
 No templates yet,No templates yet
 No terminal yet,No terminal yet
+No units of this product are registered in this warehouse,No units of this product are registered in this warehouse
 No warehouse is available for this company,No warehouse is available for this company
 No warehouse matches that name,No warehouse matches that name
 Non-cash payment cannot exceed the amount due,Non-cash payment cannot exceed the amount due
@@ -2401,6 +2404,7 @@ stock.workbench.entryQty,Quantity counted this time
 stock.workbench.find,Find product
 stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.
 stock.workbench.locationDiff,Position differences
+stock.workbench.lookupError,Lookup failed
 stock.workbench.lookupFailed,Product not found. Check the code and try again.
 stock.workbench.needsRecount,Stock changed; recount
 stock.workbench.nextReady,Saved. Scan the next item.

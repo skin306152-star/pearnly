@@ -996,6 +996,8 @@ Lock Key,锁键
 Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
 Lookup Key,查找键
+Lookup failed,查找失败
+Lookup failed. Try again.,查找失败，请重试。
 MR.ERP Company,MR.ERP 公司
 MR.ERP Import Menu Options Seen,已读取的 MR.ERP 导入菜单
 MR.ERP Import Menu per Account Set,各账套的 MR.ERP 导入菜单
@@ -2805,6 +2807,7 @@ cowork.stock.workbench.entryQty,本次实盘数量
 cowork.stock.workbench.find,查找物料
 cowork.stock.workbench.finishConfirm,确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后仅可查看和导出。
 cowork.stock.workbench.locationDiff,仓位差异
+cowork.stock.workbench.lookupError,查找失败
 cowork.stock.workbench.lookupFailed,未找到物料，请核对编码后重试。
 cowork.stock.workbench.needsRecount,库存已变动，需重新盘点
 cowork.stock.workbench.nextReady,已保存，请扫描下一项。
