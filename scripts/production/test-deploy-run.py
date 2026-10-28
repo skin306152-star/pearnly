@@ -1,0 +1,327 @@
+"""Offline tests for the one-command production deployment: no Docker, GitHub, SSH or host changes.
+
+deploy-run.sh (server side) must keep the manual order and every gate: revision, tooling sync and check,
+products one at a time behind the 8 GB memory wait, foundation, readback; stop at the first failure.
+deploy.sh (local driver) must chain build → stage → one SSH start → one long SSH attach, and stop with
+guidance when a step fails. deploy-readback.sh must flag every readback item that is off.
+"""
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+HERE = Path(__file__).parent
+RUNNER = HERE / 'deploy-run.sh'
+READBACK = HERE / 'deploy-readback.sh'
+DRIVER = HERE / 'deploy.sh'
+SHA = 'f' * 40
+DIGEST = 'sha256:' + 'e' * 64
+IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@' + DIGEST
+
+
+def stub(path, body):
+    path.write_text('#!/usr/bin/env bash\n' + body)
+    path.chmod(0o755)
+
+
+class Runner(unittest.TestCase):
+    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state, deploy, bin_dir = root / 'state', root / 'deploy', root / 'bin'
+            for d in (state, deploy / 'scripts/production', bin_dir):
+                d.mkdir(parents=True)
+            trace = root / 'trace'
+            # Server copy inside the "image": the runner itself plus fake activation / readback scripts.
+            runner_copy = deploy / 'scripts/production/deploy-run.sh'
+            runner_copy.write_text(RUNNER.read_text())
+            for name in ('activate-product.sh', 'activate-foundation.sh', 'deploy-readback.sh'):
+                (deploy / 'scripts/production' / name).write_text(
+                    f'echo "{name} $*" >> "{trace}"\n'
+                    f'[ "{name} $2" != "activate-product.sh {fail_product}" ] || {{ echo boom; exit 4; }}\n'
+                    f'echo "done {name}"\n')
+            (deploy / 'scripts/production/check-deploy-image.py').write_text(
+                f'import sys\nopen("{trace}", "a").write("check-deploy-image " + " ".join(sys.argv[1:]) + "\\n")\n')
+            stub(bin_dir / 'docker', f'echo "docker $*" >> "{trace}"\n'
+                 f'if [ "$1 $2" = "image inspect" ]; then echo {revision}; fi\n')
+            readings = root / 'memory'
+            readings.write_text('\n'.join(str(m) for m in memory) + '\n')
+            # free: hand out the next memory reading for each wait check; sampler calls also consume (harmless).
+            stub(bin_dir / 'free', f'm=$(head -1 "{readings}"); [ $(wc -l < "{readings}") -gt 1 ] && sed -i.bak 1d "{readings}"\n'
+                 'echo "              total        used        free      shared  buff/cache   available"\n'
+                 'echo "Mem:          32000        2000       1000          0       1000       $m"\n')
+            if lock_pid is not None:
+                (state / 'deploy.lock').mkdir()
+                (state / 'deploy.lock/pid').write_text(f'{lock_pid}\n')
+            env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}',
+                       PEARNLY_STATE_DIR=str(state), PEARNLY_DEPLOY_ROOT=str(deploy),
+                       PEARNLY_DEPLOY_MEM_WAIT_SECONDS='0')
+            result = subprocess.run(['bash', str(runner_copy), IMAGE, SHA], env=env, text=True,
+                                    capture_output=True, timeout=60)
+            short = SHA[:8]
+            read = lambda p: p.read_text() if p.exists() else ''
+            return (result, read(trace).splitlines(), read(state / f'deploy-{short}.status').strip(),
+                    read(state / f'deploy-{short}.log'), (state / 'deploy.lock').exists())
+
+    def test_success_keeps_manual_order_and_every_gate(self):
+        result, trace, status, log, locked = self.run_runner()
+        self.assertEqual(result.returncode, 0, log)
+        self.assertEqual(status, 'ok')
+        steps = [line.split()[0] if not line.startswith('docker') else ' '.join(line.split()[:2]) for line in trace]
+        self.assertEqual([s for s in steps if s != 'docker rm'], [
+            'docker ps', 'docker image', 'docker create', 'docker cp', 'check-deploy-image',
+            'activate-product.sh', 'activate-product.sh', 'activate-product.sh',
+            'activate-foundation.sh', 'deploy-readback.sh'])
+        products = [line.split()[2] for line in trace if line.startswith('activate-product.sh')]
+        self.assertEqual(products, ['erp', 'cowork', 'dms'])
+        self.assertIn('DEPLOY DONE', log)
+        self.assertFalse(locked, 'lock is released after the run')
+
+    def test_wrong_revision_stops_before_anything_changes(self):
+        result, trace, status, log, _ = self.run_runner(revision='0' * 40)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(status, 'failed revision')
+        self.assertFalse([l for l in trace if l.startswith(('docker cp', 'activate'))])
+
+    def test_product_failure_stops_later_products(self):
+        result, trace, status, log, locked = self.run_runner(fail_product='cowork')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(status, 'failed cowork')
+        products = [line.split()[2] for line in trace if line.startswith('activate-product.sh')]
+        self.assertEqual(products, ['erp', 'cowork'])
+        self.assertFalse([l for l in trace if l.startswith(('activate-foundation', 'deploy-readback'))])
+        self.assertIn('boom', log)
+        self.assertFalse(locked)
+
+    def test_waits_for_memory_before_each_product(self):
+        result, trace, status, log, _ = self.run_runner(memory=(5000, 6000, 30000))
+        self.assertEqual(status, 'ok', log)
+        self.assertRegex(log, r'available \d+ MB < 8192, waiting')
+
+    def test_memory_that_never_recovers_stops_before_activation(self):
+        result, trace, status, log, _ = self.run_runner(memory=(4000,))
+        self.assertEqual(status, 'failed erp')
+        self.assertIn('memory did not recover', log)
+        self.assertFalse([l for l in trace if l.startswith('activate')])
+
+    def test_running_deployment_holds_the_lock(self):
+        result, trace, status, log, locked = self.run_runner(lock_pid=os.getpid())
+        self.assertEqual(result.returncode, 3)
+        self.assertEqual(trace, [])
+        self.assertTrue(locked, 'the other deployment keeps its lock')
+
+    def test_stale_lock_is_taken_over(self):
+        dead = subprocess.Popen(['true']); dead.wait()
+        result, trace, status, log, _ = self.run_runner(lock_pid=dead.pid)
+        self.assertEqual(status, 'ok', log)
+
+
+class RunnerSelfCheck(unittest.TestCase):
+    def test_uploaded_runner_differs_from_image_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state, deploy, bin_dir = root / 'state', root / 'deploy', root / 'bin'
+            for d in (state, deploy / 'scripts/production', bin_dir):
+                d.mkdir(parents=True)
+            uploaded = state / 'deploy-run-ffffffff.sh'
+            uploaded.write_text(RUNNER.read_text() + '# not the image copy\n')
+            (deploy / 'scripts/production/deploy-run.sh').write_text(RUNNER.read_text())
+            (deploy / 'scripts/production/check-deploy-image.py').write_text('')
+            stub(bin_dir / 'docker', f'if [ "$1 $2" = "image inspect" ]; then echo {SHA}; fi\n')
+            stub(bin_dir / 'free', 'echo "Mem: 1 1 1 1 1 30000"\n')
+            env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}',
+                       PEARNLY_STATE_DIR=str(state), PEARNLY_DEPLOY_ROOT=str(deploy))
+            result = subprocess.run(['bash', str(uploaded), IMAGE, SHA], env=env, text=True,
+                                    capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual((state / 'deploy-ffffffff.status').read_text().strip(), 'failed sync-tooling')
+            self.assertIn('not the copy inside the image', (state / 'deploy-ffffffff.log').read_text())
+
+
+class Readback(unittest.TestCase):
+    def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL'):
+        containers = containers or {
+            'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
+            'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
+        codes = codes or {}
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            bin_dir, deploy = root / 'bin', root / 'deploy'
+            bin_dir.mkdir(); deploy.mkdir()
+            for product in ('erp', 'cowork', 'dms'):
+                (deploy / f'active-image-{product}.json').write_text(json.dumps([record]) + '\n')
+            (root / 'containers.json').write_text(json.dumps(containers))
+            stub(bin_dir / 'docker', f'''python3 - "$@" <<'EOF'
+import json, sys
+args = sys.argv[1:]
+containers = json.load(open("{root}/containers.json"))
+if args[0] == "ps":
+    print("\\n".join(list(containers) + ["pearnly-maintenance-erp"]))
+elif args[0] == "inspect" and "Config.Image" in args[2]:
+    print(containers[args[3]])
+elif args[0] == "inspect":
+    print("PATH=/usr/bin\\nFRAPPE_BACKGROUND_WORKERS_NOFORK=1")
+elif args[0] == "exec" and "python3" in args:
+    print("site-a.pearnly.com {maintenance}\\nsite-b.pearnly.com 0")
+elif args[0] == "exec" and "time_zone" in args[-1]:
+    print("Asia/Bangkok")
+elif args[0] == "exec" and "sum(error" in args[-1]:
+    print("{errors} {rejected}")
+elif args[0] == "exec":
+    print("2026-10-28 10:00:00 Traceback sample")
+elif args[0] == "stats":
+    print("pearnly-production-mariadb-1 873MiB / 8GiB")
+EOF
+''')
+            stub(bin_dir / 'curl', f'''url="${{@: -1}}"
+case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) printf 200 ;; esac
+''')
+            env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}', PEARNLY_DEPLOY_ROOT=str(deploy),
+                       PEARNLY_DEPLOY_PING_WAIT_SECONDS='0')
+            return subprocess.run(['bash', str(READBACK), IMAGE, '1761600000'], env=env, text=True,
+                                  capture_output=True, timeout=60)
+
+    def test_clean_readback_passes(self):
+        result = self.run_readback()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Readback passed.', result.stdout)
+        self.assertIn('873MiB', result.stdout)
+        self.assertIn('pearnly-maintenance-erp', result.stdout)
+
+    def test_scheduler_rejected_in_maintenance_is_listed_not_a_problem(self):
+        result = self.run_readback(errors='NULL', rejected=4)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('maintenance_rejected_jobs=4', result.stdout)
+
+    def test_each_problem_is_flagged(self):
+        cases = {
+            'old image': dict(containers={'pearnly-production-dms-web-1': 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + '1' * 64}),
+            'record': dict(record='ghcr.io/skin306152-star/pearnly/frappe@sha256:' + '2' * 64),
+            'maintenance': dict(maintenance=1),
+            'errors': dict(errors=3),
+            'ping': dict(codes={'https://fatcc.com/': 502}),
+        }
+        for name, kwargs in cases.items():
+            with self.subTest(case=name):
+                result = self.run_readback(**kwargs)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('PROBLEM', result.stdout)
+
+
+class Driver(unittest.TestCase):
+    """deploy.sh with fake git / gh / ssh: the order of calls and where it stops."""
+
+    def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
+                   busy_server=False):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo, bin_dir = root / 'repo', root / 'bin'
+            (repo / 'scripts/production').mkdir(parents=True)
+            bin_dir.mkdir()
+            for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py'):
+                (repo / 'scripts/production' / f.name).write_text(f.read_text())
+            trace = root / 'trace'
+            stub(bin_dir / 'git', f'''echo "git $*" >> "{trace}"
+case "$*" in
+  *rev-parse*) echo {SHA} ;;
+  *show*deploy-run.sh) cat "{repo}/scripts/production/deploy-run.sh" ;;
+esac
+''')
+            stub(bin_dir / 'gh', f'''echo "gh $*" >> "{trace}"
+case "$1 $2" in
+  "workflow run") ;;
+  "run list")
+    case "$*" in
+      *"length"*) echo 0 ;;
+      *build-production*) echo "101 {SHA}" ;;
+      *stage-production*) echo "202 {SHA}" ;;
+    esac ;;
+  "run view")
+    case "$*" in
+      *"Verify the candidate"*) echo {candidate} ;;
+      *"101 "*) echo "completed|{build}|" ;;
+      *"202 "*) echo "completed|{stage}|" ;;
+    esac ;;
+  "run download") mkdir -p "${{@: -1}}"; echo "ghcr.io/skin306152-star/pearnly/frappe@{DIGEST}" > "${{@: -1}}/image-digest.txt" ;;
+esac
+''')
+            stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
+case "$*" in
+  *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
+  *"tail -n"*) echo "== start"; echo "== DEPLOY DONE"; echo "__STATUS {remote_status}" ;;
+esac
+''')
+            env = dict(os.environ, PATH=f'{bin_dir}{os.pathsep}{os.environ["PATH"]}',
+                       PEARNLY_DEPLOY_SSH=str(bin_dir / 'fake-ssh'), PEARNLY_DEPLOY_POLL_SECONDS='0',
+                       PEARNLY_DEPLOY_RECONNECT_SECONDS='0')
+            result = subprocess.run(['bash', str(repo / 'scripts/production/deploy.sh'), *args], env=env, text=True,
+                                    capture_output=True, timeout=60)
+            calls = trace.read_text().splitlines() if trace.exists() else []
+            return result, calls
+
+    @staticmethod
+    def kinds(calls):
+        out = []
+        for c in calls:
+            if c.startswith('gh workflow run'):
+                out.append('dispatch ' + c.split()[3])
+            elif c.startswith('ssh') and 'nohup bash' in c:
+                out.append('ssh start')
+            elif c.startswith('ssh'):
+                out.append('ssh attach')
+        return out
+
+    def test_full_run_chains_every_step_once(self):
+        result, calls = self.run_driver()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.kinds(calls), ['dispatch build-production.yml', 'dispatch stage-production.yml',
+                                             'ssh start', 'ssh attach'])
+        stage = next(c for c in calls if 'stage-production.yml' in c and 'workflow run' in c)
+        self.assertIn(f'digest={DIGEST}', stage)
+        self.assertIn('部署完成', result.stdout)
+
+    def test_failed_build_stops_before_production(self):
+        result, calls = self.run_driver(build='failure')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.kinds(calls), ['dispatch build-production.yml'])
+        self.assertIn('生产没动', result.stderr)
+
+    def test_failed_candidate_checks_stop_before_stage(self):
+        result, calls = self.run_driver(candidate='failure')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.kinds(calls), ['dispatch build-production.yml'])
+
+    def test_failed_stage_stops_before_ssh(self):
+        result, calls = self.run_driver(stage='failure')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.kinds(calls), ['dispatch build-production.yml', 'dispatch stage-production.yml'])
+        self.assertIn(f'--digest {DIGEST}', result.stderr)
+
+    def test_digest_and_skip_stage_go_straight_to_the_server(self):
+        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.kinds(calls), ['ssh start', 'ssh attach'])
+
+    def test_busy_server_is_left_alone(self):
+        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', busy_server=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.kinds(calls), ['ssh start'])
+        self.assertIn('已有一次部署在跑', result.stderr)
+
+    def test_product_failure_is_reported_without_rollback(self):
+        result, calls = self.run_driver('--digest', DIGEST, '--skip-stage', remote_status='failed cowork')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('激活 cowork 失败', result.stderr)
+        self.assertIn('不自动回滚', result.stderr)
+        self.assertFalse([c for c in calls if 'activate' in c and 'ssh' in c and 'rollback' in c])
+
+    def test_attach_only_reads(self):
+        result, calls = self.run_driver('--attach')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.kinds(calls), ['ssh attach'])
+
+
+if __name__ == '__main__':
+    unittest.main()
