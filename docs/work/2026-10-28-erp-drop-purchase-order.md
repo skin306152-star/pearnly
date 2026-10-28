@@ -32,8 +32,11 @@ ERP 站点 `doc_kind = purchase_order` 都是 0 张（gize / mrerp / polymer 采
 **9. 删除与迁移**：ERP 补丁 `v1_16_retire_purchase_order`：已有采购订单单改成 `RETIRED_KINDS` 给的类型（别的数据不动），
 站点上的「Pearnly Purchase Order」打印格式记录删掉。重跑无副作用。
 
-**12. 待定**：映射成 `purchase_invoice` 还是 `goods`——已问主会话；现按建议用 `purchase_invoice`（下拉与识别的默认，打开单子显示「采购发票」；
-`goods` 只在旧单上出现）。改口径只动 `purchasing/contracts.RETIRED_KINDS` 一处。
+**12. 口径（主会话 10-28 定）**：映射成 `purchase_invoice`（采购发票）——与下拉、识别的默认值一致，打开单子显示「采购发票」；
+补丁与识别落地都按这个（`purchasing/contracts.RETIRED_KINDS` 一处）。
+
+**行为变化**：原来的采购订单**不推 Express**（`express/contracts.PURCHASE_KINDS` 不含它）；改成采购发票后会进 Express 推送
+（新提交的单照常排队；补丁只改类型、不补排队，已提交的旧单不会被自动补推）。生产四个 ERP 站点采购订单 0 张，只影响测试机与以后的单。
 
 ## 验证（本机一次性实验栈 `pearnly-drop-lab`，线上同版镜像 fb1037ad）
 
