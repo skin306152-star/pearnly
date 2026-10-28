@@ -47,7 +47,9 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q -p no:cacheprovider tests
       - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
+        # 测试机的 runner 已装好 Inno Setup 6（没有 choco）；GitHub 的机器上照旧用 choco 装
+        shell: pwsh
+        run: if (-not (Test-Path 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe')) { choco install innosetup -y --no-progress }
       - name: Build the installer (no publication credentials in this job)
         shell: pwsh
         env:
