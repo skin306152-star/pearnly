@@ -60,12 +60,24 @@ try {
   await sleep(1500);
   for (const [index, step] of (job.steps || []).entries()) {
     logs.length = 0;
-    const result = await send("Runtime.evaluate", { expression: `(async () => { const p = window.frappe && frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId)
+    const helper = `window.__unmark = () => document.querySelectorAll('.__mark').forEach((e) => e.remove());
+      window.__mark = (el, n) => { if (!el) return false; const r = el.getBoundingClientRect(); const pad = 4;
+        const box = document.createElement('div'); box.className = '__mark';
+        Object.assign(box.style, {position: 'fixed', left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px',
+          height: (r.height + pad * 2) + 'px', border: '3px solid #e00', borderRadius: '6px', zIndex: 2147483647, pointerEvents: 'none'});
+        const tag = document.createElement('div'); tag.className = '__mark'; tag.textContent = String(n);
+        Object.assign(tag.style, {position: 'fixed', left: Math.max(0, r.left - pad - 14) + 'px', top: Math.max(0, r.top - pad - 14) + 'px',
+          width: '26px', height: '26px', borderRadius: '13px', background: '#e00', color: '#fff', font: 'bold 15px/26px sans-serif',
+          textAlign: 'center', zIndex: 2147483647, pointerEvents: 'none'});
+        document.body.append(box, tag); return true; };
+      window.__find = (text, root = document) => [...root.querySelectorAll('a, button, .btn, span, div, li, label')].filter((e) => e.offsetParent
+        && (e.innerText || '').trim() === text).sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length)[0] || null;`;
+    const result = await send("Runtime.evaluate", { expression: `(async () => { ${helper} const p = window.frappe && frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId)
       .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
     if (step.wait_ms) await sleep(step.wait_ms);
     if (step.shot && job.shots) {
       const shot = await send("Page.captureScreenshot", { format: "png" }, sessionId).catch(() => null);
-      if (shot?.data) writeFileSync(join(job.shots, `${index + 1}-${step.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}.png`), Buffer.from(shot.data, "base64"));
+      if (shot?.data) writeFileSync(join(job.shots, step.file ? `${step.file}.png` : `${index + 1}-${step.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}.png`), Buffer.from(shot.data, "base64"));
     }
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
       error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs] }));
