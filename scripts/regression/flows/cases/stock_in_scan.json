@@ -1,0 +1,88 @@
+{
+ "name": "stock_in_scan",
+ "datasets": [
+  "new"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-stock-in/new",
+ "variants": [
+  {
+   "suffix": "qr",
+   "video": "qr-qr.y4m",
+   "vars": {
+    "label": "入库",
+    "route": "pearnly-stock-in",
+    "product": "${products.qr}",
+    "warehouse": "${warehouses.คลังสาขา 3}",
+    "qty": 4,
+    "sign": 1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "code",
+   "video": "qr-code.y4m",
+   "vars": {
+    "label": "入库",
+    "route": "pearnly-stock-in",
+    "product": "${products.code}",
+    "warehouse": "${warehouses.คลังสาขา 3}",
+    "qty": 4,
+    "sign": 1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "internal",
+   "video": "qr-internal.y4m",
+   "vars": {
+    "label": "入库",
+    "route": "pearnly-stock-in",
+    "product": "${products.internal}",
+    "warehouse": "${warehouses.คลังสาขา 3}",
+    "qty": 4,
+    "sign": 1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "express",
+   "video": "qr-express.y4m",
+   "vars": {
+    "label": "入库",
+    "route": "pearnly-stock-in",
+    "product": "${products.express}",
+    "warehouse": "${warehouses.คลังสาขา 3}",
+    "qty": 4,
+    "sign": 1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "barcode",
+   "video": "ean.y4m",
+   "vars": {
+    "label": "入库",
+    "route": "pearnly-stock-in",
+    "product": "${products.barcode}",
+    "warehouse": "${warehouses.คลังสาขา 3}",
+    "qty": 4,
+    "sign": 1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "入库扫码认商品并过账",
+   "file": "js/stock_entry_scan.js",
+   "shot": true,
+   "timeout_ms": 120000
+  }
+ ]
+}
