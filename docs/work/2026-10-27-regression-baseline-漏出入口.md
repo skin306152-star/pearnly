@@ -333,3 +333,9 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
 - 待并入：删「采购设置 / 集成」两页（cfde29cd）合入时，ERP 这两个地址的状态不变（都是 home），不用改基线。
 - 实验室接计费（10-28）：`scripts/regression/lab_billing.py` 在同一 bench 里建本地控制面站点 `control.regression.localhost`（装 pearnly_control），给三个产品站点各开测试租户，各记 1000 泰铢本地测试余额（走正式审核函数），发按产品限定的服务令牌，并把产品站点的计费配置指过去。
   接上后首页的计费接口回数据；被换回首页、我们自己的页，控制台都不再出那条「Uncaught (in promise)」，页面快照的「页面报错」能用了。`lab_init.py` 的陌生站点检查放行这个控制面站点。
+- 接口矩阵第二版（10-28，main 4a265581）：占位参数按参数名给（JSON 参数给 `{}` / `[]`，数量 / 金额给 1，日期给今天），inconclusive 接口从 139 个降到 99 个（ERP 64→40、Cowork 59→48、DMS 16→11）。
+  - 新冒出的「无守卫正常返回」只有 ERP `purchasing.api_delete_purchase_drafts`、`sales.api_delete_sale_drafts`。原因是空清单在逐张核权限（`access.get_document(write=True)`）之前就返回了「删了 0 张」。
+  - 拿采购岗真建的一张草稿复测：none、销售、收银删都被拒；租户管理员删别人的草稿也被拒（草稿只给本人删）。不算缺陷。
+  - 其余无守卫项都在登记表里，外加无害的 `refuse_on_native_account`。
+  - Cowork 那 39 张表的复测：部署前那轮（6c8860b9，已含收紧）的矩阵就是收紧之后的结果，没有新的无守卫返回。
+  - 剩下 99 个 inconclusive：多是要真实单号 / 记录名的接口（DoesNotExist、业务校验在守卫之前），要按接口补「别人的单 / 别家公司的单」夹具，排在后面做。

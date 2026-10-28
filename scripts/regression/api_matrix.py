@@ -95,8 +95,30 @@ def placeholders(cmd):
         params = inspect.signature(fn).parameters.values()
     except (TypeError, ValueError):
         return {}
-    return {p.name: PLACEHOLDER for p in params
+    return {p.name: placeholder_for(p.name) for p in params
             if p.default is inspect.Parameter.empty and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)}
+
+
+# 按参数名给像样的占位（第二步，10-28）：一律给字符串时，要 JSON / 数字 / 日期的接口在守卫之前就解析失败，矩阵只能记 inconclusive
+JSON_OBJECT = ("payload", "filters", "changes", "data", "values", "args", "doc", "settings", "config", "options", "fields_map")
+JSON_LIST = ("lines", "rows", "items", "names", "ids", "entries", "files", "attachments", "members", "users", "roles",
+             "companies", "methods", "documents", "selected", "codes", "products")
+NUMBER = ("limit", "start", "offset", "page", "qty", "amount", "minutes", "days", "index", "idx", "count", "size")
+
+
+def placeholder_for(name):
+    import datetime
+
+    lowered = name.lower()
+    if lowered in JSON_OBJECT or lowered.endswith("_json") or lowered.endswith("_payload"):
+        return "{}"
+    if lowered in JSON_LIST or lowered.endswith("_list") or lowered.endswith("s_json"):
+        return "[]"
+    if lowered in NUMBER or lowered.endswith("_qty") or lowered.endswith("_amount") or lowered.endswith("_thb"):
+        return "1"
+    if lowered.endswith("date") or lowered in ("on", "day", "date_from", "date_to", "posting_date"):
+        return datetime.date.today().isoformat()
+    return PLACEHOLDER
 
 
 # 守卫：本仓的 require / guard / deny 一类，框架的权限检查（frappe/permissions.py、get_list 的按权限拼条件 db_query.py）
