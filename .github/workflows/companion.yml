@@ -6,6 +6,7 @@ on:
   pull_request:
     paths: ['companion/**', '.github/workflows/companion*.yml']
   push:
+    branches-ignore: [main]   # main 只快进到分支上已检查过的提交；正式发布另跑全量测试
     paths: ['companion/**', '.github/workflows/companion*.yml']
 
 permissions:
@@ -13,7 +14,8 @@ permissions:
 
 jobs:
   companion-tests:
-    runs-on: windows-latest
+    # 仓库变量 COMPANION_RUNS_ON 指向测试机的 runner 标签时在测试机上跑；删掉变量回到 GitHub 的机器
+    runs-on: ${{ vars.COMPANION_RUNS_ON || 'windows-latest' }}
     timeout-minutes: 40
     defaults:
       run:

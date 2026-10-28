@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ vars.COMPANION_RUNS_ON || 'windows-latest' }}   # 同 Companion checks
     timeout-minutes: 40
     defaults:
       run:
