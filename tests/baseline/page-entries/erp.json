@@ -1,0 +1,3727 @@
+{
+ "pages": {
+  "admin": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [
+     "trade.closeShift",
+     "trade.openShift"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [
+     "client.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-company": {
+    "codes": [
+     "company.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "none"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [
+     "stock.action.export",
+     "stock.opening.title"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "open"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "open"
+   },
+   "desk/pearnly-products": {
+    "codes": [
+     "product.action.import",
+     "product.action.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [
+     "Export",
+     "New"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [
+     "Export",
+     "New"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "open"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [
+     "stock.count.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [
+     "trade.newIn"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [
+     "trade.newOut"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [
+     "supplier.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [
+     "erp.work.archived.title",
+     "erp.work.board.create",
+     "erp.work.board.members",
+     "erp.work.board.settings",
+     "erp.work.fields.manage",
+     "erp.work.labels.manage",
+     "erp.work.notify.title",
+     "erp.work.rules.manage"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-team": {
+    "codes": [
+     "team.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [
+     "company.newWarehouse"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  },
+  "cashier": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [
+     "trade.closeShift",
+     "trade.newInvoice",
+     "trade.openShift",
+     "trade.recentOrders"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "open"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "open"
+   },
+   "desk/pearnly-products": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  },
+  "none": {
+   "desk": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-clients": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "none"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-products": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-sales": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/user/<本人>": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "denied"
+   }
+  },
+  "products": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-products": {
+    "codes": [
+     "product.action.import",
+     "product.action.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  },
+  "purchase": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-products": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [
+     "Export",
+     "New"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [
+     "supplier.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  },
+  "sales": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [
+     "client.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-products": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [
+     "Export",
+     "New"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  },
+  "stock": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [
+     "stock.action.export",
+     "stock.opening.title"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-products": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "open"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [
+     "stock.count.new"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [
+     "trade.newIn"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [
+     "trade.newOut"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [
+     "company.newWarehouse"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  },
+  "tasks": {
+   "desk": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/activity-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/contact": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/dashboard-view": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/data-import": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/email-account": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-company": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-customer": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-doc-sequence": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-express-choice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-line-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-day-summary": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-pos-terminal": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-product": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-category-memory": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-purchase-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sale": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-sales-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-serial-no": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-shift": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-balance": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-count-item": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-entry": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-movement": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-stock-opening": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-supplier": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-tax-lookup-cache": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-warehouse": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-activity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-board": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-card": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-column": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-field": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-label": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-mirror": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-notification": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/erp-work-rule": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/error-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/file": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/note": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/notification-log": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-notice": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-key": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-push-subscription": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-assistant-tool-run": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-buy-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cashier": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-cc-book": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-device": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-job": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-cc-request": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-clients": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-company": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-connect": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-erp-endpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-export": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-history": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-home": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-identity": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-intake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-integrations": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-inventory": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-line-bind-code": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-binding": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-event": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-guide": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-line-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-checkpoint": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-record": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-ocr-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-pos-receipts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-pos-shifts": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-products": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-purchase": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-push-logs": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-bank": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-income": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-recon-vat": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-reconcile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-records": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-roster": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-sales": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-session": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-stock-card": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-count": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-in": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stock-out": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-stocktake": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/pearnly-suppliers": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-tasks": {
+    "codes": [
+     "erp.work.archived.title",
+     "erp.work.board.create",
+     "erp.work.board.members",
+     "erp.work.notify.title"
+    ],
+    "state": "open"
+   },
+   "desk/pearnly-team": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-warehouses": {
+    "codes": [],
+    "state": "denied"
+   },
+   "desk/pearnly-work": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/permission-manager": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/print-format": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/purchase-document": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/report": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/role": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/system-settings": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/todo": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-permission": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user-profile": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/user/<本人>": {
+    "codes": [
+     "Save"
+    ],
+    "state": "open"
+   },
+   "desk/website": {
+    "codes": [],
+    "state": "home"
+   },
+   "desk/workspace": {
+    "codes": [],
+    "state": "home"
+   }
+  }
+ },
+ "shortcuts": [
+  "ctrl+s"
+ ]
+}

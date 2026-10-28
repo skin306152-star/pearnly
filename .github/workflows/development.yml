@@ -37,6 +37,8 @@ jobs:
         run: python3 tests/test_team_placeholder_email.py
       - name: Every guest endpoint is registered with its reason and guard
         run: python3 tests/test_guest_endpoints.py
+      - name: The page entry baselines are valid and compared by the agreed rules
+        run: python3 tests/test_page_baseline.py
       - name: Download file names in Chinese or Thai are sent as RFC 5987 with an ASCII fallback
         run: python3 tests/test_download_filenames.py
       - name: Keep each ERP boot item independent of the others

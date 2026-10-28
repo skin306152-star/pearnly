@@ -319,3 +319,15 @@ docker exec -w /home/frappe/frappe-bench/sites pearnly-regression-lab-bench-1 \
 ### 保留项
 
 - `pearnly/stock-count-unknown-assess` 与临时工作树 `scratchpad/rv-assess`：多仓与盘点未知码的评估（10-26 本窗口），等主会话 / 开发窗口用完评估再删；明天复核时一并确认。
+
+## 10-28：页面入口基线落文件（回归方案 C 节）
+
+- 基线：`tests/baseline/page-entries/{erp,cowork,dms}.json`。每个产品 × 岗位 × 地址记两样：打不打得开（open / denied / home / none）、页头出现的声明码；另记全局快捷键（只有 Ctrl+S）。
+  来源是 main 6c8860b9 的部署前 17 岗位快照（ERP 补跑后的 `lab-erp-final`），再并入 957aaed2 那一轮（收银台开着班时的页头码），共 ERP 904、Cowork 858、DMS 252 格。
+- 工具：`scripts/regression/baseline.py`。`--write [--merge]` 写 / 并入；`--compare <快照>…` 比对。
+  - 不通过：地址状态变了、页头多出码、新地址、多出快捷键；
+  - 只报告：码少了（随数据状态变）、这次没走到的地址。
+  - 用 9a7f343d 那一轮验证过：pearnly- 前缀漏放（`pearnly-ocr-work` 从 home 变 open）能被比出来。
+- 规矩（主会话 10-26）：有差异就不能合入；唯一过法是在同一提交里改基线（`--write --merge` 并入新快照，或手改那一格），并在本记录写原因。不许把多出来的框架入口写进基线。
+- CI：`tests/test_page_baseline.py` 核基线文件合法、全部码都已声明、快捷键只有 Ctrl+S、比对规矩按约定判。快照本身要实验室，不在 GitHub 上跑：合入改页面的分支前，在回归实验室跑一轮快照再 `--compare`。
+- 待并入：删「采购设置 / 集成」两页（cfde29cd）合入时，ERP 这两个地址的状态不变（都是 home），不用改基线。
