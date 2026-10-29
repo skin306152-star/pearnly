@@ -121,7 +121,7 @@ def _products(names) -> dict:
     if not names:
         return {}
     return {row.name: row for row in frappe.get_all("ERP Product", filters={"name": ["in", names]},  # bounded: 这张单的商品
-                                                    fields=["name", "product_name", "code", "express_code", "unit"],
+                                                    fields=["name", "product_name", "code", "express_code", "internal_code", "unit"],
                                                     limit_page_length=0)}
 
 
@@ -171,7 +171,7 @@ def _stock(doc) -> dict:
     for line in doc.lines:
         product = products.get(line.product) or {}
         cost = contracts.d(line.unit_cost)
-        rows.append({"code": _code(product), "name": product.get("product_name") or "",
+        rows.append({"code": contracts.goods_code(product), "name": product.get("product_name") or "",
                      "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
                      "price": contracts.money(cost) if cost is not None else "",
                      "amount": contracts.money(cost * contracts.d(line.qty)) if cost is not None else ""})
@@ -198,7 +198,7 @@ def _purchase(doc) -> dict:
         # 单价按行金额 ÷ 数量（有行折扣时与金额对得上；单据币种原样，表头写单据币种）
         qty = contracts.d(line.qty)
         price = contracts.d(line.line_total) / qty if qty else contracts.d(line.unit_price)
-        rows.append({"code": _code(product) or line.code or "", "name": product.get("product_name") or line.description or "",
+        rows.append({"code": contracts.goods_code(product) or line.code or "", "name": product.get("product_name") or line.description or "",
                      "unit": line.unit or product.get("unit") or "", "qty": contracts.qty(line.qty),
                      "price": contracts.money(price),
                      "amount": contracts.money(line.line_total)})

@@ -322,7 +322,8 @@
 					{ fieldtype: readonly ? "Data" : "Link", fieldname: "product", options: "ERP Product",
 						label: t("trade.product"), reqd: stock, in_list_view: 1, columns: 3,
 						get_query: () => ({ filters: { is_active: 1 } }),
-						formatter: (value, _df, _options, row) => p.escape(row.description || row.product_name || value),
+						formatter: (value, _df, _options, row) => p.escape([row.description || row.product_name || value,
+							stock && row.internal_code].filter(Boolean).join(" · ")),
 						async onchange() {
 							const row = this.doc, selected = row.product;
 							if (!selected || readonly) return;
@@ -385,7 +386,7 @@
 			const price = cost ? "unit_cost" : "unit_price";
 			const host = $("<div class='pearnly-line-editor'></div>");
 			const lines = [];
-			const field_names = ["product", "warehouse", "location", "qty", price, "description", "unit", "currency"];
+			const field_names = ["product", "internal_code", "warehouse", "location", "qty", price, "description", "unit", "currency"];
 			const any = value => String(value ?? "").trim();
 			// 表头那个仓库的现值（由调用方给；行里的镜像和新建的行都用它）。
 			const head_warehouse = () => (typeof warehouse === "function" ? warehouse() || "" : "");
@@ -403,10 +404,12 @@
 							if (line.form.get_value("product") !== selected) return;
 							// 售价取主数据里"设过的"那个价（没设过就别替商家宣布免费）；成本直接取主档成本。
 							// 仓与库位跟表头（多仓闭环 P1）：选商品不改；表头没写库位时，商品的建议库位由服务端按这个仓的清单补
-							await line.form.set_values({ description: item.product_name,
+							await line.form.set_values({ description: item.product_name, internal_code: item.internal_code || "",
 								unit: item.unit || item.base_unit,
 								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
 						} },
+					// 商品的内部编码（只读，收发货页显示内部编码，10-29）
+					{ fieldtype: "Data", fieldname: "internal_code", label: __("product.field.internalCode"), read_only: 1 },
 					// 仓库：表头的镜像（只读）。放在物料下面 —— 这一行进哪个仓，一眼看得到。
 					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
 						fieldname: "warehouse", label: t("trade.warehouse") },

@@ -69,3 +69,36 @@
 
 连带：`stocktake-entry.js` 登记在 erp-count-code（盘点按码认商品）——认码逻辑没改，上面两种码都认回同一件；相机读码本步未改。
 无头浏览器里扫码提示音被浏览器拦（没有真人点击），属测试环境现象。
+
+## S6 收发货页与打印显示内部编码
+
+**改动**（范围按批复 #8 只做收发货，#9 打印印内部编码）
+- 入库 / 出库新建与草稿明细：物料下面加只读「内部编码」（选商品时带出）；已提交 / 已作废单的明细表物料列显示「品名 · 内部编码」。
+  服务端 `documents.get_entry` 明细带上 `product_name`、`internal_code`（只取这张单的商品）。提交时内部编码不回传（`p.trade.clean` 只认原来那几项）。
+- 收货单（入库、入了库的采购单）、领料单（出库）编码列：内部编码 → Express 编码 → 系统编码（`printing/contracts.goods_code`，纯规则带单测）。
+  采购 / 销售单、报价单、收银小票、盘点表不改。
+
+**验证**
+
+| 检查 | 结果 |
+|---|---|
+| 新开户：5 号仓入库 Express 商品 3 + 本地 1 → 详情明细内部编码 EX-0001 / 空，品名对应；库存 +3 | 通过 |
+| 收货单取数编码列 = [EX-0001, 系统编码]；领料单 = [EX-0001]；出库后库存 -1 | 通过 |
+| 入了库的采购单收货单编码列 = EX-0001 | 通过 |
+| 真打印（`frappe.get_print`）收货单、领料单 HTML 含 EX-0001、不再印旧 Express 码 EXP-0001 | 通过 |
+| 页面：入库新建行扫 EX-0001 → 「内部编码」= EX-0001；已提交入库单明细显示「验证Express商品 · EX-0001」 | 通过 |
+| `tests/test_erp_printing.py`（本机裸 Python） | 通过（版面渲染部分要 jinja2，合入前在候选离线检查里跑） |
+
+**连带回归**（erp-transactions 21 个入口、erp-printing 6 个入口）
+
+| 入口 | 结果 |
+|---|---|
+| erp.page.stock-in / stock-out、erp.detail.stock-in.submitted、erp.stock-in.item-scan / stock-out.item-scan | 通过（新建、扫码填物料、已提交详情） |
+| erp.print.stock-entry、erp.print.purchase | 通过（上表） |
+| erp.page.purchase、erp.detail.purchase.*、erp.page.sales、erp.detail.sales.*、erp.page.pos-receipts、erp.print.sales / pos-receipt / pos-shift / stock-count | 不受影响：只读明细表的内部编码只在 `stock` 表显示（采购 / 销售 / 小票不传），编码规则只换了收发货两处；采购列表与新建页 S1 已开 |
+| erp.page.inventory / stock-card / stock-count / pos-shifts | 本步不改这些页的代码；库存页 S1 已开、盘点页 S2 已开 |
+| erp.place.header、erp.products.new-dialog.opening、erp.inventory.opening.row-warehouse、erp.warehouses.express-new-hidden、erp.scan.pick-product | 本步不改 `p.place`、期初、仓库页、撞号选择；入库新建页单头仓预填照常（页面检查里新建行仓库镜像正常） |
+| erp.cc.stock-entry / erp.cc.stock-void | 没测到：实验室无 Express；写 Express 的载荷不读 `get_entry` 的新字段 |
+| erp.products.find-by-code | 通过（扫码填物料走它） |
+
+实验室注意：改了 Python 后要重启网页容器（gunicorn 不自动重载），否则页面拿到的是旧接口结果。

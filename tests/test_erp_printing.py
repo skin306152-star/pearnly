@@ -207,6 +207,13 @@ class SecondBatchLayouts(unittest.TestCase):
                      "พร้อมเพย์", "1,880.50", "ผู้ตรวจสอบ"):
             self.assertIn(text, html)
 
+    def test_goods_slips_print_the_internal_code_first(self):
+        """收货单 / 领料单编码列：内部编码 → Express 编码 → 系统编码（用户 10-29 批复）。"""
+        self.assertEqual(C.goods_code({"internal_code": "EX-1", "express_code": "E1", "code": "P-1"}), "EX-1")
+        self.assertEqual(C.goods_code({"internal_code": "", "express_code": "E1", "code": "P-1"}), "E1")
+        self.assertEqual(C.goods_code({"code": "P-1"}), "P-1")
+        self.assertEqual(C.goods_code(None), "")
+
     def count(self, mode, rows_):
         return render("stock_count", company=COMPANY, number="STC-1", date="26/10/2026", remarks="", fonts_css="",
                       mode=mode, title="count_sheet" if mode == "sheet" else "count_result", warehouse="คลังหลัก",

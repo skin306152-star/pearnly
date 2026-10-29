@@ -196,8 +196,15 @@ def get_entry(name):
     data = _shown_reasons([{field: doc.get(field) for field in LIST_FIELDS}])[0]
     data["location"] = doc.get("location") or ""
     units = serials.line_serials(doc)
+    # 明细带上品名与内部编码（收发货页显示内部编码，10-29）；只取这张单的商品
+    names = sorted({row.product for row in doc.get("lines") or [] if row.product})
+    shown = {item.name: item for item in frappe.get_all(
+        "ERP Product", filters={"name": ["in", names]}, fields=["name", "product_name", "internal_code"],
+        limit_page_length=0)} if names else {}  # bounded: 这张单的商品
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
+         "product_name": (shown.get(row.product) or {}).get("product_name") or "",
+         "internal_code": (shown.get(row.product) or {}).get("internal_code") or "",
          "unit_cost": row.unit_cost, "serials": units.get(row.idx, []),
          **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []

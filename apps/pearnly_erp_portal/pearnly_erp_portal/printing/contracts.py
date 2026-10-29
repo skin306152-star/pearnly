@@ -50,6 +50,12 @@ def day(value) -> str:
     return value.strftime("%d/%m/%Y")
 
 
+def goods_code(product) -> str:
+    """收货单 / 领料单的编码列：内部编码，没有再印 Express 编码 / 系统编码（用户 10-29 批复）。"""
+    product = product or {}
+    return product.get("internal_code") or product.get("express_code") or product.get("code") or ""
+
+
 def pages(rows: list, size: int = ROWS_PER_PAGE) -> list:
     """明细按每页 ``size`` 行切；每页补空行到 ``size``（样板的空格子）。没有明细也给一页空表。行带序号 ``no``。"""
     numbered = [{**row, "no": index} for index, row in enumerate(rows, start=1)]
