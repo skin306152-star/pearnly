@@ -6,13 +6,16 @@
 这里要求三元「否则」分支里出现 `||` / `??` 时整段加括号，意图写明。
 
 扫自有前端：apps/*/*/public/**/*.js 与 www/**/*.html 里的脚本；跳过照官方抄来的 POS 文件和构建产物。
-用法：python3 scripts/check-mixed-ternary.py [文件 ...]   有问题退出 1。
+存量写在 `scripts/mixed-ternary-baseline.tsv`（文件 → 处数，主会话 10-29：存量随各模块补流程用例时逐个改、改一个删一个）：
+某个文件超过基线就拦；少于基线也拦，要求把基线一起调低（只许减少）。
+用法：python3 scripts/check-mixed-ternary.py [文件 ...]   有问题退出 1（指定文件时不看基线）。
 """
 import pathlib
 import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+BASELINE = ROOT / "scripts" / "mixed-ternary-baseline.tsv"
 SKIP = ("/official-pos", "/public/assistant/", "/dist/", "node_modules", ".min.js", ".bundle.")
 CLOSE = {")": "(", "]": "[", "}": "{"}
 
@@ -91,18 +94,36 @@ def problems(line: str) -> list:
     return found
 
 
+def baseline() -> dict:
+    out = {}
+    for line in BASELINE.read_text(encoding="utf-8").splitlines() if BASELINE.exists() else []:
+        if line.strip() and not line.startswith("#"):
+            path, count = line.rsplit("\t", 1)
+            out[path] = int(count)
+    return out
+
+
 def main(argv):
     targets = [pathlib.Path(arg) for arg in argv] or list(files())
-    bad = []
+    found = {}
     for path in targets:
+        name = str(path.relative_to(ROOT) if path.is_absolute() else path)
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             for column in problems(line):
-                bad.append(f"{path.relative_to(ROOT) if path.is_absolute() else path}:{number}:{column}: {line.strip()[:160]}")
+                found.setdefault(name, []).append(f"{name}:{number}:{column}: {line.strip()[:160]}")
+    allowed = {} if argv else baseline()
+    bad = [hit for name, hits in sorted(found.items()) if len(hits) > allowed.get(name, 0) for hit in hits]
+    stale = [f"{name}: 基线 {count} 处，现在 {len(found.get(name, []))} 处" for name, count in sorted(allowed.items())
+             if len(found.get(name, [])) < count]
     if bad:
         print("三元「否则」分支里的 || / ?? 要加括号写明意图（a ? b : (c || d)，或 (a ? b : c) || d）：")
         print("\n".join(bad))
+    if stale:
+        print("这些文件比基线少了，把 scripts/mixed-ternary-baseline.tsv 一起调低（只许减少）：")
+        print("\n".join(stale))
+    if bad or stale:
         return 1
-    print("三元混用 || / ?? 检查：通过")
+    print(f"三元混用 || / ?? 检查：通过（存量 {sum(allowed.values())} 处）" if allowed else "三元混用 || / ?? 检查：通过")
     return 0
 
 

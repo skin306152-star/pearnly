@@ -203,7 +203,7 @@ frappe.provide("frappe.pearnly.pos_next");
 			const method = typeof opts === "string" ? opts : (opts && opts.method);
 			const handler = MAP[method];
 			if (!handler) return call(opts);
-			const args = typeof opts === "string" ? {} : ((opts && opts.args) || {});
+			const args = typeof opts === "string" ? {} : (opts && opts.args) || {};
 			const deferred = $.Deferred();
 			Promise.resolve(handler(args, opts)).then(
 				message => deferred.resolve(message),

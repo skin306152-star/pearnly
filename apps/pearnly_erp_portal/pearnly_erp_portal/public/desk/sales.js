@@ -118,7 +118,7 @@
 			const doc = opened ? opened.doc : is_new ? {} : await u.call("api_sales_document", {name: rest[0]});
 			if (!still_current()) return;
 			const editable = can_write && (is_new || doc.status === "draft");
-			page.set_title(is_new ? __("trade.newSale") : (doc.system_no || doc.name));
+			page.set_title(is_new ? __("trade.newSale") : doc.system_no || doc.name);
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
 			cleanup = await u.editor({page, doc, defaults, editable, intake: opened?.intake, still_current, reload: () => show(), go});
 		}});

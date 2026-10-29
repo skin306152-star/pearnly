@@ -59,7 +59,7 @@
 			frappe.msgprint(__("Recognition is not configured for this account"));
 			return;
 		}
-		const kind = state.entry_mode === "ocr" && !state.ocr_complete ? "bill" : (state.form.get_value("attachment_kind") || "bill");
+		const kind = state.entry_mode === "ocr" && !state.ocr_complete ? "bill" : state.form.get_value("attachment_kind") || "bill";
 		state.uploading = true; state.sync_entry();
 		const pending = [];
 		let started = false, finished = false, closed = false;

@@ -50,7 +50,7 @@
 	const rule_folder = rule => folder_value(rule.reader_id || rule.reader, rule.root_id, rule.folder);
 	const reader_id = reader => reader.reader || reader.connection;
 	// 跟随公司当年账套（T1）的任务：账套处写这一句，存下的账套名只作兜底
-	const account_text = row => (row.company ? ft("cowork.folder.followCompany") : (row.account_label || ""));
+	const account_text = row => (row.company ? ft("cowork.folder.followCompany") : row.account_label || "");
 	// 这些票实际推往了哪几份账套、各几张（跟随公司当年账套的任务才有）：每份「账套名：张数」（现有词条 cowork.folder.pair），
 	// 几份之间用分号——账套名本身是「公司 · 年度」，不再用「 · 」连（第 6 批审查第 10 条，CC 定时任务页同一写法）
 	const account_sets_text = results => (results?.account_sets || [])

@@ -120,7 +120,7 @@
 			const is_new = !row;
 			// 管理员本人：全部功能都有，只看不改（全勾、灰色）。
 			const locked = !is_new && row.locked;
-			const shown_roles = locked ? data.roles.map(role => role.name) : (row?.roles || []);
+			const shown_roles = locked ? data.roles.map(role => role.name) : row?.roles || [];
 			let dialog;
 			const fields = [
 				field("username", __("Username"), "Data",

@@ -55,7 +55,7 @@
 				{get_query: p.location_query(() => line.form?.get_value("warehouse"))}),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
-			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : (!state.editable || field.read_only),
+			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,
 			onchange: async function() {await field.onchange?.call(this); if (!field.read_only) change();},
 			...(field.fieldtype === "Currency" ? {formatter: value => p.money(value)} : {})}));
 	};
@@ -107,7 +107,7 @@
 			...(doc.void_reason ? [f("void_reason", "Reason for Cancellation", "Small Text", {read_only: 1})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "HTML", "Tab Break", "Section Break", "Column Break"].includes(field.fieldtype)
-				|| field.fieldname === "attachment_kind" ? field.read_only : (!editable || field.read_only),
+				|| field.fieldname === "attachment_kind" ? field.read_only : !editable || field.read_only,
 			onchange: async function() { await field.onchange?.call(this); if (editable && !field.read_only) change(); },
 			...(field.fieldtype === "Currency" ? {options: "currency", formatter: value => p.money(value)} : {})}));
 	};

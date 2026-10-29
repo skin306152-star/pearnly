@@ -44,7 +44,7 @@
 			: row?.intake_target === p.intake_targets?.RECOGNIZE_ONLY ? ["blue", () => t("intake.status.recognized")]
 			: null);
 		const status_title = (value, row) => (value || row?.last_push_reason
-			? (p.intake_push_reason ? p.intake_push_reason(row?.last_push_reason) : (row?.last_push_reason || ""))
+			? (p.intake_push_reason ? p.intake_push_reason(row?.last_push_reason) : row?.last_push_reason || "")
 			: "");
 
 		async function listing(still_current) {

@@ -23,8 +23,25 @@ class MixedTernary(unittest.TestCase):
                      "const s = \"a ? b : c || d\";  // a ? b : c || d"):
             self.assertEqual(M.problems(line), [], line)
 
-    def test_repository_is_clean(self):
+    def test_repository_is_within_its_baseline(self):
         self.assertEqual(M.main([]), 0)
+
+    def test_baseline_only_shrinks(self):
+        import tempfile
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory(dir=M.ROOT) as folder:
+            page = pathlib.Path(folder) / "page.js"
+            page.write_text("const a = x ? y : z || w;\nconst b = x ? y : z || w;\n", encoding="utf-8")
+            name = str(page.relative_to(M.ROOT))
+            table = pathlib.Path(folder) / "baseline.tsv"
+            with mock.patch.object(M, "files", lambda: [page]), mock.patch.object(M, "BASELINE", table):
+                table.write_text(f"{name}\t2\n", encoding="utf-8")
+                self.assertEqual(M.main([]), 0)
+                table.write_text(f"{name}\t1\n", encoding="utf-8")
+                self.assertEqual(M.main([]), 1)  # 超过基线：新增的照样拦
+                table.write_text(f"{name}\t3\n", encoding="utf-8")
+                self.assertEqual(M.main([]), 1)  # 少于基线：要把基线一起调低
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+# 三元「否则」分支里没加括号的 || / ?? 存量（scripts/check-mixed-ternary.py）：文件<TAB>处数，只许减少。
+# 整改在 pearnly/mixed-operators-parens（主会话 10-29）：随各模块补流程用例时逐个改，改一个删一行。
+apps/pearnly_core/pearnly_core/public/desk/link.js	2
+apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js	1
+apps/pearnly_cowork/pearnly_cowork/public/desk/intake.js	1
+apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake-entry.js	1
+apps/pearnly_cowork/pearnly_cowork/public/desk/team.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-entry.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js	2
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-entry.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-fields.js	2
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/suppliers.js	1
+apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js	3

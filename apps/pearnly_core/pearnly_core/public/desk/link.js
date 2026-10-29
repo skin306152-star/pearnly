@@ -50,7 +50,7 @@
 		if (control) control.pearnly_editor_open = true;
 		try {
 			const dialog = await p.link_editors[doctype]({name,
-				initial: name ? "" : (control?.get_label_value?.() || control?.$input?.val() || ""),
+				initial: name ? "" : control?.get_label_value?.() || control?.$input?.val() || "",
 				on_saved: row => p.refresh_master_links(doctype, row)});
 			dialog.$wrapper.one("hidden.bs.modal", () => {
 				if (control) control.pearnly_editor_open = false;
