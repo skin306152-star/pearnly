@@ -867,10 +867,10 @@ class MixedRatePurchase(PushModule):
     """验收复核测试包 e2（10-26）：采购单逐行定税率，有的行 0。0 税率的行标免税，CC 桌面版写价含税的现购时不摊税给它（原生 107 / 50、
     免税行 VATCOD '0'）；载荷盖 11，旧版 CC 诚实拒收。整张无税的单不标。"""
 
-    def lines(self, *rates):
+    def lines(self, *rates, has_vat=0):
         import types
 
-        doc = types.SimpleNamespace(lines=[Row(product=None, warehouse=None, description=f"L{index}", unit="ถุง", qty=1,
+        doc = types.SimpleNamespace(has_vat=has_vat, lines=[Row(product=None, warehouse=None, description=f"L{index}", unit="ถุง", qty=1,
                                                line_total=100, vat_rate=rate, item_type="service")
                                            for index, rate in enumerate(rates)])
         return self.push._lines(self.push.PURCHASE, doc)
@@ -880,6 +880,20 @@ class MixedRatePurchase(PushModule):
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0)], [False, False])  # 整张无税：不标
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(7, 7)], [False, False])
         self.assertEqual(common.finalize_payload({"items": [{"name": "A", "vat_exempt": True}]})["payload_version"], 11)
+
+    def test_a_whole_exempt_purchase_is_marked_like_the_native_books(self):
+        """主会话 10-29（语料 158 本）：勾了税务发票、全是 0% 的采购单是整单免税，原生价格类型 1 / 2、明细 VATCOD '0'、
+        税记录 AMT01 0 + AMTRAT0 全额，不是无税（FLGVAT 0）。每行标免税、带零税额栏，载荷盖 12（旧版 CC 照无税写，诚实拒收）；
+        没勾税务发票的照旧不标。"""
+        self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0, has_vat=1)], [True, True])
+        self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0, has_vat=0)], [False, False])
+        self.assertEqual(self.push.vat_fields({"subtotal": "150.00"}, Decimal("150")), {"AMT01": "0.00", "AMTRAT0": "150.00"})
+        exempt = [{"name": "A", "vat_exempt": True}]
+        version = lambda **kw: common.finalize_payload({"items": list(exempt), **kw})["payload_version"]  # noqa: E731
+        self.assertEqual(version(doctype="RR", direction="purchase", vat_amount="0.00"), 12)
+        self.assertEqual(version(doctype="HP", vat_amount="0"), 12)
+        self.assertEqual(version(doctype="RR", direction="purchase", vat_amount="7.00"), 11)  # 混合税率照旧
+        self.assertEqual(version(doctype="HS", direction="sales", vat_amount="0.00"), 11)  # 销货早已照原生写
         # 进项税记录：AMT01 只记应税部分、免税部分记 AMTRAT0（同原生 HP67012204）；没有免税额不带
         self.assertEqual(self.push.vat_fields({"subtotal": "150.00"}, Decimal("50")), {"AMT01": "100.00", "AMTRAT0": "50.00"})
         self.assertEqual(self.push.vat_fields({"subtotal": "150.00"}, Decimal("0")), {})

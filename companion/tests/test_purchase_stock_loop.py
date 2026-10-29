@@ -229,6 +229,37 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
         bad = {**payload, "ref_no": "PO-7202", "vat_fields": {"VAT01": "1"}}
         self.assertFalse(self._buy(bad).ok)  # 只认金额栏，税额栏照 vat_amount
 
+    def test_a_whole_exempt_purchase_is_written_like_native_express(self):
+        """主会话 10-29（语料 158 本，如 BakeLab RR680121-011、ASIA MIN RR670229-009）：全是免税商品的进货单原生仍是有税的单：
+        价格类型现购 1 / 赊购 2、明细 VATCOD '0'、单头与进项税记录 AMTRAT0 = 免税额、AMT01 0。原来按「税额 > 0」判成无税，
+        写成 FLGVAT 0、不写进项税记录。供应商不开税票的单（没有免税行、没带 vat_fields）照旧是 FLGVAT 0、没有税记录。"""
+        for doctype, flgvat, ref in (("HP", "1", "PO-7301"), ("RR", "2", "PO-7302")):
+            payload = _purchase(ref, "150.00", "0.00", "150.00", 15, 10)
+            payload["doctype"] = doctype
+            payload["lines"] = [{"acc": PURCHASE_ACC, "side": "D", "amount": "150.00", "desc": "ซื้อ"},
+                                {"acc": AP_ACC, "side": "C", "amount": "150.00", "desc": "เจ้าหนี้"}]
+            payload["items"] = [{**_item(15, 10, "150.00", "stock_item"), "vat_exempt": True}]
+            payload["vat_fields"] = {"AMT01": "0.00", "AMTRAT0": "150.00"}
+            res = self._buy(payload)
+            self.assertTrue(res.ok, res.error)
+            head = self._rows("APTRN", DOCNUM=res.docnum)[0]
+            self.assertEqual((head.FLGVAT.strip(), Decimal(str(head.VATAMT)), Decimal(str(head.AMTRAT0)),
+                              Decimal(str(head.NETAMT)), head.SRV_VATTYP.strip()), (flgvat, Decimal(0), Decimal("150"),
+                                                                                    Decimal("150"), "1"), doctype)
+            line = self._rows("STCRD", DOCNUM=res.docnum)[0]
+            self.assertEqual(((line.VATCOD or "").strip(), Decimal(str(line.TRNVAL)), Decimal(str(line.NETVAL))),
+                             ("0", Decimal("150"), Decimal("150")), doctype)
+            vat = self._rows("ISVAT", DOCNUM=res.docnum)
+            self.assertEqual([(Decimal(str(v.AMT01)), Decimal(str(v.VAT01)), Decimal(str(v.AMTRAT0))) for v in vat],
+                             [(Decimal(0), Decimal(0), Decimal("150"))], doctype)
+        plain = _purchase("PO-7303", "150.00", "0.00", "150.00", 15, 10)
+        plain["lines"] = [{"acc": PURCHASE_ACC, "side": "D", "amount": "150.00", "desc": "ซื้อ"},
+                          {"acc": AP_ACC, "side": "C", "amount": "150.00", "desc": "เจ้าหนี้"}]
+        res = self._buy(plain)
+        self.assertTrue(res.ok, res.error)
+        self.assertEqual(self._rows("APTRN", DOCNUM=res.docnum)[0].FLGVAT.strip(), "0")
+        self.assertEqual(self._rows("ISVAT", DOCNUM=res.docnum), [])
+
     def test_two_receipts_then_sale_carries_real_cogs(self):
         """进 100@฿10 + 100@฿14 → 200 件 / ฿2400 / 均价 ฿12;卖 50 件 → COGS ฿600、结存 150 件 / ฿1800。
 

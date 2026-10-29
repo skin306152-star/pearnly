@@ -31,7 +31,9 @@ from typing import Optional
 # 旧版不认 SR(单别校验拒收或当现销写成销售),所以盖 10,旧版诚实拒收、派单只交给报过支持 10 的电脑。
 # 11:明细可带免税行标记 ``vat_exempt``(VATCOD '0'、单头 AMTRAT0,整张免税照样写销项税记录;实录第 10 条),退货块可带 ``cross_year``
 # (原单在上一年度的账套,明细挂 AVGPR 按平均成本回冲;B3b 实录点 ②)。旧版免税行照应税写、跨年的报找不到原单,所以盖 11,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+# 12:整单免税的进货单(全是免税行、带 `vat_fields` AMT01 0 + AMTRAT0 全额):照原生价格类型 1 / 2、写进项税记录(主会话 10-29)。
+# 旧版进货按「税额 > 0」才算有税,写成 FLGVAT 0、不写进项税记录,所以盖 12,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

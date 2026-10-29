@@ -248,8 +248,8 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, LOCATION_PAYLOAD_VERSION)
     if any(item.get("factor") for item in lines):
         floor = max(floor, FACTOR_PAYLOAD_VERSION)  # 旧版 CC 桌面版按 1 写包装单位：诚实拒收
-    if any(item.get("vat_exempt") for item in lines):
-        floor = max(floor, pos_contract.NATIVE_EXEMPT_PAYLOAD_VERSION)  # 免税行标记（收银日汇总、混合税率的采购）：旧版不认，诚实拒收
+    # 免税行标记（收银日汇总、混合税率的采购盖 11；整单免税的进货单盖 12）：旧版不认或照无税写，诚实拒收
+    floor = max(floor, pos_contract.exempt_payload_version(payload))
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):
         floor = max(floor, ROLE_PAYLOAD_VERSION)
     payload["payload_version"] = max(floor, int(payload.get("payload_version") or 0))

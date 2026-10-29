@@ -350,7 +350,9 @@ def write_purchase(
         Decimal(entry.vat_amount),
         Decimal(entry.total_amount),
     )
-    has_vat = vat > 0
+    # 整单免税（来源标了免税行、带 `vat_fields`：AMT01 0、AMTRAT0 全额）照原生也是有税的单：价格类型 1 / 2、写进项税记录
+    # （语料 158 本免税单无例外，主会话 10-29；同销货 dbf_sales）。供应商不开税票的单才是 FLGVAT 0
+    has_vat = vat > 0 or bool(entry.vat_fields)
 
     # 不查重:账套里已有同号 / 同票的单照写(用户 2026-09-30、2026-10-08:Express 手工录入也不拦重复)。
     try:

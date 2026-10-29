@@ -28,7 +28,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 AUDIT_KEY = "pos"
 VERSION = 1
@@ -57,6 +57,11 @@ REFUND_PAYLOAD_VERSION = 10
 # 明细带免税行标记（``vat_exempt``：VATCOD '0'、单头 AMTRAT0、整张免税照样写销项税记录），或跨年退货单（``refund.cross_year``：挂 AVGPR）：
 # 旧版 CC 桌面版不认（免税行照应税写、跨年的找不到原单报错），盖 11，旧版诚实拒收、派单只交给报过支持 11 的电脑（复核 10-26）
 NATIVE_EXEMPT_PAYLOAD_VERSION = 11
+# 整单免税的进货单（勾了税务发票、全是免税商品）：照原生价格类型 1 / 2、税记录 AMT01 0 + AMTRAT0 全额（语料 158 本，10-29）。
+# 旧版 CC 桌面版进货按「税额 > 0」才算有税，会写成 FLGVAT 0、不写进项税记录：盖 12，旧版诚实拒收（主会话 10-29）
+WHOLE_EXEMPT_PURCHASE_PAYLOAD_VERSION = 12
+ISVAT_TAXABLE_FIELD = "AMT01"  # 税记录的应税基数栏
+ISVAT_EXEMPT_FIELD = "AMTRAT0"  # 税记录（与单头）的免税额栏
 REFUND_KIND = "refund"          # 推送选择：退货科目（借方，税前），按公司记住
 REFUND_SUBJECT = "pos_refund"   # 整家公司一个
 REFUND_CNTYP = 3                # Express ARTRN.CNTYP：退现金（实录 SR0000001）
@@ -317,3 +322,26 @@ __all__ = ["ACCOUNT_MISSING", "AUDIT_KEY", "CASH_LABELS", "DAY_NOT_POSITIVE", "E
            "REFUND_ITEMS_INVALID", "REFUND_KEY", "REFUND_KIND", "REFUND_PAYLOAD_VERSION", "REFUND_RETSTK", "REFUND_SUBJECT",
            "REF_MAX_BYTES", "Refund", "VERSION", "audit", "check", "check_refund", "day_ref", "facts", "is_cash",
            "method_subject", "net_day", "norm_label", "number", "present", "range_text", "refund_audit", "refund_facts"]
+
+
+def exempt_vat_fields(subtotal, exempt) -> dict:
+    """免税额 → 税记录金额栏（进项、销项共用）：AMT01 = 整张税前 − 免税额、AMTRAT0 = 免税额，两栏相加恒等于税前（同原生
+    HP67012204 混合税率、RR680121-011 整单免税）。没有免税额回空（照整张税前记）。金额按两位小数四舍五入的字符串。"""
+    subtotal, exempt = Decimal(str(subtotal or 0)), Decimal(str(exempt or 0))
+    if exempt <= 0:
+        return {}
+    return {ISVAT_TAXABLE_FIELD: format((subtotal - exempt).quantize(_CENT, rounding=ROUND_HALF_UP), "f"),
+            ISVAT_EXEMPT_FIELD: format(exempt.quantize(_CENT, rounding=ROUND_HALF_UP), "f")}
+
+
+def exempt_payload_version(payload: dict) -> int:
+    """带免税行的载荷至少该盖的版本：税额为 0 的进货单（整单免税）盖 12，其余带免税行的盖 11；没有免税行回 0。"""
+    items = [item for item in (payload or {}).get("items") or [] if isinstance(item, dict)]
+    if not any(item.get("vat_exempt") for item in items):
+        return 0
+    purchase = str(payload.get("doctype") or "").upper() in ("RR", "HP") and payload.get("direction") in (None, "", "purchase")
+    try:
+        vat = Decimal(str(payload.get("vat_amount") or 0))
+    except InvalidOperation:
+        vat = Decimal(0)
+    return WHOLE_EXEMPT_PURCHASE_PAYLOAD_VERSION if purchase and vat == 0 else NATIVE_EXEMPT_PAYLOAD_VERSION

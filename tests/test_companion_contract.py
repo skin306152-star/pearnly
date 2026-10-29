@@ -753,6 +753,10 @@ class PosPayload(unittest.TestCase):
         # 免税行 / 跨年退货的载荷盖 11，CC 认得（复核 10-26）
         self.assertIn(_literal(ROOT / "apps/pearnly_core/pearnly_core/express_rules/contracts/pos.py", "NATIVE_EXEMPT_PAYLOAD_VERSION"),
                       _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        # 整单免税的进货单盖 12，CC 认得（主会话 10-29）
+        self.assertIn(_literal(ROOT / "apps/pearnly_core/pearnly_core/express_rules/contracts/pos.py",
+                               "WHOLE_EXEMPT_PURCHASE_PAYLOAD_VERSION"),
+                      _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
         # 跨年退货标记：共用写账规则出、CC 认，键同名（B3b 实录点 ②）
         self.assertTrue(quoted((RULES / "sales_mapper.py").read_text(encoding="utf-8"), "cross_year"))
         self.assertTrue(quoted((COMPANION / "sales_adapter.py").read_text(encoding="utf-8"), "cross_year"))

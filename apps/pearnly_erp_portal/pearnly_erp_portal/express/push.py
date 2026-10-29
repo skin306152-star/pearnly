@@ -15,6 +15,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_core.cc_desktop import books, devices, jobs
+from pearnly_core.express_rules.contracts import pos as pos_contract
 
 from pearnly_erp_portal.express import contracts, pos_day, prepare, stock_entry
 from pearnly_erp_portal.masters import company as companies
@@ -108,9 +109,10 @@ def _party(doctype, doc):
 
 def _lines(doctype, doc):
     products, warehouses, out = {}, {}, []
-    # 混合税率的采购单（逐行税率，有的行 0）：0 税率的行标免税，CC 桌面版写价含税的现购时不摊税给它、明细记 VATCOD '0'
-    # （验收复核测试包 e2 10-26；同收银日汇总的免税行）。整张无税的不标
-    exempt_rates = doctype == PURCHASE and any(_rate(line) > 0 for line in doc.lines)
+    # 采购单 0 税率的行标免税：混合税率（有的行 0）照旧；勾了税务发票（has_vat）而全是 0% 的整单免税也标（主会话 10-29：语料 158 本
+    # 免税单原生一律价格类型 1 / 2 + 明细 VATCOD '0' + 零税额）。CC 桌面版写价含税的现购时不摊税给它、明细记 VATCOD '0'
+    # （验收复核测试包 e2 10-26；同收银日汇总的免税行）。没勾税务发票的整张无税不标（供应商不开税票，原生 FLGVAT 0）
+    exempt_rates = doctype == PURCHASE and (bool(getattr(doc, "has_vat", 0)) or any(_rate(line) > 0 for line in doc.lines))
     for line in doc.lines:
         product = products.get(line.product)
         if line.product and product is None:
@@ -252,14 +254,10 @@ def _exempt_base(doc):
 
 
 def vat_fields(body, exempt) -> dict:
-    """混合税率的采购（0 税率的行标了免税，见 :func:`_lines`）：进项税记录 AMT01 只记应税部分、免税部分记 AMTRAT0（单头同记），
-    同原生（S 盘副本 HP67012204：AMT01 383.18 = 税前 410.18 − 免税 27）。``exempt`` = 免税行扣了整单折扣后的税前额；
-    AMT01 = 整张税前 − 它（两栏相加恒等于税前合计）。没有免税额回空（照整张税前记）。"""
-    exempt = contracts.d(exempt)
-    if exempt <= 0:
-        return {}
-    return {pos_day.ISVAT_TAXABLE_FIELD: contracts.money(contracts.d(body["subtotal"]) - exempt),
-            pos_day.ISVAT_EXEMPT_FIELD: contracts.money(exempt)}
+    """采购单有免税行（0 税率的行标了免税，见 :func:`_lines`）：进项税记录 AMT01 只记应税部分、免税部分记 AMTRAT0（单头同记），
+    同原生（S 盘副本 HP67012204：AMT01 383.18 = 税前 410.18 − 免税 27；整单免税 RR680121-011：AMT01 0、AMTRAT0 全额）。
+    ``exempt`` = 免税行扣了整单折扣后的税前额。算法在共用写账规则（`express_rules.contracts.pos.exempt_vat_fields`）。"""
+    return pos_contract.exempt_vat_fields(contracts.d(body["subtotal"]), contracts.d(exempt))
 
 
 def _set(doctype, name, values):
