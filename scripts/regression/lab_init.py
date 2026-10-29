@@ -12,7 +12,10 @@ from pathlib import Path
 PASSWORD = "regression-lab-only"
 SITES = {"erp.regression.localhost": ("erp", "pearnly_erp_portal"),
          "cowork.regression.localhost": ("cowork", "pearnly_cowork"),
-         "dms.regression.localhost": ("dms", "pearnly_dms")}
+         "dms.regression.localhost": ("dms", "pearnly_dms"),
+         # 两套固定数据各自的站点（`datasets.py new|old` 往里填）：照 polymer 新开户、照 mrerp 有存量
+         "erp-new.regression.localhost": ("erp", "pearnly_erp_portal"),
+         "erp-old.regression.localhost": ("erp", "pearnly_erp_portal")}
 CONTROL = "control.regression.localhost"  # 实验室自己的计费控制面（`lab_billing.py` 建），不是产品站点
 # 岗位账号：产品 → {岗位名: 角色}（与开通 / 团队管理发的角色同名；管理员 = 产品管理员 + 全部功能角色）
 ROLES = {
