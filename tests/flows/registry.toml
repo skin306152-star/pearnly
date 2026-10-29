@@ -291,3 +291,123 @@ covers = [
   "frontend/assistant/src/lib/frappe.ts",
   "apps/pearnly_core/pearnly_core/account/preferences.py",
 ]
+
+[[flow]]
+id = "erp.stock-entry.scan"
+title = "ERP 入库 / 出库：按码认商品、过账、收货单 / 领料单打印（fcb65cca 逐入口实测）"
+module = "scripts/flows/erp_stock_entry_scan.py"
+start = "/desk/pearnly-stock-in"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/printing/*.py",
+  "apps/pearnly_core/pearnly_core/public/desk/link.js",
+]
+
+[[flow]]
+id = "erp.pos.shift"
+title = "ERP 收银整班：各种码查码认对、开班、卖、退、交班，收银记录与班次记录两页（fcb65cca 逐入口实测）"
+module = "scripts/flows/erp_pos_shift.py"
+start = "/desk/pearnly-cashier"
+user = "cashier"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/cashier.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js",
+]
+
+[[flow]]
+id = "erp.team.add-member"
+title = "ERP 团队：添加用户邮箱留空补 <登录名>.<站点前缀>@pearnly.com、乱填被拒、重名被拒（f1f7b02f）"
+module = "scripts/flows/erp_team_add.py"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js",
+  "apps/pearnly_core/pearnly_core/account/placeholder_email.py",
+]
+
+[[flow]]
+id = "erp.print.all"
+title = "ERP 打印：入库、出库、采购收货、销售、盘点、收银小票、交班汇总的原生打印页（打印第一、二批）"
+module = "scripts/flows/erp_print_all.py"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/printing/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/printing/**/*.html",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/**/print_format/**/*",
+]
+
+[[flow]]
+id = "erp.products.clash"
+title = "ERP 新建商品：内部编码撞上已有商品的码被拒并说出撞了哪件，不撞的建成（商品码 / 撞码）"
+module = "scripts/flows/erp_product_clash.py"
+start = "/desk/pearnly-products"
+user = "products"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/contracts.py",
+]
+
+[[flow]]
+id = "erp.sales.scan"
+title = "ERP 销售单：手动录入、单头选客户与仓、明细组合框按码认商品（手机宽度扫条码）、提交出库（fcb65cca 逐入口实测）"
+module = "scripts/flows/erp_sales_scan.py"
+start = "/desk/pearnly-sales"
+user = "sales"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales*.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
+]
+
+[[flow]]
+id = "erp.products.opening"
+title = "ERP 新建物料带各仓期初（多仓 P1）；接 Express 的公司没有期初表（3f492849）"
+module = "scripts/flows/erp_product_opening.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-opening.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/openings.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py",
+]
+
+[[flow]]
+id = "erp.warehouses.rules"
+title = "ERP 仓库：有货不能停用、空仓停用启用、库位清单管入库（多仓 P0 / 库位清单）"
+module = "scripts/flows/erp_warehouse_rules.py"
+start = "/desk/pearnly-warehouses"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/warehouses.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/locations.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js",
+]

@@ -86,6 +86,38 @@
 用例新增：`labctl.py`（步骤 `exec` 调用）、`s0_company`、`s1_no_batch`、`s3_new_product`、`s3_line`、`s3_noperm`、`count_record_phone`、`stock_in_phone`；
 `mobile_count` 加抬头计数 / 撤销 / GET 断言，`count_record` 加编码栏断言，`stock_entry_scan` 加内部编码与打印断言。
 
+## 10-29 晚暂停点：用例迁进 `tests/flows`（主会话安排，用户下班暂停）
+
+数据一律取 `scripts/regression/datasets.py` 的两套清单；我那套种子（`scripts/regression/flows/`）不再扩展，等迁完再删。
+分工（主会话定）：开发窗口写公司设置 / 新建物料 / 新建采购 / 按台入库 / 盘点就地新建 / LINE 就地新建 / 仓库编号，
+验收窗口写手机盘点 `erp.line.stocktake.phone`（我的计数 0→1、撤销回 0、GET 403 断言要点已发给它；草稿在 da3a574d），我迁其余的。
+
+在自有回归实验栈 `pearnly-flows-port`（`~/pearnly-devtools/flows-port/compose.yml`，照 `infrastructure/compose/regression-lab.yml`，端口 18794–18796，
+挂本工作树；跑法 `REGRESSION_LAB_CONTAINER=pearnly-flows-port-bench-1 REGRESSION_LAB_PORT=18794 python3 scripts/flows/run.py --flow <id>`）上的结果：
+
+| 流程 | 结果 |
+| --- | --- |
+| `erp.stock-entry.scan` 入库 / 出库按码认商品、过账、收货单 / 领料单打印 | 4/4 通过（两套 × 电脑 / 手机，手机另扫条码） |
+| `erp.pos.shift` 收银整班与收银两页 | 4/4 通过 |
+| `erp.team.add-member` 添加用户邮箱留空 | 4/4 通过 |
+| `erp.print.all` 七类单据打印 | 2/2 通过 |
+| `erp.products.clash` 新建商品撞码 | 2/2 通过 |
+| `erp.products.opening` 带各仓期初（接 Express 的公司没有期初表） | 2/2 通过 |
+| `erp.warehouses.rules` 仓库停用与库位清单 | 2/2 通过 |
+| `erp.sales.scan` 销售手动录入、组合框按码认商品 | **未结论（用例问题）**：四格单据都提交了、账面也减了，但用例读明细品名的写法取到空值；摄像头那遍与手输那遍共用一个仓，过账前读数不对（同入出库那条，改成两遍各用一个仓）。其中一格页面步骤还被别的窗口 `pkill -f ui_steps.mjs` 误杀过。明天修用例后重跑，不当成产品结论 |
+
+不迁：按台出库选车（数据集里没有在库的车，假摄像头只能出条码、出不了车架二维码）。
+S6（明细与打印显示内部编码）的断言在 `pearnly/stocktake-complete` 合入 main 后补进 `erp.stock-entry.scan`。
+
+改到的共用文件：`scripts/regression/ui_steps.mjs` 加 `--autoplay-policy=no-user-gesture-required`（脚本点击不算手势，官方 `play_sound` 的 `play()` 被拒成了未捕获报错；
+真人点击不会，本来就静音）——要告诉验收窗口。新增 `scripts/flows/erp_lib.py`（共用片段，不是流程）。
+
+发现（报主会话，不是本次改动）：接 Express 的公司按默认口径建出来的收银台不带仓，收银台查码报「收银台没有仓」，要先在公司页给收银台挂仓；
+Express 同步来的仓在 ERP 里不能停用（「Maintained in Express」，设计如此）。
+
+明天接着：① 查 `erp.sales.scan` 的取值并重跑四格；② 变基到最新 main、跑闸门（coverage、architecture、copy、unbounded、diff --check）；
+③ 推分支、通知验收窗口合进登记表；④ 迁完删 `scripts/regression/flows/` 旧种子与旧用例（先确认没人在用）。
+
 ## 用例与工具（`scripts/regression/flows/`，交验收接 CI）
 
 - `lab.py`：建站、岗位、本地计费；`seed.py`：两套数据；`sid.py`：发会话；`code_video.py`：二维码 / EAN 假摄像头视频。
@@ -103,6 +135,7 @@
 
 | 资源 | 用途 | 保留原因 / 解除条件 |
 | --- | --- | --- |
+| compose 项目 `pearnly-flows-port`（容器已停，数据卷保留；`~/pearnly-devtools/flows-port/`） | 迁 `tests/flows` 的自有回归实验栈 | 迁完、验收窗口合进登记表后 `down -v` 并删目录 |
 | compose 项目 `pearnly-flows-lab`（容器已停，数据卷保留；`~/pearnly-devtools/flows-lab/`） | 两套数据与本地计费 | 主会话 10-29 要求验收完停栈、保留数据卷等通知；问题 2 修好后复验，主会话说不用了就 `docker compose -p pearnly-flows-lab down -v` 并删目录 |
 | `~/pearnly-devtools/flows-lab/src`（独立工作树，当前停在 24a746ba，挂进容器） | 被测源码 | 同上，复验时切到被测提交 |
 | 分支 `pearnly/fcb65cca-entry-audit` 与工作树 `.claude/worktrees/fcb65cca-audit` | 用例与本记录 | 交验收接 CI、按主线集成合入后删除 |
