@@ -5,7 +5,8 @@
 #   电脑与手机宽度上跑，断言页面结果与落库；结果作为提交状态 `flows` 回写，部署闸（scripts/production/deploy.sh）认它。
 #
 # 每条：id、title、module（流程模块，提供 prepare / steps / judge / verify）、start（打开的页面，可用 prepare 回的参数）、
-# user（岗位账号）、datasets、viewports、camera（手机宽度时另用假摄像头读条码跑一遍）、covers（这条流程覆盖的文件，glob）。
+# user（岗位账号）、datasets、viewports、camera（手机宽度时另用假摄像头读条码跑一遍）、covers（这条流程覆盖的文件，glob）；
+# product（默认 erp）：哪个产品的两套数据与岗位账号（`datasets.py new|old <产品>`、`<岗位>@<产品>.regression`）。
 
 [[flow]]
 id = "erp.stocktake.scan"
@@ -26,4 +27,60 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/scan/reader.js",
   # 共用外壳（导航、页头、迁移钩子跳过日志）：这条流程打开 Desk 页面就经过它
   "apps/pearnly_core/pearnly_core/shell.py",
+]
+
+[[flow]]
+id = "cowork.recon.tasks"
+title = "Cowork 对账中心：任务列表照库里列出、读接口不写库（10-29 GET 里建归属被回滚）"
+module = "scripts/flows/cowork_recon_tasks.py"
+product = "cowork"
+start = "/desk/pearnly-recon-bank"
+user = "recon"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js",
+]
+
+[[flow]]
+id = "cowork.recon.presets"
+title = "Cowork 对账预设：弹窗照库里列出、读接口不写库（10-29 GET 里建归属被回滚）"
+module = "scripts/flows/cowork_recon_presets.py"
+product = "cowork"
+start = "/desk/pearnly-recon-bank"
+user = "recon"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/presets.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js",
+]
+
+[[flow]]
+id = "cowork.stocktake.list"
+title = "Cowork 盘点：列表照库里列出、读接口不写库（10-29 GET 里建归属被回滚）"
+module = "scripts/flows/cowork_stocktake_list.py"
+product = "cowork"
+start = "/desk/pearnly-stocktake"
+user = "stocktake"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js",
+]
+
+[[flow]]
+id = "erp.document.express"
+title = "ERP 单据 Express 弹窗：取状态走 POST、只看不改（10-29 GET 里准备单据白写被回滚）"
+module = "scripts/flows/erp_document_express.py"
+start = "/desk/pearnly-purchase/{doc}"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
 ]

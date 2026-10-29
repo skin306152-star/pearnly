@@ -9,7 +9,11 @@
 全部走正式接口（金额、单号、库存都由系统算）。岗位账号照 `lab_users.py` 的岗位，员工只开本套的公司（old 只开 A）。
 最后一行打印本套的清单 JSON（公司、仓、各种认法对应的商品与要扫的码、单号），流程用例照它取，不自己挑数据。
 
-    cd /home/frappe/frappe-bench && env/bin/python /workspace/scripts/regression/datasets.py new|old
+Cowork 同样两套（第二个参数 `cowork`）：
+- new：站点 `cowork-new.regression.localhost`，开户后什么都没建（只有开户时建的站点归属）。
+- old：站点 `cowork-old.regression.localhost`，上传导入的两份盘点（一份带实盘）、银行与收入对账预设各一条。
+
+    cd /home/frappe/frappe-bench && env/bin/python /workspace/scripts/regression/datasets.py new|old [erp|cowork]
 """
 import json
 import os
@@ -22,6 +26,12 @@ if os.environ.get("PEARNLY_REGRESSION_LAB") != "1":
 import frappe  # noqa: E402
 
 SITES = {"new": "erp-new.regression.localhost", "old": "erp-old.regression.localhost"}
+COWORK_SITES = {"new": "cowork-new.regression.localhost", "old": "cowork-old.regression.localhost"}
+# Cowork 老站点的盘点（上传导入，走正式的导入函数）：(标题, [(编码, 名称, 单位, 账面, 实盘)])
+COWORK_COUNTS = [("ตรวจนับเก่า มีจำนวน", [("CW-001", "สินค้าเก่า ก", "ชิ้น", 10, 9), ("CW-002", "สินค้าเก่า ข", "กล่อง", 4, 4)]),
+                 ("ตรวจนับเก่า ยังไม่นับ", [("CW-003", "สินค้าเก่า ค", "ชิ้น", 7, None)])]
+# Cowork 老站点的对账预设：(对账类型, 范围, 规则, 答案)
+COWORK_PRESETS = [("bank", "bank|KBANK|4821|1112-01", "grouped", "yes"), ("income", "income|0105556012345|4201", "excluded", "no")]
 ADMIN = "admin@{}"
 JOBS = {"products": ("products", "profile"),
         "stock": ("inventory", "stock-in", "stock-out", "stock-card", "stock-count", "warehouses", "profile"),
@@ -196,15 +206,67 @@ def build_old():
                                                                            "ERP Shift", "ERP Stock Count")}}
 
 
-def main(which):
-    frappe.init(site=SITES[which], sites_path="/home/frappe/frappe-bench/sites")
+def cowork_state(site, dataset):
+    """Cowork 站点此刻的清单：站点归属、各类对账任务与预设、盘点（流程用例照它判页面与落库）。"""
+    from pearnly_cowork.access import scope
+
+    workspace = scope.existing_workspace()
+    counts = frappe.get_all("Cowork Stocktake Task", filters={"workspace": workspace}, fields=["name", "title"],
+                            order_by="creation asc", limit_page_length=50)
+    return {"dataset": dataset, "product": "cowork", "site": site, "workspace": workspace,
+            "workspaces": frappe.db.count("Cowork Workspace"),
+            "recon_tasks": {kind: frappe.db.count(doctype, {"workspace": workspace}) for kind, doctype in
+                            (("bank", "Cowork Bank Reconciliation"), ("income", "Cowork Income Reconciliation"), ("vat", "Cowork VAT Check"))},
+            "presets": {kind: frappe.db.count("Cowork Recon Preset", {"workspace": workspace, "recon_kind": kind})
+                        for kind in ("bank", "income")},
+            "stock_counts": counts}
+
+
+def build_cowork_new():
+    frappe.set_user(ADMIN.format("cowork.regression"))
+    return cowork_state(COWORK_SITES["new"], "new")
+
+
+def build_cowork_old():
+    import io
+
+    from openpyxl import load_workbook
+    from pearnly_cowork.access import scope
+    from pearnly_cowork.reconciliation import preset_store
+    from pearnly_cowork.stocktake import upload
+
+    frappe.set_user(ADMIN.format("cowork.regression"))
+    workspace = scope.default_workspace()
+    commit()
+    for index, (title, rows) in enumerate(COWORK_COUNTS):
+        request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"regression-cowork-count-{index}"))
+        if frappe.db.exists("Cowork Stocktake Task", request_id):
+            continue
+        book = load_workbook(io.BytesIO(upload.template()))
+        sheet = book.active
+        for code, name, unit, book_qty, actual in rows:
+            sheet.append([code, name, "", unit, book_qty, actual, "", "", ""])
+        output = io.BytesIO()
+        book.save(output)
+        commit(upload.create(title, request_id, output.getvalue()))
+    for kind, found, rule, value in COWORK_PRESETS:
+        commit(preset_store.remember(workspace, kind, found, rule, value))
+    return cowork_state(COWORK_SITES["old"], "old")
+
+
+def main(which, product="erp"):
+    sites = COWORK_SITES if product == "cowork" else SITES
+    frappe.init(site=sites[which], sites_path="/home/frappe/frappe-bench/sites")
     frappe.connect()
     try:
-        manifest = build_new() if which == "new" else build_old()
+        if product == "cowork":
+            manifest = build_cowork_new() if which == "new" else build_cowork_old()
+        else:
+            manifest = build_new() if which == "new" else build_old()
         print(json.dumps(manifest, ensure_ascii=False, default=str))
     finally:
         frappe.destroy()
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(*sys.argv[1:3])

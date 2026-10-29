@@ -83,6 +83,18 @@ Frappe 不提交 GET 请求，这一行被回滚。保存带着这一行的编�
   - 截图：`~/pearnly-devtools/line-stocktake-post/旧代码-空仓保存404.png`、`新代码-空仓保存成功.png`。
 - 没验证：真手机 LINE / LIFF 里扫码保存（逐入口窗口的 flows 实验栈另行验收）。
 
+### 流程用例（第 2 步，过 10-28 起的流程覆盖闸）
+
+改到的入口文件按主会话 10-29 定补流程用例（不登记 not_flows 糊过去）：`cowork.recon.tasks`、`cowork.recon.presets`、
+`cowork.stocktake.list`、`erp.document.express`（`scripts/flows/`，共用片段 `desk_list.py`）；`identity.py` 没有页面（开户脚本 / 后台调用、
+登录回调要真身份服务），登记 `tests/flows/not_flows.toml`。Cowork 加两套数据（`datasets.py new|old cowork`：
+`cowork-new` 开户后什么都没建，`cowork-old` 两份上传导入的盘点、银行与收入预设各一条），`lab_init.py` 加这两个站点，
+运行器按流程的 `product` 取数据与岗位账号。
+回归实验室（挂本分支源码）4 条 × 两套数据 × 电脑 / 手机共 16 格全过：第一轮 13/16，手机宽度 3 格因页内按钮被框架收进页头「…」菜单没点到
+（old / 手机那格 Express「没有按钮」是假通过），流程改成先展开菜单再点（`desk_list.ACTION`）后复跑 8 格全过。
+结果：`~/pearnly-devtools/get-write-rollback/flows-1.json`、`flows-2.json`、`flows-3.json`。
+没测到：收银日汇总的 Express 弹窗（实验室没有日汇总单据）。
+
 ## 同页顺带修：保存后抬头不刷新
 
 手机页保存后，抬头「已盘点 x / y」不变，要退出重进这份盘点才更新（抬头只在打开盘点时取一次）。主会话 10-29 定同一分支修掉：

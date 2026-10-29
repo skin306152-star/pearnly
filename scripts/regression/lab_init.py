@@ -15,7 +15,10 @@ SITES = {"erp.regression.localhost": ("erp", "pearnly_erp_portal"),
          "dms.regression.localhost": ("dms", "pearnly_dms"),
          # 两套固定数据各自的站点（`datasets.py new|old` 往里填）：照 polymer 新开户、照 mrerp 有存量
          "erp-new.regression.localhost": ("erp", "pearnly_erp_portal"),
-         "erp-old.regression.localhost": ("erp", "pearnly_erp_portal")}
+         "erp-old.regression.localhost": ("erp", "pearnly_erp_portal"),
+         # Cowork 的两套（`datasets.py new|old cowork`）：新开户空站点、有盘点与对账预设的老站点
+         "cowork-new.regression.localhost": ("cowork", "pearnly_cowork"),
+         "cowork-old.regression.localhost": ("cowork", "pearnly_cowork")}
 CONTROL = "control.regression.localhost"  # 实验室自己的计费控制面（`lab_billing.py` 建），不是产品站点
 # 岗位账号：产品 → {岗位名: 角色}（与开通 / 团队管理发的角色同名；管理员 = 产品管理员 + 全部功能角色）
 ROLES = {

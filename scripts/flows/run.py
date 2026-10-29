@@ -89,15 +89,17 @@ class Lab:
             raise RuntimeError(f"lab python failed on {site}: {result.stderr[-800:]}")
         return json.loads(lines[-1])
 
-    def dataset(self, which):
-        if which in self.manifests:
-            return self.manifests[which]
-        result = self.exec("../env/bin/python", "/workspace/scripts/regression/datasets.py", which)
+    def dataset(self, which, product="erp"):
+        """这套数据的清单（每个产品各两套：`datasets.py new|old [erp|cowork]`）。"""
+        key = (product, which)
+        if key in self.manifests:
+            return self.manifests[key]
+        result = self.exec("../env/bin/python", "/workspace/scripts/regression/datasets.py", which, product)
         lines = [line for line in result.stdout.splitlines() if line.startswith("{")]
         if result.returncode or not lines:
-            raise RuntimeError(f"dataset {which} failed: {result.stderr[-800:]}")
-        self.manifests[which] = json.loads(lines[-1])
-        return self.manifests[which]
+            raise RuntimeError(f"dataset {product} {which} failed: {result.stderr[-800:]}")
+        self.manifests[key] = json.loads(lines[-1])
+        return self.manifests[key]
 
     def session(self, site, user):
         out = self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user).stdout
@@ -111,6 +113,9 @@ class Lab:
 
 
 def load_module(path):
+    # 流程模块可以用同目录的共用片段（`desk_list.py`）
+    if str(ROOT / "scripts" / "flows") not in sys.path:
+        sys.path.insert(0, str(ROOT / "scripts" / "flows"))
     spec = importlib.util.spec_from_file_location(Path(path).stem, ROOT / path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -145,13 +150,14 @@ def barcode_video(code):
 
 def run_flow(lab, flow, dataset, viewport):
     module = load_module(flow["module"])
-    manifest = lab.dataset(dataset)
-    site, user = manifest["site"], flow.get("user", "admin") + "@erp.regression"
+    product = flow.get("product", "erp")
+    manifest = lab.dataset(dataset, product)
+    site, user = manifest["site"], f"{flow.get('user', 'admin')}@{product}.regression"
     before = lab.client_errors(site)
     params = module.prepare(lab, manifest)
     started = time.monotonic()
     runs = [(None, None)]
-    camera = flow.get("camera") and next((c for c in params["cases"] if c["key"] == "by_barcode"), None)
+    camera = flow.get("camera") and next((c for c in params.get("cases", []) if c["key"] == "by_barcode"), None)
     if camera and viewport == "mobile":
         params_camera = module.prepare(lab, manifest)
         runs.append((params_camera, camera["scan"]))
