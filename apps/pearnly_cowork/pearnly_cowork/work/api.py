@@ -286,7 +286,7 @@ def export_file(names=None, board=None):
             "content": _run(service.export, names, board)}
 
 
-@frappe.whitelist(methods=["GET", "POST"])
+@frappe.whitelist(methods=["POST"])
 def export(names=None, board=None):
     """下载工作簿；`names` 是逗号分隔的卡片号。小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``）。
 

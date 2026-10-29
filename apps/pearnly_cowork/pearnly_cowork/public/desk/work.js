@@ -1715,7 +1715,7 @@
 						// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）。
 						const names = shown_cards().map(card => card.name).join(",");
 						// 卡片号放请求体（POST）：上千张卡拼进网址会超过网关的地址长度上限
-						void p.export_file(`${API}export`, {board: state.board.name, names}, {type: "POST"});
+						void p.export_file(`${API}export`, {board: state.board.name, names});
 					});
 				$('<div class="pearnly-work-table">').appendTo(pane);
 				pane.on("click", "[data-open]", event => {

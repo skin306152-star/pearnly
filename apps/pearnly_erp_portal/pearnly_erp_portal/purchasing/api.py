@@ -118,7 +118,7 @@ def api_purchase_category(category_name, parent_category=None):
     return records.category(category_name, parent_category)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_purchase_export(params=None):
     """小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
     from pearnly_core.exports import service as exports

@@ -486,18 +486,16 @@ frappe.provide("frappe.pearnly");
 		frappe.realtime?.on?.("pearnly_export", handler);
 		schedule();
 	});
-	/** 导出：`method` 是导出接口（照旧的参数，GET 或 POST）。当场给的文件直接存；排了任务就等推送后下载。 */
-	p.export_file = async (method, args = {}, { type = "GET" } = {}) => {
+	/** 导出：`method` 是导出接口。一律 POST：导出可能排后台任务（建一条导出记录），Frappe 不提交 GET 请求（10-29）。
+	 * 当场给的文件直接存；排了任务就等推送后下载。 */
+	p.export_file = async (method, args = {}) => {
 		const query = new URLSearchParams();
 		for (const [key, value] of Object.entries(args || {})) {
 			if (value === undefined || value === null || value === "") continue;
 			query.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
 		}
-		const options = { credentials: "same-origin",
-			headers: { "X-Frappe-CSRF-Token": frappe.csrf_token, Accept: "application/json, */*" } };
-		const response = type === "POST"
-			? await fetch(`/api/method/${method}`, { ...options, method: "POST", body: query })
-			: await fetch(`/api/method/${method}?${query.toString()}`, options);
+		const response = await fetch(`/api/method/${method}`, { credentials: "same-origin", method: "POST", body: query,
+			headers: { "X-Frappe-CSRF-Token": frappe.csrf_token, Accept: "application/json, */*" } });
 		const kind = response.headers.get("Content-Type") || "";
 		if (response.ok && !kind.includes("application/json")) {
 			save_blob(await response.blob(), file_name(response));

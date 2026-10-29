@@ -101,7 +101,7 @@ def api_remove_sale_attachment(name, file):
     return files.remove(name, file)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_sales_export(params=None):
     """小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
     from pearnly_core.exports import service as exports

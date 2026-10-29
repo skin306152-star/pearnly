@@ -9,24 +9,11 @@ pearnly_control.billing_api.service_topup_status	接口	待改（GET 里手动 c
 pearnly_control.billing_api.service_wallet	接口	待改（GET 里手动 commit 才生效：pearnly_control.billing_api.service_token）
 pearnly_core.assistant.api.events	接口	待改（GET 里手动 commit 才生效：pearnly_core.assistant.sessions._remember_context）
 pearnly_core.assistant.api.push_key	接口	待改（GET 里手动 commit 才生效：pearnly_core.assistant.push._generate）
-pearnly_core.billing_www.export_records	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_core.identity.callback	接口	身份服务登录回调：浏览器从登录页重定向回来，按协议只能是 GET（state 一次性校验防重放）
 pearnly_cowork.companies.api.detail	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.companies.api.detail）
 pearnly_cowork.companies.api.month	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.companies.api.month）
 pearnly_cowork.folder_intake.api.options	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.folder_intake.rules.options；10-29 扫描器追到当参数传出去的函数后查出）
 pearnly_cowork.push.application.api.choices	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.push.application.service.choices_view；10-29 扫描器追到当参数传出去的函数后查出）
 pearnly_cowork.recon_center.api.active	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.jobs._resume）
-pearnly_cowork.recon_center.api.export_vat	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_cowork.recon_center.api.status	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.jobs._resume）
 pearnly_cowork.recon_center.sheets.load	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.view_store.put）
-pearnly_cowork.reconciliation.bank_recon_api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.reconciliation.income_recon_api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.stocktake.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.stocktake.desk_api.api_stock_count_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.work.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.cashier.api.api_shifts_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.inventory.api.api_stock_count_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.inventory.api.api_stock_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.purchasing.api.api_purchase_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.sales.api.api_sales_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.work.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）

@@ -175,9 +175,9 @@ class CoreExports(Harness):
                          (USER, "queued", "th", {"task_id": "T-1"}))
         self.assertEqual(self.queued, [("pearnly_core.exports.service.run",
                                         {"queue": "default", "timeout": service.TIMEOUT_SECONDS, "job": job,
-                                         "enqueue_after_commit": False})])
-        # 导出接口是 GET，请求结束不提交：任务行必须在排队前自己提交，否则被回滚、页面问状态只得到「没有权限」
-        self.assertEqual(self.committed_at_enqueue, [1])
+                                         "enqueue_after_commit": True})])
+        # 导出接口一律 POST：任务行随请求提交，提交后才排队；不在 GET 里手动提交（10-29）
+        self.assertEqual(self.committed_at_enqueue, [0])
         self.assertNotIn("filecontent", frappe.local.response)
 
     def test_no_permission_means_no_file_and_no_job(self):

@@ -66,7 +66,7 @@ def report(task_id):
     return _transaction(service.report, task_id)
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist(methods=["POST"])
 def export(task_id):
     """小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``，权限在排任务时和下载时各查一次）。"""
     from pearnly_core.exports import service as exports

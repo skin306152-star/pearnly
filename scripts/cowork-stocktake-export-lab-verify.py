@@ -80,7 +80,7 @@ class NativeStocktakeExport(unittest.TestCase):
         client = Client(application, Response)
         url = "/api/method/pearnly_cowork.stocktake.api.export?task_id="
         def get(name, authenticated=True):
-            return client.get(url + name, base_url="http://" + FIXTURE["SITE"],
+            return client.post(url + name, base_url="http://" + FIXTURE["SITE"],
                               headers=headers if authenticated else {})
         try:
             response = get(task["id"])
@@ -95,7 +95,7 @@ class NativeStocktakeExport(unittest.TestCase):
             self.assertEqual(book.worksheets[0]["B2"].data_type, "s")
             self.assertEqual(get(task["id"], False).status_code, 403)
             self.assertEqual(get(self.foreign_reference).status_code, 403)
-            rejected = client.post(url + task["id"], base_url="http://" + FIXTURE["SITE"], headers=headers)
+            rejected = client.get(url + task["id"], base_url="http://" + FIXTURE["SITE"], headers=headers)  # 导出只收 POST（10-29）
             self.assertEqual(rejected.status_code, 403)
         finally:
             connect()

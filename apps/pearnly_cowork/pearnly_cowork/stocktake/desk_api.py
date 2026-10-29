@@ -165,7 +165,7 @@ def api_stock_count_close(name, review_token=None):
     return _transaction(service.close, name)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_stock_count_export(name):
     """小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``，权限在排任务时和下载时各查一次）。"""
     from pearnly_core.exports import service as exports

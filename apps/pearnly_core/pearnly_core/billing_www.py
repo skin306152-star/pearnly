@@ -152,7 +152,7 @@ def delete_records(tab: str, names) -> dict:
     return delete_product_records(tab, names, actor=_require_admin())
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def export_records(date_from: str = "", date_to: str = ""):
     """导出全量明细。小的当场回文件，大的排后台、做完推送下载（``pearnly_core.exports``）。"""
     from pearnly_core.exports import service as exports

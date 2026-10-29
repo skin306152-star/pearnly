@@ -323,7 +323,7 @@ def stock_export_file(**kwargs):
     return _csv(_stock_export_rows(**kwargs))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_stock_export(**kwargs):
     """导出在库一览：与列表同一套筛选，导的是**全部**命中行，不只是当前那一页。
     小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
@@ -797,7 +797,7 @@ def stock_count_export_file(name=None, only=None, warehouse=None, location=None,
     return {"filename": f"{name}.xlsx", "content": _count_workbook(task, items, entries, blind=blind)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_stock_count_export(**kwargs):
     """导出盘点：汇总 + 明细两张表（明细里每条记录都带谁、何时、几张照片）。
     小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""

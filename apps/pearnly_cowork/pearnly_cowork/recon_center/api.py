@@ -94,7 +94,7 @@ def delete(kind, task_ids):
     return result
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist(methods=["POST"])
 def export_vat(task_id, lang=None):
     """销项税报告核查工作簿（由存档的两边输入当场重建，改过就是改过的版本）。"""
     from frappe.core.doctype.access_log.access_log import make_access_log

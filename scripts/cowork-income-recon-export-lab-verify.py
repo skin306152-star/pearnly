@@ -97,7 +97,7 @@ class NativeIncomeReconExport(unittest.TestCase):
 			+ task["name"] + "&lang=th")
 
 		def get(authenticated=True):
-			return client.get(url, base_url="http://" + site,
+			return client.post(url, base_url="http://" + site,
 				headers=headers if authenticated else {})
 
 		try:
@@ -111,7 +111,7 @@ class NativeIncomeReconExport(unittest.TestCase):
 			self.assertIn("spreadsheetml.sheet", response.headers["Content-Type"])
 			self.assertEqual(len(load_workbook(BytesIO(response.data)).sheetnames), 3)
 			self.assertEqual(get(False).status_code, 403)
-			self.assertEqual(client.post(url, base_url="http://" + site,
+			self.assertEqual(client.get(url, base_url="http://" + site,
 				headers=headers).status_code, 403)
 		finally:
 			connect()
