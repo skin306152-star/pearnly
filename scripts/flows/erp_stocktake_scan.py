@@ -1,7 +1,9 @@
 """流程用例：ERP 盘点扫码 → 认出商品 → 出录入框 → 记数 → 落库（起因：10-28 polymer 手机盘点扫码查到商品却出不来录入框）。
 
 每套数据都跑：用数据清单（`datasets.py` 的输出）里每一种认法的商品，在盘点详情页点「开始盘点」，在录入框里输码查找；
-普通商品要出录入区、显示对的品名，填数量保存后库里要有这条记录（商品、数量都对）；按台商品没登记过台时要说明，不出数量录入。
+普通商品要出录入区、显示对的品名，「编码」栏显示内部编码（Express 同步来的是 Express 编码），都没有就是系统编码
+（盘点菜单做完整 S2）；填数量保存后库里要有这条记录（商品、数量都对）。按台商品：新开户那家公司是普通类型，普通公司不按台（S0），
+按数量照常出录入框记数；汽车 / 手机电器类型的公司没登记过台时才要说明、不出数量录入。
 条码那件另走一遍假摄像头（条码画面），读码后同样要出录入区并能保存。全程页面不能有报错。
 """
 from __future__ import annotations
@@ -17,8 +19,8 @@ def cases(manifest):
     out = []
     if manifest["dataset"] == "new":
         for key, item in manifest["products"].items():
-            out.append({"key": key, "scan": item["scan"], "product": item["product"],
-                        "expect": "unit_refused" if key == "by_unit" else "entry"})
+            # 按台商品：新开户那家公司是普通类型，普通公司不按台、按数量盘（盘点菜单做完整 S0，用户 10-29），照样出录入框
+            out.append({"key": key, "scan": item["scan"], "product": item["product"], "expect": "entry"})
     else:
         first, second = manifest["products"][0], manifest["products"][1]
         out.append({"key": "by_code", "scan": first["code"], "product": first["name"], "expect": "entry"})
@@ -40,7 +42,16 @@ doc = count.create_count(title="flow " + {uuid.uuid4().hex[:6]!r}, warehouse={wa
 frappe.db.commit()
 print(json.dumps({{"count": doc["name"]}}))
 """)
-    return {"count": out["count"], "company": company, "warehouse": warehouse, "cases": cases(manifest)}
+    found = cases(manifest)
+    # 录入框「编码」栏应显示的值：内部编码 → Express 编码 → 系统编码（`products.contracts.count_code`，S2）
+    codes = lab.python(manifest["site"], f"""
+rows = frappe.get_all("ERP Product", filters={{"name": ["in", {[c["product"] for c in found if c["product"]]!r}]}},
+                      fields=["name", "internal_code", "express_code", "code"], limit_page_length=50)
+print(json.dumps({{r.name: r.internal_code or r.express_code or r.code or "" for r in rows}}))
+""")
+    for case in found:
+        case["code"] = codes.get(case["product"] or "", "")
+    return {"count": out["count"], "company": company, "warehouse": warehouse, "cases": found}
 
 
 # 按条件等，不按固定时长（机器忙时请求慢，固定等待会在结果回来前点下一步）：请求都回来（jQuery 在途数连续两次为 0），最多 20 秒
@@ -66,6 +77,7 @@ def steps(params, camera_code=None):
         out.append({"name": f"查找 {case['key']}", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'}; "
                     + find + (
             "return {entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name') || '', "
+            "product_code: d.get_value('product_code') || '', "
             "message: (d.fields_dict.message.$wrapper.text()||'').trim().slice(0,200)};")})
         if case["expect"] == "entry":
             out.append({"name": f"保存 {case['key']}",
@@ -85,7 +97,7 @@ def judge(params, results, camera_code=None):
             continue
         seen = (by_name.get(f"查找 {case['key']}") or {}).get("value") or {}
         if case["expect"] == "entry":
-            ok = bool(seen.get("entry")) and bool(seen.get("product_name"))
+            ok = bool(seen.get("entry")) and bool(seen.get("product_name")) and seen.get("product_code") == case["code"]
             names[case["product"]] = seen.get("product_name")
         elif case["expect"] == "unit_refused":
             ok = not seen.get("entry") and bool(seen.get("message"))

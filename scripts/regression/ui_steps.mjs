@@ -15,7 +15,8 @@ const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "steps-"));
 const camera = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : [])];
 const chrome = spawn(chromePath, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, ...camera,
   ...(process.env.SMOKE_CHROME_RULES ? [`--host-resolver-rules=${process.env.SMOKE_CHROME_RULES}`] : []),
-  "--mute-audio", "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank"], { stdio: "ignore" });
+  // 静音但允许页面自己放提示音：步骤里直接调函数没有真人点击，否则保存成功那一声 play() 被浏览器拦下记成页面报错
+  "--mute-audio", "--autoplay-policy=no-user-gesture-required", "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const logs = [];
 let ws, seq = 0;

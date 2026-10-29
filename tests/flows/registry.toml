@@ -114,4 +114,107 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/work/boards.py",
   "apps/pearnly_cowork/pearnly_cowork/work/service.py",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js",
+id = "erp.stocktake.new-product"
+title = "ERP 盘点：扫到系统没有的码当场新建商品并记数（盘点菜单做完整 S3）"
+module = "scripts/flows/erp_stocktake_new_product.py"
+start = "/desk/pearnly-stock-count/{count}"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+]
+
+[[flow]]
+id = "erp.line.stocktake"
+title = "LINE 手机盘点：当场新建商品、选库位记数（盘点菜单做完整 S3 / S5）"
+module = "scripts/flows/erp_line_stocktake.py"
+start = "/stocktake"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/locations.py",
+]
+
+[[flow]]
+id = "erp.stock-in.units"
+title = "ERP 入库：汽车公司按台登记车辆（按台按公司类型；登记扫码 / 留空缺陷）"
+module = "scripts/flows/erp_stock_in_units.py"
+start = "/desk/pearnly-stock-in"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/serials.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+]
+
+[[flow]]
+id = "erp.products.create"
+title = "ERP 物料：新建弹窗的字段、来由与按码认出（批次 / 有效期删除、按台按公司类型、来由）"
+module = "scripts/flows/erp_product_create.py"
+start = "/desk/pearnly-products"
+user = "products"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
+]
+
+[[flow]]
+id = "erp.company.settings"
+title = "ERP 公司资料：公司类型与接 Express 的三种状态（盘点菜单做完整 S0）"
+module = "scripts/flows/erp_company_settings.py"
+start = "/desk/pearnly-company"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-menu.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/api.py",
+]
+
+[[flow]]
+id = "erp.warehouses.codes"
+title = "ERP 仓库：仓库编号与库位说明（盘点菜单做完整 S5）"
+module = "scripts/flows/erp_warehouse_codes.py"
+start = "/desk/pearnly-warehouses"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/warehouses.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/locations.py",
+]
+
+[[flow]]
+id = "erp.purchase.create"
+title = "ERP 采购：新建采购单（无批号 / 失效日期）入库（盘点菜单做完整 S1）"
+module = "scripts/flows/erp_purchase_create.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
 ]

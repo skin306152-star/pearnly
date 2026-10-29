@@ -1,0 +1,97 @@
+"""流程用例：ERP 新建采购单（盘点菜单做完整 S1：明细不再有批号 / 失效日期；按码认商品走单据物料选择）。
+
+打开采购新建页、切到「手动录入」：明细里没有批号、失效日期两格；单头填供应商名、单头仓、付清（现金），明细物料格输条码回车（单据物料选择按码认出商品）、
+数量 2、单价 10，提交。库里：采购单已提交、明细是这件商品、批号 / 失效日期为空，单头仓 +2。
+新开户那家公司接了 Express：这条流程只看采购本身，跑的时候先关掉「接 Express」（不走写账预检），跑完还原。
+"""
+from __future__ import annotations
+
+import json
+import uuid
+
+TITLE = "ERP 采购：新建采购单（无批号 / 失效日期）入库"
+IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
+CAPTURE = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__cap){const o=frappe.ui.FieldGroup.prototype.make;"
+           "frappe.ui.FieldGroup.prototype.make=function(){window.__fgs.push(this);return o.apply(this,arguments)};frappe.ui.FieldGroup.prototype.__cap=1;}")
+
+
+def prepare(lab, manifest):
+    company = manifest.get("company") or manifest["companies"][0]
+    if manifest["dataset"] == "new":
+        product = manifest["products"]["by_barcode"]["product"]
+    else:
+        product = manifest["products"][0]["name"]
+    out = lab.python(manifest["site"], f"""
+from pearnly_erp_portal.masters import company as companies
+frappe.set_user("purchase@erp.regression")
+companies.set_active_company({company!r})
+express = frappe.db.get_value("ERP Company", {company!r}, "express_enabled")
+frappe.db.set_value("ERP Company", {company!r}, "express_enabled", 0, update_modified=False)
+p = frappe.db.get_value("ERP Product", {product!r}, ["name", "product_name", "barcode", "code"], as_dict=True)
+wh = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
+qty = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": wh, "location": ""}}, "qty_on_hand") or 0
+frappe.db.commit()
+print(json.dumps({{"product": p.name, "product_name": p.product_name, "scan": p.barcode or p.code, "warehouse": wh, "before": float(qty),
+                  "express": int(express or 0)}}))
+""")
+    return {**out, "company": company, "supplier": "flow supplier " + uuid.uuid4().hex[:5], "cases": []}
+
+
+def steps(params, camera_code=None):
+    sup, wh, product, name, scan = (json.dumps(params[k]) for k in ("supplier", "warehouse", "product", "product_name", "scan"))
+    return [
+        {"name": "打开新建页", "js": IDLE + CAPTURE +
+         "frappe.set_route('pearnly-purchase'); await idle(); await new Promise(r=>setTimeout(r,800)); frappe.set_route('pearnly-purchase','new');"
+         "for(let k=0;k<60&&!window.__fgs.find(f=>f.fields_dict&&f.fields_dict.unit_price);k++) await new Promise(r=>setTimeout(r,250)); await idle();"
+         "const line=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.unit_price).pop(); if(!line) return {error:'no line form'};"
+         "return {line_fields: Object.keys(line.fields_dict)};"},
+        {"name": "按条码认商品", "js": IDLE +
+         f"const r=await frappe.call({{method:'pearnly_erp_portal.masters.selection.api_choices', args:{{kind:'product', context:'purchase', txt:{scan}, scan:1}}}});"
+         "return {choices: JSON.stringify(r.message||[]).slice(0,400)};"},
+        {"name": "填写提交", "js": IDLE +
+         "const head=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.supplier_name&&f.fields_dict.doc_kind).pop();"
+         "const line=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.unit_price).pop(); if(!head||!line) return {error:'no forms'};"
+         # 新建采购默认「上传识别」，切到「手动录入」才能直接填写提交
+         "const entry=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.entry_manual).pop(); if(entry){await entry.set_value('entry_manual',1); await idle();}"
+         f"await head.set_values({{supplier_name:{sup}, doc_no:{sup}, doc_kind:'purchase_invoice', is_paid:1, payment_method:'cash'}});"
+         f"if(head.fields_dict.warehouse) await head.set_value('warehouse', {wh});"
+         # 明细物料格当扫码枪用：输条码回车 → 单据物料选择按码认出（`masters.selection.api_choices`）
+         f"const inp=line.fields_dict.entry_choice.input; inp.focus(); inp.value={scan}; inp.dispatchEvent(new Event('input',{{bubbles:true}}));"
+         "inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));"
+         f"for(let k=0;k<60&&line.get_value('product')!=={product};k++) await new Promise(r=>setTimeout(r,250)); await idle();"
+         "if(!line.get_value('product')) return {error:'product not chosen by code'};"
+         f"await line.set_values({{qty:2, unit_price:10, warehouse:{wh}}}); await idle();"
+         "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
+         "if(!b) return {error:'no submit button'}; b.click();"
+         "for(let k=0;k<80&&(frappe.get_route()[1]||'')==='new';k++) await new Promise(r=>setTimeout(r,250)); await idle();"
+         "return {route: frappe.get_route().join('/')};"},
+    ]
+
+
+def judge(params, results, camera_code=None):
+    by = {r.get("step"): (r.get("value") or {}) for r in results}
+    fields = (by.get("打开新建页") or {}).get("line_fields") or []
+    return [
+        {"case": "line has no batch or expiry", "seen": fields, "ok": "unit_price" in fields and not {"batch_no", "expiry_date"} & set(fields)},
+        {"case": "chooser finds the product by barcode", "seen": by.get("按条码认商品"),
+         "ok": params["product_name"] in ((by.get("按条码认商品") or {}).get("choices") or "")},
+        {"case": "submitted and opened", "seen": by.get("填写提交"), "ok": not ((by.get("填写提交") or {}).get("route") or "").endswith("/new")},
+    ]
+
+
+def verify(lab, manifest, params, camera_code=None):
+    got = lab.python(manifest["site"], f"""
+doc = frappe.db.get_value("Purchase Document", {{"supplier_name": {params['supplier']!r}}}, ["name", "status"], as_dict=True) or {{}}
+lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty", "batch_no", "expiry_date"]) if doc else []
+qty = frappe.db.get_value("ERP Stock Balance", {{"product": {params['product']!r}, "warehouse": {params['warehouse']!r}, "location": ""}}, "qty_on_hand") or 0
+frappe.db.set_value("ERP Company", {params['company']!r}, "express_enabled", {params['express']}, update_modified=False)  # 还原
+frappe.db.commit()
+print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in lines], "after": float(qty)}}, default=str))
+""")
+    line = (got["lines"] or [{}])[0]
+    return [
+        {"case": "purchase submitted without batch or expiry", "saved": got,
+         "ok": got["doc"].get("status") == "submitted" and line.get("product") == params["product"] and line.get("qty") == 2.0
+         and not line.get("batch_no") and not line.get("expiry_date")},
+        {"case": "stock went up by 2", "saved": [params["before"], got["after"]], "ok": got["after"] == params["before"] + 2},
+    ]
