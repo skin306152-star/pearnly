@@ -78,7 +78,11 @@ def main(only):
                            pearnly_features=["home_subscription", *[item["code"] for item in features]],
                            pearnly_company_name="Regression Lab", developer_mode=0, allow_tests=True,
                            # 服务端自己拼的地址（PDF 回取字体 / 图片）走容器里的网页口；浏览器那边只用相对地址
-                           host_name=f"http://{site}:8000")
+                           host_name=f"http://{site}:8000",
+                           # CC 对话页：引擎照线上（Managed Agents），请求由编排把 ANTHROPIC_BASE_URL 指到假服务 agents（lab_agents.py）；
+                           # 密钥是格式对的假值，假服务不验、也到不了真接口
+                           pearnly_assistant_engine="anthropic-managed-agents",
+                           pearnly_assistant_api_key="sk-ant-regression-lab-" + "0" * 24)
         site_file.write_text(json.dumps(site_config, indent=2) + "\n")
         if not (sites / site / ".installed").exists():
             bench("--site", site, "install-app", "pearnly_core", app)

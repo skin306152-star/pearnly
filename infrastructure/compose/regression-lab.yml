@@ -20,20 +20,30 @@ services:
     image: redis:6.2-alpine
     mem_limit: 160m
     command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, noeviction]
+  agents:
+    # CC 对话页流程用例的假智能体后端（scripts/flows/lab_agents.py，只用标准库）：bench 的 ANTHROPIC_BASE_URL 指向它，
+    # 真实适配器照跑、模型调用这一层换成它，不调付费模型、不连外网
+    image: python:3.12-alpine
+    mem_limit: 128m
+    command: [python, /srv/lab_agents.py, --host, 0.0.0.0, --port, "18780", --quiet]
+    volumes: ["../../scripts/flows:/srv:ro"]
   bench:
     # 本机默认取线上同版镜像（arm64 Mac 上按 amd64 跑）；CI 传候选镜像
     image: ${PEARNLY_REGRESSION_LAB_IMAGE:-ghcr.io/skin306152-star/pearnly/frappe@sha256:fb1037adfa97d292ab81c3a6dc51ec4a0b4b533556cda6f6ce7e7e4577a43d79}
     platform: linux/amd64
     mem_limit: 3g
-    # 每个产品站点一个网页进程（各占一核，本机 amd64 模拟时并行快 3 倍）：8000 ERP、8001 Cowork、8002 DMS（站点按 Host 认，三个口都能开任一站点）
-    command: [bash, -lc, "for p in 8000 8001 8002; do bench serve --port $$p --noreload & done; wait"]
+    # 每个产品站点一个网页进程（各占一核，本机 amd64 模拟时并行快 3 倍）：8000 ERP、8001 Cowork、8002 DMS（站点按 Host 认，三个口都能开任一站点）；
+    # 另起一个后台任务进程（对账、文件夹录入等走排队的流程要它），只听 short / default / long
+    command: [bash, -lc, "for p in 8000 8001 8002; do bench serve --port $$p --noreload & done; bench worker --queue short,default,long & wait"]
     working_dir: /home/frappe/frappe-bench
     environment:
       PEARNLY_REGRESSION_LAB: "1"
       PYTHONDONTWRITEBYTECODE: "1"
+      ANTHROPIC_BASE_URL: http://agents:18780
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}
+      agents: {condition: service_started}
     # 站点名在容器里指回本机：PDF（wkhtmltopdf）按站点地址回取页面里的字体 / 图片，解析不了就整张 PDF 失败
     extra_hosts: ["erp.regression.localhost:127.0.0.1", "cowork.regression.localhost:127.0.0.1", "dms.regression.localhost:127.0.0.1"]
     # 三个口都可改（REGRESSION_LAB_PORT / _COWORK / _DMS）：别的窗口用自己的栈名（-p）再起一套时不撞口

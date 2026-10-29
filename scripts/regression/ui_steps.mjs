@@ -1,6 +1,6 @@
 // 页面操作步骤驱动（回归实验室复核用）：一个无头 Chrome 带会话打开起始页，按顺序在页面里执行若干段 JS（可 await），
 // 每步输出一行 JSON（步骤名、返回值、这一步里的页面报错），可选截图。不点真实鼠标，步骤里直接调框架 / 产品的同一套函数。
-// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, shots, mobile, video, steps: [{name, js, wait_ms, shot, file}]}
+// 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, shots, mobile, video, steps: [{name, js, wait_ms, shot, file}]}
 // 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -62,7 +62,9 @@ try {
   }
   await send("Page.navigate", { url: new URL(job.start || "/desk", job.base).href }, sessionId);
   for (let i = 0; i < 100; i++) {
-    const ok = (await send("Runtime.evaluate", { expression: "!!(window.frappe && frappe.boot && frappe.router && document.readyState === 'complete' && window.frappe.pearnly)", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
+    // 页面就绪：默认等 Desk 起好；不是 Desk 的页面（LINE 手机盘点页等）由 job.ready 给自己的条件
+    const ready = job.ready || "!!(window.frappe && frappe.boot && frappe.router && document.readyState === 'complete' && window.frappe.pearnly)";
+    const ok = (await send("Runtime.evaluate", { expression: ready, returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
     if (ok) break;
     await sleep(300);
   }
