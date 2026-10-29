@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""流程用例（主会话 10-28 第 3 道闸）：按登记表 `tests/flows/registry.toml` 在回归实验室的两套固定数据上跑流程，断言页面结果与落库。
+
+    python3 scripts/flows/run.py --all
+    python3 scripts/flows/run.py --flow erp.stocktake.scan
+    python3 scripts/flows/run.py --changed --base origin/main      # 只跑改动文件涉及的流程
+    ... --out 结果.json --post-status                                # 结果作为提交状态 `flows` 回写 GitHub（部署闸认它）
+
+每个流程 × 每套数据（datasets.py new / old，先跑一遍保证数据齐，拿清单）× 每个宽度（desktop / mobile）：
+建会话 → 流程模块 `prepare`（在站点里开单等）→ 无头 Chrome 按 `steps` 点页面（`scripts/regression/ui_steps.mjs`，手机宽度、假摄像头）
+→ `judge`（页面上看到的）→ `verify`（库里落的）→ 页面不能有报错、站点 Error Log 不能多出前端回传。全部通过才算过。
+实验室：`infrastructure/compose/regression-lab.yml`（站点由 `scripts/regression/lab_init.py` 建，数据由 `datasets.py` 填）。
+"""
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import importlib.util
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+REGISTRY = ROOT / "tests" / "flows" / "registry.toml"
+CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", "pearnly-regression-lab-bench-1")
+PORT = int(os.environ.get("REGRESSION_LAB_PORT", "18771"))
+
+
+def registry() -> list[dict]:
+    return tomllib.loads(REGISTRY.read_text(encoding="utf-8"))["flow"]
+
+
+def merge_base(base: str) -> str:
+    found = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    if not found:
+        raise SystemExit(f"找不到 {base} 与 HEAD 的分叉点")
+    return found
+
+
+def changed_files(base: str) -> list[str]:
+    out = subprocess.run(["git", "diff", "--name-only", base, "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    return [line for line in out.splitlines() if line]
+
+
+def covers(flow, path) -> bool:
+    return any(fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, pattern.replace("**/", ""))
+               for pattern in flow.get("covers", []))
+
+
+def lab_runs_this_tree():
+    """回写状态前：实验室挂的产品源码就是本工作树，且产品代码没有未提交改动（结果才算这个提交的）。"""
+    mounts = subprocess.run(["docker", "inspect", CONTAINER, "--format", "{{range .Mounts}}{{.Source}}\n{{end}}"],
+                            capture_output=True, text=True).stdout.split()
+    apps = [m for m in mounts if "/apps/" in m]
+    if not apps or not all(m.startswith(str(ROOT / "apps") + "/") for m in apps):
+        raise SystemExit(f"实验室挂的不是本工作树的源码（{apps[:1]}），用 PEARNLY_REGRESSION_SRC={ROOT} 重建实验室后再回写状态")
+    dirty = subprocess.run(["git", "status", "--porcelain", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout
+    if dirty.strip():
+        raise SystemExit("产品代码有未提交改动，结果不代表这个提交，不回写状态：\n" + dirty[:600])
+
+
+class Lab:
+    """回归实验室容器：在站点里跑一段 Python（已 init / connect，结尾 commit），回它最后一行打印的 JSON。"""
+
+    def __init__(self):
+        self.manifests = {}  # 每套数据一次运行只补齐一遍
+
+    def exec(self, *args, timeout=900):
+        return subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", CONTAINER, *args],
+                              capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+
+    def python(self, site, body):
+        code = f"import frappe, json\nfrappe.init(site={site!r}, sites_path='.')\nfrappe.connect()\ntry:\n" + \
+            "\n".join("    " + line for line in body.strip().splitlines()) + "\nfinally:\n    frappe.destroy()\n"
+        result = self.exec("../env/bin/python", "-c", code)
+        lines = [line for line in result.stdout.splitlines() if line.startswith(("{", "["))]
+        if result.returncode or not lines:
+            raise RuntimeError(f"lab python failed on {site}: {result.stderr[-800:]}")
+        return json.loads(lines[-1])
+
+    def dataset(self, which):
+        if which in self.manifests:
+            return self.manifests[which]
+        result = self.exec("../env/bin/python", "/workspace/scripts/regression/datasets.py", which)
+        lines = [line for line in result.stdout.splitlines() if line.startswith("{")]
+        if result.returncode or not lines:
+            raise RuntimeError(f"dataset {which} failed: {result.stderr[-800:]}")
+        self.manifests[which] = json.loads(lines[-1])
+        return self.manifests[which]
+
+    def session(self, site, user):
+        out = self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user).stdout
+        return next((line.split()[1] for line in out.splitlines() if line.startswith("SID ")), "")
+
+    def drop(self, site, user, sid):
+        self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user, "drop", sid)
+
+    def client_errors(self, site):
+        return self.python(site, 'print(json.dumps({"n": frappe.db.count("Error Log", {"method": ["like", "Browser error%"]})}))')["n"]
+
+
+def load_module(path):
+    spec = importlib.util.spec_from_file_location(Path(path).stem, ROOT / path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def drive(site, sid, start, steps, mobile, video):
+    job = {"base": f"http://{site}:{PORT}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
+           "video": video or "", "steps": steps}
+    env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
+    out = subprocess.run(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], capture_output=True, text=True,
+                         timeout=900, env=env).stdout
+    return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+
+
+def barcode_video(code):
+    spec = importlib.util.spec_from_file_location("make_barcode_video", ROOT / "scripts/smoke/make_barcode_video.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    path = Path(tempfile.gettempdir()) / f"flow-{code}.y4m"
+    if not path.exists():
+        module.write(str(path), code)
+    return str(path)
+
+
+def run_flow(lab, flow, dataset, viewport):
+    module = load_module(flow["module"])
+    manifest = lab.dataset(dataset)
+    site, user = manifest["site"], flow.get("user", "admin") + "@erp.regression"
+    before = lab.client_errors(site)
+    params = module.prepare(lab, manifest)
+    started = time.monotonic()
+    runs = [(None, None)]
+    camera = flow.get("camera") and next((c for c in params["cases"] if c["key"] == "by_barcode"), None)
+    if camera and viewport == "mobile":
+        params_camera = module.prepare(lab, manifest)
+        runs.append((params_camera, camera["scan"]))
+    checks, page_errors = [], []
+    for run_params, code in runs:
+        run_params = run_params or params
+        sid = lab.session(site, user)
+        try:
+            start = flow["start"].format(**run_params)
+            results = drive(site, sid, start, module.steps(run_params, code), viewport == "mobile",
+                            barcode_video(code) if code else None)
+        finally:
+            lab.drop(site, user, sid)
+        page_errors += [e for r in results for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])]
+        label = "camera" if code else "typed"
+        checks += [dict(c, run=label) for c in module.judge(run_params, results, code)]
+        checks += [dict(c, run=label, saved_check=True) for c in module.verify(lab, manifest, run_params, code)]
+    after = lab.client_errors(site)
+    checks.append({"case": "page errors", "seen": page_errors, "ok": not page_errors})
+    checks.append({"case": "client errors in Error Log", "seen": after - before, "ok": after == before})
+    return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": all(c["ok"] for c in checks),
+            "seconds": round(time.monotonic() - started, 1), "checks": checks}
+
+
+def post_status(ok, summary):
+    """回写 GitHub 提交状态 `flows`；说明里带比较基线，部署闸据此确认覆盖到上次上线以来的全部改动。"""
+    sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    subprocess.run(["gh", "api", f"repos/{{owner}}/{{repo}}/statuses/{sha}", "-f", f"state={'success' if ok else 'failure'}",
+                    "-f", "context=flows", "-f", f"description={summary[:140]}"], cwd=ROOT, check=True, capture_output=True)
+    return sha
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--all", action="store_true")
+    parser.add_argument("--flow", action="append", default=[])
+    parser.add_argument("--changed", action="store_true")
+    parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--dataset", choices=["new", "old"], help="只跑这套数据（调试用）")
+    parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
+    parser.add_argument("--out")
+    parser.add_argument("--post-status", action="store_true")
+    args = parser.parse_args(argv)
+    flows = registry()
+    if args.post_status:
+        if args.flow or args.dataset or args.viewport:
+            parser.error("--post-status 只配 --changed 或 --all（部分流程的结果不能代表这个提交）")
+        lab_runs_this_tree()
+    scope = "all flows"
+    if args.flow:
+        flows = [f for f in flows if f["id"] in args.flow]
+    elif args.changed:
+        base = merge_base(args.base)
+        scope = f"base {base[:12]}"
+        files = changed_files(base)
+        flows = [f for f in flows if any(covers(f, path) for path in files)]
+    elif not args.all:
+        parser.error("--all, --flow or --changed")
+    lab, results, started = Lab(), [], time.monotonic()
+    for flow in flows:
+        for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]:
+            for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]:
+                try:
+                    result = run_flow(lab, flow, dataset, viewport)
+                except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
+                    result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
+                              "checks": []}
+                results.append(result)
+                bad = [c for c in result["checks"] if not c["ok"]]
+                print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
+                      f"{result.get('error', '')} {json.dumps(bad, ensure_ascii=False)[:600] if bad else ''}", flush=True)
+    ok = all(r["ok"] for r in results)  # 没有涉及的流程 = 通过（覆盖闸另管改到的入口有没有登记）
+    summary = f"{scope}: {sum(r['ok'] for r in results)}/{len(results)} flow runs passed in {round(time.monotonic() - started)}s"
+    print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
+    if args.out:
+        Path(args.out).write_text(json.dumps({"ok": ok, "summary": summary, "results": results}, ensure_ascii=False, indent=1))
+    if args.post_status:
+        print("status posted for", post_status(ok, summary))
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

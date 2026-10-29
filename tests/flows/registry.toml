@@ -1,0 +1,27 @@
+# 流程用例登记表（主会话 10-28 第 3 道闸）：产品页面 / 对话框 JS 与服务端入口 → 流程用例。
+# - CI（scripts/flows/coverage.py）：改到「产品入口文件」（见 coverage.py 的 ENTRY_PATTERNS）却没有任何流程的 covers 对上 → 失败；
+#   新文件、新入口同一提交里补登记（加 covers 或新流程）。
+# - 跑法（scripts/flows/run.py）：按改动文件选出流程，在两套固定数据（scripts/regression/datasets.py new / old）、
+#   电脑与手机宽度上跑，断言页面结果与落库；结果作为提交状态 `flows` 回写，部署闸（scripts/production/deploy.sh）认它。
+#
+# 每条：id、title、module（流程模块，提供 prepare / steps / judge / verify）、start（打开的页面，可用 prepare 回的参数）、
+# user（岗位账号）、datasets、viewports、camera（手机宽度时另用假摄像头读条码跑一遍）、covers（这条流程覆盖的文件，glob）。
+
+[[flow]]
+id = "erp.stocktake.scan"
+title = "ERP 盘点：扫码 / 输码认出商品、出录入框、记数落库（10-28 polymer 手机盘点事故）"
+module = "scripts/flows/erp_stocktake_scan.py"
+start = "/desk/pearnly-stock-count/{count}"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count_live.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count_state.py",
+  "apps/pearnly_core/pearnly_core/public/desk/scan.js",
+  "apps/pearnly_core/pearnly_core/public/scan/reader.js",
+]

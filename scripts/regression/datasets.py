@@ -30,12 +30,12 @@ JOBS = {"products": ("products", "profile"),
 # 新开户的商品：每件一种认法（扫 / 输 `scan` 那个值应认出这件）
 NEW_PRODUCTS = [
     {"key": "by_code", "product_name": "สินค้าทดสอบ รหัส", "code": "NEW-CODE-01", "scan": "NEW-CODE-01"},
-    {"key": "by_barcode", "product_name": "สินค้าทดสอบ บาร์โค้ด", "code": "NEW-BAR-01", "barcode": "8850001000011", "scan": "8850001000011"},
+    {"key": "by_barcode", "product_name": "สินค้าทดสอบ บาร์โค้ด", "code": "NEW-BAR-01", "barcode": "8850001000019", "scan": "8850001000019"},
     {"key": "by_qr", "product_name": "สินค้าทดสอบ คิวอาร์", "code": "NEW-QR-01", "qr_payload": "PEARNLY-QR-0001", "scan": "PEARNLY-QR-0001"},
     {"key": "by_internal", "product_name": "สินค้าทดสอบ รหัสภายใน", "code": "NEW-INT-01", "internal_code": "INT-0001", "scan": "INT-0001"},
     {"key": "by_unit", "product_name": "รถทดสอบ รายคัน", "code": "NEW-UNIT-01", "serial_kind": "vehicle", "scan": "NEW-UNIT-01"},
 ]
-EXPRESS_PRODUCT = {"key": "by_express", "code": "EXP-0001", "name": "สินค้าจาก Express", "unit": "ชิ้น", "barcode": "8850009990001",
+EXPRESS_PRODUCT = {"key": "by_express", "code": "EXP-0001", "name": "สินค้าจาก Express", "unit": "ชิ้น", "barcode": "8850009990008",
                    "scan": "EXP-0001"}
 OLD_COMPANIES = ("บริษัท ข้อมูลเก่า เอ จำกัด", "บริษัท ข้อมูลเก่า บี จำกัด")
 
@@ -46,6 +46,12 @@ def lab_tax(name) -> str:
 
     body = "0105" + str(int(hashlib.sha256(name.encode()).hexdigest(), 16))[:8]
     return body + str((11 - sum(int(d) * (13 - i) for i, d in enumerate(body)) % 11) % 10)
+
+
+def ean13(first12: str) -> str:
+    """合法的 EAN-13（补校验位）：假摄像头的条码视频只认合法码。"""
+    total = sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(first12))
+    return first12 + str((10 - total % 10) % 10)
 
 
 def commit(value=None):
@@ -93,9 +99,15 @@ def build_new():
     found = {}
     for spec in NEW_PRODUCTS:
         product = frappe.db.get_value("ERP Product", {"code": spec["code"]})
+        fields = {k: v for k, v in spec.items() if k not in ("key", "scan", "serial_kind")}
         if not product:
-            fields = {k: v for k, v in spec.items() if k not in ("key", "scan", "serial_kind")}
             product = commit(products.create_product(unit="ชิ้น", unit_price=100, default_cost=60, **fields))["name"]
+        else:
+            # 定义改了（条码、二维码内容、内部编码）就收敛到定义上，走正式改商品接口
+            changes = {k: v for k, v in fields.items() if k in ("barcode", "qr_payload", "internal_code")
+                       and frappe.db.get_value("ERP Product", product, k) != v}
+            if changes:
+                commit(products.update_product(product, **changes))
         if spec.get("serial_kind") and not frappe.db.get_value("ERP Product", product, "track_serial"):
             commit(serials.turn_on(product, kind=spec["serial_kind"]))
         found[spec["key"]] = {"product": product, "scan": spec["scan"]}
@@ -127,7 +139,7 @@ def build_old():
         b = commit(company.create_company(company_name=OLD_COMPANIES[1], tax_id=lab_tax(OLD_COMPANIES[1]), payment_methods=["cash"]))
         company.set_active_company(a["name"])
         commit(locations.api_save_locations(warehouse=a["warehouse"], rows=[{"location_name": "A-01"}, {"location_name": "A-02"}]))
-        goods = [commit(products.create_product(product_name=f"สินค้าเก่า {i}", code=f"OLD-{i:03d}", barcode=f"88500020{i:05d}",
+        goods = [commit(products.create_product(product_name=f"สินค้าเก่า {i}", code=f"OLD-{i:03d}", barcode=ean13(f"88500020{i:04d}"),
                                                 unit="ชิ้น", unit_price=price, default_cost=price / 2))["name"]
                  for i, price in enumerate((120, 45.5, 300, 80, 15), 1)]
         supplier = commit(suppliers.create_supplier(supplier_name="ผู้ขายเก่า", tax_id=lab_tax("ผู้ขายเก่า")))["name"]
