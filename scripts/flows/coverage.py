@@ -2,7 +2,7 @@
 """流程用例覆盖闸（主会话 10-28 第 3 道闸）：改到产品入口文件却没有流程用例登记它 → 失败。
 
     python3 scripts/flows/coverage.py                     # 与 origin/main 的分叉点比
-    python3 scripts/flows/coverage.py --base <提交>        # CI 里传 PR 基线
+    python3 scripts/flows/coverage.py --base <提交>        # 或环境变量 FLOWS_BASE（CI 里 PR 传 HEAD^1）
     python3 scripts/flows/coverage.py --files a.js b.py    # 直接给文件（自测用）
     python3 scripts/flows/coverage.py --list               # 列出全仓入口文件里还没有流程的（存量清单，不判失败）
 
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import os
 import re
 import subprocess
 import sys
@@ -64,12 +65,19 @@ def changed(base: str) -> list[str]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--base", default=os.environ.get("FLOWS_BASE") or "origin/main")
     parser.add_argument("--files", nargs="*")
     parser.add_argument("--list", action="store_true")
     args = parser.parse_args(argv)
     covers, exempt = registered()
-    problems = [f"{path}：not_flows.toml 这条没写原因" for path, reason in exempt.items() if not reason.strip()]
+    problems = []
+    for flow in tomllib.loads(REGISTRY.read_text(encoding="utf-8"))["flow"]:
+        if not (ROOT / flow["module"]).is_file():
+            problems.append(f"流程 {flow['id']}：模块 {flow['module']} 不存在")
+        tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+        problems += [f"流程 {flow['id']}：covers 里的 {c} 对不上任何文件（文件改名或删了要同步登记表）"
+                     for c in flow.get("covers", []) if not any(match(t, c) for t in tracked)]
+    problems += [f"{path}：not_flows.toml 这条没写原因" for path, reason in exempt.items() if not reason.strip()]
     problems += [f"{path}：not_flows.toml 登记的文件不存在" for path in exempt if not (ROOT / path).is_file()]
     if args.list:
         tracked = subprocess.run(["git", "ls-files", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.split()

@@ -179,6 +179,12 @@ def build_old():
         commit(count.close_count(posted, review_token=count.review_count(posted)["review_token"]))
     a = frappe.db.get_value("ERP Company", {"company_name": OLD_COMPANIES[0]})
     b = frappe.db.get_value("ERP Company", {"company_name": OLD_COMPANIES[1]})
+    # 早先建的条码不是合法 EAN-13（假摄像头画不出来）：收敛到定义上，走正式改商品接口
+    company.set_active_company(a)
+    for i in range(1, 6):
+        product = frappe.db.get_value("ERP Product", {"code": f"OLD-{i:03d}"})
+        if product and frappe.db.get_value("ERP Product", product, "barcode") != ean13(f"88500020{i:04d}"):
+            commit(products.update_product(product, barcode=ean13(f"88500020{i:04d}")))
     assign_jobs(SITES["old"], [a])
     products_list = frappe.get_all("ERP Product", filters={"code": ["like", "OLD-%"]}, fields=["name", "code", "barcode"], order_by="code asc")
     return {"dataset": "old", "site": SITES["old"], "companies": [a, b],

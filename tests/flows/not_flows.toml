@@ -1,0 +1,4 @@
+# 确实没有业务流程可跑的产品入口文件（scripts/flows/coverage.py）：逐个文件登记、写原因；只许减少，不许整目录。
+# [[file]]
+# file = "apps/<app>/<app>/public/desk/<文件>.js"
+# reason = "<为什么没有业务流程>"

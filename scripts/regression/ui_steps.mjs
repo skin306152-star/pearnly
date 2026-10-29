@@ -15,7 +15,7 @@ const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "steps-"));
 const camera = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : [])];
 const chrome = spawn(chromePath, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, ...camera,
   ...(process.env.SMOKE_CHROME_RULES ? [`--host-resolver-rules=${process.env.SMOKE_CHROME_RULES}`] : []),
-  "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank"], { stdio: "ignore" });
+  "--mute-audio", "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const logs = [];
 let ws, seq = 0;

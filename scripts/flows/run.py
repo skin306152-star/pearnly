@@ -4,7 +4,11 @@
     python3 scripts/flows/run.py --all
     python3 scripts/flows/run.py --flow erp.stocktake.scan
     python3 scripts/flows/run.py --changed --base origin/main      # 只跑改动文件涉及的流程
-    ... --out 结果.json --post-status                                # 结果作为提交状态 `flows` 回写 GitHub（部署闸认它）
+    ... --out 结果.json --post-status                                # 结果作为提交状态 `pearnly/flows` 回写 GitHub
+
+分支：`--changed --post-status` 只跑改动文件涉及的流程；部署前：在要部署的 main 提交上 `--all --post-status` 跑全套，
+`scripts/production/deploy.sh` 只认全套通过（说明以 `all flows` 开头）。回写前核对实验室挂的就是本工作树的源码、产品代码没有未提交改动。
+本机睡眠或实验室没起来时没有这个状态，部署闸照样拦；补跑方法见 `tests/flows/README.md`。
 
 每个流程 × 每套数据（datasets.py new / old，先跑一遍保证数据齐，拿清单）× 每个宽度（desktop / mobile）：
 建会话 → 流程模块 `prepare`（在站点里开单等）→ 无头 Chrome 按 `steps` 点页面（`scripts/regression/ui_steps.mjs`，手机宽度、假摄像头）
@@ -18,6 +22,7 @@ import fnmatch
 import importlib.util
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -27,6 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "tests" / "flows" / "registry.toml"
+STATUS = "pearnly/flows"
 CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", "pearnly-regression-lab-bench-1")
 PORT = int(os.environ.get("REGRESSION_LAB_PORT", "18771"))
 
@@ -115,8 +121,15 @@ def drive(site, sid, start, steps, mobile, video):
     job = {"base": f"http://{site}:{PORT}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
            "video": video or "", "steps": steps}
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
-    out = subprocess.run(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], capture_output=True, text=True,
-                         timeout=900, env=env).stdout
+    # 自成进程组：超时连同它拉起的无头 Chrome 一起结束，不留残留进程
+    proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, text=True, env=env, start_new_session=True)
+    try:
+        out, _ = proc.communicate(timeout=900)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        raise RuntimeError("page steps timed out after 900s")
     return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
 
 
@@ -167,7 +180,7 @@ def post_status(ok, summary):
     """回写 GitHub 提交状态 `flows`；说明里带比较基线，部署闸据此确认覆盖到上次上线以来的全部改动。"""
     sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     subprocess.run(["gh", "api", f"repos/{{owner}}/{{repo}}/statuses/{sha}", "-f", f"state={'success' if ok else 'failure'}",
-                    "-f", "context=flows", "-f", f"description={summary[:140]}"], cwd=ROOT, check=True, capture_output=True)
+                    "-f", f"context={STATUS}", "-f", f"description={summary[:140]}"], cwd=ROOT, check=True, capture_output=True)
     return sha
 
 
@@ -188,7 +201,10 @@ def main(argv=None) -> int:
             parser.error("--post-status 只配 --changed 或 --all（部分流程的结果不能代表这个提交）")
         lab_runs_this_tree()
     scope = "all flows"
+    if args.dataset or args.viewport:
+        scope = "partial"
     if args.flow:
+        scope = "flows " + ",".join(args.flow) + (" partial" if scope == "partial" else "")
         flows = [f for f in flows if f["id"] in args.flow]
     elif args.changed:
         base = merge_base(args.base)
@@ -211,7 +227,9 @@ def main(argv=None) -> int:
                 print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
                       f"{result.get('error', '')} {json.dumps(bad, ensure_ascii=False)[:600] if bad else ''}", flush=True)
     ok = all(r["ok"] for r in results)  # 没有涉及的流程 = 通过（覆盖闸另管改到的入口有没有登记）
-    summary = f"{scope}: {sum(r['ok'] for r in results)}/{len(results)} flow runs passed in {round(time.monotonic() - started)}s"
+    datasets = ",".join(sorted({r["dataset"] for r in results})) or "-"
+    summary = (f"{scope}; {len(flows)} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
+               f"{round(time.monotonic() - started)}s")
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
     if args.out:
         Path(args.out).write_text(json.dumps({"ok": ok, "summary": summary, "results": results}, ensure_ascii=False, indent=1))
