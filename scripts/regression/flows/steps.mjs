@@ -79,13 +79,20 @@ try {
   }
   await send("Browser.grantPermissions", { permissions: ["videoCapture"], origin: new URL(job.base).origin }).catch(() => {});
   if (job.sid) await send("Network.setCookie", { name: "sid", value: job.sid, domain: job.cookie_domain, path: "/", secure: false }, sessionId);
+  // 打开一页并等它就绪：/desk 下要等到框架路由起来（网页进程刚重起时会先回空白页，半程还没起来就重开一次）
   const open = async (path) => {
-    await send("Page.navigate", { url: new URL(path || "/desk", job.base).href }, sessionId);
-    for (let i = 0; i < 100; i++) {
-      const ok = (await send("Runtime.evaluate", { expression: "document.readyState === 'complete' && (!window.frappe || !window.frappe.boot || !!window.frappe.router)", returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
-      if (ok) break;
-      await sleep(300);
+    const url = new URL(path || "/desk", job.base).href;
+    const ready = "document.readyState === 'complete' && (location.pathname.startsWith('/desk') ? !!(window.frappe && frappe.boot && frappe.router)"
+      + " : (!window.frappe || !window.frappe.boot || !!window.frappe.router))";
+    await send("Page.navigate", { url }, sessionId);
+    let ok = false;
+    for (let i = 0; i < 200 && !ok; i++) {
+      ok = (await send("Runtime.evaluate", { expression: ready, returnByValue: true }, sessionId).catch(() => ({})))?.result?.value;
+      if (!ok && i === 100) await send("Page.navigate", { url }, sessionId);
+      if (!ok) await sleep(300);
     }
+    // 一分钟还没起来是环境（网页进程没响应），不当成产品问题往下跑
+    if (!ok) throw new Error(`page not ready: ${path} (web process not responding)`);
     await sleep(2000);
   };
   await open(job.start);

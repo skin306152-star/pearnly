@@ -1,0 +1,15 @@
+{
+ "name": "print_all",
+ "datasets": [
+  "new",
+  "old"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-home",
+ "steps": [
+  {
+   "name": "各类单据打印出版面",
+   "file": "js/print_all.js"
+  }
+ ]
+}

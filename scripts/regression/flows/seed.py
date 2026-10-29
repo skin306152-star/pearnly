@@ -81,7 +81,7 @@ def company(name, warehouses):
 def new(site):
     co, whs = company("บริษัท โพลีเมอร์ แล็บ จำกัด", WAREHOUSES_NEW)
     made = products(co)
-    return {"company": co, "warehouses": whs, "products": made, "codes": CODES}
+    return {"company": co, "company_name": "บริษัท โพลีเมอร์ แล็บ จำกัด", "warehouses": whs, "products": made, "codes": CODES}
 
 
 def old(site):
@@ -95,7 +95,7 @@ def old(site):
     main, branch = whs["Main"], whs["Branch"]
     plain = [made[k] for k in ("code", "barcode", "qr", "internal", "express")]
     tag = uuid.uuid4().hex[:6]
-    out = {"company": co, "warehouses": whs, "products": made, "codes": CODES}
+    out = {"company": co, "company_name": "บริษัท เอ็มอาร์ แล็บ จำกัด", "warehouses": whs, "products": made, "codes": CODES}
     # 存量：两个仓各入一批普通商品；按台的车入 3 台（车架号 / 发动机号 / 颜色）
     for wh, qty in ((main, 20), (branch, 5)):
         e = documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=wh, reason="opening lab",

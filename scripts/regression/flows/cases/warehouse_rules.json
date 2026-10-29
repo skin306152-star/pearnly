@@ -1,0 +1,23 @@
+{
+ "name": "warehouse_rules",
+ "datasets": [
+  "new",
+  "old"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-warehouses",
+ "variants": [
+  {
+   "vars": {
+    "stocked": "${seed.stocked_warehouse}",
+    "empty": "${seed.spare_warehouse}"
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "停用有货仓被拒、库位清单管入库",
+   "file": "js/warehouse_rules.js"
+  }
+ ]
+}

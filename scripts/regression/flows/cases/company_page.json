@@ -1,0 +1,9 @@
+{
+ "name": "company_page",
+ "datasets": ["new", "old"],
+ "user": "admin",
+ "start": "/desk/pearnly-company",
+ "steps": [
+  {"name": "公司页进资料、改简称保存读回", "file": "js/company_page.js", "shot": true, "timeout_ms": 120000}
+ ]
+}
