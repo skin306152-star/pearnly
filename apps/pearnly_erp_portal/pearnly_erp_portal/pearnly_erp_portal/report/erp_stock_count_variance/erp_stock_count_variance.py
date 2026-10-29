@@ -79,8 +79,10 @@ def _state(row) -> str:
 def _rows(name: str, only: str, warehouse="", location="") -> list:
     items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only, warehouse=warehouse,
                                        location=location)
-    warehouses = {row["name"]: row["warehouse_name"] for row in frappe.get_list(
-        "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
+    from pearnly_erp_portal.inventory import warehouses as warehouse_service
+
+    warehouses = {row["name"]: warehouse_service.label(row) for row in frappe.get_list(  # 「编号 · 名称」（用户 10-29）
+        "ERP Warehouse", fields=["name", "warehouse_name", "warehouse_code", "express_code"], limit_page_length=0)}
     uncounted = _uncounted_units(name, items)
     out = []
     for row in items:

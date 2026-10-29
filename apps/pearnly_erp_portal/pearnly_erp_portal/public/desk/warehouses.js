@@ -50,6 +50,9 @@
 					// 当前公司的仓库：服务端按 `company` 过滤（`api_company_warehouses`）。
 					{fieldname: "warehouse_name", label: t("company.col.warehouse"),
 						width: 220, min_width: 150},
+					// 仓库编号（用户 10-29 批复 #3）：接了 Express 的仓就是 Express 仓库码；没填显示系统号
+					{fieldname: "warehouse_code", label: t("company.col.warehouseCode"), width: 120, min_width: 90,
+						format: (value, row) => row?.express_code || value || row?.name},
 					// 仓库**属于公司**：这一列把绑定关系摆在面上（用户 2026-09-24：
 					// "现在的仓库和公司数据是否联动"）。这一页列的是**当前公司**的仓，
 					// 换公司（左上角那颗）整页跟着换。
@@ -67,12 +70,12 @@
 				on_open: row => (can_manage() ? editor(row) : null),
 				// 行内那颗「设为默认」跟着"默认仓"一起删了（它写的就是 `is_default`）。
 				// 列头点一下排序：一次取全，在本地排（同 core `p.sort_rows`）。
-				sort_fields: ["warehouse_name", "company_name", "note", "is_active"],
+				sort_fields: ["warehouse_name", "warehouse_code", "company_name", "note", "is_active"],
 				load: async ({sort_by, sort_order}) => {
 					const rows = await p.call(api + "api_company_warehouses",
 						{company_name: frappe.boot.pearnly_company, include_inactive: 1});
 					const items = p.sort_rows(rows, {sort_by, sort_order,
-						fields: ["warehouse_name", "company_name", "note", "is_active"]});
+						fields: ["warehouse_name", "warehouse_code", "company_name", "note", "is_active"]});
 					return {items, total: items.length};
 				},
 				empty_action: can_create()
@@ -119,6 +122,8 @@
 					default: row?.company || frappe.boot.pearnly_company || (companies.length === 1 ? companies[0].name : "")},
 				f("warehouse_name", "company.field.warehouse", "Data",
 					{reqd: 1, default: row?.warehouse_name || inline?.initial || ""}),
+				f("warehouse_code", "company.col.warehouseCode", "Data",
+					{length: 30, default: row?.express_code || row?.warehouse_code || ""}),
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
 				f("is_active", "company.col.status", "Select",
 					{options: status_options(),
@@ -130,9 +135,11 @@
 					{fieldtype: "Section Break"},
 					{fieldtype: "Table", fieldname: "locations", label: __("stock.location.list"), in_place_edit: true, data: [],
 						fields: [
-							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 5},
+							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 3},
+							// 库位说明（用户 10-29）：选择框显示「A1 · 说明」，盘点打印的库位格也带上
+							{fieldtype: "Data", fieldname: "description", label: __("stock.location.description"), in_list_view: 1, columns: 3},
 							{fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: 1, in_list_view: 1, columns: 2},
-							{fieldtype: "Float", fieldname: "qty", label: __("Qty"), read_only: 1, in_list_view: 1, columns: 3},
+							{fieldtype: "Float", fieldname: "qty", label: __("Qty"), read_only: 1, in_list_view: 1, columns: 2},
 						]},
 					{fieldtype: "Button", fieldname: "from_stock", label: __("stock.location.fromStock"),
 						click: () => add_in_stock()},
@@ -141,13 +148,15 @@
 				const saved = await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
 					is_new
 						? {company: values.company, warehouse_name: values.warehouse_name, note: values.note,
-							is_active: status_value(values.is_active)}
+							warehouse_code: values.warehouse_code || "", is_active: status_value(values.is_active)}
 						: {name: row.name, warehouse_name: values.warehouse_name, note: values.note,
+							...(row.express_code ? {} : {warehouse_code: values.warehouse_code || ""}),
 							is_active: status_value(values.is_active)},
 					"POST");
 				if (!is_new && locations_loaded) {
 					await p.call(stock_api.replace("api.", "locations.") + "api_save_locations", {warehouse: row.name,
-						rows: (values.locations || []).map(item => ({location_name: item.location_name, is_active: item.is_active ? 1 : 0}))}, "POST");
+						rows: (values.locations || []).map(item => ({location_name: item.location_name, description: item.description || "",
+							is_active: item.is_active ? 1 : 0}))}, "POST");
 				}
 				dialog.hide();
 				p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
@@ -178,7 +187,7 @@
 			dialog.$wrapper.one("shown.bs.modal", () => setTimeout(focus_name, 0));
 			// 由 Express 同步来的档：Express 里有的栏位只认 Express（服务端 `express.locks` 同一份清单兜底）
 			if (row?.express_code) {
-				["warehouse_name", "company", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
+				["warehouse_name", "warehouse_code", "company", "is_active"].forEach(key => dialog.fields_dict[key] && dialog.set_df_property(key, "read_only", 1));
 			}
 			return dialog;
 		}

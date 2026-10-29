@@ -1437,6 +1437,7 @@ This unit is not in stock in this warehouse,รายการนี้ไม่
 This unit number is already registered,หมายเลขนี้ลงทะเบียนแล้ว
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
 This warehouse belongs to the company above,คลังนี้อยู่ในบริษัทด้านบน
+This warehouse code already exists,รหัสคลังนี้มีอยู่แล้ว
 This warehouse has no active location,คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
@@ -1553,6 +1554,7 @@ WHT amount,จำนวนภาษีหัก ณ ที่จ่าย
 Waiting for the original day summary to be written,รอบันทึกสรุปยอดขายรายวันต้นทาง
 Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
+Warehouse code,รหัสคลัง
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
 Warehouses,คลังสินค้า
@@ -1640,6 +1642,7 @@ company.col.shortName,ชื่อย่อ
 company.col.status,สถานะ
 company.col.taxId,เลขประจำตัวผู้เสียภาษี
 company.col.warehouse,ชื่อคลังสินค้า
+company.col.warehouseCode,รหัสคลัง
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 company.enable,เปิดใช้งาน
@@ -2382,6 +2385,7 @@ stock.count.voidPick,เลือกรายการที่จะยกเ�
 stock.countEntryVoid,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
+stock.location.description,คำอธิบาย
 stock.location.fromStock,เพิ่มตำแหน่งที่มีสต็อก
 stock.location.list,รายการตำแหน่ง
 stock.location.offList,ไม่อยู่ในรายการ

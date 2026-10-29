@@ -129,6 +129,14 @@ def _code(product) -> str:
     return (product or {}).get("express_code") or (product or {}).get("code") or ""
 
 
+def _warehouse(name) -> str:
+    """仓库一格印「编号 · 名称」（用户 10-29 批复 #3，`inventory.warehouses.label` 同一写法）。"""
+    from pearnly_erp_portal.inventory import warehouses
+
+    row = frappe.db.get_value("ERP Warehouse", name, ["warehouse_name", "warehouse_code", "express_code"], as_dict=True) if name else None
+    return warehouses.label(row) if row else ""
+
+
 def _is_main(warehouse, company) -> bool:
     """主仓 = 这家公司最先建的那个仓（开户自带；接了 Express 的公司第一次同步时它被认作 Express 主仓，`masters._warehouses`）。"""
     if not warehouse or not company:
@@ -177,7 +185,7 @@ def _stock(doc) -> dict:
                      "amount": contracts.money(cost * contracts.d(line.qty)) if cost is not None else ""})
     kind = ISSUE if doc.direction == "out" else RECEIPT
     ctx = _base(kind, doc, company, doc.doc_no, doc.posting_date, doc.reason, doc.status == "void")
-    warehouse = frappe.db.get_value("ERP Warehouse", doc.warehouse, "warehouse_name") or ""
+    warehouse = _warehouse(doc.warehouse)
     ctx.update(pages=contracts.pages(rows), warehouse=warehouse)
     if kind == ISSUE:
         ctx["purpose"] = contracts.issue_purpose(doc.purpose, doc.reason)
@@ -203,7 +211,7 @@ def _purchase(doc) -> dict:
                      "price": contracts.money(price),
                      "amount": contracts.money(line.line_total)})
     warehouse_id = next((line.warehouse for line in stock_lines if line.warehouse), "")
-    warehouse = frappe.db.get_value("ERP Warehouse", warehouse_id, "warehouse_name") if warehouse_id else ""
+    warehouse = _warehouse(warehouse_id)
     ctx = _base(RECEIPT, doc, doc.company, doc.system_no, doc.doc_date, doc.notes, doc.status == "void")
     ctx.update(pages=contracts.pages(rows), warehouse=warehouse or "",
                supplier=_supplier(doc.supplier, {"name": doc.supplier_name, "tax_id": doc.supplier_tax_id,
@@ -375,16 +383,20 @@ def _count(doc) -> dict:
                            limit_page_length=0)
     items = stock_contracts.count_rows(items, only=wanted.get("only") or "", warehouse=wanted.get("warehouse") or "",
                                        location=wanted.get("location") or "")
+    notes = {row.location_name: row.description for row in frappe.get_all(  # bounded: 一个仓的库位清单
+        "ERP Warehouse Location", filters={"parent": doc.warehouse, "parenttype": "ERP Warehouse"},
+        fields=["location_name", "description"], limit_page_length=0) if row.description}
     rows = []
     for item in items:
+        location = item.location or ""
         row = {"code": item.code or "", "name": item.product_name or "", "unit": item.unit or "",
-               "location": item.location or ""}
+               "location": " · ".join(part for part in (location, notes.get(location)) if part)}
         if mode in ("result", "check"):
             row.update(book=contracts.qty(item.book_qty), counted=contracts.qty(item.counted_qty) if item.counted else "",
                        difference=contracts.qty(item.difference) if item.counted else "")
         rows.append(row)
     ctx = _base("count", doc, company, doc.name, doc.posted_at or doc.closed_at or doc.creation, doc.notes, False)
-    warehouse = frappe.db.get_value("ERP Warehouse", doc.warehouse, "warehouse_name") or ""
+    warehouse = _warehouse(doc.warehouse)
     ctx.update(mode=mode, title={"sheet": "count_sheet", "check": "count_check"}.get(mode, "count_result"),
                pages=contracts.pages(rows, contracts.COUNT_ROWS_PER_PAGE), warehouse=warehouse,
                count_title=doc.title or "", item_total=len(rows),

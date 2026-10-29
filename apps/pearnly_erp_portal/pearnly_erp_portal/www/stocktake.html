@@ -276,7 +276,8 @@
             + picker
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.location')) + '</label>'
             + '<input id="loc" list="loclist" value="' + esc(item.location || '') + '">'
-            + '<datalist id="loclist">' + (last?.locations || []).map((name) => '<option value="' + esc(name) + '">').join('')
+            + '<datalist id="loclist">' + (last?.locations || []).map((row) => '<option value="' + esc(row.value)
+              + '" label="' + esc(row.label || row.value) + '">').join('')
             + '</datalist></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.book')) + '</label>'
             + '<div class="big">' + esc(number(item.book_qty)) + '</div></div>'

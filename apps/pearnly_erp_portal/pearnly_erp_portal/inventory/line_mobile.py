@@ -173,7 +173,8 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     from pearnly_erp_portal.inventory import locations
 
     warehouse = frappe.db.get_value(counts.COUNT, name, "warehouse")
-    places = [row["value"] if isinstance(row, dict) else row for row in locations.api_location_options(warehouse=warehouse)]
+    places = [row if isinstance(row, dict) else {"value": row, "label": row}
+              for row in locations.api_location_options(warehouse=warehouse)]  # 「A1 · 说明」（用户 10-29）
     # 带上这份盘点此刻的抬头（已盘点 x / y、差异）：保存、撤销后页面都再查一次码，抬头跟着刷新
     return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None, "locations": places,
             "entries": counts.list_entries(count=name, item=chosen["name"], limit=5),

@@ -1437,6 +1437,7 @@ This unit is not in stock in this warehouse,This unit is not in stock in this wa
 This unit number is already registered,This unit number is already registered
 This warehouse already exists,This warehouse already exists
 This warehouse belongs to the company above,This warehouse belongs to the company above
+This warehouse code already exists,This warehouse code already exists
 This warehouse has no active location,This warehouse has no active location
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
 Time,Time
@@ -1553,6 +1554,7 @@ WHT amount,WHT amount
 Waiting for the original day summary to be written,Waiting for the original day summary to be written
 Walk-in customer,Walk-in customer
 Warehouse,Warehouse
+Warehouse code,Warehouse code
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
 Warehouses,Warehouses
@@ -1640,6 +1642,7 @@ company.col.shortName,Short name
 company.col.status,Status
 company.col.taxId,Tax ID
 company.col.warehouse,Warehouse name
+company.col.warehouseCode,Warehouse code
 company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
 company.enable,Enable
@@ -2382,6 +2385,7 @@ stock.count.voidPick,Select an entry to void
 stock.countEntryVoid,Entries from a stock count cannot be voided alone
 stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
+stock.location.description,Description
 stock.location.fromStock,Add locations in stock
 stock.location.list,Locations
 stock.location.offList,Not in the list

@@ -1817,3 +1817,6 @@ Row origin	来源	ที่มาของแถว	行の由来	stock.count.row
 Added	补盘	เพิ่มระหว่างนับ	追加	stock.count.origin.added
 New	新发现	พบใหม่	新規発見	stock.count.origin.new
 Reactivated	停用启用	เปิดใช้อีกครั้ง	再有効化	stock.count.origin.reactivated
+Warehouse code	仓库编号	รหัสคลัง	倉庫コード	company.col.warehouseCode
+Description	说明	คำอธิบาย	説明	stock.location.description
+This warehouse code already exists	仓库编号已存在	รหัสคลังนี้มีอยู่แล้ว	この倉庫コードは既に存在します

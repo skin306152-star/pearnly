@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "warehouse_name",
+  "warehouse_code",
   "company",
   "is_active",
   "note",
@@ -76,11 +77,17 @@
    "fieldtype": "Table",
    "label": "Locations",
    "options": "ERP Warehouse Location"
+  },
+  {
+   "fieldname": "warehouse_code",
+   "fieldtype": "Data",
+   "label": "Warehouse code",
+   "length": 30
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 10:00:00.000000",
+ "modified": "2026-10-29 14:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Warehouse",
  "show_title_field_in_link": 1,
@@ -106,5 +113,6 @@
  "track_changes": 1,
  "autoname": "format:WH-{#####}",
  "naming_rule": "Expression",
- "allow_rename": 1
+ "allow_rename": 1,
+ "search_fields": "warehouse_code,express_code"
 }

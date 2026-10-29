@@ -20,7 +20,7 @@ DOCTYPE = "ERP Warehouse"
 NOT_FOUND = "Warehouse not found"
 NAME_REQUIRED = "A warehouse needs a name"
 
-FIELDS = ("name", "warehouse_name", "company", "is_active", "note", "express_code")
+FIELDS = ("name", "warehouse_name", "warehouse_code", "company", "is_active", "note", "express_code")
 # 没指定仓库、而这家公司又有多个仓时那句提示（不给隐式默认）。
 WAREHOUSE_REQUIRED = "Pick a warehouse"
 # 建仓必须挂在某家公司名下（用户 2026-09-24："没有绑定公司不可以建仓库"）。
@@ -29,6 +29,8 @@ HAS_STOCK = "A warehouse with stock cannot be turned off"
 # 接了 Express 的公司：仓库跟 Express 一一对应（主档同步按仓库码建 / 认领）；ERP 里新建的仓 Express 没有，单据写不进去（多仓闭环 P1，G15）
 EXPRESS_FIRST = "Create the warehouse in Express, then use Sync Express on the company page"  # 同步后自动出现（主会话 10-27：写明下一步）
 INACTIVE = "That warehouse is turned off"
+CODE_TAKEN = "This warehouse code already exists"
+CODE_LENGTH = 30
 
 
 def company_of(name) -> str:
@@ -175,7 +177,27 @@ def api_prefill(kind=None, company=None, context=None):
     return prefill(kind, company=company, context=context)
 
 
-def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True) -> dict:
+def code_of(row) -> str:
+    """仓库编号（用户 10-29 批复 #3）：接了 Express 的仓就是 Express 仓库码；其余是手填的编号；都没有回空（页面显示系统号）。"""
+    row = row or {}
+    return (row.get("express_code") or row.get("warehouse_code") or "").strip()
+
+
+def label(row) -> str:
+    """「编号 · 名称」（选择框、打印、报表同一个写法）；没编号就只写名称。"""
+    row = row or {}
+    return " · ".join(part for part in (code_of(row), (row.get("warehouse_name") or "").strip()) if part)
+
+
+def _code(value, company, exclude=None) -> str:
+    code = (value or "").strip()[:CODE_LENGTH]
+    if code and frappe.db.exists(DOCTYPE, {"company": company, "warehouse_code": code,
+                                           **({"name": ["!=", exclude]} if exclude else {})}):
+        frappe.throw(_(CODE_TAKEN))
+    return code
+
+
+def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True, warehouse_code=None) -> dict:
     """建一个仓。**必须明确挂在某家公司名下** —— 仓库属于公司（`Warehouse.company`），
     没有公司就没有归属，库存也就没法按公司分开算（用户 2026-09-24："没有绑定公司不可以建仓库"）。
     所以这里不再"没给就用当前公司"兜底：调用方（页面/建公司那一路）要把公司传进来。
@@ -194,6 +216,7 @@ def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True)
     if frappe.db.exists(DOCTYPE, {"warehouse_name": name, "company": company}):
         frappe.throw(_("This warehouse already exists"))
     doc = frappe.get_doc({"doctype": DOCTYPE, "warehouse_name": name, "company": company,
+                          "warehouse_code": _code(warehouse_code, company),
                           "is_active": 1 if is_active in (True, 1, "1", "true") else 0,
                           "note": note})
     doc.insert()
@@ -271,6 +294,9 @@ def update_warehouse(name, **changes) -> dict:
         doc.is_active = active
     if "note" in changes:
         doc.note = changes["note"]
+    if "warehouse_code" in changes and not doc.get("express_code"):
+        # 接了 Express 的仓编号就是 Express 仓库码（只读，主档同步写）；其余公司内不重复、可空
+        doc.warehouse_code = _code(changes["warehouse_code"], doc.company, exclude=doc.name)
     doc.save()
     frappe.db.commit()
     return {"name": doc.name}

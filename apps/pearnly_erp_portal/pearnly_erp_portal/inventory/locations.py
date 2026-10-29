@@ -48,12 +48,16 @@ def api_location_options(txt="", warehouse=None, **kwargs):
     text = positions.clean_location(txt)
     if text:
         filters["location_name"] = ["like", f"%{text}%"]
-    names = frappe.get_all(CHILD, filters=filters, pluck="location_name", order_by="idx asc", limit_page_length=50)
+    listed = frappe.get_all(CHILD, filters=filters, fields=["location_name", "description"], order_by="idx asc",
+                            limit_page_length=50)
+    names = [row.location_name for row in listed]
     if not positions.has_list(warehouse):
         return names
     # 清单外、还有库存的旧库位照常能出库、能盘，也列出来，标「不在清单」（不能再往里入库，服务端核，主会话 10-26）
     old = [name for name in _stock_at(warehouse) if name and name not in names and (not text or text in name)]
-    return [{"value": name, "label": name} for name in names] + \
+    # 选项显示「A1 · 说明」（用户 10-29 批复 #4），值仍是库位名
+    return [{"value": row.location_name, "label": " · ".join(part for part in (row.location_name, row.description) if part)}
+            for row in listed] + \
         [{"value": name, "label": f"{name} · {_(OFF_LIST)}"} for name in sorted(old)[:50]]
 
 
@@ -64,7 +68,7 @@ def api_get_locations(warehouse=None):
     warehouse = warehouses.required(warehouse)
     stock = _stock_at(warehouse)
     rows = frappe.get_all(CHILD, filters={"parent": warehouse, "parenttype": "ERP Warehouse"},  # bounded: 一个仓的库位
-                          fields=["location_name", "is_active"], order_by="idx asc", limit_page_length=0)
+                          fields=["location_name", "description", "is_active"], order_by="idx asc", limit_page_length=0)
     names = {row.location_name for row in rows}
     return {"rows": [{**row, "qty": stock.get(row.location_name, 0)} for row in rows],
             "in_stock": [{"location_name": name, "qty": qty} for name, qty in sorted(stock.items()) if name and name not in names]}
@@ -92,7 +96,8 @@ def api_save_locations(warehouse=None, rows=None):
         active = 1 if row.get("is_active") in (True, 1, "1", "true", None) else 0
         if not active and stock.get(name):
             frappe.throw(_(HAS_STOCK) + f": {name}")
-        cleaned.append({"location_name": name, "is_active": active})
+        cleaned.append({"location_name": name, "is_active": active,
+                        "description": str(row.get("description") or "").strip()[:140]})  # 库位说明（用户 10-29）
     for name in before:
         if name not in seen and (stock.get(name) or _used(warehouse, name)):
             frappe.throw(_(USED) + f": {name}")

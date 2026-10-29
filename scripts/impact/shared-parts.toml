@@ -123,7 +123,7 @@ name = "ERP 单据共用（仓库查询、明细、Express 预检）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js"]
 markers = [".warehouse_query", ".trade.", ".express_preflight(", ".terminal_query", ".place.", ".express_company("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts", "erp.place.header", "erp.products.new-dialog.opening", "erp.inventory.opening.row-warehouse", "erp.warehouses.express-new-hidden"]
+entries = ["erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.purchase", "erp.page.sales", "erp.page.pos-receipts", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.pos-shifts", "erp.place.header", "erp.products.new-dialog.opening", "erp.inventory.opening.row-warehouse", "erp.warehouses.express-new-hidden", "erp.report.stock-count-variance"]
 
 [[part]]
 id = "erp-originals"

@@ -1437,6 +1437,7 @@ This unit is not in stock in this warehouse,该台不在此仓库存中
 This unit number is already registered,该号码已登记
 This warehouse already exists,该仓库已存在
 This warehouse belongs to the company above,这个仓挂在上面那家公司名下
+This warehouse code already exists,仓库编号已存在
 This warehouse has no active location,此仓库没有启用的库位
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
@@ -1553,6 +1554,7 @@ WHT amount,预扣税额
 Waiting for the original day summary to be written,等待原日汇总写入
 Walk-in customer,散客
 Warehouse,仓库
+Warehouse code,仓库编号
 Warehouse name,仓库名称
 Warehouse not found,未找到仓库
 Warehouses,仓库
@@ -1640,6 +1642,7 @@ company.col.shortName,简称
 company.col.status,状态
 company.col.taxId,税号
 company.col.warehouse,仓库名称
+company.col.warehouseCode,仓库编号
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发
 company.enable,启用
@@ -2382,6 +2385,7 @@ stock.count.voidPick,选择要撤销的记录
 stock.countEntryVoid,此单由盘点生成，不能单独作废
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
+stock.location.description,说明
 stock.location.fromStock,带入有库存的库位
 stock.location.list,库位清单
 stock.location.offList,不在清单
