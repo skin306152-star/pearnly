@@ -28,7 +28,7 @@ def resolve(line, *, create=True, company=None):
             "product_name": contracts.require_name(line["description"]),
             "code": service._allocate_code(), "unit": line.get("unit"), "base_unit": line.get("unit"),
             "unit_price": Decimal(str(line.get("unit_price") or 0)), "price_set": 1,
-            "default_cost": 0, "cost_set": 0, "vat_applicable": 1, "is_active": 1})
+            "default_cost": 0, "cost_set": 0, "vat_applicable": 1, "is_active": 1, "origin": "sales"})
         # Deliberately limited to the sale's own item; ERP Sales keeps read-only access
         # to the general item master.
         item.insert(ignore_permissions=True)

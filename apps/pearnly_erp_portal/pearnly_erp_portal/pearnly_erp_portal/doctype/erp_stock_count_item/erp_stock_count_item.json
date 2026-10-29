@@ -12,6 +12,7 @@
   "barcode",
   "unit",
   "warehouse",
+  "row_origin",
   "column_break_qty",
   "book_qty",
   "counted",
@@ -165,6 +166,13 @@
    "read_only": 1,
    "hidden": 1,
    "permlevel": 1
+  },
+  {
+   "fieldname": "row_origin",
+   "fieldtype": "Select",
+   "label": "Row origin",
+   "options": "\nadded\nnew\nreactivated",
+   "read_only": 1
   }
  ],
  "permissions": [
@@ -177,5 +185,6 @@
    "report": 1,
    "export": 1
   }
- ]
+ ],
+ "modified": "2026-10-29 13:00:00.000000"
 }

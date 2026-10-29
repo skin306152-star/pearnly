@@ -97,6 +97,9 @@
 				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
 					read_only: 1, description: t("product.field.codeAuto"),
 					default: value("code") || preview_code },
+				// 来由（多仓评估 13.2-6）：手建 / 导入 / Express 同步 / 采购、销售自动建 / 盘点新建 · 盘点单号；只读
+				...(existing.origin ? [{ fieldtype: "Data", fieldname: "origin_text", label: t("product.field.origin"), read_only: 1,
+					default: [t(`product.origin.${existing.origin}`), existing.origin_name].filter(Boolean).join(" · ") }] : []),
 				// 内部编码（主会话 10-26）：本地商品手输、扫码搜索盘点都认；Express 来的商品就是 Express 编码（只读）
 				{ fieldtype: "Data", fieldname: "internal_code", label: t("product.field.internalCode"),
 					length: 20, default: value("internal_code") || existing.express_code || "" },
@@ -208,6 +211,7 @@
 			// `code_value` 只是界面上那一格的名字，服务端没有这个参数；
 			// 落库的两列由 `code_changes` 拆好，这里把它摘掉。
 			delete out.code_value;
+			delete out.origin_text;
 			// 开 / 关按台不走保存商品的接口（`toggle_serial`）
 			delete out.track_serial;
 			// 期初库存网格 → 服务端 `create_product(opening=…)`：只交有数量的行（与商品同一事务建，多仓闭环 P1 G1）

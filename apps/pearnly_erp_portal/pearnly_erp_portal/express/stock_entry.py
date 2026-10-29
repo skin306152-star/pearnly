@@ -132,10 +132,12 @@ def count_document(name, ref) -> dict:
             slot = net.setdefault(key, {"code": line["code"], "name": line["name"], "unit": line["unit"],
                                         "loccod": line["loccod"], "qty": contracts.d(0)})
             slot["qty"] += contracts.d(line["qty"])
-    lines = []
+    lines, new_items = [], set()
     for slot in net.values():
         if not slot["qty"]:
             continue
+        if not slot["code"]:
+            new_items.add(slot["name"])
         lines.append({"code": slot["code"], "name": slot["name"], "qty": _plain(slot["qty"]), "unit": slot["unit"],
                       "loccod": slot["loccod"]})
     warehouse = count.get("warehouse")
@@ -146,6 +148,8 @@ def count_document(name, ref) -> dict:
             "remark": str(count.get("title") or "").strip(), "loccod": loccod, "lines": lines}
     if missing:
         body["unmapped_warehouses"] = sorted(missing)
+    if new_items:
+        body["unmapped_items"] = sorted(new_items)  # 还没有 Express 编码的商品：`push.send` 停下交人
     return body
 
 

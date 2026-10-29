@@ -54,6 +54,10 @@ QUANTITY_REQUIRED = "Enter a quantity"
 VERSION_STALE = "This entry changed underneath you; reload and try again"
 REQUEST_CONFLICT = "That submission was already used for a different entry"
 PHOTO_LIMIT_ERROR = "At most {0} photos per entry"
+CODE_REQUIRED = "Scan or enter a code"
+NAME_REQUIRED = "A product needs a name"
+# 盘点行的来源（`row_origin`，空 = 账上快照）：盘点时补的已有商品 / 当场新建的 / 停用后又盘到的（过账时自动启用）
+ADDED, NEW, REACTIVATED = "added", "new", "reactivated"
 
 
 # ── 取数 ────────────────────────────────────────────────────────────────────
@@ -91,7 +95,11 @@ def products_of_code(code: str, company: str | None = None) -> list:
     售卖单位条码都认。给了 ``company``（这份盘点仓库所属的公司）就只认这家公司 Express 的档和本地档。"""
     from pearnly_erp_portal.products import codes
 
-    return codes.candidates(code, company)
+    found = codes.candidates(code, company)
+    if found:
+        return found
+    # 停用商品的码（多仓评估问 8）：照样认出这件商品记数，过账时自动重新启用；不新建重复码
+    return codes.candidates(code, company, active_only=False)
 
 
 def product_of_code(code: str, company: str | None = None) -> dict | None:
@@ -142,7 +150,7 @@ def _scanned(code, product, serial, company):
     if unit:
         found = frappe.db.get_value(PRODUCT, {"name": unit.product, "is_active": 1}, "*", as_dict=True)
     elif not found and product:
-        found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+        found = frappe.db.get_value(PRODUCT, {"name": product}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
     if per_unit(found, company) and not unit:
@@ -189,7 +197,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
         if not product:
             continue
         qty = flt(row["qty_on_hand"], 3)
-        _insert_item(doc.name, product, warehouse, qty, row.get("location"))
+        _insert_item(doc.name, product, warehouse, qty, row.get("location"), origin=False)  # 账上快照
         created += 1
     _refresh_totals(doc.name)
     return {"name": doc.name, "rows": created}
@@ -214,6 +222,12 @@ def apply_import(*, count, rows) -> dict:
     company = count_company(task.name)
     for number, row in enumerate(rows, start=2):
         product = _product_of_row(row, company)
+        code = (row.get("barcode") or row.get("product_code") or "").strip()
+        if not product and row.get("product_name") and code and not any(
+                products_of_code(value, company) for value in (row.get("product_code"), row.get("barcode")) if value):
+            # 表里有品名、码在系统里完全没有：当场建（同 Desk / LINE 的就地新建）；没品名的照旧列进问题行
+            made = create_product_here(count=task.name, code=code, product_name=row["product_name"], unit=row.get("unit"))
+            product = frappe.db.get_value(PRODUCT, made["name"], "*", as_dict=True)
         if not product:
             problems.append({"row": number, "reason": "code_not_found"})
             continue
@@ -258,13 +272,18 @@ def _upsert_import_entry(count: str, item_name: str, row) -> None:
               source="Import", request_id=request_id)
 
 
-def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="") -> str:
+def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="", origin=None) -> str:
     """一行 = **商品 × 仓库 × 库位**（与旧项目 `services/stocktake/schema.py` 的唯一键一致）。
 
     库位是行的身份的一部分，不是记录上的备注：同一个商品放在两个货架上就是两行、
     两个账面、两个差异。少了这一层，"每个仓位的差异"根本算不出来。
     """
     location = positions.clean_location(location)
+    if origin is None:  # 快照之外补进来的行（`origin=False` 是账上快照）
+        if product.get("origin") == "stocktake" and product.get("origin_name") == count:
+            origin = NEW
+        else:
+            origin = REACTIVATED if not product.get("is_active", 1) else ADDED
     existing = frappe.db.get_value(ITEM, {"count": count, "product": product["name"],
                                           "warehouse": warehouse, "location": location}, "name")
     if existing:
@@ -279,6 +298,7 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
         "unit": (product.get("base_unit") or product.get("unit") or "") or None,
         "warehouse": warehouse, "location": location,
         "book_qty": flt(book_qty, 3), "counted": 0,
+        "row_origin": origin or None,
     })
     count_state.write_document(doc, "insert")
     return doc.name
@@ -305,6 +325,49 @@ def rows_of_product(*, count: str, product: str) -> list:
                            order_by="location asc, name asc", limit_page_length=0)
 
 
+
+def create_product_here(*, count, code, product_name, unit=None, default_cost=None, category_id=None) -> dict:
+    """盘点里扫到系统没有的码：当场建商品（多仓评估 13.2-6，用户 10-29 批复）。有盘点录入权（``count.write``）就能建，只填建档最少的几项：
+    扫到的码作条码 / 二维码内容，编码系统发；来由记「盘点新建 · 这份盘点」，谁 / 何时用原生建档人与时间。
+
+    在盘点锁里先按码再认一次：别人刚用同一个码建过（或这个码其实是停用商品）就直接回那件，不建重复码。之后照常记数（`add_entry`）。
+    接了 Express 的公司建成这家公司自己的档；写进 Express 时这件还没有 Express 编码，盘点调整停下交人（批复 #7）。"""
+    from pearnly_erp_portal.express import push as express_push
+    from pearnly_erp_portal.products import service as product_service
+
+    guard.require("count.write")
+    count_state.lock_task(count)
+    task = _get(count)
+    if task.status != "Active":
+        frappe.throw(_(CLOSED))
+    company = count_company(count)
+    code = product_service._text(code, product_contracts.MAX_QR)
+    if not code:
+        frappe.throw(_(CODE_REQUIRED))
+    found = products_of_code(code, company)
+    if len(found) > 1:
+        frappe.throw(_("Several matches found for {0}. Please select a record.").format(code))
+    if found:
+        return {"name": found[0]["name"], "created": False}
+    try:
+        name = product_contracts.require_name(product_name)
+    except ValueError:
+        frappe.throw(_(NAME_REQUIRED))
+    field = product_contracts.code_field(code)
+    system_code = product_service._allocate_code()
+    product_service._assert_unique(system_code, code if field == "barcode" else None, qr=code if field != "barcode" else None)
+    unit = product_service._text(unit, product_contracts.MAX_UNIT)
+    doc = frappe.get_doc({
+        "doctype": PRODUCT, "product_name": name, "code": system_code, field: code,
+        "unit": unit, "base_unit": unit, **product_service._price_fields(None), **product_service._cost_fields(default_cost),
+        "category_id": int(category_id) if str(category_id or "").strip() else None,
+        "vat_applicable": 1, "is_active": 1,
+        "express_company": company if company and express_push.linked(company) else None,
+        "origin": "stocktake", "origin_doctype": COUNT, "origin_name": task.name,
+    })
+    doc.insert(ignore_permissions=True)  # 建档权限只放这一条路（`count.write`）；商品页的其余能力照旧要 `products.manage`
+    return {"name": doc.name, "created": True}
+
 def ensure_item(*, count, code=None, product=None, location="") -> dict:
     """把扫到的货**登记**进这份盘点（没有就补一行，账面取当前结存）。
 
@@ -318,7 +381,7 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
         frappe.throw(_(CLOSED))
     found = product_of_code(code, count_company(count)) if code else None
     if not found and product:
-        found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+        found = frappe.db.get_value(PRODUCT, {"name": product}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
     warehouse = task.warehouse or warehouses.required()
@@ -629,6 +692,7 @@ def post_count(name: str, review_token=None) -> dict:
     # 单据拿系统发的 IR/IS 号，流水带着这个号（收发存/库存明细都显示得出），
     # 单据本身在出入库页能按号查到，`ref_type/ref_id` 指回这份盘点。
     # `commit=False`：整批盘点一个事务，失败不留半截（与过账前的行为一致）。
+    _reactivate(name)
     applied = []
     for index, (key, delta, unit_cost) in enumerate(operations):
         if not delta:
@@ -654,6 +718,24 @@ def post_count(name: str, review_token=None) -> dict:
     express_push.queue(COUNT, name)
     count_live.changed(name)
     return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
+
+
+REACTIVATED_NOTE = "Reactivated by stock count {0}"
+
+
+def _reactivate(count) -> list:
+    """停用商品在这份盘点里盘到了（实盘 > 0）：过账时自动重新启用，商品时间线记一条「盘点启用 · 盘点单号」（多仓评估问 8）。"""
+    rows = frappe.get_all(ITEM, filters={"count": count, "row_origin": REACTIVATED, "counted": 1,  # bounded: 一份盘点的行
+                                         "counted_qty": [">", 0]}, pluck="product", limit_page_length=0)
+    done = []
+    for product in sorted(set(rows)):
+        if frappe.db.get_value(PRODUCT, product, "is_active"):
+            continue
+        frappe.db.set_value(PRODUCT, product, "is_active", 1)
+        frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": PRODUCT,
+                        "reference_name": product, "content": _(REACTIVATED_NOTE).format(count)}).insert(ignore_permissions=True)
+        done.append(product)
+    return done
 
 
 def _unit_sources(entries, counted_rows) -> list:
@@ -840,14 +922,15 @@ def lookup_count(*, count, code=None, product=None):
             return {"candidates": [{key: row.get(key) for key in ("name", "product_name", "code", "internal_code", "barcode",
                                                                   "matched_by")} for row in matches]}
     found = product_of_code(code, company) if code and not product else frappe.db.get_value(
-        PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+        PRODUCT, {"name": product}, "*", as_dict=True)
     if not found and code:
         unit = unit_of_code(code, company)  # 按台管理：扫到的是车架号
         found = frappe.db.get_value(PRODUCT, {"name": unit.product, "is_active": 1}, "*", as_dict=True) if unit else None
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
     rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]
-    return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit", "serial_kind")},
+    return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit", "serial_kind",
+                                                           "is_active")},
                         "code": product_contracts.count_code(found)},
             "rows": rows,
             "elsewhere": elsewhere_positions(found["name"],

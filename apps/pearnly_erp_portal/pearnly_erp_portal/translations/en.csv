@@ -341,6 +341,10 @@ Create the warehouse in Express,Create the warehouse in Express
 "Create the warehouse in Express, then use Sync Express on the company page","Create the warehouse in Express, then use Sync Express on the company page"
 Create the warehouse in Express. It is added here at the next sync,Create the warehouse in Express. It is added here at the next sync
 Created,Created
+Created by purchase,Created by purchase
+Created by sale,Created by sale
+Created in stock count,Created in stock count
+Created manually,Created manually
 Created when a sales draft is confirmed,Created when a sales draft is confirmed
 Created when the draft is confirmed,Created when the draft is confirmed
 Created {0} product(s),Created {0} product(s)
@@ -595,6 +599,7 @@ Import a sheet,Import a sheet
 Import from Excel,Import from Excel
 Import opening stock,Import opening stock
 Import result,Import result
+Imported,Imported
 Imported {0} product(s),Imported {0} product(s)
 "Imported {0} rows, {1} with a counted quantity","Imported {0} rows, {1} with a counted quantity"
 In,In
@@ -850,6 +855,8 @@ Opening value,Opening value
 Options (one per line),Options (one per line)
 Orange,Orange
 Order Evidence,Order Evidence
+Origin,Origin
+Origin document,Origin document
 Original Item and Location,Original Item and Location
 Original Line,Original Line
 Original and refund are in different account set years,Original and refund are in different account set years
@@ -988,6 +995,7 @@ Querying the Revenue Department...,Querying the Revenue Department...
 Queued,Queued
 Quotation,Quotation
 Rate,Rate
+Reactivated by stock count {0},Reactivated by stock count {0}
 Reading,Reading
 Reading the Express account set,Reading the Express account set
 Ready to post,Ready to post
@@ -1071,6 +1079,7 @@ Rotate,Rotate
 Rounded Total,Rounded Total
 Rounding Adjustment,Rounding Adjustment
 Row number,Row number
+Row origin,Row origin
 Rows,Rows
 "Rows are matched by product code, then barcode. Rows already imported are replaced.","Rows are matched by product code, then barcode. Rows already imported are replaced."
 Rules saved,Rules saved
@@ -1092,6 +1101,7 @@ Saved. Scan the next item.,Saved. Scan the next item.
 Scan,Scan
 Scan a code,Scan a code
 Scan barcode or QR code,Scan barcode or QR code
+Scan or enter a code,Scan or enter a code
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned,Scanned
 Search,Search
@@ -1237,6 +1247,7 @@ Switching company...,Switching company...
 Sync Express,Sync Express
 Sync failed,Sync failed
 Synced,Synced
+Synced from Express,Synced from Express
 Syncing,Syncing
 System number,System number
 Table,Table
@@ -1307,6 +1318,8 @@ The file is larger than 25 MB,The file is larger than 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
+The item is not in Express,The item is not in Express
+The item is not in Express yet,The item is not in Express yet
 The lines cannot be written to Express. Check them and submit again.,The lines cannot be written to Express. Check them and submit again.
 The number of units does not match the quantity,The number of units does not match the quantity
 The opening stock amount is too large,The opening stock amount is too large
@@ -2077,6 +2090,7 @@ express.option.expense,Expense
 express.option.no,No
 express.option.yes,Yes
 express.pendingRefunds,Refunds to write
+express.reason.itemUnmapped,The item is not in Express
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set
@@ -2161,6 +2175,7 @@ product.field.name,Product name
 product.field.nameEn,English name
 product.field.nameZh,Chinese name
 product.field.opening,Opening stock
+product.field.origin,Origin
 product.field.price,Selling price
 product.field.qr,QR content
 product.field.search,Search name or barcode
@@ -2191,6 +2206,12 @@ product.notice.saved,Saved {0}
 product.notice.savedCount,Created {0} product(s)
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)
+product.origin.express,Synced from Express
+product.origin.import,Imported
+product.origin.manual,Created manually
+product.origin.purchase,Created by purchase
+product.origin.sales,Created by sale
+product.origin.stocktake,Created in stock count
 product.scan.auto,Identify barcode or QR code
 product.scan.denied,Camera permission was refused; allow it and try again
 product.scan.done,Scanned
@@ -2359,6 +2380,7 @@ stock.location.offList,Not in the list
 stock.mobile.cameraOff,Close camera
 stock.mobile.codePlaceholder,Code or barcode
 stock.mobile.find,Find
+stock.mobile.newProduct,New product
 stock.mobile.noCamera,This browser cannot scan with the camera
 stock.mobile.noTask,No stock count in progress
 stock.mobile.notBound,"This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."

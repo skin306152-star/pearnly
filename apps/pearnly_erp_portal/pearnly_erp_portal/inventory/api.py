@@ -758,6 +758,12 @@ def api_stock_count_lookup(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+def api_stock_count_create_product(**kwargs):
+    """盘点里扫到系统没有的码：当场建商品（有盘点录入权即可，`count.create_product_here`）。"""
+    return counts.create_product_here(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
 def api_stock_count_recount(**kwargs):
     return counts.recount_product(**_clean(kwargs))
 

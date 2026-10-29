@@ -49,6 +49,7 @@ paths = ["apps/pearnly_core/pearnly_core/public/desk/link.js"]
 markers = ["take_create", "take_open", "link_editors", "open_link_record", "open_link_create", "watch_master_control"]
 search = ["apps/**/*.js", "apps/**/*.html"]
 entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.intake", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.inventory.opening.item-scan"]
+not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html" = "接口名 api_line_stocktake_create_product 里碰巧含标记字样，LINE 页不用 Link 选择框" }
 
 [[part]]
 id = "desk-select"
@@ -269,7 +270,7 @@ name = "ERP 按码找商品（products.service / purchase / sales）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py"]
 markers = ["products.service", "products import service", "products import purchase", "products import sales", "find_product"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "apps/**/*.js"]
-entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit", "erp.serials.dialog"]
+entries = ["erp.products.find-by-code", "erp.entry.choices", "erp.products.new-dialog.scan", "erp.products.new-page.scan", "erp.products.detail.barcode-scan", "erp.stock-in.item-scan", "erp.stock-out.item-scan", "erp.cashier.camera", "erp.inventory.opening.item-scan", "erp.cashier.search", "erp.cashier.scanner-gun", "erp.cc.masters", "erp.cc.write", "erp.line.intake.submit", "erp.serials.dialog", "erp.stock-count.new-product", "erp.line.stocktake.new-product"]
 not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/contracts.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_product/erp_product.py" = "只在注释里提到", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py" = "只在注释里提到（建商品带期初由 products.service 调它）" }
 
 [[part]]
@@ -1599,6 +1600,24 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/products.js", "
 smoke = "find_product"
 url = "/desk/pearnly-products"
 site = "erp"
+
+[[entry]]
+id = "erp.stock-count.new-product"
+product = "ERP"
+where = "盘点录入弹窗就地新建商品（Desk）与盘点 Excel 导入的未知码行"
+steps = "盘点 → 开始盘点 → 输入系统没有的码 → 新建物料（品名、单位、可选参考成本）→ 记数 → 结束 → 过账；导入表里带品名的未知码行"
+expect = "商品建成（码作条码 / 二维码内容、编码自动发、来由「盘点新建 · 盘点单号」），同码只建一件；盘点行来源「新发现」；过账后库存按实盘；接 Express 的公司盘点调整停在「Express 中没有这件商品」"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake-entry.js"]
+
+[[entry]]
+id = "erp.line.stocktake.new-product"
+product = "ERP"
+where = "LINE 手机盘点页就地新建商品、改记在哪个库位"
+steps = "LINE 打开盘点 → 输入系统没有的码 → 填品名、单位 → 新建物料 → 记数；库位一格选清单里的库位"
+expect = "与 Desk 同一个服务端函数建商品；记数落在所选库位；清单外的库位按库位清单规则拒"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
 
 [[entry]]
 id = "erp.stock-count.code"

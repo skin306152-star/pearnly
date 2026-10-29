@@ -36,7 +36,10 @@
   "express_code",
   "express_company",
   "express_book",
-  "express_stock"
+  "express_stock",
+  "origin",
+  "origin_doctype",
+  "origin_name"
  ],
  "fields": [
   {
@@ -254,11 +257,36 @@
    "read_only": 1,
    "hidden": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "origin",
+   "fieldtype": "Select",
+   "label": "Origin",
+   "options": "\nmanual\nimport\nexpress\npurchase\nsales\nstocktake",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "origin_doctype",
+   "fieldtype": "Link",
+   "label": "Origin document type",
+   "options": "DocType",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "origin_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Origin document",
+   "options": "origin_doctype",
+   "read_only": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-29 12:00:00.000000",
+ "modified": "2026-10-29 13:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",

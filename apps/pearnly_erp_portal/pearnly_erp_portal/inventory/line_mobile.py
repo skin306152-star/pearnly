@@ -169,10 +169,22 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     if not rows:
         return {}
     chosen = rows[0]
+    # 这份盘点的仓的库位清单（G11：手机上也能改记在哪个库位，清单外的旧库位服务端照旧核）
+    from pearnly_erp_portal.inventory import locations
+
+    warehouse = frappe.db.get_value(counts.COUNT, name, "warehouse")
+    places = [row["value"] if isinstance(row, dict) else row for row in locations.api_location_options(warehouse=warehouse)]
     # 带上这份盘点此刻的抬头（已盘点 x / y、差异）：保存、撤销后页面都再查一次码，抬头跟着刷新
-    return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None,
+    return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None, "locations": places,
             "entries": counts.list_entries(count=name, item=chosen["name"], limit=5),
             "task": counts.get_count(name)}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def api_line_stocktake_create_product(ticket=None, name=None, code=None, product_name=None, unit=None, **kwargs):
+    """扫到系统没有的码：当场建商品（与桌面端同一个服务端函数，有盘点录入权即可）。"""
+    as_ticket_user(ticket)
+    return counts.create_product_here(count=name, code=code, product_name=product_name, unit=unit)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

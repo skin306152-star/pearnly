@@ -48,7 +48,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "default_location", "express_code", "internal_code", "track_serial", "serial_kind",
+    "default_location", "express_code", "internal_code", "track_serial", "serial_kind", "origin", "origin_name",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）；列表搜索同一套再加名称。
@@ -212,7 +212,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category_id=None,
-                   default_location=None, internal_code=None, serial_kind=None, opening=None):
+                   default_location=None, internal_code=None, serial_kind=None, opening=None, origin=None):
     """建一件商品。``opening``（可选，多仓闭环 P1 G1）：建好顺手放期初 ``[{warehouse, location, qty, unit_cost}]``，与商品
     同一个事务写（复用期初服务 `opening_batch`，同一套「每个位置只初始化一次」的规矩）；任何一行不成整件商品都不建。
     接了 Express 的公司期初读 Express，不在这里录（期初服务照样拒）。"""
@@ -245,6 +245,8 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
         "category_id": int(category_id) if str(category_id or "").strip() else None,
         "is_active": 1,
+        # 来由：手建 / 导入（盘点新建、采购 / 销售自动建、Express 同步各在自己那条路上写）
+        "origin": "import" if origin == "import" else "manual",
         "default_location": _text(default_location, 140),
         # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
         "serial_kind": serial_kind if serial_kind in ("vehicle", "device") else "vehicle",
@@ -514,7 +516,7 @@ def api_get_product(name=None, **kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_create_product(**kwargs):
     kwargs.pop("cmd", None)
-    for legacy in ("track_batch", "track_expiry"):  # 批次 / 有效期 10-29 删除：旧页面还带着就略过
+    for legacy in ("track_batch", "track_expiry", "origin"):  # 批次 / 有效期 10-29 删除：旧页面还带着就略过；来由不由页面给
         kwargs.pop(legacy, None)
     return create_product(**kwargs)
 
@@ -599,7 +601,7 @@ def import_products(data: bytes) -> dict:
     created = 0
     for index, row in enumerate(rows, start=1):
         try:
-            create_product(**row)
+            create_product(**row, origin="import")
             created += 1
         except Exception as exc:  # noqa: BLE001 - 单行失败要变成行级错误，不连累整批
             frappe.db.rollback()

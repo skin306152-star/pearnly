@@ -341,6 +341,10 @@ Create the warehouse in Express,请在 Express 中建仓库
 "Create the warehouse in Express, then use Sync Express on the company page",请在 Express 中建仓库，再在公司页点「同步 Express」
 Create the warehouse in Express. It is added here at the next sync,请在 Express 中建仓库，下次同步后自动出现
 Created,创建时间
+Created by purchase,采购自动建
+Created by sale,销售自动建
+Created in stock count,盘点新建
+Created manually,手建
 Created when a sales draft is confirmed,销售草稿确认后生成
 Created when the draft is confirmed,草稿确认后生成
 Created {0} product(s),已新建 {0} 个物料
@@ -595,6 +599,7 @@ Import a sheet,导入盘点表
 Import from Excel,Excel 导入
 Import opening stock,导入期初库存
 Import result,导入结果
+Imported,导入
 Imported {0} product(s),已导入 {0} 个物料
 "Imported {0} rows, {1} with a counted quantity",已导入 {0} 行，其中 {1} 行带实盘数量
 In,入库
@@ -850,6 +855,8 @@ Opening value,期初金额
 Options (one per line),选项（每行一个）
 Orange,橙
 Order Evidence,订单截图
+Origin,来由
+Origin document,来由单据
 Original Item and Location,原单物料与仓位
 Original Line,原单明细行
 Original and refund are in different account set years,原单与退货在不同年度账套
@@ -988,6 +995,7 @@ Querying the Revenue Department...,正在向税务局查询…
 Queued,排队中
 Quotation,报价单
 Rate,单价
+Reactivated by stock count {0},盘点启用 · {0}
 Reading,读取中
 Reading the Express account set,正在读取 Express 账套
 Ready to post,待入账
@@ -1071,6 +1079,7 @@ Rotate,旋转
 Rounded Total,舍入后总计
 Rounding Adjustment,舍入调整
 Row number,行号
+Row origin,来源
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",按物料编码匹配，未匹配时按条码匹配；重复导入的行将被覆盖。
 Rules saved,规则已保存
@@ -1092,6 +1101,7 @@ Saved. Scan the next item.,已保存，请扫描下一项。
 Scan,扫码
 Scan a code,扫码
 Scan barcode or QR code,扫描条形码或二维码
+Scan or enter a code,请扫码或输入编码
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际仓位和数量，保存后进入下一项。
 Scanned,已扫描
 Search,搜索
@@ -1237,6 +1247,7 @@ Switching company...,正在切换公司…
 Sync Express,同步 Express
 Sync failed,同步失败
 Synced,已同步
+Synced from Express,Express 同步
 Syncing,同步中
 System number,单据编号
 Table,表格
@@ -1307,6 +1318,8 @@ The file is larger than 25 MB,文件超过 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,第一行须为表头，且表格中至少包含物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
 The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
+The item is not in Express,Express 中没有这件商品
+The item is not in Express yet,这件商品 Express 里还没有
 The lines cannot be written to Express. Check them and submit again.,明细无法写入 Express，请核对后重新提交
 The number of units does not match the quantity,台数与数量不符
 The opening stock amount is too large,期初库存金额过大
@@ -2077,6 +2090,7 @@ express.option.expense,计入费用
 express.option.no,否
 express.option.yes,是
 express.pendingRefunds,待写退货
+express.reason.itemUnmapped,Express 中没有这件商品
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑
@@ -2161,6 +2175,7 @@ product.field.name,物料名称
 product.field.nameEn,英文名
 product.field.nameZh,中文名
 product.field.opening,期初库存
+product.field.origin,来由
 product.field.price,售价
 product.field.qr,二维码内容
 product.field.search,搜索名称或条码
@@ -2191,6 +2206,12 @@ product.notice.saved,已保存 {0}
 product.notice.savedCount,已新建 {0} 个物料
 product.notice.toggled,已更新 {0}
 product.notice.toggledCount,已更新 {0} 个物料
+product.origin.express,Express 同步
+product.origin.import,导入
+product.origin.manual,手建
+product.origin.purchase,采购自动建
+product.origin.sales,销售自动建
+product.origin.stocktake,盘点新建
 product.scan.auto,扫码识别
 product.scan.denied,摄像头权限被拒绝，请允许后重试
 product.scan.done,已扫描
@@ -2359,6 +2380,7 @@ stock.location.offList,不在清单
 stock.mobile.cameraOff,关闭相机
 stock.mobile.codePlaceholder,编码或条码
 stock.mobile.find,查询
+stock.mobile.newProduct,新建物料
 stock.mobile.noCamera,当前浏览器不支持摄像头扫码
 stock.mobile.noTask,无进行中的盘点
 stock.mobile.notBound,该 LINE 账号尚未绑定员工账号。请从 LINE 中打开，或先在网页登录。

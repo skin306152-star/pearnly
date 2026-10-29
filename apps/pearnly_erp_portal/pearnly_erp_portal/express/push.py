@@ -290,6 +290,12 @@ def send(doctype, name):
         return
     vat_fields = body.pop("vat_fields", None)
     unmapped = body.pop("unmapped_warehouses", None)
+    if body.pop("unmapped_items", None):
+        # 盘点当场新建、Express 中没有的商品：这一批先不写 TK，停下交人（用户 10-29 批复 #7；CC 在 TK 里建档另排）。
+        # 在 Express 建好、手工处理后标记已处理
+        _set(doctype, name, {"express_state": contracts.HELD, "express_reason": contracts.ITEM_UNMAPPED, "express_needed": None})
+        frappe.db.commit()
+        return
     if doctype == POS_DAY and "hold" in body:
         result = body  # 还不知道这家公司是不是增值税登记户：在单据上问一次（`pos_day.document`）
     else:

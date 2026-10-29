@@ -1798,3 +1798,16 @@ Phones and appliances	手机电器	มือถือและเครื่อ
 Use Express	接 Express	ใช้ Express	Express を使用	company.field.expressEnabled
 Disconnect	断开	ยกเลิกการเชื่อมต่อ	接続解除	company.express.disconnect
 Disconnect Express first	请先断开 Express	กรุณายกเลิกการเชื่อมต่อ Express ก่อน	先に Express の接続を解除してください
+The item is not in Express	Express 中没有这件商品	ไม่มีสินค้านี้ใน Express	この商品は Express にありません	express.reason.itemUnmapped
+Reactivated by stock count {0}	盘点启用 · {0}	เปิดใช้จากการตรวจนับ · {0}	棚卸で再有効化 · {0}
+Scan or enter a code	请扫码或输入编码	กรุณาสแกนหรือกรอกรหัส	コードをスキャンまたは入力してください
+New product	新建物料	เพิ่มสินค้า	商品を追加	stock.mobile.newProduct
+Origin	来由	ที่มา	由来	product.field.origin
+Created manually	手建	สร้างเอง	手動作成	product.origin.manual
+Imported	导入	นำเข้า	インポート	product.origin.import
+Synced from Express	Express 同步	ซิงค์จาก Express	Express から同期	product.origin.express
+Created by purchase	采购自动建	สร้างจากการซื้อ	仕入で作成	product.origin.purchase
+Created by sale	销售自动建	สร้างจากการขาย	売上で作成	product.origin.sales
+Created in stock count	盘点新建	สร้างระหว่างตรวจนับ	棚卸で作成	product.origin.stocktake
+Origin document	来由单据	เอกสารที่มา	由来伝票
+Row origin	来源	ที่มาของแถว	行の由来

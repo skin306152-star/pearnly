@@ -274,6 +274,10 @@
             + esc((item.code || '') + ' · ' + (item.unit || '')
               + (item.location ? ' · ' + item.location : '')) + '</span></div>'
             + picker
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.location')) + '</label>'
+            + '<input id="loc" list="loclist" value="' + esc(item.location || '') + '">'
+            + '<datalist id="loclist">' + (last?.locations || []).map((name) => '<option value="' + esc(name) + '">').join('')
+            + '</datalist></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.book')) + '</label>'
             + '<div class="big">' + esc(number(item.book_qty)) + '</div></div>'
             + '<div style="flex:1"><label>' + esc(t('stock.count.counted')) + '</label>'
@@ -311,7 +315,7 @@
             const result = await call('api_line_stocktake_lookup', { name: taskName, code: code, product: product || '' }, true);
             if (task?.name !== taskName) return;
             if (result && result.candidates) { choose(code, result.candidates); return; }
-            if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
+            if (!result || !result.item) { say(t('stock.mobile.notFound'), true); if (code) offerNew(code); return; }
             if (result.task) task = Object.assign({}, task, result.task);  // 抬头（已盘点 x / y）随每次查码刷新
             last = result;
             render(result);
@@ -320,6 +324,32 @@
           } catch (error) {
             say(error.message, true);
           }
+        }
+
+        // 扫到系统没有的码：当场建商品（与桌面端同一个服务端函数），建好接着记数
+        function offerNew(code) {
+          const card = document.getElementById('code')?.closest('.card');
+          if (!card) return;
+          let box = document.getElementById('newproduct');
+          if (!box) { box = document.createElement('div'); box.id = 'newproduct'; card.appendChild(box); }
+          box.innerHTML = '<div class="row"><div style="flex:1"><label>' + esc(t('stock.col.name')) + '</label><input id="np_name"></div></div>'
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.col.unit')) + '</label><input id="np_unit"></div></div>'
+            + '<div class="row"><button id="np_save" class="primary wide">' + esc(t('stock.mobile.newProduct')) + '</button></div>';
+          document.getElementById('np_save').onclick = async () => {
+            const productName = document.getElementById('np_name').value.trim();
+            if (!productName) { say(t('stock.col.name'), true); return; }
+            const button = document.getElementById('np_save');
+            button.disabled = true;
+            try {
+              await call('api_line_stocktake_create_product', { name: task.name, code: code, product_name: productName,
+                unit: document.getElementById('np_unit').value.trim() || undefined }, true);
+              box.innerHTML = '';
+              await lookup(code);
+            } catch (error) {
+              say(error.message, true);
+              button.disabled = false;
+            }
+          };
         }
 
         // 同一个码命中几件商品（存量里撞了的码）：列出来让员工点一件，不默认挑一个
@@ -362,6 +392,7 @@
                 name: task.name,
                 item: item.name,
                 qty: qty,
+                location: document.getElementById('loc').value.trim(),
                 note: document.getElementById('note').value.trim() || undefined,
                 request_id: requestId,
                 photos: photos,

@@ -341,6 +341,10 @@ Create the warehouse in Express,สร้างคลังใน Express
 "Create the warehouse in Express, then use Sync Express on the company page",สร้างคลังใน Express แล้วกด「ซิงค์ Express」ที่หน้าบริษัท
 Create the warehouse in Express. It is added here at the next sync,สร้างคลังใน Express แล้วคลังจะปรากฏที่นี่หลังซิงก์ครั้งถัดไป
 Created,สร้างเมื่อ
+Created by purchase,สร้างจากการซื้อ
+Created by sale,สร้างจากการขาย
+Created in stock count,สร้างระหว่างตรวจนับ
+Created manually,สร้างเอง
 Created when a sales draft is confirmed,สร้างเมื่อยืนยันฉบับร่างการขาย
 Created when the draft is confirmed,สร้างเมื่อยืนยันฉบับร่าง
 Created {0} product(s),สร้างสินค้า {0} รายการแล้ว
@@ -595,6 +599,7 @@ Import a sheet,นำเข้าไฟล์ตรวจนับ
 Import from Excel,นำเข้าจาก Excel
 Import opening stock,นำเข้าสต็อกยกมา
 Import result,ผลการนำเข้า
+Imported,นำเข้า
 Imported {0} product(s),นำเข้า {0} รายการแล้ว
 "Imported {0} rows, {1} with a counted quantity",นำเข้าแล้ว {0} แถว โดยมี {1} แถวที่มีจำนวนที่นับได้
 In,รับเข้า
@@ -850,6 +855,8 @@ Opening value,มูลค่ายกมา
 Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
 Orange,ส้ม
 Order Evidence,หลักฐานคำสั่งซื้อ
+Origin,ที่มา
+Origin document,เอกสารที่มา
 Original Item and Location,สินค้าและตำแหน่งในบิลเดิม
 Original Line,บรรทัดเดิม
 Original and refund are in different account set years,ใบต้นฉบับและการคืนอยู่ในชุดบัญชีคนละปี
@@ -988,6 +995,7 @@ Querying the Revenue Department...,กำลังค้นหาจากกร
 Queued,รอคิว
 Quotation,ใบเสนอราคา
 Rate,ราคาต่อหน่วย
+Reactivated by stock count {0},เปิดใช้จากการตรวจนับ · {0}
 Reading,กำลังอ่าน
 Reading the Express account set,กำลังอ่านชุดบัญชี Express
 Ready to post,พร้อมบันทึก
@@ -1071,6 +1079,7 @@ Rotate,หมุน
 Rounded Total,ยอดรวมหลังปัดเศษ
 Rounding Adjustment,การปรับปัดเศษ
 Row number,แถวที่
+Row origin,ที่มาของแถว
 Rows,จำนวนแถว
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ
 Rules saved,บันทึกกฎแล้ว
@@ -1092,6 +1101,7 @@ Saved. Scan the next item.,บันทึกแล้ว กรุณาสแ�
 Scan,สแกน
 Scan a code,สแกนโค้ด
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
+Scan or enter a code,กรุณาสแกนหรือกรอกรหัส
 "Scan, enter the actual position and quantity, then save to continue.",สแกน แล้วระบุตำแหน่งจริงและจำนวน จากนั้นบันทึกเพื่อไปยังรายการถัดไป
 Scanned,สแกนแล้ว
 Search,ค้นหา
@@ -1237,6 +1247,7 @@ Switching company...,กำลังสลับบริษัท…
 Sync Express,ซิงค์ Express
 Sync failed,ซิงค์ไม่สำเร็จ
 Synced,ซิงค์แล้ว
+Synced from Express,ซิงค์จาก Express
 Syncing,กำลังซิงค์
 System number,เลขที่เอกสาร
 Table,ตาราง
@@ -1307,6 +1318,8 @@ The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกต้องเป็นหัวคอลัมน์ และต้องมีคอลัมน์ชื่อสินค้าอย่างน้อยหนึ่งคอลัมน์
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
+The item is not in Express,ไม่มีสินค้านี้ใน Express
+The item is not in Express yet,สินค้านี้ยังไม่มีใน Express
 The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 The number of units does not match the quantity,จำนวนรายชิ้นไม่ตรงกับจำนวน
 The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
@@ -2077,6 +2090,7 @@ express.option.expense,บันทึกเป็นค่าใช้จ่า
 express.option.no,ไม่ใช่
 express.option.yes,ใช่
 express.pendingRefunds,การคืนที่รอบันทึก
+express.reason.itemUnmapped,ไม่มีสินค้านี้ใน Express
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
@@ -2161,6 +2175,7 @@ product.field.name,ชื่อสินค้า
 product.field.nameEn,ชื่อภาษาอังกฤษ
 product.field.nameZh,ชื่อภาษาจีน
 product.field.opening,สต็อกยกมา
+product.field.origin,ที่มา
 product.field.price,ราคาขาย
 product.field.qr,ข้อมูล QR
 product.field.search,ค้นหาชื่อหรือบาร์โค้ด
@@ -2191,6 +2206,12 @@ product.notice.saved,บันทึก {0} แล้ว
 product.notice.savedCount,สร้างสินค้า {0} รายการแล้ว
 product.notice.toggled,อัปเดต {0} แล้ว
 product.notice.toggledCount,อัปเดต {0} รายการแล้ว
+product.origin.express,ซิงค์จาก Express
+product.origin.import,นำเข้า
+product.origin.manual,สร้างเอง
+product.origin.purchase,สร้างจากการซื้อ
+product.origin.sales,สร้างจากการขาย
+product.origin.stocktake,สร้างระหว่างตรวจนับ
 product.scan.auto,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 product.scan.denied,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
 product.scan.done,สแกนแล้ว
@@ -2359,6 +2380,7 @@ stock.location.offList,ไม่อยู่ในรายการ
 stock.mobile.cameraOff,ปิดกล้อง
 stock.mobile.codePlaceholder,รหัสหรือบาร์โค้ด
 stock.mobile.find,ค้นหา
+stock.mobile.newProduct,เพิ่มสินค้า
 stock.mobile.noCamera,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง
 stock.mobile.noTask,ไม่มีการตรวจนับที่กำลังดำเนินการ
 stock.mobile.notBound,บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน

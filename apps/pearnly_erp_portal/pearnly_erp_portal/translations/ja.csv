@@ -341,6 +341,10 @@ Create the warehouse in Express,Express で倉庫を作成してください
 "Create the warehouse in Express, then use Sync Express on the company page",Express で倉庫を作成し、会社ページで「Express と同期」を押してください
 Create the warehouse in Express. It is added here at the next sync,Express で倉庫を作成してください。次回の同期でここに追加されます
 Created,作成日時
+Created by purchase,仕入で作成
+Created by sale,売上で作成
+Created in stock count,棚卸で作成
+Created manually,手動作成
 Created when a sales draft is confirmed,販売下書きの確定時に作成されます
 Created when the draft is confirmed,下書きの確定時に作成されます
 Created {0} product(s),{0}件の商品を作成しました
@@ -595,6 +599,7 @@ Import a sheet,棚卸シートを取り込む
 Import from Excel,Excel から取込
 Import opening stock,期首在庫を取込
 Import result,取り込み結果
+Imported,インポート
 Imported {0} product(s),{0}件を取り込みました
 "Imported {0} rows, {1} with a counted quantity",{0} 行を取り込みました（うち {1} 行に実地数量）
 In,入库
@@ -850,6 +855,8 @@ Opening value,期首金額
 Options (one per line),選択肢（1行に1つ）
 Orange,橙
 Order Evidence,注文記録
+Origin,由来
+Origin document,由来伝票
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
 Original and refund are in different account set years,元伝票と返品が別年度の帳簿にあります
@@ -988,6 +995,7 @@ Querying the Revenue Department...,税務局に照会中…
 Queued,待機中
 Quotation,見積書
 Rate,単価
+Reactivated by stock count {0},棚卸で再有効化 · {0}
 Reading,読み込み中
 Reading the Express account set,Express 帳簿を読み取り中
 Ready to post,登録可能
@@ -1071,6 +1079,7 @@ Rotate,回転
 Rounded Total,端数調整後合計
 Rounding Adjustment,丸め調整
 Row number,行番号
+Row origin,行の由来
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
 Rules saved,ルールを保存しました
@@ -1092,6 +1101,7 @@ Saved. Scan the next item.,保存しました。次の商品を読み取って�
 Scan,スキャン
 Scan a code,コードをスキャン
 Scan barcode or QR code,バーコード・QRコードを読む
+Scan or enter a code,コードをスキャンまたは入力してください
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scanned,読み取りました
 Search,検索
@@ -1237,6 +1247,7 @@ Switching company...,会社を切り替えています…
 Sync Express,Express と同期
 Sync failed,同期に失敗しました
 Synced,同期しました
+Synced from Express,Express から同期
 Syncing,同期中
 System number,システム番号
 Table,テーブル
@@ -1307,6 +1318,8 @@ The file is larger than 25 MB,ファイルが 25 MB を超えています
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
+The item is not in Express,この商品は Express にありません
+The item is not in Express yet,この商品はまだ Express にありません
 The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
 The number of units does not match the quantity,個体数が数量と一致しません
 The opening stock amount is too large,期首在庫金額が大きすぎます
@@ -2077,6 +2090,7 @@ express.option.expense,費用計上
 express.option.no,いいえ
 express.option.yes,はい
 express.pendingRefunds,書き込み待ちの返品
+express.reason.itemUnmapped,この商品は Express にありません
 express.reason.noBook,この日付を含む Express 帳簿がありません
 express.reason.noStockBook,この Express 帳簿にはこの種類の在庫伝票の伝票帳がありません。Express で設定してください
 express.reason.noWriter,この帳簿に書き込める端末がありません
@@ -2161,6 +2175,7 @@ product.field.name,商品名
 product.field.nameEn,英語名
 product.field.nameZh,中国語名
 product.field.opening,期首在庫
+product.field.origin,由来
 product.field.price,販売価格
 product.field.qr,QR 内容
 product.field.search,名前・バーコードで検索
@@ -2191,6 +2206,12 @@ product.notice.saved,{0} を保存しました
 product.notice.savedCount,{0}件の商品を作成しました
 product.notice.toggled,{0} を更新しました
 product.notice.toggledCount,{0}件を更新しました
+product.origin.express,Express から同期
+product.origin.import,インポート
+product.origin.manual,手動作成
+product.origin.purchase,仕入で作成
+product.origin.sales,売上で作成
+product.origin.stocktake,棚卸で作成
 product.scan.auto,バーコード・QRを読み取る
 product.scan.denied,カメラの許可が拒否されました。許可してから再試行してください
 product.scan.done,読み取りました
@@ -2359,6 +2380,7 @@ stock.location.offList,一覧にありません
 stock.mobile.cameraOff,カメラを閉じる
 stock.mobile.codePlaceholder,コード・バーコード
 stock.mobile.find,検索
+stock.mobile.newProduct,商品を追加
 stock.mobile.noCamera,このブラウザーはカメラでスキャンできません
 stock.mobile.noTask,進行中の棚卸はありません
 stock.mobile.notBound,この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。

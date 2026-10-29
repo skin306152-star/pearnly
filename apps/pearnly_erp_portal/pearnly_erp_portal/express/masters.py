@@ -485,6 +485,8 @@ def _upsert(doctype, name, values, current=None):
             doc.save(ignore_permissions=True)
             return _written()
         record = {key: value for key, value in values.items() if key != "units"}
+        if doctype == PRODUCT:
+            record["origin"] = "express"  # 商品来由（用户 10-26 / 10-29）：Express 主档同步建的
         doc = frappe.get_doc({"doctype": doctype, **record})
         for row in values.get("units") or []:
             doc.append("units", {"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])})

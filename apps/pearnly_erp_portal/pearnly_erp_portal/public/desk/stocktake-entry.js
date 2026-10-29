@@ -20,6 +20,9 @@
 			{ fieldtype: "Check", fieldname: "torch", label: __("product.scan.light"), hidden: 1,
 				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
 			{ fieldtype: "HTML", fieldname: "message" },
+			// 扫到系统没有的码：当场建商品（有盘点录入权即可，服务端 `count.create_product_here`），建好接着记数
+			{ fieldtype: "Button", fieldname: "new_product", label: __("product.action.new"), hidden: 1,
+				click: () => create_here(d.get_value("code")) },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), read_only: 1 },
 			// 扫到的那件商品的编码（内部编码，没有就系统编码；服务端 `count_code`，与 LINE 手机页同一个）
@@ -209,9 +212,33 @@
 			await d.set_value("warehouse", entry?.warehouse_name || source?.warehouse_name || lookup.warehouse_name);
 			await d.set_value("location", entry?.location ?? source?.location ?? "");
 		}
+		// 服务端这次拒的是不是「没有这个码」（417 的原生提示里那一句）
+		const not_found = error => {
+			try {
+				return JSON.parse(error?.responseJSON?._server_messages || "[]")
+					.some(row => String(JSON.parse(row).message || "").includes(__("No product matches this code")));
+			} catch { return false; }
+		};
+		function create_here(code) {
+			code = String(code || "").trim();
+			if (!code) return;
+			const form = p.dialog(__("product.action.new"), [
+				{ fieldtype: "Data", fieldname: "code", label: t("stock.col.code"), default: code, read_only: 1 },
+				{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), reqd: 1 },
+				{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit") },
+				{ fieldtype: "Currency", fieldname: "default_cost", label: __("product.field.cost"), options: "THB" },
+			], __("product.action.submit"), async values => {
+				await p.call(api + "api_stock_count_create_product", { count, code, product_name: values.product_name,
+					unit: values.unit || undefined, default_cost: values.default_cost || undefined }, "POST");
+				form.hide();
+				d.set_df_property("new_product", "hidden", 1);
+				await match(code);
+			});
+		}
 		async function match(code, product) {
 			if (busy || selected || closed || (!code && !product)) return;
 			busy = true; scanner?.pause();
+			d.set_df_property("new_product", "hidden", 1);
 			try {
 				lookup = await p.call(api + "api_stock_count_lookup", { count, code: code || undefined, product });
 				if (closed) return;
@@ -270,6 +297,7 @@
 				const refused = error?.status === 417;
 				// 417 时服务端那句已经弹成原生提示框，这里只写进弹窗；查找失败没人提示过，再浮动提示一次。
 				if (refused) message(w("lookupFailed")); else miss(w("lookupError"));
+				d.set_df_property("new_product", "hidden", !(code && not_found(error)));
 				// 这页自己的脚本错交给统一的前端报错（服务端的错服务端自己记）。
 				if (!refused) console.error(error);
 				if (!error?.status) window.pearnlyReportError?.(error, "stocktake-lookup");
