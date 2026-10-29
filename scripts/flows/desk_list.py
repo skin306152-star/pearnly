@@ -44,14 +44,18 @@ AWAIT_EXPORT = ("const before=window.__exports.length;"
 
 
 def workbook_text(b64: str) -> tuple[list[str], str]:
-    """导出下载的文件 → (表名, 全部单元格的文字)；不是 xlsx 抛错。只用标准库（流程的判断在本机 Python 里跑）。"""
+    """导出下载的文件 → (表名, 全部单元格的文字)；xlsx 读各表，CSV（库存导出）按 UTF-8 读成一张表；都不是抛错。
+    只用标准库（流程的判断在本机 Python 里跑）。"""
     import base64
     import io
     import re
     import zipfile
     from xml.etree import ElementTree
 
-    with zipfile.ZipFile(io.BytesIO(base64.b64decode(b64))) as book:
+    content = base64.b64decode(b64)
+    if not zipfile.is_zipfile(io.BytesIO(content)):
+        return ["csv"], content.decode("utf-8-sig")
+    with zipfile.ZipFile(io.BytesIO(content)) as book:
         names = [node.get("name") for node in ElementTree.fromstring(book.read("xl/workbook.xml")).iter()
                  if node.tag.endswith("}sheet")]
         texts = []
