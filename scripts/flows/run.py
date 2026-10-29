@@ -60,6 +60,18 @@ def covers(flow, path) -> bool:
                for pattern in flow.get("covers", []))
 
 
+SPA = [(ROOT / "frontend/assistant", ROOT / "apps/pearnly_core/pearnly_core/public/assistant/index.html")]
+
+
+def spa_fresh():
+    """前端单页的构建产物不进 git、实时源码也盖不到：产物要比源码新，否则 CC 对话页测的不是这个提交。"""
+    for source, built in SPA:
+        newest = max((f.stat().st_mtime for f in source.rglob("*") if f.is_file() and "node_modules" not in f.parts
+                      and f.suffix in (".ts", ".tsx", ".css", ".html", ".json")), default=0)
+        if not built.exists() or built.stat().st_mtime < newest:
+            raise SystemExit(f"{built.relative_to(ROOT)} 比 {source.relative_to(ROOT)} 的源码旧：先在 {source.relative_to(ROOT)} 里 npm run build 再回写状态")
+
+
 def lab_runs_this_tree():
     """回写状态前：实验室挂的产品源码就是本工作树，且产品代码没有未提交改动（结果才算这个提交的）。"""
     mounts = subprocess.run(["docker", "inspect", CONTAINER, "--format", "{{range .Mounts}}{{.Source}}\n{{end}}"],
@@ -109,6 +121,13 @@ class Lab:
 
     def drop(self, site, user, sid):
         self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user, "drop", sid)
+
+    def migrate(self):
+        """全部站点迁移到挂上来的源码（表结构、补丁、hooks）：站点比源码旧时流程结果不代表这个提交。"""
+        result = subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench", CONTAINER, "bench", "--site", "all", "migrate"],
+                                capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
+        if result.returncode:
+            raise SystemExit(f"实验室站点迁移失败：{result.stderr[-800:]}")
 
     def client_errors(self, site):
         return self.python(site, 'print(json.dumps({"n": frappe.db.count("Error Log", {"method": ["like", "Browser error%"]})}))')["n"]
@@ -204,12 +223,14 @@ def main(argv=None) -> int:
     parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
+    parser.add_argument("--migrate", action="store_true", help="先把实验室全部站点迁移到挂上来的源码（--post-status 时总是做）")
     args = parser.parse_args(argv)
     flows = registry()
     if args.post_status:
         if args.flow or args.dataset or args.viewport:
             parser.error("--post-status 只配 --changed 或 --all（部分流程的结果不能代表这个提交）")
         lab_runs_this_tree()
+        spa_fresh()
     scope = "all flows"
     if args.dataset or args.viewport:
         scope = "partial"
@@ -224,6 +245,9 @@ def main(argv=None) -> int:
     elif not args.all:
         parser.error("--all, --flow or --changed")
     lab, results, started = Lab(), [], time.monotonic()
+    if flows and (args.migrate or args.post_status):
+        lab.migrate()
+        print(f"实验室站点已迁移（{round(time.monotonic() - started)}s）", flush=True)
     for flow in flows:
         for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]:
             for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]:
