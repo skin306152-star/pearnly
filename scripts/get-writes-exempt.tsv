@@ -2,45 +2,27 @@
 # 「待改」是 2026-10-29 排查时已有的存量，按类别整改，整改一条删一条；新增的不许登记成待改。
 pearnly_erp_portal.inventory.warehouses.resolve	经过	只在显式 create=True 时按名字新建仓（只有实验室 / 开通脚本这么传）；应用里的调用都是 create=False，只读
 pearnly_core.execution.pool.release_db	经过	等外部服务（Cloud Run、本机识别名额）前提交并放开连接，不写数据；GET 文件预览路径在它之前不写
-pearnly_control.billing_api.admin_summary	接口	待改（GET 可达却写库：pearnly_control.billing.wallet_of）
 pearnly_control.billing_api.service_home	接口	待改（GET 里手动 commit 才生效：pearnly_control.billing_api.service_token）
 pearnly_control.billing_api.service_records	接口	待改（GET 里手动 commit 才生效：pearnly_control.billing_api.service_token）
 pearnly_control.billing_api.service_status	接口	待改（GET 里手动 commit 才生效：pearnly_control.billing_api.service_token）
 pearnly_control.billing_api.service_topup_status	接口	待改（GET 里手动 commit 才生效：pearnly_control.billing_api.service_token）
 pearnly_control.billing_api.service_wallet	接口	待改（GET 里手动 commit 才生效：pearnly_control.billing_api.service_token）
 pearnly_core.assistant.api.events	接口	待改（GET 里手动 commit 才生效：pearnly_core.assistant.sessions._remember_context）
-pearnly_core.assistant.api.push_key	接口	待改（GET 可达却写库：pearnly_core.assistant.push._generate）
+pearnly_core.assistant.api.push_key	接口	待改（GET 里手动 commit 才生效：pearnly_core.assistant.push._generate）
 pearnly_core.billing_www.export_records	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_core.identity.bind_identity	接口	待改（GET 可达却写库：pearnly_core.identity.bind_identity）
 pearnly_core.identity.callback	接口	身份服务登录回调：浏览器从登录页重定向回来，按协议只能是 GET（state 一次性校验防重放）
-pearnly_cowork.assistant.pending_api.account_sets	接口	待改（GET 可达却写库：pearnly_cowork.companies.service._autofill）
 pearnly_cowork.companies.api.detail	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.companies.api.detail）
 pearnly_cowork.companies.api.month	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.companies.api.month）
-pearnly_cowork.folder_intake.api.listing	接口	待改（读接口顺手建站点工作空间：GET 里建的会被回滚）
 pearnly_cowork.recon_center.api.active	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.jobs._resume）
 pearnly_cowork.recon_center.api.export_vat	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_cowork.recon_center.api.status	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.jobs._resume）
-pearnly_cowork.recon_center.api.tasks	接口	待改（读接口顺手建站点工作空间：GET 里建的会被回滚）
-pearnly_cowork.recon_center.presets.listing	接口	待改（读接口顺手建站点工作空间：GET 里建的会被回滚）
-pearnly_cowork.recon_center.sheets.load	接口	待改（GET 可达却写库：pearnly_cowork.recon_center.view_store.put）
+pearnly_cowork.recon_center.sheets.load	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.view_store.put）
 pearnly_cowork.reconciliation.bank_recon_api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_cowork.reconciliation.income_recon_api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_cowork.stocktake.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.stocktake.desk_api.api_list_stock_counts	接口	待改（读接口顺手建站点工作空间：GET 里建的会被回滚）
 pearnly_cowork.stocktake.desk_api.api_stock_count_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.stocktake.desk_api.api_stock_count_template	接口	待改（读接口顺手建站点工作空间：GET 里建的会被回滚）
-pearnly_cowork.stocktake.desk_api.api_stock_count_total	接口	待改（读接口顺手建站点工作空间：GET 里建的会被回滚）
 pearnly_cowork.work.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.cashier.api.api_count_shifts	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_counter_lookup	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_counter_products	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_current_sales	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_current_shift	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_list_sales	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_list_shifts	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
-pearnly_erp_portal.cashier.api.api_sale_total	接口	待改（读接口顺手建默认收银台：GET 里建的会被回滚；默认收银台应在开户 / 首次 POST 时建）
 pearnly_erp_portal.cashier.api.api_shifts_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.express.api.document_express	接口	待改（GET 可达却写库：pearnly_erp_portal.express.pos_day.document）
 pearnly_erp_portal.inventory.api.api_stock_count_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_erp_portal.inventory.api.api_stock_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_erp_portal.purchasing.api.api_purchase_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）

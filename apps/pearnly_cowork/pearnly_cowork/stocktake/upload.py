@@ -41,7 +41,7 @@ def template():
     from openpyxl import Workbook
     from pearnly_core.browser_text import label
 
-    access.require(scope.default_workspace())
+    access.require(scope.existing_workspace() or None)  # 模板是读接口：不建归属（GET 不提交）
     book = Workbook()
     sheet = book.active
     sheet.append([label(key) for _field, key in upload_sheet.FIELD_LABELS])
@@ -115,8 +115,10 @@ def create(title, request_id, content):
 
 
 def records(start=0, limit=20, sort_by="created_at", sort_order="desc"):
-    workspace = scope.default_workspace()
-    access.require(workspace)
+    workspace = scope.existing_workspace()  # 列表是读接口：不建归属（GET 不提交）
+    access.require(workspace or None)
+    if not workspace:
+        return {"tasks": [], "total": 0}
     start, limit = service.page(start, limit)
     column = SORTS.get(sort_by, SORTS["created_at"])
     order = "ASC" if str(sort_order).lower() == "asc" else "DESC"

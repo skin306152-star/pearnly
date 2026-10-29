@@ -64,9 +64,14 @@ def active(kind):
 
 @frappe.whitelist()
 def tasks(kind, start=0, limit=20, sort_by=None, sort_order=None):
+    workspace = scope.existing_workspace()  # 读接口不建归属（GET 不提交）
+    if kind != "vat":
+        _tasks(kind)
+    if not workspace:
+        return {"tasks": [], "total": 0}
     if kind == "vat":
-        return vat_check_service.records(scope.default_workspace(), start, limit, sort_by, sort_order)
-    return _tasks(kind).records(scope.default_workspace(), start, limit, sort_by, sort_order)
+        return vat_check_service.records(workspace, start, limit, sort_by, sort_order)
+    return _tasks(kind).records(workspace, start, limit, sort_by, sort_order)
 
 
 @frappe.whitelist()

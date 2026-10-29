@@ -419,7 +419,7 @@ def _login_as(user: str):
 # ── 供控制面调用：登记绑定（邀请） ──────────────────────────────────────────
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def bind_identity(user: str, subject: str, issuer_value: str | None = None, deployment_id: str | None = None):
     """把某个身份绑定到本地账号。只允许已登录且有权限的人调用。"""
     frappe.only_for(("System Manager",))

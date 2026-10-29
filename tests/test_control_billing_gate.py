@@ -16,8 +16,8 @@ class Gate(unittest.TestCase):
         db.get_value.return_value = "SUB-1" if subscription else None
         calls = {}
 
-        def wallet_of(tenant, create=True):
-            calls["wallet_create"] = create
+        def existing_wallet(tenant):
+            calls["wallet_read_only"] = True
             return wallet
 
         def pages_used(tenant, month, *, lock=True):
@@ -25,7 +25,8 @@ class Gate(unittest.TestCase):
             return 10
 
         with mock.patch.object(billing.frappe, "db", db), \
-                mock.patch.object(billing, "wallet_of", side_effect=wallet_of), \
+                mock.patch.object(billing, "existing_wallet", side_effect=existing_wallet), \
+                mock.patch.object(billing, "wallet_of", side_effect=AssertionError("问余额不建 / 不锁钱包")), \
                 mock.patch("pearnly_control.payments.usage.pages_used", side_effect=pages_used), \
                 mock.patch.object(billing.frappe, "get_doc", return_value=subscription), \
                 mock.patch.object(billing, "estimate_cost_thb", return_value=Decimal("5")), \
@@ -38,7 +39,7 @@ class Gate(unittest.TestCase):
         result, calls, db = self.run_gate(subscription=SimpleNamespace(
             status="active", cycle_end="2026-10-30 00:00:00", quota=100, pages_used_this_cycle=0, over_rate=1))
         self.assertTrue(result["allowed"])
-        self.assertEqual((calls["wallet_create"], calls["usage_lock"]), (False, False))
+        self.assertEqual((calls["wallet_read_only"], calls["usage_lock"]), (True, False))
         db.sql.assert_not_called()  # 不锁租户行
         for call in db.get_value.call_args_list:
             self.assertFalse(call.kwargs.get("for_update"))

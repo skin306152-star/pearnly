@@ -41,6 +41,37 @@ Frappe 不提交 GET 请求，这一行被回滚。保存带着这一行的编�
 「待改」的 43 条按类别整改（牵涉 ERP / Cowork / 控制面 / 共用层和大量调用方，部署要四个产品），范围由主会话定；
 整改一条删一条，新增的一律拦。
 
+## 第 2 步：GET 里顺手建 / 写、会被回滚的 17 条（分支 `pearnly/get-write-rollback`，叠在第 1 步之上）
+
+先在本机样板上按新开户实测（ERP `qerp.localhost`，公司 CO-00056「FRESHLAB 新开户」、一个仓、没有收银台）：
+8 个收银读接口都正常返回空结果，收银台数仍是 0（读接口里建的那台被回滚）；开班（写路径）才建出默认收银台，之后读接口照常读到。
+即**用户看得见的失败没有**，但每次打开收银台都白建一台、白锁一次。其余几条同理：结果对，写的东西被回滚。
+
+| 接口（条数） | 原来 GET 里写的 | 改法 |
+|---|---|---|
+| ERP 收银 8 个读接口（`api_current_shift` / `api_counter_products` / `api_counter_lookup` / `api_list_shifts` / `api_count_shifts` / `api_list_sales` / `api_sale_total` / `api_current_sales`） | `terminals.resolve` → `ensure_default` 建默认收银台 | 新增只读 `terminals.default_of` / `resolve_read`，读接口（`shifts.current_shift`、`_shift_filters`、`counter.warehouse_for`）用它；没有收银台时班次为空、商品区按公司唯一仓取（同建收银台时的规则）。建收银台只在开班、卖货（`resolve`） |
+| Cowork 6 个读接口（对账任务列表、对账预设、盘点列表 / 合计 / 模板、文件夹任务列表） | `default_workspace` → `ensure_site_workspace` 建站点归属 | 新增只读 `scope.existing_workspace`；还没有归属时返回空结果（归属在安装 / 迁移与写路径上建） |
+| Cowork `pending_api.account_sets`（待选账套） | `service.books` 给按名称建的主档补存税号 | 新增只读 `service.listed_books` / `tasks.listed_books_of`：要补的税号只在本次结果里用上、不存；打开主档页（`books`）照常补存 |
+| 控制面 `billing_api.admin_summary` | 静态上经 `wallet_of(create=False)` | 新增只读 `billing.existing_wallet`，问余额（`gate`）与 `wallet_summary` 用它；`wallet_of` 只剩加锁 / 建钱包一条路 |
+| ERP `express.api.document_express`（单据上的 Express 状态） | 转人工要人选时 `push.document` → 日汇总重算小票税额、存合计 | 改 `methods=["POST"]`，单据页 `transactions.js` 的 `p.express` 用 POST（唯一调用方） |
+| 共用层 `identity.bind_identity` | 建身份绑定（本来就手动 commit） | 改 `methods=["POST"]`；调用方都是 Python 直接调（开户、样板配置、验收脚本），不受影响 |
+
+`assistant.api.push_key`、`recon_center.sheets.load` 复核后本来就在 GET 里手动 commit，归入「GET 里手动 commit」那类（第 3 步）。
+整改后豁免表 44 → 26 条：导出排队 13、GET 里手动 commit 12、按协议必须 GET 1（`identity.callback`）。
+
+牵涉的产品：ERP（`pearnly_erp_portal`）、Cowork（`pearnly_cowork`）、控制面（`pearnly_control`）、共用层（`pearnly_core`，只改接口方法）。
+部署用 `scripts/production/deploy.sh` 一次全激活。
+
+### 验证（第 2 步）
+
+- 样板实测（一次性容器只读挂本分支源码、同一个样板库，事务最后整体回滚，记 `frappe.db.transaction_writes`）：
+  ERP 收银 8 个读接口在「有收银台」「这家公司一台收银台都没有」两种情况下写库次数都是 0、收银台数仍是 0；
+  同一脚本跑旧代码（样板 web，main）：没有收银台时第一次读接口写库 2 次、事务里多出一台收银台。
+- 单元：`tests/test_control_billing_gate.py`（问余额只走 `existing_wallet`、不碰 `wallet_of`）、`test_cowork_folder_task_batch.py`
+  等受影响测试；本地完整闸门（同 development.yml）全过；`scripts/check-get-writes.py` PASS（接口豁免 26 条）。
+- 没验证：Cowork「站点还没有归属」只在新站点安装前那一刻出现，样板站点都已有归属，按代码与单元测试核对；
+  `document_express` 改 POST 后单据页 Express 弹窗没在浏览器里点（调用方只有这一处，`p.call` 第三参给 POST）。
+
 ## 验证
 
 - 单元 / 节点：`tests/test_check_get_writes.py` 4 项、`tests/test-line-stocktake.cjs` 通过；`scripts/check-get-writes.py` PASS。
@@ -63,3 +94,4 @@ Frappe 不提交 GET 请求，这一行被回滚。保存带着这一行的编�
 
 样板 `qerp.localhost`：CO-00046「SCANLAB2 空仓测试」、WH-00047、PRD-00048、STC-00049 / 52 / 53、管理员的测试 LINE 绑定 `U-scanlab2-test`、
 测试会话；临时容器 `pearnly-getwrites-preview`（127.0.0.1:8199）。收尾时删除。
+第 2 步：CO-00056「FRESHLAB 新开户」、WH-00057、TERM-00058、SHIFT-2026-00059；实测脚本 `~/pearnly-devtools/get-write-rollback/`。

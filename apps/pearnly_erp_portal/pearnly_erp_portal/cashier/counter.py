@@ -22,6 +22,7 @@ import frappe
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.cashier import terminals
 from pearnly_erp_portal.inventory import warehouses
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.products import service as products
 
 BALANCE = "ERP Stock Balance"
@@ -29,7 +30,11 @@ BALANCE = "ERP Stock Balance"
 
 def warehouse_for(terminal=None) -> str:
     """这个收银台动的是哪个仓库：**它自己配的那个**（没有"默认仓"了）。"""
-    name = terminals.resolve(terminal)
+    name = terminals.resolve_read(terminal)
+    if not name:
+        # 这家公司还没有收银台（新开户第一次打开收银台，开班时才建）：按建默认收银台时同一个规则取仓——
+        # 公司只有一个仓就是它，否则照样报"收银台还没配仓"。读接口不建收银台（GET 不提交，建了也会被回滚）。
+        return terminals.place_of({"company": companies.active_company(), "warehouse": ""})
     row = frappe.db.get_value("ERP POS Terminal", name, ["company", "warehouse"], as_dict=True)
     return terminals.place_of(row)
 

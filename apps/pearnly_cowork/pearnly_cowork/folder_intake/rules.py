@@ -605,7 +605,10 @@ def run_now(name):
 def listing():
     _require()
     rows, usable, members = [], [], {}
-    for connection in connections.records(scope.default_workspace(), None, 0, 100) or []:
+    workspace = scope.existing_workspace()  # 读接口不建归属（GET 不提交）；还没有归属也就还没有连接与规则
+    if not workspace:
+        return {"rules": [], "connections": []}
+    for connection in connections.records(workspace, None, 0, 100) or []:
         if not destinations.supported(connection.get("adapter")):
             continue
         try:

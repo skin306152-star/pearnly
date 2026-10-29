@@ -149,28 +149,46 @@ def books(company, limit=identity.BOOKS_MAX) -> list:
     """这家公司有哪些账套（本人能用的连接上），每次现算、不存：新年度在前，最多 `limit` 份（页面与 CC 说明截到
     `identity.BOOKS_MAX`；删 / 改记住的选择要全集，给 None，否则多分店多年度删不干净、改不全）。
     按名称建的主档，同一连接同名称的行后来报了有效税号 → 顺手补上税号（那个 `tax:` 键没被别的主档占用时；占了就不动，
-    只记日志）。"""
+    只记日志）。读接口用 `listed_books`（同一份结果，不补存）。"""
     company = dict(company)
-    if not company.get("tax_id") and company.get("adapter") == "mrerp":
+    fill, taken = _tax_fill(company)
+    if taken:
+        _taken(company, fill)
+    elif fill and _autofill(company, fill):
+        company.update(fill)
+    return _found(company, limit)
+
+
+def listed_books(company, limit=identity.BOOKS_MAX) -> list:
+    """`books` 的只读版：要补的税号只在这次结果里用上、不存（读接口多是 GET，Frappe 不提交 GET 请求，存了也会被回滚；
+    `scripts/check-get-writes.py` 拦再犯）。下次打开主档页（`books`）照常补上。"""
+    company = dict(company)
+    fill, taken = _tax_fill(company)
+    if fill and not taken:
+        company.update(fill)
+    return _found(company, limit)
+
+
+def _tax_fill(company) -> tuple[dict | None, bool]:
+    """按名称建、还没税号的主档该补的税号（只读）：``(要写的字段, 那个税号键是否已被别的主档占用)``；不用补回 ``(None, False)``。"""
+    if company.get("tax_id"):
+        return None, False
+    if company.get("adapter") == "mrerp":
         # MR.ERP：刷新账套时读到了这家公司总店登记的有效税号就补上（只补空的，身份不变；读不到保持为空）
         for connection, adapter, row in _rows():
             if adapter != "mrerp" or not identity.belongs(company, adapter, connection, row):
                 continue
             tax = (identity.company_identity(adapter, connection, row) or {}).get("tax_id")
-            if tax:
-                if _autofill(company, {"tax_id": tax}):
-                    company["tax_id"] = tax
-                break
-    elif not company.get("tax_id"):
-        for connection, adapter, row in _rows():
-            fill = identity.autofill(company, adapter, connection, row) if adapter == company.get("adapter") else None
-            if not fill:
-                continue
-            if frappe.db.exists(COMPANY, {"identity": fill["identity"]}):
-                _taken(company, fill)
-            elif _autofill(company, fill):
-                company.update(fill)
-            break
+            return ({"tax_id": tax} if tax else None), False
+        return None, False
+    for connection, adapter, row in _rows():
+        fill = identity.autofill(company, adapter, connection, row) if adapter == company.get("adapter") else None
+        if fill:
+            return fill, bool(frappe.db.exists(COMPANY, {"identity": fill["identity"]}))
+    return None, False
+
+
+def _found(company, limit) -> list:
     found = [identity.book(adapter, connection, row) for connection, adapter, row in _rows()
              if adapter == company.get("adapter") and identity.belongs(company, adapter, connection, row)]
     found = identity.newest_first(found)

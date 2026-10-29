@@ -159,7 +159,7 @@ def current_shift(*, terminal=None) -> dict | None:
     guard.require("cashier.read")
     filters = {"cashier": frappe.session.user, "status": contracts.OPEN, **terminals.scope_filter()}
     if terminal:
-        filters["terminal"] = terminals.resolve(terminal)
+        filters["terminal"] = terminals.resolve_read(terminal)
     name = frappe.db.get_value(DT, filters, "name")
     return summary(name) if name else None
 
@@ -286,7 +286,7 @@ def _shift_filters(terminal, cashier, status, date_from, date_to, names) -> dict
         # 权限过滤在上一步已经写进 filters，这里再按名字收窄 —— 越权传别人的班次号只会取到空。
         filters["name"] = ["in", list(names)]
     if terminal:
-        filters["terminal"] = terminals.resolve(terminal)
+        filters["terminal"] = terminals.resolve_read(terminal)
     if status:
         filters["status"] = status
     if date_from and date_to:

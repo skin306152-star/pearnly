@@ -129,11 +129,22 @@ def default_workspace() -> str:
     return ensure_site_workspace()
 
 
-def ensure_site_workspace() -> str:
+def existing_workspace() -> str:
+    """本站点那一份内部归属，**只读**：没有回空串。
+
+    读接口用它，不用 `default_workspace`：读接口多是 GET，Frappe 不提交 GET 请求，在里面建的归属会被回滚
+    （10-29，`scripts/check-get-writes.py` 拦再犯）。归属在安装 / 迁移（`ensure_on_migrate`）和写路径上建；
+    还没建的那一小段时间站点里也不会有任何记录，读接口照空结果返回。
+    """
     rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},
                           pluck="name", order_by="creation asc, name asc", limit_page_length=1)
-    if rows:
-        return rows[0]
+    return rows[0] if rows else ""
+
+
+def ensure_site_workspace() -> str:
+    existing = existing_workspace()
+    if existing:
+        return existing
     # 并发的第一次请求在 DocType 元数据行上排队，只建一份（与公司资料写入同一把锁）。
     frappe.db.get_value("DocType", "Cowork Workspace", "name", for_update=True)
     rows = frappe.get_all("Cowork Workspace", filters={"enabled": 1},

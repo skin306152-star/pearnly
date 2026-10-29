@@ -149,8 +149,10 @@ def mark_handled(doctype, name, reason=None):
     return _view(doctype, _document(doctype, name))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def document_express(doctype, name):
+    """单据上的 Express 写账状态（单据页 `p.express`）。POST：转人工要人选对方档 / 存货科目组时，要先按单据此刻的内容准备一遍
+    （`push.document`，日汇总会重算小票税额、存回合计），Frappe 不提交 GET 请求，这些写在 GET 里白做、被回滚。"""
     return _view(doctype, _document(doctype, name))
 
 

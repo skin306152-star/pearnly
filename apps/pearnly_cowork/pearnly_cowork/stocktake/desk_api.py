@@ -59,8 +59,10 @@ def api_list_stock_counts(start=0, limit=20, sort_by=None, sort_order=None, stat
 
 @frappe.whitelist()
 def api_stock_count_total(status=None):
-    workspace = scope.default_workspace()
-    access.require(workspace)
+    workspace = scope.existing_workspace()  # 读接口不建归属（GET 不提交）
+    access.require(workspace or None)
+    if not workspace:
+        return 0
     return frappe.db.count(TASK, {"workspace": workspace})
 
 

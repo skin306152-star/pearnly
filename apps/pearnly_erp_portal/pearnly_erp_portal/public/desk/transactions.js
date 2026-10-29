@@ -164,7 +164,7 @@
 	$(document).on("app_ready", listen_needed);  // 实时连接在桌面起好后才有
 	p.express = async (doctype, name, reload) => {
 		const api = "pearnly_erp_portal.express.api.";
-		const info = await p.call(api + "document_express", {doctype, name});
+		const info = await p.call(api + "document_express", {doctype, name}, "POST");
 		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
 		// CC 桌面版回报的「[错误码] 原文」：认得的码给译文（会计期间已关账等），其余原样
 		const code = (info.reason || "").match(/^\[([A-Z0-9_]+)\]/)?.[1];

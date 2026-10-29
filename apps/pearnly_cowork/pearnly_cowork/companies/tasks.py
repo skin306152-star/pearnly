@@ -66,7 +66,20 @@ def books_of(company, connection, day=None, branch="", *, remembered=True) -> li
         return None
     service.forget_cache()
     row = service.get(company)
-    sets = [item for item in service.books(row, None) if item["connection"] == connection]
+    return _narrowed(company, row, service.books(row, None), connection, day, branch, remembered)
+
+
+def listed_books_of(company, connection, day=None, branch="", *, remembered=True) -> list | None:
+    """`books_of` 的只读版（读接口用，不补存主档税号，见 `service.listed_books`）。"""
+    if not service.exists(company):
+        return None
+    service.forget_cache()
+    row = service.get(company)
+    return _narrowed(company, row, service.listed_books(row, None), connection, day, branch, remembered)
+
+
+def _narrowed(company, row, sets, connection, day, branch, remembered) -> list | None:
+    sets = [item for item in sets if item["connection"] == connection]
     sets = identity.for_branch(sets, branch)
     if day is None:
         return sets
@@ -81,4 +94,4 @@ def books_of(company, connection, day=None, branch="", *, remembered=True) -> li
     return current_book.pick(workspace, row.get("identity"), day, found)
 
 
-__all__ = ["books_of", "company_of"]
+__all__ = ["books_of", "company_of", "listed_books_of"]

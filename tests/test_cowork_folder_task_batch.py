@@ -170,7 +170,7 @@ class Harness(unittest.TestCase):
         self.readers = readers
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: self.clock[0]),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
-                   "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None, default_workspace=lambda: "W")),
+                   "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None, default_workspace=lambda: "W", existing_workspace=lambda: "W")),
                    "pearnly_cowork.companion": stub(devices=stub(reporter_label=lambda connection: "", newest_version=lambda connection: "")),
                    "pearnly_cowork.connections": stub(
                        access=stub(require_connection=lambda doc: None), desktop_update=desktop_update,

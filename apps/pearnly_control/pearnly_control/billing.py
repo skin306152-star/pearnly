@@ -133,17 +133,22 @@ def estimate_cost_thb(used_this_month: int, kind: str, units: int, tier: str = "
 # ── 钱包与台账 ──────────────────────────────────────────────────────────────
 
 
+def existing_wallet(tenant: str):
+    """租户钱包，**只读**：还没有就回 None，不建、不锁（读接口用；读接口多是 GET，Frappe 不提交 GET 请求）。"""
+    name = frappe.db.get_value(WALLET, {"tenant": tenant}, "name")
+    return frappe.get_doc(WALLET, name) if name else None
+
+
 def wallet_of(tenant: str, *, create: bool = True):
-    """取租户钱包。新租户余额是 0（不是"默认给点钱"）。"""
+    """取租户钱包。新租户余额是 0（不是"默认给点钱"）。只读取用 `existing_wallet`。"""
+    if not create:
+        return existing_wallet(tenant)
     # A stable parent row also serializes creation of the initially absent wallet.
     # All mutations lock this row first; wallet/quota/ledger update together.
-    if create:
-        frappe.db.sql("select name from `tabPearnly Tenant` where name=%s for update", (tenant,))
-    name = frappe.db.get_value(WALLET, {"tenant": tenant}, "name", for_update=create)
+    frappe.db.sql("select name from `tabPearnly Tenant` where name=%s for update", (tenant,))
+    name = frappe.db.get_value(WALLET, {"tenant": tenant}, "name", for_update=True)
     if name:
-        return frappe.get_doc(WALLET, name, for_update=create)
-    if not create:
-        return None
+        return frappe.get_doc(WALLET, name, for_update=True)
     doc = frappe.get_doc({"doctype": WALLET, "tenant": tenant, "balance_thb": 0})
     doc.insert(ignore_permissions=True)
     return doc
@@ -415,7 +420,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
     这里只是放行判断，钱以扣费时为准：扣费照旧在租户锁里重新读余额、用量与订阅。还没有钱包的租户余额就是 0，不在这里建。
     """
     try:
-        wallet = wallet_of(tenant, create=False)
+        wallet = existing_wallet(tenant)
         balance = _money((wallet.balance_thb if wallet else 0) or 0)
         ym = _bkk_year_month()
         used = _payg_pages_used(tenant, wallet, ym, lock=False) if kind == "pdf" else 0
@@ -454,7 +459,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
 
 def wallet_summary(tenant: str) -> dict:
     """给界面看的：余额 + 本月用量 + 最近几笔。"""
-    wallet = wallet_of(tenant, create=False)
+    wallet = existing_wallet(tenant)
     ym = _bkk_year_month()
     from pearnly_control.payments.usage import pages_used
     return {

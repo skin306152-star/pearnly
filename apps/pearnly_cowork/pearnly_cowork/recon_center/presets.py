@@ -56,7 +56,8 @@ def _answer_by_rerun(kind, doc, rule, value, lang):
 
 @frappe.whitelist()
 def listing(kind):
-    return preset_store.listing(scope.default_workspace(), kind)
+    workspace = scope.existing_workspace()  # 读接口不建归属（GET 不提交）
+    return preset_store.listing(workspace, kind) if workspace else []
 
 
 @frappe.whitelist(methods=["POST"])

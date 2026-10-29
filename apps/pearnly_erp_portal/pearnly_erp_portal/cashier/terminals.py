@@ -63,16 +63,39 @@ def place_of(terminal_doc, *, company=None) -> str:
     return only
 
 
+def _checked(terminal, company=None) -> str:
+    row = frappe.db.get_value(DOCTYPE, terminal, ["company", "is_active"], as_dict=True)
+    if not row or not row.is_active:
+        frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
+    # 别家公司的收银台：不能拿来落单（货会记到别人账上）。
+    if row.company != (company or companies.active_company()):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return terminal
+
+
 def resolve(terminal=None, company=None) -> str:
+    """写路径（开班、卖货）用：没给收银台就取默认那台，一台都没有就建一台（`ensure_default`）。"""
     if terminal:
-        row = frappe.db.get_value(DOCTYPE, terminal, ["company", "is_active"], as_dict=True)
-        if not row or not row.is_active:
-            frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-        # 别家公司的收银台：不能拿来落单（货会记到别人账上）。
-        if row.company != (company or companies.active_company()):
-            frappe.throw(_("Not permitted"), frappe.PermissionError)
-        return terminal
+        return _checked(terminal, company)
     return ensure_default(company)
+
+
+def default_of(company=None) -> str | None:
+    """这家公司的默认收银台，**只读**：标了默认的那台，没有就最早建的那台；一台都没有回 None。不建、不改标记。"""
+    company = company or companies.active_company()
+    return (frappe.db.get_value(DOCTYPE, {"company": company, "is_default": 1}, "name")
+            or frappe.db.get_value(DOCTYPE, {"company": company}, "name", order_by="creation asc"))
+
+
+def resolve_read(terminal=None, company=None) -> str | None:
+    """读接口用的 `resolve`：给了收银台照样校验；没给只找现有的（`default_of`），**不建**。
+
+    读接口多是 GET，Frappe 不提交 GET 请求：在这里建的收银台会被回滚，新开户第一次打开收银台时每次都白建一台
+    （10-29 实测；`scripts/check-get-writes.py` 拦再犯）。建收银台只在开班、卖货这些写路径上（`resolve`）。
+    """
+    if terminal:
+        return _checked(terminal, company)
+    return default_of(company)
 
 
 def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[dict]:

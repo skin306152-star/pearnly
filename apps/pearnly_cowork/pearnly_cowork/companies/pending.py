@@ -199,7 +199,7 @@ def _stop_scope(row) -> dict | None:
     company, branch = _task_company(row) or (company_for(row), "")
     if not company:
         return None
-    books = tasks.books_of(company, connection, day, branch, remembered=False)
+    books = tasks.listed_books_of(company, connection, day, branch, remembered=False)
     if books is None:
         return None
     found = frappe.db.get_value(COMPANY, company, ["identity", "workspace"], as_dict=True) or {}
