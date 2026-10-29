@@ -933,3 +933,6 @@ The CC Desktop request is invalid.	CC 桌面版请求无效。	คำขอข�
 The Express write is invalid.	Express 写入内容无效。	ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง	Express への書き込み内容が無効です。	cc_desktop.job_invalid
 This Express write is in progress.	此 Express 写入正在进行中。	กำลังบันทึกลง Express อยู่	この Express への書き込みは処理中です。	cc_desktop.job_busy
 Express Index Tool	Express 索引程序	โปรแกรมดัชนี Express	Express インデックスツール
+Begin typing for results.	输入内容以显示结果	พิมพ์เพื่อแสดงผลลัพธ์	入力すると結果が表示されます	
+Type {0} or more characters for results.	至少输入 {0} 个字符	พิมพ์อย่างน้อย {0} ตัวอักษร	{0} 文字以上入力してください	
+{0} results found	找到 {0} 条结果	พบ {0} รายการ	{0} 件見つかりました	

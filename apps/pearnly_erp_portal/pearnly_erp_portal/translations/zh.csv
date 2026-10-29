@@ -1565,6 +1565,7 @@ Your balance is not enough for recognition. Please top up and send it again.,余
 Zoom In,放大
 Zoom Out,缩小
 adjust,调整
+board,看板
 branch,分支机构
 card,银行卡
 cash,现金
@@ -1700,6 +1701,7 @@ completed,已完成
 count,盘点
 discount applied,已应用折扣
 draft,草稿
+due,到期
 erp.detail.amount,金额无效
 erp.detail.discount,折扣超过合计
 erp.detail.grand_total,合计无效
@@ -2087,6 +2089,8 @@ goods,货物
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出
+keyword,搜索卡片
+member,成员
 nav.posReceipts,收银记录
 nav.posShifts,班次记录
 nav.stockCount,盘点

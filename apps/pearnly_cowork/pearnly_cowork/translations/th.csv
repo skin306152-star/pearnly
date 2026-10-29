@@ -2204,6 +2204,7 @@ admitted,รับงานแล้ว
 amount,จำนวนเงิน
 and {0} more,และอีก {0} รายการ
 before VAT,ก่อนภาษี
+board,บอร์ด
 catalog_refresh_invalid,หลักฐานไดเรกทอรีไม่ถูกต้อง กรุณารีเฟรชแล้วเลือกใหม่
 catalog_refresh_pending,กำลังรอการรีเฟรชไดเรกทอรี
 catalog_refresh_required,กรุณารีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
@@ -3303,6 +3304,7 @@ credit,เครดิต
 date differs from the date in the number,วันที่ไม่ตรงกับวันที่ในเลขที่เอกสาร
 debit,เดบิต
 document,เอกสาร
+due,ครบกำหนด
 erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 erp.endpoint_disabled,การเชื่อมต่อ ERP นี้ปิดใช้งานแล้ว
 erp.target_access_denied,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
@@ -3482,12 +3484,14 @@ intake.target.accountSet,ชุดบัญชี
 intake.wait.page,หน้า {0}/{1}
 intake.wait.queued,รอคิว
 intake.wait.uploading,กำลังอัปโหลด
+keyword,ค้นหาการ์ด
 leased,รับไปดำเนินการแล้ว
 legacy,ระบบเดิม
 logical_section,ส่วนข้อมูลของเอกสาร
 low balance,ยอดคงเหลือไม่พอ
 "made by the system, do not put documents here",ระบบสร้างเอง ห้ามวางเอกสาร
 manual,กรอกเอง
+member,สมาชิก
 none,ไม่มี
 not_billable,ไม่ต้องเรียกเก็บเงิน
 not_due,ยังไม่ถึงกำหนดเรียกเก็บเงิน

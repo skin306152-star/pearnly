@@ -1565,6 +1565,7 @@ Your balance is not enough for recognition. Please top up and send it again.,You
 Zoom In,Zoom In
 Zoom Out,Zoom Out
 adjust,adjust
+board,board
 branch,branch
 card,card
 cash,cash
@@ -1700,6 +1701,7 @@ completed,completed
 count,count
 discount applied,discount applied
 draft,draft
+due,due
 erp.detail.amount,The amount is invalid
 erp.detail.discount,The discount exceeds the total
 erp.detail.grand_total,The total is invalid
@@ -2087,6 +2089,8 @@ goods,goods
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
+keyword,keyword
+member,member
 nav.posReceipts,Cashier Records
 nav.posShifts,Shift Records
 nav.stockCount,Stock count

@@ -56,6 +56,7 @@ Balance,ยอดคงเหลือ
 Balance after,ยอดคงเหลือหลังเปลี่ยนแปลง
 Bank,ธนาคาร
 Batches and results of every recognition run,บันทึกและผลลัพธ์ของการอ่านเอกสารแต่ละชุด
+Begin typing for results.,พิมพ์เพื่อแสดงผลลัพธ์
 Billing,การคิดค่าบริการ
 Billing is not configured on this site (pearnly_billing_*),บริการเรียกเก็บเงินไม่พร้อมใช้งานชั่วคราว กรุณาติดต่อฝ่ายบริการลูกค้า
 "Billing is not wired up on this site, please contact the platform",ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
@@ -779,6 +780,7 @@ Trigger,รูปแบบการทริกเกอร์
 Try again,ลองอีกครั้ง
 Type,ประเภท
 Type of the connected system,ประเภทระบบปลายทาง
+Type {0} or more characters for results.,พิมพ์อย่างน้อย {0} ตัวอักษร
 UI language,ภาษาของหน้าจอ
 Unable to load this page. Please reload.,ไม่สามารถโหลดหน้านี้ได้ กรุณารีเฟรช
 Unable to read the current advisor list. Retry before changing the assignment.,ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ กรุณาลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน
@@ -1304,6 +1306,7 @@ username / password are required,ต้องระบุ username / password
 {0} pages per cycle,{0} หน้าต่อรอบ
 {0} record(s) deleted.,ลบ {0} รายการแล้ว
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} รายการ · รวม {1} · ต้องชำระ {2} · ค้างชำระ {3}
+{0} results found,พบ {0} รายการ
 {0} seconds so far,ผ่านไป {0} วินาที
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} ต้องใช้พารามิเตอร์ {1} ตัว แต่ส่งเข้าคิวมา {2} ตัว
 {0} top-up request(s) pending review.,มีคำขอเติมเงิน {0} รายการรอตรวจสอบ

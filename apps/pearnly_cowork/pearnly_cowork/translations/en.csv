@@ -2204,6 +2204,7 @@ admitted,admitted
 amount,amount
 and {0} more,and {0} more
 before VAT,before VAT
+board,board
 catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
 catalog_refresh_pending,The directory refresh is still pending.
 catalog_refresh_required,Refresh the account directory before continuing.
@@ -3303,6 +3304,7 @@ credit,credit
 date differs from the date in the number,date differs from the date in the number
 debit,debit
 document,document
+due,due
 erp.account_set_unavailable,This account set is unavailable.
 erp.endpoint_disabled,This ERP connection is disabled.
 erp.target_access_denied,You do not have access to this ERP target.
@@ -3482,12 +3484,14 @@ intake.target.accountSet,Account set
 intake.wait.page,Page {0}/{1}
 intake.wait.queued,Queued
 intake.wait.uploading,Uploading
+keyword,keyword
 leased,leased
 legacy,legacy
 logical_section,logical_section
 low balance,low balance
 "made by the system, do not put documents here","made by the system, do not put documents here"
 manual,Manual
+member,member
 none,none
 not_billable,not_billable
 not_due,not_due

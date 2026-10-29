@@ -135,6 +135,16 @@ ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rul
     （`REGRESSION_LAB_CONTAINER` / `REGRESSION_LAB_PORT`），跑完已删。
   - 兜底：事务里删掉默认看板与列表后，读路径报「看板不存在」、写库 0 次；`service.board()` 补建出默认看板与三列（两个产品都测，最后回滚）。
 
+### 顺带修：任务管理筛选区的英文（主会话 10-29，单独一个提交）
+
+中文界面下任务管理页筛选区读出英文「Begin typing for results.」和 board / keyword / member / due（ERP、Cowork 都有）。实测：
+- 「Begin typing for results.」是 Frappe 搜索框（awesomplete）给读屏的状态句，`__()` 取译文，Frappe 自带中 / 泰都没有；
+- board 等是 Frappe 控件的提示框（`base_control.js`：`__(df.fieldname)` 按字段名取译文），这四个字段名没有译文（label 有框架自带的「标签」）。
+两处在页面上都是隐藏的（裁成 0 / 透明），读屏、悬停、取页面文字时出来。补词条：共用术语表加搜索框的三句状态
+（Begin typing / Type {0} or more characters / {0} results found；No results found 框架自带有），ERP 与 Cowork 术语表各加这四个字段名
+（与各自标签同一句）。实验室中文界面复看：两个产品的提示框都是「看板 / 搜索卡片 / 成员 / 标签 / 到期」、状态句「输入内容以显示结果」。
+`check-copy.py`：新增 11 条、拦截 0。
+
 ## 同页顺带修：保存后抬头不刷新
 
 手机页保存后，抬头「已盘点 x / y」不变，要退出重进这份盘点才更新（抬头只在打开盘点时取一次）。主会话 10-29 定同一分支修掉：

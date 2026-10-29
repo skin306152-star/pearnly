@@ -2204,6 +2204,7 @@ admitted,已受理
 amount,金额
 and {0} more,另有 {0} 项
 before VAT,未税
+board,看板
 catalog_refresh_invalid,目录证据无效，请刷新后重新选择。
 catalog_refresh_pending,目录正在等待刷新。
 catalog_refresh_required,请先刷新账套目录。
@@ -3303,6 +3304,7 @@ credit,贷方
 date differs from the date in the number,日期与单号上的日期不符
 debit,借方
 document,文档
+due,到期
 erp.account_set_unavailable,此账套不可用。
 erp.endpoint_disabled,此 ERP 连接已停用。
 erp.target_access_denied,无权访问此 ERP 目标。
@@ -3482,12 +3484,14 @@ intake.target.accountSet,账套
 intake.wait.page,第 {0}/{1} 页
 intake.wait.queued,排队中
 intake.wait.uploading,上传中
+keyword,搜索卡片
 leased,已领取
 legacy,旧版
 logical_section,文档逻辑单元
 low balance,余额不足
 "made by the system, do not put documents here",系统生成，别放单据
 manual,手工
+member,成员
 none,无
 not_billable,无需计费
 not_due,尚无需计费

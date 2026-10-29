@@ -56,6 +56,7 @@ Balance,残高
 Balance after,変動後の残高
 Bank,銀行
 Batches and results of every recognition run,各認識バッチの記録と結果
+Begin typing for results.,入力すると結果が表示されます
 Billing,課金
 Billing is not configured on this site (pearnly_billing_*),課金サービスを利用できません。サポートにお問い合わせください。
 "Billing is not wired up on this site, please contact the platform",課金サービスを利用できません。サポートにお問い合わせください。
@@ -779,6 +780,7 @@ Trigger,トリガー
 Try again,もう一度
 Type,種別
 Type of the connected system,接続先システムの種類
+Type {0} or more characters for results.,{0} 文字以上入力してください
 UI language,表示言語
 Unable to load this page. Please reload.,このページを読み込めません。再読み込みしてください。
 Unable to read the current advisor list. Retry before changing the assignment.,現在の担当者一覧を取得できません。再試行してから帰属を変更してください。
@@ -1304,6 +1306,7 @@ username / password are required,username / password は必須です
 {0} pages per cycle,1期間あたり{0}ページ
 {0} record(s) deleted.,{0}件を削除しました。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}
+{0} results found,{0} 件見つかりました
 {0} seconds so far,経過 {0} 秒
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
 {0} top-up request(s) pending review.,チャージ申請{0}件が審査待ちです。

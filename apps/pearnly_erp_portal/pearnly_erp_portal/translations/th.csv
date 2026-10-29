@@ -1565,6 +1565,7 @@ Your balance is not enough for recognition. Please top up and send it again.,ย
 Zoom In,ขยาย
 Zoom Out,ย่อ
 adjust,ปรับปรุง
+board,บอร์ด
 branch,สาขา
 card,บัตร
 cash,เงินสด
@@ -1700,6 +1701,7 @@ completed,เสร็จสิ้น
 count,ตรวจนับ
 discount applied,ใช้ส่วนลดแล้ว
 draft,ฉบับร่าง
+due,ครบกำหนด
 erp.detail.amount,จำนวนเงินไม่ถูกต้อง
 erp.detail.discount,ส่วนลดเกินยอดรวม
 erp.detail.grand_total,ยอดรวมไม่ถูกต้อง
@@ -2087,6 +2089,8 @@ goods,สินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว
+keyword,ค้นหาการ์ด
+member,สมาชิก
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
 nav.stockCount,ตรวจนับสต็อก

@@ -56,6 +56,7 @@ Balance,余额
 Balance after,变动后余额
 Bank,收款银行
 Batches and results of every recognition run,每次识别批次的记录与结果
+Begin typing for results.,输入内容以显示结果
 Billing,计费
 Billing is not configured on this site (pearnly_billing_*),计费服务暂不可用，请联系客服。
 "Billing is not wired up on this site, please contact the platform",计费服务暂不可用，请联系客服。
@@ -779,6 +780,7 @@ Trigger,触发方式
 Try again,重试
 Type,类型
 Type of the connected system,对端系统类型
+Type {0} or more characters for results.,至少输入 {0} 个字符
 UI language,界面语言
 Unable to load this page. Please reload.,无法加载此页面，请刷新。
 Unable to read the current advisor list. Retry before changing the assignment.,无法读取当前顾问名册。请重试后再修改归属。
@@ -1304,6 +1306,7 @@ username / password are required,username / password 必填
 {0} pages per cycle,每周期 {0} 页
 {0} record(s) deleted.,已删除 {0} 条记录。
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
+{0} results found,找到 {0} 条结果
 {0} seconds so far,已用 {0} 秒
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} 需要 {1} 个参数，入队时传入了 {2} 个
 {0} top-up request(s) pending review.,{0} 笔充值申请待审核。

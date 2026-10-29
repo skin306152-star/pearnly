@@ -2204,6 +2204,7 @@ admitted,受け付け済み
 amount,金額
 and {0} more,ほか {0} 件
 before VAT,税抜
+board,ボード
 catalog_refresh_invalid,ディレクトリの情報が無効です。更新して選択し直してください。
 catalog_refresh_pending,ディレクトリの更新を待機しています。
 catalog_refresh_required,先に会計データのディレクトリを更新してください。
@@ -3303,6 +3304,7 @@ credit,貸方
 date differs from the date in the number,日付が番号内の日付と異なる
 debit,借方
 document,文書
+due,期日
 erp.account_set_unavailable,この会計データは利用できません。
 erp.endpoint_disabled,このERP接続は無効です。
 erp.target_access_denied,このERP送信先にアクセスする権限がありません。
@@ -3482,12 +3484,14 @@ intake.target.accountSet,会計データ
 intake.wait.page,{0}/{1} ページ目
 intake.wait.queued,順番待ち
 intake.wait.uploading,アップロード中
+keyword,カードを検索
 leased,取得済み
 legacy,旧形式
 logical_section,文書の論理単位
 low balance,残高不足
 "made by the system, do not put documents here",システムが作成。書類を置かないでください
 manual,手入力
+member,メンバー
 none,なし
 not_billable,課金対象外
 not_due,課金処理前

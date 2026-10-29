@@ -1565,6 +1565,7 @@ Your balance is not enough for recognition. Please top up and send it again.,残
 Zoom In,拡大
 Zoom Out,縮小
 adjust,調整
+board,ボード
 branch,支店
 card,カード
 cash,現金
@@ -1700,6 +1701,7 @@ completed,完了
 count,棚卸
 discount applied,割引を適用しました
 draft,下書き
+due,期日
 erp.detail.amount,金額が無効です
 erp.detail.discount,割引が合計を超えています
 erp.detail.grand_total,合計が無効です
@@ -2087,6 +2089,8 @@ goods,物品
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み
+keyword,カードを検索
+member,メンバー
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録
 nav.stockCount,棚卸

@@ -56,6 +56,7 @@ Balance,Balance
 Balance after,Balance after
 Bank,Bank
 Batches and results of every recognition run,Batches and results of every recognition run
+Begin typing for results.,Begin typing for results.
 Billing,Billing
 Billing is not configured on this site (pearnly_billing_*),Billing is unavailable. Please contact support.
 "Billing is not wired up on this site, please contact the platform",Billing is unavailable. Please contact support.
@@ -777,6 +778,7 @@ Trigger,Trigger
 Try again,Try again
 Type,Type
 Type of the connected system,Type of the connected system
+Type {0} or more characters for results.,Type {0} or more characters for results.
 UI language,UI language
 Unable to load this page. Please reload.,Unable to load this page. Please reload.
 Unable to read the current advisor list. Retry before changing the assignment.,Unable to read the current advisor list. Retry before changing the assignment.
@@ -1302,6 +1304,7 @@ username / password are required,username / password are required
 {0} pages per cycle,{0} pages per cycle
 {0} record(s) deleted.,{0} record(s) deleted.
 {0} records · grand total {1} · payable {2} · outstanding {3},{0} records · grand total {1} · payable {2} · outstanding {3}
+{0} results found,{0} results found
 {0} seconds so far,{0} seconds so far
 "{0} takes {1} arguments, but {2} were passed to the queue","{0} takes {1} arguments, but {2} were passed to the queue"
 {0} top-up request(s) pending review.,{0} top-up request(s) pending review.
