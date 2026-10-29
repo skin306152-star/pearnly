@@ -77,6 +77,11 @@ reason = "手机盘点：记一笔（带 request_id 幂等）"
 guard = "盘点票据（as_ticket_user）"
 
 [[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_create_product"
+reason = "手机盘点：扫到系统没有的码当场新建商品（同桌面端，有盘点录入权即可，盘点菜单做完整 S3）"
+guard = "盘点票据（as_ticket_user）+ count.write"
+
+[[guest]]
 method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_undo"
 reason = "手机盘点：撤销一笔"
 guard = "盘点票据（as_ticket_user）"
