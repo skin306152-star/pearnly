@@ -493,3 +493,451 @@
 | `frontend/src/types/frappe-ui-vite.ts` | 0 | 1 | 没有 |
 
 </details>
+
+## 覆盖闸扩到「入口背后的业务模块」（10-29，先出清单、未开拦截）
+
+起因：get-writes-scanner-callables 只改了 Cowork `work/boards.py`、`work/service.py`（不带 `@frappe.whitelist`，不算入口），
+覆盖闸说「没改到入口文件」——按旧规则没错，但改的正是任务管理的行为。主会话定：入口模块在同一 App 里 import 的模块，追两层，改到了也要有流程。
+
+做法（`scripts/flows/coverage.py`）：用 `ast` 建 apps 下的 import 图（只算同一 App 内、不含测试和补丁），从每个入口往下追两层；
+改到这类模块时，流程直接 `covers` 它、或 `covers` 了两层之内导入它的入口，都算覆盖。`--behind` 出下面的清单。
+现在 `BEHIND_ENFORCED = False`：改到没有流程的这类模块时 CI 只打印提醒、不判失败；主会话定了基线处理方式再打开。
+
+近 60 个 main 提交里改到入口背后模块的 6 个，按新规则会被拦 5 个（按原入口规则只拦 1 个），被拦的模块 Cowork 6、DMS 7、ERP 3、控制面 1 次。
+
+入口背后的模块 515 个：有流程 143 个，没有 372 个
+
+| 产品 | 入口背后的模块 | 有流程 | 没有流程 |
+|---|---|---|---|
+| ERP | 98 | 41 | 57 |
+| Cowork | 250 | 72 | 178 |
+| DMS | 72 | 0 | 72 |
+| 控制面 | 26 | 0 | 26 |
+| 共用层 | 69 | 30 | 39 |
+
+<details><summary>ERP（没有流程 57 个）</summary>
+
+| 模块 | 经哪个入口导入（举一个） |
+|---|---|
+| `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/access.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/shifts.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/__init__.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/binding.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/access.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/attachments.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_workbook.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/openings.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/report.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/masters/customers.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/masters/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/numbering/__init__.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/numbering/contracts.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/numbering/service.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/products/workbook.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/access.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/category_memory.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/contracts.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/files.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/output.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/preview.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/recognition.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/records.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/service.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/settings.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/suppliers.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/__init__.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/billing.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/dates.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/originals.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/policy.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/recognition/progress.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/access.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/contracts.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/files.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/preview.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/integrations/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/records.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/team/__init__.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/__init__.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/access.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/contracts.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/documents.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/notify.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py` | `apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py` |
+
+</details>
+
+<details><summary>Cowork（没有流程 178 个）</summary>
+
+| 模块 | 经哪个入口导入（举一个） |
+|---|---|
+| `apps/pearnly_cowork/pearnly_cowork/access/menu.py` | `apps/pearnly_cowork/pearnly_cowork/line/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/assistant/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/assistant/tools.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/access.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/automation.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/choices.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/context.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/current_book.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/exceptions.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/identity.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/ledger.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/months.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/notes.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/pending.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/rules.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companies/tasks.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/companion/request_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/credentials.py` | `apps/pearnly_cowork/pearnly_cowork/companion/request_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/devices.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py` | `apps/pearnly_cowork/pearnly_cowork/companion/request_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/request_access.py` | `apps/pearnly_cowork/pearnly_cowork/companion/request_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/request_service.py` | `apps/pearnly_cowork/pearnly_cowork/companion/request_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/companion/request_store.py` | `apps/pearnly_cowork/pearnly_cowork/companion/request_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/access.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/account_search.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/collector.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/desktop_update.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/model.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/mrerp_needs.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/pool.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/preparation.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/reports.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/connections/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/contracts/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/contracts/document_policy.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/contracts/duplicates.py` | `apps/pearnly_cowork/pearnly_cowork/history/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/files/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/files/access.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/files/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/access.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/agent.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/company_folders.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/destinations.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/fetch.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/follow.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/inbox.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/live.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/notify.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/readers.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/settings.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py` |
+| `apps/pearnly_cowork/pearnly_cowork/folder_intake/workbook.py` | `apps/pearnly_cowork/pearnly_cowork/folder_intake/machine.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/certificates.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/document_policy.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/duplicates.py` | `apps/pearnly_cowork/pearnly_cowork/history/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/push_state.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/removal.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/history/storage.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/line/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/line/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/line/binding.py` | `apps/pearnly_cowork/pearnly_cowork/line/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/buyer_resolve.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/client_import.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/client_records.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/clients.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/product_names.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/product_units.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/products.py` | `apps/pearnly_cowork/pearnly_cowork/masters/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/push_inputs.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/masters/workspaces.py` | `apps/pearnly_cowork/pearnly_cowork/companion/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/config.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/contracts.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/document_prompts.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/document_tier.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/errors.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/parsing.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/engine/runner.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/header_bank.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/bank_chain.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/common.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/geometry.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/result.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/pages.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/execution/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/execution/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/execution/settings.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/execution/store.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/execution/work_guard.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/feedback/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/feedback/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/policy.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/providers/client.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/remote/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/files/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/remote/contract.py` | `apps/pearnly_cowork/pearnly_cowork/files/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/remote/tasks.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/schema/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/schema/documents.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/schema/evidence.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/table_engine/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/table_engine/roundtrip.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/table_inputs/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/validation/chains.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/ocr/validation/sources.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/pos_import/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/pos_import/layouts.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/pos_import/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/pos_import/tables.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/application/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/application/assess.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/application/conflicts.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/application/goods_posting.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/application/provenance.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/application/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/automation/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/automation/rules.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/automation/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/choices.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/export_actions.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/export_facts.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/express/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/express/account_suggest.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/express/company_choices.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/express/decide.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/express/goods_posting.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/express/pushed.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/mrerp/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/native/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/native/contracts.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/native/documents.py` | `apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py` |
+| `apps/pearnly_cowork/pearnly_cowork/push/native/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/readback/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/readback/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/reconciliation/export/theme.py` | `apps/pearnly_cowork/pearnly_cowork/recon_center/sheets.py` |
+| `apps/pearnly_cowork/pearnly_cowork/reconciliation/recon_access.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/access.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/contracts.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/export.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/export_mapping.py` | `apps/pearnly_cowork/pearnly_cowork/roundtrip/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/export_writer.py` | `apps/pearnly_cowork/pearnly_cowork/roundtrip/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/intake.py` | `apps/pearnly_cowork/pearnly_cowork/ocr/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/roundtrip/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/tabular/summary.py` | `apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/catalog_groups.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/choice.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/contracts.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/freeze.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/mrerp_masters.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/mrerp_menus.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/projection.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/targets/selection.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/tax/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/tax/access.py` | `apps/pearnly_cowork/pearnly_cowork/companies/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/tax/service.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/tax/wht.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/team/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/team/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/team/service.py` | `apps/pearnly_cowork/pearnly_cowork/team/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/__init__.py` | `apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/access.py` | `apps/pearnly_cowork/pearnly_cowork/work/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/boards.py` | `apps/pearnly_cowork/pearnly_cowork/work/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/contracts.py` | `apps/pearnly_cowork/pearnly_cowork/work/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/documents.py` | `apps/pearnly_cowork/pearnly_cowork/work/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/notify.py` | `apps/pearnly_cowork/pearnly_cowork/work/api.py` |
+| `apps/pearnly_cowork/pearnly_cowork/work/service.py` | `apps/pearnly_cowork/pearnly_cowork/work/api.py` |
+
+</details>
+
+<details><summary>DMS（没有流程 72 个）</summary>
+
+| 模块 | 经哪个入口导入（举一个） |
+|---|---|
+| `apps/pearnly_dms/pearnly_dms/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/account/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/account/portal.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/account_probe.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/admin_pool.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/change_sync.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/live_sync.py` | `apps/pearnly_dms/pearnly_dms/connections/snapshots.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/operations.py` | `apps/pearnly_dms/pearnly_dms/connections/snapshots.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/push.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/read_priority.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/session.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/session_cache.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/adapter/snapshot_writeback.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/__init__.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/booking_amend.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/booking_ledger.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/booking_payments.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/booking_review.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/conversation/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/conversation/qa_cards.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/conversation/qa_util.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/conversation/review_fix.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/booking/delivery.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/client/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/client/eventlog_reader.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/client/gateway.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/client/snapshot_reader.py` | `apps/pearnly_dms/pearnly_dms/connections/snapshots.py` |
+| `apps/pearnly_dms/pearnly_dms/client/transport.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/config/__init__.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/config/pacing.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/connections/__init__.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/connections/background.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/contracts/client_base.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/contracts/customer_merge.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/contracts/endpoint.py` | `apps/pearnly_dms/pearnly_dms/connections/snapshots.py` |
+| `apps/pearnly_dms/pearnly_dms/contracts/geo_matching.py` | `apps/pearnly_dms/pearnly_dms/connections/snapshots.py` |
+| `apps/pearnly_dms/pearnly_dms/contracts/id_validate.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/contracts/models.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/editor/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/editor/booking_edit.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/editor/browser_ticket.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/editor/customer_edit.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/editor/edit_link.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/editor/edit_snapshot.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/i18n.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/customer_diff.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/draft.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/flow.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/review.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/scan.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/intake/service.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/line/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/line/cards.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/line/errors.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/line/identity.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/line/out.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/line/page_reply.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/masters/company_banks.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/masters/master_contract.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/menu/__init__.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/menu/menu_flow.py` | `apps/pearnly_dms/pearnly_dms/editor/browser_api.py` |
+| `apps/pearnly_dms/pearnly_dms/ocr/__init__.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/ocr/ocr_service.py` | `apps/pearnly_dms/pearnly_dms/account/api.py` |
+| `apps/pearnly_dms/pearnly_dms/operators/__init__.py` | `apps/pearnly_dms/pearnly_dms/operators/roster.py` |
+| `apps/pearnly_dms/pearnly_dms/operators/advisors.py` | `apps/pearnly_dms/pearnly_dms/operators/roster.py` |
+| `apps/pearnly_dms/pearnly_dms/operators/line_account.py` | `apps/pearnly_dms/pearnly_dms/operators/roster.py` |
+| `apps/pearnly_dms/pearnly_dms/records/access.py` | `apps/pearnly_dms/pearnly_dms/query/records.py` |
+| `apps/pearnly_dms/pearnly_dms/snapshots/__init__.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/snapshots/manual.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| `apps/pearnly_dms/pearnly_dms/snapshots/store.py` | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+
+</details>
+
+<details><summary>控制面（没有流程 26 个）</summary>
+
+| 模块 | 经哪个入口导入（举一个） |
+|---|---|
+| `apps/pearnly_control/pearnly_control/__init__.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/account/__init__.py` | `apps/pearnly_control/pearnly_control/account/member_api.py` |
+| `apps/pearnly_control/pearnly_control/account/identity_pools.py` | `apps/pearnly_control/pearnly_control/issues.py` |
+| `apps/pearnly_control/pearnly_control/account/member_provider.py` | `apps/pearnly_control/pearnly_control/account/member_api.py` |
+| `apps/pearnly_control/pearnly_control/account/member_service.py` | `apps/pearnly_control/pearnly_control/account/member_api.py` |
+| `apps/pearnly_control/pearnly_control/assistant_entry/__init__.py` | `apps/pearnly_control/pearnly_control/assistant_entry/api.py` |
+| `apps/pearnly_control/pearnly_control/assistant_entry/contracts.py` | `apps/pearnly_control/pearnly_control/assistant_entry/api.py` |
+| `apps/pearnly_control/pearnly_control/assistant_entry/entry.py` | `apps/pearnly_control/pearnly_control/assistant_entry/api.py` |
+| `apps/pearnly_control/pearnly_control/assistant_entry/registry.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/assistant_entry/routes.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/billing.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/billing_auth.py` | `apps/pearnly_control/pearnly_control/account/member_api.py` |
+| `apps/pearnly_control/pearnly_control/billing_remote.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/features.py` | `apps/pearnly_control/pearnly_control/issues.py` |
+| `apps/pearnly_control/pearnly_control/infra.py` | `apps/pearnly_control/pearnly_control/issues.py` |
+| `apps/pearnly_control/pearnly_control/onboarding/__init__.py` | `apps/pearnly_control/pearnly_control/provisioning.py` |
+| `apps/pearnly_control/pearnly_control/onboarding/assistant.py` | `apps/pearnly_control/pearnly_control/provisioning.py` |
+| `apps/pearnly_control/pearnly_control/onboarding/line_ids.py` | `apps/pearnly_control/pearnly_control/provisioning.py` |
+| `apps/pearnly_control/pearnly_control/onboarding/line_liff.py` | `apps/pearnly_control/pearnly_control/provisioning.py` |
+| `apps/pearnly_control/pearnly_control/onboarding/teardown_members.py` | `apps/pearnly_control/pearnly_control/provisioning.py` |
+| `apps/pearnly_control/pearnly_control/payments/history.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/payments/pricing.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/payments/topup.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/payments/transactions.py` | `apps/pearnly_control/pearnly_control/assistant_entry/billing.py` |
+| `apps/pearnly_control/pearnly_control/payments/usage.py` | `apps/pearnly_control/pearnly_control/billing_api.py` |
+| `apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_deployment/pearnly_deployment.py` | `apps/pearnly_control/pearnly_control/provisioning.py` |
+
+</details>
+
+<details><summary>共用层（没有流程 39 个）</summary>
+
+| 模块 | 经哪个入口导入（举一个） |
+|---|---|
+| `apps/pearnly_core/pearnly_core/account/line_login_contract.py` | `apps/pearnly_core/pearnly_core/account/line_login.py` |
+| `apps/pearnly_core/pearnly_core/account/member_client.py` | `apps/pearnly_core/pearnly_core/account/line_login.py` |
+| `apps/pearnly_core/pearnly_core/account/profile.py` | `apps/pearnly_core/pearnly_core/account/line_login.py` |
+| `apps/pearnly_core/pearnly_core/assistant/definition.py` | `apps/pearnly_core/pearnly_core/assistant/webhook.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/__init__.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/books.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/contracts.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/devices.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/documents.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/http_auth.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/jobs.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/products.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/release.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/requests.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/store.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/wire/__init__.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/wire/queue_contracts.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/wire/request_contracts.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/claude_ocr/__init__.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/claude_ocr/client.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/execution/budget.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/execution/errors.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/execution/provider.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/execution/work.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/exports/__init__.py` | `apps/pearnly_core/pearnly_core/billing_www.py` |
+| `apps/pearnly_core/pearnly_core/exports/disposition.py` | `apps/pearnly_core/pearnly_core/billing_www.py` |
+| `apps/pearnly_core/pearnly_core/exports/service.py` | `apps/pearnly_core/pearnly_core/billing_www.py` |
+| `apps/pearnly_core/pearnly_core/express_rules/push/__init__.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/express_rules/push/wire_location.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/express_rules/targets/__init__.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/express_rules/targets/account_match.py` | `apps/pearnly_core/pearnly_core/cc_desktop/machine.py` |
+| `apps/pearnly_core/pearnly_core/ocr_models/__init__.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/ocr_models/orient.py` | `apps/pearnly_core/pearnly_core/ocr.py` |
+| `apps/pearnly_core/pearnly_core/payments/history.py` | `apps/pearnly_core/pearnly_core/billing_www.py` |
+| `apps/pearnly_core/pearnly_core/transaction/__init__.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/transaction/conflicts.py` | `apps/pearnly_core/pearnly_core/cc_desktop/api.py` |
+| `apps/pearnly_core/pearnly_core/workspace.py` | `apps/pearnly_core/pearnly_core/account/line_login.py` |
+
+</details>
+
+## 暂停点（10-29 晚，用户下班）
+
+已做（分支 `pearnly/flows-batch-1`）：
+- 新流程 3 条，都在两套数据 × 电脑 / 手机宽度跑通：`erp.line.stocktake.phone`（含假摄像头、撤销、GET 403，并入 work-followups 的断言）、
+  `cc.chat`、`cc.settings`。
+- 实验室：`agents` 假 Claude Managed Agents 服务（`scripts/flows/lab_agents.py`，用真实适配器验过 31 项）、bench 加后台 worker、
+  `lab_init` 给产品站点写 CC 引擎配置（假密钥）；`run.py` 加 `--migrate`（回写状态时必做）、前端产物新鲜度检查、模块可声明 `READY`。
+- 覆盖闸「入口背后的模块」：判定和 `--behind` 清单已做，`BEHIND_ENFORCED = False`（只提醒）。
+
+这一批的全部流程（8 条 × 4 格，带站点迁移）跑到第 1 格时，回归实验栈被别的窗口收尾停掉，这一轮作废、没有回写状态；全量闸门 149 项已过。第一批**没有合入 main**，停在已推送的分支上。
+
+明天第一步（主会话 10-29 已定 B 方案）：
+0. 起回归实验栈，变基到最新 main，重跑全量闸门和全部流程（`--all --migrate`），都过再按主线集成合入第一批。
+1. 存量 372 个登记成「存量没有流程」（基线文件，只许减少）；新增模块、入口已有流程的模块一律拦；`BEHIND_ENFORCED` 打开。
+2. 提醒做显眼：CI 摘要（`GITHUB_STEP_SUMMARY`）列出改到的存量模块和经哪个入口导入；`deploy.sh` 构建前列出本批改到的存量模块。
+3. 按「最该先补的 20 个入口」顺序补流程；每补一条刷新本记录里的清单数字。
+4. 等着的：任务管理流程在 C 盘窗口的 `erp.work.board` / `cowork.work.board` 合入后补建卡、改、移、归档、通知；Cowork 上 4 条 CC 流程
+   （定时任务、待选账套、公司、项目）与 `cowork.recon.bank`、`cowork.intake.*`（数据已在 main 的 cowork-new / cowork-old）。
+5. 产品观察（已报主会话）：手机盘点页按台商品出数量框、保存才被拒，查码还登记一行快照。
