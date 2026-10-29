@@ -36,6 +36,7 @@ INVENTORY_ACC = "11-04-02-00"
 def _payload(items, **over):
     p = {
         "doctype": "RR",
+        "srv_vattyp": "accrual",  # 合成账套没有赊购历史：服务品进项税口径照人选过的（service_vat）
         "account_set": "DATAT",
         "docdate_be": "690228",
         "vat_period_be": "690201",

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-28 12:00:00.000000",
- "modified": "2026-10-27 15:00:00.000000",
+ "modified": "2026-10-29 20:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -57,7 +57,7 @@
    "fieldname": "kind",
    "label": "Kind",
    "fieldtype": "Select",
-   "options": "party\nitem\naccount\npayment\nvat\ndepartment\nreceipt",
+   "options": "party\nitem\naccount\npayment\nvat\ndepartment\nreceipt\nservice_vat",
    "read_only": 1,
    "reqd": 1
   },

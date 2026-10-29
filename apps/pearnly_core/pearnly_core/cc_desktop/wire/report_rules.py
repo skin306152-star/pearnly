@@ -86,7 +86,9 @@ PRODUCT_KEYS = ("code", "name", "kind")
 CUSTOMER_KEYS = ("code", "name", "tax_id", "kind", "branch")
 
 # 供应商档（APMAS）与部门（ISTAB 50）：复核时让会计选一次（2026-09-28 Express 压测，小助手 1.3 起上报）。
-SUPPLIER_KEYS = ("code", "name", "tax_id", "branch")
+# srv：这家供应商在本账套赊购单上的服务品进项税口径串（CC 桌面版 1.13 起报，`express_rules.push.service_vat`）；
+# "0" = 读过、没有历史，没这个键 = 旧版没读
+SUPPLIER_KEYS = ("code", "name", "tax_id", "branch", "srv")
 
 DEPARTMENT_KEYS = ("code", "name")
 

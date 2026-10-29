@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import frappe
 
 from pearnly_core.express_rules.push import choices as choice_rules
-from pearnly_core.express_rules.push import stock_acc_group
+from pearnly_core.express_rules.push import service_vat, stock_acc_group
 from pearnly_core.express_rules.push.prepare import prepare_express
 from pearnly_core.express_rules.push.preflight import ExpressContext
 
@@ -84,6 +84,23 @@ PARTY_CODES = frozenset({"CUSTOMER_DUP_SUSPECTED", "SUPPLIER_DUP_SUSPECTED", "CU
 
 # 电脑回报新建库存品挂的存货科目组不合格 / 没配：在 ERP 里选一次组（按账套记住，之后新建库存品都挂它）
 GROUP_CODES = frozenset({"STOCK_ACC_GROUP_UNFIT"})
+
+
+# 电脑回报赊购单服务品的进项税口径这本账套的历史定不了（10-29）：在 ERP 里选一次（按这本账套 × 这家供应商记住）
+SERVICE_VAT_CODES = frozenset({service_vat.CHOICE_CODE})
+
+
+def service_vat_needed(doc, company_row):
+    """被电脑以服务品进项税口径为由拦下后让人选的那一项（``kind = service_vat``，选项 เกณฑ์สิทธิ / เกณฑ์เงินสด）。
+    归类键同写账规则问的那一项（`choices.service_vat_subject`，带账套键）；没有账套回 []。"""
+    doc = contracts.checked(doc)
+    book = target.pick(company_row, doc["date"]).get("book")
+    if not book:
+        return []
+    party = doc["party"]
+    subject = choice_rules.service_vat_subject("purchase", party["tax_id"], party["name"], book["key"])
+    return [{"kind": service_vat.KIND, "subject": subject, "label": party["name"],
+             "options": [{"code": code} for code in service_vat.OPTIONS], "current": ""}]
 
 
 def group_needed(doc, company_row):
@@ -173,7 +190,8 @@ def prepare(doc, company_row, ensure_masters):
     decision = choice_rules.resolve(pages[0]["fields"], direction=doc["direction"], posting_kind=None, config=config,
                                     remembered=choices.remembered(company_row["name"]),
                                     account_resolved=own and doc["direction"] == "purchase", receipts=_receipts(doc),
-                                    refund=bool(doc.get("refund")))  # 收银退货单 SR：退货科目问一次、按公司记住
+                                    refund=bool(doc.get("refund")),  # 收银退货单 SR：退货科目问一次、按公司记住
+                                    book=book["key"], ask_service_vat=True)  # 服务品进项税口径：按这本账套 × 这家供应商问、记
     if decision["needed"]:
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         return {"hold": contracts.CHOICE + ":" + kinds, "needed": decision["needed"], "book": book}

@@ -86,7 +86,9 @@ def _item(code, qty, amount, mode, **extra):
 def _purchase(items, *, docdate="690115", **header):
     base = sum(float(item["amount"]) for item in items)
     vat = round(base * 0.07, 2)
-    return {"doctype": "RR", "account_set": "DATAT", "docdate_be": docdate, "vat_period_be": docdate[:4] + "01",
+    # 合成账套没有赊购历史：服务品进项税口径照人选过的（service_vat）
+    return {"doctype": "RR", "srv_vattyp": "accrual", "account_set": "DATAT", "docdate_be": docdate,
+            "vat_period_be": docdate[:4] + "01",
             "ref_no": "PO-1", "supplier": {"code": "S001", "name": "โรงน้ำแข็ง", "tax_id": "", "prename": "",
                                            "supplier_new": False},
             "vat_rate": 7.0, "base_amount": f"{base:.2f}", "vat_amount": f"{vat:.2f}",

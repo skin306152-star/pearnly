@@ -261,6 +261,30 @@ class Prepare(Base):
         choices.remember(COMPANY["name"], needed["kind"], needed["subject"], "DM")
         self.assertEqual(self.prepare(doc())["payload"]["stock_acccod"], "DM")
 
+    def test_service_vat_basis_is_asked_only_when_the_books_history_cannot_decide(self):
+        """10-29：赊购单服务品的进项税口径按这本账套的历史（CC 随供应商主档报的 ``srv``）定；这家两种都有才问一次，
+        按「这本账套 × 这家供应商」记在公司名下，再准备时写进载荷 ``srv_vattyp``（载荷 13）。电脑写时才拦下的（主档是旧的），
+        在单据上问同一项。"""
+        from pearnly_core.express_rules.push import service_vat as V
+        from pearnly_erp_portal.express import prepare as P
+        key, = self.computer([book()])
+        service = [{"name": "ค่าขนส่ง", "code": "52-08-00-00", "unit": "", "qty": "1", "price": "300", "amount": "300.00",
+                    "loccod": "", "stock": False}]
+        self.masters(key, suppliers=[{**SUPPLIERS[0], "srv": "2"}, {**SUPPLIERS[1], "srv": "0"}])
+        payload = self.prepare(doc(items=service))["payload"]
+        self.assertNotIn(V.PAYLOAD_KEY, payload)  # 历史定得了：CC 写时照历史，不问
+        self.masters(key, suppliers=[{**SUPPLIERS[0], "srv": "12"}, {**SUPPLIERS[1], "srv": "0"}])
+        held = self.prepare(doc(items=service))
+        self.assertEqual(held["hold"], "choice_needed:" + V.KIND)
+        needed, = held["needed"]
+        self.assertTrue(needed["subject"].startswith(key + "|"))
+        self.assertEqual(P.service_vat_needed(doc(items=service), COMPANY)[0]["subject"], needed["subject"])
+        choices.remember(COMPANY["name"], V.KIND, needed["subject"], "cash_basis")
+        payload = self.prepare(doc(items=service))["payload"]
+        self.assertEqual((payload[V.PAYLOAD_KEY], payload["payload_version"] >= V.PAYLOAD_VERSION), ("2", True))
+        self.assertNotIn(V.PAYLOAD_KEY, self.prepare(doc(items=service, paid=True))["payload"])  # 现购单恒 1，不问不带
+        self.assertIn(V.CHOICE_CODE, P.SERVICE_VAT_CODES)
+
     def test_bad_documents_fail(self):
         key, = self.computer([book()])
         self.masters(key)

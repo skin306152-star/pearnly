@@ -40,6 +40,7 @@ A warehouse needs a name,กรุณากรอกชื่อคลังส�
 A warehouse with stock cannot be turned off,คลังที่มีสต็อกปิดใช้งานไม่ได้
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Account Set,ชุดบัญชี
+Accrual basis,เกณฑ์สิทธิ
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
@@ -202,6 +203,7 @@ Cash,เงินสด
 Cash Amount,เงินสด
 Cash Check,ตรวจเงินสด
 Cash Difference,ผลต่างเงินสด
+Cash basis,เกณฑ์เงินสด
 Cashier,เก็บเงิน
 Cashier (POS),ขายหน้าร้าน (POS)
 Cashier Records,บันทึกการรับเงิน
@@ -239,6 +241,7 @@ Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 Choose the payment method,กรุณาเลือกวิธีชำระเงิน
+Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the supplier,กรุณาเลือกผู้จำหน่าย
 Choose the warehouse,กรุณาเลือกคลังสินค้า
@@ -1150,6 +1153,8 @@ Serial No,หมายเลขซีเรียล
 Serial No: {0} has already been transacted into another POS Invoice.,หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,สินค้า {0} ในคลังสินค้า {1} ไม่มีหมายเลขเครื่องที่ใช้ได้ กรุณาเปลี่ยนคลังสินค้า
 Service,บริการ
+Service input VAT,ภาษีซื้อของสินค้าบริการ
+Service input VAT basis not set,ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ
 Service or stock item?,กรุณาเลือก บริการ หรือ สินค้าคงคลัง
 Set as current,ตั้งเป็นปัจจุบัน
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
@@ -2071,6 +2076,7 @@ express.error.REFUND_LINE_NOT_FOUND,ไม่มีสินค้านี้�
 express.error.REFUND_ORIGINAL_CHANGED,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
 express.error.REFUND_ORIGINAL_NOT_FOUND,ไม่พบใบขายเงินสดต้นฉบับใน Express
 express.error.REINDEX_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
+express.error.SERVICE_VAT_BASIS_CHOICE,ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ
 express.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 express.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
 express.error.STOCK_ITEM_NOT_FOUND,สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น
@@ -2083,9 +2089,12 @@ express.kind.account,บัญชีค่าใช้จ่าย
 express.kind.exemptMode,สินค้ายกเว้นภาษี
 express.kind.receipt,บัญชีรับเงิน
 express.kind.refundAccount,บัญชีรับคืนสินค้า
+express.kind.serviceVat,ภาษีซื้อของสินค้าบริการ
 express.kind.stockGroup,กลุ่มบัญชีสินค้าคงเหลือ
 express.kind.vat,ภาษีซื้อ
 express.kind.vatRegistered,บริษัทนี้จดทะเบียนภาษีมูลค่าเพิ่มหรือไม่
+express.option.accrual,เกณฑ์สิทธิ
+express.option.cashBasis,เกณฑ์เงินสด
 express.option.claim,ขอคืน
 express.option.exemptSplit,แยกสินค้ายกเว้นภาษี (แนะนำ)
 express.option.exemptWhole,คิดภาษีทั้งใบตามชุดบัญชี

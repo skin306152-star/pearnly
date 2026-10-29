@@ -11,6 +11,8 @@
 - `department`：部门码（整份账套一个）。
 - `receipt`：POS 导出按天录的销售里，非现金的付款方式（转账、QR、刷卡、外卖平台）收进哪个银行 / 清算科目（按付款方式，
   2026-10-13）。每天按付款方式另记一张日记账凭证「借 这个科目 / 贷 现金」（`contracts/pos.py`）。
+- `service_vat`：赊购单服务品的进项税口径（เกณฑ์สิทธิ / เกณฑ์เงินสด，按供应商；10-29）。这本账套的历史定得了的不问
+  （`push/service_vat.py`，CC 桌面版随供应商主档报上来每家的口径串 ``srv``），定不了才问一次。
 - `refund`：收银退货单 SR 的退货科目（借方，税前；ERP B3b）。Express 实录 SR0000001 记在 41-02 一类「รับคืน / ลดหนี้」科目，
   账套里查不到原生的取法（ISRUN / ISINFO 都没有这一栏），所以按公司问一次、记住（整家公司一个，归类键 ``pos_refund``）。
 
@@ -25,10 +27,11 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from pearnly_core.express_rules.contracts import pos as pos_contract
-from pearnly_core.express_rules.push.payment import payment_written
+from pearnly_core.express_rules.push import service_vat
+from pearnly_core.express_rules.push.payment import payment_verdict, payment_written
 
 NEW = "__new__"
-KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
+KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat")  # 末项 = service_vat.KIND
 # 只在 ERP 的收银退货单上出现的一类（不进 KINDS：Cowork 按 KINDS 存取、列出账套记忆，加进去会改 Cowork 现有输出）
 REFUND = pos_contract.REFUND_KIND
 PAYMENT_VALUES = ("cash", "credit")
@@ -112,7 +115,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             config: Mapping[str, Any], remembered: Mapping[str, Mapping[str, str]],
             account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
             receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None,
-            refund: bool = False) -> Dict[str, Any]:
+            refund: bool = False, book: str = "", ask_service_vat: bool = False) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -125,6 +128,9 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     记过的（且在科目表里）放进 `applied["receipts"]` `{subject: 科目}`，没有的要人选。
     `refund`：这是收银退货单 SR（销项，`contracts.pos` 的 ``refund`` 块）：要一个退货科目，记过的（且在科目表里）放进
     `applied["refund"]`，没有的要人选（整家公司一个）。不给（默认）与以前完全一样。
+    `book`：服务品进项税口径按「这本账套 × 这家供应商」记；账套记忆本来就按账套分的（Cowork）不给，按公司记的（ERP）给账套键。
+    `ask_service_vat`：账套历史定不了时要不要问服务品进项税口径（ERP 单据上问；Cowork 的两处选择卡还没有这一项，先不问，
+    记过的照用，定不了由 CC 桌面版拒写转人工）。
     `trace`：给了就就地记下「每一类用了哪几个归类键」`{kind: [subject | None]}`（None = 任务默认定的），
     `company_choices.decided_by` 据此说清按什么定的（第 2 期公司规则）；不给不记，结果不变。
     """
@@ -203,6 +209,10 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                 needed.append({"kind": "vat", "subject": party_key, "label": name,
                                "options": [{"code": code} for code in VAT_VALUES], "current": ""})
 
+        # ── 服务品进项税口径：赊购单有服务品、这本账套的历史定不了才问 ──
+        _service_vat(fields, posting_kind, config, applied, needed if ask_service_vat else [], chosen, used, explicit, book,
+                     name, tax, branch)
+
     # ── 存货对照（库存行）──
     products = [row for row in _rows(config.get("reported_products")) if str(row.get("kind") or "stock") == "stock"]
     lines = _stock_lines(fields, posting_kind)
@@ -271,6 +281,54 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     return {"applied": applied, "needed": needed}
 
 
+def service_vat_subject(direction, tax, name, book: str = "") -> str:
+    """服务品进项税口径的归类键：这家供应商（同 :func:`supplier_subject`），按公司记的前面加账套键。"""
+    subject = supplier_subject(direction, tax, name)
+    return f"{book}|{subject}" if book else subject
+
+
+def _supplier_verdict(rows, fields, applied, tax, branch) -> Optional[str]:
+    """这家供应商在账套里的口径串（主档行的 ``srv``）；没有这家（新供应商）回 ""；同税号几个档还没选定回 None（先问对方档）。"""
+    code = str(fields.get("party_code") or applied.get("party") or "").strip()
+    if code and code != NEW:
+        row = next((row for row in rows if str(row["code"]).strip() == code), None)
+        return service_vat.verdict(str((row or {}).get("srv") or ""))
+    if code == NEW or len(digits(tax)) != 13:
+        return ""
+    same = [row for row in rows if digits(row.get("tax_id")) == digits(tax)]
+    exact = [row for row in same if branch5(row.get("branch")) == branch5(branch)]
+    if len(exact) == 1 or (len(same) == 1 and not exact):
+        return service_vat.verdict(str((exact or same)[0].get("srv") or ""))
+    return None if same else ""
+
+
+def _service_vat(fields, posting_kind, config, applied, needed, chosen, used, explicit, book, name, tax, branch):
+    """赊购单服务品的进项税口径（`push/service_vat.py`）：记过的照用（写进载荷 ``srv_vattyp``）；没记过、这本账套历史定不了的问一次。
+    主档没带口径串（旧版 CC 桌面版）的不问，交 CC 写时按账套历史定。现购单、只有库存品、没有税的不问。"""
+    items = [item for item in fields.get("items") or [] if isinstance(item, Mapping)]
+    has_vat = (_money(fields.get("vat")) or Decimal(0)) > 0 or any(item.get("vat_exempt") for item in items)
+    paid = explicit == "cash" or applied.get("payment") == "cash" or payment_verdict(fields)[0] is True
+    service = not items or len(_stock_lines(fields, posting_kind)) < len(items)
+    if not has_vat or paid or not service:
+        return
+    subject = service_vat_subject("purchase", tax, name, book)
+    value = chosen(service_vat.KIND, subject)
+    if service_vat.chosen_value(value):
+        applied[service_vat.KIND] = value
+        used(service_vat.KIND, subject)
+        return
+    rows = _rows(config.get("reported_suppliers"))
+    if not rows or not any("srv" in row for row in rows):
+        return
+    supplier = _supplier_verdict(rows, fields, applied, tax, branch)
+    if supplier is None:
+        return
+    book_verdict = service_vat.book_verdict(row.get("srv") for row in rows)
+    if service_vat.basis(has_vat=True, cash=False, service=True, supplier=supplier, book=book_verdict) is None:
+        needed.append({"kind": service_vat.KIND, "subject": subject, "label": name,
+                       "options": [{"code": code} for code in service_vat.OPTIONS], "current": ""})
+
+
 def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dict[str, Any]:
     """把选定的对方档 / 存货编码 / 部门码写进载荷（映射器出载荷之后、盖版本号之前）。
 
@@ -297,6 +355,11 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
     if applied.get("department"):
         payload["depcod"] = str(applied["department"])[:4]
         version = 2
+    value = service_vat.chosen_value(applied.get(service_vat.KIND))
+    if value and payload.get("direction") in (None, "", "purchase"):
+        # 人选的服务品进项税口径（这本账套的历史定不了时用）：旧版 CC 桌面版不认这个键、恒写 1，盖版本号让它诚实拒收
+        payload[service_vat.PAYLOAD_KEY] = value
+        version = max(version, service_vat.PAYLOAD_VERSION)
     if version > int(payload.get("payload_version") or 1):
         payload["payload_version"] = version
     return payload
@@ -316,4 +379,4 @@ def borrow_receipts(remembered: Dict[str, Dict[str, str]], receipts: Iterable, b
 
 
 __all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "REFUND", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
-           "party_subject", "resolve", "supplier_subject"]
+           "party_subject", "resolve", "service_vat_subject", "supplier_subject"]

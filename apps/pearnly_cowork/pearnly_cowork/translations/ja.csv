@@ -69,6 +69,7 @@ Account Set Name,会計データ名
 Account Set Path,会計データのパス
 Account code,勘定科目コード
 Account set,会計データ
+Accrual basis,発生主義
 Ack Digest,確認応答ダイジェスト
 Active,正常
 Active Attempt,現在の試行
@@ -271,6 +272,7 @@ Card name (alphabetically),カード名（アルファベット順）
 Card restored,復元しました
 Card templates,カードテンプレート
 Cash,現金
+Cash basis,現金主義
 Cash purchase,現金仕入
 Cash sales,現金売上
 Catch-up after start,起動後の追い実行
@@ -354,6 +356,7 @@ Choose the inventory account group for this account set. Tap the number:,この�
 Choose the payment method,支払方法を選択
 Choose the receiving account of each payment method,支払方法ごとの入金勘定を選んでください
 Choose the sales returns account,売上返品勘定を選んでください
+Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払消費税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
@@ -1554,6 +1557,8 @@ Send the code from the Cowork page to bind,Cowork 画面のコードを送信し
 Sending was cancelled because the account set was in use. Close Express and send again,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
 Service,サービス
 Service fees,サービス料
+Service input VAT,サービスの仮払消費税
+Service input VAT basis not set,サービスの仮払消費税の基準が未設定です
 Service or stock?,サービスですか、在庫品ですか？
 Set At,設定日時
 Set By,設定者
@@ -2256,7 +2261,9 @@ connection.stock_acc_group_invalid,この会計データではこの在庫勘定
 connection.url_invalid,ERPのアドレスが無効か、許可されていません。
 contact record,取引先
 cowork.choice.account,費用勘定
+cowork.choice.accrual,発生主義
 cowork.choice.cash,現金仕入
+cowork.choice.cash_basis,現金主義
 cowork.choice.claim,仕入税額控除する
 cowork.choice.credit,掛仕入
 cowork.choice.department,部門
@@ -2267,6 +2274,7 @@ cowork.choice.new,伝票どおり新規作成
 cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法
 cowork.choice.receipt,入金勘定
+cowork.choice.service_vat,サービスの仮払消費税
 cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
@@ -3403,6 +3411,7 @@ intake.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品がありま
 intake.error.REFUND_ORIGINAL_CHANGED,元の現金売上が Express で変更されています
 intake.error.REFUND_ORIGINAL_NOT_FOUND,元の現金売上が Express にありません
 intake.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+intake.error.SERVICE_VAT_BASIS_CHOICE,サービスの仮払消費税の基準が未設定です
 intake.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
 intake.error.STOCK_INSUFFICIENT,Express の在庫が足りません
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください

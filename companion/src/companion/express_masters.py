@@ -8,7 +8,7 @@
 - 读什么（软删的行一律跳过，同 ``catalog_probe``）：
   - settings：ISINFO 的主仓 MAINLOC、允许负库存 NEGALLOW、成本法 COSMTD、用不用部门 USEDEP；
   - customers / suppliers：ARMAS / APMAS 的代码、名称、税号、分店号（ORGNUM 归一 5 位）、地址（ADDR01–03 与邮编用空格接起来）、
-    电话 TELNUM、付款期天数 PAYTRM；
+    电话 TELNUM、付款期天数 PAYTRM；供应商另带赊购单服务品进项税口径串 ``srv``（读账套原表 APTRN，``service_vat``，10-29）；
   - products：STMAS 的代码、名称、类别（STKTYP = 0 记 stock，其余 non_stock，同 ``catalog_probe``）、商品组 STKGRP、基本单位
     QUCOD、销售单位 SQUCOD 与换算 SFACTOR、采购单位 PQUCOD 与换算 PFACTOR、售价 SELLPR1–5、条码 BARCOD、税码 VATCOD、
     该品允许负库存 NEGALLOW、全仓结存 MREMBAL（``balance``，出入库第一期起）；
@@ -204,6 +204,18 @@ def _facts(folder: Path) -> dict:
     return facts
 
 
+def _service_vat(suppliers: list, folder: Path) -> list:
+    """每家供应商带上这本账套赊购单的服务品进项税口径串 ``srv``（同心跳目录 ``catalog_probe.probe_suppliers``，10-29）；
+    读账套原表（只读几栏、按行数增量，``service_vat.history``），不进副本：单据表大、录单时一直在变，复制它会让主档反复重读；
+    APTRN 读不了就不带。"""
+    from . import service_vat
+
+    known, read = service_vat.supplier_report(folder)
+    if not read:
+        return suppliers
+    return [{**row, "srv": known.get(row["code"]) or service_vat.NO_HISTORY} for row in suppliers]
+
+
 def collect(folder: Path) -> tuple:
     """从复制出来的账套表读出整套主档与各仓结存 → (结果, 诊断)。读到一半坏了抛 ``express_read._Unreadable``。"""
     if not any((folder / f"{name}.DBF").is_file() for name in REQUIRED_ANY):
@@ -278,6 +290,7 @@ def read_masters(cfg, params: dict, *, sleep: Callable[[float], None] = time.sle
     if read is None:
         raise RequestFailed("account_unreadable")
     data, diag = read
+    data["suppliers"] = _service_vat(data["suppliers"], folder)
     data = {"version": data.pop("version"), "account_set": express_read._norm(folder)[:500], "mark": stamp,
             "read_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), **data}
     content = gzip.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

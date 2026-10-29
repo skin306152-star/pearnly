@@ -29,6 +29,7 @@ from _synth_account import seed_fiscal_year  # noqa: E402
 def _payload(**over):
     p = {
         "doctype": "RR",
+        "srv_vattyp": "accrual",  # 合成账套没有赊购历史：服务品进项税口径照人选过的（service_vat）
         "account_set": "DATAT",
         "docdate_be": "581231",
         "vat_period_be": "581201",

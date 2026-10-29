@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from pearnly_core.express_rules.push import service_vat
 from pearnly_core.express_rules.push.choices import KINDS, NEW, PAYMENT_VALUES, VAT_VALUES
 
 SOURCES = ("task_default", "remembered", "company_rule", "express_history")  # 与 `pushed.ACCOUNT_FROM` 同一套词
@@ -61,7 +62,7 @@ def _masters(kind: str, subject: str, config: Mapping[str, Any]) -> Optional[set
 
 
 def valid(kind: str, value: Any, config: Optional[Mapping[str, Any]], subject: str = "") -> bool:
-    """`value` 能不能用在这份账套：付款 / 抵进项是固定值；对方档、存货可以是「新建」；其余要在这份账套的主档里，
+    """`value` 能不能用在这份账套：付款 / 抵进项 / 服务品进项税口径是固定值；对方档、存货可以是「新建」；其余要在这份账套的主档里，
     主档没报上来（`config` 为 None 或那张表没报）时放行。"""
     value = str(value or "").strip()
     if kind not in KINDS or not value or len(value) > VALUE_MAX:
@@ -70,6 +71,8 @@ def valid(kind: str, value: Any, config: Optional[Mapping[str, Any]], subject: s
         return value in PAYMENT_VALUES
     if kind == "vat":
         return value in VAT_VALUES
+    if kind == service_vat.KIND:
+        return value in service_vat.OPTIONS
     if value == NEW:
         return kind in ("party", "item")
     codes = _masters(kind, subject, config or {})

@@ -69,6 +69,7 @@ Account Set Name,账套名称
 Account Set Path,账套路径
 Account code,科目代码
 Account set,账套
+Accrual basis,权责制
 Ack Digest,回执摘要
 Active,正常
 Active Attempt,当前尝试
@@ -271,6 +272,7 @@ Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
 Card templates,卡片模板
 Cash,现金
+Cash basis,收付实现制
 Cash purchase,现购
 Cash sales,现金销售
 Catch-up after start,开机补运行
@@ -354,6 +356,7 @@ Choose the inventory account group for this account set. Tap the number:,请为�
 Choose the payment method,选择付款方式
 Choose the receiving account of each payment method,请为每种付款方式选择收款科目
 Choose the sales returns account,请选择销货退回科目
+Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
 Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
@@ -1554,6 +1557,8 @@ Send the code from the Cowork page to bind,请发送 Cowork 页面上的绑定�
 Sending was cancelled because the account set was in use. Close Express and send again,账套正被占用，已终止推送，请关闭 Express 后重新推送
 Service,服务
 Service fees,服务费
+Service input VAT,服务品进项税
+Service input VAT basis not set,服务品进项税口径未定
 Service or stock?,请选择服务或存货
 Set At,设定时间
 Set By,设定人
@@ -2256,7 +2261,9 @@ connection.stock_acc_group_invalid,此账套不能选择该存货科目组。
 connection.url_invalid,ERP 连接地址无效或不允许访问。
 contact record,对方档案
 cowork.choice.account,费用科目
+cowork.choice.accrual,权责制
 cowork.choice.cash,现购
+cowork.choice.cash_basis,收付实现制
 cowork.choice.claim,抵扣进项税
 cowork.choice.credit,赊购
 cowork.choice.department,部门
@@ -2267,6 +2274,7 @@ cowork.choice.new,新建（按票面）
 cowork.choice.party,Express 对应档案
 cowork.choice.payment,付款方式
 cowork.choice.receipt,收款科目
+cowork.choice.service_vat,服务品进项税
 cowork.choice.task_default,此项由定时任务的默认处理决定，请在定时任务中修改
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
@@ -3403,6 +3411,7 @@ intake.error.REFUND_LINE_NOT_FOUND,原现销单上没有此商品
 intake.error.REFUND_ORIGINAL_CHANGED,原现销单在 Express 中已被修改
 intake.error.REFUND_ORIGINAL_NOT_FOUND,Express 中没有原现销单
 intake.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
+intake.error.SERVICE_VAT_BASIS_CHOICE,服务品进项税口径未定
 intake.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 intake.error.STOCK_INSUFFICIENT,Express 库存不足
 intake.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价

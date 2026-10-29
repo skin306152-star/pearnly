@@ -40,6 +40,7 @@ A warehouse needs a name,请填写仓库名称
 A warehouse with stock cannot be turned off,有库存的仓库不能停用
 Abbreviated Tax Invoice,简式税务发票
 Account Set,账套
+Accrual basis,权责制
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
@@ -202,6 +203,7 @@ Cash,现金
 Cash Amount,现金
 Cash Check,现金核对
 Cash Difference,现金差额
+Cash basis,收付实现制
 Cashier,收银
 Cashier (POS),收银（POS）
 Cashier Records,收银记录
@@ -239,6 +241,7 @@ Choose the company,选择公司
 Choose the customer,请选择客户
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
 Choose the payment method,请选择付款方式
+Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
 Choose the supplier,请选择供应商
 Choose the warehouse,请选择仓库
@@ -1150,6 +1153,8 @@ Serial No,序列号
 Serial No: {0} has already been transacted into another POS Invoice.,序列号 {0} 已用于另一张收银单据
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,物料 {0} 在仓库 {1} 没有可用序列号，请更换仓库
 Service,服务
+Service input VAT,服务品进项税
+Service input VAT basis not set,服务品进项税口径未定
 Service or stock item?,请选择服务或库存商品
 Set as current,设为当前
 Set due date,到期日设为 N 天后
@@ -2071,6 +2076,7 @@ express.error.REFUND_LINE_NOT_FOUND,原现销单上没有此商品
 express.error.REFUND_ORIGINAL_CHANGED,原现销单在 Express 中已被修改
 express.error.REFUND_ORIGINAL_NOT_FOUND,Express 中没有原现销单
 express.error.REINDEX_UNAVAILABLE,此电脑缺少 Express 索引程序，请重新安装 CC 桌面版
+express.error.SERVICE_VAT_BASIS_CHOICE,服务品进项税口径未定
 express.error.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
 express.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
 express.error.STOCK_ITEM_NOT_FOUND,此商品在 Express 中不是库存品，请另选商品
@@ -2083,9 +2089,12 @@ express.kind.account,费用科目
 express.kind.exemptMode,免税商品写法
 express.kind.receipt,收款科目
 express.kind.refundAccount,销货退回科目
+express.kind.serviceVat,服务品进项税
 express.kind.stockGroup,存货科目组
 express.kind.vat,进项税
 express.kind.vatRegistered,该公司是增值税登记户吗
+express.option.accrual,权责制
+express.option.cashBasis,收付实现制
 express.option.claim,抵扣
 express.option.exemptSplit,按商品免税拆开写（建议）
 express.option.exemptWhole,照账套现在的设置整张计税

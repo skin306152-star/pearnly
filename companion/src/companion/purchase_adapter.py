@@ -22,6 +22,8 @@ from dataclasses import dataclass, field as df
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
+from . import service_vat
+
 ALLOWED_ACCOUNT_SETS = ()  # fail-safe 默认:无所选账套 → 空 → 任何账套都拒(没选不能瞎写)
 ALLOWED_DOCTYPES = ("RR", "HP")
 
@@ -220,6 +222,10 @@ def validate_purchase_payload(
         fields_err = _validate_vat_fields(payload.get("vat_fields"), base)
         if fields_err is not None:
             return fields_err
+
+    # 人选的服务品进项税口径(载荷 13,`service_vat`):只认 1 / 2 与选项编码
+    if "srv_vattyp" in payload and not service_vat.chosen_value(payload.get("srv_vattyp")):
+        return PayloadValidationResult(False, ERR_AMOUNTS, "srv_vattyp must be 1 or 2")
 
     return PayloadValidationResult(True)
 

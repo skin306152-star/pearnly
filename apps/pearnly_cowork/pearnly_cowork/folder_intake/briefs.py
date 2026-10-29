@@ -153,7 +153,7 @@ def _kind(kind):
         return _("cowork.folder.brief.why.party")
     return {"item": _("cowork.choice.item"), "account": _("cowork.choice.account"), "payment": _("cowork.choice.payment"),
             "vat": _("cowork.choice.vat"), "department": _("cowork.choice.department"),
-            "receipt": _("cowork.choice.receipt")}.get(kind, kind)
+            "receipt": _("cowork.choice.receipt"), "service_vat": _("cowork.choice.service_vat")}.get(kind, kind)
 
 
 def _stop_reasons(found):

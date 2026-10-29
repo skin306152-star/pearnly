@@ -556,3 +556,16 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
 ]
+
+[[flow]]
+id = "erp.express.service_vat"
+title = "ERP 采购单服务品进项税口径：电脑拦下后在 Express 弹窗选一次、按账套 × 供应商记住（10-29）"
+module = "scripts/flows/erp_express_service_vat.py"
+start = "/desk/pearnly-purchase/{doc}"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+]

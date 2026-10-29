@@ -1471,6 +1471,7 @@ Express has this account set open. It is sent automatically once Express is clos
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
 Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します	intake.error.ACCOUNT_WRITER_BUSY
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	intake.error.STOCK_ACC_GROUP_UNFIT
+Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税の基準が未設定です	intake.error.SERVICE_VAT_BASIS_CHOICE
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	intake.error.PERIOD_LOCKED
 Not enough stock in Express	Express 库存不足	สินค้าคงเหลือใน Express ไม่พอ	Express の在庫が足りません	intake.error.STOCK_INSUFFICIENT
 The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
@@ -1541,6 +1542,9 @@ Cash purchase	现购	ซื้อเงินสด	現金仕入	cowork.choice.c
 Credit purchase	赊购	ซื้อเงินเชื่อ	掛仕入	cowork.choice.credit
 Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื้อ	仕入税額控除する	cowork.choice.claim
 Count as expense	不抵扣，计入费用	ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย	控除せず費用に含める	cowork.choice.expense
+Service input VAT	服务品进项税	ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税	cowork.choice.service_vat
+Accrual basis	权责制	เกณฑ์สิทธิ	発生主義	cowork.choice.accrual
+Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	cowork.choice.cash_basis
 The chosen value is not in this account set. Choose again	所选项不在此账套中，请重新选择	รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
 This is set by the scheduled task's default handling. Change it in the task	此项由定时任务的默认处理决定，请在定时任务中修改	รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา	この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください	cowork.choice.task_default
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again	不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送	ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่	旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください	pos.xls_not_supported

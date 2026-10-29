@@ -113,7 +113,12 @@ def probe_suppliers(account_dir) -> List[Dict[str, str]]:
     """APMAS → [{code,name,tax_id,branch}](同 probe_customers 口径)。
 
     云端复核时让会计从这里选供应商档(同税号多分店 / 名称对不上时),选一次记住;不报就只能靠小助手按名猜。
+    每家另带 ``srv``:这家在本账套赊购单上的服务品进项税口径串(``service_vat``,10-29;"0" = 没有历史),服务端据此判
+    写之前要不要问人;APTRN 读不了就不带(服务端当旧版,不问)。
     """
+    from . import service_vat
+
+    known, read = service_vat.supplier_report(account_dir)
     out: List[Dict[str, str]] = []
     for r in _iter_records(account_dir, "APMAS"):
         code = _gv(r, "SUPCOD")
@@ -126,6 +131,7 @@ def probe_suppliers(account_dir) -> List[Dict[str, str]]:
                 "name": name,
                 "tax_id": _gv(r, "TAXID"),
                 "branch": S.orgnum_to_branch5(_gv(r, "ORGNUM")),
+                **({"srv": known.get(code) or service_vat.NO_HISTORY} if read else {}),
             }
         )
         if len(out) >= _MAX_CATALOG:

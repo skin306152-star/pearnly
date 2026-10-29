@@ -1188,9 +1188,6 @@ class CompanyFolders(unittest.TestCase):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class ErpExpressFront(unittest.TestCase):
     """ERP 当手机前台、Express 当账本（2026-10-22）：CC 桌面版这一侧的两项约定。
@@ -1234,3 +1231,57 @@ class ErpExpressFront(unittest.TestCase):
             source = (COMPANION / writer).read_text(encoding="utf-8")
             self.assertIn("stock_location.plan(account_dir, payload)", source, writer)
             self.assertIn("error_code=ERR_LOCATION", source, writer)
+
+
+class ServiceVatBasis(unittest.TestCase):
+    """服务品进项税口径（10-29）：CC 桌面版的规则副本（`companion/service_vat.py`）与共用写账规则逐例一致；拒写码、载荷键、
+    选项编码、载荷版本两边一致，拒写码云端认作「要人处理」、CC 归为 needs_review、Cowork 有译文。"""
+
+    NAMES = ("verdict", "book_verdict", "chosen_value", "basis")
+
+    def _rules(self, path):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        keep = [node for node in tree.body
+                if (isinstance(node, ast.FunctionDef) and node.name in self.NAMES)
+                or (isinstance(node, ast.Assign) and any(getattr(t, "id", "") in
+                                                        ("ACCRUAL", "CASH_BASIS", "NO_VAT", "VALUES", "OPTIONS")
+                                                        for t in node.targets))]
+        from typing import Iterable, Optional
+        namespace = {"Iterable": Iterable, "Optional": Optional}
+        exec(compile(ast.Module(body=keep, type_ignores=[]), str(path), "exec"), namespace)
+        return namespace
+
+    def test_the_rule_copy_matches_the_shared_rule(self):
+        shared, copy = self._rules(RULES / "service_vat.py"), self._rules(COMPANION / "service_vat.py")
+        histories = ("", "0", "1", "2", "12", "21")
+        for has_vat in (True, False):
+            for cash in (True, False):
+                for service in (True, False):
+                    for supplier in histories:
+                        for book in histories:
+                            for chosen in ("", "accrual", "cash_basis", "1", "2", "x"):
+                                args = dict(has_vat=has_vat, cash=cash, service=service, supplier=supplier, book=book,
+                                            chosen=chosen)
+                                self.assertEqual(shared["basis"](**args), copy["basis"](**args), args)
+        for values in (["1", "0", "2"], ["2", "2"], [], ["12"]):
+            self.assertEqual(shared["book_verdict"](values), copy["book_verdict"](values))
+
+    def test_codes_keys_and_versions_agree(self):
+        shared, copy = module_constants(RULES / "service_vat.py"), module_constants(COMPANION / "service_vat.py")
+        for name in ("CHOICE_CODE", "PAYLOAD_KEY", "OPTIONS", "ACCRUAL", "CASH_BASIS", "NO_VAT"):
+            self.assertEqual(shared[name], copy[name], name)
+        self.assertIn(_literal(RULES / "service_vat.py", "PAYLOAD_VERSION"),
+                      _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        code = shared["CHOICE_CODE"]
+        self.assertIn(f'"{code}"', (WIRE / "ack_rules.py").read_text(encoding="utf-8"))
+        self.assertIn(f'"{code}": "needs_review"', (COMPANION / "worker.py").read_text(encoding="utf-8"))
+        self.assertIn(f"intake.error.{code}", (ROOT / "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv")
+                      .read_text(encoding="utf-8"))
+        # 供应商主档带口径串 srv：CC 两处上报（心跳目录、ERP 主档读取），服务端净化时留下这一键
+        self.assertIn('"srv"', (COMPANION / "catalog_probe.py").read_text(encoding="utf-8"))
+        self.assertIn('"srv"', (COMPANION / "express_masters.py").read_text(encoding="utf-8"))
+        self.assertIn("srv", module_constants(WIRE / "report_rules.py")["SUPPLIER_KEYS"])
+
+
+if __name__ == "__main__":
+    unittest.main()

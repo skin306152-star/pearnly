@@ -40,6 +40,7 @@ A warehouse needs a name,倉庫には名前が必要です
 A warehouse with stock cannot be turned off,在庫のある倉庫は無効にできません
 Abbreviated Tax Invoice,簡易税務請求書
 Account Set,帳簿
+Accrual basis,発生主義
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
@@ -202,6 +203,7 @@ Cash,現金
 Cash Amount,現金
 Cash Check,現金確認
 Cash Difference,現金差異
+Cash basis,現金主義
 Cashier,レジ
 Cashier (POS),レジ（POS）
 Cashier Records,レジ記録
@@ -239,6 +241,7 @@ Choose the company,会社を選んでください
 Choose the customer,顧客を選んでください
 Choose the inventory account group for this account set first.,先にこの帳簿の在庫勘定グループを選んでください。
 Choose the payment method,支払方法を選んでください
+Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払消費税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the supplier,仕入先を選んでください
 Choose the warehouse,倉庫を選んでください
@@ -1150,6 +1153,8 @@ Serial No,シリアル番号
 Serial No: {0} has already been transacted into another POS Invoice.,シリアル番号 {0} は他のレジ伝票で使用済みです
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
 Service,サービス
+Service input VAT,サービスの仮払消費税
+Service input VAT basis not set,サービスの仮払消費税の基準が未設定です
 Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Set due date,期日を N 日後に設定
@@ -2071,6 +2076,7 @@ express.error.REFUND_LINE_NOT_FOUND,元の現金売上にこの商品があり�
 express.error.REFUND_ORIGINAL_CHANGED,元の現金売上が Express で変更されています
 express.error.REFUND_ORIGINAL_NOT_FOUND,元の現金売上が Express にありません
 express.error.REINDEX_UNAVAILABLE,このコンピューターに Express インデックスツールがありません。CC デスクトップを再インストールしてください
+express.error.SERVICE_VAT_BASIS_CHOICE,サービスの仮払消費税の基準が未設定です
 express.error.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
 express.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
 express.error.STOCK_ITEM_NOT_FOUND,この品目は Express の在庫品目ではありません。別の品目を選んでください
@@ -2083,9 +2089,12 @@ express.kind.account,費用勘定
 express.kind.exemptMode,免税品の記帳
 express.kind.receipt,入金勘定
 express.kind.refundAccount,売上返品勘定
+express.kind.serviceVat,サービスの仮払消費税
 express.kind.stockGroup,在庫勘定グループ
 express.kind.vat,仮払消費税
 express.kind.vatRegistered,この会社は VAT 登録事業者ですか
+express.option.accrual,発生主義
+express.option.cashBasis,現金主義
 express.option.claim,控除
 express.option.exemptSplit,免税品を分けて記帳（推奨）
 express.option.exemptWhole,帳簿の設定どおり全体に課税

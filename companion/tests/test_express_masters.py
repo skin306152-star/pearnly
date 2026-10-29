@@ -134,7 +134,7 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     assert data["customers"] == [{"code": "C01", "name": "ร้านป้าแดง", "tax_id": "0105560000001", "branch": "00002",
                                   "address": "1 ถนนหนึ่ง เมือง 31000", "phone": "044-111111", "payterm": "30"}]
     assert data["suppliers"] == [{"code": "ชาญ\xa0ฟู้ด", "name": "ชาญ ฟู้ด", "tax_id": "0105556012345", "branch": "00000",
-                                  "address": "", "phone": "", "payterm": "0"}]
+                                  "address": "", "phone": "", "payterm": "0", "srv": "0"}]  # 没有赊购历史（service_vat）
     ice, freight = data["products"]
     assert ice == {"code": "P01", "name": "น้ำแข็งหลอด", "kind": "stock", "group": "ICE", "unit": "ถง",
                    "sale_unit": "ถง", "sale_factor": "1", "purchase_unit": "กล", "purchase_factor": "12",

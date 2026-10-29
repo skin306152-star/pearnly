@@ -31,6 +31,7 @@ from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
 from . import purchase_lines
+from . import service_vat
 from . import stock_location
 from . import stock_template
 from . import write_verify
@@ -66,6 +67,7 @@ ERR_REINDEX_UNAVAILABLE = "REINDEX_UNAVAILABLE"  # 正式包缺 cdx_reindex_runn
 ERR_WAITING_LOCK = "ACCOUNT_BUSY_LOCKED"  # Express 占用账套 → 回滚,稍后自动重试(非失败)
 ERR_SUPPLIER_DUP = "SUPPLIER_DUP_SUSPECTED"  # 疑似重复供应商 → 不建,转人工确认
 ERR_SUPPLIER_AMBIGUOUS = "SUPPLIER_BRANCH_AMBIGUOUS"  # 同税号多分店档定不出唯一 → 转人工
+ERR_SERVICE_VAT = service_vat.CHOICE_CODE  # 赊购单服务品进项税口径账套历史定不了、载荷也没给 → 不写,转人工选一次
 ERR_STOCK_IN = "STOCK_IN_FAILED"  # 采购入库路失败(混行/数量成本非法/建档失败)→ 交会计
 # 载荷 4 的仓库码不合格 / 不在这套账的仓库代码表(ISTAB 21)里 → 整单不写,不回落主仓(见 stock_location)
 ERR_LOCATION = stock_location.ERR_LOCATION
@@ -375,6 +377,16 @@ def write_purchase(
     elif not entry.supplier_confirmed_new and master_create.suspected_supplier_dup(account_dir, entry):
         # 新供应商疑似重复(核心名相似·税号不同)→ 不静默建重复户,转人工确认。
         return DbfWriteResult(False, error_code=ERR_SUPPLIER_DUP, error="dup")
+    # 服务品进项税口径(SRV_VATTYP,10-29):赊购单有服务品(或没有明细)时按这本账套的历史定(service_vat),定不了用载荷里人选的,
+    # 都没有就不写、转人工让人选一次(以前恒写 1,语料里一贯 2 的供应商被记错)。现购单、只有库存品的赊购单、没有税的照原生
+    write_detail = entry.items_status == "ok" and bool(entry.items)
+    srv = service_vat.for_purchase(
+        account_dir, has_vat=has_vat, cash=prefix == "HP",
+        service=not write_detail or any(str(it.get("item_mode") or "").strip() != dbf_detail.ITEM_MODE_STOCK for it in entry.items),
+        supplier_code=existing_code, chosen=payload.get(service_vat.PAYLOAD_KEY) or "")
+    if srv is None:
+        return DbfWriteResult(False, error_code=ERR_SERVICE_VAT,
+                              error=f"service input VAT basis of supplier {existing_code or entry.supplier_name!r} not decided")
 
     clock.lap("checks")
     backup_dir = _backup(account_dir, S.PURCHASE_BACKUP_TABLES + stock_location_tables(locations)) \
@@ -401,6 +413,7 @@ def write_purchase(
             prefix,
             userid,
             depcod,
+            srv=srv,
             **_located(locations, moves),
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
@@ -511,6 +524,7 @@ def _write_all(
     userid,
     depcod="",
     *,
+    srv=None,
     locations=None,
     moves=None,
 ) -> tuple:
@@ -587,7 +601,7 @@ def _write_all(
                 "PVATPRORAT": "-",
                 "DOCSTAT": "N",
                 "USERID": userid,
-                **audit_fields(docdat, depcod, has_vat, orgnum, duedat),
+                **audit_fields(docdat, depcod, has_vat, orgnum, duedat, srv=srv),
                 # 单据上的付款天数(真账 RR 89% 等于供应商档的);老合成表没有这一列就不写
                 **({"PAYTRM": payterm} if "PAYTRM" in ap.field_names else {}),
                 **nxtseq_override,

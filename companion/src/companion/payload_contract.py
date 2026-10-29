@@ -33,7 +33,9 @@ from typing import Optional
 # (原单在上一年度的账套,明细挂 AVGPR 按平均成本回冲;B3b 实录点 ②)。旧版免税行照应税写、跨年的报找不到原单,所以盖 11,旧版诚实拒收。
 # 12:整单免税的进货单(全是免税行、带 `vat_fields` AMTRAT0 全额):照原生主流价格类型 1 / 2、单头记免税额、不写进项税记录(主会话 10-29)。
 # 旧版进货按「税额 > 0」才算有税,写成 FLGVAT 0,所以盖 12,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+# 13:进货单可带人选的服务品进项税口径 ``srv_vattyp``(1 / 2;这本账套的历史定不了时用,`service_vat`,10-29)。旧版不认这个键、
+# 恒写 1,所以盖 13,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

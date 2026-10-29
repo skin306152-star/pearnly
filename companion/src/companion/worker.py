@@ -421,6 +421,8 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "REFUND_ORIGINAL_CHANGED": "needs_review",
         "REFUND_LINE_NOT_FOUND": "needs_review",
         "REFUND_EXCEEDS_ORIGINAL": "needs_review",
+        # 赊购单服务品进项税口径账套历史定不了、载荷没给(10-29):重试结论一样,要人选一次
+        "SERVICE_VAT_BASIS_CHOICE": "needs_review",
     }.get(error_code or "")
 
 

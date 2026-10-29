@@ -69,6 +69,7 @@ Account Set Name,Account Set Name
 Account Set Path,Account Set Path
 Account code,Account code
 Account set,Account set
+Accrual basis,Accrual basis
 Ack Digest,Ack Digest
 Active,Active
 Active Attempt,Active Attempt
@@ -271,6 +272,7 @@ Card name (alphabetically),Card name (alphabetically)
 Card restored,Card restored
 Card templates,Card templates
 Cash,Cash
+Cash basis,Cash basis
 Cash purchase,Cash purchase
 Cash sales,Cash sales
 Catch-up after start,Catch-up after start
@@ -354,6 +356,7 @@ Choose the inventory account group for this account set. Tap the number:,Choose 
 Choose the payment method,Choose the payment method
 Choose the receiving account of each payment method,Choose the receiving account of each payment method
 Choose the sales returns account,Choose the sales returns account
+Choose the service input VAT for this supplier and submit again,Choose the service input VAT for this supplier and submit again
 Choose the sheet to import,Choose the sheet to import
 Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
@@ -1554,6 +1557,8 @@ Send the code from the Cowork page to bind,Send the code from the Cowork page to
 Sending was cancelled because the account set was in use. Close Express and send again,Sending was cancelled because the account set was in use. Close Express and send again
 Service,Service
 Service fees,Service fees
+Service input VAT,Service input VAT
+Service input VAT basis not set,Service input VAT basis not set
 Service or stock?,Service or stock?
 Set At,Set At
 Set By,Set By
@@ -2256,7 +2261,9 @@ connection.stock_acc_group_invalid,This inventory account group cannot be chosen
 connection.url_invalid,The ERP address is invalid or not allowed.
 contact record,contact record
 cowork.choice.account,Expense account
+cowork.choice.accrual,Accrual basis
 cowork.choice.cash,Cash purchase
+cowork.choice.cash_basis,Cash basis
 cowork.choice.claim,Claim as input VAT
 cowork.choice.credit,Credit purchase
 cowork.choice.department,Department
@@ -2267,6 +2274,7 @@ cowork.choice.new,"New, as on the invoice"
 cowork.choice.party,Express record
 cowork.choice.payment,Payment
 cowork.choice.receipt,Receiving account
+cowork.choice.service_vat,Service input VAT
 cowork.choice.task_default,This is set by the scheduled task's default handling. Change it in the task
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
@@ -3403,6 +3411,7 @@ intake.error.REFUND_LINE_NOT_FOUND,This item is not on the original cash sale
 intake.error.REFUND_ORIGINAL_CHANGED,The original cash sale was changed in Express
 intake.error.REFUND_ORIGINAL_NOT_FOUND,The original cash sale is not in Express
 intake.error.REINDEX_UNAVAILABLE,The Express index tool is missing on this computer. Reinstall CC Desktop
+intake.error.SERVICE_VAT_BASIS_CHOICE,Service input VAT basis not set
 intake.error.STOCK_ACC_GROUP_UNFIT,Choose the inventory account group for this account set first.
 intake.error.STOCK_INSUFFICIENT,Not enough stock in Express
 intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"

@@ -425,8 +425,8 @@ def _needs_choice(reason):
     from pearnly_core.cc_desktop.wire import ack_rules
 
     # 关账、库存不足也弹出（只有原因、能重试；10-24 验收：页面不自动弹）
-    return ack_rules.error_code(reason) in prepare.PARTY_CODES | prepare.GROUP_CODES | {"PERIOD_LOCKED",
-                                                                                        "STOCK_INSUFFICIENT"}
+    return ack_rules.error_code(reason) in prepare.PARTY_CODES | prepare.GROUP_CODES | prepare.SERVICE_VAT_CODES | {
+        "PERIOD_LOCKED", "STOCK_INSUFFICIENT"}
 
 
 PARTIES = {SALES: ("ERP Customer", "customer"), PURCHASE: ("ERP Supplier", "supplier")}

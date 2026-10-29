@@ -95,13 +95,14 @@ def priced_line(row: Dict[str, Any], item, fields) -> Dict[str, Any]:
     return exempt_line(row, item, fields)
 
 
-def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0, duedat=None) -> Dict[str, Any]:
+def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0, duedat=None, srv=None) -> Dict[str, Any]:
     """Express GUI 录入时自动填、外部直写**必须补**的"审核/单据"字段。
 
     缺这些(尤其 `CMPLAPP='Y'`)→ Express 视为未审核/不完整,报表与放大镜列表都看不到
     (逐列比对真单 1739/1741 皆 CMPLAPP='Y' 锁定)。DEPCOD 账套相关 → 由连接 config 给,
     不用部门的公司留空。ORGNUM = 对方档的分店号(0 = 总店;真账表头与对方档一致 99%+,
-    以前恒写 0 会让分店票在税表上显示成总店)。
+    以前恒写 0 会让分店票在税表上显示成总店)。SRV_VATTYP 服务品进项税口径:进货单由调用方按账套历史定好给 ``srv``
+    (``service_vat.for_purchase``),没给的照旧(有税 1、没税 -)。
     """
     return {
         "CMPLAPP": "Y",
@@ -112,5 +113,5 @@ def audit_fields(docdat, depcod: str, has_vat: bool, orgnum: int = 0, duedat=Non
         "NXTSEQ": "1",
         "DEPCOD": (depcod or ""),
         "ORGNUM": int(orgnum or 0),
-        "SRV_VATTYP": ("1" if has_vat else "-"),
+        "SRV_VATTYP": srv or ("1" if has_vat else "-"),
     }

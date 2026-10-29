@@ -27,6 +27,7 @@ from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_cowork.push.express import decide as decide_rules
 from pearnly_cowork.push.express import goods_posting
 from pearnly_core.express_rules.push import payment as payment_rules
+from pearnly_core.express_rules.push import service_vat
 from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_core.express_rules.push import written_check
 from pearnly_core.express_rules.push.common import SRC_CATEGORY, resolve_account_sourced
@@ -669,7 +670,8 @@ def save_choices(history, connection, account_set_key, items, *, document_paymen
         "account": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
         "receipt": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
         "department": {r.get("code") for r in config.get("reported_departments") or [] if isinstance(r, dict)},
-        "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES)}
+        "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES),
+        service_vat.KIND: set(service_vat.OPTIONS)}
     parties = {r.get("code") for key in ("reported_customers", "reported_suppliers")
                for r in config.get(key) or [] if isinstance(r, dict)}
     saved = 0
@@ -680,7 +682,8 @@ def save_choices(history, connection, account_set_key, items, *, document_paymen
         options = parties if kind == "party" else allowed[kind]
         if kind in ("party", "item") and value == choice_rules.NEW:
             pass
-        elif not value or (options and value not in options) or (kind in ("payment", "vat") and value not in options):
+        elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND)
+                                                                 and value not in options):
             frappe.throw(_("cowork.choice.invalid"))
         saved += int(choice_store.record(loaded.doc.name, target.account_set, kind, str(item.get("subject") or ""),
                                          value, item.get("label")))

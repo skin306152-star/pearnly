@@ -1387,6 +1387,9 @@ Sales returns account	销货退回科目	บัญชีรับคืนสิ
 Exempt items	免税商品写法	สินค้ายกเว้นภาษี	免税品の記帳	express.kind.exemptMode
 Split exempt items (recommended)	按商品免税拆开写（建议）	แยกสินค้ายกเว้นภาษี (แนะนำ)	免税品を分けて記帳（推奨）	express.option.exemptSplit
 Tax the whole document as the account set does	照账套现在的设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	帳簿の設定どおり全体に課税	express.option.exemptWhole
+Service input VAT	服务品进项税	ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税	express.kind.serviceVat
+Accrual basis	权责制	เกณฑ์สิทธิ	発生主義	express.option.accrual
+Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	express.option.cashBasis
 Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	express.reason.refundItems
 The original cash sale is not in Express	Express 中没有原现销单	ไม่พบใบขายเงินสดต้นฉบับใน Express	元の現金売上が Express にありません	express.error.REFUND_ORIGINAL_NOT_FOUND
 The cash customer could not be copied from the original year	原年度账套的现金客户档没能复制过来	คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้	前年度の帳簿から現金顧客を複製できません	express.error.REFUND_CUSTOMER_NOT_COPIED
@@ -1395,6 +1398,7 @@ This item is not on the original cash sale	原现销单上没有此商品	ไม
 The returned quantity is more than the quantity sold	退货数量超过原单销售数量	จำนวนที่รับคืนมากกว่าจำนวนที่ขาย	返品数量が販売数量を超えています	express.error.REFUND_EXCEEDS_ORIGINAL
 The return is not in the expected form	退货单数据格式不对	ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง	返品伝票のデータ形式が正しくありません	express.error.REFUND_INVALID
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの帳簿の在庫勘定グループを選んでください。	express.error.STOCK_ACC_GROUP_UNFIT
+Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払消費税の基準が未設定です	express.error.SERVICE_VAT_BASIS_CHOICE
 The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	express.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	express.error.BAD_SALES_DOCTYPE

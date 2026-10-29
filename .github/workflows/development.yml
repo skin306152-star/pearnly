@@ -163,6 +163,8 @@ jobs:
         run: python3 tests/test_cowork_pos_import.py
       - name: Verify a cash register refund on a later day maps to an Express return document SR and payloads without one stay byte for byte the same
         run: python3 tests/test_express_rules_pos_refund.py
+      - name: Verify the service input VAT basis of a credit purchase follows the book's history and is asked once only when it cannot decide
+        run: python3 tests/test_express_service_vat.py
       - name: Verify every CC Desktop refusal code and push reason has text in the reader's language
         run: python3 tests/test_cowork_reason_language.py
       - name: Verify a batch of scheduled tasks saves all or nothing

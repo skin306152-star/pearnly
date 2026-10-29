@@ -145,8 +145,9 @@ def test_suppliers_and_departments_are_reported(acct):
     _add(acct, "APMAS", SUPCOD="B004", SUPNAM="BANGCHAK", TAXID="0105536080112", ORGNUM=0)
     _add(acct, "ISTAB", TABTYP="50", TYPCOD="SUTI", TYPDES="สาขาที่ 1")
     _add(acct, "ISTAB", TABTYP="20", TYPCOD="ชด", TYPDES="ชุด")
+    # srv：这家在本账套赊购单上的服务品进项税口径串，这本没有赊购历史记 "0"（service_vat，10-29）
     assert CP.probe_suppliers(acct) == [{"code": "B004", "name": "BANGCHAK", "tax_id": "0105536080112",
-                                          "branch": "00000"}]
+                                          "branch": "00000", "srv": "0"}]
     assert CP.probe_departments(acct) == [{"code": "SUTI", "name": "สาขาที่ 1"}]
 
 

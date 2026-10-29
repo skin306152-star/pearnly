@@ -105,12 +105,12 @@
 		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
 		stock_group: "express.kind.stockGroup", receipt: "express.kind.receipt", vat_registered: "express.kind.vatRegistered",
-		refund: "express.kind.refundAccount", exempt_mode: "express.kind.exemptMode",
+		refund: "express.kind.refundAccount", exempt_mode: "express.kind.exemptMode", service_vat: "express.kind.serviceVat",
 	};
 	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked", STOCK_INSUFFICIENT: "express.reason.stockInsufficient"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
 		__new__: "New", yes: "express.option.yes", no: "express.option.no", split: "express.option.exemptSplit",
-		whole: "express.option.exemptWhole"};
+		whole: "express.option.exemptWhole", accrual: "express.option.accrual", cash_basis: "express.option.cashBasis"};
 	// 要人定的那几项 → 原生下拉（单据上的 Express 弹窗与提交前问共用）
 	const needed_fields = (needed, direction) => needed.map((item, index) => {
 		const kind = EXPRESS_KINDS[item.kind];

@@ -69,6 +69,7 @@ Account Set Name,ชื่อชุดบัญชี
 Account Set Path,พาธชุดบัญชี
 Account code,รหัสบัญชี
 Account set,ชุดบัญชี
+Accrual basis,เกณฑ์สิทธิ
 Ack Digest,แฮชผลตอบรับ
 Active,ใช้งาน
 Active Attempt,การพยายามส่งปัจจุบัน
@@ -271,6 +272,7 @@ Card name (alphabetically),ชื่อการ์ด (ตามตัวอั
 Card restored,กู้คืนแล้ว
 Card templates,เทมเพลตการ์ด
 Cash,เงินสด
+Cash basis,เกณฑ์เงินสด
 Cash purchase,ซื้อเงินสด
 Cash sales,ขายเงินสด
 Catch-up after start,ทำงานที่ค้างหลังเปิดเครื่อง
@@ -354,6 +356,7 @@ Choose the inventory account group for this account set. Tap the number:,กร�
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the receiving account of each payment method,กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน
 Choose the sales returns account,กรุณาเลือกบัญชีรับคืนสินค้า
+Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
@@ -1554,6 +1557,8 @@ Send the code from the Cowork page to bind,กรุณาส่งรหัส�
 Sending was cancelled because the account set was in use. Close Express and send again,ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่
 Service,บริการ
 Service fees,ค่าบริการ
+Service input VAT,ภาษีซื้อของสินค้าบริการ
+Service input VAT basis not set,ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ
 Service or stock?,กรุณาเลือกบริการหรือสินค้า
 Set At,เวลาที่ตั้ง
 Set By,ตั้งโดย
@@ -2256,7 +2261,9 @@ connection.stock_acc_group_invalid,ไม่สามารถเลือกก
 connection.url_invalid,ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต
 contact record,ข้อมูลคู่ค้า
 cowork.choice.account,บัญชีค่าใช้จ่าย
+cowork.choice.accrual,เกณฑ์สิทธิ
 cowork.choice.cash,ซื้อเงินสด
+cowork.choice.cash_basis,เกณฑ์เงินสด
 cowork.choice.claim,ใช้สิทธิ์ภาษีซื้อ
 cowork.choice.credit,ซื้อเงินเชื่อ
 cowork.choice.department,แผนก
@@ -2267,6 +2274,7 @@ cowork.choice.new,สร้างใหม่ตามเอกสาร
 cowork.choice.party,ข้อมูลคู่ค้าใน Express
 cowork.choice.payment,วิธีชำระเงิน
 cowork.choice.receipt,บัญชีรับเงิน
+cowork.choice.service_vat,ภาษีซื้อของสินค้าบริการ
 cowork.choice.task_default,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
@@ -3403,6 +3411,7 @@ intake.error.REFUND_LINE_NOT_FOUND,ไม่มีสินค้านี้ใ
 intake.error.REFUND_ORIGINAL_CHANGED,ใบขายเงินสดต้นฉบับถูกแก้ไขใน Express แล้ว
 intake.error.REFUND_ORIGINAL_NOT_FOUND,ไม่พบใบขายเงินสดต้นฉบับใน Express
 intake.error.REINDEX_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้ไม่มีโปรแกรมดัชนี Express กรุณาติดตั้ง CC เดสก์ท็อปใหม่
+intake.error.SERVICE_VAT_BASIS_CHOICE,ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ
 intake.error.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 intake.error.STOCK_INSUFFICIENT,สินค้าคงเหลือใน Express ไม่พอ
 intake.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย

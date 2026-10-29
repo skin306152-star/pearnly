@@ -49,13 +49,15 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.companies import rules
 from pearnly_cowork.push import choices as express_choices
 from pearnly_cowork.push.express import company_choices
+from pearnly_core.express_rules.push import service_vat
 from pearnly_core.express_rules.push.choices import KINDS, PAYMENT_VALUES, VAT_VALUES
 
 READ_MAX = 200
 SHOWN = 30
-EDITABLE = {"payment": PAYMENT_VALUES, "vat": VAT_VALUES}
+EDITABLE = {"payment": PAYMENT_VALUES, "vat": VAT_VALUES, service_vat.KIND: tuple(service_vat.OPTIONS)}
 VALUE_LABELS = {("payment", "cash"): "Cash", ("payment", "credit"): "Credit", ("vat", "claim"): "Claim VAT",
-                ("vat", "expense"): "Expense it"}
+                ("vat", "expense"): "Expense it", (service_vat.KIND, "accrual"): "Accrual basis",
+                (service_vat.KIND, "cash_basis"): "Cash basis"}
 # 商品单入账方式（按公司选的、Express 历史定下的）显示的值
 POLICY_LABELS = {"stock": "cowork.company.choice.stock", "service": "cowork.company.choice.service"}
 HISTORY_HOOK = "cowork_company_history_choices"
