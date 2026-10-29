@@ -281,3 +281,17 @@ erp.report.stock-count-variance、erp.exports（盘点导出）上表已测；�
   按台商品在普通公司按数量照常出录入框（S0）。两套数据、电脑与手机宽度全过（LINE 页只跑手机宽度）。
 - **各窗口自己的实验栈**：`scripts/flows/run.py` 认 `PEARNLY_FLOWS_LAB`，回归实验室编排三个端口都可改；本任务用 `pearnly-verify-lab`
   （照 regression-lab 的编排）。页面驱动加 `--autoplay-policy=no-user-gesture-required`（仍静音），保存成功的提示音不再被记成页面报错。
+
+## 暂停点（2026-10-29 晚，用户下班）
+
+- **合入**：本分支变基到 main `70aa07d8` 后，本地全量闸门通过、GitHub Development checks 通过、流程用例 `pearnly/flows` 在 `f61b48a4` 上
+  success（`base 70aa07d855f1; 9 flows; datasets new,old; 34/34 runs passed`）；按主线集成快进合入 main（本记录这一提交即合入点，SHA 报主会话）。
+- **未部署**：这一批由主会话在最后那个 main 提交上统一跑全套流程、部署。部署时要做的只读回读：
+  - 补丁 `v1_17_company_settings`：记着 Express 账套 / 连上 Express 的公司 `express_enabled = 1`、`company_type = general`（testerp 预期 62 家）；
+  - 补丁 `v1_18_default_company_warehouse`：补丁前后列每个站点「0 个仓的公司」（预期只有 gize，补后为空），写进发布记录；
+  - 新列：`ERP Company.company_type / express_enabled`、`ERP Product.origin*`、`ERP Stock Count Item.row_origin`、`ERP Warehouse.warehouse_code`、
+    `ERP Warehouse Location.description`。
+- **还没测到（要测试环境 / 真机）**：盘点打印 PDF 下载；真写 Express（含「Express 中没有这件商品」停人工）；LINE 真机（LIFF 验签）；
+  收银台汽车公司实卖选台。CC 在 TK 里给盘点新建的商品建档另排（批复 #7）。
+- **保留项**：本地分支 `pearnly/mixed-operators-parens`（34a7c5b9，见上「合入前补的几件」）；实验栈 `pearnly-verify-lab` 已 `compose stop`、
+  数据卷保留（两套合成数据，下次跑流程直接起）。工作树 `stocktake-assess` 与分支 `pearnly/stocktake-complete` 合入后清理。
