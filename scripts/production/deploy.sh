@@ -8,6 +8,8 @@
 #   scripts/production/deploy.sh --attach        部署还在服务器上跑而本机断开了：重新接上看进度和结果
 #
 # 每一步做什么（和 production-deploy-steps 的人工步骤一一对应，检查一项不少）：
+#   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（本机回归实验室 scripts/flows/run.py --all --post-status
+#      回写）；没有或没过就停下、打印补跑命令，不构建、不动生产。
 #   1. 构建：gh workflow run build-production.yml --ref main，等它跑完；候选检查那一步必须是 success；digest 从构建产物取。
 #   2. 放镜像：gh workflow run stage-production.yml -f digest=…，等它跑完（只把镜像拉到生产机，不启动）。
 #   3. 激活：一次 SSH 把本提交里的 deploy-run.sh 传上去、nohup 后台启动（脚本内容取自 git 里这个提交，服务器上还会与镜像里那份再比一次）。
@@ -103,6 +105,19 @@ step_conclusion() {  # step_conclusion <run id> <步骤名前缀>
   gh run view "$1" --json jobs --jq "[.jobs[].steps[] | select(.name | startswith(\"$2\")) | .conclusion] | first // \"\""
 }
 
+# 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 要是 success，且是全套（说明以 all flows 开头）。
+# 状态只由本机回归实验室回写（scripts/flows/run.py），本机睡眠或实验室没起来就没有状态，照样拦；没有绕过开关。
+flows_gate() {
+  local line rerun
+  rerun="在挂本提交源码的回归实验室跑全套并回写：git worktree add <目录> $sha && cd <目录> && PEARNLY_REGRESSION_SRC=\$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait && python3 scripts/flows/run.py --all --post-status（详见 tests/flows/README.md），通过后重跑本脚本"
+  line=$(cd "$REPO" && gh api "repos/{owner}/{repo}/commits/$sha/status" \
+    --jq '[.statuses[] | select(.context == "pearnly/flows")][0] | select(. != null) | "\(.state) \(.description)"') || line=
+  [[ -n "$line" ]] || stop "提交 $short 没有流程用例结果（GitHub 状态 pearnly/flows）" "生产没动" "$rerun"
+  [[ "${line%% *}" == success ]] || stop "提交 $short 的流程用例没通过：${line#* }" "生产没动" "看 run.py 的结果修好；$rerun"
+  [[ "${line#* }" == "all flows"* ]] || stop "提交 $short 只跑过受影响的流程（${line#* }），部署前要跑全套" "生产没动" "$rerun"
+  say "流程用例：${line#* }"
+}
+
 # ---------- 远端 main ----------
 git -C "$REPO" fetch -q origin main
 sha=$(git -C "$REPO" rev-parse origin/main)
@@ -114,6 +129,7 @@ if [[ $mode == attach ]]; then
 elif [[ $mode == dry-run ]]; then
   t0=$(date +%s)
   say "演练：不触发构建、不放镜像、不连生产"
+  flows_gate
   stage_run=$(gh run list --workflow stage-production.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
   [[ -n "$stage_run" ]] || stop "找不到成功的放镜像运行" "gh auth status 看登录"
   digest=$(gh run view "$stage_run" --log | grep -m1 -oE 'DIGEST: sha256:[0-9a-f]{64}' | cut -d' ' -f2 || true)
@@ -147,6 +163,7 @@ else
   busy=$(gh run list --workflow build-production.yml --branch main --limit 5 --json status \
     --jq '[.[] | select(.status != "completed")] | length')
   [[ "$busy" == 0 ]] || stop "main 上已有一次构建在跑" "等它结束，或确认那是谁的部署再决定"
+  flows_gate
   t_start=$(date +%s)
   t_build=0 t_stage=0
   if [[ -z "$digest" ]]; then

@@ -6,6 +6,7 @@
 #   - 识别进程带 FRAPPE_BACKGROUND_WORKERS_NOFORK=1；
 #   - 三个产品网页容器里的全部站点 maintenance_mode=0、部署开始后 Error Log 为 0（按各站点自己的时区换算）；
 #     进维护那一分钟定时任务被拒的「Scheduled jobs can't run in maintenance mode」单独列出、不算问题（10-25 人工回读同样判定）；
+#     每个租户另列页面报错回传（Error Log「Browser error」）：部署后的条数（算在 Error Log 里、非 0 即问题）和部署前 24 小时的条数（对照）；
 #   - mrerp / erpcowork / ris 的 /api/method/ping 200，fatcc.com 首页 200（它的 ping 本来就 403；刚换完基础层会 502 十几秒，每个域名最多重试 6 次）；
 #   - mariadb 内存只用 docker stats 看，不 exec 进数据库容器。
 # 这一批特有的表、字段、补丁检查不在这里，按发布记录另做。退出码：0 全部通过，1 有问题（逐项打印）。
@@ -54,12 +55,15 @@ for product in erp cowork dms; do
     local_since=$(python3 -c 'import datetime, sys, zoneinfo
 print(datetime.datetime.fromtimestamp(int(sys.argv[1]), zoneinfo.ZoneInfo(sys.argv[2] or "Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S"))' "$since" "${zone:-Asia/Bangkok}")
     counts=$(docker exec -w /home/frappe/frappe-bench "$web" bench --site "$site" mariadb -N -e \
-      "select sum(error not like '%$maintenance_reject%'), sum(error like '%$maintenance_reject%') from \`tabError Log\` where creation >= '$local_since'" \
+      "select sum(error not like '%$maintenance_reject%'), sum(error like '%$maintenance_reject%'), sum(method like 'Browser error%'),
+              (select count(*) from \`tabError Log\` where method like 'Browser error%' and creation >= '$local_since' - interval 1 day and creation < '$local_since')
+       from \`tabError Log\` where creation >= '$local_since'" \
       </dev/null 2>/dev/null | tail -1)
-    read -r errors rejected <<< "$counts"
+    read -r errors rejected browser browser_before <<< "$counts"
     [[ "$errors" == NULL ]] && errors=0
     [[ "$rejected" == NULL ]] && rejected=0
-    echo "  $site maintenance=$maintenance errors_since=${errors:-?} maintenance_rejected_jobs=${rejected:-?} (${zone:-Asia/Bangkok} $local_since)"
+    [[ "$browser" == NULL ]] && browser=0
+    echo "  $site maintenance=$maintenance errors_since=${errors:-?} maintenance_rejected_jobs=${rejected:-?} browser_errors_since=${browser:-?} browser_errors_24h_before=${browser_before:-?} (${zone:-Asia/Bangkok} $local_since)"
     if [[ "$errors" != 0 ]]; then
       problem "$site Error Log since deploy: ${errors:-unreadable}"
       docker exec -w /home/frappe/frappe-bench "$web" bench --site "$site" mariadb -N -e \

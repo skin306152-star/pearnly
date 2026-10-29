@@ -89,6 +89,10 @@ jobs:
         run: python3 scripts/check-architecture.py
       - name: Every catch in product front-end code rethrows or goes to the shared error report; expected ones are registered with a reason
         run: python3 scripts/check-swallowed-errors.py
+      - name: Changed product entry files must be covered by a registered flow case (the flows themselves run in the local regression lab)
+        env:
+          FLOWS_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'origin/main' }}
+        run: python3 tests/test_flows_coverage.py && python3 scripts/flows/coverage.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
       - name: Endpoints reachable by GET do not write (Frappe does not commit GET requests; the mobile stocktake lookup lost its rows this way)

@@ -2,7 +2,8 @@
 
 deploy-run.sh (server side) must keep the manual order and every gate: revision, tooling sync and check,
 products one at a time behind the 8 GB memory wait, foundation, readback; stop at the first failure.
-deploy.sh (local driver) must chain build → stage → one SSH start → one long SSH attach, and stop with
+deploy.sh (local driver) must refuse a commit whose flow cases are not green on GitHub (status flows, run against
+the last staged commit or earlier), then chain build → stage → one SSH start → one long SSH attach, and stop with
 guidance when a step fails. deploy-readback.sh must flag every readback item that is off.
 """
 import json
@@ -18,6 +19,7 @@ READBACK = HERE / 'deploy-readback.sh'
 DRIVER = HERE / 'deploy.sh'
 SHA = 'f' * 40
 DIGEST = 'sha256:' + 'e' * 64
+FLOWS_OK = 'success all flows; 1 flows; datasets new,old; 4/4 runs passed; 812s'
 IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@' + DIGEST
 
 
@@ -143,7 +145,8 @@ class RunnerSelfCheck(unittest.TestCase):
 
 
 class Readback(unittest.TestCase):
-    def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL'):
+    def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL', browser='NULL',
+                     browser_before=0):
         containers = containers or {
             'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
             'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
@@ -170,7 +173,7 @@ elif args[0] == "exec" and "python3" in args:
 elif args[0] == "exec" and "time_zone" in args[-1]:
     print("Asia/Bangkok")
 elif args[0] == "exec" and "sum(error" in args[-1]:
-    print("{errors} {rejected}")
+    print("{errors} {rejected} {browser} {browser_before}")
 elif args[0] == "exec":
     print("2026-10-28 10:00:00 Traceback sample")
 elif args[0] == "stats":
@@ -197,6 +200,14 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*) pri
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('maintenance_rejected_jobs=4', result.stdout)
 
+    def test_browser_error_reports_are_listed_per_tenant(self):
+        result = self.run_readback(errors=2, browser=2, browser_before=5)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('browser_errors_since=2 browser_errors_24h_before=5', result.stdout)
+        clean = self.run_readback(browser_before=5)
+        self.assertEqual(clean.returncode, 0, clean.stdout)
+        self.assertIn('site-a.pearnly.com maintenance=0 errors_since=0 maintenance_rejected_jobs=0 browser_errors_since=0', clean.stdout)
+
     def test_each_problem_is_flagged(self):
         cases = {
             'old image': dict(containers={'pearnly-production-dms-web-1': 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + '1' * 64}),
@@ -216,7 +227,7 @@ class Driver(unittest.TestCase):
     """deploy.sh with fake git / gh / ssh: the order of calls and where it stops."""
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
-                   busy_server=False, attach_failures=0):
+                   busy_server=False, attach_failures=0, flows=FLOWS_OK):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
@@ -233,6 +244,7 @@ esac
 ''')
             stub(bin_dir / 'gh', f'''echo "gh $*" >> "{trace}"
 case "$1 $2" in
+  "api repos/{{owner}}/{{repo}}/commits/{SHA}/status") {f'echo "{flows}"' if flows else ':'} ;;
   "workflow run") ;;
   "run list")
     case "$*" in
@@ -286,6 +298,27 @@ esac
         stage = next(c for c in calls if 'stage-production.yml' in c and 'workflow run' in c)
         self.assertIn(f'digest={DIGEST}', stage)
         self.assertIn('部署完成', result.stdout)
+
+    def test_flow_cases_gate_the_deploy(self):
+        cases = {
+            'no result': (dict(flows=''), '没有流程用例结果'),
+            'failed': (dict(flows='failure all flows; 1 flows; datasets new,old; 3/4 runs passed; 800s'), '流程用例没通过'),
+            'only affected flows': (dict(flows='success base 0123456789ab; 1 flows; datasets new,old; 4/4 runs passed; 800s'),
+                                    '部署前要跑全套'),
+        }
+        for name, (kwargs, message) in cases.items():
+            with self.subTest(case=name):
+                result, calls = self.run_driver(**kwargs)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertEqual(self.kinds(calls), [])
+                self.assertIn(message, result.stderr)
+                self.assertIn('生产没动', result.stderr)
+                self.assertIn('scripts/flows/run.py --all --post-status', result.stderr)
+        result, calls = self.run_driver()
+        self.assertIn('流程用例：all flows', result.stdout)
+        result, calls = self.run_driver('--dry-run', flows='')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('没有流程用例结果', result.stderr)
 
     def test_failed_build_stops_before_production(self):
         result, calls = self.run_driver(build='failure')
