@@ -145,6 +145,30 @@ ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rul
 （与各自标签同一句）。实验室中文界面复看：两个产品的提示框都是「看板 / 搜索卡片 / 成员 / 标签 / 到期」、状态句「输入内容以显示结果」。
 `check-copy.py`：新增 11 条、拦截 0。
 
+## 第 3 步之二：导出排队 13 条（分支 `pearnly/get-writes-exports`，基线 main 70aa07d8）——10-29 晚暂停点
+
+已做（已提交、已推送，未合入 main）：
+- 共用 `p.export_file` 一律 POST（去掉 type 参数，两个产品任务管理页的调用一并改）；13 个导出接口 `methods=["POST"]`；
+  `exports.service.enqueue` 不再手动 commit，改 `enqueue_after_commit=True`（任务行随 POST 请求提交后再排队）；`tests/test_exports.py` 断言跟着改。
+- 三个实验室导出脚本（`cowork-*-export-lab-verify.py`）改成 POST 能导、GET 被拒。基线 28 → 15 条（剩手动 commit 14、按协议 GET 1）。
+- 流程 `erp.exports`（销售 / 采购 / 库存 CSV / 已过账盘点 / 班次 / 首页账本）、`cowork.exports`（已结束盘点 / 首页账本）：两套数据 × 电脑 / 手机全过
+  （点页面自己的导出、请求 POST、文件能打开且有库里的单号 / 商品码、小导出不建任务）。`stocktake/api.py`（原生 RPC，无页面）登记 not_flows。
+  配套：Cowork old 数据把带实盘那份盘点结束掉；`lab_billing.py` 给四个数据集站点也开计费租户（首页账本导出要用）；
+  `ui_steps.mjs` 加 `--autoplay-policy=no-user-gesture-required`（脚本点击不算手势，导出后的提示音 play() 被拒报页面错误）。
+- 排队路径（实验室，进程内把阈值设成 "0"）：ERP 销售 / 采购 / 库存 / 盘点 / 班次 / 任务管理 / 首页账本、Cowork 盘点（页面与原生 RPC）/ 任务管理 / 首页账本
+  共 11 个都「建任务 → 提交后排队 → 跑任务 → 下载到文件」；浏览器里销售导出走排队：轮询状态、做完自动下载 xlsx、提示「文件已准备好」。
+
+没做完（明天接着）：
+1. 银行 / 收入对账两个导出的流程：等验收窗口第一批合入（实验室 bench 加 worker）后补收入对账流程并顺带走银行对账导出；
+   分支 CI 现在红在流程覆盖闸这两个文件上（`bank_recon_api.py`、`income_recon_api.py`），**合入前必须补齐**。
+2. 删 `frontend/src/pages/HomePage.vue`（不在 SPA 路由里；主会话 10-29 定直接删）：全仓引用只剩 `lib/i18n.ts` 一句注释、
+   `scripts/impact/shared-parts.toml` 两处（1526 行 shared.exports 的 files、2057 行一个入口的 files）、`docs/work/2026-10-29-four-machine-gates.md` 一行；
+   删时连它独有的组件 / 样式一起删、登记表同步、`npm --prefix frontend run build` 要过。
+3. 连带回归闸门清单（84 个入口，`~/pearnly-devtools/get-write-rollback/impact-exports.md`）逐条填结果：34 个 auto：page 入口的本地跑法
+   `~/pearnly-devtools/get-write-rollback/page_entries.py`（回归实验室 + 临时网页容器），今晚跑到一半停了、没出结果；
+   其余 doc_detail / record_switch / not_permitted 与 manual 入口按清单实测或照实记「没测到」。
+4. 顺带发现：`exports.service.sync_rows()` 用 `int(conf or 1000)`，站点配置写数字 0 会被当成没配（字符串 "0" 才生效），记作后续项。
+
 ## 同页顺带修：保存后抬头不刷新
 
 手机页保存后，抬头「已盘点 x / y」不变，要退出重进这份盘点才更新（抬头只在打开盘点时取一次）。主会话 10-29 定同一分支修掉：
