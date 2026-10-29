@@ -30,12 +30,14 @@ class Refused(Exception):
 class Locations(unittest.TestCase):
     def setUp(self):
         self.lists = {"W1": [("A-01", 1), ("A-02", 1), ("OLD", 0)], "W2": []}
+        self.notes = {("W1", "A-01"): "前排货架"}  # 库位说明（用户 10-29）
         self.stock = {("W1", "A-01"): 3.0}
         self.moved = {("W1", "A-02")}
 
         def get_all(doctype, filters=None, pluck=None, fields=None, **kw):
             if doctype == L.CHILD:
-                rows = [{"location_name": name, "is_active": active} for name, active in self.lists.get(filters["parent"], [])
+                rows = [{"location_name": name, "is_active": active, "description": self.notes.get((filters["parent"], name))}
+                        for name, active in self.lists.get(filters["parent"], [])
                         if "is_active" not in filters or active == filters["is_active"]]
                 return [row[pluck] for row in rows] if pluck else [types.SimpleNamespace(**row) for row in rows]
             if doctype == "ERP Stock Balance":
@@ -89,13 +91,18 @@ class Locations(unittest.TestCase):
             L.api_save_locations("W1", [{"location_name": "A-01"}, {"location_name": " A-01"}, {"location_name": "A-02"}])
         with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
             L.api_save_locations("W1", [{"location_name": "A-01"}, {"location_name": "A-02", "is_active": 0}])
-        self.assertEqual(self.saved["W1"], [{"location_name": "A-01", "is_active": 1}, {"location_name": "A-02", "is_active": 0}])
+        self.assertEqual(self.saved["W1"], [{"location_name": "A-01", "is_active": 1, "description": ""},
+                                            {"location_name": "A-02", "is_active": 0, "description": ""}])
+        with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
+            L.api_save_locations("W1", [{"location_name": "A-01", "description": " 前排货架 "}, {"location_name": "A-02"}])
+        self.assertEqual(self.saved["W1"][0]["description"], "前排货架")
 
     def test_options_list_this_warehouse_and_mark_old_stocked_places(self):
         self.stock[("W1", "OLD-B")] = 2.0
         options = L.api_location_options("", "W1")
         self.assertEqual([row["value"] for row in options], ["A-01", "A-02", "OLD-B"])  # 有库存的旧库位也列出、标「不在清单」
         self.assertEqual(options[-1]["label"], "OLD-B · stock.location.offList")
+        self.assertEqual(options[0]["label"], "A-01 · 前排货架")  # 有说明的显示「库位 · 说明」，值仍是库位名
         self.assertEqual(L.api_location_options("A", None), [])
         self.assertEqual(L.api_location_options("", "W2"), [])  # 没建清单：没有选项，照旧手输
 
