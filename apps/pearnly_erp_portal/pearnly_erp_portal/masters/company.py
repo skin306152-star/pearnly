@@ -77,7 +77,21 @@ def ensure_default() -> str:
     doc = frappe.get_doc({"doctype": DOCTYPE, "company_name": frappe.conf.get("pearnly_company_name")
                           or "My Company", "is_default": 1, "is_active": 1})
     doc.insert(ignore_permissions=True)
+    ensure_warehouse(doc.name)  # 开户自动建的公司同样「至少一个仓」（生产 gize 开户后 0 个仓，10-29）
     return doc.name
+
+
+def ensure_warehouse(company) -> str | None:
+    """这家公司还没有仓时建一个（同「新建公司」表单：同一段 `_create_warehouses`、同一个默认仓名，按站点语言）。
+    勾了「接 Express」或已连上 Express 的不建：仓库以 Express 主档同步为准。回建了的仓，没建回 None。"""
+    from pearnly_erp_portal.express import push as express_push
+
+    if not company or frappe.db.exists("ERP Warehouse", {"company": company}):
+        return None
+    if frappe.db.get_value(DOCTYPE, company, "express_enabled") or express_push.connected(company):
+        return None
+    lang = frappe.db.get_single_value("System Settings", "language") or frappe.local.lang
+    return _create_warehouses(company, _("company.warehouseDefaultName", lang=lang), None)[0]["name"]
 
 
 # ── 公司作用域（当前公司 / 能用哪些公司 / 切换）───────────────────────────────
