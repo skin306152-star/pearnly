@@ -2,3 +2,7 @@
 # [[file]]
 # file = "apps/<app>/<app>/public/desk/<文件>.js"
 # reason = "<为什么没有业务流程>"
+
+[[file]]
+file = "apps/pearnly_control/pearnly_control/issues.py"
+reason = "控制面开户单：真开户会在身份服务建号、写各产品站点（对外写入），回归实验室不跑；发号流程由 tests/test_cloud_onboarding.py 离线守住"

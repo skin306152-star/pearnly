@@ -24,4 +24,6 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count_state.py",
   "apps/pearnly_core/pearnly_core/public/desk/scan.js",
   "apps/pearnly_core/pearnly_core/public/scan/reader.js",
+  # 共用外壳（导航、页头、迁移钩子跳过日志）：这条流程打开 Desk 页面就经过它
+  "apps/pearnly_core/pearnly_core/shell.py",
 ]
