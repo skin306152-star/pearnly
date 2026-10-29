@@ -10,7 +10,7 @@
 进项税记录有无与金额。历史定不了的（要问）记一笔「问」，再按答案的口径当作人选的写一遍比其余栏。
 
     python3 scripts/express-service-vat-corpus.py --corpus <有答案目录> --books C:\\PearnlyExpress\\70EXP --work C:\\PearnlyStress\\_srv_cmp \\
-        --companion <仓库>\\companion\\src --out result.jsonl [--per-kind 2]
+        --companion <仓库>\\companion\\src --out result.jsonl --runner <cdx_reindex_runner.exe> [--per-kind 2]
 """
 from __future__ import annotations
 
@@ -86,13 +86,17 @@ def main(argv=None) -> int:
     parser.add_argument("--companion", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--per-kind", type=int, default=2)
+    parser.add_argument("--runner", required=True, help="已安装 CC 的 cdx_reindex_runner.exe（CC 写完要重建索引，没有它整单不写）")
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     global dbf, S, W, fiscal_period, account_probe, cdx_reindex, service_vat
     import dbf  # noqa: F401
     from companion import account_probe, cdx_reindex, fiscal_period, service_vat  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_writer as W  # noqa: F401
+    import express_cdx_check as cdx_check
+    cdx_check.use_runner(cdx_reindex, args.runner)
     work = Path(args.work)
     work.mkdir(parents=True, exist_ok=True)
     totals = defaultdict(int)

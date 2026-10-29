@@ -58,10 +58,22 @@
 
 - 单元 / 契约：CC 全套 1232 过；`tests/test_express_service_vat.py`、`test_companion_contract.py`（规则副本逐例一致、码 / 键 / 版本两边一致）、
   `test_erp_express_direct.py`、Cowork 受影响的测试全过。
-- 本地全闸门（照 development.yml）：见文末。
-- 62 本清空测试账套离线回归（测试机 C 盘 T 账套副本，带 CC 的索引程序核 CDX）：见文末。
-- 语料逐字段对照：见文末。
-- 生产只读统计：见下节。
+- 本地全闸门（照 development.yml，`~/pearnly-devtools/gate.sh`）：150 步全过；推送后 CI（a4b26373）Development checks、Companion checks 都绿。
+- 清空测试账套离线回归（测试机 `C:\PearnlyExpress\70EXP` 的 T 账套逐本复制，带 skin3 已装 CC 的索引程序核 CDX，原件只读）：
+  - 服务品口径（`scripts/express-service-vat-regression.py`）：92 本通过、0 失败、9 本跳过（3 本没服务品或没会计期间表、3 本只有一家供应商、
+    3 本已有赊购历史）。核：没历史不写且账套一字节不变、人选的照写 2、Pearnly 写的不算历史、补一张人录历史后照它写、现购 1、没税 -、
+    写入集合外的表不变、CDX 与 DBF 一致。
+  - 代录窗口的免税回归（`scripts/express-exempt-purchase-regression.py`）在本分支上：赊购单在没有历史的 T 账套被拒写（新规则的正常行为），
+    95 本因此「失败」；给它的载荷补上人选的口径后重跑：98 本通过、0 失败、3 本跳过，与代录窗口在 bdaa80bf 上的结果相同。
+    两个分支合并时这份脚本的 `payload()` 要带 `srv_vattyp`（本窗口变基时补）。
+- 语料逐字段对照（`scripts/express-service-vat-corpus.py`，50 本答案账套、两种模式：「按商品记增值税」开 45 张、关 163 张）：
+  - 服务品口径：口径 1 的 97 张错 3 张、口径 2 的 78 张错 3 张（都是历史两种都有、记住的值与这张不同），与回放一致。
+  - **新发现（上线前必须修）**：原生口径 2 的赊购单开单时不写进项税记录（78 / 78），进项税借方挂账套设置的「未到期进项税」科目
+    （ISINFO.ACCNUM28，语料 6,690 行），单头 VATPRD 留空；口径 1 挂 ACCNUM06、记 VATPRD、写 ISVAT（79,040 行）。直写写成口径 2
+    以后仍写 ISVAT、借 ACCNUM06：Express 付款时会再记一次进项税，等于重复抵扣。本分支在修好之前不能合入。
+  - 其余差异是已知的另一类：原生价格类型 1 的赊购单直写记 2（服务品口径 1 的 97 张里 25 张，金额栏跟着不同），即明天的第 ③ 项；
+    整单免税有 11 张原生记价格类型 0（缺陷一取主流 1 / 2 的已知差异）；1 张整单免税单 AMT01 超出范围（造载荷用了答案的零税额 > 税前，
+    是对照脚本造法问题，不是写法问题）。
 
 ## 生产影响（10-29 一次 SSH，只读事务、只 SELECT，经各产品 web 容器的 `bench --site … mariadb`）
 
@@ -91,6 +103,25 @@
 - 原生整单免税约 28% 记价格类型 0（多在开了「按商品记增值税」的账套），直写统一按主流 1 / 2 写，与这部分账套的习惯不同。
 - CC 要发新版（与代录窗口的 1.12.7 同一版带上）；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
 
+## 暂停点（10-29 晚，用户下班，主会话要求在安全的点停下）
+
+- 做到哪：服务品口径（第 ① 项）的规则、CC、ERP 问一次、Cowork 不问（选②）已提交并推送 `pearnly/express-rules-vat-8fa604`（见交付 SHA），
+  CI 绿；**没合入 main**。
+- 明天第一步：修上面「口径 2 不写 ISVAT」：`dbf_writer` 写进货单 SRV_VATTYP 为 2 时，进项税借方改挂 ISINFO.ACCNUM28（不能记账就转人工、
+  不静默挂 ACCNUM06）、VATPRD 留空、不写 ISVAT；写后核对（`write_verify`、`_verify`）同步；补测试、T 账套回归加这一条、语料对照再跑。
+- 之后：第 ② 项 Cowork 识别来的税额 0 进货单按供应商历史定免税 / 无增值税（同一套纯函数，CC 随主档报口径串）；第 ③ 项赊购单价格类型
+  1 / 2 先做语料统计（跟单据还是跟供应商），报主会话结论再改。
+- 依赖：
+  - 代录窗口 `pearnly/purchase-exempt-vat`（bdaa80bf，未推送）：本分支叠在它上面；它合入 main 后本分支变基到 main，共用层以它为准；
+    它明天先修载荷税率缺口（`push/mapper.py`）。变基时给它的免税回归脚本补 `srv_vattyp`。
+  - 验收窗口（local_733ef539…）在写 CC 前端流程 cc.pending、cc.companies；那两条合入后，本窗口在上面加「服务品口径选一次」的断言和
+    Cowork 带 Express 连接的数据（加进 `scripts/regression/datasets.py`），再把 Cowork 两处选择卡（targets.js、pending.tsx、company-cards.tsx、
+    i18n.ts）接上、resolve 对 Cowork 打开 `ask_service_vat`。
+  - 流程用例 `erp.express.service_vat` 已登记，等本机实验栈少于三套时跑 `scripts/flows/run.py --changed --base origin/main --post-status`。
+- CC：随代录窗口的 1.12.7 一起发；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
+
 ## 收尾
 
-（推送、CI、清理情况在交付时补。）
+- 分支 `pearnly/express-rules-vat-8fa604` 已推送，没合入 main（主会话要求）；工作树保留（明天继续）。
+- 测试机：回归、统计进程都已跑完退出；临时目录 `C:\PearnlyStress\_srv_reg_src`、`_srv_stats`、`_srv_reg`、`_srv_cmp` 已删，占用表已登记释放。
+- 本机：临时基线检出已删；scratchpad 里的虚拟环境与统计结果随会话清理。
