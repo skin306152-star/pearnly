@@ -6,7 +6,9 @@
 空仓里每一笔实盘都 404（53a725f6 引入，到 10-29 才发现）。会写库的接口一律 `methods=["POST"]`，不靠在 GET 里手动 commit。
 
 判据：`@frappe.whitelist` 没限定方法、或允许 GET 的接口，沿着它调到的**本仓函数**往下找（同模块、`from x import y`、
-`import x as m` 的 `m.f`），找到写库动作就算违规：
+`import x as m` 的 `m.f`；**当参数传出去的函数也算调用**：`_run(service.f, …)`、`callback=f`、`frappe.enqueue("包.模块.函数")`、
+lambda 里调的——10-29 ERP / Cowork `work/api.py` 92 个接口都写成 `_run(service.xxx, …)`，原先整片漏过。参数和局部变量与模块函数同名的
+不算，例如分页参数 `start`），找到写库动作就算违规：
   insert / save / submit / cancel / delete / db_set / frappe.db.set_value / set_single_value / frappe.db.delete /
   delete_doc / rename_doc / bulk_insert / frappe.db.commit / frappe.enqueue / enqueue_doc /
   frappe.defaults.set_* / 写语句的 frappe.db.sql（字面量以 insert/update/delete/replace 开头）。
@@ -125,25 +127,46 @@ def direct_writes(node) -> list[str]:
     return found
 
 
+def _resolve(module: Module, ref, modules: dict):
+    """名字 / `m.f` / 字面量「包.模块.函数」→ 本仓函数 (模块, 节点, 全名)；不是本仓函数回 None。"""
+    if isinstance(ref, ast.Name):
+        if ref.id in module.functions:
+            return module, module.functions[ref.id], f"{module.name}.{ref.id}"
+        if ref.id in module.imported:
+            mod, name = module.imported[ref.id]
+            target = modules.get(mod)
+            if target and name in target.functions:
+                return target, target.functions[name], f"{mod}.{name}"
+    elif isinstance(ref, ast.Attribute) and isinstance(ref.value, ast.Name):
+        mod = module.aliases.get(ref.value.id)
+        target = modules.get(mod) if mod else None
+        if target and ref.attr in target.functions:
+            return target, target.functions[ref.attr], f"{mod}.{ref.attr}"
+    elif isinstance(ref, ast.Constant) and isinstance(ref.value, str) and "." in ref.value and " " not in ref.value:
+        mod, _, name = ref.value.rpartition(".")
+        target = modules.get(mod)
+        if target and name in target.functions:
+            return target, target.functions[name], ref.value
+    return None
+
+
 def callees(module: Module, node, modules: dict) -> list[tuple[Module, ast.AST, str]]:
-    out = []
+    """这个函数调到的本仓函数：直接调用的，加上**当参数传出去的**（`_run(service.f, …)`、`frappe.enqueue("m.f")`、
+    `callback=f`、lambda 里调的——传出去的函数多半会在别处被调用，按调用算）。"""
+    out, seen = [], set()
+    # 参数和函数里赋值的名字是局部变量（`start=0` 的 start 不是同模块的 `start()`）
+    local = {arg.arg for arg in ast.walk(node) if isinstance(arg, ast.arg)}
+    local |= {sub.id for sub in ast.walk(node) if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store)}
     for sub in ast.walk(node):
         if not isinstance(sub, ast.Call):
             continue
-        func = sub.func
-        if isinstance(func, ast.Name):
-            if func.id in module.functions:
-                out.append((module, module.functions[func.id], f"{module.name}.{func.id}"))
-            elif func.id in module.imported:
-                mod, name = module.imported[func.id]
-                target = modules.get(mod)
-                if target and name in target.functions:
-                    out.append((target, target.functions[name], f"{mod}.{name}"))
-        elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-            mod = module.aliases.get(func.value.id)
-            target = modules.get(mod) if mod else None
-            if target and func.attr in target.functions:
-                out.append((target, target.functions[func.attr], f"{mod}.{func.attr}"))
+        for ref in [sub.func, *sub.args, *(keyword.value for keyword in sub.keywords)]:
+            if isinstance(ref, ast.Name) and ref.id in local:
+                continue
+            found = _resolve(module, ref, modules)
+            if found and found[2] not in seen:
+                seen.add(found[2])
+                out.append(found)
     return out
 
 

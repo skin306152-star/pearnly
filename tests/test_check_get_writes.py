@@ -66,6 +66,38 @@ def resolve_only(name=None):
 @frappe.whitelist()
 def queue_it():
     frappe.enqueue("demo.service.build_book")
+
+def _run(function, *args):
+    return function(*args)
+
+@frappe.whitelist(methods=["GET"])
+def passed_along(name=None):
+    # 写库的函数当参数交给包装函数去调（ERP / Cowork `work/api.py` 的 `_run(service.f, …)`，10-29 扫描器漏过）
+    return _run(service.ensure_row, name)
+
+@frappe.whitelist(methods=["GET"])
+def passed_as_keyword(name=None):
+    return frappe.call(fn=service.ensure_row, name=name)
+
+@frappe.whitelist(methods=["GET"])
+def passed_by_dotted_path(name=None):
+    return frappe.get_attr("demo.service.ensure_row")(name)
+
+@frappe.whitelist(methods=["GET"])
+def shadowed(ensure_row=None):
+    # 参数同名不是那个函数：只是把值传下去，不算调用
+    return frappe.db.get_value("Row", ensure_row)
+""")
+        write(self.apps, "demo/demo/shadow.py", """
+import frappe
+
+def start():
+    frappe.enqueue("demo.service.build_book")
+
+@frappe.whitelist()
+def tasks(start=0, limit=20):
+    # 分页参数 `start` 与同模块的 `start()` 同名（Cowork `recon_center.api.tasks` 就是这样）：不是调用
+    return frappe.get_all("Row", start=start, page_length=limit)
 """)
 
     def test_get_endpoint_writing_through_a_helper_is_caught(self):
@@ -73,6 +105,17 @@ def queue_it():
         self.assertIn("demo.api.lookup", found)
         self.assertIn("demo.service.ensure_row", " ".join(found["demo.api.lookup"][2]))
         self.assertIn("demo.api.queue_it", found)
+
+    def test_a_writing_function_passed_as_an_argument_is_caught(self):
+        found = checker.scan(apps=self.apps)
+        for endpoint in ("demo.api.passed_along", "demo.api.passed_as_keyword", "demo.api.passed_by_dotted_path"):
+            self.assertIn(endpoint, found)
+            self.assertIn("demo.service.ensure_row", " ".join(found[endpoint][2]))
+
+    def test_a_local_name_shadowing_a_function_is_not_a_call(self):
+        found = checker.scan(apps=self.apps)
+        self.assertNotIn("demo.api.shadowed", found)
+        self.assertNotIn("demo.shadow.tasks", found)
 
     def test_post_only_and_in_memory_workbooks_are_not_flagged(self):
         found = checker.scan(apps=self.apps)

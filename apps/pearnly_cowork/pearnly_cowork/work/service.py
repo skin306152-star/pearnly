@@ -61,7 +61,7 @@ def _list_for(name, right, *, archived=False, lock=False):
     """按列表号取列表（带所在看板），核对当前用户在那块板上有 `right`。"""
     access.require()
     row = frappe.db.get_value(COLUMN, {"name": name or ""}, LIST_FIELDS, as_dict=True, for_update=lock)
-    if not row or row.workspace != scope.default_workspace():
+    if not row or row.workspace != scope.existing_workspace():
         raise Invalid("cowork.work.error.list")
     access.require_right(row.board, right)
     if archived is not None and bool(row.archived) != archived:
@@ -83,7 +83,7 @@ def _card(name, right, *, lock=False, archived=False):
     access.require()
     row = frappe.db.get_value(CARD, {"name": name or ""}, ["name", "archived", "board", "workspace"], as_dict=True,
                               for_update=lock)
-    if not row or row.workspace != scope.default_workspace():
+    if not row or row.workspace != scope.existing_workspace():
         raise Invalid("cowork.work.error.not_found")
     access.require_right(row.board, right)
     if archived is not None and bool(row.archived) != archived:
@@ -747,7 +747,7 @@ def mirror(name, board_list):
 def _mirror(name):
     access.require()
     row = frappe.db.get_value(MIRROR, {"name": name or ""}, ["name", "card", "board", "workspace"], as_dict=True)
-    if not row or row.workspace != scope.default_workspace():
+    if not row or row.workspace != scope.existing_workspace():
         raise Invalid("cowork.work.error.not_found")
     access.require_right(row.board, "edit")
     return row
@@ -865,7 +865,7 @@ def comment(name, content, mentions=None):
 def delete_comment(activity):
     """删自己写的评论；看板管理员（和 Cowork 管理员）也能删别人的（照 Trello，管不当评论）。"""
     access.require()
-    row = frappe.db.get_value(ACTIVITY, {"name": activity or "", "workspace": scope.default_workspace(),
+    row = frappe.db.get_value(ACTIVITY, {"name": activity or "", "workspace": scope.existing_workspace(),
                                          "action": "comment"}, ["name", "card", "actor"], as_dict=True)
     if not row:
         raise Invalid("cowork.work.error.not_found")
@@ -1008,7 +1008,8 @@ def save_fields(rows, board=None):
 
 def notifications():
     access.require()
-    return notify.mine(scope.default_workspace())
+    workspace = scope.existing_workspace()  # 读接口不建归属（GET 不提交）；还没有归属也就还没有通知
+    return notify.mine(workspace) if workspace else {"rows": [], "unread": 0}
 
 
 def read_notifications(names=None):

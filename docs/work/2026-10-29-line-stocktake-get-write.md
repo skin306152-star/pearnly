@@ -95,6 +95,26 @@ Frappe 不提交 GET 请求，这一行被回滚。保存带着这一行的编�
 结果：`~/pearnly-devtools/get-write-rollback/flows-1.json`、`flows-2.json`、`flows-3.json`。
 没测到：收银日汇总的 Express 弹窗（实验室没有日汇总单据）。
 
+## 扫描器补盲区：当参数传出去的函数（分支 `pearnly/get-writes-scanner-callables`，基线 main c49b5743）
+
+验收窗口 10-29 发现：ERP 和 Cowork 的 `work/api.py` 共 92 个接口都写成 `_run(service.xxx, …)`，`check-get-writes.py` 只追「被调用的函数」，
+不追「当参数传出去的函数」，整片报 PASS、豁免表里也没有。例：Cowork「任务管理」页一打开 GET `work.api.board`，没有归属时经
+`boards.open_board` 建归属和默认看板再手动 commit。
+
+- 扫描器：调用的参数（位置参数、关键字参数）里是本仓函数的（`f`、`m.f`、字面量「包.模块.函数」）也按调用往下追，lambda 里的调用照旧算；
+  参数和函数里赋值的名字是局部变量，不当成同名的模块函数（分页参数 `start` 不是 `recon_center.api.start()`）。
+  测试加两条：写库函数当位置参数 / 关键字参数 / 字符串路径传出去都要被拦；参数同名不误报。用旧扫描器跑新测试失败。
+- 新查出 17 个，按类处理：
+  - 白写被回滚 3 个（Cowork `work.api.boards_list` / `card` / `notifications`）：读路径经 `scope.default_workspace` 建归属、不提交。
+    改成只读的 `scope.existing_workspace`：看板列表没有归属回空、通知回空的同一形状；卡片 / 列表 / 镜像 / 评论 / 恢复看板这些
+    「这条记录属于本站点归属吗」的核对一并改用只读版（没有归属就不会有记录，结果不变）。
+  - GET 里手动 commit 14 个（ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rules / search 经
+    `boards.open_board` 建默认看板与列表再 commit；ERP 少一个 card 路径；Cowork `folder_intake.api.options`、`push.application.api.choices`），
+    登记进基线「待改」，随第 3 步一起改。
+- 豁免表 26 → 40 条（新增的 14 条都是手动 commit 类）。
+- 实测（回归实验室 Cowork 新开户站点，一次性容器挂源码，事务里停用归属、禁止 commit、最后回滚）：
+  本分支三个读接口写库 0 次、看板列表回 `[]`、通知回 `{"rows": [], "unread": 0}`；同一脚本跑 main c49b5743：看板列表写库 1 次、事务里多出一份归属。
+
 ## 同页顺带修：保存后抬头不刷新
 
 手机页保存后，抬头「已盘点 x / y」不变，要退出重进这份盘点才更新（抬头只在打开盘点时取一次）。主会话 10-29 定同一分支修掉：

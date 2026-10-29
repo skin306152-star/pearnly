@@ -119,7 +119,9 @@ def info(board):
 def boards(archived=False):
     """能看的看板（切换看板用）：默认看板在最前，其余按名字。归档的只列自己能管的。"""
     access.require()
-    workspace = scope.default_workspace()
+    workspace = scope.existing_workspace()  # 读接口不建归属（GET 不提交）；还没有归属也就还没有看板
+    if not workspace:
+        return []
     names = access.visible_boards()
     rows = frappe.get_all(BOARD, filters={"workspace": workspace, "archived": 1 if archived else 0,
                                           "name": ["in", names or [""]]},
@@ -193,7 +195,7 @@ def archive(board):
 def restore(board):
     access.require()
     info_row = access.board_info(board)
-    if not info_row or info_row.workspace != scope.default_workspace():
+    if not info_row or info_row.workspace != scope.existing_workspace():
         raise Invalid("cowork.work.error.board")
     access.require_right(board, "manage")
     doc = frappe.get_doc(BOARD, board)
