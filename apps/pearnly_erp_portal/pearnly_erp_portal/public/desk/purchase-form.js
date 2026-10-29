@@ -46,7 +46,7 @@
 		state.party_choice = p.bind_entry_choice(form, {kind: "supplier", context: "purchase", reference: "supplier", title: "supplier_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({supplier_tax_id: row.tax_id, supplier_address: row.address,
-				supplier_branch_type: row.branch_type === "head" ? "head_office" : row.branch_type || "none",
+				supplier_branch_type: row.branch_type === "head" ? "head_office" : (row.branch_type || "none"),
 				supplier_branch_no: row.branch_no, supplier_branch_name: row.branch_name}),
 			on_clear: () => form.set_values({supplier_tax_id: "", supplier_address: "", supplier_branch_type: "none",
 				supplier_branch_no: "", supplier_branch_name: ""})});

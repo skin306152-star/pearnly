@@ -61,7 +61,7 @@
 					supplier_name: data.name || dialog.get_value("supplier_name") || "",
 					address: data.address || dialog.get_value("address") || "",
 					branch_type: Number(data.branch_no) ? "branch" : "head",
-					branch_no: Number(data.branch_no) ? data.branch_no : dialog.get_value("branch_no") || "",
+					branch_no: Number(data.branch_no) ? data.branch_no : (dialog.get_value("branch_no") || ""),
 				});
 				p.success(t("supplier.lookup.found", data.name || data.tax_id || ""), null);  // 只是填进表单、还没保存：官方此时不出声
 			} finally {

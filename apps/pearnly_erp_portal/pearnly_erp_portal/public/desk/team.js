@@ -47,7 +47,7 @@
 				{ fieldname: "roles", width: 200, min_width: 130, label: t("team.roles"),
 					// 与编辑弹窗同一口径（录制问题 #9）：管理员本人那一行本来就拥有全部功能，列出全部功能名；
 					// 只显示团队管理里能勾的那些功能名，不把内部角色名（ERP Cashier…）摆出来。
-					format: (value, row) => (row?.locked ? data.roles.map(role => role.name) : value || [])
+					format: (value, row) => (row?.locked ? data.roles.map(role => role.name) : (value || []))
 						.filter(name => data.roles.some(role => role.name === name)).map(role_label).join(" · ") || "—" },
 				// 一租户多公司：这个账号被指到哪几家（没指 = 不限制，看全部）。
 				{ fieldname: "companies", width: 170, min_width: 120, label: t("team.companies"),
@@ -194,8 +194,8 @@
 			// 管理员本人：全部功能、全部公司（包括之后新建的公司）都已拥有，这里只看不改
 			// （用户 2026-09-25："管理员默认全部勾选和灰色，不可操作，公司那里也是"）。
 			const locked = !is_new && row.locked;
-			const shown_roles = locked ? data.roles.map(role => role.name) : row?.roles || [];
-			const shown_companies = locked ? (data.companies || []).map(c => c.value) : row?.companies || [];
+			const shown_roles = locked ? data.roles.map(role => role.name) : (row?.roles || []);
+			const shown_companies = locked ? (data.companies || []).map(c => c.value) : (row?.companies || []);
 			let dialog;
 			const fields = [
 				// 用户名：**英文和数字**（用户 2026-09-24 的口径），既是显示名也是登录名

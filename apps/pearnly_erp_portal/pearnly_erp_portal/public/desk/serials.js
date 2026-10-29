@@ -55,7 +55,7 @@
 				],
 				primary_action_label: __("Save"),
 				primary_action(values) {
-					const picked = (values.units || []).filter(row => String(register ? row.serial_no : row.serial || "").trim());
+					const picked = (values.units || []).filter(row => String((register ? row.serial_no : row.serial) || "").trim());
 					if (picked.length !== wanted) {
 						frappe.msgprint(__("The number of units does not match the quantity"));
 						return;
@@ -73,7 +73,7 @@
 				dialog.set_secondary_action(() => p.scan({ kind: "all", on_result: async code => {
 					const table = dialog.fields_dict.units;
 					const data = table.grid.get_data();
-					const next = data.find(row => !String(register ? row.serial_no : row.serial || "").trim());
+					const next = data.find(row => !String((register ? row.serial_no : row.serial) || "").trim());
 					if (!next) return p.scan_result_sound?.(false);
 					if (register) {
 						next.serial_no = String(code || "").trim();

@@ -104,7 +104,7 @@
 			let doc = opened ? opened.doc : is_new ? {} : await u.call("api_purchase_document", {name: amended_from || rest[0]});
 			if (!still_current()) return;
 			const editable = can_write && (is_new || amended_from || doc.status === "draft");
-			page.set_title(is_new ? __("New") : amended_from ? __("Amend") : doc.system_no || doc.name);
+			page.set_title(is_new ? __("New") : amended_from ? __("Amend") : (doc.system_no || doc.name));
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
 			if (amended_from) doc = {...doc, system_no: defaults.system_no, attachments: doc.attachments.filter(row => row.kind === "bill")};
 			cleanup = await u.editor({page, doc, defaults, editable, amended_from, intake: opened?.intake, still_current, reload: () => show(), go});

@@ -102,7 +102,7 @@
 		}
 		function render_recorded() {
 			const host = d.fields_dict.recorded;
-			const records = entry ? [] : lookup?.recorded || [];
+			const records = entry ? [] : (lookup?.recorded || []);
 			host.$wrapper.empty();
 			d.set_df_property("recorded", "hidden", records.length ? 0 : 1);
 			if (!records.length) return;
