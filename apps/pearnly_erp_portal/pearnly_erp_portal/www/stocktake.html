@@ -312,6 +312,7 @@
             if (task?.name !== taskName) return;
             if (result && result.candidates) { choose(code, result.candidates); return; }
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
+            if (result.task) task = Object.assign({}, task, result.task);  // 抬头（已盘点 x / y）随每次查码刷新
             last = result;
             render(result);
             const code_input = document.getElementById('code');

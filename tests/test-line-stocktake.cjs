@@ -11,7 +11,7 @@ const reader = fs.readFileSync('apps/pearnly_core/pearnly_core/public/scan/reade
 assert.match(html, /<script src="\{\{ versioned_asset\('pearnly_core', 'scan\/reader\.js'\) \}\}"><\/script>/);
 const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const source = inline.replace('        start();', `window.testPage = {
-  call, startCamera, stopCamera, bindForm, render, lookup, setLiff: (value) => { liffId = value; },
+  call, startCamera, stopCamera, bindForm, render, lookup, setLiff: (value) => { liffId = value; }, task: () => task,
   state: (value) => { csrf = value.csrf || ''; ticket = value.ticket || '';
     task = value.task || {name: 'COUNT-1'}; scanMode = Boolean(value.scanMode); },
 };`);
@@ -193,6 +193,22 @@ function fixture(options = {}) {
   await manual.element('save').onclick();
   assert.equal(manual.acquired(), 0, 'manual count does not acquire a camera');
   console.log('PASS save resumes camera mode only; manual entry stays manual');
+
+  // 保存后抬头「已盘点 x / y」当场加 1（查码回的 `task` 是服务端此刻的抬头），不用退出重进
+  let counted = 0;
+  const header = fixture({fetch: async (url, init, result) => {
+    if (url.endsWith('api_line_stocktake_add')) counted += 1;
+    const body = url.endsWith('api_line_stocktake_lookup')
+      ? {...result, task: {name: 'COUNT-1', status: 'Active', counted_total: counted, item_total: 3, difference_total: 0}} : {};
+    return {ok: true, json: async () => ({message: body})};
+  }});
+  header.page.state({task: {name: 'COUNT-1', title: 'Synthetic', status: 'Active', counted_total: 0, item_total: 3}});
+  header.element('qty').value = '2';
+  header.page.bindForm(header.item, [header.item]);
+  await header.element('save').onclick();
+  assert.equal(header.page.task().counted_total, 1, 'the header counts the saved row');
+  assert.equal(header.page.task().title, 'Synthetic', 'the header keeps what the lookup does not carry');
+  console.log('PASS the header count goes up by one right after a save');
 
   let attempts = 0;
   const retry = fixture({fetch: async (url, init, result) => {

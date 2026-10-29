@@ -169,8 +169,10 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     if not rows:
         return {}
     chosen = rows[0]
+    # 带上这份盘点此刻的抬头（已盘点 x / y、差异）：保存、撤销后页面都再查一次码，抬头跟着刷新
     return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None,
-            "entries": counts.list_entries(count=name, item=chosen["name"], limit=5)}
+            "entries": counts.list_entries(count=name, item=chosen["name"], limit=5),
+            "task": counts.get_count(name)}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
