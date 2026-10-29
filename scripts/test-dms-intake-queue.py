@@ -15,7 +15,7 @@ from contextlib import ExitStack
 import copy
 import unittest
 from unittest.mock import Mock, patch
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode
 
 import frappe
 import requests
@@ -24,10 +24,16 @@ import requests
 USER = "queue-regression@example.invalid"
 LINE_USER = "U-offline-intake-queue"
 PHONE = "000000000"
-CARD = {"people_id": "0000000000000", "name": "Offline Fixture", "address": {}}
+# A complete card: a new customer needs its title as much as its address (DMS refuses either missing).
+CARD = {"people_id": "0000000000000", "name": "Offline Fixture", "prefix_name": "นาย", "address": {}}
 GEO = {"province_id": "2", "district_id": "51", "subdistrict_id": "155", "zipcode_id": "116"}
-SUCCESS = {"ok": True, "scenario": "none", "geo": {"selected": GEO}, "prefixes": []}
+SUCCESS = {"ok": True, "scenario": "none", "geo": {"selected": GEO}, "prefixes": [["17", "นาย"]]}
 UNREACHABLE = {"ok": False, "error_code": "ERR_DMS_UNREACHABLE"}
+# A same-name DMS record left without ID, code, title or address (ris, 2026-10-29).
+LEGACY = {"name": "Offline Fixture", "people_id": "", "cuscode": "", "prefix_id": "", "house_no": "",
+          "province_id": "", "district_id": "", "subdistrict_id": "", "zipcode_id": ""}
+HOLDER = {"customer_id": "legacy-customer", "cuscode": "", "name": "Offline Fixture", "people_id": "",
+          "baseline": LEGACY}
 
 
 class MemoryDocument(frappe._dict):
@@ -365,6 +371,101 @@ class IntakeQueue(unittest.TestCase):
                     self.assertNotIn(
                         self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"),
                         str(card))
+
+    def review_similar(self, prefixes=(("17", "นาย"),)):
+        """The card after the phone: one same-name legacy candidate (the LINE similar-customer step)."""
+        self.fixture()
+        self.lookup.return_value = {**copy.deepcopy(SUCCESS), "scenario": "similar",
+                                    "prefixes": [list(row) for row in prefixes],
+                                    "candidates": [copy.deepcopy(HOLDER)]}
+        self.event(text=PHONE)
+        return self.store.get_session(LINE_USER)["payload"]
+
+    def quick_actions(self, message):
+        return [item["action"] for item in message["quickReply"]["items"]]
+
+    def test_claiming_a_legacy_record_writes_its_empty_title_and_address_from_this_card(self):
+        payload = self.review_similar()
+        self.push_fields.return_value = {"success": True, "customer_id": "legacy-customer", "mode": "overwrite"}
+        self.event(action=self.cards.ACT_PICK, nonce=payload["nonce"], cid="legacy-customer", token="reply-pick")
+        self.assertEqual(self.jobs[0][1]["target"], "pearnly_dms.intake.flow.write_update")
+        self.worker()
+        kwargs = self.push_fields.call_args.kwargs
+        self.assertEqual((kwargs["mode"], kwargs["customer_id"], kwargs["baseline"]),
+                         ("overwrite", "legacy-customer", LEGACY))
+        # Before 2026-10-29 only ID number + name were sent and DMS's form check refused the claim.
+        self.assertEqual(kwargs["fields"], {"people_id": CARD["people_id"], "name": CARD["name"],
+                                            "prefix_id": "17", **GEO})
+
+    def test_claim_that_cannot_be_filled_opens_the_edit_page_without_writing(self):
+        payload = self.review_similar(prefixes=())  # the card's title is not on the DMS masters
+        before = self.store.get_session(LINE_USER)
+        self.event(action=self.cards.ACT_PICK, nonce=payload["nonce"], cid="legacy-customer", token="reply-pick")
+        self.assertFalse(self.jobs)
+        self.push_fields.assert_not_called()
+        self.assertEqual(self.store.get_session(LINE_USER), before)  # nonce kept for the edit page
+        kind, body = self.messages()[-1]
+        self.assertEqual((kind, body["replyToken"]), ("reply", "reply-pick"))
+        message = body["messages"][0]
+        self.assertEqual(message["text"], self.flow.dms_intake.friendly("ERR_DMS_PREFIX_MISSING", lang="th"))
+        [button] = self.quick_actions(message)
+        self.assertEqual(button["type"], "uri")
+        self.assertIn(payload["nonce"], button["uri"])
+        self.assertIn("editor=customer", button["uri"])
+
+    def test_name_refused_by_dms_lists_the_same_name_holders_and_claiming_one_writes(self):
+        self.push_fields.return_value = {"success": False, "error_code": "ERR_DMS_CUSTOMER_NAME_TAKEN",
+                                         "response_body": {"submitted": False, "rejected": True,
+                                                           "name_taken": {"candidates": [HOLDER]}}}
+        self.review_for_write("create")
+        self.worker()
+        sess = self.store.get_session(LINE_USER)
+        self.assertEqual((sess["state"], sess["payload"]["scenario"], sess["payload"]["candidates"]),
+                         ("reviewing", "similar", [HOLDER]))
+        nonce = sess["payload"]["nonce"]
+        self.assertTrue(nonce)
+        kind, body = self.messages()[-1]
+        self.assertEqual((kind, body["replyToken"]), ("reply", "reply-confirm"))
+        message = body["messages"][0]
+        notice = self.flow.dms_intake.friendly("ERR_DMS_CUSTOMER_NAME_TAKEN", lang="th")
+        self.assertEqual(message["text"].splitlines(), [notice, "1. — · Offline Fixture"])
+        pick, edit = self.quick_actions(message)
+        self.assertEqual(parse_qs(pick["data"]), {"action": [self.cards.ACT_PICK], "nonce": [nonce],
+                                                  "cid": ["legacy-customer"]})
+        self.assertEqual(edit["type"], "uri")  # a different person of the same name: rename it there
+        self.assertNotIn(self.flow.dms_intake.friendly("ERR_DMS_CUSTOMER_SAVE", lang="th"), str(body))
+        # Candidate 1 is claimed through the same path as the similar-customer card.
+        self.push_fields.reset_mock()
+        self.push_fields.return_value = {"success": True, "customer_id": "legacy-customer", "mode": "overwrite"}
+        self.event(action=self.cards.ACT_PICK, nonce=nonce, cid="legacy-customer", token="reply-pick")
+        self.worker()
+        kwargs = self.push_fields.call_args.kwargs
+        self.assertEqual((kwargs["customer_id"], kwargs["fields"]["prefix_id"]), ("legacy-customer", "17"))
+
+    def test_name_refusal_without_readable_holders_still_says_so(self):
+        self.push_fields.return_value = {"success": False, "error_code": "ERR_DMS_CUSTOMER_NAME_TAKEN",
+                                         "response_body": {"name_taken": {"candidates": []}}}
+        self.review_for_write("create")
+        self.worker()
+        message = self.messages()[-1][1]["messages"][0]
+        self.assertEqual(message["text"], self.flow.dms_intake.friendly("ERR_DMS_CUSTOMER_NAME_TAKEN", lang="th"))
+        self.assertEqual([action["type"] for action in self.quick_actions(message)], ["uri"])
+
+    def test_write_stopped_for_a_missing_title_returns_to_the_edit_page(self):
+        for code in ("ERR_DMS_PREFIX_MISSING", "ERR_DMS_ADDRESS_INCOMPLETE"):
+            with self.subTest(code=code):
+                self.push_fields.reset_mock()
+                self.push_fields.return_value = {"success": False, "error_code": code,
+                                                 "response_body": {"raw_error": "requires an explicit selection"}}
+                self.review_for_write("update")  # no baseline on the card: the form check stops it instead
+                self.worker()
+                sess = self.store.get_session(LINE_USER)
+                self.assertEqual(sess["state"], "reviewing")
+                message = self.messages()[-1][1]["messages"][0]
+                self.assertEqual(message["text"], self.flow.dms_intake.friendly(code, lang="th"))
+                [button] = self.quick_actions(message)
+                self.assertIn(sess["payload"]["nonce"], button["uri"])
+                self.assertNotIn(self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"), str(message))
 
     def test_incomplete_address_stale_nonce_is_rejected_without_edit_ticket(self):
         self.store.set_session(LINE_USER, "reviewing", {"nonce": "current", "draft": {}})

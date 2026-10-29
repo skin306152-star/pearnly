@@ -183,15 +183,15 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
     # 拒绝的话术**必须说清是缺地址**：2026-09-25 实测里操作员在这里被
     # 「所选项目已不在主档」误导，以为 DMS 那边把数据删了 —— 真实原因只是编辑页里
     # 地址没选全（多半是邮编那格）。缺项照旧不写入，只是改成能照着做的话。
-    if action in {cards.ACT_CREATE, cards.ACT_UPDATE} and any(
-        not str((payload.get("draft") or {}).get(key) or "").strip()
-        for key in ("province_id", "district_id", "subdistrict_id", "zipcode_id")
-    ):
+    # 称谓同理（2026-10-29 ris 实案）：写进去的客户档缺称谓、缺户籍地址，DMS 表单校验必拦；
+    # 认领 / 更新时 DMS 里空着的先用这次草稿补（`draft.master_gaps`），补不出才交编辑页。
+    gap = _write_gap(action, payload, pb)
+    if gap:
         if not store.verify_nonce(sess, pb.get("nonce"), "reviewing"):
             _reply(reply_token, cards.TXT_EXPIRED)
             return
         _send(line_user_id, cards.edit_entry_message(
-            pb["nonce"], notice=dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang=i18n.line_lang())
+            pb["nonce"], notice=dms_intake.friendly(gap, lang=i18n.line_lang())
         ), reply_token)
         return
 
@@ -255,6 +255,31 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
                  1, reply_token)
     else:
         _reply(reply_token, cards.TXT_EXPIRED)
+
+
+def _write_gap(action: str, payload: dict, pb: Dict[str, Any]) -> str:
+    """点「新建 / 更新 / 认领」时，这一笔写进 DMS 的客户档是否缺称谓或户籍地址：缺项码，或空串。
+
+    新建与更新照旧要求草稿四级地址齐全（原守卫）；新建的称谓只能来自草稿；更新与认领看
+    DMS 现值（`customer_baseline` / 所选候选的 `baseline`），空着的用草稿补得上就不算缺。"""
+    d = payload.get("draft") or {}
+    if action in {cards.ACT_CREATE, cards.ACT_UPDATE} and any(
+        not str(d.get(key) or "").strip()
+        for key in ("province_id", "district_id", "subdistrict_id", "zipcode_id")
+    ):
+        return "ERR_DMS_ADDRESS_INCOMPLETE"
+    if action == cards.ACT_CREATE:
+        return draft.master_gaps(None, d)[1]
+    if action == cards.ACT_UPDATE:
+        baseline = payload.get("customer_baseline")
+    elif action == cards.ACT_PICK:
+        cid = str(pb.get("cid") or "")
+        baseline = next((c.get("baseline") for c in payload.get("candidates") or []
+                         if str(c.get("customer_id")) == cid), None)
+    else:
+        return ""
+    # 没有现值可比（旧会话、候选不在卡上）：不在这里拦，交给下面的守卫与写入层。
+    return draft.master_gaps(baseline, d)[1] if isinstance(baseline, dict) else ""
 
 
 # ── 编辑入口（线上行为：开浏览器编辑页，不再逐字段问） ─────────────────────
@@ -626,14 +651,8 @@ def write_create(binding: dict, line_user_id: str, payload: dict, attempt: int =
 
 def write_update(binding: dict, line_user_id: str, payload: dict, attempt: int = 1,
                  reply_token: str = "") -> None:
-    d = payload.get("draft") or {}
     field_diffs = payload.get("field_diffs") or []
-    # **只写变了的字段** + people_id/name 必填项；没变的字段不进 fields → 保留 DMS 现值。
-    # 相似认领 = 空 field_diffs + payload.customer_id 指向所选候选，天然落回本路径。
-    fields = {"people_id": d.get("people_id", ""), "name": d.get("name", "")}
-    for diff in field_diffs:
-        fields[diff["field"]] = diff.get("new", "")
-    fields = payload.get("write_fields", fields)
+    fields = draft.update_fields(payload)
     execute(
         binding,
         line_user_id,
@@ -744,6 +763,17 @@ def execute(
         _push(line_user_id, cards.TXT_ADMIN_AUTH_FAIL, reply_token)  # 不谎称已自动通知
     elif result.get("reconciled") == "not_written":
         _recheck(binding, line_user_id, source_session, result, reply_token)
+    elif result.get("error_code") in ("ERR_DMS_PREFIX_MISSING", "ERR_DMS_ADDRESS_INCOMPLETE"):
+        # 写前就被 DMS 表单的必填校验拦下（什么都没发出）：回到确认态，给编辑页。
+        notice = dms_intake.friendly(result["error_code"], lang=i18n.line_lang())
+        _back_to_review(line_user_id, source_session, {},
+                        lambda nonce: cards.edit_entry_message(nonce, notice=notice), reply_token)
+    elif result.get("error_code") == "ERR_DMS_CUSTOMER_NAME_TAKEN":
+        # DMS 不收同名：列出 DMS 里同名的那几位让人认领，不再给「新客户」。
+        holders = ((result.get("response_body") or {}).get("name_taken") or {}).get("candidates") or []
+        notice = dms_intake.friendly(result["error_code"], lang=i18n.line_lang())
+        _back_to_review(line_user_id, source_session, {"scenario": "similar", "candidates": holders},
+                        lambda nonce: cards.name_taken_message(holders, nonce, notice), reply_token)
     elif result.get("error_code") == "ERR_DMS_CUSTOMER_UNCONFIRMED":
         fr = result.get("error_friendly") or {}
         _offer_check(line_user_id, kind=retry_kind, attempt=attempt,
@@ -756,6 +786,14 @@ def execute(
         _dms_failed(binding, line_user_id, kind=retry_kind, attempt=result.get("login_attempt") or attempt,
                     code=result.get("error_code"), text=fr.get(i18n.line_lang()) or cards.TXT_SAVE_FAIL,
                     retry_payload=payload, reply_token=reply_token)
+
+
+def _back_to_review(line_user_id: str, source_session: dict, extra: dict, card, reply_token: str = "") -> None:
+    """这一笔没写（DMS 拒收或写前被拦）：同一份草稿回到确认态、换新 nonce，发 ``card(nonce)``。"""
+    nonce = secrets.token_hex(8)
+    payload = {**((source_session or {}).get("payload") or {}), **extra, "nonce": nonce}
+    if store.replace_session_snapshot(line_user_id, source_session, "reviewing", payload):
+        _send(line_user_id, card(nonce), reply_token)
 
 
 def _write_push_log(

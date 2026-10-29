@@ -121,6 +121,7 @@ Customer records,客户资料
 DMS,DMS
 DMS System Account,DMS 系统账号
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS 中已有此证号的客户，请重新核对差异并确认；资料未被自动覆盖。
+DMS already has a customer with this name.,DMS 中已有同名客户。
 DMS check: Matched,DMS 核对结果：一致
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS 资料尚未读取，系统将自动读取，完成后请重试。
 "DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.",DMS 资料读取中，请稍后再试。长时间未就绪时，请管理员在 DMS 连接页确认已添加读档账号。
@@ -375,6 +376,7 @@ The check stopped before it finished. Please try again.,检查未完成，请重
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在编辑后已被更改，请重新核对差异后再确认。
 "The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。
+The customer's title is not selected.,客户称谓未选择。
 The data volume exceeds the read limit. Please contact an administrator.,数据量超过读取上限，请联系管理员。
 "The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",系统找到以下相似客户，请选择对应的客户；如均不符合，请选择「新客户」。
 The photo is too large. Please try again.,照片过大，请重试。
@@ -989,6 +991,7 @@ dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS 中已有此证号的客户，请重新核�
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,订车尚未提交：DMS 中客户必填资料不全。请点击「编辑」补全后再次确认。
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,订车尚未提交：DMS 中客户必填资料不全。请管理员在 DMS 中补全。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。
+dms.err.ERR_DMS_CUSTOMER_NAME_TAKEN,DMS 中已有同名客户。
 dms.err.ERR_DMS_CUSTOMER_SAVE,保存客户到 DMS 失败 · 请检查字段后重试
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,提交已发出，但结果尚未确认。请勿重复提交，先核实结果。
 dms.err.ERR_DMS_IMPORT,建订车单失败 · 请稍后重试
@@ -998,6 +1001,7 @@ dms.err.ERR_DMS_MASTER_EMPTY,DMS 尚未配置这个主档选项 · 请让管理�
 dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS 主档暂时无法读取 · 请稍后重试
 dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
+dms.err.ERR_DMS_PREFIX_MISSING,客户称谓未选择。
 dms.err.ERR_DMS_QUERY_SCOPE,当前 DMS 账号未开放销售排行，请联系 DMS 管理员。
 dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS 账号持续占用，自动重试未成功，请稍后再试。
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS 未返回完整资料，未发布不完整结果。请在每晚读取完成后再试。

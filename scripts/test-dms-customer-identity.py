@@ -571,19 +571,103 @@ class IdentityTests(unittest.TestCase):
                 self.assertEqual(caught.exception.error_code, code)
                 self.assertEqual(len(transport.writes()), 2)
 
+    def name_refused(self, call, transport, holders):
+        """DMS refused the name: its own code, nothing written, the same-name holders attached."""
+        with self.assertRaises(DmsClientError) as caught:
+            call()
+        self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_NAME_TAKEN")
+        self.assertEqual(caught.exception.response_body,
+                         {"submitted": False, "rejected": True, "name_taken": {"candidates": holders}})
+        self.assertEqual(len(transport.writes()), 1)
+        self.assertNotIn("created", transport.records)
+        for secret in (PID, OTHER, NAME):
+            self.assertNotIn(secret, str(caught.exception))
+
     def test_name_duplicate_and_prefilled_codes_are_unchanged(self):
-        # DMS refused the name, not the code: research only, exactly as before.
+        # DMS refused the name, not the code: the ID research runs as before (it may be this very
+        # person), then one read-only name search; the code is never changed.
         client, transport = self.taken({})
         transport.create_collision = True
         transport.collision_body = 'err::"ชื่อ นามสกุลลูกค้า" ซ้ำ'
-        self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+        self.name_refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport, [])
         self.assertEqual([p for p, _ in transport.calls if p in ("cus/component/showdata.php", "cus/form.php")],
-                         ["cus/component/showdata.php", "cus/form.php"] + ["cus/component/showdata.php"] * 3)
+                         ["cus/component/showdata.php", "cus/form.php"] + ["cus/component/showdata.php"] * 4)
+        self.assertEqual([d["sd"] for p, d in transport.calls if p == "cus/component/showdata.php"],
+                         [PID] * 4 + [NAME])
+        self.assertEqual(self.codes_sent(transport), [PID])
         # DMS numbered the customer itself: its code is never replaced by ours.
         client, transport = self.taken({"auto": record(OTHER, txtcuscode="AUTO-NEXT")})
         transport.new_code = "AUTO-NEXT"
         self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
         self.assertEqual(sum(p == "cus/component/showdata.php" for p, _ in transport.calls), 4)
+
+    @staticmethod
+    def codes_sent(transport):
+        return [data["txtcuscode"] for _, data in transport.writes()]
+
+    def legacy(self, **extra):
+        """A same-name customer left without ID, code, title or address (2026-10-29 ris)."""
+        old = record("", txtcuscode="", txttaxid="", selprefix="", **extra)
+        for suffix in ("", "_ct", "_sd"):
+            for field in ("selprovinces", "seldistricts", "selsubdistricts", "selzipcodes", "txthousenum"):
+                old[field + suffix] = ""
+        return old
+
+    def test_name_duplicate_lists_the_same_name_holders_read_only(self):
+        other = self.legacy(txtcusname=NAME + " มาก")  # the search label matches, the form does not
+        client, transport = self.client({"old": self.legacy(), "near": other},
+                                        [[], [], [], [], ["near", "old"]])
+        transport.create_collision = True
+        transport.collision_body = 'err::"ชื่อ นามสกุลลูกค้า" ซ้ำ'
+        baseline = client.read_customer("old")
+        transport.calls.clear()
+        self.name_refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport, [
+            {"customer_id": "old", "cuscode": "", "name": NAME, "people_id": "", "baseline": baseline}])
+        self.assertEqual(baseline["prefix_id"], "")
+        self.assertEqual([d.get("id") for p, d in transport.calls if p == "cus/form.php"], [None, "near", "old"])
+        self.assertEqual([p for p, _ in transport.calls if p.endswith(("new.php", "edit.php"))], ["cus/new.php"])
+
+    def test_name_holders_that_cannot_be_read_still_give_the_name_refusal(self):
+        client, transport = self.client({"old": self.legacy()}, [[], [], [], [], ["old"]])
+        transport.create_collision = True
+        transport.collision_body = 'err::"ชื่อ นามสกุลลูกค้า" ซ้ำ'
+        post = transport.post
+
+        def dropped(url, *, data, **kwargs):
+            if url.endswith("cus/form.php") and data.get("id") == "old":
+                raise ConnectionError("form read dropped")
+            return post(url, data=data, **kwargs)
+
+        transport.post = dropped
+        with self.assertLogs("pearnly_dms.client.client_intake", "WARNING"):
+            self.name_refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport, [])
+
+    def test_name_holders_are_capped_at_the_candidate_card_size(self):
+        ids = [f"old{n}" for n in range(6)]
+        client, transport = self.client({cid: self.legacy() for cid in ids}, [[], [], [], [], ids])
+        transport.create_collision = True
+        transport.collision_body = 'err::"ชื่อ นามสกุลลูกค้า" ซ้ำ'
+        with self.assertRaises(DmsClientError) as caught:
+            client.save_customer(fields=FIELDS, mode="create")
+        holders = caught.exception.response_body["name_taken"]["candidates"]
+        self.assertEqual([h["customer_id"] for h in holders], ids[:4])
+        self.assertEqual(sum(p == "cus/form.php" and d.get("status") == "e" for p, d in transport.calls), 4)
+
+    def test_name_refusal_on_overwrite_stays_a_plain_rejection(self):
+        client, transport = self.client({"old": record()})
+        post = transport.post
+
+        def refuse(url, *, data, **kwargs):
+            if url.endswith("cus/edit.php"):
+                transport.calls.append(("cus/edit.php", dict(data)))
+                return SimpleNamespace(status_code=200, text='err::"ชื่อ นามสกุลลูกค้า" ซ้ำ')
+            return post(url, data=data, **kwargs)
+
+        transport.post = refuse
+        with self.assertRaises(DmsClientError) as caught:
+            client.save_customer(fields={"people_id": PID, "name": NAME + " ใหม่"}, mode="overwrite",
+                                 customer_id="old", baseline=client.read_customer("old"))
+        self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_SAVE")
 
     def test_spare_code_read_back_differently_is_logged(self):
         client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)})

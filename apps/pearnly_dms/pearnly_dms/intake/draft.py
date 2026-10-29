@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_dms.line import cards as dms_cards
 
@@ -206,6 +206,56 @@ def display_diffs(field_diffs: List[dict], geo: dict) -> List[Dict[str, str]]:
             }
         )
     return rows
+
+
+def master_gaps(baseline: Optional[dict], draft: dict) -> Tuple[Dict[str, str], str]:
+    """写到 DMS 客户档之前：DMS 里空着的称谓、户籍地址能不能用这次草稿补上（纯计算）。
+
+    返回 ``(要补的字段, 缺项码)``。缺项码为空 = 写得成；``ERR_DMS_PREFIX_MISSING`` /
+    ``ERR_DMS_ADDRESS_INCOMPLETE`` = 补不出，交编辑页让人选（与 DMS 客户表单的必填校验
+    `intake.customer_geo` 同一组必填项）。
+
+    · ``baseline`` 是要写的那份 DMS 客户档（认领 / 更新时的现值）；新建传 None，等于全空；
+    · 称谓只写编号，只在 DMS 里没有时用草稿里按实时主档唯一解析出的编号；
+    · 户籍地址只在 DMS 整块为空、草稿四级编号齐全时整套补（`customer_merge.home_address_fill`，
+      订车补空项同一条）；DMS 已有四级编号就不动，有内容却缺编号的半块不拼；
+    · DMS 里已有的值一个都不带 —— 列卡后有人先填了，写入时由三方合并当冲突处理。
+    """
+    from pearnly_dms.contracts.customer_merge import GEO_IDS, home_address_fill
+
+    current = baseline or {}
+    fill: Dict[str, str] = {}
+    if not all(str(current.get(key) or "").strip() for key in GEO_IDS):
+        address = home_address_fill(current, draft)
+        if address is None:
+            return {}, "ERR_DMS_ADDRESS_INCOMPLETE"
+        fill.update(address)
+    if not str(current.get("prefix_id") or "").strip():
+        prefix = str((draft or {}).get("prefix_id") or "").strip()
+        if not prefix:
+            return {}, "ERR_DMS_PREFIX_MISSING"
+        fill["prefix_id"] = prefix
+    return fill, ""
+
+
+def update_fields(payload: dict) -> Dict[str, Any]:
+    """「更新 / 认领」写到已有 DMS 客户档的字段（LINE `flow.write_update`）。
+
+    **只写变了的字段** + people_id/name 必填项；没变的字段不进 fields → 保留 DMS 现值。
+    相似认领 = 空 field_diffs + `customer_baseline` 是所选候选的现值，同样走这里。
+    DMS 里空着的称谓、户籍地址再用这次草稿补上（`master_gaps`；认领无证号旧档最常见），
+    已有的一个不带。冲突复核卡重出时已算好整份写入（`write_fields`），原样用。"""
+    if "write_fields" in payload:
+        return payload["write_fields"]
+    d = payload.get("draft") or {}
+    fields: Dict[str, Any] = {"people_id": d.get("people_id", ""), "name": d.get("name", "")}
+    for diff in payload.get("field_diffs") or []:
+        fields[diff["field"]] = diff.get("new", "")
+    baseline = payload.get("customer_baseline")
+    if isinstance(baseline, dict):
+        for key, value in master_gaps(baseline, d)[0].items():
+            fields.setdefault(key, value)
+    return fields
 
 
 def may_update_customer(user_id: Any, has_admin: bool) -> bool:

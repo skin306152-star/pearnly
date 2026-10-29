@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional
 
 from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.contracts.client_base import DmsClientError, parse_be_date
-from pearnly_dms.contracts.customer_merge import ADDRESS
+from pearnly_dms.contracts.customer_merge import ADDRESS, home_address_fill
 from pearnly_dms.contracts.models import ThaiAddress, ThaiIdCardPayload
 
 #: 建单表单要回显的客户主档字段（`read_customer` 的键）。少任何一个，DMS 都可能收下一张
@@ -117,7 +117,7 @@ def gap_fill(current: dict, draft: dict) -> Optional[Dict[str, str]]:
         if not all(_text(draft.get(key)) for key in ("house_no",) + _GEO_IDS):
             return None
         if not any(_text(current.get(key)) for key in ADDRESS):
-            out.update({key: _text(draft.get(key)) for key in ADDRESS if _text(draft.get(key))})
+            out.update(home_address_fill(current, draft))
         elif address_missing == {"house_no"} and all(
                 _text(current.get(key)) == _text(draft.get(key)) for key in _GEO_IDS):
             out["house_no"] = _text(draft.get("house_no"))

@@ -61,6 +61,25 @@ def secondary_addresses(desired, current, present=SUFFIXES[1:]):
     return result
 
 
+GEO_IDS = ("province_id", "district_id", "subdistrict_id", "zipcode_id")
+
+
+def home_address_fill(current, draft):
+    """An empty ID-card address block in DMS, filled whole from ``draft``.
+
+    Only a block that is entirely empty in DMS (house number, building, floor, room,
+    village, moo, soi, road and the four level IDs) is filled, and only when the draft
+    carries all four level IDs; a partly filled block is never mixed with the draft
+    (no "one province's house number with another's district"). Returns the values to
+    write, or None when it cannot be filled."""
+    current, draft = current or {}, draft or {}
+    if any(value(current.get(key)).strip() for key in ADDRESS):
+        return None
+    if not all(value(draft.get(key)).strip() for key in GEO_IDS):
+        return None
+    return {key: value(draft.get(key)).strip() for key in ADDRESS if value(draft.get(key)).strip()}
+
+
 def split(values):
     return ({key: values[key] for key in IDENTITY if key in values},
             {suffix: {key: values[key + suffix] for key in ADDRESS if key + suffix in values}

@@ -349,7 +349,24 @@ def candidates_message(candidates: List[Dict[str, str]], nonce: str) -> Dict[str
 
     按钮标签只放序号与客户代码（LINE 限 20 个字），完整信息在文案里。人工认领。
     """
-    lines, actions = [_t("TXT_CANDIDATES_HEAD")], []
+    lines, actions = _candidate_rows(candidates, nonce)
+    new = _t("BTN_NEW_CUSTOMER")
+    actions.append({"type": "postback", "label": new, "data": _data(ACT_CREATE, nonce=nonce), "displayText": new})
+    return _text_with_buttons("\n".join([_t("TXT_CANDIDATES_HEAD"), *lines]), actions)
+
+
+def name_taken_message(candidates: List[Dict[str, str]], nonce: str, notice: str) -> Dict[str, Any]:
+    """新建被 DMS 以同名拒收：列出 DMS 里同名的那几位，按序号认领（同相似候选）。
+
+    不给「ลูกค้าใหม่」—— DMS 不收同名，再点一次还是同样被拒；确实是另一个人时用「แก้ไข」改名。
+    """
+    lines, actions = _candidate_rows(candidates, nonce)
+    return _text_with_buttons("\n".join([notice, *lines]), actions + [_edit_button(nonce)["action"]])
+
+
+def _candidate_rows(candidates: List[Dict[str, str]], nonce: str):
+    """候选逐行文案（码 · 姓名 · 证号尾 4）与对应的认领按钮。"""
+    lines, actions = [], []
     for number, c in enumerate(candidates[:_MAX_CANDIDATES], 1):
         cid = str(c.get("customer_id") or "")
         tail = (str(c.get("people_id") or ""))[-4:]
@@ -360,9 +377,7 @@ def candidates_message(candidates: List[Dict[str, str]], nonce: str) -> Dict[str
         label = f"{number}. {c.get('cuscode') or ''}".strip()[:20]
         actions.append({"type": "postback", "label": label,
                         "data": _data(ACT_PICK, nonce=nonce, cid=cid), "displayText": line[:300]})
-    new = _t("BTN_NEW_CUSTOMER")
-    actions.append({"type": "postback", "label": new, "data": _data(ACT_CREATE, nonce=nonce), "displayText": new})
-    return _text_with_buttons("\n".join(lines), actions)
+    return lines, actions
 
 
 def receipt_text(customer_code: str, name: str, mode: str) -> str:

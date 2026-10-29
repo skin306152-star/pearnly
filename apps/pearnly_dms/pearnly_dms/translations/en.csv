@@ -121,6 +121,7 @@ Customer records,Customer records
 DMS,DMS
 DMS System Account,DMS System Account
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.
+DMS already has a customer with this name.,DMS already has a customer with this name.
 DMS check: Matched,DMS check: Matched
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS data has not been read yet. The system reads it automatically; please try again after it finishes.
 "DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.","DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account."
@@ -375,6 +376,7 @@ The check stopped before it finished. Please try again.,The check stopped before
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
 "The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.","The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again."
+The customer's title is not selected.,The customer's title is not selected.
 The data volume exceeds the read limit. Please contact an administrator.,The data volume exceeds the read limit. Please contact an administrator.
 "The following similar customers were found. Please select the matching customer, or select New customer if none of them match.","The following similar customers were found. Please select the matching customer, or select New customer if none of them match."
 The photo is too large. Please try again.,The photo is too large. Please try again.
@@ -989,6 +991,7 @@ dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS already has a customer with this ID number. 
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,"Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again."
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,"Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer."
+dms.err.ERR_DMS_CUSTOMER_NAME_TAKEN,DMS already has a customer with this name.
 dms.err.ERR_DMS_CUSTOMER_SAVE,Failed to save the customer to DMS — check the fields and retry
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,"The submission was sent, but its result is unconfirmed. Do not submit again; check the result first."
 dms.err.ERR_DMS_IMPORT,Failed to create the booking — please retry
@@ -998,6 +1001,7 @@ dms.err.ERR_DMS_MASTER_EMPTY,"This DMS master option has not been configured. As
 dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS master data is temporarily unavailable — please retry
 dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS master data — go back, re-select it, and retry"
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
+dms.err.ERR_DMS_PREFIX_MISSING,The customer's title is not selected.
 dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
 dms.err.ERR_DMS_SNAPSHOT_BUSY,The DMS account stayed busy; automatic retries did not get through. Please try again later.
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,"DMS returned incomplete data, so nothing was published. Try again after the nightly read."

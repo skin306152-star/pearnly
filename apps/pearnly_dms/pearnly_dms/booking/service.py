@@ -93,6 +93,10 @@ CUSTOMER_INCOMPLETE = "ERR_DMS_CUSTOMER_INCOMPLETE"
 CUSTOMER_INCOMPLETE_ADMIN = "ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN"
 
 
+#: 提交前被客户表单的称谓 / 地址校验拦下（`intake.customer_geo`）：没选、或选的已不在主档。
+_SELECT_REFUSED = ("ERR_DMS_MASTER_UNMATCHED", "ERR_DMS_PREFIX_MISSING", "ERR_DMS_ADDRESS_INCOMPLETE")
+
+
 def _incomplete(missing, code: str = CUSTOMER_INCOMPLETE) -> Dict[str, Any]:
     from pearnly_dms.adapter.operations import err
 
@@ -151,7 +155,7 @@ def _fill_customer_gaps(cl, endpoint: str, payload: dict, gap, *, guard, cache_s
                              addresses=addresses, baseline=gap.fields, on_attempt=begin_customer)
             marker.finish({"ok": True, "success": True, "customer_id": customer_id, "mode": "overwrite"})
     except customer_merge.DmsClientError as exc:
-        if exc.error_code == "ERR_DMS_MASTER_UNMATCHED" and not marker.dispatched():
+        if exc.error_code in _SELECT_REFUSED and not marker.dispatched():
             return _incomplete(gap.missing)
         return marker.finish(err(exc.error_code, response_body=getattr(exc, "response_body", None)))
     snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)

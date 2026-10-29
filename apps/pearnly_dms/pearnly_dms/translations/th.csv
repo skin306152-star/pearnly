@@ -121,6 +121,7 @@ Customer records,ข้อมูลลูกค้า
 DMS,DMS
 DMS System Account,บัญชีระบบ DMS
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
+DMS already has a customer with this name.,DMS มีลูกค้าชื่อนี้อยู่แล้ว
 DMS check: Matched,ผลการตรวจสอบกับ DMS: ถูกต้อง
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,ยังไม่ได้อ่านข้อมูล DMS ระบบจะอ่านให้อัตโนมัติ กรุณาลองใหม่เมื่ออ่านเสร็จ
 "DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.",กำลังอ่านข้อมูล DMS กรุณาลองใหม่ภายหลัง หากยังไม่พร้อม กรุณาให้ผู้ดูแลระบบตรวจสอบบัญชีอ่านข้อมูลในหน้าการเชื่อมต่อ DMS
@@ -375,6 +376,7 @@ The check stopped before it finished. Please try again.,การตรวจส
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 "The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",ข้อมูลที่อยู่ของลูกค้าไม่ครบถ้วน กรุณากด «แก้ไข» เพื่อระบุจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ให้ครบถ้วน แล้วบันทึกอีกครั้ง
+The customer's title is not selected.,ยังไม่ได้เลือกคำนำหน้าชื่อลูกค้า
 The data volume exceeds the read limit. Please contact an administrator.,ปริมาณข้อมูลเกินขีดจำกัดการอ่าน กรุณาติดต่อผู้ดูแลระบบ
 "The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",ระบบพบลูกค้าที่มีข้อมูลใกล้เคียงดังต่อไปนี้ กรุณาเลือกลูกค้าที่ตรงกัน หากไม่มีรายการที่ตรงกัน กรุณาเลือก «ลูกค้าใหม่»
 The photo is too large. Please try again.,รูปมีขนาดใหญ่เกินไป กรุณาลองอีกครั้ง
@@ -989,6 +991,7 @@ dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS มีลูกค้าที่ใช้�
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณากด «แก้ไข» เพื่อกรอกให้ครบ แล้วยืนยันอีกครั้ง
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณาแจ้งผู้ดูแลระบบให้กรอกให้ครบใน DMS
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่
+dms.err.ERR_DMS_CUSTOMER_NAME_TAKEN,DMS มีลูกค้าชื่อนี้อยู่แล้ว
 dms.err.ERR_DMS_CUSTOMER_SAVE,บันทึกลูกค้าเข้า DMS ไม่สำเร็จ — ตรวจสอบข้อมูลแล้วลองใหม่
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,ส่งข้อมูลแล้ว แต่ยังไม่สามารถยืนยันผลได้ กรุณาอย่าส่งซ้ำ และตรวจสอบผลก่อน
 dms.err.ERR_DMS_IMPORT,สร้างใบจองรถไม่สำเร็จ — กรุณาลองใหม่
@@ -998,6 +1001,7 @@ dms.err.ERR_DMS_MASTER_EMPTY,ยังไม่ได้ตั้งค่าต
 dms.err.ERR_DMS_MASTER_UNAVAILABLE,อ่านข้อมูลหลักของ DMS ไม่ได้ชั่วคราว — กรุณาลองใหม่อีกครั้ง
 dms.err.ERR_DMS_MASTER_UNMATCHED,รายการที่เลือกไม่อยู่ในข้อมูลหลักของ DMS แล้ว กรุณากลับไปเลือกใหม่ แล้วลองอีกครั้ง
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง
+dms.err.ERR_DMS_PREFIX_MISSING,ยังไม่ได้เลือกคำนำหน้าชื่อลูกค้า
 dms.err.ERR_DMS_QUERY_SCOPE,บัญชี DMS นี้ยังไม่มีสิทธิ์ดูอันดับยอดขาย กรุณาติดต่อผู้ดูแล DMS
 dms.err.ERR_DMS_SNAPSHOT_BUSY,บัญชี DMS ไม่ว่างอย่างต่อเนื่อง ระบบลองใหม่อัตโนมัติแล้วแต่ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS ส่งข้อมูลมาไม่ครบ จึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณาลองอีกครั้งหลังการอ่านข้อมูลรอบกลางคืน

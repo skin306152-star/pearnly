@@ -433,7 +433,13 @@ def main():
             fields=fields, mode="create", addresses=addresses), DmsClientError), t
 
     bad_prefix, _ = _save_with({**GOOD_FIELDS, "prefix_id": "999"}, GOOD_ADDR)
-    check("称谓不在名册里 → 拦（不猜）", bad_prefix[0], bad_prefix[1])
+    check("称谓不在名册里 → 拦（不猜）", bad_prefix[0] and "ERR_DMS_MASTER_UNMATCHED" in bad_prefix[1],
+          bad_prefix[1])
+    no_prefix, prefix_transport = _save_with({**GOOD_FIELDS, "prefix_id": ""}, GOOD_ADDR)
+    check("称谓没选 → 拦且不外推（报缺称谓）",
+          no_prefix[0] and "ERR_DMS_PREFIX_MISSING" in no_prefix[1]
+          and not any(u.endswith(("cus/new.php", "cus/edit.php")) for u, _ in prefix_transport.calls),
+          no_prefix[1])
     bad_prov, _ = _save_with(GOOD_FIELDS, {"": {**GOOD_ADDR[""], "province_id": "PX"}})
     check("省不在实时名册里 → 拦", bad_prov[0], bad_prov[1])
     bad_child, _ = _save_with(GOOD_FIELDS,
@@ -441,8 +447,8 @@ def main():
     check("县不属于所选省 → 拦（父级链对不上）", bad_child[0], bad_child[1])
     for key in geo_ids:
         rejected, transport = _save_with(GOOD_FIELDS, {"": {**GOOD_ADDR[""], key: ""}})
-        check("缺少%s保存拒绝且不外推" % key,
-              rejected[0] and "ERR_DMS_MASTER_UNMATCHED" in rejected[1]
+        check("缺少%s保存拒绝且不外推（报缺地址，不报已不在主档）" % key,
+              rejected[0] and "ERR_DMS_ADDRESS_INCOMPLETE" in rejected[1]
               and not any(u.endswith(("cus/new.php", "cus/edit.php")) for u, _ in transport.calls),
               rejected[1])
 

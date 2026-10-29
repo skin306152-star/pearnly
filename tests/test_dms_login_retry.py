@@ -391,8 +391,11 @@ class IntakeRetry(unittest.TestCase):
         _stub("pearnly_dms.line.cards", TXT_SAVE_FAIL="TXT_SAVE_FAIL", TXT_EXPIRED="TXT_EXPIRED",
               TXT_NO_ENDPOINT="TXT_NO_ENDPOINT",
               retry_message=lambda text: {"text": text, "quickReply": "retry"})
-        for name in ("pearnly_dms.intake.draft", "pearnly_dms.intake.scan", "pearnly_dms.ocr.ocr_review"):
+        for name in ("pearnly_dms.intake.scan", "pearnly_dms.ocr.ocr_review"):
             _stub(name)
+        # The real value model (pure; its card / language imports are the stubs above):
+        # ``write_update`` builds its fields there (``draft.update_fields``).
+        sys.modules.pop("pearnly_dms.intake.draft", None)
         _stub("pearnly_dms.intake.service", push_idcard_fields=lambda endpoint, **kw: (
             self.results.append(kw["attempt"]) or dict(self.result)))
         _stub("pearnly_dms.ocr.ocr_service", resolve_dms_endpoint=lambda user, ep: {"name": "EP-A"})

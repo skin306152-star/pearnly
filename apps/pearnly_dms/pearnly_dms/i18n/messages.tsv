@@ -1,6 +1,8 @@
 en	zh	th	ja	key
 The DMS account stayed busy; automatic retries did not get through. Please try again later.	DMS 账号持续占用，自动重试未成功，请稍后再试。	บัญชี DMS ไม่ว่างอย่างต่อเนื่อง ระบบลองใหม่อัตโนมัติแล้วแต่ไม่สำเร็จ กรุณาลองใหม่ภายหลัง	DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_SNAPSHOT_BUSY
 The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.	客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。	ข้อมูลที่อยู่ของลูกค้าไม่ครบถ้วน กรุณากด «แก้ไข» เพื่อระบุจังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ให้ครบถ้วน แล้วบันทึกอีกครั้ง	お客様の住所情報が不完全です。「編集」をタップし、都県・郡区・町村・郵便番号を入力のうえ、再度保存してください。	dms.err.ERR_DMS_ADDRESS_INCOMPLETE
+The customer's title is not selected.	客户称谓未选择。	ยังไม่ได้เลือกคำนำหน้าชื่อลูกค้า	お客様の敬称が選択されていません。	dms.err.ERR_DMS_PREFIX_MISSING
+DMS already has a customer with this name.	DMS 中已有同名客户。	DMS มีลูกค้าชื่อนี้อยู่แล้ว	DMS に同じ名前の顧客が既に存在します。	dms.err.ERR_DMS_CUSTOMER_NAME_TAKEN
 Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
 Update data	更新资料	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
 Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help

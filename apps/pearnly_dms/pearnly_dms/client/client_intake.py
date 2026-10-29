@@ -87,6 +87,11 @@ _READBACK_PAUSE_SECONDS = 1.5
 # 系统客户档的标签取 `รหัสลูกค้า`，对不上就和以前一样按拒收处理，不换号。
 _CUSCODE_TAKEN = re.compile(r'err::\s*"\s*รหัสลูกค้า\s*"\s*ซ้ำ')
 _SPARE_CODES = 3
+# DMS 不收同名客户（`err::"ชื่อ นามสกุลลูกค้า" ซ้ำ`，2026-09-24 实测原文，2026-10-29 ris 生产同一句）。
+# 按证号又查无本人时，只读列出 DMS 里同名的几位交给操作员认领（`_name_holders`），最多这么多位
+# （与 LINE 候选卡同一上限）。
+_NAME_TAKEN = re.compile(r'err::\s*"\s*ชื่อ นามสกุลลูกค้า\s*"\s*ซ้ำ')
+_NAME_HOLDERS = 4
 # 地址下拉「选中标签」键 → DMS select 名（各加 ""/_ct/_sd 后缀）· 仅供显示现值
 _GEO_LABEL_MAP = {
     "province_name": "selprovinces",
@@ -491,6 +496,8 @@ class DmsClientIntakeMixin:
                     body = (resp.text or "").strip()
         if resp.status_code != 200:
             raise customer_merge.unknown()
+        if mode == "create" and _NAME_TAKEN.fullmatch(body):
+            raise self._name_taken(fields.get("name") or "")
         if body.startswith("err::"):
             exc = DmsClientError(
                 f"customer {mode} failed: {resp.status_code} {body[:200]!r}",
@@ -502,6 +509,40 @@ class DmsClientIntakeMixin:
             return self._verify_saved(mode, fields, customer_id, addresses, code=new_code), False
         except Exception as exc:
             raise customer_merge.unknown() from exc
+
+    def _name_taken(self, name: str) -> DmsClientError:
+        """DMS 以同名拒收新建（什么都没写进去）：带上 DMS 里同名的客户（只读查出）。"""
+        exc = DmsClientError("customer create refused: name already in DMS", "ERR_DMS_CUSTOMER_NAME_TAKEN")
+        exc.response_body = {"submitted": False, "rejected": True,
+                             "name_taken": {"candidates": self._name_holders(name)}}
+        return exc
+
+    def _name_holders(self, name: str) -> List[Dict[str, Any]]:
+        """只读：DMS 里姓名与 ``name`` 相同的客户（去掉多余空白后完全一致），最多 `_NAME_HOLDERS` 位。
+
+        列表搜索是模糊匹配、行上的姓名只是标签，所以逐位直读表单、按表单里的姓名核对；
+        每位带上直读到的现值（`baseline`），认领时拿它做三方合并。读取出错 → 空列表（照样拒收，
+        只是列不出人）。"""
+        target = " ".join(str(name or "").split())
+        if not target:
+            return []
+        holders: List[Dict[str, Any]] = []
+        try:
+            for row in self.search_customers_detailed(target, limit=10):
+                if " ".join(row["name"].split()) != target:
+                    continue
+                current = self.read_customer(row["customer_id"])
+                if " ".join(str(current.get("name") or "").split()) != target:
+                    continue
+                holders.append({"customer_id": row["customer_id"], "cuscode": current.get("cuscode", ""),
+                                "name": current.get("name", ""), "people_id": current.get("people_id", ""),
+                                "baseline": current})
+                if len(holders) >= _NAME_HOLDERS:
+                    break
+        except Exception as exc:
+            logger.warning("[dms] 同名拒收后读同名客户失败：%s", type(exc).__name__)
+            return []
+        return holders
 
     def _research_customer(self, people_id: str) -> Optional[str]:
         """撞唯一键后的复搜：搜索端点偶发空返，隔 1.5s 共试 3 次再放弃。"""

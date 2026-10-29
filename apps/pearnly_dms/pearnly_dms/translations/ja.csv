@@ -121,6 +121,7 @@ Customer records,顧客情報
 DMS,DMS
 DMS System Account,DMS システムアカウント
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
+DMS already has a customer with this name.,DMS に同じ名前の顧客が既に存在します。
 DMS check: Matched,DMS 照合結果：一致
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS データはまだ読み取られていません。システムが自動で読み取りますので、完了後にもう一度お試しください。
 "DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.",DMS データを読み取り中です。しばらくしてからお試しください。準備できない場合は、管理者に DMS 接続画面の読み取りアカウントを確認してもらってください。
@@ -375,6 +376,7 @@ The check stopped before it finished. Please try again.,確認が途中で止ま
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 "The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",お客様の住所情報が不完全です。「編集」をタップし、都県・郡区・町村・郵便番号を入力のうえ、再度保存してください。
+The customer's title is not selected.,お客様の敬称が選択されていません。
 The data volume exceeds the read limit. Please contact an administrator.,データ量が読み取り上限を超えています。管理者にご連絡ください。
 "The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",以下の類似する顧客が見つかりました。該当する顧客を選択してください。該当しない場合は「新規顧客」を選択してください。
 The photo is too large. Please try again.,写真が大きすぎます。もう一度お試しください。
@@ -989,6 +991,7 @@ dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS にこの身分証番号の顧客が存在�
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,予約は未送信です。DMS の顧客情報に必須項目が不足しています。「編集」をタップして入力し、再度確定してください。
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,予約は未送信です。DMS の顧客情報に必須項目が不足しています。管理者に DMS で入力してもらってください。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。
+dms.err.ERR_DMS_CUSTOMER_NAME_TAKEN,DMS に同じ名前の顧客が既に存在します。
 dms.err.ERR_DMS_CUSTOMER_SAVE,DMS への顧客保存に失敗しました · 項目を確認して再試行してください
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
 dms.err.ERR_DMS_IMPORT,予約の作成に失敗しました · 再試行してください
@@ -998,6 +1001,7 @@ dms.err.ERR_DMS_MASTER_EMPTY,この DMS マスター項目は未設定です。�
 dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に読み取れません · しばらくしてから再試行してください
 dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
+dms.err.ERR_DMS_PREFIX_MISSING,お客様の敬称が選択されていません。
 dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
 dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。毎晩の読み取り完了後にもう一度お試しください。

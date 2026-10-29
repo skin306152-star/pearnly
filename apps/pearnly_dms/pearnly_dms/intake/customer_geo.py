@@ -15,7 +15,7 @@
 所以这里的规矩是：**显式给值 + 与实时父级链核对通过**，两者缺一就拦。
 
 照搬老产品 `services/erp/mrerp_dms_customer_geo.py`（线上基准 `501589f0`），
-逻辑一字未改。
+拦截逻辑一字未改；2026-10-29 起"没选"按缺称谓 / 缺地址单独报码（见 `_require_member`）。
 """
 
 from __future__ import annotations
@@ -41,10 +41,17 @@ def clear_customer_select_defaults(data: dict) -> None:
             data[key] = ""
 
 
+#: 空着没选的必填项按缺什么报（编辑页里补上即可）；"选了但已不在主档"仍是 `ERR_DMS_MASTER_UNMATCHED`。
+#: 2026-10-29 ris 实案：旧档没有称谓，认领时被报成「所选项已不在主档，请回去重选」，LINE 里无处可选。
+PREFIX_MISSING = "ERR_DMS_PREFIX_MISSING"
+ADDRESS_INCOMPLETE = "ERR_DMS_ADDRESS_INCOMPLETE"
+
+
 def _require_member(value: str, rows: list, field: str) -> None:
     if not value:
         raise DmsClientError(
-            f"customer {field} requires an explicit selection", "ERR_DMS_MASTER_UNMATCHED"
+            f"customer {field} requires an explicit selection",
+            PREFIX_MISSING if field == "selprefix" else ADDRESS_INCOMPLETE,
         )
     if not rows:
         raise DmsClientError(f"DMS {field} options unavailable", "ERR_DMS_MASTER_UNAVAILABLE")

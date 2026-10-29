@@ -10,7 +10,7 @@
   1. 点候选「1」认领（11:45、11:49 两次）→ 我们在发给 DMS 之前就拦下：
      `customer selprefix requires an explicit selection`（错误码 `ERR_DMS_MASTER_UNMATCHED`）。
      认领只带「证号 + 姓名」，旧档称谓是空的，而保存前的级联校验要求称谓、地址必须有显式值；
-     称谓补上后，空地址还会接着拦（本地复现见下）。
+     （修复时核对 ris 快照：15417 位客户四级地址全部齐全，6613 位无证号旧档缺的只有称谓。）
   2. 点「ลูกค้าใหม่」新建（11:50，截图这次）→ DMS 拒收：
      `customer create failed: 200 'err::"ชื่อ นามสกุลลูกค้า" ซ้ำ'`，即 **DMS 不允许两个客户同名**。
      我们按证号复查找不到这个人（旧档没有证号），编号也不是被占用，于是按「拒收」报
@@ -170,3 +170,32 @@
 ### 13. 工作量
 
 - 写代码 + 离线测试约 1–2 小时机器耗时；测试 DMS 实测约 20 分钟；CI 约 15 分钟。
+
+## 实现
+
+| 项 | 改动 |
+| --- | --- |
+| ① 认领补空项 | `intake/draft.py` 新增 `master_gaps`（DMS 里空着的称谓 / 户籍地址能否用草稿补，补不出给缺项码）与 `update_fields`（原 `flow.write_update` 的字段组装搬来，再补空项）。户籍整块补的规则抽成 `contracts/customer_merge.home_address_fill`，`booking_customer.gap_fill` 改用它，行为不变。 |
+| ① 写前预检 | `flow._write_gap`：点「新建 / 更新 / 认领」时先算这一笔是否缺称谓或地址，缺就不消费 nonce、直接给编辑页（原「地址没选全」守卫扩到认领与称谓）。 |
+| ② 同名拒收 | `client_intake`：新建收到 `err::"ชื่อ นามสกุลลูกค้า" ซ้ำ` 且按证号查无本人 → `ERR_DMS_CUSTOMER_NAME_TAKEN`（`rejected`，什么都没写），附只读查出的同名客户（列表搜索 + 逐位直读表单按表单姓名核对，最多 4 位，读不到就空列表）。`flow` 回到确认态、换新 nonce，发 `cards.name_taken_message`：文案 + 序号认领按钮 + 「แก้ไข」，不给「ลูกค้าใหม่」。 |
+| ③ 缺值单独报 | `customer_geo._require_member` 空值：称谓 → `ERR_DMS_PREFIX_MISSING`（新文案），地址 → 沿用 `ERR_DMS_ADDRESS_INCOMPLETE`；「选了但已不在主档」仍是 `ERR_DMS_MASTER_UNMATCHED`。`flow` 收到前两者回到确认态给编辑页；订车补空项 `_SELECT_REFUSED` 同时认三个码。 |
+| 文案 | 新增 `dms.err.ERR_DMS_PREFIX_MISSING`「客户称谓未选择。」、`dms.err.ERR_DMS_CUSTOMER_NAME_TAKEN`「DMS 中已有同名客户。」（四语，`i18n-build` 已生成）。 |
+
+已知边界：户籍地址「有文字、缺四级编号」的半块旧档仍补不出（与订车补空项同一规则，不拼两套地址）；ris 现有 0 位。
+
+## 验证
+
+| 层 | 内容 | 结果 |
+| --- | --- | --- |
+| 离线（新） | `tests/test_dms_claim_legacy_customer.py` 12 条：ris 原案端到端（真实客户端 + 台账 + 服务）认领一次写成、只写空项；不补时报缺称谓且不外发；DMS 已有值不动；列卡后 DMS 被人填了称谓 → 冲突复核、不覆盖；`master_gaps` 六种情形 | 通过（已登记进 `check-dms-offline.py`） |
+| 离线（改） | `scripts/test-dms-customer-identity.py`：原「同名拒收 = 普通拒收」断言改为新码 + 同名候选（不删断言），新增列候选、读不到、上限 4 位、改档同名仍是普通拒收 4 条；48 条通过 | 通过 |
+| LINE 队列（线上同款镜像 fcb65cca + 本树 DMS / 共用层） | `scripts/test-dms-intake-queue.py` 32 条：新增认领补空项写入字段、补不出给编辑页不写、同名拒收列候选且点 1 走认领、列不出人仍说清、写前被拦回编辑页；样本卡补上称谓（真实 DMS 新建缺称谓必被拒） | 通过 |
+| 其余 DMS 候选脚本（同镜像） | line-runtime 69、session-reuse 25、first-read 11、id-card-reads 5、line-language 14、query-output 11、query-snapshots 40、snapshot-consumers 25、query_push 11、account_check_background 4、entrypoints | 全部通过 |
+| 手工样本 | `scripts/sample-verify-dms-client.py` 119 项（缺地址改断言新码，新增缺称谓一项） | 通过 |
+| 本地全闸门 | `~/pearnly-devtools/gate.sh`（Development checks 同名步骤 143 项）；唯一失败是 `test_dms_login_retry` 把 `draft` 整个桩掉，改为加载真实 `draft` 后重跑通过 | 通过 |
+| 真实 DMS（DMS-TEST，testdms EP-00059，测试公司账号 `dmstest003`） | 临时容器挂本分支 DMS 代码：① 在测试 DMS 造同名旧档 **142**（无证号、无编号；DMS-TEST 拒收缺称谓或缺任一段地址的新档，原文 `err::ข้อมูลดังกล่าวถูกใช้งานในระบบ`，所以 ris 那类旧档只能是早年导入的）；② 用合成证号新建同名 → `ERR_DMS_CUSTOMER_NAME_TAKEN`，候选 = [142]；③ 认领 142 → 成功，读回证号一致、称谓与四级地址未动、编号仍空 | 通过；「缺称谓旧档的称谓补写」在真实 DMS 上造不出样本，只有离线覆盖 |
+| 真机 LINE | 未做 | **待真机**（主会话安排） |
+
+不在本分支修的：`scripts/test-dms-customer-write-flow.py` 在 `origin/main` 上同样 6 条失败（2 failures、4 errors），不在任何 CI 通道，原本就坏。
+
+测试 DMS 里留下的测试数据：客户 142「E2E1029 ทดสอบลูกค้าเก่า」（已写入合成证号）；testdms 推送台账两行 `CW-`（e2e1029 新建被拒、认领成功）。服务器临时文件 `/tmp/e2e1029*` 已删，临时容器 `--rm` 已无残留。
