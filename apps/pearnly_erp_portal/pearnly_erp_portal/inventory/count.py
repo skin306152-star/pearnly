@@ -543,7 +543,7 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     rows = frappe.get_list(
         ITEM, filters={"count": count},
         fields=["name", "product", "product_name", "code", "barcode", "unit", "warehouse",
-                "location", "book_qty", "counted", "counted_qty", "difference",
+                "location", "row_origin", "book_qty", "counted", "counted_qty", "difference",
                 "last_counted_at", "last_counted_by", "basis_qty", "basis_set", "stock_token"],
         order_by="product_name asc, name asc", limit_page_length=0,
     )
@@ -625,6 +625,8 @@ def review_count(name, *, _locked=False):
     state = [task, items, entries]
     token = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
     return {"task": task, "items": items, "entries": entries, "review_token": token,
+            # 进行中能不能打核对表（账面 / 实点 / 差异）：有库存管理权（用户 10-29 批复 #1）
+            "can_check": guard.has("stock.manage"),
             "can_write": guard.has("count.write"),
             "can_view_costs": guard.cost_visible(),
             "conflicts": [r["name"] for r in items if r["stock_changed"]],

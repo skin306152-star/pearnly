@@ -61,6 +61,19 @@ frappe.query_reports[report_name] = {
 			options: [{value: "", label: __("stock.count.filter.all")}, {value: "counted", label: __("stock.count.countedRows")},
 				{value: "uncounted", label: __("stock.count.rowUncounted")}, {value: "differences", label: __("stock.count.rowDifference")}],
 		},
+		// 按仓库 / 库位筛（用户 10-29 批复 #2：筛选，打印按库位排）；进行中的盘点同样能看
+		{
+			fieldname: "warehouse",
+			label: __("stock.col.warehouse"),
+			fieldtype: "Link",
+			options: "ERP Warehouse",
+			get_query: () => frappe.pearnly.warehouse_query(),
+		},
+		{
+			fieldname: "location",
+			label: __("stock.count.location"),
+			fieldtype: "Data",
+		},
 		{
 			fieldname: "chart_by",
 			label: __("stock.board.by"),

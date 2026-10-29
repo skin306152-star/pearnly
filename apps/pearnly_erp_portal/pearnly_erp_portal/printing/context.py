@@ -362,22 +362,30 @@ def _stamp(value) -> str:
 def _count(doc) -> dict:
     """盘点：进行中打点数表（盲盘，不印账面数）；结束 / 过账后打结果表（账面 / 实点 / 差异）。明细是独立表，
     读权限已在盘点单上核过（`inventory.access`），这里只按本单取。"""
+    from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.inventory import contracts as stock_contracts
+
     company = frappe.db.get_value("ERP Warehouse", doc.warehouse, "company")
-    mode = contracts.count_mode(doc.status)
+    # 打印时选的版式与筛选（打印页 / PDF 的地址参数，`frappe.form_dict`）：只看 / 仓库 / 库位，进行中可选核对表（用户 10-29）
+    wanted = frappe.form_dict or {}
+    mode = contracts.count_mode(doc.status, wanted.get("mode") or "", guard.has("stock.manage"))
     items = frappe.get_all(COUNT_ITEM, filters={"count": doc.name},  # bounded: 这一张盘点单的品项
-                           fields=["code", "product_name", "unit", "location", "book_qty", "counted", "counted_qty",
-                                   "difference"], order_by="location asc, code asc, creation asc", limit_page_length=0)
+                           fields=["code", "product_name", "unit", "warehouse", "location", "book_qty", "counted",
+                                   "counted_qty", "difference"], order_by="location asc, code asc, creation asc",
+                           limit_page_length=0)
+    items = stock_contracts.count_rows(items, only=wanted.get("only") or "", warehouse=wanted.get("warehouse") or "",
+                                       location=wanted.get("location") or "")
     rows = []
     for item in items:
         row = {"code": item.code or "", "name": item.product_name or "", "unit": item.unit or "",
                "location": item.location or ""}
-        if mode == "result":
+        if mode in ("result", "check"):
             row.update(book=contracts.qty(item.book_qty), counted=contracts.qty(item.counted_qty) if item.counted else "",
                        difference=contracts.qty(item.difference) if item.counted else "")
         rows.append(row)
     ctx = _base("count", doc, company, doc.name, doc.posted_at or doc.closed_at or doc.creation, doc.notes, False)
     warehouse = frappe.db.get_value("ERP Warehouse", doc.warehouse, "warehouse_name") or ""
-    ctx.update(mode=mode, title="count_sheet" if mode == "sheet" else "count_result",
+    ctx.update(mode=mode, title={"sheet": "count_sheet", "check": "count_check"}.get(mode, "count_result"),
                pages=contracts.pages(rows, contracts.COUNT_ROWS_PER_PAGE), warehouse=warehouse,
                count_title=doc.title or "", item_total=len(rows),
                counted_total=sum(1 for item in items if item.counted),

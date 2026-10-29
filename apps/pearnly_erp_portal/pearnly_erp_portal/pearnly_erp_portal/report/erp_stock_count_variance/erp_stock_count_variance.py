@@ -12,7 +12,7 @@ import frappe
 from frappe.utils import flt
 
 from pearnly_erp_portal.access import guard, rules
-from pearnly_erp_portal.inventory import count as counts
+from pearnly_erp_portal.inventory import contracts as stock_contracts, count as counts
 
 PRODUCT = "ERP Product"
 BALANCE = "ERP Stock Balance"
@@ -37,6 +37,9 @@ def _columns() -> list:
         {"label": _label("stock.col.warehouse"), "fieldname": "warehouse_name",
          "fieldtype": "Data", "width": 120},
         {"label": _label("stock.count.location"), "fieldname": "location",
+         "fieldtype": "Data", "width": 100},
+        # 这一行从哪来（空 = 账上快照）：盘点时补的、当场新建的、停用后又盘到的（用户 10-29）
+        {"label": _label("stock.count.rowOrigin"), "fieldname": "row_origin",
          "fieldtype": "Data", "width": 100},
         {"label": _label("stock.col.unit"), "fieldname": "unit",
          "fieldtype": "Data", "width": 80},
@@ -73,14 +76,9 @@ def _state(row) -> str:
                   else "stock.count.rowMatch")
 
 
-def _rows(name: str, only: str) -> list:
-    items = counts.list_items(count=name, limit=0)
-    if only == "counted":
-        items = [row for row in items if row["counted"]]
-    elif only == "uncounted":
-        items = [row for row in items if not row["counted"]]
-    elif only == "differences":
-        items = [row for row in items if row["counted"] and flt(row["difference"], 3)]
+def _rows(name: str, only: str, warehouse="", location="") -> list:
+    items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only, warehouse=warehouse,
+                                       location=location)
     warehouses = {row["name"]: row["warehouse_name"] for row in frappe.get_list(
         "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
     uncounted = _uncounted_units(name, items)
@@ -93,6 +91,7 @@ def _rows(name: str, only: str) -> list:
             "barcode": row["barcode"], "unit": row["unit"],
             "warehouse_name": warehouses.get(row["warehouse"], row["warehouse"]),
             "location": row["location"],
+            "row_origin": _label(f"stock.count.origin.{row['row_origin']}") if row.get("row_origin") else "",
             "book_qty": flt(row["book_qty"], 3),
             "counted_qty": flt(row["counted_qty"], 3) if counted else None,
             "difference": difference,
@@ -132,7 +131,13 @@ def _uncounted_units(name, items) -> dict:
 
 
 def _latest_count() -> str:
-    return frappe.db.get_value("ERP Stock Count", {}, "name", order_by="creation desc") or ""
+    """当前公司最新的一份盘点（盘点按仓分公司；以前不分公司，会给到别家公司的盘点，多仓评估 13.4）。"""
+    from pearnly_erp_portal.inventory import warehouses
+    from pearnly_erp_portal.masters import company as companies
+
+    mine = warehouses.names_of(companies.active_company())
+    return frappe.db.get_value("ERP Stock Count", {"warehouse": ["in", mine or [""]]}, "name",
+                               order_by="creation desc") or ""
 
 
 def execute(filters=None):
@@ -144,4 +149,5 @@ def execute(filters=None):
         name = _latest_count()
     if not name or not frappe.db.exists("ERP Stock Count", name):
         return _columns(), []
-    return _columns(), _rows(name, (filters.get("only") or "").strip())
+    return _columns(), _rows(name, (filters.get("only") or "").strip(), filters.get("warehouse") or "",
+                             filters.get("location") or "")

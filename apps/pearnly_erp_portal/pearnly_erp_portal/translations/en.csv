@@ -66,6 +66,7 @@ Add photos,Add photos
 Add row,Add row
 Add terminal,Add terminal
 Add watcher,Add watcher
+Added,Added
 Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
@@ -219,6 +220,7 @@ Change members,Change members
 Chart,Chart
 Chart by,Chart by
 Chassis No,Chassis No
+Check sheet,Check sheet
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
 Checklist,Checklist
@@ -318,6 +320,7 @@ Count by,Count by
 Count closed,Count closed
 Count products tracked by unit one unit at a time,Count products tracked by unit one unit at a time
 Count saved,Count saved
+Count sheet,Count sheet
 Count stock on the web,Count stock on the web
 Counted,Counted
 Counted Amount,Counted Amount
@@ -995,6 +998,7 @@ Querying the Revenue Department...,Querying the Revenue Department...
 Queued,Queued
 Quotation,Quotation
 Rate,Rate
+Reactivated,Reactivated
 Reactivated by stock count {0},Reactivated by stock count {0}
 Reading,Reading
 Reading the Express account set,Reading the Express account set
@@ -2345,6 +2349,9 @@ stock.count.newHint,In-stock: freeze the current balances. Import: take the rows
 stock.count.noEntries,No entries
 stock.count.note,Note
 stock.count.notes,Notes
+stock.count.origin.added,Added
+stock.count.origin.new,New
+stock.count.origin.reactivated,Reactivated
 stock.count.over,Over
 stock.count.photoInfo,Product / position / counted by / time
 stock.count.photos,Photos
@@ -2358,6 +2365,7 @@ stock.count.qty,Quantity
 stock.count.reason,Reason
 stock.count.rowDifference,Difference
 stock.count.rowMatch,Matches
+stock.count.rowOrigin,Row origin
 stock.count.rowUncounted,Not counted
 stock.count.rows,Rows
 stock.count.short,Short
@@ -2416,6 +2424,8 @@ stock.opening.submit,Confirm opening stock
 stock.opening.template,Download opening template
 stock.opening.title,Enter opening stock
 stock.opening.total,Total opening value
+stock.print.check,Check sheet
+stock.print.sheet,Count sheet
 stock.purpose.damage,Damaged / written off
 stock.purpose.internal_use,Internal use
 stock.purpose.label,Purpose

@@ -81,7 +81,7 @@ COUNT_ROWS_PER_PAGE = 22  # 盘点表 A4 竖版每页行数
 # 销售单：接了 Express 的公司正式税票在 Express 出，ERP 打送货单；没接的打非税收据（主会话 10-26 定，写死）。
 QUOTATION, RECEIPT_KIND = "quotation", "receipt"
 TITLE_KEYS = ("quotation", "delivery", "receipt", "pos_sale", "pos_refund", "shift", "count_sheet",
-              "count_result")
+              "count_result", "count_check")
 BRANCH_HEAD = ("head_office", "hq", "head")
 
 
@@ -123,9 +123,12 @@ def vehicle_lines(units: list) -> list:
             for unit in units or [] if any(str(unit.get(key) or "").strip() for key in ("serial_no", "secondary_no", "color"))]
 
 
-def count_mode(status: str) -> str:
-    """盘点：进行中打点数表（盲盘，不印账面数）；结束 / 过账后打结果表（账面 / 实点 / 差异）。"""
-    return "sheet" if str(status or "") == "Active" else "result"
+def count_mode(status: str, wanted: str = "", may_check: bool = False) -> str:
+    """盘点：进行中默认打点数表（盲盘，不印账面数）；进行中也能打核对表（账面 / 实点 / 差异），只给有库存管理权的人
+    （用户 10-29 批复 #1）；结束 / 过账后打结果表。"""
+    if str(status or "") != "Active":
+        return "result"
+    return "check" if wanted == "check" and may_check else "sheet"
 
 
 def thermal_height_mm(item_lines: int, extra_lines: int = 0) -> int:

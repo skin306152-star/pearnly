@@ -147,6 +147,23 @@ class SecondBatchRules(unittest.TestCase):
                          [{"serial_no": "MR1", "secondary_no": "", "color": "แดง"}])
         self.assertEqual((C.count_mode("Active"), C.count_mode("Posted"), C.count_mode("Closed")),
                          ("sheet", "result", "result"))
+        # 进行中的核对表只给有库存管理权的人；结束后一律结果表（用户 10-29 批复 #1）
+        self.assertEqual((C.count_mode("Active", "check", True), C.count_mode("Active", "check", False),
+                          C.count_mode("Posted", "check", False)), ("check", "sheet", "result"))
+
+    def test_count_rows_filter_by_only_warehouse_and_location(self):
+        from pearnly_erp_portal.inventory import contracts as S
+
+        rows = [{"name": "a", "counted": 0, "difference": 0, "warehouse": "W1", "location": "A1"},
+                {"name": "b", "counted": 1, "difference": 0, "warehouse": "W1", "location": "A2"},
+                {"name": "c", "counted": 1, "difference": -2, "warehouse": "W2", "location": "A1"},
+                {"name": "d", "counted": 1, "difference": 0.0004, "warehouse": "W1", "location": ""}]
+        names = lambda **kw: [row["name"] for row in S.count_rows(rows, **kw)]
+        self.assertEqual(names(), ["a", "b", "c", "d"])
+        self.assertEqual(names(only="uncounted"), ["a"])
+        self.assertEqual(names(only="differences"), ["c"])  # 四舍到 3 位：0.0004 不算差异
+        self.assertEqual(names(warehouse="W1", location="A1"), ["a"])
+        self.assertEqual(names(only="counted", warehouse="W1"), ["b", "d"])
         self.assertLess(C.thermal_height_mm(3, 2), C.thermal_height_mm(30, 2))
 
 

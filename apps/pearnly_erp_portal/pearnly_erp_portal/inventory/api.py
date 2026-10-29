@@ -516,8 +516,8 @@ def _count_photo_sheet(book, entries, summary_rows, detail_rows) -> None:
             row_number += 1
 
 
-def _count_workbook(task, items, entries) -> bytes:
-    """两张表：汇总（每行账面/实盘/差异）+ 明细（每条记录、谁、何时、几张照片）。"""
+def _count_workbook(task, items, entries, blind=False) -> bytes:
+    """两张表：汇总（每行账面/实盘/差异）+ 明细（每条记录、谁、何时、几张照片）。``blind``：进行中的盲盘导出，不出账面与差异。"""
     import io
 
     from openpyxl import Workbook
@@ -529,8 +529,10 @@ def _count_workbook(task, items, entries) -> bytes:
 
     book = Workbook()
     columns = list(COUNT_COLUMNS)
-    if any("difference_value" in row for row in items):
+    if any("difference_value" in row for row in items) and not blind:
         columns.insert(-1, ("difference_value", "stock.count.differenceValue"))
+    if blind:
+        columns = [column for column in columns if column[0] not in ("book_qty", "difference")]
     danger = Font(color=COUNT_DANGER_COLOR)
     summary_columns = {field: index for index, (field, _key) in enumerate(columns, start=1)}
     detail_columns = {field: index for index, (field, _key) in enumerate(COUNT_DETAIL_COLUMNS, start=1)}
@@ -774,16 +776,22 @@ def api_stock_count_delete(**kwargs):
     return counts.delete_count(kwargs.get("name"))
 
 
-def stock_count_export_size(name=None):
+def stock_count_export_size(name=None, **_filters):
     """盘点导出的行数：汇总行（任务上记着的品项数）+ 明细记录数；两处都带盘点的读权限检查。"""
     return int(counts.get_count(name).get("item_total") or 0) + int(counts.entries_total(count=name) or 0)
 
 
-def stock_count_export_file(name=None):
+def stock_count_export_file(name=None, only=None, warehouse=None, location=None, mode=None):
+    """按打印弹窗里选的「只看 / 仓库 / 库位」导出（用户 10-29）；进行中默认盲盘（不出账面与差异），选核对表且有库存管理权才出。"""
+    from pearnly_erp_portal.inventory import contracts as stock_contracts
+
     task = counts.get_count(name)
-    items = counts.list_items(count=name, limit=0)
-    entries = counts.list_entries(count=name, limit=0)
-    return {"filename": f"{name}.xlsx", "content": _count_workbook(task, items, entries)}
+    items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only or "",
+                                       warehouse=warehouse or "", location=location or "")
+    kept = {row["name"] for row in items}
+    entries = [row for row in counts.list_entries(count=name, limit=0) if row.get("item") in kept]
+    blind = task.get("status") == "Active" and not (mode == "check" and guard.has("stock.manage"))
+    return {"filename": f"{name}.xlsx", "content": _count_workbook(task, items, entries, blind=blind)}
 
 
 @frappe.whitelist()
@@ -792,9 +800,10 @@ def api_stock_count_export(**kwargs):
     小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
     from pearnly_core.exports import service as exports
 
-    name = _clean(kwargs).get("name")
+    args = {key: value for key, value in _clean(kwargs).items() if key in ("name", "only", "warehouse", "location", "mode")}
+    name = args.get("name")
     return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_count_export_size",
-                           build="pearnly_erp_portal.inventory.api.stock_count_export_file", args={"name": name},
+                           build="pearnly_erp_portal.inventory.api.stock_count_export_file", args=args,
                            filename=f"{name}.xlsx",
                            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 

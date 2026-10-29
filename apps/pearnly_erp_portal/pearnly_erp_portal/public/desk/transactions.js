@@ -218,9 +218,12 @@
 	};
 	p.trade = {
 		// 单据打印：框架原生打印视图（预览、打印、存 PDF 都在那一页），版面是 `printing` 的标准 Print Format（岳父样板 1:1）
-		print(doctype, name, format) {
-			const query = new URLSearchParams({ doctype, name, format, no_letterhead: 1 });
-			window.open("/printview?" + query.toString(), "_blank", "noopener,noreferrer");
+		// `extra`：打印取数要的选项（盘点的版式与筛选，打印取数从地址参数读，`printing.context._count`）；`pdf` 直接下 PDF
+		print(doctype, name, format, extra = {}, { pdf = false } = {}) {
+			const query = new URLSearchParams({ doctype, name, format, no_letterhead: 1,
+				...Object.fromEntries(Object.entries(extra).filter(([, value]) => value)) });
+			const path = pdf ? "/api/method/frappe.utils.print_format.download_pdf?" : "/printview?";
+			window.open(path + query.toString(), "_blank", "noopener,noreferrer");
 		},
 		// 采购 / 销售网页识别在后台跑（2026-10-02：同步请求读多页 PDF 会撞 120 秒超时）。推送优先、轮询兜底（同 Cowork 录入
 		// `intake-upload.js`，几百人同时识别时不能一两秒问一次）：服务端每读完一页、读完都推「pearnly_erp_recognise」给发起人，

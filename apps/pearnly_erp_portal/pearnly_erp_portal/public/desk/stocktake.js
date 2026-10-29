@@ -199,7 +199,7 @@
 			// 进行中的任务只留结束盘点 + 右边那颗开始盘点（用户 2026-09-22 口径；10-07 起所有界面不放刷新按钮）。
 			// 已结束的是只读态 —— 之前定过"结束后只可查看和导出"，所以那一档只留导出。
 			// 打印（打印第二批）：进行中打点数表（盲盘，不印账面数），结束后打结果表
-			page.add_inner_button(__("Print"), () => p.trade.print("ERP Stock Count", name, "Pearnly Stock Count"));
+			page.add_inner_button(__("Print"), () => print_options(name));
 			if (active()) {
 				page.set_primary_action(t("stock.count.start"), () => entry_form(null, true));
 				page.add_inner_button(t("stock.count.close"), finish);
@@ -211,6 +211,30 @@
 					page.add_inner_button(__("Express"), () => p.express("ERP Stock Count", name, () => void show_route()));
 			}
 			await render_data();
+		}
+		// 打印 / PDF / Excel 按同一份筛选出（用户 10-29）：只看全部 / 未盘 / 有差异、仓库、库位；进行中默认点数表（盲盘），
+		// 有库存管理权的可选核对表（账面 / 实点 / 差异，服务端 `count_mode` 同样核权限）
+		function print_options(name) {
+			const values = key => [...new Set(state.items.map(row => row[key] || "").filter(Boolean))].sort();
+			const warehouses = [...new Map(state.items.map(row => [row.warehouse, row.warehouse_name || row.warehouse])).entries()];
+			const fields = [
+				...(active() && state.can_check ? [{ fieldtype: "Select", fieldname: "mode", label: __("Print Format"), default: "",
+					options: [{ value: "", label: t("stock.print.sheet") }, { value: "check", label: t("stock.print.check") }] }] : []),
+				{ fieldtype: "Select", fieldname: "only", label: t("stock.board.only"), default: "",
+					options: [{ value: "", label: t("stock.count.filter.all") }, { value: "uncounted", label: t("stock.count.rowUncounted") },
+						{ value: "differences", label: t("stock.count.rowDifference") }] },
+				...(warehouses.length > 1 ? [{ fieldtype: "Select", fieldname: "warehouse", label: t("stock.col.warehouse"),
+					options: [{ value: "", label: t("stock.count.filter.all") }, ...warehouses.map(([value, label]) => ({ value, label }))] }] : []),
+				...(values("location").length ? [{ fieldtype: "Select", fieldname: "location", label: t("stock.count.location"),
+					options: [{ value: "", label: t("stock.count.filter.all") }, ...values("location").map(value => ({ value, label: value }))] }] : []),
+			];
+			const chosen = d => Object.fromEntries(["mode", "only", "warehouse", "location"].map(key => [key, d.get_value(key) || ""]));
+			const d = p.dialog(__("Print"), fields, __("Print"), async values => {
+				p.trade.print("ERP Stock Count", name, "Pearnly Stock Count", chosen(d));
+				d.hide();
+			});
+			d.add_custom_action(__("PDF"), () => p.trade.print("ERP Stock Count", name, "Pearnly Stock Count", chosen(d), { pdf: true }));
+			d.add_custom_action(t("stock.action.export"), () => void p.export_file(`${api}api_stock_count_export`, { name, ...chosen(d) }));
 		}
 		// 进度那一行：选了范围就只算这一片（数法与服务端的任务合计相同：有实盘且数量不等才算差异）。
 		function headline() {

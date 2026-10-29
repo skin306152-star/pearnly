@@ -1811,3 +1811,9 @@ Created by sale	销售自动建	สร้างจากการขาย	売�
 Created in stock count	盘点新建	สร้างระหว่างตรวจนับ	棚卸で作成	product.origin.stocktake
 Origin document	来由单据	เอกสารที่มา	由来伝票
 Row origin	来源	ที่มาของแถว	行の由来
+Count sheet	点数表	ใบตรวจนับ	棚卸表	stock.print.sheet
+Check sheet	核对表	ใบตรวจสอบ	照合表	stock.print.check
+Row origin	来源	ที่มาของแถว	行の由来	stock.count.rowOrigin
+Added	补盘	เพิ่มระหว่างนับ	追加	stock.count.origin.added
+New	新发现	พบใหม่	新規発見	stock.count.origin.new
+Reactivated	停用启用	เปิดใช้อีกครั้ง	再有効化	stock.count.origin.reactivated

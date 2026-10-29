@@ -1,9 +1,9 @@
 {#- 盘点（A4 竖，第一批同风格；主会话 10-26 审定）：进行中打点数表（盲盘，不印账面数，「实点」栏空着手写）；
-    结束 / 过账后打结果表（账面 / 实点 / 差异）。每页 22 行。 -#}
+    结束 / 过账后打结果表（账面 / 实点 / 差异）；进行中的核对表（用户 10-29）同结果表的栏。每页 22 行。 -#}
 {% from "pearnly_erp_portal/printing/templates/_parts.html" import styles, head, field, items, sign %}
 {% from "pearnly_erp_portal/printing/templates/_labels.html" import TITLES %}
 {{ styles(ctx.fonts_css, portrait=true) }}
-{% set result = ctx.mode == "result" %}
+{% set result = ctx.mode in ("result", "check") %}
 {% if result %}
 {% set columns = [
   {"key": "no", "th": "ลำดับ", "en": "No.", "width": "6%"},

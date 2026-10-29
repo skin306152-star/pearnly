@@ -66,6 +66,7 @@ Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
 Add terminal,เพิ่มเครื่องขาย
 Add watcher,เพิ่มผู้ติดตาม
+Added,เพิ่มระหว่างนับ
 Added {0},เพิ่ม {0} แล้ว
 Added: {0},เพิ่มแล้ว: {0}
 Additional,เพิ่มเติม
@@ -219,6 +220,7 @@ Change members,เปลี่ยนสมาชิก
 Chart,แผนภูมิ
 Chart by,แผนภูมิแบ่งตาม
 Chassis No,เลขตัวถัง
+Check sheet,ใบตรวจสอบ
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
 Checklist,รายการตรวจสอบ
@@ -318,6 +320,7 @@ Count by,วิธีตรวจนับ
 Count closed,ปิดการตรวจนับแล้ว
 Count products tracked by unit one unit at a time,สินค้าที่ติดตามรายชิ้นให้นับทีละชิ้น
 Count saved,บันทึกแล้ว
+Count sheet,ใบตรวจนับ
 Count stock on the web,ตรวจนับสินค้าผ่านหน้าเว็บ
 Counted,นับแล้ว
 Counted Amount,ยอดนับได้
@@ -995,6 +998,7 @@ Querying the Revenue Department...,กำลังค้นหาจากกร
 Queued,รอคิว
 Quotation,ใบเสนอราคา
 Rate,ราคาต่อหน่วย
+Reactivated,เปิดใช้อีกครั้ง
 Reactivated by stock count {0},เปิดใช้จากการตรวจนับ · {0}
 Reading,กำลังอ่าน
 Reading the Express account set,กำลังอ่านชุดบัญชี Express
@@ -2345,6 +2349,9 @@ stock.count.newHint,ตรวจนับในคลัง: สร้างจ�
 stock.count.noEntries,ไม่มีรายการ
 stock.count.note,หมายเหตุ
 stock.count.notes,หมายเหตุ
+stock.count.origin.added,เพิ่มระหว่างนับ
+stock.count.origin.new,พบใหม่
+stock.count.origin.reactivated,เปิดใช้อีกครั้ง
 stock.count.over,เกิน
 stock.count.photoInfo,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 stock.count.photos,รูปภาพ
@@ -2358,6 +2365,7 @@ stock.count.qty,จำนวน
 stock.count.reason,เหตุผล
 stock.count.rowDifference,มีผลต่าง
 stock.count.rowMatch,ตรงกัน
+stock.count.rowOrigin,ที่มาของแถว
 stock.count.rowUncounted,ยังไม่นับ
 stock.count.rows,จำนวนแถว
 stock.count.short,ขาด
@@ -2416,6 +2424,8 @@ stock.opening.submit,ยืนยันบันทึกสต็อกยก�
 stock.opening.template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
 stock.opening.title,บันทึกสต็อกยกมา
 stock.opening.total,มูลค่ายกมารวม
+stock.print.check,ใบตรวจสอบ
+stock.print.sheet,ใบตรวจนับ
 stock.purpose.damage,ตัดชำรุด / เสียหาย
 stock.purpose.internal_use,เบิกใช้ภายใน
 stock.purpose.label,วัตถุประสงค์

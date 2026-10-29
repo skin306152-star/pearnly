@@ -66,6 +66,7 @@ Add photos,写真を追加
 Add row,明細を追加
 Add terminal,レジを追加
 Add watcher,ウォッチャーを追加
+Added,追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional,追加
@@ -219,6 +220,7 @@ Change members,メンバーを変更
 Chart,グラフ
 Chart by,グラフの軸
 Chassis No,車台番号
+Check sheet,照合表
 Check the opening stock row,この期首明細を確認してください
 Checkbox,チェックボックス
 Checklist,チェックリスト
@@ -318,6 +320,7 @@ Count by,棚卸方法
 Count closed,棚卸を終了しました
 Count products tracked by unit one unit at a time,個体管理の商品は1台ずつ棚卸してください
 Count saved,保存しました
+Count sheet,棚卸表
 Count stock on the web,Webで在庫を数える
 Counted,棚卸済み
 Counted Amount,実地金額
@@ -995,6 +998,7 @@ Querying the Revenue Department...,税務局に照会中…
 Queued,待機中
 Quotation,見積書
 Rate,単価
+Reactivated,再有効化
 Reactivated by stock count {0},棚卸で再有効化 · {0}
 Reading,読み込み中
 Reading the Express account set,Express 帳簿を読み取り中
@@ -2345,6 +2349,9 @@ stock.count.newHint,在庫棚卸：現在の在庫を凍結。取り込み：シ
 stock.count.noEntries,記録なし
 stock.count.note,メモ
 stock.count.notes,備考
+stock.count.origin.added,追加
+stock.count.origin.new,新規発見
+stock.count.origin.reactivated,再有効化
 stock.count.over,過剰
 stock.count.photoInfo,商品・位置・担当者・日時
 stock.count.photos,写真
@@ -2358,6 +2365,7 @@ stock.count.qty,数量
 stock.count.reason,理由
 stock.count.rowDifference,差異あり
 stock.count.rowMatch,一致
+stock.count.rowOrigin,行の由来
 stock.count.rowUncounted,未棚卸
 stock.count.rows,行数
 stock.count.short,不足
@@ -2416,6 +2424,8 @@ stock.opening.submit,期首在庫を確定
 stock.opening.template,期首在庫テンプレートをダウンロード
 stock.opening.title,期首在庫を登録
 stock.opening.total,期首金額合計
+stock.print.check,照合表
+stock.print.sheet,棚卸表
 stock.purpose.damage,破損・廃棄
 stock.purpose.internal_use,社内使用
 stock.purpose.label,用途

@@ -239,3 +239,23 @@ def movements_before(movements, date_from, *, after: bool = True):
         else:
             period.append(movement)
     return before, period
+
+
+COUNT_ONLY = ("counted", "uncounted", "differences")
+
+
+def count_rows(items, *, only="", warehouse="", location=""):
+    """盘点行按「只看 / 仓库 / 库位」筛（差异报表、打印、导出同一口径，用户 10-29 批复）。空 = 不筛这一项。
+    差异按实盘后数量不等算（四舍到 3 位，与盘点合计同一判据）。"""
+    def differs(row):
+        try:
+            return bool(row.get("counted")) and round(float(row.get("difference") or 0), 3) != 0
+        except (TypeError, ValueError):
+            return False
+
+    keep = {"counted": lambda row: bool(row.get("counted")), "uncounted": lambda row: not row.get("counted"),
+            "differences": differs}.get(str(only or "").strip(), lambda row: True)
+    warehouse, location = str(warehouse or "").strip(), str(location or "").strip()
+    return [row for row in items if keep(row)
+            and (not warehouse or row.get("warehouse") == warehouse)
+            and (not location or (row.get("location") or "") == location)]
