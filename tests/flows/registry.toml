@@ -114,6 +114,9 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/work/boards.py",
   "apps/pearnly_cowork/pearnly_cowork/work/service.py",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js",
+]
+
+[[flow]]
 id = "erp.stocktake.new-product"
 title = "ERP 盘点：扫到系统没有的码当场新建商品并记数（盘点菜单做完整 S3）"
 module = "scripts/flows/erp_stocktake_new_product.py"
