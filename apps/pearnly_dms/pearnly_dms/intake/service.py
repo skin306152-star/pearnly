@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from pearnly_dms.intake.customer_diff import SAME_NAME_RATIO, diff_customer_fields, master_name_if_close  # noqa: F401
 from pearnly_dms.line.errors import friendly
 from pearnly_dms.contracts.endpoint import endpoint_name
+from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.adapter.push import build_adapter
 
 logger = logging.getLogger(__name__)
@@ -98,10 +99,14 @@ def recognize_lookup(
     phone: str = "",
     fallback_customer_ids: Optional[List[str]] = None,
     attempt: int = 1,
+    claim: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """识别之后：查客户 + 解析地址级联 + 选项 + 称谓 + 相似候选。
 
     `scenario` 三种：`exact`（证号命中）/ `similar`（按姓名找到候选）/ `none`（都没有）。
+
+    `claim`：操作员在相似候选里选定了一位（`{"customer_id", "fields"}`，`fields` 是候选卡上的现值）。
+    不再按证号找，直接按 `exact` 比对这一位；证号不同也列成差异（认领就是把这张身份证写到这一档）。
     """
 
     def _do(cl, adapter):
@@ -109,7 +114,10 @@ def recognize_lookup(
 
         # 全量快照按完整证号匹配并拒绝歧义；台账候选若未同步到本代，
         # 明确待同步而非新客。这里不按台账号现场读取 DMS。
-        look = cl.lookup_customer(people_id, fallback_customer_ids=fallback_customer_ids)
+        if claim:
+            look = {"found": True, "customer_id": str(claim["customer_id"]), "fields": dict(claim["fields"])}
+        else:
+            look = cl.lookup_customer(people_id, fallback_customer_ids=fallback_customer_ids)
         # A complete immutable local generation is a preview, not authorization
         # to write. Repeating the same snapshot cannot improve freshness.
         prefixes = cl.list_prefixes()
@@ -172,6 +180,9 @@ def recognize_lookup(
             field_diffs = diff_customer_fields(
                 fields, incoming_for_diff(taken_name, addr, resolved, phone)
             )
+            if claim and normalize_thai_id(fields.get("people_id") or "") != normalize_thai_id(people_id):
+                field_diffs.insert(0, {"field": "people_id", "old": str(fields.get("people_id") or ""),
+                                       "new": str(people_id)})
             candidates = [
                 {
                     "customer_id": look["customer_id"],

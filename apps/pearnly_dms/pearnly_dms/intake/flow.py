@@ -183,6 +183,15 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
     # 拒绝的话术**必须说清是缺地址**：2026-09-25 实测里操作员在这里被
     # 「所选项目已不在主档」误导，以为 DMS 那边把数据删了 —— 真实原因只是编辑页里
     # 地址没选全（多半是邮编那格）。缺项照旧不写入，只是改成能照着做的话。
+    # 相似候选里点了某一位 / 点了「新客户」：**先出主档卡**（差异卡 / 新客户卡），确认了才写
+    # （用户 2026-10-29：写主档之前必有主档卡；原来点了就直接写 DMS）。只校验不消费 nonce。
+    if action == cards.ACT_PICK:
+        _claim_review(binding, line_user_id, reply_token, pb, sess)
+        return
+    if action == cards.ACT_CHOOSE_NEW:
+        _new_customer_review(line_user_id, reply_token, pb, sess)
+        return
+
     # 称谓同理（2026-10-29 ris 实案）：写进去的客户档缺称谓、缺户籍地址，DMS 表单校验必拦；
     # 认领 / 更新时 DMS 里空着的先用这次草稿补（`draft.master_gaps`），补不出才交编辑页。
     gap = _write_gap(action, payload, pb)
@@ -242,26 +251,64 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         _enqueue("create", write_create, binding, line_user_id, payload, 1, reply_token)
     elif action == cards.ACT_UPDATE:
         _enqueue("update", write_update, binding, line_user_id, payload, 1, reply_token)
-    elif action == cards.ACT_PICK:
-        cid = pb.get("cid") or ""
-        valid = {str(c.get("customer_id")) for c in (payload.get("candidates") or [])}
-        if cid not in valid:
-            _reply(reply_token, cards.TXT_EXPIRED)
-            return
-        # 相似认领 = 无差异的 overwrite，认领到所选客户号
-        selected = next(c for c in payload["candidates"] if str(c.get("customer_id")) == cid)
-        _enqueue("update", write_update, binding, line_user_id, {**payload, "customer_id": cid,
-                 "customer_baseline": selected.get("baseline")},
-                 1, reply_token)
     else:
         _reply(reply_token, cards.TXT_EXPIRED)
 
 
-def _write_gap(action: str, payload: dict, pb: Dict[str, Any]) -> str:
-    """点「新建 / 更新 / 认领」时，这一笔写进 DMS 的客户档是否缺称谓或户籍地址：缺项码，或空串。
+def _claim_review(binding: dict, line_user_id: str, reply_token: str, pb: Dict[str, Any],
+                  sess: Optional[dict]) -> None:
+    """相似候选里点了某一位：按那一位在 DMS 里的现值出差异卡（证号、补上的称谓 / 地址等逐项列出）。
 
-    新建与更新照旧要求草稿四级地址齐全（原守卫）；新建的称谓只能来自草稿；更新与认领看
-    DMS 现值（`customer_baseline` / 所选候选的 `baseline`），空着的用草稿补得上就不算缺。"""
+    现值用候选卡上那一份（列卡时读到的；同名拒收后列的是当场直读的），与写入时三方合并的基准
+    同一份。只读本地快照，不写 DMS；确认「更新」后才写（与证号命中的老客户同一条路）。"""
+    payload = (sess or {}).get("payload") or {}
+    cid = str(pb.get("cid") or "")
+    selected = next((c for c in payload.get("candidates") or [] if str(c.get("customer_id")) == cid), None)
+    if (not store.verify_nonce(sess, pb.get("nonce"), "reviewing") or selected is None
+            or not isinstance(selected.get("baseline"), dict)):
+        _reply(reply_token, cards.TXT_EXPIRED)
+        return
+    id_card = payload.get("id_card") or {}
+    phone = str(payload.get("phone") or "")
+    ep_name = str(payload.get("endpoint_id") or "")
+    with ocr_timing.stage("local_lookup"):
+        res = dms_intake.recognize_lookup(
+            ep_name,
+            people_id=id_card.get("people_id", ""),
+            name=id_card.get("name") or "",
+            ocr_address=id_card.get("address") or {},
+            phone=phone,
+            claim={"customer_id": cid, "fields": selected["baseline"]},
+        )
+    frappe.db.commit()
+    if not current_binding(binding, line_user_id) or store.get_session(line_user_id) != sess:
+        return
+    if not res.get("ok"):
+        fr = res.get("error_friendly") or {}
+        _push(line_user_id, fr.get(i18n.line_lang()) or cards.TXT_LOOKUP_FAIL, reply_token)
+        return
+    _publish_review(binding, line_user_id, sess, res, id_card=id_card, phone=phone, ep_name=ep_name,
+                    mode=str(payload.get("mode") or ""), id_card_mid=payload.get("id_card_mid"),
+                    reply_token=reply_token, claim=True)
+
+
+def _new_customer_review(line_user_id: str, reply_token: str, pb: Dict[str, Any], sess: Optional[dict]) -> None:
+    """相似候选里点了「新客户」：先出新客户卡（与查无此人时同一张），点「保存新客户」才写。"""
+    payload = (sess or {}).get("payload") or {}
+    if not store.verify_nonce(sess, pb.get("nonce"), "reviewing") or not payload.get("summary"):
+        _reply(reply_token, cards.TXT_EXPIRED)
+        return
+    nonce = secrets.token_hex(8)
+    review = {**{k: v for k, v in payload.items() if k != "candidates"}, "scenario": "none", "nonce": nonce}
+    if store.replace_session_snapshot(line_user_id, sess, "reviewing", review):
+        _send(line_user_id, cards.new_customer_card(payload["summary"], nonce), reply_token)
+
+
+def _write_gap(action: str, payload: dict, pb: Dict[str, Any]) -> str:
+    """点「新建 / 更新」时，这一笔写进 DMS 的客户档是否缺称谓或户籍地址：缺项码，或空串。
+
+    新建与更新照旧要求草稿四级地址齐全（原守卫）；新建的称谓只能来自草稿；更新（含认领后的
+    差异卡）看 DMS 现值（`customer_baseline`），空着的用草稿补得上就不算缺。"""
     d = payload.get("draft") or {}
     if action in {cards.ACT_CREATE, cards.ACT_UPDATE} and any(
         not str(d.get(key) or "").strip()
@@ -270,15 +317,10 @@ def _write_gap(action: str, payload: dict, pb: Dict[str, Any]) -> str:
         return "ERR_DMS_ADDRESS_INCOMPLETE"
     if action == cards.ACT_CREATE:
         return draft.master_gaps(None, d)[1]
-    if action == cards.ACT_UPDATE:
-        baseline = payload.get("customer_baseline")
-    elif action == cards.ACT_PICK:
-        cid = str(pb.get("cid") or "")
-        baseline = next((c.get("baseline") for c in payload.get("candidates") or []
-                         if str(c.get("customer_id")) == cid), None)
-    else:
+    if action != cards.ACT_UPDATE:
         return ""
-    # 没有现值可比（旧会话、候选不在卡上）：不在这里拦，交给下面的守卫与写入层。
+    baseline = payload.get("customer_baseline")
+    # 没有现值可比（旧会话）：不在这里拦，交给下面的守卫与写入层。
     return draft.master_gaps(baseline, d)[1] if isinstance(baseline, dict) else ""
 
 
@@ -448,6 +490,16 @@ def run_dedup(
                     reply_token=reply_token)
         return
 
+    _publish_review(binding, line_user_id, sess, res, id_card=id_card, phone=phone, ep_name=ep_name,
+                    mode=mode, id_card_mid=id_card_mid, reply_token=reply_token)
+
+
+def _publish_review(binding: dict, line_user_id: str, sess: Optional[dict], res: dict, *, id_card: dict,
+                    phone: str, ep_name: str, mode: str, id_card_mid: Any, reply_token: str = "",
+                    claim: bool = False) -> None:
+    """查重结果 → 写主档前的那张卡（新客户卡 / 差异卡 / 资料一致卡）或相似候选，会话进确认态。
+
+    ``claim``：操作员在相似候选里点了某一位（`_claim_review`）——按那一位出差异卡，确认了才写。"""
     scenario = res.get("scenario")
     if res.get("name") and res["name"] != id_card.get("name"):
         # 识别的姓名与主档只差一两个符号 → 按主档（读错一个声调符号不该报成改名）
@@ -475,6 +527,15 @@ def run_dedup(
     elif scenario == "exact":
         payload = {**base, "scenario": "exact_diff", "customer_id": res["match"]["customer_id"],
                    "customer_baseline": dict(res["match"].get("current_fields") or {})}
+        if claim:
+            # 认领：卡上逐项列出这一笔要写进去的——证号，以及 DMS 里空着、用这张身份证补上的
+            # 称谓 / 户籍地址（与写入层 `draft.update_fields` 同一份 `master_gaps`）。
+            listed = {d["field"] for d in field_diffs}
+            current = payload["customer_baseline"]
+            field_diffs = field_diffs + [
+                {"field": key, "old": str(current.get(key) or ""), "new": value}
+                for key, value in draft.master_gaps(current, draft_vals)[0].items()
+                if key not in listed and str(current.get(key) or "") != value]
         if field_diffs:
             master_draft, master_summary = draft.master_snapshot(
                 (res.get("match") or {}).get("current_fields") or {}

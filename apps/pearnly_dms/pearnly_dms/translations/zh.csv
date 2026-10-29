@@ -603,6 +603,7 @@ dms.card.diff.floor,楼层
 dms.card.diff.house_no,门牌号
 dms.card.diff.moo,村组（Moo）
 dms.card.diff.name,姓名
+dms.card.diff.people_id,身份证号
 dms.card.diff.phone,电话
 dms.card.diff.prefix_id,称谓
 dms.card.diff.province_id,府

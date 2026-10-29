@@ -60,6 +60,8 @@ ACT_UPDATE = "update"
 ACT_KEEP = "keep"
 ACT_RESET = "reset"
 ACT_PICK = "pick"
+# 相似候选里的「ลูกค้าใหม่」：先出新客户卡（`ACT_CREATE` 是那张卡上的「保存」）。
+ACT_CHOOSE_NEW = "choose_new"
 ACT_EDIT = "edit"
 ACT_MENU_CUSTOMER = "menu_customer"
 ACT_MENU_BOOKING = "menu_booking"
@@ -83,7 +85,7 @@ ACT_REVIEW_KEEP = "review_keep"
 # 差异卡上的字段名 —— 只列会出现在 diff 里的那些；标签从语言包取
 # 与 `intake/customer_diff._DIFF_FIELDS` 一一对应（楼/层/房/村 2026-09 补进比对后一直没标签，
 # 差异卡上显示成 building / floor / room 原名，用户 2026-09-27 截图）。
-_DIFF_FIELD_NAMES = ("prefix_id", "name", "birthday_be", "phone", "house_no",
+_DIFF_FIELD_NAMES = ("people_id", "prefix_id", "name", "birthday_be", "phone", "house_no",
                      "building", "floor", "room", "village",
                      "moo", "soi", "road", "province_id", "district_id",
                      "subdistrict_id", "zipcode_id")
@@ -348,15 +350,16 @@ def candidates_message(candidates: List[Dict[str, str]], nonce: str) -> Dict[str
     """场景④相似：文案逐行列出候选（码 · 姓名 · 证号尾 4），快捷按钮按序号认领，[ลูกค้าใหม่] 兜底。
 
     按钮标签只放序号与客户代码（LINE 限 20 个字），完整信息在文案里。人工认领。
+    点哪一个都**先出主档卡**（序号 → 差异卡，ลูกค้าใหม่ → 新客户卡），确认了才写 DMS。
     """
     lines, actions = _candidate_rows(candidates, nonce)
     new = _t("BTN_NEW_CUSTOMER")
-    actions.append({"type": "postback", "label": new, "data": _data(ACT_CREATE, nonce=nonce), "displayText": new})
+    actions.append({"type": "postback", "label": new, "data": _data(ACT_CHOOSE_NEW, nonce=nonce), "displayText": new})
     return _text_with_buttons("\n".join([_t("TXT_CANDIDATES_HEAD"), *lines]), actions)
 
 
 def name_taken_message(candidates: List[Dict[str, str]], nonce: str, notice: str) -> Dict[str, Any]:
-    """新建被 DMS 以同名拒收：列出 DMS 里同名的那几位，按序号认领（同相似候选）。
+    """新建被 DMS 以同名拒收：列出 DMS 里同名的那几位，按序号认领（同相似候选，先出差异卡）。
 
     不给「ลูกค้าใหม่」—— DMS 不收同名，再点一次还是同样被拒；确实是另一个人时用「แก้ไข」改名。
     """

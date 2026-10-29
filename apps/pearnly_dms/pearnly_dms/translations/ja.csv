@@ -603,6 +603,7 @@ dms.card.diff.floor,階
 dms.card.diff.house_no,番地
 dms.card.diff.moo,ムー
 dms.card.diff.name,氏名
+dms.card.diff.people_id,身分証番号
 dms.card.diff.phone,電話番号
 dms.card.diff.prefix_id,敬称
 dms.card.diff.province_id,県

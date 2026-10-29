@@ -216,6 +216,7 @@ Village	村（小区）	หมู่บ้าน	村	dms.card.diff.village
 Moo	村组（Moo）	หมู่	ムー	dms.card.diff.moo
 Name	姓名	ชื่อ	氏名	dms.card.diff.name
 Phone	电话	เบอร์โทรศัพท์	電話番号	dms.card.diff.phone
+ID number	身份证号	เลขบัตรประชาชน	身分証番号	dms.card.diff.people_id
 Title	称谓	คำนำหน้า	敬称	dms.card.diff.prefix_id
 Province	府	จังหวัด	県	dms.card.diff.province_id
 Road	路	ถนน	通り	dms.card.diff.road

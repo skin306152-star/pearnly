@@ -603,6 +603,7 @@ dms.card.diff.floor,ชั้น
 dms.card.diff.house_no,บ้านเลขที่
 dms.card.diff.moo,หมู่
 dms.card.diff.name,ชื่อ
+dms.card.diff.people_id,เลขบัตรประชาชน
 dms.card.diff.phone,เบอร์โทรศัพท์
 dms.card.diff.prefix_id,คำนำหน้า
 dms.card.diff.province_id,จังหวัด

@@ -603,6 +603,7 @@ dms.card.diff.floor,Floor
 dms.card.diff.house_no,House no.
 dms.card.diff.moo,Moo
 dms.card.diff.name,Name
+dms.card.diff.people_id,ID number
 dms.card.diff.phone,Phone
 dms.card.diff.prefix_id,Title
 dms.card.diff.province_id,Province

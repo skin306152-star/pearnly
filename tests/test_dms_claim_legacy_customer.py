@@ -200,12 +200,68 @@ class MasterGaps(unittest.TestCase):
                          "ERR_DMS_ADDRESS_INCOMPLETE")
 
 
+class ClaimLookup(unittest.TestCase):
+    """``recognize_lookup(claim=...)``: the operator picked a candidate; compare the card with that record."""
+
+    snapshot = _reconcile["Reconcile"].snapshot
+    session = _reconcile["Reconcile"].session
+
+    def setUp(self):
+        _reconcile["Reconcile"].setUp(self)
+        import types
+        sys.modules["pearnly_dms.adapter.snapshot_writeback"].with_customer_detail = lambda endpoint, fn: fn()
+        resolved = types.SimpleNamespace(province_id="P", district_id="D", subdistrict_id="S", zipcode_id="Z")
+        test = self
+
+        class Directory:
+            def __init__(self, endpoint):
+                test.assertEqual(endpoint, EP)
+
+            def lookup_customer(self, *args, **kwargs):
+                raise AssertionError("a picked candidate is not looked up by ID again")
+
+            def search_customers_detailed(self, *args, **kwargs):
+                raise AssertionError("a picked candidate is not searched by name again")
+
+            list_prefixes = staticmethod(lambda: [["17", "นาย"]])
+            resolve_address = staticmethod(lambda addr: resolved)
+            list_geo = staticmethod(lambda level, parent="": [[{"provinces": "P", "districts": "D",
+                                                                 "subdistricts": "S", "zipcodes": "Z"}[level], level]])
+            metadata = staticmethod(lambda: {})
+
+        fake = types.ModuleType("pearnly_dms.snapshots.directory")
+        fake.Directory = Directory
+        modules = patch.dict(sys.modules, {"pearnly_dms.snapshots.directory": fake})
+        modules.start()
+        self.addCleanup(modules.stop)
+
+    def lookup(self, current):
+        address = {"house_no": "9/9", "moo": "4", "province": "p", "district": "d", "subdistrict": "s", "zipcode": "z"}
+        return self.service.recognize_lookup(EP, people_id=PID, name=NAME, ocr_address=address, phone="",
+                                             claim={"customer_id": "6062", "fields": current})
+
+    def test_picked_record_without_id_lists_the_id_and_its_empty_address(self):
+        current = {"name": NAME, "people_id": "", "prefix_id": "", "house_no": "", "province_id": "",
+                   "district_id": "", "subdistrict_id": "", "zipcode_id": ""}
+        res = self.lookup(current)
+        self.assertEqual((res["scenario"], res["match"]["customer_id"], res["match"]["current_fields"]),
+                         ("exact", "6062", current))
+        self.assertEqual(res["field_diffs"][0], {"field": "people_id", "old": "", "new": PID})
+        self.assertEqual({d["field"] for d in res["field_diffs"][1:]},
+                         {"house_no", "moo", "province_id", "district_id", "subdistrict_id", "zipcode_id"})
+
+    def test_picked_record_with_another_id_shows_that_id_being_replaced(self):
+        res = self.lookup({"name": NAME, "people_id": identity["OTHER"], "province_id": "P", "district_id": "D",
+                           "subdistrict_id": "S", "zipcode_id": "Z", "house_no": "9/9", "moo": "4"})
+        self.assertEqual(res["field_diffs"], [{"field": "people_id", "old": identity["OTHER"], "new": PID}])
+
+
 class NoNetwork(unittest.TestCase):
     def test_suite_uses_no_network(self):
         with patch.object(socket, "socket", side_effect=AssertionError("network used")):
             suite = unittest.TestSuite()
             loader = unittest.TestLoader()
-            for case in (ClaimLegacy, MasterGaps):
+            for case in (ClaimLegacy, MasterGaps, ClaimLookup):
                 suite.addTests(loader.loadTestsFromTestCase(case))
             result = unittest.TextTestRunner(verbosity=0, stream=open("/dev/null", "w")).run(suite)
         self.assertTrue(result.wasSuccessful())

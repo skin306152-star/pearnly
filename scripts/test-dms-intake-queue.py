@@ -384,10 +384,34 @@ class IntakeQueue(unittest.TestCase):
     def quick_actions(self, message):
         return [item["action"] for item in message["quickReply"]["items"]]
 
-    def test_claiming_a_legacy_record_writes_its_empty_title_and_address_from_this_card(self):
+    def claim_card(self, payload, token="reply-pick"):
+        """Tap candidate 1: the lookup compares the ID card with that record (``claim``), nothing is written."""
+        self.lookup.return_value = {
+            **copy.deepcopy(SUCCESS), "scenario": "exact", "prefixes": self.lookup.return_value["prefixes"],
+            "match": {"found": True, "customer_id": "legacy-customer", "current_fields": copy.deepcopy(LEGACY)},
+            "field_diffs": [{"field": "people_id", "old": "", "new": CARD["people_id"]}]
+            + [{"field": key, "old": "", "new": value} for key, value in GEO.items()]}
+        self.event(action=self.cards.ACT_PICK, nonce=payload["nonce"], cid="legacy-customer", token=token)
+        self.assertFalse(self.jobs)
+        self.push_fields.assert_not_called()
+        self.assertEqual(self.lookup.call_args.kwargs["claim"],
+                         {"customer_id": "legacy-customer", "fields": LEGACY})
+        return self.store.get_session(LINE_USER)
+
+    def test_picking_a_legacy_record_shows_its_master_card_and_only_update_writes(self):
         payload = self.review_similar()
+        sess = self.claim_card(payload)
+        review = sess["payload"]
+        # 2026-10-29: tapping a candidate wrote DMS at once; the master card comes first now.
+        self.assertEqual((sess["state"], review["scenario"], review["customer_id"], review["customer_baseline"]),
+                         ("reviewing", "exact_diff", "legacy-customer", LEGACY))
+        self.assertNotEqual(review["nonce"], payload["nonce"])
+        self.assertEqual([d["field"] for d in review["field_diffs"]],
+                         ["people_id", *GEO, "prefix_id"])  # what the update will write, title included
+        kind, body = self.messages()[-1]
+        self.assertEqual((kind, body["replyToken"], body["messages"][0]["type"]), ("reply", "reply-pick", "flex"))
         self.push_fields.return_value = {"success": True, "customer_id": "legacy-customer", "mode": "overwrite"}
-        self.event(action=self.cards.ACT_PICK, nonce=payload["nonce"], cid="legacy-customer", token="reply-pick")
+        self.event(action=self.cards.ACT_UPDATE, nonce=review["nonce"], token="reply-update")
         self.assertEqual(self.jobs[0][1]["target"], "pearnly_dms.intake.flow.write_update")
         self.worker()
         kwargs = self.push_fields.call_args.kwargs
@@ -397,20 +421,40 @@ class IntakeQueue(unittest.TestCase):
         self.assertEqual(kwargs["fields"], {"people_id": CARD["people_id"], "name": CARD["name"],
                                             "prefix_id": "17", **GEO})
 
+    def test_choosing_new_customer_shows_the_new_customer_card_and_only_save_writes(self):
+        payload = self.review_similar()
+        message = self.messages()[-1][1]["messages"][0]
+        new = self.quick_actions(message)[-1]
+        self.assertEqual(parse_qs(new["data"]), {"action": [self.cards.ACT_CHOOSE_NEW], "nonce": [payload["nonce"]]})
+        self.event(action=self.cards.ACT_CHOOSE_NEW, nonce=payload["nonce"], token="reply-new")
+        self.assertFalse(self.jobs)
+        self.push_fields.assert_not_called()
+        sess = self.store.get_session(LINE_USER)
+        self.assertEqual((sess["state"], sess["payload"]["scenario"]), ("reviewing", "none"))
+        self.assertNotIn("candidates", sess["payload"])
+        self.assertEqual(sess["payload"]["draft"], payload["draft"])
+        kind, body = self.messages()[-1]
+        self.assertEqual((kind, body["replyToken"], body["messages"][0]["type"]), ("reply", "reply-new", "flex"))
+        self.event(action=self.cards.ACT_CHOOSE_NEW, nonce=payload["nonce"], token="reply-stale")  # old card
+        self.assertEqual(self.messages()[-1][1]["messages"], [{"type": "text", "text": self.cards.TXT_EXPIRED}])
+        self.event(action=self.cards.ACT_CREATE, nonce=sess["payload"]["nonce"], token="reply-save")
+        self.assertEqual(self.jobs[0][1]["target"], "pearnly_dms.intake.flow.write_create")
+
     def test_claim_that_cannot_be_filled_opens_the_edit_page_without_writing(self):
         payload = self.review_similar(prefixes=())  # the card's title is not on the DMS masters
+        review = self.claim_card(payload)["payload"]
         before = self.store.get_session(LINE_USER)
-        self.event(action=self.cards.ACT_PICK, nonce=payload["nonce"], cid="legacy-customer", token="reply-pick")
+        self.event(action=self.cards.ACT_UPDATE, nonce=review["nonce"], token="reply-update")
         self.assertFalse(self.jobs)
         self.push_fields.assert_not_called()
         self.assertEqual(self.store.get_session(LINE_USER), before)  # nonce kept for the edit page
         kind, body = self.messages()[-1]
-        self.assertEqual((kind, body["replyToken"]), ("reply", "reply-pick"))
+        self.assertEqual((kind, body["replyToken"]), ("reply", "reply-update"))
         message = body["messages"][0]
         self.assertEqual(message["text"], self.flow.dms_intake.friendly("ERR_DMS_PREFIX_MISSING", lang="th"))
         [button] = self.quick_actions(message)
         self.assertEqual(button["type"], "uri")
-        self.assertIn(payload["nonce"], button["uri"])
+        self.assertIn(review["nonce"], button["uri"])
         self.assertIn("editor=customer", button["uri"])
 
     def test_name_refused_by_dms_lists_the_same_name_holders_and_claiming_one_writes(self):
@@ -434,10 +478,11 @@ class IntakeQueue(unittest.TestCase):
                                                   "cid": ["legacy-customer"]})
         self.assertEqual(edit["type"], "uri")  # a different person of the same name: rename it there
         self.assertNotIn(self.flow.dms_intake.friendly("ERR_DMS_CUSTOMER_SAVE", lang="th"), str(body))
-        # Candidate 1 is claimed through the same path as the similar-customer card.
+        # Candidate 1 goes through the same master card as the similar-customer list.
         self.push_fields.reset_mock()
+        review = self.claim_card(sess["payload"])["payload"]
         self.push_fields.return_value = {"success": True, "customer_id": "legacy-customer", "mode": "overwrite"}
-        self.event(action=self.cards.ACT_PICK, nonce=nonce, cid="legacy-customer", token="reply-pick")
+        self.event(action=self.cards.ACT_UPDATE, nonce=review["nonce"], token="reply-update")
         self.worker()
         kwargs = self.push_fields.call_args.kwargs
         self.assertEqual((kwargs["customer_id"], kwargs["fields"]["prefix_id"]), ("legacy-customer", "17"))
