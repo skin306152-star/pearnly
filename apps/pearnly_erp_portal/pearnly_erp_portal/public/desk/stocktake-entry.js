@@ -239,6 +239,7 @@
 			if (busy || selected || closed || (!code && !product)) return;
 			busy = true; scanner?.pause();
 			d.set_df_property("new_product", "hidden", 1);
+			d.fields_dict.message.$wrapper.empty();  // 上一件的提示（已保存 / 查不到）查下一件时清掉，查不到再写上（验收 10-29）
 			try {
 				lookup = await p.call(api + "api_stock_count_lookup", { count, code: code || undefined, product });
 				if (closed) return;

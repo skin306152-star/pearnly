@@ -76,6 +76,16 @@ const polymer = (extra = {}) => ({
     assert.deepEqual(f.sounds, [true]);
     assert.deepEqual(f.errors, []);
   }
+  // 查到下一件时清掉上一件的提示（验收 10-29：查不到 / 已保存那句一直留着）；编码栏带出这件的编码（S2）
+  {
+    const f = fixture({ lookups: [Object.assign(new Error('not found'), { status: 417 }), polymer()] });
+    await f.open();
+    await f.scan('NOPE-1');
+    assert.equal(f.message(), 'stock.workbench.lookupFailed');
+    await f.scan('TC001167');
+    assert.equal(f.message(), '', '上一件的提示要清掉');
+    assert.equal(f.values.product_code, 'P-000002');
+  }
   // 按台管理、这个仓一台都没登记：说清是哪件商品、为什么录不了；读码器跳过这个码（不反复查）
   {
     const f = fixture({ lookups: [polymer({ track_serial: true, units: [] })] });
