@@ -139,7 +139,7 @@ def _product(row, catalog, company=None):
     product = matched[0]
     if not product.is_active:
         raise ValueError("Product is disabled")
-    if product.get("track_serial"):
+    if product.get("track_serial") and companies.unit_tracking(company):
         raise ValueError(TRACKED)  # 按台管理的商品期初走「按台期初登记」（`inventory.serials.turn_on`）
     return product
 

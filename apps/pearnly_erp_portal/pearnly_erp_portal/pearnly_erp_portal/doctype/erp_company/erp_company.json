@@ -20,12 +20,14 @@
   "fiscal_year_start_month",
   "is_default",
   "is_active",
+  "company_type",
   "section_pos",
   "pos_enabled",
   "payment_methods",
   "address",
   "note",
   "express_section",
+  "express_enabled",
   "express_book",
   "express_synced_at",
   "express_pos_from",
@@ -222,11 +224,24 @@
    "read_only": 1,
    "hidden": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "company_type",
+   "fieldtype": "Select",
+   "label": "Company type",
+   "options": "general\nvehicle\ndevice",
+   "default": "general"
+  },
+  {
+   "fieldname": "express_enabled",
+   "fieldtype": "Check",
+   "label": "Express",
+   "default": "0"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-26 03:00:00.000000",
+ "modified": "2026-10-29 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,

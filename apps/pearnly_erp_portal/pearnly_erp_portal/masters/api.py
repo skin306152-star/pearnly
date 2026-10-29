@@ -103,6 +103,11 @@ def api_update_company(**kwargs):
     return company.update_company(kwargs.pop("name", None), **kwargs)
 
 
+@frappe.whitelist(methods=["POST"])
+def api_disconnect_express(name=None, **kwargs):
+    return company.disconnect_express(name)
+
+
 # ── 客户 ────────────────────────────────────────────────────────────────────
 
 

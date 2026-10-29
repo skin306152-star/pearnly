@@ -111,7 +111,9 @@ def _uncounted_units(name, items) -> dict:
     """按台管理的商品：``{(商品, 仓, 库位): [这份盘点没扫到的在库台的主号]}``。"""
     from pearnly_erp_portal.inventory import serials
 
-    tracked = serials.tracked(row["product"] for row in items)
+    from pearnly_erp_portal.inventory import count as counts
+
+    tracked = serials.tracked((row["product"] for row in items), counts.count_company(name))
     if not tracked:
         return {}
     scanned = {"count": name, "voided": 0, "serial": ["is", "set"]}

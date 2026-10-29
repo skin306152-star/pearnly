@@ -81,6 +81,10 @@
 	// 当前公司接了 Express（启动数据里当前那家带 `express_linked`）：仓库由 Express 主档同步来、期初从 Express 读回，
 	// ERP 里不给新建仓、不录期初（服务端同样拒，多仓闭环 P1）
 	p.express_company = () => Boolean((frappe.boot.pearnly_companies || []).find(row => row.is_current)?.express_linked);
+	// 当前公司的类型（用户 10-29）：汽车 / 手机电器按台管理，普通公司不出按台的格子与弹窗（服务端 `companies.unit_tracking` 同一口径）
+	const UNIT_KINDS = { vehicle: "vehicle", device: "device" };
+	p.unit_kind = () => UNIT_KINDS[(frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_type] || "";
+	p.unit_tracking = () => Boolean(p.unit_kind());
 	p.terminal_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});

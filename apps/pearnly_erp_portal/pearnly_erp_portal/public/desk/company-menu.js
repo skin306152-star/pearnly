@@ -90,6 +90,8 @@
 		const context = await p.call(api + "api_company_context");
 		frappe.boot.pearnly_companies = context.companies || [];
 		frappe.boot.pearnly_company = context.current || "";
+		// 当前公司接没接 Express（启动数据同一口径 `boot._express_linked`）：改了「接 Express」不用刷新页面
+		frappe.boot.pearnly_express = Boolean(frappe.boot.pearnly_companies.find(row => row.is_current)?.express_linked);
 		const title = p.header_title();
 		if (!title) return;
 		const header = $(".sidebar-header");

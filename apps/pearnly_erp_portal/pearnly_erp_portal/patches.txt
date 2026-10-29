@@ -36,3 +36,5 @@ pearnly_erp_portal.patches.v1_14_pos_day_start
 pearnly_erp_portal.patches.v1_15_pos_receipt_vat
 # 采购单不再有「采购订单」：已有的单改成进货单，打印格式记录删掉（用户 10-28）
 pearnly_erp_portal.patches.v1_16_retire_purchase_order
+# 公司设定：已连 Express 的公司设为「接 Express」，类型默认普通（用户 10-29）
+pearnly_erp_portal.patches.v1_17_company_settings

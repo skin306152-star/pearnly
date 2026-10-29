@@ -284,6 +284,7 @@ Company,บริษัท
 Company details,ข้อมูลบริษัท
 Company name,ชื่อบริษัท
 Company not found,ไม่พบบริษัทนี้
+Company type,ประเภทบริษัท
 Complete,เสร็จ
 Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
@@ -404,6 +405,8 @@ Disabled,ปิดใช้งาน
 Discard,ทิ้ง
 Discard Reason,เหตุผลที่ทิ้ง
 Discarded,ทิ้งรายการแล้ว
+Disconnect,ยกเลิกการเชื่อมต่อ
+Disconnect Express first,กรุณายกเลิกการเชื่อมต่อ Express ก่อน
 Discount,ส่วนลด
 Discount (%),ส่วนลด (%)
 Discount Amount,ยอดส่วนลด
@@ -901,6 +904,7 @@ Period,ช่วงเวลา
 Person,บุคคล
 Phone,โทรศัพท์
 Phone Number,เบอร์โทรศัพท์
+Phones and appliances,มือถือและเครื่องใช้ไฟฟ้า
 Photos,รูปภาพ
 Pick a line first,กรุณาเลือกรายการก่อน
 Pick a warehouse,กรุณาเลือกคลังสินค้า
@@ -1493,6 +1497,7 @@ Upload a sheet,อัปโหลดไฟล์
 "Upload an invoice, then review the recognized details.",อัปโหลดใบกำกับภาษี แล้วตรวจทานและแก้ไขข้อมูลที่อ่านได้
 Upload and Recognize,อัปโหลดและอ่านเอกสาร
 Upload and recognise,อัปโหลดเอกสาร
+Use Express,ใช้ Express
 Use a valid opening date that is not in the future,กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้
 Use an XLSX opening stock file,กรุณาใช้ไฟล์สต็อกยกมารูปแบบ XLSX
 Use one worksheet for opening stock,ไฟล์สต็อกยกมาต้องมีแผ่นงานเพียงแผ่นเดียว
@@ -1514,6 +1519,7 @@ VAT applies,คิด VAT
 Value,มูลค่า
 Value Change,มูลค่าที่เปลี่ยนแปลง
 Vehicle,รถยนต์
+Vehicles,รถยนต์
 Visibility,การมองเห็น
 Void Reason,เหตุผลการยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
@@ -1620,14 +1626,17 @@ company.col.warehouse,ชื่อคลังสินค้า
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 company.enable,เปิดใช้งาน
+company.express.disconnect,ยกเลิกการเชื่อมต่อ
 company.express.locationsTotal,รวมทุกคลัง
 company.express.stockDifferences,สต็อกใน Express ไม่ตรงกัน
 company.field.address,ที่อยู่
 company.field.branch,สาขา
 company.field.company,บริษัท
+company.field.companyType,ประเภทบริษัท
 company.field.contactEmail,อีเมลติดต่อ
 company.field.contactPerson,ผู้ติดต่อ
 company.field.docPrefix,คำนำหน้าเอกสาร
+company.field.expressEnabled,ใช้ Express
 company.field.fiscalYearStart,เดือนเริ่มปีบัญชี
 company.field.name,ชื่อบริษัท
 company.field.note,หมายเหตุ
@@ -1692,6 +1701,9 @@ company.terminalEdit,แก้ไข
 company.terminalNew,เพิ่มเครื่องขาย
 company.terminalNone,ยังไม่มีเครื่องขาย
 company.terminalsHint,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
+company.type.device,มือถือและเครื่องใช้ไฟฟ้า
+company.type.general,ทั่วไป
+company.type.vehicle,รถยนต์
 company.warehouseCompanyHint,คลังนี้อยู่ในบริษัทด้านบน
 company.warehouseDefaultName,คลังหลัก
 company.warehouseHint,คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)

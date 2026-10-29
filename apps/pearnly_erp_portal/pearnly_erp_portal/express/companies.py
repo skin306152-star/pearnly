@@ -66,8 +66,9 @@ def ensure():
     companies = frappe.get_all(COMPANY, fields=["name", "tax_id", "branch"], limit_page_length=0)
     made = []
     for tax, branch, name in missing(groups(rows), companies):
+        # 按账套建的公司就是接了 Express 的（用户 10-29：已连 Express 的公司设为「接 Express」，类型默认普通）
         doc = frappe.get_doc({"doctype": COMPANY, "company_name": name[:200], "tax_id": tax, "branch": branch,
-                              "is_active": 1, "pos_enabled": 0})
+                              "is_active": 1, "pos_enabled": 0, "express_enabled": 1, "company_type": "general"})
         doc.insert(ignore_permissions=True)
         # 先给一个仓（同开户建公司）：首次同步前就能开单；同步时这个仓按 Express 的主仓码认领（`masters._warehouses`）
         warehouses.ensure_for_company(doc.name, "Main")

@@ -95,6 +95,8 @@
 		/** 提交前：`lines` 里按台管理的商品逐行弹出登记 / 选择，台记在行的 `serials` 上。取消回 null（调用方别提交）。
 		 * `mode` 是 register / pick / return 或按行给的函数；`filters` 给选台下拉（比如 `{warehouse}`）。 */
 		async collect(lines, { mode = "pick", filters } = {}) {
+			// 普通公司不按台（用户 10-29）：不弹登记 / 选台，服务端同样不要台
+			if (!p.unit_tracking()) return lines;
 			for (const line of lines || []) {
 				if (!line?.product) continue;
 				const item = await product(line.product);

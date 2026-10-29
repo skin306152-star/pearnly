@@ -57,9 +57,12 @@ def tail(serial_no) -> str:
     return serial_no.upper()[-TAIL:]
 
 
-def tracked(products) -> set:
+def tracked(products, company) -> set:
+    """这几件里按台管理的：只在按台的公司（汽车 / 手机电器类型，`companies.unit_tracking`）才算；普通公司一律空。"""
+    from pearnly_erp_portal.masters import company as companies
+
     names = sorted({name for name in products if name})
-    if not names:
+    if not names or not companies.unit_tracking(company):
         return set()
     return set(frappe.get_all(PRODUCT, filters={"name": ["in", names], "track_serial": 1}, pluck="name",  # bounded: 这张单的商品
                               limit_page_length=len(names)))
@@ -120,7 +123,7 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
     ``positions.prepare``（有仓、库位）；每行的 ``serials`` 是 ``[{serial} | {serial_no, secondary_no, color}]``。"""
     if ref_type == COUNT_REF:
         return
-    products = tracked(line.get("product") for line in lines)
+    products = tracked((line.get("product") for line in lines), company)
     if not products:
         return
     if movement_type not in IN_TYPES + OUT_TYPES:
@@ -316,10 +319,10 @@ def turn_off(product):
     return {"name": product, "track_serial": 0}
 
 
-def refund_picks(original, product, qty, picks=None) -> list:
+def refund_picks(original, product, qty, picks=None, *, company=None) -> list:
     """收银退货这一行退回的台：只能是原小票卖出、现在还是已售的那几台（同车型）。页面没选就按原小票卖出的顺序取够数量；
     不开按台的商品回空。"""
-    if product not in tracked([product]):
+    if product not in tracked([product], company):
         return []
     sold = frappe.get_all(DOCTYPE, filters={"out_ref": original, "product": product, "status": SOLD},  # bounded: 一张小票卖出的台
                           pluck="name", order_by="modified asc", limit_page_length=0)

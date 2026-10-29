@@ -102,3 +102,50 @@
 | erp.products.find-by-code | 通过（扫码填物料走它） |
 
 实验室注意：改了 Python 后要重启网页容器（gunicorn 不自动重载），否则页面拿到的是旧接口结果。
+
+## S0 公司类型与接 Express（前置）
+
+**改动**
+- `ERP Company` 加两栏：「公司类型」（普通 / 汽车 / 手机电器，默认普通）、「接 Express」（默认不勾）。补丁 `v1_17_company_settings`：
+  记着 Express 账套（`express_book`）或 CC 桌面版报过它账套的公司自动勾「接 Express」，类型一律普通；按账套自动建的公司建时就勾上。
+- 接 Express 的统一判断 `express.push.linked` = 勾了「接 Express」且已连上（`push.connected`：CC 桌面版报过这家公司税号 + 分店的账套）。
+  推送、主档同步、收银日汇总、采购 / 销售自动建档归属、仓库新建限制、期初限制、打印里的 Express 判断都走它，不勾就是普通 ERP。
+  页面上的 Express 列 / 按钮（启动数据 `pearnly_express`）改成**当前公司**接没接，不再是整个站点有没有账套。
+- 已连上的公司不能直接取消（服务端拒「请先断开 Express」），公司页给「断开」（`api_disconnect_express`：只把这家公司的「接 Express」关掉，
+  已写进 Express 的单和本地数据都不动）；勾了未连上只显示「CC 桌面版未连接」和「下载 CC 桌面版」。
+- 按台管理只对汽车 / 手机电器类型的公司生效（`companies.unit_tracking`）：服务端 `serials.tracked(products, company)`（入出库 / 采购 / 销售 /
+  收银登记与选台、收银退货退台、库存调整拦截、盘点差异报表「没盘到的台」）、盘点认码与逐台要求（`count.per_unit`）、期初拦截都按公司；
+  页面上新建 / 编辑物料的「按台管理」两格、「按台记录」按钮、提交前选台弹窗（`p.serials.collect`）都按当前公司类型出现。
+  普通公司下商品的按台标志与已登记的台**都不动**，改回汽车照旧生效。
+- 新文案 7 条（公司类型、普通、汽车、手机电器、接 Express、断开、请先断开 Express），复用已有「CC 桌面版未连接」「下载 CC 桌面版」。
+
+**验证**
+
+| 检查 | 结果 |
+|---|---|
+| 老数据：迁移后记着账套的乙公司「接 Express」= 勾、类型普通；甲公司不勾 | 通过 |
+| 新开户：默认普通、不接；按台商品在普通公司按数量入 6 号仓 2 件（不要台），商品标志与台数不变；启动数据当前公司类型普通、未接 | 通过 |
+| 新开户：普通公司盘点按台商品不要求逐台、记 2 件，过账后 6 号仓 = 2 | 通过 |
+| 改成汽车：同一商品入库不给台被拒、盘点要逐台；改回普通照常入库，台数不变 | 通过 |
+| 勾「接 Express」未连上：资料页 `express_connected=false`、无同步；采购单不排 Express | 通过 |
+| 模拟 CC 报上账套：连上、启动数据接了；采购单排队写 Express；此时取消「接 Express」被拒；断开后不再排队 | 通过 |
+| 页面：普通 / 不接 → 公司页有「公司类型」= 普通、「接 Express」，无断开 / 下载；新建物料无按台两格 | 通过 |
+| 页面：接了未连上 → 公司页「CC 桌面版未连接」+「下载 CC 桌面版」，无断开 | 通过 |
+| 页面：汽车（未接）→ 新建物料有「按台管理」「号码种类」；汽车且已连上 → 公司页有「断开」「同步 Express」，无下载 | 通过 |
+| `tests/test_erp_boot_items.py`（加当前公司口径一条）、`tests/test_erp_serials.py` | 通过 |
+
+**连带回归**（erp-transactions 21、erp-company-menu 4、erp-count-code 1 及 Express / 按台入口）
+
+| 入口 | 结果 |
+|---|---|
+| erp.page.company、erp.company-menu | 通过（公司资料三种状态；保存后 `refresh_company_context` 同时刷新当前公司接没接 Express） |
+| erp.page.products、erp.products.new-dialog.* | 通过（按台两格按公司类型出现 / 不出现） |
+| erp.serials.dialog | 通过（服务端：汽车公司不给台被拒、普通公司不要台）；页面弹窗前端同一判断，未逐个单据点弹窗 |
+| erp.stock-count.code、erp.report.stock-count-variance | 通过（普通公司不按台认码；报表按盘点公司判断） |
+| erp.page.stock-in / stock-out、erp.detail.* | S6 已测；本步只加了按台按公司判断 |
+| erp.cc.write / erp.cc.connect / erp.cc.pos-day / erp.cc.stock-void | 服务端「排不排 Express」三种状态通过；实验室无 CC，真写 Express 没测到 |
+| erp.warehouses.express-new-hidden、erp.inventory.opening.row-warehouse、erp.place.header | 走同一个 `linked`；未接的公司不再被当成 Express 公司（生产已连的公司由补丁自动勾上，行为不变） |
+| 其余（导出、附件、扫码、导入、团队页、库存汇总排序等） | 本步不改这些代码路径 |
+
+**对生产的影响**：生产已连 Express 的公司（testerp 62 家记着账套）由补丁自动勾上，推送 / 同步不变；没连的公司本来就不推送。
+之后手工新建、但 CC 桌面版报过账套的公司，要在公司页勾「接 Express」才开始推送（按批复：不勾就是普通 ERP）。

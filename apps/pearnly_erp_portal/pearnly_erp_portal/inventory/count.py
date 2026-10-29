@@ -25,6 +25,7 @@ from frappe.utils import flt, now
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.inventory import stock as stock_service
 from pearnly_erp_portal.inventory import count_live, count_state, documents as stock_documents, positions, warehouses
 # 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
@@ -105,10 +106,18 @@ UNIT_BY_UNIT = "Count products tracked by unit one unit at a time"
 UNIT_COUNTED = "This unit has been counted"
 
 
+def per_unit(product, company) -> bool:
+    """这件商品在这家公司按台盘：商品开了按台、公司是按台的类型（普通公司一律按数量盘，用户 10-29）。"""
+    return bool(product and product.get("track_serial")) and companies.unit_tracking(company)
+
+
 def unit_of_code(code, company):
-    """盘点扫到的号是不是一台在库的车（按台管理，`inventory.serials.lookup`）：认到唯一一台回它，认不到回 None，认出几台报错让人挑。"""
+    """盘点扫到的号是不是一台在库的车（按台管理，`inventory.serials.lookup`）：认到唯一一台回它，认不到回 None，认出几台报错让人挑。
+    普通公司不按号认台。"""
     from pearnly_erp_portal.inventory import serials
 
+    if not companies.unit_tracking(company):
+        return None
     units = serials.lookup(code, company, statuses=(serials.IN_STOCK,))
     if len(units) > 1:
         frappe.throw(_("Several matches found for {0}. Please select a record.").format(code))
@@ -120,7 +129,7 @@ def _scanned(code, product, serial, company):
     from pearnly_erp_portal.inventory import serials
 
     unit = None
-    if serial:
+    if serial and companies.unit_tracking(company):
         unit = frappe.db.get_value(serials.DOCTYPE, {"name": serial, "company": company, "status": serials.IN_STOCK},
                                    ["name", "product", "serial_no", "secondary_no", "color", "warehouse", "location"], as_dict=True)
         if not unit:
@@ -136,7 +145,7 @@ def _scanned(code, product, serial, company):
         found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
-    if found.get("track_serial") and not unit:
+    if per_unit(found, company) and not unit:
         frappe.throw(_(UNIT_BY_UNIT))
     return found, unit
 
@@ -846,8 +855,8 @@ def lookup_count(*, count, code=None, product=None):
             "recorded": recorded_entries(count, [r["name"] for r in rows]),
             "stock_token": count_state.stock_token(found['name']),
             "warehouse_name": _warehouse_label(task.warehouse),
-            "track_serial": bool(found.get("track_serial")), "unit": dict(unit) if unit else None,
-            "units": units_here(count, found["name"]) if found.get("track_serial") else []}
+            "track_serial": per_unit(found, company), "unit": dict(unit) if unit else None,
+            "units": units_here(count, found["name"]) if per_unit(found, company) else []}
 
 
 def units_here(count, product) -> list:
@@ -911,7 +920,8 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
         if row['count'] != count:
             frappe.throw(_(ITEM_NOT_FOUND))
         product_id = row['product']
-        if code or serial or frappe.db.get_value(PRODUCT, product_id, "track_serial"):
+        if code or serial or per_unit(frappe.db.get_value(PRODUCT, product_id, ["track_serial"], as_dict=True),
+                                      count_company(count)):
             found, unit = _scanned(code, product_id, serial, count_company(count))
             if found["name"] != product_id:
                 frappe.throw(_(CODE_NOT_FOUND))

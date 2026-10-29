@@ -124,11 +124,14 @@
 				{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
 					default: value("min_stock") },
 				{ fieldtype: "Section Break" },
-				// 按台管理（车辆按台，主会话 10-26）：有库存时打开要先按台期初登记（`open_serial_opening`）
-				{ fieldtype: "Check", fieldname: "track_serial", label: __("serial.track"), default: value("track_serial", 0) },
-				{ fieldtype: "Select", fieldname: "serial_kind", label: __("serial.kind"), depends_on: "eval:doc.track_serial",
-					options: [{ value: "vehicle", label: __("serial.kind.vehicle") }, { value: "device", label: __("serial.kind.device") }],
-					default: value("serial_kind", "vehicle") },
+				// 按台管理（车辆按台，主会话 10-26）：有库存时打开要先按台期初登记（`open_serial_opening`）。
+				// 只在按台类型的公司出现（汽车 / 手机电器，用户 10-29）；普通公司不出这两格，商品上的标志不动
+				...(p.unit_tracking() ? [
+					{ fieldtype: "Check", fieldname: "track_serial", label: __("serial.track"), default: value("track_serial", 0) },
+					{ fieldtype: "Select", fieldname: "serial_kind", label: __("serial.kind"), depends_on: "eval:doc.track_serial",
+						options: [{ value: "vehicle", label: __("serial.kind.vehicle") }, { value: "device", label: __("serial.kind.device") }],
+						default: value("serial_kind", p.unit_kind()) },
+				] : []),
 				{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
 					default: value("vat_applicable", 1) },
 				{ fieldtype: "Column Break" },
@@ -444,7 +447,7 @@
 				async (values, d) => {
 					const saved = await p.call(api + "api_create_product",
 						normalize({ ...values, ...code_changes(state, values) }), "POST");
-					await toggle_serial(saved.name, 0, values.track_serial, values.serial_kind);
+					if (p.unit_tracking()) await toggle_serial(saved.name, 0, values.track_serial, values.serial_kind);
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
 					await inline?.on_saved?.({...values, ...saved});
@@ -684,7 +687,7 @@
 					await p.call(api + "api_update_product",
 						{ name: existing.name, ...normalize({ ...values, ...code_changes(state, values) }) },
 						"POST");
-					if (!await toggle_serial(existing.name, existing.track_serial, values.track_serial, values.serial_kind)) return;
+					if (p.unit_tracking() && !await toggle_serial(existing.name, existing.track_serial, values.track_serial, values.serial_kind)) return;
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
 					await inline?.on_saved?.({...existing, ...values});
@@ -693,7 +696,7 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			// 按台管理的商品：看这件的每一台（服务端分页）
-			if (existing.track_serial) dialog.add_custom_action(__("serial.units"), () => open_units(existing));
+			if (existing.track_serial && p.unit_tracking()) dialog.add_custom_action(__("serial.units"), () => open_units(existing));
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
 			if (can_write && !existing.express_code) attach_scan_icon(dialog, state, existing.name);  // 条码只认 Express
 			// 由 Express 同步来的档：Express 里有的栏位只认 Express（服务端 `express.locks` 同一份清单兜底）

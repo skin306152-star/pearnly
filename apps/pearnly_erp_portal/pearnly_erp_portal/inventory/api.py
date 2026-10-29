@@ -216,8 +216,9 @@ def api_adjust(**kwargs):
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)
     from pearnly_erp_portal.inventory import opening_batch, serials
+    from pearnly_erp_portal.masters import company as companies
 
-    if serials.tracked([kwargs.get("product")]):
+    if serials.tracked([kwargs.get("product")], warehouses.company_of(warehouse) if warehouse else companies.active_company()):
         frappe.throw(_(opening_batch.TRACKED))  # 按台管理的商品只经带台的单据动库存
     return stock.apply_movement(warehouse=warehouse, movement_type="adjust", **kwargs)
 

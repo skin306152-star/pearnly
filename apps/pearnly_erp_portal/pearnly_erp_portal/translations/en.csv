@@ -284,6 +284,7 @@ Company,Company
 Company details,Company details
 Company name,Company name
 Company not found,Company not found
+Company type,Company type
 Complete,Complete
 Complete Order,Complete Order
 Complete Payment,Complete Payment
@@ -404,6 +405,8 @@ Disabled,Disabled
 Discard,Discard
 Discard Reason,Discard Reason
 Discarded,Discarded
+Disconnect,Disconnect
+Disconnect Express first,Disconnect Express first
 Discount,Discount
 Discount (%),Discount (%)
 Discount Amount,Discount Amount
@@ -901,6 +904,7 @@ Period,Period
 Person,Person
 Phone,Phone
 Phone Number,Phone Number
+Phones and appliances,Phones and appliances
 Photos,Photos
 Pick a line first,Pick a line first
 Pick a warehouse,Pick a warehouse
@@ -1493,6 +1497,7 @@ Upload a sheet,Upload a sheet
 "Upload an invoice, then review the recognized details.","Upload an invoice, then review the recognized details."
 Upload and Recognize,Upload and Recognize
 Upload and recognise,Upload and recognise
+Use Express,Use Express
 Use a valid opening date that is not in the future,Use a valid opening date that is not in the future
 Use an XLSX opening stock file,Use an XLSX opening stock file
 Use one worksheet for opening stock,Use one worksheet for opening stock
@@ -1514,6 +1519,7 @@ VAT applies,VAT applies
 Value,Value
 Value Change,Value Change
 Vehicle,Vehicle
+Vehicles,Vehicles
 Visibility,Visibility
 Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
@@ -1620,14 +1626,17 @@ company.col.warehouse,Warehouse name
 company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
 company.enable,Enable
+company.express.disconnect,Disconnect
 company.express.locationsTotal,Warehouses total
 company.express.stockDifferences,Stock differences in Express
 company.field.address,Address
 company.field.branch,Branch
 company.field.company,Company
+company.field.companyType,Company type
 company.field.contactEmail,Contact email
 company.field.contactPerson,Contact person
 company.field.docPrefix,Document prefix
+company.field.expressEnabled,Use Express
 company.field.fiscalYearStart,Fiscal year start month
 company.field.name,Company name
 company.field.note,Note
@@ -1692,6 +1701,9 @@ company.terminalEdit,Edit
 company.terminalNew,Add terminal
 company.terminalNone,No terminal yet
 company.terminalsHint,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
+company.type.device,Phones and appliances
+company.type.general,General
+company.type.vehicle,Vehicles
 company.warehouseCompanyHint,This warehouse belongs to the company above
 company.warehouseDefaultName,Main
 company.warehouseHint,First warehouse of this company (more on the Warehouses page)

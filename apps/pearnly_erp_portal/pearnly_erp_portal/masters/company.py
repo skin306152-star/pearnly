@@ -29,7 +29,7 @@ INVALID = "Invalid value"
 LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
                "contact_person", "contact_email", "promptpay_id", "logo",
                "fiscal_year_start_month", "is_default", "is_active", "pos_enabled",
-               "address", "note")
+               "address", "note", "company_type", "express_enabled")
 
 # 收银支持的四种收款方式（与 `cashier/contracts.py` 的 `PAYMENT_METHODS` 同一集合）。
 # 新建公司默认四种全开（用户 2026-09-24："收款方式添加，默认给他几个字段"）——
@@ -41,10 +41,27 @@ POS_PAYMENT_METHODS = ("cash", "card", "promptpay", "transfer")
 VAT_YES, VAT_NO = "yes", "no"
 VAT_STATES = (VAT_YES, VAT_NO)
 
+# 公司类型（用户 10-29）：一套通用界面按公司设定显示。按台管理只对汽车 / 手机电器类型的公司生效，普通公司下商品的
+# 按台标志一律不理会（不改数据）；类型 → 按台号码种类（车 = 车架号 / 发动机号 / 颜色，手机电器 = 序列号）。
+GENERAL = "general"
+UNIT_KINDS = {"vehicle": "vehicle", "device": "device"}
+COMPANY_TYPES = (GENERAL, *UNIT_KINDS)
+DISCONNECT_FIRST = "Disconnect Express first"
+
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     return frappe.get_doc(DOCTYPE, name)
+
+
+def company_type(company) -> str:
+    value = frappe.db.get_value(DOCTYPE, company, "company_type") if company else None
+    return value if value in COMPANY_TYPES else GENERAL
+
+
+def unit_tracking(company) -> bool:
+    """这家公司按不按台管理：只看公司类型（普通公司一律不按台，商品上的按台标志不理会、也不改）。"""
+    return company_type(company) in UNIT_KINDS
 
 
 def ensure_default() -> str:
@@ -117,6 +134,8 @@ def company_options(user=None) -> list:
     for row in out:
         if row["is_current"]:
             row["express_linked"] = express_push.linked(row["name"])
+            # 页面按当前公司的类型显示按台管理（`p.unit_tracking`）
+            row["company_type"] = company_type(row["name"])
     return out
 
 
@@ -360,6 +379,10 @@ def get_profile(name=None) -> dict:
     # 这家公司接了 Express 账本（CC 桌面版报过它的账套）：管理员可在这一屏手动同步主档与库存（`express.api.sync_company`）
     from pearnly_erp_portal.express import push as express_push
 
+    payload["company_type"] = company_type(doc.name)
+    # 接 Express（用户 10-29）：不勾 = 普通 ERP；勾了未连上只给连接引导；连上（CC 桌面版报过它的账套）才有同步与推送。
+    # 已连上的不能直接取消，要先「断开」（`disconnect_express`）。
+    payload["express_connected"] = express_push.connected(doc.name)
     payload["can_sync_express"] = guard.has("team.manage") and express_push.linked(doc.name)
     if payload["can_sync_express"]:
         # 同步在后台做：最近一次的账套、时间、状态与失败原因（`express.masters._record`）给这一屏显示
@@ -475,6 +498,16 @@ def save_terminals(company=None, rows=None) -> dict:
     return {"name": name, "terminals": terminals_of(name)}
 
 
+def disconnect_express(name=None) -> dict:
+    """断开 Express（批复 #6）：这家公司不再推送、同步（CC 桌面版报来的账套对它不再生效）；已写进 Express 的单与本地数据都不动。"""
+    guard.require("company.manage")
+    doc = _get(document_company(name))
+    doc.express_enabled = 0
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name, "express_enabled": 0}
+
+
 def update_company(name, **fields) -> dict:
     guard.require("company.manage")
     doc = _get(document_company(name))
@@ -588,6 +621,19 @@ def _apply(doc, fields) -> None:
         if logo:
             _attach_logo(doc, logo)
         doc.logo = logo
+    if "company_type" in fields:
+        kind = str(fields.get("company_type") or GENERAL).strip()
+        if kind not in COMPANY_TYPES:
+            frappe.throw(_(INVALID))
+        doc.company_type = kind
+    if "express_enabled" in fields:
+        wanted = 1 if fields.get("express_enabled") in (True, 1, "1", "true") else 0
+        if not wanted and doc.get("express_enabled") and not doc.is_new():
+            from pearnly_erp_portal.express import push as express_push
+
+            if express_push.connected(doc.name):
+                frappe.throw(_(DISCONNECT_FIRST))
+        doc.express_enabled = wanted
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):
             frappe.throw(_("The fiscal year start month must be between 1 and 12"))

@@ -284,6 +284,7 @@ Company,公司
 Company details,公司信息
 Company name,公司名称
 Company not found,公司不存在
+Company type,公司类型
 Complete,完成
 Complete Order,完成订单
 Complete Payment,完成收款
@@ -404,6 +405,8 @@ Disabled,已停用
 Discard,丢弃
 Discard Reason,丢弃原因
 Discarded,已丢弃
+Disconnect,断开
+Disconnect Express first,请先断开 Express
 Discount,折扣金额
 Discount (%),折扣率（%）
 Discount Amount,折扣金额
@@ -901,6 +904,7 @@ Period,期间
 Person,个人
 Phone,电话
 Phone Number,电话号码
+Phones and appliances,手机电器
 Photos,照片
 Pick a line first,请先选择一行
 Pick a warehouse,请选择仓库
@@ -1493,6 +1497,7 @@ Upload a sheet,上传导入
 "Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
 Upload and Recognize,上传识别
 Upload and recognise,上传识别
+Use Express,接 Express
 Use a valid opening date that is not in the future,请填写有效的期初日期，不能晚于今天
 Use an XLSX opening stock file,请使用 XLSX 格式的期初库存文件
 Use one worksheet for opening stock,期初库存文件只能包含一个工作表
@@ -1514,6 +1519,7 @@ VAT applies,含 VAT
 Value,金额
 Value Change,金额变动
 Vehicle,车
+Vehicles,汽车
 Visibility,可见范围
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
@@ -1620,14 +1626,17 @@ company.col.warehouse,仓库名称
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发
 company.enable,启用
+company.express.disconnect,断开
 company.express.locationsTotal,各仓合计
 company.express.stockDifferences,Express 库存不一致
 company.field.address,地址
 company.field.branch,分支机构
 company.field.company,公司
+company.field.companyType,公司类型
 company.field.contactEmail,联系邮箱
 company.field.contactPerson,联系人
 company.field.docPrefix,单据前缀
+company.field.expressEnabled,接 Express
 company.field.fiscalYearStart,财年起月
 company.field.name,公司名称
 company.field.note,备注
@@ -1692,6 +1701,9 @@ company.terminalEdit,编辑
 company.terminalNew,新增收银台
 company.terminalNone,还没有收银台
 company.terminalsHint,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
+company.type.device,手机电器
+company.type.general,普通
+company.type.vehicle,汽车
 company.warehouseCompanyHint,这个仓挂在上面那家公司名下
 company.warehouseDefaultName,主仓
 company.warehouseHint,公司的首个仓库（其他仓库可在「仓库」页面添加）

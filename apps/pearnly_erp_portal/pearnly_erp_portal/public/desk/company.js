@@ -28,7 +28,12 @@
 		// 这一屏的字段清单。**空值也要发**：框架的 `form.get_values()` 把空串当"没有这个
 		// 字段"丢掉（`is_null("")` 为真），所以"清空一格再保存"照旧留着老值。
 		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
-			"contact_person", "contact_email", "promptpay_id", "logo", "address", "note", "pos_enabled"];
+			"contact_person", "contact_email", "promptpay_id", "logo", "address", "note", "pos_enabled",
+			"company_type", "express_enabled"];
+		// 公司类型（用户 10-29）：汽车 / 手机电器按台管理，普通公司不按台
+		const TYPE_OPTIONS = ["general", "vehicle", "device"].map(value => ({value, label: t(`company.type.${value}`)}));
+		// CC 桌面版安装包（始终是最新正式版，`companion/README.md`）
+		const CC_INSTALLER = "https://pearnly.com/downloads/companion/CC-Setup.exe";
 		const POS_METHODS = ["cash", "card", "promptpay", "transfer"];
 		const VAT_OPTIONS = [{value: "", label: ""}, {value: "yes", label: __("express.option.yes")}, {value: "no", label: __("express.option.no")}];
 		// 收款方式的四个标签**用术语表里已有的词**（`Cash` / `Card` / `PromptPay Amount` /
@@ -182,6 +187,8 @@
 				f("branch", "company.field.branch", "Data"),
 				// 增值税登记户（收银标价含税，登记户的小票逐行拆出税额）：税号查询带出，也可以手选
 				f("vat_registered", "company.field.vatRegistered", "Select", {options: VAT_OPTIONS}),
+				f("company_type", "company.field.companyType", "Select", {options: TYPE_OPTIONS, default: "general"}),
+				f("express_enabled", "company.field.expressEnabled", "Check", {default: 0}),
 				f("phone", "company.field.phone", "Data"),
 				{fieldtype: "Column Break"},
 				f("contact_person", "company.field.contactPerson", "Data"),
@@ -252,8 +259,29 @@
 		const sync_key = state => (SYNC_STATES.includes(state) ? state : "failed");
 		// 失败原因：认得的原因码给译文，其余（出错信息）原样
 		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook"};
+		// 不勾 = 普通 ERP；勾了未连上（CC 桌面版没报过这家公司的账套）只给下载 CC 桌面版；连上了能「断开」。
+		// 已连上的勾选框只读：要先断开才能取消（服务端 `company.DISCONNECT_FIRST` 同样拦）。
+		const express_section = (data, name) => {
+			const on = Number(data.express_enabled) === 1, connected = Boolean(data.express_connected);
+			const out = [{fieldtype: "Section Break", label: __("Express")},
+				f("express_enabled", "company.field.expressEnabled", "Check",
+					{default: on ? 1 : 0, read_only: !data.can_write || (on && connected)})];
+			if (on && !connected) out.push(
+				{fieldname: "express_connection", label: __("Status"), fieldtype: "Data", read_only: 1,
+					default: t("company.syncExpress.offline")},
+				{fieldname: "cc_download", label: __("Download CC Desktop"), fieldtype: "Button",
+					click: () => window.open(CC_INSTALLER, "_blank", "noopener")});
+			if (on && connected && data.can_write) out.push(
+				f("express_disconnect", "company.express.disconnect", "Button", {click: () => frappe.confirm(
+					__("Are you sure you want to proceed?"), async () => {
+						await p.call(api + "api_disconnect_express", {name: name || data.name}, "POST");
+						p.success(t("company.notice.saved"), "click");
+						await p.refresh_company_context?.();
+						await show();
+					})}));
+			return out;
+		};
 		const express_fields = express => [
-			{fieldtype: "Section Break", label: __("Express")},
 			{fieldname: "express_book", label: __("Account Set"), fieldtype: "Data", read_only: 1,
 				default: express.express_book || ""},
 			{fieldname: "express_synced_at", label: __("Express Synced At"), fieldtype: "Datetime", read_only: 1,
@@ -325,6 +353,8 @@
 				f("branch", "company.field.branch", "Data", {default: data.branch || "", ...ro}),
 				f("vat_registered", "company.field.vatRegistered", "Select",
 					{options: VAT_OPTIONS, default: data.vat_registered || "", ...ro}),
+				f("company_type", "company.field.companyType", "Select",
+					{options: TYPE_OPTIONS, default: data.company_type || "general", ...ro}),
 				{fieldtype: "Column Break"},
 				f("phone", "company.field.phone", "Data", {default: data.phone || "", ...locked}),
 				f("contact_person", "company.field.contactPerson", "Data",
@@ -368,6 +398,8 @@
 						{fieldname: "is_active", fieldtype: "Check", in_list_view: 1, default: 1,
 							label: t("company.col.status")},
 					]},
+				// 接 Express（用户 10-29）：勾选；勾了未连上只给连接引导；连上了有同步状态与「断开」
+				...express_section(data, name),
 				// 接了 Express：最近一次同步（后台落库，见 `express.masters._record`）的账套、时间、状态与失败原因，只读
 				...(data.express ? express_fields(data.express) : []),
 			]);

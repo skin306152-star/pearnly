@@ -99,7 +99,7 @@ class Serials(unittest.TestCase):
         patcher = mock.patch.object(codes, "assert_free", assert_free)
         patcher.start()
         self.addCleanup(patcher.stop)
-        for target, value in (("tracked", lambda products: {p for p in products if p in self.tracked}),
+        for target, value in (("tracked", lambda products, company=None: {p for p in products if p in self.tracked}),
                               ("_base_qty", lambda line: int(line["qty"]))):
             patcher = mock.patch.object(S, target, value)
             patcher.start()

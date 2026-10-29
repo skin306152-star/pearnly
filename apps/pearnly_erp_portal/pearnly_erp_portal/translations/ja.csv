@@ -284,6 +284,7 @@ Company,会社
 Company details,会社情報
 Company name,会社名
 Company not found,会社が見つかりません
+Company type,会社タイプ
 Complete,完了
 Complete Order,会計を確定
 Complete Payment,支払完了
@@ -404,6 +405,8 @@ Disabled,無効
 Discard,破棄
 Discard Reason,破棄理由
 Discarded,破棄しました
+Disconnect,接続解除
+Disconnect Express first,先に Express の接続を解除してください
 Discount,割引額
 Discount (%),割引率 (%)
 Discount Amount,割引額
@@ -901,6 +904,7 @@ Period,期間
 Person,個人
 Phone,電話
 Phone Number,電話番号
+Phones and appliances,携帯・家電
 Photos,写真
 Pick a line first,先に行を選んでください
 Pick a warehouse,倉庫を選択してください
@@ -1493,6 +1497,7 @@ Upload a sheet,取り込み
 "Upload an invoice, then review the recognized details.",請求書をアップロードし、読み取り結果を確認・修正します。
 Upload and Recognize,アップロードして読み取る
 Upload and recognise,アップロードして読み取る
+Use Express,Express を使用
 Use a valid opening date that is not in the future,本日以前の有効な期首日を入力してください
 Use an XLSX opening stock file,XLSX形式の期首在庫ファイルを使用してください
 Use one worksheet for opening stock,期首在庫ファイルのシートは1つにしてください
@@ -1514,6 +1519,7 @@ VAT applies,VAT 対象
 Value,金額
 Value Change,金額変動
 Vehicle,車両
+Vehicles,自動車
 Visibility,公開範囲
 Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
@@ -1620,14 +1626,17 @@ company.col.warehouse,倉庫名
 company.disable,無効にする
 company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します
 company.enable,有効にする
+company.express.disconnect,接続解除
 company.express.locationsTotal,倉庫合計
 company.express.stockDifferences,Express の在庫が一致しません
 company.field.address,住所
 company.field.branch,支店
 company.field.company,会社
+company.field.companyType,会社タイプ
 company.field.contactEmail,連絡先メール
 company.field.contactPerson,担当者
 company.field.docPrefix,書類プレフィックス
+company.field.expressEnabled,Express を使用
 company.field.fiscalYearStart,会計年度の開始月
 company.field.name,会社名
 company.field.note,備考
@@ -1692,6 +1701,9 @@ company.terminalEdit,編集
 company.terminalNew,レジを追加
 company.terminalNone,レジはまだありません
 company.terminalsHint,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
+company.type.device,携帯・家電
+company.type.general,一般
+company.type.vehicle,自動車
 company.warehouseCompanyHint,この倉庫は上の会社に属します
 company.warehouseDefaultName,メイン倉庫
 company.warehouseHint,この会社の最初の倉庫（追加は「倉庫」ページから）

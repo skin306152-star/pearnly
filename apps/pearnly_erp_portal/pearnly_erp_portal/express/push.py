@@ -38,10 +38,15 @@ def _company(name):
     return frappe.db.get_value(COMPANY, name, ["name", "company_name", "tax_id", "branch"], as_dict=True) if name else None
 
 
-def linked(company) -> bool:
-    """这家公司接了 Express：CC 桌面版报过它（税号 + 分店）的账套。没有就不推、不同步（ERP 单据照旧只在 ERP 里）。"""
+def connected(company) -> bool:
+    """CC 桌面版报过这家公司（税号 + 分店）的账套（不看公司上的「接 Express」）。"""
     row = _company(company)
     return bool(row and contracts.tax13(row.tax_id) and books.for_company(row.tax_id, row.branch))
+
+
+def linked(company) -> bool:
+    """这家公司接了 Express：公司勾了「接 Express」（用户 10-29）且已连上。没有就不推、不同步（ERP 单据照旧只在 ERP 里）。"""
+    return bool(company and frappe.db.get_value("ERP Company", company, "express_enabled") and connected(company))
 
 
 def company_of(doctype, name):

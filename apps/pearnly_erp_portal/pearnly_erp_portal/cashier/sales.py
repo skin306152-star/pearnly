@@ -442,7 +442,8 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
                        "unit_price": source.unit_price, "description": source.description,
                        "discount": contracts.d(source.discount) * quantity / contracts.d(source.qty),
                        "original_line": source.name, **positions.saved(source, original.warehouse),
-                       "serials": serials.refund_picks(original.name, source.product, quantity, line.get("serials"))})
+                       "serials": serials.refund_picks(original.name, source.product, quantity, line.get("serials"),
+                                                       company=warehouses.company_of(original.warehouse))})
     if not wanted:
         frappe.throw(_(REFUND_TOO_MUCH))
 
