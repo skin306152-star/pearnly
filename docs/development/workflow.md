@@ -75,7 +75,7 @@ PR 使用 [模板](../../.github/PULL_REQUEST_TEMPLATE.md)。只改文档时允�
 
 任务包含发布时才进行：确认候选 SHA、构建内容与镜像 digest，完成本地相关验收，准备受影响 Site 的备份和恢复方案，再按已授权目标执行。数据升级使用原生 migrate；失败不得用 `--skip-failing` 标成成功。
 
-生产统一部署用 `scripts/production/deploy.sh` 一条命令串起构建、放镜像、逐个产品激活与通用回读（先 `--dry-run`；做法见 [一条命令部署](../work/2026-10-28-one-command-deploy.md)）。构建前它核对要部署的 main 提交在 GitHub 上的 `pearnly/flows` 是全套通过（本机回归实验室跑 `scripts/flows/run.py --all --post-status` 回写），没有或没过就停下并打印补跑命令，没有绕过开关；本机睡眠或实验室没起来时照样拦，补跑见 [流程用例](../../tests/flows/README.md)。
+生产统一部署用 `scripts/production/deploy.sh` 一条命令串起构建、放镜像、逐个产品激活与通用回读（先 `--dry-run`；做法见 [一条命令部署](../work/2026-10-28-one-command-deploy.md)）。构建前它核对要部署的 main 提交在 GitHub 上的 `pearnly/flows` 是全套通过（本机回归实验室跑 `scripts/flows/run.py --all --post-status` 回写），没有或没过就停下并打印补跑命令，没有绕过开关；本机睡眠或实验室没起来时照样拦；本机最多两套实验栈并行、收尾清残留，补跑见 [流程用例](../../tests/flows/README.md)。
 
 发布后回读运行身份、受影响入口、队列和必要业务结果；真机或外部系统尚未验的部分单独保留。含 schema/data 迁移的恢复需要配套数据库、文件、配置和原镜像，不能假设降级镜像即可恢复。使用 [发布记录模板](templates/release.md)，不从此规范推导任何生产写入授权。
 

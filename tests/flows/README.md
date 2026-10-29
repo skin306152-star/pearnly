@@ -13,6 +13,12 @@
 | `scripts/flows/coverage.py` | 覆盖闸（CI 跑）：改到产品入口文件却没有流程登记它 → 失败 |
 | `scripts/production/deploy.sh` | 部署闸：构建前核对要部署的 main 提交 `pearnly/flows` 是全套通过，不是就停下并打印补跑命令 |
 
+## 本机最多两套实验栈、收尾清残留
+
+回归实验室、其他窗口的流程 / 验收实验栈都在 Mac 上模拟 amd64，很吃 CPU。本机同一时间最多两套并行；跑完不用的
+`docker compose -p <栈名> -f <编排文件> stop`（数据卷保留），收尾 `docker ps -a` 查有没有忘关的容器（含一次性测试容器）。
+补跑部署前的全套前，先确认在跑的不超过一套。
+
 ## 为什么在本机跑
 
 生产镜像只有 linux/amd64；本机 Mac 用 Rosetta 跑同一镜像（回归实验室就是这样），free-arm-2 是 ARM，只能 qemu 模拟，

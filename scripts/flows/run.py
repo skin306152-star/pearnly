@@ -165,7 +165,9 @@ def run_flow(lab, flow, dataset, viewport):
                             barcode_video(code) if code else None)
         finally:
             lab.drop(site, user, sid)
-        page_errors += [e for r in results for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])]
+        # 页面报错、步骤本身出错、步骤自己判出的错（返回 {error}）都算
+        page_errors += [e for r in results for e in (r.get("page_errors") or []) + ([r["error"]] if r.get("error") else [])
+                        + ([f"{r.get('step')}: {r['value']['error']}"] if isinstance(r.get("value"), dict) and r["value"].get("error") else [])]
         label = "camera" if code else "typed"
         checks += [dict(c, run=label) for c in module.judge(run_params, results, code)]
         checks += [dict(c, run=label, saved_check=True) for c in module.verify(lab, manifest, run_params, code)]

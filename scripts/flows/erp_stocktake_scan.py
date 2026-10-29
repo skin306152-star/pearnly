@@ -43,27 +43,36 @@ print(json.dumps({{"count": doc["name"]}}))
     return {"count": out["count"], "company": company, "warehouse": warehouse, "cases": cases(manifest)}
 
 
+# 按条件等，不按固定时长（机器忙时请求慢，固定等待会在结果回来前点下一步）：请求都回来（jQuery 在途数连续两次为 0），最多 20 秒
+IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
+
+
 def steps(params, camera_code=None):
     """页面步骤：打开盘点详情 → 开始盘点 → 逐个码查找、检查、保存。"""
-    out = [{"name": "开始盘点", "wait_ms": 3500,
-            "js": "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent); "
-                  "if(!b) return {error:'no start button'}; b.click(); return b.innerText.trim();"}]
+    out = [{"name": "开始盘点",
+            "js": IDLE + "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent); "
+                  "if(!b) return {error:'no start button'}; b.click(); "
+                  "for(let k=0;k<80&&!(window.cur_dialog&&cur_dialog.fields_dict.code);k++) await new Promise(r=>setTimeout(r,250)); "
+                  "await idle(); return b.innerText.trim();"}]
     for i, case in enumerate(params["cases"]):
         if camera_code and case["scan"] != camera_code:
             continue
         if camera_code:
-            find = ("cur_dialog.fields_dict.camera.$input.trigger('click'); "
-                    "for (let k=0;k<40 && !cur_dialog.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250));")
+            find = ("d.fields_dict.camera.$input.trigger('click'); "
+                    "for (let k=0;k<80 && !d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();")
         else:
-            find = (f"cur_dialog.set_value('code', {json.dumps(case['scan'])}); await new Promise(r=>setTimeout(r,300)); "
-                    "cur_dialog.fields_dict.find.$input.trigger('click'); await new Promise(r=>setTimeout(r,2500));")
-        out.append({"name": f"查找 {case['key']}", "js": "const d=cur_dialog; if(!d) return {error:'no dialog'}; " + find + (
+            find = (f"d.set_value('code', {json.dumps(case['scan'])}); await new Promise(r=>setTimeout(r,300)); "
+                    "d.fields_dict.find.$input.trigger('click'); await new Promise(r=>setTimeout(r,300)); await idle();")
+        out.append({"name": f"查找 {case['key']}", "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.code) return {error:'no stocktake dialog'}; "
+                    + find + (
             "return {entry: d.fields_dict.qty.$wrapper.is(':visible'), product_name: d.get_value('product_name') || '', "
             "message: (d.fields_dict.message.$wrapper.text()||'').trim().slice(0,200)};")})
         if case["expect"] == "entry":
-            out.append({"name": f"保存 {case['key']}", "wait_ms": 2500,
-                        "js": f"const d=cur_dialog; d.set_value('qty', {i + 2}); await new Promise(r=>setTimeout(r,300)); "
-                              "d.get_primary_btn().trigger('click'); return 'saved';"})
+            out.append({"name": f"保存 {case['key']}",
+                        "js": IDLE + "const d=cur_dialog; if(!d||!d.fields_dict.qty.$wrapper.is(':visible')) return {error:'no entry to save'}; "
+                              f"d.set_value('qty', {i + 2}); await new Promise(r=>setTimeout(r,300)); "
+                              "d.get_primary_btn().trigger('click'); await new Promise(r=>setTimeout(r,300)); await idle(); "
+                              "return {saved: true, entry_after: d.fields_dict.qty.$wrapper.is(':visible')};"})
     return out
 
 
