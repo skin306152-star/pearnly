@@ -57,8 +57,8 @@ REFUND_PAYLOAD_VERSION = 10
 # 明细带免税行标记（``vat_exempt``：VATCOD '0'、单头 AMTRAT0、整张免税照样写销项税记录），或跨年退货单（``refund.cross_year``：挂 AVGPR）：
 # 旧版 CC 桌面版不认（免税行照应税写、跨年的找不到原单报错），盖 11，旧版诚实拒收、派单只交给报过支持 11 的电脑（复核 10-26）
 NATIVE_EXEMPT_PAYLOAD_VERSION = 11
-# 整单免税的进货单（勾了税务发票、全是免税商品）：照原生价格类型 1 / 2、税记录 AMT01 0 + AMTRAT0 全额（语料 158 本，10-29）。
-# 旧版 CC 桌面版进货按「税额 > 0」才算有税，会写成 FLGVAT 0、不写进项税记录：盖 12，旧版诚实拒收（主会话 10-29）
+# 整单免税的进货单（勾了税务发票、全是免税商品）：照原生主流价格类型 1 / 2、单头 AMTRAT0 全额、明细 VATCOD 0（语料 5,078 张，10-29）。
+# 旧版 CC 桌面版进货按「税额 > 0」才算有税，会写成 FLGVAT 0：盖 12，旧版诚实拒收（主会话 10-29）
 WHOLE_EXEMPT_PURCHASE_PAYLOAD_VERSION = 12
 ISVAT_TAXABLE_FIELD = "AMT01"  # 税记录的应税基数栏
 ISVAT_EXEMPT_FIELD = "AMTRAT0"  # 税记录（与单头）的免税额栏

@@ -230,9 +230,9 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
         self.assertFalse(self._buy(bad).ok)  # 只认金额栏，税额栏照 vat_amount
 
     def test_a_whole_exempt_purchase_is_written_like_native_express(self):
-        """主会话 10-29（语料 158 本，如 BakeLab RR680121-011、ASIA MIN RR670229-009）：全是免税商品的进货单原生仍是有税的单：
-        价格类型现购 1 / 赊购 2、明细 VATCOD '0'、单头与进项税记录 AMTRAT0 = 免税额、AMT01 0。原来按「税额 > 0」判成无税，
-        写成 FLGVAT 0、不写进项税记录。供应商不开税票的单（没有免税行、没带 vat_fields）照旧是 FLGVAT 0、没有税记录。"""
+        """主会话 10-29（语料 5,078 张全免税进货单）：原生主流仍是有税的单：价格类型现购 1 / 赊购 2、明细 VATCOD '0'、单头 AMTRAT0 =
+        免税额，不写进项税记录（这样记的 55%；价格类型 0 的 28%；另写了税记录的 5%）。原来按「税额 > 0」判成无税，写成 FLGVAT 0、
+        单头不记免税额。供应商不开税票的单（没有免税行、没带 vat_fields）照旧是 FLGVAT 0、没有税记录。"""
         for doctype, flgvat, ref in (("HP", "1", "PO-7301"), ("RR", "2", "PO-7302")):
             payload = _purchase(ref, "150.00", "0.00", "150.00", 15, 10)
             payload["doctype"] = doctype
@@ -249,9 +249,7 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
             line = self._rows("STCRD", DOCNUM=res.docnum)[0]
             self.assertEqual(((line.VATCOD or "").strip(), Decimal(str(line.TRNVAL)), Decimal(str(line.NETVAL))),
                              ("0", Decimal("150"), Decimal("150")), doctype)
-            vat = self._rows("ISVAT", DOCNUM=res.docnum)
-            self.assertEqual([(Decimal(str(v.AMT01)), Decimal(str(v.VAT01)), Decimal(str(v.AMTRAT0))) for v in vat],
-                             [(Decimal(0), Decimal(0), Decimal("150"))], doctype)
+            self.assertEqual(self._rows("ISVAT", DOCNUM=res.docnum), [], doctype)  # 税额 0：原生主流不记进项税记录
         plain = _purchase("PO-7303", "150.00", "0.00", "150.00", 15, 10)
         plain["lines"] = [{"acc": PURCHASE_ACC, "side": "D", "amount": "150.00", "desc": "ซื้อ"},
                           {"acc": AP_ACC, "side": "C", "amount": "150.00", "desc": "เจ้าหนี้"}]

@@ -350,8 +350,9 @@ def write_purchase(
         Decimal(entry.vat_amount),
         Decimal(entry.total_amount),
     )
-    # 整单免税（来源标了免税行、带 `vat_fields`：AMT01 0、AMTRAT0 全额）照原生也是有税的单：价格类型 1 / 2、写进项税记录
-    # （语料 158 本免税单无例外，主会话 10-29；同销货 dbf_sales）。供应商不开税票的单才是 FLGVAT 0
+    # 整单免税（来源标了免税行、带 `vat_fields`：AMT01 0、AMTRAT0 全额）照原生主流也是有税的单：价格类型 1 / 2、单头 AMTRAT0
+    # 记全额、明细 VATCOD '0'，不写进项税记录（语料 5,078 张全免税进货单：这样记的 55%，价格类型 0 的 28%，另写了税记录的 5%；
+    # 主会话 10-29）。供应商不开税票、没有免税行的单才是 FLGVAT 0
     has_vat = vat > 0 or bool(entry.vat_fields)
 
     # 不查重:账套里已有同号 / 同票的单照写(用户 2026-09-30、2026-10-08:Express 手工录入也不拦重复)。
@@ -420,7 +421,7 @@ def write_purchase(
             account_dir,
             docnum,
             total,
-            has_vat,
+            vat > 0,  # 只有有税额的单写进项税记录（整单免税不写，同原生）
             base=base,
             detail_n=detail_n,
             has_stock=has_stock,
@@ -606,7 +607,9 @@ def _write_all(
         )
         gl_rows += [] if periodic else reclass
 
-    if has_vat:
+    if vat > 0:
+        # 进项税记录只给有税额的单：整单免税（税额 0）原生不记（语料 5,078 张全免税进货单 95% 没有这一行，主会话 10-29）；
+        # 混合税率的单照记，免税部分记 AMTRAT0
         iv = _open(account_dir, "ISVAT", dbf.READ_WRITE)
         try:
             iv.append(

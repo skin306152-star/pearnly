@@ -883,7 +883,7 @@ class MixedRatePurchase(PushModule):
 
     def test_a_whole_exempt_purchase_is_marked_like_the_native_books(self):
         """主会话 10-29（语料 158 本）：勾了税务发票、全是 0% 的采购单是整单免税，原生价格类型 1 / 2、明细 VATCOD '0'、
-        税记录 AMT01 0 + AMTRAT0 全额，不是无税（FLGVAT 0）。每行标免税、带零税额栏，载荷盖 12（旧版 CC 照无税写，诚实拒收）；
+        单头 AMTRAT0 全额，不是无税（FLGVAT 0）。每行标免税、带零税额栏，载荷盖 12（旧版 CC 照无税写，诚实拒收）；
         没勾税务发票的照旧不标。"""
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0, has_vat=1)], [True, True])
         self.assertEqual([bool(line.get("vat_exempt")) for line in self.lines(0, 0, has_vat=0)], [False, False])
