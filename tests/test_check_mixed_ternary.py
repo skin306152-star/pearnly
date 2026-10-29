@@ -23,6 +23,14 @@ class MixedTernary(unittest.TestCase):
                      "const s = \"a ? b : c || d\";  // a ? b : c || d"):
             self.assertEqual(M.problems(line), [], line)
 
+    def test_a_file_outside_the_repository_is_reported_by_its_own_path(self):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as handle:
+            handle.write("const a = x ? y : z || w;\n")
+        self.assertEqual(M.main([handle.name]), 1)
+        pathlib.Path(handle.name).unlink()
+
     def test_repository_is_within_its_baseline(self):
         self.assertEqual(M.main([]), 0)
 

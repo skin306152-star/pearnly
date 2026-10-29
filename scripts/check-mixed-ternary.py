@@ -107,7 +107,10 @@ def main(argv):
     targets = [pathlib.Path(arg) for arg in argv] or list(files())
     found = {}
     for path in targets:
-        name = str(path.relative_to(ROOT) if path.is_absolute() else path)
+        try:
+            name = str(path.resolve().relative_to(ROOT))
+        except ValueError:  # 仓库外的文件：照原路径报
+            name = str(path)
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             for column in problems(line):
                 found.setdefault(name, []).append(f"{name}:{number}:{column}: {line.strip()[:160]}")
