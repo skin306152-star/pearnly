@@ -10,7 +10,7 @@
 | `tests/flows/not_flows.toml` | 确实没有业务流程可跑的入口文件，逐个写原因（只许按文件登记） |
 | `scripts/flows/<流程>.py` | 流程模块：`prepare`（在站点里开单等）、`steps`（页面步骤）、`judge`（页面结果）、`verify`（落库） |
 | `scripts/flows/run.py` | 跑法；`--post-status` 把结果回写成 GitHub 提交状态 `pearnly/flows` |
-| `scripts/flows/coverage.py` | 覆盖闸（CI 跑）：改到产品入口文件却没有流程登记它 → 失败 |
+| `scripts/flows/coverage.py` | 覆盖闸（CI 跑）：改到产品入口文件却没有流程登记它 → 失败；`--status` 出现状清单（按产品、按近 30 天改动次数排序），补覆盖的顺序见 [四道闸记录](../../docs/work/2026-10-29-four-machine-gates.md) |
 | `scripts/production/deploy.sh` | 部署闸：构建前核对要部署的 main 提交 `pearnly/flows` 是全套通过，不是就停下并打印补跑命令 |
 
 ## 本机最多两套实验栈、收尾清残留
