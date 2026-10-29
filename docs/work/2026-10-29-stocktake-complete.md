@@ -52,3 +52,20 @@
 | erp.serials.dialog / erp.place.header / erp.products.new-dialog.opening / erp.products.image-upload / erp.products.detail.barcode-scan / erp.masters.scope / erp.print.purchase / erp.browser-text | 本步不改这些代码路径；随后续步骤（S0 按台、S6 打印、S5 仓库）实测 |
 
 实验室已知噪声：首页取计费信息 `billing_www.home` 返回 417（实验室没接计费服务），与本改动无关。
+
+## S2 电脑盘点录入框显示编码
+
+**改动**：盘点录入框（Desk，电脑与手机窄屏同一个）在「物料名称」下面加只读「编码」，值取服务端 `lookup_count` 已返回的
+`product.code`（`count_code`：内部编码，没有就系统编码），与 LINE 手机页同一个。只改前端一处，服务端不动；栏名复用已有词条「编码」。
+
+**验证**
+
+| 检查 | 结果 |
+|---|---|
+| 新开户：期初主仓本地 10、二号仓 A1 Express 商品 5 | 通过 |
+| 服务端：扫内部编码 EX-0001 → 回 EX-0001；扫本地条码 → 回系统编码 P-000004 | 通过 |
+| 二号仓盘点 A1 记 7（账上 5）→ 结束 → 过账，A1 = 7 | 通过 |
+| 页面：盘点详情「开始盘点」→ 录入框输码查找 → 「编码」栏分别显示 EX-0001、P-000004，品名对应 | 通过 |
+
+连带：`stocktake-entry.js` 登记在 erp-count-code（盘点按码认商品）——认码逻辑没改，上面两种码都认回同一件；相机读码本步未改。
+无头浏览器里扫码提示音被浏览器拦（没有真人点击），属测试环境现象。

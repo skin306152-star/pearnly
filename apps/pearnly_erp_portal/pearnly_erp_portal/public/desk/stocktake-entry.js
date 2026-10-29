@@ -22,6 +22,8 @@
 			{ fieldtype: "HTML", fieldname: "message" },
 			{ fieldtype: "Section Break", fieldname: "entry_section", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "product_name", label: t("stock.col.name"), read_only: 1 },
+			// 扫到的那件商品的编码（内部编码，没有就系统编码；服务端 `count_code`，与 LINE 手机页同一个）
+			{ fieldtype: "Data", fieldname: "product_code", label: t("stock.col.code"), read_only: 1 },
 			{ fieldtype: "Select", fieldname: "source_row", label: w("bookPosition"), options: [],
 				change: () => choose_source() },
 			{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit"), read_only: 1 },
@@ -238,6 +240,7 @@
 				d.set_df_property("source_row", "hidden", !lookup.rows.length);
 				await d.set_value("source_row", row?.name || lookup.rows[0]?.name || "");
 				await d.set_value("product_name", selected.product_name);
+				await d.set_value("product_code", selected.code || "");
 				await d.set_value("unit", selected.base_unit || selected.unit || "");
 				await choose_source();
 				// 沿用上一件的位置只给**账上没有位置**的新品（同一个货架连续盘时省得重填）；这件在账上有位置
