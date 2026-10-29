@@ -29,25 +29,29 @@ def _lock(doctype):
     frappe.db.get_value("DocType", doctype, "name", for_update=True)
 
 
+def existing_default_board(workspace):
+    """站点归属下的默认看板，**只读**：没有回 None。"""
+    rows = frappe.get_all(BOARD, filters={"workspace": workspace, "is_default": 1}, pluck="name",
+                          order_by="creation asc", limit_page_length=1)
+    return rows[0] if rows else None
+
+
 def default_board(workspace):
     """站点归属下的默认看板；没有就建一块（团队可见、没有显式成员）。
 
-    正常由升级补丁 / `ensure_on_migrate` 建好；这里是兜底。打开看板是 GET 请求，框架会回滚 GET 里的写入，
-    所以兜底建完要当场提交（同默认列表）。
+    正常由升级补丁 / `ensure_on_migrate` 建好；这里是兜底，只在写路径上调（迁移、`ready_board` 那个 POST 接口），
+    由迁移 / 请求本身提交。读接口用 `existing_default_board`（GET 不提交，在里面建的会被回滚）。
     """
-    rows = frappe.get_all(BOARD, filters={"workspace": workspace, "is_default": 1}, pluck="name",
-                          order_by="creation asc", limit_page_length=1)
-    if rows:
-        return rows[0]
+    found = existing_default_board(workspace)
+    if found:
+        return found
     _lock(BOARD)
-    rows = frappe.get_all(BOARD, filters={"workspace": workspace, "is_default": 1}, pluck="name",
-                          order_by="creation asc", limit_page_length=1)
-    if rows:
-        return rows[0]
+    found = existing_default_board(workspace)
+    if found:
+        return found
     doc = persist(frappe.get_doc({"doctype": BOARD, "workspace": workspace, "title": "",
                                   "visibility": "team", "commenting": "members", "member_management": "members",
                                   "is_default": 1}))
-    frappe.db.commit()
     return doc.name
 
 
@@ -90,16 +94,29 @@ def ensure_on_migrate():
 
 
 def open_board(board=None, right="view"):
-    """页面级接口的入口：没指定看板就是默认看板；核对当前用户在这块板上有 `right`。返回看板行。"""
+    """页面级接口的入口：没指定看板就是默认看板；核对当前用户在这块板上有 `right`。返回看板行。
+
+    **只读**（读接口多是 GET，Frappe 不提交 GET 请求）：默认看板、默认列表在迁移时建好，兜底补建只在 `ready_board`。
+    """
     access.require()
-    workspace = scope.default_workspace()
-    name = board or default_board(workspace)
-    info = access.board_info(name)
+    workspace = scope.existing_workspace()
+    name = board or (existing_default_board(workspace) if workspace else None)
+    info = access.board_info(name) if name else None
     if not info or info.workspace != workspace:
         raise Invalid("cowork.work.error.board")
     access.require_right(name, right)
-    if ensure_lists(name, workspace):
-        frappe.db.commit()
+    return info
+
+
+def ready_board(board=None, right="view"):
+    """打开整块看板（`service.board`，页面一打开就调的那个 POST 接口）：归属、默认看板、默认三列缺了先补上，再 `open_board`。
+    平时迁移已建好、这里什么都不写；补建由这次 POST 请求提交（10-29 起不在 GET 里手动 commit）。"""
+    access.require()
+    workspace = scope.default_workspace()
+    if not board:
+        default_board(workspace)
+    info = open_board(board, right)
+    ensure_lists(info.name, workspace)
     return info
 
 

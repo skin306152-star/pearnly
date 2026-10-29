@@ -23,22 +23,10 @@ pearnly_cowork.reconciliation.bank_recon_api.export	接口	待改（导出排队
 pearnly_cowork.reconciliation.income_recon_api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_cowork.stocktake.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_cowork.stocktake.desk_api.api_stock_count_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.work.api.archived	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_cowork.work.api.board	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_cowork.work.api.board_lists	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_cowork.work.api.board_members	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
 pearnly_cowork.work.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_cowork.work.api.rules	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_cowork.work.api.search	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
 pearnly_erp_portal.cashier.api.api_shifts_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_erp_portal.inventory.api.api_stock_count_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_erp_portal.inventory.api.api_stock_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_erp_portal.purchasing.api.api_purchase_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
 pearnly_erp_portal.sales.api.api_sales_export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.work.api.archived	接口	待改（GET 里手动 commit 才生效：pearnly_erp_portal.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_erp_portal.work.api.board	接口	待改（GET 里手动 commit 才生效：pearnly_erp_portal.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_erp_portal.work.api.board_lists	接口	待改（GET 里手动 commit 才生效：pearnly_erp_portal.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_erp_portal.work.api.board_members	接口	待改（GET 里手动 commit 才生效：pearnly_erp_portal.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
 pearnly_erp_portal.work.api.export	接口	待改（导出排队：GET 里建导出任务并手动 commit 才生效；改 POST 要连 p.export_file 等调用方一起改）
-pearnly_erp_portal.work.api.rules	接口	待改（GET 里手动 commit 才生效：pearnly_erp_portal.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）
-pearnly_erp_portal.work.api.search	接口	待改（GET 里手动 commit 才生效：pearnly_erp_portal.work.boards.open_board；10-29 扫描器追到当参数传出去的函数后查出）

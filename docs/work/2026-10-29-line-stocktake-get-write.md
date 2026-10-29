@@ -115,6 +115,26 @@ Frappe 不提交 GET 请求，这一行被回滚。保存带着这一行的编�
 - 实测（回归实验室 Cowork 新开户站点，一次性容器挂源码，事务里停用归属、禁止 commit、最后回滚）：
   本分支三个读接口写库 0 次、看板列表回 `[]`、通知回 `{"rows": [], "unread": 0}`；同一脚本跑 main c49b5743：看板列表写库 1 次、事务里多出一份归属。
 
+## 第 3 步之一：任务管理 open_board 那 12 个（分支 `pearnly/get-writes-open-board`，叠在扫描器补盲区分支上）
+
+ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rules / search 都经 `boards.open_board`：没指定看板就
+`default_board` 兜底建默认看板、`ensure_lists` 兜底建默认三列与标签，再在 GET 里手动 commit。默认看板 / 列表平时在迁移时建好
+（`ensure_on_migrate`；新开户写完功能清单后跑一次初始化，1babc94a），兜底只在半开户等少数情况用得上。
+
+- `open_board` 改成**只读**（只找已有的归属 / 默认看板，核对权限，不建）；读写接口都用它。
+- 新增 `ready_board`：归属、默认看板、默认三列缺了先补上，再 `open_board`；只给 `service.board` 用。
+- `work.api.board`（整块看板，页面一打开、收到变更时调的那一个）改 `methods=["POST"]`，两个产品的 `work.js` 一并改 POST。
+- `default_board` 去掉手动 commit（迁移、POST 请求自己提交）。
+- 基线 40 → 28 条（剩导出排队 13、手动 commit 14、按协议必须 GET 1）。
+- 验证：
+  - 原生脚本 `test-cowork-work-native.py` / `test-cowork-work-boards-native.py` / `test-erp-work-native.py` / `test-erp-work-boards-native.py`
+    在回归实验室站点上全过（整段事务、任何提交判失败、最后回滚）；`tests/test_erp_work.py`、`test_cowork_work_boards.py` 等通过。
+  - 流程用例 `erp.work.board`、`cowork.work.board`（`scripts/flows/work_board.py`）：两套数据 × 电脑 / 手机共 8 格全过
+    （页面上的列 = 库里默认看板的列表、整块看板走 POST、打开后看板与列表数不变）；第一轮 erp old / 电脑那格是建 old 数据时与验收窗口
+    同库并发报错（没走到页面），单格复跑通过。跑法：回归实验室被验收窗口挂着别的工作树，起了一个临时网页容器挂本分支源码、共用实验室的库与 Redis
+    （`REGRESSION_LAB_CONTAINER` / `REGRESSION_LAB_PORT`），跑完已删。
+  - 兜底：事务里删掉默认看板与列表后，读路径报「看板不存在」、写库 0 次；`service.board()` 补建出默认看板与三列（两个产品都测，最后回滚）。
+
 ## 同页顺带修：保存后抬头不刷新
 
 手机页保存后，抬头「已盘点 x / y」不变，要退出重进这份盘点才更新（抬头只在打开盘点时取一次）。主会话 10-29 定同一分支修掉：

@@ -619,7 +619,7 @@
 			loading = (async () => {
 				try {
 					// 上次看的看板没了 / 没权限了：服务端退回默认看板（`fallback`），不弹错。
-					const data = await p.call(`${API}board`, {board: state.board?.name || stored_board(), fallback: 1});
+					const data = await p.call(`${API}board`, {board: state.board?.name || stored_board(), fallback: 1}, "POST");
 					Object.assign(state, {board: data.board, boards: data.boards, lists: data.lists, cards: data.cards,
 						foreign: data.foreign || [], mirrors: data.mirrors || [],
 						members: data.members, labels: data.labels, fields: data.fields || [], me: data.me,

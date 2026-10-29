@@ -84,3 +84,34 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
 ]
+
+[[flow]]
+id = "erp.work.board"
+title = "ERP 任务管理：打开即显示默认看板的列表、整块看板走 POST、只看不改（10-29 GET 里建默认看板再手动 commit）"
+module = "scripts/flows/work_board.py"
+start = "/desk/pearnly-tasks"
+user = "tasks"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/work.js",
+]
+
+[[flow]]
+id = "cowork.work.board"
+title = "Cowork 任务管理：打开即显示默认看板的列表、整块看板走 POST、只看不改（10-29 GET 里建归属与默认看板再手动 commit）"
+module = "scripts/flows/work_board.py"
+product = "cowork"
+start = "/desk/pearnly-work"
+user = "work"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/work/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/work/boards.py",
+  "apps/pearnly_cowork/pearnly_cowork/work/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/work.js",
+]

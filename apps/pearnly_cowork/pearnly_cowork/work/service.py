@@ -348,7 +348,7 @@ def board(board=None, fallback=False):
         info = access.board_info(board)
         if not info or info.archived or not access.can(board, "view"):
             board = None
-    row = boards.open_board(board, "view")
+    row = boards.ready_board(board, "view")
     open_lists = lists(row.name)
     names = [item.name for item in open_lists]
     rows = frappe.get_all(CARD, filters={"board": row.name, "archived": 0, "board_list": ["in", names or [""]]},

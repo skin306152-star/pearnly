@@ -42,7 +42,8 @@ def _flag(value):
 
 # ── 读 ──
 
-@frappe.whitelist(methods=["GET"])
+# 整块看板：缺了默认看板 / 默认三列先补上（`boards.ready_board`），所以只收 POST（GET 不提交，补建会被回滚）
+@frappe.whitelist(methods=["POST"])
 def board(board=None, fallback=None):
     return _run(service.board, board or None, _flag(fallback))
 
