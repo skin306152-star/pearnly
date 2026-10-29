@@ -87,6 +87,8 @@ jobs:
         run: python3 scripts/check-swallowed-errors.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
+      - name: Endpoints reachable by GET do not write (Frappe does not commit GET requests; the mobile stocktake lookup lost its rows this way)
+        run: python3 scripts/check-get-writes.py && python3 tests/test_check_get_writes.py
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded
         run: python3 tests/test_cowork_mrerp_masters.py
       - name: Exercise audited offline DMS contracts

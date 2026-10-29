@@ -88,7 +88,7 @@ function fixture(options = {}) {
 
 (async () => {
   const transport = fixture();
-  await transport.page.call('api_line_stocktake_lookup', {name: 'COUNT / 1', code: 'QR + & ? 中文', qty: 0, missing: null});
+  await transport.page.call('api_line_stocktake_task', {name: 'COUNT / 1', code: 'QR + & ? 中文', qty: 0, missing: null});
   const requested = new URL(transport.calls[0].url, 'https://synthetic.invalid');
   assert.equal(requested.searchParams.get('name'), 'COUNT / 1');
   assert.equal(requested.searchParams.get('code'), 'QR + & ? 中文');
@@ -183,7 +183,9 @@ function fixture(options = {}) {
   await continuous.element('save').onclick();
   assert.equal(continuous.acquired(), 1, 'successful camera-mode save restarts scan');
   const lookup = continuous.calls.find(row => row.url.includes('api_line_stocktake_lookup'));
-  assert.equal(new URL(lookup.url, 'https://synthetic.invalid').searchParams.get('code'), continuous.item.code);
+  // 查码会登记行（空仓盘点），走 POST：码在请求体里，不在网址上
+  assert.equal(lookup.url.includes('?'), false);
+  assert.equal(JSON.parse(lookup.body).code, continuous.item.code);
   continuous.page.stopCamera(true);
   const manual = fixture();
   manual.element('qty').value = '2';

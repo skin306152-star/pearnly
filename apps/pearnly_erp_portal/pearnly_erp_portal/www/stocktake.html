@@ -307,7 +307,8 @@
           const taskName = task?.name;
           if (!taskName) return;
           try {
-            const result = await call('api_line_stocktake_lookup', { name: taskName, code: code, product: product || '' });
+            // 查码会在快照里登记这件商品那一行（空仓盘点）：走 POST，GET 的事务不提交，那一行会被回滚
+            const result = await call('api_line_stocktake_lookup', { name: taskName, code: code, product: product || '' }, true);
             if (task?.name !== taskName) return;
             if (result && result.candidates) { choose(code, result.candidates); return; }
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
