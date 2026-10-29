@@ -220,6 +220,43 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
+
+id = "erp.exports"
+title = "ERP 导出：销售 / 采购 / 库存 / 已过账盘点 / 班次 / 首页账本各点一次导出，走 POST、文件里有该有的单据（10-29 导出一律 POST）"
+module = "scripts/flows/erp_exports.py"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/public/desk/product.js",
+  "apps/pearnly_core/pearnly_core/public/desk/home.js",
+  "apps/pearnly_core/pearnly_core/billing_www.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/inventory.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-shifts.js",
+]
+
+[[flow]]
+id = "cowork.exports"
+title = "Cowork 导出：已结束的盘点与首页账本点导出，走 POST、文件对（10-29 导出一律 POST）"
+module = "scripts/flows/cowork_exports.py"
+product = "cowork"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js",
+  "apps/pearnly_core/pearnly_core/billing_www.py",
+  "apps/pearnly_core/pearnly_core/public/desk/home.js",
 ]
 
 [[flow]]

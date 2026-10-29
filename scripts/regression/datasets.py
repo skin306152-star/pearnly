@@ -11,7 +11,7 @@
 
 Cowork 同样两套（第二个参数 `cowork`）：
 - new：站点 `cowork-new.regression.localhost`，开户后什么都没建（只有开户时建的站点归属）。
-- old：站点 `cowork-old.regression.localhost`，上传导入的两份盘点（一份带实盘）、银行与收入对账预设各一条。
+- old：站点 `cowork-old.regression.localhost`，上传导入的两份盘点（带实盘的那份已结束）、银行与收入对账预设各一条。
 
 DMS 同样两套（第二个参数 `dms`），外部 DMS 一律不连：DMS 里读到的主档 / 地址 / 客户由实验室直接发布成本地完整快照
 （与线上夜间同步发布的是同一种数据），LINE 走站点的本地镜像（`pearnly_line_mirror`，站点没配 LINE 凭据时才生效，
@@ -224,7 +224,7 @@ def cowork_state(site, dataset):
     from pearnly_cowork.access import scope
 
     workspace = scope.existing_workspace()
-    counts = frappe.get_all("Cowork Stocktake Task", filters={"workspace": workspace}, fields=["name", "title"],
+    counts = frappe.get_all("Cowork Stocktake Task", filters={"workspace": workspace}, fields=["name", "title", "status"],
                             order_by="creation asc", limit_page_length=50)
     return {"dataset": dataset, "product": "cowork", "site": site, "workspace": workspace,
             "workspaces": frappe.db.count("Cowork Workspace"),
@@ -262,6 +262,12 @@ def build_cowork_old():
         output = io.BytesIO()
         book.save(output)
         commit(upload.create(title, request_id, output.getvalue()))
+    # 第一份（全都数过）结束掉：结束的盘点才有「导出」（`stocktake.js`），导出流程用它
+    first = str(uuid.uuid5(uuid.NAMESPACE_URL, "regression-cowork-count-0"))
+    if frappe.db.get_value("Cowork Stocktake Task", first, "status") == "active":
+        from pearnly_cowork.stocktake import service as stocktake
+
+        commit(stocktake.close(first))
     for kind, found, rule, value in COWORK_PRESETS:
         commit(preset_store.remember(workspace, kind, found, rule, value))
     return cowork_state(COWORK_SITES["old"], "old")

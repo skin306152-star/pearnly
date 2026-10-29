@@ -30,6 +30,38 @@ ACTION = (
     "if(!i){m.click();return '';} i.click(); return 'menu';};")
 
 
+# 抓页面的导出下载（`p.export_file` 用 fetch POST）：每次导出记下网址、方法、状态、类型和文件内容（base64，实验室的文件很小）
+CAPTURE_EXPORTS = (
+    "if(!window.__exports){window.__exports=[];const _f=window.fetch;window.fetch=async function(u,o){const r=await _f.apply(this,arguments);"
+    "const url=String(u&&u.url||u);if(url.includes('/api/method/')&&/export/.test(url)){const b=new Uint8Array(await r.clone().arrayBuffer());"
+    "let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));"
+    "window.__exports.push({url,method:String(o&&o.method||'GET').toUpperCase(),status:r.status,type:r.headers.get('Content-Type')||'',"
+    "size:b.length,b64:btoa(s)});}return r;};}")
+# 等这次导出回来（`__exports` 多出一条），最多 20 秒；回最后一条
+AWAIT_EXPORT = ("const before=window.__exports.length;"
+                "for(let k=0;k<80&&window.__exports.length===before;k++) await new Promise(r=>setTimeout(r,250));"
+                "const got=window.__exports.length>before?window.__exports[window.__exports.length-1]:null;")
+
+
+def workbook_text(b64: str) -> tuple[list[str], str]:
+    """导出下载的文件 → (表名, 全部单元格的文字)；不是 xlsx 抛错。只用标准库（流程的判断在本机 Python 里跑）。"""
+    import base64
+    import io
+    import re
+    import zipfile
+    from xml.etree import ElementTree
+
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(b64))) as book:
+        names = [node.get("name") for node in ElementTree.fromstring(book.read("xl/workbook.xml")).iter()
+                 if node.tag.endswith("}sheet")]
+        texts = []
+        for item in book.namelist():
+            if item == "xl/sharedStrings.xml" or re.fullmatch(r"xl/worksheets/sheet\d+\.xml", item):
+                texts += [node.text for node in ElementTree.fromstring(book.read(item)).iter()
+                          if node.tag.rsplit("}", 1)[-1] in {"t", "v"} and node.text]
+    return names, "\n".join(texts)
+
+
 def requests(method_path: str) -> str:
     """页面到这一步为止请求过这个接口的网址（`performance` 的资源记录）：GET 的参数在网址上、POST 的不在。"""
     return (f"const calls=performance.getEntriesByType('resource').map(e=>e.name)"

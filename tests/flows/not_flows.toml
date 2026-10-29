@@ -10,3 +10,7 @@ reason = "控制面开户单：真开户会在身份服务建号、写各产品�
 [[file]]
 file = "apps/pearnly_core/pearnly_core/identity.py"
 reason = "身份绑定与登录回调：bind_identity 只给开户脚本和系统管理员在后台调（没有页面），callback 是身份服务登录跳回来的协议入口，要真身份服务与浏览器登录；离线由 pearnly_core.account.test_identity_callback 等候选检查守住"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/stocktake/api.py"
+reason = "Cowork 盘点的原生 RPC（建盘点 / 记数 / 导出给程序调），产品页面不调它（页面走 stocktake/desk_api.py，由 cowork.stocktake.list / cowork.exports 覆盖）；导出由 tests/test_exports.py 与 scripts/cowork-stocktake-export-lab-verify.py 守住"
