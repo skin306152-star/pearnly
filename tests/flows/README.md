@@ -13,16 +13,16 @@
 | `scripts/flows/coverage.py` | 覆盖闸（CI 跑）：改到产品入口文件却没有流程登记它 → 失败；`--status` 出现状清单（按产品、按近 30 天改动次数排序），补覆盖的顺序见 [四道闸记录](../../docs/work/2026-10-29-four-machine-gates.md) |
 | `scripts/production/deploy.sh` | 部署闸：构建前核对要部署的 main 提交 `pearnly/flows` 是全套通过，不是就停下并打印补跑命令 |
 
-## 本机最多两套实验栈、收尾清残留
+## 本机最多三套实验栈、收尾清残留
 
-回归实验室、其他窗口的流程 / 验收实验栈都在 Mac 上模拟 amd64，很吃 CPU。本机同一时间最多两套并行；跑完不用的
-`docker compose -p <栈名> -f <编排文件> stop`（数据卷保留），收尾 `docker ps -a` 查有没有忘关的容器（含一次性测试容器）。
-补跑部署前的全套前，先确认在跑的不超过一套。
+回归实验室、其他窗口的流程 / 验收实验栈都在 Mac 上模拟 amd64，很吃 CPU。
+本机同一时间最多三套并行；跑完不用的 `docker compose -p <栈名> -f <编排文件> stop`（数据卷保留），收尾 `docker ps -a` 查有没有忘关的容器
+（含一次性测试容器）。补跑部署前的全套前，先确认在跑的不超过两套。
 
 ## 为什么在本机跑
 
-生产镜像只有 linux/amd64；本机 Mac 用 Rosetta 跑同一镜像（回归实验室就是这样），free-arm-2 是 ARM，只能 qemu 模拟，
-又慢又和线上不完全一样，还要给 CI 加 root 级权限。所以流程套件不在 GitHub 的 runner 上跑，结果由本机回写成提交状态。
+生产镜像只有 linux/amd64；回归实验室在本机 Mac 上跑的就是线上同一个 amd64 镜像（colima 里经 qemu 模拟）。放到 free-arm-2 上同样要模拟，
+还要给 CI 的 runner 加 root 级的 docker 权限。所以流程套件不在 GitHub 的 runner 上跑，结果由本机回写成提交状态。
 
 ## 分支上（只跑受影响的）
 
