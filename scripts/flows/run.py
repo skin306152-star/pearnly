@@ -33,7 +33,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "tests" / "flows" / "registry.toml"
 STATUS = "pearnly/flows"
-CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", "pearnly-regression-lab-bench-1")
+# 实验栈名（docker compose -p）：每个窗口用自己的栈跑、回写同一个 pearnly/flows 状态，不抢一套（主会话 10-29）
+LAB = os.environ.get("PEARNLY_FLOWS_LAB", "pearnly-regression-lab")
+CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", f"{LAB}-bench-1")
 PORT = int(os.environ.get("REGRESSION_LAB_PORT", "18771"))
 
 

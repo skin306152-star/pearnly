@@ -92,13 +92,15 @@ def build_new():
     frappe.set_user(ADMIN.format("erp.regression"))
     co = companies.ensure_default()
     name = frappe.db.get_value("ERP Company", co, "company_name")
-    if not push.linked(co):
+    if not push.connected(co):
         tax = lab_tax(SITES["new"])
         companies.update_company(co, tax_id=tax, branch="00000")
         books.replace("lab-dataset-new-" + tax, [{"path": "C:\\PearnlyExpress\\NEW\\" + tax, "company": name, "tax_id": tax, "branch": "00000",
                                                   "writable": True, "period_start": "2026-01-01", "period_end": "2026-12-31", "uid": "NEW"}],
                       now_datetime())
         commit()
+    if not push.linked(co):
+        commit(companies.update_company(co, express_enabled=1))  # 公司页勾「接 Express」（用户 10-29：连上且勾了才推送 / 同步）
     masters.apply(co, "NEW", {"warehouses": [{"code": f"0{i}", "name": f"คลัง {i}"} for i in range(1, 8)],
                               "settings": {"mainloc": "01"},
                               "products": [{"code": EXPRESS_PRODUCT["code"], "name": EXPRESS_PRODUCT["name"], "unit": EXPRESS_PRODUCT["unit"],

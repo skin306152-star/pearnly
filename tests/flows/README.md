@@ -19,6 +19,24 @@
 本机同一时间最多三套并行；跑完不用的 `docker compose -p <栈名> -f <编排文件> stop`（数据卷保留），收尾 `docker ps -a` 查有没有忘关的容器
 （含一次性测试容器）。补跑部署前的全套前，先确认在跑的不超过两套。
 
+## 每个窗口用自己的实验栈
+
+`run.py` 默认连 `pearnly-regression-lab`。别的窗口起自己的一套时用自己的栈名（`-p`）和端口，再用 `PEARNLY_FLOWS_LAB` 告诉 `run.py`，
+回写的仍是同一个 `pearnly/flows` 状态：
+
+```bash
+export PEARNLY_FLOWS_LAB=pearnly-verify-lab REGRESSION_LAB_PORT=18781 REGRESSION_LAB_PORT_COWORK=18782 REGRESSION_LAB_PORT_DMS=18783
+PEARNLY_REGRESSION_SRC=$PWD docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.yml up -d --wait
+docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.yml exec -T bench env/bin/python /workspace/scripts/regression/lab_init.py
+python3 scripts/flows/run.py --changed --base origin/main --post-status
+docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.yml stop
+```
+
+## 两套数据里与公司设定有关的两点（盘点菜单做完整，10-29）
+
+- 新开户报上 Express 账套后要在公司上勾「接 Express」才算接上（连上且勾了才推送 / 同步），`datasets.py` 照正式做法勾上。
+- 开户自动建的公司自带一个默认仓（同「新建公司」表单）；第一次 Express 主档同步时它被认作 Express 主仓，所以新开户仍是 7 个仓。
+
 ## 为什么在本机跑
 
 生产镜像只有 linux/amd64；回归实验室在本机 Mac 上跑的就是线上同一个 amd64 镜像（colima 里经 qemu 模拟）。放到 free-arm-2 上同样要模拟，
