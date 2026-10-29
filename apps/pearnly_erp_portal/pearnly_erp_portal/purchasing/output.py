@@ -34,7 +34,8 @@ def _cell(record, key):
 def _columns(doctype):
     return [("name", "ID"), *[(field.fieldname, field.label) for field in frappe.get_meta(doctype).fields
         if field.fieldtype not in ("Section Break", "Column Break", "Tab Break", "HTML", "Button", "Table")
-        and field.fieldname not in ("request_id", "request_hash", "dedupe_key", "dedupe_ref", "calculation_version")]]
+        and field.fieldname not in ("request_id", "request_hash", "dedupe_key", "dedupe_ref", "calculation_version",
+                                    "batch_no", "expiry_date")]]  # 批次 / 有效期 10-29 删除，列只留在库里
 
 
 def _value(value):

@@ -205,7 +205,7 @@ def main():
     detailed['lines']=[{'description':prefix+' complete item','item_type':'goods','qty':'2',
         'unit_price':'107','discount':'10.7','vat_rate':'7','wht_rate':'3','unit':'pcs',
         'code':prefix+'-sku','barcode':prefix+'-barcode','category':category,
-        'batch_no':'LOT-1','expiry_date':'2027-01-01'},
+        'batch_no':'LOT-1','expiry_date':'2027-01-01'},  # 批次 / 有效期已删（10-29）：传了也不写
         {'description':'Service','item_type':'service','qty':'1','unit_price':'53.5','vat_rate':'7','wht_rate':'3'}]
     complete=entry.post(detailed,request_id=uuid4().hex)
     reloaded=records.get(complete['name'])
@@ -213,13 +213,13 @@ def main():
                   'supplier_branch_name','supplier_address','doc_no','doc_kind','currency',
                   'price_mode','requester','requester_user','notes','external_ref','source'):
         assert reloaded[field]==detailed[field],field
-    for field in ('code','barcode','batch_no','category','unit'):
+    for field in ('code','barcode','category','unit'):
         assert reloaded['lines'][0][field]==detailed['lines'][0][field],field
-    assert str(reloaded['lines'][0]['expiry_date'])=='2027-01-01'
+    assert not reloaded['lines'][0].get('batch_no') and not reloaded['lines'][0].get('expiry_date')
     assert reloaded['grand_total']==256.8 and reloaded['wht_amount']==7.2 and reloaded['net_payable']==249.6
     exported=load_workbook(BytesIO(output.workbook({'q':prefix+' complete'})))
     all_values=[cell.value for sheet in exported for row in sheet for cell in row]
-    assert 'LOT-1' in all_values and detailed['external_ref'] in all_values and detailed['lines'][0]['barcode'] in all_values
+    assert 'LOT-1' not in all_values and detailed['external_ref'] in all_values and detailed['lines'][0]['barcode'] in all_values
     assert frappe._('Purchase Invoice') in all_values and 'purchase_invoice' not in all_values
     checks.append('mixed invoice all business fields preserved through reload and Excel')
     copied_file=frappe.get_doc({'doctype':'File','file_name':prefix+' duplicate.txt','is_private':1,

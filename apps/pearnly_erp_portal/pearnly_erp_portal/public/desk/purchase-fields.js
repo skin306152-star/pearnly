@@ -31,7 +31,7 @@
 		Object.assign(field.df, changes); field.refresh();
 	};
 	u.line_keys = ["item_type", "product", "description", "code", "barcode", "qty", "unit", "unit_price",
-		"discount", "vat_rate", "wht_rate", "category", "subcategory", "batch_no", "expiry_date", "warehouse", "location"];
+		"discount", "vat_rate", "wht_rate", "category", "subcategory", "warehouse", "location"];
 	u.clean_lines = lines => (lines || []).filter(row => row.description || row.product)
 		.map(row => Object.fromEntries(u.line_keys.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 	// Each item is a native collapsible section + FieldGroup. No generic Grid menus,
@@ -67,9 +67,6 @@
 			// 给它赋值时框架校验会报错、打断整页（10-26 打印窗口发现）
 			f("location", "Location", state.editable ? "Autocomplete" : "Data",
 				{get_query: p.location_query(() => line.form?.get_value("warehouse"))}),
-			// 批号/失效日期：默认收起，选了"管批次 / 管有效期"的物料才由 onchange 露出来。
-			f("batch_no", "Batch No", "Data", {hidden: 1}),
-			f("expiry_date", "Expiry Date", "Date", {hidden: 1}),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,

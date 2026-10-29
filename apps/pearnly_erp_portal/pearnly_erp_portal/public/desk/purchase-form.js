@@ -89,8 +89,6 @@
 					unit: item.base_unit || item.unit, unit_price: Number(line.form.get_value("unit_price")) || item.default_cost || 0,
 					vat_rate: item.vat_applicable ? defaults.settings.default_vat_rate : 0});
 					// 仓与库位跟单头，选商品不改（商品的建议库位只在属于这个仓的清单时由服务端补，多仓闭环 P1）
-					line.form.set_df_property("batch_no", "hidden", !item.track_batch);
-					line.form.set_df_property("expiry_date", "hidden", !item.track_expiry);
 				}, on_clear: () => line.form.set_values({code: "", barcode: ""})});
 			line.form.sections.forEach(section => section.wrapper.addClass("px-0"));
 			line.form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));

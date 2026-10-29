@@ -98,7 +98,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
         "ref_type": ref_type, "ref_id": ref_id, "dedupe_key": dedupe_key, "status": "draft",
         "lines": [{
             "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
-            "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),
+            "unit_cost": line.get("unit_cost"),
             "warehouse": line["warehouse"], "location": line["location"],
         } for line in lines],
     })
@@ -198,7 +198,7 @@ def get_entry(name):
     units = serials.line_serials(doc)
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
-         "unit_cost": row.unit_cost, "batch_no": row.batch_no, "serials": units.get(row.idx, []),
+         "unit_cost": row.unit_cost, "serials": units.get(row.idx, []),
          **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []
     ]
@@ -233,7 +233,7 @@ def update_entry(name, **changes):
             line = positions.prepare(line, doc.warehouse, company=company, location=doc.get("location"))
             doc.append("lines", {
                 "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
-                "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),
+                "unit_cost": line.get("unit_cost"),
                 "warehouse": line["warehouse"], "location": line["location"],
             })
         serials.set_doc_serials(doc, lines)

@@ -235,7 +235,7 @@ def main():
                                                                "name_required")] if ok else None
     imported_name = frappe.db.get_value("ERP Product", {"code": "LAB-IMP-1"}, "name")
     results["import_flags"] = frappe.db.get_value(
-        "ERP Product", imported_name, ["vat_applicable", "track_batch", "base_unit"],
+        "ERP Product", imported_name, ["vat_applicable", "base_unit"],
         as_dict=True) if imported_name else None
     # 表里没带码的行同样由系统发号（旧线上 ERP 导入也走这条 `prepare()`）。
     results["import_auto_code"] = bool(frappe.db.exists(

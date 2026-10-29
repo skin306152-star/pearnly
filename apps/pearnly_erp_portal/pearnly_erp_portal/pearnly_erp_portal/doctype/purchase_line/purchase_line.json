@@ -163,11 +163,15 @@
   },
   {
    "fieldname": "batch_no",
+   "hidden": 1,
+   "read_only": 1,
    "label": "Batch No",
    "fieldtype": "Data"
   },
   {
    "fieldname": "expiry_date",
+   "hidden": 1,
+   "read_only": 1,
    "label": "Expiry Date",
    "fieldtype": "Date"
   }
@@ -175,7 +179,7 @@
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-09-17 00:00:00.000000",
+ "modified": "2026-10-29 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Line",

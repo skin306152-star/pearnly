@@ -158,7 +158,9 @@ class ProductContracts(unittest.TestCase):
         self.assertEqual(aliases["name_th"], "product_name")
         self.assertEqual(aliases["ชื่อสินค้า"], "product_name")
         self.assertEqual(aliases["售價"], "unit_price")
-        self.assertEqual(aliases["track_expiry"], "track_expiry")
+        # 批次 / 有效期已删（10-29）：老表里那两列不再认，导入时略过
+        self.assertNotIn("track_expiry", aliases)
+        self.assertNotIn("批次", aliases)
 
     def test_the_downloaded_template_parses_back_to_its_own_columns(self):
         """模板闭环：表头就是界面那几句，认回来必须还是同一批字段、同一个顺序。"""
@@ -871,7 +873,7 @@ class ProductWorkbookImport(unittest.TestCase):
                            ["b", "no", ""]])
         rows, _errors = product_workbook.parse_workbook(data)
         self.assertIs(rows[0]["vat_applicable"], True)
-        self.assertIs(rows[0]["track_batch"], True)
+        self.assertNotIn("track_batch", rows[0])
         self.assertIs(rows[1]["vat_applicable"], False)
 
     def test_a_non_workbook_is_rejected(self):

@@ -24,7 +24,7 @@ function element() {
 const PREVIEW_CODE = 'P-000042';
 const NEW_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit', 'category_id',
   'default_warehouse', 'default_location', 'unit_price', 'default_cost', 'min_stock',
-  'track_batch', 'track_expiry', 'vat_applicable', 'image_url'];
+  'vat_applicable', 'image_url'];
 
 function boot({ product = null, supported = true, can_write = true } = {}) {
   const calls = [], messages = [], scans = [], dialogs = [], editAll = [], sounds = [];

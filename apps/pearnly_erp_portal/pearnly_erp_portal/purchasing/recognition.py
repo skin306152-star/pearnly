@@ -42,7 +42,7 @@ HEADER_FIELDS = ("doc_no", "doc_date", "due_date", "doc_kind", "supplier_name", 
                  "currency", "has_vat", "price_mode", "requester", "notes", "discount_total", "rounding",
                  "wht_rate", "wht_amount")
 LINE_FIELDS = ("item_type", "description", "code", "barcode", "qty", "unit", "unit_price", "discount",
-               "vat_rate", "wht_rate", "batch_no", "expiry_date")
+               "vat_rate", "wht_rate")
 
 
 def _number(value):

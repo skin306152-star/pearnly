@@ -48,7 +48,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry", "default_location", "express_code", "internal_code", "track_serial", "serial_kind",
+    "default_location", "express_code", "internal_code", "track_serial", "serial_kind",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）；列表搜索同一套再加名称。
@@ -104,11 +104,6 @@ def _text(value, limit):
         return contracts.clean_text(value, limit)
     except ValueError:
         frappe.throw(_(INVALID_VALUE))
-
-
-def _flag(value) -> int:
-    """勾选项：表单来的 "1"/true/on 与真布尔都认，其余一律 0。"""
-    return 1 if value in (True, 1, "1", "true", "True", "on") else 0
 
 
 def taken(field: str, value, *, owner: str | None = None, exclude: str | None = None) -> str | None:
@@ -216,7 +211,7 @@ def next_code_preview() -> dict:
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
-                   category_id=None, track_batch=None, track_expiry=None,
+                   category_id=None,
                    default_location=None, internal_code=None, serial_kind=None, opening=None):
     """建一件商品。``opening``（可选，多仓闭环 P1 G1）：建好顺手放期初 ``[{warehouse, location, qty, unit_cost}]``，与商品
     同一个事务写（复用期初服务 `opening_batch`，同一套「每个位置只初始化一次」的规矩）；任何一行不成整件商品都不建。
@@ -249,8 +244,6 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         # 库存单位留空 = 跟售卖单位一样（旧线上 ERP 建品就是这么补的）。
         "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
         "category_id": int(category_id) if str(category_id or "").strip() else None,
-        "track_batch": _flag(track_batch),
-        "track_expiry": _flag(track_expiry),
         "is_active": 1,
         "default_location": _text(default_location, 140),
         # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
@@ -421,9 +414,6 @@ def update_product(name: str, **changes):
     if "category_id" in changes:
         doc.category_id = (int(changes["category_id"])
                            if str(changes["category_id"] or "").strip() else None)
-    for field in ("track_batch", "track_expiry"):
-        if field in changes:
-            doc.set(field, _flag(changes[field]))
     if changes.get("serial_kind") in ("vehicle", "device"):
         doc.serial_kind = changes["serial_kind"]
     if "product_name" in changes:
@@ -524,6 +514,8 @@ def api_get_product(name=None, **kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_create_product(**kwargs):
     kwargs.pop("cmd", None)
+    for legacy in ("track_batch", "track_expiry"):  # 批次 / 有效期 10-29 删除：旧页面还带着就略过
+        kwargs.pop(legacy, None)
     return create_product(**kwargs)
 
 

@@ -42,8 +42,7 @@ def resolve(line, *, create=True, currency_rate=1, company=None):
             "default_cost": Decimal(str(line.get("line_total", 0))) / Decimal(str(line["qty"])) * Decimal(str(currency_rate)),
             "cost_set": 1, "vat_applicable": int(float(line.get("vat_rate", 0)) > 0),
             "default_location": line.get("location"),
-            "is_active": 1, "track_batch": int(bool(line.get("batch_no"))),
-            "track_expiry": int(bool(line.get("expiry_date")))})
+            "is_active": 1})
         # This capability is deliberately limited to creating a purchase's item;
         # ERP Purchase retains read-only permission on the general item master.
         item.insert(ignore_permissions=True)

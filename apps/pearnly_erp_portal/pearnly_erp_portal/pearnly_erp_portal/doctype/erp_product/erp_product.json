@@ -152,12 +152,16 @@
   },
   {
    "fieldname": "track_batch",
+   "hidden": 1,
+   "read_only": 1,
    "fieldtype": "Check",
    "label": "Track batches",
    "default": "0"
   },
   {
    "fieldname": "track_expiry",
+   "hidden": 1,
+   "read_only": 1,
    "fieldtype": "Check",
    "label": "Track expiry",
    "default": "0"
@@ -254,7 +258,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-24 11:00:00.000000",
+ "modified": "2026-10-29 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",
