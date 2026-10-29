@@ -2063,7 +2063,7 @@ where = "页面报错回传（LINE 票据页、手机盘点页、CC 对话页）
 steps = "在页面控制台执行 setTimeout(() => { throw new Error('smoke') })，CC 对话页再让一个组件抛错（错误边界接住）"
 expect = "本站 Error Log 出「Browser error: smoke」，同一条只记一次；LINE 里未登录打开的票据页也记"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/www/assistant.html", "frontend/src/main.ts", "frontend/assistant/src/components/error-boundary.tsx", "apps/pearnly_core/pearnly_core/www/pearnly-app.html", "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
+files = ["apps/pearnly_core/pearnly_core/www/assistant.html", "frontend/src/main.ts", "frontend/assistant/src/components/error-boundary.tsx", "frontend/src/lib/caught.ts", "frontend/assistant/src/lib/caught.ts", "apps/pearnly_core/pearnly_core/www/pearnly-app.html", "apps/pearnly_dms/pearnly_dms/www/liff/dms-booking.html", "apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html"]
 
 [[entry]]
 id = "erp.report.stock-summary-qty-sort"

@@ -24,6 +24,7 @@ import type { RunStatus } from "@/lib/managed-agents/events";
 import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { prefChanged, registerPref } from "@/lib/prefs-sync";
+import { reportCaught } from "./caught";
 
 // ---------------------------------------------------------------- 卡片顺序
 export const PANEL_CARDS = ["company", "month", "pending", "notes", "folders", "tasks", "choices", "drafts", "outputs"] as const;
@@ -243,7 +244,7 @@ function fetchDetail(company: string, period: string): Promise<void> {
       hintTitle(next.company.id, next.company.title);
       dropCachedDetail(company); // 顶栏分店胶囊等用的另一份缓存，下次重取
       useDetails.setState({ [key]: { detail: next, error: "" } });
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-panel");
       if (asked.get(key) !== mine) return;
       useDetails.setState((before) => ({ [key]: { detail: before[key]?.detail ?? details.get(key) ?? null, error: shownError(e) } }));
     } finally {

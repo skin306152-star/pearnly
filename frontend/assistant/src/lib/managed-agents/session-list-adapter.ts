@@ -67,6 +67,7 @@ import { latestTitle, listen } from "./realtime";
 import { dropSessionController } from "./session-controller";
 import { forgetInGroups, noteListRead } from "./sidebar-order";
 import { byCompany, noteCreated } from "./sidebar-view";
+import { reportCaught } from "../caught";
 
 const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
 const STARRED_MAX = 100; // 同服务端 assistant/sessions.py LIST_LIMIT：第一页最多带这么多条置顶的
@@ -125,7 +126,7 @@ export async function quietly(kind: Kind, remoteId: string, run: () => Promise<v
   quiet.set(key, [...(quiet.get(key) ?? []), mark]);
   try {
     await run();
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "session-list-adapter");
     // 并不进去（这一行正处在组件库不让改的状态）：下一次核对再说
   } finally {
     // 没用上的记号一定收回，免得之后用户自己的操作被当成并入而不发请求

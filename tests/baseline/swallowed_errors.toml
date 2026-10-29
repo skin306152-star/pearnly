@@ -1,0 +1,447 @@
+# 吞错闸门登记的预期吞错（scripts/check-swallowed-errors.py）：只许减少。
+# 每条：文件、能唯一认出那个 catch 的一段代码（match：在 try 块 + catch 那一行 + 处理代码里找，只许对上一个）、原因。
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/errors.js"
+match = "}).then((response) => { if (retry && (response.status === 400 || response.status === 403) && !token()) wait(body); }).catch(() => {}); () => {}"
+reason = "回传本身失败不能再回传（会自己套自己），也不影响页面"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/errors.js"
+match = "} catch (e) {"
+reason = "回传本身失败不能再回传（会自己套自己），也不影响页面"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/scan.js"
+match = "try { frappe.utils.play_sound(ok ? \"submit\" : \"error\"); } catch (_error) { /* Muted browser. */ }"
+reason = "浏览器静音或不允许播放提示音"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/product.js"
+match = "try { return JSON.parse(localStorage.getItem(key) || \"null\"); } catch (error) { return null; }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/product.js"
+match = "localStorage.setItem(key, JSON.stringify(pack));"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/product.js"
+match = "const message = JSON.parse(item)?.message;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/desk/product.js"
+match = "if (encoded) { try { return decodeURIComponent(encoded[1]); } catch (error) { /* 照下面取 */ } }"
+reason = "地址里的编码不合法时照原样取，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "} catch (_error) { /* Use the same-origin decoder. */ }"
+reason = "相机解码逐帧尝试与降级，读不出是常态"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "if (modes.includes(\"continuous\")) await track.applyConstraints({ advanced: [{ focusMode: \"continuous\" }] }).catch(() => "
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "\"].includes(error?.name)) throw error; const cameras = (await media.enumerateDevices().catch(() => [])).filter(device => device.kind === \"videoinput\"); () => []"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "it media.getUserMedia({ video })); try { return await focus(await media.getUserMedia({ video })); } catch (_retry) { /* Next fallback. */ } /* Next fallback. */"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "{ await play(); try { await play(); } catch (error) { // 被新的加载打断就再播一次；被拦了自动播放就等人点一下，相机本身已经开着，不算失败。 if (error?.name === \"AbortError\") { await play().catch(() => {}); return; } on_play_blocked?.(() => play().catch(() => {}));"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "wait play(); } catch (error) { // 被新的加载打断就再播一次；被拦了自动播放就等人点一下，相机本身已经开着，不算失败。 if (error?.name === \"AbortError\") { await play().catch(() => {}); return; } () => {}"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "了自动播放就等人点一下，相机本身已经开着，不算失败。 if (error?.name === \"AbortError\") { await play().catch(() => {}); return; } on_play_blocked?.(() => play().catch(() => {})); () => {}"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_core/pearnly_core/public/scan/reader.js"
+match = "} catch (_error) { /* 单帧读不出来是常态，下一帧再读。 */ }"
+reason = "相机解码逐帧尝试与降级，读不出是常态"
+
+[[allow]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"
+match = "const payload = await response.json().catch(() => null);"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js"
+match = "const message = JSON.parse(item)?.message;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js"
+match = "try { saved = JSON.parse(localStorage.getItem(scope_key()) || \"{}\") || {}; } catch (_error) { /* Private mode. */ }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stocktake.js"
+match = "try { localStorage.setItem(scope_key(), JSON.stringify(scope())); } catch (_error) { /* Private mode. */ }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js"
+match = "frappe.utils.play_sound(\"submit\");"
+reason = "浏览器静音或不允许播放提示音"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"
+match = "const message = JSON.parse(item)?.message;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"
+match = "headers: { \"X-Frappe-CSRF-Token\": frappe.csrf_token, Accept: \"application/json\" }, }); const payload = await response.json().catch(() => null); () => null"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/post-file.js"
+match = "headers: {\"X-Frappe-CSRF-Token\": frappe.csrf_token}, }); const payload = await response.json().catch(() => null); () => null"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js"
+match = "try { return connection ? localStorage.getItem(LAST + connection) || \"\" : \"\"; } catch (error) { return \"\"; }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-choices.js"
+match = "try { if (connection && account) localStorage.setItem(LAST + connection, account); } catch (error) { /* 无痕窗口等 */ }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js"
+match = "try { saved = JSON.parse(localStorage.getItem(scope_key()) || \"{}\") || {}; } catch (_error) { /* Private mode. */ }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js"
+match = "try { localStorage.setItem(scope_key(), JSON.stringify(scope())); } catch (_error) { /* Private mode. */ }"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js"
+match = "try { return name ? localStorage.getItem(\"pearnly.intake.account_set.\" + name) || \"\" : \"\"; } catch (error) { return \"\"; "
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js"
+match = "const message = JSON.parse(item)?.message;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js"
+match = "if (!response.ok) return {error: failure(await response.json().catch(() => null), response.status)};"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "frontend/src/lib/i18n.ts"
+match = "const saved = localStorage.getItem(CACHE_KEY) || \"\";"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/lib/i18n.ts"
+match = "localStorage.setItem(CACHE_KEY, locale);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/lib/api.ts"
+match = "payload = JSON.parse(text);"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/src/lib/api.ts"
+match = "const parsed = JSON.parse(first) as { message?: string };"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/src/lib/dms-editor.ts"
+match = "return sessionStorage.getItem(TICKET_KEY) || \"\";"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/lib/dms-editor.ts"
+match = "sessionStorage.removeItem(TICKET_KEY);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/lib/dms-editor.ts"
+match = "sessionStorage.setItem(TICKET_KEY, ticket);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/lib/dms-editor.ts"
+match = "sessionStorage.setItem(PAGE_KIND_KEY, kind);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/pages/dms/EditorPage.vue"
+match = "const fromLine = sessionStorage.getItem(\"pearnly_dms_lang\");"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/pages/dms/AccountPage.vue"
+match = "ticket = sessionStorage.getItem(\"pearnly_dms_account_ticket\") || \"\";"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/src/pages/dms/ScanPage.vue"
+match = "stream = await navigator.mediaDevices.getUserMedia({"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "frontend/src/pages/dms/ScanPage.vue"
+match = "await el.play().catch(() => undefined);"
+reason = "相机 / 视频能力探测与自动播放被浏览器拦下，按能力降级，不是代码错误"
+
+[[allow]]
+file = "frontend/src/pages/dms/ReviewPage.vue"
+match = "const fromLine = sessionStorage.getItem(\"pearnly_dms_lang\");"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/desktop.ts"
+match = "const value = JSON.parse(localStorage.getItem(READERS_KEY) || \"[]\") as unknown;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/desktop.ts"
+match = "localStorage.setItem(READERS_KEY, JSON.stringify([...knownReaders(), reader].slice(-10)));"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/desktop.ts"
+match = "}); if (res.status === 403) return { kind: \"not_admin\" }; const body = (await res.json().catch(() => null)) as { message?: Registered } | null; () => null"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/desktop.ts"
+match = "}), }); const body = (await res.json().catch(() => null)) as { message?: Registered } | null; () => null"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/desktop.ts"
+match = "const value = localStorage.getItem(TEXT_SIZE_KEY);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/desktop.ts"
+match = "localStorage.setItem(TEXT_SIZE_KEY, size);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/appearance.ts"
+match = "const value = localStorage.getItem(spec.key) as Prefs[K] | null;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/appearance.ts"
+match = "localStorage.setItem(SPEC[name].key, value);"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/company-panel.ts"
+match = "const parsed: unknown = raw ? JSON.parse(raw) : null;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/company-panel.ts"
+match = "localStorage.setItem(panelKey(user), JSON.stringify({ open, order, collapsed }));"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/company-panel.ts"
+match = "if (user) raw = localStorage.getItem(panelKey(user));"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = "const subscription = await reg.pushManager.getSubscription().catch(() => null);"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = "if (!sameKey(subscription, key)) {"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = "claiming = post(\"push_subscribe\", payload(subscription));"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = "if (subscription) await subscription.unsubscribe().catch(() => false);"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = ".catch((error: unknown) => enableFailed(error, subscription))"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = "const subscription = await registration.pushManager.getSubscription();"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = ") { await post(\"push_unsubscribe\", { endpoint: subscription.endpoint }).catch(() => undefined); await subscription.unsubscribe().catch(() => false); () => false"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/push.ts"
+match = "if (claiming) await within(claiming, 2000).catch(() => undefined);"
+reason = "等待超时就继续，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/install.ts"
+match = "void navigator.serviceWorker.register(SERVICE_WORKER, { scope: \"/assistant\" }).catch(() => undefined);"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/install.ts"
+match = "const prompt = deferred; deferred = null; await prompt.prompt().catch(() => undefined); () => undefined"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/install.ts"
+match = "const choice = await prompt.userChoice.catch(() => null);"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/install.ts"
+match = "return localStorage.getItem(DISMISS_KEY) === \"1\";"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/install.ts"
+match = "localStorage.setItem(DISMISS_KEY, \"1\");"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/step-summary.ts"
+match = "const value = (JSON.parse(body) as Record<string, unknown>)[field];"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/prefs-sync.ts"
+match = "return typeof localStorage === \"undefined\" ? null : localStorage;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/prefs-sync.ts"
+match = "const list: unknown = JSON.parse(raw);"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/step-subject.ts"
+match = "return JSON.parse(resultText);"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/notify.ts"
+match = "return navigator.serviceWorker.getRegistration(HOME).catch(() => undefined);"
+reason = "浏览器的推送 / 安装 / Service Worker 能力不支持或被拒，按不支持处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/step-detail.ts"
+match = "parsed = JSON.parse(text);"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/frappe.ts"
+match = "const first = JSON.parse(JSON.parse(b._server_messages)[0]) as { message?: string };"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/frappe.ts"
+match = "const body = await res.json().catch(() => null);"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/projects.ts"
+match = "const value = JSON.parse(after) as Partial<GroupCursor>;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/session-controller.ts"
+match = "envelope = JSON.parse(msg.data) as RelayEnvelope;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/sidebar-order.ts"
+match = "return typeof localStorage === \"undefined\" ? null : localStorage;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/sidebar-order.ts"
+match = "const value: unknown = raw ? JSON.parse(raw) : null;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/sidebar-view.ts"
+match = "return typeof localStorage === \"undefined\" ? null : localStorage;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/sidebar-view.ts"
+match = "return raw ? parseView(JSON.parse(raw)) : DEFAULT_VIEW;"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/sidebar-fold.ts"
+match = "return typeof localStorage === \"undefined\" ? null : localStorage;"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/lib/managed-agents/sidebar-fold.ts"
+match = "const value: unknown = JSON.parse(raw);"
+reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，不是代码错误"
+
+[[allow]]
+file = "frontend/assistant/src/assistant.tsx"
+match = "const body = (await res.json().catch(() => null)) as { message?: { redirect_url?: string } } | null;"
+reason = "失败响应的正文可能不是 JSON（网关页等），按没有正文处理；请求失败本身另有处理"
+
+[[allow]]
+file = "frontend/assistant/src/assistant.tsx"
+match = "return localStorage.getItem(SIDEBAR_OPEN_KEY) !== \"0\";"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/assistant.tsx"
+match = "localStorage.setItem(SIDEBAR_OPEN_KEY, next ? \"1\" : \"0\");"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/components/split-handle.tsx"
+match = "const value = Number(localStorage.getItem(key));"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/components/split-handle.tsx"
+match = "else localStorage.setItem(key, String(Math.round(value * 10000) / 10000));"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"
+
+[[allow]]
+file = "frontend/assistant/src/components/scheduled-tasks.tsx"
+match = "return name ? localStorage.getItem(`pearnly.intake.account_set.${name}`) || \"\" : \"\";"
+reason = "浏览器存储不可用（无痕窗口、存满）时按没有存过处理，不是错误"

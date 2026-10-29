@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../lib/caught";
 // 产品内左下角的账号菜单。
 //
 // 用户当时的要求："改密放在登录后产品内，左下角或者右下角点开头像改，不是登录页"。
@@ -39,7 +40,7 @@ async function changeLanguage(language: Locale) {
     languageOpen.value = false;
     // Boot includes server-translated product text; reload it with the saved language.
     window.location.reload();
-  } catch (error) {
+  } catch (error) { reportCaught(error, "AccountMenu");
     languageError.value =
       error instanceof Error ? error.message : String(error);
   } finally {
@@ -67,7 +68,7 @@ async function confirmSignOut() {
       await call("logout", {}, { method: "POST" });
       window.location.assign("/");
     }
-  } catch (error) {
+  } catch (error) { reportCaught(error, "AccountMenu");
     signOutError.value = error instanceof Error ? error.message : String(error);
     signingOut.value = false;
   }
@@ -114,7 +115,7 @@ const options = computed(() => [
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "AccountMenu"));
 });
 </script>
 

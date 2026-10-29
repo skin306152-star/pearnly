@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../../lib/caught";
 // 采购记录（ERP 第一条纵向切片的主界面）。
 //
 // 这一页的意义不在"好看"，在于把前后端合同走通一遍：
@@ -100,7 +101,7 @@ async function refresh(): Promise<void> {
     ]);
     rows.value = list;
     summary.value = sum;
-  } catch (err) {
+  } catch (err) { reportCaught(err, "PurchasePage");
     error.value = explain(err);
   } finally {
     loading.value = false;
@@ -142,7 +143,7 @@ async function submit(): Promise<void> {
     draft.lines = [{ description: "", qty: 1, unit_price: 0, vat_rate: 7 }];
     showForm.value = false;
     await refresh();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "PurchasePage");
     error.value = explain(err);
   } finally {
     saving.value = false;
@@ -151,7 +152,7 @@ async function submit(): Promise<void> {
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "PurchasePage"));
   return refresh();
 });
 </script>

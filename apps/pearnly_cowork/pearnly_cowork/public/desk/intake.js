@@ -168,7 +168,7 @@
 			if (rest[0] === "folders" && p.intake_folders) {
 				try {
 					cleanup = (await p.intake_folders({page, t, go, still_current})) || (() => {});
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "intake");
 					console.error(error);
 					cleanup = () => {};
 					await go();

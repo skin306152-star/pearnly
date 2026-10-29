@@ -202,7 +202,7 @@
 					if (result.additional?.length) frappe.msgprint(__("This file holds {0} documents; only the first is filled in. Upload the others separately.", [result.additional.length + 1]));
 					changes(); state.sync_entry();
 					layout.navigate("information");
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "sales-form");
 					state.ocr_failed = true;
 					// frappe.call already presents server failures in the native message dialog.
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);

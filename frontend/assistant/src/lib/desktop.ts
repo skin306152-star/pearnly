@@ -19,6 +19,7 @@ import { onNotice } from "@/lib/managed-agents/activity";
 import { setDraft } from "@/lib/managed-agents/projects";
 import { deepLink, showNote } from "@/lib/notify";
 import { APP_NAME } from "@/lib/profile";
+import { reportCaught, withReport } from "./caught";
 
 type Message = { role?: string; content?: unknown };
 
@@ -353,7 +354,7 @@ export function loadDesktopFeatures(): Promise<DesktopFeatures> {
       companyFolders: !!state?.features?.includes(COMPANY_FOLDERS),
       ...(state?.features?.includes(DEVICES) ? { deviceName: String(state.device?.name ?? "") } : {}),
     }))
-    .catch(() => ({ app: true, companyFolders: false }))
+    .catch(withReport(() => ({ app: true, companyFolders: false }), "desktop"))
     .then((value) => (features = value));
   return readingFeatures;
 }
@@ -532,7 +533,7 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
     const paired = await api.call("pair", { code: `${found.token}@${location.host}`, switch: !!options.switchSite });
     if (paired.other_site) return setLink({ kind: "other_site", site: paired.other_site });
     setLink(paired.ok ? { kind: "idle" } : { kind: "failed", message: paired.message ?? "" });
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "desktop");
     setLink({ kind: "failed", message: "" });
   }
 }
@@ -635,7 +636,7 @@ if (frameless === null) {
   void desktop()
     .then((api) => api?.state())
     .then((state) => (state as { window?: { frameless?: boolean } } | undefined)?.window?.frameless === true)
-    .catch(() => false)
+    .catch(withReport(() => false, "desktop"))
     .then((value) => {
       frameless = value;
       for (const cb of framelessListeners) cb(value);

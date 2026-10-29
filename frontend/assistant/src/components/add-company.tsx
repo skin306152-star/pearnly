@@ -17,6 +17,7 @@ import { create } from "zustand";
 import { branchShort, type Candidate, createCompany, listCandidates, refreshCatalogs, requestKey } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
+import { reportCaught } from "../lib/caught";
 
 type AddState = { open: boolean; then: ((id: string) => void) | null; title: string };
 export const useAddCompany = create<AddState>(() => ({ open: false, then: null, title: "" }));
@@ -106,7 +107,7 @@ const Candidates: FC = () => {
       keys.current.set(row.identity, key);
       const made = await createCompany(row, key);
       finish(made.id);
-    } catch (e) {
+    } catch (e) { reportCaught(e, "add-company");
       setError(shownError(e));
     } finally {
       setBusy("");

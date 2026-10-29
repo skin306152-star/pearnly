@@ -26,7 +26,7 @@
 			if (current()) {
 				frappe.pearnly.stockCountBreadcrumbs({ name, title: task.title, report: true });
 			}
-		} catch (_error) {
+		} catch (_error) { globalThis.pearnlyCaught?.(_error, "erp_stock_count_variance");
 			// 服务端照常报告无权/不存在；保留按编号返回上级的路径。
 		}
 	}

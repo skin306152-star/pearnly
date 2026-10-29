@@ -36,6 +36,7 @@ import {
   gateCustomTool,
   type Projection,
 } from "./reducer";
+import { reportCaught, withReport } from "../caught";
 
 export type ControllerSnapshot = Projection & {
   /** History fetched at least once (spinner while false). */
@@ -459,7 +460,7 @@ export class SessionController {
       // 这次接上以后已核对过的不因一次不算数的重放撤回（detach 已把上一次接上的核对清掉）
       const synced = this.source !== null && epoch === this.attachEpoch && !this.rerunNeeded;
       this.set({ isLoaded: true, transportError: null, isSynced: synced || (this.source !== null && this.state.isSynced) });
-    } catch (err) {
+    } catch (err) { reportCaught(err, "session-controller");
       if (stale()) return;
       this.set({ isLoaded: true, transportError: describe(err) });
       // The buffer stays intact (folding it over a projection that's still
@@ -616,7 +617,7 @@ export class SessionController {
         if (status !== "awaiting_approval") this.fold(toolRunEvent(id, status));
       }
       this.source?.nudge();
-    } catch (err) {
+    } catch (err) { reportCaught(err, "session-controller");
       // The server never took our answer, so the session is still parked.
       // Undo the optimistic settle by putting those gates back (a replay
       // can't: the parked status_idle is already in `seen` and dedupes out).
@@ -696,7 +697,7 @@ export class SessionController {
             this.mergeProjection(next);
           }
         })
-        .catch((err) => {
+        .catch(withReport((err) => {
           this.set({ transportError: describe(err) });
           // Back off, then try again: the session is parked until we succeed.
           const delay = Math.min(1500 * 2 ** (attempt - 1), 15_000);
@@ -707,7 +708,7 @@ export class SessionController {
               this.answerPendingCustomTools();
             }, delay);
           }
-        })
+        }, "session-controller"))
         .finally(() => this.answering.delete(id));
     }
   }
@@ -716,7 +717,7 @@ export class SessionController {
    *  刚发出的那条还在路上：等它有了结果再打断（先到的打断落了空，服务端随后收下这条、回复照样出来）；它没发出去也照常核对状态。 */
   async interrupt(): Promise<void> {
     try {
-      await this.sendInFlight?.catch(() => undefined);
+      await this.sendInFlight?.catch(withReport(() => undefined, "session-controller"));
       await interruptSession(this.sessionId);
     } finally {
       this.refreshStatus();

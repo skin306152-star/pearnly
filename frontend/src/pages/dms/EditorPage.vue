@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught } from "../../lib/caught";
 // DMS 草稿编辑器 —— **LINE 内那一页**（老产品 `static/dms-booking-edit/` 的对应物）。
 //
 // 一个页面两种模式，靠 query 分（与老产品一致）：
@@ -310,7 +311,7 @@ async function cascade(
       geo[level] = rows;
       if (level === "zipcodes") autoZipcode(rows);
     }
-  } catch (err) {
+  } catch (err) { reportCaught(err, "EditorPage");
     if (request === geoRequest[level]) errorText.value = explain(err);
   }
 }
@@ -353,7 +354,7 @@ async function onCarChange(): Promise<void> {
   try {
     const rows = await loadPaints(ticket.value, nonce.value, carId);
     if (request === paintRequest) paints.value = rows;
-  } catch (err) {
+  } catch (err) { reportCaught(err, "EditorPage");
     if (request === paintRequest) errorText.value = explain(err);
   }
 }
@@ -427,7 +428,7 @@ async function save(): Promise<void> {
       return;
     }
     setTimeout(() => void closePage(), 900);
-  } catch (err) {
+  } catch (err) { reportCaught(err, "EditorPage");
     // 即使服务端拒绝本次保存，也不丢掉用户编辑的值。
     errorText.value = explain(err);
   } finally {
@@ -448,7 +449,7 @@ onMounted(async () => {
   document.documentElement.lang = locale.value;
   try {
     await loadTexts();
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "EditorPage");
     /* 文案拉不到就显示 key（看得见），不假装页面正常 */
   }
   if (!nonce.value) {
@@ -474,7 +475,7 @@ onMounted(async () => {
     adopt(draft);
     await hydrateGeo();
     stage.value = "ready";
-  } catch (err) {
+  } catch (err) { reportCaught(err, "EditorPage");
     fail(err);
   }
 });

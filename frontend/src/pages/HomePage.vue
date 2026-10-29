@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../lib/caught";
 // 首页 = 订阅与计费（三个产品共用这一个页面）。
 //
 // 照老产品搬（`src/home/subscription.ts` + `static/dms/dms-billing*.js` 那两套
@@ -90,7 +91,7 @@ async function pollBalance(): Promise<void> {
   try {
     home.value = await call<Home>("pearnly_core.billing_www.home");
     if (tab.value === "topup") await loadRows();
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "HomePage");
     /* The next explicit action reports connectivity failures. */
   }
 }
@@ -165,7 +166,7 @@ async function refresh(): Promise<void> {
   try {
     home.value = await call<Home>("pearnly_core.billing_www.home");
     await loadRows();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "HomePage");
     error.value = explain(err);
   } finally {
     loading.value = false;
@@ -180,7 +181,7 @@ async function loadRows(): Promise<void> {
       { tab: tab.value, period: period.value },
     );
     rows.value = data.rows || [];
-  } catch (err) {
+  } catch (err) { reportCaught(err, "HomePage");
     error.value = explain(err);
     rows.value = [];
   } finally {
@@ -211,7 +212,7 @@ async function run(key: string, fn: () => Promise<void>): Promise<void> {
   notice.value = "";
   try {
     await fn();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "HomePage");
     error.value = explain(err);
   } finally {
     busy.value = "";
@@ -264,7 +265,7 @@ function pickPlan(plan: Plan): Promise<void> {
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "HomePage"));
   poll = setInterval(() => void pollBalance(), 30000);
   window.addEventListener("focus", pollBalance);
   return refresh();

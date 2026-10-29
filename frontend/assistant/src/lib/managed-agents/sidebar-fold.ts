@@ -10,6 +10,7 @@
 
 import { create } from "zustand";
 import { toggleGroup } from "./sidebar-groups";
+import { reportCaught } from "../caught";
 
 export const DEVICE_FOLD_KEY = "cc.sidebar.collapsed";
 export const foldKey = (user: string) => `${DEVICE_FOLD_KEY}:${user}`;
@@ -26,7 +27,7 @@ function storage(): Storage | null {
 function get(key: string): string | null {
   try {
     return storage()?.getItem(key) ?? null;
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-fold");
     return null;
   }
 }
@@ -54,7 +55,7 @@ function save(next: ReadonlySet<string>) {
   useSidebarFold.setState({ collapsed: next });
   try {
     storage()?.setItem(owner ? foldKey(owner) : DEVICE_FOLD_KEY, JSON.stringify([...next]));
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-fold");
     // 无痕窗口等存不了：本次照样折叠
   }
 }

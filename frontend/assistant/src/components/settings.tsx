@@ -46,6 +46,7 @@ import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import { co, dayLabel, lang, LANGUAGES, st, t } from "../i18n";
 import { Marquee } from "@/components/ui/marquee";
+import { reportCaught, withReport } from "../lib/caught";
 
 type Section = "general" | "connections" | "system";
 
@@ -668,7 +669,7 @@ export function blockedLine(version: string, at?: string): string {
 }
 
 async function getJson<T>(method: string): Promise<T | null> {
-  const res = await siteFetch(`/api/method/${method}`, { cache: "no-store" }).catch(() => null);
+  const res = await siteFetch(`/api/method/${method}`, { cache: "no-store" }).catch(withReport(() => null, "settings"));
   if (!res?.ok) return null;
   return ((await res.json()) as { message: T }).message;
 }
@@ -706,7 +707,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
       await postMethod(REMOVE_COMPUTER, { device: row.id });
       setRows((before) => (before ?? []).filter((item) => item.id !== row.id));
       load();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "settings");
       setError(shownError(e));
     } finally {
       setBusy("");
@@ -825,7 +826,7 @@ function AllMembers({ heading = false }: { heading?: boolean }) {
         ...(values.users ? { users: JSON.stringify(values.users) } : {}),
       });
       setPool((before) => (before ? { ...before, all_members: next.all_members, users: next.users } : before));
-    } catch (e) {
+    } catch (e) { reportCaught(e, "settings");
       setError(shownError(e));
     } finally {
       setBusy(false);

@@ -65,7 +65,7 @@
 	async function account_note(connection, account_set_key) {
 		if (connection?.adapter !== "express" || !account_set_key) return "";
 		const found = await frappe.xcall(API.companion + "online", {connection: connection.name, account_set_key})
-			.catch(() => null);
+			.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 		return found?.needs_update ? __("intake.agent.state.needsUpdate") : "";
 	}
 
@@ -140,11 +140,11 @@
 		const check = async () => {
 			if (!connection && adapter) {
 				// 还没有通道：电脑登录 CC 时服务端会建，建好后接着问它
-				const rows = await frappe.xcall(API.connections + "records", {limit: 100}).catch(() => []);
+				const rows = await frappe.xcall(API.connections + "records", {limit: 100}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => [])(caughtError); });
 				connection = main_of(rows, adapter);
 			}
 			if (!connection) return paint(false);
-			const result = await frappe.xcall(API.companion + "online", {connection: connection.name}).catch(() => null);
+			const result = await frappe.xcall(API.companion + "online", {connection: connection.name}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 			paint(Boolean(result?.online));
 		};
 		const timer = setInterval(() => void check(), 3000);
@@ -241,7 +241,7 @@
 	function prefetch_account(connection, account_set_key) {
 		if (connection?.adapter !== "express" || !account_set_key) return;
 		void p.call(API.connections + "ensure_account_masters",
-			{name: connection.name, account_set_key}, "POST").catch(() => null);
+			{name: connection.name, account_set_key}, "POST").catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 	}
 
 	/* ── 存货科目组：每个账套选一次（用户 2026-09-28）──
@@ -251,7 +251,7 @@
 	/** 这份 Express 账套的存货科目组：`{known, groups, chosen}`。读不到当作未知（不问、不拦）。 */
 	async function stock_group(connection, account_set_key) {
 		if (connection?.adapter !== "express" || !account_set_key) return null;
-		return p.call(API.connections + "stock_acc_group", {name: connection.name, account_set_key}).catch(() => null);
+		return p.call(API.connections + "stock_acc_group", {name: connection.name, account_set_key}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 	}
 
 	/** 该请用户选：候选已知、合格的有两个以上、这份账套还没选过。 */
@@ -294,11 +294,11 @@
 	async function mrerp_menu(connection, account_set_key, {fresh = false} = {}) {
 		if (connection?.adapter !== "mrerp" || !account_set_key) return null;
 		const args = {name: connection.name, account_set_key};
-		const read = () => p.call(API.connections + "mrerp_menu", args).catch(() => null);
+		const read = () => p.call(API.connections + "mrerp_menu", args).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 		let view = await read();
 		// 菜单与主档都读到过才直接用（09-28 起读过菜单的账套还没读过主档，第一次要补读）
 		if (!view || (view.known && view.defaults?.known && !fresh)) return view;
-		const request = await p.call(API.connections + "request_mrerp_menu", args, "POST").catch(() => null);
+		const request = await p.call(API.connections + "request_mrerp_menu", args, "POST").catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 		if (!request) return view;
 		const started = Date.now();
 		while (Date.now() - started < MENU_READ.give_up_ms) {

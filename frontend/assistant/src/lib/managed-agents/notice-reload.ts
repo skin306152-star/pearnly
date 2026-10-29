@@ -1,3 +1,4 @@
+import { withReport } from "../caught";
 // 提醒挂到的对话不在侧栏已加载的那几页里（较早的对话）：重新拉一次列表，它就排到最上面（服务端把它的时间改成了现在）。
 // 组件库没有只插一行的接口，只能整表重拉，所以要省着拉：
 //   - 几条提醒合成一次（delay 内到的一起算）；
@@ -36,7 +37,7 @@ export function noticeReloader(threads: () => Threads, delay: number): { note: (
       return;
     }
     waiting.clear();
-    void threads().reload().catch(() => undefined);
+    void threads().reload().catch(withReport(() => undefined, "notice-reload"));
   };
 
   return {

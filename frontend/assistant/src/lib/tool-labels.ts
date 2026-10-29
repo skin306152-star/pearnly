@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { get } from "@/lib/frappe";
+import { withReport } from "./caught";
 
 export type ToolLabels = {
   done: Record<string, string>;
@@ -35,10 +36,10 @@ export function loadToolLabels(): Promise<ToolLabels> {
       };
       return loaded;
     })
-    .catch(() => {
+    .catch(withReport(() => {
       cached = null;
       return { ...EMPTY, ready: true };
-    });
+    }, "tool-labels"));
   return cached;
 }
 

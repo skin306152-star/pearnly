@@ -146,7 +146,7 @@
 					if (!action || action.disabled || button.disabled) return;
 					button.disabled = true;
 					try { await action.action(row); }
-					catch (error) {
+					catch (error) { globalThis.pearnlyCaught?.(error, "list");
 						if (!error?._server_messages && !error?.responseJSON) console.error(error);
 					} finally { button.disabled = false; }
 				});
@@ -399,7 +399,7 @@
 					// 清选择放在最后，而且自己兜住异常：这一步失败不该把真正的失败原因吞掉。
 					try {
 						if (this.selectable) this.clear_checked_items();
-					} catch (cleanup) {
+					} catch (cleanup) { globalThis.pearnlyCaught?.(cleanup, "list");
 						console.error(cleanup);
 					}
 				}
@@ -484,7 +484,7 @@
 				if (message) p.success(message, sound);
 				list()?.clear_checked_items?.();
 				await list()?.reload?.();
-			} catch (error) {
+			} catch (error) { globalThis.pearnlyCaught?.(error, "list");
 				// 服务端已经用 msgprint 说明了原因；这里只负责把选择留着，让人能改完再试。
 				if (!error?._server_messages && !error?.responseJSON) console.error(error);
 			} finally {

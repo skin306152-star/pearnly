@@ -55,7 +55,7 @@
 			dialog.$wrapper.one("hidden.bs.modal", () => {
 				if (control) control.pearnly_editor_open = false;
 			});
-		} catch (error) {
+		} catch (error) { globalThis.pearnlyCaught?.(error, "link");
 			if (control) control.pearnly_editor_open = false;
 			if (!error?._server_messages && !error?.responseJSON) console.error(error);
 		}

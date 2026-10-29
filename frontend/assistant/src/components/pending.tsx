@@ -52,6 +52,7 @@ import { useLiveRefresh } from "@/lib/live";
 import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
+import { reportCaught, withReport } from "../lib/caught";
 
 const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
@@ -168,7 +169,7 @@ function useTitles(ids: readonly string[]): Record<string, string> {
     if (!missing.length) return;
     let alive = true;
     void listCompanies("", 0, 50)
-      .catch(() => [])
+      .catch(withReport(() => [], "pending"))
       .then(async (rows) => {
         const out: Record<string, string> = {};
         for (const row of rows) out[row.id] = row.title;
@@ -201,7 +202,7 @@ export function usePendingItems(company: string, search = "") {
     try {
       setItems(await loadPending(company, 200, query));
       setError("");
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setItems((before) => before ?? []);
       setError(shownError(e));
     }
@@ -352,7 +353,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
       const next = await loadChoices(item);
       setView(next);
       setValues(Object.fromEntries(next.needed.map((need) => [choiceKey(need), initialChoice(next, need)])));
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     }
   }, [item]);
@@ -373,7 +374,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         setError(outcome.text);
         onChanged();
       }
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     } finally {
       setBusy(false);
@@ -464,7 +465,7 @@ export const MrErpRow: FC<{ item: PendingItem; onDone: (document: string) => voi
     try {
       setView(await loadMrErpNeeds(item));
       setValues({});
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     }
   }, [item]);
@@ -484,7 +485,7 @@ export const MrErpRow: FC<{ item: PendingItem; onDone: (document: string) => voi
         setError(outcome.text);
         onChanged();
       }
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     } finally {
       setBusy(false);
@@ -585,7 +586,7 @@ export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => 
     setError("");
     try {
       setView(await loadProposal(item));
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     }
   }, [item]);
@@ -605,7 +606,7 @@ export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => 
         setError(outcome.text);
         onChanged();
       }
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     } finally {
       setBusy(false);
@@ -666,7 +667,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
       setSets(found);
       // 只预选已定的（F18）：只有一份，或这一组已经记住的现用账套
       setValue(found.length === 1 ? found[0]!.key : found.some((set) => set.key === current) ? current : "");
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     }
   }, [item]);
@@ -696,7 +697,7 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
         setError(outcome.text);
         onChanged();
       }
-    } catch (e) {
+    } catch (e) { reportCaught(e, "pending");
       setError(shownError(e));
     } finally {
       setBusy(false);

@@ -12,6 +12,7 @@
 import { useCallback, useRef } from "react";
 import { create } from "zustand";
 import { isDragEscape, isDragging, OPEN_LAYERS } from "@/lib/layers";
+import { reportCaught } from "./caught";
 
 // ---------------------------------------------------------------- 多选
 export type Selection = { ids: string[]; anchor: string | null };
@@ -68,7 +69,7 @@ export async function runInOrder<T>(items: readonly T[], run: (item: T) => unkno
     try {
       await run(item);
       done++;
-    } catch (error) {
+    } catch (error) { reportCaught(error, "sidebar-keys");
       if (!failed) onError?.(error);
       failed = true;
     }

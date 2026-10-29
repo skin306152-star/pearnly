@@ -162,7 +162,7 @@ frappe.provide("frappe.pearnly.pos_next");
 				if (!name) return Promise.resolve({ message: { email_id: "" } });
 				return db_get_value("ERP Customer", name, "contact_email")
 					.then(out => ({ message: { email_id: out?.message?.contact_email || "" } }))
-					.catch(() => ({ message: { email_id: "" } }));
+					.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "pearnly-pos-adapter"); return (() => ({ message: { email_id: "" } }))(caughtError); });
 			}
 			return db_get_value(doctype, ...rest);
 		};
@@ -817,7 +817,7 @@ frappe.provide("frappe.pearnly.pos_next");
 					frappe.utils.play_sound("submit");
 					this.toggle_components(false);
 					this.toggle_submitted_invoice_summary(true);
-					void this.refresh_shift_summary().catch(error => console.error(error));
+					void this.refresh_shift_summary().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "pearnly-pos-adapter"); return (error => console.error(error))(caughtError); });
 					frappe.show_alert({
 						indicator: "green",
 						message: __("POS invoice {0} created successfully", [result.receipt_no || result.name]),
@@ -1357,7 +1357,7 @@ frappe.provide("frappe.pearnly.pos_next");
 			}
 			// 退货 / 作废之后这张单已经变了：重新取一遍汇总，别让界面停在做完之前的样子。
 			after_receipt_action() {
-				void this.pearnly_controller.refresh_shift_summary().catch(error => console.error(error));
+				void this.pearnly_controller.refresh_shift_summary().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "pearnly-pos-adapter"); return (error => console.error(error))(caughtError); });
 				return this.with_server_doc(doc => this.load_summary_of(summary_doc_of(doc), true));
 			}
 			add_summary_btns() {
@@ -1438,7 +1438,7 @@ frappe.provide("frappe.pearnly.pos_next");
 			wrapper.pos = boot(wrapper);
 			wrapper.on_page_show = () => {
 				p.restore_sidebar();
-				void wrapper.pos.resume().catch(error => console.error(error));
+				void wrapper.pos.resume().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "pearnly-pos-adapter"); return (error => console.error(error))(caughtError); });
 			};
 			$(wrapper).on("hide.pearnly-pos", () => wrapper.pos.suspend());
 		}

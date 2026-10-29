@@ -16,6 +16,7 @@ import { useSyncExternalStore } from "react";
 import type { CompleteAttachment, CreateAttachment } from "@assistant-ui/react";
 import { shownError } from "@/lib/frappe";
 import { isUploaded } from "./attachments";
+import { reportCaught, withReport } from "../caught";
 
 /** 输入框里要用到的几项（组件库 ThreadComposerRuntime 的子集）。 */
 export type ComposerLike = {
@@ -63,7 +64,7 @@ export function sendFailed(
     const back = isUploaded(a.id) || !a.file
       ? composer.addAttachment({ id: a.id, type: a.type, name: a.name, contentType: a.contentType, content: a.content })
       : composer.addAttachment(a.file);
-    void back.catch((err) => console.debug("[cc] attachment not restored:", err));
+    void back.catch(withReport((err) => console.debug("[cc] attachment not restored:", err), "send-failure"));
   }
 }
 
@@ -90,7 +91,7 @@ export async function attemptSend(
       delivered = true;
     });
     return true;
-  } catch (error) {
+  } catch (error) { reportCaught(error, "send-failure");
     sendFailed(thread, error, delivered ? undefined : restore);
     return false;
   }
@@ -102,7 +103,7 @@ export async function attemptStop(thread: string, run: () => Promise<void>): Pro
   try {
     await run();
     return true;
-  } catch (error) {
+  } catch (error) { reportCaught(error, "send-failure");
     note(thread, "stop", shownError(error));
     emit();
     return false;
@@ -130,7 +131,7 @@ export function sendLanded(thread: string, text: string) {
   }
   const ids = (now.attachments ?? []).map((a) => a.id);
   if (attachments.length && ids.length === attachments.length && ids.every((id, i) => id === attachments[i])) {
-    void Promise.resolve(composer.clearAttachments?.()).catch((err) => console.debug("[cc] attachments not cleared:", err));
+    void Promise.resolve(composer.clearAttachments?.()).catch(withReport((err) => console.debug("[cc] attachments not cleared:", err), "send-failure"));
   }
   if (failures.get(thread)?.send) {
     note(thread, "send", undefined);

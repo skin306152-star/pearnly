@@ -191,7 +191,7 @@ frappe.provide("frappe.pearnly");
 			if (wait > 0) { clearTimeout(soon); soon = setTimeout(run, wait); return; }
 			running = true;
 			last = Date.now();
-			try { await refresh(); } catch (error) { /* 下一次再刷 */ }
+			try { await refresh(); } catch (error) { globalThis.pearnlyCaught?.(error, "product"); /* 下一次再刷 */ }
 			running = false;
 			if (again) { again = false; return run(); }
 			schedule();
@@ -407,7 +407,7 @@ frappe.provide("frappe.pearnly");
 			if (!blob) return file;
 			const name = String(file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
 			return new File([blob], name, {type: "image/jpeg", lastModified: file.lastModified || Date.now()});
-		} catch (error) {
+		} catch (error) { globalThis.pearnlyCaught?.(error, "product");
 			return file;  // 解不开（如桌面浏览器的 HEIC）：原样上传，服务端照旧处理
 		} finally {
 			bitmap?.close?.();

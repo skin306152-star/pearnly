@@ -120,7 +120,7 @@
 				code_expires = 0;
 			}
 			if (!code_expires || code_expires <= Date.now()) await new_code();
-			poll = poll || setInterval(() => void refresh().catch(stop), POLL_MS);
+			poll = poll || setInterval(() => void refresh().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "line-binding"); return (stop)(caughtError); }), POLL_MS);
 		}
 
 		// 调用方的格子可能在我们被调用之后才挂到页面上（弹窗里实测如此）：

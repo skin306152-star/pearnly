@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../../lib/caught";
 // Cowork 录入工作台。
 //
 // 这一页对应旧系统的「录入工作台 → 识别记录 → 推送日志」那条线，后端（P3.04 切片）
@@ -150,7 +151,7 @@ async function refresh(): Promise<void> {
     ]);
     rows.value = list;
     summary.value = sum;
-  } catch (err) {
+  } catch (err) { reportCaught(err, "IntakePage");
     error.value = explain(err);
   } finally {
     loading.value = false;
@@ -183,7 +184,7 @@ async function submit(): Promise<void> {
     draft.vat_amount = 0;
     showForm.value = false;
     await refresh();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "IntakePage");
     error.value = explain(err);
   } finally {
     busy.value = "";
@@ -213,7 +214,7 @@ async function doAction(
       statusLabel(result.status),
     );
     await refresh();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "IntakePage");
     error.value = explain(err);
   } finally {
     busy.value = "";
@@ -222,7 +223,7 @@ async function doAction(
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "IntakePage"));
   return refresh();
 });
 </script>

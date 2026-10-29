@@ -251,7 +251,7 @@
 					if (!values || busy) return;
 					busy = true; button.prop("disabled", true);
 					try { await save(values); }
-					catch (error) { if (!error?._server_messages && !error?.responseJSON) console.error(error); }
+					catch (error) { globalThis.pearnlyCaught?.(error, "team"); if (!error?._server_messages && !error?.responseJSON) console.error(error); }
 					finally { busy = false; button.prop("disabled", false); }
 				});
 				page.set_secondary_action(__("Cancel"), () => frappe.set_route(root));

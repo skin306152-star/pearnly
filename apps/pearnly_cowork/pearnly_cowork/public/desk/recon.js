@@ -389,7 +389,7 @@
 			page.set_secondary_action(t("cowork.recon.live.back"), () => frappe.set_route(root));
 			for (;;) {
 				let state;
-				try { state = await frappe.xcall(api + "status", { job }); } catch (error) { state = null; }
+				try { state = await frappe.xcall(api + "status", { job }); } catch (error) { globalThis.pearnlyCaught?.(error, "recon"); state = null; }
 				if (request !== sequence) return;
 				if (state) {
 					if (state.state === "done" && state.task) { frappe.set_route(root, state.task); return; }
@@ -832,7 +832,7 @@
 					const result = await p.call(sheets_api + "recalc", { kind, task_id: name, inputs: JSON.stringify(payload), lang: lang() }, "POST");
 					if (pending !== payload || frappe.get_route()[1] !== name) return;
 					view = result; inputs = clone(result.inputs); good = clone(result.inputs);
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "recon");
 					// 打进去的字不合格（日期、金额）：退回上一次算得通的输入，表也画回去。
 					if (pending !== payload) return;
 					inputs = clone(good);

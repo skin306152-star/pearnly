@@ -28,7 +28,7 @@
 			++revision; ++value_revision;
 			applied = value;
 			const row = choices.find(item => label(item) === value);
-			pending = pending.catch(() => {}).then(async () => {
+			pending = pending.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "entry-choice"); return (() => {})(caughtError); }).then(async () => {
 				if (!valid()) return;
 				const was_linked = Boolean(form.get_value(reference));
 				await form.set_values({[reference]: row?.name || "", [title]: row?.[field] || value});

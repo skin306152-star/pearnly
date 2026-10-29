@@ -83,6 +83,8 @@ jobs:
         run: python3 scripts/test-dms-customer-identity.py
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
+      - name: Every catch in product front-end code rethrows or goes to the shared error report; expected ones are registered with a reason
+        run: python3 scripts/check-swallowed-errors.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded

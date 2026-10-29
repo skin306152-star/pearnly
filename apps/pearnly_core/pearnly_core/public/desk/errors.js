@@ -51,6 +51,19 @@
 		if (!(error instanceof Error)) return;
 		send({ kind: String(kind || "error"), message: String(error.message || ""), source: "", line: 0, column: 0, stack: String(error.stack || "") });
 	};
+	// 统一出错回传（吞错闸门，主会话 10-28）：代码里接住的错误一律交这里。请求被站点拒收 / 网络失败（带状态码、`exc_type`、
+	// 站点给的提示）服务端已经记过、页面也已提示，不再回传；用户取消（AbortError）不算错。其余是前端自己的异常，记进 Error Log。
+	// `scripts/check-swallowed-errors.py` 要求每个 catch 重抛，或调这里（`pearnlyCaught` / `pearnlyReported`）。
+	const request_failure = (error) => Boolean(error && (Number(error.status) || error.exc_type || error.excType
+		|| error._server_messages || error.responseJSON || ["SiteError", "RequestError", "ApiError", "AbortError"].includes(error.name)));
+	window.pearnlyCaught = (error, kind) => {
+		if (!request_failure(error)) window.pearnlyReportError(error, kind);
+	};
+	// `.catch(window.pearnlyReported(原来的处理, "哪里"))`：先回传，再照原来的处理（函数就调用、其它值原样返回）
+	window.pearnlyReported = (fallback, kind) => (error) => {
+		window.pearnlyCaught(error, kind);
+		return typeof fallback === "function" ? fallback(error) : fallback;
+	};
 	window.addEventListener("error", (event) => {
 		if (!event || (!event.message && !event.error)) return; // 资源加载失败（图片等）不算
 		send({

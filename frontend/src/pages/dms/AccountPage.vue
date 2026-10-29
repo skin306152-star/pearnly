@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught } from "../../lib/caught";
 import LineLayout from "../../components/LineLayout.vue";
 import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
@@ -56,7 +57,7 @@ async function openPortal(): Promise<void> {
     const liff = await initLiff(liffId);
     const result = await call<{ url: string }>(api + "portal_ticket", { ticket, language: locale.value }, { method: "POST" });
     openExternal(liff, result.url);
-  } catch (e) {
+  } catch (e) { reportCaught(e, "AccountPage");
     const key = e instanceof ApiError && [401, 403].includes(e.status) ? "dms.account.expired" : "dms.account.failed";
     error.value = t(key);
     busy.value = false;
@@ -71,7 +72,7 @@ async function submit() {
     await call(api + "save_credentials", { ticket, password: password.value }, { method: "POST" });
     password.value = "";
     saved.value = true;
-  } catch (e) {
+  } catch (e) { reportCaught(e, "AccountPage");
     const key = e instanceof Error ? e.message : "";
     if (e instanceof ApiError && [401, 403].includes(e.status)) {
       ready.value = false;

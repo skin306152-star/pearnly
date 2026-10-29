@@ -18,6 +18,7 @@ import { st } from "@/i18n";
 import { isDesktopApp } from "@/lib/desktop";
 import { get, post, SiteError } from "@/lib/frappe";
 import { isIOS, standalone } from "@/lib/install";
+import { withReport } from "./caught";
 
 /** unknown：还没同步完（开关灰着）；install：iPhone 在浏览器页签里，要先添加到主屏幕；desktop：CC 桌面端窗口。 */
 export type PushState = "unknown" | "desktop" | "unsupported" | "install" | "denied" | "off" | "on";
@@ -82,7 +83,7 @@ async function sync(): Promise<void> {
   const found = await within(
     Promise.all([navigator.serviceWorker.ready, get<{ key: string }>("push_key").then((r) => r?.key)]),
     15_000,
-  ).catch(() => null);
+  ).catch(withReport(() => null, "push"));
   if (!found?.[1]) {
     synced = null;
     return setState("unknown");
@@ -112,7 +113,7 @@ async function sync(): Promise<void> {
 
 /** 每次打开 CC 调一次（重复调用只做一次；上次没准备好的再试一次）。 */
 export function syncPush(): Promise<void> {
-  synced ??= sync().catch(() => setState("unsupported"));
+  synced ??= sync().catch(withReport(() => setState("unsupported"), "push"));
   return synced;
 }
 
@@ -175,7 +176,7 @@ export async function forgetDevice(): Promise<void> {
       if (subscription) await post("push_unsubscribe", { endpoint: subscription.endpoint });
     })(),
     3000,
-  ).catch(() => undefined);
+  ).catch(withReport(() => undefined, "push"));
 }
 
 /** 现在的开关状态与上一次打开失败的原因（usePush 读的就是它们）。 */

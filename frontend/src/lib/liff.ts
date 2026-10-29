@@ -1,3 +1,4 @@
+import { reportCaught } from "./caught";
 /**
  * LINE LIFF SDK 的装载与初始化。
  *
@@ -45,7 +46,7 @@ export async function initLiff(liffId: string): Promise<LiffLike | null> {
   if (!liff || typeof liff.init !== "function") return null;
   try {
     await liff.init({ liffId });
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "liff");
     return null;
   }
   return liff;

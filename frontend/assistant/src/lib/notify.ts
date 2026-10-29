@@ -1,3 +1,4 @@
+import { reportCaught } from "./caught";
 // 页面自己弹的系统通知（回复完成、本站提醒，lib/desktop.ts 调）：
 //
 //   浏览器      — 交给后台脚本弹（registration.showNotification）。安卓 Chrome（含装成应用）不让页面直接
@@ -37,7 +38,7 @@ export async function showNote(title: string, body: string, tag: string, url: st
       onClick?.();
     };
     return true;
-  } catch (error) {
+  } catch (error) { reportCaught(error, "notify");
     console.warn("[cc] notification not shown", error);
     return false;
   }

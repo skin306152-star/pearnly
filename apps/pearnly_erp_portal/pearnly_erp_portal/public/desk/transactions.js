@@ -131,7 +131,7 @@
 		let info;
 		try {
 			info = await p.call(api, {doctype, payload: JSON.stringify(payload)}, "POST");
-		} catch (error) {
+		} catch (error) { globalThis.pearnlyCaught?.(error, "transactions");
 			if (shown(error)) return false;
 			info = null;
 		}
@@ -148,7 +148,7 @@
 			});
 			if (!answers) return false;
 			info = await p.call(api, {doctype, payload: JSON.stringify(payload), answers: JSON.stringify(answers)}, "POST")
-				.catch(() => null);
+				.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "transactions"); return (() => null)(caughtError); });
 		}
 		return true;
 	};
@@ -242,7 +242,7 @@
 					try {
 						now = (await frappe.call({method: api + "api_recognise_progress", args: {progress_key: key},
 							type: "GET", silent: true})).message || {};
-					} catch (error) {
+					} catch (error) { globalThis.pearnlyCaught?.(error, "transactions");
 						continue; // 一时问不到就下次再问
 					}
 					if (now.total) progress?.(now);

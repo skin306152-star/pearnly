@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught } from "../../lib/caught";
 // 扫身份证（LINE 内，票据模式 `scan`）：对准取景框自动拍 → 直传本站点 → 回聊天继续原流程。
 //
 // 只负责"拍一张够清楚的卡片照片并交上去"。识别、复核、建档仍是聊天里那条流程（`intake.scan`）：
@@ -136,7 +137,7 @@ async function capture(): Promise<void> {
       result = await uploadScan(ticket, image);
     }
     returnToChat("scan", result);
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ScanPage");
     busy = false;
     fail(err);
   }
@@ -182,14 +183,14 @@ function backToChat(): void {
 onMounted(async () => {
   try {
     await loadTexts();
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "ScanPage");
     /* 文案拉不到就显示 key（看得见），不假装页面正常 */
   }
   try {
     const config = await loadConfig();
     if (config.liff_id) void loadLiffSdk();
     ticket = await ensureScanTicket();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ScanPage");
     fail(err);
     return;
   }

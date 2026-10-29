@@ -225,11 +225,11 @@
 						paint_catalog();
 					}
 				},
-			}).catch(error => {
+			}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-choices"); return (error => {
 				if (run !== generation) return;
 				catalog = {groups: [], ...catalog, loading: false, error_code: error?.exc_type || "ERR_UNEXPECTED"};
 				paint_catalog();
-			});
+			})(caughtError); });
 		};
 
 		// 第四张卡片「自动录入规则」（2026-10-07）：不是推送目标，点了关掉弹窗进规则页；规则页脚本没加载时不摆。
@@ -260,7 +260,7 @@
 			[p.intake_targets.describe(target.adapter, state), p.intake_targets.ready(target.adapter, state)]);
 		const watch = setInterval(async () => {
 			if (document.hidden || !snapshot) return;
-			const next = await p.intake_targets.state().catch(() => null);
+			const next = await p.intake_targets.state().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-choices"); return (() => null)(caughtError); });
 			if (!next || same(signature(next), signature(snapshot))) return;
 			const was_ready = gated();
 			snapshot = next;

@@ -18,6 +18,7 @@
 import { useSyncExternalStore } from "react";
 import { markNoticesSeen } from "./api";
 import { type FeedEvent, isNotice, type NoticeEvent, type RunStatus } from "./events";
+import { reportCaught, withReport } from "../caught";
 
 export type Activity = "running" | "unread" | "notice";
 
@@ -62,7 +63,7 @@ function flush(sessionId: string) {
   const last = latestNotice.get(sessionId);
   if (!last || reported.get(sessionId) === last) return;
   reported.set(sessionId, last);
-  void markNoticesSeen(sessionId).catch(() => reported.delete(sessionId));
+  void markNoticesSeen(sessionId).catch(withReport(() => reported.delete(sessionId), "activity"));
 }
 
 /** 这段对话里显示出来的最新一条提醒（runtime-provider：当前对话的提醒有变化时调）。 */
@@ -106,7 +107,7 @@ function noteNotice(sessionId: string, notice: NoticeEvent) {
   noticeListeners.forEach((listener) => {
     try {
       listener(notice);
-    } catch (error) {
+    } catch (error) { reportCaught(error, "activity");
       console.error("[cc] notice listener failed", error);
     }
   });
@@ -123,7 +124,7 @@ export function noteEvent(sessionId: string, event: FeedEvent) {
     messageListeners.forEach((listener) => {
       try {
         listener(sessionId);
-      } catch (error) {
+      } catch (error) { reportCaught(error, "activity");
         console.error("[cc] message listener failed", error);
       }
     });

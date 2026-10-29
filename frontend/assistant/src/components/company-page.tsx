@@ -75,6 +75,7 @@ export {
   SetsSection,
 } from "@/components/company-cards";
 import { Marquee } from "@/components/ui/marquee";
+import { reportCaught, withReport } from "../lib/caught";
 
 // ---------------------------------------------------------------- 页面
 export const CompanyPage: FC = () => {
@@ -147,7 +148,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
       setTitle(saved);
       renameProjectLocally(c.id, saved);
       dropCachedDetail(c.id);
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-page");
       setError(shownError(e));
     }
   };
@@ -167,7 +168,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
       await refreshCatalogs();
       dropCachedDetail(c.id);
       await reload();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-page");
       setError(shownError(e));
     }
   };
@@ -179,7 +180,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
       dropCachedDetail(c.id);
       forgetPanelDetail(c.id);
       setView("companies");
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-page");
       setError(shownError(e));
     }
   };
@@ -427,7 +428,7 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
         });
         absorbRuns(check, page.runs);
         setNext(page.nextCursor);
-      } catch {
+      } catch (caughtError) { reportCaught(caughtError, "company-page");
         if (mine === asked.current) setRows((before) => before ?? []);
       } finally {
         if (mine === asked.current) setBusy(false);
@@ -484,7 +485,7 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
     const timer = setTimeout(() => {
       listGrouped({ group: company, check: ids })
         .then((page) => absorbRuns(ids, page.runs))
-        .catch(() => ids.forEach((id) => checked.current.add(id)));
+        .catch(withReport(() => ids.forEach((id) => checked.current.add(id)), "company-page"));
     }, RUN_RECHECK_MS);
     return () => clearTimeout(timer);
   }, [missing, company, absorbRuns]);

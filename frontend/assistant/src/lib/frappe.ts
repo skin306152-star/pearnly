@@ -2,6 +2,7 @@
 // 浏览器从不直接连模型厂商：引擎与密钥只在服务端。
 
 import { lang, t } from "@/i18n";
+import { withReport } from "./caught";
 
 const BASE = "/api/method/pearnly_core.assistant.api.";
 
@@ -88,7 +89,7 @@ function errorOf(body: unknown, status: number): string {
 async function signedOut(status: number): Promise<boolean> {
   if (status === 401) return true;
   if (status !== 403) return false;
-  const page = await fetch("/assistant", { redirect: "manual", cache: "no-store", credentials: "same-origin" }).catch(() => null);
+  const page = await fetch("/assistant", { redirect: "manual", cache: "no-store", credentials: "same-origin" }).catch(withReport(() => null, "frappe"));
   return page?.type === "opaqueredirect";
 }
 

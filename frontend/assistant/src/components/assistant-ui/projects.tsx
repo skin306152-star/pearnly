@@ -54,6 +54,7 @@ import {
 import { useView } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { shownError } from "@/lib/frappe";
+import { withReport } from "../../lib/caught";
 
 const report = (error: unknown) => setError(shownError(error));
 
@@ -86,7 +87,7 @@ export function useStartIn() {
       requestAnimationFrame(() => {
         const composer = aui.thread().composer();
         if (text) composer.setText(text);
-        for (const file of files) void composer.addAttachment(file).catch(() => undefined);
+        for (const file of files) void composer.addAttachment(file).catch(withReport(() => undefined, "projects"));
         if (send && !files.length) composer.send();
         else focusComposer(false);
       }),
@@ -441,7 +442,7 @@ const FilingChips: FC<{ look?: "cc-chip-btn" | "cc-chin-btn"; side?: "top" | "bo
   const filing = filingOf(remoteId);
   const branches = useBranches(withScope ? filing.project : "");
   if (!remoteId || !filing.project) return null;
-  const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(report);
+  const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(withReport(report, "projects"));
   return (
     <>
       {withPeriod && <PeriodChip look={look} side={side} value={filing.period} onChange={(period) => change({ period })} />}
@@ -462,7 +463,7 @@ export const MobileFilingItems: FC = () => {
   const filing = filingOf(remoteId, localId);
   const branches = useBranches(kind && withScope && remoteId ? filing.project : "");
   if (!kind || !remoteId || !filing.project) return null;
-  const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(report);
+  const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(withReport(report, "projects"));
   return (
     <>
       {withPeriod && (

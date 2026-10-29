@@ -155,7 +155,7 @@
 				await Promise.resolve();
 				if (stopped) return;
 				const reading = decoder(kind).catch(error => { throw failure("decoder", error); });
-				reading.catch(() => {});
+				reading.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "reader"); return (() => {})(caughtError); });
 				// LIFF 里请求会弹原生授权（网页的、再到系统给 LINE 的），人还在看授权窗时不能抢先提示，所以不计时。
 				const slow = in_app() && !/\bLIFF\b/.test(agent()) ? window.setTimeout(() => {
 					if (!stopped && !stream) on_waiting?.(in_line() ? "in_line" : "in_app");
@@ -170,7 +170,7 @@
 					decode = await reading;
 					if (stopped) return;
 					void tick();
-				} catch (error) { window.clearTimeout(slow); stop(); on_error?.(error); }
+				} catch (error) { globalThis.pearnlyCaught?.(error, "reader"); window.clearTimeout(slow); stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },
 			resume(skip_code = "") { candidate = ""; candidate_format = ""; hits = 0; skip = String(skip_code || "").trim(); paused = false; },

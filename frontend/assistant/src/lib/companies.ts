@@ -13,6 +13,7 @@ import { create } from "zustand";
 import { co, lang } from "@/i18n";
 import { getMethod, postMethod } from "@/lib/frappe";
 import { onConnectionChange, onProjectChange, onSiteEvent } from "@/lib/managed-agents/realtime";
+import { withReport } from "./caught";
 
 const API = "pearnly_cowork.companies.api.";
 
@@ -255,7 +256,7 @@ export async function refreshCatalogs(): Promise<void> {
   const rows = (await getMethod<Array<{ name: string; enabled?: number | boolean }>>("pearnly_cowork.connections.api.records", { limit: 100 })) ?? [];
   await Promise.all(
     rows.filter((row) => row.enabled).map((row) =>
-      postMethod("pearnly_cowork.connections.api.request_refresh", { name: row.name, request_key: requestKey() }).catch(() => undefined),
+      postMethod("pearnly_cowork.connections.api.request_refresh", { name: row.name, request_key: requestKey() }).catch(withReport(() => undefined, "companies")),
     ),
   );
 }
@@ -397,7 +398,7 @@ export function cachedDetail(company: string): Promise<Detail | null> {
   if (!company) return Promise.resolve(null);
   let found = detailCache.get(company);
   if (!found) {
-    found = loadDetail(company).catch(() => null);
+    found = loadDetail(company).catch(withReport(() => null, "companies"));
     detailCache.set(company, found);
   }
   return found;
@@ -450,7 +451,7 @@ let counting: Promise<void> | null = null;
 export function refreshPendingCounts(): Promise<void> {
   counting ??= getMethod<CountsReply>(API + "pending_counts")
     .then((out) => usePendingCounts.setState({ loaded: true, ...parseCounts(out) }))
-    .catch(() => undefined)
+    .catch(withReport(() => undefined, "companies"))
     .finally(() => {
       counting = null;
     });
@@ -496,7 +497,7 @@ export function refreshTaskOverview(): Promise<void> {
   overviewing ??= getMethod<Omit<TaskOverview, "loaded">>(API + "task_overview")
     .then((out) => useTaskOverview.setState({ loaded: true, companies: out?.companies ?? {}, tasks: out?.tasks ?? {}, titles: out?.titles ?? {} }))
     // 取不到（没权限、断网）：当作取过了，「只看这家」不一直转圈；已有的数据留着
-    .catch(() => useTaskOverview.setState({ loaded: true }))
+    .catch(withReport(() => useTaskOverview.setState({ loaded: true }), "companies"))
     .finally(() => {
       overviewing = null;
     });

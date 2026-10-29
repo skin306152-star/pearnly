@@ -77,7 +77,7 @@
 					d.set_df_property("advisor_id", "description", items.length ? "" : t("roster.advisor.empty"));
 					d.set_value("advisor_id", current);
 					loaded = true;
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "roster");
 					d.set_df_property("advisor_id", "description", t("roster.advisor.loadError"));
 				}
 			}
@@ -108,7 +108,7 @@
 						await p.call(api + "api_delete_operator", {name: row.name}, "POST");
 						removed++;
 					}
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "roster");
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				} finally {
 					if (removed) p.success(t("roster.notice.deletedCount", removed), "delete");
@@ -167,7 +167,7 @@
 				generating = true;
 				d.disable_primary_action();
 				try { render(await requestCode()); }
-				catch (error) {
+				catch (error) { globalThis.pearnlyCaught?.(error, "roster");
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				} finally {
 					generating = false;

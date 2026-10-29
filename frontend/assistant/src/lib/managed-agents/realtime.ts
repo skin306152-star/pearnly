@@ -16,6 +16,7 @@ import { io, type Socket } from "socket.io-client";
 import { noteEvent } from "./activity";
 import { type FeedEvent, isNotice } from "./events";
 import { isProjectChange, type ProjectChange } from "./projects";
+import { reportCaught } from "../caught";
 
 const EVENT = "pearnly_assistant_event";
 
@@ -41,7 +42,7 @@ const titles = new Map<string, string>();
 function safely(run: () => void) {
   try {
     run();
-  } catch (error) {
+  } catch (error) { reportCaught(error, "realtime");
     console.error("[cc] realtime listener failed", error);
   }
 }

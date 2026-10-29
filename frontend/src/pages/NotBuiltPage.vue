@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { withReport } from "../lib/caught";
 // 页面清单里有、但还没做的页面。
 //
 // 为什么要有这个页而不是直接 404：菜单项是照清单列出来的（甲方看到的就是这些入口），
@@ -15,7 +16,7 @@ const { t, load: loadTexts } = createTexts([], "shell.");
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "NotBuiltPage"));
 });
 </script>
 

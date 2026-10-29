@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { withReport } from "../lib/caught";
 import { Card } from "frappe-ui";
 // 临时卡片：把启动数据摊在界面上，方便一眼确认"这个壳认对了产品、也认对了买到的功能"。
 // 等各页都做完就撤掉。
@@ -13,7 +14,7 @@ const { t, load: loadTexts } = createTexts([], "shell.");
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "ShellBootCard"));
 });
 </script>
 

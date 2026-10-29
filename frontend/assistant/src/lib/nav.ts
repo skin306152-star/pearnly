@@ -14,6 +14,7 @@ import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useCompanyNav } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
+import { reportCaught, withReport } from "./caught";
 
 export type View = "chat" | "tasks" | "companies" | "company" | "pending";
 type Entry = { view: View; thread: string; company: string };
@@ -78,7 +79,7 @@ export function targetOf(url: string): Target | null {
   let parsed: URL;
   try {
     parsed = new URL(url, location.origin);
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "nav");
     return null;
   }
   if (parsed.origin !== location.origin || !parsed.pathname.startsWith("/assistant")) return null;
@@ -97,7 +98,7 @@ async function openConversation(aui: Aui, id: string): Promise<boolean> {
   if (!SESSION_ID.test(id)) return false;
   try {
     // 先等侧栏第一页：列表里有的直接切过去，不再多问一次
-    await aui.threads().getLoadThreadsPromise().catch(() => undefined);
+    await aui.threads().getLoadThreadsPromise().catch(withReport(() => undefined, "nav"));
     const listed = aui.threads().getState().threadItems.some((item) => item.remoteId === id && item.status === "regular");
     if (!listed) {
       // 不是本人的、不存在服务端回 404；已归档的组件库会去「恢复」，这里不恢复，直接当找不到
@@ -106,7 +107,7 @@ async function openConversation(aui: Aui, id: string): Promise<boolean> {
     }
     await aui.threads().switchToThread(id);
     return true;
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "nav");
     return false;
   }
 }
@@ -122,7 +123,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
   useEffect(() => {
     let alive = true;
     const fallback = async () => {
-      const tasks = await latest.current.hasTasks().catch(() => false);
+      const tasks = await latest.current.hasTasks().catch(withReport(() => false, "nav"));
       if (!alive) return;
       if (tasks) latest.current.setView("tasks");
       else {
@@ -145,7 +146,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       }
       if (target.view === "companies" || target.view === "pending" || company) {
         // 公司、待处理只在 Cowork（有定时任务的产品）
-        const cowork = await latest.current.hasTasks().catch(() => false);
+        const cowork = await latest.current.hasTasks().catch(withReport(() => false, "nav"));
         if (!alive) return;
         if (!cowork) {
           latest.current.setView("chat");

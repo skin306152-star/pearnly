@@ -67,7 +67,7 @@
 				try {
 					on_success(await p.erp_upload_original(item.file_obj, direction));
 					item.request_succeeded = true;
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "erp-originals");
 					Object.assign(item, {failed: true, error_message: p.erp_upload_failure(error)});
 				} finally {
 					item.uploading = false;

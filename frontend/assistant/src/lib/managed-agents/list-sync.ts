@@ -30,6 +30,7 @@ import { onConnectionChange, onProjectChange, onSessionChange, type SessionChang
 import { absorb, allStarsIn, firstPage, quietly, touchedSince } from "./session-list-adapter";
 import { noteListRead, noteUnpinned, starPending } from "./sidebar-order";
 import { useSidebarView } from "./sidebar-view";
+import { reportCaught, withReport } from "../caught";
 
 // 推来的几条合成一次重拉
 const RELOAD_MS = 1000;
@@ -176,12 +177,12 @@ export function watchList(threads: () => ListThreads): () => void {
   });
   // 产品有没有公司分组变了（第一次读不到、后来读到了）：整表按新的方式重拉
   const offKind = useProjects.subscribe((now, before) => {
-    if (before.loaded && now.kind !== before.kind) void threads().reload().catch(() => undefined);
+    if (before.loaded && now.kind !== before.kind) void threads().reload().catch(withReport(() => undefined, "list-sync"));
   });
   // 按公司取用分组接口，按月份 / 不分组用普通列表：在这两类之间换时整表按新的方式重拉（月份与不分组之间换只是重排）
   const offView = useSidebarView.subscribe((now, before) => {
     const grouped = (by: string) => by === "company";
-    if (useProjects.getState().kind && grouped(now.by) !== grouped(before.by)) void threads().reload().catch(() => undefined);
+    if (useProjects.getState().kind && grouped(now.by) !== grouped(before.by)) void threads().reload().catch(withReport(() => undefined, "list-sync"));
   });
   let checking = false;
   let again = false;
@@ -200,7 +201,7 @@ export function watchList(threads: () => ListThreads): () => void {
       absorb(page, asked);
       reconcile(threads(), page, asked, reloader);
       if (allStarsIn(page)) noteListRead(seen);
-    } catch {
+    } catch (caughtError) { reportCaught(caughtError, "list-sync");
       // 下一个时刻再核对
     } finally {
       checking = false;

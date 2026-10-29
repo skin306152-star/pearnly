@@ -15,6 +15,7 @@
 import { create } from "zustand";
 import { prefChanged, registerPref } from "@/lib/prefs-sync";
 import { clearSidebarOrder } from "./sidebar-order";
+import { reportCaught } from "../caught";
 
 export type GroupBy = "company" | "month" | "none";
 export type SortBy = "updated" | "created" | "name";
@@ -67,7 +68,7 @@ function read(user: string): SidebarView {
 let owner = (() => {
   try {
     return storage()?.getItem(USER_KEY) ?? "";
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-view");
     return "";
   }
 })();
@@ -85,7 +86,7 @@ export function bindSidebarViewUser(user: string) {
   unsaved = false;
   try {
     storage()?.setItem(USER_KEY, user);
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-view");
     // 存不了：本次照样按这个人的
   }
   if (keep) setSidebarView({});
@@ -102,7 +103,7 @@ function keep(next: SidebarView) {
   try {
     if (isDefaultView(next)) storage()?.removeItem(viewKey(owner));
     else storage()?.setItem(viewKey(owner), JSON.stringify(next));
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-view");
     // 无痕窗口等存不了：本次照样生效
   }
 }

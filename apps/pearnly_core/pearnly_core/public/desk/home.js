@@ -147,7 +147,7 @@
 						{tab: selectedTab, names}, "POST");
 					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted), "delete");
 					if (list === selectedTable) await list.reload();
-				} catch (error) {
+				} catch (error) { globalThis.pearnlyCaught?.(error, "home");
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				} finally { reset(); }
 			}, reset);

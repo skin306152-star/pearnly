@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from "react";
 import { onConnectionChange, onSiteEvent } from "@/lib/managed-agents/realtime";
+import { reportCaught } from "./caught";
 
 export type LiveOptions = {
   events: readonly string[];
@@ -55,7 +56,7 @@ export function useLiveRefresh(refresh: () => Promise<void> | void, options: Liv
       last = Date.now();
       try {
         await latest.current.refresh();
-      } catch {
+      } catch (caughtError) { reportCaught(caughtError, "live");
         // 下一次再刷
       }
       running = false;

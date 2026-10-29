@@ -1,3 +1,4 @@
+import { reportCaught } from "./caught";
 // JS 里用到的 CSS 值（标准化记录 2.6）：数值只在 globals.css 定，JS 在用的时候读（打开菜单、提示框出现、拿起拖动、量宽度那一刻），
 // 不在导入或首次渲染时读——生产页（www/assistant.html）用脚本动态插入样式表，模块脚本不等它生效，太早读到的是空串。
 // 读不到（样式表还没生效、不在浏览器里）就用调用方给的回退值；回退值与 globals.css 同值，由测试核对两边一致。
@@ -30,7 +31,7 @@ export function cssVar(name: string, el?: Element): string {
   if (!target) return "";
   try {
     return getComputedStyle(target).getPropertyValue(name).trim();
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "css-var");
     return "";
   }
 }

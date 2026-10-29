@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../lib/caught";
 // 改密弹窗。三个产品共用同一个接口（`pearnly_core.password.change_password`，
 // 它在共用层里），所以这套界面只要写一次。
 //
@@ -64,7 +65,7 @@ function explain(err: unknown): string {
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "ChangePasswordDialog"));
 });
 
 async function submit(): Promise<void> {
@@ -86,7 +87,7 @@ async function submit(): Promise<void> {
     setTimeout(() => {
       open.value = false;
     }, 1200);
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ChangePasswordDialog");
     error.value = explain(err);
   } finally {
     saving.value = false;

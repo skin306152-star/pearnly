@@ -165,7 +165,7 @@
 	 *   6. 每月几号几点；7. 默认处理只有 Express 有（MR.ERP 的菜单与默认值保存前按「新建录入」同一个弹窗问一次）。
 	 */
 	async function open_rule({t, rule, on_saved}) {
-		let snapshot = await p.intake_targets.state().catch(() => ({connections: {}, agent: null}));
+		let snapshot = await p.intake_targets.state().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-folders"); return (() => ({connections: {}, agent: null}))(caughtError); });
 		const ADAPTERS = ["mrerp", "express"];
 		const picked = {target: rule?.adapter || null};
 		const state = {groups: [], options: null, loading: 0, catalog: 0,
@@ -293,7 +293,7 @@
 					: p.intake_targets.connect_dialog({connection: snapshot.connections.mrerp, on_done: refresh}))},
 			})));
 		const refresh = async () => {
-			snapshot = await p.intake_targets.state().catch(() => snapshot);
+			snapshot = await p.intake_targets.state().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-folders"); return (() => snapshot)(caughtError); });
 			paint_targets();
 			if (picked.target && !rule && !p.intake_targets.ready(picked.target, snapshot)) return;
 			if (picked.target) await load_catalog();
@@ -409,7 +409,7 @@
 			const ticket = ++state.loading;  // 连着换了几次账套：只认最后一次的结果
 			const key = express() ? d.get_value("account_set_key") || null : null;
 			const options = await quiet(API + "options", {connection: target.name, account_set_key: key || undefined})
-				.catch(() => null);
+				.catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-folders"); return (() => null)(caughtError); });
 			// 回来时账套已经换了（例如打开弹窗时先按空账套取了一次）：这一份没有那份账套的科目，不用。
 			if (ticket !== state.loading || !options || key !== (express() ? d.get_value("account_set_key") || null : null)) return;
 			state.options = options;

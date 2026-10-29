@@ -261,7 +261,7 @@
 		// 这一批是 MR.ERP 就不摆「过账类型」（整票与明细行都不摆）；复核已有记录时不知道目标，照常显示。
 		// 「仅识别」（用户 2026-09-26）：识别后导出复核工作簿，不推送；过账类型同样不摆，右上角是「导出」。
 		// 从列表 / LINE 卡片打开已有的票：目标卡片记在票上（`intake_target`，新建时写入），没有弹窗里的选择可用。
-		const opened = name ? await p.call(HISTORY + "detail", {name}).catch(() => null) : null;
+		const opened = name ? await p.call(HISTORY + "detail", {name}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-upload"); return (() => null)(caughtError); }) : null;
 		const target = choice?.target || opened?.intake_target || "";
 		const recognize_only = target === p.intake_targets?.RECOGNIZE_ONLY;
 		const no_kind = target === "mrerp" || recognize_only ? 1 : 0;
@@ -655,7 +655,7 @@
 			// 人改了名称，同一原件的其他草稿在服务端跟着改了（版本号变了）：丢掉旧的，后台重读。
 			const followed = (saved.followed || []).filter(record_name => details.delete(record_name));
 			if (followed.length) {
-				void Promise.all(followed.map(record_name => detail(record_name).catch(() => null)))
+				void Promise.all(followed.map(record_name => detail(record_name).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-upload"); return (() => null)(caughtError); })))
 					.then(() => form.set_df_property("invoice", "options", invoice_options()));
 			}
 			form.set_df_property("invoice", "options", invoice_options());

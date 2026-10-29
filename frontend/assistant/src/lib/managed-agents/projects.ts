@@ -14,6 +14,7 @@ import { create } from "zustand";
 import { get } from "@/lib/frappe";
 import { clock } from "@/lib/prefs-sync";
 import { type Filing, moveSession } from "./api";
+import { withReport } from "../caught";
 
 export type { Filing } from "./api";
 
@@ -106,10 +107,10 @@ export function refreshProjects(): Promise<ProjectKind> {
       readAt = seen;
       return kind;
     })
-    .catch(() => {
+    .catch(withReport(() => {
       if (!store.getState().loaded) store.setState({ loaded: true, kind: null });
       return store.getState().kind;
-    });
+    }, "projects"));
   return loading;
 }
 

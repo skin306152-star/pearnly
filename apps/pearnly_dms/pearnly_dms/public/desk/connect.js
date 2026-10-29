@@ -70,7 +70,7 @@
 					let now;
 					try {
 						now = (await p.call("pearnly_dms.connections.api.account_check", { check_key })) || {};
-					} catch (error) {
+					} catch (error) { globalThis.pearnlyCaught?.(error, "connect");
 						continue; // 一时问不到就下次再问
 					}
 					if (now.state === "done") return now.result || {};

@@ -68,6 +68,7 @@ import { touchOnly } from "@/lib/touch";
 import { altMove, type MoveSpot, useSortableItem } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
+import { reportCaught, withReport } from "../lib/caught";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
@@ -298,7 +299,7 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
     try {
       setList(await removeNote(company, id));
       void reload();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-cards");
       setError(shownError(e));
     }
   };
@@ -384,7 +385,7 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
     setError("");
     try {
       await onSave(text);
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-cards");
       setError(shownError(e));
       setBusy(false);
     }
@@ -455,7 +456,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       await bindFolder(company, picked.binding);
       setGone([]);
       await reload();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-cards");
       setError(shownError(e));
     } finally {
       setBusy(false);
@@ -467,7 +468,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       await unbindFolder(company, idOf(f));
       setGone((before) => [...before, idOf(f)]);
       void reload();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-cards");
       setError(shownError(e));
     }
   };
@@ -780,7 +781,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
       setList(shown);
       if (gone) setOpen((o) => (o === gone ? "" : o));
       void reload();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-cards");
       setError({ key, message: shownError(e) });
     } finally {
       end(key);
@@ -797,7 +798,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
       await setChoice(company, c.key, v, period);
       // 自己这次重取回来之前一直按刚选的显示（之前发出的重取可能还带着旧值）
       void reload().finally(() => changing.current.get(c.key)?.[0] === v && changing.current.delete(c.key));
-    } catch (e) {
+    } catch (e) { reportCaught(e, "company-cards");
       changing.current.delete(c.key);
       setList((rows) => setChoiceShown(rows, c.key, c.value, c.value_label ?? ""));
       setError({ key: c.key, message: shownError(e) });
@@ -929,7 +930,7 @@ const MrErpChoiceSelect: FC<{ choice: Choice; label: string; busy: boolean; onSe
     let alive = true;
     loadMrErpOptions(choice.mrerp)
       .then((rows) => alive && setOptions(rows))
-      .catch((e) => alive && setError(shownError(e)));
+      .catch(withReport((e) => alive && setError(shownError(e)), "company-cards"));
     return () => {
       alive = false;
     };

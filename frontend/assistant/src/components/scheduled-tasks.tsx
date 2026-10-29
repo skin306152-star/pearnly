@@ -64,6 +64,7 @@ import { useProjects } from "@/lib/managed-agents/projects";
 import { co, t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Marquee } from "@/components/ui/marquee";
+import { reportCaught, withReport } from "../lib/caught";
 
 const API = "pearnly_cowork.folder_intake.api.";
 const CONN = "pearnly_cowork.connections.api.";
@@ -148,7 +149,7 @@ async function snapshotNow(): Promise<Snapshot> {
   const connections: Snapshot["connections"] = {};
   for (const a of ADAPTERS) connections[a.adapter] = mainOf(rows, a.adapter);
   const express = connections.express;
-  const agent = express ? await getMethod<PoolState>(COMPANION + "online", { connection: express.name }).catch(() => null) : null;
+  const agent = express ? await getMethod<PoolState>(COMPANION + "online", { connection: express.name }).catch(withReport(() => null, "scheduled-tasks")) : null;
   return { connections, agent };
 }
 
@@ -366,7 +367,7 @@ export function ScheduledTasks() {
       setRules(data?.rules ?? []);
       setError("");
       void refreshTaskOverview();  // 任务建、删、改了：按公司的分组跟着变
-    } catch (e) {
+    } catch (e) { reportCaught(e, "scheduled-tasks");
       setError(shownError(e));
       // 自动刷新偶尔失败：已显示的列表留着，不闪成空的
       setRules((prev) => prev ?? []);
@@ -737,7 +738,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const express = target === "express";
   const connection: Connection | null = rule ? { name: rule.connection, adapter: rule.adapter, enabled: 1 } : target ? snapshot.connections[target] ?? null : null;
 
-  const refreshSnapshot = useCallback(async () => setSnapshot(await snapshotNow().catch(() => ({ connections: {}, agent: null }))), []);
+  const refreshSnapshot = useCallback(async () => setSnapshot(await snapshotNow().catch(withReport(() => ({ connections: {}, agent: null }), "scheduled-tasks"))), []);
   useEffect(() => void refreshSnapshot(), [refreshSnapshot]);
 
   // 两级账套目录（同 Cowork：用服务端存着的那份；还没有时让助手 / 服务端读一次再给）
@@ -768,7 +769,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
       } else if (list.length === 1) setYear(list[0]!.value);
     };
     const read = () => getMethod<{ groups?: Group[]; status?: string; error_code?: string; collector_available?: boolean; revision?: number }>(CONN + "targets", { name: connection.name });
-    let data = await read().catch(() => ({ groups: [], status: "missing", collector_available: false }) as never);
+    let data = await read().catch(withReport(() => ({ groups: [], status: "missing", collector_available: false }) as never, "scheduled-tasks"));
     if (!alive()) return;
     const empty = !(data.groups || []).length && data.status === "missing";
     if (!data.collector_available || !empty) return apply(data, false);
@@ -794,7 +795,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
     if (!connection) return;
     const run = ++optionsRun.current;
     const k = express ? accountSet || undefined : undefined;
-    const result = await getMethod<Options>(API + "options", { connection: connection.name, account_set_key: k }).catch(() => null);
+    const result = await getMethod<Options>(API + "options", { connection: connection.name, account_set_key: k }).catch(withReport(() => null, "scheduled-tasks"));
     if (run !== optionsRun.current || !result) return;
     setOptions(result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -809,7 +810,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   // 选了 Express 账套就请小助手读这份账套的主档（同「新建录入」；打开已有任务不重复请求）
   useEffect(() => {
     if (express && connection && accountSet && accountSet !== rule?.account_set_key) {
-      void postMethod(CONN + "request_refresh", { name: connection.name, request_key: key(), account_set_key: accountSet }).catch(() => null);
+      void postMethod(CONN + "request_refresh", { name: connection.name, request_key: key(), account_set_key: accountSet }).catch(withReport(() => null, "scheduled-tasks"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [express, accountSet]);
@@ -923,7 +924,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
         }),
       });
       await onSaved();
-    } catch (e) {
+    } catch (e) { reportCaught(e, "scheduled-tasks");
       setError(shownError(e));
     } finally {
       setBusy(false);
@@ -1175,10 +1176,10 @@ const defaultNeeded = (v: MenuView | null, dir: string) => (DEFAULT_FIELDS[dir] 
 
 async function mrerpMenu(connection: Connection, accountSet: string, fresh = false): Promise<MenuView | null> {
   const args = { name: connection.name, account_set_key: accountSet };
-  const read = () => getMethod<MenuView>(CONN + "mrerp_menu", args).catch(() => null);
+  const read = () => getMethod<MenuView>(CONN + "mrerp_menu", args).catch(withReport(() => null, "scheduled-tasks"));
   let view = await read();
   if (!view || (view.known && view.defaults?.known && !fresh)) return view;
-  const request = await postMethod<{ requested_at: string }>(CONN + "request_mrerp_menu", args).catch(() => null);
+  const request = await postMethod<{ requested_at: string }>(CONN + "request_mrerp_menu", args).catch(withReport(() => null, "scheduled-tasks"));
   if (!request) return view;
   const started = Date.now();
   while (Date.now() - started < 90000) {
@@ -1240,7 +1241,7 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
                   await postMethod(CONN + "choose_mrerp_default", { name: connection.name, account_set_key: accountSet, field, code: values[`default_${field}`] });
                 }
                 onDone(true);
-              } catch (e) {
+              } catch (e) { reportCaught(e, "scheduled-tasks");
                 setError(shownError(e));
               } finally {
                 setBusy(false);
@@ -1307,7 +1308,7 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
                   ...(connection ? { name: connection.name, expected_revision: connection.revision } : {}),
                 });
                 onClose();
-              } catch (e) {
+              } catch (e) { reportCaught(e, "scheduled-tasks");
                 setError(shownError(e));
               } finally {
                 setBusy(false);
@@ -1334,11 +1335,11 @@ function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connectio
     let current = connection;
     const check = async () => {
       if (!current) {
-        const rows = await getMethod<Connection[]>(CONN + "records", { limit: 100 }).catch(() => []);
+        const rows = await getMethod<Connection[]>(CONN + "records", { limit: 100 }).catch(withReport(() => [], "scheduled-tasks"));
         current = mainOf(rows, adapter);
       }
       if (!current) return setOnline(false);
-      const r = await getMethod<{ online?: boolean }>(COMPANION + "online", { connection: current.name }).catch(() => null);
+      const r = await getMethod<{ online?: boolean }>(COMPANION + "online", { connection: current.name }).catch(withReport(() => null, "scheduled-tasks"));
       setOnline(Boolean(r?.online));
     };
     void check();
@@ -1355,7 +1356,7 @@ function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connectio
           className="cc-btn"
           data-primary=""
           onClick={async () => {
-            const info = await getMethod<{ configured?: boolean; url?: string }>(COMPANION + "installer").catch(() => null);
+            const info = await getMethod<{ configured?: boolean; url?: string }>(COMPANION + "installer").catch(withReport(() => null, "scheduled-tasks"));
             if (!info?.configured || !info.url) return setMissing(true);
             window.open(info.url, "_blank", "noopener,noreferrer");
           }}

@@ -18,6 +18,7 @@ import { lang } from "@/i18n";
 import { isPeriod, PENDING_EVENTS, type PendingChoice, type PendingItem } from "@/lib/companies";
 import { useLiveRefresh } from "@/lib/live";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
+import { reportCaught } from "./caught";
 
 const API = "pearnly_cowork.companies.api.month";
 
@@ -227,7 +228,7 @@ export function useMonth(company: string, period: string) {
       if (mine !== asked.current) return;
       months.set(key, next);
       setState({ key, month: next, error: "" });
-    } catch (e) {
+    } catch (e) { reportCaught(e, "month");
       // 同一个错误不重设（role="alert" 不在每次自动重取失败时重新播报）
       const error = shownError(e);
       if (mine === asked.current)

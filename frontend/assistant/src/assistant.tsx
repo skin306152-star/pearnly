@@ -100,6 +100,7 @@ import { cssPx } from "@/lib/css-var";
 import { syncPrefs } from "@/lib/prefs-sync";
 import { DeleteChatsHost, deleteChat } from "@/components/delete-chats";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
+import { withReport } from "./lib/caught";
 
 type Nav = ReturnType<typeof useNavHistory>;
 
@@ -165,7 +166,7 @@ function SessionStatusBar() {
 
 async function signOut() {
   // 先让本站不再往这台设备推这个人的提醒（lib/push.ts；最多等 3 秒，不挡退出）
-  await forgetDevice().catch(() => undefined);
+  await forgetDevice().catch(withReport(() => undefined, "assistant"));
   // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出），退出后回到智能体入口。
   const res = await siteFetch("/api/method/pearnly_core.identity.sign_out?to=assistant", {
     method: "POST",

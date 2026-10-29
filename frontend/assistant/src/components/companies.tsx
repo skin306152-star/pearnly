@@ -17,6 +17,7 @@ import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { shownError } from "@/lib/frappe";
 import { Marquee } from "@/components/ui/marquee";
 import { fixedPx } from "@/lib/css-var";
+import { reportCaught } from "../lib/caught";
 
 const PAGE = 50;
 // 滚到离底这么远就取下一页（globals.css 的 --cc-observe-margin，建观察器时读；这是样式表还没生效时的回退，测试核对两边同值）
@@ -84,7 +85,7 @@ export const Companies: FC = () => {
       setRows((before) => (start ? [...(before ?? []), ...page] : page));
       setDone(page.length < PAGE);
       setError("");
-    } catch (e) {
+    } catch (e) { reportCaught(e, "companies");
       if (mine !== asked.current) return;
       setRows((before) => before ?? []);
       setError(shownError(e));

@@ -140,11 +140,12 @@ import {
   type FC,
   type ReactNode,
 } from "react";
+import { withReport } from "../../lib/caught";
 
 /** 菜单里的「置顶 / 取消置顶」（行菜单、P 键、手机长按菜单、标题栏菜单同一道，sidebar-order.ts 的 starChat）：失败时组件库撤回、
  *  这一条原样留在原位，侧栏出错行写一句通用的原因（断网等；测试窗口第 10 轮 B 段：原来什么都不说）。 */
 export function toggleStar(item: Parameters<typeof starChat>[0], starred: boolean) {
-  void starChat(item, starred).catch((error: unknown) => setError(shownError(error)));
+  void starChat(item, starred).catch(withReport((error: unknown) => setError(shownError(error)), "thread-list"));
 }
 
 // 侧栏 / 手机抽屉里的对话列表：搜索框、「新建」「定时任务」「公司」「待处理」由外面统一排版（assistant.tsx），这里只排对话。

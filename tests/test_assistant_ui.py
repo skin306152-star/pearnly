@@ -2571,7 +2571,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 三处单条置顶（行菜单、手机胶囊菜单、标题栏菜单）都经 toggleStar → starChat（第 10 轮审查：取消置顶回组顶由这一道记下；
         # 第 10 轮 B 段：失败写进侧栏出错行），starChat 用展开写法写 custom，别的键不冲掉
         self.assertEqual(both.count("toggleStar(aui.threadListItem(), !starred)"), 3)
-        self.assertIn("void starChat(item, starred).catch((error: unknown) => setError(shownError(error)));", thread_list)
+        self.assertIn('void starChat(item, starred).catch(withReport((error: unknown) => setError(shownError(error)), "thread-list"));', thread_list)
         self.assertNotIn("updateCustom({ starred", both)
         self.assertIn("const run = async () => void (await item.updateCustom({ ...custom, starred }));", read("lib/managed-agents/sidebar-order.ts"))
         self.assertNotIn("StarIcon", both)
@@ -2681,7 +2681,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertNotIn("cc:open-company-card", projects)
         self.assertNotIn("ConversationFiling", projects)
         self.assertNotIn("ConversationFiling", page)
-        self.assertIn('const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(report);',
+        self.assertIn('const change = (next: Partial<Pick<Filing, "period" | "scope">>) => void fileSession(remoteId, next).catch(withReport(report, "projects"));',
                       projects.split("const FilingChips: FC<", 1)[1].split("\n};", 1)[0])
         # 用户 10-17：没挂公司的已有对话不能再归到公司——下巴空着（新对话开之前在下巴 / 手机问候下面选公司照旧）
         self.assertIn("if (!project) return null;", session)
@@ -2741,7 +2741,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("start(filing(), value, false, picked);", page)
         self.assertNotIn("!e.nativeEvent.isComposing) {\n              e.preventDefault();\n              send();", page)
         projects = read("components/assistant-ui/projects.tsx")
-        self.assertIn("for (const file of files) void composer.addAttachment(file).catch(() => undefined);", projects)
+        self.assertIn('for (const file of files) void composer.addAttachment(file).catch(withReport(() => undefined, "projects"));', projects)
         self.assertIn("if (send && !files.length) composer.send();", projects)
         # 让 CC 起草的月份 = 公司页的月份（同输入框、「月结」卡）
         self.assertIn('start({ project: company, period: pageMonth, scope: "" }, co.draftNotesText, false)', read("components/company-cards.tsx"))
@@ -7567,7 +7567,7 @@ assert.equal(starPending("s3"), false);
         self.assertIn("if (starPending(key)) continue;", tidy)
         self.assertLess(tidy.index("if (starPending(key)) continue;"), tidy.index("if (item.custom?.starred) pinnedNow.push(key);"))
         # 失败写进侧栏出错行（通用句：shownError 只把本站拒收的原文给人看）
-        self.assertIn("void starChat(item, starred).catch((error: unknown) => setError(shownError(error)));", rows)
+        self.assertIn('void starChat(item, starred).catch(withReport((error: unknown) => setError(shownError(error)), "thread-list"));', rows)
 
     def test_a_touch_outside_an_open_menu_only_closes_it(self):
         # 手机长按出菜单后点在菜单外的另一条对话上：原来菜单关了、那条对话也打开了（组件库按下就关菜单、撤掉整页的

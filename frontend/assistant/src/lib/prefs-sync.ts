@@ -27,6 +27,7 @@
 // 各份由自己的模块登记（registerPref），这里不导入它们（不绕成循环依赖）。
 
 import { get, post } from "@/lib/frappe";
+import { reportCaught } from "./caught";
 
 /** 一份要同步的偏好：read 此刻的值（整份各项，默认值也给）；changed 跟默认不一样（迁移时据此决定要不要存）；apply 换成服务端的
  *  （先换到这个人，再按值改并写本机缓存；不回调 prefChanged）；serverOwns 哪些项以服务端为准（见文件头）。 */
@@ -100,7 +101,7 @@ function keepDirty(who: string) {
   try {
     if (dirty.size) storage()?.setItem(DIRTY_KEY(who), JSON.stringify([...dirty.keys()]));
     else storage()?.removeItem(DIRTY_KEY(who));
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "prefs-sync");
     // 存不了：只是离线时改的下次打开可能被服务端的盖掉
   }
 }
@@ -200,7 +201,7 @@ export async function flush(): Promise<boolean> {
   const sent = new Map(dirty);
   try {
     await post("save_layout", { prefs: dirtyPrefs() });
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "prefs-sync");
     return false; // 离线等：记着没存上，下次取完补
   }
   if (who !== user) return true;
@@ -237,7 +238,7 @@ async function run(who: string): Promise<void> {
   const asked = clock();
   try {
     prefs = (await get<{ prefs: Record<string, unknown> | null }>("layout"))?.prefs ?? null;
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "prefs-sync");
     if (who === user) await flush(); // 取不到（离线、出错）：照本机的；存得上就先存
     return;
   } finally {

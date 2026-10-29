@@ -87,7 +87,7 @@
 				if (!alive || version !== revision) return;
 				loaded = true; status.hide(); image.show(); update();
 				on_page?.(row, page, pages);
-			} catch (_) {if (alive && version === revision) status.text(__("Unable to load preview"));}
+			} catch (_) { globalThis.pearnlyCaught?.(_, "viewer");if (alive && version === revision) status.text(__("Unable to load preview"));}
 		};
 		const wheel = event => {if (!loaded) return; event.preventDefault(); scale = clamp(scale * (event.deltaY < 0 ? 1.12 : 0.89)); apply();};
 		const down = event => {if (!loaded || event.button !== 0) return; event.preventDefault(); dragging = true; sx = event.clientX - tx; sy = event.clientY - ty;};

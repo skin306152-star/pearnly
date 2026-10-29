@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught } from "../../lib/caught";
 // 开单回执差异卡的「แก้ไข」（LINE 内，票据模式 `review`）：只列有差异的那几项。
 //
 // 每项二选一：按确认时的值改回 DMS，或以 DMS 现值为准；选「确认时的值」时，文字栏（姓名、电话、
@@ -61,7 +62,7 @@ async function save(): Promise<void> {
     await saveReview(ticket, draft, choices);
     stage.value = "saved";
     setTimeout(() => void closePage(), 900);
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ReviewPage");
     errorText.value = explain(err);
   } finally {
     busy.value = false;
@@ -78,7 +79,7 @@ onMounted(async () => {
   document.documentElement.lang = locale.value;
   try {
     await loadTexts();
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "ReviewPage");
     /* 文案拉不到就显示 key（看得见），不假装页面正常 */
   }
   if (!draft) {
@@ -109,7 +110,7 @@ onMounted(async () => {
       };
     }
     stage.value = "ready";
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ReviewPage");
     errorText.value = explain(err);
     stage.value = "failed";
   }

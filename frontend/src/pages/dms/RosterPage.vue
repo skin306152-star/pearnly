@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../../lib/caught";
 // DMS「操作员」花名册。
 //
 // 照老产品搬：`static/dms/dms-roster.js` + `dms-roster-html.js`。
@@ -91,7 +92,7 @@ async function refresh(): Promise<void> {
       "pearnly_dms.operators.roster.api_list_operators",
     );
     rows.value = data.items || [];
-  } catch (err) {
+  } catch (err) { reportCaught(err, "RosterPage");
     error.value = explain(err);
   } finally {
     loading.value = false;
@@ -104,7 +105,7 @@ async function run(key: string, fn: () => Promise<void>): Promise<void> {
   notice.value = "";
   try {
     await fn();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "RosterPage");
     error.value = explain(err);
   } finally {
     busy.value = "";
@@ -286,7 +287,7 @@ function removeOperator(row: Operator): Promise<void> {
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "RosterPage"));
   return refresh();
 });
 onUnmounted(stopTimer);

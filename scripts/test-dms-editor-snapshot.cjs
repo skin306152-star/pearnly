@@ -38,6 +38,8 @@ function setup() {
     vue: { ...vue, onMounted() {} }, 'vue-router': { useRoute: () => ({ query: { draft: 'synthetic', editor: 'customer' } }) },
     'frappe-ui': {}, '../../components/LineLayout.vue': {}, './ReviewPage.vue': {}, '../../lib/api': { ApiError },
     '../../lib/dms-editor': helpers,
+    // 吞错闸门的统一出错回传（frontend/src/lib/caught.ts）：沙箱里没有站点页面，回传是空操作，原来的处理照样调用
+    '../../lib/caught': { reportCaught() {}, withReport: (fallback) => (error) => (typeof fallback === 'function' ? fallback(error) : fallback) },
     '../../lib/i18n': { createTexts(keys, prefix) {
       assert.equal(prefix, 'dms.'); assert.equal(keys.length, 0);
       return { t, tf: t, locale, load: async () => {}, setLocale: value => { locale.value = value; } };

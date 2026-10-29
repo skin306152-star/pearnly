@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import { isDesktopApp } from "@/lib/desktop";
 import { getMethod } from "@/lib/frappe";
+import { withReport } from "./caught";
 
 export type InstallTarget = "desktop" | "pwa" | "mac" | "ios" | "browser" | null;
 
@@ -118,7 +119,7 @@ export function canPrompt(): boolean {
 /** 按设备装：下载桌面版安装包 / 弹浏览器的安装确认 / 跳出 LINE。iPhone、Mac Safari 由调用方显示步骤。 */
 export async function install(target: InstallTarget): Promise<void> {
   if (target === "desktop") {
-    const info = await getMethod<{ url?: string }>("pearnly_cowork.companion.api.installer").catch(() => null);
+    const info = await getMethod<{ url?: string }>("pearnly_cowork.companion.api.installer").catch(withReport(() => null, "install"));
     if (info?.url) window.open(info.url, "_blank", "noopener,noreferrer");
   } else if (target === "browser") {
     const url = new URL(location.href);

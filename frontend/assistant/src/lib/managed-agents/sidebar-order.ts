@@ -27,6 +27,7 @@
 import { create } from "zustand";
 import { clock, prefChanged, registerPref, tidyBasis } from "@/lib/prefs-sync";
 import { projectsSeen } from "./projects";
+import { reportCaught } from "../caught";
 
 /** 一组里手排的先后：对话编号（keys），存下时这组最新的那个时间（at，毫秒；比它新的不在列表里的对话排最上面）。
  *  top：取消置顶回到组顶的那一段（keys 的前 n 条，at 是放上去那一刻这组最新的时间）：排在比 at 新、不比 top.at 新的对话之上，
@@ -94,7 +95,7 @@ export function parseOrder(raw: string | null | undefined): SidebarOrder {
 function read(user: string): SidebarOrder {
   try {
     return user ? parseOrder(storage()?.getItem(orderKey(user))) : EMPTY;
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-order");
     return EMPTY;
   }
 }
@@ -102,7 +103,7 @@ function read(user: string): SidebarOrder {
 let owner = (() => {
   try {
     return storage()?.getItem(USER_KEY) ?? "";
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-order");
     return "";
   }
 })();
@@ -123,7 +124,7 @@ function keep(next: SidebarOrder) {
   try {
     if (hasManualOrder(next)) storage()?.setItem(orderKey(owner), JSON.stringify(next));
     else storage()?.removeItem(orderKey(owner));
-  } catch {
+  } catch (caughtError) { reportCaught(caughtError, "sidebar-order");
     // 无痕窗口等存不了：本次照样生效
   }
 }

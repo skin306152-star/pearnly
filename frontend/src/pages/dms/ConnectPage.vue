@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportCaught, withReport } from "../../lib/caught";
 // DMS「连接第三方 DMS」—— 开户之后租户要做的第一件事。
 //
 // 照老产品搬：`static/dms/dms-connect.js` + 设置页那张连接卡。
@@ -95,7 +96,7 @@ async function refresh(): Promise<void> {
     conn.value = await call<Connection>(
       "pearnly_dms.connections.api.get_connection",
     );
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ConnectPage");
     error.value = explain(err);
   } finally {
     loading.value = false;
@@ -107,7 +108,7 @@ async function run(key: string, fn: () => Promise<void>): Promise<void> {
   error.value = "";
   try {
     await fn();
-  } catch (err) {
+  } catch (err) { reportCaught(err, "ConnectPage");
     error.value = explain(err);
   } finally {
     busy.value = "";
@@ -190,7 +191,7 @@ function masterSummary(p: Probe): string {
 
 onMounted(() => {
   // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-  loadTexts().catch(() => {});
+  loadTexts().catch(withReport(() => {}, "ConnectPage"));
   return refresh();
 });
 </script>

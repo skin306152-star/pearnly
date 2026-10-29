@@ -29,6 +29,7 @@
 import { listEvents } from "./api";
 import { type FeedEvent, isLocalEvent, type RelayEnvelope, type RunStatus } from "./events";
 import { isConnected, onHeartbeat, subscribe } from "./realtime";
+import { reportCaught } from "../caught";
 
 const FAST_MS = 1200;
 const SLOW_MS = 6000;
@@ -217,7 +218,7 @@ export class PollingSource {
       } else if (withStatus) this.wantStatus = true;
       // 缺口没收口（没读到引擎）：同补拉失败，SLOW_MS 后再取，不等在线时的 8 / 30 秒
       next = partial && this.gap ? Math.min(SLOW_MS, this.interval()) : this.interval();
-    } catch {
+    } catch (caughtError) { reportCaught(caughtError, "poll-source");
       if (this.readyState === PollingSource.CLOSED) return;
       if (withStatus) this.wantStatus = true;
       // 通道在线：推来的走活着的连接、不会漏，不压（见文件头）

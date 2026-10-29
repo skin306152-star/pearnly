@@ -8,6 +8,7 @@ import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@
 import { uploadFile, type UploadedFile } from "./api";
 import { beginPending } from "./pending-send";
 import { shownError } from "@/lib/frappe";
+import { reportCaught, withReport } from "../caught";
 
 export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
 
@@ -85,7 +86,7 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       yield { ...base, status: { type: "running", reason: "uploading", progress: 0.3 } };
       try {
         await upload;
-      } catch (err) {
+      } catch (err) { reportCaught(err, "attachments");
         // 已点了发送：这一项归发送管（send 重传一次，仍没传上就整条放回输入框、重新传），这里不再动它
         if (sent.has(id)) return;
         yield {
@@ -118,12 +119,12 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
         beginPending(attachment.name);
         const waiting = uploading.get(attachment.id);
         try {
-          if (waiting) info = await waiting.catch(() => undefined);
+          if (waiting) info = await waiting.catch(withReport(() => undefined, "attachments"));
           if (!info) {
             if (!attachment.file) throw new Error(`attachment not uploaded: ${attachment.name}`);
             info = await store(attachment.id, attachment.file);
           }
-        } catch (err) {
+        } catch (err) { reportCaught(err, "attachments");
           unsent.set(attachment.id, err);
         }
       }

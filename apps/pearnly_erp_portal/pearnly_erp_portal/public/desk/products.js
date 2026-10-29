@@ -600,7 +600,7 @@
 					try {
 						await p.call(api + "api_create_product", row_payload(row), "POST");
 						done += 1;
-					} catch (error) {
+					} catch (error) { globalThis.pearnlyCaught?.(error, "products");
 						// 服务端已经用 msgprint 说了原因；这里只把这一行留在表里让人改。
 						if (!error?._server_messages && !error?.responseJSON) console.error(error);
 						failed.push(row);
