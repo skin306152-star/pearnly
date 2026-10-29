@@ -9,8 +9,7 @@
  "variants": [
   {
    "vars": {
-    "stocked": "${seed.stocked_warehouse}",
-    "empty": "${seed.spare_warehouse}"
+    "stocked": "${seed.stocked_warehouse}"
    }
   }
  ],

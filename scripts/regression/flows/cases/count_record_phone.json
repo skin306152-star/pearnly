@@ -1,0 +1,44 @@
+{
+ "name": "count_record_phone",
+ "datasets": [
+  "new",
+  "old"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-stock-count",
+ "variants": [
+  {
+   "suffix": "qr-camera",
+   "video": "qr-qr.y4m",
+   "vars": {
+    "how": "camera",
+    "code": "${codes.qr}",
+    "name": "สินค้าตามคิวอาร์",
+    "warehouse": "${seed.count_warehouse}",
+    "wh_label": "盘点仓",
+    "qty": 3
+   }
+  },
+  {
+   "suffix": "internal-keyboard",
+   "video": "qr-internal.y4m",
+   "vars": {
+    "how": "keyboard",
+    "code": "${codes.internal}",
+    "name": "สินค้าตามรหัสภายใน",
+    "warehouse": "${seed.count_warehouse}",
+    "wh_label": "盘点仓",
+    "qty": 3
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "盘点录入认码并保存",
+   "file": "js/count_record.js",
+   "shot": true,
+   "timeout_ms": 150000
+  }
+ ],
+ "mobile": true
+}

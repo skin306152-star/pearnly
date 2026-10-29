@@ -1,0 +1,10 @@
+{
+ "name": "s1_no_batch",
+ "datasets": ["new", "old"],
+ "user": "admin",
+ "start": "/desk/pearnly-home",
+ "steps": [
+  {"name": "批次有效期不写入：导入、建商品、采购、入库", "exec": ["product-sheet"], "file": "js/s1_data.js", "timeout_ms": 120000},
+  {"name": "页面不再有批次有效期", "file": ["js/lib_company.js", "js/s1_pages.js"], "shot": true, "timeout_ms": 150000}
+ ]
+}

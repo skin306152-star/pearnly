@@ -1,0 +1,12 @@
+{
+ "name": "s3_line",
+ "datasets": ["new", "old"],
+ "user": "admin",
+ "mobile": true,
+ "start": "/desk/pearnly-home",
+ "steps": [
+  {"name": "准备码与盘点", "exec": ["s3-prepare", "${seed.count_warehouse}"], "file": ["js/s3_lib.js", "js/s3_line_prep.js"]},
+  {"name": "手机页就地新建、仓位、停用商品记数", "start": "/stocktake", "file": "js/s3_line.js", "shot": true, "timeout_ms": 120000},
+  {"name": "库里读回", "start": "/desk/pearnly-home", "exec": ["s3-inspect"], "file": ["js/s3_lib.js", "js/s3_line_inspect.js"]}
+ ]
+}

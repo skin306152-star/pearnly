@@ -20,10 +20,24 @@ const state = {entry_shown: !!document.getElementById("qty"), error: (document.g
 if (!state.entry_shown) return {ok: false, why: "认码后录入卡没出来", ...state};
 if (!state.card.includes("${v.name}")) return {ok: false, why: "认出的商品不对", ...state};
 document.getElementById("qty").value = "${v.qty}";
+// 抬头「已盘点 x / y」（13dad827 起保存、撤销后随重查刷新）
+const counted_of = () => { const m = ((document.querySelector(".card .muted") || {}).textContent || "").match(/(\d+)\s*\/\s*(\d+)/); return m ? Number(m[1]) : null; };
+const before = counted_of();
 document.getElementById("save").click();
 // 这一页没有 frappe 对象：保存后页面按同一个码重查、重画——出现本条记录（带撤销按钮）、「实盘数量」变成刚填的数就算存上了
-const saved = await wait(() => document.querySelector("[data-undo]"), 15000);
+const saved = await wait(() => document.querySelector("[data-undo]") && counted_of() !== before ? true : null, 15000)
+  || await wait(() => document.querySelector("[data-undo]"), 5000);
 const card2 = document.getElementById("qty") ? document.getElementById("qty").closest(".card") : null;
 const counted = card2 ? [...card2.querySelectorAll(".big")].map(e => e.textContent.trim()) : [];
-return {ok: !!saved && counted[1] === "${v.qty}", ...state, counted, entries: document.querySelectorAll("[data-undo]").length,
-  after: (document.getElementById("error") || {}).textContent || ""};
+const after_save = counted_of();
+// 撤销这一条：页面再查一次码，抬头回到保存前
+const undo = document.querySelector("[data-undo]");
+if (undo) undo.click();
+await wait(() => !document.querySelector("[data-undo]") && counted_of() === before, 15000);
+const after_undo = counted_of();
+// 查码会登记行，只收 POST：GET 直接调应被拒
+const get = await fetch("/api/method/pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_lookup?name=" + encodeURIComponent(name)
+  + "&code=" + encodeURIComponent("${v.code}"), {credentials: "include"});
+const header = {before, after_save, after_undo, get_status: get.status};
+return {ok: !!saved && counted[1] === "${v.qty}" && before !== null && after_save === before + 1 && after_undo === before && get.status >= 400,
+  ...state, counted, header, after: (document.getElementById("error") || {}).textContent || ""};

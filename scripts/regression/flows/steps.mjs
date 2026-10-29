@@ -3,9 +3,10 @@
 // 不点真实鼠标时直接调框架 / 产品的同一套函数；要验交互的步骤自己在 DOM 上点（`click(selector)` 辅助）。
 //
 //   node scripts/regression/flows/steps.mjs <用例.json>
-//   用例：{base, cookie_domain, sid, start, mobile, video, shots, steps: [{name, js, wait_ms, shot, start}]}
+//   用例：{base, cookie_domain, sid, start, mobile, video, shots, steps: [{name, js, wait_ms, shot, start, exec}]}
+//   `exec`：这一步之前在本机跑的一条命令（argv，`run.py` 展开成实验室容器里的 `labctl.py`），最后一行 `JSON …` 作为 `exec_out` 交给这一步
 //   实验室域名：FLOWS_CHROME_RULES="MAP *.flows.localhost 127.0.0.1:18791"
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -99,8 +100,14 @@ try {
   if (job.shots) mkdirSync(job.shots, { recursive: true });
   for (const [index, step] of (job.steps || []).entries()) {
     logs.length = 0;
+    let execOut = null;
+    if (step.exec) {
+      const run = spawnSync(step.exec[0], step.exec.slice(1), { encoding: "utf8", timeout: 300000 });
+      const line = (run.stdout || "").split("\n").reverse().find((row) => row.startsWith("JSON "));
+      execOut = line ? JSON.parse(line.slice(5)) : { exec_error: ((run.stderr || "") + (run.stdout || "")).slice(-400) };
+    }
     if (step.start) await open(step.start);
-    const result = await send("Runtime.evaluate", { expression: `(async () => { const p = window.frappe && frappe.pearnly; ${HELPERS}\n${step.js} })()`,
+    const result = await send("Runtime.evaluate", { expression: `(async () => { const p = window.frappe && frappe.pearnly; const exec_out = ${JSON.stringify(execOut)}; ${HELPERS}\n${step.js} })()`,
       awaitPromise: true, returnByValue: true, timeout: step.timeout_ms || 90000 }, sessionId)
       .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
     if (step.wait_ms) await sleep(step.wait_ms);

@@ -1,0 +1,10 @@
+{
+ "name": "s3_noperm",
+ "datasets": ["new"],
+ "user": "sales",
+ "start": "/desk/pearnly-home",
+ "steps": [
+  {"name": "无盘点录入权建不了", "exec": ["s3-prepare", "${seed.count_warehouse}"], "file": ["js/s3_lib.js", "js/s3_noperm.js"]},
+  {"name": "库里没有这件", "exec": ["s3-inspect"], "js": "return {ok: exec_out && exec_out.found && exec_out.found.noperm.length === 0, noperm: exec_out && exec_out.found.noperm};"}
+ ]
+}

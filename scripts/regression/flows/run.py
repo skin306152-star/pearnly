@@ -7,7 +7,7 @@
           FLOWS_OUT（截图与结果目录，默认 out/flows）
 
 用例格式：{"name", "datasets": ["new", "old"], "user": "admin", "start": "/desk/…", "mobile": false, "video": "qr-qr.y4m",
-          "steps": [{"name", "js" | "file": "js/xx.js", "wait_ms", "start", "shot"}]}。占位：${site}、${company}、${products.qr}、${codes.qr}、
+          "steps": [{"name", "js" | "file": "js/xx.js", "wait_ms", "start", "shot", "exec": ["<labctl 动作>", …]}]}。占位：${site}、${company}、${products.qr}、${codes.qr}、
           ${warehouses.<仓名>}（任意键路径）。`variants`：[{"suffix", "video", "vars": {…}}]，同一流程每个变体跑一遍，
           变体里的值用 ${v.<键>} 取（例如每种码一个变体：各自的假摄像头视频和该认出的商品）。
 """
@@ -75,8 +75,12 @@ def main():
             job = json.loads(fill(raw, {**seed, "v": vars_}))
             job["video"] = variant.get("video", job.get("video"))
             for step in job["steps"]:
-                if step.get("file"):  # 步骤的页面脚本放在 cases/js/ 下，同样替换占位
-                    step["js"] = fill((Path(case_path).parent / step["file"]).read_text(), {**seed, "v": vars_})
+                if step.get("file"):  # 步骤的页面脚本放在 cases/js/ 下，同样替换占位；给列表时按顺序拼起来（公共函数放前面）
+                    files = step["file"] if isinstance(step["file"], list) else [step["file"]]
+                    step["js"] = fill("\n".join((Path(case_path).parent / f).read_text() for f in files), {**seed, "v": vars_})
+                if step.get("exec"):  # 步骤前在实验室容器里跑 labctl.py 的一个动作（页面做不到的模拟，见 labctl.py）
+                    step["exec"] = ["docker", "--context", "colima-pearnly", "exec", "-w", "/home/frappe/frappe-bench/sites", CONTAINER,
+                                    "../env/bin/python", "/workspace/scripts/regression/flows/labctl.py", site, *step["exec"]]
             name = f"{job['name']}{('-' + variant['suffix']) if variant.get('suffix') else ''}@{dataset}"
             spec = {"base": f"http://{site}", "cookie_domain": site, "sid": sid(site, job.get("user", "admin")),
                     "start": job.get("start", "/desk"), "mobile": job.get("mobile", False),

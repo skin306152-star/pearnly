@@ -24,10 +24,24 @@
  ],
  "steps": [
   {
+   "name": "公司类型设为汽车（1 号车复位到在库）",
+   "js": "await call(\"pearnly_erp_portal.masters.api.api_update_company\", {name: \"${company}\", company_type: \"vehicle\"}); const v = await call(\"pearnly_erp_portal.masters.api.api_get_profile\", {name: \"${company}\"}, \"GET\"); return {ok: v.company_type === \"vehicle\", type: v.company_type};",
+   "exec": [
+    "vehicle-restock",
+    "MR0LAB00000000001",
+    "${seed.stocked_warehouse}"
+   ]
+  },
+  {
    "name": "按台出库扫车架号选车",
    "file": "js/vehicle_entry.js",
    "shot": true,
-   "timeout_ms": 150000
+   "timeout_ms": 150000,
+   "start": "/desk/pearnly-stock-out/new"
+  },
+  {
+   "name": "收尾：公司类型改回普通",
+   "js": "await call(\"pearnly_erp_portal.masters.api.api_update_company\", {name: \"${company}\", company_type: \"general\"}); return {ok: true};"
   }
  ]
 }
