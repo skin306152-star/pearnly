@@ -198,9 +198,9 @@ def get_entry(name):
     units = serials.line_serials(doc)
     # 明细带上品名与内部编码（收发货页显示内部编码，10-29）；只取这张单的商品
     names = sorted({row.product for row in doc.get("lines") or [] if row.product})
-    shown = {item.name: item for item in frappe.get_all(
+    shown = {item.name: item for item in frappe.get_all(  # bounded: 这张单的商品
         "ERP Product", filters={"name": ["in", names]}, fields=["name", "product_name", "internal_code"],
-        limit_page_length=0)} if names else {}  # bounded: 这张单的商品
+        limit_page_length=0)} if names else {}
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
          "product_name": (shown.get(row.product) or {}).get("product_name") or "",
