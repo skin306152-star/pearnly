@@ -5,7 +5,8 @@
 填数保存后提示保存、抬头「已盘点」加一（新开户第一件 0→1）、库里记一条（商品、数量对）；按台商品不出数量框；认不到的码要提示。
 再对第一件多记一笔、点撤销：抬头回落、那一笔在库里作废、原来那笔不动。查码接口只收 POST：GET 调回 403（10-29 热修）。
 手机宽度另用假摄像头点「扫码」读条码，同样要出数量框并能保存。全程页面不能有报错。
-（撤销与 GET 403 两条断言由 work-followups 的手机盘点用例并入，10-29。）
+（work-followups 的手机盘点用例 10-29 并入：本账号 LINE 绑定回落、零库存仓、保存后计数加一与「实盘数量」大字、撤销回落、
+GET 调查码 403、落库来源 LINE。）
 """
 from __future__ import annotations
 
@@ -95,7 +96,9 @@ def steps(params, camera_code=None):
                 "if(!document.getElementById('qty')) return {error:'no entry to save'}; const before=st().head; "
                 f"document.getElementById('toast').textContent=''; document.getElementById('qty').value='{i + 2}'; "
                 "document.getElementById('save').click(); await until(()=>document.getElementById('toast').textContent.trim()); "
-                "await until(()=>st().head!==before); await new Promise(r=>setTimeout(r,400)); return Object.assign(st(), {before: before});")})
+                "await until(()=>st().head!==before); await new Promise(r=>setTimeout(r,400)); "
+                "const big=[...document.querySelectorAll('#app .big')].map(e=>e.textContent.trim()); "
+                "return Object.assign(st(), {before: before, counted_big: big[1]||''});")})
     first = next((c for c in params["cases"] if c["expect"] == "entry"), None)
     if first and not camera_code:
         # 第一件再记一笔 99 再撤销：抬头先加后回，库里那一笔作废
@@ -141,7 +144,9 @@ def judge(params, results, camera_code=None):
         if case["expect"] == "entry":
             saved = by.get(f"保存 {case['key']}") or {}
             # 抬头「已盘点 x / y」保存后马上变（10-29 抬头不刷新的修复）
+            # 卡片上「实盘数量」大字随保存刷新成刚记的数（work-followups 断言 3）
             ok = bool(saved.get("toast")) and not saved.get("error") and counted(saved.get("head")) is not None \
+                and saved.get("counted_big") == str(params["cases"].index(case) + 2) \
                 and counted(saved.get("head")) == (counted(saved.get("before")) or 0) + 1
             if first_saved and params.get("snapshot_rows") == 0 and not camera_code:
                 ok = ok and counted(saved.get("before")) == 0 and counted(saved.get("head")) == 1  # 空仓第一件 0→1
@@ -159,7 +164,7 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     rows = lab.python(manifest["site"], f"""
-rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}}}, fields=["product", "qty", "voided"],
+rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}}}, fields=["product", "qty", "voided", "source"],
                       order_by="creation asc", limit_page_length=50)
 print(json.dumps([dict(r, qty=float(r.qty), voided=int(r.voided)) for r in rows]))
 """)
@@ -174,6 +179,8 @@ print(json.dumps([dict(r, qty=float(r.qty), voided=int(r.voided)) for r in rows]
     expected = {c["product"] for c in params["cases"] if c["expect"] == "entry"}
     others = [r for r in rows if r["product"] not in expected]
     checks.append({"case": "no stray entries", "saved": others, "ok": not others})
+    # 手机页记的每一笔都标来源 LINE（work-followups 断言 6）
+    checks.append({"case": "来源都是 LINE", "saved": sorted({r["source"] for r in rows + voided}), "ok": all(r["source"] == "LINE" for r in rows + voided)})
     first = next((c for c in params["cases"] if c["expect"] == "entry"), None)
     if first and not camera_code:
         checks.append({"case": "撤销的那一笔作废", "saved": voided,

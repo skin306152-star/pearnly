@@ -276,3 +276,18 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/titles.py",
   "apps/pearnly_core/pearnly_core/assistant/engines/anthropic_managed_agents.py",
 ]
+
+[[flow]]
+id = "cc.settings"
+title = "CC 设置：主题刷新后保留、语言切换落库与整页换语言、还原（电脑齿轮 / 手机抽屉头像菜单）"
+module = "scripts/flows/cc_settings.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/components/settings.tsx",
+  "frontend/assistant/src/lib/appearance.ts",
+  "frontend/assistant/src/lib/frappe.ts",
+  "apps/pearnly_core/pearnly_core/account/preferences.py",
+]
