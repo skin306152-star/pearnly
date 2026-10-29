@@ -316,6 +316,7 @@
             const result = await call('api_line_stocktake_lookup', { name: taskName, code: code, product: product || '' }, true);
             if (task?.name !== taskName) return;
             if (result && result.candidates) { choose(code, result.candidates); return; }
+            if (result && result.refused) { say(result.refused, true); return; }  // 按台商品：要逐台扫（同电脑），不出数量框
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); if (code) offerNew(code); return; }
             if (result.task) task = Object.assign({}, task, result.task);  // 抬头（已盘点 x / y）随每次查码刷新
             last = result;

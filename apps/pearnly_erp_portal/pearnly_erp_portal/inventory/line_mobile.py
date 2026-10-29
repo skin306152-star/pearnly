@@ -162,6 +162,10 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     if not matches:
         return {}
     found = {"name": matches[0]["name"]}
+    if not unit and counts.per_unit(frappe.db.get_value(counts.PRODUCT, found["name"], ["track_serial"], as_dict=True), company):
+        # 按台管理的商品（汽车 / 手机电器类型的公司）扫的是商品码：同电脑，提示逐台扫车架号 / 序列号，不出数量框，
+        # 也不为它登记快照行（抬头「已盘点 x / y」的 y 不跟着多 1）；扫到具体某一台时再按台记（验收 10-29）
+        return {"refused": frappe.db.get_value(counts.PRODUCT, found["name"], "product_name") + " · " + _(counts.UNIT_BY_UNIT)}
     rows = counts.rows_of_product(count=name, product=found["name"])
     if not rows:
         registered = counts.ensure_item(count=name, product=found["name"])
