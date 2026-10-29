@@ -16,7 +16,7 @@ const port = 9700 + Math.floor(Math.random() * 190);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "flows-"));
 const chrome = spawn(chromePath, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   ...(process.env.FLOWS_CHROME_RULES ? [`--host-resolver-rules=${process.env.FLOWS_CHROME_RULES}`] : []),
-  "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required",
+  "--mute-audio", "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required",
   ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : []),
   "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank"], { stdio: "ignore", detached: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

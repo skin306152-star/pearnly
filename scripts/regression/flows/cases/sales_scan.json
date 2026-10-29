@@ -1,0 +1,37 @@
+{
+ "name": "sales_scan",
+ "datasets": [
+  "new",
+  "old"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-sales/new",
+ "video": "ean.y4m",
+ "variants": [
+  {
+   "vars": {
+    "label": "销售",
+    "route": "pearnly-sales",
+    "party_field": "doc_date",
+    "head": [],
+    "product": "${products.barcode}",
+    "warehouse": "${seed.stocked_warehouse}",
+    "qty": 1,
+    "price": 120,
+    "sign": -1,
+    "party_label": "ลูกค้าทดสอบ",
+    "party_api": "pearnly_erp_portal.masters.api.api_create_customer",
+    "party_arg": "customer_name",
+    "party_ref": "customer"
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "销售扫码出库并提交",
+   "file": "js/trade_scan.js",
+   "shot": true,
+   "timeout_ms": 150000
+  }
+ ]
+}

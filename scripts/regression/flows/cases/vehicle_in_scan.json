@@ -1,0 +1,32 @@
+{
+ "name": "vehicle_in_scan",
+ "datasets": [
+  "new"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-stock-in/new",
+ "video": "qr-chassis.y4m",
+ "variants": [
+  {
+   "vars": {
+    "label": "入库",
+    "route": "pearnly-stock-in",
+    "dialog": "登记车辆",
+    "chassis": "MR0LAB00000000001",
+    "match": "MR0LAB00000000001",
+    "warehouse": "${seed.stocked_warehouse}",
+    "expect_wh": "${seed.stocked_warehouse}",
+    "status": "in_stock",
+    "cost": "450000"
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "按台入库扫车架号登记",
+   "file": "js/vehicle_entry.js",
+   "shot": true,
+   "timeout_ms": 150000
+  }
+ ]
+}

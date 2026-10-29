@@ -57,6 +57,14 @@ def products(company):
     return made
 
 
+def line_binding(user, line_user_id):
+    """手机盘点页不在 LINE 里打开时回落到「本账号自己的 LINE 绑定」：实验室给管理员记一条（假的 LINE 用户号，不连 LINE）。"""
+    if not frappe.db.exists("Pearnly LINE Binding", {"user": user, "status": "active"}):
+        frappe.get_doc({"doctype": "Pearnly LINE Binding", "user": user, "line_user_id": line_user_id, "status": "active",
+                        "display_name": "flows lab", "bound_at": frappe.utils.now()}).insert(ignore_permissions=True)
+        frappe.db.commit()
+
+
 def company(name, warehouses):
     from pearnly_erp_portal.masters import company as companies
 
@@ -144,6 +152,8 @@ def main():
         assert frappe.conf.get("pearnly_product") == "erp"
         frappe.set_user(f"admin@{site.split('.')[0]}.flows")
         result = {"dataset": kind, **{"new": new, "old": old}[kind](site)}
+        prefix = site.split(".")[0]
+        line_binding(f"admin@{prefix}.flows", f"Ulab-flows-{prefix}")
         frappe.db.commit()
         print("JSON", json.dumps(result, ensure_ascii=False, default=str))
     finally:

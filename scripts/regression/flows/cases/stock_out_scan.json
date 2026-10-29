@@ -1,0 +1,89 @@
+{
+ "name": "stock_out_scan",
+ "datasets": [
+  "new",
+  "old"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-stock-out/new",
+ "variants": [
+  {
+   "suffix": "qr",
+   "video": "qr-qr.y4m",
+   "vars": {
+    "label": "出库",
+    "route": "pearnly-stock-out",
+    "product": "${products.qr}",
+    "warehouse": "${seed.stocked_warehouse}",
+    "qty": 1,
+    "sign": -1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "code",
+   "video": "qr-code.y4m",
+   "vars": {
+    "label": "出库",
+    "route": "pearnly-stock-out",
+    "product": "${products.code}",
+    "warehouse": "${seed.stocked_warehouse}",
+    "qty": 1,
+    "sign": -1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "internal",
+   "video": "qr-internal.y4m",
+   "vars": {
+    "label": "出库",
+    "route": "pearnly-stock-out",
+    "product": "${products.internal}",
+    "warehouse": "${seed.stocked_warehouse}",
+    "qty": 1,
+    "sign": -1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "express",
+   "video": "qr-express.y4m",
+   "vars": {
+    "label": "出库",
+    "route": "pearnly-stock-out",
+    "product": "${products.express}",
+    "warehouse": "${seed.stocked_warehouse}",
+    "qty": 1,
+    "sign": -1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  },
+  {
+   "suffix": "barcode",
+   "video": "ean.y4m",
+   "vars": {
+    "label": "出库",
+    "route": "pearnly-stock-out",
+    "product": "${products.barcode}",
+    "warehouse": "${seed.stocked_warehouse}",
+    "qty": 1,
+    "sign": -1,
+    "expect_found": true,
+    "code_re": "."
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "出库扫码认商品并过账",
+   "file": "js/stock_entry_scan.js",
+   "shot": true,
+   "timeout_ms": 120000
+  }
+ ]
+}

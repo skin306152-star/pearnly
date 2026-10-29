@@ -1,1 +1,0 @@
-{"name": "probe_count", "datasets": ["new"], "start": "/desk/pearnly-stock-count", "steps": [{"name": "probe", "file": "js/probe_count.js", "shot": true}]}

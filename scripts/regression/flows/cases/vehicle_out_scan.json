@@ -1,0 +1,33 @@
+{
+ "name": "vehicle_out_scan",
+ "datasets": [
+  "new",
+  "old"
+ ],
+ "user": "admin",
+ "start": "/desk/pearnly-stock-out/new",
+ "video": "qr-chassis.y4m",
+ "variants": [
+  {
+   "vars": {
+    "label": "出库",
+    "route": "pearnly-stock-out",
+    "dialog": "选车",
+    "chassis": "MR0LAB00000000001",
+    "match": "MR0LAB|SRL-",
+    "warehouse": "${seed.stocked_warehouse}",
+    "expect_wh": "",
+    "status": "issued",
+    "cost": ""
+   }
+  }
+ ],
+ "steps": [
+  {
+   "name": "按台出库扫车架号选车",
+   "file": "js/vehicle_entry.js",
+   "shot": true,
+   "timeout_ms": 150000
+  }
+ ]
+}
