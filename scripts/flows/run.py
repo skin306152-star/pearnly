@@ -180,10 +180,12 @@ def barcode_video(code):
     spec = importlib.util.spec_from_file_location("make_barcode_video", ROOT / "scripts/smoke/make_barcode_video.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    path = Path(tempfile.gettempdir()) / f"flow-{code}.y4m"
+    # 码值或 `scripts/smoke/codes/` 下的一张码图（Data Matrix 等，10-30）：码图按文件名起名、按仓库路径读
+    picture = str(code).endswith(".png")
+    path = Path(tempfile.gettempdir()) / f"flow-{Path(code).name if picture else code}.y4m"
     with _VIDEO_LOCK:
         if not path.exists():
-            module.write(str(path), code)
+            module.write(str(path), str(ROOT / code) if picture else code)
     return str(path)
 
 

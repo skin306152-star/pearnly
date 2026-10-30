@@ -539,3 +539,20 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_api.py",
   "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js",
 ]
+
+[[flow]]
+id = "erp.stocktake.gs1"
+title = "ERP 盘点：GS1 Data Matrix 按条码认出、没有的 GTIN 当场新建条码记 GTIN（10-30 码制一次覆盖全）"
+module = "scripts/flows/erp_stocktake_gs1.py"
+start = "/desk/pearnly-stock-count/{count}"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = true
+covers = [
+  "apps/pearnly_core/pearnly_core/public/scan/reader.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/gs1.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+]
