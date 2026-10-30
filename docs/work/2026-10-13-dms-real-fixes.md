@@ -140,10 +140,10 @@ CI 的流程覆盖闸要求改到的产品入口有登记的流程（`tests/flow
 
 ### 交接（2026-10-30，本窗口归档；部署解冻后由验收新窗口复核合入）
 
-- **分支** `pearnly/dms-editor-error-visible`，工作树 `/Users/skin/pearnly/.claude/worktrees/dms-editor-error`，HEAD `71d7e5c7`（基线 `00736f59`），已推远端。
-  两个提交：`54068d7c`（编辑页保存被拒提示可见 + 标出错栏 + 离线测试）、`71d7e5c7`（DMS 第一条流程 `dms.booking.editor` + DMS 两套数据）。
+- **分支** `pearnly/dms-editor-error-visible`，工作树 `/Users/skin/pearnly/.claude/worktrees/dms-editor-error`，代码 HEAD `71d7e5c7`、交接文档提交在其后（基线 `00736f59`），已推远端。
+  两个提交：`4673f1f4`（编辑页保存被拒提示可见 + 标出错栏 + 离线测试）、`71d7e5c7`（DMS 第一条流程 `dms.booking.editor` + DMS 两套数据）。
 - **CI**：`71d7e5c7` 上 Development checks 通过（run 41023502315）、Companion checks 通过；`pearnly/flows` 已回写成功。
-  （`54068d7c` 那次红是流程覆盖闸缺 DMS 流程，已由第二个提交补上。）本地全闸门 150 项通过。
+  （变基前旧提交 `54068d7c` 那次红是流程覆盖闸缺 DMS 流程，已由第二个提交补上。）本地全闸门 150 项通过。
 - **合入前要做**（主线冻结中，等主会话通知部署完再做）：
   1. `git fetch` → 变基到最新 `origin/main`（冻结期间 main 已前进到 `4ab75d92` 之后）；有冲突多半在 `scripts/regression/datasets.py`、`lab_init.py`、`tests/flows/registry.toml`。
   2. 变基后本地全闸门（先删工作树里 `apps/pearnly_core/pearnly_core/public/pearnly-app` 构建产物，不然几个扫描闸会扫到它）。
