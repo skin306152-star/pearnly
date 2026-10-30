@@ -124,6 +124,18 @@ class Lab:
     def drop(self, site, user, sid):
         self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user, "drop", sid)
 
+    def restart(self):
+        """重启 bench 容器再等网页起来：网页进程用 --noreload 起，已导入的模块一直留在内存里，换了源码不重启就是新旧混跑
+        （10-30 变基后 terminals.py 新、warehouses 还是旧的，报找不到 main_of）。"""
+        subprocess.run(["docker", "restart", CONTAINER], capture_output=True, check=True, timeout=300)
+        for _ in range(120):
+            ping = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-H", "Host: erp.regression.localhost",
+                                   f"http://127.0.0.1:{PORT}/api/method/ping"], capture_output=True, text=True)
+            if ping.stdout == "200":
+                return
+            time.sleep(2)
+        raise SystemExit("实验室网页重启后没起来")
+
     def migrate(self):
         """全部站点迁移到挂上来的源码（表结构、补丁、hooks）：站点比源码旧时流程结果不代表这个提交。"""
         result = subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench", CONTAINER, "bench", "--site", "all", "migrate"],
@@ -229,7 +241,7 @@ def main(argv=None) -> int:
     parser.add_argument("--viewport", choices=["desktop", "mobile"], help="只跑这个宽度（调试用）")
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
-    parser.add_argument("--migrate", action="store_true", help="先把实验室全部站点迁移到挂上来的源码（--post-status 时总是做）")
+    parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
     parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；实验室 bench 有 3 个网页进程，建议不超过 3）")
     args = parser.parse_args(argv)
     flows = registry()
@@ -253,7 +265,9 @@ def main(argv=None) -> int:
         parser.error("--all, --flow or --changed")
     lab, results, started = Lab(), [], time.monotonic()
     if flows and (args.migrate or args.post_status):
+        lab.restart()
         lab.migrate()
+        lab.restart()  # 迁移后再起一次：迁移里导入的模块与缓存不带进流程
         print(f"实验室站点已迁移（{round(time.monotonic() - started)}s）", flush=True)
     cells = [(flow, dataset, viewport) for flow in flows
              for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]

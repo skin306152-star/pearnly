@@ -27,6 +27,8 @@ WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return tru
 
 
 def prepare(lab, manifest):
+    # 判定按中文界面写（按钮、提示）：上一轮 cc.settings 中途被停时管理员语言可能还是英文，先还原
+    lab.python(manifest["site"], 'frappe.db.set_value("User", "admin@erp.regression", "language", "zh")\nfrappe.db.commit()\nprint("{}")')
     tag = "flow" + uuid.uuid4().hex[:6]
     before = lab.python(manifest["site"], 'print(json.dumps({"n": frappe.db.count("Pearnly Assistant Session", {"user": "admin@erp.regression"})}))')
     return {"tag": tag, "first": f"{tag} 盘点一下三号仓", "second": f"{tag} second turn", "sessions_before": before["n"], "cases": []}

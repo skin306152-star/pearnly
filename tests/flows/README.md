@@ -74,7 +74,7 @@ python3 scripts/flows/run.py --all --post-status --jobs 3 --out ~/pearnly-devtoo
 ```
 
 - 回写前 `run.py` 自己核对：实验室挂的产品源码就是这个工作树、产品代码没有未提交改动、CC 前端产物比源码新，否则拒绝回写；
-  `--post-status` 先把实验室全部站点迁移到挂上来的源码；`--jobs 3` 按站点并行（同一站点的格依次跑）。
+  `--post-status` 先重启实验室网页进程（网页用 `--noreload` 起，换了源码不重启就是新旧代码混跑）、把全部站点迁移到挂上来的源码、再重启一次；`--jobs 3` 按站点并行（同一站点的格依次跑）。
 - 工作树必须在 `/Users` 下（Docker 挂不了 `/private/tmp`）。跑完 `git worktree remove` 掉。
 - 依赖 / Dockerfile / 底座版本变了时，实时源码盖不到：用 `PEARNLY_REGRESSION_LAB_IMAGE=<候选镜像>` 起实验室再跑。
 
