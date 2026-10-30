@@ -139,8 +139,9 @@ def main():
     check("候选按钮标签带序号与客户码，不超过 LINE 的 20 字",
           picks[0]["label"] == "1. C0" and all(len(a["label"]) <= 20 for a in qr), [a["label"] for a in qr])
     check("候选文案逐行列出客户码 + 姓名 + 证号尾 4", "1. C0 · ชื่อ0 · x0123" in cc["text"], cc["text"])
-    check("最后一个按钮是新建客户兜底",
-          parse_qs(qr[-1]["data"]).get("action", [""])[0] == "create_new", qr[-1])
+    # 点「ลูกค้าใหม่」先出新客户卡、卡上「保存」才写（cd9fdee8，10-29：写主档前必须有主档卡）
+    check("最后一个按钮是新建客户兜底（先出新客户卡）",
+          parse_qs(qr[-1]["data"]).get("action", [""])[0] == C.ACT_CHOOSE_NEW == "choose_new", qr[-1])
 
     # ── 6. 回执：不谎称 ────────────────────────────────────────────────
     r_new = C.receipt_text("126", "สมชาย", "create")
