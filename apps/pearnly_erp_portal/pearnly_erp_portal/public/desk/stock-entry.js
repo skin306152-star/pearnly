@@ -213,7 +213,7 @@
 			// 之后才落地，那一笔 paint 会把"新建入库/出库单"盖到二级页面右上角（同盘点那个坑）。
 			function restore_new() {
 				if (frappe.get_route().length !== 1) return;
-				if (canWrite) page.set_primary_action(title_new(), () => editor()); // entry: trade.newIn, trade.newOut
+				if (canWrite) page.set_primary_action(title_new(), () => editor()); // entry: trade.newIn, trade.newOut, trade.newTransfer
 				else page.clear_primary_action();
 			}
 			// 选中若干张**已过账**的单据 → 右上角出现"作废选中"。库存流水不改不删，作废是追加

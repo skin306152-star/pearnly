@@ -104,7 +104,7 @@
 				const way = typeof mode === "function" ? mode(line) : mode;
 				// 选在库的台按这一行的仓 + 库位（G17）：行上有仓用行上的，没有用调用方给的单头仓；这一行写明了库位才按库位筛
 				// （没写时服务端可能按商品建议库位补，交给服务端出台时核）
-				const location = String(line.location || (line.warehouse ? "" : filters?.location || "")).trim();
+				const location = String(line.location || (line.warehouse ? "" : (filters?.location || ""))).trim();
 				const { location: _head, ...rest } = filters || {};
 				const warehouse = line.warehouse || rest.warehouse || "";
 				const place = way === "pick" && warehouse ? { warehouse, ...(location ? { location } : {}) } : {};

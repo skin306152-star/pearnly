@@ -188,4 +188,60 @@ STC-00046（进行中）；管理员建的采购单 PUR-2026-00032。浏览器�
 ## P2 + P2x（10-30 起，分支 `pearnly/multi-wh-p2-ca3eab`）
 
 范围：调拨单（G6，出入库单第三个方向 `transfer`）、CC 写 Express 调拨 RL 与作废（G7）、G17 后两项（选台按仓 + 库位过滤、出台核库位）。
-施工评估见 [P2 评估](2026-10-30-multi-warehouse-p2-transfer-评估.md)，报主会话审定后施工；验证与未验证项施工后补在本节。
+施工评估见 [P2 评估](2026-10-30-multi-warehouse-p2-transfer-评估.md)，主会话 10-30 审定（12 节自定各点同意；同仓不同库位移动记为后续项）。
+
+### 施工（基线 origin/main d22b7b2b）
+
+- **调拨 = 出入库单第三个方向**：`ERP Stock Entry.direction` 加 `transfer`，表头加 `to_warehouse` / `to_location`，明细加 `to_location`；
+  新流水类型 `transfer_out` / `transfer_in`；`stock.apply_transfer` 一个事务内先出后进，调入按调出那一笔的每基本单位单价入
+  （`apply_movement(base_unit_cost=…)`）。调出那边成本未确立时调入不带价，按调入位置现有均价入（同退货入库口径），调入位置也没有成本才同样未确立
+  ——评估里写的「未知随未知」照这个实现：调入仓已有均价时不会被改成未知。服务端拦：调入仓必填、同公司启用、不能同仓（同仓不同库位也拒）、
+  调入库位按调入仓清单核。作废走现有逐条冲回；单号 `TF` + 佛历年（第四个库存单据定义）；不带单价、没有用途、不出打印（打印上下文对调拨拒打）。
+- **权限菜单**：能力 `stock.transfer`（别名 `stock.write`），菜单键 `stock-transfer`（团队管理可单独勾），侧栏「货品与库存」下单独一项
+  `pearnly-stock-transfer`（页面在 ERP 自己的 App，图标 arrow-right-left）；列表 / 详情 / 附件按 `stock.<方向>` 判，加了调拨；附件方向 `stock_transfer`。
+- **按台**：`serials.transfer` 核选中的台在调出仓 + 库位在库，换到调入仓 / 库位，记 `transfer_out` / `transfer_in` 两条按台流水；作废先核每台还在调入位置
+  （已卖出 / 出库 / 再调走整单拒），再退回调出位置。
+- **G17**：出台（销售、收银、出库、调拨）核台的仓与库位都等于这一行；选台下拉与扫码认台按这一行的仓（行上没写用单头 / 收银台的仓）过滤，
+  这一行写明库位时再按库位过滤（`search_units` / `api_lookup` 加 `location`）。
+- **页面**：出入库同一份 `stock-entry.js`，调拨多一组「调入仓库 / 调入仓位」（`p.place.fields` / `track` 加 `keys`），明细每行多「调入仓位」
+  （`lines_editor` 的 `to_warehouse` / `to_location`），只读明细多一列；单头标签「调出仓库 / 调出仓位」。
+- **Express 推送**：调拨 → RL（`express/stock_entry.py`）：行上带调出仓码、单头 `to_loccod`、不带价；两仓任一没码列进 `unmapped_warehouses`
+  停下交人；不问科目；CC 报了核过 RL（`stock_books_checked`）而账套没有 RL 簿才停 `NO_STOCK_BOOK`，旧版没报的交给电脑核。
+  载荷版本 `TRANSFER_PAYLOAD_VERSION = 14`（作废 RL 同号；13 留给 express-rules-vat，合入时按 main 当时最大值 + 1 再定）。
+- **CC**：新模块 `dbf_transfer.py` 照 4.6 / 4.6b 写 RL；10-30 从测试机只读拷回原件副本 `s12-before / rl2 / rl3 / rl3v` 逐栏核过：ISRUN 那一行
+  DOCTYP / PREFIX 都是 RL、没有科目、日记账空；没有凭证；STMAS 不动；STLOC 只动 LOCBAL 与当期数量栏，**不动日期栏和金额栏**，调入仓新建的行
+  没有分类（STKCLASS 空）；STCRD 的 STKDES 有单头说明时是说明、没有时是品名（RL0000001）；作废时那一对只打删除标记、NETVAL 不写、
+  单头 C + NXTSEQ 空。与样本不同、有意不照做的：MLOTNUM（Express 自己的先进先出批次链，录别的单时还会重排旧行）、MREMBAL / MREMVAL
+  （样本里是 Express 批次链上的数，不等于主档结存）——CC 不写批次、MREMBAL 记主档结存，同 CC 写的其他库存单，交给 Express「计算成本」。
+  `stock_location` 加 `KIND_TRANSFER`（不动日期 / 金额栏、新行不带分类）；`dbf_void` 认 RL（成对核、只回滚两仓、不动主档与凭证）；
+  `express_masters` 报 RL 单据簿与 `stock_books_checked`；worker 按 `doctype = RL` 派给 `write_transfer`；`payload_contract` 加 14。
+- 流程用例：新 `erp.stock-transfer`（`scripts/flows/erp_stock_transfer.py`，库存岗、两套数据 × 电脑 / 手机：页面建调拨、同仓被拒、提交；
+  库里核 TF 号、一出一进同单价、两仓数量与合计金额、作废回原；按台在服务端调一台车、同仓拒、作废回 A）、新 `erp.sales.receipt`
+  （销售收据出库，单头仓带明细；覆盖 sales-form 的选台改动）；`erp.cashier.first-sale` 加 covers 收银适配器。回归数据库存岗加「调拨」菜单。
+- 登记表：`erp.page.stock-transfer`（auto）、`erp.cc.stock-transfer`（manual）；`erp.serials.dialog` 步骤加调拨与按行仓 / 库位。
+
+### 验证（截至 10-30 20:30 暂停）
+
+| 层 | 结果 |
+| --- | --- |
+| 离线单测（ERP） | `test_erp_serials` 16 过（新增调拨换仓 / 作废回退 / 台已卖出或再调走拒 / 出台核库位）；`test_erp_express_direct` 113 过（新增 RL 载荷、两仓码、无码停下、只在报过 RL 时判没有单据簿）；`test_companion_contract` 81 过（新增调拨版本与键两边一致）；`test_native_desk_contract`、`test_document_numbering`（顺手修了 main 上就过期的前缀断言）、`test_erp_locations`、`test_erp_printing`、`test_erp_stock_attachments`、`test_erp_portal_access` 照 CI 方式单跑都过 |
+| 离线单测（CC） | 全量 1237 过、42 跳过（新增 `test_dbf_transfer.py` 13 项：原生单头、成对明细、STLOC 新建行不带日期 / 金额 / 分类、STMAS 不动、无凭证、ISRUN +1、作废、改过的单不作废、坏载荷不动账、仓码不在、没有 RL 簿、未知商品、负库存） |
+| 检查 | 架构、文案（新增 10、改动 0）、无上限查询、入口声明、流程覆盖、共用件登记表都过；本地同名闸门第一遍查出入口声明缺码、三元括号两处，已修并单独复跑通过；**整套闸门在修复后还没从头重跑一遍** |
+| 实验栈（真站点） | **没跑**：本机已有三套别的窗口的实验栈（上限三套），一直没有空位；迁移、调拨页面、流程用例 `erp.stock-transfer` / `erp.sales.receipt` 都还没在真站点跑过 |
+| 测试机 | 20:05–20:30 跑了 C 盘 T 账套副本的 RL 回归（`scripts/express-transfer-regression.py`），73 本全部「跳过」：这些 T 账套各仓没有正结存，脚本挑不到可调的货，**等于没测到**；按暂停通知中途停下，副本与源码副本已删、python 进程 0、占用表已登记释放 |
+| 原生样本核对 | 做了：测试机只读拷回 `s12-before / rl2 / rl3 / rl3v` 的 8 张表，逐栏比对，结论写在上面「CC」一条 |
+
+### 暂停点（10-30 20:30，用户下班，主会话通知原地暂停）
+
+- 分支 `pearnly/multi-wh-p2-ca3eab`，WIP 已提交并推送（SHA 见提交后回读，写在主会话报告里）；变基基线 origin/main d22b7b2b。没合 main、没部署。
+- 实验栈：本窗口**没起过**，无需停；本机三套在跑的是 father3 / fil-delivery-report / fcb65cca-audit 窗口的。测试机：本窗口无残留。
+- **明天第一步**：
+  1. fetch 变基（撞文件：drop-batch-expiry 的 `erp_stock_entry_line.json`、express-operator / express-rules-vat 的 `payload_contract.py` 与载荷号、
+     scan-data-matrix 的 `serials.lookup`）→ 本地同名闸门从头跑一遍。
+  2. 等本机实验栈有空位：起自己的栈（`-p pearnly-mwh-p2`，端口另取）→ 迁移 → `run.py --changed --base origin/main --post-status`
+     （会跑 erp.stock-transfer、erp.sales.receipt、erp.stock-in.units、erp.cashier.first-sale、erp.document.express、erp.stocktake.new-product）→ 停栈。
+  3. 改回归脚本：挑不到正结存时先在副本里用 JU 入 1 个再调（同 `express-stock-entry-regression.py` 的「先入后出」），再上测试机跑 101 本 + 作废，
+     带 CC 索引程序核 CDX；动测试机前登记占用表。
+  4. 端到端（ERP 页面 → CC → C 盘 T 账套）要 CC 测试包 + 测试机 ERP 实验栈，动之前问主会话；服务器版 Express 里看 RL 放白天。
+  5. 推分支、等 Development checks、报主会话合入（载荷号合入时按 main 当时最大值 + 1）。
+
