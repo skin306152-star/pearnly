@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import difflib
+from decimal import Decimal
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -489,7 +490,10 @@ def ensure_supplier(
     accnum = _ap_acc_from_lines(entry.lines, ap_acc or account_rules.default_account(account_dir, _DEFAULT_AP_SLOT))
     if not accnum:
         raise ValueError("新供应商没有可用的应付科目(分录与账套默认科目都没有)")
-    has_vat = str(entry.vat_rate or "0") not in ("0", "")
+    # 整单免税的单单头也记税率 7（载荷 12，照原生），但它的新供应商照原生多数建成无税（语料 85 家里 45 家 VATRAT 0 / FLGVAT 0）：
+    # 有税率还要有税额才算有税
+    has_vat = (str(entry.vat_rate or "0") not in ("0", "")
+               and Decimal(str(getattr(entry, "vat_amount", "0") or "0")) != 0)
     addr1, addr2, addr3 = _split_address(getattr(entry, "supplier_address", ""))
 
     t = _open(account_dir, "APMAS", dbf.READ_WRITE)

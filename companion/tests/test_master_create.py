@@ -231,6 +231,24 @@ def test_flgvat_no_vat_is_0(datat):
     assert _flgvat_of(datat, code) == "0"
 
 
+def test_whole_exempt_purchase_creates_a_supplier_without_vat(datat):
+    # 整单免税的单头记税率 7、税额 0（载荷 12）：新供应商照原生多数建成无税（语料 85 家里 45 家 VATRAT 0 / FLGVAT 0）
+    e = _sup_entry(
+        vat_rate=7.0,
+        vat_amount="0.00",
+        total_amount="1000.00",
+        supplier={"tax_id": "0107544000111"},
+    )
+    code = M.ensure_supplier(datat, e, created_date=_TODAY)
+    assert _flgvat_of(datat, code) == "0"
+    t = dbf.Table(str(datat / "APMAS.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_ONLY)
+    try:
+        assert float(next(x for x in t if (x.SUPCOD or "").strip() == code).VATRAT) == 0.0
+    finally:
+        t.close()
+
+
 def _seed_full(datat, table, codefield, namefield, code, name, tax, **extra):
     t = dbf.Table(str(datat / f"{table}.DBF"), codepage=S.CODEPAGE)
     t.open(dbf.READ_WRITE)
