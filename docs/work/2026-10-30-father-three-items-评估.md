@@ -247,3 +247,11 @@
 1. 看原窗口 father3 流程结果（`/private/tmp/claude-501/-Users-skin-pearnly/8de116d7-2604-41b6-bc90-0babd73c0f80/scratchpad/flows-f3.log`）；通过就回写 `pearnly/flows` → 推分支等 Development checks → 快进合入，verify-lab 让出。
 2. 姓名栏：看分支 Development checks；重跑完整候选 offline 车道（本地副本 `scratchpad/cand-fullname.sh`：仓库的 `scripts/ci-candidate-checks.sh` 把 `cd` 换成工作树、`offline_py` 加五个 app 的 `:ro` 挂载）；verify-lab 让出后切到 fullname 工作树跑 `erp.team.full-name` / `cowork.team.full-name` / `erp.cashier.first-sale`（`--changed --base origin/main`），填任务记录连带回归表「待填」；推分支 → CI → 合入。
 3. 之后 LINE 改仓（若原窗口没合完）→ Excel ①闸门与流程 → ②③。
+
+### LINE 改仓：后台闸门与流程结果（10-30 晚，原窗口跑完）
+
+- **受影响流程 18/18 通过**（`run.py --changed --base origin/main --jobs 3 --migrate`，base `d22b7b2b`；5 条流程两套数据，含 `erp.line.stocktake` 新加的「默认盘点的仓」「换仓记数落在那个仓」）。没加 `--post-status`：要在修完下面这条测试、提交后的那个提交上回写。
+- **本地闸门 1 条失败**：`tests/test_erp_locations.py` 的 `test_options_list_this_warehouse_and_mark_old_stocked_places` 报
+  `'types.SimpleNamespace' object has no attribute 'get_value'`——库位下拉现在先按仓取所属公司（`warehouses.company_of`，本次有意的改动），测试里的假 `frappe.db` 没有 `get_value`。
+  修法：测试里替身 `warehouses.company_of`（或给假 db 加 `get_value` 回公司），只改测试。修完重跑本地闸门 → 提交 → 推送 → `pearnly/flows` 回写（流程结果可沿用上面 18/18，变基无冲突不重跑）→ Development checks → 合入。
+- 实验栈 `pearnly-verify-lab` 已停（数据卷保留）。
