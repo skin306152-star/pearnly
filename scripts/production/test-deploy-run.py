@@ -18,6 +18,7 @@ RUNNER = HERE / 'deploy-run.sh'
 READBACK = HERE / 'deploy-readback.sh'
 DRIVER = HERE / 'deploy.sh'
 SHA = 'f' * 40
+BASE = 'a' * 40   # 首父链上更早、有全套的提交（沿用用）
 DIGEST = 'sha256:' + 'e' * 64
 FLOWS_OK = 'success all flows; 1 flows; datasets new,old; 4/4 runs passed; 812s'
 IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@' + DIGEST
@@ -227,13 +228,13 @@ class Driver(unittest.TestCase):
     """deploy.sh with fake git / gh / ssh: the order of calls and where it stops."""
 
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
-                   busy_server=False, attach_failures=0, flows=FLOWS_OK):
+                   busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed=''):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
             (repo / 'scripts/production').mkdir(parents=True)
             bin_dir.mkdir()
-            for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py'):
+            for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py', HERE / 'flows_inherit.py'):
                 (repo / 'scripts/production' / f.name).write_text(f.read_text())
             (repo / 'scripts/flows').mkdir(parents=True)
             (repo / 'scripts/flows/coverage.py').write_text(
@@ -242,12 +243,15 @@ class Driver(unittest.TestCase):
             stub(bin_dir / 'git', f'''echo "git $*" >> "{trace}"
 case "$*" in
   *rev-parse*) echo {SHA} ;;
+  *rev-list*) {f'echo {BASE}' if base_flows else ':'} ;;
+  *"diff --name-only"*) printf '%s\n' {changed!r} ;;
   *show*deploy-run.sh) cat "{repo}/scripts/production/deploy-run.sh" ;;
 esac
 ''')
             stub(bin_dir / 'gh', f'''echo "gh $*" >> "{trace}"
 case "$1 $2" in
   "api repos/{{owner}}/{{repo}}/commits/{SHA}/status") {f'echo "{flows}"' if flows else ':'} ;;
+  "api repos/{{owner}}/{{repo}}/commits/{BASE}/status") {f"echo '{base_flows}'" if base_flows else ':'} ;;
   "workflow run") ;;
   "run list")
     case "$*" in
@@ -305,10 +309,13 @@ esac
 
     def test_flow_cases_gate_the_deploy(self):
         cases = {
-            'no result': (dict(flows=''), '没有流程用例结果'),
+            'no result': (dict(flows=''), '找不到全套流程结果'),
             'failed': (dict(flows='failure all flows; 1 flows; datasets new,old; 3/4 runs passed; 800s'), '流程用例没通过'),
             'only affected flows': (dict(flows='success base 0123456789ab; 1 flows; datasets new,old; 4/4 runs passed; 800s'),
-                                    '部署前要跑全套'),
+                                    '只跑过受影响的流程'),
+            'product change since the last full suite': (
+                dict(flows='', base_flows='["success", "all flows; 70 flows; 70/70 runs passed"]',
+                     changed='apps/pearnly_dms/pearnly_dms/x.py'), '改到了产品路径'),
         }
         for name, (kwargs, message) in cases.items():
             with self.subTest(case=name):
@@ -324,7 +331,13 @@ esac
         self.assertEqual(result.returncode, 0, result.stderr)
         result, calls = self.run_driver('--dry-run', flows='')
         self.assertEqual(result.returncode, 1)
-        self.assertIn('没有流程用例结果', result.stderr)
+        self.assertIn('找不到全套流程结果', result.stderr)
+        # 沿用：本提交没有全套，首父链上的全套之后只改了测试 → 照常部署，打印沿用哪个提交和文件
+        result, calls = self.run_driver(flows='', base_flows='["success", "all flows; 70 flows; 70/70 runs passed"]',
+                                        changed='scripts/sample-verify-dms-cards.py')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(f'沿用 {BASE[:8]} 的全套，之后只改了：scripts/sample-verify-dms-cards.py', result.stdout)
+        self.assertEqual(self.kinds(calls)[0], 'dispatch build-production.yml')
 
     def test_failed_build_stops_before_production(self):
         result, calls = self.run_driver(build='failure')

@@ -20,6 +20,12 @@
 | 改到登记的共用件（`scripts/impact/shared-parts.toml`：扫码 / 相机、上传、LINE 共用流程与三个点、公司切换 / 选择框、页面注册与侧栏、权限钩子、CC 设置页与心跳、`cc_desktop` 通道、写账规则、按码找商品、下载等） | `python3 scripts/check-impact.py` 出影响清单，清单里**每个入口**按「通过 / 不通过 / 没测到（原因）」记进任务记录；见 [共用件连带回归闸门](#共用件连带回归闸门) | 上线后对线上测试租户跑只读冒烟子集 |
 | 需要在真实环境确认的改动 | 在 [Windows 测试环境](test-environment.md) 用**同一镜像 digest** 起环境，并用测试租户走一遍受影响路径 | 涉及电话/手机、真实 LINE 消息、第三方落单时，要在切换状态下做真机验收并单独记录 |
 
+部署前的流程用例全套（`pearnly/flows`，见 [流程用例](../../tests/flows/README.md)）可以**沿用**（主会话 10-30）：要部署的 main 提交没有全套时，
+`scripts/production/deploy.sh` 沿首父链找最近一次全套，那次之后改到的文件全部不在产品路径里就沿用（`scripts/production/flows_inherit.py`，
+打印沿用哪个提交和之后改了哪些文件）。产品路径命中任一就照旧拦、要全套：`apps/`、`frontend/`、`companion/`、`infrastructure/`、`tests/flows/`、
+`scripts/flows/`、依赖与锁文件（`requirements*`、`*.lock`、`package*.json`、`pyproject.toml`、`Dockerfile*`）；只改文档、`scripts/sample-verify-*`、
+`scripts/check-*`、`scripts/production/`、其他测试的可沿用，构建里的候选车道仍会把它们跑一遍。没有绕过开关。
+
 格式按各 App 的 `pyproject.toml` 和已有配置；不要跨仓复制 Ruff 版本后批量改写全部文件。存量问题记清基线和影响，新增回归必须处理，不能假借存量问题忽略本次失败。
 
 ## 现有入口

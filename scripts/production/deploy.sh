@@ -9,7 +9,8 @@
 #
 # 每一步做什么（和 production-deploy-steps 的人工步骤一一对应，检查一项不少）：
 #   0. 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 必须是全套通过（本机回归实验室 scripts/flows/run.py --all --post-status
-#      回写）；没有或没过就停下、打印补跑命令，不构建、不动生产。
+#      回写）；没过就停下。没有全套时沿用首父链上最近一次全套，前提是之后只改了非产品路径（flows_inherit.py）；
+#      不能沿用就停下、打印补跑命令，不构建、不动生产。
 #   1. 构建：gh workflow run build-production.yml --ref main，等它跑完；候选检查那一步必须是 success；digest 从构建产物取。
 #   2. 放镜像：gh workflow run stage-production.yml -f digest=…，等它跑完（只把镜像拉到生产机，不启动）。
 #   3. 激活：一次 SSH 把本提交里的 deploy-run.sh 传上去、nohup 后台启动（脚本内容取自 git 里这个提交，服务器上还会与镜像里那份再比一次）。
@@ -112,10 +113,18 @@ flows_gate() {
   rerun="在挂本提交源码的回归实验室跑全套并回写：git worktree add <目录> $sha && cd <目录> && PEARNLY_REGRESSION_SRC=\$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait && python3 scripts/flows/run.py --all --post-status（详见 tests/flows/README.md），通过后重跑本脚本"
   line=$(cd "$REPO" && gh api "repos/{owner}/{repo}/commits/$sha/status" \
     --jq '[.statuses[] | select(.context == "pearnly/flows")][0] | select(. != null) | "\(.state) \(.description)"') || line=
-  [[ -n "$line" ]] || stop "提交 $short 没有流程用例结果（GitHub 状态 pearnly/flows）" "生产没动" "$rerun"
-  [[ "${line%% *}" == success ]] || stop "提交 $short 的流程用例没通过：${line#* }" "生产没动" "看 run.py 的结果修好；$rerun"
-  [[ "${line#* }" == "all flows"* ]] || stop "提交 $short 只跑过受影响的流程（${line#* }），部署前要跑全套" "生产没动" "$rerun"
-  say "流程用例：${line#* }"
+  if [[ -n "$line" && "${line%% *}" != success ]]; then
+    stop "提交 $short 的流程用例没通过：${line#* }" "生产没动" "看 run.py 的结果修好；$rerun"
+  fi
+  if [[ -n "$line" && "${line#* }" == "all flows"* ]]; then
+    say "流程用例：${line#* }"
+  else
+    # 沿用（10-30）：本提交没有全套时，沿首父链找最近一次全套；之后只改了非产品路径（测试、文档、检查脚本……）就沿用，否则拦
+    local inherited
+    inherited=$(python3 "$REPO/scripts/production/flows_inherit.py" "$sha" 2>&1) ||
+      stop "提交 $short ${line:+只跑过受影响的流程（${line#* }），}不能沿用之前的全套：$inherited" "生产没动" "$rerun"
+    say "流程用例：$inherited"
+  fi
   # 存量提醒（不拦）：上次放上生产以来改到的、还没有流程兜底的入口背后模块（scripts/flows/coverage.py 的存量清单）
   local last note
   last=$(cd "$REPO" && gh run list --workflow stage-production.yml --status success --limit 1 --json headSha --jq '.[0].headSha // ""' 2>/dev/null) || last=
