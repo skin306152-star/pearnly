@@ -232,3 +232,18 @@
 - **跑法**：流程 `PEARNLY_FLOWS_LAB=pearnly-verify-lab REGRESSION_LAB_PORT=18781 python3 scripts/flows/run.py --changed --base origin/main --post-status --jobs 3`；新工作树第一次回写前要先构建 CC 前端（本地闸门会构建）。生产镜像跑离线测试时挂源码要写 `${A}:ro`（zsh 里 `$A:ro` 会被当成路径修饰符）。
 - **其他保留项**：本地分支 `pearnly/mixed-operators-parens`（`34a7c5b9`，未推送，落后 main 64 个提交）：10-29 盘点任务留的「三元否则分支里不加括号的 `||`」存量修法，等各模块补流程用例时逐个拿过来（见 `docs/work/2026-10-29-stocktake-complete.md`）；保留原因与复核时点不变。
 - **已合入 main 的本窗口工作（10-30）**：收银台挂主仓 `921e4d8a`、来由补丁 + 盘点差异看板权限 `b79ee82d`、DMS 卡片断言 + 部署闸沿用 `e9aa959b`、build-runner `46f4ae39`、v1_19 系统路径不按当前账号核公司 `d22b7b2b`。
+
+### 接手窗口暂停点（erp-dev-2，10-30 晚，用户下班原地暂停）
+
+接手窗口 erp-dev-2（`local_` 会话「接手开发」）只动了姓名栏一项；LINE 改仓、Excel ①、删批次都没碰（仍按上表）。
+
+| 项 | 分支 / SHA | 本次做了 | 检查结果 |
+| --- | --- | --- | --- |
+| 二、姓名栏 | `pearnly/user-full-name`，变基到 `d22b7b2b` 后 `df678bf0`（已推） | 变基；修 `test_names` 在无站点时缺翻译缓存报错（替身 `_`）；流程覆盖：`erp.cashier.first-sale` 补 covers POS 适配文件、控制面 `account/member_api.py` 登记进 `not_flows.toml`（要真身份服务）、`behind_baseline.txt` 删 6 条新流程已覆盖的 | 生产镜像（`e9aa959b`，digest `961444cc…`）候选 offline 车道：unittest 批 251 个里只有 `test_names` 1 个错（已修，单独复验通过），**因 `set -e` 停在这一步，后面的 scripts / tests 脚本没跑到**；本地闸门（`~/pearnly-devtools/gate.sh`）152 步：两处失败——流程覆盖登记（已修，见左）、`tests/test-native-desk.cjs` 旧断言「last_name / username 隐藏」（已改成名、姓、用户名可见），修后单独复跑通过，**整套闸门没重跑**；推送后的 Development checks 结果明天看 |
+| 一、LINE 改仓 | `pearnly/father-three-items` | 没动 | 原窗口后台流程（`run.py --changed`）暂停时仍在跑 verify-lab，结果看原窗口日志 `flows-f3.log` |
+| 三、Excel ① / ② / ③ | `pearnly/excel-internal-code` `19db4b1e` | 没动 | — |
+
+**明天第一步**：
+1. 看原窗口 father3 流程结果（`/private/tmp/claude-501/-Users-skin-pearnly/8de116d7-2604-41b6-bc90-0babd73c0f80/scratchpad/flows-f3.log`）；通过就回写 `pearnly/flows` → 推分支等 Development checks → 快进合入，verify-lab 让出。
+2. 姓名栏：看分支 Development checks；重跑完整候选 offline 车道（本地副本 `scratchpad/cand-fullname.sh`：仓库的 `scripts/ci-candidate-checks.sh` 把 `cd` 换成工作树、`offline_py` 加五个 app 的 `:ro` 挂载）；verify-lab 让出后切到 fullname 工作树跑 `erp.team.full-name` / `cowork.team.full-name` / `erp.cashier.first-sale`（`--changed --base origin/main`），填任务记录连带回归表「待填」；推分支 → CI → 合入。
+3. 之后 LINE 改仓（若原窗口没合完）→ Excel ①闸门与流程 → ②③。
