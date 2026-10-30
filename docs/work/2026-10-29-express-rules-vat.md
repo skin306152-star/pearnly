@@ -117,6 +117,39 @@
 - 原生整单免税约 28% 记价格类型 0（多在开了「按商品记增值税」的账套），直写统一按主流 1 / 2 写，与这部分账套的习惯不同。
 - CC 要发新版 1.12.8（1.12.7 不带本分支）；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
 
+## 交接（10-30，本窗口归档，新窗口接手复核合入）
+
+- **分支与基线**：`pearnly/express-rules-vat-8fa604`，代码最新 `4f272073`（交接记录提交在它之后），已变基到 origin/main `00736f59`
+  （代录窗口的免税修复已在 main）。已推送、CI 两套都绿（Development checks、Companion checks）；**没合入 main**（主会话冻结主线到这一批部署完）。
+- **本分支内容**（第 ① 项，服务品进项税口径 SRV_VATTYP）：
+  - 共用纯函数 `pearnly_core.express_rules.push.service_vat`；CC 副本 `companion/service_vat.py`，契约测试逐例比对两边。
+  - CC 写赊购单：按账套历史（供应商 → 整本）定口径，定不了用载荷 `srv_vattyp`，都没有就不写、回 `SERVICE_VAT_BASIS_CHOICE`（转人工，
+    原因「服务品进项税口径未定」）。
+  - 口径 2 照原生：进项税借 ISINFO.ACCNUM28、VATPRD 空、开单不写 ISVAT；ACCNUM28 没设或不能记账 → 不写、`ACCOUNT_NOT_POSTABLE`。
+  - CC 随供应商主档上报口径串 `srv`（心跳目录、ERP 主档读取）；ERP 在单据上问一次（提交前预检 + 电脑拦下后），按「账套 × 供应商」记；
+    Cowork 本批不问（主会话选②），记过的照用。
+  - **CC 1.12.8**（本分支升的版本号；1.12.7 不带本分支），**载荷 13**（带 `srv_vattyp`），旧版 CC 诚实拒收。
+- **验证（都在本记录上文有细节）**：CC 全套 1235 过；本地全闸门 151 步过；测试机 T 账套服务品口径回归 92 过 / 0 不过 / 9 跳过
+  （口径 2 三项逐本核）；代录的免税回归（已补 `srv_vattyp`）98 / 0 / 3；语料逐栏对照口径 2 赊购单 73 / 78 一致、口径 1 的 70 / 97 一致
+  （差的是价格类型 1 / 2 与历史两种都有的供应商）；生产只读统计：正式客户 0 张直写进货单。
+- **没验证**：
+  - 流程用例 `erp.express.service_vat`（`scripts/flows/erp_express_service_vat.py`，已登记）**没跑**：本机实验栈一直超过三套。
+    接手后在实验室空出来时跑 `scripts/flows/run.py --changed --base origin/main --post-status`（或按 README 用自己的栈名 `PEARNLY_FLOWS_LAB`）。
+  - CC 1.12.8 + 服务端的端到端实机（ERP 单据被拦下 → 选 → 重写；口径 2 的单在 Express 里打开、付款后进项税只记一次）没走过。
+- **发版顺序**：主会话先部署这一批（含代录的免税修复）并发 CC 1.12.7 → 本分支交验收复核 → 合入 main → 部署服务端（载荷 13 先能出）
+  → 发 CC 1.12.8 正式版。服务端先于 CC：旧版 CC 收到载荷 13 诚实拒收，不会写错。
+- **待做（不在本分支）**：
+  - 第 ③ 项：赊购单原生价格类型 1（含税价）的直写一律记 2、金额栏口径不同（语料对照口径 1 的 97 张里 25 张因此不同，例 BakeLab
+    RR670116-011、ASIA-RS RR661124-004）。先用语料统计它跟单据本身的价格口径走还是跟供应商历史走，报主会话结论再改。
+  - 第 ② 项：Cowork 识别来的税额 0 进货单按供应商历史定免税 / 无增值税（同一套纯函数，CC 随主档报口径串），定不了问一次、记在
+    「账套 × 供应商」。
+  - Cowork 的「服务品口径选一次」：等验收窗口的 cc.pending、cc.companies 流程合入后，在上面加断言和 Cowork 带 Express 连接的数据
+    （加进 `scripts/regression/datasets.py`），再接 Cowork 两处选择卡（targets.js、pending.tsx、company-cards.tsx、i18n.ts），
+    `choices.resolve` 对 Cowork 打开 `ask_service_vat`。
+- **复用的脚本**（测试机上跑，源账套只读）：`scripts/express-service-vat-regression.py`、`scripts/express-service-vat-corpus.py`、
+  `scripts/express-exempt-purchase-regression.py`，都要 `--runner` 指 skin3 已装 CC 的 `cdx_reindex_runner.exe`。
+- **清理**：测试机临时目录与进程已清、占用表已释放；本窗口工作树 `.claude/worktrees/express-rules-vat-8fa604` 留给接手的窗口（合入后删）。
+
 ## 现状（10-30）
 
 - 第 ① 项（服务品口径，含口径 2 照原生）做完：推送到 `pearnly/express-rules-vat-8fa604`（最新提交见交付），CI 绿，**没合入 main**。
