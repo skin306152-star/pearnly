@@ -394,7 +394,7 @@ name = "计费与充值（billing_client / billing_www / payments）"
 paths = ["apps/pearnly_core/pearnly_core/billing_client.py", "apps/pearnly_core/pearnly_core/billing_www.py", "apps/pearnly_core/pearnly_core/payments/**"]
 markers = ["pearnly_core.billing_client", "pearnly_core import billing_client", "billing_client, ocr", "pearnly_core.billing_www", "pearnly_core.payments", "pearnly_core import payments"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.billing", "shared.billing", "cowork.billing", "dms.billing", "erp.billing", "cc.billing", "cc.assistant"]
+entries = ["control.billing", "shared.billing", "cowork.billing", "dms.billing", "erp.billing", "cc.assistant"]
 
 [[entry]]
 id = "erp.page.home"
@@ -1524,7 +1524,7 @@ where = "首页账本导出 / 大数据量后台导出 / CC 附件"
 steps = "首页 → 账本 → 导出明细（三产品各一次）；大量导出等提示后自动下载；CC 对话附件下载"
 expect = "文件名正确、能打开；1 小时后过期"
 check = "manual"
-files = ["apps/pearnly_core/pearnly_core/billing_www.py", "apps/pearnly_core/pearnly_core/public/desk/home.js", "frontend/src/pages/HomePage.vue", "apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_export/pearnly_export.py", "apps/pearnly_core/pearnly_core/assistant/files.py"]
+files = ["apps/pearnly_core/pearnly_core/billing_www.py", "apps/pearnly_core/pearnly_core/public/desk/home.js", "apps/pearnly_core/pearnly_core/hooks.py", "apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_export/pearnly_export.py", "apps/pearnly_core/pearnly_core/assistant/files.py"]
 
 [[entry]]
 id = "cowork.exports"
@@ -2066,14 +2066,6 @@ expect = "扣费、余额正确"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/recognition/billing.py"]
 
-[[entry]]
-id = "cc.billing"
-product = "CC"
-where = "首页 SPA"
-steps = "首页账本"
-expect = "同上"
-check = "manual"
-files = ["frontend/src/pages/HomePage.vue"]
 
 [[entry]]
 id = "shared.page-errors"
