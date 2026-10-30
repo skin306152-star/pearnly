@@ -411,3 +411,40 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/locations.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/warehouses.js",
 ]
+
+[[flow]]
+id = "erp.products.import"
+title = "ERP 物料 Excel 导入：模板填表、页面上传、逐行入库、重复编码逐行拒（演示准备 10-30）"
+module = "scripts/flows/erp_products_import.py"
+start = "/desk/pearnly-products"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/products/workbook.py",
+]
+
+[[flow]]
+id = "erp.company.create"
+title = "ERP 新建公司：一页配齐仓库、收银台、收款方式（演示准备 10-30）"
+module = "scripts/flows/erp_company_create.py"
+start = "/desk/pearnly-company"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py",
+]
+
+[[flow]]
+id = "erp.stocktake.report"
+title = "ERP 盘点报表：差异报表、只看差异、打印点数表 / 结果表、导出（演示准备 10-30）"
+module = "scripts/flows/erp_stocktake_report.py"
+start = "/desk/pearnly-stock-count"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/report/erp_stock_count_variance/*",
+]

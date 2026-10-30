@@ -65,6 +65,9 @@ def judge(params, results, camera_code=None):
     one, two, back, found = (by.get(k) or {} for k in ("第一轮", "第二轮", "从侧栏找回", "搜索"))
     return [
         {"case": "第一轮收到回复", "seen": one, "ok": bool(one.get("got")) and first in (one.get("user") or [])},
+        # F13（10-15 夜间批遗留）：页面刚加载（输入框一出现）就发的第一条不能丢——第一步就是就绪即发，刷新后还要在
+        {"case": "F13：页面刚加载就发的第一条不丢", "seen": (back.get("user") or [])[:1],
+         "ok": bool(one.get("got")) and first in (back.get("user") or [])},
         {"case": "第二轮收到回复（同一段对话）", "seen": two, "ok": bool(two.get("got")) and len(two.get("assistant") or []) >= 2},
         {"case": "刷新后从侧栏找回、两轮都在", "seen": back,
          "ok": bool(back.get("got")) and first in (back.get("user") or []) and second in (back.get("user") or [])},
