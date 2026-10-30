@@ -1,9 +1,0 @@
-{
- "name": "pos_flow",
- "datasets": ["new", "old"],
- "user": "cashier",
- "start": "/desk/pearnly-cashier",
- "steps": [
-  {"name": "收银台查码、开班、卖、退、交班", "file": "js/pos_flow.js", "shot": true, "timeout_ms": 180000}
- ]
-}

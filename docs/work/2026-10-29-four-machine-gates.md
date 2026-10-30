@@ -34,7 +34,7 @@
 
 - 覆盖面：全仓产品入口文件 339 个，有流程的 4 个。覆盖闸只看「这次改到的」，所以今后改到哪个入口就要给它补流程；存量清单 `python3 scripts/flows/coverage.py --list`。
 - 观察项（产品，未改）：盘点录入框查到下一件商品后，上一件的提示（如「此仓库未登记该商品的台」）仍留在框里。
-- work-followups 的流程用例（`scripts/regression/flows/`，JSON 用例 + 自己的种子数据与实验室）还在它的工作树里未提交，等它提交后按本登记表适配并入，不另跑一套。
+- work-followups 的流程用例（原 `scripts/regression/flows/`，JSON 用例 + 自己的种子数据与实验室）10-30 已改写成 `scripts/flows/` 下的流程模块、用 `datasets.py` 两套数据，登记进本登记表；旧目录已删（历史里还在）。
 
 ## ④ 部署闸（`scripts/production/deploy.sh`）
 

@@ -88,7 +88,7 @@
 
 ## 10-29 晚暂停点：用例迁进 `tests/flows`（主会话安排，用户下班暂停）
 
-数据一律取 `scripts/regression/datasets.py` 的两套清单；我那套种子（`scripts/regression/flows/`）不再扩展，等迁完再删。
+数据一律取 `scripts/regression/datasets.py` 的两套清单；我那套种子与旧用例（原 `scripts/regression/flows/`）10-30 已删（历史里还在，最后一版见 c14cc5b9）。
 分工（主会话定）：开发窗口写公司设置 / 新建物料 / 新建采购 / 按台入库 / 盘点就地新建 / LINE 就地新建 / 仓库编号，
 验收窗口写手机盘点 `erp.line.stocktake.phone`（我的计数 0→1、撤销回 0、GET 403 断言要点已发给它；草稿在 da3a574d），我迁其余的。
 
@@ -117,9 +117,9 @@ Express 同步来的仓在 ERP 里不能停用（「Maintained in Express」，�
 
 10-30 已做：① `erp.sales.scan` 修好并通过；② `ui_steps.mjs` 注释补上「也会放过非用户触发的提示音被拦，只为脚本点击服务」（main 已自带这个参数，冲突时保留 main 的写法）；
 ③ 变基到 main 724d374a（登记表冲突按 main 为准、追加本分支 8 条，共 22 条），推分支、通知验收窗口核对合入。
-剩下：验收窗口合入后删 `scripts/regression/flows/` 旧种子与旧用例（先确认没人在用），删实验栈。
+旧目录 `scripts/regression/flows/` 已删（全仓查过：CI、`shared-parts.toml`、其他脚本都没有引用，只有两份工作记录提到，已改）。剩下：合入后删实验栈。
 
-## 用例与工具（`scripts/regression/flows/`，交验收接 CI）
+## 用例与工具（原 `scripts/regression/flows/`，10-30 已删，现为 `scripts/flows/` 流程模块 + `tests/flows/registry.toml`；下面是旧框架的历史说明）
 
 - `lab.py`：建站、岗位、本地计费；`seed.py`：两套数据；`sid.py`：发会话；`code_video.py`：二维码 / EAN 假摄像头视频。
 - `steps.mjs`：无头 Chrome 步骤驱动，带静音、假摄像头、手机宽度，结束时杀掉进程组。
