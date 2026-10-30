@@ -17,9 +17,15 @@ from erp_lib import JS, codes, company, js_value, stock_of, warehouses  # noqa: 
 TITLE = "ERP 销售单：手动录入、组合框按码认商品、提交出库"
 
 
+_CALLS = []  # 同一格里第几次 prepare：手输那遍、摄像头那遍各用一个仓（跑法在两遍开跑之前先各 prepare 一次）
+
+
 def prepare(lab, manifest):
+    """条码那件；每遍用这家公司的一个仓（第一遍第一个仓，摄像头那遍第二个仓），记下过账前账面。"""
+    _CALLS.append(1)
     item = codes(manifest)["by_barcode"]
-    warehouse = warehouses(manifest)[0]["name"]
+    rows = warehouses(manifest)
+    warehouse = rows[min(len(_CALLS), len(rows)) - 1]["name"]
     name = lab.python(manifest["site"], f"print(json.dumps({{'name': frappe.db.get_value('ERP Product', {item['product']!r}, 'product_name')}}))")["name"]
     return {"company": company(manifest), "warehouse": warehouse, "product": item["product"], "scan": item["scan"], "name": name,
             "customer_name": "ลูกค้าโฟลว์ " + uuid.uuid4().hex[:6],
@@ -49,7 +55,9 @@ return {{manual: !!manual, customer: (page.querySelector('[data-fieldname="custo
 const page=pageOf('pearnly-sales'); const lines=page&&page.querySelector('[data-fieldname="lines"]'); if(!lines) return {{error:'no lines'}};
 const choice=await until(()=>lines.querySelector('[data-fieldname="entry_choice"]'), 10000); if(!choice) return {{error:'no item picker'}};
 {find}
-const desc=()=>(lines.querySelector('[data-fieldname="description"] textarea, [data-fieldname="description"] input')||{{}}).value;
+// 选中商品后品名落在只读的 description 格：没有输入框时读它显示的文字
+const desc=()=>{{const el=lines.querySelector('[data-fieldname="description"]'); if(!el) return '';
+  const i=el.querySelector('textarea, input'); return ((i&&i.value)||(el.querySelector('.control-value, .like-disabled-input')||{{}}).textContent||'').trim();}};
 await until(desc, 25000); await idle();
 setInput(lines.querySelector('[data-fieldname="qty"] input'), '1'); await sleep(300);
 setInput(lines.querySelector('[data-fieldname="unit_price"] input'), '120'); await sleep(800); await idle();

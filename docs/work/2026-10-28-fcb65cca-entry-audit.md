@@ -104,7 +104,7 @@
 | `erp.products.clash` 新建商品撞码 | 2/2 通过 |
 | `erp.products.opening` 带各仓期初（接 Express 的公司没有期初表） | 2/2 通过 |
 | `erp.warehouses.rules` 仓库停用与库位清单 | 2/2 通过 |
-| `erp.sales.scan` 销售手动录入、组合框按码认商品 | **未结论（用例问题）**：四格单据都提交了、账面也减了，但用例读明细品名的写法取到空值；摄像头那遍与手输那遍共用一个仓，过账前读数不对（同入出库那条，改成两遍各用一个仓）。其中一格页面步骤还被别的窗口 `pkill -f ui_steps.mjs` 误杀过。明天修用例后重跑，不当成产品结论 |
+| `erp.sales.scan` 销售手动录入、组合框按码认商品 | 10-30 修好用例后 4/4 通过（在 main 724d374a 上）：品名落在只读 description 格，原写法只读输入框取成了空值；摄像头那遍改用公司的第二个仓 |
 
 不迁：按台出库选车（数据集里没有在库的车，假摄像头只能出条码、出不了车架二维码）。
 S6（明细与打印显示内部编码）的断言在 `pearnly/stocktake-complete` 合入 main 后补进 `erp.stock-entry.scan`。
@@ -115,8 +115,9 @@ S6（明细与打印显示内部编码）的断言在 `pearnly/stocktake-complet
 发现（报主会话，不是本次改动）：接 Express 的公司按默认口径建出来的收银台不带仓，收银台查码报「收银台没有仓」，要先在公司页给收银台挂仓；
 Express 同步来的仓在 ERP 里不能停用（「Maintained in Express」，设计如此）。
 
-明天接着：① 查 `erp.sales.scan` 的取值并重跑四格；② 变基到最新 main、跑闸门（coverage、architecture、copy、unbounded、diff --check）；
-③ 推分支、通知验收窗口合进登记表；④ 迁完删 `scripts/regression/flows/` 旧种子与旧用例（先确认没人在用）。
+10-30 已做：① `erp.sales.scan` 修好并通过；② `ui_steps.mjs` 注释补上「也会放过非用户触发的提示音被拦，只为脚本点击服务」（main 已自带这个参数，冲突时保留 main 的写法）；
+③ 变基到 main 724d374a（登记表冲突按 main 为准、追加本分支 8 条，共 22 条），推分支、通知验收窗口核对合入。
+剩下：验收窗口合入后删 `scripts/regression/flows/` 旧种子与旧用例（先确认没人在用），删实验栈。
 
 ## 用例与工具（`scripts/regression/flows/`，交验收接 CI）
 
