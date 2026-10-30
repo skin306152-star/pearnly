@@ -115,7 +115,7 @@
 - 没上测试机实机（没起实验栈、没装 CC 测试包）：CC 1.12.7 + 服务端的端到端（ERP 单据被拦下→选→重写）没走过。
 - Cowork 的「问一次」没做（见上）；Cowork 推送遇到定不了的服务品赊购单会转人工，暂时没有选的地方。
 - 原生整单免税约 28% 记价格类型 0（多在开了「按商品记增值税」的账套），直写统一按主流 1 / 2 写，与这部分账套的习惯不同。
-- CC 要发新版（与代录窗口的 1.12.7 同一版带上）；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
+- CC 要发新版 1.12.8（1.12.7 不带本分支）；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
 
 ## 现状（10-30）
 
@@ -139,7 +139,7 @@
     Cowork 带 Express 连接的数据（加进 `scripts/regression/datasets.py`），再把 Cowork 两处选择卡（targets.js、pending.tsx、company-cards.tsx、
     i18n.ts）接上、resolve 对 Cowork 打开 `ask_service_vat`。
   - 流程用例 `erp.express.service_vat` 已登记，等本机实验栈少于三套时跑 `scripts/flows/run.py --changed --base origin/main --post-status`。
-- CC：随代录窗口的 1.12.7 一起发；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
+- CC：主会话 10-30 冻结主线、1.12.7 不带本分支；本分支 CC 版本号升到 1.12.8，合入后另发；服务端先部署，旧版 CC 收到载荷 13 诚实拒收。
 
 ## 收尾
 
