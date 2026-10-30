@@ -107,3 +107,34 @@ GS1 码核对 GTIN，其余核对原文（UPC / EAN 按 GTIN 写法对齐）。�
 
 - 真 iPhone 的每帧耗时（只有模拟器的正确性）；真手机对着实物吊牌扫（假摄像头画面是规整的打印图）。
 - LINE 里 LIFF 打开的盘点页：实验室走本站点已登录账号自己的绑定那条回落路径，页面与读码器同一份，LIFF 外壳没测到。
+
+## 交接（10-30，get-write-rollback 窗口归档前；两条分支都在这里）
+
+### 导出这批：`pearnly/get-writes-exports` @ `12662b0b`（等验收复核，未合入，主线冻结）
+
+- 已做：13 个导出接口与共用 `p.export_file` 一律 POST、排后台的导出随请求提交（不在 GET 里手动 commit）、豁免基线 28 → 15；
+  删 `frontend/src/pages/HomePage.vue`（不在路由里；`cc.billing` 入口一并删）；导出阈值写数字 0 生效；冒烟运行器加 `--target local`（本机实验室）。
+- 已验证：本地完整闸门 150 项过；Development checks、Companion checks 过；`pearnly/flows` 已回写到 12662b0b（改动涉及 10 条流程 × 两套数据 ×
+  两宽度 40/40）；连带回归 85 个入口：通过 45、不通过 0、没测到 40（逐条见 `docs/work/2026-10-29-line-stocktake-get-write.md`）。
+- 待做：验收复核 → 主线解冻后变基到最新 main（会撞 `tests/flows/registry.toml`：两边都只在末尾加流程，取 main 的再把本分支的
+  `erp.exports` / `cowork.exports` / `cowork.recon.exports` 三段接在后面）→ 闸门、CI → 快进 main → 清工作树与分支。
+  `frontend/src/lib/i18n.ts` 注释里举例提到 HomePage.vue 没改（改它要 SPA 流程）。剩下 14 条「GET 里手动 commit」的接口排在导出之后。
+- 工作树：`~/pearnly/.claude/worktrees/get-writes-exports`。
+
+### 扫码码制：`pearnly/scan-data-matrix`（见本记录上文）
+
+- 已做：读码器加 Data Matrix / PDF417 / Aztec / Code 93 / DataBar（含扩展型），主读 + 补读分路；GS1 / GTIN 解析接进认码、认台、盘点就地新建；
+  流程 `erp.stocktake.gs1`；假摄像头可用 `scripts/smoke/codes/` 的码图。
+- 已验证：码制 × 入口 170/170；三星 A14 真实镜头耗时；iOS 模拟器 WebKit 正确性；测试与闸门见「推送」一节；受影响流程
+  （变基前，基线 00736f59）16 格第一轮 15 过，`erp.stock-in.units` old / 电脑一格第一轮没弹出登记车辆弹窗、单格复跑过（这格在导出分支上也出过一次，别的窗口的流程，像是偶发）。
+- 待做：验收复核（重点：真 iPhone 每帧耗时与实物吊牌、LINE 里 LIFF 打开的盘点页）→ 主线解冻后合入；连带回归清单里矩阵没覆盖的入口
+  （物料新建页 / 详情条码格、期初录入、扫码枪、按台登记弹窗、撞码候选弹窗等）交验收按清单点。
+- 工作树：`~/pearnly/.claude/worktrees/scan-data-matrix`。
+
+### 实验栈、样板数据与临时资源
+
+- 我的两套实验栈都已 `docker compose stop`、数据卷保留：`pearnly-gw-lab`（导出，挂 get-writes-exports）、`pearnly-gw-scan`（扫码，挂 scan-data-matrix）。
+  里面是两套固定数据 + 流程跑出的单据、`lab_billing` 的测试租户；用完可以 `docker compose -p <栈名> -f infrastructure/compose/regression-lab.yml down -v` 删掉。
+- 本机样板 `qerp.localhost` 上本任务的 FRESHLAB 数据 10-29 已删；测试会话已删。
+- `~/pearnly-devtools/scan-symbols/`：测码图生成（bwip-js、zxing-cpp 的 venv）、测速页、矩阵脚本与结果；`~/pearnly-devtools/get-write-rollback/`：导出与冒烟的实测脚本与结果。
+  本机测速服务（18799）已停、手机 adb 端口映射已删；三星测试手机 Chrome 里留着几个测速页标签（不影响别的）。
