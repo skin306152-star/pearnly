@@ -26,7 +26,9 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 import tomllib
 from pathlib import Path
 
@@ -159,13 +161,17 @@ def drive(site, sid, start, steps, mobile, video, ready=None):
     return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
 
 
+_VIDEO_LOCK = threading.Lock()  # 并行时两格可能要同一个码的视频：只生成一次
+
+
 def barcode_video(code):
     spec = importlib.util.spec_from_file_location("make_barcode_video", ROOT / "scripts/smoke/make_barcode_video.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     path = Path(tempfile.gettempdir()) / f"flow-{code}.y4m"
-    if not path.exists():
-        module.write(str(path), code)
+    with _VIDEO_LOCK:
+        if not path.exists():
+            module.write(str(path), code)
     return str(path)
 
 
@@ -224,6 +230,7 @@ def main(argv=None) -> int:
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
     parser.add_argument("--migrate", action="store_true", help="先把实验室全部站点迁移到挂上来的源码（--post-status 时总是做）")
+    parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；实验室 bench 有 3 个网页进程，建议不超过 3）")
     args = parser.parse_args(argv)
     flows = registry()
     if args.post_status:
@@ -248,18 +255,35 @@ def main(argv=None) -> int:
     if flows and (args.migrate or args.post_status):
         lab.migrate()
         print(f"实验室站点已迁移（{round(time.monotonic() - started)}s）", flush=True)
-    for flow in flows:
-        for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]:
-            for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]:
-                try:
-                    result = run_flow(lab, flow, dataset, viewport)
-                except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
-                    result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
-                              "checks": []}
-                results.append(result)
-                bad = [c for c in result["checks"] if not c["ok"]]
-                print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
-                      f"{result.get('error', '')} {json.dumps(bad, ensure_ascii=False)[:600] if bad else ''}", flush=True)
+    cells = [(flow, dataset, viewport) for flow in flows
+             for dataset in [d for d in flow.get("datasets", ["new", "old"]) if not args.dataset or d == args.dataset]
+             for viewport in [v for v in flow.get("viewports", ["desktop", "mobile"]) if not args.viewport or v == args.viewport]]
+    # 各套数据先串行补齐（datasets.py 不并发跑），之后各格可以并行
+    for product, dataset in sorted({(flow.get("product", "erp"), dataset) for flow, dataset, _ in cells}):
+        lab.dataset(dataset, product)
+    printing = threading.Lock()
+
+    def one(cell):
+        flow, dataset, viewport = cell
+        try:
+            result = run_flow(lab, flow, dataset, viewport)
+        except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
+            result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
+                      "checks": []}
+        bad = [c for c in result["checks"] if not c["ok"]]
+        with printing:
+            print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
+                  f"{result.get('error', '')} {json.dumps(bad, ensure_ascii=False)[:600] if bad else ''}", flush=True)
+        return result
+
+    # 按站点并行：同一站点的格依次跑（编号序列、同一岗位账号、按站点数的 Error Log 都不互相干扰），不同站点之间同时跑
+    groups = {}
+    for cell in cells:
+        groups.setdefault((cell[0].get("product", "erp"), cell[1]), []).append(cell)
+    with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        done = dict(zip(groups, pool.map(lambda group: [one(cell) for cell in group], groups.values())))
+    results = [done[key][group.index(cell)] for key, group in groups.items() for cell in group]
+    results.sort(key=lambda r: cells.index(next(c for c in cells if c[0]["id"] == r["flow"] and c[1] == r["dataset"] and c[2] == r["viewport"])))
     ok = all(r["ok"] for r in results)  # 没有涉及的流程 = 通过（覆盖闸另管改到的入口有没有登记）
     datasets = ",".join(sorted({r["dataset"] for r in results})) or "-"
     summary = (f"{scope}; {len(flows)} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "

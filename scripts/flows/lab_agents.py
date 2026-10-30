@@ -84,10 +84,15 @@ def bad_request(message: str) -> ApiError:
     return ApiError(400, "invalid_request_error", message)
 
 
+# 每次启动一个不同的前缀（启动时刻，秒）：状态只在内存里、重启后计数从 1 开始，站点里却留着上次的会话编号（唯一键），
+# 不带前缀会撞号（10-30 实验栈重启后「会话 ID 必须是唯一的」）
+BOOT = int(time.time())
+
+
 def new_id(prefix: str) -> str:
     with LOCK:
         COUNTERS[prefix] = COUNTERS.get(prefix, 0) + 1
-        return f"{prefix}_011LAB{COUNTERS[prefix]:018d}"
+        return f"{prefix}_011LAB{BOOT:010d}{COUNTERS[prefix]:08d}"
 
 
 def stamp() -> str:
@@ -318,9 +323,16 @@ def create_session(body: dict) -> dict:
     ref = body.get("agent")
     agent_id = ref if isinstance(ref, str) else (ref or {}).get("id")
     agent = STORE["agents"].get(str(agent_id or ""))
+    # 本服务的状态只在内存里：重启后站点缓存里还记着上次备好的智能体 / 环境编号（真实接口上它们一直在）。
+    # 认得出是本服务发的编号就当场补一个，不让站点因为实验室重启建不出会话（10-30）
+    if not agent and str(agent_id or "").startswith("agent_011LAB"):
+        agent = STORE["agents"][str(agent_id)] = agent_object({"name": "pearnly-assistant", "model": {"id": "claude-haiku-5-5"}},
+                                                              ident=str(agent_id))
     if not agent:
         raise not_found("agent", str(agent_id))
     env_id = str(body.get("environment_id") or "")
+    if env_id not in STORE["environments"] and env_id.startswith("env_011LAB"):
+        STORE["environments"][env_id] = environment_object({"name": "pearnly-assistant"}, env_id)
     if env_id not in STORE["environments"]:
         raise not_found("environment", env_id)
     now = stamp()
