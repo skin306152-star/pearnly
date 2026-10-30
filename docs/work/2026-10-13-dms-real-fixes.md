@@ -137,3 +137,17 @@ CI 的流程覆盖闸要求改到的产品入口有登记的流程（`tests/flow
 - 跑法：本机自己的栈 `pearnly-dms-flow-lab`（端口 18794–18796；18791–18793 已被 gw-lab 占用），先在工作树里 `vite build`（实验室挂工作树源码，
   SPA 构建产物要在工作树里），`PEARNLY_FLOWS_LAB=pearnly-dms-flow-lab REGRESSION_LAB_PORT=18796 python3 scripts/flows/run.py --flow dms.booking.editor`。
   结果 4/4 通过（每格约 104 秒）。
+
+### 交接（2026-10-30，本窗口归档；部署解冻后由验收新窗口复核合入）
+
+- **分支** `pearnly/dms-editor-error-visible`，工作树 `/Users/skin/pearnly/.claude/worktrees/dms-editor-error`，HEAD `71d7e5c7`（基线 `00736f59`），已推远端。
+  两个提交：`54068d7c`（编辑页保存被拒提示可见 + 标出错栏 + 离线测试）、`71d7e5c7`（DMS 第一条流程 `dms.booking.editor` + DMS 两套数据）。
+- **CI**：`71d7e5c7` 上 Development checks 通过（run 41023502315）、Companion checks 通过；`pearnly/flows` 已回写成功。
+  （`54068d7c` 那次红是流程覆盖闸缺 DMS 流程，已由第二个提交补上。）本地全闸门 150 项通过。
+- **合入前要做**（主线冻结中，等主会话通知部署完再做）：
+  1. `git fetch` → 变基到最新 `origin/main`（冻结期间 main 已前进到 `4ab75d92` 之后）；有冲突多半在 `scripts/regression/datasets.py`、`lab_init.py`、`tests/flows/registry.toml`。
+  2. 变基后本地全闸门（先删工作树里 `apps/pearnly_core/pearnly_core/public/pearnly-app` 构建产物，不然几个扫描闸会扫到它）。
+  3. 变基若碰到流程相关文件，重跑 `dms.booking.editor`（跑法见上节；栈 `pearnly-dms-flow-lab` 已停、卷保留，`docker compose -p pearnly-dms-flow-lab start` 即可复用）；干净变基不用重跑。
+  4. 推分支、等 Development checks 通过 → 主目录 `main` 快进到同一提交 → 推送 → 回读远端 SHA。
+  5. 随下一批部署后在 testdms 用测试账号真机 LINE 点一次编辑页：填越界交车日期保存，看提示和标红。
+- **收尾**：合入后删工作树、本地与远端分支；实验栈 `pearnly-dms-flow-lab`（3 个已停容器 + 卷 `_db`、`_sites`）不再用就 `docker compose -p pearnly-dms-flow-lab down -v`。
