@@ -274,6 +274,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py",
+  # 完成订单前按台选台（G17：下拉只出这台收银机的仓）走这里
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js",
 ]
 
@@ -616,4 +617,25 @@ covers = [
   "apps/pearnly_core/pearnly_core/shell.py",
   "apps/pearnly_core/pearnly_core/account/names.py",
   "frontend/assistant/src/assistant.tsx",
+]
+
+[[flow]]
+id = "erp.stock-transfer"
+title = "ERP 调拨：两仓之间调货、同仓被拒、作废冲回、按台换仓（多仓闭环 P2）"
+module = "scripts/flows/erp_stock_transfer.py"
+start = "/desk/pearnly-stock-transfer"
+user = "stock"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_stock_transfer/pearnly_stock_transfer.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/serials.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/serials.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
 ]

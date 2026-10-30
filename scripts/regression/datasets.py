@@ -62,7 +62,7 @@ DMS_OPERATOR = "operator@dms.regression"
 DMS_CUSTOMER_PID = "1000000730317"
 ADMIN = "admin@{}"
 JOBS = {"products": ("products", "profile"),
-        "stock": ("inventory", "stock-in", "stock-out", "stock-card", "stock-count", "warehouses", "profile"),
+        "stock": ("inventory", "stock-in", "stock-out", "stock-transfer", "stock-card", "stock-count", "warehouses", "profile"),
         "purchase": ("purchase", "suppliers", "profile"), "sales": ("sales", "clients", "profile"),
         "cashier": ("cashier", "pos-receipts", "pos-shifts", "profile"), "tasks": ("tasks", "profile")}
 # 新开户的商品：每件一种认法（扫 / 输 `scan` 那个值应认出这件）
