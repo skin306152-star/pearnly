@@ -1,7 +1,8 @@
 # 直写进货单按账套历史定口径：服务品进项税口径（2026-10-29）
 
 主会话 10-29 派：代录窗口离线对照 158 本真实账套语料，发现直写进货单的税务口径与 Express 原生不一致，在共用写账规则里修掉，随下一批上线（不部署）。
-分支 `pearnly/express-rules-vat-8fa604`，基线 origin/main `8a8c9b0f`，叠在代录窗口的 `pearnly/purchase-exempt-vat`（`bdaa80bf`，未推送）上。
+分支 `pearnly/express-rules-vat-8fa604`，起初基线 origin/main `8a8c9b0f`；10-30 改叠在代录窗口已推送的 `pearnly/purchase-exempt-vat`
+（`8746abcd`，它已变基到 origin/main `724d374a`、含载荷税率修复）上，变基只有流程登记表一处冲突（两边条目都留）。
 
 主会话 10-29 晚更正分工：缺陷一（进货整单免税、混合免税）归代录窗口（`pearnly/purchase-exempt-vat`），本窗口不改；本窗口做
 「按账套历史定口径」的同一类三项：①服务品进项税口径 SRV_VATTYP（本记录已做完）；②Cowork 识别来的税额 0 进货单按供应商历史定免税 /
@@ -119,7 +120,8 @@
 ## 现状（10-30）
 
 - 第 ① 项（服务品口径，含口径 2 照原生）做完：推送到 `pearnly/express-rules-vat-8fa604`（最新提交见交付），CI 绿，**没合入 main**。
-- 等代录窗口的 `pearnly/purchase-exempt-vat` 合入 main（它先修载荷税率缺口），本分支变基到 main、过闸、CI 绿后交验收复核。
+- 已叠在代录窗口的 `8746abcd` 上，变基后 CC 全套 1234 过、本地全闸门 151 步全过；它合入 main 后本分支再变基一次（应是同一批提交、无冲突），
+  过闸、CI 绿后交验收复核。
 - 之后接第 ② 项（Cowork 识别来的税额 0 进货单按供应商历史定免税 / 无增值税）与第 ③ 项（价格类型 1 / 2 先统计、报结论再改）；
   Cowork 的选择卡等验收窗口的 cc.pending、cc.companies 流程合入后接。
 
