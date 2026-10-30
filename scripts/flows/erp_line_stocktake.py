@@ -2,7 +2,8 @@
 
 LINE 里的 LIFF 验签走不了实验室，这里走同一个页面的「本站点已登录账号自己的绑定」回落路径：实验室给盘点岗账号建一条合成绑定
 （只在实验室）。打开 `/stocktake` → 进这份盘点 → 输一个系统里没有的码 → 出新建表单，填品名、单位 → 建好认出这件 →
-仓位格从库位清单选（有清单时，选项带说明）→ 记 2 件。库里：新商品来由「盘点新建 · 这份盘点」；这一条记录数量 2、来源 LINE、库位对。
+仓位格从库位清单选（有清单时，选项带说明）→ 记 2 件 →「实际仓库」默认是这份盘点的仓，换成同公司另一个仓再记 1 件（岳父 10-26：手机上
+也能改仓库，同电脑）。库里：新商品来由「盘点新建 · 这份盘点」；第一条数量 2、来源 LINE、盘点的仓、库位对；第二条数量 1、记在换过去的仓。
 公司先设成「汽车」类型：扫按台商品的商品码，同电脑只提示要逐台扫、不出数量框，也不为它登记快照行（抬头 y 不变，验收 10-29）；
 跑完公司类型还原成普通。老数据没有按台商品，先建一件本地的按台商品。
 """
@@ -39,12 +40,18 @@ if not unit_code:
     if not frappe.db.get_value("ERP Product", car, "track_serial"):
         serials.turn_on(car, kind="vehicle")
     frappe.set_user(user)
-wh = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
+stores = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=2)
+wh = stores[0]
+if len(stores) < 2:  # 老数据只有一个仓：建第二个，好测「换仓」
+    from pearnly_erp_portal.inventory import warehouses
+    frappe.set_user("admin@erp.regression")
+    stores.append(warehouses.create_warehouse(warehouse_name="flow 二号仓", company={company!r})["name"])
+    frappe.set_user(user)
 doc = count.create_count(title="flow line " + {uuid.uuid4().hex[:6]!r}, warehouse=wh)
 places = frappe.get_all("ERP Warehouse Location", filters={{"parent": wh, "parenttype": "ERP Warehouse", "is_active": 1}}, pluck="location_name",
                         order_by="idx asc", limit=1)
 frappe.db.commit()
-print(json.dumps({{"count": doc["name"], "location": places[0] if places else "", "unit_code": unit_code,
+print(json.dumps({{"count": doc["name"], "location": places[0] if places else "", "unit_code": unit_code, "warehouse": wh, "other": stores[1],
                   "unit_product": frappe.db.get_value("ERP Product", {{"code": unit_code}})}}))
 """)
     code = "8858" + str(uuid.uuid4().int)[:8]
@@ -75,8 +82,14 @@ def steps(params, camera_code=None):
          "return {recognised: !!b, options: [...document.querySelectorAll('#loclist option')].map(o=>[o.value,o.label])};"},
         {"name": "选库位记数", "js": wait +
          f"const l=document.getElementById('loc'); if(!l) return {{error:'no location box'}}; l.value={loc};"
+         "const store=document.getElementById('store'); const shown=store?store.value:'';"
          "document.getElementById('qty').value='2'; document.getElementById('save').click();"
-         "await new Promise(r=>setTimeout(r,2500)); return {error_text: (document.getElementById('error')||{}).innerText||''};"},
+         "await new Promise(r=>setTimeout(r,2500)); return {error_text: (document.getElementById('error')||{}).innerText||'', store_default: shown};"},
+        {"name": "换仓记数", "js": wait +
+         "const store=await until(()=>document.getElementById('store')); if(!store) return {error:'no warehouse box'};"
+         f"store.value={json.dumps(params['other'])}; store.dispatchEvent(new Event('change'));"
+         "await new Promise(r=>setTimeout(r,1500)); document.getElementById('qty').value='1'; document.getElementById('save').click();"
+         "await new Promise(r=>setTimeout(r,2500)); return {chosen: store.value, options: [...store.options].map(o=>o.value), location: document.getElementById('loc')?.value};"},
     ]
 
 
@@ -92,13 +105,17 @@ def judge(params, results, camera_code=None):
         {"case": "unknown code offers a new product form", "seen": by.get("输没有的码"), "ok": (by.get("输没有的码") or {}).get("new_form") is True},
         {"case": "new product recognised", "seen": made, "ok": made.get("recognised") is True},
         {"case": "location list offered", "seen": options, "ok": not params["location"] or any(o[0] == params["location"] for o in options)},
+        {"case": "warehouse defaults to the count's", "seen": by.get("选库位记数"), "ok": (by.get("选库位记数") or {}).get("store_default") == params["warehouse"]},
+        {"case": "warehouse list offers the company's other warehouse", "seen": by.get("换仓记数"),
+         "ok": params["other"] in ((by.get("换仓记数") or {}).get("options") or [])},
     ]
 
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "origin", "origin_name"], as_dict=True) or {{}}
-rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty", "source", "location"])
+rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty", "source", "location", "warehouse"],
+                      order_by="creation asc")
 unit_rows = frappe.db.count("ERP Stock Count Item", {{"count": {params['count']!r}, "product": {params['unit_product']!r},
                                                      "row_origin": ["is", "set"]}})  # 查码补登的行（账上快照行不算）
 frappe.db.set_value("ERP Company", {params['company']!r}, "company_type", "general", update_modified=False)  # 还原
@@ -110,5 +127,8 @@ print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty), location=
         {"case": "product origin is this count", "saved": p, "ok": p.get("origin") == "stocktake" and p.get("origin_name") == params["count"]},
         {"case": "no count row added for the unit tracked product by the lookup", "saved": got["unit_rows"], "ok": got["unit_rows"] == 0},
         {"case": "entry saved from LINE at the chosen location", "saved": got["entries"],
-         "ok": got["entries"] == [{"product": p.get("name"), "qty": 2.0, "source": "LINE", "location": params["location"]}]},
+         "ok": got["entries"][:1] == [{"product": p.get("name"), "qty": 2.0, "source": "LINE", "location": params["location"],
+                                       "warehouse": params["warehouse"]}]},
+        {"case": "second entry saved in the warehouse chosen on the phone", "saved": got["entries"][1:],
+         "ok": [(e["qty"], e["warehouse"], e["source"]) for e in got["entries"][1:]] == [(1.0, params["other"], "LINE")]},
     ]

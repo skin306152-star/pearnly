@@ -43,7 +43,8 @@ def api_location_options(txt="", warehouse=None, **kwargs):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     if not warehouse:
         return []
-    warehouse = warehouses.required(warehouse)
+    # 仓按它自己所属的公司核（仍要在本人可用范围里），不按当前公司：手机盘点取的是盘点那家公司的仓（10-30）
+    warehouse = warehouses.required(warehouse, company=warehouses.company_of(warehouse))
     filters = {"parent": warehouse, "parenttype": "ERP Warehouse", "is_active": 1}
     text = positions.clean_location(txt)
     if text:

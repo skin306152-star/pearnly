@@ -65,6 +65,8 @@
           return args.length ? text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? '')) : text;
         };
         let csrf = '', ticket = '', task = null, camera = null, last = null;
+        // 上一笔记在哪（仓 + 库位）：账上本来没有的新登记商品沿用它（同电脑录入弹窗）
+        let lastPlace = null;
         let scanMode = false, cameraGeneration = 0;
 
         function say(message, bad) {
@@ -259,7 +261,19 @@
           });
         }
 
+        function placeOptions(places) {
+          return (places || []).map((row) => '<option value="' + esc(row.value) + '" label="' + esc(row.label || row.value) + '">').join('');
+        }
+
+        // 记在哪：默认账面那一行的仓 / 库位；账上本来没有的新登记商品沿用上一笔（同电脑，不凭空多出位置差异）
+        function defaultPlace(item) {
+          const stores = (last?.warehouses || []).map((row) => row.value);
+          if (last?.fresh && lastPlace && stores.includes(lastPlace.warehouse)) return lastPlace;
+          return { warehouse: item.warehouse || last?.warehouse || '', location: item.location || '' };
+        }
+
         function entryForm(item, rows) {
+          const place = defaultPlace(item);
           // 行是「商品 × 仓库 × 库位」：分几个货架就有几行，员工挑一行来数（库位跟着行走）。
           const picker = rows.length > 1
             ? '<div class="row"><div style="flex:1"><label>'
@@ -274,11 +288,13 @@
             + esc((item.code || '') + ' · ' + (item.unit || '')
               + (item.location ? ' · ' + item.location : '')) + '</span></div>'
             + picker
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.workbench.actualWarehouse')) + '</label>'
+            + '<select id="store">' + (last?.warehouses || []).map((row) => '<option value="' + esc(row.value) + '"'
+              + (row.value === place.warehouse ? ' selected' : '') + '>' + esc(row.label || row.value) + '</option>').join('')
+            + '</select></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.location')) + '</label>'
-            + '<input id="loc" list="loclist" value="' + esc(item.location || '') + '">'
-            + '<datalist id="loclist">' + (last?.locations || []).map((row) => '<option value="' + esc(row.value)
-              + '" label="' + esc(row.label || row.value) + '">').join('')
-            + '</datalist></div></div>'
+            + '<input id="loc" list="loclist" value="' + esc(place.location) + '">'
+            + '<datalist id="loclist">' + placeOptions(place.warehouse === last?.warehouse ? last?.locations : []) + '</datalist></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.book')) + '</label>'
             + '<div class="big">' + esc(number(item.book_qty)) + '</div></div>'
             + '<div style="flex:1"><label>' + esc(t('stock.count.counted')) + '</label>'
@@ -377,6 +393,22 @@
             last = Object.assign({}, last, {item: rows[Number(place.value)], rows: rows});
             render(last);
           };
+          // 换了仓：库位清单换成那个仓的（服务端核仓属于这份盘点的公司），库位重填
+          const store = document.getElementById('store');
+          const loadPlaces = async (clear) => {
+            const list = document.getElementById('loclist');
+            const places = store.value === last?.warehouse ? last?.locations
+              : await call('api_line_stocktake_locations', { name: task.name, warehouse: store.value }).catch((error) => {
+                say(error.message, true);
+                return [];
+              });
+            if (list) list.innerHTML = placeOptions(places);
+            if (clear) document.getElementById('loc').value = '';
+          };
+          if (store) {
+            store.onchange = () => loadPlaces(true);
+            if (store.value && store.value !== last?.warehouse) loadPlaces(false);
+          }
           document.getElementById('save').onclick = async () => {
             if (saving) return;
             const qty = document.getElementById('qty').value.trim();
@@ -394,12 +426,14 @@
                 name: task.name,
                 item: item.name,
                 qty: qty,
+                warehouse: store ? store.value : undefined,
                 location: document.getElementById('loc').value.trim(),
                 note: document.getElementById('note').value.trim() || undefined,
                 request_id: requestId,
                 photos: photos,
               }, true);
               if (navigator.vibrate) navigator.vibrate(60);
+              lastPlace = { warehouse: store ? store.value : '', location: document.getElementById('loc').value.trim() };
               say(t('stock.mobile.saved'));
               await lookup(item.code || '');
               if (scanMode) await startCamera((code) => lookup(code));

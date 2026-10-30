@@ -18,6 +18,7 @@ from pearnly_core.execution import state as pearnly_state
 
 from pearnly_core import line
 from pearnly_erp_portal.inventory import count as counts
+from pearnly_erp_portal.inventory import warehouses
 
 BINDING = "Pearnly LINE Binding"
 PREFIX = "pearnly:erp:stocktake-ticket:"
@@ -167,22 +168,39 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
         # 也不为它登记快照行（抬头「已盘点 x / y」的 y 不跟着多 1）；扫到具体某一台时再按台记（验收 10-29）
         return {"refused": frappe.db.get_value(counts.PRODUCT, found["name"], "product_name") + " · " + _(counts.UNIT_BY_UNIT)}
     rows = counts.rows_of_product(count=name, product=found["name"])
+    fresh = not rows  # 账上本来没有这件（这次才登记一行）：页面沿用上一笔的仓 / 库位（同电脑，录制问题 #21）
     if not rows:
         registered = counts.ensure_item(count=name, product=found["name"])
         rows = counts.rows_of_product(count=name, product=found["name"]) or [registered]
     if not rows:
         return {}
     chosen = rows[0]
-    # 这份盘点的仓的库位清单（G11：手机上也能改记在哪个库位，清单外的旧库位服务端照旧核）
-    from pearnly_erp_portal.inventory import locations
-
     warehouse = frappe.db.get_value(counts.COUNT, name, "warehouse")
-    places = [row if isinstance(row, dict) else {"value": row, "label": row}
-              for row in locations.api_location_options(warehouse=warehouse)]  # 「A1 · 说明」（用户 10-29）
+    # 记在哪个仓（岳父 10-26：手机上也能改仓库，同电脑）：这份盘点所属公司的启用仓，「编号 · 名称」
+    stores = [{"value": row["name"], "label": warehouses.label(row)}
+              for row in warehouses.list_warehouses(company=company, limit=200)]
     # 带上这份盘点此刻的抬头（已盘点 x / y、差异）：保存、撤销后页面都再查一次码，抬头跟着刷新
-    return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None, "locations": places,
+    return {"item": chosen, "rows": rows, "unit": dict(unit) if unit else None, "locations": _places(warehouse),
+            "warehouses": stores, "warehouse": warehouse, "fresh": fresh,
             "entries": counts.list_entries(count=name, item=chosen["name"], limit=5),
             "task": counts.get_count(name)}
+
+
+@frappe.whitelist(allow_guest=True)
+def api_line_stocktake_locations(ticket=None, name=None, warehouse=None, **kwargs):
+    """手机上换了「记在哪个仓」：那个仓的库位清单。仓必须是这份盘点所属公司的。"""
+    as_ticket_user(ticket)
+    if not warehouse or warehouses.company_of(warehouse) != counts.count_company(name):
+        frappe.throw(_("Warehouse not found"), frappe.DoesNotExistError)
+    return _places(warehouse)
+
+
+def _places(warehouse) -> list[dict]:
+    """库位下拉的选项（G11：手机上也能改记在哪个库位，清单外的旧库位服务端照旧核）：「A1 · 说明」（用户 10-29）。"""
+    from pearnly_erp_portal.inventory import locations
+
+    return [row if isinstance(row, dict) else {"value": row, "label": row}
+            for row in locations.api_location_options(warehouse=warehouse)]
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

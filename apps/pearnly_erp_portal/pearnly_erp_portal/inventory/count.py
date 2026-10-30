@@ -232,8 +232,7 @@ def apply_import(*, count, rows) -> dict:
             problems.append({"row": number, "reason": "code_not_found"})
             continue
         try:
-            warehouse = _warehouse_of(row.get("warehouse"),
-                                      task.warehouse or warehouses.required())
+            warehouse = _warehouse_of(row.get("warehouse"), task.warehouse, count_company(task.name))
         except frappe.ValidationError:
             problems.append({"row": number, "reason": "warehouse_not_found"})
             continue
@@ -384,7 +383,7 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
         found = frappe.db.get_value(PRODUCT, {"name": product}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
-    warehouse = task.warehouse or warehouses.required()
+    warehouse = task.warehouse or warehouses.required(company=count_company(count))
     book_qty = stock_service.current_balance(found["name"], warehouse, location).qty
     name = _insert_item(task.name, found, warehouse, book_qty, location)
     _refresh_totals(task.name)
@@ -531,9 +530,9 @@ def valuation(product_id: str, key: tuple):
     return None
 
 
-def _warehouse_of(value, fallback) -> str:
-    """上传导入那一列里的仓库名 → 真实的仓库（只认当前公司已有的仓）。"""
-    return warehouses.required(value or fallback)
+def _warehouse_of(value, fallback, company) -> str:
+    """上传导入那一列里的仓库名 → 真实的仓库（只认这份盘点所属公司已有的仓）。"""
+    return warehouses.required(value or fallback, company=company)
 
 
 def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=False) -> list[dict]:
@@ -1010,14 +1009,16 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
             found, unit = _scanned(code, product_id, serial, count_company(count))
             if found["name"] != product_id:
                 frappe.throw(_(CODE_NOT_FOUND))
-        actual_warehouse = warehouses.required(warehouse if warehouse is not None else row['warehouse'])
+        # 取仓按这份盘点的公司：手机上员工的当前公司可能不是盘点那家（10-30）
+        actual_warehouse = warehouses.required(warehouse if warehouse is not None else row['warehouse'],
+                                               company=count_company(count))
         actual_location = positions.clean_location(location if location is not None else row['location'])
         if (actual_warehouse, actual_location) != (row['warehouse'], row['location'] or ''):
             positions.check(actual_warehouse, actual_location)  # 记在账面那个位置照常（清单之前的旧库位也能盘）
     else:
         found, unit = _scanned(code, product, serial, count_company(count))
         product_id = found['name']
-        actual_warehouse = warehouses.required(warehouse or task.warehouse)
+        actual_warehouse = warehouses.required(warehouse or task.warehouse, company=count_company(count))
         actual_location = positions.check(actual_warehouse, location)
         item = _insert_item(count, found, actual_warehouse,
                             stock_service.current_balance(product_id, actual_warehouse, actual_location).qty,
@@ -1077,13 +1078,13 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
             frappe.throw(_(UNIT_COUNTED))  # 恢复作废的那条之前，这一台已经另记过了
         doc.voided = 1 if voided in (True, 1, "1", "true") else 0
     if location is not None:
-        place = warehouses.required(warehouse) if warehouse is not None else doc.warehouse
+        place = warehouses.required(warehouse, company=count_company(parent)) if warehouse is not None else doc.warehouse
         before = (doc.warehouse, doc.location or "")
         doc.location = positions.clean_location(location)
         if (place, doc.location) != before:
             positions.check(place, doc.location)
     if warehouse is not None:
-        doc.warehouse = warehouses.required(warehouse)
+        doc.warehouse = warehouses.required(warehouse, company=count_company(parent))
     if note is not None:
         doc.note = note
     doc.version = int(doc.version) + 1

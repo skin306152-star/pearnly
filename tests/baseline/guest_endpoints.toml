@@ -82,6 +82,11 @@ reason = "手机盘点：扫到系统没有的码当场新建商品（同桌面�
 guard = "盘点票据（as_ticket_user）+ count.write"
 
 [[guest]]
+method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_locations"
+reason = "手机盘点：换了「记在哪个仓」后取那个仓的库位清单（岳父 10-26，同电脑；只读）"
+guard = "盘点票据（as_ticket_user）+ 仓必须属于这份盘点的公司 + 库位清单的读权限（locations.api_location_options）"
+
+[[guest]]
 method = "pearnly_erp_portal.inventory.line_mobile.api_line_stocktake_undo"
 reason = "手机盘点：撤销一笔"
 guard = "盘点票据（as_ticket_user）"
