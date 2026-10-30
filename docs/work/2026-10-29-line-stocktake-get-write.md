@@ -158,7 +158,7 @@ ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rul
 - 排队路径（实验室，进程内把阈值设成 "0"）：ERP 销售 / 采购 / 库存 / 盘点 / 班次 / 任务管理 / 首页账本、Cowork 盘点（页面与原生 RPC）/ 任务管理 / 首页账本
   共 11 个都「建任务 → 提交后排队 → 跑任务 → 下载到文件」；浏览器里销售导出走排队：轮询状态、做完自动下载 xlsx、提示「文件已准备好」。
 
-没做完（明天接着）：
+没做完（10-29 晚，10-30 已全部接着做完，见下）：
 1. 银行 / 收入对账两个导出的流程：等验收窗口第一批合入（实验室 bench 加 worker）后补收入对账流程并顺带走银行对账导出；
    分支 CI 现在红在流程覆盖闸这两个文件上（`bank_recon_api.py`、`income_recon_api.py`），**合入前必须补齐**。
 2. 删 `frontend/src/pages/HomePage.vue`（不在 SPA 路由里；主会话 10-29 定直接删）：全仓引用只剩 `lib/i18n.ts` 一句注释、
@@ -175,6 +175,11 @@ ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rul
   没有独有组件；`pn-muted` / `pn-primary` 别的页面也用，留着；`home.*` 词条桌面首页 `home.js` 按键族拼着用（`t("home.col." + label)`），不删。
   登记表删 `cc.billing` 入口（只为这个页面登记）、`shared.exports` 的 files 去掉它，`lib/i18n.ts` 注释改掉。`npm --prefix frontend run build` 过、`check-impact.py` 登记表完整。
 - 导出阈值：`sync_rows()` 改成只有没配 / 空才用默认值，0 就是每个导出都排后台；`tests/test_exports.py` 加一条（0、"0"、负数、乱填），旧代码跑这条失败。
+- 银行 / 收入对账导出的流程 `cowork.recon.exports`（不等 worker）：`datasets.py old cowork` 照对账页解析好的两边内容走正式的建任务函数
+  （`create_from_parsed`，合成数据同 `cowork-*-recon-lab-verify.py`）建银行、收入对账各一份；流程打开结果页点「导出」，POST、200、xlsx、复核表里有凭证号。
+  覆盖闸通过。`frontend/src/lib/i18n.ts` 那句注释（举例提到 HomePage.vue）没改：改它就要给 SPA 补流程，SPA 目前没有流程用例。
+- 自有实验栈（`pearnly-gw-lab`，挂本分支源码）跑改动涉及的 9 条流程 × 两套数据 × 两宽度：36 格第一轮 35 过；`erp.stock-in.units` old / 电脑那格
+  登记车辆弹窗没出来（别的窗口的流程，经 product.js 被选中），单格复跑通过，判为偶发。结果 `~/pearnly-devtools/get-write-rollback/flows-changed-1.json`、`flows-units-2.json`。
 - 冒烟运行器加 `--target local`：在本机回归实验室（`PEARNLY_FLOWS_LAB` 指的栈）跑登记表的自动入口，站点用两套数据的老站点、账号用实验室管理员，
   不经测试机。用它跑本分支的连带回归清单：
 
