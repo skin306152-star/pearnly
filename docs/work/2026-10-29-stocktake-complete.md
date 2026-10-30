@@ -295,3 +295,25 @@ erp.report.stock-count-variance、erp.exports（盘点导出）上表已测；�
   收银台汽车公司实卖选台。CC 在 TK 里给盘点新建的商品建档另排（批复 #7）。
 - **保留项**：本地分支 `pearnly/mixed-operators-parens`（34a7c5b9，见上「合入前补的几件」）；实验栈 `pearnly-verify-lab` 已 `compose stop`、
   数据卷保留（两套合成数据，下次跑流程直接起）。工作树 `stocktake-assess` 与分支 `pearnly/stocktake-complete` 合入后清理。
+
+## 部署前补：已有数据补值（2026-10-30，验收窗口在干净代码上查出）
+
+- **问题**：「来由」（`ERP Product.origin`）只在 Express 主档同步**新建**商品时写 `express`，10-29 之前同步进来的商品来由是空的；部署后生产
+  polymer、mrerp 等站点的同步商品来由都空，`erp.products.create` 在 erp-new 上「同步来的物料带来由」不通过。
+- **补丁** `v1_20_product_origin_express`：带 Express 编码、来由为空的商品设成 `express`，只补空值，重跑无副作用；补丁里打印补前 / 补后空值条数
+  （`ERP Product origin: N synced products without an origin before, 0 after`）。没有 Express 编码的旧商品分不清是手建、导入还是采购 / 销售自动建，
+  保持空（来由栏显示空），不猜。
+- **按类核对 S0–S6 新加字段**（有没有「对已有数据有含义、却没补值」的）：
+
+  | 字段 | 已有数据 | 结论 |
+  | --- | --- | --- |
+  | `ERP Company.company_type` / `express_enabled` | 有含义 | 已由 `v1_17_company_settings` 补（类型 general；连过 Express 的设为接 Express） |
+  | `ERP Product.origin` | 同步商品有含义 | 本次 `v1_20` 补；其余空值见上 |
+  | `ERP Product.origin_doctype` / `origin_name` | 只对盘点 / 采购 / 销售当场新建的商品有值 | 不补：旧商品没有来源单 |
+  | `ERP Stock Count Item.row_origin` | 空 = 普通盘点行 | 不补：空就是正确值 |
+  | `ERP Warehouse.warehouse_code` | 接 Express 的仓显示 `express_code`（同步新建的也不写 `warehouse_code`） | 不补：新旧数据同一口径，显示处都是 `express_code or warehouse_code` |
+  | `ERP Warehouse Location.description` | 可空的说明 | 不补 |
+  | `ERP Product.internal_code`（10-26，商品内部编码显示） | 同步商品显示 Express 编码（读时回退） | 不补：同上，新旧同口径 |
+  | 批次 / 有效期列（S1 删除，列保留隐藏） | 不再读写 | 不补 |
+- **部署回读**：补丁前后各数一次 `select count(*) from tabERP Product where ifnull(express_code,'')!='' and ifnull(origin,'')=''`（每个 ERP 站点，补后应为 0），
+  写进发布记录。
