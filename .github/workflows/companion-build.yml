@@ -65,7 +65,9 @@ jobs:
       # Microsoft Store 用的 MSIX（教程问题第 1 条：智能应用控制拦没签名的安装包，商店审核后由微软重新签名）。
       # 每次都打一遍（MakeAppx 校验清单与引用的文件）；包标识取仓库变量（照抄 Partner Center「产品标识」），没设时用占位值、
       # 只能做构建检查。勾选 msix 才把 CC.msix 作为附件上传（约与安装包一样大，Actions 存储只有 0.5 GB）。
+      # 测试机的 runner 没装 Windows SDK（没有 MakeAppx），构建检查只在 GitHub 的机器上跑；勾选 msix 时照跑（缺 SDK 会失败、如实报红）
       - name: Build the Microsoft Store package (unsigned)
+        if: runner.environment == 'github-hosted' || inputs.msix
         env:
           MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
           MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
