@@ -38,11 +38,14 @@ QUEUE = "default"
 
 
 def sync_rows() -> int:
+    """当场给文件的行数上限：没配（或空）用默认值；配了 0 就是每个导出都排后台（不能被当成没配）。"""
+    configured = frappe.conf.get("pearnly_export_sync_rows")
+    if configured is None or configured == "":
+        return DEFAULT_SYNC_ROWS
     try:
-        value = int(frappe.conf.get("pearnly_export_sync_rows") or DEFAULT_SYNC_ROWS)
+        return max(0, int(configured))
     except (TypeError, ValueError):
-        value = DEFAULT_SYNC_ROWS
-    return max(0, value)
+        return DEFAULT_SYNC_ROWS
 
 
 def respond(filename, content, content_type=None):

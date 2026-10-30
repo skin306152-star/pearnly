@@ -166,6 +166,19 @@ class CoreExports(Harness):
         self.register(size=3)
         self.assertIn("export_job", self.deliver())
 
+    def test_the_sync_threshold_reads_zero_as_zero(self):
+        # 站点配置写数字 0 = 每个导出都排后台（10-29 实验室发现：`conf or 1000` 把 0 当成没配）
+        for configured, expected in ((None, service.DEFAULT_SYNC_ROWS), ("", service.DEFAULT_SYNC_ROWS), (0, 0), ("0", 0),
+                                     (25, 25), ("25", 25), (-3, 0), ("many", service.DEFAULT_SYNC_ROWS)):
+            if configured is None:
+                self.conf.pop("pearnly_export_sync_rows", None)
+            else:
+                self.conf["pearnly_export_sync_rows"] = configured
+            self.assertEqual(service.sync_rows(), expected, configured)
+        self.conf["pearnly_export_sync_rows"] = 0
+        self.register(size=1)
+        self.assertIn("export_job", self.deliver())
+
     def test_a_large_export_is_queued_for_its_user_and_language(self):
         self.register(size=service.DEFAULT_SYNC_ROWS + 1)
         job = self.deliver()["export_job"]
