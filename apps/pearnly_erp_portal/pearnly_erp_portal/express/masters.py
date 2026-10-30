@@ -849,7 +849,7 @@ def _stock(company, warehouses, stock_rows, differences=None):
                                  qty=float(delta), posting_date=nowdate(), ref_type=SYNC_REASON, reason=SYNC_REASON,
                                  location=_place(product, warehouse, defaults.get(product), present),
                                  client_uuid=f"{SYNC_REASON}:{stamp}:{product}:{warehouse}"[:140],
-                                 internal=True, allow_inactive=True, company=company)
+                                 internal=True, allow_inactive=True, company=company, system=True)
             moved += 1
         except frappe.ValidationError:
             frappe.clear_messages()

@@ -39,10 +39,15 @@ def company_of(name) -> str:
     Historical documents and reversals use their saved warehouse, including an
     inactive one. New movements still pass through required() to check activity.
     """
+    return companies.document_company(owner_of(name))
+
+
+def owner_of(name) -> str:
+    """仓库所属公司，不按当前账号核（系统路径用；用户路径用 `company_of`）。"""
     owner = frappe.db.get_value(DOCTYPE, name, "company") if name else None
     if not owner:
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return companies.document_company(owner)
+    return owner
 
 
 def resolve(value=None, *, create=False, company=None):
@@ -93,8 +98,14 @@ def sole(company=None) -> str | None:
 def main_of(company=None, *, include_inactive=False) -> str | None:
     """主仓 = 这家公司最先建的那个仓（开户自带；接了 Express 的公司第一次同步时它被认作 Express 主仓，`express.masters._warehouses`）。
     这是事实判断，不是「默认仓」配置位：默认收银台建时显式挂它（10-30：接 Express 的公司同步出 7 个仓，默认收银台留空、收银报没有仓），
-    打印收货单的「คลังหลัก」也按它（含已停用的，`include_inactive`）。"""
-    filters = {"company": companies.document_company(company)}
+    打印收货单的「คลังหลัก」也按它（含已停用的，`include_inactive`）。用户路径：公司按当前账号的可用范围核。"""
+    return main_warehouse(companies.document_company(company), include_inactive=include_inactive)
+
+
+def main_warehouse(company, *, include_inactive=False) -> str | None:
+    """同 `main_of`，但**不按当前账号核公司**：给补丁、Express 同步这些系统路径用（10-30 事故：迁移以 Administrator 跑，
+    Administrator 的可用范围只有启用的公司，testerp 有一家停用公司，补丁走到它报「Not permitted」、ERP 停服）。公司必须给。"""
+    filters = {"company": company}
     if not include_inactive:
         filters["is_active"] = 1
     first = frappe.get_all(DOCTYPE, filters=filters, pluck="name", order_by="creation asc", limit_page_length=1)  # bounded: 最早一个

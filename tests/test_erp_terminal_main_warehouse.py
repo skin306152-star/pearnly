@@ -3,6 +3,7 @@
 Run with Frappe installed. No Site, Redis or network: the database calls are replaced.
 - 默认收银台建时挂主仓（`warehouses.main_of`，最先建的启用仓）；给了仓用给的；
 - `attach_main`：没挂仓、挂着停用 / 别家的仓的收银台改挂主仓，挂着本公司启用仓的不动，主仓都没有时不动；
+  不按当前账号核公司（`warehouses.main_warehouse`，公司不在可用范围里也照补）；
 - 每一处建收银台的代码都显式给仓（防再犯）。
 """
 import pathlib
@@ -31,7 +32,10 @@ class TerminalMainWarehouse(unittest.TestCase):
         db.set_value.side_effect = lambda doctype, name, field, value: self.saved.__setitem__(name, value)
         for patcher in (mock.patch.object(terminals.frappe, "get_all", side_effect=get_all),
                         mock.patch.object(terminals.frappe, "db", db),
-                        mock.patch.object(terminals.warehouses, "main_of", return_value="WH-1")):
+                        mock.patch.object(terminals.warehouses, "main_warehouse", return_value="WH-1"),
+                        # 系统路径不按当前账号核公司（10-30 事故：停用公司不在 Administrator 的可用范围）
+                        mock.patch.object(terminals.warehouses.companies, "document_company",
+                                          side_effect=terminals.frappe.PermissionError("Not permitted"))):
             patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -41,7 +45,7 @@ class TerminalMainWarehouse(unittest.TestCase):
         self.assertEqual(self.saved, {"T-1": "WH-1", "T-2": "WH-1", "T-4": "WH-1"})  # T-3 挂着本公司启用仓，不动
 
     def test_nothing_changes_without_a_main_warehouse(self):
-        with mock.patch.object(self.terminals.warehouses, "main_of", return_value=None):
+        with mock.patch.object(self.terminals.warehouses, "main_warehouse", return_value=None):
             self.assertEqual(self.terminals.attach_main("CO-1"), [])
         self.assertEqual(self.saved, {})
 

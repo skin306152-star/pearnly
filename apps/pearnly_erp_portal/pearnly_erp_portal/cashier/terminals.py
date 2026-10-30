@@ -75,8 +75,9 @@ def _checked(terminal, company=None) -> str:
 
 def attach_main(company) -> list[str]:
     """这家公司没挂仓、或挂着已停用 / 不属于这家公司的仓的收银台，改挂主仓（10-30）。Express 主档同步之后调（同步会建仓、
-    停用 Express 里删掉的仓），补丁里给存量补。主仓也没有时不动。回改了的收银台。"""
-    main = warehouses.main_of(company)
+    停用 Express 里删掉的仓），补丁里给存量补。主仓也没有时不动。回改了的收银台。
+    系统路径：不按当前账号核公司（停用的公司也照补），用 `warehouses.main_warehouse`。"""
+    main = warehouses.main_warehouse(company)
     if not main:
         return []
     active = set(frappe.get_all("ERP Warehouse", filters={"company": company, "is_active": 1}, pluck="name",  # bounded: 一家公司的仓

@@ -31,6 +31,7 @@ def _clean(kwargs):
     kwargs.pop("cmd", None)
     kwargs.pop("internal", None)
     kwargs.pop("allow_inactive", None)
+    kwargs.pop("system", None)  # 系统路径（Express 同步）专用，页面不能传
     return kwargs
 
 

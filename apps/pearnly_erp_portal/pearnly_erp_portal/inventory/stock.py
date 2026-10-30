@@ -95,7 +95,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
                    unit_cost=None, posting_date=None, posting_time=None, ref_type=None,
                    ref_id=None, doc_no=None, reason=None, client_uuid=None,
                    allow_negative=True, internal=False, location="", allow_inactive=False,
-                   company=None) -> dict:
+                   company=None, system=False) -> dict:
     """写一笔流水并推进结存。`client_uuid` 是整请求的幂等锚：命中即原样返回，不重复记账。
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
@@ -103,14 +103,19 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     `internal=True` 表示这是**另一个域**授权后触发的库存动作（目前是销售与退货）：
     收银员卖货要出货，但那不是在"管理库存"，所以不该要求库存岗位。调用方必须自己已经
     做过权限判断，这里不再重复要 `stock.write` —— 一个用户动作只过一道闸。
+
+    `system=True`：没有用户动作的系统路径（Express 主档同步对齐库存）。公司必须给，按数据核（仓库属于这家公司），
+    不按当前账号的可用范围核——同步以 Administrator 或排任务的人跑，停用的公司不在他们的可用范围里（10-30 事故）。
     """
+    if system and not (internal and company):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     if not internal:
         _require()
     product_doc = _product(product, allow_inactive=internal and allow_inactive)
     location = positions.clean_location(location)
-    company = _movement_company(warehouse, company, internal)
-    if internal and allow_inactive:
-        if warehouses.company_of(warehouse) != company:
+    company = company if system else _movement_company(warehouse, company, internal)
+    if system or (internal and allow_inactive):
+        if (warehouses.owner_of(warehouse) if system else warehouses.company_of(warehouse)) != company:
             frappe.throw(_("Warehouse not found"))
     else:
         warehouse = warehouses.required(warehouse, company=company)
