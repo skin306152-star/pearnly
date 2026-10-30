@@ -213,3 +213,22 @@
 ### 13. 工作量
 - 三步，可分开交付：① 两张模板加内部编码列 + 修整表失败（按台行先逐行报出不中断）+ 公司过滤；② 盘点 Excel 按台；③ 期初 Excel 并入按台。
   机器耗时：① 约 2 小时、② 约 3 小时、③ 约 2 小时；每步流程约 30 分钟。①不依赖问题 2、3 的答复，可先做。
+
+---
+
+## 交接（10-30 晚）
+
+原窗口上下文到 55% 按规矩换窗；新开发窗口（erp-dev-2）接手。主会话 10-30 已批三项全部按建议施工，另插队「彻底删批次 / 有效期」。
+四条分支都已推到远端，本地没有未推送的提交、工作树都干净。
+
+| 项 | 分支 / 工作树 | 远端 SHA | 已验证 | 没验证 / 下一步 |
+| --- | --- | --- | --- | --- |
+| 删批次 / 有效期（插队） | `pearnly/drop-batch-expiry` · `.claude/worktrees/drop-batch` | `a2d46d0c` | 实验栈 erp-new / erp-old / cowork 迁移：5 列 + Cowork 2 列真删（都是 0 行有值）、DocField 与元数据消失、补丁重跑无副作用；流程 `erp.products.create` 4/4、`erp.purchase.create` 4/4；本地闸门通过；`pearnly/flows` 已回写 | Development checks 运行 41057872852 在跑；绿了快进 main、删工作树与分支、报 SHA（原窗口能等到就自己合，没合就由接手窗口合）。采购识别提示词里的 `batch_no, expiry_date` 故意没动（改提示词要过识别金标闸门），记在 `docs/work/2026-10-30-drop-batch-expiry.md` |
+| 一、LINE 改仓 | `pearnly/father-three-items` · `.claude/worktrees/father3` | `c47dd114`（含评估提交） | 代码完成：LINE 页「实际仓库」下拉（默认账面行的仓、账上本来没有的新登记商品沿用上一笔，同电脑录制问题 #21）、换仓重取库位（新票据接口 `api_line_stocktake_locations`，已登记访客接口基线）；`count.add_entry / edit_entry / 导入 / ensure` 取仓按盘点所属公司、`locations.api_location_options` 按仓自己的公司核；流程 `erp.line.stocktake` 加「默认盘点的仓」「换仓记数落在那个仓」两格 | 本地闸门 + 受影响流程正在原窗口后台跑（日志 `/private/tmp/claude-501/-Users-skin-pearnly/8de116d7-2604-41b6-bc90-0babd73c0f80/scratchpad/gate-f3.log`、`/private/tmp/claude-501/-Users-skin-pearnly/8de116d7-2604-41b6-bc90-0babd73c0f80/scratchpad/flows-f3.log`，实验栈此刻挂的就是这个工作树）；看结果 → 回写 `pearnly/flows` → Development checks → 合入。按类查的清单（单据自带公司却取当前公司）：本次只改了盘点（`count.py` 7 处）与库位下拉；列表页的「当前公司」过滤是对的不改 |
+| 二、姓名栏 | `pearnly/user-full-name` · `.claude/worktrees/fullname` | `85a951fa` | 已全部提交（不是未提交改动）：共用层 `account/names.py`、登录只投用户名、我的资料名 / 姓可改用户名只读、建员工送名 / 姓到身份服务（站点 → 控制面 → Keycloak）、ERP / Cowork 团队页与收银员 / LINE 回执显示姓名；生产镜像离线测试通过（`test_names`、`team.test_identity`、`test_member_service`、`test_identity_callback`）；影响清单登记表已补齐 | **都没跑**：本地闸门、共用层改动要的完整候选 offline 车道（生产镜像，见记忆 core-change-candidate-lane）、新流程 `erp.team.full-name` / `cowork.team.full-name`（模块 `scripts/flows/team_full_name.py`，没在实验栈跑过，可能要调 DOM 等待）；任务记录 `docs/work/2026-10-30-user-full-name.md` 的连带回归表里「待填」两格。manual 入口（真 Keycloak 登录 / 建号、真 LINE 回执）要测试环境，记「没测到」 |
+| 三、Excel ① | `pearnly/excel-internal-code` · `.claude/worktrees/excel-ic` | `19db4b1e` | 盘点、期初两张模板加独立「内部编码」列（紧跟「编码」，空格也预置文本），导入先认它；「编码」列改填系统编码；上传新商品带内部编码；按台商品填实盘数改成逐行报出（原来整表失败）；不带盘点下载模板按仓的公司过滤；删掉没调用方的 `products.contracts.count_code`；离线测试 `test_opening_workbook`（改了列位置断言）、`test_opening_batch`（加内部编码优先）、新 `test_stock_count_workbook`（进候选车道）通过 | 本地闸门、实验栈流程都没跑；还没有覆盖盘点上传的流程用例（建议加：下载模板 → 填内部编码 / 按台行 → 上传 → 回读）。② 盘点 Excel 按台、③ 期初 Excel 并入按台**没开工** |
+
+- **实验栈**：`pearnly-verify-lab`（端口 18781–18783，regression-lab 编排），此刻挂 father3 工作树在跑流程；数据卷留着两套数据。erp-new 里有一家实验用停用公司「停用测试 10-30」（复现 v1_19 事故用，留着无害）。father3 的基线还没有批次删除，迁移时会把批次列加回实验栈（只在实验室）。用完 `docker compose -p pearnly-verify-lab ... stop`（保留数据卷）；本机实验栈总数先问主会话。
+- **跑法**：流程 `PEARNLY_FLOWS_LAB=pearnly-verify-lab REGRESSION_LAB_PORT=18781 python3 scripts/flows/run.py --changed --base origin/main --post-status --jobs 3`；新工作树第一次回写前要先构建 CC 前端（本地闸门会构建）。生产镜像跑离线测试时挂源码要写 `${A}:ro`（zsh 里 `$A:ro` 会被当成路径修饰符）。
+- **其他保留项**：本地分支 `pearnly/mixed-operators-parens`（`34a7c5b9`，未推送，落后 main 64 个提交）：10-29 盘点任务留的「三元否则分支里不加括号的 `||`」存量修法，等各模块补流程用例时逐个拿过来（见 `docs/work/2026-10-29-stocktake-complete.md`）；保留原因与复核时点不变。
+- **已合入 main 的本窗口工作（10-30）**：收银台挂主仓 `921e4d8a`、来由补丁 + 盘点差异看板权限 `b79ee82d`、DMS 卡片断言 + 部署闸沿用 `e9aa959b`、build-runner `46f4ae39`、v1_19 系统路径不按当前账号核公司 `d22b7b2b`。
