@@ -405,7 +405,7 @@ def build_express_sales_payload(
         "vat_period_be": vat_period_be,
         "ref_no": ref_no,
         "customer": customer,
-        "vat_rate": float(_VAT_RATE) if has_vat else 0.0,
+        "vat_rate": pos_contract.payload_vat_rate(has_vat, detail["items"], _VAT_RATE),
         "base_amount": _s(base),
         "vat_amount": _s(vat),
         "total_amount": _s(total),

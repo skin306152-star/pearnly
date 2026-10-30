@@ -38,6 +38,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.push.prior_doc import attach_prior_docnum
 from pearnly_core.express_rules.push.choices import apply_to_payload
 from datetime import date
@@ -345,7 +346,7 @@ def build_express_payload(
         "vat_period_be": vat_period_be,
         "ref_no": ref_no,
         "supplier": supplier,
-        "vat_rate": float(_VAT_RATE) if has_vat else 0.0,
+        "vat_rate": pos_contract.payload_vat_rate(has_vat, detail["items"], _VAT_RATE),
         "base_amount": _s(base),
         "vat_amount": _s(vat),
         "total_amount": _s(total),

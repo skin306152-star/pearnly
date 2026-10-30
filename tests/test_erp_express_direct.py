@@ -120,6 +120,23 @@ class Prepare(Base):
         self.assertNotIn("hold", sales, sales)
         self.assertEqual((sales["payload"]["doctype"], sales["payload"]["customer"]["code"]), ("HS", "C01"))
 
+    def test_an_exempt_document_keeps_the_vat_rate_on_its_head(self):
+        """验收 10-30（express-rules-vat 窗口指出）：整单免税的单原生仍记税率 7（语料 158 本：明细全是免税行的进货 VATRAT 7 的
+        4,822 张 / 0 的 256 张，销货 427,970 张 / 48 张），原来按「税额 > 0」给了 0。有免税行就照记税率；不收增值税、也没有
+        免税行的单仍记 0。"""
+        key, = self.computer([book()])
+        self.masters(key)
+        exempt = [{**item, "vat_exempt": True} for item in doc()["items"]]
+        whole = self.prepare(doc(vat="0.00", total="300.00", items=exempt))["payload"]
+        self.assertEqual((whole["vat_rate"], whole["payload_version"]), (7.0, 12))
+        sales = self.prepare(doc(direction="sales", paid=True, vat="0.00", total="300.00", items=exempt,
+                                 party={"code": "C01", "name": "ร้านป้าแดง", "tax_id": "", "branch": ""}))["payload"]
+        self.assertEqual(sales["vat_rate"], 7.0)
+        plain = self.prepare(doc(has_vat=False, vat="0.00", total="300.00"))["payload"]
+        self.assertEqual(plain["vat_rate"], 0.0)
+        mixed = [doc()["items"][0], {**doc()["items"][1], "vat_exempt": True}]
+        self.assertEqual(self.prepare(doc(vat="14.00", total="314.00", items=mixed))["payload"]["vat_rate"], 7.0)
+
     def test_holds_until_the_computer_has_read_the_masters(self):
         self.assertEqual(self.prepare(doc())["hold"], E.NO_BOOK)  # 本公司没有一份账套被 CC 报过
         key, = self.computer([book()])

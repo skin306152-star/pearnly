@@ -345,3 +345,14 @@ def exempt_payload_version(payload: dict) -> int:
     except InvalidOperation:
         vat = Decimal(0)
     return WHOLE_EXEMPT_PURCHASE_PAYLOAD_VERSION if purchase and vat == 0 else NATIVE_EXEMPT_PAYLOAD_VERSION
+
+
+def has_exempt_lines(items) -> bool:
+    """明细里有没有来源标的免税行（``vat_exempt``）。"""
+    return any(isinstance(item, dict) and item.get("vat_exempt") for item in items or [])
+
+
+def payload_vat_rate(has_vat: bool, items, rate) -> float:
+    """载荷的税率（写进单头 VATRAT）：有税额或有免税行的单照记税率（原生：明细全是免税行的单 VATRAT 7 的进货 4,822 张 / 0 的 256 张、
+    销货 427,970 张 / 48 张，语料 158 本，10-30），只有供应商 / 客户不收增值税、也没有免税行的单记 0。"""
+    return float(rate) if has_vat or has_exempt_lines(items) else 0.0
