@@ -274,6 +274,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-adapter.js",
 ]
 
 [[flow]]

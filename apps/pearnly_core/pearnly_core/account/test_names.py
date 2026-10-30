@@ -10,7 +10,9 @@ from pearnly_core.account import names
 
 class Names(unittest.TestCase):
     def test_first_name_is_required_and_both_are_trimmed(self):
-        with mock.patch.object(names.frappe, "throw", side_effect=ValueError) as throw:
+        # No Site, no translation cache: `_` is replaced so only the guard is under test.
+        with mock.patch.object(names.frappe, "throw", side_effect=ValueError) as throw, \
+                mock.patch.object(names, "_", lambda text: text):
             with self.assertRaises(ValueError):
                 names.clean("  ", "Jaidee")
             throw.assert_called_once()

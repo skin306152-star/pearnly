@@ -8,6 +8,10 @@ file = "apps/pearnly_control/pearnly_control/issues.py"
 reason = "控制面开户单：真开户会在身份服务建号、写各产品站点（对外写入），回归实验室不跑；发号流程由 tests/test_cloud_onboarding.py 离线守住"
 
 [[file]]
+file = "apps/pearnly_control/pearnly_control/account/member_api.py"
+reason = "控制面成员私有接口：只收产品站点经私有通道转来的建号 / 重设密码 / LINE 绑定，要真身份服务（Keycloak）；回归实验室没有身份服务。离线由 pearnly_control.account.test_member_service 与 pearnly_erp_portal.team.test_identity 候选检查守住"
+
+[[file]]
 file = "apps/pearnly_core/pearnly_core/identity.py"
 reason = "身份绑定与登录回调：bind_identity 只给开户脚本和系统管理员在后台调（没有页面），callback 是身份服务登录跳回来的协议入口，要真身份服务与浏览器登录；离线由 pearnly_core.account.test_identity_callback 等候选检查守住"
 

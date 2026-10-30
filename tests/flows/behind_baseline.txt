@@ -28,7 +28,6 @@ apps/pearnly_control/pearnly_control/payments/usage.py
 apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_deployment/pearnly_deployment.py
 apps/pearnly_core/pearnly_core/account/line_login_contract.py
 apps/pearnly_core/pearnly_core/account/member_client.py
-apps/pearnly_core/pearnly_core/account/profile.py
 apps/pearnly_core/pearnly_core/assistant/definition.py
 apps/pearnly_core/pearnly_core/cc_desktop/__init__.py
 apps/pearnly_core/pearnly_core/cc_desktop/books.py
@@ -61,7 +60,6 @@ apps/pearnly_core/pearnly_core/ocr_models/orient.py
 apps/pearnly_core/pearnly_core/transaction/__init__.py
 apps/pearnly_core/pearnly_core/transaction/conflicts.py
 apps/pearnly_core/pearnly_core/workspace.py
-apps/pearnly_cowork/pearnly_cowork/access/menu.py
 apps/pearnly_cowork/pearnly_cowork/assistant/__init__.py
 apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py
@@ -229,8 +227,6 @@ apps/pearnly_cowork/pearnly_cowork/tax/__init__.py
 apps/pearnly_cowork/pearnly_cowork/tax/access.py
 apps/pearnly_cowork/pearnly_cowork/tax/service.py
 apps/pearnly_cowork/pearnly_cowork/tax/wht.py
-apps/pearnly_cowork/pearnly_cowork/team/__init__.py
-apps/pearnly_cowork/pearnly_cowork/team/service.py
 apps/pearnly_dms/pearnly_dms/account/__init__.py
 apps/pearnly_dms/pearnly_dms/account/portal.py
 apps/pearnly_dms/pearnly_dms/adapter/__init__.py
