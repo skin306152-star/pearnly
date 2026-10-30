@@ -308,10 +308,6 @@ apps/pearnly_dms/pearnly_dms/records/access.py
 apps/pearnly_dms/pearnly_dms/snapshots/__init__.py
 apps/pearnly_dms/pearnly_dms/snapshots/manual.py
 apps/pearnly_dms/pearnly_dms/snapshots/store.py
-apps/pearnly_erp_portal/pearnly_erp_portal/cashier/access.py
-apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py
-apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py
-apps/pearnly_erp_portal/pearnly_erp_portal/cashier/shifts.py
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/__init__.py
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/binding.py
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py
@@ -342,5 +338,3 @@ apps/pearnly_erp_portal/pearnly_erp_portal/sales/files.py
 apps/pearnly_erp_portal/pearnly_erp_portal/sales/preview.py
 apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py
 apps/pearnly_erp_portal/pearnly_erp_portal/sales/records.py
-apps/pearnly_erp_portal/pearnly_erp_portal/team/__init__.py
-apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py
