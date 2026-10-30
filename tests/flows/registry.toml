@@ -524,3 +524,18 @@ covers = [
   "apps/pearnly_core/pearnly_core/browser_text.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py",
 ]
+
+[[flow]]
+id = "cowork.recon.exports"
+title = "Cowork 对账导出：银行 / 收入结果页点导出，走 POST、复核表里有这份对账的凭证（10-29 导出一律 POST）"
+module = "scripts/flows/cowork_recon_exports.py"
+product = "cowork"
+start = "/desk/pearnly-recon-bank"
+user = "recon"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_api.py",
+  "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/recon.js",
+]

@@ -11,7 +11,7 @@
 
 Cowork 同样两套（第二个参数 `cowork`）：
 - new：站点 `cowork-new.regression.localhost`，开户后什么都没建（只有开户时建的站点归属）。
-- old：站点 `cowork-old.regression.localhost`，上传导入的两份盘点（带实盘的那份已结束）、银行与收入对账预设各一条。
+- old：站点 `cowork-old.regression.localhost`，上传导入的两份盘点（带实盘的那份已结束）、银行与收入对账任务各一份、预设各一条。
 
 DMS 同样两套（第二个参数 `dms`），外部 DMS 一律不连：DMS 里读到的主档 / 地址 / 客户由实验室直接发布成本地完整快照
 （与线上夜间同步发布的是同一种数据），LINE 走站点的本地镜像（`pearnly_line_mirror`，站点没配 LINE 凭据时才生效，
@@ -37,6 +37,23 @@ COWORK_SITES = {"new": "cowork-new.regression.localhost", "old": "cowork-old.reg
 # Cowork 老站点的盘点（上传导入，走正式的导入函数）：(标题, [(编码, 名称, 单位, 账面, 实盘)])
 COWORK_COUNTS = [("ตรวจนับเก่า มีจำนวน", [("CW-001", "สินค้าเก่า ก", "ชิ้น", 10, 9), ("CW-002", "สินค้าเก่า ข", "กล่อง", 4, 4)]),
                  ("ตรวจนับเก่า ยังไม่นับ", [("CW-003", "สินค้าเก่า ค", "ชิ้น", 7, None)])]
+# Cowork 老站点的对账任务：照对账页解析好的两边内容走正式的建任务函数（`create_from_parsed`，不识别、不排后台），
+# 数据同 `scripts/cowork-*-recon-lab-verify.py` 的合成样例
+COWORK_INCOME = {"title": "รายได้เก่า มิ.ย. 2569", "gl_filename": "GL June.xlsx", "vat_filename": "VAT June.xlsx",
+                 "header": {"gl_account_code": "4110-01"},
+                 "gl": [["วันที่", "ใบสำคัญ", "คำอธิบาย", "เดบิต", "เครดิต", "รหัสบัญชี"],
+                        ["01/06/2569", "GL-1", "sale", "0.00", "1,070.00", "4110-01"],
+                        ["02/06/2569", "GL-2", "credit note", "107.00", "0.00", "4110-01"]],
+                 "vat": [["วันที่", "เลขที่ใบกำกับ", "ชื่อผู้ซื้อ", "เลขประจำตัวผู้เสียภาษี", "สาขา", "มูลค่า", "ภาษี", "ยอดรวม"],
+                         ["01/06/2569", "GL-1", "ACME", "1234567890123", "00000", "1,000.00", "70.00", "1,070.00"],
+                         ["02/06/2569", "GL-2", "ACME", "1234567890123", "00000", "(100.00)", "(7.00)", "(107.00)"]]}
+COWORK_BANK = {"title": "ธนาคารเก่า มิ.ย. 2569", "filename": "STM KBANK.pdf", "header": {"gl_opening": "990.00", "gl_closing": "590.00"},
+               "statement": {"pages": [{"document": {"bank_name": "Kasikornbank", "opening_balance": "1,000.00", "closing_balance": "600.00",
+                                                     "entries": [{"description": "SWD ACME INV-77", "deposit": "0", "withdrawal": "400.00",
+                                                                  "balance": "600.00", "transaction_date_raw": "01/06/2569"}]}}],
+                             "_needs_review": False},
+               "gl": {"pages": [{"document": {"entries": [{"voucher_no": "GL-1", "account_code": "1000", "description": "payment",
+                                                            "credit": "400.00", "transaction_date": "2026-06-01"}]}}]}}
 # Cowork 老站点的对账预设：(对账类型, 范围, 规则, 答案)
 COWORK_PRESETS = [("bank", "bank|KBANK|4821|1112-01", "grouped", "yes"), ("income", "income|0105556012345|4201", "excluded", "no")]
 DMS_SITES = {"new": "dms-new.regression.localhost", "old": "dms-old.regression.localhost"}
@@ -228,6 +245,8 @@ def cowork_state(site, dataset):
                             order_by="creation asc", limit_page_length=50)
     return {"dataset": dataset, "product": "cowork", "site": site, "workspace": workspace,
             "workspaces": frappe.db.count("Cowork Workspace"),
+            "recon_task_names": {kind: frappe.get_all(doctype, filters={"workspace": workspace}, pluck="name", limit_page_length=5)
+                                 for kind, doctype in (("bank", "Cowork Bank Reconciliation"), ("income", "Cowork Income Reconciliation"))},
             "recon_tasks": {kind: frappe.db.count(doctype, {"workspace": workspace}) for kind, doctype in
                             (("bank", "Cowork Bank Reconciliation"), ("income", "Cowork Income Reconciliation"), ("vat", "Cowork VAT Check"))},
             "presets": {kind: frappe.db.count("Cowork Recon Preset", {"workspace": workspace, "recon_kind": kind})
@@ -268,6 +287,19 @@ def build_cowork_old():
         from pearnly_cowork.stocktake import service as stocktake
 
         commit(stocktake.close(first))
+    from pearnly_cowork.reconciliation import bank_recon_service, income_recon_service
+
+    income_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "regression-cowork-income-0"))
+    if not frappe.db.exists("Cowork Income Reconciliation", {"workspace": workspace}):
+        commit(income_recon_service.create_from_parsed(
+            workspace, COWORK_INCOME["title"], income_id, {"kind": "excel", "sheets": [COWORK_INCOME["gl"]]},
+            header=COWORK_INCOME["header"], vat_source={"kind": "excel", "cells": COWORK_INCOME["vat"]},
+            gl_filename=COWORK_INCOME["gl_filename"], vat_filename=COWORK_INCOME["vat_filename"]))
+    bank_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "regression-cowork-bank-0"))
+    if not frappe.db.exists("Cowork Bank Reconciliation", {"workspace": workspace}):
+        commit(bank_recon_service.create_from_parsed(
+            workspace, COWORK_BANK["title"], bank_id, COWORK_BANK["statement"], COWORK_BANK["gl"], header=COWORK_BANK["header"],
+            filename=COWORK_BANK["filename"]))
     for kind, found, rule, value in COWORK_PRESETS:
         commit(preset_store.remember(workspace, kind, found, rule, value))
     return cowork_state(COWORK_SITES["old"], "old")
