@@ -34,6 +34,7 @@ offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_terminal_main_warehouse.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_product_origin_backfill.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_report_menu_roles.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_stock_count_workbook.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_printing.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_print_security.py
   offline_py -v "$PWD:/candidate:ro" \

@@ -8,6 +8,8 @@ MAX_ROWS = 5000
 FIELD_LABELS = (
     ("product", "stock.opening.productId"),
     ("product_code", "stock.col.code"),
+    # 内部编码单独一列（岳父 10-25，同盘点表）：下载时填内部编码，导回时先认它；「编码」一列是系统编码
+    ("internal_code", "product.col.internalCode"),
     ("product_name", "stock.col.name"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
@@ -65,7 +67,7 @@ def parse_workbook(data, aliases=None):
             if not field or field in fields or cell.data_type in ("f", "e"):
                 raise ValueError("headers_invalid")
             fields.append(field)
-        if not ({"product", "product_code", "barcode"} & set(fields)) or not {"qty", "unit_cost"} <= set(fields):
+        if not ({"product", "product_code", "internal_code", "barcode"} & set(fields)) or not {"qty", "unit_cost"} <= set(fields):
             raise ValueError("headers_invalid")
         rows = []
         for number, cells in enumerate(values, start=2):
@@ -81,7 +83,7 @@ def parse_workbook(data, aliases=None):
                 continue
             # Numeric codes destroy leading zeros in Excel. Require literal text;
             # silently converting them could select a different existing product.
-            for field in ("product", "product_code", "barcode"):
+            for field in ("product", "product_code", "internal_code", "barcode"):
                 if row.get(field) is not None and not isinstance(row[field], str):
                     raise ValueError("identifier_text_required")
             for field in ("qty", "unit_cost"):
@@ -115,10 +117,12 @@ def build_bytes(headers, rows):
         cell.data_type = "s"
     for row in rows:
         sheet.append([row.get(field) for field, _ in FIELD_LABELS])
-        for cell in sheet[sheet.max_row]:
+        for field, cell in zip((field for field, _ in FIELD_LABELS), sheet[sheet.max_row]):
             if isinstance(cell.value, str):
                 cell.data_type = "s"
                 cell.number_format = "@"
+            elif field == "internal_code":
+                cell.number_format = "@"  # 空着的内部编码格也预置成文本：用户手填的数字码不被 Excel 吃掉前导零
     for number, (field, _) in enumerate(FIELD_LABELS, 1):
         sheet.column_dimensions[get_column_letter(number)].width = 32 if field == "product_name" else 22
     sheet.freeze_panes = "A2"

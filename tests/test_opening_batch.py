@@ -120,7 +120,8 @@ class OpeningBatch(unittest.TestCase):
                 return [p for p in self.products if p.name in parameters["names"]]
             return [p for p in self.products if any(p.get(column) in parameters.get(field, ()) for field, column in
                     (("product", "name"), ("product_code", "code"), ("product_code", "internal_code"),
-                     ("product_code", "express_code"), ("barcode", "barcode")))]
+                     ("product_code", "express_code"), ("internal_code", "internal_code"), ("internal_code", "express_code"),
+                     ("barcode", "barcode")))]
         if "tabERP Warehouse" in query:
             return [Row(name=parameters[0], company="C1", is_active=1)] if parameters[0] in ("W1", "W3") else []
         state = self.state if "for update" in query or self.old_snapshot is None else self.old_snapshot
@@ -248,6 +249,16 @@ class OpeningBatch(unittest.TestCase):
         self.assertEqual(self.preview()["rows"][0]["product"], "P1")
         self.args["rows"] = [{"product_code": "code-P1", "qty": "4", "unit_cost": "10"}]
         self.assertEqual(self.preview()["rows"][0]["product"], "P1")
+
+    def test_the_internal_code_column_matches_first(self):
+        # 内部编码单独一列（岳父 10-25）：先认它（含 Express 编码）；与编码一列指向不同商品算冲突
+        self.products[0].internal_code = "A-01"
+        self.args["rows"] = [{"internal_code": "A-01", "qty": "4", "unit_cost": "10"}]
+        self.assertEqual(self.preview()["rows"][0]["product"], "P1")
+        self.args["rows"] = [{"internal_code": "A-01", "product_code": "code-P1", "qty": "4", "unit_cost": "10"}]
+        self.assertEqual(self.preview()["rows"][0]["product"], "P1")
+        self.args["rows"] = [{"internal_code": "A-01", "product_code": self.products[1].code, "qty": "4", "unit_cost": "10"}]
+        self.assertTrue(self.preview()["rows"][0].get("error"))
 
     def test_location_queries_use_exact_bytes_like_position_identity(self):
         rows = [{**self.args["rows"][0], "location": location} for location in ("Rack-A", "rack-a", "e", "é")]

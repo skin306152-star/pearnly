@@ -33,10 +33,13 @@ class OpeningWorkbook(unittest.TestCase):
         self.addCleanup(book.close)
         sheet = book.active
         self.assertEqual(sheet["B2"].value, "0012")
-        self.assertEqual(sheet["D2"].value, "00003")
-        self.assertEqual(sheet["C2"].data_type, "s")
-        self.assertIsNone(sheet["G2"].value)
+        # 内部编码单独一列（岳父 10-25）：空着也预置成文本，手填的数字码不丢前导零
+        self.assertIsNone(sheet["C2"].value)
+        self.assertEqual(sheet["C2"].number_format, "@")
+        self.assertEqual(sheet["E2"].value, "00003")
+        self.assertEqual(sheet["D2"].data_type, "s")
         self.assertIsNone(sheet["H2"].value)
+        self.assertIsNone(sheet["I2"].value)
         self.assertEqual(sheet.freeze_panes, "A2")
         with self.assertRaisesRegex(ValueError, "empty"):
             workbook.parse_workbook(data)

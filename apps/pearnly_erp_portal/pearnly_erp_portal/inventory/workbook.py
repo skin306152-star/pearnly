@@ -19,6 +19,8 @@ from decimal import Decimal, InvalidOperation
 # 字段 → 界面文案的键。模板表头就取这几句（按站点语言），顺序也是这个顺序。
 FIELD_LABELS = (
     ("product_code", "stock.col.code"),
+    # 内部编码单独一列（岳父 10-25）：下载时填内部编码（接 Express 的是 Express 编码），导回时先认它；「编码」一列是系统编码
+    ("internal_code", "product.col.internalCode"),
     ("product_name", "stock.col.name"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
@@ -38,6 +40,11 @@ LEGACY_ALIASES = {
     "编码": "product_code",
     "货号": "product_code",
     "商品コード": "product_code",
+    "internal_code": "internal_code",
+    "internal code": "internal_code",
+    "内部编码": "internal_code",
+    "รหัสภายใน": "internal_code",
+    "社内コード": "internal_code",
     "product_name": "product_name",
     "name": "product_name",
     "ชื่อสินค้า": "product_name",
@@ -143,7 +150,7 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
             field = aliases.get(_norm(cell))
             if field and field not in columns:
                 columns[field] = index
-        if not {"product_code", "barcode"} & set(columns):
+        if not {"product_code", "internal_code", "barcode"} & set(columns):
             raise ValueError("headers_invalid")
         out, problems = [], []
         for number, cells in enumerate(rows, start=2):
@@ -156,6 +163,7 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
             try:
                 row = {
                     "product_code": str(value("product_code") or "").strip(),
+                    "internal_code": str(value("internal_code") or "").strip(),
                     "product_name": str(value("product_name") or "").strip(),
                     "barcode": str(value("barcode") or "").strip(),
                     "unit": str(value("unit") or "").strip(),
@@ -167,7 +175,7 @@ def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict]
             except ValueError as error:
                 problems.append({"row": number, "reason": str(error)})
                 continue
-            if not (row["product_code"] or row["barcode"]):
+            if not (row["product_code"] or row["internal_code"] or row["barcode"]):
                 problems.append({"row": number, "reason": "no_identifier"})
                 continue
             out.append(row)
@@ -195,7 +203,7 @@ def build_bytes(headers: list, rows: list | None = None) -> bytes:
             14, len(str(header)) + 4)
     # 编号与条码预置成文本：Excel 会把长数字的前导零吃掉，写回去就找不到商品了。
     text_columns = [index for index, (field, _key) in enumerate(FIELD_LABELS, start=1)
-                    if field in ("product_code", "barcode")]
+                    if field in ("product_code", "internal_code", "barcode")]
     for row in rows or []:
         line = []
         for field, _key in FIELD_LABELS:
