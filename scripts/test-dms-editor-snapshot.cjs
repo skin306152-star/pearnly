@@ -107,3 +107,51 @@ test('no timestamp line is bound into the edit page, and query notes are declare
   }
   assert.equal(table['dms.card.query.CARD_NOTE'], undefined);
 });
+
+// 2026-10-30 真机：保存被拒时提示在表单末尾、手机上看不见，第一次点保存像没反应。
+const editorPy = fs.readFileSync(path.join(root, 'apps/pearnly_dms/pearnly_dms/editor/booking_edit.py'), 'utf8')
+  + fs.readFileSync(path.join(root, 'apps/pearnly_dms/pearnly_dms/editor/customer_edit.py'), 'utf8');
+const SAVE_FIELD_CODES = {
+  people_id: 'people_id', name: 'name', phone: 'phone', birthday: 'birthday_be', house_no: 'house_no',
+  province_id: 'province_id', district_id: 'district_id', subdistrict_id: 'subdistrict_id',
+  zipcode_id: 'zipcode_id', delivery: 'delivery_date_be', regis_name: 'regis_name',
+};
+test('the save error is shown inside the sticky action bar, not at the end of the form', () => {
+  const template = parse(source).descriptor.template.content;
+  const bar = template.slice(template.indexOf('class="pn-editor-actions"'));
+  assert.ok(bar.indexOf('<ErrorMessage') > 0 && bar.indexOf('<ErrorMessage') < bar.indexOf('</div>'));
+  assert.equal((template.match(/<ErrorMessage/g) || []).length, 1);
+  assert.match(source, /\.pn-editor-actions \{[^}]*position: sticky/);
+});
+test('every field the server validates on save leads to that field on the page', () => {
+  const { page } = setup();
+  for (const [code, field] of Object.entries(SAVE_FIELD_CODES)) {
+    // 服务端确实会回这个码（逐项校验或 f-string 拼出来的那几个地址栏）
+    assert.ok(editorPy.includes(`dms_booking.invalid_${code}`) || ['house_no', 'province_id', 'district_id',
+      'subdistrict_id', 'zipcode_id'].includes(code), code);
+    assert.equal(page.fieldOf(new ApiError(`dms_booking.invalid_${code}`, 417)), field, code);
+    assert.ok(source.includes(`fieldClass('${field}')`), `${field} must be marked in the template`);
+  }
+  for (const code of ['payment_required', 'invalid_payment', 'invalid_amount', 'payment_detail_required',
+    'duplicate_payment', 'invalid_bank']) {
+    assert.equal(page.fieldOf(new ApiError(`dms_booking.${code}`, 417)), 'payments', code);
+  }
+  for (const code of ['slip_required', 'slip_without_transfer']) {
+    assert.equal(page.fieldOf(new ApiError(`dms_booking.${code}`, 417)), 'files', code);
+  }
+  assert.ok(source.includes("fieldClass('payments')") && source.includes("fieldClass('files')"));
+});
+test('errors that belong to no single field mark nothing, and the message still shows', () => {
+  const { page } = setup();
+  for (const code of ['dms_booking.invalid_master', 'dms_booking.expired', 'dms_booking.preview_send_failed',
+    'dms_booking.invalid_payload', 'unknown']) {
+    assert.equal(page.fieldOf(new ApiError(code, 417)), '', code);
+    assert.ok(page.explain(new ApiError(code, 417)));
+  }
+});
+test('only the failed field carries the invalid mark', () => {
+  const { page } = setup();
+  page.invalidField.value = 'delivery_date_be';
+  assert.deepEqual([...page.fieldClass('delivery_date_be')], ['pn-field-delivery_date_be', 'pn-editor-invalid']);
+  assert.deepEqual([...page.fieldClass('phone')], ['pn-field-phone', '']);
+});

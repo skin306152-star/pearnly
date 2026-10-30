@@ -16,7 +16,7 @@ import { reportCaught } from "../../lib/caught";
 // 文案全部来自服务端语言包（`dms.edit.*`），代码里只出现文案编号。
 import LineLayout from "../../components/LineLayout.vue";
 import ReviewPage from "./ReviewPage.vue";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Button, FormControl, Spinner, ErrorMessage } from "frappe-ui";
 
@@ -171,6 +171,48 @@ function explain(err: unknown): string {
   if (err instanceof ApiError && err.status === 409)
     return t("dms.edit.expired");
   return t("dms.edit.failed");
+}
+
+/** 保存被拒时出错的那一栏（服务端校验码 → 页面上的栏位 / 区块）；对不上具体栏位的不标。 */
+const invalidField = ref("");
+const FIELD_OF_CODE: Record<string, string> = {
+  birthday: "birthday_be",
+  delivery: "delivery_date_be",
+  zipcode_id: "zipcode_id",
+};
+const PAYMENT_CODES = new Set([
+  "dms_booking.invalid_bank",
+  "dms_booking.payment_required",
+  "dms_booking.invalid_payment",
+  "dms_booking.invalid_amount",
+  "dms_booking.payment_detail_required",
+  "dms_booking.duplicate_payment",
+]);
+const FILE_CODES = new Set(["dms_booking.slip_without_transfer", "dms_booking.slip_required"]);
+
+function fieldOf(err: unknown): string {
+  const code = err instanceof ApiError ? err.message : "";
+  if (PAYMENT_CODES.has(code)) return "payments";
+  if (FILE_CODES.has(code)) return "files";
+  const name = code.replace(/^dms_booking\.invalid_/, "");
+  if (name === code) return "";
+  if (FIELD_OF_CODE[name]) return FIELD_OF_CODE[name];
+  return INVALID_FIELD_KEYS[name] ? name : "";
+}
+
+function fieldClass(field: string): string[] {
+  return ["pn-field-" + field, invalidField.value === field ? "pn-editor-invalid" : ""];
+}
+
+/** 滚到出错的那一栏并把光标放进去：手机上人在页面中间点的保存，看不到别处的变化。 */
+async function showInvalid(field: string): Promise<void> {
+  invalidField.value = field;
+  if (!field) return;
+  await nextTick();
+  const box = document.querySelector<HTMLElement>(".pn-field-" + field);
+  if (!box) return;
+  box.scrollIntoView({ block: "center" });
+  box.querySelector<HTMLElement>("input, button, select, textarea")?.focus({ preventScroll: true });
 }
 
 function fail(err: unknown): void {
@@ -417,6 +459,7 @@ function payload(): Record<string, unknown> {
 async function save(): Promise<void> {
   busy.value = true;
   errorText.value = "";
+  invalidField.value = "";
   try {
     const result = await saveDraft(ticket.value, nonce.value, payload());
     // 服务端换了新 nonce（旧卡作废）。页面留着它，用户再点一次保存也能成。
@@ -431,6 +474,7 @@ async function save(): Promise<void> {
   } catch (err) { reportCaught(err, "EditorPage");
     // 即使服务端拒绝本次保存，也不丢掉用户编辑的值。
     errorText.value = explain(err);
+    await showInvalid(fieldOf(err));
   } finally {
     busy.value = false;
   }
@@ -530,7 +574,7 @@ function changeLocale(value: Locale): void {
         <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
           <h2 class="pn-editor-h2">{{ t("dms.edit.customer") }}</h2>
           <div class="pn-editor-grid">
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('prefix_id')"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -539,72 +583,72 @@ function changeLocale(value: Locale): void {
               :options="optionList(masters.prefixes)"
               v-model="customer.prefix_id"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('name')"
               type="text"
               :label="t('dms.edit.name')"
               required
               v-model="customer.name"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('people_id')"
               type="text"
               :label="t('dms.edit.confirmId')"
               required
               v-model="customer.people_id"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('birthday_be')"
               type="text"
               :label="t('dms.edit.birth')"
               required
               v-model="customer.birthday_be"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('phone')"
               type="text"
               :label="t('dms.edit.phone')"
               required
               v-model="customer.phone"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('house_no')"
               type="text"
               :label="t('dms.edit.house')"
               required
               v-model="customer.house_no"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('building')"
               type="text"
               :label="t('dms.edit.building')"
               v-model="customer.building"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('floor')"
               type="text"
               :label="t('dms.edit.floor')"
               v-model="customer.floor"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('room')"
               type="text"
               :label="t('dms.edit.room')"
               v-model="customer.room"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('village')"
               type="text"
               :label="t('dms.edit.village')"
               v-model="customer.village"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('moo')"
               type="text"
               :label="t('dms.edit.moo')"
               v-model="customer.moo"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('soi')"
               type="text"
               :label="t('dms.edit.soi')"
               v-model="customer.soi"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('road')"
               type="text"
               :label="t('dms.edit.road')"
               v-model="customer.road"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('province_id')"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -614,7 +658,7 @@ function changeLocale(value: Locale): void {
               v-model="customer.province_id"
               @update:model-value="onProvinceChange"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('district_id')"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -624,7 +668,7 @@ function changeLocale(value: Locale): void {
               v-model="customer.district_id"
               @update:model-value="onDistrictChange"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('subdistrict_id')"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -634,7 +678,7 @@ function changeLocale(value: Locale): void {
               v-model="customer.subdistrict_id"
               @update:model-value="onSubdistrictChange"
             />
-            <FormControl variant="outline"
+            <FormControl variant="outline" :class="fieldClass('zipcode_id')"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -685,7 +729,7 @@ function changeLocale(value: Locale): void {
                 :options="optionList(paints)"
                 v-model="answers.paint_id"
               />
-              <FormControl variant="outline"
+              <FormControl variant="outline" :class="fieldClass('delivery_date_be')"
                 type="text"
                 :label="t('dms.edit.delivery')"
                 required
@@ -709,7 +753,7 @@ function changeLocale(value: Locale): void {
                 :options="optionList(masters.regis)"
                 v-model="answers.regis_id"
               />
-              <FormControl variant="outline"
+              <FormControl variant="outline" :class="fieldClass('regis_name')"
                 type="text"
                 :label="t('dms.edit.regisName')"
                 required
@@ -718,7 +762,7 @@ function changeLocale(value: Locale): void {
             </div>
           </section>
 
-          <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
+          <section :class="['pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4', fieldClass('payments')]">
             <h2 class="pn-editor-h2">{{ t("dms.edit.payment") }}</h2>
             <div
               v-for="(row, index) in payments"
@@ -804,7 +848,7 @@ function changeLocale(value: Locale): void {
             />
           </section>
 
-          <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
+          <section :class="['pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4', fieldClass('files')]">
             <h2 class="pn-editor-h2">{{ t("dms.edit.files") }}</h2>
             <p class="pn-editor-hint">{{ t("dms.edit.fileHint") }}</p>
             <FormControl variant="outline"
@@ -822,9 +866,9 @@ function changeLocale(value: Locale): void {
           </section>
         </template>
 
-        <ErrorMessage v-if="errorText" :message="errorText" />
-
         <div class="pn-editor-actions">
+          <!-- 提示放进贴底操作条：手机上点保存时人在页面中间，放在表单末尾就看不见（2026-10-30 真机）。 -->
+          <ErrorMessage v-if="errorText" class="pn-editor-error" :message="errorText" />
           <Button
             variant="outline"
             theme="gray"
@@ -919,5 +963,25 @@ function changeLocale(value: Locale): void {
 
 .pn-editor-actions > * {
   flex: none;
+}
+
+/* 操作条里的提示独占一行，按钮仍在右下。 */
+.pn-editor-actions {
+  flex-wrap: wrap;
+}
+
+.pn-editor-actions > .pn-editor-error {
+  flex: 1 0 100%;
+}
+
+/* 出错的那一栏：官方红色描边令牌，不改控件本身的尺寸与焦点样式。 */
+.pn-editor-invalid:not(.pn-editor-section) :deep(input),
+.pn-editor-invalid:not(.pn-editor-section) :deep(button),
+.pn-editor-invalid:not(.pn-editor-section) :deep(textarea) {
+  border-color: var(--outline-red-2);
+}
+
+.pn-editor-section.pn-editor-invalid {
+  border-color: var(--outline-red-2);
 }
 </style>
