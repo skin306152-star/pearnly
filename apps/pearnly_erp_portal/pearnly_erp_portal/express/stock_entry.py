@@ -11,6 +11,9 @@
   ASIAFC / TUCL 账套如此）→ 停下让人在提交时的弹窗里选一次（``account``，主题 ``stock:<单别>``）。旧版 CC 桌面版不报 ``stock_books``，
   不核，照旧交给电脑用默认科目。
 - 公司：出入库单没有公司栏，按单头仓库的公司（仓库属于公司）。
+- 调拨（多仓闭环 P2）→ 原生仓间调拨 RL（`2026-10-25-express-native-rules.md` 4.6 / 4.6b）：行上带调出仓码 ``loccod``，单头另带
+  调入仓码 ``to_loccod``；两个仓都要有 Express 仓库码，否则停下交人（同 G15）。RL 不带价、不过账，不问科目；只核这份账套有 RL
+  单据簿（CC 桌面版报了 RL 才核，旧版没报的交给电脑，电脑没有回 ``JOURNAL_BOOK_NOT_FOUND``）。载荷盖调拨的版本，旧版诚实拒收。
 """
 import frappe
 
@@ -21,7 +24,9 @@ from pearnly_erp_portal.express import choices, contracts, facts, target
 
 DOCTYPE = "ERP Stock Entry"
 PAYLOAD_VERSION = 6
-ISSUE, ADJUST, COUNT = "OU", "JU", "TK"
+# 调拨 RL 与作废 RL：CC 桌面版认得 RL 起的版本（合入时取 main 上当时最大的载荷版本 + 1，见 companion payload_contract）
+TRANSFER_PAYLOAD_VERSION = 14
+ISSUE, ADJUST, COUNT, TRANSFER = "OU", "JU", "TK", "RL"
 COUNT_REF = "count"
 COUNT_DOCTYPE = "ERP Stock Count"
 # 采购自动入库：那张采购单已带库存行写进去；盘点生成的出入库单：按整份盘点轧差写一张 TK（`count_document`），不逐张写
@@ -46,6 +51,8 @@ def eligible(row) -> bool:
 def kind(row) -> str:
     if (row.get("ref_type") or "") == COUNT_REF:
         return COUNT
+    if row.get("direction") == "transfer":
+        return TRANSFER
     return ISSUE if row.get("direction") == "out" else ADJUST
 
 
@@ -106,9 +113,15 @@ def document(name, ref, base=False) -> dict:
         lines.append(item)
     if doc.warehouse and doc.warehouse not in warehouses:
         warehouses[doc.warehouse] = frappe.db.get_value("ERP Warehouse", doc.warehouse, "express_code") or ""
+    if doctype == TRANSFER:
+        for item in lines:
+            item.pop("unit_cost", None)  # RL 不带价（原生 UNITPR / TRNVAL 全空）
+        warehouses[doc.to_warehouse] = frappe.db.get_value("ERP Warehouse", doc.to_warehouse, "express_code") or ""
     body = {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
             "number": doc.doc_no or doc.name, "remark": str(doc.reason or "").strip(),
             "loccod": warehouses.get(doc.warehouse, ""), "lines": lines}
+    if doctype == TRANSFER:
+        body["to_loccod"] = warehouses.get(doc.to_warehouse, "")
     missing = contracts.unmapped(warehouses)
     if missing:
         body["unmapped_warehouses"] = missing  # Express 里没有对应仓库的仓：`push.send` 停下交人（G15）
@@ -170,9 +183,11 @@ def prepare(body, company_row, ensure_masters) -> dict:
         data = facts.load(book["key"])
         if data is None:
             return {"hold": contracts.READING, "book": book}
+    stock_books = (data.get("facts") or {}).get("stock_books") if isinstance(data, dict) else None
+    if body["doctype"] == TRANSFER:
+        return _transfer_payload(body, book, data)
     subject = account_subject(body["doctype"])
     account = choices.chosen(company_row["name"], ACCOUNT, subject)
-    stock_books = (data.get("facts") or {}).get("stock_books") if isinstance(data, dict) else None
     if isinstance(stock_books, dict) and stock_books and body["doctype"] not in stock_books:
         # 这份账套没有这个单别的单据簿（ISRUN）：选科目也写不进去，直接停下说明（1.12.3 起 CC 桌面版才区分得出）
         return {"hold": contracts.NO_STOCK_BOOK, "book": book}
@@ -196,6 +211,24 @@ def prepare(body, company_row, ensure_masters) -> dict:
     }
     if account:
         payload["account"] = account
+    return {"payload": payload, "book": book}
+
+
+def _transfer_payload(body, book, data) -> dict:
+    """调拨 RL 的载荷：不过账、不问科目。CC 桌面版报过核了哪些单别（``stock_books_checked``）且里面有 RL、这份账套却没有 RL 簿
+    → 停下说明；旧版没报的照旧交给电脑核。"""
+    facts_ = (data.get("facts") or {}) if isinstance(data, dict) else {}
+    checked = facts_.get("stock_books_checked")
+    if isinstance(checked, list) and TRANSFER in checked and TRANSFER not in (facts_.get("stock_books") or {}):
+        return {"hold": contracts.NO_STOCK_BOOK, "book": book}
+    path = book["path"]
+    payload = {
+        "payload_version": TRANSFER_PAYLOAD_VERSION, "direction": "stock", "doctype": TRANSFER,
+        "docdate_be": be_date(body["date"]), "ref_no": str(body["number"])[:15], "remark": body["remark"][:50],
+        "loccod": body["loccod"], "to_loccod": body.get("to_loccod") or "", "items": body["lines"],
+        "account_root": book.get("root") or "", "account_dir": path, "account_company": book.get("company") or "",
+        "account_set_row": 0, "account_set": wire_account_set(path, path), "respect_period_lock": True,
+    }
     return {"payload": payload, "book": book}
 
 
@@ -223,7 +256,9 @@ def void_payload(name, company_row) -> dict:
              for seq, line in enumerate(body["lines"], start=1)]
     path = book["path"]
     payload = {
-        "payload_version": VOID_PAYLOAD_VERSION, "direction": "stock", "action": "void", "doctype": body["doctype"],
+        # 作废 RL 要认得 RL 的电脑（调拨的版本）；其余照旧 8
+        "payload_version": TRANSFER_PAYLOAD_VERSION if body["doctype"] == TRANSFER else VOID_PAYLOAD_VERSION,
+        "direction": "stock", "action": "void", "doctype": body["doctype"],
         "docnum": doc.express_docnum, "items": items,
         "account_root": book.get("root") or "", "account_dir": path, "account_company": book.get("company") or "",
         "account_set_row": 0, "account_set": wire_account_set(path, path), "respect_period_lock": True,
@@ -234,11 +269,12 @@ def void_payload(name, company_row) -> dict:
 def form_body(payload) -> dict:
     """出入库单表单此刻的内容（还没存）→ :func:`prepare` 要的单（提交前问要人定的项用，`api.preflight`）。只看单别与日期：
     要问的只有科目，与明细无关。"""
-    direction = "out" if str(payload.get("direction") or "") == "out" else "in"
+    direction = str(payload.get("direction") or "")
+    direction = direction if direction in ("out", "transfer") else "in"
     return {"ref": "preflight", "direction": "stock", "doctype": kind({"direction": direction}),
             "date": str(payload.get("posting_date") or frappe.utils.nowdate()), "number": "-", "remark": "",
             "loccod": "", "lines": []}
 
 
-__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "ISSUE", "VOID_REQUEST", "account_subject", "company_of",
+__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "ISSUE", "TRANSFER", "TRANSFER_PAYLOAD_VERSION", "VOID_REQUEST", "account_subject", "company_of",
            "count_document", "document", "eligible", "form_body", "kind", "prepare", "void_payload"]

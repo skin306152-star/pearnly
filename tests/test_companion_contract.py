@@ -734,6 +734,19 @@ class PosPayload(unittest.TestCase):
         self.assertEqual(server, 3)
         self.assertIn(server, helper)
 
+    def test_the_stock_transfer_version_and_keys_match(self):
+        """调拨 RL（多仓闭环 P2）：ERP 盖的版本 CC 认得；单别、调入仓键两边同名；CC 主档报 RL 单据簿与核过的单别。"""
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
+        self.assertIn(_literal(erp / "stock_entry.py", "TRANSFER_PAYLOAD_VERSION"),
+                      _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertEqual(_literal(erp / "stock_entry.py", "TRANSFER_PAYLOAD_VERSION") > 12, True)
+        self.assertEqual(_literal(COMPANION / "dbf_transfer.py", "TRANSFER"), "RL")
+        for path in (erp / "stock_entry.py", COMPANION / "dbf_transfer.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "to_loccod"), path)
+        for path in (erp / "stock_entry.py", COMPANION / "express_masters.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "stock_books_checked"), path)
+        self.assertIn('"RL"', (COMPANION / "worker.py").read_text(encoding="utf-8"))
+
     def test_the_vat_fields_version_and_key_match(self):
         """载荷 9（ERP 收银日汇总混有免税商品，主会话 10-26）：服务端带 `vat_fields` 时盖的版本 CC 认得、键两边同名。"""
         erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"

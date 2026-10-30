@@ -795,8 +795,9 @@ frappe.provide("frappe.pearnly.pos_next");
 				const payments = (doc.payments || [])
 					.filter(row => flt(row.amount))
 					.map(row => ({ method: method_key(row.mode_of_payment), amount: flt(row.amount) }));
-				// 按台管理的商品：完成订单前逐行选这台收银机的仓在库的台（扫车身二维码；取消就不落单）
-				if (!await p.serials.collect(lines, { mode: "pick" })) return;
+				// 按台管理的商品：完成订单前逐行选这台收银机的仓在库的台（扫车身二维码；取消就不落单；G17 下拉只出这个仓的台）
+				if (!await p.serials.collect(lines, { mode: "pick",
+					filters: this.settings?.warehouse ? { warehouse: this.settings.warehouse } : {} })) return;
 				frappe.dom.freeze();
 				try {
 					const result = await p.call(api + "api_create_sale", {

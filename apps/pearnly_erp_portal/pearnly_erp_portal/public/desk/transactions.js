@@ -23,13 +23,14 @@
 			return result?.warehouse || "";
 		},
 		// 两格官方控件：仓库 Link（只列当前公司启用的仓）、库位（能改时 Autocomplete，按这个仓的清单取；只读时文字）
-		// `current()`：单头仓库此刻的值（库位清单按它取）
-		fields({ labels, editable = true, reqd = false, warehouse, location, current, onchange, depends_on } = {}) {
+		// `current()`：单头仓库此刻的值（库位清单按它取）；`keys`：两格的字段名（调拨的调入仓 / 库位用 to_warehouse / to_location）
+		fields({ labels, editable = true, reqd = false, warehouse, location, current, onchange, depends_on,
+			keys = { warehouse: "warehouse", location: "location" } } = {}) {
 			return [
-				{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse", label: labels.warehouse,
+				{ fieldtype: "Link", options: "ERP Warehouse", fieldname: keys.warehouse, label: labels.warehouse,
 					get_query: p.warehouse_query(), only_select: true, reqd: reqd ? 1 : 0, default: warehouse || "",
 					read_only: editable ? 0 : 1, depends_on, onchange: () => onchange?.("warehouse") },
-				{ fieldtype: editable ? "Autocomplete" : "Data", fieldname: "location", label: labels.location,
+				{ fieldtype: editable ? "Autocomplete" : "Data", fieldname: keys.location, label: labels.location,
 					default: location || "", read_only: editable ? 0 : 1, depends_on,
 					get_query: p.location_query(() => current?.()), onchange: () => onchange?.("location") },
 			];
@@ -52,8 +53,8 @@
 		// 单头两格接到明细行：`form` 是单头所在的表单，`rows()` 回此刻的明细行（[{get, set}]）。两格的 onchange 调 `changed(格名)`；
 		// 换了仓，单头库位清空（库位清单按仓）。`live: false`：表单还要整批填值（打开已有的单），填完调 `sync()` 才开始跟——
 		// 否则填值时触发的 onchange 会把刚填进来的单头库位当成「换了仓」清掉。
-		track(form, rows, { live = true } = {}) {
-			const read = () => ({ warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "" });
+		track(form, rows, { live = true, keys = { warehouse: "warehouse", location: "location" } } = {}) {
+			const read = () => ({ warehouse: form.get_value(keys.warehouse) || "", location: form.get_value(keys.location) || "" });
 			let last = read(), started = live;
 			return {
 				sync() { last = read(); started = true; },
@@ -65,7 +66,7 @@
 					const before = last;
 					last = now;
 					p.place.follow(rows(), before, now);
-					if (key === "warehouse" && read().location) await form.set_value("location", "");
+					if (key === "warehouse" && read().location) await form.set_value(keys.location, "");
 				},
 			};
 		},
@@ -318,7 +319,8 @@
 		async texts() { return p.texts("trade."); },
 		// `locked_price`：只锁单价那一格，其余照常能编 —— 出库就是这样（成本由服务端按
 		// 当前结存算，界面上看得到、改不了）；整表 `readonly` 是另一回事（只读查看）。
-		lines(t, { cost = false, stock = false, readonly = false, locked_price = false,
+		// `to_location`：调拨单多一列调入库位（只读查看用）
+		lines(t, { cost = false, stock = false, readonly = false, locked_price = false, to_location = false,
 			data = [], onChange = () => {} } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
 			return {
@@ -348,6 +350,8 @@
 					// 只读的表（已提交的单、小票详情）用原生只读文字：只读的 Autocomplete 不建选项列表，赋值时框架校验会报错
 					{ fieldtype: readonly ? "Data" : "Autocomplete", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2,
 						get_query: p.location_query() },
+					...(to_location ? [{ fieldtype: "Data", fieldname: "to_location", label: t("trade.toLocation"), in_list_view: 1,
+						columns: 2 }] : []),
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1, in_list_view: 1, columns: 1, formatter: value => p.number(value) },
 					{ fieldtype: "Currency", fieldname: price, options: "currency", formatter: value => p.money(value), label: t(cost ? "trade.cost" : "trade.price"), in_list_view: 1, columns: 2 },
 					{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
@@ -374,7 +378,7 @@
 			const kept = (lines || []).filter(row => row
 				&& (String(row.product || "").trim() || String(row.description || "").trim()));
 			return kept.map(row => Object.fromEntries([
-				"product", "warehouse", "location", "description", "qty", "unit", "unit_price",
+				"product", "warehouse", "location", "to_location", "description", "qty", "unit", "unit_price",
 				"unit_cost", "discount", "vat_rate", "original_line", "serials",
 			].filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 		},
@@ -390,11 +394,14 @@
 		// 也就是行里要看得到仓库（一眼知道这行进哪个仓），但它跟表头是**同一件事**：只读显示，
 		// 表头一变所有行跟着变。服务端口径也是这样（`inventory/positions.py::prepare`：
 		// `line.warehouse || doc.warehouse`，两个都没写时只认「这家公司只有一个仓」，多仓报错让人选，多仓闭环 P1）。
-		lines_editor(t, { cost = false, locked_price = false, data = [], warehouse, location } = {}) {
+		// `to_warehouse` / `to_location`：调拨单（多仓闭环 P2）——每行多一格调入库位，按单头调入仓的清单选，新行默认单头调入库位
+		lines_editor(t, { cost = false, locked_price = false, data = [], warehouse, location, to_warehouse, to_location } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
 			const host = $("<div class='pearnly-line-editor'></div>");
 			const lines = [];
-			const field_names = ["product", "internal_code", "warehouse", "location", "qty", price, "description", "unit", "currency"];
+			const transfer = typeof to_warehouse === "function";
+			const field_names = ["product", "internal_code", "warehouse", "location", ...(transfer ? ["to_location"] : []),
+				"qty", price, "description", "unit", "currency"];
 			const any = value => String(value ?? "").trim();
 			// 表头那个仓库的现值（由调用方给；行里的镜像和新建的行都用它）。
 			const head_warehouse = () => (typeof warehouse === "function" ? warehouse() || "" : "");
@@ -422,8 +429,10 @@
 					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
 						fieldname: "warehouse", label: t("trade.warehouse") },
 					{ fieldtype: "Column Break" },
-					{ fieldtype: "Autocomplete", fieldname: "location", label: t("trade.location"),
+					{ fieldtype: "Autocomplete", fieldname: "location", label: t(transfer ? "trade.fromLocation" : "trade.location"),
 						get_query: p.location_query(() => head_warehouse()) },
+					...(transfer ? [{ fieldtype: "Autocomplete", fieldname: "to_location", label: t("trade.toLocation"),
+						get_query: p.location_query(() => to_warehouse() || "") }] : []),
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1,
 						precision: 3, formatter: value => p.number(value) },
 					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit") },
@@ -496,6 +505,7 @@
 				// 先铺值再放开 onchange：初始化时别把"带出来的"值又算一遍。
 				// 行里的仓库永远是**表头那一个**（旧行自带的仓库不覆盖它 —— 那是老表格的遗留）。
 				void line.form.set_values({ qty: 1, currency: "THB", ...(values.location === undefined ? { location: head_location() } : {}),
+					...(transfer && values.to_location === undefined ? { to_location: (to_location?.() || "") } : {}),
 					...values, warehouse: head_warehouse() }).then(() => {
 					line.ready = true;
 					// 只有**最后那一条**默认展开：铺一叠草稿行时不会一串全开着（前面几条在
@@ -509,6 +519,11 @@
 				// 交给 `p.place.track`：表头的仓库 / 库位一变，行里的仓库跟着变（那格是表头的镜像），库位还跟着表头的行一起换。
 				rows() {
 					return lines.map(line => ({ get: key => line.form.get_value(key), set: values => line.form.set_values(values) }));
+				},
+				// 调拨的调入一侧交给第二个 `p.place.track`：行上没有调入仓（就是单头那一个），只跟调入库位
+				to_rows() {
+					return lines.map(line => ({ get: key => (key === "location" ? line.form.get_value("to_location") : ""),
+						set: values => ("location" in values ? line.form.set_value("to_location", values.location) : null) }));
 				},
 				// 交回明细：默认**校验**（必填没填会就地标红并展开那一段，同时返回 null 让调用方别提交）；
 				// `check: false` 是"搬家"（弹窗→整页）用的，只取值不拦人。

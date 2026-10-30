@@ -38,7 +38,7 @@ class NativeDeskContract(unittest.TestCase):
         # Cowork 8 项（用户 2026-09-26）：录入工作台、三个对账中心、库存盘点、工作协调 + 首页、团队管理；
         # 识别记录、推送日志、客户、公司资料、集成、使用教程不做。
         # ERP 2026-10-23 加任务管理（看板，从 Cowork 复制），20 项；2026-10-27 删「采购设置」「集成」两页（用户：「是不要的」），18 项。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,18])
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,8,19])  # ERP 多仓闭环 P2 加「调拨」
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -98,7 +98,7 @@ class NativeDeskContract(unittest.TestCase):
         # 收银那几个入口与公司页都是前面几批加的，这里补上，别让清单停在旧版本。
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
-            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
+            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-transfer', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
             'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
             # Cowork 库存盘点（上传盘点，2026-09-26）。

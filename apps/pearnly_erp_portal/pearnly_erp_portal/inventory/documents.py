@@ -15,8 +15,13 @@ NOT_FOUND = "Stock entry not found"
 LINES_REQUIRED = "Provide at least one line item"
 BAD_TRANSITION = "This status change is not allowed"
 LOCKED = "A submitted entry cannot be changed"
+SAME_WAREHOUSE = "The destination warehouse must differ from the source warehouse"
+TO_WAREHOUSE_REQUIRED = "Pick a destination warehouse"
 
-LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "supplier", "doc_no",
+TRANSFER = "transfer"  # 调拨：出入库单第三个方向（多仓闭环 P2，同公司两仓之间，一出一进、成本随货走）
+DIRECTIONS = ("in", "out", TRANSFER)
+
+LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "to_warehouse", "supplier", "doc_no",
                "status", "purpose", "reason", "ref_type", "ref_id", "submitted_at", "express_state", "express_docnum",
                "express_void_state")
 
@@ -61,9 +66,33 @@ def _business_lines(lines) -> list:
     return kept
 
 
+def _destination(warehouse, to_warehouse, to_location, company) -> dict:
+    """调拨的调入仓与单头调入库位：必须是同一家公司启用的另一个仓（同仓不同库位不是仓间调拨，本期不开）；调入库位按调入仓的清单核。"""
+    if not str(to_warehouse or "").strip():
+        frappe.throw(_(TO_WAREHOUSE_REQUIRED))
+    to_warehouse = warehouses.required(to_warehouse, company=company)
+    if to_warehouse == warehouse:
+        frappe.throw(_(SAME_WAREHOUSE))
+    return positions.header(to_warehouse, to_location, company=company)
+
+
+def _transfer_lines(lines, to_location, to_warehouse):
+    """明细行的调入库位：行上写了用行上的，没写用单头的；按调入仓的清单核。"""
+    for line, raw in lines:
+        place = raw.get("to_location") if "to_location" in raw else to_location
+        line["to_location"] = positions.check(to_warehouse, place)
+    return [line for line, _raw in lines]
+
+
+def _line_row(line) -> dict:
+    return {"product": line["product"], "qty": line["qty"], "unit": line.get("unit"), "unit_cost": line.get("unit_cost"),
+            "warehouse": line["warehouse"], "location": line["location"], "to_location": line.get("to_location") or ""}
+
+
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
                  reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False,
-                 commit=True, numbering_direction=None, purpose=None, location=None):
+                 commit=True, numbering_direction=None, purpose=None, location=None,
+                 to_warehouse=None, to_location=None):
     """建一张入库/出库单据；`submit=True` 时同一事务里过账。
 
     `commit=True`（默认）在建单/过账后提交事务。**盘点过账**要"整批一个事务"，
@@ -74,18 +103,25 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     方向），但号是盘点那一段，与 MR.ERP"调整是第三个模块、有自己的编号定义"一致。
     """
     guard.require("count.write" if numbering_direction == "stocktake" else "stock." + str(direction))
-    if direction not in ("in", "out"):
-        frappe.throw(_("Direction must be in or out"))
+    if direction not in DIRECTIONS:
+        frappe.throw(_("Invalid value"))
     # 顺序要紧：**先把这张单的仓定死，再铺行** —— 行上没写仓时跟着单据走，
     # 不会各行一个仓（以前 `prepare` 会回落商品的"默认仓"，单据与行就会各说各话）。
     # 单据也没写仓时只认「这家公司只有一个仓」，多个仓报错让人选（`warehouses.receiving`，多仓闭环 P1 不再落卖货仓）。
     warehouse = warehouses.receiving(warehouse)
     company = warehouses.company_of(warehouse)
+    transfer = direction == TRANSFER
+    destination = _destination(warehouse, to_warehouse, to_location, company) if transfer else {"warehouse": None, "location": ""}
     if not ref_type:  # 人建的出入库单（盘点轧差、采购入库等系统单不算）：下次预填本人上次选的仓（多仓闭环 P1，问 2）
-        warehouses.remember("stock_" + direction, warehouse, company)
+        warehouses.remember(TRANSFER if transfer else "stock_" + direction, warehouse, company)
     # 单头库位（多仓闭环 P1 单头「仓库 + 库位」）：行上没写库位的用它
     location = positions.header(warehouse, location, company=company)["location"]
-    lines = [positions.prepare(line, warehouse, company=company, location=location) for line in _business_lines(lines)]
+    raw = _business_lines(lines)
+    if transfer:  # 调拨的明细行都在单头的调出仓（行上不另写仓）
+        raw = [{**line, "warehouse": warehouse} for line in raw]
+    lines = [positions.prepare(line, warehouse, company=company, location=location) for line in raw]
+    if transfer:
+        lines = _transfer_lines(list(zip(lines, raw)), destination["location"], destination["warehouse"])
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
     # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
@@ -93,14 +129,12 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
                                 exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"doc_no": value})))
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,
-        "warehouse": warehouse, "location": location, "supplier": supplier, "doc_no": doc_no, "reason": reason,
-        "purpose": _purpose(direction, purpose),
+        "warehouse": warehouse, "location": location, "to_warehouse": destination["warehouse"],
+        "to_location": destination["location"], "supplier": None if transfer else supplier, "doc_no": doc_no,
+        "reason": reason, "purpose": _purpose(direction, purpose),
         "ref_type": ref_type, "ref_id": ref_id, "dedupe_key": dedupe_key, "status": "draft",
-        "lines": [{
-            "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
-            "unit_cost": line.get("unit_cost"),
-            "warehouse": line["warehouse"], "location": line["location"],
-        } for line in lines],
+        # 调拨不带单价（调出按调出位置均价、调入随调出，过账时算）
+        "lines": [{**_line_row(line), **({"unit_cost": None} if transfer else {})} for line in lines],
     })
     serials.set_doc_serials(doc, lines)  # 按台管理的商品：这一行登记 / 选中的台（`inventory.serials`）
     access.write_entry(doc, "insert")
@@ -127,7 +161,7 @@ SORT_FIELDS = {
 
 def _entry_filters(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None) -> dict:
     guard.require("stock.read")
-    allowed = [key for key in ("in", "out") if guard.has("stock." + key)]
+    allowed = [key for key in DIRECTIONS if guard.has("stock." + key)]
     if direction:
         guard.require("stock." + direction)
     elif not allowed:
@@ -162,10 +196,12 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
                                                      "posting_date desc, creation desc"),
                            limit_start=int(start), limit_page_length=int(limit))
     # 列表的「仓库」一栏显示仓库名（录制问题 #16：只给了仓库编号，那一栏一直是空的）。
-    names = dict(frappe.get_all("ERP Warehouse", filters={"name": ["in", [r.warehouse for r in rows] or [""]]},
+    places = {r.warehouse for r in rows} | {r.to_warehouse for r in rows if r.to_warehouse}
+    names = dict(frappe.get_all("ERP Warehouse", filters={"name": ["in", list(places) or [""]]},
                                 fields=["name", "warehouse_name"], as_list=True))
     for row in rows:
         row["warehouse_name"] = names.get(row.warehouse) or row.warehouse
+        row["to_warehouse_name"] = (names.get(row.to_warehouse) or row.to_warehouse) if row.to_warehouse else ""
     return _shown_reasons(rows)
 
 
@@ -195,6 +231,9 @@ def get_entry(name):
     company = warehouses.company_of(doc.warehouse)
     data = _shown_reasons([{field: doc.get(field) for field in LIST_FIELDS}])[0]
     data["location"] = doc.get("location") or ""
+    data["to_location"] = doc.get("to_location") or ""
+    if doc.get("to_warehouse"):
+        data["to_warehouse_name"] = frappe.db.get_value("ERP Warehouse", doc.to_warehouse, "warehouse_name") or doc.to_warehouse
     units = serials.line_serials(doc)
     # 明细带上品名与内部编码（收发货页显示内部编码，10-29）；只取这张单的商品
     names = sorted({row.product for row in doc.get("lines") or [] if row.product})
@@ -205,7 +244,7 @@ def get_entry(name):
         {"product": row.product, "qty": row.qty, "unit": row.unit,
          "product_name": (shown.get(row.product) or {}).get("product_name") or "",
          "internal_code": (shown.get(row.product) or {}).get("internal_code") or "",
-         "unit_cost": row.unit_cost, "serials": units.get(row.idx, []),
+         "unit_cost": row.unit_cost, "serials": units.get(row.idx, []), "to_location": row.get("to_location") or "",
          **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []
     ]
@@ -233,16 +272,25 @@ def update_entry(name, **changes):
         moved = "warehouse" in changes and "location" not in changes and doc.warehouse != before
         doc.location = positions.header(doc.warehouse, "" if moved else changes.get("location", doc.get("location")),
                                         company=company)["location"]
+    transfer = doc.direction == TRANSFER
+    if transfer and ({"warehouse", "to_warehouse", "to_location"} & set(changes)):
+        moved = "to_warehouse" in changes and "to_location" not in changes and changes["to_warehouse"] != doc.to_warehouse
+        destination = _destination(doc.warehouse, changes.get("to_warehouse", doc.to_warehouse),
+                                   "" if moved else changes.get("to_location", doc.get("to_location")), company)
+        doc.to_warehouse, doc.to_location = destination["warehouse"], destination["location"]
+    if transfer and "warehouse" in changes and "lines" not in changes:
+        changes["lines"] = [{"product": row.product, "qty": row.qty, "unit": row.unit, "to_location": row.to_location or ""}
+                            for row in doc.lines]  # 换了调出仓：行跟着单头仓重铺
     if "lines" in changes:
-        lines = _business_lines(changes["lines"])
+        raw = _business_lines(changes["lines"])
+        if transfer:
+            raw = [{**line, "warehouse": doc.warehouse} for line in raw]
+        lines = [positions.prepare(line, doc.warehouse, company=company, location=doc.get("location")) for line in raw]
+        if transfer:
+            lines = _transfer_lines(list(zip(lines, raw)), doc.get("to_location"), doc.to_warehouse)
         doc.lines = []
         for line in lines:
-            line = positions.prepare(line, doc.warehouse, company=company, location=doc.get("location"))
-            doc.append("lines", {
-                "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
-                "unit_cost": line.get("unit_cost"),
-                "warehouse": line["warehouse"], "location": line["location"],
-            })
+            doc.append("lines", {**_line_row(line), **({"unit_cost": None} if transfer else {})})
         serials.set_doc_serials(doc, lines)
     access.write_entry(doc, "save")
     if _posting_now(submit):
@@ -264,9 +312,19 @@ def _post(doc) -> dict:
 
     流水幂等锚是单据名，所以重复提交不会记两次。
     """
-    movement_type = _movement_type(doc)
     company = warehouses.company_of(doc.warehouse)
     units = serials.line_serials(doc)
+    if doc.direction == TRANSFER:
+        # 调拨：一出一进同一个事务（`stock.apply_transfer`）；调入仓在建单时已核过同公司、不同仓
+        result = stock.apply_transfer(
+            warehouse=doc.warehouse, to_warehouse=doc.to_warehouse,
+            lines=[{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
+                    **positions.saved(row, doc.warehouse, company=company), "to_location": row.get("to_location") or ""}
+                   for row in doc.lines],
+            posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,
+            doc_no=doc.doc_no, reason=doc.reason, client_uuid=f"stock-entry:{doc.name}", company=company)
+        return _posted(doc, result)
+    movement_type = _movement_type(doc)
     result = stock.apply_lines(
         warehouse=doc.warehouse, movement_type=movement_type,
         lines=[{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
@@ -275,10 +333,14 @@ def _post(doc) -> dict:
         ref_id=doc.name, doc_no=doc.doc_no, reason=doc.reason,
         client_uuid=f"stock-entry:{doc.name}", internal=True, company=company,
     )
+    return _posted(doc, result)
+
+
+def _posted(doc, result) -> dict:
     doc.status = "submitted"
     doc.submitted_at = now()
     access.write_entry(doc, "save")
-    # 接了 Express 的公司：提交后写进事务所的账本（出库 → 领用 OU、入库 → 调整 JU、盘点 → TK；采购自动入库不写，见 express.stock_entry）
+    # 接了 Express 的公司：提交后写进事务所的账本（出库 → 领用 OU、入库 → 调整 JU、盘点 → TK、调拨 → RL；采购自动入库不写，见 express.stock_entry）
     from pearnly_erp_portal.express import push as express_push
 
     express_push.queue(DOCTYPE, doc.name)

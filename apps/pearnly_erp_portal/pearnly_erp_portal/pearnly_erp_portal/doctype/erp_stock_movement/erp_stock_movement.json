@@ -46,7 +46,7 @@
    "label": "Type",
    "reqd": 1,
    "in_list_view": 1,
-   "options": "opening\npurchase_in\nsale_out\nstock_in\nstock_out\nadjust\ncount"
+   "options": "opening\npurchase_in\nsale_out\nstock_in\nstock_out\nadjust\ncount\ntransfer_out\ntransfer_in"
   },
   {
    "fieldname": "product",
@@ -165,7 +165,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-30 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Movement",
  "owner": "Administrator",

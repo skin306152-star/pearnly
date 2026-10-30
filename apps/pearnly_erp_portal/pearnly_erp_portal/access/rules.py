@@ -102,6 +102,7 @@ def required_roles(capability: str) -> tuple[str, ...]:
         return COMPANY_MANAGE_ROLES
     aliases = {"suppliers.read": "purchase.read", "suppliers.write": "purchase.write",
                "inventory.read": "stock.read", "stock.in": "stock.write", "stock.out": "stock.write",
+               "stock.transfer": "stock.write",
                "count.read": "stock.read", "count.write": "stock.write", "report.read": "stock.read",
                "report.write": "stock.write", "warehouses.read": "stock.read", "warehouses.manage": "stock.manage",
                "receipts.read": "cashier.read", "receipts.write": "cashier.write", "shifts.read": "cashier.read"}

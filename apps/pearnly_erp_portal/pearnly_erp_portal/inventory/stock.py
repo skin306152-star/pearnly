@@ -100,6 +100,8 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
 
+    `base_unit_cost`：每个**基本单位**的入库成本（调拨调入用调出那一笔的单价，不再按行上单位换算）；给了就不看 `unit_cost`。
+
     `internal=True` 表示这是**另一个域**授权后触发的库存动作（目前是销售与退货）：
     收银员卖货要出货，但那不是在"管理库存"，所以不该要求库存岗位。调用方必须自己已经
     做过权限判断，这里不再重复要 `stock.write` —— 一个用户动作只过一道闸。
@@ -133,7 +135,10 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     base_unit, factor = resolve_factor(product_doc, unit)
     try:
         base_qty = contracts.signed_base(movement_type, qty, factor)
-        cost = None if unit_cost in (None, "") else contracts.d(unit_cost) / factor
+        if base_unit_cost not in (None, ""):
+            cost = contracts.d(base_unit_cost)
+        else:
+            cost = None if unit_cost in (None, "") else contracts.d(unit_cost) / factor
     except ValueError as exc:
         frappe.throw(_(INVALID))  # 细节是内部英文句子，不拼给用户（2026-10-09）
 
@@ -178,7 +183,9 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     doc.insert(ignore_permissions=True)
     _save_balance(product, warehouse, new_balance, location)
     return {"movement": doc.name, "deduped": False, "qty_on_hand": float(new_balance.qty),
-            "unit_cost": None if new_balance.unit is None else float(new_balance.unit)}
+            "unit_cost": None if new_balance.unit is None else float(new_balance.unit),
+            # 这一笔每个基本单位的计价（成本未确立为 None）：调拨调入照它入（`apply_transfer`）
+            "moved_unit_cost": detail["unit_price"]}
 
 
 def lock_products(products):
@@ -229,6 +236,40 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
         movements.append(result["movement"])
         updated.append({"product": line["product"], "warehouse": place["warehouse"],
                         "location": place["location"], "qty_on_hand": result["qty_on_hand"]})
+    return {"movements": movements, "updated": updated, "deduped": False}
+
+
+def apply_transfer(*, warehouse: str, to_warehouse: str, lines, posting_date=None, ref_type=None, ref_id=None,
+                   doc_no=None, reason=None, client_uuid=None, company=None) -> dict:
+    """调拨（多仓闭环 P2）：整单一个事务，每行先从调出仓 / 库位出（``transfer_out``，按那个位置当前均价），再进调入仓 / 库位
+    （``transfer_in``，单价 = 调出那一笔的单价，成本随货走；调出那边成本未确立时不带价，按调入位置现有均价入，再没有就同样未确立，
+    同退货入库口径）。``lines`` 已带调出库位 ``location`` 与调入库位 ``to_location``。按台管理的商品选中的台随行换仓。
+    调用方（出入库单据服务）已经做过权限判断；调入库位的清单在 `apply_movement` 里按调入仓核。"""
+    if not isinstance(lines, list) or not lines:
+        frappe.throw(_("Provide at least one line item"))
+    company = _movement_company(warehouse, company, True)
+    lock_products([line["product"] for line in lines])
+    if client_uuid and frappe.db.exists(MOVEMENT, {"client_uuid": client_uuid}):
+        return {"movements": [], "updated": [], "deduped": True}
+    from pearnly_erp_portal.inventory import serials
+
+    serials.transfer(lines=lines, to_warehouse=to_warehouse, ref_type=ref_type, ref_id=ref_id, company=company,
+                     posting_date=posting_date)
+    movements, updated = [], []
+    common = {"posting_date": posting_date, "ref_type": ref_type, "ref_id": ref_id, "doc_no": doc_no, "reason": reason,
+              "internal": True, "company": company}
+    for index, line in enumerate(lines):
+        out = apply_movement(product=line["product"], warehouse=warehouse, location=line.get("location") or "",
+                             movement_type=contracts.TRANSFER_OUT, qty=line["qty"], unit=line.get("unit"),
+                             client_uuid=client_uuid if index == 0 else None, **common)
+        into = apply_movement(product=line["product"], warehouse=to_warehouse, location=line.get("to_location") or "",
+                              movement_type=contracts.TRANSFER_IN, qty=line["qty"], unit=line.get("unit"),
+                              base_unit_cost=out.get("moved_unit_cost"), **common)
+        movements += [out["movement"], into["movement"]]
+        updated += [{"product": line["product"], "warehouse": warehouse, "location": line.get("location") or "",
+                     "qty_on_hand": out["qty_on_hand"]},
+                    {"product": line["product"], "warehouse": to_warehouse, "location": line.get("to_location") or "",
+                     "qty_on_hand": into["qty_on_hand"]}]
     return {"movements": movements, "updated": updated, "deduped": False}
 
 

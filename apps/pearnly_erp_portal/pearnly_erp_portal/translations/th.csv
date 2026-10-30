@@ -577,6 +577,8 @@ Found {0}. Tap the number to choose:,พบ {0} รายการ กรุณ�
 Found: {0},พบข้อมูล: {0}
 "Free note kept with the collection record (who took the money, reference).",หมายเหตุของรายการรับเงิน (ผู้รับเงิน เลขที่อ้างอิง)
 From Date,จากวันที่
+From Location,ตำแหน่งต้นทาง
+From Warehouse,คลังต้นทาง
 From the document,อ่านจากเอกสาร
 Full Name,ชื่อ-นามสกุล
 Full Screen,เต็มหน้าจอ
@@ -752,6 +754,7 @@ New Purchase Invoice,สร้างใบแจ้งหนี้ซื้อ
 New Sales Document,สร้างเอกสารขาย
 New Stock Issue,สร้างใบจ่ายสินค้า
 New Stock Receipt,สร้างใบรับสินค้า
+New Stock Transfer,สร้างใบโอนย้ายสินค้า
 New Supplier,เพิ่มผู้จำหน่าย
 New code,สร้างรหัสใหม่
 New company,เพิ่มบริษัท
@@ -917,6 +920,7 @@ Phone,โทรศัพท์
 Phone Number,เบอร์โทรศัพท์
 Phones and appliances,มือถือและเครื่องใช้ไฟฟ้า
 Photos,รูปภาพ
+Pick a destination warehouse,กรุณาเลือกคลังปลายทาง
 Pick a line first,กรุณาเลือกรายการก่อน
 Pick a warehouse,กรุณาเลือกคลังสินค้า
 "Pick quantity, discount or price first",กรุณาเลือกจำนวน ส่วนลด หรือราคาก่อน
@@ -1206,6 +1210,7 @@ Stock Account Group,กลุ่มบัญชีสินค้าคงเห
 Stock Posted At,วันเวลาที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
 Stock Token,โทเคนสต็อก
+Stock Transfer,โอนย้ายระหว่างคลัง
 Stock UOM,หน่วยวัดสต็อก
 Stock Value,มูลค่าสต็อก
 Stock changed during counting. Recount the affected products.,สต็อกเปลี่ยนแปลงระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ได้รับผลกระทบใหม่
@@ -1317,6 +1322,7 @@ The company used for new documents and for the company profile page,บริษ
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
 The customer is missing. Choose the customer and submit again.,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 The default board cannot be archived,ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้
+The destination warehouse must differ from the source warehouse,คลังปลายทางต้องไม่ใช่คลังต้นทาง
 The discount exceeds the line amount,ส่วนลดเกินยอดของบรรทัด
 The discount exceeds the total,ส่วนลดเกินยอดรวม
 The document date is invalid. Correct it and submit again.,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
@@ -1447,6 +1453,8 @@ Time,เวลา
 Time left {0},เหลือเวลา {0}
 Title,ชื่อ
 To Date,ถึงวันที่
+To Location,ตำแหน่งปลายทาง
+To Warehouse,คลังปลายทาง
 To do,รอดำเนินการ
 Too many items,รายการมากเกินไป
 Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
@@ -2132,6 +2140,7 @@ member,สมาชิก
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
 nav.stockCount,ตรวจนับสต็อก
+nav.stockTransfer,โอนย้ายระหว่างคลัง
 none,ไม่มี
 opening,ยอดยกมา
 paid,ชำระแล้ว
@@ -2610,6 +2619,8 @@ trade.expectedCash,เงินสดที่ควรมี
 trade.exportNotice,ส่งออก {0} กะแล้ว
 trade.float,เงินสดเริ่มต้น
 trade.from,ตั้งแต่วันที่
+trade.fromLocation,ตำแหน่งต้นทาง
+trade.fromWarehouse,คลังต้นทาง
 trade.gross,ยอดขายรวม
 trade.groupBalance,คงเหลือ
 trade.groupDoc,เอกสาร
@@ -2639,6 +2650,7 @@ trade.newInvoice,บิลใหม่
 trade.newOrder,คำสั่งซื้อใหม่
 trade.newOut,สร้างใบจ่ายสินค้า
 trade.newSale,สร้างเอกสารขาย
+trade.newTransfer,สร้างใบโอนย้ายสินค้า
 trade.noShift,ยังไม่เปิดกะ
 trade.note,หมายเหตุ
 trade.notice.submitted,ยืนยันแล้ว {0}
@@ -2706,6 +2718,8 @@ trade.taxNo,เลขที่ใบกำกับภาษี
 trade.terminal,จุดขาย
 trade.terminalHint,บริษัทที่เป็นเจ้าของจุดขายนี้ และคลังสินค้าที่ใช้จ่ายสินค้าขาย
 trade.to,ถึงวันที่
+trade.toLocation,ตำแหน่งปลายทาง
+trade.toWarehouse,คลังปลายทาง
 trade.total,ยอดรวม
 trade.totalItems,จำนวนชิ้น
 trade.totalRows,รวม · {0} รายการ
@@ -2722,6 +2736,8 @@ trade.walkIn,ลูกค้าทั่วไป
 trade.warehouse,คลังสินค้า
 trade.warehouseHint,มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน
 transfer,โอนเงิน
+transfer_in,โอนเข้า
+transfer_out,โอนออก
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""

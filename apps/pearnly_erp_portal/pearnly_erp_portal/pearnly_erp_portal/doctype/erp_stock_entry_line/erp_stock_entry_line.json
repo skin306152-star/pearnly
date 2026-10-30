@@ -9,7 +9,8 @@
   "unit",
   "unit_cost",
   "warehouse",
-  "location"
+  "location",
+  "to_location"
  ],
  "fields": [
   {
@@ -51,6 +52,11 @@
    "fieldtype": "Data",
    "label": "Location",
    "default": ""
+  },
+  {
+   "fieldname": "to_location",
+   "fieldtype": "Data",
+   "label": "To Location"
   }
  ],
  "index_web_pages_for_search": 0,

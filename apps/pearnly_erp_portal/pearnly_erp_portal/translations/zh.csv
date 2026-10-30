@@ -577,6 +577,8 @@ Found {0}. Tap the number to choose:,找到 {0} 个，请点击序号选择：
 Found: {0},已查到：{0}
 "Free note kept with the collection record (who took the money, reference).",收款记录备注（收款人、参考号）。
 From Date,开始日期
+From Location,调出仓位
+From Warehouse,调出仓库
 From the document,按票面识别
 Full Name,姓名
 Full Screen,全屏
@@ -752,6 +754,7 @@ New Purchase Invoice,新建采购发票
 New Sales Document,新建销售单
 New Stock Issue,新建出库单
 New Stock Receipt,新建入库单
+New Stock Transfer,新建调拨单
 New Supplier,新建供应商
 New code,重新生成
 New company,新建公司
@@ -917,6 +920,7 @@ Phone,电话
 Phone Number,电话号码
 Phones and appliances,手机电器
 Photos,照片
+Pick a destination warehouse,请选择调入仓库
 Pick a line first,请先选择一行
 Pick a warehouse,请选择仓库
 "Pick quantity, discount or price first",请先选择数量、折扣或单价
@@ -1206,6 +1210,7 @@ Stock Account Group,存货科目组
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
 Stock Token,库存令牌
+Stock Transfer,调拨
 Stock UOM,库存单位
 Stock Value,库存金额
 Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的物料。
@@ -1317,6 +1322,7 @@ The company used for new documents and for the company profile page,新建单据
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The customer is missing. Choose the customer and submit again.,缺少客户，请选择客户后重新提交
 The default board cannot be archived,默认看板不能归档
+The destination warehouse must differ from the source warehouse,调入仓库不能与调出仓库相同
 The discount exceeds the line amount,折扣超过该行金额
 The discount exceeds the total,折扣超过合计
 The document date is invalid. Correct it and submit again.,单据日期无效，请修改后重新提交
@@ -1447,6 +1453,8 @@ Time,时间
 Time left {0},剩余 {0}
 Title,标题
 To Date,结束日期
+To Location,调入仓位
+To Warehouse,调入仓库
 To do,待办
 Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
@@ -2132,6 +2140,7 @@ member,成员
 nav.posReceipts,收银记录
 nav.posShifts,班次记录
 nav.stockCount,盘点
+nav.stockTransfer,调拨
 none,无
 opening,期初
 paid,已付款
@@ -2610,6 +2619,8 @@ trade.expectedCash,应有现金
 trade.exportNotice,已导出 {0} 个班次
 trade.float,备用现金
 trade.from,开始日期
+trade.fromLocation,调出仓位
+trade.fromWarehouse,调出仓库
 trade.gross,毛额
 trade.groupBalance,结存
 trade.groupDoc,单据
@@ -2639,6 +2650,7 @@ trade.newInvoice,新单
 trade.newOrder,新订单
 trade.newOut,新建出库单
 trade.newSale,新建销售单
+trade.newTransfer,新建调拨单
 trade.noShift,尚未开班
 trade.note,备注
 trade.notice.submitted,已提交 {0}
@@ -2706,6 +2718,8 @@ trade.taxNo,税务发票号
 trade.terminal,收银台
 trade.terminalHint,收银台所属公司及出货仓库
 trade.to,结束日期
+trade.toLocation,调入仓位
+trade.toWarehouse,调入仓库
 trade.total,总计
 trade.totalItems,总数量
 trade.totalRows,合计 · {0} 条明细
@@ -2722,6 +2736,8 @@ trade.walkIn,散客
 trade.warehouse,仓库
 trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一个仓
 transfer,转账
+transfer_in,调入
+transfer_out,调出
 unpaid,未付款
 void,已作废
 {0} added you to {1},{0} 已将您添加到卡片「{1}」

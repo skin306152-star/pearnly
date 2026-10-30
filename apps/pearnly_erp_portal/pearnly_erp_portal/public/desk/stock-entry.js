@@ -1,4 +1,4 @@
-/* 入库 / 出库（同一份代码，方向不同）。
+/* 入库 / 出库 / 调拨（同一份代码，方向不同；调拨 = 多仓闭环 P2，同公司两仓之间，单头多一组「调入仓库 + 调入库位」）。
  *
  * 两条路（用户 2026-09-22 口径）：
  *   /desk/pearnly-stock-in        列表；点行 = 弹窗查看（已提交的只读）/ 提交（草稿）
@@ -21,12 +21,16 @@
 
 	p.stockEntry = async (page, t, direction, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
-		// 页面名与注册名一致（`pearnly_stock_in.js` / `pearnly_stock_out.js`）。
-		const root = direction === "in" ? "pearnly-stock-in" : "pearnly-stock-out";
+		// 页面名与注册名一致（`pearnly_stock_in.js` / `pearnly_stock_out.js` / `pearnly_stock_transfer.js`）。
+		const transfer = direction === "transfer";
+		const root = { in: "pearnly-stock-in", out: "pearnly-stock-out", transfer: "pearnly-stock-transfer" }[direction];
+		const nav_label = { in: "nav.stockIn", out: "nav.stockOut", transfer: "nav.stockTransfer" }[direction];
+		// 预填本人上次选的仓（`warehouses.prefill` 的单据类型）
+		const prefill_kind = transfer ? "transfer" : `stock_${direction}`;
 		const SECOND = "new";
 		const canWrite = frappe.model.can_write("ERP Stock Entry");
 		const url = (...parts) => p.subroute(root, ...parts);
-		const title_new = () => t(direction === "in" ? "trade.newIn" : "trade.newOut");
+		const title_new = () => t({ in: "trade.newIn", out: "trade.newOut", transfer: "trade.newTransfer" }[direction]);
 		const express_label = state => state ? __({ queued: "Queued", written: "express.state.written", mismatch: "Mismatch",
 			held: "Pending", failed: "Failed" }[state] || state) : "";
 		// 出库不填单价：旧线上出库单是按**结存成本**计价的（`contracts.issue()`），
@@ -60,21 +64,27 @@
 			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
 			// 单头「仓库 + 库位」（多仓闭环 P1，采购 / 销售 / 期初 / 盘点同一套 `p.place`）：表头一改，每一行里那格仓库镜像跟着改，
 			// 库位还跟着表头的行一起换。
-			...p.place.fields({ labels: { warehouse: t("trade.warehouse"), location: t("trade.location") }, editable, reqd: true,
+			...p.place.fields({ labels: transfer ? { warehouse: t("trade.fromWarehouse"), location: t("trade.fromLocation") }
+				: { warehouse: t("trade.warehouse"), location: t("trade.location") }, editable, reqd: true,
 				warehouse: doc.warehouse, location: doc.location, current: () => head?.fields_dict?.warehouse?.get_value(),
 				onchange: key => place?.changed(key) }),
+			// 调拨：调入仓库 + 调入库位（同一家公司的另一个仓；服务端核同公司、不同仓、调入库位在调入仓的清单里）
+			...(transfer ? p.place.fields({ labels: { warehouse: t("trade.toWarehouse"), location: t("trade.toLocation") }, editable,
+				reqd: true, warehouse: doc.to_warehouse, location: doc.to_location,
+				keys: { warehouse: "to_warehouse", location: "to_location" },
+				current: () => head?.fields_dict?.to_warehouse?.get_value(), onchange: key => to_place?.changed(key) }) : []),
 			...(editable
 				// 明细的宿主（HTML 格）与"添加明细"那颗官方按钮：真正的控件由 `mount_lines` 建。
 				? [{ fieldtype: "HTML", fieldname: "lines" },
 					{ fieldtype: "Button", fieldname: "add_line", label: t("trade.action.addLine"),
 						click: () => lines?.add() }]
-				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced,
+				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced, to_location: transfer,
 					data: doc.lines || [] })]),
-			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。
+			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。调拨没有用途。
 			// 只读时官方 Select 显示的是原值（other / internal_use），已提交的单改用文字框显示译文
-			editable ? { fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
+			...(transfer ? [] : [editable ? { fieldtype: "Select", fieldname: "purpose", label: __("stock.purpose.label"),
 				options: [{ value: "", label: "" }, ...purpose_options()], default: doc.purpose || "" }
-				: { fieldtype: "Data", fieldname: "purpose", label: __("stock.purpose.label"), default: purpose_label(doc.purpose) },
+				: { fieldtype: "Data", fieldname: "purpose", label: __("stock.purpose.label"), default: purpose_label(doc.purpose) }]),
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
 				default: doc.reason },
 		].map(field => ({ ...field, read_only: editable ? 0 : 1 }))
@@ -83,26 +93,31 @@
 
 		// 行里的「仓库」= 表头那一个（镜像，只读）；表头的仓库 / 库位一变，行跟着变（`p.place.track` → `lines.follow`）。
 		// 新单的仓按服务端 `warehouses.prefill` 预填（本人上次 → 卖货仓（只给入库）→ 唯一仓 → 空 = 必须选），选物料不再改它。
-		let place = null;
+		let place = null, to_place = null;
 		// 把逐条明细挂到某一处（弹窗 / 整页），并把实例记在闭包上（按钮、取值、搬家都要用）。
 		function mount_lines(container, rows, target) {
 			head = target;
 			const value = key => head?.fields_dict?.[key]?.get_value() || "";
 			lines = p.trade.lines_editor(t, { cost: true, locked_price: !priced, data: rows || [],
-				warehouse: () => value("warehouse"), location: () => value("location") });
+				warehouse: () => value("warehouse"), location: () => value("location"),
+				...(transfer ? { to_warehouse: () => value("to_warehouse"), to_location: () => value("to_location") } : {}) });
 			place = p.place.track(head, () => lines.rows());
+			to_place = transfer ? p.place.track(head, () => lines.to_rows(),
+				{ keys: { warehouse: "to_warehouse", location: "to_location" } }) : null;
 			container.empty().append(lines.host);
 			const initial = (rows && rows.length) ? rows : [{ qty: 1 }];
 			initial.forEach(row => lines.add(row));
 			return lines;
 		}
 
-		// 按台管理的商品提交前逐行登记 / 选台（`p.serials`）：出库选这个仓在库的台，入库「退货」收回已售的台，其余入库登记新台
-		const units = (lines_, values, way) => p.serials.collect(lines_, way === "out"
-			? { mode: "pick", filters: { warehouse: values.warehouse } }
+		// 按台管理的商品提交前逐行登记 / 选台（`p.serials`）：出库、调拨选这个仓（这一行库位）在库的台，入库「退货」收回已售的台，
+		// 其余入库登记新台
+		const units = (lines_, values, way) => p.serials.collect(lines_, way === "out" || way === "transfer"
+			? { mode: "pick", filters: { warehouse: values.warehouse, location: values.location || "" } }
 			: { mode: values.purpose === "return" ? "return" : "register" });
 		const clean = values => ({ posting_date: values.posting_date,
 			warehouse: values.warehouse, location: values.location || "", purpose: values.purpose || "", reason: values.reason,
+			...(transfer ? { to_warehouse: values.to_warehouse, to_location: values.to_location || "" } : {}),
 			lines: p.trade.clean(values.lines) });
 		const PURPOSES = { in: ["return", "other"], out: ["internal_use", "damage", "other"] };
 		// 这页的 `t` 只加载 `trade.` 前缀；用途的词条走原生 `__()`（键名词条同样认得）。
@@ -159,7 +174,7 @@
 					disable_file_browser: true, allow_take_photo: true, allow_toggle_private: false, make_attachments_public: false,
 					allow_toggle_optimize: false, on_success,
 					restrictions: { allowed_file_types: ["image/*", ".pdf"], max_file_size: 20 * 1024 * 1024 } });
-				p.erp_upload_with(uploader, direction === "out" ? "stock_out" : "stock_in", on_success, async () => {
+				p.erp_upload_with(uploader, `stock_${direction}`, on_success, async () => {
 					for (const item of uploader.uploader.files) {
 						if (!item.file_obj || item.shrunk) continue;
 						const smaller = await p.shrink_photo(item.file_obj);
@@ -235,7 +250,8 @@
 					{ fieldname: "doc_no", width: 150, min_width: 128, label: t("trade.docNo"),
 						format: (_value, row) => row.doc_no || row.name },
 					{ fieldname: "posting_date", width: 110, min_width: 96, label: t("trade.date") },
-					{ fieldname: "warehouse_name", width: 150, min_width: 120, label: t("trade.warehouse") },
+					{ fieldname: "warehouse_name", width: 150, min_width: 120, label: t(transfer ? "trade.fromWarehouse" : "trade.warehouse") },
+					...(transfer ? [{ fieldname: "to_warehouse_name", width: 150, min_width: 120, label: t("trade.toWarehouse") }] : []),
 					{ fieldname: "status", width: 90, min_width: 74, label: t("trade.status"), format: value => __(value) },
 					// 备注前面带上用途（五列一屏放得下，不另占一列）。
 					{ fieldname: "reason", width: 210, min_width: 150, label: t("trade.note"),
@@ -254,7 +270,7 @@
 			const doc = name ? await p.call(api + "api_get_stock_entry", { name }) : {};
 			// 草稿（含老数据留下的）可以提交；已提交/已作废只能看。
 			const editable = canWrite && (!name || doc.status === "draft");
-			if (editable && !doc.warehouse) doc.warehouse = await p.place.prefill(`stock_${direction}`);
+			if (editable && !doc.warehouse) doc.warehouse = await p.place.prefill(prefill_kind);
 			const posting_date = doc.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default(doc, posting_date);
 			let d;
@@ -266,7 +282,8 @@
 				fieldtype: "Button", fieldname: "express", label: __("Express"),
 				click: () => p.express("ERP Stock Entry", name, () => list?.reload()) });
 			// 已提交 / 已作废的单能打印：出库 → 领料单、入库 → 收货单（作废单带「已作废」水印）
-			if (name && doc.status !== "draft") fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
+			// 调拨还没有打印格式（没有样板，多仓闭环 P2），不出「打印」
+			if (name && doc.status !== "draft" && !transfer) fields.push({ fieldtype: "Button", fieldname: "print", label: __("Print"),
 				click: () => p.trade.print("ERP Stock Entry", name,
 					doc.direction === "out" ? "Pearnly Goods Issue Slip" : "Pearnly Goods Receipt Note") });
 			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button",
@@ -311,11 +328,11 @@
 		// ── 二级页面：同一套字段摊成整页，提交即过账 ──────────────────────────────
 
 		async function open_new() {
-			p.breadcrumbs({ label: __(direction === "in" ? "nav.stockIn" : "nav.stockOut"),
+			p.breadcrumbs({ label: __(nav_label),
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
 			carry = null;
-			if (!values.warehouse) values.warehouse = await p.place.prefill(`stock_${direction}`);
+			if (!values.warehouse) values.warehouse = await p.place.prefill(prefill_kind);
 			// 带过来的明细行（弹窗里已经填好的那些）原样铺成逐条的小表单。
 			const data = (values.lines?.length ? values.lines : null) || [{ qty: 1 }];
 			const posting_date = values.posting_date || frappe.datetime.get_today();

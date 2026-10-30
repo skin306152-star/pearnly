@@ -18,6 +18,7 @@ from pearnly_erp_portal.access import guard
 
 # 库存单附件（入库 / 出库）、盘点照片（主会话 10-26）同一套上传：按方向要各自的开单能力
 CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write", "stock_in": "stock.in", "stock_out": "stock.out",
+              "stock_transfer": "stock.transfer",
               "stock_count": "count.write"}
 KINDS = {**{suffix: "image" for suffix in IMAGE_EXTENSIONS}, ".pdf": "pdf"}
 MAX_BYTES = 20 * 1024 * 1024  # 与页面上传框的上限一致

@@ -312,6 +312,11 @@ def _handle_dbf_task(
                 from .dbf_void import void_stock_entry
 
                 res = void_stock_entry(payload, st.account_dir, **common)
+            elif direction == "stock" and str(payload.get("doctype") or "").strip().upper() == "RL":
+                # 仓间调拨(多仓闭环 P2):照 Express 原生 RL 写
+                from .dbf_transfer import write_transfer
+
+                res = write_transfer(payload, st.account_dir, **common)
             elif direction == "stock":
                 # 库存单(载荷 6,出入库第一期 B 段):领用 OU / 调整 JU / 盘点 TK
                 from .dbf_stock import write_stock_entry

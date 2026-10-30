@@ -104,6 +104,9 @@ STCRD_POSOPR_ADJUST = "8"
 # 盘点调整 TK：Express 原生「ปรับปรุงยอดสินค้าตามที่ตรวจนับ」写 POSOPR ':'、FLAG 5（实录第 9 条 TK0000001）
 STCRD_POSOPR_COUNT = ":"
 STCRD_FLAG_COUNT = "5"
+# 仓间调拨 RL：每件一对，调出那行 4、调入那行 3（单头 STTRN 也是 4；实录 RL0000001–0000003，4.6 / 4.6b）
+STCRD_POSOPR_TRANSFER_OUT = "4"
+STCRD_POSOPR_TRANSFER_IN = "3"
 # 小助手写入的录入人(USERID / CREBY,C(8))。以前写 BIT9 —— 那是测试机所在事务所的真人账号,别的事务所没有这个人,
 # 在本所又把推送记到一个真人名下。Express 打开账套不拿单据上的用户名去比对用户表(真实账套里大多数单据的录入人
 # 都不在本机用户表,照常打开;2026-10-08 核对),所以写一个固定的、看得出是 Pearnly 写的名字。

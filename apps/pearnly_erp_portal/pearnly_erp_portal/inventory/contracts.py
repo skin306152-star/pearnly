@@ -33,9 +33,12 @@ STOCK_IN = "stock_in"
 STOCK_OUT = "stock_out"
 ADJUST = "adjust"
 COUNT = "count"
+# 调拨（多仓闭环 P2）：同一张单一出一进，调入那一笔按调出那一笔的单价入（成本随货走）
+TRANSFER_OUT = "transfer_out"
+TRANSFER_IN = "transfer_in"
 
-IN_TYPES = (OPENING, PURCHASE_IN, STOCK_IN)
-OUT_TYPES = (SALE_OUT, STOCK_OUT)
+IN_TYPES = (OPENING, PURCHASE_IN, STOCK_IN, TRANSFER_IN)
+OUT_TYPES = (SALE_OUT, STOCK_OUT, TRANSFER_OUT)
 
 MOVEMENT_TYPES = IN_TYPES + OUT_TYPES + (ADJUST, COUNT)
 

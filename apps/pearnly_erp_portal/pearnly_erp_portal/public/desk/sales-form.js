@@ -166,7 +166,9 @@
 				const values = state.values(); if (!values) return;
 				values.lines = u.clean_lines(values.lines);
 				// 按台管理的商品：出库的销售单（收据）逐行选在库的台（`p.serials`；取消就不提交）
-				if ((values.doc_kind || doc.doc_kind) === "receipt" && !(await p.serials.collect(values.lines, {mode: "pick"}))) return;
+				// 选台只出这一行仓（库位）在库的台（G17）；行上没写仓的按单头仓
+				if ((values.doc_kind || doc.doc_kind) === "receipt" && !(await p.serials.collect(values.lines,
+					{mode: "pick", filters: values.warehouse ? {warehouse: values.warehouse, location: values.location || ""} : {}}))) return;
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
 				values.attachments = state.attachments.filter(row => !row.intake);

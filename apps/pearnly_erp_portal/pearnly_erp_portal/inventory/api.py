@@ -91,7 +91,7 @@ def api_next_stock_entry_number(**kwargs):
     填进只读输入框给用户看的。"""
     kwargs = _clean(kwargs)
     # 只给能开出入库单的人（原来没有守卫，任何登录账号能看到各类单据的流水号，10-27 回归基线 B）
-    if not any(guard.has(capability) for capability in ("stock.in", "stock.out", "count.write")):
+    if not any(guard.has(capability) for capability in ("stock.in", "stock.out", "stock.transfer", "count.write")):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return {"doc_no": numbering.preview(direction=kwargs.get("direction"),
                                         on=kwargs.get("posting_date"))}
@@ -118,7 +118,7 @@ def api_update_stock_entry(**kwargs):
 
 
 # ── 出入库单附件（统一原件层；`inventory.attachments`）─────────────────────────────
-_UPLOAD_DIRECTIONS = {"in": "stock_in", "out": "stock_out", "count": "stock_count"}
+_UPLOAD_DIRECTIONS = {"in": "stock_in", "out": "stock_out", "transfer": "stock_transfer", "count": "stock_count"}
 
 
 def _upload_direction(direction):

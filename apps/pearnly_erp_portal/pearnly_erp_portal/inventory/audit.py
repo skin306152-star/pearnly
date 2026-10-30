@@ -137,10 +137,22 @@ def entry_lines_mismatch():
         moved = _rows("""
             SELECT COALESCE(SUM(qty_base), 0) AS qty FROM `tabERP Stock Movement` WHERE ref_id = %(name)s
         """, name=doc["name"])[0]["qty"] or 0
-        signed = moved if doc["direction"] == "in" else -moved
-        if abs(float(lines) - float(signed)) > 0.000001:
+        if doc["direction"] == "transfer":
+            # 调拨一出一进：调入那几笔的数量要等于明细（调出同样多，整单净 0）
+            moved = _rows("""
+                SELECT COALESCE(SUM(qty_base), 0) AS qty FROM `tabERP Stock Movement`
+                WHERE ref_id = %(name)s AND movement_type = 'transfer_in'
+            """, name=doc["name"])[0]["qty"] or 0
+            net = _rows("""
+                SELECT COALESCE(SUM(qty_base), 0) AS qty FROM `tabERP Stock Movement` WHERE ref_id = %(name)s
+                AND movement_type IN ('transfer_in', 'transfer_out')
+            """, name=doc["name"])[0]["qty"] or 0
+            signed = moved if abs(float(net)) <= 0.000001 else None
+        else:
+            signed = moved if doc["direction"] == "in" else -moved
+        if signed is None or abs(float(lines) - float(signed)) > 0.000001:
             broken.append({"name": doc["name"], "doc_no": doc["doc_no"], "direction": doc["direction"],
-                           "lines_qty": float(lines), "movement_qty": float(signed)})
+                           "lines_qty": float(lines), "movement_qty": float(net if signed is None else signed)})
     return broken
 
 

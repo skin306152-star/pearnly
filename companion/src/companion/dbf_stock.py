@@ -100,10 +100,8 @@ def _fit(text: str, width: int) -> str:
     return raw.decode("cp874", "replace").strip()
 
 
-def _validate(payload: Dict[str, Any]) -> Optional[str]:
-    doctype = str(payload.get("doctype") or "").strip().upper()
-    if doctype not in KINDS:
-        return f"doctype {doctype!r} is not OU / JU / TK"
+def _validate_common(payload: Dict[str, Any]) -> Optional[str]:
+    """库存单（含调拨 RL，`dbf_transfer`）共同的形状：单据日期、明细行都有码或品名、成本不为负。"""
     if not str(payload.get("docdate_be") or "").strip().isdigit():
         return "docdate_be missing"
     items = payload.get("items")
@@ -114,11 +112,22 @@ def _validate(payload: Dict[str, Any]) -> Optional[str]:
             return f"line {index} is not an object"
         if not (str(item.get("code") or "").strip() or str(item.get("name") or "").strip()):
             return f"line {index} has neither code nor name"
+        if _dec(item.get("unit_cost")) < 0:
+            return f"line {index} unit_cost is negative"
+    return None
+
+
+def _validate(payload: Dict[str, Any]) -> Optional[str]:
+    doctype = str(payload.get("doctype") or "").strip().upper()
+    if doctype not in KINDS:
+        return f"doctype {doctype!r} is not OU / JU / TK"
+    problem = _validate_common(payload)
+    if problem:
+        return problem
+    for index, item in enumerate(payload["items"], start=1):
         qty = _dec(item.get("qty"))
         if qty == 0 or (doctype == ISSUE and qty < 0):
             return f"line {index} qty {item.get('qty')!r} is not valid for {doctype}"
-        if _dec(item.get("unit_cost")) < 0:
-            return f"line {index} unit_cost is negative"
     return None
 
 

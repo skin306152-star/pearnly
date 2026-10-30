@@ -190,10 +190,14 @@ def _facts(folder: Path) -> dict:
     try:
         # 库存单（载荷 6）三个单别在 ISRUN 里的默认科目：ERP 据此判要不要先让人选一次科目（这一行没有或几行不同 → 空）
         from .dbf_stock import KINDS, book_row
+        from . import dbf_transfer
 
         # 没有这个单别的单据簿就不报这个键（ERP 据此直接停下说明，不先让人白选一次科目；验收 10-25）
         books = {kind: book_row(folder, kind) for kind in KINDS}
+        books[dbf_transfer.TRANSFER] = dbf_transfer.book_row(folder)  # 调拨 RL 没有科目（多仓闭环 P2）
         facts["stock_books"] = {kind: row.get("account", "") for kind, row in books.items() if row is not None}
+        # 核过哪几个单别：ERP 只对报过的单别据「没有这个键」判没有单据簿（旧版不报 RL，ERP 照旧交给电脑核）
+        facts["stock_books_checked"] = sorted(books)
     except Exception:
         log.info("单据簿读不出（没有 ISRUN？），这份不带库存单默认科目")
     try:

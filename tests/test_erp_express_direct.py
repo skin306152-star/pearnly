@@ -1442,6 +1442,7 @@ class StockEntries(Base):
         self.assertEqual(kind({"direction": "out"}), "OU")
         self.assertEqual(kind({"direction": "in"}), "JU")
         self.assertEqual(kind({"direction": "out", "ref_type": "count"}), "TK")
+        self.assertEqual(kind({"direction": "transfer"}), "RL")
         self.assertTrue(eligible({"status": "submitted", "ref_type": None}))
         self.assertFalse(eligible({"status": "submitted", "ref_type": "purchase"}))  # 采购自动入库：采购单已写进去
         self.assertFalse(eligible({"status": "draft"}))
@@ -1501,6 +1502,47 @@ class StockEntries(Base):
                                   values.get((doctype, name))):
             body = self.stock.document("SE-1", "SE-1@x")
         self.assertEqual(body["unmapped_warehouses"], ["W2"])
+
+    def test_a_transfer_is_a_native_rl_with_both_locations_and_no_cost(self):
+        """多仓闭环 P2：调拨 → RL，行上带调出仓码、单头另带调入仓码、不带价；任一个仓没有 Express 码就列出来停下交人。"""
+        import types
+        lines = [types.SimpleNamespace(product="P1", qty=2, unit="ถุง", unit_cost=None, warehouse="W1")]
+        Doc = type("Doc", (dict,), {"__getattr__": dict.get, "__setattr__": dict.__setitem__})
+        doc = Doc(direction="transfer", ref_type=None, lines=lines, warehouse="W1", to_warehouse="W2",
+                  posting_date="2026-10-30", doc_no="TF2569-000001", name="SE-9", reason="ย้ายไปสาขา")
+        values = {("ERP Product", "P1"): {"product_name": "น้ำแข็ง", "express_code": "ICE-01", "base_unit": "ถุง"},
+                  ("ERP Warehouse", "W1"): "01", ("ERP Warehouse", "W2"): "02"}
+
+        def document():
+            with mock.patch.object(frappe, "get_doc", lambda doctype, name: doc, create=True), \
+                    mock.patch.object(frappe.db, "get_value", lambda doctype, name, fields=None, as_dict=False:
+                                      values.get((doctype, name))):
+                return self.stock.document("SE-9", "SE-9@x")
+
+        self.assertEqual(self.stock.kind({"direction": "transfer"}), "RL")
+        body = document()
+        self.assertEqual((body["doctype"], body["loccod"], body["to_loccod"]), ("RL", "01", "02"))
+        self.assertEqual(body["lines"], [{"code": "ICE-01", "name": "น้ำแข็ง", "qty": "2", "unit": "ถุง", "loccod": "01"}])
+        self.assertNotIn("unmapped_warehouses", body)
+        key = self.computer([book()])[0]
+        self.masters(key)
+        payload = self.stock.prepare(body, COMPANY, lambda company, chosen: None)["payload"]
+        self.assertEqual((payload["payload_version"], payload["doctype"], payload["loccod"], payload["to_loccod"]),
+                         (self.stock.TRANSFER_PAYLOAD_VERSION, "RL", "01", "02"))
+        self.assertNotIn("account", payload)  # RL 不过账，不问科目
+        values[("ERP Warehouse", "W2")] = ""
+        self.assertEqual(document()["unmapped_warehouses"], ["W2"])
+
+    def test_a_transfer_holds_only_when_the_computer_reported_no_rl_book(self):
+        key = self.computer([book()])[0]
+        body = self.body(doctype="RL", to_loccod="02", loccod="01")
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": []},
+                                 "stock_books": {"OU": "53-01"}, "stock_books_checked": ["JU", "OU", "RL", "TK"]})
+        self.assertEqual(self.stock.prepare(body, COMPANY, lambda company, chosen: None)["hold"], E.NO_STOCK_BOOK)
+        # 旧版 CC 没报核过哪些单别：交给电脑核（电脑没有 RL 簿回 JOURNAL_BOOK_NOT_FOUND）
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": []},
+                                 "stock_books": {"OU": "53-01"}})
+        self.assertIn("payload", self.stock.prepare(body, COMPANY, lambda company, chosen: None))
 
     def test_a_stock_entry_with_a_pack_unit_needs_payload_seven(self):
         """验收 10-25：出入库单自己拼载荷，包装单位的行带 factor 时原来仍盖 6，1.12.3 测试包会收下按 1 写。"""

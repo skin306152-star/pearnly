@@ -577,6 +577,8 @@ Found {0}. Tap the number to choose:,Found {0}. Tap the number to choose:
 Found: {0},Found: {0}
 "Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
 From Date,From Date
+From Location,From Location
+From Warehouse,From Warehouse
 From the document,From the document
 Full Name,Full Name
 Full Screen,Full Screen
@@ -752,6 +754,7 @@ New Purchase Invoice,New Purchase Invoice
 New Sales Document,New Sales Document
 New Stock Issue,New Stock Issue
 New Stock Receipt,New Stock Receipt
+New Stock Transfer,New Stock Transfer
 New Supplier,New Supplier
 New code,New code
 New company,New company
@@ -917,6 +920,7 @@ Phone,Phone
 Phone Number,Phone Number
 Phones and appliances,Phones and appliances
 Photos,Photos
+Pick a destination warehouse,Pick a destination warehouse
 Pick a line first,Pick a line first
 Pick a warehouse,Pick a warehouse
 "Pick quantity, discount or price first","Pick quantity, discount or price first"
@@ -1206,6 +1210,7 @@ Stock Account Group,Stock Account Group
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
 Stock Token,Stock Token
+Stock Transfer,Stock Transfer
 Stock UOM,Stock UOM
 Stock Value,Stock Value
 Stock changed during counting. Recount the affected products.,Stock changed during counting. Recount the affected products.
@@ -1317,6 +1322,7 @@ The company used for new documents and for the company profile page,The company 
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The customer is missing. Choose the customer and submit again.,The customer is missing. Choose the customer and submit again.
 The default board cannot be archived,The default board cannot be archived
+The destination warehouse must differ from the source warehouse,The destination warehouse must differ from the source warehouse
 The discount exceeds the line amount,The discount exceeds the line amount
 The discount exceeds the total,The discount exceeds the total
 The document date is invalid. Correct it and submit again.,The document date is invalid. Correct it and submit again.
@@ -1447,6 +1453,8 @@ Time,Time
 Time left {0},Time left {0}
 Title,Title
 To Date,To Date
+To Location,To Location
+To Warehouse,To Warehouse
 To do,To do
 Too many items,Too many items
 Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
@@ -2132,6 +2140,7 @@ member,member
 nav.posReceipts,Cashier Records
 nav.posShifts,Shift Records
 nav.stockCount,Stock count
+nav.stockTransfer,Stock Transfer
 none,none
 opening,opening
 paid,paid
@@ -2610,6 +2619,8 @@ trade.expectedCash,Expected Cash
 trade.exportNotice,Exported {0} shifts
 trade.float,Opening Cash
 trade.from,From Date
+trade.fromLocation,From Location
+trade.fromWarehouse,From Warehouse
 trade.gross,Gross
 trade.groupBalance,Balance
 trade.groupDoc,Document
@@ -2639,6 +2650,7 @@ trade.newInvoice,New Invoice
 trade.newOrder,New Order
 trade.newOut,New Stock Issue
 trade.newSale,New Sales Document
+trade.newTransfer,New Stock Transfer
 trade.noShift,No Open Shift
 trade.note,Note
 trade.notice.submitted,Submitted {0}
@@ -2706,6 +2718,8 @@ trade.taxNo,Tax invoice number
 trade.terminal,Terminal
 trade.terminalHint,"Which company this terminal belongs to, and which warehouse it sells from"
 trade.to,To Date
+trade.toLocation,To Location
+trade.toWarehouse,To Warehouse
 trade.total,Total
 trade.totalItems,Total Items
 trade.totalRows,Total · {0} row(s)
@@ -2722,6 +2736,8 @@ trade.walkIn,Walk-in customer
 trade.warehouse,Warehouse
 trade.warehouseHint,Comes from the terminal; set it there if it is empty
 transfer,transfer
+transfer_in,transfer_in
+transfer_out,transfer_out
 unpaid,unpaid
 void,void
 {0} added you to {1},{0} added you to {1}

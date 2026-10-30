@@ -34,8 +34,11 @@ def test_supported_set_is_v1_to_v11_today():
     # v11(2026-10-26):明细免税行标记 `vat_exempt`、退货块 `cross_year`(实录第 10 条、B3b 实录点 ②)
     # v12(2026-10-29):整单免税的进货单照原生价格类型 1 / 2、写进项税记录(带 `vat_fields` AMT01 0 + AMTRAT0 全额)
     # v13(2026-10-29):进货单带人选的服务品进项税口径 `srv_vattyp`(账套历史定不了时,service_vat)
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
     assert check_payload_version({"payload_version": 13}) is None
+    # v14(2026-10-30):仓间调拨 RL 与作废 RL(dbf_transfer,多仓闭环 P2)
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
+    assert check_payload_version({"payload_version": 14}) is None
+    assert check_payload_version({"payload_version": 12}) is None
     assert check_payload_version({"payload_version": 11}) is None
     assert check_payload_version({"payload_version": 5}) is None
     assert check_payload_version({"payload_version": 2}) is None

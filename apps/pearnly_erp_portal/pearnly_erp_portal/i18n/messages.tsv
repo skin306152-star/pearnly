@@ -1820,3 +1820,13 @@ Reactivated	停用启用	เปิดใช้อีกครั้ง	再有効
 Warehouse code	仓库编号	รหัสคลัง	倉庫コード	company.col.warehouseCode
 Description	说明	คำอธิบาย	説明	stock.location.description
 This warehouse code already exists	仓库编号已存在	รหัสคลังนี้มีอยู่แล้ว	この倉庫コードは既に存在します
+Stock Transfer	调拨	โอนย้ายระหว่างคลัง	倉庫間移動	nav.stockTransfer
+New Stock Transfer	新建调拨单	สร้างใบโอนย้ายสินค้า	移動伝票を作成	trade.newTransfer
+From Warehouse	调出仓库	คลังต้นทาง	移動元倉庫	trade.fromWarehouse
+From Location	调出仓位	ตำแหน่งต้นทาง	移動元保管場所	trade.fromLocation
+To Warehouse	调入仓库	คลังปลายทาง	移動先倉庫	trade.toWarehouse
+To Location	调入仓位	ตำแหน่งปลายทาง	移動先保管場所	trade.toLocation
+transfer_out	调出	โอนออก	移動出庫
+transfer_in	调入	โอนเข้า	移動入庫
+The destination warehouse must differ from the source warehouse	调入仓库不能与调出仓库相同	คลังปลายทางต้องไม่ใช่คลังต้นทาง	移動先倉庫は移動元倉庫と別にしてください
+Pick a destination warehouse	请选择调入仓库	กรุณาเลือกคลังปลายทาง	移動先倉庫を選択してください

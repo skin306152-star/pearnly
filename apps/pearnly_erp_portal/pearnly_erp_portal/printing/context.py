@@ -55,6 +55,8 @@ def _admit(doc):
         _refuse()
     if doc.doctype == SHIFT and doc.status != "closed":
         _refuse()
+    if doc.doctype == STOCK and doc.direction not in ("in", "out"):
+        _refuse()  # 调拨还没有打印格式（没有样板，多仓闭环 P2 评估问 4），不当收货单印
     return doc
 
 

@@ -34,6 +34,7 @@ WHOLE_UNITS = "Quantities of products tracked by unit must be whole numbers in t
 DUPLICATE = "This unit number is already registered"
 NOT_FOUND = "Unit not found"
 NOT_IN_STOCK = "This unit is not in stock in this warehouse"
+TRANSFER_OUT, TRANSFER_IN = "transfer_out", "transfer_in"  # 调拨换仓的两条按台流水（多仓闭环 P2）
 LEFT_ALREADY = "Units already sold or issued cannot be voided with this document"
 OPENING_MISMATCH = "The units must match the stock of each warehouse"
 # 打开按台时别家公司（这个人看不到的）还有没登记的账面：不露那家与仓的名称、数量，合成这一句（主会话 10-26，G17）
@@ -157,7 +158,8 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
                 unit.save(ignore_permissions=True)
                 _event(unit, "return", ref_type, ref_id, posting_date, prev_status=prev)
             else:
-                if unit.status != IN_STOCK or unit.warehouse != line["warehouse"]:
+                # 出台核仓与库位（G17）：台记的位置要等于这一行出货的位置，否则结存与台各在一处
+                if unit.status != IN_STOCK or not _at(unit, line["warehouse"], line.get("location")):
                     frappe.throw(_(NOT_IN_STOCK) + f": {unit.serial_no}")
                 unit.update({"status": SOLD if ref_type in SALE_REFS else ISSUED, "out_ref_type": ref_type,
                              "out_ref": ref_id, "out_date": posting_date or nowdate()})
@@ -165,11 +167,43 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
                 _event(unit, "out", ref_type, ref_id, posting_date, prev_status=IN_STOCK)
 
 
+def _at(unit, warehouse, location) -> bool:
+    return unit.warehouse == warehouse and (unit.location or "") == (location or "")
+
+
+def transfer(*, lines, to_warehouse, ref_type, ref_id, company, posting_date=None):
+    """``stock.apply_transfer`` 在落流水之前调（同一个事务）：开了按台的商品逐行核台数，选中的台必须在这一行的调出仓 / 库位在库，
+    换到调入仓 / 库位（状态仍是在库）；记两条按台流水（调出位置、调入位置），作废时据此退回。"""
+    products = tracked((line.get("product") for line in lines), company)
+    if not products:
+        return
+    seen = set()
+    for line in lines:
+        if line.get("product") not in products:
+            continue
+        entries = [entry for entry in (line.get("serials") or []) if isinstance(entry, dict)]
+        if len(entries) != _base_qty(line):
+            frappe.throw(_(QTY_MISMATCH))
+        for entry in entries:
+            unit = _unit(entry.get("serial"))
+            if unit.name in seen or unit.company != company or unit.product != line["product"]:
+                frappe.throw(_(NOT_FOUND))
+            seen.add(unit.name)
+            if unit.status != IN_STOCK or not _at(unit, line["warehouse"], line.get("location")):
+                frappe.throw(_(NOT_IN_STOCK) + f": {unit.serial_no}")
+            _event(unit, TRANSFER_OUT, ref_type, ref_id, posting_date, prev_status=IN_STOCK)
+            unit.update({"warehouse": to_warehouse, "location": line.get("to_location") or ""})
+            unit.save(ignore_permissions=True)
+            _event(unit, TRANSFER_IN, ref_type, ref_id, posting_date, prev_status=IN_STOCK)
+
+
 def reverse(ref_type, ref_id):
     """``stock.reverse_movements`` 先调：这张单动过的台逐条反向（后动的先回）。"""
     events = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id, "reversed": 0},  # bounded: 一张单的台
                             fields=["name", "serial", "action", "prev_status", "warehouse", "location"],
                             order_by="creation desc", limit_page_length=0)
+    # 调拨：先核每台还在调入位置（`transfer_in`），再退回调出位置（`transfer_out`）——同一时刻写的两条不靠时间先后
+    events.sort(key=lambda event: event.action != TRANSFER_IN)
     for event in events:
         unit = _unit(event.serial)
         if event.action in ("in", "opening"):
@@ -182,6 +216,12 @@ def reverse(ref_type, ref_id):
                 frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
             unit.update({"status": IN_STOCK, "warehouse": event.warehouse, "location": event.location or "",
                          "out_ref_type": None, "out_ref": None, "out_date": None})
+        elif event.action == TRANSFER_IN:
+            # 台已从调入仓卖出 / 出库 / 再调走：先作废后面那张
+            if unit.status != IN_STOCK or not _at(unit, event.warehouse, event.location):
+                frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
+        elif event.action == TRANSFER_OUT:
+            unit.update({"warehouse": event.warehouse, "location": event.location or ""})
         elif event.action == "return":
             if unit.status != IN_STOCK:
                 frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
@@ -193,7 +233,7 @@ def reverse(ref_type, ref_id):
 # ── 认台 ─────────────────────────────────────────────────────────────────────
 
 
-def lookup(code, company, *, product=None, statuses=None, warehouse=None) -> list:
+def lookup(code, company, *, product=None, statuses=None, warehouse=None, location=None) -> list:
     """扫到 / 手输的号 → 本公司没作废的台：主号全等 → 副号全等 → 主号末 8 位（各一层认到就停）。回 ``[台]``（认出几台交给人选）。
     GS1 码（Data Matrix 等，``01`` GTIN + ``21`` 序列号）按里面的序列号认（10-30）。"""
     from pearnly_erp_portal.products import gs1
@@ -206,6 +246,8 @@ def lookup(code, company, *, product=None, statuses=None, warehouse=None) -> lis
         base["product"] = product
     if warehouse:
         base["warehouse"] = warehouse
+        if location is not None:
+            base["location"] = location or ""  # 选台按这一行的仓 + 库位（G17）
     fields = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location", "out_ref"]
     # 17 位完整车架号只认完全一样的；末 8 位只在输入的就是 8 位时认；发动机号照旧全等（主会话 10-26）
     full = len(text) == VIN_LENGTH
@@ -405,16 +447,18 @@ def _company(company=None):
 
 
 @frappe.whitelist()
-def api_lookup(code=None, product=None, warehouse=None, status=None, company=None):
+def api_lookup(code=None, product=None, warehouse=None, status=None, company=None, location=None):
     """扫到 / 手输的号 → 本公司的台（主号 → 副号 → 末 8 位；认出几台都列出来让人选）。"""
     _require_read()
     statuses = [SOLD, ISSUED] if status == RETURNABLE else [status] if status in STATUSES else None
-    return lookup(code, _company(company), product=product or None, statuses=statuses, warehouse=warehouse or None)
+    return lookup(code, _company(company), product=product or None, statuses=statuses, warehouse=warehouse or None,
+                  location=location)
 
 
 @frappe.whitelist()
 def search_units(doctype=None, txt="", searchfield=None, start=0, page_len=20, filters=None):
-    """选台下拉（原生 Link 的 ``get_query``，服务端分页搜索）：``filters`` 可带 product / warehouse / status / out_ref。
+    """选台下拉（原生 Link 的 ``get_query``，服务端分页搜索）：``filters`` 可带 product / warehouse / location / status / out_ref
+    （location 只跟着 warehouse 用，空串 = 不分库位的那些台）。
     只列本公司的台；搜主号、副号、颜色。"""
     _require_read()
     filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
@@ -424,6 +468,8 @@ def search_units(doctype=None, txt="", searchfield=None, start=0, page_len=20, f
     for field in ("product", "warehouse", "out_ref"):
         if filters.get(field):
             conditions[field] = filters[field]
+    if filters.get("warehouse") and "location" in filters:
+        conditions["location"] = filters.get("location") or ""
     text = clean(txt, MAX_NO)
     or_filters = [[field, "like", f"%{text}%"] for field in ("serial_no", "secondary_no", "color")] if text else None
     rows = frappe.get_all(DOCTYPE, filters=conditions, or_filters=or_filters,

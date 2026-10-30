@@ -48,6 +48,7 @@ KIND_SALE = "sale"
 KIND_ISSUE = "issue"    # 库存单领用（OU 类）：减，只记 LMOVDAT
 KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负，只记 LMOVDAT
 KIND_VOID = "void"      # 作废原单（dbf_void）：反向回滚，不动日期栏
+KIND_TRANSFER = "transfer"  # 仓间调拨 RL（dbf_transfer）：数量自带正负，原生不动日期栏、不动金额栏，新建的行不带分类（实录 RL0000002）
 KIND_RETURN = "return"  # 收银退货单 SR 货回仓（dbf_refund）：增，只记 LMOVDAT（实录 SR0000001 与原单同一天，LSELDAT 动没动看不出，不碰）
 _DATE_FIELD = {KIND_PURCHASE: "LPURDAT", KIND_SALE: "LSELDAT"}
 _TOLERANCE = Decimal("0.000001")
@@ -172,8 +173,9 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
     totals: Dict[tuple, dict] = {}
     skipped = []
     for item in moves:
-        slot = totals.setdefault((item.stkcod, item.loccod), {"qty": Decimal(0), "buckets": {}, "dates": {}})
+        slot = totals.setdefault((item.stkcod, item.loccod), {"qty": Decimal(0), "buckets": {}, "dates": {}, "kinds": set()})
         slot["qty"] += item.qty
+        slot["kinds"].add(item.kind)
         period = calendar.locate(item.docdat) if (calendar and item.docdat) else None
         if period is None:
             skipped.append(str(item.docdat))
@@ -181,8 +183,9 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
             qty_field, val_field = f"QTY{period.suffix}", f"VAL{period.suffix}"
             buckets = slot["buckets"]
             buckets[qty_field] = buckets.get(qty_field, Decimal(0)) + item.qty
-            buckets[val_field] = buckets.get(val_field, Decimal(0)) + item.value
-        for field in (() if item.kind == KIND_VOID else ("LMOVDAT", _DATE_FIELD.get(item.kind))):
+            if item.kind != KIND_TRANSFER:
+                buckets[val_field] = buckets.get(val_field, Decimal(0)) + item.value
+        for field in (() if item.kind in (KIND_VOID, KIND_TRANSFER) else ("LMOVDAT", _DATE_FIELD.get(item.kind))):
             if field and item.docdat and (slot["dates"].get(field) is None or item.docdat > slot["dates"][field]):
                 slot["dates"][field] = item.docdat
     classes = _stock_classes(account_dir, {key[0] for key in totals})
@@ -205,8 +208,9 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
             expected[key] = values
         for key in [key for key in totals if key not in seen]:
             values = _updated(None, totals[key], fields)
-            table.append({"STKCOD": key[0], "LOCCOD": key[1], "STKCLASS": classes.get(key[0], ""), "STATUS": "A",
-                          **values})
+            transfer_only = totals[key]["kinds"] == {KIND_TRANSFER}
+            table.append({"STKCOD": key[0], "LOCCOD": key[1], "STATUS": "A",
+                          **({} if transfer_only else {"STKCLASS": classes.get(key[0], "")}), **values})
             expected[key] = values
     finally:
         table.close()

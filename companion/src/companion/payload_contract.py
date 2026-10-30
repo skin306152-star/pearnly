@@ -35,7 +35,9 @@ from typing import Optional
 # 旧版进货按「税额 > 0」才算有税,写成 FLGVAT 0,所以盖 12,旧版诚实拒收。
 # 13:进货单可带人选的服务品进项税口径 ``srv_vattyp``(1 / 2;这本账套的历史定不了时用,`service_vat`,10-29)。旧版不认这个键、
 # 恒写 1,所以盖 13,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
+# 14:仓间调拨 RL(``direction = stock``、``doctype = RL``,单头 ``loccod`` 调出 / ``to_loccod`` 调入;作废 RL 同号,dbf_transfer / dbf_void;
+# ERP 多仓闭环 P2)。旧版把 RL 当未知单别拒收或当领用写,所以盖 14,旧版诚实拒收、派单只交给报过支持 14 的电脑。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

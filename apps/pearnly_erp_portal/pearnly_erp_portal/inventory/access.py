@@ -62,7 +62,7 @@ def write_opening(doc, method="insert"):
 
 def entry_query(user=None):
     user = user or frappe.session.user
-    directions = [key for key in ("in", "out") if guard.has("stock." + key, user)]
+    directions = [key for key in ("in", "out", "transfer") if guard.has("stock." + key, user)]
     if not directions:
         return "1=0"
     choices = ",".join(frappe.db.escape(key) for key in directions)

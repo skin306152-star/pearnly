@@ -577,6 +577,8 @@ Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタ
 Found: {0},取得: {0}
 "Free note kept with the collection record (who took the money, reference).",入金記録に残す自由記入（受け取った人、参照番号）。
 From Date,開始日
+From Location,移動元保管場所
+From Warehouse,移動元倉庫
 From the document,書類から読み取る
 Full Name,氏名
 Full Screen,全画面
@@ -752,6 +754,7 @@ New Purchase Invoice,仕入請求書作成
 New Sales Document,販売伝票を作成
 New Stock Issue,出庫伝票を作成
 New Stock Receipt,入庫伝票を作成
+New Stock Transfer,移動伝票を作成
 New Supplier,仕入先を追加
 New code,新しいコード
 New company,会社を追加
@@ -917,6 +920,7 @@ Phone,電話
 Phone Number,電話番号
 Phones and appliances,携帯・家電
 Photos,写真
+Pick a destination warehouse,移動先倉庫を選択してください
 Pick a line first,先に行を選んでください
 Pick a warehouse,倉庫を選択してください
 "Pick quantity, discount or price first",先に数量・割引・単価を選んでください
@@ -1206,6 +1210,7 @@ Stock Account Group,在庫勘定グループ
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
 Stock Token,在庫トークン
+Stock Transfer,倉庫間移動
 Stock UOM,在庫単位
 Stock Value,在庫金額
 Stock changed during counting. Recount the affected products.,棚卸中に在庫が変動しました。対象商品を再棚卸してください。
@@ -1317,6 +1322,7 @@ The company used for new documents and for the company profile page,新しい伝
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
 The customer is missing. Choose the customer and submit again.,顧客がありません。顧客を選択して再送信してください
 The default board cannot be archived,既定のボードはアーカイブできません
+The destination warehouse must differ from the source warehouse,移動先倉庫は移動元倉庫と別にしてください
 The discount exceeds the line amount,割引が行の金額を超えています
 The discount exceeds the total,割引が合計を超えています
 The document date is invalid. Correct it and submit again.,書類の日付が無効です。修正して再送信してください
@@ -1447,6 +1453,8 @@ Time,時刻
 Time left {0},残り {0}
 Title,タイトル
 To Date,終了日
+To Location,移動先保管場所
+To Warehouse,移動先倉庫
 To do,未着手
 Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。文字を追加して絞り込んでください
@@ -2132,6 +2140,7 @@ member,メンバー
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録
 nav.stockCount,棚卸
+nav.stockTransfer,倉庫間移動
 none,なし
 opening,期首
 paid,支払済み
@@ -2610,6 +2619,8 @@ trade.expectedCash,現金予定額
 trade.exportNotice,{0}件のシフトを出力しました
 trade.float,釣銭準備金
 trade.from,開始日
+trade.fromLocation,移動元保管場所
+trade.fromWarehouse,移動元倉庫
 trade.gross,売上総額
 trade.groupBalance,残高
 trade.groupDoc,伝票
@@ -2639,6 +2650,7 @@ trade.newInvoice,新規会計
 trade.newOrder,新しい注文
 trade.newOut,出庫伝票を作成
 trade.newSale,販売伝票を作成
+trade.newTransfer,移動伝票を作成
 trade.noShift,未開店
 trade.note,備考
 trade.notice.submitted,{0} を提出しました
@@ -2706,6 +2718,8 @@ trade.taxNo,適格請求書番号
 trade.terminal,レジ
 trade.terminalHint,このレジがどの会社に属し、どの倉庫から販売するか
 trade.to,終了日
+trade.toLocation,移動先保管場所
+trade.toWarehouse,移動先倉庫
 trade.total,請求額
 trade.totalItems,合計点数
 trade.totalRows,合計 · {0} 明細
@@ -2722,6 +2736,8 @@ trade.walkIn,一般客
 trade.warehouse,倉庫
 trade.warehouseHint,レジの設定によります。空の場合はレジ側で倉庫を設定してください
 transfer,振込
+transfer_in,移動入庫
+transfer_out,移動出庫
 unpaid,未払い
 void,取消済み
 {0} added you to {1},{0} があなたを「{1}」に追加しました

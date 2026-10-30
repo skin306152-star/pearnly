@@ -190,6 +190,48 @@ class Serials(unittest.TestCase):
             self.assertEqual(S.refund_picks("SAL-1", "CAR", 2), [{"serial": "SRL-1"}, {"serial": "SRL-2"}])
             self.assertEqual(S.refund_picks("SAL-1", "CAR", 1, [{"serial": "SRL-2"}]), [{"serial": "SRL-2"}])
 
+    def test_issuing_checks_the_location_of_the_unit_too(self):
+        """G17：台记的库位要等于这一行出货的库位（结存按仓 + 库位记），同仓别的库位不让出。"""
+        unit = self.receive(["MP1TFR41JTG032993"])[0]
+        line = {**self.line(1, [{"serial": unit.name}]), "location": "B-2"}
+        with self.assertRaisesRegex(Refused, "not in stock"):
+            S.apply(lines=[line], movement_type="sale_out", ref_type="sale", ref_id="SAL-9", company="CO-1")
+        self.assertEqual(unit.status, S.IN_STOCK)
+
+    def transfer(self, unit, ref="STE-TF", source="W1", location="A-1", to="W2", to_location="C-3"):
+        S.transfer(lines=[{**self.line(1, [{"serial": unit.name}], warehouse=source), "location": location,
+                           "to_location": to_location}], to_warehouse=to, ref_type="stock_entry", ref_id=ref, company="CO-1")
+
+    def test_a_transfer_moves_the_unit_and_voiding_it_brings_it_back(self):
+        """多仓闭环 P2：调拨选调出仓这个库位在库的台，换到调入仓 / 库位、仍是在库；作废回调出仓原库位。"""
+        unit = self.receive(["MP1TFR41JTG032993"])[0]
+        with self.assertRaisesRegex(Refused, "not in stock"):
+            self.transfer(unit, location="B-2")  # 不在这个库位
+        self.transfer(unit)
+        self.assertEqual((unit.status, unit.warehouse, unit.location), (S.IN_STOCK, "W2", "C-3"))
+        actions = [row.action for row in self.db[S.MOVEMENT].values() if row.ref_id == "STE-TF"]
+        self.assertEqual(actions, [S.TRANSFER_OUT, S.TRANSFER_IN])
+        with self.assertRaisesRegex(Refused, "not in stock"):  # 在调入仓了，调出仓出不了
+            S.apply(lines=[self.line(1, [{"serial": unit.name}])], movement_type="sale_out", ref_type="sale",
+                    ref_id="SAL-1", company="CO-1")
+        S.reverse("stock_entry", "STE-TF")
+        self.assertEqual((unit.status, unit.warehouse, unit.location), (S.IN_STOCK, "W1", "A-1"))
+
+    def test_voiding_a_transfer_whose_unit_was_sold_or_moved_on_is_refused(self):
+        unit = self.receive(["MP1TFR41JTG032993"])[0]
+        self.transfer(unit)
+        S.apply(lines=[{**self.line(1, [{"serial": unit.name}], warehouse="W2"), "location": "C-3"}],
+                movement_type="sale_out", ref_type="sale", ref_id="SAL-2", company="CO-1")
+        with self.assertRaisesRegex(Refused, "sold or issued"):
+            S.reverse("stock_entry", "STE-TF")
+        S.reverse("sale", "SAL-2")
+        self.transfer(unit, ref="STE-TF2", source="W2", location="C-3", to="W3", to_location="")
+        with self.assertRaisesRegex(Refused, "sold or issued"):
+            S.reverse("stock_entry", "STE-TF")  # 已经再调走了：先作废后面那张
+        S.reverse("stock_entry", "STE-TF2")
+        S.reverse("stock_entry", "STE-TF")
+        self.assertEqual((unit.warehouse, unit.location), ("W1", "A-1"))
+
     def test_the_last_eight_only_match_when_eight_are_typed(self):
         asked = []
         with mock.patch.object(S.frappe, "get_all", side_effect=lambda doctype, filters=None, **kw: asked.append(filters) or []):
