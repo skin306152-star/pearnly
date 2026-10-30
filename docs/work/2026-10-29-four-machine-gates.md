@@ -964,3 +964,13 @@
 - 待合入：work-followups `pearnly/fcb65cca-entry-audit` ed818ea8（8 条流程，旧框架已删）；验收窗口 `pearnly/demo-readiness`（3 条演示流程）。
 - 已知：实验室数据集站点的计费租户、站点登记由 `scripts/regression/lab_billing.py` 补齐；cc.chat / cc.settings 跑在 ERP 数据集站点，Cowork 上 4 条 CC 流程
   （定时任务、待选账套、公司、项目）与 cowork.recon.bank / intake 还没写（要 Cowork 数据集里有连接与账套，见 10-30 调研结论）。
+- 解冻后待复核合入（主会话 10-30 交代；各分支的交接位置见各自任务记录，复核时先读那份）：
+
+  | 分支 | 头 | 内容 |
+  |---|---|---|
+  | `pearnly/dms-editor-error-visible` | 812da324 | DMS 编辑页报错可见 |
+  | `pearnly/express-rules-vat-8fa604` | b0624202 | 直写口径（服务进项税基数） |
+  | `pearnly/get-writes-exports` | 12662b0b | 13 个导出接口改 POST、共用 `p.export_file`，附对账导出流程 |
+  | `pearnly/scan-data-matrix` | 9fdb62fb | 扫码支持的码制（Data Matrix 等） |
+
+  复核照新规矩：只跑各自受影响的流程（`run.py --changed`），变基没冲突不重跑；改到入口或入口背后模块的，按覆盖闸要求补流程、删存量清单条目。
