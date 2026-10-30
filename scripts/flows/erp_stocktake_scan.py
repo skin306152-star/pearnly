@@ -61,7 +61,9 @@ IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promi
 def steps(params, camera_code=None):
     """页面步骤：打开盘点详情 → 开始盘点 → 逐个码查找、检查、保存。"""
     out = [{"name": "开始盘点",
-            "js": IDLE + "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent); "
+            "js": IDLE + "const btn=()=>[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent); "
+                  # 站点刚迁移完第一次打开页面很慢：等按钮渲染出来再点（最多 20 秒）
+                  "for(let k=0;k<80&&!btn();k++) await new Promise(r=>setTimeout(r,250)); const b=btn(); "
                   "if(!b) return {error:'no start button'}; b.click(); "
                   "for(let k=0;k<80&&!(window.cur_dialog&&cur_dialog.fields_dict.code);k++) await new Promise(r=>setTimeout(r,250)); "
                   "await idle(); return b.innerText.trim();"}]
