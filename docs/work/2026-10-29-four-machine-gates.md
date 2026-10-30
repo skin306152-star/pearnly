@@ -952,3 +952,15 @@
 - 测试：`tests/test_flows_coverage.py`（新增 5 项：清单与现状一致、清单外没流程拦、清单内只提醒、已覆盖条目留在清单里拦、部署提醒不判失败）；
   `scripts/production/test-deploy-run.py`（存量提醒显示、不挡部署）。
 
+## 暂停点与交接（10-30，验收窗口归档前）
+
+- main 冻结在 **b79ee82d**（含第一批流程与 B 方案 4ab75d92、直写免税、收银台挂主仓、来由补丁 v1_20、盘点差异报表权限）：
+  `pearnly/flows` = success「all flows; 18 flows; datasets new,old; 70/70 runs passed; 3250s」，主会话据此用 deploy.sh 部署。
+- 规矩（tests/flows/README.md）：分支只跑受影响的流程（`run.py --changed`），变基没冲突不重跑；全套每次部署只跑一次，在主会话宣布的冻结点上跑；
+  CI 不轮询（GitHub 接口 10-30 被次级限流过），要查时隔 10 分钟以上查一次。
+- 跑法要点：`--post-status` 会先重启实验室网页进程、迁移全部站点、再重启（网页用 --noreload，换源码不重启就新旧混跑，10-30 踩过）；
+  核对 CC 前端产物比源码新；`--jobs 3` 按站点并行。
+- 存量清单 `tests/flows/behind_baseline.txt` 338 条；按「最该先补的 20 个入口」顺序补流程，每补一条刷新本记录数字。
+- 待合入：work-followups `pearnly/fcb65cca-entry-audit` ed818ea8（8 条流程，旧框架已删）；验收窗口 `pearnly/demo-readiness`（3 条演示流程）。
+- 已知：实验室数据集站点的计费租户、站点登记由 `scripts/regression/lab_billing.py` 补齐；cc.chat / cc.settings 跑在 ERP 数据集站点，Cowork 上 4 条 CC 流程
+  （定时任务、待选账套、公司、项目）与 cowork.recon.bank / intake 还没写（要 Cowork 数据集里有连接与账套，见 10-30 调研结论）。
