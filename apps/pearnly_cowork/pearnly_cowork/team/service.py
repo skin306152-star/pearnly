@@ -16,6 +16,7 @@ import re
 import frappe
 from frappe import _
 
+from pearnly_core.account import names as person_names
 from pearnly_core.account import placeholder_email
 
 from pearnly_cowork.access import menu
@@ -176,7 +177,9 @@ def list_members() -> list:
             "name": email,
             "email": email,
             "username": user.username or "",
-            "display": user.username or email,
+            # 姓名（用户 10-30：分清是哪个人；没填过的老账号就是用户名）
+            "first_name": user.first_name or "", "last_name": user.last_name or "",
+            "display": person_names.display_name(email),
             "enabled": bool(user.enabled),
             "roles": sorted(held & known),
             "last_login": user.last_login,
@@ -190,14 +193,16 @@ def list_members() -> list:
     return members
 
 
-def add_member(username: str = "", email: str = "", roles=None, password=None) -> dict:
-    """添加用户：用户名（英文数字，可登录）+ 邮箱 + 初始密码 + 勾选的功能权限。"""
+def add_member(username: str = "", email: str = "", roles=None, password=None, first_name: str = "",
+               last_name: str = "") -> dict:
+    """添加用户：用户名（英文数字，可登录）+ 姓名（名必填、姓可空，用户 10-30）+ 邮箱 + 初始密码 + 勾选的功能权限。"""
     require_admin()
     email = (email or "").strip().lower()
     # 邮箱可以不填（用户 2026-10-27）：留空补成 `<登录名>.<本站前缀>@pearnly.com`；填了就必须是合法邮箱
     if email and not placeholder_email.valid(email):
         frappe.throw(_(EMAIL_REQUIRED))
     username = _clean_username(username)
+    names = person_names.clean(first_name, last_name)
     if not email:
         email = placeholder_email.for_user(username)
         # 生成的地址已被别的账号占了：照旧拒绝、不合并，让管理员换个登录名
@@ -214,9 +219,9 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
         # 统一身份里的号先建：建不出来就整件事失败，不留"本地有号、人却登不上"的坑。
         from pearnly_core.account import member_client
 
-        subject = member_client.create(email, username, secret)
+        subject = member_client.create(email, username, secret, **names)
     user = frappe.get_doc({
-        "doctype": "User", "email": email, "username": username, "first_name": username,
+        "doctype": "User", "email": email, "username": username, **names,
         "send_welcome_email": 0, "user_type": "System User",
         "roles": [{"role": menu.BASE_ROLE}, *({"role": role} for role in wanted)],
     })
@@ -229,8 +234,8 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
     return {"email": user.name, "username": user.username, "roles": sorted(wanted)}
 
 
-def set_member_roles(email: str, roles=None) -> dict:
-    """改功能权限：只动目录里的角色，其它角色（如 Desk User）不动。"""
+def set_member_roles(email: str, roles=None, first_name=None, last_name=None) -> dict:
+    """改功能权限与姓名（给了 `first_name` 才改，用户 10-30）：只动目录里的角色，其它角色（如 Desk User）不动。"""
     require_admin()
     user = _member(email)
     held_before = {row.role for row in user.roles}
@@ -243,6 +248,8 @@ def set_member_roles(email: str, roles=None) -> dict:
     for role in wanted:
         if role not in held:
             user.append("roles", {"role": role})
+    if first_name is not None:
+        user.update(person_names.clean(first_name, last_name))
     user.save(ignore_permissions=True)
     if menu.LINE_ROLE in held_before and menu.LINE_ROLE not in wanted:
         # 取消 LINE = 立即解绑，这个 LINE 再发消息按未绑定处理。

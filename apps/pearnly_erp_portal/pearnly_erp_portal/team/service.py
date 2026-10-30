@@ -17,6 +17,8 @@ import frappe
 from frappe import _
 
 from pearnly_core.account import placeholder_email
+from pearnly_core.account import names as person_names
+from pearnly_core.account.names import display_name
 
 from pearnly_erp_portal.access import guard, rules, menu
 
@@ -94,11 +96,7 @@ def _clean_username(username, *, exclude=None) -> str:
 
 
 def username_of(user) -> str:
-    """一个人显示成什么：**用户名**（没设才回落账号本身）。
-
-    用户 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名。" 显示层统一走这里，
-    不要在页面上各写一遍 `full_name` / 邮箱。
-    """
+    """一个人的**登录名**（没设才回落账号本身）。显示人名用 `pearnly_core.account.names.display_name`（姓名，10-30）。"""
     if not user:
         return ""
     return frappe.db.get_value("User", user, "username") or str(user)
@@ -130,14 +128,14 @@ def _local_password_allowed() -> bool:
     return not _identity_configured() and not frappe.conf.get("pearnly_native_account")
 
 
-def _identity_subject(email: str, username: str, secret: str) -> str:
+def _identity_subject(email: str, username: str, secret: str, names: dict) -> str:
     """通过私有受限服务建号，返回 subject；绝不接管邮箱相同的现有身份。
 
     静默降级的后果最坏：账号在本地建好了、员工却永远登不上，而且没人知道为什么。
     """
     from pearnly_core.account import member_client
 
-    return member_client.create(email, username, secret)
+    return member_client.create(email, username, secret, **names)
 
 
 def _bound_subject(user: str) -> str:
@@ -262,9 +260,10 @@ def list_members() -> list[dict]:
             # 值就是邮箱 —— 与框架里 `User.name` 同一个值，勾选与打开行也按它找行。
             "name": email,
             "email": email,
-            # 列表上显示的就是**用户名**（没有才回落邮箱）—— 不再有"姓名"这一栏。
             "username": user.username or "",
-            "display": username_of(email),
+            # 姓名（用户 10-30）：名 / 姓给编辑框，列表显示拼好的全名（没填过的老账号就是用户名）
+            "first_name": user.first_name or "", "last_name": user.last_name or "",
+            "display": display_name(email),
             "enabled": bool(user.enabled),
             "roles": sorted(r.role for r in user.roles if r.role in roles),
             # 一租户多公司：这个账号被指到哪几家（官方的 User Permission，没指就是全部）。
@@ -298,15 +297,15 @@ def _unbind_line(user: str) -> None:
         line_binding.unbind(line_user_id)
 
 
-def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None) -> dict:
+def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None,
+               first_name: str = "", last_name: str = "") -> dict:
     """新增员工：**用户名** + 邮箱 + 初始密码 + 勾选的岗位。
 
     用户 2026-09-24 的口径："添加用户必须是英文和数字，不区分大小写，长度不限；密码可以自由
     填写，不限制长度，也不限制其它东西；**这个用户名是可以登录的，和邮箱一样**；邮箱和用户名
     是唯一绑定关系。"
 
-    所以这里不再有"姓名"这一栏：**用户名就是这个人**（`User.username`，唯一；同时它也写进
-    `first_name`，框架自己那些显示名字的地方（顶栏、邮件、"经手人"）跟着就是用户名）。
+    用户名（`User.username`，唯一）是登录名；姓名（原生名 / 姓，用户 10-30）是全站显示这个人的名字，名必填、姓可空。
     邮箱仍是 `User.name`（账号主键），两边都是一对一：用户名不重、邮箱不重。
 
     登录那半边靠框架：`User.find_by_credentials` 在 `System Settings.allow_login_using_user_name`
@@ -322,6 +321,7 @@ def add_member(username: str = "", email: str = "", roles=None, password=None, c
     if email and not placeholder_email.valid(email):
         frappe.throw(_(EMAIL_REQUIRED))
     username = _clean_username(username)
+    names = person_names.clean(first_name, last_name)
     if not email:
         email = placeholder_email.for_user(username)
         # 生成的地址已被别的账号占了：照旧拒绝、不合并，让管理员换个登录名
@@ -335,13 +335,12 @@ def add_member(username: str = "", email: str = "", roles=None, password=None, c
     if frappe.conf.get("pearnly_native_account") and not _identity_configured():
         frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     # 统一身份里的号先建好：建不出来就整件事失败，不留"本地有号、人却登不上"的坑。
-    subject = _identity_subject(email, username, secret) if _identity_configured() else None
+    subject = _identity_subject(email, username, secret, names) if _identity_configured() else None
     user = frappe.get_doc({
         "doctype": "User",
         "email": email,
-        # 用户名既是登录名，也是这个人在全站显示的名字（不再有"姓名"这一栏）。
         "username": username,
-        "first_name": username,
+        **names,
         "send_welcome_email": 0,
         "user_type": "System User",
         "roles": [{"role": rules.BASE_ROLE}, *({"role": role} for role in wanted)],
@@ -380,10 +379,10 @@ def set_member_password(email: str, password=None) -> dict:
     return {"email": user.name}
 
 
-def set_member_roles(email: str, roles=None, companies=None) -> dict:
+def set_member_roles(email: str, roles=None, companies=None, first_name=None, last_name=None) -> dict:
     """改岗位：只动 ERP 功能角色，其它角色（如 Desk User）保持不动。
 
-    这里**只有岗位**可改：用户名（发号时填的那个名字，就是登录用的身份）和邮箱是
+    这里改岗位与姓名（名 / 姓，用户 10-30；给了 `first_name` 才改）：用户名（发号时填的那个名字，就是登录用的身份）和邮箱是
     开户时定死的，租户里谁都不改（用户 2026-09-23："后台管理发号后，用户名和邮箱是
     绑死这个租户的，唯一关系，用户只可以自己改密码，员工也是一样"）。
     """
@@ -409,6 +408,8 @@ def set_member_roles(email: str, roles=None, companies=None) -> dict:
     for role in wanted:
         if role not in held:
             user.append("roles", {"role": role})
+    if first_name is not None:
+        user.update(person_names.clean(first_name, last_name))
     user.save(ignore_permissions=True)
     if rules.LINE_ROLE in held_roles and rules.LINE_ROLE not in wanted:
         _unbind_line(user.name)

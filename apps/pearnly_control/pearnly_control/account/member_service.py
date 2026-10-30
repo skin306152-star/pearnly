@@ -78,9 +78,12 @@ def _pool_of(row):
     return realm_prefix(row.realm) if row.realm else config_prefix(row.product)
 
 
-def create(tenant, email, username, password, product="erp", issuer=""):
+def create(tenant, email, username, password, product="erp", issuer="", *, first_name="", last_name=""):
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9]+", username):
         raise MemberError("invalid_request")
+    # 员工的名 / 姓（用户 10-30：个人信息加姓名，分清是哪个人）：身份服务里的 firstName / lastName；没给沿用用户名（老站点）
+    names = {key: value.strip()[:140] if isinstance(value, str) else "" for key, value in
+             (("first_name", first_name), ("last_name", last_name))}
     # 站点实际签到哪个池就建在哪个池（没带签发方按产品）；不认识的池在写任何东西前拒绝。
     pool = pool_prefix(product, issuer)
     provider = MemberProvider(prefix=pool)
@@ -109,7 +112,7 @@ def create(tenant, email, username, password, product="erp", issuer=""):
     if subject:
         provider.read_owned(subject, email=email, username=username, owner=owner)
         return {"subject": subject, "email": email, "username": username}
-    subject = provider.create(email=email, username=username, password=password, owner=owner)
+    subject = provider.create(email=email, username=username, password=password, owner=owner, **names)
     frappe.db.set_value(IDENTITY, key, "subject", subject)
     return {"subject": subject, "email": email, "username": username}
 
@@ -265,7 +268,7 @@ def unlink_line(tenant, product, subject, login_channel, issuer=""):
 
 
 def execute(tenant, action, email, password, username="", request_id="", subject="", line_user_id="",
-            login_channel="", issuer=""):
+            login_channel="", issuer="", first_name="", last_name=""):
     if action in ("link-line", "unlink-line"):
         tenant, product = authorize(tenant, line_contract.PRODUCTS)
         if action == "link-line":
@@ -277,7 +280,7 @@ def execute(tenant, action, email, password, username="", request_id="", subject
         raise MemberError("invalid_request")
     email = email.strip().lower()
     if action == "create":
-        return create(tenant, email, username, password, product, issuer)
+        return create(tenant, email, username, password, product, issuer, first_name=first_name, last_name=last_name)
     if action == "reset-password":
         return reset_password(tenant, email, password, request_id, product, issuer)
     raise MemberError("invalid_request")

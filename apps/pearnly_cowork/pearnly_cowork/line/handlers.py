@@ -31,8 +31,9 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
     profile = line.get_profile(user_id) or {}
     line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
     menu.request_sync(user_id)
-    name = frappe.db.get_value("User", consumed["user"], "username") or consumed["user"]
-    _reply(reply_token, _("Bound to {0}").format(name))
+    from pearnly_core.account.names import display_name
+
+    _reply(reply_token, _("Bound to {0}").format(display_name(consumed["user"])))  # 姓名（10-30），没填过就是用户名
 
 
 def handle(event: dict) -> bool:

@@ -268,6 +268,7 @@ Enabled,启用
 Enabled features,已开通功能
 Endpoint,连接端点
 "Enter the display name, DMS account and password. Issue bind codes after saving.",填写显示名及该操作员的 DMS 账号和密码，保存后分别生成绑定码
+Enter the first name,请填写名
 Entering,录入中
 Error Message,错误信息
 Event ID,事件 ID
@@ -299,6 +300,7 @@ Filed Note Digest,归档摘要
 Filed Under,归档位置
 "Fill in the display name, DMS username and password",请填写显示名、DMS 用户名和密码
 "Filters must be four-value rows with string doctypes, fields, and operators.",筛选条件必须为四个值的行，且文档类型、字段和运算符为字符串
+First Name,名
 Fiscal year,年度
 Flow Status,流程状态
 For an inbound document the counterparty tax ID cannot be your own,进项单据的对方税号不能与本公司税号相同
@@ -364,6 +366,7 @@ Last Code,上次结果码
 Last Computer,最近的电脑
 Last Delivered,最后送达时间
 Last Login At,最近登录
+Last Name,姓
 Last Result,最近结果
 Last Seen At,最近活跃
 Last Signed In User,最近登录的用户

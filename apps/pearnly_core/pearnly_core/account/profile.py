@@ -2,8 +2,8 @@
 
 用户名与邮箱由后台发号、绑死这个租户（用户 2026-09-23："可以用用户名登录，但是不能
 修改…后台管理发号后，用户名和邮箱是绑死这个租户的，唯一关系，用户只可以自己改密码"）。
-所以这里只有两道守卫：本地密码不收（云站点走身份服务），邮箱不能改；**没有"用户自己
-改名"那条路**（`first_name` 在 `account/layout.py` 里设成 DocType 级只读）。
+所以这里只有两道守卫：本地密码不收（云站点走身份服务），邮箱不能改；用户名（`username`）在
+`account/layout.py` 里设成 DocType 级只读。姓名（原生 `first_name` / `last_name`，用户 10-30）本人可改。
 """
 import frappe
 from frappe import _
@@ -31,23 +31,20 @@ def prepare_profile(doc, method=None):
 
 
 def apply_login_username(user, claims):
-    """Each product projects the same verified identity without renaming its email key."""
+    """登录时只把身份服务的用户名投到本站 `username`；**不碰姓名**（用户 10-30：个人信息加姓名，
+    原来每次登录把 first_name 改写成用户名、清空姓，新填的姓名下次登录就被冲掉）。"""
     username = str(claims.get("preferred_username") or "").strip()
     if not username or not product_identity():
         return
-    doc = frappe.get_doc("User", user)
-    if (doc.first_name == username and not doc.middle_name and not doc.last_name
-            and (not USERNAME_RE.fullmatch(username) or doc.username == username)):
+    # Email-style legacy usernames remain valid at Keycloak. Do not let Frappe
+    # strip their @ or invent a replacement local login identifier.
+    if not USERNAME_RE.fullmatch(username) or frappe.db.get_value("User", user, "username") == username:
         return
+    doc = frappe.get_doc("User", user)
     previous = getattr(frappe.flags, "pearnly_profile_synced", False)
     frappe.flags.pearnly_profile_synced = True
     try:
-        doc.first_name = username
-        doc.middle_name = doc.last_name = ""
-        # Email-style legacy usernames remain valid at Keycloak. Do not let Frappe
-        # strip their @ or invent a replacement local login identifier.
-        if USERNAME_RE.fullmatch(username):
-            doc.username = username
+        doc.username = username
         doc.save(ignore_permissions=True)
     finally:
         frappe.flags.pearnly_profile_synced = previous

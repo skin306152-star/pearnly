@@ -43,6 +43,13 @@ class TestMemberClient(unittest.TestCase):
         # 控制面按本站实际签到的账号池建号（testcowork 是 Cowork 产品却签到业务池，2026-10-18）。
         self.assertEqual(self.post.call_args.kwargs["json"]["issuer"], "https://identity.invalid/realms/lab")
 
+    def test_create_forwards_the_first_and_last_name(self):
+        # 员工的名 / 姓送到控制面、建到身份服务的 firstName / lastName（用户 10-30）
+        self.post.return_value = self.response({"ok": True, "email": "member@example.test", "subject": "sub-a"})
+        member_client.create("member@example.test", "Username1", "fixture", first_name="Somchai", last_name="Jaidee")
+        sent = self.post.call_args.kwargs["json"]
+        self.assertEqual((sent["first_name"], sent["last_name"], sent["username"]), ("Somchai", "Jaidee", "Username1"))
+
     def test_timeout_retry_has_stable_id(self):
         self.post.side_effect = [requests.Timeout(), self.response({"ok": True, "email": "member@example.test"})]
         member_client.reset_password("member@example.test", "fixture")
@@ -76,8 +83,11 @@ class TestMemberClient(unittest.TestCase):
     def test_verified_long_username_is_projected(self):
         doc = self.native.get_doc.return_value
         doc.first_name = "old"
+        doc.last_name = "Surname"
         profile.apply_login_username("member@example.test", {"preferred_username": "a" * 80})
         self.assertEqual(doc.username, "a" * 80)
+        # 登录只投用户名，不碰姓名（用户 10-30：原来每次登录把名改成用户名、清空姓）
+        self.assertEqual((doc.first_name, doc.last_name), ("old", "Surname"))
         doc.save.assert_called_once_with(ignore_permissions=True)
 
 

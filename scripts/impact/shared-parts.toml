@@ -296,7 +296,7 @@ paths = ["apps/pearnly_core/pearnly_core/identity.py", "apps/pearnly_core/pearnl
 markers = ["pearnly_core.identity", "pearnly_core import identity", "pearnly_core.sessions", "pearnly_core import sessions", "import password, sessions", "pearnly_core.shell", "pearnly_core import shell", "pearnly_core.account", "pearnly_core import account", "pearnly_core.login_redirect"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue"]
 entries = ["shared.login", "control.issue-and-entry", "shared.shell-gate", "shared.team.members", "shared.line.login"]
-not_entries = { "apps/pearnly_control/pearnly_control/patches/v0_0_1_line_login_secret_to_target.py" = "一次性迁移", "apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py" = "只用 shell.migration_skip（迁移收尾跳过时记一行日志），不碰登录、会话与开通闸" }
+not_entries = { "apps/pearnly_control/pearnly_control/patches/v0_0_1_line_login_secret_to_target.py" = "一次性迁移", "apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py" = "只用 shell.migration_skip（迁移收尾跳过时记一行日志），不碰登录、会话与开通闸", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/output.py" = "只用 account.names.display_name 显示收银员姓名（10-30），不碰登录与会话；页面由 erp.page.cashier 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py" = "只用 account.names.display_name 显示收银员姓名（10-30），不碰登录与会话；页面由 erp.page.cashier 实测", "apps/pearnly_cowork/pearnly_cowork/line/handlers.py" = "只用 account.names.display_name 写 LINE 绑定回执里的姓名（10-30），不碰登录与会话；由 cowork.line.binding 实测" }
 
 [[part]]
 id = "cc-assistant-settings"

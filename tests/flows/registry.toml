@@ -569,3 +569,36 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
 ]
+
+[[flow]]
+id = "erp.team.full-name"
+title = "ERP 员工姓名：团队页新建 / 编辑带名姓，名单显示姓名，我的资料名姓可改、用户名只读（岳父 10-28 第 1 条）"
+module = "scripts/flows/team_full_name.py"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/team/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/team.js",
+  "apps/pearnly_core/pearnly_core/account/names.py",
+  "apps/pearnly_core/pearnly_core/account/layout.py",
+  "apps/pearnly_core/pearnly_core/account/profile.py",
+  "apps/pearnly_core/pearnly_core/public/desk/user.js",
+]
+
+[[flow]]
+id = "cowork.team.full-name"
+title = "Cowork 员工姓名：同 ERP（团队页新建 / 编辑带名姓，名单显示姓名，我的资料）"
+module = "scripts/flows/team_full_name.py"
+product = "cowork"
+start = "/desk/pearnly-team"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/team/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/team/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/team.js",
+]

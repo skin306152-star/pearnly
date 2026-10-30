@@ -268,6 +268,7 @@ Enabled,เปิดใช้งาน
 Enabled features,ฟังก์ชันที่เปิดใช้งาน
 Endpoint,ปลายทางการเชื่อมต่อ
 "Enter the display name, DMS account and password. Issue bind codes after saving.",กรอกชื่อที่แสดง บัญชีและรหัสผ่าน DMS ของพนักงานรายนี้ แล้วสร้างรหัสผูกแยกแต่ละรายหลังบันทึก
+Enter the first name,กรุณากรอกชื่อ
 Entering,กำลังบันทึก
 Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
@@ -299,6 +300,7 @@ Filed Note Digest,สรุปที่จัดเก็บ
 Filed Under,จัดเก็บไว้ที่
 "Fill in the display name, DMS username and password",กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน
 "Filters must be four-value rows with string doctypes, fields, and operators.",ตัวกรองต้องเป็นแถวที่มี 4 ค่า และประเภทเอกสาร ฟิลด์ และตัวดำเนินการต้องเป็นสตริง
+First Name,ชื่อ
 Fiscal year,ปีบัญชี
 Flow Status,สถานะขั้นตอน
 For an inbound document the counterparty tax ID cannot be your own,เลขประจำตัวผู้เสียภาษีของคู่ค้าในเอกสารซื้อต้องไม่ตรงกับของบริษัท
@@ -364,6 +366,7 @@ Last Code,รหัสผลลัพธ์ล่าสุด
 Last Computer,เครื่องล่าสุด
 Last Delivered,ส่งถึงล่าสุด
 Last Login At,เข้าสู่ระบบล่าสุด
+Last Name,นามสกุล
 Last Result,ผลล่าสุด
 Last Seen At,ใช้งานล่าสุด
 Last Signed In User,ผู้ใช้ที่เข้าสู่ระบบล่าสุด

@@ -268,6 +268,7 @@ Enabled,有効
 Enabled features,有効な機能
 Endpoint,接続先
 "Enter the display name, DMS account and password. Issue bind codes after saving.",表示名と DMS アカウント・パスワードを入力し、保存後に連携コードを発行します
+Enter the first name,名を入力してください
 Entering,入力中
 Error Message,エラーメッセージ
 Event ID,イベントID
@@ -299,6 +300,7 @@ Filed Note Digest,保存メモの要約
 Filed Under,保存先
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
 "Filters must be four-value rows with string doctypes, fields, and operators.",フィルタはドキュメントタイプ・フィールド・演算子の4値行である必要があります
+First Name,名
 Fiscal year,年度
 Flow Status,進行ステータス
 For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
@@ -364,6 +366,7 @@ Last Code,前回のコード
 Last Computer,最後の端末
 Last Delivered,最終配信日時
 Last Login At,最終ログイン
+Last Name,姓
 Last Result,最新の結果
 Last Seen At,最終アクセス
 Last Signed In User,最後にログインしたユーザー

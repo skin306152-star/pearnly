@@ -1221,9 +1221,8 @@ frappe.provide("frappe.pearnly.pos_next");
 				// 散客：不给客户编号（官方那句"客户编码"在散客时会画出一个空行）。
 				customer,
 				customer_name: doc.customer_name || __("Walk-in customer"),
-				// 「经手人」显示**用户名**（服务端 `api_get_sale` 回的 `cashier_name`）—— 用户
-				// 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名"。没有用户名（老账号）
-				// 才回落到邮箱/框架那份。
+				// 「经手人」显示**姓名**（服务端 `api_get_sale` 回的 `cashier_name`，用户 10-30；没填过姓名的老账号就是用户名），
+				// 取不到才回落到邮箱/框架那份。
 				owner: doc.cashier_name || doc.owner || doc.cashier
 					|| frappe.session.user_fullname || frappe.session.user,
 				items: (doc.lines || []).map(line => {

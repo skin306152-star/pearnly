@@ -17,13 +17,14 @@ def api_list_members():
 
 @frappe.whitelist(methods=["POST"])
 @do_not_record
-def api_add_member(username="", email="", roles=None, password=None):
-    return service.add_member(username=username, email=email, roles=_roles(roles), password=password)
+def api_add_member(username="", email="", roles=None, password=None, first_name="", last_name=""):
+    return service.add_member(username=username, email=email, roles=_roles(roles), password=password,
+                              first_name=first_name, last_name=last_name)
 
 
 @frappe.whitelist(methods=["POST"])
-def api_set_member_roles(email=None, roles=None):
-    return service.set_member_roles(email, roles=_roles(roles))
+def api_set_member_roles(email=None, roles=None, first_name=None, last_name=None):
+    return service.set_member_roles(email, roles=_roles(roles), first_name=first_name, last_name=last_name)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -98,6 +98,13 @@ class TestMembers(unittest.TestCase):
                 service.authorize("tenant-a")
             self.native.conf[field] = True
 
+    def test_create_sends_the_first_and_last_name_to_the_provider(self):
+        # 员工的名 / 姓（用户 10-30）建到身份服务；没给的老站点沿用用户名（provider 里回落）
+        self.install_db()
+        service.create("tenant-a", "employee@example.test", "Employee42", "secret-a", first_name=" Somchai ", last_name="Jaidee")
+        kwargs = self.provider.create.call_args.kwargs
+        self.assertEqual((kwargs["first_name"], kwargs["last_name"]), ("Somchai", "Jaidee"))
+
     def test_create_recovery_preserves_username_and_never_resets_password(self):
         self.install_db()
         result = service.create("tenant-a", "employee@example.test", "Employee42", "secret-a")

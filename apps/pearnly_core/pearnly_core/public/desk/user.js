@@ -1,6 +1,6 @@
 /* Account preferences remain native User controls, scoped to the current product user. */
 const PEARNLY_PROFILE_FIELDS = new Set([
-    "email", "first_name", "pearnly_company", "pearnly_domain",
+    "email", "username", "first_name", "last_name", "pearnly_company", "pearnly_domain",
     "language", "time_zone", "mute_sounds", "pearnly_change_password",
 ]);
 
@@ -85,8 +85,8 @@ frappe.ui.form.on("User", {
         frm.refresh_field("pearnly_company");
         frm.refresh_field("pearnly_domain");
         pearnlyProfileScope(frm);
-        // 用户名（`first_name`，见 account/layout.py）在 DocType 那一层就是只读的：
-        // 它和邮箱都是开户时发的，用户自己改不了（用户 2026-09-23 口径）。这里只把
+        // 用户名（`username`，见 account/layout.py）在 DocType 那一层就是只读的：
+        // 它和邮箱都是开户时发的，用户自己改不了（用户 2026-09-23 口径）；姓名（名 / 姓）本人可改（10-30）。这里只把
         // 邮箱再钉一遍（框架原生允许改自己的邮箱），以及保证"改密码"这条路在**两种
         // 站点上都走得通** —— 云站点走身份服务，本地站点点本站那个改密页。
         frm.set_df_property("email", "read_only", 1);

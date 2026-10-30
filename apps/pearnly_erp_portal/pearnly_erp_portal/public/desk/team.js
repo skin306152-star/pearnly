@@ -35,14 +35,15 @@
 		const role_label = name => (data.roles.find(role => role.name === name) || {}).label || name;
 		const rows_now = () => data.members.filter(row => !term
 			|| String(row.username || "").toLowerCase().includes(term)
+			|| String(row.display || "").toLowerCase().includes(term)
 			|| String(row.email || "").toLowerCase().includes(term));
 
 		// ── 名单 ────────────────────────────────────────────────────────────────
 		function columns() {
 			return [
-				// 显示的是**用户名**（不再有"姓名"这一栏）—— 用户 2026-09-24："全局可以涉及到
-				// 姓名的地方，全部改为用户名"。没有用户名的老账号回落显示邮箱。
-				{ fieldname: "display", width: 150, min_width: 110, label: __("Username") },
+				// 姓名（用户 10-30：分清是哪个人；没填过的老账号就是用户名）与登录名分两栏
+				{ fieldname: "display", width: 150, min_width: 110, label: __("Full Name") },
+				{ fieldname: "username", width: 130, min_width: 100, label: __("Username") },
 				{ fieldname: "email", width: 210, min_width: 150, label: t("team.email") },
 				{ fieldname: "roles", width: 200, min_width: 130, label: t("team.roles"),
 					// 与编辑弹窗同一口径（录制问题 #9）：管理员本人那一行本来就拥有全部功能，列出全部功能名；
@@ -198,10 +199,13 @@
 			const shown_companies = locked ? (data.companies || []).map(c => c.value) : row?.companies || [];
 			let dialog;
 			const fields = [
-				// 用户名：**英文和数字**（用户 2026-09-24 的口径），既是显示名也是登录名
-				// （和邮箱一样能登）。长度不设限；服务端还会再按"只允许英文数字 + 不重名"挡一次。
+				// 用户名：**英文和数字**（用户 2026-09-24 的口径），是登录名（和邮箱一样能登）。
+				// 长度不设限；服务端还会再按"只允许英文数字 + 不重名"挡一次。
 				field("username", "Username", "Data",
 					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
+				// 姓名（用户 10-30：分清是哪个人）：名必填、姓可空，全站显示人名用它
+				field("first_name", "First Name", "Data", { reqd: 1, default: row?.first_name || "" }),
+				field("last_name", "Last Name", "Data", { default: row?.last_name || "" }),
 				field("email", "team.email", "Data",
 					{ options: "Email", read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [
@@ -227,10 +231,12 @@
 				const roles = permission_groups().flatMap((_group, i) => values["roles_" + i] || []);
 				if (is_new) {
 					await p.call(api + "api_add_member", {username: values.username, email: values.email,
+						first_name: values.first_name, last_name: values.last_name || "",
 						password: values.password, roles, companies: values.companies || []}, "POST");
 					p.success(t("team.notice.added", values.username), "click");
 				} else {
 					await p.call(api + "api_set_member_roles", {email: row.email, roles,
+						first_name: values.first_name, last_name: values.last_name || "",
 						companies: values.companies || []}, "POST");
 					p.success(t("team.notice.saved"), "click");
 				}

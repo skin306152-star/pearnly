@@ -149,7 +149,7 @@ class MemberProvider:
         if response.status_code not in (204, 404):
             raise MemberError("unavailable")
 
-    def create(self, *, email, username, password, owner):
+    def create(self, *, email, username, password, owner, first_name="", last_name=""):
         """`password` 为 None：建一个没有密码的号（换账号池时搬过去的成员，由老板在团队管理里重设密码）。"""
         # An ordinary existing identity (including a tenant owner) is never adopted.
         for field, value in (("email", email), ("username", username)):
@@ -157,7 +157,7 @@ class MemberProvider:
             if found:
                 return self.verify(found, email=email, username=username, owner=owner)
         body = {
-            "email": email, "username": username, "firstName": username,
+            "email": email, "username": username, "firstName": first_name or username, "lastName": last_name or "",
             "enabled": True, "emailVerified": True, "requiredActions": [],
             "attributes": {OWNER_ATTRIBUTE: [owner]},
         }

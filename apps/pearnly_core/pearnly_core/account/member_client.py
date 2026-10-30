@@ -53,9 +53,9 @@ def _issuer():
     return str(frappe.conf.get("pearnly_oidc_issuer") or "").rstrip("/")
 
 
-def _call(action, *, email, password, username=""):
+def _call(action, *, email, password, username="", **names):
     result = _post({"action": action, "email": email, "password": password, "username": username,
-                    "request_id": uuid.uuid4().hex, "issuer": _issuer()}, ("erp", "cowork"))
+                    "request_id": uuid.uuid4().hex, "issuer": _issuer(), **names}, ("erp", "cowork"))
     if result.get("email") != email or (action == "create" and not result.get("subject")):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return result
@@ -76,8 +76,10 @@ def unlink_line(subject, login_channel):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-def create(email, username, password):
-    return _call("create", email=email, username=username, password=password)["subject"]
+def create(email, username, password, first_name="", last_name=""):
+    """建员工号；名 / 姓送到身份服务（用户 10-30），登录时不再拿身份服务的名字覆盖本站的。"""
+    return _call("create", email=email, username=username, password=password,
+                 first_name=first_name or "", last_name=last_name or "")["subject"]
 
 
 def reset_password(email, password):

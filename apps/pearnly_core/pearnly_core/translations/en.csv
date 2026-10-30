@@ -268,6 +268,7 @@ Enabled,Enabled
 Enabled features,Enabled features
 Endpoint,Endpoint
 "Enter the display name, DMS account and password. Issue bind codes after saving.","Enter the display name, DMS account and password. Issue bind codes after saving."
+Enter the first name,Enter the first name
 Entering,Entering
 Error Message,Error Message
 Event ID,Event ID
@@ -298,6 +299,7 @@ Filed Note Digest,Filed Note Digest
 Filed Under,Filed Under
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
 "Filters must be four-value rows with string doctypes, fields, and operators.","Filters must be four-value rows with string doctypes, fields, and operators."
+First Name,First Name
 Fiscal year,Fiscal year
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
@@ -363,6 +365,7 @@ Last Code,Last Code
 Last Computer,Last Computer
 Last Delivered,Last Delivered
 Last Login At,Last Login At
+Last Name,Last Name
 Last Result,Last Result
 Last Seen At,Last Seen At
 Last Signed In User,Last Signed In User

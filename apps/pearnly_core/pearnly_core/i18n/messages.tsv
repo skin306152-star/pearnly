@@ -936,3 +936,6 @@ Express Index Tool	Express 索引程序	โปรแกรมดัชนี Exp
 Begin typing for results.	输入内容以显示结果	พิมพ์เพื่อแสดงผลลัพธ์	入力すると結果が表示されます	
 Type {0} or more characters for results.	至少输入 {0} 个字符	พิมพ์อย่างน้อย {0} ตัวอักษร	{0} 文字以上入力してください	
 {0} results found	找到 {0} 条结果	พบ {0} รายการ	{0} 件見つかりました	
+Enter the first name	请填写名	กรุณากรอกชื่อ	名を入力してください
+First Name	名	ชื่อ	名
+Last Name	姓	นามสกุล	姓

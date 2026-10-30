@@ -20,13 +20,10 @@ COLUMNS = [("name", "trade.shiftNo"), ("terminal", "trade.terminal"),
            ("counted_cash", "trade.countedCash"), ("cash_diff", "trade.diff")]
 
 def cashier_label(user):
-    """收银员落表写**用户名**（用户 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名"）。
+    """收银员落表写**姓名**（用户 10-30：个人信息加姓名；没填过姓名的老账号就是用户名，`names.display_name`）。"""
+    from pearnly_core.account.names import display_name
 
-    没有用户名的老账号回落账号本身（邮箱），不让这一格空着。
-    """
-    from pearnly_erp_portal.team import service as team
-
-    return team.username_of(user)
+    return display_name(user)
 
 
 def cell(row, field):
