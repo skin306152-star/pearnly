@@ -5,19 +5,31 @@
  *   · LINE 盘点页（ERP `www/stocktake.html`，在 LINE 里打开）：直接用。
  * 改相机 / 读码 / 出错分类只改这里；提示文案在 core 术语表 `common.scan.*`，两边同一份。
  *
- * 读码：浏览器自带 BarcodeDetector 优先（要的格式它都支持才用），否则同源打包的 ZXing WASM。
+ * 读码：浏览器自带 BarcodeDetector 优先（主读的格式它都支持才用），否则同源打包的 ZXing WASM。
+ * 码制（主会话 10-30，一次覆盖常见的全部）：一维 EAN / UPC / Code 128 / 39 / 93 / ITF / Codabar / GS1 DataBar（含扩展型），
+ * 二维 QR / Data Matrix / PDF417 / Aztec。分几路读，原来那些码读得一样快（三星 A14 1080p 真实镜头实测，见 docs/work/2026-10-30-scan-symbologies.md）：
+ *   · 主读：一维 + QR（原生能读的二维也并进来，原生多读三种二维只多约 20 ms）——每帧都读，耗时与原来一样；
+ *   · 补读（WASM，只在主读这一帧什么都没读到、手上也没有待确认的码时，轮流跑一路）：二维（原生不支持时，缩到一半分辨率读，
+ *     二维码在画面里都很大）、DataBar（原生都不支持，全分辨率）。读到的那一路下一帧先读，接着确认。
  * 相机：先要相机、读码器并行加载（授权弹窗立刻出来；读码器坏了不说成相机的事）。指定后置镜头
  * 起不来的机型（多摄像头、旧驱动）按名字挑后置再开，再不行要系统默认镜头；权限被拒不重试。
  */
 (() => {
+	const LINEAR = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "code_93", "itf", "codabar"];
+	// 主读用原生的条件：原来那些码（10-30 之前的九种）它都能读。少了新加的哪一种（如 Code 93）就交给补读，不因此整个退到 WASM
+	const CORE = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar", "qr_code"];
+	const DATABAR = ["databar", "databar_expanded", "databar_limited"];
+	const MATRIX = ["data_matrix", "pdf417", "aztec"];
 	const WANTED = {
-		barcode: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar"],
-		qr: ["qr_code"],
+		barcode: [...LINEAR, ...DATABAR],
+		qr: ["qr_code", ...MATRIX],
 	};
 	WANTED.all = [...WANTED.barcode, ...WANTED.qr];
 	const ASSETS = "/assets/pearnly_core/vendor/barcode-detector/";
-	// Classify by the decoder's symbology, never by the contents (QR may be numeric).
-	const kind_of = format => format === "qr_code" ? "qr" : WANTED.barcode.includes(format) ? "barcode" : null;
+	// Classify by the decoder's symbology, never by the contents (QR may be numeric). 二维码都归「qr」一类（同一列存）；
+	// DataBar 的各种写法（WASM 报 databar_omni 等）都是一维。
+	const kind_of = format => WANTED.qr.includes(format) ? "qr"
+		: WANTED.barcode.includes(format) || String(format).startsWith("databar") ? "barcode" : null;
 	const IN_APP = /\bLine\/|FBAN|FBAV|Instagram|MicroMessenger|TikTok|; wv\)/i;
 	const agent = () => (typeof navigator !== "undefined" && navigator.userAgent) || "";
 	const in_app = () => IN_APP.test(agent());
@@ -50,18 +62,50 @@
 		})().catch(error => { fallback = null; throw error; });
 		return fallback;
 	}
+	// 半分辨率帧（二维补读用）：画到一块复用的画布上
+	let half_canvas;
+	function half(video) {
+		half_canvas ||= document.createElement("canvas");
+		half_canvas.width = video.videoWidth >> 1; half_canvas.height = video.videoHeight >> 1;
+		half_canvas.getContext("2d").drawImage(video, 0, 0, half_canvas.width, half_canvas.height);
+		return half_canvas;
+	}
+	// 读这一类码要跑的几路：`[{detect(video), formats}]`，第一路是主读、每帧都跑；其余是补读（WASM），主读没读到时轮流跑。
 	async function decoder(kind) {
 		const formats = WANTED[kind] || WANTED.all;
+		const main = formats.filter(format => !MATRIX.includes(format) && !DATABAR.includes(format));
+		let supported = [];
 		if (typeof window.BarcodeDetector === "function") {
-			try {
-				const supported = await window.BarcodeDetector.getSupportedFormats();
-				if (formats.every(format => supported.includes(format))) {
-					return new window.BarcodeDetector({ formats });
-				}
-			} catch (_error) { /* Use the same-origin decoder. */ }
+			try { supported = await window.BarcodeDetector.getSupportedFormats(); } catch (_error) { /* Use the same-origin decoder. */ }
 		}
-		const Reader = await load_fallback();
-		return new Reader({ formats });
+		const core = main.filter(format => CORE.includes(format));
+		const native = core.length > 0 && core.every(format => supported.includes(format));
+		const primary = native ? formats.filter(format => supported.includes(format)) : main;
+		const rest = formats.filter(format => !primary.includes(format));
+		const passes = [];
+		const wasm = () => load_fallback();
+		if (native) {
+			const detector = new window.BarcodeDetector({ formats: primary });
+			passes.push({ formats: primary, detect: video => detector.detect(video) });
+		} else if (primary.length) {
+			const Reader = await wasm();
+			const detector = new Reader({ formats: primary });
+			passes.push({ formats: primary, detect: video => detector.detect(video) });
+		}
+		// 补读：WASM 在后台加载，加载好之前不跑（主读照常）；加载不了也不影响主读
+		// 二维缩一半读；DataBar 与原生读不了的一维（如 Code 93）全分辨率读
+		for (const [group, scale] of [[MATRIX, 0.5], [[...DATABAR, ...LINEAR], 1]]) {
+			const wanted = rest.filter(format => group.includes(format));
+			if (!wanted.length) continue;
+			const pass = { formats: wanted, detect: null };
+			wasm().then(Reader => {
+				const detector = new Reader({ formats: wanted });
+				pass.detect = video => detector.detect(scale < 1 ? half(video) : video);
+			}).catch((caughtError) => globalThis.pearnlyCaught?.(caughtError, "reader"));
+			passes.push(pass);
+		}
+		if (!passes.length) throw new Error("decoder_unavailable");
+		return passes;
 	}
 
 	// 相机打不开的原因：浏览器给的错误名归成几类，页面按类给对应那句提示。
@@ -108,8 +152,24 @@
 	// `on_waiting(reason)`：App 内置浏览器里相机 5 秒还没开（请求被挂着），读码器继续等，页面决定怎么办
 	// （盘点页在 LINE 里转 LIFF）；`on_started()`：相机真的开了。
 	function reader({ video, kind = "all", on_result, on_error, on_detected, on_play_blocked, on_waiting, on_started }) {
-		let stream, decode, timer, stopped = false, paused = false, detecting = false;
+		let stream, passes, timer, stopped = false, paused = false, detecting = false;
 		let candidate = "", candidate_format = "", hits = 0, skip = "";
+		// focus：手上那个待确认的码是哪一路读出来的，下一帧先跑那一路；extra：补读轮到哪一路
+		let focus = null, extra = 0;
+		// 这一帧跑哪几路：有待确认的码只跑读出它的那一路；没有就主读，主读读不到再补读一路（轮流）
+		async function read_frame() {
+			const order = focus !== null ? [focus] : [0];
+			if (focus === null && passes.length > 1) {
+				const ready = passes.map((_pass, index) => index).filter(index => index > 0 && passes[index].detect);
+				if (ready.length) order.push(ready[extra++ % ready.length]);
+			}
+			for (const index of order) {
+				if (!passes[index]?.detect) continue;
+				const result = await passes[index].detect(video);
+				if (result[0]?.rawValue) return { result, index };
+			}
+			return { result: [], index: null };
+		}
 		const stop = () => {
 			stopped = true; window.clearTimeout(timer);
 			stream?.getTracks().forEach(track => track.stop()); stream = null;
@@ -128,7 +188,7 @@
 			try {
 				if (!paused && !detecting && video.readyState >= 2) {
 					detecting = true;
-					const result = await decode.detect(video);
+					const { result, index } = await read_frame();
 					if (stopped || paused) return;
 					// QR content is exact text: internal whitespace must not be stripped.
 					let code = String(result[0]?.rawValue || "").trim();
@@ -136,7 +196,7 @@
 					if (code && code === skip) code = "";
 					else if (code) skip = "";
 					hits = code && code === candidate && format === candidate_format ? hits + 1 : (code ? 1 : 0);
-					candidate = code; candidate_format = format;
+					candidate = code; candidate_format = format; focus = code ? index : null;
 					if (code && hits >= 2) {
 						paused = true;
 						on_detected?.();
@@ -167,13 +227,13 @@
 					stream = acquired; video.srcObject = stream; video.muted = true;
 					on_started?.();
 					await start_playing();
-					decode = await reading;
+					passes = await reading;
 					if (stopped) return;
 					void tick();
 				} catch (error) { globalThis.pearnlyCaught?.(error, "reader"); window.clearTimeout(slow); stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },
-			resume(skip_code = "") { candidate = ""; candidate_format = ""; hits = 0; skip = String(skip_code || "").trim(); paused = false; },
+			resume(skip_code = "") { candidate = ""; candidate_format = ""; hits = 0; focus = null; skip = String(skip_code || "").trim(); paused = false; },
 			has_torch() { return Boolean(stream?.getVideoTracks?.()[0]?.getCapabilities?.().torch); },
 			async torch(on) {
 				const track = stream?.getVideoTracks?.()[0];

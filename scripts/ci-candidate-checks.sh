@@ -28,6 +28,7 @@ offline() {
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_core_line_token.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_search_and_loading.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_codes_per_company.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_gs1_codes.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_stocktake_photos.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_large_lists.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_erp_default_company_warehouse.py

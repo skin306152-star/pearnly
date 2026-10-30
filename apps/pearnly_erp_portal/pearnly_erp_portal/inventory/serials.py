@@ -194,8 +194,11 @@ def reverse(ref_type, ref_id):
 
 
 def lookup(code, company, *, product=None, statuses=None, warehouse=None) -> list:
-    """扫到 / 手输的号 → 本公司没作废的台：主号全等 → 副号全等 → 主号末 8 位（各一层认到就停）。回 ``[台]``（认出几台交给人选）。"""
-    text = clean(code, MAX_NO).upper()
+    """扫到 / 手输的号 → 本公司没作废的台：主号全等 → 副号全等 → 主号末 8 位（各一层认到就停）。回 ``[台]``（认出几台交给人选）。
+    GS1 码（Data Matrix 等，``01`` GTIN + ``21`` 序列号）按里面的序列号认（10-30）。"""
+    from pearnly_erp_portal.products import gs1
+
+    text = clean(gs1.lookup(code)["serial"] or code, MAX_NO).upper()
     if not text or not company:
         return []
     base = {"company": company, "status": ["in", list(statuses or (IN_STOCK, SOLD, ISSUED))]}

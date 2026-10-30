@@ -5,7 +5,9 @@
 （车：车架号、发动机号；作废的台不占号；按台记录有公司，只在这家公司里算）。同一件商品自己的几种码相同不算撞（Express 商品的系统编码常就是 Express 编码）。
 
 - 新建 / 修改时由服务端拒：:func:`assert_free`，报出是和哪件商品的哪种码撞了；
-- 认码（扫码、手输、导入）：:func:`candidates` 收齐所有命中的商品，只有一件才认；几件就交给人选，不默认挑一个；
+- 认码（扫码、手输、导入）：:func:`candidates` 收齐所有命中的商品，只有一件才认；几件就交给人选，不默认挑一个。
+  原文对所有码；GS1 码（Data Matrix、DataBar、GS1-128）解出的 GTIN、以及 GTIN 的各种长度写法（14 / 13 / 12 位、UPC-E）对条码
+  与售卖单位条码（:mod:`products.gs1`，10-30）；
 - 存量里已经撞的：:func:`clashes` 只读列出来，不自动改。
 """
 import frappe
@@ -85,9 +87,12 @@ def candidates(value, company=None, *, active_only=True, exclude=None, rows_of=N
     """扫到 / 手输的码 → 命中的商品（同一件只出一次）：``[{name, product_name, code, internal_code, express_code, barcode,
     matched_by}]``。``company`` 给了只认这家公司 Express 的档和本地档（不给只认本地档）；``rows_of(filters, fields)``
     给了就用调用方的查法（比如跟着权限与当前公司的 ``get_list``），不再另按公司筛。"""
+    from pearnly_erp_portal.products import gs1
+
     value = str(value or "").strip()
     if not value:
         return []
+    wanted = gs1.lookup(value)
     fields = ["name", "product_name", "code", "internal_code", "express_code", "barcode", "express_company"]
 
     def visible(row):
@@ -105,10 +110,13 @@ def candidates(value, company=None, *, active_only=True, exclude=None, rows_of=N
 
     found = {}
     for field in FIELDS:
-        for row in query(field, value):
+        values = wanted["exact"] + (wanted["gtin"] if field == "barcode" else [])
+        for row in query(field, values[0] if len(values) == 1 else ["in", values]):
             if visible(row) and row["name"] not in found:
                 found[row["name"]] = {**row, "matched_by": field}
-    parents = frappe.get_all(UNIT, filters={"barcode": value, "parenttype": PRODUCT}, pluck="parent", limit_page_length=20)
+    unit_values = wanted["exact"] + wanted["gtin"]
+    parents = frappe.get_all(UNIT, filters={"barcode": unit_values[0] if len(unit_values) == 1 else ["in", unit_values],
+                                            "parenttype": PRODUCT}, pluck="parent", limit_page_length=20)
     if parents:
         for row in query("name", ["in", parents]):
             if visible(row) and row["name"] not in found:

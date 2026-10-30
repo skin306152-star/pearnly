@@ -424,6 +424,13 @@ def create_product_here(*, count, code, product_name, unit=None, default_cost=No
         name = product_contracts.require_name(product_name)
     except ValueError:
         frappe.throw(_(NAME_REQUIRED))
+    # GS1 码（Data Matrix、DataBar、GS1-128）建档只记它的商品条码：GTIN 写成 13 位 EAN（首位不是 0 的写 14 位），下次扫同一件
+    # 不管带不带批号、有效期、序列号都按条码认得出（`products.gs1`，10-30）
+    from pearnly_erp_portal.products import gs1
+
+    fields = gs1.parse(code) if code else None
+    if fields:
+        code = fields["01"][1:] if fields["01"].startswith("0") else fields["01"]
     field = product_contracts.code_field(code) if code else None
     system_code = product_service._allocate_code()
     product_service._assert_unique(system_code, code if field == "barcode" else None, internal=internal,
