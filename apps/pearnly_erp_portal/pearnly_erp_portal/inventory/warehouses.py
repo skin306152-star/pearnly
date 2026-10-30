@@ -90,6 +90,17 @@ def sole(company=None) -> str | None:
     return names[0] if len(names) == 1 else None
 
 
+def main_of(company=None, *, include_inactive=False) -> str | None:
+    """主仓 = 这家公司最先建的那个仓（开户自带；接了 Express 的公司第一次同步时它被认作 Express 主仓，`express.masters._warehouses`）。
+    这是事实判断，不是「默认仓」配置位：默认收银台建时显式挂它（10-30：接 Express 的公司同步出 7 个仓，默认收银台留空、收银报没有仓），
+    打印收货单的「คลังหลัก」也按它（含已停用的，`include_inactive`）。"""
+    filters = {"company": companies.document_company(company)}
+    if not include_inactive:
+        filters["is_active"] = 1
+    first = frappe.get_all(DOCTYPE, filters=filters, pluck="name", order_by="creation asc", limit_page_length=1)  # bounded: 最早一个
+    return first[0] if first else None
+
+
 def required(value=None, *, company=None) -> str:
     """建单/过账时取仓库：给了名字就用它（必须是这家公司启用着的仓）。
 

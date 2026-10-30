@@ -33,8 +33,9 @@ def warehouse_for(terminal=None) -> str:
     name = terminals.resolve_read(terminal)
     if not name:
         # 这家公司还没有收银台（新开户第一次打开收银台，开班时才建）：按建默认收银台时同一个规则取仓——
-        # 公司只有一个仓就是它，否则照样报"收银台还没配仓"。读接口不建收银台（GET 不提交，建了也会被回滚）。
-        return terminals.place_of({"company": companies.active_company(), "warehouse": ""})
+        # 主仓（`warehouses.main_of`，10-30），一个仓都没有才报"收银台还没配仓"。读接口不建收银台（GET 不提交，建了也会被回滚）。
+        company = companies.active_company()
+        return terminals.place_of({"company": company, "warehouse": warehouses.main_of(company) or ""})
     row = frappe.db.get_value("ERP POS Terminal", name, ["company", "warehouse"], as_dict=True)
     return terminals.place_of(row)
 

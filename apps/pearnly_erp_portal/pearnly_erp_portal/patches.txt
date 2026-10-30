@@ -40,3 +40,5 @@ pearnly_erp_portal.patches.v1_16_retire_purchase_order
 pearnly_erp_portal.patches.v1_17_company_settings
 # 开户自动建的公司补默认仓：只补 0 仓、未接 Express 的（生产应只有 gize，10-29）
 pearnly_erp_portal.patches.v1_18_default_company_warehouse
+# 收银台挂主仓：没挂仓或挂着停用仓的改挂主仓（接 Express 的公司收银报没有仓，10-30）
+pearnly_erp_portal.patches.v1_19_terminal_main_warehouse

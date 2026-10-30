@@ -139,11 +139,11 @@ def _warehouse(name) -> str:
 
 def _is_main(warehouse, company) -> bool:
     """主仓 = 这家公司最先建的那个仓（开户自带；接了 Express 的公司第一次同步时它被认作 Express 主仓，`masters._warehouses`）。"""
+    from pearnly_erp_portal.inventory import warehouses
+
     if not warehouse or not company:
         return False
-    first = frappe.get_all("ERP Warehouse", filters={"company": company}, pluck="name",  # bounded: 最早一个
-                           order_by="creation asc", limit=1)
-    return bool(first) and first[0] == warehouse
+    return warehouses.main_of(company, include_inactive=True) == warehouse
 
 
 def _party(doctype, name, company, fields) -> frappe._dict:

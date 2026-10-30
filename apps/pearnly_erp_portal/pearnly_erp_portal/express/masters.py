@@ -394,6 +394,10 @@ def apply(company, book, data, stale=False, company_name=""):
     counts["suppliers"] = _parties(SUPPLIER, company, book, data.get("suppliers"), _supplier_fields)
     counts["products"] = _products(company, book, data)
     warehouses, counts["warehouses"] = _warehouses(company, book, data)
+    # 同步建了 / 停了仓之后：没挂仓或挂着停用仓的收银台改挂主仓（10-30，接 Express 的公司第一次收银就报没有仓）
+    from pearnly_erp_portal.cashier import terminals
+
+    counts["terminals"] = len(terminals.attach_main(company))
     # 仓库码可能刚补上（Express 建了同名仓、这次认领）：停在「仓库在 Express 里没有对应的仓库」的单重新排队
     counts["requeued"] = push.requeue_unmapped(company)
     differences = stock_differences(data.get("products"), data.get("stock"))

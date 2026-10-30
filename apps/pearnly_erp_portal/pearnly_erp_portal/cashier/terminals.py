@@ -26,8 +26,8 @@ def ensure_default(company=None, warehouse=None) -> str:
 
     ⚠️ 这里说的是"默认**收银台**"（同一家公司有多台柜台时先给哪一台），不是"默认仓" ——
     "默认仓"这个概念已经删掉了（用户 2026-09-24）。新建那台时把卖货的仓写成**显式的**：
-    给了 `warehouse` 就用给的，没给就取这家公司**唯一**的仓；多个仓/一个都没有时留空，
-    卖货那条路会明确报"这台收银台还没配仓库"（见 `place_of`）。
+    给了 `warehouse` 就用给的，没给就挂这家公司的**主仓**（最先建的那个，`warehouses.main_of`；10-30 起：
+    接 Express 的公司同步出多个仓时原来留空，第一次收银就报没有仓）。一个仓都没有时才留空，卖货那条路明确报错（见 `place_of`）。
     """
     company = company or companies.active_company()
     existing = frappe.db.get_value(DOCTYPE, {"company": company, "is_default": 1}, "name")
@@ -41,7 +41,7 @@ def ensure_default(company=None, warehouse=None) -> str:
     # 默认收银台名按界面语言（录制问题 #5：泰语界面也叫「Counter 1」）。
     doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": _("company.terminalDefaultName"),
                           "company": company,
-                          "warehouse": warehouse or warehouses.sole(company) or "",
+                          "warehouse": warehouse or warehouses.main_of(company) or "",
                           "is_default": 1, "is_active": 1})
     doc.insert(ignore_permissions=True)
     return doc.name
@@ -71,6 +71,23 @@ def _checked(terminal, company=None) -> str:
     if row.company != (company or companies.active_company()):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     return terminal
+
+
+def attach_main(company) -> list[str]:
+    """这家公司没挂仓、或挂着已停用 / 不属于这家公司的仓的收银台，改挂主仓（10-30）。Express 主档同步之后调（同步会建仓、
+    停用 Express 里删掉的仓），补丁里给存量补。主仓也没有时不动。回改了的收银台。"""
+    main = warehouses.main_of(company)
+    if not main:
+        return []
+    active = set(frappe.get_all("ERP Warehouse", filters={"company": company, "is_active": 1}, pluck="name",  # bounded: 一家公司的仓
+                                limit_page_length=0))
+    changed = []
+    for row in frappe.get_all(DOCTYPE, filters={"company": company}, fields=["name", "warehouse"],  # bounded: 一家公司的收银台
+                              limit_page_length=0):
+        if row.warehouse not in active:
+            frappe.db.set_value(DOCTYPE, row.name, "warehouse", main)
+            changed.append(row.name)
+    return changed
 
 
 def resolve(terminal=None, company=None) -> str:
