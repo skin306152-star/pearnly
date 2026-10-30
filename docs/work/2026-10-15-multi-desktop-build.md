@@ -1418,6 +1418,19 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 真机（第 7 批，测试机插电后）要验：默认装好后用电池 `powercfg /requests` 里没有 CC；插上电几秒内出现 DISPLAY + SYSTEM，再拔掉几秒内消失；
 日志没有「订阅插电 / 电池切换失败」；设置里打开「用电池时也保持」后拔电仍拿住、重启 CC 后开关仍是开。
 
+### 只拿执行请求试过、不通过（2026-10-30，办公室测试机，结论：保持 1.12.6 不改）
+
+照 Claude 桌面版的样子试了一版（分支 `pearnly/cc-keep-awake-execution`，1.12.7 测试包，未合入、已删）：`PowerCreateRequest` 拿
+`PowerRequestExecutionRequired`，S3 电脑另加 `SystemRequired`，去掉 `ES_DISPLAY_REQUIRED`，想让屏幕能自己关、CC 照样在线。
+
+- 测试机（现代待机）装上后 `powercfg /requests` 只有「执行」一项、没有 DISPLAY / SYSTEM，符合设计；
+- 14:53 关屏，14:55 系统日志进入现代待机（Kernel-Power 506），网络随之断：ping、SSH 不通，切在测试机上的 testcowork 返回 530；
+- CC 心跳 14:56 起断到 15:16（局域网唤醒包 + SSH 把它叫醒为止），约 20 分钟没有心跳；同时段代录窗口在测试机上的实验栈也不可用；
+- 结论与上面 10-12 的实测一致：现代待机电脑屏幕一关就待机断网，只拿执行（或系统）请求拦不住；CC 开着防睡眠时同时拦 DISPLAY 是对的
+  （主会话 10-30 定：保持 1.12.6 现状不改）。测试机已装回 1.12.6 正式版（SHA256 `c6f01d54…` 已核）、配置整份拷回、心跳正常。
+- 顺带修了测试包构建流程：10-28 换到测试机自托管 Runner 后，商店包检查那一步缺 Windows SDK（没有 MakeAppx）必失败、拿不到安装包，
+  改成只在 GitHub 的机器上或勾选 msix 时跑（`.github/workflows/companion-build.yml`）。
+
 ## 并入外壳（10-17，本地提交，未推送）
 
 `git merge --no-ff pearnly/cc-shell-rebuild`（对方 `630ca3aa`，自上次合并 `f5c04929` 起 34 个提交，含 4 个子分支合并：侧栏对话只在本组排序、
