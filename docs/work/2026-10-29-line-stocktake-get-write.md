@@ -169,6 +169,105 @@ ERP / Cowork `work.api` 的 board / archived / board_lists / board_members / rul
    其余 doc_detail / record_switch / not_permitted 与 manual 入口按清单实测或照实记「没测到」。
 4. 顺带发现：`exports.service.sync_rows()` 用 `int(conf or 1000)`，站点配置写数字 0 会被当成没配（字符串 "0" 才生效），记作后续项。
 
+### 10-30 接着做
+
+- 删 `frontend/src/pages/HomePage.vue`（不在 SPA 路由里；它的账本导出还是 GET）：它只用共用的 `lib/api` / `lib/caught` / `lib/i18n` 和 frappe-ui 组件，
+  没有独有组件；`pn-muted` / `pn-primary` 别的页面也用，留着；`home.*` 词条桌面首页 `home.js` 按键族拼着用（`t("home.col." + label)`），不删。
+  登记表删 `cc.billing` 入口（只为这个页面登记）、`shared.exports` 的 files 去掉它，`lib/i18n.ts` 注释改掉。`npm --prefix frontend run build` 过、`check-impact.py` 登记表完整。
+- 导出阈值：`sync_rows()` 改成只有没配 / 空才用默认值，0 就是每个导出都排后台；`tests/test_exports.py` 加一条（0、"0"、负数、乱填），旧代码跑这条失败。
+- 冒烟运行器加 `--target local`：在本机回归实验室（`PEARNLY_FLOWS_LAB` 指的栈）跑登记表的自动入口，站点用两套数据的老站点、账号用实验室管理员，
+  不经测试机。用它跑本分支的连带回归清单：
+
+共 85 个入口：通过 45、不通过 0、没测到 40
+
+| 入口 | 产品 | 方式 | 结果 | 说明 |
+|---|---|---|---|---|
+| `erp.page.home` | ERP | auto：page | 通过 | 0.9 秒（第一次 7.6 / 7.1 / 4.6 / 6.0 秒是各产品第一页冷启动，复跑） |
+| `erp.page.products` | ERP | auto：page | 通过 | 1.3 秒 |
+| `erp.page.inventory` | ERP | auto：page | 通过 | 1.5 秒 |
+| `erp.page.stock-in` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.stock-out` | ERP | auto：page | 通过 | 0.9 秒 |
+| `erp.page.stock-card` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.stock-count` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.cashier` | ERP | auto：page | 通过 | 0.9 秒 |
+| `erp.page.company` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.warehouses` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.team` | ERP | auto：page | 通过 | 1.3 秒 |
+| `erp.page.purchase` | ERP | auto：page | 通过 | 1.5 秒 |
+| `erp.page.suppliers` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.sales` | ERP | auto：page | 通过 | 1.4 秒 |
+| `erp.page.pos-receipts` | ERP | auto：page | 通过 | 1.3 秒 |
+| `erp.page.pos-shifts` | ERP | auto：page | 通过 | 1.2 秒 |
+| `erp.page.clients` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.tasks` | ERP | auto：page | 通过 | 1.5 秒 |
+| `cowork.page.home` | Cowork | auto：page | 通过 | 0.7 秒（第一次 7.6 / 7.1 / 4.6 / 6.0 秒是各产品第一页冷启动，复跑） |
+| `cowork.page.intake` | Cowork | auto：page | 通过 | 0.7 秒 |
+| `cowork.page.recon-bank` | Cowork | auto：page | 通过 | 0.7 秒（第一次 7.6 / 7.1 / 4.6 / 6.0 秒是各产品第一页冷启动，复跑） |
+| `cowork.page.recon-income` | Cowork | auto：page | 通过 | 0.9 秒 |
+| `cowork.page.recon-vat` | Cowork | auto：page | 通过 | 0.9 秒 |
+| `cowork.page.stocktake` | Cowork | auto：page | 通过 | 1.1 秒 |
+| `cowork.page.work` | Cowork | auto：page | 通过 | 1.3 秒 |
+| `cowork.page.team` | Cowork | auto：page | 通过 | 1.4 秒 |
+| `dms.page.home` | DMS | auto：page | 通过 | 0.7 秒（第一次 7.6 / 7.1 / 4.6 / 6.0 秒是各产品第一页冷启动，复跑） |
+| `dms.page.connect` | DMS | auto：page | 通过 | 0.9 秒 |
+| `dms.page.records` | DMS | auto：page | 通过 | 0.9 秒 |
+| `dms.page.roster` | DMS | auto：page | 通过 | 0.9 秒 |
+| `erp.page.never.push-logs` | ERP | auto：page | 通过 | 0.9 秒 |
+| `erp.page.never.reconcile` | ERP | auto：page | 通过 | 0.9 秒 |
+| `erp.page.never.guide` | ERP | auto：page | 通过 | 1.1 秒 |
+| `erp.page.never.history` | ERP | auto：page | 通过 | 0.9 秒 |
+| `erp.report.stock-count-variance` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.sidebar-order` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.company-menu` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.detail.sales.draft` | ERP | auto：doc_detail | 没测到 | 老数据里没有这种状态的单（no draft ERP Sales Document） |
+| `erp.detail.sales.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.sales.void` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.draft` | ERP | auto：doc_detail | 没测到 | 老数据里没有这种状态的单（no draft Purchase Document） |
+| `erp.detail.purchase.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.purchase.void` | ERP | auto：doc_detail | 没测到 | 老数据里没有这种状态的单（no void Purchase Document） |
+| `erp.detail.stock-in.submitted` | ERP | auto：doc_detail | 通过 |  |
+| `erp.detail.stock-out.void` | ERP | auto：doc_detail | 没测到 | 老数据里没有这种状态的单（empty list） |
+| `erp.stock-count.switch.posted-to-active` | ERP | auto：record_switch | 通过 |  |
+| `erp.stock-count.switch.active-to-posted` | ERP | auto：record_switch | 通过 |  |
+| `erp.purchase.detail.not-permitted` | ERP | auto：not_permitted | 通过 | 受限账号 purchase@erp.regression 打开别人的采购单 |
+| `erp.sales.detail.not-permitted` | ERP | auto：not_permitted | 通过 | 受限账号 sales@erp.regression 打开别人的销售单 |
+| `cowork.stocktake.switch` | Cowork | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.home.topup-proof` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.products.image-upload` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.inventory.opening-upload` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.stock-count.upload` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.purchase.original-upload` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.sales.original-upload` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cowork.intake.upload` | Cowork | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cowork.stocktake.upload` | Cowork | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cowork.recon.upload` | Cowork | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cowork.work.attachments` | Cowork | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.upload.take-photo` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.products.import-upload` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.stock-in.attach` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.stock-out.attach` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.exports` | ERP | manual | 通过（导出部分） | 流程 erp.exports 两套数据 × 两宽度全过：销售 / 采购 / 库存 / 已过账盘点 / 班次导出；任务管理导出与 6 个 ERP 导出的排队路径实测出文件；期初模板、商品导入模板、收银小票不经 p.export_file、本次没改，没测到 |
+| `shared.exports` | 共用 | manual | 通过（ERP、Cowork 首页账本，大数据量后台导出） | 首页账本导出：ERP、Cowork 流程里点过；大数据量后台导出：浏览器里排队 → 轮询 → 自动下载 xlsx、提示「文件已准备好」；DMS 首页账本、CC 附件、1 小时过期没测到 |
+| `cowork.exports` | Cowork | manual | 通过（盘点、任务管理） | 流程 cowork.exports 全过（已结束盘点导出）；盘点（页面与原生 RPC）、任务管理导出排队路径出文件；银行 / 收入对账、销项税核查导出等收入对账流程补上后再测（暂缺对账任务）；原件下载、工作台导出没测到 |
+| `control.topup-proof` | 控制面 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `control.billing` | 控制面 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.billing` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cowork.billing` | Cowork | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `dms.billing` | DMS | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.billing` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cc.assistant` | CC | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.report.stock-summary-qty-sort` | ERP | auto：api_time | 没测到 | api_time 探针只认测试租户（拒绝实验室站点），本次没改收发存接口 |
+| `shared.page-head-declared` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.navigation` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.upload.shrink-photo` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.stock-count.new-product` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.stock-count.code` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.ocr` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.login` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `shared.browser-text` | 共用 | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `erp.browser-text` | ERP | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+| `cc.browser-text` | CC | manual | 没测到 | 人工入口；本分支在这个共用件上只改了 product.js 的 p.export_file 一个函数（和导出接口的请求方式），未逐项点，交验收窗口按清单实测 |
+
 ## 同页顺带修：保存后抬头不刷新
 
 手机页保存后，抬头「已盘点 x / y」不变，要退出重进这份盘点才更新（抬头只在打开盘点时取一次）。主会话 10-29 定同一分支修掉：

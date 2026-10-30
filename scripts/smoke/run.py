@@ -7,6 +7,8 @@
     python3 scripts/smoke/run.py --entry erp.page.products --entry erp.products.new-dialog.scan
     # 上线后：线上测试租户只读子集（页面、扫码，不写单、不发 LINE）
     python3 scripts/smoke/run.py --target production --readonly --all
+    # 本机回归实验室（tests/flows/README.md 起的栈，挂候选工作树；不经测试机）：两套数据的老站点
+    PEARNLY_FLOWS_LAB=<栈名> REGRESSION_LAB_PORT=… python3 scripts/smoke/run.py --target local --diff
 
 探针：page / scan 由本机无头 Chrome（scripts/smoke/drive.mjs，假摄像头放 make_barcode_video.py 的测试条码）打开测试租户跑；
 line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、express_flow.py，出站 LINE 一律截住、写 Express 只写测试机 C 盘 T 账套）。
@@ -21,6 +23,7 @@ line / express 在站点网页容器里跑（scripts/smoke/line_flow.py、expres
   SMOKE_USER_ERP_LIMITED 等          受限账号（只有某一岗位、看不到别人的单；入口 args 写 "as" = "limited" 的用它，没配记「没测到」）
   SMOKE_EXPRESS_USER      测试机 CC 上登录的 ERP 员工（Express 写入冒烟用；入口 args 里写了 user 时以它为准）
   SMOKE_COWORK_EXPRESS_USER  测试机 CC 上登录的 Cowork 录入人（Cowork 推送写 Express 冒烟用，同上）
+  PEARNLY_FLOWS_LAB / REGRESSION_LAB_PORT[_COWORK|_DMS]  --target local 用的实验栈名与网页口（同 tests/flows/README.md）
   SMOKE_PAGE_LIMIT_MS     页面打开时限（默认 3000；入口 args 的 limit_ms 优先）：超过算不通过。大数据量要用 testerp 这种大账套跑，
                           ERP 用 --company 指定大账套那家公司（造数见 scripts/smoke/seed_stock_load.py）
 """
@@ -50,6 +53,10 @@ reaper = importlib.util.module_from_spec(reaper_spec)
 reaper_spec.loader.exec_module(reaper)
 
 SITES = {"erp": "testerp.pearnly.com", "cowork": "testcowork.pearnly.com", "dms": "testdms.pearnly.com"}
+# --target local：本机回归实验室的站点（两套数据里有存量的老站点；DMS 用实验室自带的站点）与各自的网页口、默认账号
+LOCAL_SITES = {"erp": "erp-old.regression.localhost", "cowork": "cowork-old.regression.localhost", "dms": "dms.regression.localhost"}
+LOCAL_PORTS = {"erp": "REGRESSION_LAB_PORT", "cowork": "REGRESSION_LAB_PORT_COWORK", "dms": "REGRESSION_LAB_PORT_DMS"}
+LOCAL_DEFAULT_PORTS = {"erp": 18771, "cowork": 18772, "dms": 18773}
 READONLY_PROBES = {"page", "scan", "find_product", "assistant", "doc_detail", "record_switch", "not_permitted"}
 CONTAINER_PROBES = {"line": "line_flow.py", "express": "express_flow.py", "cowork_express": "cowork_express_flow.py",
                     "api_time": "api_time.py"}
@@ -68,6 +75,8 @@ class Remote:
         self.prod_host = os.environ.get("SMOKE_PROD_HOST", "pearnly")
 
     def container(self, product: str) -> str:
+        if self.target == "local":
+            return os.environ.get("PEARNLY_FLOWS_LAB", "pearnly-regression-lab") + "-bench-1"
         if self.target == "production":
             return f"pearnly-production-{product}-web-1"
         return f"pearnly-testenv-{product}-{product}-web-1"
@@ -80,6 +89,14 @@ class Remote:
         inner = (f"docker cp /tmp/{name} {container}:/tmp/{name} >/dev/null && "
                  f"docker exec {container} bash -c \"cd /home/frappe/frappe-bench/sites && ../env/bin/python /tmp/{name} {quoted}\" </dev/null 2>&1; "
                  f"docker exec {container} rm -f /tmp/{name} </dev/null; rm -f /tmp/{name}")
+        if self.target == "local":
+            subprocess.run(["docker", "cp", str(script), f"{container}:/tmp/{name}"], check=True, capture_output=True, timeout=120)
+            try:
+                return subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", container, "../env/bin/python",
+                                       f"/tmp/{name}", *quoted.split()], capture_output=True, text=True, timeout=timeout,
+                                      stdin=subprocess.DEVNULL).stdout
+            finally:
+                subprocess.run(["docker", "exec", "-u", "root", container, "rm", "-f", f"/tmp/{name}"], capture_output=True)
         if self.target == "production":
             subprocess.run(["scp", "-q", str(script), f"{self.prod_host}:/tmp/{name}"], check=True, timeout=120)
             return subprocess.run(["ssh", self.prod_host, inner], capture_output=True, text=True, timeout=timeout).stdout
@@ -152,7 +169,7 @@ def verdict(raw: dict, limit_ms: int | None = None) -> tuple[str, str]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--target", choices=("lab", "production"), default="lab")
+    parser.add_argument("--target", choices=("lab", "local", "production"), default="lab")
     parser.add_argument("--readonly", action="store_true", help="只跑不写数据的探针（页面、扫码）；线上必须带")
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--diff", action="store_true", help="按相对 merge-base 的改动选入口")
@@ -176,6 +193,7 @@ def main(argv=None) -> int:
     if args.site:
         chosen = [entry for entry in chosen if (entry.site or entry.product.lower()) == args.site]
     remote = Remote(args.target)
+    sites = LOCAL_SITES if args.target == "local" else SITES
     reaper.exit_on_signals()
     swept = reaper.reap_orphans()   # 以前被打断留下的孤儿 Chrome 与旧临时 profile（只认冒烟自己这一类）
     if swept["killed"] or swept["removed"]:
@@ -193,14 +211,14 @@ def main(argv=None) -> int:
                 rows.append((entry, "没测到", f"只读模式不跑 {entry.smoke}"))
                 continue
             product = entry.site or entry.product.lower()
-            site = SITES.get(product)
+            site = sites.get(product)
             if not site:
                 rows.append((entry, "没测到", f"没有 {product} 的测试租户"))
                 continue
             if entry.smoke in CONTAINER_PROBES:
                 params = dict(entry.args)
                 user = os.environ.get(EXPRESS_USERS.get(entry.smoke) or f"SMOKE_USER_{product.upper()}")
-                params.setdefault("user", user or "Administrator")
+                params.setdefault("user", user or (f"admin@{product}.regression" if args.target == "local" else "Administrator"))
                 if entry.smoke == "api_time" and args.company and product == "erp":
                     params.setdefault("company", args.company)  # 大账套那家公司（--company）
                 output = remote.run(product, HERE / CONTAINER_PROBES[entry.smoke], site, json.dumps(params, ensure_ascii=False))
@@ -211,7 +229,8 @@ def main(argv=None) -> int:
                 continue
             # 受限账号（`"as" = "limited"`）：只有某一岗位、看不到别人的单的账号；没配就不测
             limited = entry.args.get("as") == "limited"
-            user = os.environ.get(f"SMOKE_USER_{product.upper()}{'_LIMITED' if limited else ''}", "" if limited else "Administrator")
+            fallback = (f"admin@{product}.regression" if args.target == "local" else "Administrator")
+            user = os.environ.get(f"SMOKE_USER_{product.upper()}{'_LIMITED' if limited else ''}", "" if limited else fallback)
             if not user:
                 rows.append((entry, "没测到", f"没配受限账号 SMOKE_USER_{product.upper()}_LIMITED"))
                 continue
@@ -233,7 +252,8 @@ def main(argv=None) -> int:
                     print(f"建会话失败（{site} {user}）：{output[-300:]}", file=sys.stderr)
                     return 2
                 sessions[key] = (user, sid, previous)
-            url = f"https://{site}{entry.url}"
+            url = (f"http://{site}:{os.environ.get(LOCAL_PORTS[product], LOCAL_DEFAULT_PORTS[product])}{entry.url}"
+                   if args.target == "local" else f"https://{site}{entry.url}")
             raw = drive({"url": url, "cookie_domain": site, "sid": sessions[key][1], "probe": entry.smoke,
                          "args": probe_args, "video": str(video) if entry.smoke == "scan" else "",
                          "wait_ms": 7000, "wait_for": "none" if entry.smoke == "assistant" else "frappe",
@@ -244,7 +264,7 @@ def main(argv=None) -> int:
             print(f"{state}  {entry.id}  {why}", file=sys.stderr)
     finally:
         for (product, _user), (user, sid, previous) in sessions.items():
-            remote.run(product, HERE / "session.py", SITES[product], user, "drop", sid,
+            remote.run(product, HERE / "session.py", sites[product], user, "drop", sid,
                        *((previous,) if previous is not None else ()))
         __import__("shutil").rmtree(workdir, ignore_errors=True)   # 测试条码视频的临时目录
     lines = ["| 入口 | 产品 | 方式 | 结果 | 说明 |", "|---|---|---|---|---|"]
