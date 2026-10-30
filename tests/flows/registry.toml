@@ -221,3 +221,18 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py",
 ]
+
+[[flow]]
+id = "erp.cashier.first-sale"
+title = "ERP 收银台：第一次用就能查码、开班、卖货（默认收银台挂主仓，10-30）"
+module = "scripts/flows/erp_cashier_first_sale.py"
+start = "/desk/pearnly-cashier"
+user = "cashier"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py",
+]
