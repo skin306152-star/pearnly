@@ -122,10 +122,11 @@ assert.equal(profileForm.doc.pearnly_company,'Acme Motors');
 assert.equal(profileFrappe.boot.user.mute_sounds, 1,
   'saving the mute switch takes effect right away, without a full page load');
 assert.deepEqual(properties, [['email','read_only',1]]);
-for (const name of ['section_break_3','column_break_11','email','first_name','language','time_zone','pearnly_change_password']) {
+// 姓名（用户 10-30）：名、姓可改，用户名只读显示；middle_name 照旧不露。
+for (const name of ['section_break_3','column_break_11','email','username','first_name','last_name','language','time_zone','pearnly_change_password']) {
   assert.equal(toggled[name], true, `${name} must stay visible`);
 }
-for (const name of ['middle_name','last_name','username','roles','sb1','settings_tab','desk_theme']) {
+for (const name of ['middle_name','roles','sb1','settings_tab','desk_theme']) {
   assert.equal(toggled[name], false, `${name} must stay hidden`);
 }
 assert.deepEqual(refreshed, ['refresh_fields'], 'Layout is refreshed so first paint matches a later form refresh');
