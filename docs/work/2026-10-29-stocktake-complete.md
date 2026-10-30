@@ -317,3 +317,20 @@ erp.report.stock-count-variance、erp.exports（盘点导出）上表已测；�
   | 批次 / 有效期列（S1 删除，列保留隐藏） | 不再读写 | 不补 |
 - **部署回读**：补丁前后各数一次 `select count(*) from tabERP Product where ifnull(express_code,'')!='' and ifnull(origin,'')=''`（每个 ERP 站点，补后应为 0），
   写进发布记录。
+
+## 部署前补：盘点差异看板的角色（2026-10-30，验收查出）
+
+- **问题**：库存岗员工打不开「盘点差异看板」（没有权限访问报表）。报表角色只有 `ERP Stock`、`System Manager`；员工岗位已改成按菜单发角色
+  （`ERP Menu stock-count` 等），库存岗没有 `ERP Stock`。
+- **按类核对**（Report / Page / Workspace 的角色清单，只读）：
+
+  | 对象 | 原角色 | 改成 |
+  | --- | --- | --- |
+  | Report `ERP Stock Count Variance` | ERP Stock、System Manager | ERP Stock、**ERP Menu stock-count**、System Manager |
+  | 全部 32 个 Page（pearnly-*，四个 App） | Desk User（`pearnly-line-guide` 为 System Manager，控制面） | 不改：页面进出由 hooks `pearnly_navigation` 按「菜单角色 / 旧岗位角色 / ERP Admin」放行 |
+  | Workspace / Workspace Sidebar | 仓里没有 JSON（外壳在 `pearnly_core` 代码里建） | 不涉及 |
+
+  报表要能跑还要读 `ERP Stock Count Item`：盘点菜单角色本来就有（`access/setup.sync_roles`）。
+- **防再犯**：`tests/test_erp_report_menu_roles.py`（候选离线道）——产品自带报表凡给了旧岗位角色，就必须同时给至少一个菜单角色。
+- **验证**：实验栈 erp-new 迁移后报表角色含 `ERP Menu stock-count`；只有盘点菜单角色、没有 ERP Stock / ERP Admin 的员工 `stock@erp.regression`
+  `is_permitted` 为真、跑报表出 4 行。验收窗口的 `erp.stocktake.report`（库存岗身份）是回归用例。
